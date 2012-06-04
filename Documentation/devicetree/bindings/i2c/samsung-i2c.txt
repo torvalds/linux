@@ -6,14 +6,18 @@ Required properties:
   - compatible: value should be either of the following.
       (a) "samsung, s3c2410-i2c", for i2c compatible with s3c2410 i2c.
       (b) "samsung, s3c2440-i2c", for i2c compatible with s3c2440 i2c.
+      (c) "samsung, s3c2440-hdmiphy-i2c", for s3c2440-like i2c used
+          inside HDMIPHY block found on several samsung SoCs
   - reg: physical base address of the controller and length of memory mapped
     region.
   - interrupts: interrupt number to the cpu.
   - samsung,i2c-sda-delay: Delay (in ns) applied to data line (SDA) edges.
-  - gpios: The order of the gpios should be the following: <SDA, SCL>.
-    The gpio specifier depends on the gpio controller.
 
 Optional properties:
+  - gpios: The order of the gpios should be the following: <SDA, SCL>.
+    The gpio specifier depends on the gpio controller. Required in all
+    cases except for "samsung,s3c2440-hdmiphy-i2c" whose input/output
+    lines are permanently wired to the respective client
   - samsung,i2c-slave-addr: Slave address in multi-master enviroment. If not
     specified, default value is 0.
   - samsung,i2c-max-bus-freq: Desired frequency in Hz of the bus. If not

@@ -264,7 +264,7 @@ void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 		    (*pold_state == Ndis802_11Infrastructure) ||
 		    (*pold_state == Ndis802_11IBSS)) {
 			/* will clr Linked_state before this function,
-			 * we must have chked whether issue dis-assoc_cmd or
+			 * we must have checked whether issue dis-assoc_cmd or
 			 * not */
 			r8712_ind_disconnect(padapter);
 		}

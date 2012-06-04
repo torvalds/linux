@@ -500,13 +500,6 @@ static const struct pci230_board pci230_boards[] = {
 	 },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pci230_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI230) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI260) },
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, pci230_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -594,65 +587,6 @@ static const struct comedi_lrange pci230_ao_range = { 2, {
 
 /* PCI230 daccon bipolar flag for each analogue output range. */
 static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int pci230_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pci230_detach(struct comedi_device *dev);
-static struct comedi_driver driver_amplc_pci230 = {
-	.driver_name = "amplc_pci230",
-	.module = THIS_MODULE,
-	.attach = pci230_attach,
-	.detach = pci230_detach,
-	.board_name = &pci230_boards[0].name,
-	.offset = sizeof(pci230_boards[0]),
-	.num_names = ARRAY_SIZE(pci230_boards),
-};
-
-static int __devinit driver_amplc_pci230_pci_probe(struct pci_dev *dev,
-						   const struct pci_device_id
-						   *ent)
-{
-	return comedi_pci_auto_config(dev, driver_amplc_pci230.driver_name);
-}
-
-static void __devexit driver_amplc_pci230_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_amplc_pci230_pci_driver = {
-	.id_table = pci230_pci_table,
-	.probe = &driver_amplc_pci230_pci_probe,
-	.remove = __devexit_p(&driver_amplc_pci230_pci_remove)
-};
-
-static int __init driver_amplc_pci230_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_amplc_pci230);
-	if (retval < 0)
-		return retval;
-
-	driver_amplc_pci230_pci_driver.name =
-	    (char *)driver_amplc_pci230.driver_name;
-	return pci_register_driver(&driver_amplc_pci230_pci_driver);
-}
-
-static void __exit driver_amplc_pci230_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_amplc_pci230_pci_driver);
-	comedi_driver_unregister(&driver_amplc_pci230);
-}
-
-module_init(driver_amplc_pci230_init_module);
-module_exit(driver_amplc_pci230_cleanup_module);
 
 static int pci230_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
@@ -1003,35 +937,19 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int pci230_detach(struct comedi_device *dev)
+static void pci230_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: amplc_pci230: remove\n", dev->minor);
-
 	if (dev->subdevices && thisboard->have_dio)
-		/* Clean up dio subdevice. */
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv) {
 		if (devpriv->pci_dev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
-
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
-
-	return 0;
 }
 
 static int get_resources(struct comedi_device *dev, unsigned int res_mask,
@@ -3047,6 +2965,42 @@ static int pci230_ai_cancel(struct comedi_device *dev,
 	pci230_ai_stop(dev, s);
 	return 0;
 }
+
+static struct comedi_driver amplc_pci230_driver = {
+	.driver_name	= "amplc_pci230",
+	.module		= THIS_MODULE,
+	.attach		= pci230_attach,
+	.detach		= pci230_detach,
+	.board_name	= &pci230_boards[0].name,
+	.offset		= sizeof(pci230_boards[0]),
+	.num_names	= ARRAY_SIZE(pci230_boards),
+};
+
+static int __devinit amplc_pci230_pci_probe(struct pci_dev *dev,
+					    const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &amplc_pci230_driver);
+}
+
+static void __devexit amplc_pci230_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(amplc_pci230_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI230) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI260) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, amplc_pci230_pci_table);
+
+static struct pci_driver amplc_pci230_pci_driver = {
+	.name		= "amplc_pci230",
+	.id_table	= amplc_pci230_pci_table,
+	.probe		= amplc_pci230_pci_probe,
+	.remove		= __devexit_p(amplc_pci230_pci_remove)
+};
+module_comedi_pci_driver(amplc_pci230_driver, amplc_pci230_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -235,6 +235,7 @@ ENTRY(arm1020e_coherent_user_range)
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
+	mov	r0, #0
 	mov	pc, lr
 
 /*

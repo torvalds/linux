@@ -157,9 +157,9 @@ static struct garp_attr *garp_attr_lookup(const struct garp_applicant *app,
 	while (parent) {
 		attr = rb_entry(parent, struct garp_attr, node);
 		d = garp_attr_cmp(attr, data, len, type);
-		if (d < 0)
+		if (d > 0)
 			parent = parent->rb_left;
-		else if (d > 0)
+		else if (d < 0)
 			parent = parent->rb_right;
 		else
 			return attr;
@@ -178,9 +178,9 @@ static struct garp_attr *garp_attr_create(struct garp_applicant *app,
 		parent = *p;
 		attr = rb_entry(parent, struct garp_attr, node);
 		d = garp_attr_cmp(attr, data, len, type);
-		if (d < 0)
+		if (d > 0)
 			p = &parent->rb_left;
-		else if (d > 0)
+		else if (d < 0)
 			p = &parent->rb_right;
 		else {
 			/* The attribute already exists; re-use it. */

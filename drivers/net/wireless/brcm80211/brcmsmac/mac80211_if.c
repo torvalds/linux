@@ -25,7 +25,6 @@
 #include <linux/bcma/bcma.h>
 #include <net/mac80211.h>
 #include <defs.h>
-#include "nicpci.h"
 #include "phy/phy_int.h"
 #include "d11.h"
 #include "channel.h"
@@ -770,7 +769,7 @@ void brcms_dpc(unsigned long data)
  * Precondition: Since this function is called in brcms_pci_probe() context,
  * no locking is required.
  */
-static int brcms_request_fw(struct brcms_info *wl, struct pci_dev *pdev)
+static int brcms_request_fw(struct brcms_info *wl, struct bcma_device *pdev)
 {
 	int status;
 	struct device *device = &pdev->dev;
@@ -1022,7 +1021,7 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 	spin_lock_init(&wl->isr_lock);
 
 	/* prepare ucode */
-	if (brcms_request_fw(wl, pdev->bus->host_pci) < 0) {
+	if (brcms_request_fw(wl, pdev) < 0) {
 		wiphy_err(wl->wiphy, "%s: Failed to find firmware usually in "
 			  "%s\n", KBUILD_MODNAME, "/lib/firmware/brcm");
 		brcms_release_fw(wl);
@@ -1043,12 +1042,12 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 	wl->pub->ieee_hw = hw;
 
 	/* register our interrupt handler */
-	if (request_irq(pdev->bus->host_pci->irq, brcms_isr,
+	if (request_irq(pdev->irq, brcms_isr,
 			IRQF_SHARED, KBUILD_MODNAME, wl)) {
 		wiphy_err(wl->wiphy, "wl%d: request_irq() failed\n", unit);
 		goto fail;
 	}
-	wl->irq = pdev->bus->host_pci->irq;
+	wl->irq = pdev->irq;
 
 	/* register module */
 	brcms_c_module_register(wl->pub, "linux", wl, NULL);
@@ -1069,11 +1068,7 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 		wiphy_err(wl->wiphy, "%s: ieee80211_register_hw failed, status"
 			  "%d\n", __func__, err);
 
-	if (wl->pub->srom_ccode[0])
-		err = brcms_set_hint(wl, wl->pub->srom_ccode);
-	else
-		err = brcms_set_hint(wl, "US");
-	if (err)
+	if (wl->pub->srom_ccode[0] && brcms_set_hint(wl, wl->pub->srom_ccode))
 		wiphy_err(wl->wiphy, "%s: regulatory_hint failed, status %d\n",
 			  __func__, err);
 
@@ -1102,7 +1097,7 @@ static int __devinit brcms_bcma_probe(struct bcma_device *pdev)
 
 	dev_info(&pdev->dev, "mfg %x core %x rev %d class %d irq %d\n",
 		 pdev->id.manuf, pdev->id.id, pdev->id.rev, pdev->id.class,
-		 pdev->bus->host_pci->irq);
+		 pdev->irq);
 
 	if ((pdev->id.manuf != BCMA_MANUF_BCM) ||
 	    (pdev->id.id != BCMA_CORE_80211))

@@ -1864,7 +1864,6 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 #endif	/* CONFIG_X86_64 */
 
 static unsigned char dummy_mapping[PAGE_SIZE] __page_aligned_bss;
-static unsigned char fake_ioapic_mapping[PAGE_SIZE] __page_aligned_bss;
 
 static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 {
@@ -1905,7 +1904,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 		 * We just don't map the IO APIC - all access is via
 		 * hypercalls.  Keep the address in the pte for reference.
 		 */
-		pte = pfn_pte(PFN_DOWN(__pa(fake_ioapic_mapping)), PAGE_KERNEL);
+		pte = pfn_pte(PFN_DOWN(__pa(dummy_mapping)), PAGE_KERNEL);
 		break;
 #endif
 
@@ -1932,29 +1931,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 		set_pte_vaddr_pud(level3_user_vsyscall, vaddr, pte);
 	}
 #endif
-}
-
-void __init xen_ident_map_ISA(void)
-{
-	unsigned long pa;
-
-	/*
-	 * If we're dom0, then linear map the ISA machine addresses into
-	 * the kernel's address space.
-	 */
-	if (!xen_initial_domain())
-		return;
-
-	xen_raw_printk("Xen: setup ISA identity maps\n");
-
-	for (pa = ISA_START_ADDRESS; pa < ISA_END_ADDRESS; pa += PAGE_SIZE) {
-		pte_t pte = mfn_pte(PFN_DOWN(pa), PAGE_KERNEL_IO);
-
-		if (HYPERVISOR_update_va_mapping(PAGE_OFFSET + pa, pte, 0))
-			BUG();
-	}
-
-	xen_flush_tlb();
 }
 
 static void __init xen_post_allocator_init(void)
@@ -2070,7 +2046,6 @@ void __init xen_init_mmu_ops(void)
 	pv_mmu_ops = xen_mmu_ops;
 
 	memset(dummy_mapping, 0xff, PAGE_SIZE);
-	memset(fake_ioapic_mapping, 0xfd, PAGE_SIZE);
 }
 
 /* Protected by xen_reservation_lock. */

@@ -71,6 +71,7 @@
 
 /* 16xx specific defines */
 #define OMAP1_32K_TIMER_BASE		0xfffb9000
+#define OMAP1_32KSYNC_TIMER_BASE	0xfffbc400
 #define OMAP1_32K_TIMER_CR		0x08
 #define OMAP1_32K_TIMER_TVR		0x00
 #define OMAP1_32K_TIMER_TCR		0x04
@@ -182,10 +183,29 @@ static __init void omap_init_32k_timer(void)
  * Timer initialization
  * ---------------------------------------------------------------------------
  */
-bool __init omap_32k_timer_init(void)
+int __init omap_32k_timer_init(void)
 {
-	omap_init_clocksource_32k();
-	omap_init_32k_timer();
+	int ret = -ENODEV;
 
-	return true;
+	if (cpu_is_omap16xx()) {
+		void __iomem *base;
+		struct clk *sync32k_ick;
+
+		base = ioremap(OMAP1_32KSYNC_TIMER_BASE, SZ_1K);
+		if (!base) {
+			pr_err("32k_counter: failed to map base addr\n");
+			return -ENODEV;
+		}
+
+		sync32k_ick = clk_get(NULL, "omap_32ksync_ick");
+		if (!IS_ERR(sync32k_ick))
+			clk_enable(sync32k_ick);
+
+		ret = omap_init_clocksource_32k(base);
+	}
+
+	if (!ret)
+		omap_init_32k_timer();
+
+	return ret;
 }

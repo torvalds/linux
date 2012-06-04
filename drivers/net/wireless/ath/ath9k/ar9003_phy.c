@@ -152,7 +152,6 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	REG_WRITE(ah, AR_PHY_65NM_CH0_SYNTH7, reg32);
 
 	ah->curchan = chan;
-	ah->curchan_rad_index = -1;
 
 	return 0;
 }
@@ -209,11 +208,12 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 			continue;
 		negative = 0;
 		if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah))
-			cur_bb_spur = FBIN2FREQ(spur_fbin_ptr[i],
-					IS_CHAN_2GHZ(chan)) - synth_freq;
+			cur_bb_spur = ath9k_hw_fbin2freq(spur_fbin_ptr[i],
+							 IS_CHAN_2GHZ(chan));
 		else
-			cur_bb_spur = spur_freq[i] - synth_freq;
+			cur_bb_spur = spur_freq[i];
 
+		cur_bb_spur -= synth_freq;
 		if (cur_bb_spur < 0) {
 			negative = 1;
 			cur_bb_spur = -cur_bb_spur;
@@ -443,7 +443,8 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 	ar9003_hw_spur_ofdm_clear(ah);
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS && spurChansPtr[i]; i++) {
-		freq_offset = FBIN2FREQ(spurChansPtr[i], mode) - synth_freq;
+		freq_offset = ath9k_hw_fbin2freq(spurChansPtr[i], mode);
+		freq_offset -= synth_freq;
 		if (abs(freq_offset) < range) {
 			ar9003_hw_spur_ofdm_work(ah, chan, freq_offset);
 			break;
@@ -525,22 +526,10 @@ static void ar9003_hw_init_bb(struct ath_hw *ah,
 	 * Value is in 100ns increments.
 	 */
 	synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-	if (IS_CHAN_B(chan))
-		synthDelay = (4 * synthDelay) / 22;
-	else
-		synthDelay /= 10;
 
 	/* Activate the PHY (includes baseband activate + synthesizer on) */
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
-
-	/*
-	 * There is an issue if the AP starts the calibration before
-	 * the base band timeout completes.  This could result in the
-	 * rx_clear false triggering.  As a workaround we add delay an
-	 * extra BASE_ACTIVATE_DELAY usecs to ensure this condition
-	 * does not happen.
-	 */
-	udelay(synthDelay + BASE_ACTIVATE_DELAY);
+	ath9k_hw_synth_delay(ah, chan, synthDelay);
 }
 
 static void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
@@ -684,9 +673,6 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 
 	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
-	if (AR_SREV_9462(ah))
-		ar9003_hw_prog_ini(ah, &ah->ini_BTCOEX_MAX_TXPWR, 1);
-
 	if (chan->channel == 2484)
 		ar9003_hw_prog_ini(ah, &ah->ini_japan2484, 1);
 
@@ -725,6 +711,14 @@ static void ar9003_hw_set_rfmode(struct ath_hw *ah,
 
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		rfMode |= (AR_PHY_MODE_DYNAMIC | AR_PHY_MODE_DYN_CCK_DISABLE);
+	if (IS_CHAN_QUARTER_RATE(chan))
+		rfMode |= AR_PHY_MODE_QUARTER;
+	if (IS_CHAN_HALF_RATE(chan))
+		rfMode |= AR_PHY_MODE_HALF;
+
+	if (rfMode & (AR_PHY_MODE_QUARTER | AR_PHY_MODE_HALF))
+		REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL,
+			      AR_PHY_FRAME_CTL_CF_OVERLAP_WINDOW, 3);
 
 	REG_WRITE(ah, AR_PHY_MODE, rfMode);
 }
@@ -795,12 +789,8 @@ static bool ar9003_hw_rfbus_req(struct ath_hw *ah)
 static void ar9003_hw_rfbus_done(struct ath_hw *ah)
 {
 	u32 synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-	if (IS_CHAN_B(ah->curchan))
-		synthDelay = (4 * synthDelay) / 22;
-	else
-		synthDelay /= 10;
 
-	udelay(synthDelay + BASE_ACTIVATE_DELAY);
+	ath9k_hw_synth_delay(ah, ah->curchan, synthDelay);
 
 	REG_WRITE(ah, AR_PHY_RFBUS_REQ, 0);
 }
@@ -823,55 +813,6 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		 * on == 0 means more noise imm
 		 */
 		u32 on = param ? 1 : 0;
-		/*
-		 * make register setting for default
-		 * (weak sig detect ON) come from INI file
-		 */
-		int m1ThreshLow = on ?
-			aniState->iniDef.m1ThreshLow : m1ThreshLow_off;
-		int m2ThreshLow = on ?
-			aniState->iniDef.m2ThreshLow : m2ThreshLow_off;
-		int m1Thresh = on ?
-			aniState->iniDef.m1Thresh : m1Thresh_off;
-		int m2Thresh = on ?
-			aniState->iniDef.m2Thresh : m2Thresh_off;
-		int m2CountThr = on ?
-			aniState->iniDef.m2CountThr : m2CountThr_off;
-		int m2CountThrLow = on ?
-			aniState->iniDef.m2CountThrLow : m2CountThrLow_off;
-		int m1ThreshLowExt = on ?
-			aniState->iniDef.m1ThreshLowExt : m1ThreshLowExt_off;
-		int m2ThreshLowExt = on ?
-			aniState->iniDef.m2ThreshLowExt : m2ThreshLowExt_off;
-		int m1ThreshExt = on ?
-			aniState->iniDef.m1ThreshExt : m1ThreshExt_off;
-		int m2ThreshExt = on ?
-			aniState->iniDef.m2ThreshExt : m2ThreshExt_off;
-
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M1_THRESH_LOW,
-			      m1ThreshLow);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M2_THRESH_LOW,
-			      m2ThreshLow);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M1_THRESH, m1Thresh);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M2_THRESH, m2Thresh);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M2COUNT_THR, m2CountThr);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M2COUNT_THR_LOW,
-			      m2CountThrLow);
-
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M1_THRESH_LOW, m1ThreshLowExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M2_THRESH_LOW, m2ThreshLowExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M1_THRESH, m1ThreshExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M2_THRESH, m2ThreshExt);
 
 		if (on)
 			REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,

@@ -2328,7 +2328,7 @@ static void __devexit snd_echo_remove(struct pci_dev *pci)
 ******************************************************************************/
 
 /* pci_driver definition */
-static struct pci_driver driver = {
+static struct pci_driver echo_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_echo_ids,
 	.probe = snd_echo_probe,
@@ -2339,22 +2339,4 @@ static struct pci_driver driver = {
 #endif /* CONFIG_PM */
 };
 
-
-
-/* initialization of the module */
-static int __init alsa_card_echo_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-
-
-/* clean up the module */
-static void __exit alsa_card_echo_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-
-module_init(alsa_card_echo_init)
-module_exit(alsa_card_echo_exit)
+module_pci_driver(echo_driver);

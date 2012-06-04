@@ -18,12 +18,14 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
+#include <linux/of_serial.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
+#include <linux/platform_data/tegra_usb.h>
 
 #include <sound/wm8903.h>
 
@@ -47,6 +49,7 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		/* Memory and IRQ filled in before registration */
 		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
 		.type		= PORT_TEGRA,
+		.handle_break	= tegra_serial_handle_break,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,
@@ -153,7 +156,6 @@ static struct platform_device *seaboard_devices[] __initdata = {
 	&seaboard_gpio_keys_device,
 	&tegra_i2s_device1,
 	&tegra_das_device,
-	&tegra_pcm_device,
 	&seaboard_audio_device,
 };
 
@@ -186,20 +188,10 @@ static struct i2c_board_info __initdata wm8903_device = {
 
 static int seaboard_ehci_init(void)
 {
-	int gpio_status;
+	struct tegra_ehci_platform_data *pdata;
 
-	gpio_status = gpio_request(TEGRA_GPIO_USB1, "VBUS_USB1");
-	if (gpio_status < 0) {
-		pr_err("VBUS_USB1 request GPIO FAILED\n");
-		WARN_ON(1);
-	}
-
-	gpio_status = gpio_direction_output(TEGRA_GPIO_USB1, 1);
-	if (gpio_status < 0) {
-		pr_err("VBUS_USB1 request GPIO DIRECTION FAILED\n");
-		WARN_ON(1);
-	}
-	gpio_set_value(TEGRA_GPIO_USB1, 1);
+	pdata = tegra_ehci1_device.dev.platform_data;
+	pdata->vbus_gpio = TEGRA_GPIO_USB1;
 
 	platform_device_register(&tegra_ehci1_device);
 	platform_device_register(&tegra_ehci3_device);
@@ -209,9 +201,6 @@ static int seaboard_ehci_init(void)
 
 static void __init seaboard_i2c_init(void)
 {
-	gpio_request(TEGRA_GPIO_ISL29018_IRQ, "isl29018");
-	gpio_direction_input(TEGRA_GPIO_ISL29018_IRQ);
-
 	isl29018_device.irq = gpio_to_irq(TEGRA_GPIO_ISL29018_IRQ);
 	i2c_register_board_info(0, &isl29018_device, 1);
 
@@ -261,7 +250,6 @@ static void __init tegra_kaen_init(void)
 	debug_uart_platform_data[0].irq = INT_UARTB;
 
 	seaboard_audio_pdata.gpio_hp_mute = TEGRA_GPIO_KAEN_HP_MUTE;
-	tegra_gpio_enable(TEGRA_GPIO_KAEN_HP_MUTE);
 
 	seaboard_common_init();
 
@@ -289,6 +277,7 @@ MACHINE_START(SEABOARD, "seaboard")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_seaboard_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END
 
@@ -300,6 +289,7 @@ MACHINE_START(KAEN, "kaen")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_kaen_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END
 
@@ -311,5 +301,6 @@ MACHINE_START(WARIO, "wario")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_wario_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END

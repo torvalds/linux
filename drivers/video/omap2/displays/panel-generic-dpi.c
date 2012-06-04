@@ -386,6 +386,106 @@ static struct panel_config generic_dpi_panels[] = {
 
 		.name			= "innolux_at080tn52",
 	},
+
+	/* Mitsubishi AA084SB01 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 600,
+			.pixel_clock	= 40000,
+
+			.hsw		= 1,
+			.hfp		= 254,
+			.hbp		= 1,
+
+			.vsw		= 1,
+			.vfp		= 26,
+			.vbp		= 1,
+		},
+		.config			= OMAP_DSS_LCD_TFT,
+		.name			= "mitsubishi_aa084sb01",
+	},
+	/* EDT ET0500G0DH6 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+			.pixel_clock	= 33260,
+
+			.hsw		= 128,
+			.hfp		= 216,
+			.hbp		= 40,
+
+			.vsw		= 2,
+			.vfp		= 35,
+			.vbp		= 10,
+		},
+		.config			= OMAP_DSS_LCD_TFT,
+		.name			= "edt_et0500g0dh6",
+	},
+
+	/* Prime-View PD050VL1 */
+	{
+		{
+			.x_res		= 640,
+			.y_res		= 480,
+
+			.pixel_clock	= 25000,
+
+			.hsw		= 96,
+			.hfp		= 18,
+			.hbp		= 46,
+
+			.vsw		= 2,
+			.vfp		= 10,
+			.vbp		= 33,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.name			= "primeview_pd050vl1",
+	},
+
+	/* Prime-View PM070WL4 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+
+			.pixel_clock	= 32000,
+
+			.hsw		= 128,
+			.hfp		= 42,
+			.hbp		= 86,
+
+			.vsw		= 2,
+			.vfp		= 10,
+			.vbp		= 33,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.name			= "primeview_pm070wl4",
+	},
+
+	/* Prime-View PD104SLF */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 600,
+
+			.pixel_clock	= 40000,
+
+			.hsw		= 128,
+			.hfp		= 42,
+			.hbp		= 86,
+
+			.vsw		= 4,
+			.vfp		= 1,
+			.vbp		= 23,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.name			= "primeview_pd104slf",
+	},
 };
 
 struct panel_drv_data {
@@ -549,12 +649,6 @@ static void generic_dpi_panel_set_timings(struct omap_dss_device *dssdev,
 	dpi_set_timings(dssdev, timings);
 }
 
-static void generic_dpi_panel_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	*timings = dssdev->panel.timings;
-}
-
 static int generic_dpi_panel_check_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
@@ -571,7 +665,6 @@ static struct omap_dss_driver dpi_driver = {
 	.resume		= generic_dpi_panel_resume,
 
 	.set_timings	= generic_dpi_panel_set_timings,
-	.get_timings	= generic_dpi_panel_get_timings,
 	.check_timings	= generic_dpi_panel_check_timings,
 
 	.driver         = {

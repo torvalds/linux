@@ -179,28 +179,12 @@ static struct mtd_partition h2_nand_partitions[] = {
 	},
 };
 
-static void h2_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
-{
-	struct nand_chip *this = mtd->priv;
-	unsigned long mask;
-
-	if (cmd == NAND_CMD_NONE)
-		return;
-
-	mask = (ctrl & NAND_CLE) ? 0x02 : 0;
-	if (ctrl & NAND_ALE)
-		mask |= 0x04;
-	writeb(cmd, (unsigned long)this->IO_ADDR_W | mask);
-}
-
 #define H2_NAND_RB_GPIO_PIN	62
 
 static int h2_nand_dev_ready(struct mtd_info *mtd)
 {
 	return gpio_get_value(H2_NAND_RB_GPIO_PIN);
 }
-
-static const char *h2_part_probes[] = { "cmdlinepart", NULL };
 
 static struct platform_nand_data h2_nand_platdata = {
 	.chip	= {
@@ -209,12 +193,10 @@ static struct platform_nand_data h2_nand_platdata = {
 		.nr_partitions		= ARRAY_SIZE(h2_nand_partitions),
 		.partitions		= h2_nand_partitions,
 		.options		= NAND_SAMSUNG_LP_OPTIONS,
-		.part_probe_types	= h2_part_probes,
 	},
 	.ctrl	= {
-		.cmd_ctrl	= h2_nand_cmd_ctl,
+		.cmd_ctrl	= omap1_nand_cmd_ctl,
 		.dev_ready	= h2_nand_dev_ready,
-
 	},
 };
 
@@ -446,6 +428,7 @@ MACHINE_START(OMAP_H2, "TI-H2")
 	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= h2_init,
+	.init_late	= omap1_init_late,
 	.timer		= &omap1_timer,
 	.restart	= omap1_restart,
 MACHINE_END

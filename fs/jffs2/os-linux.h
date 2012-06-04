@@ -95,6 +95,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_ubivol(c) (0)
 #define jffs2_ubivol_setup(c) (0)
 #define jffs2_ubivol_cleanup(c) do {} while (0)
+#define jffs2_dirty_trigger(c) do {} while (0)
 
 #else /* NAND and/or ECC'd NOR support present */
 
@@ -135,13 +136,9 @@ void jffs2_ubivol_cleanup(struct jffs2_sb_info *c);
 #define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && ! (c->mtd->flags & MTD_BIT_WRITEABLE))
 int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c);
+void jffs2_dirty_trigger(struct jffs2_sb_info *c);
 
 #endif /* WRITEBUFFER */
-
-static inline void jffs2_dirty_trigger(struct jffs2_sb_info *c)
-{
-	OFNI_BS_2SFFJ(c)->s_dirt = 1;
-}
 
 /* background.c */
 int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c);

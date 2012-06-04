@@ -182,8 +182,12 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #endif
 	ti->cpu_context.r15 = (unsigned long)ret_from_fork - 8;
 
+	/*
+	 *  r21 is the thread reg, r10 is 6th arg to clone
+	 *  which contains TLS area
+	 */
 	if (clone_flags & CLONE_SETTLS)
-		;
+		childregs->r21 = childregs->r10;
 
 	return 0;
 }

@@ -30,9 +30,10 @@
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
+
+const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 static int iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 {
@@ -170,6 +171,50 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	return cmd.handler_status;
 }
 
+static bool iwl_is_channel_extension(struct iwl_priv *priv,
+				     enum ieee80211_band band,
+				     u16 channel, u8 extension_chan_offset)
+{
+	const struct iwl_channel_info *ch_info;
+
+	ch_info = iwl_get_channel_info(priv, band, channel);
+	if (!is_channel_valid(ch_info))
+		return false;
+
+	if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
+		return !(ch_info->ht40_extension_channel &
+					IEEE80211_CHAN_NO_HT40PLUS);
+	else if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW)
+		return !(ch_info->ht40_extension_channel &
+					IEEE80211_CHAN_NO_HT40MINUS);
+
+	return false;
+}
+
+bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
+			    struct ieee80211_sta_ht_cap *ht_cap)
+{
+	if (!ctx->ht.enabled || !ctx->ht.is_40mhz)
+		return false;
+
+	/*
+	 * We do not check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
+	 * the bit will not set if it is pure 40MHz case
+	 */
+	if (ht_cap && !ht_cap->ht_supported)
+		return false;
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (priv->disable_ht40)
+		return false;
+#endif
+
+	return iwl_is_channel_extension(priv, priv->band,
+			le16_to_cpu(ctx->staging.channel),
+			ctx->ht.extension_chan_offset);
+}
+
 static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 				  struct ieee80211_sta *sta,
 				  struct iwl_rxon_context *ctx,
@@ -277,8 +322,8 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		sta_id = ctx->bcast_sta_id;
 	else
 		for (i = IWL_STA_ID; i < IWLAGN_STATION_COUNT; i++) {
-			if (!compare_ether_addr(priv->stations[i].sta.sta.addr,
-						addr)) {
+			if (ether_addr_equal(priv->stations[i].sta.sta.addr,
+					     addr)) {
 				sta_id = i;
 				break;
 			}
@@ -308,7 +353,7 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 	if ((priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE) &&
 	    (priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE) &&
-	    !compare_ether_addr(priv->stations[sta_id].sta.sta.addr, addr)) {
+	    ether_addr_equal(priv->stations[sta_id].sta.sta.addr, addr)) {
 		IWL_DEBUG_ASSOC(priv, "STA %d (%pM) already added, not "
 				"adding again.\n", sta_id, addr);
 		return sta_id;
@@ -581,6 +626,56 @@ void iwl_deactivate_station(struct iwl_priv *priv, const u8 sta_id,
 	spin_unlock_bh(&priv->sta_lock);
 }
 
+static void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+			    u8 sta_id, struct iwl_link_quality_cmd *link_cmd)
+{
+	int i, r;
+	u32 rate_flags = 0;
+	__le32 rate_n_flags;
+
+	lockdep_assert_held(&priv->mutex);
+
+	memset(link_cmd, 0, sizeof(*link_cmd));
+
+	/* Set up the rate scaling to start at selected rate, fall back
+	 * all the way down to 1M in IEEE order, and then spin on 1M */
+	if (priv->band == IEEE80211_BAND_5GHZ)
+		r = IWL_RATE_6M_INDEX;
+	else if (ctx && ctx->vif && ctx->vif->p2p)
+		r = IWL_RATE_6M_INDEX;
+	else
+		r = IWL_RATE_1M_INDEX;
+
+	if (r >= IWL_FIRST_CCK_RATE && r <= IWL_LAST_CCK_RATE)
+		rate_flags |= RATE_MCS_CCK_MSK;
+
+	rate_flags |= first_antenna(priv->hw_params.valid_tx_ant) <<
+				RATE_MCS_ANT_POS;
+	rate_n_flags = iwl_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
+	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
+		link_cmd->rs_table[i].rate_n_flags = rate_n_flags;
+
+	link_cmd->general_params.single_stream_ant_msk =
+			first_antenna(priv->hw_params.valid_tx_ant);
+
+	link_cmd->general_params.dual_stream_ant_msk =
+		priv->hw_params.valid_tx_ant &
+		~first_antenna(priv->hw_params.valid_tx_ant);
+	if (!link_cmd->general_params.dual_stream_ant_msk) {
+		link_cmd->general_params.dual_stream_ant_msk = ANT_AB;
+	} else if (num_of_ant(priv->hw_params.valid_tx_ant) == 2) {
+		link_cmd->general_params.dual_stream_ant_msk =
+			priv->hw_params.valid_tx_ant;
+	}
+
+	link_cmd->agg_params.agg_dis_start_th =
+		LINK_QUAL_AGG_DISABLE_START_DEF;
+	link_cmd->agg_params.agg_time_limit =
+		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
+
+	link_cmd->sta_id = sta_id;
+}
+
 /**
  * iwl_clear_ucode_stations - clear ucode station table bits
  *
@@ -677,7 +772,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 						~IWL_STA_DRIVER_ACTIVE;
 				priv->stations[i].used &=
 						~IWL_STA_UCODE_INPROGRESS;
-				spin_unlock_bh(&priv->sta_lock);
+				continue;
 			}
 			/*
 			 * Rate scaling has already been initialized, send
@@ -840,56 +935,6 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	return ret;
 }
 
-
-void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-		     u8 sta_id, struct iwl_link_quality_cmd *link_cmd)
-{
-	int i, r;
-	u32 rate_flags = 0;
-	__le32 rate_n_flags;
-
-	lockdep_assert_held(&priv->mutex);
-
-	memset(link_cmd, 0, sizeof(*link_cmd));
-
-	/* Set up the rate scaling to start at selected rate, fall back
-	 * all the way down to 1M in IEEE order, and then spin on 1M */
-	if (priv->band == IEEE80211_BAND_5GHZ)
-		r = IWL_RATE_6M_INDEX;
-	else if (ctx && ctx->vif && ctx->vif->p2p)
-		r = IWL_RATE_6M_INDEX;
-	else
-		r = IWL_RATE_1M_INDEX;
-
-	if (r >= IWL_FIRST_CCK_RATE && r <= IWL_LAST_CCK_RATE)
-		rate_flags |= RATE_MCS_CCK_MSK;
-
-	rate_flags |= first_antenna(hw_params(priv).valid_tx_ant) <<
-				RATE_MCS_ANT_POS;
-	rate_n_flags = iwl_hw_set_rate_n_flags(iwl_rates[r].plcp, rate_flags);
-	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
-		link_cmd->rs_table[i].rate_n_flags = rate_n_flags;
-
-	link_cmd->general_params.single_stream_ant_msk =
-			first_antenna(hw_params(priv).valid_tx_ant);
-
-	link_cmd->general_params.dual_stream_ant_msk =
-		hw_params(priv).valid_tx_ant &
-		~first_antenna(hw_params(priv).valid_tx_ant);
-	if (!link_cmd->general_params.dual_stream_ant_msk) {
-		link_cmd->general_params.dual_stream_ant_msk = ANT_AB;
-	} else if (num_of_ant(hw_params(priv).valid_tx_ant) == 2) {
-		link_cmd->general_params.dual_stream_ant_msk =
-			hw_params(priv).valid_tx_ant;
-	}
-
-	link_cmd->agg_params.agg_dis_start_th =
-		LINK_QUAL_AGG_DISABLE_START_DEF;
-	link_cmd->agg_params.agg_time_limit =
-		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
-
-	link_cmd->sta_id = sta_id;
-}
 
 static struct iwl_link_quality_cmd *
 iwl_sta_alloc_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,

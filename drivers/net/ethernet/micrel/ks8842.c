@@ -1262,7 +1262,7 @@ static struct platform_driver ks8842_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ks8842_probe,
-	.remove		= ks8842_remove,
+	.remove		= __devexit_p(ks8842_remove),
 };
 
 module_platform_driver(ks8842_platform_driver);

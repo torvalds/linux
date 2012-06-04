@@ -93,11 +93,9 @@ static int acpi_sleep_prepare(u32 acpi_state)
 #ifdef CONFIG_ACPI_SLEEP
 	/* do we have a wakeup address for S2 and S3? */
 	if (acpi_state == ACPI_STATE_S3) {
-		if (!acpi_wakeup_address) {
+		if (!acpi_wakeup_address)
 			return -EFAULT;
-		}
-		acpi_set_firmware_waking_vector(
-				(acpi_physical_address)acpi_wakeup_address);
+		acpi_set_firmware_waking_vector(acpi_wakeup_address);
 
 	}
 	ACPI_FLUSH_CPU_CACHE();
@@ -887,7 +885,7 @@ int __init acpi_sleep_init(void)
 		status = acpi_get_sleep_type_data(i, &type_a, &type_b);
 		if (ACPI_SUCCESS(status)) {
 			sleep_states[i] = 1;
-			printk(" S%d", i);
+			printk(KERN_CONT " S%d", i);
 		}
 	}
 
@@ -901,7 +899,7 @@ int __init acpi_sleep_init(void)
 		hibernation_set_ops(old_suspend_ordering ?
 			&acpi_hibernation_ops_old : &acpi_hibernation_ops);
 		sleep_states[ACPI_STATE_S4] = 1;
-		printk(" S4");
+		printk(KERN_CONT " S4");
 		if (!nosigcheck) {
 			acpi_get_table(ACPI_SIG_FACS, 1,
 				(struct acpi_table_header **)&facs);
@@ -914,11 +912,11 @@ int __init acpi_sleep_init(void)
 	status = acpi_get_sleep_type_data(ACPI_STATE_S5, &type_a, &type_b);
 	if (ACPI_SUCCESS(status)) {
 		sleep_states[ACPI_STATE_S5] = 1;
-		printk(" S5");
+		printk(KERN_CONT " S5");
 		pm_power_off_prepare = acpi_power_off_prepare;
 		pm_power_off = acpi_power_off;
 	}
-	printk(")\n");
+	printk(KERN_CONT ")\n");
 	/*
 	 * Register the tts_notifier to reboot notifier list so that the _TTS
 	 * object can also be evaluated when the system enters S5.

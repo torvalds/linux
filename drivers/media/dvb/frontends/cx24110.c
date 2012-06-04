@@ -512,14 +512,13 @@ static int cx24110_read_snr(struct dvb_frontend* fe, u16* snr)
 static int cx24110_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
-	u32 lastbyer;
 
 	if(cx24110_readreg(state,0x10)&0x40) {
 		/* the RS error counter has finished one counting window */
 		cx24110_writereg(state,0x10,0x60); /* select the byer reg */
-		lastbyer=cx24110_readreg(state,0x12)|
-			(cx24110_readreg(state,0x13)<<8)|
-			(cx24110_readreg(state,0x14)<<16);
+		cx24110_readreg(state, 0x12) |
+			(cx24110_readreg(state, 0x13) << 8) |
+			(cx24110_readreg(state, 0x14) << 16);
 		cx24110_writereg(state,0x10,0x70); /* select the bler reg */
 		state->lastbler=cx24110_readreg(state,0x12)|
 			(cx24110_readreg(state,0x13)<<8)|

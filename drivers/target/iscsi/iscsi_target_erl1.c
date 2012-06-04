@@ -279,11 +279,9 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_no(
 		 * seq->first_datasn and seq->last_datasn have not been set.
 		 */
 		if (!seq->sent) {
-#if 0
 			pr_err("Ignoring non-sent sequence 0x%08x ->"
 				" 0x%08x\n\n", seq->first_datasn,
 				seq->last_datasn);
-#endif
 			continue;
 		}
 
@@ -294,11 +292,10 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_no(
 		 */
 		if ((seq->first_datasn < begrun) &&
 				(seq->last_datasn < begrun)) {
-#if 0
 			pr_err("Pre BegRun sequence 0x%08x ->"
 				" 0x%08x\n", seq->first_datasn,
 				seq->last_datasn);
-#endif
+
 			read_data_done += cmd->seq_list[i].xfer_len;
 			seq->next_burst_len = seq->pdu_send_order = 0;
 			continue;
@@ -309,11 +306,10 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_no(
 		 */
 		if ((seq->first_datasn <= begrun) &&
 				(seq->last_datasn >= begrun)) {
-#if 0
 			pr_err("Found sequence begrun: 0x%08x in"
 				" 0x%08x -> 0x%08x\n", begrun,
 				seq->first_datasn, seq->last_datasn);
-#endif
+
 			seq_send_order = seq->seq_send_order;
 			data_sn = seq->first_datasn;
 			seq->next_burst_len = seq->pdu_send_order = 0;
@@ -369,10 +365,9 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_no(
 		 */
 		if ((seq->first_datasn > begrun) ||
 				(seq->last_datasn > begrun)) {
-#if 0
 			pr_err("Post BegRun sequence 0x%08x -> 0x%08x\n",
 					seq->first_datasn, seq->last_datasn);
-#endif
+
 			seq->next_burst_len = seq->pdu_send_order = 0;
 			continue;
 		}
@@ -526,7 +521,7 @@ int iscsit_handle_status_snack(
 		found_cmd = 0;
 
 		spin_lock_bh(&conn->cmd_lock);
-		list_for_each_entry(cmd, &conn->conn_cmd_list, i_list) {
+		list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
 			if (cmd->stat_sn == begrun) {
 				found_cmd = 1;
 				break;
@@ -987,7 +982,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 					return 0;
 
 				iscsit_set_dataout_sequence_values(cmd);
-				iscsit_build_r2ts_for_cmd(cmd, cmd->conn, 0);
+				iscsit_build_r2ts_for_cmd(cmd, cmd->conn, false);
 			}
 			return 0;
 		}
@@ -1121,8 +1116,8 @@ static int iscsit_set_dataout_timeout_values(
 	if (cmd->unsolicited_data) {
 		*offset = 0;
 		*length = (conn->sess->sess_ops->FirstBurstLength >
-			   cmd->data_length) ?
-			   cmd->data_length :
+			   cmd->se_cmd.data_length) ?
+			   cmd->se_cmd.data_length :
 			   conn->sess->sess_ops->FirstBurstLength;
 		return 0;
 	}
@@ -1193,8 +1188,8 @@ static void iscsit_handle_dataout_timeout(unsigned long data)
 		if (conn->sess->sess_ops->DataPDUInOrder) {
 			pdu_offset = cmd->write_data_done;
 			if ((pdu_offset + (conn->sess->sess_ops->MaxBurstLength -
-			     cmd->next_burst_len)) > cmd->data_length)
-				pdu_length = (cmd->data_length -
+			     cmd->next_burst_len)) > cmd->se_cmd.data_length)
+				pdu_length = (cmd->se_cmd.data_length -
 					cmd->write_data_done);
 			else
 				pdu_length = (conn->sess->sess_ops->MaxBurstLength -

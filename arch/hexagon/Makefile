@@ -45,14 +45,8 @@ KBUILD_AFLAGS += -DTHREADINFO_REG=$(TIR_NAME)
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 libs-y += $(LIBGCC)
 
-head-y := arch/hexagon/kernel/head.o \
-	arch/hexagon/kernel/init_task.o
+head-y := arch/hexagon/kernel/head.o
 
 core-y += arch/hexagon/kernel/ \
 	arch/hexagon/mm/ \
 	arch/hexagon/lib/
-
-#	arch/hexagon/platform/common/
-#
-#core-$(CONFIG_HEXAGON_COMET)		+= arch/hexagon/platform/comet/
-#machine-$(CONFIG_HEXAGON_COMET)		:= comet

@@ -81,7 +81,7 @@ int cpu_pm_unregister_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(cpu_pm_unregister_notifier);
 
 /**
- * cpm_pm_enter - CPU low power entry notifier
+ * cpu_pm_enter - CPU low power entry notifier
  *
  * Notifies listeners that a single CPU is entering a low power state that may
  * cause some blocks in the same power domain as the cpu to reset.
@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(cpu_pm_unregister_notifier);
  * Must be called on the affected CPU with interrupts disabled.  Platform is
  * responsible for ensuring that cpu_pm_enter is not called twice on the same
  * CPU before cpu_pm_exit is called. Notified drivers can include VFP
- * co-processor, interrupt controller and it's PM extensions, local CPU
+ * co-processor, interrupt controller and its PM extensions, local CPU
  * timers context save/restore which shouldn't be interrupted. Hence it
  * must be called with interrupts disabled.
  *
@@ -115,13 +115,13 @@ int cpu_pm_enter(void)
 EXPORT_SYMBOL_GPL(cpu_pm_enter);
 
 /**
- * cpm_pm_exit - CPU low power exit notifier
+ * cpu_pm_exit - CPU low power exit notifier
  *
  * Notifies listeners that a single CPU is exiting a low power state that may
  * have caused some blocks in the same power domain as the cpu to reset.
  *
  * Notified drivers can include VFP co-processor, interrupt controller
- * and it's PM extensions, local CPU timers context save/restore which
+ * and its PM extensions, local CPU timers context save/restore which
  * shouldn't be interrupted. Hence it must be called with interrupts disabled.
  *
  * Return conditions are same as __raw_notifier_call_chain.
@@ -139,7 +139,7 @@ int cpu_pm_exit(void)
 EXPORT_SYMBOL_GPL(cpu_pm_exit);
 
 /**
- * cpm_cluster_pm_enter - CPU cluster low power entry notifier
+ * cpu_cluster_pm_enter - CPU cluster low power entry notifier
  *
  * Notifies listeners that all cpus in a power domain are entering a low power
  * state that may cause some blocks in the same power domain to reset.
@@ -147,7 +147,7 @@ EXPORT_SYMBOL_GPL(cpu_pm_exit);
  * Must be called after cpu_pm_enter has been called on all cpus in the power
  * domain, and before cpu_pm_exit has been called on any cpu in the power
  * domain. Notified drivers can include VFP co-processor, interrupt controller
- * and it's PM extensions, local CPU timers context save/restore which
+ * and its PM extensions, local CPU timers context save/restore which
  * shouldn't be interrupted. Hence it must be called with interrupts disabled.
  *
  * Must be called with interrupts disabled.
@@ -174,7 +174,7 @@ int cpu_cluster_pm_enter(void)
 EXPORT_SYMBOL_GPL(cpu_cluster_pm_enter);
 
 /**
- * cpm_cluster_pm_exit - CPU cluster low power exit notifier
+ * cpu_cluster_pm_exit - CPU cluster low power exit notifier
  *
  * Notifies listeners that all cpus in a power domain are exiting form a
  * low power state that may have caused some blocks in the same power domain
@@ -183,7 +183,7 @@ EXPORT_SYMBOL_GPL(cpu_cluster_pm_enter);
  * Must be called after cpu_pm_exit has been called on all cpus in the power
  * domain, and before cpu_pm_exit has been called on any cpu in the power
  * domain. Notified drivers can include VFP co-processor, interrupt controller
- * and it's PM extensions, local CPU timers context save/restore which
+ * and its PM extensions, local CPU timers context save/restore which
  * shouldn't be interrupted. Hence it must be called with interrupts disabled.
  *
  * Return conditions are same as __raw_notifier_call_chain.

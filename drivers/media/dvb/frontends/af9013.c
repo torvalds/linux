@@ -514,7 +514,6 @@ err:
 
 static void af9013_statistics_work(struct work_struct *work)
 {
-	int ret;
 	struct af9013_state *state = container_of(work,
 		struct af9013_state, statistics_work.work);
 	unsigned int next_msec;
@@ -530,27 +529,27 @@ static void af9013_statistics_work(struct work_struct *work)
 	default:
 		state->statistics_step = 0;
 	case 0:
-		ret = af9013_statistics_signal_strength(&state->fe);
+		af9013_statistics_signal_strength(&state->fe);
 		state->statistics_step++;
 		next_msec = 300;
 		break;
 	case 1:
-		ret = af9013_statistics_snr_start(&state->fe);
+		af9013_statistics_snr_start(&state->fe);
 		state->statistics_step++;
 		next_msec = 200;
 		break;
 	case 2:
-		ret = af9013_statistics_ber_unc_start(&state->fe);
+		af9013_statistics_ber_unc_start(&state->fe);
 		state->statistics_step++;
 		next_msec = 1000;
 		break;
 	case 3:
-		ret = af9013_statistics_snr_result(&state->fe);
+		af9013_statistics_snr_result(&state->fe);
 		state->statistics_step++;
 		next_msec = 400;
 		break;
 	case 4:
-		ret = af9013_statistics_ber_unc_result(&state->fe);
+		af9013_statistics_ber_unc_result(&state->fe);
 		state->statistics_step++;
 		next_msec = 100;
 		break;
@@ -558,8 +557,6 @@ static void af9013_statistics_work(struct work_struct *work)
 
 	schedule_delayed_work(&state->statistics_work,
 		msecs_to_jiffies(next_msec));
-
-	return;
 }
 
 static int af9013_get_tune_settings(struct dvb_frontend *fe,

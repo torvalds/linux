@@ -34,7 +34,6 @@
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/console.h>
-#include <linux/mca.h>
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
@@ -50,6 +49,7 @@
 #include <asm/pci-direct.h>
 #include <linux/init_ohci1394_dma.h>
 #include <linux/kvm_para.h>
+#include <linux/dma-contiguous.h>
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -73,7 +73,7 @@
 
 #include <asm/mtrr.h>
 #include <asm/apic.h>
-#include <asm/trampoline.h>
+#include <asm/realmode.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
@@ -179,12 +179,6 @@ struct cpuinfo_x86 new_cpu_data __cpuinitdata = {0, 0, 0, 0, -1, 1, 0, 0, -1};
 /* common cpu data for all cpus */
 struct cpuinfo_x86 boot_cpu_data __read_mostly = {0, 0, 0, 0, -1, 1, 0, 0, -1};
 EXPORT_SYMBOL(boot_cpu_data);
-static void set_mca_bus(int x)
-{
-#ifdef CONFIG_MCA
-	MCA_bus = x;
-#endif
-}
 
 unsigned int def_to_bigsmp;
 
@@ -340,8 +334,8 @@ static void __init relocate_initrd(void)
 	memblock_reserve(ramdisk_here, area_size);
 	initrd_start = ramdisk_here + PAGE_OFFSET;
 	initrd_end   = initrd_start + ramdisk_size;
-	printk(KERN_INFO "Allocated new RAMDISK: %08llx - %08llx\n",
-			 ramdisk_here, ramdisk_here + ramdisk_size);
+	printk(KERN_INFO "Allocated new RAMDISK: [mem %#010llx-%#010llx]\n",
+			 ramdisk_here, ramdisk_here + ramdisk_size - 1);
 
 	q = (char *)initrd_start;
 
@@ -372,8 +366,8 @@ static void __init relocate_initrd(void)
 	/* high pages is not converted by early_res_to_bootmem */
 	ramdisk_image = boot_params.hdr.ramdisk_image;
 	ramdisk_size  = boot_params.hdr.ramdisk_size;
-	printk(KERN_INFO "Move RAMDISK from %016llx - %016llx to"
-		" %08llx - %08llx\n",
+	printk(KERN_INFO "Move RAMDISK from [mem %#010llx-%#010llx] to"
+		" [mem %#010llx-%#010llx]\n",
 		ramdisk_image, ramdisk_image + ramdisk_size - 1,
 		ramdisk_here, ramdisk_here + ramdisk_size - 1);
 }
@@ -393,14 +387,13 @@ static void __init reserve_initrd(void)
 	initrd_start = 0;
 
 	if (ramdisk_size >= (end_of_lowmem>>1)) {
-		memblock_free(ramdisk_image, ramdisk_end - ramdisk_image);
-		printk(KERN_ERR "initrd too large to handle, "
-		       "disabling initrd\n");
-		return;
+		panic("initrd too large to handle, "
+		       "disabling initrd (%lld needed, %lld available)\n",
+		       ramdisk_size, end_of_lowmem>>1);
 	}
 
-	printk(KERN_INFO "RAMDISK: %08llx - %08llx\n", ramdisk_image,
-			ramdisk_end);
+	printk(KERN_INFO "RAMDISK: [mem %#010llx-%#010llx]\n", ramdisk_image,
+			ramdisk_end - 1);
 
 
 	if (ramdisk_end <= end_of_lowmem) {
@@ -717,7 +710,6 @@ void __init setup_arch(char **cmdline_p)
 	apm_info.bios = boot_params.apm_bios_info;
 	ist_info = boot_params.ist_info;
 	if (boot_params.sys_desc_table.length != 0) {
-		set_mca_bus(boot_params.sys_desc_table.table[3] & 0x2);
 		machine_id = boot_params.sys_desc_table.table[0];
 		machine_submodel_id = boot_params.sys_desc_table.table[1];
 		BIOS_revision = boot_params.sys_desc_table.table[2];
@@ -914,10 +906,10 @@ void __init setup_arch(char **cmdline_p)
 	setup_bios_corruption_check();
 #endif
 
-	printk(KERN_DEBUG "initial memory mapped : 0 - %08lx\n",
-			max_pfn_mapped<<PAGE_SHIFT);
+	printk(KERN_DEBUG "initial memory mapped: [mem 0x00000000-%#010lx]\n",
+			(max_pfn_mapped<<PAGE_SHIFT) - 1);
 
-	setup_trampolines();
+	setup_real_mode();
 
 	init_gbpages();
 
@@ -934,6 +926,7 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 	memblock.current_limit = get_max_mapped();
+	dma_contiguous_reserve(0);
 
 	/*
 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
@@ -975,6 +968,8 @@ void __init setup_arch(char **cmdline_p)
 	if (boot_cpu_data.cpuid_level >= 0) {
 		/* A CPU has %cr4 if and only if it has CPUID */
 		mmu_cr4_features = read_cr4();
+		if (trampoline_cr4_features)
+			*trampoline_cr4_features = mmu_cr4_features;
 	}
 
 #ifdef CONFIG_X86_32
@@ -1012,7 +1007,8 @@ void __init setup_arch(char **cmdline_p)
 	init_cpu_to_node();
 
 	init_apic_mappings();
-	ioapic_and_gsi_init();
+	if (x86_io_apic_ops.init)
+		x86_io_apic_ops.init();
 
 	kvm_guest_init();
 

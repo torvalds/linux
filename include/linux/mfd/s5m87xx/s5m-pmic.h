@@ -58,6 +58,8 @@ enum s5m8767_regulators {
 	S5M8767_REG_MAX,
 };
 
+#define S5M8767_ENCTRL_SHIFT  6
+
 /* S5M8763 regulator ids */
 enum s5m8763_regulators {
 	S5M8763_LDO1,
@@ -95,6 +97,33 @@ enum s5m8763_regulators {
 struct s5m_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
+};
+
+/*
+ * s5m_opmode_data - regulator operation mode data
+ * @id: regulator id
+ * @mode: regulator operation mode
+ */
+struct s5m_opmode_data {
+	int id;
+	int mode;
+};
+
+/*
+ * s5m regulator operation mode
+ * S5M_OPMODE_OFF	Regulator always OFF
+ * S5M_OPMODE_ON	Regulator always ON
+ * S5M_OPMODE_LOWPOWER  Regulator is on in low-power mode
+ * S5M_OPMODE_SUSPEND   Regulator is changed by PWREN pin
+ *			If PWREN is high, regulator is on
+ *			If PWREN is low, regulator is off
+ */
+
+enum s5m_opmode {
+	S5M_OPMODE_OFF,
+	S5M_OPMODE_ON,
+	S5M_OPMODE_LOWPOWER,
+	S5M_OPMODE_SUSPEND,
 };
 
 #endif /*  __LINUX_MFD_S5M_PMIC_H */

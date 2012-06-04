@@ -30,6 +30,12 @@ enum {
 	PCI_ENABLE_PROC_DOMAINS	= 0x00000010,
 	/* ... except for domain 0 */
 	PCI_COMPAT_DOMAIN_0	= 0x00000020,
+
+	/* PCIe downstream ports are bridges that normally lead to only a
+	 * device 0, but if this is set, we scan all possible devices, not
+	 * just device 0.
+	 */
+	PCI_SCAN_ALL_PCIE_DEVS	= 0x00000040,
 };
 
 #ifdef CONFIG_PCI

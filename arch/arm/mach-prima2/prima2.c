@@ -25,6 +25,11 @@ void __init sirfsoc_mach_init(void)
 	of_platform_bus_probe(NULL, sirfsoc_of_bus_ids, NULL);
 }
 
+void __init sirfsoc_init_late(void)
+{
+	sirfsoc_pm_init();
+}
+
 static const char *prima2cb_dt_match[] __initdata = {
        "sirf,prima2-cb",
        NULL
@@ -39,6 +44,7 @@ MACHINE_START(PRIMA2_EVB, "prima2cb")
 	.timer		= &sirfsoc_timer,
 	.dma_zone_size	= SZ_256M,
 	.init_machine	= sirfsoc_mach_init,
+	.init_late	= sirfsoc_init_late,
 	.dt_compat      = prima2cb_dt_match,
 	.restart	= sirfsoc_restart,
 MACHINE_END

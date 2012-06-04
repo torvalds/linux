@@ -123,7 +123,6 @@ struct mxs_saif {
 	unsigned int cur_rate;
 	unsigned int ongoing;
 
-	struct platform_device *soc_platform_pdev;
 	u32 fifo_underrun;
 	u32 fifo_overrun;
 };

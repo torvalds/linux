@@ -150,7 +150,7 @@ int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh)
 		goto out;
 
 	/* Start by getting the root filehandle from the server */
-	ret = server->nfs_client->rpc_ops->getroot(server, mntfh, &fsinfo);
+	ret = nfs4_proc_get_rootfh(server, mntfh, &fsinfo);
 	if (ret < 0) {
 		dprintk("nfs4_get_rootfh: getroot error = %d\n", -ret);
 		goto out;
@@ -175,89 +175,6 @@ int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh)
 out:
 	nfs_free_fattr(fsinfo.fattr);
 	dprintk("<-- nfs4_get_rootfh() = %d\n", ret);
-	return ret;
-}
-
-/*
- * get an NFS4 root dentry from the root filehandle
- */
-struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh,
-			     const char *devname)
-{
-	struct nfs_server *server = NFS_SB(sb);
-	struct nfs_fattr *fattr = NULL;
-	struct dentry *ret;
-	struct inode *inode;
-	void *name = kstrdup(devname, GFP_KERNEL);
-	int error;
-
-	dprintk("--> nfs4_get_root()\n");
-
-	if (!name)
-		return ERR_PTR(-ENOMEM);
-
-	/* get the info about the server and filesystem */
-	error = nfs4_server_capabilities(server, mntfh);
-	if (error < 0) {
-		dprintk("nfs_get_root: getcaps error = %d\n",
-			-error);
-		kfree(name);
-		return ERR_PTR(error);
-	}
-
-	fattr = nfs_alloc_fattr();
-	if (fattr == NULL) {
-		kfree(name);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	/* get the actual root for this mount */
-	error = server->nfs_client->rpc_ops->getattr(server, mntfh, fattr);
-	if (error < 0) {
-		dprintk("nfs_get_root: getattr error = %d\n", -error);
-		ret = ERR_PTR(error);
-		goto out;
-	}
-
-	if (fattr->valid & NFS_ATTR_FATTR_FSID &&
-	    !nfs_fsid_equal(&server->fsid, &fattr->fsid))
-		memcpy(&server->fsid, &fattr->fsid, sizeof(server->fsid));
-
-	inode = nfs_fhget(sb, mntfh, fattr);
-	if (IS_ERR(inode)) {
-		dprintk("nfs_get_root: get root inode failed\n");
-		ret = ERR_CAST(inode);
-		goto out;
-	}
-
-	error = nfs_superblock_set_dummy_root(sb, inode);
-	if (error != 0) {
-		ret = ERR_PTR(error);
-		goto out;
-	}
-
-	/* root dentries normally start off anonymous and get spliced in later
-	 * if the dentry tree reaches them; however if the dentry already
-	 * exists, we'll pick it up at this point and use it as the root
-	 */
-	ret = d_obtain_alias(inode);
-	if (IS_ERR(ret)) {
-		dprintk("nfs_get_root: get root dentry failed\n");
-		goto out;
-	}
-
-	security_d_instantiate(ret, inode);
-	spin_lock(&ret->d_lock);
-	if (IS_ROOT(ret) && !(ret->d_flags & DCACHE_NFSFS_RENAMED)) {
-		ret->d_fsdata = name;
-		name = NULL;
-	}
-	spin_unlock(&ret->d_lock);
-out:
-	if (name)
-		kfree(name);
-	nfs_free_fattr(fattr);
-	dprintk("<-- nfs4_get_root()\n");
 	return ret;
 }
 

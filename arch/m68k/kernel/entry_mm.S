@@ -148,7 +148,7 @@ syscall_exit_work:
 	jcs	do_trace_exit
 	jmi	do_delayed_trace
 	lslw	#8,%d0
-	jmi	do_signal_return
+	jne	do_signal_return
 	pea	resume_userspace
 	jra	schedule
 
@@ -172,7 +172,7 @@ exit_work:
 	| save top of frame
 	movel	%sp,%curptr@(TASK_THREAD+THREAD_ESP0)
 	lslb	#1,%d0
-	jmi	do_signal_return
+	jne	do_signal_return
 	pea	resume_userspace
 	jra	schedule
 
@@ -182,7 +182,7 @@ do_signal_return:
 	subql	#4,%sp			| dummy return address
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	bsrl	do_signal
+	bsrl	do_notify_resume
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp

@@ -156,3 +156,10 @@ extern void usb_notify_remove_device(struct usb_device *udev);
 extern void usb_notify_add_bus(struct usb_bus *ubus);
 extern void usb_notify_remove_bus(struct usb_bus *ubus);
 
+#ifdef CONFIG_ACPI
+extern int usb_acpi_register(void);
+extern void usb_acpi_unregister(void);
+#else
+static inline int usb_acpi_register(void) { return 0; };
+static inline void usb_acpi_unregister(void) { };
+#endif

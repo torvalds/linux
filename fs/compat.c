@@ -144,8 +144,8 @@ static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 	tmp.st_nlink = stat->nlink;
 	if (tmp.st_nlink != stat->nlink)
 		return -EOVERFLOW;
-	SET_UID(tmp.st_uid, stat->uid);
-	SET_GID(tmp.st_gid, stat->gid);
+	SET_UID(tmp.st_uid, from_kuid_munged(current_user_ns(), stat->uid));
+	SET_GID(tmp.st_gid, from_kgid_munged(current_user_ns(), stat->gid));
 	tmp.st_rdev = old_encode_dev(stat->rdev);
 	if ((u64) stat->size > MAX_NON_LFS)
 		return -EOVERFLOW;
@@ -532,7 +532,7 @@ out:
 ssize_t compat_rw_copy_check_uvector(int type,
 		const struct compat_iovec __user *uvector, unsigned long nr_segs,
 		unsigned long fast_segs, struct iovec *fast_pointer,
-		struct iovec **ret_pointer, int check_access)
+		struct iovec **ret_pointer)
 {
 	compat_ssize_t tot_len;
 	struct iovec *iov = *ret_pointer = fast_pointer;
@@ -579,7 +579,7 @@ ssize_t compat_rw_copy_check_uvector(int type,
 		}
 		if (len < 0)	/* size_t not fitting in compat_ssize_t .. */
 			goto out;
-		if (check_access &&
+		if (type >= 0 &&
 		    !access_ok(vrfy_dir(type), compat_ptr(buf), len)) {
 			ret = -EFAULT;
 			goto out;
@@ -871,12 +871,12 @@ asmlinkage long compat_sys_old_readdir(unsigned int fd,
 {
 	int error;
 	struct file *file;
+	int fput_needed;
 	struct compat_readdir_callback buf;
 
-	error = -EBADF;
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (!file)
-		goto out;
+		return -EBADF;
 
 	buf.result = 0;
 	buf.dirent = dirent;
@@ -885,8 +885,7 @@ asmlinkage long compat_sys_old_readdir(unsigned int fd,
 	if (buf.result)
 		error = buf.result;
 
-	fput(file);
-out:
+	fput_light(file, fput_needed);
 	return error;
 }
 
@@ -953,16 +952,15 @@ asmlinkage long compat_sys_getdents(unsigned int fd,
 	struct file * file;
 	struct compat_linux_dirent __user * lastdirent;
 	struct compat_getdents_callback buf;
+	int fput_needed;
 	int error;
 
-	error = -EFAULT;
 	if (!access_ok(VERIFY_WRITE, dirent, count))
-		goto out;
+		return -EFAULT;
 
-	error = -EBADF;
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (!file)
-		goto out;
+		return -EBADF;
 
 	buf.current_dir = dirent;
 	buf.previous = NULL;
@@ -979,8 +977,7 @@ asmlinkage long compat_sys_getdents(unsigned int fd,
 		else
 			error = count - buf.count;
 	}
-	fput(file);
-out:
+	fput_light(file, fput_needed);
 	return error;
 }
 
@@ -1041,16 +1038,15 @@ asmlinkage long compat_sys_getdents64(unsigned int fd,
 	struct file * file;
 	struct linux_dirent64 __user * lastdirent;
 	struct compat_getdents_callback64 buf;
+	int fput_needed;
 	int error;
 
-	error = -EFAULT;
 	if (!access_ok(VERIFY_WRITE, dirent, count))
-		goto out;
+		return -EFAULT;
 
-	error = -EBADF;
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (!file)
-		goto out;
+		return -EBADF;
 
 	buf.current_dir = dirent;
 	buf.previous = NULL;
@@ -1068,8 +1064,7 @@ asmlinkage long compat_sys_getdents64(unsigned int fd,
 		else
 			error = count - buf.count;
 	}
-	fput(file);
-out:
+	fput_light(file, fput_needed);
 	return error;
 }
 #endif /* ! __ARCH_OMIT_COMPAT_SYS_GETDENTS64 */
@@ -1094,7 +1089,7 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 		goto out;
 
 	tot_len = compat_rw_copy_check_uvector(type, uvector, nr_segs,
-					       UIO_FASTIOV, iovstack, &iov, 1);
+					       UIO_FASTIOV, iovstack, &iov);
 	if (tot_len == 0) {
 		ret = 0;
 		goto out;
@@ -1547,7 +1542,6 @@ asmlinkage long compat_sys_old_select(struct compat_sel_arg_struct __user *arg)
 				 compat_ptr(a.exp), compat_ptr(a.tvp));
 }
 
-#ifdef HAVE_SET_RESTORE_SIGMASK
 static long do_compat_pselect(int n, compat_ulong_t __user *inp,
 	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
 	struct compat_timespec __user *tsp, compat_sigset_t __user *sigmask,
@@ -1670,11 +1664,9 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 
 	return ret;
 }
-#endif /* HAVE_SET_RESTORE_SIGMASK */
 
 #ifdef CONFIG_EPOLL
 
-#ifdef HAVE_SET_RESTORE_SIGMASK
 asmlinkage long compat_sys_epoll_pwait(int epfd,
 			struct compat_epoll_event __user *events,
 			int maxevents, int timeout,
@@ -1718,7 +1710,6 @@ asmlinkage long compat_sys_epoll_pwait(int epfd,
 
 	return err;
 }
-#endif /* HAVE_SET_RESTORE_SIGMASK */
 
 #endif /* CONFIG_EPOLL */
 

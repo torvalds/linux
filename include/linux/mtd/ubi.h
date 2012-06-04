@@ -25,6 +25,9 @@
 #include <linux/types.h>
 #include <mtd/ubi-user.h>
 
+/* All voumes/LEBs */
+#define UBI_ALL -1
+
 /*
  * enum ubi_open_mode - UBI volume open mode constants.
  *
@@ -208,14 +211,15 @@ void ubi_close_volume(struct ubi_volume_desc *desc);
 int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 		 int len, int check);
 int ubi_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
-		  int offset, int len, int dtype);
+		  int offset, int len);
 int ubi_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
-		   int len, int dtype);
+		   int len);
 int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum);
 int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum);
-int ubi_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype);
+int ubi_leb_map(struct ubi_volume_desc *desc, int lnum);
 int ubi_is_mapped(struct ubi_volume_desc *desc, int lnum);
 int ubi_sync(int ubi_num);
+int ubi_flush(int ubi_num, int vol_id, int lnum);
 
 /*
  * This function is the same as the 'ubi_leb_read()' function, but it does not
@@ -226,25 +230,4 @@ static inline int ubi_read(struct ubi_volume_desc *desc, int lnum, char *buf,
 {
 	return ubi_leb_read(desc, lnum, buf, offset, len, 0);
 }
-
-/*
- * This function is the same as the 'ubi_leb_write()' functions, but it does
- * not have the data type argument.
- */
-static inline int ubi_write(struct ubi_volume_desc *desc, int lnum,
-			    const void *buf, int offset, int len)
-{
-	return ubi_leb_write(desc, lnum, buf, offset, len, UBI_UNKNOWN);
-}
-
-/*
- * This function is the same as the 'ubi_leb_change()' functions, but it does
- * not have the data type argument.
- */
-static inline int ubi_change(struct ubi_volume_desc *desc, int lnum,
-				    const void *buf, int len)
-{
-	return ubi_leb_change(desc, lnum, buf, len, UBI_UNKNOWN);
-}
-
 #endif /* !__LINUX_UBI_H__ */

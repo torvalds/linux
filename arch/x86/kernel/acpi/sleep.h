@@ -2,8 +2,8 @@
  *	Variables and functions used by the code in sleep.c
  */
 
-#include <asm/trampoline.h>
 #include <linux/linkage.h>
+#include <asm/realmode.h>
 
 extern unsigned long saved_video_mode;
 extern long saved_magic;

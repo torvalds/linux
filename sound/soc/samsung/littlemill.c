@@ -23,10 +23,10 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 					  struct snd_soc_dapm_context *dapm,
 					  enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
 	int ret;
 
-	if (dapm->dev != codec_dai->dev)
+	if (dapm->dev != aif1_dai->dev)
 		return 0;
 
 	switch (level) {
@@ -36,7 +36,7 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 		 * then do so now, otherwise these are noops.
 		 */
 		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
-			ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1,
+			ret = snd_soc_dai_set_pll(aif1_dai, WM8994_FLL1,
 						  WM8994_FLL_SRC_MCLK2, 32768,
 						  sample_rate * 512);
 			if (ret < 0) {
@@ -44,7 +44,7 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 				return ret;
 			}
 
-			ret = snd_soc_dai_set_sysclk(codec_dai,
+			ret = snd_soc_dai_set_sysclk(aif1_dai,
 						     WM8994_SYSCLK_FLL1,
 						     sample_rate * 512,
 						     SND_SOC_CLOCK_IN);
@@ -66,25 +66,25 @@ static int littlemill_set_bias_level_post(struct snd_soc_card *card,
 					       struct snd_soc_dapm_context *dapm,
 					       enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
 	int ret;
 
-	if (dapm->dev != codec_dai->dev)
+	if (dapm->dev != aif1_dai->dev)
 		return 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
-		ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_MCLK2,
+		ret = snd_soc_dai_set_sysclk(aif1_dai, WM8994_SYSCLK_MCLK2,
 					     32768, SND_SOC_CLOCK_IN);
 		if (ret < 0) {
-			pr_err("Failed to switch away from FLL: %d\n", ret);
+			pr_err("Failed to switch away from FLL1: %d\n", ret);
 			return ret;
 		}
 
-		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1,
+		ret = snd_soc_dai_set_pll(aif1_dai, WM8994_FLL1,
 					  0, 0, 0);
 		if (ret < 0) {
-			pr_err("Failed to stop FLL: %d\n", ret);
+			pr_err("Failed to stop FLL1: %d\n", ret);
 			return ret;
 		}
 		break;
@@ -131,6 +131,14 @@ static struct snd_soc_ops littlemill_ops = {
 	.hw_params = littlemill_hw_params,
 };
 
+static const struct snd_soc_pcm_stream baseband_params = {
+	.formats = SNDRV_PCM_FMTBIT_S32_LE,
+	.rate_min = 8000,
+	.rate_max = 8000,
+	.channels_min = 2,
+	.channels_max = 2,
+};
+
 static struct snd_soc_dai_link littlemill_dai[] = {
 	{
 		.name = "CPU",
@@ -143,13 +151,75 @@ static struct snd_soc_dai_link littlemill_dai[] = {
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.ops = &littlemill_ops,
 	},
+	{
+		.name = "Baseband",
+		.stream_name = "Baseband",
+		.cpu_dai_name = "wm8994-aif2",
+		.codec_dai_name = "wm1250-ev1",
+		.codec_name = "wm1250-ev1.1-0027",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				| SND_SOC_DAIFMT_CBM_CFM,
+		.ignore_suspend = 1,
+		.params = &baseband_params,
+	},
 };
+
+static int bbclk_ev(struct snd_soc_dapm_widget *w,
+		    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_card *card = w->dapm->card;
+	struct snd_soc_dai *aif2_dai = card->rtd[1].cpu_dai;
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		ret = snd_soc_dai_set_pll(aif2_dai, WM8994_FLL2,
+					  WM8994_FLL_SRC_BCLK, 64 * 8000,
+					  8000 * 256);
+		if (ret < 0) {
+			pr_err("Failed to start FLL: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_sysclk(aif2_dai, WM8994_SYSCLK_FLL2,
+					     8000 * 256,
+					     SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			pr_err("Failed to set SYSCLK: %d\n", ret);
+			return ret;
+		}
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		ret = snd_soc_dai_set_sysclk(aif2_dai, WM8994_SYSCLK_MCLK2,
+					     32768, SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			pr_err("Failed to switch away from FLL2: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_pll(aif2_dai, WM8994_FLL2,
+					  0, 0, 0);
+		if (ret < 0) {
+			pr_err("Failed to stop FLL2: %d\n", ret);
+			return ret;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 
 	SND_SOC_DAPM_MIC("AMIC", NULL),
 	SND_SOC_DAPM_MIC("DMIC", NULL),
+
+	SND_SOC_DAPM_SUPPLY_S("Baseband Clock", -1, SND_SOC_NOPM, 0, 0,
+			      bbclk_ev,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static struct snd_soc_dapm_route audio_paths[] = {
@@ -162,6 +232,8 @@ static struct snd_soc_dapm_route audio_paths[] = {
 	{ "DMIC", NULL, "MICBIAS2" },   /* Default for DMICBIAS jumper */
 	{ "DMIC1DAT", NULL, "DMIC" },
 	{ "DMIC2DAT", NULL, "DMIC" },
+
+	{ "AIF2CLK", NULL, "Baseband Clock" },
 };
 
 static struct snd_soc_jack littlemill_headset;
@@ -169,10 +241,16 @@ static struct snd_soc_jack littlemill_headset;
 static int littlemill_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_codec *codec = card->rtd[0].codec;
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
+	struct snd_soc_dai *aif2_dai = card->rtd[1].cpu_dai;
 	int ret;
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_MCLK2,
+	ret = snd_soc_dai_set_sysclk(aif1_dai, WM8994_SYSCLK_MCLK2,
+				     32768, SND_SOC_CLOCK_IN);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_sysclk(aif2_dai, WM8994_SYSCLK_MCLK2,
 				     32768, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;

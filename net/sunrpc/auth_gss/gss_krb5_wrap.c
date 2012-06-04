@@ -381,21 +381,53 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 }
 
 /*
- * We cannot currently handle tokens with rotated data.  We need a
- * generalized routine to rotate the data in place.  It is anticipated
- * that we won't encounter rotated data in the general case.
+ * We can shift data by up to LOCAL_BUF_LEN bytes in a pass.  If we need
+ * to do more than that, we shift repeatedly.  Kevin Coffman reports
+ * seeing 28 bytes as the value used by Microsoft clients and servers
+ * with AES, so this constant is chosen to allow handling 28 in one pass
+ * without using too much stack space.
+ *
+ * If that proves to a problem perhaps we could use a more clever
+ * algorithm.
  */
-static u32
-rotate_left(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf, u16 rrc)
+#define LOCAL_BUF_LEN 32u
+
+static void rotate_buf_a_little(struct xdr_buf *buf, unsigned int shift)
 {
-	unsigned int realrrc = rrc % (buf->len - offset - GSS_KRB5_TOK_HDR_LEN);
+	char head[LOCAL_BUF_LEN];
+	char tmp[LOCAL_BUF_LEN];
+	unsigned int this_len, i;
 
-	if (realrrc == 0)
-		return 0;
+	BUG_ON(shift > LOCAL_BUF_LEN);
 
-	dprintk("%s: cannot process token with rotated data: "
-		"rrc %u, realrrc %u\n", __func__, rrc, realrrc);
-	return 1;
+	read_bytes_from_xdr_buf(buf, 0, head, shift);
+	for (i = 0; i + shift < buf->len; i += LOCAL_BUF_LEN) {
+		this_len = min(LOCAL_BUF_LEN, buf->len - (i + shift));
+		read_bytes_from_xdr_buf(buf, i+shift, tmp, this_len);
+		write_bytes_to_xdr_buf(buf, i, tmp, this_len);
+	}
+	write_bytes_to_xdr_buf(buf, buf->len - shift, head, shift);
+}
+
+static void _rotate_left(struct xdr_buf *buf, unsigned int shift)
+{
+	int shifted = 0;
+	int this_shift;
+
+	shift %= buf->len;
+	while (shifted < shift) {
+		this_shift = min(shift - shifted, LOCAL_BUF_LEN);
+		rotate_buf_a_little(buf, this_shift);
+		shifted += this_shift;
+	}
+}
+
+static void rotate_left(u32 base, struct xdr_buf *buf, unsigned int shift)
+{
+	struct xdr_buf subbuf;
+
+	xdr_buf_subsegment(buf, &subbuf, base, buf->len - base);
+	_rotate_left(&subbuf, shift);
 }
 
 static u32
@@ -495,11 +527,8 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 
 	seqnum = be64_to_cpup((__be64 *)(ptr + 8));
 
-	if (rrc != 0) {
-		err = rotate_left(kctx, offset, buf, rrc);
-		if (err)
-			return GSS_S_FAILURE;
-	}
+	if (rrc != 0)
+		rotate_left(offset + 16, buf, rrc);
 
 	err = (*kctx->gk5e->decrypt_v2)(kctx, offset, buf,
 					&headskip, &tailskip);

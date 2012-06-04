@@ -2631,22 +2631,11 @@ static void __devexit snd_rme9652_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver rme9652_driver = {
 	.name	  = KBUILD_MODNAME,
 	.id_table = snd_rme9652_ids,
 	.probe	  = snd_rme9652_probe,
 	.remove	  = __devexit_p(snd_rme9652_remove),
 };
 
-static int __init alsa_card_hammerfall_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_hammerfall_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_hammerfall_init)
-module_exit(alsa_card_hammerfall_exit)
+module_pci_driver(rme9652_driver);

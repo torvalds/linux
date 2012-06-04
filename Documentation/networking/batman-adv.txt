@@ -1,5 +1,3 @@
-[state: 21-08-2011]
-
 BATMAN-ADV
 ----------
 
@@ -67,18 +65,19 @@ To deactivate an interface you have  to  write  "none"  into  its
 All  mesh  wide  settings  can be found in batman's own interface
 folder:
 
-#  ls  /sys/class/net/bat0/mesh/
-# aggregated_ogms   fragmentation gw_sel_class   vis_mode
-# ap_isolation      gw_bandwidth  hop_penalty
-# bonding           gw_mode       orig_interval
+# ls /sys/class/net/bat0/mesh/
+# aggregated_ogms        gw_bandwidth           log_level
+# ap_isolation           gw_mode                orig_interval
+# bonding                gw_sel_class           routing_algo
+# bridge_loop_avoidance  hop_penalty            vis_mode
+# fragmentation
 
 
 There is a special folder for debugging information:
 
 #  ls /sys/kernel/debug/batman_adv/bat0/
-#  gateways     socket        transtable_global  vis_data
-#  originators  softif_neigh  transtable_local
-
+# bla_claim_table    log                socket             transtable_local
+# gateways           originators        transtable_global  vis_data
 
 Some of the files contain all sort of status information  regard-
 ing  the  mesh  network.  For  example, you can view the table of
@@ -202,12 +201,13 @@ abled  during run time. Following log_levels are defined:
 1 - Enable messages related to routing / flooding / broadcasting
 2 - Enable messages related to route added / changed / deleted
 4 - Enable messages related to translation table operations
-7 - Enable all messages
+8 - Enable messages related to bridge loop avoidance
+15 - enable all messages
 
 The debug output can be changed at runtime  using  the  file
 /sys/class/net/bat0/mesh/log_level. e.g.
 
-# echo 2 > /sys/class/net/bat0/mesh/log_level
+# echo 6 > /sys/class/net/bat0/mesh/log_level
 
 will enable debug messages for when routes change.
 

@@ -1416,7 +1416,7 @@ static int snd_fm801_resume(struct pci_dev *pci)
 }
 #endif
 
-static struct pci_driver driver = {
+static struct pci_driver fm801_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
@@ -1427,15 +1427,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init alsa_card_fm801_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_fm801_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_fm801_init)
-module_exit(alsa_card_fm801_exit)
+module_pci_driver(fm801_driver);

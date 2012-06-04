@@ -124,7 +124,7 @@ endif
 
 export ld-bfd BITS
 
-head-y	:= arch/sh/kernel/init_task.o arch/sh/kernel/head_$(BITS).o
+head-y	:= arch/sh/kernel/head_$(BITS).o
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
@@ -197,6 +197,10 @@ endif
 
 ifeq ($(CONFIG_DWARF_UNWINDER),y)
   KBUILD_CFLAGS += -fasynchronous-unwind-tables
+endif
+
+ifeq ($(CONFIG_CC_STACKPROTECTOR),y)
+  KBUILD_CFLAGS += -fstack-protector
 endif
 
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)

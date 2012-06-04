@@ -70,6 +70,7 @@ enum nfc_commands {
 	NFC_EVENT_TARGETS_FOUND,
 	NFC_EVENT_DEVICE_ADDED,
 	NFC_EVENT_DEVICE_REMOVED,
+	NFC_EVENT_TARGET_LOST,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };

@@ -90,7 +90,7 @@ struct isp_video_buffer {
 	void *vaddr;
 
 	/* For userspace buffers. */
-	unsigned long vm_flags;
+	vm_flags_t vm_flags;
 	unsigned long offset;
 	unsigned int npages;
 	struct page **pages;

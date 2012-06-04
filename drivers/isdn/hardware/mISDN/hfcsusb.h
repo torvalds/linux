@@ -410,6 +410,12 @@ static struct usb_device_id hfcsusb_idtab[] = {
 			{LED_SCHEME1, {0x88, -64, -32, -16},
 					"ZyXEL OMNI.NET USB II"}),
 	},
+	{
+		USB_DEVICE(0x1ae7, 0x0525),
+		.driver_info = (unsigned long) &((struct hfcsusb_vdata)
+			{LED_SCHEME1, {0x88, -64, -32, -16},
+					"X-Tensions USB ISDN TA XC-525"}),
+	},
 	{ }
 };
 

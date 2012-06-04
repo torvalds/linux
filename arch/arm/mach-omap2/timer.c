@@ -90,7 +90,7 @@ static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 }
 
 static struct irqaction omap2_gp_timer_irq = {
-	.name		= "gp timer",
+	.name		= "gp_timer",
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= omap2_gp_timer_interrupt,
 };
@@ -132,7 +132,7 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 }
 
 static struct clock_event_device clockevent_gpt = {
-	.name		= "gp timer",
+	.name		= "gp_timer",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.set_next_event	= omap2_gp_timer_set_next_event,
@@ -145,8 +145,10 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 {
 	char name[10]; /* 10 = sizeof("gptXX_Xck0") */
 	struct omap_hwmod *oh;
+	struct resource irq_rsrc, mem_rsrc;
 	size_t size;
 	int res = 0;
+	int r;
 
 	sprintf(name, "timer%d", gptimer_id);
 	omap_hwmod_setup_one(name);
@@ -154,9 +156,16 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	if (!oh)
 		return -ENODEV;
 
-	timer->irq = oh->mpu_irqs[0].irq;
-	timer->phys_base = oh->slaves[0]->addr->pa_start;
-	size = oh->slaves[0]->addr->pa_end - timer->phys_base;
+	r = omap_hwmod_get_resource_byname(oh, IORESOURCE_IRQ, NULL, &irq_rsrc);
+	if (r)
+		return -ENXIO;
+	timer->irq = irq_rsrc.start;
+
+	r = omap_hwmod_get_resource_byname(oh, IORESOURCE_MEM, NULL, &mem_rsrc);
+	if (r)
+		return -ENXIO;
+	timer->phys_base = mem_rsrc.start;
+	size = mem_rsrc.end - mem_rsrc.start;
 
 	/* Static mapping, never released */
 	timer->io_base = ioremap(timer->phys_base, size);
@@ -168,13 +177,6 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	timer->fclk = clk_get(NULL, name);
 	if (IS_ERR(timer->fclk))
 		return -ENODEV;
-
-	sprintf(name, "gpt%d_ick", gptimer_id);
-	timer->iclk = clk_get(NULL, name);
-	if (IS_ERR(timer->iclk)) {
-		clk_put(timer->fclk);
-		return -ENODEV;
-	}
 
 	omap_hwmod_enable(oh);
 
@@ -234,22 +236,8 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 }
 
 /* Clocksource code */
-
-#ifdef CONFIG_OMAP_32K_TIMER
-/*
- * When 32k-timer is enabled, don't use GPTimer for clocksource
- * instead, just leave default clocksource which uses the 32k
- * sync counter.  See clocksource setup in plat-omap/counter_32k.c
- */
-
-static void __init omap2_gp_clocksource_init(int unused, const char *dummy)
-{
-	omap_init_clocksource_32k();
-}
-
-#else
-
 static struct omap_dm_timer clksrc;
+static bool use_gptimer_clksrc;
 
 /*
  * clocksource
@@ -260,7 +248,7 @@ static cycle_t clocksource_read_cycles(struct clocksource *cs)
 }
 
 static struct clocksource clocksource_gpt = {
-	.name		= "gp timer",
+	.name		= "gp_timer",
 	.rating		= 300,
 	.read		= clocksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
@@ -276,16 +264,52 @@ static u32 notrace dmtimer_read_sched_clock(void)
 }
 
 /* Setup free-running counter for clocksource */
-static void __init omap2_gp_clocksource_init(int gptimer_id,
+static int __init omap2_sync32k_clocksource_init(void)
+{
+	int ret;
+	struct omap_hwmod *oh;
+	void __iomem *vbase;
+	const char *oh_name = "counter_32k";
+
+	/*
+	 * First check hwmod data is available for sync32k counter
+	 */
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh || oh->slaves_cnt == 0)
+		return -ENODEV;
+
+	omap_hwmod_setup_one(oh_name);
+
+	vbase = omap_hwmod_get_mpu_rt_va(oh);
+	if (!vbase) {
+		pr_warn("%s: failed to get counter_32k resource\n", __func__);
+		return -ENXIO;
+	}
+
+	ret = omap_hwmod_enable(oh);
+	if (ret) {
+		pr_warn("%s: failed to enable counter_32k module (%d)\n",
+							__func__, ret);
+		return ret;
+	}
+
+	ret = omap_init_clocksource_32k(vbase);
+	if (ret) {
+		pr_warn("%s: failed to initialize counter_32k as a clocksource (%d)\n",
+							__func__, ret);
+		omap_hwmod_idle(oh);
+	}
+
+	return ret;
+}
+
+static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 						const char *fck_source)
 {
 	int res;
 
 	res = omap_dm_timer_init_one(&clksrc, gptimer_id, fck_source);
 	BUG_ON(res);
-
-	pr_info("OMAP clocksource: GPTIMER%d at %lu Hz\n",
-		gptimer_id, clksrc.rate);
 
 	__omap_dm_timer_load_start(&clksrc,
 			OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR, 0, 1);
@@ -294,15 +318,36 @@ static void __init omap2_gp_clocksource_init(int gptimer_id,
 	if (clocksource_register_hz(&clocksource_gpt, clksrc.rate))
 		pr_err("Could not register clocksource %s\n",
 			clocksource_gpt.name);
+	else
+		pr_info("OMAP clocksource: GPTIMER%d at %lu Hz\n",
+			gptimer_id, clksrc.rate);
 }
-#endif
+
+static void __init omap2_clocksource_init(int gptimer_id,
+						const char *fck_source)
+{
+	/*
+	 * First give preference to kernel parameter configuration
+	 * by user (clocksource="gp_timer").
+	 *
+	 * In case of missing kernel parameter for clocksource,
+	 * first check for availability for 32k-sync timer, in case
+	 * of failure in finding 32k_counter module or registering
+	 * it as clocksource, execution will fallback to gp-timer.
+	 */
+	if (use_gptimer_clksrc == true)
+		omap2_gptimer_clocksource_init(gptimer_id, fck_source);
+	else if (omap2_sync32k_clocksource_init())
+		/* Fall back to gp-timer code */
+		omap2_gptimer_clocksource_init(gptimer_id, fck_source);
+}
 
 #define OMAP_SYS_TIMER_INIT(name, clkev_nr, clkev_src,			\
 				clksrc_nr, clksrc_src)			\
 static void __init omap##name##_timer_init(void)			\
 {									\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src);		\
-	omap2_gp_clocksource_init((clksrc_nr), clksrc_src);		\
+	omap2_clocksource_init((clksrc_nr), clksrc_src);		\
 }
 
 #define OMAP_SYS_TIMER(name)						\
@@ -333,7 +378,7 @@ static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
 static void __init omap4_timer_init(void)
 {
 	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE);
-	omap2_gp_clocksource_init(2, OMAP4_MPU_SOURCE);
+	omap2_clocksource_init(2, OMAP4_MPU_SOURCE);
 #ifdef CONFIG_LOCAL_TIMERS
 	/* Local timers are not supprted on OMAP4430 ES1.0 */
 	if (omap_rev() != OMAP4430_REV_ES1_0) {
@@ -501,3 +546,28 @@ static int __init omap2_dm_timer_init(void)
 	return 0;
 }
 arch_initcall(omap2_dm_timer_init);
+
+/**
+ * omap2_override_clocksource - clocksource override with user configuration
+ *
+ * Allows user to override default clocksource, using kernel parameter
+ *   clocksource="gp_timer"	(For all OMAP2PLUS architectures)
+ *
+ * Note that, here we are using same standard kernel parameter "clocksource=",
+ * and not introducing any OMAP specific interface.
+ */
+static int __init omap2_override_clocksource(char *str)
+{
+	if (!str)
+		return 0;
+	/*
+	 * For OMAP architecture, we only have two options
+	 *    - sync_32k (default)
+	 *    - gp_timer (sys_clk based)
+	 */
+	if (!strcmp(str, "gp_timer"))
+		use_gptimer_clksrc = true;
+
+	return 0;
+}
+early_param("clocksource", omap2_override_clocksource);

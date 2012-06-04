@@ -266,8 +266,10 @@ extern int gpmi_read_page(struct gpmi_nand_data *,
 #define STATUS_UNCORRECTABLE	0xfe
 
 /* Use the platform_id to distinguish different Archs. */
-#define IS_MX23			0x1
-#define IS_MX28			0x2
+#define IS_MX23			0x0
+#define IS_MX28			0x1
+#define IS_MX6Q			0x2
 #define GPMI_IS_MX23(x)		((x)->pdev->id_entry->driver_data == IS_MX23)
 #define GPMI_IS_MX28(x)		((x)->pdev->id_entry->driver_data == IS_MX28)
+#define GPMI_IS_MX6Q(x)		((x)->pdev->id_entry->driver_data == IS_MX6Q)
 #endif

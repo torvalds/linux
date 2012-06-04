@@ -90,12 +90,26 @@ struct detailed_data_monitor_range {
 	u8 min_hfreq_khz;
 	u8 max_hfreq_khz;
 	u8 pixel_clock_mhz; /* need to multiply by 10 */
-	__le16 sec_gtf_toggle; /* A000=use above, 20=use below */
-	u8 hfreq_start_khz; /* need to multiply by 2 */
-	u8 c; /* need to divide by 2 */
-	__le16 m;
-	u8 k;
-	u8 j; /* need to divide by 2 */
+	u8 flags;
+	union {
+		struct {
+			u8 reserved;
+			u8 hfreq_start_khz; /* need to multiply by 2 */
+			u8 c; /* need to divide by 2 */
+			__le16 m;
+			u8 k;
+			u8 j; /* need to divide by 2 */
+		} __attribute__((packed)) gtf2;
+		struct {
+			u8 version;
+			u8 data1; /* high 6 bits: extra clock resolution */
+			u8 data2; /* plus low 2 of above: max hactive */
+			u8 supported_aspects;
+			u8 flags; /* preferred aspect and blanking support */
+			u8 supported_scalings;
+			u8 preferred_refresh;
+		} __attribute__((packed)) cvt;
+	} formula;
 } __attribute__((packed));
 
 struct detailed_data_wpindex {

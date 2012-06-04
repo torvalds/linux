@@ -31,7 +31,7 @@ short rtllib_is_shortslot(const struct rtllib_network *net)
 	return net->capability & WLAN_CAPABILITY_SHORT_SLOT_TIME;
 }
 
-/* returns the total length needed for pleacing the RATE MFIE
+/* returns the total length needed for placing the RATE MFIE
  * tag and the EXTENDED RATE MFIE tag if needed.
  * It encludes two bytes per tag for the tag itself and its len
  */
@@ -49,7 +49,7 @@ static unsigned int rtllib_MFIE_rate_len(struct rtllib_device *ieee)
 	return rate_len;
 }
 
-/* pleace the MFIE rate, tag to the memory (double) poined.
+/* place the MFIE rate, tag to the memory (double) pointed.
  * Then it updates the pointer so that
  * it points after the new MFIE tag added.
  */
@@ -557,7 +557,7 @@ void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 		 *    new network events, despite for updating the net list,
 		 *    but we are temporarly 'unlinked' as the driver shall
 		 *    not filter RX frames and the channel is changing.
-		 * So the only situation in witch are interested is to check
+		 * So the only situation in which are interested is to check
 		 * if the state become LINKED because of the #1 situation
 		 */
 
@@ -1681,7 +1681,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 
 		/* if the user set the AP check if match.
 		 * if the network does not broadcast essid we check the
-		 *	 user supplyed ANY essid
+		 *	 user supplied ANY essid
 		 * if the network does broadcast and the user does not set
 		 *	 essid it is OK
 		 * if the network does broadcast and the user did set essid
@@ -2444,16 +2444,16 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
 
 /* following are for a simplier TX queue management.
  * Instead of using netif_[stop/wake]_queue the driver
- * will uses these two function (plus a reset one), that
- * will internally uses the kernel netif_* and takes
+ * will use these two functions (plus a reset one), that
+ * will internally use the kernel netif_* and takes
  * care of the ieee802.11 fragmentation.
  * So the driver receives a fragment per time and might
- * call the stop function when it want without take care
- * to have enought room to TX an entire packet.
- * This might be useful if each fragment need it's own
+ * call the stop function when it wants to not
+ * have enough room to TX an entire packet.
+ * This might be useful if each fragment needs it's own
  * descriptor, thus just keep a total free memory > than
- * the max fragmentation treshold is not enought.. If the
- * ieee802.11 stack passed a TXB struct then you needed
+ * the max fragmentation threshold is not enough.. If the
+ * ieee802.11 stack passed a TXB struct then you need
  * to keep N free descriptors where
  * N = MAX_PACKET_SIZE / MIN_FRAG_TRESHOLD
  * In this way you need just one and the 802.11 stack
@@ -2696,15 +2696,15 @@ static void rtllib_start_ibss_wq(void *data)
 	rtllib_softmac_check_all_nets(ieee);
 
 
-	/* if not then the state is not linked. Maybe the user swithced to
+	/* if not then the state is not linked. Maybe the user switched to
 	 * ad-hoc mode just after being in monitor mode, or just after
 	 * being very few time in managed mode (so the card have had no
 	 * time to scan all the chans..) or we have just run up the iface
 	 * after setting ad-hoc mode. So we have to give another try..
 	 * Here, in ibss mode, should be safe to do this without extra care
-	 * (in bss mode we had to make sure no-one tryed to associate when
+	 * (in bss mode we had to make sure no-one tried to associate when
 	 * we had just checked the ieee->state and we was going to start the
-	 * scan) beacause in ibss mode the rtllib_new_net function, when
+	 * scan) because in ibss mode the rtllib_new_net function, when
 	 * finds a good net, just set the ieee->state to RTLLIB_LINKED,
 	 * so, at worst, we waste a bit of time to initiate an unneeded syncro
 	 * scan, that will stop at the first round because it sees the state
@@ -2819,7 +2819,7 @@ void rtllib_start_bss(struct rtllib_device *ieee)
 
 	/* ensure no-one start an associating process (thus setting
 	 * the ieee->state to rtllib_ASSOCIATING) while we
-	 * have just cheked it and we are going to enable scan.
+	 * have just checked it and we are going to enable scan.
 	 * The rtllib_new_net function is always called with
 	 * lock held (from both rtllib_softmac_check_all_nets and
 	 * the rx path), so we cannot be in the middle of such function
@@ -2872,7 +2872,7 @@ static void rtllib_associate_retry_wq(void *data)
 
 	/* until we do not set the state to RTLLIB_NOLINK
 	* there are no possibility to have someone else trying
-	* to start an association procdure (we get here with
+	* to start an association procedure (we get here with
 	* ieee->state = RTLLIB_ASSOCIATING).
 	* When we set the state to RTLLIB_NOLINK it is possible
 	* that the RX path run an attempt to associate, but
@@ -3679,8 +3679,7 @@ void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib, u8 *asSta,
 
 	RemovePeerTS(rtllib, asSta);
 
-
-	if (memcpy(rtllib->current_network.bssid, asSta, 6) == NULL) {
+	if (memcmp(rtllib->current_network.bssid, asSta, 6) == 0) {
 		rtllib->state = RTLLIB_NOLINK;
 
 		for (i = 0; i < 6; i++)

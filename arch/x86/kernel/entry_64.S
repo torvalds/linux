@@ -55,6 +55,7 @@
 #include <asm/paravirt.h>
 #include <asm/ftrace.h>
 #include <asm/percpu.h>
+#include <asm/asm.h>
 #include <linux/err.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
@@ -188,6 +189,44 @@ ENDPROC(native_usergs_sysret64)
 1:
 #endif
 .endm
+
+/*
+ * When dynamic function tracer is enabled it will add a breakpoint
+ * to all locations that it is about to modify, sync CPUs, update
+ * all the code, sync CPUs, then remove the breakpoints. In this time
+ * if lockdep is enabled, it might jump back into the debug handler
+ * outside the updating of the IST protection. (TRACE_IRQS_ON/OFF).
+ *
+ * We need to change the IDT table before calling TRACE_IRQS_ON/OFF to
+ * make sure the stack pointer does not get reset back to the top
+ * of the debug stack, and instead just reuses the current stack.
+ */
+#if defined(CONFIG_DYNAMIC_FTRACE) && defined(CONFIG_TRACE_IRQFLAGS)
+
+.macro TRACE_IRQS_OFF_DEBUG
+	call debug_stack_set_zero
+	TRACE_IRQS_OFF
+	call debug_stack_reset
+.endm
+
+.macro TRACE_IRQS_ON_DEBUG
+	call debug_stack_set_zero
+	TRACE_IRQS_ON
+	call debug_stack_reset
+.endm
+
+.macro TRACE_IRQS_IRETQ_DEBUG offset=ARGOFFSET
+	bt   $9,EFLAGS-\offset(%rsp)	/* interrupts off? */
+	jnc  1f
+	TRACE_IRQS_ON_DEBUG
+1:
+.endm
+
+#else
+# define TRACE_IRQS_OFF_DEBUG		TRACE_IRQS_OFF
+# define TRACE_IRQS_ON_DEBUG		TRACE_IRQS_ON
+# define TRACE_IRQS_IRETQ_DEBUG		TRACE_IRQS_IRETQ
+#endif
 
 /*
  * C code is not supposed to know about undefined top of stack. Every time
@@ -900,18 +939,12 @@ restore_args:
 
 irq_return:
 	INTERRUPT_RETURN
-
-	.section __ex_table, "a"
-	.quad irq_return, bad_iret
-	.previous
+	_ASM_EXTABLE(irq_return, bad_iret)
 
 #ifdef CONFIG_PARAVIRT
 ENTRY(native_iret)
 	iretq
-
-	.section __ex_table,"a"
-	.quad native_iret, bad_iret
-	.previous
+	_ASM_EXTABLE(native_iret, bad_iret)
 #endif
 
 	.section .fixup,"ax"
@@ -1103,7 +1136,7 @@ ENTRY(\sym)
 	subq $ORIG_RAX-R15, %rsp
 	CFI_ADJUST_CFA_OFFSET ORIG_RAX-R15
 	call save_paranoid
-	TRACE_IRQS_OFF
+	TRACE_IRQS_OFF_DEBUG
 	movq %rsp,%rdi		/* pt_regs pointer */
 	xorl %esi,%esi		/* no error code */
 	subq $EXCEPTION_STKSZ, INIT_TSS_IST(\ist)
@@ -1181,10 +1214,7 @@ gs_change:
 	CFI_ENDPROC
 END(native_load_gs_index)
 
-	.section __ex_table,"a"
-	.align 8
-	.quad gs_change,bad_gs
-	.previous
+	_ASM_EXTABLE(gs_change,bad_gs)
 	.section .fixup,"ax"
 	/* running with kernelgs */
 bad_gs:
@@ -1401,7 +1431,7 @@ paranoidzeroentry machine_check *machine_check_vector(%rip)
 ENTRY(paranoid_exit)
 	DEFAULT_FRAME
 	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
+	TRACE_IRQS_OFF_DEBUG
 	testl %ebx,%ebx				/* swapgs needed? */
 	jnz paranoid_restore
 	testl $3,CS(%rsp)
@@ -1412,7 +1442,7 @@ paranoid_swapgs:
 	RESTORE_ALL 8
 	jmp irq_return
 paranoid_restore:
-	TRACE_IRQS_IRETQ 0
+	TRACE_IRQS_IRETQ_DEBUG 0
 	RESTORE_ALL 8
 	jmp irq_return
 paranoid_userspace:

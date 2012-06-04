@@ -36,13 +36,11 @@
 
 /* POWER7 has 10-bit LPIDs, PPC970 has 6-bit LPIDs */
 #define MAX_LPID_970	63
-#define NR_LPIDS	(LPID_RSVD + 1)
-unsigned long lpid_inuse[BITS_TO_LONGS(NR_LPIDS)];
 
 long kvmppc_alloc_hpt(struct kvm *kvm)
 {
 	unsigned long hpt;
-	unsigned long lpid;
+	long lpid;
 	struct revmap_entry *rev;
 	struct kvmppc_linear_info *li;
 
@@ -72,14 +70,9 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 	}
 	kvm->arch.revmap = rev;
 
-	/* Allocate the guest's logical partition ID */
-	do {
-		lpid = find_first_zero_bit(lpid_inuse, NR_LPIDS);
-		if (lpid >= NR_LPIDS) {
-			pr_err("kvm_alloc_hpt: No LPIDs free\n");
-			goto out_freeboth;
-		}
-	} while (test_and_set_bit(lpid, lpid_inuse));
+	lpid = kvmppc_alloc_lpid();
+	if (lpid < 0)
+		goto out_freeboth;
 
 	kvm->arch.sdr1 = __pa(hpt) | (HPT_ORDER - 18);
 	kvm->arch.lpid = lpid;
@@ -96,7 +89,7 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 
 void kvmppc_free_hpt(struct kvm *kvm)
 {
-	clear_bit(kvm->arch.lpid, lpid_inuse);
+	kvmppc_free_lpid(kvm->arch.lpid);
 	vfree(kvm->arch.revmap);
 	if (kvm->arch.hpt_li)
 		kvm_release_hpt(kvm->arch.hpt_li);
@@ -171,8 +164,7 @@ int kvmppc_mmu_hv_init(void)
 	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return -EINVAL;
 
-	memset(lpid_inuse, 0, sizeof(lpid_inuse));
-
+	/* POWER7 has 10-bit LPIDs, PPC970 and e500mc have 6-bit LPIDs */
 	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
 		host_lpid = mfspr(SPRN_LPID);	/* POWER7 */
 		rsvd_lpid = LPID_RSVD;
@@ -181,9 +173,11 @@ int kvmppc_mmu_hv_init(void)
 		rsvd_lpid = MAX_LPID_970;
 	}
 
-	set_bit(host_lpid, lpid_inuse);
+	kvmppc_init_lpid(rsvd_lpid + 1);
+
+	kvmppc_claim_lpid(host_lpid);
 	/* rsvd_lpid is reserved for use in partition switching */
-	set_bit(rsvd_lpid, lpid_inuse);
+	kvmppc_claim_lpid(rsvd_lpid);
 
 	return 0;
 }
@@ -452,7 +446,7 @@ static int instruction_is_store(unsigned int instr)
 }
 
 static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
-				  unsigned long gpa, int is_store)
+				  unsigned long gpa, gva_t ea, int is_store)
 {
 	int ret;
 	u32 last_inst;
@@ -499,6 +493,7 @@ static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 
 	vcpu->arch.paddr_accessed = gpa;
+	vcpu->arch.vaddr_accessed = ea;
 	return kvmppc_emulate_mmio(run, vcpu);
 }
 
@@ -552,7 +547,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* No memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID)) {
 		unsigned long gpa = (gfn << PAGE_SHIFT) | (ea & (psize - 1));
-		return kvmppc_hv_emulate_mmio(run, vcpu, gpa,
+		return kvmppc_hv_emulate_mmio(run, vcpu, gpa, ea,
 					      dsisr & DSISR_ISSTORE);
 	}
 

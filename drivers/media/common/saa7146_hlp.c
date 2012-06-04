@@ -343,9 +343,9 @@ static void calculate_clipping_registers_rect(struct saa7146_dev *dev, struct sa
 	struct saa7146_vv *vv = dev->vv_data;
 	__le32 *clipping = vv->d_clipping.cpu_addr;
 
-	int width = fh->ov.win.w.width;
-	int height =  fh->ov.win.w.height;
-	int clipcount = fh->ov.nclips;
+	int width = vv->ov.win.w.width;
+	int height =  vv->ov.win.w.height;
+	int clipcount = vv->ov.nclips;
 
 	u32 line_list[32];
 	u32 pixel_list[32];
@@ -365,10 +365,10 @@ static void calculate_clipping_registers_rect(struct saa7146_dev *dev, struct sa
 	for(i = 0; i < clipcount; i++) {
 		int l = 0, r = 0, t = 0, b = 0;
 
-		x[i] = fh->ov.clips[i].c.left;
-		y[i] = fh->ov.clips[i].c.top;
-		w[i] = fh->ov.clips[i].c.width;
-		h[i] = fh->ov.clips[i].c.height;
+		x[i] = vv->ov.clips[i].c.left;
+		y[i] = vv->ov.clips[i].c.top;
+		w[i] = vv->ov.clips[i].c.width;
+		h[i] = vv->ov.clips[i].c.height;
 
 		if( w[i] < 0) {
 			x[i] += w[i]; w[i] = -w[i];
@@ -485,13 +485,14 @@ static void saa7146_disable_clipping(struct saa7146_dev *dev)
 static void saa7146_set_clipping_rect(struct saa7146_fh *fh)
 {
 	struct saa7146_dev *dev = fh->dev;
-	enum v4l2_field field = fh->ov.win.field;
+	struct saa7146_vv *vv = dev->vv_data;
+	enum v4l2_field field = vv->ov.win.field;
 	struct	saa7146_video_dma vdma2;
 	u32 clip_format;
 	u32 arbtr_ctrl;
 
 	/* check clipcount, disable clipping if clipcount == 0*/
-	if( fh->ov.nclips == 0 ) {
+	if (vv->ov.nclips == 0) {
 		saa7146_disable_clipping(dev);
 		return;
 	}
@@ -651,8 +652,8 @@ int saa7146_enable_overlay(struct saa7146_fh *fh)
 	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 
-	saa7146_set_window(dev, fh->ov.win.w.width, fh->ov.win.w.height, fh->ov.win.field);
-	saa7146_set_position(dev, fh->ov.win.w.left, fh->ov.win.w.top, fh->ov.win.w.height, fh->ov.win.field, vv->ov_fmt->pixelformat);
+	saa7146_set_window(dev, vv->ov.win.w.width, vv->ov.win.w.height, vv->ov.win.field);
+	saa7146_set_position(dev, vv->ov.win.w.left, vv->ov.win.w.top, vv->ov.win.w.height, vv->ov.win.field, vv->ov_fmt->pixelformat);
 	saa7146_set_output_format(dev, vv->ov_fmt->trans);
 	saa7146_set_clipping_rect(fh);
 

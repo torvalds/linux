@@ -169,11 +169,11 @@ struct mmc_omap_host {
 	struct timer_list       clk_timer;
 	spinlock_t		clk_lock;     /* for changing enabled state */
 	unsigned int            fclk_enabled:1;
+	struct workqueue_struct *mmc_omap_wq;
 
 	struct omap_mmc_platform_data *pdata;
 };
 
-static struct workqueue_struct *mmc_omap_wq;
 
 static void mmc_omap_fclk_offdelay(struct mmc_omap_slot *slot)
 {
@@ -291,7 +291,7 @@ static void mmc_omap_release_slot(struct mmc_omap_slot *slot, int clk_enabled)
 		host->next_slot = new_slot;
 		host->mmc = new_slot->mmc;
 		spin_unlock_irqrestore(&host->slot_lock, flags);
-		queue_work(mmc_omap_wq, &host->slot_release_work);
+		queue_work(host->mmc_omap_wq, &host->slot_release_work);
 		return;
 	}
 
@@ -459,7 +459,7 @@ mmc_omap_xfer_done(struct mmc_omap_host *host, struct mmc_data *data)
 	}
 
 	host->stop_data = data;
-	queue_work(mmc_omap_wq, &host->send_stop_work);
+	queue_work(host->mmc_omap_wq, &host->send_stop_work);
 }
 
 static void
@@ -639,7 +639,7 @@ mmc_omap_cmd_timer(unsigned long data)
 		OMAP_MMC_WRITE(host, IE, 0);
 		disable_irq(host->irq);
 		host->abort = 1;
-		queue_work(mmc_omap_wq, &host->cmd_abort_work);
+		queue_work(host->mmc_omap_wq, &host->cmd_abort_work);
 	}
 	spin_unlock_irqrestore(&host->slot_lock, flags);
 }
@@ -828,7 +828,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 		host->abort = 1;
 		OMAP_MMC_WRITE(host, IE, 0);
 		disable_irq_nosync(host->irq);
-		queue_work(mmc_omap_wq, &host->cmd_abort_work);
+		queue_work(host->mmc_omap_wq, &host->cmd_abort_work);
 		return IRQ_HANDLED;
 	}
 
@@ -1389,13 +1389,13 @@ static void mmc_omap_remove_slot(struct mmc_omap_slot *slot)
 
 	tasklet_kill(&slot->cover_tasklet);
 	del_timer_sync(&slot->cover_timer);
-	flush_workqueue(mmc_omap_wq);
+	flush_workqueue(slot->host->mmc_omap_wq);
 
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);
 }
 
-static int __init mmc_omap_probe(struct platform_device *pdev)
+static int __devinit mmc_omap_probe(struct platform_device *pdev)
 {
 	struct omap_mmc_platform_data *pdata = pdev->dev.platform_data;
 	struct mmc_omap_host *host = NULL;
@@ -1497,6 +1497,10 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 
 	host->reg_shift = (cpu_is_omap7xx() ? 1 : 2);
 
+	host->mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
+	if (!host->mmc_omap_wq)
+		goto err_plat_cleanup;
+
 	return 0;
 
 err_plat_cleanup:
@@ -1518,7 +1522,7 @@ err_free_mem_region:
 	return ret;
 }
 
-static int mmc_omap_remove(struct platform_device *pdev)
+static int __devexit mmc_omap_remove(struct platform_device *pdev)
 {
 	struct mmc_omap_host *host = platform_get_drvdata(pdev);
 	int i;
@@ -1542,6 +1546,7 @@ static int mmc_omap_remove(struct platform_device *pdev)
 	iounmap(host->virt_base);
 	release_mem_region(pdev->resource[0].start,
 			   pdev->resource[0].end - pdev->resource[0].start + 1);
+	destroy_workqueue(host->mmc_omap_wq);
 
 	kfree(host);
 
@@ -1599,7 +1604,8 @@ static int mmc_omap_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver mmc_omap_driver = {
-	.remove		= mmc_omap_remove,
+	.probe		= mmc_omap_probe,
+	.remove		= __devexit_p(mmc_omap_remove),
 	.suspend	= mmc_omap_suspend,
 	.resume		= mmc_omap_resume,
 	.driver		= {
@@ -1608,29 +1614,7 @@ static struct platform_driver mmc_omap_driver = {
 	},
 };
 
-static int __init mmc_omap_init(void)
-{
-	int ret;
-
-	mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
-	if (!mmc_omap_wq)
-		return -ENOMEM;
-
-	ret = platform_driver_probe(&mmc_omap_driver, mmc_omap_probe);
-	if (ret)
-		destroy_workqueue(mmc_omap_wq);
-	return ret;
-}
-
-static void __exit mmc_omap_exit(void)
-{
-	platform_driver_unregister(&mmc_omap_driver);
-	destroy_workqueue(mmc_omap_wq);
-}
-
-module_init(mmc_omap_init);
-module_exit(mmc_omap_exit);
-
+module_platform_driver(mmc_omap_driver);
 MODULE_DESCRIPTION("OMAP Multimedia Card driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);

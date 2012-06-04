@@ -506,10 +506,11 @@ static int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 		if (copy > size) {
 			++from;
 			--count;
-		}
+			offset = 0;
+		} else
+			offset += size;
 		copy -= size;
 		offset1 += size;
-		offset = 0;
 	}
 
 	if (len == offset1)
@@ -519,24 +520,29 @@ static int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 		struct page *page[MAX_SKB_FRAGS];
 		int num_pages;
 		unsigned long base;
+		unsigned long truesize;
 
-		len = from->iov_len - offset1;
+		len = from->iov_len - offset;
 		if (!len) {
-			offset1 = 0;
+			offset = 0;
 			++from;
 			continue;
 		}
-		base = (unsigned long)from->iov_base + offset1;
+		base = (unsigned long)from->iov_base + offset;
 		size = ((base & ~PAGE_MASK) + len + ~PAGE_MASK) >> PAGE_SHIFT;
+		if (i + size > MAX_SKB_FRAGS)
+			return -EMSGSIZE;
 		num_pages = get_user_pages_fast(base, size, 0, &page[i]);
-		if ((num_pages != size) ||
-		    (num_pages > MAX_SKB_FRAGS - skb_shinfo(skb)->nr_frags))
-			/* put_page is in skb free */
+		if (num_pages != size) {
+			for (i = 0; i < num_pages; i++)
+				put_page(page[i]);
 			return -EFAULT;
+		}
+		truesize = size * PAGE_SIZE;
 		skb->data_len += len;
 		skb->len += len;
-		skb->truesize += len;
-		atomic_add(len, &skb->sk->sk_wmem_alloc);
+		skb->truesize += truesize;
+		atomic_add(truesize, &skb->sk->sk_wmem_alloc);
 		while (len) {
 			int off = base & ~PAGE_MASK;
 			int size = min_t(int, len, PAGE_SIZE - off);
@@ -547,7 +553,7 @@ static int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 			len -= size;
 			i++;
 		}
-		offset1 = 0;
+		offset = 0;
 		++from;
 	}
 	return 0;
@@ -647,7 +653,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	int err;
 	struct virtio_net_hdr vnet_hdr = { 0 };
 	int vnet_hdr_len = 0;
-	int copylen;
+	int copylen = 0;
 	bool zerocopy = false;
 
 	if (q->flags & IFF_VNET_HDR) {
@@ -676,15 +682,31 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	if (unlikely(len < ETH_HLEN))
 		goto err;
 
+	err = -EMSGSIZE;
+	if (unlikely(count > UIO_MAXIOV))
+		goto err;
+
 	if (m && m->msg_control && sock_flag(&q->sk, SOCK_ZEROCOPY))
 		zerocopy = true;
 
 	if (zerocopy) {
+		/* Userspace may produce vectors with count greater than
+		 * MAX_SKB_FRAGS, so we need to linearize parts of the skb
+		 * to let the rest of data to be fit in the frags.
+		 */
+		if (count > MAX_SKB_FRAGS) {
+			copylen = iov_length(iv, count - MAX_SKB_FRAGS);
+			if (copylen < vnet_hdr_len)
+				copylen = 0;
+			else
+				copylen -= vnet_hdr_len;
+		}
 		/* There are 256 bytes to be copied in skb, so there is enough
 		 * room for skb expand head in case it is used.
 		 * The rest buffer is mapped from userspace.
 		 */
-		copylen = vnet_hdr.hdr_len;
+		if (copylen < vnet_hdr.hdr_len)
+			copylen = vnet_hdr.hdr_len;
 		if (!copylen)
 			copylen = GOODCOPY_LEN;
 	} else
@@ -695,10 +717,9 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	if (!skb)
 		goto err;
 
-	if (zerocopy) {
+	if (zerocopy)
 		err = zerocopy_sg_from_iovec(skb, iv, vnet_hdr_len, count);
-		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
-	} else
+	else
 		err = skb_copy_datagram_from_iovec(skb, 0, iv, vnet_hdr_len,
 						   len);
 	if (err)
@@ -717,8 +738,10 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	rcu_read_lock_bh();
 	vlan = rcu_dereference_bh(q->vlan);
 	/* copy skb_ubuf_info for callback when skb has no error */
-	if (zerocopy)
+	if (zerocopy) {
 		skb_shinfo(skb)->destructor_arg = m->msg_control;
+		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+	}
 	if (vlan)
 		macvlan_start_xmit(skb, vlan->dev);
 	else

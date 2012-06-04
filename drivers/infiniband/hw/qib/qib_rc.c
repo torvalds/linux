@@ -244,9 +244,9 @@ int qib_make_rc_req(struct qib_qp *qp)
 	int ret = 0;
 	int delta;
 
-	ohdr = &qp->s_hdr.u.oth;
+	ohdr = &qp->s_hdr->u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &qp->s_hdr.u.l.oth;
+		ohdr = &qp->s_hdr->u.l.oth;
 
 	/*
 	 * The lock is needed to synchronize between the sending tasklet,

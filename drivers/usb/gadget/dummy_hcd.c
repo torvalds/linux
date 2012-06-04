@@ -595,14 +595,12 @@ static struct usb_request *dummy_alloc_request(struct usb_ep *_ep,
 
 static void dummy_free_request(struct usb_ep *_ep, struct usb_request *_req)
 {
-	struct dummy_ep		*ep;
 	struct dummy_request	*req;
 
-	if (!_ep || !_req)
+	if (!_ep || !_req) {
+		WARN_ON(1);
 		return;
-	ep = usb_ep_to_dummy_ep(_ep);
-	if (!ep->desc && _ep->name != ep0name)
-		return;
+	}
 
 	req = usb_request_to_dummy_request(_req);
 	WARN_ON(!list_empty(&req->queue));

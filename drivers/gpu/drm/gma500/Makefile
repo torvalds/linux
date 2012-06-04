@@ -1,7 +1,7 @@
 #
 #	KMS driver for the GMA500
 #
-ccflags-y += -Iinclude/drm
+ccflags-y += -I$(srctree)/include/drm
 
 gma500_gfx-y += gem_glue.o \
 	  accel_2d.o \
@@ -12,7 +12,6 @@ gma500_gfx-y += gem_glue.o \
 	  intel_bios.o \
 	  intel_i2c.o \
 	  intel_gmbus.o \
-	  intel_opregion.o \
 	  mmu.o \
 	  power.o \
 	  psb_drv.o \
@@ -24,6 +23,8 @@ gma500_gfx-y += gem_glue.o \
 	  psb_irq.o \
 	  psb_device.o \
 	  mid_bios.o
+
+gma500_gfx-$(CONFIG_ACPI) +=  opregion.o \
 
 gma500_gfx-$(CONFIG_DRM_GMA3600) +=  cdv_device.o \
 	  cdv_intel_crt.o \

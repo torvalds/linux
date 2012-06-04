@@ -343,21 +343,17 @@ extern unsigned long sparc64_cpu_startup;
  */
 static struct thread_info *cpu_new_thread = NULL;
 
-static int __cpuinit smp_boot_one_cpu(unsigned int cpu)
+static int __cpuinit smp_boot_one_cpu(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long entry =
 		(unsigned long)(&sparc64_cpu_startup);
 	unsigned long cookie =
 		(unsigned long)(&cpu_new_thread);
-	struct task_struct *p;
 	void *descr = NULL;
 	int timeout, ret;
 
-	p = fork_idle(cpu);
-	if (IS_ERR(p))
-		return PTR_ERR(p);
 	callin_flag = 0;
-	cpu_new_thread = task_thread_info(p);
+	cpu_new_thread = task_thread_info(idle);
 
 	if (tlb_type == hypervisor) {
 #if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
@@ -1227,9 +1223,9 @@ void __devinit smp_fill_in_sib_core_maps(void)
 	}
 }
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	int ret = smp_boot_one_cpu(cpu);
+	int ret = smp_boot_one_cpu(cpu, tidle);
 
 	if (!ret) {
 		cpumask_set_cpu(cpu, &smp_commenced_mask);

@@ -1742,7 +1742,7 @@ static void __devexit snd_nm256_remove(struct pci_dev *pci)
 }
 
 
-static struct pci_driver driver = {
+static struct pci_driver nm256_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_nm256_ids,
 	.probe = snd_nm256_probe,
@@ -1753,16 +1753,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-
-static int __init alsa_card_nm256_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_nm256_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_nm256_init)
-module_exit(alsa_card_nm256_exit)
+module_pci_driver(nm256_driver);

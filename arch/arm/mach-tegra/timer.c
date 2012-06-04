@@ -124,7 +124,7 @@ static u64 tegra_rtc_read_ms(void)
 }
 
 /*
- * read_persistent_clock -  Return time from a persistent clock.
+ * tegra_read_persistent_clock -  Return time from a persistent clock.
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
@@ -133,7 +133,7 @@ static u64 tegra_rtc_read_ms(void)
  * tegra_rtc driver could be executing to avoid race conditions
  * on the RTC shadow register
  */
-void read_persistent_clock(struct timespec *ts)
+static void tegra_read_persistent_clock(struct timespec *ts)
 {
 	u64 delta;
 	struct timespec *tsp = &persistent_ts;
@@ -243,6 +243,7 @@ static void __init tegra_init_timer(void)
 	tegra_clockevent.irq = tegra_timer_irq.irq;
 	clockevents_register_device(&tegra_clockevent);
 	tegra_twd_init();
+	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }
 
 struct sys_timer tegra_timer = {

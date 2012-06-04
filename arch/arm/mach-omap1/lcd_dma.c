@@ -57,7 +57,7 @@ static struct lcd_dma_info {
 	void *cb_data;
 
 	int active;
-	unsigned long addr, size;
+	unsigned long addr;
 	int rotate, data_type, xres, yres;
 	int vxres;
 	int mirror;
@@ -76,11 +76,6 @@ void omap_set_lcd_dma_b1(unsigned long addr, u16 fb_xres, u16 fb_yres,
 	lcd_dma.yres = fb_yres;
 }
 EXPORT_SYMBOL(omap_set_lcd_dma_b1);
-
-void omap_set_lcd_dma_src_port(int port)
-{
-	lcd_dma.src_port = port;
-}
 
 void omap_set_lcd_dma_ext_controller(int external)
 {

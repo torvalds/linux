@@ -65,7 +65,6 @@ struct omap_uart_port_info {
 	bool			dma_enabled;	/* To specify DMA Mode */
 	unsigned int		uartclk;	/* UART clock rate */
 	upf_t			flags;		/* UPF_* flags */
-	u32			errata;
 	unsigned int		dma_rx_buf_size;
 	unsigned int		dma_rx_timeout;
 	unsigned int		autosuspend_timeout;

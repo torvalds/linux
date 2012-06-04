@@ -11,10 +11,16 @@
 #include <mach/mx23.h>
 #include <mach/devices-common.h>
 #include <mach/mxsfb.h>
+#include <linux/amba/bus.h>
 
-extern const struct amba_device mx23_duart_device __initconst;
-#define mx23_add_duart() \
-	mxs_add_duart(&mx23_duart_device)
+static inline int mx23_add_duart(void)
+{
+	struct amba_device *d;
+
+	d = amba_ahb_device_add(NULL, "duart", MX23_DUART_BASE_ADDR, SZ_8K,
+				MX23_INT_DUART, 0, 0, 0);
+	return IS_ERR(d) ? PTR_ERR(d) : 0;
+}
 
 extern const struct mxs_auart_data mx23_auart_data[] __initconst;
 #define mx23_add_auart(id)	mxs_add_auart(&mx23_auart_data[id])

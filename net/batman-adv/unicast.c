@@ -331,6 +331,14 @@ find_router:
 	unicast_packet->ttvn =
 		(uint8_t)atomic_read(&orig_node->last_ttvn);
 
+	/* inform the destination node that we are still missing a correct route
+	 * for this client. The destination will receive this packet and will
+	 * try to reroute it because the ttvn contained in the header is less
+	 * than the current one
+	 */
+	if (tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
+		unicast_packet->ttvn = unicast_packet->ttvn - 1;
+
 	if (atomic_read(&bat_priv->fragmentation) &&
 	    data_len + sizeof(*unicast_packet) >
 				neigh_node->if_incoming->net_dev->mtu) {

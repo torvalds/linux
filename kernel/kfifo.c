@@ -402,6 +402,7 @@ unsigned int __kfifo_max_r(unsigned int len, size_t recsize)
 		return max;
 	return len;
 }
+EXPORT_SYMBOL(__kfifo_max_r);
 
 #define	__KFIFO_PEEK(data, out, mask) \
 	((data)[(out) & (mask)])

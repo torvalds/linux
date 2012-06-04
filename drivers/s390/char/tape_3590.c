@@ -670,92 +670,6 @@ tape_3590_schedule_work(struct tape_device *device, enum tape_op op)
 	return 0;
 }
 
-#ifdef CONFIG_S390_TAPE_BLOCK
-/*
- * Tape Block READ
- */
-static struct tape_request *
-tape_3590_bread(struct tape_device *device, struct request *req)
-{
-	struct tape_request *request;
-	struct ccw1 *ccw;
-	int count = 0, start_block;
-	unsigned off;
-	char *dst;
-	struct bio_vec *bv;
-	struct req_iterator iter;
-
-	DBF_EVENT(6, "xBREDid:");
-	start_block = blk_rq_pos(req) >> TAPEBLOCK_HSEC_S2B;
-	DBF_EVENT(6, "start_block = %i\n", start_block);
-
-	rq_for_each_segment(bv, req, iter)
-		count += bv->bv_len >> (TAPEBLOCK_HSEC_S2B + 9);
-
-	request = tape_alloc_request(2 + count + 1, 4);
-	if (IS_ERR(request))
-		return request;
-	request->op = TO_BLOCK;
-	*(__u32 *) request->cpdata = start_block;
-	ccw = request->cpaddr;
-	ccw = tape_ccw_cc(ccw, MODE_SET_DB, 1, device->modeset_byte);
-
-	/*
-	 * We always setup a nop after the mode set ccw. This slot is
-	 * used in tape_std_check_locate to insert a locate ccw if the
-	 * current tape position doesn't match the start block to be read.
-	 */
-	ccw = tape_ccw_cc(ccw, NOP, 0, NULL);
-
-	rq_for_each_segment(bv, req, iter) {
-		dst = page_address(bv->bv_page) + bv->bv_offset;
-		for (off = 0; off < bv->bv_len; off += TAPEBLOCK_HSEC_SIZE) {
-			ccw->flags = CCW_FLAG_CC;
-			ccw->cmd_code = READ_FORWARD;
-			ccw->count = TAPEBLOCK_HSEC_SIZE;
-			set_normalized_cda(ccw, (void *) __pa(dst));
-			ccw++;
-			dst += TAPEBLOCK_HSEC_SIZE;
-		}
-		BUG_ON(off > bv->bv_len);
-	}
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
-	DBF_EVENT(6, "xBREDccwg\n");
-	return request;
-}
-
-static void
-tape_3590_free_bread(struct tape_request *request)
-{
-	struct ccw1 *ccw;
-
-	/* Last ccw is a nop and doesn't need clear_normalized_cda */
-	for (ccw = request->cpaddr; ccw->flags & CCW_FLAG_CC; ccw++)
-		if (ccw->cmd_code == READ_FORWARD)
-			clear_normalized_cda(ccw);
-	tape_free_request(request);
-}
-
-/*
- * check_locate is called just before the tape request is passed to
- * the common io layer for execution. It has to check the current
- * tape position and insert a locate ccw if it doesn't match the
- * start block for the request.
- */
-static void
-tape_3590_check_locate(struct tape_device *device, struct tape_request *request)
-{
-	__u32 *start_block;
-
-	start_block = (__u32 *) request->cpdata;
-	if (*start_block != device->blk_data.block_position) {
-		/* Add the start offset of the file to get the real block. */
-		*start_block += device->bof;
-		tape_ccw_cc(request->cpaddr + 1, LOCATE, 4, request->cpdata);
-	}
-}
-#endif
-
 static void tape_3590_med_state_set(struct tape_device *device,
 				    struct tape_3590_med_sense *sense)
 {
@@ -1423,20 +1337,6 @@ tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
 {
 	struct tape_3590_sense *sense;
 
-#ifdef CONFIG_S390_TAPE_BLOCK
-	if (request->op == TO_BLOCK) {
-		/*
-		 * Recovery for block device requests. Set the block_position
-		 * to something invalid and retry.
-		 */
-		device->blk_data.block_position = -1;
-		if (request->retries-- <= 0)
-			return tape_3590_erp_failed(device, request, irb, -EIO);
-		else
-			return tape_3590_erp_retry(device, request, irb);
-	}
-#endif
-
 	sense = (struct tape_3590_sense *) irb->ecw;
 
 	DBF_EVENT(6, "Unit Check: RQC = %x\n", sense->rc_rqc);
@@ -1729,11 +1629,6 @@ static struct tape_discipline tape_discipline_3590 = {
 	.irq = tape_3590_irq,
 	.read_block = tape_std_read_block,
 	.write_block = tape_std_write_block,
-#ifdef CONFIG_S390_TAPE_BLOCK
-	.bread = tape_3590_bread,
-	.free_bread = tape_3590_free_bread,
-	.check_locate = tape_3590_check_locate,
-#endif
 	.ioctl_fn = tape_3590_ioctl,
 	.mtop_array = tape_3590_mtop
 };

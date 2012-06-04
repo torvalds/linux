@@ -100,8 +100,9 @@ STD_ENTRY(smp_nap)
  */
 STD_ENTRY(_cpu_idle)
 	movei r1, 1
+	IRQ_ENABLE_LOAD(r2, r3)
 	mtspr INTERRUPT_CRITICAL_SECTION, r1
-	IRQ_ENABLE(r2, r3)             /* unmask, but still with ICS set */
+	IRQ_ENABLE_APPLY(r2, r3)       /* unmask, but still with ICS set */
 	mtspr INTERRUPT_CRITICAL_SECTION, zero
 	.global _cpu_idle_nap
 _cpu_idle_nap:

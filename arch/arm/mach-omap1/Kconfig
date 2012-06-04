@@ -132,6 +132,7 @@ config MACH_OMAP_PALMTT
 
 config MACH_SX1
 	bool "Siemens SX1"
+	select I2C
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX
 	help
 	  Support for the Siemens SX1 phone. To boot the kernel,

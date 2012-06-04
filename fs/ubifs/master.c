@@ -241,7 +241,7 @@ static int validate_master(const struct ubifs_info *c)
 
 out:
 	ubifs_err("bad master node at offset %d error %d", c->mst_offs, err);
-	dbg_dump_node(c, c->mst_node);
+	ubifs_dump_node(c, c->mst_node);
 	return -EINVAL;
 }
 
@@ -317,7 +317,7 @@ int ubifs_read_master(struct ubifs_info *c)
 		if (c->leb_cnt < old_leb_cnt ||
 		    c->leb_cnt < UBIFS_MIN_LEB_CNT) {
 			ubifs_err("bad leb_cnt on master node");
-			dbg_dump_node(c, c->mst_node);
+			ubifs_dump_node(c, c->mst_node);
 			return -EINVAL;
 		}
 
@@ -379,7 +379,7 @@ int ubifs_write_master(struct ubifs_info *c)
 	c->mst_offs = offs;
 	c->mst_node->highest_inum = cpu_to_le64(c->highest_inum);
 
-	err = ubifs_write_node(c, c->mst_node, len, lnum, offs, UBI_SHORTTERM);
+	err = ubifs_write_node(c, c->mst_node, len, lnum, offs);
 	if (err)
 		return err;
 
@@ -390,7 +390,7 @@ int ubifs_write_master(struct ubifs_info *c)
 		if (err)
 			return err;
 	}
-	err = ubifs_write_node(c, c->mst_node, len, lnum, offs, UBI_SHORTTERM);
+	err = ubifs_write_node(c, c->mst_node, len, lnum, offs);
 
 	return err;
 }

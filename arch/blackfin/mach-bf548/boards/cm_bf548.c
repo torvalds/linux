@@ -1007,6 +1007,8 @@ static struct platform_device bf54x_spi_master1 = {
 #endif  /* spi master and devices */
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+static const u16 bfin_twi0_pins[] = {P_TWI0_SCL, P_TWI0_SDA, 0};
+
 static struct resource bfin_twi0_resource[] = {
 	[0] = {
 		.start = TWI0_REGBASE,
@@ -1025,9 +1027,14 @@ static struct platform_device i2c_bfin_twi0_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(bfin_twi0_resource),
 	.resource = bfin_twi0_resource,
+	.dev = {
+		.platform_data = &bfin_twi0_pins,
+	},
 };
 
 #if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
+static const u16 bfin_twi1_pins[] = {P_TWI1_SCL, P_TWI1_SDA, 0};
+
 static struct resource bfin_twi1_resource[] = {
 	[0] = {
 		.start = TWI1_REGBASE,
@@ -1046,6 +1053,9 @@ static struct platform_device i2c_bfin_twi1_device = {
 	.id = 1,
 	.num_resources = ARRAY_SIZE(bfin_twi1_resource),
 	.resource = bfin_twi1_resource,
+	.dev = {
+		.platform_data = &bfin_twi1_pins,
+	},
 };
 #endif
 #endif

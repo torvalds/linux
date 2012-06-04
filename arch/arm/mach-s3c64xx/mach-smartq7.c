@@ -124,23 +124,27 @@ static struct platform_device smartq7_buttons_device  = {
 };
 
 static struct s3c_fb_pd_win smartq7_fb_win0 = {
-	.win_mode	= {
-		.left_margin	= 3,
-		.right_margin	= 5,
-		.upper_margin	= 1,
-		.lower_margin	= 20,
-		.hsync_len	= 10,
-		.vsync_len	= 3,
-		.xres		= 800,
-		.yres		= 480,
-		.refresh	= 80,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct fb_videomode smartq7_lcd_timing = {
+	.left_margin	= 3,
+	.right_margin	= 5,
+	.upper_margin	= 1,
+	.lower_margin	= 20,
+	.hsync_len	= 10,
+	.vsync_len	= 3,
+	.xres		= 800,
+	.yres		= 480,
+	.refresh	= 80,
 };
 
 static struct s3c_fb_platdata smartq7_lcd_pdata __initdata = {
 	.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
+	.vtiming	= &smartq7_lcd_timing,
 	.win[0]		= &smartq7_fb_win0,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC |
@@ -168,6 +172,7 @@ MACHINE_START(SMARTQ7, "SmartQ 7")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= smartq_map_io,
 	.init_machine	= smartq7_machine_init,
+	.init_late	= s3c64xx_init_late,
 	.timer		= &s3c24xx_timer,
 	.restart	= s3c64xx_restart,
 MACHINE_END

@@ -203,6 +203,12 @@
 #define __NR_osf_security	222	/* not implemented */
 #define __NR_osf_kloadcall	223	/* not implemented */
 
+#define __NR_osf_stat		224
+#define __NR_osf_lstat		225
+#define __NR_osf_fstat		226
+#define __NR_osf_statfs64	227
+#define __NR_osf_fstatfs64	228
+
 #define __NR_getpgid		233
 #define __NR_getsid		234
 #define __NR_sigaltstack	235

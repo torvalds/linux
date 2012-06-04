@@ -102,6 +102,8 @@ void qib_set_ctxtcnt(struct qib_devdata *dd)
 		dd->cfgctxts = qib_cfgctxts;
 	else
 		dd->cfgctxts = dd->ctxtcnt;
+	dd->freectxts = (dd->first_user_ctxt > dd->cfgctxts) ? 0 :
+		dd->cfgctxts - dd->first_user_ctxt;
 }
 
 /*
@@ -402,7 +404,6 @@ static void enable_chip(struct qib_devdata *dd)
 		if (rcd)
 			dd->f_rcvctrl(rcd->ppd, rcvmask, i);
 	}
-	dd->freectxts = dd->cfgctxts - dd->first_user_ctxt;
 }
 
 static void verify_interrupt(unsigned long opaque)

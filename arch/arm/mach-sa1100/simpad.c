@@ -395,6 +395,7 @@ MACHINE_START(SIMPAD, "Simpad")
 	.map_io		= simpad_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
+	.init_late	= sa11x0_init_late,
 	.timer		= &sa1100_timer,
 	.restart	= sa11x0_restart,
 MACHINE_END

@@ -50,12 +50,31 @@ void kirkwood_nand_init(struct mtd_partition *parts, int nr_parts, int delay);
 void kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts, int (*dev_ready)(struct mtd_info *));
 void kirkwood_audio_init(void);
 void kirkwood_restart(char, const char *);
+void kirkwood_clk_init(void);
 
 /* board init functions for boards not fully converted to fdt */
 #ifdef CONFIG_MACH_DREAMPLUG_DT
 void dreamplug_init(void);
 #else
 static inline void dreamplug_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_DLINK_KIRKWOOD_DT
+void dnskw_init(void);
+#else
+static inline void dnskw_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_ICONNECT_DT
+void iconnect_init(void);
+#else
+static inline void iconnect_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_IB62X0_DT
+void ib62x0_init(void);
+#else
+static inline void ib62x0_init(void) {};
 #endif
 
 /* early init functions not converted to fdt yet */

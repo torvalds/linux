@@ -3,6 +3,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-anysee.o \
 			rc-apac-viewcomp.o \
 			rc-asus-pc39.o \
+			rc-asus-ps3-100.o \
 			rc-ati-tv-wonder-hd-600.o \
 			rc-ati-x10.o \
 			rc-avermedia-a16d.o \
@@ -52,6 +53,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-lme2510.o \
 			rc-manli.o \
 			rc-medion-x10.o \
+			rc-medion-x10-digitainer.o \
+			rc-medion-x10-or2x.o \
 			rc-msi-digivox-ii.o \
 			rc-msi-digivox-iii.o \
 			rc-msi-tvanywhere.o \

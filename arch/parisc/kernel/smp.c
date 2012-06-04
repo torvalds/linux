@@ -340,25 +340,10 @@ void __init smp_callin(void)
 /*
  * Bring one cpu online.
  */
-int __cpuinit smp_boot_one_cpu(int cpuid)
+int __cpuinit smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 {
 	const struct cpuinfo_parisc *p = &per_cpu(cpu_data, cpuid);
-	struct task_struct *idle;
 	long timeout;
-
-	/* 
-	 * Create an idle task for this CPU.  Note the address wed* give 
-	 * to kernel_thread is irrelevant -- it's going to start
-	 * where OS_BOOT_RENDEVZ vector in SAL says to start.  But
-	 * this gets all the other task-y sort of data structures set
-	 * up like we wish.   We need to pull the just created idle task 
-	 * off the run queue and stuff it into the init_tasks[] array.  
-	 * Sheesh . . .
-	 */
-
-	idle = fork_idle(cpuid);
-	if (IS_ERR(idle))
-		panic("SMP: fork failed for CPU:%d", cpuid);
 
 	task_thread_info(idle)->cpu = cpuid;
 
@@ -403,10 +388,6 @@ int __cpuinit smp_boot_one_cpu(int cpuid)
 		udelay(100);
 		barrier();
 	}
-
-	put_task_struct(idle);
-	idle = NULL;
-
 	printk(KERN_CRIT "SMP: CPU:%d is stuck.\n", cpuid);
 	return -1;
 
@@ -455,10 +436,10 @@ void smp_cpus_done(unsigned int cpu_max)
 }
 
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	if (cpu != 0 && cpu < parisc_max_cpus)
-		smp_boot_one_cpu(cpu);
+		smp_boot_one_cpu(cpu, tidle);
 
 	return cpu_online(cpu) ? 0 : -ENOSYS;
 }

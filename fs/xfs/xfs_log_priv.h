@@ -417,6 +417,8 @@ struct xfs_cil {
 	struct list_head	xc_committing;
 	wait_queue_head_t	xc_commit_wait;
 	xfs_lsn_t		xc_current_sequence;
+	struct work_struct	xc_push_work;
+	xfs_lsn_t		xc_push_seq;
 };
 
 /*
@@ -553,7 +555,7 @@ extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
 extern kmem_zone_t *xfs_log_ticket_zone;
 struct xlog_ticket *xlog_ticket_alloc(struct log *log, int unit_bytes,
 				int count, char client, bool permanent,
-				int alloc_flags);
+				xfs_km_flags_t alloc_flags);
 
 
 static inline void

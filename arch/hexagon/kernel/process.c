@@ -234,43 +234,6 @@ unsigned long get_wchan(struct task_struct *p)
 }
 
 /*
- * Borrowed from PowerPC -- basically allow smaller kernel stacks if we
- * go crazy with the page sizes.
- */
-#if THREAD_SHIFT < PAGE_SHIFT
-
-static struct kmem_cache *thread_info_cache;
-
-struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
-{
-	struct thread_info *ti;
-
-	ti = kmem_cache_alloc_node(thread_info_cache, GFP_KERNEL, node);
-	if (unlikely(ti == NULL))
-		return NULL;
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	memset(ti, 0, THREAD_SIZE);
-#endif
-	return ti;
-}
-
-void free_thread_info(struct thread_info *ti)
-{
-	kmem_cache_free(thread_info_cache, ti);
-}
-
-/*  Weak symbol; called by init/main.c  */
-
-void thread_info_cache_init(void)
-{
-	thread_info_cache = kmem_cache_create("thread_info", THREAD_SIZE,
-					      THREAD_SIZE, 0, NULL);
-	BUG_ON(thread_info_cache == NULL);
-}
-
-#endif /* THREAD_SHIFT < PAGE_SHIFT */
-
-/*
  * Required placeholder.
  */
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)

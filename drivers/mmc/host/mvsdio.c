@@ -19,6 +19,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/irq.h>
+#include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
 
@@ -51,6 +52,7 @@ struct mvsd_host {
 	struct device *dev;
 	struct resource *res;
 	int irq;
+	struct clk *clk;
 	int gpio_card_detect;
 	int gpio_write_protect;
 };
@@ -770,6 +772,13 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	} else
 		host->irq = irq;
 
+	/* Not all platforms can gate the clock, so it is not
+	   an error if the clock does not exists. */
+	host->clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(host->clk)) {
+		clk_prepare_enable(host->clk);
+	}
+
 	if (mvsd_data->gpio_card_detect) {
 		ret = gpio_request(mvsd_data->gpio_card_detect,
 				   DRIVER_NAME " cd");
@@ -854,6 +863,11 @@ static int __exit mvsd_remove(struct platform_device *pdev)
 		mvsd_power_down(host);
 		iounmap(host->base);
 		release_resource(host->res);
+
+		if (!IS_ERR(host->clk)) {
+			clk_disable_unprepare(host->clk);
+			clk_put(host->clk);
+		}
 		mmc_free_host(mmc);
 	}
 	platform_set_drvdata(pdev, NULL);

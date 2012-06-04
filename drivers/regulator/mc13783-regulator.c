@@ -340,6 +340,7 @@ static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
 	struct mc13xxx_regulator_platform_data *pdata =
 		dev_get_platdata(&pdev->dev);
 	struct mc13xxx_regulator_init_data *init_data;
+	struct regulator_config config = { };
 	int i, ret;
 
 	dev_dbg(&pdev->dev, "%s id %d\n", __func__, pdev->id);
@@ -357,11 +358,16 @@ static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
 	priv->mc13xxx = mc13783;
 
 	for (i = 0; i < pdata->num_regulators; i++) {
-		init_data = &pdata->regulators[i];
-		priv->regulators[i] = regulator_register(
-				&mc13783_regulators[init_data->id].desc,
-				&pdev->dev, init_data->init_data, priv, NULL);
+		struct regulator_desc *desc;
 
+		init_data = &pdata->regulators[i];
+		desc = &mc13783_regulators[init_data->id].desc;
+
+		config.dev = &pdev->dev;
+		config.init_data = init_data->init_data;
+		config.driver_data = priv;
+
+		priv->regulators[i] = regulator_register(desc, &config);
 		if (IS_ERR(priv->regulators[i])) {
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 				mc13783_regulators[i].desc.name);

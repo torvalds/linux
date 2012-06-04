@@ -200,8 +200,7 @@ xfs_ialloc_inode_init(
 		 */
 		d = XFS_AGB_TO_DADDR(mp, agno, agbno + (j * blks_per_cluster));
 		fbuf = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
-					 mp->m_bsize * blks_per_cluster,
-					 XBF_LOCK);
+					 mp->m_bsize * blks_per_cluster, 0);
 		if (!fbuf)
 			return ENOMEM;
 		/*
@@ -610,6 +609,13 @@ xfs_ialloc_get_rec(
 /*
  * Visible inode allocation functions.
  */
+/*
+ * Find a free (set) bit in the inode bitmask.
+ */
+static inline int xfs_ialloc_find_free(xfs_inofree_t *fp)
+{
+	return xfs_lowbit64(*fp);
+}
 
 /*
  * Allocate an inode on disk.

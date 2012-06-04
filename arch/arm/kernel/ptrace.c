@@ -24,6 +24,8 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/regset.h>
 #include <linux/audit.h>
+#include <linux/tracehook.h>
+#include <linux/unistd.h>
 
 #include <asm/pgtable.h>
 #include <asm/traps.h>
@@ -916,9 +918,9 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 		audit_syscall_entry(AUDIT_ARCH_ARM, scno, regs->ARM_r0,
 				    regs->ARM_r1, regs->ARM_r2, regs->ARM_r3);
 
+	if (why == 0 && test_and_clear_thread_flag(TIF_SYSCALL_RESTARTSYS))
+		scno = __NR_restart_syscall - __NR_SYSCALL_BASE;
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return scno;
-	if (!(current->ptrace & PT_PTRACED))
 		return scno;
 
 	current_thread_info()->syscall = scno;
@@ -930,19 +932,11 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 	ip = regs->ARM_ip;
 	regs->ARM_ip = why;
 
-	/* the 0x80 provides a way for the tracing parent to distinguish
-	   between a syscall stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
+	if (why)
+		tracehook_report_syscall_exit(regs, 0);
+	else if (tracehook_report_syscall_entry(regs))
+		current_thread_info()->syscall = -1;
+
 	regs->ARM_ip = ip;
 
 	return current_thread_info()->syscall;

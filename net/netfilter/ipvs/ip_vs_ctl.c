@@ -265,11 +265,11 @@ static struct list_head ip_vs_svc_fwm_table[IP_VS_SVC_TAB_SIZE];
 /*
  *	Returns hash value for virtual service
  */
-static inline unsigned
-ip_vs_svc_hashkey(struct net *net, int af, unsigned proto,
+static inline unsigned int
+ip_vs_svc_hashkey(struct net *net, int af, unsigned int proto,
 		  const union nf_inet_addr *addr, __be16 port)
 {
-	register unsigned porth = ntohs(port);
+	register unsigned int porth = ntohs(port);
 	__be32 addr_fold = addr->ip;
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -286,7 +286,7 @@ ip_vs_svc_hashkey(struct net *net, int af, unsigned proto,
 /*
  *	Returns hash value of fwmark for virtual service lookup
  */
-static inline unsigned ip_vs_svc_fwm_hashkey(struct net *net, __u32 fwmark)
+static inline unsigned int ip_vs_svc_fwm_hashkey(struct net *net, __u32 fwmark)
 {
 	return (((size_t)net>>8) ^ fwmark) & IP_VS_SVC_TAB_MASK;
 }
@@ -298,7 +298,7 @@ static inline unsigned ip_vs_svc_fwm_hashkey(struct net *net, __u32 fwmark)
  */
 static int ip_vs_svc_hash(struct ip_vs_service *svc)
 {
-	unsigned hash;
+	unsigned int hash;
 
 	if (svc->flags & IP_VS_SVC_F_HASHED) {
 		pr_err("%s(): request for already hashed, called from %pF\n",
@@ -361,7 +361,7 @@ static inline struct ip_vs_service *
 __ip_vs_service_find(struct net *net, int af, __u16 protocol,
 		     const union nf_inet_addr *vaddr, __be16 vport)
 {
-	unsigned hash;
+	unsigned int hash;
 	struct ip_vs_service *svc;
 
 	/* Check for "full" addressed entries */
@@ -388,7 +388,7 @@ __ip_vs_service_find(struct net *net, int af, __u16 protocol,
 static inline struct ip_vs_service *
 __ip_vs_svc_fwm_find(struct net *net, int af, __u32 fwmark)
 {
-	unsigned hash;
+	unsigned int hash;
 	struct ip_vs_service *svc;
 
 	/* Check for fwmark addressed entries */
@@ -489,11 +489,11 @@ __ip_vs_unbind_svc(struct ip_vs_dest *dest)
 /*
  *	Returns hash value for real service
  */
-static inline unsigned ip_vs_rs_hashkey(int af,
+static inline unsigned int ip_vs_rs_hashkey(int af,
 					    const union nf_inet_addr *addr,
 					    __be16 port)
 {
-	register unsigned porth = ntohs(port);
+	register unsigned int porth = ntohs(port);
 	__be32 addr_fold = addr->ip;
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -512,7 +512,7 @@ static inline unsigned ip_vs_rs_hashkey(int af,
  */
 static int ip_vs_rs_hash(struct netns_ipvs *ipvs, struct ip_vs_dest *dest)
 {
-	unsigned hash;
+	unsigned int hash;
 
 	if (!list_empty(&dest->d_list)) {
 		return 0;
@@ -555,7 +555,7 @@ ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
 			  __be16 dport)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
-	unsigned hash;
+	unsigned int hash;
 	struct ip_vs_dest *dest;
 
 	/*
@@ -842,7 +842,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	       struct ip_vs_dest **dest_p)
 {
 	struct ip_vs_dest *dest;
-	unsigned atype;
+	unsigned int atype;
 
 	EnterFunction(2);
 
@@ -1599,6 +1599,10 @@ static int ip_vs_zero_all(struct net *net)
 }
 
 #ifdef CONFIG_SYSCTL
+
+static int zero;
+static int three = 3;
+
 static int
 proc_do_defense_mode(ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp, loff_t *ppos)
@@ -1632,7 +1636,8 @@ proc_do_sync_threshold(ctl_table *table, int write,
 	memcpy(val, valp, sizeof(val));
 
 	rc = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (write && (valp[0] < 0 || valp[1] < 0 || valp[0] >= valp[1])) {
+	if (write && (valp[0] < 0 || valp[1] < 0 ||
+	    (valp[0] >= valp[1] && valp[1]))) {
 		/* Restore the correct value */
 		memcpy(valp, val, sizeof(val));
 	}
@@ -1652,9 +1657,24 @@ proc_do_sync_mode(ctl_table *table, int write,
 		if ((*valp < 0) || (*valp > 1)) {
 			/* Restore the correct value */
 			*valp = val;
-		} else {
-			struct net *net = current->nsproxy->net_ns;
-			ip_vs_sync_switch_mode(net, val);
+		}
+	}
+	return rc;
+}
+
+static int
+proc_do_sync_ports(ctl_table *table, int write,
+		   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int *valp = table->data;
+	int val = *valp;
+	int rc;
+
+	rc = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (write && (*valp != val)) {
+		if (*valp < 1 || !is_power_of_2(*valp)) {
+			/* Restore the correct value */
+			*valp = val;
 		}
 	}
 	return rc;
@@ -1718,6 +1738,24 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_do_sync_mode,
 	},
 	{
+		.procname	= "sync_ports",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_do_sync_ports,
+	},
+	{
+		.procname	= "sync_qlen_max",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "sync_sock_size",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "cache_bypass",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
@@ -1741,6 +1779,20 @@ static struct ctl_table vs_vars[] = {
 			sizeof(((struct netns_ipvs *)0)->sysctl_sync_threshold),
 		.mode		= 0644,
 		.proc_handler	= proc_do_sync_threshold,
+	},
+	{
+		.procname	= "sync_refresh_period",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "sync_retries",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &three,
 	},
 	{
 		.procname	= "nat_icmp_send",
@@ -1846,13 +1898,6 @@ static struct ctl_table vs_vars[] = {
 	{ }
 };
 
-const struct ctl_path net_vs_ctl_path[] = {
-	{ .procname = "net", },
-	{ .procname = "ipv4", },
-	{ .procname = "vs", },
-	{ }
-};
-EXPORT_SYMBOL_GPL(net_vs_ctl_path);
 #endif
 
 #ifdef CONFIG_PROC_FS
@@ -1867,7 +1912,7 @@ struct ip_vs_iter {
  *	Write the contents of the VS rule table to a PROCfs file.
  *	(It is kept just for backward compatibility)
  */
-static inline const char *ip_vs_fwd_name(unsigned flags)
+static inline const char *ip_vs_fwd_name(unsigned int flags)
 {
 	switch (flags & IP_VS_CONN_F_FWD_MASK) {
 	case IP_VS_CONN_F_LOCALNODE:
@@ -2816,17 +2861,17 @@ static int ip_vs_genl_fill_stats(struct sk_buff *skb, int container_type,
 
 	ip_vs_copy_stats(&ustats, stats);
 
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CONNS, ustats.conns);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPKTS, ustats.inpkts);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPKTS, ustats.outpkts);
-	NLA_PUT_U64(skb, IPVS_STATS_ATTR_INBYTES, ustats.inbytes);
-	NLA_PUT_U64(skb, IPVS_STATS_ATTR_OUTBYTES, ustats.outbytes);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CPS, ustats.cps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPPS, ustats.inpps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPPS, ustats.outpps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INBPS, ustats.inbps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTBPS, ustats.outbps);
-
+	if (nla_put_u32(skb, IPVS_STATS_ATTR_CONNS, ustats.conns) ||
+	    nla_put_u32(skb, IPVS_STATS_ATTR_INPKTS, ustats.inpkts) ||
+	    nla_put_u32(skb, IPVS_STATS_ATTR_OUTPKTS, ustats.outpkts) ||
+	    nla_put_u64(skb, IPVS_STATS_ATTR_INBYTES, ustats.inbytes) ||
+	    nla_put_u64(skb, IPVS_STATS_ATTR_OUTBYTES, ustats.outbytes) ||
+	    nla_put_u32(skb, IPVS_STATS_ATTR_CPS, ustats.cps) ||
+	    nla_put_u32(skb, IPVS_STATS_ATTR_INPPS, ustats.inpps) ||
+	    nla_put_u32(skb, IPVS_STATS_ATTR_OUTPPS, ustats.outpps) ||
+	    nla_put_u32(skb, IPVS_STATS_ATTR_INBPS, ustats.inbps) ||
+	    nla_put_u32(skb, IPVS_STATS_ATTR_OUTBPS, ustats.outbps))
+		goto nla_put_failure;
 	nla_nest_end(skb, nl_stats);
 
 	return 0;
@@ -2847,23 +2892,25 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	if (!nl_service)
 		return -EMSGSIZE;
 
-	NLA_PUT_U16(skb, IPVS_SVC_ATTR_AF, svc->af);
-
+	if (nla_put_u16(skb, IPVS_SVC_ATTR_AF, svc->af))
+		goto nla_put_failure;
 	if (svc->fwmark) {
-		NLA_PUT_U32(skb, IPVS_SVC_ATTR_FWMARK, svc->fwmark);
+		if (nla_put_u32(skb, IPVS_SVC_ATTR_FWMARK, svc->fwmark))
+			goto nla_put_failure;
 	} else {
-		NLA_PUT_U16(skb, IPVS_SVC_ATTR_PROTOCOL, svc->protocol);
-		NLA_PUT(skb, IPVS_SVC_ATTR_ADDR, sizeof(svc->addr), &svc->addr);
-		NLA_PUT_U16(skb, IPVS_SVC_ATTR_PORT, svc->port);
+		if (nla_put_u16(skb, IPVS_SVC_ATTR_PROTOCOL, svc->protocol) ||
+		    nla_put(skb, IPVS_SVC_ATTR_ADDR, sizeof(svc->addr), &svc->addr) ||
+		    nla_put_u16(skb, IPVS_SVC_ATTR_PORT, svc->port))
+			goto nla_put_failure;
 	}
 
-	NLA_PUT_STRING(skb, IPVS_SVC_ATTR_SCHED_NAME, svc->scheduler->name);
-	if (svc->pe)
-		NLA_PUT_STRING(skb, IPVS_SVC_ATTR_PE_NAME, svc->pe->name);
-	NLA_PUT(skb, IPVS_SVC_ATTR_FLAGS, sizeof(flags), &flags);
-	NLA_PUT_U32(skb, IPVS_SVC_ATTR_TIMEOUT, svc->timeout / HZ);
-	NLA_PUT_U32(skb, IPVS_SVC_ATTR_NETMASK, svc->netmask);
-
+	if (nla_put_string(skb, IPVS_SVC_ATTR_SCHED_NAME, svc->scheduler->name) ||
+	    (svc->pe &&
+	     nla_put_string(skb, IPVS_SVC_ATTR_PE_NAME, svc->pe->name)) ||
+	    nla_put(skb, IPVS_SVC_ATTR_FLAGS, sizeof(flags), &flags) ||
+	    nla_put_u32(skb, IPVS_SVC_ATTR_TIMEOUT, svc->timeout / HZ) ||
+	    nla_put_u32(skb, IPVS_SVC_ATTR_NETMASK, svc->netmask))
+		goto nla_put_failure;
 	if (ip_vs_genl_fill_stats(skb, IPVS_SVC_ATTR_STATS, &svc->stats))
 		goto nla_put_failure;
 
@@ -3038,21 +3085,22 @@ static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
 	if (!nl_dest)
 		return -EMSGSIZE;
 
-	NLA_PUT(skb, IPVS_DEST_ATTR_ADDR, sizeof(dest->addr), &dest->addr);
-	NLA_PUT_U16(skb, IPVS_DEST_ATTR_PORT, dest->port);
-
-	NLA_PUT_U32(skb, IPVS_DEST_ATTR_FWD_METHOD,
-		    atomic_read(&dest->conn_flags) & IP_VS_CONN_F_FWD_MASK);
-	NLA_PUT_U32(skb, IPVS_DEST_ATTR_WEIGHT, atomic_read(&dest->weight));
-	NLA_PUT_U32(skb, IPVS_DEST_ATTR_U_THRESH, dest->u_threshold);
-	NLA_PUT_U32(skb, IPVS_DEST_ATTR_L_THRESH, dest->l_threshold);
-	NLA_PUT_U32(skb, IPVS_DEST_ATTR_ACTIVE_CONNS,
-		    atomic_read(&dest->activeconns));
-	NLA_PUT_U32(skb, IPVS_DEST_ATTR_INACT_CONNS,
-		    atomic_read(&dest->inactconns));
-	NLA_PUT_U32(skb, IPVS_DEST_ATTR_PERSIST_CONNS,
-		    atomic_read(&dest->persistconns));
-
+	if (nla_put(skb, IPVS_DEST_ATTR_ADDR, sizeof(dest->addr), &dest->addr) ||
+	    nla_put_u16(skb, IPVS_DEST_ATTR_PORT, dest->port) ||
+	    nla_put_u32(skb, IPVS_DEST_ATTR_FWD_METHOD,
+			(atomic_read(&dest->conn_flags) &
+			 IP_VS_CONN_F_FWD_MASK)) ||
+	    nla_put_u32(skb, IPVS_DEST_ATTR_WEIGHT,
+			atomic_read(&dest->weight)) ||
+	    nla_put_u32(skb, IPVS_DEST_ATTR_U_THRESH, dest->u_threshold) ||
+	    nla_put_u32(skb, IPVS_DEST_ATTR_L_THRESH, dest->l_threshold) ||
+	    nla_put_u32(skb, IPVS_DEST_ATTR_ACTIVE_CONNS,
+			atomic_read(&dest->activeconns)) ||
+	    nla_put_u32(skb, IPVS_DEST_ATTR_INACT_CONNS,
+			atomic_read(&dest->inactconns)) ||
+	    nla_put_u32(skb, IPVS_DEST_ATTR_PERSIST_CONNS,
+			atomic_read(&dest->persistconns)))
+		goto nla_put_failure;
 	if (ip_vs_genl_fill_stats(skb, IPVS_DEST_ATTR_STATS, &dest->stats))
 		goto nla_put_failure;
 
@@ -3181,10 +3229,10 @@ static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __be32 state,
 	if (!nl_daemon)
 		return -EMSGSIZE;
 
-	NLA_PUT_U32(skb, IPVS_DAEMON_ATTR_STATE, state);
-	NLA_PUT_STRING(skb, IPVS_DAEMON_ATTR_MCAST_IFN, mcast_ifn);
-	NLA_PUT_U32(skb, IPVS_DAEMON_ATTR_SYNC_ID, syncid);
-
+	if (nla_put_u32(skb, IPVS_DAEMON_ATTR_STATE, state) ||
+	    nla_put_string(skb, IPVS_DAEMON_ATTR_MCAST_IFN, mcast_ifn) ||
+	    nla_put_u32(skb, IPVS_DAEMON_ATTR_SYNC_ID, syncid))
+		goto nla_put_failure;
 	nla_nest_end(skb, nl_daemon);
 
 	return 0;
@@ -3473,21 +3521,26 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 
 		__ip_vs_get_timeouts(net, &t);
 #ifdef CONFIG_IP_VS_PROTO_TCP
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, t.tcp_timeout);
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN,
-			    t.tcp_fin_timeout);
+		if (nla_put_u32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP,
+				t.tcp_timeout) ||
+		    nla_put_u32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN,
+				t.tcp_fin_timeout))
+			goto nla_put_failure;
 #endif
 #ifdef CONFIG_IP_VS_PROTO_UDP
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, t.udp_timeout);
+		if (nla_put_u32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, t.udp_timeout))
+			goto nla_put_failure;
 #endif
 
 		break;
 	}
 
 	case IPVS_CMD_GET_INFO:
-		NLA_PUT_U32(msg, IPVS_INFO_ATTR_VERSION, IP_VS_VERSION_CODE);
-		NLA_PUT_U32(msg, IPVS_INFO_ATTR_CONN_TAB_SIZE,
-			    ip_vs_conn_tab_size);
+		if (nla_put_u32(msg, IPVS_INFO_ATTR_VERSION,
+				IP_VS_VERSION_CODE) ||
+		    nla_put_u32(msg, IPVS_INFO_ATTR_CONN_TAB_SIZE,
+				ip_vs_conn_tab_size))
+			goto nla_put_failure;
 		break;
 	}
 
@@ -3654,6 +3707,12 @@ int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	tbl[idx++].data = &ipvs->sysctl_snat_reroute;
 	ipvs->sysctl_sync_ver = 1;
 	tbl[idx++].data = &ipvs->sysctl_sync_ver;
+	ipvs->sysctl_sync_ports = 1;
+	tbl[idx++].data = &ipvs->sysctl_sync_ports;
+	ipvs->sysctl_sync_qlen_max = nr_free_buffer_pages() / 32;
+	tbl[idx++].data = &ipvs->sysctl_sync_qlen_max;
+	ipvs->sysctl_sync_sock_size = 0;
+	tbl[idx++].data = &ipvs->sysctl_sync_sock_size;
 	tbl[idx++].data = &ipvs->sysctl_cache_bypass;
 	tbl[idx++].data = &ipvs->sysctl_expire_nodest_conn;
 	tbl[idx++].data = &ipvs->sysctl_expire_quiescent_template;
@@ -3661,11 +3720,14 @@ int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	ipvs->sysctl_sync_threshold[1] = DEFAULT_SYNC_PERIOD;
 	tbl[idx].data = &ipvs->sysctl_sync_threshold;
 	tbl[idx++].maxlen = sizeof(ipvs->sysctl_sync_threshold);
+	ipvs->sysctl_sync_refresh_period = DEFAULT_SYNC_REFRESH_PERIOD;
+	tbl[idx++].data = &ipvs->sysctl_sync_refresh_period;
+	ipvs->sysctl_sync_retries = clamp_t(int, DEFAULT_SYNC_RETRIES, 0, 3);
+	tbl[idx++].data = &ipvs->sysctl_sync_retries;
 	tbl[idx++].data = &ipvs->sysctl_nat_icmp_send;
 
 
-	ipvs->sysctl_hdr = register_net_sysctl_table(net, net_vs_ctl_path,
-						     tbl);
+	ipvs->sysctl_hdr = register_net_sysctl(net, "net/ipv4/vs", tbl);
 	if (ipvs->sysctl_hdr == NULL) {
 		if (!net_eq(net, &init_net))
 			kfree(tbl);

@@ -384,7 +384,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	md = mmc_blk_get(bdev->bd_disk);
 	if (!md) {
 		err = -EINVAL;
-		goto cmd_done;
+		goto cmd_err;
 	}
 
 	card = md->queue.card;
@@ -483,6 +483,7 @@ cmd_rel_host:
 
 cmd_done:
 	mmc_blk_put(md);
+cmd_err:
 	kfree(idata->buf);
 	kfree(idata);
 	return err;
@@ -1283,7 +1284,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 	int ret = 1, disable_multi = 0, retry = 0, type;
 	enum mmc_blk_status status;
 	struct mmc_queue_req *mq_rq;
-	struct request *req;
+	struct request *req = rqc;
 	struct mmc_async_req *areq;
 
 	if (!rqc && !mq->mqrq_prev->req)
@@ -1291,6 +1292,16 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 
 	do {
 		if (rqc) {
+			/*
+			 * When 4KB native sector is enabled, only 8 blocks
+			 * multiple read or write is allowed
+			 */
+			if ((brq->data.blocks & 0x07) &&
+			    (card->ext_csd.data_sector_size == 4096)) {
+				pr_err("%s: Transfer size is not 4KB sector size aligned\n",
+					req->rq_disk->disk_name);
+				goto cmd_abort;
+			}
 			mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
 			areq = &mq->mqrq_cur->mmc_active;
 		} else
@@ -1538,7 +1549,12 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	snprintf(md->disk->disk_name, sizeof(md->disk->disk_name),
 		 "mmcblk%d%s", md->name_idx, subname ? subname : "");
 
-	blk_queue_logical_block_size(md->queue.queue, 512);
+	if (mmc_card_mmc(card))
+		blk_queue_logical_block_size(md->queue.queue,
+					     card->ext_csd.data_sector_size);
+	else
+		blk_queue_logical_block_size(md->queue.queue, 512);
+
 	set_capacity(md->disk, size);
 
 	if (mmc_host_cmd23(card->host)) {

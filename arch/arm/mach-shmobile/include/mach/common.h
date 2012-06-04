@@ -3,6 +3,8 @@
 
 extern void shmobile_earlytimer_init(void);
 extern struct sys_timer shmobile_timer;
+extern void shmobile_setup_delay(unsigned int max_cpu_core_mhz,
+				 unsigned int mult, unsigned int div);
 struct twd_local_timer;
 extern void shmobile_setup_console(void);
 extern void shmobile_secondary_vector(void);
@@ -82,5 +84,19 @@ extern void r8a7779_secondary_init(unsigned int cpu);
 extern int r8a7779_boot_secondary(unsigned int cpu);
 extern void r8a7779_smp_prepare_cpus(void);
 extern void r8a7779_register_twd(void);
+
+extern void shmobile_init_late(void);
+
+#ifdef CONFIG_SUSPEND
+int shmobile_suspend_init(void);
+#else
+static inline int shmobile_suspend_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_CPU_IDLE
+int shmobile_cpuidle_init(void);
+#else
+static inline int shmobile_cpuidle_init(void) { return 0; }
+#endif
 
 #endif /* __ARCH_MACH_COMMON_H */

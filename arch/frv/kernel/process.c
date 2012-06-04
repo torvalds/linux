@@ -43,21 +43,6 @@ asmlinkage void ret_from_fork(void);
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-struct task_struct *alloc_task_struct_node(int node)
-{
-	struct task_struct *p = kmalloc_node(THREAD_SIZE, GFP_KERNEL, node);
-
-	if (p)
-		atomic_set((atomic_t *)(p+1), 1);
-	return p;
-}
-
-void free_task_struct(struct task_struct *p)
-{
-	if (atomic_dec_and_test((atomic_t *)(p+1)))
-		kfree(p);
-}
-
 static void core_sleep_idle(void)
 {
 #ifdef LED_DEBUG_SLEEP
@@ -180,17 +165,6 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 	return do_fork(clone_flags, newsp, __frame, 0, parent_tidptr, child_tidptr);
 } /* end sys_clone() */
 
-/*****************************************************************************/
-/*
- * This gets called before we allocate a new thread and copy
- * the current task into it.
- */
-void prepare_to_copy(struct task_struct *tsk)
-{
-	//unlazy_fpu(tsk);
-} /* end prepare_to_copy() */
-
-/*****************************************************************************/
 /*
  * set up the kernel stack and exception frames for a new process
  */

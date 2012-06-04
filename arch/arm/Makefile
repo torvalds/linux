@@ -70,8 +70,6 @@ arch-$(CONFIG_CPU_32v4)		:=-D__LINUX_ARM_ARCH__=4 -march=armv4
 arch-$(CONFIG_CPU_32v3)		:=-D__LINUX_ARM_ARCH__=3 -march=armv3
 
 # This selects how we optimise for the processor.
-tune-$(CONFIG_CPU_ARM610)	:=-mtune=arm610
-tune-$(CONFIG_CPU_ARM710)	:=-mtune=arm710
 tune-$(CONFIG_CPU_ARM7TDMI)	:=-mtune=arm7tdmi
 tune-$(CONFIG_CPU_ARM720T)	:=-mtune=arm7tdmi
 tune-$(CONFIG_CPU_ARM740T)	:=-mtune=arm7tdmi
@@ -119,7 +117,7 @@ KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_THUMB2) $(arch-y) $(tune-y) -include asm/
 CHECKFLAGS	+= -D__arm__
 
 #Default value
-head-y		:= arch/arm/kernel/head$(MMUEXT).o arch/arm/kernel/init_task.o
+head-y		:= arch/arm/kernel/head$(MMUEXT).o
 textofs-y	:= 0x00008000
 textofs-$(CONFIG_ARCH_CLPS711X) := 0x00028000
 # We don't want the htc bootloader to corrupt kernel during resume
@@ -149,8 +147,6 @@ machine-$(CONFIG_ARCH_INTEGRATOR)	:= integrator
 machine-$(CONFIG_ARCH_IOP13XX)		:= iop13xx
 machine-$(CONFIG_ARCH_IOP32X)		:= iop32x
 machine-$(CONFIG_ARCH_IOP33X)		:= iop33x
-machine-$(CONFIG_ARCH_IXP2000)		:= ixp2000
-machine-$(CONFIG_ARCH_IXP23XX)		:= ixp23xx
 machine-$(CONFIG_ARCH_IXP4XX)		:= ixp4xx
 machine-$(CONFIG_ARCH_KIRKWOOD)		:= kirkwood
 machine-$(CONFIG_ARCH_KS8695)		:= ks8695
@@ -164,9 +160,7 @@ machine-$(CONFIG_ARCH_MXS)		:= mxs
 machine-$(CONFIG_ARCH_NETX)		:= netx
 machine-$(CONFIG_ARCH_NOMADIK)		:= nomadik
 machine-$(CONFIG_ARCH_OMAP1)		:= omap1
-machine-$(CONFIG_ARCH_OMAP2)		:= omap2
-machine-$(CONFIG_ARCH_OMAP3)		:= omap2
-machine-$(CONFIG_ARCH_OMAP4)		:= omap2
+machine-$(CONFIG_ARCH_OMAP2PLUS)	:= omap2
 machine-$(CONFIG_ARCH_ORION5X)		:= orion5x
 machine-$(CONFIG_ARCH_PICOXCELL)	:= picoxcell
 machine-$(CONFIG_ARCH_PNX4008)		:= pnx4008
@@ -192,6 +186,8 @@ machine-$(CONFIG_ARCH_VEXPRESS)		:= vexpress
 machine-$(CONFIG_ARCH_VT8500)		:= vt8500
 machine-$(CONFIG_ARCH_W90X900)		:= w90x900
 machine-$(CONFIG_FOOTBRIDGE)		:= footbridge
+machine-$(CONFIG_MACH_SPEAR1310)	:= spear13xx
+machine-$(CONFIG_MACH_SPEAR1340)	:= spear13xx
 machine-$(CONFIG_MACH_SPEAR300)		:= spear3xx
 machine-$(CONFIG_MACH_SPEAR310)		:= spear3xx
 machine-$(CONFIG_MACH_SPEAR320)		:= spear3xx
@@ -209,7 +205,7 @@ plat-$(CONFIG_PLAT_NOMADIK)	:= nomadik
 plat-$(CONFIG_PLAT_ORION)	:= orion
 plat-$(CONFIG_PLAT_PXA)		:= pxa
 plat-$(CONFIG_PLAT_S3C24XX)	:= s3c24xx samsung
-plat-$(CONFIG_PLAT_S5P)		:= s5p samsung
+plat-$(CONFIG_PLAT_S5P)		:= samsung
 plat-$(CONFIG_PLAT_SPEAR)	:= spear
 plat-$(CONFIG_PLAT_VERSATILE)	:= versatile
 

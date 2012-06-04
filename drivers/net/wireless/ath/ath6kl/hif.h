@@ -256,6 +256,12 @@ struct ath6kl_hif_ops {
 	int (*power_on)(struct ath6kl *ar);
 	int (*power_off)(struct ath6kl *ar);
 	void (*stop)(struct ath6kl *ar);
+	int (*pipe_send)(struct ath6kl *ar, u8 pipe, struct sk_buff *hdr_buf,
+			 struct sk_buff *buf);
+	void (*pipe_get_default)(struct ath6kl *ar, u8 *pipe_ul, u8 *pipe_dl);
+	int (*pipe_map_service)(struct ath6kl *ar, u16 service_id, u8 *pipe_ul,
+				u8 *pipe_dl);
+	u16 (*pipe_get_free_queue_number)(struct ath6kl *ar, u8 pipe);
 };
 
 int ath6kl_hif_setup(struct ath6kl_device *dev);

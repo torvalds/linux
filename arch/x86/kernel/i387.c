@@ -88,7 +88,7 @@ void kernel_fpu_begin(void)
 		__thread_clear_has_fpu(me);
 		/* We do 'stts()' in kernel_fpu_end() */
 	} else {
-		percpu_write(fpu_owner_task, NULL);
+		this_cpu_write(fpu_owner_task, NULL);
 		clts();
 	}
 }

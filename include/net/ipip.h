@@ -54,8 +54,10 @@ struct ip_tunnel_prl_entry {
 									\
 	err = ip_local_out(skb);					\
 	if (likely(net_xmit_eval(err) == 0)) {				\
+		u64_stats_update_begin(&(stats1)->syncp);		\
 		(stats1)->tx_bytes += pkt_len;				\
 		(stats1)->tx_packets++;					\
+		u64_stats_update_end(&(stats1)->syncp);			\
 	} else {							\
 		(stats2)->tx_errors++;					\
 		(stats2)->tx_aborted_errors++;				\

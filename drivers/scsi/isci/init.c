@@ -271,13 +271,12 @@ static void isci_unregister(struct isci_host *isci_host)
 	if (!isci_host)
 		return;
 
-	shost = isci_host->shost;
-
 	sas_unregister_ha(&isci_host->sas_ha);
 
-	sas_remove_host(isci_host->shost);
-	scsi_remove_host(isci_host->shost);
-	scsi_host_put(isci_host->shost);
+	shost = to_shost(isci_host);
+	sas_remove_host(shost);
+	scsi_remove_host(shost);
+	scsi_host_put(shost);
 }
 
 static int __devinit isci_pci_init(struct pci_dev *pdev)
@@ -397,38 +396,199 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 	return err;
 }
 
+static void isci_user_parameters_get(struct sci_user_parameters *u)
+{
+	int i;
+
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		struct sci_phy_user_params *u_phy = &u->phys[i];
+
+		u_phy->max_speed_generation = phy_gen;
+
+		/* we are not exporting these for now */
+		u_phy->align_insertion_frequency = 0x7f;
+		u_phy->in_connection_align_insertion_frequency = 0xff;
+		u_phy->notify_enable_spin_up_insertion_frequency = 0x33;
+	}
+
+	u->stp_inactivity_timeout = stp_inactive_to;
+	u->ssp_inactivity_timeout = ssp_inactive_to;
+	u->stp_max_occupancy_timeout = stp_max_occ_to;
+	u->ssp_max_occupancy_timeout = ssp_max_occ_to;
+	u->no_outbound_task_timeout = no_outbound_task_to;
+	u->max_concurr_spinup = max_concurr_spinup;
+}
+
+static enum sci_status sci_user_parameters_set(struct isci_host *ihost,
+					       struct sci_user_parameters *sci_parms)
+{
+	u16 index;
+
+	/*
+	 * Validate the user parameters.  If they are not legal, then
+	 * return a failure.
+	 */
+	for (index = 0; index < SCI_MAX_PHYS; index++) {
+		struct sci_phy_user_params *u;
+
+		u = &sci_parms->phys[index];
+
+		if (!((u->max_speed_generation <= SCIC_SDS_PARM_MAX_SPEED) &&
+		      (u->max_speed_generation > SCIC_SDS_PARM_NO_SPEED)))
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
+		if (u->in_connection_align_insertion_frequency < 3)
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
+		if ((u->in_connection_align_insertion_frequency < 3) ||
+		    (u->align_insertion_frequency == 0) ||
+		    (u->notify_enable_spin_up_insertion_frequency == 0))
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+	}
+
+	if ((sci_parms->stp_inactivity_timeout == 0) ||
+	    (sci_parms->ssp_inactivity_timeout == 0) ||
+	    (sci_parms->stp_max_occupancy_timeout == 0) ||
+	    (sci_parms->ssp_max_occupancy_timeout == 0) ||
+	    (sci_parms->no_outbound_task_timeout == 0))
+		return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
+	memcpy(&ihost->user_parameters, sci_parms, sizeof(*sci_parms));
+
+	return SCI_SUCCESS;
+}
+
+static void sci_oem_defaults(struct isci_host *ihost)
+{
+	/* these defaults are overridden by the platform / firmware */
+	struct sci_user_parameters *user = &ihost->user_parameters;
+	struct sci_oem_params *oem = &ihost->oem_parameters;
+	int i;
+
+	/* Default to APC mode. */
+	oem->controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
+
+	/* Default to APC mode. */
+	oem->controller.max_concurr_spin_up = 1;
+
+	/* Default to no SSC operation. */
+	oem->controller.do_enable_ssc = false;
+
+	/* Default to short cables on all phys. */
+	oem->controller.cable_selection_mask = 0;
+
+	/* Initialize all of the port parameter information to narrow ports. */
+	for (i = 0; i < SCI_MAX_PORTS; i++)
+		oem->ports[i].phy_mask = 0;
+
+	/* Initialize all of the phy parameter information. */
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		/* Default to 3G (i.e. Gen 2). */
+		user->phys[i].max_speed_generation = SCIC_SDS_PARM_GEN2_SPEED;
+
+		/* the frequencies cannot be 0 */
+		user->phys[i].align_insertion_frequency = 0x7f;
+		user->phys[i].in_connection_align_insertion_frequency = 0xff;
+		user->phys[i].notify_enable_spin_up_insertion_frequency = 0x33;
+
+		/* Previous Vitesse based expanders had a arbitration issue that
+		 * is worked around by having the upper 32-bits of SAS address
+		 * with a value greater then the Vitesse company identifier.
+		 * Hence, usage of 0x5FCFFFFF.
+		 */
+		oem->phys[i].sas_address.low = 0x1 + ihost->id;
+		oem->phys[i].sas_address.high = 0x5FCFFFFF;
+	}
+
+	user->stp_inactivity_timeout = 5;
+	user->ssp_inactivity_timeout = 5;
+	user->stp_max_occupancy_timeout = 5;
+	user->ssp_max_occupancy_timeout = 20;
+	user->no_outbound_task_timeout = 2;
+}
+
 static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 {
-	struct isci_host *isci_host;
+	struct isci_orom *orom = to_pci_info(pdev)->orom;
+	struct sci_user_parameters sci_user_params;
+	u8 oem_version = ISCI_ROM_VER_1_0;
+	struct isci_host *ihost;
 	struct Scsi_Host *shost;
-	int err;
+	int err, i;
 
-	isci_host = devm_kzalloc(&pdev->dev, sizeof(*isci_host), GFP_KERNEL);
-	if (!isci_host)
+	ihost = devm_kzalloc(&pdev->dev, sizeof(*ihost), GFP_KERNEL);
+	if (!ihost)
 		return NULL;
 
-	isci_host->pdev = pdev;
-	isci_host->id = id;
+	ihost->pdev = pdev;
+	ihost->id = id;
+	spin_lock_init(&ihost->scic_lock);
+	init_waitqueue_head(&ihost->eventq);
+	ihost->sas_ha.dev = &ihost->pdev->dev;
+	ihost->sas_ha.lldd_ha = ihost;
+	tasklet_init(&ihost->completion_tasklet,
+		     isci_host_completion_routine, (unsigned long)ihost);
+
+	/* validate module parameters */
+	/* TODO: kill struct sci_user_parameters and reference directly */
+	sci_oem_defaults(ihost);
+	isci_user_parameters_get(&sci_user_params);
+	if (sci_user_parameters_set(ihost, &sci_user_params)) {
+		dev_warn(&pdev->dev,
+			 "%s: sci_user_parameters_set failed\n", __func__);
+		return NULL;
+	}
+
+	/* sanity check platform (or 'firmware') oem parameters */
+	if (orom) {
+		if (id < 0 || id >= SCI_MAX_CONTROLLERS || id > orom->hdr.num_elements) {
+			dev_warn(&pdev->dev, "parsing firmware oem parameters failed\n");
+			return NULL;
+		}
+		ihost->oem_parameters = orom->ctrl[id];
+		oem_version = orom->hdr.version;
+	}
+
+	/* validate oem parameters (platform, firmware, or built-in defaults) */
+	if (sci_oem_parameters_validate(&ihost->oem_parameters, oem_version)) {
+		dev_warn(&pdev->dev, "oem parameter validation failed\n");
+		return NULL;
+	}
+
+	for (i = 0; i < SCI_MAX_PORTS; i++) {
+		struct isci_port *iport = &ihost->ports[i];
+
+		INIT_LIST_HEAD(&iport->remote_dev_list);
+		iport->isci_host = ihost;
+	}
+
+	for (i = 0; i < SCI_MAX_PHYS; i++)
+		isci_phy_init(&ihost->phys[i], ihost, i);
+
+	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
+		struct isci_remote_device *idev = &ihost->devices[i];
+
+		INIT_LIST_HEAD(&idev->node);
+	}
 
 	shost = scsi_host_alloc(&isci_sht, sizeof(void *));
 	if (!shost)
 		return NULL;
-	isci_host->shost = shost;
 
 	dev_info(&pdev->dev, "%sSCU controller %d: phy 3-0 cables: "
 		 "{%s, %s, %s, %s}\n",
-		 (is_cable_select_overridden() ? "* " : ""), isci_host->id,
-		 lookup_cable_names(decode_cable_selection(isci_host, 3)),
-		 lookup_cable_names(decode_cable_selection(isci_host, 2)),
-		 lookup_cable_names(decode_cable_selection(isci_host, 1)),
-		 lookup_cable_names(decode_cable_selection(isci_host, 0)));
+		 (is_cable_select_overridden() ? "* " : ""), ihost->id,
+		 lookup_cable_names(decode_cable_selection(ihost, 3)),
+		 lookup_cable_names(decode_cable_selection(ihost, 2)),
+		 lookup_cable_names(decode_cable_selection(ihost, 1)),
+		 lookup_cable_names(decode_cable_selection(ihost, 0)));
 
-	err = isci_host_init(isci_host);
+	err = isci_host_init(ihost);
 	if (err)
 		goto err_shost;
 
-	SHOST_TO_SAS_HA(shost) = &isci_host->sas_ha;
-	isci_host->sas_ha.core.shost = shost;
+	SHOST_TO_SAS_HA(shost) = &ihost->sas_ha;
+	ihost->sas_ha.core.shost = shost;
 	shost->transportt = isci_transport_template;
 
 	shost->max_id = ~0;
@@ -439,11 +599,11 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	if (err)
 		goto err_shost;
 
-	err = isci_register_sas_ha(isci_host);
+	err = isci_register_sas_ha(ihost);
 	if (err)
 		goto err_shost_remove;
 
-	return isci_host;
+	return ihost;
 
  err_shost_remove:
 	scsi_remove_host(shost);
@@ -476,7 +636,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	if (!orom)
 		orom = isci_request_oprom(pdev);
 
-	for (i = 0; orom && i < ARRAY_SIZE(orom->ctrl); i++) {
+	for (i = 0; orom && i < num_controllers(pdev); i++) {
 		if (sci_oem_parameters_validate(&orom->ctrl[i],
 						orom->hdr.version)) {
 			dev_warn(&pdev->dev,
@@ -525,11 +685,11 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		pci_info->hosts[i] = h;
 
 		/* turn on DIF support */
-		scsi_host_set_prot(h->shost,
+		scsi_host_set_prot(to_shost(h),
 				   SHOST_DIF_TYPE1_PROTECTION |
 				   SHOST_DIF_TYPE2_PROTECTION |
 				   SHOST_DIF_TYPE3_PROTECTION);
-		scsi_host_set_guard(h->shost, SHOST_DIX_GUARD_CRC);
+		scsi_host_set_guard(to_shost(h), SHOST_DIX_GUARD_CRC);
 	}
 
 	err = isci_setup_interrupts(pdev);
@@ -537,7 +697,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		goto err_host_alloc;
 
 	for_each_isci_host(i, isci_host, pdev)
-		scsi_scan_host(isci_host->shost);
+		scsi_scan_host(to_shost(isci_host));
 
 	return 0;
 

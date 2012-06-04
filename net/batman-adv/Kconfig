@@ -7,19 +7,28 @@ config BATMAN_ADV
 	depends on NET
 	select CRC16
         default n
-	---help---
+	help
+          B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
+          a routing protocol for multi-hop ad-hoc mesh networks. The
+          networks may be wired or wireless. See
+          http://www.open-mesh.org/ for more information and user space
+          tools.
 
-        B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
-        a routing protocol for multi-hop ad-hoc mesh networks. The
-        networks may be wired or wireless. See
-        http://www.open-mesh.org/ for more information and user space
-        tools.
+config BATMAN_ADV_BLA
+	bool "Bridge Loop Avoidance"
+	depends on BATMAN_ADV && INET
+	default y
+	help
+	  This option enables BLA (Bridge Loop Avoidance), a mechanism
+	  to avoid Ethernet frames looping when mesh nodes are connected
+	  to both the same LAN and the same mesh. If you will never use
+	  more than one mesh node in the same LAN, you can safely remove
+	  this feature and save some space.
 
 config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"
-	depends on BATMAN_ADV != n
-	---help---
-
+	depends on BATMAN_ADV
+	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for
 	  outputting debugging information to the kernel log. The

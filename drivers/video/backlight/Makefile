@@ -21,6 +21,7 @@ obj-$(CONFIG_BACKLIGHT_EP93XX)	+= ep93xx_bl.o
 obj-$(CONFIG_BACKLIGHT_GENERIC)	+= generic_bl.o
 obj-$(CONFIG_BACKLIGHT_HP700)	+= jornada720_bl.o
 obj-$(CONFIG_BACKLIGHT_HP680)	+= hp680_bl.o
+obj-$(CONFIG_BACKLIGHT_LM3533)	+= lm3533_bl.o
 obj-$(CONFIG_BACKLIGHT_LOCOMO)	+= locomolcd.o
 obj-$(CONFIG_BACKLIGHT_LP855X)	+= lp855x_bl.o
 obj-$(CONFIG_BACKLIGHT_OMAP1)	+= omap1_bl.o

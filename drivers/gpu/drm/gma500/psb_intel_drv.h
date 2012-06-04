@@ -106,11 +106,6 @@ struct psb_intel_mode_device {
 	 size_t(*bo_offset) (struct drm_device *dev, void *bo);
 
 	/*
-	 * Cursor (Can go ?)
-	 */
-	int cursor_needs_physical;
-
-	/*
 	 * LVDS info
 	 */
 	int backlight_duty_cycle;	/* restore backlight to this value */
@@ -176,6 +171,7 @@ struct psb_intel_crtc {
 	int pipe;
 	int plane;
 	uint32_t cursor_addr;
+	struct gtt_range *cursor_gt;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	u8 lut_adj[256];
 	struct psb_intel_framebuffer *fbdev_fb;
@@ -192,6 +188,9 @@ struct psb_intel_crtc {
 
 	/*crtc mode setting flags*/
 	u32 mode_flags;
+
+	bool active;
+	bool crtc_enable;
 
 	/* Saved Crtc HW states */
 	struct psb_intel_crtc_state *crtc_state;

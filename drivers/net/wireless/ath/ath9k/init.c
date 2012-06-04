@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/ath9k_platform.h>
@@ -519,6 +521,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
 
+	sc->dfs_detector = dfs_pattern_detector_init(NL80211_DFS_UNSET);
+
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
 		sc->sc_ah->led_pin = -1;
@@ -642,6 +646,24 @@ void ath9k_reload_chainmask_settings(struct ath_softc *sc)
 		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 }
 
+static const struct ieee80211_iface_limit if_limits[] = {
+	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				 BIT(NL80211_IFTYPE_WDS) },
+	{ .max = 8,	.types =
+#ifdef CONFIG_MAC80211_MESH
+				 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_GO) },
+};
+
+static const struct ieee80211_iface_combination if_comb = {
+	.limits = if_limits,
+	.n_limits = ARRAY_SIZE(if_limits),
+	.max_interfaces = 2048,
+	.num_different_channels = 1,
+};
 
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
@@ -671,11 +693,15 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
+	hw->wiphy->iface_combinations = &if_comb;
+	hw->wiphy->n_iface_combinations = 1;
+
 	if (AR_SREV_5416(sc->sc_ah))
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	hw->queues = 4;
 	hw->max_rates = 4;
@@ -779,6 +805,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 			goto error_world;
 	}
 
+	setup_timer(&sc->rx_poll_timer, ath_rx_poll, (unsigned long)sc);
 	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 
 	ath_init_leds(sc);
@@ -821,6 +848,8 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
 	ath9k_hw_deinit(sc->sc_ah);
+	if (sc->dfs_detector != NULL)
+		sc->dfs_detector->exit(sc->dfs_detector);
 
 	kfree(sc->sc_ah);
 	sc->sc_ah = NULL;
@@ -866,17 +895,14 @@ static int __init ath9k_init(void)
 	/* Register rate control algorithm */
 	error = ath_rate_control_register();
 	if (error != 0) {
-		printk(KERN_ERR
-			"ath9k: Unable to register rate control "
-			"algorithm: %d\n",
-			error);
+		pr_err("Unable to register rate control algorithm: %d\n",
+		       error);
 		goto err_out;
 	}
 
 	error = ath_pci_init();
 	if (error < 0) {
-		printk(KERN_ERR
-			"ath9k: No PCI devices found, driver not installed.\n");
+		pr_err("No PCI devices found, driver not installed\n");
 		error = -ENODEV;
 		goto err_rate_unregister;
 	}
@@ -905,6 +931,6 @@ static void __exit ath9k_exit(void)
 	ath_ahb_exit();
 	ath_pci_exit();
 	ath_rate_control_unregister();
-	printk(KERN_INFO "%s: Driver unloaded\n", dev_info);
+	pr_info("%s: Driver unloaded\n", dev_info);
 }
 module_exit(ath9k_exit);

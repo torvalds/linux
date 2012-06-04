@@ -29,6 +29,7 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
 
+#include <xen/xen.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
 

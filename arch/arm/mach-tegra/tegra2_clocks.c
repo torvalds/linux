@@ -1486,6 +1486,10 @@ static struct clk tegra_clk_m = {
 };
 
 static struct clk_pll_freq_table tegra_pll_c_freq_table[] = {
+	{ 12000000, 600000000, 600, 12, 1, 8 },
+	{ 13000000, 600000000, 600, 13, 1, 8 },
+	{ 19200000, 600000000, 500, 16, 1, 6 },
+	{ 26000000, 600000000, 600, 26, 1, 8 },
 	{ 0, 0, 0, 0, 0, 0 },
 };
 
@@ -1763,6 +1767,12 @@ static struct clk_pll_freq_table tegra_pll_x_freq_table[] = {
 	{ 13000000, 760000000,  760,  13, 1, 12},
 	{ 19200000, 760000000,  950,  24, 1, 8},
 	{ 26000000, 760000000,  760,  26, 1, 12},
+
+	/* 750 MHz */
+	{ 12000000, 750000000,  750,  12, 1, 12},
+	{ 13000000, 750000000,  750,  13, 1, 12},
+	{ 19200000, 750000000,  625,  16, 1, 8},
+	{ 26000000, 750000000,  750,  26, 1, 12},
 
 	/* 608 MHz */
 	{ 12000000, 608000000,  608,  12, 1, 12},
@@ -2142,8 +2152,8 @@ static struct clk tegra_list_clks[] = {
 	PERIPH_CLK("apbdma",	"tegra-dma",		NULL,	34,	0,	108000000, mux_pclk,			0),
 	PERIPH_CLK("rtc",	"rtc-tegra",		NULL,	4,	0,	32768,     mux_clk_32k,			PERIPH_NO_RESET),
 	PERIPH_CLK("timer",	"timer",		NULL,	5,	0,	26000000,  mux_clk_m,			0),
-	PERIPH_CLK("i2s1",	"tegra-i2s.0",		NULL,	11,	0x100,	26000000,  mux_pllaout0_audio2x_pllp_clkm,	MUX | DIV_U71),
-	PERIPH_CLK("i2s2",	"tegra-i2s.1",		NULL,	18,	0x104,	26000000,  mux_pllaout0_audio2x_pllp_clkm,	MUX | DIV_U71),
+	PERIPH_CLK("i2s1",	"tegra20-i2s.0",	NULL,	11,	0x100,	26000000,  mux_pllaout0_audio2x_pllp_clkm,	MUX | DIV_U71),
+	PERIPH_CLK("i2s2",	"tegra20-i2s.1",	NULL,	18,	0x104,	26000000,  mux_pllaout0_audio2x_pllp_clkm,	MUX | DIV_U71),
 	PERIPH_CLK("spdif_out",	"spdif_out",		NULL,	10,	0x108,	100000000, mux_pllaout0_audio2x_pllp_clkm,	MUX | DIV_U71),
 	PERIPH_CLK("spdif_in",	"spdif_in",		NULL,	10,	0x10c,	100000000, mux_pllp_pllc_pllm,		MUX | DIV_U71),
 	PERIPH_CLK("pwm",	"pwm",			NULL,	17,	0x110,	432000000, mux_pllp_pllc_audio_clkm_clk32,	MUX | DIV_U71),

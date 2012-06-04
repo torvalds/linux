@@ -36,6 +36,7 @@ struct snd_usb_audio {
 	struct snd_card *card;
 	struct usb_interface *pm_intf;
 	u32 usb_id;
+	struct mutex mutex;
 	struct mutex shutdown_mutex;
 	unsigned int shutdown:1;
 	unsigned int probing:1;
@@ -46,6 +47,7 @@ struct snd_usb_audio {
 	int num_suspended_intf;
 
 	struct list_head pcm_list;	/* list of pcm streams */
+	struct list_head ep_list;	/* list of audio-related endpoints */
 	int pcm_devs;
 
 	struct list_head midi_list;	/* list of midi interfaces */

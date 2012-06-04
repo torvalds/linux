@@ -21,8 +21,9 @@
 #define CT_LE_W(v)	cpu_to_le16(v)
 #define CT_LE_L(v)	cpu_to_le32(v)
 
+#define MSDOS_ROOT_INO	 1	/* The root inode number */
+#define MSDOS_FSINFO_INO 2	/* Used for managing the FSINFO block */
 
-#define MSDOS_ROOT_INO	1	/* == MINIX_ROOT_INO */
 #define MSDOS_DIR_BITS	5	/* log2(sizeof(struct msdos_dir_entry)) */
 
 /* directory limit */

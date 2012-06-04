@@ -8,6 +8,7 @@
  *
  * SH-Mobile SolutionEngine 7343 support
  */
+#include <linux/sh_intc.h>
 
 /* Box specific addresses.  */
 
@@ -118,10 +119,10 @@
 #define FPGA_IN		0xb1400000
 #define FPGA_OUT	0xb1400002
 
-#define IRQ0_IRQ        32
-#define IRQ1_IRQ        33
-#define IRQ4_IRQ        36
-#define IRQ5_IRQ        37
+#define IRQ0_IRQ        evt2irq(0x600)
+#define IRQ1_IRQ        evt2irq(0x620)
+#define IRQ4_IRQ        evt2irq(0x680)
+#define IRQ5_IRQ        evt2irq(0x6a0)
 
 #define SE7343_FPGA_IRQ_MRSHPC0	0
 #define SE7343_FPGA_IRQ_MRSHPC1	1

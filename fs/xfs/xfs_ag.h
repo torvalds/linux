@@ -175,24 +175,6 @@ typedef struct xfs_agfl {
 } xfs_agfl_t;
 
 /*
- * Busy block/extent entry.  Indexed by a rbtree in perag to mark blocks that
- * have been freed but whose transactions aren't committed to disk yet.
- *
- * Note that we use the transaction ID to record the transaction, not the
- * transaction structure itself. See xfs_alloc_busy_insert() for details.
- */
-struct xfs_busy_extent {
-	struct rb_node	rb_node;	/* ag by-bno indexed search tree */
-	struct list_head list;		/* transaction busy extent list */
-	xfs_agnumber_t	agno;
-	xfs_agblock_t	bno;
-	xfs_extlen_t	length;
-	unsigned int	flags;
-#define XFS_ALLOC_BUSY_DISCARDED	0x01	/* undergoing a discard op. */
-#define XFS_ALLOC_BUSY_SKIP_DISCARD	0x02	/* do not discard */
-};
-
-/*
  * Per-ag incore structure, copies of information in agf and agi,
  * to improve the performance of allocation group selection.
  */

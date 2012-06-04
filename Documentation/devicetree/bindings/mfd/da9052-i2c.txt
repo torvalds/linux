@@ -1,0 +1,60 @@
+* Dialog DA9052/53 Power Management Integrated Circuit (PMIC)
+
+Required properties:
+- compatible : Should be "dlg,da9052", "dlg,da9053-aa",
+			 "dlg,da9053-ab", or "dlg,da9053-bb"
+
+Sub-nodes:
+- regulators : Contain the regulator nodes. The DA9052/53 regulators are
+  bound using their names as listed below:
+
+    buck0     : regulator BUCK0
+    buck1     : regulator BUCK1
+    buck2     : regulator BUCK2
+    buck3     : regulator BUCK3
+    ldo4      : regulator LDO4
+    ldo5      : regulator LDO5
+    ldo6      : regulator LDO6
+    ldo7      : regulator LDO7
+    ldo8      : regulator LDO8
+    ldo9      : regulator LDO9
+    ldo10     : regulator LDO10
+    ldo11     : regulator LDO11
+    ldo12     : regulator LDO12
+    ldo13     : regulator LDO13
+
+  The bindings details of individual regulator device can be found in:
+  Documentation/devicetree/bindings/regulator/regulator.txt
+
+Examples:
+
+i2c@63fc8000 { /* I2C1 */
+	status = "okay";
+
+	pmic: dialog@48 {
+		compatible = "dlg,da9053-aa";
+		reg = <0x48>;
+
+		regulators {
+			buck0 {
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <2075000>;
+			};
+
+			buck1 {
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <2075000>;
+			};
+
+			buck2 {
+				regulator-min-microvolt = <925000>;
+				regulator-max-microvolt = <2500000>;
+			};
+
+			buck3 {
+				regulator-min-microvolt = <925000>;
+				regulator-max-microvolt = <2500000>;
+			};
+		};
+	};
+};

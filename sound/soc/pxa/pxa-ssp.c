@@ -85,14 +85,12 @@ struct pxa2xx_pcm_dma_data {
 	char name[20];
 };
 
-static struct pxa2xx_pcm_dma_params *
-pxa_ssp_get_dma_params(struct ssp_device *ssp, int width4, int out)
+static void pxa_ssp_set_dma_params(struct ssp_device *ssp, int width4,
+			int out, struct pxa2xx_pcm_dma_params *dma_data)
 {
 	struct pxa2xx_pcm_dma_data *dma;
 
-	dma = kzalloc(sizeof(struct pxa2xx_pcm_dma_data), GFP_KERNEL);
-	if (dma == NULL)
-		return NULL;
+	dma = container_of(dma_data, struct pxa2xx_pcm_dma_data, params);
 
 	snprintf(dma->name, 20, "SSP%d PCM %s %s", ssp->port_id,
 			width4 ? "32-bit" : "16-bit", out ? "out" : "in");
@@ -103,8 +101,6 @@ pxa_ssp_get_dma_params(struct ssp_device *ssp, int width4, int out)
 				  (DCMD_INCTRGADDR | DCMD_FLOWSRC)) |
 			(width4 ? DCMD_WIDTH4 : DCMD_WIDTH2) | DCMD_BURST16;
 	dma->params.dev_addr = ssp->phys_base + SSDR;
-
-	return &dma->params;
 }
 
 static int pxa_ssp_startup(struct snd_pcm_substream *substream,
@@ -112,6 +108,7 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 {
 	struct ssp_priv *priv = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ssp_device *ssp = priv->ssp;
+	struct pxa2xx_pcm_dma_data *dma;
 	int ret = 0;
 
 	if (!cpu_dai->active) {
@@ -119,8 +116,10 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 		pxa_ssp_disable(ssp);
 	}
 
-	kfree(snd_soc_dai_get_dma_data(cpu_dai, substream));
-	snd_soc_dai_set_dma_data(cpu_dai, substream, NULL);
+	dma = kzalloc(sizeof(struct pxa2xx_pcm_dma_data), GFP_KERNEL);
+	if (!dma)
+		return -ENOMEM;
+	snd_soc_dai_set_dma_data(cpu_dai, substream, &dma->params);
 
 	return ret;
 }
@@ -573,18 +572,13 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 
 	dma_data = snd_soc_dai_get_dma_data(cpu_dai, substream);
 
-	/* generate correct DMA params */
-	kfree(dma_data);
-
 	/* Network mode with one active slot (ttsa == 1) can be used
 	 * to force 16-bit frame width on the wire (for S16_LE), even
 	 * with two channels. Use 16-bit DMA transfers for this case.
 	 */
-	dma_data = pxa_ssp_get_dma_params(ssp,
-			((chn == 2) && (ttsa != 1)) || (width == 32),
-			substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-
-	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
+	pxa_ssp_set_dma_params(ssp,
+		((chn == 2) && (ttsa != 1)) || (width == 32),
+		substream->stream == SNDRV_PCM_STREAM_PLAYBACK, dma_data);
 
 	/* we can only change the settings if the port is not in use */
 	if (pxa_ssp_read_reg(ssp, SSCR0) & SSCR0_SSE)

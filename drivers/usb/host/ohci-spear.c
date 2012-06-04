@@ -14,6 +14,7 @@
 #include <linux/signal.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/of.h>
 
 struct spear_ohci {
 	struct ohci_hcd ohci;
@@ -24,12 +25,12 @@ struct spear_ohci {
 
 static void spear_start_ohci(struct spear_ohci *ohci)
 {
-	clk_enable(ohci->clk);
+	clk_prepare_enable(ohci->clk);
 }
 
 static void spear_stop_ohci(struct spear_ohci *ohci)
 {
-	clk_disable(ohci->clk);
+	clk_disable_unprepare(ohci->clk);
 }
 
 static int __devinit ohci_spear_start(struct usb_hcd *hcd)
@@ -90,6 +91,8 @@ static const struct hc_driver ohci_spear_hc_driver = {
 	.start_port_reset	= ohci_start_port_reset,
 };
 
+static u64 spear_ohci_dma_mask = DMA_BIT_MASK(32);
+
 static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 {
 	const struct hc_driver *driver = &ohci_spear_hc_driver;
@@ -98,11 +101,8 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	struct spear_ohci *ohci_p;
 	struct resource *res;
 	int retval, irq;
-	int *pdata = pdev->dev.platform_data;
 	char clk_name[20] = "usbh_clk";
-
-	if (pdata == NULL)
-		return -EFAULT;
+	static int instance = -1;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -110,8 +110,22 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 		goto fail_irq_get;
 	}
 
-	if (*pdata >= 0)
-		sprintf(clk_name, "usbh.%01d_clk", *pdata);
+	/*
+	 * Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &spear_ohci_dma_mask;
+
+	/*
+	 * Increment the device instance, when probing via device-tree
+	 */
+	if (pdev->id < 0)
+		instance++;
+	else
+		instance = pdev->id;
+	sprintf(clk_name, "usbh.%01d_clk", instance);
 
 	usbh_clk = clk_get(NULL, clk_name);
 	if (IS_ERR(usbh_clk)) {
@@ -222,6 +236,11 @@ static int spear_ohci_hcd_drv_resume(struct platform_device *dev)
 }
 #endif
 
+static struct of_device_id spear_ohci_id_table[] __devinitdata = {
+	{ .compatible = "st,spear600-ohci", },
+	{ },
+};
+
 /* Driver definition to register with the platform bus */
 static struct platform_driver spear_ohci_hcd_driver = {
 	.probe =	spear_ohci_hcd_drv_probe,
@@ -233,6 +252,7 @@ static struct platform_driver spear_ohci_hcd_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "spear-ohci",
+		.of_match_table = of_match_ptr(spear_ohci_id_table),
 	},
 };
 

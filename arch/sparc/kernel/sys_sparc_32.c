@@ -53,8 +53,6 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	/* See asm-sparc/uaccess.h */
 	if (len > TASK_SIZE - PAGE_SIZE)
 		return -ENOMEM;
-	if (ARCH_SUN4C && len > 0x20000000)
-		return -ENOMEM;
 	if (!addr)
 		addr = TASK_UNMAPPED_BASE;
 
@@ -65,10 +63,6 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 	for (vmm = find_vma(current->mm, addr); ; vmm = vmm->vm_next) {
 		/* At this point:  (!vmm || addr < vmm->vm_end). */
-		if (ARCH_SUN4C && addr < 0xe0000000 && 0x20000000 - len < addr) {
-			addr = PAGE_OFFSET;
-			vmm = find_vma(current->mm, PAGE_OFFSET);
-		}
 		if (TASK_SIZE - PAGE_SIZE - len < addr)
 			return -ENOMEM;
 		if (!vmm || addr + len <= vmm->vm_start)
@@ -99,11 +93,6 @@ out:
 
 int sparc_mmap_check(unsigned long addr, unsigned long len)
 {
-	if (ARCH_SUN4C &&
-	    (len > 0x20000000 ||
-	     (addr < 0xe0000000 && addr + len > 0x20000000)))
-		return -EINVAL;
-
 	/* See asm-sparc/uaccess.h */
 	if (len > TASK_SIZE - PAGE_SIZE || addr + len > TASK_SIZE - PAGE_SIZE)
 		return -EINVAL;
@@ -195,10 +184,10 @@ sparc_sigaction (int sig, const struct old_sigaction __user *act,
 
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 		new_ka.ka_restorer = NULL;
 	}
@@ -206,17 +195,12 @@ sparc_sigaction (int sig, const struct old_sigaction __user *act,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		/* In the clone() case we could copy half consistent
-		 * state to the user, however this could sleep and
-		 * deadlock us if we held the signal lock on SMP.  So for
-		 * now I take the easy way out and do no locking.
-		 */
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;

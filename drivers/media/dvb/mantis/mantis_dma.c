@@ -199,10 +199,6 @@ void mantis_dma_start(struct mantis_pci *mantis)
 
 void mantis_dma_stop(struct mantis_pci *mantis)
 {
-	u32 stat = 0, mask = 0;
-
-	stat = mmread(MANTIS_INT_STAT);
-	mask = mmread(MANTIS_INT_MASK);
 	dprintk(MANTIS_DEBUG, 1, "Mantis Stop DMA engine");
 
 	mmwrite((mmread(MANTIS_GPIF_ADDR) & (~(MANTIS_GPIF_HIFRDWRN))), MANTIS_GPIF_ADDR);

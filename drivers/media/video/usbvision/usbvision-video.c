@@ -1296,6 +1296,10 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 	if (NULL == vdev)
 		return NULL;
 	*vdev = *vdev_template;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags);
 	vdev->lock = &usbvision->v4l2_lock;
 	vdev->v4l2_dev = &usbvision->v4l2_dev;
 	snprintf(vdev->name, sizeof(vdev->name), "%s", name);

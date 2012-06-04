@@ -31,12 +31,15 @@ config BLACKFIN
 	select HAVE_KERNEL_LZO if RAMKERNEL
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
+	select ARCH_HAVE_CUSTOM_GPIO_H
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_PROBE
 	select IRQ_PER_CPU if SMP
 	select HAVE_NMI_WATCHDOG if NMI_WATCHDOG
+	select GENERIC_SMP_IDLE_THREAD
+	select ARCH_USES_GETTIMEOFFSET if !GENERIC_CLOCKEVENTS
 
 config GENERIC_CSUM
 	def_bool y
@@ -226,6 +229,12 @@ config BF561
 	help
 	  BF561 Processor Support.
 
+config BF609
+	bool "BF609"
+	select CLKDEV_LOOKUP
+	help
+	  BF609 Processor Support.
+
 endchoice
 
 config SMP
@@ -251,27 +260,27 @@ config HOTPLUG_CPU
 
 config BF_REV_MIN
 	int
-	default 0 if (BF51x || BF52x || (BF54x && !BF54xM))
+	default 0 if (BF51x || BF52x || (BF54x && !BF54xM)) || BF60x
 	default 2 if (BF537 || BF536 || BF534)
 	default 3 if (BF561 || BF533 || BF532 || BF531 || BF54xM)
 	default 4 if (BF538 || BF539)
 
 config BF_REV_MAX
 	int
-	default 2 if (BF51x || BF52x || (BF54x && !BF54xM))
+	default 2 if (BF51x || BF52x || (BF54x && !BF54xM)) || BF60x
 	default 3 if (BF537 || BF536 || BF534 || BF54xM)
 	default 5 if (BF561 || BF538 || BF539)
 	default 6 if (BF533 || BF532 || BF531)
 
 choice
 	prompt "Silicon Rev"
-	default BF_REV_0_0 if (BF51x || BF52x)
+	default BF_REV_0_0 if (BF51x || BF52x || BF60x)
 	default BF_REV_0_2 if (BF534 || BF536 || BF537 || (BF54x && !BF54xM))
 	default BF_REV_0_3 if (BF531 || BF532 || BF533 || BF54xM || BF561)
 
 config BF_REV_0_0
 	bool "0.0"
-	depends on (BF51x || BF52x || (BF54x && !BF54xM))
+	depends on (BF51x || BF52x || (BF54x && !BF54xM) || BF60x)
 
 config BF_REV_0_1
 	bool "0.1"
@@ -350,6 +359,7 @@ source "arch/blackfin/mach-bf561/Kconfig"
 source "arch/blackfin/mach-bf537/Kconfig"
 source "arch/blackfin/mach-bf538/Kconfig"
 source "arch/blackfin/mach-bf548/Kconfig"
+source "arch/blackfin/mach-bf609/Kconfig"
 
 menu "Board customizations"
 
@@ -378,6 +388,12 @@ config BOOT_LOAD
 	  Note that you need to keep this value above 4k (0x1000) as this
 	  memory region is used to capture NULL pointer references as well
 	  as some core kernel functions.
+
+config PHY_RAM_BASE_ADDRESS
+	hex "Physical RAM Base"
+	default 0x0
+	help
+	  set BF609 FPGA physical SRAM base address
 
 config ROM_BASE
 	hex "Kernel ROM Base"
@@ -422,7 +438,7 @@ config BFIN_KERNEL_CLOCK
 
 config PLL_BYPASS
 	bool "Bypass PLL"
-	depends on BFIN_KERNEL_CLOCK
+	depends on BFIN_KERNEL_CLOCK && (!BF60x)
 	default n
 
 config CLKIN_HALF
@@ -441,7 +457,7 @@ config VCO_MULT
 	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN527_EZKIT_V2 || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM || BFIN538_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM_E || BFIN537_BLUETECHNIX_CM_U || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
-	default "20" if BFIN561_EZKIT
+	default "20" if (BFIN561_EZKIT || BF609)
 	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN518F_EZBRD)
 	default "25" if BFIN527_AD7160EVAL
 	help
@@ -473,11 +489,44 @@ config SCLK_DIV
 	int "System Clock Divider"
 	depends on BFIN_KERNEL_CLOCK
 	range 1 15
-	default 5
+	default 4
 	help
-	  This sets the frequency of the system clock (including SDRAM or DDR).
+	  This sets the frequency of the system clock (including SDRAM or DDR) on
+	  !BF60x else it set the clock for system buses and provides the
+	  source from which SCLK0 and SCLK1 are derived.
 	  This can be between 1 and 15
 	  System Clock = (PLL frequency) / (this setting)
+
+config SCLK0_DIV
+	int "System Clock0 Divider"
+	depends on BFIN_KERNEL_CLOCK && BF60x
+	range 1 15
+	default 1
+	help
+	  This sets the frequency of the system clock0 for PVP and all other
+	  peripherals not clocked by SCLK1.
+	  This can be between 1 and 15
+	  System Clock0 = (System Clock) / (this setting)
+
+config SCLK1_DIV
+	int "System Clock1 Divider"
+	depends on BFIN_KERNEL_CLOCK && BF60x
+	range 1 15
+	default 1
+	help
+	  This sets the frequency of the system clock1 (including SPORT, SPI and ACM).
+	  This can be between 1 and 15
+	  System Clock1 = (System Clock) / (this setting)
+
+config DCLK_DIV
+	int "DDR Clock Divider"
+	depends on BFIN_KERNEL_CLOCK && BF60x
+	range 1 15
+	default 2
+	help
+	  This sets the frequency of the DDR memory.
+	  This can be between 1 and 15
+	  DDR Clock = (PLL frequency) / (this setting)
 
 choice
 	prompt "DDR SDRAM Chip Type"
@@ -494,7 +543,7 @@ endchoice
 
 choice
 	prompt "DDR/SDRAM Timing"
-	depends on BFIN_KERNEL_CLOCK
+	depends on BFIN_KERNEL_CLOCK && !BF60x
 	default BFIN_KERNEL_CLOCK_MEMINIT_CALC
 	help
 	  This option allows you to specify Blackfin SDRAM/DDR Timing parameters
@@ -576,6 +625,7 @@ config MAX_VCO_HZ
 	default 600000000 if BF548
 	default 533333333 if BF549
 	default 600000000 if BF561
+	default 800000000 if BF609
 
 config MIN_VCO_HZ
 	int
@@ -583,6 +633,7 @@ config MIN_VCO_HZ
 
 config MAX_SCLK_HZ
 	int
+	default 200000000 if BF609
 	default 133333333
 
 config MIN_SCLK_HZ
@@ -593,9 +644,10 @@ comment "Kernel Timer/Scheduler"
 
 source kernel/Kconfig.hz
 
-config GENERIC_CLOCKEVENTS
+config SET_GENERIC_CLOCKEVENTS
 	bool "Generic clock events"
 	default y
+	select GENERIC_CLOCKEVENTS
 
 menu "Clock event device"
 	depends on GENERIC_CLOCKEVENTS
@@ -628,12 +680,6 @@ config GPTMR0_CLOCKSOURCE
 	select BFIN_GPTIMERS
 	depends on !TICKSOURCE_GPTMR0
 endmenu
-
-config ARCH_USES_GETTIMEOFFSET
-	depends on !GENERIC_CLOCKEVENTS
-	def_bool y
-
-source kernel/time/Kconfig
 
 comment "Misc"
 
@@ -1051,7 +1097,7 @@ endchoice
 config BFIN_L2_DCACHEABLE
 	bool "Enable DCACHE for L2 SRAM"
 	depends on BFIN_DCACHE
-	depends on (BF54x || BF561) && !SMP
+	depends on (BF54x || BF561 || BF60x) && !SMP
 	default n
 choice
 	prompt "L2 SRAM DCACHE policy"
@@ -1077,6 +1123,7 @@ config MPU
 comment "Asynchronous Memory Configuration"
 
 menu "EBIU_AMGCTL Global Control"
+	depends on !BF60x
 config C_AMCKEN
 	bool "Enable CLKOUT"
 	default y
@@ -1127,6 +1174,7 @@ endchoice
 endmenu
 
 menu "EBIU_AMBCTL Control"
+	depends on !BF60x
 config BANK_0
 	hex "Bank 0 (AMBCTL0.L)"
 	default 0x7BB0
@@ -1206,7 +1254,7 @@ config ARCH_SUSPEND_POSSIBLE
 
 choice
 	prompt "Standby Power Saving Mode"
-	depends on PM
+	depends on PM && !BF60x
 	default PM_BFIN_SLEEP_DEEPER
 config  PM_BFIN_SLEEP_DEEPER
 	bool "Sleep Deeper"
@@ -1258,8 +1306,120 @@ config PM_BFIN_WAKE_GP
 	  (all processors, except ADSP-BF549). This option sets
 	  the general-purpose wake-up enable (GPWE) control bit to enable
 	  wake-up upon detection of an active low signal on the /GPW (PH7) pin.
-	  On ADSP-BF549 this option enables the the same functionality on the
+	  On ADSP-BF549 this option enables the same functionality on the
 	  /MRXON pin also PH7.
+
+config PM_BFIN_WAKE_PA15
+	bool "Allow Wake-Up from PA15"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PA15 Wake-Up
+
+config PM_BFIN_WAKE_PA15_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PA15
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PB15
+	bool "Allow Wake-Up from PB15"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PB15 Wake-Up
+
+config PM_BFIN_WAKE_PB15_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PB15
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PC15
+	bool "Allow Wake-Up from PC15"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PC15 Wake-Up
+
+config PM_BFIN_WAKE_PC15_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PC15
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PD06
+	bool "Allow Wake-Up from PD06(ETH0_PHYINT)"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PD06(ETH0_PHYINT) Wake-up
+
+config PM_BFIN_WAKE_PD06_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PD06
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PE12
+	bool "Allow Wake-Up from PE12(ETH1_PHYINT, PUSH BUTTON)"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PE12(ETH1_PHYINT, PUSH BUTTON) Wake-up
+
+config PM_BFIN_WAKE_PE12_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PE12
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PG04
+	bool "Allow Wake-Up from PG04(CAN0_RX)"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PG04(CAN0_RX) Wake-up
+
+config PM_BFIN_WAKE_PG04_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PG04
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_PG13
+	bool "Allow Wake-Up from PG13"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable PG13 Wake-Up
+
+config PM_BFIN_WAKE_PG13_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_PG13
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
+
+config PM_BFIN_WAKE_USB
+	bool "Allow Wake-Up from (USB)"
+	depends on PM && BF60x
+	default n
+	help
+	  Enable (USB) Wake-up
+
+config PM_BFIN_WAKE_USB_POL
+	int "Wake-up priority"
+	depends on PM_BFIN_WAKE_USB
+	default 0
+	help
+	  Wake-Up priority 0(low) 1(high)
 
 endmenu
 

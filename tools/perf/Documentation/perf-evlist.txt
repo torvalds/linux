@@ -20,6 +20,14 @@ OPTIONS
 --input=::
         Input file name. (default: perf.data unless stdin is a fifo)
 
+-F::
+--freq=::
+	Show just the sample frequency used for each event.
+
+-v::
+--verbose=::
+	Show all fields.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-list[1],

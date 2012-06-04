@@ -211,7 +211,7 @@ typedef struct _RT_HIGH_THROUGHPUT{
 	u8				bEnableHT;
 	u8				bCurrentHTSupport;
 
-	u8				bRegBW40MHz;				// Tx 40MHz channel capablity
+	u8				bRegBW40MHz;				// Tx 40MHz channel capability
 	u8				bCurBW40MHz;				// Tx 40MHz channel capability
 
 	u8				bRegShortGI40MHz;			// Tx Short GI for 40Mhz

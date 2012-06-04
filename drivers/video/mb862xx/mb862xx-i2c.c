@@ -68,7 +68,7 @@ static int mb862xx_i2c_read_byte(struct i2c_adapter *adap, u8 *byte, int last)
 	return 1;
 }
 
-void mb862xx_i2c_stop(struct i2c_adapter *adap)
+static void mb862xx_i2c_stop(struct i2c_adapter *adap)
 {
 	struct mb862xxfb_par *par = adap->algo_data;
 

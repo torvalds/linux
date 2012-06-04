@@ -26,7 +26,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define cpu_relax()		barrier()
 #define release_thread(thread)	do {} while (0)
-#define prepare_to_copy(tsk)	do {} while (0)
 
 /*
  * User space process size: 2GB. This is hardcoded into a few places,

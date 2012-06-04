@@ -127,20 +127,24 @@ struct csis_state {
  *                       multiple of 2^pix_width_alignment
  * @code: corresponding media bus code
  * @fmt_reg: S5PCSIS_CONFIG register value
+ * @data_alignment: MIPI-CSI data alignment in bits
  */
 struct csis_pix_format {
 	unsigned int pix_width_alignment;
 	enum v4l2_mbus_pixelcode code;
 	u32 fmt_reg;
+	u8 data_alignment;
 };
 
 static const struct csis_pix_format s5pcsis_formats[] = {
 	{
 		.code = V4L2_MBUS_FMT_VYUY8_2X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_YCBCR422_8BIT,
+		.data_alignment = 32,
 	}, {
 		.code = V4L2_MBUS_FMT_JPEG_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
+		.data_alignment = 32,
 	},
 };
 
@@ -239,7 +243,7 @@ static void s5pcsis_set_params(struct csis_state *state)
 	s5pcsis_set_hsync_settle(state, pdata->hs_settle);
 
 	val = s5pcsis_read(state, S5PCSIS_CTRL);
-	if (pdata->alignment == 32)
+	if (state->csis_fmt->data_alignment == 32)
 		val |= S5PCSIS_CTRL_ALIGN_32BIT;
 	else /* 24-bits */
 		val &= ~S5PCSIS_CTRL_ALIGN_32BIT;
@@ -711,19 +715,8 @@ static struct platform_driver s5pcsis_driver = {
 	},
 };
 
-static int __init s5pcsis_init(void)
-{
-	return platform_driver_probe(&s5pcsis_driver, s5pcsis_probe);
-}
-
-static void __exit s5pcsis_exit(void)
-{
-	platform_driver_unregister(&s5pcsis_driver);
-}
-
-module_init(s5pcsis_init);
-module_exit(s5pcsis_exit);
+module_platform_driver(s5pcsis_driver);
 
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");
-MODULE_DESCRIPTION("S5P/EXYNOS4 MIPI CSI receiver driver");
+MODULE_DESCRIPTION("Samsung S5P/EXYNOS SoC MIPI-CSI2 receiver driver");
 MODULE_LICENSE("GPL");
