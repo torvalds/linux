@@ -568,21 +568,7 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_driver_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
-	spin_lock_irqsave(&port->lock, flags);
-	tty->closing = 0;
-
-	if (port->blocked_open) {
-		if (port->close_delay) {
-			spin_unlock_irqrestore(&port->lock, flags);
-			schedule_timeout_interruptible(port->close_delay);
-			spin_lock_irqsave(&port->lock, flags);
-		}
-		wake_up_interruptible(&port->open_wait);
-	}
-
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	spin_unlock_irqrestore(&port->lock, flags);
-	wake_up_interruptible(&port->close_wait);
+	tty_port_close_end(port, tty);
 	tty_port_tty_set(port, NULL);
 }
 
