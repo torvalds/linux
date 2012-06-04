@@ -19,9 +19,11 @@ static irqreturn_t line_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
+	struct tty_struct *tty = tty_port_tty_get(&line->port);
 
 	if (line)
-		chan_interrupt(line, line->tty, irq);
+		chan_interrupt(line, tty, irq);
+	tty_kref_put(tty);
 	return IRQ_HANDLED;
 }
 
@@ -333,7 +335,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
-	struct tty_struct *tty = line->tty;
+	struct tty_struct *tty;
 	int err;
 
 	/*
@@ -352,10 +354,13 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 	}
 	spin_unlock(&line->lock);
 
+	tty = tty_port_tty_get(&line->port);
 	if (tty == NULL)
 		return IRQ_NONE;
 
 	tty_wakeup(tty);
+	tty_kref_put(tty);
+
 	return IRQ_HANDLED;
 }
 
@@ -409,7 +414,7 @@ int line_open(struct line *lines, struct tty_struct *tty)
 
 	BUG_ON(tty->driver_data);
 	tty->driver_data = line;
-	line->tty = tty;
+	tty_port_tty_set(&line->port, tty);
 
 	err = enable_chan(line);
 	if (err) /* line_close() will be called by our caller */
@@ -449,7 +454,7 @@ void line_close(struct tty_struct *tty, struct file * filp)
 	if (--line->port.count)
 		goto out_unlock;
 
-	line->tty = NULL;
+	tty_port_tty_set(&line->port, NULL);
 	tty->driver_data = NULL;
 
 	if (line->sigio) {
@@ -610,9 +615,15 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 	mutex_lock(&line->count_lock);
 	if (!line->valid)
 		CONFIG_CHUNK(str, size, n, "none", 1);
-	else if (line->tty == NULL)
-		CONFIG_CHUNK(str, size, n, line->init_str, 1);
-	else n = chan_config_string(line, str, size, error_out);
+	else {
+		struct tty_struct *tty = tty_port_tty_get(&line->port);
+		if (tty == NULL) {
+			CONFIG_CHUNK(str, size, n, line->init_str, 1);
+		} else {
+			n = chan_config_string(line, str, size, error_out);
+			tty_kref_put(tty);
+		}
+	}
 	mutex_unlock(&line->count_lock);
 
 	return n;
