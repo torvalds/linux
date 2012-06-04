@@ -1131,7 +1131,7 @@ void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable)
 	if (ar9003_mci_wait_for_gpm(ah, MCI_GPM_BT_CAL_GRANT, 0, 50000)) {
 		ath_dbg(common, MCI, "MCI BT_CAL_GRANT received\n");
 	} else {
-		is_reusable = false;
+		*is_reusable = false;
 		ath_dbg(common, MCI, "MCI BT_CAL_GRANT not received\n");
 	}
 }
