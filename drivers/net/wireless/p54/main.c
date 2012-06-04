@@ -796,11 +796,14 @@ int p54_register_common(struct ieee80211_hw *dev, struct device *pdev)
 		dev_err(pdev, "Cannot register device (%d).\n", err);
 		return err;
 	}
+	priv->registered = true;
 
 #ifdef CONFIG_P54_LEDS
 	err = p54_init_leds(priv);
-	if (err)
+	if (err) {
+		p54_unregister_common(dev);
 		return err;
+	}
 #endif /* CONFIG_P54_LEDS */
 
 	dev_info(pdev, "is registered as '%s'\n", wiphy_name(dev->wiphy));
@@ -840,7 +843,11 @@ void p54_unregister_common(struct ieee80211_hw *dev)
 	p54_unregister_leds(priv);
 #endif /* CONFIG_P54_LEDS */
 
-	ieee80211_unregister_hw(dev);
+	if (priv->registered) {
+		priv->registered = false;
+		ieee80211_unregister_hw(dev);
+	}
+
 	mutex_destroy(&priv->conf_mutex);
 	mutex_destroy(&priv->eeprom_mutex);
 }

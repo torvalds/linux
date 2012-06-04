@@ -161,7 +161,7 @@ static struct cpufreq_driver db8500_cpufreq_driver = {
 
 static int __init db8500_cpufreq_register(void)
 {
-	if (!cpu_is_u8500v20_or_later())
+	if (!cpu_is_u8500_family())
 		return -ENODEV;
 
 	pr_info("cpufreq for DB8500 started\n");

@@ -12,6 +12,7 @@
 #include <sound/soc.h>
 #include <linux/firmware.h>
 #include <linux/completion.h>
+#include <linux/workqueue.h>
 
 #include "wm_hubs.h"
 
@@ -79,6 +80,7 @@ struct wm8994_priv {
 	struct wm8994_fll_config fll[2], fll_suspend[2];
 	struct completion fll_locked[2];
 	bool fll_locked_irq;
+	bool fll_byp;
 
 	int vmid_refcount;
 	int active_refcount;
@@ -126,6 +128,7 @@ struct wm8994_priv {
 
 	struct mutex accdet_lock;
 	struct wm8994_micdet micdet[2];
+	struct delayed_work mic_work;
 	bool mic_detecting;
 	bool jack_mic;
 	int btn_mask;

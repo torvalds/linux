@@ -31,14 +31,6 @@
 #undef CPU_DABORT_HANDLER
 #undef MULTI_DABORT
 
-#if defined(CONFIG_CPU_ARM610)
-# ifdef CPU_DABORT_HANDLER
-#  define MULTI_DABORT 1
-# else
-#  define CPU_DABORT_HANDLER cpu_arm6_data_abort
-# endif
-#endif
-
 #if defined(CONFIG_CPU_ARM710)
 # ifdef CPU_DABORT_HANDLER
 #  define MULTI_DABORT 1

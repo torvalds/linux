@@ -20,10 +20,6 @@
  * built, so that there's some hint during the build that something is wrong.
  */
 
-#ifdef CONFIG_UX500_SOC_DB5500
-#define __UX500_UART(n)	U5500_UART##n##_BASE
-#endif
-
 #ifdef CONFIG_UX500_SOC_DB8500
 #define __UX500_UART(n)	U8500_UART##n##_BASE
 #endif

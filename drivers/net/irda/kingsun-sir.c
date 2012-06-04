@@ -134,14 +134,16 @@ static void kingsun_send_irq(struct urb *urb)
 
 	/* in process of stopping, just drop data */
 	if (!netif_running(kingsun->netdev)) {
-		err("kingsun_send_irq: Network not running!");
+		dev_err(&kingsun->usbdev->dev,
+			"kingsun_send_irq: Network not running!\n");
 		return;
 	}
 
 	/* unlink, shutdown, unplug, other nasties */
 	if (urb->status != 0) {
-		err("kingsun_send_irq: urb asynchronously failed - %d",
-		    urb->status);
+		dev_err(&kingsun->usbdev->dev,
+			"kingsun_send_irq: urb asynchronously failed - %d\n",
+			urb->status);
 	}
 	netif_wake_queue(netdev);
 }
@@ -177,7 +179,8 @@ static netdev_tx_t kingsun_hard_xmit(struct sk_buff *skb,
 		kingsun, 1);
 
 	if ((ret = usb_submit_urb(kingsun->tx_urb, GFP_ATOMIC))) {
-		err("kingsun_hard_xmit: failed tx_urb submit: %d", ret);
+		dev_err(&kingsun->usbdev->dev,
+			"kingsun_hard_xmit: failed tx_urb submit: %d\n", ret);
 		switch (ret) {
 		case -ENODEV:
 		case -EPIPE:
@@ -211,8 +214,9 @@ static void kingsun_rcv_irq(struct urb *urb)
 
 	/* unlink, shutdown, unplug, other nasties */
 	if (urb->status != 0) {
-		err("kingsun_rcv_irq: urb asynchronously failed - %d",
-		    urb->status);
+		dev_err(&kingsun->usbdev->dev,
+			"kingsun_rcv_irq: urb asynchronously failed - %d\n",
+			urb->status);
 		kingsun->receiving = 0;
 		return;
 	}
@@ -238,8 +242,9 @@ static void kingsun_rcv_irq(struct urb *urb)
 				? 1 : 0;
 		}
 	} else if (urb->actual_length > 0) {
-		err("%s(): Unexpected response length, expected %d got %d",
-		    __func__, kingsun->max_rx, urb->actual_length);
+		dev_err(&kingsun->usbdev->dev,
+			"%s(): Unexpected response length, expected %d got %d\n",
+			__func__, kingsun->max_rx, urb->actual_length);
 	}
 	/* This urb has already been filled in kingsun_net_open */
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
@@ -286,7 +291,7 @@ static int kingsun_net_open(struct net_device *netdev)
 	sprintf(hwname, "usb#%d", kingsun->usbdev->devnum);
 	kingsun->irlap = irlap_open(netdev, &kingsun->qos, hwname);
 	if (!kingsun->irlap) {
-		err("kingsun-sir: irlap_open failed");
+		dev_err(&kingsun->usbdev->dev, "irlap_open failed\n");
 		goto free_mem;
 	}
 
@@ -298,7 +303,8 @@ static int kingsun_net_open(struct net_device *netdev)
 	kingsun->rx_urb->status = 0;
 	err = usb_submit_urb(kingsun->rx_urb, GFP_KERNEL);
 	if (err) {
-		err("kingsun-sir: first urb-submit failed: %d", err);
+		dev_err(&kingsun->usbdev->dev,
+			"first urb-submit failed: %d\n", err);
 		goto close_irlap;
 	}
 
@@ -446,13 +452,15 @@ static int kingsun_probe(struct usb_interface *intf,
 	 */
 	interface = intf->cur_altsetting;
 	if (interface->desc.bNumEndpoints != 2) {
-		err("kingsun-sir: expected 2 endpoints, found %d",
-		    interface->desc.bNumEndpoints);
+		dev_err(&intf->dev,
+			"kingsun-sir: expected 2 endpoints, found %d\n",
+			interface->desc.bNumEndpoints);
 		return -ENODEV;
 	}
 	endpoint = &interface->endpoint[KINGSUN_EP_IN].desc;
 	if (!usb_endpoint_is_int_in(endpoint)) {
-		err("kingsun-sir: endpoint 0 is not interrupt IN");
+		dev_err(&intf->dev,
+			"kingsun-sir: endpoint 0 is not interrupt IN\n");
 		return -ENODEV;
 	}
 
@@ -460,14 +468,16 @@ static int kingsun_probe(struct usb_interface *intf,
 	pipe = usb_rcvintpipe(dev, ep_in);
 	maxp_in = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 	if (maxp_in > 255 || maxp_in <= 1) {
-		err("%s: endpoint 0 has max packet size %d not in range",
-		    __FILE__, maxp_in);
+		dev_err(&intf->dev,
+			"endpoint 0 has max packet size %d not in range\n",
+			maxp_in);
 		return -ENODEV;
 	}
 
 	endpoint = &interface->endpoint[KINGSUN_EP_OUT].desc;
 	if (!usb_endpoint_is_int_out(endpoint)) {
-		err("kingsun-sir: endpoint 1 is not interrupt OUT");
+		dev_err(&intf->dev,
+			"kingsun-sir: endpoint 1 is not interrupt OUT\n");
 		return -ENODEV;
 	}
 

@@ -1122,7 +1122,6 @@ static bool wm8994_volatile_register(struct device *dev, unsigned int reg)
 	case WM8994_RATE_STATUS:
 	case WM8958_MIC_DETECT_3:
 	case WM8994_DC_SERVO_4E:
-	case WM8994_CHIP_REVISION:
 	case WM8994_INTERRUPT_STATUS_1:
 	case WM8994_INTERRUPT_STATUS_2:
 		return true;

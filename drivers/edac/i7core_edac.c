@@ -90,7 +90,7 @@ MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
 #define MC_MAX_DOD	0x64
 
 /*
- * OFFSETS for Device 3 Function 4, as inicated on Xeon 5500 datasheet:
+ * OFFSETS for Device 3 Function 4, as indicated on Xeon 5500 datasheet:
  * http://www.arrownac.com/manufacturers/intel/s/nehalem/5500-datasheet-v2.pdf
  */
 
@@ -101,7 +101,7 @@ MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
   #define DIMM1_COR_ERR(r)			(((r) >> 16) & 0x7fff)
   #define DIMM0_COR_ERR(r)			((r) & 0x7fff)
 
-/* OFFSETS for Device 3 Function 2, as inicated on Xeon 5500 datasheet */
+/* OFFSETS for Device 3 Function 2, as indicated on Xeon 5500 datasheet */
 #define MC_SSRCONTROL		0x48
   #define SSR_MODE_DISABLE	0x00
   #define SSR_MODE_ENABLE	0x01
@@ -221,7 +221,9 @@ struct i7core_inject {
 };
 
 struct i7core_channel {
-	u32		ranks;
+	bool		is_3dimms_present;
+	bool		is_single_4rank;
+	bool		has_4rank;
 	u32		dimms;
 };
 
@@ -257,7 +259,6 @@ struct i7core_pvt {
 	struct i7core_channel	channel[NUM_CHANS];
 
 	int		ce_count_available;
-	int 		csrow_map[NUM_CHANS][MAX_DIMMS];
 
 			/* ECC corrected errors counts per udimm */
 	unsigned long	udimm_ce_count[MAX_DIMMS];
@@ -398,7 +399,7 @@ static DEFINE_PCI_DEVICE_TABLE(i7core_pci_tbl) = {
 };
 
 /****************************************************************************
-			Anciliary status routines
+			Ancillary status routines
  ****************************************************************************/
 
 	/* MC_CONTROL bits */
@@ -492,116 +493,15 @@ static void free_i7core_dev(struct i7core_dev *i7core_dev)
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
-static struct pci_dev *get_pdev_slot_func(u8 socket, unsigned slot,
-					  unsigned func)
-{
-	struct i7core_dev *i7core_dev = get_i7core_dev(socket);
-	int i;
 
-	if (!i7core_dev)
-		return NULL;
-
-	for (i = 0; i < i7core_dev->n_devs; i++) {
-		if (!i7core_dev->pdev[i])
-			continue;
-
-		if (PCI_SLOT(i7core_dev->pdev[i]->devfn) == slot &&
-		    PCI_FUNC(i7core_dev->pdev[i]->devfn) == func) {
-			return i7core_dev->pdev[i];
-		}
-	}
-
-	return NULL;
-}
-
-/**
- * i7core_get_active_channels() - gets the number of channels and csrows
- * @socket:	Quick Path Interconnect socket
- * @channels:	Number of channels that will be returned
- * @csrows:	Number of csrows found
- *
- * Since EDAC core needs to know in advance the number of available channels
- * and csrows, in order to allocate memory for csrows/channels, it is needed
- * to run two similar steps. At the first step, implemented on this function,
- * it checks the number of csrows/channels present at one socket.
- * this is used in order to properly allocate the size of mci components.
- *
- * It should be noticed that none of the current available datasheets explain
- * or even mention how csrows are seen by the memory controller. So, we need
- * to add a fake description for csrows.
- * So, this driver is attributing one DIMM memory for one csrow.
- */
-static int i7core_get_active_channels(const u8 socket, unsigned *channels,
-				      unsigned *csrows)
-{
-	struct pci_dev *pdev = NULL;
-	int i, j;
-	u32 status, control;
-
-	*channels = 0;
-	*csrows = 0;
-
-	pdev = get_pdev_slot_func(socket, 3, 0);
-	if (!pdev) {
-		i7core_printk(KERN_ERR, "Couldn't find socket %d fn 3.0!!!\n",
-			      socket);
-		return -ENODEV;
-	}
-
-	/* Device 3 function 0 reads */
-	pci_read_config_dword(pdev, MC_STATUS, &status);
-	pci_read_config_dword(pdev, MC_CONTROL, &control);
-
-	for (i = 0; i < NUM_CHANS; i++) {
-		u32 dimm_dod[3];
-		/* Check if the channel is active */
-		if (!(control & (1 << (8 + i))))
-			continue;
-
-		/* Check if the channel is disabled */
-		if (status & (1 << i))
-			continue;
-
-		pdev = get_pdev_slot_func(socket, i + 4, 1);
-		if (!pdev) {
-			i7core_printk(KERN_ERR, "Couldn't find socket %d "
-						"fn %d.%d!!!\n",
-						socket, i + 4, 1);
-			return -ENODEV;
-		}
-		/* Devices 4-6 function 1 */
-		pci_read_config_dword(pdev,
-				MC_DOD_CH_DIMM0, &dimm_dod[0]);
-		pci_read_config_dword(pdev,
-				MC_DOD_CH_DIMM1, &dimm_dod[1]);
-		pci_read_config_dword(pdev,
-				MC_DOD_CH_DIMM2, &dimm_dod[2]);
-
-		(*channels)++;
-
-		for (j = 0; j < 3; j++) {
-			if (!DIMM_PRESENT(dimm_dod[j]))
-				continue;
-			(*csrows)++;
-		}
-	}
-
-	debugf0("Number of active channels on socket %d: %d\n",
-		socket, *channels);
-
-	return 0;
-}
-
-static int get_dimm_config(const struct mem_ctl_info *mci)
+static int get_dimm_config(struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
-	struct csrow_info *csr;
 	struct pci_dev *pdev;
 	int i, j;
-	int csrow = 0;
-	unsigned long last_page = 0;
 	enum edac_type mode;
 	enum mem_type mtype;
+	struct dimm_info *dimm;
 
 	/* Get data from the MC register, function 0 */
 	pdev = pvt->pci_mcr[0];
@@ -657,21 +557,20 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 		pci_read_config_dword(pvt->pci_ch[i][0],
 				MC_CHANNEL_DIMM_INIT_PARAMS, &data);
 
-		pvt->channel[i].ranks = (data & QUAD_RANK_PRESENT) ?
-						4 : 2;
+
+		if (data & THREE_DIMMS_PRESENT)
+			pvt->channel[i].is_3dimms_present = true;
+
+		if (data & SINGLE_QUAD_RANK_PRESENT)
+			pvt->channel[i].is_single_4rank = true;
+
+		if (data & QUAD_RANK_PRESENT)
+			pvt->channel[i].has_4rank = true;
 
 		if (data & REGISTERED_DIMM)
 			mtype = MEM_RDDR3;
 		else
 			mtype = MEM_DDR3;
-#if 0
-		if (data & THREE_DIMMS_PRESENT)
-			pvt->channel[i].dimms = 3;
-		else if (data & SINGLE_QUAD_RANK_PRESENT)
-			pvt->channel[i].dimms = 1;
-		else
-			pvt->channel[i].dimms = 2;
-#endif
 
 		/* Devices 4-6 function 1 */
 		pci_read_config_dword(pvt->pci_ch[i][1],
@@ -682,11 +581,13 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 				MC_DOD_CH_DIMM2, &dimm_dod[2]);
 
 		debugf0("Ch%d phy rd%d, wr%d (0x%08x): "
-			"%d ranks, %cDIMMs\n",
+			"%s%s%s%cDIMMs\n",
 			i,
 			RDLCH(pvt->info.ch_map, i), WRLCH(pvt->info.ch_map, i),
 			data,
-			pvt->channel[i].ranks,
+			pvt->channel[i].is_3dimms_present ? "3DIMMS " : "",
+			pvt->channel[i].is_3dimms_present ? "SINGLE_4R " : "",
+			pvt->channel[i].has_4rank ? "HAS_4R " : "",
 			(data & REGISTERED_DIMM) ? 'R' : 'U');
 
 		for (j = 0; j < 3; j++) {
@@ -696,6 +597,8 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 			if (!DIMM_PRESENT(dimm_dod[j]))
 				continue;
 
+			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
+				       i, j, 0);
 			banks = numbank(MC_DOD_NUMBANK(dimm_dod[j]));
 			ranks = numrank(MC_DOD_NUMRANK(dimm_dod[j]));
 			rows = numrow(MC_DOD_NUMROW(dimm_dod[j]));
@@ -703,8 +606,6 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 
 			/* DDR3 has 8 I/O banks */
 			size = (rows * cols * banks * ranks) >> (20 - 3);
-
-			pvt->channel[i].dimms++;
 
 			debugf0("\tdimm %d %d Mb offset: %x, "
 				"bank: %d, rank: %d, row: %#x, col: %#x\n",
@@ -714,44 +615,28 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 
 			npages = MiB_TO_PAGES(size);
 
-			csr = &mci->csrows[csrow];
-			csr->first_page = last_page + 1;
-			last_page += npages;
-			csr->last_page = last_page;
-			csr->nr_pages = npages;
-
-			csr->page_mask = 0;
-			csr->grain = 8;
-			csr->csrow_idx = csrow;
-			csr->nr_channels = 1;
-
-			csr->channels[0].chan_idx = i;
-			csr->channels[0].ce_count = 0;
-
-			pvt->csrow_map[i][j] = csrow;
+			dimm->nr_pages = npages;
 
 			switch (banks) {
 			case 4:
-				csr->dtype = DEV_X4;
+				dimm->dtype = DEV_X4;
 				break;
 			case 8:
-				csr->dtype = DEV_X8;
+				dimm->dtype = DEV_X8;
 				break;
 			case 16:
-				csr->dtype = DEV_X16;
+				dimm->dtype = DEV_X16;
 				break;
 			default:
-				csr->dtype = DEV_UNKNOWN;
+				dimm->dtype = DEV_UNKNOWN;
 			}
 
-			csr->edac_mode = mode;
-			csr->mtype = mtype;
-			snprintf(csr->channels[0].label,
-					sizeof(csr->channels[0].label),
-					"CPU#%uChannel#%u_DIMM#%u",
-					pvt->i7core_dev->socket, i, j);
-
-			csrow++;
+			snprintf(dimm->label, sizeof(dimm->label),
+				 "CPU#%uChannel#%u_DIMM#%u",
+				 pvt->i7core_dev->socket, i, j);
+			dimm->grain = 8;
+			dimm->edac_mode = mode;
+			dimm->mtype = mtype;
 		}
 
 		pci_read_config_dword(pdev, MC_SAG_CH_0, &value[0]);
@@ -1361,7 +1246,7 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 			      dev_descr->dev_id, *prev);
 
 	/*
-	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core regs
+	 * On Xeon 55xx, the Intel QuickPath Arch Generic Non-core regs
 	 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
 	 * to probe for the alternate address in case of failure
 	 */
@@ -1567,22 +1452,16 @@ error:
 /****************************************************************************
 			Error check routines
  ****************************************************************************/
-static void i7core_rdimm_update_csrow(struct mem_ctl_info *mci,
+static void i7core_rdimm_update_errcount(struct mem_ctl_info *mci,
 				      const int chan,
 				      const int dimm,
 				      const int add)
 {
-	char *msg;
-	struct i7core_pvt *pvt = mci->pvt_info;
-	int row = pvt->csrow_map[chan][dimm], i;
+	int i;
 
 	for (i = 0; i < add; i++) {
-		msg = kasprintf(GFP_KERNEL, "Corrected error "
-				"(Socket=%d channel=%d dimm=%d)",
-				pvt->i7core_dev->socket, chan, dimm);
-
-		edac_mc_handle_fbd_ce(mci, row, 0, msg);
-		kfree (msg);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0, 0,
+				     chan, dimm, -1, "error", "", NULL);
 	}
 }
 
@@ -1623,11 +1502,11 @@ static void i7core_rdimm_update_ce_count(struct mem_ctl_info *mci,
 
 	/*updated the edac core */
 	if (add0 != 0)
-		i7core_rdimm_update_csrow(mci, chan, 0, add0);
+		i7core_rdimm_update_errcount(mci, chan, 0, add0);
 	if (add1 != 0)
-		i7core_rdimm_update_csrow(mci, chan, 1, add1);
+		i7core_rdimm_update_errcount(mci, chan, 1, add1);
 	if (add2 != 0)
-		i7core_rdimm_update_csrow(mci, chan, 2, add2);
+		i7core_rdimm_update_errcount(mci, chan, 2, add2);
 
 }
 
@@ -1747,20 +1626,30 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    const struct mce *m)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
-	char *type, *optype, *err, *msg;
+	char *type, *optype, *err, msg[80];
+	enum hw_event_mc_err_type tp_event;
 	unsigned long error = m->status & 0x1ff0000l;
+	bool uncorrected_error = m->mcgstatus & 1ll << 61;
+	bool ripv = m->mcgstatus & 1;
 	u32 optypenum = (m->status >> 4) & 0x07;
 	u32 core_err_cnt = (m->status >> 38) & 0x7fff;
 	u32 dimm = (m->misc >> 16) & 0x3;
 	u32 channel = (m->misc >> 18) & 0x3;
 	u32 syndrome = m->misc >> 32;
 	u32 errnum = find_first_bit(&error, 32);
-	int csrow;
 
-	if (m->mcgstatus & 1)
-		type = "FATAL";
-	else
-		type = "NON_FATAL";
+	if (uncorrected_error) {
+		if (ripv) {
+			type = "FATAL";
+			tp_event = HW_EVENT_ERR_FATAL;
+		} else {
+			type = "NON_FATAL";
+			tp_event = HW_EVENT_ERR_UNCORRECTED;
+		}
+	} else {
+		type = "CORRECTED";
+		tp_event = HW_EVENT_ERR_CORRECTED;
+	}
 
 	switch (optypenum) {
 	case 0:
@@ -1815,27 +1704,20 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 		err = "unknown";
 	}
 
-	/* FIXME: should convert addr into bank and rank information */
-	msg = kasprintf(GFP_ATOMIC,
-		"%s (addr = 0x%08llx, cpu=%d, Dimm=%d, Channel=%d, "
-		"syndrome=0x%08x, count=%d, Err=%08llx:%08llx (%s: %s))\n",
-		type, (long long) m->addr, m->cpu, dimm, channel,
-		syndrome, core_err_cnt, (long long)m->status,
-		(long long)m->misc, optype, err);
+	snprintf(msg, sizeof(msg), "count=%d %s", core_err_cnt, optype);
 
-	debugf0("%s", msg);
-
-	csrow = pvt->csrow_map[channel][dimm];
-
-	/* Call the helper to output message */
-	if (m->mcgstatus & 1)
-		edac_mc_handle_fbd_ue(mci, csrow, 0,
-				0 /* FIXME: should be channel here */, msg);
-	else if (!pvt->is_registered)
-		edac_mc_handle_fbd_ce(mci, csrow,
-				0 /* FIXME: should be channel here */, msg);
-
-	kfree(msg);
+	/*
+	 * Call the helper to output message
+	 * FIXME: what to do if core_err_cnt > 1? Currently, it generates
+	 * only one event
+	 */
+	if (uncorrected_error || !pvt->is_registered)
+		edac_mc_handle_error(tp_event, mci,
+				     m->addr >> PAGE_SHIFT,
+				     m->addr & ~PAGE_MASK,
+				     syndrome,
+				     channel, dimm, -1,
+				     err, msg, m);
 }
 
 /*
@@ -2132,7 +2014,7 @@ static int set_sdram_scrub_rate(struct mem_ctl_info *mci, u32 new_bw)
 
 /*
  * get_sdram_scrub_rate		This routine convert current scrub rate value
- *				into byte/sec bandwidth accourding to
+ *				into byte/sec bandwidth according to
  *				SCRUBINTERVAL formula found in datasheet.
  */
 static int get_sdram_scrub_rate(struct mem_ctl_info *mci)
@@ -2252,15 +2134,19 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 {
 	struct mem_ctl_info *mci;
 	struct i7core_pvt *pvt;
-	int rc, channels, csrows;
-
-	/* Check the number of active and not disabled channels */
-	rc = i7core_get_active_channels(i7core_dev->socket, &channels, &csrows);
-	if (unlikely(rc < 0))
-		return rc;
+	int rc;
+	struct edac_mc_layer layers[2];
 
 	/* allocate a new MC control structure */
-	mci = edac_mc_alloc(sizeof(*pvt), csrows, channels, i7core_dev->socket);
+
+	layers[0].type = EDAC_MC_LAYER_CHANNEL;
+	layers[0].size = NUM_CHANS;
+	layers[0].is_virt_csrow = false;
+	layers[1].type = EDAC_MC_LAYER_SLOT;
+	layers[1].size = MAX_DIMMS;
+	layers[1].is_virt_csrow = true;
+	mci = edac_mc_alloc(i7core_dev->socket, ARRAY_SIZE(layers), layers,
+			    sizeof(*pvt));
 	if (unlikely(!mci))
 		return -ENOMEM;
 

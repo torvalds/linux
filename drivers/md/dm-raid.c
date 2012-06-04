@@ -155,10 +155,7 @@ static void context_free(struct raid_set *rs)
 	for (i = 0; i < rs->md.raid_disks; i++) {
 		if (rs->dev[i].meta_dev)
 			dm_put_device(rs->ti, rs->dev[i].meta_dev);
-		if (rs->dev[i].rdev.sb_page)
-			put_page(rs->dev[i].rdev.sb_page);
-		rs->dev[i].rdev.sb_page = NULL;
-		rs->dev[i].rdev.sb_loaded = 0;
+		md_rdev_clear(&rs->dev[i].rdev);
 		if (rs->dev[i].data_dev)
 			dm_put_device(rs->ti, rs->dev[i].data_dev);
 	}
@@ -606,7 +603,7 @@ static int read_disk_sb(struct md_rdev *rdev, int size)
 	if (!sync_page_io(rdev, 0, size, rdev->sb_page, READ, 1)) {
 		DMERR("Failed to read superblock of device at position %d",
 		      rdev->raid_disk);
-		set_bit(Faulty, &rdev->flags);
+		md_error(rdev->mddev, rdev);
 		return -EINVAL;
 	}
 
@@ -617,16 +614,18 @@ static int read_disk_sb(struct md_rdev *rdev, int size)
 
 static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 {
-	struct md_rdev *r;
+	int i;
 	uint64_t failed_devices;
 	struct dm_raid_superblock *sb;
+	struct raid_set *rs = container_of(mddev, struct raid_set, md);
 
 	sb = page_address(rdev->sb_page);
 	failed_devices = le64_to_cpu(sb->failed_devices);
 
-	rdev_for_each(r, mddev)
-		if ((r->raid_disk >= 0) && test_bit(Faulty, &r->flags))
-			failed_devices |= (1ULL << r->raid_disk);
+	for (i = 0; i < mddev->raid_disks; i++)
+		if (!rs->dev[i].data_dev ||
+		    test_bit(Faulty, &(rs->dev[i].rdev.flags)))
+			failed_devices |= (1ULL << i);
 
 	memset(sb, 0, sizeof(*sb));
 
@@ -1252,12 +1251,13 @@ static void raid_resume(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
+	set_bit(MD_CHANGE_DEVS, &rs->md.flags);
 	if (!rs->bitmap_loaded) {
 		bitmap_load(&rs->md);
 		rs->bitmap_loaded = 1;
-	} else
-		md_wakeup_thread(rs->md.thread);
+	}
 
+	clear_bit(MD_RECOVERY_FROZEN, &rs->md.recovery);
 	mddev_resume(&rs->md);
 }
 

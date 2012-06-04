@@ -8,6 +8,7 @@
  *
  * Hitachi SolutionEngine support
  */
+#include <linux/sh_intc.h>
 
 /* Box specific addresses.  */
 
@@ -82,16 +83,16 @@
 #define INTC_IPRD       0xa4000018UL
 #define INTC_IPRE       0xa400001aUL
 
-#define IRQ0_IRQ        32
-#define IRQ1_IRQ        33
+#define IRQ0_IRQ        evt2irq(0x600)
+#define IRQ1_IRQ        evt2irq(0x620)
 #endif
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
-#define IRQ_STNIC	12
-#define IRQ_CFCARD	14
+#define IRQ_STNIC	evt2irq(0x380)
+#define IRQ_CFCARD	evt2irq(0x3c0)
 #else
-#define IRQ_STNIC	10
-#define IRQ_CFCARD	7
+#define IRQ_STNIC	evt2irq(0x340)
+#define IRQ_CFCARD	evt2irq(0x2e0)
 #endif
 
 /* SH Ether support (SH7710/SH7712) */
@@ -105,9 +106,9 @@
 # define PHY_ID 0x01
 #endif
 /* Ether IRQ */
-#define SH_ETH0_IRQ	80
-#define SH_ETH1_IRQ	81
-#define SH_TSU_IRQ	82
+#define SH_ETH0_IRQ	evt2irq(0xc00)
+#define SH_ETH1_IRQ	evt2irq(0xc20)
+#define SH_TSU_IRQ	evt2irq(0xc40)
 
 void init_se_IRQ(void);
 

@@ -18,7 +18,6 @@
 #include <asm/signal.h>
 #include <asm/io.h>
 #include <asm/delay.h>
-#include <asm/rtc.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
 
@@ -67,7 +66,6 @@ unsigned long timer_regs[NR_CPUS] =
 };
 
 extern int set_rtc_mmss(unsigned long nowtime);
-extern int have_rtc;
 
 #ifdef CONFIG_CPU_FREQ
 static int
@@ -264,11 +262,6 @@ void __init time_init(void)
 	 * clock has started.
 	 */
 	loops_per_usec = 50;
-
-	if(RTC_INIT() < 0)
-		have_rtc = 0;
-	else
-		have_rtc = 1;
 
 	/* Start CPU local timer. */
 	cris_timer_init();

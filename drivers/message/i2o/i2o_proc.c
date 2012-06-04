@@ -283,7 +283,6 @@ static char *bus_strings[] = {
 	"Local Bus",
 	"ISA",
 	"EISA",
-	"MCA",
 	"PCI",
 	"PCMCIA",
 	"NUBUS",
@@ -349,18 +348,6 @@ static int i2o_seq_show_hrt(struct seq_file *seq, void *v)
 				seq_printf(seq, " Slot: %0#4x,",
 					   hrt->hrt_entry[i].bus.eisa_bus.
 					   EisaSlotNumber);
-				break;
-
-			case I2O_BUS_MCA:
-				seq_printf(seq, "     IOBase: %0#6x,",
-					   hrt->hrt_entry[i].bus.mca_bus.
-					   McaBaseIOPort);
-				seq_printf(seq, " MemoryBase: %0#10x,",
-					   hrt->hrt_entry[i].bus.mca_bus.
-					   McaBaseMemoryAddress);
-				seq_printf(seq, " Slot: %0#4x,",
-					   hrt->hrt_entry[i].bus.mca_bus.
-					   McaSlotNumber);
 				break;
 
 			case I2O_BUS_PCI:

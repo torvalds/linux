@@ -5,20 +5,19 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 #include "adis16260.h"
 
 /**
  * adis16260_read_ring_data() read data registers which will be placed into ring
- * @dev: device associated with child of actual device (iio_dev or iio_trig)
+ * @indio_dev: the IIO device
  * @rx: somewhere to pass back the value read
  **/
-static int adis16260_read_ring_data(struct device *dev, u8 *rx)
+static int adis16260_read_ring_data(struct iio_dev *indio_dev, u8 *rx)
 {
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adis16260_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[ADIS16260_OUTPUTS + 1];
 	int ret;
@@ -66,22 +65,21 @@ static irqreturn_t adis16260_trigger_handler(int irq, void *p)
 	struct iio_buffer *ring = indio_dev->buffer;
 	int i = 0;
 	s16 *data;
-	size_t datasize = ring->access->get_bytes_per_datum(ring);
 
-	data = kmalloc(datasize , GFP_KERNEL);
+	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
 		return -ENOMEM;
 	}
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength) &&
-	    adis16260_read_ring_data(&indio_dev->dev, st->rx) >= 0)
+	    adis16260_read_ring_data(indio_dev, st->rx) >= 0)
 		for (; i < bitmap_weight(indio_dev->active_scan_mask,
 					 indio_dev->masklength); i++)
 			data[i] = be16_to_cpup((__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (ring->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
 
 	ring->access->store_to(ring, (u8 *)data, pf->timestamp);

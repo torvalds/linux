@@ -50,7 +50,7 @@ static bool rr_transmit(struct team *team, struct sk_buff *skb)
 	struct team_port *port;
 	int port_index;
 
-	port_index = rr_priv(team)->sent_packets++ % team->port_count;
+	port_index = rr_priv(team)->sent_packets++ % team->en_port_count;
 	port = team_get_port_by_index_rcu(team, port_index);
 	port = __get_first_port_up(team, port);
 	if (unlikely(!port))

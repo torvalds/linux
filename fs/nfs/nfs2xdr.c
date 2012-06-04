@@ -61,6 +61,7 @@
 #define NFS_readdirres_sz	(1)
 #define NFS_statfsres_sz	(1+NFS_info_sz)
 
+static int nfs_stat_to_errno(enum nfs_stat);
 
 /*
  * While encoding arguments, set up the reply buffer in advance to
@@ -313,6 +314,8 @@ static int decode_fattr(struct xdr_stream *xdr, struct nfs_fattr *fattr)
 	p = xdr_decode_time(p, &fattr->atime);
 	p = xdr_decode_time(p, &fattr->mtime);
 	xdr_decode_time(p, &fattr->ctime);
+	fattr->change_attr = nfs_timespec_to_change_attr(&fattr->ctime);
+
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -1109,7 +1112,7 @@ static const struct {
  * Returns a local errno value, or -EIO if the NFS status code is
  * not recognized.  This function is used jointly by NFSv2 and NFSv3.
  */
-int nfs_stat_to_errno(enum nfs_stat status)
+static int nfs_stat_to_errno(enum nfs_stat status)
 {
 	int i;
 

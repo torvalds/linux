@@ -222,7 +222,7 @@ static int it8152_pci_write_config(struct pci_bus *bus,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static struct pci_ops it8152_ops = {
+struct pci_ops it8152_ops = {
 	.read = it8152_pci_read_config,
 	.write = it8152_pci_write_config,
 };
@@ -345,10 +345,5 @@ void pcibios_set_master(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
 }
 
-
-struct pci_bus * __init it8152_pci_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	return pci_scan_root_bus(NULL, nr, &it8152_ops, sys, &sys->resources);
-}
 
 EXPORT_SYMBOL(dma_set_coherent_mask);

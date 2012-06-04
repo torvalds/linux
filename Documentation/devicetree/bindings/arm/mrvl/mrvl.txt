@@ -1,0 +1,14 @@
+Marvell Platforms Device Tree Bindings
+----------------------------------------------------
+
+PXA168 Aspenite Board
+Required root node properties:
+	- compatible = "mrvl,pxa168-aspenite", "mrvl,pxa168";
+
+PXA910 DKB Board
+Required root node properties:
+	- compatible = "mrvl,pxa910-dkb";
+
+MMP2 Brownstone Board
+Required root node properties:
+	- compatible = "mrvl,mmp2-brownstone";

@@ -129,66 +129,6 @@ Bugs:
 
 #define DRV_NAME "ni_pcimio"
 
-/* The following two tables must be in the same order */
-static DEFINE_PCI_DEVICE_TABLE(ni_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0162)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1170)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1180)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1190)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11b0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11c0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11d0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1270)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1330)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1340)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1350)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x14e0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x14f0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1580)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x15b0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1880)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1870)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x18b0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x18c0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2410)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2420)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2430)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2890)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x28c0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a60)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a70)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a80)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2ab0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b80)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b90)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c80)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2ca0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70aa)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70ab)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70ac)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70af)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b4)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b6)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b7)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b8)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bc)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bd)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bf)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70f2)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x710d)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x716c)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x716d)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x717f)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x71bc)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x717d)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x72e8)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, ni_pci_table);
-
 /* These are not all the possible ao ranges for 628x boards.
  They can do OFFSET +- REFERENCE where OFFSET can be
  0V, 5V, APFI<0,1>, or AO<0...3> and RANGE can
@@ -1250,54 +1190,6 @@ static const struct ni_board_struct ni_boards[] = {
 
 #define n_pcimio_boards ARRAY_SIZE(ni_boards)
 
-static int pcimio_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcimio_detach(struct comedi_device *dev);
-static struct comedi_driver driver_pcimio = {
-	.driver_name = DRV_NAME,
-	.module = THIS_MODULE,
-	.attach = pcimio_attach,
-	.detach = pcimio_detach,
-};
-
-static int __devinit driver_pcimio_pci_probe(struct pci_dev *dev,
-					     const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, driver_pcimio.driver_name);
-}
-
-static void __devexit driver_pcimio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_pcimio_pci_driver = {
-	.id_table = ni_pci_table,
-	.probe = &driver_pcimio_pci_probe,
-	.remove = __devexit_p(&driver_pcimio_pci_remove)
-};
-
-static int __init driver_pcimio_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_pcimio);
-	if (retval < 0)
-		return retval;
-
-	driver_pcimio_pci_driver.name = (char *)driver_pcimio.driver_name;
-	return pci_register_driver(&driver_pcimio_pci_driver);
-}
-
-static void __exit driver_pcimio_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_pcimio_pci_driver);
-	comedi_driver_unregister(&driver_pcimio);
-}
-
-module_init(driver_pcimio_init_module);
-module_exit(driver_pcimio_cleanup_module);
-
 struct ni_private {
 NI_PRIVATE_COMMON};
 #define devpriv ((struct ni_private *)dev->private)
@@ -1681,13 +1573,11 @@ static void init_6143(struct comedi_device *dev)
 	ni_writew(devpriv->ai_calib_source, Calibration_Channel_6143);
 }
 
-/* cleans up allocated resources */
-static int pcimio_detach(struct comedi_device *dev)
+static void pcimio_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->private) {
 		mite_free_ring(devpriv->ai_mite_ring);
 		mite_free_ring(devpriv->ao_mite_ring);
@@ -1697,8 +1587,6 @@ static int pcimio_detach(struct comedi_device *dev)
 		if (devpriv->mite)
 			mite_unsetup(devpriv->mite);
 	}
-
-	return 0;
 }
 
 static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -1873,6 +1761,90 @@ static int pcimio_dio_change(struct comedi_device *dev,
 
 	return 0;
 }
+
+static struct comedi_driver ni_pcimio_driver = {
+	.driver_name	= "ni_pcimio",
+	.module		= THIS_MODULE,
+	.attach		= pcimio_attach,
+	.detach		= pcimio_detach,
+};
+
+static int __devinit ni_pcimio_pci_probe(struct pci_dev *dev,
+					 const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &ni_pcimio_driver);
+}
+
+static void __devexit ni_pcimio_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(ni_pcimio_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0162) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1170) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1180) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1190) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11b0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11c0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x11d0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1270) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1330) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1340) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1350) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x14e0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x14f0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1580) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x15b0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1880) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1870) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x18b0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x18c0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2410) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2420) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2430) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2890) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x28c0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a60) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a70) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2a80) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2ab0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b80) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b90) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c80) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2ca0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70aa) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70ab) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70ac) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70af) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b4) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b6) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b7) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70b8) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bc) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bd) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70bf) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70f2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x710d) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x716c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x716d) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x717f) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x71bc) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x717d) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x72e8) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni_pcimio_pci_table);
+
+static struct pci_driver ni_pcimio_pci_driver = {
+	.name		= "ni_pcimio",
+	.id_table	= ni_pcimio_pci_table,
+	.probe		= ni_pcimio_pci_probe,
+	.remove		= __devexit_p(ni_pcimio_pci_remove)
+};
+module_comedi_pci_driver(ni_pcimio_driver, ni_pcimio_pci_driver)
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -52,7 +52,7 @@ static int lbkmode = RTL8712_AIR_TRX;
 static int hci = RTL8712_USB;
 static int ampdu_enable = 1;/*for enable tx_ampdu*/
 
-/* The video_mode variable is for vedio mode.*/
+/* The video_mode variable is for video mode.*/
 /* It may be specify when inserting module with video_mode=1 parameter.*/
 static int video_mode = 1;   /* enable video mode*/
 
@@ -248,7 +248,7 @@ static u32 start_drv_threads(struct _adapter *padapter)
 
 void r8712_stop_drv_threads(struct _adapter *padapter)
 {
-	/*Below is to termindate r8712_cmd_thread & event_thread...*/
+	/*Below is to terminate r8712_cmd_thread & event_thread...*/
 	up(&padapter->cmdpriv.cmd_queue_sema);
 	if (padapter->cmdThread)
 		_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);

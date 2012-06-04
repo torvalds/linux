@@ -90,7 +90,7 @@
 
 #define LOF(x) 			(sizeof(x)/sizeof(hcf_16)-1)
 
-/*	Endianess
+/*	Endianness
  *	Little Endian (a.k.a. Intel), least significant byte first
  *	Big Endian (a.k.a. Motorola), most significant byte first
  *
@@ -101,7 +101,7 @@
  */
 
 /* To increase portability, use unsigned char and unsigned char * when accessing parts of larger
- * types to convert their Endianess
+ * types to convert their Endianness
  */
 
 #define CNV_END_SHORT(w)  (hcf_16)( ((hcf_16)(w) & 0x00FF) << 8 | ((hcf_16)(w) & 0xFF00) >> 8 )
@@ -109,14 +109,14 @@
 
 #if HCF_BIG_ENDIAN
 //******************************************** B I G   E N D I A N *******************************************
-#define CNV_LITTLE_TO_SHORT(w)	CNV_END_SHORT(w)	//    endianess conversion needed
-#define CNV_BIG_TO_SHORT(w)		(w)				// no endianess conversion needed
+#define CNV_LITTLE_TO_SHORT(w)	CNV_END_SHORT(w)	//    endianness conversion needed
+#define CNV_BIG_TO_SHORT(w)		(w)				// no endianness conversion needed
 #define CNV_LITTLE_TO_LONG(dw)	CNV_END_LONG(dw)
 #define CNV_LONG_TO_LITTLE(dw)	CNV_END_LONG(dw)
 #else
 //****************************************** L I T T L E   E N D I A N ****************************************
-#define CNV_LITTLE_TO_SHORT(w) 	(w)				// no endianess conversion needed
-#define CNV_BIG_TO_SHORT(w)		CNV_END_SHORT(w)	//    endianess conversion needed
+#define CNV_LITTLE_TO_SHORT(w) 	(w)				// no endianness conversion needed
+#define CNV_BIG_TO_SHORT(w)		CNV_END_SHORT(w)	//    endianness conversion needed
 #define CNV_LITTLE_TO_LONG(dw)	(dw)
 #define CNV_LONG_TO_LITTLE(dw)	(dw)
 

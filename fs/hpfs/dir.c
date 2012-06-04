@@ -87,7 +87,7 @@ static int hpfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			ret = -EIOERROR;
 			goto out;
 		}
-		if (!fno->dirflag) {
+		if (!fnode_is_dir(fno)) {
 			e = 1;
 			hpfs_error(inode->i_sb, "not a directory, fnode %08lx",
 					(unsigned long)inode->i_ino);

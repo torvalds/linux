@@ -22,7 +22,7 @@
  *        Added module command-line options
  *        19-Jul-99
  *  Modified by Adam Fritzler
- *        Added proper detection of the AHA-1640 (MCA version of AHA-1540)
+ *        Added proper detection of the AHA-1640 (MCA, now deleted)
  */
 
 #include <linux/module.h>
@@ -37,8 +37,6 @@
 #include <linux/spinlock.h>
 #include <linux/isapnp.h>
 #include <linux/blkdev.h>
-#include <linux/mca.h>
-#include <linux/mca-legacy.h>
 #include <linux/slab.h>
 
 #include <asm/dma.h>
@@ -71,7 +69,7 @@
 #define MAXBOARDS 4		/* Increase this and the sizes of the
 				   arrays below, if you need more.. */
 
-/* Boards 3,4 slots are reserved for ISAPnP/MCA scans */
+/* Boards 3,4 slots are reserved for ISAPnP scans */
 
 static unsigned int bases[MAXBOARDS] __initdata = {0x330, 0x334, 0, 0};
 
@@ -1005,66 +1003,6 @@ static int __init aha1542_detect(struct scsi_host_template * tpnt)
 			break;
 		};
 		setup_dmaspeed[0] = atbt;
-	}
-#endif
-
-	/*
-	 *	Find MicroChannel cards (AHA1640)
-	 */
-#ifdef CONFIG_MCA_LEGACY
-	if(MCA_bus) {
-		int slot = 0;
-		int pos = 0;
-
-		for (indx = 0; (slot != MCA_NOTFOUND) && (indx < ARRAY_SIZE(bases)); indx++) {
-
-			if (bases[indx])
-				continue;
-
-			/* Detect only AHA-1640 cards -- MCA ID 0F1F */
-			slot = mca_find_unused_adapter(0x0f1f, slot);
-			if (slot == MCA_NOTFOUND)
-				break;
-
-			/* Found one */
-			pos = mca_read_stored_pos(slot, 3);
-
-			/* Decode address */
-			if (pos & 0x80) {
-				if (pos & 0x02) {
-					if (pos & 0x01)
-						bases[indx] = 0x334;
-					else
-						bases[indx] = 0x234;
-				} else {
-					if (pos & 0x01)
-						bases[indx] = 0x134;
-				}
-			} else {
-				if (pos & 0x02) {
-					if (pos & 0x01)
-						bases[indx] = 0x330;
-					else
-						bases[indx] = 0x230;
-				} else {
-					if (pos & 0x01)
-						bases[indx] = 0x130;
-				}
-			}
-
-			/* No need to decode IRQ and Arb level -- those are
-			 * read off the card later.
-			 */
-			printk(KERN_INFO "Found an AHA-1640 in MCA slot %d, I/O 0x%04x\n", slot, bases[indx]);
-
-			mca_set_adapter_name(slot, "Adapter AHA-1640");
-			mca_set_adapter_procfn(slot, NULL, NULL);
-			mca_mark_as_used(slot);
-
-			/* Go on */
-			slot++;
-		}
-
 	}
 #endif
 

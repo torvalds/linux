@@ -849,6 +849,8 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.release_swfw_sync      = &ixgbe_release_swfw_sync_X540,
 	.disable_rx_buff	= &ixgbe_disable_rx_buff_generic,
 	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
+	.get_thermal_sensor_data = NULL,
+	.init_thermal_sensor_thresh = NULL,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_X540 = {

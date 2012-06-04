@@ -5,7 +5,7 @@
 
 	ocp@f1000000 {
 		compatible = "simple-bus";
-		ranges = <0 0xf1000000 0x1000000>;
+		ranges = <0 0xf1000000 0x4000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -31,6 +31,19 @@
 			compatible = "mrvl,kirkwood-rtc", "mrvl,orion-rtc";
 			reg = <0x10300 0x20>;
 			interrupts = <53>;
+		};
+
+		nand@3000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			cle = <0>;
+			ale = <1>;
+			bank-width = <1>;
+			compatible = "mrvl,orion-nand";
+			reg = <0x3000000 0x400>;
+			chip-delay = <25>;
+			/* set partition map and/or chip-delay in board dts */
+			status = "disabled";
 		};
 	};
 };

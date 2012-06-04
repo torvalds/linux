@@ -61,11 +61,13 @@ static DEFINE_PER_CPU_READ_MOSTLY(int, tlb_vector_offset);
  */
 void leave_mm(int cpu)
 {
-	if (percpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
+	struct mm_struct *active_mm = this_cpu_read(cpu_tlbstate.active_mm);
+	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
 		BUG();
-	cpumask_clear_cpu(cpu,
-			  mm_cpumask(percpu_read(cpu_tlbstate.active_mm)));
-	load_cr3(swapper_pg_dir);
+	if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {
+		cpumask_clear_cpu(cpu, mm_cpumask(active_mm));
+		load_cr3(swapper_pg_dir);
+	}
 }
 EXPORT_SYMBOL_GPL(leave_mm);
 
@@ -152,8 +154,8 @@ void smp_invalidate_interrupt(struct pt_regs *regs)
 		 * BUG();
 		 */
 
-	if (f->flush_mm == percpu_read(cpu_tlbstate.active_mm)) {
-		if (percpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
+	if (f->flush_mm == this_cpu_read(cpu_tlbstate.active_mm)) {
+		if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
 			if (f->flush_va == TLB_FLUSH_ALL)
 				local_flush_tlb();
 			else
@@ -322,7 +324,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 static void do_flush_tlb_all(void *info)
 {
 	__flush_tlb_all();
-	if (percpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)
+	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)
 		leave_mm(smp_processor_id());
 }
 

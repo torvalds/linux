@@ -34,7 +34,7 @@
 void rpc_init_rtt(struct rpc_rtt *rt, unsigned long timeo)
 {
 	unsigned long init = 0;
-	unsigned i;
+	unsigned int i;
 
 	rt->timeo = timeo;
 
@@ -57,7 +57,7 @@ EXPORT_SYMBOL_GPL(rpc_init_rtt);
  * NB: When computing the smoothed RTT and standard deviation,
  *     be careful not to produce negative intermediate results.
  */
-void rpc_update_rtt(struct rpc_rtt *rt, unsigned timer, long m)
+void rpc_update_rtt(struct rpc_rtt *rt, unsigned int timer, long m)
 {
 	long *srtt, *sdrtt;
 
@@ -106,7 +106,7 @@ EXPORT_SYMBOL_GPL(rpc_update_rtt);
  * read, write, commit     - A+4D
  * other                   - timeo
  */
-unsigned long rpc_calc_rto(struct rpc_rtt *rt, unsigned timer)
+unsigned long rpc_calc_rto(struct rpc_rtt *rt, unsigned int timer)
 {
 	unsigned long res;
 

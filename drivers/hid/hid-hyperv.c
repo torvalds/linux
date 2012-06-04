@@ -430,6 +430,15 @@ cleanup:
 	return ret;
 }
 
+static int mousevsc_hid_parse(struct hid_device *hid)
+{
+	struct hv_device *dev = hid_get_drvdata(hid);
+	struct mousevsc_dev *input_dev = hv_get_drvdata(dev);
+
+	return hid_parse_report(hid, input_dev->report_desc,
+				input_dev->report_desc_size);
+}
+
 static int mousevsc_hid_open(struct hid_device *hid)
 {
 	return 0;
@@ -449,6 +458,7 @@ static void mousevsc_hid_stop(struct hid_device *hid)
 }
 
 static struct hid_ll_driver mousevsc_ll_driver = {
+	.parse = mousevsc_hid_parse,
 	.open = mousevsc_hid_open,
 	.close = mousevsc_hid_close,
 	.start = mousevsc_hid_start,
@@ -506,13 +516,14 @@ static int mousevsc_probe(struct hv_device *device,
 
 	sprintf(hid_dev->name, "%s", "Microsoft Vmbus HID-compliant Mouse");
 
+	hid_set_drvdata(hid_dev, device);
+
 	ret = hid_add_device(hid_dev);
 	if (ret)
 		goto probe_err1;
 
-	ret = hid_parse_report(hid_dev, input_dev->report_desc,
-				input_dev->report_desc_size);
 
+	ret = hid_parse(hid_dev);
 	if (ret) {
 		hid_err(hid_dev, "parse failed\n");
 		goto probe_err2;

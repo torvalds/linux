@@ -359,7 +359,8 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
 	opt.mtu = q->mtu;
 	opt.buffer = q->buffer;
-	NLA_PUT(skb, TCA_TBF_PARMS, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_TBF_PARMS, sizeof(opt), &opt))
+		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 	return skb->len;

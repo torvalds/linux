@@ -37,7 +37,7 @@
 
 static int rose_header(struct sk_buff *skb, struct net_device *dev,
 		       unsigned short type,
-		       const void *daddr, const void *saddr, unsigned len)
+		       const void *daddr, const void *saddr, unsigned int len)
 {
 	unsigned char *buff = skb_push(skb, ROSE_MIN_LEN + 2);
 

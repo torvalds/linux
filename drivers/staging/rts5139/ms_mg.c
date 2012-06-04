@@ -38,7 +38,7 @@
 
 #ifdef SUPPORT_MAGIC_GATE
 
-int mg_check_int_error(struct rts51x_chip *chip)
+static int mg_check_int_error(struct rts51x_chip *chip)
 {
 	u8 value;
 
@@ -444,7 +444,7 @@ int mg_rsp(struct scsi_cmnd *srb, struct rts51x_chip *chip)
   *
   * Since the extra 4 bytes data is just only a prefix to original data
   * that read from medium, so that the 4-byte data pushed into Ring buffer
-  * precedes data tramsinssion from medium to Ring buffer by DMA mechanisim
+  * precedes data transmission from medium to Ring buffer by DMA mechanism
   * in order to get maximum performance and minimum code size simultaneously.
   */
 int mg_get_ICV(struct scsi_cmnd *srb, struct rts51x_chip *chip)

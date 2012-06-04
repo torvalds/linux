@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/interrupt.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
@@ -106,25 +107,29 @@ static struct s3c2410_uartcfg goni_uartcfgs[] __initdata = {
 
 /* Frame Buffer */
 static struct s3c_fb_pd_win goni_fb_win0 = {
-	.win_mode = {
-		.left_margin	= 16,
-		.right_margin	= 16,
-		.upper_margin	= 2,
-		.lower_margin	= 28,
-		.hsync_len	= 2,
-		.vsync_len	= 1,
-		.xres		= 480,
-		.yres		= 800,
-		.refresh	= 55,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 480,
+	.yres		= 800,
 	.virtual_x	= 480,
 	.virtual_y	= 2 * 800,
 };
 
+static struct fb_videomode goni_lcd_timing = {
+	.left_margin	= 16,
+	.right_margin	= 16,
+	.upper_margin	= 2,
+	.lower_margin	= 28,
+	.hsync_len	= 2,
+	.vsync_len	= 1,
+	.xres		= 480,
+	.yres		= 800,
+	.refresh	= 55,
+};
+
 static struct s3c_fb_platdata goni_lcd_pdata __initdata = {
 	.win[0]		= &goni_fb_win0,
+	.vtiming	= &goni_lcd_timing,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB |
 			  VIDCON0_CLKSEL_LCD,
 	.vidcon1	= VIDCON1_INV_VCLK | VIDCON1_INV_VDEN
@@ -277,6 +282,9 @@ static void __init goni_tsp_init(void)
 	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
 	i2c2_devs[0].irq = gpio_to_irq(gpio);
 }
+
+/* USB OTG */
+static struct s3c_hsotg_plat goni_hsotg_pdata;
 
 static void goni_camera_init(void)
 {
@@ -940,6 +948,8 @@ static void __init goni_machine_init(void)
 	/* FIMC */
 	s3c_set_platdata(&goni_fimc_md_platdata, sizeof(goni_fimc_md_platdata),
 			 &s5p_device_fimc_md);
+
+	s3c_hsotg_set_platdata(&goni_hsotg_pdata);
 
 	goni_camera_init();
 

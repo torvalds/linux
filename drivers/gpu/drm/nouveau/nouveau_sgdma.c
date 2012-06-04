@@ -290,7 +290,10 @@ nv50_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 	struct nouveau_mem *node = mem->mm_node;
 
 	/* noop: bound in move_notify() */
-	node->pages = nvbe->ttm.dma_address;
+	if (ttm->sg) {
+		node->sg = ttm->sg;
+	} else
+		node->pages = nvbe->ttm.dma_address;
 	return 0;
 }
 
@@ -338,10 +341,10 @@ nouveau_sgdma_init(struct drm_device *dev)
 	u32 aper_size, align;
 	int ret;
 
-	if (dev_priv->card_type >= NV_40 && pci_is_pcie(dev->pdev))
+	if (dev_priv->card_type >= NV_40)
 		aper_size = 512 * 1024 * 1024;
 	else
-		aper_size = 64 * 1024 * 1024;
+		aper_size = 128 * 1024 * 1024;
 
 	/* Dear NVIDIA, NV44+ would like proper present bits in PTEs for
 	 * christmas.  The cards before it have them, the cards after

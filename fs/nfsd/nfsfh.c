@@ -636,7 +636,7 @@ fh_put(struct svc_fh *fhp)
 #endif
 	}
 	if (exp) {
-		cache_put(&exp->h, &svc_export_cache);
+		exp_put(exp);
 		fhp->fh_export = NULL;
 	}
 	return;

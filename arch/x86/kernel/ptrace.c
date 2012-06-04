@@ -1211,12 +1211,6 @@ static long x32_arch_ptrace(struct task_struct *child,
 					     0, sizeof(struct user_i387_struct),
 					     datap);
 
-		/* normal 64bit interface to access TLS data.
-		   Works just like arch_prctl, except that the arguments
-		   are reversed. */
-	case PTRACE_ARCH_PRCTL:
-		return do_arch_prctl(child, data, addr);
-
 	default:
 		return compat_ptrace_request(child, request, addr, data);
 	}
@@ -1480,7 +1474,11 @@ long syscall_trace_enter(struct pt_regs *regs)
 		regs->flags |= X86_EFLAGS_TF;
 
 	/* do the secure computing check first */
-	secure_computing(regs->orig_ax);
+	if (secure_computing(regs->orig_ax)) {
+		/* seccomp failures shouldn't expose any additional code. */
+		ret = -1L;
+		goto out;
+	}
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_EMU)))
 		ret = -1L;
@@ -1505,6 +1503,7 @@ long syscall_trace_enter(struct pt_regs *regs)
 				    regs->dx, regs->r10);
 #endif
 
+out:
 	return ret ?: regs->orig_ax;
 }
 

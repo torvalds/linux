@@ -8,5 +8,3 @@ lib-y				+= cmdline.o env.o file.o identify.o init.o \
 lib-$(CONFIG_ARC_MEMORY)	+= memory.o
 lib-$(CONFIG_ARC_CONSOLE)	+= arc_con.o
 lib-$(CONFIG_ARC_PROMLIB)	+= promlib.o
-
-ccflags-y			:= -Werror

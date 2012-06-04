@@ -6,7 +6,6 @@ asflags-y := -ansi
 ccflags-y := -Werror
 
 extra-y     := head_$(BITS).o
-extra-y     += init_task.o
 
 # Undefine sparc when processing vmlinux.lds - it is used
 # And teach CPP we are doing $(BITS) builds (for this case)
@@ -28,7 +27,7 @@ obj-y                   += traps_$(BITS).o
 
 # IRQ
 obj-y                   += irq_$(BITS).o
-obj-$(CONFIG_SPARC32)   += sun4m_irq.o sun4c_irq.o sun4d_irq.o
+obj-$(CONFIG_SPARC32)   += sun4m_irq.o sun4d_irq.o
 
 obj-y                   += process_$(BITS).o
 obj-y                   += signal_$(BITS).o
@@ -46,15 +45,14 @@ obj-$(CONFIG_SPARC32)   += tadpole.o
 obj-y                   += ptrace_$(BITS).o
 obj-y                   += unaligned_$(BITS).o
 obj-y                   += una_asm_$(BITS).o
-obj-$(CONFIG_SPARC32)   += muldiv.o
 obj-y                   += prom_common.o
 obj-y                   += prom_$(BITS).o
 obj-y                   += of_device_common.o
 obj-y                   += of_device_$(BITS).o
 obj-$(CONFIG_SPARC64)   += prom_irqtrans.o
 
-obj-$(CONFIG_SPARC_LEON)+= leon_kernel.o
-obj-$(CONFIG_SPARC_LEON)+= leon_pmc.o
+obj-$(CONFIG_SPARC32)   += leon_kernel.o
+obj-$(CONFIG_SPARC32)   += leon_pmc.o
 
 obj-$(CONFIG_SPARC64)   += reboot.o
 obj-$(CONFIG_SPARC64)   += sysfs.o

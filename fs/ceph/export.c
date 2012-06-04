@@ -40,38 +40,49 @@ struct ceph_nfs_confh {
 	u32 parent_name_hash;
 } __attribute__ ((packed));
 
-static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
-			  int connectable)
+/*
+ * The presence of @parent_inode here tells us whether NFS wants a
+ * connectable file handle.  However, we want to make a connectionable
+ * file handle unconditionally so that the MDS gets as much of a hint
+ * as possible.  That means we only use @parent_dentry to indicate
+ * whether nfsd wants a connectable fh, and whether we should indicate
+ * failure from a too-small @max_len.
+ */
+static int ceph_encode_fh(struct inode *inode, u32 *rawfh, int *max_len,
+			  struct inode *parent_inode)
 {
 	int type;
 	struct ceph_nfs_fh *fh = (void *)rawfh;
 	struct ceph_nfs_confh *cfh = (void *)rawfh;
-	struct dentry *parent;
-	struct inode *inode = dentry->d_inode;
 	int connected_handle_length = sizeof(*cfh)/4;
 	int handle_length = sizeof(*fh)/4;
+	struct dentry *dentry = d_find_alias(inode);
+	struct dentry *parent;
 
 	/* don't re-export snaps */
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EINVAL;
 
-	spin_lock(&dentry->d_lock);
-	parent = dentry->d_parent;
-	if (*max_len >= connected_handle_length) {
+	/* if we found an alias, generate a connectable fh */
+	if (*max_len >= connected_handle_length && dentry) {
 		dout("encode_fh %p connectable\n", dentry);
-		cfh->ino = ceph_ino(dentry->d_inode);
+		spin_lock(&dentry->d_lock);
+		parent = dentry->d_parent;
+		cfh->ino = ceph_ino(inode);
 		cfh->parent_ino = ceph_ino(parent->d_inode);
 		cfh->parent_name_hash = ceph_dentry_hash(parent->d_inode,
 							 dentry);
 		*max_len = connected_handle_length;
 		type = 2;
+		spin_unlock(&dentry->d_lock);
 	} else if (*max_len >= handle_length) {
-		if (connectable) {
+		if (parent_inode) {
+			/* nfsd wants connectable */
 			*max_len = connected_handle_length;
 			type = 255;
 		} else {
 			dout("encode_fh %p\n", dentry);
-			fh->ino = ceph_ino(dentry->d_inode);
+			fh->ino = ceph_ino(inode);
 			*max_len = handle_length;
 			type = 1;
 		}
@@ -79,7 +90,6 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 		*max_len = handle_length;
 		type = 255;
 	}
-	spin_unlock(&dentry->d_lock);
 	return type;
 }
 

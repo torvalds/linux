@@ -1,0 +1,97 @@
+What:		/sys/class/extcon/.../
+Date:		February 2012
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		Provide a place in sysfs for the extcon objects.
+		This allows accessing extcon specific variables.
+		The name of extcon object denoted as ... is the name given
+		with extcon_dev_register.
+
+		One extcon device denotes a single external connector
+		port. An external connector may have multiple cables
+		attached simultaneously. Many of docks, cradles, and
+		accessory cables have such capability. For example,
+		the 30-pin port of Nuri board (/arch/arm/mach-exynos)
+		may have both HDMI and Charger attached, or analog audio,
+		video, and USB cables attached simulteneously.
+
+		If there are cables mutually exclusive with each other,
+		such binary relations may be expressed with extcon_dev's
+		mutually_exclusive array.
+
+What:		/sys/class/extcon/.../name
+Date:		February 2012
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/extcon/.../name shows the name of the extcon
+		object. If the extcon object has an optional callback
+		"show_name" defined, the callback will provide the name with
+		this sysfs node.
+
+What:		/sys/class/extcon/.../state
+Date:		February 2012
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/extcon/.../state shows and stores the cable
+		attach/detach information of the corresponding extcon object.
+		If the extcon object has an optional callback "show_state"
+		defined, the showing function is overriden with the optional
+		callback.
+
+		If the default callback for showing function is used, the
+		format is like this:
+		# cat state
+		USB_OTG=1
+		HDMI=0
+		TA=1
+		EAR_JACK=0
+		#
+		In this example, the extcon device have USB_OTG and TA
+		cables attached and HDMI and EAR_JACK cables detached.
+
+		In order to update the state of an extcon device, enter a hex
+		state number starting with 0x.
+		 echo 0xHEX > state
+
+		This updates the whole state of the extcon dev.
+		Inputs of all the methods are required to meet the
+		mutually_exclusive contidions if they exist.
+
+		It is recommended to use this "global" state interface if
+		you need to enter the value atomically. The later state
+		interface associated with each cable cannot update
+		multiple cable states of an extcon device simultaneously.
+
+What:		/sys/class/extcon/.../cable.x/name
+Date:		February 2012
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/extcon/.../cable.x/name shows the name of cable
+		"x" (integer between 0 and 31) of an extcon device.
+
+What:		/sys/class/extcon/.../cable.x/state
+Date:		February 2012
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/extcon/.../cable.x/name shows and stores the
+		state of cable "x" (integer between 0 and 31) of an extcon
+		device. The state value is either 0 (detached) or 1
+		(attached).
+
+What:		/sys/class/extcon/.../mutually_exclusive/...
+Date:		December 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		Shows the relations of mutually exclusiveness. For example,
+		if the mutually_exclusive array of extcon_dev is
+		{0x3, 0x5, 0xC, 0x0}, the, the output is:
+		# ls mutually_exclusive/
+		0x3
+		0x5
+		0xc
+		#
+
+		Note that mutually_exclusive is a sub-directory of the extcon
+		device and the file names under the mutually_exclusive
+		directory show the mutually-exclusive sets, not the contents
+		of the files.

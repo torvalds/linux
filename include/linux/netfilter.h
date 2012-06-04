@@ -154,12 +154,6 @@ void nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n);
 int nf_register_sockopt(struct nf_sockopt_ops *reg);
 void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
 
-#ifdef CONFIG_SYSCTL
-/* Sysctl registration */
-extern struct ctl_path nf_net_netfilter_sysctl_path[];
-extern struct ctl_path nf_net_ipv4_netfilter_sysctl_path[];
-#endif /* CONFIG_SYSCTL */
-
 extern struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 
 #if defined(CONFIG_JUMP_LABEL)

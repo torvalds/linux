@@ -2488,8 +2488,8 @@ static int velocity_close(struct net_device *dev)
 
 	if (vptr->flags & VELOCITY_FLAGS_WOL_ENABLED)
 		velocity_get_ip(vptr);
-	if (dev->irq != 0)
-		free_irq(dev->irq, dev);
+
+	free_irq(vptr->pdev->irq, dev);
 
 	velocity_free_rings(vptr);
 
@@ -2755,8 +2755,6 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	if (ret < 0)
 		goto err_free_dev;
 
-	dev->irq = pdev->irq;
-
 	ret = velocity_get_pci_info(vptr, pdev);
 	if (ret < 0) {
 		/* error message already printed */
@@ -2778,8 +2776,6 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	vptr->mac_regs = regs;
 
 	mac_wol_reset(regs);
-
-	dev->base_addr = vptr->ioaddr;
 
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = readb(&regs->PAR[i]);
@@ -2806,7 +2802,6 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 
 	vptr->phy_id = MII_GET_PHY_ID(vptr->mac_regs);
 
-	dev->irq = pdev->irq;
 	dev->netdev_ops = &velocity_netdev_ops;
 	dev->ethtool_ops = &velocity_ethtool_ops;
 	netif_napi_add(dev, &vptr->napi, velocity_poll, VELOCITY_NAPI_WEIGHT);

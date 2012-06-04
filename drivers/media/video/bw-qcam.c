@@ -77,6 +77,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 
 /* One from column A... */
 #define QC_NOTSET 0
@@ -103,6 +106,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 struct qcam {
 	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
+	struct v4l2_ctrl_handler hdl;
 	struct pardevice *pdev;
 	struct parport *pport;
 	struct mutex lock;
@@ -646,7 +650,8 @@ static int qcam_querycap(struct file *file, void  *priv,
 	strlcpy(vcap->driver, qcam->v4l2_dev.name, sizeof(vcap->driver));
 	strlcpy(vcap->card, "B&W Quickcam", sizeof(vcap->card));
 	strlcpy(vcap->bus_info, "parport", sizeof(vcap->bus_info));
-	vcap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
+	vcap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
+	vcap->capabilities = vcap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -672,72 +677,6 @@ static int qcam_g_input(struct file *file, void *fh, unsigned int *inp)
 static int qcam_s_input(struct file *file, void *fh, unsigned int inp)
 {
 	return (inp > 0) ? -EINVAL : 0;
-}
-
-static int qcam_queryctrl(struct file *file, void *priv,
-					struct v4l2_queryctrl *qc)
-{
-	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 180);
-	case V4L2_CID_CONTRAST:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 192);
-	case V4L2_CID_GAMMA:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 105);
-	}
-	return -EINVAL;
-}
-
-static int qcam_g_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct qcam *qcam = video_drvdata(file);
-	int ret = 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = qcam->brightness;
-		break;
-	case V4L2_CID_CONTRAST:
-		ctrl->value = qcam->contrast;
-		break;
-	case V4L2_CID_GAMMA:
-		ctrl->value = qcam->whitebal;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-
-static int qcam_s_ctrl(struct file *file, void *priv,
-					struct v4l2_control *ctrl)
-{
-	struct qcam *qcam = video_drvdata(file);
-	int ret = 0;
-
-	mutex_lock(&qcam->lock);
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		qcam->brightness = ctrl->value;
-		break;
-	case V4L2_CID_CONTRAST:
-		qcam->contrast = ctrl->value;
-		break;
-	case V4L2_CID_GAMMA:
-		qcam->whitebal = ctrl->value;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	if (ret == 0) {
-		qc_setscanmode(qcam);
-		qcam->status |= QC_PARAM_CHANGE;
-	}
-	mutex_unlock(&qcam->lock);
-	return ret;
 }
 
 static int qcam_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *fmt)
@@ -856,8 +795,40 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 	return len;
 }
 
+static int qcam_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct qcam *qcam =
+		container_of(ctrl->handler, struct qcam, hdl);
+	int ret = 0;
+
+	mutex_lock(&qcam->lock);
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		qcam->brightness = ctrl->val;
+		break;
+	case V4L2_CID_CONTRAST:
+		qcam->contrast = ctrl->val;
+		break;
+	case V4L2_CID_GAMMA:
+		qcam->whitebal = ctrl->val;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	if (ret == 0) {
+		qc_setscanmode(qcam);
+		qcam->status |= QC_PARAM_CHANGE;
+	}
+	mutex_unlock(&qcam->lock);
+	return ret;
+}
+
 static const struct v4l2_file_operations qcam_fops = {
 	.owner		= THIS_MODULE,
+	.open		= v4l2_fh_open,
+	.release	= v4l2_fh_release,
+	.poll		= v4l2_ctrl_poll,
 	.unlocked_ioctl = video_ioctl2,
 	.read		= qcam_read,
 };
@@ -867,13 +838,17 @@ static const struct v4l2_ioctl_ops qcam_ioctl_ops = {
 	.vidioc_g_input      		    = qcam_g_input,
 	.vidioc_s_input      		    = qcam_s_input,
 	.vidioc_enum_input   		    = qcam_enum_input,
-	.vidioc_queryctrl 		    = qcam_queryctrl,
-	.vidioc_g_ctrl  		    = qcam_g_ctrl,
-	.vidioc_s_ctrl 			    = qcam_s_ctrl,
 	.vidioc_enum_fmt_vid_cap 	    = qcam_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap 		    = qcam_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap  		    = qcam_s_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap  	    = qcam_try_fmt_vid_cap,
+	.vidioc_log_status		    = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event		    = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	    = v4l2_event_unsubscribe,
+};
+
+static const struct v4l2_ctrl_ops qcam_ctrl_ops = {
+	.s_ctrl = qcam_s_ctrl,
 };
 
 /* Initialize the QuickCam driver control structure.  This is where
@@ -897,19 +872,35 @@ static struct qcam *qcam_init(struct parport *port)
 		return NULL;
 	}
 
+	v4l2_ctrl_handler_init(&qcam->hdl, 3);
+	v4l2_ctrl_new_std(&qcam->hdl, &qcam_ctrl_ops,
+			  V4L2_CID_BRIGHTNESS, 0, 255, 1, 180);
+	v4l2_ctrl_new_std(&qcam->hdl, &qcam_ctrl_ops,
+			  V4L2_CID_CONTRAST, 0, 255, 1, 192);
+	v4l2_ctrl_new_std(&qcam->hdl, &qcam_ctrl_ops,
+			  V4L2_CID_GAMMA, 0, 255, 1, 105);
+	if (qcam->hdl.error) {
+		v4l2_err(v4l2_dev, "couldn't register controls\n");
+		v4l2_ctrl_handler_free(&qcam->hdl);
+		kfree(qcam);
+		return NULL;
+	}
 	qcam->pport = port;
 	qcam->pdev = parport_register_device(port, "bw-qcam", NULL, NULL,
 			NULL, 0, NULL);
 	if (qcam->pdev == NULL) {
 		v4l2_err(v4l2_dev, "couldn't register for %s.\n", port->name);
+		v4l2_ctrl_handler_free(&qcam->hdl);
 		kfree(qcam);
 		return NULL;
 	}
 
 	strlcpy(qcam->vdev.name, "Connectix QuickCam", sizeof(qcam->vdev.name));
 	qcam->vdev.v4l2_dev = v4l2_dev;
+	qcam->vdev.ctrl_handler = &qcam->hdl;
 	qcam->vdev.fops = &qcam_fops;
 	qcam->vdev.ioctl_ops = &qcam_ioctl_ops;
+	set_bit(V4L2_FL_USE_FH_PRIO, &qcam->vdev.flags);
 	qcam->vdev.release = video_device_release_empty;
 	video_set_drvdata(&qcam->vdev, qcam);
 
@@ -1003,6 +994,7 @@ static int init_bwqcam(struct parport *port)
 static void close_bwqcam(struct qcam *qcam)
 {
 	video_unregister_device(&qcam->vdev);
+	v4l2_ctrl_handler_free(&qcam->hdl);
 	parport_unregister_device(qcam->pdev);
 	kfree(qcam);
 }

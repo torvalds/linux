@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/uio_driver.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -460,6 +461,16 @@ static const struct sh_dmae_slave_config sh7372_dmae_slaves[] = {
 		.addr		= 0xe6870030,
 		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
 		.mid_rid	= 0xce,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSIA_TX,
+		.addr		= 0xfe1f0024,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSIA_RX,
+		.addr		= 0xfe1f0020,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb2,
 	}, {
 		.slave_id	= SHDMA_SLAVE_MMCIF_TX,
 		.addr		= 0xe6bd0034,
@@ -1092,3 +1103,50 @@ void __init sh7372_add_early_devices(void)
 	/* override timer setup with soc-specific code */
 	shmobile_timer.init = sh7372_earlytimer_init;
 }
+
+#ifdef CONFIG_USE_OF
+
+void __init sh7372_add_early_devices_dt(void)
+{
+	shmobile_setup_delay(800, 1, 3); /* Cortex-A8 @ 800MHz */
+
+	early_platform_add_devices(sh7372_early_devices,
+				   ARRAY_SIZE(sh7372_early_devices));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
+}
+
+static const struct of_dev_auxdata sh7372_auxdata_lookup[] __initconst = {
+	{ }
+};
+
+void __init sh7372_add_standard_devices_dt(void)
+{
+	/* clocks are setup late during boot in the case of DT */
+	sh7372_clock_init();
+
+	platform_add_devices(sh7372_early_devices,
+			    ARRAY_SIZE(sh7372_early_devices));
+
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     sh7372_auxdata_lookup, NULL);
+}
+
+static const char *sh7372_boards_compat_dt[] __initdata = {
+	"renesas,sh7372",
+	NULL,
+};
+
+DT_MACHINE_START(SH7372_DT, "Generic SH7372 (Flattened Device Tree)")
+	.map_io		= sh7372_map_io,
+	.init_early	= sh7372_add_early_devices_dt,
+	.nr_irqs	= NR_IRQS_LEGACY,
+	.init_irq	= sh7372_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
+	.init_machine	= sh7372_add_standard_devices_dt,
+	.timer		= &shmobile_timer,
+	.dt_compat	= sh7372_boards_compat_dt,
+MACHINE_END
+
+#endif /* CONFIG_USE_OF */

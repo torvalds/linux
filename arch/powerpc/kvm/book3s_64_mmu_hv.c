@@ -36,13 +36,11 @@
 
 /* POWER7 has 10-bit LPIDs, PPC970 has 6-bit LPIDs */
 #define MAX_LPID_970	63
-#define NR_LPIDS	(LPID_RSVD + 1)
-unsigned long lpid_inuse[BITS_TO_LONGS(NR_LPIDS)];
 
 long kvmppc_alloc_hpt(struct kvm *kvm)
 {
 	unsigned long hpt;
-	unsigned long lpid;
+	long lpid;
 	struct revmap_entry *rev;
 	struct kvmppc_linear_info *li;
 
@@ -72,14 +70,9 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 	}
 	kvm->arch.revmap = rev;
 
-	/* Allocate the guest's logical partition ID */
-	do {
-		lpid = find_first_zero_bit(lpid_inuse, NR_LPIDS);
-		if (lpid >= NR_LPIDS) {
-			pr_err("kvm_alloc_hpt: No LPIDs free\n");
-			goto out_freeboth;
-		}
-	} while (test_and_set_bit(lpid, lpid_inuse));
+	lpid = kvmppc_alloc_lpid();
+	if (lpid < 0)
+		goto out_freeboth;
 
 	kvm->arch.sdr1 = __pa(hpt) | (HPT_ORDER - 18);
 	kvm->arch.lpid = lpid;
@@ -96,7 +89,7 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 
 void kvmppc_free_hpt(struct kvm *kvm)
 {
-	clear_bit(kvm->arch.lpid, lpid_inuse);
+	kvmppc_free_lpid(kvm->arch.lpid);
 	vfree(kvm->arch.revmap);
 	if (kvm->arch.hpt_li)
 		kvm_release_hpt(kvm->arch.hpt_li);
@@ -171,8 +164,7 @@ int kvmppc_mmu_hv_init(void)
 	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return -EINVAL;
 
-	memset(lpid_inuse, 0, sizeof(lpid_inuse));
-
+	/* POWER7 has 10-bit LPIDs, PPC970 and e500mc have 6-bit LPIDs */
 	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
 		host_lpid = mfspr(SPRN_LPID);	/* POWER7 */
 		rsvd_lpid = LPID_RSVD;
@@ -181,9 +173,11 @@ int kvmppc_mmu_hv_init(void)
 		rsvd_lpid = MAX_LPID_970;
 	}
 
-	set_bit(host_lpid, lpid_inuse);
+	kvmppc_init_lpid(rsvd_lpid + 1);
+
+	kvmppc_claim_lpid(host_lpid);
 	/* rsvd_lpid is reserved for use in partition switching */
-	set_bit(rsvd_lpid, lpid_inuse);
+	kvmppc_claim_lpid(rsvd_lpid);
 
 	return 0;
 }
@@ -258,6 +252,8 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 			    !(memslot->userspace_addr & (s - 1))) {
 				start &= ~(s - 1);
 				pgsize = s;
+				get_page(hpage);
+				put_page(page);
 				page = hpage;
 			}
 		}
@@ -281,11 +277,8 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 	err = 0;
 
  out:
-	if (got) {
-		if (PageHuge(page))
-			page = compound_head(page);
+	if (got)
 		put_page(page);
-	}
 	return err;
 
  up_err:
@@ -453,7 +446,7 @@ static int instruction_is_store(unsigned int instr)
 }
 
 static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
-				  unsigned long gpa, int is_store)
+				  unsigned long gpa, gva_t ea, int is_store)
 {
 	int ret;
 	u32 last_inst;
@@ -500,6 +493,7 @@ static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 
 	vcpu->arch.paddr_accessed = gpa;
+	vcpu->arch.vaddr_accessed = ea;
 	return kvmppc_emulate_mmio(run, vcpu);
 }
 
@@ -553,7 +547,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* No memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID)) {
 		unsigned long gpa = (gfn << PAGE_SHIFT) | (ea & (psize - 1));
-		return kvmppc_hv_emulate_mmio(run, vcpu, gpa,
+		return kvmppc_hv_emulate_mmio(run, vcpu, gpa, ea,
 					      dsisr & DSISR_ISSTORE);
 	}
 
@@ -678,8 +672,15 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		SetPageDirty(page);
 
  out_put:
-	if (page)
-		put_page(page);
+	if (page) {
+		/*
+		 * We drop pages[0] here, not page because page might
+		 * have been set to the head page of a compound, but
+		 * we have to drop the reference on the correct tail
+		 * page to match the get inside gup()
+		 */
+		put_page(pages[0]);
+	}
 	return ret;
 
  out_unlock:
@@ -979,6 +980,7 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 			pa = *physp;
 		}
 		page = pfn_to_page(pa >> PAGE_SHIFT);
+		get_page(page);
 	} else {
 		hva = gfn_to_hva_memslot(memslot, gfn);
 		npages = get_user_pages_fast(hva, 1, 1, pages);
@@ -991,8 +993,6 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 		page = compound_head(page);
 		psize <<= compound_order(page);
 	}
-	if (!kvm->arch.using_mmu_notifiers)
-		get_page(page);
 	offset = gpa & (psize - 1);
 	if (nb_ret)
 		*nb_ret = psize - offset;
@@ -1003,7 +1003,6 @@ void kvmppc_unpin_guest_page(struct kvm *kvm, void *va)
 {
 	struct page *page = virt_to_page(va);
 
-	page = compound_head(page);
 	put_page(page);
 }
 

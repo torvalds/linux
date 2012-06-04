@@ -599,7 +599,7 @@ struct fw_flash_Update_req {
  *
  */
 struct fw_flash_Update_resp {
-	dma_addr_t	tag;
+	__le32	tag;
 	__le32	status;
 	u32	reserved[13];
 } __attribute__((packed, aligned(4)));

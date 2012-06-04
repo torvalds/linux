@@ -1331,7 +1331,7 @@ static ssize_t zv_max_mean_zsize_store(struct kobject *kobj,
  * when that limit is reached, further puts will be rejected (until
  * some pages have been flushed).  Note that, due to compression,
  * this number may exceed 100; it defaults to 75 and we set an
- * arbitary limit of 150.  A poor choice will almost certainly result
+ * arbitrary limit of 150.  A poor choice will almost certainly result
  * in OOM's, so this value should only be changed prudently.
  */
 static ssize_t zv_page_count_policy_percent_show(struct kobject *kobj,
@@ -2004,7 +2004,7 @@ int zcache_pampd_replace_in_obj(void *new_pampd, struct tmem_obj *obj)
  * Called by the message handler after a (still compressed) page has been
  * fetched from the remote machine in response to an "is_remote" tmem_get
  * or persistent tmem_localify.  For a tmem_get, "extra" is the address of
- * the page that is to be filled to succesfully resolve the tmem_get; for
+ * the page that is to be filled to successfully resolve the tmem_get; for
  * a (persistent) tmem_localify, "extra" is NULL (as the data is placed only
  * in the local zcache).  "data" points to "size" bytes of (compressed) data
  * passed in the message.  In the case of a persistent remote get, if
@@ -2095,7 +2095,7 @@ out:
 /*
  * Called on a remote persistent tmem_get to attempt to preallocate
  * local storage for the data contained in the remote persistent page.
- * If succesfully preallocated, returns the pampd, marked as remote and
+ * If successfully preallocated, returns the pampd, marked as remote and
  * in_transit.  Else returns NULL.  Note that the appropriate tmem data
  * structure must be locked.
  */

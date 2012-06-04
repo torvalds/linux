@@ -720,6 +720,7 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 	struct docg4_priv *doc = nand->priv;
 	void __iomem *docptr = doc->virtadr;
 	uint16_t status, edc_err, *buf16;
+	int bits_corrected = 0;
 
 	dev_dbg(doc->dev, "%s: page %08x\n", __func__, page);
 
@@ -772,7 +773,7 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 
 		/* If bitflips are reported, attempt to correct with ecc */
 		if (edc_err & DOC_ECCCONF1_BCH_SYNDROM_ERR) {
-			int bits_corrected = correct_data(mtd, buf, page);
+			bits_corrected = correct_data(mtd, buf, page);
 			if (bits_corrected == -EBADMSG)
 				mtd->ecc_stats.failed++;
 			else
@@ -781,24 +782,24 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 	}
 
 	writew(0, docptr + DOC_DATAEND);
-	return 0;
+	return bits_corrected;
 }
 
 
 static int docg4_read_page_raw(struct mtd_info *mtd, struct nand_chip *nand,
-			       uint8_t *buf, int page)
+			       uint8_t *buf, int oob_required, int page)
 {
 	return read_page(mtd, nand, buf, page, false);
 }
 
 static int docg4_read_page(struct mtd_info *mtd, struct nand_chip *nand,
-			   uint8_t *buf, int page)
+			   uint8_t *buf, int oob_required, int page)
 {
 	return read_page(mtd, nand, buf, page, true);
 }
 
 static int docg4_read_oob(struct mtd_info *mtd, struct nand_chip *nand,
-			  int page, int sndcmd)
+			  int page)
 {
 	struct docg4_priv *doc = nand->priv;
 	void __iomem *docptr = doc->virtadr;
@@ -952,13 +953,13 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *nand,
 }
 
 static void docg4_write_page_raw(struct mtd_info *mtd, struct nand_chip *nand,
-				 const uint8_t *buf)
+				 const uint8_t *buf, int oob_required)
 {
 	return write_page(mtd, nand, buf, false);
 }
 
 static void docg4_write_page(struct mtd_info *mtd, struct nand_chip *nand,
-			     const uint8_t *buf)
+			     const uint8_t *buf, int oob_required)
 {
 	return write_page(mtd, nand, buf, true);
 }
@@ -1002,7 +1003,7 @@ static int __init read_factory_bbt(struct mtd_info *mtd)
 		return -ENOMEM;
 
 	read_page_prologue(mtd, g4_addr);
-	status = docg4_read_page(mtd, nand, buf, DOCG4_FACTORY_BBT_PAGE);
+	status = docg4_read_page(mtd, nand, buf, 0, DOCG4_FACTORY_BBT_PAGE);
 	if (status)
 		goto exit;
 
@@ -1079,7 +1080,7 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	/* write first page of block */
 	write_page_prologue(mtd, g4_addr);
-	docg4_write_page(mtd, nand, buf);
+	docg4_write_page(mtd, nand, buf, 1);
 	ret = pageprog(mtd);
 	if (!ret)
 		mtd->ecc_stats.badblocks++;
@@ -1192,8 +1193,7 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 	nand->ecc.prepad = 8;
 	nand->ecc.bytes	= 8;
 	nand->ecc.strength = DOCG4_T;
-	nand->options =
-		NAND_BUSWIDTH_16 | NAND_NO_SUBPAGE_WRITE | NAND_NO_AUTOINCR;
+	nand->options = NAND_BUSWIDTH_16 | NAND_NO_SUBPAGE_WRITE;
 	nand->IO_ADDR_R = nand->IO_ADDR_W = doc->virtadr + DOC_IOSPACE_DATA;
 	nand->controller = &nand->hwcontrol;
 	spin_lock_init(&nand->controller->lock);

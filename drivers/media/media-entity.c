@@ -214,23 +214,76 @@ EXPORT_SYMBOL_GPL(media_entity_graph_walk_next);
  * pipeline pointer must be identical for all nested calls to
  * media_entity_pipeline_start().
  */
-void media_entity_pipeline_start(struct media_entity *entity,
-				 struct media_pipeline *pipe)
+__must_check int media_entity_pipeline_start(struct media_entity *entity,
+					     struct media_pipeline *pipe)
 {
 	struct media_device *mdev = entity->parent;
 	struct media_entity_graph graph;
+	struct media_entity *entity_err = entity;
+	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
 
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
+		unsigned int i;
+
 		entity->stream_count++;
 		WARN_ON(entity->pipe && entity->pipe != pipe);
 		entity->pipe = pipe;
+
+		/* Already streaming --- no need to check. */
+		if (entity->stream_count > 1)
+			continue;
+
+		if (!entity->ops || !entity->ops->link_validate)
+			continue;
+
+		for (i = 0; i < entity->num_links; i++) {
+			struct media_link *link = &entity->links[i];
+
+			/* Is this pad part of an enabled link? */
+			if (!(link->flags & MEDIA_LNK_FL_ENABLED))
+				continue;
+
+			/* Are we the sink or not? */
+			if (link->sink->entity != entity)
+				continue;
+
+			ret = entity->ops->link_validate(link);
+			if (ret < 0 && ret != -ENOIOCTLCMD)
+				goto error;
+		}
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
+
+	return 0;
+
+error:
+	/*
+	 * Link validation on graph failed. We revert what we did and
+	 * return the error.
+	 */
+	media_entity_graph_walk_start(&graph, entity_err);
+
+	while ((entity_err = media_entity_graph_walk_next(&graph))) {
+		entity_err->stream_count--;
+		if (entity_err->stream_count == 0)
+			entity_err->pipe = NULL;
+
+		/*
+		 * We haven't increased stream_count further than this
+		 * so we quit here.
+		 */
+		if (entity_err == entity)
+			break;
+	}
+
+	mutex_unlock(&mdev->graph_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(media_entity_pipeline_start);
 

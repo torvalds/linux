@@ -162,12 +162,6 @@ static void __init ap_map_io(void)
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
 
-static struct fpga_irq_data sc_irq_data = {
-	.base		= VA_IC_BASE,
-	.irq_start	= 0,
-	.chip.name	= "SC",
-};
-
 static void __init ap_init_irq(void)
 {
 	/* Disable all interrupts initially. */
@@ -178,7 +172,8 @@ static void __init ap_init_irq(void)
 	writel(-1, VA_IC_BASE + IRQ_ENABLE_CLEAR);
 	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
 
-	fpga_irq_init(-1, INTEGRATOR_SC_VALID_INT, &sc_irq_data);
+	fpga_irq_init(VA_IC_BASE, "SC", IRQ_PIC_START,
+		-1, INTEGRATOR_SC_VALID_INT, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -478,6 +473,7 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
 	.init_early	= integrator_init_early,
 	.init_irq	= ap_init_irq,
+	.handle_irq	= fpga_handle_irq,
 	.timer		= &ap_timer,
 	.init_machine	= ap_init,
 	.restart	= integrator_restart,

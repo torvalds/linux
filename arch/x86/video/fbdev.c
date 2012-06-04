@@ -9,24 +9,34 @@
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/vgaarb.h>
 
 int fb_is_primary_device(struct fb_info *info)
 {
 	struct device *device = info->device;
 	struct pci_dev *pci_dev = NULL;
+	struct pci_dev *default_device = vga_default_device();
 	struct resource *res = NULL;
-	int retval = 0;
 
 	if (device)
 		pci_dev = to_pci_dev(device);
 
-	if (pci_dev)
-		res = &pci_dev->resource[PCI_ROM_RESOURCE];
+	if (!pci_dev)
+		return 0;
+
+	if (default_device) {
+		if (pci_dev == default_device)
+			return 1;
+		else
+			return 0;
+	}
+
+	res = &pci_dev->resource[PCI_ROM_RESOURCE];
 
 	if (res && res->flags & IORESOURCE_ROM_SHADOW)
-		retval = 1;
+		return 1;
 
-	return retval;
+	return 0;
 }
 EXPORT_SYMBOL(fb_is_primary_device);
 MODULE_LICENSE("GPL");

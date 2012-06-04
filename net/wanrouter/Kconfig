@@ -3,7 +3,7 @@
 #
 
 config WAN_ROUTER
-	tristate "WAN router"
+	tristate "WAN router (DEPRECATED)"
 	depends on EXPERIMENTAL
 	---help---
 	  Wide Area Networks (WANs), such as X.25, frame relay and leased

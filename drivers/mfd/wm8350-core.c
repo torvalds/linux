@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/regmap.h>
 #include <linux/workqueue.h>
 
 #include <linux/mfd/wm8350/core.h>
@@ -74,7 +75,7 @@ static int wm8350_phys_read(struct wm8350 *wm8350, u8 reg, int num_regs,
 	int bytes = num_regs * 2;
 
 	dev_dbg(wm8350->dev, "volatile read\n");
-	ret = wm8350->read_dev(wm8350, reg, bytes, (char *)dest);
+	ret = regmap_raw_read(wm8350->regmap, reg, dest, bytes);
 
 	for (i = reg; i < reg + num_regs; i++) {
 		/* Cache is CPU endian */
@@ -95,9 +96,6 @@ static int wm8350_read(struct wm8350 *wm8350, u8 reg, int num_regs, u16 *dest)
 	int end = reg + num_regs;
 	int ret = 0;
 	int bytes = num_regs * 2;
-
-	if (wm8350->read_dev == NULL)
-		return -ENODEV;
 
 	if ((reg + num_regs - 1) > WM8350_MAX_REGISTER) {
 		dev_err(wm8350->dev, "invalid reg %x\n",
@@ -149,9 +147,6 @@ static int wm8350_write(struct wm8350 *wm8350, u8 reg, int num_regs, u16 *src)
 	int end = reg + num_regs;
 	int bytes = num_regs * 2;
 
-	if (wm8350->write_dev == NULL)
-		return -ENODEV;
-
 	if ((reg + num_regs - 1) > WM8350_MAX_REGISTER) {
 		dev_err(wm8350->dev, "invalid reg %x\n",
 			reg + num_regs - 1);
@@ -182,7 +177,7 @@ static int wm8350_write(struct wm8350 *wm8350, u8 reg, int num_regs, u16 *src)
 	}
 
 	/* Actually write it out */
-	return wm8350->write_dev(wm8350, reg, bytes, (char *)src);
+	return regmap_raw_write(wm8350->regmap, reg, src, bytes);
 }
 
 /*
@@ -515,9 +510,8 @@ static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
 	 * a PMIC so the device many not be in a virgin state and we
 	 * can't rely on the silicon values.
 	 */
-	ret = wm8350->read_dev(wm8350, 0,
-			       sizeof(u16) * (WM8350_MAX_REGISTER + 1),
-			       wm8350->reg_cache);
+	ret = regmap_raw_read(wm8350->regmap, 0, wm8350->reg_cache,
+			      sizeof(u16) * (WM8350_MAX_REGISTER + 1));
 	if (ret < 0) {
 		dev_err(wm8350->dev,
 			"failed to read initial cache values\n");
@@ -570,34 +564,29 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		       struct wm8350_platform_data *pdata)
 {
 	int ret;
-	u16 id1, id2, mask_rev;
-	u16 cust_id, mode, chip_rev;
+	unsigned int id1, id2, mask_rev;
+	unsigned int cust_id, mode, chip_rev;
 
 	dev_set_drvdata(wm8350->dev, wm8350);
 
 	/* get WM8350 revision and config mode */
-	ret = wm8350->read_dev(wm8350, WM8350_RESET_ID, sizeof(id1), &id1);
+	ret = regmap_read(wm8350->regmap, WM8350_RESET_ID, &id1);
 	if (ret != 0) {
 		dev_err(wm8350->dev, "Failed to read ID: %d\n", ret);
 		goto err;
 	}
 
-	ret = wm8350->read_dev(wm8350, WM8350_ID, sizeof(id2), &id2);
+	ret = regmap_read(wm8350->regmap, WM8350_ID, &id2);
 	if (ret != 0) {
 		dev_err(wm8350->dev, "Failed to read ID: %d\n", ret);
 		goto err;
 	}
 
-	ret = wm8350->read_dev(wm8350, WM8350_REVISION, sizeof(mask_rev),
-			       &mask_rev);
+	ret = regmap_read(wm8350->regmap, WM8350_REVISION, &mask_rev);
 	if (ret != 0) {
 		dev_err(wm8350->dev, "Failed to read revision: %d\n", ret);
 		goto err;
 	}
-
-	id1 = be16_to_cpu(id1);
-	id2 = be16_to_cpu(id2);
-	mask_rev = be16_to_cpu(mask_rev);
 
 	if (id1 != 0x6143) {
 		dev_err(wm8350->dev,

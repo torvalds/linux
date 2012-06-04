@@ -562,7 +562,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 				realdatastart = (unsigned long) -ENOMEM;
 			printk("Unable to allocate RAM for process data, errno %d\n",
 					(int)-realdatastart);
-			do_munmap(current->mm, textpos, text_len);
+			vm_munmap(textpos, text_len);
 			ret = realdatastart;
 			goto err;
 		}
@@ -586,8 +586,8 @@ static int load_flat_file(struct linux_binprm * bprm,
 		}
 		if (IS_ERR_VALUE(result)) {
 			printk("Unable to read data+bss, errno %d\n", (int)-result);
-			do_munmap(current->mm, textpos, text_len);
-			do_munmap(current->mm, realdatastart, len);
+			vm_munmap(textpos, text_len);
+			vm_munmap(realdatastart, len);
 			ret = result;
 			goto err;
 		}
@@ -654,7 +654,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		}
 		if (IS_ERR_VALUE(result)) {
 			printk("Unable to read code+data+bss, errno %d\n",(int)-result);
-			do_munmap(current->mm, textpos, text_len + data_len + extra +
+			vm_munmap(textpos, text_len + data_len + extra +
 				MAX_SHARED_LIBS * sizeof(unsigned long));
 			ret = result;
 			goto err;

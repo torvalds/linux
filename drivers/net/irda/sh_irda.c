@@ -737,7 +737,7 @@ static int sh_irda_stop(struct net_device *ndev)
 	netif_stop_queue(ndev);
 	pm_runtime_put_sync(&self->pdev->dev);
 
-	dev_info(&ndev->dev, "stoped\n");
+	dev_info(&ndev->dev, "stopped\n");
 
 	return 0;
 }

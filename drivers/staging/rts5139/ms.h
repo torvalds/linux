@@ -234,7 +234,6 @@
 void mspro_polling_format_status(struct rts51x_chip *chip);
 void mspro_format_sense(struct rts51x_chip *chip, unsigned int lun);
 
-void mspro_stop_seq_mode(struct rts51x_chip *chip);
 int reset_ms_card(struct rts51x_chip *chip);
 int ms_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 	  u16 sector_cnt);
@@ -242,7 +241,6 @@ int mspro_format(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 		 int short_data_len, int quick_format);
 void ms_free_l2p_tbl(struct rts51x_chip *chip);
 void ms_cleanup_work(struct rts51x_chip *chip);
-int ms_power_off_card3v3(struct rts51x_chip *chip);
 int release_ms_card(struct rts51x_chip *chip);
 int ms_delay_write(struct rts51x_chip *chip);
 

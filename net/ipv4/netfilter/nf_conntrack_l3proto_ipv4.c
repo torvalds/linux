@@ -311,8 +311,9 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 static int ipv4_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
-	NLA_PUT_BE32(skb, CTA_IP_V4_SRC, tuple->src.u3.ip);
-	NLA_PUT_BE32(skb, CTA_IP_V4_DST, tuple->dst.u3.ip);
+	if (nla_put_be32(skb, CTA_IP_V4_SRC, tuple->src.u3.ip) ||
+	    nla_put_be32(skb, CTA_IP_V4_DST, tuple->dst.u3.ip))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -364,7 +365,7 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.nla_policy	 = ipv4_nla_policy,
 #endif
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	.ctl_table_path  = nf_net_ipv4_netfilter_sysctl_path,
+	.ctl_table_path  = "net/ipv4/netfilter",
 	.ctl_table	 = ip_ct_sysctl_table,
 #endif
 	.me		 = THIS_MODULE,

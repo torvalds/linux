@@ -343,8 +343,6 @@
 
 #ifdef __KERNEL__
 
-#include <asm/page.h> /* for __PAGE_OFFSET */
-
 extern int pdc_type;
 
 /* Values for pdc_type */
@@ -676,11 +674,6 @@ static inline char * os_id_to_string(u16 os_id) {
 }
 
 #endif /* __KERNEL__ */
-
-#define PAGE0   ((struct zeropage *)__PAGE_OFFSET)
-
-/* DEFINITION OF THE ZERO-PAGE (PAG0) */
-/* based on work by Jason Eckhardt (jason@equator.com) */
 
 /* flags of the device_path */
 #define	PF_AUTOBOOT	0x80

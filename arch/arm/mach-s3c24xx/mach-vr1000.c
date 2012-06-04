@@ -187,40 +187,17 @@ static struct platform_device serial_device = {
 /* DM9000 ethernet devices */
 
 static struct resource vr1000_dm9k0_resource[] = {
-	[0] = {
-		.start = S3C2410_CS5 + VR1000_PA_DM9000,
-		.end   = S3C2410_CS5 + VR1000_PA_DM9000 + 3,
-		.flags = IORESOURCE_MEM
-	},
-	[1] = {
-		.start = S3C2410_CS5 + VR1000_PA_DM9000 + 0x40,
-		.end   = S3C2410_CS5 + VR1000_PA_DM9000 + 0x7f,
-		.flags = IORESOURCE_MEM
-	},
-	[2] = {
-		.start = IRQ_VR1000_DM9000A,
-		.end   = IRQ_VR1000_DM9000A,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	}
-
+	[0] = DEFINE_RES_MEM(S3C2410_CS5 + VR1000_PA_DM9000, 4),
+	[1] = DEFINE_RES_MEM(S3C2410_CS5 + VR1000_PA_DM9000 + 0x40, 0x40),
+	[2] = DEFINE_RES_NAMED(IRQ_VR1000_DM9000A, 1, NULL, IORESOURCE_IRQ \
+						| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
 static struct resource vr1000_dm9k1_resource[] = {
-	[0] = {
-		.start = S3C2410_CS5 + VR1000_PA_DM9000 + 0x80,
-		.end   = S3C2410_CS5 + VR1000_PA_DM9000 + 0x83,
-		.flags = IORESOURCE_MEM
-	},
-	[1] = {
-		.start = S3C2410_CS5 + VR1000_PA_DM9000 + 0xC0,
-		.end   = S3C2410_CS5 + VR1000_PA_DM9000 + 0xFF,
-		.flags = IORESOURCE_MEM
-	},
-	[2] = {
-		.start = IRQ_VR1000_DM9000N,
-		.end   = IRQ_VR1000_DM9000N,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	}
+	[0] = DEFINE_RES_MEM(S3C2410_CS5 + VR1000_PA_DM9000 + 0x80, 4),
+	[1] = DEFINE_RES_MEM(S3C2410_CS5 + VR1000_PA_DM9000 + 0xC0, 0x40),
+	[2] = DEFINE_RES_NAMED(IRQ_VR1000_DM9000N, 1, NULL, IORESOURCE_IRQ \
+						| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
 /* for the moment we limit ourselves to 16bit IO until some

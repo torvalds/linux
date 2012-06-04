@@ -205,8 +205,9 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 	need_transceiver = need_transceiver
 			|| machine_is_omap_h2() || machine_is_omap_h3();
 
-	if (cpu_is_omap16xx())
-		ocpi_enable();
+	/* XXX OMAP16xx only */
+	if (config->ocpi_enable)
+		config->ocpi_enable();
 
 #ifdef	CONFIG_USB_OTG
 	if (need_transceiver) {
@@ -217,8 +218,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 			dev_dbg(hcd->self.controller, "init %s transceiver, status %d\n",
 					ohci->transceiver->label, status);
 			if (status) {
-				if (ohci->transceiver)
-					put_device(ohci->transceiver->dev);
+				usb_put_transceiver(ohci->transceiver);
 				return status;
 			}
 		} else {
@@ -405,7 +405,7 @@ usb_hcd_omap_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 	usb_remove_hcd(hcd);
 	if (ohci->transceiver) {
 		(void) otg_set_host(ohci->transceiver->otg, 0);
-		put_device(ohci->transceiver->dev);
+		usb_put_transceiver(ohci->transceiver);
 	}
 	if (machine_is_omap_osk())
 		gpio_free(9);

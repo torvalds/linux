@@ -226,19 +226,12 @@ hfcusb_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 		if (debug & DBG_HFC_CALL_TRACE)
 			printk(KERN_DEBUG "%s: %s PH_DATA_REQ ret(%i)\n",
 			       hw->name, __func__, ret);
-		if (ret > 0) {
-			/*
-			 * other l1 drivers don't send early confirms on
-			 * transp data, but hfcsusb does because tx_next
-			 * skb is needed in tx_iso_complete()
-			 */
-			queue_ch_frame(ch, PH_DATA_CNF, hh->id, NULL);
+		if (ret > 0)
 			ret = 0;
-		}
 		return ret;
 	case PH_ACTIVATE_REQ:
 		if (!test_and_set_bit(FLG_ACTIVE, &bch->Flags)) {
-			hfcsusb_start_endpoint(hw, bch->nr);
+			hfcsusb_start_endpoint(hw, bch->nr - 1);
 			ret = hfcsusb_setup_bch(bch, ch->protocol);
 		} else
 			ret = 0;
@@ -498,15 +491,8 @@ open_bchannel(struct hfcsusb *hw, struct channel_req *rq)
 	bch = &hw->bch[rq->adr.channel - 1];
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
-	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch;
-
-	/* start USB endpoint for bchannel */
-	if (rq->adr.channel  == 1)
-		hfcsusb_start_endpoint(hw, HFC_CHAN_B1);
-	else
-		hfcsusb_start_endpoint(hw, HFC_CHAN_B2);
 
 	if (!try_module_get(THIS_MODULE))
 		printk(KERN_WARNING "%s: %s:cannot get module\n",
@@ -819,24 +805,7 @@ hfcsusb_ph_command(struct hfcsusb *hw, u_char command)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int	ret = 0;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_FILL_EMPTY;
-		break;
-	case MISDN_CTRL_FILL_EMPTY: /* fill fifo, if empty */
-		test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
-		if (debug & DEBUG_HW_OPEN)
-			printk(KERN_DEBUG "%s: FILL_EMPTY request (nr=%d "
-			       "off=%d)\n", __func__, bch->nr, !!cq->p1);
-		break;
-	default:
-		printk(KERN_WARNING "%s: unknown Op %x\n", __func__, cq->op);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(bch, cq);
 }
 
 /* collect data from incoming interrupt or isochron USB data */
@@ -873,7 +842,21 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		hdlc = 1;
 	}
 	if (fifo->bch) {
+		if (test_bit(FLG_RX_OFF, &fifo->bch->Flags)) {
+			fifo->bch->dropcnt += len;
+			spin_unlock(&hw->lock);
+			return;
+		}
+		maxlen = bchannel_get_rxbuf(fifo->bch, len);
 		rx_skb = fifo->bch->rx_skb;
+		if (maxlen < 0) {
+			if (rx_skb)
+				skb_trim(rx_skb, 0);
+			pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+				   hw->name, fifo->bch->nr, len);
+			spin_unlock(&hw->lock);
+			return;
+		}
 		maxlen = fifo->bch->maxlen;
 		hdlc = test_bit(FLG_HDLC, &fifo->bch->Flags);
 	}
@@ -883,39 +866,26 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		hdlc = 1;
 	}
 
-	if (!rx_skb) {
-		rx_skb = mI_alloc_skb(maxlen, GFP_ATOMIC);
-		if (rx_skb) {
-			if (fifo->dch)
-				fifo->dch->rx_skb = rx_skb;
-			if (fifo->bch)
-				fifo->bch->rx_skb = rx_skb;
-			if (fifo->ech)
-				fifo->ech->rx_skb = rx_skb;
-			skb_trim(rx_skb, 0);
-		} else {
-			printk(KERN_DEBUG "%s: %s: No mem for rx_skb\n",
-			       hw->name, __func__);
-			spin_unlock(&hw->lock);
-			return;
-		}
-	}
-
 	if (fifo->dch || fifo->ech) {
+		if (!rx_skb) {
+			rx_skb = mI_alloc_skb(maxlen, GFP_ATOMIC);
+			if (rx_skb) {
+				if (fifo->dch)
+					fifo->dch->rx_skb = rx_skb;
+				if (fifo->ech)
+					fifo->ech->rx_skb = rx_skb;
+				skb_trim(rx_skb, 0);
+			} else {
+				printk(KERN_DEBUG "%s: %s: No mem for rx_skb\n",
+				       hw->name, __func__);
+				spin_unlock(&hw->lock);
+				return;
+			}
+		}
 		/* D/E-Channel SKB range check */
 		if ((rx_skb->len + len) >= MAX_DFRAME_LEN_L1) {
 			printk(KERN_DEBUG "%s: %s: sbk mem exceeded "
 			       "for fifo(%d) HFCUSB_D_RX\n",
-			       hw->name, __func__, fifon);
-			skb_trim(rx_skb, 0);
-			spin_unlock(&hw->lock);
-			return;
-		}
-	} else if (fifo->bch) {
-		/* B-Channel SKB range check */
-		if ((rx_skb->len + len) >= (MAX_BCH_SIZE + 3)) {
-			printk(KERN_DEBUG "%s: %s: sbk mem exceeded "
-			       "for fifo(%d) HFCUSB_B_RX\n",
 			       hw->name, __func__, fifon);
 			skb_trim(rx_skb, 0);
 			spin_unlock(&hw->lock);
@@ -948,7 +918,8 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 				if (fifo->dch)
 					recv_Dchannel(fifo->dch);
 				if (fifo->bch)
-					recv_Bchannel(fifo->bch, MISDN_ID_ANY);
+					recv_Bchannel(fifo->bch, MISDN_ID_ANY,
+						      0);
 				if (fifo->ech)
 					recv_Echannel(fifo->ech,
 						      &hw->dch);
@@ -969,8 +940,7 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		}
 	} else {
 		/* deliver transparent data to layer2 */
-		if (rx_skb->len >= poll)
-			recv_Bchannel(fifo->bch, MISDN_ID_ANY);
+		recv_Bchannel(fifo->bch, MISDN_ID_ANY, false);
 	}
 	spin_unlock(&hw->lock);
 }
@@ -1200,8 +1170,8 @@ tx_iso_complete(struct urb *urb)
 	int k, tx_offset, num_isoc_packets, sink, remain, current_len,
 		errcode, hdlc, i;
 	int *tx_idx;
-	int frame_complete, fifon, status;
-	__u8 threshbit;
+	int frame_complete, fifon, status, fillempty = 0;
+	__u8 threshbit, *p;
 
 	spin_lock(&hw->lock);
 	if (fifo->stop_gracefull) {
@@ -1219,6 +1189,9 @@ tx_iso_complete(struct urb *urb)
 		tx_skb = fifo->bch->tx_skb;
 		tx_idx = &fifo->bch->tx_idx;
 		hdlc = test_bit(FLG_HDLC, &fifo->bch->Flags);
+		if (!tx_skb && !hdlc &&
+		    test_bit(FLG_FILLEMPTY, &fifo->bch->Flags))
+			fillempty = 1;
 	} else {
 		printk(KERN_DEBUG "%s: %s: neither BCH nor DCH\n",
 		       hw->name, __func__);
@@ -1277,6 +1250,8 @@ tx_iso_complete(struct urb *urb)
 			/* Generate next ISO Packets */
 			if (tx_skb)
 				remain = tx_skb->len - *tx_idx;
+			else if (fillempty)
+				remain = 15; /* > not complete */
 			else
 				remain = 0;
 
@@ -1307,15 +1282,20 @@ tx_iso_complete(struct urb *urb)
 				}
 
 				/* copy tx data to iso-urb buffer */
-				memcpy(context_iso_urb->buffer + tx_offset + 1,
-				       (tx_skb->data + *tx_idx), current_len);
-				*tx_idx += current_len;
-
+				p = context_iso_urb->buffer + tx_offset + 1;
+				if (fillempty) {
+					memset(p, fifo->bch->fill[0],
+					       current_len);
+				} else {
+					memcpy(p, (tx_skb->data + *tx_idx),
+					       current_len);
+					*tx_idx += current_len;
+				}
 				urb->iso_frame_desc[k].offset = tx_offset;
 				urb->iso_frame_desc[k].length = current_len + 1;
 
 				/* USB data log for every D ISO out */
-				if ((fifon == HFCUSB_D_RX) &&
+				if ((fifon == HFCUSB_D_RX) && !fillempty &&
 				    (debug & DBG_HFC_USB_VERBOSE)) {
 					printk(KERN_DEBUG
 					       "%s: %s (%d/%d) offs(%d) len(%d) ",
@@ -1365,12 +1345,8 @@ tx_iso_complete(struct urb *urb)
 				if (fifo->dch && get_next_dframe(fifo->dch))
 					tx_skb = fifo->dch->tx_skb;
 				else if (fifo->bch &&
-					 get_next_bframe(fifo->bch)) {
-					if (test_bit(FLG_TRANSPARENT,
-						     &fifo->bch->Flags))
-						confirm_Bsend(fifo->bch);
+					 get_next_bframe(fifo->bch))
 					tx_skb = fifo->bch->tx_skb;
-				}
 			}
 		}
 		errcode = usb_submit_urb(urb, GFP_ATOMIC);
@@ -1812,7 +1788,7 @@ deactivate_bchannel(struct bchannel *bch)
 	mISDN_clear_bchannel(bch);
 	spin_unlock_irqrestore(&hw->lock, flags);
 	hfcsusb_setup_bch(bch, ISDN_P_NONE);
-	hfcsusb_stop_endpoint(hw, bch->nr);
+	hfcsusb_stop_endpoint(hw, bch->nr - 1);
 }
 
 /*
@@ -1836,8 +1812,7 @@ hfc_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
-		if (test_bit(FLG_ACTIVE, &bch->Flags))
-			deactivate_bchannel(bch);
+		deactivate_bchannel(bch);
 		ch->protocol = ISDN_P_NONE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
@@ -1883,7 +1858,7 @@ setup_instance(struct hfcsusb *hw, struct device *parent)
 		hw->bch[i].nr = i + 1;
 		set_channelmap(i + 1, hw->dch.dev.channelmap);
 		hw->bch[i].debug = debug;
-		mISDN_initbchannel(&hw->bch[i], MAX_DATA_MEM);
+		mISDN_initbchannel(&hw->bch[i], MAX_DATA_MEM, poll >> 1);
 		hw->bch[i].hw = hw;
 		hw->bch[i].ch.send = hfcusb_l2l1B;
 		hw->bch[i].ch.ctrl = hfc_bctrl;
@@ -2151,6 +2126,7 @@ static struct usb_driver hfcsusb_drv = {
 	.id_table = hfcsusb_idtab,
 	.probe = hfcsusb_probe,
 	.disconnect = hfcsusb_disconnect,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(hfcsusb_drv);

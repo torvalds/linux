@@ -22,9 +22,11 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
+#include <linux/of_serial.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/tegra_usb.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -48,6 +50,7 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.irq		= INT_UARTA,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
 		.type		= PORT_TEGRA,
+		.handle_break	= tegra_serial_handle_break,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,
@@ -86,7 +89,6 @@ static struct platform_device *trimslice_devices[] __initdata = {
 	&tegra_sdhci_device4,
 	&tegra_i2s_device1,
 	&tegra_das_device,
-	&tegra_pcm_device,
 	&trimslice_audio_device,
 };
 
@@ -111,19 +113,15 @@ static void trimslice_i2c_init(void)
 
 static void trimslice_usb_init(void)
 {
-	int err;
+	struct tegra_ehci_platform_data *pdata;
+
+	pdata = tegra_ehci1_device.dev.platform_data;
+	pdata->vbus_gpio = TRIMSLICE_GPIO_USB1_MODE;
+
+	tegra_ehci2_ulpi_phy_config.reset_gpio = TEGRA_GPIO_PV0;
 
 	platform_device_register(&tegra_ehci3_device);
-
 	platform_device_register(&tegra_ehci2_device);
-
-	err = gpio_request_one(TRIMSLICE_GPIO_USB1_MODE, GPIOF_OUT_INIT_HIGH,
-			       "usb1mode");
-	if (err) {
-		pr_err("TrimSlice: failed to obtain USB1 mode gpio: %d\n", err);
-		return;
-	}
-
 	platform_device_register(&tegra_ehci1_device);
 }
 
@@ -180,5 +178,6 @@ MACHINE_START(TRIMSLICE, "trimslice")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_trimslice_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END

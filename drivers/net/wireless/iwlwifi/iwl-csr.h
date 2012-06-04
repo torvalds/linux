@@ -430,6 +430,9 @@
 #define HBUS_TARG_PRPH_WDAT     (HBUS_BASE+0x04c)
 #define HBUS_TARG_PRPH_RDAT     (HBUS_BASE+0x050)
 
+/* Used to enable DBGM */
+#define HBUS_TARG_TEST_REG	(HBUS_BASE+0x05c)
+
 /*
  * Per-Tx-queue write pointer (index, really!)
  * Indicates index to next TFD that driver will fill (1 past latest filled).

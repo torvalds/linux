@@ -861,6 +861,9 @@ static struct xor_block_template xor_block_pIII_sse = {
 	.do_5 = xor_sse_5,
 };
 
+/* Also try the AVX routines */
+#include "xor_avx.h"
+
 /* Also try the generic routines.  */
 #include <asm-generic/xor.h>
 
@@ -871,6 +874,7 @@ do {							\
 	xor_speed(&xor_block_8regs_p);			\
 	xor_speed(&xor_block_32regs);			\
 	xor_speed(&xor_block_32regs_p);			\
+	AVX_XOR_SPEED;					\
 	if (cpu_has_xmm)				\
 		xor_speed(&xor_block_pIII_sse);		\
 	if (cpu_has_mmx) {				\
@@ -883,6 +887,6 @@ do {							\
    We may also be able to load into the L1 only depending on how the cpu
    deals with a load to a line that is being prefetched.  */
 #define XOR_SELECT_TEMPLATE(FASTEST)			\
-	(cpu_has_xmm ? &xor_block_pIII_sse : FASTEST)
+	AVX_SELECT(cpu_has_xmm ? &xor_block_pIII_sse : FASTEST)
 
 #endif /* _ASM_X86_XOR_32_H */

@@ -13,18 +13,10 @@
  *  more details.
  */
 
-#define SMTC_LINUX_FB_VERSION	"version 0.11.2619.21.01 July 27, 2008"
-
 #define NR_PALETTE        256
 #define NR_RGB            2
 
 #define FB_ACCEL_SMI_LYNX 88
-
-#ifdef __BIG_ENDIAN
-#define PC_VGA            0
-#else
-#define PC_VGA            1
-#endif
 
 #define SCREEN_X_RES      1024
 #define SCREEN_Y_RES      600

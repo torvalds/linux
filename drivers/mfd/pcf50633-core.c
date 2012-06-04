@@ -204,7 +204,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 		return -ENOENT;
 	}
 
-	pcf = kzalloc(sizeof(*pcf), GFP_KERNEL);
+	pcf = devm_kzalloc(&client->dev, sizeof(*pcf), GFP_KERNEL);
 	if (!pcf)
 		return -ENOMEM;
 
@@ -212,12 +212,11 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 
 	mutex_init(&pcf->lock);
 
-	pcf->regmap = regmap_init_i2c(client, &pcf50633_regmap_config);
+	pcf->regmap = devm_regmap_init_i2c(client, &pcf50633_regmap_config);
 	if (IS_ERR(pcf->regmap)) {
 		ret = PTR_ERR(pcf->regmap);
-		dev_err(pcf->dev, "Failed to allocate register map: %d\n",
-			ret);
-		goto err_free;
+		dev_err(pcf->dev, "Failed to allocate register map: %d\n", ret);
+		return ret;
 	}
 
 	i2c_set_clientdata(client, pcf);
@@ -228,7 +227,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	if (version < 0 || variant < 0) {
 		dev_err(pcf->dev, "Unable to probe pcf50633\n");
 		ret = -ENODEV;
-		goto err_regmap;
+		return ret;
 	}
 
 	dev_info(pcf->dev, "Probed device version %d variant %d\n",
@@ -237,16 +236,11 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	pcf50633_irq_init(pcf, client->irq);
 
 	/* Create sub devices */
-	pcf50633_client_dev_register(pcf, "pcf50633-input",
-						&pcf->input_pdev);
-	pcf50633_client_dev_register(pcf, "pcf50633-rtc",
-						&pcf->rtc_pdev);
-	pcf50633_client_dev_register(pcf, "pcf50633-mbc",
-						&pcf->mbc_pdev);
-	pcf50633_client_dev_register(pcf, "pcf50633-adc",
-						&pcf->adc_pdev);
-	pcf50633_client_dev_register(pcf, "pcf50633-backlight",
-						&pcf->bl_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-input", &pcf->input_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-rtc", &pcf->rtc_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-mbc", &pcf->mbc_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-adc", &pcf->adc_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-backlight", &pcf->bl_pdev);
 
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++) {
@@ -274,13 +268,6 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 		pdata->probe_done(pcf);
 
 	return 0;
-
-err_regmap:
-	regmap_exit(pcf->regmap);
-err_free:
-	kfree(pcf);
-
-	return ret;
 }
 
 static int __devexit pcf50633_remove(struct i2c_client *client)
@@ -299,9 +286,6 @@ static int __devexit pcf50633_remove(struct i2c_client *client)
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++)
 		platform_device_unregister(pcf->regulator_pdev[i]);
-
-	regmap_exit(pcf->regmap);
-	kfree(pcf);
 
 	return 0;
 }

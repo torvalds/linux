@@ -65,7 +65,7 @@ static struct g2d_fmt formats[] = {
 };
 #define NUM_FORMATS ARRAY_SIZE(formats)
 
-struct g2d_frame def_frame = {
+static struct g2d_frame def_frame = {
 	.width		= DEFAULT_WIDTH,
 	.height		= DEFAULT_HEIGHT,
 	.c_width	= DEFAULT_WIDTH,
@@ -77,7 +77,7 @@ struct g2d_frame def_frame = {
 	.bottom		= DEFAULT_HEIGHT,
 };
 
-struct g2d_fmt *find_fmt(struct v4l2_format *f)
+static struct g2d_fmt *find_fmt(struct v4l2_format *f)
 {
 	unsigned int i;
 	for (i = 0; i < NUM_FORMATS; i++) {
@@ -202,7 +202,7 @@ static const struct v4l2_ctrl_ops g2d_ctrl_ops = {
 	.s_ctrl		= g2d_s_ctrl,
 };
 
-int g2d_setup_ctrls(struct g2d_ctx *ctx)
+static int g2d_setup_ctrls(struct g2d_ctx *ctx)
 {
 	struct g2d_dev *dev = ctx->dev;
 
@@ -546,11 +546,11 @@ static void job_abort(void *prv)
 	struct g2d_dev *dev = ctx->dev;
 	int ret;
 
-	if (dev->curr == 0) /* No job currently running */
+	if (dev->curr == NULL) /* No job currently running */
 		return;
 
 	ret = wait_event_timeout(dev->irq_queue,
-		dev->curr == 0,
+		dev->curr == NULL,
 		msecs_to_jiffies(G2D_TIMEOUT));
 }
 
@@ -599,19 +599,19 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 	g2d_clear_int(dev);
 	clk_disable(dev->gate);
 
-	BUG_ON(ctx == 0);
+	BUG_ON(ctx == NULL);
 
 	src = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 	dst = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
-	BUG_ON(src == 0);
-	BUG_ON(dst == 0);
+	BUG_ON(src == NULL);
+	BUG_ON(dst == NULL);
 
 	v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
 	v4l2_m2m_job_finish(dev->m2m_dev, ctx->m2m_ctx);
 
-	dev->curr = 0;
+	dev->curr = NULL;
 	wake_up(&dev->irq_queue);
 	return IRQ_HANDLED;
 }
@@ -674,42 +674,27 @@ static int g2d_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = 0;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
+
 	spin_lock_init(&dev->ctrl_lock);
 	mutex_init(&dev->mutex);
 	atomic_set(&dev->num_inst, 0);
 	init_waitqueue_head(&dev->irq_queue);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to find registers\n");
-		ret = -ENOENT;
-		goto free_dev;
-	}
 
-	dev->res_regs = request_mem_region(res->start, resource_size(res),
-						dev_name(&pdev->dev));
-
-	if (!dev->res_regs) {
-		dev_err(&pdev->dev, "failed to obtain register region\n");
-		ret = -ENOENT;
-		goto free_dev;
-	}
-
-	dev->regs = ioremap(res->start, resource_size(res));
-	if (!dev->regs) {
-		dev_err(&pdev->dev, "failed to map registers\n");
-		ret = -ENOENT;
-		goto rel_res_regs;
+	dev->regs = devm_request_and_ioremap(&pdev->dev, res);
+	if (dev->regs == NULL) {
+			dev_err(&pdev->dev, "Failed to obtain io memory\n");
+			return -ENOENT;
 	}
 
 	dev->clk = clk_get(&pdev->dev, "sclk_fimg2d");
 	if (IS_ERR_OR_NULL(dev->clk)) {
 		dev_err(&pdev->dev, "failed to get g2d clock\n");
-		ret = -ENXIO;
-		goto unmap_regs;
+		return -ENXIO;
 	}
 
 	ret = clk_prepare(dev->clk);
@@ -740,7 +725,8 @@ static int g2d_probe(struct platform_device *pdev)
 
 	dev->irq = res->start;
 
-	ret = request_irq(dev->irq, g2d_isr, 0, pdev->name, dev);
+	ret = devm_request_irq(&pdev->dev, dev->irq, g2d_isr,
+						0, pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to install IRQ\n");
 		goto put_clk_gate;
@@ -749,7 +735,7 @@ static int g2d_probe(struct platform_device *pdev)
 	dev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
 	if (IS_ERR(dev->alloc_ctx)) {
 		ret = PTR_ERR(dev->alloc_ctx);
-		goto rel_irq;
+		goto unprep_clk_gate;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
@@ -762,6 +748,10 @@ static int g2d_probe(struct platform_device *pdev)
 		goto unreg_v4l2_dev;
 	}
 	*vfd = g2d_videodev;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &dev->mutex;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
@@ -793,8 +783,6 @@ unreg_v4l2_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
 alloc_ctx_cleanup:
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
-rel_irq:
-	free_irq(dev->irq, dev);
 unprep_clk_gate:
 	clk_unprepare(dev->gate);
 put_clk_gate:
@@ -803,12 +791,7 @@ unprep_clk:
 	clk_unprepare(dev->clk);
 put_clk:
 	clk_put(dev->clk);
-unmap_regs:
-	iounmap(dev->regs);
-rel_res_regs:
-	release_resource(dev->res_regs);
-free_dev:
-	kfree(dev);
+
 	return ret;
 }
 
@@ -821,14 +804,10 @@ static int g2d_remove(struct platform_device *pdev)
 	video_unregister_device(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
-	free_irq(dev->irq, dev);
 	clk_unprepare(dev->gate);
 	clk_put(dev->gate);
 	clk_unprepare(dev->clk);
 	clk_put(dev->clk);
-	iounmap(dev->regs);
-	release_resource(dev->res_regs);
-	kfree(dev);
 	return 0;
 }
 

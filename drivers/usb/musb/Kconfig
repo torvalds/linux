@@ -8,6 +8,7 @@ config USB_MUSB_HDRC
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
 	depends on USB && USB_GADGET
 	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
+	select NOP_USB_XCEIV if (SOC_OMAPTI81XX || SOC_OMAPAM33XX)
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	select TWL6030_USB if MACH_OMAP_4430SDP || MACH_OMAP4_PANDA
 	select USB_OTG_UTILS
@@ -54,6 +55,10 @@ config USB_MUSB_AM35X
 	tristate "AM35x"
 	depends on ARCH_OMAP
 
+config USB_MUSB_DSPS
+	tristate "TI DSPS platforms"
+	depends on SOC_OMAPTI81XX || SOC_OMAPAM33XX
+
 config USB_MUSB_BLACKFIN
 	tristate "Blackfin"
 	depends on (BF54x && !BF544) || (BF52x && ! BF522 && !BF523)
@@ -70,7 +75,8 @@ choice
 	default USB_INVENTRA_DMA if USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
 	default USB_TI_CPPI_DMA if USB_MUSB_DAVINCI
 	default USB_TUSB_OMAP_DMA if USB_MUSB_TUSB6010
-	default MUSB_PIO_ONLY if USB_MUSB_TUSB6010 || USB_MUSB_DA8XX || USB_MUSB_AM35X
+	default MUSB_PIO_ONLY if USB_MUSB_TUSB6010 || USB_MUSB_DA8XX || USB_MUSB_AM35X \
+				|| USB_MUSB_DSPS
 	help
 	  Unfortunately, only one option can be enabled here. Ideally one
 	  should be able to build all these drivers into one kernel to

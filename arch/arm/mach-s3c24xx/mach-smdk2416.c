@@ -148,21 +148,23 @@ static struct s3c24xx_hsudc_platdata smdk2416_hsudc_platdata = {
 
 static struct s3c_fb_pd_win smdk2416_fb_win[] = {
 	[0] = {
-		/* think this is the same as the smdk6410 */
-		.win_mode	= {
-			.pixclock	= 41094,
-			.left_margin	= 8,
-			.right_margin	= 13,
-			.upper_margin	= 7,
-			.lower_margin	= 5,
-			.hsync_len	= 3,
-			.vsync_len	= 1,
-			.xres           = 800,
-			.yres           = 480,
-		},
 		.default_bpp	= 16,
 		.max_bpp	= 32,
+		.xres           = 800,
+		.yres           = 480,
 	},
+};
+
+static struct fb_videomode smdk2416_lcd_timing = {
+	.pixclock	= 41094,
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres           = 800,
+	.yres           = 480,
 };
 
 static void s3c2416_fb_gpio_setup_24bpp(void)
@@ -187,6 +189,7 @@ static void s3c2416_fb_gpio_setup_24bpp(void)
 
 static struct s3c_fb_platdata smdk2416_fb_platdata = {
 	.win[0]		= &smdk2416_fb_win[0],
+	.vtiming	= &smdk2416_lcd_timing,
 	.setup_gpio	= s3c2416_fb_gpio_setup_24bpp,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,

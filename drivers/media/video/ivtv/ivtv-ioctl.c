@@ -135,7 +135,6 @@ void ivtv_set_osd_alpha(struct ivtv *itv)
 int ivtv_set_speed(struct ivtv *itv, int speed)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
-	struct ivtv_stream *s;
 	int single_step = (speed == 1 || speed == -1);
 	DEFINE_WAIT(wait);
 
@@ -144,8 +143,6 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 	/* No change? */
 	if (speed == itv->speed && !single_step)
 		return 0;
-
-	s = &itv->streams[IVTV_DEC_STREAM_TYPE_MPG];
 
 	if (single_step && (speed < 0) == (itv->speed < 0)) {
 		/* Single step video and no need to change direction */
@@ -1468,8 +1465,9 @@ static int ivtv_subscribe_event(struct v4l2_fh *fh, struct v4l2_event_subscripti
 	switch (sub->type) {
 	case V4L2_EVENT_VSYNC:
 	case V4L2_EVENT_EOS:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	case V4L2_EVENT_CTRL:
-		return v4l2_event_subscribe(fh, sub, 0);
+		return v4l2_event_subscribe(fh, sub, 0, &v4l2_ctrl_sub_ev_ops);
 	default:
 		return -EINVAL;
 	}
@@ -1827,7 +1825,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 		return ivtv_decoder_ioctls(file, cmd, (void *)arg);
 
 	default:
-		return -EINVAL;
+		return -ENOTTY;
 	}
 	return 0;
 }

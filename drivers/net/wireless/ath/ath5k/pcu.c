@@ -110,7 +110,7 @@ static const unsigned int ack_rates_high[] =
  * bwmodes.
  */
 int
-ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
+ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum ieee80211_band band,
 		int len, struct ieee80211_rate *rate, bool shortpre)
 {
 	int sifs, preamble, plcp_bits, sym_time;
@@ -120,7 +120,7 @@ ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
 	/* Fallback */
 	if (!ah->ah_bwmode) {
 		__le16 raw_dur = ieee80211_generic_frame_duration(ah->hw,
-					NULL, len, rate);
+					NULL, band, len, rate);
 
 		/* subtract difference between long and short preamble */
 		dur = le16_to_cpu(raw_dur);
@@ -302,14 +302,15 @@ ath5k_hw_write_rate_duration(struct ath5k_hw *ah)
 		 * actual rate for this rate. See mac80211 tx.c
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
-		tx_time = ath5k_hw_get_frame_duration(ah, 10, rate, false);
+		tx_time = ath5k_hw_get_frame_duration(ah, band, 10,
+					rate, false);
 
 		ath5k_hw_reg_write(ah, tx_time, reg);
 
 		if (!(rate->flags & IEEE80211_RATE_SHORT_PREAMBLE))
 			continue;
 
-		tx_time = ath5k_hw_get_frame_duration(ah, 10, rate, true);
+		tx_time = ath5k_hw_get_frame_duration(ah, band, 10, rate, true);
 		ath5k_hw_reg_write(ah, tx_time,
 			reg + (AR5K_SET_SHORT_PREAMBLE << 2));
 	}

@@ -15,8 +15,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-static int regmap_i2c_write(struct device *dev, const void *data, size_t count)
+static int regmap_i2c_write(void *context, const void *data, size_t count)
 {
+	struct device *dev = context;
 	struct i2c_client *i2c = to_i2c_client(dev);
 	int ret;
 
@@ -29,10 +30,11 @@ static int regmap_i2c_write(struct device *dev, const void *data, size_t count)
 		return -EIO;
 }
 
-static int regmap_i2c_gather_write(struct device *dev,
+static int regmap_i2c_gather_write(void *context,
 				   const void *reg, size_t reg_size,
 				   const void *val, size_t val_size)
 {
+	struct device *dev = context;
 	struct i2c_client *i2c = to_i2c_client(dev);
 	struct i2c_msg xfer[2];
 	int ret;
@@ -40,7 +42,7 @@ static int regmap_i2c_gather_write(struct device *dev,
 	/* If the I2C controller can't do a gather tell the core, it
 	 * will substitute in a linear write for us.
 	 */
-	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_PROTOCOL_MANGLING))
+	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_NOSTART))
 		return -ENOTSUPP;
 
 	xfer[0].addr = i2c->addr;
@@ -62,10 +64,11 @@ static int regmap_i2c_gather_write(struct device *dev,
 		return -EIO;
 }
 
-static int regmap_i2c_read(struct device *dev,
+static int regmap_i2c_read(void *context,
 			   const void *reg, size_t reg_size,
 			   void *val, size_t val_size)
 {
+	struct device *dev = context;
 	struct i2c_client *i2c = to_i2c_client(dev);
 	struct i2c_msg xfer[2];
 	int ret;
@@ -107,7 +110,7 @@ static struct regmap_bus regmap_i2c = {
 struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 			       const struct regmap_config *config)
 {
-	return regmap_init(&i2c->dev, &regmap_i2c, config);
+	return regmap_init(&i2c->dev, &regmap_i2c, &i2c->dev, config);
 }
 EXPORT_SYMBOL_GPL(regmap_init_i2c);
 
@@ -124,7 +127,7 @@ EXPORT_SYMBOL_GPL(regmap_init_i2c);
 struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
 				    const struct regmap_config *config)
 {
-	return devm_regmap_init(&i2c->dev, &regmap_i2c, config);
+	return devm_regmap_init(&i2c->dev, &regmap_i2c, &i2c->dev, config);
 }
 EXPORT_SYMBOL_GPL(devm_regmap_init_i2c);
 

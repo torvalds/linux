@@ -48,6 +48,12 @@
 
   <refsect1>
     <title>Description</title>
+
+    <para>These ioctls are <emphasis role="bold">deprecated</emphasis>.
+    New drivers and applications should use &VIDIOC-G-DV-TIMINGS; and &VIDIOC-S-DV-TIMINGS;
+    instead.
+    </para>
+
     <para>To query and select the current DV preset, applications
 use the <constant>VIDIOC_G_DV_PRESET</constant> and <constant>VIDIOC_S_DV_PRESET</constant>
 ioctls which take a pointer to a &v4l2-dv-preset; type as argument.

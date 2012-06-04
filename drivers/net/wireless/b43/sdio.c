@@ -193,7 +193,7 @@ static struct sdio_driver b43_sdio_driver = {
 	.name		= "b43-sdio",
 	.id_table	= b43_sdio_ids,
 	.probe		= b43_sdio_probe,
-	.remove		= b43_sdio_remove,
+	.remove		= __devexit_p(b43_sdio_remove),
 };
 
 int b43_sdio_init(void)

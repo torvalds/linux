@@ -1237,14 +1237,15 @@ irq_handler_t intr_handler(int i)
  *******************************************************************************
  */
 
-static int imx_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int imx_udc_stop(struct usb_gadget_driver *driver);
+static int imx_udc_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver);
+static int imx_udc_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver);
 static const struct usb_gadget_ops imx_udc_ops = {
-	.get_frame	 = imx_udc_get_frame,
-	.wakeup		 = imx_udc_wakeup,
-	.start		= imx_udc_start,
-	.stop		= imx_udc_stop,
+	.get_frame	= imx_udc_get_frame,
+	.wakeup		= imx_udc_wakeup,
+	.udc_start	= imx_udc_start,
+	.udc_stop	= imx_udc_stop,
 };
 
 static struct imx_udc_struct controller = {
@@ -1329,23 +1330,13 @@ static struct imx_udc_struct controller = {
  * USB gadget driver functions
  *******************************************************************************
  */
-static int imx_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int imx_udc_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct imx_udc_struct *imx_usb = &controller;
+	struct imx_udc_struct *imx_usb;
 	int retval;
 
-	if (!driver
-		|| driver->max_speed < USB_SPEED_FULL
-		|| !bind
-		|| !driver->disconnect
-		|| !driver->setup)
-			return -EINVAL;
-	if (!imx_usb)
-		return -ENODEV;
-	if (imx_usb->driver)
-		return -EBUSY;
-
+	imx_usb = container_of(gadget, struct imx_udc_struct, gadget);
 	/* first hook up the driver ... */
 	imx_usb->driver = driver;
 	imx_usb->gadget.dev.driver = &driver->driver;
@@ -1353,14 +1344,6 @@ static int imx_udc_start(struct usb_gadget_driver *driver,
 	retval = device_add(&imx_usb->gadget.dev);
 	if (retval)
 		goto fail;
-	retval = bind(&imx_usb->gadget);
-	if (retval) {
-		D_ERR(imx_usb->dev, "<%s> bind to driver %s --> error %d\n",
-			__func__, driver->driver.name, retval);
-		device_del(&imx_usb->gadget.dev);
-
-		goto fail;
-	}
 
 	D_INI(imx_usb->dev, "<%s> registered gadget driver '%s'\n",
 		__func__, driver->driver.name);
@@ -1374,20 +1357,16 @@ fail:
 	return retval;
 }
 
-static int imx_udc_stop(struct usb_gadget_driver *driver)
+static int imx_udc_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct imx_udc_struct *imx_usb = &controller;
-
-	if (!imx_usb)
-		return -ENODEV;
-	if (!driver || driver != imx_usb->driver || !driver->unbind)
-		return -EINVAL;
+	struct imx_udc_struct *imx_usb = container_of(gadget,
+			struct imx_udc_struct, gadget);
 
 	udc_stop_activity(imx_usb, driver);
 	imx_udc_disable(imx_usb);
 	del_timer(&imx_usb->timer);
 
-	driver->unbind(&imx_usb->gadget);
 	imx_usb->gadget.dev.driver = NULL;
 	imx_usb->driver = NULL;
 

@@ -507,7 +507,7 @@ __SYSCALL(229, sys_rt_sigtimedwait, 4)
 #define __NR_rt_sigqueueinfo 			230
 __SYSCALL(230, sys_rt_sigqueueinfo, 3)
 #define __NR_rt_sigsuspend 			231
-__SYSCALL(231, xtensa_rt_sigsuspend, 2)
+__SYSCALL(231, sys_rt_sigsuspend, 2)
 
 /* Message */
 

@@ -1422,6 +1422,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 static void __devinit pcibios_setup_phb_resources(struct pci_controller *hose, struct list_head *resources)
 {
+	unsigned long io_offset;
 	struct resource *res;
 	int i;
 

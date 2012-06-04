@@ -106,8 +106,8 @@ static inline void perf_evlist__set_maps(struct perf_evlist *evlist,
 	evlist->threads	= threads;
 }
 
-int perf_evlist__create_maps(struct perf_evlist *evlist, const char *target_pid,
-			     const char *tid, uid_t uid, const char *cpu_list);
+int perf_evlist__create_maps(struct perf_evlist *evlist,
+			     struct perf_target *target);
 void perf_evlist__delete_maps(struct perf_evlist *evlist);
 int perf_evlist__set_filters(struct perf_evlist *evlist);
 

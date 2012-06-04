@@ -369,6 +369,7 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 		goto error;
 	}
 
+	memset(&props, 0, sizeof(props));
 	props.max_brightness = MAX_RADEON_LEVEL;
 	props.type = BACKLIGHT_RAW;
 	bd = backlight_device_register("radeon_bl", &drm_connector->kdev,

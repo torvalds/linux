@@ -9,15 +9,24 @@ Description:
 		or 0 otherwise. Writing to this file one of these values
 		switches reporting speed.
 
+What:		/sys/class/leds/0005\:056A\:00BD.0001\:selector\:*/
+Date:		May 2012
+Kernel Version:	3.5
+Contact:	linux-bluetooth@vger.kernel.org
+Description:
+		LED selector for Intuos4 WL. There are 4 leds, but only one LED
+		can be lit at a time. Max brightness is 127.
+
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/led
 Date:		August 2011
 Contact:	linux-input@vger.kernel.org
 Description:
 		Attribute group for control of the status LEDs and the OLEDs.
 		This attribute group is only available for Intuos 4 M, L,
-		and XL (with LEDs and OLEDs) and Cintiq 21UX2 and Cintiq 24HD
-		(LEDs only). Therefore its presence implicitly signifies the
-		presence of said LEDs and OLEDs on the tablet device.
+		and XL (with LEDs and OLEDs), Intuos 5 (LEDs only), and Cintiq
+		21UX2 and Cintiq 24HD (LEDs only). Therefore its presence
+		implicitly signifies the presence of said LEDs and OLEDs on the
+		tablet device.
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status0_luminance
 Date:		August 2011
@@ -40,10 +49,10 @@ What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led0
 Date:		August 2011
 Contact:	linux-input@vger.kernel.org
 Description:
-		Writing to this file sets which one of the four (for Intuos 4)
-		or of the right four (for Cintiq 21UX2 and Cintiq 24HD) status
-		LEDs is active (0..3). The other three LEDs on the same side are
-		always inactive.
+		Writing to this file sets which one of the four (for Intuos 4
+		and Intuos 5) or of the right four (for Cintiq 21UX2 and Cintiq
+		24HD) status LEDs is active (0..3). The other three LEDs on the
+		same side are always inactive.
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led1_select
 Date:		September 2011

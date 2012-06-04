@@ -22,6 +22,7 @@
 #include <linux/bio.h>
 #include <linux/sort.h>
 #include "async-thread.h"
+#include "ioctl.h"
 
 #define BTRFS_STRIPE_LEN	(64 * 1024)
 
@@ -106,6 +107,11 @@ struct btrfs_device {
 	struct completion flush_wait;
 	int nobarriers;
 
+	/* disk I/O failure stats. For detailed description refer to
+	 * enum btrfs_dev_stat_values in ioctl.h */
+	int dev_stats_valid;
+	int dev_stats_dirty; /* counters need to be written to disk */
+	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
 };
 
 struct btrfs_fs_devices {
@@ -281,4 +287,50 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
 int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
+struct btrfs_device *btrfs_find_device_for_logical(struct btrfs_root *root,
+						   u64 logical, int mirror_num);
+void btrfs_dev_stat_print_on_error(struct btrfs_device *device);
+void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
+int btrfs_get_dev_stats(struct btrfs_root *root,
+			struct btrfs_ioctl_get_dev_stats *stats,
+			int reset_after_read);
+int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
+int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
+			struct btrfs_fs_info *fs_info);
+
+static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
+				      int index)
+{
+	atomic_inc(dev->dev_stat_values + index);
+	dev->dev_stats_dirty = 1;
+}
+
+static inline int btrfs_dev_stat_read(struct btrfs_device *dev,
+				      int index)
+{
+	return atomic_read(dev->dev_stat_values + index);
+}
+
+static inline int btrfs_dev_stat_read_and_reset(struct btrfs_device *dev,
+						int index)
+{
+	int ret;
+
+	ret = atomic_xchg(dev->dev_stat_values + index, 0);
+	dev->dev_stats_dirty = 1;
+	return ret;
+}
+
+static inline void btrfs_dev_stat_set(struct btrfs_device *dev,
+				      int index, unsigned long val)
+{
+	atomic_set(dev->dev_stat_values + index, val);
+	dev->dev_stats_dirty = 1;
+}
+
+static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
+					int index)
+{
+	btrfs_dev_stat_set(dev, index, 0);
+}
 #endif

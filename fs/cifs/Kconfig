@@ -158,3 +158,23 @@ config CIFS_NFSD_EXPORT
 	  depends on CIFS && EXPERIMENTAL && BROKEN
 	  help
 	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)
+
+config CIFS_SMB2
+	bool "SMB2 network file system support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && INET && BROKEN
+	select NLS
+	select KEYS
+	select FSCACHE
+	select DNS_RESOLVER
+
+	help
+	  This enables experimental support for the SMB2 (Server Message Block
+	  version 2) protocol. The SMB2 protocol is the successor to the
+	  popular CIFS and SMB network file sharing protocols. SMB2 is the
+	  native file sharing mechanism for recent versions of Windows
+	  operating systems (since Vista).  SMB2 enablement will eventually
+	  allow users better performance, security and features, than would be
+	  possible with cifs. Note that smb2 mount options also are simpler
+	  (compared to cifs) due to protocol improvements.
+
+	  Unless you are a developer or tester, say N.

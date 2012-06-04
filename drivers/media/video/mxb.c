@@ -31,9 +31,10 @@
 #include <media/saa7115.h>
 #include <linux/module.h>
 
-#include "mxb.h"
 #include "tea6415c.h"
 #include "tea6420.h"
+
+#define MXB_AUDIOS	6
 
 #define I2C_SAA7111A  0x24
 #define	I2C_TDA9840   0x42
@@ -62,10 +63,14 @@ MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 enum { TUNER, AUX1, AUX3, AUX3_YC };
 
 static struct v4l2_input mxb_inputs[MXB_INPUTS] = {
-	{ TUNER,	"Tuner",		V4L2_INPUT_TYPE_TUNER,	1, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
-	{ AUX1,		"AUX1",			V4L2_INPUT_TYPE_CAMERA,	2, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
-	{ AUX3,		"AUX3 Composite",	V4L2_INPUT_TYPE_CAMERA,	4, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
-	{ AUX3_YC,	"AUX3 S-Video",		V4L2_INPUT_TYPE_CAMERA,	4, 0, V4L2_STD_PAL_BG|V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
+	{ TUNER,   "Tuner",          V4L2_INPUT_TYPE_TUNER,  0x3f, 0,
+		V4L2_STD_PAL_BG | V4L2_STD_PAL_I, 0, V4L2_IN_CAP_STD },
+	{ AUX1,	   "AUX1",           V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
+		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
+	{ AUX3,	   "AUX3 Composite", V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
+		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
+	{ AUX3_YC, "AUX3 S-Video",   V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
+		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
 };
 
 /* this array holds the information, which port of the saa7146 each
@@ -88,6 +93,36 @@ static int video_audio_connect[MXB_INPUTS] =
 struct mxb_routing {
 	u32 input;
 	u32 output;
+};
+
+/* these are the available audio sources, which can switched
+   to the line- and cd-output individually */
+static struct v4l2_audio mxb_audios[MXB_AUDIOS] = {
+	    {
+		.index	= 0,
+		.name	= "Tuner",
+		.capability = V4L2_AUDCAP_STEREO,
+	} , {
+		.index	= 1,
+		.name	= "AUX1",
+		.capability = V4L2_AUDCAP_STEREO,
+	} , {
+		.index	= 2,
+		.name	= "AUX2",
+		.capability = V4L2_AUDCAP_STEREO,
+	} , {
+		.index	= 3,
+		.name	= "AUX3",
+		.capability = V4L2_AUDCAP_STEREO,
+	} , {
+		.index	= 4,
+		.name	= "Radio (X9)",
+		.capability = V4L2_AUDCAP_STEREO,
+	} , {
+		.index	= 5,
+		.name	= "CD-ROM (X10)",
+		.capability = V4L2_AUDCAP_STEREO,
+	}
 };
 
 /* These are the necessary input-output-pins for bringing one audio source
@@ -114,11 +149,6 @@ static struct mxb_routing TEA6420_line[MXB_AUDIOS + 1][2] = {
 	{ { 6, 3 }, { 6, 2 } }	/* Mute */
 };
 
-#define MAXCONTROLS	1
-static struct v4l2_queryctrl mxb_controls[] = {
-	{ V4L2_CID_AUDIO_MUTE, V4L2_CTRL_TYPE_BOOLEAN, "Mute", 0, 1, 1, 0, 0 },
-};
-
 struct mxb
 {
 	struct video_device	*video_dev;
@@ -135,6 +165,7 @@ struct mxb
 
 	int	cur_mode;	/* current audio mode (mono, stereo, ...) */
 	int	cur_input;	/* current input */
+	int	cur_audinput;	/* current audio input */
 	int	cur_mute;	/* current mute status */
 	struct v4l2_frequency	cur_freq;	/* current frequency the tuner is tuned to */
 };
@@ -150,16 +181,21 @@ struct mxb
 #define call_all(dev, o, f, args...) \
 	v4l2_device_call_until_err(&dev->v4l2_dev, 0, o, f, ##args)
 
-static inline void tea6420_route_cd(struct mxb *mxb, int idx)
+static void mxb_update_audmode(struct mxb *mxb)
+{
+	struct v4l2_tuner t = {
+		.audmode = mxb->cur_mode,
+	};
+
+	tda9840_call(mxb, tuner, s_tuner, &t);
+}
+
+static inline void tea6420_route(struct mxb *mxb, int idx)
 {
 	v4l2_subdev_call(mxb->tea6420_1, audio, s_routing,
 		TEA6420_cd[idx][0].input, TEA6420_cd[idx][0].output, 0);
 	v4l2_subdev_call(mxb->tea6420_2, audio, s_routing,
 		TEA6420_cd[idx][1].input, TEA6420_cd[idx][1].output, 0);
-}
-
-static inline void tea6420_route_line(struct mxb *mxb, int idx)
-{
 	v4l2_subdev_call(mxb->tea6420_1, audio, s_routing,
 		TEA6420_line[idx][0].input, TEA6420_line[idx][0].output, 0);
 	v4l2_subdev_call(mxb->tea6420_2, audio, s_routing,
@@ -168,15 +204,44 @@ static inline void tea6420_route_line(struct mxb *mxb, int idx)
 
 static struct saa7146_extension extension;
 
+static int mxb_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct saa7146_dev *dev = container_of(ctrl->handler,
+				struct saa7146_dev, ctrl_handler);
+	struct mxb *mxb = dev->ext_priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		mxb->cur_mute = ctrl->val;
+		/* switch the audio-source */
+		tea6420_route(mxb, ctrl->val ? 6 :
+				video_audio_connect[mxb->cur_input]);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops mxb_ctrl_ops = {
+	.s_ctrl = mxb_s_ctrl,
+};
+
 static int mxb_probe(struct saa7146_dev *dev)
 {
+	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
 	struct mxb *mxb = NULL;
 
+	v4l2_ctrl_new_std(hdl, &mxb_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+	if (hdl->error)
+		return hdl->error;
 	mxb = kzalloc(sizeof(struct mxb), GFP_KERNEL);
 	if (mxb == NULL) {
 		DEB_D("not enough kernel memory\n");
 		return -ENOMEM;
 	}
+
 
 	snprintf(mxb->i2c_adapter.name, sizeof(mxb->i2c_adapter.name), "mxb%d", mxb_num);
 
@@ -213,6 +278,8 @@ static int mxb_probe(struct saa7146_dev *dev)
 
 	/* we store the pointer in our private data field */
 	dev->ext_priv = mxb;
+
+	v4l2_ctrl_handler_setup(hdl);
 
 	return 0;
 }
@@ -286,6 +353,9 @@ static int mxb_init_done(struct saa7146_dev* dev)
 
 	int i = 0, err = 0;
 
+	/* mute audio on tea6420s */
+	tea6420_route(mxb, 6);
+
 	/* select video mode in saa7111a */
 	saa7111a_call(mxb, core, s_std, std);
 
@@ -306,11 +376,11 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	tuner_call(mxb, tuner, s_frequency, &mxb->cur_freq);
 
 	/* set a default video standard */
+	/* These two gpio calls set the GPIO pins that control the tda9820 */
+	saa7146_write(dev, GPIO_CTRL, 0x00404050);
+	saa7111a_call(mxb, core, s_gpio, 1);
+	saa7111a_call(mxb, core, s_std, std);
 	tuner_call(mxb, core, s_std, std);
-
-	/* mute audio on tea6420s */
-	tea6420_route_line(mxb, 6);
-	tea6420_route_cd(mxb, 6);
 
 	/* switch to tuner-channel on tea6415c */
 	tea6415c_call(mxb, video, s_routing, 3, 17, 0);
@@ -320,9 +390,11 @@ static int mxb_init_done(struct saa7146_dev* dev)
 
 	/* the rest for mxb */
 	mxb->cur_input = 0;
+	mxb->cur_audinput = video_audio_connect[mxb->cur_input];
 	mxb->cur_mute = 1;
 
 	mxb->cur_mode = V4L2_TUNER_MODE_STEREO;
+	mxb_update_audmode(mxb);
 
 	/* check if the saa7740 (aka 'sound arena module') is present
 	   on the mxb. if so, we must initialize it. due to lack of
@@ -384,69 +456,6 @@ void mxb_irq_bh(struct saa7146_dev* dev, u32* irq_mask)
 	struct mxb* mxb = (struct mxb*)dev->ext_priv;
 }
 */
-
-static int vidioc_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qc)
-{
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
-	int i;
-
-	for (i = MAXCONTROLS - 1; i >= 0; i--) {
-		if (mxb_controls[i].id == qc->id) {
-			*qc = mxb_controls[i];
-			DEB_D("VIDIOC_QUERYCTRL %d\n", qc->id);
-			return 0;
-		}
-	}
-	return dev->ext_vv_data->core_ops->vidioc_queryctrl(file, fh, qc);
-}
-
-static int vidioc_g_ctrl(struct file *file, void *fh, struct v4l2_control *vc)
-{
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
-	struct mxb *mxb = (struct mxb *)dev->ext_priv;
-	int i;
-
-	for (i = MAXCONTROLS - 1; i >= 0; i--) {
-		if (mxb_controls[i].id == vc->id)
-			break;
-	}
-
-	if (i < 0)
-		return dev->ext_vv_data->core_ops->vidioc_g_ctrl(file, fh, vc);
-
-	if (vc->id == V4L2_CID_AUDIO_MUTE) {
-		vc->value = mxb->cur_mute;
-		DEB_D("VIDIOC_G_CTRL V4L2_CID_AUDIO_MUTE:%d\n", vc->value);
-		return 0;
-	}
-
-	DEB_EE("VIDIOC_G_CTRL V4L2_CID_AUDIO_MUTE:%d\n", vc->value);
-	return 0;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *vc)
-{
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
-	struct mxb *mxb = (struct mxb *)dev->ext_priv;
-	int i = 0;
-
-	for (i = MAXCONTROLS - 1; i >= 0; i--) {
-		if (mxb_controls[i].id == vc->id)
-			break;
-	}
-
-	if (i < 0)
-		return dev->ext_vv_data->core_ops->vidioc_s_ctrl(file, fh, vc);
-
-	if (vc->id == V4L2_CID_AUDIO_MUTE) {
-		mxb->cur_mute = vc->value;
-		/* switch the audio-source */
-		tea6420_route_line(mxb, vc->value ? 6 :
-				video_audio_connect[mxb->cur_input]);
-		DEB_EE("VIDIOC_S_CTRL, V4L2_CID_AUDIO_MUTE: %d\n", vc->value);
-	}
-	return 0;
-}
 
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 {
@@ -519,9 +528,12 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 	if (saa7111a_call(mxb, video, s_routing, i, SAA7111_FMT_CCIR, 0))
 		pr_err("VIDIOC_S_INPUT: could not address saa7111a\n");
 
+	mxb->cur_audinput = video_audio_connect[input];
 	/* switch the audio-source only if necessary */
 	if (0 == mxb->cur_mute)
-		tea6420_route_line(mxb, video_audio_connect[input]);
+		tea6420_route(mxb, mxb->cur_audinput);
+	if (mxb->cur_audinput == 0)
+		mxb_update_audmode(mxb);
 
 	return 0;
 }
@@ -563,17 +575,20 @@ static int vidioc_s_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 	return call_all(dev, tuner, s_tuner, t);
 }
 
+static int vidioc_querystd(struct file *file, void *fh, v4l2_std_id *norm)
+{
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+
+	return call_all(dev, video, querystd, norm);
+}
+
 static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency *f)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
-	if (mxb->cur_input) {
-		DEB_D("VIDIOC_G_FREQ: channel %d does not have a tuner!\n",
-		      mxb->cur_input);
+	if (f->tuner)
 		return -EINVAL;
-	}
-
 	*f = mxb->cur_freq;
 
 	DEB_EE("VIDIOC_G_FREQ: freq:0x%08x\n", mxb->cur_freq.frequency);
@@ -592,17 +607,18 @@ static int vidioc_s_frequency(struct file *file, void *fh, struct v4l2_frequency
 	if (V4L2_TUNER_ANALOG_TV != f->type)
 		return -EINVAL;
 
-	if (mxb->cur_input) {
-		DEB_D("VIDIOC_S_FREQ: channel %d does not have a tuner!\n",
-		      mxb->cur_input);
-		return -EINVAL;
-	}
-
-	mxb->cur_freq = *f;
 	DEB_EE("VIDIOC_S_FREQUENCY: freq:0x%08x\n", mxb->cur_freq.frequency);
 
 	/* tune in desired frequency */
-	tuner_call(mxb, tuner, s_frequency, &mxb->cur_freq);
+	tuner_call(mxb, tuner, s_frequency, f);
+	/* let the tuner subdev clamp the frequency to the tuner range */
+	tuner_call(mxb, tuner, g_frequency, f);
+	mxb->cur_freq = *f;
+	if (mxb->cur_audinput == 0)
+		mxb_update_audmode(mxb);
+
+	if (mxb->cur_input)
+		return 0;
 
 	/* hack: changing the frequency should invalidate the vbi-counter (=> alevt) */
 	spin_lock(&dev->slock);
@@ -612,25 +628,40 @@ static int vidioc_s_frequency(struct file *file, void *fh, struct v4l2_frequency
 	return 0;
 }
 
+static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
+{
+	if (a->index >= MXB_AUDIOS)
+		return -EINVAL;
+	*a = mxb_audios[a->index];
+	return 0;
+}
+
 static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
-	if (a->index > MXB_INPUTS) {
-		DEB_D("VIDIOC_G_AUDIO %d out of range\n", a->index);
-		return -EINVAL;
-	}
-
-	DEB_EE("VIDIOC_G_AUDIO %d\n", a->index);
-	memcpy(a, &mxb_audios[video_audio_connect[mxb->cur_input]], sizeof(struct v4l2_audio));
+	DEB_EE("VIDIOC_G_AUDIO\n");
+	*a = mxb_audios[mxb->cur_audinput];
 	return 0;
 }
 
 static int vidioc_s_audio(struct file *file, void *fh, struct v4l2_audio *a)
 {
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct mxb *mxb = (struct mxb *)dev->ext_priv;
+
 	DEB_D("VIDIOC_S_AUDIO %d\n", a->index);
-	return 0;
+	if (mxb_inputs[mxb->cur_input].audioset & (1 << a->index)) {
+		if (mxb->cur_audinput != a->index) {
+			mxb->cur_audinput = a->index;
+			tea6420_route(mxb, a->index);
+			if (mxb->cur_audinput == 0)
+				mxb_update_audmode(mxb);
+		}
+		return 0;
+	}
+	return -EINVAL;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -638,60 +669,31 @@ static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_regist
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
-	return call_all(dev, core, g_register, reg);
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (v4l2_chip_match_host(&reg->match)) {
+		reg->val = saa7146_read(dev, reg->reg);
+		reg->size = 4;
+		return 0;
+	}
+	call_all(dev, core, g_register, reg);
+	return 0;
 }
 
 static int vidioc_s_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (v4l2_chip_match_host(&reg->match)) {
+		saa7146_write(dev, reg->reg, reg->val);
+		reg->size = 4;
+		return 0;
+	}
 	return call_all(dev, core, s_register, reg);
 }
 #endif
-
-static long vidioc_default(struct file *file, void *fh, bool valid_prio,
-							int cmd, void *arg)
-{
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
-	struct mxb *mxb = (struct mxb *)dev->ext_priv;
-
-	switch (cmd) {
-	case MXB_S_AUDIO_CD:
-	{
-		int i = *(int *)arg;
-
-		if (i < 0 || i >= MXB_AUDIOS) {
-			DEB_D("invalid argument to MXB_S_AUDIO_CD: i:%d\n", i);
-			return -EINVAL;
-		}
-
-		DEB_EE("MXB_S_AUDIO_CD: i:%d\n", i);
-
-		tea6420_route_cd(mxb, i);
-		return 0;
-	}
-	case MXB_S_AUDIO_LINE:
-	{
-		int i = *(int *)arg;
-
-		if (i < 0 || i >= MXB_AUDIOS) {
-			DEB_D("invalid argument to MXB_S_AUDIO_LINE: i:%d\n",
-			      i);
-			return -EINVAL;
-		}
-
-		DEB_EE("MXB_S_AUDIO_LINE: i:%d\n", i);
-		tea6420_route_line(mxb, i);
-		return 0;
-	}
-	default:
-/*
-		DEB2(pr_err("does not handle this ioctl\n"));
-*/
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-}
 
 static struct saa7146_ext_vv vv_data;
 
@@ -709,23 +711,21 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	}
 	mxb = (struct mxb *)dev->ext_priv;
 
-	vv_data.ops.vidioc_queryctrl = vidioc_queryctrl;
-	vv_data.ops.vidioc_g_ctrl = vidioc_g_ctrl;
-	vv_data.ops.vidioc_s_ctrl = vidioc_s_ctrl;
-	vv_data.ops.vidioc_enum_input = vidioc_enum_input;
-	vv_data.ops.vidioc_g_input = vidioc_g_input;
-	vv_data.ops.vidioc_s_input = vidioc_s_input;
-	vv_data.ops.vidioc_g_tuner = vidioc_g_tuner;
-	vv_data.ops.vidioc_s_tuner = vidioc_s_tuner;
-	vv_data.ops.vidioc_g_frequency = vidioc_g_frequency;
-	vv_data.ops.vidioc_s_frequency = vidioc_s_frequency;
-	vv_data.ops.vidioc_g_audio = vidioc_g_audio;
-	vv_data.ops.vidioc_s_audio = vidioc_s_audio;
+	vv_data.vid_ops.vidioc_enum_input = vidioc_enum_input;
+	vv_data.vid_ops.vidioc_g_input = vidioc_g_input;
+	vv_data.vid_ops.vidioc_s_input = vidioc_s_input;
+	vv_data.vid_ops.vidioc_querystd = vidioc_querystd;
+	vv_data.vid_ops.vidioc_g_tuner = vidioc_g_tuner;
+	vv_data.vid_ops.vidioc_s_tuner = vidioc_s_tuner;
+	vv_data.vid_ops.vidioc_g_frequency = vidioc_g_frequency;
+	vv_data.vid_ops.vidioc_s_frequency = vidioc_s_frequency;
+	vv_data.vid_ops.vidioc_enumaudio = vidioc_enumaudio;
+	vv_data.vid_ops.vidioc_g_audio = vidioc_g_audio;
+	vv_data.vid_ops.vidioc_s_audio = vidioc_s_audio;
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	vv_data.ops.vidioc_g_register = vidioc_g_register;
-	vv_data.ops.vidioc_s_register = vidioc_s_register;
+	vv_data.vid_ops.vidioc_g_register = vidioc_g_register;
+	vv_data.vid_ops.vidioc_s_register = vidioc_s_register;
 #endif
-	vv_data.ops.vidioc_default = vidioc_default;
 	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_GRABBER)) {
 		ERR("cannot register capture v4l2 device. skipping.\n");
 		saa7146_vv_release(dev);
@@ -752,6 +752,9 @@ static int mxb_detach(struct saa7146_dev *dev)
 
 	DEB_EE("dev:%p\n", dev);
 
+	/* mute audio on tea6420s */
+	tea6420_route(mxb, 6);
+
 	saa7146_unregister_device(&mxb->video_dev,dev);
 	if (MXB_BOARD_CAN_DO_VBI(dev))
 		saa7146_unregister_device(&mxb->vbi_dev, dev);
@@ -773,20 +776,24 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 		v4l2_std_id std = V4L2_STD_PAL_I;
 
 		DEB_D("VIDIOC_S_STD: setting mxb for PAL_I\n");
-		/* set the 7146 gpio register -- I don't know what this does exactly */
+		/* These two gpio calls set the GPIO pins that control the tda9820 */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
-		/* unset the 7111 gpio register -- I don't know what this does exactly */
 		saa7111a_call(mxb, core, s_gpio, 0);
-		tuner_call(mxb, core, s_std, std);
+		saa7111a_call(mxb, core, s_std, std);
+		if (mxb->cur_input == 0)
+			tuner_call(mxb, core, s_std, std);
 	} else {
 		v4l2_std_id std = V4L2_STD_PAL_BG;
 
+		if (mxb->cur_input)
+			std = standard->id;
 		DEB_D("VIDIOC_S_STD: setting mxb for PAL/NTSC/SECAM\n");
-		/* set the 7146 gpio register -- I don't know what this does exactly */
+		/* These two gpio calls set the GPIO pins that control the tda9820 */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
-		/* set the 7111 gpio register -- I don't know what this does exactly */
 		saa7111a_call(mxb, core, s_gpio, 1);
-		tuner_call(mxb, core, s_std, std);
+		saa7111a_call(mxb, core, s_std, std);
+		if (mxb->cur_input == 0)
+			tuner_call(mxb, core, s_std, std);
 	}
 	return 0;
 }
@@ -836,14 +843,14 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 static struct saa7146_ext_vv vv_data = {
 	.inputs		= MXB_INPUTS,
-	.capabilities	= V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE,
+	.capabilities	= V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE | V4L2_CAP_AUDIO,
 	.stds		= &standard[0],
 	.num_stds	= sizeof(standard)/sizeof(struct saa7146_standard),
 	.std_callback	= &std_callback,
 };
 
 static struct saa7146_extension extension = {
-	.name		= MXB_IDENTIFIER,
+	.name		= "Multimedia eXtension Board",
 	.flags		= SAA7146_USE_I2C_IRQ,
 
 	.pci_tbl	= &pci_tbl[0],

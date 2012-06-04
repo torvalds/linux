@@ -180,7 +180,10 @@ static int evdev_grab(struct evdev *evdev, struct evdev_client *client)
 
 static int evdev_ungrab(struct evdev *evdev, struct evdev_client *client)
 {
-	if (evdev->grab != client)
+	struct evdev_client *grab = rcu_dereference_protected(evdev->grab,
+					lockdep_is_held(&evdev->mutex));
+
+	if (grab != client)
 		return  -EINVAL;
 
 	rcu_assign_pointer(evdev->grab, NULL);
@@ -259,8 +262,7 @@ static int evdev_release(struct inode *inode, struct file *file)
 	struct evdev *evdev = client->evdev;
 
 	mutex_lock(&evdev->mutex);
-	if (evdev->grab == client)
-		evdev_ungrab(evdev, client);
+	evdev_ungrab(evdev, client);
 	mutex_unlock(&evdev->mutex);
 
 	evdev_detach_client(evdev, client);
@@ -343,7 +345,7 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 	struct input_event event;
 	int retval = 0;
 
-	if (count < input_event_size())
+	if (count != 0 && count < input_event_size())
 		return -EINVAL;
 
 	retval = mutex_lock_interruptible(&evdev->mutex);
@@ -355,7 +357,8 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 		goto out;
 	}
 
-	do {
+	while (retval + input_event_size() <= count) {
+
 		if (input_event_from_user(buffer + retval, &event)) {
 			retval = -EFAULT;
 			goto out;
@@ -364,7 +367,7 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 
 		input_inject_event(&evdev->handle,
 				   event.type, event.code, event.value);
-	} while (retval + input_event_size() <= count);
+	}
 
  out:
 	mutex_unlock(&evdev->mutex);
@@ -395,35 +398,49 @@ static ssize_t evdev_read(struct file *file, char __user *buffer,
 	struct evdev_client *client = file->private_data;
 	struct evdev *evdev = client->evdev;
 	struct input_event event;
-	int retval = 0;
+	size_t read = 0;
+	int error;
 
-	if (count < input_event_size())
+	if (count != 0 && count < input_event_size())
 		return -EINVAL;
 
-	if (!(file->f_flags & O_NONBLOCK)) {
-		retval = wait_event_interruptible(evdev->wait,
-				client->packet_head != client->tail ||
-				!evdev->exist);
-		if (retval)
-			return retval;
+	for (;;) {
+		if (!evdev->exist)
+			return -ENODEV;
+
+		if (client->packet_head == client->tail &&
+		    (file->f_flags & O_NONBLOCK))
+			return -EAGAIN;
+
+		/*
+		 * count == 0 is special - no IO is done but we check
+		 * for error conditions (see above).
+		 */
+		if (count == 0)
+			break;
+
+		while (read + input_event_size() <= count &&
+		       evdev_fetch_next_event(client, &event)) {
+
+			if (input_event_to_user(buffer + read, &event))
+				return -EFAULT;
+
+			read += input_event_size();
+		}
+
+		if (read)
+			break;
+
+		if (!(file->f_flags & O_NONBLOCK)) {
+			error = wait_event_interruptible(evdev->wait,
+					client->packet_head != client->tail ||
+					!evdev->exist);
+			if (error)
+				return error;
+		}
 	}
 
-	if (!evdev->exist)
-		return -ENODEV;
-
-	while (retval + input_event_size() <= count &&
-	       evdev_fetch_next_event(client, &event)) {
-
-		if (input_event_to_user(buffer + retval, &event))
-			return -EFAULT;
-
-		retval += input_event_size();
-	}
-
-	if (retval == 0 && (file->f_flags & O_NONBLOCK))
-		return -EAGAIN;
-
-	return retval;
+	return read;
 }
 
 /* No kernel lock - fine */

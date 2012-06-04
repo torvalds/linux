@@ -398,6 +398,16 @@ struct isp_operations {
 	int (*get_sys_info) (struct scsi_qla_host *);
 };
 
+struct ql4_mdump_size_table {
+	uint32_t size;
+	uint32_t size_cmask_02;
+	uint32_t size_cmask_04;
+	uint32_t size_cmask_08;
+	uint32_t size_cmask_10;
+	uint32_t size_cmask_FF;
+	uint32_t version;
+};
+
 /*qla4xxx ipaddress configuration details */
 struct ipaddress_config {
 	uint16_t ipv4_options;
@@ -485,6 +495,10 @@ struct scsi_qla_host {
 #define AF_EEH_BUSY			20 /* 0x00100000 */
 #define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
 #define AF_BUILD_DDB_LIST		22 /* 0x00400000 */
+#define AF_82XX_FW_DUMPED		24 /* 0x01000000 */
+#define AF_82XX_RST_OWNER		25 /* 0x02000000 */
+#define AF_82XX_DUMP_READING		26 /* 0x04000000 */
+
 	unsigned long dpc_flags;
 
 #define DPC_RESET_HA			1 /* 0x00000002 */
@@ -662,6 +676,11 @@ struct scsi_qla_host {
 
 	uint32_t nx_dev_init_timeout;
 	uint32_t nx_reset_timeout;
+	void *fw_dump;
+	uint32_t fw_dump_size;
+	uint32_t fw_dump_capture_mask;
+	void *fw_dump_tmplt_hdr;
+	uint32_t fw_dump_tmplt_size;
 
 	struct completion mbx_intr_comp;
 
@@ -935,5 +954,8 @@ static inline int ql4xxx_reset_active(struct scsi_qla_host *ha)
 /* Defines for process_aen() */
 #define PROCESS_ALL_AENS	 0
 #define FLUSH_DDB_CHANGED_AENS	 1
+
+/* Defines for udev events */
+#define QL4_UEVENT_CODE_FW_DUMP		0
 
 #endif	/*_QLA4XXX_H */

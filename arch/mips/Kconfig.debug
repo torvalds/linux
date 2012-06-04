@@ -57,7 +57,7 @@ config CMDLINE
 	  options.
 
 config CMDLINE_OVERRIDE
-	bool "Built-in command line overrides firware arguments"
+	bool "Built-in command line overrides firmware arguments"
 	default n
 	depends on CMDLINE_BOOL
 	help

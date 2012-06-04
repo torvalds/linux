@@ -1201,9 +1201,9 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 		struct v4l2_ctrl_handler *hdl = itv->v4l2_dev.ctrl_handler;
 
 		itv->ctrl_pts = v4l2_ctrl_new_std(hdl, &ivtv_hdl_out_ops,
-				V4L2_CID_MPEG_VIDEO_DEC_PTS, 0, 0, 1, 0);
+				V4L2_CID_MPEG_VIDEO_DEC_PTS, 0, 0, 0, 0);
 		itv->ctrl_frame = v4l2_ctrl_new_std(hdl, &ivtv_hdl_out_ops,
-				V4L2_CID_MPEG_VIDEO_DEC_FRAME, 0, 0x7fffffff, 1, 0);
+				V4L2_CID_MPEG_VIDEO_DEC_FRAME, 0, 0, 0, 0);
 		/* Note: V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO is not supported,
 		   mask that menu item. */
 		itv->ctrl_audio_playback =

@@ -44,6 +44,7 @@
 #include <linux/leds-lp5523.h>
 
 #include <../drivers/staging/iio/light/tsl2563.h>
+#include <linux/lis3lv02d.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -63,6 +64,9 @@
 #define RX51_TSC2005_RESET_GPIO         104
 #define RX51_TSC2005_IRQ_GPIO           100
 
+#define LIS302_IRQ1_GPIO 181
+#define LIS302_IRQ2_GPIO 180  /* Not yet in use */
+
 /* list all spi devices here */
 enum {
 	RX51_SPI_WL1251,
@@ -72,6 +76,77 @@ enum {
 
 static struct wl12xx_platform_data wl1251_pdata;
 static struct tsc2005_platform_data tsc2005_pdata;
+
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+static int lis302_setup(void)
+{
+	int err;
+	int irq1 = LIS302_IRQ1_GPIO;
+	int irq2 = LIS302_IRQ2_GPIO;
+
+	/* gpio for interrupt pin 1 */
+	err = gpio_request(irq1, "lis3lv02dl_irq1");
+	if (err) {
+		printk(KERN_ERR "lis3lv02dl: gpio request failed\n");
+		goto out;
+	}
+
+	/* gpio for interrupt pin 2 */
+	err = gpio_request(irq2, "lis3lv02dl_irq2");
+	if (err) {
+		gpio_free(irq1);
+		printk(KERN_ERR "lis3lv02dl: gpio request failed\n");
+		goto out;
+	}
+
+	gpio_direction_input(irq1);
+	gpio_direction_input(irq2);
+
+out:
+	return err;
+}
+
+static int lis302_release(void)
+{
+	gpio_free(LIS302_IRQ1_GPIO);
+	gpio_free(LIS302_IRQ2_GPIO);
+
+	return 0;
+}
+
+static struct lis3lv02d_platform_data rx51_lis3lv02d_data = {
+	.click_flags    = LIS3_CLICK_SINGLE_X | LIS3_CLICK_SINGLE_Y |
+			  LIS3_CLICK_SINGLE_Z,
+	/* Limits are 0.5g * value */
+	.click_thresh_x = 8,
+	.click_thresh_y = 8,
+	.click_thresh_z = 10,
+	/* Click must be longer than time limit */
+	.click_time_limit = 9,
+	/* Kind of debounce filter */
+	.click_latency    = 50,
+
+	/* Limits for all axis. millig-value / 18 to get HW values */
+	.wakeup_flags = LIS3_WAKEUP_X_HI | LIS3_WAKEUP_Y_HI,
+	.wakeup_thresh = 800 / 18,
+	.wakeup_flags2 = LIS3_WAKEUP_Z_HI ,
+	.wakeup_thresh2 = 900 / 18,
+
+	.hipass_ctrl = LIS3_HIPASS1_DISABLE | LIS3_HIPASS2_DISABLE,
+
+	/* Interrupt line 2 for click detection, line 1 for thresholds */
+	.irq_cfg = LIS3_IRQ2_CLICK | LIS3_IRQ1_FF_WU_12,
+
+	.axis_x = LIS3_DEV_X,
+	.axis_y = LIS3_INV_DEV_Y,
+	.axis_z = LIS3_INV_DEV_Z,
+	.setup_resources = lis302_setup,
+	.release_resources = lis302_release,
+	.st_min_limits = {-32, 3, 3},
+	.st_max_limits = {-3, 32, 32},
+	.irq2 = OMAP_GPIO_IRQ(LIS302_IRQ2_GPIO),
+};
+#endif
 
 #if defined(CONFIG_SENSORS_TSL2563) || defined(CONFIG_SENSORS_TSL2563_MODULE)
 static struct tsl2563_platform_data rx51_tsl2563_platform_data = {
@@ -872,11 +947,11 @@ static struct twl4030_power_data rx51_t2scripts_data __initdata = {
 	.resource_config = twl4030_rconfig,
 };
 
-struct twl4030_vibra_data rx51_vibra_data __initdata = {
+static struct twl4030_vibra_data rx51_vibra_data __initdata = {
 	.coexist	= 0,
 };
 
-struct twl4030_audio_data rx51_audio_data __initdata = {
+static struct twl4030_audio_data rx51_audio_data __initdata = {
 	.audio_mclk	= 26000000,
 	.vibra		= &rx51_vibra_data,
 };
@@ -950,6 +1025,16 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 	}
 };
 
+static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_3[] = {
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+	{
+		I2C_BOARD_INFO("lis3lv02d", 0x1d),
+		.platform_data = &rx51_lis3lv02d_data,
+		.irq = OMAP_GPIO_IRQ(LIS302_IRQ1_GPIO),
+	},
+#endif
+};
+
 static int __init rx51_i2c_init(void)
 {
 	if ((system_rev >= SYSTEM_REV_S_USES_VAUX3 && system_rev < 0x100) ||
@@ -971,7 +1056,8 @@ static int __init rx51_i2c_init(void)
 	omap_pmic_init(1, 2200, "twl5030", INT_34XX_SYS_NIRQ, &rx51_twldata);
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
-	omap_register_i2c_bus(3, 400, NULL, 0);
+	omap_register_i2c_bus(3, 400, rx51_peripherals_i2c_board_info_3,
+			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_3));
 	return 0;
 }
 

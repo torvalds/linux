@@ -22,7 +22,7 @@ extern struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
 struct unix_address {
 	atomic_t	refcnt;
 	int		len;
-	unsigned	hash;
+	unsigned int	hash;
 	struct sockaddr_un name[0];
 };
 

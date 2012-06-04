@@ -493,7 +493,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 
 				if (priv->bResetInProgress) {
 					RT_TRACE(COMP_POWER_TRACKING,
-						 "we are in slient reset progress, so return\n");
+						 "we are in silent reset progress, so return\n");
 					write_nic_byte(dev, Pw_Track_Flag, 0);
 					write_nic_byte(dev, FW_Busy_Flag, 0);
 					return;
@@ -2615,22 +2615,22 @@ void dm_fsync_timer_callback(unsigned long data)
 				      rate_count_diff;
 			if (DiffNum >=
 			    priv->rtllib->fsync_seconddiff_ratethreshold)
-				priv->ContiuneDiffCount++;
+				priv->ContinueDiffCount++;
 			else
-				priv->ContiuneDiffCount = 0;
+				priv->ContinueDiffCount = 0;
 
-			if (priv->ContiuneDiffCount >= 2) {
+			if (priv->ContinueDiffCount >= 2) {
 				bSwitchFromCountDiff = true;
-				priv->ContiuneDiffCount = 0;
+				priv->ContinueDiffCount = 0;
 			}
 		} else {
-			priv->ContiuneDiffCount = 0;
+			priv->ContinueDiffCount = 0;
 		}
 
 		if (rate_count_diff <=
 		    priv->rtllib->fsync_firstdiff_ratethreshold) {
 			bSwitchFromCountDiff = true;
-			priv->ContiuneDiffCount = 0;
+			priv->ContinueDiffCount = 0;
 		}
 		priv->rate_record = rate_count;
 		priv->rateCountDiffRecord = rate_count_diff;
@@ -2677,10 +2677,10 @@ void dm_fsync_timer_callback(unsigned long data)
 			write_nic_byte(dev, 0xC36, 0x5c);
 			write_nic_byte(dev, 0xC3e, 0x96);
 		}
-		priv->ContiuneDiffCount = 0;
+		priv->ContinueDiffCount = 0;
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	}
-	RT_TRACE(COMP_HALDM, "ContiuneDiffCount %d\n", priv->ContiuneDiffCount);
+	RT_TRACE(COMP_HALDM, "ContinueDiffCount %d\n", priv->ContinueDiffCount);
 	RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rateCountdiff %d "
 		 "bSwitchFsync %d\n", priv->rate_record, rate_count,
 		 rate_count_diff, priv->bswitch_fsync);
@@ -2723,7 +2723,7 @@ static void dm_EndSWFsync(struct net_device *dev)
 		write_nic_byte(dev, 0xC3e, 0x96);
 	}
 
-	priv->ContiuneDiffCount = 0;
+	priv->ContinueDiffCount = 0;
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 }
 
@@ -2735,7 +2735,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 
 	RT_TRACE(COMP_HALDM, "%s\n", __func__);
 	priv->rate_record = 0;
-	priv->ContiuneDiffCount = 0;
+	priv->ContinueDiffCount = 0;
 	priv->rateCountDiffRecord = 0;
 	priv->bswitch_fsync  = false;
 

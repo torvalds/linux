@@ -45,6 +45,7 @@ struct inet_connection_sock_af_ops {
 				      struct dst_entry *dst);
 	struct inet_peer *(*get_peer)(struct sock *sk, bool *release_it);
 	u16	    net_header_len;
+	u16	    net_frag_header_len;
 	u16	    sockaddr_len;
 	int	    (*setsockopt)(struct sock *sk, int level, int optname, 
 				  char __user *optval, unsigned int optlen);
@@ -60,7 +61,7 @@ struct inet_connection_sock_af_ops {
 #endif
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
 	int	    (*bind_conflict)(const struct sock *sk,
-				     const struct inet_bind_bucket *tb);
+				     const struct inet_bind_bucket *tb, bool relax);
 };
 
 /** inet_connection_sock - INET connection oriented sock
@@ -245,7 +246,7 @@ extern struct request_sock *inet_csk_search_req(const struct sock *sk,
 						const __be32 raddr,
 						const __be32 laddr);
 extern int inet_csk_bind_conflict(const struct sock *sk,
-				  const struct inet_bind_bucket *tb);
+				  const struct inet_bind_bucket *tb, bool relax);
 extern int inet_csk_get_port(struct sock *sk, unsigned short snum);
 
 extern struct dst_entry* inet_csk_route_req(struct sock *sk,

@@ -247,7 +247,7 @@ int __init omap_mux_init_signal(const char *muxname, int val)
 	int mux_mode;
 
 	mux_mode = omap_mux_get_by_name(muxname, &partition, &mux);
-	if (mux_mode < 0)
+	if (mux_mode < 0 || !mux)
 		return mux_mode;
 
 	old_mode = omap_mux_read(partition, mux->reg_offset);
@@ -788,7 +788,7 @@ static void __init omap_mux_free_names(struct omap_mux *m)
 }
 
 /* Free all data except for GPIO pins unless CONFIG_DEBUG_FS is set */
-static int __init omap_mux_late_init(void)
+int __init omap_mux_late_init(void)
 {
 	struct omap_mux_partition *partition;
 	int ret;
@@ -823,7 +823,6 @@ static int __init omap_mux_late_init(void)
 
 	return 0;
 }
-late_initcall(omap_mux_late_init);
 
 static void __init omap_mux_package_fixup(struct omap_mux *p,
 					struct omap_mux *superset)

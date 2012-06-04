@@ -920,6 +920,7 @@ static struct usb_driver if_usb_driver = {
 	.id_table = if_usb_table,
 	.suspend = if_usb_suspend,
 	.resume = if_usb_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(if_usb_driver);

@@ -323,20 +323,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	inhibit_cu_recovery = (*device->modeset_byte & 0x80) ? 1 : 0;
 	sense = irb->ecw;
 
-#ifdef CONFIG_S390_TAPE_BLOCK
-	if (request->op == TO_BLOCK) {
-		/*
-		 * Recovery for block device requests. Set the block_position
-		 * to something invalid and retry.
-		 */
-		device->blk_data.block_position = -1;
-		if (request->retries-- <= 0)
-			return tape_34xx_erp_failed(request, -EIO);
-		else
-			return tape_34xx_erp_retry(request);
-	}
-#endif
-
 	if (
 		sense[0] & SENSE_COMMAND_REJECT &&
 		sense[1] & SENSE_WRITE_PROTECT
@@ -1129,123 +1115,6 @@ tape_34xx_mtseek(struct tape_device *device, int mt_count)
 	return tape_do_io_free(device, request);
 }
 
-#ifdef CONFIG_S390_TAPE_BLOCK
-/*
- * Tape block read for 34xx.
- */
-static struct tape_request *
-tape_34xx_bread(struct tape_device *device, struct request *req)
-{
-	struct tape_request *request;
-	struct ccw1 *ccw;
-	int count = 0;
-	unsigned off;
-	char *dst;
-	struct bio_vec *bv;
-	struct req_iterator iter;
-	struct tape_34xx_block_id *	start_block;
-
-	DBF_EVENT(6, "xBREDid:");
-
-	/* Count the number of blocks for the request. */
-	rq_for_each_segment(bv, req, iter)
-		count += bv->bv_len >> (TAPEBLOCK_HSEC_S2B + 9);
-
-	/* Allocate the ccw request. */
-	request = tape_alloc_request(3+count+1, 8);
-	if (IS_ERR(request))
-		return request;
-
-	/* Setup ccws. */
-	request->op = TO_BLOCK;
-	start_block = (struct tape_34xx_block_id *) request->cpdata;
-	start_block->block = blk_rq_pos(req) >> TAPEBLOCK_HSEC_S2B;
-	DBF_EVENT(6, "start_block = %i\n", start_block->block);
-
-	ccw = request->cpaddr;
-	ccw = tape_ccw_cc(ccw, MODE_SET_DB, 1, device->modeset_byte);
-
-	/*
-	 * We always setup a nop after the mode set ccw. This slot is
-	 * used in tape_std_check_locate to insert a locate ccw if the
-	 * current tape position doesn't match the start block to be read.
-	 * The second nop will be filled with a read block id which is in
-	 * turn used by tape_34xx_free_bread to populate the segment bid
-	 * table.
-	 */
-	ccw = tape_ccw_cc(ccw, NOP, 0, NULL);
-	ccw = tape_ccw_cc(ccw, NOP, 0, NULL);
-
-	rq_for_each_segment(bv, req, iter) {
-		dst = kmap(bv->bv_page) + bv->bv_offset;
-		for (off = 0; off < bv->bv_len; off += TAPEBLOCK_HSEC_SIZE) {
-			ccw->flags = CCW_FLAG_CC;
-			ccw->cmd_code = READ_FORWARD;
-			ccw->count = TAPEBLOCK_HSEC_SIZE;
-			set_normalized_cda(ccw, (void*) __pa(dst));
-			ccw++;
-			dst += TAPEBLOCK_HSEC_SIZE;
-		}
-	}
-
-	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
-	DBF_EVENT(6, "xBREDccwg\n");
-	return request;
-}
-
-static void
-tape_34xx_free_bread (struct tape_request *request)
-{
-	struct ccw1* ccw;
-
-	ccw = request->cpaddr;
-	if ((ccw + 2)->cmd_code == READ_BLOCK_ID) {
-		struct {
-			struct tape_34xx_block_id	cbid;
-			struct tape_34xx_block_id	dbid;
-		} __attribute__ ((packed)) *rbi_data;
-
-		rbi_data = request->cpdata;
-
-		if (request->device)
-			tape_34xx_add_sbid(request->device, rbi_data->cbid);
-	}
-
-	/* Last ccw is a nop and doesn't need clear_normalized_cda */
-	for (; ccw->flags & CCW_FLAG_CC; ccw++)
-		if (ccw->cmd_code == READ_FORWARD)
-			clear_normalized_cda(ccw);
-	tape_free_request(request);
-}
-
-/*
- * check_locate is called just before the tape request is passed to
- * the common io layer for execution. It has to check the current
- * tape position and insert a locate ccw if it doesn't match the
- * start block for the request.
- */
-static void
-tape_34xx_check_locate(struct tape_device *device, struct tape_request *request)
-{
-	struct tape_34xx_block_id *	start_block;
-
-	start_block = (struct tape_34xx_block_id *) request->cpdata;
-	if (start_block->block == device->blk_data.block_position)
-		return;
-
-	DBF_LH(4, "Block seek(%06d+%06d)\n", start_block->block, device->bof);
-	start_block->wrap    = 0;
-	start_block->segment = 1;
-	start_block->format  = (*device->modeset_byte & 0x08) ?
-				TAPE34XX_FMT_3480_XF :
-				TAPE34XX_FMT_3480;
-	start_block->block   = start_block->block + device->bof;
-	tape_34xx_merge_sbid(device, start_block);
-	tape_ccw_cc(request->cpaddr + 1, LOCATE, 4, request->cpdata);
-	tape_ccw_cc(request->cpaddr + 2, READ_BLOCK_ID, 8, request->cpdata);
-}
-#endif
-
 /*
  * List of 3480/3490 magnetic tape commands.
  */
@@ -1295,11 +1164,6 @@ static struct tape_discipline tape_discipline_34xx = {
 	.irq = tape_34xx_irq,
 	.read_block = tape_std_read_block,
 	.write_block = tape_std_write_block,
-#ifdef CONFIG_S390_TAPE_BLOCK
-	.bread = tape_34xx_bread,
-	.free_bread = tape_34xx_free_bread,
-	.check_locate = tape_34xx_check_locate,
-#endif
 	.ioctl_fn = tape_34xx_ioctl,
 	.mtop_array = tape_34xx_mtop
 };

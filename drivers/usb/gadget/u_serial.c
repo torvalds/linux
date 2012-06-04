@@ -94,16 +94,13 @@ struct gs_buf {
  * (and thus for each /dev/ node).
  */
 struct gs_port {
+	struct tty_port		port;
 	spinlock_t		port_lock;	/* guard port_* access */
 
 	struct gserial		*port_usb;
-	struct tty_struct	*port_tty;
 
-	unsigned		open_count;
 	bool			openclose;	/* open/close in progress */
 	u8			port_num;
-
-	wait_queue_head_t	close_wait;	/* wait for last close */
 
 	struct list_head	read_pool;
 	int read_started;
@@ -412,8 +409,8 @@ __acquires(&port->port_lock)
 			break;
 	}
 
-	if (do_tty_wake && port->port_tty)
-		tty_wakeup(port->port_tty);
+	if (do_tty_wake && port->port.tty)
+		tty_wakeup(port->port.tty);
 	return status;
 }
 
@@ -435,7 +432,7 @@ __acquires(&port->port_lock)
 		struct tty_struct	*tty;
 
 		/* no more rx if closed */
-		tty = port->port_tty;
+		tty = port->port.tty;
 		if (!tty)
 			break;
 
@@ -488,7 +485,7 @@ static void gs_rx_push(unsigned long _port)
 
 	/* hand any queued data to the tty */
 	spin_lock_irq(&port->port_lock);
-	tty = port->port_tty;
+	tty = port->port.tty;
 	while (!list_empty(queue)) {
 		struct usb_request	*req;
 
@@ -699,7 +696,7 @@ static int gs_start_io(struct gs_port *port)
 
 	/* unblock any pending writes into our circular buffer */
 	if (started) {
-		tty_wakeup(port->port_tty);
+		tty_wakeup(port->port.tty);
 	} else {
 		gs_free_requests(ep, head, &port->read_allocated);
 		gs_free_requests(port->port_usb->in, &port->write_pool,
@@ -734,9 +731,9 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 			spin_lock_irq(&port->port_lock);
 
 			/* already open?  Great. */
-			if (port->open_count) {
+			if (port->port.count) {
 				status = 0;
-				port->open_count++;
+				port->port.count++;
 
 			/* currently opening/closing? wait ... */
 			} else if (port->openclose) {
@@ -793,9 +790,9 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	/* REVISIT maybe wait for "carrier detect" */
 
 	tty->driver_data = port;
-	port->port_tty = tty;
+	port->port.tty = tty;
 
-	port->open_count = 1;
+	port->port.count = 1;
 	port->openclose = false;
 
 	/* if connected, start the I/O stream */
@@ -837,11 +834,11 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 
 	spin_lock_irq(&port->port_lock);
 
-	if (port->open_count != 1) {
-		if (port->open_count == 0)
+	if (port->port.count != 1) {
+		if (port->port.count == 0)
 			WARN_ON(1);
 		else
-			--port->open_count;
+			--port->port.count;
 		goto exit;
 	}
 
@@ -851,7 +848,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	 * and sleep if necessary
 	 */
 	port->openclose = true;
-	port->open_count = 0;
+	port->port.count = 0;
 
 	gser = port->port_usb;
 	if (gser && gser->disconnect)
@@ -879,14 +876,14 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 		gs_buf_clear(&port->port_write_buf);
 
 	tty->driver_data = NULL;
-	port->port_tty = NULL;
+	port->port.tty = NULL;
 
 	port->openclose = false;
 
 	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
 
-	wake_up_interruptible(&port->close_wait);
+	wake_up_interruptible(&port->port.close_wait);
 exit:
 	spin_unlock_irq(&port->port_lock);
 }
@@ -917,7 +914,7 @@ static int gs_put_char(struct tty_struct *tty, unsigned char ch)
 	unsigned long	flags;
 	int		status;
 
-	pr_vdebug("gs_put_char: (%d,%p) char=0x%x, called from %p\n",
+	pr_vdebug("gs_put_char: (%d,%p) char=0x%x, called from %pf\n",
 		port->port_num, tty, ch, __builtin_return_address(0));
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -1025,7 +1022,7 @@ static const struct tty_operations gs_tty_ops = {
 
 static struct tty_driver *gs_tty_driver;
 
-static int __init
+static int
 gs_port_alloc(unsigned port_num, struct usb_cdc_line_coding *coding)
 {
 	struct gs_port	*port;
@@ -1034,8 +1031,8 @@ gs_port_alloc(unsigned port_num, struct usb_cdc_line_coding *coding)
 	if (port == NULL)
 		return -ENOMEM;
 
+	tty_port_init(&port->port);
 	spin_lock_init(&port->port_lock);
-	init_waitqueue_head(&port->close_wait);
 	init_waitqueue_head(&port->drain_wait);
 
 	tasklet_init(&port->push, gs_rx_push, (unsigned long) port);
@@ -1071,7 +1068,7 @@ gs_port_alloc(unsigned port_num, struct usb_cdc_line_coding *coding)
  *
  * Returns negative errno or zero.
  */
-int __init gserial_setup(struct usb_gadget *g, unsigned count)
+int gserial_setup(struct usb_gadget *g, unsigned count)
 {
 	unsigned			i;
 	struct usb_cdc_line_coding	coding;
@@ -1155,7 +1152,7 @@ static int gs_closed(struct gs_port *port)
 	int cond;
 
 	spin_lock_irq(&port->port_lock);
-	cond = (port->open_count == 0) && !port->openclose;
+	cond = (port->port.count == 0) && !port->openclose;
 	spin_unlock_irq(&port->port_lock);
 	return cond;
 }
@@ -1194,7 +1191,7 @@ void gserial_cleanup(void)
 		tasklet_kill(&port->push);
 
 		/* wait for old opens to finish */
-		wait_event(port->close_wait, gs_closed(port));
+		wait_event(port->port.close_wait, gs_closed(port));
 
 		WARN_ON(port->port_usb != NULL);
 
@@ -1268,7 +1265,7 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 	/* if it's already open, start I/O ... and notify the serial
 	 * protocol about open/close status (connect/disconnect).
 	 */
-	if (port->open_count) {
+	if (port->port.count) {
 		pr_debug("gserial_connect: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
 		if (gser->connect)
@@ -1315,10 +1312,10 @@ void gserial_disconnect(struct gserial *gser)
 
 	port->port_usb = NULL;
 	gser->ioport = NULL;
-	if (port->open_count > 0 || port->openclose) {
+	if (port->port.count > 0 || port->openclose) {
 		wake_up_interruptible(&port->drain_wait);
-		if (port->port_tty)
-			tty_hangup(port->port_tty);
+		if (port->port.tty)
+			tty_hangup(port->port.tty);
 	}
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
@@ -1331,7 +1328,7 @@ void gserial_disconnect(struct gserial *gser)
 
 	/* finally, free any unused/unusable I/O buffers */
 	spin_lock_irqsave(&port->port_lock, flags);
-	if (port->open_count == 0 && !port->openclose)
+	if (port->port.count == 0 && !port->openclose)
 		gs_buf_free(&port->port_write_buf);
 	gs_free_requests(gser->out, &port->read_pool, NULL);
 	gs_free_requests(gser->out, &port->read_queue, NULL);

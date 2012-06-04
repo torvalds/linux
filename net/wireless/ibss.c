@@ -473,7 +473,7 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 
 	/* fixed already - and no change */
 	if (wdev->wext.ibss.bssid && bssid &&
-	    compare_ether_addr(bssid, wdev->wext.ibss.bssid) == 0)
+	    ether_addr_equal(bssid, wdev->wext.ibss.bssid))
 		return 0;
 
 	wdev_lock(wdev);

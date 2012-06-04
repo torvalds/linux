@@ -68,18 +68,11 @@ struct thread_struct {
 	.request		= { 0 } \
 }
 
-extern struct task_struct *alloc_task_struct_node(int node);
-
 static inline void release_thread(struct task_struct *task)
 {
 }
 
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-
-static inline void prepare_to_copy(struct task_struct *tsk)
-{
-}
-
 
 extern unsigned long thread_saved_pc(struct task_struct *t);
 

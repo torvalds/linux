@@ -1190,12 +1190,12 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	}
 
 	/* Offset in flash = lower 16 bits
-	 * Number of enteries = upper 16 bits
+	 * Number of entries = upper 16 bits
 	 */
 	offset = n & 0xffffU;
 	n = (n >> 16) & 0xffffU;
 
-	/* number of addr/value pair should not exceed 1024 enteries */
+	/* number of addr/value pair should not exceed 1024 entries */
 	if (n  >= 1024) {
 		ql_log(ql_log_fatal, vha, 0x0071,
 		    "Card flash not initialized:n=0x%x.\n", n);
@@ -2050,7 +2050,7 @@ qla82xx_intr_handler(int irq, void *dev_id)
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
-		ql_log(ql_log_info, NULL, 0xb054,
+		ql_log(ql_log_info, NULL, 0xb053,
 		    "%s: NULL response queue pointer.\n", __func__);
 		return IRQ_NONE;
 	}
@@ -2446,7 +2446,7 @@ qla82xx_load_fw(scsi_qla_host_t *vha)
 
 	if (qla82xx_fw_load_from_flash(ha) == QLA_SUCCESS) {
 		ql_log(ql_log_info, vha, 0x00a1,
-		    "Firmware loaded successully from flash.\n");
+		    "Firmware loaded successfully from flash.\n");
 		return QLA_SUCCESS;
 	} else {
 		ql_log(ql_log_warn, vha, 0x0108,
@@ -2461,7 +2461,7 @@ try_blob_fw:
 	blob = ha->hablob = qla2x00_request_firmware(vha);
 	if (!blob) {
 		ql_log(ql_log_fatal, vha, 0x00a3,
-		    "Firmware image not preset.\n");
+		    "Firmware image not present.\n");
 		goto fw_load_failed;
 	}
 
@@ -2689,7 +2689,7 @@ qla82xx_write_flash_data(struct scsi_qla_host *vha, uint32_t *dwptr,
 		if (!optrom) {
 			ql_log(ql_log_warn, vha, 0xb01b,
 			    "Unable to allocate memory "
-			    "for optron burst write (%x KB).\n",
+			    "for optrom burst write (%x KB).\n",
 			    OPTROM_BURST_SIZE / 1024);
 		}
 	}
@@ -2960,9 +2960,8 @@ qla82xx_need_qsnt_handler(scsi_qla_host_t *vha)
 			 * changing the state to DEV_READY
 			 */
 			ql_log(ql_log_info, vha, 0xb023,
-			    "%s : QUIESCENT TIMEOUT.\n", QLA2XXX_DRIVER_NAME);
-			ql_log(ql_log_info, vha, 0xb024,
-			    "DRV_ACTIVE:%d DRV_STATE:%d.\n",
+			    "%s : QUIESCENT TIMEOUT DRV_ACTIVE:%d "
+			    "DRV_STATE:%d.\n", QLA2XXX_DRIVER_NAME,
 			    drv_active, drv_state);
 			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
 			    QLA82XX_DEV_READY);
@@ -3125,10 +3124,11 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 		ql_log(ql_log_info, vha, 0x00b7,
 		    "HW State: COLD/RE-INIT.\n");
 		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_COLD);
+		qla82xx_set_rst_ready(ha);
 		if (ql2xmdenable) {
 			if (qla82xx_md_collect(vha))
 				ql_log(ql_log_warn, vha, 0xb02c,
-				    "Not able to collect minidump.\n");
+				    "Minidump not collected.\n");
 		} else
 			ql_log(ql_log_warn, vha, 0xb04f,
 			    "Minidump disabled.\n");
@@ -3159,11 +3159,11 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 				    "Firmware version differs "
 				    "Previous version: %d:%d:%d - "
 				    "New version: %d:%d:%d\n",
+				    fw_major_version, fw_minor_version,
+				    fw_subminor_version,
 				    ha->fw_major_version,
 				    ha->fw_minor_version,
-				    ha->fw_subminor_version,
-				    fw_major_version, fw_minor_version,
-				    fw_subminor_version);
+				    ha->fw_subminor_version);
 				/* Release MiniDump resources */
 				qla82xx_md_free(vha);
 				/* ALlocate MiniDump resources */
@@ -3324,6 +3324,30 @@ exit:
 	return rval;
 }
 
+static int qla82xx_check_temp(scsi_qla_host_t *vha)
+{
+	uint32_t temp, temp_state, temp_val;
+	struct qla_hw_data *ha = vha->hw;
+
+	temp = qla82xx_rd_32(ha, CRB_TEMP_STATE);
+	temp_state = qla82xx_get_temp_state(temp);
+	temp_val = qla82xx_get_temp_val(temp);
+
+	if (temp_state == QLA82XX_TEMP_PANIC) {
+		ql_log(ql_log_warn, vha, 0x600e,
+		    "Device temperature %d degrees C exceeds "
+		    " maximum allowed. Hardware has been shut down.\n",
+		    temp_val);
+		return 1;
+	} else if (temp_state == QLA82XX_TEMP_WARN) {
+		ql_log(ql_log_warn, vha, 0x600f,
+		    "Device temperature %d degrees C exceeds "
+		    "operating range. Immediate action needed.\n",
+		    temp_val);
+	}
+	return 0;
+}
+
 void qla82xx_clear_pending_mbx(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
@@ -3346,18 +3370,20 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 	/* don't poll if reset is going on */
 	if (!ha->flags.isp82xx_reset_hdlr_active) {
 		dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		if (dev_state == QLA82XX_DEV_NEED_RESET &&
+		if (qla82xx_check_temp(vha)) {
+			set_bit(ISP_UNRECOVERABLE, &vha->dpc_flags);
+			ha->flags.isp82xx_fw_hung = 1;
+			qla82xx_clear_pending_mbx(vha);
+		} else if (dev_state == QLA82XX_DEV_NEED_RESET &&
 		    !test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags)) {
 			ql_log(ql_log_warn, vha, 0x6001,
 			    "Adapter reset needed.\n");
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-			qla2xxx_wake_dpc(vha);
 		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
 			!test_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags)) {
 			ql_log(ql_log_warn, vha, 0x6002,
 			    "Quiescent needed.\n");
 			set_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
-			qla2xxx_wake_dpc(vha);
 		} else {
 			if (qla82xx_check_fw_alive(vha)) {
 				ql_dbg(ql_dbg_timer, vha, 0x6011,
@@ -3397,7 +3423,6 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 					set_bit(ISP_ABORT_NEEDED,
 					    &vha->dpc_flags);
 				}
-				qla2xxx_wake_dpc(vha);
 				ha->flags.isp82xx_fw_hung = 1;
 				ql_log(ql_log_warn, vha, 0x6007, "Firmware hung.\n");
 				qla82xx_clear_pending_mbx(vha);
@@ -4109,6 +4134,14 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 	if (!ha->md_tmplt_hdr || !ha->md_dump) {
 		ql_log(ql_log_warn, vha, 0xb038,
 		    "Memory not allocated for minidump capture\n");
+		goto md_failed;
+	}
+
+	if (ha->flags.isp82xx_no_md_cap) {
+		ql_log(ql_log_warn, vha, 0xb054,
+		    "Forced reset from application, "
+		    "ignore minidump capture\n");
+		ha->flags.isp82xx_no_md_cap = 0;
 		goto md_failed;
 	}
 
