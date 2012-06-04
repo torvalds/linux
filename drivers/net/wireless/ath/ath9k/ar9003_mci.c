@@ -1391,3 +1391,19 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 	return value;
 }
 EXPORT_SYMBOL(ar9003_mci_state);
+
+void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	ath_dbg(common, MCI, "Give LNA and SPDT control to BT\n");
+
+	REG_SET_BIT(ah, AR_PHY_GLB_CONTROL, AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
+	mci->is_2g = false;
+	mci->update_2g5g = true;
+	ar9003_mci_send_2g5g_status(ah, true);
+
+	/* Force another 2g5g update at next scanning */
+	mci->update_2g5g = true;
+}

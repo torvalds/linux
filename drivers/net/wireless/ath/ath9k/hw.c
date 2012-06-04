@@ -2737,6 +2737,9 @@ EXPORT_SYMBOL(ath9k_hw_setrxfilter);
 
 bool ath9k_hw_phy_disable(struct ath_hw *ah)
 {
+	if (ath9k_hw_mci_is_enabled(ah))
+		ar9003_mci_bt_gain_ctrl(ah);
+
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
 		return false;
 

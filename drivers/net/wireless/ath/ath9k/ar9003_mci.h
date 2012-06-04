@@ -266,6 +266,7 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 void ar9003_mci_cleanup(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
+void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
 
 /*
  * These functions are used by ath9k_hw.
