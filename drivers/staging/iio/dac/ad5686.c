@@ -93,40 +93,6 @@ enum ad5686_supported_device_ids {
 	ID_AD5685,
 	ID_AD5686,
 };
-#define AD5868_CHANNEL(chan, bits, shift) {			\
-		.type = IIO_VOLTAGE,				\
-		.indexed = 1,					\
-		.output = 1,					\
-		.channel = chan,				\
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-		IIO_CHAN_INFO_SCALE_SHARED_BIT,			\
-		.address = AD5686_ADDR_DAC(chan),			\
-		.scan_type = IIO_ST('u', bits, 16, shift)	\
-}
-static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
-	[ID_AD5684] = {
-		.channel[0] = AD5868_CHANNEL(0, 12, 4),
-		.channel[1] = AD5868_CHANNEL(1, 12, 4),
-		.channel[2] = AD5868_CHANNEL(2, 12, 4),
-		.channel[3] = AD5868_CHANNEL(3, 12, 4),
-		.int_vref_mv = 2500,
-	},
-	[ID_AD5685] = {
-		.channel[0] = AD5868_CHANNEL(0, 14, 2),
-		.channel[1] = AD5868_CHANNEL(1, 14, 2),
-		.channel[2] = AD5868_CHANNEL(2, 14, 2),
-		.channel[3] = AD5868_CHANNEL(3, 14, 2),
-		.int_vref_mv = 2500,
-	},
-	[ID_AD5686] = {
-		.channel[0] = AD5868_CHANNEL(0, 16, 0),
-		.channel[1] = AD5868_CHANNEL(1, 16, 0),
-		.channel[2] = AD5868_CHANNEL(2, 16, 0),
-		.channel[3] = AD5868_CHANNEL(3, 16, 0),
-		.int_vref_mv = 2500,
-	},
-};
-
 static int ad5686_spi_write(struct ad5686_state *st,
 			     u8 cmd, u8 addr, u16 val, u8 shift)
 {
@@ -170,121 +136,69 @@ static int ad5686_spi_read(struct ad5686_state *st, u8 addr)
 	return be32_to_cpu(st->data[2].d32);
 }
 
-static ssize_t ad5686_read_powerdown_mode(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static const char * const ad5686_powerdown_modes[] = {
+	"1kohm_to_gnd",
+	"100kohm_to_gnd",
+	"three_state"
+};
+
+static int ad5686_get_powerdown_mode(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *chan)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
-	char mode[][15] = {"", "1kohm_to_gnd", "100kohm_to_gnd", "three_state"};
-
-	return sprintf(buf, "%s\n", mode[(st->pwr_down_mode >>
-					 (this_attr->address * 2)) & 0x3]);
+	return ((st->pwr_down_mode >> (chan->channel * 2)) & 0x3) - 1;
 }
 
-static ssize_t ad5686_write_powerdown_mode(struct device *dev,
-				       struct device_attribute *attr,
-				       const char *buf, size_t len)
+static int ad5686_set_powerdown_mode(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *chan, unsigned int mode)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	unsigned mode;
 
-	if (sysfs_streq(buf, "1kohm_to_gnd"))
-		mode = AD5686_LDAC_PWRDN_1K;
-	else if (sysfs_streq(buf, "100kohm_to_gnd"))
-		mode = AD5686_LDAC_PWRDN_100K;
-	else if (sysfs_streq(buf, "three_state"))
-		mode = AD5686_LDAC_PWRDN_3STATE;
-	else
-		return  -EINVAL;
+	st->pwr_down_mode &= ~(0x3 << (chan->channel * 2));
+	st->pwr_down_mode |= ((mode + 1) << (chan->channel * 2));
 
-	st->pwr_down_mode &= ~(0x3 << (this_attr->address * 2));
-	st->pwr_down_mode |= (mode << (this_attr->address * 2));
-
-	return len;
+	return 0;
 }
 
-static ssize_t ad5686_read_dac_powerdown(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static const struct iio_enum ad5686_powerdown_mode_enum = {
+	.items = ad5686_powerdown_modes,
+	.num_items = ARRAY_SIZE(ad5686_powerdown_modes),
+	.get = ad5686_get_powerdown_mode,
+	.set = ad5686_set_powerdown_mode,
+};
+
+static ssize_t ad5686_read_dac_powerdown(struct iio_dev *indio_dev,
+	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	return sprintf(buf, "%d\n", !!(st->pwr_down_mask &
-			(0x3 << (this_attr->address * 2))));
+			(0x3 << (chan->channel * 2))));
 }
 
-static ssize_t ad5686_write_dac_powerdown(struct device *dev,
-					    struct device_attribute *attr,
-					    const char *buf, size_t len)
+static ssize_t ad5686_write_dac_powerdown(struct iio_dev *indio_dev,
+	 uintptr_t private, const struct iio_chan_spec *chan, const char *buf,
+	 size_t len)
 {
 	bool readin;
 	int ret;
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	ret = strtobool(buf, &readin);
 	if (ret)
 		return ret;
 
 	if (readin == true)
-		st->pwr_down_mask |= (0x3 << (this_attr->address * 2));
+		st->pwr_down_mask |= (0x3 << (chan->channel * 2));
 	else
-		st->pwr_down_mask &= ~(0x3 << (this_attr->address * 2));
+		st->pwr_down_mask &= ~(0x3 << (chan->channel * 2));
 
 	ret = ad5686_spi_write(st, AD5686_CMD_POWERDOWN_DAC, 0,
 			       st->pwr_down_mask & st->pwr_down_mode, 0);
 
 	return ret ? ret : len;
 }
-
-static IIO_CONST_ATTR(out_voltage_powerdown_mode_available,
-			"1kohm_to_gnd 100kohm_to_gnd three_state");
-
-#define IIO_DEV_ATTR_DAC_POWERDOWN_MODE(_num)				\
-	IIO_DEVICE_ATTR(out_voltage##_num##_powerdown_mode,		\
-			S_IRUGO | S_IWUSR,				\
-			ad5686_read_powerdown_mode,			\
-			ad5686_write_powerdown_mode, _num)
-
-static IIO_DEV_ATTR_DAC_POWERDOWN_MODE(0);
-static IIO_DEV_ATTR_DAC_POWERDOWN_MODE(1);
-static IIO_DEV_ATTR_DAC_POWERDOWN_MODE(2);
-static IIO_DEV_ATTR_DAC_POWERDOWN_MODE(3);
-
-#define IIO_DEV_ATTR_DAC_POWERDOWN(_num)				\
-	IIO_DEVICE_ATTR(out_voltage##_num##_powerdown,			\
-			S_IRUGO | S_IWUSR,				\
-			ad5686_read_dac_powerdown,			\
-			ad5686_write_dac_powerdown, _num)
-
-static IIO_DEV_ATTR_DAC_POWERDOWN(0);
-static IIO_DEV_ATTR_DAC_POWERDOWN(1);
-static IIO_DEV_ATTR_DAC_POWERDOWN(2);
-static IIO_DEV_ATTR_DAC_POWERDOWN(3);
-
-static struct attribute *ad5686_attributes[] = {
-	&iio_dev_attr_out_voltage0_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_voltage1_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_voltage2_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_voltage3_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_voltage0_powerdown_mode.dev_attr.attr,
-	&iio_dev_attr_out_voltage1_powerdown_mode.dev_attr.attr,
-	&iio_dev_attr_out_voltage2_powerdown_mode.dev_attr.attr,
-	&iio_dev_attr_out_voltage3_powerdown_mode.dev_attr.attr,
-	&iio_const_attr_out_voltage_powerdown_mode_available.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad5686_attribute_group = {
-	.attrs = ad5686_attributes,
-};
 
 static int ad5686_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
@@ -349,9 +263,56 @@ static int ad5686_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad5686_info = {
 	.read_raw = ad5686_read_raw,
 	.write_raw = ad5686_write_raw,
-	.attrs = &ad5686_attribute_group,
 	.driver_module = THIS_MODULE,
 };
+
+static const struct iio_chan_spec_ext_info ad5686_ext_info[] = {
+	{
+		.name = "powerdown",
+		.read = ad5686_read_dac_powerdown,
+		.write = ad5686_write_dac_powerdown,
+	},
+	IIO_ENUM("powerdown_mode", false, &ad5686_powerdown_mode_enum),
+	IIO_ENUM_AVAILABLE("powerdown_mode", &ad5686_powerdown_mode_enum),
+	{ },
+};
+
+#define AD5868_CHANNEL(chan, bits, shift) {			\
+		.type = IIO_VOLTAGE,				\
+		.indexed = 1,					\
+		.output = 1,					\
+		.channel = chan,				\
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,			\
+		.address = AD5686_ADDR_DAC(chan),			\
+		.scan_type = IIO_ST('u', bits, 16, shift),	\
+		.ext_info = ad5686_ext_info,			\
+}
+
+static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
+	[ID_AD5684] = {
+		.channel[0] = AD5868_CHANNEL(0, 12, 4),
+		.channel[1] = AD5868_CHANNEL(1, 12, 4),
+		.channel[2] = AD5868_CHANNEL(2, 12, 4),
+		.channel[3] = AD5868_CHANNEL(3, 12, 4),
+		.int_vref_mv = 2500,
+	},
+	[ID_AD5685] = {
+		.channel[0] = AD5868_CHANNEL(0, 14, 2),
+		.channel[1] = AD5868_CHANNEL(1, 14, 2),
+		.channel[2] = AD5868_CHANNEL(2, 14, 2),
+		.channel[3] = AD5868_CHANNEL(3, 14, 2),
+		.int_vref_mv = 2500,
+	},
+	[ID_AD5686] = {
+		.channel[0] = AD5868_CHANNEL(0, 16, 0),
+		.channel[1] = AD5868_CHANNEL(1, 16, 0),
+		.channel[2] = AD5868_CHANNEL(2, 16, 0),
+		.channel[3] = AD5868_CHANNEL(3, 16, 0),
+		.int_vref_mv = 2500,
+	},
+};
+
 
 static int __devinit ad5686_probe(struct spi_device *spi)
 {
@@ -384,6 +345,9 @@ static int __devinit ad5686_probe(struct spi_device *spi)
 		st->vref_mv = st->chip_info->int_vref_mv;
 
 	st->spi = spi;
+
+	/* Set all the power down mode for all channels to 1K pulldown */
+	st->pwr_down_mode = 0x55;
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
