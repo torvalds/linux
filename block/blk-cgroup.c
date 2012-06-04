@@ -125,12 +125,8 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q)
 
 		blkg->pd[i] = pd;
 		pd->blkg = blkg;
-	}
 
-	/* invoke per-policy init */
-	for (i = 0; i < BLKCG_MAX_POLS; i++) {
-		struct blkcg_policy *pol = blkcg_policy[i];
-
+		/* invoke per-policy init */
 		if (blkcg_policy_enabled(blkg->q, pol))
 			pol->pd_init_fn(blkg);
 	}
