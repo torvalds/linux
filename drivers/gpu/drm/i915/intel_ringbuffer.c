@@ -988,6 +988,10 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (ret)
 		goto err_unref;
 
+	ret = i915_gem_object_set_to_gtt_domain(obj, true);
+	if (ret)
+		goto err_unpin;
+
 	ring->virtual_start = ioremap_wc(dev->agp->base + obj->gtt_offset,
 					 ring->size);
 	if (ring->virtual_start == NULL) {
