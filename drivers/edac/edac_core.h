@@ -455,6 +455,7 @@ extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 				      unsigned long page);
 void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  struct mem_ctl_info *mci,
+			  const u16 error_count,
 			  const unsigned long page_frame_number,
 			  const unsigned long offset_in_page,
 			  const unsigned long syndrome,

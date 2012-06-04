@@ -1447,13 +1447,13 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	/* FIXME: need support for channel mask */
 
 	/* Call the helper to output message */
-	edac_mc_handle_error(tp_event, mci,
+	edac_mc_handle_error(tp_event, mci, 1,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
 			     channel, dimm, -1,
 			     optype, msg);
 	return;
 err_parsing:
-	edac_mc_handle_error(tp_event, mci, 0, 0, 0,
+	edac_mc_handle_error(tp_event, mci, 1, 0, 0, 0,
 			     -1, -1, -1,
 			     msg, "");
 

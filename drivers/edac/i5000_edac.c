@@ -519,7 +519,7 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 		 bank, ras, cas, allErrors, specific);
 
 	/* Call the helper to output message */
-	edac_mc_handle_error(HW_EVENT_ERR_FATAL, mci, 0, 0, 0,
+	edac_mc_handle_error(HW_EVENT_ERR_FATAL, mci, 1, 0, 0, 0,
 			     channel >> 1, channel & 1, rank,
 			     rdwr ? "Write error" : "Read error",
 			     msg);
@@ -618,7 +618,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 			 rank, bank, ras, cas, ue_errors, specific);
 
 		/* Call the helper to output message */
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0,
 				channel >> 1, -1, rank,
 				rdwr ? "Write error" : "Read error",
 				msg);
@@ -672,7 +672,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 			 specific);
 
 		/* Call the helper to output message */
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0, 0,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, 0, 0, 0,
 				channel >> 1, channel % 2, rank,
 				rdwr ? "Write error" : "Read error",
 				msg);
@@ -718,7 +718,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 			 "Err=%#x (%s)", misc_errors, specific);
 
 		/* Call the helper to output message */
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0, 0,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, 0, 0, 0,
 				branch >> 1, -1, -1,
 				"Misc error", msg);
 	}

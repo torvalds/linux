@@ -823,7 +823,7 @@ static ssize_t edac_fake_inject_write(struct file *file,
 		mci->fake_inject_layer[1],
 		mci->fake_inject_layer[2]
 	       );
-	edac_mc_handle_error(type, mci, 0, 0, 0,
+	edac_mc_handle_error(type, mci, 1, 0, 0, 0,
 			     mci->fake_inject_layer[0],
 			     mci->fake_inject_layer[1],
 			     mci->fake_inject_layer[2],

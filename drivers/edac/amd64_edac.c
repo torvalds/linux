@@ -1046,7 +1046,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	if (!src_mci) {
 		amd64_mc_err(mci, "failed to map error addr 0x%lx to a node\n",
 			     (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     page, offset, syndrome,
 				     -1, -1, -1,
 				     "failed to map error addr to a node",
@@ -1057,7 +1057,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	/* Now map the sys_addr to a CSROW */
 	csrow = sys_addr_to_csrow(src_mci, sys_addr);
 	if (csrow < 0) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     page, offset, syndrome,
 				     -1, -1, -1,
 				     "failed to map error addr to a csrow",
@@ -1077,7 +1077,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 			amd64_mc_warn(src_mci, "unknown syndrome 0x%04x - "
 				      "possible error reporting race\n",
 				      syndrome);
-			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 					     page, offset, syndrome,
 					     csrow, -1, -1,
 					     "unknown syndrome - possible error reporting race",
@@ -1096,7 +1096,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 		channel = ((sys_addr & BIT(3)) != 0);
 	}
 
-	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, src_mci,
+	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, src_mci, 1,
 			     page, offset, syndrome,
 			     csrow, channel, -1,
 			     "", "");
@@ -1608,7 +1608,7 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	csrow = f1x_translate_sysaddr_to_cs(pvt, sys_addr, &nid, &chan);
 
 	if (csrow < 0) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     page, offset, syndrome,
 				     -1, -1, -1,
 				     "failed to map error addr to a csrow",
@@ -1624,7 +1624,7 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	if (dct_ganging_enabled(pvt))
 		chan = get_channel_from_ecc_syndrome(mci, syndrome);
 
-	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 			     page, offset, syndrome,
 			     csrow, chan, -1,
 			     "", "");
@@ -1909,7 +1909,7 @@ static void amd64_handle_ce(struct mem_ctl_info *mci, struct mce *m)
 	/* Ensure that the Error Address is VALID */
 	if (!(m->status & MCI_STATUS_ADDRV)) {
 		amd64_mc_err(mci, "HW has no ERROR_ADDRESS available\n");
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     0, 0, 0,
 				     -1, -1, -1,
 				     "HW has no ERROR_ADDRESS available",
@@ -1937,7 +1937,7 @@ static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
 
 	if (!(m->status & MCI_STATUS_ADDRV)) {
 		amd64_mc_err(mci, "HW has no ERROR_ADDRESS available\n");
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     0, 0, 0,
 				     -1, -1, -1,
 				     "HW has no ERROR_ADDRESS available",
@@ -1956,7 +1956,7 @@ static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
 	if (!src_mci) {
 		amd64_mc_err(mci, "ERROR ADDRESS (0x%lx) NOT mapped to a MC\n",
 				  (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     page, offset, 0,
 				     -1, -1, -1,
 				     "ERROR ADDRESS NOT mapped to a MC",
@@ -1970,13 +1970,13 @@ static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
 	if (csrow < 0) {
 		amd64_mc_err(mci, "ERROR_ADDRESS (0x%lx) NOT mapped to CS\n",
 				  (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     page, offset, 0,
 				     -1, -1, -1,
 				     "ERROR ADDRESS NOT mapped to CS",
 				     "");
 	} else {
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     page, offset, 0,
 				     csrow, -1, -1,
 				     "", "");

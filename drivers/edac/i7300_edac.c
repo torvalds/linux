@@ -449,7 +449,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 			 "Bank=%d RAS=%d CAS=%d Err=0x%lx (%s))",
 			 bank, ras, cas, errors, specific);
 
-		edac_mc_handle_error(HW_EVENT_ERR_FATAL, mci, 0, 0, 0,
+		edac_mc_handle_error(HW_EVENT_ERR_FATAL, mci, 1, 0, 0, 0,
 				     branch, -1, rank,
 				     is_wr ? "Write error" : "Read error",
 				     pvt->tmp_prt_buffer);
@@ -495,7 +495,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 			 "DRAM-Bank=%d RAS=%d CAS=%d, Err=0x%lx (%s))",
 			 bank, ras, cas, errors, specific);
 
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, 0, 0,
 				     syndrome,
 				     branch >> 1, channel % 2, rank,
 				     is_wr ? "Write error" : "Read error",

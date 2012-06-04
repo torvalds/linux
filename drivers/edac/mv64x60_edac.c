@@ -611,13 +611,13 @@ static void mv64x60_mc_check(struct mem_ctl_info *mci)
 
 	/* first bit clear in ECC Err Reg, 1 bit error, correctable by HW */
 	if (!(reg & 0x1))
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     err_addr >> PAGE_SHIFT,
 				     err_addr & PAGE_MASK, syndrome,
 				     0, 0, -1,
 				     mci->ctl_name, "");
 	else	/* 2 bit error, UE */
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     err_addr >> PAGE_SHIFT,
 				     err_addr & PAGE_MASK, 0,
 				     0, 0, -1,

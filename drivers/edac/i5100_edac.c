@@ -431,7 +431,7 @@ static void i5100_handle_ce(struct mem_ctl_info *mci,
 		 "bank %u, cas %u, ras %u\n",
 		 bank, cas, ras);
 
-	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 			     0, 0, syndrome,
 			     chan, rank, -1,
 			     msg, detail);
@@ -453,7 +453,7 @@ static void i5100_handle_ue(struct mem_ctl_info *mci,
 		 "bank %u, cas %u, ras %u\n",
 		 bank, cas, ras);
 
-	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 			     0, 0, syndrome,
 			     chan, rank, -1,
 			     msg, detail);

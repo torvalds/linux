@@ -897,15 +897,16 @@ const char *edac_layer_name[] = {
 EXPORT_SYMBOL_GPL(edac_layer_name);
 
 static void edac_inc_ce_error(struct mem_ctl_info *mci,
-				    bool enable_per_layer_report,
-				    const int pos[EDAC_MAX_LAYERS])
+			      bool enable_per_layer_report,
+			      const int pos[EDAC_MAX_LAYERS],
+			      const u16 count)
 {
 	int i, index = 0;
 
-	mci->ce_mc++;
+	mci->ce_mc += count;
 
 	if (!enable_per_layer_report) {
-		mci->ce_noinfo_count++;
+		mci->ce_noinfo_count += count;
 		return;
 	}
 
@@ -913,7 +914,7 @@ static void edac_inc_ce_error(struct mem_ctl_info *mci,
 		if (pos[i] < 0)
 			break;
 		index += pos[i];
-		mci->ce_per_layer[i][index]++;
+		mci->ce_per_layer[i][index] += count;
 
 		if (i < mci->n_layers - 1)
 			index *= mci->layers[i + 1].size;
@@ -922,14 +923,15 @@ static void edac_inc_ce_error(struct mem_ctl_info *mci,
 
 static void edac_inc_ue_error(struct mem_ctl_info *mci,
 				    bool enable_per_layer_report,
-				    const int pos[EDAC_MAX_LAYERS])
+				    const int pos[EDAC_MAX_LAYERS],
+				    const u16 count)
 {
 	int i, index = 0;
 
-	mci->ue_mc++;
+	mci->ue_mc += count;
 
 	if (!enable_per_layer_report) {
-		mci->ce_noinfo_count++;
+		mci->ce_noinfo_count += count;
 		return;
 	}
 
@@ -937,7 +939,7 @@ static void edac_inc_ue_error(struct mem_ctl_info *mci,
 		if (pos[i] < 0)
 			break;
 		index += pos[i];
-		mci->ue_per_layer[i][index]++;
+		mci->ue_per_layer[i][index] += count;
 
 		if (i < mci->n_layers - 1)
 			index *= mci->layers[i + 1].size;
@@ -945,6 +947,7 @@ static void edac_inc_ue_error(struct mem_ctl_info *mci,
 }
 
 static void edac_ce_error(struct mem_ctl_info *mci,
+			  const u16 error_count,
 			  const int pos[EDAC_MAX_LAYERS],
 			  const char *msg,
 			  const char *location,
@@ -961,16 +964,18 @@ static void edac_ce_error(struct mem_ctl_info *mci,
 	if (edac_mc_get_log_ce()) {
 		if (other_detail && *other_detail)
 			edac_mc_printk(mci, KERN_WARNING,
-				       "CE %s on %s (%s %s - %s)\n",
+				       "%d CE %s on %s (%s %s - %s)\n",
+				       error_count,
 				       msg, label, location,
 				       detail, other_detail);
 		else
 			edac_mc_printk(mci, KERN_WARNING,
-				       "CE %s on %s (%s %s)\n",
+				       "%d CE %s on %s (%s %s)\n",
+				       error_count,
 				       msg, label, location,
 				       detail);
 	}
-	edac_inc_ce_error(mci, enable_per_layer_report, pos);
+	edac_inc_ce_error(mci, enable_per_layer_report, pos, error_count);
 
 	if (mci->scrub_mode & SCRUB_SW_SRC) {
 		/*
@@ -994,6 +999,7 @@ static void edac_ce_error(struct mem_ctl_info *mci,
 }
 
 static void edac_ue_error(struct mem_ctl_info *mci,
+			  const u16 error_count,
 			  const int pos[EDAC_MAX_LAYERS],
 			  const char *msg,
 			  const char *location,
@@ -1005,12 +1011,14 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 	if (edac_mc_get_log_ue()) {
 		if (other_detail && *other_detail)
 			edac_mc_printk(mci, KERN_WARNING,
-				       "UE %s on %s (%s %s - %s)\n",
+				       "%d UE %s on %s (%s %s - %s)\n",
+				       error_count,
 			               msg, label, location, detail,
 				       other_detail);
 		else
 			edac_mc_printk(mci, KERN_WARNING,
-				       "UE %s on %s (%s %s)\n",
+				       "%d UE %s on %s (%s %s)\n",
+				       error_count,
 			               msg, label, location, detail);
 	}
 
@@ -1023,7 +1031,7 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 			      msg, label, location, detail);
 	}
 
-	edac_inc_ue_error(mci, enable_per_layer_report, pos);
+	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
 }
 
 #define OTHER_LABEL " or "
@@ -1033,6 +1041,7 @@ static void edac_ue_error(struct mem_ctl_info *mci,
  *
  * @type:		severity of the error (CE/UE/Fatal)
  * @mci:		a struct mem_ctl_info pointer
+ * @error_count:	Number of errors of the same type
  * @page_frame_number:	mem page where the error occurred
  * @offset_in_page:	offset of the error inside the page
  * @syndrome:		ECC syndrome
@@ -1047,6 +1056,7 @@ static void edac_ue_error(struct mem_ctl_info *mci,
  */
 void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  struct mem_ctl_info *mci,
+			  const u16 error_count,
 			  const unsigned long page_frame_number,
 			  const unsigned long offset_in_page,
 			  const unsigned long syndrome,
@@ -1065,7 +1075,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	int i;
 	long grain;
 	bool enable_per_layer_report = false;
-	u16 error_count;	/* FIXME: make it a parameter */
 	u8 grain_bits;
 
 	edac_dbg(3, "MC%d\n", mci->mc_idx);
@@ -1169,13 +1178,13 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			strcpy(label, "unknown memory");
 		if (type == HW_EVENT_ERR_CORRECTED) {
 			if (row >= 0) {
-				mci->csrows[row]->ce_count++;
+				mci->csrows[row]->ce_count += error_count;
 				if (chan >= 0)
-					mci->csrows[row]->channels[chan]->ce_count++;
+					mci->csrows[row]->channels[chan]->ce_count += error_count;
 			}
 		} else
 			if (row >= 0)
-				mci->csrows[row]->ue_count++;
+				mci->csrows[row]->ue_count += error_count;
 	}
 
 	/* Fill the RAM location data */
@@ -1193,7 +1202,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/* Report the error via the trace interface */
 
-	error_count = 1;	/* FIXME: allow change it */
 	grain_bits = fls_long(grain) + 1;
 	trace_mc_event(type, msg, label, error_count,
 		       mci->mc_idx, top_layer, mid_layer, low_layer,
@@ -1206,16 +1214,16 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			"page:0x%lx offset:0x%lx grain:%ld syndrome:0x%lx",
 			page_frame_number, offset_in_page,
 			grain, syndrome);
-		edac_ce_error(mci, pos, msg, location, label, detail,
-			      other_detail, enable_per_layer_report,
+		edac_ce_error(mci, error_count, pos, msg, location, label,
+			      detail, other_detail, enable_per_layer_report,
 			      page_frame_number, offset_in_page, grain);
 	} else {
 		snprintf(detail, sizeof(detail),
 			"page:0x%lx offset:0x%lx grain:%ld",
 			page_frame_number, offset_in_page, grain);
 
-		edac_ue_error(mci, pos, msg, location, label, detail,
-			      other_detail, enable_per_layer_report);
+		edac_ue_error(mci, error_count, pos, msg, location, label,
+			      detail, other_detail, enable_per_layer_report);
 	}
 }
 EXPORT_SYMBOL_GPL(edac_mc_handle_error);

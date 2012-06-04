@@ -1544,7 +1544,7 @@ static void i7core_rdimm_update_errcount(struct mem_ctl_info *mci,
 	int i;
 
 	for (i = 0; i < add; i++) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0, 0,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, 0, 0, 0,
 				     chan, dimm, -1, "error", "");
 	}
 }
@@ -1796,7 +1796,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	 * only one event
 	 */
 	if (uncorrected_error || !pvt->is_registered)
-		edac_mc_handle_error(tp_event, mci,
+		edac_mc_handle_error(tp_event, mci, 1,
 				     m->addr >> PAGE_SHIFT,
 				     m->addr & ~PAGE_MASK,
 				     syndrome,

@@ -288,7 +288,7 @@ static int i82975x_process_error_info(struct mem_ctl_info *mci,
 		return 1;
 
 	if ((info->errsts ^ info->errsts2) & 0x0003) {
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0,
 				     -1, -1, -1, "UE overwrote CE", "");
 		info->errsts = info->errsts2;
 	}
@@ -314,12 +314,12 @@ static int i82975x_process_error_info(struct mem_ctl_info *mci,
 			   (1 << mci->csrows[row]->channels[chan]->dimm->grain));
 
 	if (info->errsts & 0x0002)
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     page, offst, 0,
 				     row, -1, -1,
 				     "i82975x UE", "");
 	else
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     page, offst, info->derrsyn,
 				     row, chan ? chan : 0, -1,
 				     "i82975x CE", "");
