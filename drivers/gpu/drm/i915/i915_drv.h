@@ -313,6 +313,7 @@ struct i915_hw_ppgtt {
 #define DEFAULT_CONTEXT_ID 0
 struct i915_hw_context {
 	int id;
+	bool is_initialized;
 	struct drm_i915_file_private *file_priv;
 	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_object *obj;
@@ -1382,6 +1383,8 @@ void i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_fini(struct drm_device *dev);
 void i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
+int i915_switch_context(struct intel_ring_buffer *ring,
+			struct drm_file *file, int to_id);
 
 /* i915_gem_gtt.c */
 int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);

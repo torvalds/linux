@@ -190,6 +190,11 @@ err_out:
 	return ret;
 }
 
+static inline bool is_default_context(struct i915_hw_context *ctx)
+{
+	return (ctx == ctx->ring->default_context);
+}
+
 /**
  * The default context needs to exist per ring that uses contexts. It stores the
  * context state of the GPU for applications that don't utilize HW contexts, as
@@ -306,8 +311,147 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static __used struct i915_hw_context *
+static struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 {
 	return (struct i915_hw_context *)idr_find(&file_priv->context_idr, id);
+}
+
+static inline int
+mi_set_context(struct intel_ring_buffer *ring,
+	       struct i915_hw_context *new_context,
+	       u32 hw_flags)
+{
+	int ret;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_emit(ring, MI_SET_CONTEXT);
+	intel_ring_emit(ring, new_context->obj->gtt_offset |
+			MI_MM_SPACE_GTT |
+			MI_SAVE_EXT_STATE_EN |
+			MI_RESTORE_EXT_STATE_EN |
+			hw_flags);
+	/* w/a: MI_SET_CONTEXT must always be followed by MI_NOOP */
+	intel_ring_emit(ring, MI_NOOP);
+
+	intel_ring_advance(ring);
+
+	return ret;
+}
+
+static int do_switch(struct drm_i915_gem_object *from_obj,
+		     struct i915_hw_context *to,
+		     u32 seqno)
+{
+	struct intel_ring_buffer *ring = NULL;
+	u32 hw_flags = 0;
+	int ret;
+
+	BUG_ON(to == NULL);
+	BUG_ON(from_obj != NULL && from_obj->pin_count == 0);
+
+	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false);
+	if (ret)
+		return ret;
+
+	if (!to->is_initialized || is_default_context(to))
+		hw_flags |= MI_RESTORE_INHIBIT;
+	else if (WARN_ON_ONCE(from_obj == to->obj)) /* not yet expected */
+		hw_flags |= MI_FORCE_RESTORE;
+
+	ring = to->ring;
+	ret = mi_set_context(ring, to, hw_flags);
+	if (ret) {
+		i915_gem_object_unpin(to->obj);
+		return ret;
+	}
+
+	/* The backing object for the context is done after switching to the
+	 * *next* context. Therefore we cannot retire the previous context until
+	 * the next context has already started running. In fact, the below code
+	 * is a bit suboptimal because the retiring can occur simply after the
+	 * MI_SET_CONTEXT instead of when the next seqno has completed.
+	 */
+	if (from_obj != NULL) {
+		from_obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
+		i915_gem_object_move_to_active(from_obj, ring, seqno);
+		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
+		 * whole damn pipeline, we don't need to explicitly mark the
+		 * object dirty. The only exception is that the context must be
+		 * correct in case the object gets swapped out. Ideally we'd be
+		 * able to defer doing this until we know the object would be
+		 * swapped, but there is no way to do that yet.
+		 */
+		from_obj->dirty = 1;
+		BUG_ON(from_obj->ring != to->ring);
+		i915_gem_object_unpin(from_obj);
+	}
+
+	ring->last_context_obj = to->obj;
+	to->is_initialized = true;
+
+	return 0;
+}
+
+/**
+ * i915_switch_context() - perform a GPU context switch.
+ * @ring: ring for which we'll execute the context switch
+ * @file_priv: file_priv associated with the context, may be NULL
+ * @id: context id number
+ * @seqno: sequence number by which the new context will be switched to
+ * @flags:
+ *
+ * The context life cycle is simple. The context refcount is incremented and
+ * decremented by 1 and create and destroy. If the context is in use by the GPU,
+ * it will have a refoucnt > 1. This allows us to destroy the context abstract
+ * object while letting the normal object tracking destroy the backing BO.
+ */
+int i915_switch_context(struct intel_ring_buffer *ring,
+			struct drm_file *file,
+			int to_id)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_file_private *file_priv = NULL;
+	struct i915_hw_context *to;
+	struct drm_i915_gem_object *from_obj = ring->last_context_obj;
+	int ret;
+
+	if (dev_priv->hw_contexts_disabled)
+		return 0;
+
+	if (ring != &dev_priv->ring[RCS])
+		return 0;
+
+	if (file)
+		file_priv = file->driver_priv;
+
+	if (to_id == DEFAULT_CONTEXT_ID) {
+		to = ring->default_context;
+	} else {
+		to = i915_gem_context_get(file_priv, to_id);
+		if (to == NULL)
+			return -EINVAL;
+	}
+
+	if (from_obj == to->obj)
+		return 0;
+
+	ret = do_switch(from_obj, to, i915_gem_next_request_seqno(to->ring));
+	if (ret)
+		return ret;
+
+	/* Just to make the code a little cleaner we take the object reference
+	 * after the switch was successful. It would be more intuitive to ref
+	 * the 'to' object before the switch but we know the refcount must be >0
+	 * if context_get() succeeded, and we hold struct mutex. So it's safe to
+	 * do this here/now
+	 */
+	drm_gem_object_reference(&to->obj->base);
+	if (from_obj != NULL)
+		drm_gem_object_unreference(&from_obj->base);
+	return ret;
 }
