@@ -591,8 +591,9 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		/* wl18xx uses the same firmware for PLT */
 		wl->plt_fw_name = WL18XX_FW_NAME;
 		wl->quirks |= WLCORE_QUIRK_NO_ELP |
-			      WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED |
-			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN;
+			WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED |
+			WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
+			WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
 
 		/* PG 1.0 has some problems with MCS_13, so disable it */
 		wl->ht_cap.mcs.rx_mask[1] &= ~BIT(5);

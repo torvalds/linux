@@ -960,9 +960,12 @@ static int wl12xx_chip_wakeup(struct wl1271 *wl, bool plt)
 	 * simplify the code and since the performance impact is
 	 * negligible, we use the same block size for all different
 	 * chip types.
+	 *
+	 * Check if the bus supports blocksize alignment and, if it
+	 * doesn't, make sure we don't have the quirk.
 	 */
-	if (wl1271_set_block_size(wl))
-		wl->quirks |= WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
+	if (!wl1271_set_block_size(wl))
+		wl->quirks &= ~WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
 
 	/* TODO: make sure the lower driver has set things up correctly */
 
