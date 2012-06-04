@@ -1655,9 +1655,8 @@ static int read_partial_message_section(struct ceph_connection *con,
 	return 1;
 }
 
-static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
-				struct ceph_msg_header *hdr,
-				int *skip);
+static bool ceph_con_in_msg_alloc(struct ceph_connection *con,
+				struct ceph_msg_header *hdr);
 
 
 static int read_partial_message_pages(struct ceph_connection *con,
@@ -1740,7 +1739,6 @@ static int read_partial_message(struct ceph_connection *con)
 	int ret;
 	unsigned front_len, middle_len, data_len;
 	bool do_datacrc = !con->msgr->nocrc;
-	int skip;
 	u64 seq;
 	u32 crc;
 
@@ -1793,9 +1791,7 @@ static int read_partial_message(struct ceph_connection *con)
 	if (!con->in_msg) {
 		dout("got hdr type %d front %d data %d\n", con->in_hdr.type,
 		     con->in_hdr.front_len, con->in_hdr.data_len);
-		skip = 0;
-		con->in_msg = ceph_alloc_msg(con, &con->in_hdr, &skip);
-		if (skip) {
+		if (ceph_con_in_msg_alloc(con, &con->in_hdr)) {
 			/* skip this message */
 			dout("alloc_msg said skip message\n");
 			BUG_ON(con->in_msg);
@@ -2577,46 +2573,57 @@ static int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg)
 }
 
 /*
- * Generic message allocator, for incoming messages.
+ * Allocate a message for receiving an incoming message on a
+ * connection, and save the result in con->in_msg.  Uses the
+ * connection's private alloc_msg op if available.
+ *
+ * Returns true if the message should be skipped, false otherwise.
+ * If true is returned (skip message), con->in_msg will be NULL.
+ * If false is returned, con->in_msg will contain a pointer to the
+ * newly-allocated message, or NULL in case of memory exhaustion.
  */
-static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
-				struct ceph_msg_header *hdr,
-				int *skip)
+static bool ceph_con_in_msg_alloc(struct ceph_connection *con,
+				struct ceph_msg_header *hdr)
 {
 	int type = le16_to_cpu(hdr->type);
 	int front_len = le32_to_cpu(hdr->front_len);
 	int middle_len = le32_to_cpu(hdr->middle_len);
-	struct ceph_msg *msg = NULL;
 	int ret;
 
+	BUG_ON(con->in_msg != NULL);
+
 	if (con->ops->alloc_msg) {
+		int skip = 0;
+
 		mutex_unlock(&con->mutex);
-		msg = con->ops->alloc_msg(con, hdr, skip);
+		con->in_msg = con->ops->alloc_msg(con, hdr, &skip);
 		mutex_lock(&con->mutex);
-		if (!msg || *skip)
-			return NULL;
+		if (skip)
+			con->in_msg = NULL;
+
+		if (!con->in_msg)
+			return skip != 0;
 	}
-	if (!msg) {
-		*skip = 0;
-		msg = ceph_msg_new(type, front_len, GFP_NOFS, false);
-		if (!msg) {
+	if (!con->in_msg) {
+		con->in_msg = ceph_msg_new(type, front_len, GFP_NOFS, false);
+		if (!con->in_msg) {
 			pr_err("unable to allocate msg type %d len %d\n",
 			       type, front_len);
-			return NULL;
+			return false;
 		}
-		msg->page_alignment = le16_to_cpu(hdr->data_off);
+		con->in_msg->page_alignment = le16_to_cpu(hdr->data_off);
 	}
-	memcpy(&msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
+	memcpy(&con->in_msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
 
-	if (middle_len && !msg->middle) {
-		ret = ceph_alloc_middle(con, msg);
+	if (middle_len && !con->in_msg->middle) {
+		ret = ceph_alloc_middle(con, con->in_msg);
 		if (ret < 0) {
-			ceph_msg_put(msg);
-			return NULL;
+			ceph_msg_put(con->in_msg);
+			con->in_msg = NULL;
 		}
 	}
 
-	return msg;
+	return false;
 }
 
 
