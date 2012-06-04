@@ -450,7 +450,7 @@ int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 			break;
 		case IRQ_DOMAIN_MAP_TREE:
 			mutex_lock(&revmap_trees_mutex);
-			irq_radix_revmap_insert(domain, virq, hwirq);
+			radix_tree_insert(&domain->revmap_data.tree, hwirq, irq_data);
 			mutex_unlock(&revmap_trees_mutex);
 			break;
 		}
@@ -722,64 +722,6 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_find_mapping);
-
-/**
- * irq_radix_revmap_lookup() - Find a linux irq from a hw irq number.
- * @domain: domain owning this hardware interrupt
- * @hwirq: hardware irq number in that domain space
- *
- * This is a fast path, for use by irq controller code that uses radix tree
- * revmaps
- */
-unsigned int irq_radix_revmap_lookup(struct irq_domain *domain,
-				     irq_hw_number_t hwirq)
-{
-	struct irq_data *irq_data;
-
-	if (WARN_ON_ONCE(domain->revmap_type != IRQ_DOMAIN_MAP_TREE))
-		return irq_find_mapping(domain, hwirq);
-
-	/*
-	 * Freeing an irq can delete nodes along the path to
-	 * do the lookup via call_rcu.
-	 */
-	rcu_read_lock();
-	irq_data = radix_tree_lookup(&domain->revmap_data.tree, hwirq);
-	rcu_read_unlock();
-
-	/*
-	 * If found in radix tree, then fine.
-	 * Else fallback to linear lookup - this should not happen in practice
-	 * as it means that we failed to insert the node in the radix tree.
-	 */
-	return irq_data ? irq_data->irq : irq_find_mapping(domain, hwirq);
-}
-EXPORT_SYMBOL_GPL(irq_radix_revmap_lookup);
-
-/**
- * irq_radix_revmap_insert() - Insert a hw irq to linux irq number mapping.
- * @domain: domain owning this hardware interrupt
- * @virq: linux irq number
- * @hwirq: hardware irq number in that domain space
- *
- * This is for use by irq controllers that use a radix tree reverse
- * mapping for fast lookup.
- */
-void irq_radix_revmap_insert(struct irq_domain *domain, unsigned int virq,
-			     irq_hw_number_t hwirq)
-{
-	struct irq_data *irq_data = irq_get_irq_data(virq);
-
-	if (WARN_ON(domain->revmap_type != IRQ_DOMAIN_MAP_TREE))
-		return;
-
-	if (virq) {
-		mutex_lock(&revmap_trees_mutex);
-		radix_tree_insert(&domain->revmap_data.tree, hwirq, irq_data);
-		mutex_unlock(&revmap_trees_mutex);
-	}
-}
-EXPORT_SYMBOL_GPL(irq_radix_revmap_insert);
 
 /**
  * irq_linear_revmap() - Find a linux irq from a hw irq number.
