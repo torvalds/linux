@@ -1141,7 +1141,6 @@ static int __devinit isabelle_i2c_probe(struct i2c_client *i2c,
 				ARRAY_SIZE(isabelle_dai));
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		regmap_exit(dev_get_regmap(&i2c->dev, NULL));
 		return ret;
 	}
 
@@ -1151,7 +1150,6 @@ static int __devinit isabelle_i2c_probe(struct i2c_client *i2c,
 static int __devexit isabelle_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(dev_get_regmap(&client->dev, NULL));
 	return 0;
 }
 
