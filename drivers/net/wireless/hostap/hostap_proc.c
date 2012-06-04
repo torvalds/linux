@@ -58,8 +58,7 @@ static int prism2_stats_proc_read(char *page, char **start, off_t off,
 {
 	char *p = page;
 	local_info_t *local = (local_info_t *) data;
-	struct comm_tallies_sums *sums = (struct comm_tallies_sums *)
-		&local->comm_tallies;
+	struct comm_tallies_sums *sums = &local->comm_tallies;
 
 	if (off != 0) {
 		*eof = 1;

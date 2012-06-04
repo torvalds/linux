@@ -120,7 +120,7 @@ static void _rtl92d_write_fw(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u8 *bufferPtr = (u8 *) buffer;
+	u8 *bufferPtr = buffer;
 	u32 pagenums, remainSize;
 	u32 page, offset;
 
@@ -256,8 +256,8 @@ int rtl92d_download_fw(struct ieee80211_hw *hw)
 	if (rtlpriv->max_fw_size == 0 || !rtlhal->pfirmware)
 		return 1;
 	fwsize = rtlhal->fwsize;
-	pfwheader = (u8 *) rtlhal->pfirmware;
-	pfwdata = (u8 *) rtlhal->pfirmware;
+	pfwheader = rtlhal->pfirmware;
+	pfwdata = rtlhal->pfirmware;
 	rtlhal->fw_version = (u16) GET_FIRMWARE_HDR_VERSION(pfwheader);
 	rtlhal->fw_subversion = (u16) GET_FIRMWARE_HDR_SUB_VER(pfwheader);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,

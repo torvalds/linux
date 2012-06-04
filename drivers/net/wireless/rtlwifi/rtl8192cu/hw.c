@@ -381,11 +381,11 @@ static void _rtl92cu_read_adapter_info(struct ieee80211_hw *hw)
 	rtlefuse->eeprom_did = le16_to_cpu(*(__le16 *)&hwinfo[EEPROM_DID]);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, " VID = 0x%02x PID = 0x%02x\n",
 		 rtlefuse->eeprom_vid, rtlefuse->eeprom_did);
-	rtlefuse->eeprom_channelplan = *(u8 *)&hwinfo[EEPROM_CHANNELPLAN];
+	rtlefuse->eeprom_channelplan = hwinfo[EEPROM_CHANNELPLAN];
 	rtlefuse->eeprom_version =
 			 le16_to_cpu(*(__le16 *)&hwinfo[EEPROM_VERSION]);
 	rtlefuse->txpwr_fromeprom = true;
-	rtlefuse->eeprom_oemid = *(u8 *)&hwinfo[EEPROM_CUSTOMER_ID];
+	rtlefuse->eeprom_oemid = hwinfo[EEPROM_CUSTOMER_ID];
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "EEPROM Customer ID: 0x%2x\n",
 		 rtlefuse->eeprom_oemid);
 	if (rtlhal->oem_id == RT_CID_DEFAULT) {
@@ -1660,7 +1660,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				for (e_aci = 0; e_aci < AC_MAX; e_aci++)
 					rtlpriv->cfg->ops->set_hw_reg(hw,
 								HW_VAR_AC_PARAM,
-								(u8 *)(&e_aci));
+								&e_aci);
 			} else {
 				u8 sifstime = 0;
 				u8	u1bAIFS;
@@ -1685,7 +1685,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	case HW_VAR_ACK_PREAMBLE:{
 			u8 reg_tmp;
-			u8 short_preamble = (bool) (*(u8 *) val);
+			u8 short_preamble = (bool)*val;
 			reg_tmp = 0;
 			if (short_preamble)
 				reg_tmp |= 0x80;
@@ -1696,7 +1696,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			u8 min_spacing_to_set;
 			u8 sec_min_space;
 
-			min_spacing_to_set = *((u8 *) val);
+			min_spacing_to_set = *val;
 			if (min_spacing_to_set <= 7) {
 				switch (rtlpriv->sec.pairwise_enc_algorithm) {
 				case NO_ENCRYPTION:
@@ -1729,7 +1729,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_SHORTGI_DENSITY:{
 			u8 density_to_set;
 
-			density_to_set = *((u8 *) val);
+			density_to_set = *val;
 			density_to_set &= 0x1f;
 			mac->min_space_cfg &= 0x07;
 			mac->min_space_cfg |= (density_to_set << 3);
@@ -1747,7 +1747,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			u8 index = 0;
 
 			p_regtoset = regtoset_normal;
-			factor_toset = *((u8 *) val);
+			factor_toset = *val;
 			if (factor_toset <= 3) {
 				factor_toset = (1 << (factor_toset + 2));
 				if (factor_toset > 0xf)
@@ -1774,7 +1774,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_AC_PARAM:{
-			u8 e_aci = *((u8 *) val);
+			u8 e_aci = *val;
 			u32 u4b_ac_param;
 			u16 cw_min = le16_to_cpu(mac->ac[e_aci].cw_min);
 			u16 cw_max = le16_to_cpu(mac->ac[e_aci].cw_max);
@@ -1814,11 +1814,11 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			}
 			if (rtlusb->acm_method != eAcmWay2_SW)
 				rtlpriv->cfg->ops->set_hw_reg(hw,
-					 HW_VAR_ACM_CTRL, (u8 *)(&e_aci));
+					 HW_VAR_ACM_CTRL, &e_aci);
 			break;
 		}
 	case HW_VAR_ACM_CTRL:{
-			u8 e_aci = *((u8 *) val);
+			u8 e_aci = *val;
 			union aci_aifsn *p_aci_aifsn = (union aci_aifsn *)
 							(&(mac->ac[0].aifs));
 			u8 acm = p_aci_aifsn->f.acm;
@@ -1874,7 +1874,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_RETRY_LIMIT:{
-			u8 retry_limit = ((u8 *) (val))[0];
+			u8 retry_limit = val[0];
 
 			rtl_write_word(rtlpriv, REG_RL,
 				       retry_limit << RETRY_LIMIT_SHORT_SHIFT |
@@ -1891,39 +1891,38 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtlefuse->efuse_usedbytes = *((u16 *) val);
 		break;
 	case HW_VAR_EFUSE_USAGE:
-		rtlefuse->efuse_usedpercentage = *((u8 *) val);
+		rtlefuse->efuse_usedpercentage = *val;
 		break;
 	case HW_VAR_IO_CMD:
 		rtl92c_phy_set_io_cmd(hw, (*(enum io_type *)val));
 		break;
 	case HW_VAR_WPA_CONFIG:
-		rtl_write_byte(rtlpriv, REG_SECCFG, *((u8 *) val));
+		rtl_write_byte(rtlpriv, REG_SECCFG, *val);
 		break;
 	case HW_VAR_SET_RPWM:{
 			u8 rpwm_val = rtl_read_byte(rtlpriv, REG_USB_HRPWM);
 
 			if (rpwm_val & BIT(7))
-				rtl_write_byte(rtlpriv, REG_USB_HRPWM,
-					       (*(u8 *)val));
+				rtl_write_byte(rtlpriv, REG_USB_HRPWM, *val);
 			else
 				rtl_write_byte(rtlpriv, REG_USB_HRPWM,
-					       ((*(u8 *)val) | BIT(7)));
+					       *val | BIT(7));
 			break;
 		}
 	case HW_VAR_H2C_FW_PWRMODE:{
-			u8 psmode = (*(u8 *) val);
+			u8 psmode = *val;
 
 			if ((psmode != FW_PS_ACTIVE_MODE) &&
 			   (!IS_92C_SERIAL(rtlhal->version)))
 				rtl92c_dm_rf_saving(hw, true);
-			rtl92c_set_fw_pwrmode_cmd(hw, (*(u8 *) val));
+			rtl92c_set_fw_pwrmode_cmd(hw, (*val));
 			break;
 		}
 	case HW_VAR_FW_PSMODE_STATUS:
 		ppsc->fw_current_inpsmode = *((bool *) val);
 		break;
 	case HW_VAR_H2C_FW_JOINBSSRPT:{
-			u8 mstatus = (*(u8 *) val);
+			u8 mstatus = *val;
 			u8 tmp_reg422;
 			bool recover = false;
 
@@ -1948,7 +1947,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						tmp_reg422 | BIT(6));
 				rtl_write_byte(rtlpriv, REG_CR + 1, 0x02);
 			}
-			rtl92c_set_fw_joinbss_report_cmd(hw, (*(u8 *) val));
+			rtl92c_set_fw_joinbss_report_cmd(hw, (*val));
 			break;
 		}
 	case HW_VAR_AID:{
@@ -1961,7 +1960,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_CORRECT_TSF:{
-			u8 btype_ibss = ((u8 *) (val))[0];
+			u8 btype_ibss = val[0];
 
 			if (btype_ibss)
 				_rtl92cu_stop_tx_beacon(hw);
@@ -2184,7 +2183,7 @@ void rtl92cu_update_channel_access_setting(struct ieee80211_hw *hw)
 	u16 sifs_timer;
 
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SLOT_TIME,
-				      (u8 *)&mac->slot_time);
+				      &mac->slot_time);
 	if (!mac->ht_enable)
 		sifs_timer = 0x0a0a;
 	else

@@ -1703,7 +1703,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wdev_priv = wiphy_priv(wiphy);
 	*(unsigned long *)wdev_priv = (unsigned long)adapter;
 
-	set_wiphy_dev(wiphy, (struct device *)priv->adapter->dev);
+	set_wiphy_dev(wiphy, priv->adapter->dev);
 
 	ret = wiphy_register(wiphy);
 	if (ret < 0) {

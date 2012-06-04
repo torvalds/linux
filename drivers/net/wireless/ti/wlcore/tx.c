@@ -871,8 +871,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 /* Called upon reception of a TX complete interrupt */
 void wl1271_tx_complete(struct wl1271 *wl)
 {
-	struct wl1271_acx_mem_map *memmap =
-		(struct wl1271_acx_mem_map *)wl->target_mem_map;
+	struct wl1271_acx_mem_map *memmap = wl->target_mem_map;
 	u32 count, fw_counter;
 	u32 i;
 

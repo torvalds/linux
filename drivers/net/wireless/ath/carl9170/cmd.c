@@ -138,7 +138,7 @@ int carl9170_reboot(struct ar9170 *ar)
 	if (!cmd)
 		return -ENOMEM;
 
-	err = __carl9170_exec_cmd(ar, (struct carl9170_cmd *)cmd, true);
+	err = __carl9170_exec_cmd(ar, cmd, true);
 	return err;
 }
 

@@ -478,7 +478,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 
 		if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
 			memcpy(&body->longbow.curve_data,
-				(void *) entry + sizeof(__le16),
+				entry + sizeof(__le16),
 				priv->curve_data->entry_size);
 		} else {
 			struct p54_scan_body *chan = &body->normal;

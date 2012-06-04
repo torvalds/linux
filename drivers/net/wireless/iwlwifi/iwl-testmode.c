@@ -170,7 +170,7 @@ static void iwl_testmode_ucode_rx_pkt(struct iwl_priv *priv,
 	void *data;
 	int length;
 
-	data = (void *)rxb_addr(rxb);
+	data = rxb_addr(rxb);
 	length = get_event_length(rxb);
 
 	if (!data || length == 0)

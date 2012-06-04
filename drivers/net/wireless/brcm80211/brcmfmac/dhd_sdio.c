@@ -2502,7 +2502,7 @@ clkwait:
 		int ret, i;
 
 		ret = brcmf_sdcard_send_buf(bus->sdiodev, bus->sdiodev->sbwad,
-			SDIO_FUNC_2, F2SYNC, (u8 *) bus->ctrl_frame_buf,
+			SDIO_FUNC_2, F2SYNC, bus->ctrl_frame_buf,
 			(u32) bus->ctrl_frame_len);
 
 		if (ret < 0) {
@@ -3327,7 +3327,7 @@ static int brcmf_sdbrcm_download_nvram(struct brcmf_sdio *bus)
 	len = brcmf_sdbrcm_get_image(memblock, MEMBLOCK, bus);
 
 	if (len > 0 && len < MEMBLOCK) {
-		bufp = (char *)memblock;
+		bufp = memblock;
 		bufp[len] = 0;
 		len = brcmf_process_nvram_vars(bufp, len);
 		bufp += len;

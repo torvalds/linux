@@ -1014,14 +1014,12 @@ mwifiex_ret_802_11_scan_get_tlv_ptrs(struct mwifiex_adapter *adapter,
 			case TLV_TYPE_TSFTIMESTAMP:
 				dev_dbg(adapter->dev, "info: SCAN_RESP: TSF "
 					"timestamp TLV, len = %d\n", tlv_len);
-				*tlv_data = (struct mwifiex_ie_types_data *)
-					current_tlv;
+				*tlv_data = current_tlv;
 				break;
 			case TLV_TYPE_CHANNELBANDLIST:
 				dev_dbg(adapter->dev, "info: SCAN_RESP: channel"
 					" band list TLV, len = %d\n", tlv_len);
-				*tlv_data = (struct mwifiex_ie_types_data *)
-					current_tlv;
+				*tlv_data = current_tlv;
 				break;
 			default:
 				dev_err(adapter->dev,
@@ -1226,15 +1224,15 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 					bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_BSS_COEX_2040:
-			bss_entry->bcn_bss_co_2040 = (u8 *) (current_ptr +
-					sizeof(struct ieee_types_header));
+			bss_entry->bcn_bss_co_2040 = current_ptr +
+				sizeof(struct ieee_types_header);
 			bss_entry->bss_co_2040_offset = (u16) (current_ptr +
 					sizeof(struct ieee_types_header) -
 						bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_EXT_CAPABILITY:
-			bss_entry->bcn_ext_cap = (u8 *) (current_ptr +
-					sizeof(struct ieee_types_header));
+			bss_entry->bcn_ext_cap = current_ptr +
+				sizeof(struct ieee_types_header);
 			bss_entry->ext_cap_offset = (u16) (current_ptr +
 					sizeof(struct ieee_types_header) -
 					bss_entry->beacon_buf);
@@ -1683,8 +1681,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 				goto done;
 			}
 			if (element_id == WLAN_EID_DS_PARAMS) {
-				channel = *(u8 *) (current_ptr +
-					sizeof(struct ieee_types_header));
+				channel = *(current_ptr + sizeof(struct ieee_types_header));
 				break;
 			}
 
@@ -2010,12 +2007,11 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 
 	if (curr_bss->bcn_bss_co_2040)
 		curr_bss->bcn_bss_co_2040 =
-			(u8 *) (curr_bss->beacon_buf +
-					curr_bss->bss_co_2040_offset);
+			(curr_bss->beacon_buf + curr_bss->bss_co_2040_offset);
 
 	if (curr_bss->bcn_ext_cap)
-		curr_bss->bcn_ext_cap = (u8 *) (curr_bss->beacon_buf +
-				curr_bss->ext_cap_offset);
+		curr_bss->bcn_ext_cap = curr_bss->beacon_buf +
+			curr_bss->ext_cap_offset;
 }
 
 /*

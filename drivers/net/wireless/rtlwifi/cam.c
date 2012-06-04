@@ -146,7 +146,7 @@ u8 rtl_cam_add_one_entry(struct ieee80211_hw *hw, u8 *mac_addr,
 	}
 
 	rtl_cam_program_entry(hw, ul_entry_idx, mac_addr,
-			      (u8 *) key_content, us_config);
+			      key_content, us_config);
 
 	RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG, "<===\n");
 

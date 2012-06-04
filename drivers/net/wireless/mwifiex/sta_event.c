@@ -422,7 +422,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 			if (len != -1) {
 				sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
-				sinfo.assoc_req_ies = (u8 *)&event->data[len];
+				sinfo.assoc_req_ies = &event->data[len];
 				len = (u8 *)sinfo.assoc_req_ies -
 				      (u8 *)&event->frame_control;
 				sinfo.assoc_req_ies_len =
