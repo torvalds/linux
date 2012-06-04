@@ -218,6 +218,8 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 	ath9k_cmn_update_txpow(ah, sc->curtxpow,
 			       sc->config.txpowlimit, &sc->curtxpow);
+
+	clear_bit(SC_OP_HW_RESET, &sc->sc_flags);
 	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
 
@@ -362,6 +364,7 @@ void ath9k_tasklet(unsigned long data)
 
 		RESET_STAT_INC(sc, type);
 #endif
+		set_bit(SC_OP_HW_RESET, &sc->sc_flags);
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		goto out;
 	}
@@ -438,11 +441,13 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
 		return IRQ_NONE;
 
-
 	/* shared irq, not for us */
 
 	if (!ath9k_hw_intrpend(ah))
 		return IRQ_NONE;
+
+	if(test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+		return IRQ_HANDLED;
 
 	/*
 	 * Figure out the reason(s) for the interrupt.  Note

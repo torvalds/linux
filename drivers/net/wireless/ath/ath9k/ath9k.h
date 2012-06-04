@@ -611,6 +611,7 @@ enum sc_op_flags {
 	SC_OP_TSF_RESET,
 	SC_OP_ANI_RUN,
 	SC_OP_PRIM_STA_VIF,
+	SC_OP_HW_RESET,
 };
 
 /* Powersave flags */
