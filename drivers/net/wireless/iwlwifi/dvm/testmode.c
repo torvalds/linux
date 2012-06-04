@@ -103,10 +103,39 @@ static u32 iwl_testmode_get_fw_ver(struct iwl_op_mode *op_mode)
 	return priv->fw->ucode_ver;
 }
 
+static struct sk_buff*
+iwl_testmode_alloc_reply(struct iwl_op_mode *op_mode, int len)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+	return cfg80211_testmode_alloc_reply_skb(priv->hw->wiphy, len);
+}
+
+static int iwl_testmode_reply(struct iwl_op_mode *op_mode, struct sk_buff *skb)
+{
+	return cfg80211_testmode_reply(skb);
+}
+
+static struct sk_buff *iwl_testmode_alloc_event(struct iwl_op_mode *op_mode,
+						int len)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+	return cfg80211_testmode_alloc_event_skb(priv->hw->wiphy, len,
+						 GFP_ATOMIC);
+}
+
+static void iwl_testmode_event(struct iwl_op_mode *op_mode, struct sk_buff *skb)
+{
+	return cfg80211_testmode_event(skb, GFP_ATOMIC);
+}
+
 static struct iwl_test_ops tst_ops = {
 	.send_cmd = iwl_testmode_send_cmd,
 	.valid_hw_addr = iwl_testmode_valid_hw_addr,
 	.get_fw_ver = iwl_testmode_get_fw_ver,
+	.alloc_reply = iwl_testmode_alloc_reply,
+	.reply = iwl_testmode_reply,
+	.alloc_event = iwl_testmode_alloc_event,
+	.event = iwl_testmode_event,
 };
 
 void iwl_testmode_init(struct iwl_priv *priv)
@@ -380,7 +409,7 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_GET_FW_VERSION:
 	case IWL_TM_CMD_APP2DEV_GET_DEVICE_ID:
 	case IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE:
-		result = iwl_test_handle_cmd(&priv->tst, hw, tb);
+		result = iwl_test_handle_cmd(&priv->tst, tb);
 		break;
 
 	case IWL_TM_CMD_APP2DEV_GET_DEVICENAME:

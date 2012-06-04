@@ -84,11 +84,49 @@ struct iwl_test_mem {
 	bool in_read;
 };
 
+/*
+ * struct iwl_test_ops: callback to the op mode
+ *
+ * The structure defines the callbacks that the op_mode should handle,
+ * inorder to handle logic that is out of the scope of iwl_test. The
+ * op_mode must set all the callbacks.
+
+ * @send_cmd: handler that is used by the test object to request the
+ *  op_mode to send a command to the fw.
+ *
+ * @valid_hw_addr: handler that is used by the test object to request the
+ *  op_mode to check if the given address is a valid address.
+ *
+ * @get_fw_ver: handler used to get the FW version.
+ *
+ * @alloc_reply: handler used by the test object to request the op_mode
+ *  to allocate an skb for sending a reply to the user, and initialize
+ *  the skb. It is assumed that the test object only fills the required
+ *  attributes.
+ *
+ * @reply: handler used by the test object to request the op_mode to reply
+ *  to a request. The skb is an skb previously allocated by the the
+ *  alloc_reply callback.
+ I
+ * @alloc_event: handler used by the test object to request the op_mode
+ *  to allocate an skb for sending an event, and initialize
+ *  the skb. It is assumed that the test object only fills the required
+ *  attributes.
+ *
+ * @reply: handler used by the test object to request the op_mode to send
+ *  an event. The skb is an skb previously allocated by the the
+ *  alloc_event callback.
+ */
 struct iwl_test_ops {
 	int (*send_cmd)(struct iwl_op_mode *op_modes,
 			struct iwl_host_cmd *cmd);
 	bool (*valid_hw_addr)(u32 addr);
 	u32 (*get_fw_ver)(struct iwl_op_mode *op_mode);
+
+	struct sk_buff *(*alloc_reply)(struct iwl_op_mode *op_mode, int len);
+	int (*reply)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
+	struct sk_buff* (*alloc_event)(struct iwl_op_mode *op_mode, int len);
+	void (*event)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 };
 
 struct iwl_test {
@@ -107,14 +145,12 @@ void iwl_test_free(struct iwl_test *tst);
 int iwl_test_parse(struct iwl_test *tst, struct nlattr **tb,
 		   void *data, int len);
 
-int iwl_test_handle_cmd(struct iwl_test *tst, struct ieee80211_hw *hw,
-			struct nlattr **tb);
+int iwl_test_handle_cmd(struct iwl_test *tst, struct nlattr **tb);
 
 int iwl_test_dump(struct iwl_test *tst, u32 cmd, struct sk_buff *skb,
 		  struct netlink_callback *cb);
 
-void iwl_test_rx(struct iwl_test *tst, struct ieee80211_hw *hw,
-		 struct iwl_rx_cmd_buffer *rxb);
+void iwl_test_rx(struct iwl_test *tst, struct iwl_rx_cmd_buffer *rxb);
 
 static inline void iwl_test_enable_notifications(struct iwl_test *tst,
 						 bool enable)

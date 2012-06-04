@@ -1143,7 +1143,7 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 	 * Note that if the ownership flag != IWL_OWNERSHIP_TM the flow
 	 * continues.
 	 */
-	iwl_test_rx(&priv->tst, priv->hw, rxb);
+	iwl_test_rx(&priv->tst, rxb);
 #endif
 
 	if (priv->ucode_owner != IWL_OWNERSHIP_TM) {
