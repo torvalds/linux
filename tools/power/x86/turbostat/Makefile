@@ -1,4 +1,5 @@
 turbostat : turbostat.c
+CFLAGS +=	-Wall
 
 clean :
 	rm -f turbostat
