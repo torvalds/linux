@@ -821,6 +821,8 @@ typedef struct drm_i915_private {
 	struct drm_property *force_audio_property;
 
 	struct work_struct parity_error_work;
+	bool hw_contexts_disabled;
+	uint32_t hw_context_size;
 } drm_i915_private_t;
 
 /* Iterate over initialised rings */
@@ -1075,6 +1077,7 @@ struct drm_i915_file_private {
 #define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
+#define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >=6)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
@@ -1363,6 +1366,11 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
+/* i915_gem_context.c */
+void i915_gem_context_init(struct drm_device *dev);
+void i915_gem_context_fini(struct drm_device *dev);
+void i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
+void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 
 /* i915_gem_gtt.c */
 int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);

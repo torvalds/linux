@@ -903,6 +903,7 @@ int i915_reset(struct drm_device *dev)
 		for_each_ring(ring, dev_priv, i)
 			ring->init(ring);
 
+		i915_gem_context_init(dev);
 		i915_gem_init_ppgtt(dev);
 
 		mutex_unlock(&dev->struct_mutex);
