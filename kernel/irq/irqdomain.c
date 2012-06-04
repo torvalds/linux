@@ -205,7 +205,8 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 		 * one can then use irq_create_mapping() to
 		 * explicitly change them
 		 */
-		ops->map(domain, irq, hwirq);
+		if (ops->map)
+			ops->map(domain, irq, hwirq);
 
 		/* Clear norequest flags */
 		irq_clear_status_flags(irq, IRQ_NOREQUEST);
@@ -340,8 +341,8 @@ static int irq_setup_virq(struct irq_domain *domain, unsigned int virq,
 
 	irq_data->hwirq = hwirq;
 	irq_data->domain = domain;
-	if (domain->ops->map(domain, virq, hwirq)) {
-		pr_debug("irq-%i==>hwirq-0x%lx mapping failed\n", virq, hwirq);
+	if (domain->ops->map && domain->ops->map(domain, virq, hwirq)) {
+		pr_err("irq-%i==>hwirq-0x%lx mapping failed\n", virq, hwirq);
 		irq_data->domain = NULL;
 		irq_data->hwirq = 0;
 		return -1;
@@ -763,12 +764,6 @@ static int __init irq_debugfs_init(void)
 __initcall(irq_debugfs_init);
 #endif /* CONFIG_IRQ_DOMAIN_DEBUG */
 
-static int irq_domain_simple_map(struct irq_domain *d, unsigned int irq,
-				 irq_hw_number_t hwirq)
-{
-	return 0;
-}
-
 /**
  * irq_domain_xlate_onecell() - Generic xlate for direct one cell bindings
  *
@@ -831,7 +826,6 @@ int irq_domain_xlate_onetwocell(struct irq_domain *d,
 EXPORT_SYMBOL_GPL(irq_domain_xlate_onetwocell);
 
 const struct irq_domain_ops irq_domain_simple_ops = {
-	.map = irq_domain_simple_map,
 	.xlate = irq_domain_xlate_onetwocell,
 };
 EXPORT_SYMBOL_GPL(irq_domain_simple_ops);
