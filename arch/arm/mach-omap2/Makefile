@@ -244,9 +244,6 @@ obj-y					+= $(omap-flash-y) $(omap-flash-m)
 omap-hsmmc-$(CONFIG_MMC_OMAP_HS)	:= hsmmc.o
 obj-y					+= $(omap-hsmmc-m) $(omap-hsmmc-y)
 
-
-usbfs-$(CONFIG_ARCH_OMAP_OTG)		:= usb-fs.o
-obj-y					+= $(usbfs-m) $(usbfs-y)
 obj-y					+= usb-musb.o
 obj-y					+= omap_phy_internal.o
 
