@@ -150,7 +150,7 @@ static struct omap_hwmod_class omap3xxx_timer_hwmod_class = {
 
 /* secure timers dev attribute */
 static struct omap_timer_capability_dev_attr capability_secure_dev_attr = {
-	.timer_capability	= OMAP_TIMER_SECURE,
+	.timer_capability	= OMAP_TIMER_ALWON | OMAP_TIMER_SECURE,
 };
 
 /* always-on timers dev attribute */
@@ -195,7 +195,6 @@ static struct omap_hwmod omap3xxx_timer2_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT2_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_1ms_hwmod_class,
 };
 
@@ -213,7 +212,6 @@ static struct omap_hwmod omap3xxx_timer3_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT3_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -231,7 +229,6 @@ static struct omap_hwmod omap3xxx_timer4_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT4_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -249,7 +246,6 @@ static struct omap_hwmod omap3xxx_timer5_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT5_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -267,7 +263,6 @@ static struct omap_hwmod omap3xxx_timer6_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT6_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -285,7 +280,6 @@ static struct omap_hwmod omap3xxx_timer7_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT7_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 

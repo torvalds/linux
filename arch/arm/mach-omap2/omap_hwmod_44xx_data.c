@@ -2943,7 +2943,6 @@ static struct omap_hwmod omap44xx_timer2_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 };
 
 /* timer3 */
@@ -2965,7 +2964,6 @@ static struct omap_hwmod omap44xx_timer3_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 };
 
 /* timer4 */
@@ -2987,7 +2985,6 @@ static struct omap_hwmod omap44xx_timer4_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 };
 
 /* timer5 */
@@ -3009,7 +3006,6 @@ static struct omap_hwmod omap44xx_timer5_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 };
 
 /* timer6 */
@@ -3032,7 +3028,6 @@ static struct omap_hwmod omap44xx_timer6_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 };
 
 /* timer7 */
@@ -3054,7 +3049,6 @@ static struct omap_hwmod omap44xx_timer7_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 };
 
 /* timer8 */

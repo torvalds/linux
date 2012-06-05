@@ -257,7 +257,6 @@ struct omap_hwmod omap2xxx_timer2_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT2_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -276,7 +275,6 @@ struct omap_hwmod omap2xxx_timer3_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT3_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -295,7 +293,6 @@ struct omap_hwmod omap2xxx_timer4_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT4_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -314,7 +311,6 @@ struct omap_hwmod omap2xxx_timer5_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT5_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -333,7 +329,6 @@ struct omap_hwmod omap2xxx_timer6_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT6_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -352,7 +347,6 @@ struct omap_hwmod omap2xxx_timer7_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT7_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
@@ -371,7 +365,6 @@ struct omap_hwmod omap2xxx_timer8_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_GPT8_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
 };
 
