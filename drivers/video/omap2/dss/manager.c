@@ -38,7 +38,7 @@ static struct omap_overlay_manager *managers;
 
 static inline struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
 {
-	return mgr->device;
+	return mgr->output ? mgr->output->device : NULL;
 }
 
 static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)

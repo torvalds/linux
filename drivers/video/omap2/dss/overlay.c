@@ -40,7 +40,9 @@ static struct omap_overlay *overlays;
 
 static inline struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
 {
-	return ovl->manager ? ovl->manager->device : NULL;
+	return ovl->manager ?
+		(ovl->manager->output ? ovl->manager->output->device : NULL) :
+		NULL;
 }
 
 int omap_dss_get_num_overlays(void)
