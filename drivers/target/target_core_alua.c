@@ -351,9 +351,11 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 
 out:
 	transport_kunmap_data_sg(cmd);
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
-	return 0;
+	if (!rc) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
+	return rc;
 }
 
 static inline int core_alua_state_nonoptimized(
