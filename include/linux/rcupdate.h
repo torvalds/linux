@@ -935,7 +935,7 @@ void __kfree_rcu(struct rcu_head *head, unsigned long offset)
 #define __kfree_rcu(head, offset) \
 	do { \
 		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
-		call_rcu(head, (void (*)(struct rcu_head *))(unsigned long)(offset)); \
+		kfree_call_rcu(head, (void (*)(struct rcu_head *))(unsigned long)(offset)); \
 	} while (0)
 
 /**
