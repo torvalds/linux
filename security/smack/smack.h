@@ -283,6 +283,19 @@ static inline char *smk_of_current(void)
 }
 
 /*
+ * Is the task privileged and allowed to be privileged
+ * by the onlycap rule.
+ */
+static inline int smack_privileged(int cap)
+{
+	if (!capable(cap))
+		return 0;
+	if (smack_onlycap == NULL || smack_onlycap == smk_of_current())
+		return 1;
+	return 0;
+}
+
+/*
  * logging functions
  */
 #define SMACK_AUDIT_DENIED 0x1

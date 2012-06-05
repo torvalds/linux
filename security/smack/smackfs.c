@@ -595,13 +595,12 @@ static int smk_open_load(struct inode *inode, struct file *file)
 static ssize_t smk_write_load(struct file *file, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-
 	/*
 	 * Must have privilege.
 	 * No partial writes.
 	 * Enough data must be present.
 	 */
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	return smk_write_rules_list(file, buf, count, ppos, NULL, NULL,
@@ -787,7 +786,7 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 	 * No partial writes.
 	 * Enough data must be present.
 	 */
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 	if (*ppos != 0)
 		return -EINVAL;
@@ -1090,7 +1089,7 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	 * "<addr/mask, as a.b.c.d/e><space><label>"
 	 * "<addr, as a.b.c.d><space><label>"
 	 */
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 	if (*ppos != 0)
 		return -EINVAL;
@@ -1267,7 +1266,7 @@ static ssize_t smk_write_doi(struct file *file, const char __user *buf,
 	char temp[80];
 	int i;
 
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	if (count >= sizeof(temp) || count == 0)
@@ -1334,7 +1333,7 @@ static ssize_t smk_write_direct(struct file *file, const char __user *buf,
 	char temp[80];
 	int i;
 
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	if (count >= sizeof(temp) || count == 0)
@@ -1412,7 +1411,7 @@ static ssize_t smk_write_mapped(struct file *file, const char __user *buf,
 	char temp[80];
 	int i;
 
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	if (count >= sizeof(temp) || count == 0)
@@ -1503,7 +1502,7 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 	char *data;
 	int rc = count;
 
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	data = kzalloc(count + 1, GFP_KERNEL);
@@ -1586,7 +1585,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 	char *sp = smk_of_task(current->cred->security);
 	int rc = count;
 
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	/*
@@ -1664,7 +1663,7 @@ static ssize_t smk_write_logging(struct file *file, const char __user *buf,
 	char temp[32];
 	int i;
 
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	if (count >= sizeof(temp) || count == 0)
@@ -1885,7 +1884,7 @@ static ssize_t smk_write_load2(struct file *file, const char __user *buf,
 	/*
 	 * Must have privilege.
 	 */
-	if (!capable(CAP_MAC_ADMIN))
+	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	return smk_write_rules_list(file, buf, count, ppos, NULL, NULL,
