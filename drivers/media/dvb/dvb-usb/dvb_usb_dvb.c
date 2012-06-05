@@ -68,12 +68,9 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	struct dvb_usb_adapter *adap = dvbdmxfeed->demux->priv;
 	int newfeedcount, ret;
 
-	if (adap == NULL)
-		return -ENODEV;
-
-	if ((adap->active_fe < 0) ||
-	    (adap->active_fe >= adap->num_frontends_initialized)) {
-		return -EINVAL;
+	if (adap == NULL || adap->active_fe < 0) {
+		ret = -ENODEV;
+		goto err;
 	}
 
 	newfeedcount = adap->feedcount + (onoff ? 1 : -1);
@@ -168,6 +165,9 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 	}
 	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 static int dvb_usb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
@@ -264,47 +264,62 @@ int dvb_usb_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int dvb_usb_set_active_fe(struct dvb_frontend *fe, int onoff)
-{
-	struct dvb_usb_adapter *adap = fe->dvb->priv;
-
-	int ret = (adap->props.frontend_ctrl) ?
-		adap->props.frontend_ctrl(fe, onoff) : 0;
-
-	if (ret < 0) {
-		err("frontend_ctrl request failed");
-		return ret;
-	}
-	if (onoff)
-		adap->active_fe = fe->id;
-
-	return 0;
-}
-
 static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 {
+	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 
-	dvb_usb_device_power_ctrl(adap->dev, 1);
+	ret = dvb_usb_device_power_ctrl(adap->dev, 1);
+	if (ret < 0)
+		goto err;
 
-	dvb_usb_set_active_fe(fe, 1);
+	if (adap->props.frontend_ctrl) {
+		ret = adap->props.frontend_ctrl(fe, 1);
+		if (ret < 0)
+			goto err;
+	}
 
-	if (adap->fe_init[fe->id])
-		adap->fe_init[fe->id](fe);
+	if (adap->fe_init[fe->id]) {
+		ret = adap->fe_init[fe->id](fe);
+		if (ret < 0)
+			goto err;
+	}
+
+	adap->active_fe = fe->id;
 
 	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 {
+	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 
-	if (adap->fe_sleep[fe->id])
-		adap->fe_sleep[fe->id](fe);
+	if (adap->fe_sleep[fe->id]) {
+		ret = adap->fe_sleep[fe->id](fe);
+		if (ret < 0)
+			goto err;
+	}
 
-	dvb_usb_set_active_fe(fe, 0);
+	if (adap->props.frontend_ctrl) {
+		ret = adap->props.frontend_ctrl(fe, 0);
+		if (ret < 0)
+			goto err;
+	}
 
-	return dvb_usb_device_power_ctrl(adap->dev, 0);
+	ret = dvb_usb_device_power_ctrl(adap->dev, 0);
+	if (ret < 0)
+		goto err;
+
+	adap->active_fe = -1;
+
+	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
@@ -312,8 +327,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	int ret, i;
 
 	memset(adap->fe, 0, sizeof(adap->fe));
-
-	adap->active_fe = 0;
+	adap->active_fe = -1;
 
 	if (adap->props.frontend_attach == NULL) {
 		err("strange: '%s' doesn't want to attach a frontend.",
