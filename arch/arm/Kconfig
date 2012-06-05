@@ -723,8 +723,6 @@ config ARCH_SUN4I
 	select ARCH_HAS_CPUFREQ
 	select ARM_L1_CACHE_SHIFT_6
 	select GPU_MALI
-	select DRM
-	select DRM_MALI
 	help
 	  This enables support for Allwinner Technology Co., Ltd A10 SoC based systems
 
