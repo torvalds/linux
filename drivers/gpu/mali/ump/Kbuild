@@ -31,9 +31,6 @@ endif
 
 # linux build system integration
 
-ifneq ($(KERNELRELEASE),)
-# Inside the kernel build system
-
 EXTRA_CFLAGS += -I$(DRIVER_DIR_UMP) -I$(DRIVER_DIR_UMP)/common -I$(DRIVER_DIR_UMP)/linux -I$(DRIVER_DIR_UMP)/../mali/common -I$(DRIVER_DIR_UMP)/../mali/linux -I$(DRIVER_DIR_UMP)/../../ump/include/ump -I$(DRIVER_DIR_UMP)/../include/ump
 
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
@@ -67,55 +64,3 @@ MODULE:=ump.ko
 
 obj-m := $(MODULE:.ko=.o)
 $(MODULE:.ko=-y) := $(SRC:.c=.o)
-
-else
-# Outside the kernel build system
-
-# Check that required parameters are supplied.
-ifeq ($(CONFIG),)
-$(error "CONFIG must be specified.")
-endif
-ifeq ($(CPU)$(KDIR),)
-$(error "KDIR or CPU must be specified.")
-endif
-
-# Get any user defined KDIR-<names> or maybe even a hardcoded KDIR
--include KDIR_CONFIGURATION
-
-# Define host system directory
-KDIR-$(shell uname -m):=/lib/modules/$(shell uname -r)/build
-
-ifeq ($(ARCH), arm)
-	# when compiling for ARM we're cross compiling
-	export CROSS_COMPILE ?= arm-none-linux-gnueabi-
-endif
-
-# look up KDIR based om CPU selection
-KDIR ?= $(KDIR-$(CPU))
-
-ifeq ($(KDIR),)
-$(error No KDIR found for platform $(CPU))
-endif
-
-# Validate selected config
-ifneq ($(shell [ -d arch-$(CONFIG) ] && [ -f arch-$(CONFIG)/config.h ] && echo "OK"), OK)
-$(warning Current directory is $(shell pwd))
-$(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
-else
-# Link arch to the selected arch-config directory
-$(shell [ -L arch ] && rm arch)
-$(shell ln -sf arch-$(CONFIG) arch)
-$(shell touch arch/config.h)
-endif
-
-all:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) modules
-
-kernelrelease:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) kernelrelease
-
-clean:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) clean
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR)/../mali clean
-
-endif
