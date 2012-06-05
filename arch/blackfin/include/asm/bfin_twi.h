@@ -66,9 +66,9 @@ struct bfin_twi_iface {
 
 #define DEFINE_TWI_REG(reg_name, reg) \
 static inline u16 read_##reg_name(struct bfin_twi_iface *iface) \
-	{ return iface->regs_base->reg; } \
+	{ return bfin_read16(&iface->regs_base->reg); } \
 static inline void write_##reg_name(struct bfin_twi_iface *iface, u16 v) \
-	{ iface->regs_base->reg = v; }
+	{ bfin_write16(&iface->regs_base->reg, v); }
 
 DEFINE_TWI_REG(CLKDIV, clkdiv)
 DEFINE_TWI_REG(CONTROL, control)
