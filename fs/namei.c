@@ -2209,13 +2209,23 @@ static struct file *lookup_open(struct nameidata *nd, struct path *path,
 				int *want_write, bool *created)
 {
 	struct dentry *dir = nd->path.dentry;
+	struct inode *dir_inode = dir->d_inode;
 	struct dentry *dentry;
 	int error;
+	bool need_lookup;
 
 	*created = false;
-	dentry = lookup_hash(nd);
+	dentry = lookup_dcache(&nd->last, dir, nd, &need_lookup);
 	if (IS_ERR(dentry))
 		return ERR_CAST(dentry);
+
+	if (need_lookup) {
+		BUG_ON(dentry->d_inode);
+
+		dentry = lookup_real(dir_inode, dentry, nd);
+		if (IS_ERR(dentry))
+			return ERR_CAST(dentry);
+	}
 
 	/* Negative dentry, just create the file */
 	if (!dentry->d_inode && (op->open_flag & O_CREAT)) {
