@@ -71,6 +71,7 @@ static struct intel_lvds *intel_attached_lvds(struct drm_connector *connector)
 static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 {
 	struct drm_device *dev = intel_lvds->base.base.dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_lvds->base.base.crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 ctl_reg, lvds_reg, stat_reg;
 
@@ -107,7 +108,7 @@ static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 	if (wait_for((I915_READ(stat_reg) & PP_ON) != 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
 
-	intel_panel_enable_backlight(dev);
+	intel_panel_enable_backlight(dev, intel_crtc->pipe);
 }
 
 static void intel_lvds_disable(struct intel_lvds *intel_lvds)
@@ -1074,35 +1075,14 @@ bool intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
+	/*
+	 * Unlock registers and just
+	 * leave them unlocked
+	 */
 	if (HAS_PCH_SPLIT(dev)) {
-		u32 pwm;
-
-		pipe = (I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT) ? 1 : 0;
-
-		/* make sure PWM is enabled and locked to the LVDS pipe */
-		pwm = I915_READ(BLC_PWM_CPU_CTL2);
-		if (pipe == 0 && (pwm & BLM_PIPE_B))
-			I915_WRITE(BLC_PWM_CPU_CTL2, pwm & ~BLM_PWM_ENABLE);
-		if (pipe)
-			pwm |= BLM_PIPE_B;
-		else
-			pwm &= ~BLM_PIPE_B;
-		I915_WRITE(BLC_PWM_CPU_CTL2, pwm | BLM_PWM_ENABLE);
-
-		pwm = I915_READ(BLC_PWM_PCH_CTL1);
-		pwm |= BLM_PCH_PWM_ENABLE;
-		I915_WRITE(BLC_PWM_PCH_CTL1, pwm);
-		/*
-		 * Unlock registers and just
-		 * leave them unlocked
-		 */
 		I915_WRITE(PCH_PP_CONTROL,
 			   I915_READ(PCH_PP_CONTROL) | PANEL_UNLOCK_REGS);
 	} else {
-		/*
-		 * Unlock registers and just
-		 * leave them unlocked
-		 */
 		I915_WRITE(PP_CONTROL,
 			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
 	}
