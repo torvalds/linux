@@ -1642,7 +1642,7 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 	return 0;
 }
 
-static int nfs4_reclaim_lease(struct nfs_client *clp)
+static int nfs4_establish_lease(struct nfs_client *clp)
 {
 	struct rpc_cred *cred;
 	const struct nfs4_state_recovery_ops *ops =
@@ -1655,7 +1655,37 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 	status = ops->establish_clid(clp, cred);
 	put_rpccred(cred);
 	if (status != 0)
+		return status;
+	pnfs_destroy_all_layouts(clp);
+	return 0;
+}
+
+static int nfs4_reclaim_lease(struct nfs_client *clp)
+{
+	int status;
+
+	status = nfs4_establish_lease(clp);
+	if (status < 0)
 		return nfs4_handle_reclaim_lease_error(clp, status);
+	if (test_and_clear_bit(NFS4CLNT_SERVER_SCOPE_MISMATCH, &clp->cl_state))
+		nfs4_state_start_reclaim_nograce(clp);
+	if (!test_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state))
+		set_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state);
+	clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
+	clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+	return 0;
+}
+
+static int nfs4_purge_lease(struct nfs_client *clp)
+{
+	int status;
+
+	status = nfs4_establish_lease(clp);
+	if (status < 0)
+		return nfs4_handle_reclaim_lease_error(clp, status);
+	clear_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
+	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+	nfs4_state_start_reclaim_nograce(clp);
 	return 0;
 }
 
@@ -1868,31 +1898,19 @@ static void nfs4_state_manager(struct nfs_client *clp)
 	do {
 		if (test_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state)) {
 			section = "purge state";
-			status = nfs4_reclaim_lease(clp);
+			status = nfs4_purge_lease(clp);
 			if (status < 0)
 				goto out_error;
-			clear_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
-			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+			continue;
 		}
 
-		if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
+		if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
 			section = "lease expired";
 			/* We're going to have to re-establish a clientid */
 			status = nfs4_reclaim_lease(clp);
 			if (status < 0)
 				goto out_error;
-			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
-				continue;
-			clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
-
-			if (test_and_clear_bit(NFS4CLNT_SERVER_SCOPE_MISMATCH,
-					       &clp->cl_state))
-				nfs4_state_start_reclaim_nograce(clp);
-			else
-				set_bit(NFS4CLNT_RECLAIM_REBOOT,
-					&clp->cl_state);
-
-			pnfs_destroy_all_layouts(clp);
+			continue;
 		}
 
 		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
