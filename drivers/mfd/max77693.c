@@ -213,7 +213,7 @@ static int max77693_resume(struct device *dev)
 	return max77693_irq_resume(max77693);
 }
 
-const struct dev_pm_ops max77693_pm = {
+static const struct dev_pm_ops max77693_pm = {
 	.suspend = max77693_suspend,
 	.resume = max77693_resume,
 };
