@@ -341,7 +341,7 @@ int omap_dm_timer_start(struct omap_dm_timer *timer)
 
 	omap_dm_timer_enable(timer);
 
-	if (timer->loses_context) {
+	if (!(timer->capability & OMAP_TIMER_ALWON)) {
 		u32 ctx_loss_cnt_after =
 			timer->get_context_loss_count(&timer->pdev->dev);
 		if (ctx_loss_cnt_after != timer->ctx_loss_count)
@@ -374,7 +374,8 @@ int omap_dm_timer_stop(struct omap_dm_timer *timer)
 
 	__omap_dm_timer_stop(timer, timer->posted, rate);
 
-	if (timer->loses_context && timer->get_context_loss_count)
+	if (!(timer->capability & OMAP_TIMER_ALWON) &&
+			timer->get_context_loss_count)
 		timer->ctx_loss_count =
 			timer->get_context_loss_count(&timer->pdev->dev);
 
@@ -447,7 +448,7 @@ int omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload,
 
 	omap_dm_timer_enable(timer);
 
-	if (timer->loses_context) {
+	if (!(timer->capability & OMAP_TIMER_ALWON)) {
 		u32 ctx_loss_cnt_after =
 			timer->get_context_loss_count(&timer->pdev->dev);
 		if (ctx_loss_cnt_after != timer->ctx_loss_count)
@@ -692,7 +693,6 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 	timer->irq = irq->start;
 	timer->reserved = omap_dm_timer_reserved_systimer(timer->id);
 	timer->pdev = pdev;
-	timer->loses_context = pdata->loses_context;
 	timer->get_context_loss_count = pdata->get_context_loss_count;
 	timer->capability = pdata->timer_capability;
 

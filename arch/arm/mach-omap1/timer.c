@@ -141,6 +141,7 @@ static int __init omap1_dm_timer_init(void)
 
 		pdata->set_timer_src = omap1_dm_timer_set_src;
 		pdata->needs_manual_reset = 1;
+		pdata->timer_capability = OMAP_TIMER_ALWON;
 
 		ret = platform_device_add_data(pdev, pdata, sizeof(*pdata));
 		if (ret) {
