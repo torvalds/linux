@@ -305,6 +305,10 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_prepare_enable(clk[spba]);
 	clk_prepare_enable(clk[emi_fast_gate]); /* fec */
 	clk_prepare_enable(clk[emi_slow_gate]); /* eim */
+	clk_prepare_enable(clk[mipi_hsc1_gate]);
+	clk_prepare_enable(clk[mipi_hsc2_gate]);
+	clk_prepare_enable(clk[mipi_esc_gate]);
+	clk_prepare_enable(clk[mipi_hsp_gate]);
 	clk_prepare_enable(clk[tmax1]);
 	clk_prepare_enable(clk[tmax2]); /* esdhc2, fec */
 	clk_prepare_enable(clk[tmax3]); /* esdhc1, esdhc4 */
@@ -348,10 +352,9 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk_register_clkdev(clk[mx51_mipi], "mipi_hsp", NULL);
 	clk_register_clkdev(clk[vpu_gate], NULL, "imx51-vpu.0");
 	clk_register_clkdev(clk[fec_gate], NULL, "imx27-fec.0");
-	clk_register_clkdev(clk[ipu_gate], "bus", "imx51-ipu");
-	clk_register_clkdev(clk[ipu_di0_gate], "di0", "imx51-ipu");
-	clk_register_clkdev(clk[ipu_di1_gate], "di1", "imx51-ipu");
-	clk_register_clkdev(clk[ipu_gate], "hsp", "imx51-ipu");
+	clk_register_clkdev(clk[ipu_gate], "bus", "40000000.ipu");
+	clk_register_clkdev(clk[ipu_di0_gate], "di0", "40000000.ipu");
+	clk_register_clkdev(clk[ipu_di1_gate], "di1", "40000000.ipu");
 	clk_register_clkdev(clk[usb_phy_gate], "phy", "mxc-ehci.0");
 	clk_register_clkdev(clk[esdhc1_ipg_gate], "ipg", "sdhci-esdhc-imx51.0");
 	clk_register_clkdev(clk[dummy], "ahb", "sdhci-esdhc-imx51.0");
@@ -441,10 +444,10 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk_register_clkdev(clk[vpu_gate], NULL, "imx53-vpu.0");
 	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[fec_gate], NULL, "imx25-fec.0");
-	clk_register_clkdev(clk[ipu_gate], "bus", "imx53-ipu");
-	clk_register_clkdev(clk[ipu_di0_gate], "di0", "imx53-ipu");
-	clk_register_clkdev(clk[ipu_di1_gate], "di1", "imx53-ipu");
-	clk_register_clkdev(clk[ipu_gate], "hsp", "imx53-ipu");
+	clk_register_clkdev(clk[ipu_gate], "bus", "18000000.ipu");
+	clk_register_clkdev(clk[ipu_di0_gate], "di0", "18000000.ipu");
+	clk_register_clkdev(clk[ipu_di1_gate], "di1", "18000000.ipu");
+	clk_register_clkdev(clk[ipu_gate], "hsp", "18000000.ipu");
 	clk_register_clkdev(clk[usb_phy1_gate], "usb_phy1", "mxc-ehci.0");
 	clk_register_clkdev(clk[esdhc1_ipg_gate], "ipg", "sdhci-esdhc-imx53.0");
 	clk_register_clkdev(clk[dummy], "ahb", "sdhci-esdhc-imx53.0");
