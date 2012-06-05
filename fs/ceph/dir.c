@@ -599,7 +599,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	    (nd->flags & LOOKUP_OPEN) &&
 	    !(nd->intent.open.flags & O_CREAT)) {
 		int mode = nd->intent.open.create_mode & ~current->fs->umask;
-		return ceph_lookup_open(dir, dentry, nd, mode, 1);
+		return ceph_lookup_open(dir, dentry, nd, mode);
 	}
 
 	/* can we conclude ENOENT locally? */
@@ -710,7 +710,7 @@ static int ceph_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	if (nd) {
 		BUG_ON((nd->flags & LOOKUP_OPEN) == 0);
-		dentry = ceph_lookup_open(dir, dentry, nd, mode, 0);
+		dentry = ceph_lookup_open(dir, dentry, nd, mode);
 		/* hrm, what should i do here if we get aliased? */
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
