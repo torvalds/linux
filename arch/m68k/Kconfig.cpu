@@ -167,6 +167,14 @@ config M5249
 	help
 	  Motorola ColdFire 5249 processor support.
 
+config M525x
+	bool "MCF525x"
+	depends on !MMU
+	select COLDFIRE_SW_A7
+	select HAVE_MBAR
+	help
+	  Freescale (Motorola) Coldfire 5251/5253 processor support.
+
 config M527x
 	bool
 

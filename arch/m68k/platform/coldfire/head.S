@@ -31,9 +31,9 @@
 .endm
 
 #elif defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
-      defined(CONFIG_M5249) || defined(CONFIG_M527x) || \
-      defined(CONFIG_M528x) || defined(CONFIG_M5307) || \
-      defined(CONFIG_M5407)
+      defined(CONFIG_M5249) || defined(CONFIG_M525x) || \
+      defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+      defined(CONFIG_M5307) || defined(CONFIG_M5407)
 /*
  *	Not all these devices have exactly the same DRAM controller,
  *	but the DCMR register is virtually identical - give or take

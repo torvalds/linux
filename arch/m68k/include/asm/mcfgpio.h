@@ -122,7 +122,7 @@ static inline void gpio_free(unsigned gpio)
 #define mcfgpio_read(port)		__raw_readw(port)
 #define mcfgpio_write(data, port)	__raw_writew(data, port)
 
-#elif defined(CONFIG_M5249)
+#elif defined(CONFIG_M5249) || defined(CONFIG_M525x)
 
 /* These parts have GPIO organized by 32 bit ports */
 
@@ -183,7 +183,7 @@ static inline u32 __mcfgpio_ppdr(unsigned gpio)
 		return MCFSIM_PBDAT;
 	else
 		return MCFSIM_PCDAT;
-#elif defined(CONFIG_M5249)
+#elif defined(CONFIG_M5249) || defined(CONFIG_M525x)
 	if (gpio < 32)
 		return MCFSIM2_GPIOREAD;
 	else
@@ -222,7 +222,7 @@ static inline u32 __mcfgpio_podr(unsigned gpio)
 		return MCFSIM_PBDAT;
 	else
 		return MCFSIM_PCDAT;
-#elif defined(CONFIG_M5249)
+#elif defined(CONFIG_M5249) || defined(CONFIG_M525x)
 	if (gpio < 32)
 		return MCFSIM2_GPIOWRITE;
 	else
@@ -261,7 +261,7 @@ static inline u32 __mcfgpio_pddr(unsigned gpio)
 		return MCFSIM_PBDDR;
 	else
 		return MCFSIM_PCDDR;
-#elif defined(CONFIG_M5249)
+#elif defined(CONFIG_M5249) || defined(CONFIG_M525x)
 	if (gpio < 32)
 		return MCFSIM2_GPIOENABLE;
 	else
