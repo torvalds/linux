@@ -762,65 +762,6 @@ static u16 tcm_qla2xxx_set_fabric_sense_len(struct se_cmd *se_cmd,
 struct target_fabric_configfs *tcm_qla2xxx_fabric_configfs;
 struct target_fabric_configfs *tcm_qla2xxx_npiv_fabric_configfs;
 
-static int tcm_qla2xxx_setup_nacl_from_rport(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct tcm_qla2xxx_lport *lport,
-	struct tcm_qla2xxx_nacl *nacl,
-	u64 rport_wwnn)
-{
-	struct scsi_qla_host *vha = lport->qla_vha;
-	struct Scsi_Host *sh = vha->host;
-	struct fc_host_attrs *fc_host = shost_to_fc_host(sh);
-	struct fc_rport *rport;
-	unsigned long flags;
-	void *node;
-	int rc;
-
-	/*
-	 * Scan the existing rports, and create a session for the
-	 * explict NodeACL is an matching rport->node_name already
-	 * exists.
-	 */
-	spin_lock_irqsave(sh->host_lock, flags);
-	list_for_each_entry(rport, &fc_host->rports, peers) {
-		if (rport_wwnn != rport->node_name)
-			continue;
-
-		pr_debug("Located existing rport_wwpn and rport->node_name: 0x%016LX, port_id: 0x%04x\n",
-		    rport->node_name, rport->port_id);
-		nacl->nport_id = rport->port_id;
-
-		spin_unlock_irqrestore(sh->host_lock, flags);
-
-		spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-		node = btree_lookup32(&lport->lport_fcport_map, rport->port_id);
-		if (node) {
-			rc = btree_update32(&lport->lport_fcport_map,
-					    rport->port_id, se_nacl);
-		} else {
-			rc = btree_insert32(&lport->lport_fcport_map,
-					    rport->port_id, se_nacl,
-					    GFP_ATOMIC);
-		}
-		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
-
-		if (rc) {
-			pr_err("Unable to insert se_nacl into fcport_map");
-			WARN_ON(rc > 0);
-			return rc;
-		}
-
-		pr_debug("Inserted into fcport_map: %p for WWNN: 0x%016LX, port_id: 0x%08x\n",
-		    se_nacl, rport_wwnn, nacl->nport_id);
-
-		return 1;
-	}
-	spin_unlock_irqrestore(sh->host_lock, flags);
-
-	return 0;
-}
-
 static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *,
 			struct tcm_qla2xxx_nacl *, struct qla_tgt_sess *);
 /*
@@ -890,14 +831,10 @@ static struct se_node_acl *tcm_qla2xxx_make_nodeacl(
 	struct config_group *group,
 	const char *name)
 {
-	struct se_wwn *se_wwn = se_tpg->se_tpg_wwn;
-	struct tcm_qla2xxx_lport *lport = container_of(se_wwn,
-				struct tcm_qla2xxx_lport, lport_wwn);
 	struct se_node_acl *se_nacl, *se_nacl_new;
 	struct tcm_qla2xxx_nacl *nacl;
 	u64 wwnn;
 	u32 qla2xxx_nexus_depth;
-	int rc;
 
 	if (tcm_qla2xxx_parse_wwn(name, &wwnn, 1) < 0)
 		return ERR_PTR(-EINVAL);
@@ -924,16 +861,6 @@ static struct se_node_acl *tcm_qla2xxx_make_nodeacl(
 	nacl = container_of(se_nacl, struct tcm_qla2xxx_nacl, se_node_acl);
 	nacl->nport_wwnn = wwnn;
 	tcm_qla2xxx_format_wwn(&nacl->nport_name[0], TCM_QLA2XXX_NAMELEN, wwnn);
-	/*
-	 * Setup a se_nacl handle based on an a matching struct fc_rport setup
-	 * via drivers/scsi/qla2xxx/qla_init.c:qla2x00_reg_remote_port()
-	 */
-	rc = tcm_qla2xxx_setup_nacl_from_rport(se_tpg, se_nacl, lport,
-					nacl, wwnn);
-	if (rc < 0) {
-		tcm_qla2xxx_release_fabric_acl(se_tpg, se_nacl_new);
-		return ERR_PTR(rc);
-	}
 
 	return se_nacl;
 }
