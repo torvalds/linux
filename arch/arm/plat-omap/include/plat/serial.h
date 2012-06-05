@@ -63,6 +63,14 @@
 /* AM33XX serial port */
 #define AM33XX_UART1_BASE	0x44E09000
 
+/* OMAP5 serial ports */
+#define OMAP5_UART1_BASE	OMAP2_UART1_BASE
+#define OMAP5_UART2_BASE	OMAP2_UART2_BASE
+#define OMAP5_UART3_BASE	OMAP4_UART3_BASE
+#define OMAP5_UART4_BASE	OMAP4_UART4_BASE
+#define OMAP5_UART5_BASE	0x48066000
+#define OMAP5_UART6_BASE	0x48068000
+
 /* External port on Zoom2/3 */
 #define ZOOM_UART_BASE		0x10000000
 #define ZOOM_UART_VIRT		0xfa400000
@@ -97,6 +105,8 @@
 #define TI81XXUART2		82
 #define TI81XXUART3		83
 #define AM33XXUART1		84
+#define OMAP5UART3		OMAP4UART3
+#define OMAP5UART4		OMAP4UART4
 #define ZOOM_UART		95		/* Only on zoom2/3 */
 
 /* This is only used by 8250.c for omap1510 */

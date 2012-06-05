@@ -115,6 +115,14 @@ static inline int omap_mux_late_init(void)
 }
 #endif
 
+#ifdef CONFIG_SOC_OMAP5
+extern void omap5_map_common_io(void);
+#else
+static inline void omap5_map_common_io(void)
+{
+}
+#endif
+
 extern void omap2_init_common_infrastructure(void);
 
 extern struct sys_timer omap2_timer;
@@ -134,6 +142,7 @@ void am35xx_init_early(void);
 void ti81xx_init_early(void);
 void am33xx_init_early(void);
 void omap4430_init_early(void);
+void omap5_init_early(void);
 void omap3_init_late(void);	/* Do not use this one */
 void omap4430_init_late(void);
 void omap2420_init_late(void);
@@ -169,6 +178,7 @@ void omap2_set_globals_242x(void);
 void omap2_set_globals_243x(void);
 void omap2_set_globals_3xxx(void);
 void omap2_set_globals_443x(void);
+void omap2_set_globals_5xxx(void);
 void omap2_set_globals_ti81xx(void);
 void omap2_set_globals_am33xx(void);
 
@@ -188,6 +198,7 @@ void omap243x_map_io(void);
 void omap3_map_io(void);
 void am33xx_map_io(void);
 void omap4_map_io(void);
+void omap5_map_io(void);
 void ti81xx_map_io(void);
 void omap_barriers_init(void);
 
