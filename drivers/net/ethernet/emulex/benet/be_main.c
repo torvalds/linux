@@ -719,8 +719,8 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 	 * 60 bytes long.
 	 * As a workaround disable TX vlan offloading in such cases.
 	 */
-	if (unlikely(vlan_tx_tag_present(skb) &&
-		     (skb->ip_summed != CHECKSUM_PARTIAL || skb->len <= 60))) {
+	if (vlan_tx_tag_present(skb) &&
+	    (skb->ip_summed != CHECKSUM_PARTIAL || skb->len <= 60)) {
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (unlikely(!skb))
 			goto tx_drop;
