@@ -2274,22 +2274,23 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			inode = path->dentry->d_inode;
 		}
 		goto finish_lookup;
+	} else {
+		/* create side of things */
+		/*
+		 * This will *only* deal with leaving RCU mode - LOOKUP_JUMPED
+		 * has been cleared when we got to the last component we are
+		 * about to look up
+		 */
+		error = complete_walk(nd);
+		if (error)
+			return ERR_PTR(error);
+
+		audit_inode(pathname, dir);
+		error = -EISDIR;
+		/* trailing slashes? */
+		if (nd->last.name[nd->last.len])
+			goto exit;
 	}
-
-	/* create side of things */
-	/*
-	 * This will *only* deal with leaving RCU mode - LOOKUP_JUMPED has been
-	 * cleared when we got to the last component we are about to look up
-	 */
-	error = complete_walk(nd);
-	if (error)
-		return ERR_PTR(error);
-
-	audit_inode(pathname, dir);
-	error = -EISDIR;
-	/* trailing slashes? */
-	if (nd->last.name[nd->last.len])
-		goto exit;
 
 retry_lookup:
 	mutex_lock(&dir->d_inode->i_mutex);
@@ -2305,7 +2306,7 @@ retry_lookup:
 	path->mnt = nd->path.mnt;
 
 	/* Negative dentry, just create the file */
-	if (!dentry->d_inode) {
+	if (!dentry->d_inode && (open_flag & O_CREAT)) {
 		umode_t mode = op->mode;
 		if (!IS_POSIXACL(dir->d_inode))
 			mode &= ~current_umask();
