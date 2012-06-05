@@ -2123,6 +2123,34 @@ void default_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
+unsigned int default_cpu_mask_to_apicid(const struct cpumask *cpumask)
+{
+	int cpu;
+
+	/*
+	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * May as well be the first.
+	 */
+	cpu = cpumask_first(cpumask);
+	if (likely((unsigned)cpu < nr_cpu_ids))
+		return per_cpu(x86_cpu_to_apicid, cpu);
+
+	return BAD_APICID;
+}
+
+unsigned int
+default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+			       const struct cpumask *andmask)
+{
+	int cpu;
+
+	for_each_cpu_and(cpu, cpumask, andmask) {
+		if (cpumask_test_cpu(cpu, cpu_online_mask))
+			break;
+	}
+	return per_cpu(x86_cpu_to_apicid, cpu);
+}
+
 /*
  * Power management
  */
