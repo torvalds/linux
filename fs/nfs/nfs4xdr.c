@@ -4360,7 +4360,7 @@ static int decode_attr_mdsthreshold(struct xdr_stream *xdr,
 
 	if (unlikely(bitmap[2] & (FATTR4_WORD2_MDSTHRESHOLD - 1U)))
 		return -EIO;
-	if (likely(bitmap[2] & FATTR4_WORD2_MDSTHRESHOLD)) {
+	if (bitmap[2] & FATTR4_WORD2_MDSTHRESHOLD) {
 		/* Did the server return an unrequested attribute? */
 		if (unlikely(res == NULL))
 			return -EREMOTEIO;
@@ -4376,6 +4376,7 @@ static int decode_attr_mdsthreshold(struct xdr_stream *xdr,
 				__func__);
 
 		status = decode_first_threshold_item4(xdr, res);
+		bitmap[2] &= ~FATTR4_WORD2_MDSTHRESHOLD;
 	}
 	return status;
 out_overflow:
