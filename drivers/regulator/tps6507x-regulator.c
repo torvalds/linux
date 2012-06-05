@@ -91,8 +91,6 @@ static const unsigned int LDO2_VSEL_table[] = {
 
 struct tps_info {
 	const char *name;
-	unsigned min_uV;
-	unsigned max_uV;
 	u8 table_len;
 	const unsigned int *table;
 
@@ -103,36 +101,26 @@ struct tps_info {
 static struct tps_info tps6507x_pmic_regs[] = {
 	{
 		.name = "VDCDC1",
-		.min_uV = 725000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(VDCDCx_VSEL_table),
 		.table = VDCDCx_VSEL_table,
 	},
 	{
 		.name = "VDCDC2",
-		.min_uV = 725000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(VDCDCx_VSEL_table),
 		.table = VDCDCx_VSEL_table,
 	},
 	{
 		.name = "VDCDC3",
-		.min_uV = 725000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(VDCDCx_VSEL_table),
 		.table = VDCDCx_VSEL_table,
 	},
 	{
 		.name = "LDO1",
-		.min_uV = 1000000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(LDO1_VSEL_table),
 		.table = LDO1_VSEL_table,
 	},
 	{
 		.name = "LDO2",
-		.min_uV = 725000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(LDO2_VSEL_table),
 		.table = LDO2_VSEL_table,
 	},
