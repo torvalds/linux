@@ -310,6 +310,8 @@ static ssize_t adf4350_read(struct iio_dev *indio_dev,
 	case ADF4350_PWRDOWN:
 		val = !!(st->regs[ADF4350_REG2] & ADF4350_REG2_POWER_DOWN_EN);
 		break;
+	default:
+		ret = -ENODEV;
 	}
 	mutex_unlock(&indio_dev->mlock);
 
