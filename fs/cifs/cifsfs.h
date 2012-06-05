@@ -46,6 +46,9 @@ extern const struct inode_operations cifs_dir_inode_ops;
 extern struct inode *cifs_root_iget(struct super_block *);
 extern int cifs_create(struct inode *, struct dentry *, umode_t,
 		       struct nameidata *);
+extern struct file *cifs_atomic_open(struct inode *, struct dentry *,
+				     struct opendata *, unsigned, umode_t,
+				     bool *);
 extern struct dentry *cifs_lookup(struct inode *, struct dentry *,
 				  struct nameidata *);
 extern int cifs_unlink(struct inode *dir, struct dentry *dentry);

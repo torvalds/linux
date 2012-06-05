@@ -777,6 +777,7 @@ struct file_system_type cifs_fs_type = {
 };
 const struct inode_operations cifs_dir_inode_ops = {
 	.create = cifs_create,
+	.atomic_open = cifs_atomic_open,
 	.lookup = cifs_lookup,
 	.getattr = cifs_getattr,
 	.unlink = cifs_unlink,
