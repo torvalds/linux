@@ -2766,9 +2766,7 @@ static int nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry)
  *
  * In the case of WRITE, we also want to put the GETATTR after
  * the operation -- in this case because we want to make sure
- * we get the post-operation mtime and size.  This means that
- * we can't use xdr_encode_pages() as written: we need a variant
- * of it which would leave room in the 'tail' iovec.
+ * we get the post-operation mtime and size.
  *
  * Both of these changes to the XDR layer would in fact be quite
  * minor, but I decided to leave them for a subsequent patch.

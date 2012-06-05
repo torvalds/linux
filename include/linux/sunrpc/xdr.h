@@ -104,8 +104,6 @@ __be32 *xdr_decode_string_inplace(__be32 *p, char **sp, unsigned int *lenp,
 __be32 *xdr_encode_netobj(__be32 *p, const struct xdr_netobj *);
 __be32 *xdr_decode_netobj(__be32 *p, struct xdr_netobj *);
 
-void	xdr_encode_pages(struct xdr_buf *, struct page **, unsigned int,
-			 unsigned int);
 void	xdr_inline_pages(struct xdr_buf *, unsigned int,
 			 struct page **, unsigned int, unsigned int);
 void	xdr_terminate_string(struct xdr_buf *, const u32);
