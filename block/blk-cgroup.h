@@ -120,8 +120,6 @@ struct blkcg_policy {
 
 extern struct blkcg blkcg_root;
 
-struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup);
-struct blkcg *bio_blkcg(struct bio *bio);
 struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, struct request_queue *q);
 struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 				    struct request_queue *q);
@@ -159,6 +157,25 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		   const char *input, struct blkg_conf_ctx *ctx);
 void blkg_conf_finish(struct blkg_conf_ctx *ctx);
 
+
+static inline struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup)
+{
+	return container_of(cgroup_subsys_state(cgroup, blkio_subsys_id),
+			    struct blkcg, css);
+}
+
+static inline struct blkcg *task_blkcg(struct task_struct *tsk)
+{
+	return container_of(task_subsys_state(tsk, blkio_subsys_id),
+			    struct blkcg, css);
+}
+
+static inline struct blkcg *bio_blkcg(struct bio *bio)
+{
+	if (bio && bio->bi_css)
+		return container_of(bio->bi_css, struct blkcg, css);
+	return task_blkcg(current);
+}
 
 /**
  * blkg_to_pdata - get policy private data
@@ -351,6 +368,7 @@ static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 #else	/* CONFIG_BLK_CGROUP */
 
 struct cgroup;
+struct blkcg;
 
 struct blkg_policy_data {
 };
@@ -361,8 +379,6 @@ struct blkcg_gq {
 struct blkcg_policy {
 };
 
-static inline struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup) { return NULL; }
-static inline struct blkcg *bio_blkcg(struct bio *bio) { return NULL; }
 static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { return NULL; }
 static inline int blkcg_init_queue(struct request_queue *q) { return 0; }
 static inline void blkcg_drain_queue(struct request_queue *q) { }
@@ -374,6 +390,8 @@ static inline int blkcg_activate_policy(struct request_queue *q,
 static inline void blkcg_deactivate_policy(struct request_queue *q,
 					   const struct blkcg_policy *pol) { }
 
+static inline struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup) { return NULL; }
+static inline struct blkcg *bio_blkcg(struct bio *bio) { return NULL; }
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
 						  struct blkcg_policy *pol) { return NULL; }
 static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd) { return NULL; }

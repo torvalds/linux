@@ -31,27 +31,6 @@ EXPORT_SYMBOL_GPL(blkcg_root);
 
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
-struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup)
-{
-	return container_of(cgroup_subsys_state(cgroup, blkio_subsys_id),
-			    struct blkcg, css);
-}
-EXPORT_SYMBOL_GPL(cgroup_to_blkcg);
-
-static struct blkcg *task_blkcg(struct task_struct *tsk)
-{
-	return container_of(task_subsys_state(tsk, blkio_subsys_id),
-			    struct blkcg, css);
-}
-
-struct blkcg *bio_blkcg(struct bio *bio)
-{
-	if (bio && bio->bi_css)
-		return container_of(bio->bi_css, struct blkcg, css);
-	return task_blkcg(current);
-}
-EXPORT_SYMBOL_GPL(bio_blkcg);
-
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
 {
