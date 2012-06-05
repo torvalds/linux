@@ -192,11 +192,22 @@ static int pm2xxx_charging_disable_mngt(struct pm2xxx_charger *pm2)
 {
 	int ret;
 
+	/* Disable SW EOC ctrl */
+	ret = pm2xxx_reg_write(pm2, PM2XXX_SW_CTRL_REG, PM2XXX_SWCTRL_HW);
+	if (ret < 0) {
+		dev_err(pm2->dev, "%s pm2xxx write failed\n", __func__);
+		return ret;
+	}
+
 	/* Disable charging */
 	ret = pm2xxx_reg_write(pm2, PM2XXX_BATT_CTRL_REG2,
 			(PM2XXX_CH_AUTO_RESUME_DIS | PM2XXX_CHARGER_DIS));
+	if (ret < 0) {
+		dev_err(pm2->dev, "%s pm2xxx write failed\n", __func__);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int pm2xxx_charger_batt_therm_mngt(struct pm2xxx_charger *pm2, int val)
@@ -245,13 +256,29 @@ static int pm2xxx_charger_wd_exp_mngt(struct pm2xxx_charger *pm2, int val)
 
 static int pm2xxx_charger_vbat_lsig_mngt(struct pm2xxx_charger *pm2, int val)
 {
+	int ret;
+
 	switch (val) {
 	case PM2XXX_INT1_ITVBATLOWR:
 		dev_dbg(pm2->dev, "VBAT grows above VBAT_LOW level\n");
+		/* Enable SW EOC ctrl */
+		ret = pm2xxx_reg_write(pm2, PM2XXX_SW_CTRL_REG,
+							PM2XXX_SWCTRL_SW);
+		if (ret < 0) {
+			dev_err(pm2->dev, "%s pm2xxx write failed\n", __func__);
+			return ret;
+		}
 		break;
 
 	case PM2XXX_INT1_ITVBATLOWF:
 		dev_dbg(pm2->dev, "VBAT drops below VBAT_LOW level\n");
+		/* Disable SW EOC ctrl */
+		ret = pm2xxx_reg_write(pm2, PM2XXX_SW_CTRL_REG,
+							PM2XXX_SWCTRL_HW);
+		if (ret < 0) {
+			dev_err(pm2->dev, "%s pm2xxx write failed\n", __func__);
+			return ret;
+		}
 		break;
 
 	default:
@@ -322,16 +349,27 @@ static int pm2_int_reg0(void *pm2_data, int val)
 	struct pm2xxx_charger *pm2 = pm2_data;
 	int ret = 0;
 
-	if (val & (PM2XXX_INT1_ITVBATLOWR | PM2XXX_INT1_ITVBATLOWF)) {
-		ret = pm2xxx_charger_vbat_lsig_mngt(pm2, val &
-			(PM2XXX_INT1_ITVBATLOWR | PM2XXX_INT1_ITVBATLOWF));
+	if (val & PM2XXX_INT1_ITVBATLOWR) {
+		ret = pm2xxx_charger_vbat_lsig_mngt(pm2,
+						PM2XXX_INT1_ITVBATLOWR);
+		if (ret < 0)
+			goto out;
+	}
+
+	if (val & PM2XXX_INT1_ITVBATLOWF) {
+		ret = pm2xxx_charger_vbat_lsig_mngt(pm2,
+						PM2XXX_INT1_ITVBATLOWF);
+		if (ret < 0)
+			goto out;
 	}
 
 	if (val & PM2XXX_INT1_ITVBATDISCONNECT) {
 		ret = pm2xxx_charger_bat_disc_mngt(pm2,
 				PM2XXX_INT1_ITVBATDISCONNECT);
+		if (ret < 0)
+			goto out;
 	}
-
+out:
 	return ret;
 }
 
