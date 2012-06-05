@@ -62,32 +62,3 @@
 	movw	\reg, #:lower16:\val
 	movt	\reg, #:upper16:\val
 .endm
-
-/*
- * tegra_cpu_wfi
- *
- * puts current CPU in clock-gated wfi using the flow controller
- *
- * corrupts r0-r3
- * must be called with MMU on
- */
-
-ENTRY(tegra_cpu_wfi)
-	cpu_id	r0
-	cpu_to_halt_reg r1, r0
-	cpu_to_csr_reg r2, r0
-	mov32	r0, TEGRA_FLOW_CTRL_VIRT
-	mov	r3, #FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG
-	str	r3, [r0, r2]	@ clear event & interrupt status
-	mov	r3, #FLOW_CTRL_WAIT_FOR_INTERRUPT | FLOW_CTRL_JTAG_RESUME
-	str	r3, [r0, r1]	@ put flow controller in wait irq mode
-	dsb
-	wfi
-	mov	r3, #0
-	str	r3, [r0, r1]	@ clear flow controller halt status
-	mov	r3, #FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG
-	str	r3, [r0, r2]	@ clear event & interrupt status
-	dsb
-	mov	pc, lr
-ENDPROC(tegra_cpu_wfi)
-

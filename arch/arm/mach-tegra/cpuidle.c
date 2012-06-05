@@ -27,9 +27,9 @@
 #include <linux/cpuidle.h>
 #include <linux/hrtimer.h>
 
-#include <mach/iomap.h>
+#include <asm/proc-fns.h>
 
-extern void tegra_cpu_wfi(void);
+#include <mach/iomap.h>
 
 static int tegra_idle_enter_lp3(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int index);
@@ -64,7 +64,7 @@ static int tegra_idle_enter_lp3(struct cpuidle_device *dev,
 
 	enter = ktime_get();
 
-	tegra_cpu_wfi();
+	cpu_do_idle();
 
 	exit = ktime_sub(ktime_get(), enter);
 	us = ktime_to_us(exit);
