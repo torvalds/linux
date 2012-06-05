@@ -207,8 +207,6 @@ static void ieee80211_hw_roc_start(struct work_struct *work)
 					  GFP_KERNEL);
 	}
 
-	ieee80211_recalc_idle(local);
-
 	mutex_unlock(&local->mtx);
 }
 
@@ -259,8 +257,6 @@ static void ieee80211_hw_roc_done(struct work_struct *work)
 
 	local->hw_roc_channel = NULL;
 	local->hw_roc_cookie = 0;
-
-	ieee80211_recalc_idle(local);
 
 	mutex_unlock(&local->mtx);
 }

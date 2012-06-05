@@ -2187,8 +2187,6 @@ static int ieee80211_cancel_remain_on_channel_hw(struct ieee80211_local *local,
 	local->hw_roc_cookie = 0;
 	local->hw_roc_channel = NULL;
 
-	ieee80211_recalc_idle(local);
-
 	return 0;
 }
 
@@ -2248,7 +2246,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_work *wk;
 	const struct ieee80211_mgmt *mgmt = (void *)buf;
 	u32 flags;
-	bool is_offchan = false;
+	bool is_offchan = false, in_hw_roc = false;
 
 	if (dont_wait_for_ack)
 		flags = IEEE80211_TX_CTL_NO_ACK;
@@ -2268,6 +2266,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	if (chan == local->hw_roc_channel) {
 		/* TODO: check channel type? */
 		is_offchan = false;
+		in_hw_roc = true;
 		flags |= IEEE80211_TX_CTL_TX_OFFCHAN;
 	}
 
@@ -2370,7 +2369,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	 * wait is involved, we might otherwise not be on
 	 * the right channel for long enough!
 	 */
-	if (!is_offchan && !wait && !sdata->vif.bss_conf.idle) {
+	if (!is_offchan && !wait && (in_hw_roc || !sdata->vif.bss_conf.idle)) {
 		ieee80211_tx_skb(sdata, skb);
 		return 0;
 	}
