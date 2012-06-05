@@ -346,6 +346,10 @@ EXPORT_SYMBOL_GPL(regmap_irq_chip_get_base);
  */
 int regmap_irq_get_virq(struct regmap_irq_chip_data *data, int irq)
 {
+	/* Handle holes in the IRQ list */
+	if (!data->chip->irqs[irq].mask)
+		return -EINVAL;
+
 	return irq_create_mapping(data->domain, irq);
 }
 EXPORT_SYMBOL_GPL(regmap_irq_get_virq);
