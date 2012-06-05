@@ -756,7 +756,6 @@ static void do_probe_callback(struct nfs4_client *clp)
  */
 void nfsd4_probe_callback(struct nfs4_client *clp)
 {
-	/* XXX: atomicity?  Also, should we be using cl_flags? */
 	clp->cl_cb_state = NFSD4_CB_UNKNOWN;
 	set_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_flags);
 	do_probe_callback(clp);
