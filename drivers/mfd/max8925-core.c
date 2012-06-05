@@ -75,9 +75,9 @@ static struct mfd_cell power_devs[] = {
 static struct resource rtc_resources[] = {
 	{
 		.name	= "max8925-rtc",
-		.start	= MAX8925_RTC_IRQ,
-		.end	= MAX8925_RTC_IRQ_MASK,
-		.flags	= IORESOURCE_IO,
+		.start	= MAX8925_IRQ_RTC_ALARM0,
+		.end	= MAX8925_IRQ_RTC_ALARM0,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -598,7 +598,7 @@ int __devinit max8925_device_init(struct max8925_chip *chip,
 
 	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
 			      ARRAY_SIZE(rtc_devs),
-			      &rtc_resources[0], 0);
+			      &rtc_resources[0], chip->irq_base);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to add rtc subdev\n");
 		goto out;
