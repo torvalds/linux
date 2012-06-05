@@ -27,6 +27,19 @@
 #define ARCH_SUPPORTS_FTRACE_OPS 0
 #endif
 
+/*
+ * If the arch's mcount caller does not support all of ftrace's
+ * features, then it must call an indirect function that
+ * does. Or at least does enough to prevent any unwelcomed side effects.
+ */
+#if !defined(CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST) || \
+	!ARCH_SUPPORTS_FTRACE_OPS
+# define FTRACE_FORCE_LIST_FUNC 1
+#else
+# define FTRACE_FORCE_LIST_FUNC 0
+#endif
+
+
 struct module;
 struct ftrace_hash;
 

@@ -97,8 +97,6 @@ static struct ftrace_ops *ftrace_global_list __read_mostly = &ftrace_list_end;
 static struct ftrace_ops *ftrace_control_list __read_mostly = &ftrace_list_end;
 static struct ftrace_ops *ftrace_ops_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
-static ftrace_func_t __ftrace_trace_function_delay __read_mostly = ftrace_stub;
-ftrace_func_t __ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t ftrace_pid_function __read_mostly = ftrace_stub;
 static struct ftrace_ops global_ops;
 static struct ftrace_ops control_ops;
@@ -162,25 +160,8 @@ static void set_ftrace_pid_function(ftrace_func_t func)
 void clear_ftrace_function(void)
 {
 	ftrace_trace_function = ftrace_stub;
-	__ftrace_trace_function = ftrace_stub;
-	__ftrace_trace_function_delay = ftrace_stub;
 	ftrace_pid_function = ftrace_stub;
 }
-
-#ifndef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
-/*
- * For those archs that do not test ftrace_trace_stop in their
- * mcount call site, we need to do it from C.
- */
-static void ftrace_test_stop_func(unsigned long ip, unsigned long parent_ip,
-				  struct ftrace_ops *op)
-{
-	if (function_trace_stop)
-		return;
-
-	__ftrace_trace_function(ip, parent_ip, op);
-}
-#endif
 
 static void control_ops_disable_all(struct ftrace_ops *ops)
 {
@@ -246,7 +227,7 @@ static void update_ftrace_function(void)
 	if (ftrace_ops_list == &ftrace_list_end ||
 	    (ftrace_ops_list->next == &ftrace_list_end &&
 	     !(ftrace_ops_list->flags & FTRACE_OPS_FL_DYNAMIC) &&
-	     ARCH_SUPPORTS_FTRACE_OPS)) {
+	     !FTRACE_FORCE_LIST_FUNC)) {
 		/* Set the ftrace_ops that the arch callback uses */
 		if (ftrace_ops_list == &global_ops)
 			function_trace_op = ftrace_global_list;
@@ -259,18 +240,7 @@ static void update_ftrace_function(void)
 		func = ftrace_ops_list_func;
 	}
 
-#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	ftrace_trace_function = func;
-#else
-#ifdef CONFIG_DYNAMIC_FTRACE
-	/* do not update till all functions have been modified */
-	__ftrace_trace_function_delay = func;
-#else
-	__ftrace_trace_function = func;
-#endif
-	ftrace_trace_function =
-		(func == ftrace_stub) ? func : ftrace_test_stop_func;
-#endif
 }
 
 static void add_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
@@ -1902,16 +1872,6 @@ static void ftrace_run_update_code(int command)
 	 */
 	arch_ftrace_update_code(command);
 
-#ifndef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
-	/*
-	 * For archs that call ftrace_test_stop_func(), we must
-	 * wait till after we update all the function callers
-	 * before we update the callback. This keeps different
-	 * ops that record different functions from corrupting
-	 * each other.
-	 */
-	__ftrace_trace_function = __ftrace_trace_function_delay;
-#endif
 	function_trace_stop--;
 
 	ret = ftrace_arch_code_modify_post_process();
@@ -3995,6 +3955,9 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *ignored)
 {
 	struct ftrace_ops *op;
+
+	if (function_trace_stop)
+		return;
 
 	if (unlikely(trace_recursion_test(TRACE_INTERNAL_BIT)))
 		return;
