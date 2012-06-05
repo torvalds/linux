@@ -682,6 +682,9 @@ static struct physmap_flash_data ezkit_flash_data = {
 	.parts      = ezkit_partitions,
 	.init 	    = bf609_nor_flash_init,
 	.nr_parts   = ARRAY_SIZE(ezkit_partitions),
+#ifdef CONFIG_ROMKERNEL
+	.probe_type = "map_rom",
+#endif
 };
 
 static struct resource ezkit_flash_resource = {
