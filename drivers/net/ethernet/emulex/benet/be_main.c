@@ -2762,7 +2762,8 @@ static int be_setup(struct be_adapter *adapter)
 
 	be_cmd_get_fw_ver(adapter, adapter->fw_ver, NULL);
 
-	be_vid_config(adapter, false, 0);
+	if (adapter->vlans_added)
+		be_vid_config(adapter, false, 0);
 
 	be_set_rx_mode(adapter->netdev);
 
