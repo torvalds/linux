@@ -2614,22 +2614,11 @@ finish_open_created:
 		goto exit;
 	od->mnt = nd->path.mnt;
 	filp = finish_open(od, nd->path.dentry, NULL);
-	if (filp == ERR_PTR(-EOPENSTALE) && save_parent.dentry && !retried) {
-		BUG_ON(save_parent.dentry != dir);
-		path_put(&nd->path);
-		nd->path = save_parent;
-		nd->inode = dir->d_inode;
-		save_parent.mnt = NULL;
-		save_parent.dentry = NULL;
-		if (want_write) {
-			mnt_drop_write(nd->path.mnt);
-			want_write = false;
-		}
-		retried = true;
-		goto retry_lookup;
-	}
-	if (IS_ERR(filp))
+	if (IS_ERR(filp)) {
+		if (filp == ERR_PTR(-EOPENSTALE))
+			goto stale_open;
 		goto out;
+	}
 	error = open_check_o_direct(filp);
 	if (error)
 		goto exit_fput;
@@ -2659,6 +2648,23 @@ exit_fput:
 	fput(filp);
 	goto exit;
 
+stale_open:
+	/* If no saved parent or already retried then can't retry */
+	if (!save_parent.dentry || retried)
+		goto out;
+
+	BUG_ON(save_parent.dentry != dir);
+	path_put(&nd->path);
+	nd->path = save_parent;
+	nd->inode = dir->d_inode;
+	save_parent.mnt = NULL;
+	save_parent.dentry = NULL;
+	if (want_write) {
+		mnt_drop_write(nd->path.mnt);
+		want_write = false;
+	}
+	retried = true;
+	goto retry_lookup;
 }
 
 static struct file *path_openat(int dfd, const char *pathname,
