@@ -98,13 +98,12 @@ struct dmtimer_platform_data {
 	int (*set_timer_src)(struct platform_device *pdev, int source);
 	int timer_ip_version;
 	u32 needs_manual_reset:1;
-	bool reserved;
-
 	bool loses_context;
 
 	int (*get_context_loss_count)(struct device *dev);
 };
 
+int omap_dm_timer_reserve_systimer(int id);
 struct omap_dm_timer *omap_dm_timer_request(void);
 struct omap_dm_timer *omap_dm_timer_request_specific(int timer_id);
 int omap_dm_timer_free(struct omap_dm_timer *timer);

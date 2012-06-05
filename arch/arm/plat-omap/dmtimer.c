@@ -45,6 +45,7 @@
 
 #include <mach/hardware.h>
 
+static u32 omap_reserved_systimers;
 static LIST_HEAD(omap_timer_list);
 static DEFINE_SPINLOCK(dm_timer_lock);
 
@@ -150,6 +151,21 @@ int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 
 	timer->posted = 1;
 	return ret;
+}
+
+static inline u32 omap_dm_timer_reserved_systimer(int id)
+{
+	return (omap_reserved_systimers & (1 << (id - 1))) ? 1 : 0;
+}
+
+int omap_dm_timer_reserve_systimer(int id)
+{
+	if (omap_dm_timer_reserved_systimer(id))
+		return -ENODEV;
+
+	omap_reserved_systimers |= (1 << (id - 1));
+
+	return 0;
 }
 
 struct omap_dm_timer *omap_dm_timer_request(void)
@@ -674,7 +690,7 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 
 	timer->id = pdev->id;
 	timer->irq = irq->start;
-	timer->reserved = pdata->reserved;
+	timer->reserved = omap_dm_timer_reserved_systimer(timer->id);
 	timer->pdev = pdev;
 	timer->loses_context = pdata->loses_context;
 	timer->get_context_loss_count = pdata->get_context_loss_count;

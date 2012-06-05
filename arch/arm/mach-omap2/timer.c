@@ -69,8 +69,6 @@
 #define OMAP3_SECURE_TIMER	1
 #endif
 
-static u32 sys_timer_reserved;
-
 /* Clockevent code */
 
 static struct omap_dm_timer clkev;
@@ -177,7 +175,8 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 
 	omap_hwmod_enable(oh);
 
-	sys_timer_reserved |= (1 << (gptimer_id - 1));
+	if (omap_dm_timer_reserve_systimer(gptimer_id))
+		return -ENODEV;
 
 	if (gptimer_id != 12) {
 		struct clk *src;
@@ -500,10 +499,6 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 
 	pdata->set_timer_src = omap2_dm_timer_set_src;
 	pdata->timer_ip_version = oh->class->rev;
-
-	/* Mark clocksource and clockevent timers as reserved */
-	if ((sys_timer_reserved >> (id - 1)) & 0x1)
-		pdata->reserved = 1;
 
 	pwrdm = omap_hwmod_get_pwrdm(oh);
 	pdata->loses_context = pwrdm_can_ever_lose_context(pwrdm);
