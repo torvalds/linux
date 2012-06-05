@@ -348,6 +348,7 @@ struct nfs_openargs {
 	const struct qstr *	name;
 	const struct nfs_server *server;	 /* Needed for ID mapping */
 	const u32 *		bitmask;
+	const u32 *		open_bitmap;
 	__u32			claim;
 	struct nfs4_sequence_args	seq_args;
 };
