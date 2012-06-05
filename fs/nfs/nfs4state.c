@@ -1792,12 +1792,14 @@ out:
 
 static int nfs4_recall_slot(struct nfs_client *clp)
 {
-	struct nfs4_slot_table *fc_tbl = &clp->cl_session->fc_slot_table;
-	struct nfs4_channel_attrs *fc_attrs = &clp->cl_session->fc_attrs;
+	struct nfs4_slot_table *fc_tbl;
 	struct nfs4_slot *new, *old;
 	int i;
 
+	if (!nfs4_has_session(clp))
+		return 0;
 	nfs4_begin_drain_session(clp);
+	fc_tbl = &clp->cl_session->fc_slot_table;
 	new = kmalloc(fc_tbl->target_max_slots * sizeof(struct nfs4_slot),
 		      GFP_NOFS);
         if (!new)
@@ -1810,7 +1812,7 @@ static int nfs4_recall_slot(struct nfs_client *clp)
 	fc_tbl->slots = new;
 	fc_tbl->max_slots = fc_tbl->target_max_slots;
 	fc_tbl->target_max_slots = 0;
-	fc_attrs->max_reqs = fc_tbl->max_slots;
+	clp->cl_session->fc_attrs.max_reqs = fc_tbl->max_slots;
 	spin_unlock(&fc_tbl->slot_tbl_lock);
 
 	kfree(old);
@@ -1920,8 +1922,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		}
 
 		/* Recall session slots */
-		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)
-		   && nfs4_has_session(clp)) {
+		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)) {
 			section = "recall slot";
 			status = nfs4_recall_slot(clp);
 			if (status < 0)
