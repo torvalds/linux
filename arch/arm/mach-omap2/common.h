@@ -239,6 +239,8 @@ void omap3_intc_prepare_idle(void);
 void omap3_intc_resume_idle(void);
 void omap2_intc_handle_irq(struct pt_regs *regs);
 void omap3_intc_handle_irq(struct pt_regs *regs);
+void omap_intc_of_init(void);
+void omap_gic_of_init(void);
 
 #ifdef CONFIG_CACHE_L2X0
 extern void __iomem *omap4_get_l2cache_base(void);
@@ -246,10 +248,10 @@ extern void __iomem *omap4_get_l2cache_base(void);
 
 struct device_node;
 #ifdef CONFIG_OF
-int __init omap_intc_of_init(struct device_node *node,
+int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent);
 #else
-int __init omap_intc_of_init(struct device_node *node,
+int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent)
 {
 	return 0;

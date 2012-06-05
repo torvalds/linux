@@ -21,6 +21,8 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
+#include <linux/of_irq.h>
+#include <linux/of_platform.h>
 
 #include <plat/irqs.h>
 #include <plat/sram.h>
@@ -209,6 +211,17 @@ static int __init omap4_sar_ram_init(void)
 	return 0;
 }
 early_initcall(omap4_sar_ram_init);
+
+static struct of_device_id irq_match[] __initdata = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{ }
+};
+
+void __init omap_gic_of_init(void)
+{
+	omap_wakeupgen_init();
+	of_irq_init(irq_match);
+}
 
 #if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
 static int omap4_twl6030_hsmmc_late_init(struct device *dev)
