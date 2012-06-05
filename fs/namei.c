@@ -2254,9 +2254,22 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			if (error < 0)
 				goto exit;
 
-			error = lookup_slow(nd, &nd->last, path);
-			if (error < 0)
+			BUG_ON(nd->inode != dir->d_inode);
+
+			mutex_lock(&dir->d_inode->i_mutex);
+			dentry = __lookup_hash(&nd->last, dir, nd);
+			mutex_unlock(&dir->d_inode->i_mutex);
+			error = PTR_ERR(dentry);
+			if (IS_ERR(dentry))
 				goto exit;
+			path->mnt = nd->path.mnt;
+			path->dentry = dentry;
+			error = follow_managed(path, nd->flags);
+			if (unlikely(error < 0))
+				goto exit_dput;
+
+			if (error)
+				nd->flags |= LOOKUP_JUMPED;
 
 			inode = path->dentry->d_inode;
 		}
