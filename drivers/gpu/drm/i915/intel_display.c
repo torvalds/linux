@@ -1232,6 +1232,9 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 	WARN(dp_pipe_enabled(dev_priv, pipe, port_sel, val),
 	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
+
+	WARN(HAS_PCH_IBX(dev_priv->dev) && (val & SDVO_PIPE_B_SELECT),
+	     "IBX PCH dp port still using transcoder B\n");
 }
 
 static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
@@ -1241,6 +1244,9 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 	WARN(hdmi_pipe_enabled(dev_priv, val, pipe),
 	     "PCH HDMI (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
+
+	WARN(HAS_PCH_IBX(dev_priv->dev) && (val & SDVO_PIPE_B_SELECT),
+	     "IBX PCH hdmi port still using transcoder B\n");
 }
 
 static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
