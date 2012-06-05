@@ -397,7 +397,6 @@ OMAP_SYS_TIMER(4)
 static int omap2_dm_timer_set_src(struct platform_device *pdev, int source)
 {
 	int ret;
-	struct dmtimer_platform_data *pdata = pdev->dev.platform_data;
 	struct clk *fclk, *parent;
 	char *parent_name = NULL;
 
@@ -418,14 +417,8 @@ static int omap2_dm_timer_set_src(struct platform_device *pdev, int source)
 		break;
 
 	case OMAP_TIMER_SRC_EXT_CLK:
-		if (pdata->timer_ip_version == OMAP_TIMER_IP_VERSION_1) {
-			parent_name = "alt_ck";
-			break;
-		}
-		dev_err(&pdev->dev, "%s: %d: invalid clk src.\n",
-			__func__, __LINE__);
-		clk_put(fclk);
-		return -EINVAL;
+		parent_name = "alt_ck";
+		break;
 	}
 
 	parent = clk_get(&pdev->dev, parent_name);
@@ -498,7 +491,6 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 	sscanf(oh->name, "timer%2d", &id);
 
 	pdata->set_timer_src = omap2_dm_timer_set_src;
-	pdata->timer_ip_version = oh->class->rev;
 
 	if (timer_dev_attr)
 		pdata->timer_capability = timer_dev_attr->timer_capability;

@@ -129,7 +129,6 @@ static struct omap_hwmod_class_sysconfig omap3xxx_timer_1ms_sysc = {
 static struct omap_hwmod_class omap3xxx_timer_1ms_hwmod_class = {
 	.name = "timer",
 	.sysc = &omap3xxx_timer_1ms_sysc,
-	.rev = OMAP_TIMER_IP_VERSION_1,
 };
 
 static struct omap_hwmod_class_sysconfig omap3xxx_timer_sysc = {
@@ -145,7 +144,6 @@ static struct omap_hwmod_class_sysconfig omap3xxx_timer_sysc = {
 static struct omap_hwmod_class omap3xxx_timer_hwmod_class = {
 	.name = "timer",
 	.sysc = &omap3xxx_timer_sysc,
-	.rev =  OMAP_TIMER_IP_VERSION_1,
 };
 
 /* secure timers dev attribute */
