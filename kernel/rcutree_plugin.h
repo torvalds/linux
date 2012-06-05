@@ -1968,7 +1968,7 @@ static void rcu_idle_count_callbacks_posted(void)
  */
 #define RCU_IDLE_FLUSHES 5		/* Number of dyntick-idle tries. */
 #define RCU_IDLE_OPT_FLUSHES 3		/* Optional dyntick-idle tries. */
-#define RCU_IDLE_GP_DELAY 6		/* Roughly one grace period. */
+#define RCU_IDLE_GP_DELAY 4		/* Roughly one grace period. */
 #define RCU_IDLE_LAZY_GP_DELAY (6 * HZ)	/* Roughly six seconds. */
 
 /*
@@ -2047,10 +2047,13 @@ int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
 		return 1;
 	}
 	/* Set up for the possibility that RCU will post a timer. */
-	if (rcu_cpu_has_nonlazy_callbacks(cpu))
-		*delta_jiffies = RCU_IDLE_GP_DELAY;
-	else
-		*delta_jiffies = RCU_IDLE_LAZY_GP_DELAY;
+	if (rcu_cpu_has_nonlazy_callbacks(cpu)) {
+		*delta_jiffies = round_up(RCU_IDLE_GP_DELAY + jiffies,
+					  RCU_IDLE_GP_DELAY) - jiffies;
+	} else {
+		*delta_jiffies = jiffies + RCU_IDLE_LAZY_GP_DELAY;
+		*delta_jiffies = round_jiffies(*delta_jiffies) - jiffies;
+	}
 	return 0;
 }
 
@@ -2187,10 +2190,11 @@ static void rcu_prepare_for_idle(int cpu)
 		if (rcu_cpu_has_nonlazy_callbacks(cpu)) {
 			trace_rcu_prep_idle("Dyntick with callbacks");
 			rdtp->idle_gp_timer_expires =
-					   jiffies + RCU_IDLE_GP_DELAY;
+				round_up(jiffies + RCU_IDLE_GP_DELAY,
+					 RCU_IDLE_GP_DELAY);
 		} else {
 			rdtp->idle_gp_timer_expires =
-					   jiffies + RCU_IDLE_LAZY_GP_DELAY;
+				round_jiffies(jiffies + RCU_IDLE_LAZY_GP_DELAY);
 			trace_rcu_prep_idle("Dyntick with lazy callbacks");
 		}
 		tp = &rdtp->idle_gp_timer;
