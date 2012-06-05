@@ -24,13 +24,13 @@
 #define BATADV_VIS_TIMEOUT		200000
 
 int batadv_vis_seq_print_text(struct seq_file *seq, void *offset);
-void batadv_receive_server_sync_packet(struct bat_priv *bat_priv,
+void batadv_receive_server_sync_packet(struct batadv_priv *bat_priv,
 				       struct batadv_vis_packet *vis_packet,
 				       int vis_info_len);
-void batadv_receive_client_update_packet(struct bat_priv *bat_priv,
+void batadv_receive_client_update_packet(struct batadv_priv *bat_priv,
 					 struct batadv_vis_packet *vis_packet,
 					 int vis_info_len);
-int batadv_vis_init(struct bat_priv *bat_priv);
-void batadv_vis_quit(struct bat_priv *bat_priv);
+int batadv_vis_init(struct batadv_priv *bat_priv);
+void batadv_vis_quit(struct batadv_priv *bat_priv);
 
 #endif /* _NET_BATMAN_ADV_VIS_H_ */

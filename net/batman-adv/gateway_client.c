@@ -36,15 +36,16 @@
 #define BATADV_DHCP_OPTIONS_OFFSET 240
 #define BATADV_DHCP_REQUEST 3
 
-static void batadv_gw_node_free_ref(struct gw_node *gw_node)
+static void batadv_gw_node_free_ref(struct batadv_gw_node *gw_node)
 {
 	if (atomic_dec_and_test(&gw_node->refcount))
 		kfree_rcu(gw_node, rcu);
 }
 
-static struct gw_node *batadv_gw_get_selected_gw_node(struct bat_priv *bat_priv)
+static struct batadv_gw_node *
+batadv_gw_get_selected_gw_node(struct batadv_priv *bat_priv)
 {
-	struct gw_node *gw_node;
+	struct batadv_gw_node *gw_node;
 
 	rcu_read_lock();
 	gw_node = rcu_dereference(bat_priv->curr_gw);
@@ -59,10 +60,11 @@ out:
 	return gw_node;
 }
 
-struct orig_node *batadv_gw_get_selected_orig(struct bat_priv *bat_priv)
+struct batadv_orig_node *
+batadv_gw_get_selected_orig(struct batadv_priv *bat_priv)
 {
-	struct gw_node *gw_node;
-	struct orig_node *orig_node = NULL;
+	struct batadv_gw_node *gw_node;
+	struct batadv_orig_node *orig_node = NULL;
 
 	gw_node = batadv_gw_get_selected_gw_node(bat_priv);
 	if (!gw_node)
@@ -84,10 +86,10 @@ out:
 	return orig_node;
 }
 
-static void batadv_gw_select(struct bat_priv *bat_priv,
-			     struct gw_node *new_gw_node)
+static void batadv_gw_select(struct batadv_priv *bat_priv,
+			     struct batadv_gw_node *new_gw_node)
 {
-	struct gw_node *curr_gw_node;
+	struct batadv_gw_node *curr_gw_node;
 
 	spin_lock_bh(&bat_priv->gw_list_lock);
 
@@ -103,20 +105,21 @@ static void batadv_gw_select(struct bat_priv *bat_priv,
 	spin_unlock_bh(&bat_priv->gw_list_lock);
 }
 
-void batadv_gw_deselect(struct bat_priv *bat_priv)
+void batadv_gw_deselect(struct batadv_priv *bat_priv)
 {
 	atomic_set(&bat_priv->gw_reselect, 1);
 }
 
-static struct gw_node *batadv_gw_get_best_gw_node(struct bat_priv *bat_priv)
+static struct batadv_gw_node *
+batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 {
-	struct neigh_node *router;
+	struct batadv_neigh_node *router;
 	struct hlist_node *node;
-	struct gw_node *gw_node, *curr_gw = NULL;
+	struct batadv_gw_node *gw_node, *curr_gw = NULL;
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
 	uint8_t max_tq = 0;
 	int down, up;
-	struct orig_node *orig_node;
+	struct batadv_orig_node *orig_node;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
@@ -183,10 +186,10 @@ next:
 	return curr_gw;
 }
 
-void batadv_gw_election(struct bat_priv *bat_priv)
+void batadv_gw_election(struct batadv_priv *bat_priv)
 {
-	struct gw_node *curr_gw = NULL, *next_gw = NULL;
-	struct neigh_node *router = NULL;
+	struct batadv_gw_node *curr_gw = NULL, *next_gw = NULL;
+	struct batadv_neigh_node *router = NULL;
 	char gw_addr[18] = { '\0' };
 
 	/* The batman daemon checks here if we already passed a full originator
@@ -249,11 +252,11 @@ out:
 		batadv_neigh_node_free_ref(router);
 }
 
-void batadv_gw_check_election(struct bat_priv *bat_priv,
-			      struct orig_node *orig_node)
+void batadv_gw_check_election(struct batadv_priv *bat_priv,
+			      struct batadv_orig_node *orig_node)
 {
-	struct orig_node *curr_gw_orig;
-	struct neigh_node *router_gw = NULL, *router_orig = NULL;
+	struct batadv_orig_node *curr_gw_orig;
+	struct batadv_neigh_node *router_gw = NULL, *router_orig = NULL;
 	uint8_t gw_tq_avg, orig_tq_avg;
 
 	curr_gw_orig = batadv_gw_get_selected_orig(bat_priv);
@@ -303,11 +306,11 @@ out:
 	return;
 }
 
-static void batadv_gw_node_add(struct bat_priv *bat_priv,
-			       struct orig_node *orig_node,
+static void batadv_gw_node_add(struct batadv_priv *bat_priv,
+			       struct batadv_orig_node *orig_node,
 			       uint8_t new_gwflags)
 {
-	struct gw_node *gw_node;
+	struct batadv_gw_node *gw_node;
 	int down, up;
 
 	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
@@ -332,11 +335,12 @@ static void batadv_gw_node_add(struct bat_priv *bat_priv,
 		   (up > 2048 ? "MBit" : "KBit"));
 }
 
-void batadv_gw_node_update(struct bat_priv *bat_priv,
-			   struct orig_node *orig_node, uint8_t new_gwflags)
+void batadv_gw_node_update(struct batadv_priv *bat_priv,
+			   struct batadv_orig_node *orig_node,
+			   uint8_t new_gwflags)
 {
 	struct hlist_node *node;
-	struct gw_node *gw_node, *curr_gw;
+	struct batadv_gw_node *gw_node, *curr_gw;
 
 	/* Note: We don't need a NULL check here, since curr_gw never gets
 	 * dereferenced. If curr_gw is NULL we also should not exit as we may
@@ -385,15 +389,15 @@ unlock:
 		batadv_gw_node_free_ref(curr_gw);
 }
 
-void batadv_gw_node_delete(struct bat_priv *bat_priv,
-			   struct orig_node *orig_node)
+void batadv_gw_node_delete(struct batadv_priv *bat_priv,
+			   struct batadv_orig_node *orig_node)
 {
 	batadv_gw_node_update(bat_priv, orig_node, 0);
 }
 
-void batadv_gw_node_purge(struct bat_priv *bat_priv)
+void batadv_gw_node_purge(struct batadv_priv *bat_priv)
 {
-	struct gw_node *gw_node, *curr_gw;
+	struct batadv_gw_node *gw_node, *curr_gw;
 	struct hlist_node *node, *node_tmp;
 	unsigned long timeout = msecs_to_jiffies(2 * BATADV_PURGE_TIMEOUT);
 	int do_deselect = 0;
@@ -427,12 +431,12 @@ void batadv_gw_node_purge(struct bat_priv *bat_priv)
 }
 
 /* fails if orig_node has no router */
-static int batadv_write_buffer_text(struct bat_priv *bat_priv,
-				     struct seq_file *seq,
-				     const struct gw_node *gw_node)
+static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
+				    struct seq_file *seq,
+				    const struct batadv_gw_node *gw_node)
 {
-	struct gw_node *curr_gw;
-	struct neigh_node *router;
+	struct batadv_gw_node *curr_gw;
+	struct batadv_neigh_node *router;
 	int down, up, ret = -1;
 
 	batadv_gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags, &down, &up);
@@ -464,9 +468,9 @@ out:
 int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	struct hard_iface *primary_if;
-	struct gw_node *gw_node;
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_hard_iface *primary_if;
+	struct batadv_gw_node *gw_node;
 	struct hlist_node *node;
 	int gw_count = 0, ret = 0;
 
@@ -639,12 +643,12 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 	return true;
 }
 
-bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
+bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb, struct ethhdr *ethhdr)
 {
-	struct neigh_node *neigh_curr = NULL, *neigh_old = NULL;
-	struct orig_node *orig_dst_node = NULL;
-	struct gw_node *curr_gw = NULL;
+	struct batadv_neigh_node *neigh_curr = NULL, *neigh_old = NULL;
+	struct batadv_orig_node *orig_dst_node = NULL;
+	struct batadv_gw_node *curr_gw = NULL;
 	bool ret, out_of_range = false;
 	unsigned int header_len = 0;
 	uint8_t curr_tq_avg;

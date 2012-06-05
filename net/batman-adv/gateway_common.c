@@ -137,7 +137,7 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 				size_t count)
 {
-	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	long gw_bandwidth_tmp = 0;
 	int up = 0, down = 0;
 	bool ret;

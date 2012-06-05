@@ -164,16 +164,17 @@ int batadv_is_my_mac(const uint8_t *addr);
 int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *ptype,
 			   struct net_device *orig_dev);
-int batadv_recv_handler_register(uint8_t packet_type,
-				 int (*recv_handler)(struct sk_buff *,
-						     struct hard_iface *));
+int
+batadv_recv_handler_register(uint8_t packet_type,
+			     int (*recv_handler)(struct sk_buff *,
+						 struct batadv_hard_iface *));
 void batadv_recv_handler_unregister(uint8_t packet_type);
-int batadv_algo_register(struct bat_algo_ops *bat_algo_ops);
-int batadv_algo_select(struct bat_priv *bat_priv, char *name);
+int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
+int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-int batadv_debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
+int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 __printf(2, 3);
 
 #define batadv_dbg(type, bat_priv, fmt, arg...)			\
@@ -185,7 +186,7 @@ __printf(2, 3);
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
 __printf(3, 4)
 static inline void batadv_dbg(int type __always_unused,
-			      struct bat_priv *bat_priv __always_unused,
+			      struct batadv_priv *bat_priv __always_unused,
 			      const char *fmt __always_unused, ...)
 {
 }
@@ -194,14 +195,14 @@ static inline void batadv_dbg(int type __always_unused,
 #define batadv_info(net_dev, fmt, arg...)				\
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \
-		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
+		struct batadv_priv *_batpriv = netdev_priv(_netdev);    \
 		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
 		pr_info("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
 #define batadv_err(net_dev, fmt, arg...)				\
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \
-		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
+		struct batadv_priv *_batpriv = netdev_priv(_netdev);    \
 		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
 		pr_err("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
@@ -250,7 +251,7 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
 #define batadv_seq_after(x, y) batadv_seq_before(y, x)
 
 /* Stop preemption on local cpu while incrementing the counter */
-static inline void batadv_add_counter(struct bat_priv *bat_priv, size_t idx,
+static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 				      size_t count)
 {
 	int cpu = get_cpu();
@@ -261,7 +262,8 @@ static inline void batadv_add_counter(struct bat_priv *bat_priv, size_t idx,
 #define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)
 
 /* Sum and return the cpu-local counters for index 'idx' */
-static inline uint64_t batadv_sum_counter(struct bat_priv *bat_priv, size_t idx)
+static inline uint64_t batadv_sum_counter(struct batadv_priv *bat_priv,
+					  size_t idx)
 {
 	uint64_t *counters;
 	int cpu;

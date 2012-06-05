@@ -32,16 +32,17 @@
 
 void batadv_hardif_free_rcu(struct rcu_head *rcu)
 {
-	struct hard_iface *hard_iface;
+	struct batadv_hard_iface *hard_iface;
 
-	hard_iface = container_of(rcu, struct hard_iface, rcu);
+	hard_iface = container_of(rcu, struct batadv_hard_iface, rcu);
 	dev_put(hard_iface->net_dev);
 	kfree(hard_iface);
 }
 
-struct hard_iface *batadv_hardif_get_by_netdev(const struct net_device *net_dev)
+struct batadv_hard_iface *
+batadv_hardif_get_by_netdev(const struct net_device *net_dev)
 {
-	struct hard_iface *hard_iface;
+	struct batadv_hard_iface *hard_iface;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -75,10 +76,10 @@ static int batadv_is_valid_iface(const struct net_device *net_dev)
 	return 1;
 }
 
-static struct hard_iface *
+static struct batadv_hard_iface *
 batadv_hardif_get_active(const struct net_device *soft_iface)
 {
-	struct hard_iface *hard_iface;
+	struct batadv_hard_iface *hard_iface;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -97,11 +98,11 @@ out:
 	return hard_iface;
 }
 
-static void batadv_primary_if_update_addr(struct bat_priv *bat_priv,
-					  struct hard_iface *oldif)
+static void batadv_primary_if_update_addr(struct batadv_priv *bat_priv,
+					  struct batadv_hard_iface *oldif)
 {
 	struct batadv_vis_packet *vis_packet;
-	struct hard_iface *primary_if;
+	struct batadv_hard_iface *primary_if;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
@@ -119,10 +120,10 @@ out:
 		batadv_hardif_free_ref(primary_if);
 }
 
-static void batadv_primary_if_select(struct bat_priv *bat_priv,
-				     struct hard_iface *new_hard_iface)
+static void batadv_primary_if_select(struct batadv_priv *bat_priv,
+				     struct batadv_hard_iface *new_hard_iface)
 {
-	struct hard_iface *curr_hard_iface;
+	struct batadv_hard_iface *curr_hard_iface;
 
 	ASSERT_RTNL();
 
@@ -143,7 +144,8 @@ out:
 		batadv_hardif_free_ref(curr_hard_iface);
 }
 
-static bool batadv_hardif_is_iface_up(const struct hard_iface *hard_iface)
+static bool
+batadv_hardif_is_iface_up(const struct batadv_hard_iface *hard_iface)
 {
 	if (hard_iface->net_dev->flags & IFF_UP)
 		return true;
@@ -153,7 +155,7 @@ static bool batadv_hardif_is_iface_up(const struct hard_iface *hard_iface)
 
 static void batadv_check_known_mac_addr(const struct net_device *net_dev)
 {
-	const struct hard_iface *hard_iface;
+	const struct batadv_hard_iface *hard_iface;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -177,8 +179,8 @@ static void batadv_check_known_mac_addr(const struct net_device *net_dev)
 
 int batadv_hardif_min_mtu(struct net_device *soft_iface)
 {
-	const struct bat_priv *bat_priv = netdev_priv(soft_iface);
-	const struct hard_iface *hard_iface;
+	const struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	const struct batadv_hard_iface *hard_iface;
 	/* allow big frames if all devices are capable to do so
 	 * (have MTU > 1500 + BAT_HEADER_LEN)
 	 */
@@ -215,10 +217,11 @@ void batadv_update_min_mtu(struct net_device *soft_iface)
 		soft_iface->mtu = min_mtu;
 }
 
-static void batadv_hardif_activate_interface(struct hard_iface *hard_iface)
+static void
+batadv_hardif_activate_interface(struct batadv_hard_iface *hard_iface)
 {
-	struct bat_priv *bat_priv;
-	struct hard_iface *primary_if = NULL;
+	struct batadv_priv *bat_priv;
+	struct batadv_hard_iface *primary_if = NULL;
 
 	if (hard_iface->if_status != BATADV_IF_INACTIVE)
 		goto out;
@@ -245,7 +248,8 @@ out:
 		batadv_hardif_free_ref(primary_if);
 }
 
-static void batadv_hardif_deactivate_interface(struct hard_iface *hard_iface)
+static void
+batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
 {
 	if ((hard_iface->if_status != BATADV_IF_ACTIVE) &&
 	    (hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED))
@@ -259,10 +263,10 @@ static void batadv_hardif_deactivate_interface(struct hard_iface *hard_iface)
 	batadv_update_min_mtu(hard_iface->soft_iface);
 }
 
-int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
+int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 				   const char *iface_name)
 {
-	struct bat_priv *bat_priv;
+	struct batadv_priv *bat_priv;
 	struct net_device *soft_iface;
 	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 	int ret;
@@ -354,10 +358,10 @@ err:
 	return ret;
 }
 
-void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
+void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface)
 {
-	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct hard_iface *primary_if = NULL;
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_hard_iface *primary_if = NULL;
 
 	if (hard_iface->if_status == BATADV_IF_ACTIVE)
 		batadv_hardif_deactivate_interface(hard_iface);
@@ -374,7 +378,7 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (hard_iface == primary_if) {
-		struct hard_iface *new_if;
+		struct batadv_hard_iface *new_if;
 
 		new_if = batadv_hardif_get_active(hard_iface->soft_iface);
 		batadv_primary_if_select(bat_priv, new_if);
@@ -403,10 +407,10 @@ out:
 		batadv_hardif_free_ref(primary_if);
 }
 
-static struct hard_iface *
+static struct batadv_hard_iface *
 batadv_hardif_add_interface(struct net_device *net_dev)
 {
-	struct hard_iface *hard_iface;
+	struct batadv_hard_iface *hard_iface;
 	int ret;
 
 	ASSERT_RTNL();
@@ -452,7 +456,7 @@ out:
 	return NULL;
 }
 
-static void batadv_hardif_remove_interface(struct hard_iface *hard_iface)
+static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 {
 	ASSERT_RTNL();
 
@@ -470,7 +474,7 @@ static void batadv_hardif_remove_interface(struct hard_iface *hard_iface)
 
 void batadv_hardif_remove_interfaces(void)
 {
-	struct hard_iface *hard_iface, *hard_iface_tmp;
+	struct batadv_hard_iface *hard_iface, *hard_iface_tmp;
 
 	rtnl_lock();
 	list_for_each_entry_safe(hard_iface, hard_iface_tmp,
@@ -485,10 +489,11 @@ static int batadv_hard_if_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
 	struct net_device *net_dev = ptr;
-	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
-	struct hard_iface *primary_if = NULL;
-	struct bat_priv *bat_priv;
+	struct batadv_hard_iface *hard_iface;
+	struct batadv_hard_iface *primary_if = NULL;
+	struct batadv_priv *bat_priv;
 
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface && event == NETDEV_REGISTER)
 		hard_iface = batadv_hardif_add_interface(net_dev);
 

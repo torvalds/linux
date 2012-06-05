@@ -28,13 +28,13 @@
 #include "send.h"
 #include "bat_algo.h"
 
-static struct neigh_node *batadv_iv_ogm_neigh_new(struct hard_iface *hard_iface,
-						  const uint8_t *neigh_addr,
-						  struct orig_node *orig_node,
-						  struct orig_node *orig_neigh,
-						  __be32 seqno)
+static struct batadv_neigh_node *
+batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
+			const uint8_t *neigh_addr,
+			struct batadv_orig_node *orig_node,
+			struct batadv_orig_node *orig_neigh, __be32 seqno)
 {
-	struct neigh_node *neigh_node;
+	struct batadv_neigh_node *neigh_node;
 
 	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr,
 					   ntohl(seqno));
@@ -54,7 +54,7 @@ out:
 	return neigh_node;
 }
 
-static int batadv_iv_ogm_iface_enable(struct hard_iface *hard_iface)
+static int batadv_iv_ogm_iface_enable(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	uint32_t random_seqno;
@@ -85,13 +85,13 @@ out:
 	return res;
 }
 
-static void batadv_iv_ogm_iface_disable(struct hard_iface *hard_iface)
+static void batadv_iv_ogm_iface_disable(struct batadv_hard_iface *hard_iface)
 {
 	kfree(hard_iface->packet_buff);
 	hard_iface->packet_buff = NULL;
 }
 
-static void batadv_iv_ogm_iface_update_mac(struct hard_iface *hard_iface)
+static void batadv_iv_ogm_iface_update_mac(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_ogm_packet *batadv_ogm_packet;
 
@@ -102,7 +102,8 @@ static void batadv_iv_ogm_iface_update_mac(struct hard_iface *hard_iface)
 	       hard_iface->net_dev->dev_addr, ETH_ALEN);
 }
 
-static void batadv_iv_ogm_primary_iface_set(struct hard_iface *hard_iface)
+static void
+batadv_iv_ogm_primary_iface_set(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_ogm_packet *batadv_ogm_packet;
 
@@ -113,7 +114,7 @@ static void batadv_iv_ogm_primary_iface_set(struct hard_iface *hard_iface)
 
 /* when do we schedule our own ogm to be sent */
 static unsigned long
-batadv_iv_ogm_emit_send_time(const struct bat_priv *bat_priv)
+batadv_iv_ogm_emit_send_time(const struct batadv_priv *bat_priv)
 {
 	unsigned int msecs;
 
@@ -130,7 +131,8 @@ static unsigned long batadv_iv_ogm_fwd_send_time(void)
 }
 
 /* apply hop penalty for a normal link */
-static uint8_t batadv_hop_penalty(uint8_t tq, const struct bat_priv *bat_priv)
+static uint8_t batadv_hop_penalty(uint8_t tq,
+				  const struct batadv_priv *bat_priv)
 {
 	int hop_penalty = atomic_read(&bat_priv->hop_penalty);
 	int new_tq;
@@ -155,10 +157,10 @@ static int batadv_iv_ogm_aggr_packet(int buff_pos, int packet_len,
 }
 
 /* send a batman ogm to a given interface */
-static void batadv_iv_ogm_send_to_if(struct forw_packet *forw_packet,
-				  struct hard_iface *hard_iface)
+static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
+				     struct batadv_hard_iface *hard_iface)
 {
-	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	char *fwd_str;
 	uint8_t packet_num;
 	int16_t buff_pos;
@@ -217,12 +219,12 @@ static void batadv_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 }
 
 /* send a batman ogm packet */
-static void batadv_iv_ogm_emit(struct forw_packet *forw_packet)
+static void batadv_iv_ogm_emit(struct batadv_forw_packet *forw_packet)
 {
-	struct hard_iface *hard_iface;
+	struct batadv_hard_iface *hard_iface;
 	struct net_device *soft_iface;
-	struct bat_priv *bat_priv;
-	struct hard_iface *primary_if = NULL;
+	struct batadv_priv *bat_priv;
+	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	unsigned char directlink;
 
@@ -288,15 +290,15 @@ out:
 /* return true if new_packet can be aggregated with forw_packet */
 static bool
 batadv_iv_ogm_can_aggregate(const struct batadv_ogm_packet *new_bat_ogm_packet,
-			    struct bat_priv *bat_priv,
+			    struct batadv_priv *bat_priv,
 			    int packet_len, unsigned long send_time,
 			    bool directlink,
-			    const struct hard_iface *if_incoming,
-			    const struct forw_packet *forw_packet)
+			    const struct batadv_hard_iface *if_incoming,
+			    const struct batadv_forw_packet *forw_packet)
 {
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	int aggregated_bytes = forw_packet->packet_len + packet_len;
-	struct hard_iface *primary_if = NULL;
+	struct batadv_hard_iface *primary_if = NULL;
 	bool res = false;
 	unsigned long aggregation_end_time;
 
@@ -371,11 +373,11 @@ out:
 static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 					int packet_len, unsigned long send_time,
 					bool direct_link,
-					struct hard_iface *if_incoming,
+					struct batadv_hard_iface *if_incoming,
 					int own_packet)
 {
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
-	struct forw_packet *forw_packet_aggr;
+	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_forw_packet *forw_packet_aggr;
 	unsigned char *skb_buff;
 	unsigned int skb_size;
 
@@ -447,7 +449,7 @@ out:
 }
 
 /* aggregate a new packet into the existing ogm packet */
-static void batadv_iv_ogm_aggregate(struct forw_packet *forw_packet_aggr,
+static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 				    const unsigned char *packet_buff,
 				    int packet_len, bool direct_link)
 {
@@ -464,16 +466,17 @@ static void batadv_iv_ogm_aggregate(struct forw_packet *forw_packet_aggr,
 			(1 << forw_packet_aggr->num_packets);
 }
 
-static void batadv_iv_ogm_queue_add(struct bat_priv *bat_priv,
+static void batadv_iv_ogm_queue_add(struct batadv_priv *bat_priv,
 				    unsigned char *packet_buff,
 				    int packet_len,
-				    struct hard_iface *if_incoming,
+				    struct batadv_hard_iface *if_incoming,
 				    int own_packet, unsigned long send_time)
 {
 	/* _aggr -> pointer to the packet we want to aggregate with
 	 * _pos -> pointer to the position in the queue
 	 */
-	struct forw_packet *forw_packet_aggr = NULL, *forw_packet_pos = NULL;
+	struct batadv_forw_packet *forw_packet_aggr = NULL;
+	struct batadv_forw_packet *forw_packet_pos = NULL;
 	struct hlist_node *tmp_node;
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	bool direct_link;
@@ -524,14 +527,14 @@ static void batadv_iv_ogm_queue_add(struct bat_priv *bat_priv,
 	}
 }
 
-static void batadv_iv_ogm_forward(struct orig_node *orig_node,
+static void batadv_iv_ogm_forward(struct batadv_orig_node *orig_node,
 				  const struct ethhdr *ethhdr,
 				  struct batadv_ogm_packet *batadv_ogm_packet,
 				  bool is_single_hop_neigh,
 				  bool is_from_best_next_hop,
-				  struct hard_iface *if_incoming)
+				  struct batadv_hard_iface *if_incoming)
 {
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	uint8_t tt_num_changes;
 
 	if (batadv_ogm_packet->header.ttl <= 1) {
@@ -577,11 +580,11 @@ static void batadv_iv_ogm_forward(struct orig_node *orig_node,
 				if_incoming, 0, batadv_iv_ogm_fwd_send_time());
 }
 
-static void batadv_iv_ogm_schedule(struct hard_iface *hard_iface)
+static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 {
-	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batadv_ogm_packet *batadv_ogm_packet;
-	struct hard_iface *primary_if;
+	struct batadv_hard_iface *primary_if;
 	int vis_server, tt_num_changes = 0;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
@@ -627,17 +630,17 @@ static void batadv_iv_ogm_schedule(struct hard_iface *hard_iface)
 }
 
 static void
-batadv_iv_ogm_orig_update(struct bat_priv *bat_priv,
-			  struct orig_node *orig_node,
+batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
+			  struct batadv_orig_node *orig_node,
 			  const struct ethhdr *ethhdr,
 			  const struct batadv_ogm_packet *batadv_ogm_packet,
-			  struct hard_iface *if_incoming,
+			  struct batadv_hard_iface *if_incoming,
 			  const unsigned char *tt_buff,
 			  int is_duplicate)
 {
-	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
-	struct neigh_node *router = NULL;
-	struct orig_node *orig_node_tmp;
+	struct batadv_neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
+	struct batadv_neigh_node *router = NULL;
+	struct batadv_orig_node *orig_node_tmp;
 	struct hlist_node *node;
 	uint8_t bcast_own_sum_orig, bcast_own_sum_neigh;
 	uint8_t *neigh_addr;
@@ -670,7 +673,7 @@ batadv_iv_ogm_orig_update(struct bat_priv *bat_priv,
 	}
 
 	if (!neigh_node) {
-		struct orig_node *orig_tmp;
+		struct batadv_orig_node *orig_tmp;
 
 		orig_tmp = batadv_get_orig_node(bat_priv, ethhdr->h_source);
 		if (!orig_tmp)
@@ -775,13 +778,13 @@ out:
 		batadv_neigh_node_free_ref(router);
 }
 
-static int batadv_iv_ogm_calc_tq(struct orig_node *orig_node,
-				 struct orig_node *orig_neigh_node,
+static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
+				 struct batadv_orig_node *orig_neigh_node,
 				 struct batadv_ogm_packet *batadv_ogm_packet,
-				 struct hard_iface *if_incoming)
+				 struct batadv_hard_iface *if_incoming)
 {
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
-	struct neigh_node *neigh_node = NULL, *tmp_neigh_node;
+	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_neigh_node *neigh_node = NULL, *tmp_neigh_node;
 	struct hlist_node *node;
 	uint8_t total_count;
 	uint8_t orig_eq_count, neigh_rq_count, neigh_rq_inv, tq_own;
@@ -895,11 +898,11 @@ out:
 static int
 batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 			    const struct batadv_ogm_packet *batadv_ogm_packet,
-			    const struct hard_iface *if_incoming)
+			    const struct batadv_hard_iface *if_incoming)
 {
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
-	struct orig_node *orig_node;
-	struct neigh_node *tmp_neigh_node;
+	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_orig_node *orig_node;
+	struct batadv_neigh_node *tmp_neigh_node;
 	struct hlist_node *node;
 	int is_duplicate = 0;
 	int32_t seq_diff;
@@ -965,13 +968,13 @@ out:
 static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 				  struct batadv_ogm_packet *batadv_ogm_packet,
 				  const unsigned char *tt_buff,
-				  struct hard_iface *if_incoming)
+				  struct batadv_hard_iface *if_incoming)
 {
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
-	struct hard_iface *hard_iface;
-	struct orig_node *orig_neigh_node, *orig_node;
-	struct neigh_node *router = NULL, *router_router = NULL;
-	struct neigh_node *orig_neigh_router = NULL;
+	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_hard_iface *hard_iface;
+	struct batadv_orig_node *orig_neigh_node, *orig_node;
+	struct batadv_neigh_node *router = NULL, *router_router = NULL;
+	struct batadv_neigh_node *orig_neigh_router = NULL;
 	int has_directlink_flag;
 	int is_my_addr = 0, is_my_orig = 0, is_my_oldorig = 0;
 	int is_broadcast = 0, is_bidirect;
@@ -1240,9 +1243,9 @@ out:
 }
 
 static int batadv_iv_ogm_receive(struct sk_buff *skb,
-				 struct hard_iface *if_incoming)
+				 struct batadv_hard_iface *if_incoming)
 {
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct ethhdr *ethhdr;
 	int buff_pos = 0, packet_len;
@@ -1287,7 +1290,7 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	return NET_RX_SUCCESS;
 }
 
-static struct bat_algo_ops batadv_batman_iv __read_mostly = {
+static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.name = "BATMAN_IV",
 	.bat_iface_enable = batadv_iv_ogm_iface_enable,
 	.bat_iface_disable = batadv_iv_ogm_iface_disable,

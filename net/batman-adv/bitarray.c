@@ -41,7 +41,7 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
 int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 			  int32_t seq_num_diff, int set_mark)
 {
-	struct bat_priv *bat_priv = priv;
+	struct batadv_priv *bat_priv = priv;
 
 	/* sequence number is slightly older. We already got a sequence number
 	 * higher than this one, so we just mark it.

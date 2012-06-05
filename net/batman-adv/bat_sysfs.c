@@ -32,7 +32,7 @@ static struct net_device *batadv_kobj_to_netdev(struct kobject *obj)
 	return to_net_dev(dev);
 }
 
-static struct bat_priv *batadv_kobj_to_batpriv(struct kobject *obj)
+static struct batadv_priv *batadv_kobj_to_batpriv(struct kobject *obj)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(obj);
 	return netdev_priv(net_dev);
@@ -67,7 +67,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     size_t count)				\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
-	struct bat_priv *bat_priv = netdev_priv(net_dev);		\
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
 	return __batadv_store_bool_attr(buff, count, _post_func, attr,	\
 					&bat_priv->_name, net_dev);	\
 }
@@ -76,7 +76,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
 	return sprintf(buff, "%s\n",					\
 		       atomic_read(&bat_priv->_name) == 0 ?		\
 		       "disabled" : "enabled");				\
@@ -98,7 +98,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     size_t count)				\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
-	struct bat_priv *bat_priv = netdev_priv(net_dev);		\
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
 	return __batadv_store_uint_attr(buff, count, _min, _max,	\
 					_post_func, attr,		\
 					&bat_priv->_name, net_dev);	\
@@ -108,7 +108,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
 	return sprintf(buff, "%i\n", atomic_read(&bat_priv->_name));	\
 }									\
 
@@ -128,7 +128,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     size_t count)				\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
-	struct hard_iface *hard_iface;					\
+	struct batadv_hard_iface *hard_iface;				\
 	ssize_t length;							\
 									\
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
@@ -148,7 +148,7 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
-	struct hard_iface *hard_iface;					\
+	struct batadv_hard_iface *hard_iface;				\
 	ssize_t length;							\
 									\
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
@@ -281,7 +281,7 @@ __batadv_store_uint_attr(const char *buff, size_t count,
 static ssize_t batadv_show_vis_mode(struct kobject *kobj,
 				    struct attribute *attr, char *buff)
 {
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int vis_mode = atomic_read(&bat_priv->vis_mode);
 	const char *mode;
 
@@ -298,7 +298,7 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 				     size_t count)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	unsigned long val;
 	int ret, vis_mode_tmp = -1;
 	const char *old_mode, *new_mode;
@@ -349,20 +349,20 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 				    struct attribute *attr, char *buff)
 {
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
 }
 
 static void batadv_post_gw_deselect(struct net_device *net_dev)
 {
-	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	batadv_gw_deselect(bat_priv);
 }
 
 static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
 				   char *buff)
 {
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int bytes_written;
 
 	switch (atomic_read(&bat_priv->gw_mode)) {
@@ -388,7 +388,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 				    size_t count)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	char *curr_gw_mode_str;
 	int gw_mode_tmp = -1;
 
@@ -440,7 +440,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 static ssize_t batadv_show_gw_bwidth(struct kobject *kobj,
 				     struct attribute *attr, char *buff)
 {
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int down, up;
 	int gw_bandwidth = atomic_read(&bat_priv->gw_bandwidth);
 
@@ -512,7 +512,7 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 int batadv_sysfs_add_meshif(struct net_device *dev)
 {
 	struct kobject *batif_kobject = &dev->dev.kobj;
-	struct bat_priv *bat_priv = netdev_priv(dev);
+	struct batadv_priv *bat_priv = netdev_priv(dev);
 	struct batadv_attribute **bat_attr;
 	int err;
 
@@ -549,7 +549,7 @@ out:
 
 void batadv_sysfs_del_meshif(struct net_device *dev)
 {
-	struct bat_priv *bat_priv = netdev_priv(dev);
+	struct batadv_priv *bat_priv = netdev_priv(dev);
 	struct batadv_attribute **bat_attr;
 
 	for (bat_attr = batadv_mesh_attrs; *bat_attr; ++bat_attr)
@@ -563,10 +563,11 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 				      struct attribute *attr, char *buff)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
+	struct batadv_hard_iface *hard_iface;
 	ssize_t length;
 	const char *ifname;
 
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
 		return 0;
 
@@ -587,10 +588,11 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 				       size_t count)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
+	struct batadv_hard_iface *hard_iface;
 	int status_tmp = -1;
 	int ret = count;
 
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
 		return count;
 
@@ -643,9 +645,10 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 					struct attribute *attr, char *buff)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
+	struct batadv_hard_iface *hard_iface;
 	ssize_t length;
 
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
 		return 0;
 
@@ -723,11 +726,11 @@ void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 	*hardif_obj = NULL;
 }
 
-int batadv_throw_uevent(struct bat_priv *bat_priv, enum batadv_uev_type type,
+int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 			enum batadv_uev_action action, const char *data)
 {
 	int ret = -ENOMEM;
-	struct hard_iface *primary_if = NULL;
+	struct batadv_hard_iface *primary_if = NULL;
 	struct kobject *bat_kobj;
 	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
 

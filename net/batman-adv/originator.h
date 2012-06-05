@@ -22,20 +22,23 @@
 
 #include "hash.h"
 
-int batadv_originator_init(struct bat_priv *bat_priv);
-void batadv_originator_free(struct bat_priv *bat_priv);
-void batadv_purge_orig_ref(struct bat_priv *bat_priv);
-void batadv_orig_node_free_ref(struct orig_node *orig_node);
-struct orig_node *batadv_get_orig_node(struct bat_priv *bat_priv,
-				       const uint8_t *addr);
-struct neigh_node *batadv_neigh_node_new(struct hard_iface *hard_iface,
-					 const uint8_t *neigh_addr,
-					 uint32_t seqno);
-void batadv_neigh_node_free_ref(struct neigh_node *neigh_node);
-struct neigh_node *batadv_orig_node_get_router(struct orig_node *orig_node);
+int batadv_originator_init(struct batadv_priv *bat_priv);
+void batadv_originator_free(struct batadv_priv *bat_priv);
+void batadv_purge_orig_ref(struct batadv_priv *bat_priv);
+void batadv_orig_node_free_ref(struct batadv_orig_node *orig_node);
+struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
+					      const uint8_t *addr);
+struct batadv_neigh_node *
+batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
+		      const uint8_t *neigh_addr, uint32_t seqno);
+void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node);
+struct batadv_neigh_node *
+batadv_orig_node_get_router(struct batadv_orig_node *orig_node);
 int batadv_orig_seq_print_text(struct seq_file *seq, void *offset);
-int batadv_orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num);
-int batadv_orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num);
+int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
+			    int max_if_num);
+int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,
+			    int max_if_num);
 
 
 /* hashfunction to choose an entry in a hash table of given size
@@ -60,13 +63,13 @@ static inline uint32_t batadv_choose_orig(const void *data, uint32_t size)
 	return hash % size;
 }
 
-static inline struct orig_node *batadv_orig_hash_find(struct bat_priv *bat_priv,
-						      const void *data)
+static inline struct batadv_orig_node *
+batadv_orig_hash_find(struct batadv_priv *bat_priv, const void *data)
 {
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
 	struct hlist_node *node;
-	struct orig_node *orig_node, *orig_node_tmp = NULL;
+	struct batadv_orig_node *orig_node, *orig_node_tmp = NULL;
 	int index;
 
 	if (!hash)

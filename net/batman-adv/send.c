@@ -32,7 +32,8 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 /* send out an already prepared packet to the given address via the
  * specified batman interface
  */
-int batadv_send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
+int batadv_send_skb_packet(struct sk_buff *skb,
+			   struct batadv_hard_iface *hard_iface,
 			   const uint8_t *dst_addr)
 {
 	struct ethhdr *ethhdr;
@@ -76,9 +77,9 @@ send_skb_err:
 	return NET_XMIT_DROP;
 }
 
-void batadv_schedule_bat_ogm(struct hard_iface *hard_iface)
+void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface)
 {
-	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 
 	if ((hard_iface->if_status == BATADV_IF_NOT_IN_USE) ||
 	    (hard_iface->if_status == BATADV_IF_TO_BE_REMOVED))
@@ -96,7 +97,7 @@ void batadv_schedule_bat_ogm(struct hard_iface *hard_iface)
 	bat_priv->bat_algo_ops->bat_ogm_schedule(hard_iface);
 }
 
-static void batadv_forw_packet_free(struct forw_packet *forw_packet)
+static void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
 {
 	if (forw_packet->skb)
 		kfree_skb(forw_packet->skb);
@@ -105,9 +106,10 @@ static void batadv_forw_packet_free(struct forw_packet *forw_packet)
 	kfree(forw_packet);
 }
 
-static void _batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
-					     struct forw_packet *forw_packet,
-					     unsigned long send_time)
+static void
+_batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
+				 struct batadv_forw_packet *forw_packet,
+				 unsigned long send_time)
 {
 	INIT_HLIST_NODE(&forw_packet->list);
 
@@ -132,12 +134,12 @@ static void _batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
  * The skb is not consumed, so the caller should make sure that the
  * skb is freed.
  */
-int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
+int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 				    const struct sk_buff *skb,
 				    unsigned long delay)
 {
-	struct hard_iface *primary_if = NULL;
-	struct forw_packet *forw_packet;
+	struct batadv_hard_iface *primary_if = NULL;
+	struct batadv_forw_packet *forw_packet;
 	struct batadv_bcast_packet *bcast_packet;
 	struct sk_buff *newskb;
 
@@ -187,14 +189,18 @@ out:
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 {
-	struct hard_iface *hard_iface;
+	struct batadv_hard_iface *hard_iface;
 	struct delayed_work *delayed_work =
 		container_of(work, struct delayed_work, work);
-	struct forw_packet *forw_packet =
-		container_of(delayed_work, struct forw_packet, delayed_work);
+	struct batadv_forw_packet *forw_packet;
 	struct sk_buff *skb1;
-	struct net_device *soft_iface = forw_packet->if_incoming->soft_iface;
-	struct bat_priv *bat_priv = netdev_priv(soft_iface);
+	struct net_device *soft_iface;
+	struct batadv_priv *bat_priv;
+
+	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
+				   delayed_work);
+	soft_iface = forw_packet->if_incoming->soft_iface;
+	bat_priv = netdev_priv(soft_iface);
 
 	spin_lock_bh(&bat_priv->forw_bcast_list_lock);
 	hlist_del(&forw_packet->list);
@@ -235,10 +241,11 @@ void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =
 		container_of(work, struct delayed_work, work);
-	struct forw_packet *forw_packet =
-		container_of(delayed_work, struct forw_packet, delayed_work);
-	struct bat_priv *bat_priv;
+	struct batadv_forw_packet *forw_packet;
+	struct batadv_priv *bat_priv;
 
+	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
+				   delayed_work);
 	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
 	spin_lock_bh(&bat_priv->forw_bat_list_lock);
 	hlist_del(&forw_packet->list);
@@ -264,10 +271,11 @@ out:
 	batadv_forw_packet_free(forw_packet);
 }
 
-void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
-				      const struct hard_iface *hard_iface)
+void
+batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
+				 const struct batadv_hard_iface *hard_iface)
 {
-	struct forw_packet *forw_packet;
+	struct batadv_forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
 	bool pending;
 

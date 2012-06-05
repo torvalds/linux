@@ -31,7 +31,7 @@
 
 static struct sk_buff *
 batadv_frag_merge_packet(struct list_head *head,
-			 struct frag_packet_list_entry *tfp,
+			 struct batadv_frag_packet_list_entry *tfp,
 			 struct sk_buff *skb)
 {
 	struct batadv_unicast_frag_packet *up;
@@ -80,7 +80,7 @@ err:
 static void batadv_frag_create_entry(struct list_head *head,
 				     struct sk_buff *skb)
 {
-	struct frag_packet_list_entry *tfp;
+	struct batadv_frag_packet_list_entry *tfp;
 	struct batadv_unicast_frag_packet *up;
 
 	up = (struct batadv_unicast_frag_packet *)skb->data;
@@ -98,7 +98,7 @@ static void batadv_frag_create_entry(struct list_head *head,
 static int batadv_frag_create_buffer(struct list_head *head)
 {
 	int i;
-	struct frag_packet_list_entry *tfp;
+	struct batadv_frag_packet_list_entry *tfp;
 
 	for (i = 0; i < BATADV_FRAG_BUFFER_SIZE; i++) {
 		tfp = kmalloc(sizeof(*tfp), GFP_ATOMIC);
@@ -115,11 +115,11 @@ static int batadv_frag_create_buffer(struct list_head *head)
 	return 0;
 }
 
-static struct frag_packet_list_entry *
+static struct batadv_frag_packet_list_entry *
 batadv_frag_search_packet(struct list_head *head,
 			  const struct batadv_unicast_frag_packet *up)
 {
-	struct frag_packet_list_entry *tfp;
+	struct batadv_frag_packet_list_entry *tfp;
 	struct batadv_unicast_frag_packet *tmp_up = NULL;
 	uint16_t search_seqno;
 
@@ -156,7 +156,7 @@ mov_tail:
 
 void batadv_frag_list_free(struct list_head *head)
 {
-	struct frag_packet_list_entry *pf, *tmp_pf;
+	struct batadv_frag_packet_list_entry *pf, *tmp_pf;
 
 	if (!list_empty(head)) {
 
@@ -175,11 +175,12 @@ void batadv_frag_list_free(struct list_head *head)
  * or the skb could be reassembled (skb_new will point to the new packet and
  * skb was freed)
  */
-int batadv_frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
+int batadv_frag_reassemble_skb(struct sk_buff *skb,
+			       struct batadv_priv *bat_priv,
 			       struct sk_buff **new_skb)
 {
-	struct orig_node *orig_node;
-	struct frag_packet_list_entry *tmp_frag_entry;
+	struct batadv_orig_node *orig_node;
+	struct batadv_frag_packet_list_entry *tmp_frag_entry;
 	int ret = NET_RX_DROP;
 	struct batadv_unicast_frag_packet *unicast_packet;
 
@@ -219,11 +220,12 @@ out:
 	return ret;
 }
 
-int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-			 struct hard_iface *hard_iface, const uint8_t dstaddr[])
+int batadv_frag_send_skb(struct sk_buff *skb, struct batadv_priv *bat_priv,
+			 struct batadv_hard_iface *hard_iface,
+			 const uint8_t dstaddr[])
 {
 	struct batadv_unicast_packet tmp_uc, *unicast_packet;
-	struct hard_iface *primary_if;
+	struct batadv_hard_iface *primary_if;
 	struct sk_buff *frag_skb;
 	struct batadv_unicast_frag_packet *frag1, *frag2;
 	int uc_hdr_len = sizeof(*unicast_packet);
@@ -286,12 +288,12 @@ out:
 	return ret;
 }
 
-int batadv_unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
+int batadv_unicast_send_skb(struct sk_buff *skb, struct batadv_priv *bat_priv)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_unicast_packet *unicast_packet;
-	struct orig_node *orig_node;
-	struct neigh_node *neigh_node;
+	struct batadv_orig_node *orig_node;
+	struct batadv_neigh_node *neigh_node;
 	int data_len = skb->len;
 	int ret = 1;
 
@@ -307,12 +309,14 @@ int batadv_unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	 */
 	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
 					     ethhdr->h_dest);
+
 find_router:
 	/* find_router():
 	 *  - if orig_node is NULL it returns NULL
 	 *  - increases neigh_nodes refcount if found.
 	 */
 	neigh_node = batadv_find_router(bat_priv, orig_node, NULL);
+
 	if (!neigh_node)
 		goto out;
 

@@ -92,13 +92,13 @@ static int batadv_interface_release(struct net_device *dev)
 
 static struct net_device_stats *batadv_interface_stats(struct net_device *dev)
 {
-	struct bat_priv *bat_priv = netdev_priv(dev);
+	struct batadv_priv *bat_priv = netdev_priv(dev);
 	return &bat_priv->stats;
 }
 
 static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 {
-	struct bat_priv *bat_priv = netdev_priv(dev);
+	struct batadv_priv *bat_priv = netdev_priv(dev);
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -131,8 +131,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			       struct net_device *soft_iface)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
-	struct bat_priv *bat_priv = netdev_priv(soft_iface);
-	struct hard_iface *primary_if = NULL;
+	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
 	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
@@ -260,10 +260,10 @@ end:
 }
 
 void batadv_interface_rx(struct net_device *soft_iface,
-			 struct sk_buff *skb, struct hard_iface *recv_if,
+			 struct sk_buff *skb, struct batadv_hard_iface *recv_if,
 			 int hdr_size)
 {
-	struct bat_priv *bat_priv = netdev_priv(soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
 	short vid __maybe_unused = -1;
@@ -338,7 +338,7 @@ static const struct net_device_ops batadv_netdev_ops = {
 
 static void batadv_interface_setup(struct net_device *dev)
 {
-	struct bat_priv *priv = netdev_priv(dev);
+	struct batadv_priv *priv = netdev_priv(dev);
 
 	ether_setup(dev);
 
@@ -364,7 +364,7 @@ static void batadv_interface_setup(struct net_device *dev)
 struct net_device *batadv_softif_create(const char *name)
 {
 	struct net_device *soft_iface;
-	struct bat_priv *bat_priv;
+	struct batadv_priv *bat_priv;
 	int ret;
 	size_t cnt_len = sizeof(uint64_t) * BATADV_CNT_NUM;
 
@@ -539,7 +539,7 @@ static void batadv_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats,
 				     uint64_t *data)
 {
-	struct bat_priv *bat_priv = netdev_priv(dev);
+	struct batadv_priv *bat_priv = netdev_priv(dev);
 	int i;
 
 	for (i = 0; i < BATADV_CNT_NUM; i++)
