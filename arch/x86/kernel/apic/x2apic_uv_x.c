@@ -185,11 +185,6 @@ EXPORT_SYMBOL_GPL(uv_possible_blades);
 unsigned long sn_rtc_cycles_per_second;
 EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 
-static const struct cpumask *uv_target_cpus(void)
-{
-	return cpu_online_mask;
-}
-
 static void uv_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	cpumask_clear(retmask);
@@ -362,7 +357,7 @@ static struct apic __refdata apic_x2apic_uv_x = {
 	.irq_delivery_mode		= dest_Fixed,
 	.irq_dest_mode			= 0, /* physical */
 
-	.target_cpus			= uv_target_cpus,
+	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,

@@ -26,15 +26,6 @@ static int bigsmp_apic_id_registered(void)
 	return 1;
 }
 
-static const struct cpumask *bigsmp_target_cpus(void)
-{
-#ifdef CONFIG_SMP
-	return cpu_online_mask;
-#else
-	return cpumask_of(0);
-#endif
-}
-
 static unsigned long bigsmp_check_apicid_used(physid_mask_t *map, int apicid)
 {
 	return 0;
@@ -205,7 +196,7 @@ static struct apic apic_bigsmp = {
 	/* phys delivery to target CPU: */
 	.irq_dest_mode			= 0,
 
-	.target_cpus			= bigsmp_target_cpus,
+	.target_cpus			= default_target_cpus,
 	.disable_esr			= 1,
 	.dest_logical			= 0,
 	.check_apicid_used		= bigsmp_check_apicid_used,

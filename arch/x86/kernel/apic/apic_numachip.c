@@ -72,11 +72,6 @@ static int numachip_phys_pkg_id(int initial_apic_id, int index_msb)
 	return initial_apic_id >> index_msb;
 }
 
-static const struct cpumask *numachip_target_cpus(void)
-{
-	return cpu_online_mask;
-}
-
 static void numachip_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	cpumask_clear(retmask);
@@ -253,7 +248,7 @@ static struct apic apic_numachip __refconst = {
 	.irq_delivery_mode		= dest_Fixed,
 	.irq_dest_mode			= 0, /* physical */
 
-	.target_cpus			= numachip_target_cpus,
+	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,

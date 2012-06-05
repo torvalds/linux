@@ -537,6 +537,11 @@ static inline const struct cpumask *default_target_cpus(void)
 #endif
 }
 
+static inline const struct cpumask *online_target_cpus(void)
+{
+	return cpu_online_mask;
+}
+
 DECLARE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid);
 
 

@@ -9,15 +9,6 @@
 #include <asm/ipi.h>
 #include <linux/cpumask.h>
 
-/*
- * Need to use more than cpu 0, because we need more vectors
- * when MSI-X are used.
- */
-static const struct cpumask *x2apic_target_cpus(void)
-{
-	return cpu_online_mask;
-}
-
 static int x2apic_apic_id_valid(int apicid)
 {
 	return 1;

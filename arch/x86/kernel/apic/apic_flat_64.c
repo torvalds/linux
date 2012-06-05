@@ -36,11 +36,6 @@ static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 1;
 }
 
-static const struct cpumask *flat_target_cpus(void)
-{
-	return cpu_online_mask;
-}
-
 static void flat_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
@@ -186,7 +181,7 @@ static struct apic apic_flat =  {
 	.irq_delivery_mode		= dest_LowestPrio,
 	.irq_dest_mode			= 1, /* logical */
 
-	.target_cpus			= flat_target_cpus,
+	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
@@ -260,11 +255,6 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 #endif
 
 	return 0;
-}
-
-static const struct cpumask *physflat_target_cpus(void)
-{
-	return cpu_online_mask;
 }
 
 static void physflat_vector_allocation_domain(int cpu, struct cpumask *retmask)
@@ -345,7 +335,7 @@ static struct apic apic_physflat =  {
 	.irq_delivery_mode		= dest_Fixed,
 	.irq_dest_mode			= 0, /* physical */
 
-	.target_cpus			= physflat_target_cpus,
+	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
