@@ -1814,7 +1814,6 @@ static int nfs4_recall_slot(struct nfs_client *clp)
 	spin_unlock(&fc_tbl->slot_tbl_lock);
 
 	kfree(old);
-	nfs4_end_drain_session(clp);
 	return 0;
 }
 
@@ -1920,6 +1919,16 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			continue;
 		}
 
+		/* Recall session slots */
+		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)
+		   && nfs4_has_session(clp)) {
+			section = "recall slot";
+			status = nfs4_recall_slot(clp);
+			if (status < 0)
+				goto out_error;
+			continue;
+		}
+
 		/* First recover reboot state... */
 		if (test_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
 			section = "reclaim reboot";
@@ -1953,16 +1962,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			nfs_client_return_marked_delegations(clp);
 			continue;
 		}
-		/* Recall session slots */
-		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)
-		   && nfs4_has_session(clp)) {
-			section = "recall slot";
-			status = nfs4_recall_slot(clp);
-			if (status < 0)
-				goto out_error;
-			continue;
-		}
-
 
 		nfs4_clear_state_manager_bit(clp);
 		/* Did we race with an attempt to give us more work? */
