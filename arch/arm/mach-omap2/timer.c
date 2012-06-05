@@ -69,9 +69,6 @@
 #define OMAP3_SECURE_TIMER	1
 #endif
 
-/* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
-#define MAX_GPTIMER_ID		12
-
 static u32 sys_timer_reserved;
 
 /* Clockevent code */
