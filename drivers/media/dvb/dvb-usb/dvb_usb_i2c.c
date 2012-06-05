@@ -11,13 +11,8 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 {
 	int ret = 0;
 
-	if (!(d->props.caps & DVB_USB_IS_AN_I2C_ADAPTER))
+	if (!d->props.i2c_algo)
 		return 0;
-
-	if (d->props.i2c_algo == NULL) {
-		err("no i2c algorithm specified");
-		return -EINVAL;
-	}
 
 	strlcpy(d->i2c_adap.name, d->name, sizeof(d->i2c_adap.name));
 	d->i2c_adap.algo      = d->props.i2c_algo;

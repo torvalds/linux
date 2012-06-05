@@ -211,9 +211,6 @@ struct dvb_usb_device_properties {
 	struct module *owner;
 	short *adapter_nr;
 
-#define DVB_USB_IS_AN_I2C_ADAPTER            0x01
-	int caps;
-
 	int size_of_priv;
 
 	const char *firmware;
@@ -330,8 +327,6 @@ struct dvb_usb_adapter {
 
 	int active_fe;
 	int num_frontends_initialized;
-
-	void *priv;
 };
 
 /**
@@ -379,7 +374,7 @@ struct dvb_usb_device {
 	struct mutex i2c_mutex;
 	struct i2c_adapter i2c_adap;
 
-	int                    num_adapters_initialized;
+	int num_adapters_initialized;
 	struct dvb_usb_adapter adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];
 
 	/* remote control */
@@ -387,8 +382,6 @@ struct dvb_usb_device {
 	struct input_dev *input_dev;
 	char rc_phys[64];
 	struct delayed_work rc_query_work;
-	u32 last_event;
-	int last_state;
 
 	void *priv;
 };

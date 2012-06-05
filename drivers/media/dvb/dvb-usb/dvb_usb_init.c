@@ -125,14 +125,6 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 			adap->max_feed_count = adap->props.pid_filter_count;
 		}
 
-		if (adap->props.size_of_priv > 0) {
-			adap->priv = kzalloc(adap->props.size_of_priv, GFP_KERNEL);
-			if (adap->priv == NULL) {
-				err("no memory for priv for adapter %d.", n);
-				return -ENOMEM;
-			}
-		}
-
 		ret = dvb_usb_adapter_stream_init(adap);
 		if (ret)
 			return ret;
@@ -178,7 +170,7 @@ static int dvb_usb_adapter_exit(struct dvb_usb_device *d)
 		dvb_usb_adapter_frontend_exit(&d->adapter[n]);
 		dvb_usb_adapter_dvb_exit(&d->adapter[n]);
 		dvb_usb_adapter_stream_exit(&d->adapter[n]);
-		kfree(d->adapter[n].priv);
+
 	}
 	d->num_adapters_initialized = 0;
 	d->state &= ~DVB_USB_STATE_DVB;
