@@ -893,7 +893,7 @@ struct drm_i915_gem_wait {
 	__u32 bo_handle;
 	__u32 flags;
 	/** Number of nanoseconds to wait, Returns time remaining. */
-	__u64 timeout_ns;
+	__s64 timeout_ns;
 };
 
 #endif				/* _I915_DRM_H_ */

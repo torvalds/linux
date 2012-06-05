@@ -2082,11 +2082,14 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_i915_gem_wait *args = data;
 	struct drm_i915_gem_object *obj;
 	struct intel_ring_buffer *ring = NULL;
-	struct timespec timeout;
+	struct timespec timeout_stack, *timeout = NULL;
 	u32 seqno = 0;
 	int ret = 0;
 
-	timeout = ns_to_timespec(args->timeout_ns);
+	if (args->timeout_ns >= 0) {
+		timeout_stack = ns_to_timespec(args->timeout_ns);
+		timeout = &timeout_stack;
+	}
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
@@ -2122,9 +2125,11 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
-	ret = __wait_seqno(ring, seqno, true, &timeout);
-	WARN_ON(!timespec_valid(&timeout));
-	args->timeout_ns = timespec_to_ns(&timeout);
+	ret = __wait_seqno(ring, seqno, true, timeout);
+	if (timeout) {
+		WARN_ON(!timespec_valid(timeout));
+		args->timeout_ns = timespec_to_ns(timeout);
+	}
 	return ret;
 
 out:
