@@ -1374,9 +1374,9 @@ struct cayman_asic {
 
 struct si_asic {
 	unsigned max_shader_engines;
-	unsigned max_pipes_per_simd;
 	unsigned max_tile_pipes;
-	unsigned max_simds_per_se;
+	unsigned max_cu_per_sh;
+	unsigned max_sh_per_se;
 	unsigned max_backends_per_se;
 	unsigned max_texture_channel_caches;
 	unsigned max_gprs;
@@ -1387,7 +1387,6 @@ struct si_asic {
 	unsigned sc_hiz_tile_fifo_size;
 	unsigned sc_earlyz_tile_fifo_size;
 
-	unsigned num_shader_engines;
 	unsigned num_tile_pipes;
 	unsigned num_backends_per_se;
 	unsigned backend_disable_mask_per_asic;
