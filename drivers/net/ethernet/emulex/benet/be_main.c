@@ -2766,8 +2766,6 @@ static int be_setup(struct be_adapter *adapter)
 		be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					adapter->rx_fc);
 
-	pcie_set_readrq(adapter->pdev, 4096);
-
 	if (be_physfn(adapter) && num_vfs) {
 		if (adapter->dev_num_vfs)
 			be_vf_setup(adapter);
