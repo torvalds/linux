@@ -5,6 +5,12 @@
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * Daniel Wang <danielwang@allwinnertech.com>
  *
+ * Based on ahci_platform.c AHCI SATA platform driver
+ *
+ * Copyright 2004-2005  Red Hat, Inc.
+ *   Jeff Garzik <jgarzik@pobox.com>
+ * Copyright 2010  MontaVista Software, LLC.
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
