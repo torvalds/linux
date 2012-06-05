@@ -258,9 +258,17 @@ int dvb_usbv2_device_init_(struct usb_interface *intf,
 	struct dvb_usb_device *d = NULL;
 	struct dvb_usb_driver_info *driver_info =
 			(struct dvb_usb_driver_info *) id->driver_info;
-	const struct dvb_usb_device_properties *props = driver_info->props;
+	const struct dvb_usb_device_properties *props;
 	int ret = -ENOMEM;
 	bool cold = false;
+
+	if (!id->driver_info) {
+		pr_err("%s: driver_info is null", KBUILD_MODNAME);
+		ret = -ENODEV;
+		goto err;
+	}
+
+	props = driver_info->props;
 
 	d = kzalloc(sizeof(struct dvb_usb_device), GFP_KERNEL);
 	if (d == NULL) {
@@ -326,7 +334,8 @@ int dvb_usbv2_device_init_(struct usb_interface *intf,
 err_kfree:
 	kfree(d->priv);
 	kfree(d);
-
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
