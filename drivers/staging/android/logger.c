@@ -17,6 +17,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "logger: " fmt
+
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -621,13 +623,13 @@ static int __init create_log(char *log_name, int size)
 	/* finally, initialize the misc device for this log */
 	ret = misc_register(&log->misc);
 	if (unlikely(ret)) {
-		printk(KERN_ERR "logger: failed to register misc "
-		       "device for log '%s'!\n", log->misc.name);
+		pr_err("failed to register misc device for log '%s'!\n",
+				log->misc.name);
 		goto out_free_log;
 	}
 
-	printk(KERN_INFO "logger: created %luK log '%s'\n",
-	       (unsigned long) log->size >> 10, log->misc.name);
+	pr_info("created %luK log '%s'\n",
+		(unsigned long) log->size >> 10, log->misc.name);
 
 	return 0;
 

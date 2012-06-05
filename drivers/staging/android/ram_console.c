@@ -13,6 +13,8 @@
  *
  */
 
+#define pr_fmt(fmt) "ram_console: " fmt
+
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -162,7 +164,7 @@ static int __init ram_console_late_init(void)
 
 	entry = create_proc_entry("last_kmsg", S_IFREG | S_IRUGO, NULL);
 	if (!entry) {
-		printk(KERN_ERR "ram_console: failed to create proc entry\n");
+		pr_err("failed to create proc entry\n");
 		persistent_ram_free_old(prz);
 		return 0;
 	}
