@@ -46,7 +46,12 @@ struct blkcg_gq;
 struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
 
+#define BLK_RL_SYNCFULL		(1U << 0)
+#define BLK_RL_ASYNCFULL	(1U << 1)
+
 struct request_list {
+	struct request_queue	*q;	/* the queue this rl belongs to */
+
 	/*
 	 * count[], starved[], and wait[] are indexed by
 	 * BLK_RW_SYNC/BLK_RW_ASYNC
@@ -55,6 +60,7 @@ struct request_list {
 	int			starved[2];
 	mempool_t		*rq_pool;
 	wait_queue_head_t	wait[2];
+	unsigned int		flags;
 };
 
 /*
@@ -562,27 +568,25 @@ static inline bool rq_is_sync(struct request *rq)
 	return rw_is_sync(rq->cmd_flags);
 }
 
-static inline int blk_queue_full(struct request_queue *q, int sync)
+static inline bool blk_rl_full(struct request_list *rl, bool sync)
 {
-	if (sync)
-		return test_bit(QUEUE_FLAG_SYNCFULL, &q->queue_flags);
-	return test_bit(QUEUE_FLAG_ASYNCFULL, &q->queue_flags);
+	unsigned int flag = sync ? BLK_RL_SYNCFULL : BLK_RL_ASYNCFULL;
+
+	return rl->flags & flag;
 }
 
-static inline void blk_set_queue_full(struct request_queue *q, int sync)
+static inline void blk_set_rl_full(struct request_list *rl, bool sync)
 {
-	if (sync)
-		queue_flag_set(QUEUE_FLAG_SYNCFULL, q);
-	else
-		queue_flag_set(QUEUE_FLAG_ASYNCFULL, q);
+	unsigned int flag = sync ? BLK_RL_SYNCFULL : BLK_RL_ASYNCFULL;
+
+	rl->flags |= flag;
 }
 
-static inline void blk_clear_queue_full(struct request_queue *q, int sync)
+static inline void blk_clear_rl_full(struct request_list *rl, bool sync)
 {
-	if (sync)
-		queue_flag_clear(QUEUE_FLAG_SYNCFULL, q);
-	else
-		queue_flag_clear(QUEUE_FLAG_ASYNCFULL, q);
+	unsigned int flag = sync ? BLK_RL_SYNCFULL : BLK_RL_ASYNCFULL;
+
+	rl->flags &= ~flag;
 }
 
 

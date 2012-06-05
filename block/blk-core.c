@@ -517,13 +517,13 @@ void blk_cleanup_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
 
-static int blk_init_free_list(struct request_queue *q)
+int blk_init_rl(struct request_list *rl, struct request_queue *q,
+		gfp_t gfp_mask)
 {
-	struct request_list *rl = &q->rq;
-
 	if (unlikely(rl->rq_pool))
 		return 0;
 
+	rl->q = q;
 	rl->count[BLK_RW_SYNC] = rl->count[BLK_RW_ASYNC] = 0;
 	rl->starved[BLK_RW_SYNC] = rl->starved[BLK_RW_ASYNC] = 0;
 	init_waitqueue_head(&rl->wait[BLK_RW_SYNC]);
@@ -531,11 +531,17 @@ static int blk_init_free_list(struct request_queue *q)
 
 	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
 					  mempool_free_slab, request_cachep,
-					  GFP_KERNEL, q->node);
+					  gfp_mask, q->node);
 	if (!rl->rq_pool)
 		return -ENOMEM;
 
 	return 0;
+}
+
+void blk_exit_rl(struct request_list *rl)
+{
+	if (rl->rq_pool)
+		mempool_destroy(rl->rq_pool);
 }
 
 struct request_queue *blk_alloc_queue(gfp_t gfp_mask)
@@ -679,7 +685,7 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	if (!q)
 		return NULL;
 
-	if (blk_init_free_list(q))
+	if (blk_init_rl(&q->rq, q, GFP_KERNEL))
 		return NULL;
 
 	q->request_fn		= rfn;
@@ -721,15 +727,15 @@ bool blk_get_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_get_queue);
 
-static inline void blk_free_request(struct request_queue *q, struct request *rq)
+static inline void blk_free_request(struct request_list *rl, struct request *rq)
 {
 	if (rq->cmd_flags & REQ_ELVPRIV) {
-		elv_put_request(q, rq);
+		elv_put_request(rl->q, rq);
 		if (rq->elv.icq)
 			put_io_context(rq->elv.icq->ioc);
 	}
 
-	mempool_free(rq, q->rq.rq_pool);
+	mempool_free(rq, rl->rq_pool);
 }
 
 /*
@@ -766,9 +772,9 @@ static void ioc_set_batching(struct request_queue *q, struct io_context *ioc)
 	ioc->last_waited = jiffies;
 }
 
-static void __freed_request(struct request_queue *q, int sync)
+static void __freed_request(struct request_list *rl, int sync)
 {
-	struct request_list *rl = &q->rq;
+	struct request_queue *q = rl->q;
 
 	if (rl->count[sync] < queue_congestion_off_threshold(q))
 		blk_clear_queue_congested(q, sync);
@@ -777,7 +783,7 @@ static void __freed_request(struct request_queue *q, int sync)
 		if (waitqueue_active(&rl->wait[sync]))
 			wake_up(&rl->wait[sync]);
 
-		blk_clear_queue_full(q, sync);
+		blk_clear_rl_full(rl, sync);
 	}
 }
 
@@ -785,9 +791,9 @@ static void __freed_request(struct request_queue *q, int sync)
  * A request has just been released.  Account for it, update the full and
  * congestion status, wake up any waiters.   Called under q->queue_lock.
  */
-static void freed_request(struct request_queue *q, unsigned int flags)
+static void freed_request(struct request_list *rl, unsigned int flags)
 {
-	struct request_list *rl = &q->rq;
+	struct request_queue *q = rl->q;
 	int sync = rw_is_sync(flags);
 
 	q->nr_rqs[sync]--;
@@ -795,10 +801,10 @@ static void freed_request(struct request_queue *q, unsigned int flags)
 	if (flags & REQ_ELVPRIV)
 		q->nr_rqs_elvpriv--;
 
-	__freed_request(q, sync);
+	__freed_request(rl, sync);
 
 	if (unlikely(rl->starved[sync ^ 1]))
-		__freed_request(q, sync ^ 1);
+		__freed_request(rl, sync ^ 1);
 }
 
 /*
@@ -838,7 +844,7 @@ static struct io_context *rq_ioc(struct bio *bio)
 
 /**
  * __get_request - get a free request
- * @q: request_queue to allocate request from
+ * @rl: request list to allocate from
  * @rw_flags: RW and SYNC flags
  * @bio: bio to allocate request for (can be %NULL)
  * @gfp_mask: allocation mask
@@ -850,11 +856,11 @@ static struct io_context *rq_ioc(struct bio *bio)
  * Returns %NULL on failure, with @q->queue_lock held.
  * Returns !%NULL on success, with @q->queue_lock *not held*.
  */
-static struct request *__get_request(struct request_queue *q, int rw_flags,
+static struct request *__get_request(struct request_list *rl, int rw_flags,
 				     struct bio *bio, gfp_t gfp_mask)
 {
+	struct request_queue *q = rl->q;
 	struct request *rq;
-	struct request_list *rl = &q->rq;
 	struct elevator_type *et = q->elevator->type;
 	struct io_context *ioc = rq_ioc(bio);
 	struct io_cq *icq = NULL;
@@ -876,9 +882,9 @@ static struct request *__get_request(struct request_queue *q, int rw_flags,
 			 * This process will be allowed to complete a batch of
 			 * requests, others will be blocked.
 			 */
-			if (!blk_queue_full(q, is_sync)) {
+			if (!blk_rl_full(rl, is_sync)) {
 				ioc_set_batching(q, ioc);
-				blk_set_queue_full(q, is_sync);
+				blk_set_rl_full(rl, is_sync);
 			} else {
 				if (may_queue != ELV_MQUEUE_MUST
 						&& !ioc_batching(q, ioc)) {
@@ -928,7 +934,7 @@ static struct request *__get_request(struct request_queue *q, int rw_flags,
 	spin_unlock_irq(q->queue_lock);
 
 	/* allocate and init request */
-	rq = mempool_alloc(q->rq.rq_pool, gfp_mask);
+	rq = mempool_alloc(rl->rq_pool, gfp_mask);
 	if (!rq)
 		goto fail_alloc;
 
@@ -992,7 +998,7 @@ fail_alloc:
 	 * queue, but this is pretty rare.
 	 */
 	spin_lock_irq(q->queue_lock);
-	freed_request(q, rw_flags);
+	freed_request(rl, rw_flags);
 
 	/*
 	 * in the very unlikely event that allocation failed and no
@@ -1029,7 +1035,7 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	struct request_list *rl = &q->rq;
 	struct request *rq;
 retry:
-	rq = __get_request(q, rw_flags, bio, gfp_mask);
+	rq = __get_request(&q->rq, rw_flags, bio, gfp_mask);
 	if (rq)
 		return rq;
 
@@ -1229,8 +1235,8 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 		BUG_ON(!list_empty(&req->queuelist));
 		BUG_ON(!hlist_unhashed(&req->hash));
 
-		blk_free_request(q, req);
-		freed_request(q, flags);
+		blk_free_request(&q->rq, req);
+		freed_request(&q->rq, flags);
 	}
 }
 EXPORT_SYMBOL_GPL(__blk_put_request);
