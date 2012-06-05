@@ -265,13 +265,13 @@ static int batadv_vis_data_open(struct inode *inode, struct file *file)
 	return single_open(file, batadv_vis_seq_print_text, net_dev);
 }
 
-struct bat_debuginfo {
+struct batadv_debuginfo {
 	struct attribute attr;
 	const struct file_operations fops;
 };
 
 #define BATADV_DEBUGINFO(_name, _mode, _open)		\
-struct bat_debuginfo batadv_debuginfo_##_name = {	\
+struct batadv_debuginfo batadv_debuginfo_##_name = {	\
 	.attr = { .name = __stringify(_name),		\
 		  .mode = _mode, },			\
 	.fops = { .owner = THIS_MODULE,			\
@@ -294,7 +294,7 @@ static BATADV_DEBUGINFO(transtable_local, S_IRUGO,
 			batadv_transtable_local_open);
 static BATADV_DEBUGINFO(vis_data, S_IRUGO, batadv_vis_data_open);
 
-static struct bat_debuginfo *batadv_mesh_debuginfos[] = {
+static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 	&batadv_debuginfo_originators,
 	&batadv_debuginfo_gateways,
 	&batadv_debuginfo_transtable_global,
@@ -308,7 +308,7 @@ static struct bat_debuginfo *batadv_mesh_debuginfos[] = {
 
 void batadv_debugfs_init(void)
 {
-	struct bat_debuginfo *bat_debug;
+	struct batadv_debuginfo *bat_debug;
 	struct dentry *file;
 
 	batadv_debugfs = debugfs_create_dir(BATADV_DEBUGFS_SUBDIR, NULL);
@@ -340,7 +340,7 @@ void batadv_debugfs_destroy(void)
 int batadv_debugfs_add_meshif(struct net_device *dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
-	struct bat_debuginfo **bat_debug;
+	struct batadv_debuginfo **bat_debug;
 	struct dentry *file;
 
 	if (!batadv_debugfs)
