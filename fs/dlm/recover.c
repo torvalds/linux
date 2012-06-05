@@ -36,30 +36,23 @@
  * (LS_RECOVERY_STOP set due to failure of a node in ls_nodes).  When another
  * function thinks it could have completed the waited-on task, they should wake
  * up ls_wait_general to get an immediate response rather than waiting for the
- * timer to detect the result.  A timer wakes us up periodically while waiting
- * to see if we should abort due to a node failure.  This should only be called
- * by the dlm_recoverd thread.
+ * timeout.  This uses a timeout so it can check periodically if the wait
+ * should abort due to node failure (which doesn't cause a wake_up).
+ * This should only be called by the dlm_recoverd thread.
  */
-
-static void dlm_wait_timer_fn(unsigned long data)
-{
-	struct dlm_ls *ls = (struct dlm_ls *) data;
-	mod_timer(&ls->ls_timer, jiffies + (dlm_config.ci_recover_timer * HZ));
-	wake_up(&ls->ls_wait_general);
-}
 
 int dlm_wait_function(struct dlm_ls *ls, int (*testfn) (struct dlm_ls *ls))
 {
 	int error = 0;
+	int rv;
 
-	init_timer(&ls->ls_timer);
-	ls->ls_timer.function = dlm_wait_timer_fn;
-	ls->ls_timer.data = (long) ls;
-	ls->ls_timer.expires = jiffies + (dlm_config.ci_recover_timer * HZ);
-	add_timer(&ls->ls_timer);
-
-	wait_event(ls->ls_wait_general, testfn(ls) || dlm_recovery_stopped(ls));
-	del_timer_sync(&ls->ls_timer);
+	while (1) {
+		rv = wait_event_timeout(ls->ls_wait_general,
+					testfn(ls) || dlm_recovery_stopped(ls),
+					dlm_config.ci_recover_timer * HZ);
+		if (rv)
+			break;
+	}
 
 	if (dlm_recovery_stopped(ls)) {
 		log_debug(ls, "dlm_wait_function aborted");
