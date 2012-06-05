@@ -315,15 +315,15 @@ static void nfc_hci_cmd_timeout(unsigned long data)
 }
 
 static int hci_dev_connect_gates(struct nfc_hci_dev *hdev, u8 gate_count,
-				 u8 gates[])
+				 struct nfc_hci_gate *gates)
 {
 	int r;
-	u8 *p = gates;
 	while (gate_count--) {
-		r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID, *p);
+		r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
+					 gates->gate, gates->pipe);
 		if (r < 0)
 			return r;
-		p++;
+		gates++;
 	}
 
 	return 0;
@@ -333,14 +333,13 @@ static int hci_dev_session_init(struct nfc_hci_dev *hdev)
 {
 	struct sk_buff *skb = NULL;
 	int r;
-	u8 hci_gates[] = {	/* NFC_HCI_ADMIN_GATE MUST be first */
-		NFC_HCI_ADMIN_GATE, NFC_HCI_LOOPBACK_GATE,
-		NFC_HCI_ID_MGMT_GATE, NFC_HCI_LINK_MGMT_GATE,
-		NFC_HCI_RF_READER_B_GATE, NFC_HCI_RF_READER_A_GATE
-	};
+
+	if (hdev->init_data.gates[0].gate != NFC_HCI_ADMIN_GATE)
+		return -EPROTO;
 
 	r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
-				 NFC_HCI_ADMIN_GATE);
+				 hdev->init_data.gates[0].gate,
+				 hdev->init_data.gates[0].pipe);
 	if (r < 0)
 		goto exit;
 
@@ -367,10 +366,6 @@ static int hci_dev_session_init(struct nfc_hci_dev *hdev)
 	r = nfc_hci_disconnect_all_gates(hdev);
 	if (r < 0)
 		goto exit;
-
-	r = hci_dev_connect_gates(hdev, sizeof(hci_gates), hci_gates);
-	if (r < 0)
-		goto disconnect_all;
 
 	r = hci_dev_connect_gates(hdev, hdev->init_data.gate_count,
 				  hdev->init_data.gates);

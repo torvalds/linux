@@ -132,9 +132,4 @@ void nfc_hci_hcp_message_rx(struct nfc_hci_dev *hdev, u8 pipe, u8 type,
 #define NFC_HCI_ANY_E_REG_ACCESS_DENIED		0x0a
 #define NFC_HCI_ANY_E_PIPE_ACCESS_DENIED	0x0b
 
-/* Pipes */
-#define NFC_HCI_INVALID_PIPE	0x80
-#define NFC_HCI_LINK_MGMT_PIPE	0x00
-#define NFC_HCI_ADMIN_PIPE	0x01
-
 #endif /* __LOCAL_HCI_H */
