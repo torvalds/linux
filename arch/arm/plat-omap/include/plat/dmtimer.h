@@ -59,6 +59,7 @@
 #define OMAP_TIMER_SECURE				0x80000000
 #define OMAP_TIMER_ALWON				0x40000000
 #define OMAP_TIMER_HAS_PWM				0x20000000
+#define OMAP_TIMER_NEEDS_RESET				0x10000000
 
 struct omap_timer_capability_dev_attr {
 	u32 timer_capability;
@@ -90,7 +91,6 @@ struct timer_regs {
 
 struct dmtimer_platform_data {
 	int (*set_timer_src)(struct platform_device *pdev, int source);
-	u32 needs_manual_reset:1;
 	u32 timer_capability;
 };
 

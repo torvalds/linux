@@ -135,7 +135,6 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 
 int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 {
-	struct dmtimer_platform_data *pdata = timer->pdev->dev.platform_data;
 	int ret;
 
 	timer->fclk = clk_get(&timer->pdev->dev, "fck");
@@ -145,7 +144,7 @@ int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 		return -EINVAL;
 	}
 
-	if (pdata->needs_manual_reset)
+	if (timer->capability & OMAP_TIMER_NEEDS_RESET)
 		omap_dm_timer_reset(timer);
 
 	ret = omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
@@ -363,13 +362,11 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_start);
 int omap_dm_timer_stop(struct omap_dm_timer *timer)
 {
 	unsigned long rate = 0;
-	struct dmtimer_platform_data *pdata;
 
 	if (unlikely(!timer))
 		return -EINVAL;
 
-	pdata = timer->pdev->dev.platform_data;
-	if (!pdata->needs_manual_reset)
+	if (!(timer->capability & OMAP_TIMER_NEEDS_RESET))
 		rate = clk_get_rate(timer->fclk);
 
 	__omap_dm_timer_stop(timer, timer->posted, rate);
@@ -694,7 +691,7 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 	timer->capability = pdata->timer_capability;
 
 	/* Skip pm_runtime_enable for OMAP1 */
-	if (!pdata->needs_manual_reset) {
+	if (!(timer->capability & OMAP_TIMER_NEEDS_RESET)) {
 		pm_runtime_enable(&pdev->dev);
 		pm_runtime_irq_safe(&pdev->dev);
 	}
