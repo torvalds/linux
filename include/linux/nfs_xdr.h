@@ -1237,6 +1237,7 @@ struct nfs_pgio_header {
 	struct list_head	rpc_list;
 	atomic_t		refcnt;
 	struct nfs_page		*req;
+	struct nfs_writeverf	*verf;
 	struct pnfs_layout_segment *lseg;
 	loff_t			io_start;
 	const struct rpc_call_ops *mds_ops;
@@ -1274,6 +1275,7 @@ struct nfs_write_data {
 struct nfs_write_header {
 	struct nfs_pgio_header	header;
 	struct nfs_write_data	rpc_data;
+	struct nfs_writeverf	verf;
 };
 
 struct nfs_mds_commit_info {
