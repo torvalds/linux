@@ -968,6 +968,8 @@ bool intel_lvds_init(struct drm_device *dev)
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
 	if (HAS_PCH_SPLIT(dev))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	else if (IS_GEN4(dev))
+		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	else
 		intel_encoder->crtc_mask = (1 << 1);
 
