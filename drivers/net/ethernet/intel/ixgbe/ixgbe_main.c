@@ -7048,6 +7048,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	int i, err, pci_using_dac;
 	u8 part_str[IXGBE_PBANUM_LENGTH];
 	unsigned int indices = num_possible_cpus();
+	unsigned int dcb_max = 0;
 #ifdef IXGBE_FCOE
 	u16 device_caps;
 #endif
@@ -7097,15 +7098,16 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	pci_save_state(pdev);
 
 #ifdef CONFIG_IXGBE_DCB
-	indices *= MAX_TRAFFIC_CLASS;
+	if (ii->mac == ixgbe_mac_82598EB)
+		dcb_max = min_t(unsigned int, indices * MAX_TRAFFIC_CLASS,
+				IXGBE_MAX_RSS_INDICES);
+	else
+		dcb_max = min_t(unsigned int, indices * MAX_TRAFFIC_CLASS,
+				IXGBE_MAX_FDIR_INDICES);
 #endif
 
 	if (ii->mac == ixgbe_mac_82598EB)
-#ifdef CONFIG_IXGBE_DCB
-		indices = min_t(unsigned int, indices, MAX_TRAFFIC_CLASS * 4);
-#else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_RSS_INDICES);
-#endif
 	else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_FDIR_INDICES);
 
@@ -7113,6 +7115,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	indices += min_t(unsigned int, num_possible_cpus(),
 			 IXGBE_MAX_FCOE_INDICES);
 #endif
+	indices = max_t(unsigned int, dcb_max, indices);
 	netdev = alloc_etherdev_mq(sizeof(struct ixgbe_adapter), indices);
 	if (!netdev) {
 		err = -ENOMEM;
