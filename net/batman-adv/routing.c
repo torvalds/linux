@@ -35,7 +35,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 void batadv_slide_own_bcast_window(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;

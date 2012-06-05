@@ -51,8 +51,8 @@ static void batadv_tt_start_timer(struct bat_priv *bat_priv)
 			   msecs_to_jiffies(5000));
 }
 
-static struct tt_common_entry *batadv_tt_hash_find(struct hashtable_t *hash,
-						   const void *data)
+static struct tt_common_entry *
+batadv_tt_hash_find(struct batadv_hashtable *hash, const void *data)
 {
 	struct hlist_head *head;
 	struct hlist_node *node;
@@ -417,7 +417,7 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	struct hashtable_t *hash = bat_priv->tt_local_hash;
+	struct batadv_hashtable *hash = bat_priv->tt_local_hash;
 	struct tt_common_entry *tt_common_entry;
 	struct hard_iface *primary_if;
 	struct hlist_node *node;
@@ -538,7 +538,7 @@ static void batadv_tt_local_purge_list(struct bat_priv *bat_priv,
 
 static void batadv_tt_local_purge(struct bat_priv *bat_priv)
 {
-	struct hashtable_t *hash = bat_priv->tt_local_hash;
+	struct batadv_hashtable *hash = bat_priv->tt_local_hash;
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* protects write access to the hash lists */
 	uint32_t i;
@@ -556,7 +556,7 @@ static void batadv_tt_local_purge(struct bat_priv *bat_priv)
 
 static void batadv_tt_local_table_free(struct bat_priv *bat_priv)
 {
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 	spinlock_t *list_lock; /* protects write access to the hash lists */
 	struct tt_common_entry *tt_common_entry;
 	struct tt_local_entry *tt_local_entry;
@@ -775,7 +775,7 @@ int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	struct hashtable_t *hash = bat_priv->tt_global_hash;
+	struct batadv_hashtable *hash = bat_priv->tt_global_hash;
 	struct tt_common_entry *tt_common_entry;
 	struct tt_global_entry *tt_global_entry;
 	struct hard_iface *primary_if;
@@ -984,7 +984,7 @@ void batadv_tt_global_del_orig(struct bat_priv *bat_priv,
 	struct tt_global_entry *global_entry;
 	struct tt_common_entry *tt_common_entry;
 	uint32_t i;
-	struct hashtable_t *hash = bat_priv->tt_global_hash;
+	struct batadv_hashtable *hash = bat_priv->tt_global_hash;
 	struct hlist_node *node, *safe;
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* protects write access to the hash lists */
@@ -1047,7 +1047,7 @@ static void batadv_tt_global_roam_purge_list(struct bat_priv *bat_priv,
 
 static void batadv_tt_global_roam_purge(struct bat_priv *bat_priv)
 {
-	struct hashtable_t *hash = bat_priv->tt_global_hash;
+	struct batadv_hashtable *hash = bat_priv->tt_global_hash;
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* protects write access to the hash lists */
 	uint32_t i;
@@ -1065,7 +1065,7 @@ static void batadv_tt_global_roam_purge(struct bat_priv *bat_priv)
 
 static void batadv_tt_global_table_free(struct bat_priv *bat_priv)
 {
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 	spinlock_t *list_lock; /* protects write access to the hash lists */
 	struct tt_common_entry *tt_common_entry;
 	struct tt_global_entry *tt_global_entry;
@@ -1174,7 +1174,7 @@ static uint16_t batadv_tt_global_crc(struct bat_priv *bat_priv,
 				     struct orig_node *orig_node)
 {
 	uint16_t total = 0, total_one;
-	struct hashtable_t *hash = bat_priv->tt_global_hash;
+	struct batadv_hashtable *hash = bat_priv->tt_global_hash;
 	struct tt_common_entry *tt_common;
 	struct tt_global_entry *tt_global_entry;
 	struct hlist_node *node;
@@ -1221,7 +1221,7 @@ static uint16_t batadv_tt_global_crc(struct bat_priv *bat_priv,
 static uint16_t batadv_tt_local_crc(struct bat_priv *bat_priv)
 {
 	uint16_t total = 0, total_one;
-	struct hashtable_t *hash = bat_priv->tt_local_hash;
+	struct batadv_hashtable *hash = bat_priv->tt_local_hash;
 	struct tt_common_entry *tt_common;
 	struct hlist_node *node;
 	struct hlist_head *head;
@@ -1360,7 +1360,7 @@ static int batadv_tt_global_valid(const void *entry_ptr,
 
 static struct sk_buff *
 batadv_tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
-			      struct hashtable_t *hash,
+			      struct batadv_hashtable *hash,
 			      struct hard_iface *primary_if,
 			      int (*valid_cb)(const void *, const void *),
 			      void *cb_data)
@@ -2088,8 +2088,8 @@ void batadv_tt_free(struct bat_priv *bat_priv)
 /* This function will enable or disable the specified flags for all the entries
  * in the given hash table and returns the number of modified entries
  */
-static uint16_t batadv_tt_set_flags(struct hashtable_t *hash, uint16_t flags,
-				    bool enable)
+static uint16_t batadv_tt_set_flags(struct batadv_hashtable *hash,
+				    uint16_t flags, bool enable)
 {
 	uint32_t i;
 	uint16_t changed_num = 0;
@@ -2126,7 +2126,7 @@ out:
 /* Purge out all the tt local entries marked with BATADV_TT_CLIENT_PENDING */
 static void batadv_tt_local_purge_pending_clients(struct bat_priv *bat_priv)
 {
-	struct hashtable_t *hash = bat_priv->tt_local_hash;
+	struct batadv_hashtable *hash = bat_priv->tt_local_hash;
 	struct tt_common_entry *tt_common;
 	struct tt_local_entry *tt_local_entry;
 	struct hlist_node *node, *node_tmp;

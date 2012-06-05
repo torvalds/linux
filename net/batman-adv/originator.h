@@ -63,7 +63,7 @@ static inline uint32_t batadv_choose_orig(const void *data, uint32_t size)
 static inline struct orig_node *batadv_orig_hash_find(struct bat_priv *bat_priv,
 						      const void *data)
 {
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct orig_node *orig_node, *orig_node_tmp = NULL;

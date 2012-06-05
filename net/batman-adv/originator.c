@@ -154,7 +154,7 @@ void batadv_orig_node_free_ref(struct orig_node *orig_node)
 
 void batadv_originator_free(struct bat_priv *bat_priv)
 {
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* spinlock to protect write access */
@@ -343,7 +343,7 @@ static bool batadv_purge_orig_node(struct bat_priv *bat_priv,
 
 static void _batadv_purge_orig(struct bat_priv *bat_priv)
 {
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* spinlock to protect write access */
@@ -401,7 +401,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
 	struct hard_iface *primary_if;
@@ -514,7 +514,7 @@ static int batadv_orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 int batadv_orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;
@@ -597,7 +597,7 @@ free_own_sum:
 int batadv_orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct hard_iface *hard_iface_tmp;

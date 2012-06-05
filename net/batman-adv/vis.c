@@ -91,7 +91,7 @@ static uint32_t batadv_vis_info_choose(const void *data, uint32_t size)
 static struct vis_info *batadv_vis_hash_find(struct bat_priv *bat_priv,
 					     const void *data)
 {
-	struct hashtable_t *hash = bat_priv->vis_hash;
+	struct batadv_hashtable *hash = bat_priv->vis_hash;
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct vis_info *vis_info, *vis_info_tmp = NULL;
@@ -247,7 +247,7 @@ int batadv_vis_seq_print_text(struct seq_file *seq, void *offset)
 	struct hlist_head *head;
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	struct hashtable_t *hash = bat_priv->vis_hash;
+	struct batadv_hashtable *hash = bat_priv->vis_hash;
 	uint32_t i;
 	int ret = 0;
 	int vis_server = atomic_read(&bat_priv->vis_mode);
@@ -506,7 +506,7 @@ end:
 static int batadv_find_best_vis_server(struct bat_priv *bat_priv,
 				       struct vis_info *info)
 {
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct neigh_node *router;
 	struct hlist_node *node;
 	struct hlist_head *head;
@@ -559,7 +559,7 @@ static bool batadv_vis_packet_full(const struct vis_info *info)
  */
 static int batadv_generate_vis_packet(struct bat_priv *bat_priv)
 {
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;
@@ -659,7 +659,7 @@ unlock:
 static void batadv_purge_vis_packets(struct bat_priv *bat_priv)
 {
 	uint32_t i;
-	struct hashtable_t *hash = bat_priv->vis_hash;
+	struct batadv_hashtable *hash = bat_priv->vis_hash;
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
 	struct vis_info *info;
@@ -687,7 +687,7 @@ static void batadv_broadcast_vis_packet(struct bat_priv *bat_priv,
 					struct vis_info *info)
 {
 	struct neigh_node *router;
-	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;

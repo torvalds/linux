@@ -198,16 +198,16 @@ struct bat_priv {
 	struct hlist_head gw_list;
 	struct list_head tt_changes_list; /* tracks changes in a OGM int */
 	struct list_head vis_send_list;
-	struct hashtable_t *orig_hash;
-	struct hashtable_t *tt_local_hash;
-	struct hashtable_t *tt_global_hash;
+	struct batadv_hashtable *orig_hash;
+	struct batadv_hashtable *tt_local_hash;
+	struct batadv_hashtable *tt_global_hash;
 #ifdef CONFIG_BATMAN_ADV_BLA
-	struct hashtable_t *claim_hash;
-	struct hashtable_t *backbone_hash;
+	struct batadv_hashtable *claim_hash;
+	struct batadv_hashtable *backbone_hash;
 #endif
 	struct list_head tt_req_list; /* list of pending tt_requests */
 	struct list_head tt_roam_list;
-	struct hashtable_t *vis_hash;
+	struct batadv_hashtable *vis_hash;
 #ifdef CONFIG_BATMAN_ADV_BLA
 	struct bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
 	int bcast_duplist_curr;

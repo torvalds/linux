@@ -133,7 +133,7 @@ static void batadv_claim_free_ref(struct claim *claim)
 static struct claim *batadv_claim_hash_find(struct bat_priv *bat_priv,
 					    struct claim *data)
 {
-	struct hashtable_t *hash = bat_priv->claim_hash;
+	struct batadv_hashtable *hash = bat_priv->claim_hash;
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct claim *claim;
@@ -172,7 +172,7 @@ static struct claim *batadv_claim_hash_find(struct bat_priv *bat_priv,
 static struct backbone_gw *batadv_backbone_hash_find(struct bat_priv *bat_priv,
 						     uint8_t *addr, short vid)
 {
-	struct hashtable_t *hash = bat_priv->backbone_hash;
+	struct batadv_hashtable *hash = bat_priv->backbone_hash;
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct backbone_gw search_entry, *backbone_gw;
@@ -208,7 +208,7 @@ static struct backbone_gw *batadv_backbone_hash_find(struct bat_priv *bat_priv,
 /* delete all claims for a backbone */
 static void batadv_bla_del_backbone_claims(struct backbone_gw *backbone_gw)
 {
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
 	struct claim *claim;
@@ -434,7 +434,7 @@ static void batadv_bla_answer_request(struct bat_priv *bat_priv,
 {
 	struct hlist_node *node;
 	struct hlist_head *head;
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 	struct claim *claim;
 	struct backbone_gw *backbone_gw;
 	int i;
@@ -931,7 +931,7 @@ static void batadv_bla_purge_backbone_gw(struct bat_priv *bat_priv, int now)
 	struct backbone_gw *backbone_gw;
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 	spinlock_t *list_lock;	/* protects write access to the hash lists */
 	int i;
 
@@ -983,7 +983,7 @@ static void batadv_bla_purge_claims(struct bat_priv *bat_priv,
 	struct claim *claim;
 	struct hlist_node *node;
 	struct hlist_head *head;
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 	int i;
 
 	hash = bat_priv->claim_hash;
@@ -1030,7 +1030,7 @@ void batadv_bla_update_orig_address(struct bat_priv *bat_priv,
 	struct backbone_gw *backbone_gw;
 	struct hlist_node *node;
 	struct hlist_head *head;
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 	int i;
 
 	/* reset bridge loop avoidance group id */
@@ -1091,7 +1091,7 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct backbone_gw *backbone_gw;
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 	struct hard_iface *primary_if;
 	int i;
 
@@ -1262,7 +1262,7 @@ int batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
  */
 int batadv_bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
 {
-	struct hashtable_t *hash = bat_priv->backbone_hash;
+	struct batadv_hashtable *hash = bat_priv->backbone_hash;
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct backbone_gw *backbone_gw;
@@ -1534,7 +1534,7 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	struct hashtable_t *hash = bat_priv->claim_hash;
+	struct batadv_hashtable *hash = bat_priv->claim_hash;
 	struct claim *claim;
 	struct hard_iface *primary_if;
 	struct hlist_node *node;
