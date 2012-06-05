@@ -759,6 +759,10 @@ static __kprobes void try_to_optimize_kprobe(struct kprobe *p)
 	struct kprobe *ap;
 	struct optimized_kprobe *op;
 
+	/* Impossible to optimize ftrace-based kprobe */
+	if (kprobe_ftrace(p))
+		return;
+
 	/* For preparing optimization, jump_label_text_reserved() is called */
 	jump_label_lock();
 	mutex_lock(&text_mutex);
@@ -915,9 +919,64 @@ static __kprobes struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 }
 #endif /* CONFIG_OPTPROBES */
 
+#ifdef KPROBES_CAN_USE_FTRACE
+static struct ftrace_ops kprobe_ftrace_ops __read_mostly = {
+	.regs_func = kprobe_ftrace_handler,
+	.flags = FTRACE_OPS_FL_SAVE_REGS,
+};
+static int kprobe_ftrace_enabled;
+
+/* Must ensure p->addr is really on ftrace */
+static int __kprobes prepare_kprobe(struct kprobe *p)
+{
+	if (!kprobe_ftrace(p))
+		return arch_prepare_kprobe(p);
+
+	return arch_prepare_kprobe_ftrace(p);
+}
+
+/* Caller must lock kprobe_mutex */
+static void __kprobes arm_kprobe_ftrace(struct kprobe *p)
+{
+	int ret;
+
+	ret = ftrace_set_filter_ip(&kprobe_ftrace_ops,
+				   (unsigned long)p->addr, 0, 0);
+	WARN(ret < 0, "Failed to arm kprobe-ftrace at %p (%d)\n", p->addr, ret);
+	kprobe_ftrace_enabled++;
+	if (kprobe_ftrace_enabled == 1) {
+		ret = register_ftrace_function(&kprobe_ftrace_ops);
+		WARN(ret < 0, "Failed to init kprobe-ftrace (%d)\n", ret);
+	}
+}
+
+/* Caller must lock kprobe_mutex */
+static void __kprobes disarm_kprobe_ftrace(struct kprobe *p)
+{
+	int ret;
+
+	kprobe_ftrace_enabled--;
+	if (kprobe_ftrace_enabled == 0) {
+		ret = unregister_ftrace_function(&kprobe_ftrace_ops);
+		WARN(ret < 0, "Failed to init kprobe-ftrace (%d)\n", ret);
+	}
+	ret = ftrace_set_filter_ip(&kprobe_ftrace_ops,
+			   (unsigned long)p->addr, 1, 0);
+	WARN(ret < 0, "Failed to disarm kprobe-ftrace at %p (%d)\n", p->addr, ret);
+}
+#else	/* !KPROBES_CAN_USE_FTRACE */
+#define prepare_kprobe(p)	arch_prepare_kprobe(p)
+#define arm_kprobe_ftrace(p)	do {} while (0)
+#define disarm_kprobe_ftrace(p)	do {} while (0)
+#endif
+
 /* Arm a kprobe with text_mutex */
 static void __kprobes arm_kprobe(struct kprobe *kp)
 {
+	if (unlikely(kprobe_ftrace(kp))) {
+		arm_kprobe_ftrace(kp);
+		return;
+	}
 	/*
 	 * Here, since __arm_kprobe() doesn't use stop_machine(),
 	 * this doesn't cause deadlock on text_mutex. So, we don't
@@ -929,11 +988,15 @@ static void __kprobes arm_kprobe(struct kprobe *kp)
 }
 
 /* Disarm a kprobe with text_mutex */
-static void __kprobes disarm_kprobe(struct kprobe *kp)
+static void __kprobes disarm_kprobe(struct kprobe *kp, bool reopt)
 {
+	if (unlikely(kprobe_ftrace(kp))) {
+		disarm_kprobe_ftrace(kp);
+		return;
+	}
 	/* Ditto */
 	mutex_lock(&text_mutex);
-	__disarm_kprobe(kp, true);
+	__disarm_kprobe(kp, reopt);
 	mutex_unlock(&text_mutex);
 }
 
@@ -1343,6 +1406,26 @@ static __kprobes int check_kprobe_address_safe(struct kprobe *p,
 					       struct module **probed_mod)
 {
 	int ret = 0;
+	unsigned long ftrace_addr;
+
+	/*
+	 * If the address is located on a ftrace nop, set the
+	 * breakpoint to the following instruction.
+	 */
+	ftrace_addr = ftrace_location((unsigned long)p->addr);
+	if (ftrace_addr) {
+#ifdef KPROBES_CAN_USE_FTRACE
+		/* Given address is not on the instruction boundary */
+		if ((unsigned long)p->addr != ftrace_addr)
+			return -EILSEQ;
+		/* break_handler (jprobe) can not work with ftrace */
+		if (p->break_handler)
+			return -EINVAL;
+		p->flags |= KPROBE_FLAG_FTRACE;
+#else	/* !KPROBES_CAN_USE_FTRACE */
+		return -EINVAL;
+#endif
+	}
 
 	jump_label_lock();
 	preempt_disable();
@@ -1350,7 +1433,6 @@ static __kprobes int check_kprobe_address_safe(struct kprobe *p,
 	/* Ensure it is not in reserved area nor out of text */
 	if (!kernel_text_address((unsigned long) p->addr) ||
 	    in_kprobes_functions((unsigned long) p->addr) ||
-	    ftrace_text_reserved(p->addr, p->addr) ||
 	    jump_label_text_reserved(p->addr, p->addr)) {
 		ret = -EINVAL;
 		goto out;
@@ -1422,7 +1504,7 @@ int __kprobes register_kprobe(struct kprobe *p)
 	}
 
 	mutex_lock(&text_mutex);	/* Avoiding text modification */
-	ret = arch_prepare_kprobe(p);
+	ret = prepare_kprobe(p);
 	mutex_unlock(&text_mutex);
 	if (ret)
 		goto out;
@@ -1480,7 +1562,7 @@ static struct kprobe *__kprobes __disable_kprobe(struct kprobe *p)
 
 		/* Try to disarm and disable this/parent probe */
 		if (p == orig_p || aggr_kprobe_disabled(orig_p)) {
-			disarm_kprobe(orig_p);
+			disarm_kprobe(orig_p, true);
 			orig_p->flags |= KPROBE_FLAG_DISABLED;
 		}
 	}
@@ -2078,10 +2160,11 @@ static void __kprobes report_probe(struct seq_file *pi, struct kprobe *p,
 
 	if (!pp)
 		pp = p;
-	seq_printf(pi, "%s%s%s\n",
+	seq_printf(pi, "%s%s%s%s\n",
 		(kprobe_gone(p) ? "[GONE]" : ""),
 		((kprobe_disabled(p) && !kprobe_gone(p)) ?  "[DISABLED]" : ""),
-		(kprobe_optimized(pp) ? "[OPTIMIZED]" : ""));
+		(kprobe_optimized(pp) ? "[OPTIMIZED]" : ""),
+		(kprobe_ftrace(pp) ? "[FTRACE]" : ""));
 }
 
 static void __kprobes *kprobe_seq_start(struct seq_file *f, loff_t *pos)
@@ -2160,14 +2243,12 @@ static void __kprobes arm_all_kprobes(void)
 		goto already_enabled;
 
 	/* Arming kprobes doesn't optimize kprobe itself */
-	mutex_lock(&text_mutex);
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
 		hlist_for_each_entry_rcu(p, node, head, hlist)
 			if (!kprobe_disabled(p))
-				__arm_kprobe(p);
+				arm_kprobe(p);
 	}
-	mutex_unlock(&text_mutex);
 
 	kprobes_all_disarmed = false;
 	printk(KERN_INFO "Kprobes globally enabled\n");
@@ -2195,15 +2276,13 @@ static void __kprobes disarm_all_kprobes(void)
 	kprobes_all_disarmed = true;
 	printk(KERN_INFO "Kprobes globally disabled\n");
 
-	mutex_lock(&text_mutex);
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
 		hlist_for_each_entry_rcu(p, node, head, hlist) {
 			if (!arch_trampoline_kprobe(p) && !kprobe_disabled(p))
-				__disarm_kprobe(p, false);
+				disarm_kprobe(p, false);
 		}
 	}
-	mutex_unlock(&text_mutex);
 	mutex_unlock(&kprobe_mutex);
 
 	/* Wait for disarming all kprobes by optimizer */
