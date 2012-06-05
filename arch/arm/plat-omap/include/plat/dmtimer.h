@@ -90,6 +90,7 @@ struct timer_regs {
 };
 
 struct dmtimer_platform_data {
+	/* set_timer_src - Only used for OMAP1 devices */
 	int (*set_timer_src)(struct platform_device *pdev, int source);
 	u32 timer_capability;
 };
