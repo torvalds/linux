@@ -2463,13 +2463,13 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			error = -EISDIR;
 			goto exit;
 		}
-		goto ok;
+		goto finish_open;
 	case LAST_BIND:
 		error = complete_walk(nd);
 		if (error)
 			return ERR_PTR(error);
 		audit_inode(pathname, dir);
-		goto ok;
+		goto finish_open;
 	}
 
 	if (!(open_flag & O_CREAT)) {
@@ -2526,7 +2526,7 @@ retry_lookup:
 		will_truncate = 0;
 		acc_mode = MAY_OPEN;
 		path_to_nameidata(path, nd);
-		goto common;
+		goto finish_open_created;
 	}
 
 	/*
@@ -2598,7 +2598,7 @@ finish_lookup:
 	if ((nd->flags & LOOKUP_DIRECTORY) && !nd->inode->i_op->lookup)
 		goto exit;
 	audit_inode(pathname, nd->path.dentry);
-ok:
+finish_open:
 	if (!S_ISREG(nd->inode->i_mode))
 		will_truncate = 0;
 
@@ -2608,7 +2608,7 @@ ok:
 			goto exit;
 		want_write = 1;
 	}
-common:
+finish_open_created:
 	error = may_open(&nd->path, acc_mode, open_flag);
 	if (error)
 		goto exit;
