@@ -1,24 +1,25 @@
 /*
-*******************************************************************************
-*           				eBase
-*                 the Abstract of Hardware
-*
-*
-*              (c) Copyright 2006-2010, ALL WINNER TECH.
-*           								All Rights Reserved
-*
-* File     :  d:\winners\eBase\eBSP\CSP\sun_20\SW_TIMER\CSP_TMRC.h
-* Date     :  2010/11/23 16:36
-* By       :  Sam.Wu
-* Version  :  V1.00
-* Description :  CSP timer controller
-* Update   :  date      author      version     notes
-*
-* Notes: After start the timer, the timer will count down from Interval you set.
-         If it counts to Zero it will send IRQ if its IRQ enabled and reset the chip
-         if it is the watch-dog and reset control is valid.
-*******************************************************************************
-*/
+ * drivers/video/sun3i/disp/OSAL/csp/csp_timer_para.h
+ *
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
 #ifndef _CSP_TIMER_PARA_H_
 #define _CSP_TIMER_PARA_H_
 
