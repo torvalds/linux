@@ -131,6 +131,8 @@ int main(void)
 	DEFINE(__LC_PANIC_STACK, offsetof(struct _lowcore, panic_stack));
 	DEFINE(__LC_RESTART_STACK, offsetof(struct _lowcore, restart_stack));
 	DEFINE(__LC_RESTART_FN, offsetof(struct _lowcore, restart_fn));
+	DEFINE(__LC_RESTART_DATA, offsetof(struct _lowcore, restart_data));
+	DEFINE(__LC_RESTART_SOURCE, offsetof(struct _lowcore, restart_source));
 	DEFINE(__LC_USER_ASCE, offsetof(struct _lowcore, user_asce));
 	DEFINE(__LC_INT_CLOCK, offsetof(struct _lowcore, int_clock));
 	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));

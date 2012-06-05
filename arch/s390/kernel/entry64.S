@@ -751,7 +751,9 @@ ENTRY(restart_int_handler)
 	mvc	__PT_PSW(16,%r15),__LC_RST_OLD_PSW # store restart old psw
 	aghi	%r15,-STACK_FRAME_OVERHEAD	# create stack frame on stack
 	xc	0(STACK_FRAME_OVERHEAD,%r15),0(%r15)
-	lmg	%r1,%r3,__LC_RESTART_FN		# load fn, parm & source cpu
+	lg	%r1,__LC_RESTART_FN		# load fn, parm & source cpu
+	lg	%r2,__LC_RESTART_DATA
+	lg	%r3,__LC_RESTART_SOURCE
 	ltgr	%r3,%r3				# test source cpu address
 	jm	1f				# negative -> skip source stop
 0:	sigp	%r4,%r3,SIGP_SENSE		# sigp sense to source cpu

@@ -273,26 +273,24 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 			  void *data, unsigned long stack)
 {
 	struct _lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
-	struct {
-		unsigned long	stack;
-		void		*func;
-		void		*data;
-		unsigned long	source;
-	} restart = { stack, func, data, stap() };
+	unsigned long source_cpu = stap();
 
 	__load_psw_mask(psw_kernel_bits);
-	if (pcpu->address == restart.source)
+	if (pcpu->address == source_cpu)
 		func(data);	/* should not return */
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
-	memcpy_absolute(&lc->restart_stack, &restart, sizeof(restart));
+	mem_assign_absolute(lc->restart_stack, stack);
+	mem_assign_absolute(lc->restart_fn, (unsigned long) func);
+	mem_assign_absolute(lc->restart_data, (unsigned long) data);
+	mem_assign_absolute(lc->restart_source, source_cpu);
 	asm volatile(
 		"0:	sigp	0,%0,%2	# sigp restart to target cpu\n"
 		"	brc	2,0b	# busy, try again\n"
 		"1:	sigp	0,%1,%3	# sigp stop to current cpu\n"
 		"	brc	2,1b	# busy, try again\n"
-		: : "d" (pcpu->address), "d" (restart.source),
+		: : "d" (pcpu->address), "d" (source_cpu),
 		    "K" (SIGP_RESTART), "K" (SIGP_STOP)
 		: "0", "1", "cc");
 	for (;;) ;
