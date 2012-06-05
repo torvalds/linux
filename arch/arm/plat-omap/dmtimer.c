@@ -425,15 +425,15 @@ int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 
 	switch (source) {
 	case OMAP_TIMER_SRC_SYS_CLK:
-		parent_name = "sys_ck";
+		parent_name = "timer_sys_ck";
 		break;
 
 	case OMAP_TIMER_SRC_32_KHZ:
-		parent_name = "32k_ck";
+		parent_name = "timer_32k_ck";
 		break;
 
 	case OMAP_TIMER_SRC_EXT_CLK:
-		parent_name = "alt_ck";
+		parent_name = "timer_ext_ck";
 		break;
 	}
 
