@@ -1828,6 +1828,8 @@
  */
 #define   BACKLIGHT_DUTY_CYCLE_SHIFT		(0)
 #define   BACKLIGHT_DUTY_CYCLE_MASK		(0xffff)
+#define   BACKLIGHT_DUTY_CYCLE_MASK_PNV		(0xfffe)
+#define   BLM_POLARITY_PNV			(1 << 0) /* pnv only */
 
 #define BLC_HIST_CTL		0x61260
 
