@@ -1386,6 +1386,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	default:
 		comedi_error(dev, "bug with start_src");
+		spin_unlock_irqrestore(&dev->spinlock, flags);
 		return -1;
 		break;
 	}
@@ -1398,6 +1399,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	default:
 		comedi_error(dev, "bug with stop_src");
+		spin_unlock_irqrestore(&dev->spinlock, flags);
 		return -1;
 	}
 	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
