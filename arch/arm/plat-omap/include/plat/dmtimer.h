@@ -71,7 +71,6 @@ struct omap_timer_capability_dev_attr {
 };
 
 struct omap_dm_timer;
-struct clk;
 
 struct timer_regs {
 	u32 tidr;
