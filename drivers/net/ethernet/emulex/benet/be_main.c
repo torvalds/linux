@@ -1890,6 +1890,12 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	 */
 	adapter->num_rx_qs = (num_irqs(adapter) > 1) ?
 				num_irqs(adapter) + 1 : 1;
+	if (adapter->num_rx_qs != MAX_RX_QS) {
+		rtnl_lock();
+		netif_set_real_num_rx_queues(adapter->netdev,
+					     adapter->num_rx_qs);
+		rtnl_unlock();
+	}
 
 	adapter->big_page_size = (1 << get_order(rx_frag_size)) * PAGE_SIZE;
 	for_all_rx_queues(adapter, rxo, i) {
@@ -3740,7 +3746,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		goto disable_dev;
 	pci_set_master(pdev);
 
-	netdev = alloc_etherdev_mq(sizeof(struct be_adapter), MAX_TX_QS);
+	netdev = alloc_etherdev_mqs(sizeof(*adapter), MAX_TX_QS, MAX_RX_QS);
 	if (netdev == NULL) {
 		status = -ENOMEM;
 		goto rel_reg;
