@@ -921,7 +921,7 @@ static __kprobes struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 
 #ifdef KPROBES_CAN_USE_FTRACE
 static struct ftrace_ops kprobe_ftrace_ops __read_mostly = {
-	.regs_func = kprobe_ftrace_handler,
+	.func = kprobe_ftrace_handler,
 	.flags = FTRACE_OPS_FL_SAVE_REGS,
 };
 static int kprobe_ftrace_enabled;

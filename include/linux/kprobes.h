@@ -318,7 +318,7 @@ extern int proc_kprobes_optimization_handler(struct ctl_table *table,
 #endif /* CONFIG_OPTPROBES */
 #ifdef KPROBES_CAN_USE_FTRACE
 extern void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
-				  struct pt_regs *regs);
+				  struct ftrace_ops *ops, struct pt_regs *regs);
 extern int arch_prepare_kprobe_ftrace(struct kprobe *p);
 #endif
 
