@@ -569,7 +569,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 
 	if (HAS_PCH_CPT(dev))
 		sdvox |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
-	else if (intel_crtc->pipe == 1)
+	else if (intel_crtc->pipe == PIPE_B)
 		sdvox |= SDVO_PIPE_B_SELECT;
 
 	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
@@ -590,6 +590,36 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 		enable_bits |= SDVO_AUDIO_ENABLE;
 
 	temp = I915_READ(intel_hdmi->sdvox_reg);
+
+	/* HW workaround for IBX, we need to move the port to transcoder A
+	 * before disabling it. */
+	if (HAS_PCH_IBX(dev)) {
+		struct drm_crtc *crtc = encoder->crtc;
+		int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
+
+		if (mode != DRM_MODE_DPMS_ON) {
+			if (temp & SDVO_PIPE_B_SELECT) {
+				temp &= ~SDVO_PIPE_B_SELECT;
+				I915_WRITE(intel_hdmi->sdvox_reg, temp);
+				POSTING_READ(intel_hdmi->sdvox_reg);
+
+				/* Again we need to write this twice. */
+				I915_WRITE(intel_hdmi->sdvox_reg, temp);
+				POSTING_READ(intel_hdmi->sdvox_reg);
+
+				/* Transcoder selection bits only update
+				 * effectively on vblank. */
+				if (crtc)
+					intel_wait_for_vblank(dev, pipe);
+				else
+					msleep(50);
+			}
+		} else {
+			/* Restore the transcoder select bit. */
+			if (pipe == PIPE_B)
+				enable_bits |= SDVO_PIPE_B_SELECT;
+		}
+	}
 
 	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
 	 * we do this anyway which shows more stable in testing.
