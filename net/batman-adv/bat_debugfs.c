@@ -36,13 +36,21 @@ static struct dentry *batadv_debugfs;
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 #define BATADV_LOG_BUFF_MASK (batadv_log_buff_len - 1)
-#define BATADV_LOG_BUFF(idx) (debug_log->log_buff[(idx) & BATADV_LOG_BUFF_MASK])
 
-static int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
+static const int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
+
+static char *batadv_log_char_addr(struct batadv_debug_log *debug_log,
+				  size_t idx)
+{
+	return &debug_log->log_buff[idx & BATADV_LOG_BUFF_MASK];
+}
 
 static void batadv_emit_log_char(struct batadv_debug_log *debug_log, char c)
 {
-	BATADV_LOG_BUFF(debug_log->log_end) = c;
+	char *char_addr;
+
+	char_addr = batadv_log_char_addr(debug_log, debug_log->log_end);
+	*char_addr = c;
 	debug_log->log_end++;
 
 	if (debug_log->log_end - debug_log->log_start > batadv_log_buff_len)
@@ -109,6 +117,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 	struct batadv_priv *bat_priv = file->private_data;
 	struct batadv_debug_log *debug_log = bat_priv->debug_log;
 	int error, i = 0;
+	char *char_addr;
 	char c;
 
 	if ((file->f_flags & O_NONBLOCK) &&
@@ -134,7 +143,9 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 
 	while ((!error) && (i < count) &&
 	       (debug_log->log_start != debug_log->log_end)) {
-		c = BATADV_LOG_BUFF(debug_log->log_start);
+		char_addr = batadv_log_char_addr(debug_log,
+						 debug_log->log_start);
+		c = *char_addr;
 
 		debug_log->log_start++;
 
