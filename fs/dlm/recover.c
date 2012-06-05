@@ -804,6 +804,7 @@ static void recover_lvb(struct dlm_rsb *r)
 
 static void recover_conversion(struct dlm_rsb *r)
 {
+	struct dlm_ls *ls = r->res_ls;
 	struct dlm_lkb *lkb;
 	int grmode = -1;
 
@@ -818,10 +819,15 @@ static void recover_conversion(struct dlm_rsb *r)
 	list_for_each_entry(lkb, &r->res_convertqueue, lkb_statequeue) {
 		if (lkb->lkb_grmode != DLM_LOCK_IV)
 			continue;
-		if (grmode == -1)
+		if (grmode == -1) {
+			log_debug(ls, "recover_conversion %x set gr to rq %d",
+				  lkb->lkb_id, lkb->lkb_rqmode);
 			lkb->lkb_grmode = lkb->lkb_rqmode;
-		else
+		} else {
+			log_debug(ls, "recover_conversion %x set gr %d",
+				  lkb->lkb_id, grmode);
 			lkb->lkb_grmode = grmode;
+		}
 	}
 }
 
