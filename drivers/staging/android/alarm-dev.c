@@ -255,7 +255,7 @@ static int alarm_release(struct inode *inode, struct file *file)
 	unsigned long flags;
 
 	spin_lock_irqsave(&alarm_slock, flags);
-	if (file->private_data != 0) {
+	if (file->private_data) {
 		for (i = 0; i < ANDROID_ALARM_TYPE_COUNT; i++) {
 			uint32_t alarm_type_mask = 1U << i;
 			if (alarm_enabled & alarm_type_mask) {
