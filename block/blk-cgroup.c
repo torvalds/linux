@@ -177,7 +177,6 @@ EXPORT_SYMBOL_GPL(blkg_lookup);
 
 static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 					     struct request_queue *q)
-	__releases(q->queue_lock) __acquires(q->queue_lock)
 {
 	struct blkcg_gq *blkg;
 	int ret;
@@ -203,10 +202,6 @@ static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 		goto err_put;
 
 	/* insert */
-	ret = radix_tree_preload(GFP_ATOMIC);
-	if (ret)
-		goto err_free;
-
 	spin_lock(&blkcg->lock);
 	ret = radix_tree_insert(&blkcg->blkg_tree, q->id, blkg);
 	if (likely(!ret)) {
@@ -215,14 +210,11 @@ static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 	}
 	spin_unlock(&blkcg->lock);
 
-	radix_tree_preload_end();
-
 	if (!ret)
 		return blkg;
-err_free:
-	blkg_free(blkg);
 err_put:
 	css_put(&blkcg->css);
+	blkg_free(blkg);
 	return ERR_PTR(ret);
 }
 
