@@ -567,7 +567,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 	ep = container_of(_ep, struct fsl_ep, ep);
 
 	/* catch various bogus parameters */
-	if (!_ep || !desc || ep->ep.desc
+	if (!_ep || !desc
 			|| (desc->bDescriptorType != USB_DT_ENDPOINT))
 		return -EINVAL;
 
@@ -2575,7 +2575,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	/* for ep0: the desc defined here;
 	 * for other eps, gadget layer called ep_enable with defined desc
 	 */
-	udc_controller->eps[0].desc = &fsl_ep0_desc;
+	udc_controller->eps[0].ep.desc = &fsl_ep0_desc;
 	udc_controller->eps[0].ep.maxpacket = USB_MAX_CTRL_PAYLOAD;
 
 	/* setup the udc->eps[] for non-control endpoints and link
