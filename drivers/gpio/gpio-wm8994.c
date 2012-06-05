@@ -249,7 +249,8 @@ static int __devinit wm8994_gpio_probe(struct platform_device *pdev)
 	struct wm8994_gpio *wm8994_gpio;
 	int ret;
 
-	wm8994_gpio = kzalloc(sizeof(*wm8994_gpio), GFP_KERNEL);
+	wm8994_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm8994_gpio),
+				   GFP_KERNEL);
 	if (wm8994_gpio == NULL)
 		return -ENOMEM;
 
@@ -274,20 +275,14 @@ static int __devinit wm8994_gpio_probe(struct platform_device *pdev)
 	return ret;
 
 err:
-	kfree(wm8994_gpio);
 	return ret;
 }
 
 static int __devexit wm8994_gpio_remove(struct platform_device *pdev)
 {
 	struct wm8994_gpio *wm8994_gpio = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&wm8994_gpio->gpio_chip);
-	if (ret == 0)
-		kfree(wm8994_gpio);
-
-	return ret;
+	return gpiochip_remove(&wm8994_gpio->gpio_chip);
 }
 
 static struct platform_driver wm8994_gpio_driver = {
