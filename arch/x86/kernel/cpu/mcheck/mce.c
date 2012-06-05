@@ -1266,7 +1266,7 @@ static void mce_timer_fn(unsigned long data)
 	 */
 	iv = __this_cpu_read(mce_next_interval);
 	if (mce_notify_irq())
-		iv = max(iv, (unsigned long) HZ/100);
+		iv = max(iv / 2, (unsigned long) HZ/100);
 	else
 		iv = min(iv * 2, round_jiffies_relative(check_interval * HZ));
 	__this_cpu_write(mce_next_interval, iv);
