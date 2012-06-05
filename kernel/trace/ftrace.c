@@ -3242,8 +3242,27 @@ ftrace_notrace_write(struct file *file, const char __user *ubuf,
 }
 
 static int
-ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
-		 int reset, int enable)
+ftrace_match_addr(struct ftrace_hash *hash, unsigned long ip, int remove)
+{
+	struct ftrace_func_entry *entry;
+
+	if (!ftrace_location(ip))
+		return -EINVAL;
+
+	if (remove) {
+		entry = ftrace_lookup_ip(hash, ip);
+		if (!entry)
+			return -ENOENT;
+		free_hash_entry(hash, entry);
+		return 0;
+	}
+
+	return add_hash_entry(hash, ip);
+}
+
+static int
+ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
+		unsigned long ip, int remove, int reset, int enable)
 {
 	struct ftrace_hash **orig_hash;
 	struct ftrace_hash *hash;
@@ -3272,6 +3291,11 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 		ret = -EINVAL;
 		goto out_regex_unlock;
 	}
+	if (ip) {
+		ret = ftrace_match_addr(hash, ip, remove);
+		if (ret < 0)
+			goto out_regex_unlock;
+	}
 
 	mutex_lock(&ftrace_lock);
 	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
@@ -3286,6 +3310,37 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 
 	free_ftrace_hash(hash);
 	return ret;
+}
+
+static int
+ftrace_set_addr(struct ftrace_ops *ops, unsigned long ip, int remove,
+		int reset, int enable)
+{
+	return ftrace_set_hash(ops, 0, 0, ip, remove, reset, enable);
+}
+
+/**
+ * ftrace_set_filter_ip - set a function to filter on in ftrace by address
+ * @ops - the ops to set the filter with
+ * @ip - the address to add to or remove from the filter.
+ * @remove - non zero to remove the ip from the filter
+ * @reset - non zero to reset all filters before applying this filter.
+ *
+ * Filters denote which functions should be enabled when tracing is enabled
+ * If @ip is NULL, it failes to update filter.
+ */
+int ftrace_set_filter_ip(struct ftrace_ops *ops, unsigned long ip,
+			 int remove, int reset)
+{
+	return ftrace_set_addr(ops, ip, remove, reset, 1);
+}
+EXPORT_SYMBOL_GPL(ftrace_set_filter_ip);
+
+static int
+ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
+		 int reset, int enable)
+{
+	return ftrace_set_hash(ops, buf, len, 0, 0, reset, enable);
 }
 
 /**
