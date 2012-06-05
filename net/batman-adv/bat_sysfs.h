@@ -23,7 +23,7 @@
 #define BATADV_SYSFS_IF_MESH_SUBDIR "mesh"
 #define BATADV_SYSFS_IF_BAT_SUBDIR "batman_adv"
 
-struct bat_attribute {
+struct batadv_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
 			char *buf);

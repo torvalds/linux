@@ -54,7 +54,7 @@ static char *batadv_uev_type_str[] = {
 
 /* Use this, if you have customized show and store functions */
 #define BATADV_ATTR(_name, _mode, _show, _store)	\
-struct bat_attribute batadv_attr_##_name = {		\
+struct batadv_attribute batadv_attr_##_name = {		\
 	.attr = {.name = __stringify(_name),		\
 		 .mode = _mode },			\
 	.show   = _show,				\
@@ -488,7 +488,7 @@ static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
 #endif
 
-static struct bat_attribute *batadv_mesh_attrs[] = {
+static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_aggregated_ogms,
 	&batadv_attr_bonding,
 #ifdef CONFIG_BATMAN_ADV_BLA
@@ -513,7 +513,7 @@ int batadv_sysfs_add_meshif(struct net_device *dev)
 {
 	struct kobject *batif_kobject = &dev->dev.kobj;
 	struct bat_priv *bat_priv = netdev_priv(dev);
-	struct bat_attribute **bat_attr;
+	struct batadv_attribute **bat_attr;
 	int err;
 
 	bat_priv->mesh_obj = kobject_create_and_add(BATADV_SYSFS_IF_MESH_SUBDIR,
@@ -550,7 +550,7 @@ out:
 void batadv_sysfs_del_meshif(struct net_device *dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
-	struct bat_attribute **bat_attr;
+	struct batadv_attribute **bat_attr;
 
 	for (bat_attr = batadv_mesh_attrs; *bat_attr; ++bat_attr)
 		sysfs_remove_file(bat_priv->mesh_obj, &((*bat_attr)->attr));
@@ -677,7 +677,7 @@ static BATADV_ATTR(mesh_iface, S_IRUGO | S_IWUSR, batadv_show_mesh_iface,
 		   batadv_store_mesh_iface);
 static BATADV_ATTR(iface_status, S_IRUGO, batadv_show_iface_status, NULL);
 
-static struct bat_attribute *batadv_batman_attrs[] = {
+static struct batadv_attribute *batadv_batman_attrs[] = {
 	&batadv_attr_mesh_iface,
 	&batadv_attr_iface_status,
 	NULL,
@@ -686,7 +686,7 @@ static struct bat_attribute *batadv_batman_attrs[] = {
 int batadv_sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 {
 	struct kobject *hardif_kobject = &dev->dev.kobj;
-	struct bat_attribute **bat_attr;
+	struct batadv_attribute **bat_attr;
 	int err;
 
 	*hardif_obj = kobject_create_and_add(BATADV_SYSFS_IF_BAT_SUBDIR,
