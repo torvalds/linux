@@ -375,8 +375,6 @@ static const struct ide_dma_ops icside_v6_dma_ops = {
 	.dma_test_irq		= icside_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 };
-#else
-#define icside_v6_dma_ops NULL
 #endif
 
 static int icside_dma_off_init(ide_hwif_t *hwif, const struct ide_port_info *d)
@@ -456,7 +454,6 @@ err_free:
 static const struct ide_port_info icside_v6_port_info __initdata = {
 	.init_dma		= icside_dma_off_init,
 	.port_ops		= &icside_v6_no_dma_port_ops,
-	.dma_ops		= &icside_v6_dma_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_MMIO,
 	.mwdma_mask		= ATA_MWDMA2,
 	.swdma_mask		= ATA_SWDMA2,
@@ -518,11 +515,13 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 
 	ecard_set_drvdata(ec, state);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_ICS
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, DRV_NAME)) {
 		d.init_dma = icside_dma_init;
 		d.port_ops = &icside_v6_port_ops;
-	} else
-		d.dma_ops = NULL;
+		d.dma_ops  = &icside_v6_dma_ops;
+	}
+#endif
 
 	ret = ide_host_register(host, &d, hws);
 	if (ret)
