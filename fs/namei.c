@@ -2197,19 +2197,73 @@ static inline int open_to_namei_flags(int flag)
 }
 
 /*
+ * Lookup, maybe create and open the last component
+ *
+ * Must be called with i_mutex held on parent.
+ *
+ * Returns open file or NULL on success, error otherwise.  NULL means no open
+ * was performed, only lookup.
+ */
+static struct file *lookup_open(struct nameidata *nd, struct path *path,
+				const struct open_flags *op,
+				int *want_write, bool *created)
+{
+	struct dentry *dir = nd->path.dentry;
+	struct dentry *dentry;
+	int error;
+
+	*created = false;
+	dentry = lookup_hash(nd);
+	if (IS_ERR(dentry))
+		return ERR_CAST(dentry);
+
+	/* Negative dentry, just create the file */
+	if (!dentry->d_inode && (op->open_flag & O_CREAT)) {
+		umode_t mode = op->mode;
+		if (!IS_POSIXACL(dir->d_inode))
+			mode &= ~current_umask();
+		/*
+		 * This write is needed to ensure that a
+		 * rw->ro transition does not occur between
+		 * the time when the file is created and when
+		 * a permanent write count is taken through
+		 * the 'struct file' in nameidata_to_filp().
+		 */
+		error = mnt_want_write(nd->path.mnt);
+		if (error)
+			goto out_dput;
+		*want_write = 1;
+		*created = true;
+		error = security_path_mknod(&nd->path, dentry, mode, 0);
+		if (error)
+			goto out_dput;
+		error = vfs_create(dir->d_inode, dentry, mode, nd);
+		if (error)
+			goto out_dput;
+	}
+	path->dentry = dentry;
+	path->mnt = nd->path.mnt;
+	return NULL;
+
+out_dput:
+	dput(dentry);
+	return ERR_PTR(error);
+}
+
+/*
  * Handle the last step of open()
  */
 static struct file *do_last(struct nameidata *nd, struct path *path,
 			    const struct open_flags *op, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
-	struct dentry *dentry;
 	int open_flag = op->open_flag;
 	int will_truncate = open_flag & O_TRUNC;
 	int want_write = 0;
 	int acc_mode = op->acc_mode;
 	struct file *filp;
 	struct inode *inode;
+	bool created;
 	int symlink_ok = 0;
 	struct path save_parent = { .dentry = NULL, .mnt = NULL };
 	bool retried = false;
@@ -2277,53 +2331,24 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 retry_lookup:
 	mutex_lock(&dir->d_inode->i_mutex);
+	filp = lookup_open(nd, path, op, &want_write, &created);
+	mutex_unlock(&dir->d_inode->i_mutex);
 
-	dentry = lookup_hash(nd);
-	error = PTR_ERR(dentry);
-	if (IS_ERR(dentry)) {
-		mutex_unlock(&dir->d_inode->i_mutex);
-		goto exit;
-	}
+	if (IS_ERR(filp))
+		goto out;
 
-	path->dentry = dentry;
-	path->mnt = nd->path.mnt;
-
-	/* Negative dentry, just create the file */
-	if (!dentry->d_inode && (open_flag & O_CREAT)) {
-		umode_t mode = op->mode;
-		if (!IS_POSIXACL(dir->d_inode))
-			mode &= ~current_umask();
-		/*
-		 * This write is needed to ensure that a
-		 * rw->ro transition does not occur between
-		 * the time when the file is created and when
-		 * a permanent write count is taken through
-		 * the 'struct file' in nameidata_to_filp().
-		 */
-		error = mnt_want_write(nd->path.mnt);
-		if (error)
-			goto exit_mutex_unlock;
-		want_write = 1;
+	if (created) {
 		/* Don't check for write permission, don't truncate */
 		open_flag &= ~O_TRUNC;
 		will_truncate = 0;
 		acc_mode = MAY_OPEN;
-		error = security_path_mknod(&nd->path, dentry, mode, 0);
-		if (error)
-			goto exit_mutex_unlock;
-		error = vfs_create(dir->d_inode, dentry, mode, nd);
-		if (error)
-			goto exit_mutex_unlock;
-		mutex_unlock(&dir->d_inode->i_mutex);
-		dput(nd->path.dentry);
-		nd->path.dentry = dentry;
+		path_to_nameidata(path, nd);
 		goto common;
 	}
 
 	/*
 	 * It already exists.
 	 */
-	mutex_unlock(&dir->d_inode->i_mutex);
 	audit_inode(pathname, path->dentry);
 
 	error = -EEXIST;
@@ -2432,8 +2457,6 @@ out:
 	terminate_walk(nd);
 	return filp;
 
-exit_mutex_unlock:
-	mutex_unlock(&dir->d_inode->i_mutex);
 exit_dput:
 	path_put_conditional(path, nd);
 exit:
