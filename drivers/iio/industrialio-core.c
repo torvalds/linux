@@ -300,7 +300,7 @@ ssize_t iio_enum_available_read(struct iio_dev *indio_dev,
 		return 0;
 
 	for (i = 0; i < e->num_items; ++i)
-		len += snprintf(buf + len, PAGE_SIZE - len, "%s ", e->items[i]);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s ", e->items[i]);
 
 	/* replace last space with a newline */
 	buf[len - 1] = '\n';
