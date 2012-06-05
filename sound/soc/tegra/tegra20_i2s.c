@@ -62,7 +62,7 @@ static int tegra20_i2s_runtime_suspend(struct device *dev)
 {
 	struct tegra20_i2s *i2s = dev_get_drvdata(dev);
 
-	clk_disable(i2s->clk_i2s);
+	clk_disable_unprepare(i2s->clk_i2s);
 
 	return 0;
 }
@@ -72,7 +72,7 @@ static int tegra20_i2s_runtime_resume(struct device *dev)
 	struct tegra20_i2s *i2s = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_enable(i2s->clk_i2s);
+	ret = clk_prepare_enable(i2s->clk_i2s);
 	if (ret) {
 		dev_err(dev, "clk_enable failed: %d\n", ret);
 		return ret;
