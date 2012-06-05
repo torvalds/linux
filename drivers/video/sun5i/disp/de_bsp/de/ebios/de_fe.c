@@ -1,20 +1,25 @@
-//*****************************************************************************
-//  All Winner Micro, All Right Reserved. 2006-2011 Copyright (c)
-//
-//  File name   :        de_scal_bsp.c
-//
-//  Description :  display engine scaler base functions implement for aw1623
-//
-//  History       :
-//                 2011/05/03      zchmin       v1.0    Initial version
-//                 2011/05/13      vito            v1.1    added vpp function
-//                 2011/05/25      zchmin       v1.2    redefine 3d inmode
-//                 2011/07/01      zchmin       v1.3    modify set scal coef error
-//                 2011/07/14      zchmin       v1.4    added input/output rg swap
-//                 2011/08/04      zchmin       v1.5    added divisor no-zero limited
-//                 2011/09/28      zchmin       v1.6    added 3D interleaved input format support
-//******************************************************************************
-
+/*
+ * drivers/video/sun5i/disp/de_bsp/de/ebios/de_fe.c
+ *
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Danling <danliang@allwinnertech.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
 
 #include "de_fe.h"
 
