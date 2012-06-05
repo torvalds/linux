@@ -380,7 +380,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 #endif
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	.ctl_table_path  = "net/ipv4/netfilter",
-	.ctl_table	 = ip_ct_sysctl_table,
 #endif
 	.init_net	 = ipv4_init_net,
 	.me		 = THIS_MODULE,

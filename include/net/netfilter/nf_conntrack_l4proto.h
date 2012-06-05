@@ -94,16 +94,6 @@ struct nf_conntrack_l4proto {
 		const struct nla_policy *nla_policy;
 	} ctnl_timeout;
 #endif
-
-#ifdef CONFIG_SYSCTL
-	struct ctl_table_header	**ctl_table_header;
-	struct ctl_table	*ctl_table;
-	unsigned int		*ctl_table_users;
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	struct ctl_table_header	*ctl_compat_table_header;
-	struct ctl_table	*ctl_compat_table;
-#endif
-#endif
 	int	*net_id;
 	/* Init l4proto pernet data */
 	int (*init_net)(struct net *net);

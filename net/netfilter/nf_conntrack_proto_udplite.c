@@ -215,8 +215,6 @@ udplite_timeout_nla_policy[CTA_TIMEOUT_UDPLITE_MAX+1] = {
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 
 #ifdef CONFIG_SYSCTL
-static unsigned int udplite_sysctl_table_users;
-static struct ctl_table_header *udplite_sysctl_header;
 static struct ctl_table udplite_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_udplite_timeout",
@@ -287,11 +285,6 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
 		.nla_policy	= udplite_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
-#ifdef CONFIG_SYSCTL
-	.ctl_table_users	= &udplite_sysctl_table_users,
-	.ctl_table_header	= &udplite_sysctl_header,
-	.ctl_table		= udplite_sysctl_table,
-#endif
 	.net_id			= &udplite_net_id,
 	.init_net		= udplite_init_net,
 };
@@ -324,11 +317,6 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
 		.nla_policy	= udplite_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
-#ifdef CONFIG_SYSCTL
-	.ctl_table_users	= &udplite_sysctl_table_users,
-	.ctl_table_header	= &udplite_sysctl_header,
-	.ctl_table		= udplite_sysctl_table,
-#endif
 	.net_id			= &udplite_net_id,
 	.init_net		= udplite_init_net,
 };

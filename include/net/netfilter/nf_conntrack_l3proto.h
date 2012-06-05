@@ -64,9 +64,7 @@ struct nf_conntrack_l3proto {
 	size_t nla_size;
 
 #ifdef CONFIG_SYSCTL
-	struct ctl_table_header	*ctl_table_header;
 	const char		*ctl_table_path;
-	struct ctl_table	*ctl_table;
 #endif /* CONFIG_SYSCTL */
 
 	/* Init l3proto pernet data */
