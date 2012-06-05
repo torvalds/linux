@@ -1606,7 +1606,7 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 	if (!pdata) {
 		netdev_err(netdev, "No platform data\n");
 		err = -ENODEV;
-		goto err_register;
+		goto err_pdata;
 	}
 	memcpy(ks->mac_addr, pdata->mac_addr, 6);
 	if (!is_valid_ether_addr(ks->mac_addr)) {
@@ -1626,6 +1626,8 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 		    (id >> 8) & 0xff, (id >> 4) & 0xf, (id >> 1) & 0x7);
 	return 0;
 
+err_pdata:
+	unregister_netdev(netdev);
 err_register:
 err_get_irq:
 	iounmap(ks->hw_addr_cmd);
