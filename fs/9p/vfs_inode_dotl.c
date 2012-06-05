@@ -230,7 +230,6 @@ int v9fs_open_to_dotl_flags(int flags)
  * @dir: directory inode that is being created
  * @dentry:  dentry that is being deleted
  * @mode: create permissions
- * @nd: path information
  *
  */
 
@@ -238,9 +237,16 @@ static int
 v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 		struct nameidata *nd)
 {
+	return v9fs_vfs_mknod_dotl(dir, dentry, omode, 0);
+}
+
+static struct file *
+v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
+			  struct opendata *od, unsigned flags, umode_t omode,
+			  bool *created)
+{
 	int err = 0;
 	gid_t gid;
-	int flags;
 	umode_t mode;
 	char *name = NULL;
 	struct file *filp;
@@ -251,18 +257,24 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	struct p9_fid *dfid, *ofid, *inode_fid;
 	struct v9fs_session_info *v9ses;
 	struct posix_acl *pacl = NULL, *dacl = NULL;
+	struct dentry *res = NULL;
+
+	if (d_unhashed(dentry)) {
+		res = v9fs_vfs_lookup(dir, dentry, NULL);
+		if (IS_ERR(res))
+			return ERR_CAST(res);
+
+		if (res)
+			dentry = res;
+	}
+
+	/* Only creates */
+	if (!(flags & O_CREAT) || dentry->d_inode) {
+		finish_no_open(od, res);
+		return NULL;
+	}
 
 	v9ses = v9fs_inode2v9ses(dir);
-	if (nd)
-		flags = nd->intent.open.flags;
-	else {
-		/*
-		 * create call without LOOKUP_OPEN is due
-		 * to mknod of regular files. So use mknod
-		 * operation.
-		 */
-		return v9fs_vfs_mknod_dotl(dir, dentry, omode, 0);
-	}
 
 	name = (char *) dentry->d_name.name;
 	p9_debug(P9_DEBUG_VFS, "name:%s flags:0x%x mode:0x%hx\n",
@@ -272,7 +284,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
 		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
-		return err;
+		goto err_return;
 	}
 
 	/* clone a fid to use for creation */
@@ -280,7 +292,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	if (IS_ERR(ofid)) {
 		err = PTR_ERR(ofid);
 		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
-		return err;
+		goto err_return;
 	}
 
 	gid = v9fs_get_fsgid_for_create(dir);
@@ -345,7 +357,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	}
 	mutex_unlock(&v9inode->v_mutex);
 	/* Since we are opening a file, assign the open fid to the file */
-	filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
+	filp = finish_open(od, dentry, generic_file_open);
 	if (IS_ERR(filp)) {
 		err = PTR_ERR(filp);
 		goto err_clunk_old_fid;
@@ -355,7 +367,10 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(inode, filp);
 #endif
-	return 0;
+	*created = true;
+out:
+	dput(res);
+	return filp;
 
 error:
 	if (fid)
@@ -364,7 +379,9 @@ err_clunk_old_fid:
 	if (ofid)
 		p9_client_clunk(ofid);
 	v9fs_set_create_acl(NULL, &dacl, &pacl);
-	return err;
+err_return:
+	filp = ERR_PTR(err);
+	goto out;
 }
 
 /**
@@ -982,6 +999,7 @@ out:
 
 const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.create = v9fs_vfs_create_dotl,
+	.atomic_open = v9fs_vfs_atomic_open_dotl,
 	.lookup = v9fs_vfs_lookup,
 	.link = v9fs_vfs_link_dotl,
 	.symlink = v9fs_vfs_symlink_dotl,
