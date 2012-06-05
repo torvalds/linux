@@ -125,7 +125,7 @@ config SPI_BUTTERFLY
 
 config SPI_COLDFIRE_QSPI
 	tristate "Freescale Coldfire QSPI controller"
-	depends on (M520x || M523x || M5249 || M527x || M528x || M532x)
+	depends on (M520x || M523x || M5249 || M525x || M527x || M528x || M532x)
 	help
 	  This enables support for the Coldfire QSPI controller in master
 	  mode.
