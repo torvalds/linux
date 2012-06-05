@@ -67,6 +67,13 @@
 		interrupt-parent = <&tzic>;
 		ranges;
 
+		ipu: ipu@18000000 {
+			#crtc-cells = <1>;
+			compatible = "fsl,imx53-ipu";
+			reg = <0x18000000 0x080000000>;
+			interrupts = <11 10>;
+		};
+
 		aips@50000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
