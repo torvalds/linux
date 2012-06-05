@@ -42,6 +42,7 @@
 #include <linux/pm_runtime.h>
 
 #include <plat/dmtimer.h>
+#include <plat/omap-pm.h>
 
 #include <mach/hardware.h>
 
@@ -342,9 +343,8 @@ int omap_dm_timer_start(struct omap_dm_timer *timer)
 	omap_dm_timer_enable(timer);
 
 	if (!(timer->capability & OMAP_TIMER_ALWON)) {
-		u32 ctx_loss_cnt_after =
-			timer->get_context_loss_count(&timer->pdev->dev);
-		if (ctx_loss_cnt_after != timer->ctx_loss_count)
+		if (omap_pm_get_dev_context_loss_count(&timer->pdev->dev) !=
+				timer->ctx_loss_count)
 			omap_timer_restore_context(timer);
 	}
 
@@ -374,10 +374,9 @@ int omap_dm_timer_stop(struct omap_dm_timer *timer)
 
 	__omap_dm_timer_stop(timer, timer->posted, rate);
 
-	if (!(timer->capability & OMAP_TIMER_ALWON) &&
-			timer->get_context_loss_count)
+	if (!(timer->capability & OMAP_TIMER_ALWON))
 		timer->ctx_loss_count =
-			timer->get_context_loss_count(&timer->pdev->dev);
+			omap_pm_get_dev_context_loss_count(&timer->pdev->dev);
 
 	/*
 	 * Since the register values are computed and written within
@@ -449,9 +448,8 @@ int omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload,
 	omap_dm_timer_enable(timer);
 
 	if (!(timer->capability & OMAP_TIMER_ALWON)) {
-		u32 ctx_loss_cnt_after =
-			timer->get_context_loss_count(&timer->pdev->dev);
-		if (ctx_loss_cnt_after != timer->ctx_loss_count)
+		if (omap_pm_get_dev_context_loss_count(&timer->pdev->dev) !=
+				timer->ctx_loss_count)
 			omap_timer_restore_context(timer);
 	}
 
@@ -693,7 +691,6 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 	timer->irq = irq->start;
 	timer->reserved = omap_dm_timer_reserved_systimer(timer->id);
 	timer->pdev = pdev;
-	timer->get_context_loss_count = pdata->get_context_loss_count;
 	timer->capability = pdata->timer_capability;
 
 	/* Skip pm_runtime_enable for OMAP1 */

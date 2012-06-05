@@ -91,7 +91,6 @@ struct timer_regs {
 struct dmtimer_platform_data {
 	int (*set_timer_src)(struct platform_device *pdev, int source);
 	u32 needs_manual_reset:1;
-	int (*get_context_loss_count)(struct device *dev);
 	u32 timer_capability;
 };
 
@@ -267,8 +266,6 @@ struct omap_dm_timer {
 	u32 capability;
 	struct platform_device *pdev;
 	struct list_head node;
-
-	int (*get_context_loss_count)(struct device *dev);
 };
 
 int omap_dm_timer_prepare(struct omap_dm_timer *timer);

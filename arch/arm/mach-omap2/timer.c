@@ -494,9 +494,6 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 	if (timer_dev_attr)
 		pdata->timer_capability = timer_dev_attr->timer_capability;
 
-#ifdef CONFIG_PM
-	pdata->get_context_loss_count = omap_pm_get_dev_context_loss_count;
-#endif
 	pdev = omap_device_build(name, id, oh, pdata, sizeof(*pdata),
 				 NULL, 0, 0);
 
