@@ -172,7 +172,7 @@ static int read_cardpda(struct pda *pda, wlandevice_t *wlandev);
 static int mkpdrlist(struct pda *pda);
 
 static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
-	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda * pda);
+	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda *pda);
 
 static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	     struct s3crcrec *s3crc, unsigned int ns3crc);
@@ -207,7 +207,8 @@ int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 
 	printk(KERN_INFO "prism2_usb: Checking for firmware %s\n",
 	       PRISM2_USB_FWFILE);
-	if (request_ihex_firmware(&fw_entry, PRISM2_USB_FWFILE, &udev->dev) != 0) {
+	if (request_ihex_firmware(&fw_entry,
+				  PRISM2_USB_FWFILE, &udev->dev) != 0) {
 		printk(KERN_INFO
 		       "prism2_usb: Firmware not available, but not essential\n");
 		printk(KERN_INFO
@@ -593,7 +594,8 @@ int mkpdrlist(struct pda *pda)
 	       le16_to_cpu(pda16[curroff + 1]) != HFA384x_PDR_END_OF_PDA) {
 		pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
 
-		if (le16_to_cpu(pda->rec[pda->nrec]->code) == HFA384x_PDR_NICID) {
+		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
+		    HFA384x_PDR_NICID) {
 			memcpy(&nicid, &pda->rec[pda->nrec]->data.nicid,
 			       sizeof(nicid));
 			nicid.id = le16_to_cpu(nicid.id);
@@ -655,7 +657,7 @@ int mkpdrlist(struct pda *pda)
 *	~0	failure
 ----------------------------------------------------------------*/
 int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
-	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda * pda)
+	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda *pda)
 {
 	int result = 0;
 	int i;			/* plug index */
