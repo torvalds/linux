@@ -594,14 +594,6 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	/* open (but not create!) intent? */
-	if (nd &&
-	    (nd->flags & LOOKUP_OPEN) &&
-	    !(nd->intent.open.flags & O_CREAT)) {
-		int mode = nd->intent.open.create_mode & ~current->fs->umask;
-		return ceph_lookup_open(dir, dentry, nd, mode);
-	}
-
 	/* can we conclude ENOENT locally? */
 	if (dentry->d_inode == NULL) {
 		struct ceph_inode_info *ci = ceph_inode(dir);
@@ -640,6 +632,47 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	ceph_mdsc_put_request(req);  /* will dput(dentry) */
 	dout("lookup result=%p\n", dentry);
 	return dentry;
+}
+
+struct file *ceph_atomic_open(struct inode *dir, struct dentry *dentry,
+			      struct opendata *od, unsigned flags, umode_t mode,
+			      bool *created)
+{
+	int err;
+	struct dentry *res = NULL;
+	struct file *filp;
+
+	if (!(flags & O_CREAT)) {
+		if (dentry->d_name.len > NAME_MAX)
+			return ERR_PTR(-ENAMETOOLONG);
+
+		err = ceph_init_dentry(dentry);
+		if (err < 0)
+			return ERR_PTR(err);
+
+		return ceph_lookup_open(dir, dentry, od, flags, mode);
+	}
+
+	if (d_unhashed(dentry)) {
+		res = ceph_lookup(dir, dentry, NULL);
+		if (IS_ERR(res))
+			return ERR_CAST(res);
+
+		if (res)
+			dentry = res;
+	}
+
+	/* We don't deal with positive dentries here */
+	if (dentry->d_inode) {
+		finish_no_open(od, res);
+		return NULL;
+	}
+
+	*created = true;
+	filp = ceph_lookup_open(dir, dentry, od, flags, mode);
+	dput(res);
+
+	return filp;
 }
 
 /*
@@ -702,23 +735,7 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 static int ceph_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		       struct nameidata *nd)
 {
-	dout("create in dir %p dentry %p name '%.*s'\n",
-	     dir, dentry, dentry->d_name.len, dentry->d_name.name);
-
-	if (ceph_snap(dir) != CEPH_NOSNAP)
-		return -EROFS;
-
-	if (nd) {
-		BUG_ON((nd->flags & LOOKUP_OPEN) == 0);
-		dentry = ceph_lookup_open(dir, dentry, nd, mode);
-		/* hrm, what should i do here if we get aliased? */
-		if (IS_ERR(dentry))
-			return PTR_ERR(dentry);
-		return 0;
-	}
-
-	/* fall back to mknod */
-	return ceph_mknod(dir, dentry, (mode & ~S_IFMT) | S_IFREG, 0);
+	return ceph_mknod(dir, dentry, mode, 0);
 }
 
 static int ceph_symlink(struct inode *dir, struct dentry *dentry,
@@ -1357,6 +1374,7 @@ const struct inode_operations ceph_dir_iops = {
 	.rmdir = ceph_unlink,
 	.rename = ceph_rename,
 	.create = ceph_create,
+	.atomic_open = ceph_atomic_open,
 };
 
 const struct dentry_operations ceph_dentry_ops = {

@@ -213,21 +213,15 @@ out:
  * may_open() fails, the struct *file gets cleaned up (i.e.
  * ceph_release gets called).  So fear not!
  */
-/*
- * flags
- *  path_lookup_open   -> LOOKUP_OPEN
- *  path_lookup_create -> LOOKUP_OPEN|LOOKUP_CREATE
- */
-struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
-				struct nameidata *nd, int mode)
+struct file *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
+			      struct opendata *od, unsigned flags, umode_t mode)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
-	struct file *file;
+	struct file *file = NULL;
 	struct ceph_mds_request *req;
 	struct dentry *ret;
 	int err;
-	int flags = nd->intent.open.flags;
 
 	dout("ceph_lookup_open dentry %p '%.*s' flags %d mode 0%o\n",
 	     dentry, dentry->d_name.len, dentry->d_name.name, flags, mode);
@@ -253,14 +247,19 @@ struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 		err = ceph_handle_notrace_create(dir, dentry);
 	if (err)
 		goto out;
-	file = lookup_instantiate_filp(nd, req->r_dentry, ceph_open);
+	file = finish_open(od, req->r_dentry, ceph_open);
 	if (IS_ERR(file))
 		err = PTR_ERR(file);
 out:
 	ret = ceph_finish_lookup(req, dentry, err);
 	ceph_mdsc_put_request(req);
 	dout("ceph_lookup_open result=%p\n", ret);
-	return ret;
+
+	if (IS_ERR(ret))
+		return ERR_CAST(ret);
+
+	dput(ret);
+	return err ? ERR_PTR(err) : file;
 }
 
 int ceph_release(struct inode *inode, struct file *file)

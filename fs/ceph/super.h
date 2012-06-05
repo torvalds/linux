@@ -806,8 +806,9 @@ extern int ceph_copy_from_page_vector(struct page **pages,
 				    loff_t off, size_t len);
 extern struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags);
 extern int ceph_open(struct inode *inode, struct file *file);
-extern struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
-				       struct nameidata *nd, int mode);
+extern struct file *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
+				     struct opendata *od, unsigned flags,
+				     umode_t mode);
 extern int ceph_release(struct inode *inode, struct file *filp);
 
 /* dir.c */
