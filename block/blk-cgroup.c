@@ -241,10 +241,9 @@ EXPORT_SYMBOL_GPL(blkg_lookup_create);
 
 static void blkg_destroy(struct blkcg_gq *blkg)
 {
-	struct request_queue *q = blkg->q;
 	struct blkcg *blkcg = blkg->blkcg;
 
-	lockdep_assert_held(q->queue_lock);
+	lockdep_assert_held(blkg->q->queue_lock);
 	lockdep_assert_held(&blkcg->lock);
 
 	/* Something wrong if we are trying to remove same group twice */
