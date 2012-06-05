@@ -172,28 +172,19 @@ static int resize_async_buffer(struct comedi_device *dev,
 
 /* sysfs attribute files */
 
-static const unsigned bytes_per_kibi = 1024;
-
 static ssize_t show_max_read_buffer_kb(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
-	ssize_t retval;
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned max_buffer_size_kb = 0;
-	struct comedi_subdevice *const read_subdevice =
-	    comedi_get_read_subdevice(info);
+	struct comedi_subdevice *s = comedi_get_read_subdevice(info);
+	unsigned int size = 0;
 
 	mutex_lock(&info->device->mutex);
-	if (read_subdevice &&
-	    (read_subdevice->subdev_flags & SDF_CMD_READ) &&
-	    read_subdevice->async) {
-		max_buffer_size_kb = read_subdevice->async->max_bufsize /
-		    bytes_per_kibi;
-	}
-	retval = snprintf(buf, PAGE_SIZE, "%i\n", max_buffer_size_kb);
+	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
+		size = s->async->max_bufsize / 1024;
 	mutex_unlock(&info->device->mutex);
 
-	return retval;
+	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
 static ssize_t store_max_read_buffer_kb(struct device *dev,
@@ -201,52 +192,40 @@ static ssize_t store_max_read_buffer_kb(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned int new_max_size_kb;
-	unsigned int new_max_size;
-	int ret;
-	struct comedi_subdevice *const read_subdevice =
-	    comedi_get_read_subdevice(info);
+	struct comedi_subdevice *s = comedi_get_read_subdevice(info);
+	unsigned int size;
+	int err;
 
-	ret = kstrtouint(buf, 10, &new_max_size_kb);
-	if (ret)
-		return ret;
-	if (new_max_size_kb > (UINT_MAX / bytes_per_kibi))
+	err = kstrtouint(buf, 10, &size);
+	if (err)
+		return err;
+	if (size > (UINT_MAX / 1024))
 		return -EINVAL;
-	new_max_size = new_max_size_kb * bytes_per_kibi;
+	size *= 1024;
 
 	mutex_lock(&info->device->mutex);
-	if (read_subdevice == NULL ||
-	    (read_subdevice->subdev_flags & SDF_CMD_READ) == 0 ||
-	    read_subdevice->async == NULL) {
-		mutex_unlock(&info->device->mutex);
-		return -EINVAL;
-	}
-	read_subdevice->async->max_bufsize = new_max_size;
+	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
+		s->async->max_bufsize = size;
+	else
+		err = -EINVAL;
 	mutex_unlock(&info->device->mutex);
 
-	return count;
+	return err ? err : count;
 }
 
 static ssize_t show_read_buffer_kb(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	ssize_t retval;
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned buffer_size_kb = 0;
-	struct comedi_subdevice *const read_subdevice =
-	    comedi_get_read_subdevice(info);
+	struct comedi_subdevice *s = comedi_get_read_subdevice(info);
+	unsigned int size = 0;
 
 	mutex_lock(&info->device->mutex);
-	if (read_subdevice &&
-	    (read_subdevice->subdev_flags & SDF_CMD_READ) &&
-	    read_subdevice->async) {
-		buffer_size_kb = read_subdevice->async->prealloc_bufsz /
-		    bytes_per_kibi;
-	}
-	retval = snprintf(buf, PAGE_SIZE, "%i\n", buffer_size_kb);
+	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
+		size = s->async->prealloc_bufsz / 1024;
 	mutex_unlock(&info->device->mutex);
 
-	return retval;
+	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
 static ssize_t store_read_buffer_kb(struct device *dev,
@@ -254,57 +233,41 @@ static ssize_t store_read_buffer_kb(struct device *dev,
 				    const char *buf, size_t count)
 {
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned int new_size_kb;
-	unsigned int new_size;
-	int retval;
-	int ret;
-	struct comedi_subdevice *const read_subdevice =
-	    comedi_get_read_subdevice(info);
+	struct comedi_subdevice *s = comedi_get_read_subdevice(info);
+	unsigned int size;
+	int err;
 
-	ret = kstrtouint(buf, 10, &new_size_kb);
-	if (ret)
-		return ret;
-	if (new_size_kb > (UINT_MAX / bytes_per_kibi))
+	err = kstrtouint(buf, 10, &size);
+	if (err)
+		return err;
+	if (size > (UINT_MAX / 1024))
 		return -EINVAL;
-	new_size = new_size_kb * bytes_per_kibi;
+	size *= 1024;
 
 	mutex_lock(&info->device->mutex);
-	if (read_subdevice == NULL ||
-	    (read_subdevice->subdev_flags & SDF_CMD_READ) == 0 ||
-	    read_subdevice->async == NULL) {
-		mutex_unlock(&info->device->mutex);
-		return -EINVAL;
-	}
-	retval = resize_async_buffer(info->device, read_subdevice,
-				     read_subdevice->async, new_size);
+	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
+		err = resize_async_buffer(info->device, s, s->async, size);
+	else
+		err = -EINVAL;
 	mutex_unlock(&info->device->mutex);
 
-	if (retval < 0)
-		return retval;
-	return count;
+	return err ? err : count;
 }
 
 static ssize_t show_max_write_buffer_kb(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	ssize_t retval;
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned max_buffer_size_kb = 0;
-	struct comedi_subdevice *const write_subdevice =
-	    comedi_get_write_subdevice(info);
+	struct comedi_subdevice *s = comedi_get_write_subdevice(info);
+	unsigned int size = 0;
 
 	mutex_lock(&info->device->mutex);
-	if (write_subdevice &&
-	    (write_subdevice->subdev_flags & SDF_CMD_WRITE) &&
-	    write_subdevice->async) {
-		max_buffer_size_kb = write_subdevice->async->max_bufsize /
-		    bytes_per_kibi;
-	}
-	retval = snprintf(buf, PAGE_SIZE, "%i\n", max_buffer_size_kb);
+	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
+		size = s->async->max_bufsize / 1024;
 	mutex_unlock(&info->device->mutex);
 
-	return retval;
+	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
 static ssize_t store_max_write_buffer_kb(struct device *dev,
@@ -312,52 +275,40 @@ static ssize_t store_max_write_buffer_kb(struct device *dev,
 					 const char *buf, size_t count)
 {
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned int new_max_size_kb;
-	unsigned int new_max_size;
-	int ret;
-	struct comedi_subdevice *const write_subdevice =
-	    comedi_get_write_subdevice(info);
+	struct comedi_subdevice *s = comedi_get_write_subdevice(info);
+	unsigned int size;
+	int err;
 
-	ret = kstrtouint(buf, 10, &new_max_size_kb);
-	if (ret)
-		return ret;
-	if (new_max_size_kb > (UINT_MAX / bytes_per_kibi))
+	err = kstrtouint(buf, 10, &size);
+	if (err)
+		return err;
+	if (size > (UINT_MAX / 1024))
 		return -EINVAL;
-	new_max_size = new_max_size_kb * bytes_per_kibi;
+	size *= 1024;
 
 	mutex_lock(&info->device->mutex);
-	if (write_subdevice == NULL ||
-	    (write_subdevice->subdev_flags & SDF_CMD_WRITE) == 0 ||
-	    write_subdevice->async == NULL) {
-		mutex_unlock(&info->device->mutex);
-		return -EINVAL;
-	}
-	write_subdevice->async->max_bufsize = new_max_size;
+	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
+		s->async->max_bufsize = size;
+	else
+		err = -EINVAL;
 	mutex_unlock(&info->device->mutex);
 
-	return count;
+	return err ? err : count;
 }
 
 static ssize_t show_write_buffer_kb(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	ssize_t retval;
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned buffer_size_kb = 0;
-	struct comedi_subdevice *const write_subdevice =
-	    comedi_get_write_subdevice(info);
+	struct comedi_subdevice *s = comedi_get_write_subdevice(info);
+	unsigned int size = 0;
 
 	mutex_lock(&info->device->mutex);
-	if (write_subdevice &&
-	    (write_subdevice->subdev_flags & SDF_CMD_WRITE) &&
-	    write_subdevice->async) {
-		buffer_size_kb = write_subdevice->async->prealloc_bufsz /
-		    bytes_per_kibi;
-	}
-	retval = snprintf(buf, PAGE_SIZE, "%i\n", buffer_size_kb);
+	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
+		size = s->async->prealloc_bufsz / 1024;
 	mutex_unlock(&info->device->mutex);
 
-	return retval;
+	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
 static ssize_t store_write_buffer_kb(struct device *dev,
@@ -365,34 +316,25 @@ static ssize_t store_write_buffer_kb(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned int new_size_kb;
-	unsigned int new_size;
-	int retval;
-	int ret;
-	struct comedi_subdevice *const write_subdevice =
-	    comedi_get_write_subdevice(info);
+	struct comedi_subdevice *s = comedi_get_write_subdevice(info);
+	unsigned int size;
+	int err;
 
-	ret = kstrtouint(buf, 10, &new_size_kb);
-	if (ret)
-		return ret;
-	if (new_size_kb > (UINT_MAX / bytes_per_kibi))
+	err = kstrtouint(buf, 10, &size);
+	if (err)
+		return err;
+	if (size > (UINT_MAX / 1024))
 		return -EINVAL;
-	new_size = ((uint64_t) new_size_kb) * bytes_per_kibi;
+	size *= 1024;
 
 	mutex_lock(&info->device->mutex);
-	if (write_subdevice == NULL ||
-	    (write_subdevice->subdev_flags & SDF_CMD_WRITE) == 0 ||
-	    write_subdevice->async == NULL) {
-		mutex_unlock(&info->device->mutex);
-		return -EINVAL;
-	}
-	retval = resize_async_buffer(info->device, write_subdevice,
-				     write_subdevice->async, new_size);
+	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
+		err = resize_async_buffer(info->device, s, s->async, size);
+	else
+		err = -EINVAL;
 	mutex_unlock(&info->device->mutex);
 
-	if (retval < 0)
-		return retval;
-	return count;
+	return err ? err : count;
 }
 
 static struct device_attribute comedi_dev_attrs[] = {
