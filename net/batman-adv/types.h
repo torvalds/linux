@@ -25,8 +25,8 @@
 #include <linux/kernel.h>
 
 #define BATADV_HEADER_LEN \
-	(ETH_HLEN + max(sizeof(struct unicast_packet), \
-			sizeof(struct bcast_packet)))
+	(ETH_HLEN + max(sizeof(struct batadv_unicast_packet), \
+			sizeof(struct batadv_bcast_packet)))
 
 struct hard_iface {
 	struct list_head list;
@@ -211,7 +211,7 @@ struct bat_priv {
 #ifdef CONFIG_BATMAN_ADV_BLA
 	struct bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
 	int bcast_duplist_curr;
-	struct bla_claim_dst claim_dest;
+	struct batadv_bla_claim_dst claim_dest;
 #endif
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects  */
@@ -250,7 +250,7 @@ struct socket_client {
 struct socket_packet {
 	struct list_head list;
 	size_t icmp_len;
-	struct icmp_packet_rr icmp_packet;
+	struct batadv_icmp_packet_rr icmp_packet;
 };
 
 struct tt_common_entry {
@@ -306,7 +306,7 @@ struct claim {
 
 struct tt_change_node {
 	struct list_head list;
-	struct tt_change change;
+	struct batadv_tt_change change;
 };
 
 struct tt_req_node {

@@ -205,7 +205,7 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct net_device *orig_dev)
 {
 	struct bat_priv *bat_priv;
-	struct batman_ogm_packet *batman_ogm_packet;
+	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct hard_iface *hard_iface;
 	uint8_t idx;
 	int ret;
@@ -237,19 +237,19 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto err_free;
 
-	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
+	batadv_ogm_packet = (struct batadv_ogm_packet *)skb->data;
 
-	if (batman_ogm_packet->header.version != BATADV_COMPAT_VERSION) {
+	if (batadv_ogm_packet->header.version != BATADV_COMPAT_VERSION) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: incompatible batman version (%i)\n",
-			   batman_ogm_packet->header.version);
+			   batadv_ogm_packet->header.version);
 		goto err_free;
 	}
 
 	/* all receive handlers return whether they received or reused
 	 * the supplied skb. if not, we have to free the skb.
 	 */
-	idx = batman_ogm_packet->header.packet_type;
+	idx = batadv_ogm_packet->header.packet_type;
 	ret = (*batadv_rx_handler[idx])(skb, hard_iface);
 
 	if (ret == NET_RX_DROP)

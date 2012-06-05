@@ -34,13 +34,13 @@ batadv_frag_merge_packet(struct list_head *head,
 			 struct frag_packet_list_entry *tfp,
 			 struct sk_buff *skb)
 {
-	struct unicast_frag_packet *up =
-		(struct unicast_frag_packet *)skb->data;
+	struct batadv_unicast_frag_packet *up;
 	struct sk_buff *tmp_skb;
-	struct unicast_packet *unicast_packet;
+	struct batadv_unicast_packet *unicast_packet;
 	int hdr_len = sizeof(*unicast_packet);
 	int uni_diff = sizeof(*up) - hdr_len;
 
+	up = (struct batadv_unicast_frag_packet *)skb->data;
 	/* set skb to the first part and tmp_skb to the second part */
 	if (up->flags & BATADV_UNI_FRAG_HEAD) {
 		tmp_skb = tfp->skb;
@@ -65,7 +65,8 @@ batadv_frag_merge_packet(struct list_head *head,
 	kfree_skb(tmp_skb);
 
 	memmove(skb->data + uni_diff, skb->data, hdr_len);
-	unicast_packet = (struct unicast_packet *)skb_pull(skb, uni_diff);
+	unicast_packet = (struct batadv_unicast_packet *)skb_pull(skb,
+								  uni_diff);
 	unicast_packet->header.packet_type = BATADV_UNICAST;
 
 	return skb;
@@ -80,8 +81,9 @@ static void batadv_frag_create_entry(struct list_head *head,
 				     struct sk_buff *skb)
 {
 	struct frag_packet_list_entry *tfp;
-	struct unicast_frag_packet *up =
-		(struct unicast_frag_packet *)skb->data;
+	struct batadv_unicast_frag_packet *up;
+
+	up = (struct batadv_unicast_frag_packet *)skb->data;
 
 	/* free and oldest packets stand at the end */
 	tfp = list_entry((head)->prev, typeof(*tfp), list);
@@ -115,10 +117,10 @@ static int batadv_frag_create_buffer(struct list_head *head)
 
 static struct frag_packet_list_entry *
 batadv_frag_search_packet(struct list_head *head,
-			  const struct unicast_frag_packet *up)
+			  const struct batadv_unicast_frag_packet *up)
 {
 	struct frag_packet_list_entry *tfp;
-	struct unicast_frag_packet *tmp_up = NULL;
+	struct batadv_unicast_frag_packet *tmp_up = NULL;
 	uint16_t search_seqno;
 
 	if (up->flags & BATADV_UNI_FRAG_HEAD)
@@ -134,7 +136,7 @@ batadv_frag_search_packet(struct list_head *head,
 		if (tfp->seqno == ntohs(up->seqno))
 			goto mov_tail;
 
-		tmp_up = (struct unicast_frag_packet *)tfp->skb->data;
+		tmp_up = (struct batadv_unicast_frag_packet *)tfp->skb->data;
 
 		if (tfp->seqno == search_seqno) {
 
@@ -179,9 +181,9 @@ int batadv_frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	struct orig_node *orig_node;
 	struct frag_packet_list_entry *tmp_frag_entry;
 	int ret = NET_RX_DROP;
-	struct unicast_frag_packet *unicast_packet =
-		(struct unicast_frag_packet *)skb->data;
+	struct batadv_unicast_frag_packet *unicast_packet;
 
+	unicast_packet = (struct batadv_unicast_frag_packet *)skb->data;
 	*new_skb = NULL;
 
 	orig_node = batadv_orig_hash_find(bat_priv, unicast_packet->orig);
@@ -220,10 +222,10 @@ out:
 int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 			 struct hard_iface *hard_iface, const uint8_t dstaddr[])
 {
-	struct unicast_packet tmp_uc, *unicast_packet;
+	struct batadv_unicast_packet tmp_uc, *unicast_packet;
 	struct hard_iface *primary_if;
 	struct sk_buff *frag_skb;
-	struct unicast_frag_packet *frag1, *frag2;
+	struct batadv_unicast_frag_packet *frag1, *frag2;
 	int uc_hdr_len = sizeof(*unicast_packet);
 	int ucf_hdr_len = sizeof(*frag1);
 	int data_len = skb->len - uc_hdr_len;
@@ -239,7 +241,7 @@ int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 		goto dropped;
 	skb_reserve(frag_skb, ucf_hdr_len);
 
-	unicast_packet = (struct unicast_packet *)skb->data;
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 	memcpy(&tmp_uc, unicast_packet, uc_hdr_len);
 	skb_split(skb, frag_skb, data_len / 2 + uc_hdr_len);
 
@@ -247,8 +249,8 @@ int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	    batadv_skb_head_push(frag_skb, ucf_hdr_len) < 0)
 		goto drop_frag;
 
-	frag1 = (struct unicast_frag_packet *)skb->data;
-	frag2 = (struct unicast_frag_packet *)frag_skb->data;
+	frag1 = (struct batadv_unicast_frag_packet *)skb->data;
+	frag2 = (struct batadv_unicast_frag_packet *)frag_skb->data;
 
 	memcpy(frag1, &tmp_uc, sizeof(tmp_uc));
 
@@ -287,7 +289,7 @@ out:
 int batadv_unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
-	struct unicast_packet *unicast_packet;
+	struct batadv_unicast_packet *unicast_packet;
 	struct orig_node *orig_node;
 	struct neigh_node *neigh_node;
 	int data_len = skb->len;
@@ -317,7 +319,7 @@ find_router:
 	if (batadv_skb_head_push(skb, sizeof(*unicast_packet)) < 0)
 		goto out;
 
-	unicast_packet = (struct unicast_packet *)skb->data;
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 
 	unicast_packet->header.version = BATADV_COMPAT_VERSION;
 	/* batman packet type: unicast */

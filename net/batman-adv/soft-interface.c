@@ -133,7 +133,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct hard_iface *primary_if = NULL;
-	struct bcast_packet *bcast_packet;
+	struct batadv_bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
 	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 	static const uint8_t stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00, 0x00,
@@ -208,7 +208,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		if (batadv_skb_head_push(skb, sizeof(*bcast_packet)) < 0)
 			goto dropped;
 
-		bcast_packet = (struct bcast_packet *)skb->data;
+		bcast_packet = (struct batadv_bcast_packet *)skb->data;
 		bcast_packet->header.version = BATADV_COMPAT_VERSION;
 		bcast_packet->header.ttl = BATADV_TTL;
 

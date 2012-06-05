@@ -28,7 +28,7 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig);
 int batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
-				   struct bcast_packet *bcast_packet,
+				   struct batadv_bcast_packet *bcast_packet,
 				   int hdr_size);
 void batadv_bla_update_orig_address(struct bat_priv *bat_priv,
 				    struct hard_iface *primary_if,
@@ -72,7 +72,7 @@ static inline int batadv_bla_is_backbone_gw_orig(struct bat_priv *bat_priv,
 
 static inline int
 batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
-			       struct bcast_packet *bcast_packet,
+			       struct batadv_bcast_packet *bcast_packet,
 			       int hdr_size)
 {
 	return 0;

@@ -138,7 +138,7 @@ int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 {
 	struct hard_iface *primary_if = NULL;
 	struct forw_packet *forw_packet;
-	struct bcast_packet *bcast_packet;
+	struct batadv_bcast_packet *bcast_packet;
 	struct sk_buff *newskb;
 
 	if (!batadv_atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
@@ -161,7 +161,7 @@ int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 		goto packet_free;
 
 	/* as we have a copy now, it is safe to decrease the TTL */
-	bcast_packet = (struct bcast_packet *)newskb->data;
+	bcast_packet = (struct batadv_bcast_packet *)newskb->data;
 	bcast_packet->header.ttl--;
 
 	skb_reset_mac_header(newskb);

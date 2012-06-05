@@ -100,14 +100,14 @@ out:
 static void batadv_primary_if_update_addr(struct bat_priv *bat_priv,
 					  struct hard_iface *oldif)
 {
-	struct vis_packet *vis_packet;
+	struct batadv_vis_packet *vis_packet;
 	struct hard_iface *primary_if;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
-	vis_packet = (struct vis_packet *)
+	vis_packet = (struct batadv_vis_packet *)
 				bat_priv->my_vis_info->skb_packet->data;
 	memcpy(vis_packet->vis_orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(vis_packet->sender_orig,

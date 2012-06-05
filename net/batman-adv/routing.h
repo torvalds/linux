@@ -43,7 +43,7 @@ void batadv_bonding_candidate_add(struct orig_node *orig_node,
 				  struct neigh_node *neigh_node);
 void batadv_bonding_save_primary(const struct orig_node *orig_node,
 				 struct orig_node *orig_neigh_node,
-				 const struct batman_ogm_packet
+				 const struct batadv_ogm_packet
 				 *batman_ogm_packet);
 int batadv_window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 			    unsigned long *last_reset);

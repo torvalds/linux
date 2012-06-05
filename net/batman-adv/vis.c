@@ -53,12 +53,12 @@ static void batadv_free_info(struct kref *ref)
 static int batadv_vis_info_cmp(const struct hlist_node *node, const void *data2)
 {
 	const struct vis_info *d1, *d2;
-	const struct vis_packet *p1, *p2;
+	const struct batadv_vis_packet *p1, *p2;
 
 	d1 = container_of(node, struct vis_info, hash_entry);
 	d2 = data2;
-	p1 = (struct vis_packet *)d1->skb_packet->data;
-	p2 = (struct vis_packet *)d2->skb_packet->data;
+	p1 = (struct batadv_vis_packet *)d1->skb_packet->data;
+	p2 = (struct batadv_vis_packet *)d2->skb_packet->data;
 	return batadv_compare_eth(p1->vis_orig, p2->vis_orig);
 }
 
@@ -68,12 +68,12 @@ static int batadv_vis_info_cmp(const struct hlist_node *node, const void *data2)
 static uint32_t batadv_vis_info_choose(const void *data, uint32_t size)
 {
 	const struct vis_info *vis_info = data;
-	const struct vis_packet *packet;
+	const struct batadv_vis_packet *packet;
 	const unsigned char *key;
 	uint32_t hash = 0;
 	size_t i;
 
-	packet = (struct vis_packet *)vis_info->skb_packet->data;
+	packet = (struct batadv_vis_packet *)vis_info->skb_packet->data;
 	key = packet->vis_orig;
 	for (i = 0; i < ETH_ALEN; i++) {
 		hash += key[i];
@@ -169,7 +169,7 @@ static ssize_t batadv_vis_data_read_entry(struct seq_file *seq,
 }
 
 static void batadv_vis_data_insert_interfaces(struct hlist_head *list,
-					      struct vis_packet *packet,
+					      struct batadv_vis_packet *packet,
 					      struct vis_info_entry *entries)
 {
 	int i;
@@ -187,7 +187,7 @@ static void batadv_vis_data_insert_interfaces(struct hlist_head *list,
 
 static void batadv_vis_data_read_entries(struct seq_file *seq,
 					 struct hlist_head *list,
-					 struct vis_packet *packet,
+					 struct batadv_vis_packet *packet,
 					 struct vis_info_entry *entries)
 {
 	int i;
@@ -214,7 +214,7 @@ static void batadv_vis_seq_print_text_bucket(struct seq_file *seq,
 {
 	struct hlist_node *node;
 	struct vis_info *info;
-	struct vis_packet *packet;
+	struct batadv_vis_packet *packet;
 	uint8_t *entries_pos;
 	struct vis_info_entry *entries;
 	struct if_list_entry *entry;
@@ -223,7 +223,7 @@ static void batadv_vis_seq_print_text_bucket(struct seq_file *seq,
 	HLIST_HEAD(vis_if_list);
 
 	hlist_for_each_entry_rcu(info, node, head, hash_entry) {
-		packet = (struct vis_packet *)info->skb_packet->data;
+		packet = (struct batadv_vis_packet *)info->skb_packet->data;
 		entries_pos = (uint8_t *)packet + sizeof(*packet);
 		entries = (struct vis_info_entry *)entries_pos;
 
@@ -334,15 +334,17 @@ static int batadv_recv_list_is_in(struct bat_priv *bat_priv,
  * is newer than old entries in the hash.
  */
 static struct vis_info *batadv_add_packet(struct bat_priv *bat_priv,
-					  struct vis_packet *vis_packet,
+					  struct batadv_vis_packet *vis_packet,
 					  int vis_info_len, int *is_new,
 					  int make_broadcast)
 {
 	struct vis_info *info, *old_info;
-	struct vis_packet *search_packet, *old_packet;
+	struct batadv_vis_packet *search_packet, *old_packet;
 	struct vis_info search_elem;
-	struct vis_packet *packet;
+	struct batadv_vis_packet *packet;
+	struct sk_buff *tmp_skb;
 	int hash_added;
+	size_t len;
 
 	*is_new = 0;
 	/* sanity check */
@@ -353,15 +355,17 @@ static struct vis_info *batadv_add_packet(struct bat_priv *bat_priv,
 	search_elem.skb_packet = dev_alloc_skb(sizeof(*search_packet));
 	if (!search_elem.skb_packet)
 		return NULL;
-	search_packet = (struct vis_packet *)skb_put(search_elem.skb_packet,
-						     sizeof(*search_packet));
+	len = sizeof(*search_packet);
+	tmp_skb = search_elem.skb_packet;
+	search_packet = (struct batadv_vis_packet *)skb_put(tmp_skb, len);
 
 	memcpy(search_packet->vis_orig, vis_packet->vis_orig, ETH_ALEN);
 	old_info = batadv_vis_hash_find(bat_priv, &search_elem);
 	kfree_skb(search_elem.skb_packet);
 
 	if (old_info) {
-		old_packet = (struct vis_packet *)old_info->skb_packet->data;
+		tmp_skb = old_info->skb_packet;
+		old_packet = (struct batadv_vis_packet *)tmp_skb->data;
 		if (!batadv_seq_after(ntohl(vis_packet->seqno),
 				      ntohl(old_packet->seqno))) {
 			if (old_packet->seqno == vis_packet->seqno) {
@@ -385,22 +389,21 @@ static struct vis_info *batadv_add_packet(struct bat_priv *bat_priv,
 	if (!info)
 		return NULL;
 
-	info->skb_packet = dev_alloc_skb(sizeof(*packet) + vis_info_len +
-					 ETH_HLEN);
+	len = sizeof(*packet) + vis_info_len;
+	info->skb_packet = dev_alloc_skb(len + ETH_HLEN);
 	if (!info->skb_packet) {
 		kfree(info);
 		return NULL;
 	}
 	skb_reserve(info->skb_packet, ETH_HLEN);
-	packet = (struct vis_packet *)skb_put(info->skb_packet, sizeof(*packet)
-					      + vis_info_len);
+	packet = (struct batadv_vis_packet *)skb_put(info->skb_packet, len);
 
 	kref_init(&info->refcount);
 	INIT_LIST_HEAD(&info->send_list);
 	INIT_LIST_HEAD(&info->recv_list);
 	info->first_seen = jiffies;
 	info->bat_priv = bat_priv;
-	memcpy(packet, vis_packet, sizeof(*packet) + vis_info_len);
+	memcpy(packet, vis_packet, len);
 
 	/* initialize and add new packet. */
 	*is_new = 1;
@@ -430,7 +433,7 @@ static struct vis_info *batadv_add_packet(struct bat_priv *bat_priv,
 
 /* handle the server sync packet, forward if needed. */
 void batadv_receive_server_sync_packet(struct bat_priv *bat_priv,
-				       struct vis_packet *vis_packet,
+				       struct batadv_vis_packet *vis_packet,
 				       int vis_info_len)
 {
 	struct vis_info *info;
@@ -456,11 +459,11 @@ end:
 
 /* handle an incoming client update packet and schedule forward if needed. */
 void batadv_receive_client_update_packet(struct bat_priv *bat_priv,
-					 struct vis_packet *vis_packet,
+					 struct batadv_vis_packet *vis_packet,
 					 int vis_info_len)
 {
 	struct vis_info *info;
-	struct vis_packet *packet;
+	struct batadv_vis_packet *packet;
 	int is_new;
 	int vis_server = atomic_read(&bat_priv->vis_mode);
 	int are_target = 0;
@@ -482,7 +485,7 @@ void batadv_receive_client_update_packet(struct bat_priv *bat_priv,
 		goto end;
 	/* note that outdated packets will be dropped at this point. */
 
-	packet = (struct vis_packet *)info->skb_packet->data;
+	packet = (struct batadv_vis_packet *)info->skb_packet->data;
 
 	/* send only if we're the target server or ... */
 	if (are_target && is_new) {
@@ -511,11 +514,11 @@ static int batadv_find_best_vis_server(struct bat_priv *bat_priv,
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;
-	struct vis_packet *packet;
+	struct batadv_vis_packet *packet;
 	int best_tq = -1;
 	uint32_t i;
 
-	packet = (struct vis_packet *)info->skb_packet->data;
+	packet = (struct batadv_vis_packet *)info->skb_packet->data;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -543,10 +546,10 @@ static int batadv_find_best_vis_server(struct bat_priv *bat_priv,
 /* Return true if the vis packet is full. */
 static bool batadv_vis_packet_full(const struct vis_info *info)
 {
-	const struct vis_packet *packet;
+	const struct batadv_vis_packet *packet;
 	size_t num_items;
 
-	packet = (struct vis_packet *)info->skb_packet->data;
+	packet = (struct batadv_vis_packet *)info->skb_packet->data;
 	num_items = BATADV_MAX_VIS_PACKET_SIZE / sizeof(struct vis_info_entry);
 
 	if (num_items < packet->entries + 1)
@@ -565,13 +568,14 @@ static int batadv_generate_vis_packet(struct bat_priv *bat_priv)
 	struct orig_node *orig_node;
 	struct neigh_node *router;
 	struct vis_info *info = bat_priv->my_vis_info;
-	struct vis_packet *packet = (struct vis_packet *)info->skb_packet->data;
+	struct batadv_vis_packet *packet;
 	struct vis_info_entry *entry;
 	struct tt_common_entry *tt_common_entry;
 	int best_tq = -1;
 	uint32_t i;
 
 	info->first_seen = jiffies;
+	packet = (struct batadv_vis_packet *)info->skb_packet->data;
 	packet->vis_type = atomic_read(&bat_priv->vis_mode);
 
 	memcpy(packet->target_orig, batadv_broadcast_addr, ETH_ALEN);
@@ -691,14 +695,14 @@ static void batadv_broadcast_vis_packet(struct bat_priv *bat_priv,
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;
-	struct vis_packet *packet;
+	struct batadv_vis_packet *packet;
 	struct sk_buff *skb;
 	struct hard_iface *hard_iface;
 	uint8_t dstaddr[ETH_ALEN];
 	uint32_t i;
 
 
-	packet = (struct vis_packet *)info->skb_packet->data;
+	packet = (struct batadv_vis_packet *)info->skb_packet->data;
 
 	/* send to all routers in range. */
 	for (i = 0; i < hash->size; i++) {
@@ -745,9 +749,9 @@ static void batadv_unicast_vis_packet(struct bat_priv *bat_priv,
 	struct orig_node *orig_node;
 	struct neigh_node *router = NULL;
 	struct sk_buff *skb;
-	struct vis_packet *packet;
+	struct batadv_vis_packet *packet;
 
-	packet = (struct vis_packet *)info->skb_packet->data;
+	packet = (struct batadv_vis_packet *)info->skb_packet->data;
 
 	orig_node = batadv_orig_hash_find(bat_priv, packet->target_orig);
 	if (!orig_node)
@@ -773,13 +777,13 @@ static void batadv_send_vis_packet(struct bat_priv *bat_priv,
 				   struct vis_info *info)
 {
 	struct hard_iface *primary_if;
-	struct vis_packet *packet;
+	struct batadv_vis_packet *packet;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
-	packet = (struct vis_packet *)info->skb_packet->data;
+	packet = (struct batadv_vis_packet *)info->skb_packet->data;
 	if (packet->header.ttl < 2) {
 		pr_debug("Error - can't send vis packet: ttl exceeded\n");
 		goto out;
@@ -838,10 +842,11 @@ static void batadv_send_vis_packets(struct work_struct *work)
  */
 int batadv_vis_init(struct bat_priv *bat_priv)
 {
-	struct vis_packet *packet;
+	struct batadv_vis_packet *packet;
 	int hash_added;
 	unsigned int len;
 	unsigned long first_seen;
+	struct sk_buff *tmp_skb;
 
 	if (bat_priv->vis_hash)
 		return 0;
@@ -864,8 +869,8 @@ int batadv_vis_init(struct bat_priv *bat_priv)
 		goto free_info;
 
 	skb_reserve(bat_priv->my_vis_info->skb_packet, ETH_HLEN);
-	packet = (struct vis_packet *)skb_put(bat_priv->my_vis_info->skb_packet,
-					      sizeof(*packet));
+	tmp_skb = bat_priv->my_vis_info->skb_packet;
+	packet = (struct batadv_vis_packet *)skb_put(tmp_skb, sizeof(*packet));
 
 	/* prefill the vis info */
 	first_seen = jiffies - msecs_to_jiffies(BATADV_VIS_INTERVAL);

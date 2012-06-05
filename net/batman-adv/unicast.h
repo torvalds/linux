@@ -35,11 +35,11 @@ int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 static inline int batadv_frag_can_reassemble(const struct sk_buff *skb, int mtu)
 {
-	const struct unicast_frag_packet *unicast_packet;
+	const struct batadv_unicast_frag_packet *unicast_packet;
 	int uneven_correction = 0;
 	unsigned int merged_size;
 
-	unicast_packet = (struct unicast_frag_packet *)skb->data;
+	unicast_packet = (struct batadv_unicast_frag_packet *)skb->data;
 
 	if (unicast_packet->flags & BATADV_UNI_FRAG_LARGETAIL) {
 		if (unicast_packet->flags & BATADV_UNI_FRAG_HEAD)
@@ -49,7 +49,7 @@ static inline int batadv_frag_can_reassemble(const struct sk_buff *skb, int mtu)
 	}
 
 	merged_size = (skb->len - sizeof(*unicast_packet)) * 2;
-	merged_size += sizeof(struct unicast_packet) + uneven_correction;
+	merged_size += sizeof(struct batadv_unicast_packet) + uneven_correction;
 
 	return merged_size <= mtu;
 }

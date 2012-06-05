@@ -29,7 +29,7 @@
 static struct socket_client *batadv_socket_client_hash[256];
 
 static void batadv_socket_add_packet(struct socket_client *socket_client,
-				     struct icmp_packet_rr *icmp_packet,
+				     struct batadv_icmp_packet_rr *icmp_packet,
 				     size_t icmp_len);
 
 void batadv_socket_init(void)
@@ -112,7 +112,7 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 	if ((file->f_flags & O_NONBLOCK) && (socket_client->queue_len == 0))
 		return -EAGAIN;
 
-	if ((!buf) || (count < sizeof(struct icmp_packet)))
+	if ((!buf) || (count < sizeof(struct batadv_icmp_packet)))
 		return -EINVAL;
 
 	if (!access_ok(VERIFY_WRITE, buf, count))
@@ -151,13 +151,13 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	struct bat_priv *bat_priv = socket_client->bat_priv;
 	struct hard_iface *primary_if = NULL;
 	struct sk_buff *skb;
-	struct icmp_packet_rr *icmp_packet;
+	struct batadv_icmp_packet_rr *icmp_packet;
 
 	struct orig_node *orig_node = NULL;
 	struct neigh_node *neigh_node = NULL;
-	size_t packet_len = sizeof(struct icmp_packet);
+	size_t packet_len = sizeof(struct batadv_icmp_packet);
 
-	if (len < sizeof(struct icmp_packet)) {
+	if (len < sizeof(struct batadv_icmp_packet)) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: invalid packet size\n");
 		return -EINVAL;
@@ -170,8 +170,8 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		goto out;
 	}
 
-	if (len >= sizeof(struct icmp_packet_rr))
-		packet_len = sizeof(struct icmp_packet_rr);
+	if (len >= sizeof(struct batadv_icmp_packet_rr))
+		packet_len = sizeof(struct batadv_icmp_packet_rr);
 
 	skb = dev_alloc_skb(packet_len + ETH_HLEN);
 	if (!skb) {
@@ -180,7 +180,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	}
 
 	skb_reserve(skb, ETH_HLEN);
-	icmp_packet = (struct icmp_packet_rr *)skb_put(skb, packet_len);
+	icmp_packet = (struct batadv_icmp_packet_rr *)skb_put(skb, packet_len);
 
 	if (copy_from_user(icmp_packet, buff, packet_len)) {
 		len = -EFAULT;
@@ -231,7 +231,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	memcpy(icmp_packet->orig,
 	       primary_if->net_dev->dev_addr, ETH_ALEN);
 
-	if (packet_len == sizeof(struct icmp_packet_rr))
+	if (packet_len == sizeof(struct batadv_icmp_packet_rr))
 		memcpy(icmp_packet->rr,
 		       neigh_node->if_incoming->net_dev->dev_addr, ETH_ALEN);
 
@@ -294,7 +294,7 @@ err:
 }
 
 static void batadv_socket_add_packet(struct socket_client *socket_client,
-				     struct icmp_packet_rr *icmp_packet,
+				     struct batadv_icmp_packet_rr *icmp_packet,
 				     size_t icmp_len)
 {
 	struct socket_packet *socket_packet;
@@ -336,7 +336,7 @@ static void batadv_socket_add_packet(struct socket_client *socket_client,
 	wake_up(&socket_client->queue_wait);
 }
 
-void batadv_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
+void batadv_socket_receive_packet(struct batadv_icmp_packet_rr *icmp_packet,
 				  size_t icmp_len)
 {
 	struct socket_client *hash;

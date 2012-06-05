@@ -43,10 +43,10 @@ struct orig_node *batadv_transtable_search(struct bat_priv *bat_priv,
 					   const uint8_t *addr);
 void batadv_tt_free(struct bat_priv *bat_priv);
 bool batadv_send_tt_response(struct bat_priv *bat_priv,
-			     struct tt_query_packet *tt_request);
+			     struct batadv_tt_query_packet *tt_request);
 bool batadv_is_my_client(struct bat_priv *bat_priv, const uint8_t *addr);
 void batadv_handle_tt_response(struct bat_priv *bat_priv,
-			       struct tt_query_packet *tt_response);
+			       struct batadv_tt_query_packet *tt_response);
 bool batadv_is_ap_isolated(struct bat_priv *bat_priv, uint8_t *src,
 			   uint8_t *dst);
 void batadv_tt_update_orig(struct bat_priv *bat_priv,

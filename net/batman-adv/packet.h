@@ -101,20 +101,20 @@ enum batadv_bla_claimframe {
 /* the destination hardware field in the ARP frame is used to
  * transport the claim type and the group id
  */
-struct bla_claim_dst {
+struct batadv_bla_claim_dst {
 	uint8_t magic[3];	/* FF:43:05 */
 	uint8_t type;		/* bla_claimframe */
 	__be16 group;		/* group id */
 } __packed;
 
-struct batman_header {
+struct batadv_header {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
 	uint8_t  ttl;
 } __packed;
 
-struct batman_ogm_packet {
-	struct batman_header header;
+struct batadv_ogm_packet {
+	struct batadv_header header;
 	uint8_t  flags;    /* 0x40: DIRECTLINK flag, 0x20 VIS_SERVER flag... */
 	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
@@ -126,10 +126,10 @@ struct batman_ogm_packet {
 	__be16   tt_crc;
 } __packed;
 
-#define BATADV_OGM_HLEN sizeof(struct batman_ogm_packet)
+#define BATADV_OGM_HLEN sizeof(struct batadv_ogm_packet)
 
-struct icmp_packet {
-	struct batman_header header;
+struct batadv_icmp_packet {
+	struct batadv_header header;
 	uint8_t  msg_type; /* see ICMP message types above */
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  orig[ETH_ALEN];
@@ -143,8 +143,8 @@ struct icmp_packet {
 /* icmp_packet_rr must start with all fields from imcp_packet
  * as this is assumed by code that handles ICMP packets
  */
-struct icmp_packet_rr {
-	struct batman_header header;
+struct batadv_icmp_packet_rr {
+	struct batadv_header header;
 	uint8_t  msg_type; /* see ICMP message types above */
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  orig[ETH_ALEN];
@@ -154,14 +154,14 @@ struct icmp_packet_rr {
 	uint8_t  rr[BATADV_RR_LEN][ETH_ALEN];
 } __packed;
 
-struct unicast_packet {
-	struct batman_header header;
+struct batadv_unicast_packet {
+	struct batadv_header header;
 	uint8_t  ttvn; /* destination translation table version number */
 	uint8_t  dest[ETH_ALEN];
 } __packed;
 
-struct unicast_frag_packet {
-	struct batman_header header;
+struct batadv_unicast_frag_packet {
+	struct batadv_header header;
 	uint8_t  ttvn; /* destination translation table version number */
 	uint8_t  dest[ETH_ALEN];
 	uint8_t  flags;
@@ -170,15 +170,15 @@ struct unicast_frag_packet {
 	__be16   seqno;
 } __packed;
 
-struct bcast_packet {
-	struct batman_header header;
+struct batadv_bcast_packet {
+	struct batadv_header header;
 	uint8_t  reserved;
 	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
 } __packed;
 
-struct vis_packet {
-	struct batman_header header;
+struct batadv_vis_packet {
+	struct batadv_header header;
 	uint8_t  vis_type;	 /* which type of vis-participant sent this? */
 	__be32   seqno;		 /* sequence number */
 	uint8_t  entries;	 /* number of entries behind this struct */
@@ -188,8 +188,8 @@ struct vis_packet {
 	uint8_t  sender_orig[ETH_ALEN]; /* who sent or forwarded this packet */
 } __packed;
 
-struct tt_query_packet {
-	struct batman_header header;
+struct batadv_tt_query_packet {
+	struct batadv_header header;
 	/* the flag field is a combination of:
 	 * - TT_REQUEST or TT_RESPONSE
 	 * - TT_FULL_TABLE
@@ -212,15 +212,15 @@ struct tt_query_packet {
 	__be16 tt_data;
 } __packed;
 
-struct roam_adv_packet {
-	struct batman_header header;
+struct batadv_roam_adv_packet {
+	struct batadv_header header;
 	uint8_t  reserved;
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  src[ETH_ALEN];
 	uint8_t  client[ETH_ALEN];
 } __packed;
 
-struct tt_change {
+struct batadv_tt_change {
 	uint8_t flags;
 	uint8_t addr[ETH_ALEN];
 } __packed;

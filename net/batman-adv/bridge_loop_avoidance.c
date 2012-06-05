@@ -255,7 +255,7 @@ static void batadv_bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 	struct hard_iface *primary_if;
 	struct net_device *soft_iface;
 	uint8_t *hw_src;
-	struct bla_claim_dst local_claim_dest;
+	struct batadv_bla_claim_dst local_claim_dest;
 	__be32 zeroip = 0;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -759,9 +759,9 @@ static int batadv_check_claim_group(struct bat_priv *bat_priv,
 {
 	uint8_t *backbone_addr;
 	struct orig_node *orig_node;
-	struct bla_claim_dst *bla_dst, *bla_dst_own;
+	struct batadv_bla_claim_dst *bla_dst, *bla_dst_own;
 
-	bla_dst = (struct bla_claim_dst *)hw_dst;
+	bla_dst = (struct batadv_bla_claim_dst *)hw_dst;
 	bla_dst_own = &bat_priv->claim_dest;
 
 	/* check if it is a claim packet in general */
@@ -832,7 +832,7 @@ static int batadv_bla_process_claim(struct bat_priv *bat_priv,
 	struct vlan_ethhdr *vhdr;
 	struct arphdr *arphdr;
 	uint8_t *hw_src, *hw_dst;
-	struct bla_claim_dst *bla_dst;
+	struct batadv_bla_claim_dst *bla_dst;
 	uint16_t proto;
 	int headlen;
 	short vid = -1;
@@ -876,7 +876,7 @@ static int batadv_bla_process_claim(struct bat_priv *bat_priv,
 
 	hw_src = (uint8_t *)arphdr + sizeof(struct arphdr);
 	hw_dst = hw_src + ETH_ALEN + 4;
-	bla_dst = (struct bla_claim_dst *)hw_dst;
+	bla_dst = (struct batadv_bla_claim_dst *)hw_dst;
 
 	/* check if it is a claim frame. */
 	ret = batadv_check_claim_group(bat_priv, primary_if, hw_src, hw_dst,
@@ -1201,7 +1201,7 @@ int batadv_bla_init(struct bat_priv *bat_priv)
  * the same host however as this might be intended.
  */
 int batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
-				   struct bcast_packet *bcast_packet,
+				   struct batadv_bcast_packet *bcast_packet,
 				   int hdr_size)
 {
 	int i, length, curr;
