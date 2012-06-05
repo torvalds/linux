@@ -2184,9 +2184,6 @@ enum ieee80211_rate_control_changed {
  *	normally except for the %IEEE80211_TX_CTL_TX_OFFCHAN flag. When the
  *	duration (which will always be non-zero) expires, the driver must call
  *	ieee80211_remain_on_channel_expired().
- *	The driver must not call ieee80211_remain_on_channel_expired() before
- *	the TX status for a frame that was sent off-channel, otherwise the TX
- *	status is reported to userspace in an invalid way.
  *	Note that this callback may be called while the device is in IDLE and
  *	must be accepted in this case.
  *	This callback may sleep.

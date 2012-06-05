@@ -528,10 +528,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 */
 	netif_tx_stop_all_queues(sdata->dev);
 
-	/*
-	 * Purge work for this interface.
-	 */
-	ieee80211_work_purge(sdata);
+	ieee80211_roc_purge(sdata);
 
 	/*
 	 * Remove all stations associated with this interface.
@@ -637,18 +634,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		ieee80211_configure_filter(local);
 		break;
 	default:
-		mutex_lock(&local->mtx);
-		if (local->hw_roc_dev == sdata->dev &&
-		    local->hw_roc_channel) {
-			/* ignore return value since this is racy */
-			drv_cancel_remain_on_channel(local);
-			ieee80211_queue_work(&local->hw, &local->hw_roc_done);
-		}
-		mutex_unlock(&local->mtx);
-
-		flush_work(&local->hw_roc_start);
-		flush_work(&local->hw_roc_done);
-
 		flush_work(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
@@ -1457,8 +1442,8 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	int count = 0;
 	bool working = false, scanning = false;
-	struct ieee80211_work *wk;
 	unsigned int led_trig_start = 0, led_trig_stop = 0;
+	struct ieee80211_roc_work *roc;
 
 #ifdef CONFIG_PROVE_LOCKING
 	WARN_ON(debug_locks && !lockdep_rtnl_is_held() &&
@@ -1494,9 +1479,9 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 	}
 
 	if (!local->ops->remain_on_channel) {
-		list_for_each_entry(wk, &local->work_list, list) {
+		list_for_each_entry(roc, &local->roc_list, list) {
 			working = true;
-			wk->sdata->vif.bss_conf.idle = false;
+			roc->sdata->vif.bss_conf.idle = false;
 		}
 	}
 
