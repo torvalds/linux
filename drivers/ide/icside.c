@@ -236,7 +236,7 @@ static const struct ide_port_ops icside_v6_no_dma_port_ops = {
  */
 static void icside_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	unsigned long cycle_time;
+	unsigned long cycle_time = 0;
 	int use_dma_info = 0;
 	const u8 xfer_mode = drive->dma_mode;
 
@@ -271,9 +271,9 @@ static void icside_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	ide_set_drivedata(drive, (void *)cycle_time);
 
-	printk("%s: %s selected (peak %dMB/s)\n", drive->name,
-		ide_xfer_verbose(xfer_mode),
-		2000 / (unsigned long)ide_get_drivedata(drive));
+	printk(KERN_INFO "%s: %s selected (peak %luMB/s)\n",
+	       drive->name, ide_xfer_verbose(xfer_mode),
+	       2000 / (cycle_time ? cycle_time : (unsigned long) -1));
 }
 
 static const struct ide_port_ops icside_v6_port_ops = {
