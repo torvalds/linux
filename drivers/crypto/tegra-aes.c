@@ -572,7 +572,7 @@ static void aes_workqueue_handler(struct work_struct *work)
 	struct tegra_aes_dev *dd = aes_dev;
 	int ret;
 
-	ret = clk_enable(dd->aes_clk);
+	ret = clk_prepare_enable(dd->aes_clk);
 	if (ret)
 		BUG_ON("clock enable failed");
 
@@ -581,7 +581,7 @@ static void aes_workqueue_handler(struct work_struct *work)
 		ret = tegra_aes_handle_req(dd);
 	} while (!ret);
 
-	clk_disable(dd->aes_clk);
+	clk_disable_unprepare(dd->aes_clk);
 }
 
 static irqreturn_t aes_irq(int irq, void *dev_id)
@@ -673,7 +673,7 @@ static int tegra_aes_get_random(struct crypto_rng *tfm, u8 *rdata,
 	/* take mutex to access the aes hw */
 	mutex_lock(&aes_lock);
 
-	ret = clk_enable(dd->aes_clk);
+	ret = clk_prepare_enable(dd->aes_clk);
 	if (ret)
 		return ret;
 
@@ -700,7 +700,7 @@ static int tegra_aes_get_random(struct crypto_rng *tfm, u8 *rdata,
 	}
 
 out:
-	clk_disable(dd->aes_clk);
+	clk_disable_unprepare(dd->aes_clk);
 	mutex_unlock(&aes_lock);
 
 	dev_dbg(dd->dev, "%s: done\n", __func__);
@@ -758,7 +758,7 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 
 	dd->flags = FLAGS_ENCRYPT | FLAGS_RNG;
 
-	ret = clk_enable(dd->aes_clk);
+	ret = clk_prepare_enable(dd->aes_clk);
 	if (ret)
 		return ret;
 
@@ -788,7 +788,7 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	memcpy(dd->dt, dt, DEFAULT_RNG_BLK_SZ);
 
 out:
-	clk_disable(dd->aes_clk);
+	clk_disable_unprepare(dd->aes_clk);
 	mutex_unlock(&aes_lock);
 
 	dev_dbg(dd->dev, "%s: done\n", __func__);
