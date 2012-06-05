@@ -99,8 +99,6 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			break;
 		}
 
-		mgr->set_device = &dss_mgr_set_device;
-		mgr->unset_device = &dss_mgr_unset_device;
 		mgr->set_output = &dss_mgr_set_output;
 		mgr->unset_output = &dss_mgr_unset_output;
 		mgr->apply = &omap_dss_mgr_apply;

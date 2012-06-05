@@ -464,7 +464,6 @@ struct omap_overlay_manager {
 	enum omap_dss_output_id supported_outputs;
 
 	/* dynamic fields */
-	struct omap_dss_device *device;
 	struct omap_dss_output *output;
 
 	/*
@@ -478,9 +477,6 @@ struct omap_overlay_manager {
 	 * interrupt context
 	 */
 
-	int (*set_device)(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *dssdev);
-	int (*unset_device)(struct omap_overlay_manager *mgr);
 	int (*set_output)(struct omap_overlay_manager *mgr,
 		struct omap_dss_output *output);
 	int (*unset_output)(struct omap_overlay_manager *mgr);
@@ -628,7 +624,6 @@ struct omap_dss_device {
 
 	enum omap_display_caps caps;
 
-	struct omap_overlay_manager *manager;
 	struct omap_dss_output *output;
 
 	enum omap_dss_display_state state;
