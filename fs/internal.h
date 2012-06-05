@@ -82,13 +82,10 @@ extern struct super_block *user_get_super(dev_t);
 /*
  * open.c
  */
-struct nameidata;
-extern struct file *nameidata_to_filp(struct nameidata *);
-extern void release_open_intent(struct nameidata *);
 struct opendata {
 	struct dentry *dentry;
 	struct vfsmount *mnt;
-	struct file **filp;
+	struct file *filp;
 };
 struct open_flags {
 	int open_flag;

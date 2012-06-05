@@ -771,46 +771,6 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 }
 
 /**
- * lookup_instantiate_filp - instantiates the open intent filp
- * @nd: pointer to nameidata
- * @dentry: pointer to dentry
- * @open: open callback
- *
- * Helper for filesystems that want to use lookup open intents and pass back
- * a fully instantiated struct file to the caller.
- * This function is meant to be called from within a filesystem's
- * lookup method.
- * Beware of calling it for non-regular files! Those ->open methods might block
- * (e.g. in fifo_open), leaving you with parent locked (and in case of fifo,
- * leading to a deadlock, as nobody can open that fifo anymore, because
- * another process to open fifo will block on locked parent when doing lookup).
- * Note that in case of error, nd->intent.open.file is destroyed, but the
- * path information remains valid.
- * If the open callback is set to NULL, then the standard f_op->open()
- * filesystem callback is substituted.
- */
-struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
-		int (*open)(struct inode *, struct file *))
-{
-	const struct cred *cred = current_cred();
-
-	if (IS_ERR(nd->intent.open.file))
-		goto out;
-	if (IS_ERR(dentry))
-		goto out_err;
-	nd->intent.open.file = __dentry_open(dget(dentry), mntget(nd->path.mnt),
-					     nd->intent.open.file,
-					     open, cred);
-out:
-	return nd->intent.open.file;
-out_err:
-	release_open_intent(nd);
-	nd->intent.open.file = ERR_CAST(dentry);
-	goto out;
-}
-EXPORT_SYMBOL_GPL(lookup_instantiate_filp);
-
-/**
  * finish_open - finish opening a file
  * @od: opaque open data
  * @dentry: pointer to dentry
@@ -829,9 +789,9 @@ struct file *finish_open(struct opendata *od, struct dentry *dentry,
 	mntget(od->mnt);
 	dget(dentry);
 
-	res = do_dentry_open(dentry, od->mnt, *od->filp, open, current_cred());
+	res = do_dentry_open(dentry, od->mnt, od->filp, open, current_cred());
 	if (!IS_ERR(res))
-		*od->filp = NULL;
+		od->filp = NULL;
 
 	return res;
 }
@@ -851,49 +811,6 @@ void finish_no_open(struct opendata *od, struct dentry *dentry)
 	od->dentry = dentry;
 }
 EXPORT_SYMBOL(finish_no_open);
-
-/**
- * nameidata_to_filp - convert a nameidata to an open filp.
- * @nd: pointer to nameidata
- * @flags: open flags
- *
- * Note that this function destroys the original nameidata
- */
-struct file *nameidata_to_filp(struct nameidata *nd)
-{
-	const struct cred *cred = current_cred();
-	struct file *filp;
-
-	/* Pick up the filp from the open intent */
-	filp = nd->intent.open.file;
-
-	/* Has the filesystem initialised the file for us? */
-	if (filp->f_path.dentry != NULL) {
-		nd->intent.open.file = NULL;
-	} else {
-		struct file *res;
-
-		path_get(&nd->path);
-		res = do_dentry_open(nd->path.dentry, nd->path.mnt,
-				     filp, NULL, cred);
-		if (!IS_ERR(res)) {
-			int error;
-
-			nd->intent.open.file = NULL;
-			BUG_ON(res != filp);
-
-			error = open_check_o_direct(filp);
-			if (error) {
-				fput(filp);
-				filp = ERR_PTR(error);
-			}
-		} else {
-			/* Allow nd->intent.open.file to be recycled */
-			filp = res;
-		}
-	}
-	return filp;
-}
 
 /*
  * dentry_open() will have done dput(dentry) and mntput(mnt) if it returns an
