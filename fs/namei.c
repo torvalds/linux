@@ -2305,21 +2305,14 @@ static struct file *atomic_open(struct nameidata *nd, struct dentry *dentry,
 	 * here.
 	 */
 	error = may_open(&filp->f_path, acc_mode, open_flag);
-	if (error)
-		goto out_fput;
-
-	error = open_check_o_direct(filp);
-	if (error)
-		goto out_fput;
+	if (error) {
+		fput(filp);
+		filp = ERR_PTR(error);
+	}
 
 out:
 	dput(dentry);
 	return filp;
-
-out_fput:
-	fput(filp);
-	filp = ERR_PTR(error);
-	goto out;
 
 no_open:
 	if (need_lookup) {
@@ -2619,10 +2612,10 @@ finish_open_created:
 			goto stale_open;
 		goto out;
 	}
+opened:
 	error = open_check_o_direct(filp);
 	if (error)
 		goto exit_fput;
-opened:
 	error = ima_file_check(filp, op->acc_mode);
 	if (error)
 		goto exit_fput;
