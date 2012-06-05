@@ -2722,6 +2722,21 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 			 struct btrfs_key *max_key,
 			 struct btrfs_path *path, int cache_only,
 			 u64 min_trans);
+enum btrfs_compare_tree_result {
+	BTRFS_COMPARE_TREE_NEW,
+	BTRFS_COMPARE_TREE_DELETED,
+	BTRFS_COMPARE_TREE_CHANGED,
+};
+typedef int (*btrfs_changed_cb_t)(struct btrfs_root *left_root,
+				  struct btrfs_root *right_root,
+				  struct btrfs_path *left_path,
+				  struct btrfs_path *right_path,
+				  struct btrfs_key *key,
+				  enum btrfs_compare_tree_result result,
+				  void *ctx);
+int btrfs_compare_trees(struct btrfs_root *left_root,
+			struct btrfs_root *right_root,
+			btrfs_changed_cb_t cb, void *ctx);
 int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,
 		    struct extent_buffer *parent, int parent_slot,
