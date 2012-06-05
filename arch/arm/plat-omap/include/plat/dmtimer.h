@@ -101,6 +101,7 @@ struct dmtimer_platform_data {
 	bool loses_context;
 
 	int (*get_context_loss_count)(struct device *dev);
+	u32 timer_capability;
 };
 
 int omap_dm_timer_reserve_systimer(int id);
@@ -273,6 +274,7 @@ struct omap_dm_timer {
 	bool loses_context;
 	int ctx_loss_count;
 	int revision;
+	u32 capability;
 	struct platform_device *pdev;
 	struct list_head node;
 
