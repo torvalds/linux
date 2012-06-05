@@ -720,7 +720,7 @@ int __init tegra_dma_init(void)
 		ret = PTR_ERR(c);
 		goto fail;
 	}
-	ret = clk_enable(c);
+	ret = clk_prepare_enable(c);
 	if (ret != 0) {
 		pr_err("Unable to enable clock for APB DMA\n");
 		goto fail;

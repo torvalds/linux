@@ -189,8 +189,8 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 		return PTR_ERR(emc_clk);
 	}
 
-	clk_enable(emc_clk);
-	clk_enable(cpu_clk);
+	clk_prepare_enable(emc_clk);
+	clk_prepare_enable(cpu_clk);
 
 	cpufreq_frequency_table_cpuinfo(policy, freq_table);
 	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
@@ -212,7 +212,7 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 static int tegra_cpu_exit(struct cpufreq_policy *policy)
 {
 	cpufreq_frequency_table_cpuinfo(policy, freq_table);
-	clk_disable(emc_clk);
+	clk_disable_unprepare(emc_clk);
 	clk_put(emc_clk);
 	clk_put(cpu_clk);
 	return 0;
