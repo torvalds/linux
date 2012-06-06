@@ -358,6 +358,8 @@ struct dvb_usb_device {
 	const char *rc_map;
 	struct dvb_usb_rc rc;
 	struct usb_device *udev;
+	struct work_struct probe_work;
+	struct usb_interface *intf;
 
 #define DVB_USB_STATE_INIT        0x000
 #define DVB_USB_STATE_I2C         0x001

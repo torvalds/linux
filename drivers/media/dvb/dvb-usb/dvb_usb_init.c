@@ -251,44 +251,29 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 /*
  * USB
  */
-int dvb_usbv2_device_init_(struct usb_interface *intf,
-		const struct usb_device_id *id)
+
+/*
+ * udev, which is used for the firmware downloading, requires we cannot
+ * block during module_init(). module_init() calls USB probe() which
+ * is this routine. Due to that we delay actual operation using workqueue
+ * and return always success here.
+ */
+
+static void dvb_usbv2_init_work(struct work_struct *work)
 {
-	struct usb_device *udev = interface_to_usbdev(intf);
-	struct dvb_usb_device *d = NULL;
-	struct dvb_usb_driver_info *driver_info =
-			(struct dvb_usb_driver_info *) id->driver_info;
-	const struct dvb_usb_device_properties *props;
-	int ret = -ENOMEM;
+	int ret;
+	struct dvb_usb_device *d =
+			container_of(work, struct dvb_usb_device, probe_work);
 	bool cold = false;
 
-	if (!id->driver_info) {
-		pr_err("%s: driver_info is null", KBUILD_MODNAME);
-		ret = -ENODEV;
-		goto err;
-	}
+	pr_debug("%s:\n", __func__);
 
-	props = driver_info->props;
-
-	d = kzalloc(sizeof(struct dvb_usb_device), GFP_KERNEL);
-	if (d == NULL) {
-		err("no memory for 'struct dvb_usb_device'");
-		return -ENOMEM;
-	}
-
-	d->udev = udev;
-	d->name = driver_info->name;
-	d->rc_map = driver_info->rc_map;
-	memcpy(&d->props, props, sizeof(struct dvb_usb_device_properties));
-	mutex_init(&d->usb_mutex);
-	mutex_init(&d->i2c_mutex);
-
-	if (d->props.size_of_priv > 0) {
+	if (d->props.size_of_priv) {
 		d->priv = kzalloc(d->props.size_of_priv, GFP_KERNEL);
-		if (d->priv == NULL) {
-			err("no memory for priv in 'struct dvb_usb_device'");
+		if (!d->priv) {
+			pr_err("%s: kzalloc() failed\n", KBUILD_MODNAME);
 			ret = -ENOMEM;
-			goto err_kfree;
+			goto err_usb_driver_release_interface;
 		}
 	}
 
@@ -300,77 +285,41 @@ int dvb_usbv2_device_init_(struct usb_interface *intf,
 			cold = true;
 			ret = 0;
 		} else {
-			goto err_kfree;
+			goto err_usb_driver_release_interface;
 		}
 	}
 
 	if (cold) {
-		info("found a '%s' in cold state, will try to load a firmware",
-				d->name);
+		pr_info("%s: found a '%s' in cold state\n",
+				KBUILD_MODNAME, d->name);
 		ret = dvb_usb_download_firmware(d);
 		if (ret == 0) {
 			;
 		} else if (ret == RECONNECTS_USB) {
 			ret = 0;
-			goto err_kfree;
+			goto exit_usb_driver_release_interface;
 		} else {
-			goto err_kfree;
+			goto err_usb_driver_release_interface;
 		}
 	}
 
-	info("found a '%s' in warm state.", d->name);
-
-	usb_set_intfdata(intf, d);
+	pr_info("%s: found a '%s' in warm state\n", KBUILD_MODNAME, d->name);
 
 	ret = dvb_usb_init(d);
+	if (ret < 0)
+		goto err_usb_driver_release_interface;
 
-	if (ret == 0)
-		info("%s successfully initialized and connected.", d->name);
-	else
-		info("%s error while loading driver (%d)", d->name, ret);
-
-	return 0;
-
-err_kfree:
-	kfree(d->priv);
-	kfree(d);
-err:
-	pr_debug("%s: failed=%d\n", __func__, ret);
-	return ret;
-}
-
-/*
- * udev, which is used for the firmware downloading, requires we cannot
- * block during module_init(). module_init() calls USB probe() which
- * is this routine. Due to that we delay actual operation using workqueue
- * and return always success here.
- */
-
-struct dvb_usb_delayed_init {
-	struct usb_interface *intf;
-	const struct usb_device_id *id;
-	struct work_struct work;
-};
-
-static void dvb_usbv2_init_work(struct work_struct *work)
-{
-	int ret;
-	struct dvb_usb_delayed_init *delayed_init =
-			container_of(work, struct dvb_usb_delayed_init, work);
-
-	ret = dvb_usbv2_device_init_(delayed_init->intf, delayed_init->id);
-	if (ret < 0) {
-		usb_driver_release_interface(
-				to_usb_driver(delayed_init->intf->dev.driver),
-				delayed_init->intf);
-		kfree(delayed_init);
-		goto err;
-	}
-
-	kfree(delayed_init);
+	pr_info("%s: '%s' successfully initialized and connected\n",
+			KBUILD_MODNAME, d->name);
 
 	return;
-err:
+err_usb_driver_release_interface:
+	pr_info("%s: '%s' error while loading driver (%d)\n", KBUILD_MODNAME,
+			d->name, ret);
+exit_usb_driver_release_interface:
+	/* it finally calls .disconnect() which frees mem */
+	usb_driver_release_interface(to_usb_driver(d->intf->dev.driver),
+			d->intf);
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return;
 }
@@ -379,28 +328,45 @@ int dvb_usbv2_device_init(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	int ret;
-	struct dvb_usb_delayed_init *delayed_init;
+	struct dvb_usb_device *d;
+	struct dvb_usb_driver_info *driver_info =
+			(struct dvb_usb_driver_info *) id->driver_info;
 
-	delayed_init = kzalloc(sizeof(struct dvb_usb_delayed_init), GFP_KERNEL);
-	if (!delayed_init) {
-		pr_err("%s: kzalloc() failed", DVB_USB_LOG_PREFIX);
+	pr_debug("%s:\n", __func__);
+
+	if (!id->driver_info) {
+		pr_err("%s: driver_info failed\n", KBUILD_MODNAME);
+		ret = -ENODEV;
+		goto err;
+	}
+
+	d = kzalloc(sizeof(struct dvb_usb_device), GFP_KERNEL);
+	if (!d) {
+		pr_err("%s: kzalloc() failed\n", KBUILD_MODNAME);
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	delayed_init->intf = intf;
-	delayed_init->id = id;
-	INIT_WORK(&delayed_init->work, dvb_usbv2_init_work);
-
-	ret = schedule_work(&delayed_init->work);
+	d->name = driver_info->name;
+	d->rc_map = driver_info->rc_map;
+	d->udev = interface_to_usbdev(intf);
+	d->intf = intf;
+	memcpy(&d->props, driver_info->props,
+			sizeof(struct dvb_usb_device_properties));
+	mutex_init(&d->usb_mutex);
+	mutex_init(&d->i2c_mutex);
+	INIT_WORK(&d->probe_work, dvb_usbv2_init_work);
+	usb_set_intfdata(intf, d);
+	ret = schedule_work(&d->probe_work);
 	if (ret < 0) {
-		pr_err("%s: schedule_work() failed", DVB_USB_LOG_PREFIX);
+		pr_err("%s: schedule_work() failed\n", KBUILD_MODNAME);
 		goto err_kfree;
 	}
 
 	return 0;
 err_kfree:
-	kfree(delayed_init);
+	usb_set_intfdata(intf, NULL);
+	kfree(d);
 err:
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -413,9 +379,14 @@ void dvb_usbv2_device_exit(struct usb_interface *intf)
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	const char *name = "generic DVB-USB module";
 
+	pr_debug("%s:\n", __func__);
+
 	/*
-	 * FIXME: we should ensure our device initialization work is finished
-	 * until exit from this routine (cancel_work_sync?)
+	 * FIXME: We should ensure initialization work is finished
+	 * until exit from this routine (cancel_work_sync / flush_work).
+	 * Unfortunately usb_driver_release_interface() call finally goes
+	 * here too and in that case we endup deadlock. How to perform
+	 * operation conditionally only on disconned / unload?
 	 */
 
 	usb_set_intfdata(intf, NULL);
@@ -423,7 +394,9 @@ void dvb_usbv2_device_exit(struct usb_interface *intf)
 		name = d->name;
 		dvb_usb_exit(d);
 	}
-	info("%s successfully deinitialized and disconnected.", name);
+
+	pr_info("%s: '%s' successfully deinitialized and disconnected\n",
+			KBUILD_MODNAME, name);
 }
 EXPORT_SYMBOL(dvb_usbv2_device_exit);
 
