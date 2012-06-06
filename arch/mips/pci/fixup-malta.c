@@ -101,3 +101,17 @@ static void __devinit malta_piix_func1_fixup(struct pci_dev *pdev)
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB,
 	 malta_piix_func1_fixup);
+
+/* Enable PCI 2.1 compatibility in PIIX4 */
+static void __devinit quirk_dlcsetup(struct pci_dev *dev)
+{
+	u8 odlc, ndlc;
+
+	(void) pci_read_config_byte(dev, 0x82, &odlc);
+	/* Enable passive releases and delayed transaction */
+	ndlc = odlc | 7;
+	(void) pci_write_config_byte(dev, 0x82, ndlc);
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,
+	quirk_dlcsetup);
