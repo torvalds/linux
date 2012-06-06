@@ -181,6 +181,7 @@ static struct snd_soc_dai_driver tegra20_spdif_dai = {
 	.name = DRV_NAME,
 	.probe = tegra20_spdif_probe,
 	.playback = {
+		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
