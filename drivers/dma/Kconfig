@@ -148,6 +148,20 @@ config TXX9_DMAC
 	  Support the TXx9 SoC internal DMA controller.  This can be
 	  integrated in chips such as the Toshiba TX4927/38/39.
 
+config TEGRA20_APB_DMA
+	bool "NVIDIA Tegra20 APB DMA support"
+	depends on ARCH_TEGRA
+	select DMA_ENGINE
+	help
+	  Support for the NVIDIA Tegra20 APB DMA controller driver. The
+	  DMA controller is having multiple DMA channel which can be
+	  configured for different peripherals like audio, UART, SPI,
+	  I2C etc which is in APB bus.
+	  This DMA controller transfers data from memory to peripheral fifo
+	  or vice versa. It does not support memory to memory data transfer.
+
+
+
 config SH_DMAE
 	tristate "Renesas SuperH DMAC support"
 	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
