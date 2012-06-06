@@ -8,7 +8,7 @@
 #define PRESS_LEV_HIGH			0
 
 static struct rk29_keys_button key_button[] = {
-#if 0
+	#if 0
 	{
 		.desc	= "menu",
 		.code	= EV_MENU,
@@ -21,14 +21,14 @@ static struct rk29_keys_button key_button[] = {
 		.gpio	= RK30_PIN6_PA1,
 		.active_low = PRESS_LEV_LOW,
 	},
-#endif
+	#endif
 	{
 		.desc	= "vol-",
 		.code	= KEY_VOLUMEDOWN,
 		.gpio	= RK30_PIN4_PC5,
 		.active_low = PRESS_LEV_LOW,
 	},
-#if 0
+	#if 0
 	{
 		.desc	= "home",
 		.code	= KEY_HOME,
@@ -53,7 +53,7 @@ static struct rk29_keys_button key_button[] = {
 		.gpio	= RK30_PIN6_PA6,
 		.active_low = PRESS_LEV_LOW,
 	},
-#endif
+	#endif
 	{
 		.desc	= "play",
 		.code	= KEY_POWER,
@@ -62,7 +62,6 @@ static struct rk29_keys_button key_button[] = {
 		//.code_long_press = EV_ENCALL,
 		.wakeup	= 1,
 	},
-#if 1
 	{
 		.desc	= "vol+",
 		.code	= KEY_VOLUMEUP,
@@ -70,7 +69,7 @@ static struct rk29_keys_button key_button[] = {
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
-#if 0
+	#if 0
 	{
 		.desc	= "vol-",
 		.code	= KEY_VOLUMEUP,
@@ -78,7 +77,37 @@ static struct rk29_keys_button key_button[] = {
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
-#endif
+	#endif
+#ifdef CONFIG_MACH_RK3066_SDK
+	{
+		.desc	= "menu",
+		.code	= EV_MENU,
+		.adc_value	= 163,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "home",
+		.code	= KEY_HOME,
+		.adc_value	= 652,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "esc",
+		.code	= KEY_BACK,
+		.adc_value	= 402,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "camera",
+		.code	= KEY_CAMERA,
+		.adc_value	= 854,
+		.gpio = INVALID_GPIO,
+		.active_low = PRESS_LEV_LOW,
+	},
+#else
 	{
 		.desc	= "menu",
 		.code	= EV_MENU,
