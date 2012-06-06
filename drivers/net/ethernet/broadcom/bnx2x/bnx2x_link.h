@@ -149,6 +149,7 @@ struct bnx2x_phy {
 #define FLAGS_DUMMY_READ		(1<<9)
 #define FLAGS_MDC_MDIO_WA_B0		(1<<10)
 #define FLAGS_TX_ERROR_CHECK		(1<<12)
+#define FLAGS_EEE_10GBT			(1<<13)
 
 	/* preemphasis values for the rx side */
 	u16 rx_preemphasis[4];
@@ -265,6 +266,30 @@ struct link_params {
 	u8 num_phys;
 
 	u8 rsrv;
+
+	/* Used to configure the EEE Tx LPI timer, has several modes of
+	 * operation, according to bits 29:28 -
+	 * 2'b00: Timer will be configured by nvram, output will be the value
+	 *        from nvram.
+	 * 2'b01: Timer will be configured by nvram, output will be in
+	 *        microseconds.
+	 * 2'b10: bits 1:0 contain an nvram value which will be used instead
+	 *        of the one located in the nvram. Output will be that value.
+	 * 2'b11: bits 19:0 contain the idle timer in microseconds; output
+	 *        will be in microseconds.
+	 * Bits 31:30 should be 2'b11 in order for EEE to be enabled.
+	 */
+	u32 eee_mode;
+#define EEE_MODE_NVRAM_BALANCED_TIME		(0xa00)
+#define EEE_MODE_NVRAM_AGGRESSIVE_TIME		(0x100)
+#define EEE_MODE_NVRAM_LATENCY_TIME		(0x6000)
+#define EEE_MODE_NVRAM_MASK		(0x3)
+#define EEE_MODE_TIMER_MASK		(0xfffff)
+#define EEE_MODE_OUTPUT_TIME		(1<<28)
+#define EEE_MODE_OVERRIDE_NVRAM		(1<<29)
+#define EEE_MODE_ENABLE_LPI		(1<<30)
+#define EEE_MODE_ADV_LPI			(1<<31)
+
 	u16 hw_led_mode; /* part of the hw_config read from the shmem */
 	u32 multi_phy_config;
 
@@ -301,6 +326,7 @@ struct link_vars {
 
 	/* The same definitions as the shmem parameter */
 	u32 link_status;
+	u32 eee_status;
 	u8 fault_detected;
 	u8 rsrv1;
 	u16 periodic_flags;

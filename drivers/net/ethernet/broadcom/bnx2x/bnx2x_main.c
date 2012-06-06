@@ -3176,6 +3176,12 @@ static void bnx2x_set_mf_bw(struct bnx2x *bp)
 	bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW_ACK, 0);
 }
 
+static void bnx2x_handle_eee_event(struct bnx2x *bp)
+{
+	DP(BNX2X_MSG_MCP, "EEE - LLDP event\n");
+	bnx2x_fw_command(bp, DRV_MSG_CODE_EEE_RESULTS_ACK, 0);
+}
+
 static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
 {
 	enum drv_info_opcode op_code;
@@ -3742,6 +3748,8 @@ static void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			if (val & DRV_STATUS_AFEX_EVENT_MASK)
 				bnx2x_handle_afex_cmd(bp,
 					val & DRV_STATUS_AFEX_EVENT_MASK);
+			if (val & DRV_STATUS_EEE_NEGOTIATION_RESULTS)
+				bnx2x_handle_eee_event(bp);
 			if (bp->link_vars.periodic_flags &
 			    PERIODIC_FLAGS_LINK_EVENT) {
 				/*  sync with link */
@@ -10082,7 +10090,7 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	u32 config;
-	u32 ext_phy_type, ext_phy_config;
+	u32 ext_phy_type, ext_phy_config, eee_mode;
 
 	bp->link_params.bp = bp;
 	bp->link_params.port = port;
@@ -10149,6 +10157,19 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
 							bp->common.shmem_base,
 							bp->common.shmem2_base);
+
+	/* Configure link feature according to nvram value */
+	eee_mode = (((SHMEM_RD(bp, dev_info.
+		      port_feature_config[port].eee_power_mode)) &
+		     PORT_FEAT_CFG_EEE_POWER_MODE_MASK) >>
+		    PORT_FEAT_CFG_EEE_POWER_MODE_SHIFT);
+	if (eee_mode != PORT_FEAT_CFG_EEE_POWER_MODE_DISABLED) {
+		bp->link_params.eee_mode = EEE_MODE_ADV_LPI |
+					   EEE_MODE_ENABLE_LPI |
+					   EEE_MODE_OUTPUT_TIME;
+	} else {
+		bp->link_params.eee_mode = 0;
+	}
 }
 
 void bnx2x_get_iscsi_info(struct bnx2x *bp)

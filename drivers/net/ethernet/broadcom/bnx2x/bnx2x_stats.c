@@ -785,6 +785,10 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 
 	pstats->host_port_stats_counter++;
 
+	if (CHIP_IS_E3(bp))
+		estats->eee_tx_lpi += REG_RD(bp,
+					     MISC_REG_CPMU_LP_SM_ENT_CNT_P0);
+
 	if (!BP_NOMCP(bp)) {
 		u32 nig_timer_max =
 			SHMEM_RD(bp, port_mb[BP_PORT(bp)].stat_nig_timer);

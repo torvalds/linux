@@ -1067,8 +1067,18 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
 	   uses the same defines as link_config */
 	u32 mfw_wol_link_cfg2;				    /* 0x480 */
 
-	u32 Reserved2[17];				    /* 0x484 */
 
+	/*  EEE power saving mode */
+	u32 eee_power_mode;                                 /* 0x484 */
+	#define PORT_FEAT_CFG_EEE_POWER_MODE_MASK                     0x000000FF
+	#define PORT_FEAT_CFG_EEE_POWER_MODE_SHIFT                    0
+	#define PORT_FEAT_CFG_EEE_POWER_MODE_DISABLED                 0x00000000
+	#define PORT_FEAT_CFG_EEE_POWER_MODE_BALANCED                 0x00000001
+	#define PORT_FEAT_CFG_EEE_POWER_MODE_AGGRESSIVE               0x00000002
+	#define PORT_FEAT_CFG_EEE_POWER_MODE_LOW_LATENCY              0x00000003
+
+
+	u32 Reserved2[16];                                  /* 0x488 */
 };
 
 
@@ -1255,6 +1265,8 @@ struct drv_func_mb {
 	#define DRV_MSG_CODE_DRV_INFO_ACK               0xd8000000
 	#define DRV_MSG_CODE_DRV_INFO_NACK              0xd9000000
 
+	#define DRV_MSG_CODE_EEE_RESULTS_ACK            0xda000000
+
 	#define DRV_MSG_CODE_SET_MF_BW                  0xe0000000
 	#define REQ_BC_VER_4_SET_MF_BW                  0x00060202
 	#define DRV_MSG_CODE_SET_MF_BW_ACK              0xe1000000
@@ -1320,6 +1332,8 @@ struct drv_func_mb {
 	#define FW_MSG_CODE_DRV_INFO_ACK                0xd8100000
 	#define FW_MSG_CODE_DRV_INFO_NACK               0xd9100000
 
+	#define FW_MSG_CODE_EEE_RESULS_ACK              0xda100000
+
 	#define FW_MSG_CODE_SET_MF_BW_SENT              0xe0000000
 	#define FW_MSG_CODE_SET_MF_BW_DONE              0xe1000000
 
@@ -1382,6 +1396,8 @@ struct drv_func_mb {
 	#define DRV_STATUS_AFEX_VIFSET_REQ              0x00800000
 
 	#define DRV_STATUS_DRV_INFO_REQ                 0x04000000
+
+	#define DRV_STATUS_EEE_NEGOTIATION_RESULTS      0x08000000
 
 	u32 virt_mac_upper;
 	#define VIRT_MAC_SIGN_MASK                      0xffff0000
@@ -1611,6 +1627,11 @@ struct fw_flr_mb {
 	u32         aggint;
 	u32         opgen_addr;
 	struct fw_flr_ack ack;
+};
+
+struct eee_remote_vals {
+	u32         tx_tw;
+	u32         rx_tw;
 };
 
 /**** SUPPORT FOR SHMEM ARRRAYS ***
@@ -2053,6 +2074,41 @@ struct shmem2_region {
 #define DRV_INFO_CONTROL_OP_CODE_MASK      0x0000ff00
 #define DRV_INFO_CONTROL_OP_CODE_SHIFT     8
 	u32 ibft_host_addr; /* initialized by option ROM */
+	struct eee_remote_vals eee_remote_vals[PORT_MAX];
+	u32 reserved[E2_FUNC_MAX];
+
+
+	/* the status of EEE auto-negotiation
+	 * bits 15:0 the configured tx-lpi entry timer value. Depends on bit 31.
+	 * bits 19:16 the supported modes for EEE.
+	 * bits 23:20 the speeds advertised for EEE.
+	 * bits 27:24 the speeds the Link partner advertised for EEE.
+	 * The supported/adv. modes in bits 27:19 originate from the
+	 * SHMEM_EEE_XXX_ADV definitions (where XXX is replaced by speed).
+	 * bit 28 when 1'b1 EEE was requested.
+	 * bit 29 when 1'b1 tx lpi was requested.
+	 * bit 30 when 1'b1 EEE was negotiated. Tx lpi will be asserted iff
+	 * 30:29 are 2'b11.
+	 * bit 31 when 1'b0 bits 15:0 contain a PORT_FEAT_CFG_EEE_ define as
+	 * value. When 1'b1 those bits contains a value times 16 microseconds.
+	 */
+	u32 eee_status[PORT_MAX];
+	#define SHMEM_EEE_TIMER_MASK		   0x0000ffff
+	#define SHMEM_EEE_SUPPORTED_MASK	   0x000f0000
+	#define SHMEM_EEE_SUPPORTED_SHIFT	   16
+	#define SHMEM_EEE_ADV_STATUS_MASK	   0x00f00000
+		#define SHMEM_EEE_100M_ADV	   (1<<0)
+		#define SHMEM_EEE_1G_ADV	   (1<<1)
+		#define SHMEM_EEE_10G_ADV	   (1<<2)
+	#define SHMEM_EEE_ADV_STATUS_SHIFT	   20
+	#define	SHMEM_EEE_LP_ADV_STATUS_MASK	   0x0f000000
+	#define SHMEM_EEE_LP_ADV_STATUS_SHIFT	   24
+	#define SHMEM_EEE_REQUESTED_BIT		   0x10000000
+	#define SHMEM_EEE_LPI_REQUESTED_BIT	   0x20000000
+	#define SHMEM_EEE_ACTIVE_BIT		   0x40000000
+	#define SHMEM_EEE_TIME_OUTPUT_BIT	   0x80000000
+
+	u32 sizeof_port_stats;
 };
 
 
@@ -2599,6 +2655,9 @@ struct host_port_stats {
 	u32            pfc_frames_tx_lo;
 	u32            pfc_frames_rx_hi;
 	u32            pfc_frames_rx_lo;
+
+	u32            eee_lpi_count_hi;
+	u32            eee_lpi_count_lo;
 };
 
 
