@@ -545,10 +545,9 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
 
-	if (*flags & MS_RDONLY) {
-		affs_write_super(sb);
+	if (*flags & MS_RDONLY)
 		affs_free_bitmap(sb);
-	} else
+	else
 		res = affs_init_bitmap(sb, flags);
 
 	return res;
