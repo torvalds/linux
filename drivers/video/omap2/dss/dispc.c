@@ -2157,8 +2157,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 }
 
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool ilace, bool replication,
-		const struct omap_video_timings *mgr_timings)
+		bool replication, const struct omap_video_timings *mgr_timings)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 	bool five_taps = true;
@@ -2174,6 +2173,7 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	u16 out_width, out_height;
 	enum omap_channel channel;
 	int x_predecim = 1, y_predecim = 1;
+	bool ilace = mgr_timings->interlace;
 
 	channel = dispc_ovl_get_channel_out(plane);
 
