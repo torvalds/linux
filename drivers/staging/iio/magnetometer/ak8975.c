@@ -194,6 +194,17 @@ static int ak8975_setup(struct i2c_client *client)
 		return ret;
 	}
 
+	/* After reading fuse ROM data set power-down mode */
+	ret = ak8975_write_data(client,
+				AK8975_REG_CNTL,
+				AK8975_REG_CNTL_MODE_POWER_DOWN,
+				AK8975_REG_CNTL_MODE_MASK,
+				AK8975_REG_CNTL_MODE_SHIFT);
+	if (ret < 0) {
+		dev_err(&client->dev, "Error in setting power-down mode\n");
+		return ret;
+	}
+
 /*
  * Precalculate scale factor (in Gauss units) for each axis and
  * store in the device data.
