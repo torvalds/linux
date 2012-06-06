@@ -237,6 +237,8 @@ do {							\
 	(high) = (u32)(_l >> 32);			\
 } while (0)
 
+#define rdpmcl(counter, val) ((val) = native_read_pmc(counter))
+
 #define rdtscp(low, high, aux)					\
 do {                                                            \
 	unsigned long long _val = native_read_tscp(&(aux));     \

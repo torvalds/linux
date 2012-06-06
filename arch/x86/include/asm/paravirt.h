@@ -252,6 +252,8 @@ do {						\
 	high = _l >> 32;			\
 } while (0)
 
+#define rdpmcl(counter, val) ((val) = paravirt_read_pmc(counter))
+
 static inline unsigned long long paravirt_rdtscp(unsigned int *aux)
 {
 	return PVOP_CALL1(u64, pv_cpu_ops.read_tscp, aux);
