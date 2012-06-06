@@ -40,9 +40,7 @@
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 #define ARCH_SUPPORTS_FTRACE_OPS 1
-#ifdef CONFIG_X86_64
 #define ARCH_SUPPORTS_FTRACE_SAVE_REGS
-#endif
 #endif
 
 #ifndef __ASSEMBLY__
