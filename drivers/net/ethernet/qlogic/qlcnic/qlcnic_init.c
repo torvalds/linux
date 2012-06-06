@@ -1653,6 +1653,9 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 
 	length = skb->len;
 
+	if (adapter->flags & QLCNIC_FW_LRO_MSS_CAP)
+		skb_shinfo(skb)->gso_size = qlcnic_get_lro_sts_mss(sts_data1);
+
 	if (vid != 0xffff)
 		__vlan_hwaccel_put_tag(skb, vid);
 	netif_receive_skb(skb);

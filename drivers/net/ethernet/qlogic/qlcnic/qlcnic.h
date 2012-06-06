@@ -258,6 +258,8 @@ struct rcv_desc {
 	(((sts_data) >> 52) & 0x1)
 #define qlcnic_get_lro_sts_seq_number(sts_data)		\
 	((sts_data) & 0x0FFFFFFFF)
+#define qlcnic_get_lro_sts_mss(sts_data1)		\
+	((sts_data1 >> 32) & 0x0FFFF)
 
 
 struct status_desc {
@@ -623,6 +625,7 @@ struct qlcnic_recv_context {
 #define QLCNIC_CAP0_JUMBO_CONTIGUOUS	(1 << 7)
 #define QLCNIC_CAP0_LRO_CONTIGUOUS	(1 << 8)
 #define QLCNIC_CAP0_VALIDOFF		(1 << 11)
+#define QLCNIC_CAP0_LRO_MSS		(1 << 21)
 
 /*
  * Context state
@@ -829,6 +832,9 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAPABILITY_FVLANTX		BIT_9
 #define QLCNIC_FW_CAPABILITY_HW_LRO		BIT_10
 #define QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK	BIT_27
+#define QLCNIC_FW_CAPABILITY_MORE_CAPS		BIT_31
+
+#define QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	BIT_2
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -918,6 +924,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_NEED_FLR			0x1000
 #define QLCNIC_FW_RESET_OWNER		0x2000
 #define QLCNIC_FW_HANG			0x4000
+#define QLCNIC_FW_LRO_MSS_CAP		0x8000
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 
