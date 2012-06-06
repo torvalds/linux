@@ -2033,6 +2033,7 @@ qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 		vh = (struct vlan_ethhdr *)skb->data;
 		flags = FLAGS_VLAN_TAGGED;
 		vlan_tci = vh->h_vlan_TCI;
+		protocol = ntohs(vh->h_vlan_encapsulated_proto);
 	} else if (vlan_tx_tag_present(skb)) {
 		flags = FLAGS_VLAN_OOB;
 		vlan_tci = vlan_tx_tag_get(skb);
