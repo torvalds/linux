@@ -897,7 +897,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
-	complete(&drv->request_firmware_complete);
 
 	op = &iwlwifi_opmode_table[DVM_OP_MODE];
 
@@ -907,10 +906,19 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (op->ops) {
 		const struct iwl_op_mode_ops *ops = op->ops;
 		drv->op_mode = ops->start(drv->trans, drv->cfg, &drv->fw);
+
+		if (!drv->op_mode)
+			goto out_unbind;
 	} else {
 		request_module_nowait("%s", op->name);
 	}
 
+	/*
+	 * Complete the firmware request last so that
+	 * a driver unbind (stop) doesn't run while we
+	 * are doing the start() above.
+	 */
+	complete(&drv->request_firmware_complete);
 	return;
 
  try_again:

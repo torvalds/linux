@@ -142,15 +142,20 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 	struct tid_ampdu_rx *tid_rx;
 	unsigned long timeout;
 
+	rcu_read_lock();
 	tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[*ptid]);
-	if (!tid_rx)
+	if (!tid_rx) {
+		rcu_read_unlock();
 		return;
+	}
 
 	timeout = tid_rx->last_rx + TU_TO_JIFFIES(tid_rx->timeout);
 	if (time_is_after_jiffies(timeout)) {
 		mod_timer(&tid_rx->session_timer, timeout);
+		rcu_read_unlock();
 		return;
 	}
+	rcu_read_unlock();
 
 	ht_vdbg("rx session timer expired on tid %d\n", (u16)*ptid);
 
