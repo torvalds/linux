@@ -3175,11 +3175,22 @@ static int __vmx_get_cpl(struct kvm_vcpu *vcpu)
 
 static int vmx_get_cpl(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	/*
+	 * If we enter real mode with cs.sel & 3 != 0, the normal CPL calculations
+	 * fail; use the cache instead.
+	 */
+	if (unlikely(vmx->emulation_required && emulate_invalid_guest_state)) {
+		return vmx->cpl;
+	}
+
 	if (!test_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail)) {
 		__set_bit(VCPU_EXREG_CPL, (ulong *)&vcpu->arch.regs_avail);
-		to_vmx(vcpu)->cpl = __vmx_get_cpl(vcpu);
+		vmx->cpl = __vmx_get_cpl(vcpu);
 	}
-	return to_vmx(vcpu)->cpl;
+
+	return vmx->cpl;
 }
 
 
