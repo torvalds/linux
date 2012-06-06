@@ -560,6 +560,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-g-tuner;
     &sub-log-status;
     &sub-overlay;
+    &sub-prepare-buf;
     &sub-qbuf;
     &sub-querybuf;
     &sub-querycap;
@@ -567,7 +568,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-query-dv-preset;
     &sub-query-dv-timings;
     &sub-querystd;
-    &sub-prepare-buf;
     &sub-reqbufs;
     &sub-s-hw-freq-seek;
     &sub-streamon;
