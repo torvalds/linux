@@ -31,7 +31,7 @@ struct gfs2_glock;
 static inline unsigned int gfs2_rg_blocks(const struct gfs2_inode *ip)
 {
 	const struct gfs2_blkreserv *rs = ip->i_res;
-	if (rs->rs_requested < ip->i_rgd->rd_length)
+	if (rs && rs->rs_requested < ip->i_rgd->rd_length)
 		return rs->rs_requested + 1;
 	return ip->i_rgd->rd_length;
 }

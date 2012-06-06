@@ -417,6 +417,39 @@ void gfs2_free_clones(struct gfs2_rgrpd *rgd)
 	}
 }
 
+/**
+ * gfs2_rs_alloc - make sure we have a reservation assigned to the inode
+ * @ip: the inode for this reservation
+ */
+int gfs2_rs_alloc(struct gfs2_inode *ip)
+{
+	int error = 0;
+
+	down_write(&ip->i_rw_mutex);
+	if (!ip->i_res) {
+		ip->i_res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
+		if (!ip->i_res)
+			error = -ENOMEM;
+	}
+	up_write(&ip->i_rw_mutex);
+	return error;
+}
+
+/**
+ * gfs2_rs_delete - delete a reservation
+ * @ip: The inode for this reservation
+ *
+ */
+void gfs2_rs_delete(struct gfs2_inode *ip)
+{
+	down_write(&ip->i_rw_mutex);
+	if (ip->i_res) {
+		kmem_cache_free(gfs2_rsrv_cachep, ip->i_res);
+		ip->i_res = NULL;
+	}
+	up_write(&ip->i_rw_mutex);
+}
+
 void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 {
 	struct rb_node *n;
@@ -993,22 +1026,6 @@ struct gfs2_qadata *gfs2_qadata_get(struct gfs2_inode *ip)
 }
 
 /**
- * gfs2_blkrsv_get - get the struct gfs2_blkreserv structure for an inode
- * @ip: the incore GFS2 inode structure
- *
- * Returns: the struct gfs2_qadata
- */
-
-static int gfs2_blkrsv_get(struct gfs2_inode *ip)
-{
-	BUG_ON(ip->i_res != NULL);
-	ip->i_res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
-	if (!ip->i_res)
-		return -ENOMEM;
-	return 0;
-}
-
-/**
  * try_rgrp_fit - See if a given reservation will fit in a given RG
  * @rgd: the RG data
  * @ip: the inode
@@ -1162,13 +1179,6 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	return -ENOSPC;
 }
 
-static void gfs2_blkrsv_put(struct gfs2_inode *ip)
-{
-	BUG_ON(ip->i_res == NULL);
-	kmem_cache_free(gfs2_rsrv_cachep, ip->i_res);
-	ip->i_res = NULL;
-}
-
 /**
  * gfs2_inplace_reserve - Reserve space in the filesystem
  * @ip: the inode to reserve space for
@@ -1181,13 +1191,9 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_blkreserv *rs;
-	int error;
+	int error = 0;
 	u64 last_unlinked = NO_BLOCK;
 	int tries = 0;
-
-	error = gfs2_blkrsv_get(ip);
-	if (error)
-		return error;
 
 	rs = ip->i_res;
 	rs->rs_requested = requested;
@@ -1213,7 +1219,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 
 out:
 	if (error)
-		gfs2_blkrsv_put(ip);
+		rs->rs_requested = 0;
 	return error;
 }
 
@@ -1230,7 +1236,7 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 
 	if (rs->rs_rgd_gh.gh_gl)
 		gfs2_glock_dq_uninit(&rs->rs_rgd_gh);
-	gfs2_blkrsv_put(ip);
+	rs->rs_requested = 0;
 }
 
 /**
@@ -1496,7 +1502,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	/* Only happens if there is a bug in gfs2, return something distinctive
 	 * to ensure that it is noticed.
 	 */
-	if (ip->i_res == NULL)
+	if (ip->i_res->rs_requested == 0)
 		return -ECANCELED;
 
 	rgd = ip->i_rgd;

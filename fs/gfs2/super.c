@@ -1554,6 +1554,7 @@ out_unlock:
 out:
 	/* Case 3 starts here */
 	truncate_inode_pages(&inode->i_data, 0);
+	gfs2_rs_delete(ip);
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);
 	ip->i_gl->gl_object = NULL;
@@ -1576,6 +1577,7 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 		ip->i_flags = 0;
 		ip->i_gl = NULL;
 		ip->i_rgd = NULL;
+		ip->i_res = NULL;
 	}
 	return &ip->i_inode;
 }

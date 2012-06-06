@@ -667,6 +667,10 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return -ENAMETOOLONG;
 
+	error = gfs2_rs_alloc(dip);
+	if (error)
+		return error;
+
 	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	if (error)
 		goto fail;
@@ -704,6 +708,11 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock2;
 
+	/* the new inode needs a reservation so it can allocate xattrs. */
+	error = gfs2_rs_alloc(GFS2_I(inode));
+	if (error)
+		goto fail_gunlock2;
+
 	error = gfs2_acl_create(dip, inode);
 	if (error)
 		goto fail_gunlock2;
@@ -722,7 +731,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	gfs2_trans_end(sdp);
 	/* Check if we reserved space in the rgrp. Function link_dinode may
 	   not, depending on whether alloc is required. */
-	if (dip->i_res)
+	if (gfs2_mb_reserved(dip))
 		gfs2_inplace_release(dip);
 	gfs2_quota_unlock(dip);
 	gfs2_qadata_put(dip);
@@ -818,6 +827,10 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 
 	if (S_ISDIR(inode->i_mode))
 		return -EPERM;
+
+	error = gfs2_rs_alloc(dip);
+	if (error)
+		return error;
 
 	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + 1);
@@ -1234,6 +1247,10 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	if (error)
 		return error;
 
+	error = gfs2_rs_alloc(ndip);
+	if (error)
+		return error;
+
 	if (odip != ndip) {
 		error = gfs2_glock_nq_init(sdp->sd_rename_gl, LM_ST_EXCLUSIVE,
 					   0, &r_gh);
@@ -1643,6 +1660,10 @@ static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder i_gh;
 	int error;
+
+	error = gfs2_rs_alloc(ip);
+	if (error)
+		return error;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
 	if (error)

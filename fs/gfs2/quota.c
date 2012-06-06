@@ -764,6 +764,10 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	unsigned int nalloc = 0, blocks;
 	int error;
 
+	error = gfs2_rs_alloc(ip);
+	if (error)
+		return error;
+
 	gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
 			      &data_blocks, &ind_blocks);
 
@@ -1549,10 +1553,14 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 	if (error)
 		return error;
 
+	error = gfs2_rs_alloc(ip);
+	if (error)
+		goto out_put;
+
 	mutex_lock(&ip->i_inode.i_mutex);
 	error = gfs2_glock_nq_init(qd->qd_gl, LM_ST_EXCLUSIVE, 0, &q_gh);
 	if (error)
-		goto out_put;
+		goto out_unlockput;
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
 	if (error)
 		goto out_q;
@@ -1609,8 +1617,9 @@ out_i:
 	gfs2_glock_dq_uninit(&i_gh);
 out_q:
 	gfs2_glock_dq_uninit(&q_gh);
-out_put:
+out_unlockput:
 	mutex_unlock(&ip->i_inode.i_mutex);
+out_put:
 	qd_put(qd);
 	return error;
 }
