@@ -93,7 +93,7 @@ struct clock_event_device cf_pit_clockevent = {
 	.set_mode	= init_cf_pit_timer,
 	.set_next_event	= cf_pit_next_event,
 	.shift		= 32,
-	.irq		= MCFINT_VECBASE + MCFINT_PIT1,
+	.irq		= MCF_IRQ_PIT1,
 };
 
 
@@ -159,7 +159,7 @@ void hw_timer_init(irq_handler_t handler)
 		clockevent_delta2ns(0x3f, &cf_pit_clockevent);
 	clockevents_register_device(&cf_pit_clockevent);
 
-	setup_irq(MCFINT_VECBASE + MCFINT_PIT1, &pit_irq);
+	setup_irq(MCF_IRQ_PIT1, &pit_irq);
 
 	clocksource_register_hz(&pit_clk, FREQ);
 }
