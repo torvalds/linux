@@ -476,9 +476,9 @@ static int iwl_test_indirect_read(struct iwl_test *tst, u32 addr, u32 size)
 			iwl_release_nic_access(trans);
 			spin_unlock_irqrestore(&trans->reg_lock, flags);
 	} else { /* target memory (SRAM) */
-		_iwl_read_targ_mem_words(trans, addr,
-					 tst->mem.addr,
-					 tst->mem.size / 4);
+		_iwl_read_targ_mem_dwords(trans, addr,
+					  tst->mem.addr,
+					  tst->mem.size / 4);
 	}
 
 	tst->mem.nchunks =
@@ -522,7 +522,7 @@ static int iwl_test_indirect_write(struct iwl_test *tst, u32 addr,
 						       *(u32 *)(buf+i));
 			}
 	} else if (iwl_test_valid_hw_addr(tst, addr)) {
-		_iwl_write_targ_mem_words(trans, addr, buf, size/4);
+		_iwl_write_targ_mem_dwords(trans, addr, buf, size / 4);
 	} else {
 		return -EINVAL;
 	}
