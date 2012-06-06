@@ -884,6 +884,10 @@ static int __init rk29_init_devices(void)
 {
 	platform_device_register(&rk29_device_pmu);
 	platform_device_register(&rk29_device_pcm);
+#ifdef CONFIG_BT
+    extern struct platform_device device_rfkill_rk;
+    platform_device_register(&device_rfkill_rk);
+#endif
         return 0;
 }
 arch_initcall(rk29_init_devices);

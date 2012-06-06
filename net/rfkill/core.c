@@ -252,11 +252,7 @@ static bool __rfkill_set_hw_state(struct rfkill *rfkill,
  * Calls the set_block method (when applicable) and handles notifications
  * etc. as well.
  */
-#ifdef CONFIG_RFKILL_RESET
-void rfkill_set_block(struct rfkill *rfkill, bool blocked)
-#else
 static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
-#endif
 {
 	unsigned long flags;
 	int err;
@@ -307,9 +303,6 @@ static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
 	rfkill_led_trigger_event(rfkill);
 	rfkill_event(rfkill);
 }
-#ifdef CONFIG_RFKILL_RESET
-EXPORT_SYMBOL(rfkill_set_block);
-#endif
 
 #ifdef CONFIG_RFKILL_INPUT
 static atomic_t rfkill_input_disabled = ATOMIC_INIT(0);

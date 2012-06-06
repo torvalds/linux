@@ -28,6 +28,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <plat/rk_fiq_debugger.h>
+#include <linux/rfkill-rk.h>
 
 #ifdef CONFIG_ADC_RK30
 static struct resource rk30_adc_resource[] = {
@@ -1169,6 +1170,10 @@ static int __init rk30_init_devices(void)
 	rk30_init_i2s();
 #ifdef CONFIG_RK29_VMAC
 	platform_device_register(&device_vmac);
+#endif
+#ifdef CONFIG_BT
+    extern struct platform_device device_rfkill_rk;
+    platform_device_register(&device_rfkill_rk);
 #endif
 
 	return 0;

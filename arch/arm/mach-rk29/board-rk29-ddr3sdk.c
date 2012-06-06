@@ -66,6 +66,9 @@
 #ifdef CONFIG_BU92747GUW_CIR
 #include "../../../drivers/cir/bu92747guw_cir.h"
 #endif
+#include <linux/rfkill-rk.h>
+
+
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -2412,7 +2415,6 @@ int rk29sdk_bt_power_state = 0;
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #define RK29SDK_WIFI_BT_GPIO_POWER_N       RK29_PIN5_PD6
 #define RK29SDK_WIFI_GPIO_RESET_N          RK29_PIN6_PC0
-#define RK29SDK_BT_GPIO_RESET_N            RK29_PIN6_PC4
 
 static int rk29sdk_wifi_cd = 0;   /* wifi virtual 'card detect' status */
 static void (*wifi_status_cb)(int card_present, void *dev_id);
@@ -2445,15 +2447,8 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
            return -1;
     }
 
-    if (gpio_request(RK29SDK_BT_GPIO_RESET_N, "bt reset")) {
-          pr_info("%s: request bt reset gpio failed\n", __func__);
-          gpio_free(RK29SDK_WIFI_GPIO_RESET_N);
-          return -1;
-    }
-
     gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
     gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
-    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
 
     #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
     
@@ -2608,13 +2603,6 @@ static struct platform_device rk29sdk_wifi_device = {
 #endif
 
 
-/* bluetooth rfkill device */
-static struct platform_device rk29sdk_rfkill = {
-        .name = "rk29sdk_rfkill",
-        .id = -1,
-};
-
-
 //#ifdef CONFIG_VIVANTE
 #define GPU_HIGH_CLOCK        552
 #define GPU_LOW_CLOCK         (periph_pll_default / 1000000) /* same as general pll clock rate below */
@@ -2733,6 +2721,63 @@ static struct platform_device rk29_device_pwm_leds = {
 };
 
 #endif
+
+#ifdef CONFIG_BT
+// bluetooth rfkill device, its driver in net/rfkill/rfkill-rk.c
+static struct rfkill_rk_platform_data rfkill_rk_platdata = {
+    .type               = RFKILL_TYPE_BLUETOOTH,
+
+    .poweron_gpio       = { // BT_REG_ON
+        .io             = RK29_PIN5_PD6,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = GPIO5D6_SDMMC1PWREN_NAME,
+            .fgpio      = GPIO5H_GPIO5D6,
+        },
+    },
+
+    .reset_gpio         = { // BT_RST
+        .io             = RK29_PIN6_PC4, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name       = NULL,
+        },
+    },
+
+    .wake_gpio          = { // BT_WAKE, use to control bt's sleep and wakeup
+        .io             = RK29_PIN6_PC5, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+        },
+    },
+
+    .wake_host_irq      = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
+        .gpio           = {
+            .io         = INVALID_GPIO/*RK30_PIN6_PA2*/, // set io to INVALID_GPIO for disable it
+        },
+    },
+
+    .rts_gpio           = { // UART_RTS, enable or disable BT's data coming
+        .io             = RK29_PIN2_PA7, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name       = GPIO2A7_UART2RTSN_NAME,
+            .fgpio      = GPIO2L_GPIO2A7,
+            .fmux       = GPIO2L_UART2_RTS_N,
+        },
+    },
+};
+
+struct platform_device device_rfkill_rk = {
+    .name   = "rfkill_rk",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &rfkill_rk_platdata,
+    },
+};
+#endif
+
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_RK29_PWM_REGULATOR
@@ -2813,10 +2858,6 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
         &rk29sdk_wifi_device,
-#endif
-
-#ifdef CONFIG_BT
-        &rk29sdk_rfkill,
 #endif
 
 #ifdef CONFIG_MTD_NAND_RK29

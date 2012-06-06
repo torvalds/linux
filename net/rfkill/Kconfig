@@ -53,3 +53,10 @@ config RFKILL_RESET
         depends on RFKILL && PM
         default n
 
+config RFKILL_RK
+        tristate "Rockchips RFKILL driver"
+        depends on RFKILL
+        default y
+        help
+          rockchips rfkill driver for rk29/rk30
+
