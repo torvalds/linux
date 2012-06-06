@@ -536,6 +536,8 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 	int ret = 0;
     unsigned long scl_rate;
 
+    clk_enable(i2c->clk);
+
     if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate >= 10000)
 		scl_rate = msgs[0].scl_rate;
 	else if(msgs[0].scl_rate > 400000){
@@ -560,6 +562,7 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
     rk29_i2c_disable_mport(i2c);
     if(i2c->is_div_from_arm[i2c->adap.nr])
 		wake_unlock(&i2c->idlelock[i2c->adap.nr]);
+    clk_disable(i2c->clk);
 	return ret;
 }
 

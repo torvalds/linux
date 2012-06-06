@@ -124,7 +124,7 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 
 	i2c_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
 
-	clk_enable(i2c->clk);
+	//clk_enable(i2c->clk);
 
 	/* map the registers */
 

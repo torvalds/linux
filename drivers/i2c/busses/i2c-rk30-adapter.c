@@ -187,7 +187,6 @@ static void rk30_i2c_init_hw(struct rk30_i2c *i2c, unsigned long scl_rate)
 {
         i2c->scl_rate = 0;
         rk30_i2c_set_clk(i2c, scl_rate);
-        clk_disable(i2c->clk);
 	return;
 }
 /* returns TRUE if we this is the last byte in the current message */
