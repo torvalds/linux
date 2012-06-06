@@ -729,6 +729,40 @@ static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 	return dev->ethtool_ops->set_wol(dev, &wol);
 }
 
+static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_eee edata;
+	int rc;
+
+	if (!dev->ethtool_ops->get_eee)
+		return -EOPNOTSUPP;
+
+	memset(&edata, 0, sizeof(struct ethtool_eee));
+	edata.cmd = ETHTOOL_GEEE;
+	rc = dev->ethtool_ops->get_eee(dev, &edata);
+
+	if (rc)
+		return rc;
+
+	if (copy_to_user(useraddr, &edata, sizeof(edata)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_eee edata;
+
+	if (!dev->ethtool_ops->set_eee)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&edata, useraddr, sizeof(edata)))
+		return -EFAULT;
+
+	return dev->ethtool_ops->set_eee(dev, &edata);
+}
+
 static int ethtool_nway_reset(struct net_device *dev)
 {
 	if (!dev->ethtool_ops->nway_reset)
@@ -1470,6 +1504,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_SMSGLVL:
 		rc = ethtool_set_value_void(dev, useraddr,
 				       dev->ethtool_ops->set_msglevel);
+		break;
+	case ETHTOOL_GEEE:
+		rc = ethtool_get_eee(dev, useraddr);
+		break;
+	case ETHTOOL_SEEE:
+		rc = ethtool_set_eee(dev, useraddr);
 		break;
 	case ETHTOOL_NWAY_RST:
 		rc = ethtool_nway_reset(dev);
