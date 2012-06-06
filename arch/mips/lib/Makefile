@@ -2,7 +2,7 @@
 # Makefile for MIPS-specific library files..
 #
 
-lib-y	+= csum_partial.o delay.o memcpy.o memcpy-inatomic.o memset.o \
+lib-y	+= csum_partial.o delay.o memcpy.o memset.o \
 	   strlen_user.o strncpy_user.o strnlen_user.o uncached.o
 
 obj-y			+= iomap.o
