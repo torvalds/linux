@@ -499,20 +499,12 @@ static int __devinit ak8975_probe(struct i2c_client *client,
 	/* We may not have a GPIO based IRQ to scan, that is fine, we will
 	   poll if so */
 	if (gpio_is_valid(eoc_gpio)) {
-		err = gpio_request(eoc_gpio, "ak_8975");
+		err = gpio_request_one(eoc_gpio, GPIOF_IN, "ak_8975");
 		if (err < 0) {
 			dev_err(&client->dev,
 				"failed to request GPIO %d, error %d\n",
 							eoc_gpio, err);
 			goto exit;
-		}
-
-		err = gpio_direction_input(eoc_gpio);
-		if (err < 0) {
-			dev_err(&client->dev,
-				"Failed to configure input direction for GPIO %d, error %d\n",
-						eoc_gpio, err);
-			goto exit_gpio;
 		}
 	}
 
