@@ -3027,6 +3027,10 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (unlikely(local->quiescing || local->suspended))
 		goto drop;
 
+	/* We might be during a HW reconfig, prevent Rx for the same reason */
+	if (unlikely(local->in_reconfig))
+		goto drop;
+
 	/*
 	 * The same happens when we're not even started,
 	 * but that's worth a warning.

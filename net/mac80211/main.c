@@ -345,6 +345,13 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 	ieee80211_stop_queues_by_reason(hw,
 		IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
+	/*
+	 * Stop all Rx during the reconfig. We don't want state changes
+	 * or driver callbacks while this is in progress.
+	 */
+	local->in_reconfig = true;
+	barrier();
+
 	schedule_work(&local->restart_work);
 }
 EXPORT_SYMBOL(ieee80211_restart_hw);

@@ -881,6 +881,9 @@ struct ieee80211_local {
 	/* device is started */
 	bool started;
 
+	/* device is during a HW reconfig */
+	bool in_reconfig;
+
 	/* wowlan is enabled -- don't reconfig on resume */
 	bool wowlan;
 
