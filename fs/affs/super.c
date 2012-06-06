@@ -31,11 +31,13 @@ affs_commit_super(struct super_block *sb, int wait)
 	struct buffer_head *bh = sbi->s_root_bh;
 	struct affs_root_tail *tail = AFFS_ROOT_TAIL(sb, bh);
 
+	lock_super(sb);
 	secs_to_datestamp(get_seconds(), &tail->disk_change);
 	affs_fix_checksum(sb, bh);
 	mark_buffer_dirty(bh);
 	if (wait)
 		sync_dirty_buffer(bh);
+	unlock_super(sb);
 }
 
 static void
@@ -54,22 +56,17 @@ affs_put_super(struct super_block *sb)
 static void
 affs_write_super(struct super_block *sb)
 {
-	lock_super(sb);
 	if (!(sb->s_flags & MS_RDONLY))
 		affs_commit_super(sb, 1);
 	sb->s_dirt = 0;
-	unlock_super(sb);
-
 	pr_debug("AFFS: write_super() at %lu, clean=2\n", get_seconds());
 }
 
 static int
 affs_sync_fs(struct super_block *sb, int wait)
 {
-	lock_super(sb);
 	affs_commit_super(sb, wait);
 	sb->s_dirt = 0;
-	unlock_super(sb);
 	return 0;
 }
 
