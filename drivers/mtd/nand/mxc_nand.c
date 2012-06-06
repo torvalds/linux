@@ -1376,7 +1376,25 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	if (IS_ERR(host->clk))
 		return PTR_ERR(host->clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	err = mxcnd_probe_dt(host);
+	if (err > 0)
+		err = mxcnd_probe_pdata(host);
+	if (err < 0)
+		return err;
+
+	if (host->devtype_data->needs_ip) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res)
+			return -ENODEV;
+		host->regs_ip = devm_request_and_ioremap(&pdev->dev, res);
+		if (!host->regs_ip)
+			return -ENOMEM;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	} else {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	}
+
 	if (!res)
 		return -ENODEV;
 
@@ -1385,12 +1403,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	host->main_area0 = host->base;
-
-	err = mxcnd_probe_dt(host);
-	if (err > 0)
-		err = mxcnd_probe_pdata(host);
-	if (err < 0)
-		return err;
 
 	if (host->devtype_data->regs_offset)
 		host->regs = host->base + host->devtype_data->regs_offset;
@@ -1404,15 +1416,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	this->select_chip = host->devtype_data->select_chip;
 	this->ecc.size = 512;
 	this->ecc.layout = host->devtype_data->ecclayout_512;
-
-	if (host->devtype_data->needs_ip) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!res)
-			return -ENODEV;
-		host->regs_ip = devm_request_and_ioremap(&pdev->dev, res);
-		if (!host->regs_ip)
-			return -ENOMEM;
-	}
 
 	if (host->pdata.hw_ecc) {
 		this->ecc.calculate = mxc_nand_calculate_ecc;
