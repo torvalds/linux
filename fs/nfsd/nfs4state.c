@@ -4059,11 +4059,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfs4_lock_state();
 
 	if (lock->lk_is_new) {
-		/*
-		 * Client indicates that this is a new lockowner.
-		 * Use open owner and open stateid to create lock owner and
-		 * lock stateid.
-		 */
 		struct nfs4_ol_stateid *open_stp = NULL;
 
 		if (nfsd4_has_session(cstate))
@@ -4090,17 +4085,13 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out;
 		status = lookup_or_create_lock_state(cstate, open_stp, lock,
 							&lock_stp, &new_state);
-		if (status)
-			goto out;
-	} else {
-		/* lock (lock owner + lock stateid) already exists */
+	} else
 		status = nfs4_preprocess_seqid_op(cstate,
 				       lock->lk_old_lock_seqid,
 				       &lock->lk_old_lock_stateid,
 				       NFS4_LOCK_STID, &lock_stp);
-		if (status)
-			goto out;
-	}
+	if (status)
+		goto out;
 	lock_sop = lockowner(lock_stp->st_stateowner);
 
 	lkflg = setlkflg(lock->lk_type);
