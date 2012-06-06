@@ -1467,15 +1467,6 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
 
-	/* See if new interface type is valid. */
-	if ((new_type == NL80211_IFTYPE_ADHOC) &&
-	    (sc->nvifs > 1)) {
-		ath_err(common, "When using ADHOC, it must be the only"
-			" interface.\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (ath9k_uses_beacons(new_type) &&
 	    !ath9k_uses_beacons(vif->type)) {
 		if (sc->nbcnvifs >= ATH_BCBUF) {
