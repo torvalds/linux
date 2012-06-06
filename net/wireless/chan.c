@@ -78,50 +78,17 @@ bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(cfg80211_can_beacon_sec_chan);
 
-int cfg80211_set_freq(struct cfg80211_registered_device *rdev,
-		      struct wireless_dev *wdev, int freq,
-		      enum nl80211_channel_type channel_type)
+int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
+				 int freq, enum nl80211_channel_type chantype)
 {
 	struct ieee80211_channel *chan;
-	int result;
 
-	if (wdev && wdev->iftype == NL80211_IFTYPE_MONITOR)
-		wdev = NULL;
-
-	if (wdev) {
-		ASSERT_WDEV_LOCK(wdev);
-
-		if (!netif_running(wdev->netdev))
-			return -ENETDOWN;
-	}
-
-	if (!rdev->ops->set_channel)
+	if (!rdev->ops->set_monitor_channel)
 		return -EOPNOTSUPP;
 
-	chan = rdev_freq_to_chan(rdev, freq, channel_type);
+	chan = rdev_freq_to_chan(rdev, freq, chantype);
 	if (!chan)
 		return -EINVAL;
 
-	/* Both channels should be able to initiate communication */
-	if (wdev && (wdev->iftype == NL80211_IFTYPE_ADHOC ||
-		     wdev->iftype == NL80211_IFTYPE_AP ||
-		     wdev->iftype == NL80211_IFTYPE_AP_VLAN ||
-		     wdev->iftype == NL80211_IFTYPE_MESH_POINT ||
-		     wdev->iftype == NL80211_IFTYPE_P2P_GO) &&
-	    !cfg80211_can_beacon_sec_chan(&rdev->wiphy, chan, channel_type)) {
-		printk(KERN_DEBUG
-		       "cfg80211: Secondary channel not allowed to beacon\n");
-		return -EINVAL;
-	}
-
-	result = rdev->ops->set_channel(&rdev->wiphy,
-					wdev ? wdev->netdev : NULL,
-					chan, channel_type);
-	if (result)
-		return result;
-
-	if (wdev)
-		wdev->channel = chan;
-
-	return 0;
+	return rdev->ops->set_monitor_channel(&rdev->wiphy, chan, chantype);
 }

@@ -921,7 +921,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		if (nla_put_u32(msg, i, NL80211_CMD_SET_WIPHY_NETNS))
 			goto nla_put_failure;
 	}
-	if (dev->ops->set_channel || dev->ops->start_ap ||
+	if (dev->ops->set_monitor_channel || dev->ops->start_ap ||
 	    dev->ops->join_mesh) {
 		i++;
 		if (nla_put_u32(msg, i, NL80211_CMD_SET_CHANNEL))
@@ -1178,8 +1178,8 @@ static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 	 * the channel in the start-ap or join-mesh commands instead.
 	 *
 	 * Monitors are special as they are normally slaved to
-	 * whatever else is going on, so they behave as though
-	 * you tried setting the wiphy channel itself.
+	 * whatever else is going on, so they have their own special
+	 * operation to set the monitor channel if possible.
 	 */
 	return !wdev ||
 		wdev->iftype == NL80211_IFTYPE_AP ||
@@ -1217,6 +1217,10 @@ static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 	u32 freq;
 	int result;
+	enum nl80211_iftype iftype = NL80211_IFTYPE_MONITOR;
+
+	if (wdev)
+		iftype = wdev->iftype;
 
 	if (!info->attrs[NL80211_ATTR_WIPHY_FREQ])
 		return -EINVAL;
@@ -1231,7 +1235,7 @@ static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
 
 	mutex_lock(&rdev->devlist_mtx);
-	if (wdev) switch (wdev->iftype) {
+	switch (iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
 		if (wdev->beacon_interval) {
@@ -1252,12 +1256,11 @@ static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 	case NL80211_IFTYPE_MESH_POINT:
 		result = cfg80211_set_mesh_freq(rdev, wdev, freq, channel_type);
 		break;
+	case NL80211_IFTYPE_MONITOR:
+		result = cfg80211_set_monitor_channel(rdev, freq, channel_type);
+		break;
 	default:
-		wdev_lock(wdev);
-		result = cfg80211_set_freq(rdev, wdev, freq, channel_type);
-		wdev_unlock(wdev);
-	} else {
-		result = cfg80211_set_freq(rdev, NULL, freq, channel_type);
+		result = -EINVAL;
 	}
 	mutex_unlock(&rdev->devlist_mtx);
 
