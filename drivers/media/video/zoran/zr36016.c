@@ -40,10 +40,10 @@
 /* v4l  API */
 
 /* headerfile of this module */
-#include"zr36016.h"
+#include "zr36016.h"
 
 /* codec io API */
-#include"videocodec.h"
+#include "videocodec.h"
 
 /* it doesn't make sense to have more than 20 or so,
   just to prevent some unwanted loops */

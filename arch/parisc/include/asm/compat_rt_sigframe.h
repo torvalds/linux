@@ -1,6 +1,6 @@
-#include<linux/compat.h>
-#include<linux/compat_siginfo.h>
-#include<asm/compat_ucontext.h>
+#include <linux/compat.h>
+#include <linux/compat_siginfo.h>
+#include <asm/compat_ucontext.h>
 
 #ifndef _ASM_PARISC_COMPAT_RT_SIGFRAME_H
 #define _ASM_PARISC_COMPAT_RT_SIGFRAME_H

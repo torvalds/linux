@@ -24,7 +24,7 @@
 #ifndef __PLAT_GPIO_CFG_H
 #define __PLAT_GPIO_CFG_H __FILE__
 
-#include<linux/types.h>
+#include <linux/types.h>
 
 typedef unsigned int __bitwise__ samsung_gpio_pull_t;
 typedef unsigned int __bitwise__ s5p_gpio_drvstr_t;
