@@ -414,7 +414,7 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 	params.param0 = DWC3_DEPCFG_EP_TYPE(usb_endpoint_type(desc))
 		| DWC3_DEPCFG_MAX_PACKET_SIZE(usb_endpoint_maxp(desc))
-		| DWC3_DEPCFG_BURST_SIZE(dep->endpoint.maxburst);
+		| DWC3_DEPCFG_BURST_SIZE(dep->endpoint.maxburst - 1);
 
 	params.param1 = DWC3_DEPCFG_XFER_COMPLETE_EN
 		| DWC3_DEPCFG_XFER_NOT_READY_EN;
