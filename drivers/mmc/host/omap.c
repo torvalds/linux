@@ -1485,6 +1485,7 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	}
 
 	host->nr_slots = pdata->nr_slots;
+	host->reg_shift = (cpu_is_omap7xx() ? 1 : 2);
 
 	host->mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
 	if (!host->mmc_omap_wq)
@@ -1499,8 +1500,6 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 			goto err_destroy_wq;
 		}
 	}
-
-	host->reg_shift = (cpu_is_omap7xx() ? 1 : 2);
 
 	return 0;
 
