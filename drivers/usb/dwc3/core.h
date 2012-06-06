@@ -223,7 +223,7 @@
 #define DWC3_DCTL_LSFTRST	(1 << 29)
 
 #define DWC3_DCTL_HIRD_THRES_MASK	(0x1f << 24)
-#define DWC3_DCTL_HIRD_THRES(n)	(((n) & DWC3_DCTL_HIRD_THRES_MASK) >> 24)
+#define DWC3_DCTL_HIRD_THRES(n)	((n) << 24)
 
 #define DWC3_DCTL_APPL1RES	(1 << 23)
 
