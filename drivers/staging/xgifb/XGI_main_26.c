@@ -1904,7 +1904,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (reg1 != 0xa1) { /*I/O error */
 		pr_err("I/O error!!!");
 		ret = -EIO;
-		goto error;
+		goto error_disable;
 	}
 
 	switch (xgifb_info->chip_id) {
@@ -1927,7 +1927,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		break;
 	default:
 		ret = -ENODEV;
-		goto error;
+		goto error_disable;
 	}
 
 	pr_info("chipid = %x\n", xgifb_info->chip);
@@ -1936,7 +1936,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (XGIfb_get_dram_size(xgifb_info)) {
 		pr_err("Fatal error: Unable to determine RAM size.\n");
 		ret = -ENODEV;
-		goto error;
+		goto error_disable;
 	}
 
 	/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE  */
@@ -1956,7 +1956,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		pr_err("Fatal error: Unable to reserve frame buffer memory\n");
 		pr_err("Is there another framebuffer driver active?\n");
 		ret = -ENODEV;
-		goto error;
+		goto error_disable;
 	}
 
 	if (!request_mem_region(xgifb_info->mmio_base,
@@ -2271,6 +2271,8 @@ error_1:
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
 error_0:
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
+error_disable:
+	pci_disable_device(pdev);
 error:
 	framebuffer_release(fb_info);
 	return ret;
