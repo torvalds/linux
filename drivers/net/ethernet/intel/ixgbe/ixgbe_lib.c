@@ -370,6 +370,9 @@ static bool ixgbe_set_dcb_sriov_queues(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_RSS].indices = 1;
 	adapter->ring_feature[RING_F_RSS].mask = IXGBE_RSS_DISABLED_MASK;
 
+	/* disable ATR as it is not supported when VMDq is enabled */
+	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+
 	adapter->num_rx_pools = vmdq_i;
 	adapter->num_rx_queues_per_pool = tcs;
 
@@ -449,6 +452,9 @@ static bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 	rss_i = min_t(int, rss_i, f->limit);
 	f->indices = rss_i;
 	f->mask = rss_m;
+
+	/* disable ATR as it is not supported when multiple TCs are enabled */
+	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
 #ifdef IXGBE_FCOE
 	/* FCoE enabled queues require special configuration indexed
@@ -606,16 +612,22 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 	f->indices = rss_i;
 	f->mask = IXGBE_RSS_16Q_MASK;
 
+	/* disable ATR by default, it will be configured below */
+	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+
 	/*
 	 * Use Flow Director in addition to RSS to ensure the best
 	 * distribution of flows across cores, even when an FDIR flow
 	 * isn't matched.
 	 */
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
+	if (rss_i > 1 && adapter->atr_sample_rate) {
 		f = &adapter->ring_feature[RING_F_FDIR];
 
 		f->indices = min_t(u16, num_online_cpus(), f->limit);
 		rss_i = max_t(u16, rss_i, f->indices);
+
+		if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 	}
 
 #ifdef IXGBE_FCOE
@@ -1054,13 +1066,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	}
 
 	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
-		e_err(probe,
-		      "ATR is not supported while multiple "
-		      "queues are disabled.  Disabling Flow Director\n");
-	}
-	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
-	adapter->atr_sample_rate = 0;
+
 	ixgbe_disable_sriov(adapter);
 
 	adapter->ring_feature[RING_F_RSS].limit = 1;
