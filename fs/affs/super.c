@@ -31,13 +31,14 @@ affs_commit_super(struct super_block *sb, int wait)
 	struct buffer_head *bh = sbi->s_root_bh;
 	struct affs_root_tail *tail = AFFS_ROOT_TAIL(sb, bh);
 
-	lock_super(sb);
+	lock_buffer(bh);
 	secs_to_datestamp(get_seconds(), &tail->disk_change);
 	affs_fix_checksum(sb, bh);
+	unlock_buffer(bh);
+
 	mark_buffer_dirty(bh);
 	if (wait)
 		sync_dirty_buffer(bh);
-	unlock_super(sb);
 }
 
 static void
