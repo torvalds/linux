@@ -2306,6 +2306,32 @@ static struct pci_driver xgifb_driver = {
 	.remove = __devexit_p(xgifb_remove)
 };
 
+
+
+/*****************************************************/
+/*                      MODULE                       */
+/*****************************************************/
+
+module_param(mode, charp, 0);
+MODULE_PARM_DESC(mode,
+	"\nSelects the desired default display mode in the format XxYxDepth,\n"
+	"eg. 1024x768x16.\n");
+
+module_param(forcecrt2type, charp, 0);
+MODULE_PARM_DESC(forcecrt2type,
+	"\nForce the second display output type. Possible values are NONE,\n"
+	"LCD, TV, VGA, SVIDEO or COMPOSITE.\n");
+
+module_param(vesa, int, 0);
+MODULE_PARM_DESC(vesa,
+	"\nSelects the desired default display mode by VESA mode number, eg.\n"
+	"0x117.\n");
+
+module_param(filter, int, 0);
+MODULE_PARM_DESC(filter,
+	"\nSelects TV flicker filter type (only for systems with a SiS301 video bridge).\n"
+	"(Possible values 0-7, default: [no filter])\n");
+
 static int __init xgifb_init(void)
 {
 	char *option = NULL;
@@ -2319,41 +2345,14 @@ static int __init xgifb_init(void)
 	return pci_register_driver(&xgifb_driver);
 }
 
-module_init(xgifb_init);
-
-/*****************************************************/
-/*                      MODULE                       */
-/*****************************************************/
-
-MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("XGITECH , Others");
-
-module_param(mode, charp, 0);
-module_param(vesa, int, 0);
-module_param(filter, int, 0);
-module_param(forcecrt2type, charp, 0);
-
-MODULE_PARM_DESC(forcecrt2type,
-	"\nForce the second display output type. Possible values are NONE,\n"
-	"LCD, TV, VGA, SVIDEO or COMPOSITE.\n");
-
-MODULE_PARM_DESC(mode,
-	"\nSelects the desired default display mode in the format XxYxDepth,\n"
-	"eg. 1024x768x16.\n");
-
-MODULE_PARM_DESC(vesa,
-	"\nSelects the desired default display mode by VESA mode number, eg.\n"
-	"0x117.\n");
-
-MODULE_PARM_DESC(filter,
-		"\nSelects TV flicker filter type (only for systems with a SiS301 video bridge).\n"
-		"(Possible values 0-7, default: [no filter])\n");
-
 static void __exit xgifb_remove_module(void)
 {
 	pci_unregister_driver(&xgifb_driver);
 	pr_debug("Module unloaded\n");
 }
 
+MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("XGITECH , Others");
+module_init(xgifb_init);
 module_exit(xgifb_remove_module);
