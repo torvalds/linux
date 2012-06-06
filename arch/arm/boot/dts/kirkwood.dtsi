@@ -60,6 +60,16 @@
 			interrupts = <53>;
 		};
 
+		spi@10600 {
+			compatible = "marvell,orion-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <23>;
+			reg = <0x10600 0x28>;
+			status = "disabled";
+		};
+
 		nand@3000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
