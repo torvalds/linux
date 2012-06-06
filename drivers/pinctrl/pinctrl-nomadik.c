@@ -1246,6 +1246,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 		ret = PTR_ERR(clk);
 		goto out_unmap;
 	}
+	clk_prepare(clk);
 
 	nmk_chip = kzalloc(sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
