@@ -1075,17 +1075,8 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 	list_add_tail(&req->list, &dep->request_list);
 
-	if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-		if (dep->flags & DWC3_EP_BUSY) {
-			dep->flags |= DWC3_EP_PENDING_REQUEST;
-		} else if (dep->flags & DWC3_EP_MISSED_ISOC) {
-			__dwc3_gadget_start_isoc(dwc, dep, dep->current_uf);
-			dep->flags &= ~DWC3_EP_MISSED_ISOC;
-		}
-	}
-
 	/*
-	 * There are two special cases:
+	 * There are a few special cases:
 	 *
 	 * 1. XferNotReady with empty list of requests. We need to kick the
 	 *    transfer here in that situation, otherwise we will be NAKing
@@ -1094,30 +1085,45 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	 *    able to receive the data until the next request is queued.
 	 *    The following code is handling exactly that.
 	 *
-	 * 2. XferInProgress on Isoc EP with an active transfer. We need to
-	 *    kick the transfer here after queuing a request, otherwise the
-	 *    core may not see the modified TRB(s).
 	 */
 	if (dep->flags & DWC3_EP_PENDING_REQUEST) {
 		int	ret;
-		int	start_trans = 1;
-		u8	trans_idx = dep->res_trans_idx;
 
-		if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
-				(dep->flags & DWC3_EP_BUSY)) {
-			start_trans = 0;
-			WARN_ON_ONCE(!trans_idx);
-		} else {
-			trans_idx = 0;
-		}
-
-		ret = __dwc3_gadget_kick_transfer(dep, trans_idx, start_trans);
+		ret = __dwc3_gadget_kick_transfer(dep, 0, true);
 		if (ret && ret != -EBUSY) {
 			struct dwc3	*dwc = dep->dwc;
 
 			dev_dbg(dwc->dev, "%s: failed to kick transfers\n",
 					dep->name);
 		}
+	}
+
+	/*
+	 * 2. XferInProgress on Isoc EP with an active transfer. We need to
+	 *    kick the transfer here after queuing a request, otherwise the
+	 *    core may not see the modified TRB(s).
+	 */
+	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
+			(dep->flags & DWC3_EP_BUSY)) {
+		WARN_ON_ONCE(!dep->res_trans_idx);
+		ret = __dwc3_gadget_kick_transfer(dep, dep->res_trans_idx,
+				false);
+		if (ret && ret != -EBUSY) {
+			struct dwc3	*dwc = dep->dwc;
+
+			dev_dbg(dwc->dev, "%s: failed to kick transfers\n",
+					dep->name);
+		}
+	}
+
+	/*
+	 * 3. Missed ISOC Handling. We need to start isoc transfer on the saved
+	 * uframe number.
+	 */
+	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
+		(dep->flags & DWC3_EP_MISSED_ISOC)) {
+			__dwc3_gadget_start_isoc(dwc, dep, dep->current_uf);
+			dep->flags &= ~DWC3_EP_MISSED_ISOC;
 	}
 
 	return 0;
