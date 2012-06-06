@@ -100,6 +100,7 @@ struct affs_sb_info {
 	char *s_prefix;			/* Prefix for volumes and assigns. */
 	char s_volume[32];		/* Volume prefix for absolute symlinks. */
 	spinlock_t symlink_lock;	/* protects the previous two */
+	struct super_block *sb;		/* the VFS superblock object */
 };
 
 #define SF_INTL		0x0001		/* International filesystem. */
