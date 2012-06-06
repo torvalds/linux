@@ -1927,7 +1927,6 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 	reg &= ~DWC3_DCTL_INITU2ENA;
 	dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 
-	dwc3_stop_active_transfers(dwc);
 	dwc3_disconnect_gadget(dwc);
 	dwc->start_config_issued = false;
 
