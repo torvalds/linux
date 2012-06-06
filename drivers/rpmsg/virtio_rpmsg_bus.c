@@ -188,6 +188,26 @@ static int rpmsg_uevent(struct device *dev, struct kobj_uevent_env *env)
 					rpdev->id.name);
 }
 
+/**
+ * __ept_release() - deallocate an rpmsg endpoint
+ * @kref: the ept's reference count
+ *
+ * This function deallocates an ept, and is invoked when its @kref refcount
+ * drops to zero.
+ *
+ * Never invoke this function directly!
+ */
+static void __ept_release(struct kref *kref)
+{
+	struct rpmsg_endpoint *ept = container_of(kref, struct rpmsg_endpoint,
+						  refcount);
+	/*
+	 * At this point no one holds a reference to ept anymore,
+	 * so we can directly free it
+	 */
+	kfree(ept);
+}
+
 /* for more info, see below documentation of rpmsg_create_ept() */
 static struct rpmsg_endpoint *__rpmsg_create_ept(struct virtproc_info *vrp,
 		struct rpmsg_channel *rpdev, rpmsg_rx_cb_t cb,
@@ -205,6 +225,8 @@ static struct rpmsg_endpoint *__rpmsg_create_ept(struct virtproc_info *vrp,
 		dev_err(dev, "failed to kzalloc a new ept\n");
 		return NULL;
 	}
+
+	kref_init(&ept->refcount);
 
 	ept->rpdev = rpdev;
 	ept->cb = cb;
@@ -238,7 +260,7 @@ rem_idr:
 	idr_remove(&vrp->endpoints, request);
 free_ept:
 	mutex_unlock(&vrp->endpoints_lock);
-	kfree(ept);
+	kref_put(&ept->refcount, __ept_release);
 	return NULL;
 }
 
@@ -306,7 +328,7 @@ __rpmsg_destroy_ept(struct virtproc_info *vrp, struct rpmsg_endpoint *ept)
 	idr_remove(&vrp->endpoints, ept->addr);
 	mutex_unlock(&vrp->endpoints_lock);
 
-	kfree(ept);
+	kref_put(&ept->refcount, __ept_release);
 }
 
 /**
@@ -790,13 +812,23 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 
 	/* use the dst addr to fetch the callback of the appropriate user */
 	mutex_lock(&vrp->endpoints_lock);
+
 	ept = idr_find(&vrp->endpoints, msg->dst);
+
+	/* let's make sure no one deallocates ept while we use it */
+	if (ept)
+		kref_get(&ept->refcount);
+
 	mutex_unlock(&vrp->endpoints_lock);
 
 	if (ept && ept->cb)
 		ept->cb(ept->rpdev, msg->data, msg->len, ept->priv, msg->src);
 	else
 		dev_warn(dev, "msg received with no recepient\n");
+
+	/* farewell, ept, we don't need you anymore */
+	if (ept)
+		kref_put(&ept->refcount, __ept_release);
 
 	/* publish the real size of the buffer */
 	sg_init_one(&sg, msg, RPMSG_BUF_SIZE);
