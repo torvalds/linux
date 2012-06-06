@@ -259,6 +259,13 @@
 				status = "disabled";
 			};
 
+			nand@83fdb000 {
+				compatible = "fsl,imx51-nand";
+				reg = <0x83fdb000 0x1000 0xcfff0000 0x10000>;
+				interrupts = <8>;
+				status = "disabled";
+			};
+
 			ssi3: ssi@83fe8000 {
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fe8000 0x4000>;
