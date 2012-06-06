@@ -996,6 +996,7 @@ CONFIG_PA_CONFIG=y
 #
 # CONFIG_DRM is not set
 # CONFIG_ION is not set
+CONFIG_MALI=m
 # CONFIG_VGASTATE is not set
 # CONFIG_VIDEO_OUTPUT_CONTROL is not set
 CONFIG_FB=y
