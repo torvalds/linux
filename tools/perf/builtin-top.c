@@ -787,7 +787,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		}
 
 		if (symbol_conf.use_callchain) {
-			err = callchain_append(he->callchain, &evsel->hists.callchain_cursor,
+			err = callchain_append(he->callchain, &callchain_cursor,
 					       sample->period);
 			if (err)
 				return;
