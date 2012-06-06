@@ -4366,9 +4366,14 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 
 	case IEEE80211_AMPDU_RX_STOP:
 		if (!(*ba_bitmap & BIT(tid))) {
-			ret = -EINVAL;
-			wl1271_error("no active RX BA session on tid: %d",
+			/*
+			 * this happens on reconfig - so only output a debug
+			 * message for now, and don't fail the function.
+			 */
+			wl1271_debug(DEBUG_MAC80211,
+				     "no active RX BA session on tid: %d",
 				     tid);
+			ret = 0;
 			break;
 		}
 
