@@ -2297,6 +2297,7 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	iounmap(xgifb_info->video_vbase);
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
+	pci_disable_device(pdev);
 	framebuffer_release(fb_info);
 	pci_set_drvdata(pdev, NULL);
 }
