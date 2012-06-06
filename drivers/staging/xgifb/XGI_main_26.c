@@ -2325,8 +2325,6 @@ module_init(xgifb_init);
 /*                      MODULE                       */
 /*****************************************************/
 
-#ifdef MODULE
-
 MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("XGITECH , Others");
@@ -2359,5 +2357,3 @@ static void __exit xgifb_remove_module(void)
 }
 
 module_exit(xgifb_remove_module);
-
-#endif	/*  /MODULE  */
