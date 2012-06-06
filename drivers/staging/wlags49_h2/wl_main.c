@@ -3822,7 +3822,7 @@ static int write_int(struct file *file, const char *buffer, unsigned long count,
 		lp->timer_oor.data = (unsigned long)lp;
 		lp->timer_oor.expires = RUN_AT( 3 * HZ );
 		add_timer( &lp->timer_oor );
-		printk( "<5>wl_enable: %ld\n", jiffies );		//;?remove me 1 day
+		printk(KERN_NOTICE "wl_enable: %ld\n", jiffies );		//;?remove me 1 day
 #endif //DN554
 #ifdef DN554
 /*******************************************************************************
@@ -3852,7 +3852,7 @@ void timer_oor( u_long arg )
     DBG_ENTER( DbgInfo );
     DBG_PARAM( DbgInfo, "arg", "0x%08lx", arg );
 
-	printk( "<5>timer_oor: %ld 0x%04X\n", jiffies, lp->timer_oor_cnt );		//;?remove me 1 day
+	printk(KERN_NOTICE "timer_oor: %ld 0x%04X\n", jiffies, lp->timer_oor_cnt );		//;?remove me 1 day
 	lp->timer_oor_cnt += 10;
     if ( (lp->timer_oor_cnt & ~DS_OOR) > 300 ) {
 		lp->timer_oor_cnt = 300;
