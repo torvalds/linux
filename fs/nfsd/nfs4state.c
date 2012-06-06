@@ -3763,12 +3763,19 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfsd4_close_open_stateid(stp);
 	oo->oo_last_closed_stid = stp;
 
-	/* place unused nfs4_stateowners on so_close_lru list to be
-	 * released by the laundromat service after the lease period
-	 * to enable us to handle CLOSE replay
-	 */
-	if (list_empty(&oo->oo_owner.so_stateids))
-		move_to_close_lru(oo);
+	if (list_empty(&oo->oo_owner.so_stateids)) {
+		if (cstate->minorversion) {
+			release_openowner(oo);
+			cstate->replay_owner = NULL;
+		} else {
+			/*
+			 * In the 4.0 case we need to keep the owners around a
+			 * little while to handle CLOSE replay.
+			 */
+			if (list_empty(&oo->oo_owner.so_stateids))
+				move_to_close_lru(oo);
+		}
+	}
 out:
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
