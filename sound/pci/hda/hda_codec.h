@@ -323,6 +323,9 @@ enum {
 #define AC_PWRST_D1			0x01
 #define AC_PWRST_D2			0x02
 #define AC_PWRST_D3			0x03
+#define AC_PWRST_ERROR                  (1<<8)
+#define AC_PWRST_CLK_STOP_OK            (1<<9)
+#define AC_PWRST_SETTING_RESET          (1<<10)
 
 /* Processing capabilies */
 #define AC_PCAP_BENIGN			(1<<0)
