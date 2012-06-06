@@ -3,6 +3,7 @@
 #include <linux/buffer_head.h>
 #include <linux/amigaffs.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 /* AmigaOS allows file names with up to 30 characters length.
  * Names longer than that will be silently truncated. If you
@@ -101,6 +102,9 @@ struct affs_sb_info {
 	char s_volume[32];		/* Volume prefix for absolute symlinks. */
 	spinlock_t symlink_lock;	/* protects the previous two */
 	struct super_block *sb;		/* the VFS superblock object */
+	int work_queued;		/* non-zero delayed work is queued */
+	struct delayed_work sb_work;	/* superblock flush delayed work */
+	spinlock_t work_lock;		/* protects sb_work and work_queued */
 };
 
 #define SF_INTL		0x0001		/* International filesystem. */
@@ -120,6 +124,8 @@ static inline struct affs_sb_info *AFFS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
+
+void affs_mark_sb_dirty(struct super_block *sb);
 
 /* amigaffs.c */
 
