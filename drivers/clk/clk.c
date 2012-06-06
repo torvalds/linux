@@ -997,7 +997,7 @@ static struct clk *__clk_init_parent(struct clk *clk)
 
 	if (!clk->parents)
 		clk->parents =
-			kmalloc((sizeof(struct clk*) * clk->num_parents),
+			kzalloc((sizeof(struct clk*) * clk->num_parents),
 					GFP_KERNEL);
 
 	if (!clk->parents)
@@ -1063,9 +1063,13 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent)
 	old_parent = clk->parent;
 
 	/* find index of new parent clock using cached parent ptrs */
-	for (i = 0; i < clk->num_parents; i++)
-		if (clk->parents[i] == parent)
-			break;
+	if (clk->parents)
+		for (i = 0; i < clk->num_parents; i++)
+			if (clk->parents[i] == parent)
+				break;
+	else
+		clk->parents = kzalloc((sizeof(struct clk*) * clk->num_parents),
+								GFP_KERNEL);
 
 	/*
 	 * find index of new parent clock using string name comparison
@@ -1074,7 +1078,8 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent)
 	if (i == clk->num_parents)
 		for (i = 0; i < clk->num_parents; i++)
 			if (!strcmp(clk->parent_names[i], parent->name)) {
-				clk->parents[i] = __clk_lookup(parent->name);
+				if (clk->parents)
+					clk->parents[i] = __clk_lookup(parent->name);
 				break;
 			}
 
