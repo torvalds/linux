@@ -1485,24 +1485,27 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	}
 
 	host->nr_slots = pdata->nr_slots;
+
+	host->mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
+	if (!host->mmc_omap_wq)
+		goto err_plat_cleanup;
+
 	for (i = 0; i < pdata->nr_slots; i++) {
 		ret = mmc_omap_new_slot(host, i);
 		if (ret < 0) {
 			while (--i >= 0)
 				mmc_omap_remove_slot(host->slots[i]);
 
-			goto err_plat_cleanup;
+			goto err_destroy_wq;
 		}
 	}
 
 	host->reg_shift = (cpu_is_omap7xx() ? 1 : 2);
 
-	host->mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
-	if (!host->mmc_omap_wq)
-		goto err_plat_cleanup;
-
 	return 0;
 
+err_destroy_wq:
+	destroy_workqueue(host->mmc_omap_wq);
 err_plat_cleanup:
 	if (pdata->cleanup)
 		pdata->cleanup(&pdev->dev);
