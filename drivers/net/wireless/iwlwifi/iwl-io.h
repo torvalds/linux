@@ -79,7 +79,7 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 reg, u32 mask);
 void _iwl_read_targ_mem_words(struct iwl_trans *trans, u32 addr,
 			      void *buf, int words);
 
-#define iwl_read_targ_mem_words(trans, addr, buf, bufsize)	\
+#define iwl_read_targ_mem_bytes(trans, addr, buf, bufsize)	\
 	do {							\
 		BUILD_BUG_ON((bufsize) % sizeof(u32));		\
 		_iwl_read_targ_mem_words(trans, addr, buf,	\
