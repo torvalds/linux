@@ -77,9 +77,10 @@ static void do_gpio_reset(void)
 static void do_hw_reset(void)
 {
 	/* Initialize the watchdog and let it fire */
-	OWER = OWER_WME;
-	OSSR = OSSR_M3;
-	OSMR3 = OSCR + 368640;	/* ... in 100 ms */
+	writel_relaxed(OWER_WME, OWER);
+	writel_relaxed(OSSR_M3, OSSR);
+	/* ... in 100 ms */
+	writel_relaxed(readl_relaxed(OSCR) + 368640, OSMR3);
 }
 
 void pxa_restart(char mode, const char *cmd)
