@@ -145,17 +145,6 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 		d->state |= DVB_USB_STATE_DVB;
 	}
 
-	/*
-	 * when reloading the driver w/o replugging the device
-	 * sometimes a timeout occures, this helps
-	 */
-	if (d->props.generic_bulk_ctrl_endpoint != 0) {
-		usb_clear_halt(d->udev, usb_sndbulkpipe(d->udev,
-			d->props.generic_bulk_ctrl_endpoint));
-		usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev,
-			d->props.generic_bulk_ctrl_endpoint));
-	}
-
 	return 0;
 err:
 	pr_debug("%s: failed=%d\n", __func__, ret);
@@ -176,7 +165,6 @@ static int dvb_usb_adapter_exit(struct dvb_usb_device *d)
 	d->state &= ~DVB_USB_STATE_DVB;
 	return 0;
 }
-
 
 /* general initialization functions */
 static int dvb_usb_exit(struct dvb_usb_device *d)
