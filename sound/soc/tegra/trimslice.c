@@ -52,7 +52,6 @@ static int trimslice_asoc_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = codec->card;
 	struct tegra_trimslice *trimslice = snd_soc_card_get_drvdata(card);
@@ -65,24 +64,6 @@ static int trimslice_asoc_hw_params(struct snd_pcm_substream *substream,
 	err = tegra_asoc_utils_set_rate(&trimslice->util_data, srate, mclk);
 	if (err < 0) {
 		dev_err(card->dev, "Can't configure clocks\n");
-		return err;
-	}
-
-	err = snd_soc_dai_set_fmt(codec_dai,
-					SND_SOC_DAIFMT_I2S |
-					SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBS_CFS);
-	if (err < 0) {
-		dev_err(card->dev, "codec_dai fmt not set\n");
-		return err;
-	}
-
-	err = snd_soc_dai_set_fmt(cpu_dai,
-					SND_SOC_DAIFMT_I2S |
-					SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBS_CFS);
-	if (err < 0) {
-		dev_err(card->dev, "cpu_dai fmt not set\n");
 		return err;
 	}
 
@@ -121,6 +102,9 @@ static struct snd_soc_dai_link trimslice_tlv320aic23_dai = {
 	.cpu_dai_name = "tegra20-i2s.0",
 	.codec_dai_name = "tlv320aic23-hifi",
 	.ops = &trimslice_asoc_ops,
+	.dai_fmt = SND_SOC_DAIFMT_I2S |
+		   SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBS_CFS,
 };
 
 static struct snd_soc_card snd_soc_trimslice = {
