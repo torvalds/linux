@@ -129,6 +129,9 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		kvmppc_set_tcr(vcpu, spr_val);
 		break;
 
+	case SPRN_DECAR:
+		vcpu->arch.decar = spr_val;
+		break;
 	/*
 	 * Note: SPRG4-7 are user-readable.
 	 * These values are loaded into the real SPRGs when resuming the

@@ -25,10 +25,19 @@ source "arch/powerpc/platforms/wsp/Kconfig"
 config KVM_GUEST
 	bool "KVM Guest support"
 	default n
+	select EPAPR_PARAVIRT
 	---help---
 	  This option enables various optimizations for running under the KVM
 	  hypervisor. Overhead for the kernel when not running inside KVM should
 	  be minimal.
+
+	  In case of doubt, say Y
+
+config EPAPR_PARAVIRT
+	bool "ePAPR para-virtualization support"
+	default n
+	help
+	  Enables ePAPR para-virtualization support for guests.
 
 	  In case of doubt, say Y
 

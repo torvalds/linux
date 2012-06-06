@@ -153,6 +153,8 @@
 #define EV_HCALL_CLOBBERS2 EV_HCALL_CLOBBERS3, "r5"
 #define EV_HCALL_CLOBBERS1 EV_HCALL_CLOBBERS2, "r4"
 
+extern bool epapr_paravirt_enabled;
+extern u32 epapr_hypercall_start[];
 
 /*
  * We use "uintptr_t" to define a register because it's guaranteed to be a
