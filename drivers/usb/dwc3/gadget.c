@@ -1010,9 +1010,9 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 	dep->flags |= DWC3_EP_BUSY;
 
 	if (start_new) {
-		dep->res_trans_idx = dwc3_gadget_ep_get_transfer_index(dwc,
+		dep->resource_index = dwc3_gadget_ep_get_transfer_index(dwc,
 				dep->number);
-		WARN_ON_ONCE(!dep->res_trans_idx);
+		WARN_ON_ONCE(!dep->resource_index);
 	}
 
 	return 0;
@@ -1105,8 +1105,8 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	 */
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
 			(dep->flags & DWC3_EP_BUSY)) {
-		WARN_ON_ONCE(!dep->res_trans_idx);
-		ret = __dwc3_gadget_kick_transfer(dep, dep->res_trans_idx,
+		WARN_ON_ONCE(!dep->resource_index);
+		ret = __dwc3_gadget_kick_transfer(dep, dep->resource_index,
 				false);
 		if (ret && ret != -EBUSY) {
 			struct dwc3	*dwc = dep->dwc;
@@ -1790,7 +1790,7 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERCOMPLETE:
-		dep->res_trans_idx = 0;
+		dep->resource_index = 0;
 
 		if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 			dev_dbg(dwc->dev, "%s is an Isochronous endpoint\n",
@@ -1876,16 +1876,16 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum)
 
 	dep = dwc->eps[epnum];
 
-	if (!dep->res_trans_idx)
+	if (!dep->resource_index)
 		return;
 
 	cmd = DWC3_DEPCMD_ENDTRANSFER;
 	cmd |= DWC3_DEPCMD_HIPRI_FORCERM | DWC3_DEPCMD_CMDIOC;
-	cmd |= DWC3_DEPCMD_PARAM(dep->res_trans_idx);
+	cmd |= DWC3_DEPCMD_PARAM(dep->resource_index);
 	memset(&params, 0, sizeof(params));
 	ret = dwc3_send_gadget_ep_cmd(dwc, dep->number, cmd, &params);
 	WARN_ON_ONCE(ret);
-	dep->res_trans_idx = 0;
+	dep->resource_index = 0;
 }
 
 static void dwc3_stop_active_transfers(struct dwc3 *dwc)

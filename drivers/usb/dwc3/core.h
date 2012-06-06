@@ -404,7 +404,7 @@ struct dwc3_event_buffer {
  * @current_trb: index of current used trb
  * @number: endpoint number (1 - 15)
  * @type: set to bmAttributes & USB_ENDPOINT_XFERTYPE_MASK
- * @res_trans_idx: Resource transfer index
+ * @resource_index: Resource transfer index
  * @current_uf: Current uf received through last event parameter
  * @interval: the intervall on which the ISOC transfer is started
  * @name: a human readable name e.g. ep1out-bulk
@@ -438,7 +438,7 @@ struct dwc3_ep {
 
 	u8			number;
 	u8			type;
-	u8			res_trans_idx;
+	u8			resource_index;
 	u16			current_uf;
 	u32			interval;
 

@@ -113,7 +113,7 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 	}
 
 	dep->flags |= DWC3_EP_BUSY;
-	dep->res_trans_idx = dwc3_gadget_ep_get_transfer_index(dwc,
+	dep->resource_index = dwc3_gadget_ep_get_transfer_index(dwc,
 			dep->number);
 
 	dwc->ep0_next_event = DWC3_EP0_COMPLETE;
@@ -757,7 +757,7 @@ static void dwc3_ep0_xfer_complete(struct dwc3 *dwc,
 	struct dwc3_ep		*dep = dwc->eps[event->endpoint_number];
 
 	dep->flags &= ~DWC3_EP_BUSY;
-	dep->res_trans_idx = 0;
+	dep->resource_index = 0;
 	dwc->setup_packet_pending = false;
 
 	switch (dwc->ep0state) {
