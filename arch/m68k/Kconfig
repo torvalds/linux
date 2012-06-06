@@ -62,9 +62,6 @@ config CPU_HAS_NO_MULDIV64
 config CPU_HAS_ADDRESS_SPACES
 	bool
 
-config FPU
-	bool
-
 config HZ
 	int
 	default 1000 if CLEOPATRA
