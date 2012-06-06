@@ -187,6 +187,7 @@ static void rk30_i2c_init_hw(struct rk30_i2c *i2c, unsigned long scl_rate)
 {
         i2c->scl_rate = 0;
         rk30_i2c_set_clk(i2c, scl_rate);
+        clk_disable(i2c->clk);
 	return;
 }
 /* returns TRUE if we this is the last byte in the current message */
@@ -486,7 +487,8 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
                 dev_err(i2c->dev, "addr[0x%02x] wait event timeout, state: %d, is_busy: %d, error: %d, complete_what: 0x%x\n", 
                                 msgs[0].addr, i2c->state, i2c->is_busy, i2c->error, i2c->complete_what);  
                 i2c->state = STATE_IDLE;
-                if(i2c->error < 0) i2c->error = -ETIMEDOUT;
+                if((i2c->error < 0) || (i2c->is_busy != 0) || !(i2c->complete_what & (1 << STATE_STOP))) 
+                        i2c->error = -ETIMEDOUT;
                 rk30_i2c_send_stop(i2c);
 
         }
@@ -511,6 +513,8 @@ static int rk30_i2c_xfer(struct i2c_adapter *adap,
 	int ret = 0;
         unsigned long scl_rate;
 	struct rk30_i2c *i2c = (struct rk30_i2c *)adap->algo_data;
+
+        clk_enable(i2c->clk);
 
         if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate >= 10000)
 		scl_rate = msgs[0].scl_rate;
@@ -538,6 +542,8 @@ static int rk30_i2c_xfer(struct i2c_adapter *adap,
 		wake_unlock(&i2c->idlelock[i2c->adap.nr]);
                 mutex_unlock(&i2c->m_lock);
         }
+
+        clk_disable(i2c->clk);
 	return (ret < 0)?ret:num;
 }
 
