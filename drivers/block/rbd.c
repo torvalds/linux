@@ -497,7 +497,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 
 	snap_count = le32_to_cpu(ondisk->snap_count);
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
-				snap_count * sizeof (*ondisk),
+				snap_count * sizeof(u64),
 				gfp_flags);
 	if (!header->snapc)
 		return -ENOMEM;
