@@ -172,3 +172,62 @@ Description:
 
 		Reading from this file will display the current value, which is
 		set to 1 MB by default.
+
+What:		/sys/power/autosleep
+Date:		April 2012
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/autosleep file can be written one of the strings
+		returned by reads from /sys/power/state.  If that happens, a
+		work item attempting to trigger a transition of the system to
+		the sleep state represented by that string is queued up.  This
+		attempt will only succeed if there are no active wakeup sources
+		in the system at that time.  After every execution, regardless
+		of whether or not the attempt to put the system to sleep has
+		succeeded, the work item requeues itself until user space
+		writes "off" to /sys/power/autosleep.
+
+		Reading from this file causes the last string successfully
+		written to it to be returned.
+
+What:		/sys/power/wake_lock
+Date:		February 2012
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/wake_lock file allows user space to create
+		wakeup source objects and activate them on demand (if one of
+		those wakeup sources is active, reads from the
+		/sys/power/wakeup_count file block or return false).  When a
+		string without white space is written to /sys/power/wake_lock,
+		it will be assumed to represent a wakeup source name.  If there
+		is a wakeup source object with that name, it will be activated
+		(unless active already).  Otherwise, a new wakeup source object
+		will be registered, assigned the given name and activated.
+		If a string written to /sys/power/wake_lock contains white
+		space, the part of the string preceding the white space will be
+		regarded as a wakeup source name and handled as descrived above.
+		The other part of the string will be regarded as a timeout (in
+		nanoseconds) such that the wakeup source will be automatically
+		deactivated after it has expired.  The timeout, if present, is
+		set regardless of the current state of the wakeup source object
+		in question.
+
+		Reads from this file return a string consisting of the names of
+		wakeup sources created with the help of it that are active at
+		the moment, separated with spaces.
+
+
+What:		/sys/power/wake_unlock
+Date:		February 2012
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/wake_unlock file allows user space to deactivate
+		wakeup sources created with the help of /sys/power/wake_lock.
+		When a string is written to /sys/power/wake_unlock, it will be
+		assumed to represent the name of a wakeup source to deactivate.
+		If a wakeup source object of that name exists and is active at
+		the moment, it will be deactivated.
+
+		Reads from this file return a string consisting of the names of
+		wakeup sources created with the help of /sys/power/wake_lock
+		that are inactive at the moment, separated with spaces.

@@ -29,7 +29,7 @@ More details follow:
 
                                   Write 'mem' to
                                 /sys/power/state
-                                    syfs file
+                                    sysfs file
                                         |
                                         v
                                Acquire pm_mutex lock
