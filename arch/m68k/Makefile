@@ -41,6 +41,7 @@ cpuflags-$(CONFIG_M68030)	:=
 cpuflags-$(CONFIG_M68020)	:=
 cpuflags-$(CONFIG_M68360)	:= -m68332
 cpuflags-$(CONFIG_M68000)	:= -m68000
+cpuflags-$(CONFIG_M5441x)	:= $(call cc-option,-mcpu=54455,-mcfv4e)
 cpuflags-$(CONFIG_M54xx)	:= $(call cc-option,-mcpu=5475,-m5200)
 cpuflags-$(CONFIG_M5407)	:= $(call cc-option,-mcpu=5407,-m5200)
 cpuflags-$(CONFIG_M532x)	:= $(call cc-option,-mcpu=532x,-m5307)

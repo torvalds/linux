@@ -64,8 +64,14 @@ static inline void gpio_set_value(unsigned gpio, int value)
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	return (gpio < MCFGPIO_IRQ_MAX) ? gpio + MCFGPIO_IRQ_VECBASE
-		: __gpio_to_irq(gpio);
+#if defined(MCFGPIO_IRQ_MIN)
+	if ((gpio >= MCFGPIO_IRQ_MIN) && (gpio < MCFGPIO_IRQ_MAX))
+#else
+	if (gpio < MCFGPIO_IRQ_MAX)
+#endif
+		return gpio + MCFGPIO_IRQ_VECBASE;
+	else
+		return __gpio_to_irq(gpio);
 }
 
 static inline int irq_to_gpio(unsigned irq)

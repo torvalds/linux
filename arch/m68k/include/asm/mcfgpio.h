@@ -104,7 +104,8 @@ static inline void gpio_free(unsigned gpio)
 #if defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
     defined(CONFIG_M520x) || defined(CONFIG_M523x) || \
     defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M532x) || defined(CONFIG_M54xx)
+    defined(CONFIG_M532x) || defined(CONFIG_M54xx) || \
+    defined(CONFIG_M5441x)
 
 /* These parts have GPIO organized by 8 bit ports */
 
@@ -137,7 +138,8 @@ static inline void gpio_free(unsigned gpio)
 #define mcfgpio_port(gpio)		((gpio) / MCFGPIO_PORTSIZE)
 
 #if defined(CONFIG_M520x) || defined(CONFIG_M523x) || \
-    defined(CONFIG_M527x) || defined(CONFIG_M528x) || defined(CONFIG_M532x)
+    defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+    defined(CONFIG_M532x) || defined(CONFIG_M5441x)
 /*
  * These parts have an 'Edge' Port module (external interrupt/GPIO) which uses
  * read-modify-write to change an output and a GPIO module which has separate
@@ -149,6 +151,9 @@ static inline void gpio_free(unsigned gpio)
  * read-modify-write as well as those controlled by the EPORT and GPIO modules.
  */
 #define MCFGPIO_SCR_START		40
+#elif defined(CONFIGM5441x)
+/* The m5441x EPORT doesn't have its own GPIO port, uses PORT C */
+#define MCFGPIO_SCR_START		0
 #else
 #define MCFGPIO_SCR_START		8
 #endif
@@ -189,7 +194,9 @@ static inline u32 __mcfgpio_ppdr(unsigned gpio)
 	else
 		return MCFSIM2_GPIO1READ;
 #elif defined(CONFIG_M520x) || defined(CONFIG_M523x) || \
-      defined(CONFIG_M527x) || defined(CONFIG_M528x) || defined(CONFIG_M532x)
+      defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+      defined(CONFIG_M532x) || defined(CONFIG_M5441x)
+#if !defined(CONFIG_M5441x)
 	if (gpio < 8)
 		return MCFEPORT_EPPDR;
 #if defined(CONFIG_M528x)
@@ -201,8 +208,9 @@ static inline u32 __mcfgpio_ppdr(unsigned gpio)
 		return MCFQADC_PORTQA;
 	else if (gpio < 40)
 		return MCFQADC_PORTQB;
-#endif
+#endif /* defined(CONFIG_M528x) */
 	else
+#endif /* !defined(CONFIG_M5441x) */
 		return MCFGPIO_PPDR + mcfgpio_port(gpio - MCFGPIO_SCR_START);
 #else
 	return 0;
@@ -228,7 +236,9 @@ static inline u32 __mcfgpio_podr(unsigned gpio)
 	else
 		return MCFSIM2_GPIO1WRITE;
 #elif defined(CONFIG_M520x) || defined(CONFIG_M523x) || \
-      defined(CONFIG_M527x) || defined(CONFIG_M528x) || defined(CONFIG_M532x)
+      defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+      defined(CONFIG_M532x) || defined(CONFIG_M5441x)
+#if !defined(CONFIG_M5441x)
 	if (gpio < 8)
 		return MCFEPORT_EPDR;
 #if defined(CONFIG_M528x)
@@ -240,8 +250,9 @@ static inline u32 __mcfgpio_podr(unsigned gpio)
 		return MCFQADC_PORTQA;
 	else if (gpio < 40)
 		return MCFQADC_PORTQB;
-#endif
+#endif /* defined(CONFIG_M528x) */
 	else
+#endif /* !defined(CONFIG_M5441x) */
 		return MCFGPIO_PODR + mcfgpio_port(gpio - MCFGPIO_SCR_START);
 #else
 	return 0;
@@ -267,7 +278,9 @@ static inline u32 __mcfgpio_pddr(unsigned gpio)
 	else
 		return MCFSIM2_GPIO1ENABLE;
 #elif defined(CONFIG_M520x) || defined(CONFIG_M523x) || \
-      defined(CONFIG_M527x) || defined(CONFIG_M528x) || defined(CONFIG_M532x)
+      defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+      defined(CONFIG_M532x) || defined(CONFIG_M5441x)
+#if !defined(CONFIG_M5441x)
 	if (gpio < 8)
 		return MCFEPORT_EPDDR;
 #if defined(CONFIG_M528x)
@@ -279,8 +292,9 @@ static inline u32 __mcfgpio_pddr(unsigned gpio)
 		return MCFQADC_DDRQA;
 	else if (gpio < 40)
 		return MCFQADC_DDRQB;
-#endif
+#endif /* defined(CONFIG_M528x) */
 	else
+#endif /* !defined(CONFIG_M5441x) */
 		return MCFGPIO_PDDR + mcfgpio_port(gpio - MCFGPIO_SCR_START);
 #else
 	return 0;

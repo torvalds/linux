@@ -46,6 +46,8 @@
 #include <asm/mcfintc.h>
 #elif defined(CONFIG_M54xx)
 #include <asm/m54xxsim.h>
+#elif defined(CONFIG_M5441x)
+#include <asm/m5441xsim.h>
 #endif
 
 /****************************************************************************/

@@ -261,6 +261,14 @@ config M548x
 	help
 	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
 
+config M5441x
+	bool "MCF5441x"
+	depends on !MMU
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_CB
+	help
+	  Freescale Coldfire 54410/54415/54416/54417/54418 processor support.
+
 endif # COLDFIRE
 
 
