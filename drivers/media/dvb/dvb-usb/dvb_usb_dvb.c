@@ -324,32 +324,36 @@ err:
 
 int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 {
-	int ret, i;
+	int ret, i, count_registered = 0;
+
+	pr_debug("%s:\n", __func__);
 
 	memset(adap->fe, 0, sizeof(adap->fe));
 	adap->active_fe = -1;
 
-	if (adap->props.frontend_attach == NULL) {
-		err("strange: '%s' doesn't want to attach a frontend.",
-				adap->dev->name);
+	if (adap->props.frontend_attach) {
+		ret = adap->props.frontend_attach(adap);
+		if (ret < 0) {
+			pr_debug("%s: frontend_attach() failed=%d\n", __func__,
+					ret);
+			goto err_dvb_frontend_detach;
+		}
+	} else {
+		pr_debug("%s: frontend_attach() do not exists\n", __func__);
 		ret = 0;
 		goto err;
 	}
 
-	/* attach all given adapter frontends */
-	ret = adap->props.frontend_attach(adap);
-	if (ret < 0)
-		goto err;
-
-	if (adap->fe[0] == NULL) {
-		err("no frontend was attached by '%s'", adap->dev->name);
-		goto err;
+	if (adap->props.tuner_attach) {
+		ret = adap->props.tuner_attach(adap);
+		if (ret < 0) {
+			pr_debug("%s: tuner_attach() failed=%d\n", __func__,
+					ret);
+			goto err_dvb_frontend_detach;
+		}
 	}
 
-	for (i = 0; i < MAX_NO_OF_FE_PER_ADAP; i++) {
-		if (adap->fe[i] == NULL)
-			break;
-
+	for (i = 0; i < MAX_NO_OF_FE_PER_ADAP && adap->fe[i]; i++) {
 		adap->fe[i]->id = i;
 
 		/* re-assign sleep and wakeup functions */
@@ -360,28 +364,28 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 
 		ret = dvb_register_frontend(&adap->dvb_adap, adap->fe[i]);
 		if (ret < 0) {
-			err("Frontend %d registration failed.", i);
-			dvb_frontend_detach(adap->fe[i]);
-			adap->fe[i] = NULL;
-			/* In error case, do not try register more FEs,
-			 * still leaving already registered FEs alive. */
-			if (i == 0)
-				goto err;
-			else
-				break;
+			pr_err("%s: frontend%d registration failed\n",
+					KBUILD_MODNAME, i);
+			goto err_dvb_unregister_frontend;
 		}
 
-		adap->num_frontends_initialized++;
+		count_registered++;
 	}
 
-	/* attach all given adapter tuners */
-	if (adap->props.tuner_attach) {
-		ret = adap->props.tuner_attach(adap);
-		if (ret < 0)
-			err("tuner attach failed - will continue");
-	}
+	adap->num_frontends_initialized = count_registered;
 
 	return 0;
+
+err_dvb_unregister_frontend:
+	for (i = count_registered - 1; i >= 0; i--)
+		dvb_unregister_frontend(adap->fe[i]);
+
+err_dvb_frontend_detach:
+	for (i = MAX_NO_OF_FE_PER_ADAP - 1; i >= 0; i--) {
+		if (adap->fe[i])
+			dvb_frontend_detach(adap->fe[i]);
+	}
+
 err:
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -389,15 +393,17 @@ err:
 
 int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 {
-	int i = adap->num_frontends_initialized - 1;
+	int i;
 
-	/* unregister all given adapter frontends */
-	for (; i >= 0; i--) {
-		if (adap->fe[i] != NULL) {
+	pr_debug("%s:\n", __func__);
+
+	for (i = adap->num_frontends_initialized - 1; i >= 0; i--) {
+		if (adap->fe[i]) {
 			dvb_unregister_frontend(adap->fe[i]);
 			dvb_frontend_detach(adap->fe[i]);
 		}
 	}
+
 	adap->num_frontends_initialized = 0;
 
 	return 0;
