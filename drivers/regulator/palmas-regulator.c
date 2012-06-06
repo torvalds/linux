@@ -516,7 +516,15 @@ static int palmas_smps_init(struct palmas *palmas, int id,
 	if (ret)
 		return ret;
 
-	if (id != PALMAS_REG_SMPS10) {
+	switch (id) {
+	case PALMAS_REG_SMPS10:
+		if (reg_init->mode_sleep) {
+			reg &= ~PALMAS_SMPS10_CTRL_MODE_SLEEP_MASK;
+			reg |= reg_init->mode_sleep <<
+					PALMAS_SMPS10_CTRL_MODE_SLEEP_SHIFT;
+		}
+		break;
+	default:
 		if (reg_init->warm_reset)
 			reg |= PALMAS_SMPS12_CTRL_WR_S;
 
@@ -528,14 +536,8 @@ static int palmas_smps_init(struct palmas *palmas, int id,
 			reg |= reg_init->mode_sleep <<
 					PALMAS_SMPS12_CTRL_MODE_SLEEP_SHIFT;
 		}
-	} else {
-		if (reg_init->mode_sleep) {
-			reg &= ~PALMAS_SMPS10_CTRL_MODE_SLEEP_MASK;
-			reg |= reg_init->mode_sleep <<
-					PALMAS_SMPS10_CTRL_MODE_SLEEP_SHIFT;
-		}
-
 	}
+
 	ret = palmas_smps_write(palmas, addr, reg);
 	if (ret)
 		return ret;
@@ -659,10 +661,8 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 		pmic->desc[id].name = palmas_regs_info[id].name;
 		pmic->desc[id].id = id;
 
-		if (id != PALMAS_REG_SMPS10) {
-			pmic->desc[id].ops = &palmas_ops_smps;
-			pmic->desc[id].n_voltages = PALMAS_SMPS_NUM_VOLTAGES;
-		} else {
+		switch (id) {
+		case PALMAS_REG_SMPS10:
 			pmic->desc[id].n_voltages = PALMAS_SMPS10_NUM_VOLTAGES;
 			pmic->desc[id].ops = &palmas_ops_smps10;
 			pmic->desc[id].vsel_reg = PALMAS_SMPS10_CTRL;
@@ -671,6 +671,10 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 			pmic->desc[id].enable_mask = SMPS10_BOOST_EN;
 			pmic->desc[id].min_uV = 3750000;
 			pmic->desc[id].uV_step = 1250000;
+			break;
+		default:
+			pmic->desc[id].ops = &palmas_ops_smps;
+			pmic->desc[id].n_voltages = PALMAS_SMPS_NUM_VOLTAGES;
 		}
 
 		pmic->desc[id].type = REGULATOR_VOLTAGE;
