@@ -1344,8 +1344,8 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	int err = 0;
 
 	/* Allocate memory for MTD device structure and private data */
-	host = kzalloc(sizeof(struct mxc_nand_host) + NAND_MAX_PAGESIZE +
-			NAND_MAX_OOBSIZE, GFP_KERNEL);
+	host = devm_kzalloc(&pdev->dev, sizeof(struct mxc_nand_host) +
+			NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE, GFP_KERNEL);
 	if (!host)
 		return -ENOMEM;
 
@@ -1372,26 +1372,17 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	this->read_buf = mxc_nand_read_buf;
 	this->verify_buf = mxc_nand_verify_buf;
 
-	host->clk = clk_get(&pdev->dev, "nfc");
-	if (IS_ERR(host->clk)) {
-		err = PTR_ERR(host->clk);
-		goto eclk;
-	}
-
-	clk_prepare_enable(host->clk);
-	host->clk_act = 1;
+	host->clk = devm_clk_get(&pdev->dev, "nfc");
+	if (IS_ERR(host->clk))
+		return PTR_ERR(host->clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		err = -ENODEV;
-		goto eres;
-	}
+	if (!res)
+		return -ENODEV;
 
-	host->base = ioremap(res->start, resource_size(res));
-	if (!host->base) {
-		err = -ENOMEM;
-		goto eres;
-	}
+	host->base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!host->base)
+		return -ENOMEM;
 
 	host->main_area0 = host->base;
 
@@ -1399,7 +1390,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	if (err > 0)
 		err = mxcnd_probe_pdata(host);
 	if (err < 0)
-		goto eirq;
+		return err;
 
 	if (host->devtype_data->regs_offset)
 		host->regs = host->base + host->devtype_data->regs_offset;
@@ -1416,15 +1407,11 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 
 	if (host->devtype_data->needs_ip) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!res) {
-			err = -ENODEV;
-			goto eirq;
-		}
-		host->regs_ip = ioremap(res->start, resource_size(res));
-		if (!host->regs_ip) {
-			err = -ENOMEM;
-			goto eirq;
-		}
+		if (!res)
+			return -ENODEV;
+		host->regs_ip = devm_request_and_ioremap(&pdev->dev, res);
+		if (!host->regs_ip)
+			return -ENOMEM;
 	}
 
 	if (host->pdata.hw_ecc) {
@@ -1458,9 +1445,13 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	 */
 	host->devtype_data->irq_control(host, 0);
 
-	err = request_irq(host->irq, mxc_nfc_irq, IRQF_DISABLED, DRIVER_NAME, host);
+	err = devm_request_irq(&pdev->dev, host->irq, mxc_nfc_irq,
+			IRQF_DISABLED, DRIVER_NAME, host);
 	if (err)
-		goto eirq;
+		return err;
+
+	clk_prepare_enable(host->clk);
+	host->clk_act = 1;
 
 	/*
 	 * Now that we "own" the interrupt make sure the interrupt mask bit is
@@ -1512,15 +1503,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	return 0;
 
 escan:
-	free_irq(host->irq, host);
-eirq:
-	if (host->regs_ip)
-		iounmap(host->regs_ip);
-	iounmap(host->base);
-eres:
-	clk_put(host->clk);
-eclk:
-	kfree(host);
+	clk_disable_unprepare(host->clk);
 
 	return err;
 }
@@ -1529,16 +1512,9 @@ static int __devexit mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
 
-	clk_put(host->clk);
-
 	platform_set_drvdata(pdev, NULL);
 
 	nand_release(&host->mtd);
-	free_irq(host->irq, host);
-	if (host->regs_ip)
-		iounmap(host->regs_ip);
-	iounmap(host->base);
-	kfree(host);
 
 	return 0;
 }
