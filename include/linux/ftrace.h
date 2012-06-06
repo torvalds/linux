@@ -520,7 +520,7 @@ extern int skip_trace(unsigned long ip);
 
 extern void ftrace_disable_daemon(void);
 extern void ftrace_enable_daemon(void);
-#else
+#else /* CONFIG_DYNAMIC_FTRACE */
 static inline int skip_trace(unsigned long ip) { return 0; }
 static inline int ftrace_force_update(void) { return 0; }
 static inline void ftrace_disable_daemon(void) { }
@@ -535,6 +535,10 @@ static inline int unregister_ftrace_command(char *cmd_name)
 	return -EINVAL;
 }
 static inline int ftrace_text_reserved(void *start, void *end)
+{
+	return 0;
+}
+static inline unsigned long ftrace_location(unsigned long ip)
 {
 	return 0;
 }
