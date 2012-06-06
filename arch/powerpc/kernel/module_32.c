@@ -187,8 +187,8 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 
 static inline int entry_matches(struct ppc_plt_entry *entry, Elf32_Addr val)
 {
-	if (entry->jump[0] == 0x3d600000 + ((val + 0x8000) >> 16)
-	    && entry->jump[1] == 0x396b0000 + (val & 0xffff))
+	if (entry->jump[0] == 0x3d800000 + ((val + 0x8000) >> 16)
+	    && entry->jump[1] == 0x398c0000 + (val & 0xffff))
 		return 1;
 	return 0;
 }
@@ -215,10 +215,9 @@ static uint32_t do_plt_call(void *location,
 		entry++;
 	}
 
-	/* Stolen from Paul Mackerras as well... */
-	entry->jump[0] = 0x3d600000+((val+0x8000)>>16);	/* lis r11,sym@ha */
-	entry->jump[1] = 0x396b0000 + (val&0xffff);	/* addi r11,r11,sym@l*/
-	entry->jump[2] = 0x7d6903a6;			/* mtctr r11 */
+	entry->jump[0] = 0x3d800000+((val+0x8000)>>16); /* lis r12,sym@ha */
+	entry->jump[1] = 0x398c0000 + (val&0xffff);     /* addi r12,r12,sym@l*/
+	entry->jump[2] = 0x7d8903a6;                    /* mtctr r12 */
 	entry->jump[3] = 0x4e800420;			/* bctr */
 
 	DEBUGP("Initialized plt for 0x%x at %p\n", val, entry);
