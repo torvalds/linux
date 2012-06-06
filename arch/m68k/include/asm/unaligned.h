@@ -2,7 +2,7 @@
 #define _ASM_M68K_UNALIGNED_H
 
 
-#if defined(CONFIG_COLDFIRE) || defined(CONFIG_M68000)
+#ifdef CONFIG_CPU_HAS_NO_UNALIGNED
 #include <linux/unaligned/be_struct.h>
 #include <linux/unaligned/le_byteshift.h>
 #include <linux/unaligned/generic.h>
@@ -12,7 +12,7 @@
 
 #else
 /*
- * The m68k can do unaligned accesses itself. 
+ * The m68k can do unaligned accesses itself.
  */
 #include <linux/unaligned/access_ok.h>
 #include <linux/unaligned/generic.h>
