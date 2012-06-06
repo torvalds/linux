@@ -300,8 +300,32 @@ static int postconfig(struct comedi_device *dev)
 	return 0;
 }
 
-/* generic recognize function for drivers
- * that register their supported board names */
+/*
+ * Generic recognize function for drivers that register their supported
+ * board names.
+ *
+ * 'driv->board_name' points to a 'const char *' member within the
+ * zeroth element of an array of some private board information
+ * structure, say 'struct foo_board' containing a member 'const char
+ * *board_name' that is initialized to point to a board name string that
+ * is one of the candidates matched against this function's 'name'
+ * parameter.
+ *
+ * 'driv->offset' is the size of the private board information
+ * structure, say 'sizeof(struct foo_board)', and 'driv->num_names' is
+ * the length of the array of private board information structures.
+ *
+ * If one of the board names in the array of private board information
+ * structures matches the name supplied to this function, the function
+ * returns a pointer to the pointer to the board name, otherwise it
+ * returns NULL.  The return value ends up in the 'board_ptr' member of
+ * a 'struct comedi_device' that the low-level comedi driver's
+ * 'attach()' hook can convert to a point to a particular element of its
+ * array of private board information structures by subtracting the
+ * offset of the member that points to the board name.  (No subtraction
+ * is required if the board name pointer is the first member of the
+ * private board information structure, which is generally the case.)
+ */
 static void *comedi_recognize(struct comedi_driver *driv, const char *name)
 {
 	char **name_ptr = (char **)driv->board_name;
