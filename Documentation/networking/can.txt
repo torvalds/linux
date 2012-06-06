@@ -232,16 +232,16 @@ solution for a couple of reasons:
   arbitration problems and error frames caused by the different
   ECUs. The occurrence of detected errors are important for diagnosis
   and have to be logged together with the exact timestamp. For this
-  reason the CAN interface driver can generate so called Error Frames
-  that can optionally be passed to the user application in the same
-  way as other CAN frames. Whenever an error on the physical layer
+  reason the CAN interface driver can generate so called Error Message
+  Frames that can optionally be passed to the user application in the
+  same way as other CAN frames. Whenever an error on the physical layer
   or the MAC layer is detected (e.g. by the CAN controller) the driver
-  creates an appropriate error frame. Error frames can be requested by
-  the user application using the common CAN filter mechanisms. Inside
-  this filter definition the (interested) type of errors may be
-  selected. The reception of error frames is disabled by default.
-  The format of the CAN error frame is briefly described in the Linux
-  header file "include/linux/can/error.h".
+  creates an appropriate error message frame. Error messages frames can
+  be requested by the user application using the common CAN filter
+  mechanisms. Inside this filter definition the (interested) type of
+  errors may be selected. The reception of error messages is disabled
+  by default. The format of the CAN error message frame is briefly
+  described in the Linux header file "include/linux/can/error.h".
 
 4. How to use Socket CAN
 ------------------------
@@ -383,7 +383,7 @@ solution for a couple of reasons:
   defaults are set at RAW socket binding time:
 
   - The filters are set to exactly one filter receiving everything
-  - The socket only receives valid data frames (=> no error frames)
+  - The socket only receives valid data frames (=> no error message frames)
   - The loopback of sent CAN frames is enabled (see chapter 3.2)
   - The socket does not receive its own sent frames (in loopback mode)
 
@@ -434,7 +434,7 @@ solution for a couple of reasons:
   4.1.2 RAW socket option CAN_RAW_ERR_FILTER
 
   As described in chapter 3.4 the CAN interface driver can generate so
-  called Error Frames that can optionally be passed to the user
+  called Error Message Frames that can optionally be passed to the user
   application in the same way as other CAN frames. The possible
   errors are divided into different error classes that may be filtered
   using the appropriate error mask. To register for every possible
@@ -527,7 +527,7 @@ solution for a couple of reasons:
 
     rcvlist_all - list for unfiltered entries (no filter operations)
     rcvlist_eff - list for single extended frame (EFF) entries
-    rcvlist_err - list for error frames masks
+    rcvlist_err - list for error message frames masks
     rcvlist_fil - list for mask/value filters
     rcvlist_inv - list for mask/value filters (inverse semantic)
     rcvlist_sff - list for single standard frame (SFF) entries
@@ -784,13 +784,13 @@ solution for a couple of reasons:
     $ ip link set canX type can restart-ms 100
 
   Alternatively, the application may realize the "bus-off" condition
-  by monitoring CAN error frames and do a restart when appropriate with
-  the command:
+  by monitoring CAN error message frames and do a restart when
+  appropriate with the command:
 
     $ ip link set canX type can restart
 
-  Note that a restart will also create a CAN error frame (see also
-  chapter 3.4).
+  Note that a restart will also create a CAN error message frame (see
+  also chapter 3.4).
 
   6.6 Supported CAN hardware
 
