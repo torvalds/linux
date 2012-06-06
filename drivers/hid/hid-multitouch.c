@@ -953,7 +953,7 @@ static const struct hid_device_id mt_devices[] = {
 
 	/* Novatek Panel */
 	{ .driver_data = MT_CLS_DEFAULT,
-		HID_USB_DEVICE(USB_VENDOR_ID_NOVATEK,
+		MT_USB_DEVICE(USB_VENDOR_ID_NOVATEK,
 			USB_DEVICE_ID_NOVATEK_PCT) },
 
 	/* PenMount panels */
