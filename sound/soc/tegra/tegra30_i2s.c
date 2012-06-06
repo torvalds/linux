@@ -181,7 +181,7 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct device *dev = substream->pcm->card->dev;
+	struct device *dev = dai->dev;
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	u32 val;
 	int ret, sample_size, srate, i2sclock, bitcnt;
