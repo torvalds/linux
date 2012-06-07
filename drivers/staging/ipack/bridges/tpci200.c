@@ -705,15 +705,11 @@ static int tpci200_request_irq(struct ipack_device *dev, int vector,
 	struct tpci200_board *tpci200;
 
 	tpci200 = check_slot(dev);
-	if (tpci200 == NULL) {
-		res = -EINVAL;
-		goto out;
-	}
+	if (tpci200 == NULL)
+		return -EINVAL;
 
-	if (mutex_lock_interruptible(&tpci200->mutex)) {
-		res = -ERESTARTSYS;
-		goto out;
-	}
+	if (mutex_lock_interruptible(&tpci200->mutex))
+		return -ERESTARTSYS;
 
 	if (tpci200->slots[dev->slot].irq != NULL) {
 		dev_err(&dev->dev,
@@ -747,7 +743,6 @@ static int tpci200_request_irq(struct ipack_device *dev, int vector,
 
 out_unlock:
 	mutex_unlock(&tpci200->mutex);
-out:
 	return res;
 }
 
