@@ -11,8 +11,8 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
-
 #include <linux/delay.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/dpmc.h>
 #include <asm/pm.h>
@@ -293,6 +293,23 @@ static struct bfin_cpu_pm_fns bf609_cpu_pm = {
 	.finish         = bf609_cpu_pm_finish,
 };
 
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+static void smc_pm_syscore_suspend(void)
+{
+	bf609_nor_flash_exit();
+}
+
+static void smc_pm_syscore_resume(void)
+{
+	bf609_nor_flash_init();
+}
+
+static struct syscore_ops smc_pm_syscore_ops = {
+	.suspend        = smc_pm_syscore_suspend,
+	.resume         = smc_pm_syscore_resume,
+};
+#endif
+
 static irqreturn_t test_isr(int irq, void *dev_id)
 {
 	printk(KERN_DEBUG "gpio irq %d\n", irq);
@@ -311,6 +328,10 @@ static int __init bf609_init_pm(void)
 {
 	int irq;
 	int error;
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+	register_syscore_ops(&smc_pm_syscore_ops);
+#endif
 
 #ifdef CONFIG_PM_BFIN_WAKE_PE12
 	irq = gpio_to_irq(GPIO_PE12);
