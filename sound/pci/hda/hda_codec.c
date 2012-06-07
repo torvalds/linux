@@ -3532,8 +3532,11 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	}
 
 	/* this delay seems necessary to avoid click noise at power-down */
-	if (power_state == AC_PWRST_D3)
-		msleep(100);
+	if (power_state == AC_PWRST_D3) {
+		/* transition time less than 10ms for power down */
+		bool epss = snd_hda_codec_get_supported_ps(codec, fg, AC_PWRST_EPSS);
+		msleep(epss ? 10 : 100);
+	}
 	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
 			    power_state);
 	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
