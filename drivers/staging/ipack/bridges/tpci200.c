@@ -686,7 +686,6 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 			tpci200->number, dev->slot, space);
 		res = -EINVAL;
 		goto out_unlock;
-		break;
 	}
 
 	virt_addr_space->size = size_to_map;
