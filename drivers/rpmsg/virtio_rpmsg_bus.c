@@ -227,6 +227,7 @@ static struct rpmsg_endpoint *__rpmsg_create_ept(struct virtproc_info *vrp,
 	}
 
 	kref_init(&ept->refcount);
+	mutex_init(&ept->cb_lock);
 
 	ept->rpdev = rpdev;
 	ept->cb = cb;
@@ -324,9 +325,15 @@ EXPORT_SYMBOL(rpmsg_create_ept);
 static void
 __rpmsg_destroy_ept(struct virtproc_info *vrp, struct rpmsg_endpoint *ept)
 {
+	/* make sure new inbound messages can't find this ept anymore */
 	mutex_lock(&vrp->endpoints_lock);
 	idr_remove(&vrp->endpoints, ept->addr);
 	mutex_unlock(&vrp->endpoints_lock);
+
+	/* make sure in-flight inbound messages won't invoke cb anymore */
+	mutex_lock(&ept->cb_lock);
+	ept->cb = NULL;
+	mutex_unlock(&ept->cb_lock);
 
 	kref_put(&ept->refcount, __ept_release);
 }
@@ -821,14 +828,20 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 
 	mutex_unlock(&vrp->endpoints_lock);
 
-	if (ept && ept->cb)
-		ept->cb(ept->rpdev, msg->data, msg->len, ept->priv, msg->src);
-	else
-		dev_warn(dev, "msg received with no recepient\n");
+	if (ept) {
+		/* make sure ept->cb doesn't go away while we use it */
+		mutex_lock(&ept->cb_lock);
 
-	/* farewell, ept, we don't need you anymore */
-	if (ept)
+		if (ept->cb)
+			ept->cb(ept->rpdev, msg->data, msg->len, ept->priv,
+				msg->src);
+
+		mutex_unlock(&ept->cb_lock);
+
+		/* farewell, ept, we don't need you anymore */
 		kref_put(&ept->refcount, __ept_release);
+	} else
+		dev_warn(dev, "msg received with no recepient\n");
 
 	/* publish the real size of the buffer */
 	sg_init_one(&sg, msg, RPMSG_BUF_SIZE);
