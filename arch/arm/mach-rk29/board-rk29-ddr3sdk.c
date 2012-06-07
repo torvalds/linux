@@ -2939,6 +2939,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SND_RK29_SOC_CS42L52
 	&rk29_cs42l52_device,
 #endif
+#ifdef CONFIG_RFKILL_RK
+	&device_rfkill_rk,
+#endif
 };
 
 /*****************************************************************************************
