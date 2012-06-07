@@ -1126,8 +1126,6 @@ static int __devinit isabelle_i2c_probe(struct i2c_client *i2c,
 	struct regmap *isabelle_regmap;
 	int ret = 0;
 
-	i2c_set_clientdata(i2c, isabelle_regmap);
-
 	isabelle_regmap = devm_regmap_init_i2c(i2c, &isabelle_regmap_config);
 	if (IS_ERR(isabelle_regmap)) {
 		ret = PTR_ERR(isabelle_regmap);
@@ -1135,6 +1133,7 @@ static int __devinit isabelle_i2c_probe(struct i2c_client *i2c,
 			ret);
 		return ret;
 	}
+	i2c_set_clientdata(i2c, isabelle_regmap);
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 				&soc_codec_dev_isabelle, isabelle_dai,
