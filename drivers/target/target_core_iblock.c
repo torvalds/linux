@@ -96,6 +96,7 @@ static struct se_device *iblock_create_virtdevice(
 	struct request_queue *q;
 	struct queue_limits *limits;
 	u32 dev_flags = 0;
+	fmode_t mode;
 	int ret = -EINVAL;
 
 	if (!ib_dev) {
@@ -117,8 +118,11 @@ static struct se_device *iblock_create_virtdevice(
 	pr_debug( "IBLOCK: Claiming struct block_device: %s\n",
 			ib_dev->ibd_udev_path);
 
-	bd = blkdev_get_by_path(ib_dev->ibd_udev_path,
-				FMODE_WRITE|FMODE_READ|FMODE_EXCL, ib_dev);
+	mode = FMODE_READ|FMODE_EXCL;
+	if (!ib_dev->ibd_readonly)
+		mode |= FMODE_WRITE;
+
+	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev);
 	if (IS_ERR(bd)) {
 		ret = PTR_ERR(bd);
 		goto failed;
@@ -323,11 +327,12 @@ static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
 }
 
 enum {
-	Opt_udev_path, Opt_force, Opt_err
+	Opt_udev_path, Opt_readonly, Opt_force, Opt_err
 };
 
 static match_table_t tokens = {
 	{Opt_udev_path, "udev_path=%s"},
+	{Opt_readonly, "readonly=%d"},
 	{Opt_force, "force=%d"},
 	{Opt_err, NULL}
 };
@@ -340,6 +345,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 	char *orig, *ptr, *arg_p, *opts;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, token;
+	unsigned long tmp_readonly;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -371,6 +377,22 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 			pr_debug("IBLOCK: Referencing UDEV path: %s\n",
 					ib_dev->ibd_udev_path);
 			ib_dev->ibd_flags |= IBDF_HAS_UDEV_PATH;
+			break;
+		case Opt_readonly:
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
+			ret = strict_strtoul(arg_p, 0, &tmp_readonly);
+			kfree(arg_p);
+			if (ret < 0) {
+				pr_err("strict_strtoul() failed for"
+						" readonly=\n");
+				goto out;
+			}
+			ib_dev->ibd_readonly = tmp_readonly;
+			pr_debug("IBLOCK: readonly: %d\n", ib_dev->ibd_readonly);
 			break;
 		case Opt_force:
 			break;
@@ -411,11 +433,10 @@ static ssize_t iblock_show_configfs_dev_params(
 	if (bd)
 		bl += sprintf(b + bl, "iBlock device: %s",
 				bdevname(bd, buf));
-	if (ibd->ibd_flags & IBDF_HAS_UDEV_PATH) {
-		bl += sprintf(b + bl, "  UDEV PATH: %s\n",
+	if (ibd->ibd_flags & IBDF_HAS_UDEV_PATH)
+		bl += sprintf(b + bl, "  UDEV PATH: %s",
 				ibd->ibd_udev_path);
-	} else
-		bl += sprintf(b + bl, "\n");
+	bl += sprintf(b + bl, "  readonly: %d\n", ibd->ibd_readonly);
 
 	bl += sprintf(b + bl, "        ");
 	if (bd) {
