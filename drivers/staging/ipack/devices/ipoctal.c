@@ -49,7 +49,6 @@ struct ipoctal {
 	char				*buffer[NR_CHANNELS];
 	unsigned int			nb_bytes[NR_CHANNELS];
 	unsigned int			count_wr[NR_CHANNELS];
-	struct ipoctal_config		chan_config[NR_CHANNELS];
 	wait_queue_head_t		queue[NR_CHANNELS];
 	unsigned short			error_flag[NR_CHANNELS];
 	spinlock_t			lock[NR_CHANNELS];
@@ -671,22 +670,18 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 		if (cflag & CRTSCTS) {
 			mr1 |= MR1_RxRTS_CONTROL_ON;
 			mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_ON;
-			ipoctal->chan_config[channel].flow_control = 1;
 		} else {
 			mr1 |= MR1_RxRTS_CONTROL_OFF;
 			mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_OFF;
-			ipoctal->chan_config[channel].flow_control = 0;
 		}
 		break;
 	case IP_OCTAL_422_ID:
 		mr1 |= MR1_RxRTS_CONTROL_OFF;
 		mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_OFF;
-		ipoctal->chan_config[channel].flow_control = 0;
 		break;
 	case IP_OCTAL_485_ID:
 		mr1 |= MR1_RxRTS_CONTROL_OFF;
 		mr2 |= MR2_TxRTS_CONTROL_ON | MR2_CTS_ENABLE_TX_OFF;
-		ipoctal->chan_config[channel].flow_control = 0;
 		break;
 	default:
 		return;
@@ -749,12 +744,6 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.mr, mr1);
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.mr, mr2);
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.csr, csr);
-
-	/* save the setup in the structure */
-	ipoctal->chan_config[channel].baud = tty_get_baud_rate(tty);
-	ipoctal->chan_config[channel].bits_per_char = cflag & CSIZE;
-	ipoctal->chan_config[channel].parity = cflag & PARENB;
-	ipoctal->chan_config[channel].stop_bits = cflag & CSTOPB;
 
 	/* Enable again the RX */
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,

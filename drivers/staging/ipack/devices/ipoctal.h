@@ -42,23 +42,6 @@ enum uart_error	{
 };
 
 /**
- * struct ipoctal_config - Serial configuration
- *
- * @baud: Baud rate
- * @stop_bits: Stop bits (1 or 2)
- * @bits_per_char: data size in bits
- * @parity
- * @flow_control: Flow control management (RTS/CTS) (0 disabled, 1 enabled)
- */
-struct ipoctal_config {
-	unsigned int baud;
-	unsigned int stop_bits;
-	unsigned int bits_per_char;
-	unsigned short parity;
-	unsigned int flow_control;
-};
-
-/**
  * struct ipoctal_stats -- Stats since last reset
  *
  * @tx: Number of transmitted bytes
