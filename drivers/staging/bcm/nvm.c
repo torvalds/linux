@@ -472,7 +472,7 @@ static INT BeceemFlashBulkRead(struct bcm_mini_adapter *Adapter,
 static UINT BcmGetFlashSize(struct bcm_mini_adapter *Adapter)
 {
 	if (IsFlash2x(Adapter))
-		return (Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER));
+		return Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER);
 	else
 		return 32 * 1024;
 }
@@ -2219,7 +2219,7 @@ static ULONG BcmReadFlashRDID(struct bcm_mini_adapter *Adapter)
 	 */
 	rdmalt(Adapter, FLASH_SPI_READQ_REG, (PUINT)&ulRDID, sizeof(ulRDID));
 
-	return (ulRDID >> 8);
+	return ulRDID >> 8;
 }
 
 INT BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
