@@ -424,7 +424,7 @@ void au_plink_append(struct inode *inode, aufs_bindex_t bindex,
 
 out:
 	if (unlikely(err)) {
-		pr_warning("err %d, damaged pseudo link.\n", err);
+		pr_warn("err %d, damaged pseudo link.\n", err);
 		if (tmp) {
 			au_spl_del_rcu(&tmp->list, &sbinfo->si_plink);
 			call_rcu(&tmp->rcu, do_put_plink_rcu);

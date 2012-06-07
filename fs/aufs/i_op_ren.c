@@ -254,8 +254,8 @@ static int au_ren_del_whtmp(struct au_ren_args *a)
 	    || au_test_fs_remote(a->h_dst->d_sb)) {
 		err = au_whtmp_rmdir(dir, a->btgt, a->h_dst, &a->whlist);
 		if (unlikely(err))
-			pr_warning("failed removing whtmp dir %.*s (%d), "
-				   "ignored.\n", AuDLNPair(a->h_dst), err);
+			pr_warn("failed removing whtmp dir %.*s (%d), "
+				"ignored.\n", AuDLNPair(a->h_dst), err);
 	} else {
 		au_nhash_wh_free(&a->thargs->whlist);
 		a->thargs->whlist = a->whlist;
