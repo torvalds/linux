@@ -26,10 +26,14 @@ commands:
 	commands can be repeated multiple times
 
 options:
-	--file .config file to change (default .config)
+	--file config-file   .config file to change (default .config)
+	--keep-case|-k       Keep next symbols' case (dont' upper-case it)
 
 config doesn't check the validity of the .config file. This is done at next
- make time.
+make time.
+
+By default, config will upper-case the given symbol. Use --keep-case to keep
+the case of all following symbols unchanged.
 EOL
 	exit 1
 }
@@ -44,7 +48,9 @@ checkarg() {
 		ARG="${ARG/CONFIG_/}"
 		;;
 	esac
-	ARG="`echo $ARG | tr a-z A-Z`"
+	if [ "$MUNGE_CASE" = "yes" ] ; then
+		ARG="`echo $ARG | tr a-z A-Z`"
+	fi
 }
 
 set_var() {
@@ -75,10 +81,16 @@ if [ "$1" = "" ] ; then
 	usage
 fi
 
+MUNGE_CASE=yes
 while [ "$1" != "" ] ; do
 	CMD="$1"
 	shift
 	case "$CMD" in
+	--keep-case|-k)
+		MUNGE_CASE=no
+		shift
+		continue
+		;;
 	--refresh)
 		;;
 	--*-after)
