@@ -554,20 +554,24 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver,
 	struct ath6kl *ar = devt;
 
 	memcpy(ar->mac_addr, datap, ETH_ALEN);
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: mac addr = %pM\n",
-		   __func__, ar->mac_addr);
+
+	ath6kl_dbg(ATH6KL_DBG_BOOT,
+		   "ready event mac addr %pM sw_ver 0x%x abi_ver 0x%x cap 0x%x\n",
+		   ar->mac_addr, sw_ver, abi_ver, cap);
 
 	ar->version.wlan_ver = sw_ver;
 	ar->version.abi_ver = abi_ver;
 	ar->hw.cap = cap;
 
-	snprintf(ar->wiphy->fw_version,
-		 sizeof(ar->wiphy->fw_version),
-		 "%u.%u.%u.%u",
-		 (ar->version.wlan_ver & 0xf0000000) >> 28,
-		 (ar->version.wlan_ver & 0x0f000000) >> 24,
-		 (ar->version.wlan_ver & 0x00ff0000) >> 16,
-		 (ar->version.wlan_ver & 0x0000ffff));
+	if (strlen(ar->wiphy->fw_version) == 0) {
+		snprintf(ar->wiphy->fw_version,
+			 sizeof(ar->wiphy->fw_version),
+			 "%u.%u.%u.%u",
+			 (ar->version.wlan_ver & 0xf0000000) >> 28,
+			 (ar->version.wlan_ver & 0x0f000000) >> 24,
+			 (ar->version.wlan_ver & 0x00ff0000) >> 16,
+			 (ar->version.wlan_ver & 0x0000ffff));
+	}
 
 	/* indicate to the waiting thread that the ready event was received */
 	set_bit(WMI_READY, &ar->flag);
