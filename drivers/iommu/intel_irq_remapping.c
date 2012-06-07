@@ -924,6 +924,7 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	struct irq_cfg *cfg = data->chip_data;
 	unsigned int dest, irq = data->irq;
 	struct irte irte;
+	int err;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
 		return -EINVAL;
@@ -931,10 +932,16 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	if (get_irte(irq, &irte))
 		return -EBUSY;
 
-	if (assign_irq_vector(irq, cfg, mask))
-		return -EBUSY;
+	err = assign_irq_vector(irq, cfg, mask);
+	if (err)
+		return err;
 
-	dest = apic->cpu_mask_to_apicid_and(cfg->domain, mask);
+	err = apic->cpu_mask_to_apicid_and(cfg->domain, mask, &dest);
+	if (err) {
+		if (assign_irq_vector(irq, cfg, data->affinity));
+			pr_err("Failed to recover vector for irq %d\n", irq);
+		return err;
+	}
 
 	irte.vector = cfg->vector;
 	irte.dest_id = IRTE_DEST(dest);

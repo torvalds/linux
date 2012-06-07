@@ -96,24 +96,26 @@ static void x2apic_send_IPI_all(int vector)
 	__x2apic_send_IPI_mask(cpu_online_mask, vector, APIC_DEST_ALLINC);
 }
 
-static unsigned int x2apic_cpu_mask_to_apicid(const struct cpumask *cpumask)
+static int
+x2apic_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *apicid)
 {
 	int cpu = cpumask_first(cpumask);
-	u32 dest = 0;
 	int i;
 
-	if (cpu > nr_cpu_ids)
-		return BAD_APICID;
+	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
 
+	*apicid = 0;
 	for_each_cpu_and(i, cpumask, per_cpu(cpus_in_cluster, cpu))
-		dest |= per_cpu(x86_cpu_to_logical_apicid, i);
+		*apicid |= per_cpu(x86_cpu_to_logical_apicid, i);
 
-	return dest;
+	return 0;
 }
 
-static unsigned int
+static int
 x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			      const struct cpumask *andmask)
+			      const struct cpumask *andmask,
+			      unsigned int *apicid)
 {
 	u32 dest = 0;
 	u16 cluster;
@@ -128,7 +130,7 @@ x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	}
 
 	if (!dest)
-		return BAD_APICID;
+		return -EINVAL;
 
 	for_each_cpu_and(i, cpumask, andmask) {
 		if (!cpumask_test_cpu(i, cpu_online_mask))
@@ -138,7 +140,9 @@ x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 		dest |= per_cpu(x86_cpu_to_logical_apicid, i);
 	}
 
-	return dest;
+	*apicid = dest;
+
+	return 0;
 }
 
 static void init_x2apic_ldr(void)

@@ -1359,7 +1359,14 @@ static void setup_ioapic_irq(unsigned int irq, struct irq_cfg *cfg,
 	if (assign_irq_vector(irq, cfg, apic->target_cpus()))
 		return;
 
-	dest = apic->cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
+	if (apic->cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus(),
+					 &dest)) {
+		pr_warn("Failed to obtain apicid for ioapic %d, pin %d\n",
+			mpc_ioapic_id(attr->ioapic), attr->ioapic_pin);
+		__clear_irq_vector(irq, cfg);
+
+		return;
+	}
 
 	apic_printk(APIC_VERBOSE,KERN_DEBUG
 		    "IOAPIC[%d]: Set routing entry (%d-%d -> 0x%x -> "
@@ -1474,6 +1481,7 @@ static void __init setup_timer_IRQ0_pin(unsigned int ioapic_idx,
 					unsigned int pin, int vector)
 {
 	struct IO_APIC_route_entry entry;
+	unsigned int dest;
 
 	if (irq_remapping_enabled)
 		return;
@@ -1484,9 +1492,12 @@ static void __init setup_timer_IRQ0_pin(unsigned int ioapic_idx,
 	 * We use logical delivery to get the timer IRQ
 	 * to the first CPU.
 	 */
+	if (unlikely(apic->cpu_mask_to_apicid(apic->target_cpus(), &dest)))
+		dest = BAD_APICID;
+
 	entry.dest_mode = apic->irq_dest_mode;
 	entry.mask = 0;			/* don't mask IRQ for edge */
-	entry.dest = apic->cpu_mask_to_apicid(apic->target_cpus());
+	entry.dest = dest;
 	entry.delivery_mode = apic->irq_delivery_mode;
 	entry.polarity = 0;
 	entry.trigger = 0;
@@ -2245,16 +2256,25 @@ int __ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 			  unsigned int *dest_id)
 {
 	struct irq_cfg *cfg = data->chip_data;
+	unsigned int irq = data->irq;
+	int err;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
-		return -1;
+		return -EINVAL;
 
-	if (assign_irq_vector(data->irq, data->chip_data, mask))
-		return -1;
+	err = assign_irq_vector(irq, cfg, mask);
+	if (err)
+		return err;
+
+	err = apic->cpu_mask_to_apicid_and(mask, cfg->domain, dest_id);
+	if (err) {
+		if (assign_irq_vector(irq, cfg, data->affinity))
+			pr_err("Failed to recover vector for irq %d\n", irq);
+		return err;
+	}
 
 	cpumask_copy(data->affinity, mask);
 
-	*dest_id = apic->cpu_mask_to_apicid_and(mask, cfg->domain);
 	return 0;
 }
 
@@ -3040,7 +3060,10 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 	if (err)
 		return err;
 
-	dest = apic->cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
+	err = apic->cpu_mask_to_apicid_and(cfg->domain,
+					   apic->target_cpus(), &dest);
+	if (err)
+		return err;
 
 	if (irq_remapped(cfg)) {
 		compose_remapped_msi_msg(pdev, irq, dest, msg, hpet_id);
@@ -3361,6 +3384,8 @@ static struct irq_chip ht_irq_chip = {
 int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 {
 	struct irq_cfg *cfg;
+	struct ht_irq_msg msg;
+	unsigned dest;
 	int err;
 
 	if (disable_apic)
@@ -3368,36 +3393,37 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 
 	cfg = irq_cfg(irq);
 	err = assign_irq_vector(irq, cfg, apic->target_cpus());
-	if (!err) {
-		struct ht_irq_msg msg;
-		unsigned dest;
+	if (err)
+		return err;
 
-		dest = apic->cpu_mask_to_apicid_and(cfg->domain,
-						    apic->target_cpus());
+	err = apic->cpu_mask_to_apicid_and(cfg->domain,
+					   apic->target_cpus(), &dest);
+	if (err)
+		return err;
 
-		msg.address_hi = HT_IRQ_HIGH_DEST_ID(dest);
+	msg.address_hi = HT_IRQ_HIGH_DEST_ID(dest);
 
-		msg.address_lo =
-			HT_IRQ_LOW_BASE |
-			HT_IRQ_LOW_DEST_ID(dest) |
-			HT_IRQ_LOW_VECTOR(cfg->vector) |
-			((apic->irq_dest_mode == 0) ?
-				HT_IRQ_LOW_DM_PHYSICAL :
-				HT_IRQ_LOW_DM_LOGICAL) |
-			HT_IRQ_LOW_RQEOI_EDGE |
-			((apic->irq_delivery_mode != dest_LowestPrio) ?
-				HT_IRQ_LOW_MT_FIXED :
-				HT_IRQ_LOW_MT_ARBITRATED) |
-			HT_IRQ_LOW_IRQ_MASKED;
+	msg.address_lo =
+		HT_IRQ_LOW_BASE |
+		HT_IRQ_LOW_DEST_ID(dest) |
+		HT_IRQ_LOW_VECTOR(cfg->vector) |
+		((apic->irq_dest_mode == 0) ?
+			HT_IRQ_LOW_DM_PHYSICAL :
+			HT_IRQ_LOW_DM_LOGICAL) |
+		HT_IRQ_LOW_RQEOI_EDGE |
+		((apic->irq_delivery_mode != dest_LowestPrio) ?
+			HT_IRQ_LOW_MT_FIXED :
+			HT_IRQ_LOW_MT_ARBITRATED) |
+		HT_IRQ_LOW_IRQ_MASKED;
 
-		write_ht_irq_msg(irq, &msg);
+	write_ht_irq_msg(irq, &msg);
 
-		irq_set_chip_and_handler_name(irq, &ht_irq_chip,
-					      handle_edge_irq, "edge");
+	irq_set_chip_and_handler_name(irq, &ht_irq_chip,
+				      handle_edge_irq, "edge");
 
-		dev_printk(KERN_DEBUG, &dev->dev, "irq %d for HT\n", irq);
-	}
-	return err;
+	dev_printk(KERN_DEBUG, &dev->dev, "irq %d for HT\n", irq);
+
+	return 0;
 }
 #endif /* CONFIG_HT_IRQ */
 

@@ -331,9 +331,11 @@ struct apic {
 	unsigned long (*set_apic_id)(unsigned int id);
 	unsigned long apic_id_mask;
 
-	unsigned int (*cpu_mask_to_apicid)(const struct cpumask *cpumask);
-	unsigned int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
-					       const struct cpumask *andmask);
+	int (*cpu_mask_to_apicid)(const struct cpumask *cpumask,
+				  unsigned int *apicid);
+	int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
+				      const struct cpumask *andmask,
+				      unsigned int *apicid);
 
 	/* ipi */
 	void (*send_IPI_mask)(const struct cpumask *mask, int vector);
@@ -591,29 +593,45 @@ static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 
 #endif
 
-static inline unsigned int
-flat_cpu_mask_to_apicid(const struct cpumask *cpumask)
+static inline int
+__flat_cpu_mask_to_apicid(unsigned long cpu_mask, unsigned int *apicid)
 {
-	return cpumask_bits(cpumask)[0] & APIC_ALL_CPUS;
+	cpu_mask &= APIC_ALL_CPUS;
+	if (likely(cpu_mask)) {
+		*apicid = (unsigned int)cpu_mask;
+		return 0;
+	} else {
+		return -EINVAL;
+	}
 }
 
-static inline unsigned int
+static inline int
+flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
+			unsigned int *apicid)
+{
+	return __flat_cpu_mask_to_apicid(cpumask_bits(cpumask)[0], apicid);
+}
+
+static inline int
 flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			    const struct cpumask *andmask)
+			    const struct cpumask *andmask,
+			    unsigned int *apicid)
 {
 	unsigned long mask1 = cpumask_bits(cpumask)[0];
 	unsigned long mask2 = cpumask_bits(andmask)[0];
 	unsigned long mask3 = cpumask_bits(cpu_online_mask)[0];
 
-	return (unsigned int)(mask1 & mask2 & mask3);
+	return __flat_cpu_mask_to_apicid(mask1 & mask2 & mask3, apicid);
 }
 
-extern unsigned int
-default_cpu_mask_to_apicid(const struct cpumask *cpumask);
+extern int
+default_cpu_mask_to_apicid(const struct cpumask *cpumask,
+			   unsigned int *apicid);
 
-extern unsigned int
+extern int
 default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			       const struct cpumask *andmask);
+			       const struct cpumask *andmask,
+			       unsigned int *apicid);
 
 static inline bool
 flat_vector_allocation_domain(int cpu, struct cpumask *retmask)

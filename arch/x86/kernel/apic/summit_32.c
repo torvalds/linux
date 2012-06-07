@@ -263,7 +263,8 @@ static int summit_check_phys_apicid_present(int physical_apicid)
 	return 1;
 }
 
-static unsigned int summit_cpu_mask_to_apicid(const struct cpumask *cpumask)
+static int
+summit_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *dest_id)
 {
 	unsigned int round = 0;
 	int cpu, apicid = 0;
@@ -276,30 +277,33 @@ static unsigned int summit_cpu_mask_to_apicid(const struct cpumask *cpumask)
 
 		if (round && APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
 			printk("%s: Not a valid mask!\n", __func__);
-			return BAD_APICID;
+			return -EINVAL;
 		}
 		apicid |= new_apicid;
 		round++;
 	}
-	return apicid;
+	*dest_id = apicid;
+	return 0;
 }
 
-static unsigned int summit_cpu_mask_to_apicid_and(const struct cpumask *inmask,
-			      const struct cpumask *andmask)
+static int
+summit_cpu_mask_to_apicid_and(const struct cpumask *inmask,
+			      const struct cpumask *andmask,
+			      unsigned int *apicid)
 {
-	int apicid = early_per_cpu(x86_cpu_to_logical_apicid, 0);
+	*apicid = early_per_cpu(x86_cpu_to_logical_apicid, 0);
 	cpumask_var_t cpumask;
 
 	if (!alloc_cpumask_var(&cpumask, GFP_ATOMIC))
-		return apicid;
+		return 0;
 
 	cpumask_and(cpumask, inmask, andmask);
 	cpumask_and(cpumask, cpumask, cpu_online_mask);
-	apicid = summit_cpu_mask_to_apicid(cpumask);
+	summit_cpu_mask_to_apicid(cpumask, apicid);
 
 	free_cpumask_var(cpumask);
 
-	return apicid;
+	return 0;
 }
 
 /*

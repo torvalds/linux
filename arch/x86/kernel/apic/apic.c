@@ -2123,24 +2123,26 @@ void default_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-unsigned int default_cpu_mask_to_apicid(const struct cpumask *cpumask)
+static inline int __default_cpu_to_apicid(int cpu, unsigned int *apicid)
 {
-	int cpu;
-
-	/*
-	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
-	 * May as well be the first.
-	 */
-	cpu = cpumask_first(cpumask);
-	if (likely((unsigned)cpu < nr_cpu_ids))
-		return per_cpu(x86_cpu_to_apicid, cpu);
-
-	return BAD_APICID;
+	if (likely((unsigned int)cpu < nr_cpu_ids)) {
+		*apicid = per_cpu(x86_cpu_to_apicid, cpu);
+		return 0;
+	} else {
+		return -EINVAL;
+	}
 }
 
-unsigned int
-default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			       const struct cpumask *andmask)
+int default_cpu_mask_to_apicid(const struct cpumask *cpumask,
+			       unsigned int *apicid)
+{
+	int cpu = cpumask_first(cpumask);
+	return __default_cpu_to_apicid(cpu, apicid);
+}
+
+int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+				   const struct cpumask *andmask,
+				   unsigned int *apicid)
 {
 	int cpu;
 
@@ -2148,7 +2150,8 @@ default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 		if (cpumask_test_cpu(cpu, cpu_online_mask))
 			break;
 	}
-	return per_cpu(x86_cpu_to_apicid, cpu);
+
+	return __default_cpu_to_apicid(cpu, apicid);
 }
 
 /*

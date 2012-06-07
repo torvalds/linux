@@ -406,16 +406,20 @@ static inline int numaq_check_phys_apicid_present(int phys_apicid)
  * We use physical apicids here, not logical, so just return the default
  * physical broadcast to stop people from breaking us
  */
-static unsigned int numaq_cpu_mask_to_apicid(const struct cpumask *cpumask)
+static int
+numaq_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *apicid)
 {
-	return 0x0F;
+	*apicid = 0x0F;
+	return 0;
 }
 
-static inline unsigned int
+static int
 numaq_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			     const struct cpumask *andmask)
+			     const struct cpumask *andmask,
+			     unsigned int *apicid)
 {
-	return 0x0F;
+	*apicid = 0x0F;
+	return 0;
 }
 
 /* No NUMA-Q box has a HT CPU, but it can't hurt to use the default code. */
