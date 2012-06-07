@@ -70,7 +70,7 @@ struct table {
 	u16 size;	/* object size (excluding header) */
 	u8 count;	/* object ref count (not yet used) */
 	u8 flags;
-} __attribute__((aligned(4)));
+} __aligned(4);
 
 struct zram_stats {
 	u64 compr_size;		/* compressed size of pages stored */
