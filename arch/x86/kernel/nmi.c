@@ -365,8 +365,9 @@ static __kprobes void default_do_nmi(struct pt_regs *regs)
 #ifdef CONFIG_X86_32
 /*
  * For i386, NMIs use the same stack as the kernel, and we can
- * add a workaround to the iret problem in C. Simply have 3 states
- * the NMI can be in.
+ * add a workaround to the iret problem in C (preventing nested
+ * NMIs if an NMI takes a trap). Simply have 3 states the NMI
+ * can be in:
  *
  *  1) not running
  *  2) executing
@@ -383,13 +384,20 @@ static __kprobes void default_do_nmi(struct pt_regs *regs)
  * If an NMI hits a breakpoint that executes an iret, another
  * NMI can preempt it. We do not want to allow this new NMI
  * to run, but we want to execute it when the first one finishes.
- * We set the state to "latched", and the first NMI will perform
- * an cmpxchg on the state, and if it doesn't successfully
- * reset the state to "not running" it will restart the next
- * NMI.
+ * We set the state to "latched", and the exit of the first NMI will
+ * perform a dec_return, if the result is zero (NOT_RUNNING), then
+ * it will simply exit the NMI handler. If not, the dec_return
+ * would have set the state to NMI_EXECUTING (what we want it to
+ * be when we are running). In this case, we simply jump back
+ * to rerun the NMI handler again, and restart the 'latched' NMI.
+ *
+ * No trap (breakpoint or page fault) should be hit before nmi_restart,
+ * thus there is no race between the first check of state for NOT_RUNNING
+ * and setting it to NMI_EXECUTING. The HW will prevent nested NMIs
+ * at this point.
  */
 enum nmi_states {
-	NMI_NOT_RUNNING,
+	NMI_NOT_RUNNING = 0,
 	NMI_EXECUTING,
 	NMI_LATCHED,
 };
@@ -397,18 +405,17 @@ static DEFINE_PER_CPU(enum nmi_states, nmi_state);
 
 #define nmi_nesting_preprocess(regs)					\
 	do {								\
-		if (__get_cpu_var(nmi_state) != NMI_NOT_RUNNING) {	\
-			__get_cpu_var(nmi_state) = NMI_LATCHED;		\
+		if (this_cpu_read(nmi_state) != NMI_NOT_RUNNING) {	\
+			this_cpu_write(nmi_state, NMI_LATCHED);		\
 			return;						\
 		}							\
-	nmi_restart:							\
-		__get_cpu_var(nmi_state) = NMI_EXECUTING;		\
-	} while (0)
+		this_cpu_write(nmi_state, NMI_EXECUTING);		\
+	} while (0);							\
+	nmi_restart:
 
 #define nmi_nesting_postprocess()					\
 	do {								\
-		if (cmpxchg(&__get_cpu_var(nmi_state),			\
-		    NMI_EXECUTING, NMI_NOT_RUNNING) != NMI_EXECUTING)	\
+		if (this_cpu_dec_return(nmi_state))			\
 			goto nmi_restart;				\
 	} while (0)
 #else /* x86_64 */
