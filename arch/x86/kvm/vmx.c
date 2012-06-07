@@ -4977,11 +4977,12 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	int ret = 1;
 	u32 cpu_exec_ctrl;
 	bool intr_window_requested;
+	unsigned count = 130;
 
 	cpu_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	intr_window_requested = cpu_exec_ctrl & CPU_BASED_VIRTUAL_INTR_PENDING;
 
-	while (!guest_state_valid(vcpu)) {
+	while (!guest_state_valid(vcpu) && count-- != 0) {
 		if (intr_window_requested
 		    && (kvm_get_rflags(&vmx->vcpu) & X86_EFLAGS_IF))
 			return handle_interrupt_window(&vmx->vcpu);
