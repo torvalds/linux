@@ -1137,8 +1137,9 @@ __assign_irq_vector(int irq, struct irq_cfg *cfg, const struct cpumask *mask)
 	for_each_cpu_and(cpu, mask, cpu_online_mask) {
 		int new_cpu;
 		int vector, offset;
+		bool more_domains;
 
-		apic->vector_allocation_domain(cpu, tmp_mask);
+		more_domains = apic->vector_allocation_domain(cpu, tmp_mask);
 
 		if (cpumask_subset(tmp_mask, cfg->domain)) {
 			free_cpumask_var(tmp_mask);
@@ -1153,8 +1154,13 @@ next:
 			offset = (offset + 1) % 16;
 			vector = FIRST_EXTERNAL_VECTOR + offset;
 		}
-		if (unlikely(current_vector == vector))
-			continue;
+
+		if (unlikely(current_vector == vector)) {
+			if (more_domains)
+				continue;
+			else
+				break;
+		}
 
 		if (test_bit(vector, used_vectors))
 			goto next;
