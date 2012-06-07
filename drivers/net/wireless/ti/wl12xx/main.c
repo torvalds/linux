@@ -253,7 +253,7 @@ static struct wlcore_conf wl12xx_conf = {
 	},
 	.pm_config = {
 		.host_clk_settling_time = 5000,
-		.host_fast_wakeup_support = false
+		.host_fast_wakeup_support = CONF_FAST_WAKEUP_DISABLE,
 	},
 	.roam_trigger = {
 		.trigger_pacing               = 1,

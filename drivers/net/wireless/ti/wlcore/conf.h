@@ -981,6 +981,11 @@ struct conf_itrim_settings {
 	u32 timeout;
 };
 
+enum conf_fast_wakeup {
+	CONF_FAST_WAKEUP_ENABLE,
+	CONF_FAST_WAKEUP_DISABLE,
+};
+
 struct conf_pm_config_settings {
 	/*
 	 * Host clock settling time
@@ -992,9 +997,9 @@ struct conf_pm_config_settings {
 	/*
 	 * Host fast wakeup support
 	 *
-	 * Range: true, false
+	 * Range: enum conf_fast_wakeup
 	 */
-	bool host_fast_wakeup_support;
+	u8 host_fast_wakeup_support;
 };
 
 struct conf_roam_trigger_settings {
