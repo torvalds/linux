@@ -4984,8 +4984,7 @@ void __css_put(struct cgroup_subsys_state *css)
 	struct cgroup *cgrp = css->cgroup;
 
 	rcu_read_lock();
-	atomic_dec(&css->refcnt);
-	switch (css_refcnt(css)) {
+	switch (atomic_dec_return(&css->refcnt)) {
 	case 1:
 		if (notify_on_release(cgrp)) {
 			set_bit(CGRP_RELEASABLE, &cgrp->flags);
