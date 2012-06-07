@@ -25,6 +25,7 @@
 
 #include "drmP.h"
 #include "drm.h"
+#include "exynos_drm.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 
@@ -190,7 +191,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct exynos_drm_gem_buf *buffer;
 	struct page *page;
-	int ret, i = 0;
+	int ret;
 
 	DRM_DEBUG_PRIME("%s\n", __FILE__);
 
@@ -240,13 +241,25 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	}
 
 	sgl = sgt->sgl;
-	buffer->dma_addr = sg_dma_address(sgl);
 
-	while (i < sgt->nents) {
-		buffer->pages[i] = sg_page(sgl);
-		buffer->size += sg_dma_len(sgl);
-		sgl = sg_next(sgl);
-		i++;
+	if (sgt->nents == 1) {
+		buffer->dma_addr = sg_dma_address(sgt->sgl);
+		buffer->size = sg_dma_len(sgt->sgl);
+
+		/* always physically continuous memory if sgt->nents is 1. */
+		exynos_gem_obj->flags |= EXYNOS_BO_CONTIG;
+	} else {
+		unsigned int i = 0;
+
+		buffer->dma_addr = sg_dma_address(sgl);
+		while (i < sgt->nents) {
+			buffer->pages[i] = sg_page(sgl);
+			buffer->size += sg_dma_len(sgl);
+			sgl = sg_next(sgl);
+			i++;
+		}
+
+		exynos_gem_obj->flags |= EXYNOS_BO_NONCONTIG;
 	}
 
 	exynos_gem_obj->buffer = buffer;
