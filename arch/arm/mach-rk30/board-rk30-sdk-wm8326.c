@@ -193,7 +193,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_put(ldo);
 
 	dcdc = regulator_get(NULL, "dcdc4");	// vcc_io
-#ifdef CONFIG_MACH_RK3066_SDK
+#ifdef CONFIG_MACH_RK3066_SDK1
 	regulator_set_voltage(dcdc, 3300000, 3300000);
 	regulator_set_suspend_voltage(dcdc, 3100000);
 #else
@@ -269,9 +269,15 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_put(ldo);
 	udelay(100);
 
+#ifdef CONFIG_MACH_RK3066_SDK1
+	ldo = regulator_get(NULL, "ldo3");	//vdd11_hdmi
+	regulator_set_voltage(ldo, 1100000, 1100000);
+	regulator_set_suspend_voltage(ldo, 1100000);
+#else
 	ldo = regulator_get(NULL, "ldo3");	//vdd_12
 	regulator_set_voltage(ldo, 1200000, 1200000);
 	regulator_set_suspend_voltage(ldo, 1200000);
+#endif
 	regulator_enable(ldo);
 //	printk("%s set ldo3 vdd_12=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
