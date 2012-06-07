@@ -83,7 +83,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		if (adap->props.streaming_ctrl != NULL) {
 			ret = adap->props.streaming_ctrl(adap, 0);
 			if (ret < 0) {
-				pr_err("%s: error while stopping stream",
+				pr_err("%s: error while stopping stream\n",
 						KBUILD_MODNAME);
 				return ret;
 			}
@@ -151,7 +151,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			ret = adap->props.pid_filter_ctrl(adap,
 					adap->pid_filtering);
 			if (ret < 0) {
-				pr_err("%s: could not handle pid_parser",
+				pr_err("%s: could not handle pid_parser\n",
 						KBUILD_MODNAME);
 				return ret;
 			}
@@ -160,7 +160,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		if (adap->props.streaming_ctrl != NULL) {
 			ret = adap->props.streaming_ctrl(adap, 1);
 			if (ret < 0) {
-				pr_err("%s: error while enabling fifo",
+				pr_err("%s: error while enabling fifo\n",
 						KBUILD_MODNAME);
 				return ret;
 			}
@@ -203,10 +203,10 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	if (adap->dev->props.read_mac_address) {
 		if (adap->dev->props.read_mac_address(adap->dev,
 				adap->dvb_adap.proposed_mac) == 0)
-			pr_info("%s: MAC address: %pM", KBUILD_MODNAME,
+			pr_info("%s: MAC address: %pM\n", KBUILD_MODNAME,
 					adap->dvb_adap.proposed_mac);
 		else
-			pr_err("%s: MAC address reading failed",
+			pr_err("%s: MAC address reading failed\n",
 					KBUILD_MODNAME);
 	}
 
@@ -223,7 +223,7 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	adap->demux.write_to_decoder = NULL;
 	ret = dvb_dmx_init(&adap->demux);
 	if (ret < 0) {
-		pr_err("%s: dvb_dmx_init() failed=%d", KBUILD_MODNAME, ret);
+		pr_err("%s: dvb_dmx_init() failed=%d\n", KBUILD_MODNAME, ret);
 		goto err_dmx;
 	}
 
@@ -232,13 +232,14 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	adap->dmxdev.capabilities    = 0;
 	ret = dvb_dmxdev_init(&adap->dmxdev, &adap->dvb_adap);
 	if (ret < 0) {
-		pr_err("%s: dvb_dmxdev_init failed=%d", KBUILD_MODNAME, ret);
+		pr_err("%s: dvb_dmxdev_init() failed=%d\n", KBUILD_MODNAME,
+				ret);
 		goto err_dmx_dev;
 	}
 
 	ret = dvb_net_init(&adap->dvb_adap, &adap->dvb_net, &adap->demux.dmx);
 	if (ret < 0) {
-		pr_err("%s: dvb_net_init failed=%d", KBUILD_MODNAME, ret);
+		pr_err("%s: dvb_net_init() failed=%d\n", KBUILD_MODNAME, ret);
 		goto err_net_init;
 	}
 

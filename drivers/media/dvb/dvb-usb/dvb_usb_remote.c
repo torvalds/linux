@@ -32,7 +32,7 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 	ret = d->rc.query(d);
 	if (ret < 0)
 		pr_err("%s: error %d while querying for an remote control " \
-				"event", KBUILD_MODNAME, ret);
+				"event\n", KBUILD_MODNAME, ret);
 
 	schedule_delayed_work(&d->rc_query_work,
 			      msecs_to_jiffies(d->rc.interval));
@@ -90,7 +90,7 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 		/* initialize a work queue for handling polling */
 		INIT_DELAYED_WORK(&d->rc_query_work,
 				dvb_usb_read_remote_control);
-		pr_info("%s: schedule remote query interval to %d msecs",
+		pr_info("%s: schedule remote query interval to %d msecs\n",
 				KBUILD_MODNAME, d->rc.interval);
 		schedule_delayed_work(&d->rc_query_work,
 				msecs_to_jiffies(d->rc.interval));

@@ -47,12 +47,12 @@ int dvb_usb_download_firmware(struct dvb_usb_device *d)
 	if (ret < 0) {
 		pr_err("%s: did not find the firmware file. (%s) " \
 				"Please see linux/Documentation/dvb/ for " \
-				"more details on firmware-problems. (%d)",
+				"more details on firmware-problems. (%d)\n",
 				KBUILD_MODNAME, name, ret);
 		goto err;
 	}
 
-	pr_info("%s: downloading firmware from file '%s'", KBUILD_MODNAME,
+	pr_info("%s: downloading firmware from file '%s'\n", KBUILD_MODNAME,
 			name);
 
 	ret = d->props.download_firmware(d, fw);
@@ -84,7 +84,7 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 
 	ret = i2c_add_adapter(&d->i2c_adap);
 	if (ret < 0)
-		pr_err("%s: could not add i2c adapter", KBUILD_MODNAME);
+		pr_err("%s: could not add i2c adapter\n", KBUILD_MODNAME);
 
 	d->state |= DVB_USB_STATE_I2C;
 
@@ -127,20 +127,20 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 				!(adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER)) {
 			pr_err("%s: this USB2.0 device cannot be run on a " \
 					"USB1.1 port (it lacks a hardware " \
-					"PID filter)", KBUILD_MODNAME);
+					"PID filter)\n", KBUILD_MODNAME);
 			return -ENODEV;
 		} else if ((d->udev->speed == USB_SPEED_FULL &&
 				adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER) ||
 				(adap->props.caps & DVB_USB_ADAP_NEED_PID_FILTERING)) {
 			pr_info("%s: will use the device's hardware PID " \
-					"filter (table count: %d)",
+					"filter (table count: %d)\n",
 					KBUILD_MODNAME,
 					adap->props.pid_filter_count);
 			adap->pid_filtering  = 1;
 			adap->max_feed_count = adap->props.pid_filter_count;
 		} else {
 			pr_info("%s: will pass the complete MPEG2 transport " \
-					"stream to the software demuxer",
+					"stream to the software demuxer\n",
 					KBUILD_MODNAME);
 			adap->pid_filtering  = 0;
 			adap->max_feed_count = 255;
@@ -148,7 +148,7 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 
 		if (!adap->pid_filtering && dvb_usb_force_pid_filter_usage &&
 				adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER) {
-			pr_info("%s: pid filter enabled by module option",
+			pr_info("%s: pid filter enabled by module option\n",
 					KBUILD_MODNAME);
 			adap->pid_filtering  = 1;
 			adap->max_feed_count = adap->props.pid_filter_count;
