@@ -144,7 +144,7 @@ void au_dtime_revert(struct au_dtime *dt)
 
 	err = vfsub_notify_change(&dt->dt_h_path, &attr);
 	if (unlikely(err))
-		pr_warning("restoring timestamps failed(%d). ignored\n", err);
+		pr_warn("restoring timestamps failed(%d). ignored\n", err);
 }
 
 /* ---------------------------------------------------------------------- */
