@@ -41,7 +41,7 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = i915_gem_object_get_pages_gtt(obj);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret) {
 		sg = ERR_PTR(ret);
 		goto out;
@@ -89,7 +89,7 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 		goto out_unlock;
 	}
 
-	ret = i915_gem_object_get_pages_gtt(obj);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
 		return ERR_PTR(ret);

@@ -899,8 +899,28 @@ enum i915_cache_level {
 	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
 };
 
+struct drm_i915_gem_object_ops {
+	/* Interface between the GEM object and its backing storage.
+	 * get_pages() is called once prior to the use of the associated set
+	 * of pages before to binding them into the GTT, and put_pages() is
+	 * called after we no longer need them. As we expect there to be
+	 * associated cost with migrating pages between the backing storage
+	 * and making them available for the GPU (e.g. clflush), we may hold
+	 * onto the pages after they are no longer referenced by the GPU
+	 * in case they may be used again shortly (for example migrating the
+	 * pages to a different memory domain within the GTT). put_pages()
+	 * will therefore most likely be called when the object itself is
+	 * being released or under memory pressure (where we attempt to
+	 * reap pages for the shrinker).
+	 */
+	int (*get_pages)(struct drm_i915_gem_object *);
+	void (*put_pages)(struct drm_i915_gem_object *);
+};
+
 struct drm_i915_gem_object {
 	struct drm_gem_object base;
+
+	const struct drm_i915_gem_object_ops *ops;
 
 	/** Current space allocated to this object in the GTT, if any. */
 	struct drm_mm_node *gtt_space;
@@ -1306,7 +1326,8 @@ int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_init_object(struct drm_gem_object *obj);
-void i915_gem_object_init(struct drm_i915_gem_object *obj);
+void i915_gem_object_init(struct drm_i915_gem_object *obj,
+			 const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
@@ -1319,7 +1340,7 @@ int __must_check i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
-int __must_check i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj);
+int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			 struct intel_ring_buffer *to);
