@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/stmmac.h>
 #include <linux/phy.h>
+#include <linux/pci.h>
 #include "common.h"
 #ifdef CONFIG_STMMAC_TIMER
 #include "stmmac_timer.h"
@@ -95,8 +96,6 @@ extern int stmmac_mdio_register(struct net_device *ndev);
 extern void stmmac_set_ethtool_ops(struct net_device *netdev);
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
-extern struct pci_driver stmmac_pci_driver;
-extern struct platform_driver stmmac_pltfr_driver;
 int stmmac_freeze(struct net_device *ndev);
 int stmmac_restore(struct net_device *ndev);
 int stmmac_resume(struct net_device *ndev);
@@ -144,3 +143,60 @@ static inline int stmmac_clk_get(struct stmmac_priv *priv)
 	return 0;
 }
 #endif /* CONFIG_HAVE_CLK */
+
+
+#ifdef CONFIG_STMMAC_PLATFORM
+extern struct platform_driver stmmac_pltfr_driver;
+static inline int stmmac_register_platform(void)
+{
+	int err;
+
+	err = platform_driver_register(&stmmac_pltfr_driver);
+	if (err)
+		pr_err("stmmac: failed to register the platform driver\n");
+
+	return err;
+}
+static inline void stmmac_unregister_platform(void)
+{
+	platform_driver_register(&stmmac_pltfr_driver);
+}
+#else
+static inline int stmmac_register_platform(void)
+{
+	pr_debug("stmmac: do not register the platf driver\n");
+
+	return -EINVAL;
+}
+static inline void stmmac_unregister_platform(void)
+{
+}
+#endif /* CONFIG_STMMAC_PLATFORM */
+
+#ifdef CONFIG_STMMAC_PCI
+extern struct pci_driver stmmac_pci_driver;
+static inline int stmmac_register_pci(void)
+{
+	int err;
+
+	err = pci_register_driver(&stmmac_pci_driver);
+	if (err)
+		pr_err("stmmac: failed to register the PCI driver\n");
+
+	return err;
+}
+static inline void stmmac_unregister_pci(void)
+{
+	pci_unregister_driver(&stmmac_pci_driver);
+}
+#else
+static inline int stmmac_register_pci(void)
+{
+	pr_debug("stmmac: do not register the PCI driver\n");
+
+	return -EINVAL;
+}
+static inline void stmmac_unregister_pci(void)
+{
+}
+#endif /* CONFIG_STMMAC_PCI */

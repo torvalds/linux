@@ -42,7 +42,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
-#include <linux/pci.h>
 #ifdef CONFIG_STMMAC_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -2094,25 +2093,29 @@ int stmmac_restore(struct net_device *ndev)
 }
 #endif /* CONFIG_PM */
 
+/* Driver can be configured w/ and w/ both PCI and Platf drivers
+ * depending on the configuration selected.
+ */
 static int __init stmmac_init(void)
 {
-	int err = 0;
+	int err_plt = 0;
+	int err_pci = 0;
 
-	err = platform_driver_register(&stmmac_pltfr_driver);
+	err_plt = stmmac_register_platform();
+	err_pci = stmmac_register_pci();
 
-	if (!err) {
-		err = pci_register_driver(&stmmac_pci_driver);
-		if (err)
-			platform_driver_unregister(&stmmac_pltfr_driver);
+	if ((err_pci) && (err_plt)) {
+		pr_err("stmmac: driver registration failed\n");
+		return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
 
 static void __exit stmmac_exit(void)
 {
-	pci_unregister_driver(&stmmac_pci_driver);
-	platform_driver_unregister(&stmmac_pltfr_driver);
+	stmmac_unregister_platform();
+	stmmac_unregister_pci();
 }
 
 module_init(stmmac_init);
