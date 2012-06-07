@@ -1268,7 +1268,7 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	uuid = kmalloc(sizeof(*uuid), GFP_ATOMIC);
+	uuid = kmalloc(sizeof(*uuid), GFP_KERNEL);
 	if (!uuid) {
 		err = -ENOMEM;
 		goto failed;
@@ -1667,7 +1667,7 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	rp_len = sizeof(*rp) + (i * sizeof(struct mgmt_addr_info));
-	rp = kmalloc(rp_len, GFP_ATOMIC);
+	rp = kmalloc(rp_len, GFP_KERNEL);
 	if (!rp) {
 		err = -ENOMEM;
 		goto unlock;
