@@ -824,7 +824,7 @@ struct conf_conn_settings {
 	 *
 	 * Range: CONF_BCN_FILT_MODE_*
 	 */
-	enum conf_bcn_filt_mode bcn_filt_mode;
+	u8 bcn_filt_mode;
 
 	/*
 	 * Configure Beacon filter pass-thru rules.
