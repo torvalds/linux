@@ -621,7 +621,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 		if (!rdmsrl_safe(0xc0011005, &val)) {
 			val |= 1ULL << 54;
-			checking_wrmsrl(0xc0011005, val);
+			wrmsrl_safe(0xc0011005, val);
 			rdmsrl(0xc0011005, val);
 			if (val & (1ULL << 54)) {
 				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
@@ -712,7 +712,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		err = rdmsrl_safe(MSR_AMD64_MCx_MASK(4), &mask);
 		if (err == 0) {
 			mask |= (1 << 10);
-			checking_wrmsrl(MSR_AMD64_MCx_MASK(4), mask);
+			wrmsrl_safe(MSR_AMD64_MCx_MASK(4), mask);
 		}
 	}
 

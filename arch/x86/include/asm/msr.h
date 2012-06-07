@@ -211,7 +211,7 @@ do {                                                            \
 
 #endif	/* !CONFIG_PARAVIRT */
 
-#define checking_wrmsrl(msr, val) wrmsr_safe((msr), (u32)(val),		\
+#define wrmsrl_safe(msr, val) wrmsr_safe((msr), (u32)(val),		\
 					     (u32)((val) >> 32))
 
 #define write_tsc(val1, val2) wrmsr(MSR_IA32_TSC, (val1), (val2))

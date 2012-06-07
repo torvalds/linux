@@ -466,7 +466,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			task->thread.gs = addr;
 			if (doit) {
 				load_gs_index(0);
-				ret = checking_wrmsrl(MSR_KERNEL_GS_BASE, addr);
+				ret = wrmsrl_safe(MSR_KERNEL_GS_BASE, addr);
 			}
 		}
 		put_cpu();
@@ -494,7 +494,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 				/* set the selector to 0 to not confuse
 				   __switch_to */
 				loadsegment(fs, 0);
-				ret = checking_wrmsrl(MSR_FS_BASE, addr);
+				ret = wrmsrl_safe(MSR_FS_BASE, addr);
 			}
 		}
 		put_cpu();

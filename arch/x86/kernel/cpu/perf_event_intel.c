@@ -1003,11 +1003,11 @@ static void intel_pmu_reset(void)
 	printk("clearing PMU state on CPU#%d\n", smp_processor_id());
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		checking_wrmsrl(x86_pmu_config_addr(idx), 0ull);
-		checking_wrmsrl(x86_pmu_event_addr(idx),  0ull);
+		wrmsrl_safe(x86_pmu_config_addr(idx), 0ull);
+		wrmsrl_safe(x86_pmu_event_addr(idx),  0ull);
 	}
 	for (idx = 0; idx < x86_pmu.num_counters_fixed; idx++)
-		checking_wrmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
+		wrmsrl_safe(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
 
 	if (ds)
 		ds->bts_index = ds->bts_buffer_base;
