@@ -1556,9 +1556,6 @@ int intel_gmch_probe(struct pci_dev *pdev,
 		pci_set_consistent_dma_mask(intel_private.pcidev,
 					    DMA_BIT_MASK(mask));
 
-	/*if (bridge->driver == &intel_810_driver)
-		return 1;*/
-
 	if (intel_gtt_init() != 0)
 		return 0;
 
