@@ -48,10 +48,10 @@ struct wl18xx_conf_phy {
 	s8 low_power_val;
 	s8 med_power_val;
 	s8 high_power_val;
-};
+} __packed;
 
 struct wl18xx_priv_conf {
 	struct wl18xx_conf_phy phy;
-};
+} __packed;
 
 #endif /* __WL18XX_CONF_H__ */
