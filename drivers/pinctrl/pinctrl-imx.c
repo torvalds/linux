@@ -173,8 +173,10 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	/* create mux map */
 	parent = of_get_parent(np);
-	if (!parent)
+	if (!parent) {
+		kfree(new_map);
 		return -EINVAL;
+	}
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
