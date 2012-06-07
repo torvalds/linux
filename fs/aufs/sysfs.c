@@ -228,7 +228,7 @@ void sysaufs_brs_add(struct super_block *sb, aufs_bindex_t bindex)
 			 "%d", bindex);
 		err = sysfs_create_file(kobj, &br->br_attr);
 		if (unlikely(err))
-			pr_warning("failed %s under sysfs(%d)\n",
-				   br->br_name, err);
+			pr_warn("failed %s under sysfs(%d)\n",
+				br->br_name, err);
 	}
 }
