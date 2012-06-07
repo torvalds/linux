@@ -22,7 +22,7 @@ DEFINE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
 #define DRV_MODULE_NAME		"bnx2fc"
 #define DRV_MODULE_VERSION	BNX2FC_VERSION
-#define DRV_MODULE_RELDATE	"Apr 24, 2012"
+#define DRV_MODULE_RELDATE	"Jun 04, 2012"
 
 
 static char version[] __devinitdata =
