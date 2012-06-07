@@ -2997,6 +2997,8 @@ static int em_lgdt(struct x86_emulate_ctxt *ctxt)
 	struct desc_ptr desc_ptr;
 	int rc;
 
+	if (ctxt->mode == X86EMUL_MODE_PROT64)
+		ctxt->op_bytes = 8;
 	rc = read_descriptor(ctxt, ctxt->src.addr.mem,
 			     &desc_ptr.size, &desc_ptr.address,
 			     ctxt->op_bytes);
@@ -3024,6 +3026,8 @@ static int em_lidt(struct x86_emulate_ctxt *ctxt)
 	struct desc_ptr desc_ptr;
 	int rc;
 
+	if (ctxt->mode == X86EMUL_MODE_PROT64)
+		ctxt->op_bytes = 8;
 	rc = read_descriptor(ctxt, ctxt->src.addr.mem,
 			     &desc_ptr.size, &desc_ptr.address,
 			     ctxt->op_bytes);
