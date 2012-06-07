@@ -1085,8 +1085,8 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 
 	ring->status_page.gfx_addr = hws->addr & (0x1ffff<<12);
 
-	dev_priv->dri1.gfx_hws_cpu_addr = ioremap_wc(dev->agp->base + hws->addr,
-						     4096);
+	dev_priv->dri1.gfx_hws_cpu_addr =
+		ioremap_wc(dev_priv->mm.gtt_base_addr + hws->addr, 4096);
 	if (dev_priv->dri1.gfx_hws_cpu_addr == NULL) {
 		i915_dma_cleanup(dev);
 		ring->status_page.gfx_addr = 0;
@@ -1482,15 +1482,18 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	dev_priv->mm.gtt_base_addr = dev_priv->mm.gtt->gma_bus_addr;
 
 	dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev->agp->base, aperture_size);
+		io_mapping_create_wc(dev_priv->mm.gtt_base_addr,
+				     aperture_size);
 	if (dev_priv->mm.gtt_mapping == NULL) {
 		ret = -EIO;
 		goto out_rmmap;
 	}
 
-	i915_mtrr_setup(dev_priv, dev->agp->base, aperture_size);
+	i915_mtrr_setup(dev_priv, dev_priv->mm.gtt_base_addr,
+			aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -1602,8 +1605,9 @@ out_gem_unload:
 	destroy_workqueue(dev_priv->wq);
 out_mtrrfree:
 	if (dev_priv->mm.gtt_mtrr >= 0) {
-		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
-			 dev->agp->agp_info.aper_size * 1024 * 1024);
+		mtrr_del(dev_priv->mm.gtt_mtrr,
+			 dev_priv->mm.gtt_base_addr,
+			 aperture_size);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 	io_mapping_free(dev_priv->mm.gtt_mapping);
@@ -1640,8 +1644,9 @@ int i915_driver_unload(struct drm_device *dev)
 
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 	if (dev_priv->mm.gtt_mtrr >= 0) {
-		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
-			 dev->agp->agp_info.aper_size * 1024 * 1024);
+		mtrr_del(dev_priv->mm.gtt_mtrr,
+			 dev_priv->mm.gtt_base_addr,
+			 dev_priv->mm.gtt->gtt_mappable_entries * PAGE_SIZE);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 

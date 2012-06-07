@@ -66,7 +66,6 @@ static struct _intel_private {
 	struct pci_dev *bridge_dev;
 	u8 __iomem *registers;
 	phys_addr_t gtt_bus_addr;
-	phys_addr_t gma_bus_addr;
 	u32 PGETBL_save;
 	u32 __iomem *gtt;		/* I915G */
 	bool clear_fake_agp; /* on first access via agp, fill with scratch */
@@ -779,7 +778,7 @@ static bool intel_enable_gtt(void)
 		pci_read_config_dword(intel_private.pcidev, I915_GMADDR,
 				      &gma_addr);
 
-	intel_private.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
+	intel_private.base.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
 
 	if (INTEL_GTT_GEN >= 6)
 	    return true;
@@ -860,7 +859,7 @@ static int intel_fake_agp_configure(void)
 	    return -EIO;
 
 	intel_private.clear_fake_agp = true;
-	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
+	agp_bridge->gart_bus_addr = intel_private.base.gma_bus_addr;
 
 	return 0;
 }
