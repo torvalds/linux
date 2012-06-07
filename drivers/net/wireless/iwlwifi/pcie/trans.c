@@ -1068,9 +1068,8 @@ static void iwl_tx_start(struct iwl_trans *trans)
 	for (i = 0; i < trans_pcie->n_q_to_fifo; i++) {
 		int fifo = trans_pcie->setup_q_to_fifo[i];
 
-		__iwl_trans_pcie_txq_enable(trans, i, fifo, IWL_INVALID_STATION,
-					    IWL_TID_NON_QOS,
-					    SCD_FRAME_LIMIT, 0);
+		iwl_trans_pcie_txq_enable(trans, i, fifo, IWL_INVALID_STATION,
+					  IWL_TID_NON_QOS, SCD_FRAME_LIMIT, 0);
 	}
 
 	/* Activate all Tx DMA/FIFO channels */

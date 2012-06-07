@@ -415,13 +415,10 @@ static inline void iwl_txq_set_inactive(struct iwl_trans *trans, u16 txq_id)
 		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
-void __iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id,
-					int fifo, int sta_id, int tid,
-					int frame_limit, u16 ssn)
+void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
+			       int sta_id, int tid, int frame_limit, u16 ssn)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	lockdep_assert_held(&trans_pcie->irq_lock);
 
 	if (test_and_set_bit(txq_id, trans_pcie->queue_used))
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
@@ -478,20 +475,6 @@ void __iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id,
 		       SCD_QUEUE_STTS_REG_MSK);
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d on FIFO %d WrPtr: %d\n",
 			    txq_id, fifo, ssn & 0xff);
-}
-
-void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
-			       int sta_id, int tid, int frame_limit, u16 ssn)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
-
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
-
-	__iwl_trans_pcie_txq_enable(trans, txq_id, fifo, sta_id,
-				    tid, frame_limit, ssn);
-
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
