@@ -1324,8 +1324,14 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		goto load;
 	}
 
-	/* NULL selector is not valid for TR, CS and SS */
-	if ((seg == VCPU_SREG_CS || seg == VCPU_SREG_SS || seg == VCPU_SREG_TR)
+	rpl = selector & 3;
+	cpl = ctxt->ops->cpl(ctxt);
+
+	/* NULL selector is not valid for TR, CS and SS (except for long mode) */
+	if ((seg == VCPU_SREG_CS
+	     || (seg == VCPU_SREG_SS
+		 && (ctxt->mode != X86EMUL_MODE_PROT64 || rpl != cpl))
+	     || seg == VCPU_SREG_TR)
 	    && null_selector)
 		goto exception;
 
@@ -1352,9 +1358,7 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		goto exception;
 	}
 
-	rpl = selector & 3;
 	dpl = seg_desc.dpl;
-	cpl = ctxt->ops->cpl(ctxt);
 
 	switch (seg) {
 	case VCPU_SREG_SS:
