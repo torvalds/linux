@@ -777,23 +777,18 @@ static int tpci200_install(struct tpci200_board *tpci200)
 
 	tpci200->slots = kzalloc(
 		TPCI200_NB_SLOT * sizeof(struct tpci200_slot), GFP_KERNEL);
-	if (tpci200->slots == NULL) {
-		res = -ENOMEM;
-		goto out_err;
-	}
+	if (tpci200->slots == NULL)
+		return -ENOMEM;
 
 	res = tpci200_register(tpci200);
-	if (res)
-		goto out_free;
+	if (res) {
+		kfree(tpci200->slots);
+		tpci200->slots = NULL;
+		return res;
+	}
 
 	mutex_init(&tpci200->mutex);
 	return 0;
-
-out_free:
-	kfree(tpci200->slots);
-	tpci200->slots = NULL;
-out_err:
-	return res;
 }
 
 static int tpci200_pciprobe(struct pci_dev *pdev,
