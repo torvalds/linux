@@ -214,7 +214,7 @@ static int br_attr_val(char *str, match_table_t table, substring_t args[])
 		else {
 			if (p)
 				*p = '+';
-			pr_warning("ignored branch attribute %s\n", str);
+			pr_warn("ignored branch attribute %s\n", str);
 			break;
 		}
 		if (p)
@@ -237,7 +237,7 @@ static int noinline_for_stack br_perm_val(char *perm)
 	if (!val) {
 		if (p)
 			*p = '+';
-		pr_warning("ignored branch permission %s\n", perm);
+		pr_warn("ignored branch permission %s\n", perm);
 		val = AuBrPerm_RO;
 		goto out;
 	}
@@ -1123,7 +1123,7 @@ int au_opts_parse(struct super_block *sb, char *str, struct au_opts *opts)
 			break;
 
 		case Opt_ignore:
-			pr_warning("ignored %s\n", opt_str);
+			pr_warn("ignored %s\n", opt_str);
 			/*FALLTHROUGH*/
 		case Opt_ignore_silent:
 			skipped = 1;
@@ -1459,14 +1459,14 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 
 	if (!(sb_flags & MS_RDONLY)) {
 		if (unlikely(!au_br_writable(au_sbr_perm(sb, 0))))
-			pr_warning("first branch should be rw\n");
+			pr_warn("first branch should be rw\n");
 		if (unlikely(au_opt_test(sbinfo->si_mntflags, SHWH)))
-			pr_warning("shwh should be used with ro\n");
+			pr_warn("shwh should be used with ro\n");
 	}
 
 	if (au_opt_test((sbinfo->si_mntflags | pending), UDBA_HNOTIFY)
 	    && !au_opt_test(sbinfo->si_mntflags, XINO))
-		pr_warning("udba=*notify requires xino\n");
+		pr_warn("udba=*notify requires xino\n");
 
 	err = 0;
 	root = sb->s_root;
