@@ -2670,7 +2670,7 @@ static bool __devinit check_hdmi_disabled(struct pci_dev *pci)
 	struct pci_dev *p = get_bound_vga(pci);
 
 	if (p) {
-		if (vga_default_device() && p != vga_default_device())
+		if (vga_switcheroo_get_client_state(p) == VGA_SWITCHEROO_OFF)
 			vga_inactive = true;
 		pci_dev_put(p);
 	}
