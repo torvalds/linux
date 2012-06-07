@@ -109,7 +109,7 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 static inline int stmmac_clk_enable(struct stmmac_priv *priv)
 {
 	if (!IS_ERR(priv->stmmac_clk))
-		return clk_enable(priv->stmmac_clk);
+		return clk_prepare_enable(priv->stmmac_clk);
 
 	return 0;
 }
@@ -119,7 +119,7 @@ static inline void stmmac_clk_disable(struct stmmac_priv *priv)
 	if (IS_ERR(priv->stmmac_clk))
 		return;
 
-	clk_disable(priv->stmmac_clk);
+	clk_disable_unprepare(priv->stmmac_clk);
 }
 static inline int stmmac_clk_get(struct stmmac_priv *priv)
 {
