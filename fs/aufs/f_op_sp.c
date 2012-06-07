@@ -74,9 +74,6 @@ static ssize_t aufs_aio_write_sp(struct kiocb *kio, const struct iovec *iov,
 	/* do not change the file in kio */
 	AuDebugOn(!h_file->f_op || !h_file->f_op->aio_write);
 	err = h_file->f_op->aio_write(kio, iov, nv, pos);
-	if (err > 0 && wbr)
-		file_update_time(h_file);
-
 	return err;
 }
 
