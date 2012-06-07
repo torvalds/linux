@@ -2070,6 +2070,14 @@ int regulator_map_voltage_linear(struct regulator_dev *rdev,
 {
 	int ret, voltage;
 
+	/* Allow uV_step to be 0 for fixed voltage */
+	if (rdev->desc->n_voltages == 1 && rdev->desc->uV_step == 0) {
+		if (min_uV <= rdev->desc->min_uV && rdev->desc->min_uV <= max_uV)
+			return 0;
+		else
+			return -EINVAL;
+	}
+
 	if (!rdev->desc->uV_step) {
 		BUG_ON(!rdev->desc->uV_step);
 		return -EINVAL;
