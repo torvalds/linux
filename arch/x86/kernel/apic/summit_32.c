@@ -320,20 +320,6 @@ static int probe_summit(void)
 	return 0;
 }
 
-static void summit_vector_allocation_domain(int cpu, struct cpumask *retmask)
-{
-	/* Careful. Some cpus do not strictly honor the set of cpus
-	 * specified in the interrupt destination when using lowest
-	 * priority interrupt delivery mode.
-	 *
-	 * In particular there was a hyperthreading cpu observed to
-	 * deliver interrupts to the wrong hyperthread when only one
-	 * hyperthread was specified in the interrupt desitination.
-	 */
-	cpumask_clear(retmask);
-	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
-}
-
 #ifdef CONFIG_X86_SUMMIT_NUMA
 static struct rio_table_hdr *rio_table_hdr;
 static struct scal_detail   *scal_devs[MAX_NUMNODES];
@@ -509,7 +495,7 @@ static struct apic apic_summit = {
 	.check_apicid_used		= summit_check_apicid_used,
 	.check_apicid_present		= summit_check_apicid_present,
 
-	.vector_allocation_domain	= summit_vector_allocation_domain,
+	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= summit_init_apic_ldr,
 
 	.ioapic_phys_id_map		= summit_ioapic_phys_id_map,

@@ -441,20 +441,6 @@ static int probe_numaq(void)
 	return found_numaq;
 }
 
-static void numaq_vector_allocation_domain(int cpu, struct cpumask *retmask)
-{
-	/* Careful. Some cpus do not strictly honor the set of cpus
-	 * specified in the interrupt destination when using lowest
-	 * priority interrupt delivery mode.
-	 *
-	 * In particular there was a hyperthreading cpu observed to
-	 * deliver interrupts to the wrong hyperthread when only one
-	 * hyperthread was specified in the interrupt desitination.
-	 */
-	cpumask_clear(retmask);
-	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
-}
-
 static void numaq_setup_portio_remap(void)
 {
 	int num_quads = num_online_nodes();
@@ -491,7 +477,7 @@ static struct apic __refdata apic_numaq = {
 	.check_apicid_used		= numaq_check_apicid_used,
 	.check_apicid_present		= numaq_check_apicid_present,
 
-	.vector_allocation_domain	= numaq_vector_allocation_domain,
+	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= numaq_init_apic_ldr,
 
 	.ioapic_phys_id_map		= numaq_ioapic_phys_id_map,

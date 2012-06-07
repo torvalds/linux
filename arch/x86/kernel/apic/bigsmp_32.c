@@ -142,12 +142,6 @@ static const struct dmi_system_id bigsmp_dmi_table[] = {
 	{ } /* NULL entry stops DMI scanning */
 };
 
-static void bigsmp_vector_allocation_domain(int cpu, struct cpumask *retmask)
-{
-	cpumask_clear(retmask);
-	cpumask_set_cpu(cpu, retmask);
-}
-
 static int probe_bigsmp(void)
 {
 	if (def_to_bigsmp)
@@ -176,7 +170,7 @@ static struct apic apic_bigsmp = {
 	.check_apicid_used		= bigsmp_check_apicid_used,
 	.check_apicid_present		= bigsmp_check_apicid_present,
 
-	.vector_allocation_domain	= bigsmp_vector_allocation_domain,
+	.vector_allocation_domain	= default_vector_allocation_domain,
 	.init_apic_ldr			= bigsmp_init_apic_ldr,
 
 	.ioapic_phys_id_map		= bigsmp_ioapic_phys_id_map,

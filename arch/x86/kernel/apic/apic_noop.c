@@ -104,8 +104,7 @@ static void noop_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	if (cpu != 0)
 		pr_warning("APIC: Vector allocated for non-BSP cpu\n");
-	cpumask_clear(retmask);
-	cpumask_set_cpu(cpu, retmask);
+	cpumask_copy(retmask, cpumask_of(cpu));
 }
 
 static u32 noop_apic_read(u32 reg)
