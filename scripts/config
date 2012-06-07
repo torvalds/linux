@@ -17,6 +17,7 @@ commands:
 	                     Set option to "string"
 	--set-val option value
 	                     Set option to value
+	--undefine|-u option Undefine option
 	--state|-s option    Print state of option (n,y,m,undef)
 
 	--enable-after|-E beforeopt option
@@ -71,6 +72,12 @@ set_var() {
 	else
 		echo "$new" >>"$FN"
 	fi
+}
+
+undef_var() {
+	local name=$1
+
+	sed -ri "/^($name=|# $name is not set)/d" "$FN"
 }
 
 if [ "$1" = "--file" ]; then
@@ -133,6 +140,9 @@ while [ "$1" != "" ] ; do
 	--set-val)
 		set_var "${CONFIG_}$ARG" "${CONFIG_}$ARG=$1"
 		shift
+		;;
+	--undefine|-u)
+		undef_var "${CONFIG_}$ARG"
 		;;
 
 	--state|-s)
