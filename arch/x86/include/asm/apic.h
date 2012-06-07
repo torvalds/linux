@@ -596,7 +596,7 @@ static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 static inline int
 __flat_cpu_mask_to_apicid(unsigned long cpu_mask, unsigned int *apicid)
 {
-	cpu_mask &= APIC_ALL_CPUS;
+	cpu_mask = cpu_mask & APIC_ALL_CPUS & cpumask_bits(cpu_online_mask)[0];
 	if (likely(cpu_mask)) {
 		*apicid = (unsigned int)cpu_mask;
 		return 0;
@@ -619,9 +619,7 @@ flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 {
 	unsigned long mask1 = cpumask_bits(cpumask)[0];
 	unsigned long mask2 = cpumask_bits(andmask)[0];
-	unsigned long mask3 = cpumask_bits(cpu_online_mask)[0];
-
-	return __flat_cpu_mask_to_apicid(mask1 & mask2 & mask3, apicid);
+	return __flat_cpu_mask_to_apicid(mask1 & mask2, apicid);
 }
 
 extern int

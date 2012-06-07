@@ -286,7 +286,7 @@ uv_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *apicid)
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	int cpu = cpumask_first(cpumask);
+	int cpu = cpumask_first_and(cpumask, cpu_online_mask);
 	return __uv_cpu_to_apicid(cpu, apicid);
 }
 

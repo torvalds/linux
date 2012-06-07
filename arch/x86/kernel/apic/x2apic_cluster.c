@@ -99,7 +99,7 @@ static void x2apic_send_IPI_all(int vector)
 static int
 x2apic_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *apicid)
 {
-	int cpu = cpumask_first(cpumask);
+	int cpu = cpumask_first_and(cpumask, cpu_online_mask);
 	int i;
 
 	if (cpu >= nr_cpu_ids)
