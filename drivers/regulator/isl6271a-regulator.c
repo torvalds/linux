@@ -75,19 +75,13 @@ static struct regulator_ops isl_core_ops = {
 
 static int isl6271a_get_fixed_voltage(struct regulator_dev *dev)
 {
-	int id = rdev_get_id(dev);
-	return (id == 1) ? 1100000 : 1300000;
-}
-
-static int isl6271a_list_fixed_voltage(struct regulator_dev *dev, unsigned selector)
-{
-	int id = rdev_get_id(dev);
-	return (id == 1) ? 1100000 : 1300000;
+	return dev->desc->min_uV;
 }
 
 static struct regulator_ops isl_fixed_ops = {
 	.get_voltage	= isl6271a_get_fixed_voltage,
-	.list_voltage	= isl6271a_list_fixed_voltage,
+	.list_voltage	= regulator_list_voltage_linear,
+	.map_voltage	= regulator_map_voltage_linear,
 };
 
 static const struct regulator_desc isl_rd[] = {
@@ -107,6 +101,7 @@ static const struct regulator_desc isl_rd[] = {
 		.ops		= &isl_fixed_ops,
 		.type		= REGULATOR_VOLTAGE,
 		.owner		= THIS_MODULE,
+		.min_uV		= 1100000,
 	}, {
 		.name		= "LDO2",
 		.id		= 2,
@@ -114,6 +109,7 @@ static const struct regulator_desc isl_rd[] = {
 		.ops		= &isl_fixed_ops,
 		.type		= REGULATOR_VOLTAGE,
 		.owner		= THIS_MODULE,
+		.min_uV		= 1300000,
 	},
 };
 
