@@ -182,18 +182,18 @@ void bfin_hibernate_syscontrol(void)
 asmlinkage void enter_deepsleep(void);
 
 __attribute__((l1_text))
-void bfin_deepsleep(unsigned long mask)
+void bfin_deepsleep(unsigned long mask, unsigned long pol_mask)
 {
-	bfin_write32(DPM0_WAKE_EN, 0x10);
-	bfin_write32(DPM0_WAKE_POL, 0x10);
+	bfin_write32(DPM0_WAKE_EN, mask);
+	bfin_write32(DPM0_WAKE_POL, pol_mask);
 	SSYNC();
 	enter_deepsleep();
 }
 
-void bfin_hibernate(unsigned long mask)
+void bfin_hibernate(unsigned long mask, unsigned long pol_mask)
 {
-	bfin_write32(DPM0_WAKE_EN, 0x10);
-	bfin_write32(DPM0_WAKE_POL, 0x10);
+	bfin_write32(DPM0_WAKE_EN, mask);
+	bfin_write32(DPM0_WAKE_POL, pol_mask);
 	bfin_write32(DPM0_PGCNTR, 0x0000FFFF);
 	bfin_write32(DPM0_HIB_DIS, 0xFFFF);
 
@@ -270,9 +270,9 @@ void bf609_cpu_pm_enter(suspend_state_t state)
 		printk(KERN_DEBUG "Unable to get irq wake\n");
 
 	if (state == PM_SUSPEND_STANDBY)
-		bfin_deepsleep(wakeup);
+		bfin_deepsleep(wakeup, wakeup_pol);
 	else {
-		bfin_hibernate(wakeup);
+		bfin_hibernate(wakeup, wakeup_pol);
 	}
 
 }
@@ -294,9 +294,10 @@ static struct bfin_cpu_pm_fns bf609_cpu_pm = {
 };
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-static void smc_pm_syscore_suspend(void)
+static int smc_pm_syscore_suspend(void)
 {
 	bf609_nor_flash_exit();
+	return 0;
 }
 
 static void smc_pm_syscore_resume(void)
