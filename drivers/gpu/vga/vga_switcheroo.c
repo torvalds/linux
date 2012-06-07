@@ -190,6 +190,19 @@ find_active_client(struct list_head *head)
 	return NULL;
 }
 
+int vga_switcheroo_get_client_state(struct pci_dev *pdev)
+{
+	struct vga_switcheroo_client *client;
+
+	client = find_client_from_pci(&vgasr_priv.clients, pdev);
+	if (!client)
+		return VGA_SWITCHEROO_NOT_FOUND;
+	if (!vgasr_priv.active)
+		return VGA_SWITCHEROO_INIT;
+	return client->pwr_state;
+}
+EXPORT_SYMBOL(vga_switcheroo_get_client_state);
+
 void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 {
 	struct vga_switcheroo_client *client;
