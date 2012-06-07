@@ -1772,14 +1772,23 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			priv->user_scan_cfg = NULL;
 		}
 	} else {
-		/* Get scan command from scan_pending_q and put to
-		   cmd_pending_q */
-		cmd_node = list_first_entry(&adapter->scan_pending_q,
-					    struct cmd_ctrl_node, list);
-		list_del(&cmd_node->list);
-		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
-
-		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
+		if (!mwifiex_wmm_lists_empty(adapter)) {
+			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
+					       flags);
+			adapter->scan_delay_cnt = 1;
+			mod_timer(&priv->scan_delay_timer, jiffies +
+				  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
+		} else {
+			/* Get scan command from scan_pending_q and put to
+			   cmd_pending_q */
+			cmd_node = list_first_entry(&adapter->scan_pending_q,
+						    struct cmd_ctrl_node, list);
+			list_del(&cmd_node->list);
+			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
+					       flags);
+			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
+							true);
+		}
 	}
 
 done:
