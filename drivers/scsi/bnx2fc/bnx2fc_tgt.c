@@ -150,8 +150,7 @@ tgt_init_err:
 void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 {
 	struct bnx2fc_cmd *io_req;
-	struct list_head *list;
-	struct list_head *tmp;
+	struct bnx2fc_cmd *tmp;
 	int rc;
 	int i = 0;
 	BNX2FC_TGT_DBG(tgt, "Entered flush_active_ios - %d\n",
@@ -160,9 +159,8 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 	spin_lock_bh(&tgt->tgt_lock);
 	tgt->flush_in_prog = 1;
 
-	list_for_each_safe(list, tmp, &tgt->active_cmd_queue) {
+	list_for_each_entry_safe(io_req, tmp, &tgt->active_cmd_queue, link) {
 		i++;
-		io_req = (struct bnx2fc_cmd *)list;
 		list_del_init(&io_req->link);
 		io_req->on_active_queue = 0;
 		BNX2FC_IO_DBG(io_req, "cmd_queue cleanup\n");
@@ -191,9 +189,8 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 		}
 	}
 
-	list_for_each_safe(list, tmp, &tgt->active_tm_queue) {
+	list_for_each_entry_safe(io_req, tmp, &tgt->active_tm_queue, link) {
 		i++;
-		io_req = (struct bnx2fc_cmd *)list;
 		list_del_init(&io_req->link);
 		io_req->on_tmf_queue = 0;
 		BNX2FC_IO_DBG(io_req, "tm_queue cleanup\n");
@@ -201,9 +198,8 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 			complete(&io_req->tm_done);
 	}
 
-	list_for_each_safe(list, tmp, &tgt->els_queue) {
+	list_for_each_entry_safe(io_req, tmp, &tgt->els_queue, link) {
 		i++;
-		io_req = (struct bnx2fc_cmd *)list;
 		list_del_init(&io_req->link);
 		io_req->on_active_queue = 0;
 
@@ -227,9 +223,8 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 		}
 	}
 
-	list_for_each_safe(list, tmp, &tgt->io_retire_queue) {
+	list_for_each_entry_safe(io_req, tmp, &tgt->io_retire_queue, link) {
 		i++;
-		io_req = (struct bnx2fc_cmd *)list;
 		list_del_init(&io_req->link);
 
 		BNX2FC_IO_DBG(io_req, "retire_queue flush\n");
