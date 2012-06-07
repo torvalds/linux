@@ -192,8 +192,8 @@ struct x86_emulate_ops {
 			 struct x86_instruction_info *info,
 			 enum x86_intercept_stage stage);
 
-	bool (*get_cpuid)(struct x86_emulate_ctxt *ctxt,
-			 u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
+	void (*get_cpuid)(struct x86_emulate_ctxt *ctxt,
+			  u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
 };
 
 typedef u32 __attribute__((vector_size(16))) sse128_t;
