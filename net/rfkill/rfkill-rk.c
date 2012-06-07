@@ -100,7 +100,7 @@ struct rfkill_rk_data {
     struct delayed_work         bt_sleep_delay_work;
 };
 
-struct rfkill_rk_data *g_rfkill = NULL;
+static struct rfkill_rk_data *g_rfkill = NULL;
 
 static const char bt_name[] = 
 #if defined(CONFIG_RKWIFI)
@@ -322,12 +322,18 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 	return 0;
 }
 
-static int rfkill_rk_suspend(struct platform_device *pdev, pm_message_t state)
+static int rfkill_rk_pm_prepare(struct device *dev)
 {
-    struct rfkill_rk_data *rfkill = platform_get_drvdata(pdev);
-    struct rfkill_rk_gpio* rts = &rfkill->pdata->rts_gpio;
-    struct rfkill_rk_irq*  wake_host_irq = &rfkill->pdata->wake_host_irq;
+    struct rfkill_rk_data *rfkill = g_rfkill;
+    struct rfkill_rk_gpio* rts;
+    struct rfkill_rk_irq*  wake_host_irq;
     DBG("Enter %s\n",__FUNCTION__);
+
+    if (!rfkill)
+        return 0;
+
+    rts = &rfkill->pdata->rts_gpio;
+    wake_host_irq = &rfkill->pdata->wake_host_irq;
 
     //To prevent uart to receive bt data when suspended
     if (gpio_is_valid(rts->io))
@@ -365,12 +371,15 @@ static int rfkill_rk_suspend(struct platform_device *pdev, pm_message_t state)
     return 0;
 }
 
-static int rfkill_rk_resume(struct platform_device *pdev)
+static void rfkill_rk_pm_complete(struct device *dev)
 {
-    struct rfkill_rk_data *rfkill = platform_get_drvdata(pdev);
-    struct rfkill_rk_irq*  wake_host_irq = NULL;
-    struct rfkill_rk_gpio* rts = NULL;
+    struct rfkill_rk_data *rfkill = g_rfkill;
+    struct rfkill_rk_irq*  wake_host_irq;
+    struct rfkill_rk_gpio* rts;
     DBG("Enter %s\n",__FUNCTION__);
+
+    if (!rfkill)
+        return;
 
     wake_host_irq = &rfkill->pdata->wake_host_irq;
     rts = &rfkill->pdata->rts_gpio;
@@ -396,8 +405,6 @@ static int rfkill_rk_resume(struct platform_device *pdev)
             rk_mux_api_set(rts->iomux.name, rts->iomux.fmux);
         }
     }
-
-    return 0;
 }
 
 static const struct rfkill_ops rfkill_rk_ops = {
@@ -537,14 +544,18 @@ static int rfkill_rk_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops rfkill_rk_pm_ops = {
+	.prepare = rfkill_rk_pm_prepare,
+	.complete = rfkill_rk_pm_complete,
+};
+
 static struct platform_driver rfkill_rk_driver = {
 	.probe = rfkill_rk_probe,
 	.remove = __devexit_p(rfkill_rk_remove),
-    .suspend = rfkill_rk_suspend,
-    .resume = rfkill_rk_resume,
 	.driver = {
-        .name = "rfkill_rk",
-        .owner = THIS_MODULE,
+		.name = "rfkill_rk",
+		.owner = THIS_MODULE,
+		.pm = &rfkill_rk_pm_ops,
 	},
 };
 
