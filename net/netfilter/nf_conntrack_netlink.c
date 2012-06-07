@@ -902,7 +902,8 @@ static const struct nla_policy help_nla_policy[CTA_HELP_MAX+1] = {
 };
 
 static inline int
-ctnetlink_parse_help(const struct nlattr *attr, char **helper_name)
+ctnetlink_parse_help(const struct nlattr *attr, char **helper_name,
+		     struct nlattr **helpinfo)
 {
 	struct nlattr *tb[CTA_HELP_MAX+1];
 
@@ -912,6 +913,9 @@ ctnetlink_parse_help(const struct nlattr *attr, char **helper_name)
 		return -EINVAL;
 
 	*helper_name = nla_data(tb[CTA_HELP_NAME]);
+
+	if (tb[CTA_HELP_INFO])
+		*helpinfo = tb[CTA_HELP_INFO];
 
 	return 0;
 }
@@ -1173,13 +1177,14 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 	struct nf_conntrack_helper *helper;
 	struct nf_conn_help *help = nfct_help(ct);
 	char *helpname = NULL;
+	struct nlattr *helpinfo = NULL;
 	int err;
 
 	/* don't change helper of sibling connections */
 	if (ct->master)
 		return -EBUSY;
 
-	err = ctnetlink_parse_help(cda[CTA_HELP], &helpname);
+	err = ctnetlink_parse_help(cda[CTA_HELP], &helpname, &helpinfo);
 	if (err < 0)
 		return err;
 
@@ -1214,8 +1219,12 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 	}
 
 	if (help) {
-		if (help->helper == helper)
+		if (help->helper == helper) {
+			/* update private helper data if allowed. */
+			if (helper->from_nlattr && helpinfo)
+				helper->from_nlattr(helpinfo, ct);
 			return 0;
+		}
 		if (help->helper)
 			return -EBUSY;
 		/* need to zero data of old helper */
@@ -1411,8 +1420,9 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 	rcu_read_lock();
  	if (cda[CTA_HELP]) {
 		char *helpname = NULL;
- 
- 		err = ctnetlink_parse_help(cda[CTA_HELP], &helpname);
+		struct nlattr *helpinfo = NULL;
+
+		err = ctnetlink_parse_help(cda[CTA_HELP], &helpname, &helpinfo);
  		if (err < 0)
 			goto err2;
 
@@ -1446,6 +1456,9 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 				err = -ENOMEM;
 				goto err2;
 			}
+			/* set private helper data if allowed. */
+			if (helper->from_nlattr && helpinfo)
+				helper->from_nlattr(helpinfo, ct);
 
 			/* not in hash table yet so not strictly necessary */
 			RCU_INIT_POINTER(help->helper, helper);

@@ -39,6 +39,7 @@ struct nf_conntrack_helper {
 
 	void (*destroy)(struct nf_conn *ct);
 
+	int (*from_nlattr)(struct nlattr *attr, struct nf_conn *ct);
 	int (*to_nlattr)(struct sk_buff *skb, const struct nf_conn *ct);
 	unsigned int expect_class_max;
 };
