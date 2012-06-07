@@ -102,7 +102,7 @@ static UCHAR ReadEEPROMStatusRegister(struct bcm_mini_adapter *Adapter)
 			return uiData;
 		}
 		if (!(dwRetries%RETRIES_PER_DELAY))
-			msleep(1);
+			udelay(1000);
 		uiStatus = 0 ;
 	}
 	return uiData;
@@ -195,7 +195,7 @@ INT ReadBeceemEEPROMBulk(struct bcm_mini_adapter *Adapter,
 		}
 
 		if (!(dwRetries%RETRIES_PER_DELAY))
-			msleep(1);
+			udelay(1000);
 	}
 
 	for (dwIndex = 0; dwIndex < dwNumWords; dwIndex++) {
@@ -577,7 +577,7 @@ static INT FlashSectorErase(struct bcm_mini_adapter *Adapter,
 			 * the sector erase cycle is 500 ms to 40000 msec. hence sleeping 10 ms
 			 * won't hamper performance in any case.
 			 */
-			msleep(10);
+			udelay(10000);
 		} while ((uiStatus & 0x1) && (iRetries < 400));
 
 		if (uiStatus & 0x1) {
@@ -654,7 +654,7 @@ static INT flashByteWrite(struct bcm_mini_adapter *Adapter,
 		}
 		iRetries--;
 		if (iRetries && ((iRetries % FLASH_PER_RETRIES_DELAY) == 0))
-			msleep(1);
+			udelay(1000);
 
 	} while ((uiStatus & 0x1) && (iRetries  > 0));
 
@@ -734,7 +734,7 @@ static INT flashWrite(struct bcm_mini_adapter *Adapter,
 		 * Hence current implementation cycle will intoduce no delay in current path
 		 */
 		if (iRetries && ((iRetries % FLASH_PER_RETRIES_DELAY) == 0))
-			msleep(1);
+			udelay(1000);
 	} while ((uiStatus & 0x1) && (iRetries > 0));
 
 	if (uiStatus & 0x1) {
@@ -811,7 +811,7 @@ static INT flashByteWriteStatus(struct bcm_mini_adapter *Adapter,
 
 		iRetries--;
 		if (iRetries && ((iRetries % FLASH_PER_RETRIES_DELAY) == 0))
-			msleep(1);
+			udelay(1000);
 
 	} while ((uiStatus & 0x1) && (iRetries > 0));
 
@@ -886,7 +886,7 @@ static INT flashWriteStatus(struct bcm_mini_adapter *Adapter,
 		 * Hence current implementation cycle will intoduce no delay in current path
 		 */
 		if (iRetries && ((iRetries % FLASH_PER_RETRIES_DELAY) == 0))
-			msleep(1);
+			udelay(1000);
 
 	} while ((uiStatus & 0x1) && (iRetries > 0));
 
@@ -1657,7 +1657,7 @@ static INT BeceemEEPROMWritePage(struct bcm_mini_adapter *Adapter, UINT uiData[]
 		}
 
 		if (!(uiRetries%RETRIES_PER_DELAY))
-			msleep(1);
+			udelay(1000);
 
 		uiStatus = 0;
 		rdmalt(Adapter, EEPROM_SPI_Q_STATUS1_REG, &uiStatus, sizeof(uiStatus));
@@ -1698,7 +1698,7 @@ static INT BeceemEEPROMWritePage(struct bcm_mini_adapter *Adapter, UINT uiData[]
 		}
 		uiEpromStatus = 0;
 		if (!(uiRetries%RETRIES_PER_DELAY))
-			msleep(1);
+			udelay(1000);
 	}
 
 	return STATUS_SUCCESS;
