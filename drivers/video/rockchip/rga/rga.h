@@ -362,8 +362,7 @@ struct rga_reg {
 
 
 typedef struct rga_service_info {
-    spinlock_t		lock;
-    spinlock_t      lock_power;
+    struct mutex	lock;
     struct timer_list	timer;			/* timer for power off */
     struct list_head	waiting;		/* link to link_reg in struct vpu_reg */
     struct list_head	running;		/* link to link_reg in struct vpu_reg */
