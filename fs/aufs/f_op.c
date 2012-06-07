@@ -483,7 +483,6 @@ static unsigned long au_flag_conv(unsigned long flags)
 static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int err;
-	unsigned long prot;
 	aufs_bindex_t bstart;
 	const unsigned char wlock
 		= (file->f_mode & FMODE_WRITE) && (vma->vm_flags & VM_SHARED);
@@ -523,9 +522,12 @@ static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 	lockdep_on();
 
 	au_vm_file_reset(vma, h_file);
-	prot = au_prot_conv(vma->vm_flags);
-	err = security_file_mmap(h_file, /*reqprot*/prot, prot,
-				 au_flag_conv(vma->vm_flags), vma->vm_start, 0);
+	/* todo: the locking order between mmap_sem */
+	/*
+         * err = security_mmap_file(h_file, au_prot_conv(vma->vm_flags),
+	 * 			 au_flag_conv(vma->vm_flags));
+         */
+	err = 0;
 	if (!err)
 		err = h_file->f_op->mmap(h_file, vma);
 	if (unlikely(err))

@@ -46,7 +46,7 @@ static void wkq_func(struct work_struct *wk)
 {
 	struct au_wkinfo *wkinfo = container_of(wk, struct au_wkinfo, wk);
 
-	AuDebugOn(current_fsuid());
+	AuDebugOn(current_fsuid() != GLOBAL_ROOT_GID);
 	AuDebugOn(rlimit(RLIMIT_FSIZE) != RLIM_INFINITY);
 
 	wkinfo->func(wkinfo->args);

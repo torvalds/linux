@@ -31,12 +31,12 @@
 
 /* copied from linux/fs/internal.h */
 /* todo: BAD approach!! */
-DECLARE_BRLOCK(vfsmount_lock);
+extern struct lglock vfsmount_lock;
 extern void file_sb_list_del(struct file *f);
 extern spinlock_t inode_sb_list_lock;
 
 /* copied from linux/fs/file_table.c */
-DECLARE_LGLOCK(files_lglock);
+extern struct lglock files_lglock;
 #ifdef CONFIG_SMP
 /*
  * These macros iterate all files on all CPUs for a given superblock.
@@ -98,6 +98,19 @@ static inline void vfsub_dead_dir(struct inode *inode)
 	AuDebugOn(!S_ISDIR(inode->i_mode));
 	inode->i_flags |= S_DEAD;
 	clear_nlink(inode);
+}
+
+/* ---------------------------------------------------------------------- */
+
+/* cf. i_[ug]id_read() in linux/include/fs.h */
+static inline uid_t vfsub_ia_uid(struct iattr *ia)
+{
+	return from_kuid(&init_user_ns, ia->ia_uid);
+}
+
+static inline gid_t vfsub_ia_gid(struct iattr *ia)
+{
+	return from_kgid(&init_user_ns, ia->ia_gid);
 }
 
 /* ---------------------------------------------------------------------- */

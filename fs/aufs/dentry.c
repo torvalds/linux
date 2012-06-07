@@ -346,8 +346,8 @@ out:
 struct au_iattr {
 	unsigned long		i_ino;
 	/* unsigned int		i_nlink; */
-	uid_t			i_uid;
-	gid_t			i_gid;
+	kuid_t			i_uid;
+	kgid_t			i_gid;
 	u64			i_version;
 /*
 	loff_t			i_size;
@@ -374,8 +374,8 @@ static int au_iattr_test(struct au_iattr *ia, struct inode *h_inode)
 {
 	return ia->i_ino != h_inode->i_ino
 		/* || ia->i_nlink != h_inode->i_nlink */
-		|| ia->i_uid != h_inode->i_uid
-		|| ia->i_gid != h_inode->i_gid
+		|| !uid_eq(ia->i_uid, h_inode->i_uid)
+		|| !uid_eq(ia->i_gid, h_inode->i_gid)
 		|| ia->i_version != h_inode->i_version
 /*
 		|| ia->i_size != h_inode->i_size
