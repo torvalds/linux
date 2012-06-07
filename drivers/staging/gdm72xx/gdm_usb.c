@@ -270,7 +270,7 @@ static void release_usb(struct usbwm_dev *udev)
 	}
 }
 
-static void gdm_usb_send_complete(struct urb *urb)
+static void gdm_usb_send_complete_impl(struct urb *urb, bool need_lock)
 {
 	struct usb_tx *t = urb->context;
 	struct tx_cxt *tx = t->tx_cxt;
@@ -282,7 +282,8 @@ static void gdm_usb_send_complete(struct urb *urb)
 	if (urb->status == -ECONNRESET)
 		return;
 
-	spin_lock_irqsave(&tx->lock, flags);
+	if (need_lock)
+		spin_lock_irqsave(&tx->lock, flags);
 
 	if (t->callback)
 		t->callback(t->cb_data);
@@ -296,7 +297,18 @@ static void gdm_usb_send_complete(struct urb *urb)
 	else
 		free_tx_struct(t);
 
-	spin_unlock_irqrestore(&tx->lock, flags);
+	if (need_lock)
+		spin_unlock_irqrestore(&tx->lock, flags);
+}
+
+static void gdm_usb_send_complete(struct urb *urb)
+{
+	gdm_usb_send_complete_impl(urb, true);
+}
+
+static void gdm_usb_send_complete_no_lock(struct urb *urb)
+{
+	gdm_usb_send_complete_impl(urb, false);
 }
 
 static int gdm_usb_send(void *priv_dev, void *data, int len,
@@ -411,7 +423,7 @@ out:
 
 send_fail:
 	t->callback = NULL;
-	gdm_usb_send_complete(t->urb);
+	gdm_usb_send_complete_no_lock(t->urb);
 	spin_unlock_irqrestore(&tx->lock, flags);
 	return ret;
 }
@@ -540,7 +552,7 @@ static void do_pm_control(struct work_struct *work)
 
 			if (ret) {
 				t->callback = NULL;
-				gdm_usb_send_complete(t->urb);
+				gdm_usb_send_complete_no_lock(t->urb);
 			}
 		}
 	}
@@ -742,7 +754,7 @@ static int k_mode_thread(void *arg)
 
 				if (ret) {
 					t->callback = NULL;
-					gdm_usb_send_complete(t->urb);
+					gdm_usb_send_complete_no_lock(t->urb);
 				}
 			}
 
