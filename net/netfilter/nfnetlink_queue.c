@@ -502,12 +502,10 @@ err_out:
 }
 
 static int
-nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e)
+nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e, int diff)
 {
 	struct sk_buff *nskb;
-	int diff;
 
-	diff = data_len - e->skb->len;
 	if (diff < 0) {
 		if (pskb_trim(e->skb, data_len))
 			return -ENOMEM;
@@ -767,6 +765,8 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	unsigned int verdict;
 	struct nf_queue_entry *entry;
 	struct nfq_ct_hook *nfq_ct;
+	enum ip_conntrack_info uninitialized_var(ctinfo);
+	struct nf_conn *ct = NULL;
 
 	queue = instance_lookup(queue_num);
 	if (!queue)
@@ -789,20 +789,23 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	nfq_ct = rcu_dereference(nfq_ct_hook);
 	if (nfq_ct != NULL &&
 	    (queue->flags & NFQA_CFG_F_CONNTRACK) && nfqa[NFQA_CT]) {
-		enum ip_conntrack_info ctinfo;
-		struct nf_conn *ct;
-
 		ct = nf_ct_get(entry->skb, &ctinfo);
 		if (ct && !nf_ct_is_untracked(ct))
 			nfq_ct->parse(nfqa[NFQA_CT], ct);
 	}
-	rcu_read_unlock();
 
 	if (nfqa[NFQA_PAYLOAD]) {
+		u16 payload_len = nla_len(nfqa[NFQA_PAYLOAD]);
+		int diff = payload_len - entry->skb->len;
+
 		if (nfqnl_mangle(nla_data(nfqa[NFQA_PAYLOAD]),
-				 nla_len(nfqa[NFQA_PAYLOAD]), entry) < 0)
+				 payload_len, entry, diff) < 0)
 			verdict = NF_DROP;
+
+		if (ct && (ct->status & IPS_NAT_MASK) && diff)
+			nfq_ct->seq_adjust(skb, ct, ctinfo, diff);
 	}
+	rcu_read_unlock();
 
 	if (nfqa[NFQA_MARK])
 		entry->skb->mark = ntohl(nla_get_be32(nfqa[NFQA_MARK]));

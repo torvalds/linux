@@ -401,6 +401,8 @@ struct nfq_ct_hook {
 	size_t (*build_size)(const struct nf_conn *ct);
 	int (*build)(struct sk_buff *skb, struct nf_conn *ct);
 	int (*parse)(const struct nlattr *attr, struct nf_conn *ct);
+	void (*seq_adjust)(struct sk_buff *skb, struct nf_conn *ct,
+			   u32 ctinfo, int off);
 };
 extern struct nfq_ct_hook *nfq_ct_hook;
 #else

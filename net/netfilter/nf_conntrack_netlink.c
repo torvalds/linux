@@ -46,6 +46,7 @@
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_protocol.h>
+#include <net/netfilter/nf_nat_helper.h>
 #endif
 
 #include <linux/netfilter/nfnetlink.h>
@@ -1751,6 +1752,9 @@ static struct nfq_ct_hook ctnetlink_nfqueue_hook = {
 	.build_size	= ctnetlink_nfqueue_build_size,
 	.build		= ctnetlink_nfqueue_build,
 	.parse		= ctnetlink_nfqueue_parse,
+#ifdef CONFIG_NF_NAT_NEEDED
+	.seq_adjust	= nf_nat_tcp_seq_adjust,
+#endif
 };
 #endif /* CONFIG_NETFILTER_NETLINK_QUEUE */
 
