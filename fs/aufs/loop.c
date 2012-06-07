@@ -107,8 +107,8 @@ void au_warn_loopback(struct super_block *h_sb)
 
 pr:
 	spin_unlock(&spin);
-	pr_warning("you may want to try another patch for loopback file "
-		   "on %s(0x%lx) branch\n", au_sbtype(h_sb), magic);
+	pr_warn("you may want to try another patch for loopback file "
+		"on %s(0x%lx) branch\n", au_sbtype(h_sb), magic);
 }
 
 int au_loopback_init(void)

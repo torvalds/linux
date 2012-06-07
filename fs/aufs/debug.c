@@ -478,7 +478,7 @@ int __init au_debug_init(void)
 	AuDebugOn(destr.len < NAME_MAX);
 
 #ifdef CONFIG_4KSTACKS
-	pr_warning("CONFIG_4KSTACKS is defined.\n");
+	pr_warn("CONFIG_4KSTACKS is defined.\n");
 #endif
 
 #ifdef AuForceNoBrs

@@ -253,12 +253,12 @@ static int test_add(struct super_block *sb, struct au_opt_add *add, int remount)
 		if ((h_inode->i_mode & S_IALLUGO) != (inode->i_mode & S_IALLUGO)
 		    || !uid_eq(h_inode->i_uid, inode->i_uid)
 		    || !gid_eq(h_inode->i_gid, inode->i_gid))
-			pr_warning("uid/gid/perm %s %u/%u/0%o, %u/%u/0%o\n",
-				   add->pathname,
-				   i_uid_read(inode), i_gid_read(inode),
-				   (inode->i_mode & S_IALLUGO),
-				   i_uid_read(h_inode), i_gid_read(h_inode),
-				   (h_inode->i_mode & S_IALLUGO));
+			pr_warn("uid/gid/perm %s %u/%u/0%o, %u/%u/0%o\n",
+				add->pathname,
+				i_uid_read(inode), i_gid_read(inode),
+				(inode->i_mode & S_IALLUGO),
+				i_uid_read(h_inode), i_gid_read(h_inode),
+				(h_inode->i_mode & S_IALLUGO));
 	}
 
 out:
@@ -853,8 +853,8 @@ out_wh:
 	/* revert */
 	rerr = au_br_init_wh(sb, br, br->br_perm, del->h_path.dentry);
 	if (rerr)
-		pr_warning("failed re-creating base whiteout, %s. (%d)\n",
-			   del->pathname, rerr);
+		pr_warn("failed re-creating base whiteout, %s. (%d)\n",
+			del->pathname, rerr);
 out:
 	return err;
 }
