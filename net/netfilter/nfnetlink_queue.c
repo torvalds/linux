@@ -30,6 +30,7 @@
 #include <linux/list.h>
 #include <net/sock.h>
 #include <net/netfilter/nf_queue.h>
+#include <net/netfilter/nf_conntrack.h>
 
 #include <linux/atomic.h>
 
@@ -233,6 +234,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	struct sk_buff *entskb = entry->skb;
 	struct net_device *indev;
 	struct net_device *outdev;
+	struct nfq_ct_hook *nfq_ct;
+	struct nf_conn *ct = NULL;
+	enum ip_conntrack_info uninitialized_var(ctinfo);
 
 	size =    NLMSG_SPACE(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
@@ -266,6 +270,17 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		break;
 	}
 
+	/* rcu_read_lock()ed by __nf_queue already. */
+	nfq_ct = rcu_dereference(nfq_ct_hook);
+	if (nfq_ct != NULL && (queue->flags & NFQA_CFG_F_CONNTRACK)) {
+		ct = nf_ct_get(entskb, &ctinfo);
+		if (ct) {
+			if (!nf_ct_is_untracked(ct))
+				size += nfq_ct->build_size(ct);
+			else
+				ct = NULL;
+		}
+	}
 
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb)
@@ -387,6 +402,24 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 		if (skb_copy_bits(entskb, 0, nla_data(nla), data_len))
 			BUG();
+	}
+
+	if (ct) {
+		struct nlattr *nest_parms;
+		u_int32_t tmp;
+
+		nest_parms = nla_nest_start(skb, NFQA_CT | NLA_F_NESTED);
+		if (!nest_parms)
+			goto nla_put_failure;
+
+		if (nfq_ct->build(skb, ct) < 0)
+			goto nla_put_failure;
+
+		nla_nest_end(skb, nest_parms);
+
+		tmp = ctinfo;
+		if (nla_put_u32(skb, NFQA_CT_INFO, htonl(ctinfo)))
+			goto nla_put_failure;
 	}
 
 	nlh->nlmsg_len = skb->tail - old_tail;
@@ -632,6 +665,7 @@ static const struct nla_policy nfqa_verdict_policy[NFQA_MAX+1] = {
 	[NFQA_VERDICT_HDR]	= { .len = sizeof(struct nfqnl_msg_verdict_hdr) },
 	[NFQA_MARK]		= { .type = NLA_U32 },
 	[NFQA_PAYLOAD]		= { .type = NLA_UNSPEC },
+	[NFQA_CT]		= { .type = NLA_UNSPEC },
 };
 
 static const struct nla_policy nfqa_verdict_batch_policy[NFQA_MAX+1] = {
@@ -732,6 +766,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	struct nfqnl_instance *queue;
 	unsigned int verdict;
 	struct nf_queue_entry *entry;
+	struct nfq_ct_hook *nfq_ct;
 
 	queue = instance_lookup(queue_num);
 	if (!queue)
@@ -749,6 +784,19 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	entry = find_dequeue_entry(queue, ntohl(vhdr->id));
 	if (entry == NULL)
 		return -ENOENT;
+
+	rcu_read_lock();
+	nfq_ct = rcu_dereference(nfq_ct_hook);
+	if (nfq_ct != NULL &&
+	    (queue->flags & NFQA_CFG_F_CONNTRACK) && nfqa[NFQA_CT]) {
+		enum ip_conntrack_info ctinfo;
+		struct nf_conn *ct;
+
+		ct = nf_ct_get(entry->skb, &ctinfo);
+		if (ct && !nf_ct_is_untracked(ct))
+			nfq_ct->parse(nfqa[NFQA_CT], ct);
+	}
+	rcu_read_unlock();
 
 	if (nfqa[NFQA_PAYLOAD]) {
 		if (nfqnl_mangle(nla_data(nfqa[NFQA_PAYLOAD]),
