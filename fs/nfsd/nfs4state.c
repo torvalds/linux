@@ -3013,14 +3013,12 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		status = nfs4_get_vfs_file(rqstp, fp, current_fh, open);
 		if (status)
 			goto out;
+		status = nfsd4_truncate(rqstp, current_fh, open);
+		if (status)
+			goto out;
 		stp = open->op_stp;
 		open->op_stp = NULL;
 		init_open_stateid(stp, fp, open);
-		status = nfsd4_truncate(rqstp, current_fh, open);
-		if (status) {
-			release_open_stateid(stp);
-			goto out;
-		}
 	}
 	update_stateid(&stp->st_stid.sc_stateid);
 	memcpy(&open->op_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
