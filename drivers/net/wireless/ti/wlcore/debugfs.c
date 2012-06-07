@@ -944,6 +944,25 @@ static const struct file_operations beacon_filtering_ops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t fw_stats_raw_read(struct file *file,
+				 char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+
+	wl1271_debugfs_update_stats(wl);
+
+	return simple_read_from_buffer(userbuf, count, ppos,
+				       wl->stats.fw_stats,
+				       wl->stats.fw_stats_len);
+}
+
+static const struct file_operations fw_stats_raw_ops = {
+	.read = fw_stats_raw_read,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
 static int wl1271_debugfs_add_files(struct wl1271 *wl,
 				    struct dentry *rootdir)
 {
@@ -968,6 +987,7 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(irq_pkt_threshold, rootdir);
 	DEBUGFS_ADD(irq_blk_threshold, rootdir);
 	DEBUGFS_ADD(irq_timeout, rootdir);
+	DEBUGFS_ADD(fw_stats_raw, rootdir);
 
 	streaming = debugfs_create_dir("rx_streaming", rootdir);
 	if (!streaming || IS_ERR(streaming))
