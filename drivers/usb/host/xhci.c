@@ -3906,7 +3906,7 @@ static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
 	default:
 		dev_warn(&udev->dev, "%s: Can't get timeout for non-U1 or U2 state.\n",
 				__func__);
-		return -EINVAL;
+		return USB3_LPM_DISABLED;
 	}
 
 	if (sel <= max_sel_pel && pel <= max_sel_pel)
