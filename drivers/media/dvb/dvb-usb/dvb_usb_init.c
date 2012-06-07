@@ -350,7 +350,8 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 	struct dvb_usb_driver_info *driver_info =
 			(struct dvb_usb_driver_info *) id->driver_info;
 
-	pr_debug("%s:\n", __func__);
+	pr_debug("%s: bInterfaceNumber=%d\n", __func__,
+			intf->cur_altsetting->desc.bInterfaceNumber);
 
 	if (!id->driver_info) {
 		pr_err("%s: driver_info failed\n", KBUILD_MODNAME);
@@ -371,6 +372,13 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 	d->intf = intf;
 	memcpy(&d->props, driver_info->props,
 			sizeof(struct dvb_usb_device_properties));
+
+	if (d->intf->cur_altsetting->desc.bInterfaceNumber !=
+			d->props.bInterfaceNumber) {
+		ret = 0;
+		goto exit_kfree;
+	}
+
 	mutex_init(&d->usb_mutex);
 	mutex_init(&d->i2c_mutex);
 	INIT_WORK(&d->probe_work, dvb_usbv2_init_work);
@@ -384,6 +392,7 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 	return 0;
 err_kfree:
 	usb_set_intfdata(intf, NULL);
+exit_kfree:
 	kfree(d);
 err:
 	pr_debug("%s: failed=%d\n", __func__, ret);

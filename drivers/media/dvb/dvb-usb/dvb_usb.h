@@ -172,6 +172,7 @@ struct dvb_usb_device_properties {
 	const char *driver_name;
 	struct module *owner;
 	short *adapter_nr;
+	u8 bInterfaceNumber;
 
 	int size_of_priv;
 
