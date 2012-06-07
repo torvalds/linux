@@ -2938,6 +2938,8 @@ static void __devinit quirk_broken_intx_masking(struct pci_dev *dev)
 {
 	dev->broken_intx_masking = 1;
 }
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CHELSIO, 0x0030,
+			 quirk_broken_intx_masking);
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
