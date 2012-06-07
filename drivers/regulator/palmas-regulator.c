@@ -257,8 +257,7 @@ static int palmas_set_mode_smps(struct regulator_dev *dev, unsigned int mode)
 	unsigned int reg;
 
 	palmas_smps_read(pmic->palmas, palmas_regs_info[id].ctrl_addr, &reg);
-	reg &= ~PALMAS_SMPS12_CTRL_STATUS_MASK;
-	reg >>= PALMAS_SMPS12_CTRL_STATUS_SHIFT;
+	reg &= ~PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
