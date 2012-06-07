@@ -55,7 +55,8 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 					KBUILD_MODNAME, ret);
 		else
 			print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": <<< ",
-					DUMP_PREFIX_NONE, 32, 1, wbuf, wlen, 0);
+					DUMP_PREFIX_NONE, 32, 1, rbuf, actlen,
+					0);
 	}
 
 	mutex_unlock(&d->usb_mutex);
