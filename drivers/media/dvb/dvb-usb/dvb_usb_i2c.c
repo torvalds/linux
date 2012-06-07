@@ -23,7 +23,7 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 
 	ret = i2c_add_adapter(&d->i2c_adap);
 	if (ret < 0)
-		err("could not add i2c adapter");
+		pr_err("%s: could not add i2c adapter", KBUILD_MODNAME);
 
 	d->state |= DVB_USB_STATE_I2C;
 

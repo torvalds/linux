@@ -17,7 +17,8 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 		return -EINVAL;
 
 	if (d->props.generic_bulk_ctrl_endpoint == 0) {
-		err("endpoint for generic control not specified.");
+		pr_err("%s: endpoint for generic control not specified",
+				KBUILD_MODNAME);
 		return -EINVAL;
 	}
 
@@ -25,15 +26,16 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 	if (ret)
 		return ret;
 
-	deb_xfer(">>> ");
-	debug_dump(wbuf, wlen, deb_xfer);
+	print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": >>> ", DUMP_PREFIX_NONE,
+			32, 1, wbuf, wlen, 0);
 
 	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
 			d->props.generic_bulk_ctrl_endpoint), wbuf, wlen,
 			&actlen, 2000);
 
 	if (ret)
-		err("bulk message failed: %d (%d/%d)", ret, wlen, actlen);
+		pr_err("%s: bulk message failed: %d (%d/%d)", KBUILD_MODNAME,
+				ret, wlen, actlen);
 	else
 		ret = actlen != wlen ? -1 : 0;
 
@@ -49,11 +51,11 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 				rbuf, rlen, &actlen, 2000);
 
 		if (ret)
-			err("recv bulk message failed: %d", ret);
-		else {
-			deb_xfer("<<< ");
-			debug_dump(rbuf, actlen, deb_xfer);
-		}
+			pr_err("%s: recv bulk message failed: %d",
+					KBUILD_MODNAME, ret);
+		else
+			print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": <<< ",
+					DUMP_PREFIX_NONE, 32, 1, wbuf, wlen, 0);
 	}
 
 	mutex_unlock(&d->usb_mutex);

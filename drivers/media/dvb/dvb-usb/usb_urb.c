@@ -22,11 +22,12 @@ static void usb_urb_complete(struct urb *urb)
 	int i;
 	u8 *b;
 
-	deb_uxfer("'%s' urb completed. status: %d, length: %d/%d," \
-			" pack_num: %d, errors: %d\n",
-		ptype == PIPE_ISOCHRONOUS ? "isoc" : "bulk",
-		urb->status, urb->actual_length, urb->transfer_buffer_length,
-		urb->number_of_packets, urb->error_count);
+	pr_debug("%s: %s urb completed status=%d length=%d/%d" \
+			" pack_num=%d errors=%d\n", __func__,
+			ptype == PIPE_ISOCHRONOUS ? "isoc" : "bulk",
+			urb->status, urb->actual_length,
+			urb->transfer_buffer_length,
+			urb->number_of_packets, urb->error_count);
 
 	switch (urb->status) {
 	case 0:         /* success */
@@ -47,8 +48,8 @@ static void usb_urb_complete(struct urb *urb)
 	case PIPE_ISOCHRONOUS:
 		for (i = 0; i < urb->number_of_packets; i++) {
 			if (urb->iso_frame_desc[i].status != 0)
-				pr_debug("%s: iso frame descriptor has an" \
-						" error=%d\n", __func__,
+				pr_debug("%s: iso frame descriptor has an " \
+						"error=%d\n", __func__,
 						urb->iso_frame_desc[i].status);
 			else if (urb->iso_frame_desc[i].actual_length > 0)
 				stream->complete(stream,
@@ -58,14 +59,14 @@ static void usb_urb_complete(struct urb *urb)
 			urb->iso_frame_desc[i].status = 0;
 			urb->iso_frame_desc[i].actual_length = 0;
 		}
-		debug_dump(b, 20, deb_uxfer);
 		break;
 	case PIPE_BULK:
 		if (urb->actual_length > 0)
 			stream->complete(stream, b, urb->actual_length);
 		break;
 	default:
-		err("unknown endpoint type in completition handler.");
+		pr_err("%s: unknown endpoint type in completition handler",
+				KBUILD_MODNAME);
 		return;
 	}
 	usb_submit_urb(urb, GFP_ATOMIC);
@@ -98,8 +99,8 @@ int usb_urb_submit(struct usb_data_stream *stream,
 		pr_debug("%s: submit URB=%d\n", __func__, i);
 		ret = usb_submit_urb(stream->urb_list[i], GFP_ATOMIC);
 		if (ret) {
-			err("could not submit URB no. %d - get them all back",
-					i);
+			pr_err("%s: could not submit URB no. %d - get them " \
+					"all back", KBUILD_MODNAME, i);
 			usb_urb_kill(stream);
 			return ret;
 		}
@@ -263,12 +264,14 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 	} else if (props->type == USB_ISOC) {
 		buf_size = props->u.isoc.framesize * props->u.isoc.framesperurb;
 	} else {
-		err("invalid endpoint type=%d", props->type);
+		pr_err("%s: invalid endpoint type=%d", KBUILD_MODNAME,
+				props->type);
 		return -EINVAL;
 	}
 
 	if (stream->buf_num < props->count || stream->buf_size < buf_size) {
-		err("cannot reconfigure as allocated buffers are too small");
+		pr_err("%s: cannot reconfigure as allocated buffers are too " \
+				"small", KBUILD_MODNAME);
 		return -EINVAL;
 	}
 
@@ -316,7 +319,8 @@ int usb_urb_init(struct usb_data_stream *stream,
 			stream->props.endpoint));
 
 	if (stream->complete == NULL) {
-		err("there is no data callback - this doesn't make sense.");
+		pr_err("%s: there is no data callback - this doesn't make " \
+				"sense", KBUILD_MODNAME);
 		return -EINVAL;
 	}
 
@@ -337,7 +341,8 @@ int usb_urb_init(struct usb_data_stream *stream,
 
 		return usb_urb_alloc_isoc_urbs(stream);
 	default:
-		err("unknown URB-type for data transfer.");
+		pr_err("%s: unknown URB-type for data transfer",
+				KBUILD_MODNAME);
 		return -EINVAL;
 	}
 }

@@ -13,13 +13,6 @@
  */
 #include "dvb_usb_common.h"
 
-/* debug */
-int dvb_usb_debug;
-module_param_named(debug, dvb_usb_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,pll=4,ts=8"\
-		",err=16,rc=32,fw=64,mem=128,uxfer=256  (or-able))."
-		DVB_USB_DEBUG_STATUS);
-
 int dvb_usb_disable_rc_polling;
 module_param_named(disable_rc_polling, dvb_usb_disable_rc_polling, int, 0644);
 MODULE_PARM_DESC(disable_rc_polling,
@@ -52,13 +45,15 @@ int dvb_usb_download_firmware(struct dvb_usb_device *d)
 
 	ret = request_firmware(&fw, name, &d->udev->dev);
 	if (ret < 0) {
-		err("did not find the firmware file. (%s) " \
-			"Please see linux/Documentation/dvb/ for more" \
-			" details on firmware-problems. (%d)", name, ret);
+		pr_err("%s: did not find the firmware file. (%s) " \
+				"Please see linux/Documentation/dvb/ for " \
+				"more details on firmware-problems. (%d)",
+				KBUILD_MODNAME, name, ret);
 		goto err;
 	}
 
-	info("downloading firmware from file '%s'", name);
+	pr_info("%s: downloading firmware from file '%s'", KBUILD_MODNAME,
+			name);
 
 	ret = d->props.download_firmware(d, fw);
 
@@ -99,28 +94,31 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 		/* speed - when running at FULL speed we need a HW PID filter */
 		if (d->udev->speed == USB_SPEED_FULL &&
 				!(adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER)) {
-			err("This USB2.0 device cannot be run on a" \
-				" USB1.1 port. (it lacks a" \
-				" hardware PID filter)");
+			pr_err("%s: this USB2.0 device cannot be run on a " \
+					"USB1.1 port (it lacks a hardware " \
+					"PID filter)", KBUILD_MODNAME);
 			return -ENODEV;
 		} else if ((d->udev->speed == USB_SPEED_FULL &&
 				adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER) ||
 				(adap->props.caps & DVB_USB_ADAP_NEED_PID_FILTERING)) {
-			info("will use the device's hardware PID" \
-				" filter (table count: %d).",
-				adap->props.pid_filter_count);
+			pr_info("%s: will use the device's hardware PID " \
+					"filter (table count: %d)",
+					KBUILD_MODNAME,
+					adap->props.pid_filter_count);
 			adap->pid_filtering  = 1;
 			adap->max_feed_count = adap->props.pid_filter_count;
 		} else {
-			info("will pass the complete MPEG2 transport" \
-				" stream to the software demuxer.");
+			pr_info("%s: will pass the complete MPEG2 transport " \
+					"stream to the software demuxer",
+					KBUILD_MODNAME);
 			adap->pid_filtering  = 0;
 			adap->max_feed_count = 255;
 		}
 
 		if (!adap->pid_filtering && dvb_usb_force_pid_filter_usage &&
 				adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER) {
-				info("pid filter enabled by module option.");
+			pr_info("%s: pid filter enabled by module option",
+					KBUILD_MODNAME);
 			adap->pid_filtering  = 1;
 			adap->max_feed_count = adap->props.pid_filter_count;
 		}
@@ -210,7 +208,8 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 
 	ret = dvb_usb_remote_init(d);
 	if (ret)
-		err("could not initialize remote control.");
+		pr_err("%s: could not initialize remote control\n",
+				KBUILD_MODNAME);
 
 	dvb_usb_device_power_ctrl(d, 0);
 

@@ -9,14 +9,9 @@
 #ifndef DVB_USB_COMMON_H
 #define DVB_USB_COMMON_H
 
-#define DVB_USB_LOG_PREFIX "dvb_usb"
 #include "dvb_usb.h"
 
-extern int dvb_usb_debug;
 extern int dvb_usb_disable_rc_polling;
-
-#define deb_xfer(args...)  dprintk(dvb_usb_debug, 0x002, args)
-#define deb_uxfer(args...) dprintk(dvb_usb_debug, 0x100, args)
 
 /* commonly used  methods */
 extern int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff);

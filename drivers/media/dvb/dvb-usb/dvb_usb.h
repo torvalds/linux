@@ -20,45 +20,7 @@
 #include "dvb_demux.h"
 #include "dvb_net.h"
 #include "dmxdev.h"
-
-#include "dvb-pll.h"
-
 #include "dvb-usb-ids.h"
-
-/* debug */
-#ifdef CONFIG_DVB_USB_DEBUG
-#define dprintk(var, level, args...) \
-	do { if ((var & level)) { printk(args); } } while (0)
-
-#define debug_dump(b, l, func) {\
-	int loop_; \
-	for (loop_ = 0; loop_ < l; loop_++) \
-		func("%02x ", b[loop_]); \
-	func("\n");\
-}
-#define DVB_USB_DEBUG_STATUS
-#else
-#define dprintk(args...)
-#define debug_dump(b, l, func)
-
-#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
-
-#endif
-
-/* generic log methods - taken from usb.h */
-#ifndef DVB_USB_LOG_PREFIX
- #define DVB_USB_LOG_PREFIX "dvb-usb (please define a log prefix)"
-#endif
-
-#undef err
-#define err(format, arg...) \
-	printk(KERN_ERR     DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
-#undef info
-#define info(format, arg...) \
-	printk(KERN_INFO    DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
-#undef warn
-#define warn(format, arg...) \
-	printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
 
 struct dvb_usb_driver_info {
 	const char *name;
