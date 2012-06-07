@@ -1821,7 +1821,7 @@ rb_add_time_stamp(struct ring_buffer_event *event, u64 delta)
 }
 
 /**
- * ring_buffer_update_event - update event type and data
+ * rb_update_event - update event type and data
  * @event: the even to update
  * @type: the type of event
  * @length: the size of the event field in the ring buffer
@@ -2723,8 +2723,8 @@ EXPORT_SYMBOL_GPL(ring_buffer_discard_commit);
  * and not the length of the event which would hold the header.
  */
 int ring_buffer_write(struct ring_buffer *buffer,
-			unsigned long length,
-			void *data)
+		      unsigned long length,
+		      void *data)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
