@@ -626,15 +626,11 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 	struct tpci200_board *tpci200;
 
 	tpci200 = check_slot(dev);
-	if (tpci200 == NULL) {
-		res = -EINVAL;
-		goto out;
-	}
+	if (tpci200 == NULL)
+		return -EINVAL;
 
-	if (mutex_lock_interruptible(&tpci200->mutex)) {
-		res = -ERESTARTSYS;
-		goto out;
-	}
+	if (mutex_lock_interruptible(&tpci200->mutex))
+		return -ERESTARTSYS;
 
 	switch (space) {
 	case IPACK_IO_SPACE:
@@ -699,7 +695,6 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 
 out_unlock:
 	mutex_unlock(&tpci200->mutex);
-out:
 	return res;
 }
 
