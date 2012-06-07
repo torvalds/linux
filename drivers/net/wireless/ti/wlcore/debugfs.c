@@ -102,6 +102,81 @@ static const struct file_operations tx_queue_len_ops = {
 	.llseek = default_llseek,
 };
 
+static void chip_op_handler(struct wl1271 *wl, unsigned long value,
+			    void *arg)
+{
+	int ret;
+	int (*chip_op) (struct wl1271 *wl);
+
+	if (!arg) {
+		wl1271_warning("debugfs chip_op_handler with no callback");
+		return;
+	}
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		return;
+
+	chip_op = arg;
+	chip_op(wl);
+
+	wl1271_ps_elp_sleep(wl);
+}
+
+
+static inline void no_write_handler(struct wl1271 *wl,
+				    unsigned long value,
+				    unsigned long param)
+{
+}
+
+#define WL12XX_CONF_DEBUGFS(param, conf_sub_struct,			\
+			    min_val, max_val, write_handler_locked,	\
+			    write_handler_arg)				\
+	static ssize_t param##_read(struct file *file,			\
+				      char __user *user_buf,		\
+				      size_t count, loff_t *ppos)	\
+	{								\
+	struct wl1271 *wl = file->private_data;				\
+	return wl1271_format_buffer(user_buf, count,			\
+				    ppos, "%d\n",			\
+				    wl->conf.conf_sub_struct.param);	\
+	}								\
+									\
+	static ssize_t param##_write(struct file *file,			\
+				     const char __user *user_buf,	\
+				     size_t count, loff_t *ppos)	\
+	{								\
+	struct wl1271 *wl = file->private_data;				\
+	unsigned long value;						\
+	int ret;							\
+									\
+	ret = kstrtoul_from_user(user_buf, count, 10, &value);		\
+	if (ret < 0) {							\
+		wl1271_warning("illegal value for " #param);		\
+		return -EINVAL;						\
+	}								\
+									\
+	if (value < min_val || value > max_val) {			\
+		wl1271_warning(#param " is not in valid range");	\
+		return -ERANGE;						\
+	}								\
+									\
+	mutex_lock(&wl->mutex);						\
+	wl->conf.conf_sub_struct.param = value;				\
+									\
+	write_handler_locked(wl, value, write_handler_arg);		\
+									\
+	mutex_unlock(&wl->mutex);					\
+	return count;							\
+	}								\
+									\
+	static const struct file_operations param##_ops = {		\
+		.read = param##_read,					\
+		.write = param##_write,					\
+		.open = simple_open,					\
+		.llseek = default_llseek,				\
+	};
 static ssize_t gpio_power_read(struct file *file, char __user *user_buf,
 			  size_t count, loff_t *ppos)
 {
