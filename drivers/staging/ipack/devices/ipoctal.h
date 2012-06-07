@@ -20,15 +20,6 @@
 #define RELEVANT_IFLAG(iflag) ((iflag) & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
 /**
- * enum uart_parity_e - UART supported parity.
- */
-enum uart_parity_e {
-	UART_NONE  = 0,
-	UART_ODD   = 1,
-	UART_EVEN  = 2,
-};
-
-/**
  * struct ipoctal_stats -- Stats since last reset
  *
  * @tx: Number of transmitted bytes
