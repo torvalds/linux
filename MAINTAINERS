@@ -1077,7 +1077,7 @@ F:	drivers/media/video/s5p-fimc/
 ARM/SAMSUNG S5P SERIES Multi Format Codec (MFC) SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 M:	Kamil Debski <k.debski@samsung.com>
-M:     Jeongtae Park <jtp.park@samsung.com>
+M:	Jeongtae Park <jtp.park@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -1743,10 +1743,10 @@ F:	include/linux/can/platform/
 CAPABILITIES
 M:	Serge Hallyn <serge.hallyn@canonical.com>
 L:	linux-security-module@vger.kernel.org
-S:	Supported	
+S:	Supported
 F:	include/linux/capability.h
 F:	security/capability.c
-F:	security/commoncap.c 
+F:	security/commoncap.c
 F:	kernel/capability.c
 
 CELL BROADBAND ENGINE ARCHITECTURE
@@ -2146,11 +2146,11 @@ S:	Orphan
 F:	drivers/net/wan/pc300*
 
 CYTTSP TOUCHSCREEN DRIVER
-M:      Javier Martinez Canillas <javier@dowhile0.org>
-L:      linux-input@vger.kernel.org
-S:      Maintained
-F:      drivers/input/touchscreen/cyttsp*
-F:      include/linux/input/cyttsp.h
+M:	Javier Martinez Canillas <javier@dowhile0.org>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/input/touchscreen/cyttsp*
+F:	include/linux/input/cyttsp.h
 
 DAMA SLAVE for AX.25
 M:	Joerg Reuter <jreuter@yaina.de>
@@ -5185,7 +5185,7 @@ S:	Maintained
 F:	drivers/firmware/pcdp.*
 
 PCI ERROR RECOVERY
-M:     Linas Vepstas <linasvepstas@gmail.com>
+M:	Linas Vepstas <linasvepstas@gmail.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	Documentation/PCI/pci-error-recovery.txt
