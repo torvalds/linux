@@ -70,18 +70,10 @@ static int rc5t583_set_voltage_time_sel(struct regulator_dev *rdev,
 		unsigned int old_selector, unsigned int new_selector)
 {
 	struct rc5t583_regulator *reg = rdev_get_drvdata(rdev);
-	int old_uV, new_uV;
-	old_uV = regulator_list_voltage_linear(rdev, old_selector);
 
-	if (old_uV < 0)
-		return old_uV;
-
-	new_uV = regulator_list_voltage_linear(rdev, new_selector);
-	if (new_uV < 0)
-		return new_uV;
-
-	return DIV_ROUND_UP(abs(old_uV - new_uV),
-				reg->reg_info->change_uv_per_us);
+	return DIV_ROUND_UP(abs(new_selector - old_selector) *
+			    rdev->desc->uV_step,
+			    reg->reg_info->change_uv_per_us);
 }
 
 
