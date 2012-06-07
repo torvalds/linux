@@ -232,7 +232,7 @@ static void ion_handle_destroy(struct kref *kref)
 	mutex_lock(&client->lock);
 
 	mutex_lock(&buffer->lock);
-	while (buffer->kmap_cnt)
+	while (handle->kmap_cnt)
 		ion_handle_kmap_put(handle);
 	mutex_unlock(&buffer->lock);
 
