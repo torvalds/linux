@@ -512,24 +512,19 @@ static void __tpci200_free_irq(struct tpci200_board *tpci200,
 
 static int tpci200_free_irq(struct ipack_device *dev)
 {
-	int res;
 	struct slot_irq *slot_irq;
 	struct tpci200_board *tpci200;
 
 	tpci200 = check_slot(dev);
-	if (tpci200 == NULL) {
-		res = -EINVAL;
-		goto out;
-	}
+	if (tpci200 == NULL)
+		return -EINVAL;
 
-	if (mutex_lock_interruptible(&tpci200->mutex)) {
-		res = -ERESTARTSYS;
-		goto out;
-	}
+	if (mutex_lock_interruptible(&tpci200->mutex))
+		return -ERESTARTSYS;
 
 	if (tpci200->slots[dev->slot].irq == NULL) {
-		res = -EINVAL;
-		goto out_unlock;
+		mutex_unlock(&tpci200->mutex);
+		return -EINVAL;
 	}
 
 	__tpci200_free_irq(tpci200, dev);
@@ -537,10 +532,8 @@ static int tpci200_free_irq(struct ipack_device *dev)
 	tpci200->slots[dev->slot].irq = NULL;
 	kfree(slot_irq);
 
-out_unlock:
 	mutex_unlock(&tpci200->mutex);
-out:
-	return res;
+	return 0;
 }
 
 static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
