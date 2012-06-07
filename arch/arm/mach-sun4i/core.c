@@ -129,54 +129,128 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 	pr_info("Total Detected Memory: %uMB with %d banks\n", size, mi->nr_banks);
 }
 
+/* Only reserve certain important memory blocks if there are actually
+ * drivers which use them.
+ */
+
+#if defined CONFIG_FB || defined CONFIG_FB_MODULE
+/* The FB block is used by:
+ *
+ * - the sun4i framebuffer driver, drivers/video/sun4i/disp.
+ *
+ * fb_start, fb_size are used in a vast number of other places but for
+ * for platform-specific drivers, so we don't have to worry about them.
+ *
+ * The block will only be allocated if the disp_init/disp_init_enabled
+ * script key is set.
+ */
+
 unsigned long fb_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_64M - SZ_32M);
 unsigned long fb_size = SZ_32M;
 EXPORT_SYMBOL(fb_start);
 EXPORT_SYMBOL(fb_size);
+
+static void __init reserve_fb(void)
+{
+    char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
+
+    if (sw_cfg_get_int(script_base, "disp_init", "disp_init_enable"))
+    {
+		memblock_reserve(fb_start, fb_size);
+		pr_info("\tLCD: 0x%08x, 0x%08x\n", (unsigned int)fb_start, (unsigned int)fb_size);
+    }
+	else
+		fb_start = fb_size = 0;
+}
+
+#else
+static void __init reserve_fb(void) {}
+#endif
+
+#if defined CONFIG_SUN4I_G2D || defined CONFIG_SUN4I_G2D_MODULE
+/* The G2D block is used by:
+ *
+ * - the G2D engine, drivers/char/sun4i_g2d
+ *
+ * The block will only be allocated if the g2d_para/g2d_used
+ * script key is set.
+ */
 
 unsigned long g2d_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_128M);
 unsigned long g2d_size = SZ_1M * 16;
 EXPORT_SYMBOL(g2d_start);
 EXPORT_SYMBOL(g2d_size);
 
+static void __init reserve_g2d(void)
+{
+    char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
+
+    if (sw_cfg_get_int(script_base, "g2d_para", "g2d_used"))
+    {
+		g2d_size = sw_cfg_get_int(script_base, "g2d_para", "g2d_size");
+		if ((g2d_size < 0) || (g2d_size > SW_G2D_MEM_MAX))
+			g2d_size = SW_G2D_MEM_MAX;
+
+		g2d_start = SW_G2D_MEM_BASE;
+		g2d_size = g2d_size;
+		memblock_reserve(g2d_start, g2d_size);
+
+		pr_info("\tG2D: 0x%08x, 0x%08x\n", (unsigned int)g2d_start, (unsigned int)g2d_size);
+    }
+    else
+    	g2d_start = g2d_size = 0;
+}
+
+#else
+static void __init reserve_g2d(void) {}
+#endif
+
+#if defined CONFIG_VIDEO_DECODER_SUN4I || defined CONFIG_VIDEO_DECODER_SUN4I_MODULE
+/* The VE block is used by:
+ *
+ * - the Cedar video engine, drivers/media/video/sun4i
+ *
+ * ve_start, ve_size are also used by the contiguous-DMA module in
+ * drivers/media/video/videobuf-dma-contig.c, but that's SH-specific
+ * so we don't have to worry about it here.
+ */
+
 unsigned long ve_start = (PLAT_PHYS_OFFSET + SZ_64M);
 unsigned long ve_size = (SZ_64M + SZ_16M);
 EXPORT_SYMBOL(ve_start);
 EXPORT_SYMBOL(ve_size);
 
-static void __init sw_core_reserve(void)
+static void __init reserve_ve(void)
 {
-	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-	memblock_reserve(fb_start, fb_size);
+    /* The users of the VE block aren't enabled via script flags, so if their
+     * driver gets compiled in we have to unconditionally reserve memory for
+     * them.
+     */
 	memblock_reserve(ve_start, SZ_64M);
 	memblock_reserve(ve_start + SZ_64M, SZ_16M);
 
-#if 0
-        int g2d_used = 0;
-        char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
-
-        g2d_used = sw_cfg_get_int(script_base, "g2d_para", "g2d_used");
-
-	memblock_reserve(fb_start, fb_size);
-	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-	memblock_reserve(ve_start, ve_start);
-
-        if (g2d_used) {
-                g2d_size = sw_cfg_get_int(script_base, "g2d_para", "g2d_size");
-                if (g2d_size < 0 || g2d_size > SW_G2D_MEM_MAX) {
-                        g2d_size = SW_G2D_MEM_MAX;
-                }
-                g2d_start = SW_G2D_MEM_BASE;
-                g2d_size = g2d_size;
-                memblock_reserve(g2d_start, g2d_size);
-        }
-
-#endif
-	pr_info("Memory Reserved(in bytes):\n");
-	pr_info("\tLCD: 0x%08x, 0x%08x\n", (unsigned int)fb_start, (unsigned int)fb_size);
-	pr_info("\tSYS: 0x%08x, 0x%08x\n", (unsigned int)SYS_CONFIG_MEMBASE, (unsigned int)SYS_CONFIG_MEMSIZE);
-	pr_info("\tG2D: 0x%08x, 0x%08x\n", (unsigned int)g2d_start, (unsigned int)g2d_size);
 	pr_info("\tVE : 0x%08x, 0x%08x\n", (unsigned int)ve_start, (unsigned int)ve_size);
+}
+
+#else
+static void __init reserve_ve(void) {}
+#endif
+
+static void reserve_sys(void)
+{
+	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
+	pr_info("\tSYS: 0x%08x, 0x%08x\n",
+			(unsigned int)SYS_CONFIG_MEMBASE,
+			(unsigned int)SYS_CONFIG_MEMSIZE);
+}
+
+static void __init sw_core_reserve(void)
+{
+	pr_info("Memory Reserved(in bytes):\n");
+	reserve_sys();
+	reserve_fb();
+	reserve_g2d();
+	reserve_ve();
 }
 
 void sw_irq_ack(struct irq_data *irqd)
