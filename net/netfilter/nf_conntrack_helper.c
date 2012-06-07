@@ -161,11 +161,14 @@ nf_conntrack_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_try_module_get);
 
-struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
+struct nf_conn_help *
+nf_ct_helper_ext_add(struct nf_conn *ct,
+		     struct nf_conntrack_helper *helper, gfp_t gfp)
 {
 	struct nf_conn_help *help;
 
-	help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, gfp);
+	help = nf_ct_ext_add_length(ct, NF_CT_EXT_HELPER,
+				    helper->data_len, gfp);
 	if (help)
 		INIT_HLIST_HEAD(&help->expectations);
 	else
@@ -218,13 +221,13 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	}
 
 	if (help == NULL) {
-		help = nf_ct_helper_ext_add(ct, flags);
+		help = nf_ct_helper_ext_add(ct, helper, flags);
 		if (help == NULL) {
 			ret = -ENOMEM;
 			goto out;
 		}
 	} else {
-		memset(&help->help, 0, sizeof(help->help));
+		memset(help->data, 0, helper->data_len);
 	}
 
 	rcu_assign_pointer(help->helper, helper);

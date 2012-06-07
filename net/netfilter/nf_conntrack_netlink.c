@@ -1218,7 +1218,7 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 		if (help->helper)
 			return -EBUSY;
 		/* need to zero data of old helper */
-		memset(&help->help, 0, sizeof(help->help));
+		memset(help->data, 0, help->helper->data_len);
 	} else {
 		/* we cannot set a helper for an existing conntrack */
 		return -EOPNOTSUPP;
@@ -1440,7 +1440,7 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 		} else {
 			struct nf_conn_help *help;
 
-			help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
+			help = nf_ct_helper_ext_add(ct, helper, GFP_ATOMIC);
 			if (help == NULL) {
 				err = -ENOMEM;
 				goto err2;

@@ -2,6 +2,8 @@
 #define __NF_CONNTRACK_SIP_H__
 #ifdef __KERNEL__
 
+#include <net/netfilter/nf_conntrack_expect.h>
+
 #define SIP_PORT	5060
 #define SIP_TIMEOUT	3600
 

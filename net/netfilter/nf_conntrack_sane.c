@@ -69,13 +69,12 @@ static int help(struct sk_buff *skb,
 	void *sb_ptr;
 	int ret = NF_ACCEPT;
 	int dir = CTINFO2DIR(ctinfo);
-	struct nf_ct_sane_master *ct_sane_info;
+	struct nf_ct_sane_master *ct_sane_info = nfct_help_data(ct);
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple *tuple;
 	struct sane_request *req;
 	struct sane_reply_net_start *reply;
 
-	ct_sane_info = &nfct_help(ct)->help.ct_sane_info;
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED &&
 	    ctinfo != IP_CT_ESTABLISHED_REPLY)
@@ -203,6 +202,7 @@ static int __init nf_conntrack_sane_init(void)
 		sane[i][0].tuple.src.l3num = PF_INET;
 		sane[i][1].tuple.src.l3num = PF_INET6;
 		for (j = 0; j < 2; j++) {
+			sane[i][j].data_len = sizeof(struct nf_ct_sane_master);
 			sane[i][j].tuple.src.u.tcp.port = htons(ports[i]);
 			sane[i][j].tuple.dst.protonum = IPPROTO_TCP;
 			sane[i][j].expect_policy = &sane_exp_policy;

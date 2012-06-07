@@ -11,6 +11,7 @@
 #define _NF_CONNTRACK_HELPER_H
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_extend.h>
+#include <net/netfilter/nf_conntrack_expect.h>
 
 struct module;
 
@@ -22,6 +23,9 @@ struct nf_conntrack_helper {
 	char name[NF_CT_HELPER_NAME_LEN]; /* name of the module */
 	struct module *me;		/* pointer to self */
 	const struct nf_conntrack_expect_policy *expect_policy;
+
+	/* length of internal data, ie. sizeof(struct nf_ct_*_master) */
+	size_t data_len;
 
 	/* Tuple of things we will help (compared against server response) */
 	struct nf_conntrack_tuple tuple;
@@ -48,7 +52,7 @@ nf_conntrack_helper_try_module_get(const char *name, u16 l3num, u8 protonum);
 extern int nf_conntrack_helper_register(struct nf_conntrack_helper *);
 extern void nf_conntrack_helper_unregister(struct nf_conntrack_helper *);
 
-extern struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp);
+extern struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, struct nf_conntrack_helper *helper, gfp_t gfp);
 
 extern int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 				     gfp_t flags);
@@ -58,6 +62,15 @@ extern void nf_ct_helper_destroy(struct nf_conn *ct);
 static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
 {
 	return nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
+}
+
+static inline void *nfct_help_data(const struct nf_conn *ct)
+{
+	struct nf_conn_help *help;
+
+	help = nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
+
+	return (void *)help->data;
 }
 
 extern int nf_conntrack_helper_init(struct net *net);
