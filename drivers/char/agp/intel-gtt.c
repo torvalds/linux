@@ -648,6 +648,7 @@ static void intel_gtt_cleanup(void)
 
 static int intel_gtt_init(void)
 {
+	u32 gma_addr;
 	u32 gtt_map_size;
 	int ret;
 
@@ -693,6 +694,15 @@ static int intel_gtt_init(void)
 		intel_gtt_cleanup();
 		return ret;
 	}
+
+	if (INTEL_GTT_GEN <= 2)
+		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
+				      &gma_addr);
+	else
+		pci_read_config_dword(intel_private.pcidev, I915_GMADDR,
+				      &gma_addr);
+
+	intel_private.base.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
 
 	return 0;
 }
@@ -769,17 +779,7 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 
 static bool intel_enable_gtt(void)
 {
-	u32 gma_addr;
 	u8 __iomem *reg;
-
-	if (INTEL_GTT_GEN <= 2)
-		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
-				      &gma_addr);
-	else
-		pci_read_config_dword(intel_private.pcidev, I915_GMADDR,
-				      &gma_addr);
-
-	intel_private.base.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
 
 	if (INTEL_GTT_GEN >= 6)
 	    return true;
