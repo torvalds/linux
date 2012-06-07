@@ -1539,9 +1539,11 @@ int intel_gmch_probe(struct pci_dev *pdev,
 	if (!intel_private.driver)
 		return 0;
 
-	bridge->driver = &intel_fake_agp_driver;
-	bridge->dev_private_data = &intel_private;
-	bridge->dev = pdev;
+	if (bridge) {
+		bridge->driver = &intel_fake_agp_driver;
+		bridge->dev_private_data = &intel_private;
+		bridge->dev = pdev;
+	}
 
 	intel_private.bridge_dev = pci_dev_get(pdev);
 
