@@ -951,15 +951,6 @@ static void aufs_put_link(struct dentry *dentry __maybe_unused,
 
 /* ---------------------------------------------------------------------- */
 
-static void aufs_truncate_range(struct inode *inode __maybe_unused,
-				loff_t start __maybe_unused,
-				loff_t end __maybe_unused)
-{
-	AuUnsupport();
-}
-
-/* ---------------------------------------------------------------------- */
-
 struct inode_operations aufs_symlink_iop = {
 	.permission	= aufs_permission,
 	.setattr	= aufs_setattr,
@@ -988,6 +979,5 @@ struct inode_operations aufs_dir_iop = {
 struct inode_operations aufs_iop = {
 	.permission	= aufs_permission,
 	.setattr	= aufs_setattr,
-	.getattr	= aufs_getattr,
-	.truncate_range	= aufs_truncate_range
+	.getattr	= aufs_getattr
 };
