@@ -1132,7 +1132,7 @@ err:
  * Uses MCCQ
  */
 int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
-		u8 *mac, u32 *if_handle, u32 *pmac_id, u32 domain)
+		     u32 *if_handle, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_create *req;
@@ -1152,17 +1152,13 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 	req->hdr.domain = domain;
 	req->capability_flags = cpu_to_le32(cap_flags);
 	req->enable_flags = cpu_to_le32(en_flags);
-	if (mac)
-		memcpy(req->mac_addr, mac, ETH_ALEN);
-	else
-		req->pmac_invalid = true;
+
+	req->pmac_invalid = true;
 
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_if_create *resp = embedded_payload(wrb);
 		*if_handle = le32_to_cpu(resp->interface_id);
-		if (mac)
-			*pmac_id = le32_to_cpu(resp->pmac_id);
 	}
 
 err:
@@ -2330,8 +2326,8 @@ err:
 }
 
 /* Uses synchronous MCCQ */
-int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
-			bool *pmac_id_active, u32 *pmac_id, u8 *mac)
+int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
+			     bool *pmac_id_active, u32 *pmac_id, u8 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_mac_list *req;
@@ -2376,8 +2372,9 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
 						get_mac_list_cmd.va;
 		mac_count = resp->true_mac_count + resp->pseudo_mac_count;
 		/* Mac list returned could contain one or more active mac_ids
-		 * or one or more pseudo permanant mac addresses. If an active
-		 * mac_id is present, return first active mac_id found
+		 * or one or more true or pseudo permanant mac addresses.
+		 * If an active mac_id is present, return first active mac_id
+		 * found.
 		 */
 		for (i = 0; i < mac_count; i++) {
 			struct get_list_macaddr *mac_entry;
@@ -2396,7 +2393,7 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
 				goto out;
 			}
 		}
-		/* If no active mac_id found, return first pseudo mac addr */
+		/* If no active mac_id found, return first mac addr */
 		*pmac_id_active = false;
 		memcpy(mac, resp->macaddr_list[0].mac_addr_id.macaddr,
 								ETH_ALEN);

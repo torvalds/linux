@@ -1664,8 +1664,7 @@ extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id,
 			int pmac_id, u32 domain);
 extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
-			u32 en_flags, u8 *mac, u32 *if_handle, u32 *pmac_id,
-			u32 domain);
+			    u32 en_flags, u32 *if_handle, u32 domain);
 extern int be_cmd_if_destroy(struct be_adapter *adapter, int if_handle,
 			u32 domain);
 extern int be_cmd_eq_create(struct be_adapter *adapter,
@@ -1751,8 +1750,9 @@ extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
-extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
-				bool *pmac_id_active, u32 *pmac_id, u8 *mac);
+extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
+				    bool *pmac_id_active, u32 *pmac_id,
+				    u8 domain);
 extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 						u8 mac_count, u32 domain);
 extern int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,

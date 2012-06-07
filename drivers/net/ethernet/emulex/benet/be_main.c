@@ -2601,8 +2601,8 @@ static int be_vf_setup(struct be_adapter *adapter)
 	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 				BE_IF_FLAGS_MULTICAST;
 	for_all_vfs(adapter, vf_cfg, vf) {
-		status = be_cmd_if_create(adapter, cap_flags, en_flags, NULL,
-					  &vf_cfg->if_handle, NULL, vf + 1);
+		status = be_cmd_if_create(adapter, cap_flags, en_flags,
+					  &vf_cfg->if_handle, vf + 1);
 		if (status)
 			goto err;
 	}
@@ -2642,29 +2642,43 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->phy.forced_port_speed = -1;
 }
 
-static int be_add_mac_from_list(struct be_adapter *adapter, u8 *mac)
+static int be_get_mac_addr(struct be_adapter *adapter, u8 *mac, u32 if_handle,
+			   bool *active_mac, u32 *pmac_id)
 {
-	u32 pmac_id;
-	int status;
-	bool pmac_id_active;
+	int status = 0;
 
-	status = be_cmd_get_mac_from_list(adapter, 0, &pmac_id_active,
-							&pmac_id, mac);
-	if (status != 0)
-		goto do_none;
+	if (!is_zero_ether_addr(adapter->netdev->perm_addr)) {
+		memcpy(mac, adapter->netdev->dev_addr, ETH_ALEN);
+		if (!lancer_chip(adapter) && !be_physfn(adapter))
+			*active_mac = true;
+		else
+			*active_mac = false;
 
-	if (pmac_id_active) {
-		status = be_cmd_mac_addr_query(adapter, mac,
-				MAC_ADDRESS_TYPE_NETWORK,
-				false, adapter->if_handle, pmac_id);
-
-		if (!status)
-			adapter->pmac_id[0] = pmac_id;
-	} else {
-		status = be_cmd_pmac_add(adapter, mac,
-				adapter->if_handle, &adapter->pmac_id[0], 0);
+		return status;
 	}
-do_none:
+
+	if (lancer_chip(adapter)) {
+		status = be_cmd_get_mac_from_list(adapter, mac,
+						  active_mac, pmac_id, 0);
+		if (*active_mac) {
+			status = be_cmd_mac_addr_query(adapter, mac,
+						       MAC_ADDRESS_TYPE_NETWORK,
+						       false, if_handle,
+						       *pmac_id);
+		}
+	} else if (be_physfn(adapter)) {
+		/* For BE3, for PF get permanent MAC */
+		status = be_cmd_mac_addr_query(adapter, mac,
+					       MAC_ADDRESS_TYPE_NETWORK, true,
+					       0, 0);
+		*active_mac = false;
+	} else {
+		/* For BE3, for VF get soft MAC assigned by PF*/
+		status = be_cmd_mac_addr_query(adapter, mac,
+					       MAC_ADDRESS_TYPE_NETWORK, false,
+					       if_handle, 0);
+		*active_mac = true;
+	}
 	return status;
 }
 
@@ -2685,12 +2699,12 @@ static int be_get_config(struct be_adapter *adapter)
 
 static int be_setup(struct be_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
 	struct device *dev = &adapter->pdev->dev;
 	u32 cap_flags, en_flags;
 	u32 tx_fc, rx_fc;
 	int status;
 	u8 mac[ETH_ALEN];
+	bool active_mac;
 
 	be_setup_init(adapter);
 
@@ -2716,14 +2730,6 @@ static int be_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
-	memset(mac, 0, ETH_ALEN);
-	status = be_cmd_mac_addr_query(adapter, mac, MAC_ADDRESS_TYPE_NETWORK,
-			true /*permanent */, 0, 0);
-	if (status)
-		return status;
-	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
-	memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
-
 	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
 	cap_flags = en_flags | BE_IF_FLAGS_MCAST_PROMISCUOUS |
@@ -2733,27 +2739,29 @@ static int be_setup(struct be_adapter *adapter)
 		cap_flags |= BE_IF_FLAGS_RSS;
 		en_flags |= BE_IF_FLAGS_RSS;
 	}
+
 	status = be_cmd_if_create(adapter, cap_flags, en_flags,
-			netdev->dev_addr, &adapter->if_handle,
-			&adapter->pmac_id[0], 0);
+				  &adapter->if_handle, 0);
 	if (status != 0)
 		goto err;
 
-	 /* The VF's permanent mac queried from card is incorrect.
-	  * For BEx: Query the mac configued by the PF using if_handle
-	  * For Lancer: Get and use mac_list to obtain mac address.
-	  */
-	if (!be_physfn(adapter)) {
-		if (lancer_chip(adapter))
-			status = be_add_mac_from_list(adapter, mac);
-		else
-			status = be_cmd_mac_addr_query(adapter, mac,
-					MAC_ADDRESS_TYPE_NETWORK, false,
-					adapter->if_handle, 0);
-		if (!status) {
-			memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
-			memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
-		}
+	memset(mac, 0, ETH_ALEN);
+	active_mac = false;
+	status = be_get_mac_addr(adapter, mac, adapter->if_handle,
+				 &active_mac, &adapter->pmac_id[0]);
+	if (status != 0)
+		goto err;
+
+	if (!active_mac) {
+		status = be_cmd_pmac_add(adapter, mac, adapter->if_handle,
+					 &adapter->pmac_id[0], 0);
+		if (status != 0)
+			goto err;
+	}
+
+	if (is_zero_ether_addr(adapter->netdev->dev_addr)) {
+		memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
+		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
 	}
 
 	status = be_tx_qs_create(adapter);
