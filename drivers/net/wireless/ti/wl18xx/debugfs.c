@@ -158,6 +158,48 @@ WL18XX_DEBUGFS_FWSTATS_FILE(mem, tx_free_mem_blks, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(mem, fwlog_free_mem_blks, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(mem, fw_gen_free_mem_blks, "%u");
 
+static ssize_t conf_read(struct file *file, char __user *user_buf,
+			 size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	struct wl18xx_priv *priv = wl->priv;
+	struct wlcore_conf_header header;
+	char *buf, *pos;
+	size_t len;
+	int ret;
+
+	len = WL18XX_CONF_SIZE;
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	header.magic	= cpu_to_le32(WL18XX_CONF_MAGIC);
+	header.version	= cpu_to_le32(WL18XX_CONF_VERSION);
+	header.checksum	= 0;
+
+	mutex_lock(&wl->mutex);
+
+	pos = buf;
+	memcpy(pos, &header, sizeof(header));
+	pos += sizeof(header);
+	memcpy(pos, &wl->conf, sizeof(wl->conf));
+	pos += sizeof(wl->conf);
+	memcpy(pos, &priv->conf, sizeof(priv->conf));
+
+	mutex_unlock(&wl->mutex);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations conf_ops = {
+	.read = conf_read,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
 static ssize_t clear_fw_stats_write(struct file *file,
 			      const char __user *user_buf,
 			      size_t count, loff_t *ppos)
@@ -326,6 +368,8 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(mem, tx_free_mem_blks);
 	DEBUGFS_FWSTATS_ADD(mem, fwlog_free_mem_blks);
 	DEBUGFS_FWSTATS_ADD(mem, fw_gen_free_mem_blks);
+
+	DEBUGFS_ADD(conf, moddir);
 
 	return 0;
 

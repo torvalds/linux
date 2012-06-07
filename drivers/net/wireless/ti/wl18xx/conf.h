@@ -22,6 +22,12 @@
 #ifndef __WL18XX_CONF_H__
 #define __WL18XX_CONF_H__
 
+#define WL18XX_CONF_MAGIC	0x10e100ca
+#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0001)
+#define WL18XX_CONF_MASK	0x0000ffff
+#define WL18XX_CONF_SIZE	(WLCORE_CONF_SIZE + \
+				 sizeof(struct wl18xx_priv_conf))
+
 struct wl18xx_conf_phy {
 	u8 phy_standalone;
 	u8 rdl;
