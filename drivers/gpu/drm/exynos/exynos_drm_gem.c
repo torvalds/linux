@@ -99,14 +99,8 @@ out:
 struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
 						gfp_t gfpmask)
 {
-	struct inode *inode;
-	struct address_space *mapping;
 	struct page *p, **pages;
 	int i, npages;
-
-	/* This is the shared memory object that backs the GEM resource */
-	inode = obj->filp->f_path.dentry->d_inode;
-	mapping = inode->i_mapping;
 
 	npages = obj->size >> PAGE_SHIFT;
 
@@ -114,10 +108,8 @@ struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
 	if (pages == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	gfpmask |= mapping_gfp_mask(mapping);
-
 	for (i = 0; i < npages; i++) {
-		p = shmem_read_mapping_page_gfp(mapping, i, gfpmask);
+		p = alloc_page(gfpmask);
 		if (IS_ERR(p))
 			goto fail;
 		pages[i] = p;
@@ -127,7 +119,7 @@ struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
 
 fail:
 	while (i--)
-		page_cache_release(pages[i]);
+		__free_page(pages[i]);
 
 	drm_free_large(pages);
 	return ERR_PTR(PTR_ERR(p));
@@ -189,7 +181,7 @@ static int exynos_drm_gem_get_pages(struct drm_gem_object *obj)
 		return -EINVAL;
 	}
 
-	pages = exynos_gem_get_pages(obj, GFP_KERNEL);
+	pages = exynos_gem_get_pages(obj, GFP_HIGHUSER_MOVABLE);
 	if (IS_ERR(pages)) {
 		DRM_ERROR("failed to get pages.\n");
 		return PTR_ERR(pages);
