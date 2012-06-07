@@ -656,7 +656,7 @@ example in cpusets, no task may attach before 'cpus' and 'mems' are set
 up.
 
 void bind(struct cgroup *root)
-(cgroup_mutex and ss->hierarchy_mutex held by caller)
+(cgroup_mutex held by caller)
 
 Called when a cgroup subsystem is rebound to a different hierarchy
 and root cgroup. Currently this will only involve movement between
