@@ -21,18 +21,54 @@
  *
  */
 
-#ifndef _DVB_USB_AF9015_H_
-#define _DVB_USB_AF9015_H_
+#ifndef AF9015_H
+#define AF9015_H
+
+#include <linux/hash.h>
+#include "dvb_usb.h"
+#include "af9013.h"
+#include "dvb-pll.h"
+#include "mt2060.h"
+#include "qt1010.h"
+#include "tda18271.h"
+#include "mxl5005s.h"
+#include "mc44s803.h"
+#include "tda18218.h"
+#include "mxl5007t.h"
 
 #define DVB_USB_LOG_PREFIX "af9015"
-#include "dvb-usb.h"
+
+#ifdef CONFIG_DVB_USB_DEBUG
+#define dprintk(var, level, args...) \
+	do { if ((var & level)) printk(args); } while (0)
+#define DVB_USB_DEBUG_STATUS
+#else
+#define dprintk(args...)
+#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
+#endif
 
 #define deb_info(args...) dprintk(dvb_usb_af9015_debug, 0x01, args)
 #define deb_rc(args...)   dprintk(dvb_usb_af9015_debug, 0x02, args)
-#define deb_xfer(args...) dprintk(dvb_usb_af9015_debug, 0x04, args)
-#define deb_reg(args...)  dprintk(dvb_usb_af9015_debug, 0x08, args)
-#define deb_i2c(args...)  dprintk(dvb_usb_af9015_debug, 0x10, args)
-#define deb_fw(args...)   dprintk(dvb_usb_af9015_debug, 0x20, args)
+
+#undef err
+#define err(format, arg...) \
+	printk(KERN_ERR     DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+#undef warn
+#define warn(format, arg...) \
+	printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+
+/* Windows driver uses packet count 21 for USB1.1 and 348 for USB2.0.
+   We use smaller - about 1/4 from the original, 5 and 87. */
+#define TS_PACKET_SIZE            188
+
+#define TS_USB20_PACKET_COUNT      87
+#define TS_USB20_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB20_PACKET_COUNT)
+
+#define TS_USB11_PACKET_COUNT       5
+#define TS_USB11_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB11_PACKET_COUNT)
+
+#define TS_USB20_MAX_PACKET_SIZE  512
+#define TS_USB11_MAX_PACKET_SIZE   64
 
 #define AF9015_I2C_EEPROM  0xa0
 #define AF9015_I2C_DEMOD   0x38
@@ -99,9 +135,17 @@ enum af9015_ir_mode {
 };
 
 struct af9015_state {
+	u8 ir_mode;
 	u8 rc_repeat;
 	u32 rc_keycode;
 	u8 rc_last[4];
+	u8 dual_mode;
+	u8 seq; /* packet sequence number */
+	u16 mt2060_if1[2];
+	u16 firmware_size;
+	u16 firmware_checksum;
+	u32 eeprom_sum;
+	struct af9013_config af9013_config[2];
 
 	/* for demod callback override */
 	int (*set_frontend[2]) (struct dvb_frontend *fe);
@@ -110,14 +154,7 @@ struct af9015_state {
 	int (*sleep[2]) (struct dvb_frontend *fe);
 	int (*tuner_init[2]) (struct dvb_frontend *fe);
 	int (*tuner_sleep[2]) (struct dvb_frontend *fe);
-};
-
-struct af9015_config {
-	u8  dual_mode:1;
-	u16 mt2060_if1[2];
-	u16 firmware_size;
-	u16 firmware_checksum;
-	u32 eeprom_sum;
+	struct mutex fe_mutex;
 };
 
 enum af9015_remote {
