@@ -619,6 +619,14 @@ void mmput(struct mm_struct *mm)
 			module_put(mm->binfmt->module);
 		mmdrop(mm);
 	}
+
+	/*
+	 * Final rss-counter synchronization. After this point there must be
+	 * no pagefaults into this mm from the current context.  Otherwise
+	 * mm->rss_stat will be inconsistent.
+	 */
+	if (mm)
+		sync_mm_rss(mm);
 }
 EXPORT_SYMBOL_GPL(mmput);
 
