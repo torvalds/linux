@@ -275,6 +275,7 @@ struct bnx2fc_rport {
 #define BNX2FC_FLAG_CTX_ALLOC_FAILURE	0x6
 #define BNX2FC_FLAG_UPLD_REQ_COMPL	0x7
 #define BNX2FC_FLAG_EXPL_LOGO		0x8
+#define BNX2FC_FLAG_DISABLE_FAILED	0x9
 
 	u8 src_addr[ETH_ALEN];
 	u32 max_sqes;

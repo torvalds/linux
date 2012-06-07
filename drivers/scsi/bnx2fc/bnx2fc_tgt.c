@@ -181,8 +181,14 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 
 		set_bit(BNX2FC_FLAG_IO_COMPL, &io_req->req_flags);
 		set_bit(BNX2FC_FLAG_IO_CLEANUP, &io_req->req_flags);
-		rc = bnx2fc_initiate_cleanup(io_req);
-		BUG_ON(rc);
+
+		/* Do not issue cleanup when disable request failed */
+		if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags))
+			bnx2fc_process_cleanup_compl(io_req, io_req->task, 0);
+		else {
+			rc = bnx2fc_initiate_cleanup(io_req);
+			BUG_ON(rc);
+		}
 	}
 
 	list_for_each_safe(list, tmp, &tgt->active_tm_queue) {
@@ -212,8 +218,13 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 			io_req->cb_arg = NULL;
 		}
 
-		rc = bnx2fc_initiate_cleanup(io_req);
-		BUG_ON(rc);
+		/* Do not issue cleanup when disable request failed */
+		if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags))
+			bnx2fc_process_cleanup_compl(io_req, io_req->task, 0);
+		else {
+			rc = bnx2fc_initiate_cleanup(io_req);
+			BUG_ON(rc);
+		}
 	}
 
 	list_for_each_safe(list, tmp, &tgt->io_retire_queue) {
@@ -321,9 +332,13 @@ static void bnx2fc_upload_session(struct fcoe_port *port,
 
 		del_timer_sync(&tgt->upld_timer);
 
-	} else
+	} else if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags)) {
+		printk(KERN_ERR PFX "ERROR!! DISABLE req failed, destroy"
+				" not sent to FW\n");
+	} else {
 		printk(KERN_ERR PFX "ERROR!! DISABLE req timed out, destroy"
 				" not sent to FW\n");
+	}
 
 	/* Free session resources */
 	bnx2fc_free_session_resc(hba, tgt);
