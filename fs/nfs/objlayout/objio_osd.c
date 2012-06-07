@@ -487,8 +487,16 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 	struct objio_state *objios = priv;
 	struct nfs_write_data *wdata = objios->oir.rpcdata;
 	pgoff_t index = offset / PAGE_SIZE;
-	struct page *page = find_get_page(wdata->inode->i_mapping, index);
+	struct page *page;
+	loff_t i_size = i_size_read(wdata->inode);
 
+	if (offset >= i_size) {
+		*uptodate = true;
+		dprintk("%s: g_zero_page index=0x%lx\n", __func__, index);
+		return ZERO_PAGE(0);
+	}
+
+	page = find_get_page(wdata->inode->i_mapping, index);
 	if (!page) {
 		page = find_or_create_page(wdata->inode->i_mapping,
 						index, GFP_NOFS);
@@ -509,8 +517,10 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 
 static void __r4w_put_page(void *priv, struct page *page)
 {
-	dprintk("%s: index=0x%lx\n", __func__, page->index);
-	page_cache_release(page);
+	dprintk("%s: index=0x%lx\n", __func__,
+		(page == ZERO_PAGE(0)) ? -1UL : page->index);
+	if (ZERO_PAGE(0) != page)
+		page_cache_release(page);
 	return;
 }
 
