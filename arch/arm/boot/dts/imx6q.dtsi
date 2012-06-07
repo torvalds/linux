@@ -87,6 +87,11 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		dma-apbh@00110000 {
+			compatible = "fsl,imx6q-dma-apbh", "fsl,imx28-dma-apbh";
+			reg = <0x00110000 0x2000>;
+		};
+
 		timer@00a00600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;
