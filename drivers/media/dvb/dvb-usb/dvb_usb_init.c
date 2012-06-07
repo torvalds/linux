@@ -342,7 +342,7 @@ exit_usb_driver_release_interface:
 	return;
 }
 
-int dvb_usbv2_device_init(struct usb_interface *intf,
+int dvb_usbv2_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	int ret;
@@ -389,10 +389,9 @@ err:
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
+EXPORT_SYMBOL(dvb_usbv2_probe);
 
-EXPORT_SYMBOL(dvb_usbv2_device_init);
-
-void dvb_usbv2_device_exit(struct usb_interface *intf)
+void dvb_usbv2_disconnect(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	const char *name = "generic DVB-USB module";
@@ -416,7 +415,7 @@ void dvb_usbv2_device_exit(struct usb_interface *intf)
 	pr_info("%s: '%s' successfully deinitialized and disconnected\n",
 			KBUILD_MODNAME, name);
 }
-EXPORT_SYMBOL(dvb_usbv2_device_exit);
+EXPORT_SYMBOL(dvb_usbv2_disconnect);
 
 MODULE_VERSION("1.0");
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
