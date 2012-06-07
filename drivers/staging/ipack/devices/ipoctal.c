@@ -50,7 +50,6 @@ struct ipoctal {
 	unsigned int			nb_bytes[NR_CHANNELS];
 	unsigned int			count_wr[NR_CHANNELS];
 	wait_queue_head_t		queue[NR_CHANNELS];
-	unsigned short			error_flag[NR_CHANNELS];
 	spinlock_t			lock[NR_CHANNELS];
 	unsigned int			pointer_read[NR_CHANNELS];
 	unsigned int			pointer_write[NR_CHANNELS];
@@ -275,23 +274,19 @@ static int ipoctal_irq_handler(void *arg)
 						     CR_CMD_RESET_ERR_STATUS);
 
 				if (sr & SR_OVERRUN_ERROR) {
-					ipoctal->error_flag[channel] |= UART_OVERRUN;
 					ipoctal->chan_stats[channel].overrun_err++;
 					/* Overrun doesn't affect the current character*/
 					tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 				}
 				if (sr & SR_PARITY_ERROR) {
-					ipoctal->error_flag[channel] |= UART_PARITY;
 					ipoctal->chan_stats[channel].parity_err++;
 					flag = TTY_PARITY;
 				}
 				if (sr & SR_FRAMING_ERROR) {
-					ipoctal->error_flag[channel] |= UART_FRAMING;
 					ipoctal->chan_stats[channel].framing_err++;
 					flag = TTY_FRAME;
 				}
 				if (sr & SR_RECEIVED_BREAK) {
-					ipoctal->error_flag[channel] |= UART_BREAK;
 					ipoctal->chan_stats[channel].rcv_break++;
 					flag = TTY_BREAK;
 				}
@@ -493,7 +488,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		ipoctal_reset_stats(&ipoctal->chan_stats[i]);
 		ipoctal->nb_bytes[i] = 0;
 		init_waitqueue_head(&ipoctal->queue[i]);
-		ipoctal->error_flag[i] = UART_NOERROR;
 
 		spin_lock_init(&ipoctal->lock[i]);
 		ipoctal->pointer_read[i] = 0;
@@ -551,8 +545,6 @@ static int ipoctal_write(struct ipoctal *ipoctal, unsigned int channel,
 	ipoctal->count_wr[channel] = 0;
 
 	ipoctal_copy_write_buffer(ipoctal, channel, buf, count);
-
-	ipoctal->error_flag[channel] = UART_NOERROR;
 
 	/* As the IP-OCTAL 485 only supports half duplex, do it manually */
 	if (ipoctal->board_id == IP_OCTAL_485_ID) {

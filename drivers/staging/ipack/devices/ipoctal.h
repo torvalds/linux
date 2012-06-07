@@ -29,19 +29,6 @@ enum uart_parity_e {
 };
 
 /**
- * enum uart_error - UART error type
- *
- */
-enum uart_error	{
-	UART_NOERROR = 0,      /* No error during transmission */
-	UART_TIMEOUT = 1 << 0, /* Timeout error */
-	UART_OVERRUN = 1 << 1, /* Overrun error */
-	UART_PARITY  = 1 << 2, /* Parity error */
-	UART_FRAMING = 1 << 3, /* Framing error */
-	UART_BREAK   = 1 << 4, /* Received break */
-};
-
-/**
  * struct ipoctal_stats -- Stats since last reset
  *
  * @tx: Number of transmitted bytes
