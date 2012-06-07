@@ -116,8 +116,9 @@ static int wm831x_pre_init(struct wm831x *parm)
 	wm831x_set_bits(parm,WM831X_DC3_ON_CONFIG ,0x0300,0x0000);
 	wm831x_set_bits(parm,0x4066,0x0300,0x0000);
 
+#ifndef CONFIG_MACH_RK3066_SDK
 	wm831x_set_bits(parm,WM831X_LDO10_CONTROL ,0x0040,0x0040);// set ldo10 in switch mode
-
+#endif
 	wm831x_set_bits(parm,WM831X_STATUS_LED_1 ,0xc300,0xc100);// set led1 on(in manual mode)
 	wm831x_set_bits(parm,WM831X_STATUS_LED_2 ,0xc300,0xc000);//set led2 off(in manual mode)
 
@@ -193,7 +194,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_put(ldo);
 
 	dcdc = regulator_get(NULL, "dcdc4");	// vcc_io
-#ifdef CONFIG_MACH_RK3066_SDK1
+#ifdef CONFIG_MACH_RK3066_SDK
 	regulator_set_voltage(dcdc, 3300000, 3300000);
 	regulator_set_suspend_voltage(dcdc, 3100000);
 #else
@@ -269,7 +270,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_put(ldo);
 	udelay(100);
 
-#ifdef CONFIG_MACH_RK3066_SDK1
+#ifdef CONFIG_MACH_RK3066_SDK
 	ldo = regulator_get(NULL, "ldo3");	//vdd11_hdmi
 	regulator_set_voltage(ldo, 1100000, 1100000);
 	regulator_set_suspend_voltage(ldo, 1100000);
