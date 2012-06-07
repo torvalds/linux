@@ -3689,6 +3689,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
+	if (!intel_enable_gtt())
+		return -EIO;
+
 	i915_gem_l3_remap(dev);
 
 	i915_gem_init_swizzling(dev);

@@ -777,7 +777,7 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
-static bool intel_enable_gtt(void)
+bool intel_enable_gtt(void)
 {
 	u8 __iomem *reg;
 
@@ -823,6 +823,7 @@ static bool intel_enable_gtt(void)
 
 	return true;
 }
+EXPORT_SYMBOL(intel_enable_gtt);
 
 static int i830_setup(void)
 {

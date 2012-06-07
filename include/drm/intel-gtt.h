@@ -27,6 +27,8 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 		     struct agp_bridge_data *bridge);
 void intel_gmch_remove(void);
 
+bool intel_enable_gtt(void);
+
 void intel_gtt_chipset_flush(void);
 void intel_gtt_unmap_memory(struct scatterlist *sg_list, int num_sg);
 void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries);
