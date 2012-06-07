@@ -1972,6 +1972,9 @@ static int gfs2_glocks_open(struct inode *inode, struct file *file)
 		struct seq_file *seq = file->private_data;
 		struct gfs2_glock_iter *gi = seq->private;
 		gi->sdp = inode->i_private;
+		seq->buf = kmalloc(8*PAGE_SIZE, GFP_KERNEL | __GFP_NOWARN);
+		if (seq->buf)
+			seq->size = 8*PAGE_SIZE;
 	}
 	return ret;
 }
@@ -1984,6 +1987,9 @@ static int gfs2_glstats_open(struct inode *inode, struct file *file)
 		struct seq_file *seq = file->private_data;
 		struct gfs2_glock_iter *gi = seq->private;
 		gi->sdp = inode->i_private;
+		seq->buf = kmalloc(8*PAGE_SIZE, GFP_KERNEL | __GFP_NOWARN);
+		if (seq->buf)
+			seq->size = 8*PAGE_SIZE;
 	}
 	return ret;
 }
