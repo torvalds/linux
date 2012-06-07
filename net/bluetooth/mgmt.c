@@ -210,7 +210,7 @@ static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 
 	BT_DBG("sock %p, index %u, cmd %u, status %u", sk, index, cmd, status);
 
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev), GFP_ATOMIC);
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev), GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -241,7 +241,7 @@ static int cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 
 	BT_DBG("sock %p", sk);
 
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + rp_len, GFP_ATOMIC);
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + rp_len, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -812,7 +812,7 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 data_len,
 	struct sk_buff *skb;
 	struct mgmt_hdr *hdr;
 
-	skb = alloc_skb(sizeof(*hdr) + data_len, GFP_ATOMIC);
+	skb = alloc_skb(sizeof(*hdr) + data_len, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
