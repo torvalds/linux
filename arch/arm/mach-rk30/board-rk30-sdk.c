@@ -1221,6 +1221,68 @@ static struct platform_device rk30_device_adc_battery = {
 #include "board-rk30-sdk-vmac.c"
 #endif
 
+#ifdef CONFIG_RFKILL_RK
+// bluetooth rfkill device, its driver in net/rfkill/rfkill-rk.c
+static struct rfkill_rk_platform_data rfkill_rk_platdata = {
+    .type               = RFKILL_TYPE_BLUETOOTH,
+
+    .poweron_gpio       = { // BT_REG_ON
+        .io             = RK30_PIN3_PC7,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = GPIO3C7_SDMMC1WRITEPRT_NAME,
+            .fgpio      = GPIO3C_GPIO3C7,
+        },
+    },
+
+    .reset_gpio         = { // BT_RST
+        .io             = RK30_PIN3_PD1, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name       = GPIO3D1_SDMMC1BACKENDPWR_NAME,
+            .fgpio      = GPIO3D_GPIO3D1,
+        },
+    },
+
+    .wake_gpio          = { // BT_WAKE, use to control bt's sleep and wakeup
+        .io             = RK30_PIN3_PC6, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = GPIO3C6_SDMMC1DETECTN_NAME,
+            .fgpio      = GPIO3C_GPIO3C6,
+        },
+    },
+
+    .wake_host_irq      = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
+        .gpio           = {
+            .io         = RK30_PIN6_PA7, // set io to INVALID_GPIO for disable it
+            .iomux      = {
+                .name   = NULL,
+            },
+        },
+        .is_falling     = 1, // trigger type, set 1 for falling, set 0 for rising
+    },
+
+    .rts_gpio           = { // UART_RTS, enable or disable BT's data coming
+        .io             = RK30_PIN1_PA3, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name       = GPIO1A3_UART0RTSN_NAME,
+            .fgpio      = GPIO1A_GPIO1A3,
+            .fmux       = GPIO1A_UART0_RTS_N,
+        },
+    },
+};
+
+static struct platform_device device_rfkill_rk = {
+    .name   = "rfkill_rk",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &rfkill_rk_platdata,
+    },
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
@@ -1248,6 +1310,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,
+#endif
+#ifdef CONFIG_RFKILL_RK
+	&device_rfkill_rk,
 #endif
 };
 
@@ -1412,68 +1477,6 @@ struct i2c_gpio_platform_data default_i2c_gpio_data = {
        .io_init = rk30_i2c_io_init,
 };
 static struct i2c_board_info __initdata i2c_gpio_info[] = {
-};
-#endif
-
-#ifdef CONFIG_BT
-// bluetooth rfkill device, its driver in net/rfkill/rfkill-rk.c
-static struct rfkill_rk_platform_data rfkill_rk_platdata = {
-    .type               = RFKILL_TYPE_BLUETOOTH,
-
-    .poweron_gpio       = { // BT_REG_ON
-        .io             = RK30_PIN3_PC7,
-        .enable         = GPIO_HIGH,
-        .iomux          = {
-            .name       = GPIO3C7_SDMMC1WRITEPRT_NAME,
-            .fgpio      = GPIO3C_GPIO3C7,
-        },
-    },
-
-    .reset_gpio         = { // BT_RST
-        .io             = RK30_PIN3_PD1, // set io to INVALID_GPIO for disable it
-        .enable         = GPIO_LOW,
-        .iomux          = {
-            .name       = GPIO3D1_SDMMC1BACKENDPWR_NAME,
-            .fgpio      = GPIO3D_GPIO3D1,
-        },
-    },
-
-    .wake_gpio          = { // BT_WAKE, use to control bt's sleep and wakeup
-        .io             = RK30_PIN3_PC6, // set io to INVALID_GPIO for disable it
-        .enable         = GPIO_HIGH,
-        .iomux          = {
-            .name       = GPIO3C6_SDMMC1DETECTN_NAME,
-            .fgpio      = GPIO3C_GPIO3C6,
-        },
-    },
-
-    .wake_host_irq      = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
-        .gpio           = {
-            .io         = RK30_PIN6_PA7, // set io to INVALID_GPIO for disable it
-            .iomux      = {
-                .name   = NULL,
-            },
-        },
-        .is_falling     = 1, // trigger type, set 1 for falling, set 0 for rising
-    },
-
-    .rts_gpio           = { // UART_RTS, enable or disable BT's data coming
-        .io             = RK30_PIN1_PA3, // set io to INVALID_GPIO for disable it
-        .enable         = GPIO_LOW,
-        .iomux          = {
-            .name       = GPIO1A3_UART0RTSN_NAME,
-            .fgpio      = GPIO1A_GPIO1A3,
-            .fmux       = GPIO1A_UART0_RTS_N,
-        },
-    },
-};
-
-struct platform_device device_rfkill_rk = {
-    .name   = "rfkill_rk",
-    .id     = -1,
-    .dev    = {
-        .platform_data = &rfkill_rk_platdata,
-    },
 };
 #endif
 
