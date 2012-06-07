@@ -433,9 +433,25 @@ static int emulator_check_intercept(struct x86_emulate_ctxt *ctxt,
 	return ctxt->ops->intercept(ctxt, &info, stage);
 }
 
+static void assign_masked(ulong *dest, ulong src, ulong mask)
+{
+	*dest = (*dest & ~mask) | (src & mask);
+}
+
 static inline unsigned long ad_mask(struct x86_emulate_ctxt *ctxt)
 {
 	return (1UL << (ctxt->ad_bytes << 3)) - 1;
+}
+
+static ulong stack_mask(struct x86_emulate_ctxt *ctxt)
+{
+	u16 sel;
+	struct desc_struct ss;
+
+	if (ctxt->mode == X86EMUL_MODE_PROT64)
+		return ~0UL;
+	ctxt->ops->get_segment(ctxt, &sel, &ss, NULL, VCPU_SREG_SS);
+	return ~0U >> ((ss.d ^ 1) * 16);  /* d=0: 0xffff; d=1: 0xffffffff */
 }
 
 /* Access/update address held in a register, based on addressing mode. */
@@ -1558,6 +1574,13 @@ static int em_popf(struct x86_emulate_ctxt *ctxt)
 	ctxt->dst.addr.reg = &ctxt->eflags;
 	ctxt->dst.bytes = ctxt->op_bytes;
 	return emulate_popf(ctxt, &ctxt->dst.val, ctxt->op_bytes);
+}
+
+static int em_leave(struct x86_emulate_ctxt *ctxt)
+{
+	assign_masked(&ctxt->regs[VCPU_REGS_RSP], ctxt->regs[VCPU_REGS_RBP],
+		      stack_mask(ctxt));
+	return emulate_pop(ctxt, &ctxt->regs[VCPU_REGS_RBP], ctxt->op_bytes);
 }
 
 static int em_push_sreg(struct x86_emulate_ctxt *ctxt)
@@ -3582,7 +3605,7 @@ static struct opcode opcode_table[256] = {
 	I(DstReg | SrcMemFAddr | ModRM | No64 | Src2DS, em_lseg),
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
-	N, N, N, I(ImplicitOps | Stack, em_ret_far),
+	N, I(Stack, em_leave), N, I(ImplicitOps | Stack, em_ret_far),
 	D(ImplicitOps), DI(SrcImmByte, intn),
 	D(ImplicitOps | No64), II(ImplicitOps, em_iret, iret),
 	/* 0xD0 - 0xD7 */
