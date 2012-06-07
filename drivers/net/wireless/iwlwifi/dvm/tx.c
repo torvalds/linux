@@ -403,6 +403,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	info->driver_data[0] = ctx;
 	info->driver_data[1] = dev_cmd;
+	/* From now on, we cannot access info->control */
 
 	spin_lock(&priv->sta_lock);
 
