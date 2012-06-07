@@ -158,6 +158,34 @@ WL18XX_DEBUGFS_FWSTATS_FILE(mem, tx_free_mem_blks, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(mem, fwlog_free_mem_blks, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(mem, fw_gen_free_mem_blks, "%u");
 
+static ssize_t clear_fw_stats_write(struct file *file,
+			      const char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	int ret;
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF)
+		goto out;
+
+	ret = wl18xx_acx_clear_statistics(wl);
+	if (ret < 0) {
+		count = ret;
+		goto out;
+	}
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static const struct file_operations clear_fw_stats_ops = {
+	.write = clear_fw_stats_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
 int wl18xx_debugfs_add_files(struct wl1271 *wl,
 			     struct dentry *rootdir)
 {
@@ -175,6 +203,8 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 		entry = stats;
 		goto err;
 	}
+
+	DEBUGFS_ADD(clear_fw_stats, stats);
 
 	DEBUGFS_FWSTATS_ADD(debug, debug1);
 	DEBUGFS_FWSTATS_ADD(debug, debug2);

@@ -85,3 +85,27 @@ out:
 	kfree(acx);
 	return ret;
 }
+
+int wl18xx_acx_clear_statistics(struct wl1271 *wl)
+{
+	struct wl18xx_acx_clear_statistics *acx;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx clear statistics");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = wl1271_cmd_configure(wl, ACX_CLEAR_STATISTICS, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("failed to clear firmware statistics: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}

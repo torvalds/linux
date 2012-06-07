@@ -25,6 +25,10 @@
 #include "../wlcore/wlcore.h"
 #include "../wlcore/acx.h"
 
+enum {
+	ACX_CLEAR_STATISTICS		 = 0x0047,
+};
+
 /* numbers of bits the length field takes (add 1 for the actual number) */
 #define WL18XX_HOST_IF_LEN_SIZE_FIELD 15
 
@@ -253,9 +257,14 @@ struct wl18xx_acx_statistics {
 	struct wl18xx_acx_mem_stats		mem;
 } __packed;
 
+struct wl18xx_acx_clear_statistics {
+	struct acx_header header;
+};
+
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 				  u32 sdio_blk_size, u32 extra_mem_blks,
 				  u32 len_field_size);
 int wl18xx_acx_set_checksum_state(struct wl1271 *wl);
+int wl18xx_acx_clear_statistics(struct wl1271 *wl);
 
 #endif /* __WL18XX_ACX_H__ */
