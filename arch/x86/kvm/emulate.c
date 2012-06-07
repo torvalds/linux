@@ -3142,6 +3142,20 @@ static int em_bsr(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_cpuid(struct x86_emulate_ctxt *ctxt)
+{
+	u32 eax, ebx, ecx, edx;
+
+	eax = ctxt->regs[VCPU_REGS_RAX];
+	ecx = ctxt->regs[VCPU_REGS_RCX];
+	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx);
+	ctxt->regs[VCPU_REGS_RAX] = eax;
+	ctxt->regs[VCPU_REGS_RBX] = ebx;
+	ctxt->regs[VCPU_REGS_RCX] = ecx;
+	ctxt->regs[VCPU_REGS_RDX] = edx;
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3634,7 +3648,7 @@ static struct opcode twobyte_table[256] = {
 	X16(D(ByteOp | DstMem | SrcNone | ModRM| Mov)),
 	/* 0xA0 - 0xA7 */
 	I(Stack | Src2FS, em_push_sreg), I(Stack | Src2FS, em_pop_sreg),
-	DI(ImplicitOps, cpuid), I(DstMem | SrcReg | ModRM | BitOp, em_bt),
+	II(ImplicitOps, em_cpuid, cpuid), I(DstMem | SrcReg | ModRM | BitOp, em_bt),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM), N, N,
 	/* 0xA8 - 0xAF */
