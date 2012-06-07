@@ -33,6 +33,7 @@
 #include <linux/bitmap.h>
 #include <linux/iommu-helper.h>
 #include <linux/crash_dump.h>
+#include <linux/hash.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -58,6 +59,26 @@ static int __init setup_iommu(char *str)
 
 __setup("iommu=", setup_iommu);
 
+static DEFINE_PER_CPU(unsigned int, iommu_pool_hash);
+
+/*
+ * We precalculate the hash to avoid doing it on every allocation.
+ *
+ * The hash is important to spread CPUs across all the pools. For example,
+ * on a POWER7 with 4 way SMT we want interrupts on the primary threads and
+ * with 4 pools all primary threads would map to the same pool.
+ */
+static int __init setup_iommu_pool_hash(void)
+{
+	unsigned int i;
+
+	for_each_possible_cpu(i)
+		per_cpu(iommu_pool_hash, i) = hash_32(i, IOMMU_POOL_HASHBITS);
+
+	return 0;
+}
+subsys_initcall(setup_iommu_pool_hash);
+
 static unsigned long iommu_range_alloc(struct device *dev,
 				       struct iommu_table *tbl,
                                        unsigned long npages,
@@ -72,6 +93,8 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	unsigned long align_mask;
 	unsigned long boundary_size;
 	unsigned long flags;
+	unsigned int pool_nr;
+	struct iommu_pool *pool;
 
 	align_mask = 0xffffffffffffffffl >> (64 - align_order);
 
@@ -84,38 +107,46 @@ static unsigned long iommu_range_alloc(struct device *dev,
 		return DMA_ERROR_CODE;
 	}
 
-	spin_lock_irqsave(&(tbl->it_lock), flags);
+	/*
+	 * We don't need to disable preemption here because any CPU can
+	 * safely use any IOMMU pool.
+	 */
+	pool_nr = __raw_get_cpu_var(iommu_pool_hash) & (tbl->nr_pools - 1);
 
-	if (handle && *handle)
+	if (largealloc)
+		pool = &(tbl->large_pool);
+	else
+		pool = &(tbl->pools[pool_nr]);
+
+	spin_lock_irqsave(&(pool->lock), flags);
+
+again:
+	if ((pass == 0) && handle && *handle)
 		start = *handle;
 	else
-		start = largealloc ? tbl->it_largehint : tbl->it_hint;
+		start = pool->hint;
 
-	/* Use only half of the table for small allocs (15 pages or less) */
-	limit = largealloc ? tbl->it_size : tbl->it_halfpoint;
-
-	if (largealloc && start < tbl->it_halfpoint)
-		start = tbl->it_halfpoint;
+	limit = pool->end;
 
 	/* The case below can happen if we have a small segment appended
 	 * to a large, or when the previous alloc was at the very end of
 	 * the available space. If so, go back to the initial start.
 	 */
 	if (start >= limit)
-		start = largealloc ? tbl->it_largehint : tbl->it_hint;
-
- again:
+		start = pool->start;
 
 	if (limit + tbl->it_offset > mask) {
 		limit = mask - tbl->it_offset + 1;
 		/* If we're constrained on address range, first try
 		 * at the masked hint to avoid O(n) search complexity,
-		 * but on second pass, start at 0.
+		 * but on second pass, start at 0 in pool 0.
 		 */
-		if ((start & mask) >= limit || pass > 0)
-			start = 0;
-		else
+		if ((start & mask) >= limit || pass > 0) {
+			pool = &(tbl->pools[0]);
+			start = pool->start;
+		} else {
 			start &= mask;
+		}
 	}
 
 	if (dev)
@@ -129,17 +160,25 @@ static unsigned long iommu_range_alloc(struct device *dev,
 			     tbl->it_offset, boundary_size >> IOMMU_PAGE_SHIFT,
 			     align_mask);
 	if (n == -1) {
-		if (likely(pass < 2)) {
-			/* First failure, just rescan the half of the table.
-			 * Second failure, rescan the other half of the table.
-			 */
-			start = (largealloc ^ pass) ? tbl->it_halfpoint : 0;
-			limit = pass ? tbl->it_size : limit;
+		if (likely(pass == 0)) {
+			/* First try the pool from the start */
+			pool->hint = pool->start;
 			pass++;
 			goto again;
+
+		} else if (pass <= tbl->nr_pools) {
+			/* Now try scanning all the other pools */
+			spin_unlock(&(pool->lock));
+			pool_nr = (pool_nr + 1) & (tbl->nr_pools - 1);
+			pool = &tbl->pools[pool_nr];
+			spin_lock(&(pool->lock));
+			pool->hint = pool->start;
+			pass++;
+			goto again;
+
 		} else {
-			/* Third failure, give up */
-			spin_unlock_irqrestore(&(tbl->it_lock), flags);
+			/* Give up */
+			spin_unlock_irqrestore(&(pool->lock), flags);
 			return DMA_ERROR_CODE;
 		}
 	}
@@ -149,10 +188,10 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	/* Bump the hint to a new block for small allocs. */
 	if (largealloc) {
 		/* Don't bump to new block to avoid fragmentation */
-		tbl->it_largehint = end;
+		pool->hint = end;
 	} else {
 		/* Overflow will be taken care of at the next allocation */
-		tbl->it_hint = (end + tbl->it_blocksize - 1) &
+		pool->hint = (end + tbl->it_blocksize - 1) &
 		                ~(tbl->it_blocksize - 1);
 	}
 
@@ -160,7 +199,8 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	if (handle)
 		*handle = end;
 
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
+	spin_unlock_irqrestore(&(pool->lock), flags);
+
 	return n;
 }
 
@@ -235,23 +275,45 @@ static bool iommu_free_check(struct iommu_table *tbl, dma_addr_t dma_addr,
 	return true;
 }
 
+static struct iommu_pool *get_pool(struct iommu_table *tbl,
+				   unsigned long entry)
+{
+	struct iommu_pool *p;
+	unsigned long largepool_start = tbl->large_pool.start;
+
+	/* The large pool is the last pool at the top of the table */
+	if (entry >= largepool_start) {
+		p = &tbl->large_pool;
+	} else {
+		unsigned int pool_nr = entry / tbl->poolsize;
+
+		BUG_ON(pool_nr > tbl->nr_pools);
+		p = &tbl->pools[pool_nr];
+	}
+
+	return p;
+}
+
 static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 			 unsigned int npages)
 {
 	unsigned long entry, free_entry;
 	unsigned long flags;
+	struct iommu_pool *pool;
 
 	entry = dma_addr >> IOMMU_PAGE_SHIFT;
 	free_entry = entry - tbl->it_offset;
+
+	pool = get_pool(tbl, free_entry);
 
 	if (!iommu_free_check(tbl, dma_addr, npages))
 		return;
 
 	ppc_md.tce_free(tbl, entry, npages);
 
-	spin_lock_irqsave(&(tbl->it_lock), flags);
+	spin_lock_irqsave(&(pool->lock), flags);
 	bitmap_clear(tbl->it_map, free_entry, npages);
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
+	spin_unlock_irqrestore(&(pool->lock), flags);
 }
 
 static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
@@ -493,9 +555,8 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	unsigned long sz;
 	static int welcomed = 0;
 	struct page *page;
-
-	/* Set aside 1/4 of the table for large allocations. */
-	tbl->it_halfpoint = tbl->it_size * 3 / 4;
+	unsigned int i;
+	struct iommu_pool *p;
 
 	/* number of bytes needed for the bitmap */
 	sz = (tbl->it_size + 7) >> 3;
@@ -514,9 +575,28 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	if (tbl->it_offset == 0)
 		set_bit(0, tbl->it_map);
 
-	tbl->it_hint = 0;
-	tbl->it_largehint = tbl->it_halfpoint;
-	spin_lock_init(&tbl->it_lock);
+	/* We only split the IOMMU table if we have 1GB or more of space */
+	if ((tbl->it_size << IOMMU_PAGE_SHIFT) >= (1UL * 1024 * 1024 * 1024))
+		tbl->nr_pools = IOMMU_NR_POOLS;
+	else
+		tbl->nr_pools = 1;
+
+	/* We reserve the top 1/4 of the table for large allocations */
+	tbl->poolsize = (tbl->it_size * 3 / 4) / IOMMU_NR_POOLS;
+
+	for (i = 0; i < IOMMU_NR_POOLS; i++) {
+		p = &tbl->pools[i];
+		spin_lock_init(&(p->lock));
+		p->start = tbl->poolsize * i;
+		p->hint = p->start;
+		p->end = p->start + tbl->poolsize;
+	}
+
+	p = &tbl->large_pool;
+	spin_lock_init(&(p->lock));
+	p->start = tbl->poolsize * i;
+	p->hint = p->start;
+	p->end = tbl->it_size;
 
 	iommu_table_clear(tbl);
 

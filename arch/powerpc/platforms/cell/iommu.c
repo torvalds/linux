@@ -518,7 +518,6 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	__set_bit(0, window->table.it_map);
 	tce_build_cell(&window->table, window->table.it_offset, 1,
 		       (unsigned long)iommu->pad_page, DMA_TO_DEVICE, NULL);
-	window->table.it_hint = window->table.it_blocksize;
 
 	return window;
 }
