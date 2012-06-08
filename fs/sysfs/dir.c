@@ -793,14 +793,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* instantiate and hash dentry */
-	ret = d_find_alias(inode);
-	if (!ret) {
-		d_add(dentry, inode);
-	} else {
-		d_move(ret, dentry);
-		iput(inode);
-	}
-
+	ret = d_materialise_unique(dentry, inode);
  out_unlock:
 	mutex_unlock(&sysfs_mutex);
 	return ret;
