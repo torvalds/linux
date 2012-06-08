@@ -1511,33 +1511,22 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl_reg = 0;
-	u16 phy_reg = 0;
 
 	hw->mac.autoneg = false;
 
-	switch (hw->phy.type) {
-	case e1000_phy_m88:
-		/* Auto-MDI/MDIX Off */
-		igb_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
-		/* reset to update Auto-MDI/MDIX */
-		igb_write_phy_reg(hw, PHY_CONTROL, 0x9140);
-		/* autoneg off */
-		igb_write_phy_reg(hw, PHY_CONTROL, 0x8140);
-		break;
-	case e1000_phy_82580:
-		/* enable MII loopback */
-		igb_write_phy_reg(hw, I82580_PHY_LBK_CTRL, 0x8041);
-		break;
-	case e1000_phy_i210:
-		/* set loopback speed in PHY */
-		igb_read_phy_reg(hw, (GS40G_PAGE_SELECT & GS40G_PAGE_2),
-					&phy_reg);
-		phy_reg |= GS40G_MAC_SPEED_1G;
-		igb_write_phy_reg(hw, (GS40G_PAGE_SELECT & GS40G_PAGE_2),
-					phy_reg);
-		ctrl_reg = rd32(E1000_CTRL_EXT);
-	default:
-		break;
+	if (hw->phy.type == e1000_phy_m88) {
+		if (hw->phy.id != I210_I_PHY_ID) {
+			/* Auto-MDI/MDIX Off */
+			igb_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
+			/* reset to update Auto-MDI/MDIX */
+			igb_write_phy_reg(hw, PHY_CONTROL, 0x9140);
+			/* autoneg off */
+			igb_write_phy_reg(hw, PHY_CONTROL, 0x8140);
+		} else {
+			/* force 1000, set loopback  */
+			igb_write_phy_reg(hw, I347AT4_PAGE_SELECT, 0);
+			igb_write_phy_reg(hw, PHY_CONTROL, 0x4140);
+		}
 	}
 
 	/* add small delay to avoid loopback test failure */
@@ -1555,7 +1544,7 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 		     E1000_CTRL_FD |	 /* Force Duplex to FULL */
 		     E1000_CTRL_SLU);	 /* Set link up enable bit */
 
-	if ((hw->phy.type == e1000_phy_m88) || (hw->phy.type == e1000_phy_i210))
+	if (hw->phy.type == e1000_phy_m88)
 		ctrl_reg |= E1000_CTRL_ILOS; /* Invert Loss of Signal */
 
 	wr32(E1000_CTRL, ctrl_reg);
@@ -1563,11 +1552,10 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 	/* Disable the receiver on the PHY so when a cable is plugged in, the
 	 * PHY does not begin to autoneg when a cable is reconnected to the NIC.
 	 */
-	if ((hw->phy.type == e1000_phy_m88) || (hw->phy.type == e1000_phy_i210))
+	if (hw->phy.type == e1000_phy_m88)
 		igb_phy_disable_receiver(adapter);
 
-	udelay(500);
-
+	mdelay(500);
 	return 0;
 }
 
@@ -1824,13 +1812,6 @@ static int igb_loopback_test(struct igb_adapter *adapter, u64 *data)
 	if (igb_check_reset_block(&adapter->hw)) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot do PHY loopback test when SoL/IDER is active.\n");
-		*data = 0;
-		goto out;
-	}
-	if ((adapter->hw.mac.type == e1000_i210)
-		|| (adapter->hw.mac.type == e1000_i211)) {
-		dev_err(&adapter->pdev->dev,
-			"Loopback test not supported on this part at this time.\n");
 		*data = 0;
 		goto out;
 	}
