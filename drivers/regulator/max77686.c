@@ -65,7 +65,6 @@ enum max77686_ramp_rate {
 struct max77686_data {
 	struct device *dev;
 	struct max77686_dev *iodev;
-	int num_regulators;
 	struct regulator_dev **rdev;
 	int ramp_delay; /* in mV/us */
 };
@@ -235,6 +234,12 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
+	if (!pdata || pdata->num_regulators != MAX77686_REGULATORS) {
+		dev_err(&pdev->dev,
+			"Invalid initial data for regulator's initialiation\n");
+		return -EINVAL;
+	}
+
 	max77686 = devm_kzalloc(&pdev->dev, sizeof(struct max77686_data),
 				GFP_KERNEL);
 	if (!max77686)
@@ -248,8 +253,6 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 	rdev = max77686->rdev;
 	max77686->dev = &pdev->dev;
 	max77686->iodev = iodev;
-	if (pdata)
-		max77686->num_regulators = pdata->num_regulators;
 	platform_set_drvdata(pdev, max77686);
 
 	max77686->ramp_delay = RAMP_RATE_NO_CTRL; /* Set 0x3 for RAMP */
@@ -263,34 +266,26 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 			MAX77686_REG_BUCK4CTRL1, MAX77686_RAMP_RATE_MASK,
 			max77686->ramp_delay << 6);
 
-	if (pdata->num_regulators == MAX77686_REGULATORS) {
-		for (i = 0; i < MAX77686_REGULATORS; i++) {
-			config.dev = max77686->dev;
-			config.regmap = iodev->regmap;
-			config.driver_data = max77686;
-			config.init_data = pdata->regulators[i].initdata;
+	for (i = 0; i < MAX77686_REGULATORS; i++) {
+		config.dev = max77686->dev;
+		config.regmap = iodev->regmap;
+		config.driver_data = max77686;
+		config.init_data = pdata->regulators[i].initdata;
 
-			rdev[i] = regulator_register(&regulators[i], &config);
-
-			if (IS_ERR(rdev[i])) {
-				ret = PTR_ERR(rdev[i]);
-				dev_err(max77686->dev,
+		rdev[i] = regulator_register(&regulators[i], &config);
+		if (IS_ERR(rdev[i])) {
+			ret = PTR_ERR(rdev[i]);
+			dev_err(max77686->dev,
 				"regulator init failed for %d\n", i);
 				rdev[i] = NULL;
 				goto err;
-			}
 		}
-	} else {
-		dev_err(max77686->dev,
-			 "Lack of initial data for regulator's initialiation\n");
-		return -EINVAL;
 	}
+
 	return 0;
 err:
-	for (i = 0; i < MAX77686_REGULATORS; i++) {
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
-	}
+	while (--i >= 0)
+		regulator_unregister(rdev[i]);
 	return ret;
 }
 
