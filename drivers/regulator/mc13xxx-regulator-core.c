@@ -158,8 +158,8 @@ int mc13xxx_fixed_regulator_set_voltage(struct regulator_dev *rdev, int min_uV,
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d min_uV: %d max_uV: %d\n",
 		__func__, id, min_uV, max_uV);
 
-	if (min_uV >= mc13xxx_regulators[id].voltages[0] &&
-	    max_uV <= mc13xxx_regulators[id].voltages[0])
+	if (min_uV <= mc13xxx_regulators[id].voltages[0] &&
+	    mc13xxx_regulators[id].voltages[0] <= max_uV)
 		return 0;
 	else
 		return -EINVAL;
