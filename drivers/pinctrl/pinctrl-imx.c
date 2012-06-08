@@ -195,7 +195,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	dev_dbg(pctldev->dev, "maps: function %s group %s num %d\n",
-		new_map->data.mux.function, new_map->data.mux.group, map_num);
+		(*map)->data.mux.function, (*map)->data.mux.group, map_num);
 
 	return 0;
 }
