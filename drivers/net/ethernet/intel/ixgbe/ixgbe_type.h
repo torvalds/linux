@@ -2604,6 +2604,8 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_da_act_lmt_core1 = 8,
 	ixgbe_sfp_type_1g_cu_core0 = 9,
 	ixgbe_sfp_type_1g_cu_core1 = 10,
+	ixgbe_sfp_type_1g_sx_core0 = 11,
+	ixgbe_sfp_type_1g_sx_core1 = 12,
 	ixgbe_sfp_type_not_present = 0xFFFE,
 	ixgbe_sfp_type_unknown = 0xFFFF
 };
