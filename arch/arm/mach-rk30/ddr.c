@@ -26,7 +26,7 @@ typedef uint32_t uint32;
 
 #define DDR3_DDR2_DLL_DISABLE_FREQ    (125)
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
-#define SR_IDLE                       (0x0)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
+#define SR_IDLE                       (0x1)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
 #define PD_IDLE                       (0X40)  //unit:DDR clk cycle, and 0 for disable auto power-down
 
 #define PMU_BASE_ADDR           RK30_PMU_BASE
@@ -798,14 +798,94 @@ typedef union NOC_TIMING_Tag
     } b;
 }NOC_TIMING_T;
 
-typedef struct DDR_TIMING_Tag
+typedef struct PCTL_REG_Tag
 {
-    PCTL_TIMING_T  pctl_timing;
-    PHY_TIMING_T   phy_timing;
-    NOC_TIMING_T   noc_timing;
-}DDR_TIMING_T;
+    uint32 SCFG;
+    uint32 CMDTSTATEN;
+    uint32 MCFG1;
+    uint32 MCFG;
+    PCTL_TIMING_T pctl_timing;
+    //DFI Control Registers
+    uint32 DFITCTRLDELAY;
+    uint32 DFIODTCFG;
+    uint32 DFIODTCFG1;
+    uint32 DFIODTRANKMAP;
+    //DFI Write Data Registers
+    uint32 DFITPHYWRDATA;
+    uint32 DFITPHYWRLAT;
+    //DFI Read Data Registers
+    uint32 DFITRDDATAEN;
+    uint32 DFITPHYRDLAT;
+    //DFI Update Registers
+    uint32 DFITPHYUPDTYPE0;
+    uint32 DFITPHYUPDTYPE1;
+    uint32 DFITPHYUPDTYPE2;
+    uint32 DFITPHYUPDTYPE3;
+    uint32 DFITCTRLUPDMIN;
+    uint32 DFITCTRLUPDMAX;
+    uint32 DFITCTRLUPDDLY;
+    uint32 DFIUPDCFG;
+    uint32 DFITREFMSKI;
+    uint32 DFITCTRLUPDI;
+    //DFI Status Registers
+    uint32 DFISTCFG0;
+    uint32 DFISTCFG1;
+    uint32 DFITDRAMCLKEN;
+    uint32 DFITDRAMCLKDIS;
+    uint32 DFISTCFG2;
+    //DFI Low Power Register
+    uint32 DFILPCFG0;
+}PCTL_REG_T;
 
-__sramdata DDR_TIMING_T ddr_timing;
+typedef struct PUBL_REG_Tag
+{
+    uint32 PIR;
+    uint32 PGCR;
+    uint32 DLLGCR;
+    uint32 ACDLLCR;
+    uint32 PTR[3];
+    uint32 ACIOCR;
+    uint32 DXCCR;
+    uint32 DSGCR;
+    uint32 DCR;
+    PHY_TIMING_T phy_timing;
+    uint32 ODTCR;
+    uint32 DTAR;
+    uint32 ZQ0CR0;
+    uint32 ZQ1CR0;
+    
+    uint32 DX0GCR;
+    uint32 DX0DLLCR;
+    uint32 DX0DQTR;
+    uint32 DX0DQSTR;
+
+    uint32 DX1GCR;
+    uint32 DX1DLLCR;
+    uint32 DX1DQTR;
+    uint32 DX1DQSTR;
+
+    uint32 DX2GCR;
+    uint32 DX2DLLCR;
+    uint32 DX2DQTR;
+    uint32 DX2DQSTR;
+
+    uint32 DX3GCR;
+    uint32 DX3DLLCR;
+    uint32 DX3DQTR;
+    uint32 DX3DQSTR;
+}PUBL_REG_T;
+
+typedef struct BACKUP_REG_Tag
+{
+    PCTL_REG_T pctl;
+    PUBL_REG_T publ;
+    uint32 DdrConf;
+    NOC_TIMING_T noc_timing;
+    uint32 DdrMode;
+    uint32 ReadLatency;
+}BACKUP_REG_T;
+
+__sramdata BACKUP_REG_T ddr_reg;
 
 typedef struct DDR_CONFIG_2_RBC_Tag
 {
@@ -1297,12 +1377,14 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
     uint32_t bl;
     uint32_t cl;
     uint32_t cwl;
-    DDR_TIMING_T  *p_ddr_timing=&ddr_timing;
+    PCTL_TIMING_T *p_pctl_timing=&(ddr_reg.pctl.pctl_timing);
+    PHY_TIMING_T  *p_publ_timing=&(ddr_reg.publ.phy_timing);
+    NOC_TIMING_T  *p_noc_timing=&(ddr_reg.noc_timing);
 
-    p_ddr_timing->pctl_timing.togcnt1u = nMHz;
-    p_ddr_timing->pctl_timing.togcnt100n = nMHz/10;
-    p_ddr_timing->pctl_timing.tinit = 200;
-    p_ddr_timing->pctl_timing.trsth = 500;
+    p_pctl_timing->togcnt1u = nMHz;
+    p_pctl_timing->togcnt100n = nMHz/10;
+    p_pctl_timing->tinit = 200;
+    p_pctl_timing->trsth = 500;
 
     if(mem_type == DDR3)
     {
@@ -1361,26 +1443,26 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
             ret = -4;
         if(nMHz <= DDR3_DDR2_ODT_DISABLE_FREQ)
         {
-            p_ddr_timing->phy_timing.mr[1] = DDR3_DS_40 | DDR3_Rtt_Nom_DIS;
+            p_publ_timing->mr[1] = DDR3_DS_40 | DDR3_Rtt_Nom_DIS;
         }
         else
         {
-            p_ddr_timing->phy_timing.mr[1] = DDR3_DS_40 | DDR3_Rtt_Nom_120;
+            p_publ_timing->mr[1] = DDR3_DS_40 | DDR3_Rtt_Nom_120;
         }
-        p_ddr_timing->phy_timing.mr[2] = DDR3_MR2_CWL(cwl) /* | DDR3_Rtt_WR_60 */;
-        p_ddr_timing->phy_timing.mr[3] = 0;
+        p_publ_timing->mr[2] = DDR3_MR2_CWL(cwl) /* | DDR3_Rtt_WR_60 */;
+        p_publ_timing->mr[3] = 0;
         /**************************************************
          * PCTL Timing
          **************************************************/
         /*
          * tREFI, average periodic refresh interval, 7.8us
          */
-        p_ddr_timing->pctl_timing.trefi = DDR3_tREFI_7_8_us;
+        p_pctl_timing->trefi = DDR3_tREFI_7_8_us;
         /*
          * tMRD, 4 tCK
          */
-        p_ddr_timing->pctl_timing.tmrd = DDR3_tMRD & 0x7;
-        p_ddr_timing->phy_timing.dtpr0.b.tMRD = DDR3_tMRD-4;
+        p_pctl_timing->tmrd = DDR3_tMRD & 0x7;
+        p_publ_timing->dtpr0.b.tMRD = DDR3_tMRD-4;
         /*
          * tRFC, 90ns(512Mb),110ns(1Gb),160ns(2Gb),300ns(4Gb),350ns(8Gb)
          */
@@ -1404,45 +1486,45 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = DDR3_tRFC_8Gb;
         }
-        p_ddr_timing->pctl_timing.trfc = (tmp*nMHz+999)/1000;
-        p_ddr_timing->phy_timing.dtpr1.b.tRFC = ((tmp*nMHz+999)/1000)&0xFF;
+        p_pctl_timing->trfc = (tmp*nMHz+999)/1000;
+        p_publ_timing->dtpr1.b.tRFC = ((tmp*nMHz+999)/1000)&0xFF;
         /*
          * tXSR, =tDLLK=512 tCK
          */
-        p_ddr_timing->pctl_timing.texsr = DDR3_tDLLK;
-        p_ddr_timing->phy_timing.dtpr2.b.tXS = DDR3_tDLLK;
+        p_pctl_timing->texsr = DDR3_tDLLK;
+        p_publ_timing->dtpr2.b.tXS = DDR3_tDLLK;
         /*
          * tRP=CL
          */
-        p_ddr_timing->pctl_timing.trp = cl;
-        p_ddr_timing->phy_timing.dtpr0.b.tRP = cl;
+        p_pctl_timing->trp = cl;
+        p_publ_timing->dtpr0.b.tRP = cl;
         /*
          * WrToMiss=WL*tCK + tWR + tRP + tRCD
          */
-        p_ddr_timing->noc_timing.b.WrToMiss = ((cwl+((DDR3_tWR*nMHz+999)/1000)+cl+cl)&0x3F);
+        p_noc_timing->b.WrToMiss = ((cwl+((DDR3_tWR*nMHz+999)/1000)+cl+cl)&0x3F);
         /*
          * tRC=tRAS+tRP
          */
-        p_ddr_timing->pctl_timing.trc = ((((ddr3_tRC_tFAW[ddr_speed_bin]>>16)*nMHz+999)/1000)&0x3F);
-        p_ddr_timing->noc_timing.b.ActToAct = ((((ddr3_tRC_tFAW[ddr_speed_bin]>>16)*nMHz+999)/1000)&0x3F);
-        p_ddr_timing->phy_timing.dtpr0.b.tRC = (((ddr3_tRC_tFAW[ddr_speed_bin]>>16)*nMHz+999)/1000)&0xF;
+        p_pctl_timing->trc = ((((ddr3_tRC_tFAW[ddr_speed_bin]>>16)*nMHz+999)/1000)&0x3F);
+        p_noc_timing->b.ActToAct = ((((ddr3_tRC_tFAW[ddr_speed_bin]>>16)*nMHz+999)/1000)&0x3F);
+        p_publ_timing->dtpr0.b.tRC = (((ddr3_tRC_tFAW[ddr_speed_bin]>>16)*nMHz+999)/1000)&0xF;
 
-        p_ddr_timing->pctl_timing.trtw = (cl+2-cwl);//DDR3_tRTW;
-        p_ddr_timing->phy_timing.dtpr1.b.tRTW = 0;
-        p_ddr_timing->noc_timing.b.RdToWr = ((cl+2-cwl)&0x1F);
-        p_ddr_timing->pctl_timing.tal = al;
-        p_ddr_timing->pctl_timing.tcl = cl;
-        p_ddr_timing->pctl_timing.tcwl = cwl;
+        p_pctl_timing->trtw = (cl+2-cwl);//DDR3_tRTW;
+        p_publ_timing->dtpr1.b.tRTW = 0;
+        p_noc_timing->b.RdToWr = ((cl+2-cwl)&0x1F);
+        p_pctl_timing->tal = al;
+        p_pctl_timing->tcl = cl;
+        p_pctl_timing->tcwl = cwl;
         /*
          * tRAS, 37.5ns(400MHz)     37.5ns(533MHz)
          */
-        p_ddr_timing->pctl_timing.tras = (((DDR3_tRAS*nMHz+(nMHz>>1)+999)/1000)&0x3F);
-        p_ddr_timing->phy_timing.dtpr0.b.tRAS = ((DDR3_tRAS*nMHz+(nMHz>>1)+999)/1000)&0x1F;
+        p_pctl_timing->tras = (((DDR3_tRAS*nMHz+(nMHz>>1)+999)/1000)&0x3F);
+        p_publ_timing->dtpr0.b.tRAS = ((DDR3_tRAS*nMHz+(nMHz>>1)+999)/1000)&0x1F;
         /*
          * tRCD=CL
          */
-        p_ddr_timing->pctl_timing.trcd = cl;
-        p_ddr_timing->phy_timing.dtpr0.b.tRCD = cl;
+        p_pctl_timing->trcd = cl;
+        p_publ_timing->dtpr0.b.tRCD = cl;
         /*
          * tRRD = max(4nCK, 7.5ns), DDR3-1066(1K), DDR3-1333(2K), DDR3-1600(2K)
          *        max(4nCK, 10ns), DDR3-800(1K,2K), DDR3-1066(2K)
@@ -1454,8 +1536,8 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 4;
         }
-        p_ddr_timing->pctl_timing.trrd = (tmp&0xF);
-        p_ddr_timing->phy_timing.dtpr0.b.tRRD = tmp&0xF;
+        p_pctl_timing->trrd = (tmp&0xF);
+        p_publ_timing->dtpr0.b.tRRD = tmp&0xF;
         /*
          * tRTP, max(4 tCK,7.5ns)
          */
@@ -1464,22 +1546,22 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 4;
         }
-        p_ddr_timing->pctl_timing.trtp = tmp&0xF;
-        p_ddr_timing->phy_timing.dtpr0.b.tRTP = tmp;
+        p_pctl_timing->trtp = tmp&0xF;
+        p_publ_timing->dtpr0.b.tRTP = tmp;
         /*
          * RdToMiss=tRTP+tRP + tRCD - (BL/2 * tCK)
          */
-        p_ddr_timing->noc_timing.b.RdToMiss = ((tmp+cl+cl-(bl>>1))&0x3F);
+        p_noc_timing->b.RdToMiss = ((tmp+cl+cl-(bl>>1))&0x3F);
         /*
          * tWR, 15ns
          */
         tmp = ((DDR3_tWR*nMHz+999)/1000);
-        p_ddr_timing->pctl_timing.twr = tmp&0x1F;
+        p_pctl_timing->twr = tmp&0x1F;
         if(tmp<9)
             tmp = tmp - 4;
         else
             tmp = tmp>>1;
-        p_ddr_timing->phy_timing.mr[0] = DDR3_BL8 | DDR3_CL(cl) | DDR3_WR(tmp);
+        p_publ_timing->mr[0] = DDR3_BL8 | DDR3_CL(cl) | DDR3_WR(tmp);
 
         /*
          * tWTR, max(4 tCK,7.5ns)
@@ -1489,9 +1571,9 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 4;
         }
-        p_ddr_timing->pctl_timing.twtr = tmp&0xF;
-        p_ddr_timing->phy_timing.dtpr0.b.tWTR = tmp&0x7;
-        p_ddr_timing->noc_timing.b.WrToRd = ((tmp+cwl)&0x1F);
+        p_pctl_timing->twtr = tmp&0xF;
+        p_publ_timing->dtpr0.b.tWTR = tmp&0x7;
+        p_noc_timing->b.WrToRd = ((tmp+cwl)&0x1F);
         /*
          * tXP, max(3 tCK, 7.5ns)(<933MHz)
          */
@@ -1500,8 +1582,8 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 3;
         }
-        p_ddr_timing->pctl_timing.txp = tmp&0x7;
-        p_ddr_timing->phy_timing.dtpr2.b.tXP = tmp&0x1F;
+        p_pctl_timing->txp = tmp&0x7;
+        p_publ_timing->dtpr2.b.tXP = tmp&0x1F;
         /*
          * tXPDLL, max(10 tCK,24ns)
          */
@@ -1510,7 +1592,7 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 10;
         }
-        p_ddr_timing->pctl_timing.txpdll = tmp & 0x3F;
+        p_pctl_timing->txpdll = tmp & 0x3F;
         /*
          * tZQCS, max(64 tCK, 80ns)
          */
@@ -1519,15 +1601,15 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 64;
         }
-        p_ddr_timing->pctl_timing.tzqcs = tmp&0x7F;
+        p_pctl_timing->tzqcs = tmp&0x7F;
         /*
          * tZQCSI,
          */
-        p_ddr_timing->pctl_timing.tzqcsi = DDR3_tZQCSI;
+        p_pctl_timing->tzqcsi = DDR3_tZQCSI;
         /*
          * tDQS,
          */
-        p_ddr_timing->pctl_timing.tdqs = DDR3_tDQS;
+        p_pctl_timing->tdqs = DDR3_tDQS;
         /*
          * tCKSRE, max(5 tCK, 10ns)
          */
@@ -1536,11 +1618,11 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 5;
         }
-        p_ddr_timing->pctl_timing.tcksre = tmp & 0x1F;
+        p_pctl_timing->tcksre = tmp & 0x1F;
         /*
          * tCKSRX, max(5 tCK, 10ns)
          */
-        p_ddr_timing->pctl_timing.tcksrx = tmp & 0x1F;
+        p_pctl_timing->tcksrx = tmp & 0x1F;
         /*
          * tCKE, max(3 tCK,7.5ns)(400MHz) max(3 tCK,5.625ns)(533MHz)
          */
@@ -1556,12 +1638,12 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 3;
         }
-        p_ddr_timing->pctl_timing.tcke = tmp & 0x7;
-        p_ddr_timing->phy_timing.dtpr2.b.tCKE = tmp;
+        p_pctl_timing->tcke = tmp & 0x7;
+        p_publ_timing->dtpr2.b.tCKE = tmp;
         /*
          * tCKESR, =tCKE + 1tCK
          */
-        p_ddr_timing->pctl_timing.tckesr = (tmp+1)&0xF;
+        p_pctl_timing->tckesr = (tmp+1)&0xF;
         /*
          * tMOD, max(12 tCK,15ns)
          */
@@ -1570,12 +1652,12 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 12;
         }
-        p_ddr_timing->pctl_timing.tmod = tmp&0x1F;
-        p_ddr_timing->phy_timing.dtpr1.b.tMOD = tmp;
+        p_pctl_timing->tmod = tmp&0x1F;
+        p_publ_timing->dtpr1.b.tMOD = tmp;
         /*
          * tRSTL, 100ns
          */
-        p_ddr_timing->pctl_timing.trstl = ((DDR3_tRSTL*nMHz+999)/1000)&0x7F;
+        p_pctl_timing->trstl = ((DDR3_tRSTL*nMHz+999)/1000)&0x7F;
         /*
          * tZQCL, max(256 tCK, 320ns)
          */
@@ -1584,15 +1666,15 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 256;
         }
-        p_ddr_timing->pctl_timing.tzqcl = tmp&0x3FF;
+        p_pctl_timing->tzqcl = tmp&0x3FF;
         /*
          * tMRR, 0 tCK
          */
-        p_ddr_timing->pctl_timing.tmrr = 0;
+        p_pctl_timing->tmrr = 0;
         /*
          * tDPD, 0
          */
-        p_ddr_timing->pctl_timing.tdpd = 0;
+        p_pctl_timing->tdpd = 0;
 
         /**************************************************
          * PHY Timing
@@ -1600,32 +1682,32 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         /*
          * tCCD, BL/2 for DDR2 and 4 for DDR3
          */
-        p_ddr_timing->phy_timing.dtpr0.b.tCCD = 0;
+        p_publ_timing->dtpr0.b.tCCD = 0;
         /*
          * tDQSCKmax,5.5ns
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tDQSCKmax = 0;
+        p_publ_timing->dtpr1.b.tDQSCKmax = 0;
         /*
          * tRTODT, 0:ODT may be turned on immediately after read post-amble
          *         1:ODT may not be turned on until one clock after the read post-amble
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tRTODT = 1;
+        p_publ_timing->dtpr1.b.tRTODT = 1;
         /*
          * tFAW,40ns(400MHz 1KB page) 37.5ns(533MHz 1KB page) 50ns(400MHz 2KB page)   50ns(533MHz 2KB page)
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tFAW = (((ddr3_tRC_tFAW[ddr_speed_bin]&0x0ff)*nMHz+999)/1000)&0x7F;
+        p_publ_timing->dtpr1.b.tFAW = (((ddr3_tRC_tFAW[ddr_speed_bin]&0x0ff)*nMHz+999)/1000)&0x7F;
         /*
          * tAOND_tAOFD
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tAOND = 0;
+        p_publ_timing->dtpr1.b.tAOND = 0;
         /*
          * tDLLK,512 tCK
          */
-        p_ddr_timing->phy_timing.dtpr2.b.tDLLK = DDR3_tDLLK;
+        p_publ_timing->dtpr2.b.tDLLK = DDR3_tDLLK;
         /**************************************************
          * NOC Timing
          **************************************************/
-        p_ddr_timing->noc_timing.b.BurstLen = ((bl>>1)&0x7);
+        p_noc_timing->b.BurstLen = ((bl>>1)&0x7);
     }
     else if(mem_type == LPDDR2)
     {
@@ -1677,40 +1759,40 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             cl = 3;
             cwl = 1;
-            p_ddr_timing->phy_timing.mr[2] = LPDDR2_RL3_WL1;
+            p_publ_timing->mr[2] = LPDDR2_RL3_WL1;
         }
         else if(nMHz<=266)
         {
             cl = 4;
             cwl = 2;
-            p_ddr_timing->phy_timing.mr[2] = LPDDR2_RL4_WL2;
+            p_publ_timing->mr[2] = LPDDR2_RL4_WL2;
         }
         else if(nMHz<=333)
         {
             cl = 5;
             cwl = 2;
-            p_ddr_timing->phy_timing.mr[2] = LPDDR2_RL5_WL2;
+            p_publ_timing->mr[2] = LPDDR2_RL5_WL2;
         }
         else if(nMHz<=400)
         {
             cl = 6;
             cwl = 3;
-            p_ddr_timing->phy_timing.mr[2] = LPDDR2_RL6_WL3;
+            p_publ_timing->mr[2] = LPDDR2_RL6_WL3;
         }
         else if(nMHz<=466)
         {
             cl = 7;
             cwl = 4;
-            p_ddr_timing->phy_timing.mr[2] = LPDDR2_RL7_WL4;
+            p_publ_timing->mr[2] = LPDDR2_RL7_WL4;
         }
         else //(nMHz<=1066)
         {
             cl = 8;
             cwl = 4;
-            p_ddr_timing->phy_timing.mr[2] = LPDDR2_RL8_WL4;
+            p_publ_timing->mr[2] = LPDDR2_RL8_WL4;
         }
-        p_ddr_timing->phy_timing.mr[3] = LPDDR2_DS_34;
-        p_ddr_timing->phy_timing.mr[0] = 0;
+        p_publ_timing->mr[3] = LPDDR2_DS_34;
+        p_publ_timing->mr[0] = 0;
         /**************************************************
          * PCTL Timing
          **************************************************/
@@ -1719,37 +1801,37 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
          */
         if(ddr_capability_per_die >= 0x10000000)   // 2Gb
         {
-            p_ddr_timing->pctl_timing.trefi = LPDDR2_tREFI_3_9_us;
+            p_pctl_timing->trefi = LPDDR2_tREFI_3_9_us;
         }
         else
         {
-            p_ddr_timing->pctl_timing.trefi = LPDDR2_tREFI_7_8_us;
+            p_pctl_timing->trefi = LPDDR2_tREFI_7_8_us;
         }
 
         /*
          * tMRD, (=tMRW), 5 tCK
          */
-        p_ddr_timing->pctl_timing.tmrd = LPDDR2_tMRD & 0x7;
-        p_ddr_timing->phy_timing.dtpr0.b.tMRD = 3;
+        p_pctl_timing->tmrd = LPDDR2_tMRD & 0x7;
+        p_publ_timing->dtpr0.b.tMRD = 3;
         /*
          * tRFC, 90ns(<=512Mb) 130ns(1Gb-4Gb) 210ns(8Gb)
          */
         if(ddr_capability_per_die >= 0x40000000)   // 8Gb
         {
-            p_ddr_timing->pctl_timing.trfc = (LPDDR2_tRFC_8Gb*nMHz+999)/1000;
+            p_pctl_timing->trfc = (LPDDR2_tRFC_8Gb*nMHz+999)/1000;
             /*
              * tXSR, tRFC+10ns
              */
-            p_ddr_timing->pctl_timing.texsr = (((LPDDR2_tRFC_8Gb+10)*nMHz+999)/1000)&0x3FF;
-            p_ddr_timing->phy_timing.dtpr1.b.tRFC = ((LPDDR2_tRFC_8Gb*nMHz+999)/1000)&0xFF;
-            p_ddr_timing->phy_timing.dtpr2.b.tXS = (((LPDDR2_tRFC_8Gb+10)*nMHz+999)/1000)&0x3FF;
+            p_pctl_timing->texsr = (((LPDDR2_tRFC_8Gb+10)*nMHz+999)/1000)&0x3FF;
+            p_publ_timing->dtpr1.b.tRFC = ((LPDDR2_tRFC_8Gb*nMHz+999)/1000)&0xFF;
+            p_publ_timing->dtpr2.b.tXS = (((LPDDR2_tRFC_8Gb+10)*nMHz+999)/1000)&0x3FF;
         }
         else
         {
-            p_ddr_timing->pctl_timing.trfc = (LPDDR2_tRFC_4Gb*nMHz+999)/1000;
-            p_ddr_timing->pctl_timing.texsr = (((LPDDR2_tRFC_4Gb+10)*nMHz+999)/1000)&0x3FF;
-            p_ddr_timing->phy_timing.dtpr1.b.tRFC = ((LPDDR2_tRFC_4Gb*nMHz+999)/1000)&0xFF;
-            p_ddr_timing->phy_timing.dtpr2.b.tXS = (((LPDDR2_tRFC_4Gb+10)*nMHz+999)/1000)&0x3FF;
+            p_pctl_timing->trfc = (LPDDR2_tRFC_4Gb*nMHz+999)/1000;
+            p_pctl_timing->texsr = (((LPDDR2_tRFC_4Gb+10)*nMHz+999)/1000)&0x3FF;
+            p_publ_timing->dtpr1.b.tRFC = ((LPDDR2_tRFC_4Gb*nMHz+999)/1000)&0xFF;
+            p_publ_timing->dtpr2.b.tXS = (((LPDDR2_tRFC_4Gb+10)*nMHz+999)/1000)&0x3FF;
         }
 
         /*
@@ -1757,153 +1839,153 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
          */
         if(pPHY_Reg->DCR.b.DDR8BNK)
         {
-            p_ddr_timing->pctl_timing.trp = ((((LPDDR2_tRPab_SUB_tRPpb_8_BANK*nMHz+999)/1000) & 0x3)<<16) | (((LPDDR2_tRP_8_BANK*nMHz+999)/1000)&0xF);
-            p_ddr_timing->phy_timing.dtpr0.b.tRP = ((LPDDR2_tRP_8_BANK*nMHz+999)/1000);
+            p_pctl_timing->trp = ((((LPDDR2_tRPab_SUB_tRPpb_8_BANK*nMHz+999)/1000) & 0x3)<<16) | (((LPDDR2_tRP_8_BANK*nMHz+999)/1000)&0xF);
+            p_publ_timing->dtpr0.b.tRP = ((LPDDR2_tRP_8_BANK*nMHz+999)/1000);
             /*
              * WrToMiss=WL*tCK + tDQSS + tWR + tRP + tRCD
              */
-            p_ddr_timing->noc_timing.b.WrToMiss = ((cwl+LPDDR2_tDQSS+(((LPDDR2_tWR+LPDDR2_tRP_8_BANK+LPDDR2_tRCD)*nMHz+999)/1000))&0x3F);
+            p_noc_timing->b.WrToMiss = ((cwl+LPDDR2_tDQSS+(((LPDDR2_tWR+LPDDR2_tRP_8_BANK+LPDDR2_tRCD)*nMHz+999)/1000))&0x3F);
             /*
              * RdToMiss=tRTP + tRP + tRCD - (BL/2 * tCK)
              */
-            p_ddr_timing->noc_timing.b.RdToMiss = (((((LPDDR2_tRTP+LPDDR2_tRP_8_BANK+LPDDR2_tRCD)*nMHz+(nMHz>>1)+999)/1000)-(bl>>1))&0x3F);
+            p_noc_timing->b.RdToMiss = (((((LPDDR2_tRTP+LPDDR2_tRP_8_BANK+LPDDR2_tRCD)*nMHz+(nMHz>>1)+999)/1000)-(bl>>1))&0x3F);
             /*
              * tRC=tRAS+tRP
              */
-            p_ddr_timing->pctl_timing.trc = ((((LPDDR2_tRP_8_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0x3F);
-            p_ddr_timing->noc_timing.b.ActToAct = ((((LPDDR2_tRP_8_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0x3F);
-            p_ddr_timing->phy_timing.dtpr0.b.tRC = (((LPDDR2_tRP_8_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0xF;
+            p_pctl_timing->trc = ((((LPDDR2_tRP_8_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0x3F);
+            p_noc_timing->b.ActToAct = ((((LPDDR2_tRP_8_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0x3F);
+            p_publ_timing->dtpr0.b.tRC = (((LPDDR2_tRP_8_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0xF;
         }
         else
         {
-            p_ddr_timing->pctl_timing.trp = (LPDDR2_tRPab_SUB_tRPpb_4_BANK<<16) | (((LPDDR2_tRP_4_BANK*nMHz+999)/1000)&0xF);
-            p_ddr_timing->phy_timing.dtpr0.b.tRP = ((LPDDR2_tRP_4_BANK*nMHz+999)/1000);
-            p_ddr_timing->noc_timing.b.WrToMiss = ((cwl+LPDDR2_tDQSS+(((LPDDR2_tWR+LPDDR2_tRP_4_BANK+LPDDR2_tRCD)*nMHz+999)/1000))&0x3F);
-            p_ddr_timing->noc_timing.b.RdToMiss = (((((LPDDR2_tRTP+LPDDR2_tRP_4_BANK+LPDDR2_tRCD)*nMHz+(nMHz>>1)+999)/1000)-(bl>>1))&0x3F);
-            p_ddr_timing->pctl_timing.trc = ((((LPDDR2_tRP_4_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0x3F);
-            p_ddr_timing->noc_timing.b.ActToAct = ((((LPDDR2_tRP_4_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0x3F);
-            p_ddr_timing->phy_timing.dtpr0.b.tRC = (((LPDDR2_tRP_4_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0xF;
+            p_pctl_timing->trp = (LPDDR2_tRPab_SUB_tRPpb_4_BANK<<16) | (((LPDDR2_tRP_4_BANK*nMHz+999)/1000)&0xF);
+            p_publ_timing->dtpr0.b.tRP = ((LPDDR2_tRP_4_BANK*nMHz+999)/1000);
+            p_noc_timing->b.WrToMiss = ((cwl+LPDDR2_tDQSS+(((LPDDR2_tWR+LPDDR2_tRP_4_BANK+LPDDR2_tRCD)*nMHz+999)/1000))&0x3F);
+            p_noc_timing->b.RdToMiss = (((((LPDDR2_tRTP+LPDDR2_tRP_4_BANK+LPDDR2_tRCD)*nMHz+(nMHz>>1)+999)/1000)-(bl>>1))&0x3F);
+            p_pctl_timing->trc = ((((LPDDR2_tRP_4_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0x3F);
+            p_noc_timing->b.ActToAct = ((((LPDDR2_tRP_4_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0x3F);
+            p_publ_timing->dtpr0.b.tRC = (((LPDDR2_tRP_4_BANK+LPDDR2_tRAS)*nMHz+999)/1000)&0xF;
         }
 
-        p_ddr_timing->pctl_timing.trtw = (cl+LPDDR2_tDQSCK_MAX+(bl/2)+1-cwl);//LPDDR2_tRTW;
-        p_ddr_timing->phy_timing.dtpr1.b.tRTW = 0;
+        p_pctl_timing->trtw = (cl+LPDDR2_tDQSCK_MAX+(bl/2)+1-cwl);//LPDDR2_tRTW;
+        p_publ_timing->dtpr1.b.tRTW = 0;
         /*
          * RdToWr=RL+tDQSCK-WL
          */
-        p_ddr_timing->noc_timing.b.RdToWr = ((cl+LPDDR2_tDQSCK_MAX+1-cwl)&0x1F);
-        p_ddr_timing->pctl_timing.tal = al;
-        p_ddr_timing->pctl_timing.tcl = cl;
-        p_ddr_timing->pctl_timing.tcwl = cwl;
+        p_noc_timing->b.RdToWr = ((cl+LPDDR2_tDQSCK_MAX+1-cwl)&0x1F);
+        p_pctl_timing->tal = al;
+        p_pctl_timing->tcl = cl;
+        p_pctl_timing->tcwl = cwl;
         /*
          * tRAS, 42ns
          */
-        p_ddr_timing->pctl_timing.tras = (((LPDDR2_tRAS*nMHz+999)/1000)&0x3F);
-        p_ddr_timing->phy_timing.dtpr0.b.tRAS = ((LPDDR2_tRAS*nMHz+999)/1000)&0x1F;
+        p_pctl_timing->tras = (((LPDDR2_tRAS*nMHz+999)/1000)&0x3F);
+        p_publ_timing->dtpr0.b.tRAS = ((LPDDR2_tRAS*nMHz+999)/1000)&0x1F;
         /*
          * tRCD, 15ns(Fast) 18ns(Typ) 24ns(Slow)
          */
-        p_ddr_timing->pctl_timing.trcd = (((LPDDR2_tRCD*nMHz+999)/1000)&0xF);
-        p_ddr_timing->phy_timing.dtpr0.b.tRCD = ((LPDDR2_tRCD*nMHz+999)/1000)&0xF;
+        p_pctl_timing->trcd = (((LPDDR2_tRCD*nMHz+999)/1000)&0xF);
+        p_publ_timing->dtpr0.b.tRCD = ((LPDDR2_tRCD*nMHz+999)/1000)&0xF;
         /*
          * tRRD, 10ns
          */
-        p_ddr_timing->pctl_timing.trrd = (((LPDDR2_tRRD*nMHz+999)/1000)&0xF);
-        p_ddr_timing->phy_timing.dtpr0.b.tRRD = ((LPDDR2_tRRD*nMHz+999)/1000)&0xF;
+        p_pctl_timing->trrd = (((LPDDR2_tRRD*nMHz+999)/1000)&0xF);
+        p_publ_timing->dtpr0.b.tRRD = ((LPDDR2_tRRD*nMHz+999)/1000)&0xF;
         /*
          * tRTP, 7.5ns
          */
         tmp = ((LPDDR2_tRTP*nMHz+(nMHz>>1)+999)/1000);
-        p_ddr_timing->pctl_timing.trtp = tmp&0xF;
-        p_ddr_timing->phy_timing.dtpr0.b.tRTP = (tmp<2) ? 2 : tmp;
+        p_pctl_timing->trtp = tmp&0xF;
+        p_publ_timing->dtpr0.b.tRTP = (tmp<2) ? 2 : tmp;
         /*
          * tWR, 15ns
          */
-        p_ddr_timing->pctl_timing.twr = ((LPDDR2_tWR*nMHz+999)/1000)&0x1F;
-        p_ddr_timing->phy_timing.mr[1] = LPDDR2_BL8 | LPDDR2_nWR(((LPDDR2_tWR*nMHz+999)/1000));
+        p_pctl_timing->twr = ((LPDDR2_tWR*nMHz+999)/1000)&0x1F;
+        p_publ_timing->mr[1] = LPDDR2_BL8 | LPDDR2_nWR(((LPDDR2_tWR*nMHz+999)/1000));
         /*
          * tWTR, 7.5ns(533-266MHz)  10ns(200-166MHz)
          */
         if(nMHz > 200)
         {
-            p_ddr_timing->pctl_timing.twtr = ((LPDDR2_tWTR_GREAT_200MHz*nMHz+(nMHz>>1)+999)/1000)&0xF;
-            p_ddr_timing->phy_timing.dtpr0.b.tWTR = ((LPDDR2_tWTR_GREAT_200MHz*nMHz+(nMHz>>1)+999)/1000)&0x7;
+            p_pctl_timing->twtr = ((LPDDR2_tWTR_GREAT_200MHz*nMHz+(nMHz>>1)+999)/1000)&0xF;
+            p_publ_timing->dtpr0.b.tWTR = ((LPDDR2_tWTR_GREAT_200MHz*nMHz+(nMHz>>1)+999)/1000)&0x7;
             /*
              * WrToRd=WL+tDQSS+tWTR
              */
-            p_ddr_timing->noc_timing.b.WrToRd = ((LPDDR2_tDQSS+((LPDDR2_tWTR_GREAT_200MHz*nMHz+(nMHz>>1)+999)/1000)+cwl)&0x1F);
+            p_noc_timing->b.WrToRd = ((LPDDR2_tDQSS+((LPDDR2_tWTR_GREAT_200MHz*nMHz+(nMHz>>1)+999)/1000)+cwl)&0x1F);
         }
         else
         {
-            p_ddr_timing->pctl_timing.twtr = ((LPDDR2_tWTR_LITTLE_200MHz*nMHz+999)/1000)&0xF;
-            p_ddr_timing->phy_timing.dtpr0.b.tWTR = ((LPDDR2_tWTR_LITTLE_200MHz*nMHz+999)/1000)&0x7;
-            p_ddr_timing->noc_timing.b.WrToRd = ((LPDDR2_tDQSS+((LPDDR2_tWTR_LITTLE_200MHz*nMHz+999)/1000)+cwl)&0x1F);
+            p_pctl_timing->twtr = ((LPDDR2_tWTR_LITTLE_200MHz*nMHz+999)/1000)&0xF;
+            p_publ_timing->dtpr0.b.tWTR = ((LPDDR2_tWTR_LITTLE_200MHz*nMHz+999)/1000)&0x7;
+            p_noc_timing->b.WrToRd = ((LPDDR2_tDQSS+((LPDDR2_tWTR_LITTLE_200MHz*nMHz+999)/1000)+cwl)&0x1F);
         }
         /*
          * tXP, 7.5ns
          */
-        p_ddr_timing->pctl_timing.txp = ((LPDDR2_tXP*nMHz+(nMHz>>1)+999)/1000)&0x7;
-        p_ddr_timing->phy_timing.dtpr2.b.tXP = ((LPDDR2_tXP*nMHz+(nMHz>>1)+999)/1000)&0x1F;
+        p_pctl_timing->txp = ((LPDDR2_tXP*nMHz+(nMHz>>1)+999)/1000)&0x7;
+        p_publ_timing->dtpr2.b.tXP = ((LPDDR2_tXP*nMHz+(nMHz>>1)+999)/1000)&0x1F;
         /*
          * tXPDLL, 0ns
          */
-        p_ddr_timing->pctl_timing.txpdll = LPDDR2_tXPDLL;
+        p_pctl_timing->txpdll = LPDDR2_tXPDLL;
         /*
          * tZQCS, 90ns
          */
-        p_ddr_timing->pctl_timing.tzqcs = ((LPDDR2_tZQCS*nMHz+999)/1000)&0x7F;
+        p_pctl_timing->tzqcs = ((LPDDR2_tZQCS*nMHz+999)/1000)&0x7F;
         /*
          * tZQCSI,
          */
         if(pDDR_Reg->MCFG &= lpddr2_s4)
         {
-            p_ddr_timing->pctl_timing.tzqcsi = LPDDR2_tZQCSI;
+            p_pctl_timing->tzqcsi = LPDDR2_tZQCSI;
         }
         else
         {
-            p_ddr_timing->pctl_timing.tzqcsi = 0;
+            p_pctl_timing->tzqcsi = 0;
         }
         /*
          * tDQS,
          */
-        p_ddr_timing->pctl_timing.tdqs = LPDDR2_tDQS;
+        p_pctl_timing->tdqs = LPDDR2_tDQS;
         /*
          * tCKSRE, 1 tCK
          */
-        p_ddr_timing->pctl_timing.tcksre = LPDDR2_tCKSRE;
+        p_pctl_timing->tcksre = LPDDR2_tCKSRE;
         /*
          * tCKSRX, 2 tCK
          */
-        p_ddr_timing->pctl_timing.tcksrx = LPDDR2_tCKSRX;
+        p_pctl_timing->tcksrx = LPDDR2_tCKSRX;
         /*
          * tCKE, 3 tCK
          */
-        p_ddr_timing->pctl_timing.tcke = LPDDR2_tCKE;
-        p_ddr_timing->phy_timing.dtpr2.b.tCKE = LPDDR2_tCKE;
+        p_pctl_timing->tcke = LPDDR2_tCKE;
+        p_publ_timing->dtpr2.b.tCKE = LPDDR2_tCKE;
         /*
          * tMOD, 0 tCK
          */
-        p_ddr_timing->pctl_timing.tmod = LPDDR2_tMOD;
-        p_ddr_timing->phy_timing.dtpr1.b.tMOD = LPDDR2_tMOD;
+        p_pctl_timing->tmod = LPDDR2_tMOD;
+        p_publ_timing->dtpr1.b.tMOD = LPDDR2_tMOD;
         /*
          * tRSTL, 0 tCK
          */
-        p_ddr_timing->pctl_timing.trstl = LPDDR2_tRSTL;
+        p_pctl_timing->trstl = LPDDR2_tRSTL;
         /*
          * tZQCL, 360ns
          */
-        p_ddr_timing->pctl_timing.tzqcl = ((LPDDR2_tZQCL*nMHz+999)/1000)&0x3FF;
+        p_pctl_timing->tzqcl = ((LPDDR2_tZQCL*nMHz+999)/1000)&0x3FF;
         /*
          * tMRR, 2 tCK
          */
-        p_ddr_timing->pctl_timing.tmrr = LPDDR2_tMRR;
+        p_pctl_timing->tmrr = LPDDR2_tMRR;
         /*
          * tCKESR, 15ns
          */
-        p_ddr_timing->pctl_timing.tckesr = ((LPDDR2_tCKESR*nMHz+999)/1000)&0xF;
+        p_pctl_timing->tckesr = ((LPDDR2_tCKESR*nMHz+999)/1000)&0xF;
         /*
          * tDPD, 500us
          */
-        p_ddr_timing->pctl_timing.tdpd = LPDDR2_tDPD_US;
+        p_pctl_timing->tdpd = LPDDR2_tDPD_US;
 
         /**************************************************
          * PHY Timing
@@ -1911,43 +1993,43 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         /*
          * tCCD, BL/2 for DDR2 and 4 for DDR3
          */
-        p_ddr_timing->phy_timing.dtpr0.b.tCCD = 0;
+        p_publ_timing->dtpr0.b.tCCD = 0;
         /*
          * tDQSCKmax,5.5ns
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tDQSCKmax = LPDDR2_tDQSCK_MAX;
+        p_publ_timing->dtpr1.b.tDQSCKmax = LPDDR2_tDQSCK_MAX;
         /*
          * tDQSCKmin,2.5ns
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tDQSCK = LPDDR2_tDQSCK_MIN;
+        p_publ_timing->dtpr1.b.tDQSCK = LPDDR2_tDQSCK_MIN;
         /*
          * tRTODT, 0:ODT may be turned on immediately after read post-amble
          *         1:ODT may not be turned on until one clock after the read post-amble
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tRTODT = 1;
+        p_publ_timing->dtpr1.b.tRTODT = 1;
         /*
          * tFAW,50ns(200-533MHz)  60ns(166MHz)
          */
         if(nMHz>=200)
         {
-            p_ddr_timing->phy_timing.dtpr1.b.tFAW = ((LPDDR2_tFAW_GREAT_200MHz*nMHz+999)/1000)&0x7F;
+            p_publ_timing->dtpr1.b.tFAW = ((LPDDR2_tFAW_GREAT_200MHz*nMHz+999)/1000)&0x7F;
         }
         else
         {
-            p_ddr_timing->phy_timing.dtpr1.b.tFAW = ((LPDDR2_tFAW_LITTLE_200MHz*nMHz+999)/1000)&0x7F;
+            p_publ_timing->dtpr1.b.tFAW = ((LPDDR2_tFAW_LITTLE_200MHz*nMHz+999)/1000)&0x7F;
         }
         /*
          * tAOND_tAOFD
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tAOND = 0;
+        p_publ_timing->dtpr1.b.tAOND = 0;
         /*
          * tDLLK,0
          */
-        p_ddr_timing->phy_timing.dtpr2.b.tDLLK = LPDDR2_tDLLK;
+        p_publ_timing->dtpr2.b.tDLLK = LPDDR2_tDLLK;
         /**************************************************
          * NOC Timing
          **************************************************/
-        p_ddr_timing->noc_timing.b.BurstLen = ((bl>>1)&0x7);
+        p_noc_timing->b.BurstLen = ((bl>>1)&0x7);
     }
     else if(mem_type == DDR2)
     {
@@ -1996,26 +2078,26 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         cwl = cl -1;
         if(nMHz <= DDR3_DDR2_ODT_DISABLE_FREQ)
         {
-            p_ddr_timing->phy_timing.mr[1] = DDR2_STR_REDUCE | DDR2_Rtt_Nom_DIS;
+            p_publ_timing->mr[1] = DDR2_STR_REDUCE | DDR2_Rtt_Nom_DIS;
         }
         else
         {
-            p_ddr_timing->phy_timing.mr[1] = DDR2_STR_REDUCE | DDR2_Rtt_Nom_75;
+            p_publ_timing->mr[1] = DDR2_STR_REDUCE | DDR2_Rtt_Nom_75;
         }
-        p_ddr_timing->phy_timing.mr[2] = 0;
-        p_ddr_timing->phy_timing.mr[3] = 0;
+        p_publ_timing->mr[2] = 0;
+        p_publ_timing->mr[3] = 0;
         /**************************************************
          * PCTL Timing
          **************************************************/
         /*
          * tREFI, average periodic refresh interval, 7.8us
          */
-        p_ddr_timing->pctl_timing.trefi = DDR2_tREFI_7_8_us;
+        p_pctl_timing->trefi = DDR2_tREFI_7_8_us;
         /*
          * tMRD, 2 tCK
          */
-        p_ddr_timing->pctl_timing.tmrd = DDR2_tMRD & 0x7;
-        p_ddr_timing->phy_timing.dtpr0.b.tMRD = DDR2_tMRD;
+        p_pctl_timing->tmrd = DDR2_tMRD & 0x7;
+        p_publ_timing->dtpr0.b.tMRD = DDR2_tMRD;
         /*
          * tRFC, 75ns(256Mb) 105ns(512Mb) 127.5ns(1Gb) 195ns(2Gb) 327.5ns(4Gb)
          */
@@ -2039,8 +2121,8 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = DDR2_tRFC_4Gb;
         }
-        p_ddr_timing->pctl_timing.trfc = (tmp*nMHz+999)/1000;
-        p_ddr_timing->phy_timing.dtpr1.b.tRFC = ((tmp*nMHz+999)/1000)&0xFF;
+        p_pctl_timing->trfc = (tmp*nMHz+999)/1000;
+        p_publ_timing->dtpr1.b.tRFC = ((tmp*nMHz+999)/1000)&0xFF;
         /*
          * tXSR, max(tRFC+10,200 tCK)
          */
@@ -2049,70 +2131,70 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 200;
         }
-        p_ddr_timing->pctl_timing.texsr = tmp&0x3FF;
-        p_ddr_timing->phy_timing.dtpr2.b.tXS = tmp&0x3FF;
+        p_pctl_timing->texsr = tmp&0x3FF;
+        p_publ_timing->dtpr2.b.tXS = tmp&0x3FF;
         /*
          * tRP=CL
          */
         if(pPHY_Reg->DCR.b.DDR8BNK)
         {
-            p_ddr_timing->pctl_timing.trp = (1<<16) | cl;
+            p_pctl_timing->trp = (1<<16) | cl;
         }
         else
         {
-            p_ddr_timing->pctl_timing.trp = cl;
+            p_pctl_timing->trp = cl;
         }
-        p_ddr_timing->phy_timing.dtpr0.b.tRP = cl;
+        p_publ_timing->dtpr0.b.tRP = cl;
         /*
          * WrToMiss=WL*tCK + tWR + tRP + tRCD
          */
-        p_ddr_timing->noc_timing.b.WrToMiss = ((cwl+((DDR2_tWR*nMHz+999)/1000)+cl+cl)&0x3F);
+        p_noc_timing->b.WrToMiss = ((cwl+((DDR2_tWR*nMHz+999)/1000)+cl+cl)&0x3F);
         /*
          * tRAS, 45ns
          */
         tmp=((DDR2_tRAS*nMHz+999)/1000);
-        p_ddr_timing->pctl_timing.tras = (tmp&0x3F);
-        p_ddr_timing->phy_timing.dtpr0.b.tRAS = tmp&0x1F;
+        p_pctl_timing->tras = (tmp&0x3F);
+        p_publ_timing->dtpr0.b.tRAS = tmp&0x1F;
         /*
          * tRC=tRAS+tRP
          */
-        p_ddr_timing->pctl_timing.trc = ((tmp+cl)&0x3F);
-        p_ddr_timing->noc_timing.b.ActToAct = ((tmp+cl)&0x3F);
-        p_ddr_timing->phy_timing.dtpr0.b.tRC = (tmp+cl)&0xF;
+        p_pctl_timing->trc = ((tmp+cl)&0x3F);
+        p_noc_timing->b.ActToAct = ((tmp+cl)&0x3F);
+        p_publ_timing->dtpr0.b.tRC = (tmp+cl)&0xF;
 
-        p_ddr_timing->pctl_timing.trtw = (cl+2-cwl);//DDR2_tRTW;
-        p_ddr_timing->phy_timing.dtpr1.b.tRTW = 0;
-        p_ddr_timing->noc_timing.b.RdToWr = ((cl+2-cwl)&0x1F);
-        p_ddr_timing->pctl_timing.tal = al;
-        p_ddr_timing->pctl_timing.tcl = cl;
-        p_ddr_timing->pctl_timing.tcwl = cwl;
+        p_pctl_timing->trtw = (cl+2-cwl);//DDR2_tRTW;
+        p_publ_timing->dtpr1.b.tRTW = 0;
+        p_noc_timing->b.RdToWr = ((cl+2-cwl)&0x1F);
+        p_pctl_timing->tal = al;
+        p_pctl_timing->tcl = cl;
+        p_pctl_timing->tcwl = cwl;
         /*
          * tRCD=CL
          */
-        p_ddr_timing->pctl_timing.trcd = cl;
-        p_ddr_timing->phy_timing.dtpr0.b.tRCD = cl;
+        p_pctl_timing->trcd = cl;
+        p_publ_timing->dtpr0.b.tRCD = cl;
         /*
          * tRRD = 10ns(2KB page)
          *
          */
-        p_ddr_timing->pctl_timing.trrd = (((DDR2_tRRD*nMHz+999)/1000)&0xF);
-        p_ddr_timing->phy_timing.dtpr0.b.tRRD = ((DDR2_tRRD*nMHz+999)/1000)&0xF;
+        p_pctl_timing->trrd = (((DDR2_tRRD*nMHz+999)/1000)&0xF);
+        p_publ_timing->dtpr0.b.tRRD = ((DDR2_tRRD*nMHz+999)/1000)&0xF;
         /*
          * tRTP, 7.5ns
          */
         tmp = ((DDR2_tRTP*nMHz+(nMHz>>1)+999)/1000);
-        p_ddr_timing->pctl_timing.trtp = tmp&0xF;
-        p_ddr_timing->phy_timing.dtpr0.b.tRTP = tmp;
+        p_pctl_timing->trtp = tmp&0xF;
+        p_publ_timing->dtpr0.b.tRTP = tmp;
         /*
          * RdToMiss=tRTP+tRP + tRCD - (BL/2 * tCK)
          */
-        p_ddr_timing->noc_timing.b.RdToMiss = ((tmp+cl+cl-(bl>>1))&0x3F);
+        p_noc_timing->b.RdToMiss = ((tmp+cl+cl-(bl>>1))&0x3F);
         /*
          * tWR, 15ns
          */
         tmp = ((DDR2_tWR*nMHz+999)/1000);
-        p_ddr_timing->pctl_timing.twr = tmp&0x1F;
-        p_ddr_timing->phy_timing.mr[0] = DDR2_BL4 | DDR2_CL(cl) | DDR2_WR(tmp);
+        p_pctl_timing->twr = tmp&0x1F;
+        p_publ_timing->mr[0] = DDR2_BL4 | DDR2_CL(cl) | DDR2_WR(tmp);
         /*
          * tWTR, 10ns(200MHz) 7.5ns(>200MHz)
          */
@@ -2124,9 +2206,9 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = ((DDR2_tWTR_GREAT_200MHz*nMHz+(nMHz>>1)+999)/1000);
         }
-        p_ddr_timing->pctl_timing.twtr = tmp&0xF;
-        p_ddr_timing->phy_timing.dtpr0.b.tWTR = tmp&0x7;
-        p_ddr_timing->noc_timing.b.WrToRd = ((tmp+cwl)&0x1F);
+        p_pctl_timing->twtr = tmp&0xF;
+        p_publ_timing->dtpr0.b.tWTR = tmp&0x7;
+        p_noc_timing->b.WrToRd = ((tmp+cwl)&0x1F);
         /*
          * tXP, 6-AL(200MHz)         6-AL(266MHz)         7-AL(333MHz)         8-AL(400MHz)        10-AL(533MHz)
          */
@@ -2146,62 +2228,62 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 10-al;
         }
-        p_ddr_timing->pctl_timing.txp = tmp&0x7;
-        p_ddr_timing->phy_timing.dtpr2.b.tXP = tmp&0x1F;
+        p_pctl_timing->txp = tmp&0x7;
+        p_publ_timing->dtpr2.b.tXP = tmp&0x1F;
         /*
          * tXPDLL, =tXP
          */
-        p_ddr_timing->pctl_timing.txpdll = tmp & 0x3F;
+        p_pctl_timing->txpdll = tmp & 0x3F;
         /*
          * tZQCS, 0
          */
-        p_ddr_timing->pctl_timing.tzqcs = 0;
+        p_pctl_timing->tzqcs = 0;
         /*
          * tZQCSI,
          */
-        p_ddr_timing->pctl_timing.tzqcsi = 0;
+        p_pctl_timing->tzqcsi = 0;
         /*
          * tDQS,
          */
-        p_ddr_timing->pctl_timing.tdqs = DDR2_tDQS;
+        p_pctl_timing->tdqs = DDR2_tDQS;
         /*
          * tCKSRE, 1 tCK
          */
-        p_ddr_timing->pctl_timing.tcksre = DDR2_tCKSRE & 0x1F;
+        p_pctl_timing->tcksre = DDR2_tCKSRE & 0x1F;
         /*
          * tCKSRX, no such timing
          */
-        p_ddr_timing->pctl_timing.tcksrx = DDR2_tCKSRX & 0x1F;
+        p_pctl_timing->tcksrx = DDR2_tCKSRX & 0x1F;
         /*
          * tCKE, 3 tCK
          */
-        p_ddr_timing->pctl_timing.tcke = DDR2_tCKE & 0x7;
-        p_ddr_timing->phy_timing.dtpr2.b.tCKE = DDR2_tCKE;
+        p_pctl_timing->tcke = DDR2_tCKE & 0x7;
+        p_publ_timing->dtpr2.b.tCKE = DDR2_tCKE;
         /*
          * tCKESR, =tCKE
          */
-        p_ddr_timing->pctl_timing.tckesr = DDR2_tCKESR&0xF;
+        p_pctl_timing->tckesr = DDR2_tCKESR&0xF;
         /*
          * tMOD, 12ns
          */
-        p_ddr_timing->pctl_timing.tmod = ((DDR2_tMOD*nMHz+999)/1000)&0x1F;
-        p_ddr_timing->phy_timing.dtpr1.b.tMOD = ((DDR2_tMOD*nMHz+999)/1000);
+        p_pctl_timing->tmod = ((DDR2_tMOD*nMHz+999)/1000)&0x1F;
+        p_publ_timing->dtpr1.b.tMOD = ((DDR2_tMOD*nMHz+999)/1000);
         /*
          * tRSTL, 0
          */
-        p_ddr_timing->pctl_timing.trstl = 0;
+        p_pctl_timing->trstl = 0;
         /*
          * tZQCL, 0
          */
-        p_ddr_timing->pctl_timing.tzqcl = 0;
+        p_pctl_timing->tzqcl = 0;
         /*
          * tMRR, 0 tCK
          */
-        p_ddr_timing->pctl_timing.tmrr = 0;
+        p_pctl_timing->tmrr = 0;
         /*
          * tDPD, 0
          */
-        p_ddr_timing->pctl_timing.tdpd = 0;
+        p_pctl_timing->tdpd = 0;
 
         /**************************************************
          * PHY Timing
@@ -2209,16 +2291,16 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         /*
          * tCCD, BL/2 for DDR2 and 4 for DDR3
          */
-        p_ddr_timing->phy_timing.dtpr0.b.tCCD = 0;
+        p_publ_timing->dtpr0.b.tCCD = 0;
         /*
          * tDQSCKmax,5.5ns
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tDQSCKmax = 0;
+        p_publ_timing->dtpr1.b.tDQSCKmax = 0;
         /*
          * tRTODT, 0:ODT may be turned on immediately after read post-amble
          *         1:ODT may not be turned on until one clock after the read post-amble
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tRTODT = 1;
+        p_publ_timing->dtpr1.b.tRTODT = 1;
         /*
          * tFAW,50ns(<=333MHz 2KB page) 45ns(400MHz 2KB page) 45ns(533MHz 2KB page)
          */
@@ -2230,19 +2312,19 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = DDR2_tFAW_400MHz;
         }
-        p_ddr_timing->phy_timing.dtpr1.b.tFAW = ((tmp*nMHz+999)/1000)&0x7F;
+        p_publ_timing->dtpr1.b.tFAW = ((tmp*nMHz+999)/1000)&0x7F;
         /*
          * tAOND_tAOFD
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tAOND = 0;
+        p_publ_timing->dtpr1.b.tAOND = 0;
         /*
          * tDLLK,=tXSRD=200 tCK
          */
-        p_ddr_timing->phy_timing.dtpr2.b.tDLLK = DDR2_tDLLK;
+        p_publ_timing->dtpr2.b.tDLLK = DDR2_tDLLK;
         /**************************************************
          * NOC Timing
          **************************************************/
-        p_ddr_timing->noc_timing.b.BurstLen = ((bl>>1)&0x7);
+        p_noc_timing->b.BurstLen = ((bl>>1)&0x7);
     }
     else //if(mem_type == LPDDR)
     {
@@ -2278,22 +2360,22 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
          */
         cl = 3;
         cwl = 1;
-        p_ddr_timing->phy_timing.mr[0] = mDDR_BL4 | mDDR_CL(cl);
-        p_ddr_timing->phy_timing.mr[2] = mDDR_DS_3_4;  //mr[2] is mDDR MR1
-        p_ddr_timing->phy_timing.mr[1] = 0;
-        p_ddr_timing->phy_timing.mr[3] = 0;
+        p_publ_timing->mr[0] = mDDR_BL4 | mDDR_CL(cl);
+        p_publ_timing->mr[2] = mDDR_DS_3_4;  //mr[2] is mDDR MR1
+        p_publ_timing->mr[1] = 0;
+        p_publ_timing->mr[3] = 0;
         /**************************************************
          * PCTL Timing
          **************************************************/
         /*
          * tREFI, average periodic refresh interval, 7.8us
          */
-        p_ddr_timing->pctl_timing.trefi = mDDR_tREFI_7_8_us;
+        p_pctl_timing->trefi = mDDR_tREFI_7_8_us;
         /*
          * tMRD, 2 tCK
          */
-        p_ddr_timing->pctl_timing.tmrd = mDDR_tMRD & 0x7;
-        p_ddr_timing->phy_timing.dtpr0.b.tMRD = mDDR_tMRD;
+        p_pctl_timing->tmrd = mDDR_tMRD & 0x7;
+        p_publ_timing->dtpr0.b.tMRD = mDDR_tMRD;
         /*
          * tRFC, 80ns(128Mb,256Mb) 110ns(512Mb) 140ns(1Gb,2Gb)
          */
@@ -2309,26 +2391,26 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = mDDR_tRFC_1Gb;
         }
-        p_ddr_timing->pctl_timing.trfc = (tmp*nMHz+999)/1000;
-        p_ddr_timing->phy_timing.dtpr1.b.tRFC = ((tmp*nMHz+999)/1000)&0xFF;
+        p_pctl_timing->trfc = (tmp*nMHz+999)/1000;
+        p_publ_timing->dtpr1.b.tRFC = ((tmp*nMHz+999)/1000)&0xFF;
         /*
          * tCKESR, =tRFC
          */
-        p_ddr_timing->pctl_timing.tckesr = tmp&0xF;
+        p_pctl_timing->tckesr = tmp&0xF;
         /*
          * tXSR, 200ns
          */
-        p_ddr_timing->pctl_timing.texsr = ((mDDR_tXSR*nMHz+999)/1000)&0x3FF;
-        p_ddr_timing->phy_timing.dtpr2.b.tXS = ((mDDR_tXSR*nMHz+999)/1000)&0x3FF;
+        p_pctl_timing->texsr = ((mDDR_tXSR*nMHz+999)/1000)&0x3FF;
+        p_publ_timing->dtpr2.b.tXS = ((mDDR_tXSR*nMHz+999)/1000)&0x3FF;
         /*
          * tRP=CL
          */
-        p_ddr_timing->pctl_timing.trp = cl;
-        p_ddr_timing->phy_timing.dtpr0.b.tRP = cl;
+        p_pctl_timing->trp = cl;
+        p_publ_timing->dtpr0.b.tRP = cl;
         /*
          * WrToMiss=WL*tCK + tWR + tRP + tRCD
          */
-        p_ddr_timing->noc_timing.b.WrToMiss = ((cwl+((mDDR_tWR*nMHz+999)/1000)+cl+cl)&0x3F);
+        p_noc_timing->b.WrToMiss = ((cwl+((mDDR_tWR*nMHz+999)/1000)+cl+cl)&0x3F);
         /*
          * tRAS, 50ns(100MHz) 45ns(133MHz) 42ns(166MHz) 42ns(185MHz) 40ns(200MHz)
          */
@@ -2349,25 +2431,25 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
             tmp = mDDR_tRAS_200MHz;
         }
         tmp = ((tmp*nMHz+999)/1000);
-        p_ddr_timing->pctl_timing.tras = (tmp&0x3F);
-        p_ddr_timing->phy_timing.dtpr0.b.tRAS = tmp&0x1F;
+        p_pctl_timing->tras = (tmp&0x3F);
+        p_publ_timing->dtpr0.b.tRAS = tmp&0x1F;
         /*
          * tRC=tRAS+tRP
          */
-        p_ddr_timing->pctl_timing.trc = ((tmp+cl)&0x3F);
-        p_ddr_timing->noc_timing.b.ActToAct = ((tmp+cl)&0x3F);
-        p_ddr_timing->phy_timing.dtpr0.b.tRC = (tmp+cl)&0xF;
-        p_ddr_timing->pctl_timing.trtw = (cl+2-cwl);//mDDR_tRTW;
-        p_ddr_timing->phy_timing.dtpr1.b.tRTW = 0;
-        p_ddr_timing->noc_timing.b.RdToWr = ((cl+2-cwl)&0x1F);
-        p_ddr_timing->pctl_timing.tal = al;
-        p_ddr_timing->pctl_timing.tcl = cl;
-        p_ddr_timing->pctl_timing.tcwl = cwl;
+        p_pctl_timing->trc = ((tmp+cl)&0x3F);
+        p_noc_timing->b.ActToAct = ((tmp+cl)&0x3F);
+        p_publ_timing->dtpr0.b.tRC = (tmp+cl)&0xF;
+        p_pctl_timing->trtw = (cl+2-cwl);//mDDR_tRTW;
+        p_publ_timing->dtpr1.b.tRTW = 0;
+        p_noc_timing->b.RdToWr = ((cl+2-cwl)&0x1F);
+        p_pctl_timing->tal = al;
+        p_pctl_timing->tcl = cl;
+        p_pctl_timing->tcwl = cwl;
         /*
          * tRCD=CL
          */
-        p_ddr_timing->pctl_timing.trcd = cl;
-        p_ddr_timing->phy_timing.dtpr0.b.tRCD = cl;
+        p_pctl_timing->trcd = cl;
+        p_publ_timing->dtpr0.b.tRCD = cl;
         /*
          * tRRD,15ns(100MHz) 15ns(133MHz) 12ns(166MHz) 10.8ns(185MHz) 10ns(200MHz)
          *
@@ -2388,22 +2470,22 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = mDDR_tRRD_200MHz;
         }
-        p_ddr_timing->pctl_timing.trrd = (((tmp*nMHz+999)/1000)&0xF);
-        p_ddr_timing->phy_timing.dtpr0.b.tRRD = ((tmp*nMHz+999)/1000)&0xF;
+        p_pctl_timing->trrd = (((tmp*nMHz+999)/1000)&0xF);
+        p_publ_timing->dtpr0.b.tRRD = ((tmp*nMHz+999)/1000)&0xF;
         /*
          * tRTP, 0
          */
         tmp = ((mDDR_tRTP*nMHz+999)/1000);
-        p_ddr_timing->pctl_timing.trtp = tmp&0xF;
-        p_ddr_timing->phy_timing.dtpr0.b.tRTP = tmp;
+        p_pctl_timing->trtp = tmp&0xF;
+        p_publ_timing->dtpr0.b.tRTP = tmp;
         /*
          * RdToMiss=tRTP+tRP + tRCD - (BL/2 * tCK)
          */
-        p_ddr_timing->noc_timing.b.RdToMiss = ((tmp+cl+cl-(bl>>1))&0x3F);
+        p_noc_timing->b.RdToMiss = ((tmp+cl+cl-(bl>>1))&0x3F);
         /*
          * tWR, 15ns
          */
-        p_ddr_timing->pctl_timing.twr = ((mDDR_tWR*nMHz+999)/1000)&0x1F;
+        p_pctl_timing->twr = ((mDDR_tWR*nMHz+999)/1000)&0x1F;
         /*
          * tWTR, 1 tCK(100MHz,133MHz) 2 tCK(166MHz,185MHz,200MHz)
          */
@@ -2415,65 +2497,65 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = mDDR_tWTR_200MHz;
         }
-        p_ddr_timing->pctl_timing.twtr = tmp&0xF;
-        p_ddr_timing->phy_timing.dtpr0.b.tWTR = tmp&0x7;
-        p_ddr_timing->noc_timing.b.WrToRd = ((tmp+cwl)&0x1F);
+        p_pctl_timing->twtr = tmp&0xF;
+        p_publ_timing->dtpr0.b.tWTR = tmp&0x7;
+        p_noc_timing->b.WrToRd = ((tmp+cwl)&0x1F);
         /*
          * tXP, 25ns
          */
 
-        p_ddr_timing->pctl_timing.txp = ((mDDR_tXP*nMHz+999)/1000)&0x7;
-        p_ddr_timing->phy_timing.dtpr2.b.tXP = ((mDDR_tXP*nMHz+999)/1000)&0x1F;
+        p_pctl_timing->txp = ((mDDR_tXP*nMHz+999)/1000)&0x7;
+        p_publ_timing->dtpr2.b.tXP = ((mDDR_tXP*nMHz+999)/1000)&0x1F;
         /*
          * tXPDLL, 0
          */
-        p_ddr_timing->pctl_timing.txpdll = 0;
+        p_pctl_timing->txpdll = 0;
         /*
          * tZQCS, 0
          */
-        p_ddr_timing->pctl_timing.tzqcs = 0;
+        p_pctl_timing->tzqcs = 0;
         /*
          * tZQCSI,
          */
-        p_ddr_timing->pctl_timing.tzqcsi = 0;
+        p_pctl_timing->tzqcsi = 0;
         /*
          * tDQS,
          */
-        p_ddr_timing->pctl_timing.tdqs = mDDR_tDQS;
+        p_pctl_timing->tdqs = mDDR_tDQS;
         /*
          * tCKSRE, 1 tCK
          */
-        p_ddr_timing->pctl_timing.tcksre = mDDR_tCKSRE & 0x1F;
+        p_pctl_timing->tcksre = mDDR_tCKSRE & 0x1F;
         /*
          * tCKSRX, no such timing
          */
-        p_ddr_timing->pctl_timing.tcksrx = mDDR_tCKSRX & 0x1F;
+        p_pctl_timing->tcksrx = mDDR_tCKSRX & 0x1F;
         /*
          * tCKE, 2 tCK
          */
-        p_ddr_timing->pctl_timing.tcke = mDDR_tCKE & 0x7;
-        p_ddr_timing->phy_timing.dtpr2.b.tCKE = mDDR_tCKE;
+        p_pctl_timing->tcke = mDDR_tCKE & 0x7;
+        p_publ_timing->dtpr2.b.tCKE = mDDR_tCKE;
         /*
          * tMOD, 0
          */
-        p_ddr_timing->pctl_timing.tmod = 0;
-        p_ddr_timing->phy_timing.dtpr1.b.tMOD = 0;
+        p_pctl_timing->tmod = 0;
+        p_publ_timing->dtpr1.b.tMOD = 0;
         /*
          * tRSTL, 0
          */
-        p_ddr_timing->pctl_timing.trstl = 0;
+        p_pctl_timing->trstl = 0;
         /*
          * tZQCL, 0
          */
-        p_ddr_timing->pctl_timing.tzqcl = 0;
+        p_pctl_timing->tzqcl = 0;
         /*
          * tMRR, 0 tCK
          */
-        p_ddr_timing->pctl_timing.tmrr = 0;
+        p_pctl_timing->tmrr = 0;
         /*
          * tDPD, 0
          */
-        p_ddr_timing->pctl_timing.tdpd = 0;
+        p_pctl_timing->tdpd = 0;
 
         /**************************************************
          * PHY Timing
@@ -2481,32 +2563,32 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         /*
          * tCCD, BL/2 for DDR2 and 4 for DDR3
          */
-        p_ddr_timing->phy_timing.dtpr0.b.tCCD = 0;
+        p_publ_timing->dtpr0.b.tCCD = 0;
         /*
          * tDQSCKmax,5.5ns
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tDQSCKmax = 0;
+        p_publ_timing->dtpr1.b.tDQSCKmax = 0;
         /*
          * tRTODT, 0:ODT may be turned on immediately after read post-amble
          *         1:ODT may not be turned on until one clock after the read post-amble
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tRTODT = 1;
+        p_publ_timing->dtpr1.b.tRTODT = 1;
         /*
          * tFAW,0
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tFAW = 0;
+        p_publ_timing->dtpr1.b.tFAW = 0;
         /*
          * tAOND_tAOFD
          */
-        p_ddr_timing->phy_timing.dtpr1.b.tAOND = 0;
+        p_publ_timing->dtpr1.b.tAOND = 0;
         /*
          * tDLLK,0
          */
-        p_ddr_timing->phy_timing.dtpr2.b.tDLLK = 0;
+        p_publ_timing->dtpr2.b.tDLLK = 0;
         /**************************************************
          * NOC Timing
          **************************************************/
-        p_ddr_timing->noc_timing.b.BurstLen = ((bl>>1)&0x7);
+        p_noc_timing->b.BurstLen = ((bl>>1)&0x7);
     }
 out:
     return ret;
@@ -2515,11 +2597,13 @@ out:
 uint32_t __sramlocalfunc ddr_update_timing(void)
 {
     uint32_t i;
-    DDR_TIMING_T  *p_ddr_timing=&ddr_timing;
+    PCTL_TIMING_T *p_pctl_timing=&(ddr_reg.pctl.pctl_timing);
+    PHY_TIMING_T  *p_publ_timing=&(ddr_reg.publ.phy_timing);
+    NOC_TIMING_T  *p_noc_timing=&(ddr_reg.noc_timing);
 
-    ddr_copy((uint32_t *)&(pDDR_Reg->TOGCNT1U), (uint32_t*)&(p_ddr_timing->pctl_timing.togcnt1u), 34);
-    ddr_copy((uint32_t *)&(pPHY_Reg->DTPR[0]), (uint32_t*)&(p_ddr_timing->phy_timing.dtpr0), 3);
-    *(volatile uint32_t *)SysSrv_DdrTiming = p_ddr_timing->noc_timing.d32;
+    ddr_copy((uint32_t *)&(pDDR_Reg->TOGCNT1U), (uint32_t*)&(p_pctl_timing->togcnt1u), 34);
+    ddr_copy((uint32_t *)&(pPHY_Reg->DTPR[0]), (uint32_t*)&(p_publ_timing->dtpr0), 3);
+    *(volatile uint32_t *)SysSrv_DdrTiming = p_noc_timing->d32;
     // Update PCTL BL
     if(mem_type == DDR3)
     {
@@ -2555,46 +2639,46 @@ uint32_t __sramlocalfunc ddr_update_timing(void)
 
 uint32_t __sramlocalfunc ddr_update_mr(void)
 {
-    DDR_TIMING_T  *p_ddr_timing=&ddr_timing;
+    PHY_TIMING_T  *p_publ_timing=&(ddr_reg.publ.phy_timing);
     uint32_t cs;
 
     cs = ((pPHY_Reg->PGCR>>18) & 0xF);
-    ddr_copy((uint32_t *)&(pPHY_Reg->MR[0]), (uint32_t*)&(p_ddr_timing->phy_timing.mr[0]), 4);
+    ddr_copy((uint32_t *)&(pPHY_Reg->MR[0]), (uint32_t*)&(p_publ_timing->mr[0]), 4);
     if((mem_type == DDR3) || (mem_type == DDR2))
     {
         if(ddr_freq>DDR3_DDR2_DLL_DISABLE_FREQ)
         {
             if(pPHY_Reg->MR[1] & DDR3_DLL_DISABLE)  // off -> on
             {
-                ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((uint8_t)(p_ddr_timing->phy_timing.mr[1])));  //DLL enable
-                ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr(((uint8_t)(p_ddr_timing->phy_timing.mr[0]))| DDR3_DLL_RESET));  //DLL reset
+                ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((uint8_t)(p_publ_timing->mr[1])));  //DLL enable
+                ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr(((uint8_t)(p_publ_timing->mr[0]))| DDR3_DLL_RESET));  //DLL reset
                 ddr_delayus(2);  //at least 200 DDR cycle
-                ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(p_ddr_timing->phy_timing.mr[0])));
+                ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(p_publ_timing->mr[0])));
             }
             else // on -> on
             {
-                ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((uint8_t)(p_ddr_timing->phy_timing.mr[1])));
-                ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(p_ddr_timing->phy_timing.mr[0])));
+                ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((uint8_t)(p_publ_timing->mr[1])));
+                ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(p_publ_timing->mr[0])));
             }
         }
         else
         {
-            pPHY_Reg->MR[1] = (((uint8_t)(p_ddr_timing->phy_timing.mr[1])) | DDR3_DLL_DISABLE);
-            ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr(((uint8_t)(p_ddr_timing->phy_timing.mr[1])) | DDR3_DLL_DISABLE));  //DLL disable
-            ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(p_ddr_timing->phy_timing.mr[0])));
+            pPHY_Reg->MR[1] = (((uint8_t)(p_publ_timing->mr[1])) | DDR3_DLL_DISABLE);
+            ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr(((uint8_t)(p_publ_timing->mr[1])) | DDR3_DLL_DISABLE));  //DLL disable
+            ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(p_publ_timing->mr[0])));
         }
-        ddr_send_command(cs, MRS_cmd, bank_addr(0x2) | cmd_addr((uint8_t)(p_ddr_timing->phy_timing.mr[2])));
+        ddr_send_command(cs, MRS_cmd, bank_addr(0x2) | cmd_addr((uint8_t)(p_publ_timing->mr[2])));
     }
     else if(mem_type == LPDDR2)
     {
-        ddr_send_command(cs, MRS_cmd, lpddr2_ma(0x1) | lpddr2_op((uint8_t)(p_ddr_timing->phy_timing.mr[1])));
-        ddr_send_command(cs, MRS_cmd, lpddr2_ma(0x2) | lpddr2_op((uint8_t)(p_ddr_timing->phy_timing.mr[2])));
-        ddr_send_command(cs, MRS_cmd, lpddr2_ma(0x3) | lpddr2_op((uint8_t)(p_ddr_timing->phy_timing.mr[3])));
+        ddr_send_command(cs, MRS_cmd, lpddr2_ma(0x1) | lpddr2_op((uint8_t)(p_publ_timing->mr[1])));
+        ddr_send_command(cs, MRS_cmd, lpddr2_ma(0x2) | lpddr2_op((uint8_t)(p_publ_timing->mr[2])));
+        ddr_send_command(cs, MRS_cmd, lpddr2_ma(0x3) | lpddr2_op((uint8_t)(p_publ_timing->mr[3])));
     }
     else //mDDR
     {
-        ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(p_ddr_timing->phy_timing.mr[0])));
-        ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((uint8_t)(p_ddr_timing->phy_timing.mr[2]))); //mr[2] is mDDR MR1
+        ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(p_publ_timing->mr[0])));
+        ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((uint8_t)(p_publ_timing->mr[2]))); //mr[2] is mDDR MR1
     }
     return 0;
 }
@@ -2681,10 +2765,11 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     //set auto power down idle
     pDDR_Reg->MCFG=(pDDR_Reg->MCFG&0xffff00ff)|(PD_IDLE<<8);
 
-    //set auto self-refresh idle
-    ddr_sr_idle = SR_IDLE;
-
+    //CKDV=00
     pPHY_Reg->PGCR &= ~(0x3<<12);
+
+    //enable the hardware low-power interface
+    pDDR_Reg->SCFG.b.hw_low_power_en = 1;
 
     ddr_update_odt();
 
@@ -2791,11 +2876,9 @@ void __sramlocalfunc deidle_port(void)
 
 }
 
-
-
-
 void __sramlocalfunc ddr_selfrefresh_enter(uint32 nMHz)
 {
+    PHY_TIMING_T  *p_publ_timing=&(ddr_reg.publ.phy_timing);
     uint32 cs;
     
     ddr_move_to_Config_state();
@@ -2803,8 +2886,8 @@ void __sramlocalfunc ddr_selfrefresh_enter(uint32 nMHz)
     if((nMHz<=DDR3_DDR2_DLL_DISABLE_FREQ) && ((mem_type == DDR3) || (mem_type == DDR2)))  // DLL disable
     {
         cs = ((pPHY_Reg->PGCR>>18) & 0xF);
-        pPHY_Reg->MR[1] = (((uint8_t)(ddr_timing.phy_timing.mr[1])) | DDR3_DLL_DISABLE);
-        ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr(((uint8_t)(ddr_timing.phy_timing.mr[1])) | DDR3_DLL_DISABLE));
+        pPHY_Reg->MR[1] = (((uint8_t)(p_publ_timing->mr[1])) | DDR3_DLL_DISABLE);
+        ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr(((uint8_t)(p_publ_timing->mr[1])) | DDR3_DLL_DISABLE));
     }
     ddr_move_to_Lowpower_state();
     
@@ -2901,13 +2984,12 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 
 EXPORT_SYMBOL(ddr_change_freq);
 
-void ddr_set_auto_self_refresh(uint32_t sr_idle_time)
+void ddr_set_auto_self_refresh(bool en)
 {
-    ddr_sr_idle=sr_idle_time;
+    //set auto self-refresh idle
+    ddr_sr_idle = en ? SR_IDLE : 0;
 }
-
 EXPORT_SYMBOL(ddr_set_auto_self_refresh);
-
 
 void __sramfunc ddr_suspend(void)
 {
@@ -3000,13 +3082,96 @@ uint32 ddr_get_cap(void)
 }
 EXPORT_SYMBOL(ddr_get_cap);
 
+void ddr_reg_save(void)
+{
+    //PCTLR
+    ddr_reg.pctl.SCFG = pDDR_Reg->SCFG.d32;
+    ddr_reg.pctl.CMDTSTATEN = pDDR_Reg->CMDTSTATEN;
+    ddr_reg.pctl.MCFG1 = pDDR_Reg->MCFG1;
+    ddr_reg.pctl.MCFG = pDDR_Reg->MCFG;
+    ddr_reg.pctl.pctl_timing.ddrFreq = ddr_freq;
+    ddr_reg.pctl.DFITCTRLDELAY = pDDR_Reg->DFITCTRLDELAY;
+    ddr_reg.pctl.DFIODTCFG = pDDR_Reg->DFIODTCFG;
+    ddr_reg.pctl.DFIODTCFG1 = pDDR_Reg->DFIODTCFG1;
+    ddr_reg.pctl.DFIODTRANKMAP = pDDR_Reg->DFIODTRANKMAP;
+    ddr_reg.pctl.DFITPHYWRDATA = pDDR_Reg->DFITPHYWRDATA;
+    ddr_reg.pctl.DFITPHYWRLAT = pDDR_Reg->DFITPHYWRLAT;
+    ddr_reg.pctl.DFITRDDATAEN = pDDR_Reg->DFITRDDATAEN;
+    ddr_reg.pctl.DFITPHYRDLAT = pDDR_Reg->DFITPHYRDLAT;
+    ddr_reg.pctl.DFITPHYUPDTYPE0 = pDDR_Reg->DFITPHYUPDTYPE0;
+    ddr_reg.pctl.DFITPHYUPDTYPE1 = pDDR_Reg->DFITPHYUPDTYPE1;
+    ddr_reg.pctl.DFITPHYUPDTYPE2 = pDDR_Reg->DFITPHYUPDTYPE2;
+    ddr_reg.pctl.DFITPHYUPDTYPE3 = pDDR_Reg->DFITPHYUPDTYPE3;
+    ddr_reg.pctl.DFITCTRLUPDMIN = pDDR_Reg->DFITCTRLUPDMIN;
+    ddr_reg.pctl.DFITCTRLUPDMAX = pDDR_Reg->DFITCTRLUPDMAX;
+    ddr_reg.pctl.DFITCTRLUPDDLY = pDDR_Reg->DFITCTRLUPDDLY;
+    
+    ddr_reg.pctl.DFIUPDCFG = pDDR_Reg->DFIUPDCFG;
+    ddr_reg.pctl.DFITREFMSKI = pDDR_Reg->DFITREFMSKI;
+    ddr_reg.pctl.DFITCTRLUPDI = pDDR_Reg->DFITCTRLUPDI;
+    ddr_reg.pctl.DFISTCFG0 = pDDR_Reg->DFISTCFG0;
+    ddr_reg.pctl.DFISTCFG1 = pDDR_Reg->DFISTCFG1;
+    ddr_reg.pctl.DFITDRAMCLKEN = pDDR_Reg->DFITDRAMCLKEN;
+    ddr_reg.pctl.DFITDRAMCLKDIS = pDDR_Reg->DFITDRAMCLKDIS;
+    ddr_reg.pctl.DFISTCFG2 = pDDR_Reg->DFISTCFG2;
+    ddr_reg.pctl.DFILPCFG0 = pDDR_Reg->DFILPCFG0;
+
+    //PUBL
+    ddr_reg.publ.PIR = pPHY_Reg->PIR;
+    ddr_reg.publ.PGCR = pPHY_Reg->PGCR;
+    ddr_reg.publ.DLLGCR = pPHY_Reg->DLLGCR;
+    ddr_reg.publ.ACDLLCR = pPHY_Reg->ACDLLCR;
+    ddr_reg.publ.PTR[0] = pPHY_Reg->PTR[0];
+    ddr_reg.publ.PTR[1] = pPHY_Reg->PTR[1];
+    ddr_reg.publ.PTR[2] = pPHY_Reg->PTR[2];
+    ddr_reg.publ.ACIOCR = pPHY_Reg->ACIOCR;
+    ddr_reg.publ.DXCCR = pPHY_Reg->DXCCR;
+    ddr_reg.publ.DSGCR = pPHY_Reg->DSGCR;
+    ddr_reg.publ.DCR = pPHY_Reg->DCR.d32;
+    ddr_reg.publ.ODTCR = pPHY_Reg->ODTCR;
+    ddr_reg.publ.DTAR = pPHY_Reg->DTAR;
+    ddr_reg.publ.ZQ0CR0 = (pPHY_Reg->ZQ0SR[0] & 0x0FFFFFFF) | (0x1<<28);
+    ddr_reg.publ.ZQ1CR0 = (pPHY_Reg->ZQ1SR[0] & 0x0FFFFFFF) | (0x1<<28);
+    
+    ddr_reg.publ.DX0GCR = pPHY_Reg->DATX8[0].DXGCR;
+    ddr_reg.publ.DX0DLLCR = pPHY_Reg->DATX8[0].DXDLLCR;
+    ddr_reg.publ.DX0DQTR = pPHY_Reg->DATX8[0].DXDQTR;
+    ddr_reg.publ.DX0DQSTR = pPHY_Reg->DATX8[0].DXDQSTR;
+
+    ddr_reg.publ.DX1GCR = pPHY_Reg->DATX8[1].DXGCR;
+    ddr_reg.publ.DX1DLLCR = pPHY_Reg->DATX8[1].DXDLLCR;
+    ddr_reg.publ.DX1DQTR = pPHY_Reg->DATX8[1].DXDQTR;
+    ddr_reg.publ.DX1DQSTR = pPHY_Reg->DATX8[1].DXDQSTR;
+
+    ddr_reg.publ.DX2GCR = pPHY_Reg->DATX8[2].DXGCR;
+    ddr_reg.publ.DX2DLLCR = pPHY_Reg->DATX8[2].DXDLLCR;
+    ddr_reg.publ.DX2DQTR = pPHY_Reg->DATX8[2].DXDQTR;
+    ddr_reg.publ.DX2DQSTR = pPHY_Reg->DATX8[2].DXDQSTR;
+
+    ddr_reg.publ.DX3GCR = pPHY_Reg->DATX8[3].DXGCR;
+    ddr_reg.publ.DX3DLLCR = pPHY_Reg->DATX8[3].DXDLLCR;
+    ddr_reg.publ.DX3DQTR = pPHY_Reg->DATX8[3].DXDQTR;
+    ddr_reg.publ.DX3DQSTR = pPHY_Reg->DATX8[3].DXDQSTR;
+
+    //NOC
+    ddr_reg.DdrConf = *(volatile uint32_t *)SysSrv_DdrConf;
+    ddr_reg.DdrMode = *(volatile uint32_t *)SysSrv_DdrMode;
+    ddr_reg.ReadLatency = *(volatile uint32_t *)SysSrv_ReadLatency;
+}
+EXPORT_SYMBOL(ddr_reg_save);
+
+__attribute__((aligned(4))) __sramdata uint32 ddr_reg_resume[] = 
+{
+#include "ddr_reg_resume.inc"
+};
+
 int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
 {
     volatile uint32_t value = 0;
     uint32_t cs,die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20120529 \n");
+    ddr_print("version 1.00 20120608 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;

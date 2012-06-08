@@ -164,6 +164,11 @@ static void __sramfunc ddr_testmode(void)
 		extern int memtester(void);
 		memtester();
 	}
+	else
+	{
+	    ddr_change_freq(ddr_debug);
+	    ddr_debug=0;
+	}
 }
 #else
 static void __sramfunc ddr_testmode(void) {}
