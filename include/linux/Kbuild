@@ -138,7 +138,6 @@ header-y += fuse.h
 header-y += futex.h
 header-y += gameport.h
 header-y += gen_stats.h
-header-y += generic_serial.h
 header-y += genetlink.h
 header-y += gfs2_ondisk.h
 header-y += gigaset_dev.h
