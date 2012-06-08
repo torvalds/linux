@@ -430,9 +430,6 @@ enum {
 /* Combine old and new bits. */
 #define COMBINE(old, new, mask)	(((old) & ~(mask)) | ((new) & (mask)))
 
-/* A generic null function pointer value.  */
-#define NULLFUNC	0
-
 /* Current CPU.  XXX should this be hard_smp_processor_id()? */
 #define THISCPU		smp_processor_id()
 
@@ -1491,7 +1488,7 @@ static int pci230_ao_inttrig_start(struct comedi_device *dev,
 	if (trig_num != 0)
 		return -EINVAL;
 
-	s->async->inttrig = NULLFUNC;
+	s->async->inttrig = NULL;
 	pci230_ao_start(dev, s);
 
 	return 1;
@@ -2292,7 +2289,7 @@ static int pci230_ai_inttrig_start(struct comedi_device *dev,
 	if (trig_num != 0)
 		return -EINVAL;
 
-	s->async->inttrig = NULLFUNC;
+	s->async->inttrig = NULL;
 	pci230_ai_start(dev, s);
 
 	return 1;
