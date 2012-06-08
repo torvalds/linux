@@ -75,6 +75,7 @@ static struct _intel_private {
 	struct resource ifp_resource;
 	int resource_valid;
 	struct page *scratch_page;
+	int refcount;
 } intel_private;
 
 #define INTEL_GTT_GEN	intel_private.driver->gen
@@ -1522,14 +1523,32 @@ static int find_gmch(u16 device)
 	return 1;
 }
 
-int intel_gmch_probe(struct pci_dev *pdev,
-				      struct agp_bridge_data *bridge)
+int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
+		     struct agp_bridge_data *bridge)
 {
 	int i, mask;
-	intel_private.driver = NULL;
+
+	/*
+	 * Can be called from the fake agp driver but also directly from
+	 * drm/i915.ko. Hence we need to check whether everything is set up
+	 * already.
+	 */
+	if (intel_private.driver) {
+		intel_private.refcount++;
+		return 1;
+	}
 
 	for (i = 0; intel_gtt_chipsets[i].name != NULL; i++) {
-		if (find_gmch(intel_gtt_chipsets[i].gmch_chip_id)) {
+		if (gpu_pdev) {
+			if (gpu_pdev->device ==
+			    intel_gtt_chipsets[i].gmch_chip_id) {
+				intel_private.pcidev = pci_dev_get(gpu_pdev);
+				intel_private.driver =
+					intel_gtt_chipsets[i].gtt_driver;
+
+				break;
+			}
+		} else if (find_gmch(intel_gtt_chipsets[i].gmch_chip_id)) {
 			intel_private.driver =
 				intel_gtt_chipsets[i].gtt_driver;
 			break;
@@ -1539,15 +1558,17 @@ int intel_gmch_probe(struct pci_dev *pdev,
 	if (!intel_private.driver)
 		return 0;
 
+	intel_private.refcount++;
+
 	if (bridge) {
 		bridge->driver = &intel_fake_agp_driver;
 		bridge->dev_private_data = &intel_private;
-		bridge->dev = pdev;
+		bridge->dev = bridge_pdev;
 	}
 
-	intel_private.bridge_dev = pci_dev_get(pdev);
+	intel_private.bridge_dev = pci_dev_get(bridge_pdev);
 
-	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_gtt_chipsets[i].name);
+	dev_info(&bridge_pdev->dev, "Intel %s Chipset\n", intel_gtt_chipsets[i].name);
 
 	mask = intel_private.driver->dma_mask_size;
 	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(mask)))
@@ -1557,8 +1578,11 @@ int intel_gmch_probe(struct pci_dev *pdev,
 		pci_set_consistent_dma_mask(intel_private.pcidev,
 					    DMA_BIT_MASK(mask));
 
-	if (intel_gtt_init() != 0)
+	if (intel_gtt_init() != 0) {
+		intel_gmch_remove();
+
 		return 0;
+	}
 
 	return 1;
 }
@@ -1577,12 +1601,16 @@ void intel_gtt_chipset_flush(void)
 }
 EXPORT_SYMBOL(intel_gtt_chipset_flush);
 
-void intel_gmch_remove(struct pci_dev *pdev)
+void intel_gmch_remove(void)
 {
+	if (--intel_private.refcount)
+		return;
+
 	if (intel_private.pcidev)
 		pci_dev_put(intel_private.pcidev);
 	if (intel_private.bridge_dev)
 		pci_dev_put(intel_private.bridge_dev);
+	intel_private.driver = NULL;
 }
 EXPORT_SYMBOL(intel_gmch_remove);
 

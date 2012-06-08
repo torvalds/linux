@@ -1474,11 +1474,18 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_bridge;
 	}
 
+	ret = intel_gmch_probe(dev_priv->bridge_dev, dev->pdev, NULL);
+	if (!ret) {
+		DRM_ERROR("failed to set up gmch\n");
+		ret = -EIO;
+		goto out_rmmap;
+	}
+
 	dev_priv->mm.gtt = intel_gtt_get();
 	if (!dev_priv->mm.gtt) {
 		DRM_ERROR("Failed to initialize GTT\n");
 		ret = -ENODEV;
-		goto out_rmmap;
+		goto put_gmch;
 	}
 
 	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
@@ -1489,7 +1496,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 				     aperture_size);
 	if (dev_priv->mm.gtt_mapping == NULL) {
 		ret = -EIO;
-		goto out_rmmap;
+		goto put_gmch;
 	}
 
 	i915_mtrr_setup(dev_priv, dev_priv->mm.gtt_base_addr,
@@ -1611,6 +1618,8 @@ out_mtrrfree:
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 	io_mapping_free(dev_priv->mm.gtt_mapping);
+put_gmch:
+	intel_gmch_remove();
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
