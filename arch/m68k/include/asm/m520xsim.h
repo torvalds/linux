@@ -42,6 +42,9 @@
 #define MCFINTC1_SIMR       (0)
 #define MCFINTC1_CIMR       (0)
 #define	MCFINTC1_ICR0       (0)
+#define MCFINTC2_SIMR       (0)
+#define MCFINTC2_CIMR       (0)
+#define MCFINTC2_ICR0       (0)
 
 #define MCFINT_VECBASE      64
 #define MCFINT_UART0        26          /* Interrupt number for UART0 */
