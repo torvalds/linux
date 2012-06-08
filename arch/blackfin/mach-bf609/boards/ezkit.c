@@ -922,31 +922,43 @@ static struct v4l2_input adv7842_inputs[] = {
 static struct bcap_route adv7842_routes[] = {
 	{
 		.input = 3,
+		.output = 0,
 	},
 	{
 		.input = 4,
+		.output = 0,
 	},
 	{
 		.input = 2,
+		.output = 0,
 	},
 	{
 		.input = 1,
+		.output = 0,
 	},
 	{
 		.input = 0,
+		.output = 0,
+	},
+};
+
+static struct adv7842_output_format adv7842_opf[] = {
+	{
+		.op_ch_sel = ADV7842_OP_CH_SEL_BRG,
+		.op_format_sel = ADV7842_OP_FORMAT_SEL_SDR_ITU656_8,
+		.op_656_range = 1,
+		.blank_data = 1,
+		.insert_av_codes = 1,
 	},
 };
 
 static struct adv7842_platform_data adv7842_data = {
+	.opf = adv7842_opf,
+	.num_opf = ARRAY_SIZE(adv7842_opf),
 	.ain_sel = ADV7842_AIN10_11_12_NC_SYNC_4_1,
-	.op_ch_sel = ADV7842_OP_CH_SEL_BRG,
 	.prim_mode = ADV7842_PRIM_MODE_SDP,
 	.vid_std_select = ADV7842_SDP_VID_STD_CVBS_SD_4x1,
 	.inp_color_space = ADV7842_INP_COLOR_SPACE_AUTO,
-	.op_format_sel = ADV7842_OP_FORMAT_SEL_SDR_ITU656_8,
-	.op_656_range = 1,
-	.blank_data = 1,
-	.insert_av_codes = 1,
 	.i2c_sdp_io = 0x30,
 	.i2c_sdp = 0x31,
 	.i2c_cp = 0x32,
@@ -958,6 +970,7 @@ static struct adv7842_platform_data adv7842_data = {
 	.i2c_infoframe = 0x38,
 	.i2c_cec = 0x39,
 	.i2c_avlink = 0x3a,
+	.i2c_ex = 0x26,
 };
 
 static struct bfin_capture_config bfin_capture_data = {
