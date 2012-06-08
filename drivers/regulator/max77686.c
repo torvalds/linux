@@ -77,7 +77,7 @@ static int max77686_set_dvs_voltage_time_sel(struct regulator_dev *rdev,
 
 	return DIV_ROUND_UP(rdev->desc->uV_step *
 			    abs(new_selector - old_selector),
-			    ramp_rate[max77686->ramp_delay]);
+			    ramp_rate[max77686->ramp_delay] * 1000);
 }
 
 static int max77686_set_voltage_time_sel(struct regulator_dev *rdev,
@@ -85,7 +85,7 @@ static int max77686_set_voltage_time_sel(struct regulator_dev *rdev,
 {
 	/* Unconditionally 100 mV/us */
 	return DIV_ROUND_UP(rdev->desc->uV_step *
-			    abs(new_selector - old_selector), 100);
+			    abs(new_selector - old_selector), 100 * 1000);
 }
 
 static struct regulator_ops max77686_ops = {
