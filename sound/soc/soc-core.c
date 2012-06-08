@@ -898,6 +898,28 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	return 0;
 }
 
+static int soc_remove_platform(struct snd_soc_platform *platform)
+{
+	int ret;
+
+	if (platform->driver->remove) {
+		ret = platform->driver->remove(platform);
+		if (ret < 0)
+			pr_err("asoc: failed to remove %s: %d\n",
+				platform->name, ret);
+	}
+
+	/* Make sure all DAPM widgets are freed */
+	snd_soc_dapm_free(&platform->dapm);
+
+	soc_cleanup_platform_debugfs(platform);
+	platform->probed = 0;
+	list_del(&platform->card_list);
+	module_put(platform->dev->driver->owner);
+
+	return 0;
+}
+
 static void soc_remove_codec(struct snd_soc_codec *codec)
 {
 	int err;
@@ -950,22 +972,8 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num, int order)
 
 	/* remove the platform */
 	if (platform && platform->probed &&
-			platform->driver->remove_order == order) {
-		if (platform->driver->remove) {
-			err = platform->driver->remove(platform);
-			if (err < 0)
-				pr_err("asoc: failed to remove %s: %d\n",
-							platform->name, err);
-		}
-
-		/* Make sure all DAPM widgets are freed */
-		snd_soc_dapm_free(&platform->dapm);
-
-		soc_cleanup_platform_debugfs(platform);
-		platform->probed = 0;
-		list_del(&platform->card_list);
-		module_put(platform->dev->driver->owner);
-	}
+			platform->driver->remove_order == order)
+		soc_remove_platform(platform);
 
 	/* remove the CODEC */
 	if (codec && codec->probed &&
