@@ -148,5 +148,6 @@ void __sramfunc ddr_resume(void);
 //void __sramlocalfunc delayus(uint32_t us);
 uint32_t __sramfunc ddr_change_freq(uint32_t nMHz);
 int ddr_init(uint32_t dram_type, uint32_t freq);
+void ddr_set_auto_self_refresh(uint32_t sr_idle_time);
 
 #endif

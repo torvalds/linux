@@ -26,6 +26,8 @@ typedef uint32_t uint32;
 
 #define DDR3_DDR2_DLL_DISABLE_FREQ    (125)
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
+#define SR_IDLE                       (0x0)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
+#define PD_IDLE                       (0X40)  //unit:DDR clk cycle, and 0 for disable auto power-down
 
 #define PMU_BASE_ADDR           RK30_PMU_BASE
 #define SDRAMC_BASE_ADDR        RK30_DDR_PCTL_BASE
@@ -117,9 +119,11 @@ typedef uint32_t uint32;
 #define DDR3_CL(n)        (((((n)-4)&0x7)<<4)|((((n)-4)&0x8)>>1))
 #define DDR3_WR(n)        (((n)&0x7)<<9)
 #define DDR3_DLL_RESET    (1<<8)
-#define DDR3_DLL_DISABLE   (0<<8)
+#define DDR3_DLL_DeRESET  (0<<8)
     
-    //mr1 for ddr3
+//mr1 for ddr3
+#define DDR3_DLL_ENABLE    (0)
+#define DDR3_DLL_DISABLE   (1)
 #define DDR3_MR1_AL(n)  (((n)&0x7)<<3)
     
 #define DDR3_DS_40            (0)
@@ -144,9 +148,12 @@ typedef uint32_t uint32;
 #define DDR2_CL(n)         (((n)&0x7)<<4)
 #define DDR2_WR(n)        ((((n)-1)&0x7)<<9)
 #define DDR2_DLL_RESET    (1<<8)
-#define DDR2_DLL_DISABLE   (0<<8)
+#define DDR2_DLL_DeRESET  (0<<8)
     
 //EMR;                    //Extended Mode Register      
+#define DDR2_DLL_ENABLE    (0)
+#define DDR2_DLL_DISABLE   (1)
+
 #define DDR2_STR_FULL     (0)
 #define DDR2_STR_REDUCE   (1<<1)
 #define DDR2_AL(n)        (((n)&0x7)<<3)
@@ -183,6 +190,14 @@ typedef uint32_t uint32;
 #define idle_gpu    (1<<24)
 #define idle_video  (1<<23)
 #define idle_vio    (1<<22)
+
+#define pd_a9_0_pwr_st    (1<<0)
+#define pd_a9_1_pwr_st    (1<<1)
+#define pd_peri_pwr_st    (1<<6)
+#define pd_vio_pwr_st    (1<<7)
+#define pd_video_pwr_st    (1<<8)
+#define pd_gpu_pwr_st    (1<<9)
+
 
 //PMU registers
 typedef volatile struct tagPMU_FILE
@@ -890,6 +905,7 @@ __sramdata uint32_t mem_type;    // 0:LPDDR, 1:DDR, 2:DDR2, 3:DDR3, 4:LPDDR2
 static __sramdata uint32_t ddr_speed_bin;    // used for ddr3 only
 static __sramdata uint32_t ddr_capability_per_die;  // one chip cs capability
 static __sramdata uint32_t ddr_freq;
+static __sramdata uint32_t ddr_sr_idle;
 
 /****************************************************************************
 Internal sram us delay function
@@ -1016,7 +1032,6 @@ __sramfunc void ddr_move_to_Lowpower_state(void)
             break;
         }
         switch(value)
-
         {
             case Init_mem:
                 pDDR_Reg->SCTL = CFG_STATE;
@@ -1038,15 +1053,18 @@ __sramfunc void ddr_move_to_Access_state(void)
 {
     volatile uint32 value;
 
+    //set auto self-refresh idle
+    pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|ddr_sr_idle;
+
     while(1)
     {
         value = pDDR_Reg->STAT.b.ctl_stat;
-        if(value == Access)
+        if((value == Access)
+           || ((pDDR_Reg->STAT.b.lp_trig == 1) && ((pDDR_Reg->STAT.b.ctl_stat) == Low_power)))
         {
             break;
         }
         switch(value)
-
         {
             case Low_power:
                 pDDR_Reg->SCTL = WAKEUP_STATE;
@@ -1058,7 +1076,8 @@ __sramfunc void ddr_move_to_Access_state(void)
                 while((pDDR_Reg->STAT.b.ctl_stat) != Config);
             case Config:
                 pDDR_Reg->SCTL = GO_STATE;
-                while((pDDR_Reg->STAT.b.ctl_stat) != Access);
+                while(!(((pDDR_Reg->STAT.b.ctl_stat) == Access)
+                      || ((pDDR_Reg->STAT.b.lp_trig == 1) && ((pDDR_Reg->STAT.b.ctl_stat) == Low_power))));
                 break;
             default:  //Transitional state
                 break;
@@ -1069,6 +1088,13 @@ __sramfunc void ddr_move_to_Access_state(void)
 __sramfunc void ddr_move_to_Config_state(void)
 {
     volatile uint32 value;
+
+    //clear auto self-refresh idle
+    if(pDDR_Reg->MCFG1 & 0xFF)
+    {
+        pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|0x0;
+        dsb();
+    }
 
     while(1)
     {
@@ -2653,7 +2679,12 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     pPHY_Reg->DTAR = value;
 
     //set auto power down idle
-    pDDR_Reg->MCFG=(pDDR_Reg->MCFG&0xffff00ff)|(0x40<<8);
+    pDDR_Reg->MCFG=(pDDR_Reg->MCFG&0xffff00ff)|(PD_IDLE<<8);
+
+    //set auto self-refresh idle
+    ddr_sr_idle = SR_IDLE;
+
+    pPHY_Reg->PGCR &= ~(0x3<<12);
 
     ddr_update_odt();
 
@@ -2662,6 +2693,106 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
 
     DDR_RESTORE_SP(save_sp);
 }
+
+
+void __sramlocalfunc idle_port(void)
+{
+    int i;
+    uint32 clk_gate[10];
+
+    //save clock gate status
+    for(i=0;i<10;i++)
+        clk_gate[i]=pCRU_Reg->CRU_CLKGATE_CON[i];
+
+    //enable all clock gate for request idle
+    for(i=0;i<10;i++)
+        pCRU_Reg->CRU_CLKGATE_CON[i]=0xffff0000;
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_a9_0_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 |= idle_req_cpu_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_cpu) == 0 );
+    }
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_peri_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 |= idle_req_peri_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_peri) == 0 );
+    }
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_vio_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 |= idle_req_vio_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_vio) == 0 );
+    }
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_video_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 |= idle_req_video_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_video) == 0 );
+    }
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_gpu_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 |= idle_req_gpu_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_gpu) == 0 );
+    }
+
+	//resume clock gate status
+    for(i=0;i<10;i++)
+        pCRU_Reg->CRU_CLKGATE_CON[i]=  (clk_gate[i] | 0xffff0000);
+}
+
+void __sramlocalfunc deidle_port(void)
+{
+    int i;
+    uint32 clk_gate[10];
+
+    //save clock gate status
+    for(i=0;i<10;i++)
+        clk_gate[i]=pCRU_Reg->CRU_CLKGATE_CON[i];
+
+    //enable all clock gate for request idle
+    for(i=0;i<10;i++)
+        pCRU_Reg->CRU_CLKGATE_CON[i]=0xffff0000;
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_a9_0_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_cpu_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_cpu) != 0 );
+    }
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_peri_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_peri_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_peri) != 0 );
+    }
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_vio_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_vio_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_vio) != 0 );
+    }
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_video_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_video_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_video) != 0 );
+    }
+
+    if ( (pPMU_Reg->PMU_PWRDN_ST & pd_gpu_pwr_st) == 0 )
+    {
+        pPMU_Reg->PMU_MISC_CON1 &= ~idle_req_gpu_cfg;
+        while( (pPMU_Reg->PMU_PWRDN_ST & idle_gpu) != 0 );
+    }
+
+    //resume clock gate status
+    for(i=0;i<10;i++)
+        pCRU_Reg->CRU_CLKGATE_CON[i]=  (clk_gate[i] | 0xffff0000);
+
+}
+
+
+
 
 void __sramlocalfunc ddr_selfrefresh_enter(uint32 nMHz)
 {
@@ -2730,6 +2861,7 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 
     /** 1. Make sure there is no host access */
     local_irq_save(flags);
+	local_fiq_disable();
     flush_cache_all();
 	outer_flush_all();
 	flush_tlb_all();
@@ -2748,22 +2880,34 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     dsb();
 
     /** 2. ddr enter self-refresh mode or precharge power-down mode */
+    idle_port();
     ddr_selfrefresh_enter(ret);
-    
+
     /** 3. change frequence  */
     ddr_set_pll(ret,1);
     ddr_freq = ret;
     
     /** 5. Issues a Mode Exit command   */
     ddr_selfrefresh_exit();
-    dsb();     
+    deidle_port();
+
+	dsb();
     DDR_RESTORE_SP(save_sp);
+    local_fiq_enable();
     local_irq_restore(flags);
     clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
     return ret;
 }
 
 EXPORT_SYMBOL(ddr_change_freq);
+
+void ddr_set_auto_self_refresh(uint32_t sr_idle_time)
+{
+    ddr_sr_idle=sr_idle_time;
+}
+
+EXPORT_SYMBOL(ddr_set_auto_self_refresh);
+
 
 void __sramfunc ddr_suspend(void)
 {
@@ -2773,14 +2917,14 @@ void __sramfunc ddr_suspend(void)
     
     /** 1. Make sure there is no host access */
     flush_cache_all();
-	outer_flush_all();
-	flush_tlb_all();
+    outer_flush_all();
+    flush_tlb_all();
 
-	for(i=0;i<16;i++)
-	{
-	    n=temp[1024*i];
+    for(i=0;i<16;i++)
+    {
+        n=temp[1024*i];
         barrier();
-	}
+    }
     n= pDDR_Reg->SCFG.d32;
     n= pPHY_Reg->RIDR;
     n= pCRU_Reg->CRU_PLL_CON[0][0];
@@ -2866,7 +3010,8 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
-    ddr_freq = freq;    
+    ddr_freq = freq;
+    ddr_sr_idle = 0;
     switch(mem_type)
     {
         case DDR3:

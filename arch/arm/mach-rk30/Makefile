@@ -18,6 +18,7 @@ obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_CPU_IDLE) += cpuidle.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
+obj-$(CONFIG_DDR_FREQ) += ddr_freq.o
 
 obj-$(CONFIG_MACH_RK3066_SDK) += board-rk30-sdk.o board-rk30-sdk-key.o
 obj-$(CONFIG_MACH_RK30_SDK) += board-rk30-sdk.o board-rk30-sdk-key.o
