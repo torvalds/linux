@@ -361,6 +361,8 @@ struct x86_pmu {
 	void		(*cpu_starting)(int cpu);
 	void		(*cpu_dying)(int cpu);
 	void		(*cpu_dead)(int cpu);
+
+	void		(*check_microcode)(void);
 	void		(*flush_branch_stack)(void);
 
 	/*
@@ -373,7 +375,7 @@ struct x86_pmu {
 	 * Intel DebugStore bits
 	 */
 	int		bts, pebs;
-	int		bts_active, pebs_active;
+	int		bts_active, pebs_active, pebs_broken;
 	int		pebs_record_size;
 	void		(*drain_pebs)(struct pt_regs *regs);
 	struct event_constraint *pebs_constraints;
