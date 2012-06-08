@@ -28,6 +28,14 @@
 		regulator-boot-on;
 	};
 
+	vbat: fixedregulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "VBAT";
+		regulator-min-microvolt = <3750000>;
+		regulator-max-microvolt = <3750000>;
+		regulator-boot-on;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		debug0 {
