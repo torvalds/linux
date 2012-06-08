@@ -643,7 +643,7 @@ err_alloc_configs:
 
 		if (result) {
 			if (devpriv->tty) {
-				filp_close(devpriv->tty, 0);
+				filp_close(devpriv->tty, NULL);
 				devpriv->tty = NULL;
 			}
 		}
@@ -653,8 +653,8 @@ err_alloc_configs:
 
 static void serial_2002_close(struct comedi_device *dev)
 {
-	if (!IS_ERR(devpriv->tty) && (devpriv->tty != 0))
-		filp_close(devpriv->tty, 0);
+	if (!IS_ERR(devpriv->tty) && devpriv->tty)
+		filp_close(devpriv->tty, NULL);
 }
 
 static int serial2002_di_rinsn(struct comedi_device *dev,
@@ -819,7 +819,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_read = &serial2002_ai_rinsn;
 
 	/* analog output subdevice */
@@ -828,7 +828,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_write = &serial2002_ao_winsn;
 	s->insn_read = &serial2002_ao_rinsn;
 
@@ -838,7 +838,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_read = &serial2002_ei_rinsn;
 
 	return 1;
