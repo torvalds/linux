@@ -22,7 +22,6 @@ struct mc13xxx_regulator {
 	int vsel_shift;
 	int vsel_mask;
 	int hi_bit;
-	int const *voltages;
 };
 
 struct mc13xxx_regulator_priv {
@@ -35,8 +34,6 @@ struct mc13xxx_regulator_priv {
 
 extern int mc13xxx_sw_regulator(struct regulator_dev *rdev);
 extern int mc13xxx_sw_regulator_is_enabled(struct regulator_dev *rdev);
-extern int mc13xxx_regulator_list_voltage(struct regulator_dev *rdev,
-						unsigned selector);
 extern int mc13xxx_fixed_regulator_set_voltage(struct regulator_dev *rdev,
 		int min_uV, int max_uV, unsigned *selector);
 extern int mc13xxx_fixed_regulator_get_voltage(struct regulator_dev *rdev);
@@ -68,6 +65,7 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 		.desc = {						\
 			.name = #_name,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
+			.volt_table =  _voltages,			\
 			.ops = &_ops,			\
 			.type = REGULATOR_VOLTAGE,			\
 			.id = prefix ## _name,		\
@@ -78,7 +76,6 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 		.vsel_reg = prefix ## _vsel_reg,			\
 		.vsel_shift = prefix ## _vsel_reg ## _ ## _name ## VSEL,\
 		.vsel_mask = prefix ## _vsel_reg ## _ ## _name ## VSEL_M,\
-		.voltages =  _voltages,					\
 	}
 
 #define MC13xxx_FIXED_DEFINE(prefix, _name, _reg, _voltages, _ops)	\
@@ -86,6 +83,7 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 		.desc = {						\
 			.name = #_name,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
+			.volt_table =  _voltages,			\
 			.ops = &_ops,		\
 			.type = REGULATOR_VOLTAGE,			\
 			.id = prefix ## _name,		\
@@ -93,7 +91,6 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 		},							\
 		.reg = prefix ## _reg,				\
 		.enable_bit = prefix ## _reg ## _ ## _name ## EN,	\
-		.voltages =  _voltages,					\
 	}
 
 #define MC13xxx_GPO_DEFINE(prefix, _name, _reg,  _voltages, _ops)	\
@@ -101,6 +98,7 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 		.desc = {						\
 			.name = #_name,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
+			.volt_table =  _voltages,			\
 			.ops = &_ops,		\
 			.type = REGULATOR_VOLTAGE,			\
 			.id = prefix ## _name,		\
@@ -108,7 +106,6 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 		},							\
 		.reg = prefix ## _reg,				\
 		.enable_bit = prefix ## _reg ## _ ## _name ## EN,	\
-		.voltages =  _voltages,					\
 	}
 
 #define MC13xxx_DEFINE_SW(_name, _reg, _vsel_reg, _voltages, ops)	\
