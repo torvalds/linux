@@ -68,6 +68,7 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	root->d_fsdata = &sysfs_root;
 	sb->s_root = root;
+	sb->s_d_op = &sysfs_dentry_ops;
 	return 0;
 }
 
