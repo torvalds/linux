@@ -1735,7 +1735,7 @@ static int check_channel_list(struct comedi_device *dev,
 							"can't be mixtured!");
 				return 0;
 			}
-			if ((!devpriv->usemux) & (differencial) &
+			if (!devpriv->usemux && differencial &&
 			    (CR_CHAN(chanlist[i]) >= this_board->n_aichand)) {
 				comedi_error(dev,
 					     "If AREF_DIFF is used then is "
