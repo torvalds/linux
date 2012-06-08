@@ -323,7 +323,6 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 static u32 airtime_link_metric_get(struct ieee80211_local *local,
 				   struct sta_info *sta)
 {
-	struct ieee80211_supported_band *sband;
 	struct rate_info rinfo;
 	/* This should be adjusted for each device */
 	int device_constant = 1 << ARITH_SHIFT;
@@ -332,8 +331,6 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	int rate, err;
 	u32 tx_time, estimated_retx;
 	u64 result;
-
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	if (sta->fail_avg >= 100)
 		return MAX_METRIC;
