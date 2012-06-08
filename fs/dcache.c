@@ -2387,14 +2387,13 @@ static struct dentry *__d_unalias(struct inode *inode,
 		struct dentry *dentry, struct dentry *alias)
 {
 	struct mutex *m1 = NULL, *m2 = NULL;
-	struct dentry *ret;
+	struct dentry *ret = ERR_PTR(-EBUSY);
 
 	/* If alias and dentry share a parent, then no extra locks required */
 	if (alias->d_parent == dentry->d_parent)
 		goto out_unalias;
 
 	/* See lock_rename() */
-	ret = ERR_PTR(-EBUSY);
 	if (!mutex_trylock(&dentry->d_sb->s_vfs_rename_mutex))
 		goto out_err;
 	m1 = &dentry->d_sb->s_vfs_rename_mutex;
@@ -2402,8 +2401,10 @@ static struct dentry *__d_unalias(struct inode *inode,
 		goto out_err;
 	m2 = &alias->d_parent->d_inode->i_mutex;
 out_unalias:
-	__d_move(alias, dentry);
-	ret = alias;
+	if (likely(!d_mountpoint(alias))) {
+		__d_move(alias, dentry);
+		ret = alias;
+	}
 out_err:
 	spin_unlock(&inode->i_lock);
 	if (m2)
