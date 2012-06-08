@@ -1200,8 +1200,6 @@ xfs_mountfs(
 
 	xfs_set_maxicount(mp);
 
-	mp->m_maxioffset = xfs_max_file_offset(sbp->sb_blocklog);
-
 	error = xfs_uuid_mount(mp);
 	if (error)
 		goto out;

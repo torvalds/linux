@@ -323,10 +323,10 @@ xfs_map_blocks(
 
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
-	ASSERT(offset <= mp->m_maxioffset);
+	ASSERT(offset <= mp->m_super->s_maxbytes);
 
-	if (offset + count > mp->m_maxioffset)
-		count = mp->m_maxioffset - offset;
+	if (offset + count > mp->m_super->s_maxbytes)
+		count = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
@@ -1162,9 +1162,9 @@ __xfs_get_blocks(
 		lockmode = xfs_ilock_map_shared(ip);
 	}
 
-	ASSERT(offset <= mp->m_maxioffset);
-	if (offset + size > mp->m_maxioffset)
-		size = mp->m_maxioffset - offset;
+	ASSERT(offset <= mp->m_super->s_maxbytes);
+	if (offset + size > mp->m_super->s_maxbytes)
+		size = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + size);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 
