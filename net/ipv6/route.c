@@ -306,9 +306,10 @@ static u32 rt6_peer_genid(void)
 
 void rt6_bind_peer(struct rt6_info *rt, int create)
 {
+	struct net *net = dev_net(rt->dst.dev);
 	struct inet_peer *peer;
 
-	peer = inet_getpeer_v6(&rt->rt6i_dst.addr, create);
+	peer = inet_getpeer_v6(net, &rt->rt6i_dst.addr, create);
 	if (peer && cmpxchg(&rt->rt6i_peer, NULL, peer) != NULL)
 		inet_putpeer(peer);
 	else

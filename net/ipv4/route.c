@@ -1328,9 +1328,10 @@ static u32 rt_peer_genid(void)
 
 void rt_bind_peer(struct rtable *rt, __be32 daddr, int create)
 {
+	struct net *net = dev_net(rt->dst.dev);
 	struct inet_peer *peer;
 
-	peer = inet_getpeer_v4(daddr, create);
+	peer = inet_getpeer_v4(net, daddr, create);
 
 	if (peer && cmpxchg(&rt->peer, NULL, peer) != NULL)
 		inet_putpeer(peer);
@@ -1694,7 +1695,7 @@ unsigned short ip_rt_frag_needed(struct net *net, const struct iphdr *iph,
 	unsigned short est_mtu = 0;
 	struct inet_peer *peer;
 
-	peer = inet_getpeer_v4(iph->daddr, 1);
+	peer = inet_getpeer_v4(net, iph->daddr, 1);
 	if (peer) {
 		unsigned short mtu = new_mtu;
 
@@ -1935,6 +1936,7 @@ static unsigned int ipv4_mtu(const struct dst_entry *dst)
 static void rt_init_metrics(struct rtable *rt, const struct flowi4 *fl4,
 			    struct fib_info *fi)
 {
+	struct net *net = dev_net(rt->dst.dev);
 	struct inet_peer *peer;
 	int create = 0;
 
@@ -1944,7 +1946,7 @@ static void rt_init_metrics(struct rtable *rt, const struct flowi4 *fl4,
 	if (fl4 && (fl4->flowi4_flags & FLOWI_FLAG_PRECOW_METRICS))
 		create = 1;
 
-	rt->peer = peer = inet_getpeer_v4(rt->rt_dst, create);
+	rt->peer = peer = inet_getpeer_v4(net, rt->rt_dst, create);
 	if (peer) {
 		rt->rt_peer_genid = rt_peer_genid();
 		if (inet_metrics_new(peer))
