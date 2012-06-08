@@ -75,7 +75,7 @@ enum {
 
 // RK29+BCM4329, 其wifi与bt的power控制脚是接在一起的
 // 在给bt下电时，需要先判断wifi状态
-#if defined(CONFIG_ARCH_RK29) && defined(CONFIG_BCM4329)
+#if defined(CONFIG_BCM4329)
 #define WIFI_BT_POWER_TOGGLE    1
 extern int rk29sdk_bt_power_state;
 extern int rk29sdk_wifi_power_state;

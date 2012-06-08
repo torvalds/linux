@@ -46,10 +46,6 @@
 
 #include "hci_uart.h"
 
-#ifdef CONFIG_BT_AUTOSLEEP
-extern int rfkill_rk_sleep_bt(bool bSleep);
-#endif
-
 #define VERSION "2.2"
 
 static int reset = 0;
@@ -138,8 +134,14 @@ int hci_uart_tx_wakeup(struct hci_uart *hu)
 restart:
 	clear_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
 /*added by Barry,for broadcom 4325*/
-#ifdef CONFIG_BT_AUTOSLEEP  
-	rfkill_rk_sleep_bt(false);
+#ifdef CONFIG_BT_AUTOSLEEP
+#ifdef CONFIG_RFKILL_RK
+    extern int rfkill_rk_sleep_bt(bool bSleep);
+    rfkill_rk_sleep_bt(false);
+#else
+    extern void bcm4325_sleep(unsigned long bSleep);
+    bcm4325_sleep(0);
+#endif
 #endif
 	while ((skb = hci_uart_dequeue(hu))) {
 		int len;
