@@ -1863,6 +1863,62 @@ static int patch_atihdmi(struct hda_codec *codec)
 	return 0;
 }
 
+/* VIA HDMI Implementation */
+#define VIAHDMI_CVT_NID	0x02	/* audio converter1 */
+#define VIAHDMI_PIN_NID	0x03	/* HDMI output pin1 */
+
+static struct hda_verb viahdmi_basic_init[] = {
+	/* enable digital output on pin widget */
+	{ VIAHDMI_PIN_NID, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{} /* terminator */
+};
+
+static int via_hdmi_init(struct hda_codec *codec)
+{
+	snd_hda_sequence_write(codec, viahdmi_basic_init);
+	return 0;
+}
+
+static const struct hda_codec_ops via_hdmi_patch_ops = {
+	.build_controls = simple_playback_build_controls,
+	.build_pcms = simple_playback_build_pcms,
+	.init = via_hdmi_init,
+	.free = simple_playback_free,
+};
+
+static struct hda_pcm_stream via_hdmi_digital_playback = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	.nid = VIAHDMI_CVT_NID, /* NID to query formats and rates*/
+	.ops = {
+		.open = simple_playback_pcm_open,
+		.close = simple_playback_pcm_close,
+		.prepare = simple_playback_pcm_prepare
+	},
+};
+
+static int patch_via_hdmi(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (spec == NULL)
+		return -ENOMEM;
+
+	spec->multiout.num_dacs = 0;	  /* no analog */
+	spec->multiout.max_channels = 2;
+	spec->multiout.dig_out_nid = VIAHDMI_CVT_NID; /* pure-digital case */
+	spec->num_cvts = 1;
+	spec->cvts[0].cvt_nid = VIAHDMI_CVT_NID;
+	spec->pins[0].pin_nid = VIAHDMI_PIN_NID;
+	spec->pcm_playback = &via_hdmi_digital_playback;
+
+	codec->spec = spec;
+	codec->patch_ops = via_hdmi_patch_ops;
+
+	return 0;
+}
 
 /*
  * patch entries
@@ -1904,6 +1960,10 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x10de0044, .name = "GPU 44 HDMI/DP",	.patch = patch_generic_hdmi },
 { .id = 0x10de0067, .name = "MCP67 HDMI",	.patch = patch_nvhdmi_2ch },
 { .id = 0x10de8001, .name = "MCP73 HDMI",	.patch = patch_nvhdmi_2ch },
+{ .id = 0x11069f80, .name = "VX900 HDMI/DP",	.patch = patch_via_hdmi },
+{ .id = 0x11069f81, .name = "VX900 HDMI/DP",	.patch = patch_via_hdmi },
+{ .id = 0x11069f84, .name = "VX11 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x11069f85, .name = "VX11 HDMI/DP",	.patch = patch_generic_hdmi },
 { .id = 0x80860054, .name = "IbexPeak HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862801, .name = "Bearlake HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862802, .name = "Cantiga HDMI",	.patch = patch_generic_hdmi },
@@ -1950,6 +2010,10 @@ MODULE_ALIAS("snd-hda-codec-id:10de0043");
 MODULE_ALIAS("snd-hda-codec-id:10de0044");
 MODULE_ALIAS("snd-hda-codec-id:10de0067");
 MODULE_ALIAS("snd-hda-codec-id:10de8001");
+MODULE_ALIAS("snd-hda-codec-id:11069f80");
+MODULE_ALIAS("snd-hda-codec-id:11069f81");
+MODULE_ALIAS("snd-hda-codec-id:11069f84");
+MODULE_ALIAS("snd-hda-codec-id:11069f85");
 MODULE_ALIAS("snd-hda-codec-id:17e80047");
 MODULE_ALIAS("snd-hda-codec-id:80860054");
 MODULE_ALIAS("snd-hda-codec-id:80862801");
