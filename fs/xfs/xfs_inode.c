@@ -1226,7 +1226,7 @@ xfs_itruncate_extents(
 	 * then there is nothing to do.
 	 */
 	first_unmap_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)new_size);
-	last_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
+	last_block = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	if (first_unmap_block == last_block)
 		return 0;
 

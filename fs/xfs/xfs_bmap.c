@@ -5517,7 +5517,7 @@ xfs_getbmap(
 		if (xfs_get_extsz_hint(ip) ||
 		    ip->i_d.di_flags & (XFS_DIFLAG_PREALLOC|XFS_DIFLAG_APPEND)){
 			prealloced = 1;
-			fixlen = XFS_MAXIOFFSET(mp);
+			fixlen = mp->m_super->s_maxbytes;
 		} else {
 			prealloced = 0;
 			fixlen = XFS_ISIZE(ip);

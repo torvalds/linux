@@ -296,8 +296,6 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 			PAGE_CACHE_SIZE));
 }
 
-#define XFS_MAXIOFFSET(mp)	((mp)->m_super->s_maxbytes)
-
 #define XFS_LAST_UNMOUNT_WAS_CLEAN(mp)	\
 				((mp)->m_flags & XFS_MOUNT_WAS_CLEAN)
 #define XFS_FORCED_SHUTDOWN(mp)	((mp)->m_flags & XFS_MOUNT_FS_SHUTDOWN)

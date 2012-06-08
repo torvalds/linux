@@ -273,7 +273,7 @@ xfs_file_aio_read(
 		}
 	}
 
-	n = XFS_MAXIOFFSET(mp) - iocb->ki_pos;
+	n = mp->m_super->s_maxbytes - iocb->ki_pos;
 	if (n <= 0 || size == 0)
 		return 0;
 

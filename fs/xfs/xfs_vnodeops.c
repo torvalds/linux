@@ -174,7 +174,7 @@ xfs_free_eofblocks(
 	 * of the file.  If not, then there is nothing to do.
 	 */
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_ISIZE(ip));
-	last_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
+	last_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	if (last_fsb <= end_fsb)
 		return 0;
 	map_len = last_fsb - end_fsb;
@@ -2262,10 +2262,10 @@ xfs_change_file_space(
 
 	llen = bf->l_len > 0 ? bf->l_len - 1 : bf->l_len;
 
-	if (   (bf->l_start < 0)
-	    || (bf->l_start > XFS_MAXIOFFSET(mp))
-	    || (bf->l_start + llen < 0)
-	    || (bf->l_start + llen > XFS_MAXIOFFSET(mp)))
+	if (bf->l_start < 0 ||
+	    bf->l_start > mp->m_super->s_maxbytes ||
+	    bf->l_start + llen < 0 ||
+	    bf->l_start + llen > mp->m_super->s_maxbytes)
 		return XFS_ERROR(EINVAL);
 
 	bf->l_whence = 0;
