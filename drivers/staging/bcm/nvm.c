@@ -1378,7 +1378,7 @@ INT PropagateCalParamsFromEEPROMToMemory(struct bcm_mini_adapter *Adapter)
 	INT Status = 0;
 
 	if (pBuff == NULL)
-		return -1;
+		return -ENOMEM;
 
 	if (0 != BeceemEEPROMBulkRead(Adapter, &uiEepromSize, EEPROM_SIZE_OFFSET, 4)) {
 		kfree(pBuff);
@@ -1462,7 +1462,7 @@ INT PropagateCalParamsFromFlashToMemory(struct bcm_mini_adapter *Adapter)
 
 	pBuff = kmalloc(uiEepromSize, GFP_KERNEL);
 	if (pBuff == NULL)
-		return -1;
+		return -ENOMEM;
 
 	if (0 != BeceemNVMRead(Adapter, (PUINT)pBuff, uiCalStartAddr, uiEepromSize)) {
 		kfree(pBuff);
