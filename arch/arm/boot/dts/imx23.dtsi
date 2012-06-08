@@ -62,7 +62,7 @@
 				status = "disabled";
 			};
 
-			gpmi@8000c000 {
+			gpmi-nand@8000c000 {
 				reg = <0x8000c000 2000>;
 				status = "disabled";
 			};
