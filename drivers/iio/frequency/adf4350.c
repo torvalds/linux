@@ -272,7 +272,7 @@ static ssize_t adf4350_write(struct iio_dev *indio_dev,
 		adf4350_sync_config(st);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EINVAL;
 	}
 	mutex_unlock(&indio_dev->mlock);
 
@@ -311,7 +311,7 @@ static ssize_t adf4350_read(struct iio_dev *indio_dev,
 		val = !!(st->regs[ADF4350_REG2] & ADF4350_REG2_POWER_DOWN_EN);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EINVAL;
 	}
 	mutex_unlock(&indio_dev->mlock);
 
