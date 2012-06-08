@@ -54,7 +54,7 @@ struct adf4350_state {
 static struct adf4350_platform_data default_pdata = {
 	.clkin = 122880000,
 	.channel_spacing = 10000,
-	.r2_user_settings = ADF4350_REG2_PD_POLARITY_POS,
+	.r2_user_settings = ADF4350_REG2_PD_POLARITY_POS |
 			    ADF4350_REG2_CHARGE_PUMP_CURR_uA(2500),
 	.r3_user_settings = ADF4350_REG3_12BIT_CLKDIV_MODE(0),
 	.r4_user_settings = ADF4350_REG4_OUTPUT_PWR(3) |
