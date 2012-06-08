@@ -27,7 +27,6 @@ config COLDFIRE
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
-	select CPU_HAS_NO_UNALIGNED
 	select GENERIC_CSUM
 
 endchoice
