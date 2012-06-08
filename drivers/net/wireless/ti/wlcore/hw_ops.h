@@ -119,4 +119,82 @@ static inline int wlcore_identify_fw(struct wl1271 *wl)
 	return 0;
 }
 
+static inline void
+wlcore_hw_set_tx_desc_csum(struct wl1271 *wl,
+			   struct wl1271_tx_hw_descr *desc,
+			   struct sk_buff *skb)
+{
+	if (!wl->ops->set_tx_desc_csum)
+		BUG_ON(1);
+
+	wl->ops->set_tx_desc_csum(wl, desc, skb);
+}
+
+static inline void
+wlcore_hw_set_rx_csum(struct wl1271 *wl,
+		      struct wl1271_rx_descriptor *desc,
+		      struct sk_buff *skb)
+{
+	if (wl->ops->set_rx_csum)
+		wl->ops->set_rx_csum(wl, desc, skb);
+}
+
+static inline u32
+wlcore_hw_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
+				     struct wl12xx_vif *wlvif)
+{
+	if (wl->ops->ap_get_mimo_wide_rate_mask)
+		return wl->ops->ap_get_mimo_wide_rate_mask(wl, wlvif);
+
+	return 0;
+}
+
+static inline int
+wlcore_debugfs_init(struct wl1271 *wl, struct dentry *rootdir)
+{
+	if (wl->ops->debugfs_init)
+		return wl->ops->debugfs_init(wl, rootdir);
+
+	return 0;
+}
+
+static inline int
+wlcore_handle_static_data(struct wl1271 *wl, void *static_data)
+{
+	if (wl->ops->handle_static_data)
+		return wl->ops->handle_static_data(wl, static_data);
+
+	return 0;
+}
+
+static inline int
+wlcore_hw_get_spare_blocks(struct wl1271 *wl, bool is_gem)
+{
+	if (!wl->ops->get_spare_blocks)
+		BUG_ON(1);
+
+	return wl->ops->get_spare_blocks(wl, is_gem);
+}
+
+static inline int
+wlcore_hw_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
+		  struct ieee80211_vif *vif,
+		  struct ieee80211_sta *sta,
+		  struct ieee80211_key_conf *key_conf)
+{
+	if (!wl->ops->set_key)
+		BUG_ON(1);
+
+	return wl->ops->set_key(wl, cmd, vif, sta, key_conf);
+}
+
+static inline u32
+wlcore_hw_pre_pkt_send(struct wl1271 *wl, u32 buf_offset, u32 last_len)
+{
+	if (wl->ops->pre_pkt_send)
+		return wl->ops->pre_pkt_send(wl, buf_offset, last_len);
+
+	return buf_offset;
+}
+
 #endif

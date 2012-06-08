@@ -1,7 +1,7 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl18xx
  *
- * Copyright (C) 2011 Texas Instruments Inc.
+ * Copyright (C) 2012 Texas Instruments. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,21 +19,10 @@
  *
  */
 
-#ifndef __WL12XX_PRIV_H__
-#define __WL12XX_PRIV_H__
+#ifndef __WL18XX_DEBUGFS_H__
+#define __WL18XX_DEBUGFS_H__
 
-#include "conf.h"
+int wl18xx_debugfs_add_files(struct wl1271 *wl,
+			     struct dentry *rootdir);
 
-struct wl127x_rx_mem_pool_addr {
-	u32 addr;
-	u32 addr_extra;
-};
-
-struct wl12xx_priv {
-	struct wl12xx_priv_conf conf;
-
-	int ref_clock;
-	int tcxo_clock;
-};
-
-#endif /* __WL12XX_PRIV_H__ */
+#endif /* __WL18XX_DEBUGFS_H__ */

@@ -39,6 +39,10 @@
 #include "reg.h"
 #include "cmd.h"
 #include "acx.h"
+#include "debugfs.h"
+
+static char *fref_param;
+static char *tcxo_param;
 
 static struct wlcore_conf wl12xx_conf = {
 	.sg = {
@@ -212,7 +216,7 @@ static struct wlcore_conf wl12xx_conf = {
 		.suspend_wake_up_event       = CONF_WAKE_UP_EVENT_N_DTIM,
 		.suspend_listen_interval     = 3,
 		.bcn_filt_mode               = CONF_BCN_FILT_MODE_ENABLED,
-		.bcn_filt_ie_count           = 2,
+		.bcn_filt_ie_count           = 3,
 		.bcn_filt_ie = {
 			[0] = {
 				.ie          = WLAN_EID_CHANNEL_SWITCH,
@@ -222,9 +226,13 @@ static struct wlcore_conf wl12xx_conf = {
 				.ie          = WLAN_EID_HT_OPERATION,
 				.rule        = CONF_BCN_RULE_PASS_ON_CHANGE,
 			},
+			[2] = {
+				.ie	     = WLAN_EID_ERP_INFO,
+				.rule	     = CONF_BCN_RULE_PASS_ON_CHANGE,
+			},
 		},
-		.synch_fail_thold            = 10,
-		.bss_lose_timeout            = 100,
+		.synch_fail_thold            = 12,
+		.bss_lose_timeout            = 400,
 		.beacon_rx_timeout           = 10000,
 		.broadcast_timeout           = 20000,
 		.rx_broadcast_in_ps          = 1,
@@ -234,7 +242,7 @@ static struct wlcore_conf wl12xx_conf = {
 		.psm_entry_retries           = 8,
 		.psm_exit_retries            = 16,
 		.psm_entry_nullfunc_retries  = 3,
-		.dynamic_ps_timeout          = 40,
+		.dynamic_ps_timeout          = 200,
 		.forced_ps                   = false,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
@@ -245,7 +253,7 @@ static struct wlcore_conf wl12xx_conf = {
 	},
 	.pm_config = {
 		.host_clk_settling_time = 5000,
-		.host_fast_wakeup_support = false
+		.host_fast_wakeup_support = CONF_FAST_WAKEUP_DISABLE,
 	},
 	.roam_trigger = {
 		.trigger_pacing               = 1,
@@ -305,8 +313,8 @@ static struct wlcore_conf wl12xx_conf = {
 		.swallow_period               = 5,
 		.n_divider_fref_set_1         = 0xff,       /* default */
 		.n_divider_fref_set_2         = 12,
-		.m_divider_fref_set_1         = 148,
-		.m_divider_fref_set_2         = 0xffff,     /* default */
+		.m_divider_fref_set_1         = 0xffff,
+		.m_divider_fref_set_2         = 148,	    /* default */
 		.coex_pll_stabilization_time  = 0xffffffff, /* default */
 		.ldo_stabilization_time       = 0xffff,     /* default */
 		.fm_disturbed_band_margin     = 0xff,       /* default */
@@ -593,7 +601,7 @@ static void wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 {
 	if (wl->chip.id != CHIP_ID_1283_PG20) {
 		struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
-		struct wl1271_rx_mem_pool_addr rx_mem_addr;
+		struct wl127x_rx_mem_pool_addr rx_mem_addr;
 
 		/*
 		 * Choose the block we want to read
@@ -621,10 +629,8 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl1271_warning("chip id 0x%x (1271 PG10) support is obsolete",
 			       wl->chip.id);
 
-		/* clear the alignment quirk, since we don't support it */
-		wl->quirks &= ~WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
-
-		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS;
+		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
 		memcpy(&wl->conf.mem, &wl12xx_default_priv_conf.mem_wl127x,
@@ -639,10 +645,8 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
 			     wl->chip.id);
 
-		/* clear the alignment quirk, since we don't support it */
-		wl->quirks &= ~WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
-
-		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS;
+		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 		wl->plt_fw_name = WL127X_PLT_FW_NAME;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
@@ -660,6 +664,11 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl->plt_fw_name = WL128X_PLT_FW_NAME;
 		wl->sr_fw_name = WL128X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL128X_FW_NAME_MULTI;
+
+		/* wl128x requires TX blocksize alignment */
+		wl->quirks |= WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
+			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
+
 		break;
 	case CHIP_ID_1283_PG10:
 	default:
@@ -773,6 +782,7 @@ static int wl128x_configure_mcs_pll(struct wl1271 *wl, int clk)
 	u16 spare_reg;
 	u16 pll_config;
 	u8 input_freq;
+	struct wl12xx_priv *priv = wl->priv;
 
 	/* Mask bits [3:1] in the sys_clk_cfg register */
 	spare_reg = wl12xx_top_reg_read(wl, WL_SPARE_REG);
@@ -782,8 +792,8 @@ static int wl128x_configure_mcs_pll(struct wl1271 *wl, int clk)
 	wl12xx_top_reg_write(wl, WL_SPARE_REG, spare_reg);
 
 	/* Handle special cases of the TCXO clock */
-	if (wl->tcxo_clock == WL12XX_TCXOCLOCK_16_8 ||
-	    wl->tcxo_clock == WL12XX_TCXOCLOCK_33_6)
+	if (priv->tcxo_clock == WL12XX_TCXOCLOCK_16_8 ||
+	    priv->tcxo_clock == WL12XX_TCXOCLOCK_33_6)
 		return wl128x_manually_configure_mcs_pll(wl);
 
 	/* Set the input frequency according to the selected clock source */
@@ -808,11 +818,12 @@ static int wl128x_configure_mcs_pll(struct wl1271 *wl, int clk)
  */
 static int wl128x_boot_clk(struct wl1271 *wl, int *selected_clock)
 {
+	struct wl12xx_priv *priv = wl->priv;
 	u16 sys_clk_cfg;
 
 	/* For XTAL-only modes, FREF will be used after switching from TCXO */
-	if (wl->ref_clock == WL12XX_REFCLOCK_26_XTAL ||
-	    wl->ref_clock == WL12XX_REFCLOCK_38_XTAL) {
+	if (priv->ref_clock == WL12XX_REFCLOCK_26_XTAL ||
+	    priv->ref_clock == WL12XX_REFCLOCK_38_XTAL) {
 		if (!wl128x_switch_tcxo_to_fref(wl))
 			return -EINVAL;
 		goto fref_clk;
@@ -826,8 +837,8 @@ static int wl128x_boot_clk(struct wl1271 *wl, int *selected_clock)
 		goto fref_clk;
 
 	/* If TCXO is either 32.736MHz or 16.368MHz, switch to FREF */
-	if (wl->tcxo_clock == WL12XX_TCXOCLOCK_16_368 ||
-	    wl->tcxo_clock == WL12XX_TCXOCLOCK_32_736) {
+	if (priv->tcxo_clock == WL12XX_TCXOCLOCK_16_368 ||
+	    priv->tcxo_clock == WL12XX_TCXOCLOCK_32_736) {
 		if (!wl128x_switch_tcxo_to_fref(wl))
 			return -EINVAL;
 		goto fref_clk;
@@ -836,14 +847,14 @@ static int wl128x_boot_clk(struct wl1271 *wl, int *selected_clock)
 	/* TCXO clock is selected */
 	if (!wl128x_is_tcxo_valid(wl))
 		return -EINVAL;
-	*selected_clock = wl->tcxo_clock;
+	*selected_clock = priv->tcxo_clock;
 	goto config_mcs_pll;
 
 fref_clk:
 	/* FREF clock is selected */
 	if (!wl128x_is_fref_valid(wl))
 		return -EINVAL;
-	*selected_clock = wl->ref_clock;
+	*selected_clock = priv->ref_clock;
 
 config_mcs_pll:
 	return wl128x_configure_mcs_pll(wl, *selected_clock);
@@ -851,25 +862,27 @@ config_mcs_pll:
 
 static int wl127x_boot_clk(struct wl1271 *wl)
 {
+	struct wl12xx_priv *priv = wl->priv;
 	u32 pause;
 	u32 clk;
 
 	if (WL127X_PG_GET_MAJOR(wl->hw_pg_ver) < 3)
 		wl->quirks |= WLCORE_QUIRK_END_OF_TRANSACTION;
 
-	if (wl->ref_clock == CONF_REF_CLK_19_2_E ||
-	    wl->ref_clock == CONF_REF_CLK_38_4_E ||
-	    wl->ref_clock == CONF_REF_CLK_38_4_M_XTAL)
+	if (priv->ref_clock == CONF_REF_CLK_19_2_E ||
+	    priv->ref_clock == CONF_REF_CLK_38_4_E ||
+	    priv->ref_clock == CONF_REF_CLK_38_4_M_XTAL)
 		/* ref clk: 19.2/38.4/38.4-XTAL */
 		clk = 0x3;
-	else if (wl->ref_clock == CONF_REF_CLK_26_E ||
-		 wl->ref_clock == CONF_REF_CLK_52_E)
+	else if (priv->ref_clock == CONF_REF_CLK_26_E ||
+		 priv->ref_clock == CONF_REF_CLK_26_M_XTAL ||
+		 priv->ref_clock == CONF_REF_CLK_52_E)
 		/* ref clk: 26/52 */
 		clk = 0x5;
 	else
 		return -EINVAL;
 
-	if (wl->ref_clock != CONF_REF_CLK_19_2_E) {
+	if (priv->ref_clock != CONF_REF_CLK_19_2_E) {
 		u16 val;
 		/* Set clock type (open drain) */
 		val = wl12xx_top_reg_read(wl, OCP_REG_CLK_TYPE);
@@ -939,6 +952,7 @@ static int wl1271_boot_soft_reset(struct wl1271 *wl)
 
 static int wl12xx_pre_boot(struct wl1271 *wl)
 {
+	struct wl12xx_priv *priv = wl->priv;
 	int ret = 0;
 	u32 clk;
 	int selected_clock = -1;
@@ -970,7 +984,7 @@ static int wl12xx_pre_boot(struct wl1271 *wl)
 	if (wl->chip.id == CHIP_ID_1283_PG20)
 		clk |= ((selected_clock & 0x3) << 1) << 4;
 	else
-		clk |= (wl->ref_clock << 1) << 4;
+		clk |= (priv->ref_clock << 1) << 4;
 
 	wl1271_write32(wl, WL12XX_DRPW_SCRATCH_START, clk);
 
@@ -989,7 +1003,7 @@ out:
 
 static void wl12xx_pre_upload(struct wl1271 *wl)
 {
-	u32 tmp;
+	u32 tmp, polarity;
 
 	/* write firmware's last address (ie. it's length) to
 	 * ACX_EEPROMLESS_IND_REG */
@@ -1009,23 +1023,23 @@ static void wl12xx_pre_upload(struct wl1271 *wl)
 
 	if (wl->chip.id == CHIP_ID_1283_PG20)
 		wl12xx_top_reg_write(wl, SDIO_IO_DS, HCI_IO_DS_6MA);
-}
 
-static void wl12xx_enable_interrupts(struct wl1271 *wl)
-{
-	u32 polarity;
-
+	/* polarity must be set before the firmware is loaded */
 	polarity = wl12xx_top_reg_read(wl, OCP_REG_POLARITY);
 
 	/* We use HIGH polarity, so unset the LOW bit */
 	polarity &= ~POLARITY_LOW;
 	wl12xx_top_reg_write(wl, OCP_REG_POLARITY, polarity);
 
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL1271_ACX_ALL_EVENTS_VECTOR);
+}
+
+static void wl12xx_enable_interrupts(struct wl1271 *wl)
+{
+	wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL12XX_ACX_ALL_EVENTS_VECTOR);
 
 	wlcore_enable_interrupts(wl);
 	wlcore_write_reg(wl, REG_INTERRUPT_MASK,
-			 WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
+			 WL1271_ACX_INTR_ALL & ~(WL12XX_INTR_MASK));
 
 	wl1271_write32(wl, WL12XX_HI_CFG, HI_CFG_DEF_VAL);
 }
@@ -1149,7 +1163,8 @@ static u32 wl12xx_get_rx_packet_len(struct wl1271 *wl, void *rx_data,
 
 static void wl12xx_tx_delayed_compl(struct wl1271 *wl)
 {
-	if (wl->fw_status->tx_results_counter == (wl->tx_results_count & 0xff))
+	if (wl->fw_status_1->tx_results_counter ==
+	    (wl->tx_results_count & 0xff))
 		return;
 
 	wl1271_tx_complete(wl);
@@ -1288,10 +1303,90 @@ static void wl12xx_get_mac(struct wl1271 *wl)
 		wl12xx_get_fuse_mac(wl);
 }
 
+static void wl12xx_set_tx_desc_csum(struct wl1271 *wl,
+				    struct wl1271_tx_hw_descr *desc,
+				    struct sk_buff *skb)
+{
+	desc->wl12xx_reserved = 0;
+}
+
+static int wl12xx_plt_init(struct wl1271 *wl)
+{
+	int ret;
+
+	ret = wl->ops->boot(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl->ops->hw_init(wl);
+	if (ret < 0)
+		goto out_irq_disable;
+
+	ret = wl1271_acx_init_mem_config(wl);
+	if (ret < 0)
+		goto out_irq_disable;
+
+	ret = wl12xx_acx_mem_cfg(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Enable data path */
+	ret = wl1271_cmd_data_path(wl, 1);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Configure for CAM power saving (ie. always active) */
+	ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* configure PM */
+	ret = wl1271_acx_pm_config(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	goto out;
+
+out_free_memmap:
+	kfree(wl->target_mem_map);
+	wl->target_mem_map = NULL;
+
+out_irq_disable:
+	mutex_unlock(&wl->mutex);
+	/* Unlocking the mutex in the middle of handling is
+	   inherently unsafe. In this case we deem it safe to do,
+	   because we need to let any possibly pending IRQ out of
+	   the system (and while we are WL1271_STATE_OFF the IRQ
+	   work function will not do anything.) Also, any other
+	   possible concurrent operations will fail due to the
+	   current state, hence the wl1271 struct should be safe. */
+	wlcore_disable_interrupts(wl);
+	mutex_lock(&wl->mutex);
+out:
+	return ret;
+}
+
+static int wl12xx_get_spare_blocks(struct wl1271 *wl, bool is_gem)
+{
+	if (is_gem)
+		return WL12XX_TX_HW_BLOCK_GEM_SPARE;
+
+	return WL12XX_TX_HW_BLOCK_SPARE_DEFAULT;
+}
+
+static int wl12xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
+			  struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta,
+			  struct ieee80211_key_conf *key_conf)
+{
+	return wlcore_set_key(wl, cmd, vif, sta, key_conf);
+}
+
 static struct wlcore_ops wl12xx_ops = {
 	.identify_chip		= wl12xx_identify_chip,
 	.identify_fw		= wl12xx_identify_fw,
 	.boot			= wl12xx_boot,
+	.plt_init		= wl12xx_plt_init,
 	.trigger_cmd		= wl12xx_trigger_cmd,
 	.ack_event		= wl12xx_ack_event,
 	.calc_tx_blocks		= wl12xx_calc_tx_blocks,
@@ -1306,6 +1401,13 @@ static struct wlcore_ops wl12xx_ops = {
 	.sta_get_ap_rate_mask	= wl12xx_sta_get_ap_rate_mask,
 	.get_pg_ver		= wl12xx_get_pg_ver,
 	.get_mac		= wl12xx_get_mac,
+	.set_tx_desc_csum	= wl12xx_set_tx_desc_csum,
+	.set_rx_csum		= NULL,
+	.ap_get_mimo_wide_rate_mask = NULL,
+	.debugfs_init		= wl12xx_debugfs_add_files,
+	.get_spare_blocks	= wl12xx_get_spare_blocks,
+	.set_key		= wl12xx_set_key,
+	.pre_pkt_send		= NULL,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
@@ -1323,6 +1425,7 @@ static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
 
 static int __devinit wl12xx_probe(struct platform_device *pdev)
 {
+	struct wl12xx_platform_data *pdata = pdev->dev.platform_data;
 	struct wl1271 *wl;
 	struct ieee80211_hw *hw;
 	struct wl12xx_priv *priv;
@@ -1334,18 +1437,64 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	}
 
 	wl = hw->priv;
+	priv = wl->priv;
 	wl->ops = &wl12xx_ops;
 	wl->ptable = wl12xx_ptable;
 	wl->rtable = wl12xx_rtable;
 	wl->num_tx_desc = 16;
-	wl->normal_tx_spare = WL12XX_TX_HW_BLOCK_SPARE_DEFAULT;
-	wl->gem_tx_spare = WL12XX_TX_HW_BLOCK_GEM_SPARE;
+	wl->num_rx_desc = 8;
 	wl->band_rate_to_idx = wl12xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL12XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL12XX_CONF_HW_RXTX_RATE_MCS0;
 	wl->fw_status_priv_len = 0;
-	memcpy(&wl->ht_cap, &wl12xx_ht_cap, sizeof(wl12xx_ht_cap));
+	wl->stats.fw_stats_len = sizeof(struct wl12xx_acx_statistics);
+	memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ], &wl12xx_ht_cap,
+	       sizeof(wl12xx_ht_cap));
+	memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ], &wl12xx_ht_cap,
+	       sizeof(wl12xx_ht_cap));
 	wl12xx_conf_init(wl);
+
+	if (!fref_param) {
+		priv->ref_clock = pdata->board_ref_clock;
+	} else {
+		if (!strcmp(fref_param, "19.2"))
+			priv->ref_clock = WL12XX_REFCLOCK_19;
+		else if (!strcmp(fref_param, "26"))
+			priv->ref_clock = WL12XX_REFCLOCK_26;
+		else if (!strcmp(fref_param, "26x"))
+			priv->ref_clock = WL12XX_REFCLOCK_26_XTAL;
+		else if (!strcmp(fref_param, "38.4"))
+			priv->ref_clock = WL12XX_REFCLOCK_38;
+		else if (!strcmp(fref_param, "38.4x"))
+			priv->ref_clock = WL12XX_REFCLOCK_38_XTAL;
+		else if (!strcmp(fref_param, "52"))
+			priv->ref_clock = WL12XX_REFCLOCK_52;
+		else
+			wl1271_error("Invalid fref parameter %s", fref_param);
+	}
+
+	if (!tcxo_param) {
+		priv->tcxo_clock = pdata->board_tcxo_clock;
+	} else {
+		if (!strcmp(tcxo_param, "19.2"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_19_2;
+		else if (!strcmp(tcxo_param, "26"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_26;
+		else if (!strcmp(tcxo_param, "38.4"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_38_4;
+		else if (!strcmp(tcxo_param, "52"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_52;
+		else if (!strcmp(tcxo_param, "16.368"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_16_368;
+		else if (!strcmp(tcxo_param, "32.736"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_32_736;
+		else if (!strcmp(tcxo_param, "16.8"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_16_8;
+		else if (!strcmp(tcxo_param, "33.6"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_33_6;
+		else
+			wl1271_error("Invalid tcxo parameter %s", tcxo_param);
+	}
 
 	return wlcore_probe(wl, pdev);
 }
@@ -1377,6 +1526,13 @@ static void __exit wl12xx_exit(void)
 	platform_driver_unregister(&wl12xx_driver);
 }
 module_exit(wl12xx_exit);
+
+module_param_named(fref, fref_param, charp, 0);
+MODULE_PARM_DESC(fref, "FREF clock: 19.2, 26, 26x, 38.4, 38.4x, 52");
+
+module_param_named(tcxo, tcxo_param, charp, 0);
+MODULE_PARM_DESC(tcxo,
+		 "TCXO clock: 19.2, 26, 38.4, 52, 16.368, 32.736, 16.8, 33.6");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");

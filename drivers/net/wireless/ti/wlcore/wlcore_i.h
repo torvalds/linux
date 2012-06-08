@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL12XX_H__
-#define __WL12XX_H__
+#ifndef __WLCORE_I_H__
+#define __WLCORE_I_H__
 
 #include <linux/mutex.h>
 #include <linux/completion.h>
@@ -89,7 +89,7 @@
 #define WL1271_AP_BSS_INDEX        0
 #define WL1271_AP_DEF_BEACON_EXP   20
 
-#define WL1271_AGGR_BUFFER_SIZE (4 * PAGE_SIZE)
+#define WL1271_AGGR_BUFFER_SIZE (5 * PAGE_SIZE)
 
 enum wl1271_state {
 	WL1271_STATE_OFF,
@@ -132,16 +132,7 @@ struct wl1271_chip {
 	unsigned int fw_ver[NUM_FW_VER];
 };
 
-struct wl1271_stats {
-	struct acx_statistics *fw_stats;
-	unsigned long fw_stats_update;
-
-	unsigned int retry_count;
-	unsigned int excessive_retries;
-};
-
 #define NUM_TX_QUEUES              4
-#define NUM_RX_PKT_DESC            8
 
 #define AP_MAX_STATIONS            8
 
@@ -159,13 +150,26 @@ struct wl_fw_packet_counters {
 } __packed;
 
 /* FW status registers */
-struct wl_fw_status {
+struct wl_fw_status_1 {
 	__le32 intr;
 	u8  fw_rx_counter;
 	u8  drv_rx_counter;
 	u8  reserved;
 	u8  tx_results_counter;
-	__le32 rx_pkt_descs[NUM_RX_PKT_DESC];
+	__le32 rx_pkt_descs[0];
+} __packed;
+
+/*
+ * Each HW arch has a different number of Rx descriptors.
+ * The length of the status depends on it, since it holds an array
+ * of descriptors.
+ */
+#define WLCORE_FW_STATUS_1_LEN(num_rx_desc) \
+		(sizeof(struct wl_fw_status_1) + \
+		(sizeof(((struct wl_fw_status_1 *)0)->rx_pkt_descs[0])) * \
+		num_rx_desc)
+
+struct wl_fw_status_2 {
 	__le32 fw_localtime;
 
 	/*
@@ -193,11 +197,6 @@ struct wl_fw_status {
 	/* Private status to be used by the lower drivers */
 	u8 priv[0];
 } __packed;
-
-struct wl1271_rx_mem_pool_addr {
-	u32 addr;
-	u32 addr_extra;
-};
 
 #define WL1271_MAX_CHANNELS 64
 struct wl1271_scan {
@@ -367,6 +366,7 @@ struct wl12xx_vif {
 	/* The current band */
 	enum ieee80211_band band;
 	int channel;
+	enum nl80211_channel_type channel_type;
 
 	u32 bitrate_masks[IEEE80211_NUM_BANDS];
 	u32 basic_rate_set;
@@ -416,9 +416,6 @@ struct wl12xx_vif {
 	struct work_struct rx_streaming_enable_work;
 	struct work_struct rx_streaming_disable_work;
 	struct timer_list rx_streaming_timer;
-
-	/* does the current role use GEM for encryption (AP or STA) */
-	bool is_gem;
 
 	/*
 	 * This struct must be last!
@@ -501,7 +498,8 @@ void wl1271_rx_filter_flatten_fields(struct wl12xx_rx_filter *filter,
 /* Macros to handle wl1271.sta_rate_set */
 #define HW_BG_RATES_MASK	0xffff
 #define HW_HT_RATES_OFFSET	16
+#define HW_MIMO_RATES_OFFSET	24
 
 #define WL12XX_HW_BLOCK_SIZE	256
 
-#endif
+#endif /* __WLCORE_I_H__ */
