@@ -1037,7 +1037,7 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			DBG(cdev, "MTP_REQ_CANCEL %d\n", dev->state);
 
 			spin_lock_irqsave(&dev->lock, flags);
-			if (dev->state == STATE_BUSY) {
+			/*if (dev->state == STATE_BUSY)*/ {
 				dev->state = STATE_CANCELED;
 				wake_up(&dev->read_wq);
 				wake_up(&dev->write_wq);
