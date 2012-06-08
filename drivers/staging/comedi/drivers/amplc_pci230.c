@@ -1387,6 +1387,8 @@ static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
 		/* Delay.  Should driver be responsible for this? */
 		/* XXX TODO: See if DAC busy bit can be used. */
 		udelay(8);
+	} else {
+		spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
 	}
 
 	return 1;
