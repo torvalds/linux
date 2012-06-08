@@ -1,7 +1,3 @@
-obj-$(CONFIG_IWLDVM)	+= dvm/
-
-CFLAGS_iwl-devtrace.o := -I$(src)
-
 # common
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi.o
 iwlwifi-objs		+= iwl-io.o
@@ -16,3 +12,8 @@ iwlwifi-$(CONFIG_IWLWIFI_DEVICE_TRACING) += iwl-devtrace.o
 iwlwifi-$(CONFIG_IWLWIFI_DEVICE_TESTMODE) += iwl-test.o
 
 ccflags-y += -D__CHECK_ENDIAN__ -I$(src)
+
+
+obj-$(CONFIG_IWLDVM)	+= dvm/
+
+CFLAGS_iwl-devtrace.o := -I$(src)
