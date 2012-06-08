@@ -2484,9 +2484,9 @@ static void azx_notifier_unregister(struct azx *chip)
 static int DELAYED_INIT_MARK azx_first_init(struct azx *chip);
 static int DELAYED_INIT_MARK azx_probe_continue(struct azx *chip);
 
+#ifdef SUPPORT_VGA_SWITCHEROO
 static struct pci_dev __devinit *get_bound_vga(struct pci_dev *pci);
 
-#ifdef SUPPORT_VGA_SWITCHEROO
 static void azx_vs_set_state(struct pci_dev *pci,
 			     enum vga_switcheroo_state state)
 {
@@ -2578,6 +2578,7 @@ static int __devinit register_vga_switcheroo(struct azx *chip)
 #else
 #define init_vga_switcheroo(chip)		/* NOP */
 #define register_vga_switcheroo(chip)		0
+#define check_hdmi_disabled(pci)	false
 #endif /* SUPPORT_VGA_SWITCHER */
 
 /*
@@ -2638,6 +2639,7 @@ static int azx_dev_free(struct snd_device *device)
 	return azx_free(device->device_data);
 }
 
+#ifdef SUPPORT_VGA_SWITCHEROO
 /*
  * Check of disabled HDMI controller by vga-switcheroo
  */
@@ -2676,6 +2678,7 @@ static bool __devinit check_hdmi_disabled(struct pci_dev *pci)
 	}
 	return vga_inactive;
 }
+#endif /* SUPPORT_VGA_SWITCHEROO */
 
 /*
  * white/black-listing for position_fix
