@@ -990,8 +990,6 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 			      struct ocrdma_dev_attr *attr,
 			      struct ocrdma_mbx_query_config *rsp)
 {
-	int max_q_mem;
-
 	attr->max_pd =
 	    (rsp->max_pd_ca_ack_delay & OCRDMA_MBX_QUERY_CFG_MAX_PD_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_PD_SHIFT;
@@ -1037,18 +1035,15 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_inline_data =
 	    attr->wqe_size - (sizeof(struct ocrdma_hdr_wqe) +
 			      sizeof(struct ocrdma_sge));
-	max_q_mem = OCRDMA_Q_PAGE_BASE_SIZE << (OCRDMA_MAX_Q_PAGE_SIZE_CNT - 1);
-	/* hw can queue one less then the configured size,
-	 * so publish less by one to stack.
-	 */
 	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		dev->attr.max_wqe = max_q_mem / dev->attr.wqe_size;
 		attr->ird = 1;
 		attr->ird_page_size = OCRDMA_MIN_Q_PAGE_SIZE;
 		attr->num_ird_pages = MAX_OCRDMA_IRD_PAGES;
-	} else
-		dev->attr.max_wqe = (max_q_mem / dev->attr.wqe_size) - 1;
-	dev->attr.max_rqe = (max_q_mem / dev->attr.rqe_size) - 1;
+	}
+	dev->attr.max_wqe = rsp->max_wqes_rqes_per_q >>
+		 OCRDMA_MBX_QUERY_CFG_MAX_WQES_PER_WQ_OFFSET;
+	dev->attr.max_rqe = rsp->max_wqes_rqes_per_q &
+		OCRDMA_MBX_QUERY_CFG_MAX_RQES_PER_RQ_MASK;
 }
 
 static int ocrdma_check_fw_config(struct ocrdma_dev *dev,
