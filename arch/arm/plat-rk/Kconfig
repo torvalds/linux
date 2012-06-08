@@ -88,7 +88,7 @@ config DDR_SDRAM_FREQ
 
 config DDR_FREQ
 	bool "Enable DDR frequency scaling"
-	select RK_SRAM_DMA
+	select RK_SRAM_DMA if ARCH_RK30
 
 config DDR_TEST
 	bool "DDR Test"
