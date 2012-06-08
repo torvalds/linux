@@ -88,18 +88,6 @@ struct inet_peer_base {
 	int		total;
 };
 
-static struct inet_peer_base v4_peers = {
-	.root		= peer_avl_empty_rcu,
-	.lock		= __SEQLOCK_UNLOCKED(v4_peers.lock),
-	.total		= 0,
-};
-
-static struct inet_peer_base v6_peers = {
-	.root		= peer_avl_empty_rcu,
-	.lock		= __SEQLOCK_UNLOCKED(v6_peers.lock),
-	.total		= 0,
-};
-
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
 
 /* Exported for sysctl_net_ipv4.  */
@@ -153,6 +141,46 @@ static void inetpeer_gc_worker(struct work_struct *work)
 	schedule_delayed_work(&gc_work, gc_delay);
 }
 
+static int __net_init inetpeer_net_init(struct net *net)
+{
+	net->ipv4.peers = kzalloc(sizeof(struct inet_peer_base),
+				  GFP_KERNEL);
+	if (net->ipv4.peers == NULL)
+		return -ENOMEM;
+
+	net->ipv4.peers->root = peer_avl_empty_rcu;
+	seqlock_init(&net->ipv4.peers->lock);
+
+	net->ipv6.peers = kzalloc(sizeof(struct inet_peer_base),
+				  GFP_KERNEL);
+	if (net->ipv6.peers == NULL)
+		goto out_ipv6;
+
+	net->ipv6.peers->root = peer_avl_empty_rcu;
+	seqlock_init(&net->ipv6.peers->lock);
+
+	return 0;
+out_ipv6:
+	kfree(net->ipv4.peers);
+	return -ENOMEM;
+}
+
+static void __net_exit inetpeer_net_exit(struct net *net)
+{
+	inetpeer_invalidate_tree(net, AF_INET);
+	kfree(net->ipv4.peers);
+	net->ipv4.peers = NULL;
+
+	inetpeer_invalidate_tree(net, AF_INET6);
+	kfree(net->ipv6.peers);
+	net->ipv6.peers = NULL;
+}
+
+static struct pernet_operations inetpeer_ops = {
+	.init = inetpeer_net_init,
+	.exit = inetpeer_net_exit,
+};
+
 /* Called from ip_output.c:ip_init  */
 void __init inet_initpeers(void)
 {
@@ -177,6 +205,7 @@ void __init inet_initpeers(void)
 			NULL);
 
 	INIT_DELAYED_WORK_DEFERRABLE(&gc_work, inetpeer_gc_worker);
+	register_pernet_subsys(&inetpeer_ops);
 }
 
 static int addr_compare(const struct inetpeer_addr *a,
@@ -401,9 +430,10 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base,
 	call_rcu(&p->rcu, inetpeer_free_rcu);
 }
 
-static struct inet_peer_base *family_to_base(int family)
+static struct inet_peer_base *family_to_base(struct net *net,
+					     int family)
 {
-	return family == AF_INET ? &v4_peers : &v6_peers;
+	return family == AF_INET ? net->ipv4.peers : net->ipv6.peers;
 }
 
 /* perform garbage collect on all items stacked during a lookup */
@@ -443,10 +473,12 @@ static int inet_peer_gc(struct inet_peer_base *base,
 	return cnt;
 }
 
-struct inet_peer *inet_getpeer(const struct inetpeer_addr *daddr, int create)
+struct inet_peer *inet_getpeer(struct net *net,
+			       const struct inetpeer_addr *daddr,
+			       int create)
 {
 	struct inet_peer __rcu **stack[PEER_MAXDEPTH], ***stackptr;
-	struct inet_peer_base *base = family_to_base(daddr->family);
+	struct inet_peer_base *base = family_to_base(net, daddr->family);
 	struct inet_peer *p;
 	unsigned int sequence;
 	int invalidated, gccnt = 0;
@@ -571,10 +603,10 @@ static void inetpeer_inval_rcu(struct rcu_head *head)
 	schedule_delayed_work(&gc_work, gc_delay);
 }
 
-void inetpeer_invalidate_tree(int family)
+void inetpeer_invalidate_tree(struct net *net, int family)
 {
 	struct inet_peer *old, *new, *prev;
-	struct inet_peer_base *base = family_to_base(family);
+	struct inet_peer_base *base = family_to_base(net, family);
 
 	write_seqlock_bh(&base->lock);
 

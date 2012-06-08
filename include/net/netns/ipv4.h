@@ -30,7 +30,7 @@ struct netns_ipv4 {
 
 	struct sock		**icmp_sk;
 	struct sock		*tcp_sock;
-
+	struct inet_peer_base	*peers;
 	struct netns_frags	frags;
 #ifdef CONFIG_NETFILTER
 	struct xt_table		*iptable_filter;

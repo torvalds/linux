@@ -75,7 +75,9 @@ static inline bool inet_metrics_new(const struct inet_peer *p)
 }
 
 /* can be called with or without local BH being disabled */
-struct inet_peer	*inet_getpeer(const struct inetpeer_addr *daddr, int create);
+struct inet_peer *inet_getpeer(struct net *net,
+			       const struct inetpeer_addr *daddr,
+			       int create);
 
 static inline struct inet_peer *inet_getpeer_v4(__be32 v4daddr, int create)
 {
@@ -83,7 +85,7 @@ static inline struct inet_peer *inet_getpeer_v4(__be32 v4daddr, int create)
 
 	daddr.addr.a4 = v4daddr;
 	daddr.family = AF_INET;
-	return inet_getpeer(&daddr, create);
+	return inet_getpeer(&init_net, &daddr, create);
 }
 
 static inline struct inet_peer *inet_getpeer_v6(const struct in6_addr *v6daddr, int create)
@@ -92,14 +94,14 @@ static inline struct inet_peer *inet_getpeer_v6(const struct in6_addr *v6daddr, 
 
 	*(struct in6_addr *)daddr.addr.a6 = *v6daddr;
 	daddr.family = AF_INET6;
-	return inet_getpeer(&daddr, create);
+	return inet_getpeer(&init_net, &daddr, create);
 }
 
 /* can be called from BH context or outside */
 extern void inet_putpeer(struct inet_peer *p);
 extern bool inet_peer_xrlim_allow(struct inet_peer *peer, int timeout);
 
-extern void inetpeer_invalidate_tree(int family);
+extern void inetpeer_invalidate_tree(struct net *net, int family);
 
 /*
  * temporary check to make sure we dont access rid, ip_id_count, tcp_ts,
