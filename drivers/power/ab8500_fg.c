@@ -2153,9 +2153,7 @@ static int ab8500_fg_get_property(struct power_supply *psy,
 			val->intval = di->bat_cap.prev_mah;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (di->bm->capacity_scaling)
-			val->intval = di->bat_cap.cap_scale.scaled_cap;
-		else if (di->flags.batt_unknown && !di->bm->chg_unknown_bat &&
+		if (di->flags.batt_unknown && !di->bm->chg_unknown_bat &&
 				di->flags.batt_id_received)
 			val->intval = 100;
 		else
