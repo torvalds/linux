@@ -984,8 +984,10 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num, int order)
 		cpu_dai->probed = 0;
 		list_del(&cpu_dai->card_list);
 
-		if (!cpu_dai->codec)
+		if (!cpu_dai->codec) {
+			snd_soc_dapm_free(&cpu_dai->dapm);
 			module_put(cpu_dai->dev->driver->owner);
+		}
 	}
 }
 
@@ -1264,6 +1266,7 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 			if (!try_module_get(cpu_dai->dev->driver->owner))
 				return -ENODEV;
 
+			list_add(&cpu_dai->dapm.list, &card->dapm_list);
 			snd_soc_dapm_new_dai_widgets(&cpu_dai->dapm, cpu_dai);
 		}
 
