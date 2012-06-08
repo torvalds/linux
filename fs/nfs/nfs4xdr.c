@@ -5579,7 +5579,7 @@ static int decode_getdevicelist(struct xdr_stream *xdr,
 {
 	__be32 *p;
 	int status, i;
-	struct nfs_writeverf verftemp;
+	nfs4_verifier verftemp;
 
 	status = decode_op_hdr(xdr, OP_GETDEVICELIST);
 	if (status)
@@ -5593,7 +5593,7 @@ static int decode_getdevicelist(struct xdr_stream *xdr,
 	p += 2;
 
 	/* Read verifier */
-	p = xdr_decode_opaque_fixed(p, verftemp.verifier, NFS4_VERIFIER_SIZE);
+	p = xdr_decode_opaque_fixed(p, verftemp.data, NFS4_VERIFIER_SIZE);
 
 	res->num_devs = be32_to_cpup(p);
 
