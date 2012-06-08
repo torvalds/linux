@@ -986,8 +986,10 @@ static noinline void async_cow_start(struct btrfs_work *work)
 	compress_file_range(async_cow->inode, async_cow->locked_page,
 			    async_cow->start, async_cow->end, async_cow,
 			    &num_added);
-	if (num_added == 0)
+	if (num_added == 0) {
+		iput(async_cow->inode);
 		async_cow->inode = NULL;
+	}
 }
 
 /*
@@ -1020,6 +1022,8 @@ static noinline void async_cow_free(struct btrfs_work *work)
 {
 	struct async_cow *async_cow;
 	async_cow = container_of(work, struct async_cow, work);
+	if (async_cow->inode)
+		iput(async_cow->inode);
 	kfree(async_cow);
 }
 
@@ -1038,7 +1042,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	while (start < end) {
 		async_cow = kmalloc(sizeof(*async_cow), GFP_NOFS);
 		BUG_ON(!async_cow); /* -ENOMEM */
-		async_cow->inode = inode;
+		async_cow->inode = igrab(inode);
 		async_cow->root = root;
 		async_cow->locked_page = locked_page;
 		async_cow->start = start;
