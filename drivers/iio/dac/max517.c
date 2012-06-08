@@ -43,7 +43,6 @@ enum max517_device_ids {
 };
 
 struct max517_data {
-	struct iio_dev		*indio_dev;
 	struct i2c_client	*client;
 	unsigned short		vref_mv[2];
 };
