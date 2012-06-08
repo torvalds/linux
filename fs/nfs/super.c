@@ -1867,6 +1867,7 @@ static int nfs23_validate_mount_data(void *options,
 	if (data == NULL)
 		goto out_no_data;
 
+	args->version = NFS_DEFAULT_VERSION;
 	switch (data->version) {
 	case 1:
 		data->namlen = 0;
