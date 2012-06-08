@@ -472,11 +472,16 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
+		if (req->rq_state & RQ_LOCAL_ABORTED) {
+			_req_may_be_done(req, m);
+			break;
+		}
 
 		__drbd_chk_io_error(mdev, false);
 
 	goto_queue_for_net_read:
+
+		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
 
 		/* no point in retrying if there is no good remote data,
 		 * or we have no connection. */
