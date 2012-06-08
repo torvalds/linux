@@ -196,6 +196,7 @@ struct zr364xx_camera {
 
 	const struct zr364xx_fmt *fmt;
 	struct videobuf_queue	vb_vidq;
+	bool was_streaming;
 };
 
 /* buffer for one video frame */
@@ -1119,20 +1120,10 @@ static inline int zr364xx_stop_acquire(struct zr364xx_camera *cam)
 	return 0;
 }
 
-static int zr364xx_vidioc_streamon(struct file *file, void *priv,
-				   enum v4l2_buf_type type)
+static int zr364xx_prepare(struct zr364xx_camera *cam)
 {
-	struct zr364xx_camera *cam = video_drvdata(file);
-	int i, j;
 	int res;
-
-	DBG("%s\n", __func__);
-
-	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	if (cam->owner && cam->owner != priv)
-		return -EBUSY;
+	int i, j;
 
 	for (i = 0; init[cam->method][i].size != -1; i++) {
 		res = send_control_msg(cam->udev, 1, init[cam->method][i].value,
@@ -1153,6 +1144,27 @@ static int zr364xx_vidioc_streamon(struct file *file, void *priv,
 		cam->buffer.frame[j].ulState = ZR364XX_READ_IDLE;
 		cam->buffer.frame[j].cur_size = 0;
 	}
+	v4l2_ctrl_handler_setup(&cam->ctrl_handler);
+	return 0;
+}
+
+static int zr364xx_vidioc_streamon(struct file *file, void *priv,
+				   enum v4l2_buf_type type)
+{
+	struct zr364xx_camera *cam = video_drvdata(file);
+	int res;
+
+	DBG("%s\n", __func__);
+
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (cam->owner && cam->owner != priv)
+		return -EBUSY;
+
+	res = zr364xx_prepare(cam);
+	if (res)
+		return res;
 	res = videobuf_streamon(&cam->vb_vidq);
 	if (res == 0) {
 		zr364xx_start_acquire(cam);
@@ -1578,6 +1590,34 @@ static void zr364xx_disconnect(struct usb_interface *intf)
 }
 
 
+#ifdef CONFIG_PM
+static int zr364xx_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct zr364xx_camera *cam = usb_get_intfdata(intf);
+
+	cam->was_streaming = cam->b_acquire;
+	if (!cam->was_streaming)
+		return 0;
+	zr364xx_stop_acquire(cam);
+	zr364xx_stop_readpipe(cam);
+	return 0;
+}
+
+static int zr364xx_resume(struct usb_interface *intf)
+{
+	struct zr364xx_camera *cam = usb_get_intfdata(intf);
+	int res;
+
+	if (!cam->was_streaming)
+		return 0;
+
+	zr364xx_start_readpipe(cam);
+	res = zr364xx_prepare(cam);
+	if (!res)
+		zr364xx_start_acquire(cam);
+	return res;
+}
+#endif
 
 /**********************/
 /* Module integration */
@@ -1587,6 +1627,11 @@ static struct usb_driver zr364xx_driver = {
 	.name = "zr364xx",
 	.probe = zr364xx_probe,
 	.disconnect = zr364xx_disconnect,
+#ifdef CONFIG_PM
+	.suspend = zr364xx_suspend,
+	.resume = zr364xx_resume,
+	.reset_resume = zr364xx_resume,
+#endif
 	.id_table = device_table
 };
 
