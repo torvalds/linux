@@ -89,6 +89,7 @@ int ima_calc_template_hash(int template_len, void *template, char *digest);
 int ima_calc_boot_aggregate(char *digest);
 void ima_add_violation(struct inode *inode, const unsigned char *filename,
 		       const char *op, const char *cause);
+int ima_init_crypto(void);
 
 /*
  * used to protect h_table and sha_table
