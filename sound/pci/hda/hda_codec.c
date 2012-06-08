@@ -3526,6 +3526,9 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec, hda_nid_t fg
 static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state)
 {
+	int count;
+	unsigned int state;
+
 	if (codec->patch_ops.set_power_state) {
 		codec->patch_ops.set_power_state(codec, fg, power_state);
 		return;
@@ -3537,9 +3540,17 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 		bool epss = snd_hda_codec_get_supported_ps(codec, fg, AC_PWRST_EPSS);
 		msleep(epss ? 10 : 100);
 	}
-	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
-			    power_state);
-	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
+
+	/* repeat power states setting at most 10 times*/
+	for (count = 0; count < 10; count++) {
+		snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
+				    power_state);
+		snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
+		state = snd_hda_codec_read(codec, fg, 0,
+					   AC_VERB_GET_POWER_STATE, 0);
+		if (!(state & AC_PWRST_ERROR))
+			break;
+	}
 }
 
 #ifdef CONFIG_SND_HDA_HWDEP
