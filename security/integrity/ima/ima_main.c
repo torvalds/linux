@@ -169,6 +169,7 @@ static int process_measurement(struct file *file, const char *filename,
 	 * (IMA_MEASURE, IMA_MEASURED, IMA_APPRAISE, IMA_APPRAISED,
 	 *  IMA_AUDIT, IMA_AUDITED) */
 	iint->flags |= action;
+	action &= IMA_DO_MASK;
 	action &= ~((iint->flags & IMA_DONE_MASK) >> 1);
 
 	/* Nothing to do, just return existing appraised status */

@@ -102,6 +102,11 @@ int ima_appraise_measurement(struct integrity_iint_cache *iint,
 
 	switch (xattr_value->type) {
 	case IMA_XATTR_DIGEST:
+		if (iint->flags & IMA_DIGSIG_REQUIRED) {
+			cause = "IMA signature required";
+			status = INTEGRITY_FAIL;
+			break;
+		}
 		rc = memcmp(xattr_value->digest, iint->ima_xattr.digest,
 			    IMA_DIGEST_SIZE);
 		if (rc) {

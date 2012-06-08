@@ -245,6 +245,8 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		if (!ima_match_rules(entry, inode, func, mask))
 			continue;
 
+		action |= entry->flags & IMA_ACTION_FLAGS;
+
 		action |= entry->action & IMA_DO_MASK;
 		if (entry->action & IMA_DO_MASK)
 			actmask &= ~(entry->action | entry->action << 1);
@@ -318,7 +320,8 @@ enum {
 	Opt_audit,
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
-	Opt_func, Opt_mask, Opt_fsmagic, Opt_uid, Opt_fowner
+	Opt_func, Opt_mask, Opt_fsmagic, Opt_uid, Opt_fowner,
+	Opt_appraise_type
 };
 
 static match_table_t policy_tokens = {
@@ -338,6 +341,7 @@ static match_table_t policy_tokens = {
 	{Opt_fsmagic, "fsmagic=%s"},
 	{Opt_uid, "uid=%s"},
 	{Opt_fowner, "fowner=%s"},
+	{Opt_appraise_type, "appraise_type=%s"},
 	{Opt_err, NULL}
 };
 
@@ -559,6 +563,18 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			result = ima_lsm_rule_init(entry, args,
 						   LSM_SUBJ_TYPE,
 						   AUDIT_SUBJ_TYPE);
+			break;
+		case Opt_appraise_type:
+			if (entry->action != APPRAISE) {
+				result = -EINVAL;
+				break;
+			}
+
+			ima_log_string(ab, "appraise_type", args[0].from);
+			if ((strcmp(args[0].from, "imasig")) == 0)
+				entry->flags |= IMA_DIGSIG_REQUIRED;
+			else
+				result = -EINVAL;
 			break;
 		case Opt_err:
 			ima_log_string(ab, "UNKNOWN", p);
