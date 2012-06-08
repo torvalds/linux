@@ -63,28 +63,17 @@ static int v6_voltages_uv[] = { 1, 1800000, 2500000, 3000000 };
  * R24 and R25=100kOhm as described in the data sheet.
  * The gain is approximately: 1 + R24/R25 + R24/185.5kOhm
  */
-static int max1586_v3_set(struct regulator_dev *rdev, int min_uV, int max_uV,
-			  unsigned *selector)
+static int max1586_v3_set_voltage_sel(struct regulator_dev *rdev,
+				      unsigned selector)
 {
 	struct max1586_data *max1586 = rdev_get_drvdata(rdev);
 	struct i2c_client *client = max1586->client;
-	unsigned range_uV = max1586->max_uV - max1586->min_uV;
 	u8 v3_prog;
 
-	if (min_uV > max1586->max_uV || max_uV < max1586->min_uV)
-		return -EINVAL;
-	if (min_uV < max1586->min_uV)
-		min_uV = max1586->min_uV;
-
-	*selector = DIV_ROUND_UP((min_uV - max1586->min_uV) *
-				 MAX1586_V3_MAX_VSEL, range_uV);
-	if (regulator_list_voltage_linear(rdev, *selector) > max_uV)
-		return -EINVAL;
-
 	dev_dbg(&client->dev, "changing voltage v3 to %dmv\n",
-		regulator_list_voltage_linear(rdev, *selector) / 1000);
+		regulator_list_voltage_linear(rdev, selector) / 1000);
 
-	v3_prog = I2C_V3_SELECT | (u8) *selector;
+	v3_prog = I2C_V3_SELECT | (u8) selector;
 	return i2c_smbus_write_byte(client, v3_prog);
 }
 
@@ -106,8 +95,9 @@ static int max1586_v6_set_voltage_sel(struct regulator_dev *rdev,
  * the set up value.
  */
 static struct regulator_ops max1586_v3_ops = {
-	.set_voltage = max1586_v3_set,
+	.set_voltage_sel = max1586_v3_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 };
 
 static struct regulator_ops max1586_v6_ops = {
