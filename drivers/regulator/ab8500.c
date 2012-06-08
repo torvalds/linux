@@ -30,8 +30,6 @@
  * @dev: device pointer
  * @desc: regulator description
  * @regulator_dev: regulator device
- * @max_uV: maximum voltage (for variable voltage supplies)
- * @min_uV: minimum voltage (for variable voltage supplies)
  * @update_bank: bank to control on/off
  * @update_reg: register to control on/off
  * @update_mask: mask to enable/disable regulator
@@ -45,8 +43,6 @@ struct ab8500_regulator_info {
 	struct device		*dev;
 	struct regulator_desc	desc;
 	struct regulator_dev	*regulator;
-	int max_uV;
-	int min_uV;
 	u8 update_bank;
 	u8 update_reg;
 	u8 update_mask;
@@ -301,8 +297,6 @@ static struct ab8500_regulator_info
 			.n_voltages	= ARRAY_SIZE(ldo_vauxn_voltages),
 			.volt_table	= ldo_vauxn_voltages,
 		},
-		.min_uV			= 1100000,
-		.max_uV			= 3300000,
 		.update_bank		= 0x04,
 		.update_reg		= 0x09,
 		.update_mask		= 0x03,
@@ -321,8 +315,6 @@ static struct ab8500_regulator_info
 			.n_voltages	= ARRAY_SIZE(ldo_vauxn_voltages),
 			.volt_table	= ldo_vauxn_voltages,
 		},
-		.min_uV			= 1100000,
-		.max_uV			= 3300000,
 		.update_bank		= 0x04,
 		.update_reg		= 0x09,
 		.update_mask		= 0x0c,
@@ -341,8 +333,6 @@ static struct ab8500_regulator_info
 			.n_voltages	= ARRAY_SIZE(ldo_vaux3_voltages),
 			.volt_table	= ldo_vaux3_voltages,
 		},
-		.min_uV			= 1100000,
-		.max_uV			= 3300000,
 		.update_bank		= 0x04,
 		.update_reg		= 0x0a,
 		.update_mask		= 0x03,
@@ -361,8 +351,6 @@ static struct ab8500_regulator_info
 			.n_voltages	= ARRAY_SIZE(ldo_vintcore_voltages),
 			.volt_table	= ldo_vintcore_voltages,
 		},
-		.min_uV			= 1100000,
-		.max_uV			= 3300000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
 		.update_mask		= 0x44,
