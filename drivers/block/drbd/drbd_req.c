@@ -460,6 +460,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
 
 		__drbd_chk_io_error(mdev, false);
+		req_may_be_completed_not_susp(req, m);
 		break;
 
 	case QUEUE_FOR_NET_READ:
