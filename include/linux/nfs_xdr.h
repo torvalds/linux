@@ -514,9 +514,13 @@ struct nfs_writeargs {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs_write_verifier {
+	char			data[8];
+};
+
 struct nfs_writeverf {
+	struct nfs_write_verifier verifier;
 	enum nfs3_stable_how	committed;
-	__be32			verifier[2];
 };
 
 struct nfs_writeres {

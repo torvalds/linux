@@ -4158,13 +4158,18 @@ static int decode_verifier(struct xdr_stream *xdr, void *verifier)
 	return decode_opaque_fixed(xdr, verifier, NFS4_VERIFIER_SIZE);
 }
 
+static int decode_write_verifier(struct xdr_stream *xdr, struct nfs_write_verifier *verifier)
+{
+	return decode_opaque_fixed(xdr, verifier->data, NFS4_VERIFIER_SIZE);
+}
+
 static int decode_commit(struct xdr_stream *xdr, struct nfs_commitres *res)
 {
 	int status;
 
 	status = decode_op_hdr(xdr, OP_COMMIT);
 	if (!status)
-		status = decode_verifier(xdr, res->verf->verifier);
+		status = decode_write_verifier(xdr, &res->verf->verifier);
 	return status;
 }
 
@@ -5192,13 +5197,12 @@ static int decode_write(struct xdr_stream *xdr, struct nfs_writeres *res)
 	if (status)
 		return status;
 
-	p = xdr_inline_decode(xdr, 16);
+	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(!p))
 		goto out_overflow;
 	res->count = be32_to_cpup(p++);
 	res->verf->committed = be32_to_cpup(p++);
-	memcpy(res->verf->verifier, p, NFS4_VERIFIER_SIZE);
-	return 0;
+	return decode_write_verifier(xdr, &res->verf->verifier);
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 	return -EIO;

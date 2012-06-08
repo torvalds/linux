@@ -620,7 +620,7 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 			goto next;
 		}
 		if (test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags)) {
-			memcpy(&req->wb_verf, hdr->verf, sizeof(req->wb_verf));
+			memcpy(&req->wb_verf, &hdr->verf->verifier, sizeof(req->wb_verf));
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
 			goto next;
 		}
@@ -1547,7 +1547,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 
 		/* Okay, COMMIT succeeded, apparently. Check the verifier
 		 * returned by the server against all stored verfs. */
-		if (!memcmp(req->wb_verf.verifier, data->verf.verifier, sizeof(data->verf.verifier))) {
+		if (!memcmp(&req->wb_verf, &data->verf.verifier, sizeof(req->wb_verf))) {
 			/* We have a match */
 			nfs_inode_remove_request(req);
 			dprintk(" OK\n");

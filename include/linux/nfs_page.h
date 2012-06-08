@@ -42,7 +42,7 @@ struct nfs_page {
 				wb_bytes;	/* Length of request */
 	struct kref		wb_kref;	/* reference count */
 	unsigned long		wb_flags;
-	struct nfs_writeverf	wb_verf;	/* Commit cookie */
+	struct nfs_write_verifier	wb_verf;	/* Commit cookie */
 };
 
 struct nfs_pageio_descriptor;

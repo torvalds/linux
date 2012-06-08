@@ -351,9 +351,9 @@ static void prepare_to_resend_writes(struct nfs_commit_data *data)
 	struct nfs_page *first = nfs_list_entry(data->pages.next);
 
 	data->task.tk_status = 0;
-	memcpy(data->verf.verifier, first->wb_verf.verifier,
-	       sizeof(first->wb_verf.verifier));
-	data->verf.verifier[0]++; /* ensure verifier mismatch */
+	memcpy(&data->verf.verifier, &first->wb_verf,
+	       sizeof(data->verf.verifier));
+	data->verf.verifier.data[0]++; /* ensure verifier mismatch */
 }
 
 static int filelayout_commit_done_cb(struct rpc_task *task,

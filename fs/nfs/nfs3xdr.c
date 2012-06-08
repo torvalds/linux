@@ -325,14 +325,14 @@ static void encode_createverf3(struct xdr_stream *xdr, const __be32 *verifier)
 	memcpy(p, verifier, NFS3_CREATEVERFSIZE);
 }
 
-static int decode_writeverf3(struct xdr_stream *xdr, __be32 *verifier)
+static int decode_writeverf3(struct xdr_stream *xdr, struct nfs_write_verifier *verifier)
 {
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, NFS3_WRITEVERFSIZE);
 	if (unlikely(p == NULL))
 		goto out_overflow;
-	memcpy(verifier, p, NFS3_WRITEVERFSIZE);
+	memcpy(verifier->data, p, NFS3_WRITEVERFSIZE);
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -1668,20 +1668,22 @@ static int decode_write3resok(struct xdr_stream *xdr,
 {
 	__be32 *p;
 
-	p = xdr_inline_decode(xdr, 4 + 4 + NFS3_WRITEVERFSIZE);
+	p = xdr_inline_decode(xdr, 4 + 4);
 	if (unlikely(p == NULL))
 		goto out_overflow;
 	result->count = be32_to_cpup(p++);
 	result->verf->committed = be32_to_cpup(p++);
 	if (unlikely(result->verf->committed > NFS_FILE_SYNC))
 		goto out_badvalue;
-	memcpy(result->verf->verifier, p, NFS3_WRITEVERFSIZE);
+	if (decode_writeverf3(xdr, &result->verf->verifier))
+		goto out_eio;
 	return result->count;
 out_badvalue:
 	dprintk("NFS: bad stable_how value: %u\n", result->verf->committed);
 	return -EIO;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
+out_eio:
 	return -EIO;
 }
 
@@ -2314,7 +2316,7 @@ static int nfs3_xdr_dec_commit3res(struct rpc_rqst *req,
 		goto out;
 	if (status != NFS3_OK)
 		goto out_status;
-	error = decode_writeverf3(xdr, result->verf->verifier);
+	error = decode_writeverf3(xdr, &result->verf->verifier);
 out:
 	return error;
 out_status:
