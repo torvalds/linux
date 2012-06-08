@@ -510,7 +510,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 				c->cputype = CPU_R3000A;
 				__cpu_name[cpu] = "R3000A";
 			}
-			break;
 		} else {
 			c->cputype = CPU_R3000;
 			__cpu_name[cpu] = "R3000";
