@@ -40,7 +40,6 @@ struct rfkill_rk_gpio {
 
 struct rfkill_rk_irq {
     char                    name[RFKILL_RK_GPIO_NAME_SIZE];
-    int                     is_falling;
     struct rfkill_rk_gpio   gpio;
     int                     irq;
 };

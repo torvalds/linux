@@ -178,17 +178,18 @@ static int rfkill_rk_setup_wake_irq(struct rfkill_rk_data* rfkill)
 
     if (gpio_is_valid(irq->gpio.io))
     {
-        ret = gpio_pull_updown(irq->gpio.io, irq->is_falling?GPIOPullUp:GPIOPullDown);
+        ret = gpio_pull_updown(irq->gpio.io, (irq->gpio.enable==GPIO_LOW)?GPIOPullUp:GPIOPullDown);
         if (ret) goto fail2;
-        DBG("Request irq for bt wakeup host\n");
+        LOG("Request irq for bt wakeup host\n");
         irq->irq = gpio_to_irq(irq->gpio.io);
         sprintf(irq->name, "%s_irq", irq->gpio.name);
         ret = request_irq(irq->irq,
                     rfkill_rk_wake_host_irq,
-                    irq->is_falling?IRQF_TRIGGER_FALLING:IRQF_TRIGGER_RISING,
+                    (irq->gpio.enable==GPIO_LOW)?IRQF_TRIGGER_FALLING:IRQF_TRIGGER_RISING,
                     irq->name,
                     rfkill);
         if (ret) goto fail2;
+        LOG("** disable irq\n");
         disable_irq(irq->irq);
         ret = enable_irq_wake(irq->irq);
         if (ret) goto fail3;
@@ -257,12 +258,14 @@ void rfkill_rk_sleep_bt(bool sleep)
 
     rfkill_rk_sleep_bt_internal(rfkill, sleep);
 
+#ifdef CONFIG_BT_AUTOSLEEP
     if (sleep==BT_WAKEUP)
     {
         // 重新设置delay work
         schedule_delayed_work(&rfkill->bt_sleep_delay_work, 
                             msecs_to_jiffies(BT_WAKEUP_TIMEOUT));
     }
+#endif
 }
 EXPORT_SYMBOL(rfkill_rk_sleep_bt);
 
@@ -388,7 +391,7 @@ static void rfkill_rk_pm_complete(struct device *dev)
     {
         // 禁用掉 BT_WAKE_HOST IRQ，确保在系统唤醒后不会因BT的操作
         // 而多次触发该中断
-        DBG("** disable bt wakeup host\n");
+        LOG("** disable irq\n");
         disable_irq(wake_host_irq->irq);
     }
 
