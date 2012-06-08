@@ -349,7 +349,7 @@ void req_may_be_completed(struct drbd_request *req, struct bio_and_error *m)
 			 * what about (RQ_LOCAL_PENDING | RQ_LOCAL_ABORTED)?
 			 */
 			D_ASSERT(!(s & RQ_LOCAL_PENDING));
-			D_ASSERT(s & RQ_NET_DONE);
+			D_ASSERT((s & RQ_NET_MASK) == 0 || (s & RQ_NET_DONE));
 		}
 	}
 	req_may_be_done(req);
