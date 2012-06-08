@@ -453,13 +453,15 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	struct intel_load_detect_pipe tmp;
 
 	if (I915_HAS_HOTPLUG(dev)) {
+		/* We can not rely on the HPD pin always being correctly wired
+		 * up, for example many KVM do not pass it through, and so
+		 * only trust an assertion that the monitor is connected.
+		 */
 		if (intel_crt_detect_hotplug(connector)) {
 			DRM_DEBUG_KMS("CRT detected via hotplug\n");
 			return connector_status_connected;
-		} else {
+		} else
 			DRM_DEBUG_KMS("CRT not detected via hotplug\n");
-			return connector_status_disconnected;
-		}
 	}
 
 	if (intel_crt_detect_ddc(connector))
