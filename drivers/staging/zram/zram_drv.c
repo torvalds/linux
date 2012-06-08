@@ -280,26 +280,27 @@ static int zram_read_before_write(struct zram *zram, char *mem, u32 index)
 	size_t clen = PAGE_SIZE;
 	struct zobj_header *zheader;
 	unsigned char *cmem;
+	unsigned long handle = zram->table[index].handle;
 
-	if (zram_test_flag(zram, index, ZRAM_ZERO) ||
-	    !zram->table[index].handle) {
+	if (zram_test_flag(zram, index, ZRAM_ZERO) || !handle) {
 		memset(mem, 0, PAGE_SIZE);
 		return 0;
 	}
 
-	cmem = zs_map_object(zram->mem_pool, zram->table[index].handle);
-
 	/* Page is stored uncompressed since it's incompressible */
 	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
-		memcpy(mem, cmem, PAGE_SIZE);
-		kunmap_atomic(cmem);
+		char *src = kmap_atomic((struct page *)handle);
+		memcpy(mem, src, PAGE_SIZE);
+		kunmap_atomic(src);
 		return 0;
 	}
+
+	cmem = zs_map_object(zram->mem_pool, handle);
 
 	ret = lzo1x_decompress_safe(cmem + sizeof(*zheader),
 				    zram->table[index].size,
 				    mem, &clen);
-	zs_unmap_object(zram->mem_pool, zram->table[index].handle);
+	zs_unmap_object(zram->mem_pool, handle);
 
 	/* Should NEVER happen. Return bio error if it does. */
 	if (unlikely(ret != LZO_E_OK)) {
