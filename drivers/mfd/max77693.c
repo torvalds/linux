@@ -154,7 +154,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 
 	ret = max77693_irq_init(max77693);
 	if (ret < 0)
-		goto err_mfd;
+		goto err_irq;
 
 	pm_runtime_set_active(max77693->dev);
 
@@ -168,11 +168,11 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	return ret;
 
 err_mfd:
+	max77693_irq_exit(max77693);
+err_irq:
 	i2c_unregister_device(max77693->muic);
 	i2c_unregister_device(max77693->haptic);
 err_regmap:
-	kfree(max77693);
-
 	return ret;
 }
 
@@ -181,6 +181,7 @@ static int max77693_i2c_remove(struct i2c_client *i2c)
 	struct max77693_dev *max77693 = i2c_get_clientdata(i2c);
 
 	mfd_remove_devices(max77693->dev);
+	max77693_irq_exit(max77693);
 	i2c_unregister_device(max77693->muic);
 	i2c_unregister_device(max77693->haptic);
 
