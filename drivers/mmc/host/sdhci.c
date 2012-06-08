@@ -2844,6 +2844,23 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->vmmc = NULL;
 	}
 
+#ifdef CONFIG_REGULATOR
+	if (host->vmmc) {
+		ret = regulator_is_supported_voltage(host->vmmc, 3300000,
+			3300000);
+		if ((ret <= 0) || (!(caps[0] & SDHCI_CAN_VDD_330)))
+			caps[0] &= ~SDHCI_CAN_VDD_330;
+		ret = regulator_is_supported_voltage(host->vmmc, 3000000,
+			3000000);
+		if ((ret <= 0) || (!(caps[0] & SDHCI_CAN_VDD_300)))
+			caps[0] &= ~SDHCI_CAN_VDD_300;
+		ret = regulator_is_supported_voltage(host->vmmc, 1800000,
+			1800000);
+		if ((ret <= 0) || (!(caps[0] & SDHCI_CAN_VDD_180)))
+			caps[0] &= ~SDHCI_CAN_VDD_180;
+	}
+#endif /* CONFIG_REGULATOR */
+
 	/*
 	 * According to SD Host Controller spec v3.00, if the Host System
 	 * can afford more than 150mA, Host Driver should set XPC to 1. Also
