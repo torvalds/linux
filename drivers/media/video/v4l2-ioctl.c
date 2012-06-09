@@ -470,6 +470,33 @@ static int v4l_s_output(const struct v4l2_ioctl_ops *ops,
 	return ops->vidioc_s_output(file, fh, *(unsigned int *)arg);
 }
 
+static int v4l_g_priority(const struct v4l2_ioctl_ops *ops,
+				struct file *file, void *fh, void *arg)
+{
+	struct video_device *vfd;
+	u32 *p = arg;
+
+	if (ops->vidioc_g_priority)
+		return ops->vidioc_g_priority(file, fh, arg);
+	vfd = video_devdata(file);
+	*p = v4l2_prio_max(&vfd->v4l2_dev->prio);
+	return 0;
+}
+
+static int v4l_s_priority(const struct v4l2_ioctl_ops *ops,
+				struct file *file, void *fh, void *arg)
+{
+	struct video_device *vfd;
+	struct v4l2_fh *vfh;
+	u32 *p = arg;
+
+	if (ops->vidioc_s_priority)
+		return ops->vidioc_s_priority(file, fh, *p);
+	vfd = video_devdata(file);
+	vfh = file->private_data;
+	return v4l2_prio_change(&vfd->v4l2_dev->prio, &vfh->prio, *p);
+}
+
 static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
@@ -612,8 +639,8 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO(VIDIOC_TRY_FMT, 0),
 	IOCTL_INFO_STD(VIDIOC_ENUMAUDIO, vidioc_enumaudio, v4l_print_audio, INFO_FL_CLEAR(v4l2_audio, index)),
 	IOCTL_INFO_STD(VIDIOC_ENUMAUDOUT, vidioc_enumaudout, v4l_print_audioout, INFO_FL_CLEAR(v4l2_audioout, index)),
-	IOCTL_INFO(VIDIOC_G_PRIORITY, 0),
-	IOCTL_INFO(VIDIOC_S_PRIORITY, INFO_FL_PRIO),
+	IOCTL_INFO_FNC(VIDIOC_G_PRIORITY, v4l_g_priority, v4l_print_u32, 0),
+	IOCTL_INFO_FNC(VIDIOC_S_PRIORITY, v4l_s_priority, v4l_print_u32, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_G_SLICED_VBI_CAP, INFO_FL_CLEAR(v4l2_sliced_vbi_cap, type)),
 	IOCTL_INFO(VIDIOC_LOG_STATUS, 0),
 	IOCTL_INFO(VIDIOC_G_EXT_CTRLS, INFO_FL_CTRL),
@@ -750,35 +777,6 @@ static long __video_do_ioctl(struct file *file,
 	}
 
 	switch (cmd) {
-
-	/* --- priority ------------------------------------------ */
-	case VIDIOC_G_PRIORITY:
-	{
-		enum v4l2_priority *p = arg;
-
-		if (ops->vidioc_g_priority) {
-			ret = ops->vidioc_g_priority(file, fh, p);
-		} else if (use_fh_prio) {
-			*p = v4l2_prio_max(&vfd->v4l2_dev->prio);
-			ret = 0;
-		}
-		if (!ret)
-			dbgarg(cmd, "priority is %d\n", *p);
-		break;
-	}
-	case VIDIOC_S_PRIORITY:
-	{
-		enum v4l2_priority *p = arg;
-
-		dbgarg(cmd, "setting priority to %d\n", *p);
-		if (ops->vidioc_s_priority)
-			ret = ops->vidioc_s_priority(file, fh, *p);
-		else
-			ret = v4l2_prio_change(&vfd->v4l2_dev->prio,
-							&vfh->prio, *p);
-		break;
-	}
-
 	/* --- capture ioctls ---------------------------------------- */
 	case VIDIOC_ENUM_FMT:
 	{
