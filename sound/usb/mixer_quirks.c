@@ -967,19 +967,73 @@ void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
  * stereo. So we provide a good mixer here.
  */
 struct std_mono_table ebox44_table[] = {
-	{ 4, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Headphone Playback Switch", NULL },
-	{ 4, 2, 0x1, USB_MIXER_S16, "Headphone A Mix Playback Volume", NULL },
-	{ 4, 2, 0x2, USB_MIXER_S16, "Headphone B Mix Playback Volume", NULL },
+	{
+		.unitid = 4,
+		.control = 1,
+		.cmask = 0x0,
+		.val_type = USB_MIXER_INV_BOOLEAN,
+		.name = "Headphone Playback Switch"
+	},
+	{
+		.unitid = 4,
+		.control = 2,
+		.cmask = 0x1,
+		.val_type = USB_MIXER_S16,
+		.name = "Headphone A Mix Playback Volume"
+	},
+	{
+		.unitid = 4,
+		.control = 2,
+		.cmask = 0x2,
+		.val_type = USB_MIXER_S16,
+		.name = "Headphone B Mix Playback Volume"
+	},
 
-	{ 7, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Output Playback Switch", NULL },
-	{ 7, 2, 0x1, USB_MIXER_S16, "Output A Playback Volume", NULL },
-	{ 7, 2, 0x2, USB_MIXER_S16, "Output B Playback Volume", NULL },
+	{
+		.unitid = 7,
+		.control = 1,
+		.cmask = 0x0,
+		.val_type = USB_MIXER_INV_BOOLEAN,
+		.name = "Output Playback Switch"
+	},
+	{
+		.unitid = 7,
+		.control = 2,
+		.cmask = 0x1,
+		.val_type = USB_MIXER_S16,
+		.name = "Output A Playback Volume"
+	},
+	{
+		.unitid = 7,
+		.control = 2,
+		.cmask = 0x2,
+		.val_type = USB_MIXER_S16,
+		.name = "Output B Playback Volume"
+	},
 
-	{ 10, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Input Capture Switch", NULL },
-	{ 10, 2, 0x1, USB_MIXER_S16, "Input A Capture Volume", NULL },
-	{ 10, 2, 0x2, USB_MIXER_S16, "Input B Capture Volume", NULL },
+	{
+		.unitid = 10,
+		.control = 1,
+		.cmask = 0x0,
+		.val_type = USB_MIXER_INV_BOOLEAN,
+		.name = "Input Capture Switch"
+	},
+	{
+		.unitid = 10,
+		.control = 2,
+		.cmask = 0x1,
+		.val_type = USB_MIXER_S16,
+		.name = "Input A Capture Volume"
+	},
+	{
+		.unitid = 10,
+		.control = 2,
+		.cmask = 0x2,
+		.val_type = USB_MIXER_S16,
+		.name = "Input B Capture Volume"
+	},
 
-	{ }
+	{}
 };
 
 int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
