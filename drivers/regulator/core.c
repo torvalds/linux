@@ -2280,6 +2280,30 @@ int regulator_set_voltage_time(struct regulator *regulator,
 EXPORT_SYMBOL_GPL(regulator_set_voltage_time);
 
 /**
+ *regulator_set_voltage_time_sel - get raise/fall time
+ * @regulator: regulator source
+ * @old_selector: selector for starting voltage
+ * @new_selector: selector for target voltage
+ *
+ * Provided with the starting and target voltage selectors, this function
+ * returns time in microseconds required to rise or fall to this new voltage
+ *
+ * Drivers providing uV_step in their regulator_desc and ramp_delay in
+ * regulation_constraints can use this as their set_voltage_time_sel()
+ * operation.
+ */
+int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
+				   unsigned int old_selector,
+				   unsigned int new_selector)
+{
+	if (rdev->desc->ramp_delay && rdev->desc->uV_step)
+		return DIV_ROUND_UP(rdev->desc->uV_step *
+			abs(new_selector - old_selector),
+			rdev->desc->ramp_delay) * 1000;
+	return 0;
+}
+
+/**
  * regulator_sync_voltage - re-apply last regulator output voltage
  * @regulator: regulator source
  *
