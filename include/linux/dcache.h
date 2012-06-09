@@ -128,7 +128,7 @@ struct dentry {
 	 	struct rcu_head d_rcu;
 	} d_u;
 	struct list_head d_subdirs;	/* our children */
-	struct list_head d_alias;	/* inode alias list */
+	struct hlist_node d_alias;	/* inode alias list */
 };
 
 /*

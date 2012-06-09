@@ -249,7 +249,7 @@ static struct dentry *fuse_d_add_directory(struct dentry *entry,
 		/* This tries to shrink the subtree below alias */
 		fuse_invalidate_entry(alias);
 		dput(alias);
-		if (!list_empty(&inode->i_dentry))
+		if (!hlist_empty(&inode->i_dentry))
 			return ERR_PTR(-EBUSY);
 	} else {
 		dput(alias);
