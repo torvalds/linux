@@ -355,12 +355,10 @@ protects *all* the dcache state of a given dentry.
 via rcu-walk path walk (basically, if the file can have had a path name in the
 vfs namespace).
 
-	i_dentry and i_rcu share storage in a union, and the vfs expects
-i_dentry to be reinitialized before it is freed, so an:
-
-  INIT_LIST_HEAD(&inode->i_dentry);
-
-must be done in the RCU callback.
+	Even though i_dentry and i_rcu share storage in a union, we will
+initialize the former in inode_init_always(), so just leave it alone in
+the callback.  It used to be necessary to clean it there, but not anymore
+(starting at 3.2).
 
 --
 [recommended]
