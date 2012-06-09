@@ -15,6 +15,9 @@
  * option) any later version.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -44,17 +47,15 @@
  */
 void phy_print_status(struct phy_device *phydev)
 {
-	pr_info("PHY: %s - Link is %s", dev_name(&phydev->dev),
-			phydev->link ? "Up" : "Down");
 	if (phydev->link)
-		printk(KERN_CONT " - %d/%s", phydev->speed,
-				DUPLEX_FULL == phydev->duplex ?
-				"Full" : "Half");
-
-	printk(KERN_CONT "\n");
+		pr_info("%s - Link is Up - %d/%s\n",
+			dev_name(&phydev->dev),
+			phydev->speed,
+			DUPLEX_FULL == phydev->duplex ? "Full" : "Half");
+	else
+		pr_info("%s - Link is Down\n", dev_name(&phydev->dev));
 }
 EXPORT_SYMBOL(phy_print_status);
-
 
 /**
  * phy_clear_interrupt - Ack the phy device's interrupt
@@ -482,9 +483,8 @@ static void phy_force_reduction(struct phy_device *phydev)
 	phydev->speed = settings[idx].speed;
 	phydev->duplex = settings[idx].duplex;
 
-	pr_info("Trying %d/%s\n", phydev->speed,
-			DUPLEX_FULL == phydev->duplex ?
-			"FULL" : "HALF");
+	pr_info("Trying %d/%s\n",
+		phydev->speed, DUPLEX_FULL == phydev->duplex ? "FULL" : "HALF");
 }
 
 
@@ -598,9 +598,8 @@ int phy_start_interrupts(struct phy_device *phydev)
 				IRQF_SHARED,
 				"phy_interrupt",
 				phydev) < 0) {
-		printk(KERN_WARNING "%s: Can't get IRQ %d (PHY)\n",
-				phydev->bus->name,
-				phydev->irq);
+		pr_warn("%s: Can't get IRQ %d (PHY)\n",
+			phydev->bus->name, phydev->irq);
 		phydev->irq = PHY_POLL;
 		return 0;
 	}
@@ -838,10 +837,10 @@ void phy_state_machine(struct work_struct *work)
 
 				phydev->autoneg = AUTONEG_DISABLE;
 
-				pr_info("Trying %d/%s\n", phydev->speed,
-						DUPLEX_FULL ==
-						phydev->duplex ?
-						"FULL" : "HALF");
+				pr_info("Trying %d/%s\n",
+					phydev->speed,
+					DUPLEX_FULL == phydev->duplex ?
+					"FULL" : "HALF");
 			}
 			break;
 		case PHY_NOLINK:

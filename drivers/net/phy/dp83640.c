@@ -17,6 +17,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -453,16 +456,16 @@ static void enable_status_frames(struct phy_device *phydev, bool on)
 	ext_write(0, phydev, PAGE6, PSF_CFG1, ver);
 
 	if (!phydev->attached_dev) {
-		pr_warning("dp83640: expected to find an attached netdevice\n");
+		pr_warn("expected to find an attached netdevice\n");
 		return;
 	}
 
 	if (on) {
 		if (dev_mc_add(phydev->attached_dev, status_frame_dst))
-			pr_warning("dp83640: failed to add mc address\n");
+			pr_warn("failed to add mc address\n");
 	} else {
 		if (dev_mc_del(phydev->attached_dev, status_frame_dst))
-			pr_warning("dp83640: failed to delete mc address\n");
+			pr_warn("failed to delete mc address\n");
 	}
 }
 
@@ -582,9 +585,9 @@ static void recalibrate(struct dp83640_clock *clock)
 	 * read out and correct offsets
 	 */
 	val = ext_read(master, PAGE4, PTP_STS);
-	pr_info("master PTP_STS  0x%04hx", val);
+	pr_info("master PTP_STS  0x%04hx\n", val);
 	val = ext_read(master, PAGE4, PTP_ESTS);
-	pr_info("master PTP_ESTS 0x%04hx", val);
+	pr_info("master PTP_ESTS 0x%04hx\n", val);
 	event_ts.ns_lo  = ext_read(master, PAGE4, PTP_EDATA);
 	event_ts.ns_hi  = ext_read(master, PAGE4, PTP_EDATA);
 	event_ts.sec_lo = ext_read(master, PAGE4, PTP_EDATA);
@@ -594,9 +597,9 @@ static void recalibrate(struct dp83640_clock *clock)
 	list_for_each(this, &clock->phylist) {
 		tmp = list_entry(this, struct dp83640_private, list);
 		val = ext_read(tmp->phydev, PAGE4, PTP_STS);
-		pr_info("slave  PTP_STS  0x%04hx", val);
+		pr_info("slave  PTP_STS  0x%04hx\n", val);
 		val = ext_read(tmp->phydev, PAGE4, PTP_ESTS);
-		pr_info("slave  PTP_ESTS 0x%04hx", val);
+		pr_info("slave  PTP_ESTS 0x%04hx\n", val);
 		event_ts.ns_lo  = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.ns_hi  = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.sec_lo = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
@@ -686,7 +689,7 @@ static void decode_rxts(struct dp83640_private *dp83640,
 	prune_rx_ts(dp83640);
 
 	if (list_empty(&dp83640->rxpool)) {
-		pr_debug("dp83640: rx timestamp pool is empty\n");
+		pr_debug("rx timestamp pool is empty\n");
 		goto out;
 	}
 	rxts = list_first_entry(&dp83640->rxpool, struct rxts, list);
@@ -709,7 +712,7 @@ static void decode_txts(struct dp83640_private *dp83640,
 	skb = skb_dequeue(&dp83640->tx_queue);
 
 	if (!skb) {
-		pr_debug("dp83640: have timestamp but tx_queue empty\n");
+		pr_debug("have timestamp but tx_queue empty\n");
 		return;
 	}
 	ns = phy2txts(phy_txts);
@@ -847,7 +850,7 @@ static void dp83640_free_clocks(void)
 	list_for_each_safe(this, next, &phyter_clocks) {
 		clock = list_entry(this, struct dp83640_clock, list);
 		if (!list_empty(&clock->phylist)) {
-			pr_warning("phy list non-empty while unloading");
+			pr_warn("phy list non-empty while unloading\n");
 			BUG();
 		}
 		list_del(&clock->list);

@@ -15,12 +15,16 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/netdevice.h>
+
+#define DEBUG
 
 /* DP83865 phy identifier values */
 #define DP83865_PHY_ID	0x20005c7a
@@ -112,8 +116,8 @@ static void ns_10_base_t_hdx_loopack(struct phy_device *phydev, int disable)
 		ns_exp_write(phydev, 0x1c0,
 			     ns_exp_read(phydev, 0x1c0) & 0xfffe);
 
-	printk(KERN_DEBUG "DP83865 PHY: 10BASE-T HDX loopback %s\n",
-	       (ns_exp_read(phydev, 0x1c0) & 0x0001) ? "off" : "on");
+	pr_debug("10BASE-T HDX loopback %s\n",
+		 (ns_exp_read(phydev, 0x1c0) & 0x0001) ? "off" : "on");
 }
 
 static int ns_config_init(struct phy_device *phydev)

@@ -13,6 +13,9 @@
  * option) any later version.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -148,7 +151,7 @@ int mdiobus_register(struct mii_bus *bus)
 
 	err = device_register(&bus->dev);
 	if (err) {
-		printk(KERN_ERR "mii_bus %s failed to register\n", bus->id);
+		pr_err("mii_bus %s failed to register\n", bus->id);
 		return -EINVAL;
 	}
 

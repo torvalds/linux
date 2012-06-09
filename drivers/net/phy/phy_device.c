@@ -14,6 +14,9 @@
  * option) any later version.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -975,8 +978,8 @@ int phy_driver_register(struct phy_driver *new_driver)
 	retval = driver_register(&new_driver->driver);
 
 	if (retval) {
-		printk(KERN_ERR "%s: Error %d in registering driver\n",
-				new_driver->name, retval);
+		pr_err("%s: Error %d in registering driver\n",
+		       new_driver->name, retval);
 
 		return retval;
 	}
