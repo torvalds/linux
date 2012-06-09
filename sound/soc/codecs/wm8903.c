@@ -2124,7 +2124,7 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 	wm8903->dev = &i2c->dev;
 
-	wm8903->regmap = regmap_init_i2c(i2c, &wm8903_regmap);
+	wm8903->regmap = devm_regmap_init_i2c(i2c, &wm8903_regmap);
 	if (IS_ERR(wm8903->regmap)) {
 		ret = PTR_ERR(wm8903->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -2191,7 +2191,6 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 
 	return 0;
 err:
-	regmap_exit(wm8903->regmap);
 	return ret;
 }
 
@@ -2200,7 +2199,6 @@ static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 	struct wm8903_priv *wm8903 = i2c_get_clientdata(client);
 
 	wm8903_free_gpio(wm8903);
-	regmap_exit(wm8903->regmap);
 	snd_soc_unregister_codec(&client->dev);
 
 	return 0;
