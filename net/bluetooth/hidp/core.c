@@ -225,7 +225,8 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 }
 
 static int __hidp_send_ctrl_message(struct hidp_session *session,
-			unsigned char hdr, unsigned char *data, int size)
+				    unsigned char hdr, unsigned char *data,
+				    int size)
 {
 	struct sk_buff *skb;
 
