@@ -60,9 +60,8 @@ static bool tcp_remember_stamp(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_peer *peer;
-	bool release_it;
 
-	peer = icsk->icsk_af_ops->get_peer(sk, &release_it);
+	peer = icsk->icsk_af_ops->get_peer(sk);
 	if (peer) {
 		if ((s32)(peer->tcp_ts - tp->rx_opt.ts_recent) <= 0 ||
 		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
@@ -70,8 +69,6 @@ static bool tcp_remember_stamp(struct sock *sk)
 			peer->tcp_ts_stamp = (u32)tp->rx_opt.ts_recent_stamp;
 			peer->tcp_ts = tp->rx_opt.ts_recent;
 		}
-		if (release_it)
-			inet_putpeer(peer);
 		return true;
 	}
 

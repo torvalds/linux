@@ -1820,23 +1820,18 @@ do_time_wait:
 	goto discard_it;
 }
 
-struct inet_peer *tcp_v4_get_peer(struct sock *sk, bool *release_it)
+struct inet_peer *tcp_v4_get_peer(struct sock *sk)
 {
 	struct rtable *rt = (struct rtable *) __sk_dst_get(sk);
 	struct inet_sock *inet = inet_sk(sk);
-	struct net *net = sock_net(sk);
-	struct inet_peer *peer;
 
-	if (!rt ||
-	    inet->cork.fl.u.ip4.daddr != inet->inet_daddr) {
-		peer = inet_getpeer_v4(net, inet->inet_daddr, 1);
-		*release_it = true;
-	} else {
-		peer = rt_get_peer_create(rt, inet->inet_daddr);
-		*release_it = false;
-	}
-
-	return peer;
+	/* If we don't have a valid cached route, or we're doing IP
+	 * options which make the IPv4 header destination address
+	 * different from our peer's, do not bother with this.
+	 */
+	if (!rt || inet->cork.fl.u.ip4.daddr != inet->inet_daddr)
+		return NULL;
+	return rt_get_peer_create(rt, inet->inet_daddr);
 }
 EXPORT_SYMBOL(tcp_v4_get_peer);
 
