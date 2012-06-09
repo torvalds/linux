@@ -82,11 +82,13 @@ static const struct inet_peer peer_fake_node = {
 	.avl_height	= 0
 };
 
-struct inet_peer_base {
-	struct inet_peer __rcu *root;
-	seqlock_t	lock;
-	int		total;
-};
+void inet_peer_base_init(struct inet_peer_base *bp)
+{
+	bp->root = peer_avl_empty_rcu;
+	seqlock_init(&bp->lock);
+	bp->total = 0;
+}
+EXPORT_SYMBOL_GPL(inet_peer_base_init);
 
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
 
@@ -141,46 +143,6 @@ static void inetpeer_gc_worker(struct work_struct *work)
 	schedule_delayed_work(&gc_work, gc_delay);
 }
 
-static int __net_init inetpeer_net_init(struct net *net)
-{
-	net->ipv4.peers = kzalloc(sizeof(struct inet_peer_base),
-				  GFP_KERNEL);
-	if (net->ipv4.peers == NULL)
-		return -ENOMEM;
-
-	net->ipv4.peers->root = peer_avl_empty_rcu;
-	seqlock_init(&net->ipv4.peers->lock);
-
-	net->ipv6.peers = kzalloc(sizeof(struct inet_peer_base),
-				  GFP_KERNEL);
-	if (net->ipv6.peers == NULL)
-		goto out_ipv6;
-
-	net->ipv6.peers->root = peer_avl_empty_rcu;
-	seqlock_init(&net->ipv6.peers->lock);
-
-	return 0;
-out_ipv6:
-	kfree(net->ipv4.peers);
-	return -ENOMEM;
-}
-
-static void __net_exit inetpeer_net_exit(struct net *net)
-{
-	inetpeer_invalidate_tree(net, AF_INET);
-	kfree(net->ipv4.peers);
-	net->ipv4.peers = NULL;
-
-	inetpeer_invalidate_tree(net, AF_INET6);
-	kfree(net->ipv6.peers);
-	net->ipv6.peers = NULL;
-}
-
-static struct pernet_operations inetpeer_ops = {
-	.init = inetpeer_net_init,
-	.exit = inetpeer_net_exit,
-};
-
 /* Called from ip_output.c:ip_init  */
 void __init inet_initpeers(void)
 {
@@ -205,7 +167,6 @@ void __init inet_initpeers(void)
 			NULL);
 
 	INIT_DELAYED_WORK_DEFERRABLE(&gc_work, inetpeer_gc_worker);
-	register_pernet_subsys(&inetpeer_ops);
 }
 
 static int addr_compare(const struct inetpeer_addr *a,
@@ -603,10 +564,9 @@ static void inetpeer_inval_rcu(struct rcu_head *head)
 	schedule_delayed_work(&gc_work, gc_delay);
 }
 
-void inetpeer_invalidate_tree(struct net *net, int family)
+void __inetpeer_invalidate_tree(struct inet_peer_base *base)
 {
 	struct inet_peer *old, *new, *prev;
-	struct inet_peer_base *base = family_to_base(net, family);
 
 	write_seqlock_bh(&base->lock);
 
@@ -624,5 +584,13 @@ void inetpeer_invalidate_tree(struct net *net, int family)
 
 out:
 	write_sequnlock_bh(&base->lock);
+}
+EXPORT_SYMBOL(__inetpeer_invalidate_tree);
+
+void inetpeer_invalidate_tree(struct net *net, int family)
+{
+	struct inet_peer_base *base = family_to_base(net, family);
+
+	__inetpeer_invalidate_tree(base);
 }
 EXPORT_SYMBOL(inetpeer_invalidate_tree);

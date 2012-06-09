@@ -3385,6 +3385,30 @@ static __net_initdata struct pernet_operations rt_genid_ops = {
 	.init = rt_genid_init,
 };
 
+static int __net_init ipv4_inetpeer_init(struct net *net)
+{
+	struct inet_peer_base *bp = kmalloc(sizeof(*bp), GFP_KERNEL);
+
+	if (!bp)
+		return -ENOMEM;
+	inet_peer_base_init(bp);
+	net->ipv4.peers = bp;
+	return 0;
+}
+
+static void __net_exit ipv4_inetpeer_exit(struct net *net)
+{
+	struct inet_peer_base *bp = net->ipv4.peers;
+
+	net->ipv4.peers = NULL;
+	__inetpeer_invalidate_tree(bp);
+	kfree(bp);
+}
+
+static __net_initdata struct pernet_operations ipv4_inetpeer_ops = {
+	.init	=	ipv4_inetpeer_init,
+	.exit	=	ipv4_inetpeer_exit,
+};
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
 struct ip_rt_acct __percpu *ip_rt_acct __read_mostly;
@@ -3465,6 +3489,7 @@ int __init ip_rt_init(void)
 	register_pernet_subsys(&sysctl_route_ops);
 #endif
 	register_pernet_subsys(&rt_genid_ops);
+	register_pernet_subsys(&ipv4_inetpeer_ops);
 	return rc;
 }
 

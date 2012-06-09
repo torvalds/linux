@@ -2996,6 +2996,31 @@ static struct pernet_operations ip6_route_net_ops = {
 	.exit = ip6_route_net_exit,
 };
 
+static int __net_init ipv6_inetpeer_init(struct net *net)
+{
+	struct inet_peer_base *bp = kmalloc(sizeof(*bp), GFP_KERNEL);
+
+	if (!bp)
+		return -ENOMEM;
+	inet_peer_base_init(bp);
+	net->ipv6.peers = bp;
+	return 0;
+}
+
+static void __net_exit ipv6_inetpeer_exit(struct net *net)
+{
+	struct inet_peer_base *bp = net->ipv6.peers;
+
+	net->ipv6.peers = NULL;
+	__inetpeer_invalidate_tree(bp);
+	kfree(bp);
+}
+
+static __net_initdata struct pernet_operations ipv6_inetpeer_ops = {
+	.init	=	ipv6_inetpeer_init,
+	.exit	=	ipv6_inetpeer_exit,
+};
+
 static struct notifier_block ip6_route_dev_notifier = {
 	.notifier_call = ip6_route_dev_notify,
 	.priority = 0,
@@ -3020,6 +3045,10 @@ int __init ip6_route_init(void)
 	if (ret)
 		goto out_dst_entries;
 
+	ret = register_pernet_subsys(&ipv6_inetpeer_ops);
+	if (ret)
+		goto out_register_subsys;
+
 	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops_template.kmem_cachep;
 
 	/* Registering of the loopback is done before this portion of code,
@@ -3035,7 +3064,7 @@ int __init ip6_route_init(void)
   #endif
 	ret = fib6_init();
 	if (ret)
-		goto out_register_subsys;
+		goto out_register_inetpeer;
 
 	ret = xfrm6_init();
 	if (ret)
@@ -3064,6 +3093,8 @@ xfrm6_init:
 	xfrm6_fini();
 out_fib6_init:
 	fib6_gc_cleanup();
+out_register_inetpeer:
+	unregister_pernet_subsys(&ipv6_inetpeer_ops);
 out_register_subsys:
 	unregister_pernet_subsys(&ip6_route_net_ops);
 out_dst_entries:
@@ -3079,6 +3110,7 @@ void ip6_route_cleanup(void)
 	fib6_rules_cleanup();
 	xfrm6_fini();
 	fib6_gc_cleanup();
+	unregister_pernet_subsys(&ipv6_inetpeer_ops);
 	unregister_pernet_subsys(&ip6_route_net_ops);
 	dst_entries_destroy(&ip6_dst_blackhole_ops);
 	kmem_cache_destroy(ip6_dst_ops_template.kmem_cachep);
