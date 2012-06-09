@@ -578,6 +578,7 @@ config INTEL_SCU_WATCHDOG
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
 	depends on (X86 || IA64) && PCI
+	select WATCHDOG_CORE
 	select LPC_ICH
 	---help---
 	  Hardware driver for the intel TCO timer based watchdog devices.
