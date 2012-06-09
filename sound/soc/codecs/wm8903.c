@@ -1636,17 +1636,27 @@ EXPORT_SYMBOL_GPL(wm8903_mic_detect);
 
 static irqreturn_t wm8903_irq(int irq, void *data)
 {
-	struct snd_soc_codec *codec = data;
-	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-	int mic_report;
-	int int_pol;
-	int int_val = 0;
-	int mask = ~snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1_MASK);
+	struct wm8903_priv *wm8903 = data;
+	int mic_report, ret;
+	unsigned int int_val, mask, int_pol;
 
-	int_val = snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1) & mask;
+	ret = regmap_read(wm8903->regmap, WM8903_INTERRUPT_STATUS_1_MASK,
+			  &mask);
+	if (ret != 0) {
+		dev_err(wm8903->dev, "Failed to read IRQ mask: %d\n", ret);
+		return IRQ_NONE;
+	}
+
+	ret = regmap_read(wm8903->regmap, WM8903_INTERRUPT_STATUS_1, &int_val);
+	if (ret != 0) {
+		dev_err(wm8903->dev, "Failed to read IRQ status: %d\n", ret);
+		return IRQ_NONE;
+	}
+
+	int_val &= ~mask;
 
 	if (int_val & WM8903_WSEQ_BUSY_EINT) {
-		dev_warn(codec->dev, "Write sequencer done\n");
+		dev_warn(wm8903->dev, "Write sequencer done\n");
 	}
 
 	/*
@@ -1657,22 +1667,28 @@ static irqreturn_t wm8903_irq(int irq, void *data)
 	 * the polarity register.
 	 */
 	mic_report = wm8903->mic_last_report;
-	int_pol = snd_soc_read(codec, WM8903_INTERRUPT_POLARITY_1);
+	ret = regmap_read(wm8903->regmap, WM8903_INTERRUPT_POLARITY_1,
+			  &int_pol);
+	if (ret != 0) {
+		dev_err(wm8903->dev, "Failed to read interrupt polarity: %d\n",
+			ret);
+		return IRQ_HANDLED;
+	}
 
 #ifndef CONFIG_SND_SOC_WM8903_MODULE
 	if (int_val & (WM8903_MICSHRT_EINT | WM8903_MICDET_EINT))
-		trace_snd_soc_jack_irq(dev_name(codec->dev));
+		trace_snd_soc_jack_irq(dev_name(wm8903->dev));
 #endif
 
 	if (int_val & WM8903_MICSHRT_EINT) {
-		dev_dbg(codec->dev, "Microphone short (pol=%x)\n", int_pol);
+		dev_dbg(wm8903->dev, "Microphone short (pol=%x)\n", int_pol);
 
 		mic_report ^= wm8903->mic_short;
 		int_pol ^= WM8903_MICSHRT_INV;
 	}
 
 	if (int_val & WM8903_MICDET_EINT) {
-		dev_dbg(codec->dev, "Microphone detect (pol=%x)\n", int_pol);
+		dev_dbg(wm8903->dev, "Microphone detect (pol=%x)\n", int_pol);
 
 		mic_report ^= wm8903->mic_det;
 		int_pol ^= WM8903_MICDET_INV;
@@ -1680,8 +1696,8 @@ static irqreturn_t wm8903_irq(int irq, void *data)
 		msleep(wm8903->mic_delay);
 	}
 
-	snd_soc_update_bits(codec, WM8903_INTERRUPT_POLARITY_1,
-			    WM8903_MICSHRT_INV | WM8903_MICDET_INV, int_pol);
+	regmap_update_bits(wm8903->regmap, WM8903_INTERRUPT_POLARITY_1,
+			   WM8903_MICSHRT_INV | WM8903_MICDET_INV, int_pol);
 
 	snd_soc_jack_report(wm8903->mic_jack, mic_report,
 			    wm8903->mic_short | wm8903->mic_det);
@@ -1907,7 +1923,7 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 		
 		ret = request_threaded_irq(wm8903->irq, NULL, wm8903_irq,
 					   trigger | IRQF_ONESHOT,
-					   "wm8903", codec);
+					   "wm8903", wm8903);
 		if (ret != 0) {
 			dev_err(codec->dev, "Failed to request IRQ: %d\n",
 				ret);
@@ -1963,7 +1979,7 @@ static int wm8903_remove(struct snd_soc_codec *codec)
 
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	if (wm8903->irq)
-		free_irq(wm8903->irq, codec);
+		free_irq(wm8903->irq, wm8903);
 
 	return 0;
 }
