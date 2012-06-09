@@ -1744,9 +1744,7 @@ static struct inet_peer *tcp_v6_get_peer(struct sock *sk, bool *release_it)
 		peer = inet_getpeer_v6(net, &np->daddr, 1);
 		*release_it = true;
 	} else {
-		if (!rt->rt6i_peer)
-			rt6_bind_peer(rt, 1);
-		peer = rt->rt6i_peer;
+		peer = rt6_get_peer_create(rt);
 		*release_it = false;
 	}
 

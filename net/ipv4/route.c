@@ -162,10 +162,7 @@ static u32 *ipv4_cow_metrics(struct dst_entry *dst, unsigned long old)
 	struct inet_peer *peer;
 	u32 *p = NULL;
 
-	if (!rt->peer)
-		rt_bind_peer(rt, rt->rt_dst, 1);
-
-	peer = rt->peer;
+	peer = rt_get_peer_create(rt, rt->rt_dst);
 	if (peer) {
 		u32 *old_p = __DST_METRICS_PTR(old);
 		unsigned long prev, new;
@@ -1364,14 +1361,13 @@ void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
 	struct rtable *rt = (struct rtable *) dst;
 
 	if (rt && !(rt->dst.flags & DST_NOPEER)) {
-		if (rt->peer == NULL)
-			rt_bind_peer(rt, rt->rt_dst, 1);
+		struct inet_peer *peer = rt_get_peer_create(rt, rt->rt_dst);
 
 		/* If peer is attached to destination, it is never detached,
 		   so that we need not to grab a lock to dereference it.
 		 */
-		if (rt->peer) {
-			iph->id = htons(inet_getid(rt->peer, more));
+		if (peer) {
+			iph->id = htons(inet_getid(peer, more));
 			return;
 		}
 	} else if (!rt)
@@ -1481,10 +1477,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				    rt->rt_gateway != old_gw)
 					continue;
 
-				if (!rt->peer)
-					rt_bind_peer(rt, rt->rt_dst, 1);
-
-				peer = rt->peer;
+				peer = rt_get_peer_create(rt, rt->rt_dst);
 				if (peer) {
 					if (peer->redirect_learned.a4 != new_gw) {
 						peer->redirect_learned.a4 = new_gw;
@@ -1579,9 +1572,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	log_martians = IN_DEV_LOG_MARTIANS(in_dev);
 	rcu_read_unlock();
 
-	if (!rt->peer)
-		rt_bind_peer(rt, rt->rt_dst, 1);
-	peer = rt->peer;
+	peer = rt_get_peer_create(rt, rt->rt_dst);
 	if (!peer) {
 		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, rt->rt_gateway);
 		return;
@@ -1646,9 +1637,7 @@ static int ip_error(struct sk_buff *skb)
 		break;
 	}
 
-	if (!rt->peer)
-		rt_bind_peer(rt, rt->rt_dst, 1);
-	peer = rt->peer;
+	peer = rt_get_peer_create(rt, rt->rt_dst);
 
 	send = true;
 	if (peer) {
@@ -1754,9 +1743,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 
 	dst_confirm(dst);
 
-	if (!rt->peer)
-		rt_bind_peer(rt, rt->rt_dst, 1);
-	peer = rt->peer;
+	peer = rt_get_peer_create(rt, rt->rt_dst);
 	if (peer) {
 		unsigned long pmtu_expires = ACCESS_ONCE(peer->pmtu_expires);
 
@@ -1782,12 +1769,8 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 static void ipv4_validate_peer(struct rtable *rt)
 {
 	if (rt->rt_peer_genid != rt_peer_genid()) {
-		struct inet_peer *peer;
+		struct inet_peer *peer = rt_get_peer(rt, rt->rt_dst);
 
-		if (!rt->peer)
-			rt_bind_peer(rt, rt->rt_dst, 0);
-
-		peer = rt->peer;
 		if (peer) {
 			check_peer_pmtu(&rt->dst, peer);
 

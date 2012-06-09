@@ -1472,6 +1472,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.ndisc_sk;
 	int len = sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
+	struct inet_peer *peer;
 	struct sk_buff *buff;
 	struct icmp6hdr *icmph;
 	struct in6_addr saddr_buf;
@@ -1518,9 +1519,8 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 			  "Redirect: destination is not a neighbour\n");
 		goto release;
 	}
-	if (!rt->rt6i_peer)
-		rt6_bind_peer(rt, 1);
-	if (!inet_peer_xrlim_allow(rt->rt6i_peer, 1*HZ))
+	peer = rt6_get_peer_create(rt);
+	if (!inet_peer_xrlim_allow(peer, 1*HZ))
 		goto release;
 
 	if (dev->addr_len) {

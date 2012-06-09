@@ -1832,9 +1832,7 @@ struct inet_peer *tcp_v4_get_peer(struct sock *sk, bool *release_it)
 		peer = inet_getpeer_v4(net, inet->inet_daddr, 1);
 		*release_it = true;
 	} else {
-		if (!rt->peer)
-			rt_bind_peer(rt, inet->inet_daddr, 1);
-		peer = rt->peer;
+		peer = rt_get_peer_create(rt, inet->inet_daddr);
 		*release_it = false;
 	}
 

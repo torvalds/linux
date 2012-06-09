@@ -99,10 +99,7 @@ static u32 *ipv6_cow_metrics(struct dst_entry *dst, unsigned long old)
 	if (!(rt->dst.flags & DST_HOST))
 		return NULL;
 
-	if (!rt->rt6i_peer)
-		rt6_bind_peer(rt, 1);
-
-	peer = rt->rt6i_peer;
+	peer = rt6_get_peer_create(rt);
 	if (peer) {
 		u32 *old_p = __DST_METRICS_PTR(old);
 		unsigned long prev, new;

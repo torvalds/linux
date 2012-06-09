@@ -296,13 +296,23 @@ static inline struct rtable *ip_route_newports(struct flowi4 *fl4, struct rtable
 
 extern void rt_bind_peer(struct rtable *rt, __be32 daddr, int create);
 
-static inline struct inet_peer *rt_get_peer(struct rtable *rt, __be32 daddr)
+static inline struct inet_peer *__rt_get_peer(struct rtable *rt, __be32 daddr, int create)
 {
 	if (rt->peer)
 		return rt->peer;
 
-	rt_bind_peer(rt, daddr, 0);
+	rt_bind_peer(rt, daddr, create);
 	return rt->peer;
+}
+
+static inline struct inet_peer *rt_get_peer(struct rtable *rt, __be32 daddr)
+{
+	return __rt_get_peer(rt, daddr, 0);
+}
+
+static inline struct inet_peer *rt_get_peer_create(struct rtable *rt, __be32 daddr)
+{
+	return __rt_get_peer(rt, daddr, 1);
 }
 
 static inline int inet_iif(const struct sk_buff *skb)
