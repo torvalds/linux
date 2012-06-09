@@ -1172,6 +1172,10 @@ static int sony_nc_hotkeys_decode(u32 event, unsigned int handle)
 /*
  * ACPI callbacks
  */
+enum event_types {
+	HOTKEY = 1,
+	KILLSWITCH
+};
 static void sony_nc_notify(struct acpi_device *device, u32 event)
 {
 	u32 real_ev = event;
@@ -1196,7 +1200,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 		/* hotkey event */
 		case 0x0100:
 		case 0x0127:
-			ev_type = 1;
+			ev_type = HOTKEY;
 			real_ev = sony_nc_hotkeys_decode(event, handle);
 
 			if (real_ev > 0)
@@ -1216,7 +1220,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 			 * update the rfkill device status when the
 			 * switch is moved.
 			 */
-			ev_type = 2;
+			ev_type = KILLSWITCH;
 			sony_call_snc_handle(handle, 0x0100, &result);
 			real_ev = result & 0x03;
 
@@ -1238,7 +1242,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 
 	} else {
 		/* old style event */
-		ev_type = 1;
+		ev_type = HOTKEY;
 		sony_laptop_report_input_event(real_ev);
 	}
 
