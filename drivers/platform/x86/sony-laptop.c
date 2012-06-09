@@ -973,7 +973,7 @@ static ssize_t sony_nc_sysfs_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buffer, size_t count)
 {
-	unsigned long value = 0;
+	int value;
 	int ret = 0;
 	struct sony_nc_value *item =
 	    container_of(attr, struct sony_nc_value, devattr);
@@ -984,7 +984,7 @@ static ssize_t sony_nc_sysfs_store(struct device *dev,
 	if (count > 31)
 		return -EINVAL;
 
-	if (kstrtoul(buffer, 10, &value))
+	if (kstrtoint(buffer, 10, &value))
 		return -EINVAL;
 
 	if (item->validate)
@@ -994,7 +994,7 @@ static ssize_t sony_nc_sysfs_store(struct device *dev,
 		return value;
 
 	ret = sony_nc_int_call(sony_nc_acpi_handle, *item->acpiset,
-			(int *)&value, NULL);
+			       &value, NULL);
 	if (ret < 0)
 		return -EIO;
 
