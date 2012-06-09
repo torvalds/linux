@@ -77,20 +77,19 @@ static bool tcp_remember_stamp(struct sock *sk)
 
 static bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw)
 {
+	const struct tcp_timewait_sock *tcptw;
 	struct sock *sk = (struct sock *) tw;
 	struct inet_peer *peer;
 
-	peer = twsk_getpeer(sk);
+	tcptw = tcp_twsk(sk);
+	peer = tcptw->tw_peer;
 	if (peer) {
-		const struct tcp_timewait_sock *tcptw = tcp_twsk(sk);
-
 		if ((s32)(peer->tcp_ts - tcptw->tw_ts_recent) <= 0 ||
 		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
 		     peer->tcp_ts_stamp <= (u32)tcptw->tw_ts_recent_stamp)) {
 			peer->tcp_ts_stamp = (u32)tcptw->tw_ts_recent_stamp;
 			peer->tcp_ts	   = tcptw->tw_ts_recent;
 		}
-		inet_putpeer(peer);
 		return true;
 	}
 	return false;
@@ -314,9 +313,12 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	bool recycle_ok = false;
+	bool recycle_on = false;
 
-	if (tcp_death_row.sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp)
+	if (tcp_death_row.sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp) {
 		recycle_ok = tcp_remember_stamp(sk);
+		recycle_on = true;
+	}
 
 	if (tcp_death_row.tw_count < tcp_death_row.sysctl_max_tw_buckets)
 		tw = inet_twsk_alloc(sk, state);
@@ -324,8 +326,10 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 	if (tw != NULL) {
 		struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
 		const int rto = (icsk->icsk_rto << 2) - (icsk->icsk_rto >> 1);
+		struct inet_sock *inet = inet_sk(sk);
+		struct inet_peer *peer = NULL;
 
-		tw->tw_transparent	= inet_sk(sk)->transparent;
+		tw->tw_transparent	= inet->transparent;
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
 		tcptw->tw_rcv_nxt	= tp->rcv_nxt;
 		tcptw->tw_snd_nxt	= tp->snd_nxt;
@@ -346,6 +350,12 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_ipv6only = np->ipv6only;
 		}
 #endif
+
+		if (recycle_on)
+			peer = icsk->icsk_af_ops->get_peer(sk);
+		tcptw->tw_peer = peer;
+		if (peer)
+			atomic_inc(&peer->refcnt);
 
 #ifdef CONFIG_TCP_MD5SIG
 		/*
@@ -398,8 +408,11 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 
 void tcp_twsk_destructor(struct sock *sk)
 {
-#ifdef CONFIG_TCP_MD5SIG
 	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
+
+	if (twsk->tw_peer)
+		inet_putpeer(twsk->tw_peer);
+#ifdef CONFIG_TCP_MD5SIG
 	if (twsk->tw_md5_key) {
 		tcp_free_md5sig_pool();
 		kfree_rcu(twsk->tw_md5_key, rcu);

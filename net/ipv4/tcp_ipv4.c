@@ -1835,20 +1835,10 @@ struct inet_peer *tcp_v4_get_peer(struct sock *sk)
 }
 EXPORT_SYMBOL(tcp_v4_get_peer);
 
-void *tcp_v4_tw_get_peer(struct sock *sk)
-{
-	const struct inet_timewait_sock *tw = inet_twsk(sk);
-	struct net *net = sock_net(sk);
-
-	return inet_getpeer_v4(net, tw->tw_daddr, 1);
-}
-EXPORT_SYMBOL(tcp_v4_tw_get_peer);
-
 static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
 	.twsk_unique	= tcp_twsk_unique,
 	.twsk_destructor= tcp_twsk_destructor,
-	.twsk_getpeer	= tcp_v4_tw_get_peer,
 };
 
 const struct inet_connection_sock_af_ops ipv4_specific = {
