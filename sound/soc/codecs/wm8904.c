@@ -2263,7 +2263,7 @@ static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 	if (wm8904 == NULL)
 		return -ENOMEM;
 
-	wm8904->regmap = regmap_init_i2c(i2c, &wm8904_regmap);
+	wm8904->regmap = devm_regmap_init_i2c(i2c, &wm8904_regmap);
 	if (IS_ERR(wm8904->regmap)) {
 		ret = PTR_ERR(wm8904->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -2283,15 +2283,12 @@ static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 	return 0;
 
 err:
-	regmap_exit(wm8904->regmap);
 	return ret;
 }
 
 static __devexit int wm8904_i2c_remove(struct i2c_client *client)
 {
-	struct wm8904_priv *wm8904 = i2c_get_clientdata(client);
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(wm8904->regmap);
 	return 0;
 }
 
