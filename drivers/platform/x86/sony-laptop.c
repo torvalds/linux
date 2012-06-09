@@ -2642,6 +2642,12 @@ static int sony_nc_add(struct acpi_device *device)
 		}
 	}
 
+	result = sony_laptop_setup_input(device);
+	if (result) {
+		pr_err("Unable to create input devices\n");
+		goto outplatform;
+	}
+
 	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "ECON",
 					 &handle))) {
 		int arg = 1;
@@ -2659,12 +2665,6 @@ static int sony_nc_add(struct acpi_device *device)
 	}
 
 	/* setup input devices and helper fifo */
-	result = sony_laptop_setup_input(device);
-	if (result) {
-		pr_err("Unable to create input devices\n");
-		goto outsnc;
-	}
-
 	if (acpi_video_backlight_support()) {
 		pr_info("brightness ignored, must be controlled by ACPI video driver\n");
 	} else {
@@ -2712,22 +2712,21 @@ static int sony_nc_add(struct acpi_device *device)
 
 	return 0;
 
-      out_sysfs:
+out_sysfs:
 	for (item = sony_nc_values; item->name; ++item) {
 		device_remove_file(&sony_pf_device->dev, &item->devattr);
 	}
 	sony_nc_backlight_cleanup();
-
-	sony_laptop_remove_input();
-
-      outsnc:
 	sony_nc_function_cleanup(sony_pf_device);
 	sony_nc_handles_cleanup(sony_pf_device);
 
-      outpresent:
+outplatform:
+	sony_laptop_remove_input();
+
+outpresent:
 	sony_pf_remove();
 
-      outwalk:
+outwalk:
 	sony_nc_rfkill_cleanup();
 	return result;
 }
