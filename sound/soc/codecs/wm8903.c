@@ -1896,7 +1896,6 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 {
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-	u16 val;
 
 	wm8903->codec = codec;
 	codec->control_data = wm8903->regmap;
@@ -1909,37 +1908,6 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 
 	/* power on device */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	/* Latch volume update bits */
-	val = snd_soc_read(codec, WM8903_ADC_DIGITAL_VOLUME_LEFT);
-	val |= WM8903_ADCVU;
-	snd_soc_write(codec, WM8903_ADC_DIGITAL_VOLUME_LEFT, val);
-	snd_soc_write(codec, WM8903_ADC_DIGITAL_VOLUME_RIGHT, val);
-
-	val = snd_soc_read(codec, WM8903_DAC_DIGITAL_VOLUME_LEFT);
-	val |= WM8903_DACVU;
-	snd_soc_write(codec, WM8903_DAC_DIGITAL_VOLUME_LEFT, val);
-	snd_soc_write(codec, WM8903_DAC_DIGITAL_VOLUME_RIGHT, val);
-
-	val = snd_soc_read(codec, WM8903_ANALOGUE_OUT1_LEFT);
-	val |= WM8903_HPOUTVU;
-	snd_soc_write(codec, WM8903_ANALOGUE_OUT1_LEFT, val);
-	snd_soc_write(codec, WM8903_ANALOGUE_OUT1_RIGHT, val);
-
-	val = snd_soc_read(codec, WM8903_ANALOGUE_OUT2_LEFT);
-	val |= WM8903_LINEOUTVU;
-	snd_soc_write(codec, WM8903_ANALOGUE_OUT2_LEFT, val);
-	snd_soc_write(codec, WM8903_ANALOGUE_OUT2_RIGHT, val);
-
-	val = snd_soc_read(codec, WM8903_ANALOGUE_OUT3_LEFT);
-	val |= WM8903_SPKVU;
-	snd_soc_write(codec, WM8903_ANALOGUE_OUT3_LEFT, val);
-	snd_soc_write(codec, WM8903_ANALOGUE_OUT3_RIGHT, val);
-
-	/* Enable DAC soft mute by default */
-	snd_soc_update_bits(codec, WM8903_DAC_DIGITAL_1,
-			    WM8903_DAC_MUTEMODE | WM8903_DAC_MUTE,
-			    WM8903_DAC_MUTEMODE | WM8903_DAC_MUTE);
 
 	return ret;
 }
@@ -2196,6 +2164,37 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 				   WM8903_INTERRUPT_STATUS_1_MASK,
 				   WM8903_IM_WSEQ_BUSY_EINT, 0);
 	}
+
+	/* Latch volume update bits */
+	regmap_update_bits(wm8903->regmap, WM8903_ADC_DIGITAL_VOLUME_LEFT,
+			   WM8903_ADCVU, WM8903_ADCVU);
+	regmap_update_bits(wm8903->regmap, WM8903_ADC_DIGITAL_VOLUME_RIGHT,
+			   WM8903_ADCVU, WM8903_ADCVU);
+
+	regmap_update_bits(wm8903->regmap, WM8903_DAC_DIGITAL_VOLUME_LEFT,
+			   WM8903_DACVU, WM8903_DACVU);
+	regmap_update_bits(wm8903->regmap, WM8903_DAC_DIGITAL_VOLUME_RIGHT,
+			   WM8903_DACVU, WM8903_DACVU);
+
+	regmap_update_bits(wm8903->regmap, WM8903_ANALOGUE_OUT1_LEFT,
+			   WM8903_HPOUTVU, WM8903_HPOUTVU);
+	regmap_update_bits(wm8903->regmap, WM8903_ANALOGUE_OUT1_RIGHT,
+			   WM8903_HPOUTVU, WM8903_HPOUTVU);
+
+	regmap_update_bits(wm8903->regmap, WM8903_ANALOGUE_OUT2_LEFT,
+			   WM8903_LINEOUTVU, WM8903_LINEOUTVU);
+	regmap_update_bits(wm8903->regmap, WM8903_ANALOGUE_OUT2_RIGHT,
+			   WM8903_LINEOUTVU, WM8903_LINEOUTVU);
+
+	regmap_update_bits(wm8903->regmap, WM8903_ANALOGUE_OUT3_LEFT,
+			   WM8903_SPKVU, WM8903_SPKVU);
+	regmap_update_bits(wm8903->regmap, WM8903_ANALOGUE_OUT3_RIGHT,
+			   WM8903_SPKVU, WM8903_SPKVU);
+
+	/* Enable DAC soft mute by default */
+	regmap_update_bits(wm8903->regmap, WM8903_DAC_DIGITAL_1,
+			   WM8903_DAC_MUTEMODE | WM8903_DAC_MUTE,
+			   WM8903_DAC_MUTEMODE | WM8903_DAC_MUTE);
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8903, &wm8903_dai, 1);
