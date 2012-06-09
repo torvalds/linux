@@ -17,12 +17,14 @@
 #include <linux/if_ether.h>
 #include <linux/if.h>
 #include <linux/ieee80211.h>
+#include <linux/module.h>
 
 #include <defs.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include "dhd.h"
 #include "dhd_bus.h"
+#include "dhd_dbg.h"
 
 static struct dentry *root_folder;
 
@@ -60,4 +62,65 @@ void brcmf_debugfs_detach(struct brcmf_pub *drvr)
 struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr)
 {
 	return drvr->dbgfs_dir;
+}
+
+static
+ssize_t brcmf_debugfs_sdio_counter_read(struct file *f, char __user *data,
+					size_t count, loff_t *ppos)
+{
+	struct brcmf_sdio_count *sdcnt = f->private_data;
+	char buf[750];
+	int res;
+
+	/* only allow read from start */
+	if (*ppos > 0)
+		return 0;
+
+	res = scnprintf(buf, sizeof(buf),
+			"intrcount:    %u\nlastintrs:    %u\n"
+			"pollcnt:      %u\nregfails:     %u\n"
+			"tx_sderrs:    %u\nfcqueued:     %u\n"
+			"rxrtx:        %u\nrx_toolong:   %u\n"
+			"rxc_errors:   %u\nrx_hdrfail:   %u\n"
+			"rx_badhdr:    %u\nrx_badseq:    %u\n"
+			"fc_rcvd:      %u\nfc_xoff:      %u\n"
+			"fc_xon:       %u\nrxglomfail:   %u\n"
+			"rxglomframes: %u\nrxglompkts:   %u\n"
+			"f2rxhdrs:     %u\nf2rxdata:     %u\n"
+			"f2txdata:     %u\nf1regdata:    %u\n"
+			"tickcnt:      %u\ntx_ctlerrs:   %lu\n"
+			"tx_ctlpkts:   %lu\nrx_ctlerrs:   %lu\n"
+			"rx_ctlpkts:   %lu\nrx_readahead: %lu\n",
+			sdcnt->intrcount, sdcnt->lastintrs,
+			sdcnt->pollcnt, sdcnt->regfails,
+			sdcnt->tx_sderrs, sdcnt->fcqueued,
+			sdcnt->rxrtx, sdcnt->rx_toolong,
+			sdcnt->rxc_errors, sdcnt->rx_hdrfail,
+			sdcnt->rx_badhdr, sdcnt->rx_badseq,
+			sdcnt->fc_rcvd, sdcnt->fc_xoff,
+			sdcnt->fc_xon, sdcnt->rxglomfail,
+			sdcnt->rxglomframes, sdcnt->rxglompkts,
+			sdcnt->f2rxhdrs, sdcnt->f2rxdata,
+			sdcnt->f2txdata, sdcnt->f1regdata,
+			sdcnt->tickcnt, sdcnt->tx_ctlerrs,
+			sdcnt->tx_ctlpkts, sdcnt->rx_ctlerrs,
+			sdcnt->rx_ctlpkts, sdcnt->rx_readahead_cnt);
+
+	return simple_read_from_buffer(data, count, ppos, buf, res);
+}
+
+static const struct file_operations brcmf_debugfs_sdio_counter_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = brcmf_debugfs_sdio_counter_read
+};
+
+void brcmf_debugfs_create_sdio_count(struct brcmf_pub *drvr,
+				     struct brcmf_sdio_count *sdcnt)
+{
+	struct dentry *dentry = drvr->dbgfs_dir;
+
+	if (!IS_ERR_OR_NULL(dentry))
+		debugfs_create_file("counters", S_IRUGO, dentry,
+				    sdcnt, &brcmf_debugfs_sdio_counter_ops);
 }
