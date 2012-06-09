@@ -305,6 +305,9 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 		ret = vdev->fops->read(filp, buf, sz, off);
 	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: read: %zd (%d)\n",
+			video_device_node_name(vdev), sz, ret);
 	return ret;
 }
 
@@ -323,6 +326,9 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 		ret = vdev->fops->write(filp, buf, sz, off);
 	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: write: %zd (%d)\n",
+			video_device_node_name(vdev), sz, ret);
 	return ret;
 }
 
@@ -339,6 +345,9 @@ static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 		ret = vdev->fops->poll(filp, poll);
 	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: poll: %08x\n",
+			video_device_node_name(vdev), ret);
 	return ret;
 }
 
@@ -403,12 +412,17 @@ static unsigned long v4l2_get_unmapped_area(struct file *filp,
 		unsigned long flags)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret;
 
 	if (!vdev->fops->get_unmapped_area)
 		return -ENOSYS;
 	if (!video_is_registered(vdev))
 		return -ENODEV;
-	return vdev->fops->get_unmapped_area(filp, addr, len, pgoff, flags);
+	ret = vdev->fops->get_unmapped_area(filp, addr, len, pgoff, flags);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: get_unmapped_area (%d)\n",
+			video_device_node_name(vdev), ret);
+	return ret;
 }
 #endif
 
@@ -426,6 +440,9 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 		ret = vdev->fops->mmap(filp, vm);
 	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: mmap (%d)\n",
+			video_device_node_name(vdev), ret);
 	return ret;
 }
 
@@ -464,6 +481,9 @@ err:
 	/* decrease the refcount in case of an error */
 	if (ret)
 		video_put(vdev);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: open (%d)\n",
+			video_device_node_name(vdev), ret);
 	return ret;
 }
 
@@ -483,6 +503,9 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 	/* decrease the refcount unconditionally since the release()
 	   return value is ignored. */
 	video_put(vdev);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: release\n",
+			video_device_node_name(vdev));
 	return ret;
 }
 
