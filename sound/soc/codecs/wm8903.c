@@ -1,7 +1,7 @@
 /*
  * wm8903.c  --  WM8903 ALSA SoC Audio driver
  *
- * Copyright 2008-11 Wolfson Microelectronics
+ * Copyright 2008-12 Wolfson Microelectronics
  * Copyright 2011-2012 NVIDIA, Inc.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
@@ -1880,10 +1880,9 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 {
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	struct wm8903_platform_data *pdata = wm8903->pdata;
-	int ret, i;
+	int ret;
 	int trigger, irq_pol;
 	u16 val;
-	bool mic_gpio = false;
 
 	wm8903->codec = codec;
 	codec->control_data = wm8903->regmap;
@@ -1893,47 +1892,6 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
-
-	/* Set up GPIOs, detect if any are MIC detect outputs */
-	for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
-		if ((!pdata->gpio_cfg[i]) ||
-		    (pdata->gpio_cfg[i] > WM8903_GPIO_CONFIG_ZERO))
-			continue;
-
-		snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
-				pdata->gpio_cfg[i] & 0x7fff);
-
-		val = (pdata->gpio_cfg[i] & WM8903_GP1_FN_MASK)
-			>> WM8903_GP1_FN_SHIFT;
-
-		switch (val) {
-		case WM8903_GPn_FN_MICBIAS_CURRENT_DETECT:
-		case WM8903_GPn_FN_MICBIAS_SHORT_DETECT:
-			mic_gpio = true;
-			break;
-		default:
-			break;
-		}
-	}
-
-	/* Set up microphone detection */
-	snd_soc_write(codec, WM8903_MIC_BIAS_CONTROL_0,
-			pdata->micdet_cfg);
-
-	/* Microphone detection needs the WSEQ clock */
-	if (pdata->micdet_cfg)
-		snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
-				    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
-
-	/* If microphone detection is enabled by pdata but
-	    * detected via IRQ then interrupts can be lost before
-	    * the machine driver has set up microphone detection
-	    * IRQs as the IRQs are clear on read.  The detection
-	    * will be enabled when the machine driver configures.
-	    */
-	WARN_ON(!mic_gpio && (pdata->micdet_cfg & WM8903_MICDET_ENA));
-
-	wm8903->mic_delay = pdata->micdet_delay;
 
 	if (wm8903->irq) {
 		if (pdata->irq_active_low) {
@@ -2115,8 +2073,9 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 {
 	struct wm8903_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8903_priv *wm8903;
+	bool mic_gpio = false;
 	unsigned int val;
-	int ret;
+	int ret, i;
 
 	wm8903 = devm_kzalloc(&i2c->dev,  sizeof(struct wm8903_priv),
 			      GFP_KERNEL);
@@ -2160,6 +2119,8 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
+	pdata = wm8903->pdata;
+
 	ret = regmap_read(wm8903->regmap, WM8903_SW_RESET_AND_ID, &val);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to read chip ID: %d\n", ret);
@@ -2183,6 +2144,47 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 	regmap_write(wm8903->regmap, WM8903_SW_RESET_AND_ID, 0x8903);
 
 	wm8903_init_gpio(wm8903);
+
+	/* Set up GPIO pin state, detect if any are MIC detect outputs */
+	for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
+		if ((!pdata->gpio_cfg[i]) ||
+		    (pdata->gpio_cfg[i] > WM8903_GPIO_CONFIG_ZERO))
+			continue;
+
+		regmap_write(wm8903->regmap, WM8903_GPIO_CONTROL_1 + i,
+				pdata->gpio_cfg[i] & 0x7fff);
+
+		val = (pdata->gpio_cfg[i] & WM8903_GP1_FN_MASK)
+			>> WM8903_GP1_FN_SHIFT;
+
+		switch (val) {
+		case WM8903_GPn_FN_MICBIAS_CURRENT_DETECT:
+		case WM8903_GPn_FN_MICBIAS_SHORT_DETECT:
+			mic_gpio = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* Set up microphone detection */
+	regmap_write(wm8903->regmap, WM8903_MIC_BIAS_CONTROL_0,
+		     pdata->micdet_cfg);
+
+	/* Microphone detection needs the WSEQ clock */
+	if (pdata->micdet_cfg)
+		regmap_update_bits(wm8903->regmap, WM8903_WRITE_SEQUENCER_0,
+				   WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+
+	/* If microphone detection is enabled by pdata but
+	 * detected via IRQ then interrupts can be lost before
+	 * the machine driver has set up microphone detection
+	 * IRQs as the IRQs are clear on read.  The detection
+	 * will be enabled when the machine driver configures.
+	 */
+	WARN_ON(!mic_gpio && (pdata->micdet_cfg & WM8903_MICDET_ENA));
+
+	wm8903->mic_delay = pdata->micdet_delay;
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8903, &wm8903_dai, 1);
