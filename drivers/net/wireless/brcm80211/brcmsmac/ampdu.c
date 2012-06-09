@@ -735,10 +735,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		 * a candidate for aggregation
 		 */
 		p = pktq_ppeek(&qi->q, prec);
-		/* tx_info must be checked with current p */
-		tx_info = IEEE80211_SKB_CB(p);
-
 		if (p) {
+			tx_info = IEEE80211_SKB_CB(p);
 			if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
 			    ((u8) (p->priority) == tid)) {
 				plen = p->len + AMPDU_MAX_MPDU_OVERHEAD;
@@ -759,6 +757,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 					p = NULL;
 					continue;
 				}
+				/* next packet fit for aggregation so dequeue */
 				p = brcmu_pktq_pdeq(&qi->q, prec);
 			} else {
 				p = NULL;
