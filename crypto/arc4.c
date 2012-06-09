@@ -22,8 +22,8 @@
 #define ARC4_BLOCK_SIZE		1
 
 struct arc4_ctx {
-	u8 S[256];
-	u8 x, y;
+	u32 S[256];
+	u32 x, y;
 };
 
 static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
@@ -39,7 +39,7 @@ static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		ctx->S[i] = i;
 
 	for (i = 0; i < 256; i++) {
-		u8 a = ctx->S[i];
+		u32 a = ctx->S[i];
 		j = (j + in_key[k] + a) & 0xff;
 		ctx->S[i] = ctx->S[j];
 		ctx->S[j] = a;
@@ -53,9 +53,9 @@ static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 static void arc4_crypt(struct arc4_ctx *ctx, u8 *out, const u8 *in,
 		       unsigned int len)
 {
-	u8 *const S = ctx->S;
-	u8 x, y, a, b;
-	u8 ty, ta, tb;
+	u32 *const S = ctx->S;
+	u32 x, y, a, b;
+	u32 ty, ta, tb;
 
 	if (len == 0)
 		return;
