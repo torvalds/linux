@@ -359,6 +359,11 @@ static void v4l_print_framebuffer(const void *arg, bool write_only)
 			p->fmt.colorspace);
 }
 
+static void v4l_print_buftype(const void *arg, bool write_only)
+{
+	pr_cont("type=%s\n", prt_names(*(u32 *)arg, v4l2_type_names));
+}
+
 static void v4l_print_u32(const void *arg, bool write_only)
 {
 	pr_cont("value=%u\n", *(const u32 *)arg);
@@ -844,6 +849,18 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 	return -EINVAL;
 }
 
+static int v4l_streamon(const struct v4l2_ioctl_ops *ops,
+				struct file *file, void *fh, void *arg)
+{
+	return ops->vidioc_streamon(file, fh, *(unsigned int *)arg);
+}
+
+static int v4l_streamoff(const struct v4l2_ioctl_ops *ops,
+				struct file *file, void *fh, void *arg)
+{
+	return ops->vidioc_streamoff(file, fh, *(unsigned int *)arg);
+}
+
 struct v4l2_ioctl_info {
 	unsigned int ioctl;
 	u32 flags;
@@ -903,11 +920,11 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO(VIDIOC_QUERYBUF, INFO_FL_CLEAR(v4l2_buffer, length)),
 	IOCTL_INFO_STD(VIDIOC_G_FBUF, vidioc_g_fbuf, v4l_print_framebuffer, 0),
 	IOCTL_INFO_STD(VIDIOC_S_FBUF, vidioc_s_fbuf, v4l_print_framebuffer, INFO_FL_PRIO),
-	IOCTL_INFO(VIDIOC_OVERLAY, INFO_FL_PRIO),
+	IOCTL_INFO_STD(VIDIOC_OVERLAY, vidioc_overlay, v4l_print_u32, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_QBUF, 0),
 	IOCTL_INFO(VIDIOC_DQBUF, 0),
-	IOCTL_INFO(VIDIOC_STREAMON, INFO_FL_PRIO),
-	IOCTL_INFO(VIDIOC_STREAMOFF, INFO_FL_PRIO),
+	IOCTL_INFO_FNC(VIDIOC_STREAMON, v4l_streamon, v4l_print_buftype, INFO_FL_PRIO),
+	IOCTL_INFO_FNC(VIDIOC_STREAMOFF, v4l_streamoff, v4l_print_buftype, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_G_PARM, INFO_FL_CLEAR(v4l2_streamparm, type)),
 	IOCTL_INFO(VIDIOC_S_PARM, INFO_FL_PRIO),
 	IOCTL_INFO(VIDIOC_G_STD, 0),
@@ -1141,30 +1158,6 @@ static long __video_do_ioctl(struct file *file,
 		ret = ops->vidioc_dqbuf(file, fh, p);
 		if (!ret)
 			dbgbuf(cmd, vfd, p);
-		break;
-	}
-	case VIDIOC_OVERLAY:
-	{
-		int *i = arg;
-
-		dbgarg(cmd, "value=%d\n", *i);
-		ret = ops->vidioc_overlay(file, fh, *i);
-		break;
-	}
-	case VIDIOC_STREAMON:
-	{
-		enum v4l2_buf_type i = *(int *)arg;
-
-		dbgarg(cmd, "type=%s\n", prt_names(i, v4l2_type_names));
-		ret = ops->vidioc_streamon(file, fh, i);
-		break;
-	}
-	case VIDIOC_STREAMOFF:
-	{
-		enum v4l2_buf_type i = *(int *)arg;
-
-		dbgarg(cmd, "type=%s\n", prt_names(i, v4l2_type_names));
-		ret = ops->vidioc_streamoff(file, fh, i);
 		break;
 	}
 	/* ---------- tv norms ---------- */
