@@ -2313,23 +2313,7 @@ static struct i2c_driver wm8904_i2c_driver = {
 	.id_table = wm8904_i2c_id,
 };
 
-static int __init wm8904_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&wm8904_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8904 I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(wm8904_modinit);
-
-static void __exit wm8904_exit(void)
-{
-	i2c_del_driver(&wm8904_i2c_driver);
-}
-module_exit(wm8904_exit);
+module_i2c_driver(wm8904_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8904 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
