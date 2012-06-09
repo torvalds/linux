@@ -1766,8 +1766,8 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 	/* Set the link status interrupt only.  Bad behavior when link status
 	 * and auto neg are set, we run into a nested interrupt problem
 	 */
-	imr |= (ET_PHY_INT_MASK_AUTONEGSTAT &
-		ET_PHY_INT_MASK_LINKSTAT &
+	imr |= (ET_PHY_INT_MASK_AUTONEGSTAT |
+		ET_PHY_INT_MASK_LINKSTAT |
 		ET_PHY_INT_MASK_ENABLE);
 
 	et131x_mii_write(adapter, PHY_INTERRUPT_MASK, imr);
@@ -1783,7 +1783,7 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 	if ((adapter->eeprom_data[1] & 0x4) == 0) {
 		et131x_mii_read(adapter, PHY_LED_2, &lcr2);
 
-		lcr2 &= (ET_LED2_LED_100TX & ET_LED2_LED_1000T);
+		lcr2 &= (ET_LED2_LED_100TX | ET_LED2_LED_1000T);
 		lcr2 |= (LED_VAL_LINKON_ACTIVE << LED_LINK_SHIFT);
 
 		if ((adapter->eeprom_data[1] & 0x8) == 0)
