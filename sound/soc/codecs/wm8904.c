@@ -1863,6 +1863,7 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
+			regcache_cache_only(wm8904->regmap, false);
 			regcache_sync(wm8904->regmap);
 
 			/* Enable bias */
@@ -1899,14 +1900,8 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, WM8904_BIAS_CONTROL_0,
 				    WM8904_BIAS_ENA, 0);
 
-#ifdef CONFIG_REGULATOR
-		/* Post 2.6.34 we will be able to get a callback when
-		 * the regulators are disabled which we can use but
-		 * for now just assume that the power will be cut if
-		 * the regulator API is in use.
-		 */
-		codec->cache_sync = 1;
-#endif
+		regcache_cache_only(wm8904->regmap, true);
+		regcache_mark_dirty(wm8904->regmap);
 
 		regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies),
 				       wm8904->supplies);
@@ -2086,7 +2081,6 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	int ret, i;
 
-	codec->cache_sync = 1;
 	codec->control_data = wm8904->regmap;
 
 	switch (wm8904->devtype) {
@@ -2149,6 +2143,7 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 		goto err_enable;
 	}
 
+	regcache_cache_only(wm8904->regmap, true);
 	/* Change some default settings - latch VU and enable ZC */
 	snd_soc_update_bits(codec, WM8904_ADC_DIGITAL_VOLUME_LEFT,
 			    WM8904_ADC_VU, WM8904_ADC_VU);
