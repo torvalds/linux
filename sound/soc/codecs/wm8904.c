@@ -1945,25 +1945,6 @@ static struct snd_soc_dai_driver wm8904_dai = {
 	.symmetric_rates = 1,
 };
 
-#ifdef CONFIG_PM
-static int wm8904_suspend(struct snd_soc_codec *codec)
-{
-	wm8904_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm8904_resume(struct snd_soc_codec *codec)
-{
-	wm8904_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm8904_suspend NULL
-#define wm8904_resume NULL
-#endif
-
 static void wm8904_handle_retune_mobile_pdata(struct snd_soc_codec *codec)
 {
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
@@ -2143,7 +2124,10 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 		goto err_enable;
 	}
 
+	/* Can leave the device powered off until we need it */
 	regcache_cache_only(wm8904->regmap, true);
+	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
+
 	/* Change some default settings - latch VU and enable ZC */
 	snd_soc_update_bits(codec, WM8904_ADC_DIGITAL_VOLUME_LEFT,
 			    WM8904_ADC_VU, WM8904_ADC_VU);
@@ -2198,11 +2182,6 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8904_BIAS_CONTROL_0,
 			    WM8904_POBCTRL, 0);
 
-	wm8904_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	/* Bias level configuration will have done an extra enable */
-	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
-
 	wm8904_handle_pdata(codec);
 
 	wm8904_add_widgets(codec);
@@ -2220,7 +2199,6 @@ static int wm8904_remove(struct snd_soc_codec *codec)
 {
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 
-	wm8904_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_free(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
 	kfree(wm8904->retune_mobile_texts);
 	kfree(wm8904->drc_texts);
@@ -2231,8 +2209,6 @@ static int wm8904_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wm8904 = {
 	.probe =	wm8904_probe,
 	.remove =	wm8904_remove,
-	.suspend =	wm8904_suspend,
-	.resume =	wm8904_resume,
 	.set_bias_level = wm8904_set_bias_level,
 	.idle_bias_off = true,
 };
