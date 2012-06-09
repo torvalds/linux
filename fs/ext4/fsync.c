@@ -135,14 +135,7 @@ static int ext4_sync_parent(struct inode *inode)
 	inode = igrab(inode);
 	while (ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
 		ext4_clear_inode_state(inode, EXT4_STATE_NEWENTRY);
-		dentry = NULL;
-		spin_lock(&inode->i_lock);
-		if (!list_empty(&inode->i_dentry)) {
-			dentry = list_first_entry(&inode->i_dentry,
-						  struct dentry, d_alias);
-			dget(dentry);
-		}
-		spin_unlock(&inode->i_lock);
+		dentry = d_find_any_alias(inode);
 		if (!dentry)
 			break;
 		next = igrab(dentry->d_parent->d_inode);
