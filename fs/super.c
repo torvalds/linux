@@ -318,7 +318,7 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
 
 /*
  *	grab_super_passive - acquire a passive reference
- *	@s: reference we are trying to grab
+ *	@sb: reference we are trying to grab
  *
  *	Tries to acquire a passive reference. This is used in places where we
  *	cannot take an active reference but we need to ensure that the

@@ -628,8 +628,8 @@ static long writeback_sb_inodes(struct super_block *sb,
 		}
 
 		/*
-		 * Don't bother with new inodes or inodes beeing freed, first
-		 * kind does not need peridic writeout yet, and for the latter
+		 * Don't bother with new inodes or inodes being freed, first
+		 * kind does not need periodic writeout yet, and for the latter
 		 * kind writeout is handled by the freer.
 		 */
 		spin_lock(&inode->i_lock);
