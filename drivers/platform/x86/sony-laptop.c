@@ -1174,7 +1174,8 @@ static int sony_nc_hotkeys_decode(u32 event, unsigned int handle)
  */
 enum event_types {
 	HOTKEY = 1,
-	KILLSWITCH
+	KILLSWITCH,
+	GFX_SWITCH
 };
 static void sony_nc_notify(struct acpi_device *device, u32 event)
 {
@@ -1228,6 +1229,24 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 			if (real_ev == 1)
 				sony_nc_rfkill_update();
 
+			break;
+
+		case 0x0128:
+		case 0x0146:
+			/* Hybrid GFX switching */
+			sony_call_snc_handle(handle, 0x0000, &result);
+			dprintk("GFX switch event received (reason: %s)\n",
+					(result & 0x01) ?
+					"switch change" : "unknown");
+
+			/* verify the switch state
+			 * 1: discrete GFX
+			 * 0: integrated GFX
+			 */
+			sony_call_snc_handle(handle, 0x0100, &result);
+
+			ev_type = GFX_SWITCH;
+			real_ev = result & 0xff;
 			break;
 
 		default:
