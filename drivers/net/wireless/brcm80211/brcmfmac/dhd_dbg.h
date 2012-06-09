@@ -76,4 +76,27 @@ do {									\
 
 extern int brcmf_msg_level;
 
+struct brcmf_pub;
+#ifdef DEBUG
+void brcmf_debugfs_init(void);
+void brcmf_debugfs_exit(void);
+int brcmf_debugfs_attach(struct brcmf_pub *drvr);
+void brcmf_debugfs_detach(struct brcmf_pub *drvr);
+struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr);
+#else
+static inline void brcmf_debugfs_init(void)
+{
+}
+static inline void brcmf_debugfs_exit(void)
+{
+}
+static inline int brcmf_debugfs_attach(struct brcmf_pub *drvr)
+{
+	return 0;
+}
+static inline void brcmf_debugfs_detach(struct brcmf_pub *drvr)
+{
+}
+#endif
+
 #endif				/* _BRCMF_DBG_H_ */
