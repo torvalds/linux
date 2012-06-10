@@ -47,6 +47,7 @@ static char *ht_mode_param = "wide";
 static char *board_type_param = "hdk";
 static bool checksum_param = false;
 static bool enable_11a_param = true;
+static int num_rx_desc_param = -1;
 
 /* phy paramters */
 static int dc2dc_param = -1;
@@ -1286,13 +1287,16 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->ptable = wl18xx_ptable;
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = 32;
-	wl->num_rx_desc = 16;
+	wl->num_rx_desc = 32;
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL18XX_CONF_HW_RXTX_RATE_MCS0;
 	wl->fw_status_priv_len = sizeof(struct wl18xx_fw_status_priv);
 	wl->stats.fw_stats_len = sizeof(struct wl18xx_acx_statistics);
 	wl->static_data_priv_len = sizeof(struct wl18xx_static_data_priv);
+
+	if (num_rx_desc_param != -1)
+		wl->num_rx_desc = num_rx_desc_param;
 
 	if (!strcmp(ht_mode_param, "wide")) {
 		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
@@ -1457,6 +1461,11 @@ module_param_named(pwr_limit_reference_11_abg,
 		   pwr_limit_reference_11_abg_param, int, S_IRUSR);
 MODULE_PARM_DESC(pwr_limit_reference_11_abg, "Power limit reference: u8 "
 		 "(default is 0xc8)");
+
+module_param_named(num_rx_desc,
+		   num_rx_desc_param, int, S_IRUSR);
+MODULE_PARM_DESC(num_rx_desc_param,
+		 "Number of Rx descriptors: u8 (default is 32)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
