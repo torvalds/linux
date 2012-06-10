@@ -3016,7 +3016,7 @@ static void __net_exit ipv6_inetpeer_exit(struct net *net)
 	kfree(bp);
 }
 
-static __net_initdata struct pernet_operations ipv6_inetpeer_ops = {
+static struct pernet_operations ipv6_inetpeer_ops = {
 	.init	=	ipv6_inetpeer_init,
 	.exit	=	ipv6_inetpeer_exit,
 };
