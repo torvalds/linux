@@ -86,7 +86,6 @@ config MACH_WRT350N_V2
 
 config MACH_TS78XX
 	bool "Technologic Systems TS-78xx"
-	select PM
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Technologic Systems TS-78xx platform.

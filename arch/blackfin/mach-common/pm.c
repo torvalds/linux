@@ -19,20 +19,33 @@
 #include <asm/gpio.h>
 #include <asm/dma.h>
 #include <asm/dpmc.h>
+#include <asm/pm.h>
 
+#ifdef CONFIG_BF60x
+struct bfin_cpu_pm_fns *bfin_cpu_pm;
+#endif
 
 void bfin_pm_suspend_standby_enter(void)
 {
+#ifndef CONFIG_BF60x
 	bfin_pm_standby_setup();
-
-#ifdef CONFIG_PM_BFIN_SLEEP_DEEPER
-	sleep_deeper(bfin_sic_iwr[0], bfin_sic_iwr[1], bfin_sic_iwr[2]);
-#else
-	sleep_mode(bfin_sic_iwr[0], bfin_sic_iwr[1], bfin_sic_iwr[2]);
 #endif
 
-	bfin_pm_standby_restore();
+#ifdef CONFIG_BF60x
+	bfin_cpu_pm->enter(PM_SUSPEND_STANDBY);
+#else
+# ifdef CONFIG_PM_BFIN_SLEEP_DEEPER
+	sleep_deeper(bfin_sic_iwr[0], bfin_sic_iwr[1], bfin_sic_iwr[2]);
+# else
+	sleep_mode(bfin_sic_iwr[0], bfin_sic_iwr[1], bfin_sic_iwr[2]);
+# endif
+#endif
 
+#ifndef CONFIG_BF60x
+	bfin_pm_standby_restore();
+#endif
+
+#ifndef CONFIG_BF60x
 #ifdef SIC_IWR0
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
 # ifdef SIC_IWR1
@@ -51,6 +64,8 @@ void bfin_pm_suspend_standby_enter(void)
 # endif
 #else
 	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
+#endif
+
 #endif
 }
 
@@ -83,10 +98,13 @@ int bf53x_resume_l1_mem(unsigned char *memptr)
 }
 
 #if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
+# ifdef CONFIG_BF60x
+__attribute__((l1_text))
+# endif
 static void flushinv_all_dcache(void)
 {
-	u32 way, bank, subbank, set;
-	u32 status, addr;
+	register u32 way, bank, subbank, set;
+	register u32 status, addr;
 	u32 dmem_ctl = bfin_read_DMEM_CONTROL();
 
 	for (bank = 0; bank < 2; ++bank) {
@@ -133,6 +151,7 @@ int bfin_pm_suspend_mem_enter(void)
 		return -ENOMEM;
 	}
 
+#ifndef CONFIG_BF60x
 	wakeup = bfin_read_VR_CTL() & ~FREQ;
 	wakeup |= SCKELOW;
 
@@ -141,6 +160,7 @@ int bfin_pm_suspend_mem_enter(void)
 #endif
 #ifdef CONFIG_PM_BFIN_WAKE_GP
 	wakeup |= GPWE;
+#endif
 #endif
 
 	ret = blackfin_dma_suspend();
@@ -159,7 +179,11 @@ int bfin_pm_suspend_mem_enter(void)
 	_disable_icplb();
 	bf53x_suspend_l1_mem(memptr);
 
+#ifndef CONFIG_BF60x
 	do_hibernate(wakeup | vr_wakeup);	/* See you later! */
+#else
+	bfin_cpu_pm->enter(PM_SUSPEND_MEM);
+#endif
 
 	bf53x_resume_l1_mem(memptr);
 
@@ -223,9 +247,39 @@ static int bfin_pm_enter(suspend_state_t state)
 	return 0;
 }
 
+#ifdef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
+void bfin_pm_end(void)
+{
+	u32 cycle, cycle2;
+	u64 usec64;
+	u32 usec;
+
+	__asm__ __volatile__ (
+		"1: %0 = CYCLES2\n"
+		"%1 = CYCLES\n"
+		"%2 = CYCLES2\n"
+		"CC = %2 == %0\n"
+		"if ! CC jump 1b\n"
+		: "=d,a" (cycle2), "=d,a" (cycle), "=d,a" (usec) : : "CC"
+	);
+
+	usec64 = ((u64)cycle2 << 32) + cycle;
+	do_div(usec64, get_cclk() / USEC_PER_SEC);
+	usec = usec64;
+	if (usec == 0)
+		usec = 1;
+
+	pr_info("PM: resume of kernel completes after  %ld msec %03ld usec\n",
+		usec / USEC_PER_MSEC, usec % USEC_PER_MSEC);
+}
+#endif
+
 static const struct platform_suspend_ops bfin_pm_ops = {
 	.enter = bfin_pm_enter,
 	.valid	= bfin_pm_valid,
+#ifdef CONFIG_BFIN_PM_WAKEUP_TIME_BENCH
+	.end = bfin_pm_end,
+#endif
 };
 
 static int __init bfin_pm_init(void)

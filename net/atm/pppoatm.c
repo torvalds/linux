@@ -62,10 +62,23 @@ struct pppoatm_vcc {
 	void (*old_pop)(struct atm_vcc *, struct sk_buff *);
 					/* keep old push/pop for detaching */
 	enum pppoatm_encaps encaps;
+	atomic_t inflight;
+	unsigned long blocked;
 	int flags;			/* SC_COMP_PROT - compress protocol */
 	struct ppp_channel chan;	/* interface to generic ppp layer */
 	struct tasklet_struct wakeup_tasklet;
 };
+
+/*
+ * We want to allow two packets in the queue. The one that's currently in
+ * flight, and *one* queued up ready for the ATM device to send immediately
+ * from its TX done IRQ. We want to be able to use atomic_inc_not_zero(), so
+ * inflight == -2 represents an empty queue, -1 one packet, and zero means
+ * there are two packets in the queue.
+ */
+#define NONE_INFLIGHT -2
+
+#define BLOCKED 0
 
 /*
  * Header used for LLC Encapsulated PPP (4 bytes) followed by the LCP protocol
@@ -102,16 +115,30 @@ static void pppoatm_wakeup_sender(unsigned long arg)
 static void pppoatm_pop(struct atm_vcc *atmvcc, struct sk_buff *skb)
 {
 	struct pppoatm_vcc *pvcc = atmvcc_to_pvcc(atmvcc);
+
 	pvcc->old_pop(atmvcc, skb);
+	atomic_dec(&pvcc->inflight);
+
 	/*
-	 * We don't really always want to do this since it's
-	 * really inefficient - it would be much better if we could
-	 * test if we had actually throttled the generic layer.
-	 * Unfortunately then there would be a nasty SMP race where
-	 * we could clear that flag just as we refuse another packet.
-	 * For now we do the safe thing.
+	 * We always used to run the wakeup tasklet unconditionally here, for
+	 * fear of race conditions where we clear the BLOCKED flag just as we
+	 * refuse another packet in pppoatm_send(). This was quite inefficient.
+	 *
+	 * In fact it's OK. The PPP core will only ever call pppoatm_send()
+	 * while holding the channel->downl lock. And ppp_output_wakeup() as
+	 * called by the tasklet will *also* grab that lock. So even if another
+	 * CPU is in pppoatm_send() right now, the tasklet isn't going to race
+	 * with it. The wakeup *will* happen after the other CPU is safely out
+	 * of pppoatm_send() again.
+	 *
+	 * So if the CPU in pppoatm_send() has already set the BLOCKED bit and
+	 * it about to return, that's fine. We trigger a wakeup which will
+	 * happen later. And if the CPU in pppoatm_send() *hasn't* set the
+	 * BLOCKED bit yet, that's fine too because of the double check in
+	 * pppoatm_may_send() which is commented there.
 	 */
-	tasklet_schedule(&pvcc->wakeup_tasklet);
+	if (test_and_clear_bit(BLOCKED, &pvcc->blocked))
+		tasklet_schedule(&pvcc->wakeup_tasklet);
 }
 
 /*
@@ -184,6 +211,51 @@ error:
 	ppp_input_error(&pvcc->chan, 0);
 }
 
+static inline int pppoatm_may_send(struct pppoatm_vcc *pvcc, int size)
+{
+	/*
+	 * It's not clear that we need to bother with using atm_may_send()
+	 * to check we don't exceed sk->sk_sndbuf. If userspace sets a
+	 * value of sk_sndbuf which is lower than the MTU, we're going to
+	 * block for ever. But the code always did that before we introduced
+	 * the packet count limit, so...
+	 */
+	if (atm_may_send(pvcc->atmvcc, size) &&
+	    atomic_inc_not_zero_hint(&pvcc->inflight, NONE_INFLIGHT))
+		return 1;
+
+	/*
+	 * We use test_and_set_bit() rather than set_bit() here because
+	 * we need to ensure there's a memory barrier after it. The bit
+	 * *must* be set before we do the atomic_inc() on pvcc->inflight.
+	 * There's no smp_mb__after_set_bit(), so it's this or abuse
+	 * smp_mb__after_clear_bit().
+	 */
+	test_and_set_bit(BLOCKED, &pvcc->blocked);
+
+	/*
+	 * We may have raced with pppoatm_pop(). If it ran for the
+	 * last packet in the queue, *just* before we set the BLOCKED
+	 * bit, then it might never run again and the channel could
+	 * remain permanently blocked. Cope with that race by checking
+	 * *again*. If it did run in that window, we'll have space on
+	 * the queue now and can return success. It's harmless to leave
+	 * the BLOCKED flag set, since it's only used as a trigger to
+	 * run the wakeup tasklet. Another wakeup will never hurt.
+	 * If pppoatm_pop() is running but hasn't got as far as making
+	 * space on the queue yet, then it hasn't checked the BLOCKED
+	 * flag yet either, so we're safe in that case too. It'll issue
+	 * an "immediate" wakeup... where "immediate" actually involves
+	 * taking the PPP channel's ->downl lock, which is held by the
+	 * code path that calls pppoatm_send(), and is thus going to
+	 * wait for us to finish.
+	 */
+	if (atm_may_send(pvcc->atmvcc, size) &&
+	    atomic_inc_not_zero(&pvcc->inflight))
+		return 1;
+
+	return 0;
+}
 /*
  * Called by the ppp_generic.c to send a packet - returns true if packet
  * was accepted.  If we return false, then it's our job to call
@@ -207,7 +279,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 			struct sk_buff *n;
 			n = skb_realloc_headroom(skb, LLC_LEN);
 			if (n != NULL &&
-			    !atm_may_send(pvcc->atmvcc, n->truesize)) {
+			    !pppoatm_may_send(pvcc, n->truesize)) {
 				kfree_skb(n);
 				goto nospace;
 			}
@@ -215,12 +287,12 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 			skb = n;
 			if (skb == NULL)
 				return DROP_PACKET;
-		} else if (!atm_may_send(pvcc->atmvcc, skb->truesize))
+		} else if (!pppoatm_may_send(pvcc, skb->truesize))
 			goto nospace;
 		memcpy(skb_push(skb, LLC_LEN), pppllc, LLC_LEN);
 		break;
 	case e_vc:
-		if (!atm_may_send(pvcc->atmvcc, skb->truesize))
+		if (!pppoatm_may_send(pvcc, skb->truesize))
 			goto nospace;
 		break;
 	case e_autodetect:
@@ -285,6 +357,9 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	if (pvcc == NULL)
 		return -ENOMEM;
 	pvcc->atmvcc = atmvcc;
+
+	/* Maximum is zero, so that we can use atomic_inc_not_zero() */
+	atomic_set(&pvcc->inflight, NONE_INFLIGHT);
 	pvcc->old_push = atmvcc->push;
 	pvcc->old_pop = atmvcc->pop;
 	pvcc->encaps = (enum pppoatm_encaps) be.encaps;

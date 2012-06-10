@@ -224,13 +224,6 @@
 #define HIGH_PERF_SQ			(1 << 3)
 #define CK32K_LOWPWR_EN			(1 << 7)
 
-
-/* chip-specific feature flags, for i2c_device_id.driver_data */
-#define TWL4030_VAUX2		BIT(0)	/* pre-5030 voltage ranges */
-#define TPS_SUBSET		BIT(1)	/* tps659[23]0 have fewer LDOs */
-#define TWL5031			BIT(2)  /* twl5031 has different registers */
-#define TWL6030_CLASS		BIT(3)	/* TWL6030 class */
-
 /*----------------------------------------------------------------------*/
 
 /* is driver active, bound to a chip? */

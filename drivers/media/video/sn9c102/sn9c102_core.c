@@ -995,10 +995,8 @@ static int sn9c102_stop_transfer(struct sn9c102_device* cam)
 
 static int sn9c102_stream_interrupt(struct sn9c102_device* cam)
 {
-	long timeout;
-
 	cam->stream = STREAM_INTERRUPT;
-	timeout = wait_event_timeout(cam->wait_stream,
+	wait_event_timeout(cam->wait_stream,
 				     (cam->stream == STREAM_OFF) ||
 				     (cam->state & DEV_DISCONNECTED),
 				     SN9C102_URB_TIMEOUT);

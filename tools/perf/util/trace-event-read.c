@@ -52,6 +52,16 @@ static unsigned long	page_size;
 static ssize_t calc_data_size;
 static bool repipe;
 
+static void *malloc_or_die(int size)
+{
+	void *ret;
+
+	ret = malloc(size);
+	if (!ret)
+		die("malloc");
+	return ret;
+}
+
 static int do_read(int fd, void *buf, int size)
 {
 	int rsize = size;
@@ -109,7 +119,7 @@ static unsigned int read4(void)
 	unsigned int data;
 
 	read_or_die(&data, 4);
-	return __data2host4(data);
+	return __data2host4(perf_pevent, data);
 }
 
 static unsigned long long read8(void)
@@ -117,7 +127,7 @@ static unsigned long long read8(void)
 	unsigned long long data;
 
 	read_or_die(&data, 8);
-	return __data2host8(data);
+	return __data2host8(perf_pevent, data);
 }
 
 static char *read_string(void)
@@ -282,7 +292,7 @@ struct cpu_data {
 	unsigned long long	offset;
 	unsigned long long	size;
 	unsigned long long	timestamp;
-	struct record		*next;
+	struct pevent_record	*next;
 	char			*page;
 	int			cpu;
 	int			index;
@@ -367,9 +377,9 @@ static int calc_index(void *ptr, int cpu)
 	return (unsigned long)ptr - (unsigned long)cpu_data[cpu].page;
 }
 
-struct record *trace_peek_data(int cpu)
+struct pevent_record *trace_peek_data(int cpu)
 {
-	struct record *data;
+	struct pevent_record *data;
 	void *page = cpu_data[cpu].page;
 	int idx = cpu_data[cpu].index;
 	void *ptr = page + idx;
@@ -389,15 +399,15 @@ struct record *trace_peek_data(int cpu)
 		/* FIXME: handle header page */
 		if (header_page_ts_size != 8)
 			die("expected a long long type for timestamp");
-		cpu_data[cpu].timestamp = data2host8(ptr);
+		cpu_data[cpu].timestamp = data2host8(perf_pevent, ptr);
 		ptr += 8;
 		switch (header_page_size_size) {
 		case 4:
-			cpu_data[cpu].page_size = data2host4(ptr);
+			cpu_data[cpu].page_size = data2host4(perf_pevent, ptr);
 			ptr += 4;
 			break;
 		case 8:
-			cpu_data[cpu].page_size = data2host8(ptr);
+			cpu_data[cpu].page_size = data2host8(perf_pevent, ptr);
 			ptr += 8;
 			break;
 		default:
@@ -414,7 +424,7 @@ read_again:
 		return trace_peek_data(cpu);
 	}
 
-	type_len_ts = data2host4(ptr);
+	type_len_ts = data2host4(perf_pevent, ptr);
 	ptr += 4;
 
 	type_len = type_len4host(type_len_ts);
@@ -424,14 +434,14 @@ read_again:
 	case RINGBUF_TYPE_PADDING:
 		if (!delta)
 			die("error, hit unexpected end of page");
-		length = data2host4(ptr);
+		length = data2host4(perf_pevent, ptr);
 		ptr += 4;
 		length *= 4;
 		ptr += length;
 		goto read_again;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
-		extend = data2host4(ptr);
+		extend = data2host4(perf_pevent, ptr);
 		ptr += 4;
 		extend <<= TS_SHIFT;
 		extend += delta;
@@ -442,7 +452,7 @@ read_again:
 		ptr += 12;
 		break;
 	case 0:
-		length = data2host4(ptr);
+		length = data2host4(perf_pevent, ptr);
 		ptr += 4;
 		die("here! length=%d", length);
 		break;
@@ -467,9 +477,9 @@ read_again:
 	return data;
 }
 
-struct record *trace_read_data(int cpu)
+struct pevent_record *trace_read_data(int cpu)
 {
-	struct record *data;
+	struct pevent_record *data;
 
 	data = trace_peek_data(cpu);
 	cpu_data[cpu].next = NULL;
@@ -509,6 +519,8 @@ ssize_t trace_report(int fd, bool __repipe)
 	file_bigendian = buf[0];
 	host_bigendian = bigendian();
 
+	read_trace_init(file_bigendian, host_bigendian);
+
 	read_or_die(buf, 1);
 	long_size = buf[0];
 
@@ -526,11 +538,11 @@ ssize_t trace_report(int fd, bool __repipe)
 	repipe = false;
 
 	if (show_funcs) {
-		print_funcs();
+		pevent_print_funcs(perf_pevent);
 		return size;
 	}
 	if (show_printk) {
-		print_printk();
+		pevent_print_printk(perf_pevent);
 		return size;
 	}
 

@@ -88,7 +88,7 @@
 					status = "disabled";
 				};
 
-				uart3: uart@5000c000 {
+				uart3: serial@5000c000 {
 					compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 					reg = <0x5000c000 0x4000>;
 					interrupts = <33>;
@@ -101,6 +101,15 @@
 					compatible = "fsl,imx53-ecspi", "fsl,imx51-ecspi";
 					reg = <0x50010000 0x4000>;
 					interrupts = <36>;
+					status = "disabled";
+				};
+
+				ssi2: ssi@50014000 {
+					compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+					reg = <0x50014000 0x4000>;
+					interrupts = <30>;
+					fsl,fifo-depth = <15>;
+					fsl,ssi-dma-events = <25 24 23 22>; /* TX0 RX0 TX1 RX1 */
 					status = "disabled";
 				};
 
@@ -173,14 +182,14 @@
 				status = "disabled";
 			};
 
-			uart1: uart@53fbc000 {
+			uart1: serial@53fbc000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53fbc000 0x4000>;
 				interrupts = <31>;
 				status = "disabled";
 			};
 
-			uart2: uart@53fc0000 {
+			uart2: serial@53fc0000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53fc0000 0x4000>;
 				interrupts = <32>;
@@ -226,7 +235,7 @@
 				status = "disabled";
 			};
 
-			uart4: uart@53ff0000 {
+			uart4: serial@53ff0000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53ff0000 0x4000>;
 				interrupts = <13>;
@@ -241,7 +250,7 @@
 			reg = <0x60000000 0x10000000>;
 			ranges;
 
-			uart5: uart@63f90000 {
+			uart5: serial@63f90000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x63f90000 0x4000>;
 				interrupts = <86>;
@@ -290,7 +299,31 @@
 				status = "disabled";
 			};
 
-			fec@63fec000 {
+			ssi1: ssi@63fcc000 {
+				compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+				reg = <0x63fcc000 0x4000>;
+				interrupts = <29>;
+				fsl,fifo-depth = <15>;
+				fsl,ssi-dma-events = <29 28 27 26>; /* TX0 RX0 TX1 RX1 */
+				status = "disabled";
+			};
+
+			audmux@63fd0000 {
+				compatible = "fsl,imx53-audmux", "fsl,imx31-audmux";
+				reg = <0x63fd0000 0x4000>;
+				status = "disabled";
+			};
+
+			ssi3: ssi@63fe8000 {
+				compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+				reg = <0x63fe8000 0x4000>;
+				interrupts = <96>;
+				fsl,fifo-depth = <15>;
+				fsl,ssi-dma-events = <47 46 45 44>; /* TX0 RX0 TX1 RX1 */
+				status = "disabled";
+			};
+
+			ethernet@63fec000 {
 				compatible = "fsl,imx53-fec", "fsl,imx25-fec";
 				reg = <0x63fec000 0x4000>;
 				interrupts = <87>;

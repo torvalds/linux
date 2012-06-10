@@ -692,6 +692,8 @@ enum rt2x00_state_flags {
 	 */
 	CONFIG_CHANNEL_HT40,
 	CONFIG_POWERSAVING,
+	CONFIG_HT_DISABLED,
+	CONFIG_QOS_DISABLED,
 
 	/*
 	 * Mark we currently are sequentially reading TX_STA_FIFO register
@@ -1280,7 +1282,7 @@ void rt2x00lib_dmadone(struct queue_entry *entry);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
 void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status);
-void rt2x00lib_rxdone(struct queue_entry *entry);
+void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp);
 
 /*
  * mac80211 handlers.

@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/clk.h>
+#include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/list.h>
 
@@ -22,44 +23,32 @@
 #include <lantiq_soc.h>
 
 #include "clk.h"
-
-struct clk {
-	const char *name;
-	unsigned long rate;
-	unsigned long (*get_rate) (void);
-};
-
-static struct clk *cpu_clk;
-static int cpu_clk_cnt;
+#include "prom.h"
 
 /* lantiq socs have 3 static clocks */
-static struct clk cpu_clk_generic[] = {
-	{
-		.name = "cpu",
-		.get_rate = ltq_get_cpu_hz,
-	}, {
-		.name = "fpi",
-		.get_rate = ltq_get_fpi_hz,
-	}, {
-		.name = "io",
-		.get_rate = ltq_get_io_region_clock,
-	},
-};
+static struct clk cpu_clk_generic[3];
 
-static struct resource ltq_cgu_resource = {
-	.name	= "cgu",
-	.start	= LTQ_CGU_BASE_ADDR,
-	.end	= LTQ_CGU_BASE_ADDR + LTQ_CGU_SIZE - 1,
-	.flags	= IORESOURCE_MEM,
-};
-
-/* remapped clock register range */
-void __iomem *ltq_cgu_membase;
-
-void clk_init(void)
+void clkdev_add_static(unsigned long cpu, unsigned long fpi, unsigned long io)
 {
-	cpu_clk = cpu_clk_generic;
-	cpu_clk_cnt = ARRAY_SIZE(cpu_clk_generic);
+	cpu_clk_generic[0].rate = cpu;
+	cpu_clk_generic[1].rate = fpi;
+	cpu_clk_generic[2].rate = io;
+}
+
+struct clk *clk_get_cpu(void)
+{
+	return &cpu_clk_generic[0];
+}
+
+struct clk *clk_get_fpi(void)
+{
+	return &cpu_clk_generic[1];
+}
+EXPORT_SYMBOL_GPL(clk_get_fpi);
+
+struct clk *clk_get_io(void)
+{
+	return &cpu_clk_generic[2];
 }
 
 static inline int clk_good(struct clk *clk)
@@ -82,38 +71,71 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-struct clk *clk_get(struct device *dev, const char *id)
+int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	int i;
+	if (unlikely(!clk_good(clk)))
+		return 0;
+	if (clk->rates && *clk->rates) {
+		unsigned long *r = clk->rates;
 
-	for (i = 0; i < cpu_clk_cnt; i++)
-		if (!strcmp(id, cpu_clk[i].name))
-			return &cpu_clk[i];
-	BUG();
-	return ERR_PTR(-ENOENT);
+		while (*r && (*r != rate))
+			r++;
+		if (!*r) {
+			pr_err("clk %s.%s: trying to set invalid rate %ld\n",
+				clk->cl.dev_id, clk->cl.con_id, rate);
+			return -1;
+		}
+	}
+	clk->rate = rate;
+	return 0;
 }
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-	/* not used */
-}
-EXPORT_SYMBOL(clk_put);
+EXPORT_SYMBOL(clk_set_rate);
 
 int clk_enable(struct clk *clk)
 {
-	/* not used */
-	return 0;
+	if (unlikely(!clk_good(clk)))
+		return -1;
+
+	if (clk->enable)
+		return clk->enable(clk);
+
+	return -1;
 }
 EXPORT_SYMBOL(clk_enable);
 
 void clk_disable(struct clk *clk)
 {
-	/* not used */
+	if (unlikely(!clk_good(clk)))
+		return;
+
+	if (clk->disable)
+		clk->disable(clk);
 }
 EXPORT_SYMBOL(clk_disable);
 
-static inline u32 ltq_get_counter_resolution(void)
+int clk_activate(struct clk *clk)
+{
+	if (unlikely(!clk_good(clk)))
+		return -1;
+
+	if (clk->activate)
+		return clk->activate(clk);
+
+	return -1;
+}
+EXPORT_SYMBOL(clk_activate);
+
+void clk_deactivate(struct clk *clk)
+{
+	if (unlikely(!clk_good(clk)))
+		return;
+
+	if (clk->deactivate)
+		clk->deactivate(clk);
+}
+EXPORT_SYMBOL(clk_deactivate);
+
+static inline u32 get_counter_resolution(void)
 {
 	u32 res;
 
@@ -133,21 +155,11 @@ void __init plat_time_init(void)
 {
 	struct clk *clk;
 
-	if (insert_resource(&iomem_resource, &ltq_cgu_resource) < 0)
-		panic("Failed to insert cgu memory");
+	ltq_soc_init();
 
-	if (request_mem_region(ltq_cgu_resource.start,
-			resource_size(&ltq_cgu_resource), "cgu") < 0)
-		panic("Failed to request cgu memory");
-
-	ltq_cgu_membase = ioremap_nocache(ltq_cgu_resource.start,
-				resource_size(&ltq_cgu_resource));
-	if (!ltq_cgu_membase) {
-		pr_err("Failed to remap cgu memory\n");
-		unreachable();
-	}
-	clk = clk_get(0, "cpu");
-	mips_hpt_frequency = clk_get_rate(clk) / ltq_get_counter_resolution();
+	clk = clk_get_cpu();
+	mips_hpt_frequency = clk_get_rate(clk) / get_counter_resolution();
 	write_c0_compare(read_c0_count());
+	pr_info("CPU Clock: %ldMHz\n", clk_get_rate(clk) / 1000000);
 	clk_put(clk);
 }

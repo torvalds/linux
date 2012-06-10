@@ -295,9 +295,8 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 		 * ARC supported; valid only if manageability features are
 		 * enabled.
 		 */
-		mac->arc_subsystem_valid =
-			(er32(FWSM) & E1000_FWSM_MODE_MASK)
-			? true : false;
+		mac->arc_subsystem_valid = !!(er32(FWSM) &
+					      E1000_FWSM_MODE_MASK);
 		break;
 	case e1000_82574:
 	case e1000_82583:
@@ -798,7 +797,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 	/* Check for pending operations. */
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
 		usleep_range(1000, 2000);
-		if ((er32(EECD) & E1000_EECD_FLUPD) == 0)
+		if (!(er32(EECD) & E1000_EECD_FLUPD))
 			break;
 	}
 
@@ -822,7 +821,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
 		usleep_range(1000, 2000);
-		if ((er32(EECD) & E1000_EECD_FLUPD) == 0)
+		if (!(er32(EECD) & E1000_EECD_FLUPD))
 			break;
 	}
 
@@ -1000,7 +999,7 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
-	u32 ctrl, ctrl_ext;
+	u32 ctrl, ctrl_ext, eecd;
 	s32 ret_val;
 
 	/*
@@ -1073,6 +1072,16 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 */
 
 	switch (hw->mac.type) {
+	case e1000_82571:
+	case e1000_82572:
+		/*
+		 * REQ and GNT bits need to be cleared when using AUTO_RD
+		 * to access the EEPROM.
+		 */
+		eecd = er32(EECD);
+		eecd &= ~(E1000_EECD_REQ | E1000_EECD_GNT);
+		ew32(EECD, eecd);
+		break;
 	case e1000_82573:
 	case e1000_82574:
 	case e1000_82583:
@@ -1278,6 +1287,16 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		reg = er32(CTRL_EXT);
 		reg &= ~E1000_CTRL_EXT_DMA_DYN_CLK_EN;
 		ew32(CTRL_EXT, reg);
+	}
+
+	/*
+	 * Disable IPv6 extension header parsing because some malformed
+	 * IPv6 headers can hang the Rx.
+	 */
+	if (hw->mac.type <= e1000_82573) {
+		reg = er32(RFCTL);
+		reg |= (E1000_RFCTL_IPV6_EX_DIS | E1000_RFCTL_NEW_IPV6_EXT_DIS);
+		ew32(RFCTL, reg);
 	}
 
 	/* PCI-Ex Control Registers */
@@ -1763,7 +1782,8 @@ void e1000e_set_laa_state_82571(struct e1000_hw *hw, bool state)
 		 * incoming packets directed to this port are dropped.
 		 * Eventually the LAA will be in RAR[0] and RAR[14].
 		 */
-		e1000e_rar_set(hw, hw->mac.addr, hw->mac.rar_entry_count - 1);
+		hw->mac.ops.rar_set(hw, hw->mac.addr,
+				    hw->mac.rar_entry_count - 1);
 }
 
 /**
@@ -1927,6 +1947,7 @@ static const struct e1000_mac_operations e82571_mac_ops = {
 	.setup_led		= e1000e_setup_led_generic,
 	.config_collision_dist	= e1000e_config_collision_dist_generic,
 	.read_mac_addr		= e1000_read_mac_addr_82571,
+	.rar_set		= e1000e_rar_set_generic,
 };
 
 static const struct e1000_phy_operations e82_phy_ops_igp = {
@@ -2061,9 +2082,11 @@ const struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.flags2			  = FLAG2_CHECK_PHY_HANG
+	.flags2			 = FLAG2_CHECK_PHY_HANG
 				  | FLAG2_DISABLE_ASPM_L0S
-				  | FLAG2_NO_DISABLE_RX,
+				  | FLAG2_DISABLE_ASPM_L1
+				  | FLAG2_NO_DISABLE_RX
+				  | FLAG2_DMA_BURST,
 	.pba			= 32,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,

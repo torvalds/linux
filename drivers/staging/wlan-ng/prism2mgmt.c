@@ -380,8 +380,8 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 	}
 
 	count = (hw->scanresults->framelen - 3) / 32;
-	if (count > 32)
-		count = 32;
+	if (count > HFA384x_SCANRESULT_MAX)
+		count = HFA384x_SCANRESULT_MAX;
 
 	if (req->bssindex.data >= count) {
 		pr_debug("requested index (%d) out of range (%d)\n",

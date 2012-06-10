@@ -86,12 +86,10 @@ bad_put_user:
 	EXIT
 END(bad_put_user)
 
-.section __ex_table,"a"
-	_ASM_PTR 1b,bad_put_user
-	_ASM_PTR 2b,bad_put_user
-	_ASM_PTR 3b,bad_put_user
-	_ASM_PTR 4b,bad_put_user
+	_ASM_EXTABLE(1b,bad_put_user)
+	_ASM_EXTABLE(2b,bad_put_user)
+	_ASM_EXTABLE(3b,bad_put_user)
+	_ASM_EXTABLE(4b,bad_put_user)
 #ifdef CONFIG_X86_32
-	_ASM_PTR 5b,bad_put_user
+	_ASM_EXTABLE(5b,bad_put_user)
 #endif
-.previous

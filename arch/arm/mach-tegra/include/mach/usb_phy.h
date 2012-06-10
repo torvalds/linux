@@ -61,8 +61,8 @@ struct tegra_usb_phy {
 	struct usb_phy *ulpi;
 };
 
-struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
-			void *config, enum tegra_usb_phy_mode phy_mode);
+struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
+	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode);
 
 int tegra_usb_phy_power_on(struct tegra_usb_phy *phy);
 

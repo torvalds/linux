@@ -145,9 +145,6 @@ extern void release_thread(struct task_struct *);
 /* Create a kernel thread without removing it from tasklists */
 extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk) do { } while(0)
-
 /* Return saved PC of a blocked thread */
 #define thread_saved_pc(tsk)    ((tsk)->thread.cpu_context.pc)
 

@@ -1,0 +1,17 @@
+#
+# Gain Amplifiers, etc.
+#
+menu "Amplifiers"
+
+config AD8366
+	tristate "Analog Devices AD8366 VGA"
+	depends on SPI
+	select BITREVERSE
+	help
+	  Say yes here to build support for Analog Devices AD8366
+	  SPI Dual-Digital Variable Gain Amplifier (VGA).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad8366.
+
+endmenu

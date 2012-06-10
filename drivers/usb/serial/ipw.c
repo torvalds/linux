@@ -132,19 +132,11 @@ enum {
 
 #define IPW_WANTS_TO_SEND	0x30
 
-static const struct usb_device_id usb_ipw_ids[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(IPW_VID, IPW_PID) },
 	{ },
 };
-
-MODULE_DEVICE_TABLE(usb, usb_ipw_ids);
-
-static struct usb_driver usb_ipw_driver = {
-	.name =		"ipwtty",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	usb_ipw_ids,
-};
+MODULE_DEVICE_TABLE(usb, id_table);
 
 static bool debug;
 
@@ -154,8 +146,6 @@ static int ipw_open(struct tty_struct *tty, struct usb_serial_port *port)
 	u8 buf_flow_static[16] = IPW_BYTES_FLOWINIT;
 	u8 *buf_flow_init;
 	int result;
-
-	dbg("%s", __func__);
 
 	buf_flow_init = kmemdup(buf_flow_static, 16, GFP_KERNEL);
 	if (!buf_flow_init)
@@ -317,7 +307,7 @@ static struct usb_serial_driver ipw_device = {
 		.name =		"ipw",
 	},
 	.description =		"IPWireless converter",
-	.id_table =		usb_ipw_ids,
+	.id_table =		id_table,
 	.num_ports =		1,
 	.disconnect =		usb_wwan_disconnect,
 	.open =			ipw_open,
@@ -333,7 +323,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ipw_device, NULL
 };
 
-module_usb_serial_driver(usb_ipw_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 /* Module information */
 MODULE_AUTHOR(DRIVER_AUTHOR);

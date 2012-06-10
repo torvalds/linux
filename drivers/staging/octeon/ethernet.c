@@ -357,7 +357,7 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 			/* Force accept multicast packets */
 			control.s.mcst = 2;
 		else
-			/* Force reject multicat packets */
+			/* Force reject multicast packets */
 			control.s.mcst = 1;
 
 		if (dev->flags & IFF_PROMISC)

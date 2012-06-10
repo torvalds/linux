@@ -37,9 +37,12 @@
 #include <linux/ihex.h>
 #include "gspca.h"
 
+#define VICAM_FIRMWARE "vicam/firmware.fw"
+
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("GSPCA ViCam USB Camera Driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(VICAM_FIRMWARE);
 
 enum e_ctrl {
 	GAIN,
@@ -222,7 +225,11 @@ static void vicam_dostream(struct work_struct *work)
 		goto exit;
 	}
 
-	while (gspca_dev->present && gspca_dev->streaming) {
+	while (gspca_dev->dev && gspca_dev->streaming) {
+#ifdef CONFIG_PM
+		if (gspca_dev->frozen)
+			break;
+#endif
 		ret = vicam_read_frame(gspca_dev, buffer, frame_sz);
 		if (ret < 0)
 			break;
@@ -268,7 +275,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	const struct firmware *uninitialized_var(fw);
 	u8 *firmware_buf;
 
-	ret = request_ihex_firmware(&fw, "vicam/firmware.fw",
+	ret = request_ihex_firmware(&fw, VICAM_FIRMWARE,
 				    &gspca_dev->dev->dev);
 	if (ret) {
 		pr_err("Failed to load \"vicam/firmware.fw\": %d\n", ret);
@@ -324,7 +331,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	dev->work_thread = NULL;
 	mutex_lock(&gspca_dev->usb_lock);
 
-	if (gspca_dev->present)
+	if (gspca_dev->dev)
 		vicam_set_camera_power(gspca_dev, 0);
 }
 

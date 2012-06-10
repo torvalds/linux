@@ -1356,7 +1356,6 @@ static int mcam_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 			goto out;
 	}
 	mcam_set_config_needed(cam, 1);
-	ret = 0;
 out:
 	mutex_unlock(&cam->s_mutex);
 	return ret;

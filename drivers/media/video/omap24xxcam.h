@@ -429,7 +429,7 @@ struct sgdma_state {
 struct omap24xxcam_dma {
 	spinlock_t lock;	/* Lock for the whole structure. */
 
-	unsigned long base;	/* base address for dma controller */
+	void __iomem *base;	/* base address for dma controller */
 
 	/* While dma_stop!=0, an attempt to start a new DMA transfer will
 	 * fail.
@@ -491,7 +491,7 @@ struct omap24xxcam_device {
 
 	/*** hardware resources ***/
 	unsigned int irq;
-	unsigned long mmio_base;
+	void __iomem *mmio_base;
 	unsigned long mmio_base_phys;
 	unsigned long mmio_size;
 
@@ -544,22 +544,22 @@ struct omap24xxcam_fh {
  *
  */
 
-static inline u32 omap24xxcam_reg_in(unsigned long base, u32 offset)
+static inline u32 omap24xxcam_reg_in(u32 __iomem *base, u32 offset)
 {
 	return readl(base + offset);
 }
 
-static inline u32 omap24xxcam_reg_out(unsigned long base, u32 offset,
+static inline u32 omap24xxcam_reg_out(u32 __iomem *base, u32 offset,
 					  u32 val)
 {
 	writel(val, base + offset);
 	return val;
 }
 
-static inline u32 omap24xxcam_reg_merge(unsigned long base, u32 offset,
+static inline u32 omap24xxcam_reg_merge(u32 __iomem *base, u32 offset,
 					    u32 val, u32 mask)
 {
-	u32 addr = base + offset;
+	u32 __iomem *addr = base + offset;
 	u32 new_val = (readl(addr) & ~mask) | (val & mask);
 
 	writel(new_val, addr);
@@ -585,7 +585,7 @@ int omap24xxcam_sgdma_queue(struct omap24xxcam_sgdma *sgdma,
 			    int len, sgdma_callback_t callback, void *arg);
 void omap24xxcam_sgdma_sync(struct omap24xxcam_sgdma *sgdma);
 void omap24xxcam_sgdma_init(struct omap24xxcam_sgdma *sgdma,
-			    unsigned long base,
+			    void __iomem *base,
 			    void (*reset_callback)(unsigned long data),
 			    unsigned long reset_callback_data);
 void omap24xxcam_sgdma_exit(struct omap24xxcam_sgdma *sgdma);

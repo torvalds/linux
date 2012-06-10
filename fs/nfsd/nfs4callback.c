@@ -650,9 +650,10 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 	struct rpc_clnt *client;
 
 	if (clp->cl_minorversion == 0) {
-		if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
+		if (!clp->cl_cred.cr_principal &&
+				(clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
 			return -EINVAL;
-		args.client_name = clp->cl_principal;
+		args.client_name = clp->cl_cred.cr_principal;
 		args.prognumber	= conn->cb_prog,
 		args.protocol = XPRT_TRANSPORT_TCP;
 		args.authflavor = clp->cl_flavor;

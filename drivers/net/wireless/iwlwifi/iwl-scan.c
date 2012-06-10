@@ -32,7 +32,6 @@
 
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
@@ -53,6 +52,7 @@
 #define IWL_PASSIVE_DWELL_TIME_52   (10)
 #define IWL_PASSIVE_DWELL_BASE      (100)
 #define IWL_CHANNEL_TUNE_TIME       5
+#define MAX_SCAN_CHANNEL	    50
 
 static int iwl_send_scan_abort(struct iwl_priv *priv)
 {
@@ -69,7 +69,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	if (!test_bit(STATUS_READY, &priv->status) ||
 	    !test_bit(STATUS_GEO_CONFIGURED, &priv->status) ||
 	    !test_bit(STATUS_SCAN_HW, &priv->status) ||
-	    test_bit(STATUS_FW_ERROR, &priv->shrd->status))
+	    test_bit(STATUS_FW_ERROR, &priv->status))
 		return -EIO;
 
 	ret = iwl_dvm_send_cmd(priv, &cmd);
@@ -451,6 +451,46 @@ static u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 	return iwl_limit_dwell(priv, passive);
 }
 
+/* Return valid, unused, channel for a passive scan to reset the RF */
+static u8 iwl_get_single_channel_number(struct iwl_priv *priv,
+				 enum ieee80211_band band)
+{
+	const struct iwl_channel_info *ch_info;
+	int i;
+	u8 channel = 0;
+	u8 min, max;
+	struct iwl_rxon_context *ctx;
+
+	if (band == IEEE80211_BAND_5GHZ) {
+		min = 14;
+		max = priv->channel_count;
+	} else {
+		min = 0;
+		max = 14;
+	}
+
+	for (i = min; i < max; i++) {
+		bool busy = false;
+
+		for_each_context(priv, ctx) {
+			busy = priv->channel_info[i].channel ==
+				le16_to_cpu(ctx->staging.channel);
+			if (busy)
+				break;
+		}
+
+		if (busy)
+			continue;
+
+		channel = priv->channel_info[i].channel;
+		ch_info = iwl_get_channel_info(priv, band, channel);
+		if (is_channel_valid(ch_info))
+			break;
+	}
+
+	return channel;
+}
+
 static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
 					   struct ieee80211_vif *vif,
 					   enum ieee80211_band band,
@@ -577,7 +617,8 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
  */
 
 static u16 iwl_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
-			      const u8 *ies, int ie_len, int left)
+			      const u8 *ies, int ie_len, const u8 *ssid,
+			      u8 ssid_len, int left)
 {
 	int len = 0;
 	u8 *pos = NULL;
@@ -599,14 +640,18 @@ static u16 iwl_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
 	/* ...next IE... */
 	pos = &frame->u.probe_req.variable[0];
 
-	/* fill in our indirect SSID IE */
-	left -= 2;
+	/* fill in our SSID IE */
+	left -= ssid_len + 2;
 	if (left < 0)
 		return 0;
 	*pos++ = WLAN_EID_SSID;
-	*pos++ = 0;
+	*pos++ = ssid_len;
+	if (ssid && ssid_len) {
+		memcpy(pos, ssid, ssid_len);
+		pos += ssid_len;
+	}
 
-	len += 2;
+	len += ssid_len + 2;
 
 	if (WARN_ON(left < ie_len))
 		return len;
@@ -633,13 +678,22 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	u16 rx_chain = 0;
 	enum ieee80211_band band;
 	u8 n_probes = 0;
-	u8 rx_ant = hw_params(priv).valid_rx_ant;
+	u8 rx_ant = priv->hw_params.valid_rx_ant;
 	u8 rate;
 	bool is_active = false;
 	int  chan_mod;
 	u8 active_chains;
-	u8 scan_tx_antennas = hw_params(priv).valid_tx_ant;
+	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
 	int ret;
+	int scan_cmd_size = sizeof(struct iwl_scan_cmd) +
+			    MAX_SCAN_CHANNEL * sizeof(struct iwl_scan_channel) +
+			    priv->fw->ucode_capa.max_probe_length;
+	const u8 *ssid = NULL;
+	u8 ssid_len = 0;
+
+	if (WARN_ON_ONCE(priv->scan_request &&
+			 priv->scan_request->n_channels > MAX_SCAN_CHANNEL))
+		return -EINVAL;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -647,8 +701,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		ctx = iwl_rxon_ctx_from_vif(vif);
 
 	if (!priv->scan_cmd) {
-		priv->scan_cmd = kmalloc(sizeof(struct iwl_scan_cmd) +
-					 IWL_MAX_SCAN_SIZE, GFP_KERNEL);
+		priv->scan_cmd = kmalloc(scan_cmd_size, GFP_KERNEL);
 		if (!priv->scan_cmd) {
 			IWL_DEBUG_SCAN(priv,
 				       "fail to allocate memory for scan\n");
@@ -656,7 +709,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		}
 	}
 	scan = priv->scan_cmd;
-	memset(scan, 0, sizeof(struct iwl_scan_cmd) + IWL_MAX_SCAN_SIZE);
+	memset(scan, 0, scan_cmd_size);
 
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
@@ -707,10 +760,18 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		if (priv->scan_request->n_ssids) {
 			int i, p = 0;
 			IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
-			for (i = 0; i < priv->scan_request->n_ssids; i++) {
-				/* always does wildcard anyway */
-				if (!priv->scan_request->ssids[i].ssid_len)
-					continue;
+			/*
+			 * The highest priority SSID is inserted to the
+			 * probe request template.
+			 */
+			ssid_len = priv->scan_request->ssids[0].ssid_len;
+			ssid = priv->scan_request->ssids[0].ssid;
+
+			/*
+			 * Invert the order of ssids, the firmware will invert
+			 * it back.
+			 */
+			for (i = priv->scan_request->n_ssids - 1; i >= 1; i--) {
 				scan->direct_scan[p].id = WLAN_EID_SSID;
 				scan->direct_scan[p].len =
 					priv->scan_request->ssids[i].ssid_len;
@@ -751,8 +812,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		 * Internal scans are passive, so we can indiscriminately set
 		 * the BT ignore flag on 2.4 GHz since it applies to TX only.
 		 */
-		if (cfg(priv)->bt_params &&
-		    cfg(priv)->bt_params->advanced_bt_coexist)
+		if (priv->cfg->bt_params &&
+		    priv->cfg->bt_params->advanced_bt_coexist)
 			scan->tx_cmd.tx_flags |= TX_CMD_FLG_IGNORE_BT;
 		break;
 	case IEEE80211_BAND_5GHZ:
@@ -793,12 +854,9 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	band = priv->scan_band;
 
-	if (cfg(priv)->scan_rx_antennas[band])
-		rx_ant = cfg(priv)->scan_rx_antennas[band];
-
 	if (band == IEEE80211_BAND_2GHZ &&
-	    cfg(priv)->bt_params &&
-	    cfg(priv)->bt_params->advanced_bt_coexist) {
+	    priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* transmit 2.4 GHz probes only on first antenna */
 		scan_tx_antennas = first_antenna(scan_tx_antennas);
 	}
@@ -809,8 +867,12 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	rate_flags |= iwl_ant_idx_to_flags(priv->scan_tx_ant[band]);
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 
-	/* In power save mode use one chain, otherwise use all chains */
-	if (test_bit(STATUS_POWER_PMI, &priv->shrd->status)) {
+	/*
+	 * In power save mode while associated use one chain,
+	 * otherwise use all chains
+	 */
+	if (test_bit(STATUS_POWER_PMI, &priv->status) &&
+	    !(priv->hw->conf.flags & IEEE80211_CONF_IDLE)) {
 		/* rx_ant has been set to all valid chains previously */
 		active_chains = rx_ant &
 				((u8)(priv->chain_noise_data.active_chains));
@@ -822,8 +884,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		rx_ant = first_antenna(active_chains);
 	}
-	if (cfg(priv)->bt_params &&
-	    cfg(priv)->bt_params->advanced_bt_coexist &&
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
 	    priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		rx_ant = first_antenna(rx_ant);
@@ -831,7 +893,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	/* MIMO is not used here, but value is required */
 	rx_chain |=
-		hw_params(priv).valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
+		priv->hw_params.valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
@@ -843,7 +905,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 					vif->addr,
 					priv->scan_request->ie,
 					priv->scan_request->ie_len,
-					IWL_MAX_SCAN_SIZE - sizeof(*scan));
+					ssid, ssid_len,
+					scan_cmd_size - sizeof(*scan));
 		break;
 	case IWL_SCAN_RADIO_RESET:
 	case IWL_SCAN_ROC:
@@ -851,7 +914,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		cmd_len = iwl_fill_probe_req(
 					(struct ieee80211_mgmt *)scan->data,
 					iwl_bcast_addr, NULL, 0,
-					IWL_MAX_SCAN_SIZE - sizeof(*scan));
+					NULL, 0,
+					scan_cmd_size - sizeof(*scan));
 		break;
 	default:
 		BUG();
@@ -944,7 +1008,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 void iwl_init_scan_params(struct iwl_priv *priv)
 {
-	u8 ant_idx = fls(hw_params(priv).valid_tx_ant) - 1;
+	u8 ant_idx = fls(priv->hw_params.valid_tx_ant) - 1;
 	if (!priv->scan_tx_ant[IEEE80211_BAND_5GHZ])
 		priv->scan_tx_ant[IEEE80211_BAND_5GHZ] = ant_idx;
 	if (!priv->scan_tx_ant[IEEE80211_BAND_2GHZ])

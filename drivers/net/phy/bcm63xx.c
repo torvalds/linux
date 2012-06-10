@@ -39,10 +39,7 @@ static int bcm63xx_config_init(struct phy_device *phydev)
 		MII_BCM63XX_IR_SPEED |
 		MII_BCM63XX_IR_LINK) |
 		MII_BCM63XX_IR_EN;
-	err = phy_write(phydev, MII_BCM63XX_IR, reg);
-	if (err < 0)
-		return err;
-	return 0;
+	return phy_write(phydev, MII_BCM63XX_IR, reg);
 }
 
 static int bcm63xx_ack_interrupt(struct phy_device *phydev)

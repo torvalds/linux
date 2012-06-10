@@ -35,8 +35,8 @@ struct st_request {
 /* The tape buffer descriptor. */
 struct st_buffer {
 	unsigned char dma;	/* DMA-able buffer */
-	unsigned char do_dio;   /* direct i/o set up? */
 	unsigned char cleared;  /* internal buffer cleared after open? */
+	unsigned short do_dio;  /* direct i/o set up? */
 	int buffer_size;
 	int buffer_blocks;
 	int buffer_bytes;

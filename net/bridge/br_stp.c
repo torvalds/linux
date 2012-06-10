@@ -32,7 +32,7 @@ static const char *const br_port_state_names[] = {
 void br_log_state(const struct net_bridge_port *p)
 {
 	br_info(p->br, "port %u(%s) entered %s state\n",
-		(unsigned) p->port_no, p->dev->name,
+		(unsigned int) p->port_no, p->dev->name,
 		br_port_state_names[p->state]);
 }
 
@@ -478,7 +478,7 @@ void br_received_tcn_bpdu(struct net_bridge_port *p)
 {
 	if (br_is_designated_port(p)) {
 		br_info(p->br, "port %u(%s) received tcn bpdu\n",
-			(unsigned) p->port_no, p->dev->name);
+			(unsigned int) p->port_no, p->dev->name);
 
 		br_topology_change_detection(p->br);
 		br_topology_change_acknowledge(p);

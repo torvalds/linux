@@ -83,6 +83,9 @@ void perf_evsel__config(struct perf_evsel *evsel,
 			struct perf_record_opts *opts,
 			struct perf_evsel *first);
 
+const char* __perf_evsel__hw_name(u64 config);
+int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size);
+
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);

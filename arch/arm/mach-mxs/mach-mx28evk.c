@@ -226,7 +226,7 @@ static void __init mx28evk_fec_reset(void)
 	struct clk *clk;
 
 	/* Enable fec phy clock */
-	clk = clk_get_sys("pll2", NULL);
+	clk = clk_get_sys("enet_out", NULL);
 	if (!IS_ERR(clk))
 		clk_prepare_enable(clk);
 
@@ -412,6 +412,8 @@ static const struct mxs_saif_platform_data
 static void __init mx28evk_init(void)
 {
 	int ret;
+
+	mx28_soc_init();
 
 	mxs_iomux_setup_multiple_pads(mx28evk_pads, ARRAY_SIZE(mx28evk_pads));
 

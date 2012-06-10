@@ -287,7 +287,7 @@ extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops;
 extern const char ixgbevf_driver_name[];
 extern const char ixgbevf_driver_version[];
 
-extern int ixgbevf_up(struct ixgbevf_adapter *adapter);
+extern void ixgbevf_up(struct ixgbevf_adapter *adapter);
 extern void ixgbevf_down(struct ixgbevf_adapter *adapter);
 extern void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter);
 extern void ixgbevf_reset(struct ixgbevf_adapter *adapter);

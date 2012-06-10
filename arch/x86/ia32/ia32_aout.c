@@ -294,8 +294,7 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	/* OK, This is the point of no return */
 	set_personality(PER_LINUX);
-	set_thread_flag(TIF_IA32);
-	current->mm->context.ia32_compat = 1;
+	set_personality_ia32(false);
 
 	setup_new_exec(bprm);
 

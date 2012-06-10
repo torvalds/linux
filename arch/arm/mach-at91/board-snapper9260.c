@@ -43,16 +43,6 @@
 static void __init snapper9260_init_early(void)
 {
 	at91_initialize(18432000);
-
-	/* Debug on ttyS0 */
-	at91_register_uart(0, 0, 0);
-	at91_set_serial_console(0);
-
-	at91_register_uart(AT91SAM9260_ID_US0, 1,
-			   ATMEL_UART_CTS | ATMEL_UART_RTS);
-	at91_register_uart(AT91SAM9260_ID_US1, 2,
-			   ATMEL_UART_CTS | ATMEL_UART_RTS);
-	at91_register_uart(AT91SAM9260_ID_US2, 3, 0);
 }
 
 static struct at91_usbh_data __initdata snapper9260_usbh_data = {
@@ -168,6 +158,14 @@ static void __init snapper9260_board_init(void)
 	snapper9260_i2c_isl1208.irq = gpio_to_irq(AT91_PIN_PA31);
 	i2c_register_board_info(0, &snapper9260_i2c_isl1208, 1);
 
+	/* Debug on ttyS0 */
+	at91_register_uart(0, 0, 0);
+
+	at91_register_uart(AT91SAM9260_ID_US0, 1,
+			   ATMEL_UART_CTS | ATMEL_UART_RTS);
+	at91_register_uart(AT91SAM9260_ID_US1, 2,
+			   ATMEL_UART_CTS | ATMEL_UART_RTS);
+	at91_register_uart(AT91SAM9260_ID_US2, 3, 0);
 	at91_add_device_serial();
 	at91_add_device_usbh(&snapper9260_usbh_data);
 	at91_add_device_udc(&snapper9260_udc_data);

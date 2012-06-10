@@ -367,7 +367,7 @@ static int __devinit mpu3050_probe(struct i2c_client *client,
 
 	error = request_threaded_irq(client->irq,
 				     NULL, mpu3050_interrupt_thread,
-				     IRQF_TRIGGER_RISING,
+				     IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				     "mpu3050", sensor);
 	if (error) {
 		dev_err(&client->dev,

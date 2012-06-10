@@ -980,7 +980,6 @@ void cx18_stop_all_captures(struct cx18 *cx)
 int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 {
 	struct cx18 *cx = s->cx;
-	unsigned long then;
 
 	if (!cx18_stream_enabled(s))
 		return -EINVAL;
@@ -998,8 +997,6 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 		cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 2, s->handle, !gop_end);
 	else
 		cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 1, s->handle);
-
-	then = jiffies;
 
 	if (s->type == CX18_ENC_STREAM_TYPE_MPG && gop_end) {
 		CX18_INFO("ignoring gop_end: not (yet?) supported by the firmware\n");

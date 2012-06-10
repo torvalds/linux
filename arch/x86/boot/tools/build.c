@@ -50,6 +50,8 @@ typedef unsigned int   u32;
 u8 buf[SETUP_SECT_MAX*512];
 int is_big_kernel;
 
+#define PECOFF_RELOC_RESERVE 0x20
+
 /*----------------------------------------------------------------------*/
 
 static const u32 crctab32[] = {
@@ -133,11 +135,103 @@ static void usage(void)
 	die("Usage: build setup system [> image]");
 }
 
+#ifdef CONFIG_EFI_STUB
+
+static void update_pecoff_section_header(char *section_name, u32 offset, u32 size)
+{
+	unsigned int pe_header;
+	unsigned short num_sections;
+	u8 *section;
+
+	pe_header = get_unaligned_le32(&buf[0x3c]);
+	num_sections = get_unaligned_le16(&buf[pe_header + 6]);
+
+#ifdef CONFIG_X86_32
+	section = &buf[pe_header + 0xa8];
+#else
+	section = &buf[pe_header + 0xb8];
+#endif
+
+	while (num_sections > 0) {
+		if (strncmp((char*)section, section_name, 8) == 0) {
+			/* section header size field */
+			put_unaligned_le32(size, section + 0x8);
+
+			/* section header vma field */
+			put_unaligned_le32(offset, section + 0xc);
+
+			/* section header 'size of initialised data' field */
+			put_unaligned_le32(size, section + 0x10);
+
+			/* section header 'file offset' field */
+			put_unaligned_le32(offset, section + 0x14);
+
+			break;
+		}
+		section += 0x28;
+		num_sections--;
+	}
+}
+
+static void update_pecoff_setup_and_reloc(unsigned int size)
+{
+	u32 setup_offset = 0x200;
+	u32 reloc_offset = size - PECOFF_RELOC_RESERVE;
+	u32 setup_size = reloc_offset - setup_offset;
+
+	update_pecoff_section_header(".setup", setup_offset, setup_size);
+	update_pecoff_section_header(".reloc", reloc_offset, PECOFF_RELOC_RESERVE);
+
+	/*
+	 * Modify .reloc section contents with a single entry. The
+	 * relocation is applied to offset 10 of the relocation section.
+	 */
+	put_unaligned_le32(reloc_offset + 10, &buf[reloc_offset]);
+	put_unaligned_le32(10, &buf[reloc_offset + 4]);
+}
+
+static void update_pecoff_text(unsigned int text_start, unsigned int file_sz)
+{
+	unsigned int pe_header;
+	unsigned int text_sz = file_sz - text_start;
+
+	pe_header = get_unaligned_le32(&buf[0x3c]);
+
+	/* Size of image */
+	put_unaligned_le32(file_sz, &buf[pe_header + 0x50]);
+
+	/*
+	 * Size of code: Subtract the size of the first sector (512 bytes)
+	 * which includes the header.
+	 */
+	put_unaligned_le32(file_sz - 512, &buf[pe_header + 0x1c]);
+
+#ifdef CONFIG_X86_32
+	/*
+	 * Address of entry point.
+	 *
+	 * The EFI stub entry point is +16 bytes from the start of
+	 * the .text section.
+	 */
+	put_unaligned_le32(text_start + 16, &buf[pe_header + 0x28]);
+#else
+	/*
+	 * Address of entry point. startup_32 is at the beginning and
+	 * the 64-bit entry point (startup_64) is always 512 bytes
+	 * after. The EFI stub entry point is 16 bytes after that, as
+	 * the first instruction allows legacy loaders to jump over
+	 * the EFI stub initialisation
+	 */
+	put_unaligned_le32(text_start + 528, &buf[pe_header + 0x28]);
+#endif /* CONFIG_X86_32 */
+
+	update_pecoff_section_header(".text", text_start, text_sz);
+}
+
+#endif /* CONFIG_EFI_STUB */
+
 int main(int argc, char ** argv)
 {
-#ifdef CONFIG_EFI_STUB
-	unsigned int file_sz, pe_header;
-#endif
 	unsigned int i, sz, setup_sectors;
 	int c;
 	u32 sys_size;
@@ -163,12 +257,22 @@ int main(int argc, char ** argv)
 		die("Boot block hasn't got boot flag (0xAA55)");
 	fclose(file);
 
+#ifdef CONFIG_EFI_STUB
+	/* Reserve 0x20 bytes for .reloc section */
+	memset(buf+c, 0, PECOFF_RELOC_RESERVE);
+	c += PECOFF_RELOC_RESERVE;
+#endif
+
 	/* Pad unused space with zeros */
 	setup_sectors = (c + 511) / 512;
 	if (setup_sectors < SETUP_SECT_MIN)
 		setup_sectors = SETUP_SECT_MIN;
 	i = setup_sectors*512;
 	memset(buf+c, 0, i-c);
+
+#ifdef CONFIG_EFI_STUB
+	update_pecoff_setup_and_reloc(i);
+#endif
 
 	/* Set the default root device */
 	put_unaligned_le16(DEFAULT_ROOT_DEV, &buf[508]);
@@ -194,48 +298,8 @@ int main(int argc, char ** argv)
 	put_unaligned_le32(sys_size, &buf[0x1f4]);
 
 #ifdef CONFIG_EFI_STUB
-	file_sz = sz + i + ((sys_size * 16) - sz);
-
-	pe_header = get_unaligned_le32(&buf[0x3c]);
-
-	/* Size of code */
-	put_unaligned_le32(file_sz, &buf[pe_header + 0x1c]);
-
-	/* Size of image */
-	put_unaligned_le32(file_sz, &buf[pe_header + 0x50]);
-
-#ifdef CONFIG_X86_32
-	/*
-	 * Address of entry point.
-	 *
-	 * The EFI stub entry point is +16 bytes from the start of
-	 * the .text section.
-	 */
-	put_unaligned_le32(i + 16, &buf[pe_header + 0x28]);
-
-	/* .text size */
-	put_unaligned_le32(file_sz, &buf[pe_header + 0xb0]);
-
-	/* .text size of initialised data */
-	put_unaligned_le32(file_sz, &buf[pe_header + 0xb8]);
-#else
-	/*
-	 * Address of entry point. startup_32 is at the beginning and
-	 * the 64-bit entry point (startup_64) is always 512 bytes
-	 * after. The EFI stub entry point is 16 bytes after that, as
-	 * the first instruction allows legacy loaders to jump over
-	 * the EFI stub initialisation
-	 */
-	put_unaligned_le32(i + 528, &buf[pe_header + 0x28]);
-
-	/* .text size */
-	put_unaligned_le32(file_sz, &buf[pe_header + 0xc0]);
-
-	/* .text size of initialised data */
-	put_unaligned_le32(file_sz, &buf[pe_header + 0xc8]);
-
-#endif /* CONFIG_X86_32 */
-#endif /* CONFIG_EFI_STUB */
+	update_pecoff_text(setup_sectors * 512, sz + i + ((sys_size * 16) - sz));
+#endif
 
 	crc = partial_crc32(buf, i, crc);
 	if (fwrite(buf, 1, i, stdout) != i)

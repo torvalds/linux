@@ -19,12 +19,15 @@
 #include <asm/cache.h>
 #include <asm/processor-flags.h>
 #include <asm/percpu.h>
+#include <asm/nops.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
 #include <asm/paravirt.h>
+#define GET_CR2_INTO(reg) GET_CR2_INTO_RAX ; movq %rax, reg
 #else
-#define GET_CR2_INTO_RCX movq %cr2, %rcx
+#define GET_CR2_INTO(reg) movq %cr2, reg
+#define INTERRUPT_RETURN iretq
 #endif
 
 /* we are not able to switch in one step to the final KERNEL ADDRESS SPACE
@@ -135,10 +138,6 @@ ident_complete:
 
 	/* Fixup phys_base */
 	addq	%rbp, phys_base(%rip)
-
-	/* Fixup trampoline */
-	addq	%rbp, trampoline_level4_pgt + 0(%rip)
-	addq	%rbp, trampoline_level4_pgt + (511*8)(%rip)
 
 	/* Due to ENTRY(), sometimes the empty space gets filled with
 	 * zeros. Better take a jmp than relying on empty space being
@@ -270,36 +269,56 @@ bad_address:
 	jmp bad_address
 
 	.section ".init.text","ax"
-#ifdef CONFIG_EARLY_PRINTK
 	.globl early_idt_handlers
 early_idt_handlers:
+	# 104(%rsp) %rflags
+	#  96(%rsp) %cs
+	#  88(%rsp) %rip
+	#  80(%rsp) error code
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
-	movl $i, %esi
+	.if (EXCEPTION_ERRCODE_MASK >> i) & 1
+	ASM_NOP2
+	.else
+	pushq $0		# Dummy error code, to make stack frame uniform
+	.endif
+	pushq $i		# 72(%rsp) Vector number
 	jmp early_idt_handler
 	i = i + 1
 	.endr
-#endif
 
 ENTRY(early_idt_handler)
-#ifdef CONFIG_EARLY_PRINTK
+	cld
+
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
 	incl early_recursion_flag(%rip)
-	GET_CR2_INTO_RCX
-	movq %rcx,%r9
-	xorl %r8d,%r8d		# zero for error code
-	movl %esi,%ecx		# get vector number
-	# Test %ecx against mask of vectors that push error code.
-	cmpl $31,%ecx
-	ja 0f
-	movl $1,%eax
-	salq %cl,%rax
-	testl $0x27d00,%eax
-	je 0f
-	popq %r8		# get error code
-0:	movq 0(%rsp),%rcx	# get ip
-	movq 8(%rsp),%rdx	# get cs
+
+	pushq %rax		# 64(%rsp)
+	pushq %rcx		# 56(%rsp)
+	pushq %rdx		# 48(%rsp)
+	pushq %rsi		# 40(%rsp)
+	pushq %rdi		# 32(%rsp)
+	pushq %r8		# 24(%rsp)
+	pushq %r9		# 16(%rsp)
+	pushq %r10		#  8(%rsp)
+	pushq %r11		#  0(%rsp)
+
+	cmpl $__KERNEL_CS,96(%rsp)
+	jne 10f
+
+	leaq 88(%rsp),%rdi	# Pointer to %rip
+	call early_fixup_exception
+	andl %eax,%eax
+	jnz 20f			# Found an exception entry
+
+10:
+#ifdef CONFIG_EARLY_PRINTK
+	GET_CR2_INTO(%r9)	# can clobber any volatile register if pv
+	movl 80(%rsp),%r8d	# error code
+	movl 72(%rsp),%esi	# vector number
+	movl 96(%rsp),%edx	# %cs
+	movq 88(%rsp),%rcx	# %rip
 	xorl %eax,%eax
 	leaq early_idt_msg(%rip),%rdi
 	call early_printk
@@ -308,17 +327,32 @@ ENTRY(early_idt_handler)
 	call dump_stack
 #ifdef CONFIG_KALLSYMS	
 	leaq early_idt_ripmsg(%rip),%rdi
-	movq 0(%rsp),%rsi	# get rip again
+	movq 40(%rsp),%rsi	# %rip again
 	call __print_symbol
 #endif
 #endif /* EARLY_PRINTK */
 1:	hlt
 	jmp 1b
 
-#ifdef CONFIG_EARLY_PRINTK
+20:	# Exception table entry found
+	popq %r11
+	popq %r10
+	popq %r9
+	popq %r8
+	popq %rdi
+	popq %rsi
+	popq %rdx
+	popq %rcx
+	popq %rax
+	addq $16,%rsp		# drop vector number and error code
+	decl early_recursion_flag(%rip)
+	INTERRUPT_RETURN
+
+	.balign 4
 early_recursion_flag:
 	.long 0
 
+#ifdef CONFIG_EARLY_PRINTK
 early_idt_msg:
 	.asciz "PANIC: early exception %02lx rip %lx:%lx error %lx cr2 %lx\n"
 early_idt_ripmsg:

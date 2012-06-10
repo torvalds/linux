@@ -56,7 +56,7 @@ static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
  *
  *	The control structure is allocated in complete chunk
  *	from the OS. It is in turn sub allocated to the
- *	various objects that compose the struture
+ *	various objects that compose the structure
  *
  *	The structure has a 'nr_instance' array within itself.
  *	Each instance represents a major component
@@ -79,7 +79,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	unsigned total_size;
 	unsigned count;
 	unsigned instance, block, attr;
-	void *pvt;
+	void *pvt, *p;
 	int err;
 
 	debugf4("%s() instances=%d blocks=%d\n",
@@ -92,35 +92,30 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	 * to be at least as stringent as what the compiler would
 	 * provide if we could simply hardcode everything into a single struct.
 	 */
-	dev_ctl = (struct edac_device_ctl_info *)NULL;
+	p = NULL;
+	dev_ctl = edac_align_ptr(&p, sizeof(*dev_ctl), 1);
 
 	/* Calc the 'end' offset past end of ONE ctl_info structure
 	 * which will become the start of the 'instance' array
 	 */
-	dev_inst = edac_align_ptr(&dev_ctl[1], sizeof(*dev_inst));
+	dev_inst = edac_align_ptr(&p, sizeof(*dev_inst), nr_instances);
 
 	/* Calc the 'end' offset past the instance array within the ctl_info
 	 * which will become the start of the block array
 	 */
-	dev_blk = edac_align_ptr(&dev_inst[nr_instances], sizeof(*dev_blk));
+	count = nr_instances * nr_blocks;
+	dev_blk = edac_align_ptr(&p, sizeof(*dev_blk), count);
 
 	/* Calc the 'end' offset past the dev_blk array
 	 * which will become the start of the attrib array, if any.
 	 */
-	count = nr_instances * nr_blocks;
-	dev_attrib = edac_align_ptr(&dev_blk[count], sizeof(*dev_attrib));
-
-	/* Check for case of when an attribute array is specified */
-	if (nr_attrib > 0) {
-		/* calc how many nr_attrib we need */
+	/* calc how many nr_attrib we need */
+	if (nr_attrib > 0)
 		count *= nr_attrib;
+	dev_attrib = edac_align_ptr(&p, sizeof(*dev_attrib), count);
 
-		/* Calc the 'end' offset past the attributes array */
-		pvt = edac_align_ptr(&dev_attrib[count], sz_private);
-	} else {
-		/* no attribute array specificed */
-		pvt = edac_align_ptr(dev_attrib, sz_private);
-	}
+	/* Calc the 'end' offset past the attributes array */
+	pvt = edac_align_ptr(&p, sz_private, 1);
 
 	/* 'pvt' now points to where the private data area is.
 	 * At this point 'pvt' (like dev_inst,dev_blk and dev_attrib)
@@ -394,7 +389,7 @@ static void edac_device_workq_function(struct work_struct *work_req)
 
 	/* Reschedule the workq for the next time period to start again
 	 * if the number of msec is for 1 sec, then adjust to the next
-	 * whole one second to save timers fireing all over the period
+	 * whole one second to save timers firing all over the period
 	 * between integral seconds
 	 */
 	if (edac_dev->poll_msec == 1000)
@@ -563,7 +558,7 @@ EXPORT_SYMBOL_GPL(edac_device_add_device);
  *	Remove sysfs entries for specified edac_device structure and
  *	then remove edac_device structure from global list
  *
- * @pdev:
+ * @dev:
  *	Pointer to 'struct device' representing edac_device
  *	structure to remove.
  *

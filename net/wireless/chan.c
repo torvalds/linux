@@ -45,7 +45,7 @@ rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
 	return chan;
 }
 
-int cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
+bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 				  struct ieee80211_channel *chan,
 				  enum nl80211_channel_type channel_type)
 {

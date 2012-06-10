@@ -21,11 +21,6 @@
 
 extern int m5mols_debug;
 
-#define to_m5mols(__sd)	container_of(__sd, struct m5mols_info, sd)
-
-#define to_sd(__ctrl) \
-	(&container_of(__ctrl->handler, struct m5mols_info, handle)->sd)
-
 enum m5mols_restype {
 	M5MOLS_RESTYPE_MONITOR,
 	M5MOLS_RESTYPE_CAPTURE,
@@ -163,21 +158,27 @@ struct m5mols_version {
  * @ffmt: current fmt according to resolution type
  * @res_type: current resolution type
  * @irq_waitq: waitqueue for the capture
- * @flags: state variable for the interrupt handler
+ * @irq_done: set to 1 in the interrupt handler
  * @handle: control handler
- * @autoexposure: Auto Exposure control
- * @exposure: Exposure control
- * @autowb: Auto White Balance control
- * @colorfx: Color effect control
- * @saturation:	Saturation control
- * @zoom: Zoom control
+ * @auto_exposure: auto/manual exposure control
+ * @exposure_bias: exposure compensation control
+ * @exposure: manual exposure control
+ * @metering: exposure metering control
+ * @auto_iso: auto/manual ISO sensitivity control
+ * @iso: manual ISO sensitivity control
+ * @auto_wb: auto white balance control
+ * @lock_3a: 3A lock control
+ * @colorfx: color effect control
+ * @saturation: saturation control
+ * @zoom: zoom control
+ * @wdr: wide dynamic range control
+ * @stabilization: image stabilization control
+ * @jpeg_quality: JPEG compression quality control
  * @ver: information of the version
  * @cap: the capture mode attributes
- * @power: current sensor's power status
  * @isp_ready: 1 when the ISP controller has completed booting
+ * @power: current sensor's power status
  * @ctrl_sync: 1 when the control handler state is restored in H/W
- * @lock_ae: true means the Auto Exposure is locked
- * @lock_awb: true means the Aut WhiteBalance is locked
  * @resolution:	register value for current resolution
  * @mode: register value for current operation mode
  * @set_power: optional power callback to the board code
@@ -193,15 +194,27 @@ struct m5mols_info {
 	atomic_t irq_done;
 
 	struct v4l2_ctrl_handler handle;
+	struct {
+		/* exposure/exposure bias/auto exposure cluster */
+		struct v4l2_ctrl *auto_exposure;
+		struct v4l2_ctrl *exposure_bias;
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *metering;
+	};
+	struct {
+		/* iso/auto iso cluster */
+		struct v4l2_ctrl *auto_iso;
+		struct v4l2_ctrl *iso;
+	};
+	struct v4l2_ctrl *auto_wb;
 
-	/* Autoexposure/exposure control cluster */
-	struct v4l2_ctrl *autoexposure;
-	struct v4l2_ctrl *exposure;
-
-	struct v4l2_ctrl *autowb;
+	struct v4l2_ctrl *lock_3a;
 	struct v4l2_ctrl *colorfx;
 	struct v4l2_ctrl *saturation;
 	struct v4l2_ctrl *zoom;
+	struct v4l2_ctrl *wdr;
+	struct v4l2_ctrl *stabilization;
+	struct v4l2_ctrl *jpeg_quality;
 
 	struct m5mols_version ver;
 	struct m5mols_capture cap;
@@ -210,8 +223,6 @@ struct m5mols_info {
 	unsigned int power:1;
 	unsigned int ctrl_sync:1;
 
-	bool lock_ae;
-	bool lock_awb;
 	u8 resolution;
 	u8 mode;
 
@@ -282,7 +293,7 @@ int m5mols_busy_wait(struct v4l2_subdev *sd, u32 reg, u32 value, u32 mask,
  * The available executing order between each modes are as follows:
  *   PARAMETER <---> MONITOR <---> CAPTURE
  */
-int m5mols_mode(struct m5mols_info *info, u8 mode);
+int m5mols_set_mode(struct m5mols_info *info, u8 mode);
 
 int m5mols_enable_interrupt(struct v4l2_subdev *sd, u8 reg);
 int m5mols_wait_interrupt(struct v4l2_subdev *sd, u8 condition, u32 timeout);
@@ -291,9 +302,33 @@ int m5mols_start_capture(struct m5mols_info *info);
 int m5mols_do_scenemode(struct m5mols_info *info, u8 mode);
 int m5mols_lock_3a(struct m5mols_info *info, bool lock);
 int m5mols_set_ctrl(struct v4l2_ctrl *ctrl);
+int m5mols_init_controls(struct v4l2_subdev *sd);
 
 /* The firmware function */
 int m5mols_update_fw(struct v4l2_subdev *sd,
 		     int (*set_power)(struct m5mols_info *, bool));
+
+static inline struct m5mols_info *to_m5mols(struct v4l2_subdev *subdev)
+{
+	return container_of(subdev, struct m5mols_info, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	struct m5mols_info *info = container_of(ctrl->handler,
+						struct m5mols_info, handle);
+	return &info->sd;
+}
+
+static inline void m5mols_set_ctrl_mode(struct v4l2_ctrl *ctrl,
+					unsigned int mode)
+{
+	ctrl->priv = (void *)mode;
+}
+
+static inline unsigned int m5mols_get_ctrl_mode(struct v4l2_ctrl *ctrl)
+{
+	return (unsigned int)ctrl->priv;
+}
 
 #endif	/* M5MOLS_H */

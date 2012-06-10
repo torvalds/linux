@@ -2800,10 +2800,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	}
 }
 
-/* !! coarse_grained_expo_autogain is not used !! */
-#define exp_too_low_cnt bridge
-#define exp_too_high_cnt sensor
-
+#define WANT_REGULAR_AUTOGAIN
 #include "autogain_functions.h"
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -2923,6 +2920,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 * not the JPEG end of frame ('ff d9').
 	 */
 
+	/* count the packets and their size */
+	sd->npkt++;
+	sd->pktsz += len;
+
 /*fixme: assumption about the following code:
  *	- there can be only one marker in a packet
  */
@@ -2944,10 +2945,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			return;
 		data += i;
 	}
-
-	/* count the packets and their size */
-	sd->npkt++;
-	sd->pktsz += len;
 
 	/* search backwards if there is a marker in the packet */
 	for (i = len - 1; --i >= 0; ) {

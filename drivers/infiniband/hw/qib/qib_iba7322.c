@@ -6379,6 +6379,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		dd->cspec->sdmabufcnt;
 	dd->lastctxt_piobuf = dd->cspec->lastbuf_for_pio - sbufs;
 	dd->cspec->lastbuf_for_pio--; /* range is <= , not < */
+	dd->last_pio = dd->cspec->lastbuf_for_pio;
 	dd->pbufsctxt = (dd->cfgctxts > dd->first_user_ctxt) ?
 		dd->lastctxt_piobuf / (dd->cfgctxts - dd->first_user_ctxt) : 0;
 
@@ -7708,7 +7709,7 @@ static int serdes_7322_init_new(struct qib_pportdata *ppd)
 	ibsd_wr_allchans(ppd, 5, 0, BMASK(0, 0));
 	msleep(20);
 	/*       Set Frequency Loop Bandwidth */
-	ibsd_wr_allchans(ppd, 2, (7 << 5), BMASK(8, 5));
+	ibsd_wr_allchans(ppd, 2, (15 << 5), BMASK(8, 5));
 	/*       Enable Frequency Loop */
 	ibsd_wr_allchans(ppd, 2, (1 << 4), BMASK(4, 4));
 	/*       Set Timing Loop Bandwidth */

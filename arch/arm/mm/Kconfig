@@ -4,23 +4,6 @@ comment "Processor Type"
 # which CPUs we support in the kernel image, and the compiler instruction
 # optimiser behaviour.
 
-# ARM610
-config CPU_ARM610
-	bool "Support ARM610 processor" if ARCH_RPC
-	select CPU_32v3
-	select CPU_CACHE_V3
-	select CPU_CACHE_VIVT
-	select CPU_CP15_MMU
-	select CPU_COPY_V3 if MMU
-	select CPU_TLB_V3 if MMU
-	select CPU_PABRT_LEGACY
-	help
-	  The ARM610 is the successor to the ARM3 processor
-	  and was produced by VLSI Technology Inc.
-
-	  Say Y if you want support for the ARM610 processor.
-	  Otherwise, say N.
-
 # ARM7TDMI
 config CPU_ARM7TDMI
 	bool "Support ARM7TDMI processor"
@@ -34,25 +17,6 @@ config CPU_ARM7TDMI
 	  which has no memory control unit and cache.
 
 	  Say Y if you want support for the ARM7TDMI processor.
-	  Otherwise, say N.
-
-# ARM710
-config CPU_ARM710
-	bool "Support ARM710 processor" if ARCH_RPC
-	select CPU_32v3
-	select CPU_CACHE_V3
-	select CPU_CACHE_VIVT
-	select CPU_CP15_MMU
-	select CPU_COPY_V3 if MMU
-	select CPU_TLB_V3 if MMU
-	select CPU_PABRT_LEGACY
-	help
-	  A 32-bit RISC microprocessor based on the ARM7 processor core
-	  designed by Advanced RISC Machines Ltd. The ARM710 is the
-	  successor to the ARM610 processor. It was released in
-	  July 1994 by VLSI Technology Inc.
-
-	  Say Y if you want support for the ARM710 processor.
 	  Otherwise, say N.
 
 # ARM720T
@@ -530,9 +494,6 @@ config CPU_CACHE_FA
 
 if MMU
 # The copy-page model
-config CPU_COPY_V3
-	bool
-
 config CPU_COPY_V4WT
 	bool
 
@@ -549,11 +510,6 @@ config CPU_COPY_V6
 	bool
 
 # This selects the TLB model
-config CPU_TLB_V3
-	bool
-	help
-	  ARM Architecture Version 3 TLB.
-
 config CPU_TLB_V4WT
 	bool
 	help
@@ -731,7 +687,7 @@ config CPU_HIGH_VECTOR
 
 config CPU_ICACHE_DISABLE
 	bool "Disable I-Cache (I-bit)"
-	depends on CPU_CP15 && !(CPU_ARM610 || CPU_ARM710 || CPU_ARM720T || CPU_ARM740T || CPU_XSCALE || CPU_XSC3)
+	depends on CPU_CP15 && !(CPU_ARM720T || CPU_ARM740T || CPU_XSCALE || CPU_XSC3)
 	help
 	  Say Y here to disable the processor instruction cache. Unless
 	  you have a reason not to or are unsure, say N.

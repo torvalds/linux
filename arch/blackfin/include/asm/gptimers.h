@@ -44,6 +44,13 @@
 # define TIMER_GROUP2          1
 #endif
 /*
+ * BF609: 8 timers:
+ */
+#if defined(CONFIG_BF60x)
+# define MAX_BLACKFIN_GPTIMERS 8
+# define TIMER0_GROUP_REG     TIMER_RUN
+#endif
+/*
  * All others: 3 timers:
  */
 #define TIMER_GROUP1           0
@@ -103,6 +110,72 @@
 # define FS1_TIMER_BIT TIMER0bit
 # define FS2_TIMER_BIT TIMER1bit
 #endif
+
+#ifdef CONFIG_BF60x
+/*
+ * Timer Configuration Register Bits
+ */
+#define TIMER_EMU_RUN       0x8000
+#define TIMER_BPER_EN       0x4000
+#define TIMER_BWID_EN       0x2000
+#define TIMER_BDLY_EN       0x1000
+#define TIMER_OUT_DIS       0x0800
+#define TIMER_TIN_SEL       0x0400
+#define TIMER_CLK_SEL       0x0300
+#define TIMER_CLK_SCLK      0x0000
+#define TIMER_CLK_ALT_CLK0  0x0100
+#define TIMER_CLK_ALT_CLK1  0x0300
+#define TIMER_PULSE_HI 	    0x0080
+#define TIMER_SLAVE_TRIG    0x0040
+#define TIMER_IRQ_MODE      0x0030
+#define TIMER_IRQ_ACT_EDGE  0x0000
+#define TIMER_IRQ_DLY       0x0010
+#define TIMER_IRQ_WID_DLY   0x0020
+#define TIMER_IRQ_PER       0x0030
+#define TIMER_MODE          0x000f
+#define TIMER_MODE_WDOG_P   0x0008
+#define TIMER_MODE_WDOG_W   0x0009
+#define TIMER_MODE_PWM_CONT 0x000c
+#define TIMER_MODE_PWM      0x000d
+#define TIMER_MODE_WDTH     0x000a
+#define TIMER_MODE_WDTH_D   0x000b
+#define TIMER_MODE_EXT_CLK  0x000e
+#define TIMER_MODE_PININT   0x000f
+
+/*
+ * Timer Status Register Bits
+ */
+#define TIMER_STATUS_TIMIL0  0x0001
+#define TIMER_STATUS_TIMIL1  0x0002
+#define TIMER_STATUS_TIMIL2  0x0004
+#define TIMER_STATUS_TIMIL3  0x0008
+#define TIMER_STATUS_TIMIL4  0x0010
+#define TIMER_STATUS_TIMIL5  0x0020
+#define TIMER_STATUS_TIMIL6  0x0040
+#define TIMER_STATUS_TIMIL7  0x0080
+
+#define TIMER_STATUS_TOVF0   0x0001	/* timer 0 overflow error */
+#define TIMER_STATUS_TOVF1   0x0002
+#define TIMER_STATUS_TOVF2   0x0004
+#define TIMER_STATUS_TOVF3   0x0008
+#define TIMER_STATUS_TOVF4   0x0010
+#define TIMER_STATUS_TOVF5   0x0020
+#define TIMER_STATUS_TOVF6   0x0040
+#define TIMER_STATUS_TOVF7   0x0080
+
+/*
+ * Timer Slave Enable Status : write 1 to clear
+ */
+#define TIMER_STATUS_TRUN0  0x0001
+#define TIMER_STATUS_TRUN1  0x0002
+#define TIMER_STATUS_TRUN2  0x0004
+#define TIMER_STATUS_TRUN3  0x0008
+#define TIMER_STATUS_TRUN4  0x0010
+#define TIMER_STATUS_TRUN5  0x0020
+#define TIMER_STATUS_TRUN6  0x0040
+#define TIMER_STATUS_TRUN7  0x0080
+
+#else
 
 /*
  * Timer Configuration Register Bits
@@ -170,12 +243,18 @@
 #define TIMER_STATUS_TRUN10 0x4000
 #define TIMER_STATUS_TRUN11 0x8000
 
+#endif
+
 /* The actual gptimer API */
 
 void     set_gptimer_pwidth(unsigned int timer_id, uint32_t width);
 uint32_t get_gptimer_pwidth(unsigned int timer_id);
 void     set_gptimer_period(unsigned int timer_id, uint32_t period);
 uint32_t get_gptimer_period(unsigned int timer_id);
+#ifdef CONFIG_BF60x
+void     set_gptimer_delay(unsigned int timer_id, uint32_t delay);
+uint32_t get_gptimer_delay(unsigned int timer_id);
+#endif
 uint32_t get_gptimer_count(unsigned int timer_id);
 int      get_gptimer_intr(unsigned int timer_id);
 void     clear_gptimer_intr(unsigned int timer_id);
@@ -217,16 +296,41 @@ struct bfin_gptimer_regs {
 	u32 counter;
 	u32 period;
 	u32 width;
+#ifdef CONFIG_BF60x
+	u32 delay;
+#endif
 };
 
 /*
  * bfin group timer registers layout
  */
+#ifndef CONFIG_BF60x
 struct bfin_gptimer_group_regs {
 	__BFP(enable);
 	__BFP(disable);
 	u32 status;
 };
+#else
+struct bfin_gptimer_group_regs {
+	__BFP(run);
+	__BFP(enable);
+	__BFP(disable);
+	__BFP(stop_cfg);
+	__BFP(stop_cfg_set);
+	__BFP(stop_cfg_clr);
+	__BFP(data_imsk);
+	__BFP(stat_imsk);
+	__BFP(tr_msk);
+	__BFP(tr_ie);
+	__BFP(data_ilat);
+	__BFP(stat_ilat);
+	__BFP(err_status);
+	__BFP(bcast_per);
+	__BFP(bcast_wid);
+	__BFP(bcast_dly);
+
+};
+#endif
 
 #undef __BFP
 

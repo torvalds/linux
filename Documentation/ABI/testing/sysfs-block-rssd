@@ -6,13 +6,21 @@ Description:    This is a read-only file. Dumps below driver information and
                 hardware registers.
                     - S ACTive
                     - Command Issue
-                    - Allocated
                     - Completed
                     - PORT IRQ STAT
                     - HOST IRQ STAT
+                    - Allocated
+                    - Commands in Q
 
 What:           /sys/block/rssd*/status
 Date:           April 2012
 KernelVersion:  3.4
 Contact:        Asai Thambi S P <asamymuthupa@micron.com>
-Description:   This is a read-only file. Indicates the status of the device.
+Description:    This is a read-only file. Indicates the status of the device.
+
+What:           /sys/block/rssd*/flags
+Date:           May 2012
+KernelVersion:  3.5
+Contact:        Asai Thambi S P <asamymuthupa@micron.com>
+Description:    This is a read-only file. Dumps the flags in port and driver
+                data structure

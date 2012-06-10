@@ -1,12 +1,11 @@
 #ifndef PLAT_FPGA_IRQ_H
 #define PLAT_FPGA_IRQ_H
 
-struct fpga_irq_data {
-	void __iomem *base;
-	unsigned int irq_start;
-	struct irq_chip chip;
-};
+struct device_node;
+struct pt_regs;
 
-void fpga_irq_init(int, u32, struct fpga_irq_data *);
+void fpga_handle_irq(struct pt_regs *regs);
+void fpga_irq_init(void __iomem *, const char *, int, int, u32,
+		struct device_node *node);
 
 #endif

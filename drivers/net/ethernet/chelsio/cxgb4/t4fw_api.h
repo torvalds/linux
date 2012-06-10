@@ -1620,4 +1620,19 @@ struct fw_hdr {
 #define FW_HDR_FW_VER_MINOR_GET(x) (((x) >> 16) & 0xff)
 #define FW_HDR_FW_VER_MICRO_GET(x) (((x) >> 8) & 0xff)
 #define FW_HDR_FW_VER_BUILD_GET(x) (((x) >> 0) & 0xff)
+
+#define S_FW_CMD_OP 24
+#define V_FW_CMD_OP(x) ((x) << S_FW_CMD_OP)
+
+#define S_FW_CMD_REQUEST 23
+#define V_FW_CMD_REQUEST(x) ((x) << S_FW_CMD_REQUEST)
+#define F_FW_CMD_REQUEST V_FW_CMD_REQUEST(1U)
+
+#define S_FW_CMD_WRITE 21
+#define V_FW_CMD_WRITE(x) ((x) << S_FW_CMD_WRITE)
+#define F_FW_CMD_WRITE V_FW_CMD_WRITE(1U)
+
+#define S_FW_LDST_CMD_ADDRSPACE 0
+#define V_FW_LDST_CMD_ADDRSPACE(x) ((x) << S_FW_LDST_CMD_ADDRSPACE)
+
 #endif /* _T4FW_INTERFACE_H_ */

@@ -273,7 +273,7 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 	hdr = pnp_hdr(skb);
 	if (hdr->data[0] != PN_PEP_TYPE_COMMON) {
 		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP type: %u\n",
-				(unsigned)hdr->data[0]);
+				(unsigned int)hdr->data[0]);
 		return -EOPNOTSUPP;
 	}
 
@@ -305,7 +305,7 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 
 	default:
 		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP indication: %u\n",
-				(unsigned)hdr->data[1]);
+				(unsigned int)hdr->data[1]);
 		return -EOPNOTSUPP;
 	}
 	if (wake)
@@ -478,9 +478,9 @@ static void pipe_destruct(struct sock *sk)
 	skb_queue_purge(&pn->ctrlreq_queue);
 }
 
-static u8 pipe_negotiate_fc(const u8 *fcs, unsigned n)
+static u8 pipe_negotiate_fc(const u8 *fcs, unsigned int n)
 {
-	unsigned i;
+	unsigned int i;
 	u8 final_fc = PN_NO_FLOW_CONTROL;
 
 	for (i = 0; i < n; i++) {

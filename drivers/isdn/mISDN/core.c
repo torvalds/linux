@@ -355,6 +355,22 @@ mISDN_unregister_Bprotocol(struct Bprotocol *bp)
 }
 EXPORT_SYMBOL(mISDN_unregister_Bprotocol);
 
+static const char *msg_no_channel = "<no channel>";
+static const char *msg_no_stack = "<no stack>";
+static const char *msg_no_stackdev = "<no stack device>";
+
+const char *mISDNDevName4ch(struct mISDNchannel *ch)
+{
+	if (!ch)
+		return msg_no_channel;
+	if (!ch->st)
+		return msg_no_stack;
+	if (!ch->st->dev)
+		return msg_no_stackdev;
+	return dev_name(&ch->st->dev->dev);
+};
+EXPORT_SYMBOL(mISDNDevName4ch);
+
 static int
 mISDNInit(void)
 {

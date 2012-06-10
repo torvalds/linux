@@ -79,30 +79,29 @@ static const char *obj_states[ODEBUG_STATE_MAX] = {
 	[ODEBUG_STATE_NOTAVAILABLE]	= "not available",
 };
 
-static int fill_pool(void)
+static void fill_pool(void)
 {
 	gfp_t gfp = GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN;
 	struct debug_obj *new;
 	unsigned long flags;
 
 	if (likely(obj_pool_free >= ODEBUG_POOL_MIN_LEVEL))
-		return obj_pool_free;
+		return;
 
 	if (unlikely(!obj_cache))
-		return obj_pool_free;
+		return;
 
 	while (obj_pool_free < ODEBUG_POOL_MIN_LEVEL) {
 
 		new = kmem_cache_zalloc(obj_cache, gfp);
 		if (!new)
-			return obj_pool_free;
+			return;
 
 		raw_spin_lock_irqsave(&pool_lock, flags);
 		hlist_add_head(&new->node, &obj_pool);
 		obj_pool_free++;
 		raw_spin_unlock_irqrestore(&pool_lock, flags);
 	}
-	return obj_pool_free;
 }
 
 /*
@@ -1052,10 +1051,10 @@ static int __init debug_objects_replace_static_objects(void)
 			cnt++;
 		}
 	}
+	local_irq_enable();
 
 	printk(KERN_DEBUG "ODEBUG: %d of %d active objects replaced\n", cnt,
 	       obj_pool_used);
-	local_irq_enable();
 	return 0;
 free:
 	hlist_for_each_entry_safe(obj, node, tmp, &objects, node) {

@@ -19,8 +19,26 @@
  *
  */
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
+
+void __init shmobile_setup_delay(unsigned int max_cpu_core_mhz,
+				 unsigned int mult, unsigned int div)
+{
+	/* calculate a worst-case loops-per-jiffy value
+	 * based on maximum cpu core mhz setting and the
+	 * __delay() implementation in arch/arm/lib/delay.S
+	 *
+	 * this will result in a longer delay than expected
+	 * when the cpu core runs on lower frequencies.
+	 */
+
+	unsigned int value = (1000000 * mult) / (HZ * div);
+
+	if (!preset_lpj)
+		preset_lpj = max_cpu_core_mhz * value;
+}
 
 static void __init shmobile_late_time_init(void)
 {
@@ -44,15 +62,6 @@ void __init shmobile_earlytimer_init(void)
 
 static void __init shmobile_timer_init(void)
 {
-}
-
-void __init shmobile_twd_init(struct twd_local_timer *twd_local_timer)
-{
-#ifdef CONFIG_HAVE_ARM_TWD
-	int err = twd_local_timer_register(twd_local_timer);
-	if (err)
-		pr_err("twd_local_timer_register failed %d\n", err);
-#endif
 }
 
 struct sys_timer shmobile_timer = {

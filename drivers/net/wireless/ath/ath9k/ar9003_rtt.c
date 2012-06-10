@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "hw-ops.h"
 #include "ar9003_phy.h"
 #include "ar9003_rtt.h"
 
@@ -69,7 +70,7 @@ bool ar9003_hw_rtt_force_restore(struct ath_hw *ah)
 }
 
 static void ar9003_hw_rtt_load_hist_entry(struct ath_hw *ah, u8 chain,
-		u32 index, u32 data28)
+					  u32 index, u32 data28)
 {
 	u32 val;
 
@@ -100,12 +101,21 @@ static void ar9003_hw_rtt_load_hist_entry(struct ath_hw *ah, u8 chain,
 		      RTT_ACCESS_TIMEOUT);
 }
 
-void ar9003_hw_rtt_load_hist(struct ath_hw *ah, u8 chain, u32 *table)
+void ar9003_hw_rtt_load_hist(struct ath_hw *ah)
 {
-	int i;
+	int chain, i;
 
-	for (i = 0; i < MAX_RTT_TABLE_ENTRY; i++)
-		ar9003_hw_rtt_load_hist_entry(ah, chain, i, table[i]);
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->rxchainmask & (1 << chain)))
+			continue;
+		for (i = 0; i < MAX_RTT_TABLE_ENTRY; i++) {
+			ar9003_hw_rtt_load_hist_entry(ah, chain, i,
+					      ah->caldata->rtt_table[chain][i]);
+			ath_dbg(ath9k_hw_common(ah), CALIBRATE,
+				"Load RTT value at idx %d, chain %d: 0x%x\n",
+				i, chain, ah->caldata->rtt_table[chain][i]);
+		}
+	}
 }
 
 static int ar9003_hw_rtt_fill_hist_entry(struct ath_hw *ah, u8 chain, u32 index)
@@ -128,27 +138,71 @@ static int ar9003_hw_rtt_fill_hist_entry(struct ath_hw *ah, u8 chain, u32 index)
 			   RTT_ACCESS_TIMEOUT))
 		return RTT_BAD_VALUE;
 
-	val = REG_READ(ah, AR_PHY_RTT_TABLE_SW_INTF_1_B(chain));
+	val = MS(REG_READ(ah, AR_PHY_RTT_TABLE_SW_INTF_1_B(chain)),
+		 AR_PHY_RTT_SW_RTT_TABLE_DATA);
+
 
 	return val;
 }
 
-void ar9003_hw_rtt_fill_hist(struct ath_hw *ah, u8 chain, u32 *table)
+void ar9003_hw_rtt_fill_hist(struct ath_hw *ah)
 {
-	int i;
+	int chain, i;
 
-	for (i = 0; i < MAX_RTT_TABLE_ENTRY; i++)
-		table[i] = ar9003_hw_rtt_fill_hist_entry(ah, chain, i);
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->rxchainmask & (1 << chain)))
+			continue;
+		for (i = 0; i < MAX_RTT_TABLE_ENTRY; i++) {
+			ah->caldata->rtt_table[chain][i] =
+				ar9003_hw_rtt_fill_hist_entry(ah, chain, i);
+			ath_dbg(ath9k_hw_common(ah), CALIBRATE,
+				"RTT value at idx %d, chain %d is: 0x%x\n",
+				i, chain, ah->caldata->rtt_table[chain][i]);
+		}
+	}
+
+	ah->caldata->rtt_done = true;
 }
 
 void ar9003_hw_rtt_clear_hist(struct ath_hw *ah)
 {
-	int i, j;
+	int chain, i;
 
-	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-		if (!(ah->rxchainmask & (1 << i)))
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->rxchainmask & (1 << chain)))
 			continue;
-		for (j = 0; j < MAX_RTT_TABLE_ENTRY; j++)
-			ar9003_hw_rtt_load_hist_entry(ah, i, j, 0);
+		for (i = 0; i < MAX_RTT_TABLE_ENTRY; i++)
+			ar9003_hw_rtt_load_hist_entry(ah, chain, i, 0);
 	}
+
+	if (ah->caldata)
+		ah->caldata->rtt_done = false;
+}
+
+bool ar9003_hw_rtt_restore(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	bool restore;
+
+	if (!ah->caldata)
+		return false;
+
+	if (!ah->caldata->rtt_done)
+		return false;
+
+	ar9003_hw_rtt_enable(ah);
+	ar9003_hw_rtt_set_mask(ah, 0x10);
+
+	if (!ath9k_hw_rfbus_req(ah)) {
+		ath_err(ath9k_hw_common(ah), "Could not stop baseband\n");
+		restore = false;
+		goto fail;
+	}
+
+	ar9003_hw_rtt_load_hist(ah);
+	restore = ar9003_hw_rtt_force_restore(ah);
+
+fail:
+	ath9k_hw_rfbus_done(ah);
+	ar9003_hw_rtt_disable(ah);
+	return restore;
 }

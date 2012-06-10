@@ -13,7 +13,7 @@
 
 #include <linux/io.h>
 #include <linux/amba/serial.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
 
 #ifndef __PLAT_UNCOMPRESS_H
 #define __PLAT_UNCOMPRESS_H

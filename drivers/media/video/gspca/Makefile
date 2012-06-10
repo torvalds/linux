@@ -43,7 +43,7 @@ obj-$(CONFIG_USB_GSPCA_VICAM)    += gspca_vicam.o
 obj-$(CONFIG_USB_GSPCA_XIRLINK_CIT) += gspca_xirlink_cit.o
 obj-$(CONFIG_USB_GSPCA_ZC3XX)    += gspca_zc3xx.o
 
-gspca_main-objs     := gspca.o
+gspca_main-objs     := gspca.o autogain_functions.o
 gspca_benq-objs     := benq.o
 gspca_conex-objs    := conex.o
 gspca_cpia1-objs    := cpia1.o

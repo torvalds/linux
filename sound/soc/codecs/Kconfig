@@ -29,6 +29,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS42L51 if I2C
+	select SND_SOC_CS42L52 if I2C
 	select SND_SOC_CS42L73 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
@@ -37,11 +38,15 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DFBMCS320
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_LM4857 if I2C
+	select SND_SOC_LM49453 if I2C
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
+	select SND_SOC_MC13783 if MFD_MC13XXX
+	select SND_SOC_ML26124 if I2C
+	select SND_SOC_OMAP_HDMI_CODEC if OMAP4_DSS_HDMI
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_SGTL5000 if I2C
@@ -181,6 +186,9 @@ config SND_SOC_CQ0093VC
 config SND_SOC_CS42L51
 	tristate
 
+config SND_SOC_CS42L52
+	tristate
+
 config SND_SOC_CS42L73
 	tristate
 
@@ -217,6 +225,9 @@ config SND_SOC_DFBMCS320
 config SND_SOC_DMIC
 	tristate
 
+config SND_SOC_LM49453
+	tristate
+
 config SND_SOC_MAX98088
        tristate
 
@@ -225,6 +236,9 @@ config SND_SOC_MAX98095
 
 config SND_SOC_MAX9850
 	tristate
+
+config SND_SOC_OMAP_HDMI_CODEC
+       tristate
 
 config SND_SOC_PCM3008
        tristate
@@ -433,6 +447,12 @@ config SND_SOC_MAX9768
 	tristate
 
 config SND_SOC_MAX9877
+	tristate
+
+config SND_SOC_MC13783
+	tristate
+
+config SND_SOC_ML26124
 	tristate
 
 config SND_SOC_TPA6130A2

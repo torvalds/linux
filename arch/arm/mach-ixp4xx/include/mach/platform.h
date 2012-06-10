@@ -130,7 +130,7 @@ extern void ixp4xx_restart(char, const char *);
 extern void ixp4xx_pci_preinit(void);
 struct pci_sys_data;
 extern int ixp4xx_setup(int nr, struct pci_sys_data *sys);
-extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
+extern struct pci_ops ixp4xx_ops;
 
 /*
  * GPIO-functions

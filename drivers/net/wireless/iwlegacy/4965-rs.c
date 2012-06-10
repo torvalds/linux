@@ -873,7 +873,7 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 	    tbl_type.is_SGI != !!(mac_flags & IEEE80211_TX_RC_SHORT_GI) ||
 	    tbl_type.is_ht40 != !!(mac_flags & IEEE80211_TX_RC_40_MHZ_WIDTH) ||
 	    tbl_type.is_dup != !!(mac_flags & IEEE80211_TX_RC_DUP_DATA) ||
-	    tbl_type.ant_type != info->antenna_sel_tx ||
+	    tbl_type.ant_type != info->status.antenna ||
 	    !!(tx_rate & RATE_MCS_HT_MSK) != !!(mac_flags & IEEE80211_TX_RC_MCS)
 	    || !!(tx_rate & RATE_MCS_GF_MSK) !=
 	    !!(mac_flags & IEEE80211_TX_RC_GREEN_FIELD) || rs_idx != mac_idx) {

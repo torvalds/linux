@@ -345,7 +345,7 @@ enum fw_h2c_cmd {
 	do {							\
 		udelay(1000);					\
 		rtlpriv->rtlhal.fwcmd_iomap &= (~_Bit);		\
-	} while (0);
+	} while (0)
 
 #define FW_CMD_IO_UPDATE(rtlpriv, _val)				\
 	rtlpriv->rtlhal.fwcmd_iomap = _val;
@@ -354,13 +354,13 @@ enum fw_h2c_cmd {
 	do {							\
 		rtl_write_word(rtlpriv, LBUS_MON_ADDR, (u16)_val);	\
 		FW_CMD_IO_UPDATE(rtlpriv, _val);		\
-	} while (0);
+	} while (0)
 
 #define FW_CMD_PARA_SET(rtlpriv, _val)				\
 	do {							\
 		rtl_write_dword(rtlpriv, LBUS_ADDR_MASK, _val);	\
 		rtlpriv->rtlhal.fwcmd_ioparam = _val;		\
-	} while (0);
+	} while (0)
 
 #define FW_CMD_IO_QUERY(rtlpriv)				\
 	(u16)(rtlpriv->rtlhal.fwcmd_iomap)

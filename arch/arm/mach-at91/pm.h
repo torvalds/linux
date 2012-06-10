@@ -12,7 +12,6 @@
 #define __ARCH_ARM_MACH_AT91_PM
 
 #include <mach/at91_ramc.h>
-#ifdef CONFIG_ARCH_AT91RM9200
 #include <mach/at91rm9200_sdramc.h>
 
 /*
@@ -43,10 +42,6 @@ static inline void at91rm9200_standby(void)
 		  "r" (lpr));
 }
 
-#define at91_standby at91rm9200_standby
-
-#elif defined(CONFIG_ARCH_AT91SAM9G45)
-
 /* We manage both DDRAM/SDRAM controllers, we need more than one value to
  * remember.
  */
@@ -75,11 +70,7 @@ static inline void at91sam9g45_standby(void)
 	at91_ramc_write(1, AT91_DDRSDRC_LPR, saved_lpr1);
 }
 
-#define at91_standby at91sam9g45_standby
-
-#else
-
-#ifdef CONFIG_ARCH_AT91SAM9263
+#ifdef CONFIG_SOC_AT91SAM9263
 /*
  * FIXME either or both the SDRAM controllers (EB0, EB1) might be in use;
  * handle those cases both here and in the Suspend-To-RAM support.
@@ -101,9 +92,5 @@ static inline void at91sam9_standby(void)
 
 	at91_ramc_write(0, AT91_SDRAMC_LPR, saved_lpr);
 }
-
-#define at91_standby at91sam9_standby
-
-#endif
 
 #endif

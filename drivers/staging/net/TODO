@@ -1,0 +1,5 @@
+PC300
+The driver is very broken and cannot work with the current TTY layer. It is
+inevitable to convert it to the new TTY API.
+
+If no one steps in to adopt the driver, it will be removed in the 3.7 release.

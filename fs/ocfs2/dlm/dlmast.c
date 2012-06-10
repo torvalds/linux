@@ -293,7 +293,7 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 	struct dlm_proxy_ast *past = (struct dlm_proxy_ast *) msg->buf;
 	char *name;
 	struct list_head *iter, *head=NULL;
-	u64 cookie;
+	__be64 cookie;
 	u32 flags;
 	u8 node;
 

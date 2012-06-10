@@ -100,7 +100,7 @@ static int decrementer_set_next_event(unsigned long evt,
 static void decrementer_set_mode(enum clock_event_mode mode,
 				 struct clock_event_device *dev);
 
-static struct clock_event_device decrementer_clockevent = {
+struct clock_event_device decrementer_clockevent = {
 	.name           = "decrementer",
 	.rating         = 200,
 	.irq            = 0,
@@ -108,6 +108,7 @@ static struct clock_event_device decrementer_clockevent = {
 	.set_mode       = decrementer_set_mode,
 	.features       = CLOCK_EVT_FEAT_ONESHOT,
 };
+EXPORT_SYMBOL(decrementer_clockevent);
 
 DEFINE_PER_CPU(u64, decrementers_next_tb);
 static DEFINE_PER_CPU(struct clock_event_device, decrementers);
@@ -474,6 +475,7 @@ void timer_interrupt(struct pt_regs * regs)
 	struct pt_regs *old_regs;
 	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
 	struct clock_event_device *evt = &__get_cpu_var(decrementers);
+	u64 now;
 
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continue to take decrementer exceptions.
@@ -508,9 +510,16 @@ void timer_interrupt(struct pt_regs * regs)
 		irq_work_run();
 	}
 
-	*next_tb = ~(u64)0;
-	if (evt->event_handler)
-		evt->event_handler(evt);
+	now = get_tb_or_rtc();
+	if (now >= *next_tb) {
+		*next_tb = ~(u64)0;
+		if (evt->event_handler)
+			evt->event_handler(evt);
+	} else {
+		now = *next_tb - now;
+		if (now <= DECREMENTER_MAX)
+			set_dec((int)now);
+	}
 
 #ifdef CONFIG_PPC64
 	/* collect purr register values often, for accurate calculations */

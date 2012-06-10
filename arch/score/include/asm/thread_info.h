@@ -11,10 +11,9 @@
 #include <linux/const.h>
 
 /* thread information allocation */
-#define THREAD_SIZE_ORDER 	(1)
-#define THREAD_SIZE 		(PAGE_SIZE << THREAD_SIZE_ORDER)
-#define THREAD_MASK 		(THREAD_SIZE - _AC(1,UL))
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+#define THREAD_SIZE_ORDER	(1)
+#define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
+#define THREAD_MASK		(THREAD_SIZE - _AC(1,UL))
 
 #ifndef __ASSEMBLY__
 
@@ -70,9 +69,6 @@ struct thread_info {
 /* How to get the thread information struct from C. */
 register struct thread_info *__current_thread_info __asm__("r28");
 #define current_thread_info()	__current_thread_info
-
-#define alloc_thread_info_node(tsk, node) kmalloc_node(THREAD_SIZE, GFP_KERNEL, node)
-#define free_thread_info(info) kfree(info)
 
 #endif /* !__ASSEMBLY__ */
 

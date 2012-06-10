@@ -284,7 +284,20 @@ static const struct serial8250_config uart_config[] = {
 	},
 };
 
-#if defined(CONFIG_MIPS_ALCHEMY)
+/* Uart divisor latch read */
+static int default_serial_dl_read(struct uart_8250_port *up)
+{
+	return serial_in(up, UART_DLL) | serial_in(up, UART_DLM) << 8;
+}
+
+/* Uart divisor latch write */
+static void default_serial_dl_write(struct uart_8250_port *up, int value)
+{
+	serial_out(up, UART_DLL, value & 0xff);
+	serial_out(up, UART_DLM, value >> 8 & 0xff);
+}
+
+#ifdef CONFIG_MIPS_ALCHEMY
 
 /* Au1x00 UART hardware has a weird register layout */
 static const u8 au_io_in_map[] = {
@@ -305,22 +318,32 @@ static const u8 au_io_out_map[] = {
 	[UART_MCR] = 6,
 };
 
-/* sane hardware needs no mapping */
-static inline int map_8250_in_reg(struct uart_port *p, int offset)
+static unsigned int au_serial_in(struct uart_port *p, int offset)
 {
-	if (p->iotype != UPIO_AU)
-		return offset;
-	return au_io_in_map[offset];
+	offset = au_io_in_map[offset] << p->regshift;
+	return __raw_readl(p->membase + offset);
 }
 
-static inline int map_8250_out_reg(struct uart_port *p, int offset)
+static void au_serial_out(struct uart_port *p, int offset, int value)
 {
-	if (p->iotype != UPIO_AU)
-		return offset;
-	return au_io_out_map[offset];
+	offset = au_io_out_map[offset] << p->regshift;
+	__raw_writel(value, p->membase + offset);
 }
 
-#elif defined(CONFIG_SERIAL_8250_RM9K)
+/* Au1x00 haven't got a standard divisor latch */
+static int au_serial_dl_read(struct uart_8250_port *up)
+{
+	return __raw_readl(up->port.membase + 0x28);
+}
+
+static void au_serial_dl_write(struct uart_8250_port *up, int value)
+{
+	__raw_writel(value, up->port.membase + 0x28);
+}
+
+#endif
+
+#ifdef CONFIG_SERIAL_8250_RM9K
 
 static const u8
 	regmap_in[8] = {
@@ -344,87 +367,79 @@ static const u8
 		[UART_SCR]	= 0x2c
 	};
 
-static inline int map_8250_in_reg(struct uart_port *p, int offset)
+static unsigned int rm9k_serial_in(struct uart_port *p, int offset)
 {
-	if (p->iotype != UPIO_RM9000)
-		return offset;
-	return regmap_in[offset];
+	offset = regmap_in[offset] << p->regshift;
+	return readl(p->membase + offset);
 }
 
-static inline int map_8250_out_reg(struct uart_port *p, int offset)
+static void rm9k_serial_out(struct uart_port *p, int offset, int value)
 {
-	if (p->iotype != UPIO_RM9000)
-		return offset;
-	return regmap_out[offset];
+	offset = regmap_out[offset] << p->regshift;
+	writel(value, p->membase + offset);
 }
 
-#else
+static int rm9k_serial_dl_read(struct uart_8250_port *up)
+{
+	return ((__raw_readl(up->port.membase + 0x10) << 8) |
+		(__raw_readl(up->port.membase + 0x08) & 0xff)) & 0xffff;
+}
 
-/* sane hardware needs no mapping */
-#define map_8250_in_reg(up, offset) (offset)
-#define map_8250_out_reg(up, offset) (offset)
+static void rm9k_serial_dl_write(struct uart_8250_port *up, int value)
+{
+	__raw_writel(value, up->port.membase + 0x08);
+	__raw_writel(value >> 8, up->port.membase + 0x10);
+}
 
 #endif
 
 static unsigned int hub6_serial_in(struct uart_port *p, int offset)
 {
-	offset = map_8250_in_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	outb(p->hub6 - 1 + offset, p->iobase);
 	return inb(p->iobase + 1);
 }
 
 static void hub6_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = map_8250_out_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	outb(p->hub6 - 1 + offset, p->iobase);
 	outb(value, p->iobase + 1);
 }
 
 static unsigned int mem_serial_in(struct uart_port *p, int offset)
 {
-	offset = map_8250_in_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	return readb(p->membase + offset);
 }
 
 static void mem_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = map_8250_out_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	writeb(value, p->membase + offset);
 }
 
 static void mem32_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = map_8250_out_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	writel(value, p->membase + offset);
 }
 
 static unsigned int mem32_serial_in(struct uart_port *p, int offset)
 {
-	offset = map_8250_in_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	return readl(p->membase + offset);
-}
-
-static unsigned int au_serial_in(struct uart_port *p, int offset)
-{
-	offset = map_8250_in_reg(p, offset) << p->regshift;
-	return __raw_readl(p->membase + offset);
-}
-
-static void au_serial_out(struct uart_port *p, int offset, int value)
-{
-	offset = map_8250_out_reg(p, offset) << p->regshift;
-	__raw_writel(value, p->membase + offset);
 }
 
 static unsigned int io_serial_in(struct uart_port *p, int offset)
 {
-	offset = map_8250_in_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	return inb(p->iobase + offset);
 }
 
 static void io_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = map_8250_out_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	outb(value, p->iobase + offset);
 }
 
@@ -434,6 +449,10 @@ static void set_io_from_upio(struct uart_port *p)
 {
 	struct uart_8250_port *up =
 		container_of(p, struct uart_8250_port, port);
+
+	up->dl_read = default_serial_dl_read;
+	up->dl_write = default_serial_dl_write;
+
 	switch (p->iotype) {
 	case UPIO_HUB6:
 		p->serial_in = hub6_serial_in;
@@ -445,16 +464,28 @@ static void set_io_from_upio(struct uart_port *p)
 		p->serial_out = mem_serial_out;
 		break;
 
-	case UPIO_RM9000:
 	case UPIO_MEM32:
 		p->serial_in = mem32_serial_in;
 		p->serial_out = mem32_serial_out;
 		break;
 
+#ifdef CONFIG_SERIAL_8250_RM9K
+	case UPIO_RM9000:
+		p->serial_in = rm9k_serial_in;
+		p->serial_out = rm9k_serial_out;
+		up->dl_read = rm9k_serial_dl_read;
+		up->dl_write = rm9k_serial_dl_write;
+		break;
+#endif
+
+#ifdef CONFIG_MIPS_ALCHEMY
 	case UPIO_AU:
 		p->serial_in = au_serial_in;
 		p->serial_out = au_serial_out;
+		up->dl_read = au_serial_dl_read;
+		up->dl_write = au_serial_dl_write;
 		break;
+#endif
 
 	default:
 		p->serial_in = io_serial_in;
@@ -480,59 +511,6 @@ serial_port_out_sync(struct uart_port *p, int offset, int value)
 		p->serial_out(p, offset, value);
 	}
 }
-
-/* Uart divisor latch read */
-static inline int _serial_dl_read(struct uart_8250_port *up)
-{
-	return serial_in(up, UART_DLL) | serial_in(up, UART_DLM) << 8;
-}
-
-/* Uart divisor latch write */
-static inline void _serial_dl_write(struct uart_8250_port *up, int value)
-{
-	serial_out(up, UART_DLL, value & 0xff);
-	serial_out(up, UART_DLM, value >> 8 & 0xff);
-}
-
-#if defined(CONFIG_MIPS_ALCHEMY)
-/* Au1x00 haven't got a standard divisor latch */
-static int serial_dl_read(struct uart_8250_port *up)
-{
-	if (up->port.iotype == UPIO_AU)
-		return __raw_readl(up->port.membase + 0x28);
-	else
-		return _serial_dl_read(up);
-}
-
-static void serial_dl_write(struct uart_8250_port *up, int value)
-{
-	if (up->port.iotype == UPIO_AU)
-		__raw_writel(value, up->port.membase + 0x28);
-	else
-		_serial_dl_write(up, value);
-}
-#elif defined(CONFIG_SERIAL_8250_RM9K)
-static int serial_dl_read(struct uart_8250_port *up)
-{
-	return	(up->port.iotype == UPIO_RM9000) ?
-		(((__raw_readl(up->port.membase + 0x10) << 8) |
-		(__raw_readl(up->port.membase + 0x08) & 0xff)) & 0xffff) :
-		_serial_dl_read(up);
-}
-
-static void serial_dl_write(struct uart_8250_port *up, int value)
-{
-	if (up->port.iotype == UPIO_RM9000) {
-		__raw_writel(value, up->port.membase + 0x08);
-		__raw_writel(value >> 8, up->port.membase + 0x10);
-	} else {
-		_serial_dl_write(up, value);
-	}
-}
-#else
-#define serial_dl_read(up) _serial_dl_read(up)
-#define serial_dl_write(up, value) _serial_dl_write(up, value)
-#endif
 
 /*
  * For the 16C950
@@ -567,6 +545,16 @@ static void serial8250_clear_fifos(struct uart_8250_port *p)
 		serial_out(p, UART_FCR, 0);
 	}
 }
+
+void serial8250_clear_and_reinit_fifos(struct uart_8250_port *p)
+{
+	unsigned char fcr;
+
+	serial8250_clear_fifos(p);
+	fcr = uart_config[p->port.type].fcr;
+	serial_out(p, UART_FCR, fcr);
+}
+EXPORT_SYMBOL_GPL(serial8250_clear_and_reinit_fifos);
 
 /*
  * IER sleep support.  UARTs which have EFRs need the "extended
@@ -1332,27 +1320,6 @@ static void serial8250_enable_ms(struct uart_port *port)
 }
 
 /*
- * Clear the Tegra rx fifo after a break
- *
- * FIXME: This needs to become a port specific callback once we have a
- * framework for this
- */
-static void clear_rx_fifo(struct uart_8250_port *up)
-{
-	unsigned int status, tmout = 10000;
-	do {
-		status = serial_in(up, UART_LSR);
-		if (status & (UART_LSR_FIFOE | UART_LSR_BRK_ERROR_BITS))
-			status = serial_in(up, UART_RX);
-		else
-			break;
-		if (--tmout == 0)
-			break;
-		udelay(1);
-	} while (1);
-}
-
-/*
  * serial8250_rx_chars: processes according to the passed in LSR
  * value, and returns the remaining LSR bits not handled
  * by this Rx routine.
@@ -1386,19 +1353,9 @@ serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr)
 		up->lsr_saved_flags = 0;
 
 		if (unlikely(lsr & UART_LSR_BRK_ERROR_BITS)) {
-			/*
-			 * For statistics only
-			 */
 			if (lsr & UART_LSR_BI) {
 				lsr &= ~(UART_LSR_FE | UART_LSR_PE);
 				port->icount.brk++;
-				/*
-				 * If tegra port then clear the rx fifo to
-				 * accept another break/character.
-				 */
-				if (port->type == PORT_TEGRA)
-					clear_rx_fifo(up);
-
 				/*
 				 * We do the SysRQ and SAK checking
 				 * here because otherwise the break
@@ -2280,10 +2237,11 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		quot++;
 
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
-		if (baud < 2400)
-			fcr = UART_FCR_ENABLE_FIFO | UART_FCR_TRIGGER_1;
-		else
-			fcr = uart_config[port->type].fcr;
+		fcr = uart_config[port->type].fcr;
+		if (baud < 2400) {
+			fcr &= ~UART_FCR_TRIGGER_MASK;
+			fcr |= UART_FCR_TRIGGER_1;
+		}
 	}
 
 	/*
@@ -3037,6 +2995,7 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 		port.serial_in		= p->serial_in;
 		port.serial_out		= p->serial_out;
 		port.handle_irq		= p->handle_irq;
+		port.handle_break	= p->handle_break;
 		port.set_termios	= p->set_termios;
 		port.pm			= p->pm;
 		port.dev		= &dev->dev;
@@ -3153,6 +3112,84 @@ static struct uart_8250_port *serial8250_find_match_or_unused(struct uart_port *
 }
 
 /**
+ *	serial8250_register_8250_port - register a serial port
+ *	@port: serial port template
+ *
+ *	Configure the serial port specified by the request. If the
+ *	port exists and is in use, it is hung up and unregistered
+ *	first.
+ *
+ *	The port is then probed and if necessary the IRQ is autodetected
+ *	If this fails an error is returned.
+ *
+ *	On success the port is ready to use and the line number is returned.
+ */
+int serial8250_register_8250_port(struct uart_8250_port *up)
+{
+	struct uart_8250_port *uart;
+	int ret = -ENOSPC;
+
+	if (up->port.uartclk == 0)
+		return -EINVAL;
+
+	mutex_lock(&serial_mutex);
+
+	uart = serial8250_find_match_or_unused(&up->port);
+	if (uart) {
+		uart_remove_one_port(&serial8250_reg, &uart->port);
+
+		uart->port.iobase       = up->port.iobase;
+		uart->port.membase      = up->port.membase;
+		uart->port.irq          = up->port.irq;
+		uart->port.irqflags     = up->port.irqflags;
+		uart->port.uartclk      = up->port.uartclk;
+		uart->port.fifosize     = up->port.fifosize;
+		uart->port.regshift     = up->port.regshift;
+		uart->port.iotype       = up->port.iotype;
+		uart->port.flags        = up->port.flags | UPF_BOOT_AUTOCONF;
+		uart->port.mapbase      = up->port.mapbase;
+		uart->port.private_data = up->port.private_data;
+		if (up->port.dev)
+			uart->port.dev = up->port.dev;
+
+		if (up->port.flags & UPF_FIXED_TYPE)
+			serial8250_init_fixed_type_port(uart, up->port.type);
+
+		set_io_from_upio(&uart->port);
+		/* Possibly override default I/O functions.  */
+		if (up->port.serial_in)
+			uart->port.serial_in = up->port.serial_in;
+		if (up->port.serial_out)
+			uart->port.serial_out = up->port.serial_out;
+		if (up->port.handle_irq)
+			uart->port.handle_irq = up->port.handle_irq;
+		/*  Possibly override set_termios call */
+		if (up->port.set_termios)
+			uart->port.set_termios = up->port.set_termios;
+		if (up->port.pm)
+			uart->port.pm = up->port.pm;
+		if (up->port.handle_break)
+			uart->port.handle_break = up->port.handle_break;
+		if (up->dl_read)
+			uart->dl_read = up->dl_read;
+		if (up->dl_write)
+			uart->dl_write = up->dl_write;
+
+		if (serial8250_isa_config != NULL)
+			serial8250_isa_config(0, &uart->port,
+					&uart->capabilities);
+
+		ret = uart_add_one_port(&serial8250_reg, &uart->port);
+		if (ret == 0)
+			ret = uart->port.line;
+	}
+	mutex_unlock(&serial_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(serial8250_register_8250_port);
+
+/**
  *	serial8250_register_port - register a serial port
  *	@port: serial port template
  *
@@ -3167,60 +3204,11 @@ static struct uart_8250_port *serial8250_find_match_or_unused(struct uart_port *
  */
 int serial8250_register_port(struct uart_port *port)
 {
-	struct uart_8250_port *uart;
-	int ret = -ENOSPC;
+	struct uart_8250_port up;
 
-	if (port->uartclk == 0)
-		return -EINVAL;
-
-	mutex_lock(&serial_mutex);
-
-	uart = serial8250_find_match_or_unused(port);
-	if (uart) {
-		uart_remove_one_port(&serial8250_reg, &uart->port);
-
-		uart->port.iobase       = port->iobase;
-		uart->port.membase      = port->membase;
-		uart->port.irq          = port->irq;
-		uart->port.irqflags     = port->irqflags;
-		uart->port.uartclk      = port->uartclk;
-		uart->port.fifosize     = port->fifosize;
-		uart->port.regshift     = port->regshift;
-		uart->port.iotype       = port->iotype;
-		uart->port.flags        = port->flags | UPF_BOOT_AUTOCONF;
-		uart->port.mapbase      = port->mapbase;
-		uart->port.private_data = port->private_data;
-		if (port->dev)
-			uart->port.dev = port->dev;
-
-		if (port->flags & UPF_FIXED_TYPE)
-			serial8250_init_fixed_type_port(uart, port->type);
-
-		set_io_from_upio(&uart->port);
-		/* Possibly override default I/O functions.  */
-		if (port->serial_in)
-			uart->port.serial_in = port->serial_in;
-		if (port->serial_out)
-			uart->port.serial_out = port->serial_out;
-		if (port->handle_irq)
-			uart->port.handle_irq = port->handle_irq;
-		/*  Possibly override set_termios call */
-		if (port->set_termios)
-			uart->port.set_termios = port->set_termios;
-		if (port->pm)
-			uart->port.pm = port->pm;
-
-		if (serial8250_isa_config != NULL)
-			serial8250_isa_config(0, &uart->port,
-					&uart->capabilities);
-
-		ret = uart_add_one_port(&serial8250_reg, &uart->port);
-		if (ret == 0)
-			ret = uart->port.line;
-	}
-	mutex_unlock(&serial_mutex);
-
-	return ret;
+	memset(&up, 0, sizeof(up));
+	memcpy(&up.port, port, sizeof(*port));
+	return serial8250_register_8250_port(&up);
 }
 EXPORT_SYMBOL(serial8250_register_port);
 

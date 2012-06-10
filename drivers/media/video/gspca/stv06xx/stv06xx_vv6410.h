@@ -178,18 +178,14 @@
 static int vv6410_probe(struct sd *sd);
 static int vv6410_start(struct sd *sd);
 static int vv6410_init(struct sd *sd);
+static int vv6410_init_controls(struct sd *sd);
 static int vv6410_stop(struct sd *sd);
 static int vv6410_dump(struct sd *sd);
-static void vv6410_disconnect(struct sd *sd);
 
 /* V4L2 controls supported by the driver */
-static int vv6410_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-static int vv6410_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-static int vv6410_get_analog_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int vv6410_set_analog_gain(struct gspca_dev *gspca_dev, __s32 val);
-static int vv6410_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 
 const struct stv06xx_sensor stv06xx_sensor_vv6410 = {
@@ -202,11 +198,11 @@ const struct stv06xx_sensor stv06xx_sensor_vv6410 = {
 	.min_packet_size = { 1023 },
 	.max_packet_size = { 1023 },
 	.init = vv6410_init,
+	.init_controls = vv6410_init_controls,
 	.probe = vv6410_probe,
 	.start = vv6410_start,
 	.stop = vv6410_stop,
 	.dump = vv6410_dump,
-	.disconnect = vv6410_disconnect,
 };
 
 /* If NULL, only single value to write, stored in len */

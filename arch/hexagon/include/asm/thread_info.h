@@ -31,15 +31,7 @@
 
 #define THREAD_SHIFT		12
 #define THREAD_SIZE		(1<<THREAD_SHIFT)
-
-#if THREAD_SHIFT >= PAGE_SHIFT
 #define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
-#else  /*  don't use standard allocator  */
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-extern struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node);
-extern void free_thread_info(struct thread_info *ti);
-#endif
-
 
 #ifndef __ASSEMBLY__
 

@@ -38,7 +38,7 @@ MODULE_DESCRIPTION("DNS Resolver");
 MODULE_AUTHOR("Wang Lei");
 MODULE_LICENSE("GPL");
 
-unsigned dns_resolver_debug;
+unsigned int dns_resolver_debug;
 module_param_named(debug, dns_resolver_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "DNS Resolver debugging mask");
 

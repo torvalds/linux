@@ -89,8 +89,8 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 
 #ifdef SOCK_REFCNT_DEBUG
 	if (atomic_read(&tw->tw_refcnt) != 1) {
-		printk(KERN_DEBUG "%s timewait_sock %p refcnt=%d\n",
-		       tw->tw_prot->name, tw, atomic_read(&tw->tw_refcnt));
+		pr_debug("%s timewait_sock %p refcnt=%d\n",
+			 tw->tw_prot->name, tw, atomic_read(&tw->tw_refcnt));
 	}
 #endif
 	while (refcnt) {
@@ -263,7 +263,7 @@ rescan:
 void inet_twdr_hangman(unsigned long data)
 {
 	struct inet_timewait_death_row *twdr;
-	int unsigned need_timer;
+	unsigned int need_timer;
 
 	twdr = (struct inet_timewait_death_row *)data;
 	spin_lock(&twdr->death_lock);

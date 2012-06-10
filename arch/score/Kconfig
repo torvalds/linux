@@ -9,6 +9,7 @@ config SCORE
        select HAVE_MEMBLOCK_NODE_MAP
        select ARCH_DISCARD_MEMBLOCK
        select GENERIC_CPU_DEVICES
+       select GENERIC_CLOCKEVENTS
 
 choice
 	prompt "System type"
@@ -51,9 +52,6 @@ config GENERIC_HWEIGHT
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
 menu "Kernel type"
 
 config 32BIT
@@ -68,7 +66,6 @@ config MEMORY_START
 	hex
 	default	0xa0000000
 
-source "kernel/time/Kconfig"
 source "kernel/Kconfig.hz"
 source "kernel/Kconfig.preempt"
 

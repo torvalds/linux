@@ -812,6 +812,7 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	is_valid_tkip = rx_stats->rs_keyix != ATH9K_RXKEYIX_INVALID &&
 		test_bit(rx_stats->rs_keyix, common->tkip_keymap);
 	strip_mic = is_valid_tkip && ieee80211_is_data(fc) &&
+		ieee80211_has_protected(fc) &&
 		!(rx_stats->rs_status &
 		(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_CRC | ATH9K_RXERR_MIC |
 		 ATH9K_RXERR_KEYMISS));
@@ -824,15 +825,20 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	if (rx_stats->rs_keyix == ATH9K_RXKEYIX_INVALID)
 		rx_stats->rs_status &= ~ATH9K_RXERR_KEYMISS;
 
-	if (!rx_stats->rs_datalen)
+	if (!rx_stats->rs_datalen) {
+		RX_STAT_INC(rx_len_err);
 		return false;
+	}
+
         /*
          * rs_status follows rs_datalen so if rs_datalen is too large
          * we can take a hint that hardware corrupted it, so ignore
          * those frames.
          */
-	if (rx_stats->rs_datalen > (common->rx_bufsize - rx_status_len))
+	if (rx_stats->rs_datalen > (common->rx_bufsize - rx_status_len)) {
+		RX_STAT_INC(rx_len_err);
 		return false;
+	}
 
 	/* Only use error bits from the last fragment */
 	if (rx_stats->rs_more)
@@ -902,6 +908,7 @@ static int ath9k_process_rate(struct ath_common *common,
 	struct ieee80211_supported_band *sband;
 	enum ieee80211_band band;
 	unsigned int i = 0;
+	struct ath_softc __maybe_unused *sc = common->priv;
 
 	band = hw->conf.channel->band;
 	sband = hw->wiphy->bands[band];
@@ -936,7 +943,7 @@ static int ath9k_process_rate(struct ath_common *common,
 	ath_dbg(common, ANY,
 		"unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
 		rx_stats->rs_rate);
-
+	RX_STAT_INC(rx_rate_err);
 	return -EINVAL;
 }
 
@@ -1823,10 +1830,14 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		hdr = (struct ieee80211_hdr *) (hdr_skb->data + rx_status_len);
 		rxs = IEEE80211_SKB_RXCB(hdr_skb);
-		if (ieee80211_is_beacon(hdr->frame_control) &&
-		    !is_zero_ether_addr(common->curbssid) &&
-		    !compare_ether_addr(hdr->addr3, common->curbssid))
-			rs.is_mybeacon = true;
+		if (ieee80211_is_beacon(hdr->frame_control)) {
+			RX_STAT_INC(rx_beacons);
+			if (!is_zero_ether_addr(common->curbssid) &&
+			    ether_addr_equal(hdr->addr3, common->curbssid))
+				rs.is_mybeacon = true;
+			else
+				rs.is_mybeacon = false;
+		}
 		else
 			rs.is_mybeacon = false;
 
@@ -1836,8 +1847,10 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * If we're asked to flush receive queue, directly
 		 * chain it back at the queue without processing it.
 		 */
-		if (sc->sc_flags & SC_OP_RXFLUSH)
+		if (sc->sc_flags & SC_OP_RXFLUSH) {
+			RX_STAT_INC(rx_drop_rxflush);
 			goto requeue_drop_frag;
+		}
 
 		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
 
@@ -1855,6 +1868,10 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (retval)
 			goto requeue_drop_frag;
 
+		if (rs.is_mybeacon) {
+			sc->hw_busy_count = 0;
+			ath_start_rx_poll(sc, 3);
+		}
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
 		requeue_skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_ATOMIC);
@@ -1863,8 +1880,10 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * tell hardware it can give us a new frame using the old
 		 * skb and put it at the tail of the sc->rx.rxbuf list for
 		 * processing. */
-		if (!requeue_skb)
+		if (!requeue_skb) {
+			RX_STAT_INC(rx_oom_err);
 			goto requeue_drop_frag;
+		}
 
 		/* Unmap the frame */
 		dma_unmap_single(sc->dev, bf->bf_buf_addr,
@@ -1895,6 +1914,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		}
 
 		if (rs.rs_more) {
+			RX_STAT_INC(rx_frags);
 			/*
 			 * rs_more indicates chained descriptors which can be
 			 * used to link buffers together for a sort of
@@ -1904,6 +1924,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 				/* too many fragments - cannot handle frame */
 				dev_kfree_skb_any(sc->rx.frag);
 				dev_kfree_skb_any(skb);
+				RX_STAT_INC(rx_too_many_frags_err);
 				skb = NULL;
 			}
 			sc->rx.frag = skb;
@@ -1915,6 +1936,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 			if (pskb_expand_head(hdr_skb, 0, space, GFP_ATOMIC) < 0) {
 				dev_kfree_skb(skb);
+				RX_STAT_INC(rx_oom_err);
 				goto requeue_drop_frag;
 			}
 

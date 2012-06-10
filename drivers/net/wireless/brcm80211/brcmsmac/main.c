@@ -847,8 +847,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	 */
 	if (!(txs->status & TX_STATUS_AMPDU)
 	    && (txs->status & TX_STATUS_INTERMEDIATE)) {
-		wiphy_err(wlc->wiphy, "%s: INTERMEDIATE but not AMPDU\n",
-			  __func__);
+		BCMMSG(wlc->wiphy, "INTERMEDIATE but not AMPDU\n");
 		return false;
 	}
 
@@ -1220,7 +1219,7 @@ static void brcms_b_wait_for_wake(struct brcms_hardware *wlc_hw)
 }
 
 /* control chip clock to save power, enable dynamic clock or force fast clock */
-static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
+static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, enum bcma_clkmode mode)
 {
 	if (ai_get_cccaps(wlc_hw->sih) & CC_CAP_PMU) {
 		/* new chips with PMU, CCS_FORCEHT will distribute the HT clock
@@ -1230,7 +1229,7 @@ static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 		 */
 
 		if (wlc_hw->clk) {
-			if (mode == CLK_FAST) {
+			if (mode == BCMA_CLKMODE_FAST) {
 				bcma_set32(wlc_hw->d11core,
 					   D11REGOFFS(clk_ctl_st),
 					   CCS_FORCEHT);
@@ -1261,7 +1260,7 @@ static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 					~CCS_FORCEHT);
 			}
 		}
-		wlc_hw->forcefastclk = (mode == CLK_FAST);
+		wlc_hw->forcefastclk = (mode == BCMA_CLKMODE_FAST);
 	} else {
 
 		/* old chips w/o PMU, force HT through cc,
@@ -1568,7 +1567,7 @@ void brcms_b_bw_set(struct brcms_hardware *wlc_hw, u16 bw)
 	/* request FAST clock if not on */
 	fastclk = wlc_hw->forcefastclk;
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	wlc_phy_bw_state_set(wlc_hw->band->pi, bw);
 
@@ -1577,7 +1576,7 @@ void brcms_b_bw_set(struct brcms_hardware *wlc_hw, u16 bw)
 
 	/* restore the clk */
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_DYNAMIC);
 }
 
 static void brcms_b_upd_synthpu(struct brcms_hardware *wlc_hw)
@@ -1883,27 +1882,20 @@ static bool brcms_c_validboardtype(struct brcms_hardware *wlc_hw)
 	return true;
 }
 
-static char *brcms_c_get_macaddr(struct brcms_hardware *wlc_hw)
+static void brcms_c_get_macaddr(struct brcms_hardware *wlc_hw, u8 etheraddr[ETH_ALEN])
 {
-	enum brcms_srom_id var_id = BRCMS_SROM_MACADDR;
-	char *macaddr;
+	struct ssb_sprom *sprom = &wlc_hw->d11core->bus->sprom;
 
 	/* If macaddr exists, use it (Sromrev4, CIS, ...). */
-	macaddr = getvar(wlc_hw->sih, var_id);
-	if (macaddr != NULL)
-		return macaddr;
+	if (!is_zero_ether_addr(sprom->il0mac)) {
+		memcpy(etheraddr, sprom->il0mac, 6);
+		return;
+	}
 
 	if (wlc_hw->_nbands > 1)
-		var_id = BRCMS_SROM_ET1MACADDR;
+		memcpy(etheraddr, sprom->et1mac, 6);
 	else
-		var_id = BRCMS_SROM_IL0MACADDR;
-
-	macaddr = getvar(wlc_hw->sih, var_id);
-	if (macaddr == NULL)
-		wiphy_err(wlc_hw->wlc->wiphy, "wl%d: wlc_get_macaddr: macaddr "
-			  "getvar(%d) not found\n", wlc_hw->unit, var_id);
-
-	return macaddr;
+		memcpy(etheraddr, sprom->il0mac, 6);
 }
 
 /* power both the pll and external oscillator on/off */
@@ -1917,9 +1909,6 @@ static void brcms_b_xtal(struct brcms_hardware *wlc_hw, bool want)
 	 */
 	if (!want && wlc_hw->pllreq)
 		return;
-
-	if (wlc_hw->sih)
-		ai_clkctl_xtal(wlc_hw->sih, XTAL | PLL, want);
 
 	wlc_hw->sbclk = want;
 	if (!wlc_hw->sbclk) {
@@ -2005,7 +1994,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 	/* request FAST clock if not on  */
 	fastclk = wlc_hw->forcefastclk;
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	/* reset the dma engines except first time thru */
 	if (bcma_core_is_enabled(wlc_hw->d11core)) {
@@ -2054,7 +2043,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 	brcms_c_mctrl_reset(wlc_hw);
 
 	if (ai_get_cccaps(wlc_hw->sih) & CC_CAP_PMU)
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	brcms_b_phy_reset(wlc_hw);
 
@@ -2066,7 +2055,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 
 	/* restore the clk setting */
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_DYNAMIC);
 }
 
 /* txfifo sizes needs to be modified(increased) since the newer cores
@@ -2219,7 +2208,7 @@ static void brcms_c_gpio_init(struct brcms_c_info *wlc)
 		gm |= gc |= BOARD_GPIO_PACTRL;
 
 	/* apply to gpiocontrol register */
-	ai_gpiocontrol(wlc_hw->sih, gm, gc, GPIO_DRV_PRIORITY);
+	bcma_chipco_gpio_control(&wlc_hw->d11core->bus->drv_cc, gm, gc);
 }
 
 static void brcms_ucode_write(struct brcms_hardware *wlc_hw,
@@ -3372,7 +3361,7 @@ static brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec) {
 	/* request FAST clock if not on */
 	fastclk = wlc_hw->forcefastclk;
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	/* disable interrupts */
 	macintmask = brcms_intrsoff(wlc->wl);
@@ -3406,7 +3395,7 @@ static brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec) {
 
 	/* restore the clk */
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_DYNAMIC);
 }
 
 static void brcms_c_set_phy_chanspec(struct brcms_c_info *wlc,
@@ -4437,17 +4426,22 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 			  uint unit, bool piomode)
 {
 	struct brcms_hardware *wlc_hw;
-	char *macaddr = NULL;
 	uint err = 0;
 	uint j;
 	bool wme = false;
 	struct shared_phy_params sha_params;
 	struct wiphy *wiphy = wlc->wiphy;
 	struct pci_dev *pcidev = core->bus->host_pci;
+	struct ssb_sprom *sprom = &core->bus->sprom;
 
-	BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit,
-	       pcidev->vendor,
-	       pcidev->device);
+	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI)
+		BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit,
+		       pcidev->vendor,
+		       pcidev->device);
+	else
+		BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit,
+		       core->bus->boardinfo.vendor,
+		       core->bus->boardinfo.type);
 
 	wme = true;
 
@@ -4473,7 +4467,8 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	}
 
 	/* verify again the device is supported */
-	if (!brcms_c_chipmatch(pcidev->vendor, pcidev->device)) {
+	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI &&
+	    !brcms_c_chipmatch(pcidev->vendor, pcidev->device)) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported "
 			"vendor/device (0x%x/0x%x)\n",
 			 unit, pcidev->vendor, pcidev->device);
@@ -4481,8 +4476,13 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		goto fail;
 	}
 
-	wlc_hw->vendorid = pcidev->vendor;
-	wlc_hw->deviceid = pcidev->device;
+	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI) {
+		wlc_hw->vendorid = pcidev->vendor;
+		wlc_hw->deviceid = pcidev->device;
+	} else {
+		wlc_hw->vendorid = core->bus->boardinfo.vendor;
+		wlc_hw->deviceid = core->bus->boardinfo.type;
+	}
 
 	wlc_hw->d11core = core;
 	wlc_hw->corerev = core->id.rev;
@@ -4502,7 +4502,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	 *   is still false; But it will be called again inside wlc_corereset,
 	 *   after d11 is out of reset.
 	 */
-	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 	brcms_b_corereset(wlc_hw, BRCMS_USE_COREFLAGS);
 
 	if (!brcms_b_validate_chip_access(wlc_hw)) {
@@ -4513,7 +4513,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	}
 
 	/* get the board rev, used just below */
-	j = getintvar(wlc_hw->sih, BRCMS_SROM_BOARDREV);
+	j = sprom->board_rev;
 	/* promote srom boardrev of 0xFF to 1 */
 	if (j == BOARDREV_PROMOTABLE)
 		j = BOARDREV_PROMOTED;
@@ -4526,11 +4526,9 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		err = 15;
 		goto fail;
 	}
-	wlc_hw->sromrev = (u8) getintvar(wlc_hw->sih, BRCMS_SROM_REV);
-	wlc_hw->boardflags = (u32) getintvar(wlc_hw->sih,
-					     BRCMS_SROM_BOARDFLAGS);
-	wlc_hw->boardflags2 = (u32) getintvar(wlc_hw->sih,
-					      BRCMS_SROM_BOARDFLAGS2);
+	wlc_hw->sromrev = sprom->revision;
+	wlc_hw->boardflags = sprom->boardflags_lo + (sprom->boardflags_hi << 16);
+	wlc_hw->boardflags2 = sprom->boardflags2_lo + (sprom->boardflags2_hi << 16);
 
 	if (wlc_hw->boardflags & BFL_NOPLLDOWN)
 		brcms_b_pllreq(wlc_hw, true, BRCMS_PLLREQ_SHARED);
@@ -4703,25 +4701,18 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	 */
 
 	/* init etheraddr state variables */
-	macaddr = brcms_c_get_macaddr(wlc_hw);
-	if (macaddr == NULL) {
-		wiphy_err(wiphy, "wl%d: brcms_b_attach: macaddr not found\n",
-			  unit);
-		err = 21;
-		goto fail;
-	}
-	if (!mac_pton(macaddr, wlc_hw->etheraddr) ||
-	    is_broadcast_ether_addr(wlc_hw->etheraddr) ||
+	brcms_c_get_macaddr(wlc_hw, wlc_hw->etheraddr);
+
+	if (is_broadcast_ether_addr(wlc_hw->etheraddr) ||
 	    is_zero_ether_addr(wlc_hw->etheraddr)) {
-		wiphy_err(wiphy, "wl%d: brcms_b_attach: bad macaddr %s\n",
-			  unit, macaddr);
+		wiphy_err(wiphy, "wl%d: brcms_b_attach: bad macaddr\n",
+			  unit);
 		err = 22;
 		goto fail;
 	}
 
-	BCMMSG(wlc->wiphy, "deviceid 0x%x nbands %d board 0x%x macaddr: %s\n",
-	       wlc_hw->deviceid, wlc_hw->_nbands, ai_get_boardtype(wlc_hw->sih),
-	       macaddr);
+	BCMMSG(wlc->wiphy, "deviceid 0x%x nbands %d board 0x%x\n",
+	       wlc_hw->deviceid, wlc_hw->_nbands, ai_get_boardtype(wlc_hw->sih));
 
 	return err;
 
@@ -4771,16 +4762,16 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 	int aa;
 	uint unit;
 	int bandtype;
-	struct si_pub *sih = wlc->hw->sih;
+	struct ssb_sprom *sprom = &wlc->hw->d11core->bus->sprom;
 
 	unit = wlc->pub->unit;
 	bandtype = wlc->band->bandtype;
 
 	/* get antennas available */
 	if (bandtype == BRCM_BAND_5G)
-		aa = (s8) getintvar(sih, BRCMS_SROM_AA5G);
+		aa = sprom->ant_available_a;
 	else
-		aa = (s8) getintvar(sih, BRCMS_SROM_AA2G);
+		aa = sprom->ant_available_bg;
 
 	if ((aa < 1) || (aa > 15)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: Invalid antennas available in"
@@ -4800,9 +4791,9 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 
 	/* Compute Antenna Gain */
 	if (bandtype == BRCM_BAND_5G)
-		wlc->band->antgain = (s8) getintvar(sih, BRCMS_SROM_AG1);
+		wlc->band->antgain = sprom->antenna_gain.a1;
 	else
-		wlc->band->antgain = (s8) getintvar(sih, BRCMS_SROM_AG0);
+		wlc->band->antgain = sprom->antenna_gain.a0;
 
 	brcms_c_attach_antgain_init(wlc);
 
@@ -4953,15 +4944,6 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
 
 	callbacks = 0;
 
-	if (wlc_hw->sih) {
-		/*
-		 * detach interrupt sync mechanism since interrupt is disabled
-		 * and per-port interrupt object may has been freed. this must
-		 * be done before sb core switch
-		 */
-		ai_pci_sleep(wlc_hw->sih);
-	}
-
 	brcms_b_detach_dmapio(wlc_hw);
 
 	band = wlc_hw->band;
@@ -5048,9 +5030,7 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	 */
 	brcms_b_xtal(wlc_hw, ON);
 	ai_clkctl_init(wlc_hw->sih);
-	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
-
-	ai_pci_fixcfg(wlc_hw->sih);
+	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	/*
 	 * TODO: test suspend/resume
@@ -5079,8 +5059,6 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 
 static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 {
-	uint coremask;
-
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	/*
@@ -5089,15 +5067,14 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 */
 	brcms_b_xtal(wlc_hw, ON);
 	ai_clkctl_init(wlc_hw->sih);
-	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	/*
 	 * Configure pci/pcmcia here instead of in brcms_c_attach()
 	 * to allow mfg hotswap:  down, hotswap (chip power cycle), up.
 	 */
-	coremask = (1 << wlc_hw->wlc->core->coreidx);
-
-	ai_pci_setup(wlc_hw->sih, coremask);
+	bcma_core_pci_irq_ctl(&wlc_hw->d11core->bus->drv_pci, wlc_hw->d11core,
+			      true);
 
 	/*
 	 * Need to read the hwradio status here to cover the case where the
@@ -5127,7 +5104,7 @@ static int brcms_b_up_finish(struct brcms_hardware *wlc_hw)
 	wlc_phy_hw_state_upd(wlc_hw->band->pi, true);
 
 	/* FULLY enable dynamic power control and d11 core interrupt */
-	brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
+	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_DYNAMIC);
 	brcms_intrson(wlc_hw->wlc->wl);
 	return 0;
 }
@@ -5268,7 +5245,7 @@ static int brcms_b_bmac_down_prep(struct brcms_hardware *wlc_hw)
 		brcms_intrsoff(wlc_hw->wlc->wl);
 
 		/* ensure we're running on the pll clock again */
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 	}
 	/* down phy at the last of this stage */
 	callbacks += wlc_phy_down(wlc_hw->band->pi);

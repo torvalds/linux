@@ -15,17 +15,12 @@
 #include <linux/init.h>
 
 void __init ux500_map_io(void);
-extern void __init u5500_map_io(void);
 extern void __init u8500_map_io(void);
 
-extern struct device * __init u5500_init_devices(void);
 extern struct device * __init u8500_init_devices(void);
 
 extern void __init ux500_init_irq(void);
-
-extern void __init u5500_sdi_init(struct device *parent);
-
-extern void __init db5500_dma_init(struct device *parent);
+extern void __init ux500_init_late(void);
 
 extern struct device *ux500_soc_device_init(const char *soc_id);
 

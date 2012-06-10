@@ -45,6 +45,7 @@ struct l2tp_stats {
 	u64			rx_oos_packets;
 	u64			rx_errors;
 	u64			rx_cookie_discards;
+	struct u64_stats_sync	syncp;
 };
 
 struct l2tp_tunnel;
@@ -54,15 +55,15 @@ struct l2tp_tunnel;
  */
 struct l2tp_session_cfg {
 	enum l2tp_pwtype	pw_type;
-	unsigned		data_seq:2;	/* data sequencing level
+	unsigned int		data_seq:2;	/* data sequencing level
 						 * 0 => none, 1 => IP only,
 						 * 2 => all
 						 */
-	unsigned		recv_seq:1;	/* expect receive packets with
+	unsigned int		recv_seq:1;	/* expect receive packets with
 						 * sequence numbers? */
-	unsigned		send_seq:1;	/* send packets with sequence
+	unsigned int		send_seq:1;	/* send packets with sequence
 						 * numbers? */
-	unsigned		lns_mode:1;	/* behave as LNS? LAC enables
+	unsigned int		lns_mode:1;	/* behave as LNS? LAC enables
 						 * sequence numbers under
 						 * control of LNS. */
 	int			debug;		/* bitmask of debug message
@@ -107,21 +108,22 @@ struct l2tp_session {
 
 	char			name[32];	/* for logging */
 	char			ifname[IFNAMSIZ];
-	unsigned		data_seq:2;	/* data sequencing level
+	unsigned int		data_seq:2;	/* data sequencing level
 						 * 0 => none, 1 => IP only,
 						 * 2 => all
 						 */
-	unsigned		recv_seq:1;	/* expect receive packets with
+	unsigned int		recv_seq:1;	/* expect receive packets with
 						 * sequence numbers? */
-	unsigned		send_seq:1;	/* send packets with sequence
+	unsigned int		send_seq:1;	/* send packets with sequence
 						 * numbers? */
-	unsigned		lns_mode:1;	/* behave as LNS? LAC enables
+	unsigned int		lns_mode:1;	/* behave as LNS? LAC enables
 						 * sequence numbers under
 						 * control of LNS. */
 	int			debug;		/* bitmask of debug message
 						 * categories */
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
+	int			reorder_skip;	/* set if skip to next nr */
 	int			mtu;
 	int			mru;
 	enum l2tp_pwtype	pwtype;
@@ -150,6 +152,10 @@ struct l2tp_tunnel_cfg {
 	/* Used only for kernel-created sockets */
 	struct in_addr		local_ip;
 	struct in_addr		peer_ip;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct in6_addr		*local_ip6;
+	struct in6_addr		*peer_ip6;
+#endif
 	u16			local_udp_port;
 	u16			peer_udp_port;
 	unsigned int		use_udp_checksums:1;
@@ -255,17 +261,36 @@ static inline void l2tp_session_dec_refcount_1(struct l2tp_session *session)
 }
 
 #ifdef L2TP_REFCNT_DEBUG
-#define l2tp_session_inc_refcount(_s) do { \
-		printk(KERN_DEBUG "l2tp_session_inc_refcount: %s:%d %s: cnt=%d\n", __func__, __LINE__, (_s)->name, atomic_read(&_s->ref_count)); \
-		l2tp_session_inc_refcount_1(_s);				\
-	} while (0)
-#define l2tp_session_dec_refcount(_s) do { \
-		printk(KERN_DEBUG "l2tp_session_dec_refcount: %s:%d %s: cnt=%d\n", __func__, __LINE__, (_s)->name, atomic_read(&_s->ref_count)); \
-		l2tp_session_dec_refcount_1(_s);				\
-	} while (0)
+#define l2tp_session_inc_refcount(_s)					\
+do {									\
+	pr_debug("l2tp_session_inc_refcount: %s:%d %s: cnt=%d\n",	\
+		 __func__, __LINE__, (_s)->name,			\
+		 atomic_read(&_s->ref_count));				\
+	l2tp_session_inc_refcount_1(_s);				\
+} while (0)
+#define l2tp_session_dec_refcount(_s)					\
+do {									\
+	pr_debug("l2tp_session_dec_refcount: %s:%d %s: cnt=%d\n",	\
+		 __func__, __LINE__, (_s)->name,			\
+		 atomic_read(&_s->ref_count));				\
+	l2tp_session_dec_refcount_1(_s);				\
+} while (0)
 #else
 #define l2tp_session_inc_refcount(s) l2tp_session_inc_refcount_1(s)
 #define l2tp_session_dec_refcount(s) l2tp_session_dec_refcount_1(s)
 #endif
+
+#define l2tp_printk(ptr, type, func, fmt, ...)				\
+do {									\
+	if (((ptr)->debug) & (type))					\
+		func(fmt, ##__VA_ARGS__);				\
+} while (0)
+
+#define l2tp_warn(ptr, type, fmt, ...)					\
+	l2tp_printk(ptr, type, pr_warn, fmt, ##__VA_ARGS__)
+#define l2tp_info(ptr, type, fmt, ...)					\
+	l2tp_printk(ptr, type, pr_info, fmt, ##__VA_ARGS__)
+#define l2tp_dbg(ptr, type, fmt, ...)					\
+	l2tp_printk(ptr, type, pr_debug, fmt, ##__VA_ARGS__)
 
 #endif /* _L2TP_CORE_H_ */

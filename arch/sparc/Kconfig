@@ -30,6 +30,12 @@ config SPARC
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select GENERIC_PCI_IOMAP
 	select HAVE_NMI_WATCHDOG if SPARC64
+	select HAVE_BPF_JIT
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_CMOS_UPDATE
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
 
 config SPARC32
 	def_bool !64BIT
@@ -61,6 +67,7 @@ config SPARC64
 	select IRQ_PREFLOW_FASTEOI
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select HAVE_C_RECORDMCOUNT
+	select NO_BOOTMEM
 
 config ARCH_DEFCONFIG
 	string
@@ -72,18 +79,6 @@ config BITS
 	int
 	default 32 if SPARC32
 	default 64 if SPARC64
-
-config ARCH_USES_GETTIMEOFFSET
-	bool
-	default y if SPARC32
-
-config GENERIC_CMOS_UPDATE
-	bool
-	default y
-
-config GENERIC_CLOCKEVENTS
-	bool
-	default y if SPARC64
 
 config IOMMU_HELPER
 	bool
@@ -154,7 +149,7 @@ source "kernel/Kconfig.freezer"
 menu "Processor type and features"
 
 config SMP
-	bool "Symmetric multi-processing support (does not work on sun4/sun4c)"
+	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
@@ -274,8 +269,6 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
-
-source "kernel/time/Kconfig"
 
 if SPARC64
 source "drivers/cpufreq/Kconfig"

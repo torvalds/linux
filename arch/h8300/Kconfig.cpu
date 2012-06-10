@@ -1,7 +1,5 @@
 menu "Processor type and features"
 
-source "kernel/time/Kconfig"
-
 choice
 	prompt "H8/300 platform"
 	default H8300H_GENERIC

@@ -114,27 +114,10 @@ void cpu_idle(void)
 	}
 }
 
-struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
-{
-	struct page *page;
-	gfp_t flags = GFP_KERNEL;
-
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	flags |= __GFP_ZERO;
-#endif
-
-	page = alloc_pages_node(node, flags, THREAD_SIZE_ORDER);
-	if (!page)
-		return NULL;
-
-	return (struct thread_info *)page_address(page);
-}
-
 /*
- * Free a thread_info node, and all of its derivative
- * data structures.
+ * Release a thread_info structure
  */
-void free_thread_info(struct thread_info *info)
+void arch_release_thread_info(struct thread_info *info)
 {
 	struct single_step_state *step_state = info->step_state;
 
@@ -145,10 +128,10 @@ void free_thread_info(struct thread_info *info)
 	 * Calling deactivate here just frees up the data structures.
 	 * If the task we're freeing held the last reference to a
 	 * hardwall fd, it would have been released prior to this point
-	 * anyway via exit_files(), and "hardwall" would be NULL by now.
+	 * anyway via exit_files(), and the hardwall_task.info pointers
+	 * would be NULL by now.
 	 */
-	if (info->task->thread.hardwall)
-		hardwall_deactivate(info->task);
+	hardwall_deactivate_all(info->task);
 #endif
 
 	if (step_state) {
@@ -169,8 +152,6 @@ void free_thread_info(struct thread_info *info)
 		 */
 		kfree(step_state);
 	}
-
-	free_pages((unsigned long)info, THREAD_SIZE_ORDER);
 }
 
 static void save_arch_state(struct thread_struct *t);
@@ -264,7 +245,8 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 
 #ifdef CONFIG_HARDWALL
 	/* New thread does not own any networks. */
-	p->thread.hardwall = NULL;
+	memset(&p->thread.hardwall[0], 0,
+	       sizeof(struct hardwall_task) * HARDWALL_TYPES);
 #endif
 
 
@@ -534,12 +516,7 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 
 #ifdef CONFIG_HARDWALL
 	/* Enable or disable access to the network registers appropriately. */
-	if (prev->thread.hardwall != NULL) {
-		if (next->thread.hardwall == NULL)
-			restrict_network_mpls();
-	} else if (next->thread.hardwall != NULL) {
-		grant_network_mpls();
-	}
+	hardwall_switch_tasks(prev, next);
 #endif
 
 	/*
@@ -567,6 +544,10 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
  */
 int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 {
+	/* If we enter in kernel mode, do nothing and exit the caller loop. */
+	if (!user_mode(regs))
+		return 0;
+
 	if (thread_info_flags & _TIF_NEED_RESCHED) {
 		schedule();
 		return 1;
@@ -584,13 +565,10 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 		return 1;
 	}
 	if (thread_info_flags & _TIF_SINGLESTEP) {
-		if ((regs->ex1 & SPR_EX_CONTEXT_1_1__PL_MASK) == 0)
-			single_step_once(regs);
+		single_step_once(regs);
 		return 0;
 	}
 	panic("work_pending: bad flags %#x\n", thread_info_flags);

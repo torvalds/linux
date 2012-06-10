@@ -169,7 +169,7 @@ void jfs_evict_inode(struct inode *inode)
 	} else {
 		truncate_inode_pages(&inode->i_data, 0);
 	}
-	end_writeback(inode);
+	clear_inode(inode);
 	dquot_drop(inode);
 }
 

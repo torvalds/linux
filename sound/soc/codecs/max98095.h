@@ -175,10 +175,22 @@
 
 /* MAX98095 Registers Bit Fields */
 
+/* M98095_007_JACK_AUTO_STS */
+	#define M98095_MIC_IN			(1<<3)
+	#define M98095_LO_IN			(1<<5)
+	#define M98095_HP_IN			(1<<6)
+	#define M98095_DDONE			(1<<7)
+
 /* M98095_00F_HOST_CFG */
 	#define M98095_SEG                      (1<<0)
 	#define M98095_XTEN                     (1<<1)
 	#define M98095_MDLLEN                   (1<<2)
+
+/* M98095_013_JACK_INT_EN */
+	#define M98095_IMIC_IN			(1<<3)
+	#define M98095_ILO_IN			(1<<5)
+	#define M98095_IHP_IN			(1<<6)
+	#define M98095_IDDONE			(1<<7)
 
 /* M98095_027_DAI1_CLKMODE, M98095_031_DAI2_CLKMODE, M98095_03B_DAI3_CLKMODE */
 	#define M98095_CLKMODE_MASK             0xFF
@@ -255,6 +267,10 @@
 	#define M98095_EQ2EN                    (1<<1)
 	#define M98095_EQ1EN                    (1<<0)
 
+/* M98095_089_JACK_DET_AUTO */
+	#define M98095_PIN5EN			(1<<2)
+	#define M98095_JDEN			(1<<7)
+
 /* M98095_090_PWR_EN_IN */
 	#define M98095_INEN                     (1<<7)
 	#define M98095_MB2EN                    (1<<3)
@@ -295,5 +311,11 @@
 /* Biquad filter coefficients */
 #define M98095_174_DAI1_BQ_BASE             0x74
 #define M98095_17E_DAI2_BQ_BASE             0x7E
+
+/* Default Delay used in Slew Rate Calculation for Jack detection */
+#define M98095_DEFAULT_SLEW_DELAY		0x18
+
+extern int max98095_jack_detect(struct snd_soc_codec *codec,
+	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack);
 
 #endif

@@ -408,6 +408,7 @@ config BLK_DEV_3W_XXXX_RAID
 config SCSI_HPSA
 	tristate "HP Smart Array SCSI driver"
 	depends on PCI && SCSI
+	select CHECK_SIGNATURE
 	help
 	  This driver supports HP Smart Array Controllers (circa 2009).
 	  It is a SCSI alternative to the cciss driver, which is a block
@@ -807,19 +808,6 @@ config SCSI_FUTURE_DOMAIN
 	  To compile this driver as a module, choose M here: the
 	  module will be called fdomain.
 
-config SCSI_FD_MCS
-	tristate "Future Domain MCS-600/700 SCSI support"
-	depends on MCA_LEGACY && SCSI
-	---help---
-	  This is support for Future Domain MCS 600/700 MCA SCSI adapters.
-	  Some PS/2 computers are equipped with IBM Fast SCSI Adapter/A which
-	  is identical to the MCS 700 and hence also supported by this driver.
-	  This driver also supports the Reply SB16/SCSI card (the SCSI part).
-	  It supports multiple adapters in the same system.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called fd_mcs.
-
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
 	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
@@ -888,76 +876,6 @@ config SCSI_GENERIC_NCR53C400
 	  to pass a command line option to the kernel at boot time if it does
 	  not detect your card.  See the file
 	  <file:Documentation/scsi/g_NCR5380.txt> for details.
-
-config SCSI_IBMMCA
-	tristate "IBMMCA SCSI support"
-	depends on MCA && SCSI
-	---help---
-	  This is support for the IBM SCSI adapter found in many of the PS/2
-	  series computers.  These machines have an MCA bus, so you need to
-	  answer Y to "MCA support" as well and read
-	  <file:Documentation/mca.txt>.
-
-	  If the adapter isn't found during boot (a common problem for models
-	  56, 57, 76, and 77) you'll need to use the 'ibmmcascsi=<pun>' kernel
-	  option, where <pun> is the id of the SCSI subsystem (usually 7, but
-	  if that doesn't work check your reference diskette).  Owners of
-	  model 95 with a LED-matrix-display can in addition activate some
-	  activity info like under OS/2, but more informative, by setting
-	  'ibmmcascsi=display' as an additional kernel parameter.  Try "man
-	  bootparam" or see the documentation of your boot loader about how to
-	  pass options to the kernel.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ibmmca.
-
-config IBMMCA_SCSI_ORDER_STANDARD
-	bool "Standard SCSI-order"
-	depends on SCSI_IBMMCA
-	---help---
-	  In the PC-world and in most modern SCSI-BIOS-setups, SCSI-hard disks
-	  are assigned to the drive letters, starting with the lowest SCSI-id
-	  (physical number -- pun) to be drive C:, as seen from DOS and
-	  similar operating systems. When looking into papers describing the
-	  ANSI-SCSI-standard, this assignment of drives appears to be wrong.
-	  The SCSI-standard follows a hardware-hierarchy which says that id 7
-	  has the highest priority and id 0 the lowest. Therefore, the host
-	  adapters are still today everywhere placed as SCSI-id 7 by default.
-	  In the SCSI-standard, the drive letters express the priority of the
-	  disk. C: should be the hard disk, or a partition on it, with the
-	  highest priority. This must therefore be the disk with the highest
-	  SCSI-id (e.g. 6) and not the one with the lowest! IBM-BIOS kept the
-	  original definition of the SCSI-standard as also industrial- and
-	  process-control-machines, like VME-CPUs running under realtime-OSes
-	  (e.g. LynxOS, OS9) do.
-
-	  If you like to run Linux on your MCA-machine with the same
-	  assignment of hard disks as seen from e.g. DOS or OS/2 on your
-	  machine, which is in addition conformant to the SCSI-standard, you
-	  must say Y here. This is also necessary for MCA-Linux users who want
-	  to keep downward compatibility to older releases of the
-	  IBM-MCA-SCSI-driver (older than driver-release 2.00 and older than
-	  June 1997).
-
-	  If you like to have the lowest SCSI-id assigned as drive C:, as
-	  modern SCSI-BIOSes do, which does not conform to the standard, but
-	  is widespread and common in the PC-world of today, you must say N
-	  here. If unsure, say Y.
-
-config IBMMCA_SCSI_DEV_RESET
-	bool "Reset SCSI-devices at boottime"
-	depends on SCSI_IBMMCA
-	---help---
-	  By default, SCSI-devices are reset when the machine is powered on.
-	  However, some devices exist, like special-control-devices,
-	  SCSI-CNC-machines, SCSI-printer or scanners of older type, that do
-	  not reset when switched on. If you say Y here, each device connected
-	  to your SCSI-bus will be issued a reset-command after it has been
-	  probed, while the kernel is booting. This may cause problems with
-	  more modern devices, like hard disks, which do not appreciate these
-	  reset commands, and can cause your system to hang. So say Y only if
-	  you know that one of your older devices needs it; N is the safe
-	  answer.
 
 config SCSI_IPS
 	tristate "IBM ServeRAID support"

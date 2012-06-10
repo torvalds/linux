@@ -717,10 +717,6 @@ extern unsigned long find_ecache_flush_span(unsigned long size);
 struct seq_file;
 extern void mmu_info(struct seq_file *);
 
-/* These do nothing with the way I have things setup. */
-#define mmu_lockarea(vaddr, len)		(vaddr)
-#define mmu_unlockarea(vaddr, len)		do { } while(0)
-
 struct vm_area_struct;
 extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 

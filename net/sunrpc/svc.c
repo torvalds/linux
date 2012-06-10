@@ -407,6 +407,14 @@ static int svc_uses_rpcbind(struct svc_serv *serv)
 	return 0;
 }
 
+int svc_bind(struct svc_serv *serv, struct net *net)
+{
+	if (!svc_uses_rpcbind(serv))
+		return 0;
+	return svc_rpcb_setup(serv, net);
+}
+EXPORT_SYMBOL_GPL(svc_bind);
+
 /*
  * Create an RPC service
  */
@@ -471,15 +479,8 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		spin_lock_init(&pool->sp_lock);
 	}
 
-	if (svc_uses_rpcbind(serv)) {
-		if (svc_rpcb_setup(serv, current->nsproxy->net_ns) < 0) {
-			kfree(serv->sv_pools);
-			kfree(serv);
-			return NULL;
-		}
-		if (!serv->sv_shutdown)
-			serv->sv_shutdown = svc_rpcb_cleanup;
-	}
+	if (svc_uses_rpcbind(serv) && (!serv->sv_shutdown))
+		serv->sv_shutdown = svc_rpcb_cleanup;
 
 	return serv;
 }
@@ -536,8 +537,6 @@ EXPORT_SYMBOL_GPL(svc_shutdown_net);
 void
 svc_destroy(struct svc_serv *serv)
 {
-	struct net *net = current->nsproxy->net_ns;
-
 	dprintk("svc: svc_destroy(%s, %d)\n",
 				serv->sv_program->pg_name,
 				serv->sv_nrthreads);
@@ -551,8 +550,6 @@ svc_destroy(struct svc_serv *serv)
 		printk("svc_destroy: no threads for serv=%p!\n", serv);
 
 	del_timer_sync(&serv->sv_temptimer);
-
-	svc_shutdown_net(serv, net);
 
 	/*
 	 * The last user is gone and thus all sockets have to be destroyed to
@@ -1041,23 +1038,21 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
  * Printk the given error with the address of the client that caused it.
  */
 static __printf(2, 3)
-int svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
+void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
-	int 	r;
 	char 	buf[RPC_MAX_ADDRBUFLEN];
 
-	if (!net_ratelimit())
-		return 0;
-
-	printk(KERN_WARNING "svc: %s: ",
-		svc_print_addr(rqstp, buf, sizeof(buf)));
-
 	va_start(args, fmt);
-	r = vprintk(fmt, args);
-	va_end(args);
 
-	return r;
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	net_warn_ratelimited("svc: %s: %pV",
+			     svc_print_addr(rqstp, buf, sizeof(buf)), &vaf);
+
+	va_end(args);
 }
 
 /*

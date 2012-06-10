@@ -135,6 +135,25 @@ config MDIO_OCTEON
 
 	  If in doubt, say Y.
 
+config MDIO_BUS_MUX
+	tristate
+	depends on OF_MDIO
+	help
+	  This module provides a driver framework for MDIO bus
+	  multiplexers which connect one of several child MDIO busses
+	  to a parent bus.  Switching between child busses is done by
+	  device specific drivers.
+
+config MDIO_BUS_MUX_GPIO
+	tristate "Support for GPIO controlled MDIO bus multiplexers"
+	depends on OF_GPIO && OF_MDIO
+	select MDIO_BUS_MUX
+	help
+	  This module provides a driver for MDIO bus multiplexers that
+	  are controlled via GPIO lines.  The multiplexer connects one of
+	  several child MDIO busses to a parent bus.  Child bus
+	  selection is under the control of GPIO lines.
+
 endif # PHYLIB
 
 config MICREL_KS8995MA

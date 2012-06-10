@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#include <asm/cputype.h>
 #include <asm/system_info.h>
 #include <asm/thread_notify.h>
 
@@ -67,8 +68,7 @@ static int __init thumbee_init(void)
 	if (cpu_arch < CPU_ARCH_ARMv7)
 		return 0;
 
-	/* processor feature register 0 */
-	asm("mrc	p15, 0, %0, c0, c1, 0\n" : "=r" (pfr0));
+	pfr0 = read_cpuid_ext(CPUID_EXT_PFR0);
 	if ((pfr0 & 0x0000f000) != 0x00001000)
 		return 0;
 

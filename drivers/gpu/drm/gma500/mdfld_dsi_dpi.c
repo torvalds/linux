@@ -869,7 +869,6 @@ void mdfld_dsi_dpi_mode_set(struct drm_encoder *encoder,
 		mdfld_set_pipe_timing(dsi_config, pipe);
 
 		REG_WRITE(DSPABASE, 0x00);
-		REG_WRITE(DSPASTRIDE, (mode->hdisplay * 4));
 		REG_WRITE(DSPASIZE,
 			((mode->vdisplay - 1) << 16) | (mode->hdisplay - 1));
 

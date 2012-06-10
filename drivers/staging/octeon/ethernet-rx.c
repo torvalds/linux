@@ -163,7 +163,7 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 		/*
 		 * We received a packet with either an alignment error
 		 * or a FCS error. This may be signalling that we are
-		 * running 10Mbps with GMXX_RXX_FRM_CTL[PRE_CHK}
+		 * running 10Mbps with GMXX_RXX_FRM_CTL[PRE_CHK]
 		 * off. If this is the case we need to parse the
 		 * packet to determine if we can remove a non spec
 		 * preamble and generate a correct packet.

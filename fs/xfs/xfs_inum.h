@@ -26,11 +26,6 @@
  * high agno_log-agblklog-inopblog bits - 0
  */
 
-typedef	__uint32_t	xfs_agino_t;	/* within allocation grp inode number */
-
-#define	NULLFSINO	((xfs_ino_t)-1)
-#define	NULLAGINO	((xfs_agino_t)-1)
-
 struct xfs_mount;
 
 #define	XFS_INO_MASK(k)			(__uint32_t)((1ULL << (k)) - 1)

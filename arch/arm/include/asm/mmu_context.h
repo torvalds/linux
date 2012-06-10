@@ -43,45 +43,104 @@ void __check_kvm_seq(struct mm_struct *mm);
 #define ASID_FIRST_VERSION	(1 << ASID_BITS)
 
 extern unsigned int cpu_last_asid;
-#ifdef CONFIG_SMP
-DECLARE_PER_CPU(struct mm_struct *, current_mm);
-#endif
 
 void __init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 void __new_context(struct mm_struct *mm);
+void cpu_set_reserved_ttbr0(void);
 
-static inline void check_context(struct mm_struct *mm)
+static inline void switch_new_context(struct mm_struct *mm)
 {
-	/*
-	 * This code is executed with interrupts enabled. Therefore,
-	 * mm->context.id cannot be updated to the latest ASID version
-	 * on a different CPU (and condition below not triggered)
-	 * without first getting an IPI to reset the context. The
-	 * alternative is to take a read_lock on mm->context.id_lock
-	 * (after changing its type to rwlock_t).
-	 */
-	if (unlikely((mm->context.id ^ cpu_last_asid) >> ASID_BITS))
-		__new_context(mm);
+	unsigned long flags;
 
+	__new_context(mm);
+
+	local_irq_save(flags);
+	cpu_switch_mm(mm->pgd, mm);
+	local_irq_restore(flags);
+}
+
+static inline void check_and_switch_context(struct mm_struct *mm,
+					    struct task_struct *tsk)
+{
 	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
 		__check_kvm_seq(mm);
+
+	/*
+	 * Required during context switch to avoid speculative page table
+	 * walking with the wrong TTBR.
+	 */
+	cpu_set_reserved_ttbr0();
+
+	if (!((mm->context.id ^ cpu_last_asid) >> ASID_BITS))
+		/*
+		 * The ASID is from the current generation, just switch to the
+		 * new pgd. This condition is only true for calls from
+		 * context_switch() and interrupts are already disabled.
+		 */
+		cpu_switch_mm(mm->pgd, mm);
+	else if (irqs_disabled())
+		/*
+		 * Defer the new ASID allocation until after the context
+		 * switch critical region since __new_context() cannot be
+		 * called with interrupts disabled (it sends IPIs).
+		 */
+		set_ti_thread_flag(task_thread_info(tsk), TIF_SWITCH_MM);
+	else
+		/*
+		 * That is a direct call to switch_mm() or activate_mm() with
+		 * interrupts enabled and a new context.
+		 */
+		switch_new_context(mm);
 }
 
 #define init_new_context(tsk,mm)	(__init_new_context(tsk,mm),0)
 
-#else
-
-static inline void check_context(struct mm_struct *mm)
+#define finish_arch_post_lock_switch \
+	finish_arch_post_lock_switch
+static inline void finish_arch_post_lock_switch(void)
 {
+	if (test_and_clear_thread_flag(TIF_SWITCH_MM))
+		switch_new_context(current->mm);
+}
+
+#else	/* !CONFIG_CPU_HAS_ASID */
+
 #ifdef CONFIG_MMU
+
+static inline void check_and_switch_context(struct mm_struct *mm,
+					    struct task_struct *tsk)
+{
 	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
 		__check_kvm_seq(mm);
-#endif
+
+	if (irqs_disabled())
+		/*
+		 * cpu_switch_mm() needs to flush the VIVT caches. To avoid
+		 * high interrupt latencies, defer the call and continue
+		 * running with the old mm. Since we only support UP systems
+		 * on non-ASID CPUs, the old mm will remain valid until the
+		 * finish_arch_post_lock_switch() call.
+		 */
+		set_ti_thread_flag(task_thread_info(tsk), TIF_SWITCH_MM);
+	else
+		cpu_switch_mm(mm->pgd, mm);
 }
+
+#define finish_arch_post_lock_switch \
+	finish_arch_post_lock_switch
+static inline void finish_arch_post_lock_switch(void)
+{
+	if (test_and_clear_thread_flag(TIF_SWITCH_MM)) {
+		struct mm_struct *mm = current->mm;
+		cpu_switch_mm(mm->pgd, mm);
+	}
+}
+
+#endif	/* CONFIG_MMU */
 
 #define init_new_context(tsk,mm)	0
 
-#endif
+#endif	/* CONFIG_CPU_HAS_ASID */
 
 #define destroy_context(mm)		do { } while(0)
 
@@ -119,12 +178,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		__flush_icache_all();
 #endif
 	if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)) || prev != next) {
-#ifdef CONFIG_SMP
-		struct mm_struct **crt_mm = &per_cpu(current_mm, cpu);
-		*crt_mm = next;
-#endif
-		check_context(next);
-		cpu_switch_mm(next->pgd, next);
+		check_and_switch_context(next, tsk);
 		if (cache_is_vivt())
 			cpumask_clear_cpu(cpu, mm_cpumask(prev));
 	}

@@ -5,6 +5,7 @@
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
+#include "qla_target.h"
 
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
@@ -576,6 +577,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		scsi_block_requests(vha->host);
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		if (IS_QLA82XX(ha)) {
+			ha->flags.isp82xx_no_md_cap = 1;
 			qla82xx_idc_lock(ha);
 			qla82xx_set_reset_owner(vha);
 			qla82xx_idc_unlock(ha);
@@ -585,7 +587,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		scsi_unblock_requests(vha->host);
 		break;
 	case 0x2025d:
-		if (!IS_QLA81XX(ha))
+		if (!IS_QLA81XX(ha) || !IS_QLA8031(ha))
 			return -EPERM;
 
 		ql_log(ql_log_info, vha, 0x706f,
@@ -1105,9 +1107,8 @@ qla2x00_total_isp_aborts_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
-	struct qla_hw_data *ha = vha->hw;
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-	    ha->qla_stats.total_isp_aborts);
+	    vha->qla_stats.total_isp_aborts);
 }
 
 static ssize_t
@@ -1154,7 +1155,7 @@ qla2x00_phy_version_show(struct device *dev, struct device_attribute *attr,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d\n",
@@ -1537,7 +1538,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	dma_addr_t stats_dma;
 	struct fc_host_statistics *pfc_host_stat;
 
-	pfc_host_stat = &ha->fc_host_stat;
+	pfc_host_stat = &vha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
 
 	if (test_bit(UNLOADING, &vha->dpc_flags))
@@ -1580,8 +1581,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 		pfc_host_stat->dumped_frames = stats->dumped_frames;
 		pfc_host_stat->nos_count = stats->nos_rcvd;
 	}
-	pfc_host_stat->fcp_input_megabytes = ha->qla_stats.input_bytes >> 20;
-	pfc_host_stat->fcp_output_megabytes = ha->qla_stats.output_bytes >> 20;
+	pfc_host_stat->fcp_input_megabytes = vha->qla_stats.input_bytes >> 20;
+	pfc_host_stat->fcp_output_megabytes = vha->qla_stats.output_bytes >> 20;
 
 done_free:
         dma_pool_free(ha->s_dma_pool, stats, stats_dma);
@@ -1737,6 +1738,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	fc_host_supported_speeds(vha->host) =
 		fc_host_supported_speeds(base_vha->host);
 
+	qlt_vport_create(vha, ha);
 	qla24xx_vport_disable(fc_vport, disable);
 
 	if (ha->flags.cpu_affinity_enabled) {
@@ -1951,12 +1953,16 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
-	fc_host_supported_classes(vha->host) = FC_COS_CLASS3;
+	fc_host_supported_classes(vha->host) = ha->tgt.enable_class_2 ?
+			(FC_COS_CLASS2|FC_COS_CLASS3) : FC_COS_CLASS3;
 	fc_host_max_npiv_vports(vha->host) = ha->max_npiv_vports;
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
 	if (IS_CNA_CAPABLE(ha))
 		speed = FC_PORTSPEED_10GBIT;
+	else if (IS_QLA2031(ha))
+		speed = FC_PORTSPEED_16GBIT | FC_PORTSPEED_8GBIT |
+		    FC_PORTSPEED_4GBIT;
 	else if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
 		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;

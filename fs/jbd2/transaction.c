@@ -162,8 +162,8 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 
 alloc_transaction:
 	if (!journal->j_running_transaction) {
-		new_transaction = kmem_cache_alloc(transaction_cache,
-						   gfp_mask | __GFP_ZERO);
+		new_transaction = kmem_cache_zalloc(transaction_cache,
+						    gfp_mask);
 		if (!new_transaction) {
 			/*
 			 * If __GFP_FS is not present, then we may be

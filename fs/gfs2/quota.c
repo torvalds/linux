@@ -652,7 +652,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	}
 
 	memset(&q, 0, sizeof(struct gfs2_quota));
-	err = gfs2_internal_read(ip, NULL, (char *)&q, &loc, sizeof(q));
+	err = gfs2_internal_read(ip, (char *)&q, &loc, sizeof(q));
 	if (err < 0)
 		return err;
 
@@ -744,7 +744,7 @@ get_a_page:
 		i_size_write(inode, size);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
 	mark_inode_dirty(inode);
-	return err;
+	return 0;
 
 unlock_out:
 	unlock_page(page);
@@ -852,7 +852,7 @@ static int update_qd(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd)
 
 	memset(&q, 0, sizeof(struct gfs2_quota));
 	pos = qd2offset(qd);
-	error = gfs2_internal_read(ip, NULL, (char *)&q, &pos, sizeof(q));
+	error = gfs2_internal_read(ip, (char *)&q, &pos, sizeof(q));
 	if (error < 0)
 		return error;
 

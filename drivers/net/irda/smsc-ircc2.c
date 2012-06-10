@@ -1,7 +1,6 @@
 /*********************************************************************
  *
  * Description:   Driver for the SMC Infrared Communications Controller
- * Status:        Experimental.
  * Author:        Daniele Peri (peri@csai.unipa.it)
  * Created at:
  * Modified at:

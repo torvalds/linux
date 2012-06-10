@@ -34,7 +34,7 @@ void handle_syscall(struct uml_pt_regs *r)
 		result = -ENOSYS;
 	else result = EXECUTE_SYSCALL(syscall, regs);
 
-	REGS_SET_SYSCALL_RETURN(r->gp, result);
+	UPT_SET_SYSCALL_RETURN(r, result);
 
 	syscall_trace(r, 1);
 }

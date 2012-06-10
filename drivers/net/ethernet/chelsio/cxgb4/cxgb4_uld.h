@@ -163,6 +163,12 @@ enum cxgb4_state {
 	CXGB4_STATE_DETACH
 };
 
+enum cxgb4_control {
+	CXGB4_CONTROL_DB_FULL,
+	CXGB4_CONTROL_DB_EMPTY,
+	CXGB4_CONTROL_DB_DROP,
+};
+
 struct pci_dev;
 struct l2t_data;
 struct net_device;
@@ -212,6 +218,7 @@ struct cxgb4_lld_info {
 	unsigned short ucq_density;          /* # of user CQs/page */
 	void __iomem *gts_reg;               /* address of GTS register */
 	void __iomem *db_reg;                /* address of kernel doorbell */
+	int dbfifo_int_thresh;		     /* doorbell fifo int threshold */
 };
 
 struct cxgb4_uld_info {
@@ -220,11 +227,13 @@ struct cxgb4_uld_info {
 	int (*rx_handler)(void *handle, const __be64 *rsp,
 			  const struct pkt_gl *gl);
 	int (*state_change)(void *handle, enum cxgb4_state new_state);
+	int (*control)(void *handle, enum cxgb4_control control, ...);
 };
 
 int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
+unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
 unsigned int cxgb4_port_viid(const struct net_device *dev);
 unsigned int cxgb4_port_idx(const struct net_device *dev);
@@ -236,4 +245,6 @@ void cxgb4_iscsi_init(struct net_device *dev, unsigned int tag_mask,
 		      const unsigned int *pgsz_order);
 struct sk_buff *cxgb4_pktgl_to_skb(const struct pkt_gl *gl,
 				   unsigned int skb_len, unsigned int pull_len);
+int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx, u16 size);
+int cxgb4_flush_eq_cache(struct net_device *dev);
 #endif  /* !__CXGB4_OFLD_H */

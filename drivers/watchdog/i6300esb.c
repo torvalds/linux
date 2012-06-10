@@ -492,19 +492,7 @@ static struct pci_driver esb_driver = {
 	.shutdown       = esb_shutdown,
 };
 
-static int __init watchdog_init(void)
-{
-	return pci_register_driver(&esb_driver);
-}
-
-static void __exit watchdog_cleanup(void)
-{
-	pci_unregister_driver(&esb_driver);
-	pr_info("Watchdog Module Unloaded\n");
-}
-
-module_init(watchdog_init);
-module_exit(watchdog_cleanup);
+module_pci_driver(esb_driver);
 
 MODULE_AUTHOR("Ross Biro and David Härdeman");
 MODULE_DESCRIPTION("Watchdog driver for Intel 6300ESB chipsets");

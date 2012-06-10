@@ -464,17 +464,14 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 				FERR_FAT_FBD, error_reg);
 
 		snprintf(pvt->tmp_prt_buffer, PAGE_SIZE,
-			"FATAL (Branch=%d DRAM-Bank=%d %s "
-			"RAS=%d CAS=%d Err=0x%lx (%s))",
-			branch, bank,
-			is_wr ? "RDWR" : "RD",
-			ras, cas,
-			errors, specific);
+			 "Bank=%d RAS=%d CAS=%d Err=0x%lx (%s))",
+			 bank, ras, cas, errors, specific);
 
-		/* Call the helper to output message */
-		edac_mc_handle_fbd_ue(mci, rank, branch << 1,
-				      (branch << 1) + 1,
-				      pvt->tmp_prt_buffer);
+		edac_mc_handle_error(HW_EVENT_ERR_FATAL, mci, 0, 0, 0,
+				     branch, -1, rank,
+				     is_wr ? "Write error" : "Read error",
+				     pvt->tmp_prt_buffer, NULL);
+
 	}
 
 	/* read in the 1st NON-FATAL error register */
@@ -513,23 +510,14 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 
 		/* Form out message */
 		snprintf(pvt->tmp_prt_buffer, PAGE_SIZE,
-			"Corrected error (Branch=%d, Channel %d), "
-			" DRAM-Bank=%d %s "
-			"RAS=%d CAS=%d, CE Err=0x%lx, Syndrome=0x%08x(%s))",
-			branch, channel,
-			bank,
-			is_wr ? "RDWR" : "RD",
-			ras, cas,
-			errors, syndrome, specific);
+			 "DRAM-Bank=%d RAS=%d CAS=%d, Err=0x%lx (%s))",
+			 bank, ras, cas, errors, specific);
 
-		/*
-		 * Call the helper to output message
-		 * NOTE: Errors are reported per-branch, and not per-channel
-		 *	 Currently, we don't know how to identify the right
-		 *	 channel.
-		 */
-		edac_mc_handle_fbd_ce(mci, rank, channel,
-				      pvt->tmp_prt_buffer);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0,
+				     syndrome,
+				     branch >> 1, channel % 2, rank,
+				     is_wr ? "Write error" : "Read error",
+				     pvt->tmp_prt_buffer, NULL);
 	}
 	return;
 }
@@ -617,8 +605,7 @@ static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
 static int decode_mtr(struct i7300_pvt *pvt,
 		      int slot, int ch, int branch,
 		      struct i7300_dimm_info *dinfo,
-		      struct csrow_info *p_csrow,
-		      u32 *nr_pages)
+		      struct dimm_info *dimm)
 {
 	int mtr, ans, addrBits, channel;
 
@@ -650,7 +637,6 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	addrBits -= 3;	/* 8 bits per bytes */
 
 	dinfo->megabytes = 1 << addrBits;
-	*nr_pages = dinfo->megabytes << 8;
 
 	debugf2("\t\tWIDTH: x%d\n", MTR_DRAM_WIDTH(mtr));
 
@@ -663,11 +649,6 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	debugf2("\t\tNUMCOL: %s\n", numcol_toString[MTR_DIMM_COLS(mtr)]);
 	debugf2("\t\tSIZE: %d MB\n", dinfo->megabytes);
 
-	p_csrow->grain = 8;
-	p_csrow->mtype = MEM_FB_DDR2;
-	p_csrow->csrow_idx = slot;
-	p_csrow->page_mask = 0;
-
 	/*
 	 * The type of error detection actually depends of the
 	 * mode of operation. When it is just one single memory chip, at
@@ -677,15 +658,18 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	 * See datasheet Sections 7.3.6 to 7.3.8
 	 */
 
+	dimm->nr_pages = MiB_TO_PAGES(dinfo->megabytes);
+	dimm->grain = 8;
+	dimm->mtype = MEM_FB_DDR2;
 	if (IS_SINGLE_MODE(pvt->mc_settings_a)) {
-		p_csrow->edac_mode = EDAC_SECDED;
+		dimm->edac_mode = EDAC_SECDED;
 		debugf2("\t\tECC code is 8-byte-over-32-byte SECDED+ code\n");
 	} else {
 		debugf2("\t\tECC code is on Lockstep mode\n");
 		if (MTR_DRAM_WIDTH(mtr) == 8)
-			p_csrow->edac_mode = EDAC_S8ECD8ED;
+			dimm->edac_mode = EDAC_S8ECD8ED;
 		else
-			p_csrow->edac_mode = EDAC_S4ECD4ED;
+			dimm->edac_mode = EDAC_S4ECD4ED;
 	}
 
 	/* ask what device type on this row */
@@ -694,9 +678,9 @@ static int decode_mtr(struct i7300_pvt *pvt,
 			IS_SCRBALGO_ENHANCED(pvt->mc_settings) ?
 					    "enhanced" : "normal");
 
-		p_csrow->dtype = DEV_X8;
+		dimm->dtype = DEV_X8;
 	} else
-		p_csrow->dtype = DEV_X4;
+		dimm->dtype = DEV_X4;
 
 	return mtr;
 }
@@ -774,11 +758,10 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 {
 	struct i7300_pvt *pvt;
 	struct i7300_dimm_info *dinfo;
-	struct csrow_info *p_csrow;
 	int rc = -ENODEV;
 	int mtr;
 	int ch, branch, slot, channel;
-	u32 last_page = 0, nr_pages;
+	struct dimm_info *dimm;
 
 	pvt = mci->pvt_info;
 
@@ -809,25 +792,23 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 			pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
 					where,
 					&pvt->mtr[slot][branch]);
-			for (ch = 0; ch < MAX_BRANCHES; ch++) {
+			for (ch = 0; ch < MAX_CH_PER_BRANCH; ch++) {
 				int channel = to_channel(ch, branch);
 
+				dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
+					       mci->n_layers, branch, ch, slot);
+
 				dinfo = &pvt->dimm_info[slot][channel];
-				p_csrow = &mci->csrows[slot];
 
 				mtr = decode_mtr(pvt, slot, ch, branch,
-						 dinfo, p_csrow, &nr_pages);
+						 dinfo, dimm);
+
 				/* if no DIMMS on this row, continue */
 				if (!MTR_DIMMS_PRESENT(mtr))
 					continue;
 
-				/* Update per_csrow memory count */
-				p_csrow->nr_pages += nr_pages;
-				p_csrow->first_page = last_page;
-				last_page += nr_pages;
-				p_csrow->last_page = last_page;
-
 				rc = 0;
+
 			}
 		}
 	}
@@ -1042,10 +1023,8 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[3];
 	struct i7300_pvt *pvt;
-	int num_channels;
-	int num_dimms_per_channel;
-	int num_csrows;
 	int rc;
 
 	/* wake up device */
@@ -1062,23 +1041,17 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 	if (PCI_FUNC(pdev->devfn) != 0)
 		return -ENODEV;
 
-	/* As we don't have a motherboard identification routine to determine
-	 * actual number of slots/dimms per channel, we thus utilize the
-	 * resource as specified by the chipset. Thus, we might have
-	 * have more DIMMs per channel than actually on the mobo, but this
-	 * allows the driver to support up to the chipset max, without
-	 * some fancy mobo determination.
-	 */
-	num_dimms_per_channel = MAX_SLOTS;
-	num_channels = MAX_CHANNELS;
-	num_csrows = MAX_SLOTS * MAX_CHANNELS;
-
-	debugf0("MC: %s(): Number of - Channels= %d  DIMMS= %d  CSROWS= %d\n",
-		__func__, num_channels, num_dimms_per_channel, num_csrows);
-
 	/* allocate a new MC control structure */
-	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
-
+	layers[0].type = EDAC_MC_LAYER_BRANCH;
+	layers[0].size = MAX_BRANCHES;
+	layers[0].is_virt_csrow = false;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = MAX_CH_PER_BRANCH;
+	layers[1].is_virt_csrow = true;
+	layers[2].type = EDAC_MC_LAYER_SLOT;
+	layers[2].size = MAX_SLOTS;
+	layers[2].is_virt_csrow = true;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
 		return -ENOMEM;
 

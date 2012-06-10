@@ -21,13 +21,13 @@
 
 #include <video/exynos_dp.h>
 
-#include <plat/cpu.h>
-
 #include "exynos_dp_core.h"
 
 static int exynos_dp_init_dp(struct exynos_dp_device *dp)
 {
 	exynos_dp_reset(dp);
+
+	exynos_dp_swreset(dp);
 
 	/* SW defined function Normal operation */
 	exynos_dp_enable_sw_function(dp);
@@ -478,7 +478,7 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 	int lane_count;
 	u8 buf[5];
 
-	u8 *adjust_request;
+	u8 adjust_request[2];
 	u8 voltage_swing;
 	u8 pre_emphasis;
 	u8 training_lane;
@@ -493,8 +493,8 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 		/* set training pattern 2 for EQ */
 		exynos_dp_set_training_pattern(dp, TRAINING_PTN2);
 
-		adjust_request = link_status + (DPCD_ADDR_ADJUST_REQUEST_LANE0_1
-						- DPCD_ADDR_LANE0_1_STATUS);
+		adjust_request[0] = link_status[4];
+		adjust_request[1] = link_status[5];
 
 		exynos_dp_get_adjust_train(dp, adjust_request);
 
@@ -566,7 +566,7 @@ static int exynos_dp_process_equalizer_training(struct exynos_dp_device *dp)
 	u8 buf[5];
 	u32 reg;
 
-	u8 *adjust_request;
+	u8 adjust_request[2];
 
 	udelay(400);
 
@@ -575,8 +575,8 @@ static int exynos_dp_process_equalizer_training(struct exynos_dp_device *dp)
 	lane_count = dp->link_train.lane_count;
 
 	if (exynos_dp_clock_recovery_ok(link_status, lane_count) == 0) {
-		adjust_request = link_status + (DPCD_ADDR_ADJUST_REQUEST_LANE0_1
-						- DPCD_ADDR_LANE0_1_STATUS);
+		adjust_request[0] = link_status[4];
+		adjust_request[1] = link_status[5];
 
 		if (exynos_dp_channel_eq_ok(link_status, lane_count) == 0) {
 			/* traing pattern Set to Normal */
@@ -770,7 +770,7 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp,
 			return -ETIMEDOUT;
 		}
 
-		mdelay(100);
+		udelay(1);
 	}
 
 	/* Set to use the register calculated M/N video */
@@ -804,7 +804,7 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp,
 			return -ETIMEDOUT;
 		}
 
-		mdelay(100);
+		mdelay(1);
 	}
 
 	if (retval != 0)
@@ -860,7 +860,8 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dp = kzalloc(sizeof(struct exynos_dp_device), GFP_KERNEL);
+	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
+				GFP_KERNEL);
 	if (!dp) {
 		dev_err(&pdev->dev, "no memory for device data\n");
 		return -ENOMEM;
@@ -871,8 +872,7 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 	dp->clock = clk_get(&pdev->dev, "dp");
 	if (IS_ERR(dp->clock)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
-		ret = PTR_ERR(dp->clock);
-		goto err_dp;
+		return PTR_ERR(dp->clock);
 	}
 
 	clk_enable(dp->clock);
@@ -884,35 +884,25 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 		goto err_clock;
 	}
 
-	res = request_mem_region(res->start, resource_size(res),
-				dev_name(&pdev->dev));
-	if (!res) {
-		dev_err(&pdev->dev, "failed to request registers region\n");
-		ret = -EINVAL;
-		goto err_clock;
-	}
-
-	dp->res = res;
-
-	dp->reg_base = ioremap(res->start, resource_size(res));
+	dp->reg_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!dp->reg_base) {
 		dev_err(&pdev->dev, "failed to ioremap\n");
 		ret = -ENOMEM;
-		goto err_req_region;
+		goto err_clock;
 	}
 
 	dp->irq = platform_get_irq(pdev, 0);
 	if (!dp->irq) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		ret = -ENODEV;
-		goto err_ioremap;
+		goto err_clock;
 	}
 
-	ret = request_irq(dp->irq, exynos_dp_irq_handler, 0,
-			"exynos-dp", dp);
+	ret = devm_request_irq(&pdev->dev, dp->irq, exynos_dp_irq_handler, 0,
+				"exynos-dp", dp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		goto err_ioremap;
+		goto err_clock;
 	}
 
 	dp->video_info = pdata->video_info;
@@ -924,7 +914,7 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 	ret = exynos_dp_detect_hpd(dp);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to detect hpd\n");
-		goto err_irq;
+		goto err_clock;
 	}
 
 	exynos_dp_handle_edid(dp);
@@ -933,7 +923,7 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 				dp->video_info->link_rate);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to do link train\n");
-		goto err_irq;
+		goto err_clock;
 	}
 
 	exynos_dp_enable_scramble(dp, 1);
@@ -947,23 +937,15 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 	ret = exynos_dp_config_video(dp, dp->video_info);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to config video\n");
-		goto err_irq;
+		goto err_clock;
 	}
 
 	platform_set_drvdata(pdev, dp);
 
 	return 0;
 
-err_irq:
-	free_irq(dp->irq, dp);
-err_ioremap:
-	iounmap(dp->reg_base);
-err_req_region:
-	release_mem_region(res->start, resource_size(res));
 err_clock:
 	clk_put(dp->clock);
-err_dp:
-	kfree(dp);
 
 	return ret;
 }
@@ -976,15 +958,8 @@ static int __devexit exynos_dp_remove(struct platform_device *pdev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit();
 
-	free_irq(dp->irq, dp);
-	iounmap(dp->reg_base);
-
 	clk_disable(dp->clock);
 	clk_put(dp->clock);
-
-	release_mem_region(dp->res->start, resource_size(dp->res));
-
-	kfree(dp);
 
 	return 0;
 }

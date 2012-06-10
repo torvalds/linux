@@ -25,7 +25,6 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-ctrls.h>
 
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -120,6 +119,14 @@ static void __v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *e
 	if (sev == NULL)
 		return;
 
+	/*
+	 * If the event has been added to the fh->subscribed list, but its
+	 * add op has not completed yet elems will be 0, treat this as
+	 * not being subscribed.
+	 */
+	if (!sev->elems)
+		return;
+
 	/* Increase event sequence number on fh. */
 	fh->sequence++;
 
@@ -132,14 +139,14 @@ static void __v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *e
 		sev->first = sev_pos(sev, 1);
 		fh->navailable--;
 		if (sev->elems == 1) {
-			if (sev->replace) {
-				sev->replace(&kev->event, ev);
+			if (sev->ops && sev->ops->replace) {
+				sev->ops->replace(&kev->event, ev);
 				copy_payload = false;
 			}
-		} else if (sev->merge) {
+		} else if (sev->ops && sev->ops->merge) {
 			struct v4l2_kevent *second_oldest =
 				sev->events + sev_pos(sev, 0);
-			sev->merge(&kev->event, &second_oldest->event);
+			sev->ops->merge(&kev->event, &second_oldest->event);
 		}
 	}
 
@@ -195,24 +202,11 @@ int v4l2_event_pending(struct v4l2_fh *fh)
 }
 EXPORT_SYMBOL_GPL(v4l2_event_pending);
 
-static void ctrls_replace(struct v4l2_event *old, const struct v4l2_event *new)
-{
-	u32 old_changes = old->u.ctrl.changes;
-
-	old->u.ctrl = new->u.ctrl;
-	old->u.ctrl.changes |= old_changes;
-}
-
-static void ctrls_merge(const struct v4l2_event *old, struct v4l2_event *new)
-{
-	new->u.ctrl.changes |= old->u.ctrl.changes;
-}
-
 int v4l2_event_subscribe(struct v4l2_fh *fh,
-			 struct v4l2_event_subscription *sub, unsigned elems)
+			 struct v4l2_event_subscription *sub, unsigned elems,
+			 const struct v4l2_subscribed_event_ops *ops)
 {
 	struct v4l2_subscribed_event *sev, *found_ev;
-	struct v4l2_ctrl *ctrl = NULL;
 	unsigned long flags;
 	unsigned i;
 
@@ -221,11 +215,6 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 
 	if (elems < 1)
 		elems = 1;
-	if (sub->type == V4L2_EVENT_CTRL) {
-		ctrl = v4l2_ctrl_find(fh->ctrl_handler, sub->id);
-		if (ctrl == NULL)
-			return -EINVAL;
-	}
 
 	sev = kzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems, GFP_KERNEL);
 	if (!sev)
@@ -236,11 +225,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	sev->id = sub->id;
 	sev->flags = sub->flags;
 	sev->fh = fh;
-	sev->elems = elems;
-	if (ctrl) {
-		sev->replace = ctrls_replace;
-		sev->merge = ctrls_merge;
-	}
+	sev->ops = ops;
 
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 	found_ev = v4l2_event_subscribed(fh, sub->type, sub->id);
@@ -248,11 +233,22 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 		list_add(&sev->list, &fh->subscribed);
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 
-	/* v4l2_ctrl_add_event uses a mutex, so do this outside the spin lock */
-	if (found_ev)
+	if (found_ev) {
 		kfree(sev);
-	else if (ctrl)
-		v4l2_ctrl_add_event(ctrl, sev);
+		return 0; /* Already listening */
+	}
+
+	if (sev->ops && sev->ops->add) {
+		int ret = sev->ops->add(sev, elems);
+		if (ret) {
+			sev->ops = NULL;
+			v4l2_event_unsubscribe(fh, sub);
+			return ret;
+		}
+	}
+
+	/* Mark as ready for use */
+	sev->elems = elems;
 
 	return 0;
 }
@@ -306,12 +302,9 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 	}
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
-	if (sev && sev->type == V4L2_EVENT_CTRL) {
-		struct v4l2_ctrl *ctrl = v4l2_ctrl_find(fh->ctrl_handler, sev->id);
 
-		if (ctrl)
-			v4l2_ctrl_del_event(ctrl, sev);
-	}
+	if (sev && sev->ops && sev->ops->del)
+		sev->ops->del(sev);
 
 	kfree(sev);
 

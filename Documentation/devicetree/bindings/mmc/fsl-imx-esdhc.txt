@@ -9,7 +9,7 @@ Required properties:
 - interrupts : Should contain eSDHC interrupt
 
 Optional properties:
-- fsl,card-wired : Indicate the card is wired to host permanently
+- non-removable : Indicate the card is wired to host permanently
 - fsl,cd-internal : Indicate to use controller internal card detection
 - fsl,wp-internal : Indicate to use controller internal write protection
 - cd-gpios : Specify GPIOs for card detection

@@ -13,7 +13,6 @@
  */
 
 #include <linux/if_ether.h>
-#include <linux/if_tr.h>
 
 /* Lengths of frame formats */
 #define LLC_PDU_LEN_I	4       /* header and 2 control bytes */
@@ -253,10 +252,6 @@ static inline void llc_pdu_decode_sa(struct sk_buff *skb, u8 *sa)
 {
 	if (skb->protocol == htons(ETH_P_802_2))
 		memcpy(sa, eth_hdr(skb)->h_source, ETH_ALEN);
-	else if (skb->protocol == htons(ETH_P_TR_802_2)) {
-		memcpy(sa, tr_hdr(skb)->saddr, ETH_ALEN);
-		*sa &= 0x7F;
-	}
 }
 
 /**
@@ -270,8 +265,6 @@ static inline void llc_pdu_decode_da(struct sk_buff *skb, u8 *da)
 {
 	if (skb->protocol == htons(ETH_P_802_2))
 		memcpy(da, eth_hdr(skb)->h_dest, ETH_ALEN);
-	else if (skb->protocol == htons(ETH_P_TR_802_2))
-		memcpy(da, tr_hdr(skb)->daddr, ETH_ALEN);
 }
 
 /**

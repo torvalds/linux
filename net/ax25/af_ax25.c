@@ -1990,7 +1990,6 @@ static int __init ax25_init(void)
 	sock_register(&ax25_family_ops);
 	dev_add_pack(&ax25_packet_type);
 	register_netdevice_notifier(&ax25_dev_notifier);
-	ax25_register_sysctl();
 
 	proc_net_fops_create(&init_net, "ax25_route", S_IRUGO, &ax25_route_fops);
 	proc_net_fops_create(&init_net, "ax25", S_IRUGO, &ax25_info_fops);
@@ -2013,7 +2012,6 @@ static void __exit ax25_exit(void)
 	proc_net_remove(&init_net, "ax25_calls");
 
 	unregister_netdevice_notifier(&ax25_dev_notifier);
-	ax25_unregister_sysctl();
 
 	dev_remove_pack(&ax25_packet_type);
 

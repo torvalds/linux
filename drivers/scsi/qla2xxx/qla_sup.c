@@ -1017,6 +1017,9 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha))
 		return;
 
+	if (ha->flags.isp82xx_reset_hdlr_active)
+		return;
+
 	ha->isp_ops->read_optrom(vha, (uint8_t *)&hdr,
 	    ha->flt_region_npiv_conf << 2, sizeof(struct qla_npiv_header));
 	if (hdr.version == __constant_cpu_to_le16(0xffff))

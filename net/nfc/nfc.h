@@ -84,7 +84,7 @@ static inline int nfc_llcp_set_remote_gb(struct nfc_dev *dev,
 	return 0;
 }
 
-static inline u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, u8 *gb_len)
+static inline u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *gb_len)
 {
 	*gb_len = 0;
 	return NULL;
@@ -119,6 +119,7 @@ void nfc_genl_data_init(struct nfc_genl_data *genl_data);
 void nfc_genl_data_exit(struct nfc_genl_data *genl_data);
 
 int nfc_genl_targets_found(struct nfc_dev *dev);
+int nfc_genl_target_lost(struct nfc_dev *dev, u32 target_idx);
 
 int nfc_genl_device_added(struct nfc_dev *dev);
 int nfc_genl_device_removed(struct nfc_dev *dev);
@@ -127,7 +128,7 @@ int nfc_genl_dep_link_up_event(struct nfc_dev *dev, u32 target_idx,
 			       u8 comm_mode, u8 rf_mode);
 int nfc_genl_dep_link_down_event(struct nfc_dev *dev);
 
-struct nfc_dev *nfc_get_device(unsigned idx);
+struct nfc_dev *nfc_get_device(unsigned int idx);
 
 static inline void nfc_put_device(struct nfc_dev *dev)
 {

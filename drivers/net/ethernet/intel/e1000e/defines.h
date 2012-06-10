@@ -74,7 +74,9 @@
 #define E1000_WUS_BC           E1000_WUFC_BC
 
 /* Extended Device Control */
+#define E1000_CTRL_EXT_LPCD  0x00000004     /* LCD Power Cycle Done */
 #define E1000_CTRL_EXT_SDP3_DATA 0x00000080 /* Value of SW Definable Pin 3 */
+#define E1000_CTRL_EXT_FORCE_SMBUS 0x00000800 /* Force SMBus mode */
 #define E1000_CTRL_EXT_EE_RST    0x00002000 /* Reinitialize from EEPROM */
 #define E1000_CTRL_EXT_SPD_BYPS  0x00008000 /* Speed Select Bypass */
 #define E1000_CTRL_EXT_RO_DIS    0x00020000 /* Relaxed Ordering disable */
@@ -573,6 +575,7 @@
 #define NWAY_AR_ASM_DIR          0x0800   /* Asymmetric Pause Direction bit */
 
 /* Link Partner Ability Register (Base Page) */
+#define NWAY_LPAR_100TX_FD_CAPS  0x0100 /* LP 100TX Full Dplx Capable */
 #define NWAY_LPAR_PAUSE          0x0400 /* LP Pause operation desired */
 #define NWAY_LPAR_ASM_DIR        0x0800 /* LP Asymmetric Pause Direction bit */
 
@@ -739,6 +742,7 @@
 #define I82577_E_PHY_ID      0x01540050
 #define I82578_E_PHY_ID      0x004DD040
 #define I82579_E_PHY_ID      0x01540090
+#define I217_E_PHY_ID        0x015400A0
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */
@@ -849,5 +853,9 @@
 
 /* SerDes Control */
 #define E1000_GEN_POLL_TIMEOUT          640
+
+/* FW Semaphore */
+#define E1000_FWSM_WLOCK_MAC_MASK	0x0380
+#define E1000_FWSM_WLOCK_MAC_SHIFT	7
 
 #endif /* _E1000_DEFINES_H_ */

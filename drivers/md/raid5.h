@@ -285,6 +285,7 @@ enum r5dev_flags {
 			 */
 	R5_Wantdrain,	/* dev->towrite needs to be drained */
 	R5_WantFUA,	/* Write should be FUA */
+	R5_SyncIO,	/* The IO is sync */
 	R5_WriteError,	/* got a write error - need to record it */
 	R5_MadeGood,	/* A bad block has been fixed by writing to it */
 	R5_ReadRepl,	/* Will/did read from replacement rather than orig */
@@ -385,6 +386,12 @@ struct r5conf {
 	short			generation; /* increments with every reshape */
 	unsigned long		reshape_checkpoint; /* Time we last updated
 						     * metadata */
+	long long		min_offset_diff; /* minimum difference between
+						  * data_offset and
+						  * new_data_offset across all
+						  * devices.  May be negative,
+						  * but is closest to zero.
+						  */
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	hold_list; /* preread ready stripes */

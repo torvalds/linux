@@ -12,6 +12,7 @@ config X86_32
 
 config X86_64
 	def_bool 64BIT
+	select X86_DEV_DMA_OPS
 
 ### Arch settings
 config X86
@@ -31,6 +32,7 @@ config X86
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_DMA_ATTRS
+	select HAVE_DMA_CONTIGUOUS if !SWIOTLB
 	select HAVE_KRETPROBES
 	select HAVE_OPTPROBES
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -40,7 +42,6 @@ config X86
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_GRAPH_FP_TEST
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
-	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_KVM
 	select HAVE_ARCH_KGDB
@@ -77,15 +78,26 @@ config X86
 	select GENERIC_CLOCKEVENTS_MIN_ADJUST
 	select IRQ_FORCED_THREADING
 	select USE_GENERIC_SMP_HELPERS if SMP
-	select HAVE_BPF_JIT if (X86_64 && NET)
+	select HAVE_BPF_JIT if X86_64
 	select CLKEVT_I8253
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_IOMAP
-	select DCACHE_WORD_ACCESS if !DEBUG_PAGEALLOC
+	select DCACHE_WORD_ACCESS
+	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_SECCOMP_FILTER
+	select BUILDTIME_EXTABLE_SORT
+	select GENERIC_CMOS_UPDATE
+	select CLOCKSOURCE_WATCHDOG
+	select GENERIC_CLOCKEVENTS
+	select ARCH_CLOCKSOURCE_DATA if X86_64
+	select GENERIC_CLOCKEVENTS_BROADCAST if X86_64 || (X86_32 && X86_LOCAL_APIC)
+	select GENERIC_TIME_VSYSCALL if X86_64
+	select KTIME_SCALAR if X86_32
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
 
 config INSTRUCTION_DECODER
-	def_bool (KPROBES || PERF_EVENTS)
+	def_bool (KPROBES || PERF_EVENTS || UPROBES)
 
 config OUTPUT_FORMAT
 	string
@@ -96,23 +108,6 @@ config ARCH_DEFCONFIG
 	string
 	default "arch/x86/configs/i386_defconfig" if X86_32
 	default "arch/x86/configs/x86_64_defconfig" if X86_64
-
-config GENERIC_CMOS_UPDATE
-	def_bool y
-
-config CLOCKSOURCE_WATCHDOG
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config ARCH_CLOCKSOURCE_DATA
-	def_bool y
-	depends on X86_64
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	def_bool y
-	depends on X86_64 || (X86_32 && X86_LOCAL_APIC)
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -161,15 +156,8 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool X86_XADD
 
-config ARCH_HAS_CPU_IDLE_WAIT
-	def_bool y
-
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
-
-config GENERIC_TIME_VSYSCALL
-	bool
-	default X86_64
 
 config ARCH_HAS_CPU_RELAX
 	def_bool y
@@ -237,12 +225,12 @@ config ARCH_HWEIGHT_CFLAGS
 	default "-fcall-saved-ecx -fcall-saved-edx" if X86_32
 	default "-fcall-saved-rdi -fcall-saved-rsi -fcall-saved-rdx -fcall-saved-rcx -fcall-saved-r8 -fcall-saved-r9 -fcall-saved-r10 -fcall-saved-r11" if X86_64
 
-config KTIME_SCALAR
-	def_bool X86_32
-
 config ARCH_CPU_PROBE_RELEASE
 	def_bool y
 	depends on HOTPLUG_CPU
+
+config ARCH_SUPPORTS_UPROBES
+	def_bool y
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
@@ -258,8 +246,6 @@ config ZONE_DMA
 	  Disable if no such devices will be used.
 
 	  If unsure, say Y.
-
-source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -329,6 +315,7 @@ config X86_EXTENDED_PLATFORM
 		NUMAQ (IBM/Sequent)
 		RDC R-321x SoC
 		SGI 320/540 (Visual Workstation)
+		STA2X11-based (e.g. Northville)
 		Summit/EXA (IBM x440)
 		Unisys ES7000 IA32 series
 		Moorestown MID devices
@@ -375,6 +362,7 @@ config X86_VSMP
 	select PARAVIRT
 	depends on X86_64 && PCI
 	depends on X86_EXTENDED_PLATFORM
+	depends on SMP
 	---help---
 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
 	  supposed to run on these EM64T-based machines.  Only choose this option
@@ -461,10 +449,10 @@ config X86_32_NON_STANDARD
 	depends on X86_32 && SMP
 	depends on X86_EXTENDED_PLATFORM
 	---help---
-	  This option compiles in the NUMAQ, Summit, bigsmp, ES7000, default
-	  subarchitectures.  It is intended for a generic binary kernel.
-	  if you select them all, kernel will probe it one by one. and will
-	  fallback to default.
+	  This option compiles in the NUMAQ, Summit, bigsmp, ES7000,
+	  STA2X11, default subarchitectures.  It is intended for a generic
+	  binary kernel. If you select them all, kernel will probe it
+	  one by one and will fallback to default.
 
 # Alphabetically sorted list of Non standard 32 bit platforms
 
@@ -503,6 +491,22 @@ config X86_VISWS
 
 	  A kernel compiled for the Visual Workstation will run on general
 	  PCs as well. See <file:Documentation/sgi-visws.txt> for details.
+
+config STA2X11
+	bool "STA2X11 Companion Chip Support"
+	depends on X86_32_NON_STANDARD && PCI
+	select X86_DEV_DMA_OPS
+	select X86_DMA_REMAP
+	select SWIOTLB
+	select MFD_STA2X11
+	select ARCH_REQUIRE_GPIOLIB
+	default n
+	---help---
+	  This adds support for boards based on the STA2X11 IO-Hub,
+	  a.k.a. "ConneXt". The chip is used in place of the standard
+	  PC chipset, so all "standard" peripherals are missing. If this
+	  option is selected the kernel will still be able to boot on
+	  standard PC machines.
 
 config X86_SUMMIT
 	bool "Summit/EXA (IBM x440)"
@@ -1240,10 +1244,6 @@ config NODES_SHIFT
 	  Specify the maximum number of NUMA Nodes available on the target
 	  system.  Increases memory reserved to accommodate various tables.
 
-config HAVE_ARCH_BOOTMEM
-	def_bool y
-	depends on X86_32 && NUMA
-
 config HAVE_ARCH_ALLOC_REMAP
 	def_bool y
 	depends on X86_32 && NUMA
@@ -1505,6 +1505,8 @@ config EFI_STUB
        ---help---
           This kernel feature allows a bzImage to be loaded directly
 	  by EFI firmware without the use of a bootloader.
+
+	  See Documentation/x86/efi-stub.txt for more information.
 
 config SECCOMP
 	def_bool y
@@ -2024,16 +2026,6 @@ config EISA
 
 source "drivers/eisa/Kconfig"
 
-config MCA
-	bool "MCA support"
-	---help---
-	  MicroChannel Architecture is found in some IBM PS/2 machines and
-	  laptops.  It is a bus system similar to PCI or ISA. See
-	  <file:Documentation/mca.txt> (and especially the web page given
-	  there) before attempting to build an MCA bus kernel.
-
-source "drivers/mca/Kconfig"
-
 config SCx200
 	tristate "NatSemi SCx200 support"
 	---help---
@@ -2215,6 +2207,14 @@ config HAVE_ATOMIC_IOMAP
 config HAVE_TEXT_POKE_SMP
 	bool
 	select STOP_MACHINE if SMP
+
+config X86_DEV_DMA_OPS
+	bool
+	depends on X86_64 || STA2X11
+
+config X86_DMA_REMAP
+	bool
+	depends on STA2X11
 
 source "net/Kconfig"
 

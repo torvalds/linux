@@ -66,7 +66,8 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr);
 void __btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr);
 void btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root);
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
-int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid);
+int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
+			  int atomic);
 int btrfs_set_buffer_uptodate(struct extent_buffer *buf);
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid);
 u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len);
@@ -88,7 +89,6 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 int btrfs_cleanup_transaction(struct btrfs_root *root);
 void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans,
 				  struct btrfs_root *root);
-void btrfs_abort_devices(struct btrfs_root *root);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void btrfs_init_lockdep(void);

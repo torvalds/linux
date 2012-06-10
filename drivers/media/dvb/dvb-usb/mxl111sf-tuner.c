@@ -284,6 +284,7 @@ static int mxl111sf_tuner_set_params(struct dvb_frontend *fe)
 
 	switch (delsys) {
 	case SYS_ATSC:
+	case SYS_ATSCMH:
 		bw = 0; /* ATSC */
 		break;
 	case SYS_DVBC_ANNEX_B:

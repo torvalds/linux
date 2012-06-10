@@ -549,9 +549,9 @@ down:
  * Get link speed and duplex from the slave's base driver
  * using ethtool. If for some reason the call fails or the
  * values are invalid, set speed and duplex to -1,
- * and return error.
+ * and return.
  */
-static int bond_update_speed_duplex(struct slave *slave)
+static void bond_update_speed_duplex(struct slave *slave)
 {
 	struct net_device *slave_dev = slave->dev;
 	struct ethtool_cmd ecmd;
@@ -563,24 +563,24 @@ static int bond_update_speed_duplex(struct slave *slave)
 
 	res = __ethtool_get_settings(slave_dev, &ecmd);
 	if (res < 0)
-		return -1;
+		return;
 
 	slave_speed = ethtool_cmd_speed(&ecmd);
 	if (slave_speed == 0 || slave_speed == ((__u32) -1))
-		return -1;
+		return;
 
 	switch (ecmd.duplex) {
 	case DUPLEX_FULL:
 	case DUPLEX_HALF:
 		break;
 	default:
-		return -1;
+		return;
 	}
 
 	slave->speed = slave_speed;
 	slave->duplex = ecmd.duplex;
 
-	return 0;
+	return;
 }
 
 /*
@@ -1444,8 +1444,9 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	struct sk_buff *skb = *pskb;
 	struct slave *slave;
 	struct bonding *bond;
-	void (*recv_probe)(struct sk_buff *, struct bonding *,
+	int (*recv_probe)(struct sk_buff *, struct bonding *,
 				struct slave *);
+	int ret = RX_HANDLER_ANOTHER;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -1464,8 +1465,12 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
 
 		if (likely(nskb)) {
-			recv_probe(nskb, bond, slave);
+			ret = recv_probe(nskb, bond, slave);
 			dev_kfree_skb(nskb);
+			if (ret == RX_HANDLER_CONSUMED) {
+				consume_skb(skb);
+				return ret;
+			}
 		}
 	}
 
@@ -1487,7 +1492,7 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		memcpy(eth_hdr(skb)->h_dest, bond->dev->dev_addr, ETH_ALEN);
 	}
 
-	return RX_HANDLER_ANOTHER;
+	return ret;
 }
 
 /* enslave device <slave> to bond device <master> */
@@ -1726,7 +1731,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	read_lock(&bond->lock);
 
-	new_slave->last_arp_rx = jiffies;
+	new_slave->last_arp_rx = jiffies -
+		(msecs_to_jiffies(bond->params.arp_interval) + 1);
 
 	if (bond->params.miimon && !bond->params.use_carrier) {
 		link_reporting = bond_check_dev_link(bond, slave_dev, 1);
@@ -1751,21 +1757,29 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	/* check for initial state */
-	if (!bond->params.miimon ||
-	    (bond_check_dev_link(bond, slave_dev, 0) == BMSR_LSTATUS)) {
-		if (bond->params.updelay) {
-			pr_debug("Initial state of slave_dev is BOND_LINK_BACK\n");
-			new_slave->link  = BOND_LINK_BACK;
-			new_slave->delay = bond->params.updelay;
+	if (bond->params.miimon) {
+		if (bond_check_dev_link(bond, slave_dev, 0) == BMSR_LSTATUS) {
+			if (bond->params.updelay) {
+				new_slave->link = BOND_LINK_BACK;
+				new_slave->delay = bond->params.updelay;
+			} else {
+				new_slave->link = BOND_LINK_UP;
+			}
 		} else {
-			pr_debug("Initial state of slave_dev is BOND_LINK_UP\n");
-			new_slave->link  = BOND_LINK_UP;
+			new_slave->link = BOND_LINK_DOWN;
 		}
-		new_slave->jiffies = jiffies;
+	} else if (bond->params.arp_interval) {
+		new_slave->link = (netif_carrier_ok(slave_dev) ?
+			BOND_LINK_UP : BOND_LINK_DOWN);
 	} else {
-		pr_debug("Initial state of slave_dev is BOND_LINK_DOWN\n");
-		new_slave->link  = BOND_LINK_DOWN;
+		new_slave->link = BOND_LINK_UP;
 	}
+
+	if (new_slave->link != BOND_LINK_DOWN)
+		new_slave->jiffies = jiffies;
+	pr_debug("Initial state of slave_dev is BOND_LINK_%s\n",
+		new_slave->link == BOND_LINK_DOWN ? "DOWN" :
+			(new_slave->link == BOND_LINK_UP ? "UP" : "BACK"));
 
 	bond_update_speed_duplex(new_slave);
 
@@ -1952,7 +1966,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	write_lock_bh(&bond->lock);
 
 	if (!bond->params.fail_over_mac) {
-		if (!compare_ether_addr(bond_dev->dev_addr, slave->perm_hwaddr) &&
+		if (ether_addr_equal(bond_dev->dev_addr, slave->perm_hwaddr) &&
 		    bond->slave_cnt > 1)
 			pr_warning("%s: Warning: the permanent HWaddr of %s - %pM - is still in use by %s. Set the HWaddr of %s to a different address to avoid conflicts.\n",
 				   bond_dev->name, slave_dev->name,
@@ -2723,7 +2737,7 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	}
 }
 
-static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
+static int bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 			 struct slave *slave)
 {
 	struct arphdr *arp;
@@ -2731,7 +2745,7 @@ static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 	__be32 sip, tip;
 
 	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
-		return;
+		return RX_HANDLER_ANOTHER;
 
 	read_lock(&bond->lock);
 
@@ -2776,6 +2790,7 @@ static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 
 out_unlock:
 	read_unlock(&bond->lock);
+	return RX_HANDLER_ANOTHER;
 }
 
 /*
@@ -4820,12 +4835,9 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int bond_get_tx_queues(struct net *net, struct nlattr *tb[],
-			      unsigned int *num_queues,
-			      unsigned int *real_num_queues)
+static int bond_get_tx_queues(struct net *net, struct nlattr *tb[])
 {
-	*num_queues = tx_queues;
-	return 0;
+	return tx_queues;
 }
 
 static struct rtnl_link_ops bond_link_ops __read_mostly = {

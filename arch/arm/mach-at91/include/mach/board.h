@@ -121,7 +121,6 @@ extern void __init at91_add_device_spi(struct spi_board_info *devices, int nr_de
 #define ATMEL_UART_RI	0x20
 
 extern void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins);
-extern void __init at91_set_serial_console(unsigned portnr);
 
 extern struct platform_device *atmel_default_console_device;
 

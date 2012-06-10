@@ -109,25 +109,6 @@ struct cx25821_fmt *cx25821_format_by_fourcc(unsigned int fourcc)
 	return NULL;
 }
 
-void cx25821_dump_video_queue(struct cx25821_dev *dev,
-			      struct cx25821_dmaqueue *q)
-{
-	struct cx25821_buffer *buf;
-	struct list_head *item;
-	dprintk(1, "%s()\n", __func__);
-
-	if (!list_empty(&q->active)) {
-		list_for_each(item, &q->active)
-			buf = list_entry(item, struct cx25821_buffer, vb.queue);
-	}
-
-	if (!list_empty(&q->queued)) {
-		list_for_each(item, &q->queued)
-			buf = list_entry(item, struct cx25821_buffer, vb.queue);
-	}
-
-}
-
 void cx25821_video_wakeup(struct cx25821_dev *dev, struct cx25821_dmaqueue *q,
 			  u32 count)
 {
@@ -557,7 +538,7 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	struct cx25821_buffer *buf =
 		container_of(vb, struct cx25821_buffer, vb);
 	int rc, init_buffer = 0;
-	u32 line0_offset, line1_offset;
+	u32 line0_offset;
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
 	int bpl_local = LINE_SIZE_D1;
 	int channel_opened = fh->channel_id;
@@ -639,7 +620,6 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		case V4L2_FIELD_INTERLACED:
 			/* All other formats are top field first */
 			line0_offset = 0;
-			line1_offset = buf->bpl;
 			dprintk(1, "top field first\n");
 
 			cx25821_risc_buffer(dev->pci, &buf->risc,
@@ -1830,7 +1810,6 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 	int i = 0;
 	int cif_enable = 0;
 	int cif_width = 0;
-	u32 value = 0;
 
 	data_from_user = (struct downstream_user_struct *)arg;
 
@@ -1914,7 +1893,7 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 		cx_write(data_from_user->reg_address, data_from_user->reg_data);
 		break;
 	case MEDUSA_READ:
-		value = cx25821_i2c_read(&dev->i2c_bus[0],
+		cx25821_i2c_read(&dev->i2c_bus[0],
 					 (u16) data_from_user->reg_address,
 					 &data_from_user->reg_data);
 		break;

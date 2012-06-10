@@ -22,8 +22,6 @@
 #include <asm/ucontext.h>
 #include <asm/syscalls.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 			       struct pt_regs *regs)
 {
@@ -77,6 +75,9 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	struct rt_sigframe __user *frame;
 	sigset_t set;
 
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	frame = (struct rt_sigframe __user *)regs->sp;
 	pr_debug("SIG return: frame = %p\n", frame);
 
@@ -86,11 +87,7 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
@@ -224,14 +221,14 @@ static inline void setup_syscall_restart(struct pt_regs *regs)
 
 static inline void
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs *regs, int syscall)
+	      struct pt_regs *regs, int syscall)
 {
 	int ret;
 
 	/*
 	 * Set up the stack frame
 	 */
-	ret = setup_rt_frame(sig, ka, info, oldset, regs);
+	ret = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
 
 	/*
 	 * Check that the resulting registers are sane
@@ -239,21 +236,12 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	ret |= !valid_user_regs(regs);
 
 	/*
-	 * Block the signal if we were unsuccessful.
+	 * Block the signal if we were successful.
 	 */
-	if (ret != 0 || !(ka->sa.sa_flags & SA_NODEFER)) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked,
-			  &ka->sa.sa_mask);
-		sigaddset(&current->blocked, sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
-
-	if (ret == 0)
-		return;
-
-	force_sigsegv(sig, current);
+	if (ret != 0)
+		force_sigsegv(sig, current);
+	else
+		signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*
@@ -261,7 +249,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
  * doesn't want to handle. Thus you cannot kill init even with a
  * SIGKILL even by mistake.
  */
-int do_signal(struct pt_regs *regs, sigset_t *oldset, int syscall)
+static void do_signal(struct pt_regs *regs, int syscall)
 {
 	siginfo_t info;
 	int signr;
@@ -273,12 +261,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset, int syscall)
 	 * without doing anything if so.
 	 */
 	if (!user_mode(regs))
-		return 0;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else if (!oldset)
-		oldset = &current->blocked;
+		return;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (syscall) {
@@ -303,15 +286,11 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset, int syscall)
 
 	if (signr == 0) {
 		/* No signal to deliver -- put the saved sigmask back */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
-		return 0;
+		restore_saved_sigmask();
+		return;
 	}
 
-	handle_signal(signr, &ka, &info, oldset, regs, syscall);
-	return 1;
+	handle_signal(signr, &ka, &info, regs, syscall);
 }
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, struct thread_info *ti)
@@ -321,13 +300,11 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, struct thread_info *ti)
 	if ((sysreg_read(SR) & MODE_MASK) == MODE_SUPERVISOR)
 		syscall = 1;
 
-	if (ti->flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
-		do_signal(regs, &current->blocked, syscall);
+	if (ti->flags & _TIF_SIGPENDING)
+		do_signal(regs, syscall);
 
 	if (ti->flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 	}
 }

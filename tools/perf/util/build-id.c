@@ -65,6 +65,8 @@ struct perf_tool build_id__mark_dso_hit_ops = {
 	.mmap	= perf_event__process_mmap,
 	.fork	= perf_event__process_task,
 	.exit	= perf_event__exit_del_thread,
+	.attr		 = perf_event__process_attr,
+	.build_id	 = perf_event__process_build_id,
 };
 
 char *dso__build_id_filename(struct dso *self, char *bf, size_t size)

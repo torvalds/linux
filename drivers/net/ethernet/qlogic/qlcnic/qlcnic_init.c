@@ -1321,8 +1321,7 @@ next:
 void
 qlcnic_release_firmware(struct qlcnic_adapter *adapter)
 {
-	if (adapter->fw)
-		release_firmware(adapter->fw);
+	release_firmware(adapter->fw);
 	adapter->fw = NULL;
 }
 

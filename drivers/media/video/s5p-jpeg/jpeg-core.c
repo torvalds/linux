@@ -813,7 +813,7 @@ static int s5p_jpeg_streamoff(struct file *file, void *priv,
 	return v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
 }
 
-int s5p_jpeg_g_selection(struct file *file, void *priv,
+static int s5p_jpeg_g_selection(struct file *file, void *priv,
 			 struct v4l2_selection *s)
 {
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
@@ -1290,7 +1290,7 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	int ret;
 
 	/* JPEG IP abstraction struct */
-	jpeg = kzalloc(sizeof(struct s5p_jpeg), GFP_KERNEL);
+	jpeg = devm_kzalloc(&pdev->dev, sizeof(struct s5p_jpeg), GFP_KERNEL);
 	if (!jpeg)
 		return -ENOMEM;
 
@@ -1300,43 +1300,25 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 
 	/* memory-mapped registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot find IO resource\n");
-		ret = -ENOENT;
-		goto jpeg_alloc_rollback;
-	}
 
-	jpeg->ioarea = request_mem_region(res->start, resource_size(res),
-					  pdev->name);
-	if (!jpeg->ioarea) {
-		dev_err(&pdev->dev, "cannot request IO\n");
-		ret = -ENXIO;
-		goto jpeg_alloc_rollback;
+	jpeg->regs = devm_request_and_ioremap(&pdev->dev, res);
+	if (jpeg->regs == NULL) {
+		dev_err(&pdev->dev, "Failed to obtain io memory\n");
+		return -ENOENT;
 	}
-
-	jpeg->regs = ioremap(res->start, resource_size(res));
-	if (!jpeg->regs) {
-		dev_err(&pdev->dev, "cannot map IO\n");
-		ret = -ENXIO;
-		goto mem_region_rollback;
-	}
-
-	dev_dbg(&pdev->dev, "registers %p (%p, %p)\n",
-		jpeg->regs, jpeg->ioarea, res);
 
 	/* interrupt service routine registration */
 	jpeg->irq = ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
-		goto ioremap_rollback;
+		return ret;
 	}
 
-	ret = request_irq(jpeg->irq, s5p_jpeg_irq, 0,
-			  dev_name(&pdev->dev), jpeg);
-
+	ret = devm_request_irq(&pdev->dev, jpeg->irq, s5p_jpeg_irq, 0,
+			dev_name(&pdev->dev), jpeg);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", jpeg->irq);
-		goto ioremap_rollback;
+		return ret;
 	}
 
 	/* clocks */
@@ -1344,7 +1326,7 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	if (IS_ERR(jpeg->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		ret = PTR_ERR(jpeg->clk);
-		goto request_irq_rollback;
+		return ret;
 	}
 	dev_dbg(&pdev->dev, "clock source %p\n", jpeg->clk);
 	clk_enable(jpeg->clk);
@@ -1386,6 +1368,10 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	jpeg->vfd_encoder->release	= video_device_release;
 	jpeg->vfd_encoder->lock		= &jpeg->lock;
 	jpeg->vfd_encoder->v4l2_dev	= &jpeg->v4l2_dev;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &jpeg->vfd_encoder->flags);
 
 	ret = video_register_device(jpeg->vfd_encoder, VFL_TYPE_GRABBER, -1);
 	if (ret) {
@@ -1413,6 +1399,10 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	jpeg->vfd_decoder->release	= video_device_release;
 	jpeg->vfd_decoder->lock		= &jpeg->lock;
 	jpeg->vfd_decoder->v4l2_dev	= &jpeg->v4l2_dev;
+	/* Locking in file operations other than ioctl should be done by the driver,
+	   not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &jpeg->vfd_decoder->flags);
 
 	ret = video_register_device(jpeg->vfd_decoder, VFL_TYPE_GRABBER, -1);
 	if (ret) {
@@ -1456,18 +1446,6 @@ clk_get_rollback:
 	clk_disable(jpeg->clk);
 	clk_put(jpeg->clk);
 
-request_irq_rollback:
-	free_irq(jpeg->irq, jpeg);
-
-ioremap_rollback:
-	iounmap(jpeg->regs);
-
-mem_region_rollback:
-	release_resource(jpeg->ioarea);
-	release_mem_region(jpeg->ioarea->start, resource_size(jpeg->ioarea));
-
-jpeg_alloc_rollback:
-	kfree(jpeg);
 	return ret;
 }
 
@@ -1487,14 +1465,6 @@ static int s5p_jpeg_remove(struct platform_device *pdev)
 
 	clk_disable(jpeg->clk);
 	clk_put(jpeg->clk);
-
-	free_irq(jpeg->irq, jpeg);
-
-	iounmap(jpeg->regs);
-
-	release_resource(jpeg->ioarea);
-	release_mem_region(jpeg->ioarea->start, resource_size(jpeg->ioarea));
-	kfree(jpeg);
 
 	return 0;
 }

@@ -70,6 +70,8 @@ IOCTLS = \
 	VIDIOC_SUBDEV_ENUM_MBUS_CODE \
 	VIDIOC_SUBDEV_ENUM_FRAME_SIZE \
 	VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL \
+	VIDIOC_SUBDEV_G_SELECTION \
+	VIDIOC_SUBDEV_S_SELECTION \
 
 TYPES = \
 	$(shell perl -ne 'print "$$1 " if /^typedef\s+[^\s]+\s+([^\s]+)\;/' $(srctree)/include/linux/videodev2.h) \
@@ -193,7 +195,7 @@ DVB_DOCUMENTED = \
 #
 
 install_media_images = \
-	$(Q)cp $(OBJIMGFILES) $(MEDIA_OBJ_DIR)/media_api
+	$(Q)cp $(OBJIMGFILES) $(MEDIA_SRC_DIR)/v4l/*.svg $(MEDIA_OBJ_DIR)/media_api
 
 $(MEDIA_OBJ_DIR)/%: $(MEDIA_SRC_DIR)/%.b64
 	$(Q)base64 -d $< >$@

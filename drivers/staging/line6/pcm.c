@@ -99,7 +99,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 	unsigned long flags_new = flags_old | channels;
 	unsigned long flags_final = flags_old;
 	int err = 0;
-	
+
 	line6pcm->prev_fbuf = NULL;
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_BUFFER)) {

@@ -139,8 +139,8 @@ static int cp_compat_stat64(struct kstat *stat,
 	err |= put_user(stat->ino, &statbuf->st_ino);
 	err |= put_user(stat->mode, &statbuf->st_mode);
 	err |= put_user(stat->nlink, &statbuf->st_nlink);
-	err |= put_user(stat->uid, &statbuf->st_uid);
-	err |= put_user(stat->gid, &statbuf->st_gid);
+	err |= put_user(from_kuid_munged(current_user_ns(), stat->uid), &statbuf->st_uid);
+	err |= put_user(from_kgid_munged(current_user_ns(), stat->gid), &statbuf->st_gid);
 	err |= put_user(huge_encode_dev(stat->rdev), &statbuf->st_rdev);
 	err |= put_user(0, (unsigned long __user *) &statbuf->__pad3[0]);
 	err |= put_user(stat->size, &statbuf->st_size);

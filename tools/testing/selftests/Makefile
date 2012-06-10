@@ -1,4 +1,4 @@
-TARGETS = breakpoints vm
+TARGETS = breakpoints kcmp mqueue vm
 
 all:
 	for TARGET in $(TARGETS); do \

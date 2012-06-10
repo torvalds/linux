@@ -124,6 +124,7 @@ static struct usb_driver gigaset_usb_driver = {
 	.reset_resume =	gigaset_resume,
 	.pre_reset =	gigaset_pre_reset,
 	.post_reset =	gigaset_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 struct usb_cardstate {
@@ -549,10 +550,9 @@ static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 			       0, 0, &buf, 6, 2000);
 }
 
-static int gigaset_freebcshw(struct bc_state *bcs)
+static void gigaset_freebcshw(struct bc_state *bcs)
 {
 	/* unused */
-	return 1;
 }
 
 /* Initialize the b-channel structure */
@@ -560,7 +560,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 {
 	/* unused */
 	bcs->hw.usb = NULL;
-	return 1;
+	return 0;
 }
 
 static void gigaset_reinitbcshw(struct bc_state *bcs)
@@ -582,7 +582,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 		kmalloc(sizeof(struct usb_cardstate), GFP_KERNEL);
 	if (!ucs) {
 		pr_err("out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 
 	ucs->bchars[0] = 0;
@@ -597,7 +597,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 	tasklet_init(&cs->write_tasklet,
 		     gigaset_modem_fill, (unsigned long) cs);
 
-	return 1;
+	return 0;
 }
 
 /* Send data from current skb to the device. */
@@ -766,9 +766,9 @@ static int gigaset_probe(struct usb_interface *interface,
 	if (startmode == SM_LOCKED)
 		cs->mstate = MS_LOCKED;
 
-	if (!gigaset_start(cs)) {
+	retval = gigaset_start(cs);
+	if (retval < 0) {
 		tasklet_kill(&cs->write_tasklet);
-		retval = -ENODEV;
 		goto error;
 	}
 	return 0;
@@ -898,8 +898,10 @@ static int __init usb_gigaset_init(void)
 	driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
 				    GIGASET_MODULENAME, GIGASET_DEVNAME,
 				    &ops, THIS_MODULE);
-	if (driver == NULL)
+	if (driver == NULL) {
+		result = -ENOMEM;
 		goto error;
+	}
 
 	/* register this driver with the USB subsystem */
 	result = usb_register(&gigaset_usb_driver);
@@ -915,7 +917,7 @@ error:
 	if (driver)
 		gigaset_freedriver(driver);
 	driver = NULL;
-	return -1;
+	return result;
 }
 
 /*

@@ -304,7 +304,8 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int optype,
 static int
 wait_for_free_request(struct TCP_Server_Info *server, const int optype)
 {
-	return wait_for_free_credits(server, optype, get_credits_field(server));
+	return wait_for_free_credits(server, optype,
+				     server->ops->get_credits_field(server));
 }
 
 static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
@@ -396,7 +397,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	rc = cifs_setup_async_request(server, iov, nvec, &mid);
 	if (rc) {
 		mutex_unlock(&server->srv_mutex);
-		cifs_add_credits(server, 1);
+		add_credits(server, 1);
 		wake_up(&server->request_q);
 		return rc;
 	}
@@ -418,7 +419,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	return rc;
 out_err:
 	delete_mid(mid);
-	cifs_add_credits(server, 1);
+	add_credits(server, 1);
 	wake_up(&server->request_q);
 	return rc;
 }
@@ -483,41 +484,11 @@ cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 	return rc;
 }
 
-/*
- * An NT cancel request header looks just like the original request except:
- *
- * The Command is SMB_COM_NT_CANCEL
- * The WordCount is zeroed out
- * The ByteCount is zeroed out
- *
- * This function mangles an existing request buffer into a
- * SMB_COM_NT_CANCEL request and then sends it.
- */
-static int
-send_nt_cancel(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
-		struct mid_q_entry *mid)
+static inline int
+send_cancel(struct TCP_Server_Info *server, void *buf, struct mid_q_entry *mid)
 {
-	int rc = 0;
-
-	/* -4 for RFC1001 length and +2 for BCC field */
-	in_buf->smb_buf_length = cpu_to_be32(sizeof(struct smb_hdr) - 4  + 2);
-	in_buf->Command = SMB_COM_NT_CANCEL;
-	in_buf->WordCount = 0;
-	put_bcc(0, in_buf);
-
-	mutex_lock(&server->srv_mutex);
-	rc = cifs_sign_smb(in_buf, server, &mid->sequence_number);
-	if (rc) {
-		mutex_unlock(&server->srv_mutex);
-		return rc;
-	}
-	rc = smb_send(server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
-	mutex_unlock(&server->srv_mutex);
-
-	cFYI(1, "issued NT_CANCEL for mid %u, rc = %d",
-		in_buf->Mid, rc);
-
-	return rc;
+	return server->ops->send_cancel ?
+				server->ops->send_cancel(server, buf, mid) : 0;
 }
 
 int
@@ -544,7 +515,7 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	return map_smb_to_linux_error(mid->resp_buf, log_error);
 }
 
-static int
+int
 cifs_setup_request(struct cifs_ses *ses, struct kvec *iov,
 		   unsigned int nvec, struct mid_q_entry **ret_mid)
 {
@@ -607,12 +578,12 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	mutex_lock(&ses->server->srv_mutex);
 
-	rc = cifs_setup_request(ses, iov, n_vec, &midQ);
+	rc = ses->server->ops->setup_request(ses, iov, n_vec, &midQ);
 	if (rc) {
 		mutex_unlock(&ses->server->srv_mutex);
 		cifs_small_buf_release(buf);
 		/* Update # of requests on wire to server */
-		cifs_add_credits(ses->server, 1);
+		add_credits(ses->server, 1);
 		return rc;
 	}
 
@@ -636,13 +607,13 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
-		send_nt_cancel(ses->server, (struct smb_hdr *)buf, midQ);
+		send_cancel(ses->server, buf, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
 			cifs_small_buf_release(buf);
-			cifs_add_credits(ses->server, 1);
+			add_credits(ses->server, 1);
 			return rc;
 		}
 		spin_unlock(&GlobalMid_Lock);
@@ -652,7 +623,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
-		cifs_add_credits(ses->server, 1);
+		add_credits(ses->server, 1);
 		return rc;
 	}
 
@@ -670,14 +641,15 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	else
 		*pRespBufType = CIFS_SMALL_BUFFER;
 
-	rc = cifs_check_receive(midQ, ses->server, flags & CIFS_LOG_ERROR);
+	rc = ses->server->ops->check_receive(midQ, ses->server,
+					     flags & CIFS_LOG_ERROR);
 
 	/* mark it so buf will not be freed by delete_mid */
 	if ((flags & CIFS_NO_RESP) == 0)
 		midQ->resp_buf = NULL;
 out:
 	delete_mid(midQ);
-	cifs_add_credits(ses->server, 1);
+	add_credits(ses->server, 1);
 
 	return rc;
 }
@@ -727,7 +699,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	if (rc) {
 		mutex_unlock(&ses->server->srv_mutex);
 		/* Update # of requests on wire to server */
-		cifs_add_credits(ses->server, 1);
+		add_credits(ses->server, 1);
 		return rc;
 	}
 
@@ -753,13 +725,13 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
-		send_nt_cancel(ses->server, in_buf, midQ);
+		send_cancel(ses->server, in_buf, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
 			/* no longer considered to be "in-flight" */
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
-			cifs_add_credits(ses->server, 1);
+			add_credits(ses->server, 1);
 			return rc;
 		}
 		spin_unlock(&GlobalMid_Lock);
@@ -767,7 +739,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
-		cifs_add_credits(ses->server, 1);
+		add_credits(ses->server, 1);
 		return rc;
 	}
 
@@ -783,7 +755,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	rc = cifs_check_receive(midQ, ses->server, 0);
 out:
 	delete_mid(midQ);
-	cifs_add_credits(ses->server, 1);
+	add_credits(ses->server, 1);
 
 	return rc;
 }
@@ -807,7 +779,7 @@ send_lock_cancel(const unsigned int xid, struct cifs_tcon *tcon,
 
 	pSMB->LockType = LOCKING_ANDX_CANCEL_LOCK|LOCKING_ANDX_LARGE_FILES;
 	pSMB->Timeout = 0;
-	pSMB->hdr.Mid = GetNextMid(ses->server);
+	pSMB->hdr.Mid = get_next_mid(ses->server);
 
 	return SendReceive(xid, ses, in_buf, out_buf,
 			&bytes_returned, 0);
@@ -898,7 +870,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 		if (in_buf->Command == SMB_COM_TRANSACTION2) {
 			/* POSIX lock. We send a NT_CANCEL SMB to cause the
 			   blocking lock to return. */
-			rc = send_nt_cancel(ses->server, in_buf, midQ);
+			rc = send_cancel(ses->server, in_buf, midQ);
 			if (rc) {
 				delete_mid(midQ);
 				return rc;
@@ -919,7 +891,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 
 		rc = wait_for_response(ses->server, midQ);
 		if (rc) {
-			send_nt_cancel(ses->server, in_buf, midQ);
+			send_cancel(ses->server, in_buf, midQ);
 			spin_lock(&GlobalMid_Lock);
 			if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
 				/* no longer considered to be "in-flight" */

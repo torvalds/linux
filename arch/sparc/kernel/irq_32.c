@@ -23,16 +23,8 @@
 #include "kernel.h"
 #include "irq.h"
 
-#ifdef CONFIG_SMP
-#define SMP_NOP2 "nop; nop;\n\t"
-#define SMP_NOP3 "nop; nop; nop;\n\t"
-#else
-#define SMP_NOP2
-#define SMP_NOP3
-#endif /* SMP */
-
 /* platform specific irq setup */
-struct sparc_irq_config sparc_irq_config;
+struct sparc_config sparc_config;
 
 unsigned long arch_local_irq_save(void)
 {
@@ -41,7 +33,6 @@ unsigned long arch_local_irq_save(void)
 
 	__asm__ __volatile__(
 		"rd	%%psr, %0\n\t"
-		SMP_NOP3	/* Sun4m + Cypress + SMP bug */
 		"or	%0, %2, %1\n\t"
 		"wr	%1, 0, %%psr\n\t"
 		"nop; nop; nop\n"
@@ -59,7 +50,6 @@ void arch_local_irq_enable(void)
 
 	__asm__ __volatile__(
 		"rd	%%psr, %0\n\t"
-		SMP_NOP3	/* Sun4m + Cypress + SMP bug */
 		"andn	%0, %1, %0\n\t"
 		"wr	%0, 0, %%psr\n\t"
 		"nop; nop; nop\n"
@@ -76,7 +66,6 @@ void arch_local_irq_restore(unsigned long old_psr)
 	__asm__ __volatile__(
 		"rd	%%psr, %0\n\t"
 		"and	%2, %1, %2\n\t"
-		SMP_NOP2	/* Sun4m + Cypress + SMP bug */
 		"andn	%0, %1, %0\n\t"
 		"wr	%0, %2, %%psr\n\t"
 		"nop; nop; nop\n"
@@ -252,9 +241,6 @@ int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler)
 	unsigned int cpu_irq;
 	int err;
 
-#if defined CONFIG_SMP && !defined CONFIG_SPARC_LEON
-	struct tt_entry *trap_table;
-#endif
 
 	err = request_irq(irq, irq_handler, 0, "floppy", NULL);
 	if (err)
@@ -275,13 +261,18 @@ int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler)
 	table[SP_TRAP_IRQ1+(cpu_irq-1)].inst_four = SPARC_NOP;
 
 	INSTANTIATE(sparc_ttable)
-#if defined CONFIG_SMP && !defined CONFIG_SPARC_LEON
-	trap_table = &trapbase_cpu1;
-	INSTANTIATE(trap_table)
-	trap_table = &trapbase_cpu2;
-	INSTANTIATE(trap_table)
-	trap_table = &trapbase_cpu3;
-	INSTANTIATE(trap_table)
+
+#if defined CONFIG_SMP
+	if (sparc_cpu_model != sparc_leon) {
+		struct tt_entry *trap_table;
+
+		trap_table = &trapbase_cpu1;
+		INSTANTIATE(trap_table)
+		trap_table = &trapbase_cpu2;
+		INSTANTIATE(trap_table)
+		trap_table = &trapbase_cpu3;
+		INSTANTIATE(trap_table)
+	}
 #endif
 #undef INSTANTIATE
 	/*
@@ -346,11 +337,6 @@ void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
 void __init init_IRQ(void)
 {
 	switch (sparc_cpu_model) {
-	case sun4c:
-	case sun4:
-		sun4c_init_IRQ();
-		break;
-
 	case sun4m:
 		pcic_probe();
 		if (pcic_present())
@@ -371,6 +357,5 @@ void __init init_IRQ(void)
 		prom_printf("Cannot initialize IRQs on this Sun machine...");
 		break;
 	}
-	btfixup();
 }
 

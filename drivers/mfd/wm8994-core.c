@@ -500,7 +500,8 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			ret);
 		goto err_enable;
 	}
-	wm8994->revision = ret;
+	wm8994->revision = ret & WM8994_CHIP_REV_MASK;
+	wm8994->cust_id = (ret & WM8994_CUST_ID_MASK) >> WM8994_CUST_ID_SHIFT;
 
 	switch (wm8994->type) {
 	case WM8994:
@@ -553,8 +554,8 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 	}
 
-	dev_info(wm8994->dev, "%s revision %c\n", devname,
-		 'A' + wm8994->revision);
+	dev_info(wm8994->dev, "%s revision %c CUST_ID %02x\n", devname,
+		 'A' + wm8994->revision, wm8994->cust_id);
 
 	switch (wm8994->type) {
 	case WM1811:
@@ -732,23 +733,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 	.id_table = wm8994_i2c_id,
 };
 
-static int __init wm8994_i2c_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&wm8994_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register wm8994 I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(wm8994_i2c_init);
-
-static void __exit wm8994_i2c_exit(void)
-{
-	i2c_del_driver(&wm8994_i2c_driver);
-}
-module_exit(wm8994_i2c_exit);
+module_i2c_driver(wm8994_i2c_driver);
 
 MODULE_DESCRIPTION("Core support for the WM8994 audio CODEC");
 MODULE_LICENSE("GPL");

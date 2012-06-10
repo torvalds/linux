@@ -8,7 +8,7 @@ The crucial structure for device drivers in iio is iio_dev.
 
 First allocate one using:
 
-struct iio_dev *indio_dev = iio_allocate_device(sizeof(struct chip_state));
+struct iio_dev *indio_dev = iio_device_alloc(sizeof(struct chip_state));
 where chip_state is a structure of local state data for this instance of
 the chip.
 
@@ -78,4 +78,4 @@ be registered afterwards (otherwise the whole parentage of devices
 gets confused)
 
 On remove, iio_device_unregister(indio_dev) will remove the device from
-the core, and iio_free_device will clean up.
+the core, and iio_device_free will clean up.

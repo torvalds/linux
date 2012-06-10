@@ -3,12 +3,16 @@ config PRINTK_TIME
 	bool "Show timing information on printks"
 	depends on PRINTK
 	help
-	  Selecting this option causes timing information to be
-	  included in printk output.  This allows you to measure
-	  the interval between kernel operations, including bootup
-	  operations.  This is useful for identifying long delays
-	  in kernel startup.  Or add printk.time=1 at boot-time.
-	  See Documentation/kernel-parameters.txt
+	  Selecting this option causes time stamps of the printk()
+	  messages to be added to the output of the syslog() system
+	  call and at the console.
+
+	  The timestamp is always recorded internally, and exported
+	  to /dev/kmsg. This flag just specifies if the timestamp should
+	  be included, not that the timestamp is recorded.
+
+	  The behavior is also controlled by the kernel command line
+	  parameter printk.time=1. See Documentation/kernel-parameters.txt
 
 config DEFAULT_MESSAGE_LOGLEVEL
 	int "Default message log level (1-7)"
@@ -69,6 +73,15 @@ config STRIP_ASM_SYMS
 	  Strip internal assembler-generated symbols during a link (symbols
 	  that look like '.Lxxx') so they don't pollute the output of
 	  get_wchan() and suchlike.
+
+config READABLE_ASM
+        bool "Generate readable assembler code"
+        depends on DEBUG_KERNEL
+        help
+          Disable some compiler optimizations that tend to generate human unreadable
+          assembler output. This may make the kernel slightly slower, but it helps
+          to keep kernel developers who have to stare a lot at assembler listings
+          sane.
 
 config UNUSED_SYMBOLS
 	bool "Enable unused/obsolete exported symbols"
@@ -1205,8 +1218,13 @@ config DYNAMIC_DEBUG
 	  otherwise be available at runtime. These messages can then be
 	  enabled/disabled based on various levels of scope - per source file,
 	  function, module, format string, and line number. This mechanism
-	  implicitly enables all pr_debug() and dev_dbg() calls. The impact of
-	  this compile option is a larger kernel text size of about 2%.
+	  implicitly compiles in all pr_debug() and dev_dbg() calls, which
+	  enlarges the kernel text size by about 2%.
+
+	  If a source file is compiled with DEBUG flag set, any
+	  pr_debug() calls in it are enabled by default, but can be
+	  disabled at runtime as below.  Note that DEBUG flag is
+	  turned on by many CONFIG_*DEBUG* options.
 
 	  Usage:
 
@@ -1223,16 +1241,16 @@ config DYNAMIC_DEBUG
 	  lineno : line number of the debug statement
 	  module : module that contains the debug statement
 	  function : function that contains the debug statement
-          flags : 'p' means the line is turned 'on' for printing
+          flags : '=p' means the line is turned 'on' for printing
           format : the format used for the debug statement
 
 	  From a live system:
 
 		nullarbor:~ # cat <debugfs>/dynamic_debug/control
 		# filename:lineno [module]function flags format
-		fs/aio.c:222 [aio]__put_ioctx - "__put_ioctx:\040freeing\040%p\012"
-		fs/aio.c:248 [aio]ioctx_alloc - "ENOMEM:\040nr_events\040too\040high\012"
-		fs/aio.c:1770 [aio]sys_io_cancel - "calling\040cancel\012"
+		fs/aio.c:222 [aio]__put_ioctx =_ "__put_ioctx:\040freeing\040%p\012"
+		fs/aio.c:248 [aio]ioctx_alloc =_ "ENOMEM:\040nr_events\040too\040high\012"
+		fs/aio.c:1770 [aio]sys_io_cancel =_ "calling\040cancel\012"
 
 	  Example usage:
 

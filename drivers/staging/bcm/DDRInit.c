@@ -1115,20 +1115,20 @@ int download_ddr_settings(PMINI_ADAPTER Adapter)
 	    {
 	        case DDR_80_MHZ:
 				psDDRSetting = asT3LP_DDRSetting80MHz;
-                RegCount = (sizeof(asT3LP_DDRSetting80MHz)/sizeof(DDR_SET_NODE));
+                RegCount = ARRAY_SIZE(asT3LP_DDRSetting80MHz);
 				RegCount -= T3LP_SKIP_CLOCK_PROGRAM_DUMP_80MHZ ;
                 psDDRSetting += T3LP_SKIP_CLOCK_PROGRAM_DUMP_80MHZ;
 			break;
 		    case DDR_100_MHZ:
 				psDDRSetting = asT3LP_DDRSetting100MHz;
-			    RegCount = (sizeof(asT3LP_DDRSetting100MHz)/sizeof(DDR_SET_NODE));
+			    RegCount = ARRAY_SIZE(asT3LP_DDRSetting100MHz);
 				RegCount -= T3LP_SKIP_CLOCK_PROGRAM_DUMP_100MHZ ;
                 psDDRSetting += T3LP_SKIP_CLOCK_PROGRAM_DUMP_100MHZ;
 			    break;
 		     case DDR_133_MHZ:
 				bOverrideSelfRefresh = TRUE;
 				psDDRSetting = asT3LP_DDRSetting133MHz;
-			    RegCount = (sizeof(asT3LP_DDRSetting133MHz)/sizeof(DDR_SET_NODE));
+			    RegCount = ARRAY_SIZE(asT3LP_DDRSetting133MHz);
 				RegCount -= T3LP_SKIP_CLOCK_PROGRAM_DUMP_133MHZ ;
 		        psDDRSetting += T3LP_SKIP_CLOCK_PROGRAM_DUMP_133MHZ;
 				break;
@@ -1146,20 +1146,20 @@ int download_ddr_settings(PMINI_ADAPTER Adapter)
 	    {
 	        case DDR_80_MHZ:
 				psDDRSetting = asT3LPB_DDRSetting80MHz;
-                RegCount=(sizeof(asT3LPB_DDRSetting80MHz)/sizeof(DDR_SET_NODE));
+                RegCount=ARRAY_SIZE(asT3LPB_DDRSetting80MHz);
 				RegCount -= T3LPB_SKIP_CLOCK_PROGRAM_DUMP_80MHZ ;
                 psDDRSetting += T3LPB_SKIP_CLOCK_PROGRAM_DUMP_80MHZ;
 			break;
 		    case DDR_100_MHZ:
 				psDDRSetting = asT3LPB_DDRSetting100MHz;
-			    RegCount = (sizeof(asT3LPB_DDRSetting100MHz)/sizeof(DDR_SET_NODE));
+			    RegCount = ARRAY_SIZE(asT3LPB_DDRSetting100MHz);
 				RegCount -= T3LPB_SKIP_CLOCK_PROGRAM_DUMP_100MHZ ;
                 psDDRSetting += T3LPB_SKIP_CLOCK_PROGRAM_DUMP_100MHZ;
 			    break;
 		     case DDR_133_MHZ:
 				bOverrideSelfRefresh = TRUE;
 				psDDRSetting = asT3LPB_DDRSetting133MHz;
-			    RegCount = (sizeof(asT3LPB_DDRSetting133MHz)/sizeof(DDR_SET_NODE));
+			    RegCount = ARRAY_SIZE(asT3LPB_DDRSetting133MHz);
 				RegCount -= T3LPB_SKIP_CLOCK_PROGRAM_DUMP_133MHZ ;
 		        psDDRSetting += T3LPB_SKIP_CLOCK_PROGRAM_DUMP_133MHZ;
 				break;
@@ -1167,7 +1167,7 @@ int download_ddr_settings(PMINI_ADAPTER Adapter)
 			case DDR_160_MHZ:
 					bOverrideSelfRefresh = TRUE;
 					psDDRSetting = asT3LPB_DDRSetting160MHz;
-					RegCount = sizeof(asT3LPB_DDRSetting160MHz)/sizeof(DDR_SET_NODE);
+					RegCount = ARRAY_SIZE(asT3LPB_DDRSetting160MHz);
 					RegCount -= T3LPB_SKIP_CLOCK_PROGRAM_DUMP_160MHZ;
 					psDDRSetting += T3LPB_SKIP_CLOCK_PROGRAM_DUMP_160MHZ;
 
@@ -1181,19 +1181,19 @@ int download_ddr_settings(PMINI_ADAPTER Adapter)
 	    {
 	        case DDR_80_MHZ:
 				psDDRSetting = asT3_DDRSetting80MHz;
-                RegCount = (sizeof(asT3_DDRSetting80MHz)/sizeof(DDR_SET_NODE));
+                RegCount = ARRAY_SIZE(asT3_DDRSetting80MHz);
 				RegCount-=T3_SKIP_CLOCK_PROGRAM_DUMP_80MHZ ;
                 psDDRSetting += T3_SKIP_CLOCK_PROGRAM_DUMP_80MHZ;
 			break;
 		    case DDR_100_MHZ:
 				psDDRSetting = asT3_DDRSetting100MHz;
-			    RegCount = (sizeof(asT3_DDRSetting100MHz)/sizeof(DDR_SET_NODE));
+			    RegCount = ARRAY_SIZE(asT3_DDRSetting100MHz);
 				RegCount-=T3_SKIP_CLOCK_PROGRAM_DUMP_100MHZ ;
                 psDDRSetting += T3_SKIP_CLOCK_PROGRAM_DUMP_100MHZ;
 			    break;
 		     case DDR_133_MHZ:
 				psDDRSetting = asT3_DDRSetting133MHz;
-			    RegCount = (sizeof(asT3_DDRSetting133MHz)/sizeof(DDR_SET_NODE));
+			    RegCount = ARRAY_SIZE(asT3_DDRSetting133MHz);
 				RegCount-=T3_SKIP_CLOCK_PROGRAM_DUMP_133MHZ ;
 		        psDDRSetting += T3_SKIP_CLOCK_PROGRAM_DUMP_133MHZ ;
 				break;
@@ -1207,20 +1207,20 @@ int download_ddr_settings(PMINI_ADAPTER Adapter)
 		    {
 		        case DDR_80_MHZ:
 					psDDRSetting = asT3B_DDRSetting80MHz;
-                    RegCount = (sizeof(asT3B_DDRSetting80MHz)/sizeof(DDR_SET_NODE));
+                    RegCount = ARRAY_SIZE(asT3B_DDRSetting80MHz);
                     RegCount -= T3B_SKIP_CLOCK_PROGRAM_DUMP_80MHZ ;
                     psDDRSetting += T3B_SKIP_CLOCK_PROGRAM_DUMP_80MHZ;
 			        break;
 		        case DDR_100_MHZ:
 					psDDRSetting = asT3B_DDRSetting100MHz;
-			        RegCount = (sizeof(asT3B_DDRSetting100MHz)/sizeof(DDR_SET_NODE));
+			        RegCount = ARRAY_SIZE(asT3B_DDRSetting100MHz);
                     RegCount -= T3B_SKIP_CLOCK_PROGRAM_DUMP_100MHZ ;
                     psDDRSetting += T3B_SKIP_CLOCK_PROGRAM_DUMP_100MHZ;
 			        break;
 		        case DDR_133_MHZ:
 					bOverrideSelfRefresh = TRUE;
 					psDDRSetting = asT3B_DDRSetting133MHz;
-			        RegCount = (sizeof(asT3B_DDRSetting133MHz)/sizeof(DDR_SET_NODE));
+			        RegCount = ARRAY_SIZE(asT3B_DDRSetting133MHz);
 	                RegCount -= T3B_SKIP_CLOCK_PROGRAM_DUMP_133MHZ ;
 		            psDDRSetting += T3B_SKIP_CLOCK_PROGRAM_DUMP_133MHZ;
 					break;

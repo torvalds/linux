@@ -480,12 +480,6 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
-struct pci_bus * __devinit ixp4xx_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	return pci_scan_root_bus(NULL, sys->busnr, &ixp4xx_ops, sys,
-				 &sys->resources);
-}
-
 int dma_set_coherent_mask(struct device *dev, u64 mask)
 {
 	if (mask >= SZ_64M - 1)

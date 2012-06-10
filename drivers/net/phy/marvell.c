@@ -455,11 +455,7 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return phy_write(phydev, MII_BMCR, BMCR_RESET);
 }
 
 static int m88e1118_config_aneg(struct phy_device *phydev)
@@ -515,11 +511,7 @@ static int m88e1118_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return phy_write(phydev, MII_BMCR, BMCR_RESET);
 }
 
 static int m88e1149_config_init(struct phy_device *phydev)
@@ -545,11 +537,7 @@ static int m88e1149_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return phy_write(phydev, MII_BMCR, BMCR_RESET);
 }
 
 static int m88e1145_config_init(struct phy_device *phydev)

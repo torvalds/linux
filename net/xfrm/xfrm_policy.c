@@ -57,7 +57,7 @@ static int xfrm_bundle_ok(struct xfrm_dst *xdst);
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir);
 
-static inline int
+static inline bool
 __xfrm4_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 {
 	const struct flowi4 *fl4 = &fl->u.ip4;
@@ -70,7 +70,7 @@ __xfrm4_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 		(fl4->flowi4_oif == sel->ifindex || !sel->ifindex);
 }
 
-static inline int
+static inline bool
 __xfrm6_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 {
 	const struct flowi6 *fl6 = &fl->u.ip6;
@@ -83,8 +83,8 @@ __xfrm6_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 		(fl6->flowi6_oif == sel->ifindex || !sel->ifindex);
 }
 
-int xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl,
-			unsigned short family)
+bool xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl,
+			 unsigned short family)
 {
 	switch (family) {
 	case AF_INET:
@@ -92,7 +92,7 @@ int xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl,
 	case AF_INET6:
 		return __xfrm6_selector_match(sel, fl);
 	}
-	return 0;
+	return false;
 }
 
 static inline struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos,
@@ -878,7 +878,8 @@ static int xfrm_policy_match(const struct xfrm_policy *pol,
 			     u8 type, u16 family, int dir)
 {
 	const struct xfrm_selector *sel = &pol->selector;
-	int match, ret = -ESRCH;
+	int ret = -ESRCH;
+	bool match;
 
 	if (pol->family != family ||
 	    (fl->flowi_mark & pol->mark.m) != pol->mark.v ||
@@ -1007,8 +1008,8 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir,
 
 	read_lock_bh(&xfrm_policy_lock);
 	if ((pol = sk->sk_policy[dir]) != NULL) {
-		int match = xfrm_selector_match(&pol->selector, fl,
-						sk->sk_family);
+		bool match = xfrm_selector_match(&pol->selector, fl,
+						 sk->sk_family);
 		int err = 0;
 
 		if (match) {
@@ -1920,6 +1921,9 @@ no_transform:
 	}
 ok:
 	xfrm_pols_put(pols, drop_pols);
+	if (dst && dst->xfrm &&
+	    dst->xfrm->props.mode == XFRM_MODE_TUNNEL)
+		dst->flags |= DST_XFRM_TUNNEL;
 	return dst;
 
 nopol:
@@ -2768,8 +2772,8 @@ EXPORT_SYMBOL_GPL(xfrm_audit_policy_delete);
 #endif
 
 #ifdef CONFIG_XFRM_MIGRATE
-static int xfrm_migrate_selector_match(const struct xfrm_selector *sel_cmp,
-				       const struct xfrm_selector *sel_tgt)
+static bool xfrm_migrate_selector_match(const struct xfrm_selector *sel_cmp,
+					const struct xfrm_selector *sel_tgt)
 {
 	if (sel_cmp->proto == IPSEC_ULPROTO_ANY) {
 		if (sel_tgt->family == sel_cmp->family &&
@@ -2779,14 +2783,14 @@ static int xfrm_migrate_selector_match(const struct xfrm_selector *sel_cmp,
 				  sel_cmp->family) == 0 &&
 		    sel_tgt->prefixlen_d == sel_cmp->prefixlen_d &&
 		    sel_tgt->prefixlen_s == sel_cmp->prefixlen_s) {
-			return 1;
+			return true;
 		}
 	} else {
 		if (memcmp(sel_tgt, sel_cmp, sizeof(*sel_tgt)) == 0) {
-			return 1;
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 static struct xfrm_policy * xfrm_migrate_policy_find(const struct xfrm_selector *sel,

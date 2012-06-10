@@ -30,21 +30,28 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/asound.h>
+#include <sound/asoundef.h>
+#include <video/omapdss.h>
 
 #include <plat/dma.h>
 #include "omap-pcm.h"
 #include "omap-hdmi.h"
 
-#define DRV_NAME "hdmi-audio-dai"
+#define DRV_NAME "omap-hdmi-audio-dai"
 
-static struct omap_pcm_dma_data omap_hdmi_dai_dma_params = {
-	.name = "HDMI playback",
-	.sync_mode = OMAP_DMA_SYNC_PACKET,
+struct hdmi_priv {
+	struct omap_pcm_dma_data dma_params;
+	struct omap_dss_audio dss_audio;
+	struct snd_aes_iec958 iec;
+	struct snd_cea_861_aud_if cea;
+	struct omap_dss_device *dssdev;
 };
 
 static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
 	int err;
 	/*
 	 * Make sure that the period bytes are multiple of the DMA packet size.
@@ -52,46 +59,201 @@ static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
 	 */
 	err = snd_pcm_hw_constraint_step(substream->runtime, 0,
 				 SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 128);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(dai->dev, "could not apply constraint\n");
 		return err;
+	}
 
+	if (!priv->dssdev->driver->audio_supported(priv->dssdev)) {
+		dev_err(dai->dev, "audio not supported\n");
+		return -ENODEV;
+	}
 	return 0;
+}
+
+static int omap_hdmi_dai_prepare(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
+
+	return priv->dssdev->driver->audio_enable(priv->dssdev);
 }
 
 static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
 {
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
+	struct snd_aes_iec958 *iec = &priv->iec;
+	struct snd_cea_861_aud_if *cea = &priv->cea;
 	int err = 0;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		omap_hdmi_dai_dma_params.packet_size = 16;
+		priv->dma_params.packet_size = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		omap_hdmi_dai_dma_params.packet_size = 32;
+		priv->dma_params.packet_size = 32;
+		break;
+	default:
+		dev_err(dai->dev, "format not supported!\n");
+		return -EINVAL;
+	}
+
+	priv->dma_params.data_type = OMAP_DMA_DATA_TYPE_S32;
+
+	snd_soc_dai_set_dma_data(dai, substream,
+				 &priv->dma_params);
+
+	/*
+	 * fill the IEC-60958 channel status word
+	 */
+
+	/* specify IEC-60958-3 (commercial use) */
+	iec->status[0] &= ~IEC958_AES0_PROFESSIONAL;
+
+	/* specify that the audio is LPCM*/
+	iec->status[0] &= ~IEC958_AES0_NONAUDIO;
+
+	iec->status[0] |= IEC958_AES0_CON_NOT_COPYRIGHT;
+
+	iec->status[0] |= IEC958_AES0_CON_EMPHASIS_NONE;
+
+	iec->status[0] |= IEC958_AES1_PRO_MODE_NOTID;
+
+	iec->status[1] = IEC958_AES1_CON_GENERAL;
+
+	iec->status[2] |= IEC958_AES2_CON_SOURCE_UNSPEC;
+
+	iec->status[2] |= IEC958_AES2_CON_CHANNEL_UNSPEC;
+
+	switch (params_rate(params)) {
+	case 32000:
+		iec->status[3] |= IEC958_AES3_CON_FS_32000;
+		break;
+	case 44100:
+		iec->status[3] |= IEC958_AES3_CON_FS_44100;
+		break;
+	case 48000:
+		iec->status[3] |= IEC958_AES3_CON_FS_48000;
+		break;
+	case 88200:
+		iec->status[3] |= IEC958_AES3_CON_FS_88200;
+		break;
+	case 96000:
+		iec->status[3] |= IEC958_AES3_CON_FS_96000;
+		break;
+	case 176400:
+		iec->status[3] |= IEC958_AES3_CON_FS_176400;
+		break;
+	case 192000:
+		iec->status[3] |= IEC958_AES3_CON_FS_192000;
+		break;
+	default:
+		dev_err(dai->dev, "rate not supported!\n");
+		return -EINVAL;
+	}
+
+	/* specify the clock accuracy */
+	iec->status[3] |= IEC958_AES3_CON_CLOCK_1000PPM;
+
+	/*
+	 * specify the word length. The same word length value can mean
+	 * two different lengths. Hence, we need to specify the maximum
+	 * word length as well.
+	 */
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		iec->status[4] |= IEC958_AES4_CON_WORDLEN_20_16;
+		iec->status[4] &= ~IEC958_AES4_CON_MAX_WORDLEN_24;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		iec->status[4] |= IEC958_AES4_CON_WORDLEN_24_20;
+		iec->status[4] |= IEC958_AES4_CON_MAX_WORDLEN_24;
+		break;
+	default:
+		dev_err(dai->dev, "format not supported!\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Fill the CEA-861 audio infoframe (see spec for details)
+	 */
+
+	cea->db1_ct_cc = (params_channels(params) - 1)
+		& CEA861_AUDIO_INFOFRAME_DB1CC;
+	cea->db1_ct_cc |= CEA861_AUDIO_INFOFRAME_DB1CT_FROM_STREAM;
+
+	cea->db2_sf_ss = CEA861_AUDIO_INFOFRAME_DB2SF_FROM_STREAM;
+	cea->db2_sf_ss |= CEA861_AUDIO_INFOFRAME_DB2SS_FROM_STREAM;
+
+	cea->db3 = 0; /* not used, all zeros */
+
+	/*
+	 * The OMAP HDMI IP requires to use the 8-channel channel code when
+	 * transmitting more than two channels.
+	 */
+	if (params_channels(params) == 2)
+		cea->db4_ca = 0x0;
+	else
+		cea->db4_ca = 0x13;
+
+	cea->db5_dminh_lsv = CEA861_AUDIO_INFOFRAME_DB5_DM_INH_PROHIBITED;
+	/* the expression is trivial but makes clear what we are doing */
+	cea->db5_dminh_lsv |= (0 & CEA861_AUDIO_INFOFRAME_DB5_LSV);
+
+	priv->dss_audio.iec = iec;
+	priv->dss_audio.cea = cea;
+
+	err = priv->dssdev->driver->audio_config(priv->dssdev,
+						 &priv->dss_audio);
+
+	return err;
+}
+
+static int omap_hdmi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+				struct snd_soc_dai *dai)
+{
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
+	int err = 0;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		err = priv->dssdev->driver->audio_start(priv->dssdev);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		priv->dssdev->driver->audio_stop(priv->dssdev);
 		break;
 	default:
 		err = -EINVAL;
 	}
-
-	omap_hdmi_dai_dma_params.data_type = OMAP_DMA_DATA_TYPE_S32;
-
-	snd_soc_dai_set_dma_data(dai, substream,
-				 &omap_hdmi_dai_dma_params);
-
 	return err;
+}
+
+static void omap_hdmi_dai_shutdown(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
+
+	priv->dssdev->driver->audio_disable(priv->dssdev);
 }
 
 static const struct snd_soc_dai_ops omap_hdmi_dai_ops = {
 	.startup	= omap_hdmi_dai_startup,
 	.hw_params	= omap_hdmi_dai_hw_params,
+	.prepare	= omap_hdmi_dai_prepare,
+	.trigger	= omap_hdmi_dai_trigger,
+	.shutdown	= omap_hdmi_dai_shutdown,
 };
 
 static struct snd_soc_dai_driver omap_hdmi_dai = {
 	.playback = {
 		.channels_min = 2,
-		.channels_max = 2,
+		.channels_max = 8,
 		.rates = OMAP_HDMI_RATES,
 		.formats = OMAP_HDMI_FORMATS,
 	},
@@ -102,31 +264,77 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *hdmi_rsrc;
+	struct hdmi_priv *hdmi_data;
+	bool hdmi_dev_found = false;
+
+	hdmi_data = devm_kzalloc(&pdev->dev, sizeof(*hdmi_data), GFP_KERNEL);
+	if (hdmi_data == NULL) {
+		dev_err(&pdev->dev, "Cannot allocate memory for HDMI data\n");
+		return -ENOMEM;
+	}
 
 	hdmi_rsrc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!hdmi_rsrc) {
 		dev_err(&pdev->dev, "Cannot obtain IORESOURCE_MEM HDMI\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
 
-	omap_hdmi_dai_dma_params.port_addr =  hdmi_rsrc->start
+	hdmi_data->dma_params.port_addr =  hdmi_rsrc->start
 		+ OMAP_HDMI_AUDIO_DMA_PORT;
 
 	hdmi_rsrc = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!hdmi_rsrc) {
 		dev_err(&pdev->dev, "Cannot obtain IORESOURCE_DMA HDMI\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
 
-	omap_hdmi_dai_dma_params.dma_req =  hdmi_rsrc->start;
+	hdmi_data->dma_params.dma_req =  hdmi_rsrc->start;
+	hdmi_data->dma_params.name = "HDMI playback";
+	hdmi_data->dma_params.sync_mode = OMAP_DMA_SYNC_PACKET;
 
+	/*
+	 * TODO: We assume that there is only one DSS HDMI device. Future
+	 * OMAP implementations may support more than one HDMI devices and
+	 * we should provided separate audio support for all of them.
+	 */
+	/* Find an HDMI device. */
+	for_each_dss_dev(hdmi_data->dssdev) {
+		omap_dss_get_device(hdmi_data->dssdev);
+
+		if (!hdmi_data->dssdev->driver) {
+			omap_dss_put_device(hdmi_data->dssdev);
+			continue;
+		}
+
+		if (hdmi_data->dssdev->type == OMAP_DISPLAY_TYPE_HDMI) {
+			hdmi_dev_found = true;
+			break;
+		}
+	}
+
+	if (!hdmi_dev_found) {
+		dev_err(&pdev->dev, "no driver for HDMI display found\n");
+		return -ENODEV;
+	}
+
+	dev_set_drvdata(&pdev->dev, hdmi_data);
 	ret = snd_soc_register_dai(&pdev->dev, &omap_hdmi_dai);
+
 	return ret;
 }
 
 static int __devexit omap_hdmi_remove(struct platform_device *pdev)
 {
+	struct hdmi_priv *hdmi_data = dev_get_drvdata(&pdev->dev);
+
 	snd_soc_unregister_dai(&pdev->dev);
+
+	if (hdmi_data == NULL) {
+		dev_err(&pdev->dev, "cannot obtain HDMi data\n");
+		return -ENODEV;
+	}
+
+	omap_dss_put_device(hdmi_data->dssdev);
 	return 0;
 }
 

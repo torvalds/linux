@@ -39,12 +39,7 @@
 #define SUPPORT_CPRM
 #define SUPPORT_MAGIC_GATE
 #define SUPPORT_MSXC
-/* #define LED_AUTO_BLINK */
-
-/* { wwang, 2010-07-26
- * Add support for SD lock/unlock */
-/* #define SUPPORT_SD_LOCK */
-/* } wwang, 2010-07-26 */
+#define USING_POLLING_CYCLE_DELINK
 
 #ifdef SUPPORT_MAGIC_GA
 /* Using NORMAL_WRITE instead of AUTO_WRITE to set ICVTE */
@@ -63,7 +58,6 @@
 #define SUPPORT_OCP
 
 #define MS_SPEEDUP
-/* #define XD_SPEEDUP */
 
 #define SD_XD_IO_FOLLOW_PWR
 
@@ -81,7 +75,6 @@
 
 #define MAX_ALLOWED_LUN_CNT	8
 #define CMD_BUF_LEN		1024
-#define RSP_BUF_LEN		1024
 #define POLLING_INTERVAL	50	/* 50ms */
 
 #define XD_FREE_TABLE_CNT	1200
@@ -128,8 +121,6 @@
 #endif
 
 #define STATUS_FAIL		1
-#define STATUS_READ_FAIL	2
-#define STATUS_WRITE_FAIL	3
 #define STATUS_TIMEDOUT		4
 #define STATUS_NOMEM		5
 #define STATUS_TRANS_SHORT	6
@@ -139,8 +130,6 @@
 
 #define IDLE_MAX_COUNT		10
 #define POLLING_WAIT_CNT	1
-#define DELINK_DELAY		100
-#define LED_TOGGLE_INTERVAL	6
 #define LED_GPIO		0
 
 /* package */
@@ -157,8 +146,6 @@
 #define TRANSPORT_GOOD		0
 /* Transport good, command failed */
 #define TRANSPORT_FAILED	1
-/* Command failed, no auto-sense */
-#define TRANSPORT_NO_SENSE	2
 /* Transport bad (i.e. device dead) */
 #define TRANSPORT_ERROR		3
 
@@ -195,7 +182,6 @@ struct trace_msg_t {
 #define	SENSE_TYPE_MEDIA_INVALID_CMD_FIELD		6
 #define	SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR		7
 #define	SENSE_TYPE_MEDIA_WRITE_ERR			8
-#define SENSE_TYPE_FORMAT_IN_PROGRESS			9
 #define SENSE_TYPE_FORMAT_CMD_FAILED			10
 #ifdef SUPPORT_MAGIC_GATE
 /* COPY PROTECTION KEY EXCHANGE FAILURE - KEY NOT ESTABLISHED */
@@ -207,83 +193,27 @@ struct trace_msg_t {
 /* WRITE ERROR */
 #define SENSE_TYPE_MG_WRITE_ERR				0x0e
 #endif
-#ifdef SUPPORT_SD_LOCK
-/* FOR Locked SD card */
-#define SENSE_TYPE_MEDIA_READ_FORBIDDEN			0x10
-#endif
 
 /*---- sense key ----*/
-#define ILI                     0x20	/* ILI bit is on                    */
-
-#define NO_SENSE                0x00	/* not exist sense key              */
-#define RECOVER_ERR             0x01	/* Target/Logical unit is recoverd  */
-#define NOT_READY               0x02	/* Logical unit is not ready        */
-#define MEDIA_ERR               0x03	/* medium/data error                */
-#define HARDWARE_ERR            0x04	/* hardware error                   */
 #define ILGAL_REQ               0x05	/* CDB/parameter/identify msg error */
-#define UNIT_ATTENTION          0x06	/* unit attention condition occur   */
-#define DAT_PRTCT               0x07	/* read/write is desable            */
-#define BLNC_CHK                0x08	/* find blank/DOF in read           */
-					/* write to unblank area            */
-#define CPY_ABRT                0x0a	/* Copy/Compare/Copy&Verify illgal  */
-#define ABRT_CMD                0x0b	/* Target make the command in error */
-#define EQUAL                   0x0c	/* Search Data end with Equal       */
-#define VLM_OVRFLW              0x0d	/* Some data are left in buffer     */
-#define MISCMP                  0x0e	/* find inequality                  */
 
 /*-----------------------------------
     SENSE_DATA
 -----------------------------------*/
-/*---- valid ----*/
-#define SENSE_VALID             0x80	/* Sense data is valid as SCSI2     */
-#define SENSE_INVALID           0x00	/* Sense data is invalid as SCSI2   */
 
 /*---- error code ----*/
 #define CUR_ERR                 0x70	/* current error                    */
-#define DEF_ERR                 0x71	/* specific command error           */
 
 /*---- sense key Infomation ----*/
-#define SNSKEYINFO_LEN          3	/* length of sense key infomation   */
 
 #define SKSV                    0x80
 #define CDB_ILLEGAL             0x40
-#define DAT_ILLEGAL             0x00
-#define BPV                     0x08
-#define BIT_ILLEGAL0            0	/* bit0 is illegal                  */
-#define BIT_ILLEGAL1            1	/* bit1 is illegal                  */
-#define BIT_ILLEGAL2            2	/* bit2 is illegal                  */
-#define BIT_ILLEGAL3            3	/* bit3 is illegal                  */
-#define BIT_ILLEGAL4            4	/* bit4 is illegal                  */
-#define BIT_ILLEGAL5            5	/* bit5 is illegal                  */
-#define BIT_ILLEGAL6            6	/* bit6 is illegal                  */
-#define BIT_ILLEGAL7            7	/* bit7 is illegal                  */
 
 /*---- ASC ----*/
-#define ASC_NO_INFO             0x00
-#define ASC_MISCMP              0x1d
 #define ASC_INVLD_CDB           0x24
-#define ASC_INVLD_PARA          0x26
-#define ASC_LU_NOT_READY	0x04
-#define ASC_WRITE_ERR           0x0c
-#define ASC_READ_ERR            0x11
-#define ASC_LOAD_EJCT_ERR       0x53
-#define	ASC_MEDIA_NOT_PRESENT	0x3A
-#define	ASC_MEDIA_CHANGED	0x28
-#define	ASC_MEDIA_IN_PROCESS	0x04
-#define	ASC_WRITE_PROTECT	0x27
-#define ASC_LUN_NOT_SUPPORTED	0x25
 
 /*---- ASQC ----*/
-#define ASCQ_NO_INFO            0x00
-#define	ASCQ_MEDIA_IN_PROCESS	0x01
-#define ASCQ_MISCMP             0x00
 #define ASCQ_INVLD_CDB          0x00
-#define ASCQ_INVLD_PARA         0x02
-#define ASCQ_LU_NOT_READY	0x02
-#define ASCQ_WRITE_ERR          0x02
-#define ASCQ_READ_ERR           0x00
-#define ASCQ_LOAD_EJCT_ERR      0x00
-#define	ASCQ_WRITE_PROTECT	0x00
 
 struct sense_data_t {
 	unsigned char err_code;	/* error code */
@@ -296,13 +226,13 @@ struct sense_data_t {
 	unsigned char seg_no;	/* segment No.                      */
 	unsigned char sense_key;	/* byte5 : ILI                      */
 	/* bit3-0 : sense key              */
-	unsigned char info[4];	/* infomation                       */
+	unsigned char info[4];	/* information                       */
 	unsigned char ad_sense_len;	/* additional sense data length     */
-	unsigned char cmd_info[4];	/* command specific infomation      */
+	unsigned char cmd_info[4];	/* command specific information      */
 	unsigned char asc;	/* ASC                              */
 	unsigned char ascq;	/* ASCQ                             */
 	unsigned char rfu;	/* FRU                              */
-	unsigned char sns_key_info[3];	/* sense key specific infomation    */
+	unsigned char sns_key_info[3];	/* sense key specific information    */
 };
 
 /* sd_ctl bit map */
@@ -323,8 +253,6 @@ struct sense_data_t {
 #define SUPPORT_UHS50_MMC44		0x40
 
 struct rts51x_option {
-	u8 led_blink_speed;
-
 	int mspro_formatter_enable;
 
 	/* card clock expected by user for fpga platform */
@@ -368,8 +296,6 @@ struct rts51x_option {
 	int ss_en;
 	/* Interval to enter SS from IDLE state (second) */
 	int ss_delay;
-	int needs_remote_wakeup;
-	u8 ww_enable;	/* sangdy2010-08-03:add for remote wakeup */
 
 	/* Enable SSC clock */
 	int ssc_en;
@@ -392,10 +318,7 @@ struct rts51x_option {
 	/*if reset or rw fail,then set SD20 pad drive again */
 	u8 reset_or_rw_fail_set_pad_drive;
 
-	u8 rcc_fail_flag;	/* add to indicate whether rcc bug happen */
-	u8 rcc_bug_fix_en;	/* if set,then support fixing rcc bug */
 	u8 debounce_num;	/* debounce number */
-	int polling_time;	/* polling delay time */
 	u8 led_toggle_interval;	/* used to control led toggle speed */
 	int xd_rwn_step;
 	u8 sd_send_status_en;
@@ -405,7 +328,7 @@ struct rts51x_option {
 	u8 ddr50_rx_phase;
 	u8 sdr50_tx_phase;
 	u8 sdr50_rx_phase;
-	/* used to enable select sdr50 tx phase according to  proportion. */
+	/* used to enable select sdr50 tx phase according to proportion. */
 	u8 sdr50_phase_sel;
 	u8 ms_errreg_fix;
 	u8 reset_mmc_first;
@@ -614,11 +537,6 @@ struct sd_info {
 	u8 sd_reset_fail;	/* sangdy2010-07-01 */
 	u8 sd_send_status_en;
 
-#ifdef SUPPORT_SD_LOCK
-	u8 sd_lock_status;
-	u8 sd_erase_status;
-	u8 sd_lock_notify;
-#endif
 };
 
 #define MODE_512_SEQ		0x01
@@ -720,9 +638,8 @@ struct rts51x_chip {
 	struct scsi_cmnd *srb;
 	struct sense_data_t sense_buffer[MAX_ALLOWED_LUN_CNT];
 
-#ifndef LED_AUTO_BLINK
 	int led_toggle_counter;
-#endif
+
 	int ss_counter;
 	int idle_counter;
 	int auto_delink_counter;

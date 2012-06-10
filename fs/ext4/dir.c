@@ -179,6 +179,18 @@ static int ext4_readdir(struct file *filp,
 			continue;
 		}
 
+		/* Check the checksum */
+		if (!buffer_verified(bh) &&
+		    !ext4_dirent_csum_verify(inode,
+				(struct ext4_dir_entry *)bh->b_data)) {
+			EXT4_ERROR_FILE(filp, 0, "directory fails checksum "
+					"at offset %llu",
+					(unsigned long long)filp->f_pos);
+			filp->f_pos += sb->s_blocksize - offset;
+			continue;
+		}
+		set_buffer_verified(bh);
+
 revalidate:
 		/* If the dir block has changed since the last call to
 		 * readdir(2), then we might be pointing to an invalid

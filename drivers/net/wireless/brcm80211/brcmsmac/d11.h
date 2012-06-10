@@ -733,7 +733,7 @@ struct cck_phy_hdr {
 	do { \
 		plcp[1] = len & 0xff; \
 		plcp[2] = ((len >> 8) & 0xff); \
-	} while (0);
+	} while (0)
 
 #define BRCMS_SET_MIMO_PLCP_AMPDU(plcp) (plcp[3] |= MIMO_PLCP_AMPDU)
 #define BRCMS_CLR_MIMO_PLCP_AMPDU(plcp) (plcp[3] &= ~MIMO_PLCP_AMPDU)

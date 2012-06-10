@@ -148,41 +148,7 @@ struct pcl711_board {
 	const struct comedi_lrange *ai_range_type;
 };
 
-static const struct pcl711_board boardtypes[] = {
-	{"pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5},
-	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai},
-	{"acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai},
-	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl711_board))
 #define this_board ((const struct pcl711_board *)dev->board_ptr)
-
-static int pcl711_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl711_detach(struct comedi_device *dev);
-static struct comedi_driver driver_pcl711 = {
-	.driver_name = "pcl711",
-	.module = THIS_MODULE,
-	.attach = pcl711_attach,
-	.detach = pcl711_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcl711_board),
-};
-
-static int __init driver_pcl711_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl711);
-}
-
-static void __exit driver_pcl711_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl711);
-}
-
-module_init(driver_pcl711_init_module);
-module_exit(driver_pcl711_cleanup_module);
 
 struct pcl711_private {
 
@@ -513,21 +479,6 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 	return 2;
 }
 
-/*  Free any resources that we have claimed  */
-static int pcl711_detach(struct comedi_device *dev)
-{
-	printk(KERN_INFO "comedi%d: pcl711: remove\n", dev->minor);
-
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-
-	if (dev->iobase)
-		release_region(dev->iobase, PCL711_SIZE);
-
-	return 0;
-}
-
-/*  Initialization */
 static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
@@ -639,6 +590,32 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	return 0;
 }
+
+static void pcl711_detach(struct comedi_device *dev)
+{
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (dev->iobase)
+		release_region(dev->iobase, PCL711_SIZE);
+}
+
+static const struct pcl711_board boardtypes[] = {
+	{ "pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5 },
+	{ "pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai },
+	{ "acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai },
+	{ "acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai },
+};
+
+static struct comedi_driver pcl711_driver = {
+	.driver_name	= "pcl711",
+	.module		= THIS_MODULE,
+	.attach		= pcl711_attach,
+	.detach		= pcl711_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcl711_board),
+};
+module_comedi_driver(pcl711_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

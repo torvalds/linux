@@ -1,8 +1,11 @@
 /*
  *  Atheros AR913X/AR933X SoC built-in WMAC device support
  *
+ *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
  *  Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
+ *
+ *  Parts of this file are based on Atheros 2.6.15/2.6.31 BSP
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -26,8 +29,7 @@ static struct resource ath79_wmac_resources[] = {
 		/* .start and .end fields are filled dynamically */
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= ATH79_CPU_IRQ_IP2,
-		.end	= ATH79_CPU_IRQ_IP2,
+		/* .start and .end fields are filled dynamically */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -53,13 +55,15 @@ static void __init ar913x_wmac_setup(void)
 
 	ath79_wmac_resources[0].start = AR913X_WMAC_BASE;
 	ath79_wmac_resources[0].end = AR913X_WMAC_BASE + AR913X_WMAC_SIZE - 1;
+	ath79_wmac_resources[1].start = ATH79_CPU_IRQ_IP2;
+	ath79_wmac_resources[1].end = ATH79_CPU_IRQ_IP2;
 }
 
 
 static int ar933x_wmac_reset(void)
 {
-	ath79_device_reset_clear(AR933X_RESET_WMAC);
 	ath79_device_reset_set(AR933X_RESET_WMAC);
+	ath79_device_reset_clear(AR933X_RESET_WMAC);
 
 	return 0;
 }
@@ -79,6 +83,8 @@ static void __init ar933x_wmac_setup(void)
 
 	ath79_wmac_resources[0].start = AR933X_WMAC_BASE;
 	ath79_wmac_resources[0].end = AR933X_WMAC_BASE + AR933X_WMAC_SIZE - 1;
+	ath79_wmac_resources[1].start = ATH79_CPU_IRQ_IP2;
+	ath79_wmac_resources[1].end = ATH79_CPU_IRQ_IP2;
 
 	t = ath79_reset_rr(AR933X_RESET_REG_BOOTSTRAP);
 	if (t & AR933X_BOOTSTRAP_REF_CLK_40)
@@ -92,12 +98,32 @@ static void __init ar933x_wmac_setup(void)
 	ath79_wmac_data.external_reset = ar933x_wmac_reset;
 }
 
+static void ar934x_wmac_setup(void)
+{
+	u32 t;
+
+	ath79_wmac_device.name = "ar934x_wmac";
+
+	ath79_wmac_resources[0].start = AR934X_WMAC_BASE;
+	ath79_wmac_resources[0].end = AR934X_WMAC_BASE + AR934X_WMAC_SIZE - 1;
+	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
+	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
+
+	t = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
+	if (t & AR934X_BOOTSTRAP_REF_CLK_40)
+		ath79_wmac_data.is_clk_25mhz = false;
+	else
+		ath79_wmac_data.is_clk_25mhz = true;
+}
+
 void __init ath79_register_wmac(u8 *cal_data)
 {
 	if (soc_is_ar913x())
 		ar913x_wmac_setup();
 	else if (soc_is_ar933x())
 		ar933x_wmac_setup();
+	else if (soc_is_ar934x())
+		ar934x_wmac_setup();
 	else
 		BUG();
 

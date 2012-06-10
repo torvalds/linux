@@ -437,6 +437,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	 */
 	if ((fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA) &&
 	    (fctl & FC_FC_END_SEQ)) {
+		skb_linearize(skb);
 		crc = (struct fcoe_crc_eof *)skb_put(skb, sizeof(*crc));
 		crc->fcoe_eof = FC_EOF_T;
 	}

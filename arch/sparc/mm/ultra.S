@@ -495,11 +495,11 @@ xcall_fetch_glob_regs:
 	stx		%o7, [%g1 + GR_SNAP_O7]
 	stx		%i7, [%g1 + GR_SNAP_I7]
 	/* Don't try this at home kids... */
-	rdpr		%cwp, %g2
-	sub		%g2, 1, %g7
+	rdpr		%cwp, %g3
+	sub		%g3, 1, %g7
 	wrpr		%g7, %cwp
 	mov		%i7, %g7
-	wrpr		%g2, %cwp
+	wrpr		%g3, %cwp
 	stx		%g7, [%g1 + GR_SNAP_RPC]
 	sethi		%hi(trap_block), %g7
 	or		%g7, %lo(trap_block), %g7

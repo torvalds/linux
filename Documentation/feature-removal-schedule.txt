@@ -2,7 +2,14 @@ The following is a list of files and features that are going to be
 removed in the kernel source tree.  Every entry should contain what
 exactly is going away, why it is happening, and who is going to be doing
 the work.  When the feature is removed from the kernel, it should also
-be removed from this file.
+be removed from this file.  The suggested deprecation period is 3 releases.
+
+---------------------------
+
+What:	ddebug_query="query" boot cmdline param
+When:	v3.8
+Why:	obsoleted by dyndbg="query" and module.dyndbg="query"
+Who:	Jim Cromie <jim.cromie@gmail.com>, Jason Baron <jbaron@redhat.com>
 
 ---------------------------
 
@@ -534,8 +541,74 @@ Who:	Kees Cook <keescook@chromium.org>
 
 ----------------------------
 
+What:	Removing the pn544 raw driver.
+When:	3.6
+Why:	With the introduction of the NFC HCI and SHDL kernel layers, pn544.c
+	is being replaced by pn544_hci.c which is accessible through the netlink
+	and socket NFC APIs. Moreover, pn544.c is outdated and does not seem to
+	work properly with the latest Android stacks.
+	Having 2 drivers for the same hardware is confusing and as such we
+	should only keep the one following the kernel NFC APIs.
+Who:	Samuel Ortiz <sameo@linux.intel.com>
+
+----------------------------
+
 What:	setitimer accepts user NULL pointer (value)
 When:	3.6
 Why:	setitimer is not returning -EFAULT if user pointer is NULL. This
 	violates the spec.
 Who:	Sasikantha Babu <sasikanth.v19@gmail.com>
+
+----------------------------
+
+What:	remove bogus DV presets V4L2_DV_1080I29_97, V4L2_DV_1080I30 and
+	V4L2_DV_1080I25
+When:	3.6
+Why:	These HDTV formats do not exist and were added by a confused mind
+	(that was me, to be precise...)
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
+
+----------------------------
+
+What:	V4L2_CID_HCENTER, V4L2_CID_VCENTER V4L2 controls
+When:	3.7
+Why:	The V4L2_CID_VCENTER, V4L2_CID_HCENTER controls have been deprecated
+	for about 4 years and they are not used by any mainline driver.
+	There are newer controls (V4L2_CID_PAN*, V4L2_CID_TILT*) that provide
+	similar	functionality.
+Who:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
+
+----------------------------
+
+What:	cgroup option updates via remount
+When:	March 2013
+Why:	Remount currently allows changing bound subsystems and
+	release_agent.  Rebinding is hardly useful as it only works
+	when the hierarchy is empty and release_agent itself should be
+	replaced with conventional fsnotify.
+
+----------------------------
+
+What:	KVM debugfs statistics
+When:	2013
+Why:	KVM tracepoints provide mostly equivalent information in a much more
+        flexible fashion.
+
+----------------------------
+
+What:	at91-mci driver ("CONFIG_MMC_AT91")
+When:	3.7
+Why:	There are two mci drivers: at91-mci and atmel-mci. The PDC support
+	was added to atmel-mci as a first step to support more chips.
+	Then at91-mci was kept only for old IP versions (on at91rm9200 and
+	at91sam9261). The support of these IP versions has just been added
+	to atmel-mci, so atmel-mci can be used for all chips.
+Who:	Ludovic Desroches <ludovic.desroches@atmel.com>
+
+----------------------------
+
+What:	net/wanrouter/
+When:	June 2013
+Why:	Unsupported/unmaintained/unused since 2.6
+
+----------------------------

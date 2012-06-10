@@ -421,6 +421,9 @@ void be_parse_stats(struct be_adapter *adapter)
 		populate_be2_stats(adapter);
 	}
 
+	if (lancer_chip(adapter))
+		goto done;
+
 	/* as erx_v1 is longer than v0, ok to use v1 defn for v0 access */
 	for_all_rx_queues(adapter, rxo, i) {
 		/* below erx HW counter can actually wrap around after
@@ -429,6 +432,8 @@ void be_parse_stats(struct be_adapter *adapter)
 		accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
 				(u16)erx->rx_drops_no_fragments[rxo->q.id]);
 	}
+done:
+	return;
 }
 
 static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
@@ -797,21 +802,29 @@ static int be_vid_config(struct be_adapter *adapter, bool vf, u32 vf_num)
 	if (adapter->promiscuous)
 		return 0;
 
-	if (adapter->vlans_added <= adapter->max_vlans)  {
-		/* Construct VLAN Table to give to HW */
-		for (i = 0; i < VLAN_N_VID; i++) {
-			if (adapter->vlan_tag[i]) {
-				vtag[ntags] = cpu_to_le16(i);
-				ntags++;
-			}
-		}
-		status = be_cmd_vlan_config(adapter, adapter->if_handle,
-					vtag, ntags, 1, 0);
-	} else {
-		status = be_cmd_vlan_config(adapter, adapter->if_handle,
-					NULL, 0, 1, 1);
+	if (adapter->vlans_added > adapter->max_vlans)
+		goto set_vlan_promisc;
+
+	/* Construct VLAN Table to give to HW */
+	for (i = 0; i < VLAN_N_VID; i++)
+		if (adapter->vlan_tag[i])
+			vtag[ntags++] = cpu_to_le16(i);
+
+	status = be_cmd_vlan_config(adapter, adapter->if_handle,
+				    vtag, ntags, 1, 0);
+
+	/* Set to VLAN promisc mode as setting VLAN filter failed */
+	if (status) {
+		dev_info(&adapter->pdev->dev, "Exhausted VLAN HW filters.\n");
+		dev_info(&adapter->pdev->dev, "Disabling HW VLAN filtering.\n");
+		goto set_vlan_promisc;
 	}
 
+	return status;
+
+set_vlan_promisc:
+	status = be_cmd_vlan_config(adapter, adapter->if_handle,
+				    NULL, 0, 1, 1);
 	return status;
 }
 
@@ -862,6 +875,7 @@ ret:
 static void be_set_rx_mode(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
 
 	if (netdev->flags & IFF_PROMISC) {
 		be_cmd_rx_filter(adapter, IFF_PROMISC, ON);
@@ -908,7 +922,14 @@ static void be_set_rx_mode(struct net_device *netdev)
 		}
 	}
 
-	be_cmd_rx_filter(adapter, IFF_MULTICAST, ON);
+	status = be_cmd_rx_filter(adapter, IFF_MULTICAST, ON);
+
+	/* Set to MCAST promisc mode if setting MULTICAST address fails */
+	if (status) {
+		dev_info(&adapter->pdev->dev, "Exhausted multicast HW filters.\n");
+		dev_info(&adapter->pdev->dev, "Disabling HW multicast filtering.\n");
+		be_cmd_rx_filter(adapter, IFF_ALLMULTI, ON);
+	}
 done:
 	return;
 }
@@ -1026,6 +1047,29 @@ static int be_set_vf_tx_rate(struct net_device *netdev,
 	else
 		adapter->vf_cfg[vf].tx_rate = rate;
 	return status;
+}
+
+static int be_find_vfs(struct be_adapter *adapter, int vf_state)
+{
+	struct pci_dev *dev, *pdev = adapter->pdev;
+	int vfs = 0, assigned_vfs = 0, pos, vf_fn;
+	u16 offset, stride;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_OFFSET, &offset);
+	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_STRIDE, &stride);
+
+	dev = pci_get_device(pdev->vendor, PCI_ANY_ID, NULL);
+	while (dev) {
+		vf_fn = (pdev->devfn + offset + stride * vfs) & 0xFFFF;
+		if (dev->is_virtfn && dev->devfn == vf_fn) {
+			vfs++;
+			if (dev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
+				assigned_vfs++;
+		}
+		dev = pci_get_device(pdev->vendor, PCI_ANY_ID, dev);
+	}
+	return (vf_state == ASSIGNED) ? assigned_vfs : vfs;
 }
 
 static void be_eqd_update(struct be_adapter *adapter, struct be_eq_obj *eqo)
@@ -1238,6 +1282,7 @@ static void be_rx_compl_process(struct be_rx_obj *rxo,
 		skb_checksum_none_assert(skb);
 
 	skb->protocol = eth_type_trans(skb, netdev);
+	skb_record_rx_queue(skb, rxo - &adapter->rx_obj[0]);
 	if (netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
@@ -1294,6 +1339,7 @@ void be_rx_compl_process_gro(struct be_rx_obj *rxo, struct napi_struct *napi,
 	skb->len = rxcp->pkt_size;
 	skb->data_len = rxcp->pkt_size;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb_record_rx_queue(skb, rxo - &adapter->rx_obj[0]);
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
@@ -1555,7 +1601,9 @@ static int event_handle(struct be_eq_obj *eqo)
 	if (!num)
 		rearm = true;
 
-	be_eq_notify(eqo->adapter, eqo->q.id, rearm, true, num);
+	if (num || msix_enabled(eqo->adapter))
+		be_eq_notify(eqo->adapter, eqo->q.id, rearm, true, num);
+
 	if (num)
 		napi_schedule(&eqo->napi);
 
@@ -1764,9 +1812,9 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 
 static int be_num_txqs_want(struct be_adapter *adapter)
 {
-	if (sriov_enabled(adapter) || be_is_mc(adapter) ||
-		lancer_chip(adapter) || !be_physfn(adapter) ||
-		adapter->generation == BE_GEN2)
+	if (sriov_want(adapter) || be_is_mc(adapter) ||
+	    lancer_chip(adapter) || !be_physfn(adapter) ||
+	    adapter->generation == BE_GEN2)
 		return 1;
 	else
 		return MAX_TX_QS;
@@ -2093,7 +2141,7 @@ static void be_msix_disable(struct be_adapter *adapter)
 static uint be_num_rss_want(struct be_adapter *adapter)
 {
 	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
-	     adapter->num_vfs == 0 && be_physfn(adapter) &&
+	     !sriov_want(adapter) && be_physfn(adapter) &&
 	     !be_is_mc(adapter))
 		return (adapter->be3_native) ? BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
 	else
@@ -2103,10 +2151,17 @@ static uint be_num_rss_want(struct be_adapter *adapter)
 static void be_msix_enable(struct be_adapter *adapter)
 {
 #define BE_MIN_MSIX_VECTORS		1
-	int i, status, num_vec;
+	int i, status, num_vec, num_roce_vec = 0;
 
 	/* If RSS queues are not used, need a vec for default RX Q */
 	num_vec = min(be_num_rss_want(adapter), num_online_cpus());
+	if (be_roce_supported(adapter)) {
+		num_roce_vec = min_t(u32, MAX_ROCE_MSIX_VECTORS,
+					(num_online_cpus() + 1));
+		num_roce_vec = min(num_roce_vec, MAX_ROCE_EQS);
+		num_vec += num_roce_vec;
+		num_vec = min(num_vec, MAX_MSIX_VECTORS);
+	}
 	num_vec = max(num_vec, BE_MIN_MSIX_VECTORS);
 
 	for (i = 0; i < num_vec; i++)
@@ -2123,55 +2178,18 @@ static void be_msix_enable(struct be_adapter *adapter)
 	}
 	return;
 done:
-	adapter->num_msix_vec = num_vec;
-	return;
-}
-
-static int be_sriov_enable(struct be_adapter *adapter)
-{
-	be_check_sriov_fn_type(adapter);
-
-#ifdef CONFIG_PCI_IOV
-	if (be_physfn(adapter) && num_vfs) {
-		int status, pos;
-		u16 dev_vfs;
-
-		pos = pci_find_ext_capability(adapter->pdev,
-						PCI_EXT_CAP_ID_SRIOV);
-		pci_read_config_word(adapter->pdev,
-				     pos + PCI_SRIOV_TOTAL_VF, &dev_vfs);
-
-		adapter->num_vfs = min_t(u16, num_vfs, dev_vfs);
-		if (adapter->num_vfs != num_vfs)
-			dev_info(&adapter->pdev->dev,
-				 "Device supports %d VFs and not %d\n",
-				 adapter->num_vfs, num_vfs);
-
-		status = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
-		if (status)
-			adapter->num_vfs = 0;
-
-		if (adapter->num_vfs) {
-			adapter->vf_cfg = kcalloc(num_vfs,
-						sizeof(struct be_vf_cfg),
-						GFP_KERNEL);
-			if (!adapter->vf_cfg)
-				return -ENOMEM;
+	if (be_roce_supported(adapter)) {
+		if (num_vec > num_roce_vec) {
+			adapter->num_msix_vec = num_vec - num_roce_vec;
+			adapter->num_msix_roce_vec =
+				num_vec - adapter->num_msix_vec;
+		} else {
+			adapter->num_msix_vec = num_vec;
+			adapter->num_msix_roce_vec = 0;
 		}
-	}
-#endif
-	return 0;
-}
-
-static void be_sriov_disable(struct be_adapter *adapter)
-{
-#ifdef CONFIG_PCI_IOV
-	if (sriov_enabled(adapter)) {
-		pci_disable_sriov(adapter->pdev);
-		kfree(adapter->vf_cfg);
-		adapter->num_vfs = 0;
-	}
-#endif
+	} else
+		adapter->num_msix_vec = num_vec;
+	return;
 }
 
 static inline int be_msix_vec_get(struct be_adapter *adapter,
@@ -2282,6 +2300,8 @@ static int be_close(struct net_device *netdev)
 	struct be_eq_obj *eqo;
 	int i;
 
+	be_roce_dev_close(adapter);
+
 	be_async_mcc_disable(adapter);
 
 	if (!lancer_chip(adapter))
@@ -2390,6 +2410,7 @@ static int be_open(struct net_device *netdev)
 	if (!status)
 		be_link_status_update(adapter, link_status);
 
+	be_roce_dev_open(adapter);
 	return 0;
 err:
 	be_close(adapter->netdev);
@@ -2475,6 +2496,11 @@ static void be_vf_clear(struct be_adapter *adapter)
 	struct be_vf_cfg *vf_cfg;
 	u32 vf;
 
+	if (be_find_vfs(adapter, ASSIGNED)) {
+		dev_warn(&adapter->pdev->dev, "VFs are assigned to VMs\n");
+		goto done;
+	}
+
 	for_all_vfs(adapter, vf_cfg, vf) {
 		if (lancer_chip(adapter))
 			be_cmd_set_mac_list(adapter, NULL, 0, vf + 1);
@@ -2484,6 +2510,10 @@ static void be_vf_clear(struct be_adapter *adapter)
 
 		be_cmd_if_destroy(adapter, vf_cfg->if_handle, vf + 1);
 	}
+	pci_disable_sriov(adapter->pdev);
+done:
+	kfree(adapter->vf_cfg);
+	adapter->num_vfs = 0;
 }
 
 static int be_clear(struct be_adapter *adapter)
@@ -2513,29 +2543,60 @@ static int be_clear(struct be_adapter *adapter)
 	be_cmd_fw_clean(adapter);
 
 	be_msix_disable(adapter);
-	kfree(adapter->pmac_id);
+	pci_write_config_dword(adapter->pdev, PCICFG_CUST_SCRATCHPAD_CSR, 0);
 	return 0;
 }
 
-static void be_vf_setup_init(struct be_adapter *adapter)
+static int be_vf_setup_init(struct be_adapter *adapter)
 {
 	struct be_vf_cfg *vf_cfg;
 	int vf;
+
+	adapter->vf_cfg = kcalloc(adapter->num_vfs, sizeof(*vf_cfg),
+				  GFP_KERNEL);
+	if (!adapter->vf_cfg)
+		return -ENOMEM;
 
 	for_all_vfs(adapter, vf_cfg, vf) {
 		vf_cfg->if_handle = -1;
 		vf_cfg->pmac_id = -1;
 	}
+	return 0;
 }
 
 static int be_vf_setup(struct be_adapter *adapter)
 {
 	struct be_vf_cfg *vf_cfg;
+	struct device *dev = &adapter->pdev->dev;
 	u32 cap_flags, en_flags, vf;
 	u16 def_vlan, lnk_speed;
-	int status;
+	int status, enabled_vfs;
 
-	be_vf_setup_init(adapter);
+	enabled_vfs = be_find_vfs(adapter, ENABLED);
+	if (enabled_vfs) {
+		dev_warn(dev, "%d VFs are already enabled\n", enabled_vfs);
+		dev_warn(dev, "Ignoring num_vfs=%d setting\n", num_vfs);
+		return 0;
+	}
+
+	if (num_vfs > adapter->dev_num_vfs) {
+		dev_warn(dev, "Device supports %d VFs and not %d\n",
+			 adapter->dev_num_vfs, num_vfs);
+		num_vfs = adapter->dev_num_vfs;
+	}
+
+	status = pci_enable_sriov(adapter->pdev, num_vfs);
+	if (!status) {
+		adapter->num_vfs = num_vfs;
+	} else {
+		/* Platform doesn't support SRIOV though device supports it */
+		dev_warn(dev, "SRIOV enable failed\n");
+		return 0;
+	}
+
+	status = be_vf_setup_init(adapter);
+	if (status)
+		goto err;
 
 	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 				BE_IF_FLAGS_MULTICAST;
@@ -2546,9 +2607,11 @@ static int be_vf_setup(struct be_adapter *adapter)
 			goto err;
 	}
 
-	status = be_vf_eth_addr_config(adapter);
-	if (status)
-		goto err;
+	if (!enabled_vfs) {
+		status = be_vf_eth_addr_config(adapter);
+		if (status)
+			goto err;
+	}
 
 	for_all_vfs(adapter, vf_cfg, vf) {
 		status = be_cmd_link_status_query(adapter, NULL, &lnk_speed,
@@ -2571,11 +2634,12 @@ err:
 static void be_setup_init(struct be_adapter *adapter)
 {
 	adapter->vlan_prio_bmap = 0xff;
-	adapter->link_speed = -1;
+	adapter->phy.link_speed = -1;
 	adapter->if_handle = -1;
 	adapter->be3_native = false;
 	adapter->promiscuous = false;
 	adapter->eq_next_idx = 0;
+	adapter->phy.forced_port_speed = -1;
 }
 
 static int be_add_mac_from_list(struct be_adapter *adapter, u8 *mac)
@@ -2604,15 +2668,33 @@ do_none:
 	return status;
 }
 
+/* Routine to query per function resource limits */
+static int be_get_config(struct be_adapter *adapter)
+{
+	int pos;
+	u16 dev_num_vfs;
+
+	pos = pci_find_ext_capability(adapter->pdev, PCI_EXT_CAP_ID_SRIOV);
+	if (pos) {
+		pci_read_config_word(adapter->pdev, pos + PCI_SRIOV_TOTAL_VF,
+				     &dev_num_vfs);
+		adapter->dev_num_vfs = dev_num_vfs;
+	}
+	return 0;
+}
+
 static int be_setup(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct device *dev = &adapter->pdev->dev;
 	u32 cap_flags, en_flags;
 	u32 tx_fc, rx_fc;
 	int status;
 	u8 mac[ETH_ALEN];
 
 	be_setup_init(adapter);
+
+	be_get_config(adapter);
 
 	be_cmd_req_native_mode(adapter);
 
@@ -2680,36 +2762,33 @@ static int be_setup(struct be_adapter *adapter)
 
 	be_cmd_get_fw_ver(adapter, adapter->fw_ver, NULL);
 
-	status = be_vid_config(adapter, false, 0);
-	if (status)
-		goto err;
+	be_vid_config(adapter, false, 0);
 
 	be_set_rx_mode(adapter->netdev);
 
-	status = be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
-	/* For Lancer: It is legal for this cmd to fail on VF */
-	if (status && (be_physfn(adapter) || !lancer_chip(adapter)))
-		goto err;
+	be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
 
-	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc) {
-		status = be_cmd_set_flow_control(adapter, adapter->tx_fc,
+	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc)
+		be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					adapter->rx_fc);
-		/* For Lancer: It is legal for this cmd to fail on VF */
-		if (status && (be_physfn(adapter) || !lancer_chip(adapter)))
-			goto err;
-	}
 
 	pcie_set_readrq(adapter->pdev, 4096);
 
-	if (sriov_enabled(adapter)) {
-		status = be_vf_setup(adapter);
-		if (status)
-			goto err;
+	if (be_physfn(adapter) && num_vfs) {
+		if (adapter->dev_num_vfs)
+			be_vf_setup(adapter);
+		else
+			dev_warn(dev, "device doesn't support SRIOV\n");
 	}
+
+	be_cmd_get_phy_info(adapter);
+	if (be_pause_supported(adapter))
+		adapter->phy.fc_autoneg = 1;
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
 
+	pci_write_config_dword(adapter->pdev, PCICFG_CUST_SCRATCHPAD_CSR, 1);
 	return 0;
 err:
 	be_clear(adapter);
@@ -2731,6 +2810,8 @@ static void be_netpoll(struct net_device *netdev)
 #endif
 
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
+char flash_cookie[2][16] =      {"*** SE FLAS", "H DIRECTORY *** "};
+
 static bool be_flash_redboot(struct be_adapter *adapter,
 			const u8 *p, u32 img_start, int image_size,
 			int hdr_size)
@@ -2760,71 +2841,105 @@ static bool be_flash_redboot(struct be_adapter *adapter,
 
 static bool phy_flashing_required(struct be_adapter *adapter)
 {
-	int status = 0;
-	struct be_phy_info phy_info;
+	return (adapter->phy.phy_type == TN_8022 &&
+		adapter->phy.interface_type == PHY_TYPE_BASET_10GB);
+}
 
-	status = be_cmd_get_phy_info(adapter, &phy_info);
-	if (status)
-		return false;
-	if ((phy_info.phy_type == TN_8022) &&
-		(phy_info.interface_type == PHY_TYPE_BASET_10GB)) {
-		return true;
+static bool is_comp_in_ufi(struct be_adapter *adapter,
+			   struct flash_section_info *fsec, int type)
+{
+	int i = 0, img_type = 0;
+	struct flash_section_info_g2 *fsec_g2 = NULL;
+
+	if (adapter->generation != BE_GEN3)
+		fsec_g2 = (struct flash_section_info_g2 *)fsec;
+
+	for (i = 0; i < MAX_FLASH_COMP; i++) {
+		if (fsec_g2)
+			img_type = le32_to_cpu(fsec_g2->fsec_entry[i].type);
+		else
+			img_type = le32_to_cpu(fsec->fsec_entry[i].type);
+
+		if (img_type == type)
+			return true;
 	}
 	return false;
+
+}
+
+struct flash_section_info *get_fsec_info(struct be_adapter *adapter,
+					 int header_size,
+					 const struct firmware *fw)
+{
+	struct flash_section_info *fsec = NULL;
+	const u8 *p = fw->data;
+
+	p += header_size;
+	while (p < (fw->data + fw->size)) {
+		fsec = (struct flash_section_info *)p;
+		if (!memcmp(flash_cookie, fsec->cookie, sizeof(flash_cookie)))
+			return fsec;
+		p += 32;
+	}
+	return NULL;
 }
 
 static int be_flash_data(struct be_adapter *adapter,
-			const struct firmware *fw,
-			struct be_dma_mem *flash_cmd, int num_of_images)
+			 const struct firmware *fw,
+			 struct be_dma_mem *flash_cmd,
+			 int num_of_images)
 
 {
 	int status = 0, i, filehdr_size = 0;
+	int img_hdrs_size = (num_of_images * sizeof(struct image_hdr));
 	u32 total_bytes = 0, flash_op;
 	int num_bytes;
 	const u8 *p = fw->data;
 	struct be_cmd_write_flashrom *req = flash_cmd->va;
 	const struct flash_comp *pflashcomp;
-	int num_comp;
+	int num_comp, hdr_size;
+	struct flash_section_info *fsec = NULL;
 
-	static const struct flash_comp gen3_flash_types[10] = {
-		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g3, IMG_TYPE_ISCSI_ACTIVE,
-			FLASH_IMAGE_MAX_SIZE_g3},
-		{ FLASH_REDBOOT_START_g3, IMG_TYPE_REDBOOT,
-			FLASH_REDBOOT_IMAGE_MAX_SIZE_g3},
-		{ FLASH_iSCSI_BIOS_START_g3, IMG_TYPE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
-		{ FLASH_PXE_BIOS_START_g3, IMG_TYPE_PXE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
-		{ FLASH_FCoE_BIOS_START_g3, IMG_TYPE_FCOE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
-		{ FLASH_iSCSI_BACKUP_IMAGE_START_g3, IMG_TYPE_ISCSI_BACKUP,
-			FLASH_IMAGE_MAX_SIZE_g3},
-		{ FLASH_FCoE_PRIMARY_IMAGE_START_g3, IMG_TYPE_FCOE_FW_ACTIVE,
-			FLASH_IMAGE_MAX_SIZE_g3},
-		{ FLASH_FCoE_BACKUP_IMAGE_START_g3, IMG_TYPE_FCOE_FW_BACKUP,
-			FLASH_IMAGE_MAX_SIZE_g3},
-		{ FLASH_NCSI_START_g3, IMG_TYPE_NCSI_FW,
-			FLASH_NCSI_IMAGE_MAX_SIZE_g3},
-		{ FLASH_PHY_FW_START_g3, IMG_TYPE_PHY_FW,
-			FLASH_PHY_FW_IMAGE_MAX_SIZE_g3}
+	struct flash_comp gen3_flash_types[] = {
+		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g3, OPTYPE_ISCSI_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_iSCSI},
+		{ FLASH_REDBOOT_START_g3, OPTYPE_REDBOOT,
+			FLASH_REDBOOT_IMAGE_MAX_SIZE_g3, IMAGE_BOOT_CODE},
+		{ FLASH_iSCSI_BIOS_START_g3, OPTYPE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3, IMAGE_OPTION_ROM_ISCSI},
+		{ FLASH_PXE_BIOS_START_g3, OPTYPE_PXE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3, IMAGE_OPTION_ROM_PXE},
+		{ FLASH_FCoE_BIOS_START_g3, OPTYPE_FCOE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3, IMAGE_OPTION_ROM_FCoE},
+		{ FLASH_iSCSI_BACKUP_IMAGE_START_g3, OPTYPE_ISCSI_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_BACKUP_iSCSI},
+		{ FLASH_FCoE_PRIMARY_IMAGE_START_g3, OPTYPE_FCOE_FW_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_FCoE},
+		{ FLASH_FCoE_BACKUP_IMAGE_START_g3, OPTYPE_FCOE_FW_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_BACKUP_FCoE},
+		{ FLASH_NCSI_START_g3, OPTYPE_NCSI_FW,
+			FLASH_NCSI_IMAGE_MAX_SIZE_g3, IMAGE_NCSI},
+		{ FLASH_PHY_FW_START_g3, OPTYPE_PHY_FW,
+			FLASH_PHY_FW_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_PHY}
 	};
-	static const struct flash_comp gen2_flash_types[8] = {
-		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g2, IMG_TYPE_ISCSI_ACTIVE,
-			FLASH_IMAGE_MAX_SIZE_g2},
-		{ FLASH_REDBOOT_START_g2, IMG_TYPE_REDBOOT,
-			FLASH_REDBOOT_IMAGE_MAX_SIZE_g2},
-		{ FLASH_iSCSI_BIOS_START_g2, IMG_TYPE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
-		{ FLASH_PXE_BIOS_START_g2, IMG_TYPE_PXE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
-		{ FLASH_FCoE_BIOS_START_g2, IMG_TYPE_FCOE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
-		{ FLASH_iSCSI_BACKUP_IMAGE_START_g2, IMG_TYPE_ISCSI_BACKUP,
-			FLASH_IMAGE_MAX_SIZE_g2},
-		{ FLASH_FCoE_PRIMARY_IMAGE_START_g2, IMG_TYPE_FCOE_FW_ACTIVE,
-			FLASH_IMAGE_MAX_SIZE_g2},
-		{ FLASH_FCoE_BACKUP_IMAGE_START_g2, IMG_TYPE_FCOE_FW_BACKUP,
-			 FLASH_IMAGE_MAX_SIZE_g2}
+
+	struct flash_comp gen2_flash_types[] = {
+		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g2, OPTYPE_ISCSI_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_iSCSI},
+		{ FLASH_REDBOOT_START_g2, OPTYPE_REDBOOT,
+			FLASH_REDBOOT_IMAGE_MAX_SIZE_g2, IMAGE_BOOT_CODE},
+		{ FLASH_iSCSI_BIOS_START_g2, OPTYPE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2, IMAGE_OPTION_ROM_ISCSI},
+		{ FLASH_PXE_BIOS_START_g2, OPTYPE_PXE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2, IMAGE_OPTION_ROM_PXE},
+		{ FLASH_FCoE_BIOS_START_g2, OPTYPE_FCOE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2, IMAGE_OPTION_ROM_FCoE},
+		{ FLASH_iSCSI_BACKUP_IMAGE_START_g2, OPTYPE_ISCSI_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_BACKUP_iSCSI},
+		{ FLASH_FCoE_PRIMARY_IMAGE_START_g2, OPTYPE_FCOE_FW_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_FCoE},
+		{ FLASH_FCoE_BACKUP_IMAGE_START_g2, OPTYPE_FCOE_FW_BACKUP,
+			 FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_BACKUP_FCoE}
 	};
 
 	if (adapter->generation == BE_GEN3) {
@@ -2836,22 +2951,37 @@ static int be_flash_data(struct be_adapter *adapter,
 		filehdr_size = sizeof(struct flash_file_hdr_g2);
 		num_comp = ARRAY_SIZE(gen2_flash_types);
 	}
+	/* Get flash section info*/
+	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
+	if (!fsec) {
+		dev_err(&adapter->pdev->dev,
+			"Invalid Cookie. UFI corrupted ?\n");
+		return -1;
+	}
 	for (i = 0; i < num_comp; i++) {
-		if ((pflashcomp[i].optype == IMG_TYPE_NCSI_FW) &&
-				memcmp(adapter->fw_ver, "3.102.148.0", 11) < 0)
+		if (!is_comp_in_ufi(adapter, fsec, pflashcomp[i].img_type))
 			continue;
-		if (pflashcomp[i].optype == IMG_TYPE_PHY_FW) {
+
+		if ((pflashcomp[i].optype == OPTYPE_NCSI_FW) &&
+		    memcmp(adapter->fw_ver, "3.102.148.0", 11) < 0)
+			continue;
+
+		if (pflashcomp[i].optype == OPTYPE_PHY_FW) {
 			if (!phy_flashing_required(adapter))
 				continue;
 		}
-		if ((pflashcomp[i].optype == IMG_TYPE_REDBOOT) &&
-			(!be_flash_redboot(adapter, fw->data,
-			pflashcomp[i].offset, pflashcomp[i].size, filehdr_size +
-			(num_of_images * sizeof(struct image_hdr)))))
+
+		hdr_size = filehdr_size +
+			   (num_of_images * sizeof(struct image_hdr));
+
+		if ((pflashcomp[i].optype == OPTYPE_REDBOOT) &&
+		    (!be_flash_redboot(adapter, fw->data, pflashcomp[i].offset,
+				       pflashcomp[i].size, hdr_size)))
 			continue;
+
+		/* Flash the component */
 		p = fw->data;
-		p += filehdr_size + pflashcomp[i].offset
-			+ (num_of_images * sizeof(struct image_hdr));
+		p += filehdr_size + pflashcomp[i].offset + img_hdrs_size;
 		if (p + pflashcomp[i].size > fw->data + fw->size)
 			return -1;
 		total_bytes = pflashcomp[i].size;
@@ -2862,12 +2992,12 @@ static int be_flash_data(struct be_adapter *adapter,
 				num_bytes = total_bytes;
 			total_bytes -= num_bytes;
 			if (!total_bytes) {
-				if (pflashcomp[i].optype == IMG_TYPE_PHY_FW)
+				if (pflashcomp[i].optype == OPTYPE_PHY_FW)
 					flash_op = FLASHROM_OPER_PHY_FLASH;
 				else
 					flash_op = FLASHROM_OPER_FLASH;
 			} else {
-				if (pflashcomp[i].optype == IMG_TYPE_PHY_FW)
+				if (pflashcomp[i].optype == OPTYPE_PHY_FW)
 					flash_op = FLASHROM_OPER_PHY_SAVE;
 				else
 					flash_op = FLASHROM_OPER_SAVE;
@@ -2879,7 +3009,7 @@ static int be_flash_data(struct be_adapter *adapter,
 			if (status) {
 				if ((status == ILLEGAL_IOCTL_REQ) &&
 					(pflashcomp[i].optype ==
-						IMG_TYPE_PHY_FW))
+						OPTYPE_PHY_FW))
 					break;
 				dev_err(&adapter->pdev->dev,
 					"cmd to write to flash rom failed.\n");
@@ -3122,6 +3252,24 @@ static void be_unmap_pci_bars(struct be_adapter *adapter)
 		iounmap(adapter->csr);
 	if (adapter->db)
 		iounmap(adapter->db);
+	if (adapter->roce_db.base)
+		pci_iounmap(adapter->pdev, adapter->roce_db.base);
+}
+
+static int lancer_roce_map_pci_bars(struct be_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	u8 __iomem *addr;
+
+	addr = pci_iomap(pdev, 2, 0);
+	if (addr == NULL)
+		return -ENOMEM;
+
+	adapter->roce_db.base = addr;
+	adapter->roce_db.io_addr = pci_resource_start(pdev, 2);
+	adapter->roce_db.size = 8192;
+	adapter->roce_db.total_size = pci_resource_len(pdev, 2);
+	return 0;
 }
 
 static int be_map_pci_bars(struct be_adapter *adapter)
@@ -3130,11 +3278,18 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	int db_reg;
 
 	if (lancer_chip(adapter)) {
-		addr = ioremap_nocache(pci_resource_start(adapter->pdev, 0),
-			pci_resource_len(adapter->pdev, 0));
-		if (addr == NULL)
-			return -ENOMEM;
-		adapter->db = addr;
+		if (be_type_2_3(adapter)) {
+			addr = ioremap_nocache(
+					pci_resource_start(adapter->pdev, 0),
+					pci_resource_len(adapter->pdev, 0));
+			if (addr == NULL)
+				return -ENOMEM;
+			adapter->db = addr;
+		}
+		if (adapter->if_type == SLI_INTF_TYPE_3) {
+			if (lancer_roce_map_pci_bars(adapter))
+				goto pci_map_err;
+		}
 		return 0;
 	}
 
@@ -3159,13 +3314,18 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	if (addr == NULL)
 		goto pci_map_err;
 	adapter->db = addr;
-
+	if (adapter->sli_family == SKYHAWK_SLI_FAMILY) {
+		adapter->roce_db.size = 4096;
+		adapter->roce_db.io_addr =
+				pci_resource_start(adapter->pdev, db_reg);
+		adapter->roce_db.total_size =
+				pci_resource_len(adapter->pdev, db_reg);
+	}
 	return 0;
 pci_map_err:
 	be_unmap_pci_bars(adapter);
 	return -ENOMEM;
 }
-
 
 static void be_ctrl_cleanup(struct be_adapter *adapter)
 {
@@ -3272,6 +3432,8 @@ static void __devexit be_remove(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
+	be_roce_dev_remove(adapter);
+
 	unregister_netdev(adapter->netdev);
 
 	be_clear(adapter);
@@ -3279,8 +3441,6 @@ static void __devexit be_remove(struct pci_dev *pdev)
 	be_stats_cleanup(adapter);
 
 	be_ctrl_cleanup(adapter);
-
-	be_sriov_disable(adapter);
 
 	pci_set_drvdata(pdev, NULL);
 	pci_release_regions(pdev);
@@ -3295,9 +3455,43 @@ bool be_is_wol_supported(struct be_adapter *adapter)
 		!be_is_wol_excluded(adapter)) ? true : false;
 }
 
-static int be_get_config(struct be_adapter *adapter)
+u32 be_get_fw_log_level(struct be_adapter *adapter)
+{
+	struct be_dma_mem extfat_cmd;
+	struct be_fat_conf_params *cfgs;
+	int status;
+	u32 level = 0;
+	int j;
+
+	memset(&extfat_cmd, 0, sizeof(struct be_dma_mem));
+	extfat_cmd.size = sizeof(struct be_cmd_resp_get_ext_fat_caps);
+	extfat_cmd.va = pci_alloc_consistent(adapter->pdev, extfat_cmd.size,
+					     &extfat_cmd.dma);
+
+	if (!extfat_cmd.va) {
+		dev_err(&adapter->pdev->dev, "%s: Memory allocation failure\n",
+			__func__);
+		goto err;
+	}
+
+	status = be_cmd_get_ext_fat_capabilites(adapter, &extfat_cmd);
+	if (!status) {
+		cfgs = (struct be_fat_conf_params *)(extfat_cmd.va +
+						sizeof(struct be_cmd_resp_hdr));
+		for (j = 0; j < cfgs->module[0].num_modes; j++) {
+			if (cfgs->module[0].trace_lvl[j].mode == MODE_UART)
+				level = cfgs->module[0].trace_lvl[j].dbg_lvl;
+		}
+	}
+	pci_free_consistent(adapter->pdev, extfat_cmd.size, extfat_cmd.va,
+			    extfat_cmd.dma);
+err:
+	return level;
+}
+static int be_get_initial_config(struct be_adapter *adapter)
 {
 	int status;
+	u32 level;
 
 	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num,
 			&adapter->function_mode, &adapter->function_caps);
@@ -3335,10 +3529,13 @@ static int be_get_config(struct be_adapter *adapter)
 	if (be_is_wol_supported(adapter))
 		adapter->wol = true;
 
+	level = be_get_fw_log_level(adapter);
+	adapter->msg_enable = level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
+
 	return 0;
 }
 
-static int be_dev_family_check(struct be_adapter *adapter)
+static int be_dev_type_check(struct be_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	u32 sli_intf = 0, if_type;
@@ -3350,17 +3547,27 @@ static int be_dev_family_check(struct be_adapter *adapter)
 		break;
 	case BE_DEVICE_ID2:
 	case OC_DEVICE_ID2:
-	case OC_DEVICE_ID5:
 		adapter->generation = BE_GEN3;
 		break;
 	case OC_DEVICE_ID3:
 	case OC_DEVICE_ID4:
 		pci_read_config_dword(pdev, SLI_INTF_REG_OFFSET, &sli_intf);
+		adapter->if_type = (sli_intf & SLI_INTF_IF_TYPE_MASK) >>
+						SLI_INTF_IF_TYPE_SHIFT;
 		if_type = (sli_intf & SLI_INTF_IF_TYPE_MASK) >>
 						SLI_INTF_IF_TYPE_SHIFT;
-
 		if (((sli_intf & SLI_INTF_VALID_MASK) != SLI_INTF_VALID) ||
-			if_type != 0x02) {
+			!be_type_2_3(adapter)) {
+			dev_err(&pdev->dev, "SLI_INTF reg val is not valid\n");
+			return -EINVAL;
+		}
+		adapter->sli_family = ((sli_intf & SLI_INTF_FAMILY_MASK) >>
+					 SLI_INTF_FAMILY_SHIFT);
+		adapter->generation = BE_GEN3;
+		break;
+	case OC_DEVICE_ID5:
+		pci_read_config_dword(pdev, SLI_INTF_REG_OFFSET, &sli_intf);
+		if ((sli_intf & SLI_INTF_VALID_MASK) != SLI_INTF_VALID) {
 			dev_err(&pdev->dev, "SLI_INTF reg val is not valid\n");
 			return -EINVAL;
 		}
@@ -3371,6 +3578,9 @@ static int be_dev_family_check(struct be_adapter *adapter)
 	default:
 		adapter->generation = 0;
 	}
+
+	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);
+	adapter->virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
 	return 0;
 }
 
@@ -3514,6 +3724,14 @@ reschedule:
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
 
+static bool be_reset_required(struct be_adapter *adapter)
+{
+	u32 reg;
+
+	pci_read_config_dword(adapter->pdev, PCICFG_CUST_SCRATCHPAD_CSR, &reg);
+	return reg;
+}
+
 static int __devinit be_probe(struct pci_dev *pdev,
 			const struct pci_device_id *pdev_id)
 {
@@ -3539,7 +3757,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	pci_set_drvdata(pdev, adapter);
 
-	status = be_dev_family_check(adapter);
+	status = be_dev_type_check(adapter);
 	if (status)
 		goto free_netdev;
 
@@ -3557,13 +3775,9 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		}
 	}
 
-	status = be_sriov_enable(adapter);
-	if (status)
-		goto free_netdev;
-
 	status = be_ctrl_init(adapter);
 	if (status)
-		goto disable_sriov;
+		goto free_netdev;
 
 	if (lancer_chip(adapter)) {
 		status = lancer_wait_ready(adapter);
@@ -3590,9 +3804,11 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status)
 		goto ctrl_clean;
 
-	status = be_cmd_reset_function(adapter);
-	if (status)
-		goto ctrl_clean;
+	if (be_reset_required(adapter)) {
+		status = be_cmd_reset_function(adapter);
+		if (status)
+			goto ctrl_clean;
+	}
 
 	/* The INTR bit may be set in the card when probed by a kdump kernel
 	 * after a crash.
@@ -3604,7 +3820,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status)
 		goto ctrl_clean;
 
-	status = be_get_config(adapter);
+	status = be_get_initial_config(adapter);
 	if (status)
 		goto stats_clean;
 
@@ -3620,6 +3836,8 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status != 0)
 		goto unsetup;
 
+	be_roce_dev_add(adapter);
+
 	dev_info(&pdev->dev, "%s: %s port %d\n", netdev->name, nic_name(pdev),
 		adapter->port_num);
 
@@ -3633,8 +3851,6 @@ stats_clean:
 	be_stats_cleanup(adapter);
 ctrl_clean:
 	be_ctrl_cleanup(adapter);
-disable_sriov:
-	be_sriov_disable(adapter);
 free_netdev:
 	free_netdev(netdev);
 	pci_set_drvdata(pdev, NULL);
@@ -3749,6 +3965,11 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 
 	pci_disable_device(pdev);
 
+	/* The error could cause the FW to trigger a flash debug dump.
+	 * Resetting the card while flash dump is in progress
+	 * can cause it not to recover; wait for it to finish
+	 */
+	ssleep(30);
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 

@@ -831,7 +831,7 @@ static struct platform_device da8xx_spi_device[] = {
 	},
 };
 
-int __init da8xx_register_spi(int instance, struct spi_board_info *info,
+int __init da8xx_register_spi(int instance, const struct spi_board_info *info,
 			      unsigned len)
 {
 	int ret;

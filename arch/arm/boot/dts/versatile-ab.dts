@@ -173,7 +173,7 @@
 			mmc@5000 {
 				compatible = "arm,primecell";
 				reg = < 0x5000 0x1000>;
-				interrupts = <22>;
+				interrupts = <22 34>;
 			};
 			kmi@6000 {
 				compatible = "arm,pl050", "arm,primecell";

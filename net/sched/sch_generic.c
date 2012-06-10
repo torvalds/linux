@@ -86,9 +86,8 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 		 * deadloop is detected. Return OK to try the next skb.
 		 */
 		kfree_skb(skb);
-		if (net_ratelimit())
-			pr_warning("Dead loop on netdevice %s, fix it urgently!\n",
-				   dev_queue->dev->name);
+		net_warn_ratelimited("Dead loop on netdevice %s, fix it urgently!\n",
+				     dev_queue->dev->name);
 		ret = qdisc_qlen(q);
 	} else {
 		/*
@@ -136,9 +135,9 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 		ret = handle_dev_cpu_collision(skb, txq, q);
 	} else {
 		/* Driver returned NETDEV_TX_BUSY - requeue skb */
-		if (unlikely (ret != NETDEV_TX_BUSY && net_ratelimit()))
-			pr_warning("BUG %s code %d qlen %d\n",
-				   dev->name, ret, q->q.qlen);
+		if (unlikely(ret != NETDEV_TX_BUSY))
+			net_warn_ratelimited("BUG %s code %d qlen %d\n",
+					     dev->name, ret, q->q.qlen);
 
 		ret = dev_requeue_skb(skb, q);
 	}
@@ -512,7 +511,8 @@ static int pfifo_fast_dump(struct Qdisc *qdisc, struct sk_buff *skb)
 	struct tc_prio_qopt opt = { .bands = PFIFO_FAST_BANDS };
 
 	memcpy(&opt.priomap, prio2band, TC_PRIO_MAX + 1);
-	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:

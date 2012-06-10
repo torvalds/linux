@@ -27,6 +27,10 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 
+#include <net/sock.h>
+#include <linux/phonet.h>
+#include <net/phonet/phonet.h>
+
 #define DYNAMIC_PORT_MIN	0x40
 #define DYNAMIC_PORT_MAX	0x7f
 
@@ -46,7 +50,8 @@ static void set_local_port_range(int range[2])
 
 void phonet_get_local_port_range(int *min, int *max)
 {
-	unsigned seq;
+	unsigned int seq;
+
 	do {
 		seq = read_seqbegin(&local_port_range_lock);
 		if (min)
@@ -93,19 +98,13 @@ static struct ctl_table phonet_table[] = {
 	{ }
 };
 
-static struct ctl_path phonet_ctl_path[] = {
-	{ .procname = "net", },
-	{ .procname = "phonet", },
-	{ },
-};
-
 int __init phonet_sysctl_init(void)
 {
-	phonet_table_hrd = register_sysctl_paths(phonet_ctl_path, phonet_table);
+	phonet_table_hrd = register_net_sysctl(&init_net, "net/phonet", phonet_table);
 	return phonet_table_hrd == NULL ? -ENOMEM : 0;
 }
 
 void phonet_sysctl_exit(void)
 {
-	unregister_sysctl_table(phonet_table_hrd);
+	unregister_net_sysctl_table(phonet_table_hrd);
 }

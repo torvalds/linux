@@ -190,7 +190,7 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	ret = cx18_start_v4l2_encode_stream(s);
 	snd_cx18_unlock(cxsc);
 
-	return 0;
+	return ret;
 }
 
 static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
@@ -199,12 +199,11 @@ static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 	struct v4l2_device *v4l2_dev = cxsc->v4l2_dev;
 	struct cx18 *cx = to_cx18(v4l2_dev);
 	struct cx18_stream *s;
-	int ret;
 
 	/* Instruct the cx18 to stop sending packets */
 	snd_cx18_lock(cxsc);
 	s = &cx->streams[CX18_ENC_STREAM_TYPE_PCM];
-	ret = cx18_stop_v4l2_encode_stream(s, 0);
+	cx18_stop_v4l2_encode_stream(s, 0);
 	clear_bit(CX18_F_S_STREAMING, &s->s_flags);
 
 	cx18_release_stream(s);
@@ -252,13 +251,10 @@ static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
 static int snd_cx18_pcm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params)
 {
-	int ret;
-
 	dprintk("%s called\n", __func__);
 
-	ret = snd_pcm_alloc_vmalloc_buffer(substream,
+	return snd_pcm_alloc_vmalloc_buffer(substream,
 					   params_buffer_bytes(params));
-	return 0;
 }
 
 static int snd_cx18_pcm_hw_free(struct snd_pcm_substream *substream)

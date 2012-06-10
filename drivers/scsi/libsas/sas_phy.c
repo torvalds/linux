@@ -32,8 +32,7 @@
 
 static void sas_phye_loss_of_signal(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 
 	clear_bit(PHYE_LOSS_OF_SIGNAL, &phy->phy_events_pending);
@@ -43,8 +42,7 @@ static void sas_phye_loss_of_signal(struct work_struct *work)
 
 static void sas_phye_oob_done(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 
 	clear_bit(PHYE_OOB_DONE, &phy->phy_events_pending);
@@ -53,8 +51,7 @@ static void sas_phye_oob_done(struct work_struct *work)
 
 static void sas_phye_oob_error(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct asd_sas_port *port = phy->port;
@@ -85,8 +82,7 @@ static void sas_phye_oob_error(struct work_struct *work)
 
 static void sas_phye_spinup_hold(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct sas_internal *i =
@@ -127,14 +123,12 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 		phy->error = 0;
 		INIT_LIST_HEAD(&phy->port_phy_el);
 		for (k = 0; k < PORT_NUM_EVENTS; k++) {
-			INIT_WORK(&phy->port_events[k].work,
-				  sas_port_event_fns[k]);
+			INIT_SAS_WORK(&phy->port_events[k].work, sas_port_event_fns[k]);
 			phy->port_events[k].phy = phy;
 		}
 
 		for (k = 0; k < PHY_NUM_EVENTS; k++) {
-			INIT_WORK(&phy->phy_events[k].work,
-				  sas_phy_event_fns[k]);
+			INIT_SAS_WORK(&phy->phy_events[k].work, sas_phy_event_fns[k]);
 			phy->phy_events[k].phy = phy;
 		}
 
@@ -144,8 +138,7 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 		spin_lock_init(&phy->sas_prim_lock);
 		phy->frame_rcvd_size = 0;
 
-		phy->phy = sas_phy_alloc(&sas_ha->core.shost->shost_gendev,
-					 i);
+		phy->phy = sas_phy_alloc(&sas_ha->core.shost->shost_gendev, i);
 		if (!phy->phy)
 			return -ENOMEM;
 

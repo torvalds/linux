@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <linux/firmware.h>
 #include <linux/usb.h>
+#include <linux/vmalloc.h>
 #include <net/cfg80211.h>
 
 #include <defs.h>
@@ -1239,7 +1240,7 @@ static int brcmf_usb_get_fw(struct brcmf_usbdev_info *devinfo)
 		return -EINVAL;
 	}
 
-	devinfo->image = kmalloc(fw->size, GFP_ATOMIC); /* plus nvram */
+	devinfo->image = vmalloc(fw->size); /* plus nvram */
 	if (!devinfo->image)
 		return -ENOMEM;
 
@@ -1379,14 +1380,6 @@ static int brcmf_usb_probe_cb(struct device *dev, const char *desc,
 	ret = brcmf_bus_start(dev);
 	if (ret == -ENOLINK) {
 		brcmf_dbg(ERROR, "dongle is not responding\n");
-		brcmf_detach(dev);
-		goto fail;
-	}
-
-	/* add interface and open for business */
-	ret = brcmf_add_if(dev, 0, "wlan%d", NULL);
-	if (ret) {
-		brcmf_dbg(ERROR, "Add primary net device interface failed!!\n");
 		brcmf_detach(dev);
 		goto fail;
 	}
@@ -1604,13 +1597,14 @@ static struct usb_driver brcmf_usbdrvr = {
 	.id_table = brcmf_usb_devid_table,
 	.suspend = brcmf_usb_suspend,
 	.resume = brcmf_usb_resume,
-	.supports_autosuspend = 1
+	.supports_autosuspend = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 void brcmf_usb_exit(void)
 {
 	usb_deregister(&brcmf_usbdrvr);
-	kfree(g_image.data);
+	vfree(g_image.data);
 	g_image.data = NULL;
 	g_image.len = 0;
 }
