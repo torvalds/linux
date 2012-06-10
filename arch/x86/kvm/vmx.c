@@ -5002,7 +5002,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 			schedule();
 	}
 
-	vmx->emulation_required = 0;
+	vmx->emulation_required = !guest_state_valid(vcpu);
 out:
 	return ret;
 }
