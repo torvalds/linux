@@ -230,6 +230,41 @@ static unsigned long __frontswap_curr_pages(void)
 	return totalpages;
 }
 
+static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
+					int *swapid)
+{
+	int ret = -EINVAL;
+	struct swap_info_struct *si = NULL;
+	int si_frontswap_pages;
+	unsigned long total_pages_to_unuse = total;
+	unsigned long pages = 0, pages_to_unuse = 0;
+	int type;
+
+	assert_spin_locked(&swap_lock);
+	for (type = swap_list.head; type >= 0; type = si->next) {
+		si = swap_info[type];
+		si_frontswap_pages = atomic_read(&si->frontswap_pages);
+		if (total_pages_to_unuse < si_frontswap_pages) {
+			pages = pages_to_unuse = total_pages_to_unuse;
+		} else {
+			pages = si_frontswap_pages;
+			pages_to_unuse = 0; /* unuse all */
+		}
+		/* ensure there is enough RAM to fetch pages from frontswap */
+		if (security_vm_enough_memory_mm(current->mm, pages)) {
+			ret = -ENOMEM;
+			continue;
+		}
+		vm_unacct_memory(pages);
+		*unused = pages_to_unuse;
+		*swapid = type;
+		ret = 0;
+		break;
+	}
+
+	return ret;
+}
+
 /*
  * Frontswap, like a true swap device, may unnecessarily retain pages
  * under certain circumstances; "shrink" frontswap is essentially a
@@ -240,11 +275,9 @@ static unsigned long __frontswap_curr_pages(void)
  */
 void frontswap_shrink(unsigned long target_pages)
 {
-	struct swap_info_struct *si = NULL;
-	int si_frontswap_pages;
 	unsigned long total_pages = 0, total_pages_to_unuse;
-	unsigned long pages = 0, pages_to_unuse = 0;
-	int type;
+	unsigned long pages_to_unuse = 0;
+	int type, ret;
 	bool locked = false;
 
 	/*
@@ -258,22 +291,8 @@ void frontswap_shrink(unsigned long target_pages)
 	if (total_pages <= target_pages)
 		goto out;
 	total_pages_to_unuse = total_pages - target_pages;
-	for (type = swap_list.head; type >= 0; type = si->next) {
-		si = swap_info[type];
-		si_frontswap_pages = atomic_read(&si->frontswap_pages);
-		if (total_pages_to_unuse < si_frontswap_pages) {
-			pages = pages_to_unuse = total_pages_to_unuse;
-		} else {
-			pages = si_frontswap_pages;
-			pages_to_unuse = 0; /* unuse all */
-		}
-		/* ensure there is enough RAM to fetch pages from frontswap */
-		if (security_vm_enough_memory_mm(current->mm, pages))
-			continue;
-		vm_unacct_memory(pages);
-		break;
-	}
-	if (type < 0)
+	ret = __frontswap_unuse_pages(total_pages_to_unuse, &pages_to_unuse, &type);
+	if (ret < 0)
 		goto out;
 	locked = false;
 	spin_unlock(&swap_lock);
