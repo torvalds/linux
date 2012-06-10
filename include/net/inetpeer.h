@@ -71,6 +71,60 @@ struct inet_peer_base {
 	int			total;
 };
 
+#define INETPEER_BASE_BIT	0x1UL
+
+static inline struct inet_peer *inetpeer_ptr(unsigned long val)
+{
+	BUG_ON(val & INETPEER_BASE_BIT);
+	return (struct inet_peer *) val;
+}
+
+static inline struct inet_peer_base *inetpeer_base_ptr(unsigned long val)
+{
+	if (!(val & INETPEER_BASE_BIT))
+		return NULL;
+	val &= ~INETPEER_BASE_BIT;
+	return (struct inet_peer_base *) val;
+}
+
+static inline bool inetpeer_ptr_is_peer(unsigned long val)
+{
+	return !(val & INETPEER_BASE_BIT);
+}
+
+static inline void __inetpeer_ptr_set_peer(unsigned long *val, struct inet_peer *peer)
+{
+	/* This implicitly clears INETPEER_BASE_BIT */
+	*val = (unsigned long) peer;
+}
+
+static inline bool inetpeer_ptr_set_peer(unsigned long *ptr, struct inet_peer *peer)
+{
+	unsigned long val = (unsigned long) peer;
+	unsigned long orig = *ptr;
+
+	if (!(orig & INETPEER_BASE_BIT) || !val ||
+	    cmpxchg(ptr, orig, val) != orig)
+		return false;
+	return true;
+}
+
+static inline void inetpeer_init_ptr(unsigned long *ptr, struct inet_peer_base *base)
+{
+	*ptr = (unsigned long) base | INETPEER_BASE_BIT;
+}
+
+static inline void inetpeer_transfer_peer(unsigned long *to, unsigned long *from)
+{
+	unsigned long val = *from;
+
+	*to = val;
+	if (inetpeer_ptr_is_peer(val)) {
+		struct inet_peer *peer = inetpeer_ptr(val);
+		atomic_inc(&peer->refcnt);
+	}
+}
+
 extern void inet_peer_base_init(struct inet_peer_base *);
 
 void			inet_initpeers(void) __init;

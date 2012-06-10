@@ -57,11 +57,11 @@ extern void rt6_bind_peer(struct rt6_info *rt, int create);
 
 static inline struct inet_peer *__rt6_get_peer(struct rt6_info *rt, int create)
 {
-	if (rt->rt6i_peer)
-		return rt->rt6i_peer;
+	if (rt6_has_peer(rt))
+		return rt6_peer_ptr(rt);
 
 	rt6_bind_peer(rt, create);
-	return rt->rt6i_peer;
+	return rt6_peer_ptr(rt);
 }
 
 static inline struct inet_peer *rt6_get_peer(struct rt6_info *rt)

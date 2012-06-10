@@ -67,9 +67,43 @@ struct rtable {
 	/* Miscellaneous cached information */
 	__be32			rt_spec_dst; /* RFC1122 specific destination */
 	u32			rt_peer_genid;
-	struct inet_peer	*peer; /* long-living peer info */
+	unsigned long		_peer; /* long-living peer info */
 	struct fib_info		*fi; /* for client ref to shared metrics */
 };
+
+static inline struct inet_peer *rt_peer_ptr(struct rtable *rt)
+{
+	return inetpeer_ptr(rt->_peer);
+}
+
+static inline bool rt_has_peer(struct rtable *rt)
+{
+	return inetpeer_ptr_is_peer(rt->_peer);
+}
+
+static inline void __rt_set_peer(struct rtable *rt, struct inet_peer *peer)
+{
+	__inetpeer_ptr_set_peer(&rt->_peer, peer);
+}
+
+static inline bool rt_set_peer(struct rtable *rt, struct inet_peer *peer)
+{
+	return inetpeer_ptr_set_peer(&rt->_peer, peer);
+}
+
+static inline void rt_init_peer(struct rtable *rt, struct inet_peer_base *base)
+{
+	inetpeer_init_ptr(&rt->_peer, base);
+}
+
+static inline void rt_transfer_peer(struct rtable *rt, struct rtable *ort)
+{
+	rt->_peer = ort->_peer;
+	if (rt_has_peer(ort)) {
+		struct inet_peer *peer = rt_peer_ptr(ort);
+		atomic_inc(&peer->refcnt);
+	}
+}
 
 static inline bool rt_is_input_route(const struct rtable *rt)
 {
@@ -298,11 +332,11 @@ extern void rt_bind_peer(struct rtable *rt, __be32 daddr, int create);
 
 static inline struct inet_peer *__rt_get_peer(struct rtable *rt, __be32 daddr, int create)
 {
-	if (rt->peer)
-		return rt->peer;
+	if (rt_has_peer(rt))
+		return rt_peer_ptr(rt);
 
 	rt_bind_peer(rt, daddr, create);
-	return rt->peer;
+	return rt_peer_ptr(rt);
 }
 
 static inline struct inet_peer *rt_get_peer(struct rtable *rt, __be32 daddr)

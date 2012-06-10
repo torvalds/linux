@@ -90,9 +90,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
 
-	xdst->u.rt.peer = rt->peer;
-	if (rt->peer)
-		atomic_inc(&rt->peer->refcnt);
+	rt_transfer_peer(&xdst->u.rt, rt);
 
 	/* Sheit... I remember I did this right. Apparently,
 	 * it was magically lost, so this code needs audit */
@@ -212,8 +210,10 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 
 	dst_destroy_metrics_generic(dst);
 
-	if (likely(xdst->u.rt.peer))
-		inet_putpeer(xdst->u.rt.peer);
+	if (rt_has_peer(&xdst->u.rt)) {
+		struct inet_peer *peer = rt_peer_ptr(&xdst->u.rt);
+		inet_putpeer(peer);
+	}
 
 	xfrm_dst_destroy(xdst);
 }

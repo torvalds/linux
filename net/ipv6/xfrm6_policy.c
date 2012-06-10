@@ -99,9 +99,7 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	if (!xdst->u.rt6.rt6i_idev)
 		return -ENODEV;
 
-	xdst->u.rt6.rt6i_peer = rt->rt6i_peer;
-	if (rt->rt6i_peer)
-		atomic_inc(&rt->rt6i_peer->refcnt);
+	rt6_transfer_peer(&xdst->u.rt6, rt);
 
 	/* Sheit... I remember I did this right. Apparently,
 	 * it was magically lost, so this code needs audit */
@@ -223,8 +221,10 @@ static void xfrm6_dst_destroy(struct dst_entry *dst)
 	if (likely(xdst->u.rt6.rt6i_idev))
 		in6_dev_put(xdst->u.rt6.rt6i_idev);
 	dst_destroy_metrics_generic(dst);
-	if (likely(xdst->u.rt6.rt6i_peer))
-		inet_putpeer(xdst->u.rt6.rt6i_peer);
+	if (rt6_has_peer(&xdst->u.rt6)) {
+		struct inet_peer *peer = rt6_peer_ptr(&xdst->u.rt6);
+		inet_putpeer(peer);
+	}
 	xfrm_dst_destroy(xdst);
 }
 
