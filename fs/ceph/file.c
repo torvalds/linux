@@ -214,7 +214,8 @@ out:
  * ceph_release gets called).  So fear not!
  */
 struct file *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
-			      struct opendata *od, unsigned flags, umode_t mode)
+			      struct opendata *od, unsigned flags, umode_t mode,
+			      int *opened)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -247,7 +248,7 @@ struct file *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 		err = ceph_handle_notrace_create(dir, dentry);
 	if (err)
 		goto out;
-	file = finish_open(od, req->r_dentry, ceph_open);
+	file = finish_open(od, req->r_dentry, ceph_open, opened);
 	if (IS_ERR(file))
 		err = PTR_ERR(file);
 out:

@@ -243,7 +243,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 static struct file *
 v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 			  struct opendata *od, unsigned flags, umode_t omode,
-			  bool *created)
+			  int *opened)
 {
 	int err = 0;
 	gid_t gid;
@@ -357,7 +357,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	}
 	mutex_unlock(&v9inode->v_mutex);
 	/* Since we are opening a file, assign the open fid to the file */
-	filp = finish_open(od, dentry, generic_file_open);
+	filp = finish_open(od, dentry, generic_file_open, opened);
 	if (IS_ERR(filp)) {
 		err = PTR_ERR(filp);
 		goto err_clunk_old_fid;
@@ -367,7 +367,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(inode, filp);
 #endif
-	*created = true;
+	*opened |= FILE_CREATED;
 out:
 	dput(res);
 	return filp;

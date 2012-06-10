@@ -113,7 +113,7 @@ const struct inode_operations nfs3_dir_inode_operations = {
 
 static struct file *nfs_atomic_open(struct inode *, struct dentry *,
 				    struct opendata *, unsigned, umode_t,
-				    bool *);
+				    int *);
 const struct inode_operations nfs4_dir_inode_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
@@ -1389,7 +1389,8 @@ static int do_open(struct inode *inode, struct file *filp)
 
 static struct file *nfs_finish_open(struct nfs_open_context *ctx,
 				    struct dentry *dentry,
-				    struct opendata *od, unsigned open_flags)
+				    struct opendata *od, unsigned open_flags,
+				    int *opened)
 {
 	struct file *filp;
 	int err;
@@ -1408,7 +1409,7 @@ static struct file *nfs_finish_open(struct nfs_open_context *ctx,
 		}
 	}
 
-	filp = finish_open(od, dentry, do_open);
+	filp = finish_open(od, dentry, do_open, opened);
 	if (!IS_ERR(filp))
 		nfs_file_set_open_context(filp, ctx);
 
@@ -1419,7 +1420,7 @@ out:
 
 static struct file *nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 				    struct opendata *od, unsigned open_flags,
-				    umode_t mode, bool *created)
+				    umode_t mode, int *opened)
 {
 	struct nfs_open_context *ctx;
 	struct dentry *res;
@@ -1497,7 +1498,7 @@ static struct file *nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	nfs_unblock_sillyrename(dentry->d_parent);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 
-	filp = nfs_finish_open(ctx, dentry, od, open_flags);
+	filp = nfs_finish_open(ctx, dentry, od, open_flags, opened);
 
 	dput(res);
 	return filp;

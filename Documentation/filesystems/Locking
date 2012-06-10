@@ -64,7 +64,7 @@ ata *);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	struct file * (*atomic_open)(struct inode *, struct dentry *,
 				struct opendata *, unsigned open_flag,
-				umode_t create_mode, bool *created);
+				umode_t create_mode, int *opened);
 
 locking rules:
 	all may block

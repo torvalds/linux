@@ -1696,7 +1696,7 @@ struct inode_operations {
 	int (*update_time)(struct inode *, struct timespec *, int);
 	struct file * (*atomic_open)(struct inode *, struct dentry *,
 				     struct opendata *, unsigned open_flag,
-				     umode_t create_mode, bool *created);
+				     umode_t create_mode, int *opened);
 } ____cacheline_aligned;
 
 struct seq_file;
@@ -2065,8 +2065,13 @@ extern struct file * dentry_open(struct dentry *, struct vfsmount *, int,
 				 const struct cred *);
 extern int filp_close(struct file *, fl_owner_t id);
 extern char * getname(const char __user *);
+enum {
+	FILE_CREATED = 1,
+	FILE_OPENED = 2
+};
 extern struct file *finish_open(struct opendata *od, struct dentry *dentry,
-				int (*open)(struct inode *, struct file *));
+				int (*open)(struct inode *, struct file *),
+				int *opened);
 extern void finish_no_open(struct opendata *od, struct dentry *dentry);
 
 /* fs/ioctl.c */

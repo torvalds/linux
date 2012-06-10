@@ -782,7 +782,8 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
  * filesystem callback is substituted.
  */
 struct file *finish_open(struct opendata *od, struct dentry *dentry,
-			 int (*open)(struct inode *, struct file *))
+			 int (*open)(struct inode *, struct file *),
+			 int *opened)
 {
 	struct file *res;
 
@@ -790,8 +791,10 @@ struct file *finish_open(struct opendata *od, struct dentry *dentry,
 	dget(dentry);
 
 	res = do_dentry_open(dentry, od->mnt, od->filp, open, current_cred());
-	if (!IS_ERR(res))
+	if (!IS_ERR(res)) {
+		*opened |= FILE_OPENED;
 		od->filp = NULL;
+	}
 
 	return res;
 }
