@@ -583,7 +583,7 @@ static void tda985x_setmode(struct CHIPSTATE *chip, int mode)
 #define TDA9873_TR_MASK     (7 << 2)
 #define TDA9873_TR_MONO     4
 #define TDA9873_TR_STEREO   1 << 4
-#define TDA9873_TR_REVERSE  (1 << 3) & (1 << 2)
+#define TDA9873_TR_REVERSE  ((1 << 3) | (1 << 2))
 #define TDA9873_TR_DUALA    1 << 2
 #define TDA9873_TR_DUALB    1 << 3
 
@@ -653,11 +653,11 @@ static void tda985x_setmode(struct CHIPSTATE *chip, int mode)
 #define TDA9873_MOUT_DUALA  0
 #define TDA9873_MOUT_DUALB  1 << 3
 #define TDA9873_MOUT_ST     1 << 4
-#define TDA9873_MOUT_EXTM   (1 << 4 ) & (1 << 3)
+#define TDA9873_MOUT_EXTM   ((1 << 4) | (1 << 3))
 #define TDA9873_MOUT_EXTL   1 << 5
-#define TDA9873_MOUT_EXTR   (1 << 5 ) & (1 << 3)
-#define TDA9873_MOUT_EXTLR  (1 << 5 ) & (1 << 4)
-#define TDA9873_MOUT_MUTE   (1 << 5 ) & (1 << 4) & (1 << 3)
+#define TDA9873_MOUT_EXTR   ((1 << 5) | (1 << 3))
+#define TDA9873_MOUT_EXTLR  ((1 << 5) | (1 << 4))
+#define TDA9873_MOUT_MUTE   ((1 << 5) | (1 << 4) | (1 << 3))
 
 /* Status bits: (chip read) */
 #define TDA9873_PONR        0 /* Power-on reset detected if = 1 */
