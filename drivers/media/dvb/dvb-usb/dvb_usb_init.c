@@ -70,10 +70,12 @@ err:
 
 int dvb_usbv2_i2c_init(struct dvb_usb_device *d)
 {
-	int ret = 0;
+	int ret;
 
-	if (!d->props.i2c_algo)
-		return 0;
+	if (!d->props.i2c_algo) {
+		ret = 0;
+		goto err;
+	}
 
 	strlcpy(d->i2c_adap.name, d->name, sizeof(d->i2c_adap.name));
 	d->i2c_adap.algo = d->props.i2c_algo;
@@ -83,11 +85,16 @@ int dvb_usbv2_i2c_init(struct dvb_usb_device *d)
 	i2c_set_adapdata(&d->i2c_adap, d);
 
 	ret = i2c_add_adapter(&d->i2c_adap);
-	if (ret < 0)
-		pr_err("%s: could not add i2c adapter\n", KBUILD_MODNAME);
+	if (ret < 0) {
+		pr_err("%s: i2c_add_adapter() failed\n", KBUILD_MODNAME);
+		goto err;
+	}
 
 	d->state |= DVB_USB_STATE_I2C;
 
+	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -95,7 +102,9 @@ int dvb_usbv2_i2c_exit(struct dvb_usb_device *d)
 {
 	if (d->state & DVB_USB_STATE_I2C)
 		i2c_del_adapter(&d->i2c_adap);
+
 	d->state &= ~DVB_USB_STATE_I2C;
+
 	return 0;
 }
 
