@@ -30,6 +30,7 @@ struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1010600, "orion_spi.0", NULL),
 	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011000, "mv64xxx_i2c.0",
 		       NULL),
+	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
 	{},
 };
 
@@ -55,7 +56,6 @@ static void __init kirkwood_dt_init(void)
 	kirkwood_clk_init();
 
 	/* internal devices that every board has */
-	kirkwood_wdt_init();
 	kirkwood_xor0_init();
 	kirkwood_xor1_init();
 	kirkwood_crypto_init();
