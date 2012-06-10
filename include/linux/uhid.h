@@ -25,6 +25,7 @@
 enum uhid_event_type {
 	UHID_CREATE,
 	UHID_DESTROY,
+	UHID_INPUT,
 };
 
 struct uhid_create_req {
@@ -41,11 +42,19 @@ struct uhid_create_req {
 	__u32 country;
 } __attribute__((__packed__));
 
+#define UHID_DATA_MAX 4096
+
+struct uhid_input_req {
+	__u8 data[UHID_DATA_MAX];
+	__u16 size;
+} __attribute__((__packed__));
+
 struct uhid_event {
 	__u32 type;
 
 	union {
 		struct uhid_create_req create;
+		struct uhid_input_req input;
 	} u;
 } __attribute__((__packed__));
 
