@@ -752,26 +752,6 @@ cleanup_file:
 	return error;
 }
 
-static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
-				struct file *f,
-				int (*open)(struct inode *, struct file *),
-				const struct cred *cred)
-{
-	int error;
-	error = do_dentry_open(dentry, mnt, f, open, cred);
-	if (!error) {
-		error = open_check_o_direct(f);
-		if (error) {
-			fput(f);
-			f = ERR_PTR(error);
-		}
-	} else { 
-		put_filp(f);
-		f = ERR_PTR(error);
-	}
-	return f;
-}
-
 /**
  * finish_open - finish opening a file
  * @od: opaque open data
@@ -841,7 +821,18 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
 	}
 
 	f->f_flags = flags;
-	return __dentry_open(dentry, mnt, f, NULL, cred);
+	error = do_dentry_open(dentry, mnt, f, NULL, cred);
+	if (!error) {
+		error = open_check_o_direct(f);
+		if (error) {
+			fput(f);
+			f = ERR_PTR(error);
+		}
+	} else { 
+		put_filp(f);
+		f = ERR_PTR(error);
+	}
+	return f;
 }
 EXPORT_SYMBOL(dentry_open);
 
