@@ -534,9 +534,10 @@ static void tda985x_setmode(struct CHIPSTATE *chip, int mode)
 		c6 |= TDA985x_MONO;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
+	case V4L2_TUNER_MODE_LANG1:
 		c6 |= TDA985x_STEREO;
 		break;
-	case V4L2_TUNER_MODE_LANG1:
+	case V4L2_TUNER_MODE_SAP:
 		c6 |= TDA985x_SAP;
 		break;
 	default:
