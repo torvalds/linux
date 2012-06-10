@@ -303,12 +303,12 @@ static int sysfs_dentry_delete(const struct dentry *dentry)
 	return !!(sd->s_flags & SYSFS_FLAG_REMOVED);
 }
 
-static int sysfs_dentry_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int sysfs_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct sysfs_dirent *sd;
 	int is_dir;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	sd = dentry->d_fsdata;

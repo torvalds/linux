@@ -465,7 +465,7 @@ err_root:
 
 static inline int d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	return dentry->d_op->d_revalidate(dentry, nd);
+	return dentry->d_op->d_revalidate(dentry, nd ? nd->flags : 0);
 }
 
 /**

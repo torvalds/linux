@@ -1098,9 +1098,8 @@ int nfs_neg_need_reval(struct inode *dir, struct dentry *dentry,
  * If the parent directory is seen to have changed, we throw out the
  * cached dentry and do a new lookup.
  */
-static int nfs_lookup_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int nfs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	unsigned int flags = nd->flags;
 	struct inode *dir;
 	struct inode *inode;
 	struct dentry *parent;
@@ -1339,7 +1338,7 @@ out:
 }
 
 #ifdef CONFIG_NFS_V4
-static int nfs4_lookup_revalidate(struct dentry *, struct nameidata *);
+static int nfs4_lookup_revalidate(struct dentry *, unsigned int);
 
 const struct dentry_operations nfs4_dentry_operations = {
 	.d_revalidate	= nfs4_lookup_revalidate,
@@ -1491,9 +1490,8 @@ no_open:
 	return finish_no_open(file, res);
 }
 
-static int nfs4_lookup_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int nfs4_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	unsigned int flags = nd->flags;
 	struct dentry *parent = NULL;
 	struct inode *inode;
 	struct inode *dir;
@@ -1537,7 +1535,7 @@ out:
 no_open_dput:
 	dput(parent);
 no_open:
-	return nfs_lookup_revalidate(dentry, nd);
+	return nfs_lookup_revalidate(dentry, flags);
 }
 
 #endif /* CONFIG_NFSV4 */

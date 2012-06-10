@@ -23,7 +23,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 				 struct nameidata *nd);
 static int afs_dir_open(struct inode *inode, struct file *file);
 static int afs_readdir(struct file *file, void *dirent, filldir_t filldir);
-static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd);
+static int afs_d_revalidate(struct dentry *dentry, unsigned int flags);
 static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_release(struct dentry *dentry);
 static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
@@ -598,7 +598,7 @@ success:
  * - NOTE! the hit can be a negative hit too, so we can't assume we have an
  *   inode
  */
-static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct afs_vnode *vnode, *dir;
 	struct afs_fid uninitialized_var(fid);
@@ -607,7 +607,7 @@ static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	void *dir_version;
 	int ret;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	vnode = AFS_FS_I(dentry->d_inode);

@@ -902,7 +902,7 @@ the VFS uses a default. As of kernel 2.6.22, the following members are
 defined:
 
 struct dentry_operations {
-	int (*d_revalidate)(struct dentry *, struct nameidata *);
+	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, const struct inode *,
 			struct qstr *);
 	int (*d_compare)(const struct dentry *, const struct inode *,
@@ -921,11 +921,11 @@ struct dentry_operations {
 	dcache. Most filesystems leave this as NULL, because all their
 	dentries in the dcache are valid
 
-	d_revalidate may be called in rcu-walk mode (nd->flags & LOOKUP_RCU).
+	d_revalidate may be called in rcu-walk mode (flags & LOOKUP_RCU).
 	If in rcu-walk mode, the filesystem must revalidate the dentry without
 	blocking or storing to the dentry, d_parent and d_inode should not be
-	used without care (because they can go NULL), instead nd->inode should
-	be used.
+	used without care (because they can change and, in d_inode case, even
+	become NULL under us).
 
 	If a situation is encountered that rcu-walk cannot handle, return
 	-ECHILD and it will be called again in ref-walk mode.
