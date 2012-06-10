@@ -335,6 +335,30 @@ static int debugfs_create_by_name(const char *name, umode_t mode,
 	return error;
 }
 
+struct dentry *__create_file(const char *name, umode_t mode,
+				   struct dentry *parent, void *data,
+				   const struct file_operations *fops)
+{
+	struct dentry *dentry = NULL;
+	int error;
+
+	pr_debug("debugfs: creating file '%s'\n",name);
+
+	error = simple_pin_fs(&debug_fs_type, &debugfs_mount,
+			      &debugfs_mount_count);
+	if (error)
+		goto exit;
+
+	error = debugfs_create_by_name(name, mode, parent, &dentry,
+				       data, fops);
+	if (error) {
+		dentry = NULL;
+		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+	}
+exit:
+	return dentry;
+}
+
 /**
  * debugfs_create_file - create a file in the debugfs filesystem
  * @name: a pointer to a string containing the name of the file to create.
@@ -365,25 +389,15 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
 {
-	struct dentry *dentry = NULL;
-	int error;
-
-	pr_debug("debugfs: creating file '%s'\n",name);
-
-	error = simple_pin_fs(&debug_fs_type, &debugfs_mount,
-			      &debugfs_mount_count);
-	if (error)
-		goto exit;
-
-	error = debugfs_create_by_name(name, mode, parent, &dentry,
-				       data, fops);
-	if (error) {
-		dentry = NULL;
-		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
-		goto exit;
+	switch (mode & S_IFMT) {
+	case S_IFREG:
+	case 0:
+		break;
+	default:
+		BUG();
 	}
-exit:
-	return dentry;
+
+	return __create_file(name, mode, parent, data, fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file);
 
@@ -407,8 +421,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_file);
  */
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 {
-	return debugfs_create_file(name, 
-				   S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
+	return __create_file(name, S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
 				   parent, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_dir);
@@ -446,8 +459,7 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 	if (!link)
 		return NULL;
 
-	result = debugfs_create_file(name, S_IFLNK | S_IRWXUGO, parent, link,
-				     NULL);
+	result = __create_file(name, S_IFLNK | S_IRWXUGO, parent, link, NULL);
 	if (!result)
 		kfree(link);
 	return result;
