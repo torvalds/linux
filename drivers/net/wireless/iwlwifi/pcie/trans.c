@@ -1261,6 +1261,19 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	spin_lock(&txq->lock);
 
+	/* In AGG mode, the index in the ring must correspond to the WiFi
+	 * sequence number. This is a HW requirements to help the SCD to parse
+	 * the BA.
+	 * Check here that the packets are in the right place on the ring.
+	 */
+#ifdef CONFIG_IWLWIFI_DEBUG
+	wifi_seq = SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	WARN_ONCE((iwl_read_prph(trans, SCD_AGGR_SEL) & BIT(txq_id)) &&
+		  ((wifi_seq & 0xff) != q->write_ptr),
+		  "Q: %d WiFi Seq %d tfdNum %d",
+		  txq_id, wifi_seq, q->write_ptr);
+#endif
+
 	/* Set up driver data for this TFD */
 	txq->entries[q->write_ptr].skb = skb;
 	txq->entries[q->write_ptr].cmd = dev_cmd;
