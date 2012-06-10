@@ -173,7 +173,7 @@ ecryptfs_do_create(struct inode *directory_inode,
 		inode = ERR_CAST(lower_dir_dentry);
 		goto out;
 	}
-	rc = vfs_create(lower_dir_dentry->d_inode, lower_dentry, mode, NULL);
+	rc = vfs_create(lower_dir_dentry->d_inode, lower_dentry, mode, true);
 	if (rc) {
 		printk(KERN_ERR "%s: Failure to create dentry in lower fs; "
 		       "rc = [%d]\n", __func__, rc);

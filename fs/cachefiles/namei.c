@@ -567,7 +567,7 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 			start = jiffies;
-			ret = vfs_create(dir->d_inode, next, S_IFREG, NULL);
+			ret = vfs_create(dir->d_inode, next, S_IFREG, true);
 			cachefiles_hist(cachefiles_create_histogram, start);
 			if (ret < 0)
 				goto create_error;
