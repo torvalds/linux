@@ -1310,6 +1310,7 @@ static const struct net_device_ops lpc_netdev_ops = {
 	.ndo_set_rx_mode	= lpc_eth_set_multicast_list,
 	.ndo_do_ioctl		= lpc_eth_ioctl,
 	.ndo_set_mac_address	= lpc_set_mac_address,
+	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int lpc_eth_drv_probe(struct platform_device *pdev)
