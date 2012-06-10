@@ -405,6 +405,7 @@ static void pwc_vidioc_fill_fmt(struct v4l2_format *f,
 	f->fmt.pix.pixelformat  = pixfmt;
 	f->fmt.pix.bytesperline = f->fmt.pix.width;
 	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.width * 3 / 2;
+	f->fmt.pix.colorspace	= V4L2_COLORSPACE_SRGB;
 	PWC_DEBUG_IOCTL("pwc_vidioc_fill_fmt() "
 			"width=%d, height=%d, bytesperline=%d, sizeimage=%d, pixelformat=%c%c%c%c\n",
 			f->fmt.pix.width,
@@ -497,10 +498,9 @@ static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap
 	strcpy(cap->driver, PWC_NAME);
 	strlcpy(cap->card, pdev->vdev.name, sizeof(cap->card));
 	usb_make_path(pdev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->capabilities =
-		V4L2_CAP_VIDEO_CAPTURE	|
-		V4L2_CAP_STREAMING	|
-		V4L2_CAP_READWRITE;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+					V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -509,7 +509,8 @@ static int pwc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 	if (i->index)	/* Only one INPUT is supported */
 		return -EINVAL;
 
-	strcpy(i->name, "usb");
+	strlcpy(i->name, "Camera", sizeof(i->name));
+	i->type = V4L2_INPUT_TYPE_CAMERA;
 	return 0;
 }
 
@@ -1003,12 +1004,18 @@ static int pwc_s_parm(struct file *file, void *fh,
 	int compression = 0;
 	int ret, fps;
 
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-	    parm->parm.capture.timeperframe.numerator == 0)
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	fps = parm->parm.capture.timeperframe.denominator /
-	      parm->parm.capture.timeperframe.numerator;
+	/* If timeperframe == 0, then reset the framerate to the nominal value.
+	   We pick a high framerate here, and let pwc_set_video_mode() figure
+	   out the best match. */
+	if (parm->parm.capture.timeperframe.numerator == 0 ||
+	    parm->parm.capture.timeperframe.denominator == 0)
+		fps = 30;
+	else
+		fps = parm->parm.capture.timeperframe.denominator /
+		      parm->parm.capture.timeperframe.numerator;
 
 	if (vb2_is_busy(&pdev->vb_queue))
 		return -EBUSY;
