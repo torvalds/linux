@@ -76,6 +76,13 @@
 			status = "okay";
 		};
 
+		sata@80000 {
+			compatible = "marvell,orion-sata";
+			reg = <0x80000 0x5000>;
+			interrupts = <21>;
+			status = "disabled";
+		};
+
 		nand@3000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
