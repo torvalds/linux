@@ -97,11 +97,16 @@ static void uhid_hid_stop(struct hid_device *hid)
 
 static int uhid_hid_open(struct hid_device *hid)
 {
-	return 0;
+	struct uhid_device *uhid = hid->driver_data;
+
+	return uhid_queue_event(uhid, UHID_OPEN);
 }
 
 static void uhid_hid_close(struct hid_device *hid)
 {
+	struct uhid_device *uhid = hid->driver_data;
+
+	uhid_queue_event(uhid, UHID_CLOSE);
 }
 
 static int uhid_hid_input(struct input_dev *input, unsigned int type,
