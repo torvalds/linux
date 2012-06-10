@@ -585,12 +585,9 @@ static void snd_cx88_wm8775_volume_put(struct snd_kcontrol *kcontrol,
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core = chip->core;
-	struct v4l2_control client_ctl;
 	int left = value->value.integer.value[0];
 	int right = value->value.integer.value[1];
 	int v, b;
-
-	memset(&client_ctl, 0, sizeof(client_ctl));
 
 	/* Pass volume & balance onto any WM8775 */
 	if (left >= right) {
@@ -600,13 +597,8 @@ static void snd_cx88_wm8775_volume_put(struct snd_kcontrol *kcontrol,
 		v = right << 10;
 		b = right ? 0xffff - (0x8000 * left) / right : 0x8000;
 	}
-	client_ctl.value = v;
-	client_ctl.id = V4L2_CID_AUDIO_VOLUME;
-	call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
-
-	client_ctl.value = b;
-	client_ctl.id = V4L2_CID_AUDIO_BALANCE;
-	call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
+	wm8775_s_ctrl(core, V4L2_CID_AUDIO_VOLUME, v);
+	wm8775_s_ctrl(core, V4L2_CID_AUDIO_BALANCE, b);
 }
 
 /* OK - TODO: test it */
@@ -687,14 +679,8 @@ static int snd_cx88_switch_put(struct snd_kcontrol *kcontrol,
 		cx_swrite(SHADOW_AUD_VOL_CTL, AUD_VOL_CTL, vol);
 		/* Pass mute onto any WM8775 */
 		if ((core->board.audio_chip == V4L2_IDENT_WM8775) &&
-		    ((1<<6) == bit)) {
-			struct v4l2_control client_ctl;
-
-			memset(&client_ctl, 0, sizeof(client_ctl));
-			client_ctl.value = 0 != (vol & bit);
-			client_ctl.id = V4L2_CID_AUDIO_MUTE;
-			call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
-		}
+		    ((1<<6) == bit))
+			wm8775_s_ctrl(core, V4L2_CID_AUDIO_MUTE, 0 != (vol & bit));
 		ret = 1;
 	}
 	spin_unlock_irq(&chip->reg_lock);
@@ -724,13 +710,10 @@ static int snd_cx88_alc_get(struct snd_kcontrol *kcontrol,
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core = chip->core;
-	struct v4l2_control client_ctl;
+	s32 val;
 
-	memset(&client_ctl, 0, sizeof(client_ctl));
-	client_ctl.id = V4L2_CID_AUDIO_LOUDNESS;
-	call_hw(core, WM8775_GID, core, g_ctrl, &client_ctl);
-	value->value.integer.value[0] = client_ctl.value ? 1 : 0;
-
+	val = wm8775_g_ctrl(core, V4L2_CID_AUDIO_LOUDNESS);
+	value->value.integer.value[0] = val ? 1 : 0;
 	return 0;
 }
 

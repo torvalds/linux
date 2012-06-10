@@ -685,43 +685,6 @@ static struct videobuf_queue_ops blackbird_qops = {
 
 /* ------------------------------------------------------------------ */
 
-static const u32 *ctrl_classes[] = {
-	cx88_user_ctrls,
-	cx2341x_mpeg_ctrls,
-	NULL
-};
-
-static int blackbird_queryctrl(struct cx8802_dev *dev, struct v4l2_queryctrl *qctrl)
-{
-	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
-	if (qctrl->id == 0)
-		return -EINVAL;
-
-	/* Standard V4L2 controls */
-	if (cx8800_ctrl_query(dev->core, qctrl) == 0)
-		return 0;
-
-	/* MPEG V4L2 controls */
-	if (cx2341x_ctrl_query(&dev->params, qctrl))
-		qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
-	return 0;
-}
-
-/* ------------------------------------------------------------------ */
-/* IOCTL Handlers                                                     */
-
-static int vidioc_querymenu (struct file *file, void *priv,
-				struct v4l2_querymenu *qmenu)
-{
-	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
-	struct v4l2_queryctrl qctrl;
-
-	qctrl.id = qmenu->id;
-	blackbird_queryctrl(dev, &qctrl);
-	return v4l2_ctrl_query_menu(qmenu, &qctrl,
-			cx2341x_ctrl_get_menu(&dev->params, qmenu->id));
-}
-
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
@@ -917,41 +880,11 @@ static int vidioc_log_status (struct file *file, void *priv)
 	return 0;
 }
 
-static int vidioc_queryctrl (struct file *file, void *priv,
-				struct v4l2_queryctrl *qctrl)
-{
-	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
-
-	if (blackbird_queryctrl(dev, qctrl) == 0)
-		return 0;
-
-	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
-	if (unlikely(qctrl->id == 0))
-		return -EINVAL;
-	return cx8800_ctrl_query(dev->core, qctrl);
-}
-
 static int vidioc_enum_input (struct file *file, void *priv,
 				struct v4l2_input *i)
 {
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
 	return cx88_enum_input (core,i);
-}
-
-static int vidioc_g_ctrl (struct file *file, void *priv,
-				struct v4l2_control *ctl)
-{
-	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
-	return
-		cx88_get_control(core,ctl);
-}
-
-static int vidioc_s_ctrl (struct file *file, void *priv,
-				struct v4l2_control *ctl)
-{
-	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
-	return
-		cx88_set_control(core,ctl);
 }
 
 static int vidioc_g_frequency (struct file *file, void *priv,
@@ -1178,7 +1111,6 @@ static const struct v4l2_file_operations mpeg_fops =
 };
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
-	.vidioc_querymenu     = vidioc_querymenu,
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
@@ -1195,10 +1127,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_try_ext_ctrls = vidioc_try_ext_ctrls,
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.vidioc_log_status    = vidioc_log_status,
-	.vidioc_queryctrl     = vidioc_queryctrl,
 	.vidioc_enum_input    = vidioc_enum_input,
-	.vidioc_g_ctrl        = vidioc_g_ctrl,
-	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,

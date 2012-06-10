@@ -160,210 +160,144 @@ static const struct v4l2_queryctrl no_ctl = {
 	.flags = V4L2_CTRL_FLAG_DISABLED,
 };
 
+
+struct cx88_ctrl {
+	/* control information */
+	u32 id;
+	s32 minimum;
+	s32 maximum;
+	u32 step;
+	s32 default_value;
+
+	/* control register information */
+	u32 off;
+	u32 reg;
+	u32 sreg;
+	u32 mask;
+	u32 shift;
+};
+
 static const struct cx88_ctrl cx8800_ctls[] = {
 	/* --- video --- */
 	{
-		.v = {
-			.id            = V4L2_CID_BRIGHTNESS,
-			.name          = "Brightness",
-			.minimum       = 0x00,
-			.maximum       = 0xff,
-			.step          = 1,
-			.default_value = 0x7f,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off                   = 128,
-		.reg                   = MO_CONTR_BRIGHT,
-		.mask                  = 0x00ff,
-		.shift                 = 0,
+		.id            = V4L2_CID_BRIGHTNESS,
+		.minimum       = 0x00,
+		.maximum       = 0xff,
+		.step          = 1,
+		.default_value = 0x7f,
+		.off           = 128,
+		.reg           = MO_CONTR_BRIGHT,
+		.mask          = 0x00ff,
+		.shift         = 0,
 	},{
-		.v = {
-			.id            = V4L2_CID_CONTRAST,
-			.name          = "Contrast",
-			.minimum       = 0,
-			.maximum       = 0xff,
-			.step          = 1,
-			.default_value = 0x3f,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off                   = 0,
-		.reg                   = MO_CONTR_BRIGHT,
-		.mask                  = 0xff00,
-		.shift                 = 8,
+		.id            = V4L2_CID_CONTRAST,
+		.minimum       = 0,
+		.maximum       = 0xff,
+		.step          = 1,
+		.default_value = 0x3f,
+		.off           = 0,
+		.reg           = MO_CONTR_BRIGHT,
+		.mask          = 0xff00,
+		.shift         = 8,
 	},{
-		.v = {
-			.id            = V4L2_CID_HUE,
-			.name          = "Hue",
-			.minimum       = 0,
-			.maximum       = 0xff,
-			.step          = 1,
-			.default_value = 0x7f,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off                   = 128,
-		.reg                   = MO_HUE,
-		.mask                  = 0x00ff,
-		.shift                 = 0,
+		.id            = V4L2_CID_HUE,
+		.minimum       = 0,
+		.maximum       = 0xff,
+		.step          = 1,
+		.default_value = 0x7f,
+		.off           = 128,
+		.reg           = MO_HUE,
+		.mask          = 0x00ff,
+		.shift         = 0,
 	},{
 		/* strictly, this only describes only U saturation.
 		 * V saturation is handled specially through code.
 		 */
-		.v = {
-			.id            = V4L2_CID_SATURATION,
-			.name          = "Saturation",
-			.minimum       = 0,
-			.maximum       = 0xff,
-			.step          = 1,
-			.default_value = 0x7f,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off                   = 0,
-		.reg                   = MO_UV_SATURATION,
-		.mask                  = 0x00ff,
-		.shift                 = 0,
+		.id            = V4L2_CID_SATURATION,
+		.minimum       = 0,
+		.maximum       = 0xff,
+		.step          = 1,
+		.default_value = 0x7f,
+		.off           = 0,
+		.reg           = MO_UV_SATURATION,
+		.mask          = 0x00ff,
+		.shift         = 0,
 	}, {
-		.v = {
-			.id            = V4L2_CID_SHARPNESS,
-			.name          = "Sharpness",
-			.minimum       = 0,
-			.maximum       = 4,
-			.step          = 1,
-			.default_value = 0x0,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off                   = 0,
+		.id            = V4L2_CID_SHARPNESS,
+		.minimum       = 0,
+		.maximum       = 4,
+		.step          = 1,
+		.default_value = 0x0,
+		.off           = 0,
 		/* NOTE: the value is converted and written to both even
 		   and odd registers in the code */
-		.reg                   = MO_FILTER_ODD,
-		.mask                  = 7 << 7,
-		.shift                 = 7,
+		.reg           = MO_FILTER_ODD,
+		.mask          = 7 << 7,
+		.shift         = 7,
 	}, {
-		.v = {
-			.id            = V4L2_CID_CHROMA_AGC,
-			.name          = "Chroma AGC",
-			.minimum       = 0,
-			.maximum       = 1,
-			.default_value = 0x1,
-			.type          = V4L2_CTRL_TYPE_BOOLEAN,
-		},
-		.reg                   = MO_INPUT_FORMAT,
-		.mask                  = 1 << 10,
-		.shift                 = 10,
+		.id            = V4L2_CID_CHROMA_AGC,
+		.minimum       = 0,
+		.maximum       = 1,
+		.default_value = 0x1,
+		.reg           = MO_INPUT_FORMAT,
+		.mask          = 1 << 10,
+		.shift         = 10,
 	}, {
-		.v = {
-			.id            = V4L2_CID_COLOR_KILLER,
-			.name          = "Color killer",
-			.minimum       = 0,
-			.maximum       = 1,
-			.default_value = 0x1,
-			.type          = V4L2_CTRL_TYPE_BOOLEAN,
-		},
-		.reg                   = MO_INPUT_FORMAT,
-		.mask                  = 1 << 9,
-		.shift                 = 9,
+		.id            = V4L2_CID_COLOR_KILLER,
+		.minimum       = 0,
+		.maximum       = 1,
+		.default_value = 0x1,
+		.reg           = MO_INPUT_FORMAT,
+		.mask          = 1 << 9,
+		.shift         = 9,
 	}, {
-		.v = {
-			.id            = V4L2_CID_BAND_STOP_FILTER,
-			.name          = "Notch filter",
-			.minimum       = 0,
-			.maximum       = 1,
-			.step          = 1,
-			.default_value = 0x0,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off                   = 0,
-		.reg                   = MO_HTOTAL,
-		.mask                  = 3 << 11,
-		.shift                 = 11,
+		.id            = V4L2_CID_BAND_STOP_FILTER,
+		.minimum       = 0,
+		.maximum       = 1,
+		.step          = 1,
+		.default_value = 0x0,
+		.off           = 0,
+		.reg           = MO_HTOTAL,
+		.mask          = 3 << 11,
+		.shift         = 11,
 	}, {
-	/* --- audio --- */
-		.v = {
-			.id            = V4L2_CID_AUDIO_MUTE,
-			.name          = "Mute",
-			.minimum       = 0,
-			.maximum       = 1,
-			.default_value = 1,
-			.type          = V4L2_CTRL_TYPE_BOOLEAN,
-		},
-		.reg                   = AUD_VOL_CTL,
-		.sreg                  = SHADOW_AUD_VOL_CTL,
-		.mask                  = (1 << 6),
-		.shift                 = 6,
+		/* --- audio --- */
+		.id            = V4L2_CID_AUDIO_MUTE,
+		.minimum       = 0,
+		.maximum       = 1,
+		.default_value = 1,
+		.reg           = AUD_VOL_CTL,
+		.sreg          = SHADOW_AUD_VOL_CTL,
+		.mask          = (1 << 6),
+		.shift         = 6,
 	},{
-		.v = {
-			.id            = V4L2_CID_AUDIO_VOLUME,
-			.name          = "Volume",
-			.minimum       = 0,
-			.maximum       = 0x3f,
-			.step          = 1,
-			.default_value = 0x3f,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.reg                   = AUD_VOL_CTL,
-		.sreg                  = SHADOW_AUD_VOL_CTL,
-		.mask                  = 0x3f,
-		.shift                 = 0,
+		.id            = V4L2_CID_AUDIO_VOLUME,
+		.minimum       = 0,
+		.maximum       = 0x3f,
+		.step          = 1,
+		.default_value = 0x3f,
+		.reg           = AUD_VOL_CTL,
+		.sreg          = SHADOW_AUD_VOL_CTL,
+		.mask          = 0x3f,
+		.shift         = 0,
 	},{
-		.v = {
-			.id            = V4L2_CID_AUDIO_BALANCE,
-			.name          = "Balance",
-			.minimum       = 0,
-			.maximum       = 0x7f,
-			.step          = 1,
-			.default_value = 0x40,
-			.type          = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.reg                   = AUD_BAL_CTL,
-		.sreg                  = SHADOW_AUD_BAL_CTL,
-		.mask                  = 0x7f,
-		.shift                 = 0,
+		.id            = V4L2_CID_AUDIO_BALANCE,
+		.minimum       = 0,
+		.maximum       = 0x7f,
+		.step          = 1,
+		.default_value = 0x40,
+		.reg           = AUD_BAL_CTL,
+		.sreg          = SHADOW_AUD_BAL_CTL,
+		.mask          = 0x7f,
+		.shift         = 0,
 	}
 };
+
 enum { CX8800_CTLS = ARRAY_SIZE(cx8800_ctls) };
 
-/* Must be sorted from low to high control ID! */
-const u32 cx88_user_ctrls[] = {
-	V4L2_CID_USER_CLASS,
-	V4L2_CID_BRIGHTNESS,
-	V4L2_CID_CONTRAST,
-	V4L2_CID_SATURATION,
-	V4L2_CID_HUE,
-	V4L2_CID_AUDIO_VOLUME,
-	V4L2_CID_AUDIO_BALANCE,
-	V4L2_CID_AUDIO_MUTE,
-	V4L2_CID_SHARPNESS,
-	V4L2_CID_CHROMA_AGC,
-	V4L2_CID_COLOR_KILLER,
-	V4L2_CID_BAND_STOP_FILTER,
-	0
-};
-EXPORT_SYMBOL(cx88_user_ctrls);
-
-static const u32 * const ctrl_classes[] = {
-	cx88_user_ctrls,
-	NULL
-};
 
 int cx8800_ctrl_query(struct cx88_core *core, struct v4l2_queryctrl *qctrl)
 {
-	int i;
-
-	if (qctrl->id < V4L2_CID_BASE ||
-	    qctrl->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-	for (i = 0; i < CX8800_CTLS; i++)
-		if (cx8800_ctls[i].v.id == qctrl->id)
-			break;
-	if (i == CX8800_CTLS) {
-		*qctrl = no_ctl;
-		return 0;
-	}
-	*qctrl = cx8800_ctls[i].v;
-	/* Report chroma AGC as inactive when SECAM is selected */
-	if (cx8800_ctls[i].v.id == V4L2_CID_CHROMA_AGC &&
-	    core->tvnorm & V4L2_STD_SECAM)
-		qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
-
 	return 0;
 }
 EXPORT_SYMBOL(cx8800_ctrl_query);
@@ -974,98 +908,43 @@ video_mmap(struct file *file, struct vm_area_struct * vma)
 /* ------------------------------------------------------------------ */
 /* VIDEO CTRL IOCTLS                                                  */
 
-int cx88_get_control (struct cx88_core  *core, struct v4l2_control *ctl)
+static int cx8800_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	const struct cx88_ctrl  *c    = NULL;
-	u32 value;
-	int i;
-
-	for (i = 0; i < CX8800_CTLS; i++)
-		if (cx8800_ctls[i].v.id == ctl->id)
-			c = &cx8800_ctls[i];
-	if (unlikely(NULL == c))
-		return -EINVAL;
-
-	value = c->sreg ? cx_sread(c->sreg) : cx_read(c->reg);
-	switch (ctl->id) {
-	case V4L2_CID_AUDIO_BALANCE:
-		ctl->value = ((value & 0x7f) < 0x40) ? ((value & 0x7f) + 0x40)
-					: (0x7f - (value & 0x7f));
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-		ctl->value = 0x3f - (value & 0x3f);
-		break;
-	case V4L2_CID_SHARPNESS:
-		ctl->value = ((value & 0x0200) ? (((value & 0x0180) >> 7) + 1)
-						 : 0);
-		break;
-	default:
-		ctl->value = ((value + (c->off << c->shift)) & c->mask) >> c->shift;
-		break;
-	}
-	dprintk(1,"get_control id=0x%X(%s) ctrl=0x%02x, reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
-				ctl->id, c->v.name, ctl->value, c->reg,
-				value,c->mask, c->sreg ? " [shadowed]" : "");
-	return 0;
-}
-EXPORT_SYMBOL(cx88_get_control);
-
-int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
-{
-	const struct cx88_ctrl *c = NULL;
+	struct cx88_core *core =
+		container_of(ctrl->handler, struct cx88_core, hdl);
+	const struct cx88_ctrl *cc = ctrl->priv;
 	u32 value,mask;
-	int i;
-
-	for (i = 0; i < CX8800_CTLS; i++) {
-		if (cx8800_ctls[i].v.id == ctl->id) {
-			c = &cx8800_ctls[i];
-		}
-	}
-	if (unlikely(NULL == c))
-		return -EINVAL;
-
-	if (ctl->value < c->v.minimum)
-		ctl->value = c->v.minimum;
-	if (ctl->value > c->v.maximum)
-		ctl->value = c->v.maximum;
 
 	/* Pass changes onto any WM8775 */
 	if (core->board.audio_chip == V4L2_IDENT_WM8775) {
-		struct v4l2_control client_ctl;
-		memset(&client_ctl, 0, sizeof(client_ctl));
-		client_ctl.id = ctl->id;
-
-		switch (ctl->id) {
+		switch (ctrl->id) {
 		case V4L2_CID_AUDIO_MUTE:
-			client_ctl.value = ctl->value;
+			wm8775_s_ctrl(core, ctrl->id, ctrl->val);
 			break;
 		case V4L2_CID_AUDIO_VOLUME:
-			client_ctl.value = (ctl->value) ?
-				(0x90 + ctl->value) << 8 : 0;
+			wm8775_s_ctrl(core, ctrl->id, (ctrl->val) ?
+						(0x90 + ctrl->val) << 8 : 0);
 			break;
 		case V4L2_CID_AUDIO_BALANCE:
-			client_ctl.value = ctl->value << 9;
+			wm8775_s_ctrl(core, ctrl->id, ctrl->val << 9);
 			break;
 		default:
-			client_ctl.id = 0;
 			break;
 		}
-		if (client_ctl.id)
-			call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
 	}
 
-	mask=c->mask;
-	switch (ctl->id) {
+	mask = cc->mask;
+	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
-		value = (ctl->value < 0x40) ? (0x7f - ctl->value) : (ctl->value - 0x40);
+		value = (ctrl->val < 0x40) ? (0x7f - ctrl->val) : (ctrl->val - 0x40);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
-		value = 0x3f - (ctl->value & 0x3f);
+		value = 0x3f - (ctrl->val & 0x3f);
 		break;
 	case V4L2_CID_SATURATION:
 		/* special v_sat handling */
 
-		value = ((ctl->value - c->off) << c->shift) & c->mask;
+		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
 
 		if (core->tvnorm & V4L2_STD_SECAM) {
 			/* For SECAM, both U and V sat should be equal */
@@ -1078,43 +957,28 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 		break;
 	case V4L2_CID_SHARPNESS:
 		/* 0b000, 0b100, 0b101, 0b110, or 0b111 */
-		value = (ctl->value < 1 ? 0 : ((ctl->value + 3) << 7));
+		value = (ctrl->val < 1 ? 0 : ((ctrl->val + 3) << 7));
 		/* needs to be set for both fields */
 		cx_andor(MO_FILTER_EVEN, mask, value);
 		break;
 	case V4L2_CID_CHROMA_AGC:
 		/* Do not allow chroma AGC to be enabled for SECAM */
-		value = ((ctl->value - c->off) << c->shift) & c->mask;
-		if (core->tvnorm & V4L2_STD_SECAM && value)
+		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
+		if ((core->tvnorm & V4L2_STD_SECAM) && value)
 			return -EINVAL;
 		break;
 	default:
-		value = ((ctl->value - c->off) << c->shift) & c->mask;
+		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
 		break;
 	}
 	dprintk(1,"set_control id=0x%X(%s) ctrl=0x%02x, reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
-				ctl->id, c->v.name, ctl->value, c->reg, value,
-				mask, c->sreg ? " [shadowed]" : "");
-	if (c->sreg) {
-		cx_sandor(c->sreg, c->reg, mask, value);
-	} else {
-		cx_andor(c->reg, mask, value);
-	}
+				ctrl->id, ctrl->name, ctrl->val, cc->reg, value,
+				mask, cc->sreg ? " [shadowed]" : "");
+	if (cc->sreg)
+		cx_sandor(cc->sreg, cc->reg, mask, value);
+	else
+		cx_andor(cc->reg, mask, value);
 	return 0;
-}
-EXPORT_SYMBOL(cx88_set_control);
-
-static void init_controls(struct cx88_core *core)
-{
-	struct v4l2_control ctrl;
-	int i;
-
-	for (i = 0; i < CX8800_CTLS; i++) {
-		ctrl.id=cx8800_ctls[i].v.id;
-		ctrl.value=cx8800_ctls[i].v.default_value;
-
-		cx88_set_control(core, &ctrl);
-	}
 }
 
 /* ------------------------------------------------------------------ */
@@ -1382,35 +1246,6 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-
-
-static int vidioc_queryctrl (struct file *file, void *priv,
-				struct v4l2_queryctrl *qctrl)
-{
-	struct cx88_core *core = ((struct cx8800_fh *)priv)->dev->core;
-
-	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
-	if (unlikely(qctrl->id == 0))
-		return -EINVAL;
-	return cx8800_ctrl_query(core, qctrl);
-}
-
-static int vidioc_g_ctrl (struct file *file, void *priv,
-				struct v4l2_control *ctl)
-{
-	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
-	return
-		cx88_get_control(core,ctl);
-}
-
-static int vidioc_s_ctrl (struct file *file, void *priv,
-				struct v4l2_control *ctl)
-{
-	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
-	return
-		cx88_set_control(core,ctl);
-}
-
 static int vidioc_g_tuner (struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
@@ -1560,29 +1395,6 @@ static int radio_s_tuner (struct file *file, void *priv,
 
 	call_all(core, tuner, s_tuner, t);
 
-	return 0;
-}
-
-static int radio_queryctrl (struct file *file, void *priv,
-			    struct v4l2_queryctrl *c)
-{
-	int i;
-
-	if (c->id <  V4L2_CID_BASE ||
-		c->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-	if (c->id == V4L2_CID_AUDIO_MUTE ||
-		c->id == V4L2_CID_AUDIO_VOLUME ||
-		c->id == V4L2_CID_AUDIO_BALANCE) {
-		for (i = 0; i < CX8800_CTLS; i++) {
-			if (cx8800_ctls[i].v.id == c->id)
-				break;
-		}
-		if (i == CX8800_CTLS)
-			return -EINVAL;
-		*c = cx8800_ctls[i].v;
-	} else
-		*c = no_ctl;
 	return 0;
 }
 
@@ -1739,9 +1551,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
-	.vidioc_queryctrl     = vidioc_queryctrl,
-	.vidioc_g_ctrl        = vidioc_g_ctrl,
-	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
 	.vidioc_g_tuner       = vidioc_g_tuner,
@@ -1776,9 +1585,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_g_tuner       = radio_g_tuner,
 	.vidioc_s_tuner       = radio_s_tuner,
-	.vidioc_queryctrl     = radio_queryctrl,
-	.vidioc_g_ctrl        = vidioc_g_ctrl,
-	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1791,6 +1597,10 @@ static const struct video_device cx8800_radio_template = {
 	.name                 = "cx8800-radio",
 	.fops                 = &radio_fops,
 	.ioctl_ops 	      = &radio_ioctl_ops,
+};
+
+static const struct v4l2_ctrl_ops cx8800_ctrl_ops = {
+	.s_ctrl = cx8800_s_ctrl,
 };
 
 /* ----------------------------------------------------------- */
@@ -1825,8 +1635,8 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 {
 	struct cx8800_dev *dev;
 	struct cx88_core *core;
-
 	int err;
+	int i;
 
 	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
@@ -1897,6 +1707,19 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	}
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
+	for (i = 0; i < CX8800_CTLS; i++) {
+		const struct cx88_ctrl *cc = &cx8800_ctls[i];
+		struct v4l2_ctrl *vc;
+
+		vc = v4l2_ctrl_new_std(&core->hdl, &cx8800_ctrl_ops,
+			cc->id, cc->minimum, cc->maximum, cc->step, cc->default_value);
+		if (vc == NULL) {
+			err = core->hdl.error;
+			goto fail_core;
+		}
+		vc->priv = (void *)cc;
+	}
+
 	/* load and configure helper modules */
 
 	if (core->board.audio_chip == V4L2_IDENT_WM8775) {
@@ -1914,8 +1737,10 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 		sd = v4l2_i2c_new_subdev_board(&core->v4l2_dev, &core->i2c_adap,
 				&wm8775_info, NULL);
-		if (sd != NULL)
+		if (sd != NULL) {
+			core->sd_wm8775 = sd;
 			sd->grp_id = WM8775_GID;
+		}
 	}
 
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
@@ -1946,7 +1771,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* initial device configuration */
 	mutex_lock(&core->lock);
 	cx88_set_tvnorm(core, core->tvnorm);
-	init_controls(core);
+	v4l2_ctrl_handler_setup(&core->hdl);
 	cx88_video_mux(core, 0);
 
 	/* register v4l devices */

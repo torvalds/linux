@@ -115,15 +115,6 @@ struct cx8800_fmt {
 	u32   cxformat;
 };
 
-struct cx88_ctrl {
-	struct v4l2_queryctrl  v;
-	u32                    off;
-	u32                    reg;
-	u32                    sreg;
-	u32                    mask;
-	u32                    shift;
-};
-
 /* ----------------------------------------------------------- */
 /* SRAM memory management data (see cx88-core.c)               */
 
@@ -359,6 +350,8 @@ struct cx88_core {
 
 	/* config info -- analog */
 	struct v4l2_device 	   v4l2_dev;
+	struct v4l2_ctrl_handler   hdl;
+	struct v4l2_subdev	   *sd_wm8775;
 	struct i2c_client 	   *i2c_rtc;
 	unsigned int               boardnr;
 	struct cx88_board	   board;
@@ -409,8 +402,6 @@ static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
 	return container_of(v4l2_dev, struct cx88_core, v4l2_dev);
 }
 
-#define WM8775_GID	(1 << 0)
-
 #define call_hw(core, grpid, o, f, args...) \
 	do {							\
 		if (!core->i2c_rc) {				\
@@ -423,6 +414,36 @@ static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
 	} while (0)
 
 #define call_all(core, o, f, args...) call_hw(core, 0, o, f, ##args)
+
+#define WM8775_GID      (1 << 0)
+
+#define wm8775_s_ctrl(core, id, val) \
+	do {									\
+		struct v4l2_ctrl *ctrl_ =					\
+			v4l2_ctrl_find(core->sd_wm8775->ctrl_handler, id);	\
+		if (ctrl_ && !core->i2c_rc) {					\
+			if (core->gate_ctrl)					\
+				core->gate_ctrl(core, 1);			\
+			v4l2_ctrl_s_ctrl(ctrl_, val);				\
+			if (core->gate_ctrl)					\
+				core->gate_ctrl(core, 0);			\
+		}								\
+	} while (0)
+
+#define wm8775_g_ctrl(core, id) \
+	({									\
+		struct v4l2_ctrl *ctrl_ =					\
+			v4l2_ctrl_find(core->sd_wm8775->ctrl_handler, id);	\
+		s32 val = 0;							\
+		if (ctrl_ && !core->i2c_rc) {					\
+			if (core->gate_ctrl)					\
+				core->gate_ctrl(core, 1);			\
+			val = v4l2_ctrl_g_ctrl(ctrl_);				\
+			if (core->gate_ctrl)					\
+				core->gate_ctrl(core, 0);			\
+		}								\
+		val;								\
+	})
 
 struct cx8800_dev;
 struct cx8802_dev;
@@ -722,13 +743,8 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
-extern const u32 cx88_user_ctrls[];
-extern int cx8800_ctrl_query(struct cx88_core *core,
-			     struct v4l2_queryctrl *qctrl);
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);
 int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
-int cx88_get_control(struct cx88_core *core, struct v4l2_control *ctl);
-int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl);
 int cx88_video_mux(struct cx88_core *core, unsigned int input);
 void cx88_querycap(struct file *file, struct cx88_core *core,
 		struct v4l2_capability *cap);
