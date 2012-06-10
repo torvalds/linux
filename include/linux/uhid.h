@@ -29,6 +29,7 @@ enum uhid_event_type {
 	UHID_STOP,
 	UHID_OPEN,
 	UHID_CLOSE,
+	UHID_OUTPUT,
 	UHID_OUTPUT_EV,
 	UHID_INPUT,
 };
@@ -49,9 +50,21 @@ struct uhid_create_req {
 
 #define UHID_DATA_MAX 4096
 
+enum uhid_report_type {
+	UHID_FEATURE_REPORT,
+	UHID_OUTPUT_REPORT,
+	UHID_INPUT_REPORT,
+};
+
 struct uhid_input_req {
 	__u8 data[UHID_DATA_MAX];
 	__u16 size;
+} __attribute__((__packed__));
+
+struct uhid_output_req {
+	__u8 data[UHID_DATA_MAX];
+	__u16 size;
+	__u8 rtype;
 } __attribute__((__packed__));
 
 struct uhid_output_ev_req {
@@ -66,6 +79,7 @@ struct uhid_event {
 	union {
 		struct uhid_create_req create;
 		struct uhid_input_req input;
+		struct uhid_output_req output;
 		struct uhid_output_ev_req output_ev;
 	} u;
 } __attribute__((__packed__));
