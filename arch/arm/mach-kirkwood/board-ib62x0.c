@@ -33,10 +33,6 @@ static struct mv643xx_eth_platform_data ib62x0_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
-static struct mv_sata_platform_data ib62x0_sata_data = {
-	.n_ports	= 2,
-};
-
 static unsigned int ib62x0_mpp_config[] __initdata = {
 	MPP0_NF_IO2,
 	MPP1_NF_IO3,
@@ -132,7 +128,6 @@ void __init ib62x0_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&ib62x0_ge00_data);
-	kirkwood_sata_init(&ib62x0_sata_data);
 	platform_device_register(&ib62x0_led_device);
 	platform_device_register(&ib62x0_button_device);
 	if (gpio_request(IB62X0_GPIO_POWER_OFF, "ib62x0:power:off") == 0 &&

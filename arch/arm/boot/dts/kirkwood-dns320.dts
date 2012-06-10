@@ -26,6 +26,11 @@
 			status = "okay";
 		};
 
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
 		nand@3000000 {
 			status = "okay";
 

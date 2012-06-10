@@ -35,10 +35,6 @@ static struct mv643xx_eth_platform_data dnskw_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
-static struct mv_sata_platform_data dnskw_sata_data = {
-	.n_ports	= 2,
-};
-
 static unsigned int dnskw_mpp_config[] __initdata = {
 	MPP13_UART1_TXD,	/* Custom ... */
 	MPP14_UART1_RXD,	/* ... Controller (DNS-320 only) */
@@ -245,7 +241,6 @@ void __init dnskw_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&dnskw_ge00_data);
-	kirkwood_sata_init(&dnskw_sata_data);
 	kirkwood_i2c_init();
 
 	platform_device_register(&dnskw_button_device);

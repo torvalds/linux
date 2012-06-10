@@ -33,10 +33,6 @@ static struct mv643xx_eth_platform_data qnap_ts219_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
-static struct mv_sata_platform_data qnap_ts219_sata_data = {
-	.n_ports	= 2,
-};
-
 static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP0_SPI_SCn,
 	MPP1_SPI_MOSI,
@@ -70,7 +66,6 @@ void __init qnap_dt_ts219_init(void)
 		qnap_ts219_ge00_data.phy_addr = MV643XX_ETH_PHY_ADDR(0);
 
 	kirkwood_ge00_init(&qnap_ts219_ge00_data);
-	kirkwood_sata_init(&qnap_ts219_sata_data);
 	kirkwood_ehci_init();
 
 	pm_power_off = qnap_tsx1x_power_off;
