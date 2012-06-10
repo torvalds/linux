@@ -1082,7 +1082,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	mutex_lock(&wl->mutex);
 	wl1271_power_off(wl);
 	wl->flags = 0;
-	wl->sleep_auth = WL1271_PSM_CAM;
+	wl->sleep_auth = WL1271_PSM_ILLEGAL;
 	wl->state = WL1271_STATE_OFF;
 	wl->plt = false;
 	wl->rx_counter = 0;
@@ -1741,7 +1741,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
 	wl->sched_scanning = false;
-	wl->sleep_auth = WL1271_PSM_CAM;
+	wl->sleep_auth = WL1271_PSM_ILLEGAL;
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
 	memset(wl->roc_map, 0, sizeof(wl->roc_map));
@@ -2148,6 +2148,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int i, ret;
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
@@ -2228,10 +2229,24 @@ deinit:
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
 
-	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
+	if (is_ap)
 		wl->ap_count--;
 	else
 		wl->sta_count--;
+
+	/* Last AP, have more stations. Configure according to STA. */
+	if (wl->ap_count == 0 && is_ap && wl->sta_count) {
+		u8 sta_auth = wl->conf.conn.sta_sleep_auth;
+		/* Configure for power according to debugfs */
+		if (sta_auth != WL1271_PSM_ILLEGAL)
+			wl1271_acx_sleep_auth(wl, sta_auth);
+		/* Configure for power always on */
+		else if (wl->quirks & WLCORE_QUIRK_NO_ELP)
+			wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
+		/* Configure for ELP power saving */
+		else
+			wl1271_acx_sleep_auth(wl, WL1271_PSM_ELP);
+	}
 
 	mutex_unlock(&wl->mutex);
 
