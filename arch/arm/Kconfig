@@ -605,6 +605,7 @@ config ARCH_TEGRA
 
 config ARCH_SUN3I
 	bool "Allwinner Ltd. sun3i family"
+	select PLAT_SUNXI
 	select CPU_ARM926T
 	select ARM_AMBA
 	select HAVE_CLK
@@ -617,6 +618,7 @@ config ARCH_SUN3I
 
 config ARCH_SUN4I
 	bool "AllWinner SUN4I Platform"
+	select PLAT_SUNXI
 	select CPU_V7
 	select ARM_AMBA
 	select HAVE_CLK
@@ -630,6 +632,7 @@ config ARCH_SUN4I
 
 config ARCH_SUN5I
         bool "AllWinner SUN5I Platform"
+	select PLAT_SUNXI
         select CPU_V7
         select ARM_AMBA
         select HAVE_CLK
@@ -1031,9 +1034,12 @@ source "arch/arm/mach-s5pc100/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
+if PLAT_SUNXI
+source "arch/arm/plat-sunxi/Kconfig"
 source "arch/arm/mach-sun3i/Kconfig"
 source "arch/arm/mach-sun4i/Kconfig"
 source "arch/arm/mach-sun5i/Kconfig"
+endif
 
 source "arch/arm/mach-exynos4/Kconfig"
 
@@ -1073,6 +1079,9 @@ config PLAT_PXA
 	bool
 
 config PLAT_VERSATILE
+	bool
+
+config PLAT_SUNXI
 	bool
 
 config ARM_TIMER_SP804
