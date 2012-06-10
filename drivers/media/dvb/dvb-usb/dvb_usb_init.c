@@ -428,6 +428,9 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 	if (d->work_pid != current->pid)
 		cancel_work_sync(&d->probe_work);
 
+	if (d->props.disconnect)
+		d->props.disconnect(d);
+
 	name = d->name;
 	dvb_usbv2_exit(d);
 
