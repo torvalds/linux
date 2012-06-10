@@ -18,7 +18,7 @@
  */
 
 #include "main.h"
-#include "bat_sysfs.h"
+#include "sysfs.h"
 #include "gateway_client.h"
 #include "gateway_common.h"
 #include "hard-interface.h"

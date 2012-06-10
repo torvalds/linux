@@ -18,8 +18,8 @@
  */
 
 #include "main.h"
-#include "bat_sysfs.h"
-#include "bat_debugfs.h"
+#include "sysfs.h"
+#include "debugfs.h"
 #include "routing.h"
 #include "send.h"
 #include "originator.h"

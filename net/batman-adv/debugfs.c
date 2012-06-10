@@ -21,7 +21,7 @@
 
 #include <linux/debugfs.h>
 
-#include "bat_debugfs.h"
+#include "debugfs.h"
 #include "translation-table.h"
 #include "originator.h"
 #include "hard-interface.h"

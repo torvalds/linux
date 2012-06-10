@@ -23,7 +23,7 @@
 #include "send.h"
 #include "translation-table.h"
 #include "routing.h"
-#include "bat_sysfs.h"
+#include "sysfs.h"
 #include "originator.h"
 #include "hash.h"
 #include "bridge_loop_avoidance.h"

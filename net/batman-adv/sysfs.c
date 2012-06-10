@@ -18,7 +18,7 @@
  */
 
 #include "main.h"
-#include "bat_sysfs.h"
+#include "sysfs.h"
 #include "translation-table.h"
 #include "originator.h"
 #include "hard-interface.h"

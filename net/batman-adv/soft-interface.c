@@ -22,12 +22,12 @@
 #include "hard-interface.h"
 #include "routing.h"
 #include "send.h"
-#include "bat_debugfs.h"
+#include "debugfs.h"
 #include "translation-table.h"
 #include "hash.h"
 #include "gateway_common.h"
 #include "gateway_client.h"
-#include "bat_sysfs.h"
+#include "sysfs.h"
 #include "originator.h"
 #include <linux/slab.h>
 #include <linux/ethtool.h>
