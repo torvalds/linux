@@ -334,6 +334,11 @@ static int chip_thread(void *data)
 			else if (mode & V4L2_TUNER_SUB_STEREO)
 				selected = V4L2_TUNER_MODE_STEREO;
 			break;
+		case V4L2_TUNER_MODE_LANG1_LANG2:
+			if (mode & V4L2_TUNER_SUB_LANG2)
+				selected = V4L2_TUNER_MODE_LANG1_LANG2;
+			else if (mode & V4L2_TUNER_SUB_STEREO)
+				selected = V4L2_TUNER_MODE_STEREO;
 		}
 		desc->setmode(chip, selected);
 
@@ -402,6 +407,9 @@ static void tda9840_setmode(struct CHIPSTATE *chip, int mode)
 		break;
 	case V4L2_TUNER_MODE_LANG2:
 		t |= TDA9840_DUALB;
+		break;
+	case V4L2_TUNER_MODE_LANG1_LANG2:
+		t |= TDA9840_DUALAB;
 		break;
 	default:
 		update = 0;
@@ -487,6 +495,7 @@ static int tda9840_checkit(struct CHIPSTATE *chip)
 /* 0x06 - C6 - Control 2 in TDA9855, Control 3 in TDA9850 */
 /* Common to TDA9855 and TDA9850: */
 #define TDA985x_SAP	3<<6 /* Selects SAP output, mute if not received */
+#define TDA985x_MONOSAP	2<<6 /* Selects Mono on left, SAP on right */
 #define TDA985x_STEREO	1<<6 /* Selects Stereo ouput, mono if not received */
 #define TDA985x_MONO	0    /* Forces Mono output */
 #define TDA985x_LMU	1<<3 /* Mute (LOR/LOL for 9855, OUTL/OUTR for 9850) */
@@ -554,6 +563,9 @@ static void tda985x_setmode(struct CHIPSTATE *chip, int mode)
 	case V4L2_TUNER_MODE_SAP:
 		c6 |= TDA985x_SAP;
 		break;
+	case V4L2_TUNER_MODE_LANG1_LANG2:
+		c6 |= TDA985x_MONOSAP;
+		break;
 	default:
 		update = 0;
 	}
@@ -601,6 +613,7 @@ static void tda985x_setmode(struct CHIPSTATE *chip, int mode)
 #define TDA9873_TR_REVERSE  ((1 << 3) | (1 << 2))
 #define TDA9873_TR_DUALA    1 << 2
 #define TDA9873_TR_DUALB    1 << 3
+#define TDA9873_TR_DUALAB   0
 
 /* output level controls
  * B5:  output level switch (0 = reduced gain, 1 = normal gain)
@@ -721,6 +734,9 @@ static void tda9873_setmode(struct CHIPSTATE *chip, int mode)
 		break;
 	case V4L2_TUNER_MODE_LANG2:
 		sw_data |= TDA9873_TR_DUALB;
+		break;
+	case V4L2_TUNER_MODE_LANG1_LANG2:
+		sw_data |= TDA9873_TR_DUALAB;
 		break;
 	default:
 		return;
@@ -953,6 +969,10 @@ static void tda9874a_setmode(struct CHIPSTATE *chip, int mode)
 			aosr = 0xa0; /* auto-select, dual B/B */
 			mdacosr = (tda9874a_mode) ? 0x83:0x81;
 			break;
+		case V4L2_TUNER_MODE_LANG1_LANG2:
+			aosr = 0x00; /* always route L to L and R to R */
+			mdacosr = (tda9874a_mode) ? 0x82:0x80;
+			break;
 		default:
 			return;
 		}
@@ -986,6 +1006,10 @@ static void tda9874a_setmode(struct CHIPSTATE *chip, int mode)
 		case V4L2_TUNER_MODE_LANG2:
 			fmmr = 0x02; /* dual */
 			aosr = 0x20; /* dual B/B */
+			break;
+		case V4L2_TUNER_MODE_LANG1_LANG2:
+			fmmr = 0x02; /* dual */
+			aosr = 0x00; /* dual A/B */
 			break;
 		default:
 			return;
@@ -1251,6 +1275,10 @@ static void tda8425_setmode(struct CHIPSTATE *chip, int mode)
 		s1 |= TDA8425_S1_ML_SOUND_B;
 		s1 |= TDA8425_S1_STEREO_PSEUDO;
 		break;
+	case V4L2_TUNER_MODE_LANG1_LANG2:
+		s1 |= TDA8425_S1_ML_STEREO;
+		s1 |= TDA8425_S1_STEREO_LINEAR;
+		break;
 	case V4L2_TUNER_MODE_MONO:
 		s1 |= TDA8425_S1_ML_STEREO;
 		s1 |= TDA8425_S1_STEREO_MONO;
@@ -1332,6 +1360,7 @@ static audiocmd ta8874z_stereo = { 2, {0, TA8874Z_SEPARATION_DEFAULT}};
 static audiocmd ta8874z_mono = {2, { TA8874Z_MONO_SET, TA8874Z_SEPARATION_DEFAULT}};
 static audiocmd ta8874z_main = {2, { 0, TA8874Z_SEPARATION_DEFAULT}};
 static audiocmd ta8874z_sub = {2, { TA8874Z_MODE_SUB, TA8874Z_SEPARATION_DEFAULT}};
+static audiocmd ta8874z_both = {2, { TA8874Z_MODE_MAIN | TA8874Z_MODE_SUB, TA8874Z_SEPARATION_DEFAULT}};
 
 static void ta8874z_setmode(struct CHIPSTATE *chip, int mode)
 {
@@ -1353,6 +1382,9 @@ static void ta8874z_setmode(struct CHIPSTATE *chip, int mode)
 		break;
 	case V4L2_TUNER_MODE_LANG2:
 		t = &ta8874z_sub;
+		break;
+	case V4L2_TUNER_MODE_LANG1_LANG2:
+		t = &ta8874z_both;
 		break;
 	default:
 		update = 0;
@@ -1818,9 +1850,7 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1:
 	case V4L2_TUNER_MODE_LANG2:
-		break;
 	case V4L2_TUNER_MODE_LANG1_LANG2:
-		vt->audmode = V4L2_TUNER_MODE_STEREO;
 		break;
 	default:
 		return -EINVAL;
