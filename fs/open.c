@@ -810,9 +810,10 @@ EXPORT_SYMBOL(finish_open);
  * This can be used to set the result of a successful lookup in ->atomic_open().
  * The filesystem's atomic_open() method shall return NULL after calling this.
  */
-void finish_no_open(struct file *file, struct dentry *dentry)
+int finish_no_open(struct file *file, struct dentry *dentry)
 {
 	file->f_path.dentry = dentry;
+	return 1;
 }
 EXPORT_SYMBOL(finish_no_open);
 

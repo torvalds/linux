@@ -662,10 +662,8 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* We don't deal with positive dentries here */
-	if (dentry->d_inode) {
-		finish_no_open(file, res);
-		return 1;
-	}
+	if (dentry->d_inode)
+		return finish_no_open(file, res);
 
 	*opened |= FILE_CREATED;
 	err = ceph_lookup_open(dir, dentry, file, flags, mode, opened);

@@ -509,8 +509,7 @@ mknod:
 	if (err)
 		goto out_dput;
 no_open:
-	finish_no_open(file, res);
-	return 1;
+	return finish_no_open(file, res);
 }
 
 /*

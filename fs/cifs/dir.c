@@ -405,8 +405,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		if (IS_ERR(res))
 			return PTR_ERR(res);
 
-		finish_no_open(file, res);
-		return 1;
+		return finish_no_open(file, res);
 	}
 
 	rc = check_name(direntry);

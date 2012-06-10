@@ -878,10 +878,8 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* Only creates */
-	if (!(flags & O_CREAT) || dentry->d_inode) {
-		finish_no_open(file, res);
-		return 1;
-	}
+	if (!(flags & O_CREAT) || dentry->d_inode)
+		return finish_no_open(file, res);
 
 	err = 0;
 	fid = NULL;

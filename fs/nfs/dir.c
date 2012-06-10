@@ -1505,8 +1505,7 @@ no_open:
 	if (IS_ERR(res))
 		goto out;
 
-	finish_no_open(file, res);
-	return 1;
+	return finish_no_open(file, res);
 }
 
 static int nfs4_lookup_revalidate(struct dentry *dentry, struct nameidata *nd)
