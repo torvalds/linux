@@ -30,9 +30,8 @@ int ENE_InitMedia(struct us_data *us)
 	if (MiscReg03 & 0x02) {
 		if (!us->SM_Status.Ready && !us->MS_Status.Ready) {
 			result = ENE_SMInit(us);
-			if (result != USB_STOR_XFER_GOOD) {
+			if (result != USB_STOR_XFER_GOOD)
 				return USB_STOR_TRANSPORT_ERROR;
-			}
 		}
 
 	}
