@@ -86,9 +86,35 @@ void inet_peer_base_init(struct inet_peer_base *bp)
 {
 	bp->root = peer_avl_empty_rcu;
 	seqlock_init(&bp->lock);
+	bp->flush_seq = ~0U;
 	bp->total = 0;
 }
 EXPORT_SYMBOL_GPL(inet_peer_base_init);
+
+static atomic_t v4_seq = ATOMIC_INIT(0);
+static atomic_t v6_seq = ATOMIC_INIT(0);
+
+static atomic_t *inetpeer_seq_ptr(int family)
+{
+	return (family == AF_INET ? &v4_seq : &v6_seq);
+}
+
+static inline void flush_check(struct inet_peer_base *base, int family)
+{
+	atomic_t *fp = inetpeer_seq_ptr(family);
+
+	if (unlikely(base->flush_seq != atomic_read(fp))) {
+		inetpeer_invalidate_tree(base);
+		base->flush_seq = atomic_read(fp);
+	}
+}
+
+void inetpeer_invalidate_family(int family)
+{
+	atomic_t *fp = inetpeer_seq_ptr(family);
+
+	atomic_inc(fp);
+}
 
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
 
@@ -436,6 +462,8 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 	struct inet_peer *p;
 	unsigned int sequence;
 	int invalidated, gccnt = 0;
+
+	flush_check(base, daddr->family);
 
 	/* Attempt a lockless lookup first.
 	 * Because of a concurrent writer, we might not find an existing entry.
