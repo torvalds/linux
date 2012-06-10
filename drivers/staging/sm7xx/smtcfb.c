@@ -724,16 +724,13 @@ static void smtc_unmap_mmio(struct smtcfb_info *sfb)
 static int smtc_map_smem(struct smtcfb_info *sfb,
 		struct pci_dev *pdev, u_long smem_len)
 {
-	if (sfb->fb.var.bits_per_pixel == 32) {
+
+	sfb->fb.fix.smem_start = pci_resource_start(pdev, 0);
+
 #ifdef __BIG_ENDIAN
-		sfb->fb.fix.smem_start = pci_resource_start(pdev, 0)
-			+ 0x800000;
-#else
-		sfb->fb.fix.smem_start = pci_resource_start(pdev, 0);
+	if (sfb->fb.var.bits_per_pixel == 32)
+		sfb->fb.fix.smem_start += 0x800000;
 #endif
-	} else {
-		sfb->fb.fix.smem_start = pci_resource_start(pdev, 0);
-	}
 
 	sfb->fb.fix.smem_len = smem_len;
 
