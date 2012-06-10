@@ -1265,7 +1265,7 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	 * the mutex, this ensures we don't try to send two
 	 * (or more) synchronous commands at a time.
 	 */
-	if (cmd->flags & CMD_SYNC)
+	if (!(cmd->flags & CMD_ASYNC))
 		lockdep_assert_held(&priv->mutex);
 
 	if (priv->ucode_owner == IWL_OWNERSHIP_TM &&
