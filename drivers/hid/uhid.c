@@ -106,7 +106,9 @@ static int uhid_hid_input(struct input_dev *input, unsigned int type,
 
 static int uhid_hid_parse(struct hid_device *hid)
 {
-	return 0;
+	struct uhid_device *uhid = hid->driver_data;
+
+	return hid_parse_report(hid, uhid->rd_data, uhid->rd_size);
 }
 
 static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
