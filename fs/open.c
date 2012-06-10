@@ -667,10 +667,10 @@ int open_check_o_direct(struct file *f)
 	return 0;
 }
 
-static struct file *do_dentry_open(struct dentry *dentry, struct vfsmount *mnt,
-				   struct file *f,
-				   int (*open)(struct inode *, struct file *),
-				   const struct cred *cred)
+static int do_dentry_open(struct dentry *dentry, struct vfsmount *mnt,
+			  struct file *f,
+			  int (*open)(struct inode *, struct file *),
+			  const struct cred *cred)
 {
 	static const struct file_operations empty_fops = {};
 	struct inode *inode;
@@ -699,7 +699,7 @@ static struct file *do_dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 
 	if (unlikely(f->f_mode & FMODE_PATH)) {
 		f->f_op = &empty_fops;
-		return f;
+		return 0;
 	}
 
 	f->f_op = fops_get(inode->i_fop);
@@ -726,7 +726,7 @@ static struct file *do_dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 
 	file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
 
-	return f;
+	return 0;
 
 cleanup_all:
 	fops_put(f->f_op);
@@ -749,7 +749,7 @@ cleanup_all:
 cleanup_file:
 	dput(dentry);
 	mntput(mnt);
-	return ERR_PTR(error);
+	return error;
 }
 
 static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
@@ -757,17 +757,19 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 				int (*open)(struct inode *, struct file *),
 				const struct cred *cred)
 {
-	struct file *res = do_dentry_open(dentry, mnt, f, open, cred);
-	if (!IS_ERR(res)) {
-		int error = open_check_o_direct(f);
+	int error;
+	error = do_dentry_open(dentry, mnt, f, open, cred);
+	if (!error) {
+		error = open_check_o_direct(f);
 		if (error) {
-			fput(res);
-			res = ERR_PTR(error);
+			fput(f);
+			f = ERR_PTR(error);
 		}
-	} else {
+	} else { 
 		put_filp(f);
+		f = ERR_PTR(error);
 	}
-	return res;
+	return f;
 }
 
 /**
@@ -785,19 +787,17 @@ int finish_open(struct file *file, struct dentry *dentry,
 		int (*open)(struct inode *, struct file *),
 		int *opened)
 {
-	struct file *res;
+	int error;
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 
 	mntget(file->f_path.mnt);
 	dget(dentry);
 
-	res = do_dentry_open(dentry, file->f_path.mnt, file, open, current_cred());
-	if (!IS_ERR(res)) {
+	error = do_dentry_open(dentry, file->f_path.mnt, file, open, current_cred());
+	if (!error)
 		*opened |= FILE_OPENED;
-		return 0;
-	}
 
-	return PTR_ERR(res);
+	return error;
 }
 EXPORT_SYMBOL(finish_open);
 
