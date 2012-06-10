@@ -974,6 +974,12 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 	op->orig_val = op->val;
 }
 
+static void adjust_modrm_seg(struct x86_emulate_ctxt *ctxt, int base_reg)
+{
+	if (base_reg == VCPU_REGS_RSP || base_reg == VCPU_REGS_RBP)
+		ctxt->modrm_seg = VCPU_SREG_SS;
+}
+
 static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 			struct operand *op)
 {
@@ -1077,15 +1083,20 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 
 			if ((base_reg & 7) == 5 && ctxt->modrm_mod == 0)
 				modrm_ea += insn_fetch(s32, ctxt);
-			else
+			else {
 				modrm_ea += ctxt->regs[base_reg];
+				adjust_modrm_seg(ctxt, base_reg);
+			}
 			if (index_reg != 4)
 				modrm_ea += ctxt->regs[index_reg] << scale;
 		} else if ((ctxt->modrm_rm & 7) == 5 && ctxt->modrm_mod == 0) {
 			if (ctxt->mode == X86EMUL_MODE_PROT64)
 				ctxt->rip_relative = 1;
-		} else
-			modrm_ea += ctxt->regs[ctxt->modrm_rm];
+		} else {
+			base_reg = ctxt->modrm_rm;
+			modrm_ea += ctxt->regs[base_reg];
+			adjust_modrm_seg(ctxt, base_reg);
+		}
 		switch (ctxt->modrm_mod) {
 		case 0:
 			if (ctxt->modrm_rm == 5)
