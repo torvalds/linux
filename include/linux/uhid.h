@@ -29,6 +29,7 @@ enum uhid_event_type {
 	UHID_STOP,
 	UHID_OPEN,
 	UHID_CLOSE,
+	UHID_OUTPUT_EV,
 	UHID_INPUT,
 };
 
@@ -53,12 +54,19 @@ struct uhid_input_req {
 	__u16 size;
 } __attribute__((__packed__));
 
+struct uhid_output_ev_req {
+	__u16 type;
+	__u16 code;
+	__s32 value;
+} __attribute__((__packed__));
+
 struct uhid_event {
 	__u32 type;
 
 	union {
 		struct uhid_create_req create;
 		struct uhid_input_req input;
+		struct uhid_output_ev_req output_ev;
 	} u;
 } __attribute__((__packed__));
 
