@@ -28,6 +28,7 @@
 #define UHID_BUFSIZE	32
 
 struct uhid_device {
+	struct mutex devlock;
 	struct hid_device *hid;
 
 	wait_queue_head_t waitq;
@@ -81,6 +82,7 @@ static int uhid_char_open(struct inode *inode, struct file *file)
 	if (!uhid)
 		return -ENOMEM;
 
+	mutex_init(&uhid->devlock);
 	spin_lock_init(&uhid->qlock);
 	init_waitqueue_head(&uhid->waitq);
 
@@ -106,7 +108,49 @@ static int uhid_char_release(struct inode *inode, struct file *file)
 static ssize_t uhid_char_read(struct file *file, char __user *buffer,
 				size_t count, loff_t *ppos)
 {
-	return 0;
+	struct uhid_device *uhid = file->private_data;
+	int ret;
+	unsigned long flags;
+	size_t len;
+
+	/* they need at least the "type" member of uhid_event */
+	if (count < sizeof(__u32))
+		return -EINVAL;
+
+try_again:
+	if (file->f_flags & O_NONBLOCK) {
+		if (uhid->head == uhid->tail)
+			return -EAGAIN;
+	} else {
+		ret = wait_event_interruptible(uhid->waitq,
+						uhid->head != uhid->tail);
+		if (ret)
+			return ret;
+	}
+
+	ret = mutex_lock_interruptible(&uhid->devlock);
+	if (ret)
+		return ret;
+
+	if (uhid->head == uhid->tail) {
+		mutex_unlock(&uhid->devlock);
+		goto try_again;
+	} else {
+		len = min(count, sizeof(**uhid->outq));
+		if (copy_to_user(buffer, &uhid->outq[uhid->tail], len)) {
+			ret = -EFAULT;
+		} else {
+			kfree(uhid->outq[uhid->tail]);
+			uhid->outq[uhid->tail] = NULL;
+
+			spin_lock_irqsave(&uhid->qlock, flags);
+			uhid->tail = (uhid->tail + 1) % UHID_BUFSIZE;
+			spin_unlock_irqrestore(&uhid->qlock, flags);
+		}
+	}
+
+	mutex_unlock(&uhid->devlock);
+	return ret ? ret : len;
 }
 
 static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
