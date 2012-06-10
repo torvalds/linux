@@ -576,7 +576,7 @@ static int is_root_ceph_dentry(struct inode *inode, struct dentry *dentry)
  * the MDS so that it gets our 'caps wanted' value in a single op.
  */
 static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
-				  struct nameidata *nd)
+				  unsigned int flags)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -653,7 +653,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	}
 
 	if (d_unhashed(dentry)) {
-		res = ceph_lookup(dir, dentry, NULL);
+		res = ceph_lookup(dir, dentry, 0);
 		if (IS_ERR(res))
 			return PTR_ERR(res);
 
@@ -678,7 +678,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
  */
 int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry)
 {
-	struct dentry *result = ceph_lookup(dir, dentry, NULL);
+	struct dentry *result = ceph_lookup(dir, dentry, 0);
 
 	if (result && !IS_ERR(result)) {
 		/*

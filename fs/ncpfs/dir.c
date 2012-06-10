@@ -31,7 +31,7 @@ static void ncp_do_readdir(struct file *, void *, filldir_t,
 static int ncp_readdir(struct file *, void *, filldir_t);
 
 static int ncp_create(struct inode *, struct dentry *, umode_t, struct nameidata *);
-static struct dentry *ncp_lookup(struct inode *, struct dentry *, struct nameidata *);
+static struct dentry *ncp_lookup(struct inode *, struct dentry *, unsigned int);
 static int ncp_unlink(struct inode *, struct dentry *);
 static int ncp_mkdir(struct inode *, struct dentry *, umode_t);
 static int ncp_rmdir(struct inode *, struct dentry *);
@@ -836,7 +836,7 @@ out:
 	return result;
 }
 
-static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct ncp_server *server = NCP_SERVER(dir);
 	struct inode *inode = NULL;

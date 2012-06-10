@@ -98,7 +98,7 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 #define OCFS2_ORPHAN_NAMELEN ((int)(2 * sizeof(u64)))
 
 static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
-				   struct nameidata *nd)
+				   unsigned int flags)
 {
 	int status;
 	u64 blkno;

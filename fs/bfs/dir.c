@@ -133,7 +133,7 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 }
 
 static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
-						struct nameidata *nd)
+						unsigned int flags)
 {
 	struct inode *inode = NULL;
 	struct buffer_head *bh;

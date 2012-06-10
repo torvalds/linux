@@ -31,7 +31,7 @@
 
 /* dir inode-ops */
 static int coda_create(struct inode *dir, struct dentry *new, umode_t mode, struct nameidata *nd);
-static struct dentry *coda_lookup(struct inode *dir, struct dentry *target, struct nameidata *nd);
+static struct dentry *coda_lookup(struct inode *dir, struct dentry *target, unsigned int flags);
 static int coda_link(struct dentry *old_dentry, struct inode *dir_inode, 
 		     struct dentry *entry);
 static int coda_unlink(struct inode *dir_inode, struct dentry *entry);
@@ -94,7 +94,7 @@ const struct file_operations coda_dir_operations = {
 
 /* inode operations for directories */
 /* access routines: lookup, readlink, permission */
-static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struct nameidata *nd)
+static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, unsigned int flags)
 {
 	struct super_block *sb = dir->i_sb;
 	const char *name = entry->d_name.name;

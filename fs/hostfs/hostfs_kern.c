@@ -595,7 +595,7 @@ int hostfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 }
 
 struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
-			     struct nameidata *nd)
+			     unsigned int flags)
 {
 	struct inode *inode;
 	char *name;

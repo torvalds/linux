@@ -374,7 +374,7 @@ static int ecryptfs_lookup_interpose(struct dentry *dentry,
  */
 static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 				      struct dentry *ecryptfs_dentry,
-				      struct nameidata *ecryptfs_nd)
+				      unsigned int flags)
 {
 	char *encrypted_and_encoded_name = NULL;
 	size_t encrypted_and_encoded_name_size;

@@ -140,7 +140,7 @@ const struct file_operations proc_ns_dir_operations = {
 };
 
 static struct dentry *proc_ns_dir_lookup(struct inode *dir,
-				struct dentry *dentry, struct nameidata *nd)
+				struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *error;
 	struct task_struct *task = get_proc_task(dir);

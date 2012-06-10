@@ -18,7 +18,7 @@ static int add_nondir(struct dentry *dentry, struct inode *inode)
 	return err;
 }
 
-static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *minix_lookup(struct inode * dir, struct dentry *dentry, unsigned int flags)
 {
 	struct inode * inode = NULL;
 	ino_t ino;

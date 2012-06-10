@@ -1090,7 +1090,7 @@ static struct dentry *lookup_real(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(-ENOENT);
 	}
 
-	old = dir->i_op->lookup(dir, dentry, nd);
+	old = dir->i_op->lookup(dir, dentry, nd ? nd->flags : 0);
 	if (unlikely(old)) {
 		dput(dentry);
 		dentry = old;

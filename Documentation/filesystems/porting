@@ -434,5 +434,5 @@ d_make_root() drops the reference to inode if dentry allocation fails.
 
 --
 [mandatory]
-	The witch is dead!  Well, 1/3 of it, anyway.  ->d_revalidate() does *not*
-take struct nameidata anymore; just the flags.
+	The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
+->lookup() do *not* take struct nameidata anymore; just the flags.

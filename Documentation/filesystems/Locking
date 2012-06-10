@@ -38,8 +38,7 @@ d_manage:	no		no		yes (ref-walk)	maybe
 --------------------------- inode_operations --------------------------- 
 prototypes:
 	int (*create) (struct inode *,struct dentry *,umode_t, struct nameidata *);
-	struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameid
-ata *);
+	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
 	int (*unlink) (struct inode *,struct dentry *);
 	int (*symlink) (struct inode *,struct dentry *,const char *);

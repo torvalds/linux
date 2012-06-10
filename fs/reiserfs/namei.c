@@ -322,7 +322,7 @@ static int reiserfs_find_entry(struct inode *dir, const char *name, int namelen,
 }
 
 static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
-				      struct nameidata *nd)
+				      unsigned int flags)
 {
 	int retval;
 	int lock_depth;

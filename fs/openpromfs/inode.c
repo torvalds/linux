@@ -170,13 +170,13 @@ static const struct file_operations openprom_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static struct dentry *openpromfs_lookup(struct inode *, struct dentry *, struct nameidata *);
+static struct dentry *openpromfs_lookup(struct inode *, struct dentry *, unsigned int);
 
 static const struct inode_operations openprom_inode_operations = {
 	.lookup		= openpromfs_lookup,
 };
 
-static struct dentry *openpromfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *openpromfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct op_inode_info *ent_oi, *oi = OP_I(dir);
 	struct device_node *dp, *child;

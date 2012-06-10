@@ -43,7 +43,7 @@ const struct dentry_operations sysv_dentry_operations = {
 	.d_hash		= sysv_hash,
 };
 
-static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, struct nameidata *nd)
+static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, unsigned int flags)
 {
 	struct inode * inode = NULL;
 	ino_t ino;

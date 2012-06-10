@@ -179,7 +179,7 @@ static int bad_inode_create (struct inode *dir, struct dentry *dentry,
 }
 
 static struct dentry *bad_inode_lookup(struct inode *dir,
-			struct dentry *dentry, struct nameidata *nd)
+			struct dentry *dentry, unsigned int flags)
 {
 	return ERR_PTR(-EIO);
 }

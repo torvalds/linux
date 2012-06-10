@@ -25,7 +25,7 @@ static inline void hfsplus_instantiate(struct dentry *dentry,
 
 /* Find the entry inside dir named dentry->d_name */
 static struct dentry *hfsplus_lookup(struct inode *dir, struct dentry *dentry,
-				     struct nameidata *nd)
+				     unsigned int flags)
 {
 	struct inode *inode = NULL;
 	struct hfs_find_data fd;

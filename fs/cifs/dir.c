@@ -401,7 +401,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	 * in network traffic in the other paths.
 	 */
 	if (!(oflags & O_CREAT)) {
-		struct dentry *res = cifs_lookup(inode, direntry, NULL);
+		struct dentry *res = cifs_lookup(inode, direntry, 0);
 		if (IS_ERR(res))
 			return PTR_ERR(res);
 
@@ -621,7 +621,7 @@ mknod_out:
 
 struct dentry *
 cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
-	    struct nameidata *nd)
+	    unsigned int flags)
 {
 	int xid;
 	int rc = 0; /* to get around spurious gcc warning, set to zero here */

@@ -764,7 +764,7 @@ int sysfs_create_dir(struct kobject * kobj)
 }
 
 static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
-				struct nameidata *nd)
+				unsigned int flags)
 {
 	struct dentry *ret = NULL;
 	struct dentry *parent = dentry->d_parent;

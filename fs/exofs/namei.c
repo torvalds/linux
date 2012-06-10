@@ -46,7 +46,7 @@ static inline int exofs_add_nondir(struct dentry *dentry, struct inode *inode)
 }
 
 static struct dentry *exofs_lookup(struct inode *dir, struct dentry *dentry,
-				   struct nameidata *nd)
+				   unsigned int flags)
 {
 	struct inode *inode;
 	ino_t ino;

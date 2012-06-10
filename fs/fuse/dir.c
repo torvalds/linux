@@ -316,7 +316,7 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 }
 
 static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
-				  struct nameidata *nd)
+				  unsigned int flags)
 {
 	int err;
 	struct fuse_entry_out outarg;
@@ -478,7 +478,7 @@ static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 	struct dentry *res = NULL;
 
 	if (d_unhashed(entry)) {
-		res = fuse_lookup(dir, entry, NULL);
+		res = fuse_lookup(dir, entry, 0);
 		if (IS_ERR(res))
 			return PTR_ERR(res);
 
