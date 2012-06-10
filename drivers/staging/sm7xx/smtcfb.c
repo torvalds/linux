@@ -15,6 +15,7 @@
  * License. See the file COPYING in the main directory of this archive for
  * more details.
  *
+ * Framebuffer driver for Silicon Motion SM710, SM712, SM721 and SM722 chips
  */
 
 #include <linux/io.h>
@@ -758,7 +759,7 @@ static void smtc_unmap_smem(struct smtcfb_info *sfb)
 }
 
 /*
- * We need to wake up the LynxEM+, and make sure its in linear memory mode.
+ * We need to wake up the device and make sure its in linear memory mode.
  */
 static inline void sm7xx_init_hw(void)
 {
@@ -963,14 +964,17 @@ failed_free:
 	return err;
 }
 
-
+/*
+ * 0x710 (LynxEM)
+ * 0x712 (LynxEM+)
+ * 0x720 (Lynx3DM, Lynx3DM+)
+ */
 static DEFINE_PCI_DEVICE_TABLE(smtcfb_pci_table) = {
 	{ PCI_DEVICE(0x126f, 0x710), },
 	{ PCI_DEVICE(0x126f, 0x712), },
 	{ PCI_DEVICE(0x126f, 0x720), },
 	{0,}
 };
-
 
 static void __devexit smtcfb_pci_remove(struct pci_dev *pdev)
 {
