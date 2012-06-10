@@ -280,9 +280,9 @@ struct x86_emulate_ctxt {
 	u8 modrm_seg;
 	bool rip_relative;
 	unsigned long _eip;
+	struct operand memop;
 	/* Fields above regs are cleared together. */
 	unsigned long regs[NR_VCPU_REGS];
-	struct operand memop;
 	struct operand *memopp;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
