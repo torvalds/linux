@@ -1475,7 +1475,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 *	Find the device first to size check it
 	 */
 
-	saddr->spkt_device[13] = 0;
+	saddr->spkt_device[sizeof(saddr->spkt_device) - 1] = 0;
 retry:
 	rcu_read_lock();
 	dev = dev_get_by_name_rcu(sock_net(sk), saddr->spkt_device);
