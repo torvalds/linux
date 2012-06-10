@@ -13,8 +13,8 @@
 #include <linux/i2c.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/reboot.h>
 #include <linux/slab.h>
-#include <mach/system.h>
 
 #include "axp-cfg.h"
 #include "axp18-mfd.h"
@@ -254,7 +254,7 @@ static void axp_power_off(void)
 	        	axp_write(&axp->dev, POWER20_DATA_BUFFERC, 0x0f);
             	mdelay(20);
 		    	printk("[axp] reboot!\n");
-		    	arch_reset(0,NULL);
+			machine_restart(NULL);
 		    	printk("[axp] warning!!! arch can't ,reboot, maybe some error happend!\n");
 	    	}
 		}
