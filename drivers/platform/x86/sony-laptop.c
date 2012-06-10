@@ -1916,32 +1916,33 @@ static ssize_t sony_nc_battery_care_limit_store(struct device *dev,
 	 *  bits 4,5: store the limit into the EC
 	 *  bits 6,7: store the limit into the battery
 	 */
+	cmd = 0;
 
-	/*
-	 * handle 0x0115 should allow storing on battery too;
-	 * handle 0x0136 same as 0x0115 + health status;
-	 * handle 0x013f, same as 0x0136 but no storing on the battery
-	 *
-	 * Store only inside the EC for now, regardless the handle number
-	 */
-	if (value == 0)
-		/* disable limits */
-		cmd = 0x0;
+	if (value > 0) {
+		if (value <= 50)
+			cmd = 0x20;
 
-	else if (value <= 50)
-		cmd = 0x21;
+		else if (value <= 80)
+			cmd = 0x10;
 
-	else if (value <= 80)
-		cmd = 0x11;
+		else if (value <= 100)
+			cmd = 0x30;
 
-	else if (value <= 100)
-		cmd = 0x31;
+		else
+			return -EINVAL;
 
-	else
-		return -EINVAL;
+		/*
+		 * handle 0x0115 should allow storing on battery too;
+		 * handle 0x0136 same as 0x0115 + health status;
+		 * handle 0x013f, same as 0x0136 but no storing on the battery
+		 */
+		if (bcare_ctl->handle != 0x013f)
+			cmd = cmd | (cmd << 2);
 
-	if (sony_call_snc_handle(bcare_ctl->handle, (cmd << 0x10) | 0x0100,
-				&result))
+		cmd = (cmd | 0x1) << 0x10;
+	}
+
+	if (sony_call_snc_handle(bcare_ctl->handle, cmd | 0x0100, &result))
 		return -EIO;
 
 	return count;
