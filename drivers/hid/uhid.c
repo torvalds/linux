@@ -25,16 +25,81 @@
 #include <linux/wait.h>
 
 #define UHID_NAME	"uhid"
+#define UHID_BUFSIZE	32
+
+struct uhid_device {
+	struct hid_device *hid;
+
+	wait_queue_head_t waitq;
+	spinlock_t qlock;
+	__u8 head;
+	__u8 tail;
+	struct uhid_event *outq[UHID_BUFSIZE];
+};
 
 static struct miscdevice uhid_misc;
 
+static void uhid_queue(struct uhid_device *uhid, struct uhid_event *ev)
+{
+	__u8 newhead;
+
+	newhead = (uhid->head + 1) % UHID_BUFSIZE;
+
+	if (newhead != uhid->tail) {
+		uhid->outq[uhid->head] = ev;
+		uhid->head = newhead;
+		wake_up_interruptible(&uhid->waitq);
+	} else {
+		hid_warn(uhid->hid, "Output queue is full\n");
+		kfree(ev);
+	}
+}
+
+static int uhid_queue_event(struct uhid_device *uhid, __u32 event)
+{
+	unsigned long flags;
+	struct uhid_event *ev;
+
+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+	if (!ev)
+		return -ENOMEM;
+
+	ev->type = event;
+
+	spin_lock_irqsave(&uhid->qlock, flags);
+	uhid_queue(uhid, ev);
+	spin_unlock_irqrestore(&uhid->qlock, flags);
+
+	return 0;
+}
+
 static int uhid_char_open(struct inode *inode, struct file *file)
 {
+	struct uhid_device *uhid;
+
+	uhid = kzalloc(sizeof(*uhid), GFP_KERNEL);
+	if (!uhid)
+		return -ENOMEM;
+
+	spin_lock_init(&uhid->qlock);
+	init_waitqueue_head(&uhid->waitq);
+
+	file->private_data = uhid;
+	nonseekable_open(inode, file);
+
 	return 0;
 }
 
 static int uhid_char_release(struct inode *inode, struct file *file)
 {
+	struct uhid_device *uhid = file->private_data;
+	unsigned int i;
+
+	for (i = 0; i < UHID_BUFSIZE; ++i)
+		kfree(uhid->outq[i]);
+
+	kfree(uhid);
+
 	return 0;
 }
 
