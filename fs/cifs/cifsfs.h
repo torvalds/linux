@@ -45,7 +45,7 @@ extern const struct address_space_operations cifs_addr_ops_smallbuf;
 extern const struct inode_operations cifs_dir_inode_ops;
 extern struct inode *cifs_root_iget(struct super_block *);
 extern int cifs_create(struct inode *, struct dentry *, umode_t,
-		       struct nameidata *);
+		       bool excl);
 extern int cifs_atomic_open(struct inode *, struct dentry *,
 			    struct file *, unsigned, umode_t,
 			    int *);

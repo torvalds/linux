@@ -62,7 +62,7 @@
 static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
-	return dir->i_op->create(dir, dentry, mode, NULL);
+	return dir->i_op->create(dir, dentry, mode, true);
 }
 #endif
 

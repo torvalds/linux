@@ -25,7 +25,7 @@
 static int jffs2_readdir (struct file *, void *, filldir_t);
 
 static int jffs2_create (struct inode *,struct dentry *,umode_t,
-			 struct nameidata *);
+			 bool);
 static struct dentry *jffs2_lookup (struct inode *,struct dentry *,
 				    unsigned int);
 static int jffs2_link (struct dentry *,struct inode *,struct dentry *);
@@ -175,7 +175,7 @@ static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 
 static int jffs2_create(struct inode *dir_i, struct dentry *dentry,
-			umode_t mode, struct nameidata *nd)
+			umode_t mode, bool excl)
 {
 	struct jffs2_raw_inode *ri;
 	struct jffs2_inode_info *f, *dir_f;

@@ -611,7 +611,7 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 }
 
 static int fuse_create(struct inode *dir, struct dentry *entry, umode_t mode,
-		       struct nameidata *nd)
+		       bool excl)
 {
 	return fuse_mknod(dir, entry, mode, 0);
 }

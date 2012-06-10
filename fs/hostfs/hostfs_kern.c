@@ -553,7 +553,7 @@ static int read_name(struct inode *ino, char *name)
 }
 
 int hostfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		  struct nameidata *nd)
+		  bool excl)
 {
 	struct inode *inode;
 	char *name;

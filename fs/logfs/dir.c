@@ -502,7 +502,7 @@ static int logfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 }
 
 static int logfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		struct nameidata *nd)
+		bool excl)
 {
 	struct inode *inode;
 

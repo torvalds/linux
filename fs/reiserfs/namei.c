@@ -573,7 +573,7 @@ static int new_inode_init(struct inode *inode, struct inode *dir, umode_t mode)
 }
 
 static int reiserfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-			   struct nameidata *nd)
+			   bool excl)
 {
 	int retval;
 	struct inode *inode;

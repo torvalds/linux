@@ -451,7 +451,7 @@ free_xid:
 }
 
 int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
-		struct nameidata *nd)
+		bool excl)
 {
 	int rc;
 	int xid = GetXid();

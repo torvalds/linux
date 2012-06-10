@@ -71,7 +71,7 @@ static struct dentry *ufs_lookup(struct inode * dir, struct dentry *dentry, unsi
  * with d_instantiate(). 
  */
 static int ufs_create (struct inode * dir, struct dentry * dentry, umode_t mode,
-		struct nameidata *nd)
+		bool excl)
 {
 	struct inode *inode;
 	int err;

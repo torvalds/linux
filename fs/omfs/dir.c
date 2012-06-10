@@ -285,7 +285,7 @@ static int omfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 }
 
 static int omfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		struct nameidata *nd)
+		bool excl)
 {
 	return omfs_add_node(dir, dentry, mode | S_IFREG);
 }

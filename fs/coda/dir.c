@@ -30,7 +30,7 @@
 #include "coda_int.h"
 
 /* dir inode-ops */
-static int coda_create(struct inode *dir, struct dentry *new, umode_t mode, struct nameidata *nd);
+static int coda_create(struct inode *dir, struct dentry *new, umode_t mode, bool excl);
 static struct dentry *coda_lookup(struct inode *dir, struct dentry *target, unsigned int flags);
 static int coda_link(struct dentry *old_dentry, struct inode *dir_inode, 
 		     struct dentry *entry);
@@ -188,7 +188,7 @@ static inline void coda_dir_drop_nlink(struct inode *dir)
 }
 
 /* creation routines: create, mknod, mkdir, link, symlink */
-static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, struct nameidata *nd)
+static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, bool excl)
 {
 	int error;
 	const char *name=de->d_name.name;

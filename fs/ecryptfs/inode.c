@@ -240,7 +240,6 @@ out:
  * @dir: The inode of the directory in which to create the file.
  * @dentry: The eCryptfs dentry
  * @mode: The mode of the new file.
- * @nd: nameidata
  *
  * Creates a new file.
  *
@@ -248,7 +247,7 @@ out:
  */
 static int
 ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
-		umode_t mode, struct nameidata *nd)
+		umode_t mode, bool excl)
 {
 	struct inode *ecryptfs_inode;
 	int rc;

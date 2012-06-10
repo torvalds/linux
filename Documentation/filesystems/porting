@@ -436,3 +436,9 @@ d_make_root() drops the reference to inode if dentry allocation fails.
 [mandatory]
 	The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
 ->lookup() do *not* take struct nameidata anymore; just the flags.
+--
+[mandatory]
+	->create() doesn't take struct nameidata *; unlike the previous
+two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Note that
+local filesystems can ignore tha argument - they are guaranteed that the
+object doesn't exist.  It's remote/distributed ones that might care...

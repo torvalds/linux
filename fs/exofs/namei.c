@@ -60,7 +60,7 @@ static struct dentry *exofs_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 static int exofs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-			 struct nameidata *nd)
+			 bool excl)
 {
 	struct inode *inode = exofs_new_inode(dir, mode);
 	int err = PTR_ERR(inode);
