@@ -393,7 +393,7 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 
 	if (d->intf->cur_altsetting->desc.bInterfaceNumber !=
 			d->props.bInterfaceNumber) {
-		ret = 0;
+		ret = -ENODEV;
 		goto err_kfree;
 	}
 
@@ -419,7 +419,7 @@ EXPORT_SYMBOL(dvb_usbv2_probe);
 void dvb_usbv2_disconnect(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	const char *name = "generic DVB-USB module";
+	const char *name;
 
 	pr_debug("%s: pid=%d work_pid=%d\n", __func__, current->pid,
 			d->work_pid);
@@ -428,10 +428,8 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 	if (d->work_pid != current->pid)
 		cancel_work_sync(&d->probe_work);
 
-	if (d) {
-		name = d->name;
-		dvb_usbv2_exit(d);
-	}
+	name = d->name;
+	dvb_usbv2_exit(d);
 
 	pr_info("%s: '%s' successfully deinitialized and disconnected\n",
 			KBUILD_MODNAME, name);
