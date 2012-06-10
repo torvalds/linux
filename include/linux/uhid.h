@@ -32,6 +32,8 @@ enum uhid_event_type {
 	UHID_OUTPUT,
 	UHID_OUTPUT_EV,
 	UHID_INPUT,
+	UHID_FEATURE,
+	UHID_FEATURE_ANSWER,
 };
 
 struct uhid_create_req {
@@ -73,6 +75,19 @@ struct uhid_output_ev_req {
 	__s32 value;
 } __attribute__((__packed__));
 
+struct uhid_feature_req {
+	__u32 id;
+	__u8 rnum;
+	__u8 rtype;
+} __attribute__((__packed__));
+
+struct uhid_feature_answer_req {
+	__u32 id;
+	__u16 err;
+	__u16 size;
+	__u8 data[UHID_DATA_MAX];
+};
+
 struct uhid_event {
 	__u32 type;
 
@@ -81,6 +96,8 @@ struct uhid_event {
 		struct uhid_input_req input;
 		struct uhid_output_req output;
 		struct uhid_output_ev_req output_ev;
+		struct uhid_feature_req feature;
+		struct uhid_feature_answer_req feature_answer;
 	} u;
 } __attribute__((__packed__));
 
