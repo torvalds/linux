@@ -30,6 +30,7 @@
 struct uhid_device {
 	struct mutex devlock;
 	struct hid_device *hid;
+	struct uhid_event input_buf;
 
 	wait_queue_head_t waitq;
 	spinlock_t qlock;
@@ -156,7 +157,35 @@ try_again:
 static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
-	return 0;
+	struct uhid_device *uhid = file->private_data;
+	int ret;
+	size_t len;
+
+	/* we need at least the "type" member of uhid_event */
+	if (count < sizeof(__u32))
+		return -EINVAL;
+
+	ret = mutex_lock_interruptible(&uhid->devlock);
+	if (ret)
+		return ret;
+
+	memset(&uhid->input_buf, 0, sizeof(uhid->input_buf));
+	len = min(count, sizeof(uhid->input_buf));
+	if (copy_from_user(&uhid->input_buf, buffer, len)) {
+		ret = -EFAULT;
+		goto unlock;
+	}
+
+	switch (uhid->input_buf.type) {
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
+unlock:
+	mutex_unlock(&uhid->devlock);
+
+	/* return "count" not "len" to not confuse the caller */
+	return ret ? ret : count;
 }
 
 static unsigned int uhid_char_poll(struct file *file, poll_table *wait)
