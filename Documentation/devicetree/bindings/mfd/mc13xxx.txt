@@ -46,8 +46,8 @@ Examples:
 
 ecspi@70010000 { /* ECSPI1 */
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio3 24 0>, /* GPIO4_24 */
-		   <&gpio3 25 0>; /* GPIO4_25 */
+	cs-gpios = <&gpio4 24 0>, /* GPIO4_24 */
+		   <&gpio4 25 0>; /* GPIO4_25 */
 	status = "okay";
 
 	pmic: mc13892@0 {
