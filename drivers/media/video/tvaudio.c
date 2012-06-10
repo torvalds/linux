@@ -118,7 +118,7 @@ struct CHIPSTATE {
 	audiocmd   shadow;
 
 	/* current settings */
-	__u16 left,right,treble,bass,muted,mode;
+	__u16 left, right, treble, bass, muted;
 	int prevmode;
 	int radio;
 	int input;
@@ -287,7 +287,7 @@ static int chip_thread(void *data)
 	struct CHIPSTATE *chip = data;
 	struct CHIPDESC  *desc = chip->desc;
 	struct v4l2_subdev *sd = &chip->sd;
-	int mode;
+	int mode, selected;
 
 	v4l2_dbg(1, debug, sd, "thread started\n");
 	set_freezable();
@@ -301,8 +301,8 @@ static int chip_thread(void *data)
 			break;
 		v4l2_dbg(1, debug, sd, "thread wakeup\n");
 
-		/* don't do anything for radio or if mode != auto */
-		if (chip->radio || chip->mode != 0)
+		/* don't do anything for radio */
+		if (chip->radio)
 			continue;
 
 		/* have a look what's going on */
@@ -315,16 +315,27 @@ static int chip_thread(void *data)
 
 		chip->prevmode = mode;
 
-		if (mode & V4L2_TUNER_SUB_STEREO)
-			desc->setmode(chip, V4L2_TUNER_MODE_STEREO);
-		if (mode & V4L2_TUNER_SUB_LANG1_LANG2)
-			desc->setmode(chip, V4L2_TUNER_MODE_STEREO);
-		else if (mode & V4L2_SUB_MODE_LANG1)
-			desc->setmode(chip, V4L2_TUNER_MODE_LANG1);
-		else if (mode & V4L2_SUB_MODE_LANG2)
-			desc->setmode(chip, V4L2_TUNER_MODE_LANG2);
-		else
-			desc->setmode(chip, V4L2_TUNER_MODE_MONO);
+		selected = V4L2_TUNER_MODE_MONO;
+		switch (chip->audmode) {
+		case V4L2_TUNER_MODE_MONO:
+			if (mode & V4L2_TUNER_SUB_LANG1)
+				selected = V4L2_TUNER_MODE_LANG1;
+			break;
+		case V4L2_TUNER_MODE_STEREO:
+		case V4L2_TUNER_MODE_LANG1:
+			if (mode & V4L2_TUNER_SUB_LANG1)
+				selected = V4L2_TUNER_MODE_LANG1;
+			else if (mode & V4L2_TUNER_SUB_STEREO)
+				selected = V4L2_TUNER_MODE_STEREO;
+			break;
+		case V4L2_TUNER_MODE_LANG2:
+			if (mode & V4L2_TUNER_SUB_LANG2)
+				selected = V4L2_TUNER_MODE_LANG2;
+			else if (mode & V4L2_TUNER_SUB_STEREO)
+				selected = V4L2_TUNER_MODE_STEREO;
+			break;
+		}
+		desc->setmode(chip, selected);
 
 		/* schedule next check */
 		mod_timer(&chip->wt, jiffies+msecs_to_jiffies(2000));
@@ -712,7 +723,6 @@ static void tda9873_setmode(struct CHIPSTATE *chip, int mode)
 		sw_data |= TDA9873_TR_DUALB;
 		break;
 	default:
-		chip->mode = 0;
 		return;
 	}
 
@@ -944,7 +954,6 @@ static void tda9874a_setmode(struct CHIPSTATE *chip, int mode)
 			mdacosr = (tda9874a_mode) ? 0x83:0x81;
 			break;
 		default:
-			chip->mode = 0;
 			return;
 		}
 		chip_write(chip, TDA9874A_AOSR, aosr);
@@ -979,7 +988,6 @@ static void tda9874a_setmode(struct CHIPSTATE *chip, int mode)
 			aosr = 0x20; /* dual B/B */
 			break;
 		default:
-			chip->mode = 0;
 			return;
 		}
 		chip_write(chip, TDA9874A_FMMR, fmmr);
@@ -1799,7 +1807,6 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	struct CHIPSTATE *chip = to_state(sd);
 	struct CHIPDESC *desc = chip->desc;
-	int mode = 0;
 
 	if (!desc->setmode)
 		return 0;
@@ -1811,21 +1818,20 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1:
 	case V4L2_TUNER_MODE_LANG2:
-		mode = vt->audmode;
 		break;
 	case V4L2_TUNER_MODE_LANG1_LANG2:
-		mode = V4L2_TUNER_MODE_STEREO;
+		vt->audmode = V4L2_TUNER_MODE_STEREO;
 		break;
 	default:
 		return -EINVAL;
 	}
 	chip->audmode = vt->audmode;
 
-	if (mode) {
-		/* del_timer(&chip->wt); */
-		chip->mode = mode;
-		desc->setmode(chip, mode);
-	}
+	if (chip->thread)
+		wake_up_process(chip->thread);
+	else
+		desc->setmode(chip, vt->audmode);
+
 	return 0;
 }
 
@@ -1860,8 +1866,6 @@ static int tvaudio_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *fr
 	struct CHIPSTATE *chip = to_state(sd);
 	struct CHIPDESC *desc = chip->desc;
 
-	chip->mode = 0; /* automatic */
-
 	/* For chips that provide getmode and setmode, and doesn't
 	   automatically follows the stereo carrier, a kthread is
 	   created to set the audio standard. In this case, when then
@@ -1872,8 +1876,7 @@ static int tvaudio_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *fr
 	 */
 	if (chip->thread) {
 		desc->setmode(chip, V4L2_TUNER_MODE_MONO);
-		if (chip->prevmode != V4L2_TUNER_MODE_MONO)
-			chip->prevmode = -1; /* reset previous mode */
+		chip->prevmode = -1; /* reset previous mode */
 		mod_timer(&chip->wt, jiffies+msecs_to_jiffies(2000));
 	}
 	return 0;
