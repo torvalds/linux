@@ -210,6 +210,17 @@ static int uhid_dev_destroy(struct uhid_device *uhid)
 	return 0;
 }
 
+static int uhid_dev_input(struct uhid_device *uhid, struct uhid_event *ev)
+{
+	if (!uhid->running)
+		return -EINVAL;
+
+	hid_input_report(uhid->hid, HID_INPUT_REPORT, ev->u.input.data,
+			 min_t(size_t, ev->u.input.size, UHID_DATA_MAX), 0);
+
+	return 0;
+}
+
 static int uhid_char_open(struct inode *inode, struct file *file)
 {
 	struct uhid_device *uhid;
@@ -320,6 +331,9 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 		break;
 	case UHID_DESTROY:
 		ret = uhid_dev_destroy(uhid);
+		break;
+	case UHID_INPUT:
+		ret = uhid_dev_input(uhid, &uhid->input_buf);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
