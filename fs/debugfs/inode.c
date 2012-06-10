@@ -293,48 +293,6 @@ static struct file_system_type debug_fs_type = {
 	.kill_sb =	kill_litter_super,
 };
 
-static int debugfs_create_by_name(const char *name, umode_t mode,
-				  struct dentry *parent,
-				  struct dentry **dentry,
-				  void *data,
-				  const struct file_operations *fops)
-{
-	int error = 0;
-
-	/* If the parent is not specified, we create it in the root.
-	 * We need the root dentry to do this, which is in the super 
-	 * block. A pointer to that is in the struct vfsmount that we
-	 * have around.
-	 */
-	if (!parent)
-		parent = debugfs_mount->mnt_root;
-
-	*dentry = NULL;
-	mutex_lock(&parent->d_inode->i_mutex);
-	*dentry = lookup_one_len(name, parent, strlen(name));
-	if (!IS_ERR(*dentry)) {
-		switch (mode & S_IFMT) {
-		case S_IFDIR:
-			error = debugfs_mkdir(parent->d_inode, *dentry, mode,
-					      data, fops);
-			break;
-		case S_IFLNK:
-			error = debugfs_link(parent->d_inode, *dentry, mode,
-					     data, fops);
-			break;
-		default:
-			error = debugfs_create(parent->d_inode, *dentry, mode,
-					       data, fops);
-			break;
-		}
-		dput(*dentry);
-	} else
-		error = PTR_ERR(*dentry);
-	mutex_unlock(&parent->d_inode->i_mutex);
-
-	return error;
-}
-
 struct dentry *__create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
@@ -349,8 +307,37 @@ struct dentry *__create_file(const char *name, umode_t mode,
 	if (error)
 		goto exit;
 
-	error = debugfs_create_by_name(name, mode, parent, &dentry,
-				       data, fops);
+	/* If the parent is not specified, we create it in the root.
+	 * We need the root dentry to do this, which is in the super 
+	 * block. A pointer to that is in the struct vfsmount that we
+	 * have around.
+	 */
+	if (!parent)
+		parent = debugfs_mount->mnt_root;
+
+	dentry = NULL;
+	mutex_lock(&parent->d_inode->i_mutex);
+	dentry = lookup_one_len(name, parent, strlen(name));
+	if (!IS_ERR(dentry)) {
+		switch (mode & S_IFMT) {
+		case S_IFDIR:
+			error = debugfs_mkdir(parent->d_inode, dentry, mode,
+					      data, fops);
+			break;
+		case S_IFLNK:
+			error = debugfs_link(parent->d_inode, dentry, mode,
+					     data, fops);
+			break;
+		default:
+			error = debugfs_create(parent->d_inode, dentry, mode,
+					       data, fops);
+			break;
+		}
+		dput(dentry);
+	} else
+		error = PTR_ERR(dentry);
+	mutex_unlock(&parent->d_inode->i_mutex);
+
 	if (error) {
 		dentry = NULL;
 		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
