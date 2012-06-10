@@ -2708,10 +2708,8 @@ out:
 		path_put(&nd->root);
 	if (base)
 		fput(base);
-	if (od.filp) {
-		BUG_ON(od.filp->f_path.dentry);
+	if (!(opened & FILE_OPENED))
 		put_filp(od.filp);
-	}
 	if (res == ERR_PTR(-EOPENSTALE)) {
 		if (flags & LOOKUP_RCU)
 			res = ERR_PTR(-ECHILD);

@@ -786,15 +786,14 @@ struct file *finish_open(struct opendata *od, struct dentry *dentry,
 			 int *opened)
 {
 	struct file *res;
+	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 
 	mntget(od->mnt);
 	dget(dentry);
 
 	res = do_dentry_open(dentry, od->mnt, od->filp, open, current_cred());
-	if (!IS_ERR(res)) {
+	if (!IS_ERR(res))
 		*opened |= FILE_OPENED;
-		od->filp = NULL;
-	}
 
 	return res;
 }
