@@ -82,11 +82,17 @@ static int uhid_queue_event(struct uhid_device *uhid, __u32 event)
 
 static int uhid_hid_start(struct hid_device *hid)
 {
-	return 0;
+	struct uhid_device *uhid = hid->driver_data;
+
+	return uhid_queue_event(uhid, UHID_START);
 }
 
 static void uhid_hid_stop(struct hid_device *hid)
 {
+	struct uhid_device *uhid = hid->driver_data;
+
+	hid->claimed = 0;
+	uhid_queue_event(uhid, UHID_STOP);
 }
 
 static int uhid_hid_open(struct hid_device *hid)
