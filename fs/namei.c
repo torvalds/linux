@@ -2269,14 +2269,11 @@ static struct file *atomic_open(struct nameidata *nd, struct dentry *dentry,
 	if (nd->flags & LOOKUP_DIRECTORY)
 		open_flag |= O_DIRECTORY;
 
-	od->dentry = DENTRY_NOT_SET;
-	od->mnt = nd->path.mnt;
+	od->filp->f_path.dentry = DENTRY_NOT_SET;
+	od->filp->f_path.mnt = nd->path.mnt;
 	error = dir->i_op->atomic_open(dir, dentry, od, open_flag, mode,
 				      opened);
 	if (error < 0) {
-		if (WARN_ON(od->dentry != DENTRY_NOT_SET))
-			dput(od->dentry);
-
 		if (create_error && error == -ENOENT)
 			error = create_error;
 		filp = ERR_PTR(error);
@@ -2290,13 +2287,13 @@ static struct file *atomic_open(struct nameidata *nd, struct dentry *dentry,
 	}
 
 	if (error) {	/* returned 1, that is */
-		if (WARN_ON(od->dentry == DENTRY_NOT_SET)) {
+		if (WARN_ON(od->filp->f_path.dentry == DENTRY_NOT_SET)) {
 			filp = ERR_PTR(-EIO);
 			goto out;
 		}
-		if (od->dentry) {
+		if (od->filp->f_path.dentry) {
 			dput(dentry);
-			dentry = od->dentry;
+			dentry = od->filp->f_path.dentry;
 		}
 		goto looked_up;
 	}
@@ -2607,7 +2604,7 @@ finish_open_created:
 	error = may_open(&nd->path, acc_mode, open_flag);
 	if (error)
 		goto exit;
-	od->mnt = nd->path.mnt;
+	od->filp->f_path.mnt = nd->path.mnt;
 	filp = finish_open(od, nd->path.dentry, NULL, opened);
 	if (IS_ERR(filp)) {
 		if (filp == ERR_PTR(-EOPENSTALE))

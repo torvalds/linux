@@ -788,10 +788,10 @@ struct file *finish_open(struct opendata *od, struct dentry *dentry,
 	struct file *res;
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 
-	mntget(od->mnt);
+	mntget(od->filp->f_path.mnt);
 	dget(dentry);
 
-	res = do_dentry_open(dentry, od->mnt, od->filp, open, current_cred());
+	res = do_dentry_open(dentry, od->filp->f_path.mnt, od->filp, open, current_cred());
 	if (!IS_ERR(res))
 		*opened |= FILE_OPENED;
 
@@ -810,7 +810,7 @@ EXPORT_SYMBOL(finish_open);
  */
 void finish_no_open(struct opendata *od, struct dentry *dentry)
 {
-	od->dentry = dentry;
+	od->filp->f_path.dentry = dentry;
 }
 EXPORT_SYMBOL(finish_no_open);
 

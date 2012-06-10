@@ -83,8 +83,6 @@ extern struct super_block *user_get_super(dev_t);
  * open.c
  */
 struct opendata {
-	struct dentry *dentry;
-	struct vfsmount *mnt;
 	struct file *filp;
 };
 struct open_flags {
