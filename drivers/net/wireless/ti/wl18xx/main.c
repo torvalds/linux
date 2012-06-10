@@ -372,6 +372,7 @@ static struct wlcore_conf wl18xx_conf = {
 		.forced_ps                   = false,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
+		.sta_sleep_auth              = WL1271_PSM_ILLEGAL,
 	},
 	.itrim = {
 		.enable = false,

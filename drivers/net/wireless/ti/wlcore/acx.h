@@ -120,6 +120,9 @@ enum wl1271_psm_mode {
 	WL1271_PSM_ELP = 2,
 
 	WL1271_PSM_MAX = WL1271_PSM_ELP,
+
+	/* illegal out of band value of PSM mode */
+	WL1271_PSM_ILLEGAL = 0xff
 };
 
 struct acx_sleep_auth {

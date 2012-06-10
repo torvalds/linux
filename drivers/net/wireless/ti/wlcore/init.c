@@ -565,7 +565,13 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 			if (ret < 0)
 				return ret;
 		} else if (!wl->sta_count) {
-			if (wl->quirks & WLCORE_QUIRK_NO_ELP) {
+			u8 sta_auth = wl->conf.conn.sta_sleep_auth;
+			if (sta_auth != WL1271_PSM_ILLEGAL) {
+				/* Configure for power according to debugfs */
+				ret = wl1271_acx_sleep_auth(wl, sta_auth);
+				if (ret < 0)
+					return ret;
+			} else if (wl->quirks & WLCORE_QUIRK_NO_ELP) {
 				/* Configure for power always on */
 				ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
 				if (ret < 0)

@@ -995,8 +995,13 @@ static ssize_t sleep_auth_write(struct file *file,
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->state == WL1271_STATE_OFF)
+	wl->conf.conn.sta_sleep_auth = value;
+
+	if (wl->state == WL1271_STATE_OFF) {
+		/* this will show up on "read" in case we are off */
+		wl->sleep_auth = value;
 		goto out;
+	}
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
