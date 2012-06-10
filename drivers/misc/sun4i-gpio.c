@@ -25,7 +25,7 @@
 #include <linux/miscdevice.h>
 #include <linux/device.h>
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #undef DEBUG_SUN4I
 

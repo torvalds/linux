@@ -28,7 +28,7 @@
 #include <sound/soc.h>
 
 #include <mach/clock.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include <mach/hardware.h>
 #include <asm/dma.h>

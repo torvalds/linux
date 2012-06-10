@@ -44,7 +44,7 @@
 #include <asm/io.h>
 
 #include <mach/dma.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/clock.h>
 
 #include "sun4i_wemac.h"

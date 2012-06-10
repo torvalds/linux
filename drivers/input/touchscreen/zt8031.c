@@ -39,7 +39,7 @@
 #include <linux/wakelock.h>
 #endif
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/irqs.h>
 #define TP_ID (0x10000000)
 

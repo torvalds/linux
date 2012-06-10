@@ -24,7 +24,7 @@
 #ifndef  __SW_HCD_BOARD_H__
 #define  __SW_HCD_BOARD_H__
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #define  USB_SRAMC_BASE	            0x01c00000
 #define  USB_CLOCK_BASE				0x01C20000

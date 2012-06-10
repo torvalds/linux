@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-sun4i/include/mach/sys_config.h
+ * arch/arm/plat-sunxi/include/plat/sys_config.h
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>

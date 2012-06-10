@@ -24,7 +24,7 @@
 #include <linux/input/matrix_keypad.h>
 
 #include <mach/clock.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 //#define AW1623_FPGA
 #define swkp_msg(...)       printk("[kpad]: "__VA_ARGS__);

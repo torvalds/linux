@@ -32,7 +32,7 @@
 
 #include <asm/irq.h>
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/irqs.h>
 #include <mach/i2c.h>
 
