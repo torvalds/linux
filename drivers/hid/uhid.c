@@ -117,6 +117,13 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 
 static unsigned int uhid_char_poll(struct file *file, poll_table *wait)
 {
+	struct uhid_device *uhid = file->private_data;
+
+	poll_wait(file, &uhid->waitq, wait);
+
+	if (uhid->head != uhid->tail)
+		return POLLIN | POLLRDNORM;
+
 	return 0;
 }
 
