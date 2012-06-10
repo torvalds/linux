@@ -383,7 +383,7 @@ static int tda9840_getmode(struct CHIPSTATE *chip)
 	if (val & TDA9840_DS_DUAL)
 		mode |= V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	if (val & TDA9840_ST_STEREO)
-		mode |= V4L2_TUNER_SUB_STEREO;
+		mode = V4L2_TUNER_SUB_STEREO;
 
 	v4l2_dbg(1, debug, sd, "tda9840_getmode(): raw chip read: %d, return: %d\n",
 		val, mode);
@@ -541,7 +541,7 @@ static int  tda985x_getmode(struct CHIPSTATE *chip)
 	mode = V4L2_TUNER_SUB_MONO;
 	val = chip_read(chip);
 	if (val & TDA985x_STP)
-		mode |= V4L2_TUNER_SUB_STEREO;
+		mode = V4L2_TUNER_SUB_STEREO;
 	if (val & TDA985x_SAPP)
 		mode |= V4L2_TUNER_SUB_SAP;
 	return mode;
@@ -700,7 +700,7 @@ static int tda9873_getmode(struct CHIPSTATE *chip)
 	val = chip_read(chip);
 	mode = V4L2_TUNER_SUB_MONO;
 	if (val & TDA9873_STEREO)
-		mode |= V4L2_TUNER_SUB_STEREO;
+		mode = V4L2_TUNER_SUB_STEREO;
 	if (val & TDA9873_DUAL)
 		mode |= V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	v4l2_dbg(1, debug, sd, "tda9873_getmode(): raw chip read: %d, return: %d\n",
@@ -918,12 +918,12 @@ static int tda9874a_getmode(struct CHIPSTATE *chip)
 		 * external 4052 multiplexer in audio_hook().
 		 */
 		if(nsr & 0x02) /* NSR.S/MB=1 */
-			mode |= V4L2_TUNER_SUB_STEREO;
+			mode = V4L2_TUNER_SUB_STEREO;
 		if(nsr & 0x01) /* NSR.D/SB=1 */
 			mode |= V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	} else {
 		if(dsr & 0x02) /* DSR.IDSTE=1 */
-			mode |= V4L2_TUNER_SUB_STEREO;
+			mode = V4L2_TUNER_SUB_STEREO;
 		if(dsr & 0x04) /* DSR.IDDUA=1 */
 			mode |= V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	}
@@ -1350,7 +1350,7 @@ static int ta8874z_getmode(struct CHIPSTATE *chip)
 	if (val & TA8874Z_B1){
 		mode |= V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	}else if (!(val & TA8874Z_B0)){
-		mode |= V4L2_TUNER_SUB_STEREO;
+		mode = V4L2_TUNER_SUB_STEREO;
 	}
 	/* v4l_dbg(1, debug, chip->c, "ta8874z_getmode(): raw chip read: 0x%02x, return: 0x%02x\n", val, mode); */
 	return mode;
