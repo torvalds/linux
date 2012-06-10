@@ -83,11 +83,11 @@ static inline bool inet_metrics_new(const struct inet_peer *p)
 }
 
 /* can be called with or without local BH being disabled */
-struct inet_peer *inet_getpeer(struct net *net,
+struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 			       const struct inetpeer_addr *daddr,
 			       int create);
 
-static inline struct inet_peer *inet_getpeer_v4(struct net *net,
+static inline struct inet_peer *inet_getpeer_v4(struct inet_peer_base *base,
 						__be32 v4daddr,
 						int create)
 {
@@ -95,10 +95,10 @@ static inline struct inet_peer *inet_getpeer_v4(struct net *net,
 
 	daddr.addr.a4 = v4daddr;
 	daddr.family = AF_INET;
-	return inet_getpeer(net, &daddr, create);
+	return inet_getpeer(base, &daddr, create);
 }
 
-static inline struct inet_peer *inet_getpeer_v6(struct net *net,
+static inline struct inet_peer *inet_getpeer_v6(struct inet_peer_base *base,
 						const struct in6_addr *v6daddr,
 						int create)
 {
@@ -106,7 +106,7 @@ static inline struct inet_peer *inet_getpeer_v6(struct net *net,
 
 	*(struct in6_addr *)daddr.addr.a6 = *v6daddr;
 	daddr.family = AF_INET6;
-	return inet_getpeer(net, &daddr, create);
+	return inet_getpeer(base, &daddr, create);
 }
 
 /* can be called from BH context or outside */

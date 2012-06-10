@@ -391,12 +391,6 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base,
 	call_rcu(&p->rcu, inetpeer_free_rcu);
 }
 
-static struct inet_peer_base *family_to_base(struct net *net,
-					     int family)
-{
-	return family == AF_INET ? net->ipv4.peers : net->ipv6.peers;
-}
-
 /* perform garbage collect on all items stacked during a lookup */
 static int inet_peer_gc(struct inet_peer_base *base,
 			struct inet_peer __rcu **stack[PEER_MAXDEPTH],
@@ -434,12 +428,11 @@ static int inet_peer_gc(struct inet_peer_base *base,
 	return cnt;
 }
 
-struct inet_peer *inet_getpeer(struct net *net,
+struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 			       const struct inetpeer_addr *daddr,
 			       int create)
 {
 	struct inet_peer __rcu **stack[PEER_MAXDEPTH], ***stackptr;
-	struct inet_peer_base *base = family_to_base(net, daddr->family);
 	struct inet_peer *p;
 	unsigned int sequence;
 	int invalidated, gccnt = 0;
