@@ -54,13 +54,12 @@ static struct inode *debugfs_get_inode(struct super_block *sb, umode_t mode, dev
 			break;
 		case S_IFLNK:
 			inode->i_op = &debugfs_link_operations;
-			inode->i_fop = fops;
 			inode->i_private = data;
 			break;
 		case S_IFDIR:
 			inode->i_op = &simple_dir_inode_operations;
-			inode->i_fop = fops ? fops : &simple_dir_operations;
-			inode->i_private = data;
+			inode->i_fop = &simple_dir_operations;
+			inode->i_private = NULL;
 
 			/* directory inodes start off with i_nlink == 2
 			 * (for "." entry) */
@@ -91,13 +90,12 @@ static int debugfs_mknod(struct inode *dir, struct dentry *dentry,
 	return error;
 }
 
-static int debugfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode,
-			 void *data, const struct file_operations *fops)
+static int debugfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int res;
 
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
-	res = debugfs_mknod(dir, dentry, mode, 0, data, fops);
+	res = debugfs_mknod(dir, dentry, mode, 0, NULL, NULL);
 	if (!res) {
 		inc_nlink(dir);
 		fsnotify_mkdir(dir, dentry);
@@ -106,10 +104,10 @@ static int debugfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode,
 }
 
 static int debugfs_link(struct inode *dir, struct dentry *dentry, umode_t mode,
-			void *data, const struct file_operations *fops)
+			void *data)
 {
 	mode = (mode & S_IALLUGO) | S_IFLNK;
-	return debugfs_mknod(dir, dentry, mode, 0, data, fops);
+	return debugfs_mknod(dir, dentry, mode, 0, data, NULL);
 }
 
 static int debugfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
@@ -321,12 +319,12 @@ struct dentry *__create_file(const char *name, umode_t mode,
 	if (!IS_ERR(dentry)) {
 		switch (mode & S_IFMT) {
 		case S_IFDIR:
-			error = debugfs_mkdir(parent->d_inode, dentry, mode,
-					      data, fops);
+			error = debugfs_mkdir(parent->d_inode, dentry, mode);
+					      
 			break;
 		case S_IFLNK:
 			error = debugfs_link(parent->d_inode, dentry, mode,
-					     data, fops);
+					     data);
 			break;
 		default:
 			error = debugfs_create(parent->d_inode, dentry, mode,
