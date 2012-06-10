@@ -29,6 +29,11 @@
 
 struct uhid_device {
 	struct mutex devlock;
+	bool running;
+
+	__u8 *rd_data;
+	uint rd_size;
+
 	struct hid_device *hid;
 	struct uhid_event input_buf;
 
@@ -75,6 +80,136 @@ static int uhid_queue_event(struct uhid_device *uhid, __u32 event)
 	return 0;
 }
 
+static int uhid_hid_start(struct hid_device *hid)
+{
+	return 0;
+}
+
+static void uhid_hid_stop(struct hid_device *hid)
+{
+}
+
+static int uhid_hid_open(struct hid_device *hid)
+{
+	return 0;
+}
+
+static void uhid_hid_close(struct hid_device *hid)
+{
+}
+
+static int uhid_hid_input(struct input_dev *input, unsigned int type,
+			  unsigned int code, int value)
+{
+	return 0;
+}
+
+static int uhid_hid_parse(struct hid_device *hid)
+{
+	return 0;
+}
+
+static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
+			    __u8 *buf, size_t count, unsigned char rtype)
+{
+	return 0;
+}
+
+static int uhid_hid_output_raw(struct hid_device *hid, __u8 *buf, size_t count,
+			       unsigned char report_type)
+{
+	return 0;
+}
+
+static struct hid_ll_driver uhid_hid_driver = {
+	.start = uhid_hid_start,
+	.stop = uhid_hid_stop,
+	.open = uhid_hid_open,
+	.close = uhid_hid_close,
+	.hidinput_input_event = uhid_hid_input,
+	.parse = uhid_hid_parse,
+};
+
+static int uhid_dev_create(struct uhid_device *uhid,
+			   const struct uhid_event *ev)
+{
+	struct hid_device *hid;
+	int ret;
+
+	if (uhid->running)
+		return -EALREADY;
+
+	uhid->rd_size = ev->u.create.rd_size;
+	if (uhid->rd_size <= 0 || uhid->rd_size > HID_MAX_DESCRIPTOR_SIZE)
+		return -EINVAL;
+
+	uhid->rd_data = kmalloc(uhid->rd_size, GFP_KERNEL);
+	if (!uhid->rd_data)
+		return -ENOMEM;
+
+	if (copy_from_user(uhid->rd_data, ev->u.create.rd_data,
+			   uhid->rd_size)) {
+		ret = -EFAULT;
+		goto err_free;
+	}
+
+	hid = hid_allocate_device();
+	if (IS_ERR(hid)) {
+		ret = PTR_ERR(hid);
+		goto err_free;
+	}
+
+	strncpy(hid->name, ev->u.create.name, 127);
+	hid->name[127] = 0;
+	strncpy(hid->phys, ev->u.create.phys, 63);
+	hid->phys[63] = 0;
+	strncpy(hid->uniq, ev->u.create.uniq, 63);
+	hid->uniq[63] = 0;
+
+	hid->ll_driver = &uhid_hid_driver;
+	hid->hid_get_raw_report = uhid_hid_get_raw;
+	hid->hid_output_raw_report = uhid_hid_output_raw;
+	hid->bus = ev->u.create.bus;
+	hid->vendor = ev->u.create.vendor;
+	hid->product = ev->u.create.product;
+	hid->version = ev->u.create.version;
+	hid->country = ev->u.create.country;
+	hid->driver_data = uhid;
+	hid->dev.parent = uhid_misc.this_device;
+
+	uhid->hid = hid;
+	uhid->running = true;
+
+	ret = hid_add_device(hid);
+	if (ret) {
+		hid_err(hid, "Cannot register HID device\n");
+		goto err_hid;
+	}
+
+	return 0;
+
+err_hid:
+	hid_destroy_device(hid);
+	uhid->hid = NULL;
+	uhid->running = false;
+err_free:
+	kfree(uhid->rd_data);
+	return ret;
+}
+
+static int uhid_dev_destroy(struct uhid_device *uhid)
+{
+	if (!uhid->running)
+		return -EINVAL;
+
+	uhid->running = false;
+
+	hid_destroy_device(uhid->hid);
+	kfree(uhid->rd_data);
+
+	return 0;
+}
+
 static int uhid_char_open(struct inode *inode, struct file *file)
 {
 	struct uhid_device *uhid;
@@ -86,6 +221,7 @@ static int uhid_char_open(struct inode *inode, struct file *file)
 	mutex_init(&uhid->devlock);
 	spin_lock_init(&uhid->qlock);
 	init_waitqueue_head(&uhid->waitq);
+	uhid->running = false;
 
 	file->private_data = uhid;
 	nonseekable_open(inode, file);
@@ -97,6 +233,8 @@ static int uhid_char_release(struct inode *inode, struct file *file)
 {
 	struct uhid_device *uhid = file->private_data;
 	unsigned int i;
+
+	uhid_dev_destroy(uhid);
 
 	for (i = 0; i < UHID_BUFSIZE; ++i)
 		kfree(uhid->outq[i]);
@@ -177,6 +315,12 @@ static ssize_t uhid_char_write(struct file *file, const char __user *buffer,
 	}
 
 	switch (uhid->input_buf.type) {
+	case UHID_CREATE:
+		ret = uhid_dev_create(uhid, &uhid->input_buf);
+		break;
+	case UHID_DESTROY:
+		ret = uhid_dev_destroy(uhid);
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 	}
