@@ -605,7 +605,7 @@ static inline void path_to_nameidata(const struct path *path,
 static inline void put_link(struct nameidata *nd, struct path *link, void *cookie)
 {
 	struct inode *inode = link->dentry->d_inode;
-	if (!IS_ERR(cookie) && inode->i_op->put_link)
+	if (inode->i_op->put_link)
 		inode->i_op->put_link(link->dentry, nd, cookie);
 	path_put(link);
 }
@@ -613,19 +613,19 @@ static inline void put_link(struct nameidata *nd, struct path *link, void *cooki
 static __always_inline int
 follow_link(struct path *link, struct nameidata *nd, void **p)
 {
-	int error;
 	struct dentry *dentry = link->dentry;
+	int error;
+	char *s;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 
 	if (link->mnt == nd->path.mnt)
 		mntget(link->mnt);
 
-	if (unlikely(current->total_link_count >= 40)) {
-		*p = ERR_PTR(-ELOOP); /* no ->put_link(), please */
-		path_put(&nd->path);
-		return -ELOOP;
-	}
+	error = -ELOOP;
+	if (unlikely(current->total_link_count >= 40))
+		goto out_put_nd_path;
+
 	cond_resched();
 	current->total_link_count++;
 
@@ -633,30 +633,37 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 	nd_set_link(nd, NULL);
 
 	error = security_inode_follow_link(link->dentry, nd);
-	if (error) {
-		*p = ERR_PTR(error); /* no ->put_link(), please */
-		path_put(&nd->path);
-		return error;
-	}
+	if (error)
+		goto out_put_nd_path;
 
 	nd->last_type = LAST_BIND;
 	*p = dentry->d_inode->i_op->follow_link(dentry, nd);
 	error = PTR_ERR(*p);
-	if (!IS_ERR(*p)) {
-		char *s = nd_get_link(nd);
-		error = 0;
-		if (s)
-			error = __vfs_follow_link(nd, s);
-		else if (nd->last_type == LAST_BIND) {
-			nd->flags |= LOOKUP_JUMPED;
-			nd->inode = nd->path.dentry->d_inode;
-			if (nd->inode->i_op->follow_link) {
-				/* stepped on a _really_ weird one */
-				path_put(&nd->path);
-				error = -ELOOP;
-			}
+	if (IS_ERR(*p))
+		goto out_put_link;
+
+	error = 0;
+	s = nd_get_link(nd);
+	if (s) {
+		error = __vfs_follow_link(nd, s);
+	} else if (nd->last_type == LAST_BIND) {
+		nd->flags |= LOOKUP_JUMPED;
+		nd->inode = nd->path.dentry->d_inode;
+		if (nd->inode->i_op->follow_link) {
+			/* stepped on a _really_ weird one */
+			path_put(&nd->path);
+			error = -ELOOP;
 		}
 	}
+	if (unlikely(error))
+		put_link(nd, link, *p);
+
+	return error;
+
+out_put_nd_path:
+	path_put(&nd->path);
+out_put_link:
+	path_put(link);
 	return error;
 }
 
@@ -1383,9 +1390,10 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
 		void *cookie;
 
 		res = follow_link(&link, nd, &cookie);
-		if (!res)
-			res = walk_component(nd, path, &nd->last,
-					     nd->last_type, LOOKUP_FOLLOW);
+		if (res)
+			break;
+		res = walk_component(nd, path, &nd->last,
+				     nd->last_type, LOOKUP_FOLLOW);
 		put_link(nd, &link, cookie);
 	} while (res > 0);
 
@@ -1777,8 +1785,9 @@ static int path_lookupat(int dfd, const char *name,
 			struct path link = path;
 			nd->flags |= LOOKUP_PARENT;
 			err = follow_link(&link, nd, &cookie);
-			if (!err)
-				err = lookup_last(nd, &path);
+			if (err)
+				break;
+			err = lookup_last(nd, &path);
 			put_link(nd, &link, cookie);
 		}
 	}
@@ -2475,9 +2484,8 @@ static struct file *path_openat(int dfd, const char *pathname,
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
 		error = follow_link(&link, nd, &cookie);
 		if (unlikely(error))
-			filp = ERR_PTR(error);
-		else
-			filp = do_last(nd, &path, op, pathname);
+			goto out_filp;
+		filp = do_last(nd, &path, op, pathname);
 		put_link(nd, &link, cookie);
 	}
 out:
