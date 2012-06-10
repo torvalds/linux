@@ -41,17 +41,17 @@ static struct amba_pl010_data integrator_uart_data;
 #define KMI0_IRQ		{ IRQ_KMIINT0 }
 #define KMI1_IRQ		{ IRQ_KMIINT1 }
 
-static AMBA_APB_DEVICE(rtc, "mb:15", 0,
+static AMBA_APB_DEVICE(rtc, "rtc", 0,
 	INTEGRATOR_RTC_BASE, INTEGRATOR_RTC_IRQ, NULL);
 
-static AMBA_APB_DEVICE(uart0, "mb:16", 0,
+static AMBA_APB_DEVICE(uart0, "uart0", 0,
 	INTEGRATOR_UART0_BASE, INTEGRATOR_UART0_IRQ, &integrator_uart_data);
 
-static AMBA_APB_DEVICE(uart1, "mb:17", 0,
+static AMBA_APB_DEVICE(uart1, "uart1", 0,
 	INTEGRATOR_UART1_BASE, INTEGRATOR_UART1_IRQ, &integrator_uart_data);
 
-static AMBA_APB_DEVICE(kmi0, "mb:18", 0, KMI0_BASE, KMI0_IRQ, NULL);
-static AMBA_APB_DEVICE(kmi1, "mb:19", 0, KMI1_BASE, KMI1_IRQ, NULL);
+static AMBA_APB_DEVICE(kmi0, "kmi0", 0, KMI0_BASE, KMI0_IRQ, NULL);
+static AMBA_APB_DEVICE(kmi1, "kmi1", 0, KMI1_BASE, KMI1_IRQ, NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&rtc_device,
@@ -83,19 +83,19 @@ static struct clk_lookup lookups[] = {
 		.dev_id		= "ap_timer",
 		.clk		= &clk24mhz,
 	}, {	/* UART0 */
-		.dev_id		= "mb:16",
+		.dev_id		= "uart0",
 		.clk		= &uartclk,
 	}, {	/* UART1 */
-		.dev_id		= "mb:17",
+		.dev_id		= "uart1",
 		.clk		= &uartclk,
 	}, {	/* KMI0 */
-		.dev_id		= "mb:18",
+		.dev_id		= "kmi0",
 		.clk		= &clk24mhz,
 	}, {	/* KMI1 */
-		.dev_id		= "mb:19",
+		.dev_id		= "kmi1",
 		.clk		= &clk24mhz,
 	}, {	/* MMCI - IntegratorCP */
-		.dev_id		= "mb:1c",
+		.dev_id		= "mmci",
 		.clk		= &uartclk,
 	}
 };

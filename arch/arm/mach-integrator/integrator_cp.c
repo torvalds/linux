@@ -221,7 +221,7 @@ static struct clk sp804_clk = {
 
 static struct clk_lookup cp_lookups[] = {
 	{	/* CLCD */
-		.dev_id		= "mb:c0",
+		.dev_id		= "clcd",
 		.clk		= &cp_auxclk,
 	}, {	/* SP804 timers */
 		.dev_id		= "sp804",
@@ -336,10 +336,10 @@ static struct mmci_platform_data mmc_data = {
 #define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
 #define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
 
-static AMBA_APB_DEVICE(mmc, "mb:1c", 0, INTEGRATOR_CP_MMC_BASE,
+static AMBA_APB_DEVICE(mmc, "mmci", 0, INTEGRATOR_CP_MMC_BASE,
 	INTEGRATOR_CP_MMC_IRQS, &mmc_data);
 
-static AMBA_APB_DEVICE(aaci, "mb:1d", 0, INTEGRATOR_CP_AACI_BASE,
+static AMBA_APB_DEVICE(aaci, "aaci", 0, INTEGRATOR_CP_AACI_BASE,
 	INTEGRATOR_CP_AACI_IRQS, NULL);
 
 
@@ -393,7 +393,7 @@ static struct clcd_board clcd_data = {
 	.remove		= versatile_clcd_remove_dma,
 };
 
-static AMBA_AHB_DEVICE(clcd, "mb:c0", 0, INTCP_PA_CLCD_BASE,
+static AMBA_AHB_DEVICE(clcd, "clcd", 0, INTCP_PA_CLCD_BASE,
 	{ IRQ_CP_CLCDCINT }, &clcd_data);
 
 static struct amba_device *amba_devs[] __initdata = {
