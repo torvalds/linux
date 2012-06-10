@@ -126,7 +126,6 @@ struct CHIPSTATE {
 	/* thread */
 	struct task_struct   *thread;
 	struct timer_list    wt;
-	int                  watch_stereo;
 	int 		     audmode;
 };
 
@@ -1741,7 +1740,6 @@ static int tvaudio_s_radio(struct v4l2_subdev *sd)
 	struct CHIPSTATE *chip = to_state(sd);
 
 	chip->radio = 1;
-	chip->watch_stereo = 0;
 	/* del_timer(&chip->wt); */
 	return 0;
 }
@@ -1821,7 +1819,6 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	chip->audmode = vt->audmode;
 
 	if (mode) {
-		chip->watch_stereo = 0;
 		/* del_timer(&chip->wt); */
 		chip->mode = mode;
 		desc->setmode(chip, mode);
