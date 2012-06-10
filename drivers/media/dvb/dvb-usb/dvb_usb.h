@@ -322,6 +322,7 @@ struct dvb_usb_device {
 	struct dvb_usb_rc rc;
 	struct usb_device *udev;
 	struct work_struct probe_work;
+	pid_t work_pid;
 	struct usb_interface *intf;
 
 #define DVB_USB_STATE_INIT        0x000

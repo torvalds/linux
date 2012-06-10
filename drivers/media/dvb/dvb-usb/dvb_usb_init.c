@@ -267,10 +267,6 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 }
 
 /*
- * USB
- */
-
-/*
  * udev, which is used for the firmware downloading, requires we cannot
  * block during module_init(). module_init() calls USB probe() which
  * is this routine. Due to that we delay actual operation using workqueue
@@ -284,7 +280,9 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 			container_of(work, struct dvb_usb_device, probe_work);
 	bool cold = false;
 
-	pr_debug("%s:\n", __func__);
+	d->work_pid = current->pid;
+
+	pr_debug("%s: work_pid=%d\n", __func__, d->work_pid);
 
 	if (d->props.size_of_priv) {
 		d->priv = kzalloc(d->props.size_of_priv, GFP_KERNEL);
@@ -405,15 +403,12 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	const char *name = "generic DVB-USB module";
 
-	pr_debug("%s:\n", __func__);
+	pr_debug("%s: pid=%d work_pid=%d\n", __func__, current->pid,
+			d->work_pid);
 
-	/*
-	 * FIXME: We should ensure initialization work is finished
-	 * until exit from this routine (cancel_work_sync / flush_work).
-	 * Unfortunately usb_driver_release_interface() call finally goes
-	 * here too and in that case we endup deadlock. How to perform
-	 * operation conditionally only on disconned / unload?
-	 */
+	/* ensure initialization work is finished until release resources */
+	if (d->work_pid != current->pid)
+		cancel_work_sync(&d->probe_work);
 
 	usb_set_intfdata(intf, NULL);
 	if (d) {
