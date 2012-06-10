@@ -32,7 +32,7 @@
 #include <linux/mfd/axp-mfd.h>
 
 #include "axp-cfg.h"
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 
 int pmu_used;

@@ -37,7 +37,7 @@
 
 #include <asm/cacheflush.h>
 #include <mach/dma.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include "host_plat.h"
 #include "smc_syscall.h"

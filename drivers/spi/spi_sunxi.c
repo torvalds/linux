@@ -31,7 +31,7 @@
 #include <mach/dma.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/spi.h>
 #include <asm/cacheflush.h>
 

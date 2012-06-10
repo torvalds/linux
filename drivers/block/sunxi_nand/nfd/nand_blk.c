@@ -45,7 +45,7 @@
 #include "../nfc/nfc_i.h"
 #include "nand_blk.h"
 #include <mach/clock.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include "nand_private.h"
 #include "../include/type_def.h"

@@ -25,7 +25,7 @@
 #include <mach/irqs.h>
 #include <mach/system.h>
 #include <mach/hardware.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/ioport.h>

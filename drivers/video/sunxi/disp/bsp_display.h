@@ -45,7 +45,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/cdev.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/clock.h>
 #include <mach/aw_ccu.h>
 #include <mach/system.h>

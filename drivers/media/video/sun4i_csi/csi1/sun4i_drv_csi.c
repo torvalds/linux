@@ -51,9 +51,7 @@
 #include <media/videobuf-dma-contig.h>
 #include <linux/moduleparam.h>
 
-//#include <mach/gpio_v2.h>
-//#include <mach/script_v2.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/clock.h>
 #include <mach/irqs.h>
 #include <linux/regulator/consumer.h>

@@ -26,7 +26,7 @@
 
 #include <mach/system.h>
 #include <mach/hardware.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 static struct work_struct vibrator_work;
 static struct hrtimer vibe_timer;

@@ -1383,7 +1383,7 @@ void usb_composite_setup_continue(struct usb_composite_dev *cdev)
 //
 //-------------------------------------------------------------------------
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 static s32 get_android_config(struct android_usb_config *config)
 {

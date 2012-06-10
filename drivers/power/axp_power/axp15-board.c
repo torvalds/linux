@@ -10,7 +10,7 @@
 #include <linux/mfd/axp-mfd.h>
 #include <linux/input.h>
 #include <linux/delay.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include "axp-cfg.h"
 //#include "axp-sply.h"
 

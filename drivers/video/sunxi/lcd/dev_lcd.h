@@ -46,7 +46,7 @@
 #include <linux/types.h>
 
 #include <mach/platform.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include <video/sunxi_disp_ioctl.h>
 

@@ -55,7 +55,7 @@
 #include <asm/mach/map.h>
 #include <mach/system.h>
 #include <mach/timex.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/ramconsole.h>
 
 /**

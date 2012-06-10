@@ -25,7 +25,7 @@
 #include <linux/rfkill.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #if defined CONFIG_BT_HCIUART_DEBUG
 #define RF_MSG(...)     do {printk("[rfkill]: "__VA_ARGS__);} while(0)

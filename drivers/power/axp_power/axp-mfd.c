@@ -22,7 +22,7 @@
 #include "axp19-mfd.h"
 #include "axp20-mfd.h"
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 static int power_start;
 

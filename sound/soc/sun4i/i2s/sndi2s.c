@@ -21,7 +21,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/io.h>
 
 #include "sndi2s.h"

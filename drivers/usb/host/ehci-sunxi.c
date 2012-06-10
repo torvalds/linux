@@ -32,7 +32,7 @@
 #include <linux/time.h>
 #include <linux/timer.h>
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/clk.h>
 
 #include  <mach/clock.h>

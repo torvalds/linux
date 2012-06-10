@@ -44,7 +44,7 @@
 #ifdef CONFIG_PM
 #include <linux/pm.h>
 #endif
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/system.h>
 
 static int gpio_pa_shutdown = 0;

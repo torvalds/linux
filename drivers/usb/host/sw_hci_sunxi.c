@@ -53,7 +53,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/clock.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include "sw_hci_sunxi.h"
 

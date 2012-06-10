@@ -41,7 +41,7 @@
 #include <mach/irqs.h>
 #include <mach/system.h>
 #include <mach/hardware.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include <linux/clk.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND

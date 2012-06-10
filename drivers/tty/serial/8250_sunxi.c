@@ -22,7 +22,7 @@
 #include <asm/string.h>
 #include <linux/clk.h>
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
 

@@ -23,7 +23,7 @@
 #ifndef __LINUX_ZT_TS_H__
 #define __LINUX_ZT_TS_H__
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/irqs.h>
 #include <linux/i2c.h>
 #include <linux/i2c/tsc2007.h>

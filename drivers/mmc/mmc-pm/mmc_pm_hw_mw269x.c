@@ -35,7 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include "mmc_pm.h"
 

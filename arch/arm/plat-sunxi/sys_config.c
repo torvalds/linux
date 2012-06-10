@@ -29,7 +29,7 @@
 #include <asm/io.h>
 #include <mach/memory.h>
 #include <mach/platform.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 static script_sub_key_t *sw_cfg_get_subkey(const char *script_buf, const char *main_key, const char *sub_key)
 {

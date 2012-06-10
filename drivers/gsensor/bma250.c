@@ -28,7 +28,7 @@
 
 #include <mach/system.h>
 #include <mach/hardware.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 //#define BMA250_DEBUG
 
