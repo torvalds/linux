@@ -215,8 +215,6 @@ static inline int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 s
 	return ip_route_input_common(skb, dst, src, tos, devin, true);
 }
 
-extern unsigned short	ip_rt_frag_needed(struct net *net, const struct iphdr *iph,
-					  unsigned short new_mtu, struct net_device *dev);
 extern void		ip_rt_send_redirect(struct sk_buff *skb);
 
 extern unsigned int		inet_addr_type(struct net *net, __be32 addr);

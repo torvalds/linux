@@ -673,9 +673,7 @@ static void icmp_unreach(struct sk_buff *skb)
 				LIMIT_NETDEBUG(KERN_INFO pr_fmt("%pI4: fragmentation needed and DF set\n"),
 					       &iph->daddr);
 			} else {
-				info = ip_rt_frag_needed(net, iph,
-							 ntohs(icmph->un.frag.mtu),
-							 skb->dev);
+				info = ntohs(icmph->un.frag.mtu);
 				if (!info)
 					goto out;
 			}

@@ -1664,67 +1664,6 @@ out:	kfree_skb(skb);
 	return 0;
 }
 
-/*
- *	The last two values are not from the RFC but
- *	are needed for AMPRnet AX.25 paths.
- */
-
-static const unsigned short mtu_plateau[] =
-{32000, 17914, 8166, 4352, 2002, 1492, 576, 296, 216, 128 };
-
-static inline unsigned short guess_mtu(unsigned short old_mtu)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mtu_plateau); i++)
-		if (old_mtu > mtu_plateau[i])
-			return mtu_plateau[i];
-	return 68;
-}
-
-unsigned short ip_rt_frag_needed(struct net *net, const struct iphdr *iph,
-				 unsigned short new_mtu,
-				 struct net_device *dev)
-{
-	unsigned short old_mtu = ntohs(iph->tot_len);
-	unsigned short est_mtu = 0;
-	struct inet_peer *peer;
-
-	peer = inet_getpeer_v4(net->ipv4.peers, iph->daddr, 1);
-	if (peer) {
-		unsigned short mtu = new_mtu;
-
-		if (new_mtu < 68 || new_mtu >= old_mtu) {
-			/* BSD 4.2 derived systems incorrectly adjust
-			 * tot_len by the IP header length, and report
-			 * a zero MTU in the ICMP message.
-			 */
-			if (mtu == 0 &&
-			    old_mtu >= 68 + (iph->ihl << 2))
-				old_mtu -= iph->ihl << 2;
-			mtu = guess_mtu(old_mtu);
-		}
-
-		if (mtu < ip_rt_min_pmtu)
-			mtu = ip_rt_min_pmtu;
-		if (!peer->pmtu_expires || mtu < peer->pmtu_learned) {
-			unsigned long pmtu_expires;
-
-			pmtu_expires = jiffies + ip_rt_mtu_expires;
-			if (!pmtu_expires)
-				pmtu_expires = 1UL;
-
-			est_mtu = mtu;
-			peer->pmtu_learned = mtu;
-			peer->pmtu_expires = pmtu_expires;
-			atomic_inc(&__rt_peer_genid);
-		}
-
-		inet_putpeer(peer);
-	}
-	return est_mtu ? : new_mtu;
-}
-
 static void check_peer_pmtu(struct dst_entry *dst, struct inet_peer *peer)
 {
 	unsigned long expires = ACCESS_ONCE(peer->pmtu_expires);
