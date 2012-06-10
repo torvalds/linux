@@ -1597,7 +1597,6 @@ static struct CHIPDESC chiplist[] = {
 		.addr_lo    = I2C_ADDR_TDA9840 >> 1,
 		.addr_hi    = I2C_ADDR_TDA9840 >> 1,
 		.registers  = 2,
-		.flags      = CHIP_NEED_CHECKMODE,
 
 		/* callbacks */
 		.getmode    = ta8874z_getmode,
