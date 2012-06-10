@@ -9,5 +9,5 @@ config FB_SM7XX
 	  and SM722 chips.
 
 	  This driver is also available as a module. The module will be
-	  called sm7xx. If you want to compile it as a module, say M
+	  called sm7xxfb. If you want to compile it as a module, say M
 	  here and read <file:Documentation/kbuild/modules.txt>.

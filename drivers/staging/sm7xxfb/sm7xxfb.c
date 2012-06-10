@@ -32,7 +32,7 @@
 #include <linux/pm.h>
 #endif
 
-#include "smtcfb.h"
+#include "sm7xx.h"
 
 struct screen_info smtc_screen_info;
 

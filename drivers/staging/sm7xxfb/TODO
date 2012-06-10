@@ -3,7 +3,7 @@ TODO:
 - 2D acceleration support
 - use kernel coding style
 - refine the code and remove unused code
-- move it to drivers/video/sm7xx/ or make it be drivers/video/sm7xxfb.c
+- move it to drivers/video/sm7xxfb.c
 
 Please send any patches to Greg Kroah-Hartman <greg@kroah.com> and
 Teddy Wang <teddy.wang@siliconmotion.com.cn>.
