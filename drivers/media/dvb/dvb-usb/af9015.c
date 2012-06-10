@@ -1431,6 +1431,7 @@ static struct usb_driver af9015_usb_driver = {
 	.disconnect = dvb_usbv2_disconnect,
 	.id_table = af9015_id_table,
 	.no_dynamic_id = 1,
+	.soft_unbind = 1,
 };
 
 module_usb_driver(af9015_usb_driver);
