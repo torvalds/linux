@@ -27,6 +27,8 @@ enum uhid_event_type {
 	UHID_DESTROY,
 	UHID_START,
 	UHID_STOP,
+	UHID_OPEN,
+	UHID_CLOSE,
 	UHID_INPUT,
 };
 
