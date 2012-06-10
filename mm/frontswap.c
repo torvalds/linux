@@ -148,8 +148,9 @@ int __frontswap_store(struct page *page)
 		frontswap_clear(sis, offset);
 		atomic_dec(&sis->frontswap_pages);
 		inc_frontswap_failed_stores();
-	} else
+	} else {
 		inc_frontswap_failed_stores();
+	}
 	if (frontswap_writethrough_enabled)
 		/* report failure so swap also writes to swap device */
 		ret = -1;
@@ -250,9 +251,9 @@ void frontswap_shrink(unsigned long target_pages)
 	for (type = swap_list.head; type >= 0; type = si->next) {
 		si = swap_info[type];
 		si_frontswap_pages = atomic_read(&si->frontswap_pages);
-		if (total_pages_to_unuse < si_frontswap_pages)
+		if (total_pages_to_unuse < si_frontswap_pages) {
 			pages = pages_to_unuse = total_pages_to_unuse;
-		else {
+		} else {
 			pages = si_frontswap_pages;
 			pages_to_unuse = 0; /* unuse all */
 		}
