@@ -298,6 +298,10 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 	struct iwl_tx_queue *txq = (void *)data;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
+	u32 scd_sram_addr = trans_pcie->scd_base_addr +
+		SCD_TX_STTS_MEM_LOWER_BOUND + (16 * txq->q.id);
+	u8 buf[16];
+	int i;
 
 	spin_lock(&txq->lock);
 	/* check if triggered erroneously */
@@ -307,7 +311,6 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 	}
 	spin_unlock(&txq->lock);
 
-
 	IWL_ERR(trans, "Queue %d stuck for %u ms.\n", txq->q.id,
 		jiffies_to_msecs(trans_pcie->wd_timeout));
 	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
@@ -316,6 +319,14 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq->q.id))
 					& (TFD_QUEUE_SIZE_MAX - 1),
 		iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq->q.id)));
+
+	iwl_read_targ_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
+
+	iwl_print_hex_error(trans, buf, sizeof(buf));
+
+	for (i = 0; i < FH_TCSR_CHNL_NUM; i++)
+		IWL_ERR(trans, "FH TRBs(%d) = 0x%08x\n", i,
+			iwl_read_direct32(trans, FH_TX_TRB_REG(i)));
 
 	iwl_op_mode_nic_error(trans->op_mode);
 }
