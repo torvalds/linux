@@ -23,11 +23,30 @@
 #include <linux/types.h>
 
 enum uhid_event_type {
-	UHID_DUMMY,
+	UHID_CREATE,
+	UHID_DESTROY,
 };
+
+struct uhid_create_req {
+	__u8 name[128];
+	__u8 phys[64];
+	__u8 uniq[64];
+	__u8 __user *rd_data;
+	__u16 rd_size;
+
+	__u16 bus;
+	__u32 vendor;
+	__u32 product;
+	__u32 version;
+	__u32 country;
+} __attribute__((__packed__));
 
 struct uhid_event {
 	__u32 type;
+
+	union {
+		struct uhid_create_req create;
+	} u;
 } __attribute__((__packed__));
 
 #endif /* __UHID_H_ */
