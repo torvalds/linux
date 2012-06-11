@@ -48,6 +48,7 @@ struct read_info_sccb {
 	u8	_reserved5[4096 - 112];	/* 112-4095 */
 } __attribute__((packed, aligned(PAGE_SIZE)));
 
+static struct init_sccb __initdata early_event_mask_sccb __aligned(PAGE_SIZE);
 static struct read_info_sccb __initdata early_read_info_sccb;
 static int __initdata early_read_info_sccb_valid;
 
@@ -104,6 +105,19 @@ static void __init sclp_read_info_early(void)
 	}
 }
 
+static void __init sclp_event_mask_early(void)
+{
+	struct init_sccb *sccb = &early_event_mask_sccb;
+	int rc;
+
+	do {
+		memset(sccb, 0, sizeof(*sccb));
+		sccb->header.length = sizeof(*sccb);
+		sccb->mask_length = sizeof(sccb_mask_t);
+		rc = sclp_cmd_sync_early(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
+	} while (rc == -EBUSY);
+}
+
 void __init sclp_facilities_detect(void)
 {
 	struct read_info_sccb *sccb;
@@ -119,6 +133,30 @@ void __init sclp_facilities_detect(void)
 	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	rzm <<= 20;
+
+	sclp_event_mask_early();
+}
+
+bool __init sclp_has_linemode(void)
+{
+	struct init_sccb *sccb = &early_event_mask_sccb;
+
+	if (sccb->header.response_code != 0x20)
+		return 0;
+	if (sccb->sclp_send_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK))
+		return 1;
+	return 0;
+}
+
+bool __init sclp_has_vt220(void)
+{
+	struct init_sccb *sccb = &early_event_mask_sccb;
+
+	if (sccb->header.response_code != 0x20)
+		return 0;
+	if (sccb->sclp_send_mask & EVTYP_VT220MSG_MASK)
+		return 1;
+	return 0;
 }
 
 unsigned long long sclp_get_rnmax(void)

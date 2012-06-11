@@ -88,6 +88,16 @@ struct sccb_header {
 	u16	response_code;
 } __attribute__((packed));
 
+struct init_sccb {
+	struct sccb_header header;
+	u16 _reserved;
+	u16 mask_length;
+	sccb_mask_t receive_mask;
+	sccb_mask_t send_mask;
+	sccb_mask_t sclp_receive_mask;
+	sccb_mask_t sclp_send_mask;
+} __attribute__((packed));
+
 extern u64 sclp_facilities;
 #define SCLP_HAS_CHP_INFO	(sclp_facilities & 0x8000000000000000ULL)
 #define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
