@@ -765,14 +765,16 @@ static int nfc_shdlc_xmit(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
-static int nfc_shdlc_start_poll(struct nfc_hci_dev *hdev, u32 protocols)
+static int nfc_shdlc_start_poll(struct nfc_hci_dev *hdev,
+				u32 im_protocols, u32 tm_protocols)
 {
 	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
 
 	pr_debug("\n");
 
 	if (shdlc->ops->start_poll)
-		return shdlc->ops->start_poll(shdlc, protocols);
+		return shdlc->ops->start_poll(shdlc,
+					      im_protocols, tm_protocols);
 
 	return 0;
 }
