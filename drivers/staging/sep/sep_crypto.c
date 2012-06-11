@@ -807,7 +807,7 @@ end_function:
  *	@size: size of parameter to copy (in bytes)
  *	@max_size: size to move up offset; SEP mesg is in word sizes
  *	@msg_offset: pointer to current offset (is updated)
- *	@byte_array: flag ti indicate wheter endian must be changed
+ *	@byte_array: flag ti indicate whether endian must be changed
  *	Copies data into the message area from caller
  */
 static void sep_write_msg(struct this_task_ctx *ta_ctx, void *in_addr,
@@ -855,7 +855,7 @@ static void sep_make_header(struct this_task_ctx *ta_ctx, u32 *msg_offset,
  *	@size: size of parameter to copy (in bytes)
  *	@max_size: size to move up offset; SEP mesg is in word sizes
  *	@msg_offset: pointer to current offset (is updated)
- *	@byte_array: flag ti indicate wheter endian must be changed
+ *	@byte_array: flag ti indicate whether endian must be changed
  *	Copies data out of the message area to caller
  */
 static void sep_read_msg(struct this_task_ctx *ta_ctx, void *in_addr,
@@ -990,7 +990,7 @@ static void sep_clear_out(struct this_task_ctx *ta_ctx)
 		/**
 		 * The following unlocks the sep and makes it available
 		 * to any other application
-		 * First, null out crypto entries in sep before relesing it
+		 * First, null out crypto entries in sep before releasing it
 		 */
 		ta_ctx->sep_used->current_hash_req = NULL;
 		ta_ctx->sep_used->current_cypher_req = NULL;
@@ -1001,7 +1001,7 @@ static void sep_clear_out(struct this_task_ctx *ta_ctx)
 
 		ta_ctx->call_status.status = 0;
 
-		/* Remove anything confidentail */
+		/* Remove anything confidential */
 		memset(ta_ctx->sep_used->shared_addr, 0,
 			SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES);
 
@@ -1207,7 +1207,7 @@ static int sep_crypto_block_data(struct ablkcipher_request *req)
 		req->nbytes, ta_ctx->walk.blocksize, &new_sg, 1);
 
 	if (int_error < 0) {
-		dev_warn(&ta_ctx->sep_used->pdev->dev, "oddball page eerror\n");
+		dev_warn(&ta_ctx->sep_used->pdev->dev, "oddball page error\n");
 		return -ENOMEM;
 	} else if (int_error == 1) {
 		ta_ctx->src_sg = new_sg;
@@ -1870,7 +1870,7 @@ static u32 hash_update_post_op(struct sep_device *sep)
 		sizeof(struct sep_hash_private_context));
 
 	/**
-	 * Following is only for finup; if we just completd the
+	 * Following is only for finup; if we just completed the
 	 * data portion of finup, we now need to kick off the
 	 * finish portion of finup.
 	 */
@@ -2011,7 +2011,7 @@ static u32 hash_digest_post_op(struct sep_device *sep)
 }
 
 /**
- * The sep_finish function is the function that is schedule (via tasket)
+ * The sep_finish function is the function that is scheduled (via tasklet)
  * by the interrupt service routine when the SEP sends and interrupt
  * This is only called by the interrupt handler as a tasklet.
  */
@@ -2249,7 +2249,7 @@ static void sep_hash_update(void *data)
 	head_len = (block_size - int_ctx->prev_update_bytes) % block_size;
 	tail_len = (req->nbytes - head_len) % block_size;
 
-	/* Make sure all pages are even block */
+	/* Make sure all pages are an even block */
 	int_error = sep_oddball_pages(ta_ctx->sep_used, req->src,
 		req->nbytes,
 		block_size, &new_sg, 1);
@@ -2482,7 +2482,7 @@ static void sep_hash_digest(void *data)
 	dev_dbg(&ta_ctx->sep_used->pdev->dev, "block_size is %x\n", block_size);
 	dev_dbg(&ta_ctx->sep_used->pdev->dev, "tail len is %x\n", tail_len);
 
-	/* Make sure all pages are even block */
+	/* Make sure all pages are an even block */
 	int_error = sep_oddball_pages(ta_ctx->sep_used, req->src,
 		req->nbytes,
 		block_size, &new_sg, 1);

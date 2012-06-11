@@ -43,7 +43,7 @@
 #define SEP_DRIVER_POLLING_MODE                         0
 
 /* flag which defines if the shared area address should be
-	reconfiged (send to SEP anew) during init of the driver */
+	reconfigured (send to SEP anew) during init of the driver */
 #define SEP_DRIVER_RECONFIG_MESSAGE_AREA                0
 
 /* the mode for running on the ARM1172 Evaluation platform (flag is 1) */
@@ -166,7 +166,7 @@ held by the process (struct file) */
 	(SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES + \
 	SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES)
 
-/* synhronic dma tables area offset */
+/* synchronic dma tables area offset */
 #define SYNCHRONIC_DMA_TABLES_AREA_OFFSET_BYTES \
 	(SEP_DRIVER_DATA_POOL_AREA_OFFSET_IN_BYTES + \
 	SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES)

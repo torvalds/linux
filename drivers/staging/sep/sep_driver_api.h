@@ -91,7 +91,7 @@ struct sep_dcblock {
 };
 
 /*
-	command structure for building dcb block (currently for ext app only
+	command structure for building dcb block (currently for ext app only)
 */
 struct build_dcb_struct {
 	/* address value of the data in */
@@ -234,7 +234,7 @@ struct sep_dma_context {
 	u32 dmatables_len;
 	/* size of input data */
 	u32 input_data_len;
-	/* secure dma use (for imr memory restriced area in output */
+	/* secure dma use (for imr memory restricted area in output) */
 	bool secure_dma;
 	struct sep_dma_resource dma_res_arr[SEP_MAX_NUM_SYNC_DMA_OPS];
 	/* Scatter gather for kernel crypto */
@@ -347,10 +347,10 @@ int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 
 /**
  * sep_free_dma_table_data_handler - free DMA table
- * @sep: pointere to struct sep_device
+ * @sep: pointer to struct sep_device
  * @dma_ctx: dma context
  *
- * Handles the request to  free DMA table for synchronic actions
+ * Handles the request to free DMA table for synchronic actions
  */
 int sep_free_dma_table_data_handler(struct sep_device *sep,
 					   struct sep_dma_context **dma_ctx);
