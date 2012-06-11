@@ -221,9 +221,4 @@ static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
 	op_mode->ops->wimax_active(op_mode);
 }
 
-/*****************************************************
-* Op mode layers implementations
-******************************************************/
-extern const struct iwl_op_mode_ops iwl_dvm_ops;
-
 #endif /* __iwl_op_mode_h__ */
