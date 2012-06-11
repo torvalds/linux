@@ -651,6 +651,16 @@ int nfc_target_lost(struct nfc_dev *dev, u32 target_idx)
 }
 EXPORT_SYMBOL(nfc_target_lost);
 
+void nfc_driver_failure(struct nfc_dev *dev, int err)
+{
+	/*
+	 * TODO: if polling is active, send empty target_found
+	 * or else do whatever makes sense to let user space
+	 * know this device needs to be closed and reinitialized.
+	 */
+}
+EXPORT_SYMBOL(nfc_driver_failure);
+
 static void nfc_release(struct device *d)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);
