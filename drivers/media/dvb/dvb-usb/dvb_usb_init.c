@@ -439,6 +439,49 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 }
 EXPORT_SYMBOL(dvb_usbv2_disconnect);
 
+int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	int i;
+
+	pr_debug("%s:\n", __func__);
+
+	/* stop remote controller poll */
+	if (d->rc.query && !d->rc.bulk_mode)
+		cancel_delayed_work_sync(&d->rc_query_work);
+
+	/* stop streaming */
+	for (i = d->num_adapters_initialized - 1; i >= 0; i--) {
+		if (d->adapter[i].active_fe != -1)
+			usb_urb_killv2(&d->adapter[i].stream);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(dvb_usbv2_suspend);
+
+int dvb_usbv2_resume(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	int i;
+
+	pr_debug("%s:\n", __func__);
+
+	/* start streaming */
+	for (i = 0; i < d->num_adapters_initialized; i++) {
+		if (d->adapter[i].active_fe != -1)
+			usb_urb_submitv2(&d->adapter[i].stream, NULL);
+	}
+
+	/* start remote controller poll */
+	if (d->rc.query && !d->rc.bulk_mode)
+		schedule_delayed_work(&d->rc_query_work,
+				msecs_to_jiffies(d->rc.interval));
+
+	return 0;
+}
+EXPORT_SYMBOL(dvb_usbv2_resume);
+
 MODULE_VERSION("1.0");
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("A library module containing commonly used USB and DVB function USB DVB devices");
