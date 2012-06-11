@@ -291,7 +291,7 @@ static inline int regulator_set_voltage(struct regulator *regulator,
 
 static inline int regulator_get_voltage(struct regulator *regulator)
 {
-	return 0;
+	return -EINVAL;
 }
 
 static inline int regulator_set_current_limit(struct regulator *regulator,
