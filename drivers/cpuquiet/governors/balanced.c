@@ -299,8 +299,8 @@ static int balanced_cpufreq_transition(struct notifier_block *nb,
 			}
 			break;
 		default:
-			pr_err("%s: invalid tegra hotplug state %d\n",
-				__func__, balanced_state);
+			pr_err("%s: invalid cpuquiet balanced governor "
+				"state %d\n", __func__, balanced_state);
 		}
 	}
 
