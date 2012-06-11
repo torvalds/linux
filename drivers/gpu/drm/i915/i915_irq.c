@@ -510,7 +510,7 @@ out:
 	return ret;
 }
 
-static void pch_irq_handler(struct drm_device *dev, u32 pch_iir)
+static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int pipe;
@@ -548,6 +548,35 @@ static void pch_irq_handler(struct drm_device *dev, u32 pch_iir)
 		DRM_DEBUG_DRIVER("PCH transcoder B underrun interrupt\n");
 	if (pch_iir & SDE_TRANSA_FIFO_UNDER)
 		DRM_DEBUG_DRIVER("PCH transcoder A underrun interrupt\n");
+}
+
+static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int pipe;
+
+	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT)
+		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
+				 (pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
+				 SDE_AUDIO_POWER_SHIFT_CPT);
+
+	if (pch_iir & SDE_AUX_MASK_CPT)
+		DRM_DEBUG_DRIVER("AUX channel interrupt\n");
+
+	if (pch_iir & SDE_GMBUS_CPT)
+		DRM_DEBUG_DRIVER("PCH GMBUS interrupt\n");
+
+	if (pch_iir & SDE_AUDIO_CP_REQ_CPT)
+		DRM_DEBUG_DRIVER("Audio CP request interrupt\n");
+
+	if (pch_iir & SDE_AUDIO_CP_CHG_CPT)
+		DRM_DEBUG_DRIVER("Audio CP change interrupt\n");
+
+	if (pch_iir & SDE_FDI_MASK_CPT)
+		for_each_pipe(pipe)
+			DRM_DEBUG_DRIVER("  pipe %c FDI IIR: 0x%08x\n",
+					 pipe_name(pipe),
+					 I915_READ(FDI_RX_IIR(pipe)));
 }
 
 static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
@@ -591,7 +620,7 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 
 			if (pch_iir & SDE_HOTPLUG_MASK_CPT)
 				queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-			pch_irq_handler(dev, pch_iir);
+			cpt_irq_handler(dev, pch_iir);
 
 			/* clear PCH hotplug event before clear CPU irq */
 			I915_WRITE(SDEIIR, pch_iir);
@@ -684,7 +713,10 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_PCH_EVENT) {
 		if (pch_iir & hotplug_mask)
 			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-		pch_irq_handler(dev, pch_iir);
+		if (HAS_PCH_CPT(dev))
+			cpt_irq_handler(dev, pch_iir);
+		else
+			ibx_irq_handler(dev, pch_iir);
 	}
 
 	if (de_iir & DE_PCU_EVENT) {
