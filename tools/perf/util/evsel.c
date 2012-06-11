@@ -128,6 +128,31 @@ static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
+static const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
+	"cpu-clock",
+	"task-clock",
+	"page-faults",
+	"context-switches",
+	"CPU-migrations",
+	"minor-faults",
+	"major-faults",
+	"alignment-faults",
+	"emulation-faults",
+};
+
+const char *__perf_evsel__sw_name(u64 config)
+{
+	if (config < PERF_COUNT_SW_MAX && perf_evsel__sw_names[config])
+		return perf_evsel__sw_names[config];
+	return "unknown-software";
+}
+
+static int perf_evsel__sw_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int r = scnprintf(bf, size, "%s", __perf_evsel__sw_name(evsel->attr.config));
+	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
+}
+
 const char *perf_evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_EVSEL__MAX_ALIASES] = {
  { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
@@ -242,6 +267,10 @@ int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
 
 	case PERF_TYPE_HW_CACHE:
 		ret = perf_evsel__hw_cache_name(evsel, bf, size);
+		break;
+
+	case PERF_TYPE_SOFTWARE:
+		ret = perf_evsel__sw_name(evsel, bf, size);
 		break;
 
 	default:

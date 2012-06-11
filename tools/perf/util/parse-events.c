@@ -62,18 +62,6 @@ static struct event_symbol event_symbols[] = {
 #define PERF_EVENT_TYPE(config)		__PERF_EVENT_FIELD(config, TYPE)
 #define PERF_EVENT_ID(config)		__PERF_EVENT_FIELD(config, EVENT)
 
-static const char *sw_event_names[PERF_COUNT_SW_MAX] = {
-	"cpu-clock",
-	"task-clock",
-	"page-faults",
-	"context-switches",
-	"CPU-migrations",
-	"minor-faults",
-	"major-faults",
-	"alignment-faults",
-	"emulation-faults",
-};
-
 #define for_each_subsystem(sys_dir, sys_dirent, sys_next)	       \
 	while (!readdir_r(sys_dir, &sys_dirent, &sys_next) && sys_next)	       \
 	if (sys_dirent.d_type == DT_DIR &&				       \
@@ -218,7 +206,8 @@ const char *event_name(struct perf_evsel *evsel)
 	u64 config = evsel->attr.config;
 	int type = evsel->attr.type;
 
-	if (type == PERF_TYPE_RAW || type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE) {
+	if (type == PERF_TYPE_RAW || type == PERF_TYPE_HARDWARE ||
+	    type == PERF_TYPE_SOFTWARE || type == PERF_TYPE_HW_CACHE) {
 		/*
  		 * XXX minimal fix, see comment on perf_evsen__name, this static buffer
  		 * will go away together with event_name in the next devel cycle.
@@ -252,9 +241,7 @@ const char *__event_name(int type, u64 config)
 		return buf;
 
 	case PERF_TYPE_SOFTWARE:
-		if (config < PERF_COUNT_SW_MAX && sw_event_names[config])
-			return sw_event_names[config];
-		return "unknown-software";
+		return __perf_evsel__sw_name(config);
 
 	case PERF_TYPE_TRACEPOINT:
 		return tracepoint_id_to_name(config);
