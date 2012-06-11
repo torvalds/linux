@@ -128,6 +128,105 @@ static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
+const char *perf_evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_EVSEL__MAX_ALIASES] = {
+ { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
+ { "L1-icache",	"l1-i",		"l1i",		"L1-instruction",	},
+ { "LLC",	"L2",							},
+ { "dTLB",	"d-tlb",	"Data-TLB",				},
+ { "iTLB",	"i-tlb",	"Instruction-TLB",			},
+ { "branch",	"branches",	"bpu",		"btb",		"bpc",	},
+ { "node",								},
+};
+
+const char *perf_evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX]
+				   [PERF_EVSEL__MAX_ALIASES] = {
+ { "load",	"loads",	"read",					},
+ { "store",	"stores",	"write",				},
+ { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
+};
+
+const char *perf_evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
+				       [PERF_EVSEL__MAX_ALIASES] = {
+ { "refs",	"Reference",	"ops",		"access",		},
+ { "misses",	"miss",							},
+};
+
+#define C(x)		PERF_COUNT_HW_CACHE_##x
+#define CACHE_READ	(1 << C(OP_READ))
+#define CACHE_WRITE	(1 << C(OP_WRITE))
+#define CACHE_PREFETCH	(1 << C(OP_PREFETCH))
+#define COP(x)		(1 << x)
+
+/*
+ * cache operartion stat
+ * L1I : Read and prefetch only
+ * ITLB and BPU : Read-only
+ */
+static unsigned long perf_evsel__hw_cache_stat[C(MAX)] = {
+ [C(L1D)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(L1I)]	= (CACHE_READ | CACHE_PREFETCH),
+ [C(LL)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(DTLB)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(ITLB)]	= (CACHE_READ),
+ [C(BPU)]	= (CACHE_READ),
+ [C(NODE)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+};
+
+bool perf_evsel__is_cache_op_valid(u8 type, u8 op)
+{
+	if (perf_evsel__hw_cache_stat[type] & COP(op))
+		return true;	/* valid */
+	else
+		return false;	/* invalid */
+}
+
+int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
+					    char *bf, size_t size)
+{
+	if (result) {
+		return scnprintf(bf, size, "%s-%s-%s", perf_evsel__hw_cache[type][0],
+				 perf_evsel__hw_cache_op[op][0],
+				 perf_evsel__hw_cache_result[result][0]);
+	}
+
+	return scnprintf(bf, size, "%s-%s", perf_evsel__hw_cache[type][0],
+			 perf_evsel__hw_cache_op[op][1]);
+}
+
+int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size)
+{
+	u8 op, result, type = (config >>  0) & 0xff;
+	const char *err = "unknown-ext-hardware-cache-type";
+
+	if (type > PERF_COUNT_HW_CACHE_MAX)
+		goto out_err;
+
+	op = (config >>  8) & 0xff;
+	err = "unknown-ext-hardware-cache-op";
+	if (op > PERF_COUNT_HW_CACHE_OP_MAX)
+		goto out_err;
+
+	result = (config >> 16) & 0xff;
+	err = "unknown-ext-hardware-cache-result";
+	if (result > PERF_COUNT_HW_CACHE_RESULT_MAX)
+		goto out_err;
+
+	err = "invalid-cache";
+	if (!perf_evsel__is_cache_op_valid(type, op))
+		goto out_err;
+
+	return __perf_evsel__hw_cache_type_op_res_name(type, op, result, bf, size);
+out_err:
+	return scnprintf(bf, size, "%s", err);
+}
+
+static int perf_evsel__hw_cache_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int ret = __perf_evsel__hw_cache_name(evsel->attr.config, bf, size);
+	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
+}
+
 int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
 {
 	int ret;
@@ -140,6 +239,11 @@ int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
 	case PERF_TYPE_HARDWARE:
 		ret = perf_evsel__hw_name(evsel, bf, size);
 		break;
+
+	case PERF_TYPE_HW_CACHE:
+		ret = perf_evsel__hw_cache_name(evsel, bf, size);
+		break;
+
 	default:
 		/*
 		 * FIXME
