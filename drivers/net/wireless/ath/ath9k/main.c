@@ -1258,6 +1258,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		if (ath_set_channel(sc, hw, &sc->sc_ah->channels[pos]) < 0) {
 			ath_err(common, "Unable to set channel\n");
 			mutex_unlock(&sc->mutex);
+			ath9k_ps_restore(sc);
 			return -EINVAL;
 		}
 
