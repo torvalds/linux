@@ -1303,6 +1303,10 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = r600_audio_init(rdev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -1329,6 +1333,7 @@ int cayman_resume(struct radeon_device *rdev)
 
 int cayman_suspend(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	radeon_ib_pool_suspend(rdev);
 	radeon_vm_manager_suspend(rdev);
