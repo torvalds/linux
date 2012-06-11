@@ -21,8 +21,8 @@
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
-#include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
+#include <linux/platform_data/clk-integrator.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -171,63 +171,8 @@ static void __init intcp_init_irq(void)
 
 	fpga_irq_init(INTCP_VA_SIC_BASE, "SIC", IRQ_SIC_START,
 		      IRQ_CP_CPPLDINT, sic_mask, NULL);
+	integrator_clk_init(true);
 }
-
-/*
- * Clock handling
- */
-#define CM_LOCK		(__io_address(INTEGRATOR_HDR_BASE)+INTEGRATOR_HDR_LOCK_OFFSET)
-#define CM_AUXOSC	(__io_address(INTEGRATOR_HDR_BASE)+0x1c)
-
-static const struct icst_params cp_auxvco_params = {
-	.ref		= 24000000,
-	.vco_max	= ICST525_VCO_MAX_5V,
-	.vco_min	= ICST525_VCO_MIN,
-	.vd_min 	= 8,
-	.vd_max 	= 263,
-	.rd_min 	= 3,
-	.rd_max 	= 65,
-	.s2div		= icst525_s2div,
-	.idx2s		= icst525_idx2s,
-};
-
-static void cp_auxvco_set(struct clk *clk, struct icst_vco vco)
-{
-	u32 val;
-
-	val = readl(clk->vcoreg) & ~0x7ffff;
-	val |= vco.v | (vco.r << 9) | (vco.s << 16);
-
-	writel(0xa05f, CM_LOCK);
-	writel(val, clk->vcoreg);
-	writel(0, CM_LOCK);
-}
-
-static const struct clk_ops cp_auxclk_ops = {
-	.round	= icst_clk_round,
-	.set	= icst_clk_set,
-	.setvco	= cp_auxvco_set,
-};
-
-static struct clk cp_auxclk = {
-	.ops	= &cp_auxclk_ops,
-	.params	= &cp_auxvco_params,
-	.vcoreg	= CM_AUXOSC,
-};
-
-static struct clk sp804_clk = {
-	.rate	= 1000000,
-};
-
-static struct clk_lookup cp_lookups[] = {
-	{	/* CLCD */
-		.dev_id		= "clcd",
-		.clk		= &cp_auxclk,
-	}, {	/* SP804 timers */
-		.dev_id		= "sp804",
-		.clk		= &sp804_clk,
-	},
-};
 
 /*
  * Flash handling.
@@ -406,10 +351,6 @@ static struct amba_device *amba_devs[] __initdata = {
 
 static void __init intcp_init_early(void)
 {
-	clkdev_add_table(cp_lookups, ARRAY_SIZE(cp_lookups));
-
-	integrator_init_early();
-
 #ifdef CONFIG_PLAT_VERSATILE_SCHED_CLOCK
 	versatile_sched_clock_init(REFCOUNTER, 24000000);
 #endif

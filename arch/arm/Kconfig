@@ -254,8 +254,8 @@ config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
 	select ARCH_HAS_CPUFREQ
-	select CLKDEV_LOOKUP
-	select HAVE_MACH_CLKDEV
+	select COMMON_CLK
+	select CLK_VERSATILE
 	select HAVE_TCM
 	select ICST
 	select GENERIC_CLOCKEVENTS
@@ -277,6 +277,7 @@ config ARCH_REALVIEW
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLOCK
 	select PLAT_VERSATILE_CLCD
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
@@ -295,6 +296,7 @@ config ARCH_VERSATILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select NEED_MACH_IO_H if PCI
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLOCK
 	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_FPGA_IRQ
 	select ARM_TIMER_SP804
@@ -314,6 +316,7 @@ config ARCH_VEXPRESS
 	select ICST
 	select NO_IOPORT
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLOCK
 	select PLAT_VERSATILE_CLCD
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.

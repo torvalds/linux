@@ -21,7 +21,6 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 #include <linux/io.h>
-#include <linux/clkdev.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -60,50 +59,6 @@ static struct amba_device *amba_devs[] __initdata = {
 	&kmi0_device,
 	&kmi1_device,
 };
-
-/*
- * These are fixed clocks.
- */
-static struct clk clk24mhz = {
-	.rate	= 24000000,
-};
-
-static struct clk uartclk = {
-	.rate	= 14745600,
-};
-
-static struct clk dummy_apb_pclk;
-
-static struct clk_lookup lookups[] = {
-	{	/* Bus clock */
-		.con_id		= "apb_pclk",
-		.clk		= &dummy_apb_pclk,
-	}, {
-		/* Integrator/AP timer frequency */
-		.dev_id		= "ap_timer",
-		.clk		= &clk24mhz,
-	}, {	/* UART0 */
-		.dev_id		= "uart0",
-		.clk		= &uartclk,
-	}, {	/* UART1 */
-		.dev_id		= "uart1",
-		.clk		= &uartclk,
-	}, {	/* KMI0 */
-		.dev_id		= "kmi0",
-		.clk		= &clk24mhz,
-	}, {	/* KMI1 */
-		.dev_id		= "kmi1",
-		.clk		= &clk24mhz,
-	}, {	/* MMCI - IntegratorCP */
-		.dev_id		= "mmci",
-		.clk		= &uartclk,
-	}
-};
-
-void __init integrator_init_early(void)
-{
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
-}
 
 static int __init integrator_init(void)
 {
