@@ -2301,8 +2301,10 @@ static bool ocrdma_poll_err_rcqe(struct ocrdma_qp *qp, struct ocrdma_cqe *cqe,
 			*stop = true;
 			expand = false;
 		}
-	} else
+	} else {
+		*polled = true;
 		expand = ocrdma_update_err_rcqe(ibwc, cqe, qp, status);
+	}
 	return expand;
 }
 
