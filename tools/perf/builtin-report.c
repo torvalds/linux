@@ -69,7 +69,7 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 
 	if ((sort__has_parent || symbol_conf.use_callchain)
 	    && sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
+		err = machine__resolve_callchain(machine, al->thread,
 						 sample->callchain, &parent);
 		if (err)
 			return err;
@@ -140,7 +140,7 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	struct hist_entry *he;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = machine__resolve_callchain(machine, evsel, al->thread,
+		err = machine__resolve_callchain(machine, al->thread,
 						 sample->callchain, &parent);
 		if (err)
 			return err;

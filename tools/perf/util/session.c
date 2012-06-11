@@ -289,7 +289,6 @@ struct branch_info *machine__resolve_bstack(struct machine *self,
 }
 
 int machine__resolve_callchain(struct machine *self,
-			       struct perf_evsel *evsel __used,
 			       struct thread *thread,
 			       struct ip_callchain *chain,
 			       struct symbol **parent)
@@ -1480,8 +1479,8 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 }
 
 void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
-			  struct machine *machine, struct perf_evsel *evsel,
-			  int print_sym, int print_dso, int print_symoffset)
+			  struct machine *machine, int print_sym,
+			  int print_dso, int print_symoffset)
 {
 	struct addr_location al;
 	struct callchain_cursor_node *node;
@@ -1495,7 +1494,7 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 
 	if (symbol_conf.use_callchain && sample->callchain) {
 
-		if (machine__resolve_callchain(machine, evsel, al.thread,
+		if (machine__resolve_callchain(machine, al.thread,
 						sample->callchain, NULL) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");

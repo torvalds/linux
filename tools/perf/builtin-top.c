@@ -774,7 +774,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
-			err = machine__resolve_callchain(machine, evsel, al.thread,
+			err = machine__resolve_callchain(machine, al.thread,
 							 sample->callchain, &parent);
 			if (err)
 				return;
