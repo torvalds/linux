@@ -61,7 +61,7 @@ static inline struct inet_peer *__rt6_get_peer(struct rt6_info *rt, int create)
 		return rt6_peer_ptr(rt);
 
 	rt6_bind_peer(rt, create);
-	return rt6_peer_ptr(rt);
+	return (rt6_has_peer(rt) ? rt6_peer_ptr(rt) : NULL);
 }
 
 static inline struct inet_peer *rt6_get_peer(struct rt6_info *rt)

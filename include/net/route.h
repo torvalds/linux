@@ -334,7 +334,7 @@ static inline struct inet_peer *__rt_get_peer(struct rtable *rt, __be32 daddr, i
 		return rt_peer_ptr(rt);
 
 	rt_bind_peer(rt, daddr, create);
-	return rt_peer_ptr(rt);
+	return (rt_has_peer(rt) ? rt_peer_ptr(rt) : NULL);
 }
 
 static inline struct inet_peer *rt_get_peer(struct rtable *rt, __be32 daddr)
