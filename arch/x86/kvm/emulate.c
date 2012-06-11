@@ -4517,12 +4517,12 @@ twobyte_insn:
 		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		ctxt->dst.bytes = ctxt->op_bytes;
-		ctxt->dst.val = (ctxt->d & ByteOp) ? (u8) ctxt->src.val
+		ctxt->dst.val = (ctxt->src.bytes == 1) ? (u8) ctxt->src.val
 						       : (u16) ctxt->src.val;
 		break;
 	case 0xbe ... 0xbf:	/* movsx */
 		ctxt->dst.bytes = ctxt->op_bytes;
-		ctxt->dst.val = (ctxt->d & ByteOp) ? (s8) ctxt->src.val :
+		ctxt->dst.val = (ctxt->src.bytes == 1) ? (s8) ctxt->src.val :
 							(s16) ctxt->src.val;
 		break;
 	case 0xc0 ... 0xc1:	/* xadd */
