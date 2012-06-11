@@ -690,12 +690,11 @@ int hci_dev_open(__u16 dev)
 		set_bit(HCI_INIT, &hdev->flags);
 		hdev->init_last_cmd = 0;
 
-		ret = __hci_request(hdev, hci_init_req, 0,
-				    msecs_to_jiffies(HCI_INIT_TIMEOUT));
+		ret = __hci_request(hdev, hci_init_req, 0, HCI_INIT_TIMEOUT);
 
 		if (lmp_host_le_capable(hdev))
 			ret = __hci_request(hdev, hci_le_init_req, 0,
-					    msecs_to_jiffies(HCI_INIT_TIMEOUT));
+					    HCI_INIT_TIMEOUT);
 
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
@@ -782,8 +781,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	if (!test_bit(HCI_RAW, &hdev->flags) &&
 	    test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
 		set_bit(HCI_INIT, &hdev->flags);
-		__hci_request(hdev, hci_reset_req, 0,
-			      msecs_to_jiffies(HCI_CMD_TIMEOUT));
+		__hci_request(hdev, hci_reset_req, 0, HCI_CMD_TIMEOUT);
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
 
@@ -872,8 +870,7 @@ int hci_dev_reset(__u16 dev)
 	hdev->acl_cnt = 0; hdev->sco_cnt = 0; hdev->le_cnt = 0;
 
 	if (!test_bit(HCI_RAW, &hdev->flags))
-		ret = __hci_request(hdev, hci_reset_req, 0,
-				    msecs_to_jiffies(HCI_INIT_TIMEOUT));
+		ret = __hci_request(hdev, hci_reset_req, 0, HCI_INIT_TIMEOUT);
 
 done:
 	hci_req_unlock(hdev);
@@ -913,7 +910,7 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 	switch (cmd) {
 	case HCISETAUTH:
 		err = hci_request(hdev, hci_auth_req, dr.dev_opt,
-				  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+				  HCI_INIT_TIMEOUT);
 		break;
 
 	case HCISETENCRYPT:
@@ -925,23 +922,23 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 		if (!test_bit(HCI_AUTH, &hdev->flags)) {
 			/* Auth must be enabled first */
 			err = hci_request(hdev, hci_auth_req, dr.dev_opt,
-					  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+					  HCI_INIT_TIMEOUT);
 			if (err)
 				break;
 		}
 
 		err = hci_request(hdev, hci_encrypt_req, dr.dev_opt,
-				  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+				  HCI_INIT_TIMEOUT);
 		break;
 
 	case HCISETSCAN:
 		err = hci_request(hdev, hci_scan_req, dr.dev_opt,
-				  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+				  HCI_INIT_TIMEOUT);
 		break;
 
 	case HCISETLINKPOL:
 		err = hci_request(hdev, hci_linkpol_req, dr.dev_opt,
-				  msecs_to_jiffies(HCI_INIT_TIMEOUT));
+				  HCI_INIT_TIMEOUT);
 		break;
 
 	case HCISETLINKMODE:
@@ -2455,7 +2452,7 @@ static void __check_timeout(struct hci_dev *hdev, unsigned int cnt)
 		/* ACL tx timeout must be longer than maximum
 		 * link supervision timeout (40.9 seconds) */
 		if (!cnt && time_after(jiffies, hdev->acl_last_tx +
-				       msecs_to_jiffies(HCI_ACL_TX_TIMEOUT)))
+				       HCI_ACL_TX_TIMEOUT))
 			hci_link_tx_to(hdev, ACL_LINK);
 	}
 }
@@ -2839,7 +2836,7 @@ static void hci_cmd_work(struct work_struct *work)
 				del_timer(&hdev->cmd_timer);
 			else
 				mod_timer(&hdev->cmd_timer,
-				  jiffies + msecs_to_jiffies(HCI_CMD_TIMEOUT));
+					  jiffies + HCI_CMD_TIMEOUT);
 		} else {
 			skb_queue_head(&hdev->cmd_q, skb);
 			queue_work(hdev->workqueue, &hdev->cmd_work);
