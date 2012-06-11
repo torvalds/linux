@@ -74,7 +74,7 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 		for (;;) {
 			isFastResponse = 0;
 			/* remove toggle bit (31) */
-			handle = (dev->host_rrq[index] & 0x7fffffff);
+			handle = le32_to_cpu(dev->host_rrq[index]) & 0x7fffffff;
 			/* check fast response bit (30) */
 			if (handle & 0x40000000)
 				isFastResponse = 1;
@@ -389,30 +389,42 @@ static int aac_src_deliver_message(struct fib *fib)
 	struct aac_queue *q = &dev->queues->queue[AdapNormCmdQueue];
 	unsigned long qflags;
 	u32 fibsize;
-	u64 address;
+	dma_addr_t address;
 	struct aac_fib_xporthdr *pFibX;
+	u16 hdr_size = le16_to_cpu(fib->hw_fib_va->header.Size);
 
 	spin_lock_irqsave(q->lock, qflags);
 	q->numpending++;
 	spin_unlock_irqrestore(q->lock, qflags);
 
 	/* Calculate the amount to the fibsize bits */
-	fibsize = (sizeof(struct aac_fib_xporthdr) +
-		fib->hw_fib_va->header.Size + 127) / 128 - 1;
+	fibsize = (sizeof(struct aac_fib_xporthdr) + hdr_size + 127) / 128 - 1;
 	if (fibsize > (ALIGN32 - 1))
-		fibsize = ALIGN32 - 1;
+		return -EMSGSIZE;
 
-    /* Fill XPORT header */
-	pFibX = (struct aac_fib_xporthdr *)
-		((unsigned char *)fib->hw_fib_va -
-		sizeof(struct aac_fib_xporthdr));
-	pFibX->Handle = fib->hw_fib_va->header.SenderData + 1;
-	pFibX->HostAddress = fib->hw_fib_pa;
-	pFibX->Size = fib->hw_fib_va->header.Size;
-	address = fib->hw_fib_pa - (u64)sizeof(struct aac_fib_xporthdr);
+	/* Fill XPORT header */
+	pFibX = (void *)fib->hw_fib_va - sizeof(struct aac_fib_xporthdr);
+	/*
+	 * This was stored by aac_fib_send() and it is the index into
+	 * dev->fibs. Not sure why we add 1 to it, but I suspect that it's
+	 * because it can't be zero when we pass it to the hardware. Note that
+	 * it was stored in native endian, hence the lack of swapping. -- BenC
+	 */
+	pFibX->Handle = cpu_to_le32(fib->hw_fib_va->header.SenderData + 1);
+	pFibX->HostAddress = cpu_to_le64(fib->hw_fib_pa);
+	pFibX->Size = cpu_to_le32(hdr_size);
 
-	src_writel(dev, MUnit.IQ_H, (u32)(address >> 32));
-	src_writel(dev, MUnit.IQ_L, (u32)(address & 0xffffffff) + fibsize);
+	/*
+	 * The xport header has been 32-byte aligned for us so that fibsize
+	 * can be masked out of this address by hardware. -- BenC
+	 */
+	address = fib->hw_fib_pa - sizeof(struct aac_fib_xporthdr);
+	if (address & (ALIGN32 - 1))
+		return -EINVAL;
+	address |= fibsize;
+	src_writel(dev, MUnit.IQ_H, (address >> 32) & 0xffffffff);
+	src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
+
 	return 0;
 }
 

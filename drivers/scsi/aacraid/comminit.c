@@ -132,8 +132,8 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	init->MaxFibSize = cpu_to_le32(dev->max_fib_size);
 
 	init->MaxNumAif = cpu_to_le32(dev->max_num_aif);
-	init->HostRRQ_AddrHigh = (u32)((u64)dev->host_rrq_pa >> 32);
-	init->HostRRQ_AddrLow = (u32)(dev->host_rrq_pa & 0xffffffff);
+	init->HostRRQ_AddrHigh = cpu_to_le32((u32)((u64)dev->host_rrq_pa >> 32));
+	init->HostRRQ_AddrLow = cpu_to_le32((u32)(dev->host_rrq_pa & 0xffffffff));
 
 
 	/*
