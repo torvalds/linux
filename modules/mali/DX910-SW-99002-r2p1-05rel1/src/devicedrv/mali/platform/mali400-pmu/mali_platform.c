@@ -20,7 +20,7 @@
 #include <linux/clk.h>
 #include <mach/irqs.h>
 #include <mach/clock.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 
 int mali_clk_div = 3;
