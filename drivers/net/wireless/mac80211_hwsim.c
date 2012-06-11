@@ -1555,6 +1555,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 			hdr = (struct ieee80211_hdr *) skb->data;
 			mac80211_hwsim_monitor_ack(data2->hw, hdr->addr2);
 		}
+		txi->flags |= IEEE80211_TX_STAT_ACK;
 	}
 	ieee80211_tx_status_irqsafe(data2->hw, skb);
 	return 0;
