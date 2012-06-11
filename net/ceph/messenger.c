@@ -604,7 +604,7 @@ static void prepare_write_message_data(struct ceph_connection *con)
 	else
 		con->out_msg_pos.page_pos = 0;
 #ifdef CONFIG_BLOCK
-	if (msg->bio && !msg->bio_iter)
+	if (msg->bio)
 		init_bio_iter(msg->bio, &msg->bio_iter, &msg->bio_seg);
 #endif
 	con->out_msg_pos.data_pos = 0;
@@ -672,10 +672,6 @@ static void prepare_write_message(struct ceph_connection *con)
 		m->hdr.seq = cpu_to_le64(++con->out_seq);
 		m->needs_out_seq = false;
 	}
-#ifdef CONFIG_BLOCK
-	else
-		m->bio_iter = NULL;
-#endif
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%d %d pgs\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
