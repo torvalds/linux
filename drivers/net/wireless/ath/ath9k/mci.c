@@ -28,11 +28,14 @@ ath_mci_find_profile(struct ath_mci_profile *mci,
 {
 	struct ath_mci_profile_info *entry;
 
+	if (list_empty(&mci->info))
+		return NULL;
+
 	list_for_each_entry(entry, &mci->info, list) {
 		if (entry->conn_handle == info->conn_handle)
-			break;
+			return entry;
 	}
-	return entry;
+	return NULL;
 }
 
 static bool ath_mci_add_profile(struct ath_common *common,
@@ -49,31 +52,21 @@ static bool ath_mci_add_profile(struct ath_common *common,
 	    (info->type != MCI_GPM_COEX_PROFILE_VOICE))
 		return false;
 
-	entry = ath_mci_find_profile(mci, info);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return false;
 
-	if (entry) {
-		memcpy(entry, info, 10);
-	} else {
-		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-		if (!entry)
-			return false;
-
-		memcpy(entry, info, 10);
-		INC_PROF(mci, info);
-		list_add_tail(&info->list, &mci->info);
-	}
+	memcpy(entry, info, 10);
+	INC_PROF(mci, info);
+	list_add_tail(&entry->list, &mci->info);
 
 	return true;
 }
 
 static void ath_mci_del_profile(struct ath_common *common,
 				struct ath_mci_profile *mci,
-				struct ath_mci_profile_info *info)
+				struct ath_mci_profile_info *entry)
 {
-	struct ath_mci_profile_info *entry;
-
-	entry = ath_mci_find_profile(mci, info);
-
 	if (!entry)
 		return;
 
@@ -86,12 +79,16 @@ void ath_mci_flush_profile(struct ath_mci_profile *mci)
 {
 	struct ath_mci_profile_info *info, *tinfo;
 
+	mci->aggr_limit = 0;
+
+	if (list_empty(&mci->info))
+		return;
+
 	list_for_each_entry_safe(info, tinfo, &mci->info, list) {
 		list_del(&info->list);
 		DEC_PROF(mci, info);
 		kfree(info);
 	}
-	mci->aggr_limit = 0;
 }
 
 static void ath_mci_adjust_aggr_limit(struct ath_btcoex *btcoex)
@@ -229,12 +226,17 @@ static void ath_mci_process_profile(struct ath_softc *sc,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_mci_profile *mci = &btcoex->mci;
+	struct ath_mci_profile_info *entry = NULL;
+
+	entry = ath_mci_find_profile(mci, info);
+	if (entry)
+		memcpy(entry, info, 10);
 
 	if (info->start) {
-		if (!ath_mci_add_profile(common, mci, info))
+		if (!entry && !ath_mci_add_profile(common, mci, info))
 			return;
 	} else
-		ath_mci_del_profile(common, mci, info);
+		ath_mci_del_profile(common, mci, entry);
 
 	btcoex->btcoex_period = ATH_MCI_DEF_BT_PERIOD;
 	mci->aggr_limit = mci->num_sco ? 6 : 0;
@@ -262,8 +264,6 @@ static void ath_mci_process_status(struct ath_softc *sc,
 	/* Link status type are not handled */
 	if (status->is_link)
 		return;
-
-	memset(&info, 0, sizeof(struct ath_mci_profile_info));
 
 	info.conn_handle = status->conn_handle;
 	if (ath_mci_find_profile(mci, &info))
