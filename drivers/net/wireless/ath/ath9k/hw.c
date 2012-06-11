@@ -1915,7 +1915,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_set_dma(ah);
 
-	REG_WRITE(ah, AR_OBS, 8);
+	if (!ath9k_hw_mci_is_enabled(ah))
+		REG_WRITE(ah, AR_OBS, 8);
 
 	if (ah->config.rx_intr_mitigation) {
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 500);
