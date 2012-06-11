@@ -180,7 +180,41 @@ int usbnet_get_ethernet_addr(struct usbnet *dev, int iMACAddress)
 }
 EXPORT_SYMBOL_GPL(usbnet_get_ethernet_addr);
 
-static void intr_complete (struct urb *urb);
+static void intr_complete (struct urb *urb)
+{
+	struct usbnet	*dev = urb->context;
+	int		status = urb->status;
+
+	switch (status) {
+	/* success */
+	case 0:
+		dev->driver_info->status(dev, urb);
+		break;
+
+	/* software-driven interface shutdown */
+	case -ENOENT:		/* urb killed */
+	case -ESHUTDOWN:	/* hardware gone */
+		netif_dbg(dev, ifdown, dev->net,
+			  "intr shutdown, code %d\n", status);
+		return;
+
+	/* NOTE:  not throttling like RX/TX, since this endpoint
+	 * already polls infrequently
+	 */
+	default:
+		netdev_dbg(dev->net, "intr status %d\n", status);
+		break;
+	}
+
+	if (!netif_running (dev->net))
+		return;
+
+	memset(urb->transfer_buffer, 0, urb->transfer_buffer_length);
+	status = usb_submit_urb (urb, GFP_ATOMIC);
+	if (status != 0)
+		netif_err(dev, timer, dev->net,
+			  "intr resubmit --> %d\n", status);
+}
 
 static int init_status (struct usbnet *dev, struct usb_interface *intf)
 {
@@ -517,42 +551,6 @@ block:
 		usb_free_urb (urb);
 	}
 	netif_dbg(dev, rx_err, dev->net, "no read resubmitted\n");
-}
-
-static void intr_complete (struct urb *urb)
-{
-	struct usbnet	*dev = urb->context;
-	int		status = urb->status;
-
-	switch (status) {
-	/* success */
-	case 0:
-		dev->driver_info->status(dev, urb);
-		break;
-
-	/* software-driven interface shutdown */
-	case -ENOENT:		/* urb killed */
-	case -ESHUTDOWN:	/* hardware gone */
-		netif_dbg(dev, ifdown, dev->net,
-			  "intr shutdown, code %d\n", status);
-		return;
-
-	/* NOTE:  not throttling like RX/TX, since this endpoint
-	 * already polls infrequently
-	 */
-	default:
-		netdev_dbg(dev->net, "intr status %d\n", status);
-		break;
-	}
-
-	if (!netif_running (dev->net))
-		return;
-
-	memset(urb->transfer_buffer, 0, urb->transfer_buffer_length);
-	status = usb_submit_urb (urb, GFP_ATOMIC);
-	if (status != 0)
-		netif_err(dev, timer, dev->net,
-			  "intr resubmit --> %d\n", status);
 }
 
 /*-------------------------------------------------------------------------*/
