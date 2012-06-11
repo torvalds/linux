@@ -2837,8 +2837,6 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 		}
 	}
 
-	regcache_cache_only(codec->control_data, true);
-
 	/* Apply platform data settings */
 	snd_soc_update_bits(codec, WM8996_LINE_INPUT_CONTROL,
 			    WM8996_INL_MODE_MASK | WM8996_INR_MODE_MASK,
@@ -3211,6 +3209,7 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 		goto err_regmap;
 	}
 
+	regcache_cache_only(wm8996->regmap, true);
 	regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 
 	wm8996_init_gpio(wm8996);
