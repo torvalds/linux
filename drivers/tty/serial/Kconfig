@@ -704,6 +704,25 @@ config SERIAL_PNX8XXX_CONSOLE
 	  If you have a MIPS-based Philips SoC such as PNX8550 or PNX8330
 	  and you want to use serial console, say Y. Otherwise, say N.
 
+config SERIAL_HS_LPC32XX
+	tristate "LPC32XX high speed serial port support"
+	depends on ARCH_LPC32XX && OF
+	select SERIAL_CORE
+	help
+	  Support for the LPC32XX high speed serial ports (up to 900kbps).
+	  Those are UARTs completely different from the Standard UARTs on the
+	  LPC32XX SoC.
+	  Choose M or Y here to build this driver.
+
+config SERIAL_HS_LPC32XX_CONSOLE
+	bool "Enable LPC32XX high speed UART serial console"
+	depends on SERIAL_HS_LPC32XX
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you would like to be able to use one of the high speed serial
+	  ports on the LPC32XX as the console, you can do so by answering
+	  Y to this option.
+
 config SERIAL_CORE
 	tristate
 
