@@ -1404,3 +1404,37 @@ void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah)
 	/* Force another 2g5g update at next scanning */
 	mci->update_2g5g = true;
 }
+
+void ar9003_mci_set_power_awake(struct ath_hw *ah)
+{
+	u32 btcoex_ctrl2, diag_sw;
+	int i;
+	u8 lna_ctrl, bt_sleep;
+
+	for (i = 0; i < AH_WAIT_TIMEOUT; i++) {
+		btcoex_ctrl2 = REG_READ(ah, AR_BTCOEX_CTRL2);
+		if (btcoex_ctrl2 != 0xdeadbeef)
+			break;
+		udelay(AH_TIME_QUANTUM);
+	}
+	REG_WRITE(ah, AR_BTCOEX_CTRL2, (btcoex_ctrl2 | BIT(23)));
+
+	for (i = 0; i < AH_WAIT_TIMEOUT; i++) {
+		diag_sw = REG_READ(ah, AR_DIAG_SW);
+		if (diag_sw != 0xdeadbeef)
+			break;
+		udelay(AH_TIME_QUANTUM);
+	}
+	REG_WRITE(ah, AR_DIAG_SW, (diag_sw | BIT(27) | BIT(19) | BIT(18)));
+	lna_ctrl = REG_READ(ah, AR_OBS_BUS_CTRL) & 0x3;
+	bt_sleep = REG_READ(ah, AR_MCI_RX_STATUS) & AR_MCI_RX_REMOTE_SLEEP;
+
+	REG_WRITE(ah, AR_BTCOEX_CTRL2, btcoex_ctrl2);
+	REG_WRITE(ah, AR_DIAG_SW, diag_sw);
+
+	if (bt_sleep && (lna_ctrl == 2)) {
+		REG_SET_BIT(ah, AR_BTCOEX_RC, 0x1);
+		REG_CLR_BIT(ah, AR_BTCOEX_RC, 0x1);
+		udelay(50);
+	}
+}

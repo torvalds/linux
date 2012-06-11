@@ -265,8 +265,6 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 void ar9003_mci_cleanup(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
-void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
-
 /*
  * These functions are used by ath9k_hw.
  */
@@ -285,6 +283,8 @@ int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		      bool is_full_sleep);
 void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
+void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
+void ar9003_mci_set_power_awake(struct ath_hw *ah);
 
 #else
 
@@ -320,6 +320,12 @@ static inline void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 {
 }
 static inline void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
+{
+}
+static inline void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah)
+{
+}
+static inline void ar9003_mci_set_power_awake(struct ath_hw *ah)
 {
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */

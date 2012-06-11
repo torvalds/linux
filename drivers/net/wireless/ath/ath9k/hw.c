@@ -2111,6 +2111,9 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah)
 		    AR_RTC_FORCE_WAKE_EN);
 	udelay(50);
 
+	if (ath9k_hw_mci_is_enabled(ah))
+		ar9003_mci_set_power_awake(ah);
+
 	for (i = POWER_UP_TIME / 50; i > 0; i--) {
 		val = REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M;
 		if (val == AR_RTC_STATUS_ON)
