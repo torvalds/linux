@@ -565,6 +565,24 @@ static void con_out_kvec_add(struct ceph_connection *con,
 	con->out_kvec_bytes += size;
 }
 
+static void prepare_write_message_data(struct ceph_connection *con)
+{
+	struct ceph_msg *msg = con->out_msg;
+
+	BUG_ON(!msg);
+	BUG_ON(!msg->hdr.data_len);
+
+	/* initialize page iterator */
+	con->out_msg_pos.page = 0;
+	if (msg->pages)
+		con->out_msg_pos.page_pos = msg->page_alignment;
+	else
+		con->out_msg_pos.page_pos = 0;
+	con->out_msg_pos.data_pos = 0;
+	con->out_msg_pos.did_page_crc = false;
+	con->out_more = 1;  /* data + footer will follow */
+}
+
 /*
  * Prepare footer for currently outgoing message, and finish things
  * off.  Assumes out_kvec* are already valid.. we just add on to the end.
@@ -657,26 +675,17 @@ static void prepare_write_message(struct ceph_connection *con)
 		con->out_msg->footer.middle_crc = cpu_to_le32(crc);
 	} else
 		con->out_msg->footer.middle_crc = 0;
-	con->out_msg->footer.data_crc = 0;
-	dout("prepare_write_message front_crc %u data_crc %u\n",
+	dout("%s front_crc %u middle_crc %u\n", __func__,
 	     le32_to_cpu(con->out_msg->footer.front_crc),
 	     le32_to_cpu(con->out_msg->footer.middle_crc));
 
 	/* is there a data payload? */
-	if (le32_to_cpu(m->hdr.data_len) > 0) {
-		/* initialize page iterator */
-		con->out_msg_pos.page = 0;
-		if (m->pages)
-			con->out_msg_pos.page_pos = m->page_alignment;
-		else
-			con->out_msg_pos.page_pos = 0;
-		con->out_msg_pos.data_pos = 0;
-		con->out_msg_pos.did_page_crc = false;
-		con->out_more = 1;  /* data + footer will follow */
-	} else {
+	con->out_msg->footer.data_crc = 0;
+	if (m->hdr.data_len)
+		prepare_write_message_data(con);
+	else
 		/* no, queue up footer too and be done */
 		prepare_write_message_footer(con);
-	}
 
 	set_bit(WRITE_PENDING, &con->flags);
 }
