@@ -35,6 +35,9 @@ config SND_PXA_SOC_SSP
 	tristate
 	select PXA_SSP
 
+config SND_MMP_SOC_SSPA
+	tristate
+
 config SND_PXA2XX_SOC_CORGI
 	tristate "SoC Audio support for Sharp Zaurus SL-C7x0"
 	depends on SND_PXA2XX_SOC && PXA_SHARP_C7xx
