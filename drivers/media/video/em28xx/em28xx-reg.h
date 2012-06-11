@@ -211,57 +211,8 @@ enum em28xx_chip_id {
 };
 
 /*
- * Registers used by em202 and other AC97 chips
+ * Registers used by em202
  */
-
-/* Standard AC97 registers */
-#define AC97_RESET               0x00
-
-	/* Output volumes */
-#define AC97_MASTER_VOL          0x02
-#define AC97_LINE_LEVEL_VOL      0x04	/* Some devices use for headphones */
-#define AC97_MASTER_MONO_VOL     0x06
-
-	/* Input volumes */
-#define AC97_PC_BEEP_VOL         0x0a
-#define AC97_PHONE_VOL           0x0c
-#define AC97_MIC_VOL             0x0e
-#define AC97_LINEIN_VOL          0x10
-#define AC97_CD_VOL              0x12
-#define AC97_VIDEO_VOL           0x14
-#define AC97_AUX_VOL             0x16
-#define AC97_PCM_OUT_VOL         0x18
-
-	/* capture registers */
-#define AC97_RECORD_SELECT       0x1a
-#define AC97_RECORD_GAIN         0x1c
-
-	/* control registers */
-#define AC97_GENERAL_PURPOSE     0x20
-#define AC97_3D_CTRL             0x22
-#define AC97_AUD_INT_AND_PAG     0x24
-#define AC97_POWER_DOWN_CTRL     0x26
-#define AC97_EXT_AUD_ID          0x28
-#define AC97_EXT_AUD_CTRL        0x2a
-
-/* Supported rate varies for each AC97 device
-   if write an unsupported value, it will return the closest one
- */
-#define AC97_PCM_OUT_FRONT_SRATE 0x2c
-#define AC97_PCM_OUT_SURR_SRATE  0x2e
-#define AC97_PCM_OUT_LFE_SRATE   0x30
-#define AC97_PCM_IN_SRATE        0x32
-
-	/* For devices with more than 2 channels, extra output volumes */
-#define AC97_LFE_MASTER_VOL      0x36
-#define AC97_SURR_MASTER_VOL     0x38
-
-	/* Digital SPDIF output control */
-#define AC97_SPDIF_OUT_CTRL      0x3a
-
-	/* Vendor ID identifier */
-#define AC97_VENDOR_ID1          0x7c
-#define AC97_VENDOR_ID2          0x7e
 
 /* EMP202 vendor registers */
 #define EM202_EXT_MODEM_CTRL     0x3e
