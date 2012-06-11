@@ -64,6 +64,7 @@ struct drm_exynos_gem_map_off {
  * A structure for mapping buffer.
  *
  * @handle: a handle to gem object created.
+ * @pad: just padding to be 64-bit aligned.
  * @size: memory size to be mapped.
  * @mapped: having user virtual address mmaped.
  *	- this variable would be filled by exynos gem module
@@ -72,7 +73,8 @@ struct drm_exynos_gem_map_off {
  */
 struct drm_exynos_gem_mmap {
 	unsigned int handle;
-	unsigned int size;
+	unsigned int pad;
+	uint64_t size;
 	uint64_t mapped;
 };
 
