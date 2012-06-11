@@ -86,16 +86,15 @@ const char *__perf_evsel__hw_name(u64 config)
 	return "unknown-hardware";
 }
 
-static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
+static int perf_evsel__add_modifiers(struct perf_evsel *evsel, char *bf, size_t size)
 {
-	int colon = 0;
+	int colon = 0, r = 0;
 	struct perf_event_attr *attr = &evsel->attr;
-	int r = scnprintf(bf, size, "%s", __perf_evsel__hw_name(attr->config));
 	bool exclude_guest_default = false;
 
 #define MOD_PRINT(context, mod)	do {					\
 		if (!attr->exclude_##context) {				\
-			if (!colon) colon = r++;			\
+			if (!colon) colon = ++r;			\
 			r += scnprintf(bf + r, size - r, "%c", mod);	\
 		} } while(0)
 
@@ -108,7 +107,7 @@ static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
 
 	if (attr->precise_ip) {
 		if (!colon)
-			colon = r++;
+			colon = ++r;
 		r += scnprintf(bf + r, size - r, "%.*s", attr->precise_ip, "ppp");
 		exclude_guest_default = true;
 	}
@@ -119,8 +118,14 @@ static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
 	}
 #undef MOD_PRINT
 	if (colon)
-		bf[colon] = ':';
+		bf[colon - 1] = ':';
 	return r;
+}
+
+static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int r = scnprintf(bf, size, "%s", __perf_evsel__hw_name(evsel->attr.config));
+	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
 int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
