@@ -276,7 +276,7 @@ void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep);
 void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable);
 void ar9003_mci_init_cal_done(struct ath_hw *ah);
 void ar9003_mci_set_full_sleep(struct ath_hw *ah);
-void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done);
+void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force);
 void ar9003_mci_check_bt(struct ath_hw *ah);
 bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan);
 int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,

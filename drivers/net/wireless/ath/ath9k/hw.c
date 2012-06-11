@@ -1711,7 +1711,7 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	ath9k_hw_start_nfcal(ah, true);
 
 	if (ath9k_hw_mci_is_enabled(ah))
-		ar9003_mci_2g5g_switch(ah, true);
+		ar9003_mci_2g5g_switch(ah, false);
 
 	if (AR_SREV_9271(ah))
 		ar9002_hw_load_ani_reg(ah, chan);

@@ -1013,38 +1013,32 @@ static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
 	}
 }
 
-void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done)
+void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
-	if (!mci->update_2g5g)
+	if (!mci->update_2g5g && !force)
 		return;
 
 	if (mci->is_2g) {
 		ar9003_mci_send_2g5g_status(ah, true);
-		ar9003_mci_send_lna_transfer(ah, true);
-		udelay(5);
 
-		REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
+		REG_SET_BIT(ah, AR_MCI_TX_CTRL,
 			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 		REG_CLR_BIT(ah, AR_PHY_GLB_CONTROL,
 			    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
 
 		if (!(mci->config & ATH_MCI_CONFIG_DISABLE_OSLA))
-			REG_SET_BIT(ah, AR_BTCOEX_CTRL,
-				    AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
+			ar9003_mci_osla_setup(ah, true);
 	} else {
-		ar9003_mci_send_lna_take(ah, true);
-		udelay(5);
-
 		REG_SET_BIT(ah, AR_MCI_TX_CTRL,
 			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 		REG_SET_BIT(ah, AR_PHY_GLB_CONTROL,
 			    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
-		REG_CLR_BIT(ah, AR_BTCOEX_CTRL,
-			    AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
 
-		ar9003_mci_send_2g5g_status(ah, true);
+		ar9003_mci_osla_setup(ah, false);
+		if (!force)
+			ar9003_mci_send_2g5g_status(ah, true);
 	}
 }
 
@@ -1313,7 +1307,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		if (mci->unhalt_bt_gpm)
 			ar9003_mci_send_coex_halt_bt_gpm(ah, false, true);
 
-		ar9003_mci_2g5g_switch(ah, true);
+		ar9003_mci_2g5g_switch(ah, false);
 		break;
 	case MCI_STATE_SET_BT_CAL_START:
 		mci->bt_state = MCI_BT_CAL_START;
@@ -1394,7 +1388,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		mci->query_bt = true;
 		mci->need_flush_btinfo = true;
 		ar9003_mci_send_coex_wlan_channels(ah, true);
-		ar9003_mci_2g5g_switch(ah, true);
+		ar9003_mci_2g5g_switch(ah, false);
 		break;
 	case MCI_STATE_NEED_FTP_STOMP:
 		value = !(mci->config & ATH_MCI_CONFIG_DISABLE_FTP_STOMP);
