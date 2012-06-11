@@ -43,15 +43,12 @@
  * @dev: handle to the device
  * @plfdata: AB3100 platform data passed in at probe time
  * @regreg: regulator register number in the AB3100
- * @fixed_voltage: a fixed voltage for this regulator, if this
- *          0 the voltages array is used instead.
  */
 struct ab3100_regulator {
 	struct regulator_dev *rdev;
 	struct device *dev;
 	struct ab3100_platform_data *plfdata;
 	u8 regreg;
-	int fixed_voltage;
 };
 
 /* The order in which registers are initialized */
@@ -121,15 +118,12 @@ static struct ab3100_regulator
 ab3100_regulators[AB3100_NUM_REGULATORS] = {
 	{
 		.regreg = AB3100_LDO_A,
-		.fixed_voltage = LDO_A_VOLTAGE,
 	},
 	{
 		.regreg = AB3100_LDO_C,
-		.fixed_voltage = LDO_C_VOLTAGE,
 	},
 	{
 		.regreg = AB3100_LDO_D,
-		.fixed_voltage = LDO_D_VOLTAGE,
 	},
 	{
 		.regreg = AB3100_LDO_E,
@@ -245,10 +239,6 @@ static int ab3100_get_voltage_regulator(struct regulator_dev *reg)
 	struct ab3100_regulator *abreg = reg->reg_data;
 	u8 regval;
 	int err;
-
-	/* Return the voltage for fixed regulators immediately */
-	if (abreg->fixed_voltage)
-		return abreg->fixed_voltage;
 
 	/*
 	 * For variable types, read out setting and index into
@@ -382,11 +372,17 @@ static int ab3100_enable_time_regulator(struct regulator_dev *reg)
 	return 0;
 }
 
+static int ab3100_get_fixed_voltage_regulator(struct regulator_dev *reg)
+{
+	return reg->desc->min_uV;
+}
+
 static struct regulator_ops regulator_ops_fixed = {
+	.list_voltage = regulator_list_voltage_linear,
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
-	.get_voltage = ab3100_get_voltage_regulator,
+	.get_voltage = ab3100_get_fixed_voltage_regulator,
 	.enable_time = ab3100_enable_time_regulator,
 };
 
@@ -430,22 +426,28 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.name = "LDO_A",
 		.id   = AB3100_LDO_A,
 		.ops  = &regulator_ops_fixed,
+		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.min_uV = LDO_A_VOLTAGE,
 	},
 	{
 		.name = "LDO_C",
 		.id   = AB3100_LDO_C,
 		.ops  = &regulator_ops_fixed,
+		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.min_uV = LDO_C_VOLTAGE,
 	},
 	{
 		.name = "LDO_D",
 		.id   = AB3100_LDO_D,
 		.ops  = &regulator_ops_fixed,
+		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.min_uV = LDO_D_VOLTAGE,
 	},
 	{
 		.name = "LDO_E",
