@@ -162,24 +162,6 @@ static struct clcd_board lpc32xx_clcd_data = {
 /*
  * AMBA SSP (SPI)
  */
-static void phy3250_spi_cs_set(u32 control)
-{
-	gpio_set_value(SPI0_CS_GPIO, (int) control);
-}
-
-static struct pl022_config_chip spi0_chip_info = {
-	.com_mode		= INTERRUPT_TRANSFER,
-	.iface			= SSP_INTERFACE_MOTOROLA_SPI,
-	.hierarchy		= SSP_MASTER,
-	.slave_tx_disable	= 0,
-	.rx_lev_trig		= SSP_RX_4_OR_MORE_ELEM,
-	.tx_lev_trig		= SSP_TX_4_OR_MORE_EMPTY_LOC,
-	.ctrl_len		= SSP_BITS_8,
-	.wait_state		= SSP_MWIRE_WAIT_ZERO,
-	.duplex			= SSP_MICROWIRE_CHANNEL_FULL_DUPLEX,
-	.cs_control		= phy3250_spi_cs_set,
-};
-
 static struct pl022_ssp_controller lpc32xx_ssp0_data = {
 	.bus_id			= 0,
 	.num_chipselect		= 1,
@@ -191,44 +173,6 @@ static struct pl022_ssp_controller lpc32xx_ssp1_data = {
 	.num_chipselect		= 1,
 	.enable_dma		= 0,
 };
-
-/* AT25 driver registration */
-static int __init phy3250_spi_board_register(void)
-{
-#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
-	static struct spi_board_info info[] = {
-		{
-			.modalias = "spidev",
-			.max_speed_hz = 5000000,
-			.bus_num = 0,
-			.chip_select = 0,
-			.controller_data = &spi0_chip_info,
-		},
-	};
-
-#else
-	static struct spi_eeprom eeprom = {
-		.name = "at25256a",
-		.byte_len = 0x8000,
-		.page_size = 64,
-		.flags = EE_ADDR2,
-	};
-
-	static struct spi_board_info info[] = {
-		{
-			.modalias = "at25",
-			.max_speed_hz = 5000000,
-			.bus_num = 0,
-			.chip_select = 0,
-			.mode = SPI_MODE_0,
-			.platform_data = &eeprom,
-			.controller_data = &spi0_chip_info,
-		},
-	};
-#endif
-	return spi_register_board_info(info, ARRAY_SIZE(info));
-}
-arch_initcall(phy3250_spi_board_register);
 
 static struct pl08x_channel_data pl08x_slave_channels[] = {
 	{
