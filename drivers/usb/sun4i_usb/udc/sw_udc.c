@@ -2849,6 +2849,10 @@ static int sw_udc_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 	return 0;
 }
 
+static int sun4i_start(struct usb_gadget_driver *driver,
+		       int (*bind)(struct usb_gadget *));
+static int sun4i_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops sw_udc_ops = {
 	.get_frame		    = sw_udc_get_frame,
 	.wakeup			    = sw_udc_wakeup,
@@ -2856,6 +2860,8 @@ static const struct usb_gadget_ops sw_udc_ops = {
 	.pullup			    = sw_udc_pullup,
 	.vbus_session		= sw_udc_vbus_session,
 	.vbus_draw		    = sw_udc_vbus_draw,
+	.start			= sun4i_start,
+	.stop			= sun4i_stop,
 };
 
 //---------------------------------------------------------------
@@ -3027,8 +3033,8 @@ s32  usbd_stop_work(void)
 *
 *******************************************************************************
 */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
-		                    int (*bind)(struct usb_gadget *))
+static int sun4i_start(struct usb_gadget_driver *driver,
+		       int (*bind)(struct usb_gadget *))
 {
 	struct sw_udc *udc = the_controller;
 	int retval = 0;
@@ -3105,7 +3111,7 @@ register_error:
 *
 *******************************************************************************
 */
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int sun4i_stop(struct usb_gadget_driver *driver)
 {
 	struct sw_udc *udc = the_controller;
 
@@ -3823,9 +3829,6 @@ static void __exit udc_exit(void)
 
 	return ;
 }
-
-EXPORT_SYMBOL(usb_gadget_probe_driver);
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 //module_init(udc_init);
 fs_initcall(udc_init);
