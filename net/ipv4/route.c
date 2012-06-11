@@ -2125,7 +2125,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
 	rth->rt_peer_genid = 0;
-	rt_init_peer(rth, dev_net(rth->dst.dev)->ipv4.peers);
+	rt_init_peer(rth, &res->table->tb_peers);
 	rth->fi = NULL;
 
 	rth->dst.input = ip_forward;
@@ -2512,7 +2512,9 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_gateway = fl4->daddr;
 	rth->rt_spec_dst= fl4->saddr;
 	rth->rt_peer_genid = 0;
-	rt_init_peer(rth, dev_net(dev_out)->ipv4.peers);
+	rt_init_peer(rth, (res->table ?
+			   &res->table->tb_peers :
+			   dev_net(dev_out)->ipv4.peers));
 	rth->fi = NULL;
 
 	RT_CACHE_STAT_INC(out_slow_tot);
@@ -2561,6 +2563,7 @@ static struct rtable *ip_route_output_slow(struct net *net, struct flowi4 *fl4)
 	int orig_oif;
 
 	res.fi		= NULL;
+	res.table	= NULL;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	res.r		= NULL;
 #endif
@@ -2666,6 +2669,7 @@ static struct rtable *ip_route_output_slow(struct net *net, struct flowi4 *fl4)
 
 	if (fib_lookup(net, fl4, &res)) {
 		res.fi = NULL;
+		res.table = NULL;
 		if (fl4->flowi4_oif) {
 			/* Apparently, routing tables are wrong. Assume,
 			   that the destination is on link.

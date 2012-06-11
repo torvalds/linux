@@ -260,7 +260,8 @@ static struct rt6_info ip6_blk_hole_entry_template = {
 /* allocate dst with ip6_dst_ops */
 static inline struct rt6_info *ip6_dst_alloc(struct net *net,
 					     struct net_device *dev,
-					     int flags)
+					     int flags,
+					     struct fib6_table *table)
 {
 	struct rt6_info *rt = dst_alloc(&net->ipv6.ip6_dst_ops, dev,
 					0, 0, flags);
@@ -268,7 +269,7 @@ static inline struct rt6_info *ip6_dst_alloc(struct net *net,
 	if (rt) {
 		memset(&rt->rt6i_table, 0,
 		       sizeof(*rt) - sizeof(struct dst_entry));
-		rt6_init_peer(rt, net->ipv6.peers);
+		rt6_init_peer(rt, table ? &table->tb6_peers : net->ipv6.peers);
 	}
 	return rt;
 }
@@ -1114,7 +1115,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	if (unlikely(!idev))
 		return ERR_PTR(-ENODEV);
 
-	rt = ip6_dst_alloc(net, dev, 0);
+	rt = ip6_dst_alloc(net, dev, 0, NULL);
 	if (unlikely(!rt)) {
 		in6_dev_put(idev);
 		dst = ERR_PTR(-ENOMEM);
@@ -1296,7 +1297,7 @@ int ip6_route_add(struct fib6_config *cfg)
 	if (!table)
 		goto out;
 
-	rt = ip6_dst_alloc(net, NULL, DST_NOCOUNT);
+	rt = ip6_dst_alloc(net, NULL, DST_NOCOUNT, table);
 
 	if (!rt) {
 		err = -ENOMEM;
@@ -1818,7 +1819,8 @@ static struct rt6_info *ip6_rt_copy(struct rt6_info *ort,
 				    const struct in6_addr *dest)
 {
 	struct net *net = dev_net(ort->dst.dev);
-	struct rt6_info *rt = ip6_dst_alloc(net, ort->dst.dev, 0);
+	struct rt6_info *rt = ip6_dst_alloc(net, ort->dst.dev, 0,
+					    ort->rt6i_table);
 
 	if (rt) {
 		rt->dst.input = ort->dst.input;
@@ -2102,7 +2104,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 				    bool anycast)
 {
 	struct net *net = dev_net(idev->dev);
-	struct rt6_info *rt = ip6_dst_alloc(net, net->loopback_dev, 0);
+	struct rt6_info *rt = ip6_dst_alloc(net, net->loopback_dev, 0, NULL);
 	int err;
 
 	if (!rt) {
