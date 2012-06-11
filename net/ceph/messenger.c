@@ -565,6 +565,31 @@ static void con_out_kvec_add(struct ceph_connection *con,
 	con->out_kvec_bytes += size;
 }
 
+#ifdef CONFIG_BLOCK
+static void init_bio_iter(struct bio *bio, struct bio **iter, int *seg)
+{
+	if (!bio) {
+		*iter = NULL;
+		*seg = 0;
+		return;
+	}
+	*iter = bio;
+	*seg = bio->bi_idx;
+}
+
+static void iter_bio_next(struct bio **bio_iter, int *seg)
+{
+	if (*bio_iter == NULL)
+		return;
+
+	BUG_ON(*seg >= (*bio_iter)->bi_vcnt);
+
+	(*seg)++;
+	if (*seg == (*bio_iter)->bi_vcnt)
+		init_bio_iter((*bio_iter)->bi_next, bio_iter, seg);
+}
+#endif
+
 static void prepare_write_message_data(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->out_msg;
@@ -867,31 +892,6 @@ out:
 	     con->out_kvec_bytes, con->out_kvec_left, ret);
 	return ret;  /* done! */
 }
-
-#ifdef CONFIG_BLOCK
-static void init_bio_iter(struct bio *bio, struct bio **iter, int *seg)
-{
-	if (!bio) {
-		*iter = NULL;
-		*seg = 0;
-		return;
-	}
-	*iter = bio;
-	*seg = bio->bi_idx;
-}
-
-static void iter_bio_next(struct bio **bio_iter, int *seg)
-{
-	if (*bio_iter == NULL)
-		return;
-
-	BUG_ON(*seg >= (*bio_iter)->bi_vcnt);
-
-	(*seg)++;
-	if (*seg == (*bio_iter)->bi_vcnt)
-		init_bio_iter((*bio_iter)->bi_next, bio_iter, seg);
-}
-#endif
 
 static void out_msg_pos_next(struct ceph_connection *con, struct page *page,
 			size_t len, size_t sent, bool in_trail)
