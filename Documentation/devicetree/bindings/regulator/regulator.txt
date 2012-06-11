@@ -10,6 +10,7 @@ Optional properties:
 - regulator-always-on: boolean, regulator should never be disabled
 - regulator-boot-on: bootloader/firmware enabled regulator
 - <name>-supply: phandle to the parent supply/regulator node
+- regulator-ramp-delay: ramp delay for regulator(in mV/uS)
 
 Example:
 

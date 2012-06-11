@@ -967,6 +967,14 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
+	if (rdev->constraints->ramp_delay && ops->set_ramp_delay) {
+		ret = ops->set_ramp_delay(rdev, rdev->constraints->ramp_delay);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to set ramp_delay\n");
+			goto out;
+		}
+	}
+
 	print_constraints(rdev);
 	return 0;
 out:
@@ -2296,10 +2304,17 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 				   unsigned int old_selector,
 				   unsigned int new_selector)
 {
-	if (rdev->desc->ramp_delay && rdev->desc->uV_step)
-		return DIV_ROUND_UP(rdev->desc->uV_step *
-			abs(new_selector - old_selector),
-			rdev->desc->ramp_delay * 1000);
+	if (rdev->desc->uV_step) {
+		if (rdev->constraints->ramp_delay)
+			return DIV_ROUND_UP(rdev->desc->uV_step *
+				abs(new_selector - old_selector),
+				rdev->constraints->ramp_delay * 1000);
+		if (rdev->desc->ramp_delay)
+			return DIV_ROUND_UP(rdev->desc->uV_step *
+				abs(new_selector - old_selector),
+				rdev->desc->ramp_delay * 1000);
+		rdev_warn(rdev, "ramp_delay not set\n");
+	}
 	return 0;
 }
 
