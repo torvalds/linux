@@ -616,7 +616,9 @@ static struct event_format *alloc_event(void)
 {
 	struct event_format *event;
 
-	event = malloc_or_die(sizeof(*event));
+	event = malloc(sizeof(*event));
+	if (!event)
+		return NULL;
 	memset(event, 0, sizeof(*event));
 
 	return event;
