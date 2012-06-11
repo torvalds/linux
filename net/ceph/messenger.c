@@ -592,6 +592,8 @@ static void prepare_write_message_footer(struct ceph_connection *con)
 	struct ceph_msg *m = con->out_msg;
 	int v = con->out_kvec_left;
 
+	m->footer.flags |= CEPH_MSG_FOOTER_COMPLETE;
+
 	dout("prepare_write_message_footer %p\n", con);
 	con->out_kvec_is_msg = true;
 	con->out_kvec[v].iov_base = &m->footer;
@@ -665,7 +667,7 @@ static void prepare_write_message(struct ceph_connection *con)
 	/* fill in crc (except data pages), footer */
 	crc = crc32c(0, &m->hdr, offsetof(struct ceph_msg_header, crc));
 	con->out_msg->hdr.crc = cpu_to_le32(crc);
-	con->out_msg->footer.flags = CEPH_MSG_FOOTER_COMPLETE;
+	con->out_msg->footer.flags = 0;
 
 	crc = crc32c(0, m->front.iov_base, m->front.iov_len);
 	con->out_msg->footer.front_crc = cpu_to_le32(crc);
