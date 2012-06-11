@@ -19,6 +19,7 @@
 #include <net/flow.h>
 #include <linux/seq_file.h>
 #include <net/fib_rules.h>
+#include <net/inetpeer.h>
 
 struct fib_config {
 	u8			fc_dst_len;
@@ -157,11 +158,12 @@ extern __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
 					 FIB_RES_SADDR(net, res))
 
 struct fib_table {
-	struct hlist_node tb_hlist;
-	u32		tb_id;
-	int		tb_default;
-	int		tb_num_default;
-	unsigned long	tb_data[0];
+	struct hlist_node	tb_hlist;
+	u32			tb_id;
+	int			tb_default;
+	int			tb_num_default;
+	struct inet_peer_base	tb_peers;
+	unsigned long		tb_data[0];
 };
 
 extern int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
