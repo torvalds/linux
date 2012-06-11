@@ -315,10 +315,6 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 		jiffies_to_msecs(trans_pcie->wd_timeout));
 	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
 		txq->q.read_ptr, txq->q.write_ptr);
-	IWL_ERR(trans, "Current HW read_ptr %d write_ptr %d\n",
-		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq->q.id))
-					& (TFD_QUEUE_SIZE_MAX - 1),
-		iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq->q.id)));
 
 	iwl_read_targ_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
 
@@ -327,6 +323,28 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 	for (i = 0; i < FH_TCSR_CHNL_NUM; i++)
 		IWL_ERR(trans, "FH TRBs(%d) = 0x%08x\n", i,
 			iwl_read_direct32(trans, FH_TX_TRB_REG(i)));
+
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
+		u32 status = iwl_read_prph(trans, SCD_QUEUE_STATUS_BITS(i));
+		u8 fifo = (status >> SCD_QUEUE_STTS_REG_POS_TXF) & 0x7;
+		bool active = !!(status & BIT(SCD_QUEUE_STTS_REG_POS_ACTIVE));
+		u32 tbl_dw =
+			iwl_read_targ_mem(trans,
+					  trans_pcie->scd_base_addr +
+					  SCD_TRANS_TBL_OFFSET_QUEUE(i));
+
+		if (i & 0x1)
+			tbl_dw = (tbl_dw & 0xFFFF0000) >> 16;
+		else
+			tbl_dw = tbl_dw & 0x0000FFFF;
+
+		IWL_ERR(trans,
+			"Q %d is %sactive and mapped to fifo %d ra_tid 0x%04x [%d,%d]\n",
+			i, active ? "" : "in", fifo, tbl_dw,
+			iwl_read_prph(trans,
+				      SCD_QUEUE_RDPTR(i)) & (txq->q.n_bd - 1),
+			iwl_read_prph(trans, SCD_QUEUE_WRPTR(i)));
+	}
 
 	iwl_op_mode_nic_error(trans->op_mode);
 }
