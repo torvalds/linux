@@ -3204,7 +3204,7 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		return err;
 	}
 
-	pm = PM_OFF; /* enabled ? PM_FAST : PM_OFF; */
+	pm = enabled ? PM_FAST : PM_OFF;
 	/* Do not enable the power save after assoc if it is p2p interface */
 	if (wl->p2p && wl->p2p->vif_created) {
 		WL_DBG(("Do not enable the power save for p2p interfaces even after assoc\n"));
