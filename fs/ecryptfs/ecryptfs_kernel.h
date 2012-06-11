@@ -385,8 +385,6 @@ struct ecryptfs_msg_ctx {
 	struct mutex mux;
 };
 
-struct ecryptfs_daemon;
-
 struct ecryptfs_daemon {
 #define ECRYPTFS_DAEMON_IN_READ      0x00000001
 #define ECRYPTFS_DAEMON_IN_POLL      0x00000002
@@ -621,10 +619,6 @@ int
 ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode);
-int ecryptfs_process_helo(uid_t euid, struct user_namespace *user_ns,
-			  struct pid *pid);
-int ecryptfs_process_quit(uid_t euid, struct user_namespace *user_ns,
-			  struct pid *pid);
 int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
 			      struct user_namespace *user_ns, struct pid *pid,
 			      u32 seq);

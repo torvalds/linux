@@ -216,37 +216,6 @@ out:
 }
 
 /**
- * ecryptfs_process_quit
- * @euid: The user ID owner of the message
- * @user_ns: The namespace in which @euid applies
- * @pid: The process ID for the userspace program that sent the
- *       message
- *
- * Deletes the corresponding daemon for the given euid and pid, if
- * it is the registered that is requesting the deletion. Returns zero
- * after deleting the desired daemon; non-zero otherwise.
- */
-int ecryptfs_process_quit(uid_t euid, struct user_namespace *user_ns,
-			  struct pid *pid)
-{
-	struct ecryptfs_daemon *daemon;
-	int rc;
-
-	mutex_lock(&ecryptfs_daemon_hash_mux);
-	rc = ecryptfs_find_daemon_by_euid(&daemon, euid, user_ns);
-	if (rc || !daemon) {
-		rc = -EINVAL;
-		printk(KERN_ERR "Received request from user [%d] to "
-		       "unregister unrecognized daemon [0x%p]\n", euid, pid);
-		goto out_unlock;
-	}
-	rc = ecryptfs_exorcise_daemon(daemon);
-out_unlock:
-	mutex_unlock(&ecryptfs_daemon_hash_mux);
-	return rc;
-}
-
-/**
  * ecryptfs_process_reponse
  * @msg: The ecryptfs message received; the caller should sanity check
  *       msg->data_len and free the memory
