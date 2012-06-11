@@ -3227,6 +3227,13 @@ static int em_cpuid(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_lahf(struct x86_emulate_ctxt *ctxt)
+{
+	ctxt->regs[VCPU_REGS_RAX] &= ~0xff00UL;
+	ctxt->regs[VCPU_REGS_RAX] |= (ctxt->eflags & 0xff) << 8;
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3622,7 +3629,7 @@ static struct opcode opcode_table[256] = {
 	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
 	I(SrcImmFAddr | No64, em_call_far), N,
 	II(ImplicitOps | Stack, em_pushf, pushf),
-	II(ImplicitOps | Stack, em_popf, popf), N, N,
+	II(ImplicitOps | Stack, em_popf, popf), N, I(ImplicitOps, em_lahf),
 	/* 0xA0 - 0xA7 */
 	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
 	I2bv(DstMem | SrcAcc | Mov | MemAbs | PageTable, em_mov),
