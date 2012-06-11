@@ -1528,18 +1528,6 @@ static bool wm8996_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static int wm8996_reset(struct wm8996_priv *wm8996)
-{
-	if (wm8996->pdata.ldo_ena > 0) {
-		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
-		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 1);
-		return 0;
-	} else {
-		return regmap_write(wm8996->regmap, WM8996_SOFTWARE_RESET,
-				    0x8915);
-	}
-}
-
 static const int bclk_divs[] = {
 	1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96
 };
@@ -1631,8 +1619,10 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_OFF:
 		regcache_cache_only(codec->control_data, true);
-		if (wm8996->pdata.ldo_ena >= 0)
+		if (wm8996->pdata.ldo_ena >= 0) {
 			gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
+			regcache_cache_only(codec->control_data, true);
+		}
 		regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies),
 				       wm8996->supplies);
 		break;
@@ -3019,13 +3009,18 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 	dev_info(&i2c->dev, "revision %c\n",
 		 (reg & WM8996_CHIP_REV_MASK) + 'A');
 
-	ret = wm8996_reset(wm8996);
-	if (ret < 0) {
-		dev_err(&i2c->dev, "Failed to issue reset\n");
-		goto err_regmap;
+	if (wm8996->pdata.ldo_ena > 0) {
+		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
+		regcache_cache_only(wm8996->regmap, true);
+	} else {
+		ret = regmap_write(wm8996->regmap, WM8996_SOFTWARE_RESET,
+				   0x8915);
+		if (ret != 0) {
+			dev_err(&i2c->dev, "Failed to issue reset: %d\n", ret);
+			goto err_regmap;
+		}
 	}
 
-	regcache_cache_only(wm8996->regmap, true);
 	regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 
 	wm8996_init_gpio(wm8996);
