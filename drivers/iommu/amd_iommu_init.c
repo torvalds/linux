@@ -26,6 +26,8 @@
 #include <linux/msi.h>
 #include <linux/amd-iommu.h>
 #include <linux/export.h>
+#include <linux/acpi.h>
+#include <acpi/acpi.h>
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -122,7 +124,7 @@ struct ivmd_header {
 
 bool amd_iommu_dump;
 
-static int __initdata amd_iommu_detected;
+static bool amd_iommu_detected;
 static bool __initdata amd_iommu_disabled;
 
 u16 amd_iommu_last_bdf;			/* largest PCI device id we have
@@ -147,11 +149,6 @@ u32 amd_iommu_max_pasids __read_mostly = ~0;
 bool amd_iommu_v2_present __read_mostly;
 
 bool amd_iommu_force_isolation __read_mostly;
-
-/*
- * The ACPI table parsing functions set this variable on an error
- */
-static int __initdata amd_iommu_init_err;
 
 /*
  * List of protection domains - used during resume
@@ -457,11 +454,9 @@ static int __init find_last_devid_acpi(struct acpi_table_header *table)
 	 */
 	for (i = 0; i < table->length; ++i)
 		checksum += p[i];
-	if (checksum != 0) {
+	if (checksum != 0)
 		/* ACPI table corrupt */
-		amd_iommu_init_err = -ENODEV;
-		return 0;
-	}
+		return -ENODEV;
 
 	p += IVRS_HEADER_LENGTH;
 
@@ -1087,16 +1082,12 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 				    h->mmio_phys);
 
 			iommu = kzalloc(sizeof(struct amd_iommu), GFP_KERNEL);
-			if (iommu == NULL) {
-				amd_iommu_init_err = -ENOMEM;
-				return 0;
-			}
+			if (iommu == NULL)
+				return -ENOMEM;
 
 			ret = init_iommu_one(iommu, h);
-			if (ret) {
-				amd_iommu_init_err = ret;
-				return 0;
-			}
+			if (ret)
+				return ret;
 			break;
 		default:
 			break;
@@ -1477,9 +1468,15 @@ static void __init free_on_init_error(void)
  */
 int __init amd_iommu_init_hardware(void)
 {
+	struct acpi_table_header *ivrs_base;
+	acpi_size ivrs_size;
+	acpi_status status;
 	int i, ret = 0;
 
-	if (!amd_iommu_detected)
+	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
+		return -ENODEV;
+
+	if (amd_iommu_disabled || !amd_iommu_detected)
 		return -ENODEV;
 
 	if (amd_iommu_dev_table != NULL) {
@@ -1487,16 +1484,21 @@ int __init amd_iommu_init_hardware(void)
 		return 0;
 	}
 
+	status = acpi_get_table_with_size("IVRS", 0, &ivrs_base, &ivrs_size);
+	if (status == AE_NOT_FOUND)
+		return -ENODEV;
+	else if (ACPI_FAILURE(status)) {
+		const char *err = acpi_format_exception(status);
+		pr_err("AMD-Vi: IVRS table error: %s\n", err);
+		return -EINVAL;
+	}
+
 	/*
 	 * First parse ACPI tables to find the largest Bus/Dev/Func
 	 * we need to handle. Upon this information the shared data
 	 * structures for the IOMMUs in the system will be allocated
 	 */
-	if (acpi_table_parse("IVRS", find_last_devid_acpi) != 0)
-		return -ENODEV;
-
-	ret = amd_iommu_init_err;
-	if (ret)
+	if (find_last_devid_acpi(ivrs_base))
 		goto out;
 
 	dev_table_size     = tbl_size(DEV_TABLE_ENTRY_SIZE);
@@ -1553,22 +1555,13 @@ int __init amd_iommu_init_hardware(void)
 	 * now the data structures are allocated and basically initialized
 	 * start the real acpi table scan
 	 */
-	ret = -ENODEV;
-	if (acpi_table_parse("IVRS", init_iommu_all) != 0)
+	ret = init_iommu_all(ivrs_base);
+	if (ret)
 		goto free;
 
-	if (amd_iommu_init_err) {
-		ret = amd_iommu_init_err;
+	ret = init_memory_definitions(ivrs_base);
+	if (ret)
 		goto free;
-	}
-
-	if (acpi_table_parse("IVRS", init_memory_definitions) != 0)
-		goto free;
-
-	if (amd_iommu_init_err) {
-		ret = amd_iommu_init_err;
-		goto free;
-	}
 
 	ret = amd_iommu_init_devices();
 	if (ret)
@@ -1581,12 +1574,16 @@ int __init amd_iommu_init_hardware(void)
 	register_syscore_ops(&amd_iommu_syscore_ops);
 
 out:
+	/* Don't leak any ACPI memory */
+	early_acpi_os_unmap_memory((char __iomem *)ivrs_base, ivrs_size);
+	ivrs_base = NULL;
+
 	return ret;
 
 free:
 	free_on_init_error();
 
-	return ret;
+	goto out;
 }
 
 static int amd_iommu_enable_interrupts(void)
@@ -1602,6 +1599,26 @@ static int amd_iommu_enable_interrupts(void)
 
 out:
 	return ret;
+}
+
+static bool detect_ivrs(void)
+{
+	struct acpi_table_header *ivrs_base;
+	acpi_size ivrs_size;
+	acpi_status status;
+
+	status = acpi_get_table_with_size("IVRS", 0, &ivrs_base, &ivrs_size);
+	if (status == AE_NOT_FOUND)
+		return false;
+	else if (ACPI_FAILURE(status)) {
+		const char *err = acpi_format_exception(status);
+		pr_err("AMD-Vi: IVRS table error: %s\n", err);
+		return false;
+	}
+
+	early_acpi_os_unmap_memory((char __iomem *)ivrs_base, ivrs_size);
+
+	return true;
 }
 
 /*
@@ -1663,29 +1680,26 @@ free:
  * IOMMUs
  *
  ****************************************************************************/
-static int __init early_amd_iommu_detect(struct acpi_table_header *table)
-{
-	return 0;
-}
-
 int __init amd_iommu_detect(void)
 {
+
 	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
 		return -ENODEV;
 
 	if (amd_iommu_disabled)
 		return -ENODEV;
 
-	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
-		iommu_detected = 1;
-		amd_iommu_detected = 1;
-		x86_init.iommu.iommu_init = amd_iommu_init;
+	if (!detect_ivrs())
+		return -ENODEV;
 
-		/* Make sure ACS will be enabled */
-		pci_request_acs();
-		return 1;
-	}
-	return -ENODEV;
+	amd_iommu_detected = true;
+	iommu_detected = 1;
+	x86_init.iommu.iommu_init = amd_iommu_init;
+
+	/* Make sure ACS will be enabled */
+	pci_request_acs();
+
+	return 0;
 }
 
 /****************************************************************************
