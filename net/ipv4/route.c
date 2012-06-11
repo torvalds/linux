@@ -1333,11 +1333,12 @@ void rt_bind_peer(struct rtable *rt, __be32 daddr, int create)
 		return;
 
 	peer = inet_getpeer_v4(base, daddr, create);
-
-	if (!rt_set_peer(rt, peer))
-		inet_putpeer(peer);
-	else
-		rt->rt_peer_genid = rt_peer_genid();
+	if (peer) {
+		if (!rt_set_peer(rt, peer))
+			inet_putpeer(peer);
+		else
+			rt->rt_peer_genid = rt_peer_genid();
+	}
 }
 
 /*

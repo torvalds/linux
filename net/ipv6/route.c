@@ -313,10 +313,12 @@ void rt6_bind_peer(struct rt6_info *rt, int create)
 		return;
 
 	peer = inet_getpeer_v6(base, &rt->rt6i_dst.addr, create);
-	if (!rt6_set_peer(rt, peer))
-		inet_putpeer(peer);
-	else
-		rt->rt6i_peer_genid = rt6_peer_genid();
+	if (peer) {
+		if (!rt6_set_peer(rt, peer))
+			inet_putpeer(peer);
+		else
+			rt->rt6i_peer_genid = rt6_peer_genid();
+	}
 }
 
 static void ip6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,

@@ -104,7 +104,7 @@ static inline bool inetpeer_ptr_set_peer(unsigned long *ptr, struct inet_peer *p
 	unsigned long val = (unsigned long) peer;
 	unsigned long orig = *ptr;
 
-	if (!(orig & INETPEER_BASE_BIT) || !val ||
+	if (!(orig & INETPEER_BASE_BIT) ||
 	    cmpxchg(ptr, orig, val) != orig)
 		return false;
 	return true;
