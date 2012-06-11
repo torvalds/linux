@@ -206,3 +206,13 @@ config SND_PXA2XX_SOC_IMOTE2
        help
          Say Y if you want to add support for SoC audio on the
 	 IMote 2.
+
+config SND_MMP_SOC_BROWNSTONE
+	tristate "SoC Audio support for Marvell Brownstone"
+	depends on SND_MMP_SOC && MACH_BROWNSTONE
+	select SND_MMP_SOC_SSPA
+	select MFD_WM8994
+	select SND_SOC_WM8994
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  Marvell Brownstone reference platform.
