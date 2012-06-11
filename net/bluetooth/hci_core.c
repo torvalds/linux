@@ -1366,11 +1366,19 @@ int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr)
 }
 
 /* HCI command timer function */
-static void hci_cmd_timer(unsigned long arg)
+static void hci_cmd_timeout(unsigned long arg)
 {
 	struct hci_dev *hdev = (void *) arg;
 
-	BT_ERR("%s command tx timeout", hdev->name);
+	if (hdev->sent_cmd) {
+		struct hci_command_hdr *sent = (void *) hdev->sent_cmd->data;
+		u16 opcode = __le16_to_cpu(sent->opcode);
+
+		BT_ERR("%s command 0x%4.4x tx timeout", hdev->name, opcode);
+	} else {
+		BT_ERR("%s command tx timeout", hdev->name);
+	}
+
 	atomic_set(&hdev->cmd_cnt, 1);
 	queue_work(hdev->workqueue, &hdev->cmd_work);
 }
@@ -1668,7 +1676,7 @@ struct hci_dev *hci_alloc_dev(void)
 
 	init_waitqueue_head(&hdev->req_wait_q);
 
-	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
+	setup_timer(&hdev->cmd_timer, hci_cmd_timeout, (unsigned long) hdev);
 
 	hci_init_sysfs(hdev);
 	discovery_init(hdev);
