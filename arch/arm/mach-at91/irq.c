@@ -36,6 +36,7 @@
 #include <asm/irq.h>
 #include <asm/setup.h>
 
+#include <asm/exception.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
@@ -44,6 +45,24 @@ void __iomem *at91_aic_base;
 static struct irq_domain *at91_aic_domain;
 static struct device_node *at91_aic_np;
 static unsigned int *at91_aic_irq_priorities;
+
+asmlinkage void __exception_irq_entry at91_aic_handle_irq(struct pt_regs *regs)
+{
+	u32 irqnr;
+	u32 irqstat;
+
+	irqnr = at91_aic_read(AT91_AIC_IVR);
+	irqstat = at91_aic_read(AT91_AIC_ISR);
+
+	/*
+	 * ISR value is 0 when there is no current interrupt or when there is
+	 * a spurious interrupt
+	 */
+	if (!irqstat)
+		at91_aic_write(AT91_AIC_EOICR, 0);
+	else
+		handle_IRQ(irqnr, regs);
+}
 
 static void at91_aic_mask_irq(struct irq_data *d)
 {

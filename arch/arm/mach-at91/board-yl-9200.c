@@ -44,6 +44,7 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
 #include <mach/cpu.h>
@@ -590,6 +591,7 @@ MACHINE_START(YL9200, "uCdragon YL-9200")
 	/* Maintainer: S.Birtles */
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= yl9200_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= yl9200_board_init,

@@ -65,4 +65,6 @@ extern void __iomem *at91_aic_base;
 #define AT91_AIC_FFDR		0x144			/* Fast Forcing Disable Register [SAM9 only] */
 #define AT91_AIC_FFSR		0x148			/* Fast Forcing Status Register [SAM9 only] */
 
+void at91_aic_handle_irq(struct pt_regs *regs);
+
 #endif
