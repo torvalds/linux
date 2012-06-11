@@ -379,7 +379,6 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 		ieee80211_recalc_idle(local);
 
 		ieee80211_start_next_roc(local);
-		ieee80211_run_deferred_scan(local);
 	}
 
  out_unlock:
@@ -409,9 +408,6 @@ static void ieee80211_hw_roc_done(struct work_struct *work)
 
 	/* if there's another roc, start it now */
 	ieee80211_start_next_roc(local);
-
-	/* or scan maybe */
-	ieee80211_run_deferred_scan(local);
 
  out_unlock:
 	mutex_unlock(&local->mtx);
@@ -455,7 +451,6 @@ void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata)
 	}
 
 	ieee80211_start_next_roc(local);
-	ieee80211_run_deferred_scan(local);
 	mutex_unlock(&local->mtx);
 
 	list_for_each_entry_safe(roc, tmp, &tmp_list, list) {

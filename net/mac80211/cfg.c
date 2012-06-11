@@ -2330,7 +2330,6 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 
 		list_del(&found->list);
 
-		ieee80211_run_deferred_scan(local);
 		ieee80211_start_next_roc(local);
 		mutex_unlock(&local->mtx);
 
