@@ -196,6 +196,7 @@ static int wm8994_suspend(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
 	int ret;
+	int gpio_regs[WM8994_NUM_GPIO_REGS];
 
 	/* Don't actually go through with the suspend if the CODEC is
 	 * still active (eg, for audio passthrough from CP. */
@@ -277,11 +278,23 @@ static int wm8994_suspend(struct device *dev)
 				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
 				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD);
 
+	/* Save GPIO registers before reset */
+	regmap_bulk_read(wm8994->regmap, WM8994_GPIO_1, gpio_regs,
+			 WM8994_NUM_GPIO_REGS);
+
 	/* Explicitly put the device into reset in case regulators
 	 * don't get disabled in order to ensure consistent restart.
 	 */
 	wm8994_reg_write(wm8994, WM8994_SOFTWARE_RESET,
 			 wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET));
+
+	/* Restore GPIO registers to prevent problems with mismatched
+	 * pin configurations.
+	 */
+	ret = regmap_bulk_write(wm8994->regmap, WM8994_GPIO_1, gpio_regs,
+				WM8994_NUM_GPIO_REGS);
+	if (ret != 0)
+		dev_err(dev, "Failed to restore GPIO registers: %d\n", ret);
 
 	regcache_cache_only(wm8994->regmap, true);
 	regcache_mark_dirty(wm8994->regmap);
