@@ -504,13 +504,6 @@ void ceph_destroy_client(struct ceph_client *client)
 	/* unmount */
 	ceph_osdc_stop(&client->osdc);
 
-	/*
-	 * make sure osd connections close out before destroying the
-	 * auth module, which is needed to free those connections'
-	 * ceph_authorizers.
-	 */
-	ceph_msgr_flush();
-
 	ceph_monc_stop(&client->monc);
 
 	ceph_debugfs_client_cleanup(client);
