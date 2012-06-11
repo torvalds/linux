@@ -75,6 +75,7 @@ struct recent_entry {
 struct recent_table {
 	struct list_head	list;
 	char			name[XT_RECENT_NAME_LEN];
+	union nf_inet_addr	mask;
 	unsigned int		refcnt;
 	unsigned int		entries;
 	struct list_head	lru_list;
@@ -228,10 +229,10 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	struct recent_net *recent_net = recent_pernet(net);
-	const struct xt_recent_mtinfo *info = par->matchinfo;
+	const struct xt_recent_mtinfo_v1 *info = par->matchinfo;
 	struct recent_table *t;
 	struct recent_entry *e;
-	union nf_inet_addr addr = {};
+	union nf_inet_addr addr = {}, addr_mask;
 	u_int8_t ttl;
 	bool ret = info->invert;
 
@@ -261,12 +262,15 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	spin_lock_bh(&recent_lock);
 	t = recent_table_lookup(recent_net, info->name);
-	e = recent_entry_lookup(t, &addr, par->family,
+
+	nf_inet_addr_mask(&addr, &addr_mask, &t->mask);
+
+	e = recent_entry_lookup(t, &addr_mask, par->family,
 				(info->check_set & XT_RECENT_TTL) ? ttl : 0);
 	if (e == NULL) {
 		if (!(info->check_set & XT_RECENT_SET))
 			goto out;
-		e = recent_entry_init(t, &addr, par->family, ttl);
+		e = recent_entry_init(t, &addr_mask, par->family, ttl);
 		if (e == NULL)
 			par->hotdrop = true;
 		ret = !ret;
@@ -306,10 +310,10 @@ out:
 	return ret;
 }
 
-static int recent_mt_check(const struct xt_mtchk_param *par)
+static int recent_mt_check(const struct xt_mtchk_param *par,
+			   const struct xt_recent_mtinfo_v1 *info)
 {
 	struct recent_net *recent_net = recent_pernet(par->net);
-	const struct xt_recent_mtinfo *info = par->matchinfo;
 	struct recent_table *t;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *pde;
@@ -361,6 +365,8 @@ static int recent_mt_check(const struct xt_mtchk_param *par)
 		goto out;
 	}
 	t->refcnt = 1;
+
+	memcpy(&t->mask, &info->mask, sizeof(t->mask));
 	strcpy(t->name, info->name);
 	INIT_LIST_HEAD(&t->lru_list);
 	for (i = 0; i < ip_list_hash_size; i++)
@@ -385,10 +391,28 @@ out:
 	return ret;
 }
 
+static int recent_mt_check_v0(const struct xt_mtchk_param *par)
+{
+	const struct xt_recent_mtinfo_v0 *info_v0 = par->matchinfo;
+	struct xt_recent_mtinfo_v1 info_v1;
+
+	/* Copy revision 0 structure to revision 1 */
+	memcpy(&info_v1, info_v0, sizeof(struct xt_recent_mtinfo));
+	/* Set default mask to ensure backward compatible behaviour */
+	memset(info_v1.mask.all, 0xFF, sizeof(info_v1.mask.all));
+
+	return recent_mt_check(par, &info_v1);
+}
+
+static int recent_mt_check_v1(const struct xt_mtchk_param *par)
+{
+	return recent_mt_check(par, par->matchinfo);
+}
+
 static void recent_mt_destroy(const struct xt_mtdtor_param *par)
 {
 	struct recent_net *recent_net = recent_pernet(par->net);
-	const struct xt_recent_mtinfo *info = par->matchinfo;
+	const struct xt_recent_mtinfo_v1 *info = par->matchinfo;
 	struct recent_table *t;
 
 	mutex_lock(&recent_mutex);
@@ -625,7 +649,7 @@ static struct xt_match recent_mt_reg[] __read_mostly = {
 		.family     = NFPROTO_IPV4,
 		.match      = recent_mt,
 		.matchsize  = sizeof(struct xt_recent_mtinfo),
-		.checkentry = recent_mt_check,
+		.checkentry = recent_mt_check_v0,
 		.destroy    = recent_mt_destroy,
 		.me         = THIS_MODULE,
 	},
@@ -635,10 +659,30 @@ static struct xt_match recent_mt_reg[] __read_mostly = {
 		.family     = NFPROTO_IPV6,
 		.match      = recent_mt,
 		.matchsize  = sizeof(struct xt_recent_mtinfo),
-		.checkentry = recent_mt_check,
+		.checkentry = recent_mt_check_v0,
 		.destroy    = recent_mt_destroy,
 		.me         = THIS_MODULE,
 	},
+	{
+		.name       = "recent",
+		.revision   = 1,
+		.family     = NFPROTO_IPV4,
+		.match      = recent_mt,
+		.matchsize  = sizeof(struct xt_recent_mtinfo_v1),
+		.checkentry = recent_mt_check_v1,
+		.destroy    = recent_mt_destroy,
+		.me         = THIS_MODULE,
+	},
+	{
+		.name       = "recent",
+		.revision   = 1,
+		.family     = NFPROTO_IPV6,
+		.match      = recent_mt,
+		.matchsize  = sizeof(struct xt_recent_mtinfo_v1),
+		.checkentry = recent_mt_check_v1,
+		.destroy    = recent_mt_destroy,
+		.me         = THIS_MODULE,
+	}
 };
 
 static int __init recent_mt_init(void)

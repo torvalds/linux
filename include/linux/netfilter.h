@@ -94,6 +94,16 @@ static inline int nf_inet_addr_cmp(const union nf_inet_addr *a1,
 	       a1->all[3] == a2->all[3];
 }
 
+static inline void nf_inet_addr_mask(const union nf_inet_addr *a1,
+				     union nf_inet_addr *result,
+				     const union nf_inet_addr *mask)
+{
+	result->all[0] = a1->all[0] & mask->all[0];
+	result->all[1] = a1->all[1] & mask->all[1];
+	result->all[2] = a1->all[2] & mask->all[2];
+	result->all[3] = a1->all[3] & mask->all[3];
+}
+
 extern void netfilter_init(void);
 
 /* Largest hook number + 1 */
