@@ -3023,7 +3023,7 @@ static int __init db8500_prcmu_init(void)
 	return platform_driver_register(&db8500_prcmu_driver);
 }
 
-arch_initcall(db8500_prcmu_init);
+core_initcall(db8500_prcmu_init);
 
 MODULE_AUTHOR("Mattias Nilsson <mattias.i.nilsson@stericsson.com>");
 MODULE_DESCRIPTION("DB8500 PRCM Unit driver");
