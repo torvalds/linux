@@ -5,8 +5,8 @@
  * it under the terms of the GNU General Public License version 2, as
  * published by the Free Software Foundation.
  */
-#ifndef __PLAT_I2C_H
-#define __PLAT_I2C_H
+#ifndef __PDATA_I2C_NOMADIK_H
+#define __PDATA_I2C_NOMADIK_H
 
 enum i2c_freq_mode {
 	I2C_FREQ_MODE_STANDARD,		/* up to 100 Kb/s */
@@ -36,4 +36,4 @@ struct nmk_i2c_controller {
 	enum i2c_freq_mode	sm;
 };
 
-#endif	/* __PLAT_I2C_H */
+#endif	/* __PDATA_I2C_NOMADIK_H */

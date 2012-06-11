@@ -23,8 +23,7 @@
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
-
-#include <plat/i2c.h>
+#include <linux/platform_data/i2c-nomadik.h>
 
 #define DRIVER_NAME "nmk-i2c"
 
