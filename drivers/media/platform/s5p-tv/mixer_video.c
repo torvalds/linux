@@ -11,6 +11,8 @@
  * or (at your option) any later version
  */
 
+#define pr_fmt(fmt) "s5p-tv (mixer): " fmt
+
 #include "mixer.h"
 
 #include <media/v4l2-ioctl.h>
@@ -1053,7 +1055,7 @@ void mxr_base_layer_release(struct mxr_layer *layer)
 
 static void mxr_vfd_release(struct video_device *vdev)
 {
-	printk(KERN_INFO "video device release\n");
+	pr_info("video device release\n");
 }
 
 struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,

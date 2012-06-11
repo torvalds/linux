@@ -461,10 +461,10 @@ static struct platform_driver mxr_driver __refdata = {
 static int __init mxr_init(void)
 {
 	int i, ret;
-	static const char banner[] __initconst = KERN_INFO
+	static const char banner[] __initconst =
 		"Samsung TV Mixer driver, "
 		"(c) 2010-2011 Samsung Electronics Co., Ltd.\n";
-	printk(banner);
+	pr_info("%s\n", banner);
 
 	/* Loading auxiliary modules */
 	for (i = 0; i < ARRAY_SIZE(mxr_output_conf); ++i)
@@ -472,7 +472,7 @@ static int __init mxr_init(void)
 
 	ret = platform_driver_register(&mxr_driver);
 	if (ret != 0) {
-		printk(KERN_ERR "registration of MIXER driver failed\n");
+		pr_err("s5p-tv: registration of MIXER driver failed\n");
 		return -ENXIO;
 	}
 

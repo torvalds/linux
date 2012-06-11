@@ -11,6 +11,8 @@
  * or (at your option) any later version
  */
 
+#define pr_fmt(fmt) "s5p-tv (hdmi_drv): " fmt
+
 #ifdef CONFIG_VIDEO_SAMSUNG_S5P_HDMI_DEBUG
 #define DEBUG
 #endif
@@ -161,12 +163,12 @@ static irqreturn_t hdmi_irq_handler(int irq, void *dev_data)
 	intc_flag = hdmi_read(hdev, HDMI_INTC_FLAG);
 	/* clearing flags for HPD plug/unplug */
 	if (intc_flag & HDMI_INTC_FLAG_HPD_UNPLUG) {
-		printk(KERN_INFO "unplugged\n");
+		pr_info("unplugged\n");
 		hdmi_write_mask(hdev, HDMI_INTC_FLAG, ~0,
 			HDMI_INTC_FLAG_HPD_UNPLUG);
 	}
 	if (intc_flag & HDMI_INTC_FLAG_HPD_PLUG) {
-		printk(KERN_INFO "plugged\n");
+		pr_info("plugged\n");
 		hdmi_write_mask(hdev, HDMI_INTC_FLAG, ~0,
 			HDMI_INTC_FLAG_HPD_PLUG);
 	}
