@@ -2305,6 +2305,21 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
+		struct ieee80211_roc_work *dep, *tmp2;
+
+		list_for_each_entry_safe(dep, tmp2, &roc->dependents, list) {
+			if (!mgmt_tx && (unsigned long)dep != cookie)
+				continue;
+			else if (mgmt_tx && dep->mgmt_tx_cookie != cookie)
+				continue;
+			/* found dependent item -- just remove it */
+			list_del(&dep->list);
+			mutex_unlock(&local->mtx);
+
+			ieee80211_roc_notify_destroy(dep);
+			return 0;
+		}
+
 		if (!mgmt_tx && (unsigned long)roc != cookie)
 			continue;
 		else if (mgmt_tx && roc->mgmt_tx_cookie != cookie)
@@ -2318,6 +2333,13 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 		mutex_unlock(&local->mtx);
 		return -ENOENT;
 	}
+
+	/*
+	 * We found the item to cancel, so do that. Note that it
+	 * may have dependents, which we also cancel (and send
+	 * the expired signal for.) Not doing so would be quite
+	 * tricky here, but we may need to fix it later.
+	 */
 
 	if (local->ops->remain_on_channel) {
 		if (found->started) {
