@@ -435,8 +435,7 @@ static int aac_src_ioremap(struct aac_dev *dev, u32 size)
 	dev->base = NULL;
 	if (dev->regs.src.bar1 == NULL)
 		return -1;
-	dev->base = dev->regs.src.bar0 = ioremap(dev->scsi_host_ptr->base,
-				size);
+	dev->base = dev->regs.src.bar0 = ioremap(dev->base_start, size);
 	if (dev->base == NULL) {
 		iounmap(dev->regs.src.bar1);
 		dev->regs.src.bar1 = NULL;
@@ -459,7 +458,7 @@ static int aac_srcv_ioremap(struct aac_dev *dev, u32 size)
 		dev->base = dev->regs.src.bar0 = NULL;
 		return 0;
 	}
-	dev->base = dev->regs.src.bar0 = ioremap(dev->scsi_host_ptr->base, size);
+	dev->base = dev->regs.src.bar0 = ioremap(dev->base_start, size);
 	if (dev->base == NULL)
 		return -1;
 	dev->IndexRegs = &((struct src_registers __iomem *)
@@ -764,7 +763,7 @@ int aac_srcv_init(struct aac_dev *dev)
 			name, instance);
 		goto error_iounmap;
 	}
-	dev->dbg_base = dev->scsi_host_ptr->base;
+	dev->dbg_base = dev->base_start;
 	dev->dbg_base_mapped = dev->base;
 	dev->dbg_size = dev->base_size;
 

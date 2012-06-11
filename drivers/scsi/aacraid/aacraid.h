@@ -1052,10 +1052,11 @@ struct aac_dev
 	struct adapter_ops	a_ops;
 	unsigned long		fsrev;		/* Main driver's revision number */
 
-	unsigned long		dbg_base;	/* address of UART
+	resource_size_t		base_start;	/* main IO base */
+	resource_size_t		dbg_base;	/* address of UART
 						 * debug buffer */
 
-	unsigned		base_size, dbg_size;	/* Size of
+	resource_size_t		base_size, dbg_size;	/* Size of
 							 *  mapped in region */
 
 	struct aac_init		*init;		/* Holds initialization info to communicate with adapter */
