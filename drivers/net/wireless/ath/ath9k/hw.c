@@ -1348,6 +1348,9 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 		}
 	}
 
+	if (ath9k_hw_mci_is_enabled(ah))
+		ar9003_mci_state(ah, MCI_STATE_CHECK_GPM_OFFSET, NULL);
+
 	REG_WRITE(ah, AR_RTC_RC, rst_flags);
 
 	REGWRITE_BUFFER_FLUSH(ah);

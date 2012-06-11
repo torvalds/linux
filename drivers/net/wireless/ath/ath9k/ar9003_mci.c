@@ -893,6 +893,9 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		udelay(100);
 	}
 
+	/* Check pending GPM msg before MCI Reset Rx */
+	ar9003_mci_state(ah, MCI_STATE_CHECK_GPM_OFFSET, NULL);
+
 	regval |= SM(1, AR_MCI_COMMAND2_RESET_RX);
 	REG_WRITE(ah, AR_MCI_COMMAND2, regval);
 	udelay(1);
@@ -1189,6 +1192,21 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 	case MCI_STATE_INIT_GPM_OFFSET:
 		value = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
 		mci->gpm_idx = value;
+		break;
+	case MCI_STATE_CHECK_GPM_OFFSET:
+		/*
+		 * This should only be called before "MAC Warm Reset" or
+		 * "MCI Reset Rx".
+		 */
+		value = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+		if (mci->gpm_idx == value)
+			break;
+		ath_dbg(common, MCI,
+			"GPM cached write pointer mismatch %d %d\n",
+			mci->gpm_idx, value);
+		mci->query_bt = true;
+		mci->need_flush_btinfo = true;
+		mci->gpm_idx = 0;
 		break;
 	case MCI_STATE_NEXT_GPM_OFFSET:
 	case MCI_STATE_LAST_GPM_OFFSET:
