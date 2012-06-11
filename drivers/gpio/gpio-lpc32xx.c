@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-lpc32xx/gpiolib.c
+ * GPIO driver for LPC32xx SoC
  *
  * Author: Kevin Wells <kevin.wells@nxp.com>
  *
@@ -456,13 +456,6 @@ static struct lpc32xx_gpio_chip lpc32xx_gpiochip[] = {
 		.gpio_grp = &gpio_grp_regs_p3,
 	},
 };
-
-/* Empty now, can be removed later when mach-lpc32xx is finally switched over
- * to DT support
- */
-void __init lpc32xx_gpio_init(void)
-{
-}
 
 static int lpc32xx_of_xlate(struct gpio_chip *gc,
 			    const struct of_phandle_args *gpiospec, u32 *flags)
