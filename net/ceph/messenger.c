@@ -907,21 +907,23 @@ static void out_msg_pos_next(struct ceph_connection *con, struct page *page,
 
 	con->out_msg_pos.data_pos += sent;
 	con->out_msg_pos.page_pos += sent;
-	if (sent == len) {
-		con->out_msg_pos.page_pos = 0;
-		con->out_msg_pos.page++;
-		con->out_msg_pos.did_page_crc = false;
-		if (in_trail)
-			list_move_tail(&page->lru,
-				       &msg->trail->head);
-		else if (msg->pagelist)
-			list_move_tail(&page->lru,
-				       &msg->pagelist->head);
+	if (sent < len)
+		return;
+
+	BUG_ON(sent != len);
+	con->out_msg_pos.page_pos = 0;
+	con->out_msg_pos.page++;
+	con->out_msg_pos.did_page_crc = false;
+	if (in_trail)
+		list_move_tail(&page->lru,
+			       &msg->trail->head);
+	else if (msg->pagelist)
+		list_move_tail(&page->lru,
+			       &msg->pagelist->head);
 #ifdef CONFIG_BLOCK
-		else if (msg->bio)
-			iter_bio_next(&msg->bio_iter, &msg->bio_seg);
+	else if (msg->bio)
+		iter_bio_next(&msg->bio_iter, &msg->bio_seg);
 #endif
-	}
 }
 
 /*
@@ -940,30 +942,31 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 	int ret;
 	int total_max_write;
 	bool in_trail = false;
-	size_t trail_len = (msg->trail ? msg->trail->length : 0);
+	const size_t trail_len = (msg->trail ? msg->trail->length : 0);
+	const size_t trail_off = data_len - trail_len;
 
 	dout("write_partial_msg_pages %p msg %p page %d/%d offset %d\n",
 	     con, msg, con->out_msg_pos.page, msg->nr_pages,
 	     con->out_msg_pos.page_pos);
 
+	/*
+	 * Iterate through each page that contains data to be
+	 * written, and send as much as possible for each.
+	 *
+	 * If we are calculating the data crc (the default), we will
+	 * need to map the page.  If we have no pages, they have
+	 * been revoked, so use the zero page.
+	 */
 	while (data_len > con->out_msg_pos.data_pos) {
 		struct page *page = NULL;
 		int max_write = PAGE_SIZE;
 		int bio_offset = 0;
 
-		total_max_write = data_len - trail_len -
-			con->out_msg_pos.data_pos;
+		in_trail = in_trail || con->out_msg_pos.data_pos >= trail_off;
+		if (!in_trail)
+			total_max_write = trail_off - con->out_msg_pos.data_pos;
 
-		/*
-		 * if we are calculating the data crc (the default), we need
-		 * to map the page.  if our pages[] has been revoked, use the
-		 * zero page.
-		 */
-
-		/* have we reached the trail part of the data? */
-		if (con->out_msg_pos.data_pos >= data_len - trail_len) {
-			in_trail = true;
-
+		if (in_trail) {
 			total_max_write = data_len - con->out_msg_pos.data_pos;
 
 			page = list_first_entry(&msg->trail->head,
@@ -990,14 +993,13 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 
 		if (do_datacrc && !con->out_msg_pos.did_page_crc) {
 			void *base;
-			u32 crc;
-			u32 tmpcrc = le32_to_cpu(msg->footer.data_crc);
+			u32 crc = le32_to_cpu(msg->footer.data_crc);
 			char *kaddr;
 
 			kaddr = kmap(page);
 			BUG_ON(kaddr == NULL);
 			base = kaddr + con->out_msg_pos.page_pos + bio_offset;
-			crc = crc32c(tmpcrc, base, len);
+			crc = crc32c(crc, base, len);
 			msg->footer.data_crc = cpu_to_le32(crc);
 			con->out_msg_pos.did_page_crc = true;
 		}
@@ -1701,9 +1703,6 @@ static int read_partial_message_bio(struct ceph_connection *con,
 	struct bio_vec *bv = bio_iovec_idx(*bio_iter, *bio_seg);
 	void *p;
 	int ret, left;
-
-	if (IS_ERR(bv))
-		return PTR_ERR(bv);
 
 	left = min((int)(data_len - con->in_msg_pos.data_pos),
 		   (int)(bv->bv_len - con->in_msg_pos.page_pos));
