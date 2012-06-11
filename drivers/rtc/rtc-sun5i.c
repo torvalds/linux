@@ -18,7 +18,7 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #define DRV_VERSION "0.4.3"
 
 /*控制方式寄存器*/

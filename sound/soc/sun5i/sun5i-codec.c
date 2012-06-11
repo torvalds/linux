@@ -32,7 +32,7 @@
 #include <linux/clk.h>
 #include <linux/timer.h>
 #include "sun5i-codec.h"
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/system.h>
 
 #define SCRIPT_AUDIO_OK (0)

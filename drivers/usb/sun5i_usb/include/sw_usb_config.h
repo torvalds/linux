@@ -37,7 +37,7 @@
 #include  "sun5i_usb_bsp.h"
 #include  "sun5i_sys_reg.h"
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include  "sw_usb_board.h"
 #include  "sw_udc.h"
