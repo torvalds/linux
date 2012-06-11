@@ -261,7 +261,7 @@ static struct snd_pcm_ops ux500_pcm_ops = {
 	.hw_params	= ux500_pcm_hw_params,
 	.hw_free	= ux500_pcm_hw_free,
 	.trigger	= snd_dmaengine_pcm_trigger,
-	.pointer	= snd_dmaengine_pcm_pointer,
+	.pointer	= snd_dmaengine_pcm_pointer_no_residue,
 	.mmap		= ux500_pcm_mmap
 };
 

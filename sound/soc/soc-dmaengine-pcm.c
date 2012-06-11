@@ -200,18 +200,18 @@ int snd_dmaengine_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_trigger);
 
 /**
- * snd_dmaengine_pcm_pointer - dmaengine based PCM pointer implementation
+ * snd_dmaengine_pcm_pointer_no_residue - dmaengine based PCM pointer implementation
  * @substream: PCM substream
  *
- * This function can be used as the PCM pointer callback for dmaengine based PCM
- * driver implementations.
+ * This function is deprecated and should not be used by new drivers, as its
+ * results may be unreliable.
  */
-snd_pcm_uframes_t snd_dmaengine_pcm_pointer(struct snd_pcm_substream *substream)
+snd_pcm_uframes_t snd_dmaengine_pcm_pointer_no_residue(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 	return bytes_to_frames(substream->runtime, prtd->pos);
 }
-EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer);
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer_no_residue);
 
 static int dmaengine_pcm_request_channel(struct dmaengine_pcm_runtime_data *prtd,
 	dma_filter_fn filter_fn, void *filter_data)
