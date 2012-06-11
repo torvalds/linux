@@ -1611,7 +1611,7 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	dc.handle = cpu_to_le16(conn->handle);
-	dc.reason = 0x13; /* Remote User Terminated Connection */
+	dc.reason = HCI_ERROR_REMOTE_USER_TERM;
 
 	err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
 	if (err < 0)
