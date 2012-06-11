@@ -2644,21 +2644,6 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 		goto err;
 	}
 
-	wm8996->disable_nb[0].notifier_call = wm8996_regulator_event_0;
-	wm8996->disable_nb[1].notifier_call = wm8996_regulator_event_1;
-	wm8996->disable_nb[2].notifier_call = wm8996_regulator_event_2;
-
-	/* This should really be moved into the regulator core */
-	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++) {
-		ret = regulator_register_notifier(wm8996->supplies[i].consumer,
-						  &wm8996->disable_nb[i]);
-		if (ret != 0) {
-			dev_err(codec->dev,
-				"Failed to register regulator notifier: %d\n",
-				ret);
-		}
-	}
-
 	/* Apply platform data settings */
 	snd_soc_update_bits(codec, WM8996_LINE_INPUT_CONTROL,
 			    WM8996_INL_MODE_MASK | WM8996_INR_MODE_MASK,
@@ -2858,19 +2843,13 @@ err:
 
 static int wm8996_remove(struct snd_soc_codec *codec)
 {
-	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
-	int i;
 
 	snd_soc_update_bits(codec, WM8996_INTERRUPT_CONTROL,
 			    WM8996_IM_IRQ, WM8996_IM_IRQ);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, codec);
-
-	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
-		regulator_unregister_notifier(wm8996->supplies[i].consumer,
-					      &wm8996->disable_nb[i]);
 
 	return 0;
 }
@@ -2985,6 +2964,21 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 		goto err_gpio;
 	}
 
+	wm8996->disable_nb[0].notifier_call = wm8996_regulator_event_0;
+	wm8996->disable_nb[1].notifier_call = wm8996_regulator_event_1;
+	wm8996->disable_nb[2].notifier_call = wm8996_regulator_event_2;
+
+	/* This should really be moved into the regulator core */
+	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++) {
+		ret = regulator_register_notifier(wm8996->supplies[i].consumer,
+						  &wm8996->disable_nb[i]);
+		if (ret != 0) {
+			dev_err(&i2c->dev,
+				"Failed to register regulator notifier: %d\n",
+				ret);
+		}
+	}
+
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8996->supplies),
 				    wm8996->supplies);
 	if (ret != 0) {
@@ -3062,6 +3056,7 @@ err:
 static __devexit int wm8996_i2c_remove(struct i2c_client *client)
 {
 	struct wm8996_priv *wm8996 = i2c_get_clientdata(client);
+	int i;
 
 	snd_soc_unregister_codec(&client->dev);
 	wm8996_free_gpio(wm8996);
@@ -3069,6 +3064,10 @@ static __devexit int wm8996_i2c_remove(struct i2c_client *client)
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
 		gpio_free(wm8996->pdata.ldo_ena);
 	}
+	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
+		regulator_unregister_notifier(wm8996->supplies[i].consumer,
+					      &wm8996->disable_nb[i]);
+
 	return 0;
 }
 
