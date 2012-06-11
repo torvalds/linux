@@ -1603,7 +1603,7 @@ static int tcpv4_init_net(struct net *net)
 #ifdef CONFIG_SYSCTL
 	if (!pn->ctl_table) {
 #else
-	if (!pn->user++) {
+	if (!pn->users++) {
 #endif
 		for (i = 0; i < TCP_CONNTRACK_TIMEOUT_MAX; i++)
 			tn->timeouts[i] = tcp_timeouts[i];
@@ -1640,7 +1640,7 @@ static int tcpv6_init_net(struct net *net)
 #ifdef CONFIG_SYSCTL
 	if (!pn->ctl_table) {
 #else
-	if (!pn->user++) {
+	if (!pn->users++) {
 #endif
 		for (i = 0; i < TCP_CONNTRACK_TIMEOUT_MAX; i++)
 			tn->timeouts[i] = tcp_timeouts[i];

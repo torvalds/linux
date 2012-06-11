@@ -276,7 +276,7 @@ static void udp_init_net_data(struct nf_udp_net *un)
 #ifdef CONFIG_SYSCTL
 	if (!un->pn.ctl_table) {
 #else
-	if (!un->pn.user++) {
+	if (!un->pn.users++) {
 #endif
 		for (i = 0; i < UDP_CT_MAX; i++)
 			un->timeouts[i] = udp_timeouts[i];
