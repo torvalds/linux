@@ -992,7 +992,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pdev->dev, "request_threaded_irq failure. irq = %d\n",
 		       pdev->irq);
-		goto unmap_memory;
+		goto disable_msi;
 	}
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	if (mei_hw_init(dev)) {
@@ -1023,8 +1023,8 @@ release_irq:
 	mei_disable_interrupts(dev);
 	flush_scheduled_work();
 	free_irq(pdev->irq, dev);
+disable_msi:
 	pci_disable_msi(pdev);
-unmap_memory:
 	pci_iounmap(pdev, dev->mem_addr);
 free_device:
 	kfree(dev);
