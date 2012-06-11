@@ -269,7 +269,7 @@ struct mx3fb_info {
 	dma_cookie_t			cookie;
 	struct scatterlist		sg[2];
 
-	u32				sync;	/* preserve var->sync flags */
+	struct fb_var_screeninfo	cur_var; /* current var info */
 };
 
 static void mx3fb_dma_done(void *);
@@ -700,7 +700,7 @@ static void mx3fb_dma_done(void *arg)
 
 static int __set_par(struct fb_info *fbi, bool lock)
 {
-	u32 mem_len;
+	u32 mem_len, cur_xoffset, cur_yoffset;
 	struct ipu_di_signal_cfg sig_cfg;
 	enum ipu_panel mode = IPU_PANEL_TFT;
 	struct mx3fb_info *mx3_fbi = fbi->par;
@@ -780,8 +780,25 @@ static int __set_par(struct fb_info *fbi, bool lock)
 	video->out_height	= fbi->var.yres;
 	video->out_stride	= fbi->var.xres_virtual;
 
-	if (mx3_fbi->blank == FB_BLANK_UNBLANK)
+	if (mx3_fbi->blank == FB_BLANK_UNBLANK) {
 		sdc_enable_channel(mx3_fbi);
+		/*
+		 * sg[0] points to fb smem_start address
+		 * and is actually active in controller.
+		 */
+		mx3_fbi->cur_var.xoffset = 0;
+		mx3_fbi->cur_var.yoffset = 0;
+	}
+
+	/*
+	 * Preserve xoffset and yoffest in case they are
+	 * inactive in controller as fb is blanked.
+	 */
+	cur_xoffset = mx3_fbi->cur_var.xoffset;
+	cur_yoffset = mx3_fbi->cur_var.yoffset;
+	mx3_fbi->cur_var = fbi->var;
+	mx3_fbi->cur_var.xoffset = cur_xoffset;
+	mx3_fbi->cur_var.yoffset = cur_yoffset;
 
 	return 0;
 }
@@ -901,8 +918,8 @@ static int mx3fb_check_var(struct fb_var_screeninfo *var, struct fb_info *fbi)
 	var->grayscale = 0;
 
 	/* Preserve sync flags */
-	var->sync |= mx3_fbi->sync;
-	mx3_fbi->sync |= var->sync;
+	var->sync |= mx3_fbi->cur_var.sync;
+	mx3_fbi->cur_var.sync |= var->sync;
 
 	return 0;
 }
@@ -1043,8 +1060,8 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	if (fbi->var.xoffset == var->xoffset &&
-	    fbi->var.yoffset == var->yoffset)
+	if (mx3_fbi->cur_var.xoffset == var->xoffset &&
+	    mx3_fbi->cur_var.yoffset == var->yoffset)
 		return 0;	/* No change, do nothing */
 
 	y_bottom = var->yoffset;
@@ -1126,6 +1143,8 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 		fbi->var.vmode |= FB_VMODE_YWRAP;
 	else
 		fbi->var.vmode &= ~FB_VMODE_YWRAP;
+
+	mx3_fbi->cur_var = fbi->var;
 
 	mutex_unlock(&mx3_fbi->mutex);
 
