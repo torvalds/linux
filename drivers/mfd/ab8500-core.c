@@ -1494,7 +1494,7 @@ static void __exit ab8500_core_exit(void)
 {
 	platform_driver_unregister(&ab8500_core_driver);
 }
-arch_initcall(ab8500_core_init);
+core_initcall(ab8500_core_init);
 module_exit(ab8500_core_exit);
 
 MODULE_AUTHOR("Mattias Wallin, Srinidhi Kasagar, Rabin Vincent");
