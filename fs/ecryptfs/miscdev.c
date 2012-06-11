@@ -49,7 +49,10 @@ ecryptfs_miscdev_poll(struct file *file, poll_table *pt)
 	mutex_lock(&ecryptfs_daemon_hash_mux);
 	/* TODO: Just use file->private_data? */
 	rc = ecryptfs_find_daemon_by_euid(&daemon, euid, current_user_ns());
-	BUG_ON(rc || !daemon);
+	if (rc || !daemon) {
+		mutex_unlock(&ecryptfs_daemon_hash_mux);
+		return -EINVAL;
+	}
 	mutex_lock(&daemon->mux);
 	mutex_unlock(&ecryptfs_daemon_hash_mux);
 	if (daemon->flags & ECRYPTFS_DAEMON_ZOMBIE) {
@@ -122,6 +125,7 @@ ecryptfs_miscdev_open(struct inode *inode, struct file *file)
 		goto out_unlock_daemon;
 	}
 	daemon->flags |= ECRYPTFS_DAEMON_MISCDEV_OPEN;
+	file->private_data = daemon;
 	atomic_inc(&ecryptfs_num_miscdev_opens);
 out_unlock_daemon:
 	mutex_unlock(&daemon->mux);
@@ -152,9 +156,9 @@ ecryptfs_miscdev_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
 	rc = ecryptfs_find_daemon_by_euid(&daemon, euid, current_user_ns());
-	BUG_ON(rc || !daemon);
+	if (rc || !daemon)
+		daemon = file->private_data;
 	mutex_lock(&daemon->mux);
-	BUG_ON(daemon->pid != task_pid(current));
 	BUG_ON(!(daemon->flags & ECRYPTFS_DAEMON_MISCDEV_OPEN));
 	daemon->flags &= ~ECRYPTFS_DAEMON_MISCDEV_OPEN;
 	atomic_dec(&ecryptfs_num_miscdev_opens);
@@ -246,8 +250,16 @@ ecryptfs_miscdev_read(struct file *file, char __user *buf, size_t count,
 	mutex_lock(&ecryptfs_daemon_hash_mux);
 	/* TODO: Just use file->private_data? */
 	rc = ecryptfs_find_daemon_by_euid(&daemon, euid, current_user_ns());
-	BUG_ON(rc || !daemon);
+	if (rc || !daemon) {
+		mutex_unlock(&ecryptfs_daemon_hash_mux);
+		return -EINVAL;
+	}
 	mutex_lock(&daemon->mux);
+	if (task_pid(current) != daemon->pid) {
+		mutex_unlock(&daemon->mux);
+		mutex_unlock(&ecryptfs_daemon_hash_mux);
+		return -EPERM;
+	}
 	if (daemon->flags & ECRYPTFS_DAEMON_ZOMBIE) {
 		rc = 0;
 		mutex_unlock(&ecryptfs_daemon_hash_mux);
@@ -284,9 +296,6 @@ check_list:
 		 * message from the queue; try again */
 		goto check_list;
 	}
-	BUG_ON(euid != daemon->euid);
-	BUG_ON(current_user_ns() != daemon->user_ns);
-	BUG_ON(task_pid(current) != daemon->pid);
 	msg_ctx = list_first_entry(&daemon->msg_ctx_out_queue,
 				   struct ecryptfs_msg_ctx, daemon_out_list);
 	BUG_ON(!msg_ctx);
