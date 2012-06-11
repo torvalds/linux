@@ -50,4 +50,56 @@ extern void cpuquiet_remove_group(struct attribute_group *attrs);
 int cpuquiet_kobject_init(struct kobject *kobj, struct kobj_type *type,
 				char *name);
 extern unsigned int nr_cluster_ids;
+
+/* Sysfs support */
+struct cpuquiet_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct cpuquiet_attribute *attr, char *buf);
+	ssize_t (*store)(struct cpuquiet_attribute *attr, const char *buf,
+				size_t count);
+	/* Optional. Called after store is called */
+	void (*store_callback)(struct cpuquiet_attribute *attr);
+	void *param;
+};
+
+#define CPQ_ATTRIBUTE(_name, _mode, _type, _callback) \
+	static struct cpuquiet_attribute _name ## _attr = {		\
+		.attr = {.name = __stringify(_name), .mode = _mode },	\
+		.show = show_ ## _type ## _attribute,			\
+		.store = store_ ## _type ## _attribute,			\
+		.store_callback = _callback,				\
+		.param = &_name,					\
+}
+
+#define CPQ_BASIC_ATTRIBUTE(_name, _mode, _type)			\
+	CPQ_ATTRIBUTE(_name, _mode, _type, NULL)
+
+#define CPQ_ATTRIBUTE_CUSTOM(_name, _mode, _show, _store) \
+	static struct cpuquiet_attribute _name ## _attr = {		\
+		.attr = {.name = __stringify(_name), .mode = _mode },	\
+		.show = _show,						\
+		.store = _store						\
+		.store_callback = NULL,					\
+		.param = &_name,					\
+}
+
+
+extern ssize_t show_int_attribute(struct cpuquiet_attribute *cattr, char *buf);
+extern ssize_t store_int_attribute(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count);
+extern ssize_t show_bool_attribute(struct cpuquiet_attribute *cattr, char *buf);
+extern ssize_t store_bool_attribute(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count);
+extern ssize_t store_uint_attribute(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count);
+extern ssize_t show_uint_attribute(struct cpuquiet_attribute *cattr, char *buf);
+extern ssize_t store_ulong_attribute(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count);
+extern ssize_t show_ulong_attribute(struct cpuquiet_attribute *cattr,
+					char *buf);
+extern ssize_t cpuquiet_auto_sysfs_show(struct kobject *kobj,
+					struct attribute *attr, char *buf);
+extern ssize_t cpuquiet_auto_sysfs_store(struct kobject *kobj,
+					struct attribute *attr, const char *buf,
+					size_t count);
 #endif

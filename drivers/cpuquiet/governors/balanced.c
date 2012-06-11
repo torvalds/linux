@@ -55,30 +55,15 @@ static DEFINE_PER_CPU(unsigned int, cpu_load);
 
 static struct timer_list load_timer;
 static bool load_timer_active;
-struct balanced_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct balanced_attribute *attr, char *buf);
-	ssize_t (*store)(struct balanced_attribute *attr, const char *buf,
-				size_t count);
-	unsigned long *param;
-};
-
-#define BALANCED_ATTRIBUTE(_name, _mode) \
-	static struct balanced_attribute _name ## _attr = {		\
-		.attr = {.name = __stringify(_name), .mode = _mode },	\
-		.show	= show_attribute,				\
-		.store	= store_attribute,				\
-		.param	= &_name,					\
-}
 
 /* configurable parameters */
-static unsigned long balance_level = 60;
-static unsigned long idle_bottom_freq;
-static unsigned long idle_top_freq;
+static unsigned int  balance_level = 60;
+static unsigned int  idle_bottom_freq;
+static unsigned int  idle_top_freq;
 static unsigned long up_delay;
 static unsigned long down_delay;
 static unsigned long last_change_time;
-static unsigned long load_sample_rate = 20; // msec
+static unsigned int  load_sample_rate = 20; /* msec */
 static struct workqueue_struct *balanced_wq;
 static struct delayed_work balanced_work;
 static BALANCED_STATE balanced_state;
@@ -339,53 +324,22 @@ static struct notifier_block balanced_cpufreq_nb = {
 	.notifier_call = balanced_cpufreq_transition,
 };
 
-static ssize_t show_attribute(struct balanced_attribute *battr, char *buf)
+static void delay_callback(struct cpuquiet_attribute *attr)
 {
-	return sprintf(buf, "%lu\n", *(battr->param));
-}
-
-static ssize_t store_attribute(struct balanced_attribute *battr,
-					const char *buf, size_t count)
-{
-	int err;
 	unsigned long val;
 
-	err = strict_strtoul(buf, 0, &val);
-	if (err < 0)
-		return err;
-
-	*(battr->param) = val;
-
-	return count;
+	if (attr) {
+		val = (*((unsigned long *)(attr->param)));
+		(*((unsigned long *)(attr->param))) = msecs_to_jiffies(val);
+	}
 }
 
-static ssize_t balanced_sysfs_store(struct kobject *kobj,
-			struct attribute *attr, const char *buf, size_t count)
-{
-	struct balanced_attribute *battr =
-		 container_of(attr, struct balanced_attribute, attr);
-
-	if (battr->store)
-		return battr->store(battr, buf, count);
-
-	return -EINVAL;
-}
-
-static ssize_t balanced_sysfs_show(struct kobject *kobj,
-			struct attribute *attr, char *buf)
-{
-	struct balanced_attribute *battr =
-		 container_of(attr, struct balanced_attribute, attr);
-
-	return battr->show(battr, buf);
-}
-
-BALANCED_ATTRIBUTE(balance_level, 0644);
-BALANCED_ATTRIBUTE(idle_bottom_freq, 0644);
-BALANCED_ATTRIBUTE(idle_top_freq, 0644);
-BALANCED_ATTRIBUTE(up_delay, 0644);
-BALANCED_ATTRIBUTE(down_delay, 0644);
-BALANCED_ATTRIBUTE(load_sample_rate, 0644);
+CPQ_BASIC_ATTRIBUTE(balance_level, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(idle_bottom_freq, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(idle_top_freq, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(load_sample_rate, 0644, uint);
+CPQ_ATTRIBUTE(up_delay, 0644, ulong, delay_callback);
+CPQ_ATTRIBUTE(down_delay, 0644, ulong, delay_callback);
 
 static struct attribute *balanced_attributes[] = {
 	&balance_level_attr.attr,
@@ -397,8 +351,8 @@ static struct attribute *balanced_attributes[] = {
 };
 
 static const struct sysfs_ops balanced_sysfs_ops = {
-	.show = balanced_sysfs_show,
-	.store = balanced_sysfs_store,
+	.show = cpuquiet_auto_sysfs_show,
+	.store = cpuquiet_auto_sysfs_store,
 };
 
 static struct kobj_type ktype_balanced = {
@@ -427,7 +381,6 @@ static int balanced_sysfs(void)
 
 static void balanced_stop(void)
 {
-
 	/*
 	   first unregister the notifiers. This ensures the governor state
 	   can't be modified by a cpufreq transition
@@ -465,8 +418,7 @@ static int balanced_start(void)
 	down_delay = msecs_to_jiffies(500);
 
 	table = cpufreq_frequency_get_table(0);
-	for (count = 0; table[count].frequency != CPUFREQ_TABLE_END; count++)
-		;
+	for (count = 0; table[count].frequency != CPUFREQ_TABLE_END; count++);
 
 	idle_top_freq = table[(count / 2) - 1].frequency;
 	idle_bottom_freq = table[(count / 2) - 2].frequency;
