@@ -394,7 +394,7 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	SET_NETDEV_DEV(dev, &intf->dev);
 
 	pnd->dev = dev;
-	pnd->usb = usb_get_dev(usbdev);
+	pnd->usb = usbdev;
 	pnd->intf = intf;
 	pnd->data_intf = data_intf;
 	spin_lock_init(&pnd->tx_lock);
@@ -440,7 +440,6 @@ out:
 static void usbpn_disconnect(struct usb_interface *intf)
 {
 	struct usbpn_dev *pnd = usb_get_intfdata(intf);
-	struct usb_device *usb = pnd->usb;
 
 	if (pnd->disconnected)
 		return;
@@ -449,7 +448,6 @@ static void usbpn_disconnect(struct usb_interface *intf)
 	usb_driver_release_interface(&usbpn_driver,
 			(pnd->intf == intf) ? pnd->data_intf : pnd->intf);
 	unregister_netdev(pnd->dev);
-	usb_put_dev(usb);
 }
 
 static struct usb_driver usbpn_driver = {
