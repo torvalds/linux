@@ -365,7 +365,7 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	switch (win_data->pixel_format) {
 	case DRM_FORMAT_NV12MT:
 		tiled_mode = true;
-	case DRM_FORMAT_NV12M:
+	case DRM_FORMAT_NV12:
 		crcb_mode = false;
 		buf_num = 2;
 		break;
@@ -601,17 +601,19 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	mixer_reg_write(res, MXR_BG_COLOR2, 0x008080);
 
 	/* setting graphical layers */
-
 	val  = MXR_GRP_CFG_COLOR_KEY_DISABLE; /* no blank key */
 	val |= MXR_GRP_CFG_WIN_BLEND_EN;
+	val |= MXR_GRP_CFG_BLEND_PRE_MUL;
+	val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
 	val |= MXR_GRP_CFG_ALPHA_VAL(0xff); /* non-transparent alpha */
 
 	/* the same configuration for both layers */
 	mixer_reg_write(res, MXR_GRAPHIC_CFG(0), val);
-
-	val |= MXR_GRP_CFG_BLEND_PRE_MUL;
-	val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
 	mixer_reg_write(res, MXR_GRAPHIC_CFG(1), val);
+
+	/* setting video layers */
+	val = MXR_GRP_CFG_ALPHA_VAL(0);
+	mixer_reg_write(res, MXR_VIDEO_CFG, val);
 
 	/* configuration of Video Processor Registers */
 	vp_win_reset(ctx);

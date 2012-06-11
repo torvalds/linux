@@ -940,8 +940,6 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 		uresp.db_rq_offset = OCRDMA_DB_RQ_OFFSET;
 		uresp.db_shift = 16;
 	}
-	uresp.free_wqe_delta = qp->sq.free_delta;
-	uresp.free_rqe_delta = qp->rq.free_delta;
 
 	if (qp->dpp_enabled) {
 		uresp.dpp_credit = dpp_credit_lmt;
@@ -1307,8 +1305,6 @@ static int ocrdma_hwq_free_cnt(struct ocrdma_qp_hwq_info *q)
 		free_cnt = (q->max_cnt - q->head) + q->tail;
 	else
 		free_cnt = q->tail - q->head;
-	if (q->free_delta)
-		free_cnt -= q->free_delta;
 	return free_cnt;
 }
 
@@ -1501,7 +1497,6 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_srq *srq, struct ib_udata *udata)
 	    (srq->pd->id * srq->dev->nic_info.db_page_size);
 	uresp.db_page_size = srq->dev->nic_info.db_page_size;
 	uresp.num_rqe_allocated = srq->rq.max_cnt;
-	uresp.free_rqe_delta = 1;
 	if (srq->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
 		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ1_OFFSET;
 		uresp.db_shift = 24;

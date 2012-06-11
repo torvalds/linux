@@ -210,6 +210,14 @@
 #define MI_DISPLAY_FLIP		MI_INSTR(0x14, 2)
 #define MI_DISPLAY_FLIP_I915	MI_INSTR(0x14, 1)
 #define   MI_DISPLAY_FLIP_PLANE(n) ((n) << 20)
+/* IVB has funny definitions for which plane to flip. */
+#define   MI_DISPLAY_FLIP_IVB_PLANE_A  (0 << 19)
+#define   MI_DISPLAY_FLIP_IVB_PLANE_B  (1 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_A (2 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
+#define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
+
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)
@@ -3313,7 +3321,7 @@
 
 /* PCH */
 
-/* south display engine interrupt */
+/* south display engine interrupt: IBX */
 #define SDE_AUDIO_POWER_D	(1 << 27)
 #define SDE_AUDIO_POWER_C	(1 << 26)
 #define SDE_AUDIO_POWER_B	(1 << 25)
@@ -3349,15 +3357,44 @@
 #define SDE_TRANSA_CRC_ERR	(1 << 1)
 #define SDE_TRANSA_FIFO_UNDER	(1 << 0)
 #define SDE_TRANS_MASK		(0x3f)
-/* CPT */
-#define SDE_CRT_HOTPLUG_CPT	(1 << 19)
+
+/* south display engine interrupt: CPT/PPT */
+#define SDE_AUDIO_POWER_D_CPT	(1 << 31)
+#define SDE_AUDIO_POWER_C_CPT	(1 << 30)
+#define SDE_AUDIO_POWER_B_CPT	(1 << 29)
+#define SDE_AUDIO_POWER_SHIFT_CPT   29
+#define SDE_AUDIO_POWER_MASK_CPT    (7 << 29)
+#define SDE_AUXD_CPT		(1 << 27)
+#define SDE_AUXC_CPT		(1 << 26)
+#define SDE_AUXB_CPT		(1 << 25)
+#define SDE_AUX_MASK_CPT	(7 << 25)
 #define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
 #define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
 #define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
+#define SDE_CRT_HOTPLUG_CPT	(1 << 19)
 #define SDE_HOTPLUG_MASK_CPT	(SDE_CRT_HOTPLUG_CPT |		\
 				 SDE_PORTD_HOTPLUG_CPT |	\
 				 SDE_PORTC_HOTPLUG_CPT |	\
 				 SDE_PORTB_HOTPLUG_CPT)
+#define SDE_GMBUS_CPT		(1 << 17)
+#define SDE_AUDIO_CP_REQ_C_CPT	(1 << 10)
+#define SDE_AUDIO_CP_CHG_C_CPT	(1 << 9)
+#define SDE_FDI_RXC_CPT		(1 << 8)
+#define SDE_AUDIO_CP_REQ_B_CPT	(1 << 6)
+#define SDE_AUDIO_CP_CHG_B_CPT	(1 << 5)
+#define SDE_FDI_RXB_CPT		(1 << 4)
+#define SDE_AUDIO_CP_REQ_A_CPT	(1 << 2)
+#define SDE_AUDIO_CP_CHG_A_CPT	(1 << 1)
+#define SDE_FDI_RXA_CPT		(1 << 0)
+#define SDE_AUDIO_CP_REQ_CPT	(SDE_AUDIO_CP_REQ_C_CPT | \
+				 SDE_AUDIO_CP_REQ_B_CPT | \
+				 SDE_AUDIO_CP_REQ_A_CPT)
+#define SDE_AUDIO_CP_CHG_CPT	(SDE_AUDIO_CP_CHG_C_CPT | \
+				 SDE_AUDIO_CP_CHG_B_CPT | \
+				 SDE_AUDIO_CP_CHG_A_CPT)
+#define SDE_FDI_MASK_CPT	(SDE_FDI_RXC_CPT | \
+				 SDE_FDI_RXB_CPT | \
+				 SDE_FDI_RXA_CPT)
 
 #define SDEISR  0xc4000
 #define SDEIMR  0xc4004
