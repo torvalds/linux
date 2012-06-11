@@ -49,7 +49,7 @@
 #include <mach/irqs.h>
 
 #include  <mach/clock.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include  "sw_hci_sun5i.h"
 
