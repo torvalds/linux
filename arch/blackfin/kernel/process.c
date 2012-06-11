@@ -173,7 +173,7 @@ asmlinkage int bfin_clone(struct pt_regs *regs)
 	unsigned long newsp;
 
 #ifdef __ARCH_SYNC_CORE_DCACHE
-	if (current->rt.nr_cpus_allowed == num_possible_cpus())
+	if (current->nr_cpus_allowed == num_possible_cpus())
 		set_cpus_allowed_ptr(current, cpumask_of(smp_processor_id()));
 #endif
 

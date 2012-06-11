@@ -26,7 +26,6 @@
  *******************************************************************/
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/idr.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>

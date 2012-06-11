@@ -1077,7 +1077,7 @@ F:	drivers/media/video/s5p-fimc/
 ARM/SAMSUNG S5P SERIES Multi Format Codec (MFC) SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 M:	Kamil Debski <k.debski@samsung.com>
-M:     Jeongtae Park <jtp.park@samsung.com>
+M:	Jeongtae Park <jtp.park@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -1743,10 +1743,10 @@ F:	include/linux/can/platform/
 CAPABILITIES
 M:	Serge Hallyn <serge.hallyn@canonical.com>
 L:	linux-security-module@vger.kernel.org
-S:	Supported	
+S:	Supported
 F:	include/linux/capability.h
 F:	security/capability.c
-F:	security/commoncap.c 
+F:	security/commoncap.c
 F:	kernel/capability.c
 
 CELL BROADBAND ENGINE ARCHITECTURE
@@ -2146,11 +2146,11 @@ S:	Orphan
 F:	drivers/net/wan/pc300*
 
 CYTTSP TOUCHSCREEN DRIVER
-M:      Javier Martinez Canillas <javier@dowhile0.org>
-L:      linux-input@vger.kernel.org
-S:      Maintained
-F:      drivers/input/touchscreen/cyttsp*
-F:      include/linux/input/cyttsp.h
+M:	Javier Martinez Canillas <javier@dowhile0.org>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/input/touchscreen/cyttsp*
+F:	include/linux/input/cyttsp.h
 
 DAMA SLAVE for AX.25
 M:	Joerg Reuter <jreuter@yaina.de>
@@ -2270,7 +2270,7 @@ F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
 
 DIOLAN U2C-12 I2C DRIVER
-M:	Guenter Roeck <guenter.roeck@ericsson.com>
+M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-diolan-u2c.c
@@ -2930,6 +2930,13 @@ F:	Documentation/power/freezing-of-tasks.txt
 F:	include/linux/freezer.h
 F:	kernel/freezer.c
 
+FRONTSWAP API
+M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	mm/frontswap.c
+F:	include/linux/frontswap.h
+
 FS-CACHE: LOCAL CACHING FOR NETWORK FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
 L:	linux-cachefs@redhat.com
@@ -3138,7 +3145,7 @@ F:	drivers/tty/hvc/
 
 HARDWARE MONITORING
 M:	Jean Delvare <khali@linux-fr.org>
-M:	Guenter Roeck <guenter.roeck@ericsson.com>
+M:	Guenter Roeck <linux@roeck-us.net>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
 T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-hwmon/
@@ -4096,6 +4103,8 @@ F:	drivers/scsi/53c700*
 LED SUBSYSTEM
 M:	Bryan Wu <bryan.wu@canonical.com>
 M:	Richard Purdie <rpurdie@rpsys.net>
+L:	linux-leds@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cooloney/linux-leds.git
 S:	Maintained
 F:	drivers/leds/
 F:	include/linux/leds.h
@@ -4410,6 +4419,13 @@ L:	linux-fbdev@vger.kernel.org
 S:	Orphan
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
+
+MAX16065 HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/max16065
+F:	drivers/hwmon/max16065.c
 
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	"Hans J. Koch" <hjk@hansjkoch.de>
@@ -5149,7 +5165,7 @@ F:	drivers/leds/leds-pca9532.c
 F:	include/linux/leds-pca9532.h
 
 PCA9541 I2C BUS MASTER SELECTOR DRIVER
-M:	Guenter Roeck <guenter.roeck@ericsson.com>
+M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/muxes/i2c-mux-pca9541.c
@@ -5169,7 +5185,7 @@ S:	Maintained
 F:	drivers/firmware/pcdp.*
 
 PCI ERROR RECOVERY
-M:     Linas Vepstas <linasvepstas@gmail.com>
+M:	Linas Vepstas <linasvepstas@gmail.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	Documentation/PCI/pci-error-recovery.txt
@@ -5299,7 +5315,7 @@ F:	drivers/video/fb-puv3.c
 F:	drivers/rtc/rtc-puv3.c
 
 PMBUS HARDWARE MONITORING DRIVERS
-M:	Guenter Roeck <guenter.roeck@ericsson.com>
+M:	Guenter Roeck <linux@roeck-us.net>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
 W:	http://www.roeck-us.net/linux/drivers/
@@ -7291,11 +7307,11 @@ F:	Documentation/DocBook/uio-howto.tmpl
 F:	drivers/uio/
 F:	include/linux/uio*.h
 
-UTIL-LINUX-NG PACKAGE
+UTIL-LINUX PACKAGE
 M:	Karel Zak <kzak@redhat.com>
-L:	util-linux-ng@vger.kernel.org
-W:	http://kernel.org/~kzak/util-linux-ng/
-T:	git git://git.kernel.org/pub/scm/utils/util-linux-ng/util-linux-ng.git
+L:	util-linux@vger.kernel.org
+W:	http://en.wikipedia.org/wiki/Util-linux
+T:	git git://git.kernel.org/pub/scm/utils/util-linux/util-linux.git
 S:	Maintained
 
 UVESAFB DRIVER

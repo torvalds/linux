@@ -555,6 +555,8 @@ enum perf_event_type {
 	PERF_RECORD_MAX,			/* non-ABI */
 };
 
+#define PERF_MAX_STACK_DEPTH		127
+
 enum perf_callchain_context {
 	PERF_CONTEXT_HV			= (__u64)-32,
 	PERF_CONTEXT_KERNEL		= (__u64)-128,
@@ -608,8 +610,6 @@ struct perf_guest_info_callbacks {
 #include <linux/atomic.h>
 #include <linux/sysfs.h>
 #include <asm/local.h>
-
-#define PERF_MAX_STACK_DEPTH		255
 
 struct perf_callchain_entry {
 	__u64				nr;

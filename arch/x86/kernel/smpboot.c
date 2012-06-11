@@ -382,6 +382,15 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		if ((i == cpu) || (has_mc && match_llc(c, o)))
 			link_mask(llc_shared, cpu, i);
 
+	}
+
+	/*
+	 * This needs a separate iteration over the cpus because we rely on all
+	 * cpu_sibling_mask links to be set-up.
+	 */
+	for_each_cpu(i, cpu_sibling_setup_mask) {
+		o = &cpu_data(i);
+
 		if ((i == cpu) || (has_mc && match_mc(c, o))) {
 			link_mask(core, cpu, i);
 
@@ -410,15 +419,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 /* maps the cpu to the sched domain representing multi-core */
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	/*
-	 * For perf, we return last level cache shared map.
-	 * And for power savings, we return cpu_core_map
-	 */
-	if (!(cpu_has(c, X86_FEATURE_AMD_DCM)))
-		return cpu_core_mask(cpu);
-	else
-		return cpu_llc_shared_mask(cpu);
+	return cpu_llc_shared_mask(cpu);
 }
 
 static void impress_friends(void)
