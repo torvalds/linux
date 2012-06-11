@@ -5017,6 +5017,12 @@ next:
  */
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 {
+	return btrfs_next_old_leaf(root, path, 0);
+}
+
+int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
+			u64 time_seq)
+{
 	int slot;
 	int level;
 	struct extent_buffer *c;
@@ -5041,7 +5047,10 @@ again:
 	path->keep_locks = 1;
 	path->leave_spinning = 1;
 
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (time_seq)
+		ret = btrfs_search_old_slot(root, &key, path, time_seq);
+	else
+		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	path->keep_locks = 0;
 
 	if (ret < 0)
