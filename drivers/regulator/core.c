@@ -2299,7 +2299,7 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 	if (rdev->desc->ramp_delay && rdev->desc->uV_step)
 		return DIV_ROUND_UP(rdev->desc->uV_step *
 			abs(new_selector - old_selector),
-			rdev->desc->ramp_delay) * 1000;
+			rdev->desc->ramp_delay * 1000);
 	return 0;
 }
 
