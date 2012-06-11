@@ -245,12 +245,7 @@ static void sh_tmu_clock_event_start(struct sh_tmu_priv *p, int periodic)
 
 	sh_tmu_enable(p);
 
-	/* TODO: calculate good shift from rate and counter bit width */
-
-	ced->shift = 32;
-	ced->mult = div_sc(p->rate, NSEC_PER_SEC, ced->shift);
-	ced->max_delta_ns = clockevent_delta2ns(0xffffffff, ced);
-	ced->min_delta_ns = 5000;
+	clockevents_config(ced, p->rate);
 
 	if (periodic) {
 		p->periodic = (p->rate + HZ/2) / HZ;
@@ -323,7 +318,8 @@ static void sh_tmu_register_clockevent(struct sh_tmu_priv *p,
 	ced->set_mode = sh_tmu_clock_event_mode;
 
 	dev_info(&p->pdev->dev, "used for clock events\n");
-	clockevents_register_device(ced);
+
+	clockevents_config_and_register(ced, 1, 0x300, 0xffffffff);
 
 	ret = setup_irq(p->irqaction.irq, &p->irqaction);
 	if (ret) {
