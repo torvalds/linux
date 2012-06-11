@@ -1444,8 +1444,8 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	struct sk_buff *skb = *pskb;
 	struct slave *slave;
 	struct bonding *bond;
-	int (*recv_probe)(struct sk_buff *, struct bonding *,
-				struct slave *);
+	int (*recv_probe)(const struct sk_buff *, struct bonding *,
+			  struct slave *);
 	int ret = RX_HANDLER_ANOTHER;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
@@ -1462,15 +1462,10 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 
 	recv_probe = ACCESS_ONCE(bond->recv_probe);
 	if (recv_probe) {
-		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
-
-		if (likely(nskb)) {
-			ret = recv_probe(nskb, bond, slave);
-			dev_kfree_skb(nskb);
-			if (ret == RX_HANDLER_CONSUMED) {
-				consume_skb(skb);
-				return ret;
-			}
+		ret = recv_probe(skb, bond, slave);
+		if (ret == RX_HANDLER_CONSUMED) {
+			consume_skb(skb);
+			return ret;
 		}
 	}
 
@@ -2737,25 +2732,31 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	}
 }
 
-static int bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
-			 struct slave *slave)
+static int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
+			struct slave *slave)
 {
-	struct arphdr *arp;
+	struct arphdr *arp = (struct arphdr *)skb->data;
 	unsigned char *arp_ptr;
 	__be32 sip, tip;
+	int alen;
 
 	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
 		return RX_HANDLER_ANOTHER;
 
 	read_lock(&bond->lock);
+	alen = arp_hdr_len(bond->dev);
 
 	pr_debug("bond_arp_rcv: bond %s skb->dev %s\n",
 		 bond->dev->name, skb->dev->name);
 
-	if (!pskb_may_pull(skb, arp_hdr_len(bond->dev)))
-		goto out_unlock;
+	if (alen > skb_headlen(skb)) {
+		arp = kmalloc(alen, GFP_ATOMIC);
+		if (!arp)
+			goto out_unlock;
+		if (skb_copy_bits(skb, 0, arp, alen) < 0)
+			goto out_unlock;
+	}
 
-	arp = arp_hdr(skb);
 	if (arp->ar_hln != bond->dev->addr_len ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK ||
@@ -2790,6 +2791,8 @@ static int bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 
 out_unlock:
 	read_unlock(&bond->lock);
+	if (arp != (struct arphdr *)skb->data)
+		kfree(arp);
 	return RX_HANDLER_ANOTHER;
 }
 
