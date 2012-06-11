@@ -682,7 +682,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 		em28xx_cvol_new(card, dev, "Video", AC97_VIDEO_VOL);
 		em28xx_cvol_new(card, dev, "Line In", AC97_LINEIN_VOL);
 		em28xx_cvol_new(card, dev, "Phone", AC97_PHONE_VOL);
-		em28xx_cvol_new(card, dev, "Microphone", AC97_PHONE_VOL);
+		em28xx_cvol_new(card, dev, "Microphone", AC97_MIC_VOL);
 		em28xx_cvol_new(card, dev, "CD", AC97_CD_VOL);
 		em28xx_cvol_new(card, dev, "AUX", AC97_AUX_VOL);
 		em28xx_cvol_new(card, dev, "PCM", AC97_PCM_OUT_VOL);
