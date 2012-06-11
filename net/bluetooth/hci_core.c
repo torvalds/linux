@@ -783,7 +783,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	    test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
 		set_bit(HCI_INIT, &hdev->flags);
 		__hci_request(hdev, hci_reset_req, 0,
-			      msecs_to_jiffies(250));
+			      msecs_to_jiffies(HCI_CMD_TIMEOUT));
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
 
