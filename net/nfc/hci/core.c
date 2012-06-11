@@ -717,11 +717,17 @@ void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev)
 }
 EXPORT_SYMBOL(nfc_hci_get_clientdata);
 
-void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err)
+static void nfc_hci_failure(struct nfc_hci_dev *hdev, int err)
 {
-	/* TODO: lower layer has permanent failure.
+	/*
+	 * TODO: lower layer has permanent failure.
 	 * complete potential HCI command or send an empty tag discovered event
 	 */
+}
+
+void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err)
+{
+	nfc_hci_failure(hdev, err);
 }
 EXPORT_SYMBOL(nfc_hci_driver_failure);
 
@@ -755,9 +761,8 @@ void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 		hcp_skb = nfc_alloc_recv_skb(NFC_HCI_HCP_PACKET_HEADER_LEN +
 					     msg_len, GFP_KERNEL);
 		if (hcp_skb == NULL) {
-			/* TODO ELa: cannot deliver HCP message. How to
-			 * propagate error up?
-			 */
+			nfc_hci_failure(hdev, -ENOMEM);
+			return;
 		}
 
 		*skb_put(hcp_skb, NFC_HCI_HCP_PACKET_HEADER_LEN) = pipe;
