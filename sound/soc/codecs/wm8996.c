@@ -3000,7 +3000,7 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 		msleep(5);
 	}
 
-	wm8996->regmap = regmap_init_i2c(i2c, &wm8996_regmap);
+	wm8996->regmap = devm_regmap_init_i2c(i2c, &wm8996_regmap);
 	if (IS_ERR(wm8996->regmap)) {
 		ret = PTR_ERR(wm8996->regmap);
 		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
@@ -3049,7 +3049,6 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 err_gpiolib:
 	wm8996_free_gpio(wm8996);
 err_regmap:
-	regmap_exit(wm8996->regmap);
 err_enable:
 	if (wm8996->pdata.ldo_ena > 0)
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
@@ -3068,7 +3067,6 @@ static __devexit int wm8996_i2c_remove(struct i2c_client *client)
 
 	snd_soc_unregister_codec(&client->dev);
 	wm8996_free_gpio(wm8996);
-	regmap_exit(wm8996->regmap);
 	if (wm8996->pdata.ldo_ena > 0) {
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
 		gpio_free(wm8996->pdata.ldo_ena);
