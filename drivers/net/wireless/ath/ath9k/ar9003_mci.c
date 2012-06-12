@@ -1191,15 +1191,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 			   AR_MCI_RX_REMOTE_SLEEP) ?
 			MCI_BT_SLEEP : MCI_BT_AWAKE;
 		break;
-	case MCI_STATE_CONT_RSSI_POWER:
-		value = MS(mci->cont_status, AR_MCI_CONT_RSSI_POWER);
-		break;
-	case MCI_STATE_CONT_PRIORITY:
-		value = MS(mci->cont_status, AR_MCI_CONT_RRIORITY);
-		break;
-	case MCI_STATE_CONT_TXRX:
-		value = MS(mci->cont_status, AR_MCI_CONT_TXRX);
-		break;
 	case MCI_STATE_SET_BT_SLEEP:
 		mci->bt_state = MCI_BT_SLEEP;
 		break;

@@ -517,23 +517,17 @@ void ath_mci_intr(struct ath_softc *sc)
 			mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_LNA_INFO;
 
 		if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_CONT_INFO) {
-			int value_dbm = ar9003_mci_state(ah,
-						 MCI_STATE_CONT_RSSI_POWER);
+			int value_dbm = MS(mci_hw->cont_status,
+					   AR_MCI_CONT_RSSI_POWER);
 
 			mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_CONT_INFO;
 
-			if (ar9003_mci_state(ah, MCI_STATE_CONT_TXRX))
-				ath_dbg(common, MCI,
-					"MCI CONT_INFO: (tx) pri = %d, pwr = %d dBm\n",
-					ar9003_mci_state(ah,
-						 MCI_STATE_CONT_PRIORITY),
-					value_dbm);
-			else
-				ath_dbg(common, MCI,
-					"MCI CONT_INFO: (rx) pri = %d,pwr = %d dBm\n",
-					ar9003_mci_state(ah,
-						 MCI_STATE_CONT_PRIORITY),
-					value_dbm);
+			ath_dbg(common, MCI,
+				"MCI CONT_INFO: (%s) pri = %d pwr = %d dBm\n",
+				MS(mci_hw->cont_status, AR_MCI_CONT_TXRX) ?
+				"tx" : "rx",
+				MS(mci_hw->cont_status, AR_MCI_CONT_PRIORITY),
+				value_dbm);
 		}
 
 		if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_CONT_NACK)
