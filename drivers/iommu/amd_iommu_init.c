@@ -1379,7 +1379,7 @@ static void iommu_apply_resume_quirks(struct amd_iommu *iommu)
  * This function finally enables all IOMMUs found in the system after
  * they have been initialized
  */
-static void enable_iommus(void)
+static void early_enable_iommus(void)
 {
 	struct amd_iommu *iommu;
 
@@ -1389,12 +1389,27 @@ static void enable_iommus(void)
 		iommu_set_device_table(iommu);
 		iommu_enable_command_buffer(iommu);
 		iommu_enable_event_buffer(iommu);
-		iommu_enable_ppr_log(iommu);
-		iommu_enable_gt(iommu);
 		iommu_set_exclusion_range(iommu);
 		iommu_enable(iommu);
 		iommu_flush_all_caches(iommu);
 	}
+}
+
+static void enable_iommus_v2(void)
+{
+	struct amd_iommu *iommu;
+
+	for_each_iommu(iommu) {
+		iommu_enable_ppr_log(iommu);
+		iommu_enable_gt(iommu);
+	}
+}
+
+static void enable_iommus(void)
+{
+	early_enable_iommus();
+
+	enable_iommus_v2();
 }
 
 static void disable_iommus(void)
