@@ -2624,6 +2624,7 @@ static int usbdux_attach_common(struct comedi_device *dev,
 {
 	int ret;
 	struct comedi_subdevice *s = NULL;
+	int n_subdevs;
 
 	down(&udev->sem);
 	/* pointer back to the corresponding comedi device */
@@ -2638,14 +2639,14 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	/* set number of subdevices */
 	if (udev->high_speed) {
 		/* with pwm */
-		dev->n_subdevices = 5;
+		n_subdevs = 5;
 	} else {
 		/* without pwm */
-		dev->n_subdevices = 4;
+		n_subdevs = 4;
 	}
 
 	/* allocate space for the subdevices */
-	ret = comedi_alloc_subdevices(dev, dev->n_subdevices);
+	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret < 0) {
 		dev_err(&udev->interface->dev,
 			"comedi%d: error alloc space for subdev\n", dev->minor);

@@ -1093,9 +1093,7 @@ static int ni_660x_attach(struct comedi_device *dev,
 
 	printk(KERN_INFO " %s ", dev->board_name);
 
-	dev->n_subdevices = 2 + NI_660X_MAX_NUM_COUNTERS;
-
-	if (comedi_alloc_subdevices(dev, dev->n_subdevices) < 0)
+	if (comedi_alloc_subdevices(dev, 2 + NI_660X_MAX_NUM_COUNTERS) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

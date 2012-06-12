@@ -2642,6 +2642,7 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	int index;
 	int i;
 	struct usbduxsub *udev;
+	int n_subdevs;
 
 	int offset;
 
@@ -2683,14 +2684,14 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	/* set number of subdevices */
 	if (udev->high_speed) {
 		/* with pwm */
-		dev->n_subdevices = 4;
+		n_subdevs = 4;
 	} else {
 		/* without pwm */
-		dev->n_subdevices = 3;
+		n_subdevs = 3;
 	}
 
 	/* allocate space for the subdevices */
-	ret = comedi_alloc_subdevices(dev, dev->n_subdevices);
+	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret < 0) {
 		dev_err(&udev->interface->dev,
 			"comedi%d: no space for subdev\n", dev->minor);

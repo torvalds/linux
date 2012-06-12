@@ -62,12 +62,12 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 
 	if (num_subdevices < 1)
 		return -EINVAL;
-	dev->n_subdevices = num_subdevices;
 	dev->subdevices =
 	    kcalloc(num_subdevices, sizeof(struct comedi_subdevice),
 		    GFP_KERNEL);
 	if (!dev->subdevices)
 		return -ENOMEM;
+	dev->n_subdevices = num_subdevices;
 	for (i = 0; i < num_subdevices; ++i) {
 		dev->subdevices[i].device = dev;
 		dev->subdevices[i].async_dma_dir = DMA_NONE;
