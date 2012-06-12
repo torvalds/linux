@@ -54,6 +54,7 @@
 #define MSTPSR2		0xe6150040
 #define MSTPSR3		0xe6150048
 #define MSTPSR4		0xe615004c
+#define HDMICKCR	0xe6150094
 #define SMSTPCR0	0xe6150130
 #define SMSTPCR1	0xe6150134
 #define SMSTPCR2	0xe6150138
@@ -313,6 +314,79 @@ static struct clk_div4_table div4_table = {
 	.kick = div4_kick,
 };
 
+/* DIV6 reparent */
+enum {
+	DIV6_HDMI,
+	DIV6_REPARENT_NR,
+};
+
+static struct clk *hdmi_parent[] = {
+	[0] = &pllc1_div2_clk,
+	[1] = &system_clk,
+	[2] = &dv_clk
+};
+
+static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
+	[DIV6_HDMI] = SH_CLK_DIV6_EXT(HDMICKCR, 0,
+				      hdmi_parent, ARRAY_SIZE(hdmi_parent), 6, 2),
+};
+
+/* HDMI1/2 clock */
+static unsigned long hdmi12_recalc(struct clk *clk)
+{
+	u32 val = __raw_readl(HDMICKCR);
+	int shift = (int)clk->priv;
+
+	val >>= shift;
+	val &= 0x3;
+
+	return clk->parent->rate / (1 << val);
+};
+
+static int hdmi12_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 val, mask;
+	int i, shift;
+
+	for (i = 0; i < 3; i++)
+		if (rate == clk->parent->rate / (1 << i))
+			goto find;
+	return -ENODEV;
+
+find:
+	shift = (int)clk->priv;
+
+	val = __raw_readl(HDMICKCR);
+	mask = ~(0x3 << shift);
+	val = (val & mask) | i << shift;
+	__raw_writel(val, HDMICKCR);
+
+	return 0;
+};
+
+static struct sh_clk_ops hdmi12_clk_ops = {
+	.recalc		= hdmi12_recalc,
+	.set_rate	= hdmi12_set_rate,
+};
+
+static struct clk hdmi1_clk = {
+	.ops		= &hdmi12_clk_ops,
+	.priv		= (void *)9,
+	.parent		= &div6_reparent_clks[DIV6_HDMI],  /* late install */
+};
+
+static struct clk hdmi2_clk = {
+	.ops		= &hdmi12_clk_ops,
+	.priv		= (void *)11,
+	.parent		= &div6_reparent_clks[DIV6_HDMI], /* late install */
+};
+
+static struct clk *late_main_clks[] = {
+	&hdmi1_clk,
+	&hdmi2_clk,
+};
+
+/* MSTP */
 enum {
 	DIV4_I, DIV4_ZG, DIV4_B, DIV4_M1, DIV4_HP,
 	DIV4_HPP, DIV4_USBP, DIV4_S, DIV4_ZB, DIV4_M3, DIV4_CP,
@@ -408,6 +482,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pllc1_clk",		&pllc1_clk),
 	CLKDEV_CON_ID("pllc1_div2_clk",		&pllc1_div2_clk),
 	CLKDEV_CON_ID("usb24s",			&usb24s_clk),
+	CLKDEV_CON_ID("hdmi1",			&hdmi1_clk),
+	CLKDEV_CON_ID("hdmi2",			&hdmi2_clk),
 
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("i_clk",			&div4_clks[DIV4_I]),
@@ -459,6 +535,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("phy",	"renesas_usbhs",	&mstp_clks[MSTP406]),
 	CLKDEV_ICK_ID("pci",	"renesas_usbhs",	&div4_clks[DIV4_USBP]),
 	CLKDEV_ICK_ID("usb24",	"renesas_usbhs",	&usb24_clk),
+	CLKDEV_ICK_ID("ick",	"sh-mobile-hdmi",	&div6_reparent_clks[DIV6_HDMI]),
 };
 
 void __init r8a7740_clock_init(u8 md_ck)
@@ -495,7 +572,14 @@ void __init r8a7740_clock_init(u8 md_ck)
 		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
 
 	if (!ret)
+		ret = sh_clk_div6_reparent_register(div6_reparent_clks,
+						    DIV6_REPARENT_NR);
+
+	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
+
+	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
+		ret = clk_register(late_main_clks[k]);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
