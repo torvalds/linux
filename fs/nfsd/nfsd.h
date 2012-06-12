@@ -72,6 +72,8 @@ int		nfsd_nrthreads(void);
 int		nfsd_nrpools(void);
 int		nfsd_get_nrthreads(int n, int *);
 int		nfsd_set_nrthreads(int n, int *);
+int		nfsd_pool_stats_open(struct inode *, struct file *);
+int		nfsd_pool_stats_release(struct inode *, struct file *);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
