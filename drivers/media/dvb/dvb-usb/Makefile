@@ -4,6 +4,8 @@ obj-$(CONFIG_DVB_USB) += dvb-usb.o
 dvb_usbv2-objs = dvb_usb_init.o dvb_usb_urb.o dvb_usb_dvb.o dvb_usb_remote.o usb_urb.o
 obj-$(CONFIG_DVB_USB_V2) += dvb_usbv2.o
 
+obj-$(CONFIG_DVB_USB_FIRMWARE) += dvb_usb_firmware.o
+
 dvb-usb-vp7045-objs = vp7045.o vp7045-fe.o
 obj-$(CONFIG_DVB_USB_VP7045) += dvb-usb-vp7045.o
 
