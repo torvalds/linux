@@ -19,8 +19,8 @@ static int raid6_has_ssse3(void)
 		boot_cpu_has(X86_FEATURE_SSSE3);
 }
 
-void raid6_2data_recov_ssse3(int disks, size_t bytes, int faila, int failb,
-		       void **ptrs)
+static void raid6_2data_recov_ssse3(int disks, size_t bytes, int faila,
+		int failb, void **ptrs)
 {
 	u8 *p, *q, *dp, *dq;
 	const u8 *pbmul;	/* P multiplier table for B data */
@@ -194,7 +194,8 @@ void raid6_2data_recov_ssse3(int disks, size_t bytes, int faila, int failb,
 }
 
 
-void raid6_datap_recov_ssse3(int disks, size_t bytes, int faila, void **ptrs)
+static void raid6_datap_recov_ssse3(int disks, size_t bytes, int faila,
+		void **ptrs)
 {
 	u8 *p, *q, *dq;
 	const u8 *qmul;		/* Q multiplier table */

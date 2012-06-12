@@ -348,7 +348,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
 		       HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */
 		       HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
-		       HDMI0_AUDIO_SEND_MAX_PACKETS | /* send NULL packets if no audio is available */
 		       HDMI0_AUDIO_PACKETS_PER_LINE(3) | /* should be suffient for all audio modes and small enough for all hblanks */
 		       HDMI0_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
 	}
