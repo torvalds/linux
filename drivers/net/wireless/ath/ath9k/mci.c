@@ -312,7 +312,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 		ar9003_mci_set_bt_version(ah, major, minor);
 		break;
 	case MCI_GPM_COEX_STATUS_QUERY:
-		ar9003_mci_state(ah, MCI_STATE_SEND_WLAN_CHANNELS, NULL);
+		ar9003_mci_send_wlan_channels(ah);
 		break;
 	case MCI_GPM_COEX_BT_PROFILE_INFO:
 		memcpy(&profile_info,

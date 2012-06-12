@@ -201,7 +201,6 @@ enum mci_state_type {
 	MCI_STATE_CONT_TXRX,
 	MCI_STATE_RESET_REQ_WAKE,
 	MCI_STATE_SEND_WLAN_COEX_VERSION,
-	MCI_STATE_SEND_WLAN_CHANNELS,
 	MCI_STATE_SEND_VERSION_QUERY,
 	MCI_STATE_SEND_STATUS_QUERY,
 	MCI_STATE_NEED_FLUSH_BT_INFO,
@@ -263,6 +262,7 @@ void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
 u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more);
 void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 minor);
+void ar9003_mci_send_wlan_channels(struct ath_hw *ah);
 /*
  * These functions are used by ath9k_hw.
  */

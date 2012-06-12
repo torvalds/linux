@@ -1238,22 +1238,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 	case MCI_STATE_SEND_WLAN_COEX_VERSION:
 		ar9003_mci_send_coex_version_response(ah, true);
 		break;
-	case MCI_STATE_SEND_WLAN_CHANNELS:
-		if (p_data) {
-			if (((mci->wlan_channels[1] & 0xffff0000) ==
-			     (*(p_data + 1) & 0xffff0000)) &&
-			    (mci->wlan_channels[2] == *(p_data + 2)) &&
-			    (mci->wlan_channels[3] == *(p_data + 3)))
-				break;
-
-			mci->wlan_channels[0] = *p_data++;
-			mci->wlan_channels[1] = *p_data++;
-			mci->wlan_channels[2] = *p_data++;
-			mci->wlan_channels[3] = *p_data++;
-		}
-		mci->wlan_channels_update = true;
-		ar9003_mci_send_coex_wlan_channels(ah, true);
-		break;
 	case MCI_STATE_SEND_VERSION_QUERY:
 		ar9003_mci_send_coex_version_query(ah, true);
 		break;
@@ -1453,3 +1437,12 @@ void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 minor)
 		mci->bt_ver_major, mci->bt_ver_minor);
 }
 EXPORT_SYMBOL(ar9003_mci_set_bt_version);
+
+void ar9003_mci_send_wlan_channels(struct ath_hw *ah)
+{
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	mci->wlan_channels_update = true;
+	ar9003_mci_send_coex_wlan_channels(ah, true);
+}
+EXPORT_SYMBOL(ar9003_mci_send_wlan_channels);
