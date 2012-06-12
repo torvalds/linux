@@ -29,7 +29,7 @@ use IO::Handle;
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
 		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5",
 		"drxk_hauppauge_hvr930c", "tda10071", "it9135", "it9137",
-		"drxk_pctv");
+		"drxk_pctv", "drxk_terratec_htc_stick");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -672,6 +672,24 @@ sub drxk_terratec_h5 {
 
     wgetfile($fwfile, $url . $fwfile);
     verify($fwfile, $hash);
+
+    "$fwfile"
+}
+
+sub drxk_terratec_htc_stick {
+    my $url = "http://ftp.terratec.de/Receiver/Cinergy_HTC_Stick/Updates/";
+    my $zipfile = "Cinergy_HTC_Stick_Drv_5.09.1202.00_XP_Vista_7.exe";
+    my $hash = "6722a2442a05423b781721fbc069ed5e";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
+    my $drvfile = "Cinergy HTC Stick/BDA Driver 5.09.1202.00/Windows 32 Bit/emOEM.sys";
+    my $fwfile = "dvb-usb-terratec-htc-stick-drxk.fw";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 0x4e5c0, 42692, "$fwfile");
 
     "$fwfile"
 }
