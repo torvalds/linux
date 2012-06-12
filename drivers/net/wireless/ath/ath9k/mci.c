@@ -199,16 +199,16 @@ static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 
 	switch (opcode) {
 	case MCI_GPM_BT_CAL_REQ:
-		if (ar9003_mci_state(ah, MCI_STATE_BT, NULL) == MCI_BT_AWAKE) {
-			ar9003_mci_state(ah, MCI_STATE_SET_BT_CAL_START, NULL);
+		if (ar9003_mci_state(ah, MCI_STATE_BT) == MCI_BT_AWAKE) {
+			ar9003_mci_state(ah, MCI_STATE_SET_BT_CAL_START);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		} else {
 			ath_dbg(common, MCI, "MCI State mismatch: %d\n",
-				ar9003_mci_state(ah, MCI_STATE_BT, NULL));
+				ar9003_mci_state(ah, MCI_STATE_BT));
 		}
 		break;
 	case MCI_GPM_BT_CAL_DONE:
-		ar9003_mci_state(ah, MCI_STATE_BT, NULL);
+		ar9003_mci_state(ah, MCI_STATE_BT);
 		break;
 	case MCI_GPM_BT_CAL_GRANT:
 		MCI_GPM_SET_CAL_TYPE(payload, MCI_GPM_WLAN_CAL_DONE);
@@ -304,7 +304,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 
 	switch (opcode) {
 	case MCI_GPM_COEX_VERSION_QUERY:
-		ar9003_mci_state(ah, MCI_STATE_SEND_WLAN_COEX_VERSION, NULL);
+		ar9003_mci_state(ah, MCI_STATE_SEND_WLAN_COEX_VERSION);
 		break;
 	case MCI_GPM_COEX_VERSION_RESPONSE:
 		major = *(rx_payload + MCI_GPM_COEX_B_MAJOR_VERSION);
@@ -415,7 +415,7 @@ void ath_mci_intr(struct ath_softc *sc)
 
 	ar9003_mci_get_interrupt(sc->sc_ah, &mci_int, &mci_int_rxmsg);
 
-	if (ar9003_mci_state(ah, MCI_STATE_ENABLE, NULL) == 0) {
+	if (ar9003_mci_state(ah, MCI_STATE_ENABLE) == 0) {
 		ar9003_mci_get_next_gpm_offset(ah, true, NULL);
 		return;
 	}
@@ -435,46 +435,41 @@ void ath_mci_intr(struct ath_softc *sc)
 					NULL, 0, true, false);
 
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_REQ_WAKE;
-		ar9003_mci_state(ah, MCI_STATE_RESET_REQ_WAKE, NULL);
+		ar9003_mci_state(ah, MCI_STATE_RESET_REQ_WAKE);
 
 		/*
 		 * always do this for recovery and 2G/5G toggling and LNA_TRANS
 		 */
-		ar9003_mci_state(ah, MCI_STATE_SET_BT_AWAKE, NULL);
+		ar9003_mci_state(ah, MCI_STATE_SET_BT_AWAKE);
 	}
 
 	if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_SYS_WAKING) {
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_SYS_WAKING;
 
-		if (ar9003_mci_state(ah, MCI_STATE_BT, NULL) == MCI_BT_SLEEP) {
-			if (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP, NULL) !=
-			    MCI_BT_SLEEP)
-				ar9003_mci_state(ah, MCI_STATE_SET_BT_AWAKE,
-						 NULL);
-		}
+		if ((ar9003_mci_state(ah, MCI_STATE_BT) == MCI_BT_SLEEP) &&
+		    (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP) !=
+		     MCI_BT_SLEEP))
+			ar9003_mci_state(ah, MCI_STATE_SET_BT_AWAKE);
 	}
 
 	if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_SYS_SLEEPING) {
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_SYS_SLEEPING;
 
-		if (ar9003_mci_state(ah, MCI_STATE_BT, NULL) == MCI_BT_AWAKE) {
-			if (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP, NULL) !=
-			    MCI_BT_AWAKE)
-				ar9003_mci_state(ah, MCI_STATE_SET_BT_SLEEP,
-						 NULL);
-		}
+		if ((ar9003_mci_state(ah, MCI_STATE_BT) == MCI_BT_AWAKE) &&
+		    (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP) !=
+		     MCI_BT_AWAKE))
+			ar9003_mci_state(ah, MCI_STATE_SET_BT_SLEEP);
 	}
 
 	if ((mci_int & AR_MCI_INTERRUPT_RX_INVALID_HDR) ||
 	    (mci_int & AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT)) {
-		ar9003_mci_state(ah, MCI_STATE_RECOVER_RX, NULL);
+		ar9003_mci_state(ah, MCI_STATE_RECOVER_RX);
 		skip_gpm = true;
 	}
 
 	if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_SCHD_INFO) {
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_SCHD_INFO;
-		offset = ar9003_mci_state(ah, MCI_STATE_LAST_SCHD_MSG_OFFSET,
-					  NULL);
+		offset = ar9003_mci_state(ah, MCI_STATE_LAST_SCHD_MSG_OFFSET);
 	}
 
 	if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_GPM) {
@@ -526,21 +521,21 @@ void ath_mci_intr(struct ath_softc *sc)
 
 		if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_CONT_INFO) {
 			int value_dbm = ar9003_mci_state(ah,
-						 MCI_STATE_CONT_RSSI_POWER, NULL);
+						 MCI_STATE_CONT_RSSI_POWER);
 
 			mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_CONT_INFO;
 
-			if (ar9003_mci_state(ah, MCI_STATE_CONT_TXRX, NULL))
+			if (ar9003_mci_state(ah, MCI_STATE_CONT_TXRX))
 				ath_dbg(common, MCI,
 					"MCI CONT_INFO: (tx) pri = %d, pwr = %d dBm\n",
 					ar9003_mci_state(ah,
-						 MCI_STATE_CONT_PRIORITY, NULL),
+						 MCI_STATE_CONT_PRIORITY),
 					value_dbm);
 			else
 				ath_dbg(common, MCI,
 					"MCI CONT_INFO: (rx) pri = %d,pwr = %d dBm\n",
 					ar9003_mci_state(ah,
-						 MCI_STATE_CONT_PRIORITY, NULL),
+						 MCI_STATE_CONT_PRIORITY),
 					value_dbm);
 		}
 

@@ -253,7 +253,7 @@ enum mci_gpm_coex_opcode {
 bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 			     u32 *payload, u8 len, bool wait_done,
 			     bool check_bt);
-u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data);
+u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type);
 void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 		      u16 len, u32 sched_addr);
 void ar9003_mci_cleanup(struct ath_hw *ah);

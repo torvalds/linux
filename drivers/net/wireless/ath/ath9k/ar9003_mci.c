@@ -321,7 +321,7 @@ void ar9003_mci_set_full_sleep(struct ath_hw *ah)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
-	if (ar9003_mci_state(ah, MCI_STATE_ENABLE, NULL) &&
+	if (ar9003_mci_state(ah, MCI_STATE_ENABLE) &&
 	    (mci->bt_state != MCI_BT_SLEEP) &&
 	    !mci->halted_bt_gpm) {
 		ar9003_mci_send_coex_halt_bt_gpm(ah, true, true);
@@ -484,7 +484,7 @@ static void ar9003_mci_sync_bt_state(struct ath_hw *ah)
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 cur_bt_state;
 
-	cur_bt_state = ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP, NULL);
+	cur_bt_state = ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP);
 
 	if (mci->bt_state != cur_bt_state)
 		mci->bt_state = cur_bt_state;
@@ -1164,7 +1164,7 @@ void ar9003_mci_cleanup(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ar9003_mci_cleanup);
 
-u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
+u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 value = 0;
