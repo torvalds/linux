@@ -37,6 +37,19 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
+static void
+assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
+{
+	struct drm_device *dev = intel_hdmi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t enabled_bits;
+
+	enabled_bits = IS_HASWELL(dev) ? DDI_BUF_CTL_ENABLE : SDVO_ENABLE;
+
+	WARN(I915_READ(intel_hdmi->sdvox_reg) & enabled_bits,
+	     "HDMI port enabled, expecting disabled\n");
+}
+
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_hdmi, base.base);
@@ -334,6 +347,8 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 	u32 val = I915_READ(reg);
 	u32 port;
 
+	assert_hdmi_port_disabled(intel_hdmi);
+
 	/* If the registers were not initialized yet, they might be zeroes,
 	 * which means we're selecting the AVI DIP and we're setting its
 	 * frequency to once. This seems to really confuse the HW and make
@@ -395,6 +410,8 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 	u32 val = I915_READ(reg);
 	u32 port;
 
+	assert_hdmi_port_disabled(intel_hdmi);
+
 	/* See the big comment in g4x_set_infoframes() */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
 
@@ -451,6 +468,8 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 	u32 reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
 
+	assert_hdmi_port_disabled(intel_hdmi);
+
 	/* See the big comment in g4x_set_infoframes() */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
 
@@ -484,6 +503,8 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 	u32 reg = VLV_TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
 
+	assert_hdmi_port_disabled(intel_hdmi);
+
 	/* See the big comment in g4x_set_infoframes() */
 	val |= VIDEO_DIP_SELECT_AVI | VIDEO_DIP_FREQ_VSYNC;
 
@@ -515,6 +536,8 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 reg = HSW_TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
+
+	assert_hdmi_port_disabled(intel_hdmi);
 
 	if (!intel_hdmi->has_hdmi_sink) {
 		I915_WRITE(reg, 0);
