@@ -501,6 +501,9 @@ struct amd_iommu {
 	/* IOMMUv2 */
 	bool is_iommu_v2;
 
+	/* PCI device id of the IOMMU device */
+	u16 devid;
+
 	/*
 	 * Capability pointer. There could be more than one IOMMU per PCI
 	 * device function if there are more than one AMD IOMMU capability
@@ -530,8 +533,6 @@ struct amd_iommu {
 	u32 evt_buf_size;
 	/* event buffer virtual address */
 	u8 *evt_buf;
-	/* MSI number for event interrupt */
-	u16 evt_msi_num;
 
 	/* Base of the PPR log, if present */
 	u8 *ppr_log;
