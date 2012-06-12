@@ -74,7 +74,7 @@ module_param_named(unrestricted_guest,
 static bool __read_mostly enable_ept_ad_bits = 1;
 module_param_named(eptad, enable_ept_ad_bits, bool, S_IRUGO);
 
-static bool __read_mostly emulate_invalid_guest_state = 0;
+static bool __read_mostly emulate_invalid_guest_state = true;
 module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
 static bool __read_mostly vmm_exclusive = 1;
