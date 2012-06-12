@@ -1503,7 +1503,11 @@ int main(int ac, char **av)
 	}
 
 	notimeout(stdscr, FALSE);
+#if NCURSES_REENTRANT
+	set_escdelay(1);
+#else
 	ESCDELAY = 1;
+#endif
 
 	/* set btns menu */
 	curses_menu = new_menu(curses_menu_items);
