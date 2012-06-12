@@ -1342,6 +1342,11 @@ static int do_test(int m)
 				  speed_template_32_64);
 		break;
 
+	case 208:
+		test_cipher_speed("ecb(arc4)", ENCRYPT, sec, NULL, 0,
+				  speed_template_8);
+		break;
+
 	case 300:
 		/* fall through */
 
@@ -1587,6 +1592,11 @@ static int do_test(int m)
 				   speed_template_32_48_64);
 		test_acipher_speed("xts(twofish)", DECRYPT, sec, NULL, 0,
 				   speed_template_32_48_64);
+		break;
+
+	case 505:
+		test_acipher_speed("ecb(arc4)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8);
 		break;
 
 	case 1000:
