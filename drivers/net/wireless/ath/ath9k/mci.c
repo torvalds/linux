@@ -195,20 +195,16 @@ static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
 	u32 payload[4] = {0, 0, 0, 0};
 
 	switch (opcode) {
 	case MCI_GPM_BT_CAL_REQ:
-		if (ar9003_mci_state(ah, MCI_STATE_BT) == MCI_BT_AWAKE) {
+		if (mci_hw->bt_state == MCI_BT_AWAKE) {
 			ar9003_mci_state(ah, MCI_STATE_SET_BT_CAL_START);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
-		} else {
-			ath_dbg(common, MCI, "MCI State mismatch: %d\n",
-				ar9003_mci_state(ah, MCI_STATE_BT));
 		}
-		break;
-	case MCI_GPM_BT_CAL_DONE:
-		ar9003_mci_state(ah, MCI_STATE_BT);
+		ath_dbg(common, MCI, "MCI State : %d\n", mci_hw->bt_state);
 		break;
 	case MCI_GPM_BT_CAL_GRANT:
 		MCI_GPM_SET_CAL_TYPE(payload, MCI_GPM_WLAN_CAL_DONE);
@@ -407,6 +403,7 @@ void ath_mci_intr(struct ath_softc *sc)
 	struct ath_mci_coex *mci = &sc->mci_coex;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
 	u32 mci_int, mci_int_rxmsg;
 	u32 offset, subtype, opcode;
 	u32 *pgpm;
@@ -446,7 +443,7 @@ void ath_mci_intr(struct ath_softc *sc)
 	if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_SYS_WAKING) {
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_SYS_WAKING;
 
-		if ((ar9003_mci_state(ah, MCI_STATE_BT) == MCI_BT_SLEEP) &&
+		if ((mci_hw->bt_state == MCI_BT_SLEEP) &&
 		    (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP) !=
 		     MCI_BT_SLEEP))
 			ar9003_mci_state(ah, MCI_STATE_SET_BT_AWAKE);
@@ -455,7 +452,7 @@ void ath_mci_intr(struct ath_softc *sc)
 	if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_SYS_SLEEPING) {
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_SYS_SLEEPING;
 
-		if ((ar9003_mci_state(ah, MCI_STATE_BT) == MCI_BT_AWAKE) &&
+		if ((mci_hw->bt_state == MCI_BT_AWAKE) &&
 		    (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP) !=
 		     MCI_BT_AWAKE))
 			ar9003_mci_state(ah, MCI_STATE_SET_BT_SLEEP);
