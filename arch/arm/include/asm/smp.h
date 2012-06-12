@@ -70,6 +70,7 @@ struct secondary_data {
 	void *stack;
 };
 extern struct secondary_data secondary_data;
+extern volatile int pen_release;
 
 extern int __cpu_disable(void);
 

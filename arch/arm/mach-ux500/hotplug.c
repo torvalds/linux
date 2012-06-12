@@ -17,8 +17,6 @@
 
 #include <mach/setup.h>
 
-extern volatile int pen_release;
-
 /*
  * platform-specific code to shutdown a CPU
  *

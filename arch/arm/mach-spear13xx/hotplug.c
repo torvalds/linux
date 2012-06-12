@@ -17,8 +17,6 @@
 #include <asm/cp15.h>
 #include <asm/smp_plat.h>
 
-extern volatile int pen_release;
-
 static inline void cpu_enter_lowpower(void)
 {
 	unsigned int v;

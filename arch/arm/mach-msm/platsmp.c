@@ -35,11 +35,6 @@
 #define GIC_PPI_EDGE_MASK 0xFFFFD7FF
 
 extern void msm_secondary_startup(void);
-/*
- * control for which core is the next to come out of the secondary
- * boot "holding pen".
- */
-volatile int pen_release = -1;
 
 static DEFINE_SPINLOCK(boot_lock);
 
