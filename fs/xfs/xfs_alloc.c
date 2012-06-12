@@ -1080,6 +1080,7 @@ restart:
 			goto restart;
 		}
 
+		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
 		trace_xfs_alloc_size_neither(args);
 		args->agbno = NULLAGBLOCK;
 		return 0;
