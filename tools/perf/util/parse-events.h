@@ -26,7 +26,6 @@ extern struct tracepoint_path *tracepoint_id_to_path(u64 config);
 extern bool have_tracepoints(struct list_head *evlist);
 
 const char *event_type(int type);
-extern const char *__event_name(int type, u64 config);
 
 extern int parse_events_option(const struct option *opt, const char *str,
 			       int unset);
