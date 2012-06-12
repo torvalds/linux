@@ -310,14 +310,14 @@ static struct drxd_config em28xx_drxd = {
 	.disable_i2c_gate_ctrl = 1,
 };
 
-struct drxk_config terratec_h5_drxk = {
+static struct drxk_config terratec_h5_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.no_i2c_bridge = 1,
 	.microcode_name = "dvb-usb-terratec-h5-drxk.fw",
 };
 
-struct drxk_config hauppauge_930c_drxk = {
+static struct drxk_config hauppauge_930c_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.no_i2c_bridge = 1,
@@ -325,13 +325,13 @@ struct drxk_config hauppauge_930c_drxk = {
 	.chunk_size = 56,
 };
 
-struct drxk_config maxmedia_ub425_tc_drxk = {
+static struct drxk_config maxmedia_ub425_tc_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.no_i2c_bridge = 1,
 };
 
-struct drxk_config pctv_520e_drxk = {
+static struct drxk_config pctv_520e_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.microcode_name = "dvb-demod-drxk-pctv.fw",
