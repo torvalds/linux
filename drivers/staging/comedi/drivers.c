@@ -56,10 +56,9 @@ static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s);
 
 struct comedi_driver *comedi_drivers;
 
-int comedi_alloc_subdevices(struct comedi_device *dev,
-			    unsigned int num_subdevices)
+int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 {
-	unsigned i;
+	int i;
 
 	dev->n_subdevices = num_subdevices;
 	dev->subdevices =

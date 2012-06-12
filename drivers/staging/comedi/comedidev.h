@@ -292,7 +292,7 @@ static inline struct comedi_subdevice *comedi_get_write_subdevice(
 	return info->device->write_subdev;
 }
 
-int comedi_alloc_subdevices(struct comedi_device *, unsigned int);
+int comedi_alloc_subdevices(struct comedi_device *, int);
 
 void comedi_device_detach(struct comedi_device *dev);
 int comedi_device_attach(struct comedi_device *dev,
