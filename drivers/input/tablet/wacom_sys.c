@@ -440,8 +440,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 	/* ask to report Wacom data */
 	if (features->device_type == BTN_TOOL_FINGER) {
 		/* if it is an MT Tablet PC touch */
-		if (features->type == TABLETPC2FG ||
-		    features->type == MTSCREEN) {
+		if (features->type > TABLETPC) {
 			do {
 				rep_data[0] = 3;
 				rep_data[1] = 4;
@@ -460,7 +459,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 			} while ((error < 0 || rep_data[1] != 4) &&
 				 limit++ < WAC_MSG_RETRIES);
 		}
-	} else if (features->type != TABLETPC &&
+	} else if (features->type <= BAMBOO_PT &&
 		   features->type != WIRELESS &&
 		   features->device_type == BTN_TOOL_PEN) {
 		do {
@@ -510,10 +509,7 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	}
 
 	/* only devices that support touch need to retrieve the info */
-	if (features->type != TABLETPC &&
-	    features->type != TABLETPC2FG &&
-	    features->type != BAMBOO_PT &&
-	    features->type != MTSCREEN) {
+	if (features->type < BAMBOO_PT) {
 		goto out;
 	}
 
