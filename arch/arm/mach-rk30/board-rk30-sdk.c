@@ -220,7 +220,10 @@ static void rk_cif_power(int on)
     struct regulator *ldo_18,*ldo_28;
 	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
 	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
-
+	if (ldo_28 == NULL || IS_ERR(ldo_28) || ldo_18 == NULL || IS_ERR(ldo_18)){
+        printk("get cif ldo failed!\n");
+		return;
+	    }
     if(on == 0){	
     	regulator_disable(ldo_28);
     	regulator_put(ldo_28);
@@ -231,13 +234,13 @@ static void rk_cif_power(int on)
     else{
     	regulator_set_voltage(ldo_28, 2800000, 2800000);
     	regulator_enable(ldo_28);
-    //	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_28));
+   // 	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_28));
     	regulator_put(ldo_28);
 
     	regulator_set_voltage(ldo_18, 1800000, 1800000);
     //	regulator_set_suspend_voltage(ldo, 1800000);
     	regulator_enable(ldo_18);
-    //	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
+    //	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_18));
     	regulator_put(ldo_18);
         }
 }

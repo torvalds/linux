@@ -1246,18 +1246,18 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
         {
            mdelay(100);
             if(IS_CIF0()){
-        		pmu_set_idle_request(IDLE_REQ_VIO, true);
+        //		pmu_set_idle_request(IDLE_REQ_VIO, true);
         		cru_set_soft_reset(SOFT_RST_CIF0, true);
         		udelay(5);
         		cru_set_soft_reset(SOFT_RST_CIF0, false);
-        		pmu_set_idle_request(IDLE_REQ_VIO, false);
+        //		pmu_set_idle_request(IDLE_REQ_VIO, false);
 
             }else{
-        	 	pmu_set_idle_request(IDLE_REQ_VIO, true);
+        //	 	pmu_set_idle_request(IDLE_REQ_VIO, true);
         		cru_set_soft_reset(SOFT_RST_CIF1, true);
         		udelay(5);
         		cru_set_soft_reset(SOFT_RST_CIF1, false);
-        		pmu_set_idle_request(IDLE_REQ_VIO, false);  
+        //		pmu_set_idle_request(IDLE_REQ_VIO, false);  
             }
         }
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
