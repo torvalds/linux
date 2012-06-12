@@ -1627,8 +1627,6 @@ int __init amd_iommu_init_hardware(void)
 
 	enable_iommus();
 
-	amd_iommu_init_notifier();
-
 	register_syscore_ops(&amd_iommu_syscore_ops);
 
 	return ret;
@@ -1669,6 +1667,25 @@ static bool detect_ivrs(void)
 	return true;
 }
 
+static int amd_iommu_init_dma(void)
+{
+	int ret;
+
+	if (iommu_pass_through)
+		ret = amd_iommu_init_passthrough();
+	else
+		ret = amd_iommu_init_dma_ops();
+
+	if (ret)
+		return ret;
+
+	amd_iommu_init_api();
+
+	amd_iommu_init_notifier();
+
+	return 0;
+}
+
 /*
  * This is the core init function for AMD IOMMU hardware in the system.
  * This function is called from the generic x86 DMA layer initialization
@@ -1690,11 +1707,7 @@ static int __init amd_iommu_init(void)
 	if (ret)
 		goto free;
 
-	if (iommu_pass_through)
-		ret = amd_iommu_init_passthrough();
-	else
-		ret = amd_iommu_init_dma_ops();
-
+	ret = amd_iommu_init_dma();
 	if (ret)
 		goto free;
 
