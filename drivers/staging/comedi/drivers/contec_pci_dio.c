@@ -115,7 +115,7 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct contec_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices(dev, 2) < 0)
+	if (comedi_alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
 	for_each_pci_dev(pcidev) {

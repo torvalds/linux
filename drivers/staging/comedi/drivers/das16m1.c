@@ -646,7 +646,7 @@ static int das16m1_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	ret = alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret < 0)
 		return ret;
 

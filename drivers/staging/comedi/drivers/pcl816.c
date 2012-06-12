@@ -1194,7 +1194,7 @@ no_dma:
     subdevs[3] = COMEDI_SUBD_DO;
 */
 
-	ret = alloc_subdevices(dev, 1);
+	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret < 0)
 		return ret;
 

@@ -131,7 +131,7 @@ static int mpc8260cpm_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct mpc8260cpm_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices(dev, 4) < 0)
+	if (comedi_alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
 	for (i = 0; i < 4; i++) {

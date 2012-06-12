@@ -2195,7 +2195,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * convenient macro defined in comedidev.h.  It relies on
 	 * n_subdevices being set correctly.
 	 */
-	if (alloc_subdevices(dev, 4) < 0)
+	if (comedi_alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
     /*=========================================================================

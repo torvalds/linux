@@ -356,7 +356,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct atao_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices(dev, 4) < 0)
+	if (comedi_alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

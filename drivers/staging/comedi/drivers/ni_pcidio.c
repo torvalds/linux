@@ -1248,7 +1248,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	else
 		n_subdevices = 1;
 
-	ret = alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret < 0)
 		return ret;
 

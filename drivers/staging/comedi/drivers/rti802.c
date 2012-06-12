@@ -103,7 +103,7 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = "rti802";
 
-	if (alloc_subdevices(dev, 1) < 0
+	if (comedi_alloc_subdevices(dev, 1) < 0
 	    || alloc_private(dev, sizeof(struct rti802_private))) {
 		return -ENOMEM;
 	}

@@ -71,7 +71,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 	dev->iobase = dev->iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 6) < 0)
+	if (comedi_alloc_subdevices(dev, 6) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

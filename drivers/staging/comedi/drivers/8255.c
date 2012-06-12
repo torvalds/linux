@@ -388,7 +388,7 @@ static int dev_8255_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	ret = alloc_subdevices(dev, i);
+	ret = comedi_alloc_subdevices(dev, i);
 	if (ret < 0) {
 		/* FIXME this printk call should give a proper message, the
 		 * below line just maintains previous functionality */

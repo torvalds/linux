@@ -1433,7 +1433,7 @@ static int pci1710_attach(struct comedi_device *dev,
 	if (this_board->n_counter)
 		n_subdevices++;
 
-	ret = alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret < 0)
 		return ret;
 

@@ -202,7 +202,7 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	union pci20xxx_subdev_private *sdp;
 
-	ret = alloc_subdevices(dev, 1 + PCI20000_MODULES);
+	ret = comedi_alloc_subdevices(dev, 1 + PCI20000_MODULES);
 	if (ret < 0)
 		return ret;
 

@@ -1382,7 +1382,7 @@ no_dma:
 	if (board->n_dochan > 0)
 		n_subdevices++;
 
-	ret = alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret < 0) {
 		free_resources(dev);
 		return ret;

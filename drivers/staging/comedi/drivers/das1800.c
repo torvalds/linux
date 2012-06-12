@@ -1644,7 +1644,7 @@ static int das1800_attach(struct comedi_device *dev,
 			return -ENOMEM;
 	}
 
-	if (alloc_subdevices(dev, 4) < 0)
+	if (comedi_alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */

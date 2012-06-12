@@ -622,7 +622,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_subdevices(dev, 5) < 0)
+	if (comedi_alloc_subdevices(dev, 5) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */

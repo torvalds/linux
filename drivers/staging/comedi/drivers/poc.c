@@ -160,7 +160,7 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-	if (alloc_subdevices(dev, 1) < 0)
+	if (comedi_alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 	if (alloc_private(dev, sizeof(unsigned int) * board->n_chan) < 0)
 		return -ENOMEM;

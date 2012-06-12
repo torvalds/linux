@@ -448,7 +448,7 @@ static int waveform_attach(struct comedi_device *dev,
 	devpriv->usec_period = period;
 
 	dev->n_subdevices = 2;
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
+	if (comedi_alloc_subdevices(dev, dev->n_subdevices) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

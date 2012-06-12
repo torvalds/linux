@@ -1159,7 +1159,7 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	else
 		n_subd = 6;
 
-	if (alloc_subdevices(cdev, n_subd) < 0) {
+	if (comedi_alloc_subdevices(cdev, n_subd) < 0) {
 		up(&dev->limit_sem);
 		mutex_unlock(&glb_mutex);
 		return -ENOMEM;

@@ -1036,7 +1036,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->serial = it->options[0];
 
 	/* Allocate subdevices */
-	if (alloc_subdevices(dev, 4) < 0)
+	if (comedi_alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
 	/* digital input subdevice */

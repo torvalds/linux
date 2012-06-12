@@ -365,7 +365,7 @@ static int pci1723_attach(struct comedi_device *dev,
 	if (this_board->n_diochan)
 		n_subdevices++;
 
-	ret = alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret < 0) {
 		printk(" - Allocation failed!\n");
 		return ret;

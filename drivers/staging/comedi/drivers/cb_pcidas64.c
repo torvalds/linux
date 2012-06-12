@@ -1345,7 +1345,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	void __iomem *dio_8255_iobase;
 	int i;
 
-	if (alloc_subdevices(dev, 10) < 0)
+	if (comedi_alloc_subdevices(dev, 10) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

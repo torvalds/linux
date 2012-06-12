@@ -258,7 +258,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 	n_subdevices = board->numofports;
 
-	ret = alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret < 0)
 		return ret;
 

@@ -2003,7 +2003,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * Allocate the subdevice structures.  alloc_subdevice() is a
 	 * convenient macro defined in comedidev.h.
 	 */
-	if (alloc_subdevices(dev, 4) < 0)
+	if (comedi_alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
 

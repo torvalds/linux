@@ -510,7 +510,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_subdevices(dev, 3) < 0)
+	if (comedi_alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */

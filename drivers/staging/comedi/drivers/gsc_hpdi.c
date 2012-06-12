@@ -431,7 +431,7 @@ static int setup_subdevices(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
 
-	if (alloc_subdevices(dev, 1) < 0)
+	if (comedi_alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

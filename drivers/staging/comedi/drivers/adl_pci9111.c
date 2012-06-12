@@ -1317,7 +1317,7 @@ static int pci9111_attach(struct comedi_device *dev,
 
 	/*  TODO: Add external multiplexer setup (according to option[2]). */
 
-	error = alloc_subdevices(dev, 4);
+	error = comedi_alloc_subdevices(dev, 4);
 	if (error < 0)
 		return error;
 

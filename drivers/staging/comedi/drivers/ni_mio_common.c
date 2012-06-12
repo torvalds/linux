@@ -4412,7 +4412,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 	}
 
-	if (alloc_subdevices(dev, NI_NUM_SUBDEVICES) < 0)
+	if (comedi_alloc_subdevices(dev, NI_NUM_SUBDEVICES) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */

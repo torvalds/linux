@@ -762,7 +762,7 @@ found:
 	me_reset(dev);
 
 	/* device driver capabilities */
-	error = alloc_subdevices(dev, 3);
+	error = comedi_alloc_subdevices(dev, 3);
 	if (error < 0)
 		return error;
 

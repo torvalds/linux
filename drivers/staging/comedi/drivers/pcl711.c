@@ -518,7 +518,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->irq = irq;
 
-	ret = alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret < 0)
 		return ret;
 

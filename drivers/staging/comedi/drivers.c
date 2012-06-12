@@ -56,6 +56,27 @@ static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s);
 
 struct comedi_driver *comedi_drivers;
 
+int comedi_alloc_subdevices(struct comedi_device *dev,
+			    unsigned int num_subdevices)
+{
+	unsigned i;
+
+	dev->n_subdevices = num_subdevices;
+	dev->subdevices =
+	    kcalloc(num_subdevices, sizeof(struct comedi_subdevice),
+		    GFP_KERNEL);
+	if (!dev->subdevices)
+		return -ENOMEM;
+	for (i = 0; i < num_subdevices; ++i) {
+		dev->subdevices[i].device = dev;
+		dev->subdevices[i].async_dma_dir = DMA_NONE;
+		spin_lock_init(&dev->subdevices[i].spin_lock);
+		dev->subdevices[i].minor = -1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
+
 static void cleanup_device(struct comedi_device *dev)
 {
 	int i;

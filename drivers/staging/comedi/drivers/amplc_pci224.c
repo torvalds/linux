@@ -1380,7 +1380,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 	     dev->iobase + PCI224_DACCON);
 
 	/* Allocate subdevices.  There is only one!  */
-	ret = alloc_subdevices(dev, 1);
+	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;

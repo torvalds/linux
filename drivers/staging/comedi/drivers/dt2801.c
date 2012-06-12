@@ -628,7 +628,7 @@ havetype:
 	n_ai_chans = probe_number_of_ai_chans(dev);
 	printk(" (ai channels = %d)", n_ai_chans);
 
-	ret = alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret < 0)
 		goto out;
 

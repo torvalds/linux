@@ -1778,7 +1778,7 @@ no_rtc:
 
 no_dma:
 
-	ret = alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret < 0)
 		return ret;
 

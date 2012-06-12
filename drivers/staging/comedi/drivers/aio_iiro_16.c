@@ -124,7 +124,7 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct aio_iiro_16_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices(dev, 2) < 0)
+	if (comedi_alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

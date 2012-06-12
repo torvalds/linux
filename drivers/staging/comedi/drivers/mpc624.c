@@ -349,7 +349,7 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/*  Subdevices structures */
-	if (alloc_subdevices(dev, 1) < 0)
+	if (comedi_alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

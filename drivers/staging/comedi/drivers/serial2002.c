@@ -792,7 +792,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	dev_dbg(dev->hw_dev, "/dev/ttyS%d @ %d\n", devpriv->port,
 		devpriv->speed);
 
-	if (alloc_subdevices(dev, 5) < 0)
+	if (comedi_alloc_subdevices(dev, 5) < 0)
 		return -ENOMEM;
 
 	/* digital input subdevice */

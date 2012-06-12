@@ -181,7 +181,7 @@ found:
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_subdevices(dev, thisboard->n_8255) < 0)
+	if (comedi_alloc_subdevices(dev, thisboard->n_8255) < 0)
 		return -ENOMEM;
 
 	for (i = 0; i < thisboard->n_8255; i++) {

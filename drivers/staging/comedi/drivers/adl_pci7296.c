@@ -92,7 +92,7 @@ static int adl_pci7296_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct adl_pci7296_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices(dev, 4) < 0)
+	if (comedi_alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
 	devpriv->pci_dev = adl_pci7296_find_pci(dev, it);

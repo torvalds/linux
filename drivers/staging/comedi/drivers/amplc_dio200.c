@@ -1273,7 +1273,7 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 	devpriv->intr_sd = -1;
 	dev->iobase = iobase;
 	dev->board_name = thisboard->name;
-	ret = alloc_subdevices(dev, layout->n_subdevs);
+	ret = comedi_alloc_subdevices(dev, layout->n_subdevs);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;

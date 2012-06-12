@@ -301,7 +301,7 @@ static int pci6208_attach(struct comedi_device *dev,
 	dev->iobase = io_base;
 	dev->board_name = thisboard->name;
 
-	if (alloc_subdevices(dev, 2) < 0)
+	if (comedi_alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

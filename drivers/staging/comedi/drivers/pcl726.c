@@ -292,7 +292,7 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk("\n");
 
-	ret = alloc_subdevices(dev, 3);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret < 0)
 		return ret;
 

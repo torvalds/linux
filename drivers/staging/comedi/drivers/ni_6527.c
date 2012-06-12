@@ -397,7 +397,7 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_INFO "comedi board: %s, ID=0x%02x\n", dev->board_name,
 		readb(devpriv->mite->daq_io_addr + ID_Register));
 
-	ret = alloc_subdevices(dev, 3);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret < 0)
 		return ret;
 

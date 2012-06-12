@@ -329,7 +329,7 @@ found:
 	devpriv->BADR4 = pci_resource_start(pcidev, 4);
 	devpriv->BADR5 = pci_resource_start(pcidev, 5);
 
-	if (alloc_subdevices(dev, 4) < 0) {
+	if (comedi_alloc_subdevices(dev, 4) < 0) {
 		printk(KERN_ERR "comedi: dyna_pci10xx: "
 			"failed allocating subdevices\n");
 		mutex_unlock(&start_stop_sem);

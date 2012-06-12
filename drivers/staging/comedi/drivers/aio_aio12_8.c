@@ -182,7 +182,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct aio12_8_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices(dev, 3) < 0)
+	if (comedi_alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 
 	s = &dev->subdevices[0];

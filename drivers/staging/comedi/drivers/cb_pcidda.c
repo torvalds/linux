@@ -336,7 +336,7 @@ found:
 /*
  * Allocate the subdevice structures.
  */
-	if (alloc_subdevices(dev, 3) < 0)
+	if (comedi_alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

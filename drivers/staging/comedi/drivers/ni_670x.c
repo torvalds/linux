@@ -202,7 +202,7 @@ static int ni_670x_attach(struct comedi_device *dev,
 	dev->irq = mite_irq(devpriv->mite);
 	printk(KERN_INFO " %s", dev->board_name);
 
-	if (alloc_subdevices(dev, 2) < 0)
+	if (comedi_alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

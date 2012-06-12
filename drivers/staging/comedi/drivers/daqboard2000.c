@@ -772,7 +772,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
-	result = alloc_subdevices(dev, 3);
+	result = comedi_alloc_subdevices(dev, 3);
 	if (result < 0)
 		goto out;
 

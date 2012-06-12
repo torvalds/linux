@@ -2268,7 +2268,7 @@ static int pci9118_attach(struct comedi_device *dev,
 	pci_write_config_word(devpriv->pcidev, PCI_COMMAND, u16w | 64);
 				/* Enable parity check for parity error */
 
-	ret = alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret < 0)
 		return ret;
 

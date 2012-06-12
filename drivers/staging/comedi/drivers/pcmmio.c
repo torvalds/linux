@@ -1077,7 +1077,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 *
 	 * Allocate 1 AI + 1 AO + 2 DIO subdevs (24 lines per DIO)
 	 */
-	if (alloc_subdevices(dev, n_subdevs) < 0) {
+	if (comedi_alloc_subdevices(dev, n_subdevs) < 0) {
 		printk(KERN_ERR "comedi%d: cannot allocate subdevice data structures\n",
 				dev->minor);
 		return -ENOMEM;
