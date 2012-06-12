@@ -593,8 +593,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 		if (!time_out)
 			break;
 
-		offset = ar9003_mci_state(ah, MCI_STATE_NEXT_GPM_OFFSET,
-					  &more_data);
+		offset = ar9003_mci_get_next_gpm_offset(ah, false, &more_data);
 
 		if (offset == MCI_GPM_INVALID)
 			continue;
@@ -658,8 +657,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 		time_out = 0;
 
 	while (more_data == MCI_GPM_MORE) {
-		offset = ar9003_mci_state(ah, MCI_STATE_NEXT_GPM_OFFSET,
-					  &more_data);
+		offset = ar9003_mci_get_next_gpm_offset(ah, false, &more_data);
 		if (offset == MCI_GPM_INVALID)
 			break;
 
@@ -894,7 +892,7 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	}
 
 	/* Check pending GPM msg before MCI Reset Rx */
-	ar9003_mci_state(ah, MCI_STATE_CHECK_GPM_OFFSET, NULL);
+	ar9003_mci_check_gpm_offset(ah);
 
 	regval |= SM(1, AR_MCI_COMMAND2_RESET_RX);
 	REG_WRITE(ah, AR_MCI_COMMAND2, regval);
@@ -902,7 +900,7 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	regval &= ~SM(1, AR_MCI_COMMAND2_RESET_RX);
 	REG_WRITE(ah, AR_MCI_COMMAND2, regval);
 
-	ar9003_mci_state(ah, MCI_STATE_INIT_GPM_OFFSET, NULL);
+	ar9003_mci_get_next_gpm_offset(ah, true, NULL);
 
 	REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE,
 		  (SM(0xe801, AR_MCI_MSG_ATTRIBUTES_TABLE_INVALID_HDR) |
@@ -1170,7 +1168,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
-	u32 value = 0, more_gpm = 0, gpm_ptr;
+	u32 value = 0;
 	u8 query_type;
 
 	switch (state_type) {
@@ -1182,96 +1180,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 				value = 0;
 		}
 		value &= AR_BTCOEX_CTRL_MCI_MODE_EN;
-		break;
-	case MCI_STATE_INIT_GPM_OFFSET:
-		value = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
-		mci->gpm_idx = value;
-		break;
-	case MCI_STATE_CHECK_GPM_OFFSET:
-		/*
-		 * This should only be called before "MAC Warm Reset" or
-		 * "MCI Reset Rx".
-		 */
-		value = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
-		if (mci->gpm_idx == value)
-			break;
-		ath_dbg(common, MCI,
-			"GPM cached write pointer mismatch %d %d\n",
-			mci->gpm_idx, value);
-		mci->query_bt = true;
-		mci->need_flush_btinfo = true;
-		mci->gpm_idx = 0;
-		break;
-	case MCI_STATE_NEXT_GPM_OFFSET:
-	case MCI_STATE_LAST_GPM_OFFSET:
-		/*
-		* This could be useful to avoid new GPM message interrupt which
-		* may lead to spurious interrupt after power sleep, or multiple
-		* entry of ath_mci_intr().
-		* Adding empty GPM check by returning HAL_MCI_GPM_INVALID can
-		* alleviate this effect, but clearing GPM RX interrupt bit is
-		* safe, because whether this is called from hw or driver code
-		* there must be an interrupt bit set/triggered initially
-		*/
-		REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW,
-			  AR_MCI_INTERRUPT_RX_MSG_GPM);
-
-		gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
-		value = gpm_ptr;
-
-		if (value == 0)
-			value = mci->gpm_len - 1;
-		else if (value >= mci->gpm_len) {
-			if (value != 0xFFFF)
-				value = 0;
-		} else {
-			value--;
-		}
-
-		if (value == 0xFFFF) {
-			value = MCI_GPM_INVALID;
-			more_gpm = MCI_GPM_NOMORE;
-		} else if (state_type == MCI_STATE_NEXT_GPM_OFFSET) {
-			if (gpm_ptr == mci->gpm_idx) {
-				value = MCI_GPM_INVALID;
-				more_gpm = MCI_GPM_NOMORE;
-			} else {
-				for (;;) {
-					u32 temp_index;
-
-					/* skip reserved GPM if any */
-
-					if (value != mci->gpm_idx)
-						more_gpm = MCI_GPM_MORE;
-					else
-						more_gpm = MCI_GPM_NOMORE;
-
-					temp_index = mci->gpm_idx;
-					mci->gpm_idx++;
-
-					if (mci->gpm_idx >=
-					    mci->gpm_len)
-						mci->gpm_idx = 0;
-
-					if (ar9003_mci_is_gpm_valid(ah,
-								    temp_index)) {
-						value = temp_index;
-						break;
-					}
-
-					if (more_gpm == MCI_GPM_NOMORE) {
-						value = MCI_GPM_INVALID;
-						break;
-					}
-				}
-			}
-			if (p_data)
-				*p_data = more_gpm;
-		}
-
-		if (value != MCI_GPM_INVALID)
-			value <<= 4;
-
 		break;
 	case MCI_STATE_LAST_SCHD_MSG_OFFSET:
 		value = MS(REG_READ(ah, AR_MCI_RX_STATUS),
@@ -1450,3 +1358,99 @@ void ar9003_mci_set_power_awake(struct ath_hw *ah)
 		udelay(50);
 	}
 }
+
+void ar9003_mci_check_gpm_offset(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+	u32 offset;
+
+	/*
+	 * This should only be called before "MAC Warm Reset" or "MCI Reset Rx".
+	 */
+	offset = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+	if (mci->gpm_idx == offset)
+		return;
+	ath_dbg(common, MCI, "GPM cached write pointer mismatch %d %d\n",
+		mci->gpm_idx, offset);
+	mci->query_bt = true;
+	mci->need_flush_btinfo = true;
+	mci->gpm_idx = 0;
+}
+
+u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
+{
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+	u32 offset, more_gpm = 0, gpm_ptr;
+
+	if (first) {
+		gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+		mci->gpm_idx = gpm_ptr;
+		return gpm_ptr;
+	}
+
+	/*
+	 * This could be useful to avoid new GPM message interrupt which
+	 * may lead to spurious interrupt after power sleep, or multiple
+	 * entry of ath_mci_intr().
+	 * Adding empty GPM check by returning HAL_MCI_GPM_INVALID can
+	 * alleviate this effect, but clearing GPM RX interrupt bit is
+	 * safe, because whether this is called from hw or driver code
+	 * there must be an interrupt bit set/triggered initially
+	 */
+	REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW,
+			AR_MCI_INTERRUPT_RX_MSG_GPM);
+
+	gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+	offset = gpm_ptr;
+
+	if (!offset)
+		offset = mci->gpm_len - 1;
+	else if (offset >= mci->gpm_len) {
+		if (offset != 0xFFFF)
+			offset = 0;
+	} else {
+		offset--;
+	}
+
+	if ((offset == 0xFFFF) || (gpm_ptr == mci->gpm_idx)) {
+		offset = MCI_GPM_INVALID;
+		more_gpm = MCI_GPM_NOMORE;
+		goto out;
+	}
+	for (;;) {
+		u32 temp_index;
+
+		/* skip reserved GPM if any */
+
+		if (offset != mci->gpm_idx)
+			more_gpm = MCI_GPM_MORE;
+		else
+			more_gpm = MCI_GPM_NOMORE;
+
+		temp_index = mci->gpm_idx;
+		mci->gpm_idx++;
+
+		if (mci->gpm_idx >= mci->gpm_len)
+			mci->gpm_idx = 0;
+
+		if (ar9003_mci_is_gpm_valid(ah, temp_index)) {
+			offset = temp_index;
+			break;
+		}
+
+		if (more_gpm == MCI_GPM_NOMORE) {
+			offset = MCI_GPM_INVALID;
+			break;
+		}
+	}
+
+	if (offset != MCI_GPM_INVALID)
+		offset <<= 4;
+out:
+	if (more)
+		*more = more_gpm;
+
+	return offset;
+}
+EXPORT_SYMBOL(ar9003_mci_get_next_gpm_offset);

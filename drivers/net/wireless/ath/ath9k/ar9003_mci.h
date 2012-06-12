@@ -189,10 +189,6 @@ enum mci_bt_state {
 /* Type of state query */
 enum mci_state_type {
 	MCI_STATE_ENABLE,
-	MCI_STATE_INIT_GPM_OFFSET,
-	MCI_STATE_CHECK_GPM_OFFSET,
-	MCI_STATE_NEXT_GPM_OFFSET,
-	MCI_STATE_LAST_GPM_OFFSET,
 	MCI_STATE_BT,
 	MCI_STATE_SET_BT_SLEEP,
 	MCI_STATE_SET_BT_AWAKE,
@@ -266,6 +262,7 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 void ar9003_mci_cleanup(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
+u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more);
 /*
  * These functions are used by ath9k_hw.
  */
@@ -286,6 +283,7 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
 void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
 void ar9003_mci_set_power_awake(struct ath_hw *ah);
+void ar9003_mci_check_gpm_offset(struct ath_hw *ah);
 
 #else
 
@@ -327,6 +325,9 @@ static inline void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah)
 {
 }
 static inline void ar9003_mci_set_power_awake(struct ath_hw *ah)
+{
+}
+static inline void ar9003_mci_check_gpm_offset(struct ath_hw *ah)
 {
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
