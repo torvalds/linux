@@ -545,16 +545,6 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 }
 
 /*
- * Suppress preemptible RCU's CPU stall warnings by pushing the
- * time of the next stall-warning message comfortably far into the
- * future.
- */
-static void rcu_preempt_stall_reset(void)
-{
-	rcu_preempt_state.jiffies_stall = jiffies + ULONG_MAX / 2;
-}
-
-/*
  * Check that the list of blocked tasks for the newly completed grace
  * period is in fact empty.  It is a serious bug to complete a grace
  * period that still has RCU readers blocked!  This function must be
@@ -655,14 +645,6 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
- * Do CPU-offline processing for preemptible RCU.
- */
-static void rcu_preempt_cleanup_dead_cpu(int cpu)
-{
-	rcu_cleanup_dead_cpu(cpu, &rcu_preempt_state);
-}
-
-/*
  * Check for a quiescent state from the current CPU.  When a task blocks,
  * the task is recorded in the corresponding CPU's rcu_node structure,
  * which is checked elsewhere.
@@ -680,14 +662,6 @@ static void rcu_preempt_check_callbacks(int cpu)
 	if (t->rcu_read_lock_nesting > 0 &&
 	    per_cpu(rcu_preempt_data, cpu).qs_pending)
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_NEED_QS;
-}
-
-/*
- * Process callbacks for preemptible RCU.
- */
-static void rcu_preempt_process_callbacks(void)
-{
-	__rcu_process_callbacks(&rcu_preempt_state);
 }
 
 #ifdef CONFIG_RCU_BOOST
@@ -921,24 +895,6 @@ mb_ret:
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
-/*
- * Check to see if there is any immediate preemptible-RCU-related work
- * to be done.
- */
-static int rcu_preempt_pending(int cpu)
-{
-	return __rcu_pending(&rcu_preempt_state,
-			     &per_cpu(rcu_preempt_data, cpu));
-}
-
-/*
- * Does preemptible RCU have callbacks on this CPU?
- */
-static int rcu_preempt_cpu_has_callbacks(int cpu)
-{
-	return !!per_cpu(rcu_preempt_data, cpu).nxtlist;
-}
-
 /**
  * rcu_barrier - Wait until all in-flight call_rcu() callbacks complete.
  */
@@ -947,23 +903,6 @@ void rcu_barrier(void)
 	_rcu_barrier(&rcu_preempt_state);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
-
-/*
- * Initialize preemptible RCU's per-CPU data.
- */
-static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
-{
-	rcu_init_percpu_data(cpu, &rcu_preempt_state, 1);
-}
-
-/*
- * Move preemptible RCU's callbacks from dying CPU to other online CPU
- * and record a quiescent state.
- */
-static void rcu_preempt_cleanup_dying_cpu(void)
-{
-	rcu_cleanup_dying_cpu(&rcu_preempt_state);
-}
 
 /*
  * Initialize preemptible RCU's state structures.
@@ -1050,14 +989,6 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 }
 
 /*
- * Because preemptible RCU does not exist, there is no need to suppress
- * its CPU stall warnings.
- */
-static void rcu_preempt_stall_reset(void)
-{
-}
-
-/*
  * Because there is no preemptible RCU, there can be no readers blocked,
  * so there is no need to check for blocked tasks.  So check only for
  * bogus qsmask values.
@@ -1085,26 +1016,10 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
- * Because preemptible RCU does not exist, it never needs CPU-offline
- * processing.
- */
-static void rcu_preempt_cleanup_dead_cpu(int cpu)
-{
-}
-
-/*
  * Because preemptible RCU does not exist, it never has any callbacks
  * to check.
  */
 static void rcu_preempt_check_callbacks(int cpu)
-{
-}
-
-/*
- * Because preemptible RCU does not exist, it never has any callbacks
- * to process.
- */
-static void rcu_preempt_process_callbacks(void)
 {
 }
 
@@ -1149,22 +1064,6 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
- * Because preemptible RCU does not exist, it never has any work to do.
- */
-static int rcu_preempt_pending(int cpu)
-{
-	return 0;
-}
-
-/*
- * Because preemptible RCU does not exist, it never has callbacks
- */
-static int rcu_preempt_cpu_has_callbacks(int cpu)
-{
-	return 0;
-}
-
-/*
  * Because preemptible RCU does not exist, rcu_barrier() is just
  * another name for rcu_barrier_sched().
  */
@@ -1173,21 +1072,6 @@ void rcu_barrier(void)
 	rcu_barrier_sched();
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
-
-/*
- * Because preemptible RCU does not exist, there is no per-CPU
- * data to initialize.
- */
-static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
-{
-}
-
-/*
- * Because there is no preemptible RCU, there is no cleanup to do.
- */
-static void rcu_preempt_cleanup_dying_cpu(void)
-{
-}
 
 /*
  * Because preemptible RCU does not exist, it need not be initialized.

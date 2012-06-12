@@ -84,6 +84,7 @@ struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh, call_rcu_bh);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 static struct rcu_state *rcu_state;
+LIST_HEAD(rcu_struct_flavors);
 
 /* Increase (but not decrease) the CONFIG_RCU_FANOUT_LEAF at boot time. */
 static int rcu_fanout_leaf = CONFIG_RCU_FANOUT_LEAF;
@@ -860,9 +861,10 @@ static int rcu_panic(struct notifier_block *this, unsigned long ev, void *ptr)
  */
 void rcu_cpu_stall_reset(void)
 {
-	rcu_sched_state.jiffies_stall = jiffies + ULONG_MAX / 2;
-	rcu_bh_state.jiffies_stall = jiffies + ULONG_MAX / 2;
-	rcu_preempt_stall_reset();
+	struct rcu_state *rsp;
+
+	for_each_rcu_flavor(rsp)
+		rsp->jiffies_stall = jiffies + ULONG_MAX / 2;
 }
 
 static struct notifier_block rcu_panic_block = {
@@ -1827,10 +1829,11 @@ __rcu_process_callbacks(struct rcu_state *rsp)
  */
 static void rcu_process_callbacks(struct softirq_action *unused)
 {
+	struct rcu_state *rsp;
+
 	trace_rcu_utilization("Start RCU core");
-	__rcu_process_callbacks(&rcu_sched_state);
-	__rcu_process_callbacks(&rcu_bh_state);
-	rcu_preempt_process_callbacks();
+	for_each_rcu_flavor(rsp)
+		__rcu_process_callbacks(rsp);
 	trace_rcu_utilization("End RCU core");
 }
 
@@ -2241,9 +2244,12 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
  */
 static int rcu_pending(int cpu)
 {
-	return __rcu_pending(&rcu_sched_state, &per_cpu(rcu_sched_data, cpu)) ||
-	       __rcu_pending(&rcu_bh_state, &per_cpu(rcu_bh_data, cpu)) ||
-	       rcu_preempt_pending(cpu);
+	struct rcu_state *rsp;
+
+	for_each_rcu_flavor(rsp)
+		if (__rcu_pending(rsp, per_cpu_ptr(rsp->rda, cpu)))
+			return 1;
+	return 0;
 }
 
 /*
@@ -2253,10 +2259,13 @@ static int rcu_pending(int cpu)
  */
 static int rcu_cpu_has_callbacks(int cpu)
 {
+	struct rcu_state *rsp;
+
 	/* RCU callbacks either ready or pending? */
-	return per_cpu(rcu_sched_data, cpu).nxtlist ||
-	       per_cpu(rcu_bh_data, cpu).nxtlist ||
-	       rcu_preempt_cpu_has_callbacks(cpu);
+	for_each_rcu_flavor(rsp)
+		if (per_cpu_ptr(rsp->rda, cpu)->nxtlist)
+			return 1;
+	return 0;
 }
 
 /*
@@ -2551,9 +2560,11 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptible)
 
 static void __cpuinit rcu_prepare_cpu(int cpu)
 {
-	rcu_init_percpu_data(cpu, &rcu_sched_state, 0);
-	rcu_init_percpu_data(cpu, &rcu_bh_state, 0);
-	rcu_preempt_init_percpu_data(cpu);
+	struct rcu_state *rsp;
+
+	for_each_rcu_flavor(rsp)
+		rcu_init_percpu_data(cpu, rsp,
+				     strcmp(rsp->name, "rcu_preempt") == 0);
 }
 
 /*
@@ -2565,6 +2576,7 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 	long cpu = (long)hcpu;
 	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;
+	struct rcu_state *rsp;
 
 	trace_rcu_utilization("Start CPU hotplug");
 	switch (action) {
@@ -2589,18 +2601,16 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 		 * touch any data without introducing corruption. We send the
 		 * dying CPU's callbacks to an arbitrarily chosen online CPU.
 		 */
-		rcu_cleanup_dying_cpu(&rcu_bh_state);
-		rcu_cleanup_dying_cpu(&rcu_sched_state);
-		rcu_preempt_cleanup_dying_cpu();
+		for_each_rcu_flavor(rsp)
+			rcu_cleanup_dying_cpu(rsp);
 		rcu_cleanup_after_idle(cpu);
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
-		rcu_cleanup_dead_cpu(cpu, &rcu_bh_state);
-		rcu_cleanup_dead_cpu(cpu, &rcu_sched_state);
-		rcu_preempt_cleanup_dead_cpu(cpu);
+		for_each_rcu_flavor(rsp)
+			rcu_cleanup_dead_cpu(cpu, rsp);
 		break;
 	default:
 		break;
@@ -2717,6 +2727,7 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 		per_cpu_ptr(rsp->rda, i)->mynode = rnp;
 		rcu_boot_init_percpu_data(i, rsp);
 	}
+	list_add(&rsp->flavors, &rcu_struct_flavors);
 }
 
 /*
