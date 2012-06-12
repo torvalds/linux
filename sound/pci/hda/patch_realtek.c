@@ -6606,6 +6606,7 @@ enum {
 	ALC662_FIXUP_ASUS_MODE7,
 	ALC662_FIXUP_ASUS_MODE8,
 	ALC662_FIXUP_NO_JACK_DETECT,
+	ALC662_FIXUP_ZOTAC_Z68,
 };
 
 static const struct alc_fixup alc662_fixups[] = {
@@ -6755,6 +6756,13 @@ static const struct alc_fixup alc662_fixups[] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc_fixup_no_jack_detect,
 	},
+	[ALC662_FIXUP_ZOTAC_Z68] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x1b, 0x02214020 }, /* Front HP */
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc662_fixup_tbl[] = {
@@ -6768,6 +6776,7 @@ static const struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
+	SND_PCI_QUIRK(0x19da, 0xa130, "Zotac Z68", ALC662_FIXUP_ZOTAC_Z68),
 	SND_PCI_QUIRK(0x1b35, 0x2206, "CZC P10T", ALC662_FIXUP_CZC_P10T),
 
 #if 0
