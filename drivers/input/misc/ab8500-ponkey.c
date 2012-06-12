@@ -13,6 +13,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/abx500/ab8500.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 
 /**
@@ -131,10 +132,18 @@ static int __devexit ab8500_ponkey_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id ab8500_ponkey_match[] = {
+	{ .compatible = "stericsson,ab8500-ponkey", },
+	{}
+};
+#endif
+
 static struct platform_driver ab8500_ponkey_driver = {
 	.driver		= {
 		.name	= "ab8500-poweron-key",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(ab8500_ponkey_match),
 	},
 	.probe		= ab8500_ponkey_probe,
 	.remove		= __devexit_p(ab8500_ponkey_remove),
