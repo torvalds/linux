@@ -851,6 +851,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 
 	/* Initialize default values */
 	switch (wacom->wacom_wac.features.type) {
+	case INTUOS4S:
 	case INTUOS4:
 	case INTUOS4L:
 		wacom->led.select[0] = 0;
@@ -904,6 +905,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 static void wacom_destroy_leds(struct wacom *wacom)
 {
 	switch (wacom->wacom_wac.features.type) {
+	case INTUOS4S:
 	case INTUOS4:
 	case INTUOS4L:
 		sysfs_remove_group(&wacom->intf->dev.kobj,
