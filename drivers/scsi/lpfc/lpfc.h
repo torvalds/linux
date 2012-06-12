@@ -96,6 +96,10 @@ struct lpfc_sli2_slim;
 /* queue dump line buffer size */
 #define LPFC_LBUF_SZ		128
 
+/* mailbox system shutdown options */
+#define LPFC_MBX_NO_WAIT	0
+#define LPFC_MBX_WAIT		1
+
 enum lpfc_polling_flags {
 	ENABLE_FCP_RING_POLLING = 0x1,
 	DISABLE_FCP_RING_INT    = 0x2
