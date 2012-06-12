@@ -81,6 +81,14 @@ int au_reval_and_lock_fdi(struct file *file, int (*reopen)(struct file *file),
 int au_do_flush(struct file *file, fl_owner_t id,
 		int (*flush)(struct file *file, fl_owner_t id));
 
+#if defined(CONFIG_SECURITY) && defined(CONFIG_MMU)
+/* security.c */
+int au_security_mmap_file(struct file *h_file, struct vm_area_struct *vma);
+#else
+AuStubInt0(au_security_mmap_file, struct file *h_file,
+	   struct vm_area_struct *vma);
+#endif
+
 /* poll.c */
 #ifdef CONFIG_AUFS_POLL
 unsigned int aufs_poll(struct file *file, poll_table *wait);
