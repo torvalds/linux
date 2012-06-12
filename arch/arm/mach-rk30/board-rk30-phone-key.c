@@ -8,12 +8,14 @@
 #define PRESS_LEV_HIGH			0
 
 static struct rk29_keys_button key_button[] = {
+#if 0
 	{
 		.desc	= "menu",
 		.code	= EV_MENU,
 		.gpio	= RK30_PIN0_PD0,
 		.active_low = PRESS_LEV_LOW,
 	},
+#endif
 	{
 		.desc	= "vol+",
 		.code	= KEY_VOLUMEUP,
@@ -26,6 +28,8 @@ static struct rk29_keys_button key_button[] = {
 		.gpio	= RK30_PIN4_PC5,
 		.active_low = PRESS_LEV_LOW,
 	},
+#if 0
+
 	{
 		.desc	= "home",
 		.code	= KEY_HOME,
@@ -44,7 +48,7 @@ static struct rk29_keys_button key_button[] = {
 		.gpio	= RK30_PIN0_PD3,
 		.active_low = PRESS_LEV_LOW,
 	},
-#if 0
+
 	{
 		.desc	= "play",
 		.code	= KEY_POWER,
@@ -53,13 +57,13 @@ static struct rk29_keys_button key_button[] = {
 		//.code_long_press = EV_ENCALL,
 		.wakeup	= 1,
 	},
-#endif
 	{
 		.desc	= "camera",
 		.code	= KEY_CAMERA,
 		.gpio = RK30_PIN0_PD4,
 		.active_low = PRESS_LEV_LOW,
 	},
+#endif
 };
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,
