@@ -812,18 +812,24 @@ static ssize_t edac_fake_inject_write(struct file *file,
 	struct device *dev = file->private_data;
 	struct mem_ctl_info *mci = to_mci(dev);
 	static enum hw_event_mc_err_type type;
+	u16 errcount = mci->fake_inject_count;
+
+	if (!errcount)
+		errcount = 1;
 
 	type = mci->fake_inject_ue ? HW_EVENT_ERR_UNCORRECTED
 				   : HW_EVENT_ERR_CORRECTED;
 
 	printk(KERN_DEBUG
-	       "Generating a %s fake error to %d.%d.%d to test core handling. NOTE: this won't test the driver-specific decoding logic.\n",
+	       "Generating %d %s fake error%s to %d.%d.%d to test core handling. NOTE: this won't test the driver-specific decoding logic.\n",
+		errcount,
 		(type == HW_EVENT_ERR_UNCORRECTED) ? "UE" : "CE",
+		errcount > 1 ? "s" : "",
 		mci->fake_inject_layer[0],
 		mci->fake_inject_layer[1],
 		mci->fake_inject_layer[2]
 	       );
-	edac_mc_handle_error(type, mci, 1, 0, 0, 0,
+	edac_mc_handle_error(type, mci, errcount, 0, 0, 0,
 			     mci->fake_inject_layer[0],
 			     mci->fake_inject_layer[1],
 			     mci->fake_inject_layer[2],
@@ -941,6 +947,11 @@ int edac_create_debug_nodes(struct mem_ctl_info *mci)
 
 	d = debugfs_create_bool("fake_inject_ue", S_IRUGO | S_IWUSR, parent,
 				&mci->fake_inject_ue);
+	if (!d)
+		goto nomem;
+
+	d = debugfs_create_u16("fake_inject_count", S_IRUGO | S_IWUSR, parent,
+				&mci->fake_inject_count);
 	if (!d)
 		goto nomem;
 

@@ -665,6 +665,7 @@ struct mem_ctl_info {
 	struct dentry *debugfs;
 	u8 fake_inject_layer[EDAC_MAX_LAYERS];
 	u32 fake_inject_ue;
+	u16 fake_inject_count;
 #endif
 };
 
