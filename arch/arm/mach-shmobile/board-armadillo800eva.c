@@ -45,6 +45,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/r8a7740.h>
 #include <video/sh_mobile_lcdc.h>
+#include <video/sh_mobile_hdmi.h>
 
 /*
  * CON1		Camera Module
@@ -384,6 +385,103 @@ static struct platform_device lcdc0_device = {
 	},
 };
 
+/*
+ * LCDC1/HDMI
+ */
+static struct sh_mobile_hdmi_info hdmi_info = {
+	.flags		= HDMI_OUTPUT_PUSH_PULL |
+			  HDMI_OUTPUT_POLARITY_HI |
+			  HDMI_32BIT_REG |
+			  HDMI_HAS_HTOP1 |
+			  HDMI_SND_SRC_SPDIF,
+};
+
+static struct resource hdmi_resources[] = {
+	[0] = {
+		.name	= "HDMI",
+		.start	= 0xe6be0000,
+		.end	= 0xe6be03ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= evt2irq(0x1700),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.name	= "HDMI emma3pf",
+		.start	= 0xe6be4000,
+		.end	= 0xe6be43ff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device hdmi_device = {
+	.name		= "sh-mobile-hdmi",
+	.num_resources	= ARRAY_SIZE(hdmi_resources),
+	.resource	= hdmi_resources,
+	.id             = -1,
+	.dev	= {
+		.platform_data	= &hdmi_info,
+	},
+};
+
+static const struct fb_videomode lcdc1_mode = {
+	.name		= "HDMI 720p",
+	.xres		= 1280,
+	.yres		= 720,
+	.pixclock	= 13468,
+	.left_margin	= 220,
+	.right_margin	= 110,
+	.hsync_len	= 40,
+	.upper_margin	= 20,
+	.lower_margin	= 5,
+	.vsync_len	= 5,
+	.refresh	= 60,
+	.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+};
+
+static struct sh_mobile_lcdc_info hdmi_lcdc_info = {
+	.clock_source	= LCDC_CLK_PERIPHERAL, /* HDMI clock */
+	.ch[0] = {
+		.chan			= LCDC_CHAN_MAINLCD,
+		.fourcc			= V4L2_PIX_FMT_RGB565,
+		.interface_type		= RGB24,
+		.clock_divider		= 1,
+		.flags			= LCDC_FLAGS_DWPOL,
+		.lcd_modes		= &lcdc1_mode,
+		.num_modes		= 1,
+		.tx_dev			= &hdmi_device,
+		.panel_cfg = {
+			.width	= 1280,
+			.height = 720,
+		},
+	},
+};
+
+static struct resource hdmi_lcdc_resources[] = {
+	[0] = {
+		.name	= "LCDC1",
+		.start	= 0xfe944000,
+		.end	= 0xfe948000 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= intcs_evt2irq(0x1780),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device hdmi_lcdc_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(hdmi_lcdc_resources),
+	.resource	= hdmi_lcdc_resources,
+	.id		= 1,
+	.dev	= {
+		.platform_data	= &hdmi_lcdc_info,
+		.coherent_dma_mask = ~0,
+	},
+};
+
 /* GPIO KEY */
 #define GPIO_KEY(c, g, d) { .code = c, .gpio = g, .desc = d, .active_low = 1 }
 
@@ -549,6 +647,8 @@ static struct platform_device *eva_devices[] __initdata = {
 	&sh_eth_device,
 	&sdhi0_device,
 	&sh_mmcif_device,
+	&hdmi_device,
+	&hdmi_lcdc_device,
 };
 
 static void __init eva_clock_init(void)
