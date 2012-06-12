@@ -1276,6 +1276,12 @@ static int __devinit mmci_probe(struct amba_device *dev,
 		return -EINVAL;
 	}
 
+	if (!plat) {
+		plat = devm_kzalloc(&dev->dev, sizeof(*plat), GFP_KERNEL);
+		if (!plat)
+			return -ENOMEM;
+	}
+
 	if (np)
 		mmci_dt_populate_generic_pdata(np, plat);
 
