@@ -1788,6 +1788,8 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 
 #ifdef CONFIG_I2C1_RK30
+#define DC3_VCC_DDR_VOL 1800000   //for vcc_lpddr2_1v8
+#define DC5_VCC_DDR_VOL 1200000	//for vcc_lpddr2_1v2
 #include "board-rk30-phone-twl60xx.c"
 static struct i2c_board_info __initdata i2c1_info[] = {
 

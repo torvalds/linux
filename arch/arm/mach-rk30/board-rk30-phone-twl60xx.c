@@ -54,10 +54,11 @@ int tps80032_pre_init(void){
 
 	gpio_request(PMU_POWER_SLEEP, "NULL");
 	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
-
+	
 	gpio_request(PMU_CHRG_DET_N, "NULL");
 	gpio_direction_output(PMU_CHRG_DET_N, GPIO_HIGH);
-	
+
+	twl_reg_write(0x0e,TWL_MODULE_PM_MASTER,0x5f);
 	twl_reg_write(PREQ1_RES_ASS_A,TWL_MODULE_PM_SLAVE_RES,0x2b);
 	twl_reg_write(PREQ1_RES_ASS_B,TWL_MODULE_PM_SLAVE_RES,0x50);
 	twl_reg_write(PREQ1_RES_ASS_C,TWL_MODULE_PM_SLAVE_RES,0x27);
@@ -143,19 +144,18 @@ int tps80032_set_init(void)
 	udelay(100);
 
 	dcdc = regulator_get(NULL, "vcc_lpddr2_1v8");  //vcc_lpddr2_1v8
-	regulator_set_voltage(dcdc,1800000,1800000);
+	regulator_set_voltage(dcdc,DC3_VCC_DDR_VOL,DC3_VCC_DDR_VOL);
 	regulator_enable(dcdc); 
 //	printk("%s set dcdc3 vcc_lpddr2_1v8=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
 
-	dcdc = regulator_get(NULL, "vcc_lpddr2_1v2");
-	regulator_set_voltage(dcdc,1200000,1200000);
+	dcdc = regulator_get(NULL, "vcc_lpddr2_1v2");	//vcc_lpddr2_1v2
+	regulator_set_voltage(dcdc,DC5_VCC_DDR_VOL,DC5_VCC_DDR_VOL);
 	regulator_enable(dcdc); 
 //	printk("%s set dcdc5 vcc_lpddr2_1v2=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
-
 	
 	ldo = regulator_get(NULL, "ldo3");	//vcc_nandflash
 	regulator_set_voltage(ldo, 3300000, 3300000);
@@ -223,6 +223,9 @@ static struct regulator_consumer_supply tps80032_smps3_supply[] = {
 	},
 	{
 		.supply = "vcc_lpddr2_1v8",
+	},
+	{
+		.supply = "vcc_ddr3",
 	},
 };
 static struct regulator_consumer_supply tps80032_smps4_supply[] = {
