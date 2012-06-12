@@ -1999,10 +1999,6 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* Show board configuration */
 	printk(KERN_INFO "%s:", dev->board_name);
 
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 */
 	if (comedi_alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 

@@ -800,13 +800,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		dev_warn(dev->hw_dev, "cannot allocate subdevice private data structures\n");
 		return -ENOMEM;
 	}
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 *
-	 * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
-	 * 96-channel version of the board.
-	 */
+
 	if (comedi_alloc_subdevices(dev, n_subdevs) < 0)
 		return -ENOMEM;
 

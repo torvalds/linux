@@ -2839,10 +2839,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 		dev_dbg(dev->class_dev, "registered irq %u\n",
 			devpriv->pci_dev->irq);
 	}
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 */
+
 	if (comedi_alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 	s = dev->subdevices + 0;

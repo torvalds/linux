@@ -267,10 +267,6 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->last_channel = -1;
 	devpriv->last_range = -1;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
 	if (comedi_alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 

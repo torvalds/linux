@@ -177,10 +177,6 @@ found:
 	    pci_resource_start(devpriv->pci_dev,
 			       pcidio_boards[index].dioregs_badrindex);
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
 	if (comedi_alloc_subdevices(dev, thisboard->n_8255) < 0)
 		return -ENOMEM;
 

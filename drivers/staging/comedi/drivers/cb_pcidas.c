@@ -614,9 +614,6 @@ found:
 	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the subdevice structures.
- */
 	if (comedi_alloc_subdevices(dev, 7) < 0)
 		return -ENOMEM;
 

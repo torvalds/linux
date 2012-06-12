@@ -1379,7 +1379,6 @@ static int pci224_attach_common(struct comedi_device *dev,
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 	     dev->iobase + PCI224_DACCON);
 
-	/* Allocate subdevices.  There is only one!  */
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret < 0)
 		return ret;

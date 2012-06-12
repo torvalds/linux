@@ -190,13 +190,6 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	devpriv->simultaneous_xfer_mode = it->options[1];
 
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 *
-	 * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
-	 * 96-channel version of the board.
-	 */
 	if (comedi_alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 

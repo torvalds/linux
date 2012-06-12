@@ -333,9 +333,6 @@ found:
  */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the subdevice structures.
- */
 	if (comedi_alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 

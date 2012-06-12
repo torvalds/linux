@@ -189,7 +189,6 @@ found:
 	io_base = pci_resource_start(pci_device, 0);
 	dev->iobase = io_base;
 
-	/* allocate the subdevice structures */
 	error = comedi_alloc_subdevices(dev, 1);
 	if (error < 0)
 		return error;

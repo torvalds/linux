@@ -269,10 +269,6 @@ found:
 	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
 	if (comedi_alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 

@@ -233,10 +233,6 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct skel_private)) < 0)
 		return -ENOMEM;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
 	if (comedi_alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 

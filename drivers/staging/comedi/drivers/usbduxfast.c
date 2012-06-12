@@ -1666,7 +1666,6 @@ static int usbduxfast_attach(struct comedi_device *dev,
 
 	dev->board_name = BOARDNAME;
 
-	/* allocate space for the subdevices */
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret < 0) {
 		up(&(usbduxfastsub[index].sem));

@@ -2690,7 +2690,6 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 		n_subdevs = 3;
 	}
 
-	/* allocate space for the subdevices */
 	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret < 0) {
 		up(&udev->sem);

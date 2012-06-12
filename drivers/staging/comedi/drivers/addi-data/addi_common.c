@@ -1686,7 +1686,6 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->s_BoardInfos.ui_Address = io_addr[2];
 #endif
 	} else {
-		/* Update-0.7.57->0.7.68dev->n_subdevices = 7; */
 		n_subdevices = 7;
 		ret = comedi_alloc_subdevices(dev, n_subdevices);
 		if (ret < 0)

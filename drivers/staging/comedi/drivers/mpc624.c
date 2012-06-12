@@ -348,7 +348,6 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
 	}
 
-	/*  Subdevices structures */
 	if (comedi_alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 

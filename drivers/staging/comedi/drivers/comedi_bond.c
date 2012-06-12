@@ -358,10 +358,6 @@ static int bonding_attach(struct comedi_device *dev,
 	 */
 	dev->board_name = devpriv->name;
 
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 */
 	if (comedi_alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 

@@ -2645,7 +2645,6 @@ static int usbdux_attach_common(struct comedi_device *dev,
 		n_subdevs = 4;
 	}
 
-	/* allocate space for the subdevices */
 	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret < 0) {
 		up(&udev->sem);

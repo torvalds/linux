@@ -1071,12 +1071,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				dev->minor);
 		return -ENOMEM;
 	}
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 *
-	 * Allocate 1 AI + 1 AO + 2 DIO subdevs (24 lines per DIO)
-	 */
+
 	if (comedi_alloc_subdevices(dev, n_subdevs) < 0)
 		return -ENOMEM;
 

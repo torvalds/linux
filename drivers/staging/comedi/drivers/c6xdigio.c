@@ -433,7 +433,6 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	dev->iobase = iobase;
 	dev->board_name = "c6xdigio";
 
-	/* 3 subdevices with encoder_init write */
 	result = comedi_alloc_subdevices(dev, 2);
 	if (result < 0)
 		return result;
