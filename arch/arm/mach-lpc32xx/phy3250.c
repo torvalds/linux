@@ -359,13 +359,6 @@ static void __init lpc3250_machine_init(void)
 			     lpc32xx_auxdata_lookup, NULL);
 
 	/* Register GPIOs used on this board */
-	if (gpio_request(SPI0_CS_GPIO, "spi0 cs"))
-		printk(KERN_ERR "Error requesting gpio %u",
-			SPI0_CS_GPIO);
-	else if (gpio_direction_output(SPI0_CS_GPIO, 1))
-		printk(KERN_ERR "Error setting gpio %u to output",
-			SPI0_CS_GPIO);
-
 	if (gpio_request(MMC_PWR_ENABLE_GPIO, "mmc_power_en"))
 		pr_err("Error requesting gpio %u", MMC_PWR_ENABLE_GPIO);
 	else if (gpio_direction_output(MMC_PWR_ENABLE_GPIO, 1))
