@@ -131,10 +131,10 @@ struct iio_chan_spec_ext_info {
 
 /**
  * struct iio_enum - Enum channel info attribute
- * items: An array of strings.
- * num_items: Length of the item array.
- * set: Set callback function, may be NULL.
- * get: Get callback function, may be NULL.
+ * @items: An array of strings.
+ * @num_items: Length of the item array.
+ * @set: Set callback function, may be NULL.
+ * @get: Get callback function, may be NULL.
  *
  * The iio_enum struct can be used to implement enum style channel attributes.
  * Enum style attributes are those which have a set of strings which map to
