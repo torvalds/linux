@@ -1404,6 +1404,27 @@ i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 	}
 }
 
+static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
+{
+	struct apertures_struct *ap;
+	struct pci_dev *pdev = dev_priv->dev->pdev;
+	bool primary;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
+	ap->ranges[0].base = dev_priv->dev->agp->base;
+	ap->ranges[0].size =
+		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	primary =
+		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
+
+	remove_conflicting_framebuffers(ap, "inteldrmfb", primary);
+
+	kfree(ap);
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -1449,6 +1470,22 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto free_priv;
 	}
 
+	ret = intel_gmch_probe(dev_priv->bridge_dev, dev->pdev, NULL);
+	if (!ret) {
+		DRM_ERROR("failed to set up gmch\n");
+		ret = -EIO;
+		goto put_bridge;
+	}
+
+	dev_priv->mm.gtt = intel_gtt_get();
+	if (!dev_priv->mm.gtt) {
+		DRM_ERROR("Failed to initialize GTT\n");
+		ret = -ENODEV;
+		goto put_gmch;
+	}
+
+	i915_kick_out_firmware_fb(dev_priv);
+
 	pci_set_master(dev->pdev);
 
 	/* overlay on gen2 is broken and can't address above 1G */
@@ -1471,20 +1508,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!dev_priv->regs) {
 		DRM_ERROR("failed to map registers\n");
 		ret = -EIO;
-		goto put_bridge;
-	}
-
-	ret = intel_gmch_probe(dev_priv->bridge_dev, dev->pdev, NULL);
-	if (!ret) {
-		DRM_ERROR("failed to set up gmch\n");
-		ret = -EIO;
-		goto out_rmmap;
-	}
-
-	dev_priv->mm.gtt = intel_gtt_get();
-	if (!dev_priv->mm.gtt) {
-		DRM_ERROR("Failed to initialize GTT\n");
-		ret = -ENODEV;
 		goto put_gmch;
 	}
 
@@ -1496,7 +1519,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 				     aperture_size);
 	if (dev_priv->mm.gtt_mapping == NULL) {
 		ret = -EIO;
-		goto put_gmch;
+		goto out_rmmap;
 	}
 
 	i915_mtrr_setup(dev_priv, dev_priv->mm.gtt_base_addr,
@@ -1618,10 +1641,10 @@ out_mtrrfree:
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 	io_mapping_free(dev_priv->mm.gtt_mapping);
-put_gmch:
-	intel_gmch_remove();
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
+put_gmch:
+	intel_gmch_remove();
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
