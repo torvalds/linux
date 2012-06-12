@@ -66,8 +66,15 @@ static void __init ct_ca9x4_init_irq(void)
 
 static void ct_ca9x4_clcd_enable(struct clcd_fb *fb)
 {
-	v2m_cfg_write(SYS_CFG_MUXFPGA | SYS_CFG_SITE_DB1, 0);
-	v2m_cfg_write(SYS_CFG_DVIMODE | SYS_CFG_SITE_DB1, 2);
+	u32 site = v2m_get_master_site();
+
+	/*
+	 * Old firmware was using the "site" component of the command
+	 * to control the DVI muxer (while it should be always 0 ie. MB).
+	 * Newer firmware uses the data register. Keep both for compatibility.
+	 */
+	v2m_cfg_write(SYS_CFG_MUXFPGA | SYS_CFG_SITE(site), site);
+	v2m_cfg_write(SYS_CFG_DVIMODE | SYS_CFG_SITE(SYS_CFG_SITE_MB), 2);
 }
 
 static int ct_ca9x4_clcd_setup(struct clcd_fb *fb)
@@ -112,7 +119,9 @@ static long ct_round(struct clk *clk, unsigned long rate)
 
 static int ct_set(struct clk *clk, unsigned long rate)
 {
-	return v2m_cfg_write(SYS_CFG_OSC | SYS_CFG_SITE_DB1 | 1, rate);
+	u32 site = v2m_get_master_site();
+
+	return v2m_cfg_write(SYS_CFG_OSC | SYS_CFG_SITE(site) | 1, rate);
 }
 
 static const struct clk_ops osc1_clk_ops = {

@@ -104,9 +104,10 @@
 #define SYS_CFG_REBOOT		(9 << 20)
 #define SYS_CFG_DVIMODE		(11 << 20)
 #define SYS_CFG_POWER		(12 << 20)
-#define SYS_CFG_SITE_MB		(0 << 16)
-#define SYS_CFG_SITE_DB1	(1 << 16)
-#define SYS_CFG_SITE_DB2	(2 << 16)
+#define SYS_CFG_SITE(n)		((n) << 16)
+#define SYS_CFG_SITE_MB		0
+#define SYS_CFG_SITE_DB1	1
+#define SYS_CFG_SITE_DB2	2
 #define SYS_CFG_STACK(n)	((n) << 12)
 
 #define SYS_CFG_ERR		(1 << 1)
@@ -121,6 +122,8 @@ void v2m_flags_set(u32 data);
  */
 #define SYS_MISC_MASTERSITE	(1 << 14)
 #define SYS_PROCIDx_HBI_MASK	0xfff
+
+int v2m_get_master_site(void);
 
 /*
  * Core tile IDs
