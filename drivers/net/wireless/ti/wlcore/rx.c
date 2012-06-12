@@ -186,6 +186,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 		is_data = 1;
 
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
+	wlcore_hw_set_rx_csum(wl, desc, skb);
 
 	seq_num = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
 	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s seq %d hlid %d", skb,
@@ -199,12 +200,12 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	return is_data;
 }
 
-void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
+void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 {
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	u32 buf_size;
-	u32 fw_rx_counter  = status->fw_rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
-	u32 drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
+	u32 fw_rx_counter = status->fw_rx_counter % wl->num_rx_desc;
+	u32 drv_rx_counter = wl->rx_counter % wl->num_rx_desc;
 	u32 rx_counter;
 	u32 pkt_len, align_pkt_len;
 	u32 pkt_offset, des;
@@ -223,7 +224,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
 				break;
 			buf_size += align_pkt_len;
 			rx_counter++;
-			rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
+			rx_counter %= wl->num_rx_desc;
 		}
 
 		if (buf_size == 0) {
@@ -263,7 +264,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status)
 
 			wl->rx_counter++;
 			drv_rx_counter++;
-			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
+			drv_rx_counter %= wl->num_rx_desc;
 			pkt_offset += wlcore_rx_get_align_buf_size(wl, pkt_len);
 		}
 	}

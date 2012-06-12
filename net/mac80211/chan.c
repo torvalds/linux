@@ -41,6 +41,10 @@ __ieee80211_get_channel_mode(struct ieee80211_local *local,
 			if (!sdata->u.ap.beacon)
 				continue;
 			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			if (!sdata->wdev.mesh_id_len)
+				continue;
+			break;
 		default:
 			break;
 		}

@@ -804,7 +804,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
 	int ac;
-	bool use_11b;
+	bool use_11b, enable_qos;
 	int aCWmin, aCWmax;
 
 	if (!local->ops->conf_tx)
@@ -818,6 +818,13 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	use_11b = (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
 
+	/*
+	 * By default disable QoS in STA mode for old access points, which do
+	 * not support 802.11e. New APs will provide proper queue parameters,
+	 * that we will configure later.
+	 */
+	enable_qos = (sdata->vif.type != NL80211_IFTYPE_STATION);
+
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		/* Set defaults according to 802.11-2007 Table 7-37 */
 		aCWmax = 1023;
@@ -826,38 +833,47 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 		else
 			aCWmin = 15;
 
-		switch (ac) {
-		case IEEE80211_AC_BK:
+		if (enable_qos) {
+			switch (ac) {
+			case IEEE80211_AC_BK:
+				qparam.cw_max = aCWmax;
+				qparam.cw_min = aCWmin;
+				qparam.txop = 0;
+				qparam.aifs = 7;
+				break;
+			/* never happens but let's not leave undefined */
+			default:
+			case IEEE80211_AC_BE:
+				qparam.cw_max = aCWmax;
+				qparam.cw_min = aCWmin;
+				qparam.txop = 0;
+				qparam.aifs = 3;
+				break;
+			case IEEE80211_AC_VI:
+				qparam.cw_max = aCWmin;
+				qparam.cw_min = (aCWmin + 1) / 2 - 1;
+				if (use_11b)
+					qparam.txop = 6016/32;
+				else
+					qparam.txop = 3008/32;
+				qparam.aifs = 2;
+				break;
+			case IEEE80211_AC_VO:
+				qparam.cw_max = (aCWmin + 1) / 2 - 1;
+				qparam.cw_min = (aCWmin + 1) / 4 - 1;
+				if (use_11b)
+					qparam.txop = 3264/32;
+				else
+					qparam.txop = 1504/32;
+				qparam.aifs = 2;
+				break;
+			}
+		} else {
+			/* Confiure old 802.11b/g medium access rules. */
 			qparam.cw_max = aCWmax;
 			qparam.cw_min = aCWmin;
 			qparam.txop = 0;
-			qparam.aifs = 7;
-			break;
-		default: /* never happens but let's not leave undefined */
-		case IEEE80211_AC_BE:
-			qparam.cw_max = aCWmax;
-			qparam.cw_min = aCWmin;
-			qparam.txop = 0;
-			qparam.aifs = 3;
-			break;
-		case IEEE80211_AC_VI:
-			qparam.cw_max = aCWmin;
-			qparam.cw_min = (aCWmin + 1) / 2 - 1;
-			if (use_11b)
-				qparam.txop = 6016/32;
-			else
-				qparam.txop = 3008/32;
 			qparam.aifs = 2;
-			break;
-		case IEEE80211_AC_VO:
-			qparam.cw_max = (aCWmin + 1) / 2 - 1;
-			qparam.cw_min = (aCWmin + 1) / 4 - 1;
-			if (use_11b)
-				qparam.txop = 3264/32;
-			else
-				qparam.txop = 1504/32;
-			qparam.aifs = 2;
-			break;
 		}
 
 		qparam.uapsd = false;
@@ -866,12 +882,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 		drv_conf_tx(local, sdata, ac, &qparam);
 	}
 
-	/* after reinitialize QoS TX queues setting to default,
-	 * disable QoS at all */
-
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
-		sdata->vif.bss_conf.qos =
-			sdata->vif.type != NL80211_IFTYPE_STATION;
+		sdata->vif.bss_conf.qos = enable_qos;
 		if (bss_notify)
 			ieee80211_bss_info_change_notify(sdata,
 							 BSS_CHANGED_QOS);
@@ -1267,14 +1279,19 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
-		if (sta->uploaded) {
-			enum ieee80211_sta_state state;
+		enum ieee80211_sta_state state;
 
-			for (state = IEEE80211_STA_NOTEXIST;
-			     state < sta->sta_state; state++)
-				WARN_ON(drv_sta_state(local, sta->sdata, sta,
-						      state, state + 1));
-		}
+		if (!sta->uploaded)
+			continue;
+
+		/* AP-mode stations will be added later */
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
+			continue;
+
+		for (state = IEEE80211_STA_NOTEXIST;
+		     state < sta->sta_state; state++)
+			WARN_ON(drv_sta_state(local, sta->sdata, sta, state,
+					      state + 1));
 	}
 	mutex_unlock(&local->sta_mtx);
 
@@ -1370,6 +1387,24 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			ieee80211_send_nullfunc(local, sdata, 0);
 		}
 	}
+
+	/* APs are now beaconing, add back stations */
+	mutex_lock(&local->sta_mtx);
+	list_for_each_entry(sta, &local->sta_list, list) {
+		enum ieee80211_sta_state state;
+
+		if (!sta->uploaded)
+			continue;
+
+		if (sta->sdata->vif.type != NL80211_IFTYPE_AP)
+			continue;
+
+		for (state = IEEE80211_STA_NOTEXIST;
+		     state < sta->sta_state; state++)
+			WARN_ON(drv_sta_state(local, sta->sdata, sta, state,
+					      state + 1));
+	}
+	mutex_unlock(&local->sta_mtx);
 
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)

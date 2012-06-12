@@ -54,6 +54,8 @@ static inline u32 iwl_read32(struct iwl_trans *trans, u32 ofs)
 void iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask);
 void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask);
 
+void iwl_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value);
+
 int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
 		 u32 bits, u32 mask, int timeout);
 int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,

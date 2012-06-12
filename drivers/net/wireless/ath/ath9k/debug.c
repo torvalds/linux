@@ -205,10 +205,10 @@ static ssize_t write_file_disable_ani(struct file *file,
 	common->disable_ani = !!disable_ani;
 
 	if (disable_ani) {
-		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
 		del_timer_sync(&common->ani.timer);
 	} else {
-		sc->sc_flags |= SC_OP_ANI_RUN;
+		set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
 		ath_start_ani(common);
 	}
 
@@ -374,6 +374,8 @@ void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 		sc->debug.stats.istats.dtim++;
 	if (status & ATH9K_INT_TSFOOR)
 		sc->debug.stats.istats.tsfoor++;
+	if (status & ATH9K_INT_MCI)
+		sc->debug.stats.istats.mci++;
 }
 
 static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
@@ -418,6 +420,7 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 	PR_IS("DTIMSYNC", dtimsync);
 	PR_IS("DTIM", dtim);
 	PR_IS("TSFOOR", tsfoor);
+	PR_IS("MCI", mci);
 	PR_IS("TOTAL", total);
 
 	len += snprintf(buf + len, mxlen - len,
@@ -1318,7 +1321,7 @@ static int open_file_bb_mac_samps(struct inode *inode, struct file *file)
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	u8 nread;
 
-	if (sc->sc_flags & SC_OP_INVALID)
+	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
 		return -EAGAIN;
 
 	buf = vmalloc(size);

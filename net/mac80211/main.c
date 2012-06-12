@@ -625,8 +625,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
 
-	ieee80211_work_init(local);
-
 	INIT_WORK(&local->restart_work, ieee80211_restart_work);
 
 	INIT_WORK(&local->reconfig_filter, ieee80211_reconfig_filter);
@@ -669,7 +667,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	ieee80211_led_names(local);
 
-	ieee80211_hw_roc_setup(local);
+	ieee80211_roc_setup(local);
 
 	return &local->hw;
 }
@@ -682,6 +680,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	enum ieee80211_band band;
 	int channels, max_bitrates;
 	bool supp_ht;
+	netdev_features_t feature_whitelist;
 	static const u32 cipher_suites[] = {
 		/* keep WEP first, it may be removed below */
 		WLAN_CIPHER_SUITE_WEP40,
@@ -706,6 +705,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		return -EINVAL;
 
 	if ((hw->flags & IEEE80211_HW_SCAN_WHILE_IDLE) && !local->ops->hw_scan)
+		return -EINVAL;
+
+	/* Only HW csum features are currently compatible with mac80211 */
+	feature_whitelist = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			    NETIF_F_HW_CSUM;
+	if (WARN_ON(hw->netdev_features & ~feature_whitelist))
 		return -EINVAL;
 
 	if (hw->max_report_rates == 0)
@@ -1008,12 +1013,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	ieee80211_remove_interfaces(local);
 
 	rtnl_unlock();
-
-	/*
-	 * Now all work items will be gone, but the
-	 * timer might still be armed, so delete it
-	 */
-	del_timer_sync(&local->work_timer);
 
 	cancel_work_sync(&local->restart_work);
 	cancel_work_sync(&local->reconfig_filter);

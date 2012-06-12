@@ -36,6 +36,7 @@
 #include "cmd.h"
 #include "event.h"
 #include "tx.h"
+#include "hw_ops.h"
 
 #define WL1271_CMD_FAST_POLL_COUNT       50
 
@@ -291,6 +292,23 @@ static int wl12xx_get_new_session_id(struct wl1271 *wl,
 	return wlvif->session_counter;
 }
 
+static u8 wlcore_get_native_channel_type(u8 nl_channel_type)
+{
+	switch (nl_channel_type) {
+	case NL80211_CHAN_NO_HT:
+		return WLCORE_CHAN_NO_HT;
+	case NL80211_CHAN_HT20:
+		return WLCORE_CHAN_HT20;
+	case NL80211_CHAN_HT40MINUS:
+		return WLCORE_CHAN_HT40MINUS;
+	case NL80211_CHAN_HT40PLUS:
+		return WLCORE_CHAN_HT40PLUS;
+	default:
+		WARN_ON(1);
+		return WLCORE_CHAN_NO_HT;
+	}
+}
+
 static int wl12xx_cmd_role_start_dev(struct wl1271 *wl,
 				     struct wl12xx_vif *wlvif)
 {
@@ -407,6 +425,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	memcpy(cmd->sta.ssid, wlvif->ssid, wlvif->ssid_len);
 	memcpy(cmd->sta.bssid, vif->bss_conf.bssid, ETH_ALEN);
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
+	cmd->channel_type = wlcore_get_native_channel_type(wlvif->channel_type);
 
 	if (wlvif->sta.hlid == WL12XX_INVALID_LINK_ID) {
 		ret = wl12xx_allocate_link(wl, wlvif, &wlvif->sta.hlid);
@@ -482,6 +501,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct wl12xx_cmd_role_start *cmd;
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	u32 supported_rates;
 	int ret;
 
 	wl1271_debug(DEBUG_CMD, "cmd role start ap %d", wlvif->role_id);
@@ -519,6 +539,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	/* FIXME: Change when adding DFS */
 	cmd->ap.reset_tsf = 1;  /* By default reset AP TSF */
 	cmd->channel = wlvif->channel;
+	cmd->channel_type = wlcore_get_native_channel_type(wlvif->channel_type);
 
 	if (!bss_conf->hidden_ssid) {
 		/* take the SSID from the beacon for backward compatibility */
@@ -531,7 +552,13 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		memcpy(cmd->ap.ssid, bss_conf->ssid, bss_conf->ssid_len);
 	}
 
-	cmd->ap.local_rates = cpu_to_le32(0xffffffff);
+	supported_rates = CONF_TX_AP_ENABLED_RATES | CONF_TX_MCS_RATES |
+		wlcore_hw_ap_get_mimo_wide_rate_mask(wl, wlvif);
+
+	wl1271_debug(DEBUG_CMD, "cmd role start ap with supported_rates 0x%08x",
+		     supported_rates);
+
+	cmd->ap.local_rates = cpu_to_le32(supported_rates);
 
 	switch (wlvif->band) {
 	case IEEE80211_BAND_2GHZ:
@@ -797,6 +824,7 @@ out:
 	kfree(cmd);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1271_cmd_data_path);
 
 int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       u8 ps_mode, u16 auto_ps_timeout)
@@ -1018,7 +1046,7 @@ out:
 
 int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
-	int ret, extra;
+	int ret, extra = 0;
 	u16 fc;
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct sk_buff *skb;
@@ -1057,7 +1085,8 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	/* encryption space */
 	switch (wlvif->encryption_type) {
 	case KEY_TKIP:
-		extra = WL1271_EXTRA_SPACE_TKIP;
+		if (wl->quirks & WLCORE_QUIRK_TKIP_HEADER_SPACE)
+			extra = WL1271_EXTRA_SPACE_TKIP;
 		break;
 	case KEY_AES:
 		extra = WL1271_EXTRA_SPACE_AES;
@@ -1346,13 +1375,18 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	for (i = 0; i < NUM_ACCESS_CATEGORIES_COPY; i++)
 		if (sta->wme && (sta->uapsd_queues & BIT(i)))
-			cmd->psd_type[i] = WL1271_PSD_UPSD_TRIGGER;
+			cmd->psd_type[NUM_ACCESS_CATEGORIES_COPY-1-i] =
+					WL1271_PSD_UPSD_TRIGGER;
 		else
-			cmd->psd_type[i] = WL1271_PSD_LEGACY;
+			cmd->psd_type[NUM_ACCESS_CATEGORIES_COPY-1-i] =
+					WL1271_PSD_LEGACY;
+
 
 	sta_rates = sta->supp_rates[wlvif->band];
 	if (sta->ht_cap.ht_supported)
-		sta_rates |= sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET;
+		sta_rates |=
+			(sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET) |
+			(sta->ht_cap.mcs.rx_mask[1] << HW_MIMO_RATES_OFFSET);
 
 	cmd->supported_rates =
 		cpu_to_le32(wl1271_tx_enabled_rates_get(wl, sta_rates,
@@ -1573,19 +1607,25 @@ out:
 int wl12xx_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 role_id)
 {
 	int ret = 0;
+	bool is_first_roc;
 
 	if (WARN_ON(test_bit(role_id, wl->roc_map)))
 		return 0;
+
+	is_first_roc = (find_first_bit(wl->roc_map, WL12XX_MAX_ROLES) >=
+			WL12XX_MAX_ROLES);
 
 	ret = wl12xx_cmd_roc(wl, wlvif, role_id);
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_cmd_wait_for_event(wl,
-					REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID);
-	if (ret < 0) {
-		wl1271_error("cmd roc event completion error");
-		goto out;
+	if (is_first_roc) {
+		ret = wl1271_cmd_wait_for_event(wl,
+					   REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID);
+		if (ret < 0) {
+			wl1271_error("cmd roc event completion error");
+			goto out;
+		}
 	}
 
 	__set_bit(role_id, wl->roc_map);

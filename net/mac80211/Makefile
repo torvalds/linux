@@ -9,7 +9,6 @@ mac80211-y := \
 	scan.o offchannel.o \
 	ht.o agg-tx.o agg-rx.o \
 	ibss.o \
-	work.o \
 	iface.o \
 	rate.o \
 	michael.o \

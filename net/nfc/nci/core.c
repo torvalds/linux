@@ -387,7 +387,8 @@ static int nci_dev_down(struct nfc_dev *nfc_dev)
 	return nci_close_device(ndev);
 }
 
-static int nci_start_poll(struct nfc_dev *nfc_dev, __u32 protocols)
+static int nci_start_poll(struct nfc_dev *nfc_dev,
+			  __u32 im_protocols, __u32 tm_protocols)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
@@ -413,11 +414,11 @@ static int nci_start_poll(struct nfc_dev *nfc_dev, __u32 protocols)
 			return -EBUSY;
 	}
 
-	rc = nci_request(ndev, nci_rf_discover_req, protocols,
+	rc = nci_request(ndev, nci_rf_discover_req, im_protocols,
 			 msecs_to_jiffies(NCI_RF_DISC_TIMEOUT));
 
 	if (!rc)
-		ndev->poll_prots = protocols;
+		ndev->poll_prots = im_protocols;
 
 	return rc;
 }
@@ -521,9 +522,9 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 	}
 }
 
-static int nci_data_exchange(struct nfc_dev *nfc_dev, struct nfc_target *target,
-			     struct sk_buff *skb,
-			     data_exchange_cb_t cb, void *cb_context)
+static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
+			  struct sk_buff *skb,
+			  data_exchange_cb_t cb, void *cb_context)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
@@ -556,7 +557,7 @@ static struct nfc_ops nci_nfc_ops = {
 	.stop_poll = nci_stop_poll,
 	.activate_target = nci_activate_target,
 	.deactivate_target = nci_deactivate_target,
-	.data_exchange = nci_data_exchange,
+	.im_transceive = nci_transceive,
 };
 
 /* ---- Interface to NCI drivers ---- */

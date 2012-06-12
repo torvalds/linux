@@ -3,7 +3,9 @@ ath9k-y +=	beacon.o \
 		init.o \
 		main.o \
 		recv.o \
-		xmit.o
+		xmit.o \
+		link.o \
+		antenna.o
 
 ath9k-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += mci.o
 ath9k-$(CONFIG_ATH9K_RATE_CONTROL) += rc.o

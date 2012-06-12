@@ -598,7 +598,6 @@ static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
 
 	struct ath6kl *ar = vif->ar;
 
-	vif->next_chan = channel;
 	vif->profile.ch = cpu_to_le16(channel);
 
 	switch (vif->nw_type) {

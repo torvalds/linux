@@ -58,6 +58,7 @@ struct lbs_private {
 	uint16_t mesh_tlv;
 	u8 mesh_ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 mesh_ssid_len;
+	u8 mesh_channel;
 #endif
 
 	/* Debugfs */

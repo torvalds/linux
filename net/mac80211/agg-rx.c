@@ -74,18 +74,15 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 
 	RCU_INIT_POINTER(sta->ampdu_mlme.tid_rx[tid], NULL);
 
-#ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG
-	       "Rx BA session stop requested for %pM tid %u %s reason: %d\n",
-	       sta->sta.addr, tid,
-	       initiator == WLAN_BACK_RECIPIENT ? "recipient" : "inititator",
-	       (int)reason);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
+	ht_vdbg("Rx BA session stop requested for %pM tid %u %s reason: %d\n",
+		sta->sta.addr, tid,
+		initiator == WLAN_BACK_RECIPIENT ? "recipient" : "inititator",
+		(int)reason);
 
 	if (drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_STOP,
 			     &sta->sta, tid, NULL, 0))
-		printk(KERN_DEBUG "HW problem - can not stop rx "
-				"aggregation for tid %d\n", tid);
+		pr_debug("HW problem - can not stop rx aggregation for tid %d\n",
+			 tid);
 
 	/* check if this is a self generated aggregation halt */
 	if (initiator == WLAN_BACK_RECIPIENT && tx)
@@ -160,9 +157,8 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 	}
 	rcu_read_unlock();
 
-#ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "rx session timer expired on tid %d\n", (u16)*ptid);
-#endif
+	ht_vdbg("rx session timer expired on tid %d\n", (u16)*ptid);
+
 	set_bit(*ptid, sta->ampdu_mlme.tid_rx_timer_expired);
 	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
 }
@@ -249,10 +245,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	status = WLAN_STATUS_REQUEST_DECLINED;
 
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Suspend in progress. "
-		       "Denying ADDBA request\n");
-#endif
+		ht_vdbg("Suspend in progress - Denying ADDBA request\n");
 		goto end_no_lock;
 	}
 
@@ -324,10 +317,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	ret = drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_START,
 			       &sta->sta, tid, &start_seq_num, 0);
-#ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Rx A-MPDU request on tid %d result %d\n", tid, ret);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
-
+	ht_vdbg("Rx A-MPDU request on tid %d result %d\n", tid, ret);
 	if (ret) {
 		kfree(tid_agg_rx->reorder_buf);
 		kfree(tid_agg_rx->reorder_time);

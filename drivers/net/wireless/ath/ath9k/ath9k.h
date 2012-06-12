@@ -307,6 +307,7 @@ struct ath_rx {
 	u8 defant;
 	u8 rxotherant;
 	u32 *rxlink;
+	u32 num_pkts;
 	unsigned int rxfilter;
 	spinlock_t rxbuflock;
 	struct list_head rxbuf;
@@ -325,6 +326,9 @@ int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp);
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype);
+void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq);
+void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq);
+void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
 bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx);
 void ath_draintxq(struct ath_softc *sc,
@@ -414,9 +418,9 @@ int ath_beaconq_config(struct ath_softc *sc);
 void ath_set_beacon(struct ath_softc *sc);
 void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 
-/*******/
-/* ANI */
-/*******/
+/*******************/
+/* Link Monitoring */
+/*******************/
 
 #define ATH_STA_SHORT_CALINTERVAL 1000    /* 1 second */
 #define ATH_AP_SHORT_CALINTERVAL  100     /* 100 ms */
@@ -427,7 +431,9 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
 #define ATH_PAPRD_TIMEOUT	100 /* msecs */
+#define ATH_PLL_WORK_INTERVAL   100
 
+void ath_tx_complete_poll_work(struct work_struct *work);
 void ath_reset_work(struct work_struct *work);
 void ath_hw_check(struct work_struct *work);
 void ath_hw_pll_work(struct work_struct *work);
@@ -436,10 +442,17 @@ void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 void ath_start_ani(struct ath_common *common);
+int ath_update_survey_stats(struct ath_softc *sc);
+void ath_update_survey_nf(struct ath_softc *sc, int channel);
 
 /**********/
 /* BTCOEX */
 /**********/
+
+enum bt_op_flags {
+	BT_OP_PRIORITY_DETECTED,
+	BT_OP_SCAN,
+};
 
 struct ath_btcoex {
 	bool hw_timer_enabled;
@@ -447,11 +460,13 @@ struct ath_btcoex {
 	struct timer_list period_timer; /* Timer for BT period */
 	u32 bt_priority_cnt;
 	unsigned long bt_priority_time;
+	unsigned long op_flags;
 	int bt_stomp_type; /* Types of BT stomping */
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
 	u32 btscan_no_stomp; /* in usec */
 	u32 duty_cycle;
+	u32 bt_wait_time;
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 	struct ath_mci_profile mci;
 };
@@ -513,8 +528,10 @@ static inline void ath_deinit_leds(struct ath_softc *sc)
 }
 #endif
 
-
+/*******************************/
 /* Antenna diversity/combining */
+/*******************************/
+
 #define ATH_ANT_RX_CURRENT_SHIFT 4
 #define ATH_ANT_RX_MAIN_SHIFT 2
 #define ATH_ANT_RX_MASK 0x3
@@ -567,6 +584,9 @@ struct ath_ant_comb {
 	unsigned long scan_start_time;
 };
 
+void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
+void ath_ant_comb_update(struct ath_softc *sc);
+
 /********************/
 /* Main driver core */
 /********************/
@@ -584,15 +604,15 @@ struct ath_ant_comb {
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
 #define ATH_RATE_DUMMY_MARKER   0
 
-#define SC_OP_INVALID                BIT(0)
-#define SC_OP_BEACONS                BIT(1)
-#define SC_OP_OFFCHANNEL             BIT(2)
-#define SC_OP_RXFLUSH                BIT(3)
-#define SC_OP_TSF_RESET              BIT(4)
-#define SC_OP_BT_PRIORITY_DETECTED   BIT(5)
-#define SC_OP_BT_SCAN                BIT(6)
-#define SC_OP_ANI_RUN                BIT(7)
-#define SC_OP_PRIM_STA_VIF           BIT(8)
+enum sc_op_flags {
+	SC_OP_INVALID,
+	SC_OP_BEACONS,
+	SC_OP_RXFLUSH,
+	SC_OP_TSF_RESET,
+	SC_OP_ANI_RUN,
+	SC_OP_PRIM_STA_VIF,
+	SC_OP_HW_RESET,
+};
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)
@@ -638,9 +658,9 @@ struct ath_softc {
 	struct completion paprd_complete;
 
 	unsigned int hw_busy_count;
+	unsigned long sc_flags;
 
 	u32 intrstatus;
-	u32 sc_flags; /* SC_OP_* */
 	u16 ps_flags; /* PS_* */
 	u16 curtxpow;
 	bool ps_enabled;
@@ -735,6 +755,5 @@ extern void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);
 void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ath9k_vif_iter_data *iter_data);
-
 
 #endif /* ATH9K_H */

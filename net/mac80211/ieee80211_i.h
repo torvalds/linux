@@ -317,55 +317,30 @@ struct mesh_preq_queue {
 	u8 flags;
 };
 
-enum ieee80211_work_type {
-	IEEE80211_WORK_ABORT,
-	IEEE80211_WORK_REMAIN_ON_CHANNEL,
-	IEEE80211_WORK_OFFCHANNEL_TX,
-};
+#if HZ/100 == 0
+#define IEEE80211_ROC_MIN_LEFT	1
+#else
+#define IEEE80211_ROC_MIN_LEFT	(HZ/100)
+#endif
 
-/**
- * enum work_done_result - indicates what to do after work was done
- *
- * @WORK_DONE_DESTROY: This work item is no longer needed, destroy.
- * @WORK_DONE_REQUEUE: This work item was reset to be reused, and
- *	should be requeued.
- */
-enum work_done_result {
-	WORK_DONE_DESTROY,
-	WORK_DONE_REQUEUE,
-};
-
-struct ieee80211_work {
+struct ieee80211_roc_work {
 	struct list_head list;
+	struct list_head dependents;
 
-	struct rcu_head rcu_head;
+	struct delayed_work work;
 
 	struct ieee80211_sub_if_data *sdata;
-
-	enum work_done_result (*done)(struct ieee80211_work *wk,
-				      struct sk_buff *skb);
 
 	struct ieee80211_channel *chan;
 	enum nl80211_channel_type chan_type;
 
-	unsigned long timeout;
-	enum ieee80211_work_type type;
+	bool started, abort, hw_begun, notified;
 
-	bool started;
+	unsigned long hw_start_time;
 
-	union {
-		struct {
-			u32 duration;
-		} remain;
-		struct {
-			struct sk_buff *frame;
-			u32 wait;
-			bool status;
-		} offchan_tx;
-	};
-
-	size_t data_len;
-	u8 data[];
+	u32 duration, req_duration;
+	struct sk_buff *frame;
+	u64 mgmt_tx_cookie;
 };
 
 /* flags used in struct ieee80211_if_managed.flags */
@@ -399,7 +374,6 @@ struct ieee80211_mgd_auth_data {
 struct ieee80211_mgd_assoc_data {
 	struct cfg80211_bss *bss;
 	const u8 *supp_rates;
-	const u8 *ht_operation_ie;
 
 	unsigned long timeout;
 	int tries;
@@ -413,6 +387,8 @@ struct ieee80211_mgd_assoc_data {
 	bool have_beacon;
 	bool sent_assoc;
 	bool synced;
+
+	u8 ap_ht_param;
 
 	size_t ie_len;
 	u8 ie[];
@@ -847,13 +823,6 @@ struct ieee80211_local {
 	const struct ieee80211_ops *ops;
 
 	/*
-	 * work stuff, potentially off-channel (in the future)
-	 */
-	struct list_head work_list;
-	struct timer_list work_timer;
-	struct work_struct work_work;
-
-	/*
 	 * private workqueue to mac80211. mac80211 makes this accessible
 	 * via ieee80211_queue_work()
 	 */
@@ -1087,14 +1056,12 @@ struct ieee80211_local {
 	} debugfs;
 #endif
 
-	struct ieee80211_channel *hw_roc_channel;
-	struct net_device *hw_roc_dev;
-	struct sk_buff *hw_roc_skb, *hw_roc_skb_for_status;
+	/*
+	 * Remain-on-channel support
+	 */
+	struct list_head roc_list;
 	struct work_struct hw_roc_start, hw_roc_done;
-	enum nl80211_channel_type hw_roc_channel_type;
-	unsigned int hw_roc_duration;
-	u32 hw_roc_cookie;
-	bool hw_roc_for_tx;
+	unsigned long hw_roc_start_time;
 
 	struct idr ack_status_frames;
 	spinlock_t ack_status_lock;
@@ -1290,7 +1257,12 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local,
 				    bool offchannel_ps_enable);
 void ieee80211_offchannel_return(struct ieee80211_local *local,
 				 bool offchannel_ps_disable);
-void ieee80211_hw_roc_setup(struct ieee80211_local *local);
+void ieee80211_roc_setup(struct ieee80211_local *local);
+void ieee80211_start_next_roc(struct ieee80211_local *local);
+void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata);
+void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc);
+void ieee80211_sw_roc_work(struct work_struct *work);
+void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc);
 
 /* interface handling */
 int ieee80211_iface_init(void);
@@ -1499,18 +1471,6 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       struct ieee80211_channel *channel,
 			       enum nl80211_channel_type channel_type,
 			       u16 prot_mode);
-
-/* internal work items */
-void ieee80211_work_init(struct ieee80211_local *local);
-void ieee80211_add_work(struct ieee80211_work *wk);
-void free_work(struct ieee80211_work *wk);
-void ieee80211_work_purge(struct ieee80211_sub_if_data *sdata);
-int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
-				   struct ieee80211_channel *chan,
-				   enum nl80211_channel_type channel_type,
-				   unsigned int duration, u64 *cookie);
-int ieee80211_wk_cancel_remain_on_channel(
-	struct ieee80211_sub_if_data *sdata, u64 cookie);
 
 /* channel management */
 enum ieee80211_chan_mode {

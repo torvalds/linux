@@ -116,42 +116,58 @@ static void ath_mci_update_scheme(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_mci_profile *mci = &btcoex->mci;
+	struct ath9k_hw_mci *mci_hw = &sc->sc_ah->btcoex_hw.mci;
 	struct ath_mci_profile_info *info;
 	u32 num_profile = NUM_PROF(mci);
+
+	if (mci_hw->config & ATH_MCI_CONFIG_DISABLE_TUNING)
+		goto skip_tuning;
 
 	if (num_profile == 1) {
 		info = list_first_entry(&mci->info,
 					struct ath_mci_profile_info,
 					list);
-		if (mci->num_sco && info->T == 12) {
-			mci->aggr_limit = 8;
+		if (mci->num_sco) {
+			if (info->T == 12)
+				mci->aggr_limit = 8;
+			else if (info->T == 6) {
+				mci->aggr_limit = 6;
+				btcoex->duty_cycle = 30;
+			}
 			ath_dbg(common, MCI,
-				"Single SCO, aggregation limit 2 ms\n");
-		} else if ((info->type == MCI_GPM_COEX_PROFILE_BNEP) &&
-			   !info->master) {
-			btcoex->btcoex_period = 60;
+				"Single SCO, aggregation limit %d 1/4 ms\n",
+				mci->aggr_limit);
+		} else if (mci->num_pan || mci->num_other_acl) {
+			/*
+			 * For single PAN/FTP profile, allocate 35% for BT
+			 * to improve WLAN throughput.
+			 */
+			btcoex->duty_cycle = 35;
+			btcoex->btcoex_period = 53;
 			ath_dbg(common, MCI,
-				"Single slave PAN/FTP, bt period 60 ms\n");
-		} else if ((info->type == MCI_GPM_COEX_PROFILE_HID) &&
-			 (info->T > 0 && info->T < 50) &&
-			 (info->A > 1 || info->W > 1)) {
+				"Single PAN/FTP bt period %d ms dutycycle %d\n",
+				btcoex->duty_cycle, btcoex->btcoex_period);
+		} else if (mci->num_hid) {
 			btcoex->duty_cycle = 30;
-			mci->aggr_limit = 8;
+			mci->aggr_limit = 6;
 			ath_dbg(common, MCI,
 				"Multiple attempt/timeout single HID "
-				"aggregation limit 2 ms dutycycle 30%%\n");
+				"aggregation limit 1.5 ms dutycycle 30%%\n");
 		}
-	} else if ((num_profile == 2) && (mci->num_hid == 2)) {
-		btcoex->duty_cycle = 30;
-		mci->aggr_limit = 8;
-		ath_dbg(common, MCI,
-			"Two HIDs aggregation limit 2 ms dutycycle 30%%\n");
-	} else if (num_profile > 3) {
+	} else if (num_profile == 2) {
+		if (mci->num_hid == 2)
+			btcoex->duty_cycle = 30;
 		mci->aggr_limit = 6;
 		ath_dbg(common, MCI,
-			"Three or more profiles aggregation limit 1.5 ms\n");
+			"Two BT profiles aggr limit 1.5 ms dutycycle %d%%\n",
+			btcoex->duty_cycle);
+	} else if (num_profile >= 3) {
+		mci->aggr_limit = 4;
+		ath_dbg(common, MCI,
+			"Three or more profiles aggregation limit 1 ms\n");
 	}
 
+skip_tuning:
 	if (IS_CHAN_2GHZ(sc->sc_ah->curchan)) {
 		if (IS_CHAN_HT(sc->sc_ah->curchan))
 			ath_mci_adjust_aggr_limit(btcoex);
@@ -537,4 +553,15 @@ void ath_mci_intr(struct ath_softc *sc)
 	    (mci_int & AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT))
 		mci_int &= ~(AR_MCI_INTERRUPT_RX_INVALID_HDR |
 			     AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT);
+}
+
+void ath_mci_enable(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (!common->btcoex_enabled)
+		return;
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		sc->sc_ah->imask |= ATH9K_INT_MCI;
 }

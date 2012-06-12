@@ -14,7 +14,7 @@
 
 #ifdef CONFIG_MAC80211_VERBOSE_MESH_SYNC_DEBUG
 #define msync_dbg(fmt, args...) \
-	printk(KERN_DEBUG "Mesh sync (%s): " fmt "\n", sdata->name, ##args)
+	pr_debug("Mesh sync (%s): " fmt "\n", sdata->name, ##args)
 #else
 #define msync_dbg(fmt, args...)   do { (void)(0); } while (0)
 #endif

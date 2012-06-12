@@ -211,11 +211,11 @@ static u32 ath9k_hw_def_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	if (!dump_base_hdr) {
 		len += snprintf(buf + len, size - len,
 				"%20s :\n", "2GHz modal Header");
-		len += ath9k_def_dump_modal_eeprom(buf, len, size,
+		len = ath9k_def_dump_modal_eeprom(buf, len, size,
 						   &eep->modalHeader[0]);
 		len += snprintf(buf + len, size - len,
 				"%20s :\n", "5GHz modal Header");
-		len += ath9k_def_dump_modal_eeprom(buf, len, size,
+		len = ath9k_def_dump_modal_eeprom(buf, len, size,
 						   &eep->modalHeader[1]);
 		goto out;
 	}
