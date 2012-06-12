@@ -32,7 +32,7 @@ struct dvb_usb_driver_info {
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE, \
 	.idVendor = (vend), \
 	.idProduct = (prod), \
-	.driver_info = (kernel_ulong_t) &((struct dvb_usb_driver_info) { \
+	.driver_info = (kernel_ulong_t) &((const struct dvb_usb_driver_info) { \
 		.props = (props_), \
 		.name = (name_), \
 		.rc_map = (rc), \
