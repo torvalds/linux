@@ -1245,23 +1245,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		query_type = MCI_GPM_COEX_QUERY_BT_TOPOLOGY;
 		ar9003_mci_send_coex_bt_status_query(ah, true, query_type);
 		break;
-	case MCI_STATE_NEED_FLUSH_BT_INFO:
-		/*
-		 * btcoex_hw.mci.unhalt_bt_gpm means whether it's
-		 * needed to send UNHALT message. It's set whenever
-		 * there's a request to send HALT message.
-		 * mci_halted_bt_gpm means whether HALT message is sent
-		 * out successfully.
-		 *
-		 * Checking (mci_unhalt_bt_gpm == false) instead of
-		 * checking (ah->mci_halted_bt_gpm == false) will make
-		 * sure currently is in UNHALT-ed mode and BT can
-		 * respond to status query.
-		 */
-		value = (!mci->unhalt_bt_gpm && mci->need_flush_btinfo) ? 1 : 0;
-		if (p_data)
-			mci->need_flush_btinfo = (*p_data != 0) ? true : false;
-		break;
 	case MCI_STATE_RECOVER_RX:
 		ar9003_mci_prep_interface(ah);
 		mci->query_bt = true;
