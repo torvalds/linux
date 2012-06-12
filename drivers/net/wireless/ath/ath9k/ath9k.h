@@ -698,6 +698,7 @@ struct ath_softc {
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex btcoex;
 	struct ath_mci_coex mci_coex;
+	struct work_struct mci_work;
 #endif
 
 	struct ath_descdma txsdma;

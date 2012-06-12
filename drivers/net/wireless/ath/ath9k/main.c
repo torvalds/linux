@@ -150,6 +150,9 @@ static void __ath_cancel_work(struct ath_softc *sc)
 	cancel_work_sync(&sc->hw_check_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_delayed_work_sync(&sc->hw_pll_work);
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	cancel_work_sync(&sc->mci_work);
+#endif
 }
 
 static void ath_cancel_work(struct ath_softc *sc)

@@ -52,7 +52,7 @@ static bool ath_mci_add_profile(struct ath_common *common,
 	    (info->type != MCI_GPM_COEX_PROFILE_VOICE))
 		return false;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
 		return false;
 
@@ -219,6 +219,13 @@ static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	}
 }
 
+static void ath9k_mci_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc, mci_work);
+
+	ath_mci_update_scheme(sc);
+}
+
 static void ath_mci_process_profile(struct ath_softc *sc,
 				    struct ath_mci_profile_info *info)
 {
@@ -249,7 +256,7 @@ static void ath_mci_process_profile(struct ath_softc *sc,
 		btcoex->duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
 	}
 
-	ath_mci_update_scheme(sc);
+	ieee80211_queue_work(sc->hw, &sc->mci_work);
 }
 
 static void ath_mci_process_status(struct ath_softc *sc,
@@ -283,7 +290,7 @@ static void ath_mci_process_status(struct ath_softc *sc,
 	} while (++i < ATH_MCI_MAX_PROFILE);
 
 	if (old_num_mgmt != mci->num_mgmt)
-		ath_mci_update_scheme(sc);
+		ieee80211_queue_work(sc->hw, &sc->mci_work);
 }
 
 static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
@@ -377,6 +384,7 @@ int ath_mci_setup(struct ath_softc *sc)
 			 mci->gpm_buf.bf_addr, (mci->gpm_buf.bf_len >> 4),
 			 mci->sched_buf.bf_paddr);
 
+	INIT_WORK(&sc->mci_work, ath9k_mci_work);
 	ath_dbg(common, MCI, "MCI Initialized\n");
 
 	return 0;
