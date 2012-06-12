@@ -1505,17 +1505,22 @@ static int writeback(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_push(struct x86_emulate_ctxt *ctxt)
+static int push(struct x86_emulate_ctxt *ctxt, void *data, int bytes)
 {
 	struct segmented_address addr;
 
-	register_address_increment(ctxt, &ctxt->regs[VCPU_REGS_RSP], -ctxt->op_bytes);
+	register_address_increment(ctxt, &ctxt->regs[VCPU_REGS_RSP], -bytes);
 	addr.ea = register_address(ctxt, ctxt->regs[VCPU_REGS_RSP]);
 	addr.seg = VCPU_SREG_SS;
 
+	return segmented_write(ctxt, addr, data, bytes);
+}
+
+static int em_push(struct x86_emulate_ctxt *ctxt)
+{
 	/* Disable writeback. */
 	ctxt->dst.type = OP_NONE;
-	return segmented_write(ctxt, addr, &ctxt->src.val, ctxt->op_bytes);
+	return push(ctxt, &ctxt->src.val, ctxt->op_bytes);
 }
 
 static int emulate_pop(struct x86_emulate_ctxt *ctxt,
