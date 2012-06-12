@@ -811,19 +811,21 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (host->set_pwr && ios->power_mode == MMC_POWER_OFF)
 			host->set_pwr(host->pdev, 0);
 		if (host->power) {
+			tmio_mmc_clk_stop(host);
 			host->power = false;
 			pm_runtime_put(dev);
 		}
-		tmio_mmc_clk_stop(host);
 	}
 
-	switch (ios->bus_width) {
-	case MMC_BUS_WIDTH_1:
-		sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, 0x80e0);
-	break;
-	case MMC_BUS_WIDTH_4:
-		sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, 0x00e0);
-	break;
+	if (host->power) {
+		switch (ios->bus_width) {
+		case MMC_BUS_WIDTH_1:
+			sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, 0x80e0);
+		break;
+		case MMC_BUS_WIDTH_4:
+			sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, 0x00e0);
+		break;
+		}
 	}
 
 	/* Let things settle. delay taken from winCE driver */
