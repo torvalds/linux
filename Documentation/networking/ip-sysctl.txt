@@ -862,6 +862,11 @@ accept_local - BOOLEAN
 	local interfaces over the wire and have them accepted properly.
 	default FALSE
 
+route_localnet - BOOLEAN
+	Do not consider loopback addresses as martian source or destination
+	while routing. This enables the use of 127/8 for local routing purposes.
+	default FALSE
+
 rp_filter - INTEGER
 	0 - No source validation.
 	1 - Strict mode as defined in RFC3704 Strict Reverse Path

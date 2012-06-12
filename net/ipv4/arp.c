@@ -790,7 +790,8 @@ static int arp_process(struct sk_buff *skb)
  *	Check for bad requests for 127.x.x.x and requests for multicast
  *	addresses.  If this is one such, delete it.
  */
-	if (ipv4_is_loopback(tip) || ipv4_is_multicast(tip))
+	if (ipv4_is_multicast(tip) ||
+	    (!IN_DEV_ROUTE_LOCALNET(in_dev) && ipv4_is_loopback(tip)))
 		goto out;
 
 /*
