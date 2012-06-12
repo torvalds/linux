@@ -2454,6 +2454,7 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		wlvif->channel_type = conf->channel_type;
 
 		if (is_ap) {
+			wl1271_set_band_rate(wl, wlvif);
 			ret = wl1271_init_ap_rates(wl, wlvif);
 			if (ret < 0)
 				wl1271_error("AP rate policy change failed %d",
