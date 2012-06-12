@@ -108,15 +108,6 @@ static int get_isink_val(int min_uA, int max_uA, u16 *setting)
 	return -EINVAL;
 }
 
-static inline int wm8350_ldo_val_to_mvolts(unsigned int val)
-{
-	if (val < 16)
-		return (val * 50) + 900;
-	else
-		return ((val - 16) * 100) + 1800;
-
-}
-
 static inline unsigned int wm8350_ldo_mvolts_to_val(int mV)
 {
 	if (mV < 1800)
@@ -671,10 +662,22 @@ static int wm8350_ldo_set_suspend_disable(struct regulator_dev *rdev)
 	return 0;
 }
 
+static int wm8350_ldo_list_voltage(struct regulator_dev *rdev,
+				    unsigned selector)
+{
+	if (selector > WM8350_LDO1_VSEL_MASK)
+		return -EINVAL;
+
+	if (selector < 16)
+		return (selector * 50000) + 900000;
+	else
+		return ((selector - 16) * 100000) + 1800000;
+}
+
 static int wm8350_ldo_map_voltage(struct regulator_dev *rdev, int min_uV,
 				  int max_uV)
 {
-	int mV;
+	int volt, sel;
 	int min_mV = min_uV / 1000;
 	int max_mV = max_uV / 1000;
 
@@ -683,29 +686,16 @@ static int wm8350_ldo_map_voltage(struct regulator_dev *rdev, int min_uV,
 	if (max_mV < 900 || max_mV > 3300)
 		return -EINVAL;
 
-	if (min_mV < 1800) {
-		/* step size is 50mV < 1800mV */
-		mV = (min_mV - 851) / 50;
-		if (wm8350_ldo_val_to_mvolts(mV) > max_mV)
-			return -EINVAL;
-		BUG_ON(wm8350_ldo_val_to_mvolts(mV) < min_mV);
-	} else {
-		/* step size is 100mV > 1800mV */
-		mV = ((min_mV - 1701) / 100) + 16;
-		if (wm8350_ldo_val_to_mvolts(mV) > max_mV)
-			return -EINVAL;
-		BUG_ON(wm8350_ldo_val_to_mvolts(mV) < min_mV);
-	}
+	if (min_mV < 1800) /* step size is 50mV < 1800mV */
+		sel = DIV_ROUND_UP(min_uV - 900, 50);
+	else /* step size is 100mV > 1800mV */
+		sel = DIV_ROUND_UP(min_uV - 1800, 100) + 16;
 
-	return mV;
-}
-
-static int wm8350_ldo_list_voltage(struct regulator_dev *rdev,
-				    unsigned selector)
-{
-	if (selector > WM8350_LDO1_VSEL_MASK)
+	volt = wm8350_ldo_list_voltage(rdev, sel);
+	if (volt < min_uV || volt > max_uV)
 		return -EINVAL;
-	return wm8350_ldo_val_to_mvolts(selector) * 1000;
+
+	return sel;
 }
 
 int wm8350_dcdc_set_slot(struct wm8350 *wm8350, int dcdc, u16 start,
