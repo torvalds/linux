@@ -131,7 +131,7 @@ struct iio_chan_spec_ext_info {
 
 /**
  * struct iio_enum - Enum channel info attribute
- * items: A array of strings.
+ * items: An array of strings.
  * num_items: Length of the item array.
  * set: Set callback function, may be NULL.
  * get: Get callback function, may be NULL.
@@ -218,7 +218,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  * @extend_name:	Allows labeling of channel attributes with an
  *			informative name. Note this has no effect codes etc,
  *			unlike modifiers.
- * @datasheet_name:	A name used in in kernel mapping of channels. It should
+ * @datasheet_name:	A name used in in-kernel mapping of channels. It should
  *			correspond to the first name that the channel is referred
  *			to by in the datasheet (e.g. IND), or the nearest
  *			possible compound name (e.g. IND-INC).
@@ -393,7 +393,7 @@ struct iio_buffer_setup_ops {
  * @trig:		[INTERN] current device trigger (buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @channels:		[DRIVER] channel specification structure table
- * @num_channels:	[DRIVER] number of chanels specified in @channels.
+ * @num_channels:	[DRIVER] number of channels specified in @channels.
  * @channel_attr_list:	[INTERN] keep track of automatically created channel
  *			attributes
  * @chan_attr_group:	[INTERN] group for all attrs in base directory
