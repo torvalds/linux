@@ -455,7 +455,7 @@ void ath_mci_intr(struct ath_softc *sc)
 		if ((mci_hw->bt_state == MCI_BT_AWAKE) &&
 		    (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP) !=
 		     MCI_BT_AWAKE))
-			ar9003_mci_state(ah, MCI_STATE_SET_BT_SLEEP);
+			mci_hw->bt_state = MCI_BT_SLEEP;
 	}
 
 	if ((mci_int & AR_MCI_INTERRUPT_RX_INVALID_HDR) ||

@@ -189,7 +189,6 @@ enum mci_bt_state {
 /* Type of state query */
 enum mci_state_type {
 	MCI_STATE_ENABLE,
-	MCI_STATE_SET_BT_SLEEP,
 	MCI_STATE_SET_BT_AWAKE,
 	MCI_STATE_SET_BT_CAL_START,
 	MCI_STATE_SET_BT_CAL,

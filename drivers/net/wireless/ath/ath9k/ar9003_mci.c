@@ -1191,9 +1191,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 			   AR_MCI_RX_REMOTE_SLEEP) ?
 			MCI_BT_SLEEP : MCI_BT_AWAKE;
 		break;
-	case MCI_STATE_SET_BT_SLEEP:
-		mci->bt_state = MCI_BT_SLEEP;
-		break;
 	case MCI_STATE_SET_BT_AWAKE:
 		mci->bt_state = MCI_BT_AWAKE;
 		ar9003_mci_send_coex_version_query(ah, true);
