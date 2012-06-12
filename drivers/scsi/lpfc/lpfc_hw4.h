@@ -3106,6 +3106,28 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_EVENT_TYPE_SHARED_LINK	0x2
 };
 
+struct lpfc_acqe_misconfigured_event {
+	struct {
+	uint32_t word0;
+#define lpfc_sli_misconfigured_port0_SHIFT	0
+#define lpfc_sli_misconfigured_port0_MASK	0x000000FF
+#define lpfc_sli_misconfigured_port0_WORD	word0
+#define lpfc_sli_misconfigured_port1_SHIFT	8
+#define lpfc_sli_misconfigured_port1_MASK	0x000000FF
+#define lpfc_sli_misconfigured_port1_WORD	word0
+#define lpfc_sli_misconfigured_port2_SHIFT	16
+#define lpfc_sli_misconfigured_port2_MASK	0x000000FF
+#define lpfc_sli_misconfigured_port2_WORD	word0
+#define lpfc_sli_misconfigured_port3_SHIFT	24
+#define lpfc_sli_misconfigured_port3_MASK	0x000000FF
+#define lpfc_sli_misconfigured_port3_WORD	word0
+	} theEvent;
+#define LPFC_SLI_EVENT_STATUS_VALID			0x00
+#define LPFC_SLI_EVENT_STATUS_NOT_PRESENT	0x01
+#define LPFC_SLI_EVENT_STATUS_WRONG_TYPE	0x02
+#define LPFC_SLI_EVENT_STATUS_UNSUPPORTED	0x03
+};
+
 struct lpfc_acqe_sli {
 	uint32_t event_data1;
 	uint32_t event_data2;
@@ -3116,6 +3138,7 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_NORM_TEMP		0x3
 #define LPFC_SLI_EVENT_TYPE_NVLOG_POST		0x4
 #define LPFC_SLI_EVENT_TYPE_DIAG_DUMP		0x5
+#define LPFC_SLI_EVENT_TYPE_MISCONFIGURED	0x9
 };
 
 /*

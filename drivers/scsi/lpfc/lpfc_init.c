@@ -3726,12 +3726,76 @@ out_free_pmb:
 static void
 lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 {
-	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"2901 Async SLI event - Event Data1:x%08x Event Data2:"
-			"x%08x SLI Event Type:%d",
-			acqe_sli->event_data1, acqe_sli->event_data2,
-			bf_get(lpfc_trailer_type, acqe_sli));
-	return;
+	char port_name;
+	char message[80];
+	uint8_t status;
+	struct lpfc_acqe_misconfigured_event *misconfigured;
+
+	/* special case misconfigured event as it contains data for all ports */
+	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+		 LPFC_SLI_INTF_IF_TYPE_2) ||
+		(bf_get(lpfc_trailer_type, acqe_sli) !=
+			LPFC_SLI_EVENT_TYPE_MISCONFIGURED)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"2901 Async SLI event - Event Data1:x%08x Event Data2:"
+				"x%08x SLI Event Type:%d\n",
+				acqe_sli->event_data1, acqe_sli->event_data2,
+				bf_get(lpfc_trailer_type, acqe_sli));
+		return;
+	}
+
+	port_name = phba->Port[0];
+	if (port_name == 0x00)
+		port_name = '?'; /* get port name is empty */
+
+	misconfigured = (struct lpfc_acqe_misconfigured_event *)
+					&acqe_sli->event_data1;
+
+	/* fetch the status for this port */
+	switch (phba->sli4_hba.lnk_info.lnk_no) {
+	case LPFC_LINK_NUMBER_0:
+		status = bf_get(lpfc_sli_misconfigured_port0,
+					&misconfigured->theEvent);
+		break;
+	case LPFC_LINK_NUMBER_1:
+		status = bf_get(lpfc_sli_misconfigured_port1,
+					&misconfigured->theEvent);
+		break;
+	case LPFC_LINK_NUMBER_2:
+		status = bf_get(lpfc_sli_misconfigured_port2,
+					&misconfigured->theEvent);
+		break;
+	case LPFC_LINK_NUMBER_3:
+		status = bf_get(lpfc_sli_misconfigured_port3,
+					&misconfigured->theEvent);
+		break;
+	default:
+		status = ~LPFC_SLI_EVENT_STATUS_VALID;
+		break;
+	}
+
+	switch (status) {
+	case LPFC_SLI_EVENT_STATUS_VALID:
+		return; /* no message if the sfp is okay */
+	case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
+		sprintf(message, "Not installed");
+		break;
+	case LPFC_SLI_EVENT_STATUS_WRONG_TYPE:
+		sprintf(message,
+			"Optics of two types installed");
+		break;
+	case LPFC_SLI_EVENT_STATUS_UNSUPPORTED:
+		sprintf(message, "Incompatible optics");
+		break;
+	default:
+		/* firmware is reporting a status we don't know about */
+		sprintf(message, "Unknown event status x%02x", status);
+		break;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			"3176 Misconfigured Physical Port - "
+			"Port Name %c %s\n", port_name, message);
 }
 
 /**
