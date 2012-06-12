@@ -3100,7 +3100,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	}
 
 	local->oper_channel = cbss->channel;
-	ieee80211_hw_config(local, 0);
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
 	if (!have_sta) {
 		u32 rates = 0, basic_rates = 0;
