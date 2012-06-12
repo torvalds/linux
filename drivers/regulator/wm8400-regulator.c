@@ -35,27 +35,19 @@ static int wm8400_ldo_map_voltage(struct regulator_dev *dev,
 				  int min_uV, int max_uV)
 {
 	u16 val;
+	int volt;
 
 	if (min_uV < 900000 || min_uV > 3300000)
 		return -EINVAL;
 
-	if (min_uV < 1700000) {
-		/* Steps of 50mV from 900mV;  */
+	if (min_uV < 1700000) /* Steps of 50mV from 900mV;  */
 		val = DIV_ROUND_UP(min_uV - 900000, 50000);
+	else /* Steps of 100mV from 1700mV */
+		val = DIV_ROUND_UP(min_uV - 1700000, 100000) + 15;
 
-		if ((val * 50000) + 900000 > max_uV)
-			return -EINVAL;
-		BUG_ON((val * 50000) + 900000 < min_uV);
-	} else {
-		/* Steps of 100mV from 1700mV */
-		val = DIV_ROUND_UP(min_uV - 1700000, 100000);
-
-		if ((val * 100000) + 1700000 > max_uV)
-			return -EINVAL;
-		BUG_ON((val * 100000) + 1700000 < min_uV);
-
-		val += 0xf;
-	}
+	volt = wm8400_ldo_list_voltage(dev, val);
+	if (volt < min_uV || volt > max_uV)
+		return -EINVAL;
 
 	return val;
 }
