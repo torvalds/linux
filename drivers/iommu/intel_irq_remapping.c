@@ -938,7 +938,7 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 
 	err = apic->cpu_mask_to_apicid_and(cfg->domain, mask, &dest);
 	if (err) {
-		if (assign_irq_vector(irq, cfg, data->affinity));
+		if (assign_irq_vector(irq, cfg, data->affinity))
 			pr_err("Failed to recover vector for irq %d\n", irq);
 		return err;
 	}
