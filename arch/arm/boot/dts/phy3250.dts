@@ -133,8 +133,29 @@
 			};
 
 			ssp0: ssp@20084000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pl022,num-chipselects = <1>;
+				cs-gpios = <&gpio 3 5 0>;
+
 				eeprom: at25@0 {
+					pl022,hierarchy = <0>;
+					pl022,interface = <0>;
+					pl022,slave-tx-disable = <0>;
+					pl022,com-mode = <0>;
+					pl022,rx-level-trig = <1>;
+					pl022,tx-level-trig = <1>;
+					pl022,ctrl-len = <11>;
+					pl022,wait-state = <0>;
+					pl022,duplex = <0>;
+
+					at25,byte-len = <0x8000>;
+					at25,addr-mode = <2>;
+					at25,page-size = <64>;
+
 					compatible = "atmel,at25";
+					reg = <0>;
+					spi-max-frequency = <5000000>;
 				};
 			};
 
