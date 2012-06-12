@@ -405,10 +405,22 @@ static void dw_mci_idmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 static int dw_mci_idmac_init(struct dw_mci *host)
 {
 	struct idmac_desc *p;
-	int i;
+	int i, dma_support;
 
 	/* Number of descriptors in the ring buffer */
 	host->ring_size = PAGE_SIZE / sizeof(struct idmac_desc);
+
+	/* Check if Hardware Configuration Register has support for DMA */
+	dma_support = (mci_readl(host, HCON) >> 16) & 0x3;
+
+	if (!dma_support || dma_support > 2) {
+		dev_err(&host->dev,
+			"Host Controller does not support IDMA Tx.\n");
+		host->dma_ops = NULL;
+		return -ENODEV;
+	}
+
+	dev_info(&host->dev, "Using internal DMA controller.\n");
 
 	/* Forward link the descriptor list */
 	for (i = 0, p = host->sg_cpu; i < host->ring_size - 1; i++, p++)
@@ -1876,7 +1888,6 @@ static void dw_mci_init_dma(struct dw_mci *host)
 	/* Determine which DMA interface to use */
 #ifdef CONFIG_MMC_DW_IDMAC
 	host->dma_ops = &dw_mci_idmac_ops;
-	dev_info(&host->dev, "Using internal DMA controller.\n");
 #endif
 
 	if (!host->dma_ops)
