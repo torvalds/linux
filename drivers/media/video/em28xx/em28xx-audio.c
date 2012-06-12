@@ -306,7 +306,6 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	dev->adev.capture_pcm_substream = substream;
-	runtime->private_data = dev;
 
 	return 0;
 err:
