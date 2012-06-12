@@ -60,6 +60,8 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 {
 	int i;
 
+	if (num_subdevices < 1)
+		return -EINVAL;
 	dev->n_subdevices = num_subdevices;
 	dev->subdevices =
 	    kcalloc(num_subdevices, sizeof(struct comedi_subdevice),
