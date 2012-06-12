@@ -1426,6 +1426,8 @@ static struct usb_driver af9015_usb_driver = {
 	.id_table = af9015_id_table,
 	.probe = dvb_usbv2_probe,
 	.disconnect = dvb_usbv2_disconnect,
+	.suspend = dvb_usbv2_suspend,
+	.resume = dvb_usbv2_resume,
 	.no_dynamic_id = 1,
 	.soft_unbind = 1,
 };
