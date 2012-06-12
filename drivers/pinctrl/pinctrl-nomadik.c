@@ -673,7 +673,7 @@ static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 	 * wakeup is anyhow controlled by the RIMSC and FIMSC registers.
 	 */
 	if (nmk_chip->sleepmode && on) {
-		__nmk_gpio_set_slpm(nmk_chip, gpio % nmk_chip->chip.base,
+		__nmk_gpio_set_slpm(nmk_chip, gpio % NMK_GPIO_PER_CHIP,
 				    NMK_GPIO_SLPM_WAKEUP_ENABLE);
 	}
 
