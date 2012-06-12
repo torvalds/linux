@@ -1166,7 +1166,6 @@ EXPORT_SYMBOL(ar9003_mci_cleanup);
 
 u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 value = 0;
 	u8 query_type;
@@ -1238,18 +1237,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		break;
 	case MCI_STATE_SEND_WLAN_COEX_VERSION:
 		ar9003_mci_send_coex_version_response(ah, true);
-		break;
-	case MCI_STATE_SET_BT_COEX_VERSION:
-		if (!p_data)
-			ath_dbg(common, MCI,
-				"MCI Set BT Coex version with NULL data!!\n");
-		else {
-			mci->bt_ver_major = (*p_data >> 8) & 0xff;
-			mci->bt_ver_minor = (*p_data) & 0xff;
-			mci->bt_version_known = true;
-			ath_dbg(common, MCI, "MCI BT version set: %d.%d\n",
-				mci->bt_ver_major, mci->bt_ver_minor);
-		}
 		break;
 	case MCI_STATE_SEND_WLAN_CHANNELS:
 		if (p_data) {
@@ -1454,3 +1441,15 @@ out:
 	return offset;
 }
 EXPORT_SYMBOL(ar9003_mci_get_next_gpm_offset);
+
+void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 minor)
+{
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	mci->bt_ver_major = major;
+	mci->bt_ver_minor = minor;
+	mci->bt_version_known = true;
+	ath_dbg(ath9k_hw_common(ah), MCI, "MCI BT version set: %d.%d\n",
+		mci->bt_ver_major, mci->bt_ver_minor);
+}
+EXPORT_SYMBOL(ar9003_mci_set_bt_version);

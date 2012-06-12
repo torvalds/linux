@@ -299,22 +299,17 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	struct ath_mci_profile_info profile_info;
 	struct ath_mci_profile_status profile_status;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	u32 version;
-	u8 major;
-	u8 minor;
+	u8 major, minor;
 	u32 seq_num;
 
 	switch (opcode) {
 	case MCI_GPM_COEX_VERSION_QUERY:
-		version = ar9003_mci_state(ah, MCI_STATE_SEND_WLAN_COEX_VERSION,
-					   NULL);
+		ar9003_mci_state(ah, MCI_STATE_SEND_WLAN_COEX_VERSION, NULL);
 		break;
 	case MCI_GPM_COEX_VERSION_RESPONSE:
 		major = *(rx_payload + MCI_GPM_COEX_B_MAJOR_VERSION);
 		minor = *(rx_payload + MCI_GPM_COEX_B_MINOR_VERSION);
-		version = (major << 8) + minor;
-		version = ar9003_mci_state(ah, MCI_STATE_SET_BT_COEX_VERSION,
-					   &version);
+		ar9003_mci_set_bt_version(ah, major, minor);
 		break;
 	case MCI_GPM_COEX_STATUS_QUERY:
 		ar9003_mci_state(ah, MCI_STATE_SEND_WLAN_CHANNELS, NULL);
