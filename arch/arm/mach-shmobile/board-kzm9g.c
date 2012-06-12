@@ -33,6 +33,8 @@
 #include <linux/smsc911x.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/videodev2.h>
+#include <sound/sh_fsi.h>
+#include <sound/simple_card.h>
 #include <mach/irqs.h>
 #include <mach/sh73a0.h>
 #include <mach/common.h>
@@ -53,6 +55,14 @@
 #define GPIO_PCF8575_PORT14	(GPIO_NR + 12)
 #define GPIO_PCF8575_PORT15	(GPIO_NR + 13)
 #define GPIO_PCF8575_PORT16	(GPIO_NR + 14)
+
+/*
+ * FSI-AK4648
+ *
+ * this command is required when playback.
+ *
+ * # amixer set "LINEOUT Mixer DACL" on
+ */
 
 /* SMSC 9221 */
 static struct resource smsc9221_resources[] = {
@@ -267,9 +277,68 @@ static struct platform_device gpio_keys_device = {
 	},
 };
 
+/* FSI-AK4648 */
+static struct sh_fsi_platform_info fsi_info = {
+	.port_a = {
+	},
+};
+
+static struct resource fsi_resources[] = {
+	[0] = {
+		.name	= "FSI",
+		.start	= 0xEC230000,
+		.end	= 0xEC230400 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = gic_spi(146),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device fsi_device = {
+	.name		= "sh_fsi2",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(fsi_resources),
+	.resource	= fsi_resources,
+	.dev	= {
+		.platform_data	= &fsi_info,
+	},
+};
+
+static struct asoc_simple_dai_init_info fsi2_ak4648_init_info = {
+	.fmt		= SND_SOC_DAIFMT_LEFT_J,
+	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
+	.sysclk		= 11289600,
+};
+
+static struct asoc_simple_card_info fsi2_ak4648_info = {
+	.name		= "AK4648",
+	.card		= "FSI2A-AK4648",
+	.cpu_dai	= "fsia-dai",
+	.codec		= "ak4642-codec.0-0012",
+	.platform	= "sh_fsi2",
+	.codec_dai	= "ak4642-hifi",
+	.init		= &fsi2_ak4648_init_info,
+};
+
+static struct platform_device fsi_ak4648_device = {
+	.name	= "asoc-simple-card",
+	.dev	= {
+		.platform_data	= &fsi2_ak4648_info,
+	},
+};
+
 /* I2C */
 static struct pcf857x_platform_data pcf8575_pdata = {
 	.gpio_base	= GPIO_PCF8575_BASE,
+};
+
+static struct i2c_board_info i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("ak4648", 0x12),
+	}
 };
 
 static struct i2c_board_info i2c1_devices[] = {
@@ -293,6 +362,8 @@ static struct platform_device *kzm_devices[] __initdata = {
 	&mmc_device,
 	&sdhi0_device,
 	&gpio_keys_device,
+	&fsi_device,
+	&fsi_ak4648_device,
 };
 
 /*
@@ -431,11 +502,19 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_PORT27_I2C_SCL3, NULL);
 	gpio_request(GPIO_FN_PORT28_I2C_SDA3, NULL);
 
+	/* enable FSI2 port A (ak4648) */
+	gpio_request(GPIO_FN_FSIACK,	NULL);
+	gpio_request(GPIO_FN_FSIAILR,	NULL);
+	gpio_request(GPIO_FN_FSIAIBT,	NULL);
+	gpio_request(GPIO_FN_FSIAISLD,	NULL);
+	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
+
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
 	l2x0_init(IOMEM(0xf0100000), 0x40460000, 0x82000fff);
 #endif
 
+	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(1, i2c1_devices, ARRAY_SIZE(i2c1_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 

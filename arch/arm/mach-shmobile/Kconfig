@@ -122,6 +122,7 @@ config MACH_KZM9G
 	depends on ARCH_SH73A0
 	select ARCH_REQUIRE_GPIOLIB
 	select USE_OF
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 
 comment "SH-Mobile System Configuration"
 
