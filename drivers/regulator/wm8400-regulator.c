@@ -28,7 +28,7 @@ static int wm8400_ldo_list_voltage(struct regulator_dev *dev,
 	if (selector < 15)
 		return 900000 + (selector * 50000);
 	else
-		return 1600000 + ((selector - 14) * 100000);
+		return 1700000 + ((selector - 15) * 100000);
 }
 
 static int wm8400_ldo_map_voltage(struct regulator_dev *dev,
