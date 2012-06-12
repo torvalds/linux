@@ -55,7 +55,7 @@ static struct mc_info g_mi;
 static struct mcinfo_logical_cpu *g_physinfo;
 static uint32_t ncpus;
 
-static DEFINE_SPINLOCK(mcelog_lock);
+static DEFINE_MUTEX(mcelog_lock);
 
 static struct xen_mce_log xen_mcelog = {
 	.signature	= XEN_MCE_LOG_SIGNATURE,
@@ -106,7 +106,7 @@ static ssize_t xen_mce_chrdev_read(struct file *filp, char __user *ubuf,
 	unsigned num;
 	int i, err;
 
-	spin_lock(&mcelog_lock);
+	mutex_lock(&mcelog_lock);
 
 	num = xen_mcelog.next;
 
@@ -130,7 +130,7 @@ static ssize_t xen_mce_chrdev_read(struct file *filp, char __user *ubuf,
 		err = -EFAULT;
 
 out:
-	spin_unlock(&mcelog_lock);
+	mutex_unlock(&mcelog_lock);
 
 	return err ? err : buf - ubuf;
 }
@@ -310,12 +310,11 @@ static int mc_queue_handle(uint32_t flags)
 }
 
 /* virq handler for machine check error info*/
-static irqreturn_t xen_mce_interrupt(int irq, void *dev_id)
+static void xen_mce_work_fn(struct work_struct *work)
 {
 	int err;
-	unsigned long tmp;
 
-	spin_lock_irqsave(&mcelog_lock, tmp);
+	mutex_lock(&mcelog_lock);
 
 	/* urgent mc_info */
 	err = mc_queue_handle(XEN_MC_URGENT);
@@ -330,8 +329,13 @@ static irqreturn_t xen_mce_interrupt(int irq, void *dev_id)
 		pr_err(XEN_MCELOG
 		       "Failed to handle nonurgent mc_info queue.\n");
 
-	spin_unlock_irqrestore(&mcelog_lock, tmp);
+	mutex_unlock(&mcelog_lock);
+}
+static DECLARE_WORK(xen_mce_work, xen_mce_work_fn);
 
+static irqreturn_t xen_mce_interrupt(int irq, void *dev_id)
+{
+	schedule_work(&xen_mce_work);
 	return IRQ_HANDLED;
 }
 
