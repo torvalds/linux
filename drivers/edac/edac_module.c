@@ -94,6 +94,8 @@ static int __init edac_init(void)
 	if (err)
 		goto error;
 
+	edac_debugfs_init();
+
 	/* Setup/Initialize the workq for this core */
 	err = edac_workqueue_setup();
 	if (err) {
@@ -118,6 +120,7 @@ static void __exit edac_exit(void)
 	/* tear down the various subsystems */
 	edac_workqueue_teardown();
 	edac_mc_sysfs_exit();
+	edac_debugfs_exit();
 }
 
 /*

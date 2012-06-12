@@ -899,13 +899,33 @@ static struct device_type mci_attr_type = {
 };
 
 #ifdef CONFIG_EDAC_DEBUG
+static struct dentry *edac_debugfs;
+
+int __init edac_debugfs_init(void)
+{
+	edac_debugfs = debugfs_create_dir("edac", NULL);
+	if (IS_ERR(edac_debugfs)) {
+		edac_debugfs = NULL;
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+void __exit edac_debugfs_exit(void)
+{
+	debugfs_remove(edac_debugfs);
+}
+
 int edac_create_debug_nodes(struct mem_ctl_info *mci)
 {
 	struct dentry *d, *parent;
 	char name[80];
 	int i;
 
-	d = debugfs_create_dir(mci->dev.kobj.name, mci->debugfs);
+	if (!edac_debugfs)
+		return -ENODEV;
+
+	d = debugfs_create_dir(mci->dev.kobj.name, edac_debugfs);
 	if (!d)
 		return -ENOMEM;
 	parent = d;
@@ -930,6 +950,7 @@ int edac_create_debug_nodes(struct mem_ctl_info *mci)
 	if (!d)
 		goto nomem;
 
+	mci->debugfs = parent;
 	return 0;
 nomem:
 	debugfs_remove(mci->debugfs);

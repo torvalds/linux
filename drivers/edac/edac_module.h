@@ -57,6 +57,20 @@ extern void edac_mc_reset_delay_period(int value);
 extern void *edac_align_ptr(void **p, unsigned size, int n_elems);
 
 /*
+ * EDAC debugfs functions
+ */
+#ifdef CONFIG_EDAC_DEBUG
+int edac_debugfs_init(void);
+void edac_debugfs_exit(void);
+#else
+static inline int edac_debugfs_init(void)
+{
+	return -ENODEV;
+}
+static inline void edac_debugfs_exit(void) {}
+#endif
+
+/*
  * EDAC PCI functions
  */
 #ifdef	CONFIG_PCI
