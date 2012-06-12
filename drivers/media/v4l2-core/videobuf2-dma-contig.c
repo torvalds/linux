@@ -491,6 +491,18 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	struct vm_area_struct *vma;
 	struct sg_table *sgt;
 	unsigned long contig_size;
+	unsigned long dma_align = dma_get_cache_alignment();
+
+	/* Only cache aligned DMA transfers are reliable */
+	if (!IS_ALIGNED(vaddr | size, dma_align)) {
+		pr_debug("user data must be aligned to %lu bytes\n", dma_align);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!size) {
+		pr_debug("size is zero\n");
+		return ERR_PTR(-EINVAL);
+	}
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
