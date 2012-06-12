@@ -47,6 +47,9 @@
 #include <linux/rmi.h>
 #endif
 
+#include <linux/regulator/machine.h>
+#include <linux/rfkill-rk.h>
+
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -1513,11 +1516,6 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 };
 #endif //endif--#ifdef CONFIG_SDMMC1_RK29
 
-/* bluetooth rfkill device */
-static struct platform_device rk29sdk_rfkill = {
-        .name = "rk29sdk_rfkill",
-        .id = -1,
-};
 
 #ifdef CONFIG_BATTERY_RK30_ADC
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
@@ -1535,6 +1533,70 @@ static struct platform_device rk30_device_adc_battery = {
         .dev = {
                 .platform_data = &rk30_adc_battery_platdata,
         },
+};
+#endif
+
+
+#ifdef CONFIG_RFKILL_RK
+// bluetooth rfkill device, its driver in net/rfkill/rfkill-rk.c
+static struct rfkill_rk_platform_data rfkill_rk_platdata = {
+    .type               = RFKILL_TYPE_BLUETOOTH,
+
+    .poweron_gpio       = { // BT_REG_ON
+        .io             = RK30_PIN4_PD5,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = GPIO4D5_SMCDATA13_TRACEDATA13_NAME,
+            .fgpio      = GPIO4D_GPIO4D5,
+        },
+    },
+
+    .reset_gpio         = { // BT_RST
+        .io             = RK30_PIN3_PD1, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name       = GPIO3D1_SDMMC1BACKENDPWR_NAME,
+            .fgpio      = GPIO3D_GPIO3D1,
+        },
+    },
+
+    .wake_gpio          = { // BT_WAKE, use to control bt's sleep and wakeup
+        .io             = RK30_PIN3_PC6, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = GPIO3C6_SDMMC1DETECTN_NAME,
+            .fgpio      = GPIO3C_GPIO3C6,
+        },
+    },
+
+    .wake_host_irq      = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
+        .gpio           = {
+            .io         = RK30_PIN3_PD2, // set io to INVALID_GPIO for disable it
+            .enable     = GPIO_LOW,      // set GPIO_LOW for falling, set 0 for rising
+            .iomux      = {
+                .name   = GPIO3D2_SDMMC1INTN_NAME,
+                .fgpio  = RK30_PIN3_PD2,
+            },
+        },
+    },
+
+    .rts_gpio           = { // UART_RTS, enable or disable BT's data coming
+        .io             = RK30_PIN1_PA3, // set io to INVALID_GPIO for disable it
+        .enable         = GPIO_LOW,
+        .iomux          = {
+            .name       = GPIO1A3_UART0RTSN_NAME,
+            .fgpio      = GPIO1A_GPIO1A3,
+            .fmux       = GPIO1A_UART0_RTS_N,
+        },
+    },
+};
+
+static struct platform_device device_rfkill_rk = {
+    .name   = "rfkill_rk",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &rfkill_rk_platdata,
+    },
 };
 #endif
 
@@ -1564,8 +1626,8 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	&rk29sdk_wifi_device,
 #endif
-#ifdef CONFIG_BT
-    &rk29sdk_rfkill,
+#ifdef CONFIG_RFKILL_RK
+	&device_rfkill_rk,
 #endif
 #ifdef CONFIG_RK29_SUPPORT_MODEM
     &rk30_device_modem,
