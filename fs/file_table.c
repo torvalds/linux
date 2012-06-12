@@ -217,7 +217,7 @@ static void drop_file_write_access(struct file *file)
 		return;
 	if (file_check_writeable(file) != 0)
 		return;
-	mnt_drop_write(mnt);
+	__mnt_drop_write(mnt);
 	file_release_write(file);
 }
 
