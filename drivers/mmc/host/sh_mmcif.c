@@ -892,21 +892,15 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	switch (mrq->cmd->opcode) {
 	/* MMCIF does not support SD/SDIO command */
-	case SD_IO_SEND_OP_COND:
+	case MMC_SLEEP_AWAKE: /* = SD_IO_SEND_OP_COND (5) */
+	case MMC_SEND_EXT_CSD: /* = SD_SEND_IF_COND (8) */
+		if ((mrq->cmd->flags & MMC_CMD_MASK) != MMC_CMD_BCR)
+			break;
 	case MMC_APP_CMD:
 		host->state = STATE_IDLE;
 		mrq->cmd->error = -ETIMEDOUT;
 		mmc_request_done(mmc, mrq);
 		return;
-	case MMC_SEND_EXT_CSD: /* = SD_SEND_IF_COND (8) */
-		if (!mrq->data) {
-			/* send_if_cond cmd (not support) */
-			host->state = STATE_IDLE;
-			mrq->cmd->error = -ETIMEDOUT;
-			mmc_request_done(mmc, mrq);
-			return;
-		}
-		break;
 	default:
 		break;
 	}
