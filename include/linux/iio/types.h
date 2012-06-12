@@ -11,7 +11,6 @@
 #define _IIO_TYPES_H_
 
 enum iio_chan_type {
-	/* real channel types */
 	IIO_VOLTAGE,
 	IIO_CURRENT,
 	IIO_POWER,
