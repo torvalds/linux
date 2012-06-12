@@ -1269,7 +1269,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 3);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

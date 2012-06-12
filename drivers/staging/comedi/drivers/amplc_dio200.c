@@ -1273,9 +1273,11 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 	devpriv->intr_sd = -1;
 	dev->iobase = iobase;
 	dev->board_name = thisboard->name;
+
 	ret = comedi_alloc_subdevices(dev, layout->n_subdevs);
-	if (ret < 0)
+	if (ret)
 		return ret;
+
 	for (n = 0; n < dev->n_subdevices; n++) {
 		s = &dev->subdevices[n];
 		switch (layout->sdtype[n]) {

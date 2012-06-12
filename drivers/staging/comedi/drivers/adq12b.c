@@ -224,6 +224,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int unipolar, differential;
+	int ret;
 
 	iobase = it->options[0];
 	unipolar = it->options[1];
@@ -267,8 +268,9 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->last_channel = -1;
 	devpriv->last_range = -1;
 
-	if (comedi_alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */

@@ -773,8 +773,8 @@ static int daqboard2000_attach(struct comedi_device *dev,
 		return -ENOMEM;
 
 	result = comedi_alloc_subdevices(dev, 3);
-	if (result < 0)
-		goto out;
+	if (result)
+		return result;
 
 	readl(devpriv->plx + 0x6c);
 

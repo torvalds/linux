@@ -68,6 +68,7 @@ static int acl7225b_attach(struct comedi_device *dev,
 	const struct boardtype *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int iobase, iorange;
+	int ret;
 
 	iobase = it->options[0];
 	iorange = board->io_range;
@@ -82,8 +83,9 @@ static int acl7225b_attach(struct comedi_device *dev,
 	dev->iobase = iobase;
 	dev->irq = 0;
 
-	if (comedi_alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* Relays outputs */

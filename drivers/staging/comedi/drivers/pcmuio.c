@@ -754,6 +754,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
 	unsigned long iobase;
 	unsigned int irq[MAX_ASICS];
+	int ret;
 
 	iobase = it->options[0];
 	irq[0] = it->options[1];
@@ -801,8 +802,9 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	}
 
-	if (comedi_alloc_subdevices(dev, n_subdevs) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, n_subdevs);
+	if (ret)
+		return ret;
 
 	port = 0;
 	asic = 0;

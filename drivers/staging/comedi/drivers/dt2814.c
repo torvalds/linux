@@ -339,7 +339,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct dt2814_private));

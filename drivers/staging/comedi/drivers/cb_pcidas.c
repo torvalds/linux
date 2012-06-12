@@ -533,6 +533,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = NULL;
 	int index;
 	int i;
+	int ret;
 
 /*
  * Allocate the private structure area.
@@ -614,8 +615,9 @@ found:
 	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
 
-	if (comedi_alloc_subdevices(dev, 7) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 7);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */

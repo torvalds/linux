@@ -519,7 +519,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->irq = irq;
 
 	ret = comedi_alloc_subdevices(dev, 4);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct pcl711_private));

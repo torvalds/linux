@@ -138,7 +138,7 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = "dt2817";
 
 	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

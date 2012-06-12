@@ -337,6 +337,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int ao_unipolar;
+	int ret;
 
 	iobase = it->options[0];
 	if (iobase == 0)
@@ -356,8 +357,9 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct atao_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* analog output subdevice */

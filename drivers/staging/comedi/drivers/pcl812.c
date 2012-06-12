@@ -1383,7 +1383,7 @@ no_dma:
 		n_subdevices++;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
-	if (ret < 0) {
+	if (ret) {
 		free_resources(dev);
 		return ret;
 	}

@@ -434,7 +434,7 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	dev->board_name = "c6xdigio";
 
 	result = comedi_alloc_subdevices(dev, 2);
-	if (result < 0)
+	if (result)
 		return result;
 
 	/*  Make sure that PnP ports get activated */

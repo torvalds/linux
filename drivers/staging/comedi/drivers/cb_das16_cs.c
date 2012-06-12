@@ -195,8 +195,9 @@ static int das16cs_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct das16cs_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;

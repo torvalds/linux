@@ -63,7 +63,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	int n_subdevices = 9;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	if (ret)
 		return;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */

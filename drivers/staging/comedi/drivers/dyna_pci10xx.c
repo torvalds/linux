@@ -246,6 +246,7 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev;
 	unsigned int opt_bus, opt_slot;
 	int board_index, i;
+	int ret;
 
 	mutex_lock(&start_stop_sem);
 
@@ -329,9 +330,10 @@ found:
 	devpriv->BADR4 = pci_resource_start(pcidev, 4);
 	devpriv->BADR5 = pci_resource_start(pcidev, 5);
 
-	if (comedi_alloc_subdevices(dev, 4) < 0) {
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret) {
 		mutex_unlock(&start_stop_sem);
-		return -ENOMEM;
+		return ret;
 	}
 
 	/* analog input */

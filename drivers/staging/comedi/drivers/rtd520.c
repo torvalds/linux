@@ -1999,9 +1999,9 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* Show board configuration */
 	printk(KERN_INFO "%s:", dev->board_name);
 
-	if (comedi_alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
-
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;

@@ -4406,14 +4406,16 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	unsigned j;
 	enum ni_gpct_variant counter_variant;
+	int ret;
 
 	if (boardtype.n_aochan > MAX_N_AO_CHAN) {
 		printk("bug! boardtype.n_aochan > MAX_N_AO_CHAN\n");
 		return -EINVAL;
 	}
 
-	if (comedi_alloc_subdevices(dev, NI_NUM_SUBDEVICES) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, NI_NUM_SUBDEVICES);
+	if (ret)
+		return ret;
 
 	/* analog input subdevice */
 

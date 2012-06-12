@@ -336,6 +336,7 @@ static int bonding_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	int ret;
 
 	LOG_MSG("comedi%d\n", dev->minor);
 
@@ -358,8 +359,9 @@ static int bonding_attach(struct comedi_device *dev,
 	 */
 	dev->board_name = devpriv->name;
 
-	if (comedi_alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DIO;

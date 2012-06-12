@@ -308,7 +308,7 @@ static int das6402_attach(struct comedi_device *dev,
 		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	/* ai subdevice */

@@ -456,7 +456,7 @@ static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 	dev->iobase = iobase;
 
 	ret = comedi_alloc_subdevices(dev, 2);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

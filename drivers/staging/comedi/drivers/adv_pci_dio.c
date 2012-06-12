@@ -1157,7 +1157,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 	}
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	subdev = 0;

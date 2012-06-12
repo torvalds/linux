@@ -349,7 +349,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = board->name;
 
 	ret = comedi_alloc_subdevices(dev, 4);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct rti800_private));

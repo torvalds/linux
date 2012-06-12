@@ -1344,9 +1344,11 @@ static int setup_subdevices(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	void __iomem *dio_8255_iobase;
 	int i;
+	int ret;
 
-	if (comedi_alloc_subdevices(dev, 10) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 10);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */

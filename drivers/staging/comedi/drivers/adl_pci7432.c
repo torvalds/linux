@@ -117,6 +117,7 @@ static int adl_pci7432_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	int ret;
 
 	printk(KERN_INFO "comedi%d: attach adl_pci7432\n", dev->minor);
 
@@ -125,8 +126,9 @@ static int adl_pci7432_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct adl_pci7432_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 2) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	devpriv->pci_dev = adl_pci7432_find_pci(dev, it);
 	if (!devpriv->pci_dev)

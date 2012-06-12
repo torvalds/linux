@@ -904,7 +904,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 		n_subdevices++;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	icp_multi_reset(dev);

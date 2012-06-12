@@ -595,8 +595,9 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_ptr = s626_boards;
 	dev->board_name = thisboard->name;
 
-	if (comedi_alloc_subdevices(dev, 6) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 6);
+	if (ret)
+		return ret;
 
 	dev->iobase = (unsigned long)devpriv->base_addr;
 	dev->irq = devpriv->pdev->irq;

@@ -187,6 +187,7 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dnp_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
+	int ret;
 
 	printk(KERN_INFO "comedi%d: dnp: ", dev->minor);
 
@@ -197,8 +198,9 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct dnp_private_data)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* digital i/o subdevice                                             */

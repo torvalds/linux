@@ -626,15 +626,15 @@ havetype:
 	printk("dt2801: %s at port 0x%lx", boardtype.name, iobase);
 
 	n_ai_chans = probe_number_of_ai_chans(dev);
-	printk(" (ai channels = %d)", n_ai_chans);
+	printk(" (ai channels = %d)\n", n_ai_chans);
 
 	ret = comedi_alloc_subdevices(dev, 4);
-	if (ret < 0)
+	if (ret)
 		goto out;
 
 	ret = alloc_private(dev, sizeof(struct dt2801_private));
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	dev->board_name = boardtype.name;
 
@@ -688,8 +688,6 @@ havetype:
 
 	ret = 0;
 out:
-	printk("\n");
-
 	return ret;
 }
 

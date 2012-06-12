@@ -743,6 +743,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int iobase;
 	int i, n;
+	int ret;
 /* short value; */
 /* int subdev_channel = 0; */
 	union cmReg cmReg;
@@ -774,8 +775,9 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct s526_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* GENERAL-PURPOSE COUNTER/TIME (GPCT) */

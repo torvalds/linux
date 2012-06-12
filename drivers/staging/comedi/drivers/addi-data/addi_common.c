@@ -1688,7 +1688,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	} else {
 		n_subdevices = 7;
 		ret = comedi_alloc_subdevices(dev, n_subdevices);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		/*  Allocate and Initialise AI Subdevice Structures */

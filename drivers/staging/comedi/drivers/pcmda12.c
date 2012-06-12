@@ -165,6 +165,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 	const struct pcmda12_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO
@@ -190,8 +191,9 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	devpriv->simultaneous_xfer_mode = it->options[1];
 
-	if (comedi_alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices;
 	s->private = NULL;

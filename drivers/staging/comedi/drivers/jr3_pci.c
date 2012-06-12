@@ -827,8 +827,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 		return -ENOMEM;
 
 	result = comedi_alloc_subdevices(dev, devpriv->n_channels);
-	if (result < 0)
-		goto out;
+	if (result)
+		return result;
 
 	dev->open = jr3_pci_open;
 	for (i = 0; i < devpriv->n_channels; i++) {

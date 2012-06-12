@@ -536,6 +536,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	unsigned long dma_flags;
 #endif
 	short lsb, msb;
+	int ret;
 
 	printk(KERN_ERR "comedi%d: ni_labpc: %s, io 0x%lx", dev->minor,
 								thisboard->name,
@@ -622,8 +623,9 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	dev->board_name = thisboard->name;
 
-	if (comedi_alloc_subdevices(dev, 5) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 5);
+	if (ret)
+		return ret;
 
 	/* analog input subdevice */
 	s = dev->subdevices + 0;

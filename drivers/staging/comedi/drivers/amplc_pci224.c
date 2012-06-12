@@ -1380,7 +1380,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 	     dev->iobase + PCI224_DACCON);
 
 	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

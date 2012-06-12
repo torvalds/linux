@@ -761,9 +761,8 @@ found:
 
 	me_reset(dev);
 
-	/* device driver capabilities */
 	error = comedi_alloc_subdevices(dev, 3);
-	if (error < 0)
+	if (error)
 		return error;
 
 	subdevice = dev->subdevices + 0;

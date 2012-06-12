@@ -780,6 +780,7 @@ static int serial2002_attach(struct comedi_device *dev,
 {
 	const struct serial2002_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
+	int ret;
 
 	dev_dbg(dev->hw_dev, "comedi%d: attached\n", dev->minor);
 	dev->board_name = board->name;
@@ -792,8 +793,9 @@ static int serial2002_attach(struct comedi_device *dev,
 	dev_dbg(dev->hw_dev, "/dev/ttyS%d @ %d\n", devpriv->port,
 		devpriv->speed);
 
-	if (comedi_alloc_subdevices(dev, 5) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 5);
+	if (ret)
+		return ret;
 
 	/* digital input subdevice */
 	s = dev->subdevices + 0;

@@ -1020,6 +1020,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	    thisasic_chanct = 0;
 	unsigned long iobase;
 	unsigned int irq[MAX_ASICS];
+	int ret;
 
 	iobase = it->options[0];
 	irq[0] = it->options[1];
@@ -1072,8 +1073,9 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	}
 
-	if (comedi_alloc_subdevices(dev, n_subdevs) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, n_subdevs);
+	if (ret)
+		return ret;
 
 	/* First, AI */
 	sdev_no = 0;

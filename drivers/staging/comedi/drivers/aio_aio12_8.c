@@ -168,6 +168,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	const struct aio12_8_boardtype *board = comedi_board(dev);
 	int iobase;
 	struct comedi_subdevice *s;
+	int ret;
 
 	iobase = it->options[0];
 	if (!request_region(iobase, 24, "aio_aio12_8")) {
@@ -182,8 +183,9 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct aio12_8_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;

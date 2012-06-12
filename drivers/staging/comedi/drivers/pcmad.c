@@ -118,7 +118,7 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 
 	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct pcmad_priv_struct));

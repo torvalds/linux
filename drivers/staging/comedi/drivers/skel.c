@@ -210,6 +210,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round);
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	int ret;
 
 	pr_info("comedi%d: skel: ", dev->minor);
 
@@ -233,8 +234,9 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct skel_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* dev->read_subdev=s; */

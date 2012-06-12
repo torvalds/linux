@@ -252,6 +252,7 @@ static int adl_pci8164_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	int ret;
 
 	printk(KERN_INFO "comedi: attempt to attach...\n");
 	printk(KERN_INFO "comedi%d: adl_pci8164\n", dev->minor);
@@ -261,8 +262,9 @@ static int adl_pci8164_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct adl_pci8164_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	devpriv->pci_dev = adl_pci8164_find_pci(dev, it);
 	if (!devpriv->pci_dev)

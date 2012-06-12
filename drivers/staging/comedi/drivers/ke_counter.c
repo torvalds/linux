@@ -190,7 +190,7 @@ found:
 	dev->iobase = io_base;
 
 	error = comedi_alloc_subdevices(dev, 1);
-	if (error < 0)
+	if (error)
 		return error;
 
 	subdevice = dev->subdevices + 0;

@@ -710,7 +710,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	dev->board_name = board->name;
 
 	ret = comedi_alloc_subdevices(dev, 4);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct atmio16d_private));

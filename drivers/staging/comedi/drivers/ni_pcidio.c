@@ -1249,7 +1249,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		n_subdevices = 1;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	if (!this_board->is_diodaq) {

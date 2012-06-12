@@ -59,6 +59,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: pcm3730: 0x%04lx ", dev->minor, iobase);
@@ -71,8 +72,9 @@ static int pcm3730_attach(struct comedi_device *dev,
 	dev->iobase = dev->iobase;
 	dev->irq = 0;
 
-	if (comedi_alloc_subdevices(dev, 6) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 6);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DO;

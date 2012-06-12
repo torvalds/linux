@@ -107,6 +107,7 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	const struct aio_iiro_16_board *board = comedi_board(dev);
 	int iobase;
 	struct comedi_subdevice *s;
+	int ret;
 
 	printk(KERN_INFO "comedi%d: aio_iiro_16: ", dev->minor);
 
@@ -124,8 +125,9 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct aio_iiro_16_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 2) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DIO;

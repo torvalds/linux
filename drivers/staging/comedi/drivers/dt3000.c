@@ -883,7 +883,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->irq = devpriv->pci_dev->irq;
 
 	ret = comedi_alloc_subdevices(dev, 4);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s = dev->subdevices;

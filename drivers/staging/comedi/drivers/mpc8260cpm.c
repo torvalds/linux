@@ -121,6 +121,7 @@ static int mpc8260cpm_attach(struct comedi_device *dev,
 {
 	struct comedi_subdevice *s;
 	int i;
+	int ret;
 
 	printk("comedi%d: mpc8260cpm: ", dev->minor);
 
@@ -131,8 +132,9 @@ static int mpc8260cpm_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct mpc8260cpm_private)) < 0)
 		return -ENOMEM;
 
-	if (comedi_alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	ret =comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < 4; i++) {
 		s = dev->subdevices + i;

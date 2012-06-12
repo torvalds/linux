@@ -2840,8 +2840,10 @@ static int pci230_attach_common(struct comedi_device *dev,
 			devpriv->pci_dev->irq);
 	}
 
-	if (comedi_alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	rc = comedi_alloc_subdevices(dev, 3);
+	if (rc)
+		return rc;
+
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;

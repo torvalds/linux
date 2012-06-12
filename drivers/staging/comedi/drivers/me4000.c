@@ -2190,8 +2190,9 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (result)
 		return result;
 
-	if (comedi_alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	result = comedi_alloc_subdevices(dev, 4);
+	if (result)
+		return result;
 
     /*=========================================================================
       Analog input subdevice

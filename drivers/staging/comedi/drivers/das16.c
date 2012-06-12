@@ -1265,7 +1265,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->timer_mode = timer_mode ? 1 : 0;
 
 	ret = comedi_alloc_subdevices(dev, 5);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

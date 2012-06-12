@@ -1093,8 +1093,9 @@ static int ni_660x_attach(struct comedi_device *dev,
 
 	printk(KERN_INFO " %s ", dev->board_name);
 
-	if (comedi_alloc_subdevices(dev, 2 + NI_660X_MAX_NUM_COUNTERS) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2 + NI_660X_MAX_NUM_COUNTERS);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */

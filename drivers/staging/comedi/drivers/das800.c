@@ -465,6 +465,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int irq = it->options[1];
 	unsigned long irq_flags;
 	int board;
+	int ret;
 
 	dev_info(dev->hw_dev, "comedi%d: das800: io 0x%lx\n", dev->minor,
 		 iobase);
@@ -510,8 +511,9 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	if (comedi_alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	/* analog input subdevice */
 	s = dev->subdevices + 0;

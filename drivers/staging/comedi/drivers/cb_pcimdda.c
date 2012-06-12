@@ -236,8 +236,9 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
  */
 	dev->board_name = thisboard->name;
 
-	if (comedi_alloc_subdevices(dev, 2) < 0)
-		return -ENOMEM;
+	err = comedi_alloc_subdevices(dev, 2);
+	if (err)
+		return err;
 
 	s = dev->subdevices + 0;
 

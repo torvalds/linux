@@ -835,7 +835,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 6);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

@@ -398,7 +398,7 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		readb(devpriv->mite->daq_io_addr + ID_Register));
 
 	ret = comedi_alloc_subdevices(dev, 3);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

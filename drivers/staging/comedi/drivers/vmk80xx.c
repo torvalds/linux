@@ -1135,6 +1135,7 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	int n_subd;
 	struct comedi_subdevice *s;
 	int minor;
+	int ret;
 
 	mutex_lock(&glb_mutex);
 
@@ -1159,10 +1160,11 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	else
 		n_subd = 6;
 
-	if (comedi_alloc_subdevices(cdev, n_subd) < 0) {
+	ret = comedi_alloc_subdevices(cdev, n_subd);
+	if (ret) {
 		up(&dev->limit_sem);
 		mutex_unlock(&glb_mutex);
-		return -ENOMEM;
+		return ret;
 	}
 
 	/* Analog input subdevice */
