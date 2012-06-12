@@ -48,6 +48,7 @@
 #define WACOM_REPORT_TPCMT		13
 #define WACOM_REPORT_TPCHID		15
 #define WACOM_REPORT_TPCST		16
+#define WACOM_REPORT_TPC1FGE		18
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
@@ -80,6 +81,7 @@ enum {
 	WIRELESS,
 	BAMBOO_PT,
 	TABLETPC,   /* add new TPC below */
+	TABLETPCE,
 	TABLETPC2FG,
 	MTSCREEN,
 	MAX_TYPE
