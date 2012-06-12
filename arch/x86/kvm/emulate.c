@@ -454,6 +454,11 @@ static ulong stack_mask(struct x86_emulate_ctxt *ctxt)
 	return ~0U >> ((ss.d ^ 1) * 16);  /* d=0: 0xffff; d=1: 0xffffffff */
 }
 
+static int stack_size(struct x86_emulate_ctxt *ctxt)
+{
+	return (__fls(stack_mask(ctxt)) + 1) >> 3;
+}
+
 /* Access/update address held in a register, based on addressing mode. */
 static inline unsigned long
 address_mask(struct x86_emulate_ctxt *ctxt, unsigned long reg)
@@ -1590,6 +1595,26 @@ static int em_popf(struct x86_emulate_ctxt *ctxt)
 	ctxt->dst.addr.reg = &ctxt->eflags;
 	ctxt->dst.bytes = ctxt->op_bytes;
 	return emulate_popf(ctxt, &ctxt->dst.val, ctxt->op_bytes);
+}
+
+static int em_enter(struct x86_emulate_ctxt *ctxt)
+{
+	int rc;
+	unsigned frame_size = ctxt->src.val;
+	unsigned nesting_level = ctxt->src2.val & 31;
+
+	if (nesting_level)
+		return X86EMUL_UNHANDLEABLE;
+
+	rc = push(ctxt, &ctxt->regs[VCPU_REGS_RBP], stack_size(ctxt));
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	assign_masked(&ctxt->regs[VCPU_REGS_RBP], ctxt->regs[VCPU_REGS_RSP],
+		      stack_mask(ctxt));
+	assign_masked(&ctxt->regs[VCPU_REGS_RSP],
+		      ctxt->regs[VCPU_REGS_RSP] - frame_size,
+		      stack_mask(ctxt));
+	return X86EMUL_CONTINUE;
 }
 
 static int em_leave(struct x86_emulate_ctxt *ctxt)
@@ -3657,7 +3682,8 @@ static struct opcode opcode_table[256] = {
 	I(DstReg | SrcMemFAddr | ModRM | No64 | Src2DS, em_lseg),
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
-	N, I(Stack, em_leave), N, I(ImplicitOps | Stack, em_ret_far),
+	I(Stack | SrcImmU16 | Src2ImmByte, em_enter), I(Stack, em_leave),
+	N, I(ImplicitOps | Stack, em_ret_far),
 	D(ImplicitOps), DI(SrcImmByte, intn),
 	D(ImplicitOps | No64), II(ImplicitOps, em_iret, iret),
 	/* 0xD0 - 0xD7 */
