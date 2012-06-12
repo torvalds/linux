@@ -1718,6 +1718,7 @@ int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	int ret = VM_FAULT_LOCKED;
 
+	sb_start_pagefault(inode->i_sb);
 	file_update_time(vma->vm_file);
 	lock_page(page);
 	if (page->mapping != inode->i_mapping) {
@@ -1725,7 +1726,14 @@ int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
+	/*
+	 * We mark the page dirty already here so that when freeze is in
+	 * progress, we are guaranteed that writeback during freezing will
+	 * see the dirty page and writeprotect it again.
+	 */
+	set_page_dirty(page);
 out:
+	sb_end_pagefault(inode->i_sb);
 	return ret;
 }
 EXPORT_SYMBOL(filemap_page_mkwrite);
@@ -2426,8 +2434,6 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	count = ocount;
 	pos = *ppos;
 
-	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
-
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
 	written = 0;
@@ -2526,6 +2532,7 @@ ssize_t generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	BUG_ON(iocb->ki_pos != pos);
 
+	sb_start_write(inode->i_sb);
 	mutex_lock(&inode->i_mutex);
 	blk_start_plug(&plug);
 	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
@@ -2539,6 +2546,7 @@ ssize_t generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 			ret = err;
 	}
 	blk_finish_plug(&plug);
+	sb_end_write(inode->i_sb);
 	return ret;
 }
 EXPORT_SYMBOL(generic_file_aio_write);
