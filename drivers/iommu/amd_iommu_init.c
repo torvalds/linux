@@ -1702,14 +1702,6 @@ static int __init amd_iommu_init(void)
 
 	x86_platform.iommu_shutdown = disable_iommus;
 
-	if (iommu_pass_through)
-		goto out;
-
-	if (amd_iommu_unmap_flush)
-		printk(KERN_INFO "AMD-Vi: IO/TLB flush on unmap enabled\n");
-	else
-		printk(KERN_INFO "AMD-Vi: Lazy IO/TLB flushing enabled\n");
-
 out:
 	return ret;
 
