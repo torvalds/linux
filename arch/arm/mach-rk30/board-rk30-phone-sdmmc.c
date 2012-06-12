@@ -204,7 +204,6 @@ int rk29sdk_bt_power_state = 0;
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #define RK30SDK_WIFI_BT_GPIO_POWER_N       RK30_PIN4_PD5
 #define RK30SDK_WIFI_GPIO_RESET_N       RK30_PIN3_PD0
-#define RK30SDK_BT_GPIO_RESET_N         RK30_PIN3_PD1
 
 
 #define PREALLOC_WLAN_SEC_NUM           4
@@ -320,15 +319,9 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
            return -1;
     }
 
-    if (gpio_request(RK30SDK_BT_GPIO_RESET_N, "bt reset")) {
-          pr_info("%s: request bt reset gpio failed\n", __func__);
-          gpio_free(RK30SDK_WIFI_GPIO_RESET_N);
-          return -1;
-    }
 
     gpio_direction_output(RK30SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
     gpio_direction_output(RK30SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
-    gpio_direction_output(RK30SDK_BT_GPIO_RESET_N,      GPIO_LOW);
 
     #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
     
