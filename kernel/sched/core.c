@@ -6024,6 +6024,11 @@ static void destroy_sched_domains(struct sched_domain *sd, int cpu)
  * SD_SHARE_PKG_RESOURCE set (Last Level Cache Domain) for this
  * allows us to avoid some pointer chasing select_idle_sibling().
  *
+ * Iterate domains and sched_groups downward, assigning CPUs to be
+ * select_idle_sibling() hw buddy.  Cross-wiring hw makes bouncing
+ * due to random perturbation self canceling, ie sw buddies pull
+ * their counterpart to their CPU's hw counterpart.
+ *
  * Also keep a unique ID per domain (we use the first cpu number in
  * the cpumask of the domain), this allows us to quickly tell if
  * two cpus are in the same cache domain, see cpus_share_cache().
@@ -6037,8 +6042,40 @@ static void update_top_cache_domain(int cpu)
 	int id = cpu;
 
 	sd = highest_flag_domain(cpu, SD_SHARE_PKG_RESOURCES);
-	if (sd)
+	if (sd) {
+		struct sched_domain *tmp = sd;
+		struct sched_group *sg, *prev;
+		bool right;
+
+		/*
+		 * Traverse to first CPU in group, and count hops
+		 * to cpu from there, switching direction on each
+		 * hop, never ever pointing the last CPU rightward.
+		 */
+		do {
+			id = cpumask_first(sched_domain_span(tmp));
+			prev = sg = tmp->groups;
+			right = 1;
+
+			while (cpumask_first(sched_group_cpus(sg)) != id)
+				sg = sg->next;
+
+			while (!cpumask_test_cpu(cpu, sched_group_cpus(sg))) {
+				prev = sg;
+				sg = sg->next;
+				right = !right;
+			}
+
+			/* A CPU went down, never point back to domain start. */
+			if (right && cpumask_first(sched_group_cpus(sg->next)) == id)
+				right = false;
+
+			sg = right ? sg->next : prev;
+			tmp->idle_buddy = cpumask_first(sched_group_cpus(sg));
+		} while ((tmp = tmp->child));
+
 		id = cpumask_first(sched_domain_span(sd));
+	}
 
 	rcu_assign_pointer(per_cpu(sd_llc, cpu), sd);
 	per_cpu(sd_llc_id, cpu) = id;
