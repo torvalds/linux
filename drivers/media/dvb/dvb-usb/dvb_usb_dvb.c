@@ -41,13 +41,13 @@ int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 	adap->stream.user_priv = adap;
 
 	/* resolve USB stream configuration for buffer alloc */
-	if (adap->dev->props.get_usb_stream_config) {
-		ret = adap->dev->props.get_usb_stream_config(NULL,
+	if (adap->dev->props->get_usb_stream_config) {
+		ret = adap->dev->props->get_usb_stream_config(NULL,
 				&stream_props);
 		if (ret < 0)
 			return ret;
 	} else {
-		stream_props = adap->props.stream;
+		stream_props = adap->props->stream;
 	}
 
 	/* FIXME: can be removed as set later in anyway */
@@ -80,8 +80,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		pr_debug("%s: stop feeding\n", __func__);
 		usb_urb_killv2(&adap->stream);
 
-		if (adap->dev->props.streaming_ctrl != NULL) {
-			ret = adap->dev->props.streaming_ctrl(adap, 0);
+		if (adap->dev->props->streaming_ctrl != NULL) {
+			ret = adap->dev->props->streaming_ctrl(adap, 0);
 			if (ret < 0) {
 				pr_err("%s: error while stopping stream\n",
 						KBUILD_MODNAME);
@@ -97,10 +97,10 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
 			dvbdmxfeed->pid, dvbdmxfeed->index,
 			onoff ? "on" : "off");
-	if (adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER &&
+	if (adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 			adap->pid_filtering &&
-			adap->props.pid_filter != NULL)
-		adap->props.pid_filter(adap, dvbdmxfeed->index,
+			adap->props->pid_filter != NULL)
+		adap->props->pid_filter(adap, dvbdmxfeed->index,
 				dvbdmxfeed->pid, onoff);
 
 	/* start the feed if this was the first feed and there is still a feed
@@ -111,8 +111,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		unsigned int ts_props;
 
 		/* resolve TS configuration */
-		if (adap->dev->props.get_ts_config) {
-			ret = adap->dev->props.get_ts_config(
+		if (adap->dev->props->get_ts_config) {
+			ret = adap->dev->props->get_ts_config(
 					adap->fe[adap->active_fe],
 					&ts_props);
 			if (ret < 0)
@@ -129,14 +129,14 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			adap->stream.complete = dvb_usb_data_complete;
 
 		/* resolve USB stream configuration */
-		if (adap->dev->props.get_usb_stream_config) {
-			ret = adap->dev->props.get_usb_stream_config(
+		if (adap->dev->props->get_usb_stream_config) {
+			ret = adap->dev->props->get_usb_stream_config(
 					adap->fe[adap->active_fe],
 					&stream_props);
 			if (ret < 0)
 				return ret;
 		} else {
-			stream_props = adap->props.stream;
+			stream_props = adap->props->stream;
 		}
 
 		pr_debug("%s: submitting all URBs\n", __func__);
@@ -144,11 +144,11 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		usb_urb_submitv2(&adap->stream, &stream_props);
 
 		pr_debug("%s: controlling pid parser\n", __func__);
-		if (adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER &&
-				adap->props.caps &
+		if (adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER &&
+				adap->props->caps &
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF &&
-				adap->props.pid_filter_ctrl != NULL) {
-			ret = adap->props.pid_filter_ctrl(adap,
+				adap->props->pid_filter_ctrl != NULL) {
+			ret = adap->props->pid_filter_ctrl(adap,
 					adap->pid_filtering);
 			if (ret < 0) {
 				pr_err("%s: could not handle pid_parser\n",
@@ -157,8 +157,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			}
 		}
 		pr_debug("%s: start feeding\n", __func__);
-		if (adap->dev->props.streaming_ctrl != NULL) {
-			ret = adap->dev->props.streaming_ctrl(adap, 1);
+		if (adap->dev->props->streaming_ctrl != NULL) {
+			ret = adap->dev->props->streaming_ctrl(adap, 1);
 			if (ret < 0) {
 				pr_err("%s: error while enabling fifo\n",
 						KBUILD_MODNAME);
@@ -190,18 +190,18 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
 	int ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->name,
-				       adap->dev->props.owner,
+				       adap->dev->props->owner,
 				       &adap->dev->udev->dev,
-				       adap->dev->props.adapter_nr);
+				       adap->dev->props->adapter_nr);
 	if (ret < 0) {
 		pr_debug("%s: dvb_register_adapter failed=%d\n", __func__, ret);
 		goto err;
 	}
 	adap->dvb_adap.priv = adap;
-	adap->dvb_adap.fe_ioctl_override = adap->props.fe_ioctl_override;
+	adap->dvb_adap.fe_ioctl_override = adap->props->fe_ioctl_override;
 
-	if (adap->dev->props.read_mac_address) {
-		if (adap->dev->props.read_mac_address(adap->dev,
+	if (adap->dev->props->read_mac_address) {
+		if (adap->dev->props->read_mac_address(adap->dev,
 				adap->dvb_adap.proposed_mac) == 0)
 			pr_info("%s: MAC address: %pM\n", KBUILD_MODNAME,
 					adap->dvb_adap.proposed_mac);
@@ -279,8 +279,8 @@ static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto err;
 
-	if (adap->dev->props.frontend_ctrl) {
-		ret = adap->dev->props.frontend_ctrl(fe, 1);
+	if (adap->dev->props->frontend_ctrl) {
+		ret = adap->dev->props->frontend_ctrl(fe, 1);
 		if (ret < 0)
 			goto err;
 	}
@@ -310,8 +310,8 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	if (adap->dev->props.frontend_ctrl) {
-		ret = adap->dev->props.frontend_ctrl(fe, 0);
+	if (adap->dev->props->frontend_ctrl) {
+		ret = adap->dev->props->frontend_ctrl(fe, 0);
 		if (ret < 0)
 			goto err;
 	}
@@ -337,8 +337,8 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	memset(adap->fe, 0, sizeof(adap->fe));
 	adap->active_fe = -1;
 
-	if (adap->dev->props.frontend_attach) {
-		ret = adap->dev->props.frontend_attach(adap);
+	if (adap->dev->props->frontend_attach) {
+		ret = adap->dev->props->frontend_attach(adap);
 		if (ret < 0) {
 			pr_debug("%s: frontend_attach() failed=%d\n", __func__,
 					ret);
@@ -350,8 +350,8 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		goto err;
 	}
 
-	if (adap->dev->props.tuner_attach) {
-		ret = adap->dev->props.tuner_attach(adap);
+	if (adap->dev->props->tuner_attach) {
+		ret = adap->dev->props->tuner_attach(adap);
 		if (ret < 0) {
 			pr_debug("%s: tuner_attach() failed=%d\n", __func__,
 					ret);

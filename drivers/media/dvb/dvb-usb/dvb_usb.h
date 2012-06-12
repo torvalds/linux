@@ -270,7 +270,7 @@ struct dvb_usb_adapter {
 #define DVB_USB_ADAP_STATE_DVB  0x001
 	int state;
 	struct dvb_usb_device *dev;
-	struct dvb_usb_adapter_properties props;
+	const struct dvb_usb_adapter_properties *props;
 	struct usb_data_stream stream;
 	u8  id;
 
@@ -316,7 +316,7 @@ struct dvb_usb_adapter {
  *  in size_of_priv of dvb_usb_properties).
  */
 struct dvb_usb_device {
-	struct dvb_usb_device_properties props;
+	const struct dvb_usb_device_properties *props;
 	const char *name;
 	const char *rc_map;
 	struct dvb_usb_rc rc;

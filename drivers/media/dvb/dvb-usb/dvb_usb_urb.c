@@ -16,7 +16,7 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 	if (!d || wbuf == NULL || wlen == 0)
 		return -EINVAL;
 
-	if (d->props.generic_bulk_ctrl_endpoint == 0) {
+	if (d->props->generic_bulk_ctrl_endpoint == 0) {
 		pr_err("%s: endpoint for generic control not specified\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
@@ -30,7 +30,7 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 			32, 1, wbuf, wlen, 0);
 
 	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
-			d->props.generic_bulk_ctrl_endpoint), wbuf, wlen,
+			d->props->generic_bulk_ctrl_endpoint), wbuf, wlen,
 			&actlen, 2000);
 
 	if (ret)
@@ -45,9 +45,9 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 			msleep(delay_ms);
 
 		ret = usb_bulk_msg(d->udev, usb_rcvbulkpipe(d->udev,
-				d->props.generic_bulk_ctrl_endpoint_response ?
-				d->props.generic_bulk_ctrl_endpoint_response :
-				d->props.generic_bulk_ctrl_endpoint),
+				d->props->generic_bulk_ctrl_endpoint_response ?
+				d->props->generic_bulk_ctrl_endpoint_response :
+				d->props->generic_bulk_ctrl_endpoint),
 				rbuf, rlen, &actlen, 2000);
 
 		if (ret)

@@ -30,14 +30,14 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d)
 	const char *name;
 
 	/* resolve firmware name */
-	name = d->props.firmware;
-	if (d->props.get_firmware_name) {
-		ret = d->props.get_firmware_name(d, &name);
+	name = d->props->firmware;
+	if (d->props->get_firmware_name) {
+		ret = d->props->get_firmware_name(d, &name);
 		if (ret < 0)
 			goto err;
 	}
 
-	if (!d->props.download_firmware) {
+	if (!d->props->download_firmware) {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -54,7 +54,7 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d)
 	pr_info("%s: downloading firmware from file '%s'\n", KBUILD_MODNAME,
 			name);
 
-	ret = d->props.download_firmware(d, fw);
+	ret = d->props->download_firmware(d, fw);
 
 	release_firmware(fw);
 
@@ -71,13 +71,13 @@ static int dvb_usbv2_i2c_init(struct dvb_usb_device *d)
 {
 	int ret;
 
-	if (!d->props.i2c_algo) {
+	if (!d->props->i2c_algo) {
 		ret = 0;
 		goto err;
 	}
 
 	strlcpy(d->i2c_adap.name, d->name, sizeof(d->i2c_adap.name));
-	d->i2c_adap.algo = d->props.i2c_algo;
+	d->i2c_adap.algo = d->props->i2c_algo;
 	d->i2c_adap.algo_data = NULL;
 	d->i2c_adap.dev.parent = &d->udev->dev;
 
@@ -113,9 +113,9 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 	int ret, i, adapter_count;
 
 	/* resolve adapter count */
-	adapter_count = d->props.num_adapters;
-	if (d->props.get_adapter_count) {
-		ret = d->props.get_adapter_count(d);
+	adapter_count = d->props->num_adapters;
+	if (d->props->get_adapter_count) {
+		ret = d->props->get_adapter_count(d);
 		if (ret < 0)
 			goto err;
 
@@ -125,28 +125,26 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 	for (i = 0; i < adapter_count; i++) {
 		adap = &d->adapter[i];
 		adap->dev = d;
-		adap->id  = i;
-
-		memcpy(&adap->props, &d->props.adapter[i],
-				sizeof(struct dvb_usb_adapter_properties));
+		adap->id = i;
+		adap->props = &d->props->adapter[i];
 
 		/* speed - when running at FULL speed we need a HW PID filter */
 		if (d->udev->speed == USB_SPEED_FULL &&
-				!(adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER)) {
+				!(adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER)) {
 			pr_err("%s: this USB2.0 device cannot be run on a " \
 					"USB1.1 port (it lacks a hardware " \
 					"PID filter)\n", KBUILD_MODNAME);
 			ret = -ENODEV;
 			goto err;
 		} else if ((d->udev->speed == USB_SPEED_FULL &&
-				adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER) ||
-				(adap->props.caps & DVB_USB_ADAP_NEED_PID_FILTERING)) {
+				adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER) ||
+				(adap->props->caps & DVB_USB_ADAP_NEED_PID_FILTERING)) {
 			pr_info("%s: will use the device's hardware PID " \
 					"filter (table count: %d)\n",
 					KBUILD_MODNAME,
-					adap->props.pid_filter_count);
+					adap->props->pid_filter_count);
 			adap->pid_filtering  = 1;
-			adap->max_feed_count = adap->props.pid_filter_count;
+			adap->max_feed_count = adap->props->pid_filter_count;
 		} else {
 			pr_info("%s: will pass the complete MPEG2 transport " \
 					"stream to the software demuxer\n",
@@ -156,11 +154,11 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 		}
 
 		if (!adap->pid_filtering && dvb_usb_force_pid_filter_usage &&
-				adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER) {
+				adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER) {
 			pr_info("%s: pid filter enabled by module option\n",
 					KBUILD_MODNAME);
 			adap->pid_filtering  = 1;
-			adap->max_feed_count = adap->props.pid_filter_count;
+			adap->max_feed_count = adap->props->pid_filter_count;
 		}
 
 		ret = dvb_usbv2_adapter_stream_init(adap);
@@ -229,8 +227,8 @@ static int dvb_usbv2_init(struct dvb_usb_device *d)
 	/* check the capabilities and set appropriate variables */
 	dvb_usbv2_device_power_ctrl(d, 1);
 
-	if (d->props.read_config) {
-		ret = d->props.read_config(d);
+	if (d->props->read_config) {
+		ret = d->props->read_config(d);
 		if (ret < 0)
 			goto err;
 	}
@@ -243,8 +241,8 @@ static int dvb_usbv2_init(struct dvb_usb_device *d)
 	if (ret < 0)
 		goto err;
 
-	if (d->props.init) {
-		ret = d->props.init(d);
+	if (d->props->init) {
+		ret = d->props->init(d);
 		if (ret < 0)
 			goto err;
 	}
@@ -274,8 +272,8 @@ int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 	if (d->powered == 0 || (onoff && d->powered == 1)) {
 		/* when switching from 1 to 0 or from 0 to 1 */
 		pr_debug("%s: power control=%d\n", __func__, onoff);
-		if (d->props.power_ctrl) {
-			ret = d->props.power_ctrl(d, onoff);
+		if (d->props->power_ctrl) {
+			ret = d->props->power_ctrl(d, onoff);
 			goto err;
 		}
 	}
@@ -304,8 +302,8 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 
 	pr_debug("%s: work_pid=%d\n", __func__, d->work_pid);
 
-	if (d->props.size_of_priv) {
-		d->priv = kzalloc(d->props.size_of_priv, GFP_KERNEL);
+	if (d->props->size_of_priv) {
+		d->priv = kzalloc(d->props->size_of_priv, GFP_KERNEL);
 		if (!d->priv) {
 			pr_err("%s: kzalloc() failed\n", KBUILD_MODNAME);
 			ret = -ENOMEM;
@@ -313,8 +311,8 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 		}
 	}
 
-	if (d->props.identify_state) {
-		ret = d->props.identify_state(d);
+	if (d->props->identify_state) {
+		ret = d->props->identify_state(d);
 		if (ret == 0) {
 			;
 		} else if (ret == COLD) {
@@ -388,11 +386,10 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 	d->rc_map = driver_info->rc_map;
 	d->udev = interface_to_usbdev(intf);
 	d->intf = intf;
-	memcpy(&d->props, driver_info->props,
-			sizeof(struct dvb_usb_device_properties));
+	d->props = driver_info->props;
 
 	if (d->intf->cur_altsetting->desc.bInterfaceNumber !=
-			d->props.bInterfaceNumber) {
+			d->props->bInterfaceNumber) {
 		ret = -ENODEV;
 		goto err_kfree;
 	}
@@ -428,8 +425,8 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 	if (d->work_pid != current->pid)
 		cancel_work_sync(&d->probe_work);
 
-	if (d->props.disconnect)
-		d->props.disconnect(d);
+	if (d->props->disconnect)
+		d->props->disconnect(d);
 
 	name = d->name;
 	dvb_usbv2_exit(d);

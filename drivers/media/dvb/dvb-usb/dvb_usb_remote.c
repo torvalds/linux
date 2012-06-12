@@ -43,10 +43,10 @@ int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	int ret;
 	struct rc_dev *dev;
 
-	if (dvb_usbv2_disable_rc_polling || !d->props.get_rc_config)
+	if (dvb_usbv2_disable_rc_polling || !d->props->get_rc_config)
 		return 0;
 
-	ret = d->props.get_rc_config(d, &d->rc);
+	ret = d->props->get_rc_config(d, &d->rc);
 	if (ret < 0)
 		goto err;
 
@@ -63,7 +63,7 @@ int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	dev->input_phys = d->rc_phys;
 	usb_to_input_id(d->udev, &dev->input_id);
 	/* TODO: likely RC-core should took const char * */
-	dev->driver_name = (char *) d->props.driver_name;
+	dev->driver_name = (char *) d->props->driver_name;
 	dev->driver_type = d->rc.driver_type;
 	dev->allowed_protos = d->rc.allowed_protos;
 	dev->change_protocol = d->rc.change_protocol;
