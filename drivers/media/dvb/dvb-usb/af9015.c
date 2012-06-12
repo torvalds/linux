@@ -1319,8 +1319,10 @@ static struct dvb_usb_device_properties af9015_props = {
 	.firmware = "dvb-usb-af9015.fw",
 	.download_firmware = af9015_download_firmware,
 
-	.read_config = af9015_read_config,
 	.i2c_algo = &af9015_i2c_algo,
+	.read_config = af9015_read_config,
+	.frontend_attach = af9015_af9013_frontend_attach,
+	.tuner_attach = af9015_tuner_attach,
 	.init = af9015_init,
 	.get_rc_config = af9015_get_rc_config,
 	.get_usb_stream_config = af9015_get_usb_stream_config,
@@ -1333,13 +1335,7 @@ static struct dvb_usb_device_properties af9015_props = {
 			.pid_filter_count = 32,
 			.pid_filter = af9015_pid_filter,
 			.pid_filter_ctrl = af9015_pid_filter_ctrl,
-			.frontend_attach = af9015_af9013_frontend_attach,
-			.tuner_attach = af9015_tuner_attach,
 		},
-		{
-			.frontend_attach = af9015_af9013_frontend_attach,
-			.tuner_attach = af9015_tuner_attach,
-		}
 	},
 };
 
@@ -1427,9 +1423,9 @@ MODULE_DEVICE_TABLE(usb, af9015_id_table);
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver af9015_usb_driver = {
 	.name = KBUILD_MODNAME,
+	.id_table = af9015_id_table,
 	.probe = dvb_usbv2_probe,
 	.disconnect = dvb_usbv2_disconnect,
-	.id_table = af9015_id_table,
 	.no_dynamic_id = 1,
 	.soft_unbind = 1,
 };

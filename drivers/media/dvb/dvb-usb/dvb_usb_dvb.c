@@ -80,8 +80,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		pr_debug("%s: stop feeding\n", __func__);
 		usb_urb_killv2(&adap->stream);
 
-		if (adap->props.streaming_ctrl != NULL) {
-			ret = adap->props.streaming_ctrl(adap, 0);
+		if (adap->dev->props.streaming_ctrl != NULL) {
+			ret = adap->dev->props.streaming_ctrl(adap, 0);
 			if (ret < 0) {
 				pr_err("%s: error while stopping stream\n",
 						KBUILD_MODNAME);
@@ -157,8 +157,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			}
 		}
 		pr_debug("%s: start feeding\n", __func__);
-		if (adap->props.streaming_ctrl != NULL) {
-			ret = adap->props.streaming_ctrl(adap, 1);
+		if (adap->dev->props.streaming_ctrl != NULL) {
+			ret = adap->dev->props.streaming_ctrl(adap, 1);
 			if (ret < 0) {
 				pr_err("%s: error while enabling fifo\n",
 						KBUILD_MODNAME);
@@ -279,8 +279,8 @@ static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto err;
 
-	if (adap->props.frontend_ctrl) {
-		ret = adap->props.frontend_ctrl(fe, 1);
+	if (adap->dev->props.frontend_ctrl) {
+		ret = adap->dev->props.frontend_ctrl(fe, 1);
 		if (ret < 0)
 			goto err;
 	}
@@ -310,8 +310,8 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	if (adap->props.frontend_ctrl) {
-		ret = adap->props.frontend_ctrl(fe, 0);
+	if (adap->dev->props.frontend_ctrl) {
+		ret = adap->dev->props.frontend_ctrl(fe, 0);
 		if (ret < 0)
 			goto err;
 	}
@@ -337,8 +337,8 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	memset(adap->fe, 0, sizeof(adap->fe));
 	adap->active_fe = -1;
 
-	if (adap->props.frontend_attach) {
-		ret = adap->props.frontend_attach(adap);
+	if (adap->dev->props.frontend_attach) {
+		ret = adap->dev->props.frontend_attach(adap);
 		if (ret < 0) {
 			pr_debug("%s: frontend_attach() failed=%d\n", __func__,
 					ret);
@@ -350,8 +350,8 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		goto err;
 	}
 
-	if (adap->props.tuner_attach) {
-		ret = adap->props.tuner_attach(adap);
+	if (adap->dev->props.tuner_attach) {
+		ret = adap->dev->props.tuner_attach(adap);
 		if (ret < 0) {
 			pr_debug("%s: tuner_attach() failed=%d\n", __func__,
 					ret);
