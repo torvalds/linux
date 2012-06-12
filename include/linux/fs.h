@@ -1459,7 +1459,6 @@ extern spinlock_t sb_lock;
 enum {
 	SB_UNFROZEN = 0,		/* FS is unfrozen */
 	SB_FREEZE_WRITE	= 1,		/* Writes, dir ops, ioctls frozen */
-	SB_FREEZE_TRANS = 2,
 	SB_FREEZE_PAGEFAULT = 2,	/* Page faults stopped as well */
 	SB_FREEZE_FS = 3,		/* For internal FS use (e.g. to stop
 					 * internal threads if needed) */
@@ -1528,8 +1527,6 @@ struct super_block {
 	struct hlist_node	s_instances;
 	struct quota_info	s_dquot;	/* Diskquota specific options */
 
-	int			s_frozen;
-	wait_queue_head_t	s_wait_unfrozen;
 	struct sb_writers	s_writers;
 
 	char s_id[32];				/* Informational name */
@@ -1585,8 +1582,6 @@ extern struct timespec current_fs_time(struct super_block *sb);
 /*
  * Snapshotting support.
  */
-/* Will go away when all users are converted */
-#define vfs_check_frozen(sb, level) do { } while (0)
 
 void __sb_end_write(struct super_block *sb, int level);
 int __sb_start_write(struct super_block *sb, int level, bool wait);
