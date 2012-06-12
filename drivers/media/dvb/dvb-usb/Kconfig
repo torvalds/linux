@@ -374,7 +374,7 @@ config DVB_USB_FRIIO
 
 config DVB_USB_EC168
 	tristate "E3C EC168 DVB-T USB2.0 support"
-	depends on DVB_USB
+	depends on DVB_USB_V2
 	select DVB_EC100
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help

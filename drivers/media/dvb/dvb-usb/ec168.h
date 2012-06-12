@@ -23,7 +23,17 @@
 #define EC168_H
 
 #define DVB_USB_LOG_PREFIX "ec168"
-#include "dvb-usb.h"
+#include "dvb_usb.h"
+
+#ifdef CONFIG_DVB_USB_DEBUG
+#define dprintk(var, level, args...) \
+	do { if ((var & level)) printk(args); } while (0)
+#define DVB_USB_DEBUG_STATUS
+#else
+#define dprintk(args...)
+#define debug_dump(b, l, func)
+#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
+#endif
 
 #define deb_info(args...) dprintk(dvb_usb_ec168_debug, 0x01, args)
 #define deb_rc(args...)   dprintk(dvb_usb_ec168_debug, 0x02, args)
