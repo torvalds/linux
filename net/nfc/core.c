@@ -29,6 +29,8 @@
 #include <linux/slab.h>
 #include <linux/nfc.h>
 
+#include <net/genetlink.h>
+
 #include "nfc.h"
 
 #define VERSION "0.1"
@@ -925,3 +927,4 @@ MODULE_DESCRIPTION("NFC Core ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_NFC);
+MODULE_ALIAS_GENL_FAMILY(NFC_GENL_NAME);
