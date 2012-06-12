@@ -81,9 +81,9 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 	spin_lock_irqsave(&hdmi->irq_lock, flags);
 	edid_result = 0;
 	spin_unlock_irqrestore(&hdmi->irq_lock, flags);
-	//Before Phy parameter was set, DDC_CLK is equal to PLLA freq which is 24MHz.
+	//Before Phy parameter was set, DDC_CLK is equal to PLLA freq which is 30MHz.
 	//Set DDC I2C CLK which devided from DDC_CLK to 100KHz.
-	ddc_bus_freq = (24000000/HDMI_EDID_DDC_CLK)/4;
+	ddc_bus_freq = (30000000/HDMI_EDID_DDC_CLK)/4;
 	HDMIWrReg(DDC_BUS_FREQ_L, ddc_bus_freq & 0xFF);
 	HDMIWrReg(DDC_BUS_FREQ_H, (ddc_bus_freq >> 8) & 0xFF);
 	
@@ -375,6 +375,7 @@ int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara)
 		hdmi_err(hdmi->dev, "[%s] not found vic %d\n", __FUNCTION__, vpara->vic);
 		return -ENOENT;
 	}
+	hdmi->tmdsclk = mode->pixclock;
 	value = v_EXT_VIDEO_ENABLE(1) | v_INTERLACE(mode->vmode);
 	if(mode->sync & FB_SYNC_HOR_HIGH_ACT)
 		value |= v_HSYNC_POLARITY(1);

@@ -392,6 +392,9 @@ enum {
 #define HDCP_KSV_BYTE3			0x308
 #define HDCP_KSV_BYTE4			0x30c
 
+/* HDCP error status */
+#define HDCP_ERROR				0x320
+
 /* HDCP 100 ms timer */
 #define HDCP_TIMER_100MS		0x324
 /* HDCP 5s timer */

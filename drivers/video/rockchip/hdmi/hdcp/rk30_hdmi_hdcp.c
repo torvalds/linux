@@ -103,8 +103,10 @@ int rk30_hdcp_start_authentication(void)
 			HDMIWrReg(HDCP_TIMER_5S, 0x2c);
 			break;
 	}
-	
-	
+	// Config DDC Clock
+	temp = (hdmi->tmdsclk/HDCP_DDC_CLK)/4;
+	HDMIWrReg(DDC_BUS_FREQ_L, temp & 0xFF);
+	HDMIWrReg(DDC_BUS_FREQ_H, (temp >> 8) & 0xFF);
 	// Enable HDCP Interrupt
 	HDMIWrReg(INTR_MASK2, m_INT_HDCP_ERR | m_INT_BKSV_RPRDY | m_INT_BKSV_RCRDY | m_INT_AUTH_DONE | m_INT_AUTH_READY);
 	// Start HDCP

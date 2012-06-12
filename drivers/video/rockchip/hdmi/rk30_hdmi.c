@@ -63,6 +63,10 @@ static void hdmi_early_suspend(struct early_suspend *h)
 	wait_for_completion_interruptible_timeout(&hdmi->complete,
 							msecs_to_jiffies(5000));
 	flush_delayed_work(&hdmi->delay_work);
+	// When HDMI 1.1V and 2.5V power off, DDC channel will be pull down, current is produced
+	// from VCC_IO which is pull up outside soc. We need to switch DDC IO to GPIO.
+	rk30_mux_api_set(GPIO0A2_HDMII2CSDA_NAME, GPIO0A_GPIO0A2);
+	rk30_mux_api_set(GPIO0A1_HDMII2CSCL_NAME, GPIO0A_GPIO0A1);
 	return;
 }
 
@@ -70,6 +74,10 @@ static void hdmi_early_resume(struct early_suspend *h)
 {
 	hdmi_dbg(hdmi->dev, "hdmi exit early resume\n");
 	mutex_lock(&hdmi->enable_mutex);
+	
+	rk30_mux_api_set(GPIO0A2_HDMII2CSDA_NAME, GPIO0A_HDMI_I2C_SDA);
+	rk30_mux_api_set(GPIO0A1_HDMII2CSCL_NAME, GPIO0A_HDMI_I2C_SCL);
+	
 	hdmi->suspend = 0;
 	rk30_hdmi_initial();
 	if(hdmi->enable) {

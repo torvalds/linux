@@ -304,9 +304,14 @@ static void hdcp_start_frame_cb(void)
  */
 static void hdcp_irq_cb(int interrupt)
 {
+	int value;
 	DBG("%s 0x%x", __FUNCTION__, interrupt);
 	if(interrupt & m_INT_HDCP_ERR)
 	{
+		value = HDMIRdReg(HDCP_ERROR);
+		HDMIWrReg(HDCP_ERROR, value);
+		printk(KERN_INFO "HDCP: Error 0x%02x\n", value);
+		
 		if( (hdcp->hdcp_state != HDCP_DISABLED) &&
 			(hdcp->hdcp_state != HDCP_ENABLE_PENDING) )
 		{	

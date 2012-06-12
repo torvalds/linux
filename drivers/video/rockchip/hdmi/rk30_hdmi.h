@@ -80,7 +80,7 @@ struct hdmi {
 	int display;				// HDMI display status
 	int xscale;					// x direction scale value
 	int yscale;					// y directoon scale value
-	
+	int tmdsclk;				// TDMS Clock frequency
 	// call back for hdcp operatoion
 	void (*hdcp_cb)(void);
 	void (*hdcp_irq_cb)(int);

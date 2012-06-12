@@ -52,6 +52,7 @@ enum hdmi_states {
 
 #define HDCP_PRIVATE_KEY_SIZE	280
 #define HDCP_KEY_SHA_SIZE		20
+#define HDCP_DDC_CLK			100000
 
 struct hdcp_keys{
 	u8 KSV[8];
