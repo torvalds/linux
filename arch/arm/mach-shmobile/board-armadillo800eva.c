@@ -37,13 +37,16 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
+#include <mach/r8a7740.h>
+#include <media/mt9t112.h>
+#include <media/sh_mobile_ceu.h>
+#include <media/soc_camera.h>
 #include <asm/page.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <mach/r8a7740.h>
 #include <video/sh_mobile_lcdc.h>
 #include <video/sh_mobile_hdmi.h>
 
@@ -630,6 +633,87 @@ static struct platform_device sh_mmcif_device = {
 	.resource	= sh_mmcif_resources,
 };
 
+/* Camera */
+static int mt9t111_power(struct device *dev, int mode)
+{
+	struct clk *mclk = clk_get(NULL, "video1");
+
+	if (IS_ERR(mclk)) {
+		dev_err(dev, "can't get video1 clock\n");
+		return -EINVAL;
+	}
+
+	if (mode) {
+		/* video1 (= CON1 camera) expect 24MHz */
+		clk_set_rate(mclk, clk_round_rate(mclk, 24000000));
+		clk_enable(mclk);
+		gpio_direction_output(GPIO_PORT158, 1);
+	} else {
+		gpio_direction_output(GPIO_PORT158, 0);
+		clk_disable(mclk);
+	}
+
+	clk_put(mclk);
+
+	return 0;
+}
+
+static struct i2c_board_info i2c_camera_mt9t111 = {
+	I2C_BOARD_INFO("mt9t112", 0x3d),
+};
+
+static struct mt9t112_camera_info mt9t111_info = {
+	.divider = { 16, 0, 0, 7, 0, 10, 14, 7, 7 },
+};
+
+static struct soc_camera_link mt9t111_link = {
+	.i2c_adapter_id	= 0,
+	.bus_id		= 0,
+	.board_info	= &i2c_camera_mt9t111,
+	.power		= mt9t111_power,
+	.priv		= &mt9t111_info,
+};
+
+static struct platform_device camera_device = {
+	.name	= "soc-camera-pdrv",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &mt9t111_link,
+	},
+};
+
+/* CEU0 */
+static struct sh_mobile_ceu_info sh_mobile_ceu0_info = {
+	.flags = SH_CEU_FLAG_LOWER_8BIT,
+};
+
+static struct resource ceu0_resources[] = {
+	[0] = {
+		.name	= "CEU",
+		.start	= 0xfe910000,
+		.end	= 0xfe91009f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = intcs_evt2irq(0x0500),
+		.flags  = IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* place holder for contiguous memory */
+	},
+};
+
+static struct platform_device ceu0_device = {
+	.name		= "sh_mobile_ceu",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(ceu0_resources),
+	.resource	= ceu0_resources,
+	.dev	= {
+		.platform_data		= &sh_mobile_ceu0_info,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+};
+
 /* I2C */
 static struct i2c_board_info i2c0_devices[] = {
 	{
@@ -649,6 +733,8 @@ static struct platform_device *eva_devices[] __initdata = {
 	&sh_mmcif_device,
 	&hdmi_device,
 	&hdmi_lcdc_device,
+	&camera_device,
+	&ceu0_device,
 };
 
 static void __init eva_clock_init(void)
@@ -806,6 +892,29 @@ static void __init eva_init(void)
 	gpio_request(GPIO_FN_MMC1_D5_PORT144,	NULL);
 	gpio_request(GPIO_FN_MMC1_D6_PORT143,	NULL);
 	gpio_request(GPIO_FN_MMC1_D7_PORT142,	NULL);
+
+	/* CEU0 */
+	gpio_request(GPIO_FN_VIO0_D7,		NULL);
+	gpio_request(GPIO_FN_VIO0_D6,		NULL);
+	gpio_request(GPIO_FN_VIO0_D5,		NULL);
+	gpio_request(GPIO_FN_VIO0_D4,		NULL);
+	gpio_request(GPIO_FN_VIO0_D3,		NULL);
+	gpio_request(GPIO_FN_VIO0_D2,		NULL);
+	gpio_request(GPIO_FN_VIO0_D1,		NULL);
+	gpio_request(GPIO_FN_VIO0_D0,		NULL);
+	gpio_request(GPIO_FN_VIO0_CLK,		NULL);
+	gpio_request(GPIO_FN_VIO0_HD,		NULL);
+	gpio_request(GPIO_FN_VIO0_VD,		NULL);
+	gpio_request(GPIO_FN_VIO0_FIELD,	NULL);
+	gpio_request(GPIO_FN_VIO_CKO,		NULL);
+
+	/* CON1/CON15 Camera */
+	gpio_request(GPIO_PORT173, NULL); /* STANDBY */
+	gpio_request(GPIO_PORT172, NULL); /* RST */
+	gpio_request(GPIO_PORT158, NULL); /* CAM_PON */
+	gpio_direction_output(GPIO_PORT173, 0);
+	gpio_direction_output(GPIO_PORT172, 1);
+	gpio_direction_output(GPIO_PORT158, 0); /* see mt9t111_power() */
 
 	/*
 	 * CAUTION
