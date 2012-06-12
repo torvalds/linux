@@ -1171,10 +1171,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			features->device_type = BTN_TOOL_FINGER;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 
-			features->x_phy =
-				(features->x_max * 100) / features->x_resolution;
-			features->y_phy =
-				(features->y_max * 100) / features->y_resolution;
+			wacom_set_phy_from_res(features);
 
 			features->x_max = 4096;
 			features->y_max = 4096;
