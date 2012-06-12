@@ -196,7 +196,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 /**
  * struct iio_chan_spec - specification of a single channel
  * @type:		What type of measurement is the channel making.
- * @channel:		What number or name do we wish to assign the channel.
+ * @channel:		What number do we wish to assign the channel.
  * @channel2:		If there is a second number for a differential
  *			channel then this is it. If modified is set then the
  *			value here specifies the modifier.
@@ -227,9 +227,8 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  *			channel2. Examples are IIO_MOD_X for axial sensors about
  *			the 'x' axis.
  * @indexed:		Specify the channel has a numerical index. If not,
- *			the value in channel will be suppressed for attribute
- *			but not for event codes. Typically set it to 0 when
- *			the index is false.
+ *			the channel index number will be suppressed for sysfs
+ *			attributes but not for event codes.
  * @differential:	Channel is differential.
  */
 struct iio_chan_spec {
