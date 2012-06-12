@@ -2725,10 +2725,12 @@ static void qlt_do_work(struct work_struct *work)
 out_term:
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf020, "Terminating work cmd %p", cmd);
 	/*
-	 * cmd has not sent to target yet, so pass NULL as the second argument
+	 * cmd has not sent to target yet, so pass NULL as the second
+	 * argument to qlt_send_term_exchange() and free the memory here.
 	 */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qlt_send_term_exchange(vha, NULL, &cmd->atio, 1);
+	kmem_cache_free(qla_tgt_cmd_cachep, cmd);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (sess)
 		ha->tgt.tgt_ops->put_sess(sess);
