@@ -395,8 +395,13 @@ lpfc_debug_dump_fcp_cq(struct lpfc_hba *phba, int fcp_wqidx)
 	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_eq_count; fcp_cqidx++)
 		if (phba->sli4_hba.fcp_cq[fcp_cqidx]->queue_id == fcp_cqid)
 			break;
-	if (fcp_cqidx >= phba->cfg_fcp_eq_count)
-		return;
+	if (phba->intr_type == MSIX) {
+		if (fcp_cqidx >= phba->cfg_fcp_eq_count)
+			return;
+	} else {
+		if (fcp_cqidx > 0)
+			return;
+	}
 
 	printk(KERN_ERR "FCP CQ: WQ[Idx:%d|Qid%d]->CQ[Idx%d|Qid%d]:\n",
 		fcp_wqidx, phba->sli4_hba.fcp_wq[fcp_wqidx]->queue_id,
@@ -426,8 +431,13 @@ lpfc_debug_dump_fcp_eq(struct lpfc_hba *phba, int fcp_wqidx)
 	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_eq_count; fcp_cqidx++)
 		if (phba->sli4_hba.fcp_cq[fcp_cqidx]->queue_id == fcp_cqid)
 			break;
-	if (fcp_cqidx >= phba->cfg_fcp_eq_count)
-		return;
+	if (phba->intr_type == MSIX) {
+		if (fcp_cqidx >= phba->cfg_fcp_eq_count)
+			return;
+	} else {
+		if (fcp_cqidx > 0)
+			return;
+	}
 
 	if (phba->cfg_fcp_eq_count == 0) {
 		fcp_eqidx = -1;
