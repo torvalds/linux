@@ -75,25 +75,6 @@
  *	->nofua		Flag specifying that FUA flag in SCSI WRITE(10,12)
  *				commands for this LUN shall be ignored.
  *
- *	lun_name_format	A printf-like format for names of the LUN
- *				devices.  This determines how the
- *				directory in sysfs will be named.
- *				Unless you are using several MSFs in
- *				a single gadget (as opposed to single
- *				MSF in many configurations) you may
- *				leave it as NULL (in which case
- *				"lun%d" will be used).  In the format
- *				you can use "%d" to index LUNs for
- *				MSF's with more than one LUN.  (Beware
- *				that there is only one integer given
- *				as an argument for the format and
- *				specifying invalid format may cause
- *				unspecified behaviour.)
- *	thread_name	Name of the kernel thread process used by the
- *				MSF.  You can safely set it to NULL
- *				(in which case default "file-storage"
- *				will be used).
- *
  *	vendor_name
  *	product_name
  *	release		Information used as a reply to INQUIRY
@@ -155,15 +136,14 @@
  * a buffer from being used by more than one endpoint.
  *
  *
- * The pathnames of the backing files and the ro settings are
- * available in the attribute files "file" and "ro" in the lun<n> (or
- * to be more precise in a directory which name comes from
- * "lun_name_format" option!) subdirectory of the gadget's sysfs
- * directory.  If the "removable" option is set, writing to these
- * files will simulate ejecting/loading the medium (writing an empty
- * line means eject) and adjusting a write-enable tab.  Changes to the
- * ro setting are not allowed when the medium is loaded or if CD-ROM
- * emulation is being used.
+ * The pathnames of the backing files, the ro settings and nofua
+ * settings are available in the attribute files "file", "ro" and
+ * "nofua" in the lun<n> subdirectory of the gadget's sysfs directory.
+ * If the "removable" option is set, writing to these files will
+ * simulate ejecting/loading the medium (writing an empty line means
+ * eject) and adjusting a write-enable tab.  Changes to the ro setting
+ * are not allowed when the medium is loaded or if CD-ROM emulation is
+ * being used.
  *
  * When a LUN receive an "eject" SCSI request (Start/Stop Unit),
  * if the LUN is removable, the backing file is released to simulate
@@ -416,9 +396,6 @@ struct fsg_config {
 		char cdrom;
 		char nofua;
 	} luns[FSG_MAX_LUNS];
-
-	const char		*lun_name_format;
-	const char		*thread_name;
 
 	/* Callback functions. */
 	const struct fsg_operations	*ops;
@@ -2792,11 +2769,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		curlun->dev.parent = &gadget->dev;
 		/* curlun->dev.driver = &fsg_driver.driver; XXX */
 		dev_set_drvdata(&curlun->dev, &common->filesem);
-		dev_set_name(&curlun->dev,
-			     cfg->lun_name_format
-			   ? cfg->lun_name_format
-			   : "lun%d",
-			     i);
+		dev_set_name(&curlun->dev, "lun%d", i);
 
 		rc = device_register(&curlun->dev);
 		if (rc) {
@@ -2878,8 +2851,7 @@ buffhds_first_it:
 
 	/* Tell the thread to start working */
 	common->thread_task =
-		kthread_create(fsg_main_thread, common,
-			       cfg->thread_name ?: "file-storage");
+		kthread_create(fsg_main_thread, common, "file-storage");
 	if (IS_ERR(common->thread_task)) {
 		rc = PTR_ERR(common->thread_task);
 		goto error_release;
@@ -3175,8 +3147,6 @@ fsg_config_from_params(struct fsg_config *cfg,
 	}
 
 	/* Let MSF use defaults */
-	cfg->lun_name_format = 0;
-	cfg->thread_name = 0;
 	cfg->vendor_name = 0;
 	cfg->product_name = 0;
 	cfg->release = 0xffff;
