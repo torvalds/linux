@@ -1078,18 +1078,18 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	netdev->features |= netdev->hw_features;
-	netdev->hw_features |= NETIF_F_RXCSUM;
-	netdev->hw_features |= NETIF_F_RXALL;
-	netdev->hw_features |= NETIF_F_RXFCS;
+	netdev->hw_features |= (NETIF_F_RXCSUM |
+				NETIF_F_RXALL |
+				NETIF_F_RXFCS);
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
-	netdev->vlan_features |= NETIF_F_TSO;
-	netdev->vlan_features |= NETIF_F_HW_CSUM;
-	netdev->vlan_features |= NETIF_F_SG;
+	netdev->vlan_features |= (NETIF_F_TSO |
+				  NETIF_F_HW_CSUM |
+				  NETIF_F_SG);
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
