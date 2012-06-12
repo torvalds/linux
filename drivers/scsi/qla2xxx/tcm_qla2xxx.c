@@ -652,8 +652,8 @@ static int tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
 /*
  * Called from qla_target.c:qlt_issue_task_mgmt()
  */
-int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, uint32_t lun,
-			uint8_t tmr_func, uint32_t tag)
+static int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, uint32_t lun,
+	uint8_t tmr_func, uint32_t tag)
 {
 	struct qla_tgt_sess *sess = mcmd->sess;
 	struct se_cmd *se_cmd = &mcmd->se_cmd;
