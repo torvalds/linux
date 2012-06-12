@@ -687,8 +687,7 @@ static void rcu_preempt_check_callbacks(int cpu)
  */
 static void rcu_preempt_process_callbacks(void)
 {
-	__rcu_process_callbacks(&rcu_preempt_state,
-				&__get_cpu_var(rcu_preempt_data));
+	__rcu_process_callbacks(&rcu_preempt_state);
 }
 
 #ifdef CONFIG_RCU_BOOST

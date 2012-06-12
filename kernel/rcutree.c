@@ -1788,9 +1788,10 @@ unlock_fqs_ret:
  * whom the rdp belongs.
  */
 static void
-__rcu_process_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
+__rcu_process_callbacks(struct rcu_state *rsp)
 {
 	unsigned long flags;
+	struct rcu_data *rdp = __this_cpu_ptr(rsp->rda);
 
 	WARN_ON_ONCE(rdp->beenonline == 0);
 
@@ -1827,9 +1828,8 @@ __rcu_process_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 static void rcu_process_callbacks(struct softirq_action *unused)
 {
 	trace_rcu_utilization("Start RCU core");
-	__rcu_process_callbacks(&rcu_sched_state,
-				&__get_cpu_var(rcu_sched_data));
-	__rcu_process_callbacks(&rcu_bh_state, &__get_cpu_var(rcu_bh_data));
+	__rcu_process_callbacks(&rcu_sched_state);
+	__rcu_process_callbacks(&rcu_bh_state);
 	rcu_preempt_process_callbacks();
 	trace_rcu_utilization("End RCU core");
 }
