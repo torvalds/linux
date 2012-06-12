@@ -445,43 +445,6 @@ out:
  * The similar scenario is applied to aufs_readlink() too.
  */
 
-#if 0 /* temporary */
-/* cf. linux/include/linux/mman.h: calc_vm_prot_bits() */
-#define AuConv_VM_PROT(f, b)	_calc_vm_trans(f, VM_##b, PROT_##b)
-
-static unsigned long au_arch_prot_conv(unsigned long flags)
-{
-	/* currently ppc64 only */
-#ifdef CONFIG_PPC64
-	/* cf. linux/arch/powerpc/include/asm/mman.h */
-	AuDebugOn(arch_calc_vm_prot_bits(-1) != VM_SAO);
-	return AuConv_VM_PROT(flags, SAO);
-#else
-	AuDebugOn(arch_calc_vm_prot_bits(-1));
-	return 0;
-#endif
-}
-
-static unsigned long au_prot_conv(unsigned long flags)
-{
-	return AuConv_VM_PROT(flags, READ)
-		| AuConv_VM_PROT(flags, WRITE)
-		| AuConv_VM_PROT(flags, EXEC)
-		| au_arch_prot_conv(flags);
-}
-
-/* cf. linux/include/linux/mman.h: calc_vm_flag_bits() */
-#define AuConv_VM_MAP(f, b)	_calc_vm_trans(f, VM_##b, MAP_##b)
-
-static unsigned long au_flag_conv(unsigned long flags)
-{
-	return AuConv_VM_MAP(flags, GROWSDOWN)
-		| AuConv_VM_MAP(flags, DENYWRITE)
-		| AuConv_VM_MAP(flags, EXECUTABLE)
-		| AuConv_VM_MAP(flags, LOCKED);
-}
-#endif
-
 static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int err;
@@ -524,12 +487,8 @@ static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 	lockdep_on();
 
 	au_vm_file_reset(vma, h_file);
-	/* todo: the locking order between mmap_sem */
-	/*
-	 * err = security_mmap_file(h_file, au_prot_conv(vma->vm_flags),
-	 *			 au_flag_conv(vma->vm_flags));
-	 */
-	err = 0;
+	/* todo: bad approach, I am not sure this is really necessary */
+	err = au_security_mmap_file(h_file, vma);
 	if (!err)
 		err = h_file->f_op->mmap(h_file, vma);
 	if (unlikely(err))
