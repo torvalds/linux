@@ -23,10 +23,6 @@
 #include <linux/pci.h>
 #include "../../comedidev.h"
 
-#ifdef PCI_SUPPORT_VER1
-#error    Sorry, no support for 2.1.55 and older! :-((((
-#endif
-
 /***********Added by sarath for compatibility with APCI3120
 
 *************************/
