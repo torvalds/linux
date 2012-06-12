@@ -2256,15 +2256,6 @@ static struct vendor_data vendor_st_pl023 = {
 	.loopback = false,
 };
 
-static struct vendor_data vendor_db5500_pl023 = {
-	.fifodepth = 32,
-	.max_bpw = 32,
-	.unidir = false,
-	.extended_cr = true,
-	.pl023 = true,
-	.loopback = true,
-};
-
 static struct amba_id pl022_ids[] = {
 	{
 		/*
@@ -2295,11 +2286,6 @@ static struct amba_id pl022_ids[] = {
 		.id	= 0x00080023,
 		.mask	= 0xffffffff,
 		.data	= &vendor_st_pl023,
-	},
-	{
-		.id	= 0x10080023,
-		.mask	= 0xffffffff,
-		.data	= &vendor_db5500_pl023,
 	},
 	{ 0, 0 },
 };
