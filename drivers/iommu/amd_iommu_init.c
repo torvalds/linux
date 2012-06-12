@@ -187,7 +187,23 @@ static u32 dev_table_size;	/* size of the device table */
 static u32 alias_table_size;	/* size of the alias table */
 static u32 rlookup_table_size;	/* size if the rlookup table */
 
+enum iommu_init_state {
+	IOMMU_START_STATE,
+	IOMMU_IVRS_DETECTED,
+	IOMMU_ACPI_FINISHED,
+	IOMMU_ENABLED,
+	IOMMU_PCI_INIT,
+	IOMMU_INTERRUPTS_EN,
+	IOMMU_DMA_OPS,
+	IOMMU_INITIALIZED,
+	IOMMU_NOT_FOUND,
+	IOMMU_INIT_ERROR,
+};
+
+static enum iommu_init_state init_state = IOMMU_START_STATE;
+
 static int amd_iommu_enable_interrupts(void);
+static int __init iommu_go_to_state(enum iommu_init_state state);
 
 static inline void update_last_devid(u16 devid)
 {
@@ -1104,7 +1120,7 @@ static void print_iommu_info(void)
 	}
 }
 
-static int amd_iommu_init_pci(void)
+static int __init amd_iommu_init_pci(void)
 {
 	struct amd_iommu *iommu;
 	int ret = 0;
@@ -1516,11 +1532,6 @@ static int __init early_amd_iommu_init(void)
 	if (!amd_iommu_detected)
 		return -ENODEV;
 
-	if (amd_iommu_dev_table != NULL) {
-		/* Hardware already initialized */
-		return 0;
-	}
-
 	status = acpi_get_table_with_size("IVRS", 0, &ivrs_base, &ivrs_size);
 	if (status == AE_NOT_FOUND)
 		return -ENODEV;
@@ -1535,7 +1546,8 @@ static int __init early_amd_iommu_init(void)
 	 * we need to handle. Upon this information the shared data
 	 * structures for the IOMMUs in the system will be allocated
 	 */
-	if (find_last_devid_acpi(ivrs_base))
+	ret = find_last_devid_acpi(ivrs_base);
+	if (ret)
 		goto out;
 
 	dev_table_size     = tbl_size(DEV_TABLE_ENTRY_SIZE);
@@ -1556,20 +1568,20 @@ static int __init early_amd_iommu_init(void)
 	amd_iommu_alias_table = (void *)__get_free_pages(GFP_KERNEL,
 			get_order(alias_table_size));
 	if (amd_iommu_alias_table == NULL)
-		goto free;
+		goto out;
 
 	/* IOMMU rlookup table - find the IOMMU for a specific device */
 	amd_iommu_rlookup_table = (void *)__get_free_pages(
 			GFP_KERNEL | __GFP_ZERO,
 			get_order(rlookup_table_size));
 	if (amd_iommu_rlookup_table == NULL)
-		goto free;
+		goto out;
 
 	amd_iommu_pd_alloc_bitmap = (void *)__get_free_pages(
 					    GFP_KERNEL | __GFP_ZERO,
 					    get_order(MAX_DOMAIN_ID/8));
 	if (amd_iommu_pd_alloc_bitmap == NULL)
-		goto free;
+		goto out;
 
 	/* init the device table */
 	init_device_table();
@@ -1594,40 +1606,16 @@ static int __init early_amd_iommu_init(void)
 	 */
 	ret = init_iommu_all(ivrs_base);
 	if (ret)
-		goto free;
+		goto out;
 
 	ret = init_memory_definitions(ivrs_base);
 	if (ret)
-		goto free;
+		goto out;
 
 out:
 	/* Don't leak any ACPI memory */
 	early_acpi_os_unmap_memory((char __iomem *)ivrs_base, ivrs_size);
 	ivrs_base = NULL;
-
-	return ret;
-
-free:
-	free_on_init_error();
-
-	goto out;
-}
-
-int __init amd_iommu_init_hardware(void)
-{
-	int ret = 0;
-
-	ret = early_amd_iommu_init();
-	if (ret)
-		return ret;
-
-	ret = amd_iommu_init_pci();
-	if (ret)
-		return ret;
-
-	enable_iommus();
-
-	register_syscore_ops(&amd_iommu_syscore_ops);
 
 	return ret;
 }
@@ -1686,44 +1674,99 @@ static int amd_iommu_init_dma(void)
 	return 0;
 }
 
+/****************************************************************************
+ *
+ * AMD IOMMU Initialization State Machine
+ *
+ ****************************************************************************/
+
+static int __init state_next(void)
+{
+	int ret = 0;
+
+	switch (init_state) {
+	case IOMMU_START_STATE:
+		if (!detect_ivrs()) {
+			init_state	= IOMMU_NOT_FOUND;
+			ret		= -ENODEV;
+		} else {
+			init_state	= IOMMU_IVRS_DETECTED;
+		}
+		break;
+	case IOMMU_IVRS_DETECTED:
+		ret = early_amd_iommu_init();
+		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_ACPI_FINISHED;
+		break;
+	case IOMMU_ACPI_FINISHED:
+		early_enable_iommus();
+		register_syscore_ops(&amd_iommu_syscore_ops);
+		x86_platform.iommu_shutdown = disable_iommus;
+		init_state = IOMMU_ENABLED;
+		break;
+	case IOMMU_ENABLED:
+		ret = amd_iommu_init_pci();
+		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_PCI_INIT;
+		enable_iommus_v2();
+		break;
+	case IOMMU_PCI_INIT:
+		ret = amd_iommu_enable_interrupts();
+		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_INTERRUPTS_EN;
+		break;
+	case IOMMU_INTERRUPTS_EN:
+		ret = amd_iommu_init_dma();
+		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_DMA_OPS;
+		break;
+	case IOMMU_DMA_OPS:
+		init_state = IOMMU_INITIALIZED;
+		break;
+	case IOMMU_INITIALIZED:
+		/* Nothing to do */
+		break;
+	case IOMMU_NOT_FOUND:
+	case IOMMU_INIT_ERROR:
+		/* Error states => do nothing */
+		ret = -EINVAL;
+		break;
+	default:
+		/* Unknown state */
+		BUG();
+	}
+
+	return ret;
+}
+
+static int __init iommu_go_to_state(enum iommu_init_state state)
+{
+	int ret = 0;
+
+	while (init_state != state) {
+		ret = state_next();
+		if (init_state == IOMMU_NOT_FOUND ||
+		    init_state == IOMMU_INIT_ERROR)
+			break;
+	}
+
+	return ret;
+}
+
+
+
 /*
  * This is the core init function for AMD IOMMU hardware in the system.
  * This function is called from the generic x86 DMA layer initialization
  * code.
- *
- * The function calls amd_iommu_init_hardware() to setup and enable the
- * IOMMU hardware if this has not happened yet. After that the driver
- * registers for the DMA-API and for the IOMMU-API as necessary.
  */
 static int __init amd_iommu_init(void)
 {
-	int ret = 0;
+	int ret;
 
-	ret = amd_iommu_init_hardware();
-	if (ret)
-		goto out;
+	ret = iommu_go_to_state(IOMMU_INITIALIZED);
+	if (ret) {
+		disable_iommus();
+		free_on_init_error();
+	}
 
-	ret = amd_iommu_enable_interrupts();
-	if (ret)
-		goto free;
-
-	ret = amd_iommu_init_dma();
-	if (ret)
-		goto free;
-
-	amd_iommu_init_api();
-
-	x86_platform.iommu_shutdown = disable_iommus;
-
-out:
 	return ret;
-
-free:
-	disable_iommus();
-
-	free_on_init_error();
-
-	goto out;
 }
 
 /****************************************************************************
@@ -1735,6 +1778,7 @@ free:
  ****************************************************************************/
 int __init amd_iommu_detect(void)
 {
+	int ret;
 
 	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
 		return -ENODEV;
@@ -1742,8 +1786,9 @@ int __init amd_iommu_detect(void)
 	if (amd_iommu_disabled)
 		return -ENODEV;
 
-	if (!detect_ivrs())
-		return -ENODEV;
+	ret = iommu_go_to_state(IOMMU_IVRS_DETECTED);
+	if (ret)
+		return ret;
 
 	amd_iommu_detected = true;
 	iommu_detected = 1;
