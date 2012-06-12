@@ -137,13 +137,15 @@ static char *tcm_qla2xxx_get_fabric_name(void)
  */
 static int tcm_qla2xxx_npiv_extract_wwn(const char *ns, u64 *nm)
 {
-	unsigned int i, j, value;
+	unsigned int i, j;
 	u8 wwn[8];
 
 	memset(wwn, 0, sizeof(wwn));
 
 	/* Validate and store the new name */
 	for (i = 0, j = 0; i < 16; i++) {
+		int value;
+
 		value = hex_to_bin(*ns++);
 		if (value >= 0)
 			j = (j << 4) | value;
