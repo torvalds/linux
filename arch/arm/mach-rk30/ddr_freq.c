@@ -21,7 +21,7 @@ static void ddr_early_suspend(struct early_suspend *h)
     bool cpu1_online;
 
     //Enable auto self refresh  0x01*32 DDR clk cycle
-    ddr_set_auto_self_refresh(TRUE);
+    ddr_set_auto_self_refresh(true);
     
     cpu1_online = cpu_online(1);
     if(cpu1_online)
@@ -43,7 +43,7 @@ static void ddr_early_resume(struct early_suspend *h)
     bool cpu1_online;
 
     //Disable auto self refresh
-    ddr_set_auto_self_refresh(FALSE);
+    ddr_set_auto_self_refresh(false);
 
     cpu1_online = cpu_online(1);
     if(cpu1_online)
