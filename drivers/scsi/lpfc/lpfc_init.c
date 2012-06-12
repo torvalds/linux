@@ -5514,14 +5514,45 @@ lpfc_destroy_shost(struct lpfc_hba *phba)
 static void
 lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 {
+	uint32_t old_mask;
+	uint32_t old_guard;
+
 	int pagecnt = 10;
 	if (lpfc_prot_mask && lpfc_prot_guard) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"1478 Registering BlockGuard with the "
 				"SCSI layer\n");
-		scsi_host_set_prot(shost, lpfc_prot_mask);
-		scsi_host_set_guard(shost, lpfc_prot_guard);
+
+		old_mask = lpfc_prot_mask;
+		old_guard = lpfc_prot_guard;
+
+		/* Only allow supported values */
+		lpfc_prot_mask &= (SHOST_DIF_TYPE1_PROTECTION |
+			SHOST_DIX_TYPE0_PROTECTION |
+			SHOST_DIX_TYPE1_PROTECTION);
+		lpfc_prot_guard &= (SHOST_DIX_GUARD_IP | SHOST_DIX_GUARD_CRC);
+
+		/* DIF Type 1 protection for profiles AST1/C1 is end to end */
+		if (lpfc_prot_mask == SHOST_DIX_TYPE1_PROTECTION)
+			lpfc_prot_mask |= SHOST_DIF_TYPE1_PROTECTION;
+
+		if (lpfc_prot_mask && lpfc_prot_guard) {
+			if ((old_mask != lpfc_prot_mask) ||
+				(old_guard != lpfc_prot_guard))
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"1475 Registering BlockGuard with the "
+					"SCSI layer: mask %d  guard %d\n",
+					lpfc_prot_mask, lpfc_prot_guard);
+
+			scsi_host_set_prot(shost, lpfc_prot_mask);
+			scsi_host_set_guard(shost, lpfc_prot_guard);
+		} else
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1479 Not Registering BlockGuard with the SCSI "
+				"layer, Bad protection parameters: %d %d\n",
+				old_mask, old_guard);
 	}
+
 	if (!_dump_buf_data) {
 		while (pagecnt) {
 			spin_lock_init(&_dump_buf_lock);
