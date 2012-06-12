@@ -25,6 +25,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/oom.h>
 
 #define RCU_KTHREAD_PRIO 1
 
@@ -2111,6 +2112,88 @@ static void rcu_idle_count_callbacks_posted(void)
 {
 	__this_cpu_add(rcu_dynticks.nonlazy_posted, 1);
 }
+
+/*
+ * Data for flushing lazy RCU callbacks at OOM time.
+ */
+static atomic_t oom_callback_count;
+static DECLARE_WAIT_QUEUE_HEAD(oom_callback_wq);
+
+/*
+ * RCU OOM callback -- decrement the outstanding count and deliver the
+ * wake-up if we are the last one.
+ */
+static void rcu_oom_callback(struct rcu_head *rhp)
+{
+	if (atomic_dec_and_test(&oom_callback_count))
+		wake_up(&oom_callback_wq);
+}
+
+/*
+ * Post an rcu_oom_notify callback on the current CPU if it has at
+ * least one lazy callback.  This will unnecessarily post callbacks
+ * to CPUs that already have a non-lazy callback at the end of their
+ * callback list, but this is an infrequent operation, so accept some
+ * extra overhead to keep things simple.
+ */
+static void rcu_oom_notify_cpu(void *unused)
+{
+	struct rcu_state *rsp;
+	struct rcu_data *rdp;
+
+	for_each_rcu_flavor(rsp) {
+		rdp = __this_cpu_ptr(rsp->rda);
+		if (rdp->qlen_lazy != 0) {
+			atomic_inc(&oom_callback_count);
+			rsp->call(&rdp->oom_head, rcu_oom_callback);
+		}
+	}
+}
+
+/*
+ * If low on memory, ensure that each CPU has a non-lazy callback.
+ * This will wake up CPUs that have only lazy callbacks, in turn
+ * ensuring that they free up the corresponding memory in a timely manner.
+ * Because an uncertain amount of memory will be freed in some uncertain
+ * timeframe, we do not claim to have freed anything.
+ */
+static int rcu_oom_notify(struct notifier_block *self,
+			  unsigned long notused, void *nfreed)
+{
+	int cpu;
+
+	/* Wait for callbacks from earlier instance to complete. */
+	wait_event(oom_callback_wq, atomic_read(&oom_callback_count) == 0);
+
+	/*
+	 * Prevent premature wakeup: ensure that all increments happen
+	 * before there is a chance of the counter reaching zero.
+	 */
+	atomic_set(&oom_callback_count, 1);
+
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
+		smp_call_function_single(cpu, rcu_oom_notify_cpu, NULL, 1);
+		cond_resched();
+	}
+	put_online_cpus();
+
+	/* Unconditionally decrement: no need to wake ourselves up. */
+	atomic_dec(&oom_callback_count);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rcu_oom_nb = {
+	.notifier_call = rcu_oom_notify
+};
+
+static int __init rcu_register_oom_notifier(void)
+{
+	register_oom_notifier(&rcu_oom_nb);
+	return 0;
+}
+early_initcall(rcu_register_oom_notifier);
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 

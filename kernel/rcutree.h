@@ -315,8 +315,11 @@ struct rcu_data {
 	unsigned long n_rp_need_fqs;
 	unsigned long n_rp_need_nothing;
 
-	/* 6) _rcu_barrier() callback. */
+	/* 6) _rcu_barrier() and OOM callbacks. */
 	struct rcu_head barrier_head;
+#ifdef CONFIG_RCU_FAST_NO_HZ
+	struct rcu_head oom_head;
+#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 
 	int cpu;
 	struct rcu_state *rsp;
