@@ -924,7 +924,7 @@ stu300_probe(struct platform_device *pdev)
 
 	dev->speed = scl_frequency;
 
-	clk_enable(dev->clk);
+	clk_prepare_enable(dev->clk);
 	ret = stu300_init_hw(dev);
 	clk_disable(dev->clk);
 
@@ -960,6 +960,7 @@ stu300_probe(struct platform_device *pdev)
 
  err_add_adapter:
  err_init_hw:
+	clk_unprepare(dev->clk);
 	free_irq(dev->irq, dev);
  err_no_irq:
 	iounmap(dev->virtbase);
@@ -1016,6 +1017,7 @@ stu300_remove(struct platform_device *pdev)
 	free_irq(dev->irq, dev);
 	iounmap(dev->virtbase);
 	release_mem_region(dev->phybase, dev->physize);
+	clk_unprepare(dev->clk);
 	clk_put(dev->clk);
 	platform_set_drvdata(pdev, NULL);
 	kfree(dev);
