@@ -252,6 +252,11 @@ static int perf_evsel__hw_cache_name(struct perf_evsel *evsel, char *bf, size_t 
 	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
 }
 
+static int perf_evsel__tracepoint_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	return scnprintf(bf, size, "%s", evsel->name ?: "unknown tracepoint");
+}
+
 int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
 {
 	int ret;
@@ -273,20 +278,13 @@ int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
 		ret = perf_evsel__sw_name(evsel, bf, size);
 		break;
 
+	case PERF_TYPE_TRACEPOINT:
+		ret = perf_evsel__tracepoint_name(evsel, bf, size);
+		break;
+
 	default:
-		/*
-		 * FIXME
- 		 *
-		 * This is the minimal perf_evsel__name so that we can
-		 * reconstruct event names taking into account event modifiers.
-		 *
-		 * The old event_name uses it now for raw anr hw events, so that
-		 * we don't drag all the parsing stuff into the python binding.
-		 *
-		 * On the next devel cycle the rest of the event naming will be
-		 * brought here.
- 		 */
-		return 0;
+		ret = scnprintf(bf, size, "%s", "unknown attr type");
+		break;
 	}
 
 	return ret;

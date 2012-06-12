@@ -203,24 +203,9 @@ const char *event_type(int type)
 
 const char *event_name(struct perf_evsel *evsel)
 {
-	u64 config = evsel->attr.config;
-	int type = evsel->attr.type;
-
-	if (type == PERF_TYPE_RAW || type == PERF_TYPE_HARDWARE ||
-	    type == PERF_TYPE_SOFTWARE || type == PERF_TYPE_HW_CACHE) {
-		/*
- 		 * XXX minimal fix, see comment on perf_evsen__name, this static buffer
- 		 * will go away together with event_name in the next devel cycle.
- 		 */
-		static char bf[128];
-		perf_evsel__name(evsel, bf, sizeof(bf));
-		return bf;
-	}
-
-	if (evsel->name)
-		return evsel->name;
-
-	return __event_name(type, config);
+	static char bf[128];
+	perf_evsel__name(evsel, bf, sizeof(bf));
+	return bf;
 }
 
 const char *__event_name(int type, u64 config)
