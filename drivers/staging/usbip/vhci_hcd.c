@@ -205,7 +205,7 @@ static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 	int		retval = 0;
 
 	/* the enough buffer is allocated according to USB_MAXCHILDREN */
-	u32		*event_bits = (unsigned long *) buf;
+	unsigned long	*event_bits = (unsigned long *) buf;
 	int		rhport;
 	int		changed = 0;
 
