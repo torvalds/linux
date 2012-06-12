@@ -1491,17 +1491,14 @@ static void __init free_on_init_error(void)
  * After everything is set up the IOMMUs are enabled and the necessary
  * hotplug and suspend notifiers are registered.
  */
-int __init amd_iommu_init_hardware(void)
+static int __init early_amd_iommu_init(void)
 {
 	struct acpi_table_header *ivrs_base;
 	acpi_size ivrs_size;
 	acpi_status status;
 	int i, ret = 0;
 
-	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
-		return -ENODEV;
-
-	if (amd_iommu_disabled || !amd_iommu_detected)
+	if (!amd_iommu_detected)
 		return -ENODEV;
 
 	if (amd_iommu_dev_table != NULL) {
@@ -1588,16 +1585,6 @@ int __init amd_iommu_init_hardware(void)
 	if (ret)
 		goto free;
 
-	ret = amd_iommu_init_pci();
-	if (ret)
-		goto free;
-
-	enable_iommus();
-
-	amd_iommu_init_notifier();
-
-	register_syscore_ops(&amd_iommu_syscore_ops);
-
 out:
 	/* Don't leak any ACPI memory */
 	early_acpi_os_unmap_memory((char __iomem *)ivrs_base, ivrs_size);
@@ -1609,6 +1596,27 @@ free:
 	free_on_init_error();
 
 	goto out;
+}
+
+int __init amd_iommu_init_hardware(void)
+{
+	int ret = 0;
+
+	ret = early_amd_iommu_init();
+	if (ret)
+		return ret;
+
+	ret = amd_iommu_init_pci();
+	if (ret)
+		return ret;
+
+	enable_iommus();
+
+	amd_iommu_init_notifier();
+
+	register_syscore_ops(&amd_iommu_syscore_ops);
+
+	return ret;
 }
 
 static int amd_iommu_enable_interrupts(void)
