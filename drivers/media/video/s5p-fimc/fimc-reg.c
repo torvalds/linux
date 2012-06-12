@@ -683,8 +683,8 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			cfg |= FIMC_REG_CIGCTRL_CAM_JPEG;
 			break;
 		default:
-			v4l2_err(fimc->vid_cap.vfd,
-				 "Not supported camera pixel format: %d",
+			v4l2_err(vid_cap->vfd,
+				 "Not supported camera pixel format: %#x\n",
 				 vid_cap->mf.code);
 			return -EINVAL;
 		}
@@ -699,7 +699,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 	} else if (cam->bus_type == FIMC_LCD_WB) {
 		cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
 	} else {
-		err("invalid camera bus type selected\n");
+		v4l2_err(vid_cap->vfd, "Invalid camera bus type selected\n");
 		return -EINVAL;
 	}
 	writel(cfg, fimc->regs + FIMC_REG_CIGCTRL);
