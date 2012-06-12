@@ -1669,8 +1669,6 @@ static int usbduxfast_attach(struct comedi_device *dev,
 	/* allocate space for the subdevices */
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: usbduxfast: error alloc space for "
-		       "subdev\n", dev->minor);
 		up(&(usbduxfastsub[index].sem));
 		up(&start_stop_sem);
 		return ret;

@@ -1274,10 +1274,8 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned long iobase,
 	dev->iobase = iobase;
 	dev->board_name = thisboard->name;
 	ret = comedi_alloc_subdevices(dev, layout->n_subdevs);
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
+	if (ret < 0)
 		return ret;
-	}
 	for (n = 0; n < dev->n_subdevices; n++) {
 		s = &dev->subdevices[n];
 		switch (layout->sdtype[n]) {

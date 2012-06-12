@@ -468,10 +468,8 @@ static int unioxx5_attach(struct comedi_device *dev,
 		return -1;
 	}
 
-	if (comedi_alloc_subdevices(dev, n_subd) < 0) {
-		printk(KERN_ERR "out of memory\n");
+	if (comedi_alloc_subdevices(dev, n_subd) < 0)
 		return -ENOMEM;
-	}
 
 	/* initializing each of for same subdevices */
 	for (i = 0; i < n_subd; i++, iobase += UNIOXX5_SUBDEV_ODDS) {

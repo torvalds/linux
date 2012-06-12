@@ -1381,10 +1381,8 @@ static int pci224_attach_common(struct comedi_device *dev,
 
 	/* Allocate subdevices.  There is only one!  */
 	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret < 0) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	s = dev->subdevices + 0;
 	/* Analog output subdevice. */

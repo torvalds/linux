@@ -2648,8 +2648,6 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	/* allocate space for the subdevices */
 	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret < 0) {
-		dev_err(&udev->interface->dev,
-			"comedi%d: error alloc space for subdev\n", dev->minor);
 		up(&udev->sem);
 		return ret;
 	}

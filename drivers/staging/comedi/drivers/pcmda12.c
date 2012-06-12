@@ -197,10 +197,8 @@ static int pcmda12_attach(struct comedi_device *dev,
 	 * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
 	 * 96-channel version of the board.
 	 */
-	if (comedi_alloc_subdevices(dev, 1) < 0) {
-		printk(KERN_ERR "cannot allocate subdevice data structures\n");
+	if (comedi_alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
-	}
 
 	s = dev->subdevices;
 	s->private = NULL;
