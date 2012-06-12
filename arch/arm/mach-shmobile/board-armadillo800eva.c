@@ -587,6 +587,7 @@ static void __init eva_init(void)
 	eva_clock_init();
 
 	r8a7740_pinmux_init();
+	r8a7740_meram_workaround();
 
 	/* SCIFA1 */
 	gpio_request(GPIO_FN_SCIFA1_RXD, NULL);

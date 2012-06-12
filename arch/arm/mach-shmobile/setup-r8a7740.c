@@ -324,6 +324,24 @@ static struct platform_device *r8a7740_late_devices[] __initdata = {
 	&i2c1_device,
 };
 
+/*
+ * r8a7740 chip has lasting errata on MERAM buffer.
+ * this is work-around for it.
+ * see
+ *	"Media RAM (MERAM)" on r8a7740 documentation
+ */
+#define MEBUFCNTR	0xFE950098
+void r8a7740_meram_workaround(void)
+{
+	void __iomem *reg;
+
+	reg = ioremap_nocache(MEBUFCNTR, 4);
+	if (reg) {
+		iowrite32(0x01600164, reg);
+		iounmap(reg);
+	}
+}
+
 #define ICCR	0x0004
 #define ICSTART	0x0070
 
