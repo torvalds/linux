@@ -20,7 +20,7 @@
 #include "ath9k.h"
 #include "mci.h"
 
-static const u8 ath_mci_duty_cycle[] = { 0, 50, 60, 70, 80, 85, 90, 95, 98 };
+static const u8 ath_mci_duty_cycle[] = { 55, 50, 60, 70, 80, 85, 90, 95, 98 };
 
 static struct ath_mci_profile_info*
 ath_mci_find_profile(struct ath_mci_profile *mci,
@@ -120,6 +120,8 @@ static void ath_mci_update_scheme(struct ath_softc *sc)
 	if (mci_hw->config & ATH_MCI_CONFIG_DISABLE_TUNING)
 		goto skip_tuning;
 
+	btcoex->duty_cycle = ath_mci_duty_cycle[num_profile];
+
 	if (num_profile == 1) {
 		info = list_first_entry(&mci->info,
 					struct ath_mci_profile_info,
@@ -178,7 +180,7 @@ skip_tuning:
 	if (IS_CHAN_5GHZ(sc->sc_ah->curchan))
 		return;
 
-	btcoex->duty_cycle += (mci->num_bdr ? ATH_MCI_MAX_DUTY_CYCLE : 0);
+	btcoex->duty_cycle += (mci->num_bdr ? ATH_MCI_BDR_DUTY_CYCLE : 0);
 	if (btcoex->duty_cycle > ATH_MCI_MAX_DUTY_CYCLE)
 		btcoex->duty_cycle = ATH_MCI_MAX_DUTY_CYCLE;
 
@@ -247,14 +249,12 @@ static void ath_mci_process_profile(struct ath_softc *sc,
 	btcoex->btcoex_period = ATH_MCI_DEF_BT_PERIOD;
 	mci->aggr_limit = mci->num_sco ? 6 : 0;
 
-	if (NUM_PROF(mci)) {
+	btcoex->duty_cycle = ath_mci_duty_cycle[NUM_PROF(mci)];
+	if (NUM_PROF(mci))
 		btcoex->bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
-		btcoex->duty_cycle = ath_mci_duty_cycle[NUM_PROF(mci)];
-	} else {
+	else
 		btcoex->bt_stomp_type = mci->num_mgmt ? ATH_BTCOEX_STOMP_ALL :
 							ATH_BTCOEX_STOMP_LOW;
-		btcoex->duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
-	}
 
 	ieee80211_queue_work(sc->hw, &sc->mci_work);
 }
