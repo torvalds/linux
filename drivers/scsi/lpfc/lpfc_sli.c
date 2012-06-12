@@ -15863,24 +15863,18 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		spin_lock_irqsave(&phba->hbalock, iflags);
 
 		piocbq = lpfc_sli_ringtx_get(phba, pring);
+		if (!piocbq) {
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2823 txq empty and txq_cnt is %d\n ",
+				pring->txq_cnt);
+			break;
+		}
 		sglq = __lpfc_sli_get_sglq(phba, piocbq);
 		if (!sglq) {
 			__lpfc_sli_ringtx_put(phba, pring, piocbq);
 			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			break;
-		} else {
-			if (!piocbq) {
-				/* The txq_cnt out of sync. This should
-				 * never happen
-				 */
-				sglq = __lpfc_clear_active_sglq(phba,
-						 sglq->sli4_lxritag);
-				spin_unlock_irqrestore(&phba->hbalock, iflags);
-				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"2823 txq empty and txq_cnt is %d\n ",
-					pring->txq_cnt);
-				break;
-			}
 		}
 
 		/* The xri and iocb resources secured,
