@@ -2391,7 +2391,7 @@ static int __devinit sci_probe_single(struct platform_device *dev,
 			   index+1, SCI_NPORTS);
 		dev_notice(&dev->dev, "Consider bumping "
 			   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	ret = sci_init_single(dev, sciport, index, p);
