@@ -23,10 +23,6 @@
 #include "ec100.h"
 #include "mxl5005s.h"
 
-/* debug */
-static int dvb_usb_ec168_debug;
-module_param_named(debug, dvb_usb_ec168_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int ec168_ctrl_msg(struct dvb_usb_device *d, struct ec168_req *req)
@@ -65,8 +61,8 @@ static int ec168_ctrl_msg(struct dvb_usb_device *d, struct ec168_req *req)
 		request = DEMOD_RW;
 		break;
 	default:
-		err("unknown command:%02x", req->cmd);
-		ret = -EPERM;
+		pr_err("%s: unknown command=%02x\n", KBUILD_MODNAME, req->cmd);
+		ret = -EINVAL;
 		goto error;
 	}
 
@@ -91,7 +87,7 @@ static int ec168_ctrl_msg(struct dvb_usb_device *d, struct ec168_req *req)
 		req->index, buf, req->size, EC168_USB_TIMEOUT);
 
 	ec168_debug_dump(request, requesttype, req->value, req->index, buf,
-		req->size, deb_xfer);
+		req->size);
 
 	if (ret < 0)
 		goto err_dealloc;
@@ -108,7 +104,7 @@ static int ec168_ctrl_msg(struct dvb_usb_device *d, struct ec168_req *req)
 err_dealloc:
 	kfree(buf);
 error:
-	deb_info("%s: failed:%d\n", __func__, ret);
+	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -140,8 +136,9 @@ static int ec168_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				ret = ec168_ctrl_msg(d, &req);
 				i += 2;
 			} else {
-				err("I2C read not implemented");
-				ret = -ENOSYS;
+				pr_err("%s: I2C read not implemented\n",
+						KBUILD_MODNAME);
+				ret = -EOPNOTSUPP;
 				i += 2;
 			}
 		} else {
@@ -190,13 +187,13 @@ static int ec168_identify_state(struct dvb_usb_device *d)
 	int ret;
 	u8 reply;
 	struct ec168_req req = {GET_CONFIG, 0, 1, sizeof(reply), &reply};
-	deb_info("%s:\n", __func__);
+	pr_debug("%s:\n", __func__);
 
 	ret = ec168_ctrl_msg(d, &req);
 	if (ret)
 		goto error;
 
-	deb_info("%s: reply:%02x\n", __func__, reply);
+	pr_debug("%s: reply=%02x\n", __func__, reply);
 
 	if (reply == 0x01)
 		ret = WARM;
@@ -205,7 +202,7 @@ static int ec168_identify_state(struct dvb_usb_device *d)
 
 	return ret;
 error:
-	deb_info("%s: failed:%d\n", __func__, ret);
+	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -215,7 +212,7 @@ static int ec168_download_firmware(struct dvb_usb_device *d,
 	int i, len, packets, remainder, ret;
 	u16 addr = 0x0000; /* firmware start address */
 	struct ec168_req req = {DOWNLOAD_FIRMWARE, 0, 0, 0, NULL};
-	deb_info("%s:\n", __func__);
+	pr_debug("%s:\n", __func__);
 
 	#define FW_PACKET_MAX_DATA  2048
 	packets = fw->size / FW_PACKET_MAX_DATA;
@@ -232,7 +229,8 @@ static int ec168_download_firmware(struct dvb_usb_device *d,
 
 		ret = ec168_ctrl_msg(d, &req);
 		if (ret) {
-			err("firmware download failed:%d packet:%d", ret, i);
+			pr_err("%s: firmware download failed=%d packet=%d\n",
+					KBUILD_MODNAME, ret, i);
 			goto error;
 		}
 	}
@@ -264,7 +262,7 @@ static int ec168_download_firmware(struct dvb_usb_device *d,
 
 	return ret;
 error:
-	deb_info("%s: failed:%d\n", __func__, ret);
+	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -274,7 +272,7 @@ static struct ec100_config ec168_ec100_config = {
 
 static int ec168_ec100_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb_info("%s:\n", __func__);
+	pr_debug("%s:\n", __func__);
 	adap->fe[0] = dvb_attach(ec100_attach, &ec168_ec100_config,
 		&adap->dev->i2c_adap);
 	if (adap->fe[0] == NULL)
@@ -302,7 +300,7 @@ static struct mxl5005s_config ec168_mxl5003s_config = {
 
 static int ec168_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb_info("%s:\n", __func__);
+	pr_debug("%s:\n", __func__);
 	return dvb_attach(mxl5005s_attach, adap->fe[0],
 			&adap->dev->i2c_adap,
 			&ec168_mxl5003s_config) == NULL ? -ENODEV : 0;
@@ -311,7 +309,7 @@ static int ec168_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 static int ec168_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
 	struct ec168_req req = {STREAMING_CTRL, 0x7f01, 0x0202, 0, NULL};
-	deb_info("%s: onoff:%d\n", __func__, onoff);
+	pr_debug("%s: onoff=%d\n", __func__, onoff);
 	if (onoff)
 		req.index = 0x0102;
 	return ec168_ctrl_msg(adap->dev, &req);
@@ -386,5 +384,5 @@ static struct usb_driver ec168_driver = {
 module_usb_driver(ec168_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
-MODULE_DESCRIPTION("E3C EC168 DVB-T USB2.0 driver");
+MODULE_DESCRIPTION("E3C EC168 driver");
 MODULE_LICENSE("GPL");

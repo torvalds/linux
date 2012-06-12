@@ -22,37 +22,17 @@
 #ifndef EC168_H
 #define EC168_H
 
-#define DVB_USB_LOG_PREFIX "ec168"
 #include "dvb_usb.h"
 
-#ifdef CONFIG_DVB_USB_DEBUG
-#define dprintk(var, level, args...) \
-	do { if ((var & level)) printk(args); } while (0)
-#define DVB_USB_DEBUG_STATUS
-#else
-#define dprintk(args...)
-#define debug_dump(b, l, func)
-#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
-#endif
-
-#define deb_info(args...) dprintk(dvb_usb_ec168_debug, 0x01, args)
-#define deb_rc(args...)   dprintk(dvb_usb_ec168_debug, 0x02, args)
-#define deb_xfer(args...) dprintk(dvb_usb_ec168_debug, 0x04, args)
-#define deb_reg(args...)  dprintk(dvb_usb_ec168_debug, 0x08, args)
-#define deb_i2c(args...)  dprintk(dvb_usb_ec168_debug, 0x10, args)
-#define deb_fw(args...)   dprintk(dvb_usb_ec168_debug, 0x20, args)
-
-#define ec168_debug_dump(r, t, v, i, b, l, func) { \
-	int loop_; \
-	func("%02x %02x %02x %02x %02x %02x %02x %02x", \
-		t, r, v & 0xff, v >> 8, i & 0xff, i >> 8, l & 0xff, l >> 8); \
+#define ec168_debug_dump(r, t, v, i, b, l) { \
+	char *direction; \
 	if (t == (USB_TYPE_VENDOR | USB_DIR_OUT)) \
-		func(" >>> "); \
+		direction = ">>>"; \
 	else \
-		func(" <<< "); \
-	for (loop_ = 0; loop_ < l; loop_++) \
-		func("%02x ", b[loop_]); \
-	func("\n");\
+		direction = "<<<"; \
+	pr_debug("%s: %02x %02x %02x %02x %02x %02x %02x %02x %s\n", \
+			 __func__, t, r, v & 0xff, v >> 8, i & 0xff, i >> 8, \
+			l & 0xff, l >> 8, direction); \
 }
 
 #define EC168_USB_TIMEOUT 1000
