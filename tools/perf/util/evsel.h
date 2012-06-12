@@ -100,7 +100,7 @@ int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size);
 const char *__perf_evsel__hw_name(u64 config);
 const char *__perf_evsel__sw_name(u64 config);
 
-int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size);
+const char *perf_evsel__name(struct perf_evsel *evsel);
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads);

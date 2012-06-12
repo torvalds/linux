@@ -252,42 +252,42 @@ static int perf_evsel__hw_cache_name(struct perf_evsel *evsel, char *bf, size_t 
 	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
 }
 
-static int perf_evsel__tracepoint_name(struct perf_evsel *evsel, char *bf, size_t size)
+const char *perf_evsel__name(struct perf_evsel *evsel)
 {
-	return scnprintf(bf, size, "%s", evsel->name ?: "unknown tracepoint");
-}
+	char bf[128];
 
-int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
-{
-	int ret;
+	if (evsel->name)
+		return evsel->name;
 
 	switch (evsel->attr.type) {
 	case PERF_TYPE_RAW:
-		ret = scnprintf(bf, size, "raw 0x%" PRIx64, evsel->attr.config);
+		scnprintf(bf, sizeof(bf), "raw 0x%" PRIx64, evsel->attr.config);
 		break;
 
 	case PERF_TYPE_HARDWARE:
-		ret = perf_evsel__hw_name(evsel, bf, size);
+		perf_evsel__hw_name(evsel, bf, sizeof(bf));
 		break;
 
 	case PERF_TYPE_HW_CACHE:
-		ret = perf_evsel__hw_cache_name(evsel, bf, size);
+		perf_evsel__hw_cache_name(evsel, bf, sizeof(bf));
 		break;
 
 	case PERF_TYPE_SOFTWARE:
-		ret = perf_evsel__sw_name(evsel, bf, size);
+		perf_evsel__sw_name(evsel, bf, sizeof(bf));
 		break;
 
 	case PERF_TYPE_TRACEPOINT:
-		ret = perf_evsel__tracepoint_name(evsel, bf, size);
+		scnprintf(bf, sizeof(bf), "%s", "unknown tracepoint");
 		break;
 
 	default:
-		ret = scnprintf(bf, size, "%s", "unknown attr type");
+		scnprintf(bf, sizeof(bf), "%s", "unknown attr type");
 		break;
 	}
 
-	return ret;
+	evsel->name = strdup(bf);
+
+	return evsel->name ?: "unknown";
 }
 
 void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,

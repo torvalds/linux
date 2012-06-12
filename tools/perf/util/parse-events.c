@@ -201,13 +201,6 @@ const char *event_type(int type)
 	return "unknown";
 }
 
-const char *event_name(struct perf_evsel *evsel)
-{
-	static char bf[128];
-	perf_evsel__name(evsel, bf, sizeof(bf));
-	return bf;
-}
-
 const char *__event_name(int type, u64 config)
 {
 	static char buf[32];

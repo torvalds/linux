@@ -641,7 +641,7 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 		/*
 		 * write event string as passed on cmdline
 		 */
-		ret = do_write_string(fd, event_name(attr));
+		ret = do_write_string(fd, perf_evsel__name(attr));
 		if (ret < 0)
 			return ret;
 		/*

@@ -1367,7 +1367,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	unsigned long nr_events = evsel->hists.stats.nr_events[PERF_RECORD_SAMPLE];
-	const char *ev_name = event_name(evsel);
+	const char *ev_name = perf_evsel__name(evsel);
 	char bf[256], unit;
 	const char *warn = " ";
 	size_t printed;
@@ -1435,7 +1435,7 @@ browse_hists:
 			 */
 			if (timer)
 				timer(arg);
-			ev_name = event_name(pos);
+			ev_name = perf_evsel__name(pos);
 			key = perf_evsel__hists_browse(pos, nr_events, help,
 						       ev_name, true, timer,
 						       arg, delay_secs);
@@ -1504,17 +1504,11 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 	ui_helpline__push("Press ESC to exit");
 
 	list_for_each_entry(pos, &evlist->entries, node) {
-		const char *ev_name = event_name(pos);
+		const char *ev_name = perf_evsel__name(pos);
 		size_t line_len = strlen(ev_name) + 7;
 
 		if (menu.b.width < line_len)
 			menu.b.width = line_len;
-		/*
-		 * Cache the evsel name, tracepoints have a _high_ cost per
-		 * event_name() call.
-		 */
-		if (pos->name == NULL)
-			pos->name = strdup(ev_name);
 	}
 
 	return perf_evsel_menu__run(&menu, evlist->nr_entries, help, timer,
@@ -1525,11 +1519,10 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  void(*timer)(void *arg), void *arg,
 				  int delay_secs)
 {
-
 	if (evlist->nr_entries == 1) {
 		struct perf_evsel *first = list_entry(evlist->entries.next,
 						      struct perf_evsel, node);
-		const char *ev_name = event_name(first);
+		const char *ev_name = perf_evsel__name(first);
 		return perf_evsel__hists_browse(first, evlist->nr_entries, help,
 						ev_name, false, timer, arg,
 						delay_secs);
