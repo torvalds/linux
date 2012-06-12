@@ -4275,10 +4275,8 @@ lpfc_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	 * Catch race where our node has transitioned, but the
 	 * transport is still transitioning.
 	 */
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
-		cmnd->result = ScsiResult(DID_IMM_RETRY, 0);
-		goto out_fail_command;
-	}
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+		goto out_tgt_busy;
 	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth)
 		goto out_tgt_busy;
 
