@@ -136,7 +136,7 @@ BEGIN_MMU_FTR_SECTION
 	 */
 	PPC_TLBSRX_DOT(0,R16)
 	ldx	r14,r14,r15		/* grab pgd entry */
-	beq	normal_tlb_miss_done	/* tlb exists already, bail */
+	beq	tlb_miss_done_bolted	/* tlb exists already, bail */
 MMU_FTR_SECTION_ELSE
 	ldx	r14,r14,r15		/* grab pgd entry */
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
@@ -192,6 +192,7 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 	mtspr	SPRN_MAS7_MAS3,r15
 	tlbwe
 
+tlb_miss_done_bolted:
 	TLB_MISS_STATS_X(MMSTAT_TLB_MISS_NORM_OK)
 	tlb_epilog_bolted
 	rfi
