@@ -283,11 +283,21 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	if (!buf->pages)
 		return;
 
+	/*
+	 * do not release memory region from exporter.
+	 *
+	 * the region will be released by exporter
+	 * once dmabuf's refcount becomes 0.
+	 */
+	if (obj->import_attach)
+		goto out;
+
 	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG)
 		exynos_drm_gem_put_pages(obj);
 	else
 		exynos_drm_free_buf(obj->dev, exynos_gem_obj->flags, buf);
 
+out:
 	exynos_drm_fini_buf(obj->dev, buf);
 	exynos_gem_obj->buffer = NULL;
 
