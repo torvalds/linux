@@ -498,11 +498,22 @@ static struct i2c_board_info cm_t35_isp_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("mt9t001", 0x5d),
 	},
+	{
+		I2C_BOARD_INFO("tvp5150", 0x5c),
+	},
 };
 
 static struct isp_subdev_i2c_board_info cm_t35_isp_primary_subdevs[] = {
 	{
 		.board_info = &cm_t35_isp_i2c_boardinfo[0],
+		.i2c_adapter_id = 3,
+	},
+	{ NULL, 0, },
+};
+
+static struct isp_subdev_i2c_board_info cm_t35_isp_secondary_subdevs[] = {
+	{
+		.board_info = &cm_t35_isp_i2c_boardinfo[1],
 		.i2c_adapter_id = 3,
 	},
 	{ NULL, 0, },
@@ -515,6 +526,15 @@ static struct isp_v4l2_subdevs_group cm_t35_isp_subdevs[] = {
 		.bus = {
 			.parallel = {
 				.clk_pol = 1,
+			},
+		},
+	},
+	{
+		.subdevs = cm_t35_isp_secondary_subdevs,
+		.interface = ISP_INTERFACE_PARALLEL,
+		.bus = {
+			.parallel = {
+				.clk_pol = 0,
 			},
 		},
 	},
