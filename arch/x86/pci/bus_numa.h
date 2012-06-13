@@ -13,8 +13,7 @@ struct pci_root_info {
 	struct list_head list;
 	char name[12];
 	struct list_head resources;
-	int bus_min;
-	int bus_max;
+	struct resource busn;
 	int node;
 	int link;
 };

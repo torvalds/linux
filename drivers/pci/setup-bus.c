@@ -404,8 +404,8 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	struct resource *res;
 	struct pci_bus_region region;
 
-	dev_info(&bridge->dev, "CardBus bridge to [bus %02x-%02x]\n",
-		 bus->secondary, bus->subordinate);
+	dev_info(&bridge->dev, "CardBus bridge to %pR\n",
+		 &bus->busn_res);
 
 	res = bus->resource[0];
 	pcibios_resource_to_bus(bridge, &region, res);
@@ -553,8 +553,8 @@ static void __pci_setup_bridge(struct pci_bus *bus, unsigned long type)
 {
 	struct pci_dev *bridge = bus->self;
 
-	dev_info(&bridge->dev, "PCI bridge to [bus %02x-%02x]\n",
-		 bus->secondary, bus->subordinate);
+	dev_info(&bridge->dev, "PCI bridge to %pR\n",
+		 &bus->busn_res);
 
 	if (type & IORESOURCE_IO)
 		pci_setup_bridge_io(bus);
@@ -745,8 +745,8 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	if (!size0 && !size1) {
 		if (b_res->start || b_res->end)
 			dev_info(&bus->self->dev, "disabling bridge window "
-				 "%pR to [bus %02x-%02x] (unused)\n", b_res,
-				 bus->secondary, bus->subordinate);
+				 "%pR to %pR (unused)\n", b_res,
+				 &bus->busn_res);
 		b_res->flags = 0;
 		return;
 	}
@@ -757,8 +757,8 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, 4096);
 		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
-				 "%pR to [bus %02x-%02x] add_size %lx\n", b_res,
-				 bus->secondary, bus->subordinate, size1-size0);
+				 "%pR to %pR add_size %lx\n", b_res,
+				 &bus->busn_res, size1-size0);
 	}
 }
 
@@ -863,8 +863,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	if (!size0 && !size1) {
 		if (b_res->start || b_res->end)
 			dev_info(&bus->self->dev, "disabling bridge window "
-				 "%pR to [bus %02x-%02x] (unused)\n", b_res,
-				 bus->secondary, bus->subordinate);
+				 "%pR to %pR (unused)\n", b_res,
+				 &bus->busn_res);
 		b_res->flags = 0;
 		return 1;
 	}
@@ -874,8 +874,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, min_align);
 		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
-				 "%pR to [bus %02x-%02x] add_size %llx\n", b_res,
-				 bus->secondary, bus->subordinate, (unsigned long long)size1-size0);
+				 "%pR to %pR add_size %llx\n", b_res,
+				 &bus->busn_res, (unsigned long long)size1-size0);
 	}
 	return 1;
 }

@@ -397,13 +397,11 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 			else
 				sn_io_slot_fixup(dev);
 			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-				unsigned char sec_bus;
-				pci_read_config_byte(dev, PCI_SECONDARY_BUS,
-						     &sec_bus);
-				new_bus = pci_add_new_bus(dev->bus, dev,
-							  sec_bus);
-				pci_scan_child_bus(new_bus);
-				new_ppb = 1;
+				pci_hp_add_bridge(dev);
+				if (dev->subordinate) {
+					new_bus = dev->subordinate;
+					new_ppb = 1;
+				}
 			}
 			pci_dev_put(dev);
 		}
