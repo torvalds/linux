@@ -104,11 +104,13 @@ ep_matches (
 				}
 
 
+#if 0
                 /* softwinner otg support -int */
 			    if(gadget_is_softwinner_otg(gadget) && 'n' != tmp [2]){
 			        printk("3333333\n");
 			        return 0;
 			    }
+#endif
 
 				break;
 			case USB_ENDPOINT_XFER_BULK:
