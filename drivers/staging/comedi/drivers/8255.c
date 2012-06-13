@@ -97,15 +97,15 @@ I/O port base address can be found in the output of 'lspci -v'.
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-struct subdev_8255_struct {
+struct subdev_8255_private {
 	unsigned long cb_arg;
 	int (*cb_func) (int, int, int, unsigned long);
 	int have_irq;
 };
 
-#define CALLBACK_ARG	(((struct subdev_8255_struct *)s->private)->cb_arg)
-#define CALLBACK_FUNC	(((struct subdev_8255_struct *)s->private)->cb_func)
-#define subdevpriv	((struct subdev_8255_struct *)s->private)
+#define CALLBACK_ARG	(((struct subdev_8255_private *)s->private)->cb_arg)
+#define CALLBACK_FUNC	(((struct subdev_8255_private *)s->private)->cb_func)
+#define subdevpriv	((struct subdev_8255_private *)s->private)
 
 void subdev_8255_interrupt(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
@@ -316,7 +316,7 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	s->range_table = &range_digital;
 	s->maxdata = 1;
 
-	s->private = kmalloc(sizeof(struct subdev_8255_struct), GFP_KERNEL);
+	s->private = kmalloc(sizeof(struct subdev_8255_private), GFP_KERNEL);
 	if (!s->private)
 		return -ENOMEM;
 
