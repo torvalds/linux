@@ -652,4 +652,25 @@ struct wl12xx_cmd_stop_channel_switch {
 	struct wl1271_cmd_header header;
 } __packed;
 
+/* Used to check radio status after calibration */
+#define MAX_TLV_LENGTH		500
+#define TEST_CMD_P2G_CAL	2	/* TX BiP */
+
+struct wl1271_cmd_cal_p2g {
+	struct wl1271_cmd_header header;
+
+	struct wl1271_cmd_test_header test;
+
+	__le32 ver;
+	__le16 len;
+	u8 buf[MAX_TLV_LENGTH];
+	u8 type;
+	u8 padding;
+
+	__le16 radio_status;
+
+	u8 sub_band_mask;
+	u8 padding2;
+} __packed;
+
 #endif /* __WL1271_CMD_H__ */
