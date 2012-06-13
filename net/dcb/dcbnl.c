@@ -1328,26 +1328,15 @@ static int dcbnl_notify(struct net_device *dev, int event, int cmd,
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	struct dcbmsg *dcb;
 	const struct dcbnl_rtnl_ops *ops = dev->dcbnl_ops;
 	int err;
 
 	if (!ops)
 		return -EOPNOTSUPP;
 
-	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	skb = dcbnl_newmsg(event, cmd, pid, seq, 0, &nlh);
 	if (!skb)
 		return -ENOBUFS;
-
-	nlh = nlmsg_put(skb, pid, 0, event, sizeof(*dcb), 0);
-	if (nlh == NULL) {
-		nlmsg_free(skb);
-		return -EMSGSIZE;
-	}
-
-	dcb = NLMSG_DATA(nlh);
-	dcb->dcb_family = AF_UNSPEC;
-	dcb->cmd = cmd;
 
 	if (dcbx_ver == DCB_CAP_DCBX_VER_IEEE)
 		err = dcbnl_ieee_fill(skb, dev);
@@ -1356,8 +1345,7 @@ static int dcbnl_notify(struct net_device *dev, int event, int cmd,
 
 	if (err < 0) {
 		/* Report error to broadcast listeners */
-		nlmsg_cancel(skb, nlh);
-		kfree_skb(skb);
+		nlmsg_free(skb);
 		rtnl_set_sk_err(net, RTNLGRP_DCB, err);
 	} else {
 		/* End nlmsg and notify broadcast listeners */
