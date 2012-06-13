@@ -219,6 +219,7 @@ static int hdlcd_set_par(struct fb_info *info)
 
 	hdlcd_set_output_mode(hdlcd->fb.var.xres, hdlcd->fb.var.yres);
 
+	clk_prepare(hdlcd->clk);
 	clk_set_rate(hdlcd->clk, (1000000000 / hdlcd->fb.var.pixclock) * 1000);
 	clk_enable(hdlcd->clk);
 
@@ -674,6 +675,7 @@ static int hdlcd_remove(struct platform_device *pdev)
 	struct hdlcd_device *hdlcd = platform_get_drvdata(pdev);
 
 	clk_disable(hdlcd->clk);
+	clk_unprepare(hdlcd->clk);
 	clk_put(hdlcd->clk);
 
 	/* unmap memory */
