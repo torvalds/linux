@@ -45,7 +45,7 @@ static void led_set_software_blink(struct led_classdev *led_cdev,
 
 	/* never off - just set to brightness */
 	if (!delay_off) {
-		led_set_brightness(led_cdev, led_cdev->blink_brightness);
+		__led_set_brightness(led_cdev, led_cdev->blink_brightness);
 		return;
 	}
 
@@ -111,6 +111,6 @@ void led_brightness_set(struct led_classdev *led_cdev,
 	led_cdev->blink_delay_on = 0;
 	led_cdev->blink_delay_off = 0;
 
-	led_set_brightness(led_cdev, brightness);
+	__led_set_brightness(led_cdev, brightness);
 }
 EXPORT_SYMBOL(led_brightness_set);

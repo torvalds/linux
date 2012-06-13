@@ -17,7 +17,7 @@
 #include <linux/rwsem.h>
 #include <linux/leds.h>
 
-static inline void led_set_brightness(struct led_classdev *led_cdev,
+static inline void __led_set_brightness(struct led_classdev *led_cdev,
 					enum led_brightness value)
 {
 	if (value > led_cdev->max_brightness)

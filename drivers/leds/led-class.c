@@ -53,7 +53,7 @@ static ssize_t led_brightness_store(struct device *dev,
 
 	if (state == LED_OFF)
 		led_trigger_remove(led_cdev);
-	led_set_brightness(led_cdev, state);
+	__led_set_brightness(led_cdev, state);
 
 	return size;
 }
@@ -82,7 +82,7 @@ static void led_timer_function(unsigned long data)
 	unsigned long delay;
 
 	if (!led_cdev->blink_delay_on || !led_cdev->blink_delay_off) {
-		led_set_brightness(led_cdev, LED_OFF);
+		__led_set_brightness(led_cdev, LED_OFF);
 		return;
 	}
 
@@ -105,7 +105,7 @@ static void led_timer_function(unsigned long data)
 		delay = led_cdev->blink_delay_off;
 	}
 
-	led_set_brightness(led_cdev, brightness);
+	__led_set_brightness(led_cdev, brightness);
 
 	/* Return in next iteration if led is in one-shot mode and we are in
 	 * the final blink state so that the led is toggled each delay_on +

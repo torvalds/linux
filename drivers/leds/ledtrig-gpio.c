@@ -54,12 +54,12 @@ static void gpio_trig_work(struct work_struct *work)
 
 	if (tmp) {
 		if (gpio_data->desired_brightness)
-			led_set_brightness(gpio_data->led,
+			__led_set_brightness(gpio_data->led,
 					   gpio_data->desired_brightness);
 		else
-			led_set_brightness(gpio_data->led, LED_FULL);
+			__led_set_brightness(gpio_data->led, LED_FULL);
 	} else {
-		led_set_brightness(gpio_data->led, LED_OFF);
+		__led_set_brightness(gpio_data->led, LED_OFF);
 	}
 }
 
