@@ -2555,19 +2555,19 @@ static void sony_nc_backlight_setup(void)
 	const struct backlight_ops *ops = NULL;
 	struct backlight_properties props;
 
-	if (sony_find_snc_handle(0x12f) != -1) {
+	if (sony_find_snc_handle(0x12f) >= 0) {
 		ops = &sony_backlight_ng_ops;
 		sony_bl_props.cmd_base = 0x0100;
 		sony_nc_backlight_ng_read_limits(0x12f, &sony_bl_props);
 		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
 
-	} else if (sony_find_snc_handle(0x137) != -1) {
+	} else if (sony_find_snc_handle(0x137) >= 0) {
 		ops = &sony_backlight_ng_ops;
 		sony_bl_props.cmd_base = 0x0100;
 		sony_nc_backlight_ng_read_limits(0x137, &sony_bl_props);
 		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
 
-	} else if (sony_find_snc_handle(0x143) != -1) {
+	} else if (sony_find_snc_handle(0x143) >= 0) {
 		ops = &sony_backlight_ng_ops;
 		sony_bl_props.cmd_base = 0x3000;
 		sony_nc_backlight_ng_read_limits(0x143, &sony_bl_props);
