@@ -720,9 +720,13 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 	if (s5m8767->buck2_ramp || s5m8767->buck3_ramp
 		|| s5m8767->buck4_ramp) {
 		switch (s5m8767->ramp_delay) {
-		case 15:
+		case 5:
 			s5m_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
-					0xc0, 0xf0);
+					0x40, 0xf0);
+			break;
+		case 10:
+			s5m_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
+					0x90, 0xf0);
 			break;
 		case 25:
 			s5m_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
