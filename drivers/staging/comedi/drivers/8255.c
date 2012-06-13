@@ -106,10 +106,11 @@ void subdev_8255_interrupt(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
 	struct subdev_8255_private *spriv = s->private;
+	unsigned long iobase = spriv->iobase;
 	short d;
 
-	d = spriv->io(0, _8255_DATA, 0, spriv->iobase);
-	d |= (spriv->io(0, _8255_DATA + 1, 0, spriv->iobase) << 8);
+	d = spriv->io(0, _8255_DATA, 0, iobase);
+	d |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
 
 	comedi_buf_put(s->async, d);
 	s->async->events |= COMEDI_CB_EOS;
@@ -133,25 +134,25 @@ static int subdev_8255_insn(struct comedi_device *dev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct subdev_8255_private *spriv = s->private;
+	unsigned long iobase = spriv->iobase;
 
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
 
 		if (data[0] & 0xff)
-			spriv->io(1, _8255_DATA, s->state & 0xff,
-				  spriv->iobase);
+			spriv->io(1, _8255_DATA, s->state & 0xff, iobase);
 		if (data[0] & 0xff00)
 			spriv->io(1, _8255_DATA + 1,
-				  (s->state >> 8) & 0xff, spriv->iobase);
+				  (s->state >> 8) & 0xff, iobase);
 		if (data[0] & 0xff0000)
 			spriv->io(1, _8255_DATA + 2,
-				  (s->state >> 16) & 0xff, spriv->iobase);
+				  (s->state >> 16) & 0xff, iobase);
 	}
 
-	data[1] = spriv->io(0, _8255_DATA, 0, spriv->iobase);
-	data[1] |= (spriv->io(0, _8255_DATA + 1, 0, spriv->iobase) << 8);
-	data[1] |= (spriv->io(0, _8255_DATA + 2, 0, spriv->iobase) << 16);
+	data[1] = spriv->io(0, _8255_DATA, 0, iobase);
+	data[1] |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
+	data[1] |= (spriv->io(0, _8255_DATA + 2, 0, iobase) << 16);
 
 	return 2;
 }
@@ -159,6 +160,7 @@ static int subdev_8255_insn(struct comedi_device *dev,
 static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct subdev_8255_private *spriv = s->private;
+	unsigned long iobase = spriv->iobase;
 	int config;
 
 	config = CR_CW;
@@ -171,7 +173,8 @@ static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
 		config |= CR_C_LO_IO;
 	if (!(s->io_bits & 0xf00000))
 		config |= CR_C_HI_IO;
-	spriv->io(1, _8255_CR, config, spriv->iobase);
+
+	spriv->io(1, _8255_CR, config, iobase);
 }
 
 static int subdev_8255_insn_config(struct comedi_device *dev,
