@@ -2518,4 +2518,4 @@ static struct platform_driver ab8500_codec_platform_driver = {
 };
 module_platform_driver(ab8500_codec_platform_driver);
 
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

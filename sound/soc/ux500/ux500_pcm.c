@@ -315,4 +315,4 @@ static struct platform_driver ux500_pcm_driver = {
 };
 module_platform_driver(ux500_pcm_driver);
 
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

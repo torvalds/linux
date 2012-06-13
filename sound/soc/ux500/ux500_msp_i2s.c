@@ -739,4 +739,4 @@ void ux500_msp_i2s_cleanup_msp(struct platform_device *pdev,
 	devm_kfree(&pdev->dev, msp);
 }
 
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
