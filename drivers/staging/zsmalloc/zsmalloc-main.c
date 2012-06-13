@@ -400,7 +400,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
 static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 {
 	int i, error;
-	struct page *first_page = NULL;
+	struct page *first_page = NULL, *uninitialized_var(prev_page);
 
 	/*
 	 * Allocate individual pages and link them together as:
@@ -415,7 +415,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 	 */
 	error = -ENOMEM;
 	for (i = 0; i < class->pages_per_zspage; i++) {
-		struct page *page, *prev_page;
+		struct page *page;
 
 		page = alloc_page(flags);
 		if (!page)
