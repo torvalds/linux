@@ -1255,18 +1255,6 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 		},
 };
 
-static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_5ghz = {
-	.cap = IEEE80211_HT_CAP_SGI_20,
-	.ht_supported = true,
-	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
-	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
-	.mcs = {
-		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		.rx_highest = cpu_to_le16(72),
-		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
-		},
-};
-
 static int __devinit wl18xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -1309,9 +1297,10 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
 		       &wl18xx_mimo_ht_cap_2ghz,
 		       sizeof(wl18xx_mimo_ht_cap_2ghz));
+		/* we don't support MIMO in 5Ghz */
 		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_mimo_ht_cap_5ghz,
-		       sizeof(wl18xx_mimo_ht_cap_5ghz));
+		       &wl18xx_siso20_ht_cap,
+		       sizeof(wl18xx_siso20_ht_cap));
 	} else if (!strcmp(ht_mode_param, "siso20")) {
 		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
 		       &wl18xx_siso20_ht_cap,
