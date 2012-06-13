@@ -60,15 +60,15 @@ I/O port base address can be found in the output of 'lspci -v'.
    set up the subdevice in the attach function of the driver by
    calling:
 
-     subdev_8255_init(device, subdevice, callback_function, arg)
+     subdev_8255_init(device, subdevice, io_function, iobase)
 
    device and subdevice are pointers to the device and subdevice
-   structures.  callback_function will be called to provide the
+   structures.  io_function will be called to provide the
    low-level input/output to the device, i.e., actual register
-   access.  callback_function will be called with the value of arg
+   access.  io_function will be called with the value of iobase
    as the last parameter.  If the 8255 device is mapped as 4
-   consecutive I/O ports, you can use NULL for callback_function
-   and the I/O port base for arg, and an internal function will
+   consecutive I/O ports, you can use NULL for io_function
+   and the I/O port base for iobase, and an internal function will
    handle the register access.
 
    In addition, if the main driver handles interrupts, you can
@@ -119,10 +119,8 @@ void subdev_8255_interrupt(struct comedi_device *dev,
 }
 EXPORT_SYMBOL(subdev_8255_interrupt);
 
-static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
+static int subdev_8255_io(int dir, int port, int data, unsigned long iobase)
 {
-	unsigned long iobase = arg;
-
 	if (dir) {
 		outb(data, iobase + port);
 		return 0;
@@ -307,8 +305,8 @@ static int subdev_8255_cancel(struct comedi_device *dev,
 }
 
 int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
-		     int (*cb) (int, int, int, unsigned long),
-		     unsigned long arg)
+		     int (*io) (int, int, int, unsigned long),
+		     unsigned long iobase)
 {
 	struct subdev_8255_private *spriv;
 
@@ -323,11 +321,11 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		return -ENOMEM;
 	s->private = spriv;
 
-	spriv->iobase = arg;
-	if (cb == NULL)
-		spriv->io = subdev_8255_cb;
+	spriv->iobase = iobase;
+	if (io == NULL)
+		spriv->io = subdev_8255_io;
 	else
-		spriv->io = cb;
+		spriv->io = io;
 	s->insn_bits = subdev_8255_insn;
 	s->insn_config = subdev_8255_insn_config;
 
@@ -340,13 +338,13 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 EXPORT_SYMBOL(subdev_8255_init);
 
 int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int (*cb) (int, int, int, unsigned long),
-			 unsigned long arg)
+			 int (*io) (int, int, int, unsigned long),
+			 unsigned long iobase)
 {
 	struct subdev_8255_private *spriv;
 	int ret;
 
-	ret = subdev_8255_init(dev, s, cb, arg);
+	ret = subdev_8255_init(dev, s, io, iobase);
 	if (ret < 0)
 		return ret;
 	spriv = s->private;
