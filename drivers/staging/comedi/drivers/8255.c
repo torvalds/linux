@@ -100,7 +100,6 @@ I/O port base address can be found in the output of 'lspci -v'.
 struct subdev_8255_private {
 	unsigned long iobase;
 	int (*io) (int, int, int, unsigned long);
-	int have_irq;
 };
 
 void subdev_8255_interrupt(struct comedi_device *dev,
@@ -340,19 +339,15 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 			 int (*io) (int, int, int, unsigned long),
 			 unsigned long iobase)
 {
-	struct subdev_8255_private *spriv;
 	int ret;
 
 	ret = subdev_8255_init(dev, s, io, iobase);
 	if (ret < 0)
 		return ret;
-	spriv = s->private;
 
-	spriv->have_irq = 1;
-
-	s->do_cmdtest = subdev_8255_cmdtest;
-	s->do_cmd = subdev_8255_cmd;
-	s->cancel = subdev_8255_cancel;
+	s->do_cmdtest	= subdev_8255_cmdtest;
+	s->do_cmd	= subdev_8255_cmd;
+	s->cancel	= subdev_8255_cancel;
 
 	return 0;
 }
