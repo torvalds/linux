@@ -599,51 +599,25 @@ static struct platform_driver wm831x_buckv_driver = {
  * BUCKP specifics
  */
 
-static int wm831x_buckp_set_voltage_int(struct regulator_dev *rdev, int reg,
-					int min_uV, int max_uV, int *selector)
+static int wm831x_buckp_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 {
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
 	struct wm831x *wm831x = dcdc->wm831x;
-	u16 vsel;
-
-	if (min_uV <= 34000000)
-		vsel = (min_uV - 850000) / 25000;
-	else
-		return -EINVAL;
-
-	if (regulator_list_voltage_linear(rdev, vsel) > max_uV)
-		return -EINVAL;
-
-	*selector = vsel;
-
-	return wm831x_set_bits(wm831x, reg, WM831X_DC3_ON_VSEL_MASK, vsel);
-}
-
-static int wm831x_buckp_set_voltage(struct regulator_dev *rdev,
-				    int min_uV, int max_uV,
-				    unsigned *selector)
-{
-	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
-	u16 reg = dcdc->base + WM831X_DCDC_ON_CONFIG;
-
-	return wm831x_buckp_set_voltage_int(rdev, reg, min_uV, max_uV,
-					    selector);
-}
-
-static int wm831x_buckp_set_suspend_voltage(struct regulator_dev *rdev,
-					    int uV)
-{
-	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
 	u16 reg = dcdc->base + WM831X_DCDC_SLEEP_CONTROL;
-	unsigned selector;
+	int sel;
 
-	return wm831x_buckp_set_voltage_int(rdev, reg, uV, uV, &selector);
+	sel = regulator_map_voltage_linear(rdev, uV, uV);
+	if (sel < 0)
+		return sel;
+
+	return wm831x_set_bits(wm831x, reg, WM831X_DC3_ON_VSEL_MASK, sel);
 }
 
 static struct regulator_ops wm831x_buckp_ops = {
-	.set_voltage = wm831x_buckp_set_voltage,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 	.set_suspend_voltage = wm831x_buckp_set_suspend_voltage,
 
 	.is_enabled = regulator_is_enabled_regmap,
