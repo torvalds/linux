@@ -298,7 +298,7 @@ config CRYPTO_DEV_TEGRA_AES
 	  will be called tegra-aes.
 
 config CRYPTO_DEV_NX
-	tristate "Support for Power7+ in-Nest cryptographic accleration"
+	tristate "Support for Power7+ in-Nest cryptographic acceleration"
 	depends on PPC64 && IBMVIO
 	select CRYPTO_AES
 	select CRYPTO_CBC
