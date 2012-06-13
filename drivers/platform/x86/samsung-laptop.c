@@ -26,7 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
-#if (defined CONFIG_ACPI_VIDEO || defined CONFIG_ACPI_VIDEO_MODULE)
+#ifdef CONFIG_ACPI_VIDEO
 #include <acpi/video.h>
 #endif
 
@@ -1530,15 +1530,18 @@ static int __init samsung_init(void)
 	samsung->quirks = quirks;
 
 
-#if (defined CONFIG_ACPI_VIDEO || defined CONFIG_ACPI_VIDEO_MODULE)
+#ifdef CONFIG_ACPI
+	if (samsung->quirks->broken_acpi_video)
+		acpi_video_dmi_promote_vendor();
+
 	/* Don't handle backlight here if the acpi video already handle it */
 	if (acpi_video_backlight_support()) {
-		if (samsung->quirks->broken_acpi_video) {
-			pr_info("Disabling ACPI video driver\n");
-			acpi_video_unregister();
-		} else {
-			samsung->handle_backlight = false;
-		}
+		samsung->handle_backlight = false;
+	} else if (samsung->quirks->broken_acpi_video) {
+		pr_info("Disabling ACPI video driver\n");
+#ifdef CONFIG_ACPI_VIDEO
+		acpi_video_unregister();
+#endif
 	}
 #endif
 
@@ -1552,8 +1555,7 @@ static int __init samsung_init(void)
 
 #ifdef CONFIG_ACPI
 	/* Only log that if we are really on a sabi platform */
-	if (acpi_video_backlight_support() &&
-	    !samsung->quirks->broken_acpi_video)
+	if (acpi_video_backlight_support())
 		pr_info("Backlight controlled by ACPI video driver\n");
 #endif
 
