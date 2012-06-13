@@ -182,8 +182,7 @@ long acpi_video_get_capabilities(acpi_handle graphics_handle)
 }
 EXPORT_SYMBOL(acpi_video_get_capabilities);
 
-/* Returns true if video.ko can do backlight switching */
-int acpi_video_backlight_support(void)
+static void acpi_video_caps_check(void)
 {
 	/*
 	 * We must check whether the ACPI graphics device is physically plugged
@@ -191,6 +190,34 @@ int acpi_video_backlight_support(void)
 	 */
 	if (!acpi_video_caps_checked)
 		acpi_video_get_capabilities(NULL);
+}
+
+/* Promote the vendor interface instead of the generic video module.
+ * This function allow DMI blacklists to be implemented by externals
+ * platform drivers instead of putting a big blacklist in video_detect.c
+ * After calling this function you will probably want to call
+ * acpi_video_unregister() to make sure the video module is not loaded
+ */
+void acpi_video_dmi_promote_vendor(void)
+{
+	acpi_video_caps_check();
+	acpi_video_support |= ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
+}
+EXPORT_SYMBOL(acpi_video_dmi_promote_vendor);
+
+/* To be called when a driver who previously promoted the vendor
+ * interface */
+void acpi_video_dmi_demote_vendor(void)
+{
+	acpi_video_caps_check();
+	acpi_video_support &= ~ACPI_VIDEO_BACKLIGHT_DMI_VENDOR;
+}
+EXPORT_SYMBOL(acpi_video_dmi_demote_vendor);
+
+/* Returns true if video.ko can do backlight switching */
+int acpi_video_backlight_support(void)
+{
+	acpi_video_caps_check();
 
 	/* First check for boot param -> highest prio */
 	if (acpi_video_support & ACPI_VIDEO_BACKLIGHT_FORCE_VENDOR)
