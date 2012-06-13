@@ -201,7 +201,8 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
 		return;
 	}
 	if (twi_int_status & MCOMP) {
-		if ((read_MASTER_CTL(iface) & MEN) == 0 &&
+		if (twi_int_status & (XMTSERV | RCVSERV) &&
+			(read_MASTER_CTL(iface) & MEN) == 0 &&
 			(iface->cur_mode == TWI_I2C_MODE_REPEAT ||
 			iface->cur_mode == TWI_I2C_MODE_COMBINED)) {
 			iface->result = -1;
