@@ -310,27 +310,26 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct subdev_8255_private *spriv;
 
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 24;
-	s->range_table = &range_digital;
-	s->maxdata = 1;
-
 	spriv = kmalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
 		return -ENOMEM;
-	s->private = spriv;
 
-	spriv->iobase = iobase;
-	if (io == NULL)
-		spriv->io = subdev_8255_io;
-	else
-		spriv->io = io;
-	s->insn_bits = subdev_8255_insn;
-	s->insn_config = subdev_8255_insn_config;
+	spriv->iobase	= iobase;
+	spriv->io	= io ? io : subdev_8255_io;
 
-	s->state = 0;
-	s->io_bits = 0;
+	s->private	= spriv;
+
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 24;
+	s->range_table	= &range_digital;
+	s->maxdata	= 1;
+	s->insn_bits	= subdev_8255_insn;
+	s->insn_config	= subdev_8255_insn_config;
+
+	s->state	= 0;
+	s->io_bits	= 0;
+
 	do_config(dev, s);
 
 	return 0;
