@@ -401,6 +401,13 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		   struct ieee80211_sta *sta,
 		   struct ieee80211_key_conf *key_conf);
 
+static inline void
+wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
+		  struct ieee80211_sta_ht_cap *ht_cap)
+{
+	memcpy(&wl->ht_cap[band], ht_cap, sizeof(*ht_cap));
+}
+
 /* Firmware image load chunk size */
 #define CHUNK_SIZE	16384
 

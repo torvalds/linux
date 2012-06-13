@@ -43,7 +43,7 @@
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
-static char *ht_mode_param = "wide";
+static char *ht_mode_param = "default";
 static char *board_type_param = "hdk";
 static bool checksum_param = false;
 static bool enable_11a_param = true;
@@ -1286,34 +1286,6 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	if (num_rx_desc_param != -1)
 		wl->num_rx_desc = num_rx_desc_param;
 
-	if (!strcmp(ht_mode_param, "wide")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_siso40_ht_cap,
-		       sizeof(wl18xx_siso40_ht_cap));
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_siso40_ht_cap,
-		       sizeof(wl18xx_siso40_ht_cap));
-	} else if (!strcmp(ht_mode_param, "mimo")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_mimo_ht_cap_2ghz,
-		       sizeof(wl18xx_mimo_ht_cap_2ghz));
-		/* we don't support MIMO in 5Ghz */
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_siso20_ht_cap,
-		       sizeof(wl18xx_siso20_ht_cap));
-	} else if (!strcmp(ht_mode_param, "siso20")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_siso20_ht_cap,
-		       sizeof(wl18xx_siso20_ht_cap));
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_siso20_ht_cap,
-		       sizeof(wl18xx_siso20_ht_cap));
-	} else {
-		wl1271_error("invalid ht_mode '%s'", ht_mode_param);
-		ret = -EINVAL;
-		goto out_free;
-	}
-
 	ret = wl18xx_conf_init(wl, &pdev->dev);
 	if (ret < 0)
 		goto out_free;
@@ -1359,6 +1331,37 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	if (dc2dc_param != -1)
 		priv->conf.phy.external_pa_dc2dc = dc2dc_param;
 
+	if (!strcmp(ht_mode_param, "default")) {
+		/*
+		 * Only support mimo with multiple antennas. Fall back to
+		 * siso20.
+		 */
+		if (priv->conf.phy.number_of_assembled_ant2_4 >= 2)
+			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+					  &wl18xx_mimo_ht_cap_2ghz);
+		else
+			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+					  &wl18xx_siso20_ht_cap);
+
+		/* 5Ghz is always wide */
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso40_ht_cap);
+	} else if (!strcmp(ht_mode_param, "wide")) {
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+				  &wl18xx_siso40_ht_cap);
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso40_ht_cap);
+	} else if (!strcmp(ht_mode_param, "siso20")) {
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+				  &wl18xx_siso20_ht_cap);
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso20_ht_cap);
+	} else {
+		wl1271_error("invalid ht_mode '%s'", ht_mode_param);
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	if (!checksum_param) {
 		wl18xx_ops.set_rx_csum = NULL;
 		wl18xx_ops.init_vif = NULL;
@@ -1403,7 +1406,7 @@ static void __exit wl18xx_exit(void)
 module_exit(wl18xx_exit);
 
 module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
-MODULE_PARM_DESC(ht_mode, "Force HT mode: wide (default), mimo or siso20");
+MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or siso20");
 
 module_param_named(board_type, board_type_param, charp, S_IRUSR);
 MODULE_PARM_DESC(board_type, "Board type: fpga, hdk (default), evb, com8 or "
