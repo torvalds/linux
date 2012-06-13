@@ -51,13 +51,6 @@ struct XGI_LCDDataTablStruct {
 	unsigned short DATAPTR;
 };
 
-struct XGI330_LVDSDataStruct {
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short LCDHT;
-	unsigned short LCDVT;
-};
-
 struct XGI330_LCDDataDesStruct2 {
 	unsigned short LCDHDES;
 	unsigned short LCDHRS;
@@ -65,15 +58,6 @@ struct XGI330_LCDDataDesStruct2 {
 	unsigned short LCDVRS;
 	unsigned short LCDHSync;
 	unsigned short LCDVSync;
-};
-
-struct XGI330_LCDDataStruct {
-	unsigned short RVBHCMAX;
-	unsigned short RVBHCFACT;
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short LCDHT;
-	unsigned short LCDVT;
 };
 
 
@@ -102,13 +86,6 @@ struct XGI330_TVDataTablStruct {
 	unsigned short DATAPTR;
 };
 
-
-struct XGI330_CHTVDataStruct {
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short LCDHT;
-	unsigned short LCDVT;
-};
 
 struct XGI_TimingHStruct {
 	unsigned char data[8];
@@ -172,11 +149,6 @@ struct XGI_CRT1TableStruct {
 	unsigned char CR[16];
 };
 
-
-struct XGI330_VCLKDataStruct {
-	unsigned char SR2B, SR2C;
-	unsigned short CLOCK;
-};
 
 struct XGI301C_Tap4TimingStruct {
 	unsigned short DE;

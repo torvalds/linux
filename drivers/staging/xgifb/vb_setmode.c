@@ -1980,12 +1980,12 @@ static void XGI_GetLVDSData(unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbx;
-	struct XGI330_LVDSDataStruct *LCDPtr = NULL;
+	struct SiS_LVDSData *LCDPtr = NULL;
 
 	tempbx = 2;
 
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-		LCDPtr = (struct XGI330_LVDSDataStruct *) XGI_GetLcdPtr(tempbx,
+		LCDPtr = (struct SiS_LVDSData *)XGI_GetLcdPtr(tempbx,
 				ModeNo, ModeIdIndex, RefreshRateTableIndex,
 				pVBInfo);
 		pVBInfo->VGAHT = LCDPtr->VGAHT;
