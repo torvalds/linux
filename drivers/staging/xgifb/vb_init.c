@@ -579,17 +579,6 @@ static void XGINew_SetDRAMDefaultRegister340(
 		      pVBInfo->SR15[3][pVBInfo->ram_type]); /* SR1B */
 }
 
-static void XGINew_SetDRAMSizingType(int index,
-		const unsigned short DRAMTYPE_TABLE[][5],
-		struct vb_device_info *pVBInfo)
-{
-	unsigned short data;
-
-	data = DRAMTYPE_TABLE[index][4];
-	xgifb_reg_and_or(pVBInfo->P3c4, 0x13, 0x80, data);
-	udelay(15);
-	/* should delay 50 ns */
-}
 
 static unsigned short XGINew_SetDRAMSize20Reg(int index,
 		const unsigned short DRAMTYPE_TABLE[][5],
@@ -912,7 +901,10 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 	}
 
 	for (i = 0; i < size; i++) {
-		XGINew_SetDRAMSizingType(i, dram_table, pVBInfo);
+		/* SetDRAMSizingType */
+		xgifb_reg_and_or(pVBInfo->P3c4, 0x13, 0x80, dram_table[i][4]);
+		udelay(15); /* should delay 50 ns */
+
 		memsize = XGINew_SetDRAMSize20Reg(i, dram_table, pVBInfo);
 
 		if (memsize == 0)
