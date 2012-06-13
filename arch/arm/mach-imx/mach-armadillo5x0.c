@@ -367,10 +367,6 @@ static const struct fb_videomode fb_modedb[] = {
 	},
 };
 
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "CRT-VGA",
 	.mode		= fb_modedb,
@@ -517,7 +513,7 @@ static void __init armadillo5x0_init(void)
 	imx31_add_mxc_mmc(0, &sdhc_pdata);
 
 	/* Register FB */
-	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_ipu_core();
 	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* Register NOR Flash */

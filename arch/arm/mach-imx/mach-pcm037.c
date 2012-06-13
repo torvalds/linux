@@ -441,10 +441,6 @@ static struct platform_device *devices[] __initdata = {
 	&pcm037_mt9v022,
 };
 
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static const struct fb_videomode fb_modedb[] = {
 	{
 		/* 240x320 @ 60 Hz Sharp */
@@ -648,7 +644,7 @@ static void __init pcm037_init(void)
 
 	imx31_add_mxc_nand(&pcm037_nand_board_info);
 	imx31_add_mxc_mmc(0, &sdhc_pdata);
-	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_ipu_core();
 	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* CSI */

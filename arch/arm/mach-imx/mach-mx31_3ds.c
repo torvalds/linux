@@ -274,10 +274,6 @@ static const struct fb_videomode fb_modedb[] = {
 	},
 };
 
-static struct ipu_platform_data mx3_ipu_data = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "Epson-VGA",
 	.mode		= fb_modedb,
@@ -743,7 +739,7 @@ static void __init mx31_3ds_init(void)
 	imx31_add_mxc_mmc(0, &sdhc1_pdata);
 
 	imx31_add_spi_imx0(&spi0_pdata);
-	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_ipu_core();
 	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* CSI */

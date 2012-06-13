@@ -95,10 +95,6 @@ static const struct fb_videomode fb_modedb[] = {
 	},
 };
 
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "CMO-QVGA",
 	.mode		= fb_modedb,
@@ -287,7 +283,7 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 		printk(KERN_ERR "error setting mbimxsd pads !\n");
 
 	imx35_add_imx_uart1(&uart_pdata);
-	imx35_add_ipu_core(&mx3_ipu_data);
+	imx35_add_ipu_core();
 	imx35_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	imx35_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);

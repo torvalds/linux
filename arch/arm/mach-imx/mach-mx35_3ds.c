@@ -80,10 +80,6 @@ static const struct fb_videomode fb_modedb[] = {
 	 },
 };
 
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name = "Ceramate-CLAA070VC01",
 	.mode = fb_modedb,
@@ -296,10 +292,6 @@ err:
 
 	return ret;
 }
-
-static const struct ipu_platform_data mx35_3ds_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
 
 static struct i2c_board_info mx35_3ds_i2c_camera = {
 	I2C_BOARD_INFO("ov2640", 0x30),
@@ -596,7 +588,7 @@ static void __init mx35_3ds_init(void)
 	i2c_register_board_info(
 		0, i2c_devices_3ds, ARRAY_SIZE(i2c_devices_3ds));
 
-	imx35_add_ipu_core(&mx35_3ds_ipu_data);
+	imx35_add_ipu_core();
 	platform_device_register(&mx35_3ds_ov2640);
 	imx35_3ds_init_camera();
 

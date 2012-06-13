@@ -473,10 +473,6 @@ static const struct gpio_led_platform_data mx31moboard_led_pdata __initconst = {
 	.leds		= mx31moboard_leds,
 };
 
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
@@ -494,7 +490,7 @@ static int __init mx31moboard_init_cam(void)
 	int dma, ret = -ENOMEM;
 	struct platform_device *pdev;
 
-	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_ipu_core();
 
 	pdev = imx31_alloc_mx3_camera(&camera_pdata);
 	if (IS_ERR(pdev))
