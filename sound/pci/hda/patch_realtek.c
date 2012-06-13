@@ -1896,6 +1896,7 @@ static int alc_init(struct hda_codec *codec)
 	alc_fix_pll(codec);
 	alc_auto_init_amp(codec, spec->init_amp);
 
+	snd_hda_gen_apply_verbs(codec);
 	alc_init_special_input_src(codec);
 	alc_auto_init_std(codec);
 
