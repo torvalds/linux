@@ -97,8 +97,8 @@ extern struct sys_timer rk30_timer;
 enum _periph_pll {
 	periph_pll_1485mhz = 148500000,
 	periph_pll_297mhz = 297000000,
+	periph_pll_300mhz = 300000000,
 	periph_pll_1188mhz = 1188000000, /* for box*/
-	periph_pll_default = periph_pll_297mhz,
 };
 enum _codec_pll {
 	codec_pll_360mhz = 360000000, /* for HDMI */
@@ -107,9 +107,11 @@ enum _codec_pll {
 	codec_pll_504mhz = 504000000,
 	codec_pll_552mhz = 552000000, /* for HDMI */
 	codec_pll_600mhz = 600000000,
+	codec_pll_742_5khz = 742500000,
 	codec_pll_798mhz = 798000000,
-	codec_pll_default = codec_pll_798mhz,
+	codec_pll_1188mhz = 1188000000,
 };
+
 //has extern 27mhz
 #define CLK_FLG_EXT_27MHZ 			(1<<0)
 //max i2s rate
@@ -118,7 +120,25 @@ enum _codec_pll {
 #define CLK_FLG_MAX_I2S_24576KHZ 	(1<<3)
 #define CLK_FLG_MAX_I2S_49152KHZ 	(1<<4)
 
-#define max_i2s_12288khz (CLK_FLG_MAX_I2S_12288KHZ/*|CLK_FLG_EXT_27MHZ*/)
+
+
+#ifdef CONFIG_RK29_VMAC
+
 #define RK30_CLOCKS_DEFAULT_FLAGS (CLK_FLG_MAX_I2S_12288KHZ/*|CLK_FLG_EXT_27MHZ*/)
+#define periph_pll_default periph_pll_300mhz
+#define codec_pll_default codec_pll_1188mhz
+
+#else
+
+#define RK30_CLOCKS_DEFAULT_FLAGS (CLK_FLG_MAX_I2S_12288KHZ/*|CLK_FLG_EXT_27MHZ*/)
+#define codec_pll_default codec_pll_798mhz
+#define periph_pll_default periph_pll_297mhz
+
+#endif
+
+
+
+
+
 
 #endif

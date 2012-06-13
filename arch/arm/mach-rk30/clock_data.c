@@ -712,7 +712,7 @@ static int pll_clk_mode(struct clk *clk, int on)
 	u8 pll_id=clk->pll->id;
 	u32 nr=PLL_NR(cru_readl(PLL_CONS(pll_id,0)));
 	u32 dly= (nr*500)/24+1;
-	
+	CRU_PRINTK_DBG("pll_mode %s(%d)",clk->name,on);
 	if (on) {
 		cru_writel(PLL_PWR_ON|PLL_PWR_DN_W_MSK,PLL_CONS(pll_id,3));
 		rk30_clock_udelay(dly);
@@ -894,28 +894,46 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 					temp_clk_div->clksel0,temp_clk_div->clksel1);
 	
 	local_irq_save(flags);
-
+	//new div max first
+	if(gpll_arm_aclk_div>=old_aclk_div)
+	{
+		if((old_aclk_div==3||gpll_arm_aclk_div==3)&&(gpll_arm_aclk_div!=old_aclk_div))
+		{	
+			cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
+			cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
+			cru_writel((temp_clk_div->clksel0|CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK), 
+												CRU_CLKSELS_CON(0));
+			cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
+		}
+		else 
+		{
+			cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
+			cru_writel((temp_clk_div->clksel0)|CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK, 
+										CRU_CLKSELS_CON(0));
+		}
+	}
 	// open gpu gpll path
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH)|CLK_UN_GATE(CLK_GATE_CPU_GPLL_PATH),CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
-	
 	cru_writel(CORE_SEL_GPLL|CORE_SEL_PLL_W_MSK, CRU_CLKSELS_CON(0));
-	
 	loops_per_jiffy = arm_gpll_lpj;
 	smp_wmb();
-	
-	if((old_aclk_div==3||gpll_arm_aclk_div==3)&&(gpll_arm_aclk_div!=old_aclk_div))
-	{	
-		cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-		cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
-		cru_writel((temp_clk_div->clksel0|CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK), 
-											CRU_CLKSELS_CON(0));
-		cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
-	}
-	else 
+	//new div max late
+	if(gpll_arm_aclk_div<old_aclk_div)
 	{
-		cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
-		cru_writel((temp_clk_div->clksel0)|CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK, 
-									CRU_CLKSELS_CON(0));
+		if((old_aclk_div==3||gpll_arm_aclk_div==3)&&(gpll_arm_aclk_div!=old_aclk_div))
+		{	
+			cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
+			cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
+			cru_writel((temp_clk_div->clksel0|CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK), 
+												CRU_CLKSELS_CON(0));
+			cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
+		}
+		else 
+		{
+			cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
+			cru_writel((temp_clk_div->clksel0)|CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK, 
+										CRU_CLKSELS_CON(0));
+		}
 	}
 
 	/*if core src don't select gpll ,apll neet to enter slow mode */
@@ -940,23 +958,42 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	//return form slow
 	//cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
 	//a/h/p clk sel
-	if((gpll_arm_aclk_div==3||new_aclk_div==3)&&(new_aclk_div!=gpll_arm_aclk_div))
-	{	
-		cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-		cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
-		cru_writel((ps->clksel0)|CORE_CLK_DIV(1)|CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
-		cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
-	}
-	else 
-	{
-		cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
-		cru_writel((ps->clksel0)|CORE_CLK_DIV(1)|CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
+   if(new_aclk_div>=gpll_arm_aclk_div)
+   {
+		if((gpll_arm_aclk_div==3||new_aclk_div==3)&&(new_aclk_div!=gpll_arm_aclk_div))
+		{	
+			cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
+			cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
+			cru_writel((ps->clksel0)|CORE_CLK_DIV(1)|CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
+			cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
+		}
+		else 
+		{
+			cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
+			cru_writel((ps->clksel0)|CORE_CLK_DIV(1)|CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
+		}
 	}
 	
 	//reparent to apll
 	cru_writel(CORE_SEL_PLL_W_MSK|CORE_SEL_APLL, CRU_CLKSELS_CON(0));
 	loops_per_jiffy = ps->lpj;
 	smp_wmb();
+	
+   if(new_aclk_div<gpll_arm_aclk_div)
+   {
+		if((gpll_arm_aclk_div==3||new_aclk_div==3)&&(new_aclk_div!=gpll_arm_aclk_div))
+		{	
+			cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
+			cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
+			cru_writel((ps->clksel0)|CORE_CLK_DIV(1)|CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
+			cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
+		}
+		else 
+		{
+			cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
+			cru_writel((ps->clksel0)|CORE_CLK_DIV(1)|CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
+		}
+	}
 	//CRU_PRINTK_DBG("apll set loops_per_jiffy =%lu,rate(%lu)\n",loops_per_jiffy,ps->rate);
 
 	local_irq_restore(flags);
@@ -1014,6 +1051,7 @@ static struct _pll_data apll_data=SET_PLL_DATA(APLL_ID,(void *)apll_clks);
 static struct clk arm_pll_clk ={
 	.name		= "arm_pll",
 	.parent		= &xin24m,
+	.mode =	pll_clk_mode,
 	.recalc		= plls_clk_recalc,
 	.set_rate	= arm_pll_clk_set_rate,
 	.round_rate	= arm_pll_clk_round_rate,
@@ -1041,14 +1079,16 @@ static const struct pll_clk_set cpll_clks[] = {
 	_PLL_SET_CLKS(504000, 1,  21, 1),
 	_PLL_SET_CLKS(552000, 1,  23, 1),
 	_PLL_SET_CLKS(600000, 1,  25, 1),
+	_PLL_SET_CLKS(742500, 8,  495, 2),
 	_PLL_SET_CLKS(798000, 4,  133, 1),
+	_PLL_SET_CLKS(1188000,2,  99,	1),
 	_PLL_SET_CLKS(     0, 4,  133, 1),
 };
 static struct _pll_data cpll_data=SET_PLL_DATA(CPLL_ID,(void *)cpll_clks);
 static struct clk codec_pll_clk = {
 	.name		= "codec_pll",
 	.parent		= &xin24m,
-	//.mode		= pll_clk_mode,
+	.mode		= pll_clk_mode,
 	.recalc		= plls_clk_recalc,
 	.set_rate	= cpll_clk_set_rate,
 	.pll= &cpll_data,
@@ -1057,7 +1097,8 @@ static struct clk codec_pll_clk = {
 static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(148500,	4,	99,	4),
 	_PLL_SET_CLKS(297000,	2,	99,	4),
-	_PLL_SET_CLKS(1188000,	1,	99,	2),
+	_PLL_SET_CLKS(300000,	1,	25,	2),
+	_PLL_SET_CLKS(1188000,	2,	99,	1),
 	_PLL_SET_CLKS(0,	0,	 0,	0),
 };
 static struct _pll_data gpll_data=SET_PLL_DATA(GPLL_ID,(void *)gpll_clks);
@@ -1089,7 +1130,7 @@ static int arm_core_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	int ret;
 	//set arm pll div 1
-	set_cru_bits_w_msk(0,c->div_mask,c->div_shift,c->clksel_con);
+	//set_cru_bits_w_msk(0,c->div_mask,c->div_shift,c->clksel_con);
 	
 	ret = clk_set_rate_nolock(c->parent, rate);
 	if (ret) {
@@ -1110,14 +1151,93 @@ static long core_clk_round_rate(struct clk *clk, unsigned long rate)
 	return clk_round_rate_nolock(clk->parent,rate)/div;
 }
 
-/*
+static int core_clksel_set_parent(struct clk *clk, struct clk *new_prt)
+{
+
+	u32 temp_div;
+	struct clk *old_prt;
+
+	if(clk->parent==new_prt)
+		return 0;
+	if (unlikely(!clk->parents))
+		return -EINVAL;
+	CRU_PRINTK_DBG("%s,reparent %s\n",clk->name,new_prt->name);
+	//arm
+	old_prt=clk->parent;
+
+	if(clk->parents[0]==new_prt)
+	{
+		new_prt->set_rate(new_prt,300*MHZ);
+		set_cru_bits_w_msk(0,clk->div_mask,clk->div_shift,clk->clksel_con);		
+	}
+	else if(clk->parents[1]==new_prt)
+	{
+	
+		if(new_prt->rate>old_prt->rate)	
+		{
+			temp_div=clk_get_freediv(old_prt->rate,new_prt->rate,clk->div_max);
+			set_cru_bits_w_msk(temp_div-1,clk->div_mask,clk->div_shift,clk->clksel_con);	
+		}
+		set_cru_bits_w_msk(1,clk->src_mask,clk->src_shift,clk->clksel_con);
+		new_prt->set_rate(new_prt,300*MHZ);
+	}
+	else
+		return -1;
+
+	
+	return 0;
+
+}
+
+static int core_gpll_clk_set_rate(struct clk *c, unsigned long rate)
+{
+	unsigned long flags;
+	u32 pll_id=APLL_ID;
+	u32 temp_div;
+	u32 old_aclk_div=0,new_aclk_div;
+	struct arm_clks_div_set *temp_clk_div;
+	unsigned long arm_gpll_rate, arm_gpll_lpj;
+	temp_div=clk_get_freediv(rate,c->parent->rate,c->div_max);
+	arm_gpll_rate=c->parent->rate/temp_div;
+
+	temp_clk_div=arm_clks_get_div(arm_gpll_rate/MHZ);
+	if(!temp_clk_div)
+		temp_clk_div=&arm_clk_div_tlb[4];
+
+	old_aclk_div=GET_CORE_ACLK_VAL(cru_readl(CRU_CLKSELS_CON(1))&CORE_ACLK_MSK);
+	new_aclk_div=GET_CORE_ACLK_VAL(temp_clk_div->clksel1&CORE_ACLK_MSK);
+	if(c->rate>=rate)	
+	{
+		arm_gpll_lpj = lpj_gpll / temp_div;
+		set_cru_bits_w_msk(temp_div-1,c->div_mask,c->div_shift,c->clksel_con);	
+	}
+
+	cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
+	cru_writel((temp_clk_div->clksel0)|CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK, 
+								CRU_CLKSELS_CON(0));
+	if((c->rate<rate))
+	{
+		arm_gpll_lpj = lpj_gpll / temp_div;
+		set_cru_bits_w_msk(temp_div-1,c->div_mask,c->div_shift,c->clksel_con);	
+	}
+	return 0;
+}
+static unsigned long arm_core_gpll_clk_get_rate(struct clk *c)
+{
+	return c->parent->rate;
+}
+
 static struct clk clk_cpu_gpll_path = {
-	.name	=  "core_gpll_path",
+	.name	=  "cpu_gpll_path",
 	.parent	=  &general_pll_clk,
+	.recalc	=  arm_core_gpll_clk_get_rate,
+	.set_rate = core_gpll_clk_set_rate,
+	CRU_DIV_SET(0x1f,0,32),
 	CRU_GATE_MODE_SET(gate_mode,CLK_GATE_CPU_GPLL_PATH),
 };
-*/
-//static struct clk *clk_cpu_parents[2] = {&arm_pll_clk,&clk_cpu_gpll_path};
+
+
+static struct clk *clk_cpu_parents[2] = {&arm_pll_clk,&clk_cpu_gpll_path};
 
 static struct clk clk_cpu = {
 	.name	=  "cpu",
@@ -1125,10 +1245,11 @@ static struct clk clk_cpu = {
 	.set_rate =	arm_core_clk_set_rate,
 	.recalc	=  arm_core_clk_get_rate,
 	.round_rate	= core_clk_round_rate,
+	.set_parent = core_clksel_set_parent,
 	.clksel_con	= CRU_CLKSELS_CON(0),
-	//CRU_DIV_SET(0x1f,0,32),
-	//CRU_SRC_SET(1,8),
-	//CRU_PARENTS_SET(clk_cpu_parents),
+	CRU_DIV_SET(0x1f,0,32),
+	CRU_SRC_SET(1,8),
+	CRU_PARENTS_SET(clk_cpu_parents),
 };
 static unsigned long aclk_cpu_recalc(struct clk *clk)
 {
@@ -2561,6 +2682,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "ddr", &clk_ddr),
 	//CLK(NULL, "core_gpll_path", &clk_cpu_gpll_path),
 	CLK(NULL, "cpu", &clk_cpu),
+	CLK(NULL, "arm_gpll", &clk_cpu_gpll_path),
 	CLK("smp_twd", NULL, &core_periph),
 	CLK(NULL, "aclk_cpu", &aclk_cpu),
 	CLK(NULL, "hclk_cpu", &hclk_cpu),
@@ -3095,35 +3217,48 @@ static void periph_clk_set_init(void)
 void rk30_clock_common_i2s_init(void)
 {
 	struct clk *max_clk,*min_clk;
-
-	if(general_pll_clk.rate>=codec_pll_clk.rate)
-	{
-		max_clk=&general_pll_clk;
-		min_clk=&codec_pll_clk;
-	}else
-	{
-		max_clk=&codec_pll_clk;
-		min_clk=&general_pll_clk;
-	}
-	
+	unsigned long i2s_rate;
+	//20 times
 	if(rk30_clock_flags&CLK_FLG_MAX_I2S_49152KHZ)
 	{
-		clk_set_parent_nolock(&clk_i2s_pll, max_clk);
-		
+		i2s_rate=49152000;	
 	}else if(rk30_clock_flags&CLK_FLG_MAX_I2S_24576KHZ)
 	{
-	
-		clk_set_parent_nolock(&clk_i2s_pll, max_clk);
+		i2s_rate=24576000;
 	}
 	else if(rk30_clock_flags&CLK_FLG_MAX_I2S_22579_2KHZ)
 	{
-		clk_set_parent_nolock(&clk_i2s_pll, max_clk);
+		i2s_rate=22579000;
 	}
 	else if(rk30_clock_flags&CLK_FLG_MAX_I2S_12288KHZ)
 	{
-		clk_set_parent_nolock(&clk_i2s_pll, &general_pll_clk);
-		CRU_PRINTK_DBG("i2s max rate is 12288KHZ\n");
+		i2s_rate=12288000;
 	}
+	else
+	{
+		i2s_rate=49152000;	
+	}	
+
+	if(((i2s_rate*20)<=general_pll_clk.rate)||!(general_pll_clk.rate%i2s_rate))
+	{
+		clk_set_parent_nolock(&clk_i2s_pll, &general_pll_clk);
+	}
+	else if(((i2s_rate*20)<=codec_pll_clk.rate)||!(codec_pll_clk.rate%i2s_rate))
+	{
+		clk_set_parent_nolock(&clk_i2s_pll, &codec_pll_clk);
+	}
+	else
+	{
+		if(general_pll_clk.rate>codec_pll_clk.rate)	
+			clk_set_parent_nolock(&clk_i2s_pll, &general_pll_clk);
+		else
+			clk_set_parent_nolock(&clk_i2s_pll, &codec_pll_clk);	
+	}
+		
+
+	
+
+	
 
 }
 static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long cpll_rate)
@@ -3151,10 +3286,14 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 	#else
 	clk_set_parent_nolock(&clk_uart_pll, &general_pll_clk);
 	#endif
-	
 	//mac	
-	clk_set_parent_nolock(&clk_mac_pll_div, &ddr_pll_clk);
-	
+	if(!(gpll_rate%(50*MHZ)))
+		clk_set_parent_nolock(&clk_mac_pll_div, &general_pll_clk);
+	else if(!(ddr_pll_clk.rate%(50*MHZ)))
+		clk_set_parent_nolock(&clk_mac_pll_div, &ddr_pll_clk);
+	else
+		CRU_PRINTK_ERR("mac can't get 50mhz\n");
+
 	//hsadc
 	//auto pll sel
 	//clk_set_parent_nolock(&clk_hsadc_pll_div, &general_pll_clk);
