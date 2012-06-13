@@ -1348,6 +1348,8 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 	DEBUGPRN("inside get_fix");
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
 
+	strncpy(fix->id, "XGI", sizeof(fix->id) - 1);
+
 	fix->smem_start = xgifb_info->video_base;
 
 	fix->smem_len = xgifb_info->video_size;
@@ -2229,11 +2231,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		}
 
 	}
-
-	strncpy(fb_info->fix.id, "XGI", sizeof(fb_info->fix.id) - 1);
-	fb_info->fix.type	= FB_TYPE_PACKED_PIXELS;
-	fb_info->fix.xpanstep	= 1;
-	fb_info->fix.ypanstep	= 1;
 
 	fb_info->flags = FBINFO_FLAG_DEFAULT;
 	fb_info->screen_base = xgifb_info->video_vbase;
