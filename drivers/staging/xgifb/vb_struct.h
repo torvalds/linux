@@ -126,7 +126,6 @@ struct XGI330_LCDCapStruct {
 	unsigned char	LCD_ID;
 	unsigned short	LCD_Capability;
 	unsigned char	LCD_SetFlag;
-	unsigned char	LCD_DelayCompensation;
 	unsigned char	LCD_HSyncWidth;
 	unsigned char	LCD_VSyncWidth;
 	unsigned char	LCD_VCLK;
@@ -262,8 +261,6 @@ struct vb_device_info {
 	struct SiS_MCLKData  *MCLKData;
 	struct XGI_ECLKDataStruct  *ECLKData;
 
-	unsigned char   *XGI_TVDelayList;
-	unsigned char   *XGI_TVDelayList2;
 	unsigned char   *NTSCTiming;
 	unsigned char   *PALTiming;
 	unsigned char   *HiTVExtTiming;

@@ -105,9 +105,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	else
 		pVBInfo->LCDCapList = XGI_LCDCapList;
 
-	pVBInfo->XGI_TVDelayList = XGI301TVDelayList;
-	pVBInfo->XGI_TVDelayList2 = XGI301TVDelayList2;
-
 	pVBInfo->pXGINew_I2CDefinition = &XG40_I2CDefinition;
 
 	if (ChipType >= XG20)
@@ -5712,32 +5709,19 @@ static void XGI_GetTVPtrIndex2(unsigned short *tempbx, unsigned char *tempcl,
 
 static void XGI_SetDelayComp(struct vb_device_info *pVBInfo)
 {
-	unsigned short index;
-
 	unsigned char tempah, tempbl, tempbh;
 
 	if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
 			| VB_SIS302LV | VB_XGI301C)) {
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA
 				| SetCRT2ToTV | SetCRT2ToRAMDAC)) {
-			tempbl = 0;
 			tempbh = 0;
-
-			index = XGI_GetTVPtrIndex(pVBInfo); /* Get TV Delay */
-			tempbl = pVBInfo->XGI_TVDelayList[index];
-
-			if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B
-					| VB_SIS301LV | VB_SIS302LV
-					| VB_XGI301C))
-				tempbl = pVBInfo->XGI_TVDelayList2[index];
+			tempbl = XGI301TVDelay;
 
 			if (pVBInfo->VBInfo & SetCRT2ToDualEdge)
 				tempbl = tempbl >> 4;
 			if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-				/* Get LCD Delay */
-				index = XGI_GetLCDCapPtr(pVBInfo);
-				tempbh = pVBInfo->LCDCapList[index].
-						LCD_DelayCompensation;
+				tempbh = XGI301LCDDelay;
 
 				if (!(pVBInfo->VBInfo & XGI_SetCRT2ToLCDA))
 					tempbl = tempbh;
@@ -5763,10 +5747,7 @@ static void XGI_SetDelayComp(struct vb_device_info *pVBInfo)
 		tempbl = 0;
 		tempbh = 0;
 		if (pVBInfo->VBInfo & SetCRT2ToLCD) {
-			/* / Get LCD Delay */
-			tempah = pVBInfo->LCDCapList[
-					XGI_GetLCDCapPtr(pVBInfo)].
-						LCD_DelayCompensation;
+			tempah = XGI301LCDDelay;
 			tempah &= 0x0f;
 			tempah = tempah << 4;
 			xgifb_reg_and_or(pVBInfo->Part1Port, 0x2D, 0x0f,
