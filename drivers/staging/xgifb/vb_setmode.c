@@ -7,6 +7,7 @@
 
 
 #define  IndexMask 0xff
+#define TVCLKBASE_315_25 (TVCLKBASE_315 + 25)
 
 static const unsigned short XGINew_VGA_DAC[] = {
 	0x00, 0x10, 0x04, 0x14, 0x01, 0x11, 0x09, 0x15,
@@ -1027,20 +1028,16 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 				VCLKIndex = VCLK65_315 + 2; /* LCDXlat1VCLK */
 		} else if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
 			if (pVBInfo->SetFlag & RPLLDIV2XO) {
-				VCLKIndex = TVCLKBASE_315 + HiTVVCLKDIV2;
-				VCLKIndex += 25;
+				VCLKIndex = TVCLKBASE_315_25 + HiTVVCLKDIV2;
 			} else {
-				VCLKIndex = TVCLKBASE_315 + HiTVVCLK;
-				VCLKIndex += 25;
+				VCLKIndex = TVCLKBASE_315_25 + HiTVVCLK;
 			}
 
 			if (pVBInfo->SetFlag & TVSimuMode) {
 				if (modeflag & Charx8Dot) {
-					VCLKIndex = TVCLKBASE_315 + HiTVSimuVCLK;
-					VCLKIndex += 25;
+					VCLKIndex = TVCLKBASE_315_25 + HiTVSimuVCLK;
 				} else {
-					VCLKIndex = TVCLKBASE_315 + HiTVTextVCLK;
-					VCLKIndex += 25;
+					VCLKIndex = TVCLKBASE_315_25 + HiTVTextVCLK;
 				}
 			}
 
@@ -1058,11 +1055,9 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 			}
 		} else if (pVBInfo->VBInfo & SetCRT2ToTV) {
 			if (pVBInfo->SetFlag & RPLLDIV2XO) {
-				VCLKIndex = TVCLKBASE_315 + TVVCLKDIV2;
-				VCLKIndex += 25;
+				VCLKIndex = TVCLKBASE_315_25 + TVVCLKDIV2;
 			} else {
-				VCLKIndex = TVCLKBASE_315 + TVVCLK;
-				VCLKIndex += 25;
+				VCLKIndex = TVCLKBASE_315_25 + TVVCLK;
 			}
 		} else { /* for CRT2 */
 			/* di+Ext_CRTVCLK */
@@ -1071,16 +1066,11 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 			VCLKIndex &= IndexMask;
 		}
 	} else { /* LVDS */
-		VCLKIndex = CRT2Index;
-		VCLKIndex = VCLKIndex >> 6;
 		if ((pVBInfo->LCDResInfo == Panel_800x600) ||
 		    (pVBInfo->LCDResInfo == Panel_320x480))
 			VCLKIndex = VCLK40; /* LVDSXlat1VCLK */
-		else if ((pVBInfo->LCDResInfo == Panel_1024x768) ||
-			 (pVBInfo->LCDResInfo == Panel_1024x768x75))
-			VCLKIndex = VCLK65_315 + 2; /* LVDSXlat2VCLK */
 		else
-			VCLKIndex = VCLK65_315 + 2; /* LVDSXlat3VCLK */
+			VCLKIndex = VCLK65_315 + 2; /* LVDSXlat2VCLK, LVDSXlat3VCLK  */
 	}
 
 	return VCLKIndex;
