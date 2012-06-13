@@ -358,6 +358,9 @@ static int do_switch(struct drm_i915_gem_object *from_obj,
 	if (ret)
 		return ret;
 
+	if (!to->obj->has_global_gtt_mapping)
+		i915_gem_gtt_bind_object(to->obj, to->obj->cache_level);
+
 	if (!to->is_initialized || is_default_context(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
 	else if (WARN_ON_ONCE(from_obj == to->obj)) /* not yet expected */
