@@ -272,27 +272,10 @@ static void __init lpc3250_machine_init(void)
 
 	lpc32xx_serial_init();
 
-	/*
-	 * AMBA peripheral clocks need to be enabled prior to AMBA device
-	 * detection or a data fault will occur, so enable the clocks
-	 * here.
-	 */
 	tmp = __raw_readl(LPC32XX_CLKPWR_MS_CTRL);
 	tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_EN |
 		LPC32XX_CLKPWR_MSCARD_MSDIO_PU_EN;
 	__raw_writel(tmp, LPC32XX_CLKPWR_MS_CTRL);
-
-	tmp = __raw_readl(LPC32XX_CLKPWR_LCDCLK_CTRL);
-	__raw_writel((tmp | LPC32XX_CLKPWR_LCDCTRL_CLK_EN),
-		LPC32XX_CLKPWR_LCDCLK_CTRL);
-
-	tmp = __raw_readl(LPC32XX_CLKPWR_SSP_CLK_CTRL);
-	__raw_writel((tmp | LPC32XX_CLKPWR_SSPCTRL_SSPCLK0_EN),
-		LPC32XX_CLKPWR_SSP_CLK_CTRL);
-
-	tmp = __raw_readl(LPC32XX_CLKPWR_DMA_CLK_CTRL);
-	__raw_writel((tmp | LPC32XX_CLKPWR_DMACLKCTRL_CLK_EN),
-		     LPC32XX_CLKPWR_DMA_CLK_CTRL);
 
 	/* Test clock needed for UDA1380 initial init */
 	__raw_writel(LPC32XX_CLKPWR_TESTCLK2_SEL_MOSC |
