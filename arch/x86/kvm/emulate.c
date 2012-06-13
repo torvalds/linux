@@ -3033,6 +3033,15 @@ static int em_lldt(struct x86_emulate_ctxt *ctxt)
 	return load_segment_descriptor(ctxt, sel, VCPU_SREG_LDTR);
 }
 
+static int em_ltr(struct x86_emulate_ctxt *ctxt)
+{
+	u16 sel = ctxt->src.val;
+
+	/* Disable writeback. */
+	ctxt->dst.type = OP_NONE;
+	return load_segment_descriptor(ctxt, sel, VCPU_SREG_TR);
+}
+
 static int em_invlpg(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
@@ -3579,7 +3588,7 @@ static struct opcode group6[] = {
 	DI(Prot,	sldt),
 	DI(Prot,	str),
 	II(Prot | Priv | SrcMem16, em_lldt, lldt),
-	DI(Prot | Priv,	ltr),
+	II(Prot | Priv | SrcMem16, em_ltr, ltr),
 	N, N, N, N,
 };
 
