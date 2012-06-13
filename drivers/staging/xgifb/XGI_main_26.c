@@ -1350,9 +1350,16 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 
 	strncpy(fix->id, "XGI", sizeof(fix->id) - 1);
 
-	fix->smem_start = xgifb_info->video_base;
+	/* if register_framebuffer has been called, we must lock */
+	if (atomic_read(&info->count))
+		mutex_lock(&info->mm_lock);
 
+	fix->smem_start = xgifb_info->video_base;
 	fix->smem_len = xgifb_info->video_size;
+
+	/* if register_framebuffer has been called, we can unlock */
+	if (atomic_read(&info->count))
+		mutex_unlock(&info->mm_lock);
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	fix->type_aux = 0;
