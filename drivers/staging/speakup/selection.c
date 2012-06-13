@@ -68,7 +68,7 @@ int speakup_set_selection(struct tty_struct *tty)
 	if (spk_sel_cons != vc_cons[fg_console].d) {
 		speakup_clear_selection();
 		spk_sel_cons = vc_cons[fg_console].d;
-		printk(KERN_WARNING
+		dev_warn(tty->dev,
 			"Selection: mark console not the same as cut\n");
 		return -EINVAL;
 	}
@@ -95,7 +95,7 @@ int speakup_set_selection(struct tty_struct *tty)
 	/* Allocate a new buffer before freeing the old one ... */
 	bp = kmalloc((sel_end-sel_start)/2+1, GFP_ATOMIC);
 	if (!bp) {
-		printk(KERN_WARNING "selection: kmalloc() failed\n");
+		dev_warn(tty->dev, "selection: kmalloc() failed\n");
 		speakup_clear_selection();
 		return -ENOMEM;
 	}
@@ -141,7 +141,7 @@ int speakup_paste_selection(struct tty_struct *tty)
 		count = sel_buffer_lth - pasted;
 		count = min_t(int, count, tty->receive_room);
 		tty->ldisc->ops->receive_buf(tty, sel_buffer + pasted,
-			0, count);
+			NULL, count);
 		pasted += count;
 	}
 	remove_wait_queue(&vc->paste_wait, &wait);
