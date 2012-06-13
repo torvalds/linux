@@ -296,6 +296,7 @@ static void iwlagn_free_dma_ptr(struct iwl_trans *trans,
 static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 {
 	struct iwl_tx_queue *txq = (void *)data;
+	struct iwl_queue *q = &txq->q;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
 	u32 scd_sram_addr = trans_pcie->scd_base_addr +
@@ -344,6 +345,14 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 			iwl_read_prph(trans,
 				      SCD_QUEUE_RDPTR(i)) & (txq->q.n_bd - 1),
 			iwl_read_prph(trans, SCD_QUEUE_WRPTR(i)));
+	}
+
+	for (i = q->read_ptr; i != q->write_ptr;
+	     i = iwl_queue_inc_wrap(i, q->n_bd)) {
+		struct iwl_tx_cmd *tx_cmd =
+			(struct iwl_tx_cmd *)txq->entries[i].cmd->payload;
+		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
+			get_unaligned_le32(&tx_cmd->scratch));
 	}
 
 	iwl_op_mode_nic_error(trans->op_mode);
