@@ -383,8 +383,7 @@ static int dev_8255_attach(struct comedi_device *dev,
 			break;
 	}
 	if (i == 0) {
-		printk(KERN_WARNING
-		       "comedi%d: 8255: no devices specified\n", dev->minor);
+		dev_warn(dev->class_dev, "no devices specified\n");
 		return -EINVAL;
 	}
 
@@ -392,23 +391,20 @@ static int dev_8255_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	printk(KERN_INFO "comedi%d: 8255:", dev->minor);
-
 	for (i = 0; i < dev->n_subdevices; i++) {
 		iobase = it->options[i];
 
-		printk(" 0x%04lx", iobase);
 		if (!request_region(iobase, _8255_SIZE, "8255")) {
-			printk(" (I/O port conflict)");
+			dev_warn(dev->class_dev,
+				"0x%04lx (I/O port conflict)\n", iobase);
 
 			dev->subdevices[i].type = COMEDI_SUBD_UNUSED;
 		} else {
 			subdev_8255_init(dev, dev->subdevices + i, NULL,
 					 iobase);
+			dev_info(dev->class_dev, "0x%04lx\n", iobase);
 		}
 	}
-
-	printk("\n");
 
 	return 0;
 }
