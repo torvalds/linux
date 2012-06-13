@@ -718,7 +718,8 @@ static struct clk clk_i2s1 = {
 	.parent		= &clk_hclk,
 	.enable		= local_onoff_enable,
 	.enable_reg	= LPC32XX_CLKPWR_I2S_CLK_CTRL,
-	.enable_mask	= LPC32XX_CLKPWR_I2SCTRL_I2SCLK1_EN,
+	.enable_mask	= LPC32XX_CLKPWR_I2SCTRL_I2SCLK1_EN |
+			  LPC32XX_CLKPWR_I2SCTRL_I2S1_USE_DMA,
 	.get_rate	= local_return_parent_rate,
 };
 
