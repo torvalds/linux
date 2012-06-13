@@ -17,8 +17,6 @@ KERNEL_VERSION="3.0"
 LICHEE_KDIR=`pwd`
 LICHEE_MOD_DIR=${LICHEE_KDIR}/output/lib/modules/${KERNEL_VERSION}
 
-CONFIG_CHIP_ID=1125
-
 update_kern_ver()
 {
 	if [ -r include/generated/utsrelease.h ]; then
@@ -100,19 +98,19 @@ build_modules()
 	update_kern_ver
 
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
-		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
+		install
 
 	(
 	export LANG=en_US.UTF-8
 	unset LANGUAGE
 	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
-		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
+		install
 	)
 
 	#build usi-bmc4329 sdio wifi module
 	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
 			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
+			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
 			INSTALL_DIR=${LICHEE_MOD_DIR} dhd-cdc-sdmmc-gpl
 }
 
@@ -130,7 +128,7 @@ clean_kernel()
 	#build usi-bmc4329 sdio wifi module
 	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
 			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
+			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
 			INSTALL_DIR=${LICHEE_MOD_DIR} clean
 }
 
