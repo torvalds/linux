@@ -142,19 +142,19 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
 		struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-		ehci->transceiver = usb_get_transceiver();
-		dev_dbg(&pdev->dev, "hcd=0x%p  ehci=0x%p, transceiver=0x%p\n",
-			hcd, ehci, ehci->transceiver);
+		hcd->phy = usb_get_transceiver();
+		dev_dbg(&pdev->dev, "hcd=0x%p  ehci=0x%p, phy=0x%p\n",
+			hcd, ehci, hcd->phy);
 
-		if (ehci->transceiver) {
-			retval = otg_set_host(ehci->transceiver->otg,
+		if (hcd->phy) {
+			retval = otg_set_host(hcd->phy->otg,
 					      &ehci_to_hcd(ehci)->self);
 			if (retval) {
-				usb_put_transceiver(ehci->transceiver);
+				usb_put_transceiver(hcd->phy);
 				goto err4;
 			}
 		} else {
-			dev_err(&pdev->dev, "can't find transceiver\n");
+			dev_err(&pdev->dev, "can't find phy\n");
 			retval = -ENODEV;
 			goto err4;
 		}
@@ -190,11 +190,10 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 			       struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-	if (ehci->transceiver) {
-		otg_set_host(ehci->transceiver->otg, NULL);
-		usb_put_transceiver(ehci->transceiver);
+	if (hcd->phy) {
+		otg_set_host(hcd->phy->otg, NULL);
+		usb_put_transceiver(hcd->phy);
 	}
 
 	usb_remove_hcd(hcd);

@@ -372,11 +372,6 @@ struct ohci_hcd {
 	struct ed		*ed_controltail;	/* last in ctrl list */
 	struct ed		*periodic [NUM_INTS];	/* shadow int_table */
 
-	/*
-	 * OTG controllers and transceivers need software interaction;
-	 * other external transceivers should be software-transparent
-	 */
-	struct usb_phy	*transceiver;
 	void (*start_hnp)(struct ohci_hcd *ohci);
 
 	/*
