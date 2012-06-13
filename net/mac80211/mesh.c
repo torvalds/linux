@@ -443,7 +443,7 @@ static void ieee80211_mesh_path_root_timer(unsigned long data)
 
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
 {
-	if (ifmsh->mshcfg.dot11MeshHWMPRootMode)
+	if (ifmsh->mshcfg.dot11MeshHWMPRootMode > IEEE80211_ROOTMODE_ROOT)
 		set_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags);
 	else {
 		clear_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags);
