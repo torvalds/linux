@@ -307,8 +307,8 @@ static int bfin_twi_do_master_xfer(struct i2c_adapter *adap,
 	if (!(read_CONTROL(iface) & TWI_ENA))
 		return -ENXIO;
 
-	while (read_MASTER_STAT(iface) & BUSBUSY)
-		yield();
+	if (read_MASTER_STAT(iface) & BUSBUSY)
+		return -EAGAIN;
 
 	iface->pmsg = msgs;
 	iface->msg_num = num;
@@ -407,8 +407,8 @@ int bfin_twi_do_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	if (!(read_CONTROL(iface) & TWI_ENA))
 		return -ENXIO;
 
-	while (read_MASTER_STAT(iface) & BUSBUSY)
-		yield();
+	if (read_MASTER_STAT(iface) & BUSBUSY)
+		return -EAGAIN;
 
 	iface->writeNum = 0;
 	iface->readNum = 0;
