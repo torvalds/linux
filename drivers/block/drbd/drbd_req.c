@@ -472,11 +472,16 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
+		if (req->rq_state & RQ_LOCAL_ABORTED) {
+			_req_may_be_done(req, m);
+			break;
+		}
 
 		__drbd_chk_io_error(mdev, false);
 
 	goto_queue_for_net_read:
+
+		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
 
 		/* no point in retrying if there is no good remote data,
 		 * or we have no connection. */
@@ -765,6 +770,40 @@ static int drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int s
 	return 0 == drbd_bm_count_bits(mdev, sbnr, ebnr);
 }
 
+static void maybe_pull_ahead(struct drbd_conf *mdev)
+{
+	int congested = 0;
+
+	/* If I don't even have good local storage, we can not reasonably try
+	 * to pull ahead of the peer. We also need the local reference to make
+	 * sure mdev->act_log is there.
+	 * Note: caller has to make sure that net_conf is there.
+	 */
+	if (!get_ldev_if_state(mdev, D_UP_TO_DATE))
+		return;
+
+	if (mdev->net_conf->cong_fill &&
+	    atomic_read(&mdev->ap_in_flight) >= mdev->net_conf->cong_fill) {
+		dev_info(DEV, "Congestion-fill threshold reached\n");
+		congested = 1;
+	}
+
+	if (mdev->act_log->used >= mdev->net_conf->cong_extents) {
+		dev_info(DEV, "Congestion-extents threshold reached\n");
+		congested = 1;
+	}
+
+	if (congested) {
+		queue_barrier(mdev); /* last barrier, after mirrored writes */
+
+		if (mdev->net_conf->on_congestion == OC_PULL_AHEAD)
+			_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
+		else  /*mdev->net_conf->on_congestion == OC_DISCONNECT */
+			_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
+	}
+	put_ldev(mdev);
+}
+
 static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
 {
 	const int rw = bio_rw(bio);
@@ -972,29 +1011,8 @@ allocate_barrier:
 		_req_mod(req, queue_for_send_oos);
 
 	if (remote &&
-	    mdev->net_conf->on_congestion != OC_BLOCK && mdev->agreed_pro_version >= 96) {
-		int congested = 0;
-
-		if (mdev->net_conf->cong_fill &&
-		    atomic_read(&mdev->ap_in_flight) >= mdev->net_conf->cong_fill) {
-			dev_info(DEV, "Congestion-fill threshold reached\n");
-			congested = 1;
-		}
-
-		if (mdev->act_log->used >= mdev->net_conf->cong_extents) {
-			dev_info(DEV, "Congestion-extents threshold reached\n");
-			congested = 1;
-		}
-
-		if (congested) {
-			queue_barrier(mdev); /* last barrier, after mirrored writes */
-
-			if (mdev->net_conf->on_congestion == OC_PULL_AHEAD)
-				_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
-			else  /*mdev->net_conf->on_congestion == OC_DISCONNECT */
-				_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
-		}
-	}
+	    mdev->net_conf->on_congestion != OC_BLOCK && mdev->agreed_pro_version >= 96)
+		maybe_pull_ahead(mdev);
 
 	spin_unlock_irq(&mdev->req_lock);
 	kfree(b); /* if someone else has beaten us to it... */
