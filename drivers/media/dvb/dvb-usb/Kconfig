@@ -173,7 +173,7 @@ config DVB_USB_GL861
 
 config DVB_USB_AU6610
 	tristate "Alcor Micro AU6610 USB2.0 support"
-	depends on DVB_USB
+	depends on DVB_USB_V2
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMISE
 	help

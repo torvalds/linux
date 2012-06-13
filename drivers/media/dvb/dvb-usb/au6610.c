@@ -22,10 +22,6 @@
 #include "zl10353.h"
 #include "qt1010.h"
 
-/* debug */
-static int dvb_usb_au6610_debug;
-module_param_named(debug, dvb_usb_au6610_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
@@ -52,7 +48,7 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 		index += wbuf[1];
 		break;
 	default:
-		warn("wlen = %x, aborting.", wlen);
+		pr_err("%s: wlen = %d, aborting\n", KBUILD_MODNAME, wlen);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -140,9 +136,9 @@ static struct zl10353_config au6610_zl10353_config = {
 
 static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	adap->fe_adap[0].fe = dvb_attach(zl10353_attach, &au6610_zl10353_config,
+	adap->fe[0] = dvb_attach(zl10353_attach, &au6610_zl10353_config,
 		&adap->dev->i2c_adap);
-	if (adap->fe_adap[0].fe == NULL)
+	if (adap->fe[0] == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -155,60 +151,30 @@ static struct qt1010_config au6610_qt1010_config = {
 static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	return dvb_attach(qt1010_attach,
-			  adap->fe_adap[0].fe, &adap->dev->i2c_adap,
+			  adap->fe[0], &adap->dev->i2c_adap,
 			  &au6610_qt1010_config) == NULL ? -ENODEV : 0;
 }
 
-/* DVB USB Driver stuff */
-static struct dvb_usb_device_properties au6610_properties;
-
-static int au6610_probe(struct usb_interface *intf,
-			const struct usb_device_id *id)
+static int au6610_init(struct dvb_usb_device *d)
 {
-	struct dvb_usb_device *d;
-	struct usb_host_interface *alt;
-	int ret;
-
-	if (intf->num_altsetting < AU6610_ALTSETTING_COUNT)
-		return -ENODEV;
-
-	ret = dvb_usb_device_init(intf, &au6610_properties, THIS_MODULE, &d,
-				  adapter_nr);
-	if (ret == 0) {
-		alt = usb_altnum_to_altsetting(intf, AU6610_ALTSETTING);
-
-		if (alt == NULL) {
-			deb_info("%s: no alt found!\n", __func__);
-			return -ENODEV;
-		}
-		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
-					alt->desc.bAlternateSetting);
-	}
-
-	return ret;
+	/* TODO: this functionality belongs likely to the streaming control */
+	/* bInterfaceNumber 0, bAlternateSetting 5 */
+	return usb_set_interface(d->udev, 0, 5);
 }
 
-static struct usb_device_id au6610_table [] = {
-	{ USB_DEVICE(USB_VID_ALCOR_MICRO, USB_PID_SIGMATEK_DVB_110) },
-	{ }		/* Terminating entry */
-};
-MODULE_DEVICE_TABLE(usb, au6610_table);
+static struct dvb_usb_device_properties au6610_props = {
+	.driver_name = KBUILD_MODNAME,
+	.owner = THIS_MODULE,
+	.adapter_nr = adapter_nr,
 
-static struct dvb_usb_device_properties au6610_properties = {
-	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
-
-	.usb_ctrl = DEVICE_SPECIFIC,
-
-	.size_of_priv = 0,
+	.i2c_algo = &au6610_i2c_algo,
+	.frontend_attach = au6610_zl10353_frontend_attach,
+	.tuner_attach = au6610_qt1010_tuner_attach,
+	.init = au6610_init,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
-		.num_frontends = 1,
-		.fe = {{
-			.frontend_attach  = au6610_zl10353_frontend_attach,
-			.tuner_attach     = au6610_qt1010_tuner_attach,
-
 			.stream = {
 				.type = USB_ISOC,
 				.count = 5,
@@ -221,27 +187,26 @@ static struct dvb_usb_device_properties au6610_properties = {
 					}
 				}
 			},
-		}},
-		}
-	},
-
-	.i2c_algo = &au6610_i2c_algo,
-
-	.num_device_descs = 1,
-	.devices = {
-		{
-			.name = "Sigmatek DVB-110 DVB-T USB2.0",
-			.cold_ids = {NULL},
-			.warm_ids = {&au6610_table[0], NULL},
 		},
-	}
+	},
 };
 
+static const struct usb_device_id au6610_id_table[] = {
+	{ DVB_USB_DEVICE(USB_VID_ALCOR_MICRO, USB_PID_SIGMATEK_DVB_110,
+		&au6610_props, "Sigmatek DVB-110", NULL) },
+	{ }
+};
+MODULE_DEVICE_TABLE(usb, au6610_id_table);
+
 static struct usb_driver au6610_driver = {
-	.name       = "dvb_usb_au6610",
-	.probe      = au6610_probe,
-	.disconnect = dvb_usb_device_exit,
-	.id_table   = au6610_table,
+	.name = KBUILD_MODNAME,
+	.id_table = au6610_id_table,
+	.probe = dvb_usbv2_probe,
+	.disconnect = dvb_usbv2_disconnect,
+	.suspend = dvb_usbv2_suspend,
+	.resume = dvb_usbv2_resume,
+	.no_dynamic_id = 1,
+	.soft_unbind = 1,
 };
 
 module_usb_driver(au6610_driver);
