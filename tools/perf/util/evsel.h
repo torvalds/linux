@@ -95,11 +95,6 @@ const char *perf_evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
 				       [PERF_EVSEL__MAX_ALIASES];
 int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
 					    char *bf, size_t size);
-int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size);
-
-const char *__perf_evsel__hw_name(u64 config);
-const char *__perf_evsel__sw_name(u64 config);
-
 const char *perf_evsel__name(struct perf_evsel *evsel);
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);

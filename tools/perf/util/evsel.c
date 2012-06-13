@@ -78,7 +78,7 @@ static const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
 	"ref-cycles",
 };
 
-const char *__perf_evsel__hw_name(u64 config)
+static const char *__perf_evsel__hw_name(u64 config)
 {
 	if (config < PERF_COUNT_HW_MAX && perf_evsel__hw_names[config])
 		return perf_evsel__hw_names[config];
@@ -140,7 +140,7 @@ static const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
 	"emulation-faults",
 };
 
-const char *__perf_evsel__sw_name(u64 config)
+static const char *__perf_evsel__sw_name(u64 config)
 {
 	if (config < PERF_COUNT_SW_MAX && perf_evsel__sw_names[config])
 		return perf_evsel__sw_names[config];
@@ -219,7 +219,7 @@ int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
 			 perf_evsel__hw_cache_op[op][1]);
 }
 
-int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size)
+static int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size)
 {
 	u8 op, result, type = (config >>  0) & 0xff;
 	const char *err = "unknown-ext-hardware-cache-type";
