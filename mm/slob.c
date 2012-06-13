@@ -97,7 +97,6 @@ typedef struct slob_block slob_t;
 static inline void free_slob_page(struct page *sp)
 {
 	reset_page_mapcount(sp);
-	sp->mapping = NULL;
 }
 
 /*
