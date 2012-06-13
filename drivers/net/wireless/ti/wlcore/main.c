@@ -4977,6 +4977,29 @@ static void wl1271_unregister_hw(struct wl1271 *wl)
 
 }
 
+static const struct ieee80211_iface_limit wlcore_iface_limits[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP) |
+			 BIT(NL80211_IFTYPE_P2P_GO) |
+			 BIT(NL80211_IFTYPE_P2P_CLIENT),
+	},
+};
+
+static const struct ieee80211_iface_combination
+wlcore_iface_combinations[] = {
+	{
+	  .num_different_channels = 1,
+	  .max_interfaces = 2,
+	  .limits = wlcore_iface_limits,
+	  .n_limits = ARRAY_SIZE(wlcore_iface_limits),
+	},
+};
+
 static int wl1271_init_ieee80211(struct wl1271 *wl)
 {
 	static const u32 cipher_suites[] = {
@@ -5069,6 +5092,11 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P;
+
+	/* allowed interface combinations */
+	wl->hw->wiphy->iface_combinations = wlcore_iface_combinations;
+	wl->hw->wiphy->n_iface_combinations =
+		ARRAY_SIZE(wlcore_iface_combinations);
 
 	SET_IEEE80211_DEV(wl->hw, wl->dev);
 
