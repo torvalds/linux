@@ -1154,13 +1154,34 @@ mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u32 interval = ifmsh->mshcfg.dot11MeshHWMPRannInterval;
-	u8 flags;
+	u8 flags, target_flags = 0;
 
 	flags = (ifmsh->mshcfg.dot11MeshGateAnnouncementProtocol)
 			? RANN_FLAG_IS_GATE : 0;
-	mesh_path_sel_frame_tx(MPATH_RANN, flags, sdata->vif.addr,
+
+	switch (ifmsh->mshcfg.dot11MeshHWMPRootMode) {
+	case IEEE80211_PROACTIVE_RANN:
+		mesh_path_sel_frame_tx(MPATH_RANN, flags, sdata->vif.addr,
 			       cpu_to_le32(++ifmsh->sn),
 			       0, NULL, 0, broadcast_addr,
-			       0, sdata->u.mesh.mshcfg.element_ttl,
+			       0, ifmsh->mshcfg.element_ttl,
 			       cpu_to_le32(interval), 0, 0, sdata);
+		break;
+	case IEEE80211_PROACTIVE_PREQ_WITH_PREP:
+		flags |= IEEE80211_PREQ_PROACTIVE_PREP_FLAG;
+	case IEEE80211_PROACTIVE_PREQ_NO_PREP:
+		interval = ifmsh->mshcfg.dot11MeshHWMPactivePathToRootTimeout;
+		target_flags |= IEEE80211_PREQ_TO_FLAG |
+				IEEE80211_PREQ_USN_FLAG;
+		mesh_path_sel_frame_tx(MPATH_PREQ, flags, sdata->vif.addr,
+				cpu_to_le32(++ifmsh->sn), target_flags,
+				(u8 *) broadcast_addr, 0, broadcast_addr,
+				0, ifmsh->mshcfg.element_ttl,
+				cpu_to_le32(interval),
+				0, cpu_to_le32(ifmsh->preq_id++), sdata);
+		break;
+	default:
+		mhwmp_dbg("Proactive mechanism not supported");
+		return;
+	}
 }
