@@ -81,12 +81,6 @@
 #define IRQ0_IRQ        evt2irq(0x600)
 #define IRQ1_IRQ        evt2irq(0x620)
 
-#define IRQ01_MODE      0xb1800000
-#define IRQ01_STS       0xb1800004
-#define IRQ01_MASK      0xb1800008
-
-/* Bits in IRQ01_* registers */
-
 #define SE7722_FPGA_IRQ_USB	0 /* IRQ0 */
 #define SE7722_FPGA_IRQ_SMC	1 /* IRQ0 */
 #define SE7722_FPGA_IRQ_MRSHPC0	2 /* IRQ1 */
@@ -95,8 +89,10 @@
 #define SE7722_FPGA_IRQ_MRSHPC3	5 /* IRQ1 */
 #define SE7722_FPGA_IRQ_NR	6
 
+struct irq_domain;
+
 /* arch/sh/boards/se/7722/irq.c */
-extern unsigned int se7722_fpga_irq[];
+extern struct irq_domain *se7722_irq_domain;
 
 void init_se7722_IRQ(void);
 
