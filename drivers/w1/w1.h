@@ -75,7 +75,6 @@ struct w1_slave
 	void			*family_data;
 	struct device		dev;
 	struct completion	released;
-	struct mutex		mutex;
 };
 
 typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
