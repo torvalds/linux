@@ -110,6 +110,10 @@ struct page {
 		};
 
 		struct list_head list;	/* slobs list of pages */
+		struct {		/* slab fields */
+			struct kmem_cache *slab_cache;
+			struct slab *slab_page;
+		};
 	};
 
 	/* Remainder is not double word aligned */

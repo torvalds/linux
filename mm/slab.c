@@ -496,25 +496,25 @@ static bool slab_max_order_set __initdata;
  */
 static inline void page_set_cache(struct page *page, struct kmem_cache *cache)
 {
-	page->lru.next = (struct list_head *)cache;
+	page->slab_cache = cache;
 }
 
 static inline struct kmem_cache *page_get_cache(struct page *page)
 {
 	page = compound_head(page);
 	BUG_ON(!PageSlab(page));
-	return (struct kmem_cache *)page->lru.next;
+	return page->slab_cache;
 }
 
 static inline void page_set_slab(struct page *page, struct slab *slab)
 {
-	page->lru.prev = (struct list_head *)slab;
+	page->slab_page = slab;
 }
 
 static inline struct slab *page_get_slab(struct page *page)
 {
 	BUG_ON(!PageSlab(page));
-	return (struct slab *)page->lru.prev;
+	return page->slab_page;
 }
 
 static inline struct kmem_cache *virt_to_cache(const void *obj)
