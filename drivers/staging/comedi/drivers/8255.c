@@ -135,26 +135,38 @@ static int subdev_8255_insn(struct comedi_device *dev,
 {
 	struct subdev_8255_private *spriv = s->private;
 	unsigned long iobase = spriv->iobase;
+	unsigned int mask;
+	unsigned int bits;
+	unsigned int v;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (insn->n != 2)
+		return -EINVAL;
 
-		if (data[0] & 0xff)
-			spriv->io(1, _8255_DATA, s->state & 0xff, iobase);
-		if (data[0] & 0xff00)
-			spriv->io(1, _8255_DATA + 1,
-				  (s->state >> 8) & 0xff, iobase);
-		if (data[0] & 0xff0000)
-			spriv->io(1, _8255_DATA + 2,
-				  (s->state >> 16) & 0xff, iobase);
+	mask = data[0];
+	bits = data[1];
+
+	if (mask) {
+		v = s->state;
+		v &= ~mask;
+		v |= (bits & mask);
+
+		if (mask & 0xff)
+			spriv->io(1, _8255_DATA, v & 0xff, iobase);
+		if (mask & 0xff00)
+			spriv->io(1, _8255_DATA + 1, (v >> 8) & 0xff, iobase);
+		if (mask & 0xff0000)
+			spriv->io(1, _8255_DATA + 2, (v >> 16) & 0xff, iobase);
+
+		s->state = v;
 	}
 
-	data[1] = spriv->io(0, _8255_DATA, 0, iobase);
-	data[1] |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
-	data[1] |= (spriv->io(0, _8255_DATA + 2, 0, iobase) << 16);
+	v = spriv->io(0, _8255_DATA, 0, iobase);
+	v |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
+	v |= (spriv->io(0, _8255_DATA + 2, 0, iobase) << 16);
 
-	return 2;
+	data[1] = v;
+
+	return insn->n;
 }
 
 static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
