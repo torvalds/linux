@@ -169,7 +169,8 @@ static int subdev_8255_insn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
+static void subdev_8255_do_config(struct comedi_device *dev,
+				  struct comedi_subdevice *s)
 {
 	struct subdev_8255_private *spriv = s->private;
 	unsigned long iobase = spriv->iobase;
@@ -221,7 +222,7 @@ static int subdev_8255_insn_config(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	do_config(dev, s);
+	subdev_8255_do_config(dev, s);
 
 	return 1;
 }
@@ -344,7 +345,7 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	s->state	= 0;
 	s->io_bits	= 0;
 
-	do_config(dev, s);
+	subdev_8255_do_config(dev, s);
 
 	return 0;
 }
