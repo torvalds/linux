@@ -31,7 +31,4 @@ extern int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap);
 extern int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap);
 extern int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap);
 
-extern int dvb_usbv2_remote_init(struct dvb_usb_device *);
-extern int dvb_usbv2_remote_exit(struct dvb_usb_device *);
-
 #endif
