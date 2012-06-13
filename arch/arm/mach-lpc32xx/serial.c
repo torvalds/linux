@@ -118,6 +118,11 @@ void __init lpc32xx_serial_init(void)
 		__raw_writel(0, LPC32XX_UART_IIR_FCR(puart));
 	}
 
+	/* Disable IrDA pulsing support on UART6 */
+	tmp = __raw_readl(LPC32XX_UARTCTL_CTRL);
+	tmp |= LPC32XX_UART_UART6_IRDAMOD_BYPASS;
+	__raw_writel(tmp, LPC32XX_UARTCTL_CTRL);
+
 	/* Disable UART5->USB transparent mode or USB won't work */
 	tmp = __raw_readl(LPC32XX_UARTCTL_CTRL);
 	tmp &= ~LPC32XX_UART_U5_ROUTE_TO_USB;

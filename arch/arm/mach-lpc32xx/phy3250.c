@@ -260,11 +260,6 @@ static void __init lpc3250_machine_init(void)
 		LPC32XX_CLKPWR_I2CCLK_I2C2HI_DRIVE;
 	__raw_writel(tmp, LPC32XX_CLKPWR_I2C_CLK_CTRL);
 
-	/* Disable IrDA pulsing support on UART6 */
-	tmp = __raw_readl(LPC32XX_UARTCTL_CTRL);
-	tmp |= LPC32XX_UART_UART6_IRDAMOD_BYPASS;
-	__raw_writel(tmp, LPC32XX_UARTCTL_CTRL);
-
 	/* Enable DMA for I2S1 channel */
 	tmp = __raw_readl(LPC32XX_CLKPWR_I2S_CLK_CTRL);
 	tmp = LPC32XX_CLKPWR_I2SCTRL_I2S1_USE_DMA;
