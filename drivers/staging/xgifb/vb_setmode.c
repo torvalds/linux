@@ -1010,24 +1010,6 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short LCDXlat1VCLK[4] = { VCLK65_315 + 2,
-					   VCLK65_315 + 2,
-					   VCLK65_315 + 2,
-					   VCLK65_315 + 2 };
-	unsigned short LCDXlat2VCLK[4] = { VCLK108_2_315 + 5,
-					   VCLK108_2_315 + 5,
-					   VCLK108_2_315 + 5,
-					   VCLK108_2_315 + 5 };
-	unsigned short LVDSXlat1VCLK[4] = { VCLK40, VCLK40, VCLK40, VCLK40 };
-	unsigned short LVDSXlat2VCLK[4] = { VCLK65_315 + 2,
-					    VCLK65_315 + 2,
-					    VCLK65_315 + 2,
-					    VCLK65_315 + 2 };
-	unsigned short LVDSXlat3VCLK[4] = { VCLK65_315 + 2,
-					    VCLK65_315 + 2,
-					    VCLK65_315 + 2,
-					    VCLK65_315 + 2 };
-
 	unsigned short CRT2Index, VCLKIndex;
 	unsigned short modeflag, resinfo;
 
@@ -1040,9 +1022,9 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 		CRT2Index = CRT2Index >> 6; /*  for LCD */
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) { /*301b*/
 			if (pVBInfo->LCDResInfo != Panel_1024x768)
-				VCLKIndex = LCDXlat2VCLK[CRT2Index];
+				VCLKIndex =  VCLK108_2_315 + 5; /* LCDXlat2VCLK */
 			else
-				VCLKIndex = LCDXlat1VCLK[CRT2Index];
+				VCLKIndex = VCLK65_315 + 2; /* LCDXlat1VCLK */
 		} else if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
 			if (pVBInfo->SetFlag & RPLLDIV2XO) {
 				VCLKIndex = TVCLKBASE_315 + HiTVVCLKDIV2;
@@ -1093,12 +1075,12 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 		VCLKIndex = VCLKIndex >> 6;
 		if ((pVBInfo->LCDResInfo == Panel_800x600) ||
 		    (pVBInfo->LCDResInfo == Panel_320x480))
-			VCLKIndex = LVDSXlat1VCLK[VCLKIndex];
+			VCLKIndex = VCLK40; /* LVDSXlat1VCLK */
 		else if ((pVBInfo->LCDResInfo == Panel_1024x768) ||
 			 (pVBInfo->LCDResInfo == Panel_1024x768x75))
-			VCLKIndex = LVDSXlat2VCLK[VCLKIndex];
+			VCLKIndex = VCLK65_315 + 2; /* LVDSXlat2VCLK */
 		else
-			VCLKIndex = LVDSXlat3VCLK[VCLKIndex];
+			VCLKIndex = VCLK65_315 + 2; /* LVDSXlat3VCLK */
 	}
 
 	return VCLKIndex;
