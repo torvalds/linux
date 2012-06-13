@@ -494,11 +494,12 @@ static void rk29_pl330_rq(struct rk29_pl330_chan *ch,
 {
 	unsigned long flags;
 	struct rk29_pl330_xfer *xfer;
-	struct pl330_xfer *xl = r->x;
+	struct pl330_xfer *xl;
 	enum rk29_dma_buffresult res;
 
 	spin_lock_irqsave(&res_lock, flags);
 
+	xl = r->x;
 	r->x = NULL;
 
 	rk29_pl330_submit(ch, r);
