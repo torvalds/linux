@@ -16,3 +16,4 @@ obj-$(CONFIG_CRYPTO_DEV_S5P) += s5p-sss.o
 obj-$(CONFIG_CRYPTO_DEV_TEGRA_AES) += tegra-aes.o
 obj-$(CONFIG_CRYPTO_DEV_UX500) += ux500/
 obj-$(CONFIG_CRYPTO_DEV_BFIN_CRC) += bfin_crc.o
+obj-$(CONFIG_CRYPTO_DEV_NX) += nx/
