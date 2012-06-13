@@ -191,45 +191,11 @@ struct vb_device_info {
 	unsigned char (*SR15)[8];
 	unsigned char (*CR40)[8];
 
-	unsigned char  *pSoftSetting;
-	unsigned char  *pOutputSelect;
-
-	unsigned short *pRGBSenseData;
-	unsigned short *pRGBSenseData2; /*301b*/
-	unsigned short *pVideoSenseData;
-	unsigned short *pVideoSenseData2;
-	unsigned short *pYCSenseData;
-	unsigned short *pYCSenseData2;
-
-	unsigned char  *pSR07;
-	unsigned char  *CR49;
-	unsigned char  *pSR1F;
 	unsigned char  *AGPReg;
 	unsigned char  *SR16;
-	unsigned char  *pSR21;
-	unsigned char  *pSR22;
-	unsigned char  *pSR23;
-	unsigned char  *pSR24;
-	unsigned char  *SR25;
-	unsigned char  *pSR31;
-	unsigned char  *pSR32;
-	unsigned char  *pSR33;
-	unsigned char  *pSR36;      /* alan 12/07/2006 */
-	unsigned char  *pCRCF;
-	unsigned char  *pCRD0;      /* alan 12/07/2006 */
-	unsigned char  *pCRDE;      /* alan 12/07/2006 */
-	unsigned char  *pCR8F;      /* alan 12/07/2006 */
-	unsigned char  *pSR40;      /* alan 12/07/2006 */
-	unsigned char  *pSR41;      /* alan 12/07/2006 */
-	unsigned char  *pDVOSetting;
-	unsigned char  *pCR2E;
-	unsigned char  *pCR2F;
-	unsigned char  *pCR46;
-	unsigned char  *pCR47;
-	unsigned char  *pCRT2Data_1_2;
-	unsigned char  *pCRT2Data_4_D;
-	unsigned char  *pCRT2Data_4_E;
-	unsigned char  *pCRT2Data_4_10;
+	unsigned char  SR21;
+	unsigned char  SR22;
+	unsigned char  SR25;
 	struct SiS_MCLKData  *MCLKData;
 	struct XGI_ECLKDataStruct  *ECLKData;
 
@@ -249,8 +215,7 @@ struct vb_device_info {
 	unsigned char   *Ren750pGroup3;
 	unsigned char   *ScreenOffset;
 	unsigned char   *pXGINew_DRAMTypeDefinition;
-	unsigned char   *pXGINew_I2CDefinition ;
-	unsigned char   *pXGINew_CR97 ;
+	unsigned char   XGINew_CR97;
 
 	struct XGI330_LCDCapStruct  *LCDCapList;
 

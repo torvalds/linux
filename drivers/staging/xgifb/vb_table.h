@@ -130,13 +130,6 @@ static unsigned char XGI340_AGPReg[12] = {
 
 static unsigned char XGI340_SR16[4] = {0x03, 0x83, 0x03, 0x83};
 
-static unsigned char XGI330_sr25[2];
-static unsigned char XGI330_sr31 = 0xc0;
-static unsigned char XGI330_sr32 = 0x11;
-static unsigned char XGI330_SR33;
-static unsigned char XG40_CRCF = 0x13;
-static unsigned char XG40_DRAMTypeDefinition = 0xFF ;
-
 static struct XGI_ExtStruct XGI330_EModeIDTable[] = {
 	{0x2e, 0x0a1b, 0x0306, 0x06, 0x05, 0x06},
 	{0x2f, 0x0a1b, 0x0305, 0x05, 0x05, 0x05},
@@ -2254,48 +2247,6 @@ static struct SiS_ModeResInfo_S XGI330_ModeResInfo[] = {
 	{1400, 1050, 8, 16},
 	{1152,  864, 8, 16}
 };
-
-static unsigned char XGI330_OutputSelect = 0x40;
-static unsigned char XGI330_SoftSetting = 0x30;
-static unsigned char XGI330_SR07 = 0x18;
-
-static unsigned char XGI330_CR49[] = {0xaa, 0x88};
-static unsigned char XGI330_SR1F;
-static unsigned char XGI330_SR21 = 0xa3;
-static unsigned char XGI330_SR22 = 0xfb;
-static unsigned char XGI330_SR23 = 0xf6;
-static unsigned char XGI330_SR24 = 0xd;
-
-static unsigned char XGI330_CRT2Data_1_2;
-static unsigned char XGI330_CRT2Data_4_D;
-static unsigned char XGI330_CRT2Data_4_E;
-static unsigned char XGI330_CRT2Data_4_10 = 0x80;
-static unsigned short XGI330_RGBSenseData = 0xd1;
-static unsigned short XGI330_VideoSenseData = 0xb9;
-static unsigned short XGI330_YCSenseData = 0xb3;
-static unsigned short XGI330_RGBSenseData2 = 0x0190;     /*301b*/
-static unsigned short XGI330_VideoSenseData2 = 0x0110;
-static unsigned short XGI330_YCSenseData2 = 0x016B;
-static unsigned char XG40_I2CDefinition;
-static unsigned char XG20_CR97 = 0x10 ;
-
-static unsigned char XG21_DVOSetting;
-static unsigned char XG21_CR2E;
-static unsigned char XG21_CR2F;
-static unsigned char XG21_CR46;
-static unsigned char XG21_CR47;
-
-static unsigned char XG27_CR97 = 0xC1 ;
-static unsigned char XG27_SR36 = 0x30 ;
-static unsigned char XG27_CR8F = 0x0C ;
-static unsigned char XG27_CRD0[] = {
-	0, 0, 0, 0, 0, 0, 0, 0x82, 0x00, 0x66, 0x01, 0x00
-};
-static unsigned char XG27_CRDE[2];
-static unsigned char XG27_SR40 = 0x04 ;
-static unsigned char XG27_SR41 = 0x00 ;
-
-static unsigned char Z11m_CR97 = 0x80 ;
 
 static struct SiS_VCLKData XGI_VCLKData[] = {
 	/* SR2B,SR2C,SR2D */

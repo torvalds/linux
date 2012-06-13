@@ -264,4 +264,23 @@
 #define RES1280x960x85       0x46
 #define RES1280x960x120      0x47
 
+
+#define XG27_CR8F 0x0C
+#define XG27_SR36 0x30
+#define XG27_SR40 0x04
+#define XG27_SR41 0x00
+#define XG40_CRCF 0x13
+#define XGI330_CRT2Data_1_2 0
+#define XGI330_CRT2Data_4_D 0
+#define XGI330_CRT2Data_4_E 0
+#define XGI330_CRT2Data_4_10 0x80
+#define XGI330_SR07 0x18
+#define XGI330_SR1F 0
+#define XGI330_SR23 0xf6
+#define XGI330_SR24 0x0d
+#define XGI330_SR25 0
+#define XGI330_SR31 0xc0
+#define XGI330_SR32 0x11
+#define XGI330_SR33 0
+
 #endif

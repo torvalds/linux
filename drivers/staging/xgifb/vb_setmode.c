@@ -38,9 +38,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->ModeResInfo
 			= (struct SiS_ModeResInfo_S *) XGI330_ModeResInfo;
 
-	pVBInfo->pOutputSelect = &XGI330_OutputSelect;
-	pVBInfo->pSoftSetting = &XGI330_SoftSetting;
-	pVBInfo->pSR07 = &XGI330_SR07;
 	pVBInfo->LCDResInfo = 0;
 	pVBInfo->LCDTypeInfo = 0;
 	pVBInfo->LCDInfo = 0;
@@ -49,36 +46,15 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 
 	pVBInfo->SR15 = XGI340_SR13;
 	pVBInfo->CR40 = XGI340_cr41;
-	pVBInfo->SR25 = XGI330_sr25;
-	pVBInfo->pSR31 = &XGI330_sr31;
-	pVBInfo->pSR32 = &XGI330_sr32;
 	pVBInfo->CR6B = XGI340_CR6B;
 	pVBInfo->CR6E = XGI340_CR6E;
 	pVBInfo->CR6F = XGI340_CR6F;
 	pVBInfo->CR89 = XGI340_CR89;
 	pVBInfo->AGPReg = XGI340_AGPReg;
 	pVBInfo->SR16 = XGI340_SR16;
-	pVBInfo->pCRCF = &XG40_CRCF;
-	pVBInfo->pXGINew_DRAMTypeDefinition = &XG40_DRAMTypeDefinition;
 
-	pVBInfo->CR49 = XGI330_CR49;
-	pVBInfo->pSR1F = &XGI330_SR1F;
-	pVBInfo->pSR21 = &XGI330_SR21;
-	pVBInfo->pSR22 = &XGI330_SR22;
-	pVBInfo->pSR23 = &XGI330_SR23;
-	pVBInfo->pSR24 = &XGI330_SR24;
-	pVBInfo->pSR33 = &XGI330_SR33;
-
-	pVBInfo->pCRT2Data_1_2 = &XGI330_CRT2Data_1_2;
-	pVBInfo->pCRT2Data_4_D = &XGI330_CRT2Data_4_D;
-	pVBInfo->pCRT2Data_4_E = &XGI330_CRT2Data_4_E;
-	pVBInfo->pCRT2Data_4_10 = &XGI330_CRT2Data_4_10;
-	pVBInfo->pRGBSenseData = &XGI330_RGBSenseData;
-	pVBInfo->pVideoSenseData = &XGI330_VideoSenseData;
-	pVBInfo->pYCSenseData = &XGI330_YCSenseData;
-	pVBInfo->pRGBSenseData2 = &XGI330_RGBSenseData2;
-	pVBInfo->pVideoSenseData2 = &XGI330_VideoSenseData2;
-	pVBInfo->pYCSenseData2 = &XGI330_YCSenseData2;
+	pVBInfo->SR21 = 0xa3;
+	pVBInfo->SR22 = 0xfb;
 
 	pVBInfo->NTSCTiming = XGI330_NTSCTiming;
 	pVBInfo->PALTiming = XGI330_PALTiming;
@@ -105,38 +81,22 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	else
 		pVBInfo->LCDCapList = XGI_LCDCapList;
 
-	pVBInfo->pXGINew_I2CDefinition = &XG40_I2CDefinition;
-
 	if (ChipType >= XG20)
-		pVBInfo->pXGINew_CR97 = &XG20_CR97;
+		pVBInfo->XGINew_CR97 = 0x10;
 
 	if (ChipType == XG27) {
 		unsigned char temp;
 		pVBInfo->MCLKData
 			= (struct SiS_MCLKData *) XGI27New_MCLKData;
 		pVBInfo->CR40 = XGI27_cr41;
-		pVBInfo->pXGINew_CR97 = &XG27_CR97;
-		pVBInfo->pSR36 = &XG27_SR36;
-		pVBInfo->pCR8F = &XG27_CR8F;
-		pVBInfo->pCRD0 = XG27_CRD0;
-		pVBInfo->pCRDE = XG27_CRDE;
-		pVBInfo->pSR40 = &XG27_SR40;
-		pVBInfo->pSR41 = &XG27_SR41;
+		pVBInfo->XGINew_CR97 = 0xc1;
 		pVBInfo->SR15 = XG27_SR13;
 
 		/*Z11m DDR*/
 		temp = xgifb_reg_get(pVBInfo->P3c4, 0x3B);
 		/* SR3B[7][3]MAA15 MAA11 (Power on Trapping) */
 		if (((temp & 0x88) == 0x80) || ((temp & 0x88) == 0x08))
-			pVBInfo->pXGINew_CR97 = &Z11m_CR97;
-	}
-
-	if (ChipType >= XG20) {
-		pVBInfo->pDVOSetting = &XG21_DVOSetting;
-		pVBInfo->pCR2E = &XG21_CR2E;
-		pVBInfo->pCR2F = &XG21_CR2F;
-		pVBInfo->pCR46 = &XG21_CR46;
-		pVBInfo->pCR47 = &XG21_CR47;
+			pVBInfo->XGINew_CR97 = 0x80;
 	}
 
 }
@@ -781,13 +741,6 @@ static void xgifb_set_lcd(int chip_id,
 			xgifb_reg_set(pVBInfo->P3d4, 0x46, 0x13);
 			xgifb_reg_set(pVBInfo->P3d4, 0x47, 0x13);
 		}
-	}
-
-	if (((*pVBInfo->pDVOSetting) & 0xC0) == 0xC0) {
-		xgifb_reg_set(pVBInfo->P3d4, 0x2E, *pVBInfo->pCR2E);
-		xgifb_reg_set(pVBInfo->P3d4, 0x2F, *pVBInfo->pCR2F);
-		xgifb_reg_set(pVBInfo->P3d4, 0x46, *pVBInfo->pCR46);
-		xgifb_reg_set(pVBInfo->P3d4, 0x47, *pVBInfo->pCR47);
 	}
 
 	if (chip_id == XG27) {
