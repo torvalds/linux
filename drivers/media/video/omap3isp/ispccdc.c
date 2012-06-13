@@ -2064,7 +2064,7 @@ static int ccdc_set_selection(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	 * pad. If the KEEP_CONFIG flag is set, just return the current crop
 	 * rectangle.
 	 */
-	if (sel->flags & V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG) {
+	if (sel->flags & V4L2_SEL_FLAG_KEEP_CONFIG) {
 		sel->r = *__ccdc_get_crop(ccdc, fh, sel->which);
 		return 0;
 	}

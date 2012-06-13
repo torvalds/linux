@@ -761,16 +761,12 @@ struct v4l2_crop {
 	struct v4l2_rect        c;
 };
 
-/* Hints for adjustments of selection rectangle */
-#define V4L2_SEL_FLAG_GE	0x00000001
-#define V4L2_SEL_FLAG_LE	0x00000002
-
 /**
  * struct v4l2_selection - selection info
  * @type:	buffer type (do not use *_MPLANE types)
  * @target:	Selection target, used to choose one of possible rectangles;
  *		defined in v4l2-common.h; V4L2_SEL_TGT_* .
- * @flags:	constraints flags
+ * @flags:	constraints flags, defined in v4l2-common.h; V4L2_SEL_FLAG_*.
  * @r:		coordinates of selection window
  * @reserved:	for future use, rounds structure size to 64 bytes, set to zero
  *

@@ -38,9 +38,9 @@
 
 #include "smiapp.h"
 
-#define SMIAPP_ALIGN_DIM(dim, flags)		\
-	((flags) & V4L2_SUBDEV_SEL_FLAG_SIZE_GE	\
-	 ? ALIGN((dim), 2)			\
+#define SMIAPP_ALIGN_DIM(dim, flags)	\
+	((flags) & V4L2_SEL_FLAG_GE	\
+	 ? ALIGN((dim), 2)		\
 	 : (dim) & ~1)
 
 /*
@@ -1747,14 +1747,14 @@ static int scaling_goodness(struct v4l2_subdev *subdev, int w, int ask_w,
 	h &= ~1;
 	ask_h &= ~1;
 
-	if (flags & V4L2_SUBDEV_SEL_FLAG_SIZE_GE) {
+	if (flags & V4L2_SEL_FLAG_GE) {
 		if (w < ask_w)
 			val -= SCALING_GOODNESS;
 		if (h < ask_h)
 			val -= SCALING_GOODNESS;
 	}
 
-	if (flags & V4L2_SUBDEV_SEL_FLAG_SIZE_LE) {
+	if (flags & V4L2_SEL_FLAG_LE) {
 		if (w > ask_w)
 			val -= SCALING_GOODNESS;
 		if (h > ask_h)
