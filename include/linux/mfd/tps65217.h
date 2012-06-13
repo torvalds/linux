@@ -229,9 +229,6 @@ struct tps65217_board {
  * @uv_to_vsel:		Function pointer to get selector from voltage
  * @table:		Table for non-uniform voltage step-size
  * @table_len:		Length of the voltage table
- * @enable_mask:	Regulator enable mask bits
- * @set_vout_reg:	Regulator output voltage set register
- * @set_vout_mask:	Regulator output voltage set mask
  *
  * This data is used to check the regualtor voltage limits while setting.
  */
@@ -243,9 +240,6 @@ struct tps_info {
 	int (*uv_to_vsel)(int uV, unsigned int *vsel);
 	const int *table;
 	unsigned int table_len;
-	unsigned int enable_mask;
-	unsigned int set_vout_reg;
-	unsigned int set_vout_mask;
 };
 
 /**
