@@ -46,7 +46,7 @@
 #include <linux/interrupt.h>
 #include <linux/rmi.h>
 #endif
-
+#include <linux/sensor-dev.h>
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
 
@@ -886,10 +886,10 @@ static int mma8452_init_platform_hw(void)
 	return 0;
 }
 
-static struct gsensor_platform_data mma8452_info = {
-	.model = 8452,
-	.swap_xy = 0,
-	.swap_xyz = 1,
+static struct sensor_platform_data mma8452_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
 	.init_platform_hw = mma8452_init_platform_hw,
 	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
 };
@@ -949,8 +949,11 @@ struct platform_device rk_device_headset = {
 #endif
 
 #if defined (CONFIG_COMPASS_AK8975)
-static struct akm8975_platform_data akm8975_info =
+static struct sensor_platform_data akm8975_info =
 {
+	.type = SENSOR_TYPE_COMPASS,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
 	.m_layout = 
 	{
 		{
@@ -993,9 +996,12 @@ static int l3g4200d_init_platform_hw(void)
 	return 0;
 }
 
-static struct l3g4200d_platform_data l3g4200d_info = {
+static struct sensor_platform_data l3g4200d_info = {
+	.type = SENSOR_TYPE_GYROSCOPE,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
 	.orientation = {1, 0, 0, 0, 1, 0, 0, 0, 1},
-	.init = l3g4200d_init_platform_hw,
+	.init_platform_hw = l3g4200d_init_platform_hw,
 	.x_min = 40,//x_min,y_min,z_min = (0-100) according to hardware
 	.y_min = 40,
 	.z_min = 20,
@@ -1043,6 +1049,23 @@ static struct cm3217_platform_data cm3217_info = {
 	.exit_platform_hw = cm3217_exit_hw,
 };
 #endif
+
+#if defined(CONFIG_PS_AL3006)
+static struct sensor_platform_data proximity_info = {
+	.type = SENSOR_TYPE_PROXIMITY,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
+#if defined(CONFIG_LS_AL3006)
+static struct sensor_platform_data light_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
 
 #ifdef CONFIG_FB_ROCKCHIP
 
@@ -1724,6 +1747,26 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.irq            = RK30_PIN6_PA2,
 	},
 #endif
+#if defined (CONFIG_LS_AL3006)
+	{
+		.type           = "light_al3006",
+		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &light_info,
+	},
+#endif
+
+#if defined (CONFIG_PS_AL3006)
+	{
+		.type           = "proximity_al3006",
+		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &proximity_info,
+	},
+#endif
+
 #if defined (CONFIG_SND_SOC_RK1000)
 	{
 		.type          = "rk1000_i2c_codec",
