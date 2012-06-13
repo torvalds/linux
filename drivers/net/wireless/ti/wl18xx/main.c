@@ -1215,10 +1215,24 @@ static struct wlcore_ops wl18xx_ops = {
 	.pre_pkt_send	= wl18xx_pre_pkt_send,
 };
 
-/* HT cap appropriate for wide channels */
-static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap = {
+/* HT cap appropriate for wide channels in 2Ghz */
+static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap_2ghz = {
 	.cap = IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 |
 	       IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_DSSSCCK40,
+	.ht_supported = true,
+	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
+	.mcs = {
+		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		.rx_highest = cpu_to_le16(150),
+		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+		},
+};
+
+/* HT cap appropriate for wide channels in 5Ghz */
+static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap_5ghz = {
+	.cap = IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 |
+	       IEEE80211_HT_CAP_SUP_WIDTH_20_40,
 	.ht_supported = true,
 	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
@@ -1345,12 +1359,12 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 
 		/* 5Ghz is always wide */
 		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
-				  &wl18xx_siso40_ht_cap);
+				  &wl18xx_siso40_ht_cap_5ghz);
 	} else if (!strcmp(ht_mode_param, "wide")) {
 		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
-				  &wl18xx_siso40_ht_cap);
+				  &wl18xx_siso40_ht_cap_2ghz);
 		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
-				  &wl18xx_siso40_ht_cap);
+				  &wl18xx_siso40_ht_cap_5ghz);
 	} else if (!strcmp(ht_mode_param, "siso20")) {
 		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
 				  &wl18xx_siso20_ht_cap);
