@@ -45,9 +45,16 @@ static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 	wlcore_write_reg(wl, REG_ECPU_CONTROL, cpu_ctrl);
 }
 
-static int wlcore_parse_fw_ver(struct wl1271 *wl)
+static int wlcore_boot_parse_fw_ver(struct wl1271 *wl,
+				    struct wl1271_static_data *static_data)
 {
 	int ret;
+
+	strncpy(wl->chip.fw_ver_str, static_data->fw_version,
+		sizeof(wl->chip.fw_ver_str));
+
+	/* make sure the string is NULL-terminated */
+	wl->chip.fw_ver_str[sizeof(wl->chip.fw_ver_str) - 1] = '\0';
 
 	ret = sscanf(wl->chip.fw_ver_str + 4, "%u.%u.%u.%u.%u",
 		     &wl->chip.fw_ver[0], &wl->chip.fw_ver[1],
@@ -57,43 +64,43 @@ static int wlcore_parse_fw_ver(struct wl1271 *wl)
 	if (ret != 5) {
 		wl1271_warning("fw version incorrect value");
 		memset(wl->chip.fw_ver, 0, sizeof(wl->chip.fw_ver));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	ret = wlcore_identify_fw(wl);
 	if (ret < 0)
-		return ret;
-
-	return 0;
+		goto out;
+out:
+	return ret;
 }
 
-static int wlcore_boot_fw_version(struct wl1271 *wl)
+static int wlcore_boot_static_data(struct wl1271 *wl)
 {
 	struct wl1271_static_data *static_data;
+	size_t len = sizeof(*static_data) + wl->static_data_priv_len;
 	int ret;
 
-	static_data = kmalloc(sizeof(*static_data), GFP_KERNEL | GFP_DMA);
+	static_data = kmalloc(len, GFP_KERNEL);
 	if (!static_data) {
-		wl1271_error("Couldn't allocate memory for static data!");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
-	wl1271_read(wl, wl->cmd_box_addr, static_data, sizeof(*static_data),
-		    false);
+	wl1271_read(wl, wl->cmd_box_addr, static_data, len, false);
 
-	strncpy(wl->chip.fw_ver_str, static_data->fw_version,
-		sizeof(wl->chip.fw_ver_str));
-
-	kfree(static_data);
-
-	/* make sure the string is NULL-terminated */
-	wl->chip.fw_ver_str[sizeof(wl->chip.fw_ver_str) - 1] = '\0';
-
-	ret = wlcore_parse_fw_ver(wl);
+	ret = wlcore_boot_parse_fw_ver(wl, static_data);
 	if (ret < 0)
-		return ret;
+		goto out_free;
 
-	return 0;
+	ret = wlcore_handle_static_data(wl, static_data);
+	if (ret < 0)
+		goto out_free;
+
+out_free:
+	kfree(static_data);
+out:
+	return ret;
 }
 
 static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
@@ -204,8 +211,10 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	u32 dest_addr, val;
 	u8 *nvs_ptr, *nvs_aligned;
 
-	if (wl->nvs == NULL)
+	if (wl->nvs == NULL) {
+		wl1271_error("NVS file is needed during boot");
 		return -ENODEV;
+	}
 
 	if (wl->quirks & WLCORE_QUIRK_LEGACY_NVS) {
 		struct wl1271_nvs_file *nvs =
@@ -400,9 +409,9 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 
-	ret = wlcore_boot_fw_version(wl);
+	ret = wlcore_boot_static_data(wl);
 	if (ret < 0) {
-		wl1271_error("couldn't boot firmware");
+		wl1271_error("error getting static data");
 		return ret;
 	}
 

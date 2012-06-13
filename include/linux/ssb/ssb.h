@@ -243,6 +243,7 @@ struct ssb_bus_ops {
 #define SSB_DEV_MINI_MACPHY	0x823
 #define SSB_DEV_ARM_1176	0x824
 #define SSB_DEV_ARM_7TDMI	0x825
+#define SSB_DEV_ARM_CM3		0x82A
 
 /* Vendor-ID values */
 #define SSB_VENDOR_BROADCOM	0x4243

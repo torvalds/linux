@@ -31,7 +31,8 @@ struct nfc_hci_ops {
 	void (*close) (struct nfc_hci_dev *hdev);
 	int (*hci_ready) (struct nfc_hci_dev *hdev);
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
-	int (*start_poll) (struct nfc_hci_dev *hdev, u32 protocols);
+	int (*start_poll) (struct nfc_hci_dev *hdev,
+			   u32 im_protocols, u32 tm_protocols);
 	int (*target_from_gate) (struct nfc_hci_dev *hdev, u8 gate,
 				 struct nfc_target *target);
 	int (*complete_target_discovered) (struct nfc_hci_dev *hdev, u8 gate,

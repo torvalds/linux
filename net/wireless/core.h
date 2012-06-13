@@ -444,9 +444,8 @@ cfg80211_can_add_interface(struct cfg80211_registered_device *rdev,
 struct ieee80211_channel *
 rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
 		  int freq, enum nl80211_channel_type channel_type);
-int cfg80211_set_freq(struct cfg80211_registered_device *rdev,
-		      struct wireless_dev *wdev, int freq,
-		      enum nl80211_channel_type channel_type);
+int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
+				 int freq, enum nl80211_channel_type chantype);
 
 int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 			   const u8 *rates, unsigned int n_rates,

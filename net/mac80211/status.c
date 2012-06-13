@@ -520,36 +520,16 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
 		u64 cookie = (unsigned long)skb;
+		acked = info->flags & IEEE80211_TX_STAT_ACK;
 
 		if (ieee80211_is_nullfunc(hdr->frame_control) ||
-		    ieee80211_is_qos_nullfunc(hdr->frame_control)) {
-			acked = info->flags & IEEE80211_TX_STAT_ACK;
-
+		    ieee80211_is_qos_nullfunc(hdr->frame_control))
 			cfg80211_probe_status(skb->dev, hdr->addr1,
 					      cookie, acked, GFP_ATOMIC);
-		} else {
-			struct ieee80211_work *wk;
-
-			rcu_read_lock();
-			list_for_each_entry_rcu(wk, &local->work_list, list) {
-				if (wk->type != IEEE80211_WORK_OFFCHANNEL_TX)
-					continue;
-				if (wk->offchan_tx.frame != skb)
-					continue;
-				wk->offchan_tx.status = true;
-				break;
-			}
-			rcu_read_unlock();
-			if (local->hw_roc_skb_for_status == skb) {
-				cookie = local->hw_roc_cookie ^ 2;
-				local->hw_roc_skb_for_status = NULL;
-			}
-
+		else
 			cfg80211_mgmt_tx_status(
 				skb->dev, cookie, skb->data, skb->len,
-				!!(info->flags & IEEE80211_TX_STAT_ACK),
-				GFP_ATOMIC);
-		}
+				acked, GFP_ATOMIC);
 	}
 
 	if (unlikely(info->ack_frame_id)) {

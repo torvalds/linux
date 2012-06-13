@@ -1958,7 +1958,22 @@ static void rt2800_config_channel_rf53xx(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field8(&rfcsr, RFCSR49_TX, info->default_power1);
 	rt2800_rfcsr_write(rt2x00dev, 49, rfcsr);
 
+	if (rt2x00_rt(rt2x00dev, RT5392)) {
+		rt2800_rfcsr_read(rt2x00dev, 50, &rfcsr);
+		if (info->default_power1 > RT5390_POWER_BOUND)
+			rt2x00_set_field8(&rfcsr, RFCSR50_TX,
+					  RT5390_POWER_BOUND);
+		else
+			rt2x00_set_field8(&rfcsr, RFCSR50_TX,
+					  info->default_power2);
+		rt2800_rfcsr_write(rt2x00dev, 50, rfcsr);
+	}
+
 	rt2800_rfcsr_read(rt2x00dev, 1, &rfcsr);
+	if (rt2x00_rt(rt2x00dev, RT5392)) {
+		rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 1);
+		rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 1);
+	}
 	rt2x00_set_field8(&rfcsr, RFCSR1_RF_BLOCK_EN, 1);
 	rt2x00_set_field8(&rfcsr, RFCSR1_PLL_PD, 1);
 	rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 1);
@@ -2064,6 +2079,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	case RF5370:
 	case RF5372:
 	case RF5390:
+	case RF5392:
 		rt2800_config_channel_rf53xx(rt2x00dev, conf, rf, info);
 		break;
 	default:
@@ -2554,6 +2570,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 	case RF5370:
 	case RF5372:
 	case RF5390:
+	case RF5392:
 		rt2800_rfcsr_read(rt2x00dev, 3, &rfcsr);
 		rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 1);
 		rt2800_rfcsr_write(rt2x00dev, 3, rfcsr);
@@ -4269,6 +4286,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RF5370:
 	case RF5372:
 	case RF5390:
+	case RF5392:
 		break;
 	default:
 		ERROR(rt2x00dev, "Invalid RF chipset 0x%04x detected.\n",
@@ -4583,7 +4601,8 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		   rt2x00_rf(rt2x00dev, RF5360) ||
 		   rt2x00_rf(rt2x00dev, RF5370) ||
 		   rt2x00_rf(rt2x00dev, RF5372) ||
-		   rt2x00_rf(rt2x00dev, RF5390)) {
+		   rt2x00_rf(rt2x00dev, RF5390) ||
+		   rt2x00_rf(rt2x00dev, RF5392)) {
 		spec->num_channels = 14;
 		spec->channels = rf_vals_3x;
 	} else if (rt2x00_rf(rt2x00dev, RF3052)) {
@@ -4670,6 +4689,7 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	case RF5370:
 	case RF5372:
 	case RF5390:
+	case RF5392:
 		__set_bit(CAPABILITY_VCO_RECALIBRATION, &rt2x00dev->cap_flags);
 		break;
 	}

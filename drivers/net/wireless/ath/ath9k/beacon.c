@@ -48,7 +48,10 @@ int ath_beaconq_config(struct ath_softc *sc)
 		txq = sc->tx.txq_map[WME_AC_BE];
 		ath9k_hw_get_txq_props(ah, txq->axq_qnum, &qi_be);
 		qi.tqi_aifs = qi_be.tqi_aifs;
-		qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
+		if (ah->slottime == ATH9K_SLOT_TIME_20)
+			qi.tqi_cwmin = 2*qi_be.tqi_cwmin;
+		else
+			qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
 		qi.tqi_cwmax = qi_be.tqi_cwmax;
 	}
 
@@ -387,7 +390,7 @@ void ath_beacon_tasklet(unsigned long data)
 		} else if (sc->beacon.bmisscnt >= BSTUCK_THRESH) {
 			ath_dbg(common, BSTUCK, "beacon is officially stuck\n");
 			sc->beacon.bmisscnt = 0;
-			sc->sc_flags |= SC_OP_TSF_RESET;
+			set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		}
 
@@ -477,16 +480,16 @@ static void ath9k_beacon_init(struct ath_softc *sc,
 			      u32 next_beacon,
 			      u32 beacon_period)
 {
-	if (sc->sc_flags & SC_OP_TSF_RESET) {
+	if (test_bit(SC_OP_TSF_RESET, &sc->sc_flags)) {
 		ath9k_ps_wakeup(sc);
 		ath9k_hw_reset_tsf(sc->sc_ah);
 	}
 
 	ath9k_hw_beaconinit(sc->sc_ah, next_beacon, beacon_period);
 
-	if (sc->sc_flags & SC_OP_TSF_RESET) {
+	if (test_bit(SC_OP_TSF_RESET, &sc->sc_flags)) {
 		ath9k_ps_restore(sc);
-		sc->sc_flags &= ~SC_OP_TSF_RESET;
+		clear_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 	}
 }
 
@@ -516,7 +519,7 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 	/* Set the computed AP beacon timers */
 
 	ath9k_hw_disable_interrupts(ah);
-	sc->sc_flags |= SC_OP_TSF_RESET;
+	set_bit(SC_OP_TSF_RESET, &sc->sc_flags);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(ah);
@@ -659,7 +662,7 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	u32 tsf, intval, nexttbtt;
 
 	ath9k_reset_beacon_status(sc);
-	if (!(sc->sc_flags & SC_OP_BEACONS))
+	if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
 		ath9k_hw_settsf64(ah, sc->beacon.bc_tstamp);
 
 	intval = TU_TO_USEC(conf->beacon_interval);
@@ -724,7 +727,7 @@ static bool ath9k_allow_beacon_config(struct ath_softc *sc,
 	 */
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) &&
 	    (vif->type == NL80211_IFTYPE_STATION) &&
-	    (sc->sc_flags & SC_OP_BEACONS) &&
+	    test_bit(SC_OP_BEACONS, &sc->sc_flags) &&
 	    !avp->primary_sta_vif) {
 		ath_dbg(common, CONFIG,
 			"Beacon already configured for a station interface\n");
@@ -810,7 +813,7 @@ void ath_set_beacon(struct ath_softc *sc)
 		return;
 	}
 
-	sc->sc_flags |= SC_OP_BEACONS;
+	set_bit(SC_OP_BEACONS, &sc->sc_flags);
 }
 
 void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
@@ -818,7 +821,7 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
 	struct ath_hw *ah = sc->sc_ah;
 
 	if (!ath_has_valid_bslot(sc)) {
-		sc->sc_flags &= ~SC_OP_BEACONS;
+		clear_bit(SC_OP_BEACONS, &sc->sc_flags);
 		return;
 	}
 

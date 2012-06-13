@@ -148,15 +148,33 @@ static int wl1271_event_process(struct wl1271 *wl)
 		int delay = wl->conf.conn.synch_fail_thold *
 					wl->conf.conn.bss_lose_timeout;
 		wl1271_info("Beacon loss detected.");
-		cancel_delayed_work_sync(&wl->connection_loss_work);
+
+		/*
+		 * if the work is already queued, it should take place. We
+		 * don't want to delay the connection loss indication
+		 * any more.
+		 */
 		ieee80211_queue_delayed_work(wl->hw, &wl->connection_loss_work,
-		      msecs_to_jiffies(delay));
+					     msecs_to_jiffies(delay));
+
+		wl12xx_for_each_wlvif_sta(wl, wlvif) {
+			vif = wl12xx_wlvif_to_vif(wlvif);
+
+			ieee80211_cqm_rssi_notify(
+					vif,
+					NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
+					GFP_KERNEL);
+		}
 	}
 
 	if (vector & REGAINED_BSS_EVENT_ID) {
 		/* TODO: check for multi-role */
 		wl1271_info("Beacon regained.");
-		cancel_delayed_work_sync(&wl->connection_loss_work);
+		cancel_delayed_work(&wl->connection_loss_work);
+
+		/* sanity check - we can't lose and gain the beacon together */
+		WARN(vector & BSS_LOSE_EVENT_ID,
+		     "Concurrent beacon loss and gain from FW");
 	}
 
 	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {

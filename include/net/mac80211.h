@@ -2183,7 +2183,10 @@ enum ieee80211_rate_control_changed {
  *	offload. Frames to transmit on the off-channel channel are transmitted
  *	normally except for the %IEEE80211_TX_CTL_TX_OFFCHAN flag. When the
  *	duration (which will always be non-zero) expires, the driver must call
- *	ieee80211_remain_on_channel_expired(). This callback may sleep.
+ *	ieee80211_remain_on_channel_expired().
+ *	Note that this callback may be called while the device is in IDLE and
+ *	must be accepted in this case.
+ *	This callback may sleep.
  * @cancel_remain_on_channel: Requests that an ongoing off-channel period is
  *	aborted before it expires. This callback may sleep.
  *

@@ -1420,11 +1420,14 @@ struct cfg80211_gtk_rekey_data {
  *
  * @set_txq_params: Set TX queue parameters
  *
- * @set_channel: Set channel for a given wireless interface. Some devices
- *	may support multi-channel operation (by channel hopping) so cfg80211
- *	doesn't verify much. Note, however, that the passed netdev may be
- *	%NULL as well if the user requested changing the channel for the
- *	device itself, or for a monitor interface.
+ * @libertas_set_mesh_channel: Only for backward compatibility for libertas,
+ *	as it doesn't implement join_mesh and needs to set the channel to
+ *	join the mesh instead.
+ *
+ * @set_monitor_channel: Set the monitor mode channel for the device. If other
+ *	interfaces are active this callback should reject the configuration.
+ *	If no interfaces are active or the device is down, the channel should
+ *	be stored for when a monitor interface becomes active.
  * @get_channel: Get the current operating channel, should return %NULL if
  *	there's no single defined operating channel if for example the
  *	device implements channel hopping for multi-channel virtual interfaces.
@@ -1614,9 +1617,13 @@ struct cfg80211_ops {
 	int	(*set_txq_params)(struct wiphy *wiphy, struct net_device *dev,
 				  struct ieee80211_txq_params *params);
 
-	int	(*set_channel)(struct wiphy *wiphy, struct net_device *dev,
-			       struct ieee80211_channel *chan,
-			       enum nl80211_channel_type channel_type);
+	int	(*libertas_set_mesh_channel)(struct wiphy *wiphy,
+					     struct net_device *dev,
+					     struct ieee80211_channel *chan);
+
+	int	(*set_monitor_channel)(struct wiphy *wiphy,
+				       struct ieee80211_channel *chan,
+				       enum nl80211_channel_type channel_type);
 
 	int	(*scan)(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_scan_request *request);
@@ -2325,7 +2332,6 @@ struct wireless_dev {
 	spinlock_t event_lock;
 
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
-	struct ieee80211_channel *channel;
 	struct ieee80211_channel *preset_chan;
 	enum nl80211_channel_type preset_chantype;
 

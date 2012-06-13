@@ -212,7 +212,6 @@ enum mci_state_type {
 	MCI_STATE_SET_CONCUR_TX_PRI,
 	MCI_STATE_RECOVER_RX,
 	MCI_STATE_NEED_FTP_STOMP,
-	MCI_STATE_NEED_TUNING,
 	MCI_STATE_DEBUG,
 	MCI_STATE_MAX
 };
@@ -266,6 +265,7 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 void ar9003_mci_cleanup(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
+void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
 
 /*
  * These functions are used by ath9k_hw.
@@ -273,10 +273,6 @@ void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 
-static inline bool ar9003_mci_is_ready(struct ath_hw *ah)
-{
-	return ah->btcoex_hw.mci.ready;
-}
 void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep);
 void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable);
 void ar9003_mci_init_cal_done(struct ath_hw *ah);
@@ -292,10 +288,6 @@ void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
 
 #else
 
-static inline bool ar9003_mci_is_ready(struct ath_hw *ah)
-{
-	return false;
-}
 static inline void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep)
 {
 }

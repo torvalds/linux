@@ -179,6 +179,13 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 {
 	struct ieee80211_channel *channel;
 
+	channel = rdev_freq_to_chan(rdev, freq, channel_type);
+	if (!channel || !cfg80211_can_beacon_sec_chan(&rdev->wiphy,
+						      channel,
+						      channel_type)) {
+		return -EINVAL;
+	}
+
 	/*
 	 * Workaround for libertas (only!), it puts the interface
 	 * into mesh mode but doesn't implement join_mesh. Instead,
@@ -186,27 +193,20 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 	 * you set the channel. Note that the libertas mesh isn't
 	 * compatible with 802.11 mesh.
 	 */
-	if (!rdev->ops->join_mesh) {
-		int err;
+	if (rdev->ops->libertas_set_mesh_channel) {
+		if (channel_type != NL80211_CHAN_NO_HT)
+			return -EINVAL;
 
 		if (!netif_running(wdev->netdev))
 			return -ENETDOWN;
-		wdev_lock(wdev);
-		err = cfg80211_set_freq(rdev, wdev, freq, channel_type);
-		wdev_unlock(wdev);
-
-		return err;
+		return rdev->ops->libertas_set_mesh_channel(&rdev->wiphy,
+							    wdev->netdev,
+							    channel);
 	}
 
 	if (wdev->mesh_id_len)
 		return -EBUSY;
 
-	channel = rdev_freq_to_chan(rdev, freq, channel_type);
-	if (!channel || !cfg80211_can_beacon_sec_chan(&rdev->wiphy,
-						      channel,
-						      channel_type)) {
-		return -EINVAL;
-	}
 	wdev->preset_chan = channel;
 	wdev->preset_chantype = channel_type;
 	return 0;

@@ -192,7 +192,7 @@ enum cmd_templ {
 #define WL1271_COMMAND_TIMEOUT     2000
 #define WL1271_CMD_TEMPL_DFLT_SIZE 252
 #define WL1271_CMD_TEMPL_MAX_SIZE  512
-#define WL1271_EVENT_TIMEOUT       750
+#define WL1271_EVENT_TIMEOUT       1000
 
 struct wl1271_cmd_header {
 	__le16 id;
@@ -266,13 +266,22 @@ enum wlcore_band {
 	WLCORE_BAND_MAX_RADIO		= 0x7F,
 };
 
+enum wlcore_channel_type {
+	WLCORE_CHAN_NO_HT,
+	WLCORE_CHAN_HT20,
+	WLCORE_CHAN_HT40MINUS,
+	WLCORE_CHAN_HT40PLUS
+};
+
 struct wl12xx_cmd_role_start {
 	struct wl1271_cmd_header header;
 
 	u8 role_id;
 	u8 band;
 	u8 channel;
-	u8 padding;
+
+	/* enum wlcore_channel_type */
+	u8 channel_type;
 
 	union {
 		struct {
