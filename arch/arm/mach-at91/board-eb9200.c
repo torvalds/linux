@@ -44,20 +44,6 @@ static void __init eb9200_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
-			| ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
-			| ATMEL_UART_RI);
-
-	/* USART2 on ttyS2. (Rx, Tx) - IRDA */
-	at91_register_uart(AT91RM9200_ID_US2, 2, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata eb9200_eth_data = {
@@ -101,6 +87,16 @@ static struct i2c_board_info __initdata eb9200_i2c_devices[] = {
 static void __init eb9200_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+			| ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
+			| ATMEL_UART_RI);
+
+	/* USART2 on ttyS2. (Rx, Tx) - IRDA */
+	at91_register_uart(AT91RM9200_ID_US2, 2, 0);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&eb9200_eth_data);

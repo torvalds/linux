@@ -62,10 +62,6 @@ Copy/pasted/hacked from pcm724.c
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-static int pcm3724_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pcm3724_detach(struct comedi_device *dev);
-
 struct pcm3724_board {
 	const char *name;	/*  driver name */
 	int dio;		/*  num of DIO */
@@ -80,35 +76,7 @@ struct priv_pcm3724 {
 	int dio_2;
 };
 
-static const struct pcm3724_board boardtypes[] = {
-	{"pcm3724", 48, 2, 0x00fc, PCM3724_SIZE,},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcm3724_board))
 #define this_board ((const struct pcm3724_board *)dev->board_ptr)
-
-static struct comedi_driver driver_pcm3724 = {
-	.driver_name = "pcm3724",
-	.module = THIS_MODULE,
-	.attach = pcm3724_attach,
-	.detach = pcm3724_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcm3724_board),
-};
-
-static int __init driver_pcm3724_init_module(void)
-{
-	return comedi_driver_register(&driver_pcm3724);
-}
-
-static void __exit driver_pcm3724_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcm3724);
-}
-
-module_init(driver_pcm3724_init_module);
-module_exit(driver_pcm3724_cleanup_module);
 
 /* (setq c-basic-offset 8) */
 
@@ -305,7 +273,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcm3724_detach(struct comedi_device *dev)
+static void pcm3724_detach(struct comedi_device *dev)
 {
 	int i;
 
@@ -315,9 +283,22 @@ static int pcm3724_detach(struct comedi_device *dev)
 	}
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->io_range);
-
-	return 0;
 }
+
+static const struct pcm3724_board boardtypes[] = {
+	{ "pcm3724", 48, 2, 0x00fc, PCM3724_SIZE, },
+};
+
+static struct comedi_driver pcm3724_driver = {
+	.driver_name	= "pcm3724",
+	.module		= THIS_MODULE,
+	.attach		= pcm3724_attach,
+	.detach		= pcm3724_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcm3724_board),
+};
+module_comedi_driver(pcm3724_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

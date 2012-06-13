@@ -215,11 +215,13 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	opt->refcnt = p->tcf_refcnt - ref;
 	opt->bindcnt = p->tcf_bindcnt - bind;
 
-	NLA_PUT(skb, TCA_PEDIT_PARMS, s, opt);
+	if (nla_put(skb, TCA_PEDIT_PARMS, s, opt))
+		goto nla_put_failure;
 	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
-	NLA_PUT(skb, TCA_PEDIT_TM, sizeof(t), &t);
+	if (nla_put(skb, TCA_PEDIT_TM, sizeof(t), &t))
+		goto nla_put_failure;
 	kfree(opt);
 	return skb->len;
 

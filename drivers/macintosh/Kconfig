@@ -204,11 +204,14 @@ config THERM_ADT746X
 	  better fan behaviour by default, and some manual control.
 
 config THERM_PM72
-	tristate "Support for thermal management on PowerMac G5"
+	tristate "Support for thermal management on PowerMac G5 (AGP)"
 	depends on I2C && I2C_POWERMAC && PPC_PMAC64
+	default n
 	help
 	  This driver provides thermostat and fan control for the desktop
-	  G5 machines. 
+	  G5 machines.
+
+	  This is deprecated, use windfarm instead.
 
 config WINDFARM
 	tristate "New PowerMac thermal control infrastructure"
@@ -220,6 +223,22 @@ config WINDFARM_PM81
 	select I2C_POWERMAC
 	help
 	  This driver provides thermal control for the iMacG5
+
+config WINDFARM_PM72
+	tristate "Support for thermal management on PowerMac G5 (AGP)"
+	depends on WINDFARM && I2C && CPU_FREQ_PMAC64 && ADB_PMU
+	select I2C_POWERMAC
+	help
+	  This driver provides thermal control for the PowerMac G5
+	  "AGP" variants (PowerMac 7,2 and 7,3)
+
+config WINDFARM_RM31
+	tristate "Support for thermal management on Xserve G5"
+	depends on WINDFARM && I2C && CPU_FREQ_PMAC64 && ADB_PMU
+	select I2C_POWERMAC
+	help
+	  This driver provides thermal control for the Xserve G5
+	  (RackMac3,1)
 
 config WINDFARM_PM91
 	tristate "Support for thermal management on PowerMac9,1"

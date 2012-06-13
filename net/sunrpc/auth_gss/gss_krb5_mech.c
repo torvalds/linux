@@ -624,7 +624,7 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	ctx->seq_send = ctx->seq_send64;
 	if (ctx->seq_send64 != ctx->seq_send) {
 		dprintk("%s: seq_send64 %lx, seq_send %x overflow?\n", __func__,
-			(long unsigned)ctx->seq_send64, ctx->seq_send);
+			(unsigned long)ctx->seq_send64, ctx->seq_send);
 		p = ERR_PTR(-EINVAL);
 		goto out_err;
 	}

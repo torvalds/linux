@@ -105,6 +105,12 @@ static unsigned int selfballoon_interval __read_mostly = 5;
  */
 static unsigned int selfballoon_min_usable_mb;
 
+/*
+ * Amount of RAM in MB to add to the target number of pages.
+ * Can be used to reserve some more room for caches and the like.
+ */
+static unsigned int selfballoon_reserved_mb;
+
 static void selfballoon_process(struct work_struct *work);
 static DECLARE_DELAYED_WORK(selfballoon_worker, selfballoon_process);
 
@@ -217,7 +223,8 @@ static void selfballoon_process(struct work_struct *work)
 		cur_pages = totalram_pages;
 		tgt_pages = cur_pages; /* default is no change */
 		goal_pages = percpu_counter_read_positive(&vm_committed_as) +
-				totalreserve_pages;
+				totalreserve_pages +
+				MB2PAGES(selfballoon_reserved_mb);
 #ifdef CONFIG_FRONTSWAP
 		/* allow space for frontswap pages to be repatriated */
 		if (frontswap_selfshrinking && frontswap_enabled)
@@ -397,6 +404,30 @@ static DEVICE_ATTR(selfballoon_min_usable_mb, S_IRUGO | S_IWUSR,
 		   show_selfballoon_min_usable_mb,
 		   store_selfballoon_min_usable_mb);
 
+SELFBALLOON_SHOW(selfballoon_reserved_mb, "%d\n",
+				selfballoon_reserved_mb);
+
+static ssize_t store_selfballoon_reserved_mb(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf,
+					     size_t count)
+{
+	unsigned long val;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	err = strict_strtoul(buf, 10, &val);
+	if (err || val == 0)
+		return -EINVAL;
+	selfballoon_reserved_mb = val;
+	return count;
+}
+
+static DEVICE_ATTR(selfballoon_reserved_mb, S_IRUGO | S_IWUSR,
+		   show_selfballoon_reserved_mb,
+		   store_selfballoon_reserved_mb);
+
 
 #ifdef CONFIG_FRONTSWAP
 SELFBALLOON_SHOW(frontswap_selfshrinking, "%d\n", frontswap_selfshrinking);
@@ -480,6 +511,7 @@ static struct attribute *selfballoon_attrs[] = {
 	&dev_attr_selfballoon_downhysteresis.attr,
 	&dev_attr_selfballoon_uphysteresis.attr,
 	&dev_attr_selfballoon_min_usable_mb.attr,
+	&dev_attr_selfballoon_reserved_mb.attr,
 #ifdef CONFIG_FRONTSWAP
 	&dev_attr_frontswap_selfshrinking.attr,
 	&dev_attr_frontswap_hysteresis.attr,

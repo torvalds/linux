@@ -96,9 +96,11 @@ __ring_buffer_alloc(unsigned long size, unsigned flags, struct lock_class_key *k
 	__ring_buffer_alloc((size), (flags), &__key);	\
 })
 
+#define RING_BUFFER_ALL_CPUS -1
+
 void ring_buffer_free(struct ring_buffer *buffer);
 
-int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size);
+int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size, int cpu);
 
 void ring_buffer_change_overwrite(struct ring_buffer *buffer, int val);
 
@@ -129,7 +131,7 @@ ring_buffer_read(struct ring_buffer_iter *iter, u64 *ts);
 void ring_buffer_iter_reset(struct ring_buffer_iter *iter);
 int ring_buffer_iter_empty(struct ring_buffer_iter *iter);
 
-unsigned long ring_buffer_size(struct ring_buffer *buffer);
+unsigned long ring_buffer_size(struct ring_buffer *buffer, int cpu);
 
 void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu);
 void ring_buffer_reset(struct ring_buffer *buffer);

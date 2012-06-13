@@ -378,7 +378,7 @@ void hist_entry__free(struct hist_entry *he)
  * collapse the histogram
  */
 
-static bool hists__collapse_insert_entry(struct hists *hists,
+static bool hists__collapse_insert_entry(struct hists *hists __used,
 					 struct rb_root *root,
 					 struct hist_entry *he)
 {
@@ -397,8 +397,9 @@ static bool hists__collapse_insert_entry(struct hists *hists,
 			iter->period += he->period;
 			iter->nr_events += he->nr_events;
 			if (symbol_conf.use_callchain) {
-				callchain_cursor_reset(&hists->callchain_cursor);
-				callchain_merge(&hists->callchain_cursor, iter->callchain,
+				callchain_cursor_reset(&callchain_cursor);
+				callchain_merge(&callchain_cursor,
+						iter->callchain,
 						he->callchain);
 			}
 			hist_entry__free(he);
@@ -599,7 +600,7 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain,
 	if (chain->ms.sym)
 		ret += fprintf(fp, "%s\n", chain->ms.sym->name);
 	else
-		ret += fprintf(fp, "%p\n", (void *)(long)chain->ip);
+		ret += fprintf(fp, "0x%0" PRIx64 "\n", chain->ip);
 
 	return ret;
 }

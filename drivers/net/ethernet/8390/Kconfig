@@ -60,6 +60,7 @@ config PCMCIA_AXNET
 config AX88796
 	tristate "ASIX AX88796 NE2000 clone support"
 	depends on (ARM || MIPS || SUPERH)
+	select CRC32
 	select PHYLIB
 	select MDIO_BITBANG
 	---help---
@@ -181,18 +182,6 @@ config NE2000
 	  To compile this driver as a module, choose M here. The module
 	  will be called ne.
 
-config NE2_MCA
-	tristate "NE/2 (ne2000 MCA version) support"
-	depends on MCA_LEGACY
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ne2.
-
 config NE2K_PCI
 	tristate "PCI NE2000 and clones support (see help)"
 	depends on PCI
@@ -265,18 +254,6 @@ config STNIC
 	  <http://www.national.com/pf/DP/DP83902A.html>.
 
 	  If unsure, say N.
-
-config ULTRAMCA
-	tristate "SMC Ultra MCA support"
-	depends on MCA
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type and are running
-	  an MCA based system (PS/2), say Y and read the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called smc-mca.
 
 config ULTRA
 	tristate "SMC Ultra support"

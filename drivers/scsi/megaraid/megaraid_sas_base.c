@@ -18,7 +18,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  *  FILE: megaraid_sas_base.c
- *  Version : v00.00.06.14-rc1
+ *  Version : v00.00.06.15-rc1
  *
  *  Authors: LSI Corporation
  *           Sreenivas Bagalkote

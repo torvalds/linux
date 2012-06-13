@@ -263,8 +263,8 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 
 	if (udc_is_newstyle(udc)) {
 		udc->driver->disconnect(udc->gadget);
-		udc->driver->unbind(udc->gadget);
 		usb_gadget_disconnect(udc->gadget);
+		udc->driver->unbind(udc->gadget);
 		usb_gadget_udc_stop(udc->gadget, udc->driver);
 	} else {
 		usb_gadget_stop(udc->gadget, udc->driver);
@@ -415,9 +415,9 @@ static ssize_t usb_udc_softconn_store(struct device *dev,
 			usb_gadget_udc_start(udc->gadget, udc->driver);
 		usb_gadget_connect(udc->gadget);
 	} else if (sysfs_streq(buf, "disconnect")) {
+		usb_gadget_disconnect(udc->gadget);
 		if (udc_is_newstyle(udc))
 			usb_gadget_udc_stop(udc->gadget, udc->driver);
-		usb_gadget_disconnect(udc->gadget);
 	} else {
 		dev_err(dev, "unsupported command '%s'\n", buf);
 		return -EINVAL;

@@ -125,15 +125,4 @@ static struct pci_driver emu_driver = {
         .remove =       __devexit_p(emu_remove),
 };
 
-static int __init emu_init(void)
-{
-	return pci_register_driver(&emu_driver);
-}
-
-static void __exit emu_exit(void)
-{
-	pci_unregister_driver(&emu_driver);
-}
-
-module_init(emu_init);
-module_exit(emu_exit);
+module_pci_driver(emu_driver);

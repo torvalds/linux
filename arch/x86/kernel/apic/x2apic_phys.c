@@ -24,6 +24,12 @@ static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	if (x2apic_phys)
 		return x2apic_enabled();
+	else if ((acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID) &&
+		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL) &&
+		x2apic_enabled()) {
+		printk(KERN_DEBUG "System requires x2apic physical mode\n");
+		return 1;
+	}
 	else
 		return 0;
 }
@@ -166,6 +172,7 @@ static struct apic apic_x2apic_phys = {
 
 	.read				= native_apic_msr_read,
 	.write				= native_apic_msr_write,
+	.eoi_write			= native_apic_msr_eoi_write,
 	.icr_read			= native_x2apic_icr_read,
 	.icr_write			= native_x2apic_icr_write,
 	.wait_icr_idle			= native_x2apic_wait_icr_idle,

@@ -790,18 +790,23 @@ tei_ph_data_ind(struct teimgr *tm, u_int mt, u_char *dp, int len)
 static struct layer2 *
 create_new_tei(struct manager *mgr, int tei, int sapi)
 {
-	u_long		opt = 0;
-	u_long		flags;
-	int		id;
-	struct layer2	*l2;
+	unsigned long		opt = 0;
+	unsigned long		flags;
+	int			id;
+	struct layer2		*l2;
+	struct channel_req	rq;
 
 	if (!mgr->up)
 		return NULL;
 	if ((tei >= 0) && (tei < 64))
 		test_and_set_bit(OPTION_L2_FIXEDTEI, &opt);
-	if (mgr->ch.st->dev->Dprotocols
-	    & ((1 << ISDN_P_TE_E1) | (1 << ISDN_P_NT_E1)))
+	if (mgr->ch.st->dev->Dprotocols & ((1 << ISDN_P_TE_E1) |
+	    (1 << ISDN_P_NT_E1))) {
 		test_and_set_bit(OPTION_L2_PMX, &opt);
+		rq.protocol = ISDN_P_NT_E1;
+	} else {
+		rq.protocol = ISDN_P_NT_S0;
+	}
 	l2 = create_l2(mgr->up, ISDN_P_LAPD_NT, opt, tei, sapi);
 	if (!l2) {
 		printk(KERN_WARNING "%s:no memory for layer2\n", __func__);
@@ -836,6 +841,14 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 		l2->ch.recv = mgr->ch.recv;
 		l2->ch.peer = mgr->ch.peer;
 		l2->ch.ctrl(&l2->ch, OPEN_CHANNEL, NULL);
+		/* We need open here L1 for the manager as well (refcounting) */
+		rq.adr.dev = mgr->ch.st->dev->id;
+		id = mgr->ch.st->own.ctrl(&mgr->ch.st->own, OPEN_CHANNEL, &rq);
+		if (id < 0) {
+			printk(KERN_WARNING "%s: cannot open L1\n", __func__);
+			l2->ch.ctrl(&l2->ch, CLOSE_CHANNEL, NULL);
+			l2 = NULL;
+		}
 	}
 	return l2;
 }
@@ -978,10 +991,11 @@ TEIrelease(struct layer2 *l2)
 static int
 create_teimgr(struct manager *mgr, struct channel_req *crq)
 {
-	struct layer2	*l2;
-	u_long		opt = 0;
-	u_long		flags;
-	int		id;
+	struct layer2		*l2;
+	unsigned long		opt = 0;
+	unsigned long		flags;
+	int			id;
+	struct channel_req	l1rq;
 
 	if (*debug & DEBUG_L2_TEI)
 		printk(KERN_DEBUG "%s: %s proto(%x) adr(%d %d %d %d)\n",
@@ -1016,6 +1030,7 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 		if (crq->protocol == ISDN_P_LAPD_TE)
 			test_and_set_bit(MGR_OPT_USER, &mgr->options);
 	}
+	l1rq.adr = crq->adr;
 	if (mgr->ch.st->dev->Dprotocols
 	    & ((1 << ISDN_P_TE_E1) | (1 << ISDN_P_NT_E1)))
 		test_and_set_bit(OPTION_L2_PMX, &opt);
@@ -1023,6 +1038,8 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 		mgr->up = crq->ch;
 		id = DL_INFO_L2_CONNECT;
 		teiup_create(mgr, DL_INFORMATION_IND, sizeof(id), &id);
+		if (test_bit(MGR_PH_ACTIVE, &mgr->options))
+			teiup_create(mgr, PH_ACTIVATE_IND, 0, NULL);
 		crq->ch = NULL;
 		if (!list_empty(&mgr->layer2)) {
 			read_lock_irqsave(&mgr->lock, flags);
@@ -1053,24 +1070,34 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 		l2->tm->tei_m.fsm = &teifsmu;
 		l2->tm->tei_m.state = ST_TEI_NOP;
 		l2->tm->tval = 1000; /* T201  1 sec */
+		if (test_bit(OPTION_L2_PMX, &opt))
+			l1rq.protocol = ISDN_P_TE_E1;
+		else
+			l1rq.protocol = ISDN_P_TE_S0;
 	} else {
 		l2->tm->tei_m.fsm = &teifsmn;
 		l2->tm->tei_m.state = ST_TEI_NOP;
 		l2->tm->tval = 2000; /* T202  2 sec */
+		if (test_bit(OPTION_L2_PMX, &opt))
+			l1rq.protocol = ISDN_P_NT_E1;
+		else
+			l1rq.protocol = ISDN_P_NT_S0;
 	}
 	mISDN_FsmInitTimer(&l2->tm->tei_m, &l2->tm->timer);
 	write_lock_irqsave(&mgr->lock, flags);
 	id = get_free_id(mgr);
 	list_add_tail(&l2->list, &mgr->layer2);
 	write_unlock_irqrestore(&mgr->lock, flags);
-	if (id < 0) {
-		l2->ch.ctrl(&l2->ch, CLOSE_CHANNEL, NULL);
-	} else {
+	if (id >= 0) {
 		l2->ch.nr = id;
 		l2->up->nr = id;
 		crq->ch = &l2->ch;
-		id = 0;
+		/* We need open here L1 for the manager as well (refcounting) */
+		id = mgr->ch.st->own.ctrl(&mgr->ch.st->own, OPEN_CHANNEL,
+					  &l1rq);
 	}
+	if (id < 0)
+		l2->ch.ctrl(&l2->ch, CLOSE_CHANNEL, NULL);
 	return id;
 }
 
@@ -1096,12 +1123,16 @@ mgr_send(struct mISDNchannel *ch, struct sk_buff *skb)
 		break;
 	case PH_ACTIVATE_IND:
 		test_and_set_bit(MGR_PH_ACTIVE, &mgr->options);
+		if (mgr->up)
+			teiup_create(mgr, PH_ACTIVATE_IND, 0, NULL);
 		mISDN_FsmEvent(&mgr->deact, EV_ACTIVATE_IND, NULL);
 		do_send(mgr);
 		ret = 0;
 		break;
 	case PH_DEACTIVATE_IND:
 		test_and_clear_bit(MGR_PH_ACTIVE, &mgr->options);
+		if (mgr->up)
+			teiup_create(mgr, PH_DEACTIVATE_IND, 0, NULL);
 		mISDN_FsmEvent(&mgr->deact, EV_DEACTIVATE_IND, NULL);
 		ret = 0;
 		break;
@@ -1263,7 +1294,7 @@ static int
 mgr_bcast(struct mISDNchannel *ch, struct sk_buff *skb)
 {
 	struct manager		*mgr = container_of(ch, struct manager, bcast);
-	struct mISDNhead	*hh = mISDN_HEAD_P(skb);
+	struct mISDNhead	*hhc, *hh = mISDN_HEAD_P(skb);
 	struct sk_buff		*cskb = NULL;
 	struct layer2		*l2;
 	u_long			flags;
@@ -1278,10 +1309,17 @@ mgr_bcast(struct mISDNchannel *ch, struct sk_buff *skb)
 				skb = NULL;
 			} else {
 				if (!cskb)
-					cskb = skb_copy(skb, GFP_KERNEL);
+					cskb = skb_copy(skb, GFP_ATOMIC);
 			}
 			if (cskb) {
-				ret = l2->ch.send(&l2->ch, cskb);
+				hhc = mISDN_HEAD_P(cskb);
+				/* save original header behind normal header */
+				hhc++;
+				*hhc = *hh;
+				hhc--;
+				hhc->prim = DL_INTERN_MSG;
+				hhc->id = l2->ch.nr;
+				ret = ch->st->own.recv(&ch->st->own, cskb);
 				if (ret) {
 					if (*debug & DEBUG_SEND_ERR)
 						printk(KERN_DEBUG

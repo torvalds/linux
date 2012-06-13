@@ -19,12 +19,14 @@
 #include <linux/swap.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/iocontext.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
+#include <linux/cgroup.h>
 #include <scsi/sg.h>		/* for struct sg_iovec */
 
 #include <trace/events/block.h>
@@ -418,6 +420,7 @@ void bio_put(struct bio *bio)
 	 * last put frees it
 	 */
 	if (atomic_dec_and_test(&bio->bi_cnt)) {
+		bio_disassociate_task(bio);
 		bio->bi_next = NULL;
 		bio->bi_destructor(bio);
 	}
@@ -505,9 +508,14 @@ EXPORT_SYMBOL(bio_clone);
 int bio_get_nr_vecs(struct block_device *bdev)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-	return min_t(unsigned,
+	int nr_pages;
+
+	nr_pages = min_t(unsigned,
 		     queue_max_segments(q),
 		     queue_max_sectors(q) / (PAGE_SIZE >> 9) + 1);
+
+	return min_t(unsigned, nr_pages, BIO_MAX_PAGES);
+
 }
 EXPORT_SYMBOL(bio_get_nr_vecs);
 
@@ -1640,6 +1648,64 @@ bad:
 	return NULL;
 }
 EXPORT_SYMBOL(bioset_create);
+
+#ifdef CONFIG_BLK_CGROUP
+/**
+ * bio_associate_current - associate a bio with %current
+ * @bio: target bio
+ *
+ * Associate @bio with %current if it hasn't been associated yet.  Block
+ * layer will treat @bio as if it were issued by %current no matter which
+ * task actually issues it.
+ *
+ * This function takes an extra reference of @task's io_context and blkcg
+ * which will be put when @bio is released.  The caller must own @bio,
+ * ensure %current->io_context exists, and is responsible for synchronizing
+ * calls to this function.
+ */
+int bio_associate_current(struct bio *bio)
+{
+	struct io_context *ioc;
+	struct cgroup_subsys_state *css;
+
+	if (bio->bi_ioc)
+		return -EBUSY;
+
+	ioc = current->io_context;
+	if (!ioc)
+		return -ENOENT;
+
+	/* acquire active ref on @ioc and associate */
+	get_io_context_active(ioc);
+	bio->bi_ioc = ioc;
+
+	/* associate blkcg if exists */
+	rcu_read_lock();
+	css = task_subsys_state(current, blkio_subsys_id);
+	if (css && css_tryget(css))
+		bio->bi_css = css;
+	rcu_read_unlock();
+
+	return 0;
+}
+
+/**
+ * bio_disassociate_task - undo bio_associate_current()
+ * @bio: target bio
+ */
+void bio_disassociate_task(struct bio *bio)
+{
+	if (bio->bi_ioc) {
+		put_io_context(bio->bi_ioc);
+		bio->bi_ioc = NULL;
+	}
+	if (bio->bi_css) {
+		css_put(bio->bi_css);
+		bio->bi_css = NULL;
+	}
+}
+
+#endif /* CONFIG_BLK_CGROUP */
 
 static void __init biovec_init_slabs(void)
 {

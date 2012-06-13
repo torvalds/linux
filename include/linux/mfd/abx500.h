@@ -6,7 +6,7 @@
  *
  * ABX500 core access functions.
  * The abx500 interface is used for the Analog Baseband chip
- * ab3100, ab5500, and ab8500.
+ * ab3100 and ab8500.
  *
  * Author: Mattias Wallin <mattias.wallin@stericsson.com>
  * Author: Mattias Nilsson <mattias.i.nilsson@stericsson.com>
@@ -30,9 +30,6 @@ struct device;
 #define AB3100_P1G	0xc6
 #define AB3100_R2A	0xc7
 #define AB3100_R2B	0xc8
-#define AB5500_1_0	0x20
-#define AB5500_1_1	0x21
-#define AB5500_2_0	0x24
 
 /*
  * AB3100, EVENTA1, A2 and A3 event register flags

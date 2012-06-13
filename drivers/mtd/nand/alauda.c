@@ -414,7 +414,7 @@ static int alauda_bounce_read(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 	err = 0;
 	if (corrected)
-		err = -EUCLEAN;
+		err = 1;	/* return max_bitflips per ecc step */
 	if (uncorrected)
 		err = -EBADMSG;
 out:
@@ -446,7 +446,7 @@ static int alauda_read(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 	err = 0;
 	if (corrected)
-		err = -EUCLEAN;
+		err = 1;	/* return max_bitflips per ecc step */
 	if (uncorrected)
 		err = -EBADMSG;
 	return err;

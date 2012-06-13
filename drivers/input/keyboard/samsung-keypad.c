@@ -454,23 +454,23 @@ static int __devinit samsung_keypad_probe(struct platform_device *pdev)
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->dev.parent = &pdev->dev;
-	input_set_drvdata(input_dev, keypad);
 
 	input_dev->open = samsung_keypad_open;
 	input_dev->close = samsung_keypad_close;
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY);
-	if (!pdata->no_autorepeat)
-		input_dev->evbit[0] |= BIT_MASK(EV_REP);
+	error = matrix_keypad_build_keymap(keymap_data, NULL,
+					   pdata->rows, pdata->cols,
+					   keypad->keycodes, input_dev);
+	if (error) {
+		dev_err(&pdev->dev, "failed to build keymap\n");
+		goto err_put_clk;
+	}
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
+	if (!pdata->no_autorepeat)
+		__set_bit(EV_REP, input_dev->evbit);
 
-	input_dev->keycode = keypad->keycodes;
-	input_dev->keycodesize = sizeof(keypad->keycodes[0]);
-	input_dev->keycodemax = pdata->rows << row_shift;
-
-	matrix_keypad_build_keymap(keymap_data, row_shift,
-			input_dev->keycode, input_dev->keybit);
+	input_set_drvdata(input_dev, keypad);
 
 	keypad->irq = platform_get_irq(pdev, 0);
 	if (keypad->irq < 0) {

@@ -29,10 +29,9 @@ void originator_free(struct bat_priv *bat_priv);
 void purge_orig_ref(struct bat_priv *bat_priv);
 void orig_node_free_ref(struct orig_node *orig_node);
 struct orig_node *get_orig_node(struct bat_priv *bat_priv, const uint8_t *addr);
-struct neigh_node *create_neighbor(struct orig_node *orig_node,
-				   struct orig_node *orig_neigh_node,
-				   const uint8_t *neigh,
-				   struct hard_iface *if_incoming);
+struct neigh_node *batadv_neigh_node_new(struct hard_iface *hard_iface,
+					 const uint8_t *neigh_addr,
+					 uint32_t seqno);
 void neigh_node_free_ref(struct neigh_node *neigh_node);
 struct neigh_node *orig_node_get_router(struct orig_node *orig_node);
 int orig_seq_print_text(struct seq_file *seq, void *offset);

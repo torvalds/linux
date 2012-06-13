@@ -401,7 +401,7 @@ static u8 alloc_usb_address(struct r8a66597 *r8a66597, struct urb *urb)
 		if (r8a66597->address_map & (1 << addr))
 			continue;
 
-		dbg("alloc_address: r8a66597_addr=%d", addr);
+		dev_dbg(&urb->dev->dev, "alloc_address: r8a66597_addr=%d\n", addr);
 		r8a66597->address_map |= 1 << addr;
 
 		if (make_r8a66597_device(r8a66597, urb, addr) < 0)
@@ -426,7 +426,7 @@ static void free_usb_address(struct r8a66597 *r8a66597,
 	if (!dev)
 		return;
 
-	dbg("free_addr: addr=%d", dev->address);
+	dev_dbg(&dev->udev->dev, "free_addr: addr=%d\n", dev->address);
 
 	dev->state = USB_STATE_DEFAULT;
 	r8a66597->address_map &= ~(1 << dev->address);
@@ -819,7 +819,7 @@ static void enable_r8a66597_pipe(struct r8a66597 *r8a66597, struct urb *urb,
 	struct r8a66597_device *dev = get_urb_to_r8a66597_dev(r8a66597, urb);
 	struct r8a66597_pipe *pipe = hep->hcpriv;
 
-	dbg("enable_pipe:");
+	dev_dbg(&dev->udev->dev, "enable_pipe:\n");
 
 	pipe->info = *info;
 	set_pipe_reg_addr(pipe, R8A66597_PIPE_NO_DMA);
@@ -898,7 +898,7 @@ static void disable_r8a66597_pipe_all(struct r8a66597 *r8a66597,
 		force_dequeue(r8a66597, pipenum, dev->address);
 	}
 
-	dbg("disable_pipe");
+	dev_dbg(&dev->udev->dev, "disable_pipe\n");
 
 	r8a66597->dma_map &= ~(dev->dma_map);
 	dev->dma_map = 0;
@@ -2264,7 +2264,7 @@ static int r8a66597_bus_suspend(struct usb_hcd *hcd)
 	struct r8a66597 *r8a66597 = hcd_to_r8a66597(hcd);
 	int port;
 
-	dbg("%s", __func__);
+	dev_dbg(&r8a66597->device0.udev->dev, "%s\n", __func__);
 
 	for (port = 0; port < r8a66597->max_root_hub; port++) {
 		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
@@ -2273,7 +2273,7 @@ static int r8a66597_bus_suspend(struct usb_hcd *hcd)
 		if (!(rh->port & USB_PORT_STAT_ENABLE))
 			continue;
 
-		dbg("suspend port = %d", port);
+		dev_dbg(&rh->dev->udev->dev, "suspend port = %d\n", port);
 		r8a66597_bclr(r8a66597, UACT, dvstctr_reg);	/* suspend */
 		rh->port |= USB_PORT_STAT_SUSPEND;
 
@@ -2295,7 +2295,7 @@ static int r8a66597_bus_resume(struct usb_hcd *hcd)
 	struct r8a66597 *r8a66597 = hcd_to_r8a66597(hcd);
 	int port;
 
-	dbg("%s", __func__);
+	dev_dbg(&r8a66597->device0.udev->dev, "%s\n", __func__);
 
 	for (port = 0; port < r8a66597->max_root_hub; port++) {
 		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
@@ -2304,7 +2304,7 @@ static int r8a66597_bus_resume(struct usb_hcd *hcd)
 		if (!(rh->port & USB_PORT_STAT_SUSPEND))
 			continue;
 
-		dbg("resume port = %d", port);
+		dev_dbg(&rh->dev->udev->dev, "resume port = %d\n", port);
 		rh->port &= ~USB_PORT_STAT_SUSPEND;
 		rh->port |= USB_PORT_STAT_C_SUSPEND << 16;
 		r8a66597_mdfy(r8a66597, RESUME, RESUME | UACT, dvstctr_reg);
@@ -2360,7 +2360,7 @@ static int r8a66597_suspend(struct device *dev)
 	struct r8a66597		*r8a66597 = dev_get_drvdata(dev);
 	int port;
 
-	dbg("%s", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 
 	disable_controller(r8a66597);
 
@@ -2378,7 +2378,7 @@ static int r8a66597_resume(struct device *dev)
 	struct r8a66597		*r8a66597 = dev_get_drvdata(dev);
 	struct usb_hcd		*hcd = r8a66597_to_hcd(r8a66597);
 
-	dbg("%s", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 
 	enable_controller(r8a66597);
 	usb_root_hub_lost_power(hcd->self.root_hub);

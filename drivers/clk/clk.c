@@ -194,9 +194,8 @@ static int __init clk_debug_init(void)
 late_initcall(clk_debug_init);
 #else
 static inline int clk_debug_register(struct clk *clk) { return 0; }
-#endif /* CONFIG_COMMON_CLK_DEBUG */
+#endif
 
-#ifdef CONFIG_COMMON_CLK_DISABLE_UNUSED
 /* caller must hold prepare_lock */
 static void clk_disable_unused_subtree(struct clk *clk)
 {
@@ -246,9 +245,6 @@ static int clk_disable_unused(void)
 	return 0;
 }
 late_initcall(clk_disable_unused);
-#else
-static inline int clk_disable_unused(struct clk *clk) { return 0; }
-#endif /* CONFIG_COMMON_CLK_DISABLE_UNUSED */
 
 /***    helper functions   ***/
 
@@ -287,7 +283,7 @@ unsigned long __clk_get_rate(struct clk *clk)
 	unsigned long ret;
 
 	if (!clk) {
-		ret = -EINVAL;
+		ret = 0;
 		goto out;
 	}
 
@@ -297,7 +293,7 @@ unsigned long __clk_get_rate(struct clk *clk)
 		goto out;
 
 	if (!clk->parent)
-		ret = -ENODEV;
+		ret = 0;
 
 out:
 	return ret;
@@ -562,7 +558,7 @@ EXPORT_SYMBOL_GPL(clk_enable);
  * @clk: the clk whose rate is being returned
  *
  * Simply returns the cached rate of the clk.  Does not query the hardware.  If
- * clk is NULL then returns -EINVAL.
+ * clk is NULL then returns 0.
  */
 unsigned long clk_get_rate(struct clk *clk)
 {
@@ -584,18 +580,22 @@ EXPORT_SYMBOL_GPL(clk_get_rate);
  */
 unsigned long __clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	unsigned long unused;
+	unsigned long parent_rate = 0;
 
 	if (!clk)
 		return -EINVAL;
 
-	if (!clk->ops->round_rate)
-		return clk->rate;
+	if (!clk->ops->round_rate) {
+		if (clk->flags & CLK_SET_RATE_PARENT)
+			return __clk_round_rate(clk->parent, rate);
+		else
+			return clk->rate;
+	}
 
-	if (clk->flags & CLK_SET_RATE_PARENT)
-		return clk->ops->round_rate(clk->hw, rate, &unused);
-	else
-		return clk->ops->round_rate(clk->hw, rate, NULL);
+	if (clk->parent)
+		parent_rate = clk->parent->rate;
+
+	return clk->ops->round_rate(clk->hw, rate, &parent_rate);
 }
 
 /**
@@ -765,25 +765,41 @@ static void clk_calc_subtree(struct clk *clk, unsigned long new_rate)
 static struct clk *clk_calc_new_rates(struct clk *clk, unsigned long rate)
 {
 	struct clk *top = clk;
-	unsigned long best_parent_rate = clk->parent->rate;
+	unsigned long best_parent_rate = 0;
 	unsigned long new_rate;
 
-	if (!clk->ops->round_rate && !(clk->flags & CLK_SET_RATE_PARENT)) {
-		clk->new_rate = clk->rate;
+	/* sanity */
+	if (IS_ERR_OR_NULL(clk))
+		return NULL;
+
+	/* save parent rate, if it exists */
+	if (clk->parent)
+		best_parent_rate = clk->parent->rate;
+
+	/* never propagate up to the parent */
+	if (!(clk->flags & CLK_SET_RATE_PARENT)) {
+		if (!clk->ops->round_rate) {
+			clk->new_rate = clk->rate;
+			return NULL;
+		}
+		new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
+		goto out;
+	}
+
+	/* need clk->parent from here on out */
+	if (!clk->parent) {
+		pr_debug("%s: %s has NULL parent\n", __func__, clk->name);
 		return NULL;
 	}
 
-	if (!clk->ops->round_rate && (clk->flags & CLK_SET_RATE_PARENT)) {
+	if (!clk->ops->round_rate) {
 		top = clk_calc_new_rates(clk->parent, rate);
-		new_rate = clk->new_rate = clk->parent->new_rate;
+		new_rate = clk->parent->new_rate;
 
 		goto out;
 	}
 
-	if (clk->flags & CLK_SET_RATE_PARENT)
-		new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
-	else
-		new_rate = clk->ops->round_rate(clk->hw, rate, NULL);
+	new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
 
 	if (best_parent_rate != clk->parent->rate) {
 		top = clk_calc_new_rates(clk->parent, best_parent_rate);
@@ -839,7 +855,7 @@ static void clk_change_rate(struct clk *clk)
 	old_rate = clk->rate;
 
 	if (clk->ops->set_rate)
-		clk->ops->set_rate(clk->hw, clk->new_rate);
+		clk->ops->set_rate(clk->hw, clk->new_rate, clk->parent->rate);
 
 	if (clk->ops->recalc_rate)
 		clk->rate = clk->ops->recalc_rate(clk->hw,
@@ -859,38 +875,19 @@ static void clk_change_rate(struct clk *clk)
  * @clk: the clk whose rate is being changed
  * @rate: the new rate for clk
  *
- * In the simplest case clk_set_rate will only change the rate of clk.
+ * In the simplest case clk_set_rate will only adjust the rate of clk.
  *
- * If clk has the CLK_SET_RATE_GATE flag set and it is enabled this call
- * will fail; only when the clk is disabled will it be able to change
- * its rate.
+ * Setting the CLK_SET_RATE_PARENT flag allows the rate change operation to
+ * propagate up to clk's parent; whether or not this happens depends on the
+ * outcome of clk's .round_rate implementation.  If *parent_rate is unchanged
+ * after calling .round_rate then upstream parent propagation is ignored.  If
+ * *parent_rate comes back with a new rate for clk's parent then we propagate
+ * up to clk's parent and set it's rate.  Upward propagation will continue
+ * until either a clk does not support the CLK_SET_RATE_PARENT flag or
+ * .round_rate stops requesting changes to clk's parent_rate.
  *
- * Setting the CLK_SET_RATE_PARENT flag allows clk_set_rate to
- * recursively propagate up to clk's parent; whether or not this happens
- * depends on the outcome of clk's .round_rate implementation.  If
- * *parent_rate is 0 after calling .round_rate then upstream parent
- * propagation is ignored.  If *parent_rate comes back with a new rate
- * for clk's parent then we propagate up to clk's parent and set it's
- * rate.  Upward propagation will continue until either a clk does not
- * support the CLK_SET_RATE_PARENT flag or .round_rate stops requesting
- * changes to clk's parent_rate.  If there is a failure during upstream
- * propagation then clk_set_rate will unwind and restore each clk's rate
- * that had been successfully changed.  Afterwards a rate change abort
- * notification will be propagated downstream, starting from the clk
- * that failed.
- *
- * At the end of all of the rate setting, clk_set_rate internally calls
- * __clk_recalc_rates and propagates the rate changes downstream,
- * starting from the highest clk whose rate was changed.  This has the
- * added benefit of propagating post-rate change notifiers.
- *
- * Note that while post-rate change and rate change abort notifications
- * are guaranteed to be sent to a clk only once per call to
- * clk_set_rate, pre-change notifications will be sent for every clk
- * whose rate is changed.  Stacking pre-change notifications is noisy
- * for the drivers subscribed to them, but this allows drivers to react
- * to intermediate clk rate changes up until the point where the final
- * rate is achieved at the end of upstream propagation.
+ * Rate changes are accomplished via tree traversal that also recalculates the
+ * rates for the clocks and fires off POST_RATE_CHANGE notifiers.
  *
  * Returns 0 on success, -EERROR otherwise.
  */
@@ -905,6 +902,11 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	/* bail early if nothing to do */
 	if (rate == clk->rate)
 		goto out;
+
+	if ((clk->flags & CLK_SET_RATE_GATE) && clk->prepare_count) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	/* calculate new rates and get the topmost changed clock */
 	top = clk_calc_new_rates(clk, rate);
@@ -1175,40 +1177,41 @@ EXPORT_SYMBOL_GPL(clk_set_parent);
  *
  * Initializes the lists in struct clk, queries the hardware for the
  * parent and rate and sets them both.
- *
- * Any struct clk passed into __clk_init must have the following members
- * populated:
- * 	.name
- * 	.ops
- * 	.hw
- * 	.parent_names
- * 	.num_parents
- * 	.flags
- *
- * Essentially, everything that would normally be passed into clk_register is
- * assumed to be initialized already in __clk_init.  The other members may be
- * populated, but are optional.
- *
- * __clk_init is only exposed via clk-private.h and is intended for use with
- * very large numbers of clocks that need to be statically initialized.  It is
- * a layering violation to include clk-private.h from any code which implements
- * a clock's .ops; as such any statically initialized clock data MUST be in a
- * separate C file from the logic that implements it's operations.
  */
-void __clk_init(struct device *dev, struct clk *clk)
+int __clk_init(struct device *dev, struct clk *clk)
 {
-	int i;
+	int i, ret = 0;
 	struct clk *orphan;
 	struct hlist_node *tmp, *tmp2;
 
 	if (!clk)
-		return;
+		return -EINVAL;
 
 	mutex_lock(&prepare_lock);
 
 	/* check to see if a clock with this name is already registered */
-	if (__clk_lookup(clk->name))
+	if (__clk_lookup(clk->name)) {
+		pr_debug("%s: clk %s already initialized\n",
+				__func__, clk->name);
+		ret = -EEXIST;
 		goto out;
+	}
+
+	/* check that clk_ops are sane.  See Documentation/clk.txt */
+	if (clk->ops->set_rate &&
+			!(clk->ops->round_rate && clk->ops->recalc_rate)) {
+		pr_warning("%s: %s must implement .round_rate & .recalc_rate\n",
+				__func__, clk->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (clk->ops->set_parent && !clk->ops->get_parent) {
+		pr_warning("%s: %s must implement .get_parent & .set_parent\n",
+				__func__, clk->name);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	/* throw a WARN if any entries in parent_names are NULL */
 	for (i = 0; i < clk->num_parents; i++)
@@ -1302,47 +1305,129 @@ void __clk_init(struct device *dev, struct clk *clk)
 out:
 	mutex_unlock(&prepare_lock);
 
-	return;
+	return ret;
 }
+
+/**
+ * __clk_register - register a clock and return a cookie.
+ *
+ * Same as clk_register, except that the .clk field inside hw shall point to a
+ * preallocated (generally statically allocated) struct clk. None of the fields
+ * of the struct clk need to be initialized.
+ *
+ * The data pointed to by .init and .clk field shall NOT be marked as init
+ * data.
+ *
+ * __clk_register is only exposed via clk-private.h and is intended for use with
+ * very large numbers of clocks that need to be statically initialized.  It is
+ * a layering violation to include clk-private.h from any code which implements
+ * a clock's .ops; as such any statically initialized clock data MUST be in a
+ * separate C file from the logic that implements it's operations.  Returns 0
+ * on success, otherwise an error code.
+ */
+struct clk *__clk_register(struct device *dev, struct clk_hw *hw)
+{
+	int ret;
+	struct clk *clk;
+
+	clk = hw->clk;
+	clk->name = hw->init->name;
+	clk->ops = hw->init->ops;
+	clk->hw = hw;
+	clk->flags = hw->init->flags;
+	clk->parent_names = hw->init->parent_names;
+	clk->num_parents = hw->init->num_parents;
+
+	ret = __clk_init(dev, clk);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk;
+}
+EXPORT_SYMBOL_GPL(__clk_register);
 
 /**
  * clk_register - allocate a new clock, register it and return an opaque cookie
  * @dev: device that is registering this clock
- * @name: clock name
- * @ops: operations this clock supports
  * @hw: link to hardware-specific clock data
- * @parent_names: array of string names for all possible parents
- * @num_parents: number of possible parents
- * @flags: framework-level hints and quirks
  *
  * clk_register is the primary interface for populating the clock tree with new
  * clock nodes.  It returns a pointer to the newly allocated struct clk which
  * cannot be dereferenced by driver code but may be used in conjuction with the
- * rest of the clock API.
+ * rest of the clock API.  In the event of an error clk_register will return an
+ * error code; drivers must test for an error code after calling clk_register.
  */
-struct clk *clk_register(struct device *dev, const char *name,
-		const struct clk_ops *ops, struct clk_hw *hw,
-		char **parent_names, u8 num_parents, unsigned long flags)
+struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 {
+	int i, ret;
 	struct clk *clk;
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
-	if (!clk)
-		return NULL;
+	if (!clk) {
+		pr_err("%s: could not allocate clk\n", __func__);
+		ret = -ENOMEM;
+		goto fail_out;
+	}
 
-	clk->name = name;
-	clk->ops = ops;
+	clk->name = kstrdup(hw->init->name, GFP_KERNEL);
+	if (!clk->name) {
+		pr_err("%s: could not allocate clk->name\n", __func__);
+		ret = -ENOMEM;
+		goto fail_name;
+	}
+	clk->ops = hw->init->ops;
 	clk->hw = hw;
-	clk->flags = flags;
-	clk->parent_names = parent_names;
-	clk->num_parents = num_parents;
+	clk->flags = hw->init->flags;
+	clk->num_parents = hw->init->num_parents;
 	hw->clk = clk;
 
-	__clk_init(dev, clk);
+	/* allocate local copy in case parent_names is __initdata */
+	clk->parent_names = kzalloc((sizeof(char*) * clk->num_parents),
+			GFP_KERNEL);
 
-	return clk;
+	if (!clk->parent_names) {
+		pr_err("%s: could not allocate clk->parent_names\n", __func__);
+		ret = -ENOMEM;
+		goto fail_parent_names;
+	}
+
+
+	/* copy each string name in case parent_names is __initdata */
+	for (i = 0; i < clk->num_parents; i++) {
+		clk->parent_names[i] = kstrdup(hw->init->parent_names[i],
+						GFP_KERNEL);
+		if (!clk->parent_names[i]) {
+			pr_err("%s: could not copy parent_names\n", __func__);
+			ret = -ENOMEM;
+			goto fail_parent_names_copy;
+		}
+	}
+
+	ret = __clk_init(dev, clk);
+	if (!ret)
+		return clk;
+
+fail_parent_names_copy:
+	while (--i >= 0)
+		kfree(clk->parent_names[i]);
+	kfree(clk->parent_names);
+fail_parent_names:
+	kfree(clk->name);
+fail_name:
+	kfree(clk);
+fail_out:
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(clk_register);
+
+/**
+ * clk_unregister - unregister a currently registered clock
+ * @clk: clock to unregister
+ *
+ * Currently unimplemented.
+ */
+void clk_unregister(struct clk *clk) {}
+EXPORT_SYMBOL_GPL(clk_unregister);
 
 /***        clk rate change notifiers        ***/
 

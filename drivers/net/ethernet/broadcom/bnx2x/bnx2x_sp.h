@@ -62,6 +62,8 @@ enum {
 	BNX2X_FILTER_MCAST_PENDING,
 	BNX2X_FILTER_MCAST_SCHED,
 	BNX2X_FILTER_RSS_CONF_PENDING,
+	BNX2X_AFEX_FCOE_Q_UPDATE_PENDING,
+	BNX2X_AFEX_PENDING_VIFSET_MCP_ACK
 };
 
 struct bnx2x_raw_obj {
@@ -432,6 +434,8 @@ enum {
 	BNX2X_LLH_CAM_MAX_PF_LINE = NIG_REG_LLH1_FUNC_MEM_SIZE / 2
 };
 
+void bnx2x_set_mac_in_nig(struct bnx2x *bp,
+			  bool add, unsigned char *dev_addr, int index);
 
 /** RX_MODE verbs:DROP_ALL/ACCEPT_ALL/ACCEPT_ALL_MULTI/ACCEPT_ALL_VLAN/NORMAL */
 
@@ -685,9 +689,6 @@ enum {
 	/* RSS_MODE bits are mutually exclusive */
 	BNX2X_RSS_MODE_DISABLED,
 	BNX2X_RSS_MODE_REGULAR,
-	BNX2X_RSS_MODE_VLAN_PRI,
-	BNX2X_RSS_MODE_E1HOV_PRI,
-	BNX2X_RSS_MODE_IP_DSCP,
 
 	BNX2X_RSS_SET_SRCH, /* Setup searcher, E1x specific flag */
 
@@ -801,7 +802,8 @@ enum {
 	BNX2X_Q_FLG_TX_SWITCH,
 	BNX2X_Q_FLG_TX_SEC,
 	BNX2X_Q_FLG_ANTI_SPOOF,
-	BNX2X_Q_FLG_SILENT_VLAN_REM
+	BNX2X_Q_FLG_SILENT_VLAN_REM,
+	BNX2X_Q_FLG_FORCE_DEFAULT_PRI
 };
 
 /* Queue type options: queue type may be a compination of below. */
@@ -963,6 +965,11 @@ struct bnx2x_queue_state_params {
 	} params;
 };
 
+struct bnx2x_viflist_params {
+	u8 echo_res;
+	u8 func_bit_map_res;
+};
+
 struct bnx2x_queue_sp_obj {
 	u32		cids[BNX2X_MULTI_TX_COS];
 	u8		cl_id;
@@ -1045,6 +1052,8 @@ enum bnx2x_func_cmd {
 	BNX2X_F_CMD_START,
 	BNX2X_F_CMD_STOP,
 	BNX2X_F_CMD_HW_RESET,
+	BNX2X_F_CMD_AFEX_UPDATE,
+	BNX2X_F_CMD_AFEX_VIFLISTS,
 	BNX2X_F_CMD_TX_STOP,
 	BNX2X_F_CMD_TX_START,
 	BNX2X_F_CMD_MAX,
@@ -1089,6 +1098,18 @@ struct bnx2x_func_start_params {
 	u8 network_cos_mode;
 };
 
+struct bnx2x_func_afex_update_params {
+	u16 vif_id;
+	u16 afex_default_vlan;
+	u8 allowed_priorities;
+};
+
+struct bnx2x_func_afex_viflists_params {
+	u16 vif_list_index;
+	u8 func_bit_map;
+	u8 afex_vif_list_command;
+	u8 func_to_clear;
+};
 struct bnx2x_func_tx_start_params {
 	struct priority_cos traffic_type_to_priority_cos[MAX_TRAFFIC_TYPES];
 	u8 dcb_enabled;
@@ -1110,6 +1131,8 @@ struct bnx2x_func_state_params {
 		struct bnx2x_func_hw_init_params hw_init;
 		struct bnx2x_func_hw_reset_params hw_reset;
 		struct bnx2x_func_start_params start;
+		struct bnx2x_func_afex_update_params afex_update;
+		struct bnx2x_func_afex_viflists_params afex_viflists;
 		struct bnx2x_func_tx_start_params tx_start;
 	} params;
 };
@@ -1154,6 +1177,13 @@ struct bnx2x_func_sp_obj {
 	void			*rdata;
 	dma_addr_t		rdata_mapping;
 
+	/* Buffer to use as a afex ramrod data and its mapping.
+	 * This can't be same rdata as above because afex ramrod requests
+	 * can arrive to the object in parallel to other ramrod requests.
+	 */
+	void			*afex_rdata;
+	dma_addr_t		afex_rdata_mapping;
+
 	/* this mutex validates that when pending flag is taken, the next
 	 * ramrod to be sent will be the one set the pending bit
 	 */
@@ -1197,6 +1227,7 @@ union bnx2x_qable_obj {
 void bnx2x_init_func_obj(struct bnx2x *bp,
 			 struct bnx2x_func_sp_obj *obj,
 			 void *rdata, dma_addr_t rdata_mapping,
+			 void *afex_rdata, dma_addr_t afex_rdata_mapping,
 			 struct bnx2x_func_sp_drv_ops *drv_iface);
 
 int bnx2x_func_state_change(struct bnx2x *bp,

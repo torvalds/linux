@@ -25,10 +25,6 @@ config INPUT
 
 if INPUT
 
-config INPUT_OF_MATRIX_KEYMAP
-	depends on USE_OF
-	bool
-
 config INPUT_FF_MEMLESS
 	tristate "Support for memoryless force-feedback devices"
 	help
@@ -67,6 +63,19 @@ config INPUT_SPARSEKMAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sparse-keymap.
+
+config INPUT_MATRIXKMAP
+	tristate "Matrix keymap support library"
+	help
+	  Say Y here if you are using a driver for an input
+	  device that uses matrix keymap. This option is only
+	  useful for out-of-tree drivers since in-tree drivers
+	  select it automatically.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called matrix-keymap.
 
 comment "Userland interfaces"
 

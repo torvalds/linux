@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Analog Devices Inc.
+ * Copyright 2010-2012 Analog Devices Inc.
  * Copyright (C) 2008 Jonathan Cameron
  *
  * Licensed under the GPL-2 or later.
@@ -13,42 +13,12 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
-#include "../iio.h"
-#include "../buffer.h"
-#include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/kfifo_buf.h>
+#include <linux/iio/trigger_consumer.h>
 
 #include "ad7476.h"
-
-/**
- * ad7476_ring_preenable() setup the parameters of the ring before enabling
- *
- * The complex nature of the setting of the number of bytes per datum is due
- * to this driver currently ensuring that the timestamp is stored at an 8
- * byte boundary.
- **/
-static int ad7476_ring_preenable(struct iio_dev *indio_dev)
-{
-	struct ad7476_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
-
-	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
-				   indio_dev->masklength) *
-		st->chip_info->channel[0].scan_type.storagebits / 8;
-
-	if (ring->scan_timestamp) {
-		st->d_size += sizeof(s64);
-
-		if (st->d_size % sizeof(s64))
-			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
-	}
-
-	if (indio_dev->buffer->access->set_bytes_per_datum)
-		indio_dev->buffer->access->
-			set_bytes_per_datum(indio_dev->buffer, st->d_size);
-
-	return 0;
-}
 
 static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 {
@@ -59,7 +29,7 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	__u8 *rxbuf;
 	int b_sent;
 
-	rxbuf = kzalloc(st->d_size, GFP_KERNEL);
+	rxbuf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (rxbuf == NULL)
 		return -ENOMEM;
 
@@ -70,8 +40,8 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 
 	time_ns = iio_get_time_ns();
 
-	if (indio_dev->buffer->scan_timestamp)
-		memcpy(rxbuf + st->d_size - sizeof(s64),
+	if (indio_dev->scan_timestamp)
+		memcpy(rxbuf + indio_dev->scan_bytes - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 
 	indio_dev->buffer->access->store_to(indio_dev->buffer, rxbuf, time_ns);
@@ -83,7 +53,7 @@ done:
 }
 
 static const struct iio_buffer_setup_ops ad7476_ring_setup_ops = {
-	.preenable = &ad7476_ring_preenable,
+	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 };
@@ -93,7 +63,7 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	struct ad7476_state *st = iio_priv(indio_dev);
 	int ret = 0;
 
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
 	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -108,7 +78,7 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 				     indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
+		goto error_deallocate_kfifo;
 	}
 
 	/* Ring buffer functions - here trigger setup related */
@@ -119,8 +89,8 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
-error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->buffer);
+error_deallocate_kfifo:
+	iio_kfifo_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -128,5 +98,5 @@ error_ret:
 void ad7476_ring_cleanup(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }

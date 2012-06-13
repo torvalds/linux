@@ -80,12 +80,6 @@ static const struct comedi_lrange pcmda12_ranges = {
 	 }
 };
 
-static const struct pcmda12_board pcmda12_boards[] = {
-	{
-	 .name = "pcmda12",
-	 },
-};
-
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -98,137 +92,6 @@ struct pcmda12_private {
 };
 
 #define devpriv ((struct pcmda12_private *)(dev->private))
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int pcmda12_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pcmda12_detach(struct comedi_device *dev);
-
-static void zero_chans(struct comedi_device *dev);
-
-static struct comedi_driver driver = {
-	.driver_name = "pcmda12",
-	.module = THIS_MODULE,
-	.attach = pcmda12_attach,
-	.detach = pcmda12_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in pcmda12_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-	.board_name = &pcmda12_boards[0].name,
-	.offset = sizeof(struct pcmda12_board),
-	.num_names = ARRAY_SIZE(pcmda12_boards),
-};
-
-static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data);
-static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data);
-
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int pcmda12_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-	unsigned long iobase;
-
-	iobase = it->options[0];
-	printk(KERN_INFO
-	       "comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name,
-	       iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
-
-	if (!request_region(iobase, IOSIZE, driver.driver_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
-
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct pcmda12_private)) < 0) {
-		printk(KERN_ERR "cannot allocate private data structure\n");
-		return -ENOMEM;
-	}
-
-	devpriv->simultaneous_xfer_mode = it->options[1];
-
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 *
-	 * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
-	 * 96-channel version of the board.
-	 */
-	if (alloc_subdevices(dev, 1) < 0) {
-		printk(KERN_ERR "cannot allocate subdevice data structures\n");
-		return -ENOMEM;
-	}
-
-	s = dev->subdevices;
-	s->private = NULL;
-	s->maxdata = (0x1 << BITS) - 1;
-	s->range_table = &pcmda12_ranges;
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = CHANS;
-	s->insn_write = &ao_winsn;
-	s->insn_read = &ao_rinsn;
-
-	zero_chans(dev);	/* clear out all the registers, basically */
-
-	printk(KERN_INFO "attached\n");
-
-	return 1;
-}
-
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int pcmda12_detach(struct comedi_device *dev)
-{
-	printk(KERN_INFO
-	       "comedi%d: %s: remove\n", dev->minor, driver.driver_name);
-	if (dev->iobase)
-		release_region(dev->iobase, IOSIZE);
-	return 0;
-}
 
 static void zero_chans(struct comedi_device *dev)
 {				/* sets up an
@@ -301,22 +164,91 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
+static int pcmda12_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	struct comedi_subdevice *s;
+	unsigned long iobase;
+
+	iobase = it->options[0];
+	printk(KERN_INFO
+	       "comedi%d: %s: io: %lx %s ", dev->minor, dev->driver->driver_name,
+	       iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
+
+	if (!request_region(iobase, IOSIZE, dev->driver->driver_name)) {
+		printk("I/O port conflict\n");
+		return -EIO;
+	}
+	dev->iobase = iobase;
+
 /*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
+ * Initialize dev->board_name.  Note that we can use the "thisboard"
+ * macro now, since we just initialized it in the last line.
  */
-static int __init driver_init_module(void)
-{
-	return comedi_driver_register(&driver);
+	dev->board_name = thisboard->name;
+
+/*
+ * Allocate the private structure area.  alloc_private() is a
+ * convenient macro defined in comedidev.h.
+ */
+	if (alloc_private(dev, sizeof(struct pcmda12_private)) < 0) {
+		printk(KERN_ERR "cannot allocate private data structure\n");
+		return -ENOMEM;
+	}
+
+	devpriv->simultaneous_xfer_mode = it->options[1];
+
+	/*
+	 * Allocate the subdevice structures.  alloc_subdevice() is a
+	 * convenient macro defined in comedidev.h.
+	 *
+	 * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
+	 * 96-channel version of the board.
+	 */
+	if (alloc_subdevices(dev, 1) < 0) {
+		printk(KERN_ERR "cannot allocate subdevice data structures\n");
+		return -ENOMEM;
+	}
+
+	s = dev->subdevices;
+	s->private = NULL;
+	s->maxdata = (0x1 << BITS) - 1;
+	s->range_table = &pcmda12_ranges;
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = CHANS;
+	s->insn_write = &ao_winsn;
+	s->insn_read = &ao_rinsn;
+
+	zero_chans(dev);	/* clear out all the registers, basically */
+
+	printk(KERN_INFO "attached\n");
+
+	return 1;
 }
 
-static void __exit driver_cleanup_module(void)
+static void pcmda12_detach(struct comedi_device *dev)
 {
-	comedi_driver_unregister(&driver);
+	if (dev->iobase)
+		release_region(dev->iobase, IOSIZE);
 }
 
-module_init(driver_init_module);
-module_exit(driver_cleanup_module);
+static const struct pcmda12_board pcmda12_boards[] = {
+	{
+		.name	= "pcmda12",
+	},
+};
+
+static struct comedi_driver pcmda12_driver = {
+	.driver_name	= "pcmda12",
+	.module		= THIS_MODULE,
+	.attach		= pcmda12_attach,
+	.detach		= pcmda12_detach,
+	.board_name	= &pcmda12_boards[0].name,
+	.offset		= sizeof(struct pcmda12_board),
+	.num_names	= ARRAY_SIZE(pcmda12_boards),
+};
+module_comedi_driver(pcmda12_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

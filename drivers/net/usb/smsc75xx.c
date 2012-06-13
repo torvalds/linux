@@ -98,7 +98,7 @@ static int __must_check smsc75xx_read_reg(struct usbnet *dev, u32 index,
 
 	if (unlikely(ret < 0))
 		netdev_warn(dev->net,
-			"Failed to read register index 0x%08x", index);
+			"Failed to read reg index 0x%08x: %d", index, ret);
 
 	le32_to_cpus(buf);
 	*data = *buf;
@@ -128,7 +128,7 @@ static int __must_check smsc75xx_write_reg(struct usbnet *dev, u32 index,
 
 	if (unlikely(ret < 0))
 		netdev_warn(dev->net,
-			"Failed to write register index 0x%08x", index);
+			"Failed to write reg index 0x%08x: %d", index, ret);
 
 	kfree(buf);
 
@@ -171,7 +171,7 @@ static int smsc75xx_mdio_read(struct net_device *netdev, int phy_id, int idx)
 	idx &= dev->mii.reg_num_mask;
 	addr = ((phy_id << MII_ACCESS_PHY_ADDR_SHIFT) & MII_ACCESS_PHY_ADDR)
 		| ((idx << MII_ACCESS_REG_ADDR_SHIFT) & MII_ACCESS_REG_ADDR)
-		| MII_ACCESS_READ;
+		| MII_ACCESS_READ | MII_ACCESS_BUSY;
 	ret = smsc75xx_write_reg(dev, MII_ACCESS, addr);
 	check_warn_goto_done(ret, "Error writing MII_ACCESS");
 
@@ -210,7 +210,7 @@ static void smsc75xx_mdio_write(struct net_device *netdev, int phy_id, int idx,
 	idx &= dev->mii.reg_num_mask;
 	addr = ((phy_id << MII_ACCESS_PHY_ADDR_SHIFT) & MII_ACCESS_PHY_ADDR)
 		| ((idx << MII_ACCESS_REG_ADDR_SHIFT) & MII_ACCESS_REG_ADDR)
-		| MII_ACCESS_WRITE;
+		| MII_ACCESS_WRITE | MII_ACCESS_BUSY;
 	ret = smsc75xx_write_reg(dev, MII_ACCESS, addr);
 	check_warn_goto_done(ret, "Error writing MII_ACCESS");
 
@@ -508,9 +508,9 @@ static int smsc75xx_link_reset(struct usbnet *dev)
 	u16 lcladv, rmtadv;
 	int ret;
 
-	/* clear interrupt status */
-	ret = smsc75xx_mdio_read(dev->net, mii->phy_id, PHY_INT_SRC);
-	check_warn_return(ret, "Error reading PHY_INT_SRC");
+	/* write to clear phy interrupt status */
+	smsc75xx_mdio_write(dev->net, mii->phy_id, PHY_INT_SRC,
+		PHY_INT_SRC_CLEAR_ALL);
 
 	ret = smsc75xx_write_reg(dev, INT_STS, INT_STS_CLEAR_ALL);
 	check_warn_return(ret, "Error writing INT_STS");
@@ -643,7 +643,7 @@ static int smsc75xx_set_mac_address(struct usbnet *dev)
 
 static int smsc75xx_phy_initialize(struct usbnet *dev)
 {
-	int bmcr, timeout = 0;
+	int bmcr, ret, timeout = 0;
 
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;
@@ -651,6 +651,7 @@ static int smsc75xx_phy_initialize(struct usbnet *dev)
 	dev->mii.mdio_write = smsc75xx_mdio_write;
 	dev->mii.phy_id_mask = 0x1f;
 	dev->mii.reg_num_mask = 0x1f;
+	dev->mii.supports_gmii = 1;
 	dev->mii.phy_id = SMSC75XX_INTERNAL_PHY_ID;
 
 	/* reset phy and wait for reset to complete */
@@ -661,7 +662,7 @@ static int smsc75xx_phy_initialize(struct usbnet *dev)
 		bmcr = smsc75xx_mdio_read(dev->net, dev->mii.phy_id, MII_BMCR);
 		check_warn_return(bmcr, "Error reading MII_BMCR");
 		timeout++;
-	} while ((bmcr & MII_BMCR) && (timeout < 100));
+	} while ((bmcr & BMCR_RESET) && (timeout < 100));
 
 	if (timeout >= 100) {
 		netdev_warn(dev->net, "timeout on PHY Reset");
@@ -671,10 +672,13 @@ static int smsc75xx_phy_initialize(struct usbnet *dev)
 	smsc75xx_mdio_write(dev->net, dev->mii.phy_id, MII_ADVERTISE,
 		ADVERTISE_ALL | ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP |
 		ADVERTISE_PAUSE_ASYM);
+	smsc75xx_mdio_write(dev->net, dev->mii.phy_id, MII_CTRL1000,
+		ADVERTISE_1000FULL);
 
-	/* read to clear */
-	smsc75xx_mdio_read(dev->net, dev->mii.phy_id, PHY_INT_SRC);
-	check_warn_return(bmcr, "Error reading PHY_INT_SRC");
+	/* read and write to clear phy interrupt status */
+	ret = smsc75xx_mdio_read(dev->net, dev->mii.phy_id, PHY_INT_SRC);
+	check_warn_return(ret, "Error reading PHY_INT_SRC");
+	smsc75xx_mdio_write(dev->net, dev->mii.phy_id, PHY_INT_SRC, 0xffff);
 
 	smsc75xx_mdio_write(dev->net, dev->mii.phy_id, PHY_INT_MASK,
 		PHY_INT_MASK_DEFAULT);
@@ -899,15 +903,20 @@ static int smsc75xx_reset(struct usbnet *dev)
 
 	netif_dbg(dev, ifup, dev->net, "ID_REV = 0x%08x", buf);
 
-	/* Configure GPIO pins as LED outputs */
-	ret = smsc75xx_read_reg(dev, LED_GPIO_CFG, &buf);
-	check_warn_return(ret, "Failed to read LED_GPIO_CFG: %d", ret);
+	ret = smsc75xx_read_reg(dev, E2P_CMD, &buf);
+	check_warn_return(ret, "Failed to read E2P_CMD: %d", ret);
 
-	buf &= ~(LED_GPIO_CFG_LED2_FUN_SEL | LED_GPIO_CFG_LED10_FUN_SEL);
-	buf |= LED_GPIO_CFG_LEDGPIO_EN | LED_GPIO_CFG_LED2_FUN_SEL;
+	/* only set default GPIO/LED settings if no EEPROM is detected */
+	if (!(buf & E2P_CMD_LOADED)) {
+		ret = smsc75xx_read_reg(dev, LED_GPIO_CFG, &buf);
+		check_warn_return(ret, "Failed to read LED_GPIO_CFG: %d", ret);
 
-	ret = smsc75xx_write_reg(dev, LED_GPIO_CFG, buf);
-	check_warn_return(ret, "Failed to write LED_GPIO_CFG: %d", ret);
+		buf &= ~(LED_GPIO_CFG_LED2_FUN_SEL | LED_GPIO_CFG_LED10_FUN_SEL);
+		buf |= LED_GPIO_CFG_LEDGPIO_EN | LED_GPIO_CFG_LED2_FUN_SEL;
+
+		ret = smsc75xx_write_reg(dev, LED_GPIO_CFG, buf);
+		check_warn_return(ret, "Failed to write LED_GPIO_CFG: %d", ret);
+	}
 
 	ret = smsc75xx_write_reg(dev, FLOW, 0);
 	check_warn_return(ret, "Failed to write FLOW: %d", ret);
@@ -945,6 +954,14 @@ static int smsc75xx_reset(struct usbnet *dev)
 
 	ret = smsc75xx_write_reg(dev, INT_EP_CTL, buf);
 	check_warn_return(ret, "Failed to write INT_EP_CTL: %d", ret);
+
+	/* allow mac to detect speed and duplex from phy */
+	ret = smsc75xx_read_reg(dev, MAC_CR, &buf);
+	check_warn_return(ret, "Failed to read MAC_CR: %d", ret);
+
+	buf |= (MAC_CR_ADD | MAC_CR_ASD);
+	ret = smsc75xx_write_reg(dev, MAC_CR, buf);
+	check_warn_return(ret, "Failed to write MAC_CR: %d", ret);
 
 	ret = smsc75xx_read_reg(dev, MAC_TX, &buf);
 	check_warn_return(ret, "Failed to read MAC_TX: %d", ret);
@@ -1051,6 +1068,7 @@ static int smsc75xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->ethtool_ops = &smsc75xx_ethtool_ops;
 	dev->net->flags |= IFF_MULTICAST;
 	dev->net->hard_header_len += SMSC75XX_TX_OVERHEAD;
+	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
 	return 0;
 }
 
@@ -1211,7 +1229,7 @@ static const struct driver_info smsc75xx_info = {
 	.rx_fixup	= smsc75xx_rx_fixup,
 	.tx_fixup	= smsc75xx_tx_fixup,
 	.status		= smsc75xx_status,
-	.flags		= FLAG_ETHER | FLAG_SEND_ZLP,
+	.flags		= FLAG_ETHER | FLAG_SEND_ZLP | FLAG_LINK_INTR,
 };
 
 static const struct usb_device_id products[] = {
@@ -1236,6 +1254,7 @@ static struct usb_driver smsc75xx_driver = {
 	.suspend	= usbnet_suspend,
 	.resume		= usbnet_resume,
 	.disconnect	= usbnet_disconnect,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(smsc75xx_driver);

@@ -262,7 +262,6 @@ static int lgs8gxx_set_mode_auto(struct lgs8gxx_state *priv)
 
 static int lgs8gxx_set_mode_manual(struct lgs8gxx_state *priv)
 {
-	int ret = 0;
 	u8 t;
 
 	if (priv->config->prod == LGS8GXX_PROD_LGS8G75) {
@@ -296,7 +295,7 @@ static int lgs8gxx_set_mode_manual(struct lgs8gxx_state *priv)
 	if (priv->config->prod == LGS8GXX_PROD_LGS8913)
 		lgs8gxx_write_reg(priv, 0xC1, 0);
 
-	ret = lgs8gxx_read_reg(priv, 0xC5, &t);
+	lgs8gxx_read_reg(priv, 0xC5, &t);
 	t = (t & 0xE0) | 0x06;
 	lgs8gxx_write_reg(priv, 0xC5, t);
 

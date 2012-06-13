@@ -23,6 +23,7 @@
 #include <linux/smsc911x.h>
 #include <linux/gpio.h>
 #include <linux/videodev2.h>
+#include <linux/sh_intc.h>
 #include <media/ov772x.h>
 #include <media/soc_camera.h>
 #include <media/soc_camera_platform.h>
@@ -47,8 +48,8 @@ static struct resource smsc9118_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 35,
-		.end	= 35,
+		.start	= evt2irq(0x660),
+		.end	= evt2irq(0x660),
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -166,7 +167,7 @@ static int ap320_wvga_set_brightness(int brightness)
 		__raw_writew(0, FPGA_BKLREG);
 		gpio_set_value(GPIO_PTS3, 1);
 	}
-	
+
 	return 0;
 }
 
@@ -236,7 +237,7 @@ static struct resource lcdc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 28,
+		.start	= evt2irq(0x580),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -404,7 +405,7 @@ static struct resource ceu_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 52,
+		.start  = evt2irq(0x880),
 		.flags  = IORESOURCE_IRQ,
 	},
 	[2] = {
@@ -430,7 +431,7 @@ static struct resource sdhi0_cn3_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 100,
+		.start	= evt2irq(0xe80),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -457,7 +458,7 @@ static struct resource sdhi1_cn7_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 23,
+		.start	= evt2irq(0x4e0),
 		.flags  = IORESOURCE_IRQ,
 	},
 };

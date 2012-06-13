@@ -228,7 +228,7 @@ tlan_get_skb(const struct tlan_list *tag)
 	unsigned long addr;
 
 	addr = tag->buffer[9].address;
-	addr |= (tag->buffer[8].address << 16) << 16;
+	addr |= ((unsigned long) tag->buffer[8].address << 16) << 16;
 	return (struct sk_buff *) addr;
 }
 
@@ -2545,7 +2545,7 @@ static void tlan_phy_reset(struct net_device *dev)
 
 	phy = priv->phy[priv->phy_num];
 
-	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Reseting PHY.\n", dev->name);
+	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Resetting PHY.\n", dev->name);
 	tlan_mii_sync(dev->base_addr);
 	value = MII_GC_LOOPBK | MII_GC_RESET;
 	tlan_mii_write_reg(dev, phy, MII_GEN_CTL, value);

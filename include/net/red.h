@@ -245,7 +245,7 @@ static inline unsigned long red_calc_qavg_from_idle_time(const struct red_parms 
 	 *
 	 * dummy packets as a burst after idle time, i.e.
 	 *
-	 * 	p->qavg *= (1-W)^m
+	 * 	v->qavg *= (1-W)^m
 	 *
 	 * This is an apparently overcomplicated solution (f.e. we have to
 	 * precompute a table to make this calculation in reasonable time)
@@ -279,7 +279,7 @@ static inline unsigned long red_calc_qavg_no_idle_time(const struct red_parms *p
 						       unsigned int backlog)
 {
 	/*
-	 * NOTE: p->qavg is fixed point number with point at Wlog.
+	 * NOTE: v->qavg is fixed point number with point at Wlog.
 	 * The formula below is equvalent to floating point
 	 * version:
 	 *
@@ -390,7 +390,7 @@ static inline void red_adaptative_algo(struct red_parms *p, struct red_vars *v)
 	if (red_is_idling(v))
 		qavg = red_calc_qavg_from_idle_time(p, v);
 
-	/* p->qavg is fixed point number with point at Wlog */
+	/* v->qavg is fixed point number with point at Wlog */
 	qavg >>= p->Wlog;
 
 	if (qavg > p->target_max && p->max_P <= MAX_P_MAX)

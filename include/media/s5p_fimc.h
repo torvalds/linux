@@ -64,4 +64,20 @@ struct s5p_platform_fimc {
  */
 #define S5P_FIMC_TX_END_NOTIFY _IO('e', 0)
 
+enum fimc_subdev_index {
+	IDX_SENSOR,
+	IDX_CSIS,
+	IDX_FLITE,
+	IDX_FIMC,
+	IDX_MAX,
+};
+
+struct media_pipeline;
+struct v4l2_subdev;
+
+struct fimc_pipeline {
+	struct v4l2_subdev *subdevs[IDX_MAX];
+	struct media_pipeline *m_pipeline;
+};
+
 #endif /* S5P_FIMC_H_ */

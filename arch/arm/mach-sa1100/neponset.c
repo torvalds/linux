@@ -89,6 +89,7 @@ void neponset_ncr_frob(unsigned int mask, unsigned int val)
 		WARN(1, "nep_base unset\n");
 	}
 }
+EXPORT_SYMBOL(neponset_ncr_frob);
 
 static void neponset_set_mctrl(struct uart_port *port, u_int mctrl)
 {

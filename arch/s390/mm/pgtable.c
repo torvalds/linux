@@ -822,6 +822,8 @@ int s390_enable_sie(void)
 
 	/* we copy the mm and let dup_mm create the page tables with_pgstes */
 	tsk->mm->context.alloc_pgste = 1;
+	/* make sure that both mms have a correct rss state */
+	sync_mm_rss(tsk->mm);
 	mm = dup_mm(tsk);
 	tsk->mm->context.alloc_pgste = 0;
 	if (!mm)

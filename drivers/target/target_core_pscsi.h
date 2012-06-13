@@ -22,7 +22,6 @@
 #include <linux/kobject.h>
 
 struct pscsi_plugin_task {
-	struct se_task pscsi_task;
 	unsigned char pscsi_sense[SCSI_SENSE_BUFFERSIZE];
 	int	pscsi_direction;
 	int	pscsi_result;

@@ -21,6 +21,8 @@
 
 #include <mach/hardware.h>
 
+#include "common.h"
+
 #define OMAP_DIE_ID_0		0xfffe1800
 #define OMAP_DIE_ID_1		0xfffe1804
 #define OMAP_PRODUCTION_ID_0	0xfffe2000

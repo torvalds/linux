@@ -83,7 +83,7 @@ nv50_channel_new(struct drm_device *dev, u32 size, struct nouveau_vm *vm,
 		return ret;
 	}
 
-	ret = drm_mm_init(&chan->ramin_heap, 0x6000, chan->ramin->size);
+	ret = drm_mm_init(&chan->ramin_heap, 0x6000, chan->ramin->size - 0x6000);
 	if (ret) {
 		nv50_channel_del(&chan);
 		return ret;

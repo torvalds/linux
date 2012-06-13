@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
+#include <linux/tracehook.h>
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
@@ -114,8 +115,10 @@ void interrupt_end(void)
 {
 	if (need_resched())
 		schedule();
-	if (test_tsk_thread_flag(current, TIF_SIGPENDING))
+	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal();
+	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
+		tracehook_notify_resume(&current->thread.regs);
 }
 
 void exit_thread(void)
@@ -190,7 +193,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	if (current->thread.forking) {
 	  	memcpy(&p->thread.regs.regs, &regs->regs,
 		       sizeof(p->thread.regs.regs));
-		REGS_SET_SYSCALL_RETURN(p->thread.regs.regs.gp, 0);
+		UPT_SET_SYSCALL_RETURN(&p->thread.regs.regs, 0);
 		if (sp != 0)
 			REGS_SP(p->thread.regs.regs.gp) = sp;
 

@@ -513,7 +513,7 @@ error:
 	clear_bit(Wworksched, &m->wsched);
 }
 
-static int p9_pollwake(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int p9_pollwake(wait_queue_t *wait, unsigned int mode, int sync, void *key)
 {
 	struct p9_poll_wait *pwait =
 		container_of(wait, struct p9_poll_wait, wait);

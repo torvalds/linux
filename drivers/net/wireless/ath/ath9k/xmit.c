@@ -64,7 +64,8 @@ static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 					   struct ath_txq *txq,
 					   struct ath_atx_tid *tid,
-					   struct sk_buff *skb);
+					   struct sk_buff *skb,
+					   bool dequeue);
 
 enum {
 	MCS_HT20,
@@ -811,7 +812,7 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		fi = get_frame_info(skb);
 		bf = fi->bf;
 		if (!fi->bf)
-			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
+			bf = ath_tx_setup_buffer(sc, txq, tid, skb, true);
 
 		if (!bf)
 			continue;
@@ -1726,7 +1727,7 @@ static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_atx_tid *tid,
 		return;
 	}
 
-	bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb);
+	bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb, false);
 	if (!bf)
 		return;
 
@@ -1753,7 +1754,7 @@ static void ath_tx_send_normal(struct ath_softc *sc, struct ath_txq *txq,
 
 	bf = fi->bf;
 	if (!bf)
-		bf = ath_tx_setup_buffer(sc, txq, tid, skb);
+		bf = ath_tx_setup_buffer(sc, txq, tid, skb, false);
 
 	if (!bf)
 		return;
@@ -1814,12 +1815,14 @@ u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate)
 static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 					   struct ath_txq *txq,
 					   struct ath_atx_tid *tid,
-					   struct sk_buff *skb)
+					   struct sk_buff *skb,
+					   bool dequeue)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_frame_info *fi = get_frame_info(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath_buf *bf;
+	int fragno;
 	u16 seqno;
 
 	bf = ath_tx_get_buffer(sc);
@@ -1831,9 +1834,16 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 	ATH_TXBUF_RESET(bf);
 
 	if (tid) {
+		fragno = le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG;
 		seqno = tid->seq_next;
 		hdr->seq_ctrl = cpu_to_le16(tid->seq_next << IEEE80211_SEQ_SEQ_SHIFT);
-		INCR(tid->seq_next, IEEE80211_SEQ_MAX);
+
+		if (fragno)
+			hdr->seq_ctrl |= cpu_to_le16(fragno);
+
+		if (!ieee80211_has_morefrags(hdr->frame_control))
+			INCR(tid->seq_next, IEEE80211_SEQ_MAX);
+
 		bf->bf_state.seqno = seqno;
 	}
 
@@ -1855,6 +1865,8 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 	return bf;
 
 error:
+	if (dequeue)
+		__skb_unlink(skb, &tid->buf_q);
 	dev_kfree_skb_any(skb);
 	return NULL;
 }
@@ -1885,7 +1897,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct sk_buff *skb,
 		 */
 		ath_tx_send_ampdu(sc, tid, skb, txctl);
 	} else {
-		bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb);
+		bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb, false);
 		if (!bf)
 			return;
 

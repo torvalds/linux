@@ -16,6 +16,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/ppc-opcode.h>
 #include <asm/hw_irq.h>
+#include <asm/kvm_book3s_asm.h>
 
 #undef DEBUG
 
@@ -80,6 +81,12 @@ _GLOBAL(power7_idle)
 	std	r3,_CCR(r1)
 	std	r9,_MSR(r1)
 	std	r1,PACAR1(r13)
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	/* Tell KVM we're napping */
+	li	r4,KVM_HWTHREAD_IN_NAP
+	stb	r4,HSTATE_HWTHREAD_STATE(r13)
+#endif
 
 	/* Magic NAP mode enter sequence */
 	std	r0,0(r1)

@@ -19,6 +19,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeup.h>
 #include <linux/slab.h>
@@ -49,7 +50,9 @@
 #define KEY_VALUE	0x00FFFFFF
 #define ROW_MASK	0xF0
 #define COLUMN_MASK	0x0F
-#define ROW_SHIFT	4
+#define NUM_ROWS	16
+#define NUM_COLS	16
+
 #define KEY_MATRIX_SHIFT	6
 
 struct spear_kbd {
@@ -60,7 +63,8 @@ struct spear_kbd {
 	unsigned int irq;
 	unsigned int mode;
 	unsigned short last_key;
-	unsigned short keycodes[256];
+	unsigned short keycodes[NUM_ROWS * NUM_COLS];
+	bool rep;
 };
 
 static irqreturn_t spear_kbd_interrupt(int irq, void *dev_id)
@@ -136,26 +140,48 @@ static void spear_kbd_close(struct input_dev *dev)
 	kbd->last_key = KEY_RESERVED;
 }
 
+#ifdef CONFIG_OF
+static int __devinit spear_kbd_parse_dt(struct platform_device *pdev,
+                                        struct spear_kbd *kbd)
+{
+	struct device_node *np = pdev->dev.of_node;
+	int error;
+	u32 val;
+
+	if (!np) {
+		dev_err(&pdev->dev, "Missing DT data\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_bool(np, "autorepeat"))
+		kbd->rep = true;
+
+	error = of_property_read_u32(np, "st,mode", &val);
+	if (error) {
+		dev_err(&pdev->dev, "DT: Invalid or missing mode\n");
+		return error;
+	}
+
+	kbd->mode = val;
+	return 0;
+}
+#else
+static inline int spear_kbd_parse_dt(struct platform_device *pdev,
+				     struct spear_kbd *kbd)
+{
+	return -ENOSYS;
+}
+#endif
+
 static int __devinit spear_kbd_probe(struct platform_device *pdev)
 {
-	const struct kbd_platform_data *pdata = pdev->dev.platform_data;
-	const struct matrix_keymap_data *keymap;
+	struct kbd_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	const struct matrix_keymap_data *keymap = pdata ? pdata->keymap : NULL;
 	struct spear_kbd *kbd;
 	struct input_dev *input_dev;
 	struct resource *res;
 	int irq;
 	int error;
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "Invalid platform data\n");
-		return -EINVAL;
-	}
-
-	keymap = pdata->keymap;
-	if (!keymap) {
-		dev_err(&pdev->dev, "no keymap defined\n");
-		return -EINVAL;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -179,7 +205,15 @@ static int __devinit spear_kbd_probe(struct platform_device *pdev)
 
 	kbd->input = input_dev;
 	kbd->irq = irq;
-	kbd->mode = pdata->mode;
+
+	if (!pdata) {
+		error = spear_kbd_parse_dt(pdev, kbd);
+		if (error)
+			goto err_free_mem;
+	} else {
+		kbd->mode = pdata->mode;
+		kbd->rep = pdata->rep;
+	}
 
 	kbd->res = request_mem_region(res->start, resource_size(res),
 				      pdev->name);
@@ -212,17 +246,16 @@ static int __devinit spear_kbd_probe(struct platform_device *pdev)
 	input_dev->open = spear_kbd_open;
 	input_dev->close = spear_kbd_close;
 
-	__set_bit(EV_KEY, input_dev->evbit);
-	if (pdata->rep)
+	error = matrix_keypad_build_keymap(keymap, NULL, NUM_ROWS, NUM_COLS,
+					   kbd->keycodes, input_dev);
+	if (error) {
+		dev_err(&pdev->dev, "Failed to build keymap\n");
+		goto err_put_clk;
+	}
+
+	if (kbd->rep)
 		__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
-
-	input_dev->keycode = kbd->keycodes;
-	input_dev->keycodesize = sizeof(kbd->keycodes[0]);
-	input_dev->keycodemax = ARRAY_SIZE(kbd->keycodes);
-
-	matrix_keypad_build_keymap(keymap, ROW_SHIFT,
-			input_dev->keycode, input_dev->keybit);
 
 	input_set_drvdata(input_dev, kbd);
 
@@ -317,6 +350,14 @@ static int spear_kbd_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(spear_kbd_pm_ops, spear_kbd_suspend, spear_kbd_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id spear_kbd_id_table[] = {
+	{ .compatible = "st,spear300-kbd" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spear_kbd_id_table);
+#endif
+
 static struct platform_driver spear_kbd_driver = {
 	.probe		= spear_kbd_probe,
 	.remove		= __devexit_p(spear_kbd_remove),
@@ -324,6 +365,7 @@ static struct platform_driver spear_kbd_driver = {
 		.name	= "keyboard",
 		.owner	= THIS_MODULE,
 		.pm	= &spear_kbd_pm_ops,
+		.of_match_table = of_match_ptr(spear_kbd_id_table),
 	},
 };
 module_platform_driver(spear_kbd_driver);

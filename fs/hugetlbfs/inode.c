@@ -393,7 +393,7 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 static void hugetlbfs_evict_inode(struct inode *inode)
 {
 	truncate_hugepages(inode, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 }
 
 static inline void
@@ -485,6 +485,7 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
 		inode->i_fop = &simple_dir_operations;
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
 		inc_nlink(inode);
+		lockdep_annotate_inode_mutex_key(inode);
 	}
 	return inode;
 }

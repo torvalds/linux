@@ -86,13 +86,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver kl5kusb105d_driver = {
-	.name =		"kl5kusb105d",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver kl5kusb105d_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -282,8 +275,6 @@ static void klsi_105_release(struct usb_serial *serial)
 {
 	int i;
 
-	dbg("%s", __func__);
-
 	for (i = 0; i < serial->num_ports; ++i)
 		kfree(usb_get_serial_port_data(serial->port[i]));
 }
@@ -297,8 +288,6 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long line_state;
 	struct klsi_105_port_settings *cfg;
 	unsigned long flags;
-
-	dbg("%s port %d", __func__, port->number);
 
 	/* Do a defined restart:
 	 * Set up sane default baud rate and send the 'READ_ON'
@@ -375,8 +364,6 @@ exit:
 static void klsi_105_close(struct usb_serial_port *port)
 {
 	int rc;
-
-	dbg("%s port %d", __func__, port->number);
 
 	mutex_lock(&port->serial->disc_mutex);
 	if (!port->serial->disconnected) {
@@ -646,7 +633,6 @@ static int klsi_105_tiocmget(struct tty_struct *tty)
 	unsigned long flags;
 	int rc;
 	unsigned long line_state;
-	dbg("%s - request, just guessing", __func__);
 
 	rc = klsi_105_get_line_state(port, &line_state);
 	if (rc < 0) {
@@ -667,8 +653,6 @@ static int klsi_105_tiocmset(struct tty_struct *tty,
 			     unsigned int set, unsigned int clear)
 {
 	int retval = -EINVAL;
-
-	dbg("%s", __func__);
 
 /* if this ever gets implemented, it should be done something like this:
 	struct usb_serial *serial = port->serial;
@@ -692,7 +676,7 @@ static int klsi_105_tiocmset(struct tty_struct *tty,
 	return retval;
 }
 
-module_usb_serial_driver(kl5kusb105d_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

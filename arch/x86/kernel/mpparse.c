@@ -27,7 +27,6 @@
 #include <asm/proto.h>
 #include <asm/bios_ebda.h>
 #include <asm/e820.h>
-#include <asm/trampoline.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 
@@ -97,7 +96,7 @@ static void __init MP_bus_info(struct mpc_bus *m)
 
 	set_bit(m->busid, mp_bus_not_pci);
 	if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA) - 1) == 0) {
-#if defined(CONFIG_EISA) || defined(CONFIG_MCA)
+#ifdef CONFIG_EISA
 		mp_bus_id_to_type[m->busid] = MP_BUS_ISA;
 #endif
 	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
@@ -105,12 +104,10 @@ static void __init MP_bus_info(struct mpc_bus *m)
 			x86_init.mpparse.mpc_oem_pci_bus(m);
 
 		clear_bit(m->busid, mp_bus_not_pci);
-#if defined(CONFIG_EISA) || defined(CONFIG_MCA)
+#ifdef CONFIG_EISA
 		mp_bus_id_to_type[m->busid] = MP_BUS_PCI;
 	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA) - 1) == 0) {
 		mp_bus_id_to_type[m->busid] = MP_BUS_EISA;
-	} else if (strncmp(str, BUSTYPE_MCA, sizeof(BUSTYPE_MCA) - 1) == 0) {
-		mp_bus_id_to_type[m->busid] = MP_BUS_MCA;
 #endif
 	} else
 		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
@@ -368,9 +365,6 @@ static void __init construct_ioapic_table(int mpc_default_type)
 	case 3:
 		memcpy(bus.bustype, "EISA  ", 6);
 		break;
-	case 4:
-	case 7:
-		memcpy(bus.bustype, "MCA   ", 6);
 	}
 	MP_bus_info(&bus);
 	if (mpc_default_type > 4) {
@@ -573,8 +567,8 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 	struct mpf_intel *mpf;
 	unsigned long mem;
 
-	apic_printk(APIC_VERBOSE, "Scan SMP from %p for %ld bytes.\n",
-			bp, length);
+	apic_printk(APIC_VERBOSE, "Scan for SMP in [mem %#010lx-%#010lx]\n",
+		    base, base + length - 1);
 	BUILD_BUG_ON(sizeof(*mpf) != 16);
 
 	while (length > 0) {
@@ -589,8 +583,10 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 #endif
 			mpf_found = mpf;
 
-			printk(KERN_INFO "found SMP MP-table at [%p] %llx\n",
-			       mpf, (u64)virt_to_phys(mpf));
+			printk(KERN_INFO "found SMP MP-table at [mem %#010llx-%#010llx] mapped at [%p]\n",
+			       (unsigned long long) virt_to_phys(mpf),
+			       (unsigned long long) virt_to_phys(mpf) +
+			       sizeof(*mpf) - 1, mpf);
 
 			mem = virt_to_phys(mpf);
 			memblock_reserve(mem, sizeof(*mpf));
@@ -623,7 +619,7 @@ void __init default_find_smp_config(void)
 		return;
 	/*
 	 * If it is an SMP machine we should know now, unless the
-	 * configuration is in an EISA/MCA bus machine with an
+	 * configuration is in an EISA bus machine with an
 	 * extended bios data area.
 	 *
 	 * there is a real-mode segmented pointer pointing to the

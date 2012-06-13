@@ -15,6 +15,7 @@
 #include <linux/dma-mapping.h>
 
 #include <media/videobuf2-core.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-memops.h>
 
 struct vb2_dc_conf {
@@ -85,7 +86,7 @@ static void *vb2_dma_contig_vaddr(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 	if (!buf)
-		return 0;
+		return NULL;
 
 	return buf->vaddr;
 }

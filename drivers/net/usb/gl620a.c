@@ -225,6 +225,7 @@ static struct usb_driver gl620a_driver = {
 	.disconnect =	usbnet_disconnect,
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(gl620a_driver);

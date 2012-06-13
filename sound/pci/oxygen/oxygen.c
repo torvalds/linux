@@ -94,6 +94,7 @@ enum {
 	MODEL_2CH_OUTPUT,
 	MODEL_HG2PCI,
 	MODEL_XONAR_DG,
+	MODEL_XONAR_DGX,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
@@ -109,6 +110,8 @@ static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
 	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
 	/* Asus Xonar DG */
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8467), .driver_data = MODEL_XONAR_DG },
+	/* Asus Xonar DGX */
+	{ OXYGEN_PCI_SUBID(0x1043, 0x8521), .driver_data = MODEL_XONAR_DGX },
 	/* PCI 2.0 HD Audio */
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8782), .driver_data = MODEL_2CH_OUTPUT },
 	/* Kuroutoshikou CMI8787-HG2PCI */
@@ -827,6 +830,11 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		break;
 	case MODEL_XONAR_DG:
 		chip->model = model_xonar_dg;
+		chip->model.shortname = "Xonar DG";
+		break;
+	case MODEL_XONAR_DGX:
+		chip->model = model_xonar_dg;
+		chip->model.shortname = "Xonar DGX";
 		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||
@@ -870,15 +878,4 @@ static struct pci_driver oxygen_driver = {
 #endif
 };
 
-static int __init alsa_card_oxygen_init(void)
-{
-	return pci_register_driver(&oxygen_driver);
-}
-
-static void __exit alsa_card_oxygen_exit(void)
-{
-	pci_unregister_driver(&oxygen_driver);
-}
-
-module_init(alsa_card_oxygen_init)
-module_exit(alsa_card_oxygen_exit)
+module_pci_driver(oxygen_driver);

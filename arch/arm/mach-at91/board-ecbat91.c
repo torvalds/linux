@@ -50,18 +50,6 @@ static void __init ecb_at91init_early(void)
 
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PC7, AT91_PIN_PC7);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1. (Rx & Tx only) */
-	at91_register_uart(AT91RM9200_ID_US0, 1, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata ecb_at91eth_data = {
@@ -151,7 +139,15 @@ static struct spi_board_info __initdata ecb_at91spi_devices[] = {
 
 static void __init ecb_at91board_init(void)
 {
+	/* Setup the LEDs */
+	at91_init_leds(AT91_PIN_PC7, AT91_PIN_PC7);
+
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx & Tx only) */
+	at91_register_uart(AT91RM9200_ID_US0, 1, 0);
 	at91_add_device_serial();
 
 	/* Ethernet */

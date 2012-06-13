@@ -376,7 +376,7 @@ static int otp_select_filemode(struct mtd_file_info *mfi, int mode)
 	 * Make a fake call to mtd_read_fact_prot_reg() to check if OTP
 	 * operations are supported.
 	 */
-	if (mtd_read_fact_prot_reg(mtd, -1, -1, &retlen, NULL) == -EOPNOTSUPP)
+	if (mtd_read_fact_prot_reg(mtd, -1, 0, &retlen, NULL) == -EOPNOTSUPP)
 		return -EOPNOTSUPP;
 
 	switch (mode) {

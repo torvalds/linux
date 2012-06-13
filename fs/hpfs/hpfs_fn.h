@@ -35,13 +35,6 @@
 
 #define CHKCOND(x,y) if (!(x)) printk y
 
-#ifdef DBG
-#define PRINTK(x) printk x
-#else
-#undef PRINTK
-#define PRINTK(x)
-#endif
-
 struct hpfs_inode_info {
 	loff_t mmu_private;
 	ino_t i_parent_dir;	/* (directories) gives fnode of parent dir */
@@ -82,7 +75,7 @@ struct hpfs_sb_info {
 	unsigned char *sb_cp_table;	/* code page tables: */
 					/* 	128 bytes uppercasing table & */
 					/*	128 bytes lowercasing table */
-	unsigned *sb_bmp_dir;		/* main bitmap directory */
+	__le32 *sb_bmp_dir;		/* main bitmap directory */
 	unsigned sb_c_bitmap;		/* current bitmap */
 	unsigned sb_max_fwd_alloc;	/* max forwad allocation */
 	int sb_timeshift;
@@ -100,7 +93,7 @@ struct quad_buffer_head {
 static inline dnode_secno de_down_pointer (struct hpfs_dirent *de)
 {
   CHKCOND(de->down,("HPFS: de_down_pointer: !de->down\n"));
-  return le32_to_cpu(*(dnode_secno *) ((void *) de + le16_to_cpu(de->length) - 4));
+  return le32_to_cpu(*(__le32 *) ((void *) de + le16_to_cpu(de->length) - 4));
 }
 
 /* The first dir entry in a dnode */
@@ -148,12 +141,12 @@ static inline struct extended_attribute *next_ea(struct extended_attribute *ea)
 
 static inline secno ea_sec(struct extended_attribute *ea)
 {
-	return le32_to_cpu(get_unaligned((secno *)((char *)ea + 9 + ea->namelen)));
+	return le32_to_cpu(get_unaligned((__le32 *)((char *)ea + 9 + ea->namelen)));
 }
 
 static inline secno ea_len(struct extended_attribute *ea)
 {
-	return le32_to_cpu(get_unaligned((secno *)((char *)ea + 5 + ea->namelen)));
+	return le32_to_cpu(get_unaligned((__le32 *)((char *)ea + 5 + ea->namelen)));
 }
 
 static inline char *ea_data(struct extended_attribute *ea)
@@ -178,7 +171,7 @@ static inline void copy_de(struct hpfs_dirent *dst, struct hpfs_dirent *src)
 	dst->not_8x3 = n;
 }
 
-static inline unsigned tstbits(u32 *bmp, unsigned b, unsigned n)
+static inline unsigned tstbits(__le32 *bmp, unsigned b, unsigned n)
 {
 	int i;
 	if ((b >= 0x4000) || (b + n - 1 >= 0x4000)) return n;
@@ -275,10 +268,10 @@ void hpfs_evict_inode(struct inode *);
 
 /* map.c */
 
-unsigned *hpfs_map_dnode_bitmap(struct super_block *, struct quad_buffer_head *);
-unsigned *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head *, char *);
+__le32 *hpfs_map_dnode_bitmap(struct super_block *, struct quad_buffer_head *);
+__le32 *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head *, char *);
 unsigned char *hpfs_load_code_page(struct super_block *, secno);
-secno *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
+__le32 *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
 struct fnode *hpfs_map_fnode(struct super_block *s, ino_t, struct buffer_head **);
 struct anode *hpfs_map_anode(struct super_block *s, anode_secno, struct buffer_head **);
 struct dnode *hpfs_map_dnode(struct super_block *s, dnode_secno, struct quad_buffer_head *);

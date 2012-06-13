@@ -219,7 +219,7 @@ int arch_copy_tls(struct task_struct *new)
 	int idx, ret = -EFAULT;
 
 	if (copy_from_user(&info,
-			   (void __user *) UPT_ESI(&new->thread.regs.regs),
+			   (void __user *) UPT_SI(&new->thread.regs.regs),
 			   sizeof(info)))
 		goto out;
 

@@ -112,18 +112,6 @@ struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 	return rom;
 }
 
-enum sci_status isci_parse_oem_parameters(struct sci_oem_params *oem,
-					  struct isci_orom *orom, int scu_index)
-{
-	/* check for valid inputs */
-	if (scu_index < 0 || scu_index >= SCI_MAX_CONTROLLERS ||
-	    scu_index > orom->hdr.num_elements || !oem)
-		return -EINVAL;
-
-	*oem = orom->ctrl[scu_index];
-	return 0;
-}
-
 struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmware *fw)
 {
 	struct isci_orom *orom = NULL, *data;

@@ -1239,6 +1239,14 @@ struct scu_transport_layer_registers {
 #define SCU_SAS_LLCTL_GEN_BIT(name) \
 	SCU_GEN_BIT(SCU_SAS_LINK_LAYER_CONTROL_ ## name)
 
+#define SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT                     (0xF0)
+#define SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_EXTENDED                    (0x1FF)
+#define SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_SHIFT                       (0)
+#define SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_MASK                        (0x3FF)
+
+#define SCU_SAS_LLTXCOMSAS_GEN_VAL(name, value) \
+	SCU_GEN_VALUE(SCU_SAS_LINK_LAYER_TXCOMSAS_ ## name, value)
+
 
 /* #define SCU_FRXHECR_DCNT_OFFSET      0x00B0 */
 #define SCU_PSZGCR_OFFSET           0x00E4

@@ -25,6 +25,7 @@
 #include <linux/videodev2.h>
 
 /* forward references */
+struct file;
 struct v4l2_ctrl_handler;
 struct v4l2_ctrl_helper;
 struct v4l2_ctrl;
@@ -129,7 +130,10 @@ struct v4l2_ctrl {
 		u32 step;
 		u32 menu_skip_mask;
 	};
-	const char * const *qmenu;
+	union {
+		const char * const *qmenu;
+		const s64 *qmenu_int;
+	};
 	unsigned long flags;
 	union {
 		s32 val;
@@ -164,7 +168,9 @@ struct v4l2_ctrl_ref {
 /** struct v4l2_ctrl_handler - The control handler keeps track of all the
   * controls: both the controls owned by the handler and those inherited
   * from other handlers.
+  * @_lock:	Default for "lock".
   * @lock:	Lock to control access to this handler and its controls.
+  *		May be replaced by the user right after init.
   * @ctrls:	The list of controls owned by this handler.
   * @ctrl_refs:	The list of control references.
   * @cached:	The last found control reference. It is common that the same
@@ -175,7 +181,8 @@ struct v4l2_ctrl_ref {
   * @error:	The error code of the first failed control addition.
   */
 struct v4l2_ctrl_handler {
-	struct mutex lock;
+	struct mutex _lock;
+	struct mutex *lock;
 	struct list_head ctrls;
 	struct list_head ctrl_refs;
 	struct v4l2_ctrl_ref *cached;
@@ -219,6 +226,7 @@ struct v4l2_ctrl_config {
 	u32 flags;
 	u32 menu_skip_mask;
 	const char * const *qmenu;
+	const s64 *qmenu_int;
 	unsigned int is_private:1;
 };
 
@@ -343,6 +351,23 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 mask, s32 def);
 
+/** v4l2_ctrl_new_int_menu() - Create a new standard V4L2 integer menu control.
+  * @hdl:	The control handler.
+  * @ops:	The control ops.
+  * @id:	The control ID.
+  * @max:	The control's maximum value.
+  * @def:	The control's default value.
+  * @qmenu_int:	The control's menu entries.
+  *
+  * Same as v4l2_ctrl_new_std_menu(), but @mask is set to 0 and it additionaly
+  * takes as an argument an array of integers determining the menu items.
+  *
+  * If @id refers to a non-integer-menu control, then this function will return NULL.
+  */
+struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
+			const struct v4l2_ctrl_ops *ops,
+			u32 id, s32 max, s32 def, const s64 *qmenu_int);
+
 /** v4l2_ctrl_add_ctrl() - Add a control from another handler to this handler.
   * @hdl:	The control handler.
   * @ctrl:	The control to add.
@@ -451,7 +476,7 @@ void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
   */
 static inline void v4l2_ctrl_lock(struct v4l2_ctrl *ctrl)
 {
-	mutex_lock(&ctrl->handler->lock);
+	mutex_lock(ctrl->handler->lock);
 }
 
 /** v4l2_ctrl_lock() - Helper function to unlock the handler
@@ -460,7 +485,7 @@ static inline void v4l2_ctrl_lock(struct v4l2_ctrl *ctrl)
   */
 static inline void v4l2_ctrl_unlock(struct v4l2_ctrl *ctrl)
 {
-	mutex_unlock(&ctrl->handler->lock);
+	mutex_unlock(ctrl->handler->lock);
 }
 
 /** v4l2_ctrl_g_ctrl() - Helper function to get the control's value from within a driver.
@@ -487,10 +512,9 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
 int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
 
 /* Internal helper functions that deal with control events. */
-void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
-		struct v4l2_subscribed_event *sev);
-void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
-		struct v4l2_subscribed_event *sev);
+extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
+void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);
+void v4l2_ctrl_merge(const struct v4l2_event *old, struct v4l2_event *new);
 
 /* Can be used as a vidioc_log_status function that just dumps all controls
    associated with the filehandle. */

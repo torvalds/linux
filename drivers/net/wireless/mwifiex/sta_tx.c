@@ -149,10 +149,14 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	local_tx_pd->bss_num = priv->bss_num;
 	local_tx_pd->bss_type = priv->bss_type;
 
-	skb_push(skb, INTF_HEADER_LEN);
-
-	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					   skb, NULL);
+	if (adapter->iface_type == MWIFIEX_USB) {
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
+						   skb, NULL);
+	} else {
+		skb_push(skb, INTF_HEADER_LEN);
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
+						   skb, NULL);
+	}
 	switch (ret) {
 	case -EBUSY:
 		adapter->data_sent = true;

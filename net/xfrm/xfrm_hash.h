@@ -45,10 +45,10 @@ static inline unsigned int __xfrm_dst_hash(const xfrm_address_t *daddr,
 	return (h ^ (h >> 16)) & hmask;
 }
 
-static inline unsigned __xfrm_src_hash(const xfrm_address_t *daddr,
-				       const xfrm_address_t *saddr,
-				       unsigned short family,
-				       unsigned int hmask)
+static inline unsigned int __xfrm_src_hash(const xfrm_address_t *daddr,
+					   const xfrm_address_t *saddr,
+					   unsigned short family,
+					   unsigned int hmask)
 {
 	unsigned int h = family;
 	switch (family) {

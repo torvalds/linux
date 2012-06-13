@@ -19,8 +19,6 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 
-#include <linux/mca.h>
-
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
@@ -30,14 +28,6 @@
 #include <asm/mach_traps.h>
 #include <asm/nmi.h>
 #include <asm/x86_init.h>
-
-#define NMI_MAX_NAMELEN	16
-struct nmiaction {
-	struct list_head list;
-	nmi_handler_t handler;
-	unsigned int flags;
-	char *name;
-};
 
 struct nmi_desc {
 	spinlock_t lock;
@@ -53,6 +43,14 @@ static struct nmi_desc nmi_desc[NMI_MAX] =
 	{
 		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[1].lock),
 		.head = LIST_HEAD_INIT(nmi_desc[1].head),
+	},
+	{
+		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[2].lock),
+		.head = LIST_HEAD_INIT(nmi_desc[2].head),
+	},
+	{
+		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[3].lock),
+		.head = LIST_HEAD_INIT(nmi_desc[3].head),
 	},
 
 };
@@ -84,7 +82,7 @@ __setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 
 #define nmi_to_desc(type) (&nmi_desc[type])
 
-static int notrace __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
+static int __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	struct nmiaction *a;
@@ -107,10 +105,13 @@ static int notrace __kprobes nmi_handle(unsigned int type, struct pt_regs *regs,
 	return handled;
 }
 
-static int __setup_nmi(unsigned int type, struct nmiaction *action)
+int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	unsigned long flags;
+
+	if (!action->handler)
+		return -EINVAL;
 
 	spin_lock_irqsave(&desc->lock, flags);
 
@@ -120,6 +121,8 @@ static int __setup_nmi(unsigned int type, struct nmiaction *action)
 	 * to manage expectations
 	 */
 	WARN_ON_ONCE(type == NMI_UNKNOWN && !list_empty(&desc->head));
+	WARN_ON_ONCE(type == NMI_SERR && !list_empty(&desc->head));
+	WARN_ON_ONCE(type == NMI_IO_CHECK && !list_empty(&desc->head));
 
 	/*
 	 * some handlers need to be executed first otherwise a fake
@@ -133,8 +136,9 @@ static int __setup_nmi(unsigned int type, struct nmiaction *action)
 	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
+EXPORT_SYMBOL(__register_nmi_handler);
 
-static struct nmiaction *__free_nmi(unsigned int type, const char *name)
+void unregister_nmi_handler(unsigned int type, const char *name)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	struct nmiaction *n;
@@ -157,61 +161,16 @@ static struct nmiaction *__free_nmi(unsigned int type, const char *name)
 
 	spin_unlock_irqrestore(&desc->lock, flags);
 	synchronize_rcu();
-	return (n);
 }
-
-int register_nmi_handler(unsigned int type, nmi_handler_t handler,
-			unsigned long nmiflags, const char *devname)
-{
-	struct nmiaction *action;
-	int retval = -ENOMEM;
-
-	if (!handler)
-		return -EINVAL;
-
-	action = kzalloc(sizeof(struct nmiaction), GFP_KERNEL);
-	if (!action)
-		goto fail_action;
-
-	action->handler = handler;
-	action->flags = nmiflags;
-	action->name = kstrndup(devname, NMI_MAX_NAMELEN, GFP_KERNEL);
-	if (!action->name)
-		goto fail_action_name;
-
-	retval = __setup_nmi(type, action);
-
-	if (retval)
-		goto fail_setup_nmi;
-
-	return retval;
-
-fail_setup_nmi:
-	kfree(action->name);
-fail_action_name:
-	kfree(action);
-fail_action:	
-
-	return retval;
-}
-EXPORT_SYMBOL_GPL(register_nmi_handler);
-
-void unregister_nmi_handler(unsigned int type, const char *name)
-{
-	struct nmiaction *a;
-
-	a = __free_nmi(type, name);
-	if (a) {
-		kfree(a->name);
-		kfree(a);
-	}
-}
-
 EXPORT_SYMBOL_GPL(unregister_nmi_handler);
 
-static notrace __kprobes void
+static __kprobes void
 pci_serr_error(unsigned char reason, struct pt_regs *regs)
 {
+	/* check to see if anyone registered against these types of errors */
+	if (nmi_handle(NMI_SERR, regs, false))
+		return;
+
 	pr_emerg("NMI: PCI system error (SERR) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 
@@ -236,15 +195,19 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 	outb(reason, NMI_REASON_PORT);
 }
 
-static notrace __kprobes void
+static __kprobes void
 io_check_error(unsigned char reason, struct pt_regs *regs)
 {
 	unsigned long i;
 
+	/* check to see if anyone registered against these types of errors */
+	if (nmi_handle(NMI_IO_CHECK, regs, false))
+		return;
+
 	pr_emerg(
 	"NMI: IOCK error (debug interrupt?) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
-	show_registers(regs);
+	show_regs(regs);
 
 	if (panic_on_io_nmi)
 		panic("NMI IOCK error: Not continuing");
@@ -263,7 +226,7 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	outb(reason, NMI_REASON_PORT);
 }
 
-static notrace __kprobes void
+static __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	int handled;
@@ -282,16 +245,6 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 
 	__this_cpu_add(nmi_stats.unknown, 1);
 
-#ifdef CONFIG_MCA
-	/*
-	 * Might actually be able to figure out what the guilty party
-	 * is:
-	 */
-	if (MCA_bus) {
-		mca_handle_nmi();
-		return;
-	}
-#endif
 	pr_emerg("Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 
@@ -305,7 +258,7 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 static DEFINE_PER_CPU(bool, swallow_nmi);
 static DEFINE_PER_CPU(unsigned long, last_nmi_rip);
 
-static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
+static __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int handled;
@@ -491,14 +444,16 @@ static inline void nmi_nesting_preprocess(struct pt_regs *regs)
 	 */
 	if (unlikely(is_debug_stack(regs->sp))) {
 		debug_stack_set_zero();
-		__get_cpu_var(update_debug_stack) = 1;
+		this_cpu_write(update_debug_stack, 1);
 	}
 }
 
 static inline void nmi_nesting_postprocess(void)
 {
-	if (unlikely(__get_cpu_var(update_debug_stack)))
+	if (unlikely(this_cpu_read(update_debug_stack))) {
 		debug_stack_reset();
+		this_cpu_write(update_debug_stack, 0);
+	}
 }
 #endif
 

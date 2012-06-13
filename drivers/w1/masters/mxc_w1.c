@@ -138,7 +138,7 @@ static int __devinit mxc_w1_probe(struct platform_device *pdev)
 		goto failed_ioremap;
 	}
 
-	clk_enable(mdev->clk);
+	clk_prepare_enable(mdev->clk);
 	__raw_writeb(mdev->clkdiv, mdev->regs + MXC_W1_TIME_DIVIDER);
 
 	mdev->bus_master.data = mdev;
@@ -178,7 +178,7 @@ static int __devexit mxc_w1_remove(struct platform_device *pdev)
 
 	iounmap(mdev->regs);
 	release_mem_region(res->start, resource_size(res));
-	clk_disable(mdev->clk);
+	clk_disable_unprepare(mdev->clk);
 	clk_put(mdev->clk);
 
 	platform_set_drvdata(pdev, NULL);

@@ -524,6 +524,7 @@ int wl_pci_setup( struct pci_dev *pdev )
     /* Make sure that space was allocated for our private adapter struct */
     if( dev->priv == NULL ) {
         DBG_ERROR( DbgInfo, "Private adapter struct was not allocated!!!\n" );
+	wl_device_dealloc(dev);
         DBG_LEAVE( DbgInfo );
         return -ENOMEM;
     }
@@ -532,6 +533,7 @@ int wl_pci_setup( struct pci_dev *pdev )
     /* Allocate DMA Descriptors */
     if( wl_pci_dma_alloc( pdev, dev->priv ) < 0 ) {
         DBG_ERROR( DbgInfo, "Could not allocate DMA descriptor memory!!!\n" );
+	wl_device_dealloc(dev);
         DBG_LEAVE( DbgInfo );
         return -ENOMEM;
     }
@@ -561,6 +563,8 @@ int wl_pci_setup( struct pci_dev *pdev )
     result = request_irq(dev->irq, wl_isr, SA_SHIRQ, dev->name, dev);
     if( result ) {
         DBG_WARNING( DbgInfo, "Could not register ISR!!!\n" );
+	wl_remove(dev);
+	wl_device_dealloc(dev);
         DBG_LEAVE( DbgInfo );
         return result;
 	}

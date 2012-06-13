@@ -39,52 +39,73 @@
  * Isochronous DMA context management
  */
 
-int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
-		       int page_count, enum dma_data_direction direction)
+int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 {
-	int i, j;
-	dma_addr_t address;
+	int i;
 
-	buffer->page_count = page_count;
-	buffer->direction = direction;
-
+	buffer->page_count = 0;
+	buffer->page_count_mapped = 0;
 	buffer->pages = kmalloc(page_count * sizeof(buffer->pages[0]),
 				GFP_KERNEL);
 	if (buffer->pages == NULL)
-		goto out;
+		return -ENOMEM;
 
-	for (i = 0; i < buffer->page_count; i++) {
+	for (i = 0; i < page_count; i++) {
 		buffer->pages[i] = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 		if (buffer->pages[i] == NULL)
-			goto out_pages;
-
-		address = dma_map_page(card->device, buffer->pages[i],
-				       0, PAGE_SIZE, direction);
-		if (dma_mapping_error(card->device, address)) {
-			__free_page(buffer->pages[i]);
-			goto out_pages;
-		}
-		set_page_private(buffer->pages[i], address);
+			break;
+	}
+	buffer->page_count = i;
+	if (i < page_count) {
+		fw_iso_buffer_destroy(buffer, NULL);
+		return -ENOMEM;
 	}
 
 	return 0;
+}
 
- out_pages:
-	for (j = 0; j < i; j++) {
-		address = page_private(buffer->pages[j]);
-		dma_unmap_page(card->device, address,
-			       PAGE_SIZE, direction);
-		__free_page(buffer->pages[j]);
+int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
+			  enum dma_data_direction direction)
+{
+	dma_addr_t address;
+	int i;
+
+	buffer->direction = direction;
+
+	for (i = 0; i < buffer->page_count; i++) {
+		address = dma_map_page(card->device, buffer->pages[i],
+				       0, PAGE_SIZE, direction);
+		if (dma_mapping_error(card->device, address))
+			break;
+
+		set_page_private(buffer->pages[i], address);
 	}
-	kfree(buffer->pages);
- out:
-	buffer->pages = NULL;
+	buffer->page_count_mapped = i;
+	if (i < buffer->page_count)
+		return -ENOMEM;
 
-	return -ENOMEM;
+	return 0;
+}
+
+int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
+		       int page_count, enum dma_data_direction direction)
+{
+	int ret;
+
+	ret = fw_iso_buffer_alloc(buffer, page_count);
+	if (ret < 0)
+		return ret;
+
+	ret = fw_iso_buffer_map_dma(buffer, card, direction);
+	if (ret < 0)
+		fw_iso_buffer_destroy(buffer, card);
+
+	return ret;
 }
 EXPORT_SYMBOL(fw_iso_buffer_init);
 
-int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma)
+int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
+			  struct vm_area_struct *vma)
 {
 	unsigned long uaddr;
 	int i, err;
@@ -107,15 +128,18 @@ void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 	int i;
 	dma_addr_t address;
 
-	for (i = 0; i < buffer->page_count; i++) {
+	for (i = 0; i < buffer->page_count_mapped; i++) {
 		address = page_private(buffer->pages[i]);
 		dma_unmap_page(card->device, address,
 			       PAGE_SIZE, buffer->direction);
-		__free_page(buffer->pages[i]);
 	}
+	for (i = 0; i < buffer->page_count; i++)
+		__free_page(buffer->pages[i]);
 
 	kfree(buffer->pages);
 	buffer->pages = NULL;
+	buffer->page_count = 0;
+	buffer->page_count_mapped = 0;
 }
 EXPORT_SYMBOL(fw_iso_buffer_destroy);
 

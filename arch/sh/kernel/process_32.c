@@ -22,6 +22,7 @@
 #include <linux/ftrace.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/prefetch.h>
+#include <linux/stackprotector.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/fpu.h>
@@ -155,15 +156,6 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 }
 EXPORT_SYMBOL(dump_fpu);
 
-/*
- * This gets called before we allocate a new thread and copy
- * the current task into it.
- */
-void prepare_to_copy(struct task_struct *tsk)
-{
-	unlazy_fpu(tsk, task_pt_regs(tsk));
-}
-
 asmlinkage void ret_from_fork(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
@@ -219,6 +211,10 @@ __notrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev, struct task_struct *next)
 {
 	struct thread_struct *next_t = &next->thread;
+
+#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+	__stack_chk_guard = next->stack_canary;
+#endif
 
 	unlazy_fpu(prev, task_pt_regs(prev));
 

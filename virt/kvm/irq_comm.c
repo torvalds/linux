@@ -138,6 +138,20 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	return kvm_irq_delivery_to_apic(kvm, NULL, &irq);
 }
 
+int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
+{
+	struct kvm_kernel_irq_routing_entry route;
+
+	if (!irqchip_in_kernel(kvm) || msi->flags != 0)
+		return -EINVAL;
+
+	route.msi.address_lo = msi->address_lo;
+	route.msi.address_hi = msi->address_hi;
+	route.msi.data = msi->data;
+
+	return kvm_set_msi(&route, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1);
+}
+
 /*
  * Return value:
  *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
@@ -318,6 +332,7 @@ static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 	 */
 	hlist_for_each_entry(ei, n, &rt->map[ue->gsi], link)
 		if (ei->type == KVM_IRQ_ROUTING_MSI ||
+		    ue->type == KVM_IRQ_ROUTING_MSI ||
 		    ue->u.irqchip.irqchip == ei->irqchip.irqchip)
 			return r;
 

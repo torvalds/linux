@@ -477,7 +477,6 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
 	int i = 0;
-	unsigned int ca_message_header_len;
 
 	u32 command = 0;
 	struct ca_msg *hw_buffer;
@@ -496,7 +495,6 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 
 
 	if (p_ca_message->msg) {
-		ca_message_header_len = p_ca_message->length;	/*	Restore it back when you are done	*/
 		/*	EN50221 tag	*/
 		command = 0;
 

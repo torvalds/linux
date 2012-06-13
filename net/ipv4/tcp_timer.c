@@ -319,6 +319,11 @@ void tcp_retransmit_timer(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
+	if (tp->early_retrans_delayed) {
+		tcp_resume_early_retransmit(sk);
+		return;
+	}
+
 	if (!tp->packets_out)
 		goto out;
 

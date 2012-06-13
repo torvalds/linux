@@ -49,6 +49,10 @@ input</refpurpose>
   <refsect1>
     <title>Description</title>
 
+    <para>This ioctl is <emphasis role="bold">deprecated</emphasis>.
+    New drivers and applications should use &VIDIOC-QUERY-DV-TIMINGS; instead.
+    </para>
+
     <para>The hardware may be able to detect the current DV preset
 automatically, similar to sensing the video standard. To do so, applications
 call <constant> VIDIOC_QUERY_DV_PRESET</constant> with a pointer to a

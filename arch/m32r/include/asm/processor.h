@@ -118,8 +118,6 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-#define prepare_to_copy(tsk)	do { } while (0)
-
 /*
  * create a kernel thread without removing it from tasklists
  */

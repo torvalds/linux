@@ -168,7 +168,7 @@ following filters are defined:
         - any:  any type of branches
         - any_call: any function call or system call
         - any_ret: any function return or system call return
-        - any_ind: any indirect branch
+        - ind_call: any indirect branch
         - u:  only when the branch target is at the user level
         - k: only when the branch target is in the kernel
         - hv: only when the target is at the hypervisor level

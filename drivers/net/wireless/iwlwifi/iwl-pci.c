@@ -60,17 +60,18 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 
-#include "iwl-io.h"
-#include "iwl-shared.h"
 #include "iwl-trans.h"
-#include "iwl-csr.h"
 #include "iwl-cfg.h"
 #include "iwl-drv.h"
 #include "iwl-trans.h"
+#include "iwl-trans-pcie-int.h"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
@@ -261,60 +262,45 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
 
+#ifndef CONFIG_IWLWIFI_IDI
+
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
-	struct iwl_shared *shrd;
 	struct iwl_trans *iwl_trans;
-	int err;
+	struct iwl_trans_pcie *trans_pcie;
 
-	shrd = kzalloc(sizeof(*iwl_trans->shrd), GFP_KERNEL);
-	if (!shrd) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "Couldn't allocate iwl_shared");
-		err = -ENOMEM;
-		goto out_free_bus;
-	}
+	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, cfg);
+	if (iwl_trans == NULL)
+		return -ENOMEM;
 
-#ifdef CONFIG_IWLWIFI_IDI
-	iwl_trans = iwl_trans_idi_alloc(shrd, pdev, ent);
-#else
-	iwl_trans = iwl_trans_pcie_alloc(shrd, pdev, ent);
-#endif
-	if (iwl_trans == NULL) {
-		err = -ENOMEM;
-		goto out_free_bus;
-	}
-
-	shrd->trans = iwl_trans;
 	pci_set_drvdata(pdev, iwl_trans);
 
-	err = iwl_drv_start(shrd, iwl_trans, cfg);
-	if (err)
+	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
+	trans_pcie->drv = iwl_drv_start(iwl_trans, cfg);
+	if (!trans_pcie->drv)
 		goto out_free_trans;
 
 	return 0;
 
 out_free_trans:
-	iwl_trans_free(iwl_trans);
+	iwl_trans_pcie_free(iwl_trans);
 	pci_set_drvdata(pdev, NULL);
-out_free_bus:
-	kfree(shrd);
-	return err;
+	return -EFAULT;
 }
 
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
-	struct iwl_trans *iwl_trans = pci_get_drvdata(pdev);
-	struct iwl_shared *shrd = iwl_trans->shrd;
+	struct iwl_trans *trans = pci_get_drvdata(pdev);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	iwl_drv_stop(shrd);
-	iwl_trans_free(shrd->trans);
+	iwl_drv_stop(trans_pcie->drv);
+	iwl_trans_pcie_free(trans);
 
 	pci_set_drvdata(pdev, NULL);
-
-	kfree(shrd);
 }
+
+#endif /* CONFIG_IWLWIFI_IDI */
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -359,6 +345,15 @@ static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);
 #define IWL_PM_OPS	NULL
 
 #endif
+
+#ifdef CONFIG_IWLWIFI_IDI
+/*
+ * Defined externally in iwl-idi.c
+ */
+int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
+void __devexit iwl_pci_remove(struct pci_dev *pdev);
+
+#endif /* CONFIG_IWLWIFI_IDI */
 
 static struct pci_driver iwl_pci_driver = {
 	.name = DRV_NAME,

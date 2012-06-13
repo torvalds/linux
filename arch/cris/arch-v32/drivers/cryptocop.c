@@ -1394,11 +1394,10 @@ static int create_md5_pad(int alloc_flag, unsigned long long hashed_length, char
 
 	if (padlen < MD5_MIN_PAD_LENGTH) padlen += MD5_BLOCK_LENGTH;
 
-	p = kmalloc(padlen, alloc_flag);
+	p = kzalloc(padlen, alloc_flag);
 	if (!p) return -ENOMEM;
 
 	*p = 0x80;
-	memset(p+1, 0, padlen - 1);
 
 	DEBUG(printk("create_md5_pad: hashed_length=%lld bits == %lld bytes\n", bit_length, hashed_length));
 
@@ -1426,11 +1425,10 @@ static int create_sha1_pad(int alloc_flag, unsigned long long hashed_length, cha
 
 	if (padlen < SHA1_MIN_PAD_LENGTH) padlen += SHA1_BLOCK_LENGTH;
 
-	p = kmalloc(padlen, alloc_flag);
+	p = kzalloc(padlen, alloc_flag);
 	if (!p) return -ENOMEM;
 
 	*p = 0x80;
-	memset(p+1, 0, padlen - 1);
 
 	DEBUG(printk("create_sha1_pad: hashed_length=%lld bits == %lld bytes\n", bit_length, hashed_length));
 

@@ -303,12 +303,6 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 }
 
 
-struct pci_bus * __init pci_versatile_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	return pci_scan_root_bus(NULL, sys->busnr, &pci_versatile_ops, sys,
-				 &sys->resources);
-}
-
 void __init pci_versatile_preinit(void)
 {
 	pcibios_min_io = 0x44000000;
@@ -339,19 +333,16 @@ static int __init versatile_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	 *  26     1     29
 	 *  27     1     30
 	 */
-	irq = 27 + ((slot + pin - 1) & 3);
-
-	printk("PCI map irq: slot %d, pin %d, devslot %d, irq: %d\n",slot,pin,devslot,irq);
+	irq = 27 + ((slot - 24 + pin - 1) & 3);
 
 	return irq;
 }
 
 static struct hw_pci versatile_pci __initdata = {
-	.swizzle		= NULL,
 	.map_irq		= versatile_map_irq,
 	.nr_controllers		= 1,
+	.ops			= &pci_versatile_ops,
 	.setup			= pci_versatile_setup,
-	.scan			= pci_versatile_scan_bus,
 	.preinit		= pci_versatile_preinit,
 };
 

@@ -7,7 +7,6 @@
 #define IBLOCK_LBA_SHIFT	9
 
 struct iblock_req {
-	struct se_task ib_task;
 	atomic_t pending;
 	atomic_t ib_bio_err_cnt;
 } ____cacheline_aligned;

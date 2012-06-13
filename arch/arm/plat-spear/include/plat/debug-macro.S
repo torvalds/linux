@@ -12,7 +12,7 @@
  */
 
 #include <linux/amba/serial.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
 
 		.macro	addruart, rp, rv, tmp
 		mov	\rp, #SPEAR_DBG_UART_BASE		@ Physical base

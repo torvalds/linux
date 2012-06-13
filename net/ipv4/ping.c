@@ -51,15 +51,16 @@ static struct ping_table ping_table;
 
 static u16 ping_port_rover;
 
-static inline int ping_hashfn(struct net *net, unsigned num, unsigned mask)
+static inline int ping_hashfn(struct net *net, unsigned int num, unsigned int mask)
 {
 	int res = (num + net_hash_mix(net)) & mask;
+
 	pr_debug("hash(%d) = %d\n", num, res);
 	return res;
 }
 
 static inline struct hlist_nulls_head *ping_hashslot(struct ping_table *table,
-					     struct net *net, unsigned num)
+					     struct net *net, unsigned int num)
 {
 	return &table->hash[ping_hashfn(net, num, PING_HTABLE_MASK)];
 }
@@ -188,7 +189,8 @@ static void inet_get_ping_group_range_net(struct net *net, gid_t *low,
 					  gid_t *high)
 {
 	gid_t *data = net->ipv4.sysctl_ping_group_range;
-	unsigned seq;
+	unsigned int seq;
+
 	do {
 		seq = read_seqbegin(&sysctl_local_ports.lock);
 
@@ -205,17 +207,22 @@ static int ping_init_sock(struct sock *sk)
 	gid_t range[2];
 	struct group_info *group_info = get_current_groups();
 	int i, j, count = group_info->ngroups;
+	kgid_t low, high;
 
 	inet_get_ping_group_range_net(net, range, range+1);
+	low = make_kgid(&init_user_ns, range[0]);
+	high = make_kgid(&init_user_ns, range[1]);
+	if (!gid_valid(low) || !gid_valid(high) || gid_lt(high, low))
+		return -EACCES;
+
 	if (range[0] <= group && group <= range[1])
 		return 0;
 
 	for (i = 0; i < group_info->nblocks; i++) {
 		int cp_count = min_t(int, NGROUPS_PER_BLOCK, count);
-
 		for (j = 0; j < cp_count; j++) {
-			group = group_info->blocks[i][j];
-			if (range[0] <= group && group <= range[1])
+			kgid_t gid = group_info->blocks[i][j];
+			if (gid_lte(low, gid) && gid_lte(gid, high))
 				return 0;
 		}
 
@@ -410,7 +417,7 @@ struct pingfakehdr {
 	__wsum wcheck;
 };
 
-static int ping_getfrag(void *from, char * to,
+static int ping_getfrag(void *from, char *to,
 			int offset, int fraglen, int odd, struct sk_buff *skb)
 {
 	struct pingfakehdr *pfh = (struct pingfakehdr *)from;

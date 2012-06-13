@@ -356,15 +356,45 @@ static const struct driver_info	qmi_wwan_gobi = {
 };
 
 /* ZTE suck at making USB descriptors */
-static const struct driver_info	qmi_wwan_force_int4 = {
-	.description	= "Qualcomm Gobi wwan/QMI device",
+static const struct driver_info	qmi_wwan_force_int1 = {
+	.description	= "Qualcomm WWAN/QMI device",
 	.flags		= FLAG_WWAN,
-	.bind		= qmi_wwan_bind_gobi,
+	.bind		= qmi_wwan_bind_shared,
+	.unbind		= qmi_wwan_unbind_shared,
+	.manage_power	= qmi_wwan_manage_power,
+	.data		= BIT(1), /* interface whitelist bitmap */
+};
+
+static const struct driver_info	qmi_wwan_force_int4 = {
+	.description	= "Qualcomm WWAN/QMI device",
+	.flags		= FLAG_WWAN,
+	.bind		= qmi_wwan_bind_shared,
 	.unbind		= qmi_wwan_unbind_shared,
 	.manage_power	= qmi_wwan_manage_power,
 	.data		= BIT(4), /* interface whitelist bitmap */
 };
 
+/* Sierra Wireless provide equally useless interface descriptors
+ * Devices in QMI mode can be switched between two different
+ * configurations:
+ *   a) USB interface #8 is QMI/wwan
+ *   b) USB interfaces #8, #19 and #20 are QMI/wwan
+ *
+ * Both configurations provide a number of other interfaces (serial++),
+ * some of which have the same endpoint configuration as we expect, so
+ * a whitelist or blacklist is necessary.
+ *
+ * FIXME: The below whitelist should include BIT(20).  It does not
+ * because I cannot get it to work...
+ */
+static const struct driver_info	qmi_wwan_sierra = {
+	.description	= "Sierra Wireless wwan/QMI device",
+	.flags		= FLAG_WWAN,
+	.bind		= qmi_wwan_bind_gobi,
+	.unbind		= qmi_wwan_unbind_shared,
+	.manage_power	= qmi_wwan_manage_power,
+	.data		= BIT(8) | BIT(19), /* interface whitelist bitmap */
+};
 
 #define HUAWEI_VENDOR_ID	0x12D1
 #define QMI_GOBI_DEVICE(vend, prod) \
@@ -378,6 +408,14 @@ static const struct usb_device_id products[] = {
 		.bInterfaceClass    = USB_CLASS_VENDOR_SPEC,
 		.bInterfaceSubClass = 1,
 		.bInterfaceProtocol = 8, /* NOTE: This is the *slave* interface of the CDC Union! */
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
+	{	/* Vodafone/Huawei K5005 (12d1:14c8) and similar modems */
+		.match_flags        = USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = HUAWEI_VENDOR_ID,
+		.bInterfaceClass    = USB_CLASS_VENDOR_SPEC,
+		.bInterfaceSubClass = 1,
+		.bInterfaceProtocol = 56, /* NOTE: This is the *slave* interface of the CDC Union! */
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
 	{	/* Huawei E392, E398 and possibly others in "Windows mode"
@@ -409,6 +447,15 @@ static const struct usb_device_id products[] = {
 		.bInterfaceProtocol = 0xff,
 		.driver_info        = (unsigned long)&qmi_wwan_force_int4,
 	},
+	{	/* ZTE (Vodafone) K3520-Z */
+		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = 0x19d2,
+		.idProduct          = 0x0055,
+		.bInterfaceClass    = 0xff,
+		.bInterfaceSubClass = 0xff,
+		.bInterfaceProtocol = 0xff,
+		.driver_info        = (unsigned long)&qmi_wwan_force_int1,
+	},
 	{	/* ZTE (Vodafone) K3565-Z */
 		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
 		.idVendor           = 0x19d2,
@@ -436,6 +483,15 @@ static const struct usb_device_id products[] = {
 		.bInterfaceProtocol = 0xff,
 		.driver_info        = (unsigned long)&qmi_wwan_force_int4,
 	},
+	{	/* ZTE (Vodafone) K3765-Z */
+		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = 0x19d2,
+		.idProduct          = 0x2002,
+		.bInterfaceClass    = 0xff,
+		.bInterfaceSubClass = 0xff,
+		.bInterfaceProtocol = 0xff,
+		.driver_info        = (unsigned long)&qmi_wwan_force_int4,
+	},
 	{	/* ZTE (Vodafone) K4505-Z */
 		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
 		.idVendor           = 0x19d2,
@@ -444,6 +500,15 @@ static const struct usb_device_id products[] = {
 		.bInterfaceSubClass = 0xff,
 		.bInterfaceProtocol = 0xff,
 		.driver_info        = (unsigned long)&qmi_wwan_force_int4,
+	},
+	{	/* Sierra Wireless MC77xx in QMI mode */
+		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = 0x1199,
+		.idProduct          = 0x68a2,
+		.bInterfaceClass    = 0xff,
+		.bInterfaceSubClass = 0xff,
+		.bInterfaceProtocol = 0xff,
+		.driver_info        = (unsigned long)&qmi_wwan_sierra,
 	},
 	{QMI_GOBI_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
 	{QMI_GOBI_DEVICE(0x03f0, 0x1f1d)},	/* HP un2400 Gobi Modem Device */
@@ -482,6 +547,8 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI_DEVICE(0x16d8, 0x8002)},	/* CMDTech Gobi 2000 Modem device (VU922) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9205)},	/* Gobi 2000 Modem device */
 	{QMI_GOBI_DEVICE(0x1199, 0x9013)},	/* Sierra Wireless Gobi 3000 Modem device (MC8355) */
+	{QMI_GOBI_DEVICE(0x1199, 0x9015)},	/* Sierra Wireless Gobi 3000 Modem device */
+	{QMI_GOBI_DEVICE(0x1199, 0x9019)},	/* Sierra Wireless Gobi 3000 Modem device */
 	{ }					/* END */
 };
 MODULE_DEVICE_TABLE(usb, products);
@@ -495,6 +562,7 @@ static struct usb_driver qmi_wwan_driver = {
 	.resume		      =	qmi_wwan_resume,
 	.reset_resume         = qmi_wwan_resume,
 	.supports_autosuspend = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static int __init qmi_wwan_init(void)

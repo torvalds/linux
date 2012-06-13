@@ -95,6 +95,7 @@ MODULE_LICENSE("GPL");
 
 /* registers */
 #define HCI_FAN				0x0004
+#define HCI_TR_BACKLIGHT		0x0005
 #define HCI_SYSTEM_EVENT		0x0016
 #define HCI_VIDEO_OUT			0x001c
 #define HCI_HOTKEY_EVENT		0x001e
@@ -134,6 +135,7 @@ struct toshiba_acpi_dev {
 	unsigned int system_event_supported:1;
 	unsigned int ntfy_supported:1;
 	unsigned int info_supported:1;
+	unsigned int tr_backlight_supported:1;
 
 	struct mutex mutex;
 };
@@ -478,34 +480,70 @@ static const struct rfkill_ops toshiba_rfk_ops = {
 	.poll = bt_rfkill_poll,
 };
 
+static int get_tr_backlight_status(struct toshiba_acpi_dev *dev, bool *enabled)
+{
+	u32 hci_result;
+	u32 status;
+
+	hci_read1(dev, HCI_TR_BACKLIGHT, &status, &hci_result);
+	*enabled = !status;
+	return hci_result == HCI_SUCCESS ? 0 : -EIO;
+}
+
+static int set_tr_backlight_status(struct toshiba_acpi_dev *dev, bool enable)
+{
+	u32 hci_result;
+	u32 value = !enable;
+
+	hci_write1(dev, HCI_TR_BACKLIGHT, value, &hci_result);
+	return hci_result == HCI_SUCCESS ? 0 : -EIO;
+}
+
 static struct proc_dir_entry *toshiba_proc_dir /*= 0*/ ;
 
-static int get_lcd(struct backlight_device *bd)
+static int __get_lcd_brightness(struct toshiba_acpi_dev *dev)
 {
-	struct toshiba_acpi_dev *dev = bl_get_data(bd);
 	u32 hci_result;
 	u32 value;
+	int brightness = 0;
+
+	if (dev->tr_backlight_supported) {
+		bool enabled;
+		int ret = get_tr_backlight_status(dev, &enabled);
+		if (ret)
+			return ret;
+		if (enabled)
+			return 0;
+		brightness++;
+	}
 
 	hci_read1(dev, HCI_LCD_BRIGHTNESS, &value, &hci_result);
 	if (hci_result == HCI_SUCCESS)
-		return (value >> HCI_LCD_BRIGHTNESS_SHIFT);
+		return brightness + (value >> HCI_LCD_BRIGHTNESS_SHIFT);
 
 	return -EIO;
+}
+
+static int get_lcd_brightness(struct backlight_device *bd)
+{
+	struct toshiba_acpi_dev *dev = bl_get_data(bd);
+	return __get_lcd_brightness(dev);
 }
 
 static int lcd_proc_show(struct seq_file *m, void *v)
 {
 	struct toshiba_acpi_dev *dev = m->private;
 	int value;
+	int levels;
 
 	if (!dev->backlight_dev)
 		return -ENODEV;
 
-	value = get_lcd(dev->backlight_dev);
+	levels = dev->backlight_dev->props.max_brightness + 1;
+	value = get_lcd_brightness(dev->backlight_dev);
 	if (value >= 0) {
 		seq_printf(m, "brightness:              %d\n", value);
-		seq_printf(m, "brightness_levels:       %d\n",
-			     HCI_LCD_BRIGHTNESS_LEVELS);
+		seq_printf(m, "brightness_levels:       %d\n", levels);
 		return 0;
 	}
 
@@ -518,9 +556,18 @@ static int lcd_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, lcd_proc_show, PDE(inode)->data);
 }
 
-static int set_lcd(struct toshiba_acpi_dev *dev, int value)
+static int set_lcd_brightness(struct toshiba_acpi_dev *dev, int value)
 {
 	u32 hci_result;
+
+	if (dev->tr_backlight_supported) {
+		bool enable = !value;
+		int ret = set_tr_backlight_status(dev, enable);
+		if (ret)
+			return ret;
+		if (value)
+			value--;
+	}
 
 	value = value << HCI_LCD_BRIGHTNESS_SHIFT;
 	hci_write1(dev, HCI_LCD_BRIGHTNESS, value, &hci_result);
@@ -530,7 +577,7 @@ static int set_lcd(struct toshiba_acpi_dev *dev, int value)
 static int set_lcd_status(struct backlight_device *bd)
 {
 	struct toshiba_acpi_dev *dev = bl_get_data(bd);
-	return set_lcd(dev, bd->props.brightness);
+	return set_lcd_brightness(dev, bd->props.brightness);
 }
 
 static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
@@ -541,6 +588,7 @@ static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 	size_t len;
 	int value;
 	int ret;
+	int levels = dev->backlight_dev->props.max_brightness + 1;
 
 	len = min(count, sizeof(cmd) - 1);
 	if (copy_from_user(cmd, buf, len))
@@ -548,8 +596,8 @@ static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 	cmd[len] = '\0';
 
 	if (sscanf(cmd, " brightness : %i", &value) == 1 &&
-	    value >= 0 && value < HCI_LCD_BRIGHTNESS_LEVELS) {
-		ret = set_lcd(dev, value);
+	    value >= 0 && value < levels) {
+		ret = set_lcd_brightness(dev, value);
 		if (ret == 0)
 			ret = count;
 	} else {
@@ -860,8 +908,9 @@ static void remove_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 }
 
 static const struct backlight_ops toshiba_backlight_data = {
-        .get_brightness = get_lcd,
-        .update_status  = set_lcd_status,
+	.options = BL_CORE_SUSPENDRESUME,
+	.get_brightness = get_lcd_brightness,
+	.update_status  = set_lcd_status,
 };
 
 static bool toshiba_acpi_i8042_filter(unsigned char data, unsigned char str,
@@ -1020,6 +1069,56 @@ static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	return error;
 }
 
+static int __devinit toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
+{
+	struct backlight_properties props;
+	int brightness;
+	int ret;
+	bool enabled;
+
+	/*
+	 * Some machines don't support the backlight methods at all, and
+	 * others support it read-only. Either of these is pretty useless,
+	 * so only register the backlight device if the backlight method
+	 * supports both reads and writes.
+	 */
+	brightness = __get_lcd_brightness(dev);
+	if (brightness < 0)
+		return 0;
+	ret = set_lcd_brightness(dev, brightness);
+	if (ret) {
+		pr_debug("Backlight method is read-only, disabling backlight support\n");
+		return 0;
+	}
+
+	/* Determine whether or not BIOS supports transflective backlight */
+	ret = get_tr_backlight_status(dev, &enabled);
+	dev->tr_backlight_supported = !ret;
+
+	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_PLATFORM;
+	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
+
+	/* adding an extra level and having 0 change to transflective mode */
+	if (dev->tr_backlight_supported)
+		props.max_brightness++;
+
+	dev->backlight_dev = backlight_device_register("toshiba",
+						       &dev->acpi_dev->dev,
+						       dev,
+						       &toshiba_backlight_data,
+						       &props);
+	if (IS_ERR(dev->backlight_dev)) {
+		ret = PTR_ERR(dev->backlight_dev);
+		pr_err("Could not register toshiba backlight device\n");
+		dev->backlight_dev = NULL;
+		return ret;
+	}
+
+	dev->backlight_dev->props.brightness = brightness;
+	return 0;
+}
+
 static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
@@ -1078,7 +1177,6 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 	u32 dummy;
 	bool bt_present;
 	int ret = 0;
-	struct backlight_properties props;
 
 	if (toshiba_acpi)
 		return -EBUSY;
@@ -1104,21 +1202,9 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	mutex_init(&dev->mutex);
 
-	props.type = BACKLIGHT_PLATFORM;
-	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
-	dev->backlight_dev = backlight_device_register("toshiba",
-						       &acpi_dev->dev,
-						       dev,
-						       &toshiba_backlight_data,
-						       &props);
-	if (IS_ERR(dev->backlight_dev)) {
-		ret = PTR_ERR(dev->backlight_dev);
-
-		pr_err("Could not register toshiba backlight device\n");
-		dev->backlight_dev = NULL;
+	ret = toshiba_acpi_setup_backlight(dev);
+	if (ret)
 		goto error;
-	}
-	dev->backlight_dev->props.brightness = get_lcd(dev->backlight_dev);
 
 	/* Register rfkill switch for Bluetooth */
 	if (hci_get_bt_present(dev, &bt_present) == HCI_SUCCESS && bt_present) {

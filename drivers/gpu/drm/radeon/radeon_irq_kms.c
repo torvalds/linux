@@ -73,6 +73,7 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
 		rdev->irq.crtc_vblank_int[i] = false;
 		rdev->irq.pflip[i] = false;
+		rdev->irq.afmt[i] = false;
 	}
 	radeon_irq_set(rdev);
 	/* Clear bits */
@@ -108,6 +109,7 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
 		rdev->irq.crtc_vblank_int[i] = false;
 		rdev->irq.pflip[i] = false;
+		rdev->irq.afmt[i] = false;
 	}
 	radeon_irq_set(rdev);
 }
@@ -170,6 +172,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 	int r = 0;
 
 	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
+	INIT_WORK(&rdev->audio_work, r600_audio_update_hdmi);
 
 	spin_lock_init(&rdev->irq.sw_lock);
 	for (i = 0; i < rdev->num_crtc; i++)

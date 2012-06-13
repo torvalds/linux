@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
+#include <linux/sh_intc.h>
 #include <mach/urquell.h>
 #include <cpu/sh7786.h>
 #include <asm/heartbeat.h>
@@ -78,7 +79,7 @@ static struct resource smc91x_eth_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 11,
+		.start  = evt2irq(0x360),
 		.flags  = IORESOURCE_IRQ,
 	},
 };

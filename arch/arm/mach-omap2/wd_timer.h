@@ -13,5 +13,6 @@
 #include <plat/omap_hwmod.h>
 
 extern int omap2_wd_timer_disable(struct omap_hwmod *oh);
+extern int omap2_wd_timer_reset(struct omap_hwmod *oh);
 
 #endif

@@ -212,7 +212,7 @@ static int proc_udc_show(struct seq_file *s, void *unused)
 	if (udc->enabled && udc->vbus) {
 		proc_ep_show(s, &udc->ep[0]);
 		list_for_each_entry (ep, &udc->gadget.ep_list, ep.ep_list) {
-			if (ep->desc)
+			if (ep->ep.desc)
 				proc_ep_show(s, ep);
 		}
 	}
@@ -475,7 +475,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 	unsigned long	flags;
 
 	if (!_ep || !ep
-			|| !desc || ep->desc
+			|| !desc || ep->ep.desc
 			|| _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| (maxpacket = usb_endpoint_maxp(desc)) == 0
@@ -530,7 +530,7 @@ ok:
 	tmp |= AT91_UDP_EPEDS;
 	__raw_writel(tmp, ep->creg);
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->ep.maxpacket = maxpacket;
 
 	/*
@@ -558,7 +558,6 @@ static int at91_ep_disable (struct usb_ep * _ep)
 	nuke(ep, -ESHUTDOWN);
 
 	/* restore the endpoint's pristine config */
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->ep.maxpacket = ep->maxpacket;
 
@@ -618,7 +617,7 @@ static int at91_ep_queue(struct usb_ep *_ep,
 		return -EINVAL;
 	}
 
-	if (!_ep || (!ep->desc && ep->ep.name != ep0name)) {
+	if (!_ep || (!ep->ep.desc && ep->ep.name != ep0name)) {
 		DBG("invalid ep\n");
 		return -EINVAL;
 	}
@@ -833,7 +832,7 @@ static void udc_reinit(struct at91_udc *udc)
 
 		if (i != 0)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-		ep->desc = NULL;
+		ep->ep.desc = NULL;
 		ep->stopped = 0;
 		ep->fifo_bank = 0;
 		ep->ep.maxpacket = ep->maxpacket;
@@ -978,18 +977,18 @@ static int at91_set_selfpowered(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static int at91_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int at91_stop(struct usb_gadget_driver *driver);
-
+static int at91_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver);
+static int at91_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver);
 static const struct usb_gadget_ops at91_udc_ops = {
 	.get_frame		= at91_get_frame,
 	.wakeup			= at91_wakeup,
 	.set_selfpowered	= at91_set_selfpowered,
 	.vbus_session		= at91_vbus_session,
 	.pullup			= at91_pullup,
-	.start			= at91_start,
-	.stop			= at91_stop,
+	.udc_start		= at91_start,
+	.udc_stop		= at91_stop,
 
 	/*
 	 * VBUS-powered devices may also also want to support bigger
@@ -1172,7 +1171,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			| USB_REQ_GET_STATUS:
 		tmp = w_index & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if (tmp >= NUM_ENDPOINTS || (tmp && !ep->desc))
+		if (tmp >= NUM_ENDPOINTS || (tmp && !ep->ep.desc))
 			goto stall;
 
 		if (tmp) {
@@ -1197,7 +1196,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 		ep = &udc->ep[tmp];
 		if (w_value != USB_ENDPOINT_HALT || tmp >= NUM_ENDPOINTS)
 			goto stall;
-		if (!ep->desc || ep->is_iso)
+		if (!ep->ep.desc || ep->is_iso)
 			goto stall;
 		if ((w_index & USB_DIR_IN)) {
 			if (!ep->is_in)
@@ -1218,7 +1217,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			goto stall;
 		if (tmp == 0)
 			goto succeed;
-		if (!ep->desc || ep->is_iso)
+		if (!ep->ep.desc || ep->is_iso)
 			goto stall;
 		if ((w_index & USB_DIR_IN)) {
 			if (!ep->is_in)
@@ -1627,66 +1626,34 @@ static void at91_vbus_timer(unsigned long data)
 		schedule_work(&udc->vbus_timer_work);
 }
 
-static int at91_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int at91_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct at91_udc	*udc = &controller;
-	int		retval;
-	unsigned long	flags;
+	struct at91_udc	*udc;
 
-	if (!driver
-			|| driver->max_speed < USB_SPEED_FULL
-			|| !bind
-			|| !driver->setup) {
-		DBG("bad parameter.\n");
-		return -EINVAL;
-	}
-
-	if (udc->driver) {
-		DBG("UDC already has a gadget driver\n");
-		return -EBUSY;
-	}
-
+	udc = container_of(gadget, struct at91_udc, gadget);
 	udc->driver = driver;
 	udc->gadget.dev.driver = &driver->driver;
 	dev_set_drvdata(&udc->gadget.dev, &driver->driver);
 	udc->enabled = 1;
 	udc->selfpowered = 1;
 
-	retval = bind(&udc->gadget);
-	if (retval) {
-		DBG("bind() returned %d\n", retval);
-		udc->driver = NULL;
-		udc->gadget.dev.driver = NULL;
-		dev_set_drvdata(&udc->gadget.dev, NULL);
-		udc->enabled = 0;
-		udc->selfpowered = 0;
-		return retval;
-	}
-
-	spin_lock_irqsave(&udc->lock, flags);
-	pullup(udc, 1);
-	spin_unlock_irqrestore(&udc->lock, flags);
-
 	DBG("bound to %s\n", driver->driver.name);
 	return 0;
 }
 
-static int at91_stop(struct usb_gadget_driver *driver)
+static int at91_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct at91_udc *udc = &controller;
+	struct at91_udc *udc;
 	unsigned long	flags;
 
-	if (!driver || driver != udc->driver || !driver->unbind)
-		return -EINVAL;
-
+	udc = container_of(gadget, struct at91_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
 	udc->enabled = 0;
 	at91_udp_write(udc, AT91_UDP_IDR, ~0);
-	pullup(udc, 0);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
 	dev_set_drvdata(&udc->gadget.dev, NULL);
 	udc->driver = NULL;

@@ -100,14 +100,14 @@ changed and <constant>VIDIOC_S_CROP</constant> returns the
 	&cs-str;
 	<tbody valign="top">
 	  <row>
-	    <entry>&v4l2-buf-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry>Type of the data stream, set by the application.
 Only these types are valid here: <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>,
 <constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>,
 <constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>, and custom (driver
 defined) types with code <constant>V4L2_BUF_TYPE_PRIVATE</constant>
-and higher.</entry>
+and higher. See <xref linkend="v4l2-buf-type" />.</entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-rect;</entry>

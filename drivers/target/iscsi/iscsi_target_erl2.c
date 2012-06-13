@@ -138,9 +138,9 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 
 		spin_lock(&cr->conn_recovery_cmd_lock);
 		list_for_each_entry_safe(cmd, cmd_tmp,
-				&cr->conn_recovery_cmd_list, i_list) {
+				&cr->conn_recovery_cmd_list, i_conn_node) {
 
-			list_del(&cmd->i_list);
+			list_del(&cmd->i_conn_node);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
 			iscsit_free_cmd(cmd);
@@ -160,9 +160,9 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 
 		spin_lock(&cr->conn_recovery_cmd_lock);
 		list_for_each_entry_safe(cmd, cmd_tmp,
-				&cr->conn_recovery_cmd_list, i_list) {
+				&cr->conn_recovery_cmd_list, i_conn_node) {
 
-			list_del(&cmd->i_list);
+			list_del(&cmd->i_conn_node);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
 			iscsit_free_cmd(cmd);
@@ -220,7 +220,7 @@ int iscsit_remove_cmd_from_connection_recovery(
 	}
 	cr = cmd->cr;
 
-	list_del(&cmd->i_list);
+	list_del(&cmd->i_conn_node);
 	return --cr->cmd_count;
 }
 
@@ -234,7 +234,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 
 	spin_lock(&cr->conn_recovery_cmd_lock);
 	list_for_each_entry_safe(cmd, cmd_tmp,
-			&cr->conn_recovery_cmd_list, i_list) {
+			&cr->conn_recovery_cmd_list, i_conn_node) {
 
 		if (((cmd->deferred_i_state != ISTATE_SENT_STATUS) &&
 		     (cmd->deferred_i_state != ISTATE_REMOVE)) ||
@@ -297,11 +297,11 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 	mutex_unlock(&sess->cmdsn_mutex);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_list) {
+	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_node) {
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN))
 			continue;
 
-		list_del(&cmd->i_list);
+		list_del(&cmd->i_conn_node);
 
 		spin_unlock_bh(&conn->cmd_lock);
 		iscsit_free_cmd(cmd);
@@ -339,14 +339,14 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 	/*
 	 * Only perform connection recovery on ISCSI_OP_SCSI_CMD or
 	 * ISCSI_OP_NOOP_OUT opcodes.  For all other opcodes call
-	 * list_del(&cmd->i_list); to release the command to the
+	 * list_del(&cmd->i_conn_node); to release the command to the
 	 * session pool and remove it from the connection's list.
 	 *
 	 * Also stop the DataOUT timer, which will be restarted after
 	 * sending the TMR response.
 	 */
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_list) {
+	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_node) {
 
 		if ((cmd->iscsi_opcode != ISCSI_OP_SCSI_CMD) &&
 		    (cmd->iscsi_opcode != ISCSI_OP_NOOP_OUT)) {
@@ -355,7 +355,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 				" CID: %hu\n", cmd->iscsi_opcode,
 				cmd->init_task_tag, cmd->cmd_sn, conn->cid);
 
-			list_del(&cmd->i_list);
+			list_del(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
 			iscsit_free_cmd(cmd);
 			spin_lock_bh(&conn->cmd_lock);
@@ -375,7 +375,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 		 */
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN) && !cmd->immediate_cmd &&
 		     (cmd->cmd_sn >= conn->sess->exp_cmd_sn)) {
-			list_del(&cmd->i_list);
+			list_del(&cmd->i_conn_node);
 			spin_unlock_bh(&conn->cmd_lock);
 			iscsit_free_cmd(cmd);
 			spin_lock_bh(&conn->cmd_lock);
@@ -397,7 +397,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 
 		cmd->sess = conn->sess;
 
-		list_del(&cmd->i_list);
+		list_del(&cmd->i_conn_node);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		iscsit_free_all_datain_reqs(cmd);
@@ -407,7 +407,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 		 * Add the struct iscsi_cmd to the connection recovery cmd list
 		 */
 		spin_lock(&cr->conn_recovery_cmd_lock);
-		list_add_tail(&cmd->i_list, &cr->conn_recovery_cmd_list);
+		list_add_tail(&cmd->i_conn_node, &cr->conn_recovery_cmd_list);
 		spin_unlock(&cr->conn_recovery_cmd_lock);
 
 		spin_lock_bh(&conn->cmd_lock);

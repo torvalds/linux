@@ -367,8 +367,10 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		return 1;
 	}
 
+	/* Check for Nport to NPort pt2pt protocol */
 	if ((vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_PT2PT_PLOGI)) {
+
 		/* rcv'ed PLOGI decides what our NPortId will be */
 		vport->fc_myDID = icmd->un.rcvels.parmRo;
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -382,6 +384,13 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			mempool_free(mbox, phba->mbox_mem_pool);
 			goto out;
 		}
+		/*
+		 * For SLI4, the VFI/VPI are registered AFTER the
+		 * Nport with the higher WWPN sends us a PLOGI with
+		 * our assigned NPortId.
+		 */
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_issue_reg_vfi(vport);
 
 		lpfc_can_disctmo(vport);
 	}

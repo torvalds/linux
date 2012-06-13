@@ -48,23 +48,6 @@ static unsigned char amiga_read_data(struct parport *p)
 	return ciaa.prb;
 }
 
-#if 0
-static unsigned char control_pc_to_amiga(unsigned char control)
-{
-	unsigned char ret = 0;
-
-	if (control & PARPORT_CONTROL_SELECT) /* XXX: What is SELECP? */
-		;
-	if (control & PARPORT_CONTROL_INIT) /* INITP */
-		/* reset connected to cpu reset pin */;
-	if (control & PARPORT_CONTROL_AUTOFD) /* AUTOLF */
-		/* Not connected */;
-	if (control & PARPORT_CONTROL_STROBE) /* Strobe */
-		/* Handled only directly by hardware */;
-	return ret;
-}
-#endif
-
 static unsigned char control_amiga_to_pc(unsigned char control)
 {
 	return PARPORT_CONTROL_SELECT |
@@ -94,25 +77,6 @@ static unsigned char amiga_frob_control( struct parport *p, unsigned char mask, 
 	amiga_write_control(p, (old & ~mask) ^ val);
 	return old;
 }
-
-#if 0 /* currently unused */
-static unsigned char status_pc_to_amiga(unsigned char status)
-{
-	unsigned char ret = 1;
-
-	if (status & PARPORT_STATUS_BUSY) /* Busy */
-		ret &= ~1;
-	if (status & PARPORT_STATUS_ACK) /* Ack */
-		/* handled in hardware */;
-	if (status & PARPORT_STATUS_PAPEROUT) /* PaperOut */
-		ret |= 2;
-	if (status & PARPORT_STATUS_SELECT) /* select */
-		ret |= 4;
-	if (status & PARPORT_STATUS_ERROR) /* error */
-		/* not connected */;
-	return ret;
-}
-#endif
 
 static unsigned char status_amiga_to_pc(unsigned char status)
 {

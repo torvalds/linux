@@ -89,6 +89,16 @@ _GLOBAL(load_up_altivec)
 	/* restore registers and return */
 	blr
 
+_GLOBAL(giveup_altivec_notask)
+	mfmsr	r3
+	andis.	r4,r3,MSR_VEC@h
+	bnelr				/* Already enabled? */
+	oris	r3,r3,MSR_VEC@h
+	SYNC
+	MTMSRD(r3)			/* enable use of VMX now */
+	isync
+	blr
+
 /*
  * giveup_altivec(tsk)
  * Disable VMX for the task given as the argument,

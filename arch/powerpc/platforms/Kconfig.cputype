@@ -78,6 +78,36 @@ config PPC_BOOK3E_64
 
 endchoice
 
+choice
+	prompt "CPU selection"
+	depends on PPC64
+	default GENERIC_CPU
+	help
+	  This will create a kernel which is optimised for a particular CPU.
+	  The resulting kernel may not run on other CPUs, so use this with care.
+
+	  If unsure, select Generic.
+
+config GENERIC_CPU
+	bool "Generic"
+
+config CELL_CPU
+	bool "Cell Broadband Engine"
+
+config POWER4_CPU
+	bool "POWER4"
+
+config POWER5_CPU
+	bool "POWER5"
+
+config POWER6_CPU
+	bool "POWER6"
+
+config POWER7_CPU
+	bool "POWER7"
+
+endchoice
+
 config PPC_BOOK3S
 	def_bool y
 	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64
@@ -85,15 +115,6 @@ config PPC_BOOK3S
 config PPC_BOOK3E
 	def_bool y
 	depends on PPC_BOOK3E_64
-
-config POWER4_ONLY
-	bool "Optimize for POWER4"
-	depends on PPC64 && PPC_BOOK3S
-	default n
-	---help---
-	  Cause the compiler to optimize for POWER4/POWER5/PPC970 processors.
-	  The resulting binary will not work on POWER3 or RS64 processors
-	  when compiled with binutils 2.15 or later.
 
 config 6xx
 	def_bool y
@@ -258,7 +279,7 @@ config PPC_ICSWX_PID
 	default y
 	---help---
 	  The PID register in server is used explicitly for ICSWX.  In
-	  embedded systems PID managment is done by the system.
+	  embedded systems PID management is done by the system.
 
 config PPC_ICSWX_USE_SIGILL
 	bool "Should a bad CT cause a SIGILL?"
@@ -266,7 +287,7 @@ config PPC_ICSWX_USE_SIGILL
 	default n
 	---help---
 	  Should a bad CT used for "non-record form ICSWX" cause an
-	  illegal intruction signal or should it be silent as
+	  illegal instruction signal or should it be silent as
 	  architected.
 
 	  If in doubt, say N here.

@@ -532,6 +532,7 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 
 	/*------- Backlight control --------*/
 
+	memset(&props, 0, sizeof(props));
 	props.fb_blank = FB_BLANK_UNBLANK;
 	props.power = FB_BLANK_UNBLANK;
 	props.type = BACKLIGHT_RAW;

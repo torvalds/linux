@@ -20,11 +20,17 @@
 #define __ASM_OPENRISC_ELF_H
 
 /*
+ * This files is partially exported to userspace.  This allows us to keep
+ * the ELF bits in one place which should assist in keeping the kernel and
+ * userspace in sync.
+ */
+
+/*
  * ELF register definitions..
  */
-#include <linux/types.h>
-#include <linux/ptrace.h>
 
+/* for struct user_regs_struct definition */
+#include <asm/ptrace.h>
 
 /* The OR1K relocation types... not all relevant for module loader */
 #define R_OR32_NONE	0
@@ -61,6 +67,8 @@ typedef unsigned long elf_fpregset_t;
 #define ELF_DATA	ELFDATA2MSB
 
 #ifdef __KERNEL__
+
+#include <linux/types.h>
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.

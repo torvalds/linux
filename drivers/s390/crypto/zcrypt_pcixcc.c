@@ -89,7 +89,6 @@ static void zcrypt_pcixcc_receive(struct ap_device *, struct ap_message *,
 static struct ap_driver zcrypt_pcixcc_driver = {
 	.probe = zcrypt_pcixcc_probe,
 	.remove = zcrypt_pcixcc_remove,
-	.receive = zcrypt_pcixcc_receive,
 	.ids = zcrypt_pcixcc_ids,
 	.request_timeout = PCIXCC_CLEANUP_TIME,
 };
@@ -698,6 +697,7 @@ static long zcrypt_pcixcc_modexpo(struct zcrypt_device *zdev,
 	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
+	ap_msg.receive = zcrypt_pcixcc_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &resp_type;
@@ -738,6 +738,7 @@ static long zcrypt_pcixcc_modexpo_crt(struct zcrypt_device *zdev,
 	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
+	ap_msg.receive = zcrypt_pcixcc_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &resp_type;
@@ -778,6 +779,7 @@ static long zcrypt_pcixcc_send_cprb(struct zcrypt_device *zdev,
 	ap_msg.message = kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
+	ap_msg.receive = zcrypt_pcixcc_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &resp_type;
@@ -818,6 +820,7 @@ static long zcrypt_pcixcc_rng(struct zcrypt_device *zdev,
 	ap_msg.message = kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
+	ap_msg.receive = zcrypt_pcixcc_receive;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &resp_type;

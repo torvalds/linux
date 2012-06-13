@@ -1,7 +1,7 @@
 /*
  * rational fractions
  *
- * Copyright (C) 2009 emlix GmbH, Oskar Schirmer <os@emlix.com>
+ * Copyright (C) 2009 emlix GmbH, Oskar Schirmer <oskar@scara.com>
  *
  * helper functions when coping with rational numbers
  */

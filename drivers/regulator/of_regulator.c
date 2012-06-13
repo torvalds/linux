@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 
 static void of_get_regulation_constraints(struct device_node *np,
 					struct regulator_init_data **init_data)
@@ -85,3 +86,49 @@ struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
 	return init_data;
 }
 EXPORT_SYMBOL_GPL(of_get_regulator_init_data);
+
+/**
+ * of_regulator_match - extract regulator init data
+ * @dev: device requesting the data
+ * @node: parent device node of the regulators
+ * @matches: match table for the regulators
+ * @num_matches: number of entries in match table
+ *
+ * This function uses a match table specified by the regulator driver and
+ * looks up the corresponding init data in the device tree. Note that the
+ * match table is modified in place.
+ *
+ * Returns the number of matches found or a negative error code on failure.
+ */
+int of_regulator_match(struct device *dev, struct device_node *node,
+		       struct of_regulator_match *matches,
+		       unsigned int num_matches)
+{
+	unsigned int count = 0;
+	unsigned int i;
+
+	if (!dev || !node)
+		return -EINVAL;
+
+	for (i = 0; i < num_matches; i++) {
+		struct of_regulator_match *match = &matches[i];
+		struct device_node *child;
+
+		child = of_find_node_by_name(node, match->name);
+		if (!child)
+			continue;
+
+		match->init_data = of_get_regulator_init_data(dev, child);
+		if (!match->init_data) {
+			dev_err(dev, "failed to parse DT for regulator %s\n",
+				child->name);
+			return -EINVAL;
+		}
+
+		match->of_node = child;
+		count++;
+	}
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(of_regulator_match);

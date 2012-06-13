@@ -489,7 +489,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
 	 */
-	dump_stack();
+	WARN(1, "EEH: failure detected\n");
 	return 1;
 
 dn_unlock:
@@ -1076,7 +1076,7 @@ static void eeh_add_device_late(struct pci_dev *dev)
 	pr_debug("EEH: Adding device %s\n", pci_name(dev));
 
 	dn = pci_device_to_OF_node(dev);
-	edev = pci_dev_to_eeh_dev(dev);
+	edev = of_node_to_eeh_dev(dn);
 	if (edev->pdev == dev) {
 		pr_debug("EEH: Already referenced !\n");
 		return;

@@ -73,7 +73,7 @@ set_bConfigurationValue(struct device *dev, struct device_attribute *attr,
 	return (value < 0) ? value : count;
 }
 
-static DEVICE_ATTR(bConfigurationValue, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR_IGNORE_LOCKDEP(bConfigurationValue, S_IRUGO | S_IWUSR,
 		show_bConfigurationValue, set_bConfigurationValue);
 
 /* String fields */
@@ -595,7 +595,7 @@ static ssize_t usb_dev_authorized_store(struct device *dev,
 	return result < 0? result : size;
 }
 
-static DEVICE_ATTR(authorized, 0644,
+static DEVICE_ATTR_IGNORE_LOCKDEP(authorized, 0644,
 	    usb_dev_authorized_show, usb_dev_authorized_store);
 
 /* "Safely remove a device" */
@@ -618,7 +618,7 @@ static ssize_t usb_remove_store(struct device *dev,
 	usb_unlock_device(udev);
 	return rc;
 }
-static DEVICE_ATTR(remove, 0200, NULL, usb_remove_store);
+static DEVICE_ATTR_IGNORE_LOCKDEP(remove, 0200, NULL, usb_remove_store);
 
 
 static struct attribute *dev_attrs[] = {

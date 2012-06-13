@@ -18,7 +18,6 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/atomic.h>
-#include <asm/futex.h>
 #include <arch/chip.h>
 
 /* See <asm/atomic_32.h> */
@@ -50,7 +49,7 @@ int atomic_locks[PAGE_SIZE / sizeof(int)] __page_aligned_bss;
 
 #endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
-static inline int *__atomic_hashed_lock(volatile void *v)
+int *__atomic_hashed_lock(volatile void *v)
 {
 	/* NOTE: this code must match "sys_cmpxchg" in kernel/intvec_32.S */
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
@@ -191,47 +190,6 @@ u64 _atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n)
 EXPORT_SYMBOL(_atomic64_cmpxchg);
 
 
-static inline int *__futex_setup(int __user *v)
-{
-	/*
-	 * Issue a prefetch to the counter to bring it into cache.
-	 * As for __atomic_setup, but we can't do a read into the L1
-	 * since it might fault; instead we do a prefetch into the L2.
-	 */
-	__insn_prefetch(v);
-	return __atomic_hashed_lock((int __force *)v);
-}
-
-struct __get_user futex_set(u32 __user *v, int i)
-{
-	return __atomic_xchg((int __force *)v, __futex_setup(v), i);
-}
-
-struct __get_user futex_add(u32 __user *v, int n)
-{
-	return __atomic_xchg_add((int __force *)v, __futex_setup(v), n);
-}
-
-struct __get_user futex_or(u32 __user *v, int n)
-{
-	return __atomic_or((int __force *)v, __futex_setup(v), n);
-}
-
-struct __get_user futex_andn(u32 __user *v, int n)
-{
-	return __atomic_andn((int __force *)v, __futex_setup(v), n);
-}
-
-struct __get_user futex_xor(u32 __user *v, int n)
-{
-	return __atomic_xor((int __force *)v, __futex_setup(v), n);
-}
-
-struct __get_user futex_cmpxchg(u32 __user *v, int o, int n)
-{
-	return __atomic_cmpxchg((int __force *)v, __futex_setup(v), o, n);
-}
-
 /*
  * If any of the atomic or futex routines hit a bad address (not in
  * the page tables at kernel PL) this routine is called.  The futex
@@ -323,7 +281,4 @@ void __init __init_atomic_per_cpu(void)
 	BUILD_BUG_ON((PAGE_SIZE >> 3) > ATOMIC_HASH_SIZE);
 
 #endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
-
-	/* The futex code makes this assumption, so we validate it here. */
-	BUILD_BUG_ON(sizeof(atomic_t) != sizeof(int));
 }

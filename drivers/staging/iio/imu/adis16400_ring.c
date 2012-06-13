@@ -6,20 +6,19 @@
 #include <linux/bitops.h>
 #include <linux/export.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 #include "adis16400.h"
 
 /**
  * adis16400_spi_read_burst() - read all data registers
- * @dev: device associated with child of actual device (iio_dev or iio_trig)
+ * @indio_dev: the IIO device
  * @rx: somewhere to pass back the value read (min size is 24 bytes)
  **/
-static int adis16400_spi_read_burst(struct device *dev, u8 *rx)
+static int adis16400_spi_read_burst(struct iio_dev *indio_dev, u8 *rx)
 {
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adis16400_state *st = iio_priv(indio_dev);
 	u32 old_speed_hz = st->us->max_speed_hz;
 	int ret;
@@ -71,9 +70,8 @@ static const u16 read_all_tx_array[] = {
 	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_AUX_ADC)),
 };
 
-static int adis16350_spi_read_all(struct device *dev, u8 *rx)
+static int adis16350_spi_read_all(struct iio_dev *indio_dev, u8 *rx)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adis16400_state *st = iio_priv(indio_dev);
 
 	struct spi_message msg;
@@ -119,12 +117,12 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	struct iio_buffer *ring = indio_dev->buffer;
 	int i = 0, j, ret = 0;
 	s16 *data;
-	size_t datasize = ring->access->get_bytes_per_datum(ring);
+
 	/* Asumption that long is enough for maximum channels */
 	unsigned long mask = *indio_dev->active_scan_mask;
 	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
-	data = kmalloc(datasize , GFP_KERNEL);
+	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
 		return -ENOMEM;
@@ -132,13 +130,13 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 
 	if (scan_count) {
 		if (st->variant->flags & ADIS16400_NO_BURST) {
-			ret = adis16350_spi_read_all(&indio_dev->dev, st->rx);
+			ret = adis16350_spi_read_all(indio_dev, st->rx);
 			if (ret < 0)
 				goto err;
 			for (; i < scan_count; i++)
 				data[i]	= *(s16 *)(st->rx + i*2);
 		} else {
-			ret = adis16400_spi_read_burst(&indio_dev->dev, st->rx);
+			ret = adis16400_spi_read_burst(indio_dev, st->rx);
 			if (ret < 0)
 				goto err;
 			for (; i < scan_count; i++) {

@@ -248,7 +248,7 @@ static const struct i2c_device_id bh1780_id[] = {
 
 static struct i2c_driver bh1780_driver = {
 	.probe		= bh1780_probe,
-	.remove		= bh1780_remove,
+	.remove		= __devexit_p(bh1780_remove),
 	.id_table	= bh1780_id,
 	.driver = {
 		.name = "bh1780",

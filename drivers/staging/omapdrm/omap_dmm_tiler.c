@@ -347,7 +347,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, uint16_t w,
 	ret = tcm_reserve_2d(containers[fmt], w, h, align, &block->area);
 	if (ret) {
 		kfree(block);
-		return 0;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* add to allocation list */
@@ -371,7 +371,7 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 	if (tcm_reserve_1d(containers[TILFMT_PAGE], num_pages,
 				&block->area)) {
 		kfree(block);
-		return 0;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	spin_lock(&omap_dmm->list_lock);

@@ -160,7 +160,7 @@ retry_source:
 			break;
 		if (get_remote_cache_cpu(src_pte) == smp_processor_id())
 			break;
-		src_page = pfn_to_page(hv_pte_get_pfn(src_pte));
+		src_page = pfn_to_page(pte_pfn(src_pte));
 		get_page(src_page);
 		if (pte_val(src_pte) != pte_val(*src_ptep)) {
 			put_page(src_page);
@@ -168,7 +168,7 @@ retry_source:
 		}
 		if (pte_huge(src_pte)) {
 			/* Adjust the PTE to correspond to a small page */
-			int pfn = hv_pte_get_pfn(src_pte);
+			int pfn = pte_pfn(src_pte);
 			pfn += (((unsigned long)source & (HPAGE_SIZE-1))
 				>> PAGE_SHIFT);
 			src_pte = pfn_pte(pfn, src_pte);
@@ -188,7 +188,7 @@ retry_dest:
 			put_page(src_page);
 			break;
 		}
-		dst_page = pfn_to_page(hv_pte_get_pfn(dst_pte));
+		dst_page = pfn_to_page(pte_pfn(dst_pte));
 		if (dst_page == src_page) {
 			/*
 			 * Source and dest are on the same page; this
@@ -206,7 +206,7 @@ retry_dest:
 		}
 		if (pte_huge(dst_pte)) {
 			/* Adjust the PTE to correspond to a small page */
-			int pfn = hv_pte_get_pfn(dst_pte);
+			int pfn = pte_pfn(dst_pte);
 			pfn += (((unsigned long)dest & (HPAGE_SIZE-1))
 				>> PAGE_SHIFT);
 			dst_pte = pfn_pte(pfn, dst_pte);

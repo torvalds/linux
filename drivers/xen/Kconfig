@@ -71,7 +71,7 @@ config XEN_DEV_EVTCHN
 	tristate "Xen /dev/xen/evtchn device"
 	default y
 	help
-	  The evtchn driver allows a userspace process to triger event
+	  The evtchn driver allows a userspace process to trigger event
 	  channels and to receive notification of an event channel
 	  firing.
 	  If in doubt, say yes.
@@ -183,15 +183,17 @@ config XEN_ACPI_PROCESSOR
 	depends on XEN && X86 && ACPI_PROCESSOR && CPU_FREQ
 	default m
 	help
-          This ACPI processor uploads Power Management information to the Xen hypervisor.
+          This ACPI processor uploads Power Management information to the Xen
+	  hypervisor.
 
-	  To do that the driver parses the Power Management data and uploads said
-	  information to the Xen hypervisor. Then the Xen hypervisor can select the
-          proper Cx and Pxx states. It also registers itslef as the SMM so that
-          other drivers (such as ACPI cpufreq scaling driver) will not load.
+	  To do that the driver parses the Power Management data and uploads
+	  said information to the Xen hypervisor. Then the Xen hypervisor can
+	  select the proper Cx and Pxx states. It also registers itslef as the
+	  SMM so that other drivers (such as ACPI cpufreq scaling driver) will
+	  not load.
 
-          To compile this driver as a module, choose M here: the
-          module will be called xen_acpi_processor  If you do not know what to choose,
-          select M here. If the CPUFREQ drivers are built in, select Y here.
+          To compile this driver as a module, choose M here: the module will be
+	  called xen_acpi_processor  If you do not know what to choose, select
+	  M here. If the CPUFREQ drivers are built in, select Y here.
 
 endmenu

@@ -1,7 +1,7 @@
 /*
  * SMP support for Hexagon
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,6 +28,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
+#include <linux/cpu.h>
 
 #include <asm/time.h>    /*  timer_interrupt  */
 #include <asm/hexagon_vm.h>
@@ -177,7 +178,12 @@ void __cpuinit start_secondary(void)
 
 	printk(KERN_INFO "%s cpu %d\n", __func__, current_thread_info()->cpu);
 
+	notify_cpu_starting(cpu);
+
+	ipi_call_lock();
 	set_cpu_online(cpu, true);
+	ipi_call_unlock();
+
 	local_irq_enable();
 
 	cpu_idle();
@@ -190,18 +196,11 @@ void __cpuinit start_secondary(void)
  * maintains control until "cpu_online(cpu)" is set.
  */
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
-	struct task_struct *idle;
-	struct thread_info *thread;
+	struct thread_info *thread = (struct thread_info *)idle->stack;
 	void *stack_start;
 
-	/*  Create new init task for the CPU  */
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle))
-		panic(KERN_ERR "fork_idle failed\n");
-
-	thread = (struct thread_info *)idle->stack;
 	thread->cpu = cpu;
 
 	/*  Boot to the head.  */

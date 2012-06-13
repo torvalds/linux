@@ -1243,6 +1243,7 @@ static int maven_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_WORD_DATA |
 					      I2C_FUNC_SMBUS_BYTE_DATA |
+					      I2C_FUNC_NOSTART |
 					      I2C_FUNC_PROTOCOL_MANGLING))
 		goto ERROR0;
 	if (!(data = kzalloc(sizeof(*data), GFP_KERNEL))) {

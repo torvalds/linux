@@ -349,7 +349,7 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 	if (err)
 		return err;
 
-	lcd = kzalloc(sizeof(struct tdo24m), GFP_KERNEL);
+	lcd = devm_kzalloc(&spi->dev, sizeof(struct tdo24m), GFP_KERNEL);
 	if (!lcd)
 		return -ENOMEM;
 
@@ -357,11 +357,9 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 	lcd->power = FB_BLANK_POWERDOWN;
 	lcd->mode = MODE_VGA;	/* default to VGA */
 
-	lcd->buf = kmalloc(TDO24M_SPI_BUFF_SIZE, GFP_KERNEL);
-	if (lcd->buf == NULL) {
-		kfree(lcd);
+	lcd->buf = devm_kzalloc(&spi->dev, TDO24M_SPI_BUFF_SIZE, GFP_KERNEL);
+	if (lcd->buf == NULL)
 		return -ENOMEM;
-	}
 
 	m = &lcd->msg;
 	x = &lcd->xfer;
@@ -383,15 +381,13 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 		break;
 	default:
 		dev_err(&spi->dev, "Unsupported model");
-		goto out_free;
+		return -EINVAL;
 	}
 
 	lcd->lcd_dev = lcd_device_register("tdo24m", &spi->dev,
 					lcd, &tdo24m_ops);
-	if (IS_ERR(lcd->lcd_dev)) {
-		err = PTR_ERR(lcd->lcd_dev);
-		goto out_free;
-	}
+	if (IS_ERR(lcd->lcd_dev))
+		return PTR_ERR(lcd->lcd_dev);
 
 	dev_set_drvdata(&spi->dev, lcd);
 	err = tdo24m_power(lcd, FB_BLANK_UNBLANK);
@@ -402,9 +398,6 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 
 out_unregister:
 	lcd_device_unregister(lcd->lcd_dev);
-out_free:
-	kfree(lcd->buf);
-	kfree(lcd);
 	return err;
 }
 
@@ -414,8 +407,6 @@ static int __devexit tdo24m_remove(struct spi_device *spi)
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(lcd->lcd_dev);
-	kfree(lcd->buf);
-	kfree(lcd);
 
 	return 0;
 }

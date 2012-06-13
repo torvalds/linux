@@ -465,7 +465,7 @@
 /* only relevant to kernel modules. */
 
 #define COMEDI_CB_EOS		1	/* end of scan */
-#define COMEDI_CB_EOA		2	/* end of acquisition */
+#define COMEDI_CB_EOA		2	/* end of acquisition/output */
 #define COMEDI_CB_BLOCK		4	/* data has arrived:
 					 * wakes up read() / write() */
 #define COMEDI_CB_EOBUF		8	/* DEPRECATED: end of buffer */

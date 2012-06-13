@@ -55,6 +55,7 @@
 struct mv_xor_shared_private {
 	void __iomem	*xor_base;
 	void __iomem	*xor_high_base;
+	struct clk	*clk;
 };
 
 

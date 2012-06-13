@@ -176,7 +176,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 	const int t_wpl  = 40;
 	const int t_wph  = 30;
 	int min_gpmc_clk_period, t_ces, t_avds, t_avdh, t_ach, t_aavdh, t_rdyo;
-	int tick_ns, div, fclk_offset_ns, fclk_offset, gpmc_clk_ns, latency;
+	int div, fclk_offset_ns, fclk_offset, gpmc_clk_ns, latency;
 	int first_time = 0, hf = 0, vhf = 0, sync_read = 0, sync_write = 0;
 	int err, ticks_cez;
 	int cs = cfg->cs, freq = *freq_ptr;
@@ -240,7 +240,6 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 		break;
 	}
 
-	tick_ns = gpmc_ticks_to_ns(1);
 	div = gpmc_cs_calc_divider(cs, min_gpmc_clk_period);
 	gpmc_clk_ns = gpmc_ticks_to_ns(div);
 	if (gpmc_clk_ns < 15) /* >66Mhz */

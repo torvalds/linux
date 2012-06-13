@@ -227,7 +227,7 @@ static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 
 static int mio_cs_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
-static int mio_cs_detach(struct comedi_device *dev);
+static void mio_cs_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni_mio_cs = {
 	.driver_name = "ni_mio_cs",
 	.module = THIS_MODULE,
@@ -240,18 +240,11 @@ static struct comedi_driver driver_ni_mio_cs = {
 static int ni_getboardtype(struct comedi_device *dev,
 			   struct pcmcia_device *link);
 
-/* clean up allocated resources */
-/* called when driver is removed */
-static int mio_cs_detach(struct comedi_device *dev)
+static void mio_cs_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
-
-	/* PCMCIA layer frees the IO region */
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-	return 0;
 }
 
 static void mio_cs_config(struct pcmcia_device *link);
@@ -276,8 +269,6 @@ static void cs_release(struct pcmcia_device *link)
 
 static void cs_detach(struct pcmcia_device *link)
 {
-	DPRINTK("cs_detach(link=%p)\n", link);
-
 	cs_release(link);
 }
 

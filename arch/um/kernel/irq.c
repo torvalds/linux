@@ -297,6 +297,13 @@ unsigned int do_IRQ(int irq, struct uml_pt_regs *regs)
 	return 1;
 }
 
+void um_free_irq(unsigned int irq, void *dev)
+{
+	free_irq_by_irq_and_dev(irq, dev);
+	free_irq(irq, dev);
+}
+EXPORT_SYMBOL(um_free_irq);
+
 int um_request_irq(unsigned int irq, int fd, int type,
 		   irq_handler_t handler,
 		   unsigned long irqflags, const char * devname,
@@ -327,7 +334,6 @@ static void dummy(struct irq_data *d)
 /* This is used for everything else than the timer. */
 static struct irq_chip normal_irq_type = {
 	.name = "SIGIO",
-	.release = free_irq_by_irq_and_dev,
 	.irq_disable = dummy,
 	.irq_enable = dummy,
 	.irq_ack = dummy,
@@ -335,7 +341,6 @@ static struct irq_chip normal_irq_type = {
 
 static struct irq_chip SIGVTALRM_irq_type = {
 	.name = "SIGVTALRM",
-	.release = free_irq_by_irq_and_dev,
 	.irq_disable = dummy,
 	.irq_enable = dummy,
 	.irq_ack = dummy,

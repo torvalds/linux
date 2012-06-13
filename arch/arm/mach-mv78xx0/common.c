@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/ata_platform.h>
+#include <linux/clk-provider.h>
 #include <linux/ethtool.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -103,24 +104,24 @@ static void get_pclk_l2clk(int hclk, int core_index, int *pclk, int *l2clk)
 
 static int get_tclk(void)
 {
-	int tclk;
+	int tclk_freq;
 
 	/*
 	 * TCLK tick rate is configured by DEV_A[2:0] strap pins.
 	 */
 	switch ((readl(SAMPLE_AT_RESET_HIGH) >> 6) & 7) {
 	case 1:
-		tclk = 166666667;
+		tclk_freq = 166666667;
 		break;
 	case 3:
-		tclk = 200000000;
+		tclk_freq = 200000000;
 		break;
 	default:
 		panic("unknown TCLK PLL setting: %.8x\n",
 			readl(SAMPLE_AT_RESET_HIGH));
 	}
 
-	return tclk;
+	return tclk_freq;
 }
 
 
@@ -166,6 +167,19 @@ void __init mv78xx0_map_io(void)
 
 
 /*****************************************************************************
+ * CLK tree
+ ****************************************************************************/
+static struct clk *tclk;
+
+static void __init clk_init(void)
+{
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
+				       get_tclk());
+
+	orion_clkdev_init(tclk);
+}
+
+/*****************************************************************************
  * EHCI
  ****************************************************************************/
 void __init mv78xx0_ehci0_init(void)
@@ -199,7 +213,7 @@ void __init mv78xx0_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	orion_ge00_init(eth_data,
 			GE00_PHYS_BASE, IRQ_MV78XX0_GE00_SUM,
-			IRQ_MV78XX0_GE_ERR, get_tclk());
+			IRQ_MV78XX0_GE_ERR);
 }
 
 
@@ -210,7 +224,7 @@ void __init mv78xx0_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	orion_ge01_init(eth_data,
 			GE01_PHYS_BASE, IRQ_MV78XX0_GE01_SUM,
-			NO_IRQ, get_tclk());
+			NO_IRQ);
 }
 
 
@@ -234,7 +248,7 @@ void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 
 	orion_ge10_init(eth_data,
 			GE10_PHYS_BASE, IRQ_MV78XX0_GE10_SUM,
-			NO_IRQ, get_tclk());
+			NO_IRQ);
 }
 
 
@@ -258,7 +272,7 @@ void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 
 	orion_ge11_init(eth_data,
 			GE11_PHYS_BASE, IRQ_MV78XX0_GE11_SUM,
-			NO_IRQ, get_tclk());
+			NO_IRQ);
 }
 
 /*****************************************************************************
@@ -285,7 +299,7 @@ void __init mv78xx0_sata_init(struct mv_sata_platform_data *sata_data)
 void __init mv78xx0_uart0_init(void)
 {
 	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
-			 IRQ_MV78XX0_UART_0, get_tclk());
+			 IRQ_MV78XX0_UART_0, tclk);
 }
 
 
@@ -295,7 +309,7 @@ void __init mv78xx0_uart0_init(void)
 void __init mv78xx0_uart1_init(void)
 {
 	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
-			 IRQ_MV78XX0_UART_1, get_tclk());
+			 IRQ_MV78XX0_UART_1, tclk);
 }
 
 
@@ -305,7 +319,7 @@ void __init mv78xx0_uart1_init(void)
 void __init mv78xx0_uart2_init(void)
 {
 	orion_uart2_init(UART2_VIRT_BASE, UART2_PHYS_BASE,
-			 IRQ_MV78XX0_UART_2, get_tclk());
+			 IRQ_MV78XX0_UART_2, tclk);
 }
 
 /*****************************************************************************
@@ -314,7 +328,7 @@ void __init mv78xx0_uart2_init(void)
 void __init mv78xx0_uart3_init(void)
 {
 	orion_uart3_init(UART3_VIRT_BASE, UART3_PHYS_BASE,
-			 IRQ_MV78XX0_UART_3, get_tclk());
+			 IRQ_MV78XX0_UART_3, tclk);
 }
 
 /*****************************************************************************
@@ -378,25 +392,26 @@ void __init mv78xx0_init(void)
 	int hclk;
 	int pclk;
 	int l2clk;
-	int tclk;
 
 	core_index = mv78xx0_core_index();
 	hclk = get_hclk();
 	get_pclk_l2clk(hclk, core_index, &pclk, &l2clk);
-	tclk = get_tclk();
 
 	printk(KERN_INFO "%s ", mv78xx0_id());
 	printk("core #%d, ", core_index);
 	printk("PCLK = %dMHz, ", (pclk + 499999) / 1000000);
 	printk("L2 = %dMHz, ", (l2clk + 499999) / 1000000);
 	printk("HCLK = %dMHz, ", (hclk + 499999) / 1000000);
-	printk("TCLK = %dMHz\n", (tclk + 499999) / 1000000);
+	printk("TCLK = %dMHz\n", (get_tclk() + 499999) / 1000000);
 
 	mv78xx0_setup_cpu_mbus();
 
 #ifdef CONFIG_CACHE_FEROCEON_L2
 	feroceon_l2_init(is_l2_writethrough());
 #endif
+
+	/* Setup root of clk tree */
+	clk_init();
 }
 
 void mv78xx0_restart(char mode, const char *cmd)

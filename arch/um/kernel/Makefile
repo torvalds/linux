@@ -10,7 +10,7 @@ CPPFLAGS_vmlinux.lds := -DSTART=$(LDS_START)		\
 extra-y := vmlinux.lds
 clean-files :=
 
-obj-y = config.o exec.o exitcode.o init_task.o irq.o ksyms.o mem.o \
+obj-y = config.o exec.o exitcode.o irq.o ksyms.o mem.o \
 	physmem.o process.o ptrace.o reboot.o sigio.o \
 	signal.o smp.o syscall.o sysrq.o time.o tlb.o trap.o \
 	um_arch.o umid.o skas/

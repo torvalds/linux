@@ -749,14 +749,4 @@ static struct pci_driver peak_pci_driver = {
 	.remove = __devexit_p(peak_pci_remove),
 };
 
-static int __init peak_pci_init(void)
-{
-	return pci_register_driver(&peak_pci_driver);
-}
-module_init(peak_pci_init);
-
-static void __exit peak_pci_exit(void)
-{
-	pci_unregister_driver(&peak_pci_driver);
-}
-module_exit(peak_pci_exit);
+module_pci_driver(peak_pci_driver);

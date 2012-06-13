@@ -476,6 +476,10 @@ static struct twl4030_gpio_platform_data cm_t35_gpio_data = {
 	.setup          = cm_t35_twl_gpio_setup,
 };
 
+static struct twl4030_power_data cm_t35_power_data = {
+	.use_poweroff	= true,
+};
+
 static struct twl4030_platform_data cm_t35_twldata = {
 	/* platform_data for children goes here */
 	.keypad		= &cm_t35_kp_data,
@@ -483,6 +487,7 @@ static struct twl4030_platform_data cm_t35_twldata = {
 	.vmmc1		= &cm_t35_vmmc1,
 	.vsim		= &cm_t35_vsim,
 	.vio		= &cm_t35_vio,
+	.power		= &cm_t35_power_data,
 };
 
 static void __init cm_t35_init_i2c(void)
@@ -664,6 +669,7 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.init_irq	= omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t35_init,
+	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
 	.restart	= omap_prcm_restart,
 MACHINE_END
@@ -676,6 +682,7 @@ MACHINE_START(CM_T3730, "Compulab CM-T3730")
 	.init_irq       = omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine   = cm_t3730_init,
+	.init_late     = omap3630_init_late,
 	.timer          = &omap3_timer,
 	.restart	= omap_prcm_restart,
 MACHINE_END

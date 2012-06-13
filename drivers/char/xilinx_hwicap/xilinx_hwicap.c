@@ -167,6 +167,7 @@ static const struct config_registers v4_config_registers = {
 	.BOOTSTS = UNIMPLEMENTED,
 	.CTL_1 = UNIMPLEMENTED,
 };
+
 static const struct config_registers v5_config_registers = {
 	.CRC = 0,
 	.FAR = 1,
@@ -190,6 +191,31 @@ static const struct config_registers v5_config_registers = {
 	.TIMER = 17,
 	.BOOTSTS = 18,
 	.CTL_1 = 19,
+};
+
+static const struct config_registers v6_config_registers = {
+	.CRC = 0,
+	.FAR = 1,
+	.FDRI = 2,
+	.FDRO = 3,
+	.CMD = 4,
+	.CTL = 5,
+	.MASK = 6,
+	.STAT = 7,
+	.LOUT = 8,
+	.COR = 9,
+	.MFWR = 10,
+	.FLR = UNIMPLEMENTED,
+	.KEY = UNIMPLEMENTED,
+	.CBC = 11,
+	.IDCODE = 12,
+	.AXSS = 13,
+	.C0R_1 = 14,
+	.CSOB = 15,
+	.WBSTAR = 16,
+	.TIMER = 17,
+	.BOOTSTS = 22,
+	.CTL_1 = 24,
 };
 
 /**
@@ -744,6 +770,8 @@ static int __devinit hwicap_of_probe(struct platform_device *op,
 			regs = &v4_config_registers;
 		} else if (!strcmp(family, "virtex5")) {
 			regs = &v5_config_registers;
+		} else if (!strcmp(family, "virtex6")) {
+			regs = &v6_config_registers;
 		}
 	}
 	return hwicap_setup(&op->dev, id ? *id : -1, &res, config,
@@ -785,6 +813,8 @@ static int __devinit hwicap_drv_probe(struct platform_device *pdev)
 			regs = &v4_config_registers;
 		} else if (!strcmp(family, "virtex5")) {
 			regs = &v5_config_registers;
+		} else if (!strcmp(family, "virtex6")) {
+			regs = &v6_config_registers;
 		}
 	}
 

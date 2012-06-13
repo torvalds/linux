@@ -234,8 +234,8 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			return 0;
 
 		jffs2_dbg(1, "No progress from erasing block; doing GC anyway\n");
-		spin_lock(&c->erase_completion_lock);
 		mutex_lock(&c->alloc_sem);
+		spin_lock(&c->erase_completion_lock);
 	}
 
 	/* First, work out which block we're garbage-collecting */

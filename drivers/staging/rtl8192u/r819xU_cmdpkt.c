@@ -157,7 +157,7 @@ SendTxCommandPacket(
 		seg_ptr = skb_put(skb, buffer_len);
 		/*
 		 * Transform from little endian to big endian
-		 * and pending  zero
+		 * and pending zero
 		 */
 		memcpy(seg_ptr,codevirtualaddress,buffer_len);
 		tcb_desc->txbuf_size= (u16)buffer_len;
@@ -697,7 +697,6 @@ cmpk_message_handle_rx(
 	struct ieee80211_rx_stats *pstats)
 {
 //	u32			debug_level = DBG_LOUD;
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;
 	u8			element_id;
@@ -719,15 +718,15 @@ cmpk_message_handle_rx(
 	/* 2. Read virtual address from RFD. */
 	pcmd_buff = pstats->virtual_address;
 
-	/* 3. Read command pakcet element id and length. */
+	/* 3. Read command packet element id and length. */
 	element_id = pcmd_buff[0];
 	/*RT_TRACE(COMP_SEND, DebugLevel,
 			("\n\r[CMPK]-->element ID=%d Len=%d", element_id, total_length));*/
 
-	/* 4. Check every received command packet conent according to different
+	/* 4. Check every received command packet content according to different
 	      element type. Because FW may aggregate RX command packet to minimize
 	      transmit time between DRV and FW.*/
-	// Add a counter to prevent to locked in the loop too long
+	// Add a counter to prevent the lock in the loop from being held too long
 	while (total_length > 0 || exe_cnt++ >100)
 	{
 		/* 2007/01/17 MH We support aggregation of different cmd in the same packet. */
@@ -778,9 +777,6 @@ cmpk_message_handle_rx(
 
 		// 2007/01/22 MH Add to display tx statistic.
 		//cmpk_DisplayTxStatistic(pAdapter);
-
-		/* 2007/03/09 MH Collect sidderent cmd element pkt num. */
-		priv->stats.rxcmdpkt[element_id]++;
 
 		total_length -= cmd_length;
 		pcmd_buff    += cmd_length;

@@ -155,7 +155,7 @@ u32 fhci_create_ep(struct fhci_usb *usb, enum fhci_mem_alloc data_mem,
 	struct endpoint *ep;
 	struct usb_td __iomem *td;
 	unsigned long ep_offset;
-	char *err_for = "enpoint PRAM";
+	char *err_for = "endpoint PRAM";
 	int ep_mem_size;
 	u32 i;
 

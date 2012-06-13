@@ -50,20 +50,18 @@
 #include <asm/io-unit.h>
 #include <asm/leon.h>
 
+const struct sparc32_dma_ops *sparc32_dma_ops;
+
 /* This function must make sure that caches and memory are coherent after DMA
  * On LEON systems without cache snooping it flushes the entire D-CACHE.
  */
-#ifndef CONFIG_SPARC_LEON
 static inline void dma_make_coherent(unsigned long pa, unsigned long len)
 {
+	if (sparc_cpu_model == sparc_leon) {
+		if (!sparc_leon3_snooping_enabled())
+			leon_flush_dcache_all();
+	}
 }
-#else
-static inline void dma_make_coherent(unsigned long pa, unsigned long len)
-{
-	if (!sparc_leon3_snooping_enabled())
-		leon_flush_dcache_all();
-}
-#endif
 
 static void __iomem *_sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz);
 static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
@@ -229,7 +227,7 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 	}
 
 	pa &= PAGE_MASK;
-	sparc_mapiorange(bus, pa, res->start, resource_size(res));
+	srmmu_mapiorange(bus, pa, res->start, resource_size(res));
 
 	return (void __iomem *)(unsigned long)(res->start + offset);
 }
@@ -243,7 +241,7 @@ static void _sparc_free_io(struct resource *res)
 
 	plen = resource_size(res);
 	BUG_ON((plen & (PAGE_SIZE-1)) != 0);
-	sparc_unmapiorange(res->start, plen);
+	srmmu_unmapiorange(res->start, plen);
 	release_resource(res);
 }
 
@@ -292,13 +290,13 @@ static void *sbus_alloc_coherent(struct device *dev, size_t len,
 		goto err_nova;
 	}
 
-	// XXX The mmu_map_dma_area does this for us below, see comments.
-	// sparc_mapiorange(0, virt_to_phys(va), res->start, len_total);
+	// XXX The sbus_map_dma_area does this for us below, see comments.
+	// srmmu_mapiorange(0, virt_to_phys(va), res->start, len_total);
 	/*
 	 * XXX That's where sdev would be used. Currently we load
 	 * all iommu tables with the same translations.
 	 */
-	if (mmu_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
+	if (sbus_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
 	res->name = op->dev.of_node->name;
@@ -343,7 +341,7 @@ static void sbus_free_coherent(struct device *dev, size_t n, void *p,
 	kfree(res);
 
 	pgv = virt_to_page(p);
-	mmu_unmap_dma_area(dev, ba, n);
+	sbus_unmap_dma_area(dev, ba, n);
 
 	__free_pages(pgv, get_order(n));
 }
@@ -381,11 +379,6 @@ static int sbus_map_sg(struct device *dev, struct scatterlist *sg, int n,
 		       enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	mmu_get_scsi_sgl(dev, sg, n);
-
-	/*
-	 * XXX sparc64 can return a partial length here. sun4c should do this
-	 * but it currently panics if it can't fulfill the request - Anton
-	 */
 	return n;
 }
 
@@ -430,9 +423,6 @@ arch_initcall(sparc_register_ioport);
 #endif /* CONFIG_SBUS */
 
 
-/* LEON reuses PCI DMA ops */
-#if defined(CONFIG_PCI) || defined(CONFIG_SPARC_LEON)
-
 /* Allocate and map kernel buffer using consistent mode DMA for a device.
  * hwdev should be valid struct pci_dev pointer for PCI devices.
  */
@@ -469,7 +459,7 @@ static void *pci32_alloc_coherent(struct device *dev, size_t len,
 		printk("pci_alloc_consistent: cannot occupy 0x%lx", len_total);
 		goto err_nova;
 	}
-	sparc_mapiorange(0, virt_to_phys(va), res->start, len_total);
+	srmmu_mapiorange(0, virt_to_phys(va), res->start, len_total);
 
 	*pba = virt_to_phys(va); /* equals virt_to_bus (R.I.P.) for us. */
 	return (void *) res->start;
@@ -514,7 +504,7 @@ static void pci32_free_coherent(struct device *dev, size_t n, void *p,
 	}
 
 	dma_make_coherent(ba, n);
-	sparc_unmapiorange((unsigned long)p, n);
+	srmmu_unmapiorange((unsigned long)p, n);
 
 	release_resource(res);
 	kfree(res);
@@ -660,14 +650,11 @@ struct dma_map_ops pci32_dma_ops = {
 };
 EXPORT_SYMBOL(pci32_dma_ops);
 
-#endif /* CONFIG_PCI || CONFIG_SPARC_LEON */
+/* leon re-uses pci32_dma_ops */
+struct dma_map_ops *leon_dma_ops = &pci32_dma_ops;
+EXPORT_SYMBOL(leon_dma_ops);
 
-#ifdef CONFIG_SPARC_LEON
-struct dma_map_ops *dma_ops = &pci32_dma_ops;
-#elif defined(CONFIG_SBUS)
 struct dma_map_ops *dma_ops = &sbus_dma_ops;
-#endif
-
 EXPORT_SYMBOL(dma_ops);
 
 

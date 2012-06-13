@@ -1,4 +1,12 @@
 /*
+ * Copyright (C) 2004,2012 Freescale Semiconductor, Inc
+ * All rights reserved.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ *
  * Freescale USB device/endpoint management registers
  */
 #ifndef __FSL_USB2_UDC_H
@@ -348,6 +356,9 @@ struct usb_sys_interface {
 /* control Register Bit Masks */
 #define  USB_CTRL_IOENB                       0x00000004
 #define  USB_CTRL_ULPI_INT0EN                 0x00000001
+#define USB_CTRL_UTMI_PHY_EN		      0x00000200
+#define USB_CTRL_USB_EN			      0x00000004
+#define USB_CTRL_ULPI_PHY_CLK_SEL	      0x00000400
 
 /* Endpoint Queue Head data struct
  * Rem: all the variables of qh are LittleEndian Mode
@@ -450,7 +461,6 @@ struct fsl_ep {
 	struct list_head queue;
 	struct fsl_udc *udc;
 	struct ep_queue_head *qh;
-	const struct usb_endpoint_descriptor *desc;
 	struct usb_gadget *gadget;
 
 	char name[14];

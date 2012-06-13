@@ -386,24 +386,20 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 			bc->bch.nr, idx);
 	}
 	bc->lastrx = idx;
-	if (!bc->bch.rx_skb) {
-		bc->bch.rx_skb = mI_alloc_skb(bc->bch.maxlen, GFP_ATOMIC);
-		if (!bc->bch.rx_skb) {
-			pr_info("%s: B%1d receive out of memory\n",
-				card->name, bc->bch.nr);
-			return;
-		}
+	if (test_bit(FLG_RX_OFF, &bc->bch.Flags)) {
+		bc->bch.dropcnt += cnt;
+		return;
 	}
-
-	if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags)) {
-		if ((bc->bch.rx_skb->len + cnt) > bc->bch.maxlen) {
-			pr_debug("%s: B%1d overrun %d\n", card->name,
-				 bc->bch.nr, bc->bch.rx_skb->len + cnt);
-			skb_trim(bc->bch.rx_skb, 0);
-			return;
-		}
+	stat = bchannel_get_rxbuf(&bc->bch, cnt);
+	/* only transparent use the count here, HDLC overun is detected later */
+	if (stat == ENOMEM) {
+		pr_warning("%s.B%d: No memory for %d bytes\n",
+			   card->name, bc->bch.nr, cnt);
+		return;
+	}
+	if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags))
 		p = skb_put(bc->bch.rx_skb, cnt);
-	} else
+	else
 		p = bc->hrbuf;
 
 	for (i = 0; i < cnt; i++) {
@@ -414,48 +410,45 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 			idx = 0;
 		p[i] = val & 0xff;
 	}
+
+	if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags)) {
+		recv_Bchannel(&bc->bch, 0, false);
+		return;
+	}
+
 	pn = bc->hrbuf;
-next_frame:
-	if (test_bit(FLG_HDLC, &bc->bch.Flags)) {
+	while (cnt > 0) {
 		stat = isdnhdlc_decode(&bc->hrecv, pn, cnt, &i,
 				       bc->bch.rx_skb->data, bc->bch.maxlen);
-		if (stat > 0) /* valid frame received */
+		if (stat > 0) { /* valid frame received */
 			p = skb_put(bc->bch.rx_skb, stat);
-		else if (stat == -HDLC_CRC_ERROR)
-			pr_info("%s: B%1d receive frame CRC error\n",
-				card->name, bc->bch.nr);
-		else if (stat == -HDLC_FRAMING_ERROR)
-			pr_info("%s: B%1d receive framing error\n",
-				card->name, bc->bch.nr);
-		else if (stat == -HDLC_LENGTH_ERROR)
-			pr_info("%s: B%1d receive frame too long (> %d)\n",
-				card->name, bc->bch.nr, bc->bch.maxlen);
-	} else
-		stat = cnt;
-
-	if (stat > 0) {
-		if (debug & DEBUG_HW_BFIFO) {
-			snprintf(card->log, LOG_SIZE, "B%1d-recv %s %d ",
-				 bc->bch.nr, card->name, stat);
-			print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET,
-					     p, stat);
-		}
-		recv_Bchannel(&bc->bch, 0);
-	}
-	if (test_bit(FLG_HDLC, &bc->bch.Flags)) {
-		pn += i;
-		cnt -= i;
-		if (!bc->bch.rx_skb) {
-			bc->bch.rx_skb = mI_alloc_skb(bc->bch.maxlen,
-						      GFP_ATOMIC);
-			if (!bc->bch.rx_skb) {
-				pr_info("%s: B%1d receive out of memory\n",
-					card->name, bc->bch.nr);
+			if (debug & DEBUG_HW_BFIFO) {
+				snprintf(card->log, LOG_SIZE,
+					 "B%1d-recv %s %d ", bc->bch.nr,
+					 card->name, stat);
+				print_hex_dump_bytes(card->log,
+						     DUMP_PREFIX_OFFSET, p,
+						     stat);
+			}
+			recv_Bchannel(&bc->bch, 0, false);
+			stat = bchannel_get_rxbuf(&bc->bch, bc->bch.maxlen);
+			if (stat < 0) {
+				pr_warning("%s.B%d: No memory for %d bytes\n",
+					   card->name, bc->bch.nr, cnt);
 				return;
 			}
+		} else if (stat == -HDLC_CRC_ERROR) {
+			pr_info("%s: B%1d receive frame CRC error\n",
+				card->name, bc->bch.nr);
+		} else if (stat == -HDLC_FRAMING_ERROR) {
+			pr_info("%s: B%1d receive framing error\n",
+				card->name, bc->bch.nr);
+		} else if (stat == -HDLC_LENGTH_ERROR) {
+			pr_info("%s: B%1d receive frame too long (> %d)\n",
+				card->name, bc->bch.nr, bc->bch.maxlen);
 		}
-		if (cnt > 0)
-			goto next_frame;
+		pn += i;
+		cnt -= i;
 	}
 }
 
@@ -544,22 +537,31 @@ static void
 fill_dma(struct tiger_ch *bc)
 {
 	struct tiger_hw *card = bc->bch.hw;
-	int count, i;
-	u32 m, v;
+	int count, i, fillempty = 0;
+	u32 m, v, n = 0;
 	u8  *p;
 
 	if (bc->free == 0)
 		return;
-	count = bc->bch.tx_skb->len - bc->bch.tx_idx;
-	if (count <= 0)
-		return;
-	pr_debug("%s: %s B%1d %d/%d/%d/%d state %x idx %d/%d\n", card->name,
-		 __func__, bc->bch.nr, count, bc->free, bc->bch.tx_idx,
-		 bc->bch.tx_skb->len, bc->txstate, bc->idx, card->send.idx);
+	if (!bc->bch.tx_skb) {
+		if (!test_bit(FLG_TX_EMPTY, &bc->bch.Flags))
+			return;
+		fillempty = 1;
+		count = card->send.size >> 1;
+		p = bc->bch.fill;
+	} else {
+		count = bc->bch.tx_skb->len - bc->bch.tx_idx;
+		if (count <= 0)
+			return;
+		pr_debug("%s: %s B%1d %d/%d/%d/%d state %x idx %d/%d\n",
+			 card->name, __func__, bc->bch.nr, count, bc->free,
+			 bc->bch.tx_idx, bc->bch.tx_skb->len, bc->txstate,
+			 bc->idx, card->send.idx);
+		p = bc->bch.tx_skb->data + bc->bch.tx_idx;
+	}
 	if (bc->txstate & (TX_IDLE | TX_INIT | TX_UNDERRUN))
 		resync(bc, card);
-	p = bc->bch.tx_skb->data + bc->bch.tx_idx;
-	if (test_bit(FLG_HDLC, &bc->bch.Flags)) {
+	if (test_bit(FLG_HDLC, &bc->bch.Flags) && !fillempty) {
 		count = isdnhdlc_encode(&bc->hsend, p, count, &i,
 					bc->hsbuf, bc->free);
 		pr_debug("%s: B%1d hdlc encoded %d in %d\n", card->name,
@@ -570,17 +572,33 @@ fill_dma(struct tiger_ch *bc)
 	} else {
 		if (count > bc->free)
 			count = bc->free;
-		bc->bch.tx_idx += count;
+		if (!fillempty)
+			bc->bch.tx_idx += count;
 		bc->free -= count;
 	}
 	m = (bc->bch.nr & 1) ? 0xffffff00 : 0xffff00ff;
-	for (i = 0; i < count; i++) {
-		if (bc->idx >= card->send.size)
-			bc->idx = 0;
-		v = card->send.start[bc->idx];
-		v &= m;
-		v |= (bc->bch.nr & 1) ? (u32)(p[i]) : ((u32)(p[i])) << 8;
-		card->send.start[bc->idx++] = v;
+	if (fillempty) {
+		n = p[0];
+		if (!(bc->bch.nr & 1))
+			n <<= 8;
+		for (i = 0; i < count; i++) {
+			if (bc->idx >= card->send.size)
+				bc->idx = 0;
+			v = card->send.start[bc->idx];
+			v &= m;
+			v |= n;
+			card->send.start[bc->idx++] = v;
+		}
+	} else {
+		for (i = 0; i < count; i++) {
+			if (bc->idx >= card->send.size)
+				bc->idx = 0;
+			v = card->send.start[bc->idx];
+			v &= m;
+			n = p[i];
+			v |= (bc->bch.nr & 1) ? n : n << 8;
+			card->send.start[bc->idx++] = v;
+		}
 	}
 	if (debug & DEBUG_HW_BFIFO) {
 		snprintf(card->log, LOG_SIZE, "B%1d-send %s %d ",
@@ -595,21 +613,26 @@ fill_dma(struct tiger_ch *bc)
 static int
 bc_next_frame(struct tiger_ch *bc)
 {
-	if (bc->bch.tx_skb && bc->bch.tx_idx < bc->bch.tx_skb->len)
+	int ret = 1;
+
+	if (bc->bch.tx_skb && bc->bch.tx_idx < bc->bch.tx_skb->len) {
 		fill_dma(bc);
-	else {
-		if (bc->bch.tx_skb) {
-			/* send confirm, on trans, free on hdlc. */
-			if (test_bit(FLG_TRANSPARENT, &bc->bch.Flags))
-				confirm_Bsend(&bc->bch);
+	} else {
+		if (bc->bch.tx_skb)
 			dev_kfree_skb(bc->bch.tx_skb);
-		}
-		if (get_next_bframe(&bc->bch))
+		if (get_next_bframe(&bc->bch)) {
 			fill_dma(bc);
-		else
-			return 0;
+			test_and_clear_bit(FLG_TX_EMPTY, &bc->bch.Flags);
+		} else if (test_bit(FLG_TX_EMPTY, &bc->bch.Flags)) {
+			fill_dma(bc);
+		} else if (test_bit(FLG_FILLEMPTY, &bc->bch.Flags)) {
+			test_and_set_bit(FLG_TX_EMPTY, &bc->bch.Flags);
+			ret = 0;
+		} else {
+			ret = 0;
+		}
 	}
-	return 1;
+	return ret;
 }
 
 static void
@@ -732,22 +755,17 @@ nj_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 	struct tiger_ch *bc = container_of(bch, struct tiger_ch, bch);
 	struct tiger_hw *card = bch->hw;
 	struct mISDNhead *hh = mISDN_HEAD_P(skb);
-	u32 id;
-	u_long flags;
+	unsigned long flags;
 
 	switch (hh->prim) {
 	case PH_DATA_REQ:
 		spin_lock_irqsave(&card->lock, flags);
 		ret = bchannel_senddata(bch, skb);
 		if (ret > 0) { /* direct TX */
-			id = hh->id; /* skb can be freed */
 			fill_dma(bc);
 			ret = 0;
-			spin_unlock_irqrestore(&card->lock, flags);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
-				queue_ch_frame(ch, PH_DATA_CNF, id, NULL);
-		} else
-			spin_unlock_irqrestore(&card->lock, flags);
+		}
+		spin_unlock_irqrestore(&card->lock, flags);
 		return ret;
 	case PH_ACTIVATE_REQ:
 		spin_lock_irqsave(&card->lock, flags);
@@ -778,21 +796,7 @@ nj_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 static int
 channel_bctrl(struct tiger_ch *bc, struct mISDN_ctrl_req *cq)
 {
-	int ret = 0;
-	struct tiger_hw *card  = bc->bch.hw;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		cq->op = 0;
-		break;
-		/* Nothing implemented yet */
-	case MISDN_CTRL_FILL_EMPTY:
-	default:
-		pr_info("%s: %s unknown Op %x\n", card->name, __func__, cq->op);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(&bc->bch, cq);
 }
 
 static int
@@ -808,14 +812,10 @@ nj_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
-		if (test_bit(FLG_ACTIVE, &bch->Flags)) {
-			spin_lock_irqsave(&card->lock, flags);
-			mISDN_freebchannel(bch);
-			test_and_clear_bit(FLG_TX_BUSY, &bch->Flags);
-			test_and_clear_bit(FLG_ACTIVE, &bch->Flags);
-			mode_tiger(bc, ISDN_P_NONE);
-			spin_unlock_irqrestore(&card->lock, flags);
-		}
+		spin_lock_irqsave(&card->lock, flags);
+		mISDN_freebchannel(bch);
+		mode_tiger(bc, ISDN_P_NONE);
+		spin_unlock_irqrestore(&card->lock, flags);
 		ch->protocol = ISDN_P_NONE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
@@ -837,7 +837,7 @@ channel_ctrl(struct tiger_hw *card, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_LOOP;
+		cq->op = MISDN_CTRL_LOOP | MISDN_CTRL_L1_TIMER3;
 		break;
 	case MISDN_CTRL_LOOP:
 		/* cq->channel: 0 disable, 1 B1 loop 2 B2 loop, 3 both */
@@ -846,6 +846,9 @@ channel_ctrl(struct tiger_hw *card, struct mISDN_ctrl_req *cq)
 			break;
 		}
 		ret = card->isac.ctrl(&card->isac, HW_TESTLOOP, cq->channel);
+		break;
+	case MISDN_CTRL_L1_TIMER3:
+		ret = card->isac.ctrl(&card->isac, HW_TIMER3_VALUE, cq->p1);
 		break;
 	default:
 		pr_info("%s: %s unknown Op %x\n", card->name, __func__, cq->op);
@@ -1027,7 +1030,8 @@ setup_instance(struct tiger_hw *card)
 	for (i = 0; i < 2; i++) {
 		card->bc[i].bch.nr = i + 1;
 		set_channelmap(i + 1, card->isac.dch.dev.channelmap);
-		mISDN_initbchannel(&card->bc[i].bch, MAX_DATA_MEM);
+		mISDN_initbchannel(&card->bc[i].bch, MAX_DATA_MEM,
+				   NJ_DMA_RXSIZE >> 1);
 		card->bc[i].bch.hw = card;
 		card->bc[i].bch.ch.send = nj_l2l1B;
 		card->bc[i].bch.ch.ctrl = nj_bctrl;

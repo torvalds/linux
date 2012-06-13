@@ -132,7 +132,7 @@ static u32 find_block(struct xv_pool *pool, u32 size,
 	if (!pool->flbitmap)
 		return 0;
 
-	/* Get freelist index correspoding to this size */
+	/* Get freelist index corresponding to this size */
 	slindex = get_index(size);
 	slbitmap = pool->slbitmap[slindex / BITS_PER_LONG];
 	slbitstart = slindex % BITS_PER_LONG;

@@ -55,6 +55,13 @@ static struct clk adc_clk = {
 	.pmc_mask	= 1 << AT91SAM9260_ID_ADC,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
+
+static struct clk adc_op_clk = {
+	.name		= "adc_op_clk",
+	.type		= CLK_TYPE_PERIPHERAL,
+	.rate_hz	= 5000000,
+};
+
 static struct clk usart0_clk = {
 	.name		= "usart0_clk",
 	.pmc_mask	= 1 << AT91SAM9260_ID_US0,
@@ -166,6 +173,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&pioB_clk,
 	&pioC_clk,
 	&adc_clk,
+	&adc_op_clk,
 	&usart0_clk,
 	&usart1_clk,
 	&usart2_clk,
@@ -266,18 +274,6 @@ static void __init at91sam9260_register_clocks(void)
 
 	clk_register(&pck0);
 	clk_register(&pck1);
-}
-
-static struct clk_lookup console_clock_lookup;
-
-void __init at91sam9260_set_console_clock(int id)
-{
-	if (id >= ARRAY_SIZE(usart_clocks_lookups))
-		return;
-
-	console_clock_lookup.con_id = "usart";
-	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
-	clkdev_add(&console_clock_lookup);
 }
 
 /* --------------------------------------------------------------------

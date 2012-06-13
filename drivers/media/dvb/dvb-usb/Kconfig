@@ -409,6 +409,7 @@ config DVB_USB_MXL111SF
 	tristate "MxL111SF DTV USB2.0 support"
 	depends on DVB_USB
 	select DVB_LGDT3305 if !DVB_FE_CUSTOMISE
+	select DVB_LG2160 if !DVB_FE_CUSTOMISE
 	select VIDEO_TVEEPROM
 	help
 	  Say Y here to support the MxL111SF USB2.0 DTV receiver.
@@ -422,3 +423,15 @@ config DVB_USB_RTL28XXU
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Realtek RTL28xxU DVB USB receiver.
+
+config DVB_USB_AF9035
+	tristate "Afatech AF9035 DVB-T USB2.0 support"
+	depends on DVB_USB
+	select DVB_AF9033
+	select MEDIA_TUNER_TUA9001 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_FC0011 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_MXL5007T if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_TDA18218 if !MEDIA_TUNER_CUSTOMISE
+	help
+	  Say Y here to support the Afatech AF9035 based DVB USB receiver.
+

@@ -108,9 +108,7 @@ void ath9k_hw_btcoex_init_scheme(struct ath_hw *ah)
 		return;
 	}
 
-	if (AR_SREV_9462(ah)) {
-		btcoex_hw->scheme = ATH_BTCOEX_CFG_MCI;
-	} else if (AR_SREV_9300_20_OR_LATER(ah)) {
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
 		btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9300;
 		btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9300;
@@ -284,11 +282,12 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 		ath9k_hw_btcoex_enable_2wire(ah);
 		break;
 	case ATH_BTCOEX_CFG_3WIRE:
+		if (AR_SREV_9462(ah)) {
+			ath9k_hw_btcoex_enable_mci(ah);
+			return;
+		}
 		ath9k_hw_btcoex_enable_3wire(ah);
 		break;
-	case ATH_BTCOEX_CFG_MCI:
-		ath9k_hw_btcoex_enable_mci(ah);
-		return;
 	}
 
 	REG_RMW(ah, AR_GPIO_PDPU,
@@ -305,11 +304,12 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 	int i;
 
 	btcoex_hw->enabled = false;
-	if (btcoex_hw->scheme == ATH_BTCOEX_CFG_MCI) {
+	if (AR_SREV_9462(ah)) {
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
 		for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
 			REG_WRITE(ah, AR_MCI_COEX_WL_WEIGHTS(i),
 				  btcoex_hw->wlan_weight[i]);
+		return;
 	}
 	ath9k_hw_set_gpio(ah, btcoex_hw->wlanactive_gpio, 0);
 

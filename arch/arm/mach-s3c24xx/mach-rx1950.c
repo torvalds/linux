@@ -152,13 +152,8 @@ static struct pda_power_pdata power_supply_info = {
 };
 
 static struct resource power_supply_resources[] = {
-	[0] = {
-			.name	= "ac",
-			.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE |
-					  IORESOURCE_IRQ_HIGHEDGE,
-			.start	= IRQ_EINT2,
-			.end	= IRQ_EINT2,
-	},
+	[0] = DEFINE_RES_NAMED(IRQ_EINT2, 1, "ac", IORESOURCE_IRQ \
+			| IORESOURCE_IRQ_LOWEDGE | IORESOURCE_IRQ_HIGHEDGE),
 };
 
 static struct platform_device power_supply = {

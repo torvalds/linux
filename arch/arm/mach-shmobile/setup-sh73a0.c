@@ -688,10 +688,14 @@ void __init sh73a0_add_standard_devices(void)
 			    ARRAY_SIZE(sh73a0_late_devices));
 }
 
+/* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
+void __init __weak sh73a0_register_twd(void) { }
+
 static void __init sh73a0_earlytimer_init(void)
 {
 	sh73a0_clock_init();
 	shmobile_earlytimer_init();
+	sh73a0_register_twd();
 }
 
 void __init sh73a0_add_early_devices(void)

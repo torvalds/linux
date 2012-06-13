@@ -43,6 +43,11 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 	       v->requests;
 }
 
+int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
+{
+	return 1;
+}
+
 int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 {
 	int nr = kvmppc_get_gpr(vcpu, 11);
@@ -74,7 +79,7 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	}
 	case HC_VENDOR_KVM | KVM_HC_FEATURES:
 		r = HC_EV_SUCCESS;
-#if defined(CONFIG_PPC_BOOK3S) || defined(CONFIG_KVM_E500)
+#if defined(CONFIG_PPC_BOOK3S) || defined(CONFIG_KVM_E500V2)
 		/* XXX Missing magic page on 44x */
 		r2 |= (1 << KVM_FEATURE_MAGIC_PAGE);
 #endif
@@ -106,6 +111,11 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	/* HV KVM can only do PAPR mode for now */
 	if (!vcpu->arch.papr_enabled)
+		goto out;
+#endif
+
+#ifdef CONFIG_KVM_BOOKE_HV
+	if (!cpu_has_feature(CPU_FTR_EMB_HV))
 		goto out;
 #endif
 
@@ -225,7 +235,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_PAIRED_SINGLES:
 	case KVM_CAP_PPC_OSI:
 	case KVM_CAP_PPC_GET_PVINFO:
-#ifdef CONFIG_KVM_E500
+#if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_CAP_SW_TLB:
 #endif
 		r = 1;
@@ -234,10 +244,12 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
 #endif
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CAP_SPAPR_TCE:
 		r = 1;
 		break;
+#endif /* CONFIG_PPC_BOOK3S_64 */
+#ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_CAP_PPC_SMT:
 		r = threads_per_core;
 		break;
@@ -267,6 +279,11 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
 		break;
+#ifdef CONFIG_PPC_BOOK3S_64
+	case KVM_CAP_PPC_GET_SMMU_INFO:
+		r = 1;
+		break;
+#endif
 	default:
 		r = 0;
 		break;
@@ -588,21 +605,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return r;
 }
 
-void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
-{
-	int me;
-	int cpu = vcpu->cpu;
-
-	me = get_cpu();
-	if (waitqueue_active(vcpu->arch.wqp)) {
-		wake_up_interruptible(vcpu->arch.wqp);
-		vcpu->stat.halt_wakeup++;
-	} else if (cpu != me && cpu != -1) {
-		smp_send_reschedule(vcpu->cpu);
-	}
-	put_cpu();
-}
-
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
 	if (irq->irq == KVM_INTERRUPT_UNSET) {
@@ -611,6 +613,7 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 	}
 
 	kvmppc_core_queue_external(vcpu, irq);
+
 	kvm_vcpu_kick(vcpu);
 
 	return 0;
@@ -633,7 +636,7 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		r = 0;
 		vcpu->arch.papr_enabled = true;
 		break;
-#ifdef CONFIG_KVM_E500
+#if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_CAP_SW_TLB: {
 		struct kvm_config_tlb cfg;
 		void __user *user_ptr = (void __user *)(uintptr_t)cap->args[0];
@@ -710,7 +713,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 
-#ifdef CONFIG_KVM_E500
+#if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_DIRTY_TLB: {
 		struct kvm_dirty_tlb dirty;
 		r = -EFAULT;
@@ -720,7 +723,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 #endif
-
 	default:
 		r = -EINVAL;
 	}
@@ -777,7 +779,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 		break;
 	}
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CREATE_SPAPR_TCE: {
 		struct kvm_create_spapr_tce create_tce;
 		struct kvm *kvm = filp->private_data;
@@ -788,7 +790,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_create_spapr_tce(kvm, &create_tce);
 		goto out;
 	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
+#ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_ALLOCATE_RMA: {
 		struct kvm *kvm = filp->private_data;
 		struct kvm_allocate_rma rma;
@@ -800,12 +804,58 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 
+#ifdef CONFIG_PPC_BOOK3S_64
+	case KVM_PPC_GET_SMMU_INFO: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_ppc_smmu_info info;
+
+		memset(&info, 0, sizeof(info));
+		r = kvm_vm_ioctl_get_smmu_info(kvm, &info);
+		if (r >= 0 && copy_to_user(argp, &info, sizeof(info)))
+			r = -EFAULT;
+		break;
+	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 	default:
 		r = -ENOTTY;
 	}
 
 out:
 	return r;
+}
+
+static unsigned long lpid_inuse[BITS_TO_LONGS(KVMPPC_NR_LPIDS)];
+static unsigned long nr_lpids;
+
+long kvmppc_alloc_lpid(void)
+{
+	long lpid;
+
+	do {
+		lpid = find_first_zero_bit(lpid_inuse, KVMPPC_NR_LPIDS);
+		if (lpid >= nr_lpids) {
+			pr_err("%s: No LPIDs free\n", __func__);
+			return -ENOMEM;
+		}
+	} while (test_and_set_bit(lpid, lpid_inuse));
+
+	return lpid;
+}
+
+void kvmppc_claim_lpid(long lpid)
+{
+	set_bit(lpid, lpid_inuse);
+}
+
+void kvmppc_free_lpid(long lpid)
+{
+	clear_bit(lpid, lpid_inuse);
+}
+
+void kvmppc_init_lpid(unsigned long nr_lpids_param)
+{
+	nr_lpids = min_t(unsigned long, KVMPPC_NR_LPIDS, nr_lpids_param);
+	memset(lpid_inuse, 0, sizeof(lpid_inuse));
 }
 
 int kvm_arch_init(void *opaque)

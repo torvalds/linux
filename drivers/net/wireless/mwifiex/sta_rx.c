@@ -145,7 +145,12 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 			" rx_pkt_offset=%d, rx_pkt_length=%d\n", skb->len,
 		       local_rx_pd->rx_pkt_offset, local_rx_pd->rx_pkt_length);
 		priv->stats.rx_dropped++;
-		dev_kfree_skb_any(skb);
+
+		if (adapter->if_ops.data_complete)
+			adapter->if_ops.data_complete(adapter, skb);
+		else
+			dev_kfree_skb_any(skb);
+
 		return ret;
 	}
 
@@ -196,8 +201,12 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 					     (u8) local_rx_pd->rx_pkt_type,
 					     skb);
 
-	if (ret || (rx_pkt_type == PKT_TYPE_BAR))
-		dev_kfree_skb_any(skb);
+	if (ret || (rx_pkt_type == PKT_TYPE_BAR)) {
+		if (adapter->if_ops.data_complete)
+			adapter->if_ops.data_complete(adapter, skb);
+		else
+			dev_kfree_skb_any(skb);
+	}
 
 	if (ret)
 		priv->stats.rx_dropped++;

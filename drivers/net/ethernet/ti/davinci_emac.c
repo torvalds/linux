@@ -627,6 +627,7 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_coalesce = emac_get_coalesce,
 	.set_coalesce =  emac_set_coalesce,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 /**
@@ -1511,7 +1512,7 @@ static int emac_devioctl(struct net_device *ndev, struct ifreq *ifrq, int cmd)
 
 static int match_first_device(struct device *dev, void *data)
 {
-	return 1;
+	return !strncmp(dev_name(dev), "davinci_mdio", 12);
 }
 
 /**

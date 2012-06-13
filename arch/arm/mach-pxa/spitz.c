@@ -877,9 +877,7 @@ static struct i2c_board_info spitz_i2c_devs[] = {
 };
 
 static struct regulator_consumer_supply isl6271a_consumers[] = {
-	{
-		.supply	= "vcc_core",
-	}
+	REGULATOR_SUPPLY("vcc_core", NULL),
 };
 
 static struct regulator_init_data isl6271a_info[] = {

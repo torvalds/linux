@@ -138,14 +138,16 @@
 #define HDMI_ASP_MASK			(1 << 2)
 #define HDMI_EN				(1 << 0)
 
+/* HDMI_CON_2 */
+#define HDMI_VID_PREAMBLE_DIS		(1 << 5)
+#define HDMI_GUARD_BAND_DIS		(1 << 1)
+
 /* HDMI_PHY_STATUS */
 #define HDMI_PHY_STATUS_READY		(1 << 0)
 
 /* HDMI_MODE_SEL */
 #define HDMI_MODE_HDMI_EN		(1 << 1)
 #define HDMI_MODE_DVI_EN		(1 << 0)
-#define HDMI_DVI_MODE_EN		(1)
-#define HDMI_DVI_MODE_DIS		(0)
 #define HDMI_MODE_MASK			(3 << 0)
 
 /* HDMI_TG_CMD */

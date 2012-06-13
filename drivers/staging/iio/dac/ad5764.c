@@ -16,8 +16,8 @@
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "dac.h"
 
 #define AD5764_REG_SF_NOP			0x0
@@ -79,7 +79,8 @@ enum ad5764_type {
 	.output = 1,						\
 	.channel = (_chan),					\
 	.address = (_chan),					\
-	.info_mask = IIO_CHAN_INFO_OFFSET_SHARED_BIT |		\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+		IIO_CHAN_INFO_OFFSET_SHARED_BIT |		\
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,		\
@@ -188,7 +189,7 @@ static int ad5764_write_raw(struct iio_dev *indio_dev,
 	unsigned int reg;
 
 	switch (info) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
 		val <<= chan->scan_type.shift;
@@ -228,7 +229,7 @@ static int ad5764_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (info) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		reg = AD5764_REG_DATA(chan->address);
 		ret = ad5764_read(indio_dev, reg, val);
 		if (ret < 0)
@@ -280,7 +281,7 @@ static int __devinit ad5764_probe(struct spi_device *spi)
 	struct ad5764_state *st;
 	int ret;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return -ENOMEM;
@@ -335,7 +336,7 @@ error_free_reg:
 	if (st->chip_info->int_vref == 0)
 		regulator_bulk_free(ARRAY_SIZE(st->vref_reg), st->vref_reg);
 error_free:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -352,7 +353,7 @@ static int __devexit ad5764_remove(struct spi_device *spi)
 		regulator_bulk_free(ARRAY_SIZE(st->vref_reg), st->vref_reg);
 	}
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

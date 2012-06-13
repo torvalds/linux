@@ -756,40 +756,50 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 {
 	copy_to_user_state(x, p);
 
-	if (x->coaddr)
-		NLA_PUT(skb, XFRMA_COADDR, sizeof(*x->coaddr), x->coaddr);
+	if (x->coaddr &&
+	    nla_put(skb, XFRMA_COADDR, sizeof(*x->coaddr), x->coaddr))
+		goto nla_put_failure;
 
-	if (x->lastused)
-		NLA_PUT_U64(skb, XFRMA_LASTUSED, x->lastused);
+	if (x->lastused &&
+	    nla_put_u64(skb, XFRMA_LASTUSED, x->lastused))
+		goto nla_put_failure;
 
-	if (x->aead)
-		NLA_PUT(skb, XFRMA_ALG_AEAD, aead_len(x->aead), x->aead);
-	if (x->aalg) {
-		if (copy_to_user_auth(x->aalg, skb))
-			goto nla_put_failure;
+	if (x->aead &&
+	    nla_put(skb, XFRMA_ALG_AEAD, aead_len(x->aead), x->aead))
+		goto nla_put_failure;
 
-		NLA_PUT(skb, XFRMA_ALG_AUTH_TRUNC,
-			xfrm_alg_auth_len(x->aalg), x->aalg);
-	}
-	if (x->ealg)
-		NLA_PUT(skb, XFRMA_ALG_CRYPT, xfrm_alg_len(x->ealg), x->ealg);
-	if (x->calg)
-		NLA_PUT(skb, XFRMA_ALG_COMP, sizeof(*(x->calg)), x->calg);
+	if (x->aalg &&
+	    (copy_to_user_auth(x->aalg, skb) ||
+	     nla_put(skb, XFRMA_ALG_AUTH_TRUNC,
+		     xfrm_alg_auth_len(x->aalg), x->aalg)))
+		goto nla_put_failure;
 
-	if (x->encap)
-		NLA_PUT(skb, XFRMA_ENCAP, sizeof(*x->encap), x->encap);
+	if (x->ealg &&
+	    nla_put(skb, XFRMA_ALG_CRYPT, xfrm_alg_len(x->ealg), x->ealg))
+		goto nla_put_failure;
 
-	if (x->tfcpad)
-		NLA_PUT_U32(skb, XFRMA_TFCPAD, x->tfcpad);
+	if (x->calg &&
+	    nla_put(skb, XFRMA_ALG_COMP, sizeof(*(x->calg)), x->calg))
+		goto nla_put_failure;
+
+	if (x->encap &&
+	    nla_put(skb, XFRMA_ENCAP, sizeof(*x->encap), x->encap))
+		goto nla_put_failure;
+
+	if (x->tfcpad &&
+	    nla_put_u32(skb, XFRMA_TFCPAD, x->tfcpad))
+		goto nla_put_failure;
 
 	if (xfrm_mark_put(skb, &x->mark))
 		goto nla_put_failure;
 
-	if (x->replay_esn)
-		NLA_PUT(skb, XFRMA_REPLAY_ESN_VAL,
-			xfrm_replay_state_esn_len(x->replay_esn), x->replay_esn);
+	if (x->replay_esn &&
+	    nla_put(skb, XFRMA_REPLAY_ESN_VAL,
+		    xfrm_replay_state_esn_len(x->replay_esn),
+		    x->replay_esn))
+		goto nla_put_failure;
 
-	if (x->security && copy_sec_ctx(x->security, skb) < 0)
+	if (x->security && copy_sec_ctx(x->security, skb))
 		goto nla_put_failure;
 
 	return 0;
@@ -912,8 +922,9 @@ static int build_spdinfo(struct sk_buff *skb, struct net *net,
 	sph.spdhcnt = si.spdhcnt;
 	sph.spdhmcnt = si.spdhmcnt;
 
-	NLA_PUT(skb, XFRMA_SPD_INFO, sizeof(spc), &spc);
-	NLA_PUT(skb, XFRMA_SPD_HINFO, sizeof(sph), &sph);
+	if (nla_put(skb, XFRMA_SPD_INFO, sizeof(spc), &spc) ||
+	    nla_put(skb, XFRMA_SPD_HINFO, sizeof(sph), &sph))
+		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
 
@@ -967,8 +978,9 @@ static int build_sadinfo(struct sk_buff *skb, struct net *net,
 	sh.sadhmcnt = si.sadhmcnt;
 	sh.sadhcnt = si.sadhcnt;
 
-	NLA_PUT_U32(skb, XFRMA_SAD_CNT, si.sadcnt);
-	NLA_PUT(skb, XFRMA_SAD_HINFO, sizeof(sh), &sh);
+	if (nla_put_u32(skb, XFRMA_SAD_CNT, si.sadcnt) ||
+	    nla_put(skb, XFRMA_SAD_HINFO, sizeof(sh), &sh))
+		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
 
@@ -1690,21 +1702,27 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, const struct 
 	id->reqid = x->props.reqid;
 	id->flags = c->data.aevent;
 
-	if (x->replay_esn)
-		NLA_PUT(skb, XFRMA_REPLAY_ESN_VAL,
-			xfrm_replay_state_esn_len(x->replay_esn),
-			x->replay_esn);
-	else
-		NLA_PUT(skb, XFRMA_REPLAY_VAL, sizeof(x->replay), &x->replay);
+	if (x->replay_esn) {
+		if (nla_put(skb, XFRMA_REPLAY_ESN_VAL,
+			    xfrm_replay_state_esn_len(x->replay_esn),
+			    x->replay_esn))
+			goto nla_put_failure;
+	} else {
+		if (nla_put(skb, XFRMA_REPLAY_VAL, sizeof(x->replay),
+			    &x->replay))
+			goto nla_put_failure;
+	}
+	if (nla_put(skb, XFRMA_LTIME_VAL, sizeof(x->curlft), &x->curlft))
+		goto nla_put_failure;
 
-	NLA_PUT(skb, XFRMA_LTIME_VAL, sizeof(x->curlft), &x->curlft);
+	if ((id->flags & XFRM_AE_RTHR) &&
+	    nla_put_u32(skb, XFRMA_REPLAY_THRESH, x->replay_maxdiff))
+		goto nla_put_failure;
 
-	if (id->flags & XFRM_AE_RTHR)
-		NLA_PUT_U32(skb, XFRMA_REPLAY_THRESH, x->replay_maxdiff);
-
-	if (id->flags & XFRM_AE_ETHR)
-		NLA_PUT_U32(skb, XFRMA_ETIMER_THRESH,
-			    x->replay_maxage * 10 / HZ);
+	if ((id->flags & XFRM_AE_ETHR) &&
+	    nla_put_u32(skb, XFRMA_ETIMER_THRESH,
+			x->replay_maxage * 10 / HZ))
+		goto nla_put_failure;
 
 	if (xfrm_mark_put(skb, &x->mark))
 		goto nla_put_failure;
@@ -2835,8 +2853,9 @@ static int build_report(struct sk_buff *skb, u8 proto,
 	ur->proto = proto;
 	memcpy(&ur->sel, sel, sizeof(ur->sel));
 
-	if (addr)
-		NLA_PUT(skb, XFRMA_COADDR, sizeof(*addr), addr);
+	if (addr &&
+	    nla_put(skb, XFRMA_COADDR, sizeof(*addr), addr))
+		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
 

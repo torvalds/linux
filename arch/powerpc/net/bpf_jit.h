@@ -48,7 +48,13 @@
 /*
  * Assembly helpers from arch/powerpc/net/bpf_jit.S:
  */
-extern u8 sk_load_word[], sk_load_half[], sk_load_byte[], sk_load_byte_msh[];
+#define DECLARE_LOAD_FUNC(func)	\
+	extern u8 func[], func##_negative_offset[], func##_positive_offset[]
+
+DECLARE_LOAD_FUNC(sk_load_word);
+DECLARE_LOAD_FUNC(sk_load_half);
+DECLARE_LOAD_FUNC(sk_load_byte);
+DECLARE_LOAD_FUNC(sk_load_byte_msh);
 
 #define FUNCTION_DESCR_SIZE	24
 

@@ -38,7 +38,7 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 /*------------------------Define global variable-----------------------------*/
 // Debug variable ?
 dig_t	dm_digtable;
-// Store current shoftware write register content for MAC PHY.
+// Store current software write register content for MAC PHY.
 u8		dm_shadow[16][256] = {{0}};
 // For Dynamic Rx Path Selection by Signal Strength
 DRxPathSel	DM_RxPathSelTable;
@@ -119,7 +119,7 @@ static	void	dm_pd_th(struct net_device *dev);
 static	void	dm_cs_ratio(struct net_device *dev);
 
 static	void dm_init_ctstoself(struct net_device *dev);
-// DM --> EDCA turboe mode control
+// DM --> EDCA turbo mode control
 static	void	dm_check_edca_turbo(struct net_device *dev);
 
 // DM --> HW RF control
@@ -348,7 +348,7 @@ extern void init_rate_adaptive(struct net_device * dev)
  *
  * Revised History:
  *	When		Who		Remark
- *	05/26/08	amy 	Create version 0 proting from windows code.
+ *	05/26/08	amy 	Create version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
 static void dm_check_rate_adaptive(struct net_device * dev)
@@ -543,7 +543,7 @@ static u32 OFDMSwingTable[OFDM_Table_Length] = {
 	0x5a400169,	// 3, +3db
 	0x50800142,	// 4, +2db
 	0x47c0011f,	// 5, +1db
-	0x40000100,	// 6, +0db ===> default, upper for higher temprature, lower for low temprature
+	0x40000100,	// 6, +0db ===> default, upper for higher temperature, lower for low temperature
 	0x390000e4,	// 7, -1db
 	0x32c000cb,	// 8, -2db
 	0x2d4000b5,	// 9, -3db
@@ -678,7 +678,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 		{
 			write_nic_byte(dev, 0x1ba, 0);
 			viviflag = FALSE;
-			RT_TRACE(COMP_POWER_TRACKING, "we filted this data\n");
+			RT_TRACE(COMP_POWER_TRACKING, "we filtered the data\n");
 			for(k = 0;k < 5; k++)
 				tmp_report[k] = 0;
 			break;
@@ -864,14 +864,14 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d \n", tmpRegA);
 	if(tmpRegA < 3 || tmpRegA > 13)
 		return;
-	if(tmpRegA >= 12)	// if over 12, TP will be bad when high temprature
+	if(tmpRegA >= 12)	// if over 12, TP will be bad when high temperature
 		tmpRegA = 12;
 	RT_TRACE(COMP_POWER_TRACKING, "Valid ThermalMeterA = %d \n", tmpRegA);
 	priv->ThermalMeter[0] = ThermalMeterVal;	//We use fixed value by Bryant's suggestion
 	priv->ThermalMeter[1] = ThermalMeterVal;	//We use fixed value by Bryant's suggestion
 
-	//Get current RF-A temprature index
-	if(priv->ThermalMeter[0] >= (u8)tmpRegA)	//lower temprature
+	//Get current RF-A temperature index
+	if(priv->ThermalMeter[0] >= (u8)tmpRegA)	//lower temperature
 	{
 		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->ThermalMeter[0]-(u8)tmpRegA);
 		tmpCCK40Mindex = tmpCCK20Mindex - 6;
@@ -885,7 +885,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	else
 	{
 		tmpval = ((u8)tmpRegA - priv->ThermalMeter[0]);
-		if(tmpval >= 6)								// higher temprature
+		if(tmpval >= 6)								// higher temperature
 			tmpOFDMindex = tmpCCK20Mindex = 0;		// max to +6dB
 		else
 			tmpOFDMindex = tmpCCK20Mindex = 6 - tmpval;
@@ -1457,9 +1457,9 @@ static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	// Tx Power tracking by Theremal Meter require Firmware R/W 3-wire. This mechanism
+	// Tx Power tracking by Thermal Meter requires Firmware R/W 3-wire. This mechanism
 	// can be enabled only when Firmware R/W 3-wire is enabled. Otherwise, frequent r/w
-	// 3-wire by driver cause RF goes into wrong state.
+	// 3-wire by driver causes RF to go into a wrong state.
 	if(priv->ieee80211->FwRWRF)
 		priv->btxpower_tracking = TRUE;
 	else
@@ -1520,7 +1520,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 
 	if(!TM_Trigger)
 	{
-		//Attention!! You have to wirte all 12bits data to RF, or it may cause RF to crash
+		//Attention!! You have to write all 12bits of data to RF, or it may cause RF to crash
 		//actually write reg0x02 bit1=0, then bit1=1.
 		//DbgPrint("Trigger ThermalMeter, write RF reg0x2 = 0x4d to 0x4f\n");
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
@@ -1744,7 +1744,7 @@ extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 			write_nic_dword(dev, RATR0, ratr_value);
 			write_nic_byte(dev, UFWP, 1);
 	}
-	//Resore TX Power Tracking Index
+	//Restore TX Power Tracking Index
 	if(priv->btxpower_trackingInit && priv->btxpower_tracking){
 		dm_txpower_reset_recovery(dev);
 	}
@@ -2031,7 +2031,7 @@ static void dm_dig_init(struct net_device *dev)
 	dm_digtable.dbg_mode = DM_DBG_OFF;	//off=by real rssi value, on=by DM_DigTable.Rssi_val for new dig
 	dm_digtable.dig_algorithm_switch = 0;
 
-	/* 2007/10/04 MH Define init gain threshol. */
+	/* 2007/10/04 MH Define init gain threshold. */
 	dm_digtable.dig_state		= DM_STA_DIG_MAX;
 	dm_digtable.dig_highpwr_state	= DM_STA_DIG_MAX;
 	dm_digtable.initialgain_lowerbound_state = false;
@@ -2097,7 +2097,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 		return;
 
 	//DbgPrint("Dig by Sw Rssi \n");
-	if(dm_digtable.dig_algorithm_switch)	// if swithed algorithm, we have to disable FW Dig.
+	if(dm_digtable.dig_algorithm_switch)	// if switched algorithm, we have to disable FW Dig.
 		fw_dig = 0;
 	if(fw_dig <= 3)	// execute several times to make sure the FW Dig is disabled
 	{// FW DIG Off
@@ -2160,8 +2160,8 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	/*DbgPrint("DIG Check\n\r RSSI=%d LOW=%d HIGH=%d STATE=%d",
 	pHalData->UndecoratedSmoothedPWDB, DM_DigTable.RssiLowThresh,
 	DM_DigTable.RssiHighThresh, DM_DigTable.Dig_State);*/
-	/* 1. When RSSI decrease, We have to judge if it is smaller than a treshold
-		  and then execute below step. */
+	/* 1. When RSSI decrease, We have to judge if it is smaller than a threshold
+		  and then execute the step below. */
 	if ((priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh))
 	{
 		/* 2008/02/05 MH When we execute silent reset, the DIG PHY parameters
@@ -2220,8 +2220,8 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 	}
 
-	/* 2. When RSSI increase, We have to judge if it is larger than a treshold
-		  and then execute below step.  */
+	/* 2. When RSSI increase, We have to judge if it is larger than a threshold
+		  and then execute the step below.  */
 	if ((priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) )
 	{
 		u8 reset_flag = 0;
@@ -2329,7 +2329,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 	}
 
 	/* 3. When RSSI >75% or <70%, it is a high power issue. We have to judge if
-		  it is larger than a treshold and then execute below step.  */
+		  it is larger than a threshold and then execute the step below.  */
 	// 2008/02/05 MH SD3-Jerry Modify PD_TH for high power issue.
 	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_power_highthresh)
 	{
@@ -2841,8 +2841,8 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 {
 	//struct r8192_priv *priv = ieee80211_priv(dev);
 
-	// Walk around for DTM test, we will not enable HW - radio on/off because r/w
-	// page 1 register before Lextra bus is enabled cause system fails when resuming
+	// Work around for DTM test, we will not enable HW - radio on/off because r/w
+	// page 1 register before extra bus is enabled causing system failures when resuming
 	// from S4. 20080218, Emily
 
 	// Stop to execute workitem to prevent S3/S4 bug.
@@ -3377,30 +3377,30 @@ extern void dm_fsync_timer_callback(unsigned long data)
 		{
 
 			u32 DiffNum = priv->rateCountDiffRecord - rate_count_diff;
-			// Contiune count
+			// Continue count
 			if(DiffNum >= priv->ieee80211->fsync_seconddiff_ratethreshold)
-				priv->ContiuneDiffCount++;
+				priv->ContinueDiffCount++;
 			else
-				priv->ContiuneDiffCount = 0;
+				priv->ContinueDiffCount = 0;
 
-			// Contiune count over
-			if(priv->ContiuneDiffCount >=2)
+			// Continue count over
+			if(priv->ContinueDiffCount >=2)
 			{
 				bSwitchFromCountDiff = true;
-				priv->ContiuneDiffCount = 0;
+				priv->ContinueDiffCount = 0;
 			}
 		}
 		else
 		{
-			// Stop contiune count
-			priv->ContiuneDiffCount = 0;
+			// Stop the continued count
+			priv->ContinueDiffCount = 0;
 		}
 
 		//If Count diff <= FsyncRateCountThreshold
 		if(rate_count_diff <= priv->ieee80211->fsync_firstdiff_ratethreshold)
 		{
 			bSwitchFromCountDiff = true;
-			priv->ContiuneDiffCount = 0;
+			priv->ContinueDiffCount = 0;
 		}
 		priv->rate_record = rate_count;
 		priv->rateCountDiffRecord = rate_count_diff;
@@ -3468,14 +3468,14 @@ extern void dm_fsync_timer_callback(unsigned long data)
 		#endif
 			write_nic_byte(dev, 0xC3e, 0x96);
 		}
-		priv->ContiuneDiffCount = 0;
+		priv->ContinueDiffCount = 0;
 	#ifdef RTL8190P
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x164052cd);
 	#else
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	#endif
 	}
-	RT_TRACE(COMP_HALDM, "ContiuneDiffCount %d\n", priv->ContiuneDiffCount);
+	RT_TRACE(COMP_HALDM, "ContinueDiffCount %d\n", priv->ContinueDiffCount);
 	RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rateCountdiff %d bSwitchFsync %d\n", priv->rate_record, rate_count, rate_count_diff , priv->bswitch_fsync);
 }
 
@@ -3507,7 +3507,7 @@ static void dm_EndSWFsync(struct net_device *dev)
 		write_nic_byte(dev, 0xC3e, 0x96);
 	}
 
-	priv->ContiuneDiffCount = 0;
+	priv->ContinueDiffCount = 0;
 #ifndef RTL8190P
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 #endif
@@ -3523,8 +3523,8 @@ static void dm_StartSWFsync(struct net_device *dev)
 	RT_TRACE(COMP_HALDM,"%s\n", __FUNCTION__);
 	// Initial rate record to zero, start to record.
 	priv->rate_record = 0;
-	// Initial contiune diff count to zero, start to record.
-	priv->ContiuneDiffCount = 0;
+	// Initialize continue diff count to zero, start to record.
+	priv->ContinueDiffCount = 0;
 	priv->rateCountDiffRecord = 0;
 	priv->bswitch_fsync  = false;
 
@@ -3875,7 +3875,7 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 
 	// If we test chariot, we should stop the TX command ?
 	// Because 92E will always silent reset when we send tx command. We use register
-	// 0x1e0(byte) to botify driver.
+	// 0x1e0(byte) to notify driver.
 	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
 	return;
 	tx_cmd.Op		= TXCMD_SET_RX_RSSI;

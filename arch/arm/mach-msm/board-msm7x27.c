@@ -128,11 +128,17 @@ static void __init msm7x2x_map_io(void)
 #endif
 }
 
+static void __init msm7x2x_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 MACHINE_START(MSM7X27_SURF, "QCT MSM7x27 SURF")
 	.atag_offset	= 0x100,
 	.map_io		= msm7x2x_map_io,
 	.init_irq	= msm7x2x_init_irq,
 	.init_machine	= msm7x2x_init,
+	.init_late	= msm7x2x_init_late,
 	.timer		= &msm_timer,
 MACHINE_END
 
@@ -141,6 +147,7 @@ MACHINE_START(MSM7X27_FFA, "QCT MSM7x27 FFA")
 	.map_io		= msm7x2x_map_io,
 	.init_irq	= msm7x2x_init_irq,
 	.init_machine	= msm7x2x_init,
+	.init_late	= msm7x2x_init_late,
 	.timer		= &msm_timer,
 MACHINE_END
 
@@ -149,6 +156,7 @@ MACHINE_START(MSM7X25_SURF, "QCT MSM7x25 SURF")
 	.map_io		= msm7x2x_map_io,
 	.init_irq	= msm7x2x_init_irq,
 	.init_machine	= msm7x2x_init,
+	.init_late	= msm7x2x_init_late,
 	.timer		= &msm_timer,
 MACHINE_END
 
@@ -157,5 +165,6 @@ MACHINE_START(MSM7X25_FFA, "QCT MSM7x25 FFA")
 	.map_io		= msm7x2x_map_io,
 	.init_irq	= msm7x2x_init_irq,
 	.init_machine	= msm7x2x_init,
+	.init_late	= msm7x2x_init_late,
 	.timer		= &msm_timer,
 MACHINE_END

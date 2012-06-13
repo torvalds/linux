@@ -4,11 +4,9 @@
 #ifdef __ASSEMBLY__
 # define __ASM_FORM(x)	x
 # define __ASM_FORM_COMMA(x) x,
-# define __ASM_EX_SEC	.section __ex_table, "a"
 #else
 # define __ASM_FORM(x)	" " #x " "
 # define __ASM_FORM_COMMA(x) " " #x ","
-# define __ASM_EX_SEC	" .section __ex_table,\"a\"\n"
 #endif
 
 #ifdef CONFIG_X86_32
@@ -42,17 +40,33 @@
 
 /* Exception table entry */
 #ifdef __ASSEMBLY__
-# define _ASM_EXTABLE(from,to)	    \
-	__ASM_EX_SEC ;		    \
-	_ASM_ALIGN ;		    \
-	_ASM_PTR from , to ;	    \
-	.previous
+# define _ASM_EXTABLE(from,to)					\
+	.pushsection "__ex_table","a" ;				\
+	.balign 8 ;						\
+	.long (from) - . ;					\
+	.long (to) - . ;					\
+	.popsection
+
+# define _ASM_EXTABLE_EX(from,to)				\
+	.pushsection "__ex_table","a" ;				\
+	.balign 8 ;						\
+	.long (from) - . ;					\
+	.long (to) - . + 0x7ffffff0 ;				\
+	.popsection
 #else
-# define _ASM_EXTABLE(from,to) \
-	__ASM_EX_SEC	\
-	_ASM_ALIGN "\n" \
-	_ASM_PTR #from "," #to "\n" \
-	" .previous\n"
+# define _ASM_EXTABLE(from,to)					\
+	" .pushsection \"__ex_table\",\"a\"\n"			\
+	" .balign 8\n"						\
+	" .long (" #from ") - .\n"				\
+	" .long (" #to ") - .\n"				\
+	" .popsection\n"
+
+# define _ASM_EXTABLE_EX(from,to)				\
+	" .pushsection \"__ex_table\",\"a\"\n"			\
+	" .balign 8\n"						\
+	" .long (" #from ") - .\n"				\
+	" .long (" #to ") - . + 0x7ffffff0\n"			\
+	" .popsection\n"
 #endif
 
 #endif /* _ASM_X86_ASM_H */

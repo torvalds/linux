@@ -536,7 +536,7 @@ static int __devinit au1100fb_drv_probe(struct platform_device *dev)
 	for (page = (unsigned long)fbdev->fb_mem;
 	     page < PAGE_ALIGN((unsigned long)fbdev->fb_mem + fbdev->fb_len);
 	     page += PAGE_SIZE) {
-#if CONFIG_DMA_NONCOHERENT
+#ifdef CONFIG_DMA_NONCOHERENT
 		SetPageReserved(virt_to_page(CAC_ADDR((void *)page)));
 #else
 		SetPageReserved(virt_to_page(page));

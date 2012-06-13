@@ -77,8 +77,8 @@ static struct libipw_frag_entry *libipw_frag_cache_find(struct
 
 		if (entry->skb != NULL && entry->seq == seq &&
 		    (entry->last_frag + 1 == frag || frag == -1) &&
-		    !compare_ether_addr(entry->src_addr, src) &&
-		    !compare_ether_addr(entry->dst_addr, dst))
+		    ether_addr_equal(entry->src_addr, src) &&
+		    ether_addr_equal(entry->dst_addr, dst))
 			return entry;
 	}
 
@@ -245,12 +245,12 @@ static int libipw_is_eapol_frame(struct libipw_device *ieee,
 	/* check that the frame is unicast frame to us */
 	if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 	    IEEE80211_FCTL_TODS &&
-	    !compare_ether_addr(hdr->addr1, dev->dev_addr) &&
-	    !compare_ether_addr(hdr->addr3, dev->dev_addr)) {
+	    ether_addr_equal(hdr->addr1, dev->dev_addr) &&
+	    ether_addr_equal(hdr->addr3, dev->dev_addr)) {
 		/* ToDS frame with own addr BSSID and DA */
 	} else if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 		   IEEE80211_FCTL_FROMDS &&
-		   !compare_ether_addr(hdr->addr1, dev->dev_addr)) {
+		   ether_addr_equal(hdr->addr1, dev->dev_addr)) {
 		/* FromDS frame with own addr as DA */
 	} else
 		return 0;
@@ -523,8 +523,8 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 
 	if (ieee->iw_mode == IW_MODE_MASTER && !wds &&
 	    (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
-	    IEEE80211_FCTL_FROMDS && ieee->stadev
-	    && !compare_ether_addr(hdr->addr2, ieee->assoc_ap_addr)) {
+	    IEEE80211_FCTL_FROMDS && ieee->stadev &&
+	    ether_addr_equal(hdr->addr2, ieee->assoc_ap_addr)) {
 		/* Frame from BSSID of the AP for which we are a client */
 		skb->dev = dev = ieee->stadev;
 		stats = hostap_get_stats(dev);
@@ -1468,7 +1468,7 @@ static inline int is_same_network(struct libipw_network *src,
 	 * as one network */
 	return ((src->ssid_len == dst->ssid_len) &&
 		(src->channel == dst->channel) &&
-		!compare_ether_addr(src->bssid, dst->bssid) &&
+		ether_addr_equal(src->bssid, dst->bssid) &&
 		!memcmp(src->ssid, dst->ssid, src->ssid_len));
 }
 

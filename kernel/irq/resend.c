@@ -58,10 +58,13 @@ void check_irq_resend(struct irq_desc *desc, unsigned int irq)
 	/*
 	 * We do not resend level type interrupts. Level type
 	 * interrupts are resent by hardware when they are still
-	 * active.
+	 * active. Clear the pending bit so suspend/resume does not
+	 * get confused.
 	 */
-	if (irq_settings_is_level(desc))
+	if (irq_settings_is_level(desc)) {
+		desc->istate &= ~IRQS_PENDING;
 		return;
+	}
 	if (desc->istate & IRQS_REPLAY)
 		return;
 	if (desc->istate & IRQS_PENDING) {

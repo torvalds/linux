@@ -163,6 +163,12 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 	MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK,
 	MX51_PAD_CSPI1_SS0__GPIO4_24,
 	MX51_PAD_CSPI1_SS1__GPIO4_25,
+
+	/* Audio */
+	MX51_PAD_AUD3_BB_TXD__AUD3_TXD,
+	MX51_PAD_AUD3_BB_RXD__AUD3_RXD,
+	MX51_PAD_AUD3_BB_CK__AUD3_TXC,
+	MX51_PAD_AUD3_BB_FS__AUD3_TXFS,
 };
 
 /* Serial ports */
@@ -426,5 +432,6 @@ MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_babbage_timer,
 	.init_machine = mx51_babbage_init,
+	.init_late	= imx51_init_late,
 	.restart	= mxc_restart,
 MACHINE_END

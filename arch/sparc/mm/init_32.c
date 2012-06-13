@@ -27,7 +27,6 @@
 #include <linux/gfp.h>
 
 #include <asm/sections.h>
-#include <asm/vac-ops.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/vaddrs.h>
@@ -44,9 +43,6 @@ EXPORT_SYMBOL(phys_base);
 
 unsigned long pfn_base;
 EXPORT_SYMBOL(pfn_base);
-
-unsigned long page_kernel;
-EXPORT_SYMBOL(page_kernel);
 
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
 unsigned long sparc_unmapped_base;
@@ -287,44 +283,16 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 }
 
 /*
- * check_pgt_cache
- *
- * This is called at the end of unmapping of VMA (zap_page_range),
- * to rescan the page cache for architecture specific things,
- * presumably something like sun4/sun4c PMEGs. Most architectures
- * define check_pgt_cache empty.
- *
- * We simply copy the 2.4 implementation for now.
- */
-static int pgt_cache_water[2] = { 25, 50 };
-
-void check_pgt_cache(void)
-{
-	do_check_pgt_cache(pgt_cache_water[0], pgt_cache_water[1]);
-}
-
-/*
  * paging_init() sets up the page tables: We call the MMU specific
  * init routine based upon the Sun model type on the Sparc.
  *
  */
-extern void sun4c_paging_init(void);
 extern void srmmu_paging_init(void);
 extern void device_scan(void);
-
-pgprot_t PAGE_SHARED __read_mostly;
-EXPORT_SYMBOL(PAGE_SHARED);
 
 void __init paging_init(void)
 {
 	switch(sparc_cpu_model) {
-	case sun4c:
-	case sun4e:
-	case sun4:
-		sun4c_paging_init();
-		sparc_unmapped_base = 0xe0000000;
-		BTFIXUPSET_SETHI(sparc_unmapped_base, 0xe0000000);
-		break;
 	case sparc_leon:
 		leon_init();
 		/* fall through */
@@ -332,7 +300,6 @@ void __init paging_init(void)
 	case sun4d:
 		srmmu_paging_init();
 		sparc_unmapped_base = 0x50000000;
-		BTFIXUPSET_SETHI(sparc_unmapped_base, 0x50000000);
 		break;
 	default:
 		prom_printf("paging_init: Cannot init paging on this Sparc\n");
@@ -341,24 +308,6 @@ void __init paging_init(void)
 		prom_halt();
 	}
 
-	/* Initialize the protection map with non-constant, MMU dependent values. */
-	protection_map[0] = PAGE_NONE;
-	protection_map[1] = PAGE_READONLY;
-	protection_map[2] = PAGE_COPY;
-	protection_map[3] = PAGE_COPY;
-	protection_map[4] = PAGE_READONLY;
-	protection_map[5] = PAGE_READONLY;
-	protection_map[6] = PAGE_COPY;
-	protection_map[7] = PAGE_COPY;
-	protection_map[8] = PAGE_NONE;
-	protection_map[9] = PAGE_READONLY;
-	protection_map[10] = PAGE_SHARED;
-	protection_map[11] = PAGE_SHARED;
-	protection_map[12] = PAGE_READONLY;
-	protection_map[13] = PAGE_READONLY;
-	protection_map[14] = PAGE_SHARED;
-	protection_map[15] = PAGE_SHARED;
-	btfixup();
 	prom_build_devicetree();
 	of_fill_in_cpu_data();
 	device_scan();

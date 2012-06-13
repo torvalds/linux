@@ -1120,7 +1120,7 @@ int fax_head_line_time(char *buffer)
 /*
  * init (alloc) main structures
  */
-static int DIVA_INIT_FUNCTION init_main_structs(void)
+static int __init init_main_structs(void)
 {
 	if (!(mapped_msg = (CAPI_MSG *) diva_os_malloc(0, MAX_MSG_SIZE))) {
 		DBG_ERR(("init: failed alloc mapped_msg."))
@@ -1181,7 +1181,7 @@ static void do_api_remove_start(void)
 /*
  * init
  */
-int DIVA_INIT_FUNCTION init_capifunc(void)
+int __init init_capifunc(void)
 {
 	diva_os_initialize_spin_lock(&api_lock, "capifunc");
 	memset(ControllerMap, 0, MAX_DESCRIPTORS + 1);
@@ -1209,7 +1209,7 @@ int DIVA_INIT_FUNCTION init_capifunc(void)
 /*
  * finit
  */
-void DIVA_EXIT_FUNCTION finit_capifunc(void)
+void __exit finit_capifunc(void)
 {
 	do_api_remove_start();
 	divacapi_disconnect_didd();

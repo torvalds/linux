@@ -34,125 +34,7 @@
 #endif
 
 __HEAD
-#ifndef CONFIG_IPL
-	.org   0
-	.long  0x00080000,0x80000000+startup	# Just a restart PSW
-#else
-#ifdef CONFIG_IPL_TAPE
-#define IPL_BS 1024
-	.org   0
-	.long  0x00080000,0x80000000+iplstart	# The first 24 bytes are loaded
-	.long  0x27000000,0x60000001		# by ipl to addresses 0-23.
-	.long  0x02000000,0x20000000+IPL_BS	# (a PSW and two CCWs).
-	.long  0x00000000,0x00000000		# external old psw
-	.long  0x00000000,0x00000000		# svc old psw
-	.long  0x00000000,0x00000000		# program check old psw
-	.long  0x00000000,0x00000000		# machine check old psw
-	.long  0x00000000,0x00000000		# io old psw
-	.long  0x00000000,0x00000000
-	.long  0x00000000,0x00000000
-	.long  0x00000000,0x00000000
-	.long  0x000a0000,0x00000058		# external new psw
-	.long  0x000a0000,0x00000060		# svc new psw
-	.long  0x000a0000,0x00000068		# program check new psw
-	.long  0x000a0000,0x00000070		# machine check new psw
-	.long  0x00080000,0x80000000+.Lioint	# io new psw
 
-	.org   0x100
-#
-# subroutine for loading from tape
-# Parameters:
-#  R1 = device number
-#  R2 = load address
-.Lloader:
-	st	%r14,.Lldret
-	la	%r3,.Lorbread		# r3 = address of orb
-	la	%r5,.Lirb		# r5 = address of irb
-	st	%r2,.Lccwread+4 	# initialize CCW data addresses
-	lctl	%c6,%c6,.Lcr6
-	slr	%r2,%r2
-.Lldlp:
-	la	%r6,3			# 3 retries
-.Lssch:
-	ssch	0(%r3)			# load chunk of IPL_BS bytes
-	bnz	.Llderr
-.Lw4end:
-	bas	%r14,.Lwait4io
-	tm	8(%r5),0x82		# do we have a problem ?
-	bnz	.Lrecov
-	slr	%r7,%r7
-	icm	%r7,3,10(%r5)		# get residual count
-	lcr	%r7,%r7
-	la	%r7,IPL_BS(%r7) 	# IPL_BS-residual=#bytes read
-	ar	%r2,%r7 		# add to total size
-	tm	8(%r5),0x01		# found a tape mark ?
-	bnz	.Ldone
-	l	%r0,.Lccwread+4 	# update CCW data addresses
-	ar	%r0,%r7
-	st	%r0,.Lccwread+4
-	b	.Lldlp
-.Ldone:
-	l	%r14,.Lldret
-	br	%r14			# r2 contains the total size
-.Lrecov:
-	bas	%r14,.Lsense		# do the sensing
-	bct	%r6,.Lssch		# dec. retry count & branch
-	b	.Llderr
-#
-# Sense subroutine
-#
-.Lsense:
-	st	%r14,.Lsnsret
-	la	%r7,.Lorbsense
-	ssch	0(%r7)			# start sense command
-	bnz	.Llderr
-	bas	%r14,.Lwait4io
-	l	%r14,.Lsnsret
-	tm	8(%r5),0x82		# do we have a problem ?
-	bnz	.Llderr
-	br	%r14
-#
-# Wait for interrupt subroutine
-#
-.Lwait4io:
-	lpsw	.Lwaitpsw
-.Lioint:
-	c	%r1,0xb8		# compare subchannel number
-	bne	.Lwait4io
-	tsch	0(%r5)
-	slr	%r0,%r0
-	tm	8(%r5),0x82		# do we have a problem ?
-	bnz	.Lwtexit
-	tm	8(%r5),0x04		# got device end ?
-	bz	.Lwait4io
-.Lwtexit:
-	br	%r14
-.Llderr:
-	lpsw	.Lcrash
-
-	.align	8
-.Lorbread:
-	.long	0x00000000,0x0080ff00,.Lccwread
-	.align	8
-.Lorbsense:
-	.long	0x00000000,0x0080ff00,.Lccwsense
-	.align	8
-.Lccwread:
-	.long	0x02200000+IPL_BS,0x00000000
-.Lccwsense:
-	.long	0x04200001,0x00000000
-.Lwaitpsw:
-	.long	0x020a0000,0x80000000+.Lioint
-
-.Lirb:	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-.Lcr6:	.long	0xff000000
-	.align	8
-.Lcrash:.long	0x000a0000,0x00000000
-.Lldret:.long	0
-.Lsnsret: .long 0
-#endif	/* CONFIG_IPL_TAPE */
-
-#ifdef CONFIG_IPL_VM
 #define IPL_BS	0x730
 	.org	0
 	.long	0x00080000,0x80000000+iplstart	# The first 24 bytes are loaded
@@ -256,7 +138,6 @@ __HEAD
 	.long	0x02600050,0x00000000
 	.endr
 	.long	0x02200050,0x00000000
-#endif	/* CONFIG_IPL_VM */
 
 iplstart:
 	lh	%r1,0xb8		# test if subchannel number
@@ -325,7 +206,6 @@ iplstart:
 	clc	0(3,%r2),.L_eof
 	bz	.Lagain2
 
-#ifdef CONFIG_IPL_VM
 #
 # reset files in VM reader
 #
@@ -358,7 +238,6 @@ iplstart:
 	.long	0x00080000,0x80000000+.Lrdrint
 .Lrdrwaitpsw:
 	.long	0x020a0000,0x80000000+.Lrdrint
-#endif
 
 #
 # everything loaded, go for it
@@ -375,8 +254,6 @@ iplstart:
 	.byte	0xc8,0xd6,0xd3,0xc4	# "change rdr all keep nohold"
 .L_eof: .long	0xc5d6c600	 /* C'EOF' */
 .L_hdr: .long	0xc8c4d900	 /* C'HDR' */
-
-#endif	/* CONFIG_IPL */
 
 #
 # SALIPL loader support. Based on a patch by Rob van der Heij.

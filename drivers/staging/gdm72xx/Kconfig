@@ -1,0 +1,46 @@
+#
+# GCT GDM72xx WiMAX driver configuration
+#
+
+menuconfig WIMAX_GDM72XX
+	tristate "GCT GDM72xx WiMAX support"
+	depends on NET
+	help
+	  Support for the GCT GDM72xx WiMAX chip
+
+if WIMAX_GDM72XX
+
+config WIMAX_GDM72XX_QOS
+	bool "Enable QoS support"
+	default n
+
+config WIMAX_GDM72XX_K_MODE
+	bool "Enable K mode"
+	default n
+
+config WIMAX_GDM72XX_WIMAX2
+	bool "Enable WIMAX2 support"
+	default n
+
+choice
+	prompt "Select interface"
+
+config WIMAX_GDM72XX_USB
+	bool "USB interface"
+	depends on USB
+
+config WIMAX_GDM72XX_SDIO
+	bool "SDIO interface"
+	depends on MMC
+
+endchoice
+
+if WIMAX_GDM72XX_USB
+
+config WIMAX_GDM72XX_USB_PM
+	bool "Enable power managerment support"
+	depends on USB_SUSPEND
+
+endif # WIMAX_GDM72XX_USB
+
+endif # WIMAX_GDM72XX

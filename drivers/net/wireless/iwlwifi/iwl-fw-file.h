@@ -93,15 +93,7 @@ struct iwl_ucode_header {
  * new TLV uCode file layout
  *
  * The new TLV file format contains TLVs, that each specify
- * some piece of data. To facilitate "groups", for example
- * different instruction image with different capabilities,
- * bundled with the same init image, an alternative mechanism
- * is provided:
- * When the alternative field is 0, that means that the item
- * is always valid. When it is non-zero, then it is only
- * valid in conjunction with items of the same alternative,
- * in which case the driver (user) selects one alternative
- * to use.
+ * some piece of data.
  */
 
 enum iwl_ucode_tlv_type {
@@ -132,8 +124,7 @@ enum iwl_ucode_tlv_type {
 };
 
 struct iwl_ucode_tlv {
-	__le16 type;		/* see above */
-	__le16 alternative;	/* see comment */
+	__le32 type;		/* see above */
 	__le32 length;		/* not including type/length fields */
 	u8 data[0];
 };
@@ -152,7 +143,7 @@ struct iwl_tlv_ucode_header {
 	u8 human_readable[64];
 	__le32 ver;		/* major/minor/API/serial */
 	__le32 build;
-	__le64 alternatives;	/* bitmask of valid alternatives */
+	__le64 ignore;
 	/*
 	 * The data contained herein has a TLV layout,
 	 * see above for the TLV header and types.

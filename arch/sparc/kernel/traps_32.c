@@ -120,8 +120,6 @@ void do_illegal_instruction(struct pt_regs *regs, unsigned long pc, unsigned lon
 	printk("Ill instr. at pc=%08lx instruction is %08lx\n",
 	       regs->pc, *(unsigned long *)regs->pc);
 #endif
-	if (!do_user_muldiv (regs, pc))
-		return;
 
 	info.si_signo = SIGILL;
 	info.si_errno = 0;

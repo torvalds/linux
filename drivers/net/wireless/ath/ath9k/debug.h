@@ -60,6 +60,7 @@ struct ath_buf;
  * @tsfoor: TSF out of range, indicates that the corrected TSF received
  * from a beacon differs from the PCU's internal TSF by more than a
  * (programmable) threshold
+ * @local_timeout: Internal bus timeout.
  */
 struct ath_interrupt_stats {
 	u32 total;
@@ -85,7 +86,29 @@ struct ath_interrupt_stats {
 	u32 dtim;
 	u32 bb_watchdog;
 	u32 tsfoor;
+
+	/* Sync-cause stats */
+	u32 sync_cause_all;
+	u32 sync_rtc_irq;
+	u32 sync_mac_irq;
+	u32 eeprom_illegal_access;
+	u32 apb_timeout;
+	u32 pci_mode_conflict;
+	u32 host1_fatal;
+	u32 host1_perr;
+	u32 trcv_fifo_perr;
+	u32 radm_cpl_ep;
+	u32 radm_cpl_dllp_abort;
+	u32 radm_cpl_tlp_abort;
+	u32 radm_cpl_ecrc_err;
+	u32 radm_cpl_timeout;
+	u32 local_timeout;
+	u32 pm_access;
+	u32 mac_awake;
+	u32 mac_asleep;
+	u32 mac_sleep_access;
 };
+
 
 /**
  * struct ath_tx_stats - Statistics about TX
@@ -113,6 +136,7 @@ struct ath_interrupt_stats {
  * @puttxbuf: Number of times hardware was given txbuf to write.
  * @txstart:  Number of times hardware was told to start tx.
  * @txprocdesc:  Number of times tx descriptor was processed
+ * @txfailed:  Out-of-memory or other errors in xmit path.
  */
 struct ath_tx_stats {
 	u32 tx_pkts_all;
@@ -135,7 +159,10 @@ struct ath_tx_stats {
 	u32 puttxbuf;
 	u32 txstart;
 	u32 txprocdesc;
+	u32 txfailed;
 };
+
+#define RX_STAT_INC(c) (sc->debug.stats.rxstats.c++)
 
 /**
  * struct ath_rx_stats - RX Statistics
@@ -153,6 +180,13 @@ struct ath_tx_stats {
  * @post_delim_crc_err: Post-Frame delimiter CRC error detections
  * @decrypt_busy_err: Decryption interruptions counter
  * @phy_err_stats: Individual PHY error statistics
+ * @rx_len_err:  No. of frames discarded due to bad length.
+ * @rx_oom_err:  No. of frames dropped due to OOM issues.
+ * @rx_rate_err:  No. of frames dropped due to rate errors.
+ * @rx_too_many_frags_err:  Frames dropped due to too-many-frags received.
+ * @rx_drop_rxflush: No. of frames dropped due to RX-FLUSH.
+ * @rx_beacons:  No. of beacons received.
+ * @rx_frags:  No. of rx-fragements received.
  */
 struct ath_rx_stats {
 	u32 rx_pkts_all;
@@ -165,6 +199,13 @@ struct ath_rx_stats {
 	u32 post_delim_crc_err;
 	u32 decrypt_busy_err;
 	u32 phy_err_stats[ATH9K_PHYERR_MAX];
+	u32 rx_len_err;
+	u32 rx_oom_err;
+	u32 rx_rate_err;
+	u32 rx_too_many_frags_err;
+	u32 rx_drop_rxflush;
+	u32 rx_beacons;
+	u32 rx_frags;
 };
 
 enum ath_reset_type {
@@ -174,6 +215,7 @@ enum ath_reset_type {
 	RESET_TYPE_TX_ERROR,
 	RESET_TYPE_TX_HANG,
 	RESET_TYPE_PLL_HANG,
+	RESET_TYPE_MAC_HANG,
 	__RESET_TYPE_MAX
 };
 
@@ -246,6 +288,8 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 
 #else
+
+#define RX_STAT_INC(c) /* NOP */
 
 static inline int ath9k_init_debug(struct ath_hw *ah)
 {

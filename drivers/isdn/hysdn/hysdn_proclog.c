@@ -156,17 +156,9 @@ static ssize_t
 hysdn_log_write(struct file *file, const char __user *buf, size_t count, loff_t *off)
 {
 	int rc;
-	unsigned char valbuf[128];
 	hysdn_card *card = file->private_data;
 
-	if (count > (sizeof(valbuf) - 1))
-		count = sizeof(valbuf) - 1;	/* limit length */
-	if (copy_from_user(valbuf, buf, count))
-		return (-EFAULT);	/* copy failed */
-
-	valbuf[count] = 0;	/* terminating 0 */
-
-	rc = kstrtoul(valbuf, 0, &card->debug_flags);
+	rc = kstrtoul_from_user(buf, count, 0, &card->debug_flags);
 	if (rc < 0)
 		return rc;
 	hysdn_addlog(card, "debug set to 0x%lx", card->debug_flags);

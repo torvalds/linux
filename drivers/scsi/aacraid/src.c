@@ -424,6 +424,8 @@ static int aac_src_deliver_message(struct fib *fib)
 static int aac_src_ioremap(struct aac_dev *dev, u32 size)
 {
 	if (!size) {
+		iounmap(dev->regs.src.bar1);
+		dev->regs.src.bar1 = NULL;
 		iounmap(dev->regs.src.bar0);
 		dev->base = dev->regs.src.bar0 = NULL;
 		return 0;

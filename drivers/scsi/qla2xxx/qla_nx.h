@@ -26,6 +26,7 @@
 #define CRB_RCVPEG_STATE		QLA82XX_REG(0x13c)
 #define BOOT_LOADER_DIMM_STATUS		QLA82XX_REG(0x54)
 #define CRB_DMA_SHIFT			QLA82XX_REG(0xcc)
+#define CRB_TEMP_STATE			QLA82XX_REG(0x1b4)
 #define QLA82XX_DMA_SHIFT_VALUE		0x55555555
 
 #define QLA82XX_HW_H0_CH_HUB_ADR    0x05
@@ -561,7 +562,6 @@
 #define QLA82XX_FW_VERSION_SUB		(QLA82XX_CAM_RAM(0x158))
 #define QLA82XX_PCIE_REG(reg)		(QLA82XX_CRB_PCIE + (reg))
 
-#define PCIE_CHICKEN3			(0x120c8)
 #define PCIE_SETUP_FUNCTION		(0x12040)
 #define PCIE_SETUP_FUNCTION2		(0x12048)
 
@@ -1178,4 +1178,16 @@ static const int MD_MIU_TEST_AGT_RDDATA[] = { 0x410000A8, 0x410000AC,
 #define CRB_NIU_XG_PAUSE_CTL_P0        0x1
 #define CRB_NIU_XG_PAUSE_CTL_P1        0x8
 
+#define qla82xx_get_temp_val(x)          ((x) >> 16)
+#define qla82xx_get_temp_state(x)        ((x) & 0xffff)
+#define qla82xx_encode_temp(val, state)  (((val) << 16) | (state))
+
+/*
+ * Temperature control.
+ */
+enum {
+	QLA82XX_TEMP_NORMAL = 0x1, /* Normal operating range */
+	QLA82XX_TEMP_WARN,	   /* Sound alert, temperature getting high */
+	QLA82XX_TEMP_PANIC	   /* Fatal error, hardware has shut down. */
+};
 #endif

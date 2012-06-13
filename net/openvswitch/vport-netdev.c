@@ -140,9 +140,9 @@ int ovs_netdev_get_ifindex(const struct vport *vport)
 	return netdev_vport->dev->ifindex;
 }
 
-static unsigned packet_length(const struct sk_buff *skb)
+static unsigned int packet_length(const struct sk_buff *skb)
 {
-	unsigned length = skb->len - ETH_HLEN;
+	unsigned int length = skb->len - ETH_HLEN;
 
 	if (skb->protocol == htons(ETH_P_8021Q))
 		length -= VLAN_HLEN;
@@ -157,9 +157,9 @@ static int netdev_send(struct vport *vport, struct sk_buff *skb)
 	int len;
 
 	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
-		if (net_ratelimit())
-			pr_warn("%s: dropped over-mtu packet: %d > %d\n",
-				ovs_dp_name(vport->dp), packet_length(skb), mtu);
+		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
+				     ovs_dp_name(vport->dp),
+				     packet_length(skb), mtu);
 		goto error;
 	}
 

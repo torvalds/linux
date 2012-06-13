@@ -15,7 +15,7 @@ config I2C_MUX_GPIO
 	  through GPIO pins.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called gpio-i2cmux.
+	  will be called i2c-mux-gpio.
 
 config I2C_MUX_PCA9541
 	tristate "NXP PCA9541 I2C Master Selector"
@@ -25,7 +25,7 @@ config I2C_MUX_PCA9541
 	  I2C Master Selector.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called pca9541.
+	  will be called i2c-mux-pca9541.
 
 config I2C_MUX_PCA954x
 	tristate "Philips PCA954x I2C Mux/switches"
@@ -35,6 +35,18 @@ config I2C_MUX_PCA954x
 	  I2C mux/switch devices.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called pca954x.
+	  will be called i2c-mux-pca954x.
+
+config I2C_MUX_PINCTRL
+	tristate "pinctrl-based I2C multiplexer"
+	depends on PINCTRL
+	help
+	  If you say yes to this option, support will be included for an I2C
+	  multiplexer that uses the pinctrl subsystem, i.e. pin multiplexing.
+	  This is useful for SoCs whose I2C module's signals can be routed to
+	  different sets of pins at run-time.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called pinctrl-i2cmux.
 
 endmenu

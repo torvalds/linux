@@ -669,6 +669,15 @@ config USB_SERIAL_SSU100
 	  To compile this driver as a module, choose M here: the
 	  module will be called ssu100.
 
+config USB_SERIAL_QT2
+	tristate "USB Quatech Serial Driver for USB 2 devices"
+	help
+	  Say Y here if you want to use the Quatech USB 2
+	  serial adapters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called quatech-serial.
+
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
 	help

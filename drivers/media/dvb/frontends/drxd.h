@@ -51,9 +51,23 @@ struct drxd_config {
 	 s16(*osc_deviation) (void *priv, s16 dev, int flag);
 };
 
+#if defined(CONFIG_DVB_DRXD) || \
+			(defined(CONFIG_DVB_DRXD_MODULE) && defined(MODULE))
 extern
 struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 				 void *priv, struct i2c_adapter *i2c,
 				 struct device *dev);
+#else
+static inline
+struct dvb_frontend *drxd_attach(const struct drxd_config *config,
+				 void *priv, struct i2c_adapter *i2c,
+				 struct device *dev)
+{
+	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
+	       __func__);
+	return NULL;
+}
+#endif
+
 extern int drxd_config_i2c(struct dvb_frontend *, int);
 #endif

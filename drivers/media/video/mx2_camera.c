@@ -22,6 +22,7 @@
 #include <linux/gcd.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/mm.h>
 #include <linux/moduleparam.h>
 #include <linux/time.h>
@@ -344,6 +345,19 @@ static struct mx2_fmt_cfg mx27_emma_prp_table[] = {
 					PRP_INTR_CH2OVF,
 		}
 	},
+	{
+		.in_fmt		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.out_fmt	= V4L2_PIX_FMT_YUV420,
+		.cfg		= {
+			.channel	= 2,
+			.in_fmt		= PRP_CNTL_DATA_IN_YUV422,
+			.out_fmt	= PRP_CNTL_CH2_OUT_YUV420,
+			.src_pixel	= 0x22000888, /* YUV422 (YUYV) */
+			.irq_flags	= PRP_INTR_RDERR | PRP_INTR_CH2WERR |
+					PRP_INTR_CH2FC | PRP_INTR_LBOVF |
+					PRP_INTR_CH2OVF,
+		}
+	},
 };
 
 static struct mx2_fmt_cfg *mx27_emma_prp_get_format(
@@ -525,8 +539,6 @@ static int mx2_videobuf_setup(struct vb2_queue *vq,
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-			icd->current_fmt->host_fmt);
 
 	dev_dbg(icd->parent, "count=%d, size=%d\n", *count, sizes[0]);
 
@@ -534,12 +546,9 @@ static int mx2_videobuf_setup(struct vb2_queue *vq,
 	if (fmt != NULL)
 		return -ENOTTY;
 
-	if (bytes_per_line < 0)
-		return bytes_per_line;
-
 	alloc_ctxs[0] = pcdev->alloc_ctx;
 
-	sizes[0] = bytes_per_line * icd->user_height;
+	sizes[0] = icd->sizeimage;
 
 	if (0 == *count)
 		*count = 32;
@@ -555,15 +564,10 @@ static int mx2_videobuf_setup(struct vb2_queue *vq,
 static int mx2_videobuf_prepare(struct vb2_buffer *vb)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-			icd->current_fmt->host_fmt);
 	int ret = 0;
 
 	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%p %lu\n", __func__,
 		vb, vb2_plane_vaddr(vb, 0), vb2_get_plane_payload(vb, 0));
-
-	if (bytes_per_line < 0)
-		return bytes_per_line;
 
 #ifdef DEBUG
 	/*
@@ -574,7 +578,7 @@ static int mx2_videobuf_prepare(struct vb2_buffer *vb)
 	       0xaa, vb2_get_plane_payload(vb, 0));
 #endif
 
-	vb2_set_plane_payload(vb, 0, bytes_per_line * icd->user_height);
+	vb2_set_plane_payload(vb, 0, icd->sizeimage);
 	if (vb2_plane_vaddr(vb, 0) &&
 	    vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0)) {
 		ret = -EINVAL;
@@ -980,6 +984,7 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 	struct v4l2_mbus_config cfg = {.type = V4L2_MBUS_PARALLEL,};
+	const struct soc_camera_format_xlate *xlate;
 	unsigned long common_flags;
 	int ret;
 	int bytesperline;
@@ -1024,14 +1029,31 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd)
 		return ret;
 	}
 
+	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
+	if (!xlate) {
+		dev_warn(icd->parent, "Format %x not found\n", pixfmt);
+		return -EINVAL;
+	}
+
+	if (xlate->code == V4L2_MBUS_FMT_YUYV8_2X8) {
+		csicr1 |= CSICR1_PACK_DIR;
+		csicr1 &= ~CSICR1_SWAP16_EN;
+		dev_dbg(icd->parent, "already yuyv format, don't convert\n");
+	} else if (xlate->code == V4L2_MBUS_FMT_UYVY8_2X8) {
+		csicr1 &= ~CSICR1_PACK_DIR;
+		csicr1 |= CSICR1_SWAP16_EN;
+		dev_dbg(icd->parent, "convert uyvy mbus format into yuyv\n");
+	} else {
+		dev_warn(icd->parent, "mbus format not supported\n");
+		return -EINVAL;
+	}
+
 	if (common_flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
 		csicr1 |= CSICR1_REDGE;
 	if (common_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH)
 		csicr1 |= CSICR1_SOF_POL;
 	if (common_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
 		csicr1 |= CSICR1_HSYNC_POL;
-	if (pcdev->platform_flags & MX2_CAMERA_SWAP16)
-		csicr1 |= CSICR1_SWAP16_EN;
 	if (pcdev->platform_flags & MX2_CAMERA_EXT_VSYNC)
 		csicr1 |= CSICR1_EXT_VSYNC;
 	if (pcdev->platform_flags & MX2_CAMERA_CCIR)
@@ -1042,8 +1064,6 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd)
 		csicr1 |= CSICR1_GCLK_MODE;
 	if (pcdev->platform_flags & MX2_CAMERA_INV_DATA)
 		csicr1 |= CSICR1_INV_DATA;
-	if (pcdev->platform_flags & MX2_CAMERA_PACK_DIR_MSB)
-		csicr1 |= CSICR1_PACK_DIR;
 
 	pcdev->csicr1 = csicr1;
 
@@ -1118,7 +1138,8 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 		return 0;
 	}
 
-	if (code == V4L2_MBUS_FMT_YUYV8_2X8) {
+	if (code == V4L2_MBUS_FMT_YUYV8_2X8 ||
+	    code == V4L2_MBUS_FMT_UYVY8_2X8) {
 		formats++;
 		if (xlate) {
 			/*
@@ -1130,6 +1151,18 @@ static int mx2_camera_get_formats(struct soc_camera_device *icd,
 			xlate->code	= code;
 			dev_dbg(dev, "Providing host format %s for sensor code %d\n",
 			       xlate->host_fmt->name, code);
+			xlate++;
+		}
+	}
+
+	if (code == V4L2_MBUS_FMT_UYVY8_2X8) {
+		formats++;
+		if (xlate) {
+			xlate->host_fmt =
+				soc_mbus_get_fmtdesc(V4L2_MBUS_FMT_YUYV8_2X8);
+			xlate->code	= code;
+			dev_dbg(dev, "Providing host format %s for sensor code %d\n",
+				xlate->host_fmt->name, code);
 			xlate++;
 		}
 	}
@@ -1363,17 +1396,20 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 				xlate->host_fmt);
 		if (pix->bytesperline < 0)
 			return pix->bytesperline;
-		pix->sizeimage = pix->height * pix->bytesperline;
+		pix->sizeimage = soc_mbus_image_size(xlate->host_fmt,
+						pix->bytesperline, pix->height);
 		/* Check against the CSIRXCNT limit */
 		if (pix->sizeimage > 4 * 0x3ffff) {
 			/* Adjust geometry, preserve aspect ratio */
-			unsigned int new_height = int_sqrt(4 * 0x3ffff *
-					pix->height / pix->bytesperline);
+			unsigned int new_height = int_sqrt(div_u64(0x3ffffULL *
+					4 * pix->height, pix->bytesperline));
 			pix->width = new_height * pix->width / pix->height;
 			pix->height = new_height;
 			pix->bytesperline = soc_mbus_bytes_per_line(pix->width,
 							xlate->host_fmt);
 			BUG_ON(pix->bytesperline < 0);
+			pix->sizeimage = soc_mbus_image_size(xlate->host_fmt,
+						pix->bytesperline, pix->height);
 		}
 	}
 
@@ -1752,6 +1788,8 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 	pcdev->soc_host.priv		= pcdev;
 	pcdev->soc_host.v4l2_dev.dev	= &pdev->dev;
 	pcdev->soc_host.nr		= pdev->id;
+	if (cpu_is_mx25())
+		pcdev->soc_host.capabilities = SOCAM_HOST_CAP_STRIDE;
 
 	pcdev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
 	if (IS_ERR(pcdev->alloc_ctx)) {

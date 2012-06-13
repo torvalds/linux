@@ -216,7 +216,7 @@ static bool firmware_check_ready(struct net_device *dev,
 		break;
 	default:
 		rt_status = false;
-		RT_TRACE(COMP_FIRMWARE, "Unknown firware status");
+		RT_TRACE(COMP_FIRMWARE, "Unknown firmware status");
 		break;
 	}
 

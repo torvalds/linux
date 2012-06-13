@@ -1933,11 +1933,7 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	kfree(buf);
 
 nofw:
-	if (sd_fw != NULL) {
-		release_firmware(sd_fw);
-		sd_fw = NULL;
-	}
-
+	release_firmware(sd_fw);
 	return result;
 }
 

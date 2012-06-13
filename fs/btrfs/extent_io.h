@@ -39,6 +39,7 @@
 #define EXTENT_BUFFER_STALE 6
 #define EXTENT_BUFFER_WRITEBACK 7
 #define EXTENT_BUFFER_IOERR 8
+#define EXTENT_BUFFER_DUMMY 9
 
 /* these are flags for extent_clear_unlock_delalloc */
 #define EXTENT_CLEAR_UNLOCK_PAGE 0x1
@@ -75,11 +76,8 @@ struct extent_io_ops {
 			      unsigned long bio_flags);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
-	int (*writepage_io_failed_hook)(struct bio *bio, struct page *page,
-					u64 start, u64 end,
-				       struct extent_state *state);
 	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
-				    struct extent_state *state);
+				    struct extent_state *state, int mirror);
 	int (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state, int uptodate);
 	void (*set_bit_hook)(struct inode *inode, struct extent_state *state,
@@ -135,7 +133,7 @@ struct extent_buffer {
 	spinlock_t refs_lock;
 	atomic_t refs;
 	atomic_t io_pages;
-	int failed_mirror;
+	int read_mirror;
 	struct list_head leak_list;
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
@@ -225,6 +223,8 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   struct extent_state **cached_state, gfp_t mask);
 int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 			struct extent_state **cached_state, gfp_t mask);
+int clear_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
+			  struct extent_state **cached_state, gfp_t mask);
 int set_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
 		   gfp_t mask);
 int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
@@ -265,6 +265,8 @@ void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 					  u64 start, unsigned long len);
+struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len);
+struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src);
 struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 					 u64 start, unsigned long len);
 void free_extent_buffer(struct extent_buffer *eb);

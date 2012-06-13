@@ -26,9 +26,11 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+
 #define CONVERSION_TIME_MS		100
 
 #define ISL29018_REG_ADD_COMMAND1	0x00
@@ -51,49 +53,22 @@
 
 #define ISL29018_REG_ADD_DATA_LSB	0x02
 #define ISL29018_REG_ADD_DATA_MSB	0x03
-#define ISL29018_MAX_REGS		(ISL29018_REG_ADD_DATA_MSB+1)
 
 #define ISL29018_REG_TEST		0x08
 #define ISL29018_TEST_SHIFT		0
 #define ISL29018_TEST_MASK		(0xFF << ISL29018_TEST_SHIFT)
 
 struct isl29018_chip {
-	struct i2c_client	*client;
+	struct device		*dev;
+	struct regmap		*regmap;
 	struct mutex		lock;
 	unsigned int		lux_scale;
 	unsigned int		range;
 	unsigned int		adc_bit;
 	int			prox_scheme;
-	u8			reg_cache[ISL29018_MAX_REGS];
 };
 
-static int isl29018_write_data(struct i2c_client *client, u8 reg,
-			u8 val, u8 mask, u8 shift)
-{
-	u8 regval = val;
-	int ret;
-	struct isl29018_chip *chip = iio_priv(i2c_get_clientdata(client));
-
-	/* don't cache or mask REG_TEST */
-	if (reg < ISL29018_MAX_REGS) {
-		regval = chip->reg_cache[reg];
-		regval &= ~mask;
-		regval |= val << shift;
-	}
-
-	ret = i2c_smbus_write_byte_data(client, reg, regval);
-	if (ret) {
-		dev_err(&client->dev, "Write to device fails status %x\n", ret);
-	} else {
-		/* don't update cache on err */
-		if (reg < ISL29018_MAX_REGS)
-			chip->reg_cache[reg] = regval;
-	}
-
-	return ret;
-}
-
-static int isl29018_set_range(struct i2c_client *client, unsigned long range,
+static int isl29018_set_range(struct isl29018_chip *chip, unsigned long range,
 		unsigned int *new_range)
 {
 	static const unsigned long supp_ranges[] = {1000, 4000, 16000, 64000};
@@ -109,11 +84,11 @@ static int isl29018_set_range(struct i2c_client *client, unsigned long range,
 	if (i >= ARRAY_SIZE(supp_ranges))
 		return -EINVAL;
 
-	return isl29018_write_data(client, ISL29018_REG_ADD_COMMANDII,
-			i, COMMANDII_RANGE_MASK, COMMANDII_RANGE_SHIFT);
+	return regmap_update_bits(chip->regmap, ISL29018_REG_ADD_COMMANDII,
+			COMMANDII_RANGE_MASK, i << COMMANDII_RANGE_SHIFT);
 }
 
-static int isl29018_set_resolution(struct i2c_client *client,
+static int isl29018_set_resolution(struct isl29018_chip *chip,
 			unsigned long adcbit, unsigned int *conf_adc_bit)
 {
 	static const unsigned long supp_adcbit[] = {16, 12, 8, 4};
@@ -129,48 +104,49 @@ static int isl29018_set_resolution(struct i2c_client *client,
 	if (i >= ARRAY_SIZE(supp_adcbit))
 		return -EINVAL;
 
-	return isl29018_write_data(client, ISL29018_REG_ADD_COMMANDII,
-			i, COMMANDII_RESOLUTION_MASK,
-			COMMANDII_RESOLUTION_SHIFT);
+	return regmap_update_bits(chip->regmap, ISL29018_REG_ADD_COMMANDII,
+			COMMANDII_RESOLUTION_MASK,
+			i << COMMANDII_RESOLUTION_SHIFT);
 }
 
-static int isl29018_read_sensor_input(struct i2c_client *client, int mode)
+static int isl29018_read_sensor_input(struct isl29018_chip *chip, int mode)
 {
 	int status;
-	int lsb;
-	int msb;
+	unsigned int lsb;
+	unsigned int msb;
 
 	/* Set mode */
-	status = isl29018_write_data(client, ISL29018_REG_ADD_COMMAND1,
-			mode, COMMMAND1_OPMODE_MASK, COMMMAND1_OPMODE_SHIFT);
+	status = regmap_write(chip->regmap, ISL29018_REG_ADD_COMMAND1,
+			mode << COMMMAND1_OPMODE_SHIFT);
 	if (status) {
-		dev_err(&client->dev, "Error in setting operating mode\n");
+		dev_err(chip->dev,
+			"Error in setting operating mode err %d\n", status);
 		return status;
 	}
 	msleep(CONVERSION_TIME_MS);
-	lsb = i2c_smbus_read_byte_data(client, ISL29018_REG_ADD_DATA_LSB);
-	if (lsb < 0) {
-		dev_err(&client->dev, "Error in reading LSB DATA\n");
-		return lsb;
+	status = regmap_read(chip->regmap, ISL29018_REG_ADD_DATA_LSB, &lsb);
+	if (status < 0) {
+		dev_err(chip->dev,
+			"Error in reading LSB DATA with err %d\n", status);
+		return status;
 	}
 
-	msb = i2c_smbus_read_byte_data(client, ISL29018_REG_ADD_DATA_MSB);
-	if (msb < 0) {
-		dev_err(&client->dev, "Error in reading MSB DATA\n");
-		return msb;
+	status = regmap_read(chip->regmap, ISL29018_REG_ADD_DATA_MSB, &msb);
+	if (status < 0) {
+		dev_err(chip->dev,
+			"Error in reading MSB DATA with error %d\n", status);
+		return status;
 	}
-	dev_vdbg(&client->dev, "MSB 0x%x and LSB 0x%x\n", msb, lsb);
+	dev_vdbg(chip->dev, "MSB 0x%x and LSB 0x%x\n", msb, lsb);
 
 	return (msb << 8) | lsb;
 }
 
-static int isl29018_read_lux(struct i2c_client *client, int *lux)
+static int isl29018_read_lux(struct isl29018_chip *chip, int *lux)
 {
 	int lux_data;
-	struct isl29018_chip *chip = iio_priv(i2c_get_clientdata(client));
 
-	lux_data = isl29018_read_sensor_input(client,
-				COMMMAND1_OPMODE_ALS_ONCE);
+	lux_data = isl29018_read_sensor_input(chip, COMMMAND1_OPMODE_ALS_ONCE);
 
 	if (lux_data < 0)
 		return lux_data;
@@ -180,11 +156,11 @@ static int isl29018_read_lux(struct i2c_client *client, int *lux)
 	return 0;
 }
 
-static int isl29018_read_ir(struct i2c_client *client, int *ir)
+static int isl29018_read_ir(struct isl29018_chip *chip, int *ir)
 {
 	int ir_data;
 
-	ir_data = isl29018_read_sensor_input(client, COMMMAND1_OPMODE_IR_ONCE);
+	ir_data = isl29018_read_sensor_input(chip, COMMMAND1_OPMODE_IR_ONCE);
 
 	if (ir_data < 0)
 		return ir_data;
@@ -194,7 +170,7 @@ static int isl29018_read_ir(struct i2c_client *client, int *ir)
 	return 0;
 }
 
-static int isl29018_read_proximity_ir(struct i2c_client *client, int scheme,
+static int isl29018_read_proximity_ir(struct isl29018_chip *chip, int scheme,
 		int *near_ir)
 {
 	int status;
@@ -202,14 +178,15 @@ static int isl29018_read_proximity_ir(struct i2c_client *client, int scheme,
 	int ir_data = -1;
 
 	/* Do proximity sensing with required scheme */
-	status = isl29018_write_data(client, ISL29018_REG_ADD_COMMANDII,
-			scheme, COMMANDII_SCHEME_MASK, COMMANDII_SCHEME_SHIFT);
+	status = regmap_update_bits(chip->regmap, ISL29018_REG_ADD_COMMANDII,
+			COMMANDII_SCHEME_MASK,
+			scheme << COMMANDII_SCHEME_SHIFT);
 	if (status) {
-		dev_err(&client->dev, "Error in setting operating mode\n");
+		dev_err(chip->dev, "Error in setting operating mode\n");
 		return status;
 	}
 
-	prox_data = isl29018_read_sensor_input(client,
+	prox_data = isl29018_read_sensor_input(chip,
 					COMMMAND1_OPMODE_PROX_ONCE);
 	if (prox_data < 0)
 		return prox_data;
@@ -219,8 +196,7 @@ static int isl29018_read_proximity_ir(struct i2c_client *client, int scheme,
 		return 0;
 	}
 
-	ir_data = isl29018_read_sensor_input(client,
-				COMMMAND1_OPMODE_IR_ONCE);
+	ir_data = isl29018_read_sensor_input(chip, COMMMAND1_OPMODE_IR_ONCE);
 
 	if (ir_data < 0)
 		return ir_data;
@@ -238,7 +214,7 @@ static int isl29018_read_proximity_ir(struct i2c_client *client, int scheme,
 static ssize_t show_range(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", chip->range);
@@ -247,9 +223,8 @@ static ssize_t show_range(struct device *dev,
 static ssize_t store_range(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
-	struct i2c_client *client = chip->client;
 	int status;
 	unsigned long lval;
 	unsigned int new_range;
@@ -264,10 +239,11 @@ static ssize_t store_range(struct device *dev,
 	}
 
 	mutex_lock(&chip->lock);
-	status = isl29018_set_range(client, lval, &new_range);
+	status = isl29018_set_range(chip, lval, &new_range);
 	if (status < 0) {
 		mutex_unlock(&chip->lock);
-		dev_err(dev, "Error in setting max range\n");
+		dev_err(dev,
+			"Error in setting max range with err %d\n", status);
 		return status;
 	}
 	chip->range = new_range;
@@ -280,7 +256,7 @@ static ssize_t store_range(struct device *dev,
 static ssize_t show_resolution(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", chip->adc_bit);
@@ -289,9 +265,8 @@ static ssize_t show_resolution(struct device *dev,
 static ssize_t store_resolution(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
-	struct i2c_client *client = chip->client;
 	int status;
 	unsigned long lval;
 	unsigned int new_adc_bit;
@@ -304,7 +279,7 @@ static ssize_t store_resolution(struct device *dev,
 	}
 
 	mutex_lock(&chip->lock);
-	status = isl29018_set_resolution(client, lval, &new_adc_bit);
+	status = isl29018_set_resolution(chip, lval, &new_adc_bit);
 	if (status < 0) {
 		mutex_unlock(&chip->lock);
 		dev_err(dev, "Error in setting resolution\n");
@@ -320,7 +295,7 @@ static ssize_t store_resolution(struct device *dev,
 static ssize_t show_prox_infrared_supression(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
 	/* return the "proximity scheme" i.e. if the chip does on chip
@@ -331,7 +306,7 @@ static ssize_t show_prox_infrared_supression(struct device *dev,
 static ssize_t store_prox_infrared_supression(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 	unsigned long lval;
 
@@ -379,20 +354,20 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 {
 	int ret = -EINVAL;
 	struct isl29018_chip *chip = iio_priv(indio_dev);
-	struct i2c_client *client = chip->client;
 
 	mutex_lock(&chip->lock);
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
+	case IIO_CHAN_INFO_PROCESSED:
 		switch (chan->type) {
 		case IIO_LIGHT:
-			ret = isl29018_read_lux(client, val);
+			ret = isl29018_read_lux(chip, val);
 			break;
 		case IIO_INTENSITY:
-			ret = isl29018_read_ir(client, val);
+			ret = isl29018_read_ir(chip, val);
 			break;
 		case IIO_PROXIMITY:
-			ret = isl29018_read_proximity_ir(client,
+			ret = isl29018_read_proximity_ir(chip,
 					chip->prox_scheme, val);
 			break;
 		default:
@@ -419,15 +394,17 @@ static const struct iio_chan_spec isl29018_channels[] = {
 		.type = IIO_LIGHT,
 		.indexed = 1,
 		.channel = 0,
-		.processed_val = IIO_PROCESSED,
-		.info_mask = IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
 	}, {
 		.type = IIO_INTENSITY,
 		.modified = 1,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 		.channel2 = IIO_MOD_LIGHT_IR,
 	}, {
 		/* Unindexed in current ABI.  But perhaps it should be. */
 		.type = IIO_PROXIMITY,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 	}
 };
 
@@ -456,14 +433,11 @@ static const struct attribute_group isl29108_group = {
 	.attrs = isl29018_attributes,
 };
 
-static int isl29018_chip_init(struct i2c_client *client)
+static int isl29018_chip_init(struct isl29018_chip *chip)
 {
-	struct isl29018_chip *chip = iio_priv(i2c_get_clientdata(client));
 	int status;
 	int new_adc_bit;
 	unsigned int new_range;
-
-	memset(chip->reg_cache, 0, sizeof(chip->reg_cache));
 
 	/* Code added per Intersil Application Note 1534:
 	 *     When VDD sinks to approximately 1.8V or below, some of
@@ -485,10 +459,9 @@ static int isl29018_chip_init(struct i2c_client *client)
 	 * the same thing EXCEPT the data sheet asks for a 1ms delay after
 	 * writing the CMD1 register.
 	 */
-	status = isl29018_write_data(client, ISL29018_REG_TEST, 0,
-				ISL29018_TEST_MASK, ISL29018_TEST_SHIFT);
+	status = regmap_write(chip->regmap, ISL29018_REG_TEST, 0x0);
 	if (status < 0) {
-		dev_err(&client->dev, "Failed to clear isl29018 TEST reg."
+		dev_err(chip->dev, "Failed to clear isl29018 TEST reg."
 					"(%d)\n", status);
 		return status;
 	}
@@ -497,10 +470,9 @@ static int isl29018_chip_init(struct i2c_client *client)
 	 * "Operating Mode" (COMMAND1) register is reprogrammed when
 	 * data is read from the device.
 	 */
-	status = isl29018_write_data(client, ISL29018_REG_ADD_COMMAND1, 0,
-				0xff, 0);
+	status = regmap_write(chip->regmap, ISL29018_REG_ADD_COMMAND1, 0);
 	if (status < 0) {
-		dev_err(&client->dev, "Failed to clear isl29018 CMD1 reg."
+		dev_err(chip->dev, "Failed to clear isl29018 CMD1 reg."
 					"(%d)\n", status);
 		return status;
 	}
@@ -508,13 +480,13 @@ static int isl29018_chip_init(struct i2c_client *client)
 	msleep(1);	/* per data sheet, page 10 */
 
 	/* set defaults */
-	status = isl29018_set_range(client, chip->range, &new_range);
+	status = isl29018_set_range(chip, chip->range, &new_range);
 	if (status < 0) {
-		dev_err(&client->dev, "Init of isl29018 fails\n");
+		dev_err(chip->dev, "Init of isl29018 fails\n");
 		return status;
 	}
 
-	status = isl29018_set_resolution(client, chip->adc_bit,
+	status = isl29018_set_resolution(chip, chip->adc_bit,
 						&new_adc_bit);
 
 	return 0;
@@ -527,6 +499,32 @@ static const struct iio_info isl29108_info = {
 	.write_raw = &isl29018_write_raw,
 };
 
+static bool is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case ISL29018_REG_ADD_DATA_LSB:
+	case ISL29018_REG_ADD_DATA_MSB:
+	case ISL29018_REG_ADD_COMMAND1:
+	case ISL29018_REG_TEST:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/*
+ * isl29018_regmap_config: regmap configuration.
+ * Use RBTREE mechanism for caching.
+ */
+static const struct regmap_config isl29018_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.volatile_reg = is_volatile_reg,
+	.max_register = ISL29018_REG_TEST,
+	.num_reg_defaults_raw = ISL29018_REG_TEST + 1,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 static int __devinit isl29018_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -534,7 +532,7 @@ static int __devinit isl29018_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int err;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		dev_err(&client->dev, "iio allocation fails\n");
 		err = -ENOMEM;
@@ -543,7 +541,7 @@ static int __devinit isl29018_probe(struct i2c_client *client,
 	chip = iio_priv(indio_dev);
 
 	i2c_set_clientdata(client, indio_dev);
-	chip->client = client;
+	chip->dev = &client->dev;
 
 	mutex_init(&chip->lock);
 
@@ -551,7 +549,14 @@ static int __devinit isl29018_probe(struct i2c_client *client,
 	chip->range = 1000;
 	chip->adc_bit = 16;
 
-	err = isl29018_chip_init(client);
+	chip->regmap = devm_regmap_init_i2c(client, &isl29018_regmap_config);
+	if (IS_ERR(chip->regmap)) {
+		err = PTR_ERR(chip->regmap);
+		dev_err(chip->dev, "regmap initialization failed: %d\n", err);
+		goto exit;
+	}
+
+	err = isl29018_chip_init(chip);
 	if (err)
 		goto exit_iio_free;
 
@@ -569,7 +574,7 @@ static int __devinit isl29018_probe(struct i2c_client *client,
 
 	return 0;
 exit_iio_free:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 exit:
 	return err;
 }
@@ -580,7 +585,7 @@ static int __devexit isl29018_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "%s()\n", __func__);
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }
@@ -593,7 +598,7 @@ static const struct i2c_device_id isl29018_id[] = {
 MODULE_DEVICE_TABLE(i2c, isl29018_id);
 
 static const struct of_device_id isl29018_of_match[] = {
-	{ .compatible = "invn,isl29018", },
+	{ .compatible = "isil,isl29018", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, isl29018_of_match);

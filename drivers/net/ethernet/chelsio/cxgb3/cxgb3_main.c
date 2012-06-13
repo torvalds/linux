@@ -1150,6 +1150,48 @@ release_tpsram:
 }
 
 /**
+ * t3_synchronize_rx - wait for current Rx processing on a port to complete
+ * @adap: the adapter
+ * @p: the port
+ *
+ * Ensures that current Rx processing on any of the queues associated with
+ * the given port completes before returning.  We do this by acquiring and
+ * releasing the locks of the response queues associated with the port.
+ */
+static void t3_synchronize_rx(struct adapter *adap, const struct port_info *p)
+{
+	int i;
+
+	for (i = p->first_qset; i < p->first_qset + p->nqsets; i++) {
+		struct sge_rspq *q = &adap->sge.qs[i].rspq;
+
+		spin_lock_irq(&q->lock);
+		spin_unlock_irq(&q->lock);
+	}
+}
+
+static void cxgb_vlan_mode(struct net_device *dev, netdev_features_t features)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
+
+	if (adapter->params.rev > 0) {
+		t3_set_vlan_accel(adapter, 1 << pi->port_id,
+				  features & NETIF_F_HW_VLAN_RX);
+	} else {
+		/* single control for all ports */
+		unsigned int i, have_vlans = features & NETIF_F_HW_VLAN_RX;
+
+		for_each_port(adapter, i)
+			have_vlans |=
+				adapter->port[i]->features & NETIF_F_HW_VLAN_RX;
+
+		t3_set_vlan_accel(adapter, 1, have_vlans);
+	}
+	t3_synchronize_rx(adapter, pi);
+}
+
+/**
  *	cxgb_up - enable the adapter
  *	@adapter: adapter being enabled
  *
@@ -1161,7 +1203,7 @@ release_tpsram:
  */
 static int cxgb_up(struct adapter *adap)
 {
-	int err;
+	int i, err;
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
 		err = t3_check_fw_version(adap);
@@ -1197,6 +1239,9 @@ static int cxgb_up(struct adapter *adap)
 		err = setup_sge_qsets(adap);
 		if (err)
 			goto out;
+
+		for_each_port(adap, i)
+			cxgb_vlan_mode(adap->port[i], adap->port[i]->features);
 
 		setup_rss(adap);
 		if (!(adap->flags & NAPI_INIT))
@@ -2508,48 +2553,6 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
-/**
- * t3_synchronize_rx - wait for current Rx processing on a port to complete
- * @adap: the adapter
- * @p: the port
- *
- * Ensures that current Rx processing on any of the queues associated with
- * the given port completes before returning.  We do this by acquiring and
- * releasing the locks of the response queues associated with the port.
- */
-static void t3_synchronize_rx(struct adapter *adap, const struct port_info *p)
-{
-	int i;
-
-	for (i = p->first_qset; i < p->first_qset + p->nqsets; i++) {
-		struct sge_rspq *q = &adap->sge.qs[i].rspq;
-
-		spin_lock_irq(&q->lock);
-		spin_unlock_irq(&q->lock);
-	}
-}
-
-static void cxgb_vlan_mode(struct net_device *dev, netdev_features_t features)
-{
-	struct port_info *pi = netdev_priv(dev);
-	struct adapter *adapter = pi->adapter;
-
-	if (adapter->params.rev > 0) {
-		t3_set_vlan_accel(adapter, 1 << pi->port_id,
-				  features & NETIF_F_HW_VLAN_RX);
-	} else {
-		/* single control for all ports */
-		unsigned int i, have_vlans = features & NETIF_F_HW_VLAN_RX;
-
-		for_each_port(adapter, i)
-			have_vlans |=
-				adapter->port[i]->features & NETIF_F_HW_VLAN_RX;
-
-		t3_set_vlan_accel(adapter, 1, have_vlans);
-	}
-	t3_synchronize_rx(adapter, pi);
-}
-
 static netdev_features_t cxgb_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
@@ -3352,9 +3355,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	err = sysfs_create_group(&adapter->port[0]->dev.kobj,
 				 &cxgb3_attr_group);
-
-	for_each_port(adapter, i)
-		cxgb_vlan_mode(adapter->port[i], adapter->port[i]->features);
 
 	print_port_info(adapter, ai);
 	return 0;

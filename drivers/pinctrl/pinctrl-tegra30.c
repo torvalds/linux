@@ -1,7 +1,7 @@
 /*
  * Pinctrl data for the NVIDIA Tegra30 pinmux
  *
- * Copyright (c) 2011, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2011-2012, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -13,6 +13,8 @@
  * more details.
  */
 
+#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
@@ -3720,7 +3722,39 @@ static const struct tegra_pinctrl_soc_data tegra30_pinctrl = {
 	.ngroups = ARRAY_SIZE(tegra30_groups),
 };
 
-void __devinit tegra30_pinctrl_init(const struct tegra_pinctrl_soc_data **soc)
+static int __devinit tegra30_pinctrl_probe(struct platform_device *pdev)
 {
-	*soc = &tegra30_pinctrl;
+	return tegra_pinctrl_probe(pdev, &tegra30_pinctrl);
 }
+
+static struct of_device_id tegra30_pinctrl_of_match[] __devinitdata = {
+	{ .compatible = "nvidia,tegra30-pinmux", },
+	{ },
+};
+
+static struct platform_driver tegra30_pinctrl_driver = {
+	.driver = {
+		.name = "tegra30-pinctrl",
+		.owner = THIS_MODULE,
+		.of_match_table = tegra30_pinctrl_of_match,
+	},
+	.probe = tegra30_pinctrl_probe,
+	.remove = __devexit_p(tegra_pinctrl_remove),
+};
+
+static int __init tegra30_pinctrl_init(void)
+{
+	return platform_driver_register(&tegra30_pinctrl_driver);
+}
+arch_initcall(tegra30_pinctrl_init);
+
+static void __exit tegra30_pinctrl_exit(void)
+{
+	platform_driver_unregister(&tegra30_pinctrl_driver);
+}
+module_exit(tegra30_pinctrl_exit);
+
+MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
+MODULE_DESCRIPTION("NVIDIA Tegra30 pinctrl driver");
+MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(of, tegra30_pinctrl_of_match);

@@ -181,7 +181,6 @@ extern void init_cayman_irq(void);
 
 static struct sh_machine_vector mv_cayman __initmv = {
 	.mv_name		= "Hitachi Cayman",
-	.mv_nr_irqs		= 64,
 	.mv_ioport_map		= cayman_ioport_map,
 	.mv_init_irq		= init_cayman_irq,
 };

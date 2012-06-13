@@ -103,7 +103,7 @@ static void
 ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 				 struct sk_buff *skb,
 				 struct ieee80211_rate *rate,
-				 int rtap_len)
+				 int rtap_len, bool has_fcs)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_radiotap_header *rthdr;
@@ -134,7 +134,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	}
 
 	/* IEEE80211_RADIOTAP_FLAGS */
-	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
+	if (has_fcs && (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS))
 		*pos |= IEEE80211_RADIOTAP_F_FCS;
 	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
 		*pos |= IEEE80211_RADIOTAP_F_BADFCS;
@@ -204,14 +204,14 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 
 	if (status->flag & RX_FLAG_HT) {
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_MCS);
-		*pos++ = IEEE80211_RADIOTAP_MCS_HAVE_MCS |
-			 IEEE80211_RADIOTAP_MCS_HAVE_GI |
-			 IEEE80211_RADIOTAP_MCS_HAVE_BW;
+		*pos++ = local->hw.radiotap_mcs_details;
 		*pos = 0;
 		if (status->flag & RX_FLAG_SHORT_GI)
 			*pos |= IEEE80211_RADIOTAP_MCS_SGI;
 		if (status->flag & RX_FLAG_40MHZ)
 			*pos |= IEEE80211_RADIOTAP_MCS_BW_40;
+		if (status->flag & RX_FLAG_HT_GF)
+			*pos |= IEEE80211_RADIOTAP_MCS_FMT_GF;
 		pos++;
 		*pos++ = status->rate_idx;
 	}
@@ -294,7 +294,8 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	}
 
 	/* prepend radiotap information */
-	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom);
+	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom,
+					 true);
 
 	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -425,6 +426,7 @@ ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
 
 	if (test_bit(SCAN_HW_SCANNING, &local->scanning) ||
 	    test_bit(SCAN_SW_SCANNING, &local->scanning) ||
+	    test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
 	    local->sched_scanning)
 		return ieee80211_scan_rx(rx->sdata, skb);
 
@@ -490,12 +492,12 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 			if (ieee80211_has_tods(hdr->frame_control) ||
 				!ieee80211_has_fromds(hdr->frame_control))
 				return RX_DROP_MONITOR;
-			if (compare_ether_addr(hdr->addr3, dev_addr) == 0)
+			if (ether_addr_equal(hdr->addr3, dev_addr))
 				return RX_DROP_MONITOR;
 		} else {
 			if (!ieee80211_has_a4(hdr->frame_control))
 				return RX_DROP_MONITOR;
-			if (compare_ether_addr(hdr->addr4, dev_addr) == 0)
+			if (ether_addr_equal(hdr->addr4, dev_addr))
 				return RX_DROP_MONITOR;
 		}
 	}
@@ -793,8 +795,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx)
 
 	/* reset session timer */
 	if (tid_agg_rx->timeout)
-		mod_timer(&tid_agg_rx->session_timer,
-			  TU_TO_EXP_TIME(tid_agg_rx->timeout));
+		tid_agg_rx->last_rx = jiffies;
 
 	/* if this mpdu is fragmented - terminate rx aggregation session */
 	sc = le16_to_cpu(hdr->seq_ctrl);
@@ -1274,7 +1275,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (rx->sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
 						NL80211_IFTYPE_ADHOC);
-		if (compare_ether_addr(bssid, rx->sdata->u.ibss.bssid) == 0) {
+		if (ether_addr_equal(bssid, rx->sdata->u.ibss.bssid)) {
 			sta->last_rx = jiffies;
 			if (ieee80211_is_data(hdr->frame_control)) {
 				sta->last_rx_rate_idx = status->rate_idx;
@@ -1437,8 +1438,8 @@ ieee80211_reassemble_find(struct ieee80211_sub_if_data *sdata,
 		 */
 		if (((hdr->frame_control ^ f_hdr->frame_control) &
 		     cpu_to_le16(IEEE80211_FCTL_FTYPE)) ||
-		    compare_ether_addr(hdr->addr1, f_hdr->addr1) != 0 ||
-		    compare_ether_addr(hdr->addr2, f_hdr->addr2) != 0)
+		    !ether_addr_equal(hdr->addr1, f_hdr->addr1) ||
+		    !ether_addr_equal(hdr->addr2, f_hdr->addr2))
 			continue;
 
 		if (time_after(jiffies, entry->first_frag_time + 2 * HZ)) {
@@ -1713,8 +1714,8 @@ static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc)
 	 * of whether the frame was encrypted or not.
 	 */
 	if (ehdr->h_proto == rx->sdata->control_port_protocol &&
-	    (compare_ether_addr(ehdr->h_dest, rx->sdata->vif.addr) == 0 ||
-	     compare_ether_addr(ehdr->h_dest, pae_group_addr) == 0))
+	    (ether_addr_equal(ehdr->h_dest, rx->sdata->vif.addr) ||
+	     ether_addr_equal(ehdr->h_dest, pae_group_addr)))
 		return true;
 
 	if (ieee80211_802_1x_port_control(rx) ||
@@ -1751,9 +1752,9 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 			 * local net stack and back to the wireless medium
 			 */
 			xmit_skb = skb_copy(skb, GFP_ATOMIC);
-			if (!xmit_skb && net_ratelimit())
-				printk(KERN_DEBUG "%s: failed to clone "
-				       "multicast frame\n", dev->name);
+			if (!xmit_skb)
+				net_dbg_ratelimited("%s: failed to clone multicast frame\n",
+						    dev->name);
 		} else {
 			dsta = sta_info_get(sdata, skb->data);
 			if (dsta) {
@@ -1924,7 +1925,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			mpp_path_add(proxied_addr, mpp_addr, sdata);
 		} else {
 			spin_lock_bh(&mppath->state_lock);
-			if (compare_ether_addr(mppath->mpp, mpp_addr) != 0)
+			if (!ether_addr_equal(mppath->mpp, mpp_addr))
 				memcpy(mppath->mpp, mpp_addr, ETH_ALEN);
 			spin_unlock_bh(&mppath->state_lock);
 		}
@@ -1933,7 +1934,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 	/* Frame has reached destination.  Don't forward */
 	if (!is_multicast_ether_addr(hdr->addr1) &&
-	    compare_ether_addr(sdata->vif.addr, hdr->addr3) == 0)
+	    ether_addr_equal(sdata->vif.addr, hdr->addr3))
 		return RX_CONTINUE;
 
 	q = ieee80211_select_queue_80211(local, skb, hdr);
@@ -1956,9 +1957,8 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 	fwd_skb = skb_copy(skb, GFP_ATOMIC);
 	if (!fwd_skb) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: failed to clone mesh frame\n",
-					sdata->name);
+		net_dbg_ratelimited("%s: failed to clone mesh frame\n",
+				    sdata->name);
 		goto out;
 	}
 
@@ -2121,13 +2121,13 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *resp;
 
-	if (compare_ether_addr(mgmt->da, sdata->vif.addr) != 0) {
+	if (!ether_addr_equal(mgmt->da, sdata->vif.addr)) {
 		/* Not to own unicast address */
 		return;
 	}
 
-	if (compare_ether_addr(mgmt->sa, sdata->u.mgd.bssid) != 0 ||
-	    compare_ether_addr(mgmt->bssid, sdata->u.mgd.bssid) != 0) {
+	if (!ether_addr_equal(mgmt->sa, sdata->u.mgd.bssid) ||
+	    !ether_addr_equal(mgmt->bssid, sdata->u.mgd.bssid)) {
 		/* Not from the current AP or not associated yet. */
 		return;
 	}
@@ -2269,11 +2269,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 			sband = rx->local->hw.wiphy->bands[status->band];
 
-			rate_control_rate_update(
-				local, sband, rx->sta,
-				IEEE80211_RC_SMPS_CHANGED,
-				ieee80211_get_tx_channel_type(
-					local, local->_oper_channel_type));
+			rate_control_rate_update(local, sband, rx->sta,
+						 IEEE80211_RC_SMPS_CHANGED);
 			goto handled;
 		}
 		default:
@@ -2340,7 +2337,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (compare_ether_addr(mgmt->bssid, sdata->u.mgd.bssid))
+			if (!ether_addr_equal(mgmt->bssid, sdata->u.mgd.bssid))
 				break;
 
 			goto queue;
@@ -2571,7 +2568,8 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 		goto out_free_skb;
 
 	/* prepend radiotap information */
-	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom);
+	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom,
+					 false);
 
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -2773,7 +2771,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		if (!bssid && !sdata->u.mgd.use_4addr)
 			return 0;
 		if (!multicast &&
-		    compare_ether_addr(sdata->vif.addr, hdr->addr1) != 0) {
+		    !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
 			if (!(sdata->dev->flags & IFF_PROMISC) ||
 			    sdata->u.mgd.use_4addr)
 				return 0;
@@ -2791,8 +2789,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
 		} else if (!multicast &&
-			   compare_ether_addr(sdata->vif.addr,
-					      hdr->addr1) != 0) {
+			   !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
@@ -2808,8 +2805,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (!multicast &&
-		    compare_ether_addr(sdata->vif.addr,
-				       hdr->addr1) != 0) {
+		    !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
 
@@ -2819,8 +2815,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_AP:
 		if (!bssid) {
-			if (compare_ether_addr(sdata->vif.addr,
-					       hdr->addr1))
+			if (!ether_addr_equal(sdata->vif.addr, hdr->addr1))
 				return 0;
 		} else if (!ieee80211_bssid_match(bssid,
 					sdata->vif.addr)) {
@@ -2842,7 +2837,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 	case NL80211_IFTYPE_WDS:
 		if (bssid || !ieee80211_is_data(hdr->frame_control))
 			return 0;
-		if (compare_ether_addr(sdata->u.wds.remote_addr, hdr->addr2))
+		if (!ether_addr_equal(sdata->u.wds.remote_addr, hdr->addr2))
 			return 0;
 		break;
 	default:
@@ -2919,6 +2914,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		local->dot11ReceivedFragmentCount++;
 
 	if (unlikely(test_bit(SCAN_HW_SCANNING, &local->scanning) ||
+		     test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
 		     test_bit(SCAN_SW_SCANNING, &local->scanning)))
 		status->rx_flags |= IEEE80211_RX_IN_SCAN;
 

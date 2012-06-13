@@ -799,9 +799,6 @@ struct bfad_port_s *bfa_fcb_lport_new(struct bfad_s *bfad,
 				      enum bfa_lport_role roles,
 				      struct bfad_vf_s *vf_drv,
 				      struct bfad_vport_s *vp_drv);
-void bfa_fcb_lport_delete(struct bfad_s *bfad, enum bfa_lport_role roles,
-			  struct bfad_vf_s *vf_drv,
-			  struct bfad_vport_s *vp_drv);
 
 /*
  * vport callbacks

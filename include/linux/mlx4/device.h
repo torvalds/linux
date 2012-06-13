@@ -64,6 +64,7 @@ enum {
 	MLX4_MAX_NUM_PF		= 16,
 	MLX4_MAX_NUM_VF		= 64,
 	MLX4_MFUNC_MAX		= 80,
+	MLX4_MAX_EQ_NUM		= 1024,
 	MLX4_MFUNC_EQ_NUM	= 4,
 	MLX4_MFUNC_MAX_EQES     = 8,
 	MLX4_MFUNC_EQE_MASK     = (MLX4_MFUNC_MAX_EQES - 1)
@@ -96,6 +97,12 @@ enum {
 	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
 	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48,
 	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55
+};
+
+enum {
+	MLX4_DEV_CAP_FLAG2_RSS			= 1LL <<  0,
+	MLX4_DEV_CAP_FLAG2_RSS_TOP		= 1LL <<  1,
+	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2
 };
 
 #define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
@@ -233,6 +240,10 @@ static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 	return (major << 32) | (minor << 16) | subminor;
 }
 
+struct mlx4_phys_caps {
+	u32			num_phys_eqs;
+};
+
 struct mlx4_caps {
 	u64			fw_ver;
 	u32			function;
@@ -292,11 +303,13 @@ struct mlx4_caps {
 	u32			max_msg_sz;
 	u32			page_size_cap;
 	u64			flags;
+	u64			flags2;
 	u32			bmme_flags;
 	u32			reserved_lkey;
 	u16			stat_rate_support;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
+	int			max_rss_tbl_sz;
 	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];
 	int			reserved_qps;
 	int                     reserved_qps_base[MLX4_NUM_QP_REGION];
@@ -491,6 +504,7 @@ struct mlx4_dev {
 	unsigned long		flags;
 	unsigned long		num_slaves;
 	struct mlx4_caps	caps;
+	struct mlx4_phys_caps	phys_caps;
 	struct radix_tree_root	qp_table_tree;
 	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
@@ -628,6 +642,9 @@ int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx);
 int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 			   u8 promisc);
+int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc);
+int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
+		u8 *pg, u16 *ratelimit);
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
 void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index);
