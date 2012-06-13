@@ -215,8 +215,8 @@ static int wm831x_buckv_list_voltage(struct regulator_dev *rdev,
 	return -EINVAL;
 }
 
-static int wm831x_buckv_select_min_voltage(struct regulator_dev *rdev,
-					   int min_uV, int max_uV)
+static int wm831x_buckv_map_voltage(struct regulator_dev *rdev,
+				   int min_uV, int max_uV)
 {
 	u16 vsel;
 
@@ -251,20 +251,14 @@ static int wm831x_buckv_set_dvs(struct regulator_dev *rdev, int state)
 	return 0;
 }
 
-static int wm831x_buckv_set_voltage(struct regulator_dev *rdev,
-				    int min_uV, int max_uV, unsigned *selector)
+static int wm831x_buckv_set_voltage_sel(struct regulator_dev *rdev,
+					unsigned vsel)
 {
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
 	struct wm831x *wm831x = dcdc->wm831x;
 	int on_reg = dcdc->base + WM831X_DCDC_ON_CONFIG;
 	int dvs_reg = dcdc->base + WM831X_DCDC_DVS_CONTROL;
-	int vsel, ret;
-
-	vsel = wm831x_buckv_select_min_voltage(rdev, min_uV, max_uV);
-	if (vsel < 0)
-		return vsel;
-
-	*selector = vsel;
+	int ret;
 
 	/* If this value is already set then do a GPIO update if we can */
 	if (dcdc->dvs_gpio && dcdc->on_vsel == vsel)
@@ -315,7 +309,7 @@ static int wm831x_buckv_set_suspend_voltage(struct regulator_dev *rdev,
 	u16 reg = dcdc->base + WM831X_DCDC_SLEEP_CONTROL;
 	int vsel;
 
-	vsel = wm831x_buckv_select_min_voltage(rdev, uV, uV);
+	vsel = wm831x_buckv_map_voltage(rdev, uV, uV);
 	if (vsel < 0)
 		return vsel;
 
@@ -373,9 +367,10 @@ static int wm831x_buckv_get_current_limit(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops wm831x_buckv_ops = {
-	.set_voltage = wm831x_buckv_set_voltage,
+	.set_voltage_sel = wm831x_buckv_set_voltage_sel,
 	.get_voltage_sel = wm831x_buckv_get_voltage_sel,
 	.list_voltage = wm831x_buckv_list_voltage,
+	.map_voltage = wm831x_buckv_map_voltage,
 	.set_suspend_voltage = wm831x_buckv_set_suspend_voltage,
 	.set_current_limit = wm831x_buckv_set_current_limit,
 	.get_current_limit = wm831x_buckv_get_current_limit,
