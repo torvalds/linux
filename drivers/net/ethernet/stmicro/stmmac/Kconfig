@@ -15,6 +15,7 @@ if STMMAC_ETH
 config STMMAC_PLATFORM
 	bool "STMMAC Platform bus support"
 	depends on STMMAC_ETH
+	default y
 	---help---
 	  This selects the platform specific bus support for
 	  the stmmac device driver. This is the driver used

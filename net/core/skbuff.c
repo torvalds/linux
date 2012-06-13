@@ -3361,7 +3361,7 @@ EXPORT_SYMBOL(kfree_skb_partial);
  * @to: prior buffer
  * @from: buffer to add
  * @fragstolen: pointer to boolean
- *
+ * @delta_truesize: how much more was allocated than was requested
  */
 bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		      bool *fragstolen, int *delta_truesize)
