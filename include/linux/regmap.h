@@ -386,7 +386,6 @@ static inline int regmap_register_patch(struct regmap *map,
 static inline struct regmap *dev_get_regmap(struct device *dev,
 					    const char *name)
 {
-	WARN_ONCE(1, "regmap API is disabled");
 	return NULL;
 }
 
