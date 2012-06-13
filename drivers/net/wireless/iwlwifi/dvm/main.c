@@ -1352,6 +1352,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		trans_cfg.queue_watchdog_timeout = IWL_WATCHDOG_DISABLED;
 	trans_cfg.command_names = iwl_dvm_cmd_strings;
 
+	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
+		priv->cfg->base_params->num_of_queues);
+
 	ucode_flags = fw->ucode_capa.flags;
 
 #ifndef CONFIG_IWLWIFI_P2P
