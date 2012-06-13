@@ -23,7 +23,7 @@
 
 /*
  * mt9v022 i2c address 0x48, 0x4c, 0x58, 0x5c
- * The platform has to define ctruct i2c_board_info objects and link to them
+ * The platform has to define struct i2c_board_info objects and link to them
  * from struct soc_camera_link
  */
 
