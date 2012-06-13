@@ -893,52 +893,38 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
-	int i;
-	unsigned short memsize, addr;
+	u8 i, size;
+	unsigned short memsize, start_addr;
+	const unsigned short (*dram_table)[5];
 
 	xgifb_reg_set(pVBInfo->P3c4, 0x15, 0x00); /* noninterleaving */
 	xgifb_reg_set(pVBInfo->P3c4, 0x1C, 0x00); /* nontiling */
 	XGINew_CheckChannel(HwDeviceExtension, pVBInfo);
 
 	if (HwDeviceExtension->jChipType >= XG20) {
-		for (i = 0; i < 12; i++) {
-			XGINew_SetDRAMSizingType(i,
-						 XGINew_DDRDRAM_TYPE20,
-						 pVBInfo);
-			memsize = XGINew_SetDRAMSize20Reg(i,
-							  XGINew_DDRDRAM_TYPE20,
-							  pVBInfo);
-			if (memsize == 0)
-				continue;
-
-			addr = memsize + (pVBInfo->ram_channel - 2) + 20;
-			if ((HwDeviceExtension->ulVideoMemorySize - 1) <
-			    (unsigned long) (1 << addr))
-				continue;
-
-			if (XGINew_ReadWriteRest(addr, 5, pVBInfo) == 1)
-				return 1;
-		}
+		dram_table = XGINew_DDRDRAM_TYPE20;
+		size = ARRAY_SIZE(XGINew_DDRDRAM_TYPE20);
+		start_addr = 5;
 	} else {
-		for (i = 0; i < 4; i++) {
-			XGINew_SetDRAMSizingType(i,
-						 XGINew_DDRDRAM_TYPE340,
-						 pVBInfo);
-			memsize = XGINew_SetDRAMSize20Reg(i,
-							XGINew_DDRDRAM_TYPE340,
-							pVBInfo);
+		dram_table = XGINew_DDRDRAM_TYPE340;
+		size = ARRAY_SIZE(XGINew_DDRDRAM_TYPE340);
+		start_addr = 9;
+	}
 
-			if (memsize == 0)
-				continue;
+	for (i = 0; i < size; i++) {
+		XGINew_SetDRAMSizingType(i, dram_table, pVBInfo);
+		memsize = XGINew_SetDRAMSize20Reg(i, dram_table, pVBInfo);
 
-			addr = memsize + (pVBInfo->ram_channel - 2) + 20;
-			if ((HwDeviceExtension->ulVideoMemorySize - 1) <
-			    (unsigned long) (1 << addr))
-				continue;
+		if (memsize == 0)
+			continue;
 
-			if (XGINew_ReadWriteRest(addr, 9, pVBInfo) == 1)
-				return 1;
-		}
+		memsize += (pVBInfo->ram_channel - 2) + 20;
+		if ((HwDeviceExtension->ulVideoMemorySize - 1) <
+			(unsigned long) (1 << memsize))
+			continue;
+
+		if (XGINew_ReadWriteRest(memsize, start_addr, pVBInfo) == 1)
+			return 1;
 	}
 	return 0;
 }
