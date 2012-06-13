@@ -281,11 +281,11 @@ static int virtscsi_kick_cmd(struct virtio_scsi *vscsi, struct virtio_scsi_vq *v
 
 	spin_lock(&vq->vq_lock);
 	ret = virtqueue_add_buf(vq->vq, vscsi->sg, out_num, in_num, cmd, gfp);
+	spin_unlock(&vscsi->sg_lock);
 	if (ret >= 0)
 		ret = virtqueue_kick_prepare(vq->vq);
 
-	spin_unlock(&vq->vq_lock);
-	spin_unlock_irqrestore(&vscsi->sg_lock, flags);
+	spin_unlock_irqrestore(&vq->vq_lock, flags);
 
 	if (ret > 0)
 		virtqueue_notify(vq->vq);
