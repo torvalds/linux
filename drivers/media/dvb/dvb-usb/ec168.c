@@ -209,31 +209,28 @@ error:
 static int ec168_download_firmware(struct dvb_usb_device *d,
 		const struct firmware *fw)
 {
-	int i, len, packets, remainder, ret;
-	u16 addr = 0x0000; /* firmware start address */
+	int ret, len, remaining;
 	struct ec168_req req = {DOWNLOAD_FIRMWARE, 0, 0, 0, NULL};
 	pr_debug("%s:\n", __func__);
 
-	#define FW_PACKET_MAX_DATA  2048
-	packets = fw->size / FW_PACKET_MAX_DATA;
-	remainder = fw->size % FW_PACKET_MAX_DATA;
-	len = FW_PACKET_MAX_DATA;
-	for (i = 0; i <= packets; i++) {
-		if (i == packets)  /* set size of the last packet */
-			len = remainder;
+	#define LEN_MAX 2048 /* max packet size */
+	for (remaining = fw->size; remaining > 0; remaining -= LEN_MAX) {
+		len = remaining;
+		if (len > LEN_MAX)
+			len = LEN_MAX;
 
 		req.size = len;
-		req.data = (u8 *)(fw->data + i * FW_PACKET_MAX_DATA);
-		req.index = addr;
-		addr += FW_PACKET_MAX_DATA;
+		req.data = (u8 *) &fw->data[fw->size - remaining];
+		req.index = fw->size - remaining;
 
 		ret = ec168_ctrl_msg(d, &req);
 		if (ret) {
-			pr_err("%s: firmware download failed=%d packet=%d\n",
-					KBUILD_MODNAME, ret, i);
+			pr_err("%s: firmware download failed=%d\n",
+					KBUILD_MODNAME, ret);
 			goto error;
 		}
 	}
+
 	req.size = 0;
 
 	/* set "warm"? */
