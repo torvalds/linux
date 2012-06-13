@@ -842,6 +842,13 @@ struct bss_parameters {
  * @rssi_threshold: the threshold for average signal strength of candidate
  *	station to establish a peer link
  * @ht_opmode: mesh HT protection mode
+ *
+ * @dot11MeshHWMPactivePathToRootTimeout: The time (in TUs) for which mesh STAs
+ *	receiving a proactive PREQ shall consider the forwarding information to
+ *	the root mesh STA to be valid.
+ *
+ * @dot11MeshHWMProotInterval: The interval of time (in TUs) between proactive
+ *	PREQs are transmitted.
  */
 struct mesh_config {
 	u16 dot11MeshRetryTimeout;
@@ -866,6 +873,8 @@ struct mesh_config {
 	bool dot11MeshForwarding;
 	s32 rssi_threshold;
 	u16 ht_opmode;
+	u32 dot11MeshHWMPactivePathToRootTimeout;
+	u16 dot11MeshHWMProotInterval;
 };
 
 /**

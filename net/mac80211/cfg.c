@@ -1590,6 +1590,12 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		sdata->vif.bss_conf.ht_operation_mode = nconf->ht_opmode;
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
 	}
+	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_PATH_TO_ROOT_TIMEOUT, mask))
+		conf->dot11MeshHWMPactivePathToRootTimeout =
+			nconf->dot11MeshHWMPactivePathToRootTimeout;
+	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_ROOT_INTERVAL, mask))
+		conf->dot11MeshHWMProotInterval =
+			nconf->dot11MeshHWMProotInterval;
 	return 0;
 }
 
