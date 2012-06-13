@@ -54,8 +54,8 @@ Function:				PHSTransmit
 
 Description:			This routine handle PHS(Payload Header Suppression for Tx path.
 					It extracts a fragment of the NDIS_PACKET containing the header
-					to be suppressed.It then supresses the header by invoking PHS exported compress routine.
-					The header data after supression is copied back to the NDIS_PACKET.
+					to be suppressed. It then suppresses the header by invoking PHS exported compress routine.
+					The header data after suppression is copied back to the NDIS_PACKET.
 
 
 Input parameters:		IN struct bcm_mini_adapter *Adapter         - Miniport Adapter Context
@@ -101,7 +101,7 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 	if(!bEthCSSupport)
 		BytesToRemove=ETH_HLEN;
 	/*
-		Accumulate the header upto the size we support supression
+		Accumulate the header upto the size we support suppression
 		from NDIS packet
 	*/
 
@@ -125,7 +125,7 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 	{
 
 
-		// Step 2 Supress Header using PHS and fill into intermediate ucaPHSPktHdrOutBuf.
+		// Step 2 Suppress Header using PHS and fill into intermediate ucaPHSPktHdrOutBuf.
 	// Suppress only if IP Header and PHS Enabled For the Service Flow
 		if(((usPacketType == ETHERNET_FRAMETYPE_IPV4) ||
 			(usPacketType == ETHERNET_FRAMETYPE_IPV6)) &&
@@ -238,7 +238,7 @@ int PHSReceive(struct bcm_mini_adapter *Adapter,
 		&nTotalsupressedPktHdrBytes,
 		&nStandardPktHdrLen);
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nSupressed PktHdrLen : 0x%x Restored PktHdrLen : 0x%x",
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nSuppressed PktHdrLen : 0x%x Restored PktHdrLen : 0x%x",
 					nTotalsupressedPktHdrBytes,nStandardPktHdrLen);
 
 	if(ulPhsStatus != STATUS_PHS_COMPRESSED)
