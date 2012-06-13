@@ -25,18 +25,7 @@
 /* Bluetooth address family and sockets. */
 
 #include <linux/module.h>
-
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/skbuff.h>
-#include <linux/init.h>
-#include <linux/poll.h>
-#include <net/sock.h>
 #include <asm/ioctls.h>
-#include <linux/kmod.h>
 
 #include <net/bluetooth/bluetooth.h>
 
@@ -418,7 +407,8 @@ static inline unsigned int bt_accept_poll(struct sock *parent)
 	return 0;
 }
 
-unsigned int bt_sock_poll(struct file *file, struct socket *sock, poll_table *wait)
+unsigned int bt_sock_poll(struct file *file, struct socket *sock,
+			  poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	unsigned int mask = 0;

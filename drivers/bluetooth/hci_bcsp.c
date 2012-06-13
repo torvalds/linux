@@ -552,7 +552,7 @@ static u16 bscp_get_crc(struct bcsp_struct *bcsp)
 static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 {
 	struct bcsp_struct *bcsp = hu->priv;
-	register unsigned char *ptr;
+	unsigned char *ptr;
 
 	BT_DBG("hu %p count %d rx_state %d rx_count %ld", 
 		hu, count, bcsp->rx_state, bcsp->rx_count);
