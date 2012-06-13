@@ -6,9 +6,10 @@ config COMEDI
 	  Enable support a wide range of data acquisition devices
 	  for Linux.
 
+if COMEDI
+
 config COMEDI_DEBUG
 	bool "Comedi debugging"
-	depends on COMEDI != n
 	---help---
 	  This is an option for use by developers; most people should
 	  say N here. This enables comedi core and driver debugging.
@@ -16,7 +17,6 @@ config COMEDI_DEBUG
 config COMEDI_DEFAULT_BUF_SIZE_KB
 	int "Comedi default initial asynchronous buffer size in KiB"
 	default "2048"
-	depends on COMEDI != n
 	---help---
 	  This is the default asynchronous buffer size which is used for
 	  commands running in the background in kernel space.  This
@@ -26,7 +26,6 @@ config COMEDI_DEFAULT_BUF_SIZE_KB
 config COMEDI_DEFAULT_BUF_MAXSIZE_KB
 	int "Comedi default maximum asynchronous buffer size in KiB"
 	default "20480"
-	depends on COMEDI != n
 	---help---
 	  This is the default maximum asynchronous buffer size which can
 	  be requested by a userspace program without root privileges.
@@ -35,7 +34,6 @@ config COMEDI_DEFAULT_BUF_MAXSIZE_KB
 
 menuconfig COMEDI_MISC_DRIVERS
 	tristate "Comedi misc drivers"
-	depends on COMEDI
 	---help---
 	  Enable comedi misc drivers to be built
 
@@ -103,7 +101,7 @@ endif # COMEDI_MISC_DRIVERS
 
 menuconfig COMEDI_ISA_DRIVERS
 	tristate "Comedi ISA and PC/104 drivers"
-	depends on COMEDI && ISA
+	depends on ISA
 	---help---
 	  Enable comedi ISA and PC/104 drivers to be built
 
@@ -111,7 +109,7 @@ menuconfig COMEDI_ISA_DRIVERS
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about ISA and PC/104 comedi drivers.
 
-if COMEDI_ISA_DRIVERS && ISA
+if COMEDI_ISA_DRIVERS
 
 config COMEDI_ACL7225B
 	tristate "ADlink NuDAQ ACL-7225b and compatibles support"
@@ -543,7 +541,7 @@ endif # COMEDI_ISA_DRIVERS
 
 menuconfig COMEDI_PCI_DRIVERS
 	tristate "Comedi PCI drivers"
-	depends on COMEDI && PCI
+	depends on PCI
 	---help---
 	  Enable comedi PCI drivers to be built
 
@@ -551,7 +549,7 @@ menuconfig COMEDI_PCI_DRIVERS
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about PCI comedi drivers.
 
-if COMEDI_PCI_DRIVERS && PCI
+if COMEDI_PCI_DRIVERS
 
 config COMEDI_ADDI_APCI_035
 	tristate "ADDI-DATA APCI_035 support"
@@ -1099,7 +1097,7 @@ endif # COMEDI_PCI_DRIVERS
 
 menuconfig COMEDI_PCMCIA_DRIVERS
 	tristate "Comedi PCMCIA drivers"
-	depends on COMEDI && (PCMCIA || PCCARD)
+	depends on (PCMCIA || PCCARD)
 	---help---
 	  Enable comedi PCMCIA and PCCARD drivers to be built
 
@@ -1107,7 +1105,7 @@ menuconfig COMEDI_PCMCIA_DRIVERS
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about PCMCIA comedi drivers.
 
-if COMEDI_PCMCIA_DRIVERS && PCMCIA
+if COMEDI_PCMCIA_DRIVERS
 
 config COMEDI_CB_DAS16_CS
 	tristate "CB DAS16 series PCMCIA support"
@@ -1182,7 +1180,7 @@ endif # COMEDI_PCMCIA_DRIVERS
 
 menuconfig COMEDI_USB_DRIVERS
 	tristate "Comedi USB drivers"
-	depends on COMEDI && USB
+	depends on USB
 	---help---
 	  Enable comedi USB drivers to be built
 
@@ -1190,7 +1188,7 @@ menuconfig COMEDI_USB_DRIVERS
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about USB comedi drivers.
 
-if COMEDI_USB_DRIVERS && USB
+if COMEDI_USB_DRIVERS
 
 config COMEDI_DT9812
 	tristate "DataTranslation DT9812 USB module support"
@@ -1290,7 +1288,6 @@ endif # COMEDI_NI_COMMON
 
 config COMEDI_8255
 	tristate "Generic 8255 support"
-	depends on COMEDI
 	---help---
 	  Enable generic 8255 support.
 
@@ -1306,23 +1303,20 @@ config COMEDI_8255
 
 config COMEDI_FC
 	tristate
-	depends on COMEDI
 
 config COMEDI_AMPLC_DIO200
 	tristate
-	depends on COMEDI
 	select COMEDI_8255
 
 config COMEDI_AMPLC_PC236
 	tristate
-	depends on COMEDI
 	select COMEDI_8255
 
 config COMEDI_AMPLC_PC263
 	tristate
-	depends on COMEDI
 
 config COMEDI_DAS08
 	tristate
-	depends on COMEDI
 	select COMEDI_8255
+
+endif # COMEDI
