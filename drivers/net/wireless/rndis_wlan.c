@@ -2110,7 +2110,7 @@ resize_buf:
 	while (check_bssid_list_item(bssid, bssid_len, buf, len)) {
 		if (rndis_bss_info_update(usbdev, bssid) && match_bssid &&
 		    matched) {
-			if (!ether_addr_equal(bssid->mac, match_bssid))
+			if (ether_addr_equal(bssid->mac, match_bssid))
 				*matched = true;
 		}
 
