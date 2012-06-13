@@ -2454,7 +2454,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 out:
 	if (res) {
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 	}
 
 	return NETDEV_TX_OK;

@@ -3990,7 +3990,7 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 out:
 	if (res) {
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 	}
 
 	return NETDEV_TX_OK;
@@ -4012,11 +4012,11 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 		res = bond_dev_queue_xmit(bond, skb,
 			bond->curr_active_slave->dev);
 
+	read_unlock(&bond->curr_slave_lock);
+
 	if (res)
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
-
-	read_unlock(&bond->curr_slave_lock);
+		kfree_skb(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -4055,7 +4055,7 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 
 	if (res) {
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 	}
 
 	return NETDEV_TX_OK;
@@ -4093,7 +4093,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 
 				res = bond_dev_queue_xmit(bond, skb2, tx_dev);
 				if (res) {
-					dev_kfree_skb(skb2);
+					kfree_skb(skb2);
 					continue;
 				}
 			}
@@ -4107,7 +4107,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 out:
 	if (res)
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 
 	/* frame sent to all suitable interfaces */
 	return NETDEV_TX_OK;
@@ -4213,7 +4213,7 @@ static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev
 		pr_err("%s: Error: Unknown bonding mode %d\n",
 		       dev->name, bond->params.mode);
 		WARN_ON_ONCE(1);
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 }
@@ -4235,7 +4235,7 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (bond->slave_cnt)
 		ret = __bond_start_xmit(skb, dev);
 	else
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 
 	read_unlock(&bond->lock);
 
