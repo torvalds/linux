@@ -252,6 +252,12 @@ static int perf_evsel__hw_cache_name(struct perf_evsel *evsel, char *bf, size_t 
 	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
 }
 
+static int perf_evsel__raw_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int ret = scnprintf(bf, size, "raw 0x%" PRIx64, evsel->attr.config);
+	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
+}
+
 const char *perf_evsel__name(struct perf_evsel *evsel)
 {
 	char bf[128];
@@ -261,7 +267,7 @@ const char *perf_evsel__name(struct perf_evsel *evsel)
 
 	switch (evsel->attr.type) {
 	case PERF_TYPE_RAW:
-		scnprintf(bf, sizeof(bf), "raw 0x%" PRIx64, evsel->attr.config);
+		perf_evsel__raw_name(evsel, bf, sizeof(bf));
 		break;
 
 	case PERF_TYPE_HARDWARE:
