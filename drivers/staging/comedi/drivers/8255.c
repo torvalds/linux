@@ -371,6 +371,7 @@ EXPORT_SYMBOL(subdev_8255_cleanup);
 static int dev_8255_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	struct comedi_subdevice *s;
 	int ret;
 	unsigned long iobase;
 	int i;
@@ -392,16 +393,16 @@ static int dev_8255_attach(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
+		s = dev->subdevices + i;
 		iobase = it->options[i];
 
 		if (!request_region(iobase, _8255_SIZE, "8255")) {
 			dev_warn(dev->class_dev,
 				"0x%04lx (I/O port conflict)\n", iobase);
 
-			dev->subdevices[i].type = COMEDI_SUBD_UNUSED;
+			s->type = COMEDI_SUBD_UNUSED;
 		} else {
-			subdev_8255_init(dev, dev->subdevices + i, NULL,
-					 iobase);
+			subdev_8255_init(dev, s, NULL, iobase);
 			dev_info(dev->class_dev, "0x%04lx\n", iobase);
 		}
 	}
