@@ -7,10 +7,10 @@
 #include "vb_setmode.h"
 
 static const unsigned short XGINew_DDRDRAM_TYPE340[4][5] = {
-	{ 2, 13, 9, 64, 0x45},
-	{ 2, 12, 9, 32, 0x35},
-	{ 2, 12, 8, 16, 0x31},
-	{ 2, 11, 8,  8, 0x21} };
+	{ 2, 13, 9, 16, 0x45},
+	{ 2, 12, 9,  8, 0x35},
+	{ 2, 12, 8,  4, 0x31},
+	{ 2, 11, 8,  2, 0x21} };
 
 static const unsigned short XGINew_DDRDRAM_TYPE20[12][5] = {
 	{ 2, 14, 11, 128, 0x5D},
@@ -591,50 +591,6 @@ static void XGINew_SetDRAMSizingType(int index,
 	/* should delay 50 ns */
 }
 
-static unsigned short XGINew_SetDRAMSizeReg(int index,
-		const unsigned short DRAMTYPE_TABLE[][5],
-		struct vb_device_info *pVBInfo)
-{
-	unsigned short data = 0, memsize = 0;
-	int RankSize;
-	unsigned char ChannelNo;
-
-	RankSize = DRAMTYPE_TABLE[index][3] * pVBInfo->ram_bus / 32;
-	data = xgifb_reg_get(pVBInfo->P3c4, 0x13);
-	data &= 0x80;
-
-	if (data == 0x80)
-		RankSize *= 2;
-
-	data = 0;
-
-	if (pVBInfo->ram_channel == 3)
-		ChannelNo = 4;
-	else
-		ChannelNo = pVBInfo->ram_channel;
-
-	if (ChannelNo * RankSize <= 256) {
-		while ((RankSize >>= 1) > 0)
-			data += 0x10;
-
-		memsize = data >> 4;
-
-		/* [2004/03/25] Vicent, Fix DRAM Sizing Error */
-		xgifb_reg_set(pVBInfo->P3c4,
-			      0x14,
-			      (xgifb_reg_get(pVBInfo->P3c4, 0x14) & 0x0F) |
-			       (data & 0xF0));
-
-		/* data |= pVBInfo->ram_channel << 2; */
-		/* data |= (pVBInfo->ram_bus / 64) << 1; */
-		/* xgifb_reg_set(pVBInfo->P3c4, 0x14, data); */
-
-		/* should delay */
-		/* XGINew_SetDRAMModeRegister340(pVBInfo); */
-	}
-	return memsize;
-}
-
 static unsigned short XGINew_SetDRAMSize20Reg(int index,
 		const unsigned short DRAMTYPE_TABLE[][5],
 		struct vb_device_info *pVBInfo)
@@ -968,7 +924,7 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 			XGINew_SetDRAMSizingType(i,
 						 XGINew_DDRDRAM_TYPE340,
 						 pVBInfo);
-			memsize = XGINew_SetDRAMSizeReg(i,
+			memsize = XGINew_SetDRAMSize20Reg(i,
 							XGINew_DDRDRAM_TYPE340,
 							pVBInfo);
 
