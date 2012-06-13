@@ -3264,6 +3264,21 @@ static int em_lahf(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_bswap(struct x86_emulate_ctxt *ctxt)
+{
+	switch (ctxt->op_bytes) {
+#ifdef CONFIG_X86_64
+	case 8:
+		asm("bswap %0" : "+r"(ctxt->dst.val));
+		break;
+#endif
+	default:
+		asm("bswap %0" : "+r"(*(u32 *)&ctxt->dst.val));
+		break;
+	}
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3780,11 +3795,12 @@ static struct opcode twobyte_table[256] = {
 	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_btc),
 	I(DstReg | SrcMem | ModRM, em_bsf), I(DstReg | SrcMem | ModRM, em_bsr),
 	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
-	/* 0xC0 - 0xCF */
+	/* 0xC0 - 0xC7 */
 	D2bv(DstMem | SrcReg | ModRM | Lock),
 	N, D(DstMem | SrcReg | ModRM | Mov),
 	N, N, N, GD(0, &group9),
-	N, N, N, N, N, N, N, N,
+	/* 0xC8 - 0xCF */
+	X8(I(DstReg, em_bswap)),
 	/* 0xD0 - 0xDF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xEF */
