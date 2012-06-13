@@ -1335,7 +1335,7 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				   u16 selector, int seg)
 {
-	struct desc_struct seg_desc;
+	struct desc_struct seg_desc, old_desc;
 	u8 dpl, rpl, cpl;
 	unsigned err_vec = GP_VECTOR;
 	u32 err_code = 0;
@@ -1422,6 +1422,12 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	case VCPU_SREG_TR:
 		if (seg_desc.s || (seg_desc.type != 1 && seg_desc.type != 9))
 			goto exception;
+		old_desc = seg_desc;
+		seg_desc.type |= 2; /* busy */
+		ret = ctxt->ops->cmpxchg_emulated(ctxt, desc_addr, &old_desc, &seg_desc,
+						  sizeof(seg_desc), &ctxt->exception);
+		if (ret != X86EMUL_CONTINUE)
+			return ret;
 		break;
 	case VCPU_SREG_LDTR:
 		if (seg_desc.s || seg_desc.type != 2)
