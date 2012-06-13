@@ -1,13 +1,7 @@
 #ifndef _XGIFB_MAIN
 #define _XGIFB_MAIN
-
-
 /* ------------------- Constant Definitions ------------------------- */
-
-
 #include "XGIfb.h"
-#include "vb_struct.h"
-#include "../../video/sis/sis.h"
 #include "vb_def.h"
 
 #define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while (0)

@@ -1,8 +1,5 @@
 #ifndef _LINUX_XGIFB
 #define _LINUX_XGIFB
-#include <linux/ioctl.h>
-#include <linux/types.h>
-
 #include "vgatypes.h"
 #include "vb_struct.h"
 

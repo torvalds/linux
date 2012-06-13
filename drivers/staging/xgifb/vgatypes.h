@@ -1,7 +1,6 @@
 #ifndef _VGATYPES_
 #define _VGATYPES_
 
-#include <linux/ioctl.h>
 #include <linux/fb.h>	/* for struct fb_var_screeninfo for sis.h */
 #include "../../video/sis/vgatypes.h"
 #include "../../video/sis/sis.h"		/* for LCD_TYPE */

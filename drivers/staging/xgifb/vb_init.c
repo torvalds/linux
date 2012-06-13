@@ -1,19 +1,10 @@
-#include <linux/types.h>
 #include <linux/delay.h> /* udelay */
-#include <linux/pci.h>
 #include <linux/vmalloc.h>
 
 #include "XGIfb.h"
-#include "vgatypes.h"
-
 #include "vb_def.h"
-#include "vb_struct.h"
 #include "vb_util.h"
 #include "vb_setmode.h"
-#include "vb_init.h"
-
-
-#include <linux/io.h>
 
 static const unsigned short XGINew_DDRDRAM_TYPE340[4][5] = {
 	{ 2, 13, 9, 64, 0x45},

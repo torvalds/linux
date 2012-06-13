@@ -6,36 +6,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-/* #include <linux/config.h> */
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/kernel.h>
-#include <linux/spinlock.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/fb.h>
-#include <linux/console.h>
-#include <linux/selection.h>
-#include <linux/ioport.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/vt_kern.h>
-#include <linux/capability.h>
-#include <linux/fs.h>
-#include <linux/types.h>
-#include <linux/proc_fs.h>
 
-#include <linux/io.h>
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
 #endif
 
-#include "XGIfb.h"
-#include "vgatypes.h"
 #include "XGI_main.h"
 #include "vb_init.h"
 #include "vb_util.h"
