@@ -250,7 +250,7 @@ nl80211_rekey_policy[NUM_NL80211_REKEY_DATA] = {
 
 static const struct nla_policy
 nl80211_match_policy[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1] = {
-	[NL80211_ATTR_SCHED_SCAN_MATCH_SSID] = { .type = NLA_BINARY,
+	[NL80211_SCHED_SCAN_MATCH_ATTR_SSID] = { .type = NLA_BINARY,
 						 .len = IEEE80211_MAX_SSID_LEN },
 };
 
@@ -4253,7 +4253,7 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 			nla_parse(tb, NL80211_SCHED_SCAN_MATCH_ATTR_MAX,
 				  nla_data(attr), nla_len(attr),
 				  nl80211_match_policy);
-			ssid = tb[NL80211_ATTR_SCHED_SCAN_MATCH_SSID];
+			ssid = tb[NL80211_SCHED_SCAN_MATCH_ATTR_SSID];
 			if (ssid) {
 				if (nla_len(ssid) > IEEE80211_MAX_SSID_LEN) {
 					err = -EINVAL;

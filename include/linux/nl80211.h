@@ -1963,13 +1963,16 @@ enum nl80211_reg_rule_attr {
 enum nl80211_sched_scan_match_attr {
 	__NL80211_SCHED_SCAN_MATCH_ATTR_INVALID,
 
-	NL80211_ATTR_SCHED_SCAN_MATCH_SSID,
+	NL80211_SCHED_SCAN_MATCH_ATTR_SSID,
 
 	/* keep last */
 	__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST,
 	NL80211_SCHED_SCAN_MATCH_ATTR_MAX =
 		__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST - 1
 };
+
+/* only for backward compatibility */
+#define NL80211_ATTR_SCHED_SCAN_MATCH_SSID NL80211_SCHED_SCAN_MATCH_ATTR_SSID
 
 /**
  * enum nl80211_reg_rule_flags - regulatory rule flags
