@@ -66,7 +66,7 @@ int sw_cfg_get_int(const char *script_buf, const char *main_key,
 	if (sk == NULL)
 		return -1;
 
-	if (((sk->pattern >> 16) & 0xffff) == SCIRPT_PARSER_VALUE_TYPE_SINGLE_WORD) {
+	if (((sk->pattern >> 16) & 0xffff) == SCRIPT_PARSER_VALUE_TYPE_SINGLE_WORD) {
 		pdata = (char *)(script_buf + (sk->offset<<2));
 		value = *((int *)pdata);
 		return value;
@@ -85,7 +85,7 @@ char *sw_cfg_get_str(const char *script_buf, const char *main_key,
 	if (sk == NULL)
 		return NULL;
 
-	if (((sk->pattern >> 16) & 0xffff) == SCIRPT_PARSER_VALUE_TYPE_STRING) {
+	if (((sk->pattern >> 16) & 0xffff) == SCRIPT_PARSER_VALUE_TYPE_STRING) {
 		pdata = (char *)(script_buf + (sk->offset<<2));
 		memcpy(buf, pdata, ((sk->pattern >> 0) & 0xffff));
 		return (char *)buf;
@@ -194,20 +194,20 @@ int script_parser_fetch(char *main_name, char *sub_name, int value[], int count)
 		pr_debug("pattern is: 0x%x, word_count is: 0x%x, ", pattern, word_count);
 
 		switch (pattern) {
-		case SCIRPT_PARSER_VALUE_TYPE_SINGLE_WORD:
+		case SCRIPT_PARSER_VALUE_TYPE_SINGLE_WORD:
 			value[0] = *(int *)(script_mod_buf + (sub_key->offset<<2));
 			break;
 
-		case SCIRPT_PARSER_VALUE_TYPE_STRING:
+		case SCRIPT_PARSER_VALUE_TYPE_STRING:
 			if (count < word_count)
 				word_count = count;
 
 			memcpy((char *)value, script_mod_buf + (sub_key->offset<<2), word_count << 2);
 			break;
 
-		case SCIRPT_PARSER_VALUE_TYPE_MULTI_WORD:
+		case SCRIPT_PARSER_VALUE_TYPE_MULTI_WORD:
 			break;
-		case SCIRPT_PARSER_VALUE_TYPE_GPIO_WORD:
+		case SCRIPT_PARSER_VALUE_TYPE_GPIO_WORD:
 		{
 			script_gpio_set_t  *user_gpio_cfg = (script_gpio_set_t *)value;
 			/* buffer space enough? */
@@ -278,23 +278,23 @@ int script_parser_fetch_ex(char *main_name, char *sub_name, int value[], script_
 		pr_debug("pattern is: 0x%x, word_count is: 0x%x, ", pattern, word_count);
 
 		switch (pattern) {
-		case SCIRPT_PARSER_VALUE_TYPE_SINGLE_WORD:
+		case SCRIPT_PARSER_VALUE_TYPE_SINGLE_WORD:
 			value[0] = *(int *)(script_mod_buf + (sub_key->offset<<2));
-			*value_type = SCIRPT_PARSER_VALUE_TYPE_SINGLE_WORD;
+			*value_type = SCRIPT_PARSER_VALUE_TYPE_SINGLE_WORD;
 			break;
 
-		case SCIRPT_PARSER_VALUE_TYPE_STRING:
+		case SCRIPT_PARSER_VALUE_TYPE_STRING:
 			if (count < word_count)
 				word_count = count;
 
 			memcpy((char *)value, script_mod_buf + (sub_key->offset<<2), word_count << 2);
-			*value_type = SCIRPT_PARSER_VALUE_TYPE_STRING;
+			*value_type = SCRIPT_PARSER_VALUE_TYPE_STRING;
 			break;
 
-		case SCIRPT_PARSER_VALUE_TYPE_MULTI_WORD:
-			*value_type = SCIRPT_PARSER_VALUE_TYPE_MULTI_WORD;
+		case SCRIPT_PARSER_VALUE_TYPE_MULTI_WORD:
+			*value_type = SCRIPT_PARSER_VALUE_TYPE_MULTI_WORD;
 			break;
-		case SCIRPT_PARSER_VALUE_TYPE_GPIO_WORD:
+		case SCRIPT_PARSER_VALUE_TYPE_GPIO_WORD:
 			{
 				script_gpio_set_t  *user_gpio_cfg = (script_gpio_set_t *)value;
 
@@ -303,7 +303,7 @@ int script_parser_fetch_ex(char *main_name, char *sub_name, int value[], script_
 
 				strcpy(user_gpio_cfg->gpio_name, sub_char);
 				memcpy(&user_gpio_cfg->port, script_mod_buf + (sub_key->offset<<2),  sizeof(script_gpio_set_t) - 32);
-				*value_type = SCIRPT_PARSER_VALUE_TYPE_GPIO_WORD;
+				*value_type = SCRIPT_PARSER_VALUE_TYPE_GPIO_WORD;
 				break;
 			}
 		}
@@ -387,7 +387,7 @@ int script_parser_mainkey_get_gpio_count(char *main_name)
 
 			pattern    = (sub_key->pattern>>16) & 0xffff;
 
-			if (SCIRPT_PARSER_VALUE_TYPE_GPIO_WORD == pattern)
+			if (SCRIPT_PARSER_VALUE_TYPE_GPIO_WORD == pattern)
 				gpio_count++;
 		}
 	}
@@ -433,7 +433,7 @@ int script_parser_mainkey_get_gpio_cfg(char *main_name, void *gpio_cfg, int gpio
 			pattern    = (sub_key->pattern>>16) & 0xffff;
 			pr_debug("subkey pattern = %d\n", pattern);
 
-			if (SCIRPT_PARSER_VALUE_TYPE_GPIO_WORD == pattern) {
+			if (SCRIPT_PARSER_VALUE_TYPE_GPIO_WORD == pattern) {
 				strcpy(user_gpio_cfg[user_index].gpio_name, sub_key->sub_name);
 				memcpy(&user_gpio_cfg[user_index].port, script_mod_buf + (sub_key->offset<<2), sizeof(script_gpio_set_t) - 32);
 				user_index++;

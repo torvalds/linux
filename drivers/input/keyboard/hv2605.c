@@ -107,7 +107,7 @@ static int tkey_fetch_sysconfig_para(void)
 	__u32 twi_addr = 0;
 
 	char name[I2C_NAME_SIZE];
-	script_parser_value_type_t type = SCIRPT_PARSER_VALUE_TYPE_STRING;
+	script_parser_value_type_t type = SCRIPT_PARSER_VALUE_TYPE_STRING;
 	
 	//__u32 twi_id = 0;
 

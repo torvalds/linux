@@ -374,7 +374,7 @@ static int ctp_fetch_sysconfig_para(void)
 	char name[I2C_NAME_SIZE];
 	__u32 twi_addr = 0;
 	//__u32 twi_id = 0;
-	script_parser_value_type_t type = SCIRPT_PARSER_VALUE_TYPE_STRING;
+	script_parser_value_type_t type = SCRIPT_PARSER_VALUE_TYPE_STRING;
 
 	pr_info("%s. \n", __func__);
 

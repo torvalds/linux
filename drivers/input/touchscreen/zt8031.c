@@ -297,7 +297,7 @@ static int aw_fetch_sysconfig_para(void)
     int ret = -1;
     int ctp_used = -1;
     char name[I2C_NAME_SIZE];
-    script_parser_value_type_t type = SCIRPT_PARSER_VALUE_TYPE_STRING;
+    script_parser_value_type_t type = SCRIPT_PARSER_VALUE_TYPE_STRING;
 
     printk("%s. \n", __func__);
     
