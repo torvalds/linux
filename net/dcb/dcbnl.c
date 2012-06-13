@@ -224,43 +224,6 @@ static struct sk_buff *dcbnl_newmsg(int type, u8 cmd, u32 port, u32 seq,
 	return skb;
 }
 
-/* standard netlink reply call */
-static int dcbnl_reply(u8 value, u8 event, u8 cmd, u8 attr, u32 pid,
-                       u32 seq, u16 flags)
-{
-	struct sk_buff *dcbnl_skb;
-	struct dcbmsg *dcb;
-	struct nlmsghdr *nlh;
-	int ret = -EINVAL;
-
-	dcbnl_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!dcbnl_skb)
-		return ret;
-
-	nlh = NLMSG_NEW(dcbnl_skb, pid, seq, event, sizeof(*dcb), flags);
-
-	dcb = NLMSG_DATA(nlh);
-	dcb->dcb_family = AF_UNSPEC;
-	dcb->cmd = cmd;
-	dcb->dcb_pad = 0;
-
-	ret = nla_put_u8(dcbnl_skb, attr, value);
-	if (ret)
-		goto err;
-
-	/* end the message, assign the nlmsg_len. */
-	nlmsg_end(dcbnl_skb, nlh);
-	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
-	if (ret)
-		return -EINVAL;
-
-	return 0;
-nlmsg_failure:
-err:
-	kfree_skb(dcbnl_skb);
-	return ret;
-}
-
 static int dcbnl_getstate(struct net_device *netdev, struct nlmsghdr *nlh,
 			  u32 seq, struct nlattr **tb, struct sk_buff *skb)
 {
