@@ -68,10 +68,13 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	struct dvb_usb_adapter *adap = dvbdmxfeed->demux->priv;
 	int newfeedcount, ret;
 
-	if (adap == NULL || adap->active_fe < 0) {
+	if (adap == NULL) {
 		ret = -ENODEV;
 		goto err;
 	}
+
+	pr_debug("%s: adap=%d active_fe=%d\n", __func__, adap->id,
+			adap->active_fe);
 
 	newfeedcount = adap->feedcount + (onoff ? 1 : -1);
 
@@ -189,12 +192,15 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
-	int ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->name,
-				       adap->dev->props->owner,
-				       &adap->dev->udev->dev,
-				       adap->dev->props->adapter_nr);
+	int ret;
+	pr_debug("%s: adap=%d\n", __func__, adap->id);
+
+	ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->name,
+			adap->dev->props->owner, &adap->dev->udev->dev,
+			adap->dev->props->adapter_nr);
 	if (ret < 0) {
-		pr_debug("%s: dvb_register_adapter failed=%d\n", __func__, ret);
+		pr_debug("%s: dvb_register_adapter() failed=%d\n", __func__,
+				ret);
 		goto err;
 	}
 	adap->dvb_adap.priv = adap;
@@ -258,6 +264,8 @@ err:
 
 int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 {
+	pr_debug("%s: adap=%d\n", __func__, adap->id);
+
 	if (adap->state & DVB_USB_ADAP_STATE_DVB) {
 		pr_debug("%s: unregistering DVB part\n", __func__);
 		dvb_net_release(&adap->dvb_net);
@@ -274,6 +282,7 @@ static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	pr_debug("%s: adap=%d fe=%d\n", __func__, adap->id, fe->id);
 
 	ret = dvb_usbv2_device_power_ctrl(adap->dev, 1);
 	if (ret < 0)
@@ -303,6 +312,7 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	pr_debug("%s: adap=%d fe=%d\n", __func__, adap->id, fe->id);
 
 	if (adap->fe_sleep[fe->id]) {
 		ret = adap->fe_sleep[fe->id](fe);
@@ -331,8 +341,7 @@ err:
 int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 {
 	int ret, i, count_registered = 0;
-
-	pr_debug("%s:\n", __func__);
+	pr_debug("%s: adap=%d\n", __func__, adap->id);
 
 	memset(adap->fe, 0, sizeof(adap->fe));
 	adap->active_fe = -1;
@@ -400,8 +409,7 @@ err:
 int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 {
 	int i;
-
-	pr_debug("%s:\n", __func__);
+	pr_debug("%s: adap=%d\n", __func__, adap->id);
 
 	for (i = adap->num_frontends_initialized - 1; i >= 0; i--) {
 		if (adap->fe[i]) {
