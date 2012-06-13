@@ -59,7 +59,7 @@ static int aer_hest_parse(struct acpi_hest_header *hest_hdr, void *data)
 
 	p = (struct acpi_hest_aer_common *)(hest_hdr + 1);
 	if (p->flags & ACPI_HEST_GLOBAL) {
-		if ((info->pci_dev->is_pcie &&
+		if ((pci_is_pcie(info->pci_dev) &&
 		     info->pci_dev->pcie_type == pcie_type) || bridge)
 			ff = !!(p->flags & ACPI_HEST_FIRMWARE_FIRST);
 	} else
