@@ -1465,6 +1465,15 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 			DMI_MATCH(DMI_CHASSIS_TYPE, "14"), /* Sub-Notebook */
 		},
 	},
+	/* DMI ids for laptops with bad Chassis Type */
+	{
+	  .ident = "R40/R41",
+	  .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "R40/R41"),
+		DMI_MATCH(DMI_BOARD_NAME, "R40/R41"),
+		},
+	},
 	/* Specific DMI ids for laptop with quirks */
 	{
 	 .callback = samsung_dmi_matched,
