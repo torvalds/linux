@@ -4108,16 +4108,13 @@ out:
 static int wl1271_op_get_survey(struct ieee80211_hw *hw, int idx,
 				struct survey_info *survey)
 {
-	struct wl1271 *wl = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
 
 	if (idx != 0)
 		return -ENOENT;
 
 	survey->channel = conf->channel;
-	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = wl->noise;
-
+	survey->filled = 0;
 	return 0;
 }
 
