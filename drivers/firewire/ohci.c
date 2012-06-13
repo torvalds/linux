@@ -2279,6 +2279,11 @@ static int ohci_enable(struct fw_card *card,
 
 	ohci->bus_time_running = false;
 
+	for (i = 0; i < 32; i++)
+		if (ohci->ir_context_support & (1 << i))
+			reg_write(ohci, OHCI1394_IsoRcvContextControlClear(i),
+				  IR_CONTEXT_MULTI_CHANNEL_MODE);
+
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	if (version >= OHCI_VERSION_1_1) {
 		reg_write(ohci, OHCI1394_InitialChannelsAvailableHi,
