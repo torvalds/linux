@@ -264,9 +264,11 @@ static int virtscsi_kick_cmd(struct virtio_scsi *vscsi, struct virtqueue *vq,
 
 	ret = virtqueue_add_buf(vq, vscsi->sg, out_num, in_num, cmd, gfp);
 	if (ret >= 0)
-		virtqueue_kick(vq);
+		ret = virtqueue_kick_prepare(vq);
 
 	spin_unlock_irqrestore(&vscsi->vq_lock, flags);
+	if (ret > 0)
+		virtqueue_notify(vq);
 	return ret;
 }
 
