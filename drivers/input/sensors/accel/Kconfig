@@ -1,0 +1,36 @@
+#
+# gsensor drivers configuration
+#
+
+menuconfig GSENSOR_DEVICE
+	bool "g_sensor device support"
+	help
+	  Enable this to be able to choose the drivers for controlling the
+	  g_sensor on some platforms, for example on PDAs.
+
+if GSENSOR_DEVICE
+config GS_MMA8452
+  bool "gsensor mma8452"
+	help	 
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
+config GS_KXTIK
+  bool "gsensor kxtik"
+  help
+    To have support for your specific gsesnor you will have to
+    select the proper drivers which depend on this option.
+
+config GS_LIS3DH
+  bool "gsensor lis3dh"
+	help	 
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
+config GS_BMA023
+  bool "gsensor bma023"
+  help
+    To have support for your specific gsesnor you will have to
+    select the proper drivers which depend on this option.
+endif
+

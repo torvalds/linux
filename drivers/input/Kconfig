@@ -194,6 +194,7 @@ source "drivers/input/jogball/Kconfig"
 
 source "drivers/input/lightsensor/Kconfig"
 
+source "drivers/input/sensors/Kconfig"
 
 endif
 

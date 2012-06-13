@@ -1,0 +1,22 @@
+#
+# light and position sensor drivers configuration
+#
+
+menuconfig LIGHT_DEVICE
+	bool "light sensor device support"
+	default n	
+
+if LIGHT_DEVICE
+config LS_CM3217
+  bool "light sensor cm3217"
+	default n
+ 
+config LS_AL3006
+  bool "light sensor al3006"
+	default n
+
+config LS_STK3171
+  bool "light sensor stk3171"
+	default n	  
+endif
+

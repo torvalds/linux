@@ -90,11 +90,33 @@ struct gsensor_platform_data {
 	void (*exit_platform_hw)(void);
 };
 
+
 struct akm8975_platform_data {
 	short m_layout[4][3][3];
 	char project_name[64];
 	int gpio_DRDY;
 };
+
+struct sensor_platform_data {
+	int type;
+	int irq;
+	int power_pin;
+	int reset_pin;
+	int irq_enable;         //if irq_enable=1 then use irq else use polling  
+	int poll_delay_ms;      //polling
+	int x_min;              //filter
+	int y_min;
+	int z_min;
+	unsigned char address;
+	signed char orientation[9];
+	short m_layout[4][3][3];
+	char project_name[64];
+	int (*init_platform_hw)(void);
+	void (*exit_platform_hw)(void);
+	int (*power_on)(void);
+	int (*power_off)(void);
+};
+
 
 struct goodix_platform_data {
 	int model ;

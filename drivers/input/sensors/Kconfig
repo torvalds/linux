@@ -1,0 +1,19 @@
+#
+# all sensors drivers configuration
+#
+
+comment "handle all sensors"
+
+menuconfig SENSOR_DEVICE
+	tristate "handle gsensor,compass,gyroscope,lsensor psensor etc"
+	
+if SENSOR_DEVICE
+
+source "drivers/input/sensors/accel/Kconfig"
+source "drivers/input/sensors/compass/Kconfig"
+source "drivers/input/sensors/gyro/Kconfig"
+source "drivers/input/sensors/lsensor/Kconfig"
+source "drivers/input/sensors/psensor/Kconfig"
+source "drivers/input/sensors/temperature/Kconfig"
+
+endif

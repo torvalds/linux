@@ -1,0 +1,37 @@
+#
+# Magnetometer drivers configuration
+#
+
+menuconfig COMPASS_DEVICE
+	bool "Magnetometer sensors"
+	help
+	  Say Y here, and a list of Magnetometer sensors drivers will be displayed.
+	  Everything that didn't fit into the other categories is here. This option
+	  doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if COMPASS_DEVICE
+
+config COMPASS_AK8975
+  tristate "Asahi Kasei AK8975 3-Axis Magnetometer"
+  depends on I2C
+  help
+  Say yes here to build support for Asahi Kasei AK8975 3-Axis
+  Magnetometer.
+
+  To compile this driver as a module, choose M here: the module
+  will be called ak8975.
+
+config COMPASS_MMC328X
+  tristate "Mmc328x 3-Axis Magnetometer"
+  depends on I2C
+  help
+  Say yes here to build support for mmc3280 3-Axis
+  Magnetometer.
+
+  To compile this driver as a module, choose M here: the module
+  will be called mmc3280. 
+
+endif
+

@@ -1,0 +1,19 @@
+#
+# gyroscope drivers configuration
+#
+
+menuconfig GYROSCOPE_DEVICE
+	bool "gyroscope device support"
+	default n	
+
+if GYROSCOPE_DEVICE
+
+config GYRO_L3G4200D
+  bool "gyroscope l3g4200d"
+	default n
+
+config GYRO_K3G
+  bool "gyroscope k3g"
+	default n
+
+endif

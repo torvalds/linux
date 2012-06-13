@@ -54,12 +54,25 @@
 #define L3G4200D_FS_500DPS	0x10
 #define L3G4200D_FS_2000DPS	0x30
 
-#define PM_OFF		0x00
-#define PM_NORMAL	0x08
-#define ENABLE_ALL_AXES	0x07
+#define PM_OFF				0x00
+#define PM_NORMAL			0x08
+#define ENABLE_ALL_AXES		0x07
+
+/* l3g4200d gyroscope registers */
+#define GYRO_WHO_AM_I		0x0F
+#define GYRO_CTRL_REG1		0x20    /* power control reg */
+#define GYRO_CTRL_REG2		0x21    /* power control reg */
+#define GYRO_CTRL_REG3		0x22    /* power control reg */
+#define GYRO_CTRL_REG4		0x23    /* interrupt control reg */
+#define GYRO_CTRL_REG5		0x24    /* interrupt control reg */
+#define GYRO_DATA_REG		0x28
+#define GYRO_INT_SRC		0x31
+
+
+
 
 /*status*/
-#define L3G4200D_SUSPEND           2
+#define L3G4200D_SUSPEND		2
 #define L3G4200D_OPEN           1
 #define L3G4200D_CLOSE          0
 
