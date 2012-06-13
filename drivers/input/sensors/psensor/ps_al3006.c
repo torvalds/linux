@@ -67,7 +67,10 @@ static int sensor_power_updown(struct i2c_client *client, int on)
 	{
 		if(!on)
 		{
-			result = sensor_write_reg(client, CONFIG_REG, POWER_DOWN_MODE);
+			value = sensor_read_reg(client, CONFIG_REG);
+			value &= ~POWER_MODE_MASK;
+			value |= POWER_DOWN_MODE;
+			result = sensor_write_reg(client, CONFIG_REG, value);
 			if(result)
 				return result;
 		}
@@ -101,12 +104,15 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	int result = 0;
 	char value = 0;
 
-	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
+	if(enable)	
+	sensor_power_updown(client, 1);
+
+	value = sensor_read_reg(client, sensor->ops->ctrl_reg);
 	
 	//register setting according to chip datasheet		
 	if(enable)
 	{	
-		if( (sensor->ops->ctrl_data & 0x03) == ONLY_ALS_EN )
+		if( (value & 0x03) == ONLY_ALS_EN )
 		{
 			value &= ~0x03;
 			value |= ALL_PROX_ALS_EN;
@@ -117,16 +123,15 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 			value |= ONLY_PROX_EN;
 		}
 		
-		sensor_power_updown(client, 1);
 	}
 	else
 	{
-		if( (sensor->ops->ctrl_data & 0x03) == ONLY_PROX_EN )
+		if( (value & 0x03) == ONLY_PROX_EN )
 		{
 			value &= ~0x03;
 			value |= ALL_IDLE;
 		}
-		else if((sensor->ops->ctrl_data & 0x03) == ALL_PROX_ALS_EN )
+		else if((value & 0x03) == ALL_PROX_ALS_EN )
 		{
 			value &= ~0x03;
 			value |= ONLY_ALS_EN;
@@ -153,7 +158,7 @@ static int sensor_init(struct i2c_client *client)
 	char value = 0;
 	
 	sensor_power_updown(client, 0);
-	
+		
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
