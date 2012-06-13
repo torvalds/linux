@@ -405,7 +405,9 @@ void intel_update_fbc(struct drm_device *dev)
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
 	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
-		if (tmp_crtc->enabled && tmp_crtc->fb) {
+		if (tmp_crtc->enabled &&
+		    !to_intel_crtc(tmp_crtc)->primary_disabled &&
+		    tmp_crtc->fb) {
 			if (crtc) {
 				DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
 				dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
