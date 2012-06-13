@@ -102,6 +102,16 @@ struct subdev_8255_private {
 	int (*io) (int, int, int, unsigned long);
 };
 
+static int subdev_8255_io(int dir, int port, int data, unsigned long iobase)
+{
+	if (dir) {
+		outb(data, iobase + port);
+		return 0;
+	} else {
+		return inb(iobase + port);
+	}
+}
+
 void subdev_8255_interrupt(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
@@ -118,16 +128,6 @@ void subdev_8255_interrupt(struct comedi_device *dev,
 	comedi_event(dev, s);
 }
 EXPORT_SYMBOL(subdev_8255_interrupt);
-
-static int subdev_8255_io(int dir, int port, int data, unsigned long iobase)
-{
-	if (dir) {
-		outb(data, iobase + port);
-		return 0;
-	} else {
-		return inb(iobase + port);
-	}
-}
 
 static int subdev_8255_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
