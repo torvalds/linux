@@ -131,14 +131,12 @@ static int hdcs_probe_1x00(struct sd *sd);
 static int hdcs_probe_1020(struct sd *sd);
 static int hdcs_start(struct sd *sd);
 static int hdcs_init(struct sd *sd);
+static int hdcs_init_controls(struct sd *sd);
 static int hdcs_stop(struct sd *sd);
 static int hdcs_dump(struct sd *sd);
-static void hdcs_disconnect(struct sd *sd);
 
-static int hdcs_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int hdcs_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 static int hdcs_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-static int hdcs_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 
 const struct stv06xx_sensor stv06xx_sensor_hdcs1x00 = {
 	.name = "HP HDCS-1000/1100",
@@ -152,10 +150,10 @@ const struct stv06xx_sensor stv06xx_sensor_hdcs1x00 = {
 	.max_packet_size = { 847 },
 
 	.init = hdcs_init,
+	.init_controls = hdcs_init_controls,
 	.probe = hdcs_probe_1x00,
 	.start = hdcs_start,
 	.stop = hdcs_stop,
-	.disconnect = hdcs_disconnect,
 	.dump = hdcs_dump,
 };
 
@@ -171,6 +169,7 @@ const struct stv06xx_sensor stv06xx_sensor_hdcs1020 = {
 	.max_packet_size = { 847 },
 
 	.init = hdcs_init,
+	.init_controls = hdcs_init_controls,
 	.probe = hdcs_probe_1020,
 	.start = hdcs_start,
 	.stop = hdcs_stop,

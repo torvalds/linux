@@ -17,6 +17,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
 #include <mach/hardware.h>
@@ -79,6 +81,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	struct nand_chip *nc;
 	struct orion_nand_data *board;
 	struct resource *res;
+	struct clk *clk;
 	void __iomem *io_base;
 	int ret = 0;
 	u32 val = 0;
@@ -155,6 +158,14 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mtd);
 
+	/* Not all platforms can gate the clock, so it is not
+	   an error if the clock does not exists. */
+	clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_prepare_enable(clk);
+		clk_put(clk);
+	}
+
 	if (nand_scan(mtd, 1)) {
 		ret = -ENXIO;
 		goto no_dev;
@@ -184,12 +195,19 @@ static int __devexit orion_nand_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct nand_chip *nc = mtd->priv;
+	struct clk *clk;
 
 	nand_release(mtd);
 
 	iounmap(nc->IO_ADDR_W);
 
 	kfree(nc);
+
+	clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 
 	return 0;
 }

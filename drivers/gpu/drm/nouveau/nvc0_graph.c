@@ -29,6 +29,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_mm.h"
+#include "nouveau_fifo.h"
 
 #include "nvc0_graph.h"
 #include "nvc0_grhub.fuc.h"
@@ -620,13 +621,14 @@ nvc0_graph_init(struct drm_device *dev, int engine)
 int
 nvc0_graph_isr_chid(struct drm_device *dev, u64 inst)
 {
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan;
 	unsigned long flags;
 	int i;
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
+	for (i = 0; i < pfifo->channels; i++) {
 		chan = dev_priv->channels.ptr[i];
 		if (!chan || !chan->ramin)
 			continue;

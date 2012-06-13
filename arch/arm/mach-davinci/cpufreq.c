@@ -240,10 +240,9 @@ static struct platform_driver davinci_cpufreq_driver = {
 	.remove = __exit_p(davinci_cpufreq_remove),
 };
 
-static int __init davinci_cpufreq_init(void)
+int __init davinci_cpufreq_init(void)
 {
 	return platform_driver_probe(&davinci_cpufreq_driver,
 							davinci_cpufreq_probe);
 }
-late_initcall(davinci_cpufreq_init);
 

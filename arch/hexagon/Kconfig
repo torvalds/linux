@@ -27,6 +27,9 @@ config HEXAGON
 	select GENERIC_IOMAP
 	select GENERIC_SMP_IDLE_THREAD
 	select STACKTRACE_SUPPORT
+	select KTIME_SCALAR
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CLOCKEVENTS_BROADCAST
 	---help---
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.
@@ -53,9 +56,6 @@ config PCI
 	def_bool n
 
 config EARLY_PRINTK
-	def_bool y
-
-config KTIME_SCALAR
 	def_bool y
 
 config MMU
@@ -86,15 +86,6 @@ config GENERIC_FIND_NEXT_BIT
 	def_bool y
 
 config GENERIC_HWEIGHT
-	def_bool y
-
-config GENERIC_TIME
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_CLOCKEVENTS_BROADCAST
 	def_bool y
 
 config STACKTRACE_SUPPORT
@@ -179,7 +170,6 @@ endchoice
 source "mm/Kconfig"
 
 source "kernel/Kconfig.hz"
-source "kernel/time/Kconfig"
 
 config GENERIC_GPIO
 	def_bool n

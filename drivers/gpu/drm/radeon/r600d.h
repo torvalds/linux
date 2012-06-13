@@ -219,6 +219,8 @@
 #define		BACKEND_MAP(x)					((x) << 16)
 
 #define GB_TILING_CONFIG				0x98F0
+#define     PIPE_TILING__SHIFT              1
+#define     PIPE_TILING__MASK               0x0000000e
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
@@ -823,6 +825,239 @@
 #define LINK_CNTL2                                        0x88 /* F0 */
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
+
+/* Audio clocks */
+#define DCCG_AUDIO_DTO0_PHASE             0x0514
+#define DCCG_AUDIO_DTO0_MODULE            0x0518
+#define DCCG_AUDIO_DTO0_LOAD              0x051c
+#       define DTO_LOAD                   (1 << 31)
+#define DCCG_AUDIO_DTO0_CNTL              0x0520
+
+#define DCCG_AUDIO_DTO1_PHASE             0x0524
+#define DCCG_AUDIO_DTO1_MODULE            0x0528
+#define DCCG_AUDIO_DTO1_LOAD              0x052c
+#define DCCG_AUDIO_DTO1_CNTL              0x0530
+
+#define DCCG_AUDIO_DTO_SELECT             0x0534
+
+/* digital blocks */
+#define TMDSA_CNTL                       0x7880
+#       define TMDSA_HDMI_EN             (1 << 2)
+#define LVTMA_CNTL                       0x7a80
+#       define LVTMA_HDMI_EN             (1 << 2)
+#define DDIA_CNTL                        0x7200
+#       define DDIA_HDMI_EN              (1 << 2)
+#define DIG0_CNTL                        0x75a0
+#       define DIG_MODE(x)               (((x) & 7) << 8)
+#       define DIG_MODE_DP               0
+#       define DIG_MODE_LVDS             1
+#       define DIG_MODE_TMDS_DVI         2
+#       define DIG_MODE_TMDS_HDMI        3
+#       define DIG_MODE_SDVO             4
+#define DIG1_CNTL                        0x79a0
+
+/* rs6xx/rs740 and r6xx share the same HDMI blocks, however, rs6xx has only one
+ * instance of the blocks while r6xx has 2.  DCE 3.0 cards are slightly
+ * different due to the new DIG blocks, but also have 2 instances.
+ * DCE 3.0 HDMI blocks are part of each DIG encoder.
+ */
+
+/* rs6xx/rs740/r6xx/dce3 */
+#define HDMI0_CONTROL                0x7400
+/* rs6xx/rs740/r6xx */
+#       define HDMI0_ENABLE          (1 << 0)
+#       define HDMI0_STREAM(x)       (((x) & 3) << 2)
+#       define HDMI0_STREAM_TMDSA    0
+#       define HDMI0_STREAM_LVTMA    1
+#       define HDMI0_STREAM_DVOA     2
+#       define HDMI0_STREAM_DDIA     3
+/* rs6xx/r6xx/dce3 */
+#       define HDMI0_ERROR_ACK       (1 << 8)
+#       define HDMI0_ERROR_MASK      (1 << 9)
+#define HDMI0_STATUS                 0x7404
+#       define HDMI0_ACTIVE_AVMUTE   (1 << 0)
+#       define HDMI0_AUDIO_ENABLE    (1 << 4)
+#       define HDMI0_AZ_FORMAT_WTRIG     (1 << 28)
+#       define HDMI0_AZ_FORMAT_WTRIG_INT (1 << 29)
+#define HDMI0_AUDIO_PACKET_CONTROL   0x7408
+#       define HDMI0_AUDIO_SAMPLE_SEND  (1 << 0)
+#       define HDMI0_AUDIO_DELAY_EN(x)  (((x) & 3) << 4)
+#       define HDMI0_AUDIO_SEND_MAX_PACKETS  (1 << 8)
+#       define HDMI0_AUDIO_TEST_EN         (1 << 12)
+#       define HDMI0_AUDIO_PACKETS_PER_LINE(x)  (((x) & 0x1f) << 16)
+#       define HDMI0_AUDIO_CHANNEL_SWAP    (1 << 24)
+#       define HDMI0_60958_CS_UPDATE       (1 << 26)
+#       define HDMI0_AZ_FORMAT_WTRIG_MASK  (1 << 28)
+#       define HDMI0_AZ_FORMAT_WTRIG_ACK   (1 << 29)
+#define HDMI0_AUDIO_CRC_CONTROL      0x740c
+#       define HDMI0_AUDIO_CRC_EN    (1 << 0)
+#define HDMI0_VBI_PACKET_CONTROL     0x7410
+#       define HDMI0_NULL_SEND       (1 << 0)
+#       define HDMI0_GC_SEND         (1 << 4)
+#       define HDMI0_GC_CONT         (1 << 5) /* 0 - once; 1 - every frame */
+#define HDMI0_INFOFRAME_CONTROL0     0x7414
+#       define HDMI0_AVI_INFO_SEND   (1 << 0)
+#       define HDMI0_AVI_INFO_CONT   (1 << 1)
+#       define HDMI0_AUDIO_INFO_SEND (1 << 4)
+#       define HDMI0_AUDIO_INFO_CONT (1 << 5)
+#       define HDMI0_AUDIO_INFO_SOURCE (1 << 6) /* 0 - sound block; 1 - hmdi regs */
+#       define HDMI0_AUDIO_INFO_UPDATE (1 << 7)
+#       define HDMI0_MPEG_INFO_SEND  (1 << 8)
+#       define HDMI0_MPEG_INFO_CONT  (1 << 9)
+#       define HDMI0_MPEG_INFO_UPDATE  (1 << 10)
+#define HDMI0_INFOFRAME_CONTROL1     0x7418
+#       define HDMI0_AVI_INFO_LINE(x)  (((x) & 0x3f) << 0)
+#       define HDMI0_AUDIO_INFO_LINE(x)  (((x) & 0x3f) << 8)
+#       define HDMI0_MPEG_INFO_LINE(x)  (((x) & 0x3f) << 16)
+#define HDMI0_GENERIC_PACKET_CONTROL 0x741c
+#       define HDMI0_GENERIC0_SEND   (1 << 0)
+#       define HDMI0_GENERIC0_CONT   (1 << 1)
+#       define HDMI0_GENERIC0_UPDATE (1 << 2)
+#       define HDMI0_GENERIC1_SEND   (1 << 4)
+#       define HDMI0_GENERIC1_CONT   (1 << 5)
+#       define HDMI0_GENERIC0_LINE(x)  (((x) & 0x3f) << 16)
+#       define HDMI0_GENERIC1_LINE(x)  (((x) & 0x3f) << 24)
+#define HDMI0_GC                     0x7428
+#       define HDMI0_GC_AVMUTE       (1 << 0)
+#define HDMI0_AVI_INFO0              0x7454
+#       define HDMI0_AVI_INFO_CHECKSUM(x)  (((x) & 0xff) << 0)
+#       define HDMI0_AVI_INFO_S(x)   (((x) & 3) << 8)
+#       define HDMI0_AVI_INFO_B(x)   (((x) & 3) << 10)
+#       define HDMI0_AVI_INFO_A(x)   (((x) & 1) << 12)
+#       define HDMI0_AVI_INFO_Y(x)   (((x) & 3) << 13)
+#       define HDMI0_AVI_INFO_Y_RGB       0
+#       define HDMI0_AVI_INFO_Y_YCBCR422  1
+#       define HDMI0_AVI_INFO_Y_YCBCR444  2
+#       define HDMI0_AVI_INFO_Y_A_B_S(x)   (((x) & 0xff) << 8)
+#       define HDMI0_AVI_INFO_R(x)   (((x) & 0xf) << 16)
+#       define HDMI0_AVI_INFO_M(x)   (((x) & 0x3) << 20)
+#       define HDMI0_AVI_INFO_C(x)   (((x) & 0x3) << 22)
+#       define HDMI0_AVI_INFO_C_M_R(x)   (((x) & 0xff) << 16)
+#       define HDMI0_AVI_INFO_SC(x)  (((x) & 0x3) << 24)
+#       define HDMI0_AVI_INFO_ITC_EC_Q_SC(x)  (((x) & 0xff) << 24)
+#define HDMI0_AVI_INFO1              0x7458
+#       define HDMI0_AVI_INFO_VIC(x) (((x) & 0x7f) << 0) /* don't use avi infoframe v1 */
+#       define HDMI0_AVI_INFO_PR(x)  (((x) & 0xf) << 8) /* don't use avi infoframe v1 */
+#       define HDMI0_AVI_INFO_TOP(x) (((x) & 0xffff) << 16)
+#define HDMI0_AVI_INFO2              0x745c
+#       define HDMI0_AVI_INFO_BOTTOM(x)  (((x) & 0xffff) << 0)
+#       define HDMI0_AVI_INFO_LEFT(x)    (((x) & 0xffff) << 16)
+#define HDMI0_AVI_INFO3              0x7460
+#       define HDMI0_AVI_INFO_RIGHT(x)    (((x) & 0xffff) << 0)
+#       define HDMI0_AVI_INFO_VERSION(x)  (((x) & 3) << 24)
+#define HDMI0_MPEG_INFO0             0x7464
+#       define HDMI0_MPEG_INFO_CHECKSUM(x)  (((x) & 0xff) << 0)
+#       define HDMI0_MPEG_INFO_MB0(x)  (((x) & 0xff) << 8)
+#       define HDMI0_MPEG_INFO_MB1(x)  (((x) & 0xff) << 16)
+#       define HDMI0_MPEG_INFO_MB2(x)  (((x) & 0xff) << 24)
+#define HDMI0_MPEG_INFO1             0x7468
+#       define HDMI0_MPEG_INFO_MB3(x)  (((x) & 0xff) << 0)
+#       define HDMI0_MPEG_INFO_MF(x)   (((x) & 3) << 8)
+#       define HDMI0_MPEG_INFO_FR(x)   (((x) & 1) << 12)
+#define HDMI0_GENERIC0_HDR           0x746c
+#define HDMI0_GENERIC0_0             0x7470
+#define HDMI0_GENERIC0_1             0x7474
+#define HDMI0_GENERIC0_2             0x7478
+#define HDMI0_GENERIC0_3             0x747c
+#define HDMI0_GENERIC0_4             0x7480
+#define HDMI0_GENERIC0_5             0x7484
+#define HDMI0_GENERIC0_6             0x7488
+#define HDMI0_GENERIC1_HDR           0x748c
+#define HDMI0_GENERIC1_0             0x7490
+#define HDMI0_GENERIC1_1             0x7494
+#define HDMI0_GENERIC1_2             0x7498
+#define HDMI0_GENERIC1_3             0x749c
+#define HDMI0_GENERIC1_4             0x74a0
+#define HDMI0_GENERIC1_5             0x74a4
+#define HDMI0_GENERIC1_6             0x74a8
+#define HDMI0_ACR_32_0               0x74ac
+#       define HDMI0_ACR_CTS_32(x)   (((x) & 0xfffff) << 12)
+#define HDMI0_ACR_32_1               0x74b0
+#       define HDMI0_ACR_N_32(x)   (((x) & 0xfffff) << 0)
+#define HDMI0_ACR_44_0               0x74b4
+#       define HDMI0_ACR_CTS_44(x)   (((x) & 0xfffff) << 12)
+#define HDMI0_ACR_44_1               0x74b8
+#       define HDMI0_ACR_N_44(x)   (((x) & 0xfffff) << 0)
+#define HDMI0_ACR_48_0               0x74bc
+#       define HDMI0_ACR_CTS_48(x)   (((x) & 0xfffff) << 12)
+#define HDMI0_ACR_48_1               0x74c0
+#       define HDMI0_ACR_N_48(x)   (((x) & 0xfffff) << 0)
+#define HDMI0_ACR_STATUS_0           0x74c4
+#define HDMI0_ACR_STATUS_1           0x74c8
+#define HDMI0_AUDIO_INFO0            0x74cc
+#       define HDMI0_AUDIO_INFO_CHECKSUM(x)  (((x) & 0xff) << 0)
+#       define HDMI0_AUDIO_INFO_CC(x)  (((x) & 7) << 8)
+#define HDMI0_AUDIO_INFO1            0x74d0
+#       define HDMI0_AUDIO_INFO_CA(x)  (((x) & 0xff) << 0)
+#       define HDMI0_AUDIO_INFO_LSV(x)  (((x) & 0xf) << 11)
+#       define HDMI0_AUDIO_INFO_DM_INH(x)  (((x) & 1) << 15)
+#       define HDMI0_AUDIO_INFO_DM_INH_LSV(x)  (((x) & 0xff) << 8)
+#define HDMI0_60958_0                0x74d4
+#       define HDMI0_60958_CS_A(x)   (((x) & 1) << 0)
+#       define HDMI0_60958_CS_B(x)   (((x) & 1) << 1)
+#       define HDMI0_60958_CS_C(x)   (((x) & 1) << 2)
+#       define HDMI0_60958_CS_D(x)   (((x) & 3) << 3)
+#       define HDMI0_60958_CS_MODE(x)   (((x) & 3) << 6)
+#       define HDMI0_60958_CS_CATEGORY_CODE(x)      (((x) & 0xff) << 8)
+#       define HDMI0_60958_CS_SOURCE_NUMBER(x)      (((x) & 0xf) << 16)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_L(x)   (((x) & 0xf) << 20)
+#       define HDMI0_60958_CS_SAMPLING_FREQUENCY(x) (((x) & 0xf) << 24)
+#       define HDMI0_60958_CS_CLOCK_ACCURACY(x)     (((x) & 3) << 28)
+#define HDMI0_60958_1                0x74d8
+#       define HDMI0_60958_CS_WORD_LENGTH(x)        (((x) & 0xf) << 0)
+#       define HDMI0_60958_CS_ORIGINAL_SAMPLING_FREQUENCY(x)   (((x) & 0xf) << 4)
+#       define HDMI0_60958_CS_VALID_L(x)   (((x) & 1) << 16)
+#       define HDMI0_60958_CS_VALID_R(x)   (((x) & 1) << 18)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_R(x)   (((x) & 0xf) << 20)
+#define HDMI0_ACR_PACKET_CONTROL     0x74dc
+#       define HDMI0_ACR_SEND        (1 << 0)
+#       define HDMI0_ACR_CONT        (1 << 1)
+#       define HDMI0_ACR_SELECT(x)   (((x) & 3) << 4)
+#       define HDMI0_ACR_HW          0
+#       define HDMI0_ACR_32          1
+#       define HDMI0_ACR_44          2
+#       define HDMI0_ACR_48          3
+#       define HDMI0_ACR_SOURCE      (1 << 8) /* 0 - hw; 1 - cts value */
+#       define HDMI0_ACR_AUTO_SEND   (1 << 12)
+#define HDMI0_RAMP_CONTROL0          0x74e0
+#       define HDMI0_RAMP_MAX_COUNT(x)   (((x) & 0xffffff) << 0)
+#define HDMI0_RAMP_CONTROL1          0x74e4
+#       define HDMI0_RAMP_MIN_COUNT(x)   (((x) & 0xffffff) << 0)
+#define HDMI0_RAMP_CONTROL2          0x74e8
+#       define HDMI0_RAMP_INC_COUNT(x)   (((x) & 0xffffff) << 0)
+#define HDMI0_RAMP_CONTROL3          0x74ec
+#       define HDMI0_RAMP_DEC_COUNT(x)   (((x) & 0xffffff) << 0)
+/* HDMI0_60958_2 is r7xx only */
+#define HDMI0_60958_2                0x74f0
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_2(x)   (((x) & 0xf) << 0)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_3(x)   (((x) & 0xf) << 4)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_4(x)   (((x) & 0xf) << 8)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_5(x)   (((x) & 0xf) << 12)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_6(x)   (((x) & 0xf) << 16)
+#       define HDMI0_60958_CS_CHANNEL_NUMBER_7(x)   (((x) & 0xf) << 20)
+/* r6xx only; second instance starts at 0x7700 */
+#define HDMI1_CONTROL                0x7700
+#define HDMI1_STATUS                 0x7704
+#define HDMI1_AUDIO_PACKET_CONTROL   0x7708
+/* DCE3; second instance starts at 0x7800 NOT 0x7700 */
+#define DCE3_HDMI1_CONTROL                0x7800
+#define DCE3_HDMI1_STATUS                 0x7804
+#define DCE3_HDMI1_AUDIO_PACKET_CONTROL   0x7808
+/* DCE3.2 (for interrupts) */
+#define AFMT_STATUS                          0x7600
+#       define AFMT_AUDIO_ENABLE             (1 << 4)
+#       define AFMT_AZ_FORMAT_WTRIG          (1 << 28)
+#       define AFMT_AZ_FORMAT_WTRIG_INT      (1 << 29)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG      (1 << 30)
+#define AFMT_AUDIO_PACKET_CONTROL            0x7604
+#       define AFMT_AUDIO_SAMPLE_SEND        (1 << 0)
+#       define AFMT_AUDIO_TEST_EN            (1 << 12)
+#       define AFMT_AUDIO_CHANNEL_SWAP       (1 << 24)
+#       define AFMT_60958_CS_UPDATE          (1 << 26)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG_MASK (1 << 27)
+#       define AFMT_AZ_FORMAT_WTRIG_MASK     (1 << 28)
+#       define AFMT_AZ_FORMAT_WTRIG_ACK      (1 << 29)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG_ACK  (1 << 30)
 
 /*
  * PM4

@@ -693,6 +693,8 @@ static struct pci_device_id pci_table[] __devinitdata = {
 	{ }	/* Terminating entry */
 };
 
+MODULE_DEVICE_TABLE(pci, pci_table);
+
 static struct pci_driver lynx_pci_driver = {
 	.name =		driver_name,
 	.id_table =	pci_table,
@@ -700,22 +702,8 @@ static struct pci_driver lynx_pci_driver = {
 	.remove =	remove_card,
 };
 
+module_pci_driver(lynx_pci_driver);
+
 MODULE_AUTHOR("Kristian Hoegsberg");
 MODULE_DESCRIPTION("Snoop mode driver for TI pcilynx 1394 controllers");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(pci, pci_table);
-
-static int __init nosy_init(void)
-{
-	return pci_register_driver(&lynx_pci_driver);
-}
-
-static void __exit nosy_cleanup(void)
-{
-	pci_unregister_driver(&lynx_pci_driver);
-
-	pr_info("Unloaded %s\n", driver_name);
-}
-
-module_init(nosy_init);
-module_exit(nosy_cleanup);

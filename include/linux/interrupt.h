@@ -142,8 +142,6 @@ request_any_context_irq(unsigned int irq, irq_handler_t handler,
 extern int __must_check
 request_percpu_irq(unsigned int irq, irq_handler_t handler,
 		   const char *devname, void __percpu *percpu_dev_id);
-
-extern void exit_irq_thread(void);
 #else
 
 extern int __must_check
@@ -177,8 +175,6 @@ request_percpu_irq(unsigned int irq, irq_handler_t handler,
 {
 	return request_irq(irq, handler, 0, devname, percpu_dev_id);
 }
-
-static inline void exit_irq_thread(void) { }
 #endif
 
 extern void free_irq(unsigned int, void *);

@@ -78,6 +78,8 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
 			int * /* bytes returned */ , const int long_op);
 extern int SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
 			    char *in_buf, int flags);
+extern int cifs_setup_request(struct cifs_ses *, struct kvec *, unsigned int,
+			      struct mid_q_entry **);
 extern int cifs_check_receive(struct mid_q_entry *mid,
 			struct TCP_Server_Info *server, bool log_error);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,
@@ -88,9 +90,6 @@ extern int SendReceiveBlockingLock(const unsigned int xid,
 			struct smb_hdr *in_buf ,
 			struct smb_hdr *out_buf,
 			int *bytes_returned);
-extern void cifs_add_credits(struct TCP_Server_Info *server,
-			     const unsigned int add);
-extern void cifs_set_credits(struct TCP_Server_Info *server, const int val);
 extern int checkSMB(char *buf, unsigned int length);
 extern bool is_valid_oplock_break(char *, struct TCP_Server_Info *);
 extern bool backup_cred(struct cifs_sb_info *);
@@ -115,7 +114,6 @@ extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				void **request_buf);
 extern int CIFS_SessSetup(unsigned int xid, struct cifs_ses *ses,
 			     const struct nls_table *nls_cp);
-extern __u64 GetNextMid(struct TCP_Server_Info *server);
 extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
@@ -192,11 +190,13 @@ extern int CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 
 extern int CIFSFindFirst(const int xid, struct cifs_tcon *tcon,
 		const char *searchName, const struct nls_table *nls_codepage,
-		__u16 *searchHandle, struct cifs_search_info *psrch_inf,
+		__u16 *searchHandle, __u16 search_flags,
+		struct cifs_search_info *psrch_inf,
 		int map, const char dirsep);
 
 extern int CIFSFindNext(const int xid, struct cifs_tcon *tcon,
-		__u16 searchHandle, struct cifs_search_info *psrch_inf);
+		__u16 searchHandle, __u16 search_flags,
+		struct cifs_search_info *psrch_inf);
 
 extern int CIFSFindClose(const int, struct cifs_tcon *tcon,
 			const __u16 search_handle);
@@ -464,6 +464,9 @@ extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 
 /* asynchronous read support */
 struct cifs_readdata {
+	struct kref			refcount;
+	struct list_head		list;
+	struct completion		done;
 	struct cifsFileInfo		*cfile;
 	struct address_space		*mapping;
 	__u64				offset;
@@ -472,12 +475,13 @@ struct cifs_readdata {
 	int				result;
 	struct list_head		pages;
 	struct work_struct		work;
+	int (*marshal_iov) (struct cifs_readdata *rdata,
+			    unsigned int remaining);
 	unsigned int			nr_iov;
 	struct kvec			iov[1];
 };
 
-struct cifs_readdata *cifs_readdata_alloc(unsigned int nr_pages);
-void cifs_readdata_free(struct cifs_readdata *rdata);
+void cifs_readdata_release(struct kref *refcount);
 int cifs_async_readv(struct cifs_readdata *rdata);
 
 /* asynchronous write support */

@@ -28,8 +28,8 @@ documentation.</contrib>
 	<firstname>Hans</firstname>
 	<surname>Verkuil</surname>
 	<contrib>Designed and documented the VIDIOC_LOG_STATUS ioctl,
-the extended control ioctls and major parts of the sliced VBI
-API.</contrib>
+the extended control ioctls, major parts of the sliced VBI API, the
+MPEG encoder and decoder APIs and the DV Timings API.</contrib>
 	<affiliation>
 	  <address>
 	    <email>hverkuil@xs4all.nl</email>
@@ -96,6 +96,17 @@ Remote Controller chapter.</contrib>
 	  </address>
 	</affiliation>
       </author>
+
+      <author>
+	<firstname>Sakari</firstname>
+	<surname>Ailus</surname>
+	<contrib>Subdev selections API.</contrib>
+	<affiliation>
+	  <address>
+	    <email>sakari.ailus@iki.fi</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
@@ -112,6 +123,7 @@ Remote Controller chapter.</contrib>
       <year>2009</year>
       <year>2010</year>
       <year>2011</year>
+      <year>2012</year>
       <holder>Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin
 Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab,
 	Pawel Osciak</holder>
@@ -126,6 +138,28 @@ Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab,
 structs, ioctls) must be noted in more detail in the history chapter
 (compat.xml), along with the possible impact on existing drivers and
 applications. -->
+
+      <revision>
+	<revnumber>3.5</revnumber>
+	<date>2012-05-07</date>
+	<authorinitials>sa, sn</authorinitials>
+	<revremark>Added V4L2_CTRL_TYPE_INTEGER_MENU and V4L2 subdev
+	    selections API. Improved the description of V4L2_CID_COLORFX
+	    control, added V4L2_CID_COLORFX_CBCR control.
+	    Added camera controls V4L2_CID_AUTO_EXPOSURE_BIAS,
+	    V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE, V4L2_CID_IMAGE_STABILIZATION,
+	    V4L2_CID_ISO_SENSITIVITY, V4L2_CID_ISO_SENSITIVITY_AUTO,
+	    V4L2_CID_EXPOSURE_METERING, V4L2_CID_SCENE_MODE,
+	    V4L2_CID_3A_LOCK, V4L2_CID_AUTO_FOCUS_START,
+	    V4L2_CID_AUTO_FOCUS_STOP, V4L2_CID_AUTO_FOCUS_STATUS
+	    and V4L2_CID_AUTO_FOCUS_RANGE.
+	</revremark>
+	<date>2012-05-01</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Added VIDIOC_ENUM_DV_TIMINGS, VIDIOC_QUERY_DV_TIMINGS and
+	VIDIOC_DV_TIMINGS_CAP.
+	</revremark>
+      </revision>
 
       <revision>
 	<revnumber>3.4</revnumber>
@@ -433,7 +467,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.3</subtitle>
+ <subtitle>Revision 3.5</subtitle>
 
   <chapter id="common">
     &sub-common;
@@ -491,10 +525,12 @@ and discussions on the V4L mailing list.</revremark>
     &sub-dbg-g-register;
     &sub-decoder-cmd;
     &sub-dqevent;
+    &sub-dv-timings-cap;
     &sub-encoder-cmd;
     &sub-enumaudio;
     &sub-enumaudioout;
     &sub-enum-dv-presets;
+    &sub-enum-dv-timings;
     &sub-enum-fmt;
     &sub-enum-framesizes;
     &sub-enum-frameintervals;
@@ -529,6 +565,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-querycap;
     &sub-queryctrl;
     &sub-query-dv-preset;
+    &sub-query-dv-timings;
     &sub-querystd;
     &sub-prepare-buf;
     &sub-reqbufs;
@@ -540,6 +577,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-subdev-g-crop;
     &sub-subdev-g-fmt;
     &sub-subdev-g-frame-interval;
+    &sub-subdev-g-selection;
     &sub-subscribe-event;
     <!-- End of ioctls. -->
     &sub-mmap;

@@ -44,128 +44,81 @@ static struct v4l2_pix_format vv6410_mode[] = {
 	}
 };
 
-static const struct ctrl vv6410_ctrl[] = {
-#define HFLIP_IDX 0
-	{
-		{
-			.id		= V4L2_CID_HFLIP,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "horizontal flip",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value	= 0
-		},
-		.set = vv6410_set_hflip,
-		.get = vv6410_get_hflip
-	},
-#define VFLIP_IDX 1
-	{
-		{
-			.id		= V4L2_CID_VFLIP,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "vertical flip",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value	= 0
-		},
-		.set = vv6410_set_vflip,
-		.get = vv6410_get_vflip
-	},
-#define GAIN_IDX 2
-	{
-		{
-			.id		= V4L2_CID_GAIN,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "analog gain",
-			.minimum	= 0,
-			.maximum	= 15,
-			.step		= 1,
-			.default_value  = 10
-		},
-		.set = vv6410_set_analog_gain,
-		.get = vv6410_get_analog_gain
-	},
-#define EXPOSURE_IDX 3
-	{
-		{
-			.id		= V4L2_CID_EXPOSURE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "exposure",
-			.minimum	= 0,
-			.maximum	= 32768,
-			.step		= 1,
-			.default_value  = 20000
-		},
-		.set = vv6410_set_exposure,
-		.get = vv6410_get_exposure
+static int vv6410_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	int err = -EINVAL;
+
+	switch (ctrl->id) {
+	case V4L2_CID_HFLIP:
+		err = vv6410_set_hflip(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_VFLIP:
+		err = vv6410_set_vflip(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_GAIN:
+		err = vv6410_set_analog_gain(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_EXPOSURE:
+		err = vv6410_set_exposure(gspca_dev, ctrl->val);
+		break;
 	}
-	};
+	return err;
+}
+
+static const struct v4l2_ctrl_ops vv6410_ctrl_ops = {
+	.s_ctrl = vv6410_s_ctrl,
+};
 
 static int vv6410_probe(struct sd *sd)
 {
 	u16 data;
-	int err, i;
-	s32 *sensor_settings;
+	int err;
 
 	err = stv06xx_read_sensor(sd, VV6410_DEVICEH, &data);
 	if (err < 0)
 		return -ENODEV;
 
-	if (data == 0x19) {
-		pr_info("vv6410 sensor detected\n");
+	if (data != 0x19)
+		return -ENODEV;
 
-		sensor_settings = kmalloc(ARRAY_SIZE(vv6410_ctrl) * sizeof(s32),
-					  GFP_KERNEL);
-		if (!sensor_settings)
-			return -ENOMEM;
+	pr_info("vv6410 sensor detected\n");
 
-		sd->gspca_dev.cam.cam_mode = vv6410_mode;
-		sd->gspca_dev.cam.nmodes = ARRAY_SIZE(vv6410_mode);
-		sd->desc.ctrls = vv6410_ctrl;
-		sd->desc.nctrls = ARRAY_SIZE(vv6410_ctrl);
+	sd->gspca_dev.cam.cam_mode = vv6410_mode;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(vv6410_mode);
+	return 0;
+}
 
-		for (i = 0; i < sd->desc.nctrls; i++)
-			sensor_settings[i] = vv6410_ctrl[i].qctrl.default_value;
-		sd->sensor_priv = sensor_settings;
-		return 0;
-	}
-	return -ENODEV;
+static int vv6410_init_controls(struct sd *sd)
+{
+	struct v4l2_ctrl_handler *hdl = &sd->gspca_dev.ctrl_handler;
+
+	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,
+			V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,
+			V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,
+			V4L2_CID_EXPOSURE, 0, 32768, 1, 20000);
+	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,
+			V4L2_CID_GAIN, 0, 15, 1, 10);
+	return hdl->error;
 }
 
 static int vv6410_init(struct sd *sd)
 {
 	int err = 0, i;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	for (i = 0; i < ARRAY_SIZE(stv_bridge_init); i++) {
+	for (i = 0; i < ARRAY_SIZE(stv_bridge_init); i++)
 		stv06xx_write_bridge(sd, stv_bridge_init[i].addr, stv_bridge_init[i].data);
-	}
 
 	if (err < 0)
 		return err;
 
 	err = stv06xx_write_sensor_bytes(sd, (u8 *) vv6410_sensor_init,
 					 ARRAY_SIZE(vv6410_sensor_init));
-	if (err < 0)
-		return err;
-
-	err = vv6410_set_exposure(&sd->gspca_dev,
-				   sensor_settings[EXPOSURE_IDX]);
-	if (err < 0)
-		return err;
-
-	err = vv6410_set_analog_gain(&sd->gspca_dev,
-				      sensor_settings[GAIN_IDX]);
-
 	return (err < 0) ? err : 0;
-}
-
-static void vv6410_disconnect(struct sd *sd)
-{
-	sd->sensor = NULL;
-	kfree(sd->sensor_priv);
 }
 
 static int vv6410_start(struct sd *sd)
@@ -233,25 +186,12 @@ static int vv6410_dump(struct sd *sd)
 	return (err < 0) ? err : 0;
 }
 
-static int vv6410_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[HFLIP_IDX];
-	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
-
-	return 0;
-}
-
 static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u16 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	sensor_settings[HFLIP_IDX] = val;
 	err = stv06xx_read_sensor(sd, VV6410_DATAFORMAT, &i2c_data);
 	if (err < 0)
 		return err;
@@ -267,25 +207,12 @@ static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	return (err < 0) ? err : 0;
 }
 
-static int vv6410_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[VFLIP_IDX];
-	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
-
-	return 0;
-}
-
 static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u16 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	sensor_settings[VFLIP_IDX] = val;
 	err = stv06xx_read_sensor(sd, VV6410_DATAFORMAT, &i2c_data);
 	if (err < 0)
 		return err;
@@ -301,51 +228,22 @@ static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	return (err < 0) ? err : 0;
 }
 
-static int vv6410_get_analog_gain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[GAIN_IDX];
-
-	PDEBUG(D_V4L2, "Read analog gain %d", *val);
-
-	return 0;
-}
-
 static int vv6410_set_analog_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 
-	sensor_settings[GAIN_IDX] = val;
 	PDEBUG(D_V4L2, "Set analog gain to %d", val);
 	err = stv06xx_write_sensor(sd, VV6410_ANALOGGAIN, 0xf0 | (val & 0xf));
 
 	return (err < 0) ? err : 0;
 }
 
-static int vv6410_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[EXPOSURE_IDX];
-
-	PDEBUG(D_V4L2, "Read exposure %d", *val);
-
-	return 0;
-}
-
 static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
 	unsigned int fine, coarse;
-
-	sensor_settings[EXPOSURE_IDX] = val;
 
 	val = (val * val >> 14) + val / 4;
 

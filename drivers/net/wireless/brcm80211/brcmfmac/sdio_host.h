@@ -40,6 +40,10 @@
 /* Maximum number of I/O funcs */
 #define SDIOD_MAX_IOFUNCS	7
 
+/* mask of register map */
+#define REG_F0_REG_MASK		0x7FF
+#define REG_F1_MISC_MASK	0x1FFFF
+
 /* as of sdiod rev 0, supports 3 functions */
 #define SBSDIO_NUM_FUNCTION		3
 
@@ -142,7 +146,6 @@ struct brcmf_sdio_dev {
 	u8 num_funcs;			/* Supported funcs on client */
 	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	u32 sbwad;			/* Save backplane window address */
-	bool regfail;			/* status of last reg_r/w call */
 	void *bus;
 	atomic_t suspend;		/* suspend flag */
 	wait_queue_head_t request_byte_wait;
@@ -164,31 +167,13 @@ struct brcmf_sdio_dev {
 extern int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
-/* Access SDIO address space (e.g. CCCR) using CMD52 (single-byte interface).
- *   fn:   function number
- *   addr: unmodified SDIO-space address
- *   data: data byte to write
- *   err:  pointer to error code (or NULL)
- */
-extern u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint func,
-				u32 addr, int *err);
-extern void brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint func,
-				   u32 addr, u8 data, int *err);
-
-/* Synchronous access to device (client) core registers via CMD53 to F1.
- *   addr: backplane address (i.e. >= regsva from attach)
- *   size: register width in bytes (2 or 4)
- *   data: data for register write
- */
-extern u32
-brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size);
-
-extern u32
-brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
-		       u32 data);
-
-/* Indicate if last reg read/write failed */
-extern bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev);
+/* sdio device register access interface */
+extern u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+extern u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+extern void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
+			     u8 data, int *ret);
+extern void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
+			     u32 data, int *ret);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number

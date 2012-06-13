@@ -173,7 +173,7 @@ static struct map_desc omap34xx_io_desc[] __initdata = {
 };
 #endif
 
-#ifdef CONFIG_SOC_OMAPTI81XX
+#ifdef CONFIG_SOC_TI81XX
 static struct map_desc omapti81xx_io_desc[] __initdata = {
 	{
 		.virtual	= L4_34XX_VIRT,
@@ -184,7 +184,7 @@ static struct map_desc omapti81xx_io_desc[] __initdata = {
 };
 #endif
 
-#ifdef CONFIG_SOC_OMAPAM33XX
+#ifdef CONFIG_SOC_AM33XX
 static struct map_desc omapam33xx_io_desc[] __initdata = {
 	{
 		.virtual	= L4_34XX_VIRT,
@@ -216,39 +216,9 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 		.type		= MT_DEVICE,
 	},
 	{
-		.virtual	= OMAP44XX_GPMC_VIRT,
-		.pfn		= __phys_to_pfn(OMAP44XX_GPMC_PHYS),
-		.length		= OMAP44XX_GPMC_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= OMAP44XX_EMIF1_VIRT,
-		.pfn		= __phys_to_pfn(OMAP44XX_EMIF1_PHYS),
-		.length		= OMAP44XX_EMIF1_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= OMAP44XX_EMIF2_VIRT,
-		.pfn		= __phys_to_pfn(OMAP44XX_EMIF2_PHYS),
-		.length		= OMAP44XX_EMIF2_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= OMAP44XX_DMM_VIRT,
-		.pfn		= __phys_to_pfn(OMAP44XX_DMM_PHYS),
-		.length		= OMAP44XX_DMM_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
 		.virtual	= L4_PER_44XX_VIRT,
 		.pfn		= __phys_to_pfn(L4_PER_44XX_PHYS),
 		.length		= L4_PER_44XX_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= L4_EMU_44XX_VIRT,
-		.pfn		= __phys_to_pfn(L4_EMU_44XX_PHYS),
-		.length		= L4_EMU_44XX_SIZE,
 		.type		= MT_DEVICE,
 	},
 #ifdef CONFIG_OMAP4_ERRATA_I688
@@ -286,14 +256,14 @@ void __init omap34xx_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPTI81XX
+#ifdef CONFIG_SOC_TI81XX
 void __init omapti81xx_map_common_io(void)
 {
 	iotable_init(omapti81xx_io_desc, ARRAY_SIZE(omapti81xx_io_desc));
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPAM33XX
+#ifdef CONFIG_SOC_AM33XX
 void __init omapam33xx_map_common_io(void)
 {
 	iotable_init(omapam33xx_io_desc, ARRAY_SIZE(omapam33xx_io_desc));
@@ -380,6 +350,13 @@ void __init omap2420_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap2420_clk_init();
 }
+
+void __init omap2420_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap2_pm_init();
+}
 #endif
 
 #ifdef CONFIG_SOC_OMAP2430
@@ -394,6 +371,13 @@ void __init omap2430_init_early(void)
 	omap2430_hwmod_init();
 	omap_hwmod_init_postsetup();
 	omap2430_clk_init();
+}
+
+void __init omap2430_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap2_pm_init();
 }
 #endif
 
@@ -449,6 +433,48 @@ void __init ti81xx_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap3xxx_clk_init();
 }
+
+void __init omap3_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init omap3430_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init omap35xx_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init omap3630_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init am35xx_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init ti81xx_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
 #endif
 
 #ifdef CONFIG_ARCH_OMAP4
@@ -464,6 +490,13 @@ void __init omap4430_init_early(void)
 	omap44xx_hwmod_init();
 	omap_hwmod_init_postsetup();
 	omap4xxx_clk_init();
+}
+
+void __init omap4430_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap4_pm_init();
 }
 #endif
 

@@ -64,6 +64,7 @@ enum {
 	MLX4_MAX_NUM_PF		= 16,
 	MLX4_MAX_NUM_VF		= 64,
 	MLX4_MFUNC_MAX		= 80,
+	MLX4_MAX_EQ_NUM		= 1024,
 	MLX4_MFUNC_EQ_NUM	= 4,
 	MLX4_MFUNC_MAX_EQES     = 8,
 	MLX4_MFUNC_EQE_MASK     = (MLX4_MFUNC_MAX_EQES - 1)
@@ -238,6 +239,10 @@ static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
 	return (major << 32) | (minor << 16) | subminor;
 }
+
+struct mlx4_phys_caps {
+	u32			num_phys_eqs;
+};
 
 struct mlx4_caps {
 	u64			fw_ver;
@@ -499,6 +504,7 @@ struct mlx4_dev {
 	unsigned long		flags;
 	unsigned long		num_slaves;
 	struct mlx4_caps	caps;
+	struct mlx4_phys_caps	phys_caps;
 	struct radix_tree_root	qp_table_tree;
 	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];

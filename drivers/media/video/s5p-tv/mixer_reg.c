@@ -296,20 +296,24 @@ irqreturn_t mxr_irq_handler(int irq, void *dev_data)
 	/* wake up process waiting for VSYNC */
 	if (val & MXR_INT_STATUS_VSYNC) {
 		set_bit(MXR_EVENT_VSYNC, &mdev->event_flags);
+		/* toggle TOP field event if working in interlaced mode */
+		if (~mxr_read(mdev, MXR_CFG) & MXR_CFG_SCAN_PROGRASSIVE)
+			change_bit(MXR_EVENT_TOP, &mdev->event_flags);
 		wake_up(&mdev->event_queue);
+		/* vsync interrupt use different bit for read and clear */
+		val &= ~MXR_INT_STATUS_VSYNC;
+		val |= MXR_INT_CLEAR_VSYNC;
 	}
 
 	/* clear interrupts */
-	if (~val & MXR_INT_EN_VSYNC) {
-		/* vsync interrupt use different bit for read and clear */
-		val &= ~MXR_INT_EN_VSYNC;
-		val |= MXR_INT_CLEAR_VSYNC;
-	}
 	mxr_write(mdev, MXR_INT_STATUS, val);
 
 	spin_unlock(&mdev->reg_slock);
 	/* leave on non-vsync event */
 	if (~val & MXR_INT_CLEAR_VSYNC)
+		return IRQ_HANDLED;
+	/* skip layer update on bottom field */
+	if (!test_bit(MXR_EVENT_TOP, &mdev->event_flags))
 		return IRQ_HANDLED;
 	for (i = 0; i < MXR_MAX_LAYERS; ++i)
 		mxr_irq_layer_handle(mdev->layer[i]);
@@ -333,6 +337,7 @@ void mxr_reg_streamon(struct mxr_device *mdev)
 
 	/* start MIXER */
 	mxr_write_mask(mdev, MXR_STATUS, ~0, MXR_STATUS_REG_RUN);
+	set_bit(MXR_EVENT_TOP, &mdev->event_flags);
 
 	spin_unlock_irqrestore(&mdev->reg_slock, flags);
 }

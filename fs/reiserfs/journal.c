@@ -1923,6 +1923,8 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 	 * the workqueue job (flush_async_commit) needs this lock
 	 */
 	reiserfs_write_unlock(sb);
+
+	cancel_delayed_work_sync(&REISERFS_SB(sb)->old_work);
 	flush_workqueue(commit_wq);
 
 	if (!reiserfs_mounted_fs_count) {
@@ -3231,8 +3233,6 @@ int journal_mark_dirty(struct reiserfs_transaction_handle *th,
 			       th->t_trans_id, journal->j_trans_id);
 	}
 
-	sb->s_dirt = 1;
-
 	prepared = test_clear_buffer_journal_prepared(bh);
 	clear_buffer_journal_restore_dirty(bh);
 	/* already in this transaction, we are done */
@@ -3316,6 +3316,7 @@ int journal_mark_dirty(struct reiserfs_transaction_handle *th,
 		journal->j_first = cn;
 		journal->j_last = cn;
 	}
+	reiserfs_schedule_old_flush(sb);
 	return 0;
 }
 
@@ -3492,7 +3493,7 @@ static void flush_async_commits(struct work_struct *work)
 ** flushes any old transactions to disk
 ** ends the current transaction if it is too old
 */
-int reiserfs_flush_old_commits(struct super_block *sb)
+void reiserfs_flush_old_commits(struct super_block *sb)
 {
 	time_t now;
 	struct reiserfs_transaction_handle th;
@@ -3502,9 +3503,8 @@ int reiserfs_flush_old_commits(struct super_block *sb)
 	/* safety check so we don't flush while we are replaying the log during
 	 * mount
 	 */
-	if (list_empty(&journal->j_journal_list)) {
-		return 0;
-	}
+	if (list_empty(&journal->j_journal_list))
+		return;
 
 	/* check the current transaction.  If there are no writers, and it is
 	 * too old, finish it, and force the commit blocks to disk
@@ -3526,7 +3526,6 @@ int reiserfs_flush_old_commits(struct super_block *sb)
 			do_journal_end(&th, sb, 1, COMMIT_NOW | WAIT);
 		}
 	}
-	return sb->s_dirt;
 }
 
 /*
@@ -3955,7 +3954,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	 ** it tells us if we should continue with the journal_end, or just return
 	 */
 	if (!check_journal_end(th, sb, nblocks, flags)) {
-		sb->s_dirt = 1;
+		reiserfs_schedule_old_flush(sb);
 		wake_queued_writers(sb);
 		reiserfs_async_progress_wait(sb);
 		goto out;

@@ -16,6 +16,7 @@
 #include <mach/spear.h>
 #include <mach/generic.h>
 
+#define SPEAR13XX_SYS_SW_RES			(VA_MISC_BASE + 0x204)
 void spear_restart(char mode, const char *cmd)
 {
 	if (mode == 's') {
@@ -23,6 +24,10 @@ void spear_restart(char mode, const char *cmd)
 		soft_restart(0);
 	} else {
 		/* hardware reset, Use on-chip reset capability */
+#ifdef CONFIG_ARCH_SPEAR13XX
+		writel_relaxed(0x01, SPEAR13XX_SYS_SW_RES);
+#else
 		sysctl_soft_reset((void __iomem *)VA_SPEAR_SYS_CTRL_BASE);
+#endif
 	}
 }

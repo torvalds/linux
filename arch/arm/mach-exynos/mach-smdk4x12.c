@@ -316,6 +316,7 @@ MACHINE_START(SMDK4412, "SMDK4412")
 	.map_io		= smdk4x12_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= smdk4x12_machine_init,
+	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
 	.restart	= exynos4_restart,
 	.reserve	= &smdk4x12_reserve,

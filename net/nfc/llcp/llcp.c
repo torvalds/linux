@@ -448,6 +448,8 @@ static struct nfc_llcp_sock *nfc_llcp_sock_get(struct nfc_llcp_local *local,
 {
 	struct nfc_llcp_sock *sock, *llcp_sock, *n;
 
+	pr_debug("ssap dsap %d %d\n", ssap, dsap);
+
 	if (ssap == 0 && dsap == 0)
 		return NULL;
 
@@ -783,6 +785,7 @@ static void nfc_llcp_recv_disc(struct nfc_llcp_local *local,
 static void nfc_llcp_recv_cc(struct nfc_llcp_local *local, struct sk_buff *skb)
 {
 	struct nfc_llcp_sock *llcp_sock;
+	struct sock *sk;
 	u8 dsap, ssap;
 
 	dsap = nfc_llcp_dsap(skb);
@@ -801,9 +804,13 @@ static void nfc_llcp_recv_cc(struct nfc_llcp_local *local, struct sk_buff *skb)
 	}
 
 	llcp_sock->dsap = ssap;
+	sk = &llcp_sock->sk;
 
 	nfc_llcp_parse_tlv(local, &skb->data[LLCP_HEADER_SIZE],
 			   skb->len - LLCP_HEADER_SIZE);
+
+	sk->sk_state = LLCP_CONNECTED;
+	sk->sk_state_change(sk);
 
 	nfc_llcp_sock_put(llcp_sock);
 }

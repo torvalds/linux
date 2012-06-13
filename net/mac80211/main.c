@@ -596,6 +596,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.offchannel_tx_hw_queue = IEEE80211_INVAL_HW_QUEUE;
 	local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
 	local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
+	local->hw.radiotap_mcs_details = IEEE80211_RADIOTAP_MCS_HAVE_MCS |
+					 IEEE80211_RADIOTAP_MCS_HAVE_GI |
+					 IEEE80211_RADIOTAP_MCS_HAVE_BW;
 	local->user_power_level = -1;
 	wiphy->ht_capa_mod_mask = &mac80211_ht_capa_mod_mask;
 

@@ -24,4 +24,10 @@ static inline void sirfsoc_map_lluart(void)  {}
 extern void __init sirfsoc_map_lluart(void);
 #endif
 
+#ifdef CONFIG_SUSPEND
+extern int sirfsoc_pm_init(void);
+#else
+static inline int sirfsoc_pm_init(void) { return 0; }
+#endif
+
 #endif

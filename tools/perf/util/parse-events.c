@@ -62,19 +62,6 @@ static struct event_symbol event_symbols[] = {
 #define PERF_EVENT_TYPE(config)		__PERF_EVENT_FIELD(config, TYPE)
 #define PERF_EVENT_ID(config)		__PERF_EVENT_FIELD(config, EVENT)
 
-static const char *hw_event_names[PERF_COUNT_HW_MAX] = {
-	"cycles",
-	"instructions",
-	"cache-references",
-	"cache-misses",
-	"branches",
-	"branch-misses",
-	"bus-cycles",
-	"stalled-cycles-frontend",
-	"stalled-cycles-backend",
-	"ref-cycles",
-};
-
 static const char *sw_event_names[PERF_COUNT_SW_MAX] = {
 	"cpu-clock",
 	"task-clock",
@@ -300,6 +287,16 @@ const char *event_name(struct perf_evsel *evsel)
 	u64 config = evsel->attr.config;
 	int type = evsel->attr.type;
 
+	if (type == PERF_TYPE_RAW || type == PERF_TYPE_HARDWARE) {
+		/*
+ 		 * XXX minimal fix, see comment on perf_evsen__name, this static buffer
+ 		 * will go away together with event_name in the next devel cycle.
+ 		 */
+		static char bf[128];
+		perf_evsel__name(evsel, bf, sizeof(bf));
+		return bf;
+	}
+
 	if (evsel->name)
 		return evsel->name;
 
@@ -317,9 +314,7 @@ const char *__event_name(int type, u64 config)
 
 	switch (type) {
 	case PERF_TYPE_HARDWARE:
-		if (config < PERF_COUNT_HW_MAX && hw_event_names[config])
-			return hw_event_names[config];
-		return "unknown-hardware";
+		return __perf_evsel__hw_name(config);
 
 	case PERF_TYPE_HW_CACHE: {
 		u8 cache_type, cache_op, cache_result;

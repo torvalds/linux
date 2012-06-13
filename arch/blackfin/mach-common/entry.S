@@ -711,8 +711,6 @@ ENTRY(_system_call)
 	jump .Lresume_userspace_1;
 
 .Lsyscall_sigpending:
-	cc = BITTST(r7, TIF_RESTORE_SIGMASK);
-	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_NOTIFY_RESUME);

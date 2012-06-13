@@ -85,11 +85,6 @@ startup_kdump_relocated:
 	basr	%r13,0
 0:
 	mvc	0(8,%r0),.Lrestart_psw-0b(%r13)	# Setup restart PSW
-	mvc	464(16,%r0),.Lpgm_psw-0b(%r13)	# Setup pgm check PSW
-	lhi	%r1,1				# Start new kernel
-	diag	%r1,%r1,0x308			# with diag 308
-
-.Lno_diag308:					# No diag 308
 	sam31					# Switch to 31 bit addr mode
 	sr	%r1,%r1				# Erase register r1
 	sr	%r2,%r2				# Erase register r2
@@ -98,8 +93,6 @@ startup_kdump_relocated:
 .align	8
 .Lrestart_psw:
 	.long	0x00080000,0x80000000 + startup
-.Lpgm_psw:
-	.quad	0x0000000180000000,0x0000000000000000 + .Lno_diag308
 #else
 .align 2
 .Lep_startup_kdump:

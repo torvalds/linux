@@ -82,8 +82,6 @@ static void omap_dm_timer_write_reg(struct omap_dm_timer *timer, u32 reg,
 
 static void omap_timer_restore_context(struct omap_dm_timer *timer)
 {
-	__raw_writel(timer->context.tiocp_cfg,
-			timer->io_base + OMAP_TIMER_OCP_CFG_OFFSET);
 	if (timer->revision == 1)
 		__raw_writel(timer->context.tistat, timer->sys_stat);
 

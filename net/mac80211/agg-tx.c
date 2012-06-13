@@ -421,15 +421,21 @@ static void sta_tx_agg_session_timer_expired(unsigned long data)
 	struct tid_ampdu_tx *tid_tx;
 	unsigned long timeout;
 
-	tid_tx = rcu_dereference_protected_tid_tx(sta, *ptid);
-	if (!tid_tx)
+	rcu_read_lock();
+	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[*ptid]);
+	if (!tid_tx || test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
+		rcu_read_unlock();
 		return;
+	}
 
 	timeout = tid_tx->last_tx + TU_TO_JIFFIES(tid_tx->timeout);
 	if (time_is_after_jiffies(timeout)) {
 		mod_timer(&tid_tx->session_timer, timeout);
+		rcu_read_unlock();
 		return;
 	}
+
+	rcu_read_unlock();
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "tx session timer expired on tid %d\n", (u16)*ptid);

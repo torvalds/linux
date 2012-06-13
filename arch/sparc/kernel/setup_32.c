@@ -32,6 +32,7 @@
 #include <linux/cpu.h>
 #include <linux/kdebug.h>
 #include <linux/export.h>
+#include <linux/start_kernel.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -45,6 +46,7 @@
 #include <asm/cpudata.h>
 #include <asm/setup.h>
 #include <asm/cacheflush.h>
+#include <asm/sections.h>
 
 #include "kernel.h"
 
@@ -237,12 +239,61 @@ static void __init per_cpu_patch(void)
 	}
 }
 
+struct leon_1insn_patch_entry {
+	unsigned int addr;
+	unsigned int insn;
+};
+
 enum sparc_cpu sparc_cpu_model;
 EXPORT_SYMBOL(sparc_cpu_model);
 
-struct tt_entry *sparc_ttable;
+static __init void leon_patch(void)
+{
+	struct leon_1insn_patch_entry *start = (void *)__leon_1insn_patch;
+	struct leon_1insn_patch_entry *end = (void *)__leon_1insn_patch_end;
 
+	/* Default instruction is leon - no patching */
+	if (sparc_cpu_model == sparc_leon)
+		return;
+
+	while (start < end) {
+		unsigned long addr = start->addr;
+
+		*(unsigned int *)(addr) = start->insn;
+		flushi(addr);
+
+		start++;
+	}
+}
+
+struct tt_entry *sparc_ttable;
 struct pt_regs fake_swapper_regs;
+
+/* Called from head_32.S - before we have setup anything
+ * in the kernel. Be very careful with what you do here.
+ */
+void __init sparc32_start_kernel(struct linux_romvec *rp)
+{
+	prom_init(rp);
+
+	/* Set sparc_cpu_model */
+	sparc_cpu_model = sun_unknown;
+	if (!strcmp(&cputypval[0], "sun4m"))
+		sparc_cpu_model = sun4m;
+	if (!strcmp(&cputypval[0], "sun4s"))
+		sparc_cpu_model = sun4m; /* CP-1200 with PROM 2.30 -E */
+	if (!strcmp(&cputypval[0], "sun4d"))
+		sparc_cpu_model = sun4d;
+	if (!strcmp(&cputypval[0], "sun4e"))
+		sparc_cpu_model = sun4e;
+	if (!strcmp(&cputypval[0], "sun4u"))
+		sparc_cpu_model = sun4u;
+	if (!strncmp(&cputypval[0], "leon" , 4))
+		sparc_cpu_model = sparc_leon;
+
+	leon_patch();
+	start_kernel();
+}
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -259,21 +310,6 @@ void __init setup_arch(char **cmdline_p)
 	boot_flags_init(*cmdline_p);
 
 	register_console(&prom_early_console);
-
-	/* Set sparc_cpu_model */
-	sparc_cpu_model = sun_unknown;
-	if (!strcmp(&cputypval[0], "sun4m"))
-		sparc_cpu_model = sun4m;
-	if (!strcmp(&cputypval[0], "sun4s"))
-		sparc_cpu_model = sun4m; /* CP-1200 with PROM 2.30 -E */
-	if (!strcmp(&cputypval[0], "sun4d"))
-		sparc_cpu_model = sun4d;
-	if (!strcmp(&cputypval[0], "sun4e"))
-		sparc_cpu_model = sun4e;
-	if (!strcmp(&cputypval[0], "sun4u"))
-		sparc_cpu_model = sun4u;
-	if (!strncmp(&cputypval[0], "leon" , 4))
-		sparc_cpu_model = sparc_leon;
 
 	printk("ARCH: ");
 	switch(sparc_cpu_model) {

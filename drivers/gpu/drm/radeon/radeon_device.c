@@ -193,7 +193,7 @@ int radeon_wb_init(struct radeon_device *rdev)
 
 	if (rdev->wb.wb_obj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
-				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
+				     RADEON_GEM_DOMAIN_GTT, NULL, &rdev->wb.wb_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
 			return r;
@@ -225,9 +225,9 @@ int radeon_wb_init(struct radeon_device *rdev)
 	/* disable event_write fences */
 	rdev->wb.use_event = false;
 	/* disabled via module param */
-	if (radeon_no_wb == 1)
+	if (radeon_no_wb == 1) {
 		rdev->wb.enabled = false;
-	else {
+	} else {
 		if (rdev->flags & RADEON_IS_AGP) {
 			/* often unreliable on AGP */
 			rdev->wb.enabled = false;
@@ -237,8 +237,9 @@ int radeon_wb_init(struct radeon_device *rdev)
 		} else {
 			rdev->wb.enabled = true;
 			/* event_write fences are only available on r600+ */
-			if (rdev->family >= CHIP_R600)
+			if (rdev->family >= CHIP_R600) {
 				rdev->wb.use_event = true;
+			}
 		}
 	}
 	/* always use writeback/events on NI, APUs */
@@ -696,6 +697,11 @@ static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 	return can_switch;
 }
 
+static const struct vga_switcheroo_client_ops radeon_switcheroo_ops = {
+	.set_gpu_state = radeon_switcheroo_set_state,
+	.reprobe = NULL,
+	.can_switch = radeon_switcheroo_can_switch,
+};
 
 int radeon_device_init(struct radeon_device *rdev,
 		       struct drm_device *ddev,
@@ -714,7 +720,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->is_atom_bios = false;
 	rdev->usec_timeout = RADEON_MAX_USEC_TIMEOUT;
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-	rdev->gpu_lockup = false;
 	rdev->accel_working = false;
 
 	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X).\n",
@@ -724,21 +729,18 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
 	radeon_mutex_init(&rdev->cs_mutex);
-	radeon_mutex_init(&rdev->ib_pool.mutex);
-	for (i = 0; i < RADEON_NUM_RINGS; ++i)
-		mutex_init(&rdev->ring[i].mutex);
+	mutex_init(&rdev->ring_lock);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
 	if (rdev->family >= CHIP_R600)
 		spin_lock_init(&rdev->ih.lock);
 	mutex_init(&rdev->gem.mutex);
 	mutex_init(&rdev->pm.mutex);
 	mutex_init(&rdev->vram_mutex);
-	rwlock_init(&rdev->fence_lock);
-	rwlock_init(&rdev->semaphore_drv.lock);
-	INIT_LIST_HEAD(&rdev->gem.objects);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
-	INIT_LIST_HEAD(&rdev->semaphore_drv.bo);
+	r = radeon_gem_init(rdev);
+	if (r)
+		return r;
 	/* initialize vm here */
 	rdev->vm_manager.use_bitmap = 1;
 	rdev->vm_manager.max_pfn = 1 << 20;
@@ -814,10 +816,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* this will fail for cards that aren't VGA class devices, just
 	 * ignore it */
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
-	vga_switcheroo_register_client(rdev->pdev,
-				       radeon_switcheroo_set_state,
-				       NULL,
-				       radeon_switcheroo_can_switch);
+	vga_switcheroo_register_client(rdev->pdev, &radeon_switcheroo_ops);
 
 	r = radeon_init(rdev);
 	if (r)
@@ -914,9 +913,12 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	}
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
+
+	mutex_lock(&rdev->ring_lock);
 	/* wait for gpu to finish processing current batch */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
-		radeon_fence_wait_last(rdev, i);
+		radeon_fence_wait_empty_locked(rdev, i);
+	mutex_unlock(&rdev->ring_lock);
 
 	radeon_save_bios_scratch_regs(rdev);
 
@@ -955,7 +957,6 @@ int radeon_resume_kms(struct drm_device *dev)
 		console_unlock();
 		return -1;
 	}
-	pci_set_master(dev->pdev);
 	/* resume AGP if in use */
 	radeon_agp_resume(rdev);
 	radeon_resume(rdev);
@@ -988,9 +989,6 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 	int r;
 	int resched;
 
-	/* Prevent CS ioctl from interfering */
-	radeon_mutex_lock(&rdev->cs_mutex);
-
 	radeon_save_bios_scratch_regs(rdev);
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
@@ -1004,8 +1002,6 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		drm_helper_resume_force_mode(rdev->ddev);
 		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 	}
-
-	radeon_mutex_unlock(&rdev->cs_mutex);
 
 	if (r) {
 		/* bad news, how to tell it to userspace ? */

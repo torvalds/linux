@@ -1231,11 +1231,6 @@ static int virtnet_freeze(struct virtio_device *vdev)
 	vi->config_enable = false;
 	mutex_unlock(&vi->config_lock);
 
-	virtqueue_disable_cb(vi->rvq);
-	virtqueue_disable_cb(vi->svq);
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ))
-		virtqueue_disable_cb(vi->cvq);
-
 	netif_device_detach(vi->dev);
 	cancel_delayed_work_sync(&vi->refill);
 

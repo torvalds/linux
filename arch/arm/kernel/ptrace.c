@@ -25,6 +25,7 @@
 #include <linux/regset.h>
 #include <linux/audit.h>
 #include <linux/tracehook.h>
+#include <linux/unistd.h>
 
 #include <asm/pgtable.h>
 #include <asm/traps.h>
@@ -917,6 +918,8 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 		audit_syscall_entry(AUDIT_ARCH_ARM, scno, regs->ARM_r0,
 				    regs->ARM_r1, regs->ARM_r2, regs->ARM_r3);
 
+	if (why == 0 && test_and_clear_thread_flag(TIF_SYSCALL_RESTARTSYS))
+		scno = __NR_restart_syscall - __NR_SYSCALL_BASE;
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return scno;
 

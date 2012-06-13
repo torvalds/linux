@@ -462,7 +462,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bss_chan = bss_desc->channel;
 
-	memcpy(info->country_code, priv->country_code,
+	memcpy(info->country_code, adapter->country_code,
 	       IEEE80211_COUNTRY_STRING_LEN);
 
 	info->media_connected = priv->media_connected;
@@ -1219,7 +1219,8 @@ mwifiex_drv_get_driver_version(struct mwifiex_adapter *adapter, char *version,
  * with requisite parameters and calls the IOCTL handler.
  */
 int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
-			int key_len, u8 key_index, int disable)
+			int key_len, u8 key_index,
+			const u8 *mac_addr, int disable)
 {
 	struct mwifiex_ds_encrypt_key encrypt_key;
 
@@ -1229,8 +1230,12 @@ int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
 		encrypt_key.key_index = key_index;
 		if (key_len)
 			memcpy(encrypt_key.key_material, key, key_len);
+		if (mac_addr)
+			memcpy(encrypt_key.mac_addr, mac_addr, ETH_ALEN);
 	} else {
 		encrypt_key.key_disable = true;
+		if (mac_addr)
+			memcpy(encrypt_key.mac_addr, mac_addr, ETH_ALEN);
 	}
 
 	return mwifiex_sec_ioctl_encrypt_key(priv, &encrypt_key);

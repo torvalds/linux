@@ -15,8 +15,6 @@
 
 /* string functions */
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(__strlen_user);
-EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(strncmp);
 
 /* mem* functions */
@@ -32,9 +30,6 @@ EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(__bzero);
-
-/* Moving data to/from/in userspace. */
-EXPORT_SYMBOL(__strncpy_from_user);
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial);

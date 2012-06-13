@@ -102,6 +102,7 @@ MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")
 	.init_irq	= omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= am3517_crane_init,
+	.init_late	= am35xx_init_late,
 	.timer		= &omap3_timer,
 	.restart	= omap_prcm_restart,
 MACHINE_END

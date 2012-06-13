@@ -746,6 +746,11 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		hwsim_check_sta_magic(txi->control.sta);
 
 	ieee80211_tx_info_clear_status(txi);
+
+	/* frame was transmitted at most favorable rate at first attempt */
+	txi->control.rates[0].count = 1;
+	txi->control.rates[1].idx = -1;
+
 	if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK) && ack)
 		txi->flags |= IEEE80211_TX_STAT_ACK;
 	ieee80211_tx_status_irqsafe(hw, skb);

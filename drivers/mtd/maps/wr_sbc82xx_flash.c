@@ -59,7 +59,7 @@ static struct mtd_partition bigflash_parts[] = {
 	}
 };
 
-static const char *part_probes[] __initdata = {"cmdlinepart", "RedBoot", NULL};
+static const char *part_probes[] __initconst = {"cmdlinepart", "RedBoot", NULL};
 
 #define init_sbc82xx_one_flash(map, br, or)			\
 do {								\

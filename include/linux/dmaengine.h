@@ -615,11 +615,13 @@ static inline int dmaengine_slave_config(struct dma_chan *chan,
 }
 
 static inline struct dma_async_tx_descriptor *dmaengine_prep_slave_single(
-	struct dma_chan *chan, void *buf, size_t len,
+	struct dma_chan *chan, dma_addr_t buf, size_t len,
 	enum dma_transfer_direction dir, unsigned long flags)
 {
 	struct scatterlist sg;
-	sg_init_one(&sg, buf, len);
+	sg_init_table(&sg, 1);
+	sg_dma_address(&sg) = buf;
+	sg_dma_len(&sg) = len;
 
 	return chan->device->device_prep_slave_sg(chan, &sg, 1,
 						  dir, flags, NULL);
@@ -632,6 +634,18 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_slave_sg(
 	return chan->device->device_prep_slave_sg(chan, sgl, sg_len,
 						  dir, flags, NULL);
 }
+
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+struct rio_dma_ext;
+static inline struct dma_async_tx_descriptor *dmaengine_prep_rio_sg(
+	struct dma_chan *chan, struct scatterlist *sgl,	unsigned int sg_len,
+	enum dma_transfer_direction dir, unsigned long flags,
+	struct rio_dma_ext *rio_ext)
+{
+	return chan->device->device_prep_slave_sg(chan, sgl, sg_len,
+						  dir, flags, rio_ext);
+}
+#endif
 
 static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,

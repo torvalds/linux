@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <net/mac80211.h>
 
 #include "iwl-dev.h"
 #include "iwl-io.h"
@@ -273,9 +274,20 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		return;
 	}
 
+	/*
+	 * Possible situations when BT needs to take over for receive,
+	 * at the same time where STA needs to response to AP's frame(s),
+	 * reduce the tx power of the required response frames, by that,
+	 * allow the concurrent BT receive & WiFi transmit
+	 * (BT - ANT A, WiFi -ANT B), without interference to one another
+	 *
+	 * Reduced tx power apply to control frames only (ACK/Back/CTS)
+	 * when indicated by the BT config command
+	 */
 	basic.kill_ack_mask = priv->kill_ack_mask;
 	basic.kill_cts_mask = priv->kill_cts_mask;
-	basic.reduce_txpower = priv->reduced_txpower;
+	if (priv->reduced_txpower)
+		basic.reduce_txpower = IWLAGN_BT_REDUCED_TX_PWR;
 	basic.valid = priv->bt_valid;
 
 	/*
@@ -589,13 +601,31 @@ static bool iwlagn_set_kill_msk(struct iwl_priv *priv,
 	return need_update;
 }
 
+/*
+ * Upon RSSI changes, sends a bt config command with following changes
+ *  1. enable/disable "reduced control frames tx power
+ *  2. update the "kill)ack_mask" and "kill_cts_mask"
+ *
+ * If "reduced tx power" is enabled, uCode shall
+ *  1. ACK/Back/CTS rate shall reduced to 6Mbps
+ *  2. not use duplciate 20/40MHz mode
+ */
 static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
 	bool need_update = false;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	int ave_rssi;
 
+	ave_rssi = ieee80211_ave_rssi(ctx->vif);
+	if (!ave_rssi) {
+		/* no rssi data, no changes to reduce tx power */
+		IWL_DEBUG_COEX(priv, "no rssi data available\n");
+		return need_update;
+	}
 	if (!priv->reduced_txpower &&
 	    !iwl_is_associated(priv, IWL_RXON_CTX_PAN) &&
+	    (ave_rssi > BT_ENABLE_REDUCED_TXPOWER_THRESHOLD) &&
 	    (uart_msg->frame3 & (BT_UART_MSG_FRAME3ACL_MSK |
 	    BT_UART_MSG_FRAME3OBEX_MSK)) &&
 	    !(uart_msg->frame3 & (BT_UART_MSG_FRAME3SCOESCO_MSK |
@@ -606,13 +636,14 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 		need_update = true;
 	} else if (priv->reduced_txpower &&
 		   (iwl_is_associated(priv, IWL_RXON_CTX_PAN) ||
+		   (ave_rssi < BT_DISABLE_REDUCED_TXPOWER_THRESHOLD) ||
 		   (uart_msg->frame3 & (BT_UART_MSG_FRAME3SCOESCO_MSK |
 		   BT_UART_MSG_FRAME3SNIFF_MSK | BT_UART_MSG_FRAME3A2DP_MSK)) ||
 		   !(uart_msg->frame3 & (BT_UART_MSG_FRAME3ACL_MSK |
 		   BT_UART_MSG_FRAME3OBEX_MSK)))) {
 		/* disable reduced tx power */
 		priv->reduced_txpower = false;
-		priv->bt_valid &= ~IWLAGN_BT_VALID_REDUCED_TX_PWR;
+		priv->bt_valid |= IWLAGN_BT_VALID_REDUCED_TX_PWR;
 		need_update = true;
 	}
 

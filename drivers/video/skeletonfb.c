@@ -1036,6 +1036,6 @@ static void __exit xxxfb_exit(void)
      */
 
 module_init(xxxfb_init);
-module_exit(xxxfb_remove);
+module_exit(xxxfb_exit);
 
 MODULE_LICENSE("GPL");

@@ -196,10 +196,18 @@ int qla4xxx_bsg_request(struct bsg_job *bsg_job);
 int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job);
 
 void qla4xxx_arm_relogin_timer(struct ddb_entry *ddb_entry);
+int qla4xxx_get_minidump_template(struct scsi_qla_host *ha,
+				  dma_addr_t phys_addr);
+int qla4xxx_req_template_size(struct scsi_qla_host *ha);
+void qla4_8xxx_alloc_sysfs_attr(struct scsi_qla_host *ha);
+void qla4_8xxx_free_sysfs_attr(struct scsi_qla_host *ha);
+void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;
 extern int ql4xenablemsix;
+extern int ql4xmdcapmask;
+extern int ql4xenablemd;
 
 extern struct device_attribute *qla4xxx_host_attrs[];
 #endif /* _QLA4x_GBL_H */

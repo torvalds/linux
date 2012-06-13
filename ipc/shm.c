@@ -393,6 +393,16 @@ static int shm_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	return sfd->file->f_op->fsync(sfd->file, start, end, datasync);
 }
 
+static long shm_fallocate(struct file *file, int mode, loff_t offset,
+			  loff_t len)
+{
+	struct shm_file_data *sfd = shm_file_data(file);
+
+	if (!sfd->file->f_op->fallocate)
+		return -EOPNOTSUPP;
+	return sfd->file->f_op->fallocate(file, mode, offset, len);
+}
+
 static unsigned long shm_get_unmapped_area(struct file *file,
 	unsigned long addr, unsigned long len, unsigned long pgoff,
 	unsigned long flags)
@@ -410,6 +420,7 @@ static const struct file_operations shm_file_operations = {
 	.get_unmapped_area	= shm_get_unmapped_area,
 #endif
 	.llseek		= noop_llseek,
+	.fallocate	= shm_fallocate,
 };
 
 static const struct file_operations shm_file_operations_huge = {
@@ -418,6 +429,7 @@ static const struct file_operations shm_file_operations_huge = {
 	.release	= shm_release,
 	.get_unmapped_area	= shm_get_unmapped_area,
 	.llseek		= noop_llseek,
+	.fallocate	= shm_fallocate,
 };
 
 int is_file_shm_hugepages(struct file *file)
@@ -1036,6 +1048,10 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	sfd->file = shp->shm_file;
 	sfd->vm_ops = NULL;
 
+	err = security_mmap_file(file, prot, flags);
+	if (err)
+		goto out_fput;
+
 	down_write(&current->mm->mmap_sem);
 	if (addr && !(shmflg & SHM_REMAP)) {
 		err = -EINVAL;
@@ -1050,7 +1066,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 			goto invalid;
 	}
 		
-	user_addr = do_mmap (file, addr, size, prot, flags, 0);
+	user_addr = do_mmap_pgoff(file, addr, size, prot, flags, 0);
 	*raddr = user_addr;
 	err = 0;
 	if (IS_ERR_VALUE(user_addr))
@@ -1058,6 +1074,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 invalid:
 	up_write(&current->mm->mmap_sem);
 
+out_fput:
 	fput(file);
 
 out_nattch:

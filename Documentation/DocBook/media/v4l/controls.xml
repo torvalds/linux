@@ -285,18 +285,92 @@ minimum value disables backlight compensation.</entry>
 	  <row id="v4l2-colorfx">
 	    <entry><constant>V4L2_CID_COLORFX</constant></entry>
 	    <entry>enum</entry>
-	    <entry>Selects a color effect. Possible values for
-<constant>enum v4l2_colorfx</constant> are:
-<constant>V4L2_COLORFX_NONE</constant> (0),
-<constant>V4L2_COLORFX_BW</constant> (1),
-<constant>V4L2_COLORFX_SEPIA</constant> (2),
-<constant>V4L2_COLORFX_NEGATIVE</constant> (3),
-<constant>V4L2_COLORFX_EMBOSS</constant> (4),
-<constant>V4L2_COLORFX_SKETCH</constant> (5),
-<constant>V4L2_COLORFX_SKY_BLUE</constant> (6),
-<constant>V4L2_COLORFX_GRASS_GREEN</constant> (7),
-<constant>V4L2_COLORFX_SKIN_WHITEN</constant> (8) and
-<constant>V4L2_COLORFX_VIVID</constant> (9).</entry>
+	    <entry>Selects a color effect. The following values are defined:
+	    </entry>
+	  </row><row>
+	  <entry></entry>
+	  <entry></entry>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_COLORFX_NONE</constant>&nbsp;</entry>
+		  <entry>Color effect is disabled.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_ANTIQUE</constant>&nbsp;</entry>
+		  <entry>An aging (old photo) effect.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_ART_FREEZE</constant>&nbsp;</entry>
+		  <entry>Frost color effect.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_AQUA</constant>&nbsp;</entry>
+		  <entry>Water color, cool tone.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_BW</constant>&nbsp;</entry>
+		  <entry>Black and white.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_EMBOSS</constant>&nbsp;</entry>
+		  <entry>Emboss, the highlights and shadows replace light/dark boundaries
+		  and low contrast areas are set to a gray background.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_GRASS_GREEN</constant>&nbsp;</entry>
+		  <entry>Grass green.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_NEGATIVE</constant>&nbsp;</entry>
+		  <entry>Negative.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SEPIA</constant>&nbsp;</entry>
+		  <entry>Sepia tone.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SKETCH</constant>&nbsp;</entry>
+		  <entry>Sketch.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SKIN_WHITEN</constant>&nbsp;</entry>
+		  <entry>Skin whiten.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SKY_BLUE</constant>&nbsp;</entry>
+		  <entry>Sky blue.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SOLARIZATION</constant>&nbsp;</entry>
+		  <entry>Solarization, the image is partially reversed in tone,
+		  only color values above or below a certain threshold are inverted.
+		  </entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SILHOUETTE</constant>&nbsp;</entry>
+		  <entry>Silhouette (outline).</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_VIVID</constant>&nbsp;</entry>
+		  <entry>Vivid colors.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SET_CBCR</constant>&nbsp;</entry>
+		  <entry>The Cb and Cr chroma components are replaced by fixed
+		  coefficients determined by <constant>V4L2_CID_COLORFX_CBCR</constant>
+		  control.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CID_COLORFX_CBCR</constant></entry>
+	    <entry>integer</entry>
+	    <entry>Determines the Cb and Cr coefficients for <constant>V4L2_COLORFX_SET_CBCR</constant>
+	    color effect. Bits [7:0] of the supplied 32 bit value are interpreted as
+	    Cr component, bits [15:8] as Cb component and bits [31:16] must be zero.
+	  </entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CID_ROTATE</constant></entry>
@@ -2775,6 +2849,51 @@ remain constant.</entry>
 	  <row><entry></entry></row>
 
 	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_EXPOSURE_BIAS</constant>&nbsp;</entry>
+	    <entry>integer menu</entry>
+	  </row><row><entry spanname="descr"> Determines the automatic
+exposure compensation, it is effective only when <constant>V4L2_CID_EXPOSURE_AUTO</constant>
+control is set to <constant>AUTO</constant>, <constant>SHUTTER_PRIORITY </constant>
+or <constant>APERTURE_PRIORITY</constant>.
+It is expressed in terms of EV, drivers should interpret the values as 0.001 EV
+units, where the value 1000 stands for +1 EV.
+<para>Increasing the exposure compensation value is equivalent to decreasing
+the exposure value (EV) and will increase the amount of light at the image
+sensor. The camera performs the exposure compensation by adjusting absolute
+exposure time and/or aperture.</para></entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row id="v4l2-exposure-metering">
+	    <entry spanname="id"><constant>V4L2_CID_EXPOSURE_METERING</constant>&nbsp;</entry>
+	    <entry>enum&nbsp;v4l2_exposure_metering</entry>
+	  </row><row><entry spanname="descr">Determines how the camera measures
+the amount of light available for the frame exposure. Possible values are:</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_EXPOSURE_METERING_AVERAGE</constant>&nbsp;</entry>
+		  <entry>Use the light information coming from the entire frame
+and average giving no weighting to any particular portion of the metered area.
+		  </entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_EXPOSURE_METERING_CENTER_WEIGHTED</constant>&nbsp;</entry>
+		  <entry>Average the light information coming from the entire frame
+giving priority to the center of the metered area.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_EXPOSURE_METERING_SPOT</constant>&nbsp;</entry>
+		  <entry>Measure only very small area at the center of the frame.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
 	    <entry spanname="id"><constant>V4L2_CID_PAN_RELATIVE</constant>&nbsp;</entry>
 	    <entry>integer</entry>
 	  </row><row><entry spanname="descr">This control turns the
@@ -2857,9 +2976,103 @@ negative values towards infinity. This is a write-only control.</entry>
 	  <row>
 	    <entry spanname="id"><constant>V4L2_CID_FOCUS_AUTO</constant>&nbsp;</entry>
 	    <entry>boolean</entry>
-	  </row><row><entry spanname="descr">Enables automatic focus
-adjustments. The effect of manual focus adjustments while this feature
+	  </row><row><entry spanname="descr">Enables continuous automatic
+focus adjustments. The effect of manual focus adjustments while this feature
 is enabled is undefined, drivers should ignore such requests.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_AUTO_FOCUS_START</constant>&nbsp;</entry>
+	    <entry>button</entry>
+	  </row><row><entry spanname="descr">Starts single auto focus process.
+The effect of setting this control when <constant>V4L2_CID_FOCUS_AUTO</constant>
+is set to <constant>TRUE</constant> (1) is undefined, drivers should ignore
+such requests.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_AUTO_FOCUS_STOP</constant>&nbsp;</entry>
+	    <entry>button</entry>
+	  </row><row><entry spanname="descr">Aborts automatic focusing
+started with <constant>V4L2_CID_AUTO_FOCUS_START</constant> control. It is
+effective only when the continuous autofocus is disabled, that is when
+<constant>V4L2_CID_FOCUS_AUTO</constant> control is set to <constant>FALSE
+</constant> (0).</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row id="v4l2-auto-focus-status">
+	    <entry spanname="id">
+	      <constant>V4L2_CID_AUTO_FOCUS_STATUS</constant>&nbsp;</entry>
+	    <entry>bitmask</entry>
+	  </row>
+	  <row><entry spanname="descr">The automatic focus status. This is a read-only
+	  control.</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_AUTO_FOCUS_STATUS_IDLE</constant>&nbsp;</entry>
+		  <entry>Automatic focus is not active.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_AUTO_FOCUS_STATUS_BUSY</constant>&nbsp;</entry>
+		  <entry>Automatic focusing is in progress.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_AUTO_FOCUS_STATUS_REACHED</constant>&nbsp;</entry>
+		  <entry>Focus has been reached.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_AUTO_FOCUS_STATUS_FAILED</constant>&nbsp;</entry>
+		  <entry>Automatic focus has failed, the driver will not
+		  transition from this state until another action is
+		  performed by an application.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry spanname="descr">
+Setting <constant>V4L2_LOCK_FOCUS</constant> lock bit of the <constant>V4L2_CID_3A_LOCK
+</constant> control may stop updates of the <constant>V4L2_CID_AUTO_FOCUS_STATUS</constant>
+control value.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row id="v4l2-auto-focus-range">
+	    <entry spanname="id">
+	      <constant>V4L2_CID_AUTO_FOCUS_RANGE</constant>&nbsp;</entry>
+	    <entry>enum&nbsp;v4l2_auto_focus_range</entry>
+	  </row>
+	  <row><entry spanname="descr">Determines auto focus distance range
+for which lens may be adjusted. </entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_AUTO_FOCUS_RANGE_AUTO</constant>&nbsp;</entry>
+		  <entry>The camera automatically selects the focus range.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_AUTO_FOCUS_RANGE_NORMAL</constant>&nbsp;</entry>
+		  <entry>Normal distance range, limited for best automatic focus
+performance.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_AUTO_FOCUS_RANGE_MACRO</constant>&nbsp;</entry>
+		  <entry>Macro (close-up) auto focus. The camera will
+use its minimum possible distance for auto focus.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_AUTO_FOCUS_RANGE_INFINITY</constant>&nbsp;</entry>
+		  <entry>The lens is set to focus on an object at infinite distance.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
 	  </row>
 	  <row><entry></entry></row>
 
@@ -2932,6 +3145,295 @@ camera sensor on or off, or specify its strength. Such band-stop filters can
 be used, for example, to filter out the fluorescent light component.</entry>
 	  </row>
 	  <row><entry></entry></row>
+
+	  <row id="v4l2-auto-n-preset-white-balance">
+	    <entry spanname="id"><constant>V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE</constant>&nbsp;</entry>
+	    <entry>enum&nbsp;v4l2_auto_n_preset_white_balance</entry>
+	  </row><row><entry spanname="descr">Sets white balance to automatic,
+manual or a preset. The presets determine color temperature of the light as
+a hint to the camera for white balance adjustments resulting in most accurate
+color representation. The following white balance presets are listed in order
+of increasing color temperature.</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_MANUAL</constant>&nbsp;</entry>
+		  <entry>Manual white balance.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_AUTO</constant>&nbsp;</entry>
+		  <entry>Automatic white balance adjustments.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_INCANDESCENT</constant>&nbsp;</entry>
+		  <entry>White balance setting for incandescent (tungsten) lighting.
+It generally cools down the colors and corresponds approximately to 2500...3500 K
+color temperature range.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_FLUORESCENT</constant>&nbsp;</entry>
+		  <entry>White balance preset for fluorescent lighting.
+It corresponds approximately to 4000...5000 K color temperature.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_FLUORESCENT_H</constant>&nbsp;</entry>
+		  <entry>With this setting the camera will compensate for
+fluorescent H lighting.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_HORIZON</constant>&nbsp;</entry>
+		  <entry>White balance setting for horizon daylight.
+It corresponds approximately to 5000 K color temperature.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_DAYLIGHT</constant>&nbsp;</entry>
+		  <entry>White balance preset for daylight (with clear sky).
+It corresponds approximately to 5000...6500 K color temperature.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_FLASH</constant>&nbsp;</entry>
+		  <entry>With this setting the camera will compensate for the flash
+light. It slightly warms up the colors and corresponds roughly to 5000...5500 K
+color temperature.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_CLOUDY</constant>&nbsp;</entry>
+		  <entry>White balance preset for moderately overcast sky.
+This option corresponds approximately to 6500...8000 K color temperature
+range.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_WHITE_BALANCE_SHADE</constant>&nbsp;</entry>
+		  <entry>White balance preset for shade or heavily overcast
+sky. It corresponds approximately to 9000...10000 K color temperature.
+</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row id="v4l2-wide-dynamic-range">
+	    <entry spanname="id"><constant>V4L2_CID_WIDE_DYNAMIC_RANGE</constant></entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Enables or disables the camera's wide dynamic
+range feature. This feature allows to obtain clear images in situations where
+intensity of the illumination varies significantly throughout the scene, i.e.
+there are simultaneously very dark and very bright areas. It is most commonly
+realized in cameras by combining two subsequent frames with different exposure
+times. <footnote id="ctypeconv"><para> This control may be changed to a menu
+control in the future, if more options are required.</para></footnote></entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row id="v4l2-image-stabilization">
+	    <entry spanname="id"><constant>V4L2_CID_IMAGE_STABILIZATION</constant></entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Enables or disables image stabilization.
+	      <footnoteref linkend="ctypeconv"/></entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_ISO_SENSITIVITY</constant>&nbsp;</entry>
+	    <entry>integer menu</entry>
+	  </row><row><entry spanname="descr">Determines ISO equivalent of an
+image sensor indicating the sensor's sensitivity to light. The numbers are
+expressed in arithmetic scale, as per <xref linkend="iso12232" /> standard,
+where doubling the sensor sensitivity is represented by doubling the numerical
+ISO value. Applications should interpret the values as standard ISO values
+multiplied by 1000, e.g. control value 800 stands for ISO 0.8. Drivers will
+usually support only a subset of standard ISO values. The effect of setting
+this control while the <constant>V4L2_CID_ISO_SENSITIVITY_AUTO</constant>
+control is set to a value other than <constant>V4L2_CID_ISO_SENSITIVITY_MANUAL
+</constant> is undefined, drivers should ignore such requests.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row id="v4l2-iso-sensitivity-auto-type">
+	    <entry spanname="id"><constant>V4L2_CID_ISO_SENSITIVITY_AUTO</constant>&nbsp;</entry>
+	    <entry>enum&nbsp;v4l2_iso_sensitivity_type</entry>
+	  </row><row><entry spanname="descr">Enables or disables automatic ISO
+sensitivity adjustments.</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_CID_ISO_SENSITIVITY_MANUAL</constant>&nbsp;</entry>
+		  <entry>Manual ISO sensitivity.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_CID_ISO_SENSITIVITY_AUTO</constant>&nbsp;</entry>
+		  <entry>Automatic ISO sensitivity adjustments.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row id="v4l2-scene-mode">
+	    <entry spanname="id"><constant>V4L2_CID_SCENE_MODE</constant>&nbsp;</entry>
+	    <entry>enum&nbsp;v4l2_scene_mode</entry>
+	  </row><row><entry spanname="descr">This control allows to select
+scene programs as the camera automatic modes optimized for common shooting
+scenes. Within these modes the camera determines best exposure, aperture,
+focusing, light metering, white balance and equivalent sensitivity. The
+controls of those parameters are influenced by the scene mode control.
+An exact behavior in each mode is subject to the camera specification.
+
+<para>When the scene mode feature is not used, this control should be set to
+<constant>V4L2_SCENE_MODE_NONE</constant> to make sure the other possibly
+related controls are accessible. The following scene programs are defined:
+</para>
+</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_NONE</constant>&nbsp;</entry>
+		  <entry>The scene mode feature is disabled.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_BACKLIGHT</constant>&nbsp;</entry>
+		  <entry>Backlight. Compensates for dark shadows when light is
+		  coming from behind a subject, also by automatically turning
+		  on the flash.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_BEACH_SNOW</constant>&nbsp;</entry>
+		  <entry>Beach and snow. This mode compensates for all-white or
+bright scenes, which tend to look gray and low contrast, when camera's automatic
+exposure is based on an average scene brightness. To compensate, this mode
+automatically slightly overexposes the frames. The white balance may also be
+adjusted to compensate for the fact that reflected snow looks bluish rather
+than white.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_CANDLELIGHT</constant>&nbsp;</entry>
+		  <entry>Candle light. The camera generally raises the ISO
+sensitivity and lowers the shutter speed. This mode compensates for relatively
+close subject in the scene. The flash is disabled in order to preserve the
+ambiance of the light.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_DAWN_DUSK</constant>&nbsp;</entry>
+		  <entry>Dawn and dusk. Preserves the colors seen in low
+natural light before dusk and after down. The camera may turn off the flash,
+and automatically focus at infinity. It will usually boost saturation and
+lower the shutter speed.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_FALL_COLORS</constant>&nbsp;</entry>
+		  <entry>Fall colors. Increases saturation and adjusts white
+balance for color enhancement. Pictures of autumn leaves get saturated reds
+and yellows.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_FIREWORKS</constant>&nbsp;</entry>
+		  <entry>Fireworks. Long exposure times are used to capture
+the expanding burst of light from a firework. The camera may invoke image
+stabilization.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_LANDSCAPE</constant>&nbsp;</entry>
+		  <entry>Landscape. The camera may choose a small aperture to
+provide deep depth of field and long exposure duration to help capture detail
+in dim light conditions. The focus is fixed at infinity. Suitable for distant
+and wide scenery.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_NIGHT</constant>&nbsp;</entry>
+		  <entry>Night, also known as Night Landscape. Designed for low
+light conditions, it preserves detail in the dark areas without blowing out bright
+objects. The camera generally sets itself to a medium-to-high ISO sensitivity,
+with a relatively long exposure time, and turns flash off. As such, there will be
+increased image noise and the possibility of blurred image.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_PARTY_INDOOR</constant>&nbsp;</entry>
+		  <entry>Party and indoor. Designed to capture indoor scenes
+that are lit by indoor background lighting as well as the flash. The camera
+usually increases ISO sensitivity, and adjusts exposure for the low light
+conditions.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_PORTRAIT</constant>&nbsp;</entry>
+		  <entry>Portrait. The camera adjusts the aperture so that the
+depth of field is reduced, which helps to isolate the subject against a smooth
+background. Most cameras recognize the presence of faces in the scene and focus
+on them. The color hue is adjusted to enhance skin tones. The intensity of the
+flash is often reduced.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_SPORTS</constant>&nbsp;</entry>
+		  <entry>Sports. Significantly increases ISO and uses a fast
+shutter speed to freeze motion of rapidly-moving subjects. Increased image
+noise may be seen in this mode.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_SUNSET</constant>&nbsp;</entry>
+		  <entry>Sunset. Preserves deep hues seen in sunsets and
+sunrises. It bumps up the saturation.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_TEXT</constant>&nbsp;</entry>
+		  <entry>Text. It applies extra contrast and sharpness, it is
+typically a black-and-white mode optimized for readability. Automatic focus
+may be switched to close-up mode and this setting may also involve some
+lens-distortion correction.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_3A_LOCK</constant></entry>
+	    <entry>bitmask</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">This control locks or unlocks the automatic
+focus, exposure and white balance. The automatic adjustments can be paused
+independently by setting the corresponding lock bit to 1. The camera then retains
+the settings until the lock bit is cleared. The following lock bits are defined:
+</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_LOCK_EXPOSURE</constant></entry>
+		  <entry>Automatic exposure adjustments lock.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_LOCK_WHITE_BALANCE</constant></entry>
+		  <entry>Automatic white balance adjustments lock.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_LOCK_FOCUS</constant></entry>
+		  <entry>Automatic focus lock.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry spanname="descr">
+When a given algorithm is not enabled, drivers should ignore requests
+to lock it and should return no error. An example might be an application
+setting bit <constant>V4L2_LOCK_WHITE_BALANCE</constant> when the
+<constant>V4L2_CID_AUTO_WHITE_BALANCE</constant> control is set to
+<constant>FALSE</constant>. The value of this control may be changed
+by exposure, white balance or focus controls.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
 	</tbody>
       </tgroup>
     </table>
@@ -3476,7 +3978,7 @@ interface and may change in the future.</para>
 	    <entry spanname="id"><constant>V4L2_CID_JPEG_CHROMA_SUBSAMPLING</constant></entry>
 	    <entry>menu</entry>
 	  </row>
-	  <row id="jpeg-chroma-subsampling-control">
+	  <row id="v4l2-jpeg-chroma-subsampling">
 	    <entry spanname="descr">The chroma subsampling factors describe how
 	    each component of an input image is sampled, in respect to maximum
 	    sample rate in each spatial dimension. See <xref linkend="itu-t81"/>,
@@ -3486,7 +3988,7 @@ interface and may change in the future.</para>
 	    from RGB to Y'CbCr color space.
 	    </entry>
 	  </row>
-	  <row>
+	  <row id = "v4l2-jpeg-chroma-subsampling">
 	    <entrytbl spanname="descr" cols="2">
 	      <tbody valign="top">
 		<row>
@@ -3538,12 +4040,12 @@ interface and may change in the future.</para>
 	    </entry>
 	  </row>
 	  <row id="jpeg-quality-control">
-	    <entry spanname="id"><constant>V4L2_CID_JPEG_COMPRESION_QUALITY</constant></entry>
+	    <entry spanname="id"><constant>V4L2_CID_JPEG_COMPRESSION_QUALITY</constant></entry>
 	    <entry>integer</entry>
 	  </row>
 	  <row>
 	    <entry spanname="descr">
-	      <constant>V4L2_CID_JPEG_COMPRESION_QUALITY</constant> control
+	      <constant>V4L2_CID_JPEG_COMPRESSION_QUALITY</constant> control
 	      determines trade-off between image quality and size.
 	      It provides simpler method for applications to control image quality,
 	      without a need for direct reconfiguration of luminance and chrominance
@@ -3551,7 +4053,7 @@ interface and may change in the future.</para>
 
 	      In cases where a driver uses quantization tables configured directly
 	      by an application, using interfaces defined elsewhere, <constant>
-	      V4L2_CID_JPEG_COMPRESION_QUALITY</constant> control should be set
+	      V4L2_CID_JPEG_COMPRESSION_QUALITY</constant> control should be set
 	      by driver to 0.
 
 	      <para>The value range of this control is driver-specific. Only
@@ -3598,5 +4100,173 @@ interface and may change in the future.</para>
       <para>For more details about JPEG specification, refer
       to <xref linkend="itu-t81"/>, <xref linkend="jfif"/>,
       <xref linkend="w3c-jpeg-jfif"/>.</para>
+    </section>
+
+    <section id="image-source-controls">
+      <title>Image Source Control Reference</title>
+
+      <note>
+	<title>Experimental</title>
+
+	<para>This is an <link
+	linkend="experimental">experimental</link> interface and may
+	change in the future.</para>
+      </note>
+
+      <para>
+	The Image Source control class is intended for low-level
+	control of image source devices such as image sensors. The
+	devices feature an analogue to digital converter and a bus
+	transmitter to transmit the image data out of the device.
+      </para>
+
+      <table pgwide="1" frame="none" id="image-source-control-id">
+      <title>Image Source Control IDs</title>
+
+      <tgroup cols="4">
+	<colspec colname="c1" colwidth="1*" />
+	<colspec colname="c2" colwidth="6*" />
+	<colspec colname="c3" colwidth="2*" />
+	<colspec colname="c4" colwidth="6*" />
+	<spanspec namest="c1" nameend="c2" spanname="id" />
+	<spanspec namest="c2" nameend="c4" spanname="descr" />
+	<thead>
+	  <row>
+	    <entry spanname="id" align="left">ID</entry>
+	    <entry align="left">Type</entry>
+	  </row><row rowsep="1"><entry spanname="descr" align="left">Description</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	  <row><entry></entry></row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_IMAGE_SOURCE_CLASS</constant></entry>
+	    <entry>class</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">The IMAGE_SOURCE class descriptor.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_VBLANK</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Vertical blanking. The idle period
+	    after every frame during which no image data is produced.
+	    The unit of vertical blanking is a line. Every line has
+	    length of the image width plus horizontal blanking at the
+	    pixel rate defined by
+	    <constant>V4L2_CID_PIXEL_RATE</constant> control in the
+	    same sub-device.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_HBLANK</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Horizontal blanking. The idle
+	    period after every line of image data during which no
+	    image data is produced. The unit of horizontal blanking is
+	    pixels.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_ANALOGUE_GAIN</constant></entry>
+	    <entry>integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Analogue gain is gain affecting
+	    all colour components in the pixel matrix. The gain
+	    operation is performed in the analogue domain before A/D
+	    conversion.
+	    </entry>
+	  </row>
+	  <row><entry></entry></row>
+	</tbody>
+      </tgroup>
+      </table>
+
+    </section>
+
+    <section id="image-process-controls">
+      <title>Image Process Control Reference</title>
+
+      <note>
+	<title>Experimental</title>
+
+	<para>This is an <link
+	linkend="experimental">experimental</link> interface and may
+	change in the future.</para>
+      </note>
+
+      <para>
+	The Image Source control class is intended for low-level control of
+	image processing functions. Unlike
+	<constant>V4L2_CID_IMAGE_SOURCE_CLASS</constant>, the controls in
+	this class affect processing the image, and do not control capturing
+	of it.
+      </para>
+
+      <table pgwide="1" frame="none" id="image-process-control-id">
+      <title>Image Source Control IDs</title>
+
+      <tgroup cols="4">
+	<colspec colname="c1" colwidth="1*" />
+	<colspec colname="c2" colwidth="6*" />
+	<colspec colname="c3" colwidth="2*" />
+	<colspec colname="c4" colwidth="6*" />
+	<spanspec namest="c1" nameend="c2" spanname="id" />
+	<spanspec namest="c2" nameend="c4" spanname="descr" />
+	<thead>
+	  <row>
+	    <entry spanname="id" align="left">ID</entry>
+	    <entry align="left">Type</entry>
+	  </row><row rowsep="1"><entry spanname="descr" align="left">Description</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	  <row><entry></entry></row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_IMAGE_PROC_CLASS</constant></entry>
+	    <entry>class</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">The IMAGE_PROC class descriptor.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_LINK_FREQ</constant></entry>
+	    <entry>integer menu</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Data bus frequency. Together with the
+	    media bus pixel code, bus type (clock cycles per sample), the
+	    data bus frequency defines the pixel rate
+	    (<constant>V4L2_CID_PIXEL_RATE</constant>) in the
+	    pixel array (or possibly elsewhere, if the device is not an
+	    image sensor). The frame rate can be calculated from the pixel
+	    clock, image width and height and horizontal and vertical
+	    blanking. While the pixel rate control may be defined elsewhere
+	    than in the subdev containing the pixel array, the frame rate
+	    cannot be obtained from that information. This is because only
+	    on the pixel array it can be assumed that the vertical and
+	    horizontal blanking information is exact: no other blanking is
+	    allowed in the pixel array. The selection of frame rate is
+	    performed by selecting the desired horizontal and vertical
+	    blanking. The unit of this control is Hz. </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_PIXEL_RATE</constant></entry>
+	    <entry>64-bit integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Pixel rate in the source pads of
+	    the subdev. This control is read-only and its unit is
+	    pixels / second.
+	    </entry>
+	  </row>
+	  <row><entry></entry></row>
+	</tbody>
+      </tgroup>
+      </table>
+
     </section>
 </section>

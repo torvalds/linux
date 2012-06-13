@@ -136,24 +136,27 @@ static struct platform_device smdkc100_lcd_powerdev = {
 
 /* Frame Buffer */
 static struct s3c_fb_pd_win smdkc100_fb_win0 = {
-	/* this is to ensure we use win0 */
-	.win_mode	= {
-		.left_margin	= 8,
-		.right_margin	= 13,
-		.upper_margin	= 7,
-		.lower_margin	= 5,
-		.hsync_len	= 3,
-		.vsync_len	= 1,
-		.xres		= 800,
-		.yres		= 480,
-		.refresh	= 80,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct fb_videomode smdkc100_lcd_timing = {
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
+	.refresh	= 80,
 };
 
 static struct s3c_fb_platdata smdkc100_lcd_pdata __initdata = {
 	.win[0]		= &smdkc100_fb_win0,
+	.vtiming	= &smdkc100_lcd_timing,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= s5pc100_fb_gpio_setup_24bpp,

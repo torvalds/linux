@@ -240,6 +240,9 @@ struct thread_struct {
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	void*		kvm_shadow_vcpu; /* KVM internal data */
 #endif /* CONFIG_KVM_BOOK3S_32_HANDLER */
+#if defined(CONFIG_KVM) && defined(CONFIG_BOOKE)
+	struct kvm_vcpu	*kvm_vcpu;
+#endif
 #ifdef CONFIG_PPC64
 	unsigned long	dscr;
 	int		dscr_inherit;

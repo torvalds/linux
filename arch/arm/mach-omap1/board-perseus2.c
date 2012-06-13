@@ -150,14 +150,11 @@ static int nand_dev_ready(struct mtd_info *mtd)
 	return gpio_get_value(P2_NAND_RB_GPIO_PIN);
 }
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 static struct platform_nand_data nand_data = {
 	.chip	= {
 		.nr_chips		= 1,
 		.chip_offset		= 0,
 		.options		= NAND_SAMSUNG_LP_OPTIONS,
-		.part_probe_types	= part_probes,
 	},
 	.ctrl	= {
 		.cmd_ctrl	= omap1_nand_cmd_ctl,
@@ -331,6 +328,7 @@ MACHINE_START(OMAP_PERSEUS2, "OMAP730 Perseus2")
 	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_perseus2_init,
+	.init_late	= omap1_init_late,
 	.timer		= &omap1_timer,
 	.restart	= omap1_restart,
 MACHINE_END

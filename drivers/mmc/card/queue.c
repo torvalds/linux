@@ -96,7 +96,7 @@ static int mmc_queue_thread(void *d)
  * on any queue on this host, and attempt to issue it.  This may
  * not be the queue we were asked to process.
  */
-static void mmc_request(struct request_queue *q)
+static void mmc_request_fn(struct request_queue *q)
 {
 	struct mmc_queue *mq = q->queuedata;
 	struct request *req;
@@ -171,12 +171,10 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		limit = *mmc_dev(host)->dma_mask;
 
 	mq->card = card;
-	mq->queue = blk_init_queue(mmc_request, lock);
+	mq->queue = blk_init_queue(mmc_request_fn, lock);
 	if (!mq->queue)
 		return -ENOMEM;
 
-	memset(&mq->mqrq_cur, 0, sizeof(mq->mqrq_cur));
-	memset(&mq->mqrq_prev, 0, sizeof(mq->mqrq_prev));
 	mq->mqrq_cur = mqrq_cur;
 	mq->mqrq_prev = mqrq_prev;
 	mq->queue->queuedata = mq;

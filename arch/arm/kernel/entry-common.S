@@ -53,9 +53,13 @@ fast_work_pending:
 work_pending:
 	tst	r1, #_TIF_NEED_RESCHED
 	bne	work_resched
-	tst	r1, #_TIF_SIGPENDING|_TIF_NOTIFY_RESUME
-	beq	no_work_pending
+	/*
+	 * TIF_SIGPENDING or TIF_NOTIFY_RESUME must've been set if we got here
+	 */
+	ldr	r2, [sp, #S_PSR]
 	mov	r0, sp				@ 'regs'
+	tst	r2, #15				@ are we returning to user mode?
+	bne	no_work_pending			@ no?  just leave, then...
 	mov	r2, why				@ 'syscall'
 	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
 	movne	why, #0				@ prevent further restarts

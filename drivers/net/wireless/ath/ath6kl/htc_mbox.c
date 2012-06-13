@@ -83,10 +83,7 @@ static void ath6kl_credit_init(struct ath6kl_htc_credit_info *cred_info,
 			 * never goes inactive EVER.
 			 */
 			cur_ep_dist->dist_flags |= HTC_EP_ACTIVE;
-		} else if (cur_ep_dist->svc_id == WMI_DATA_BK_SVC)
-			/* this is the lowest priority data endpoint */
-			/* FIXME: this looks fishy, check */
-			cred_info->lowestpri_ep_dist = cur_ep_dist->list;
+		}
 
 		/*
 		 * Streams have to be created (explicit | implicit) for all
@@ -99,6 +96,13 @@ static void ath6kl_credit_init(struct ath6kl_htc_credit_info *cred_info,
 		 * as traffic activity demands
 		 */
 	}
+
+	/*
+	 * For ath6kl_credit_seek function,
+	 * it use list_for_each_entry_reverse to walk around the whole ep list.
+	 * Therefore assign this lowestpri_ep_dist after walk around the ep_list
+	 */
+	cred_info->lowestpri_ep_dist = cur_ep_dist->list;
 
 	WARN_ON(cred_info->cur_free_credits <= 0);
 
@@ -758,7 +762,7 @@ static void ath6kl_htc_tx_bundle(struct htc_endpoint *endpoint,
 	u32 txb_mask;
 	u8 ac = WMM_NUM_AC;
 
-	if ((HTC_CTRL_RSVD_SVC != endpoint->svc_id) ||
+	if ((HTC_CTRL_RSVD_SVC != endpoint->svc_id) &&
 	    (WMI_CONTROL_SVC != endpoint->svc_id))
 		ac = target->dev->ar->ep2ac_map[endpoint->eid];
 
@@ -793,16 +797,17 @@ static void ath6kl_htc_tx_bundle(struct htc_endpoint *endpoint,
 				 * itself
 				 */
 				txb_mask = ((1 << ac) - 1);
-		/*
-		 * when the scatter request resources drop below a
-		 * certain threshold, disable Tx bundling for all
-		 * AC's with priority lower than the current requesting
-		 * AC. Otherwise re-enable Tx bundling for them
-		 */
-		if (scat_req->scat_q_depth < ATH6KL_SCATTER_REQS)
-			target->tx_bndl_mask &= ~txb_mask;
-		else
-			target->tx_bndl_mask |= txb_mask;
+
+			/*
+			 * when the scatter request resources drop below a
+			 * certain threshold, disable Tx bundling for all
+			 * AC's with priority lower than the current requesting
+			 * AC. Otherwise re-enable Tx bundling for them
+			 */
+			if (scat_req->scat_q_depth < ATH6KL_SCATTER_REQS)
+				target->tx_bndl_mask &= ~txb_mask;
+			else
+				target->tx_bndl_mask |= txb_mask;
 		}
 
 		ath6kl_dbg(ATH6KL_DBG_HTC, "htc tx pkts to scatter: %d\n",
@@ -849,6 +854,7 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 	int bundle_sent;
 	int n_pkts_bundle;
 	u8 ac = WMM_NUM_AC;
+	int status;
 
 	spin_lock_bh(&target->tx_lock);
 
@@ -866,7 +872,7 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 	 */
 	INIT_LIST_HEAD(&txq);
 
-	if ((HTC_CTRL_RSVD_SVC != endpoint->svc_id) ||
+	if ((HTC_CTRL_RSVD_SVC != endpoint->svc_id) &&
 	    (WMI_CONTROL_SVC != endpoint->svc_id))
 		ac = target->dev->ar->ep2ac_map[endpoint->eid];
 
@@ -910,7 +916,12 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 
 			ath6kl_htc_tx_prep_pkt(packet, packet->info.tx.flags,
 					       0, packet->info.tx.seqno);
-			ath6kl_htc_tx_issue(target, packet);
+			status = ath6kl_htc_tx_issue(target, packet);
+
+			if (status) {
+				packet->status = status;
+				packet->completion(packet->context, packet);
+			}
 		}
 
 		spin_lock_bh(&target->tx_lock);

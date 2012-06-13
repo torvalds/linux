@@ -39,14 +39,6 @@ config FB_OMAP_LCD_MIPID
 	  the Mobile Industry Processor Interface DBI-C/DCS
 	  specification. (Supported LCDs: Philips LPH8923, Sharp LS041Y3)
 
-config FB_OMAP_BOOTLOADER_INIT
-	bool "Check bootloader initialization"
-	depends on FB_OMAP
-	help
-	  Say Y here if you want to enable checking if the bootloader has
-	  already initialized the display controller. In this case the
-	  driver will skip the initialization.
-
 config FB_OMAP_CONSISTENT_DMA_SIZE
 	int "Consistent DMA memory size (MB)"
 	depends on FB_OMAP

@@ -63,11 +63,13 @@ BEGIN_FTR_SECTION
 	GET_PACA(r13)
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
-	lbz	r0,PACAPROCSTART(r13)
-	cmpwi	r0,0x80
-	bne	1f
-	li	r0,1
-	stb	r0,PACAPROCSTART(r13)
+	li	r0,KVM_HWTHREAD_IN_KERNEL
+	stb	r0,HSTATE_HWTHREAD_STATE(r13)
+	/* Order setting hwthread_state vs. testing hwthread_req */
+	sync
+	lbz	r0,HSTATE_HWTHREAD_REQ(r13)
+	cmpwi	r0,0
+	beq	1f
 	b	kvm_start_guest
 1:
 #endif

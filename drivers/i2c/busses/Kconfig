@@ -445,20 +445,6 @@ config I2C_IOP3XX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
 
-config I2C_IXP2000
-	tristate "IXP2000 GPIO-Based I2C Interface (DEPRECATED)"
-	depends on ARCH_IXP2000
-	select I2C_ALGOBIT
-	help
-	  Say Y here if you have an Intel IXP2000 (2400, 2800, 2850) based
-	  system and are using GPIO lines for an I2C bus.
-
-	  This support is also available as a module. If so, the module
-	  will be called i2c-ixp2000.
-
-	  This driver is deprecated and will be dropped soon. Use i2c-gpio
-	  instead.
-
 config I2C_MPC
 	tristate "MPC107/824x/85xx/512x/52xx/83xx/86xx"
 	depends on PPC
@@ -483,6 +469,7 @@ config I2C_MV64XXX
 config I2C_MXS
 	tristate "Freescale i.MX28 I2C interface"
 	depends on SOC_IMX28
+	select STMP_DEVICE
 	help
 	  Say Y here if you want to use the I2C bus controller on
 	  the Freescale i.MX28 processors.

@@ -133,6 +133,16 @@
 #define H_PP1			(1UL<<(63-62))
 #define H_PP2			(1UL<<(63-63))
 
+/* Flags for H_REGISTER_VPA subfunction field */
+#define H_VPA_FUNC_SHIFT	(63-18)	/* Bit posn of subfunction code */
+#define H_VPA_FUNC_MASK		7UL
+#define H_VPA_REG_VPA		1UL	/* Register Virtual Processor Area */
+#define H_VPA_REG_DTL		2UL	/* Register Dispatch Trace Log */
+#define H_VPA_REG_SLB		3UL	/* Register SLB shadow buffer */
+#define H_VPA_DEREG_VPA		5UL	/* Deregister Virtual Processor Area */
+#define H_VPA_DEREG_DTL		6UL	/* Deregister Dispatch Trace Log */
+#define H_VPA_DEREG_SLB		7UL	/* Deregister SLB shadow buffer */
+
 /* VASI States */
 #define H_VASI_INVALID          0
 #define H_VASI_ENABLED          1

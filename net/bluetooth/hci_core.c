@@ -83,6 +83,7 @@ void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 	 */
 	if (test_bit(HCI_INIT, &hdev->flags) && hdev->init_last_cmd != cmd) {
 		struct hci_command_hdr *sent = (void *) hdev->sent_cmd->data;
+		u16 opcode = __le16_to_cpu(sent->opcode);
 		struct sk_buff *skb;
 
 		/* Some CSR based controllers generate a spontaneous
@@ -92,7 +93,7 @@ void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 		 * command.
 		 */
 
-		if (cmd != HCI_OP_RESET || sent->opcode == HCI_OP_RESET)
+		if (cmd != HCI_OP_RESET || opcode == HCI_OP_RESET)
 			return;
 
 		skb = skb_clone(hdev->sent_cmd, GFP_ATOMIC);
@@ -251,6 +252,9 @@ static void amp_init(struct hci_dev *hdev)
 
 	/* Read Local Version */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL);
+
+	/* Read Local AMP Info */
+	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
 }
 
 static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
@@ -384,7 +388,6 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 	case DISCOVERY_STOPPED:
 		if (hdev->discovery.state != DISCOVERY_STARTING)
 			mgmt_discovering(hdev, 0);
-		hdev->discovery.type = 0;
 		break;
 	case DISCOVERY_STARTING:
 		break;
@@ -1089,32 +1092,6 @@ static const struct rfkill_ops hci_rfkill_ops = {
 	.set_block = hci_rfkill_set_block,
 };
 
-/* Alloc HCI device */
-struct hci_dev *hci_alloc_dev(void)
-{
-	struct hci_dev *hdev;
-
-	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
-	if (!hdev)
-		return NULL;
-
-	hci_init_sysfs(hdev);
-	skb_queue_head_init(&hdev->driver_init);
-
-	return hdev;
-}
-EXPORT_SYMBOL(hci_alloc_dev);
-
-/* Free HCI device */
-void hci_free_dev(struct hci_dev *hdev)
-{
-	skb_queue_purge(&hdev->driver_init);
-
-	/* will free via device release */
-	put_device(&hdev->dev);
-}
-EXPORT_SYMBOL(hci_free_dev);
-
 static void hci_power_on(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev, power_on);
@@ -1336,7 +1313,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 }
 
 int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
-		int new_key, u8 authenticated, u8 tk[16], u8 enc_size, u16
+		int new_key, u8 authenticated, u8 tk[16], u8 enc_size, __le16
 		ediv, u8 rand[8])
 {
 	struct smp_ltk *key, *old_key;
@@ -1544,75 +1521,6 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 	return mgmt_device_unblocked(hdev, bdaddr, type);
 }
 
-static void hci_clear_adv_cache(struct work_struct *work)
-{
-	struct hci_dev *hdev = container_of(work, struct hci_dev,
-					    adv_work.work);
-
-	hci_dev_lock(hdev);
-
-	hci_adv_entries_clear(hdev);
-
-	hci_dev_unlock(hdev);
-}
-
-int hci_adv_entries_clear(struct hci_dev *hdev)
-{
-	struct adv_entry *entry, *tmp;
-
-	list_for_each_entry_safe(entry, tmp, &hdev->adv_entries, list) {
-		list_del(&entry->list);
-		kfree(entry);
-	}
-
-	BT_DBG("%s adv cache cleared", hdev->name);
-
-	return 0;
-}
-
-struct adv_entry *hci_find_adv_entry(struct hci_dev *hdev, bdaddr_t *bdaddr)
-{
-	struct adv_entry *entry;
-
-	list_for_each_entry(entry, &hdev->adv_entries, list)
-		if (bacmp(bdaddr, &entry->bdaddr) == 0)
-			return entry;
-
-	return NULL;
-}
-
-static inline int is_connectable_adv(u8 evt_type)
-{
-	if (evt_type == ADV_IND || evt_type == ADV_DIRECT_IND)
-		return 1;
-
-	return 0;
-}
-
-int hci_add_adv_entry(struct hci_dev *hdev,
-					struct hci_ev_le_advertising_info *ev) { struct adv_entry *entry; if (!is_connectable_adv(ev->evt_type))
-		return -EINVAL;
-
-	/* Only new entries should be added to adv_entries. So, if
-	 * bdaddr was found, don't add it. */
-	if (hci_find_adv_entry(hdev, &ev->bdaddr))
-		return 0;
-
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
-
-	bacpy(&entry->bdaddr, &ev->bdaddr);
-	entry->bdaddr_type = ev->bdaddr_type;
-
-	list_add(&entry->list, &hdev->adv_entries);
-
-	BT_DBG("%s adv entry added: address %s type %u", hdev->name,
-				batostr(&entry->bdaddr), entry->bdaddr_type);
-
-	return 0;
-}
-
 static void le_scan_param_req(struct hci_dev *hdev, unsigned long opt)
 {
 	struct le_scan_params *param =  (struct le_scan_params *) opt;
@@ -1670,6 +1578,24 @@ static int hci_do_le_scan(struct hci_dev *hdev, u8 type, u16 interval,
 	return 0;
 }
 
+int hci_cancel_le_scan(struct hci_dev *hdev)
+{
+	BT_DBG("%s", hdev->name);
+
+	if (!test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+		return -EALREADY;
+
+	if (cancel_delayed_work(&hdev->le_scan_disable)) {
+		struct hci_cp_le_set_scan_enable cp;
+
+		/* Send HCI command to disable LE Scan */
+		memset(&cp, 0, sizeof(cp));
+		hci_send_cmd(hdev, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	}
+
+	return 0;
+}
+
 static void le_scan_disable_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
@@ -1714,95 +1640,103 @@ int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
 	return 0;
 }
 
-/* Register HCI device */
-int hci_register_dev(struct hci_dev *hdev)
+/* Alloc HCI device */
+struct hci_dev *hci_alloc_dev(void)
 {
-	struct list_head *head = &hci_dev_list, *p;
-	int i, id, error;
+	struct hci_dev *hdev;
 
-	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
+	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
+	if (!hdev)
+		return NULL;
 
-	if (!hdev->open || !hdev->close)
-		return -EINVAL;
-
-	/* Do not allow HCI_AMP devices to register at index 0,
-	 * so the index can be used as the AMP controller ID.
-	 */
-	id = (hdev->dev_type == HCI_BREDR) ? 0 : 1;
-
-	write_lock(&hci_dev_list_lock);
-
-	/* Find first available device id */
-	list_for_each(p, &hci_dev_list) {
-		if (list_entry(p, struct hci_dev, list)->id != id)
-			break;
-		head = p; id++;
-	}
-
-	sprintf(hdev->name, "hci%d", id);
-	hdev->id = id;
-	list_add_tail(&hdev->list, head);
-
-	mutex_init(&hdev->lock);
-
-	hdev->flags = 0;
-	hdev->dev_flags = 0;
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
 	hdev->io_capability = 0x03; /* No Input No Output */
 
-	hdev->idle_timeout = 0;
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
+
+	mutex_init(&hdev->lock);
+	mutex_init(&hdev->req_lock);
+
+	INIT_LIST_HEAD(&hdev->mgmt_pending);
+	INIT_LIST_HEAD(&hdev->blacklist);
+	INIT_LIST_HEAD(&hdev->uuids);
+	INIT_LIST_HEAD(&hdev->link_keys);
+	INIT_LIST_HEAD(&hdev->long_term_keys);
+	INIT_LIST_HEAD(&hdev->remote_oob_data);
 
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
 	INIT_WORK(&hdev->cmd_work, hci_cmd_work);
 	INIT_WORK(&hdev->tx_work, hci_tx_work);
+	INIT_WORK(&hdev->power_on, hci_power_on);
+	INIT_WORK(&hdev->le_scan, le_scan_work);
 
+	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
+	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
+	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 
+	skb_queue_head_init(&hdev->driver_init);
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
 	skb_queue_head_init(&hdev->raw_q);
 
+	init_waitqueue_head(&hdev->req_wait_q);
+
 	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
 
-	for (i = 0; i < NUM_REASSEMBLY; i++)
-		hdev->reassembly[i] = NULL;
-
-	init_waitqueue_head(&hdev->req_wait_q);
-	mutex_init(&hdev->req_lock);
-
+	hci_init_sysfs(hdev);
 	discovery_init(hdev);
-
 	hci_conn_hash_init(hdev);
 
-	INIT_LIST_HEAD(&hdev->mgmt_pending);
+	return hdev;
+}
+EXPORT_SYMBOL(hci_alloc_dev);
 
-	INIT_LIST_HEAD(&hdev->blacklist);
+/* Free HCI device */
+void hci_free_dev(struct hci_dev *hdev)
+{
+	skb_queue_purge(&hdev->driver_init);
 
-	INIT_LIST_HEAD(&hdev->uuids);
+	/* will free via device release */
+	put_device(&hdev->dev);
+}
+EXPORT_SYMBOL(hci_free_dev);
 
-	INIT_LIST_HEAD(&hdev->link_keys);
-	INIT_LIST_HEAD(&hdev->long_term_keys);
+/* Register HCI device */
+int hci_register_dev(struct hci_dev *hdev)
+{
+	struct list_head *head, *p;
+	int id, error;
 
-	INIT_LIST_HEAD(&hdev->remote_oob_data);
+	if (!hdev->open || !hdev->close)
+		return -EINVAL;
 
-	INIT_LIST_HEAD(&hdev->adv_entries);
+	write_lock(&hci_dev_list_lock);
 
-	INIT_DELAYED_WORK(&hdev->adv_work, hci_clear_adv_cache);
-	INIT_WORK(&hdev->power_on, hci_power_on);
-	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
+	/* Do not allow HCI_AMP devices to register at index 0,
+	 * so the index can be used as the AMP controller ID.
+	 */
+	id = (hdev->dev_type == HCI_BREDR) ? 0 : 1;
+	head = &hci_dev_list;
 
-	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
+	/* Find first available device id */
+	list_for_each(p, &hci_dev_list) {
+		int nid = list_entry(p, struct hci_dev, list)->id;
+		if (nid > id)
+			break;
+		if (nid == id)
+			id++;
+		head = p;
+	}
 
-	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
+	sprintf(hdev->name, "hci%d", id);
+	hdev->id = id;
 
-	atomic_set(&hdev->promisc, 0);
+	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
-	INIT_WORK(&hdev->le_scan, le_scan_work);
-
-	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
+	list_add(&hdev->list, head);
 
 	write_unlock(&hci_dev_list_lock);
 
@@ -1884,8 +1818,6 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_del_sysfs(hdev);
 
-	cancel_delayed_work_sync(&hdev->adv_work);
-
 	destroy_workqueue(hdev->workqueue);
 
 	hci_dev_lock(hdev);
@@ -1894,7 +1826,6 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_link_keys_clear(hdev);
 	hci_smp_ltks_clear(hdev);
 	hci_remote_oob_data_clear(hdev);
-	hci_adv_entries_clear(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
@@ -2231,6 +2162,12 @@ static void hci_queue_acl(struct hci_conn *conn, struct sk_buff_head *queue,
 	struct hci_dev *hdev = conn->hdev;
 	struct sk_buff *list;
 
+	skb->len = skb_headlen(skb);
+	skb->data_len = 0;
+
+	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
+	hci_add_acl_hdr(skb, conn->handle, flags);
+
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
 		/* Non fragmented */
@@ -2274,8 +2211,6 @@ void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 	BT_DBG("%s chan %p flags 0x%x", hdev->name, chan, flags);
 
 	skb->dev = (void *) hdev;
-	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-	hci_add_acl_hdr(skb, conn->handle, flags);
 
 	hci_queue_acl(conn, &chan->data_q, skb, flags);
 
@@ -2313,7 +2248,7 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_conn *conn = NULL, *c;
-	int num = 0, min = ~0;
+	unsigned int num = 0, min = ~0;
 
 	/* We don't have to lock device here. Connections are always
 	 * added and removed with TX task disabled. */
@@ -2394,7 +2329,7 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_chan *chan = NULL;
-	int num = 0, min = ~0, cur_prio = 0;
+	unsigned int num = 0, min = ~0, cur_prio = 0;
 	struct hci_conn *conn;
 	int cnt, q, conn_num = 0;
 
@@ -2945,7 +2880,19 @@ int hci_cancel_inquiry(struct hci_dev *hdev)
 	BT_DBG("%s", hdev->name);
 
 	if (!test_bit(HCI_INQUIRY, &hdev->flags))
-		return -EPERM;
+		return -EALREADY;
 
 	return hci_send_cmd(hdev, HCI_OP_INQUIRY_CANCEL, 0, NULL);
+}
+
+u8 bdaddr_to_le(u8 bdaddr_type)
+{
+	switch (bdaddr_type) {
+	case BDADDR_LE_PUBLIC:
+		return ADDR_LE_DEV_PUBLIC;
+
+	default:
+		/* Fallback to LE Random address type */
+		return ADDR_LE_DEV_RANDOM;
+	}
 }

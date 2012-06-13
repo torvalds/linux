@@ -52,6 +52,7 @@ struct evergreen_cs_track {
 	u32			cb_color_view[12];
 	u32			cb_color_pitch[12];
 	u32			cb_color_slice[12];
+	u32			cb_color_slice_idx[12];
 	u32			cb_color_attrib[12];
 	u32			cb_color_cmask_slice[8];/* unused */
 	u32			cb_color_fmask_slice[8];/* unused */
@@ -127,12 +128,14 @@ static void evergreen_cs_track_init(struct evergreen_cs_track *track)
 		track->cb_color_info[i] = 0;
 		track->cb_color_view[i] = 0xFFFFFFFF;
 		track->cb_color_pitch[i] = 0;
-		track->cb_color_slice[i] = 0;
+		track->cb_color_slice[i] = 0xfffffff;
+		track->cb_color_slice_idx[i] = 0;
 	}
 	track->cb_target_mask = 0xFFFFFFFF;
 	track->cb_shader_mask = 0xFFFFFFFF;
 	track->cb_dirty = true;
 
+	track->db_depth_slice = 0xffffffff;
 	track->db_depth_view = 0xFFFFC000;
 	track->db_depth_size = 0xFFFFFFFF;
 	track->db_depth_control = 0xFFFFFFFF;
@@ -250,10 +253,9 @@ static int evergreen_surface_check_2d(struct radeon_cs_parser *p,
 {
 	struct evergreen_cs_track *track = p->track;
 	unsigned palign, halign, tileb, slice_pt;
+	unsigned mtile_pr, mtile_ps, mtileb;
 
 	tileb = 64 * surf->bpe * surf->nsamples;
-	palign = track->group_size / (8 * surf->bpe * surf->nsamples);
-	palign = MAX(8, palign);
 	slice_pt = 1;
 	if (tileb > surf->tsplit) {
 		slice_pt = tileb / surf->tsplit;
@@ -262,7 +264,10 @@ static int evergreen_surface_check_2d(struct radeon_cs_parser *p,
 	/* macro tile width & height */
 	palign = (8 * surf->bankw * track->npipes) * surf->mtilea;
 	halign = (8 * surf->bankh * surf->nbanks) / surf->mtilea;
-	surf->layer_size = surf->nbx * surf->nby * surf->bpe * slice_pt;
+	mtileb = (palign / 8) * (halign / 8) * tileb;;
+	mtile_pr = surf->nbx / palign;
+	mtile_ps = (mtile_pr * surf->nby) / halign;
+	surf->layer_size = mtile_ps * mtileb * slice_pt;
 	surf->base_align = (palign / 8) * (halign / 8) * tileb;
 	surf->palign = palign;
 	surf->halign = halign;
@@ -434,6 +439,39 @@ static int evergreen_cs_track_validate_cb(struct radeon_cs_parser *p, unsigned i
 
 	offset += surf.layer_size * mslice;
 	if (offset > radeon_bo_size(track->cb_color_bo[id])) {
+		/* old ddx are broken they allocate bo with w*h*bpp but
+		 * program slice with ALIGN(h, 8), catch this and patch
+		 * command stream.
+		 */
+		if (!surf.mode) {
+			volatile u32 *ib = p->ib.ptr;
+			unsigned long tmp, nby, bsize, size, min = 0;
+
+			/* find the height the ddx wants */
+			if (surf.nby > 8) {
+				min = surf.nby - 8;
+			}
+			bsize = radeon_bo_size(track->cb_color_bo[id]);
+			tmp = track->cb_color_bo_offset[id] << 8;
+			for (nby = surf.nby; nby > min; nby--) {
+				size = nby * surf.nbx * surf.bpe * surf.nsamples;
+				if ((tmp + size * mslice) <= bsize) {
+					break;
+				}
+			}
+			if (nby > min) {
+				surf.nby = nby;
+				slice = ((nby * surf.nbx) / 64) - 1;
+				if (!evergreen_surface_check(p, &surf, "cb")) {
+					/* check if this one works */
+					tmp += surf.layer_size * mslice;
+					if (tmp <= bsize) {
+						ib[track->cb_color_slice_idx[id]] = slice;
+						goto old_ddx_ok;
+					}
+				}
+			}
+		}
 		dev_warn(p->dev, "%s:%d cb[%d] bo too small (layer size %d, "
 			 "offset %d, max layer %d, bo size %ld, slice %d)\n",
 			 __func__, __LINE__, id, surf.layer_size,
@@ -446,6 +484,7 @@ static int evergreen_cs_track_validate_cb(struct radeon_cs_parser *p, unsigned i
 			surf.tsplit, surf.mtilea);
 		return -EINVAL;
 	}
+old_ddx_ok:
 
 	return 0;
 }
@@ -1057,7 +1096,7 @@ static int evergreen_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	uint32_t header, h_idx, reg, wait_reg_mem_info;
 	volatile uint32_t *ib;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 
 	/* parse the WAIT_REG_MEM */
 	r = evergreen_cs_packet_parse(p, &wait_reg_mem, p->idx);
@@ -1215,7 +1254,7 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		if (!(evergreen_reg_safe_bm[i] & m))
 			return 0;
 	}
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	switch (reg) {
 	/* force following reg to 0 in an attempt to disable out buffer
 	 * which will need us to better understand how it works to perform
@@ -1532,6 +1571,7 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case CB_COLOR7_SLICE:
 		tmp = (reg - CB_COLOR0_SLICE) / 0x3c;
 		track->cb_color_slice[tmp] = radeon_get_ib_value(p, idx);
+		track->cb_color_slice_idx[tmp] = idx;
 		track->cb_dirty = true;
 		break;
 	case CB_COLOR8_SLICE:
@@ -1540,6 +1580,7 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case CB_COLOR11_SLICE:
 		tmp = ((reg - CB_COLOR8_SLICE) / 0x1c) + 8;
 		track->cb_color_slice[tmp] = radeon_get_ib_value(p, idx);
+		track->cb_color_slice_idx[tmp] = idx;
 		track->cb_dirty = true;
 		break;
 	case CB_COLOR0_ATTRIB:
@@ -1896,7 +1937,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 	u32 idx_value;
 
 	track = (struct evergreen_cs_track *)p->track;
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	idx = pkt->idx + 1;
 	idx_value = radeon_get_ib_value(p, idx);
 
@@ -2610,8 +2651,8 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 		}
 	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
 #if 0
-	for (r = 0; r < p->ib->length_dw; r++) {
-		printk(KERN_INFO "%05d  0x%08X\n", r, p->ib->ptr[r]);
+	for (r = 0; r < p->ib.length_dw; r++) {
+		printk(KERN_INFO "%05d  0x%08X\n", r, p->ib.ptr[r]);
 		mdelay(1);
 	}
 #endif

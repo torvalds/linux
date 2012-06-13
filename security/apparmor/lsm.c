@@ -490,17 +490,9 @@ static int common_mmap(int op, struct file *file, unsigned long prot,
 	return common_file_perm(op, file, mask);
 }
 
-static int apparmor_file_mmap(struct file *file, unsigned long reqprot,
-			      unsigned long prot, unsigned long flags,
-			      unsigned long addr, unsigned long addr_only)
+static int apparmor_mmap_file(struct file *file, unsigned long reqprot,
+			      unsigned long prot, unsigned long flags)
 {
-	int rc = 0;
-
-	/* do DAC check */
-	rc = cap_file_mmap(file, reqprot, prot, flags, addr, addr_only);
-	if (rc || addr_only)
-		return rc;
-
 	return common_mmap(OP_FMMAP, file, prot, flags);
 }
 
@@ -646,7 +638,8 @@ static struct security_operations apparmor_ops = {
 	.file_permission =		apparmor_file_permission,
 	.file_alloc_security =		apparmor_file_alloc_security,
 	.file_free_security =		apparmor_file_free_security,
-	.file_mmap =			apparmor_file_mmap,
+	.mmap_file =			apparmor_mmap_file,
+	.mmap_addr =			cap_mmap_addr,
 	.file_mprotect =		apparmor_file_mprotect,
 	.file_lock =			apparmor_file_lock,
 

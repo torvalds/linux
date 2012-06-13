@@ -1003,6 +1003,32 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 }
 EXPORT_SYMBOL(fw_core_handle_response);
 
+/**
+ * fw_rcode_string - convert a firewire result code to an error description
+ * @rcode: the result code
+ */
+const char *fw_rcode_string(int rcode)
+{
+	static const char *const names[] = {
+		[RCODE_COMPLETE]       = "no error",
+		[RCODE_CONFLICT_ERROR] = "conflict error",
+		[RCODE_DATA_ERROR]     = "data error",
+		[RCODE_TYPE_ERROR]     = "type error",
+		[RCODE_ADDRESS_ERROR]  = "address error",
+		[RCODE_SEND_ERROR]     = "send error",
+		[RCODE_CANCELLED]      = "timeout",
+		[RCODE_BUSY]           = "busy",
+		[RCODE_GENERATION]     = "bus reset",
+		[RCODE_NO_ACK]         = "no ack",
+	};
+
+	if ((unsigned int)rcode < ARRAY_SIZE(names) && names[rcode])
+		return names[rcode];
+	else
+		return "unknown";
+}
+EXPORT_SYMBOL(fw_rcode_string);
+
 static const struct fw_address_region topology_map_region =
 	{ .start = CSR_REGISTER_BASE | CSR_TOPOLOGY_MAP,
 	  .end   = CSR_REGISTER_BASE | CSR_TOPOLOGY_MAP_END, };

@@ -65,7 +65,7 @@ struct ceph_file_layout {
 	__le32 fl_object_stripe_unit;  /* UNUSED.  for per-object parity, if any */
 
 	/* object -> pg layout */
-	__le32 fl_pg_preferred; /* preferred primary for pg (-1 for none) */
+	__le32 fl_unused;       /* unused; used to be preferred primary (-1) */
 	__le32 fl_pg_pool;      /* namespace, crush ruleset, rep level */
 } __attribute__ ((packed));
 
@@ -384,7 +384,7 @@ union ceph_mds_request_args {
 		__le32 stripe_count;         /* ... */
 		__le32 object_size;
 		__le32 file_replication;
-		__le32 preferred;
+		__le32 unused;               /* used to be preferred osd */
 	} __attribute__ ((packed)) open;
 	struct {
 		__le32 flags;

@@ -4080,7 +4080,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 				spin_lock_irqsave(&adapter->stats_lock,
 				                  irq_flags);
 				e1000_tbi_adjust_stats(hw, &adapter->stats,
-				                       length, skb->data);
+						       length, mapped);
 				spin_unlock_irqrestore(&adapter->stats_lock,
 				                       irq_flags);
 				length--;

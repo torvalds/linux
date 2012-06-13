@@ -150,6 +150,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		    IEEE80211_HW_QUEUE_CONTROL |
 		    IEEE80211_HW_SUPPORTS_PS |
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
+		    IEEE80211_HW_WANT_MONITOR_VIF |
 		    IEEE80211_HW_SCAN_WHILE_IDLE;
 
 	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
@@ -223,8 +224,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
-	/* we create the 802.11 header and a zero-length SSID element */
-	hw->wiphy->max_scan_ie_len = capa->max_probe_length - 24 - 2;
+	/* we create the 802.11 header and a max-length SSID element */
+	hw->wiphy->max_scan_ie_len = capa->max_probe_length - 24 - 34;
 
 	/*
 	 * We don't use all queues: 4 and 9 are unused and any

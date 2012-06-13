@@ -222,7 +222,8 @@ static int __devinit adp8860_led_probe(struct i2c_client *client)
 	struct led_info *cur_led;
 	int ret, i;
 
-	led = kzalloc(sizeof(*led) * pdata->num_leds, GFP_KERNEL);
+	led = devm_kzalloc(&client->dev, sizeof(*led) * pdata->num_leds,
+				GFP_KERNEL);
 	if (led == NULL) {
 		dev_err(&client->dev, "failed to alloc memory\n");
 		return -ENOMEM;
@@ -236,7 +237,7 @@ static int __devinit adp8860_led_probe(struct i2c_client *client)
 
 	if (ret) {
 		dev_err(&client->dev, "failed to write\n");
-		goto err_free;
+		return ret;
 	}
 
 	for (i = 0; i < pdata->num_leds; ++i) {
@@ -291,9 +292,6 @@ static int __devinit adp8860_led_probe(struct i2c_client *client)
 		cancel_work_sync(&led[i].work);
 	}
 
- err_free:
-	kfree(led);
-
 	return ret;
 }
 
@@ -309,7 +307,6 @@ static int __devexit adp8860_led_remove(struct i2c_client *client)
 		cancel_work_sync(&data->led[i].work);
 	}
 
-	kfree(data->led);
 	return 0;
 }
 #else
@@ -451,7 +448,7 @@ static ssize_t adp8860_store(struct device *dev, const char *buf,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -501,7 +498,7 @@ static ssize_t adp8860_bl_l1_daylight_max_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct adp8860_bl *data = dev_get_drvdata(dev);
-	int ret = strict_strtoul(buf, 10, &data->cached_daylight_max);
+	int ret = kstrtoul(buf, 10, &data->cached_daylight_max);
 	if (ret)
 		return ret;
 
@@ -608,7 +605,7 @@ static ssize_t adp8860_bl_ambient_light_zone_store(struct device *dev,
 	uint8_t reg_val;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -675,13 +672,13 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
 	ret = adp8860_read(client, ADP8860_MFDVID, &reg_val);
 	if (ret < 0)
-		goto out2;
+		return ret;
 
 	switch (ADP8860_MANID(reg_val)) {
 	case ADP8863_MANUFID:
@@ -694,8 +691,7 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 		break;
 	default:
 		dev_err(&client->dev, "failed to probe\n");
-		ret = -ENODEV;
-		goto out2;
+		return -ENODEV;
 	}
 
 	/* It's confirmed that the DEVID field is actually a REVID */
@@ -717,8 +713,7 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 			&client->dev, data, &adp8860_bl_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&client->dev, "failed to register backlight\n");
-		ret = PTR_ERR(bl);
-		goto out2;
+		return PTR_ERR(bl);
 	}
 
 	bl->props.brightness = ADP8860_MAX_BRIGHTNESS;
@@ -756,8 +751,6 @@ out:
 			&adp8860_bl_attr_group);
 out1:
 	backlight_device_unregister(bl);
-out2:
-	kfree(data);
 
 	return ret;
 }
@@ -776,7 +769,6 @@ static int __devexit adp8860_remove(struct i2c_client *client)
 			&adp8860_bl_attr_group);
 
 	backlight_device_unregister(data->bl);
-	kfree(data);
 
 	return 0;
 }

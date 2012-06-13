@@ -419,15 +419,14 @@ struct map_desc spear6xx_io_desc[] __initdata = {
 void __init spear6xx_map_io(void)
 {
 	iotable_init(spear6xx_io_desc, ARRAY_SIZE(spear6xx_io_desc));
-
-	/* This will initialize clock framework */
-	spear6xx_clk_init();
 }
 
 static void __init spear6xx_timer_init(void)
 {
 	char pclk_name[] = "pll3_48m_clk";
 	struct clk *gpt_clk, *pclk;
+
+	spear6xx_clk_init();
 
 	/* get the system timer clock */
 	gpt_clk = clk_get_sys("gpt0", NULL);
@@ -448,7 +447,7 @@ static void __init spear6xx_timer_init(void)
 	clk_put(gpt_clk);
 	clk_put(pclk);
 
-	spear_setup_timer(SPEAR6XX_CPU_TMR_BASE, IRQ_CPU_GPT1_1);
+	spear_setup_of_timer();
 }
 
 struct sys_timer spear6xx_timer = {

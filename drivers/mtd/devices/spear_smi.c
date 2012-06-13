@@ -990,9 +990,9 @@ static int __devinit spear_smi_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ret = clk_enable(dev->clk);
+	ret = clk_prepare_enable(dev->clk);
 	if (ret)
-		goto err_clk_enable;
+		goto err_clk_prepare_enable;
 
 	ret = request_irq(irq, spear_smi_int_handler, 0, pdev->name, dev);
 	if (ret) {
@@ -1020,8 +1020,8 @@ err_bank_setup:
 	free_irq(irq, dev);
 	platform_set_drvdata(pdev, NULL);
 err_irq:
-	clk_disable(dev->clk);
-err_clk_enable:
+	clk_disable_unprepare(dev->clk);
+err_clk_prepare_enable:
 	clk_put(dev->clk);
 err_clk:
 	iounmap(dev->io_base);
@@ -1074,7 +1074,7 @@ static int __devexit spear_smi_remove(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	free_irq(irq, dev);
 
-	clk_disable(dev->clk);
+	clk_disable_unprepare(dev->clk);
 	clk_put(dev->clk);
 	iounmap(dev->io_base);
 	kfree(dev);
@@ -1091,7 +1091,7 @@ int spear_smi_suspend(struct platform_device *pdev, pm_message_t state)
 	struct spear_smi *dev = platform_get_drvdata(pdev);
 
 	if (dev && dev->clk)
-		clk_disable(dev->clk);
+		clk_disable_unprepare(dev->clk);
 
 	return 0;
 }
@@ -1102,7 +1102,7 @@ int spear_smi_resume(struct platform_device *pdev)
 	int ret = -EPERM;
 
 	if (dev && dev->clk)
-		ret = clk_enable(dev->clk);
+		ret = clk_prepare_enable(dev->clk);
 
 	if (!ret)
 		spear_smi_hw_init(dev);

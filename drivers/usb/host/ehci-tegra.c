@@ -722,8 +722,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		}
 	}
 
-	tegra->phy = tegra_usb_phy_open(instance, hcd->regs, pdata->phy_config,
-						TEGRA_USB_PHY_MODE_HOST);
+	tegra->phy = tegra_usb_phy_open(&pdev->dev, instance, hcd->regs,
+					pdata->phy_config,
+					TEGRA_USB_PHY_MODE_HOST);
 	if (IS_ERR(tegra->phy)) {
 		dev_err(&pdev->dev, "Failed to open USB phy\n");
 		err = -ENXIO;

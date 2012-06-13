@@ -165,6 +165,8 @@ static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 					const char *prefix)
 {
 	nvram_read_u16(prefix, NULL, "boardrev", &sprom->board_rev, 0);
+	if (!sprom->board_rev)
+		nvram_read_u16(NULL, NULL, "boardrev", &sprom->board_rev, 0);
 	nvram_read_u16(prefix, NULL, "boardnum", &sprom->board_num, 0);
 	nvram_read_u8(prefix, NULL, "ledbh0", &sprom->gpio0, 0xff);
 	nvram_read_u8(prefix, NULL, "ledbh1", &sprom->gpio1, 0xff);
@@ -555,8 +557,6 @@ void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom, const char *prefix)
 
 void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix)
 {
-	memset(sprom, 0, sizeof(struct ssb_sprom));
-
 	bcm47xx_fill_sprom_ethernet(sprom, prefix);
 
 	nvram_read_u8(prefix, NULL, "sromrev", &sprom->revision, 0);
@@ -618,3 +618,27 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix)
 		bcm47xx_fill_sprom_r1(sprom, prefix);
 	}
 }
+
+#ifdef CONFIG_BCM47XX_SSB
+void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
+				const char *prefix)
+{
+	nvram_read_u16(prefix, NULL, "boardvendor", &boardinfo->vendor, 0);
+	if (!boardinfo->vendor)
+		boardinfo->vendor = SSB_BOARDVENDOR_BCM;
+
+	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0);
+}
+#endif
+
+#ifdef CONFIG_BCM47XX_BCMA
+void bcm47xx_fill_bcma_boardinfo(struct bcma_boardinfo *boardinfo,
+				 const char *prefix)
+{
+	nvram_read_u16(prefix, NULL, "boardvendor", &boardinfo->vendor, 0);
+	if (!boardinfo->vendor)
+		boardinfo->vendor = SSB_BOARDVENDOR_BCM;
+
+	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0);
+}
+#endif

@@ -85,6 +85,7 @@ struct thread_info {
 #define TIF_SECCOMP		8	/* secure computing */
 #define TIF_MCE_NOTIFY		10	/* notify userspace of an MCE */
 #define TIF_USER_RETURN_NOTIFY	11	/* notify kernel of userspace return */
+#define TIF_UPROBE		12	/* breakpointed or singlestepping */
 #define TIF_NOTSC		16	/* TSC is not accessible in userland */
 #define TIF_IA32		17	/* IA32 compatibility process */
 #define TIF_FORK		18	/* ret_from_fork */
@@ -109,6 +110,7 @@ struct thread_info {
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
 #define _TIF_MCE_NOTIFY		(1 << TIF_MCE_NOTIFY)
 #define _TIF_USER_RETURN_NOTIFY	(1 << TIF_USER_RETURN_NOTIFY)
+#define _TIF_UPROBE		(1 << TIF_UPROBE)
 #define _TIF_NOTSC		(1 << TIF_NOTSC)
 #define _TIF_IA32		(1 << TIF_IA32)
 #define _TIF_FORK		(1 << TIF_FORK)
@@ -246,7 +248,23 @@ static inline void set_restore_sigmask(void)
 {
 	struct thread_info *ti = current_thread_info();
 	ti->status |= TS_RESTORE_SIGMASK;
-	set_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags);
+	WARN_ON(!test_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags));
+}
+static inline void clear_restore_sigmask(void)
+{
+	current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+}
+static inline bool test_restore_sigmask(void)
+{
+	return current_thread_info()->status & TS_RESTORE_SIGMASK;
+}
+static inline bool test_and_clear_restore_sigmask(void)
+{
+	struct thread_info *ti = current_thread_info();
+	if (!(ti->status & TS_RESTORE_SIGMASK))
+		return false;
+	ti->status &= ~TS_RESTORE_SIGMASK;
+	return true;
 }
 
 static inline bool is_ia32_task(void)

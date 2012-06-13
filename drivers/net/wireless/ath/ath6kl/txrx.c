@@ -362,15 +362,11 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		   skb, skb->data, skb->len);
 
 	/* If target is not associated */
-	if (!test_bit(CONNECTED, &vif->flags)) {
-		dev_kfree_skb(skb);
-		return 0;
-	}
+	if (!test_bit(CONNECTED, &vif->flags))
+		goto fail_tx;
 
-	if (WARN_ON_ONCE(ar->state != ATH6KL_STATE_ON)) {
-		dev_kfree_skb(skb);
-		return 0;
-	}
+	if (WARN_ON_ONCE(ar->state != ATH6KL_STATE_ON))
+		goto fail_tx;
 
 	if (!test_bit(WMI_READY, &ar->flag))
 		goto fail_tx;

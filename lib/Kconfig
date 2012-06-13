@@ -16,6 +16,12 @@ config BITREVERSE
 config RATIONAL
 	boolean
 
+config GENERIC_STRNCPY_FROM_USER
+	bool
+
+config GENERIC_STRNLEN_USER
+	bool
+
 config GENERIC_FIND_FIRST_BIT
 	bool
 
@@ -32,6 +38,9 @@ config GENERIC_IOMAP
 config GENERIC_IO
 	boolean
 	default n
+
+config STMP_DEVICE
+	bool
 
 config CRC_CCITT
 	tristate "CRC-CCITT functions"

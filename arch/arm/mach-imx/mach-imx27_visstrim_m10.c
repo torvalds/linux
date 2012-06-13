@@ -178,7 +178,7 @@ static struct soc_camera_link iclink_tvp5150 = {
 
 static struct mx2_camera_platform_data visstrim_camera = {
 	.flags = MX2_CAMERA_CCIR | MX2_CAMERA_CCIR_INTERLACE |
-			MX2_CAMERA_SWAP16 | MX2_CAMERA_PCLK_SAMPLE_RISING,
+		 MX2_CAMERA_PCLK_SAMPLE_RISING,
 	.clk = 100000,
 };
 

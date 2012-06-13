@@ -1120,6 +1120,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	cancel_work_sync(&wl->recovery_work);
 	cancel_delayed_work_sync(&wl->elp_work);
 	cancel_delayed_work_sync(&wl->tx_watchdog_work);
+	cancel_delayed_work_sync(&wl->connection_loss_work);
 
 	mutex_lock(&wl->mutex);
 	wl1271_power_off(wl);
@@ -1261,8 +1262,270 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 
 
 #ifdef CONFIG_PM
+static int
+wl1271_validate_wowlan_pattern(struct cfg80211_wowlan_trig_pkt_pattern *p)
+{
+	int num_fields = 0, in_field = 0, fields_size = 0;
+	int i, pattern_len = 0;
+
+	if (!p->mask) {
+		wl1271_warning("No mask in WoWLAN pattern");
+		return -EINVAL;
+	}
+
+	/*
+	 * The pattern is broken up into segments of bytes at different offsets
+	 * that need to be checked by the FW filter. Each segment is called
+	 * a field in the FW API. We verify that the total number of fields
+	 * required for this pattern won't exceed FW limits (8)
+	 * as well as the total fields buffer won't exceed the FW limit.
+	 * Note that if there's a pattern which crosses Ethernet/IP header
+	 * boundary a new field is required.
+	 */
+	for (i = 0; i < p->pattern_len; i++) {
+		if (test_bit(i, (unsigned long *)p->mask)) {
+			if (!in_field) {
+				in_field = 1;
+				pattern_len = 1;
+			} else {
+				if (i == WL1271_RX_FILTER_ETH_HEADER_SIZE) {
+					num_fields++;
+					fields_size += pattern_len +
+						RX_FILTER_FIELD_OVERHEAD;
+					pattern_len = 1;
+				} else
+					pattern_len++;
+			}
+		} else {
+			if (in_field) {
+				in_field = 0;
+				fields_size += pattern_len +
+					RX_FILTER_FIELD_OVERHEAD;
+				num_fields++;
+			}
+		}
+	}
+
+	if (in_field) {
+		fields_size += pattern_len + RX_FILTER_FIELD_OVERHEAD;
+		num_fields++;
+	}
+
+	if (num_fields > WL1271_RX_FILTER_MAX_FIELDS) {
+		wl1271_warning("RX Filter too complex. Too many segments");
+		return -EINVAL;
+	}
+
+	if (fields_size > WL1271_RX_FILTER_MAX_FIELDS_SIZE) {
+		wl1271_warning("RX filter pattern is too big");
+		return -E2BIG;
+	}
+
+	return 0;
+}
+
+struct wl12xx_rx_filter *wl1271_rx_filter_alloc(void)
+{
+	return kzalloc(sizeof(struct wl12xx_rx_filter), GFP_KERNEL);
+}
+
+void wl1271_rx_filter_free(struct wl12xx_rx_filter *filter)
+{
+	int i;
+
+	if (filter == NULL)
+		return;
+
+	for (i = 0; i < filter->num_fields; i++)
+		kfree(filter->fields[i].pattern);
+
+	kfree(filter);
+}
+
+int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
+				 u16 offset, u8 flags,
+				 u8 *pattern, u8 len)
+{
+	struct wl12xx_rx_filter_field *field;
+
+	if (filter->num_fields == WL1271_RX_FILTER_MAX_FIELDS) {
+		wl1271_warning("Max fields per RX filter. can't alloc another");
+		return -EINVAL;
+	}
+
+	field = &filter->fields[filter->num_fields];
+
+	field->pattern = kzalloc(len, GFP_KERNEL);
+	if (!field->pattern) {
+		wl1271_warning("Failed to allocate RX filter pattern");
+		return -ENOMEM;
+	}
+
+	filter->num_fields++;
+
+	field->offset = cpu_to_le16(offset);
+	field->flags = flags;
+	field->len = len;
+	memcpy(field->pattern, pattern, len);
+
+	return 0;
+}
+
+int wl1271_rx_filter_get_fields_size(struct wl12xx_rx_filter *filter)
+{
+	int i, fields_size = 0;
+
+	for (i = 0; i < filter->num_fields; i++)
+		fields_size += filter->fields[i].len +
+			sizeof(struct wl12xx_rx_filter_field) -
+			sizeof(u8 *);
+
+	return fields_size;
+}
+
+void wl1271_rx_filter_flatten_fields(struct wl12xx_rx_filter *filter,
+				    u8 *buf)
+{
+	int i;
+	struct wl12xx_rx_filter_field *field;
+
+	for (i = 0; i < filter->num_fields; i++) {
+		field = (struct wl12xx_rx_filter_field *)buf;
+
+		field->offset = filter->fields[i].offset;
+		field->flags = filter->fields[i].flags;
+		field->len = filter->fields[i].len;
+
+		memcpy(&field->pattern, filter->fields[i].pattern, field->len);
+		buf += sizeof(struct wl12xx_rx_filter_field) -
+			sizeof(u8 *) + field->len;
+	}
+}
+
+/*
+ * Allocates an RX filter returned through f
+ * which needs to be freed using rx_filter_free()
+ */
+static int wl1271_convert_wowlan_pattern_to_rx_filter(
+	struct cfg80211_wowlan_trig_pkt_pattern *p,
+	struct wl12xx_rx_filter **f)
+{
+	int i, j, ret = 0;
+	struct wl12xx_rx_filter *filter;
+	u16 offset;
+	u8 flags, len;
+
+	filter = wl1271_rx_filter_alloc();
+	if (!filter) {
+		wl1271_warning("Failed to alloc rx filter");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	i = 0;
+	while (i < p->pattern_len) {
+		if (!test_bit(i, (unsigned long *)p->mask)) {
+			i++;
+			continue;
+		}
+
+		for (j = i; j < p->pattern_len; j++) {
+			if (!test_bit(j, (unsigned long *)p->mask))
+				break;
+
+			if (i < WL1271_RX_FILTER_ETH_HEADER_SIZE &&
+			    j >= WL1271_RX_FILTER_ETH_HEADER_SIZE)
+				break;
+		}
+
+		if (i < WL1271_RX_FILTER_ETH_HEADER_SIZE) {
+			offset = i;
+			flags = WL1271_RX_FILTER_FLAG_ETHERNET_HEADER;
+		} else {
+			offset = i - WL1271_RX_FILTER_ETH_HEADER_SIZE;
+			flags = WL1271_RX_FILTER_FLAG_IP_HEADER;
+		}
+
+		len = j - i;
+
+		ret = wl1271_rx_filter_alloc_field(filter,
+						   offset,
+						   flags,
+						   &p->pattern[i], len);
+		if (ret)
+			goto err;
+
+		i = j;
+	}
+
+	filter->action = FILTER_SIGNAL;
+
+	*f = filter;
+	return 0;
+
+err:
+	wl1271_rx_filter_free(filter);
+	*f = NULL;
+
+	return ret;
+}
+
+static int wl1271_configure_wowlan(struct wl1271 *wl,
+				   struct cfg80211_wowlan *wow)
+{
+	int i, ret;
+
+	if (!wow || wow->any || !wow->n_patterns) {
+		wl1271_acx_default_rx_filter_enable(wl, 0, FILTER_SIGNAL);
+		wl1271_rx_filter_clear_all(wl);
+		return 0;
+	}
+
+	if (WARN_ON(wow->n_patterns > WL1271_MAX_RX_FILTERS))
+		return -EINVAL;
+
+	/* Validate all incoming patterns before clearing current FW state */
+	for (i = 0; i < wow->n_patterns; i++) {
+		ret = wl1271_validate_wowlan_pattern(&wow->patterns[i]);
+		if (ret) {
+			wl1271_warning("Bad wowlan pattern %d", i);
+			return ret;
+		}
+	}
+
+	wl1271_acx_default_rx_filter_enable(wl, 0, FILTER_SIGNAL);
+	wl1271_rx_filter_clear_all(wl);
+
+	/* Translate WoWLAN patterns into filters */
+	for (i = 0; i < wow->n_patterns; i++) {
+		struct cfg80211_wowlan_trig_pkt_pattern *p;
+		struct wl12xx_rx_filter *filter = NULL;
+
+		p = &wow->patterns[i];
+
+		ret = wl1271_convert_wowlan_pattern_to_rx_filter(p, &filter);
+		if (ret) {
+			wl1271_warning("Failed to create an RX filter from "
+				       "wowlan pattern %d", i);
+			goto out;
+		}
+
+		ret = wl1271_rx_filter_enable(wl, i, 1, filter);
+
+		wl1271_rx_filter_free(filter);
+		if (ret)
+			goto out;
+	}
+
+	ret = wl1271_acx_default_rx_filter_enable(wl, 1, FILTER_DROP);
+
+out:
+	return ret;
+}
+
 static int wl1271_configure_suspend_sta(struct wl1271 *wl,
-					struct wl12xx_vif *wlvif)
+					struct wl12xx_vif *wlvif,
+					struct cfg80211_wowlan *wow)
 {
 	int ret = 0;
 
@@ -1273,6 +1536,7 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 	if (ret < 0)
 		goto out;
 
+	wl1271_configure_wowlan(wl, wow);
 	ret = wl1271_acx_wake_up_conditions(wl, wlvif,
 				    wl->conf.conn.suspend_wake_up_event,
 				    wl->conf.conn.suspend_listen_interval);
@@ -1308,10 +1572,11 @@ out:
 }
 
 static int wl1271_configure_suspend(struct wl1271 *wl,
-				    struct wl12xx_vif *wlvif)
+				    struct wl12xx_vif *wlvif,
+				    struct cfg80211_wowlan *wow)
 {
 	if (wlvif->bss_type == BSS_TYPE_STA_BSS)
-		return wl1271_configure_suspend_sta(wl, wlvif);
+		return wl1271_configure_suspend_sta(wl, wlvif, wow);
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		return wl1271_configure_suspend_ap(wl, wlvif);
 	return 0;
@@ -1332,6 +1597,8 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 		return;
 
 	if (is_sta) {
+		wl1271_configure_wowlan(wl, NULL);
+
 		ret = wl1271_acx_wake_up_conditions(wl, wlvif,
 				    wl->conf.conn.wake_up_event,
 				    wl->conf.conn.listen_interval);
@@ -1355,15 +1622,16 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 suspend wow=%d", !!wow);
-	WARN_ON(!wow || !wow->any);
+	WARN_ON(!wow);
 
 	wl1271_tx_flush(wl);
 
 	mutex_lock(&wl->mutex);
 	wl->wow_enabled = true;
 	wl12xx_for_each_wlvif(wl, wlvif) {
-		ret = wl1271_configure_suspend(wl, wlvif);
+		ret = wl1271_configure_suspend(wl, wlvif, wow);
 		if (ret < 0) {
+			mutex_unlock(&wl->mutex);
 			wl1271_warning("couldn't prepare device to suspend");
 			return ret;
 		}
@@ -1487,6 +1755,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&wl->tx_work);
 	cancel_delayed_work_sync(&wl->elp_work);
 	cancel_delayed_work_sync(&wl->tx_watchdog_work);
+	cancel_delayed_work_sync(&wl->connection_loss_work);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
 	wl12xx_tx_reset(wl, true);
@@ -3439,6 +3708,9 @@ sta_not_found:
 			do_join = true;
 			set_assoc = true;
 
+			/* Cancel connection_loss_work */
+			cancel_delayed_work_sync(&wl->connection_loss_work);
+
 			/*
 			 * use basic rates from AP, and determine lowest rate
 			 * to use with control frames.
@@ -4549,6 +4821,34 @@ static struct bin_attribute fwlog_attr = {
 	.read = wl1271_sysfs_read_fwlog,
 };
 
+static void wl1271_connection_loss_work(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
+	struct ieee80211_vif *vif;
+	struct wl12xx_vif *wlvif;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1271, connection_loss_work);
+
+	wl1271_info("Connection loss work.");
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
+	/* Call mac80211 connection loss */
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+			goto out;
+		vif = wl12xx_wlvif_to_vif(wlvif);
+		ieee80211_connection_loss(vif);
+	}
+out:
+	mutex_unlock(&wl->mutex);
+}
+
 static void wl12xx_derive_mac_addresses(struct wl1271 *wl,
 					u32 oui, u32 nic, int n)
 {
@@ -4804,6 +5104,8 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
 	INIT_DELAYED_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
 	INIT_DELAYED_WORK(&wl->tx_watchdog_work, wl12xx_tx_watchdog_work);
+	INIT_DELAYED_WORK(&wl->connection_loss_work,
+			  wl1271_connection_loss_work);
 
 	wl->freezable_wq = create_freezable_workqueue("wl12xx_wq");
 	if (!wl->freezable_wq) {
@@ -4861,7 +5163,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 		goto err_dummy_packet;
 	}
 
-	wl->mbox = kmalloc(sizeof(*wl->mbox), GFP_DMA);
+	wl->mbox = kmalloc(sizeof(*wl->mbox), GFP_KERNEL | GFP_DMA);
 	if (!wl->mbox) {
 		ret = -ENOMEM;
 		goto err_fwlog;
@@ -5003,9 +5305,14 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 	if (!ret) {
 		wl->irq_wake_enabled = true;
 		device_init_wakeup(wl->dev, 1);
-		if (pdata->pwr_in_suspend)
+		if (pdata->pwr_in_suspend) {
 			wl->hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
-
+			wl->hw->wiphy->wowlan.n_patterns =
+				WL1271_MAX_RX_FILTERS;
+			wl->hw->wiphy->wowlan.pattern_min_len = 1;
+			wl->hw->wiphy->wowlan.pattern_max_len =
+				WL1271_RX_FILTER_MAX_PATTERN_SIZE;
+		}
 	}
 	disable_irq(wl->irq);
 

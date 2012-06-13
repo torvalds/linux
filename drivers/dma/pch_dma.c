@@ -621,7 +621,7 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 			goto err_desc_get;
 
 		desc->regs.dev_addr = reg;
-		desc->regs.mem_addr = sg_phys(sg);
+		desc->regs.mem_addr = sg_dma_address(sg);
 		desc->regs.size = sg_dma_len(sg);
 		desc->regs.next = DMA_DESC_FOLLOW_WITHOUT_IRQ;
 

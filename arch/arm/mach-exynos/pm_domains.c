@@ -193,9 +193,8 @@ static __init int exynos4_pm_init_power_domain(void)
 }
 arch_initcall(exynos4_pm_init_power_domain);
 
-static __init int exynos_pm_late_initcall(void)
+int __init exynos_pm_late_initcall(void)
 {
 	pm_genpd_poweroff_unused();
 	return 0;
 }
-late_initcall(exynos_pm_late_initcall);

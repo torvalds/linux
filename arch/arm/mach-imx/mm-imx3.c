@@ -32,6 +32,10 @@
 #include <mach/iomux-v3.h>
 #include <mach/irqs.h>
 
+#include "crmregs-imx3.h"
+
+void __iomem *mx3_ccm_base;
+
 static void imx3_idle(void)
 {
 	unsigned long reg = 0;
@@ -138,6 +142,7 @@ void __init imx31_init_early(void)
 	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 	arch_ioremap_caller = imx3_ioremap_caller;
 	arm_pm_idle = imx3_idle;
+	mx3_ccm_base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
 }
 
 void __init mx31_init_irq(void)
@@ -211,6 +216,7 @@ void __init imx35_init_early(void)
 	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
 	arm_pm_idle = imx3_idle;
 	arch_ioremap_caller = imx3_ioremap_caller;
+	mx3_ccm_base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
 }
 
 void __init mx35_init_irq(void)

@@ -1127,16 +1127,7 @@ int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	mutex_lock(&ui->ui_mutex);
-	stat->dev = inode->i_sb->s_dev;
-	stat->ino = inode->i_ino;
-	stat->mode = inode->i_mode;
-	stat->nlink = inode->i_nlink;
-	stat->uid = inode->i_uid;
-	stat->gid = inode->i_gid;
-	stat->rdev = inode->i_rdev;
-	stat->atime = inode->i_atime;
-	stat->mtime = inode->i_mtime;
-	stat->ctime = inode->i_ctime;
+	generic_fillattr(inode, stat);
 	stat->blksize = UBIFS_BLOCK_SIZE;
 	stat->size = ui->ui_size;
 

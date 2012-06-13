@@ -253,6 +253,8 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 
 	IWL_DEBUG_POWER(priv, "numSkipDtim = %u, dtimPeriod = %d\n",
 			skip, period);
+	/* The power level here is 0-4 (used as array index), but user expects
+	to see 1-5 (according to spec). */
 	IWL_DEBUG_POWER(priv, "Sleep command for index %d\n", lvl + 1);
 }
 
@@ -308,10 +310,12 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 				     priv->power_data.debug_sleep_level_override,
 				     dtimper);
 	else {
+		/* Note that the user parameter is 1-5 (according to spec),
+		but we pass 0-4 because it acts as an array index. */
 		if (iwlwifi_mod_params.power_level > IWL_POWER_INDEX_1 &&
-		    iwlwifi_mod_params.power_level <= IWL_POWER_INDEX_5)
+		    iwlwifi_mod_params.power_level <= IWL_POWER_NUM)
 			iwl_static_sleep_cmd(priv, cmd,
-				iwlwifi_mod_params.power_level, dtimper);
+				iwlwifi_mod_params.power_level - 1, dtimper);
 		else
 			iwl_static_sleep_cmd(priv, cmd,
 				IWL_POWER_INDEX_1, dtimper);

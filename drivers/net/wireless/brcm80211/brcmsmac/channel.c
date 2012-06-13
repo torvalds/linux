@@ -1110,7 +1110,7 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	char country_abbrev[BRCM_CNTRY_BUF_SZ];
 	const struct country_info *country;
 	struct brcms_pub *pub = wlc->pub;
-	char *ccode;
+	struct ssb_sprom *sprom = &wlc->hw->d11core->bus->sprom;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
@@ -1122,9 +1122,8 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	wlc->cmi = wlc_cm;
 
 	/* store the country code for passing up as a regulatory hint */
-	ccode = getvar(wlc->hw->sih, BRCMS_SROM_CCODE);
-	if (ccode && brcms_c_country_valid(ccode))
-		strncpy(wlc->pub->srom_ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
+	if (sprom->alpha2 && brcms_c_country_valid(sprom->alpha2))
+		strncpy(wlc->pub->srom_ccode, sprom->alpha2, sizeof(sprom->alpha2));
 
 	/*
 	 * internal country information which must match

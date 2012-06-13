@@ -297,7 +297,8 @@ in the beginning of ->setattr unconditionally.
 be used instead.  It gets called whenever the inode is evicted, whether it has
 remaining links or not.  Caller does *not* evict the pagecache or inode-associated
 metadata buffers; getting rid of those is responsibility of method, as it had
-been for ->delete_inode().
+been for ->delete_inode(). Caller makes sure async writeback cannot be running
+for the inode while (or after) ->evict_inode() is called.
 
 	->drop_inode() returns int now; it's called on final iput() with
 inode->i_lock held and it returns true if filesystems wants the inode to be
@@ -306,14 +307,11 @@ updated appropriately.  generic_delete_inode() is also alive and it consists
 simply of return 1.  Note that all actual eviction work is done by caller after
 ->drop_inode() returns.
 
-	clear_inode() is gone; use end_writeback() instead.  As before, it must
-be called exactly once on each call of ->evict_inode() (as it used to be for
-each call of ->delete_inode()).  Unlike before, if you are using inode-associated
-metadata buffers (i.e. mark_buffer_dirty_inode()), it's your responsibility to
-call invalidate_inode_buffers() before end_writeback().
-	No async writeback (and thus no calls of ->write_inode()) will happen
-after end_writeback() returns, so actions that should not overlap with ->write_inode()
-(e.g. freeing on-disk inode if i_nlink is 0) ought to be done after that call.
+	As before, clear_inode() must be called exactly once on each call of
+->evict_inode() (as it used to be for each call of ->delete_inode()).  Unlike
+before, if you are using inode-associated metadata buffers (i.e.
+mark_buffer_dirty_inode()), it's your responsibility to call
+invalidate_inode_buffers() before clear_inode().
 
 	NOTE: checking i_nlink in the beginning of ->write_inode() and bailing out
 if it's zero is not *and* *never* *had* *been* enough.  Final unlink() and iput()

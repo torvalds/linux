@@ -121,6 +121,7 @@ IS_OMAP_CLASS(16xx, 0x16)
 IS_OMAP_CLASS(24xx, 0x24)
 IS_OMAP_CLASS(34xx, 0x34)
 IS_OMAP_CLASS(44xx, 0x44)
+IS_AM_CLASS(35xx, 0x35)
 IS_AM_CLASS(33xx, 0x33)
 
 IS_TI_CLASS(81xx, 0x81)
@@ -148,6 +149,7 @@ IS_AM_SUBCLASS(335x, 0x335)
 #define cpu_is_ti81xx()			0
 #define cpu_is_ti816x()			0
 #define cpu_is_ti814x()			0
+#define soc_is_am35xx()			0
 #define cpu_is_am33xx()			0
 #define cpu_is_am335x()			0
 #define cpu_is_omap44xx()		0
@@ -357,6 +359,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 # undef cpu_is_ti81xx
 # undef cpu_is_ti816x
 # undef cpu_is_ti814x
+# undef soc_is_am35xx
 # undef cpu_is_am33xx
 # undef cpu_is_am335x
 # define cpu_is_omap3430()		is_omap3430()
@@ -378,6 +381,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 # define cpu_is_ti81xx()		is_ti81xx()
 # define cpu_is_ti816x()		is_ti816x()
 # define cpu_is_ti814x()		is_ti814x()
+# define soc_is_am35xx()		is_am35xx()
 # define cpu_is_am33xx()		is_am33xx()
 # define cpu_is_am335x()		is_am335x()
 #endif
@@ -432,6 +436,10 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define TI8148_REV_ES1_0	TI814X_CLASS
 #define TI8148_REV_ES2_0	(TI814X_CLASS | (0x1 << 8))
 #define TI8148_REV_ES2_1	(TI814X_CLASS | (0x2 << 8))
+
+#define AM35XX_CLASS		0x35170034
+#define AM35XX_REV_ES1_0	AM35XX_CLASS
+#define AM35XX_REV_ES1_1	(AM35XX_CLASS | (0x1 << 8))
 
 #define AM335X_CLASS		0x33500034
 #define AM335X_REV_ES1_0	AM335X_CLASS

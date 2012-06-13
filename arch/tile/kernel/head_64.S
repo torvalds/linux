@@ -114,7 +114,7 @@ ENTRY(_start)
 	  shl16insli r0, r0, hw0(swapper_pg_dir - PAGE_OFFSET)
 	}
 	{
-	  move r3, zero
+	  moveli r3, CTX_PAGE_FLAG
 	  j hv_install_context
 	}
 1:
@@ -210,19 +210,19 @@ ENTRY(empty_zero_page)
 	.macro PTE cpa, bits1
 	.quad HV_PTE_PAGE | HV_PTE_DIRTY | HV_PTE_PRESENT | HV_PTE_ACCESSED |\
 	      HV_PTE_GLOBAL | (HV_PTE_MODE_CACHE_NO_L3 << HV_PTE_INDEX_MODE) |\
-	      (\bits1) | (HV_CPA_TO_PFN(\cpa) << HV_PTE_INDEX_PFN)
+	      (\bits1) | (HV_CPA_TO_PTFN(\cpa) << HV_PTE_INDEX_PTFN)
 	.endm
 
 __PAGE_ALIGNED_DATA
 	.align PAGE_SIZE
 ENTRY(swapper_pg_dir)
-	.org swapper_pg_dir + HV_L0_INDEX(PAGE_OFFSET) * HV_PTE_SIZE
+	.org swapper_pg_dir + PGD_INDEX(PAGE_OFFSET) * HV_PTE_SIZE
 .Lsv_data_pmd:
 	.quad 0  /* PTE temp_data_pmd - PAGE_OFFSET, 0 */
-	.org swapper_pg_dir + HV_L0_INDEX(MEM_SV_START) * HV_PTE_SIZE
+	.org swapper_pg_dir + PGD_INDEX(MEM_SV_START) * HV_PTE_SIZE
 .Lsv_code_pmd:
 	.quad 0  /* PTE temp_code_pmd - PAGE_OFFSET, 0 */
-	.org swapper_pg_dir + HV_L0_SIZE
+	.org swapper_pg_dir + SIZEOF_PGD
 	END(swapper_pg_dir)
 
 	.align HV_PAGE_TABLE_ALIGN
@@ -233,11 +233,11 @@ ENTRY(temp_data_pmd)
 	 * permissions later.
 	 */
 	.set addr, 0
-	.rept HV_L1_ENTRIES
+	.rept PTRS_PER_PMD
 	PTE addr, HV_PTE_READABLE | HV_PTE_WRITABLE
-	.set addr, addr + HV_PAGE_SIZE_LARGE
+	.set addr, addr + HPAGE_SIZE
 	.endr
-	.org temp_data_pmd + HV_L1_SIZE
+	.org temp_data_pmd + SIZEOF_PMD
 	END(temp_data_pmd)
 
 	.align HV_PAGE_TABLE_ALIGN
@@ -248,11 +248,11 @@ ENTRY(temp_code_pmd)
 	 * permissions later.
 	 */
 	.set addr, 0
-	.rept HV_L1_ENTRIES
+	.rept PTRS_PER_PMD
 	PTE addr, HV_PTE_READABLE | HV_PTE_EXECUTABLE
-	.set addr, addr + HV_PAGE_SIZE_LARGE
+	.set addr, addr + HPAGE_SIZE
 	.endr
-	.org temp_code_pmd + HV_L1_SIZE
+	.org temp_code_pmd + SIZEOF_PMD
 	END(temp_code_pmd)
 
 	/*

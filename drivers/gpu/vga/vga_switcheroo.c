@@ -28,15 +28,16 @@
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
 
+#include <linux/vgaarb.h>
+
 struct vga_switcheroo_client {
 	struct pci_dev *pdev;
 	struct fb_info *fb_info;
 	int pwr_state;
-	void (*set_gpu_state)(struct pci_dev *pdev, enum vga_switcheroo_state);
-	void (*reprobe)(struct pci_dev *pdev);
-	bool (*can_switch)(struct pci_dev *pdev);
+	const struct vga_switcheroo_client_ops *ops;
 	int id;
 	bool active;
+	struct list_head list;
 };
 
 static DEFINE_MUTEX(vgasr_mutex);
@@ -51,16 +52,23 @@ struct vgasr_priv {
 	struct dentry *switch_file;
 
 	int registered_clients;
-	struct vga_switcheroo_client clients[VGA_SWITCHEROO_MAX_CLIENTS];
+	struct list_head clients;
 
 	struct vga_switcheroo_handler *handler;
 };
+
+#define ID_BIT_AUDIO		0x100
+#define client_is_audio(c)	((c)->id & ID_BIT_AUDIO)
+#define client_is_vga(c)	((c)->id == -1 || !client_is_audio(c))
+#define client_id(c)		((c)->id & ~ID_BIT_AUDIO)
 
 static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
 static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv);
 
 /* only one switcheroo per system */
-static struct vgasr_priv vgasr_priv;
+static struct vgasr_priv vgasr_priv = {
+	.clients = LIST_HEAD_INIT(vgasr_priv.clients),
+};
 
 int vga_switcheroo_register_handler(struct vga_switcheroo_handler *handler)
 {
@@ -86,72 +94,119 @@ EXPORT_SYMBOL(vga_switcheroo_unregister_handler);
 
 static void vga_switcheroo_enable(void)
 {
-	int i;
 	int ret;
+	struct vga_switcheroo_client *client;
+
 	/* call the handler to init */
 	vgasr_priv.handler->init();
 
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		ret = vgasr_priv.handler->get_client_id(vgasr_priv.clients[i].pdev);
+	list_for_each_entry(client, &vgasr_priv.clients, list) {
+		if (client->id != -1)
+			continue;
+		ret = vgasr_priv.handler->get_client_id(client->pdev);
 		if (ret < 0)
 			return;
 
-		vgasr_priv.clients[i].id = ret;
+		client->id = ret;
 	}
 	vga_switcheroo_debugfs_init(&vgasr_priv);
 	vgasr_priv.active = true;
 }
 
-int vga_switcheroo_register_client(struct pci_dev *pdev,
-				   void (*set_gpu_state)(struct pci_dev *pdev, enum vga_switcheroo_state),
-				   void (*reprobe)(struct pci_dev *pdev),
-				   bool (*can_switch)(struct pci_dev *pdev))
+static int register_client(struct pci_dev *pdev,
+			   const struct vga_switcheroo_client_ops *ops,
+			   int id, bool active)
 {
-	int index;
+	struct vga_switcheroo_client *client;
+
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	if (!client)
+		return -ENOMEM;
+
+	client->pwr_state = VGA_SWITCHEROO_ON;
+	client->pdev = pdev;
+	client->ops = ops;
+	client->id = id;
+	client->active = active;
 
 	mutex_lock(&vgasr_mutex);
-	/* don't do IGD vs DIS here */
-	if (vgasr_priv.registered_clients & 1)
-		index = 1;
-	else
-		index = 0;
-
-	vgasr_priv.clients[index].pwr_state = VGA_SWITCHEROO_ON;
-	vgasr_priv.clients[index].pdev = pdev;
-	vgasr_priv.clients[index].set_gpu_state = set_gpu_state;
-	vgasr_priv.clients[index].reprobe = reprobe;
-	vgasr_priv.clients[index].can_switch = can_switch;
-	vgasr_priv.clients[index].id = -1;
-	if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
-		vgasr_priv.clients[index].active = true;
-
-	vgasr_priv.registered_clients |= (1 << index);
+	list_add_tail(&client->list, &vgasr_priv.clients);
+	if (client_is_vga(client))
+		vgasr_priv.registered_clients++;
 
 	/* if we get two clients + handler */
-	if (vgasr_priv.registered_clients == 0x3 && vgasr_priv.handler) {
+	if (!vgasr_priv.active &&
+	    vgasr_priv.registered_clients == 2 && vgasr_priv.handler) {
 		printk(KERN_INFO "vga_switcheroo: enabled\n");
 		vga_switcheroo_enable();
 	}
 	mutex_unlock(&vgasr_mutex);
 	return 0;
 }
+
+int vga_switcheroo_register_client(struct pci_dev *pdev,
+				   const struct vga_switcheroo_client_ops *ops)
+{
+	return register_client(pdev, ops, -1,
+			       pdev == vga_default_device());
+}
 EXPORT_SYMBOL(vga_switcheroo_register_client);
+
+int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
+					 const struct vga_switcheroo_client_ops *ops,
+					 int id, bool active)
+{
+	return register_client(pdev, ops, id | ID_BIT_AUDIO, active);
+}
+EXPORT_SYMBOL(vga_switcheroo_register_audio_client);
+
+static struct vga_switcheroo_client *
+find_client_from_pci(struct list_head *head, struct pci_dev *pdev)
+{
+	struct vga_switcheroo_client *client;
+	list_for_each_entry(client, head, list)
+		if (client->pdev == pdev)
+			return client;
+	return NULL;
+}
+
+static struct vga_switcheroo_client *
+find_client_from_id(struct list_head *head, int client_id)
+{
+	struct vga_switcheroo_client *client;
+	list_for_each_entry(client, head, list)
+		if (client->id == client_id)
+			return client;
+	return NULL;
+}
+
+static struct vga_switcheroo_client *
+find_active_client(struct list_head *head)
+{
+	struct vga_switcheroo_client *client;
+	list_for_each_entry(client, head, list)
+		if (client->active && client_is_vga(client))
+			return client;
+	return NULL;
+}
 
 void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 {
-	int i;
+	struct vga_switcheroo_client *client;
 
 	mutex_lock(&vgasr_mutex);
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		if (vgasr_priv.clients[i].pdev == pdev) {
-			vgasr_priv.registered_clients &= ~(1 << i);
-			break;
-		}
+	client = find_client_from_pci(&vgasr_priv.clients, pdev);
+	if (client) {
+		if (client_is_vga(client))
+			vgasr_priv.registered_clients--;
+		list_del(&client->list);
+		kfree(client);
 	}
-
-	printk(KERN_INFO "vga_switcheroo: disabled\n");
-	vga_switcheroo_debugfs_fini(&vgasr_priv);
-	vgasr_priv.active = false;
+	if (vgasr_priv.active && vgasr_priv.registered_clients < 2) {
+		printk(KERN_INFO "vga_switcheroo: disabled\n");
+		vga_switcheroo_debugfs_fini(&vgasr_priv);
+		vgasr_priv.active = false;
+	}
 	mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_unregister_client);
@@ -159,29 +214,29 @@ EXPORT_SYMBOL(vga_switcheroo_unregister_client);
 void vga_switcheroo_client_fb_set(struct pci_dev *pdev,
 				 struct fb_info *info)
 {
-	int i;
+	struct vga_switcheroo_client *client;
 
 	mutex_lock(&vgasr_mutex);
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		if (vgasr_priv.clients[i].pdev == pdev) {
-			vgasr_priv.clients[i].fb_info = info;
-			break;
-		}
-	}
+	client = find_client_from_pci(&vgasr_priv.clients, pdev);
+	if (client)
+		client->fb_info = info;
 	mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_client_fb_set);
 
 static int vga_switcheroo_show(struct seq_file *m, void *v)
 {
-	int i;
+	struct vga_switcheroo_client *client;
+	int i = 0;
 	mutex_lock(&vgasr_mutex);
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		seq_printf(m, "%d:%s:%c:%s:%s\n", i,
-			   vgasr_priv.clients[i].id == VGA_SWITCHEROO_DIS ? "DIS" : "IGD",
-			   vgasr_priv.clients[i].active ? '+' : ' ',
-			   vgasr_priv.clients[i].pwr_state ? "Pwr" : "Off",
-			   pci_name(vgasr_priv.clients[i].pdev));
+	list_for_each_entry(client, &vgasr_priv.clients, list) {
+		seq_printf(m, "%d:%s%s:%c:%s:%s\n", i,
+			   client_id(client) == VGA_SWITCHEROO_DIS ? "DIS" : "IGD",
+			   client_is_vga(client) ? "" : "-Audio",
+			   client->active ? '+' : ' ',
+			   client->pwr_state ? "Pwr" : "Off",
+			   pci_name(client->pdev));
+		i++;
 	}
 	mutex_unlock(&vgasr_mutex);
 	return 0;
@@ -197,7 +252,7 @@ static int vga_switchon(struct vga_switcheroo_client *client)
 	if (vgasr_priv.handler->power_state)
 		vgasr_priv.handler->power_state(client->id, VGA_SWITCHEROO_ON);
 	/* call the driver callback to turn on device */
-	client->set_gpu_state(client->pdev, VGA_SWITCHEROO_ON);
+	client->ops->set_gpu_state(client->pdev, VGA_SWITCHEROO_ON);
 	client->pwr_state = VGA_SWITCHEROO_ON;
 	return 0;
 }
@@ -205,34 +260,39 @@ static int vga_switchon(struct vga_switcheroo_client *client)
 static int vga_switchoff(struct vga_switcheroo_client *client)
 {
 	/* call the driver callback to turn off device */
-	client->set_gpu_state(client->pdev, VGA_SWITCHEROO_OFF);
+	client->ops->set_gpu_state(client->pdev, VGA_SWITCHEROO_OFF);
 	if (vgasr_priv.handler->power_state)
 		vgasr_priv.handler->power_state(client->id, VGA_SWITCHEROO_OFF);
 	client->pwr_state = VGA_SWITCHEROO_OFF;
 	return 0;
 }
 
+static void set_audio_state(int id, int state)
+{
+	struct vga_switcheroo_client *client;
+
+	client = find_client_from_id(&vgasr_priv.clients, id | ID_BIT_AUDIO);
+	if (client && client->pwr_state != state) {
+		client->ops->set_gpu_state(client->pdev, state);
+		client->pwr_state = state;
+	}
+}
+
 /* stage one happens before delay */
 static int vga_switchto_stage1(struct vga_switcheroo_client *new_client)
 {
-	int i;
-	struct vga_switcheroo_client *active = NULL;
+	struct vga_switcheroo_client *active;
 
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		if (vgasr_priv.clients[i].active == true) {
-			active = &vgasr_priv.clients[i];
-			break;
-		}
-	}
+	active = find_active_client(&vgasr_priv.clients);
 	if (!active)
 		return 0;
 
 	if (new_client->pwr_state == VGA_SWITCHEROO_OFF)
 		vga_switchon(new_client);
 
-	/* swap shadow resource to denote boot VGA device has changed so X starts on new device */
-	active->pdev->resource[PCI_ROM_RESOURCE].flags &= ~IORESOURCE_ROM_SHADOW;
-	new_client->pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW;
+	vga_set_default_device(new_client->pdev);
+	set_audio_state(new_client->id, VGA_SWITCHEROO_ON);
+
 	return 0;
 }
 
@@ -240,15 +300,9 @@ static int vga_switchto_stage1(struct vga_switcheroo_client *new_client)
 static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 {
 	int ret;
-	int i;
-	struct vga_switcheroo_client *active = NULL;
+	struct vga_switcheroo_client *active;
 
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		if (vgasr_priv.clients[i].active == true) {
-			active = &vgasr_priv.clients[i];
-			break;
-		}
-	}
+	active = find_active_client(&vgasr_priv.clients);
 	if (!active)
 		return 0;
 
@@ -264,8 +318,10 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	if (ret)
 		return ret;
 
-	if (new_client->reprobe)
-		new_client->reprobe(new_client->pdev);
+	if (new_client->ops->reprobe)
+		new_client->ops->reprobe(new_client->pdev);
+
+	set_audio_state(active->id, VGA_SWITCHEROO_OFF);
 
 	if (active->pwr_state == VGA_SWITCHEROO_ON)
 		vga_switchoff(active);
@@ -274,13 +330,26 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	return 0;
 }
 
+static bool check_can_switch(void)
+{
+	struct vga_switcheroo_client *client;
+
+	list_for_each_entry(client, &vgasr_priv.clients, list) {
+		if (!client->ops->can_switch(client->pdev)) {
+			printk(KERN_ERR "vga_switcheroo: client %x refused switch\n", client->id);
+			return false;
+		}
+	}
+	return true;
+}
+
 static ssize_t
 vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos)
 {
 	char usercmd[64];
 	const char *pdev_name;
-	int i, ret;
+	int ret;
 	bool delay = false, can_switch;
 	bool just_mux = false;
 	int client_id = -1;
@@ -301,21 +370,21 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 
 	/* pwr off the device not in use */
 	if (strncmp(usercmd, "OFF", 3) == 0) {
-		for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-			if (vgasr_priv.clients[i].active)
+		list_for_each_entry(client, &vgasr_priv.clients, list) {
+			if (client->active)
 				continue;
-			if (vgasr_priv.clients[i].pwr_state == VGA_SWITCHEROO_ON)
-				vga_switchoff(&vgasr_priv.clients[i]);
+			if (client->pwr_state == VGA_SWITCHEROO_ON)
+				vga_switchoff(client);
 		}
 		goto out;
 	}
 	/* pwr on the device not in use */
 	if (strncmp(usercmd, "ON", 2) == 0) {
-		for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-			if (vgasr_priv.clients[i].active)
+		list_for_each_entry(client, &vgasr_priv.clients, list) {
+			if (client->active)
 				continue;
-			if (vgasr_priv.clients[i].pwr_state == VGA_SWITCHEROO_OFF)
-				vga_switchon(&vgasr_priv.clients[i]);
+			if (client->pwr_state == VGA_SWITCHEROO_OFF)
+				vga_switchon(client);
 		}
 		goto out;
 	}
@@ -348,13 +417,9 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 
 	if (client_id == -1)
 		goto out;
-
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		if (vgasr_priv.clients[i].id == client_id) {
-			client = &vgasr_priv.clients[i];
-			break;
-		}
-	}
+	client = find_client_from_id(&vgasr_priv.clients, client_id);
+	if (!client)
+		goto out;
 
 	vgasr_priv.delayed_switch_active = false;
 
@@ -363,23 +428,16 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 		goto out;
 	}
 
-	if (client->active == true)
+	if (client->active)
 		goto out;
 
 	/* okay we want a switch - test if devices are willing to switch */
-	can_switch = true;
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		can_switch = vgasr_priv.clients[i].can_switch(vgasr_priv.clients[i].pdev);
-		if (can_switch == false) {
-			printk(KERN_ERR "vga_switcheroo: client %d refused switch\n", i);
-			break;
-		}
-	}
+	can_switch = check_can_switch();
 
 	if (can_switch == false && delay == false)
 		goto out;
 
-	if (can_switch == true) {
+	if (can_switch) {
 		pdev_name = pci_name(client->pdev);
 		ret = vga_switchto_stage1(client);
 		if (ret)
@@ -451,10 +509,8 @@ fail:
 
 int vga_switcheroo_process_delayed_switch(void)
 {
-	struct vga_switcheroo_client *client = NULL;
+	struct vga_switcheroo_client *client;
 	const char *pdev_name;
-	bool can_switch = true;
-	int i;
 	int ret;
 	int err = -EINVAL;
 
@@ -464,17 +520,9 @@ int vga_switcheroo_process_delayed_switch(void)
 
 	printk(KERN_INFO "vga_switcheroo: processing delayed switch to %d\n", vgasr_priv.delayed_client_id);
 
-	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		if (vgasr_priv.clients[i].id == vgasr_priv.delayed_client_id)
-			client = &vgasr_priv.clients[i];
-		can_switch = vgasr_priv.clients[i].can_switch(vgasr_priv.clients[i].pdev);
-		if (can_switch == false) {
-			printk(KERN_ERR "vga_switcheroo: client %d refused switch\n", i);
-			break;
-		}
-	}
-
-	if (can_switch == false || client == NULL)
+	client = find_client_from_id(&vgasr_priv.clients,
+				     vgasr_priv.delayed_client_id);
+	if (!client || !check_can_switch())
 		goto err;
 
 	pdev_name = pci_name(client->pdev);

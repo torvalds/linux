@@ -31,4 +31,14 @@ config PINCTRL_SPEAR320
 	depends on MACH_SPEAR320
 	select PINCTRL_SPEAR3XX
 
+config PINCTRL_SPEAR1310
+	bool "ST Microelectronics SPEAr1310 SoC pin controller driver"
+	depends on MACH_SPEAR1310
+	select PINCTRL_SPEAR
+
+config PINCTRL_SPEAR1340
+	bool "ST Microelectronics SPEAr1340 SoC pin controller driver"
+	depends on MACH_SPEAR1340
+	select PINCTRL_SPEAR
+
 endif

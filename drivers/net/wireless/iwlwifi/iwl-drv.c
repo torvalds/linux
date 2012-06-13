@@ -657,17 +657,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	return -EINVAL;
 }
 
-static int alloc_pci_desc(struct iwl_drv *drv,
-			  struct iwl_firmware_pieces *pieces,
-			  enum iwl_ucode_type type)
+static int iwl_alloc_ucode(struct iwl_drv *drv,
+			   struct iwl_firmware_pieces *pieces,
+			   enum iwl_ucode_type type)
 {
 	int i;
 	for (i = 0;
 	     i < IWL_UCODE_SECTION_MAX && get_sec_size(pieces, type, i);
 	     i++)
 		if (iwl_alloc_fw_desc(drv, &(drv->fw.img[type].sec[i]),
-						get_sec(pieces, type, i)))
-			return -1;
+				      get_sec(pieces, type, i)))
+			return -ENOMEM;
 	return 0;
 }
 
@@ -825,8 +825,8 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
-		if (alloc_pci_desc(drv, &pieces, i))
-			goto err_pci_alloc;
+		if (iwl_alloc_ucode(drv, &pieces, i))
+			goto out_free_fw;
 
 	/* Now that we can no longer fail, copy information */
 
@@ -866,7 +866,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	drv->op_mode = iwl_dvm_ops.start(drv->trans, drv->cfg, &drv->fw);
 
 	if (!drv->op_mode)
-		goto out_unbind;
+		goto out_free_fw;
 
 	return;
 
@@ -877,7 +877,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		goto out_unbind;
 	return;
 
- err_pci_alloc:
+ out_free_fw:
 	IWL_ERR(drv, "failed to allocate pci memory\n");
 	iwl_dealloc_ucode(drv);
 	release_firmware(ucode_raw);

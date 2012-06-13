@@ -140,7 +140,6 @@ static struct platform_device *platform_devs[] __initdata = {
 static struct platform_device *of_platform_devs[] __initdata = {
 	&u8500_dma40_device,
 	&db8500_pmu_device,
-	&db8500_prcmu_device,
 };
 
 static resource_size_t __initdata db8500_gpio_base[] = {
@@ -222,6 +221,28 @@ struct device * __init u8500_init_devices(void)
 	platform_device_register_data(parent,
 		"cpufreq-u8500", -1, NULL, 0);
 
+	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
+		platform_devs[i]->dev.parent = parent;
+
+	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
+
+	return parent;
+}
+
+/* TODO: Once all pieces are DT:ed, remove completely. */
+struct device * __init u8500_of_init_devices(void)
+{
+	struct device *parent;
+	int i;
+
+	parent = db8500_soc_device_init();
+
+	db8500_add_rtc(parent);
+	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
+
+	platform_device_register_data(parent,
+		"cpufreq-u8500", -1, NULL, 0);
+
 	for (i = 0; i < ARRAY_SIZE(of_platform_devs); i++)
 		of_platform_devs[i]->dev.parent = parent;
 
@@ -229,7 +250,7 @@ struct device * __init u8500_init_devices(void)
 	 * Devices to be DT:ed:
 	 *   u8500_dma40_device  = todo
 	 *   db8500_pmu_device   = todo
-	 *   db8500_prcmu_device = todo
+	 *   db8500_prcmu_device = done
 	 */
 	platform_add_devices(of_platform_devs, ARRAY_SIZE(of_platform_devs));
 

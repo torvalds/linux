@@ -160,6 +160,76 @@ void fcoe_ctlr_init(struct fcoe_ctlr *fip, enum fip_state mode)
 }
 EXPORT_SYMBOL(fcoe_ctlr_init);
 
+static int fcoe_sysfs_fcf_add(struct fcoe_fcf *new)
+{
+	struct fcoe_ctlr *fip = new->fip;
+	struct fcoe_ctlr_device *ctlr_dev = fcoe_ctlr_to_ctlr_dev(fip);
+	struct fcoe_fcf_device temp, *fcf_dev;
+	int rc = 0;
+
+	LIBFCOE_FIP_DBG(fip, "New FCF fab %16.16llx mac %pM\n",
+			new->fabric_name, new->fcf_mac);
+
+	mutex_lock(&ctlr_dev->lock);
+
+	temp.fabric_name = new->fabric_name;
+	temp.switch_name = new->switch_name;
+	temp.fc_map = new->fc_map;
+	temp.vfid = new->vfid;
+	memcpy(temp.mac, new->fcf_mac, ETH_ALEN);
+	temp.priority = new->pri;
+	temp.fka_period = new->fka_period;
+	temp.selected = 0; /* default to unselected */
+
+	fcf_dev = fcoe_fcf_device_add(ctlr_dev, &temp);
+	if (unlikely(!fcf_dev)) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * The fcoe_sysfs layer can return a CONNECTED fcf that
+	 * has a priv (fcf was never deleted) or a CONNECTED fcf
+	 * that doesn't have a priv (fcf was deleted). However,
+	 * libfcoe will always delete FCFs before trying to add
+	 * them. This is ensured because both recv_adv and
+	 * age_fcfs are protected by the the fcoe_ctlr's mutex.
+	 * This means that we should never get a FCF with a
+	 * non-NULL priv pointer.
+	 */
+	BUG_ON(fcf_dev->priv);
+
+	fcf_dev->priv = new;
+	new->fcf_dev = fcf_dev;
+
+	list_add(&new->list, &fip->fcfs);
+	fip->fcf_count++;
+
+out:
+	mutex_unlock(&ctlr_dev->lock);
+	return rc;
+}
+
+static void fcoe_sysfs_fcf_del(struct fcoe_fcf *new)
+{
+	struct fcoe_ctlr *fip = new->fip;
+	struct fcoe_ctlr_device *ctlr_dev = fcoe_ctlr_to_ctlr_dev(fip);
+	struct fcoe_fcf_device *fcf_dev;
+
+	list_del(&new->list);
+	fip->fcf_count--;
+
+	mutex_lock(&ctlr_dev->lock);
+
+	fcf_dev = fcoe_fcf_to_fcf_dev(new);
+	WARN_ON(!fcf_dev);
+	new->fcf_dev = NULL;
+	fcoe_fcf_device_delete(fcf_dev);
+	kfree(new);
+
+	mutex_unlock(&ctlr_dev->lock);
+}
+
 /**
  * fcoe_ctlr_reset_fcfs() - Reset and free all FCFs for a controller
  * @fip: The FCoE controller whose FCFs are to be reset
@@ -173,10 +243,10 @@ static void fcoe_ctlr_reset_fcfs(struct fcoe_ctlr *fip)
 
 	fip->sel_fcf = NULL;
 	list_for_each_entry_safe(fcf, next, &fip->fcfs, list) {
-		list_del(&fcf->list);
-		kfree(fcf);
+		fcoe_sysfs_fcf_del(fcf);
 	}
-	fip->fcf_count = 0;
+	WARN_ON(fip->fcf_count);
+
 	fip->sel_time = 0;
 }
 
@@ -717,7 +787,10 @@ static unsigned long fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 	unsigned long next_timer = jiffies + msecs_to_jiffies(FIP_VN_KA_PERIOD);
 	unsigned long deadline;
 	unsigned long sel_time = 0;
+	struct list_head del_list;
 	struct fcoe_dev_stats *stats;
+
+	INIT_LIST_HEAD(&del_list);
 
 	stats = per_cpu_ptr(fip->lp->dev_stats, get_cpu());
 
@@ -739,10 +812,13 @@ static unsigned long fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 		if (time_after_eq(jiffies, deadline)) {
 			if (fip->sel_fcf == fcf)
 				fip->sel_fcf = NULL;
+			/*
+			 * Move to delete list so we can call
+			 * fcoe_sysfs_fcf_del (which can sleep)
+			 * after the put_cpu().
+			 */
 			list_del(&fcf->list);
-			WARN_ON(!fip->fcf_count);
-			fip->fcf_count--;
-			kfree(fcf);
+			list_add(&fcf->list, &del_list);
 			stats->VLinkFailureCount++;
 		} else {
 			if (time_after(next_timer, deadline))
@@ -753,6 +829,12 @@ static unsigned long fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 		}
 	}
 	put_cpu();
+
+	list_for_each_entry_safe(fcf, next, &del_list, list) {
+		/* Removes fcf from current list */
+		fcoe_sysfs_fcf_del(fcf);
+	}
+
 	if (sel_time && !fip->sel_fcf && !fip->sel_time) {
 		sel_time += msecs_to_jiffies(FCOE_CTLR_START_DELAY);
 		fip->sel_time = sel_time;
@@ -903,23 +985,23 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf new;
-	struct fcoe_fcf *found;
 	unsigned long sol_tov = msecs_to_jiffies(FCOE_CTRL_SOL_TOV);
 	int first = 0;
 	int mtu_valid;
+	int found = 0;
+	int rc = 0;
 
 	if (fcoe_ctlr_parse_adv(fip, skb, &new))
 		return;
 
 	mutex_lock(&fip->ctlr_mutex);
 	first = list_empty(&fip->fcfs);
-	found = NULL;
 	list_for_each_entry(fcf, &fip->fcfs, list) {
 		if (fcf->switch_name == new.switch_name &&
 		    fcf->fabric_name == new.fabric_name &&
 		    fcf->fc_map == new.fc_map &&
 		    compare_ether_addr(fcf->fcf_mac, new.fcf_mac) == 0) {
-			found = fcf;
+			found = 1;
 			break;
 		}
 	}
@@ -931,9 +1013,16 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		if (!fcf)
 			goto out;
 
-		fip->fcf_count++;
 		memcpy(fcf, &new, sizeof(new));
-		list_add(&fcf->list, &fip->fcfs);
+		fcf->fip = fip;
+		rc = fcoe_sysfs_fcf_add(fcf);
+		if (rc) {
+			printk(KERN_ERR "Failed to allocate sysfs instance "
+			       "for FCF, fab %16.16llx mac %pM\n",
+			       new.fabric_name, new.fcf_mac);
+			kfree(fcf);
+			goto out;
+		}
 	} else {
 		/*
 		 * Update the FCF's keep-alive descriptor flags.
@@ -954,6 +1043,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		fcf->fka_period = new.fka_period;
 		memcpy(fcf->fcf_mac, new.fcf_mac, ETH_ALEN);
 	}
+
 	mtu_valid = fcoe_ctlr_mtu_valid(fcf);
 	fcf->time = jiffies;
 	if (!found)
@@ -996,6 +1086,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		    time_before(fip->sel_time, fip->timer.expires))
 			mod_timer(&fip->timer, fip->sel_time);
 	}
+
 out:
 	mutex_unlock(&fip->ctlr_mutex);
 }
@@ -2718,9 +2809,9 @@ unlock:
 
 /**
  * fcoe_libfc_config() - Sets up libfc related properties for local port
- * @lp: The local port to configure libfc for
- * @fip: The FCoE controller in use by the local port
- * @tt: The libfc function template
+ * @lport:    The local port to configure libfc for
+ * @fip:      The FCoE controller in use by the local port
+ * @tt:       The libfc function template
  * @init_fcp: If non-zero, the FCP portion of libfc should be initialized
  *
  * Returns : 0 for success
@@ -2753,3 +2844,43 @@ int fcoe_libfc_config(struct fc_lport *lport, struct fcoe_ctlr *fip,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fcoe_libfc_config);
+
+void fcoe_fcf_get_selected(struct fcoe_fcf_device *fcf_dev)
+{
+	struct fcoe_ctlr_device *ctlr_dev = fcoe_fcf_dev_to_ctlr_dev(fcf_dev);
+	struct fcoe_ctlr *fip = fcoe_ctlr_device_priv(ctlr_dev);
+	struct fcoe_fcf *fcf;
+
+	mutex_lock(&fip->ctlr_mutex);
+	mutex_lock(&ctlr_dev->lock);
+
+	fcf = fcoe_fcf_device_priv(fcf_dev);
+	if (fcf)
+		fcf_dev->selected = (fcf == fip->sel_fcf) ? 1 : 0;
+	else
+		fcf_dev->selected = 0;
+
+	mutex_unlock(&ctlr_dev->lock);
+	mutex_unlock(&fip->ctlr_mutex);
+}
+EXPORT_SYMBOL(fcoe_fcf_get_selected);
+
+void fcoe_ctlr_get_fip_mode(struct fcoe_ctlr_device *ctlr_dev)
+{
+	struct fcoe_ctlr *ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+
+	mutex_lock(&ctlr->ctlr_mutex);
+	switch (ctlr->mode) {
+	case FIP_MODE_FABRIC:
+		ctlr_dev->mode = FIP_CONN_TYPE_FABRIC;
+		break;
+	case FIP_MODE_VN2VN:
+		ctlr_dev->mode = FIP_CONN_TYPE_VN2VN;
+		break;
+	default:
+		ctlr_dev->mode = FIP_CONN_TYPE_UNKNOWN;
+		break;
+	}
+	mutex_unlock(&ctlr->ctlr_mutex);
+}
+EXPORT_SYMBOL(fcoe_ctlr_get_fip_mode);

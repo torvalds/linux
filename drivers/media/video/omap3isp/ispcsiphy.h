@@ -27,21 +27,10 @@
 #ifndef OMAP3_ISP_CSI_PHY_H
 #define OMAP3_ISP_CSI_PHY_H
 
+#include <media/omap3isp.h>
+
 struct isp_csi2_device;
 struct regulator;
-
-struct csiphy_lane {
-	u8 pos;
-	u8 pol;
-};
-
-#define ISP_CSIPHY2_NUM_DATA_LANES	2
-#define ISP_CSIPHY1_NUM_DATA_LANES	1
-
-struct isp_csiphy_lanes_cfg {
-	struct csiphy_lane data[ISP_CSIPHY2_NUM_DATA_LANES];
-	struct csiphy_lane clk;
-};
 
 struct isp_csiphy_dphy_cfg {
 	u8 ths_term;

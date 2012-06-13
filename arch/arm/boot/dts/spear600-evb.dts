@@ -33,6 +33,35 @@
 			status = "okay";
 		};
 
+		smi: flash@fc000000 {
+			status = "okay";
+			clock-rate=<50000000>;
+
+			flash@f8000000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xf8000000 0x800000>;
+				st,smi-fast-mode;
+
+				partition@0 {
+					label = "xloader";
+					reg = <0x0 0x10000>;
+				};
+				partition@10000 {
+					label = "u-boot";
+					reg = <0x10000 0x40000>;
+				};
+				partition@50000 {
+					label = "linux";
+					reg = <0x50000 0x2c0000>;
+				};
+				partition@310000 {
+					label = "rootfs";
+					reg = <0x310000 0x4f0000>;
+				};
+			};
+		};
+
 		apb {
 			serial@d0000000 {
 				status = "okay";

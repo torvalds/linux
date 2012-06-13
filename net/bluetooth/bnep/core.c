@@ -340,7 +340,7 @@ static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	}
 
 	/* Strip 802.1p header */
-	if (ntohs(s->eh.h_proto) == 0x8100) {
+	if (ntohs(s->eh.h_proto) == ETH_P_8021Q) {
 		if (!skb_pull(skb, 4))
 			goto badframe;
 		s->eh.h_proto = get_unaligned((__be16 *) (skb->data - 2));

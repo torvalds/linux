@@ -29,13 +29,6 @@ The buffer-user
    in memory, mapped into its own address space, so it can access the same area
    of memory.
 
-*IMPORTANT*: [see https://lkml.org/lkml/2011/12/20/211 for more details]
-For this first version, A buffer shared using the dma_buf sharing API:
-- *may* be exported to user space using "mmap" *ONLY* by exporter, outside of
-  this framework.
-- with this new iteration of the dma-buf api cpu access from the kernel has been
-  enable, see below for the details.
-
 dma-buf operations for device dma only
 --------------------------------------
 
@@ -300,6 +293,17 @@ Access to a dma_buf from the kernel context involves three steps:
    Note that these calls need to always succeed. The exporter needs to complete
    any preparations that might fail in begin_cpu_access.
 
+   For some cases the overhead of kmap can be too high, a vmap interface
+   is introduced. This interface should be used very carefully, as vmalloc
+   space is a limited resources on many architectures.
+
+   Interfaces:
+      void *dma_buf_vmap(struct dma_buf *dmabuf)
+      void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
+
+   The vmap call can fail if there is no vmap support in the exporter, or if it
+   runs out of vmalloc space. Fallback to kmap should be implemented.
+
 3. Finish access
 
    When the importer is done accessing the range specified in begin_cpu_access,
@@ -312,6 +316,83 @@ Access to a dma_buf from the kernel context involves three steps:
 				  size_t start, size_t len,
 				  enum dma_data_direction dir);
 
+
+Direct Userspace Access/mmap Support
+------------------------------------
+
+Being able to mmap an export dma-buf buffer object has 2 main use-cases:
+- CPU fallback processing in a pipeline and
+- supporting existing mmap interfaces in importers.
+
+1. CPU fallback processing in a pipeline
+
+   In many processing pipelines it is sometimes required that the cpu can access
+   the data in a dma-buf (e.g. for thumbnail creation, snapshots, ...). To avoid
+   the need to handle this specially in userspace frameworks for buffer sharing
+   it's ideal if the dma_buf fd itself can be used to access the backing storage
+   from userspace using mmap.
+
+   Furthermore Android's ION framework already supports this (and is otherwise
+   rather similar to dma-buf from a userspace consumer side with using fds as
+   handles, too). So it's beneficial to support this in a similar fashion on
+   dma-buf to have a good transition path for existing Android userspace.
+
+   No special interfaces, userspace simply calls mmap on the dma-buf fd.
+
+2. Supporting existing mmap interfaces in exporters
+
+   Similar to the motivation for kernel cpu access it is again important that
+   the userspace code of a given importing subsystem can use the same interfaces
+   with a imported dma-buf buffer object as with a native buffer object. This is
+   especially important for drm where the userspace part of contemporary OpenGL,
+   X, and other drivers is huge, and reworking them to use a different way to
+   mmap a buffer rather invasive.
+
+   The assumption in the current dma-buf interfaces is that redirecting the
+   initial mmap is all that's needed. A survey of some of the existing
+   subsystems shows that no driver seems to do any nefarious thing like syncing
+   up with outstanding asynchronous processing on the device or allocating
+   special resources at fault time. So hopefully this is good enough, since
+   adding interfaces to intercept pagefaults and allow pte shootdowns would
+   increase the complexity quite a bit.
+
+   Interface:
+      int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
+		       unsigned long);
+
+   If the importing subsystem simply provides a special-purpose mmap call to set
+   up a mapping in userspace, calling do_mmap with dma_buf->file will equally
+   achieve that for a dma-buf object.
+
+3. Implementation notes for exporters
+
+   Because dma-buf buffers have invariant size over their lifetime, the dma-buf
+   core checks whether a vma is too large and rejects such mappings. The
+   exporter hence does not need to duplicate this check.
+
+   Because existing importing subsystems might presume coherent mappings for
+   userspace, the exporter needs to set up a coherent mapping. If that's not
+   possible, it needs to fake coherency by manually shooting down ptes when
+   leaving the cpu domain and flushing caches at fault time. Note that all the
+   dma_buf files share the same anon inode, hence the exporter needs to replace
+   the dma_buf file stored in vma->vm_file with it's own if pte shootdown is
+   requred. This is because the kernel uses the underlying inode's address_space
+   for vma tracking (and hence pte tracking at shootdown time with
+   unmap_mapping_range).
+
+   If the above shootdown dance turns out to be too expensive in certain
+   scenarios, we can extend dma-buf with a more explicit cache tracking scheme
+   for userspace mappings. But the current assumption is that using mmap is
+   always a slower path, so some inefficiencies should be acceptable.
+
+   Exporters that shoot down mappings (for any reasons) shall not do any
+   synchronization at fault time with outstanding device operations.
+   Synchronization is an orthogonal issue to sharing the backing storage of a
+   buffer and hence should not be handled by dma-buf itself. This is explictly
+   mentioned here because many people seem to want something like this, but if
+   different exporters handle this differently, buffer sharing can fail in
+   interesting ways depending upong the exporter (if userspace starts depending
+   upon this implicit synchronization).
 
 Miscellaneous notes
 -------------------
@@ -335,6 +416,20 @@ Miscellaneous notes
   flag be set when the dma-buf fd is created.  So any API provided by
   the exporting driver to create a dmabuf fd must provide a way to let
   userspace control setting of O_CLOEXEC flag passed in to dma_buf_fd().
+
+- If an exporter needs to manually flush caches and hence needs to fake
+  coherency for mmap support, it needs to be able to zap all the ptes pointing
+  at the backing storage. Now linux mm needs a struct address_space associated
+  with the struct file stored in vma->vm_file to do that with the function
+  unmap_mapping_range. But the dma_buf framework only backs every dma_buf fd
+  with the anon_file struct file, i.e. all dma_bufs share the same file.
+
+  Hence exporters need to setup their own file (and address_space) association
+  by setting vma->vm_file and adjusting vma->vm_pgoff in the dma_buf mmap
+  callback. In the specific case of a gem driver the exporter could use the
+  shmem file already provided by gem (and set vm_pgoff = 0). Exporters can then
+  zap ptes by unmapping the corresponding range of the struct address_space
+  associated with their own file.
 
 References:
 [1] struct dma_buf_ops in include/linux/dma-buf.h

@@ -114,7 +114,7 @@ out:
 
 static void smssdio_interrupt(struct sdio_func *func)
 {
-	int ret, isr;
+	int ret;
 
 	struct smssdio_device *smsdev;
 	struct smscore_buffer_t *cb;
@@ -127,7 +127,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 	 * The interrupt register has no defined meaning. It is just
 	 * a way of turning of the level triggered interrupt.
 	 */
-	isr = sdio_readb(func, SMSSDIO_INT, &ret);
+	(void)sdio_readb(func, SMSSDIO_INT, &ret);
 	if (ret) {
 		sms_err("Unable to read interrupt register!\n");
 		return;

@@ -949,7 +949,8 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, file_alloc_security);
 	set_to_cap_if_null(ops, file_free_security);
 	set_to_cap_if_null(ops, file_ioctl);
-	set_to_cap_if_null(ops, file_mmap);
+	set_to_cap_if_null(ops, mmap_addr);
+	set_to_cap_if_null(ops, mmap_file);
 	set_to_cap_if_null(ops, file_mprotect);
 	set_to_cap_if_null(ops, file_lock);
 	set_to_cap_if_null(ops, file_fcntl);

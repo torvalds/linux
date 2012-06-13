@@ -4,6 +4,8 @@ Required properties:
 - compatible	: "st,spear300-pinmux"
 		: "st,spear310-pinmux"
 		: "st,spear320-pinmux"
+		: "st,spear1310-pinmux"
+		: "st,spear1340-pinmux"
 - reg		: Address range of the pinctrl registers
 - st,pinmux-mode: Mandatory for SPEAr300 and SPEAr320 and invalid for others.
 	- Its values for SPEAr300:
@@ -89,6 +91,37 @@ For SPEAr320 machines:
 	"rmii0_1_grp", "i2c1_8_9_grp", "i2c1_98_99_grp", "i2c2_0_1_grp",
 	"i2c2_2_3_grp", "i2c2_19_20_grp", "i2c2_75_76_grp", "i2c2_96_97_grp"
 
+For SPEAr1310 machines:
+	"i2c0_grp", "ssp0_grp", "ssp0_cs0_grp", "ssp0_cs1_2_grp", "i2s0_grp",
+	"i2s1_grp", "clcd_grp", "clcd_high_res_grp", "arm_gpio_grp",
+	"smi_2_chips_grp", "smi_4_chips_grp", "gmii_grp", "rgmii_grp",
+	"smii_0_1_2_grp", "ras_mii_txclk_grp", "nand_8bit_grp",
+	"nand_16bit_grp", "nand_4_chips_grp", "keyboard_6x6_grp",
+	"keyboard_rowcol6_8_grp", "uart0_grp", "uart0_modem_grp",
+	"gpt0_tmr0_grp", "gpt0_tmr1_grp", "gpt1_tmr0_grp", "gpt1_tmr1_grp",
+	"sdhci_grp", "cf_grp", "xd_grp", "touch_xy_grp",
+	"uart1_disable_i2c_grp", "uart1_disable_sd_grp", "uart2_3_grp",
+	"uart4_grp", "uart5_grp", "rs485_0_1_tdm_0_1_grp", "i2c_1_2_grp",
+	"i2c3_dis_smi_clcd_grp", "i2c3_dis_sd_i2s0_grp", "i2c_4_5_dis_smi_grp",
+	"i2c4_dis_sd_grp", "i2c5_dis_sd_grp", "i2c_6_7_dis_kbd_grp",
+	"i2c6_dis_sd_grp", "i2c7_dis_sd_grp", "can0_dis_nor_grp",
+	"can0_dis_sd_grp", "can1_dis_sd_grp", "can1_dis_kbd_grp", "pcie0_grp",
+	"pcie1_grp", "pcie2_grp", "sata0_grp", "sata1_grp", "sata2_grp",
+	"ssp1_dis_kbd_grp", "ssp1_dis_sd_grp", "gpt64_grp"
+
+For SPEAr1340 machines:
+	"pads_as_gpio_grp", "fsmc_8bit_grp", "fsmc_16bit_grp", "fsmc_pnor_grp",
+	"keyboard_row_col_grp", "keyboard_col5_grp", "spdif_in_grp",
+	"spdif_out_grp", "gpt_0_1_grp", "pwm0_grp", "pwm1_grp", "pwm2_grp",
+	"pwm3_grp", "vip_mux_grp", "vip_mux_cam0_grp", "vip_mux_cam1_grp",
+	"vip_mux_cam2_grp", "vip_mux_cam3_grp", "cam0_grp", "cam1_grp",
+	"cam2_grp", "cam3_grp", "smi_grp", "ssp0_grp", "ssp0_cs1_grp",
+	"ssp0_cs2_grp", "ssp0_cs3_grp", "uart0_grp", "uart0_enh_grp",
+	"uart1_grp", "i2s_in_grp", "i2s_out_grp", "gmii_grp", "rgmii_grp",
+	"rmii_grp", "sgmii_grp", "i2c0_grp", "i2c1_grp", "cec0_grp", "cec1_grp",
+	"sdhci_grp", "cf_grp", "xd_grp", "clcd_grp", "arm_trace_grp",
+	"miphy_dbg_grp", "pcie_grp", "sata_grp"
+
 Valid values for function names are:
 For All SPEAr3xx machines:
 	"firda", "i2c0", "ssp_cs", "ssp0", "mii0", "gpio0", "uart0_ext",
@@ -106,3 +139,17 @@ For SPEAr320 machines:
 	"uart2", "uart3", "uart4", "uart5", "uart6", "rs485", "touchscreen",
 	"can0", "can1", "pwm0_1", "pwm2", "pwm3", "ssp1", "ssp2", "mii2",
 	"mii0_1", "i2c1", "i2c2"
+
+
+For SPEAr1310 machines:
+	"i2c0", "ssp0", "i2s0", "i2s1", "clcd", "arm_gpio", "smi", "gmii",
+	"rgmii", "smii_0_1_2", "ras_mii_txclk", "nand", "keyboard", "uart0",
+	"gpt0", "gpt1", "sdhci", "cf", "xd", "touchscreen", "uart1", "uart2_3",
+	"uart4", "uart5", "rs485_0_1_tdm_0_1", "i2c_1_2", "i2c3_i2s1",
+	"i2c_4_5", "i2c_6_7", "can0", "can1", "pci", "sata", "ssp1", "gpt64"
+
+For SPEAr1340 machines:
+	"pads_as_gpio", "fsmc", "keyboard", "spdif_in", "spdif_out", "gpt_0_1",
+	"pwm", "vip", "cam0", "cam1", "cam2", "cam3", "smi", "ssp0", "uart0",
+	"uart1", "i2s", "gmac", "i2c0", "i2c1", "cec0", "cec1", "sdhci", "cf",
+	"xd", "clcd", "arm_trace", "miphy_dbg", "pcie", "sata"

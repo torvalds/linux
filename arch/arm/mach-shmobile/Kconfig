@@ -186,6 +186,12 @@ config SH_TIMER_TMU
 	help
 	  This enables build of the TMU timer driver.
 
+config EM_TIMER_STI
+	bool "STI timer driver"
+	default y
+	help
+	  This enables build of the STI timer driver.
+
 endmenu
 
 config SH_CLK_CPG

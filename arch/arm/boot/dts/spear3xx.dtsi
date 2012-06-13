@@ -139,6 +139,12 @@
 				interrupts = <12>;
 				status = "disabled";
 			};
+
+			timer@f0000000 {
+				compatible = "st,spear-timer";
+				reg = <0xf0000000 0x400>;
+				interrupts = <2>;
+			};
 		};
 	};
 };

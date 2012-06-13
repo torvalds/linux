@@ -272,18 +272,18 @@ void ext3_evict_inode (struct inode *inode)
 	if (ext3_mark_inode_dirty(handle, inode)) {
 		/* If that failed, just dquot_drop() and be done with that */
 		dquot_drop(inode);
-		end_writeback(inode);
+		clear_inode(inode);
 	} else {
 		ext3_xattr_delete_inode(handle, inode);
 		dquot_free_inode(inode);
 		dquot_drop(inode);
-		end_writeback(inode);
+		clear_inode(inode);
 		ext3_free_inode(handle, inode);
 	}
 	ext3_journal_stop(handle);
 	return;
 no_delete:
-	end_writeback(inode);
+	clear_inode(inode);
 	dquot_drop(inode);
 }
 

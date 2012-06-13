@@ -1077,7 +1077,7 @@ F:	drivers/media/video/s5p-fimc/
 ARM/SAMSUNG S5P SERIES Multi Format Codec (MFC) SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 M:	Kamil Debski <k.debski@samsung.com>
-M:     Jeongtae Park <jtp.park@samsung.com>
+M:	Jeongtae Park <jtp.park@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -1743,10 +1743,10 @@ F:	include/linux/can/platform/
 CAPABILITIES
 M:	Serge Hallyn <serge.hallyn@canonical.com>
 L:	linux-security-module@vger.kernel.org
-S:	Supported	
+S:	Supported
 F:	include/linux/capability.h
 F:	security/capability.c
-F:	security/commoncap.c 
+F:	security/commoncap.c
 F:	kernel/capability.c
 
 CELL BROADBAND ENGINE ARCHITECTURE
@@ -1904,6 +1904,16 @@ S:	Maintained
 F:	Documentation/filesystems/coda.txt
 F:	fs/coda/
 F:	include/linux/coda*.h
+
+COMMON CLK FRAMEWORK
+M:	Mike Turquette <mturquette@ti.com>
+M:	Mike Turquette <mturquette@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (same as CLK API & CLKDEV)
+T:	git git://git.linaro.org/people/mturquette/linux.git
+S:	Maintained
+F:	drivers/clk/clk.c
+F:	drivers/clk/clk-*
+F:	include/linux/clk-pr*
 
 COMMON INTERNET FILE SYSTEM (CIFS)
 M:	Steve French <sfrench@samba.org>
@@ -2136,11 +2146,11 @@ S:	Orphan
 F:	drivers/net/wan/pc300*
 
 CYTTSP TOUCHSCREEN DRIVER
-M:      Javier Martinez Canillas <javier@dowhile0.org>
-L:      linux-input@vger.kernel.org
-S:      Maintained
-F:      drivers/input/touchscreen/cyttsp*
-F:      include/linux/input/cyttsp.h
+M:	Javier Martinez Canillas <javier@dowhile0.org>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/input/touchscreen/cyttsp*
+F:	include/linux/input/cyttsp.h
 
 DAMA SLAVE for AX.25
 M:	Joerg Reuter <jreuter@yaina.de>
@@ -2260,7 +2270,7 @@ F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
 
 DIOLAN U2C-12 I2C DRIVER
-M:	Guenter Roeck <guenter.roeck@ericsson.com>
+M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-diolan-u2c.c
@@ -2398,10 +2408,10 @@ F:	drivers/gpu/drm/
 F:	include/drm/
 
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
-M:	Keith Packard <keithp@keithp.com>
+M:	Daniel Vetter <daniel.vetter@ffwll.ch>
 L:	intel-gfx@lists.freedesktop.org (subscribers-only)
 L:	dri-devel@lists.freedesktop.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/keithp/linux.git
+T:	git git://people.freedesktop.org/~danvet/drm-intel
 S:	Supported
 F:	drivers/gpu/drm/i915
 F:	include/drm/i915*
@@ -2718,6 +2728,13 @@ S:	Maintained
 F:	Documentation/hwmon/f71805f
 F:	drivers/hwmon/f71805f.c
 
+FC0011 TUNER DRIVER
+M:	Michael Buesch <m@bues.ch>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/common/tuners/fc0011.h
+F:	drivers/media/common/tuners/fc0011.c
+
 FANOTIFY
 M:	Eric Paris <eparis@redhat.com>
 S:	Maintained
@@ -2800,6 +2817,12 @@ S:	Orphan
 F:	Documentation/firmware_class/
 F:	drivers/base/firmware*.c
 F:	include/linux/firmware.h
+
+FLOPPY DRIVER
+M:	Jiri Kosina <jkosina@suse.cz>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
+S:	Odd fixes
+F:	drivers/block/floppy.c
 
 FPU EMULATOR
 M:	Bill Metzenthen <billm@melbpc.org.au>
@@ -2907,6 +2930,13 @@ F:	Documentation/power/freezing-of-tasks.txt
 F:	include/linux/freezer.h
 F:	kernel/freezer.c
 
+FRONTSWAP API
+M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	mm/frontswap.c
+F:	include/linux/frontswap.h
+
 FS-CACHE: LOCAL CACHING FOR NETWORK FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
 L:	linux-cachefs@redhat.com
@@ -2971,9 +3001,9 @@ GENERIC GPIO I2C MULTIPLEXER DRIVER
 M:	Peter Korsgaard <peter.korsgaard@barco.com>
 L:	linux-i2c@vger.kernel.org
 S:	Supported
-F:	drivers/i2c/muxes/gpio-i2cmux.c
-F:	include/linux/gpio-i2cmux.h
-F:	Documentation/i2c/muxes/gpio-i2cmux
+F:	drivers/i2c/muxes/i2c-mux-gpio.c
+F:	include/linux/i2c-mux-gpio.h
+F:	Documentation/i2c/muxes/i2c-mux-gpio
 
 GENERIC HDLC (WAN) DRIVERS
 M:	Krzysztof Halasa <khc@pm.waw.pl>
@@ -3115,7 +3145,7 @@ F:	drivers/tty/hvc/
 
 HARDWARE MONITORING
 M:	Jean Delvare <khali@linux-fr.org>
-M:	Guenter Roeck <guenter.roeck@ericsson.com>
+M:	Guenter Roeck <linux@roeck-us.net>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
 T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-hwmon/
@@ -3215,10 +3245,8 @@ F:	include/linux/clockchips.h
 F:	include/linux/hrtimer.h
 
 HIGH-SPEED SCC DRIVER FOR AX.25
-M:	Klaus Kudielka <klaus.kudielka@ieee.org>
 L:	linux-hams@vger.kernel.org
-W:	http://www.nt.tuwien.ac.at/~kkudielk/Linux/
-S:	Maintained
+S:	Orphan
 F:	drivers/net/hamradio/dmascc.c
 F:	drivers/net/hamradio/scc.c
 
@@ -3365,6 +3393,12 @@ W:	http://www.developer.ibm.com/welcome/netfinity/serveraid.html
 S:	Supported
 F:	drivers/scsi/ips.*
 
+ICH LPC AND GPIO DRIVER
+M:	Peter Tyser <ptyser@xes-inc.com>
+S:	Maintained
+F:	drivers/mfd/lpc_ich.c
+F:	drivers/gpio/gpio-ich.c
+
 IDE SUBSYSTEM
 M:	"David S. Miller" <davem@davemloft.net>
 L:	linux-ide@vger.kernel.org
@@ -3458,6 +3492,8 @@ Q:	http://patchwork.kernel.org/project/linux-input/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dtor/input.git
 S:	Maintained
 F:	drivers/input/
+F:	include/linux/input.h
+F:	include/linux/input/
 
 INPUT MULTITOUCH (MT) PROTOCOL
 M:	Henrik Rydberg <rydberg@euromail.se>
@@ -4067,6 +4103,8 @@ F:	drivers/scsi/53c700*
 LED SUBSYSTEM
 M:	Bryan Wu <bryan.wu@canonical.com>
 M:	Richard Purdie <rpurdie@rpsys.net>
+L:	linux-leds@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cooloney/linux-leds.git
 S:	Maintained
 F:	drivers/leds/
 F:	include/linux/leds.h
@@ -4382,6 +4420,13 @@ S:	Orphan
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
 
+MAX16065 HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/max16065
+F:	drivers/hwmon/max16065.c
+
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	"Hans J. Koch" <hjk@hansjkoch.de>
 L:	lm-sensors@lm-sensors.org
@@ -4485,12 +4530,6 @@ M:	Pavel Pisa <ppisa@pikron.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/mmc/host/imxmmc.*
-
-MOUSE AND MISC DEVICES [GENERAL]
-M:	Alessandro Rubini <rubini@ipvvis.unipv.it>
-S:	Maintained
-F:	drivers/input/mouse/
-F:	include/linux/gpio_mouse.h
 
 MOXA SMARTIO/INDUSTIO/INTELLIO SERIAL CARD
 M:	Jiri Slaby <jirislaby@gmail.com>
@@ -5126,10 +5165,10 @@ F:	drivers/leds/leds-pca9532.c
 F:	include/linux/leds-pca9532.h
 
 PCA9541 I2C BUS MASTER SELECTOR DRIVER
-M:	Guenter Roeck <guenter.roeck@ericsson.com>
+M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
-F:	drivers/i2c/muxes/pca9541.c
+F:	drivers/i2c/muxes/i2c-mux-pca9541.c
 
 PCA9564/PCA9665 I2C BUS DRIVER
 M:	Wolfram Sang <w.sang@pengutronix.de>
@@ -5146,7 +5185,7 @@ S:	Maintained
 F:	drivers/firmware/pcdp.*
 
 PCI ERROR RECOVERY
-M:     Linas Vepstas <linasvepstas@gmail.com>
+M:	Linas Vepstas <linasvepstas@gmail.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	Documentation/PCI/pci-error-recovery.txt
@@ -5276,7 +5315,7 @@ F:	drivers/video/fb-puv3.c
 F:	drivers/rtc/rtc-puv3.c
 
 PMBUS HARDWARE MONITORING DRIVERS
-M:	Guenter Roeck <guenter.roeck@ericsson.com>
+M:	Guenter Roeck <linux@roeck-us.net>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
 W:	http://www.roeck-us.net/linux/drivers/
@@ -5314,7 +5353,7 @@ M:	David Woodhouse <dwmw2@infradead.org>
 T:	git git://git.infradead.org/battery-2.6.git
 S:	Maintained
 F:	include/linux/power_supply.h
-F:	drivers/power/power_supply*
+F:	drivers/power/
 
 PNP SUPPORT
 M:	Adam Belay <abelay@mit.edu>
@@ -6331,14 +6370,25 @@ F:	include/linux/compiler.h
 
 SPEAR PLATFORM SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
+M:	Shiraz Hashim <shiraz.hashim@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
 F:	arch/arm/plat-spear/
 
+SPEAR13XX MACHINE SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+M:	Shiraz Hashim <shiraz.hashim@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/mach-spear13xx/
+
 SPEAR3XX MACHINE SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
+M:	Shiraz Hashim <shiraz.hashim@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
@@ -6347,6 +6397,8 @@ F:	arch/arm/mach-spear3xx/
 
 SPEAR6XX MACHINE SUPPORT
 M:	Rajeev Kumar <rajeev-dlh.kumar@st.com>
+M:	Shiraz Hashim <shiraz.hashim@st.com>
+M:	Viresh Kumar <viresh.kumar@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
@@ -6359,9 +6411,7 @@ L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
-F:	arch/arm/mach-spear*/clock.c
-F:	arch/arm/plat-spear/clock.c
-F:	arch/arm/plat-spear/include/plat/clock.h
+F:	drivers/clk/spear/
 
 SPI SUBSYSTEM
 M:	Grant Likely <grant.likely@secretlab.ca>
@@ -6623,7 +6673,7 @@ F:	include/linux/taskstats*
 F:	kernel/taskstats.c
 
 TC CLASSIFIER
-M:	Jamal Hadi Salim <hadi@cyberus.ca>
+M:	Jamal Hadi Salim <jhs@mojatatu.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/linux/pkt_cls.h
@@ -7191,7 +7241,7 @@ F:	include/linux/usb/usbnet.h
 
 USB VIDEO CLASS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-L:	linux-uvc-devel@lists.berlios.de (subscribers-only)
+L:	linux-uvc-devel@lists.sourceforge.net (subscribers-only)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
 W:	http://www.ideasonboard.org/uvc/
@@ -7257,11 +7307,11 @@ F:	Documentation/DocBook/uio-howto.tmpl
 F:	drivers/uio/
 F:	include/linux/uio*.h
 
-UTIL-LINUX-NG PACKAGE
+UTIL-LINUX PACKAGE
 M:	Karel Zak <kzak@redhat.com>
-L:	util-linux-ng@vger.kernel.org
-W:	http://kernel.org/~kzak/util-linux-ng/
-T:	git git://git.kernel.org/pub/scm/utils/util-linux-ng/util-linux-ng.git
+L:	util-linux@vger.kernel.org
+W:	http://en.wikipedia.org/wiki/Util-linux
+T:	git git://git.kernel.org/pub/scm/utils/util-linux/util-linux.git
 S:	Maintained
 
 UVESAFB DRIVER
@@ -7614,7 +7664,7 @@ XFS FILESYSTEM
 P:	Silicon Graphics Inc
 M:	Ben Myers <bpm@sgi.com>
 M:	Alex Elder <elder@kernel.org>
-M:	xfs-masters@oss.sgi.com
+M:	xfs@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
 T:	git git://oss.sgi.com/xfs/xfs.git

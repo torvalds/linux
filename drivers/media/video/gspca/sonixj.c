@@ -2800,10 +2800,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	}
 }
 
-/* !! coarse_grained_expo_autogain is not used !! */
-#define exp_too_low_cnt bridge
-#define exp_too_high_cnt sensor
-
+#define WANT_REGULAR_AUTOGAIN
 #include "autogain_functions.h"
 
 static void do_autogain(struct gspca_dev *gspca_dev)

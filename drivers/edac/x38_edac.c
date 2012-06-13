@@ -215,19 +215,26 @@ static void x38_process_error_info(struct mem_ctl_info *mci,
 		return;
 
 	if ((info->errsts ^ info->errsts2) & X38_ERRSTS_BITS) {
-		edac_mc_handle_ce_no_info(mci, "UE overwrote CE");
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
+				     -1, -1, -1,
+				     "UE overwrote CE", "", NULL);
 		info->errsts = info->errsts2;
 	}
 
 	for (channel = 0; channel < x38_channel_num; channel++) {
 		log = info->eccerrlog[channel];
 		if (log & X38_ECCERRLOG_UE) {
-			edac_mc_handle_ue(mci, 0, 0,
-				eccerrlog_row(channel, log), "x38 UE");
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+					     0, 0, 0,
+					     eccerrlog_row(channel, log),
+					     -1, -1,
+					     "x38 UE", "", NULL);
 		} else if (log & X38_ECCERRLOG_CE) {
-			edac_mc_handle_ce(mci, 0, 0,
-				eccerrlog_syndrome(log),
-				eccerrlog_row(channel, log), 0, "x38 CE");
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+					     0, 0, eccerrlog_syndrome(log),
+					     eccerrlog_row(channel, log),
+					     -1, -1,
+					     "x38 CE", "", NULL);
 		}
 	}
 }
@@ -317,9 +324,9 @@ static unsigned long drb_to_nr_pages(
 static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	int rc;
-	int i;
+	int i, j;
 	struct mem_ctl_info *mci = NULL;
-	unsigned long last_page;
+	struct edac_mc_layer layers[2];
 	u16 drbs[X38_CHANNELS][X38_RANKS_PER_CHANNEL];
 	bool stacked;
 	void __iomem *window;
@@ -335,7 +342,13 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 	how_many_channel(pdev);
 
 	/* FIXME: unconventional pvt_info usage */
-	mci = edac_mc_alloc(0, X38_RANKS, x38_channel_num, 0);
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = X38_RANKS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = x38_channel_num;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
 		return -ENOMEM;
 
@@ -363,7 +376,6 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 	 * cumulative; the last one will contain the total memory
 	 * contained in all ranks.
 	 */
-	last_page = -1UL;
 	for (i = 0; i < mci->nr_csrows; i++) {
 		unsigned long nr_pages;
 		struct csrow_info *csrow = &mci->csrows[i];
@@ -372,20 +384,18 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 			i / X38_RANKS_PER_CHANNEL,
 			i % X38_RANKS_PER_CHANNEL);
 
-		if (nr_pages == 0) {
-			csrow->mtype = MEM_EMPTY;
+		if (nr_pages == 0)
 			continue;
+
+		for (j = 0; j < x38_channel_num; j++) {
+			struct dimm_info *dimm = csrow->channels[j].dimm;
+
+			dimm->nr_pages = nr_pages / x38_channel_num;
+			dimm->grain = nr_pages << PAGE_SHIFT;
+			dimm->mtype = MEM_DDR2;
+			dimm->dtype = DEV_UNKNOWN;
+			dimm->edac_mode = EDAC_UNKNOWN;
 		}
-
-		csrow->first_page = last_page + 1;
-		last_page += nr_pages;
-		csrow->last_page = last_page;
-		csrow->nr_pages = nr_pages;
-
-		csrow->grain = nr_pages << PAGE_SHIFT;
-		csrow->mtype = MEM_DDR2;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = EDAC_UNKNOWN;
 	}
 
 	x38_clear_error_info(mci);

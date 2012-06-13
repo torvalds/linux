@@ -421,8 +421,8 @@ static void bm_work(struct work_struct *work)
 			 * root, and thus, IRM.
 			 */
 			new_root_id = local_id;
-			fw_notice(card, "%s, making local node (%02x) root\n",
-				  "BM lock failed", new_root_id);
+			fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
+				  fw_rcode_string(rcode), new_root_id);
 			goto pick_me;
 		}
 	} else if (card->bm_generation != generation) {

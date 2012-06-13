@@ -1598,24 +1598,22 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	if (request_irq(itdev->cir_irq, ite_cir_isr, IRQF_SHARED,
 			ITE_DRIVER_NAME, (void *)itdev))
-		goto failure;
+		goto failure2;
 
 	ret = rc_register_device(rdev);
 	if (ret)
-		goto failure;
+		goto failure3;
 
 	itdev->rdev = rdev;
 	ite_pr(KERN_NOTICE, "driver has been successfully loaded\n");
 
 	return 0;
 
+failure3:
+	free_irq(itdev->cir_irq, itdev);
+failure2:
+	release_region(itdev->cir_addr, itdev->params.io_region_size);
 failure:
-	if (itdev->cir_irq)
-		free_irq(itdev->cir_irq, itdev);
-
-	if (itdev->cir_addr)
-		release_region(itdev->cir_addr, itdev->params.io_region_size);
-
 	rc_free_device(rdev);
 	kfree(itdev);
 

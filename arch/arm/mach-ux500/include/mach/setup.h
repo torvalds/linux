@@ -20,6 +20,7 @@ extern void __init u8500_map_io(void);
 extern struct device * __init u8500_init_devices(void);
 
 extern void __init ux500_init_irq(void);
+extern void __init ux500_init_late(void);
 
 extern struct device *ux500_soc_device_init(const char *soc_id);
 

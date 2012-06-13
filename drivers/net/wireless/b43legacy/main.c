@@ -1573,8 +1573,6 @@ static void b43legacy_request_firmware(struct work_struct *work)
 	const char *filename;
 	int err;
 
-	/* do dummy read */
-	ssb_read32(dev->dev, SSB_TMSHIGH);
 	if (!fw->ucode) {
 		if (rev == 2)
 			filename = "ucode2";
@@ -3781,7 +3779,7 @@ static void b43legacy_sprom_fixup(struct ssb_bus *bus)
 	/* boardflags workarounds */
 	if (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
 	    bus->boardinfo.type == 0x4E &&
-	    bus->boardinfo.rev > 0x40)
+	    bus->sprom.board_rev > 0x40)
 		bus->sprom.boardflags_lo |= B43legacy_BFL_PACTRL;
 }
 

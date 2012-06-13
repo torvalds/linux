@@ -153,7 +153,7 @@ static void set_last_pointer(struct super_block *s, struct dnode *d, dnode_secno
 		}
 		de->length = cpu_to_le16(36);
 		de->down = 1;
-		*(dnode_secno *)((char *)de + 32) = cpu_to_le32(ptr);
+		*(__le32 *)((char *)de + 32) = cpu_to_le32(ptr);
 	}
 }
 
@@ -177,7 +177,7 @@ struct hpfs_dirent *hpfs_add_de(struct super_block *s, struct dnode *d,
 	memmove((char *)de + d_size, de, (char *)de_end - (char *)de);
 	memset(de, 0, d_size);
 	if (down_ptr) {
-		*(dnode_secno *)((char *)de + d_size - 4) = cpu_to_le32(down_ptr);
+		*(__le32 *)((char *)de + d_size - 4) = cpu_to_le32(down_ptr);
 		de->down = 1;
 	}
 	de->length = cpu_to_le16(d_size);
@@ -656,7 +656,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 				del->down = 0;
 				d1->first_free = cpu_to_le32(le32_to_cpu(d1->first_free) - 4);
 			} else if (down)
-				*(dnode_secno *) ((void *) del + le16_to_cpu(del->length) - 4) = cpu_to_le32(down);
+				*(__le32 *) ((void *) del + le16_to_cpu(del->length) - 4) = cpu_to_le32(down);
 		} else goto endm;
 		if (!(de_cp = kmalloc(le16_to_cpu(de_prev->length), GFP_NOFS))) {
 			printk("HPFS: out of memory for dtree balancing\n");
@@ -672,7 +672,7 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			de_prev->down = 1;
 			dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) + 4);
 		}
-		*(dnode_secno *) ((void *) de_prev + le16_to_cpu(de_prev->length) - 4) = cpu_to_le32(ndown);
+		*(__le32 *) ((void *) de_prev + le16_to_cpu(de_prev->length) - 4) = cpu_to_le32(ndown);
 		hpfs_mark_4buffers_dirty(&qbh);
 		hpfs_brelse4(&qbh);
 		for_all_poss(i, hpfs_pos_subst, ((loff_t)up << 4) | (p - 1), 4);
@@ -1015,7 +1015,7 @@ struct hpfs_dirent *map_fnode_dirent(struct super_block *s, fnode_secno fno,
 		kfree(name2);
 		return NULL;
 	}	
-	if (!upf->dirflag) {
+	if (!fnode_is_dir(upf)) {
 		brelse(bh);
 		hpfs_error(s, "fnode %08x has non-directory parent %08x", fno, le32_to_cpu(f->up));
 		kfree(name2);

@@ -234,20 +234,7 @@ static struct pci_driver scb2_flash_driver = {
 	.remove =   __devexit_p(scb2_flash_remove),
 };
 
-static int __init
-scb2_flash_init(void)
-{
-	return pci_register_driver(&scb2_flash_driver);
-}
-
-static void __exit
-scb2_flash_exit(void)
-{
-	pci_unregister_driver(&scb2_flash_driver);
-}
-
-module_init(scb2_flash_init);
-module_exit(scb2_flash_exit);
+module_pci_driver(scb2_flash_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Hockin <thockin@sun.com>");

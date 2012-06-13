@@ -9,6 +9,7 @@ config NFC_HCI
 
 config NFC_SHDLC
 	depends on NFC_HCI
+	select CRC_CCITT
 	bool "SHDLC link layer for HCI based NFC drivers"
 	default n
 	---help---

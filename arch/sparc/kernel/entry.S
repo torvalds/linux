@@ -393,7 +393,6 @@ linux_trap_ipi15_sun4d:
 	/* FIXME */
 1:	b,a	1b
 
-#ifdef CONFIG_SPARC_LEON
 	.globl	smpleon_ipi
 	.extern leon_ipi_interrupt
 	/* SMP per-cpu IPI interrupts are handled specially. */
@@ -423,8 +422,6 @@ linux_trap_ipi15_leon:
 	 nop
 	b	ret_trap_lockless_ipi
 	 clr	%l6
-
-#endif /* CONFIG_SPARC_LEON */
 
 #endif /* CONFIG_SMP */
 
@@ -770,8 +767,11 @@ srmmu_fault:
 	mov	0x400, %l5
 	mov	0x300, %l4
 
-	lda	[%l5] ASI_M_MMUREGS, %l6	! read sfar first
-	lda	[%l4] ASI_M_MMUREGS, %l5	! read sfsr last
+LEON_PI(lda	[%l5] ASI_LEON_MMUREGS, %l6)	! read sfar first
+SUN_PI_(lda	[%l5] ASI_M_MMUREGS, %l6)	! read sfar first
+
+LEON_PI(lda	[%l4] ASI_LEON_MMUREGS, %l5)	! read sfsr last
+SUN_PI_(lda	[%l4] ASI_M_MMUREGS, %l5)	! read sfsr last
 
 	andn	%l6, 0xfff, %l6
 	srl	%l5, 6, %l5			! and encode all info into l7

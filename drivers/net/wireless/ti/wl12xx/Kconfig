@@ -1,5 +1,6 @@
 config WL12XX
        tristate "TI wl12xx support"
+	depends on MAC80211
        select WLCORE
        ---help---
 	  This module adds support for wireless adapters based on TI wl1271,

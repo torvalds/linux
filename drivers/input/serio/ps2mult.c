@@ -304,15 +304,4 @@ static struct serio_driver ps2mult_drv = {
 	.reconnect	= ps2mult_reconnect,
 };
 
-static int __init ps2mult_init(void)
-{
-	return serio_register_driver(&ps2mult_drv);
-}
-
-static void __exit ps2mult_exit(void)
-{
-	serio_unregister_driver(&ps2mult_drv);
-}
-
-module_init(ps2mult_init);
-module_exit(ps2mult_exit);
+module_serio_driver(ps2mult_drv);

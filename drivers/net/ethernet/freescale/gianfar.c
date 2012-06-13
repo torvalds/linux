@@ -1082,7 +1082,7 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	if (dev->features & NETIF_F_IP_CSUM ||
 			priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)
-		dev->hard_header_len += GMAC_FCB_LEN;
+		dev->needed_headroom = GMAC_FCB_LEN;
 
 	/* Program the isrg regs only if number of grps > 1 */
 	if (priv->num_grps > 1) {

@@ -16,7 +16,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/orion_spi.h>
 #include <linux/spi/flash.h>
 #include <linux/ethtool.h>
 #include <net/dsa.h>

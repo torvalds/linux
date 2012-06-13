@@ -24,14 +24,12 @@ u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address)
 	return pcicore_read32(pc, BCMA_CORE_PCI_PCIEIND_DATA);
 }
 
-#if 0
 static void bcma_pcie_write(struct bcma_drv_pci *pc, u32 address, u32 data)
 {
 	pcicore_write32(pc, BCMA_CORE_PCI_PCIEIND_ADDR, address);
 	pcicore_read32(pc, BCMA_CORE_PCI_PCIEIND_ADDR);
 	pcicore_write32(pc, BCMA_CORE_PCI_PCIEIND_DATA, data);
 }
-#endif
 
 static void bcma_pcie_mdio_set_phy(struct bcma_drv_pci *pc, u8 phy)
 {
@@ -170,13 +168,50 @@ static void bcma_pcicore_serdes_workaround(struct bcma_drv_pci *pc)
 		                     tmp & ~BCMA_CORE_PCI_PLL_CTRL_FREQDET_EN);
 }
 
+static void bcma_core_pci_fixcfg(struct bcma_drv_pci *pc)
+{
+	struct bcma_device *core = pc->core;
+	u16 val16, core_index;
+	uint regoff;
+
+	regoff = BCMA_CORE_PCI_SPROM(BCMA_CORE_PCI_SPROM_PI_OFFSET);
+	core_index = (u16)core->core_index;
+
+	val16 = pcicore_read16(pc, regoff);
+	if (((val16 & BCMA_CORE_PCI_SPROM_PI_MASK) >> BCMA_CORE_PCI_SPROM_PI_SHIFT)
+	     != core_index) {
+		val16 = (core_index << BCMA_CORE_PCI_SPROM_PI_SHIFT) |
+			(val16 & ~BCMA_CORE_PCI_SPROM_PI_MASK);
+		pcicore_write16(pc, regoff, val16);
+	}
+}
+
+/* Fix MISC config to allow coming out of L2/L3-Ready state w/o PRST */
+/* Needs to happen when coming out of 'standby'/'hibernate' */
+static void bcma_core_pci_config_fixup(struct bcma_drv_pci *pc)
+{
+	u16 val16;
+	uint regoff;
+
+	regoff = BCMA_CORE_PCI_SPROM(BCMA_CORE_PCI_SPROM_MISC_CONFIG);
+
+	val16 = pcicore_read16(pc, regoff);
+
+	if (!(val16 & BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST)) {
+		val16 |= BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST;
+		pcicore_write16(pc, regoff, val16);
+	}
+}
+
 /**************************************************
  * Init.
  **************************************************/
 
 static void __devinit bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
 {
+	bcma_core_pci_fixcfg(pc);
 	bcma_pcicore_serdes_workaround(pc);
+	bcma_core_pci_config_fixup(pc);
 }
 
 void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc)
@@ -224,3 +259,17 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(bcma_core_pci_irq_ctl);
+
+void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend)
+{
+	u32 w;
+
+	w = bcma_pcie_read(pc, BCMA_CORE_PCI_DLLP_PMTHRESHREG);
+	if (extend)
+		w |= BCMA_CORE_PCI_ASPMTIMER_EXTEND;
+	else
+		w &= ~BCMA_CORE_PCI_ASPMTIMER_EXTEND;
+	bcma_pcie_write(pc, BCMA_CORE_PCI_DLLP_PMTHRESHREG, w);
+	bcma_pcie_read(pc, BCMA_CORE_PCI_DLLP_PMTHRESHREG);
+}
+EXPORT_SYMBOL_GPL(bcma_core_pci_extend_L1timer);
