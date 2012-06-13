@@ -62,7 +62,7 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d)
 	if (ret < 0)
 		goto err;
 
-	return 0;
+	return ret;
 err:
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
