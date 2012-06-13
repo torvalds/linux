@@ -27,9 +27,9 @@
 #include <mach/irqs.h>
 
 #include "8250.h"
-#if CONFIG_CHIP_ID==1123
+#if defined(CONFIG_ARCH_SUN4I)
 #define MAX_PORTS	    8
-#elif CONFIG_CHIP_ID==1125
+#elif defined(CONFIG_ARCH_SUN5I)
 #define MAX_PORTS	    4
 #else
 #error "Unknown chip ID for Serial"

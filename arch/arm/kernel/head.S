@@ -77,16 +77,13 @@ ENTRY(stext)
 	mov	r0, #0
 	b	_real_start
 
-#if CONFIG_CHIP_ID == 1120
-#warning "chip id: 1120"
+#if defined(CONFIG_ARCH_SUN3I)
 1:	.long 0x1094
 	.long 0x40000000
-#elif CONFIG_CHIP_ID == 1123
-#warning "chip id: 1123"
+#elif defined(CONFIG_ARCH_SUN4I)
 1:	.long 0x1008
 	.long 0x40000000
-#elif CONFIG_CHIP_ID == 1125
-#warning "chip id: 1125"
+#elif defined(CONFIG_ARCH_SUN5I)
 1:      .long 0x102A
         .long 0x40000000
 #else

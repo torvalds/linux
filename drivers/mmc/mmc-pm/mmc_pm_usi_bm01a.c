@@ -53,13 +53,13 @@
 static int usi_bm01a_wl_on = 0;
 static int usi_bm01a_bt_on = 0;
 
-#if CONFIG_CHIP_ID==1125
+#ifdef CONFIG_ARCH_SUN5I
 #include <linux/regulator/consumer.h>
 static int usi_bm01a_power_onoff(int onoff)
 {
 	struct regulator* wifi_ldo = NULL;
 	static int first = 1;
-	  
+
 #ifndef CONFIG_AW_AXP
 	usi_msg("AXP driver is disabled, pls check !!\n");
 	return 0;
@@ -155,13 +155,13 @@ static int usi_bm01a_gpio_ctrl(char* name, int level)
     return 0;
     
 power_change:
-    #if CONFIG_CHIP_ID==1123
+#if defined(CONFIG_ARCH_SUN4I)
     ret = gpio_write_one_pin_value(ops->pio_hdle, level, "usi_bm01a_wl_pwr");
-    #elif CONFIG_CHIP_ID==1125
+#elif defined(CONFIG_ARCH_SUN5I)
     ret = usi_bm01a_power_onoff(level);
-    #else
-    #error "Found wrong chip id in wifi onoff\n"
-    #endif
+#else
+#error "Found wrong chip id in wifi onoff\n"
+#endif
     if (ret) {
         usi_msg("Failed to power off USI-BM01A module!\n");
         return -1;

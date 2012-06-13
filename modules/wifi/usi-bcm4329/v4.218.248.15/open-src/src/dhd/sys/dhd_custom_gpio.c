@@ -39,7 +39,11 @@
 #define WL_TRACE(x)
 
 #if defined CONFIG_MMC_SUNXI_POWER_CONTROL
-#define SDIOID (CONFIG_CHIP_ID==1123 ? 3 : 1)
+#ifdef CONFIG_ARCH_SUN4I
+#define SDIOID 3
+#else
+#define SDIOID 1
+#endif
 extern void sunximmc_rescan_card(unsigned id, unsigned insert);
 extern int mmc_pm_get_mod_type(void);
 extern int mmc_pm_gpio_ctrl(char* name, int level);

@@ -37,12 +37,6 @@ config ARM
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
 
-config CHIP_ID
-        int
-        default 1120 if ARCH_SUN3I
-        default 1123 if ARCH_SUN4I
-	default 1125 if ARCH_SUN5I
-
 config HAVE_PWM
 	bool
 
