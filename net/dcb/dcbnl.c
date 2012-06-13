@@ -1664,7 +1664,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	u32 pid = skb ? NETLINK_CB(skb).pid : 0;
 	int ret = -EINVAL;
 	struct sk_buff *reply_skb;
-	struct nlmsghdr *reply_nlh;
+	struct nlmsghdr *reply_nlh = NULL;
 	const struct reply_func *fn;
 
 	if (!net_eq(net, &init_net))
