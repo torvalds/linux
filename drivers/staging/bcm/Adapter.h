@@ -54,9 +54,9 @@ typedef union _U_IP_ADDRESS {
 	};
 } U_IP_ADDRESS;
 
-struct bcm_hdr_supression_contextinfo {
-	UCHAR ucaHdrSupressionInBuf[MAX_PHS_LENGTHS]; /* Intermediate buffer to accumulate pkt Header for PHS */
-	UCHAR ucaHdrSupressionOutBuf[MAX_PHS_LENGTHS + PHSI_LEN]; /* Intermediate buffer containing pkt Header after PHS */
+struct bcm_hdr_suppression_contextinfo {
+	UCHAR ucaHdrSuppressionInBuf[MAX_PHS_LENGTHS]; /* Intermediate buffer to accumulate pkt Header for PHS */
+	UCHAR ucaHdrSuppressionOutBuf[MAX_PHS_LENGTHS + PHSI_LEN]; /* Intermediate buffer containing pkt Header after PHS */
 };
 
 struct bcm_classifier_rule {
@@ -334,7 +334,7 @@ struct bcm_mini_adapter {
 	BOOLEAN			bLinkDownRequested;
 	int			downloadDDR;
 	PHS_DEVICE_EXTENSION	stBCMPhsContext;
-	struct bcm_hdr_supression_contextinfo stPhsTxContextInfo;
+	struct bcm_hdr_suppression_contextinfo stPhsTxContextInfo;
 	uint8_t			ucaPHSPktRestoreBuf[2048];
 	uint8_t			bPHSEnabled;
 	BOOLEAN			AutoFirmDld;

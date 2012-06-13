@@ -84,10 +84,10 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 	UINT	unPHSNewPktHeaderLen = 0;
 	/* Pointer to PHS IN Hdr Buffer */
 	PUCHAR pucPHSPktHdrInBuf =
-				Adapter->stPhsTxContextInfo.ucaHdrSupressionInBuf;
+				Adapter->stPhsTxContextInfo.ucaHdrSuppressionInBuf;
 	/* Pointer to PHS OUT Hdr Buffer */
 	PUCHAR  pucPHSPktHdrOutBuf =
-					Adapter->stPhsTxContextInfo.ucaHdrSupressionOutBuf;
+					Adapter->stPhsTxContextInfo.ucaHdrSuppressionOutBuf;
 	UINT       usPacketType;
 	UINT       BytesToRemove=0;
 	BOOLEAN  bPHSI = 0;
@@ -217,7 +217,7 @@ int PHSReceive(struct bcm_mini_adapter *Adapter,
 					UINT	bHeaderSuppressionEnabled)
 {
 	u32   nStandardPktHdrLen            		= 0;
-	u32   nTotalsupressedPktHdrBytes  = 0;
+	u32   nTotalsuppressedPktHdrBytes  = 0;
 	int     ulPhsStatus 		= 0;
 	PUCHAR pucInBuff = NULL ;
 	UINT TotalBytesAdded = 0;
@@ -235,11 +235,11 @@ int PHSReceive(struct bcm_mini_adapter *Adapter,
 		usVcid,
 		pucInBuff,
 		Adapter->ucaPHSPktRestoreBuf,
-		&nTotalsupressedPktHdrBytes,
+		&nTotalsuppressedPktHdrBytes,
 		&nStandardPktHdrLen);
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_RECEIVE,DBG_LVL_ALL,"\nSuppressed PktHdrLen : 0x%x Restored PktHdrLen : 0x%x",
-					nTotalsupressedPktHdrBytes,nStandardPktHdrLen);
+					nTotalsuppressedPktHdrBytes,nStandardPktHdrLen);
 
 	if(ulPhsStatus != STATUS_PHS_COMPRESSED)
 	{
@@ -248,7 +248,7 @@ int PHSReceive(struct bcm_mini_adapter *Adapter,
 	}
 	else
 	{
-		TotalBytesAdded = nStandardPktHdrLen - nTotalsupressedPktHdrBytes - PHSI_LEN;
+		TotalBytesAdded = nStandardPktHdrLen - nTotalsuppressedPktHdrBytes - PHSI_LEN;
 		if(TotalBytesAdded)
 		{
 			if(skb_headroom(packet) >= (SKB_RESERVE_ETHERNET_HEADER + TotalBytesAdded))
@@ -1494,7 +1494,7 @@ static int phs_compress(S_PHS_RULE  *phs_rule,unsigned char *in_buf
 			,unsigned char *out_buf,UINT *header_size,UINT *new_header_size)
 {
 	unsigned char *old_addr = out_buf;
-	int supress = 0;
+	int suppress = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
     if(phs_rule == NULL)
 	{
@@ -1514,10 +1514,10 @@ static int phs_compress(S_PHS_RULE  *phs_rule,unsigned char *in_buf
 	}
 	//To copy PHSI
 	out_buf++;
-	supress = verify_suppress_phsf(in_buf,out_buf,phs_rule->u8PHSF,
+	suppress = verify_suppress_phsf(in_buf,out_buf,phs_rule->u8PHSF,
         phs_rule->u8PHSM, phs_rule->u8PHSS, phs_rule->u8PHSV,new_header_size);
 
-	if(supress == STATUS_PHS_COMPRESSED)
+	if(suppress == STATUS_PHS_COMPRESSED)
 	{
 		*old_addr = (unsigned char)phs_rule->u8PHSI;
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"\nCOMP:In phs_compress phsi %d",phs_rule->u8PHSI);
@@ -1527,7 +1527,7 @@ static int phs_compress(S_PHS_RULE  *phs_rule,unsigned char *in_buf
 		*old_addr = ZERO_PHSI;
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"\nCOMP:In phs_compress PHSV Verification failed");
 	}
-	return supress;
+	return suppress;
 }
 
 
