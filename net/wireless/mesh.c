@@ -16,6 +16,7 @@
 #define MESH_RANN_INTERVAL      5000
 #define MESH_PATH_TO_ROOT_TIMEOUT      6000
 #define MESH_ROOT_INTERVAL     5000
+#define MESH_ROOT_CONFIRMATION_INTERVAL 2000
 
 /*
  * Minimum interval between two consecutive PREQs originated by the same
@@ -66,6 +67,7 @@ const struct mesh_config default_mesh_config = {
 	.ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED,
 	.dot11MeshHWMPactivePathToRootTimeout = MESH_PATH_TO_ROOT_TIMEOUT,
 	.dot11MeshHWMProotInterval = MESH_ROOT_INTERVAL,
+	.dot11MeshHWMPconfirmationInterval = MESH_ROOT_CONFIRMATION_INTERVAL,
 };
 
 const struct mesh_setup default_mesh_setup = {

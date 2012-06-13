@@ -98,6 +98,8 @@ static inline u32 u16_field_get(u8 *preq_elem, int offset, bool ae)
 #define max_preq_retries(s) (s->u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries)
 #define disc_timeout_jiff(s) \
 	msecs_to_jiffies(sdata->u.mesh.mshcfg.min_discovery_timeout)
+#define root_path_confirmation_jiffies(s) \
+	msecs_to_jiffies(sdata->u.mesh.mshcfg.dot11MeshHWMPconfirmationInterval)
 
 enum mpath_frame_type {
 	MPATH_PREQ = 0,
@@ -811,11 +813,14 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if ((!(mpath->flags & (MESH_PATH_ACTIVE | MESH_PATH_RESOLVING)) ||
-	     time_after(jiffies, mpath->exp_time - 1*HZ)) &&
+	     (time_after(jiffies, mpath->last_preq_to_root +
+				  root_path_confirmation_jiffies(sdata)) ||
+	     time_before(jiffies, mpath->last_preq_to_root))) &&
 	     !(mpath->flags & MESH_PATH_FIXED)) {
 		mhwmp_dbg("%s time to refresh root mpath %pM", sdata->name,
 							       orig_addr);
 		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
+		mpath->last_preq_to_root = jiffies;
 	}
 
 	if ((SN_LT(mpath->sn, orig_sn) || (mpath->sn == orig_sn &&

@@ -849,6 +849,9 @@ struct bss_parameters {
  *
  * @dot11MeshHWMProotInterval: The interval of time (in TUs) between proactive
  *	PREQs are transmitted.
+ * @dot11MeshHWMPconfirmationInterval: The minimum interval of time (in TUs)
+ *	during which a mesh STA can send only one Action frame containing
+ *	a PREQ element for root path confirmation.
  */
 struct mesh_config {
 	u16 dot11MeshRetryTimeout;
@@ -875,6 +878,7 @@ struct mesh_config {
 	u16 ht_opmode;
 	u32 dot11MeshHWMPactivePathToRootTimeout;
 	u16 dot11MeshHWMProotInterval;
+	u16 dot11MeshHWMPconfirmationInterval;
 };
 
 /**

@@ -2192,6 +2192,10 @@ enum nl80211_mntr_flags {
  * @NL80211_MESHCONF_HWMP_ROOT_INTERVAL: The interval of time (in TUs) between
  *	proactive PREQs are transmitted.
  *
+ * @NL80211_MESHCONF_HWMP_CONFIRMATION_INTERVAL: The minimum interval of time
+ *	(in TUs) during which a mesh STA can send only one Action frame
+ *	containing a PREQ element for root path confirmation.
+ *
  * @__NL80211_MESHCONF_ATTR_AFTER_LAST: internal use
  */
 enum nl80211_meshconf_params {
@@ -2220,6 +2224,7 @@ enum nl80211_meshconf_params {
 	NL80211_MESHCONF_HT_OPMODE,
 	NL80211_MESHCONF_HWMP_PATH_TO_ROOT_TIMEOUT,
 	NL80211_MESHCONF_HWMP_ROOT_INTERVAL,
+	NL80211_MESHCONF_HWMP_CONFIRMATION_INTERVAL,
 
 	/* keep last */
 	__NL80211_MESHCONF_ATTR_AFTER_LAST,
