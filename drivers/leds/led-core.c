@@ -103,7 +103,7 @@ void led_blink_set_oneshot(struct led_classdev *led_cdev,
 }
 EXPORT_SYMBOL(led_blink_set_oneshot);
 
-void led_brightness_set(struct led_classdev *led_cdev,
+void led_set_brightness(struct led_classdev *led_cdev,
 			enum led_brightness brightness)
 {
 	/* stop and clear soft-blink timer */
@@ -113,4 +113,4 @@ void led_brightness_set(struct led_classdev *led_cdev,
 
 	__led_set_brightness(led_cdev, brightness);
 }
-EXPORT_SYMBOL(led_brightness_set);
+EXPORT_SYMBOL(led_set_brightness);

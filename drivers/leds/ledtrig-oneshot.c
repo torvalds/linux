@@ -177,7 +177,7 @@ static void oneshot_trig_deactivate(struct led_classdev *led_cdev)
 	}
 
 	/* Stop blinking */
-	led_brightness_set(led_cdev, LED_OFF);
+	led_set_brightness(led_cdev, LED_OFF);
 }
 
 static struct led_trigger oneshot_led_trigger = {

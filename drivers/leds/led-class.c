@@ -222,7 +222,7 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 #endif
 
 	/* Stop blinking */
-	led_brightness_set(led_cdev, LED_OFF);
+	led_set_brightness(led_cdev, LED_OFF);
 
 	device_unregister(led_cdev->dev);
 

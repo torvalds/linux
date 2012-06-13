@@ -124,7 +124,7 @@ extern void led_blink_set_oneshot(struct led_classdev *led_cdev,
 				  unsigned long *delay_off,
 				  int invert);
 /**
- * led_brightness_set - set LED brightness
+ * led_set_brightness - set LED brightness
  * @led_cdev: the LED to set
  * @brightness: the brightness to set it to
  *
@@ -132,7 +132,7 @@ extern void led_blink_set_oneshot(struct led_classdev *led_cdev,
  * software blink timer that implements blinking when the
  * hardware doesn't.
  */
-extern void led_brightness_set(struct led_classdev *led_cdev,
+extern void led_set_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness);
 
 /*

@@ -276,7 +276,7 @@ static void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
 
 	read_lock(&tpt_trig->trig.leddev_list_lock);
 	list_for_each_entry(led_cdev, &tpt_trig->trig.led_cdevs, trig_list)
-		led_brightness_set(led_cdev, LED_OFF);
+		led_set_brightness(led_cdev, LED_OFF);
 	read_unlock(&tpt_trig->trig.leddev_list_lock);
 }
 
