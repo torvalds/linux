@@ -1296,7 +1296,8 @@ static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
 
 /* allowed just for 8 bytes segments */
 static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
-				   u16 selector, struct desc_struct *desc)
+				   u16 selector, struct desc_struct *desc,
+				   ulong *desc_addr_p)
 {
 	struct desc_ptr dt;
 	u16 index = selector >> 3;
@@ -1307,7 +1308,7 @@ static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	if (dt.size < index * 8 + 7)
 		return emulate_gp(ctxt, selector & 0xfffc);
 
-	addr = dt.address + index * 8;
+	*desc_addr_p = addr = dt.address + index * 8;
 	return ctxt->ops->read_std(ctxt, addr, desc, sizeof *desc,
 				   &ctxt->exception);
 }
@@ -1339,6 +1340,7 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	unsigned err_vec = GP_VECTOR;
 	u32 err_code = 0;
 	bool null_selector = !(selector & ~0x3); /* 0000-0003 are null */
+	ulong desc_addr;
 	int ret;
 
 	memset(&seg_desc, 0, sizeof seg_desc);
@@ -1374,7 +1376,7 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	if (null_selector) /* for NULL selector skip all following checks */
 		goto load;
 
-	ret = read_segment_descriptor(ctxt, selector, &seg_desc);
+	ret = read_segment_descriptor(ctxt, selector, &seg_desc, &desc_addr);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
@@ -2614,13 +2616,14 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	ulong old_tss_base =
 		ops->get_cached_segment_base(ctxt, VCPU_SREG_TR);
 	u32 desc_limit;
+	ulong desc_addr;
 
 	/* FIXME: old_tss_base == ~0 ? */
 
-	ret = read_segment_descriptor(ctxt, tss_selector, &next_tss_desc);
+	ret = read_segment_descriptor(ctxt, tss_selector, &next_tss_desc, &desc_addr);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
-	ret = read_segment_descriptor(ctxt, old_tss_sel, &curr_tss_desc);
+	ret = read_segment_descriptor(ctxt, old_tss_sel, &curr_tss_desc, &desc_addr);
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
