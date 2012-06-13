@@ -2,6 +2,15 @@ if ARCH_MVEBU
 
 menu "Marvell SOC with device tree"
 
+config MACH_ARMADA_370_XP
+	bool "Marvell Armada 370 and Aramada XP boards"
+	select ARMADA_370_XP_TIMER
+	select CPU_V7
+	help
+
+	  Say 'Y' here if you want your kernel to support boards based on
+	  Marvell Armada 370 or Armada XP with device tree.
+
 endmenu
 
 endif

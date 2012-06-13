@@ -1,5 +1,5 @@
 /*
- * Core functions for Marvell System On Chip
+ * Generic definitions for Marvell Armada_370_XP SoCs
  *
  * Copyright (C) 2012 Marvell
  *
@@ -12,12 +12,11 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ARCH_MVEBU_COMMON_H
-#define __ARCH_MVEBU_COMMON_H
+#ifndef __MACH_ARMADA_370_XP_H
+#define __MACH_ARMADA_370_XP_H
 
-void mvebu_restart(char mode, const char *cmd);
+#define ARMADA_370_XP_REGS_PHYS_BASE	0xd0000000
+#define ARMADA_370_XP_REGS_VIRT_BASE	0xfeb00000
+#define ARMADA_370_XP_REGS_SIZE		SZ_1M
 
-void armada_370_xp_init_irq(void);
-void armada_370_xp_handle_irq(struct pt_regs *regs);
-
-#endif
+#endif /* __MACH_ARMADA_370_XP_H */
