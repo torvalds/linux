@@ -84,10 +84,10 @@ I/O port base address can be found in the output of 'lspci -v'.
 #include <linux/slab.h>
 #include "8255.h"
 
-#define _8255_SIZE 4
+#define _8255_SIZE	4
 
-#define _8255_DATA 0
-#define _8255_CR 3
+#define _8255_DATA	0
+#define _8255_CR	3
 
 #define CR_C_LO_IO	0x01
 #define CR_B_IO		0x02
