@@ -810,33 +810,16 @@ err:
 	return ret;
 }
 
-static int
+static void
 i915_gem_execbuffer_flush(struct drm_device *dev,
 			  uint32_t invalidate_domains,
-			  uint32_t flush_domains,
-			  uint32_t flush_rings)
+			  uint32_t flush_domains)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	int i, ret;
-
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
 		intel_gtt_chipset_flush();
 
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
-
-	if ((flush_domains | invalidate_domains) & I915_GEM_GPU_DOMAINS) {
-		for (i = 0; i < I915_NUM_RINGS; i++)
-			if (flush_rings & (1 << i)) {
-				ret = i915_gem_flush_ring(&dev_priv->ring[i],
-							  invalidate_domains,
-							  flush_domains);
-				if (ret)
-					return ret;
-			}
-	}
-
-	return 0;
 }
 
 static int
@@ -885,12 +868,9 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 		i915_gem_object_set_to_gpu_domain(obj, ring, &cd);
 
 	if (cd.invalidate_domains | cd.flush_domains) {
-		ret = i915_gem_execbuffer_flush(ring->dev,
-						cd.invalidate_domains,
-						cd.flush_domains,
-						cd.flush_rings);
-		if (ret)
-			return ret;
+		i915_gem_execbuffer_flush(ring->dev,
+					  cd.invalidate_domains,
+					  cd.flush_domains);
 	}
 
 	if (cd.flips) {
@@ -904,6 +884,11 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 		if (ret)
 			return ret;
 	}
+
+	/* Unconditionally invalidate gpu caches. */
+	ret = i915_gem_flush_ring(ring, I915_GEM_GPU_DOMAINS, 0);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -983,26 +968,13 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_request *request;
-	u32 invalidate;
 
-	/*
-	 * Ensure that the commands in the batch buffer are
-	 * finished before the interrupt fires.
-	 *
-	 * The sampler always gets flushed on i965 (sigh).
-	 */
-	invalidate = I915_GEM_DOMAIN_COMMAND;
-	if (INTEL_INFO(dev)->gen >= 4)
-		invalidate |= I915_GEM_DOMAIN_SAMPLER;
-	if (ring->flush(ring, invalidate, 0)) {
-		i915_gem_next_request_seqno(ring);
-		return;
-	}
+	/* Unconditionally force add_request to emit a full flush. */
+	ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL || i915_add_request(ring, file, request)) {
-		i915_gem_next_request_seqno(ring);
 		kfree(request);
 	}
 }

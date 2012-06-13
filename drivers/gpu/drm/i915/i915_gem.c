@@ -1568,6 +1568,21 @@ i915_add_request(struct intel_ring_buffer *ring,
 	int was_empty;
 	int ret;
 
+	/*
+	 * Emit any outstanding flushes - execbuf can fail to emit the flush
+	 * after having emitted the batchbuffer command. Hence we need to fix
+	 * things up similar to emitting the lazy request. The difference here
+	 * is that the flush _must_ happen before the next request, no matter
+	 * what.
+	 */
+	if (ring->gpu_caches_dirty) {
+		ret = i915_gem_flush_ring(ring, 0, I915_GEM_GPU_DOMAINS);
+		if (ret)
+			return ret;
+
+		ring->gpu_caches_dirty = false;
+	}
+
 	BUG_ON(request == NULL);
 	seqno = i915_gem_next_request_seqno(ring);
 
@@ -1613,6 +1628,9 @@ i915_add_request(struct intel_ring_buffer *ring,
 			queue_delayed_work(dev_priv->wq,
 					   &dev_priv->mm.retire_work, HZ);
 	}
+
+	WARN_ON(!list_empty(&ring->gpu_write_list));
+
 	return 0;
 }
 
@@ -1827,14 +1845,11 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	 */
 	idle = true;
 	for_each_ring(ring, dev_priv, i) {
-		if (!list_empty(&ring->gpu_write_list)) {
+		if (ring->gpu_caches_dirty) {
 			struct drm_i915_gem_request *request;
-			int ret;
 
-			ret = i915_gem_flush_ring(ring,
-						  0, I915_GEM_GPU_DOMAINS);
 			request = kzalloc(sizeof(*request), GFP_KERNEL);
-			if (ret || request == NULL ||
+			if (request == NULL ||
 			    i915_add_request(ring, NULL, request))
 			    kfree(request);
 		}
