@@ -342,7 +342,7 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 	int ret;
 
 	ret = subdev_8255_init(dev, s, io, iobase);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	s->do_cmdtest	= subdev_8255_cmdtest;
@@ -399,7 +399,9 @@ static int dev_8255_attach(struct comedi_device *dev,
 
 			s->type = COMEDI_SUBD_UNUSED;
 		} else {
-			subdev_8255_init(dev, s, NULL, iobase);
+			ret = subdev_8255_init(dev, s, NULL, iobase);
+			if (ret)
+				return ret;
 			dev_info(dev->class_dev, "0x%04lx\n", iobase);
 		}
 	}
