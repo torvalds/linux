@@ -6229,17 +6229,6 @@ static void XGI_SetCRT2ModeRegs(unsigned short ModeNo,
 	}
 }
 
-static void XGI_CloseCRTC(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
-{
-	unsigned short tempbx;
-
-	tempbx = 0;
-
-	if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)
-		tempbx = 0x08A0;
-
-}
 
 void XGI_UnLockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
@@ -6831,7 +6820,6 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 
 		XGI_SetCRT2ModeRegs(ModeNo, HwDeviceExtension, pVBInfo);
 		XGI_OEM310Setting(ModeNo, ModeIdIndex, pVBInfo); /*0212*/
-		XGI_CloseCRTC(HwDeviceExtension, pVBInfo);
 		XGI_EnableBridge(xgifb_info, HwDeviceExtension, pVBInfo);
 	} /* !XG20 */
 	else {
