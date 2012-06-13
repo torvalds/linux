@@ -49,7 +49,6 @@
 #define MCU_BOARD_ID_REG	0x68
 
 #define MXC_IRQ_TO_EXPIO(irq)   ((irq) - MXC_BOARD_IRQ_START)
-#define MXC_IRQ_TO_GPIO(irq)	((irq) - MXC_INTERNAL_IRQS)
 
 #define MXC_EXP_IO_BASE		(MXC_BOARD_IRQ_START)
 #define MXC_MAX_EXP_IO_LINES	16
@@ -155,8 +154,9 @@ static struct regulator_consumer_supply dummy_supplies[] = {
 	REGULATOR_SUPPLY("vddvario", "smsc911x"),
 };
 
-int __init mxc_expio_init(u32 base, u32 p_irq)
+int __init mxc_expio_init(u32 base, u32 intr_gpio)
 {
+	u32 p_irq = gpio_to_irq(intr_gpio);
 	int i;
 
 	brd_io = ioremap(BOARD_IO_ADDR(base), SZ_4K);
@@ -178,8 +178,8 @@ int __init mxc_expio_init(u32 base, u32 p_irq)
 	/*
 	 * Configure INT line as GPIO input
 	 */
-	gpio_request(MXC_IRQ_TO_GPIO(p_irq), "expio_pirq");
-	gpio_direction_input(MXC_IRQ_TO_GPIO(p_irq));
+	gpio_request(intr_gpio, "expio_pirq");
+	gpio_direction_input(intr_gpio);
 
 	/* disable the interrupt and clear the status */
 	__raw_writew(0, brd_io + INTR_MASK_REG);

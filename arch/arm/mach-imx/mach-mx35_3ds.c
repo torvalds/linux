@@ -132,8 +132,6 @@ static struct platform_device mx35_3ds_lcd = {
 	.dev.platform_data = &mx35_3ds_lcd_data,
 };
 
-#define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(1, 1))
-
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -580,7 +578,7 @@ static void __init mx35_3ds_init(void)
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 	imx35_add_sdhci_esdhc_imx(0, NULL);
 
-	if (mxc_expio_init(MX35_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+	if (mxc_expio_init(MX35_CS5_BASE_ADDR, IMX_GPIO_NR(1, 1)))
 		pr_warn("Init of the debugboard failed, all "
 				"devices on the debugboard are unusable.\n");
 	imx35_add_imx_i2c0(&mx35_3ds_i2c0_data);

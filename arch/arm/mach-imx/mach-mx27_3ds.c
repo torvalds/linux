@@ -48,7 +48,6 @@
 #define SD1_EN_GPIO		IMX_GPIO_NR(2, 25)
 #define OTG_PHY_RESET_GPIO	IMX_GPIO_NR(2, 23)
 #define SPI2_SS0		IMX_GPIO_NR(4, 21)
-#define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(3, 28))
 #define PMIC_INT		IMX_GPIO_NR(3, 14)
 #define SPI1_SS0		IMX_GPIO_NR(4, 28)
 #define SD1_CD			IMX_GPIO_NR(2, 26)
@@ -500,7 +499,7 @@ static void __init mx27pdk_init(void)
 	spi_register_board_info(mx27_3ds_spi_devs,
 						ARRAY_SIZE(mx27_3ds_spi_devs));
 
-	if (mxc_expio_init(MX27_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+	if (mxc_expio_init(MX27_CS5_BASE_ADDR, IMX_GPIO_NR(3, 28)))
 		pr_warn("Init of the debugboard failed, all devices on the debugboard are unusable.\n");
 	imx27_add_imx_i2c(0, &mx27_3ds_i2c0_data);
 	platform_add_devices(devices, ARRAY_SIZE(devices));

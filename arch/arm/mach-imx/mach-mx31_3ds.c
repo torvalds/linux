@@ -730,8 +730,7 @@ static void __init mx31_3ds_init(void)
 	if (!otg_mode_host)
 		imx31_add_fsl_usb2_udc(&usbotg_pdata);
 
-	if (mxc_expio_init(MX31_CS5_BASE_ADDR,
-			   gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1))))
+	if (mxc_expio_init(MX31_CS5_BASE_ADDR, IOMUX_TO_GPIO(MX31_PIN_GPIO1_1)))
 		printk(KERN_WARNING "Init of the debug board failed, all "
 				    "devices on the debug board are unusable.\n");
 	imx31_add_imx2_wdt(NULL);
