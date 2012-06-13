@@ -25,6 +25,7 @@
 #include <asm/blackfin.h>
 #include <asm/portmux.h>
 #include <asm/irq.h>
+#include <asm/bfin_twi.h>
 
 /* SMBus mode*/
 #define TWI_I2C_MODE_STANDARD		1
