@@ -87,43 +87,8 @@
       <constant>EINVAL</constant>.</para>
     </section>
 
-    <para>Selection targets are documented in <xref
+    <para>Selection targets and flags are documented in <xref
     linkend="v4l2-selections-common"/>.</para>
-
-    <table pgwide="1" frame="none" id="v4l2-subdev-selection-flags">
-      <title>V4L2 subdev selection flags</title>
-      <tgroup cols="3">
-        &cs-def;
-	<tbody valign="top">
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_FLAG_SIZE_GE</constant></entry>
-	    <entry>(1 &lt;&lt; 0)</entry> <entry>Suggest the driver it
-	    should choose greater or equal rectangle (in size) than
-	    was requested. Albeit the driver may choose a lesser size,
-	    it will only do so due to hardware limitations. Without
-	    this flag (and
-	    <constant>V4L2_SUBDEV_SEL_FLAG_SIZE_LE</constant>) the
-	    behaviour is to choose the closest possible
-	    rectangle.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_FLAG_SIZE_LE</constant></entry>
-	    <entry>(1 &lt;&lt; 1)</entry> <entry>Suggest the driver it
-	    should choose lesser or equal rectangle (in size) than was
-	    requested. Albeit the driver may choose a greater size, it
-	    will only do so due to hardware limitations.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG</constant></entry>
-	    <entry>(1 &lt;&lt; 2)</entry>
-	    <entry>The configuration should not be propagated to any
-	    further processing steps. If this flag is not given, the
-	    configuration is propagated inside the subdevice to all
-	    further processing steps.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
 
     <table pgwide="1" frame="none" id="v4l2-subdev-selection">
       <title>struct <structname>v4l2_subdev_selection</structname></title>
@@ -151,7 +116,7 @@
 	    <entry>__u32</entry>
 	    <entry><structfield>flags</structfield></entry>
 	    <entry>Flags. See
-	    <xref linkend="v4l2-subdev-selection-flags">.</xref></entry>
+	    <xref linkend="v4l2-selection-flags" />.</entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-rect;</entry>

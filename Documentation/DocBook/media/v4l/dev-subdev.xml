@@ -323,10 +323,10 @@
       <para>The drivers should always use the closest possible
       rectangle the user requests on all selection targets, unless
       specifically told otherwise.
-      <constant>V4L2_SUBDEV_SEL_FLAG_SIZE_GE</constant> and
-      <constant>V4L2_SUBDEV_SEL_FLAG_SIZE_LE</constant> flags may be
+      <constant>V4L2_SEL_FLAG_GE</constant> and
+      <constant>V4L2_SEL_FLAG_LE</constant> flags may be
       used to round the image size either up or down. <xref
-      linkend="v4l2-subdev-selection-flags"></xref></para>
+      linkend="v4l2-selection-flags" /></para>
     </section>
 
     <section>

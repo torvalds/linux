@@ -55,7 +55,7 @@ cropping and composing rectangles have the same size.</para>
 
     </section>
 
-    See <xref linkend="v4l2-selection-targets-table" /> for more
+    See <xref linkend="v4l2-selection-targets" /> for more
     information.
 
   <section>
@@ -74,7 +74,7 @@ cropping/composing rectangles may have to be aligned, and both the source and
 the sink may have arbitrary upper and lower size limits. Therefore, as usual,
 drivers are expected to adjust the requested parameters and return the actual
 values selected. An application can control the rounding behaviour using <link
-linkend="v4l2-sel-flags"> constraint flags </link>.</para>
+linkend="v4l2-selection-flags"> constraint flags </link>.</para>
 
    <section>
 
@@ -117,7 +117,7 @@ the bounds rectangle. The composing rectangle must lie completely inside bounds
 rectangle. The driver must adjust the composing rectangle to fit to the
 bounding limits. Moreover, the driver can perform other adjustments according
 to hardware limitations. The application can control rounding behaviour using
-<link linkend="v4l2-sel-flags"> constraint flags </link>.</para>
+<link linkend="v4l2-selection-flags"> constraint flags </link>.</para>
 
 <para>For capture devices the default composing rectangle is queried using
 <constant> V4L2_SEL_TGT_COMPOSE_DEFAULT </constant>. It is usually equal to the

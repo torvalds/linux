@@ -154,31 +154,8 @@ exist no rectangle </emphasis> that satisfies the constraints.</para>
 
   </refsect1>
 
-  <para>Selection targets are documented in <xref
+  <para>Selection targets and flags are documented in <xref
   linkend="v4l2-selections-common"/>.</para>
-
-  <refsect1>
-    <table frame="none" pgwide="1" id="v4l2-sel-flags">
-      <title>Selection constraint flags</title>
-      <tgroup cols="3">
-	&cs-def;
-	<tbody valign="top">
-	  <row>
-            <entry><constant>V4L2_SEL_FLAG_GE</constant></entry>
-            <entry>0x00000001</entry>
-            <entry>Indicates that the adjusted rectangle must contain the original
-	    &v4l2-selection; <structfield>r</structfield> rectangle.</entry>
-	  </row>
-	  <row>
-            <entry><constant>V4L2_SEL_FLAG_LE</constant></entry>
-            <entry>0x00000002</entry>
-            <entry>Indicates that the adjusted rectangle must be inside the original
-	    &v4l2-rect; <structfield>r</structfield> rectangle.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
-  </refsect1>
 
     <section>
       <figure id="sel-const-adjust">
@@ -216,7 +193,7 @@ exist no rectangle </emphasis> that satisfies the constraints.</para>
 	    <entry>__u32</entry>
 	    <entry><structfield>flags</structfield></entry>
             <entry>Flags controlling the selection rectangle adjustments, refer to
-	    <link linkend="v4l2-sel-flags">selection flags</link>.</entry>
+	    <link linkend="v4l2-selection-flags">selection flags</link>.</entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-rect;</entry>
