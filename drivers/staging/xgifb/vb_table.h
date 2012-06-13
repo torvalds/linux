@@ -1,3 +1,5 @@
+#ifndef _VB_TABLE_
+#define _VB_TABLE_
 /* yilin modify for xgi20 */
 static struct SiS_MCLKData XGI340New_MCLKData[] = {
 	{0x16, 0x01, 0x01, 166},
@@ -2696,3 +2698,4 @@ static struct XGI301C_Tap4TimingStruct YPbPr750pTap4Timing[] = {
 		 }
 	}
 };
+#endif
