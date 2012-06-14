@@ -112,7 +112,6 @@ struct s3c_hsotg_ep {
 	struct s3c_hsotg_req	*req;
 	struct dentry		*debugfs;
 
-	spinlock_t		lock;
 
 	unsigned long		total_data;
 	unsigned int		size_loaded;
@@ -155,6 +154,8 @@ struct s3c_hsotg {
 	struct device		 *dev;
 	struct usb_gadget_driver *driver;
 	struct s3c_hsotg_plat	 *plat;
+
+	spinlock_t              lock;
 
 	void __iomem		*regs;
 	int			irq;
@@ -901,6 +902,8 @@ static int s3c_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 		ep->name, req, req->length, req->buf, req->no_interrupt,
 		req->zero, req->short_not_ok);
 
+	spin_lock_irqsave(&hs->lock, irqflags);
+
 	/* initialise status of the request */
 	INIT_LIST_HEAD(&hs_req->queue);
 	req->actual = 0;
@@ -913,15 +916,13 @@ static int s3c_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 			return ret;
 	}
 
-	spin_lock_irqsave(&hs_ep->lock, irqflags);
-
 	first = list_empty(&hs_ep->queue);
 	list_add_tail(&hs_req->queue, &hs_ep->queue);
 
 	if (first)
 		s3c_hsotg_start_req(hs, hs_ep, hs_req, false);
 
-	spin_unlock_irqrestore(&hs_ep->lock, irqflags);
+	spin_unlock_irqrestore(&hs->lock, irqflags);
 
 	return 0;
 }
@@ -1381,9 +1382,9 @@ static void s3c_hsotg_complete_request(struct s3c_hsotg *hsotg,
 	 */
 
 	if (hs_req->req.complete) {
-		spin_unlock(&hs_ep->lock);
+		spin_unlock(&hsotg->lock);
 		hs_req->req.complete(&hs_ep->ep, &hs_req->req);
-		spin_lock(&hs_ep->lock);
+		spin_lock(&hsotg->lock);
 	}
 
 	/*
@@ -1418,9 +1419,9 @@ static void s3c_hsotg_complete_request_lock(struct s3c_hsotg *hsotg,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&hs_ep->lock, flags);
+	spin_lock_irqsave(&hsotg->lock, flags);
 	s3c_hsotg_complete_request(hsotg, hs_ep, hs_req, result);
-	spin_unlock_irqrestore(&hs_ep->lock, flags);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 
 /**
@@ -1442,6 +1443,8 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 	int max_req;
 	int read_ptr;
 
+	spin_lock(&hsotg->lock);
+
 	if (!hs_req) {
 		u32 epctl = readl(hsotg->regs + DOEPCTL(ep_idx));
 		int ptr;
@@ -1454,10 +1457,9 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 		for (ptr = 0; ptr < size; ptr += 4)
 			(void)readl(fifo);
 
+		spin_unlock(&hsotg->lock);
 		return;
 	}
-
-	spin_lock(&hs_ep->lock);
 
 	to_read = size;
 	read_ptr = hs_req->req.actual;
@@ -1486,7 +1488,7 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 	 */
 	readsl(fifo, hs_req->req.buf + read_ptr, to_read);
 
-	spin_unlock(&hs_ep->lock);
+	spin_unlock(&hsotg->lock);
 }
 
 /**
@@ -2123,7 +2125,7 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 	struct s3c_hsotg_req *req, *treq;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ep->lock, flags);
+	spin_lock_irqsave(&hsotg->lock, flags);
 
 	list_for_each_entry_safe(req, treq, &ep->queue, queue) {
 		/*
@@ -2138,7 +2140,7 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 					   result);
 	}
 
-	spin_unlock_irqrestore(&ep->lock, flags);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 
 #define call_gadget(_hs, _entry) \
@@ -2602,7 +2604,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	dev_dbg(hsotg->dev, "%s: read DxEPCTL=0x%08x from 0x%08x\n",
 		__func__, epctrl, epctrl_reg);
 
-	spin_lock_irqsave(&hs_ep->lock, flags);
+	spin_lock_irqsave(&hsotg->lock, flags);
 
 	epctrl &= ~(DxEPCTL_EPType_MASK | DxEPCTL_MPS_MASK);
 	epctrl |= DxEPCTL_MPS(mps);
@@ -2681,7 +2683,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	s3c_hsotg_ctrl_epint(hsotg, index, dir_in, 1);
 
 out:
-	spin_unlock_irqrestore(&hs_ep->lock, flags);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 	return ret;
 }
 
@@ -2711,7 +2713,7 @@ static int s3c_hsotg_ep_disable(struct usb_ep *ep)
 	/* terminate all requests with shutdown */
 	kill_all_requests(hsotg, hs_ep, -ESHUTDOWN, false);
 
-	spin_lock_irqsave(&hs_ep->lock, flags);
+	spin_lock_irqsave(&hsotg->lock, flags);
 
 	ctrl = readl(hsotg->regs + epctrl_reg);
 	ctrl &= ~DxEPCTL_EPEna;
@@ -2724,7 +2726,7 @@ static int s3c_hsotg_ep_disable(struct usb_ep *ep)
 	/* disable endpoint interrupts */
 	s3c_hsotg_ctrl_epint(hsotg, hs_ep->index, hs_ep->dir_in, 0);
 
-	spin_unlock_irqrestore(&hs_ep->lock, flags);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 	return 0;
 }
 
@@ -2759,15 +2761,15 @@ static int s3c_hsotg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 
 	dev_info(hs->dev, "ep_dequeue(%p,%p)\n", ep, req);
 
-	spin_lock_irqsave(&hs_ep->lock, flags);
+	spin_lock_irqsave(&hs->lock, flags);
 
 	if (!on_list(hs_ep, hs_req)) {
-		spin_unlock_irqrestore(&hs_ep->lock, flags);
+		spin_unlock_irqrestore(&hs->lock, flags);
 		return -EINVAL;
 	}
 
 	s3c_hsotg_complete_request(hs, hs_ep, hs_req, -ECONNRESET);
-	spin_unlock_irqrestore(&hs_ep->lock, flags);
+	spin_unlock_irqrestore(&hs->lock, flags);
 
 	return 0;
 }
@@ -2789,7 +2791,7 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 
 	dev_info(hs->dev, "%s(ep %p %s, %d)\n", __func__, ep, ep->name, value);
 
-	spin_lock_irqsave(&hs_ep->lock, irqflags);
+	spin_lock_irqsave(&hs->lock, irqflags);
 
 	/* write both IN and OUT control registers */
 
@@ -2825,7 +2827,7 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 
 	writel(epctl, hs->regs + epreg);
 
-	spin_unlock_irqrestore(&hs_ep->lock, irqflags);
+	spin_unlock_irqrestore(&hs->lock, irqflags);
 
 	return 0;
 }
@@ -3060,8 +3062,6 @@ static void __devinit s3c_hsotg_initep(struct s3c_hsotg *hsotg,
 
 	INIT_LIST_HEAD(&hs_ep->queue);
 	INIT_LIST_HEAD(&hs_ep->ep.ep_list);
-
-	spin_lock_init(&hs_ep->lock);
 
 	/* add to the list of endpoints known by the gadget driver */
 	if (epnum)
@@ -3340,7 +3340,7 @@ static int ep_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "request list (%p,%p):\n",
 		   ep->queue.next, ep->queue.prev);
 
-	spin_lock_irqsave(&ep->lock, flags);
+	spin_lock_irqsave(&hsotg->lock, flags);
 
 	list_for_each_entry(req, &ep->queue, queue) {
 		if (--show_limit < 0) {
@@ -3355,7 +3355,7 @@ static int ep_show(struct seq_file *seq, void *v)
 			   req->req.actual, req->req.status);
 	}
 
-	spin_unlock_irqrestore(&ep->lock, flags);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 
 	return 0;
 }
@@ -3506,6 +3506,8 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 		dev_err(dev, "cannot find IRQ\n");
 		goto err_clk;
 	}
+
+	spin_lock_init(&hsotg->lock);
 
 	hsotg->irq = ret;
 
