@@ -35,14 +35,14 @@
 		slc: flash@20020000 {
 			compatible = "nxp,lpc3220-slc";
 			reg = <0x20020000 0x1000>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		mlc: flash@200a8000 {
 			compatible = "nxp,lpc3220-mlc";
 			reg = <0x200a8000 0x11000>;
 			interrupts = <11 0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		dma@31000000 {
@@ -58,21 +58,21 @@
 			compatible = "nxp,ohci-nxp", "usb-ohci";
 			reg = <0x31020000 0x300>;
 			interrupts = <0x3b 0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		usbd@31020000 {
 			compatible = "nxp,lpc3220-udc";
 			reg = <0x31020000 0x300>;
 			interrupts = <0x3d 0>, <0x3e 0>, <0x3c 0>, <0x3a 0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		clcd@31040000 {
 			compatible = "arm,pl110", "arm,primecell";
 			reg = <0x31040000 0x1000>;
 			interrupts = <0x0e 0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		mac: ethernet@31060000 {
@@ -261,14 +261,14 @@
 				compatible = "nxp,lpc3220-adc";
 				reg = <0x40048000 0x1000>;
 				interrupts = <0x27 0>;
-				status = "disable";
+				status = "disabled";
 			};
 
 			tsc@40048000 {
 				compatible = "nxp,lpc3220-tsc";
 				reg = <0x40048000 0x1000>;
 				interrupts = <0x27 0>;
-				status = "disable";
+				status = "disabled";
 			};
 
 			key@40050000 {
