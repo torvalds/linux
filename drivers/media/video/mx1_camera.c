@@ -43,6 +43,7 @@
 #include <asm/fiq.h>
 #include <mach/dma-mx1-mx2.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/mx1_camera.h>
 
 /*
