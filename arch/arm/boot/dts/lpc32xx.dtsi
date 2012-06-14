@@ -38,9 +38,10 @@
 			status = "disable";
 		};
 
-		mlc: flash@200B0000 {
+		mlc: flash@200a8000 {
 			compatible = "nxp,lpc3220-mlc";
-			reg = <0x200B0000 0x1000>;
+			reg = <0x200a8000 0x11000>;
+			interrupts = <11 0>;
 			status = "disable";
 		};
 
