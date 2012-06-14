@@ -115,9 +115,10 @@
 			};
 
 			sd@20098000 {
-				compatible = "arm,pl180", "arm,primecell";
+				compatible = "arm,pl18x", "arm,primecell";
 				reg = <0x20098000 0x1000>;
 				interrupts = <0x0f 0>, <0x0d 0>;
+				status = "disabled";
 			};
 
 			i2s1: i2s@2009C000 {

@@ -129,6 +129,14 @@
 					compatible = "atmel,at25";
 				};
 			};
+
+			sd@20098000 {
+				wp-gpios = <&gpio 3 0 0>;
+				cd-gpios = <&gpio 3 1 0>;
+				cd-inverted;
+				bus-width = <4>;
+				status = "okay";
+			};
 		};
 
 		fab {
