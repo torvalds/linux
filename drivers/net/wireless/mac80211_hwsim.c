@@ -1555,6 +1555,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 			hdr = (struct ieee80211_hdr *) skb->data;
 			mac80211_hwsim_monitor_ack(data2->hw, hdr->addr2);
 		}
+		txi->flags |= IEEE80211_TX_STAT_ACK;
 	}
 	ieee80211_tx_status_irqsafe(data2->hw, skb);
 	return 0;
@@ -1721,6 +1722,24 @@ static void hwsim_exit_netlink(void)
 		       "unregister family %i\n", ret);
 }
 
+static const struct ieee80211_iface_limit hwsim_if_limits[] = {
+	{ .max = 1, .types = BIT(NL80211_IFTYPE_ADHOC) },
+	{ .max = 2048,  .types = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+#ifdef CONFIG_MAC80211_MESH
+				 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_GO) },
+};
+
+static const struct ieee80211_iface_combination hwsim_if_comb = {
+	.limits = hwsim_if_limits,
+	.n_limits = ARRAY_SIZE(hwsim_if_limits),
+	.max_interfaces = 2048,
+	.num_different_channels = 1,
+};
+
 static int __init init_mac80211_hwsim(void)
 {
 	int i, err = 0;
@@ -1781,6 +1800,9 @@ static int __init init_mac80211_hwsim(void)
 		data->addresses[1].addr[0] |= 0x40;
 		hw->wiphy->n_addresses = 2;
 		hw->wiphy->addresses = data->addresses;
+
+		hw->wiphy->iface_combinations = &hwsim_if_comb;
+		hw->wiphy->n_iface_combinations = 1;
 
 		if (fake_hw_scan) {
 			hw->wiphy->max_scan_ssids = 255;

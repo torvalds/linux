@@ -255,7 +255,7 @@ static const struct of_device_id stmmac_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
 
-static struct platform_driver stmmac_driver = {
+struct platform_driver stmmac_pltfr_driver = {
 	.probe = stmmac_pltfr_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
@@ -265,8 +265,6 @@ static struct platform_driver stmmac_driver = {
 		   .of_match_table = of_match_ptr(stmmac_dt_ids),
 		   },
 };
-
-module_platform_driver(stmmac_driver);
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PLATFORM driver");
 MODULE_AUTHOR("Giuseppe Cavallaro <peppe.cavallaro@st.com>");
