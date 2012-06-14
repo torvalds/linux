@@ -55,6 +55,10 @@
 #define IVHD_DEV_ALIAS_RANGE            0x43
 #define IVHD_DEV_EXT_SELECT             0x46
 #define IVHD_DEV_EXT_SELECT_RANGE       0x47
+#define IVHD_DEV_SPECIAL		0x48
+
+#define IVHD_SPECIAL_IOAPIC		1
+#define IVHD_SPECIAL_HPET		2
 
 #define IVHD_FLAG_HT_TUN_EN_MASK        0x01
 #define IVHD_FLAG_PASSPW_EN_MASK        0x02
@@ -690,6 +694,31 @@ static void __init set_dev_entry_from_acpi(struct amd_iommu *iommu,
 	set_iommu_for_device(iommu, devid);
 }
 
+static int add_special_device(u8 type, u8 id, u16 devid)
+{
+	struct devid_map *entry;
+	struct list_head *list;
+
+	if (type != IVHD_SPECIAL_IOAPIC && type != IVHD_SPECIAL_HPET)
+		return -EINVAL;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	entry->id    = id;
+	entry->devid = devid;
+
+	if (type == IVHD_SPECIAL_IOAPIC)
+		list = &ioapic_map;
+	else
+		list = &hpet_map;
+
+	list_add_tail(&entry->list, list);
+
+	return 0;
+}
+
 /*
  * Reads the device exclusion range from ACPI and initialize IOMMU with
  * it
@@ -717,7 +746,7 @@ static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
  * Takes a pointer to an AMD IOMMU entry in the ACPI table and
  * initializes the hardware and our data structures with it.
  */
-static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
+static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 					struct ivhd_header *h)
 {
 	u8 *p = (u8 *)h;
@@ -867,12 +896,43 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 							flags, ext_flags);
 			}
 			break;
+		case IVHD_DEV_SPECIAL: {
+			u8 handle, type;
+			const char *var;
+			u16 devid;
+			int ret;
+
+			handle = e->ext & 0xff;
+			devid  = (e->ext >>  8) & 0xffff;
+			type   = (e->ext >> 24) & 0xff;
+
+			if (type == IVHD_SPECIAL_IOAPIC)
+				var = "IOAPIC";
+			else if (type == IVHD_SPECIAL_HPET)
+				var = "HPET";
+			else
+				var = "UNKNOWN";
+
+			DUMP_printk("  DEV_SPECIAL(%s[%d])\t\tdevid: %02x:%02x.%x\n",
+				    var, (int)handle,
+				    PCI_BUS(devid),
+				    PCI_SLOT(devid),
+				    PCI_FUNC(devid));
+
+			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
+			ret = add_special_device(type, handle, devid);
+			if (ret)
+				return ret;
+			break;
+		}
 		default:
 			break;
 		}
 
 		p += ivhd_entry_length(p);
 	}
+
+	return 0;
 }
 
 /* Initializes the device->iommu mapping for the driver */
@@ -912,6 +972,8 @@ static void __init free_iommu_all(void)
  */
 static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 {
+	int ret;
+
 	spin_lock_init(&iommu->lock);
 
 	/* Add IOMMU to internal data structures */
@@ -947,7 +1009,9 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 
 	iommu->int_enabled = false;
 
-	init_iommu_from_acpi(iommu, h);
+	ret = init_iommu_from_acpi(iommu, h);
+	if (ret)
+		return ret;
 	init_iommu_devices(iommu);
 
 	return 0;

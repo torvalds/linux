@@ -565,6 +565,16 @@ struct amd_iommu {
 	u32 stored_l2[0x83];
 };
 
+struct devid_map {
+	struct list_head list;
+	u8 id;
+	u16 devid;
+};
+
+/* Map HPET and IOAPIC ids to the devid used by the IOMMU */
+extern struct list_head ioapic_map;
+extern struct list_head hpet_map;
+
 /*
  * List with all IOMMUs in the system. This list is not locked because it is
  * only written and read at driver initialization or suspend time
@@ -676,6 +686,30 @@ extern void iommu_flush_all_caches(struct amd_iommu *iommu);
 static inline u16 calc_devid(u8 bus, u8 devfn)
 {
 	return (((u16)bus) << 8) | devfn;
+}
+
+static inline int get_ioapic_devid(int id)
+{
+	struct devid_map *entry;
+
+	list_for_each_entry(entry, &ioapic_map, list) {
+		if (entry->id == id)
+			return entry->devid;
+	}
+
+	return -EINVAL;
+}
+
+static inline int get_hpet_devid(int id)
+{
+	struct devid_map *entry;
+
+	list_for_each_entry(entry, &hpet_map, list) {
+		if (entry->id == id)
+			return entry->devid;
+	}
+
+	return -EINVAL;
 }
 
 #ifdef CONFIG_AMD_IOMMU_STATS

@@ -72,6 +72,9 @@ static DEFINE_SPINLOCK(iommu_pd_list_lock);
 static LIST_HEAD(dev_data_list);
 static DEFINE_SPINLOCK(dev_data_list_lock);
 
+LIST_HEAD(ioapic_map);
+LIST_HEAD(hpet_map);
+
 /*
  * Domain for untranslated devices - only allocated
  * if iommu=pt passed on kernel cmd line.
