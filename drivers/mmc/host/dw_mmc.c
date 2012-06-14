@@ -2186,7 +2186,7 @@ int dw_mci_resume(struct dw_mci *host)
 		return ret;
 	}
 
-	if (host->dma_ops->init)
+	if (host->use_dma && host->dma_ops->init)
 		host->dma_ops->init(host);
 
 	/* Restore the old value at FIFOTH register */
