@@ -42,7 +42,7 @@
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
 #include <asm/i387.h>
-#include <asm/serpent.h>
+#include <asm/serpent-sse2.h>
 #include <crypto/scatterwalk.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>

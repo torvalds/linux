@@ -39,7 +39,7 @@
 #include <asm/i387.h>
 #include <asm/xcr.h>
 #include <asm/xsave.h>
-#include <asm/serpent.h>
+#include <asm/serpent-avx.h>
 #include <crypto/scatterwalk.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>

@@ -1,5 +1,5 @@
-#ifndef ASM_X86_SERPENT_H
-#define ASM_X86_SERPENT_H
+#ifndef ASM_X86_SERPENT_SSE2_H
+#define ASM_X86_SERPENT_SSE2_H
 
 #include <linux/crypto.h>
 #include <crypto/serpent.h>

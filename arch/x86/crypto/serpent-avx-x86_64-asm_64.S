@@ -579,10 +579,10 @@
 	vmovdqu x3,		(3*4*4)(out);
 
 .align 8
-.global __serpent_enc_blk_8way
-.type   __serpent_enc_blk_8way,@function;
+.global __serpent_enc_blk_8way_avx
+.type   __serpent_enc_blk_8way_avx,@function;
 
-__serpent_enc_blk_8way:
+__serpent_enc_blk_8way_avx:
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -647,10 +647,10 @@ __enc_xor8:
 	ret;
 
 .align 8
-.global serpent_dec_blk_8way
-.type   serpent_dec_blk_8way,@function;
+.global serpent_dec_blk_8way_avx
+.type   serpent_dec_blk_8way_avx,@function;
 
-serpent_dec_blk_8way:
+serpent_dec_blk_8way_avx:
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
