@@ -1272,6 +1272,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"gsensor", ACCEL_ID_ALL},
 	{"gs_mma8452", ACCEL_ID_MMA845X},	
 	{"gs_kxtik", ACCEL_ID_KXTIK},
+	{"gs_lis3dh", ACCEL_ID_LIS3DH},
 	/*compass*/
 	{"compass", COMPASS_ID_ALL},
 	{"ak8975", COMPASS_ID_AK8975},

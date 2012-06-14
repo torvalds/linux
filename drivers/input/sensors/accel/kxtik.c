@@ -157,7 +157,7 @@ static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *a
 }
 
 #define GSENSOR_MIN  10
-static int sensor_report_value(struct i2c_client *client, unsigned char *buffer, int length)
+static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
 			(struct sensor_private_data *) i2c_get_clientdata(client);	
@@ -166,6 +166,7 @@ static int sensor_report_value(struct i2c_client *client, unsigned char *buffer,
 	int x,y,z;
 	struct sensor_axis axis;	
 	char buffer[6] = {0};	
+	char value = 0;
 	
 	if(sensor->ops->read_len < 6)	//sensor->ops->read_len = 6
 	{
@@ -208,11 +209,8 @@ static int sensor_report_value(struct i2c_client *client, unsigned char *buffer,
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
 		
-		ret= sensor_read_reg(client, sensor->ops->int_status_reg);
-		if(ret)
-		{
-			printk("%s:fail to clear sensor int status,ret=0x%x\n",__func__,ret);
-		}
+		value = sensor_read_reg(client, sensor->ops->int_status_reg);
+		DBG("%s:sensor int status :0x%x\n",__func__,value);
 	}
 	
 	return ret;

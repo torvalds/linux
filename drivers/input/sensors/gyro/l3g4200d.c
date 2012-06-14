@@ -148,6 +148,7 @@ static int sensor_report_value(struct i2c_client *client)
 	struct sensor_axis axis;
 	char buffer[6] = {0};	
 	int i = 0;
+	int value = 0;
 	
 	if(sensor->ops->read_len < 6)	//sensor->ops->read_len = 6
 	{
@@ -204,11 +205,8 @@ static int sensor_report_value(struct i2c_client *client)
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
 		
-		ret= sensor_read_reg(client, sensor->ops->int_status_reg);
-		if(ret)
-		{
-			printk("%s:fail to clear sensor int status,ret=0x%x\n",__func__,ret);
-		}
+		value = sensor_read_reg(client, sensor->ops->int_status_reg);
+		DBG("%s:sensor int status :0x%x\n",__func__,value);
 	}
 	
 	return ret;

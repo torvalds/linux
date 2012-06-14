@@ -124,6 +124,7 @@ static int sensor_report_value(struct i2c_client *client)
 	unsigned char *stat;
 	unsigned char *stat2;	
 	int ret = 0;	
+	char value = 0;
 #ifdef SENSOR_DEBUG_TYPE	
 	int i;
 #endif			
@@ -200,12 +201,10 @@ static int sensor_report_value(struct i2c_client *client)
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
 		
-		ret= sensor_read_reg(client, sensor->ops->int_status_reg);
-		if(ret)
-		{
-			printk("%s:fail to clear sensor int status,ret=0x%x\n",__func__,ret);
-		}
+		value = sensor_read_reg(client, sensor->ops->int_status_reg);
+		DBG("%s:sensor int status :0x%x\n",__func__,value);
 	}
+
 	
 	return ret;
 }
