@@ -282,6 +282,8 @@ summit_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *dest_id)
 		apicid |= new_apicid;
 		round++;
 	}
+	if (!round)
+		return -EINVAL;
 	*dest_id = apicid;
 	return 0;
 }
