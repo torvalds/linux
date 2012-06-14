@@ -406,6 +406,8 @@ static long clk_freediv_round_autosel_parents_rate(struct clk *clk, unsigned lon
 {
 	u32 div;
 	struct clk *p_clk;
+	if(clk->rate == rate)
+		return clk->rate;
 	p_clk=get_freediv_parents_div(clk,rate,&div);
 	if(!p_clk)
 		return 0;
