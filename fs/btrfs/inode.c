@@ -7122,10 +7122,13 @@ static void fixup_inode_flags(struct inode *dir, struct inode *inode)
 	else
 		b_inode->flags &= ~BTRFS_INODE_NODATACOW;
 
-	if (b_dir->flags & BTRFS_INODE_COMPRESS)
+	if (b_dir->flags & BTRFS_INODE_COMPRESS) {
 		b_inode->flags |= BTRFS_INODE_COMPRESS;
-	else
-		b_inode->flags &= ~BTRFS_INODE_COMPRESS;
+		b_inode->flags &= ~BTRFS_INODE_NOCOMPRESS;
+	} else {
+		b_inode->flags &= ~(BTRFS_INODE_COMPRESS |
+				    BTRFS_INODE_NOCOMPRESS);
+	}
 }
 
 static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
