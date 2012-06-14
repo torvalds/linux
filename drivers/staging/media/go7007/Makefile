@@ -27,4 +27,4 @@ s2250-y := s2250-board.o
 ccflags-$(CONFIG_VIDEO_GO7007_USB_S2250_BOARD:m=y) += -Idrivers/media/dvb/dvb-usb
 
 ccflags-y += -Idrivers/media/dvb/frontends
-ccflags-y += -Idrivers/media/dvb/dvb-core
+ccflags-y += -Idrivers/media/dvb-core

@@ -2,7 +2,7 @@
 # Makefile for the kernel DVB frontend device drivers.
 #
 
-ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core/
+ccflags-y += -I$(srctree)/drivers/media/dvb-core/
 ccflags-y += -I$(srctree)/drivers/media/common/tuners/
 
 stb0899-objs = stb0899_drv.o stb0899_algo.o

@@ -9,5 +9,5 @@ obj-$(CONFIG_VIDEO_CX25821_ALSA) += cx25821-alsa.o
 
 ccflags-y := -Idrivers/media/video
 ccflags-y += -Idrivers/media/common/tuners
-ccflags-y += -Idrivers/media/dvb/dvb-core
+ccflags-y += -Idrivers/media/dvb-core
 ccflags-y += -Idrivers/media/dvb/frontends
