@@ -766,7 +766,8 @@ int wl1271_scan_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (wlvif->bss_type != BSS_TYPE_STA_BSS)
 		return -EOPNOTSUPP;
 
-	if (test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
+	if ((wl->quirks & WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN) &&
+	    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 		return -EBUSY;
 
 	start = kzalloc(sizeof(*start), GFP_KERNEL);
