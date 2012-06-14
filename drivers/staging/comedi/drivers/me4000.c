@@ -860,11 +860,6 @@ static int ai_round_cmd_args(struct comedi_device *dev,
 	*scan_ticks = 0;
 	*chan_ticks = 0;
 
-	PDEBUG("ai_round_cmd_arg(): start_arg = %d\n", cmd->start_arg);
-	PDEBUG("ai_round_cmd_arg(): scan_begin_arg = %d\n",
-	       cmd->scan_begin_arg);
-	PDEBUG("ai_round_cmd_arg(): convert_arg = %d\n", cmd->convert_arg);
-
 	if (cmd->start_arg) {
 		*init_ticks = (cmd->start_arg * 33) / 1000;
 		rest = (cmd->start_arg * 33) % 1000;
@@ -903,10 +898,6 @@ static int ai_round_cmd_args(struct comedi_device *dev,
 				(*chan_ticks)++;
 		}
 	}
-
-	PDEBUG("ai_round_cmd_args(): init_ticks = %d\n", *init_ticks);
-	PDEBUG("ai_round_cmd_args(): scan_ticks = %d\n", *scan_ticks);
-	PDEBUG("ai_round_cmd_args(): chan_ticks = %d\n", *chan_ticks);
 
 	return 0;
 }
@@ -1082,32 +1073,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	unsigned int chan_ticks;
 	unsigned int scan_ticks;
 	int err = 0;
-
-	PDEBUG("me4000_ai_do_cmd_test(): subdev         = %d\n", cmd->subdev);
-	PDEBUG("me4000_ai_do_cmd_test(): flags          = %08X\n", cmd->flags);
-	PDEBUG("me4000_ai_do_cmd_test(): start_src      = %08X\n",
-	       cmd->start_src);
-	PDEBUG("me4000_ai_do_cmd_test(): start_arg      = %d\n",
-	       cmd->start_arg);
-	PDEBUG("me4000_ai_do_cmd_test(): scan_begin_src = %08X\n",
-	       cmd->scan_begin_src);
-	PDEBUG("me4000_ai_do_cmd_test(): scan_begin_arg = %d\n",
-	       cmd->scan_begin_arg);
-	PDEBUG("me4000_ai_do_cmd_test(): convert_src    = %08X\n",
-	       cmd->convert_src);
-	PDEBUG("me4000_ai_do_cmd_test(): convert_arg    = %d\n",
-	       cmd->convert_arg);
-	PDEBUG("me4000_ai_do_cmd_test(): scan_end_src   = %08X\n",
-	       cmd->scan_end_src);
-	PDEBUG("me4000_ai_do_cmd_test(): scan_end_arg   = %d\n",
-	       cmd->scan_end_arg);
-	PDEBUG("me4000_ai_do_cmd_test(): stop_src       = %08X\n",
-	       cmd->stop_src);
-	PDEBUG("me4000_ai_do_cmd_test(): stop_arg       = %d\n", cmd->stop_arg);
-	PDEBUG("me4000_ai_do_cmd_test(): chanlist       = %d\n",
-	       (unsigned int)cmd->chanlist);
-	PDEBUG("me4000_ai_do_cmd_test(): chanlist_len   = %d\n",
-	       cmd->chanlist_len);
 
 	/* Only rounding flags are implemented */
 	cmd->flags &= TRIG_ROUND_NEAREST | TRIG_ROUND_UP | TRIG_ROUND_DOWN;
