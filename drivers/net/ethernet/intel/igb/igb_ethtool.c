@@ -710,6 +710,7 @@ static int igb_set_eeprom(struct net_device *netdev,
 	if ((ret_val == 0) && ((first_word <= NVM_CHECKSUM_REG)))
 		hw->nvm.ops.update(hw);
 
+	igb_set_fw_version(adapter);
 	kfree(eeprom_buff);
 	return ret_val;
 }
@@ -718,20 +719,16 @@ static void igb_get_drvinfo(struct net_device *netdev,
 			    struct ethtool_drvinfo *drvinfo)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	u16 eeprom_data;
 
 	strlcpy(drvinfo->driver,  igb_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, igb_driver_version, sizeof(drvinfo->version));
 
-	/* EEPROM image version # is reported as firmware version # for
-	 * 82575 controllers */
-	adapter->hw.nvm.ops.read(&adapter->hw, 5, 1, &eeprom_data);
-	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		"%d.%d-%d",
-		(eeprom_data & 0xF000) >> 12,
-		(eeprom_data & 0x0FF0) >> 4,
-		eeprom_data & 0x000F);
-
+	/*
+	 * EEPROM image version # is reported as firmware version # for
+	 * 82575 controllers
+	 */
+	strlcpy(drvinfo->fw_version, adapter->fw_version,
+		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = IGB_STATS_LEN;
