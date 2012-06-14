@@ -612,33 +612,6 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 	 * unique and mutually compatible
 	 */
 
-	if (cmd->start_src != TRIG_NOW) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
-
-	if (cmd->scan_begin_src != TRIG_FOLLOW) {
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		err++;
-	}
-
-	if (devpriv->use_ext_trg) {
-		if (cmd->convert_src != TRIG_EXT) {
-			cmd->convert_src = TRIG_EXT;
-			err++;
-		}
-	} else {
-		if (cmd->convert_src != TRIG_TIMER) {
-			cmd->convert_src = TRIG_TIMER;
-			err++;
-		}
-	}
-
-	if (cmd->scan_end_src != TRIG_COUNT) {
-		cmd->scan_end_src = TRIG_COUNT;
-		err++;
-	}
-
 	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
 		err++;
 
