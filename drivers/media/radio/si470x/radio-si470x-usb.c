@@ -143,7 +143,7 @@ MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
  * Software/Hardware Versions from Scratch Page
  **************************************************************************/
 #define RADIO_SW_VERSION_NOT_BOOTLOADABLE	6
-#define RADIO_SW_VERSION			7
+#define RADIO_SW_VERSION			1
 #define RADIO_HW_VERSION			1
 
 

@@ -189,7 +189,7 @@ struct si470x_device {
  * Firmware Versions
  **************************************************************************/
 
-#define RADIO_FW_VERSION	15
+#define RADIO_FW_VERSION	14
 
 
 
