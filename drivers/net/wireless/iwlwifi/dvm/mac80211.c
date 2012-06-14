@@ -1036,8 +1036,18 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 
 	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-		err = -EBUSY;
-		goto out;
+		/* mac80211 should not scan while ROC or ROC while scanning */
+		if (WARN_ON_ONCE(priv->scan_type != IWL_SCAN_RADIO_RESET)) {
+			err = -EBUSY;
+			goto out;
+		}
+
+		iwl_scan_cancel_timeout(priv, 100);
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+			err = -EBUSY;
+			goto out;
+		}
 	}
 
 	priv->hw_roc_channel = channel;
