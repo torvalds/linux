@@ -4061,16 +4061,18 @@ static void btrfs_end_bio(struct bio *bio, int err)
 
 			BUG_ON(stripe_index >= bbio->num_stripes);
 			dev = bbio->stripes[stripe_index].dev;
-			if (bio->bi_rw & WRITE)
-				btrfs_dev_stat_inc(dev,
-						   BTRFS_DEV_STAT_WRITE_ERRS);
-			else
-				btrfs_dev_stat_inc(dev,
-						   BTRFS_DEV_STAT_READ_ERRS);
-			if ((bio->bi_rw & WRITE_FLUSH) == WRITE_FLUSH)
-				btrfs_dev_stat_inc(dev,
-						   BTRFS_DEV_STAT_FLUSH_ERRS);
-			btrfs_dev_stat_print_on_error(dev);
+			if (dev->bdev) {
+				if (bio->bi_rw & WRITE)
+					btrfs_dev_stat_inc(dev,
+						BTRFS_DEV_STAT_WRITE_ERRS);
+				else
+					btrfs_dev_stat_inc(dev,
+						BTRFS_DEV_STAT_READ_ERRS);
+				if ((bio->bi_rw & WRITE_FLUSH) == WRITE_FLUSH)
+					btrfs_dev_stat_inc(dev,
+						BTRFS_DEV_STAT_FLUSH_ERRS);
+				btrfs_dev_stat_print_on_error(dev);
+			}
 		}
 	}
 
