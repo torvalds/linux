@@ -145,7 +145,7 @@ source "drivers/media/rc/Kconfig"
 # Tuner drivers for DVB and V4L
 #
 
-source "drivers/media/common/tuners/Kconfig"
+source "drivers/media/tuners/Kconfig"
 
 #
 # Video/Radio/Hybrid adapters

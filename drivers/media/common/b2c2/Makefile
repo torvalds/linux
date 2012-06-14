@@ -4,4 +4,4 @@ obj-$(CONFIG_DVB_B2C2_FLEXCOP) += b2c2-flexcop.o
 
 ccflags-y += -Idrivers/media/dvb-core/
 ccflags-y += -Idrivers/media/dvb-frontends/
-ccflags-y += -Idrivers/media/common/tuners/
+ccflags-y += -Idrivers/media/tuners/

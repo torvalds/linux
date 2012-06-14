@@ -31,5 +31,5 @@ obj-$(CONFIG_VIDEOBUF2_DMA_SG) += videobuf2-dma-sg.o
 
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
-ccflags-y += -I$(srctree)/drivers/media/common/tuners
+ccflags-y += -I$(srctree)/drivers/media/tuners
 

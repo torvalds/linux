@@ -2773,8 +2773,8 @@ FC0011 TUNER DRIVER
 M:	Michael Buesch <m@bues.ch>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	drivers/media/common/tuners/fc0011.h
-F:	drivers/media/common/tuners/fc0011.c
+F:	drivers/media/tuners/fc0011.h
+F:	drivers/media/tuners/fc0011.c
 
 FANOTIFY
 M:	Eric Paris <eparis@redhat.com>
