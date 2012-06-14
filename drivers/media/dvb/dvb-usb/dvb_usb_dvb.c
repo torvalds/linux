@@ -359,15 +359,6 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		goto err;
 	}
 
-	if (adap->dev->props->tuner_attach) {
-		ret = adap->dev->props->tuner_attach(adap);
-		if (ret < 0) {
-			pr_debug("%s: tuner_attach() failed=%d\n", __func__,
-					ret);
-			goto err_dvb_frontend_detach;
-		}
-	}
-
 	for (i = 0; i < MAX_NO_OF_FE_PER_ADAP && adap->fe[i]; i++) {
 		adap->fe[i]->id = i;
 
@@ -385,6 +376,15 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		}
 
 		count_registered++;
+	}
+
+	if (adap->dev->props->tuner_attach) {
+		ret = adap->dev->props->tuner_attach(adap);
+		if (ret < 0) {
+			pr_debug("%s: tuner_attach() failed=%d\n", __func__,
+					ret);
+			goto err_dvb_unregister_frontend;
+		}
 	}
 
 	adap->num_frontends_initialized = count_registered;
