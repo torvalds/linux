@@ -2988,6 +2988,7 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 			  struct usb_gadget_driver *driver)
 {
 	struct s3c_hsotg *hsotg = to_hsotg(gadget);
+	unsigned long flags = 0;
 	int ep;
 
 	if (!hsotg)
@@ -3000,12 +3001,16 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 	for (ep = 0; ep < hsotg->num_of_eps; ep++)
 		s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
 
+	spin_lock_irqsave(&hsotg->lock, flags);
+
 	s3c_hsotg_phy_disable(hsotg);
 	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	hsotg->driver = NULL;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 	hsotg->gadget.dev.driver = NULL;
+
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 
 	dev_info(hsotg->dev, "unregistered gadget driver '%s'\n",
 		 driver->driver.name);
