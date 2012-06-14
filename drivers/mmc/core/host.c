@@ -313,6 +313,8 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	if (!host)
 		return NULL;
 
+	/* scanning will be enabled when we're ready */
+	host->rescan_disable = 1;
 	spin_lock(&mmc_host_lock);
 	err = idr_get_new(&mmc_host_idr, host, &host->index);
 	spin_unlock(&mmc_host_lock);
