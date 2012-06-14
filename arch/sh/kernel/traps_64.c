@@ -27,7 +27,7 @@
 #include <linux/perf_event.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <linux/atomic.h>
+#include <asm/alignment.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/fpu.h>
@@ -264,20 +264,20 @@ static void do_unhandled_exception(int trapnr, int signr, char *str, char *fn_na
 	die_if_no_fixup(str, regs, error_code);
 }
 
-static int read_opcode(unsigned long long pc, unsigned long *result_opcode, int from_user_mode)
+static int read_opcode(reg_size_t pc, insn_size_t *result_opcode, int from_user_mode)
 {
 	int get_user_error;
 	unsigned long aligned_pc;
-	unsigned long opcode;
+	insn_size_t opcode;
 
 	if ((pc & 3) == 1) {
 		/* SHmedia */
 		aligned_pc = pc & ~3;
 		if (from_user_mode) {
-			if (!access_ok(VERIFY_READ, aligned_pc, sizeof(unsigned long))) {
+			if (!access_ok(VERIFY_READ, aligned_pc, sizeof(insn_size_t))) {
 				get_user_error = -EFAULT;
 			} else {
-				get_user_error = __get_user(opcode, (unsigned long *)aligned_pc);
+				get_user_error = __get_user(opcode, (insn_size_t *)aligned_pc);
 				*result_opcode = opcode;
 			}
 			return get_user_error;
@@ -285,7 +285,7 @@ static int read_opcode(unsigned long long pc, unsigned long *result_opcode, int 
 			/* If the fault was in the kernel, we can either read
 			 * this directly, or if not, we fault.
 			*/
-			*result_opcode = *(unsigned long *) aligned_pc;
+			*result_opcode = *(insn_size_t *)aligned_pc;
 			return 0;
 		}
 	} else if ((pc & 1) == 0) {
@@ -311,16 +311,22 @@ static int address_is_sign_extended(__u64 a)
 #endif
 }
 
+/* return -1 for fault, 0 for OK */
 static int generate_and_check_address(struct pt_regs *regs,
-				      __u32 opcode,
+				      insn_size_t opcode,
 				      int displacement_not_indexed,
 				      int width_shift,
 				      __u64 *address)
 {
-	/* return -1 for fault, 0 for OK */
-
 	__u64 base_address, addr;
 	int basereg;
+
+	switch (1 << width_shift) {
+	case 1: inc_unaligned_byte_access(); break;
+	case 2: inc_unaligned_word_access(); break;
+	case 4: inc_unaligned_dword_access(); break;
+	case 8: inc_unaligned_multi_access(); break;
+	}
 
 	basereg = (opcode >> 20) & 0x3f;
 	base_address = regs->regs[basereg];
@@ -338,27 +344,27 @@ static int generate_and_check_address(struct pt_regs *regs,
 	}
 
 	/* Check sign extended */
-	if (!address_is_sign_extended(addr)) {
+	if (!address_is_sign_extended(addr))
 		return -1;
-	}
 
 	/* Check accessible.  For misaligned access in the kernel, assume the
 	   address is always accessible (and if not, just fault when the
 	   load/store gets done.) */
 	if (user_mode(regs)) {
-		if (addr >= TASK_SIZE) {
+		inc_unaligned_user_access();
+
+		if (addr >= TASK_SIZE)
 			return -1;
-		}
-		/* Do access_ok check later - it depends on whether it's a load or a store. */
-	}
+	} else
+		inc_unaligned_kernel_access();
 
 	*address = addr;
+
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, addr);
+	unaligned_fixups_notify(current, opcode, regs);
+
 	return 0;
 }
-
-static int user_mode_unaligned_fixup_count = 10;
-static int user_mode_unaligned_fixup_enable = 1;
-static int kernel_mode_unaligned_fixup_count = 32;
 
 static void misaligned_kernel_word_load(__u64 address, int do_sign_extend, __u64 *result)
 {
@@ -389,7 +395,7 @@ static void misaligned_kernel_word_store(__u64 address, __u64 value)
 }
 
 static int misaligned_load(struct pt_regs *regs,
-			   __u32 opcode,
+			   insn_size_t opcode,
 			   int displacement_not_indexed,
 			   int width_shift,
 			   int do_sign_extend)
@@ -401,11 +407,8 @@ static int misaligned_load(struct pt_regs *regs,
 
 	error = generate_and_check_address(regs, opcode,
 			displacement_not_indexed, width_shift, &address);
-	if (error < 0) {
+	if (error < 0)
 		return error;
-	}
-
-	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, address);
 
 	destreg = (opcode >> 4) & 0x3f;
 	if (user_mode(regs)) {
@@ -464,11 +467,10 @@ static int misaligned_load(struct pt_regs *regs,
 	}
 
 	return 0;
-
 }
 
 static int misaligned_store(struct pt_regs *regs,
-			    __u32 opcode,
+			    insn_size_t opcode,
 			    int displacement_not_indexed,
 			    int width_shift)
 {
@@ -479,11 +481,8 @@ static int misaligned_store(struct pt_regs *regs,
 
 	error = generate_and_check_address(regs, opcode,
 			displacement_not_indexed, width_shift, &address);
-	if (error < 0) {
+	if (error < 0)
 		return error;
-	}
-
-	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, address);
 
 	srcreg = (opcode >> 4) & 0x3f;
 	if (user_mode(regs)) {
@@ -537,13 +536,12 @@ static int misaligned_store(struct pt_regs *regs,
 	}
 
 	return 0;
-
 }
 
 /* Never need to fix up misaligned FPU accesses within the kernel since that's a real
    error. */
 static int misaligned_fpu_load(struct pt_regs *regs,
-			   __u32 opcode,
+			   insn_size_t opcode,
 			   int displacement_not_indexed,
 			   int width_shift,
 			   int do_paired_load)
@@ -555,11 +553,8 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 
 	error = generate_and_check_address(regs, opcode,
 			displacement_not_indexed, width_shift, &address);
-	if (error < 0) {
+	if (error < 0)
 		return error;
-	}
-
-	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, address);
 
 	destreg = (opcode >> 4) & 0x3f;
 	if (user_mode(regs)) {
@@ -615,12 +610,10 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 		die ("Misaligned FPU load inside kernel", regs, 0);
 		return -1;
 	}
-
-
 }
 
 static int misaligned_fpu_store(struct pt_regs *regs,
-			   __u32 opcode,
+			   insn_size_t opcode,
 			   int displacement_not_indexed,
 			   int width_shift,
 			   int do_paired_load)
@@ -632,11 +625,8 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 
 	error = generate_and_check_address(regs, opcode,
 			displacement_not_indexed, width_shift, &address);
-	if (error < 0) {
+	if (error < 0)
 		return error;
-	}
-
-	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, address);
 
 	srcreg = (opcode >> 4) & 0x3f;
 	if (user_mode(regs)) {
@@ -697,11 +687,13 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 
 static int misaligned_fixup(struct pt_regs *regs)
 {
-	unsigned long opcode;
+	insn_size_t opcode;
 	int error;
 	int major, minor;
+	unsigned int user_action;
 
-	if (!user_mode_unaligned_fixup_enable)
+	user_action = unaligned_user_action();
+	if (!(user_action & UM_FIXUP))
 		return -1;
 
 	error = read_opcode(regs->pc, &opcode, user_mode(regs));
@@ -710,23 +702,6 @@ static int misaligned_fixup(struct pt_regs *regs)
 	}
 	major = (opcode >> 26) & 0x3f;
 	minor = (opcode >> 16) & 0xf;
-
-	if (user_mode(regs) && (user_mode_unaligned_fixup_count > 0)) {
-		--user_mode_unaligned_fixup_count;
-		/* Only do 'count' worth of these reports, to remove a potential DoS against syslog */
-		printk("Fixing up unaligned userspace access in \"%s\" pid=%d pc=0x%08x ins=0x%08lx\n",
-		       current->comm, task_pid_nr(current), (__u32)regs->pc, opcode);
-	} else if (!user_mode(regs) && (kernel_mode_unaligned_fixup_count > 0)) {
-		--kernel_mode_unaligned_fixup_count;
-		if (in_interrupt()) {
-			printk("Fixing up unaligned kernelspace access in interrupt pc=0x%08x ins=0x%08lx\n",
-			       (__u32)regs->pc, opcode);
-		} else {
-			printk("Fixing up unaligned kernelspace access in \"%s\" pid=%d pc=0x%08x ins=0x%08lx\n",
-			       current->comm, task_pid_nr(current), (__u32)regs->pc, opcode);
-		}
-	}
-
 
 	switch (major) {
 		case (0x84>>2): /* LD.W */
@@ -854,57 +829,6 @@ static int misaligned_fixup(struct pt_regs *regs)
 	}
 
 }
-
-static ctl_table unaligned_table[] = {
-	{
-		.procname	= "kernel_reports",
-		.data		= &kernel_mode_unaligned_fixup_count,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
-		.procname	= "user_reports",
-		.data		= &user_mode_unaligned_fixup_count,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
-		.procname	= "user_enable",
-		.data		= &user_mode_unaligned_fixup_enable,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec},
-	{}
-};
-
-static ctl_table unaligned_root[] = {
-	{
-		.procname	= "unaligned_fixup",
-		.mode		= 0555,
-		.child		= unaligned_table
-	},
-	{}
-};
-
-static ctl_table sh64_root[] = {
-	{
-		.procname	= "sh64",
-		.mode		= 0555,
-		.child		= unaligned_root
-	},
-	{}
-};
-static struct ctl_table_header *sysctl_header;
-static int __init init_sysctl(void)
-{
-	sysctl_header = register_sysctl_table(sh64_root);
-	return 0;
-}
-
-__initcall(init_sysctl);
-
 
 asmlinkage void do_debug_interrupt(unsigned long code, struct pt_regs *regs)
 {
