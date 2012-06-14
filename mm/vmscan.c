@@ -1894,7 +1894,8 @@ static int vmscan_swappiness(struct mem_cgroup_zone *mz,
  * by looking at the fraction of the pages scanned we did rotate back
  * onto the active list instead of evict.
  *
- * nr[0] = anon pages to scan; nr[1] = file pages to scan
+ * nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
+ * nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
  */
 static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
 			   unsigned long *nr, int priority)
