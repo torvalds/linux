@@ -1,4 +1,4 @@
-obj-$(CONFIG_SMS_USB_DRV) += smsusb.o
+obj-$(CONFIG_SMS_SDIO_DRV) += smssdio.o
 
 ccflags-y += -Idrivers/media/dvb-core
 ccflags-y += -Idrivers/media/common/siano

@@ -11,5 +11,5 @@ endif
 obj-y += v4l2-core/ tuners/ common/ rc/ video/
 
 obj-$(CONFIG_VIDEO_DEV) += radio/
-obj-$(CONFIG_DVB_CORE)  += dvb-core/ pci/ dvb-frontends/ usb/
+obj-$(CONFIG_DVB_CORE)  += dvb-core/ pci/ dvb-frontends/ usb/ mmc/
 obj-$(CONFIG_DVB_FIREDTV) += firewire/
