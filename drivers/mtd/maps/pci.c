@@ -352,18 +352,7 @@ static struct pci_driver mtd_pci_driver = {
 	.id_table =	mtd_pci_ids,
 };
 
-static int __init mtd_pci_maps_init(void)
-{
-	return pci_register_driver(&mtd_pci_driver);
-}
-
-static void __exit mtd_pci_maps_exit(void)
-{
-	pci_unregister_driver(&mtd_pci_driver);
-}
-
-module_init(mtd_pci_maps_init);
-module_exit(mtd_pci_maps_exit);
+module_pci_driver(mtd_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");

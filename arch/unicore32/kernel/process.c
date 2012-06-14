@@ -34,7 +34,6 @@
 
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/stacktrace.h>
 
 #include "setup.h"

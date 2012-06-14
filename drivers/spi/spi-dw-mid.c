@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/types.h>
 
 #include "spi-dw.h"
 
@@ -136,6 +137,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	txconf.dst_maxburst = LNW_DMA_MSIZE_16;
 	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	txconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	txconf.device_fc = false;
 
 	txchan->device->device_control(txchan, DMA_SLAVE_CONFIG,
 				       (unsigned long) &txconf);
@@ -144,7 +146,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	dws->tx_sgl.dma_address = dws->tx_dma;
 	dws->tx_sgl.length = dws->len;
 
-	txdesc = txchan->device->device_prep_slave_sg(txchan,
+	txdesc = dmaengine_prep_slave_sg(txchan,
 				&dws->tx_sgl,
 				1,
 				DMA_MEM_TO_DEV,
@@ -158,6 +160,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	rxconf.src_maxburst = LNW_DMA_MSIZE_16;
 	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	rxconf.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	rxconf.device_fc = false;
 
 	rxchan->device->device_control(rxchan, DMA_SLAVE_CONFIG,
 				       (unsigned long) &rxconf);
@@ -166,7 +169,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	dws->rx_sgl.dma_address = dws->rx_dma;
 	dws->rx_sgl.length = dws->len;
 
-	rxdesc = rxchan->device->device_prep_slave_sg(rxchan,
+	rxdesc = dmaengine_prep_slave_sg(rxchan,
 				&dws->rx_sgl,
 				1,
 				DMA_DEV_TO_MEM,

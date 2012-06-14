@@ -263,12 +263,11 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 #ifdef CONFIG_MAC80211_TKIP_DEBUG
 	{
 		int i;
-		printk(KERN_DEBUG "TKIP decrypt: data(len=%zd)", payload_len);
+		pr_debug("TKIP decrypt: data(len=%zd)", payload_len);
 		for (i = 0; i < payload_len; i++)
 			printk(" %02x", payload[i]);
 		printk("\n");
-		printk(KERN_DEBUG "TKIP decrypt: iv16=%04x iv32=%08x\n",
-		       iv16, iv32);
+		pr_debug("TKIP decrypt: iv16=%04x iv32=%08x\n", iv16, iv32);
 	}
 #endif
 
@@ -283,11 +282,10 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 	     (iv32 == key->u.tkip.rx[queue].iv32 &&
 	      iv16 <= key->u.tkip.rx[queue].iv16))) {
 #ifdef CONFIG_MAC80211_TKIP_DEBUG
-		printk(KERN_DEBUG "TKIP replay detected for RX frame from "
-		       "%pM (RX IV (%04x,%02x) <= prev. IV (%04x,%02x)\n",
-		       ta,
-		       iv32, iv16, key->u.tkip.rx[queue].iv32,
-		       key->u.tkip.rx[queue].iv16);
+		pr_debug("TKIP replay detected for RX frame from %pM (RX IV (%04x,%02x) <= prev. IV (%04x,%02x)\n",
+			 ta, iv32, iv16,
+			 key->u.tkip.rx[queue].iv32,
+			 key->u.tkip.rx[queue].iv16);
 #endif
 		return TKIP_DECRYPT_REPLAY;
 	}
@@ -306,13 +304,12 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 		{
 			int i;
 			u8 key_offset = NL80211_TKIP_DATA_OFFSET_ENCR_KEY;
-			printk(KERN_DEBUG "TKIP decrypt: Phase1 TA=%pM"
-			       " TK=", ta);
+			pr_debug("TKIP decrypt: Phase1 TA=%pM TK=", ta);
 			for (i = 0; i < 16; i++)
 				printk("%02x ",
 				       key->conf.key[key_offset + i]);
 			printk("\n");
-			printk(KERN_DEBUG "TKIP decrypt: P1K=");
+			pr_debug("TKIP decrypt: P1K=");
 			for (i = 0; i < 5; i++)
 				printk("%04x ", key->u.tkip.rx[queue].p1k[i]);
 			printk("\n");
@@ -336,7 +333,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
 #ifdef CONFIG_MAC80211_TKIP_DEBUG
 	{
 		int i;
-		printk(KERN_DEBUG "TKIP decrypt: Phase2 rc4key=");
+		pr_debug("TKIP decrypt: Phase2 rc4key=");
 		for (i = 0; i < 16; i++)
 			printk("%02x ", rc4key[i]);
 		printk("\n");

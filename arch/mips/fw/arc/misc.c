@@ -17,7 +17,6 @@
 #include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 #include <asm/bootinfo.h>
-#include <asm/system.h>
 
 VOID
 ArcHalt(VOID)

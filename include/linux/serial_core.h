@@ -310,6 +310,7 @@ struct uart_port {
 	int			(*handle_irq)(struct uart_port *);
 	void			(*pm)(struct uart_port *, unsigned int state,
 				      unsigned int old);
+	void			(*handle_break)(struct uart_port *);
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */
@@ -357,7 +358,7 @@ struct uart_port {
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
 #define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
 #define UPF_EXAR_EFR		((__force upf_t) (1 << 25))
-#define UPF_IIR_ONCE		((__force upf_t) (1 << 26))
+#define UPF_BUG_THRE		((__force upf_t) (1 << 26))
 /* The exact UART type is known and should not be probed.  */
 #define UPF_FIXED_TYPE		((__force upf_t) (1 << 27))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
@@ -533,6 +534,10 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 static inline int uart_handle_break(struct uart_port *port)
 {
 	struct uart_state *state = port->state;
+
+	if (port->handle_break)
+		port->handle_break(port);
+
 #ifdef SUPPORT_SYSRQ
 	if (port->cons && port->cons->index == port->line) {
 		if (!port->sysrq) {

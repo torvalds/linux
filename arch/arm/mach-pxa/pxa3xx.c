@@ -31,6 +31,7 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/smemc.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 #include "devices.h"

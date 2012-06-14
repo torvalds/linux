@@ -253,7 +253,8 @@ config SENSORS_K10TEMP
 	  If you say yes here you get support for the temperature
 	  sensor(s) inside your CPU. Supported are later revisions of
 	  the AMD Family 10h and all revisions of the AMD Family 11h,
-	  12h (Llano), 14h (Brazos) and 15h (Bulldozer) microarchitectures.
+	  12h (Llano), 14h (Brazos) and 15h (Bulldozer/Trinity)
+	  microarchitectures.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called k10temp.
@@ -317,7 +318,7 @@ config SENSORS_EXYNOS4_TMU
 	tristate "Temperature sensor on Samsung EXYNOS4"
 	depends on ARCH_EXYNOS4
 	help
-	  If you say yes here you get support for TMU (Thermal Managment
+	  If you say yes here you get support for TMU (Thermal Management
 	  Unit) on SAMSUNG EXYNOS4 series of SoC.
 
 	  This driver can also be built as a module. If so, the module
@@ -425,7 +426,7 @@ config SENSORS_GL520SM
 
 config SENSORS_GPIO_FAN
 	tristate "GPIO fan"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  If you say yes here you get support for fans connected to GPIO lines.
 
@@ -883,7 +884,7 @@ source drivers/hwmon/pmbus/Kconfig
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  If you say yes here you get support for the Sensiron SHT10, SHT11,
 	  SHT15, SHT71, SHT75 humidity and temperature sensors.
@@ -1035,8 +1036,9 @@ config SENSORS_SCH56XX_COMMON
 
 config SENSORS_SCH5627
 	tristate "SMSC SCH5627"
-	depends on !PPC
+	depends on !PPC && WATCHDOG
 	select SENSORS_SCH56XX_COMMON
+	select WATCHDOG_CORE
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  features of the SMSC SCH5627 Super-I/O chip including support for
@@ -1047,8 +1049,9 @@ config SENSORS_SCH5627
 
 config SENSORS_SCH5636
 	tristate "SMSC SCH5636"
-	depends on !PPC
+	depends on !PPC && WATCHDOG
 	select SENSORS_SCH56XX_COMMON
+	select WATCHDOG_CORE
 	help
 	  SMSC SCH5636 Super I/O chips include an embedded microcontroller for
 	  hardware monitoring solutions, allowing motherboard manufacturers to
@@ -1100,6 +1103,19 @@ config SENSORS_AMC6821
 
 	  This driver can also be build as a module.  If so, the module
 	  will be called amc6821.
+
+config SENSORS_INA2XX
+	tristate "Texas Instruments INA219, INA226"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for INA219 and INA226 power
+	  monitor chips.
+
+	  The INA2xx driver is configured for the default configuration of
+	  the part as described in the datasheet.
+	  Default value for Rshunt is 10 mOhms.
+	  This driver can also be built as a module.  If so, the module
+	  will be called ina2xx.
 
 config SENSORS_THMC50
 	tristate "Texas Instruments THMC50 / Analog Devices ADM1022"

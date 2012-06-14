@@ -33,7 +33,6 @@
 #include <linux/socket.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/pgtable.h>

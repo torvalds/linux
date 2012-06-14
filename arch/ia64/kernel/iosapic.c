@@ -98,7 +98,6 @@
 #include <asm/machvec.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
 
 #undef DEBUG_INTERRUPT_ROUTING
 

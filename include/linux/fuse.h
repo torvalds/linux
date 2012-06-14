@@ -593,7 +593,7 @@ struct fuse_dirent {
 	__u64	off;
 	__u32	namelen;
 	__u32	type;
-	char name[0];
+	char name[];
 };
 
 #define FUSE_NAME_OFFSET offsetof(struct fuse_dirent, name)

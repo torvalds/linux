@@ -27,24 +27,24 @@ struct chan {
 	void *data;
 };
 
-extern void chan_interrupt(struct list_head *chans, struct delayed_work *task,
+extern void chan_interrupt(struct line *line,
 			   struct tty_struct *tty, int irq);
 extern int parse_chan_pair(char *str, struct line *line, int device,
 			   const struct chan_opts *opts, char **error_out);
-extern int write_chan(struct list_head *chans, const char *buf, int len,
+extern int write_chan(struct chan *chan, const char *buf, int len,
 			     int write_irq);
-extern int console_write_chan(struct list_head *chans, const char *buf, 
+extern int console_write_chan(struct chan *chan, const char *buf, 
 			      int len);
 extern int console_open_chan(struct line *line, struct console *co);
-extern void deactivate_chan(struct list_head *chans, int irq);
-extern void reactivate_chan(struct list_head *chans, int irq);
-extern void chan_enable_winch(struct list_head *chans, struct tty_struct *tty);
+extern void deactivate_chan(struct chan *chan, int irq);
+extern void reactivate_chan(struct chan *chan, int irq);
+extern void chan_enable_winch(struct chan *chan, struct tty_struct *tty);
 extern int enable_chan(struct line *line);
-extern void close_chan(struct list_head *chans, int delay_free_irq);
-extern int chan_window_size(struct list_head *chans, 
+extern void close_chan(struct line *line);
+extern int chan_window_size(struct line *line, 
 			     unsigned short *rows_out, 
 			     unsigned short *cols_out);
-extern int chan_config_string(struct list_head *chans, char *str, int size,
+extern int chan_config_string(struct line *line, char *str, int size,
 			      char **error_out);
 
 #endif

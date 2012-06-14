@@ -208,9 +208,4 @@ DECLARE_IO(int,l,"")
 #define outsw(p,d,l)	__raw_writesw(__ioaddr(p),d,l)
 #define outsl(p,d,l)	__raw_writesl(__ioaddr(p),d,l)
 
-/*
- * 1:1 mapping for ioremapped regions.
- */
-#define __mem_pci(x)	(x)
-
 #endif

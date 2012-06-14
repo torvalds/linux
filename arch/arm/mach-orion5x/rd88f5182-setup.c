@@ -200,7 +200,6 @@ static int __init rd88f5182_pci_map_irq(const struct pci_dev *dev, u8 slot,
 static struct hw_pci rd88f5182_pci __initdata = {
 	.nr_controllers	= 2,
 	.preinit	= rd88f5182_pci_preinit,
-	.swizzle	= pci_std_swizzle,
 	.setup		= orion5x_pci_sys_setup,
 	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= rd88f5182_pci_map_irq,

@@ -41,6 +41,7 @@
 #include <asm/spu_priv1.h>
 #include <asm/setjmp.h>
 #include <asm/reg.h>
+#include <asm/debug.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>

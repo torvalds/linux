@@ -41,7 +41,6 @@
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -2327,7 +2326,7 @@ static const struct tty_operations mxser_ops = {
 	.get_icount = mxser_get_icount,
 };
 
-struct tty_port_operations mxser_port_ops = {
+static struct tty_port_operations mxser_port_ops = {
 	.carrier_raised = mxser_carrier_raised,
 	.dtr_rts = mxser_dtr_rts,
 	.activate = mxser_activate,

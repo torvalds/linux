@@ -1,7 +1,7 @@
  /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -367,8 +367,10 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		return 1;
 	}
 
+	/* Check for Nport to NPort pt2pt protocol */
 	if ((vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_PT2PT_PLOGI)) {
+
 		/* rcv'ed PLOGI decides what our NPortId will be */
 		vport->fc_myDID = icmd->un.rcvels.parmRo;
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -382,6 +384,13 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			mempool_free(mbox, phba->mbox_mem_pool);
 			goto out;
 		}
+		/*
+		 * For SLI4, the VFI/VPI are registered AFTER the
+		 * Nport with the higher WWPN sends us a PLOGI with
+		 * our assigned NPortId.
+		 */
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_issue_reg_vfi(vport);
 
 		lpfc_can_disctmo(vport);
 	}
@@ -440,11 +449,15 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		spin_unlock_irq(shost->host_lock);
 		stat.un.b.lsRjtRsnCode = LSRJT_INVALID_CMD;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
-		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb,
+		rc = lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb,
 			ndlp, mbox);
+		if (rc)
+			mempool_free(mbox, phba->mbox_mem_pool);
 		return 1;
 	}
-	lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, mbox);
+	rc = lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, mbox);
+	if (rc)
+		mempool_free(mbox, phba->mbox_mem_pool);
 	return 1;
 out:
 	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;

@@ -11,7 +11,6 @@
  */
 
 #include <mach/hardware.h>
-#include <mach/io.h>
 #include <mach/irqs.h>
 
 #include "../../iomap.h"

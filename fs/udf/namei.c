@@ -1193,7 +1193,7 @@ static struct dentry *udf_get_parent(struct dentry *child)
 {
 	struct kernel_lb_addr tloc;
 	struct inode *inode = NULL;
-	struct qstr dotdot = {.name = "..", .len = 2};
+	struct qstr dotdot = QSTR_INIT("..", 2);
 	struct fileIdentDesc cfi;
 	struct udf_fileident_bh fibh;
 
@@ -1260,16 +1260,15 @@ static struct dentry *udf_fh_to_parent(struct super_block *sb,
 				 fid->udf.parent_partref,
 				 fid->udf.parent_generation);
 }
-static int udf_encode_fh(struct dentry *de, __u32 *fh, int *lenp,
-			 int connectable)
+static int udf_encode_fh(struct inode *inode, __u32 *fh, int *lenp,
+			 struct inode *parent)
 {
 	int len = *lenp;
-	struct inode *inode =  de->d_inode;
 	struct kernel_lb_addr location = UDF_I(inode)->i_location;
 	struct fid *fid = (struct fid *)fh;
 	int type = FILEID_UDF_WITHOUT_PARENT;
 
-	if (connectable && (len < 5)) {
+	if (parent && (len < 5)) {
 		*lenp = 5;
 		return 255;
 	} else if (len < 3) {
@@ -1282,14 +1281,11 @@ static int udf_encode_fh(struct dentry *de, __u32 *fh, int *lenp,
 	fid->udf.partref = location.partitionReferenceNum;
 	fid->udf.generation = inode->i_generation;
 
-	if (connectable && !S_ISDIR(inode->i_mode)) {
-		spin_lock(&de->d_lock);
-		inode = de->d_parent->d_inode;
-		location = UDF_I(inode)->i_location;
+	if (parent) {
+		location = UDF_I(parent)->i_location;
 		fid->udf.parent_block = location.logicalBlockNum;
 		fid->udf.parent_partref = location.partitionReferenceNum;
 		fid->udf.parent_generation = inode->i_generation;
-		spin_unlock(&de->d_lock);
 		*lenp = 5;
 		type = FILEID_UDF_WITH_PARENT;
 	}

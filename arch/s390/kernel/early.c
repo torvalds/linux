@@ -29,7 +29,7 @@
 #include <asm/sysinfo.h>
 #include <asm/cpcmd.h>
 #include <asm/sclp.h>
-#include <asm/system.h>
+#include <asm/facility.h>
 #include "entry.h"
 
 /*
@@ -237,7 +237,7 @@ static noinline __init void detect_machine_type(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
-static __init void early_pgm_check_handler(void)
+static void early_pgm_check_handler(void)
 {
 	unsigned long addr;
 	const struct exception_table_entry *fixup;
@@ -374,8 +374,6 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
-	if (test_facility(25))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_STCKF;
 #endif
 }
 

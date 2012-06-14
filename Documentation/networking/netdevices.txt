@@ -47,26 +47,25 @@ packets is preferred.
 
 struct net_device synchronization rules
 =======================================
-dev->open:
+ndo_open:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
 
-dev->stop:
+ndo_stop:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
-	Note1: netif_running() is guaranteed false
-	Note2: dev->poll() is guaranteed to be stopped
+	Note: netif_running() is guaranteed false
 
-dev->do_ioctl:
+ndo_do_ioctl:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
 
-dev->get_stats:
+ndo_get_stats:
 	Synchronization: dev_base_lock rwlock.
 	Context: nominally process, but don't sleep inside an rwlock
 
-dev->hard_start_xmit:
-	Synchronization: netif_tx_lock spinlock.
+ndo_start_xmit:
+	Synchronization: __netif_tx_lock spinlock.
 
 	When the driver sets NETIF_F_LLTX in dev->features this will be
 	called without holding netif_tx_lock. In this case the driver
@@ -87,20 +86,20 @@ dev->hard_start_xmit:
 	o NETDEV_TX_LOCKED Locking failed, please retry quickly.
 	  Only valid when NETIF_F_LLTX is set.
 
-dev->tx_timeout:
-	Synchronization: netif_tx_lock spinlock.
+ndo_tx_timeout:
+	Synchronization: netif_tx_lock spinlock; all TX queues frozen.
 	Context: BHs disabled
 	Notes: netif_queue_stopped() is guaranteed true
 
-dev->set_rx_mode:
-	Synchronization: netif_tx_lock spinlock.
+ndo_set_rx_mode:
+	Synchronization: netif_addr_lock spinlock.
 	Context: BHs disabled
 
 struct napi_struct synchronization rules
 ========================================
 napi->poll:
 	Synchronization: NAPI_STATE_SCHED bit in napi->state.  Device
-		driver's dev->close method will invoke napi_disable() on
+		driver's ndo_stop method will invoke napi_disable() on
 		all NAPI instances which will do a sleeping poll on the
 		NAPI_STATE_SCHED napi->state bit, waiting for all pending
 		NAPI activity to cease.

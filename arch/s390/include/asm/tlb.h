@@ -30,14 +30,10 @@
 
 struct mmu_gather {
 	struct mm_struct *mm;
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 	struct mmu_table_batch *batch;
-#endif
 	unsigned int fullmm;
-	unsigned int need_flush;
 };
 
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 struct mmu_table_batch {
 	struct rcu_head		rcu;
 	unsigned int		nr;
@@ -49,7 +45,6 @@ struct mmu_table_batch {
 
 extern void tlb_table_flush(struct mmu_gather *tlb);
 extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
-#endif
 
 static inline void tlb_gather_mmu(struct mmu_gather *tlb,
 				  struct mm_struct *mm,
@@ -57,29 +52,20 @@ static inline void tlb_gather_mmu(struct mmu_gather *tlb,
 {
 	tlb->mm = mm;
 	tlb->fullmm = full_mm_flush;
-	tlb->need_flush = 0;
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 	tlb->batch = NULL;
-#endif
 	if (tlb->fullmm)
 		__tlb_flush_mm(mm);
 }
 
 static inline void tlb_flush_mmu(struct mmu_gather *tlb)
 {
-	if (!tlb->need_flush)
-		return;
-	tlb->need_flush = 0;
-	__tlb_flush_mm(tlb->mm);
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 	tlb_table_flush(tlb);
-#endif
 }
 
 static inline void tlb_finish_mmu(struct mmu_gather *tlb,
 				  unsigned long start, unsigned long end)
 {
-	tlb_flush_mmu(tlb);
+	tlb_table_flush(tlb);
 }
 
 /*
@@ -105,10 +91,8 @@ static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 				unsigned long address)
 {
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 	if (!tlb->fullmm)
 		return page_table_free_rcu(tlb, (unsigned long *) pte);
-#endif
 	page_table_free(tlb->mm, (unsigned long *) pte);
 }
 
@@ -122,13 +106,11 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 				unsigned long address)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	if (tlb->mm->context.asce_limit <= (1UL << 31))
 		return;
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 	if (!tlb->fullmm)
 		return tlb_remove_table(tlb, pmd);
-#endif
 	crst_table_free(tlb->mm, (unsigned long *) pmd);
 #endif
 }
@@ -143,13 +125,11 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 				unsigned long address)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	if (tlb->mm->context.asce_limit <= (1UL << 42))
 		return;
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 	if (!tlb->fullmm)
 		return tlb_remove_table(tlb, pud);
-#endif
 	crst_table_free(tlb->mm, (unsigned long *) pud);
 #endif
 }

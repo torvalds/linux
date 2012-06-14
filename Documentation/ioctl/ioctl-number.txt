@@ -120,6 +120,7 @@ Code  Seq#(hex)	Include File		Comments
 'G'	00-0F	linux/gigaset_dev.h	conflict!
 'H'	00-7F	linux/hiddev.h		conflict!
 'H'	00-0F	linux/hidraw.h		conflict!
+'H'	01	linux/mei.h		conflict!
 'H'	00-0F	sound/asound.h		conflict!
 'H'	20-40	sound/asound_fm.h	conflict!
 'H'	80-8F	sound/sfnt_info.h	conflict!
@@ -225,6 +226,7 @@ Code  Seq#(hex)	Include File		Comments
 'j'	00-3F	linux/joystick.h
 'k'	00-0F	linux/spi/spidev.h	conflict!
 'k'	00-05	video/kyro.h		conflict!
+'k'	10-17	linux/hsi/hsi_char.h	HSI character device
 'l'	00-3F	linux/tcfs_fs.h		transparent cryptographic file system
 					<http://web.archive.org/web/*/http://mikonos.dia.unisa.it/tcfs>
 'l'	40-7F	linux/udf_fs_i.h	in development:

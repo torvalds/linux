@@ -2565,7 +2565,7 @@ il4965_find_station(struct il_priv *il, const u8 *addr)
 	spin_lock_irqsave(&il->sta_lock, flags);
 	for (i = start; i < il->hw_params.max_stations; i++)
 		if (il->stations[i].used &&
-		    (!compare_ether_addr(il->stations[i].sta.sta.addr, addr))) {
+		    ether_addr_equal(il->stations[i].sta.sta.addr, addr)) {
 			ret = i;
 			goto out;
 		}
@@ -5724,7 +5724,8 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |=
-	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS;
+	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS |
+	    WIPHY_FLAG_IBSS_RSN;
 
 	/*
 	 * For now, disable PS by default because it affects
@@ -5870,6 +5871,16 @@ il4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (il->cfg->mod_params->sw_crypto) {
 		D_MAC80211("leave - hwcrypto disabled\n");
+		return -EOPNOTSUPP;
+	}
+
+	/*
+	 * To support IBSS RSN, don't program group keys in IBSS, the
+	 * hardware will then not attempt to decrypt the frames.
+	 */
+	if (vif->type == NL80211_IFTYPE_ADHOC &&
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
+		D_MAC80211("leave - ad-hoc group key\n");
 		return -EOPNOTSUPP;
 	}
 

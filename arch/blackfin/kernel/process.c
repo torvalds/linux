@@ -95,7 +95,9 @@ void cpu_idle(void)
 			idle();
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
+		preempt_enable_no_resched();
+		schedule();
+		preempt_disable();
 	}
 }
 
@@ -329,12 +331,16 @@ int in_mem_const(unsigned long addr, unsigned long size,
 {
 	return in_mem_const_off(addr, size, 0, const_addr, const_size);
 }
+#ifdef CONFIG_BF60x
+#define ASYNC_ENABLED(bnum, bctlnum)	1
+#else
 #define ASYNC_ENABLED(bnum, bctlnum) \
 ({ \
 	(bfin_read_EBIU_AMGCTL() & 0xe) < ((bnum + 1) << 1) ? 0 : \
 	bfin_read_EBIU_AMBCTL##bctlnum() & B##bnum##RDYEN ? 0 : \
 	1; \
 })
+#endif
 /*
  * We can't read EBIU banks that aren't enabled or we end up hanging
  * on the access to the async space.  Make sure we validate accesses

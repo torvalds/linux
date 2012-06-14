@@ -30,4 +30,3 @@ config ARCH_LPC32XX_UART6_SELECT
 endmenu
 
 endif
-

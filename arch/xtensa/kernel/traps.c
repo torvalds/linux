@@ -381,6 +381,25 @@ static __always_inline unsigned long *stack_pointer(struct task_struct *task)
 	return sp;
 }
 
+static inline void spill_registers(void)
+{
+	unsigned int a0, ps;
+
+	__asm__ __volatile__ (
+		"movi	a14," __stringify (PS_EXCM_BIT) " | 1\n\t"
+		"mov	a12, a0\n\t"
+		"rsr	a13," __stringify(SAR) "\n\t"
+		"xsr	a14," __stringify(PS) "\n\t"
+		"movi	a0, _spill_registers\n\t"
+		"rsync\n\t"
+		"callx0 a0\n\t"
+		"mov	a0, a12\n\t"
+		"wsr	a13," __stringify(SAR) "\n\t"
+		"wsr	a14," __stringify(PS) "\n\t"
+		:: "a" (&a0), "a" (&ps)
+		: "a2", "a3", "a4", "a7", "a11", "a12", "a13", "a14", "a15", "memory");
+}
+
 void show_trace(struct task_struct *task, unsigned long *sp)
 {
 	unsigned long a0, a1, pc;

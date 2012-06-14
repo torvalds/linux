@@ -311,6 +311,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	int ret = 0;
 	bool compat;
 
+#ifdef CONFIG_X86_X32_ABI
+	if (test_thread_flag(TIF_X32))
+		return x32_setup_additional_pages(bprm, uses_interp);
+#endif
+
 	if (vdso_enabled == VDSO_DISABLED)
 		return 0;
 

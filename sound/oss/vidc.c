@@ -28,7 +28,6 @@
 #include <asm/io.h>
 #include <asm/hardware/iomd.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #include "sound_config.h"
 #include "vidc.h"

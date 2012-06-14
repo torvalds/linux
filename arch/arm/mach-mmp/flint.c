@@ -23,10 +23,11 @@
 #include <mach/addr-map.h>
 #include <mach/mfp-mmp2.h>
 #include <mach/mmp2.h>
+#include <mach/irqs.h>
 
 #include "common.h"
 
-#define FLINT_NR_IRQS	(IRQ_BOARD_START + 48)
+#define FLINT_NR_IRQS	(MMP_NR_IRQS + 48)
 
 static unsigned long flint_pin_config[] __initdata = {
 	/* UART1 */

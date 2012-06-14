@@ -63,7 +63,12 @@
 #ifndef __iwl_drv_h__
 #define __iwl_drv_h__
 
-#include "iwl-shared.h"
+/* for all modules */
+#define DRV_NAME        "iwlwifi"
+#define IWLWIFI_VERSION "in-tree:"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2012 Intel Corporation"
+#define DRV_AUTHOR     "<ilw@linux.intel.com>"
+
 
 /**
  * DOC: Driver system flows - drv component
@@ -90,34 +95,32 @@
  * 8) iwl_ucode_callback starts the wifi implementation to matches the fw
  */
 
+struct iwl_drv;
+struct iwl_trans;
+struct iwl_cfg;
 /**
  * iwl_drv_start - start the drv
  *
- * @shrd: the shrd area
  * @trans_ops: the ops of the transport
  * @cfg: device specific constants / virtual functions
- *
- * TODO: review the parameters given to this function
  *
  * starts the driver: fetches the firmware. This should be called by bus
  * specific system flows implementations. For example, the bus specific probe
  * function should do bus related operations only, and then call to this
- * function.
+ * function. It returns the driver object or %NULL if an error occured.
  */
-int iwl_drv_start(struct iwl_shared *shrd,
-		  struct iwl_trans *trans, const struct iwl_cfg *cfg);
+struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
+			      const struct iwl_cfg *cfg);
 
 /**
  * iwl_drv_stop - stop the drv
  *
- * @shrd: the shrd area
- *
- * TODO: review the parameters given to this function
+ * @drv:
  *
  * Stop the driver. This should be called by bus specific system flows
  * implementations. For example, the bus specific remove function should first
  * call this function and then do the bus related operations only.
  */
-void iwl_drv_stop(struct iwl_shared *shrd);
+void iwl_drv_stop(struct iwl_drv *drv);
 
 #endif /* __iwl_drv_h__ */

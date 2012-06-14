@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/fb.h>
 
 #include "asus-wmi.h"
 
@@ -51,9 +52,14 @@ static uint wapf;
 module_param(wapf, uint, 0444);
 MODULE_PARM_DESC(wapf, "WAPF value");
 
+static struct quirk_entry quirk_asus_unknown = {
+};
+
 static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 {
-	driver->wapf = wapf;
+	driver->quirks = &quirk_asus_unknown;
+	driver->quirks->wapf = wapf;
+	driver->panel_power = FB_BLANK_UNBLANK;
 }
 
 static const struct key_entry asus_nb_wmi_keymap[] = {
@@ -70,6 +76,8 @@ static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_KEY, 0x50, { KEY_EMAIL } },
 	{ KE_KEY, 0x51, { KEY_WWW } },
 	{ KE_KEY, 0x55, { KEY_CALC } },
+	{ KE_IGNORE, 0x57, },  /* Battery mode */
+	{ KE_IGNORE, 0x58, },  /* AC mode */
 	{ KE_KEY, 0x5C, { KEY_F15 } },  /* Power Gear key */
 	{ KE_KEY, 0x5D, { KEY_WLAN } }, /* Wireless console Toggle */
 	{ KE_KEY, 0x5E, { KEY_WLAN } }, /* Wireless console Enable */
@@ -99,7 +107,7 @@ static struct asus_wmi_driver asus_nb_wmi_driver = {
 	.keymap = asus_nb_wmi_keymap,
 	.input_name = "Asus WMI hotkeys",
 	.input_phys = ASUS_NB_WMI_FILE "/input0",
-	.quirks = asus_nb_wmi_quirks,
+	.detect_quirks = asus_nb_wmi_quirks,
 };
 
 

@@ -28,7 +28,7 @@ obj-y	:=  bitmap.o traps.o time.o process.o base.o early.o setup.o vtime.o \
 obj-y	+= $(if $(CONFIG_64BIT),entry64.o,entry.o)
 obj-y	+= $(if $(CONFIG_64BIT),reipl64.o,reipl.o)
 
-extra-y				+= head.o init_task.o vmlinux.lds
+extra-y				+= head.o vmlinux.lds
 extra-y				+= $(if $(CONFIG_64BIT),head64.o,head31.o)
 
 obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
@@ -48,6 +48,7 @@ obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER) += ftrace.o
 obj-$(CONFIG_FTRACE_SYSCALLS)  += ftrace.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o
 
 # Kexec part
 S390_KEXEC_OBJS := machine_kexec.o crash.o

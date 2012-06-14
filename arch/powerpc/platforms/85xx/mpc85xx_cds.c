@@ -27,7 +27,6 @@
 #include <linux/fsl_devices.h>
 #include <linux/of_platform.h>
 
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/atomic.h>

@@ -27,6 +27,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/iommu.h>
 #include <asm/io-workarounds.h>
+#include <asm/debug.h>
 
 #include "wsp.h"
 #include "wsp_pci.h"

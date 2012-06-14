@@ -44,7 +44,6 @@
 #include <asm/irq.h>
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
-#include <asm/system.h>
 #include <asm/titan_dep.h>
 
 /* Hypertransport specific */

@@ -458,12 +458,10 @@ static int list_voltage(struct regulator_dev *rdev, unsigned selector)
 		info->voltages[selector] : -EINVAL);
 }
 
-static int set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
-		       unsigned *selector)
+static int set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 {
 	const struct supply_info *info;
 	struct tps6524x *hw;
-	unsigned i;
 
 	hw	= rdev_get_drvdata(rdev);
 	info	= &supply_info[rdev_get_id(rdev)];
@@ -471,20 +469,10 @@ static int set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	if (info->flags & FIXED_VOLTAGE)
 		return -EINVAL;
 
-	for (i = 0; i < info->n_voltages; i++)
-		if (min_uV <= info->voltages[i] &&
-		    max_uV >= info->voltages[i])
-			break;
-
-	if (i >= info->n_voltages)
-		i = info->n_voltages - 1;
-
-	*selector = i;
-
-	return write_field(hw, &info->voltage, i);
+	return write_field(hw, &info->voltage, selector);
 }
 
-static int get_voltage(struct regulator_dev *rdev)
+static int get_voltage_sel(struct regulator_dev *rdev)
 {
 	const struct supply_info *info;
 	struct tps6524x *hw;
@@ -502,7 +490,7 @@ static int get_voltage(struct regulator_dev *rdev)
 	if (WARN_ON(ret >= info->n_voltages))
 		return -EIO;
 
-	return info->voltages[ret];
+	return ret;
 }
 
 static int set_current_limit(struct regulator_dev *rdev, int min_uA,
@@ -587,8 +575,8 @@ static struct regulator_ops regulator_ops = {
 	.is_enabled		= is_supply_enabled,
 	.enable			= enable_supply,
 	.disable		= disable_supply,
-	.get_voltage		= get_voltage,
-	.set_voltage		= set_voltage,
+	.get_voltage_sel	= get_voltage_sel,
+	.set_voltage_sel	= set_voltage_sel,
 	.list_voltage		= list_voltage,
 	.set_current_limit	= set_current_limit,
 	.get_current_limit	= get_current_limit,
@@ -607,7 +595,6 @@ static int pmic_remove(struct spi_device *spi)
 		hw->rdev[i] = NULL;
 	}
 	spi_set_drvdata(spi, NULL);
-	kfree(hw);
 	return 0;
 }
 
@@ -617,6 +604,7 @@ static int __devinit pmic_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	const struct supply_info *info = supply_info;
 	struct regulator_init_data *init_data;
+	struct regulator_config config = { };
 	int ret = 0, i;
 
 	init_data = dev->platform_data;
@@ -625,7 +613,7 @@ static int __devinit pmic_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	hw = kzalloc(sizeof(struct tps6524x), GFP_KERNEL);
+	hw = devm_kzalloc(&spi->dev, sizeof(struct tps6524x), GFP_KERNEL);
 	if (!hw) {
 		dev_err(dev, "cannot allocate regulator private data\n");
 		return -ENOMEM;
@@ -648,8 +636,11 @@ static int __devinit pmic_probe(struct spi_device *spi)
 		if (info->flags & FIXED_VOLTAGE)
 			hw->desc[i].n_voltages = 1;
 
-		hw->rdev[i] = regulator_register(&hw->desc[i], dev,
-						 init_data, hw, NULL);
+		config.dev = dev;
+		config.init_data = init_data;
+		config.driver_data = hw;
+
+		hw->rdev[i] = regulator_register(&hw->desc[i], &config);
 		if (IS_ERR(hw->rdev[i])) {
 			ret = PTR_ERR(hw->rdev[i]);
 			hw->rdev[i] = NULL;
@@ -673,17 +664,7 @@ static struct spi_driver pmic_driver = {
 	},
 };
 
-static int __init pmic_driver_init(void)
-{
-	return spi_register_driver(&pmic_driver);
-}
-module_init(pmic_driver_init);
-
-static void __exit pmic_driver_exit(void)
-{
-	spi_unregister_driver(&pmic_driver);
-}
-module_exit(pmic_driver_exit);
+module_spi_driver(pmic_driver);
 
 MODULE_DESCRIPTION("TPS6524X PMIC Driver");
 MODULE_AUTHOR("Cyril Chemparathy");

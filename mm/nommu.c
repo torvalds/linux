@@ -889,7 +889,6 @@ static int validate_mmap_request(struct file *file,
 				 unsigned long *_capabilities)
 {
 	unsigned long capabilities, rlen;
-	unsigned long reqprot = prot;
 	int ret;
 
 	/* do the simple checks first */
@@ -1047,7 +1046,7 @@ static int validate_mmap_request(struct file *file,
 	}
 
 	/* allow the security API to have its say */
-	ret = security_file_mmap(file, reqprot, prot, flags, addr, 0);
+	ret = security_mmap_addr(addr);
 	if (ret < 0)
 		return ret;
 
@@ -1470,7 +1469,6 @@ error_getting_region:
 	show_free_areas(0);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(do_mmap_pgoff);
 
 SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags,
@@ -1488,9 +1486,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 
-	down_write(&current->mm->mmap_sem);
-	retval = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
+	ret = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff);
 
 	if (file)
 		fput(file);
@@ -1709,15 +1705,21 @@ erase_whole_vma:
 }
 EXPORT_SYMBOL(do_munmap);
 
-SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
+int vm_munmap(unsigned long addr, size_t len)
 {
-	int ret;
 	struct mm_struct *mm = current->mm;
+	int ret;
 
 	down_write(&mm->mmap_sem);
 	ret = do_munmap(mm, addr, len);
 	up_write(&mm->mmap_sem);
 	return ret;
+}
+EXPORT_SYMBOL(vm_munmap);
+
+SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
+{
+	return vm_munmap(addr, len);
 }
 
 /*
@@ -1744,7 +1746,7 @@ void exit_mmap(struct mm_struct *mm)
 	kleave("");
 }
 
-unsigned long do_brk(unsigned long addr, unsigned long len)
+unsigned long vm_brk(unsigned long addr, unsigned long len)
 {
 	return -ENOMEM;
 }

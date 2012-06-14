@@ -140,7 +140,6 @@ static int xcvr[NUM_UNITS]; 			/* The data transfer mode. */
 #include <linux/delay.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 

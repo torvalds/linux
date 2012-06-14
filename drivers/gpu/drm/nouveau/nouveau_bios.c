@@ -30,6 +30,7 @@
 #include "nouveau_gpio.h"
 
 #include <linux/io-mapping.h>
+#include <linux/firmware.h>
 
 /* these defines are made up */
 #define NV_CIO_CRE_44_HEADA 0x0
@@ -177,14 +178,15 @@ bios_shadow_pci(struct nvbios *bios)
 
 	if (!pci_enable_rom(pdev)) {
 		void __iomem *rom = pci_map_rom(pdev, &length);
-		if (rom) {
+		if (rom && length) {
 			bios->data = kmalloc(length, GFP_KERNEL);
 			if (bios->data) {
 				memcpy_fromio(bios->data, rom, length);
 				bios->length = length;
 			}
-			pci_unmap_rom(pdev, rom);
 		}
+		if (rom)
+			pci_unmap_rom(pdev, rom);
 
 		pci_disable_rom(pdev);
 	}
@@ -194,35 +196,24 @@ static void
 bios_shadow_acpi(struct nvbios *bios)
 {
 	struct pci_dev *pdev = bios->dev->pdev;
-	int ptr, len, ret;
-	u8 data[3];
+	int cnt = 65536 / ROM_BIOS_PAGE;
+	int ret;
 
 	if (!nouveau_acpi_rom_supported(pdev))
 		return;
 
-	ret = nouveau_acpi_get_bios_chunk(data, 0, sizeof(data));
-	if (ret != sizeof(data))
-		return;
-
-	bios->length = min(data[2] * 512, 65536);
-	bios->data = kmalloc(bios->length, GFP_KERNEL);
+	bios->data = kmalloc(cnt * ROM_BIOS_PAGE, GFP_KERNEL);
 	if (!bios->data)
 		return;
 
-	len = bios->length;
-	ptr = 0;
-	while (len) {
-		int size = (len > ROM_BIOS_PAGE) ? ROM_BIOS_PAGE : len;
-
-		ret = nouveau_acpi_get_bios_chunk(bios->data, ptr, size);
-		if (ret != size) {
-			kfree(bios->data);
-			bios->data = NULL;
+	bios->length = 0;
+	while (cnt--) {
+		ret = nouveau_acpi_get_bios_chunk(bios->data, bios->length,
+						  ROM_BIOS_PAGE);
+		if (ret != ROM_BIOS_PAGE)
 			return;
-		}
 
-		len -= size;
-		ptr += size;
+		bios->length += ROM_BIOS_PAGE;
 	}
 }
 
@@ -248,8 +239,12 @@ bios_shadow(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->vbios;
 	struct methods *mthd, *best;
+	const struct firmware *fw;
+	char fname[32];
+	int ret;
 
 	if (nouveau_vbios) {
+		/* try to match one of the built-in methods */
 		mthd = shadow_methods;
 		do {
 			if (strcasecmp(nouveau_vbios, mthd->desc))
@@ -262,6 +257,22 @@ bios_shadow(struct drm_device *dev)
 				return true;
 		} while ((++mthd)->shadow);
 
+		/* attempt to load firmware image */
+		snprintf(fname, sizeof(fname), "nouveau/%s", nouveau_vbios);
+		ret = request_firmware(&fw, fname, &dev->pdev->dev);
+		if (ret == 0) {
+			bios->length = fw->size;
+			bios->data   = kmemdup(fw->data, fw->size, GFP_KERNEL);
+			release_firmware(fw);
+
+			NV_INFO(dev, "VBIOS image: %s\n", nouveau_vbios);
+			if (score_vbios(bios, 1))
+				return true;
+
+			kfree(bios->data);
+			bios->data = NULL;
+		}
+
 		NV_ERROR(dev, "VBIOS source \'%s\' invalid\n", nouveau_vbios);
 	}
 
@@ -272,6 +283,7 @@ bios_shadow(struct drm_device *dev)
 		mthd->score = score_vbios(bios, mthd->rw);
 		mthd->size = bios->length;
 		mthd->data = bios->data;
+		bios->data = NULL;
 	} while (mthd->score != 3 && (++mthd)->shadow);
 
 	mthd = shadow_methods;
@@ -6155,10 +6167,14 @@ dcb_fake_connectors(struct nvbios *bios)
 
 	/* heuristic: if we ever get a non-zero connector field, assume
 	 * that all the indices are valid and we don't need fake them.
+	 *
+	 * and, as usual, a blacklist of boards with bad bios data..
 	 */
-	for (i = 0; i < dcbt->entries; i++) {
-		if (dcbt->entry[i].connector)
-			return;
+	if (!nv_match_device(bios->dev, 0x0392, 0x107d, 0x20a2)) {
+		for (i = 0; i < dcbt->entries; i++) {
+			if (dcbt->entry[i].connector)
+				return;
+		}
 	}
 
 	/* no useful connector info available, we need to make it up

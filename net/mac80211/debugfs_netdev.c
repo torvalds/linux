@@ -135,7 +135,7 @@ static ssize_t ieee80211_if_read_##name(struct file *file,		\
 static const struct file_operations name##_ops = {			\
 	.read = ieee80211_if_read_##name,				\
 	.write = (_write),						\
-	.open = mac80211_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 }
 
@@ -394,7 +394,7 @@ static ssize_t ieee80211_if_parse_uapsd_max_sp_len(
 __IEEE80211_IF_FILE_W(uapsd_max_sp_len);
 
 /* AP attributes */
-IEEE80211_IF_FILE(num_sta_authorized, u.ap.num_sta_authorized, ATOMIC);
+IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
 
@@ -509,6 +509,7 @@ IEEE80211_IF_FILE(dot11MeshHWMPRannInterval,
 		u.mesh.mshcfg.dot11MeshHWMPRannInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshForwarding, u.mesh.mshcfg.dot11MeshForwarding, DEC);
 IEEE80211_IF_FILE(rssi_threshold, u.mesh.mshcfg.rssi_threshold, DEC);
+IEEE80211_IF_FILE(ht_opmode, u.mesh.mshcfg.ht_opmode, DEC);
 #endif
 
 #define DEBUGFS_ADD_MODE(name, mode) \
@@ -540,7 +541,7 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(num_sta_authorized);
+	DEBUGFS_ADD(num_mcast_sta);
 	DEBUGFS_ADD(num_sta_ps);
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);
@@ -606,8 +607,10 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(min_discovery_timeout);
 	MESHPARAMS_ADD(dot11MeshHWMPRootMode);
 	MESHPARAMS_ADD(dot11MeshHWMPRannInterval);
+	MESHPARAMS_ADD(dot11MeshForwarding);
 	MESHPARAMS_ADD(dot11MeshGateAnnouncementProtocol);
 	MESHPARAMS_ADD(rssi_threshold);
+	MESHPARAMS_ADD(ht_opmode);
 #undef MESHPARAMS_ADD
 }
 #endif
@@ -683,6 +686,6 @@ void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 
 	sprintf(buf, "netdev:%s", sdata->name);
 	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
-		printk(KERN_ERR "mac80211: debugfs: failed to rename debugfs "
+		pr_err("mac80211: debugfs: failed to rename debugfs "
 		       "dir to %s\n", buf);
 }

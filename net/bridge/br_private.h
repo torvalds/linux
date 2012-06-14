@@ -82,9 +82,7 @@ struct net_bridge_port_group {
 	struct hlist_node		mglist;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
-	struct timer_list		query_timer;
 	struct br_ip			addr;
-	u32				queries_sent;
 };
 
 struct net_bridge_mdb_entry
@@ -94,10 +92,8 @@ struct net_bridge_mdb_entry
 	struct net_bridge_port_group __rcu *ports;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
-	struct timer_list		query_timer;
 	struct br_ip			addr;
 	bool				mglist;
-	u32				queries_sent;
 };
 
 struct net_bridge_mdb_htable
@@ -228,6 +224,7 @@ struct net_bridge
 	unsigned char			multicast_router;
 
 	u8				multicast_disabled:1;
+	u8				multicast_querier:1;
 
 	u32				hash_elasticity;
 	u32				hash_max;
@@ -363,9 +360,18 @@ extern int br_fdb_insert(struct net_bridge *br,
 extern void br_fdb_update(struct net_bridge *br,
 			  struct net_bridge_port *source,
 			  const unsigned char *addr);
-extern int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb);
-extern int br_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
-extern int br_fdb_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
+
+extern int br_fdb_delete(struct ndmsg *ndm,
+			 struct net_device *dev,
+			 unsigned char *addr);
+extern int br_fdb_add(struct ndmsg *nlh,
+		      struct net_device *dev,
+		      unsigned char *addr,
+		      u16 nlh_flags);
+extern int br_fdb_dump(struct sk_buff *skb,
+		       struct netlink_callback *cb,
+		       struct net_device *dev,
+		       int idx);
 
 /* br_forward.c */
 extern void br_deliver(const struct net_bridge_port *to,
@@ -421,6 +427,7 @@ extern int br_multicast_set_router(struct net_bridge *br, unsigned long val);
 extern int br_multicast_set_port_router(struct net_bridge_port *p,
 					unsigned long val);
 extern int br_multicast_toggle(struct net_bridge *br, unsigned long val);
+extern int br_multicast_set_querier(struct net_bridge *br, unsigned long val);
 extern int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val);
 
 static inline bool br_multicast_is_router(struct net_bridge *br)

@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <asm/mipsregs.h>
 #include <asm/irq_cpu.h>
+#include <asm/setup.h>
 #include <irq.h>
 #include <irq-mapping.h>
 #include <gpio.h>

@@ -57,6 +57,7 @@
 #include <linux/ioport.h>
 #include <linux/irqflags.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/major.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
@@ -67,7 +68,6 @@
 #include <linux/types.h>
 
 #include <linux/atomic.h>
-#include <asm/system.h>
 
 #include <asm/dec/interrupts.h>
 #include <asm/dec/ioasic_addrs.h>

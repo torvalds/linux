@@ -55,8 +55,8 @@ struct thread_info {
 
 #define PREEMPT_ACTIVE		0x10000000
 
-#define THREAD_SIZE (PAGE_SIZE << 1)
-
+#define THREAD_SIZE		(PAGE_SIZE << 1)
+#define THREAD_SIZE_ORDER	1
 /*
  * macros/functions for gaining access to the thread information structure
  */
@@ -91,19 +91,6 @@ static inline struct thread_info *current_thread_info(void)
 
 	return ti;
 }
-
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
-/* thread information allocation */
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info_node(tsk, node)			\
-		kzalloc_node(THREAD_SIZE, GFP_KERNEL, node)
-#else
-#define alloc_thread_info_node(tsk, node)			\
-		kmalloc_node(THREAD_SIZE, GFP_KERNEL, node)
-#endif
-
-#define free_thread_info(info) kfree(info)
 
 #define TI_FLAG_FAULT_CODE_SHIFT	28
 

@@ -137,6 +137,9 @@ static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
 	int	i = 0;
 	u8	r;
 	u8	power;
+	int	ret;
+
+	pm_runtime_get_sync(phy->io_dev);
 
 	/* Make sure the transceiver is not in low power mode */
 	power = musb_readb(addr, MUSB_POWER);
@@ -154,15 +157,22 @@ static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
 	while (!(musb_readb(addr, MUSB_ULPI_REG_CONTROL)
 				& MUSB_ULPI_REG_CMPLT)) {
 		i++;
-		if (i == 10000)
-			return -ETIMEDOUT;
+		if (i == 10000) {
+			ret = -ETIMEDOUT;
+			goto out;
+		}
 
 	}
 	r = musb_readb(addr, MUSB_ULPI_REG_CONTROL);
 	r &= ~MUSB_ULPI_REG_CMPLT;
 	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, r);
 
-	return musb_readb(addr, MUSB_ULPI_REG_DATA);
+	ret = musb_readb(addr, MUSB_ULPI_REG_DATA);
+
+out:
+	pm_runtime_put(phy->io_dev);
+
+	return ret;
 }
 
 static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
@@ -171,6 +181,9 @@ static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
 	int	i = 0;
 	u8	r = 0;
 	u8	power;
+	int	ret = 0;
+
+	pm_runtime_get_sync(phy->io_dev);
 
 	/* Make sure the transceiver is not in low power mode */
 	power = musb_readb(addr, MUSB_POWER);
@@ -184,15 +197,20 @@ static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
 	while (!(musb_readb(addr, MUSB_ULPI_REG_CONTROL)
 				& MUSB_ULPI_REG_CMPLT)) {
 		i++;
-		if (i == 10000)
-			return -ETIMEDOUT;
+		if (i == 10000) {
+			ret = -ETIMEDOUT;
+			goto out;
+		}
 	}
 
 	r = musb_readb(addr, MUSB_ULPI_REG_CONTROL);
 	r &= ~MUSB_ULPI_REG_CMPLT;
 	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, r);
 
-	return 0;
+out:
+	pm_runtime_put(phy->io_dev);
+
+	return ret;
 }
 #else
 #define musb_ulpi_read		NULL
@@ -1016,7 +1034,9 @@ static void musb_shutdown(struct platform_device *pdev)
 	|| defined(CONFIG_USB_MUSB_OMAP2PLUS)		\
 	|| defined(CONFIG_USB_MUSB_OMAP2PLUS_MODULE)	\
 	|| defined(CONFIG_USB_MUSB_AM35X)		\
-	|| defined(CONFIG_USB_MUSB_AM35X_MODULE)
+	|| defined(CONFIG_USB_MUSB_AM35X_MODULE)	\
+	|| defined(CONFIG_USB_MUSB_DSPS)		\
+	|| defined(CONFIG_USB_MUSB_DSPS_MODULE)
 static ushort __devinitdata fifo_mode = 4;
 #elif defined(CONFIG_USB_MUSB_UX500)			\
 	|| defined(CONFIG_USB_MUSB_UX500_MODULE)
@@ -1904,13 +1924,16 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	if (!musb->isr) {
 		status = -ENODEV;
-		goto fail3;
+		goto fail2;
 	}
 
 	if (!musb->xceiv->io_ops) {
+		musb->xceiv->io_dev = musb->controller;
 		musb->xceiv->io_priv = musb->mregs;
 		musb->xceiv->io_ops = &musb_ulpi_access;
 	}
+
+	pm_runtime_get_sync(musb->controller);
 
 #ifndef CONFIG_MUSB_PIO_ONLY
 	if (use_dma && dev->dma_mask) {
@@ -2023,6 +2046,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		goto fail5;
 #endif
 
+	pm_runtime_put(musb->controller);
+
 	dev_info(dev, "USB %s mode controller at %p using %s, IRQ %d\n",
 			({char *s;
 			 switch (musb->board_mode) {
@@ -2047,6 +2072,9 @@ fail4:
 		musb_gadget_cleanup(musb);
 
 fail3:
+	pm_runtime_put_sync(musb->controller);
+
+fail2:
 	if (musb->irq_wake)
 		device_init_wakeup(dev, 0);
 	musb_platform_exit(musb);

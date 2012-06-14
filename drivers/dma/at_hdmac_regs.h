@@ -87,7 +87,26 @@
 /* Bitfields in CTRLA */
 #define	ATC_BTSIZE_MAX		0xFFFFUL	/* Maximum Buffer Transfer Size */
 #define	ATC_BTSIZE(x)		(ATC_BTSIZE_MAX & (x)) /* Buffer Transfer Size */
-/* Chunck Tranfer size definitions are in at_hdmac.h */
+#define	ATC_SCSIZE_MASK		(0x7 << 16)	/* Source Chunk Transfer Size */
+#define		ATC_SCSIZE(x)		(ATC_SCSIZE_MASK & ((x) << 16))
+#define		ATC_SCSIZE_1		(0x0 << 16)
+#define		ATC_SCSIZE_4		(0x1 << 16)
+#define		ATC_SCSIZE_8		(0x2 << 16)
+#define		ATC_SCSIZE_16		(0x3 << 16)
+#define		ATC_SCSIZE_32		(0x4 << 16)
+#define		ATC_SCSIZE_64		(0x5 << 16)
+#define		ATC_SCSIZE_128		(0x6 << 16)
+#define		ATC_SCSIZE_256		(0x7 << 16)
+#define	ATC_DCSIZE_MASK		(0x7 << 20)	/* Destination Chunk Transfer Size */
+#define		ATC_DCSIZE(x)		(ATC_DCSIZE_MASK & ((x) << 20))
+#define		ATC_DCSIZE_1		(0x0 << 20)
+#define		ATC_DCSIZE_4		(0x1 << 20)
+#define		ATC_DCSIZE_8		(0x2 << 20)
+#define		ATC_DCSIZE_16		(0x3 << 20)
+#define		ATC_DCSIZE_32		(0x4 << 20)
+#define		ATC_DCSIZE_64		(0x5 << 20)
+#define		ATC_DCSIZE_128		(0x6 << 20)
+#define		ATC_DCSIZE_256		(0x7 << 20)
 #define	ATC_SRC_WIDTH_MASK	(0x3 << 24)	/* Source Single Transfer Size */
 #define		ATC_SRC_WIDTH(x)	((x) << 24)
 #define		ATC_SRC_WIDTH_BYTE	(0x0 << 24)
@@ -207,8 +226,8 @@ enum atc_status {
  * @save_cfg: configuration register that is saved on suspend/resume cycle
  * @save_dscr: for cyclic operations, preserve next descriptor address in
  *             the cyclic list on suspend/resume cycle
+ * @dma_sconfig: configuration for slave transfers, passed via DMA_SLAVE_CONFIG
  * @lock: serializes enqueue/dequeue operations to descriptors lists
- * @completed_cookie: identifier for the most recently completed operation
  * @active_list: list of descriptors dmaengine is being running on
  * @queue: list of descriptors ready to be submitted to engine
  * @free_list: list of descriptors usable by the channel
@@ -223,11 +242,11 @@ struct at_dma_chan {
 	struct tasklet_struct	tasklet;
 	u32			save_cfg;
 	u32			save_dscr;
+	struct dma_slave_config dma_sconfig;
 
 	spinlock_t		lock;
 
 	/* these other elements are all protected by lock */
-	dma_cookie_t		completed_cookie;
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
@@ -245,6 +264,36 @@ static inline struct at_dma_chan *to_at_dma_chan(struct dma_chan *dchan)
 	return container_of(dchan, struct at_dma_chan, chan_common);
 }
 
+/*
+ * Fix sconfig's burst size according to at_hdmac. We need to convert them as:
+ * 1 -> 0, 4 -> 1, 8 -> 2, 16 -> 3, 32 -> 4, 64 -> 5, 128 -> 6, 256 -> 7.
+ *
+ * This can be done by finding most significant bit set.
+ */
+static inline void convert_burst(u32 *maxburst)
+{
+	if (*maxburst > 1)
+		*maxburst = fls(*maxburst) - 2;
+	else
+		*maxburst = 0;
+}
+
+/*
+ * Fix sconfig's bus width according to at_hdmac.
+ * 1 byte -> 0, 2 bytes -> 1, 4 bytes -> 2.
+ */
+static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
+{
+	switch (addr_width) {
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
+		return 1;
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
+		return 2;
+	default:
+		/* For 1 byte width or fallback */
+		return 0;
+	}
+}
 
 /*--  Controller  ------------------------------------------------------*/
 

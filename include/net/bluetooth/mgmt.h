@@ -117,7 +117,7 @@ struct mgmt_mode {
 #define MGMT_OP_SET_DISCOVERABLE	0x0006
 struct mgmt_cp_set_discoverable {
 	__u8	val;
-	__u16	timeout;
+	__le16	timeout;
 } __packed;
 #define MGMT_SET_DISCOVERABLE_SIZE	3
 
@@ -340,6 +340,15 @@ struct mgmt_cp_unblock_device {
 	struct mgmt_addr_info addr;
 } __packed;
 #define MGMT_UNBLOCK_DEVICE_SIZE	MGMT_ADDR_INFO_SIZE
+
+#define MGMT_OP_SET_DEVICE_ID		0x0028
+struct mgmt_cp_set_device_id {
+	__le16	source;
+	__le16	vendor;
+	__le16	product;
+	__le16	version;
+} __packed;
+#define MGMT_SET_DEVICE_ID_SIZE		8
 
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {

@@ -12,6 +12,7 @@
 
 #include <asm/io.h>
 #include <asm/mach-types.h>
+#include <asm/system_info.h>
 
 #include <mach/msm_fb.h>
 #include <mach/vreg.h>

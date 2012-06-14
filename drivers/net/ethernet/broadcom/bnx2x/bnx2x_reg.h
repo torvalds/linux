@@ -987,6 +987,7 @@
  * clear; 1 = set. Data valid only in addresses 0-4. all the rest are zero. */
 #define IGU_REG_WRITE_DONE_PENDING				 0x130480
 #define MCP_A_REG_MCPR_SCRATCH					 0x3a0000
+#define MCP_REG_MCPR_ACCESS_LOCK				 0x8009c
 #define MCP_REG_MCPR_CPU_PROGRAM_COUNTER			 0x8501c
 #define MCP_REG_MCPR_GP_INPUTS					 0x800c0
 #define MCP_REG_MCPR_GP_OENABLE					 0x800c8
@@ -1482,6 +1483,11 @@
    starts at 0x0 for the A0 tape-out and increments by one for each
    all-layer tape-out. */
 #define MISC_REG_CHIP_REV					 0xa40c
+/* [R 14] otp_misc_do[100:0] spare bits collection: 13:11-
+ * otp_misc_do[100:98]; 10:7 - otp_misc_do[87:84]; 6:3 - otp_misc_do[75:72];
+ * 2:1 - otp_misc_do[51:50]; 0 - otp_misc_do[1]. */
+#define MISC_REG_CHIP_TYPE					 0xac60
+#define MISC_REG_CHIP_TYPE_57811_MASK				 (1<<1)
 /* [RW 32] The following driver registers(1...16) represent 16 drivers and
    32 clients. Each client can be controlled by one driver only. One in each
    bit represent that this driver control the appropriate client (Ex: bit 5
@@ -1686,6 +1692,7 @@
    [10] rst_dbg; [11] rst_misc_core; [12] rst_dbue (UART); [13]
    Pci_resetmdio_n; [14] rst_emac0_hard_core; [15] rst_emac1_hard_core; 16]
    rst_pxp_rq_rd_wr; 31:17] reserved */
+#define MISC_REG_RESET_REG_1					 0xa580
 #define MISC_REG_RESET_REG_2					 0xa590
 /* [RW 20] 20 bit GRC address where the scratch-pad of the MCP that is
    shared with the driver resides */
@@ -5352,6 +5359,7 @@
 #define XMAC_CTRL_REG_TX_EN					 (0x1<<0)
 #define XMAC_PAUSE_CTRL_REG_RX_PAUSE_EN				 (0x1<<18)
 #define XMAC_PAUSE_CTRL_REG_TX_PAUSE_EN				 (0x1<<17)
+#define XMAC_PFC_CTRL_HI_REG_FORCE_PFC_XON			 (0x1<<1)
 #define XMAC_PFC_CTRL_HI_REG_PFC_REFRESH_EN			 (0x1<<0)
 #define XMAC_PFC_CTRL_HI_REG_PFC_STATS_EN			 (0x1<<3)
 #define XMAC_PFC_CTRL_HI_REG_RX_PFC_EN				 (0x1<<4)
@@ -5606,6 +5614,7 @@
 /* [RC 32] Parity register #0 read clear */
 #define XSEM_REG_XSEM_PRTY_STS_CLR_0				 0x280128
 #define XSEM_REG_XSEM_PRTY_STS_CLR_1				 0x280138
+#define MCPR_ACCESS_LOCK_LOCK					 (1L<<31)
 #define MCPR_NVM_ACCESS_ENABLE_EN				 (1L<<0)
 #define MCPR_NVM_ACCESS_ENABLE_WR_EN				 (1L<<1)
 #define MCPR_NVM_ADDR_NVM_ADDR_VALUE				 (0xffffffL<<0)
@@ -5732,6 +5741,7 @@
 #define MISC_REGISTERS_GPIO_PORT_SHIFT				 4
 #define MISC_REGISTERS_GPIO_SET_POS				 8
 #define MISC_REGISTERS_RESET_REG_1_CLEAR			 0x588
+#define MISC_REGISTERS_RESET_REG_1_RST_BRB1			 (0x1<<0)
 #define MISC_REGISTERS_RESET_REG_1_RST_DORQ			 (0x1<<19)
 #define MISC_REGISTERS_RESET_REG_1_RST_HC			 (0x1<<29)
 #define MISC_REGISTERS_RESET_REG_1_RST_NIG			 (0x1<<7)
@@ -6816,10 +6826,13 @@ Theotherbitsarereservedandshouldbezero*/
 
 #define MDIO_AN_REG_8481_10GBASE_T_AN_CTRL	0x0020
 #define MDIO_AN_REG_8481_LEGACY_MII_CTRL	0xffe0
+#define MDIO_AN_REG_8481_MII_CTRL_FORCE_1G	0x40
 #define MDIO_AN_REG_8481_LEGACY_MII_STATUS	0xffe1
 #define MDIO_AN_REG_8481_LEGACY_AN_ADV		0xffe4
 #define MDIO_AN_REG_8481_LEGACY_AN_EXPANSION	0xffe6
 #define MDIO_AN_REG_8481_1000T_CTRL		0xffe9
+#define MDIO_AN_REG_8481_1G_100T_EXT_CTRL	0xfff0
+#define MIDO_AN_REG_8481_EXT_CTRL_FORCE_LEDS_OFF	0x0008
 #define MDIO_AN_REG_8481_EXPANSION_REG_RD_RW	0xfff5
 #define MDIO_AN_REG_8481_EXPANSION_REG_ACCESS	0xfff7
 #define MDIO_AN_REG_8481_AUX_CTRL		0xfff8
@@ -6939,6 +6952,10 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_GP2_STATUS_GP_2_2			0x81d2
 #define MDIO_WC_REG_GP2_STATUS_GP_2_3			0x81d3
 #define MDIO_WC_REG_GP2_STATUS_GP_2_4			0x81d4
+#define MDIO_WC_REG_GP2_STATUS_GP_2_4_CL73_AN_CMPL 0x1000
+#define MDIO_WC_REG_GP2_STATUS_GP_2_4_CL37_AN_CMPL 0x0100
+#define MDIO_WC_REG_GP2_STATUS_GP_2_4_CL37_LP_AN_CAP 0x0010
+#define MDIO_WC_REG_GP2_STATUS_GP_2_4_CL37_AN_CAP 0x1
 #define MDIO_WC_REG_UC_INFO_B0_DEAD_TRAP		0x81EE
 #define MDIO_WC_REG_UC_INFO_B1_VERSION			0x81F0
 #define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE		0x81F2

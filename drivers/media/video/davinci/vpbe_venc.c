@@ -27,7 +27,6 @@
 
 #include <mach/hardware.h>
 #include <mach/mux.h>
-#include <mach/io.h>
 #include <mach/i2c.h>
 
 #include <linux/io.h>

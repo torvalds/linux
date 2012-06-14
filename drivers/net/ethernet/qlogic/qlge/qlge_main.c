@@ -3845,7 +3845,7 @@ static int ql_wol(struct ql_adapter *qdev)
 	if (qdev->wol & (WAKE_ARP | WAKE_MAGICSECURE | WAKE_PHY | WAKE_UCAST |
 			WAKE_MCAST | WAKE_BCAST)) {
 		netif_err(qdev, ifdown, qdev->ndev,
-			  "Unsupported WOL paramter. qdev->wol = 0x%x.\n",
+			  "Unsupported WOL parameter. qdev->wol = 0x%x.\n",
 			  qdev->wol);
 		return -EINVAL;
 	}

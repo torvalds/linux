@@ -13,6 +13,24 @@ config PLAT_SAMSUNG
 	help
 	  Base platform code for all Samsung SoC based systems
 
+config PLAT_S5P
+	bool
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	default y
+	select ARM_VIC if !ARCH_EXYNOS
+	select ARM_GIC if ARCH_EXYNOS
+	select GIC_NON_BANKED if ARCH_EXYNOS4
+	select NO_IOPORT
+	select ARCH_REQUIRE_GPIOLIB
+	select S3C_GPIO_TRACK
+	select S5P_GPIO_DRVSTR
+	select SAMSUNG_GPIOLIB_4BIT
+	select PLAT_SAMSUNG
+	select SAMSUNG_CLKSRC
+	select SAMSUNG_IRQ_VIC_TIMER
+	help
+	  Base platform code for Samsung's S5P series SoC.
+
 if PLAT_SAMSUNG
 
 # boot configurations
@@ -50,6 +68,14 @@ config S3C_LOWLEVEL_UART_PORT
 	  this configuration should be between zero and two. The port
 	  must have been initialised by the boot-loader before use.
 
+# timer options
+
+config S5P_HRT
+	bool
+	select SAMSUNG_DEV_PWM
+	help
+	  Use the High Resolution timer support
+
 # clock options
 
 config SAMSUNG_CLKSRC
@@ -58,12 +84,33 @@ config SAMSUNG_CLKSRC
 	  Select the clock code for the clksrc implementation
 	  used by newer systems such as the S3C64XX.
 
+config S5P_CLOCK
+	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	help
+	  Support common clock part for ARCH_S5P and ARCH_EXYNOS SoCs
+
 # options for IRQ support
 
 config SAMSUNG_IRQ_VIC_TIMER
        bool
        help
          Internal configuration to build the VIC timer interrupt code.
+
+config S5P_IRQ
+	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	help
+	  Support common interrup part for ARCH_S5P and ARCH_EXYNOS SoCs
+
+config S5P_EXT_INT
+	bool
+	help
+	  Use the external interrupts (other than GPIO interrupts.)
+	  Note: Do not choose this for S5P6440 and S5P6450.
+
+config S5P_GPIO_INT
+	bool
+	help
+	  Common code for the GPIO interrupts (other than external interrupts.)
 
 # options for gpio configuration support
 
@@ -116,6 +163,12 @@ config S3C_GPIO_TRACK
 	help
 	  Internal configuration option to enable the s3c specific gpio
 	  chip tracking if the platform requires it.
+
+# uart options
+
+config S5P_DEV_UART
+	def_bool y
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 
 # ADC driver
 
@@ -274,12 +327,87 @@ config SAMSUNG_DEV_BACKLIGHT
 	help
 	  Compile in platform device definition LCD backlight with PWM Timer
 
+config S5P_DEV_CSIS0
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 0
+
+config S5P_DEV_CSIS1
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 1
+
+config S5P_DEV_FIMC0
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 0
+
+config S5P_DEV_FIMC1
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 1
+
+config S5P_DEV_FIMC2
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 2
+
+config S5P_DEV_FIMC3
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 3
+
+config S5P_DEV_FIMD0
+	bool
+	help
+	  Compile in platform device definitions for FIMD controller 0
+
+config S5P_DEV_G2D
+	bool
+	help
+	  Compile in platform device definitions for G2D device
+
+config S5P_DEV_I2C_HDMIPHY
+	bool
+	help
+	  Compile in platform device definitions for I2C HDMIPHY controller
+
+config S5P_DEV_JPEG
+	bool
+	help
+	  Compile in platform device definitions for JPEG codec
+
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in setup memory (init) code for MFC
+
+config S5P_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller
+
+config S5P_DEV_TV
+	bool
+	help
+	  Compile in platform device definition for TV interface
+
+config S5P_DEV_USB_EHCI
+	bool
+	help
+	  Compile in platform device definition for USB EHCI
+
 config S3C24XX_PWM
 	bool "PWM device support"
 	select HAVE_PWM
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
+
+config S5P_SETUP_MIPIPHY
+	bool
+	help
+	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
 
 # DMA
 
@@ -291,7 +419,7 @@ config S3C_DMA
 config SAMSUNG_DMADEV
 	bool
 	select DMADEVICES
-	select PL330_DMA if (CPU_EXYNOS4210 || CPU_S5PV210 || CPU_S5PC100 || \
+	select PL330_DMA if (ARCH_EXYNOS5 || ARCH_EXYNOS4 || CPU_S5PV210 || CPU_S5PC100 || \
 					CPU_S5P6450 || CPU_S5P6440)
 	select ARM_AMBA
 	help
@@ -302,6 +430,7 @@ comment "Power management"
 config SAMSUNG_PM_DEBUG
 	bool "S3C2410 PM Suspend debug"
 	depends on PM
+	select DEBUG_LL
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
 	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
@@ -349,6 +478,18 @@ config SAMSUNG_WAKEMASK
 	  Compile support for wakeup-mask controls found on the S3C6400
 	  and above. This code allows a set of interrupt to wakeup-mask
 	  mappings. See <plat/wakeup-mask.h>
+
+config S5P_PM
+	bool
+	help
+	  Common code for power management support on S5P and newer SoCs
+	  Note: Do not select this for S5P6440 and S5P6450.
+
+config S5P_SLEEP
+	bool
+	help
+	  Internal config node to apply common S5P sleep management code.
+	  Can be selected by S5P and newer SoCs with similar sleep procedure.
 
 comment "Power Domain"
 

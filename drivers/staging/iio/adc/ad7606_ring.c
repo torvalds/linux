@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Analog Devices Inc.
+ * Copyright 2011-2012 Analog Devices Inc.
  *
  * Licensed under the GPL-2.
  *
@@ -11,10 +11,10 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
-#include "../iio.h"
-#include "../buffer.h"
-#include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/kfifo_buf.h>
+#include <linux/iio/trigger_consumer.h>
 
 #include "ad7606.h"
 
@@ -51,8 +51,7 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	__u8 *buf;
 	int ret;
 
-	buf = kzalloc(ring->access->get_bytes_per_datum(ring),
-		      GFP_KERNEL);
+	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (buf == NULL)
 		return;
 
@@ -82,9 +81,8 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 
 	time_ns = iio_get_time_ns();
 
-	if (ring->scan_timestamp)
-		*((s64 *)(buf + ring->access->get_bytes_per_datum(ring) -
-			  sizeof(s64))) = time_ns;
+	if (indio_dev->scan_timestamp)
+		*((s64 *)(buf + indio_dev->scan_bytes - sizeof(s64))) = time_ns;
 
 	ring->access->store_to(indio_dev->buffer, buf, time_ns);
 done:
@@ -104,7 +102,7 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
 
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
 	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -119,13 +117,13 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 						 indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
+		goto error_deallocate_kfifo;
 	}
 
 	/* Ring buffer functions - here trigger setup related */
 
 	indio_dev->setup_ops = &ad7606_ring_setup_ops;
-	indio_dev->buffer->scan_timestamp = true ;
+	indio_dev->buffer->scan_timestamp = true;
 
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
@@ -133,8 +131,8 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
-error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->buffer);
+error_deallocate_kfifo:
+	iio_kfifo_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -142,5 +140,5 @@ error_ret:
 void ad7606_ring_cleanup(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }

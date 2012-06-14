@@ -37,12 +37,6 @@
  *
  */
 
-#ifdef __ASSEMBLY__
-#define IOMEM(x)	x
-#else
-#define IOMEM(x)	((void __force __iomem *)(x))
-#endif
-
 #if defined(CONFIG_ARCH_MSM7X30)
 #include "msm_iomap-7x30.h"
 #elif defined(CONFIG_ARCH_QSD8X50)

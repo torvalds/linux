@@ -95,7 +95,6 @@ static long beat_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long lpar_rc;
 	u64 hpte_v, hpte_r, slot;
 
-	/* same as iseries */
 	if (vflags & HPTE_V_SECONDARY)
 		return -1;
 
@@ -319,7 +318,6 @@ static long beat_lpar_hpte_insert_v3(unsigned long hpte_group,
 	unsigned long lpar_rc;
 	u64 hpte_v, hpte_r, slot;
 
-	/* same as iseries */
 	if (vflags & HPTE_V_SECONDARY)
 		return -1;
 

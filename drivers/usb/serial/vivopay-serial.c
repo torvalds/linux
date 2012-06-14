@@ -25,13 +25,6 @@ static struct usb_device_id id_table [] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver vivopay_serial_driver = {
-	.name =			"vivopay-serial",
-	.probe =		usb_serial_probe,
-	.disconnect =		usb_serial_disconnect,
-	.id_table =		id_table,
-};
-
 static struct usb_serial_driver vivopay_serial_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -45,7 +38,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&vivopay_serial_device, NULL
 };
 
-module_usb_serial_driver(vivopay_serial_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR("Forest Bond <forest.bond@outpostembedded.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);

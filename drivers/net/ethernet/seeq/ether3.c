@@ -64,7 +64,6 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
 

@@ -28,7 +28,6 @@
 #include <linux/of_platform.h>
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>

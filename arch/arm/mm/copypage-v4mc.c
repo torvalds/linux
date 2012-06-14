@@ -23,10 +23,6 @@
 
 #include "mm.h"
 
-/*
- * 0xffff8000 to 0xffffffff is reserved for any ARM architecture
- * specific hacks for copying pages efficiently.
- */
 #define minicache_pgprot __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | \
 				  L_PTE_MT_MINICACHE)
 
@@ -78,10 +74,9 @@ void v4_mc_copy_user_highpage(struct page *to, struct page *from,
 
 	raw_spin_lock(&minicache_lock);
 
-	set_pte_ext(TOP_PTE(0xffff8000), pfn_pte(page_to_pfn(from), minicache_pgprot), 0);
-	flush_tlb_kernel_page(0xffff8000);
+	set_top_pte(COPYPAGE_MINICACHE, mk_pte(from, minicache_pgprot));
 
-	mc_copy_user_page((void *)0xffff8000, kto);
+	mc_copy_user_page((void *)COPYPAGE_MINICACHE, kto);
 
 	raw_spin_unlock(&minicache_lock);
 

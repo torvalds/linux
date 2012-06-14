@@ -48,7 +48,6 @@
 #include <pcmcia/ciscode.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <linux/wireless.h>
 
 #include "atmel.h"

@@ -27,6 +27,7 @@
 
 #include <asm/irq.h>
 #include <asm/proc-fns.h>
+#include <asm/system_misc.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>

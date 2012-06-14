@@ -42,7 +42,6 @@
 #include <linux/notifier.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <net/net_namespace.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
@@ -210,15 +209,7 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 	struct dn_dev_sysctl_table *t;
 	int i;
 
-#define DN_CTL_PATH_DEV	3
-
-	struct ctl_path dn_ctl_path[] = {
-		{ .procname = "net",  },
-		{ .procname = "decnet",  },
-		{ .procname = "conf",  },
-		{ /* to be set */ },
-		{ },
-	};
+	char path[sizeof("net/decnet/conf/") + IFNAMSIZ];
 
 	t = kmemdup(&dn_dev_sysctl, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
@@ -229,15 +220,12 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 		t->dn_dev_vars[i].data = ((char *)parms) + offset;
 	}
 
-	if (dev) {
-		dn_ctl_path[DN_CTL_PATH_DEV].procname = dev->name;
-	} else {
-		dn_ctl_path[DN_CTL_PATH_DEV].procname = parms->name;
-	}
+	snprintf(path, sizeof(path), "net/decnet/conf/%s",
+		dev? dev->name : parms->name);
 
 	t->dn_dev_vars[0].extra1 = (void *)dev;
 
-	t->sysctl_header = register_sysctl_paths(dn_ctl_path, t->dn_dev_vars);
+	t->sysctl_header = register_net_sysctl(&init_net, path, t->dn_dev_vars);
 	if (t->sysctl_header == NULL)
 		kfree(t);
 	else
@@ -249,7 +237,7 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 	if (parms->sysctl) {
 		struct dn_dev_sysctl_table *t = parms->sysctl;
 		parms->sysctl = NULL;
-		unregister_sysctl_table(t->sysctl_header);
+		unregister_net_sysctl_table(t->sysctl_header);
 		kfree(t);
 	}
 }
@@ -695,13 +683,13 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 	ifm->ifa_scope = ifa->ifa_scope;
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
-	if (ifa->ifa_address)
-		NLA_PUT_LE16(skb, IFA_ADDRESS, ifa->ifa_address);
-	if (ifa->ifa_local)
-		NLA_PUT_LE16(skb, IFA_LOCAL, ifa->ifa_local);
-	if (ifa->ifa_label[0])
-		NLA_PUT_STRING(skb, IFA_LABEL, ifa->ifa_label);
-
+	if ((ifa->ifa_address &&
+	     nla_put_le16(skb, IFA_ADDRESS, ifa->ifa_address)) ||
+	    (ifa->ifa_local &&
+	     nla_put_le16(skb, IFA_LOCAL, ifa->ifa_local)) ||
+	    (ifa->ifa_label[0] &&
+	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)))
+		goto nla_put_failure;
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:

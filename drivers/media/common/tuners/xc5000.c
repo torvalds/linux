@@ -54,6 +54,7 @@ struct xc5000_priv {
 	struct list_head hybrid_tuner_instance_list;
 
 	u32 if_khz;
+	u16 xtal_khz;
 	u32 freq_hz;
 	u32 bandwidth;
 	u8  video_standard;
@@ -214,9 +215,9 @@ static const struct xc5000_fw_cfg xc5000a_1_6_114 = {
 	.size = 12401,
 };
 
-static const struct xc5000_fw_cfg xc5000c_41_024_5_31875 = {
-	.name = "dvb-fe-xc5000c-41.024.5-31875.fw",
-	.size = 16503,
+static const struct xc5000_fw_cfg xc5000c_41_024_5 = {
+	.name = "dvb-fe-xc5000c-41.024.5.fw",
+	.size = 16497,
 };
 
 static inline const struct xc5000_fw_cfg *xc5000_assign_firmware(int chip_id)
@@ -226,7 +227,7 @@ static inline const struct xc5000_fw_cfg *xc5000_assign_firmware(int chip_id)
 	case XC5000A:
 		return &xc5000a_1_6_114;
 	case XC5000C:
-		return &xc5000c_41_024_5_31875;
+		return &xc5000c_41_024_5;
 	}
 }
 
@@ -572,6 +573,31 @@ static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz, int mode)
 	return found;
 }
 
+static int xc_set_xtal(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret = XC_RESULT_SUCCESS;
+
+	switch (priv->chip_id) {
+	default:
+	case XC5000A:
+		/* 32.000 MHz xtal is default */
+		break;
+	case XC5000C:
+		switch (priv->xtal_khz) {
+		default:
+		case 32000:
+			/* 32.000 MHz xtal is default */
+			break;
+		case 31875:
+			/* 31.875 MHz xtal configuration */
+			ret = xc_write_reg(priv, 0x000f, 0x8081);
+			break;
+		}
+		break;
+	}
+	return ret;
+}
 
 static int xc5000_fwupload(struct dvb_frontend *fe)
 {
@@ -603,7 +629,12 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 	} else {
 		printk(KERN_INFO "xc5000: firmware uploading...\n");
 		ret = xc_load_i2c_sequence(fe,  fw->data);
-		printk(KERN_INFO "xc5000: firmware upload complete...\n");
+		if (XC_RESULT_SUCCESS == ret)
+			ret = xc_set_xtal(fe);
+		if (XC_RESULT_SUCCESS == ret)
+			printk(KERN_INFO "xc5000: firmware upload complete...\n");
+		else
+			printk(KERN_ERR "xc5000: firmware upload failed...\n");
 	}
 
 out:
@@ -1163,6 +1194,9 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		   call to xc5000_attach occurs before the digital side) */
 		priv->if_khz = cfg->if_khz;
 	}
+
+	if (priv->xtal_khz == 0)
+		priv->xtal_khz = cfg->xtal_khz;
 
 	if (priv->radio_input == 0)
 		priv->radio_input = cfg->radio_input;

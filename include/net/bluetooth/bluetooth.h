@@ -1,4 +1,4 @@
-/* 
+/*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
 
@@ -12,22 +12,19 @@
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
    IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
+   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
+   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
+   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS,
+   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS
    SOFTWARE IS DISCLAIMED.
 */
 
 #ifndef __BLUETOOTH_H
 #define __BLUETOOTH_H
 
-#include <asm/types.h>
-#include <asm/byteorder.h>
-#include <linux/list.h>
 #include <linux/poll.h>
 #include <net/sock.h>
 
@@ -163,8 +160,13 @@ typedef struct {
 	__u8 b[6];
 } __packed bdaddr_t;
 
-#define BDADDR_ANY   (&(bdaddr_t) {{0, 0, 0, 0, 0, 0}})
-#define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff}})
+/* BD Address type */
+#define BDADDR_BREDR		0x00
+#define BDADDR_LE_PUBLIC	0x01
+#define BDADDR_LE_RANDOM	0x02
+
+#define BDADDR_ANY   (&(bdaddr_t) {{0, 0, 0, 0, 0, 0} })
+#define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff} })
 
 /* Copy, swap, convert BD Address */
 static inline int bacmp(bdaddr_t *ba1, bdaddr_t *ba2)
@@ -178,7 +180,6 @@ static inline void bacpy(bdaddr_t *dst, bdaddr_t *src)
 
 void baswap(bdaddr_t *dst, bdaddr_t *src);
 char *batostr(bdaddr_t *ba);
-bdaddr_t *strtoba(char *str);
 
 /* Common socket structures and functions */
 
@@ -190,7 +191,12 @@ struct bt_sock {
 	bdaddr_t    dst;
 	struct list_head accept_q;
 	struct sock *parent;
-	u32 defer_setup;
+	unsigned long flags;
+};
+
+enum {
+	BT_SK_DEFER_SETUP,
+	BT_SK_SUSPEND,
 };
 
 struct bt_sock_list {
@@ -206,7 +212,7 @@ int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 				struct msghdr *msg, size_t len, int flags);
 int  bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			struct msghdr *msg, size_t len, int flags);
-uint bt_sock_poll(struct file * file, struct socket *sock, poll_table *wait);
+uint bt_sock_poll(struct file *file, struct socket *sock, poll_table *wait);
 int  bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int  bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo);
 
@@ -215,14 +221,24 @@ void bt_accept_unlink(struct sock *sk);
 struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 
 /* Skb helpers */
+struct l2cap_ctrl {
+	unsigned int	sframe:1,
+			poll:1,
+			final:1,
+			fcs:1,
+			sar:2,
+			super:2;
+	__u16		reqseq;
+	__u16		txseq;
+	__u8		retries;
+};
+
 struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
 	__u16 expect;
-	__u16 tx_seq;
-	__u8 retries;
-	__u8 sar;
 	__u8 force_active;
+	struct l2cap_ctrl control;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
@@ -230,7 +246,8 @@ static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 {
 	struct sk_buff *skb;
 
-	if ((skb = alloc_skb(len + BT_SKB_RESERVE, how))) {
+	skb = alloc_skb(len + BT_SKB_RESERVE, how);
+	if (skb) {
 		skb_reserve(skb, BT_SKB_RESERVE);
 		bt_cb(skb)->incoming  = 0;
 	}
@@ -242,12 +259,11 @@ static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk,
 {
 	struct sk_buff *skb;
 
-	release_sock(sk);
-	if ((skb = sock_alloc_send_skb(sk, len + BT_SKB_RESERVE, nb, err))) {
+	skb = sock_alloc_send_skb(sk, len + BT_SKB_RESERVE, nb, err);
+	if (skb) {
 		skb_reserve(skb, BT_SKB_RESERVE);
 		bt_cb(skb)->incoming  = 0;
 	}
-	lock_sock(sk);
 
 	if (!skb && *err)
 		return NULL;

@@ -48,17 +48,6 @@
 
 static DEFINE_MUTEX(start_stop_sem);
 
-static DEFINE_PCI_DEVICE_TABLE(dyna_pci10xx_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_DYNALOG, 0x1050) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, dyna_pci10xx_pci_table);
-
-static int dyna_pci10xx_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int dyna_pci10xx_detach(struct comedi_device *dev);
-
 static const struct comedi_lrange range_pci1050_ai = { 3, {
 							  BIP_RANGE(10),
 							  BIP_RANGE(5),
@@ -111,16 +100,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	/*  dummy entry corresponding to driver name */
 	{.name = DRV_NAME},
-};
-
-static struct comedi_driver driver_dyna_pci10xx = {
-	.driver_name = DRV_NAME,
-	.module = THIS_MODULE,
-	.attach = dyna_pci10xx_attach,
-	.detach = dyna_pci10xx_detach,
-	.board_name = &boardtypes[0].name,
-	.offset = sizeof(struct boardtype),
-	.num_names = ARRAY_SIZE(boardtypes),
 };
 
 struct dyna_pci10xx_private {
@@ -408,54 +387,48 @@ found:
 	return 1;
 }
 
-static int dyna_pci10xx_detach(struct comedi_device *dev)
+static void dyna_pci10xx_detach(struct comedi_device *dev)
 {
 	if (devpriv && devpriv->pci_dev) {
 		comedi_pci_disable(devpriv->pci_dev);
 		mutex_destroy(&devpriv->mutex);
 	}
-
-	return 0;
 }
 
-static int __devinit driver_dyna_pci10xx_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
+static struct comedi_driver dyna_pci10xx_driver = {
+	.driver_name	= "dyna_pci10xx",
+	.module		= THIS_MODULE,
+	.attach		= dyna_pci10xx_attach,
+	.detach		= dyna_pci10xx_detach,
+	.board_name	= &boardtypes[0].name,
+	.offset		= sizeof(struct boardtype),
+	.num_names	= ARRAY_SIZE(boardtypes),
+};
+
+static int __devinit dyna_pci10xx_pci_probe(struct pci_dev *dev,
+					    const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_dyna_pci10xx.driver_name);
+	return comedi_pci_auto_config(dev, &dyna_pci10xx_driver);
 }
 
-static void __devexit driver_dyna_pci10xx_pci_remove(struct pci_dev *dev)
+static void __devexit dyna_pci10xx_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_dyna_pci10xx_pci_driver = {
-	.id_table = dyna_pci10xx_pci_table,
-	.probe = &driver_dyna_pci10xx_pci_probe,
-	.remove = __devexit_p(&driver_dyna_pci10xx_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(dyna_pci10xx_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_DYNALOG, 0x1050) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, dyna_pci10xx_pci_table);
 
-static int __init driver_dyna_pci10xx_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_dyna_pci10xx);
-	if (retval < 0)
-		return retval;
-
-	driver_dyna_pci10xx_pci_driver.name =
-		(char *)driver_dyna_pci10xx.driver_name;
-	return pci_register_driver(&driver_dyna_pci10xx_pci_driver);
-}
-
-static void __exit driver_dyna_pci10xx_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_dyna_pci10xx_pci_driver);
-	comedi_driver_unregister(&driver_dyna_pci10xx);
-}
-
-module_init(driver_dyna_pci10xx_init_module);
-module_exit(driver_dyna_pci10xx_cleanup_module);
+static struct pci_driver dyna_pci10xx_pci_driver = {
+	.name		= "dyna_pci10xx",
+	.id_table	= dyna_pci10xx_pci_table,
+	.probe		= dyna_pci10xx_pci_probe,
+	.remove		= __devexit_p(dyna_pci10xx_pci_remove),
+};
+module_comedi_pci_driver(dyna_pci10xx_driver, dyna_pci10xx_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Prashant Shah <pshah.mumbai@gmail.com>");

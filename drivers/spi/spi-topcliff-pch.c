@@ -1099,7 +1099,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 		sg_dma_address(sg) = dma->rx_buf_dma + sg->offset;
 	}
 	sg = dma->sg_rx_p;
-	desc_rx = dma->chan_rx->device->device_prep_slave_sg(dma->chan_rx, sg,
+	desc_rx = dmaengine_prep_slave_sg(dma->chan_rx, sg,
 					num, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_rx) {
@@ -1158,7 +1158,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 		sg_dma_address(sg) = dma->tx_buf_dma + sg->offset;
 	}
 	sg = dma->sg_tx_p;
-	desc_tx = dma->chan_tx->device->device_prep_slave_sg(dma->chan_tx,
+	desc_tx = dmaengine_prep_slave_sg(dma->chan_tx,
 					sg, num, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_tx) {
@@ -1438,7 +1438,6 @@ static int __devinit pch_spi_pd_probe(struct platform_device *plat_dev)
 		plat_dev->id, data->io_remap_addr);
 
 	/* initialize members of SPI master */
-	master->bus_num = -1;
 	master->num_chipselect = PCH_MAX_CS;
 	master->setup = pch_spi_setup;
 	master->transfer = pch_spi_transfer;
@@ -1779,7 +1778,7 @@ static struct pci_driver pch_spi_pcidev_driver = {
 	.name = "pch_spi",
 	.id_table = pch_spi_pcidev_id,
 	.probe = pch_spi_probe,
-	.remove = pch_spi_remove,
+	.remove = __devexit_p(pch_spi_remove),
 	.suspend = pch_spi_suspend,
 	.resume = pch_spi_resume,
 };

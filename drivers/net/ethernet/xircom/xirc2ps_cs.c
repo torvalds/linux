@@ -89,7 +89,6 @@
 #include <pcmcia/ciscode.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #ifndef MANFID_COMPAQ

@@ -334,8 +334,8 @@ int __init xfrm6_init(void)
 		goto out_policy;
 
 #ifdef CONFIG_SYSCTL
-	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv6_ctl_path,
-						xfrm6_policy_table);
+	sysctl_hdr = register_net_sysctl(&init_net, "net/ipv6",
+					 xfrm6_policy_table);
 #endif
 out:
 	return ret;

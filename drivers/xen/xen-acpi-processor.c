@@ -29,6 +29,7 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
 
+#include <xen/xen.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
 
@@ -128,7 +129,10 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 			pr_debug("     C%d: %s %d uS\n",
 				 cx->type, cx->desc, (u32)cx->latency);
 		}
-	} else
+	} else if (ret != -EINVAL)
+		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
+		 * table is referencing a non-existing CPU - which can happen
+		 * with broken ACPI tables. */
 		pr_err(DRV_NAME "(CX): Hypervisor error (%d) for ACPI CPU%u\n",
 		       ret, _pr->acpi_id);
 

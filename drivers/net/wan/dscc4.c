@@ -93,7 +93,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -2056,15 +2055,4 @@ static struct pci_driver dscc4_driver = {
 	.remove		= __devexit_p(dscc4_remove_one),
 };
 
-static int __init dscc4_init_module(void)
-{
-	return pci_register_driver(&dscc4_driver);
-}
-
-static void __exit dscc4_cleanup_module(void)
-{
-	pci_unregister_driver(&dscc4_driver);
-}
-
-module_init(dscc4_init_module);
-module_exit(dscc4_cleanup_module);
+module_pci_driver(dscc4_driver);

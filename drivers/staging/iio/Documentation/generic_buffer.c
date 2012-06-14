@@ -60,9 +60,9 @@ void print2byte(int input, struct iio_channel_info *info)
 	/* First swap if incorrect endian */
 
 	if (info->be)
-		input = be16toh((uint_16t)input);
+		input = be16toh((uint16_t)input);
 	else
-		input = le16toh((uint_16t)input);
+		input = le16toh((uint16_t)input);
 
 	/* shift before conversion to avoid sign extension
 	   of left aligned data */

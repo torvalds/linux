@@ -183,13 +183,18 @@ static __init int exynos4_pm_init_power_domain(void)
 #ifdef CONFIG_S5P_DEV_CSIS1
 	exynos_pm_add_dev_to_genpd(&s5p_device_mipi_csis1, &exynos4_pd_cam);
 #endif
+#ifdef CONFIG_S5P_DEV_G2D
+	exynos_pm_add_dev_to_genpd(&s5p_device_g2d, &exynos4_pd_lcd0);
+#endif
+#ifdef CONFIG_S5P_DEV_JPEG
+	exynos_pm_add_dev_to_genpd(&s5p_device_jpeg, &exynos4_pd_cam);
+#endif
 	return 0;
 }
 arch_initcall(exynos4_pm_init_power_domain);
 
-static __init int exynos_pm_late_initcall(void)
+int __init exynos_pm_late_initcall(void)
 {
 	pm_genpd_poweroff_unused();
 	return 0;
 }
-late_initcall(exynos_pm_late_initcall);

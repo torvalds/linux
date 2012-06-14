@@ -102,7 +102,7 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if (sta->sdata == sdata &&
-		    compare_ether_addr(sta->sta.addr, addr) == 0)
+		    ether_addr_equal(sta->sta.addr, addr))
 			break;
 		sta = rcu_dereference_check(sta->hnext,
 					    lockdep_is_held(&local->sta_mtx));
@@ -125,7 +125,7 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 	while (sta) {
 		if ((sta->sdata == sdata ||
 		     (sta->sdata->bss && sta->sdata->bss == sdata->bss)) &&
-		    compare_ether_addr(sta->sta.addr, addr) == 0)
+		    ether_addr_equal(sta->sta.addr, addr))
 			break;
 		sta = rcu_dereference_check(sta->hnext,
 					    lockdep_is_held(&local->sta_mtx));
@@ -302,7 +302,7 @@ static int sta_info_insert_check(struct sta_info *sta)
 	if (unlikely(!ieee80211_sdata_running(sdata)))
 		return -ENETDOWN;
 
-	if (WARN_ON(compare_ether_addr(sta->sta.addr, sdata->vif.addr) == 0 ||
+	if (WARN_ON(ether_addr_equal(sta->sta.addr, sdata->vif.addr) ||
 		    is_multicast_ether_addr(sta->sta.addr)))
 		return -EINVAL;
 
@@ -333,9 +333,8 @@ static int sta_info_insert_drv_state(struct ieee80211_local *local,
 	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		printk(KERN_DEBUG
-		       "%s: failed to move IBSS STA %pM to state %d (%d) - keeping it anyway.\n",
-		       sdata->name, sta->sta.addr, state + 1, err);
+		pr_debug("%s: failed to move IBSS STA %pM to state %d (%d) - keeping it anyway\n",
+			 sdata->name, sta->sta.addr, state + 1, err);
 		err = 0;
 	}
 
@@ -378,7 +377,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	/* make the station visible */
 	sta_info_hash_add(local, sta);
 
-	list_add(&sta->list, &local->sta_list);
+	list_add_rcu(&sta->list, &local->sta_list);
 
 	set_sta_flag(sta, WLAN_STA_INSERTED);
 
@@ -619,8 +618,7 @@ static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
 
 		local->total_ps_buffered--;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "Buffered frame expired (STA %pM)\n",
-		       sta->sta.addr);
+		pr_debug("Buffered frame expired (STA %pM)\n", sta->sta.addr);
 #endif
 		dev_kfree_skb(skb);
 	}
@@ -688,7 +686,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	if (ret)
 		return ret;
 
-	list_del(&sta->list);
+	list_del_rcu(&sta->list);
 
 	mutex_lock(&local->key_mtx);
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
@@ -889,10 +887,8 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			continue;
 
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-			printk(KERN_DEBUG "%s: expiring inactive STA %pM\n",
-			       sdata->name, sta->sta.addr);
-#endif
+			ibss_vdbg("%s: expiring inactive STA %pM\n",
+				  sdata->name, sta->sta.addr);
 			WARN_ON(__sta_info_destroy(sta));
 		}
 	}
@@ -912,7 +908,7 @@ struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
 	 */
 	for_each_sta_info(hw_to_local(hw), addr, sta, nxt) {
 		if (localaddr &&
-		    compare_ether_addr(sta->sdata->vif.addr, localaddr) != 0)
+		    !ether_addr_equal(sta->sdata->vif.addr, localaddr))
 			continue;
 		if (!sta->uploaded)
 			return NULL;
@@ -991,9 +987,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	sta_info_recalc_tim(sta);
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	printk(KERN_DEBUG "%s: STA %pM aid %d sending %d filtered/%d PS frames "
-	       "since STA not sleeping anymore\n", sdata->name,
-	       sta->sta.addr, sta->sta.aid, filtered, buffered);
+	pr_debug("%s: STA %pM aid %d sending %d filtered/%d PS frames since STA not sleeping anymore\n",
+		 sdata->name, sta->sta.addr, sta->sta.aid, filtered, buffered);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
@@ -1385,8 +1380,8 @@ int sta_info_move_state(struct sta_info *sta,
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: moving STA %pM to state %d\n",
-		sta->sdata->name, sta->sta.addr, new_state);
+	pr_debug("%s: moving STA %pM to state %d\n",
+		 sta->sdata->name, sta->sta.addr, new_state);
 #endif
 
 	/*
@@ -1417,15 +1412,19 @@ int sta_info_move_state(struct sta_info *sta,
 		if (sta->sta_state == IEEE80211_STA_AUTH) {
 			set_bit(WLAN_STA_ASSOC, &sta->_flags);
 		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
-			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
-				atomic_dec(&sta->sdata->u.ap.num_sta_authorized);
+			if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
+			    (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+			     !sta->sdata->u.vlan.sta))
+				atomic_dec(&sta->sdata->bss->num_mcast_sta);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
 		}
 		break;
 	case IEEE80211_STA_AUTHORIZED:
 		if (sta->sta_state == IEEE80211_STA_ASSOC) {
-			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
-				atomic_inc(&sta->sdata->u.ap.num_sta_authorized);
+			if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
+			    (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+			     !sta->sdata->u.vlan.sta))
+				atomic_inc(&sta->sdata->bss->num_mcast_sta);
 			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
 		}
 		break;

@@ -31,7 +31,6 @@
 #include <linux/initrd.h>
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/oplib.h>
@@ -49,6 +48,7 @@
 #include <asm/btext.h>
 #include <asm/elf.h>
 #include <asm/mdesc.h>
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_IP_PNP
 #include <net/ipconfig.h>

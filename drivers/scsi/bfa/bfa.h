@@ -225,9 +225,9 @@ struct bfa_faa_args_s {
 };
 
 struct bfa_iocfc_s {
+	bfa_fsm_t		fsm;
 	struct bfa_s		*bfa;
 	struct bfa_iocfc_cfg_s	cfg;
-	int			action;
 	u32		req_cq_pi[BFI_IOC_MAX_CQS];
 	u32		rsp_cq_ci[BFI_IOC_MAX_CQS];
 	u8		hw_qid[BFI_IOC_MAX_CQS];
@@ -236,7 +236,9 @@ struct bfa_iocfc_s {
 	struct bfa_cb_qe_s	dis_hcb_qe;
 	struct bfa_cb_qe_s	en_hcb_qe;
 	struct bfa_cb_qe_s	stats_hcb_qe;
-	bfa_boolean_t		cfgdone;
+	bfa_boolean_t		submod_enabled;
+	bfa_boolean_t		cb_reqd;	/* Driver call back reqd */
+	bfa_status_t		op_status;	/* Status of bfa iocfc op */
 
 	struct bfa_dma_s	cfg_info;
 	struct bfi_iocfc_cfg_s *cfginfo;
@@ -341,8 +343,6 @@ void bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *vecmap, u32 *nvecs,
 void bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start,
 				 u32 *end);
 void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns);
-wwn_t bfa_iocfc_get_pwwn(struct bfa_s *bfa);
-wwn_t bfa_iocfc_get_nwwn(struct bfa_s *bfa);
 int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
 				struct bfi_pbc_vport_s *pbc_vport);
 
@@ -428,7 +428,6 @@ bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
 
 void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
-void bfa_iocfc_cb_dconf_modinit(struct bfa_s *bfa, bfa_status_t status);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)		\
 	bfa_timer_begin(&(_bfa)->timer_mod, _timer, _timercb, _arg, _timeout)
 

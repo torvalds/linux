@@ -5,13 +5,9 @@
  * PowerPC atomic operations
  */
 
-#include <linux/types.h>
-
 #ifdef __KERNEL__
-#include <linux/compiler.h>
-#include <asm/synch.h>
-#include <asm/asm-compat.h>
-#include <asm/system.h>
+#include <linux/types.h>
+#include <asm/cmpxchg.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
 

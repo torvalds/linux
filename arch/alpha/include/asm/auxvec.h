@@ -21,4 +21,6 @@
 #define AT_L2_CACHESHAPE	36
 #define AT_L3_CACHESHAPE	37
 
+#define AT_VECTOR_SIZE_ARCH 4 /* entries in ARCH_DLINFO */
+
 #endif /* __ASM_ALPHA_AUXVEC_H */

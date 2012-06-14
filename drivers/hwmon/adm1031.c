@@ -233,18 +233,15 @@ static const auto_chan_table_t auto_channel_select_table_adm1030 = {
  * nearest match if no exact match where found.
  */
 static int
-get_fan_auto_nearest(struct adm1031_data *data,
-		     int chan, u8 val, u8 reg, u8 *new_reg)
+get_fan_auto_nearest(struct adm1031_data *data, int chan, u8 val, u8 reg)
 {
 	int i;
 	int first_match = -1, exact_match = -1;
 	u8 other_reg_val =
 	    (*data->chan_select_table)[FAN_CHAN_FROM_REG(reg)][chan ? 0 : 1];
 
-	if (val == 0) {
-		*new_reg = 0;
+	if (val == 0)
 		return 0;
-	}
 
 	for (i = 0; i < 8; i++) {
 		if ((val == (*data->chan_select_table)[i][chan]) &&
@@ -264,13 +261,11 @@ get_fan_auto_nearest(struct adm1031_data *data,
 	}
 
 	if (exact_match >= 0)
-		*new_reg = exact_match;
+		return exact_match;
 	else if (first_match >= 0)
-		*new_reg = first_match;
-	else
-		return -EINVAL;
+		return first_match;
 
-	return 0;
+	return -EINVAL;
 }
 
 static ssize_t show_fan_auto_channel(struct device *dev,
@@ -301,11 +296,12 @@ set_fan_auto_channel(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&data->update_lock);
 
-	ret = get_fan_auto_nearest(data, nr, val, data->conf1, &reg);
-	if (ret) {
+	ret = get_fan_auto_nearest(data, nr, val, data->conf1);
+	if (ret < 0) {
 		mutex_unlock(&data->update_lock);
 		return ret;
 	}
+	reg = ret;
 	data->conf1 = FAN_CHAN_TO_REG(reg, data->conf1);
 	if ((data->conf1 & ADM1031_CONF1_AUTO_MODE) ^
 	    (old_fan_mode & ADM1031_CONF1_AUTO_MODE)) {

@@ -23,7 +23,7 @@
 
 #ifndef _IIO_RING_SW_H_
 #define _IIO_RING_SW_H_
-#include "buffer.h"
+#include <linux/iio/buffer.h>
 
 struct iio_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev);
 void iio_sw_rb_free(struct iio_buffer *ring);

@@ -89,6 +89,8 @@
 #define PFC_BRB_FULL_LB_XON_THRESHOLD				250
 
 #define MAXVAL(a, b) (((a) > (b)) ? (a) : (b))
+
+#define BMAC_CONTROL_RX_ENABLE		2
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
@@ -252,8 +254,10 @@ struct link_params {
 #define FEATURE_CONFIG_PFC_ENABLED			(1<<1)
 #define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY		(1<<2)
 #define FEATURE_CONFIG_BC_SUPPORTS_DUAL_PHY_OPT_MDL_VRFY	(1<<3)
+#define FEATURE_CONFIG_BC_SUPPORTS_AFEX			(1<<8)
 #define FEATURE_CONFIG_AUTOGREEEN_ENABLED			(1<<9)
 #define FEATURE_CONFIG_BC_SUPPORTS_SFP_TX_DISABLED		(1<<10)
+#define FEATURE_CONFIG_DISABLE_REMOTE_FAULT_DET		(1<<11)
 	/* Will be populated during common init */
 	struct bnx2x_phy phy[MAX_PHYS];
 
@@ -493,4 +497,6 @@ int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
 
 void bnx2x_period_func(struct link_params *params, struct link_vars *vars);
 
+int bnx2x_check_half_open_conn(struct link_params *params,
+			       struct link_vars *vars, u8 notify);
 #endif /* BNX2X_LINK_H */

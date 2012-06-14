@@ -129,7 +129,6 @@
 #include <linux/reboot.h>
 
 #include <asm/dma.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/spinlock.h>

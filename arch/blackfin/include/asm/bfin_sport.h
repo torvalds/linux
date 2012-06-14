@@ -24,6 +24,7 @@
 struct sport_config {
 	/* TDM (multichannels), I2S or other mode */
 	unsigned int mode:3;
+	unsigned int polled;	/* use poll instead of irq when set */
 
 	/* if TDM mode is selected, channels must be set */
 	int channels;	/* Must be in 8 units */

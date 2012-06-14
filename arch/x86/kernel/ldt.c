@@ -15,7 +15,6 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 #include <asm/ldt.h>
 #include <asm/desc.h>
 #include <asm/mmu_context.h>

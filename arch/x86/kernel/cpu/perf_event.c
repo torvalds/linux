@@ -29,7 +29,6 @@
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
-#include <asm/compat.h>
 #include <asm/smp.h>
 #include <asm/alternative.h>
 #include <asm/timer.h>
@@ -484,9 +483,6 @@ static int __x86_pmu_event_init(struct perf_event *event)
 	event->hw.last_tag = ~0ULL;
 
 	/* mark unused */
-	event->hw.extra_reg.idx = EXTRA_REG_NONE;
-
-	/* mark not used */
 	event->hw.extra_reg.idx = EXTRA_REG_NONE;
 	event->hw.branch_reg.idx = EXTRA_REG_NONE;
 
@@ -1187,8 +1183,6 @@ int x86_pmu_handle_irq(struct pt_regs *regs)
 	int idx, handled = 0;
 	u64 val;
 
-	perf_sample_data_init(&data, 0);
-
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
 	/*
@@ -1223,7 +1217,7 @@ int x86_pmu_handle_irq(struct pt_regs *regs)
 		 * event overflow
 		 */
 		handled++;
-		data.period	= event->hw.last_period;
+		perf_sample_data_init(&data, 0, event->hw.last_period);
 
 		if (!x86_perf_event_set_period(event))
 			continue;
@@ -1314,6 +1308,11 @@ static void __init pmu_check_apic(void)
 	pr_info("no hardware sampling interrupt available.\n");
 }
 
+static struct attribute_group x86_pmu_format_group = {
+	.name = "format",
+	.attrs = NULL,
+};
+
 static int __init init_hw_perf_events(void)
 {
 	struct x86_pmu_quirk *quirk;
@@ -1388,6 +1387,7 @@ static int __init init_hw_perf_events(void)
 	}
 
 	x86_pmu.attr_rdpmc = 1; /* enable userspace RDPMC usage by default */
+	x86_pmu_format_group.attrs = x86_pmu.format_attrs;
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.cntval_bits);
@@ -1616,6 +1616,9 @@ static int x86_pmu_event_idx(struct perf_event *event)
 {
 	int idx = event->hw.idx;
 
+	if (!x86_pmu.attr_rdpmc)
+		return 0;
+
 	if (x86_pmu.num_counters_fixed && idx >= X86_PMC_IDX_FIXED) {
 		idx -= X86_PMC_IDX_FIXED;
 		idx |= 1 << 30;
@@ -1668,6 +1671,7 @@ static struct attribute_group x86_pmu_attr_group = {
 
 static const struct attribute_group *x86_pmu_attr_groups[] = {
 	&x86_pmu_attr_group,
+	&x86_pmu_format_group,
 	NULL,
 };
 
@@ -1699,14 +1703,19 @@ static struct pmu pmu = {
 	.flush_branch_stack	= x86_pmu_flush_branch_stack,
 };
 
-void perf_update_user_clock(struct perf_event_mmap_page *userpg, u64 now)
+void arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
 {
+	userpg->cap_usr_time = 0;
+	userpg->cap_usr_rdpmc = x86_pmu.attr_rdpmc;
+	userpg->pmc_width = x86_pmu.cntval_bits;
+
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
 		return;
 
 	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 		return;
 
+	userpg->cap_usr_time = 1;
 	userpg->time_mult = this_cpu_read(cyc2ns);
 	userpg->time_shift = CYC2NS_SCALE_FACTOR;
 	userpg->time_offset = this_cpu_read(cyc2ns_offset) - now;
@@ -1748,6 +1757,9 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_COMPAT
+
+#include <asm/compat.h>
+
 static inline int
 perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {

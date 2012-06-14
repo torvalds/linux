@@ -33,7 +33,6 @@
 #include <asm/firmware.h>
 #include <asm/page.h>
 #include <asm/param.h>
-#include <asm/system.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/udbg.h>
@@ -867,6 +866,40 @@ int rtas_ibm_suspend_me(struct rtas_args *args)
 	return -ENOSYS;
 }
 #endif
+
+/**
+ * Find a specific pseries error log in an RTAS extended event log.
+ * @log: RTAS error/event log
+ * @section_id: two character section identifier
+ *
+ * Returns a pointer to the specified errorlog or NULL if not found.
+ */
+struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
+					      uint16_t section_id)
+{
+	struct rtas_ext_event_log_v6 *ext_log =
+		(struct rtas_ext_event_log_v6 *)log->buffer;
+	struct pseries_errorlog *sect;
+	unsigned char *p, *log_end;
+
+	/* Check that we understand the format */
+	if (log->extended_log_length < sizeof(struct rtas_ext_event_log_v6) ||
+	    ext_log->log_format != RTAS_V6EXT_LOG_FORMAT_EVENT_LOG ||
+	    ext_log->company_id != RTAS_V6EXT_COMPANY_ID_IBM)
+		return NULL;
+
+	log_end = log->buffer + log->extended_log_length;
+	p = ext_log->vendor_log;
+
+	while (p < log_end) {
+		sect = (struct pseries_errorlog *)p;
+		if (sect->id == section_id)
+			return sect;
+		p += sect->length;
+	}
+
+	return NULL;
+}
 
 asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 {

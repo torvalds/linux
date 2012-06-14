@@ -17,6 +17,7 @@
 #ifndef _ASM_TILE_ATOMIC_32_H
 #define _ASM_TILE_ATOMIC_32_H
 
+#include <asm/barrier.h>
 #include <arch/chip.h>
 
 #ifndef __ASSEMBLY__
@@ -199,7 +200,7 @@ static inline u64 atomic64_add_return(u64 i, atomic64_t *v)
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as @v was not already @u.
- * Returns the old value of @v.
+ * Returns non-zero if @v was not @u, and zero otherwise.
  */
 static inline u64 atomic64_add_unless(atomic64_t *v, u64 a, u64 u)
 {
@@ -302,7 +303,14 @@ void __init_atomic_per_cpu(void);
 void __atomic_fault_unlock(int *lock_ptr);
 #endif
 
+/* Return a pointer to the lock for the given address. */
+int *__atomic_hashed_lock(volatile void *v);
+
 /* Private helper routines in lib/atomic_asm_32.S */
+struct __get_user {
+	unsigned long val;
+	int err;
+};
 extern struct __get_user __atomic_cmpxchg(volatile int *p,
 					  int *lock, int o, int n);
 extern struct __get_user __atomic_xchg(volatile int *p, int *lock, int n);
@@ -317,6 +325,9 @@ extern u64 __atomic64_xchg(volatile u64 *p, int *lock, u64 n);
 extern u64 __atomic64_xchg_add(volatile u64 *p, int *lock, u64 n);
 extern u64 __atomic64_xchg_add_unless(volatile u64 *p,
 				      int *lock, u64 o, u64 n);
+
+/* Return failure from the atomic wrappers. */
+struct __get_user __atomic_bad_address(int __user *addr);
 
 #endif /* !__ASSEMBLY__ */
 

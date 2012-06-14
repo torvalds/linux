@@ -53,6 +53,14 @@ directory apei/einj. The following files are provided.
   This file is used to set the second error parameter value. Effect of
   parameter depends on error_type specified.
 
+- notrigger
+  The EINJ mechanism is a two step process. First inject the error, then
+  perform some actions to trigger it. Setting "notrigger" to 1 skips the
+  trigger phase, which *may* allow the user to cause the error in some other
+  context by a simple access to the cpu, memory location, or device that is
+  the target of the error injection. Whether this actually works depends
+  on what operations the BIOS actually includes in the trigger phase.
+
 BIOS versions based in the ACPI 4.0 specification have limited options
 to control where the errors are injected.  Your BIOS may support an
 extension (enabled with the param_extension=1 module parameter, or

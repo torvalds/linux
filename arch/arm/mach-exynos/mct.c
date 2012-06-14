@@ -261,7 +261,10 @@ static void exynos4_clockevent_init(void)
 	mct_comp_device.cpumask = cpumask_of(0);
 	clockevents_register_device(&mct_comp_device);
 
-	setup_irq(IRQ_MCT_G0, &mct_comp_event_irq);
+	if (soc_is_exynos5250())
+		setup_irq(EXYNOS5_IRQ_MCT_G0, &mct_comp_event_irq);
+	else
+		setup_irq(EXYNOS4_IRQ_MCT_G0, &mct_comp_event_irq);
 }
 
 #ifdef CONFIG_LOCAL_TIMERS
@@ -385,6 +388,7 @@ static int __cpuinit exynos4_local_timer_setup(struct clock_event_device *evt)
 {
 	struct mct_clock_event_device *mevt;
 	unsigned int cpu = smp_processor_id();
+	int mct_lx_irq;
 
 	mevt = this_cpu_ptr(&percpu_mct_tick);
 	mevt->evt = evt;
@@ -411,17 +415,21 @@ static int __cpuinit exynos4_local_timer_setup(struct clock_event_device *evt)
 
 	if (mct_int_type == MCT_INT_SPI) {
 		if (cpu == 0) {
+			mct_lx_irq = soc_is_exynos4210() ? EXYNOS4_IRQ_MCT_L0 :
+						EXYNOS5_IRQ_MCT_L0;
 			mct_tick0_event_irq.dev_id = mevt;
-			evt->irq = IRQ_MCT_L0;
-			setup_irq(IRQ_MCT_L0, &mct_tick0_event_irq);
+			evt->irq = mct_lx_irq;
+			setup_irq(mct_lx_irq, &mct_tick0_event_irq);
 		} else {
+			mct_lx_irq = soc_is_exynos4210() ? EXYNOS4_IRQ_MCT_L1 :
+						EXYNOS5_IRQ_MCT_L1;
 			mct_tick1_event_irq.dev_id = mevt;
-			evt->irq = IRQ_MCT_L1;
-			setup_irq(IRQ_MCT_L1, &mct_tick1_event_irq);
-			irq_set_affinity(IRQ_MCT_L1, cpumask_of(1));
+			evt->irq = mct_lx_irq;
+			setup_irq(mct_lx_irq, &mct_tick1_event_irq);
+			irq_set_affinity(mct_lx_irq, cpumask_of(1));
 		}
 	} else {
-		enable_percpu_irq(IRQ_MCT_LOCALTIMER, 0);
+		enable_percpu_irq(EXYNOS_IRQ_MCT_LOCALTIMER, 0);
 	}
 
 	return 0;
@@ -437,7 +445,7 @@ static void exynos4_local_timer_stop(struct clock_event_device *evt)
 		else
 			remove_irq(evt->irq, &mct_tick1_event_irq);
 	else
-		disable_percpu_irq(IRQ_MCT_LOCALTIMER);
+		disable_percpu_irq(EXYNOS_IRQ_MCT_LOCALTIMER);
 }
 
 static struct local_timer_ops exynos4_mct_tick_ops __cpuinitdata = {
@@ -457,11 +465,11 @@ static void __init exynos4_timer_resources(void)
 	if (mct_int_type == MCT_INT_PPI) {
 		int err;
 
-		err = request_percpu_irq(IRQ_MCT_LOCALTIMER,
+		err = request_percpu_irq(EXYNOS_IRQ_MCT_LOCALTIMER,
 					 exynos4_mct_tick_isr, "MCT",
 					 &percpu_mct_tick);
 		WARN(err, "MCT: can't request IRQ %d (%d)\n",
-		     IRQ_MCT_LOCALTIMER, err);
+		     EXYNOS_IRQ_MCT_LOCALTIMER, err);
 	}
 
 	local_timer_register(&exynos4_mct_tick_ops);
@@ -470,7 +478,7 @@ static void __init exynos4_timer_resources(void)
 
 static void __init exynos4_timer_init(void)
 {
-	if (soc_is_exynos4210())
+	if ((soc_is_exynos4210()) || (soc_is_exynos5250()))
 		mct_int_type = MCT_INT_SPI;
 	else
 		mct_int_type = MCT_INT_PPI;

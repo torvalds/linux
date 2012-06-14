@@ -30,8 +30,8 @@
 
 #include <linux/gpio.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 /*
  * Register definitions, as well as various shifts and masks to get at the
  * individual fields of the registers.
@@ -108,7 +108,8 @@ static const int ak8975_index_to_reg[] = {
 static int ak8975_write_data(struct i2c_client *client,
 			     u8 reg, u8 val, u8 mask, u8 shift)
 {
-	struct ak8975_data *data = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ak8975_data *data = iio_priv(indio_dev);
 	u8 regval;
 	int ret;
 
@@ -159,7 +160,8 @@ static int ak8975_read_data(struct i2c_client *client,
  */
 static int ak8975_setup(struct i2c_client *client)
 {
-	struct ak8975_data *data = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ak8975_data *data = iio_priv(indio_dev);
 	u8 device_id;
 	int ret;
 
@@ -240,7 +242,7 @@ static int ak8975_setup(struct i2c_client *client)
 static ssize_t show_mode(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ak8975_data *data = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", data->mode);
@@ -253,7 +255,7 @@ static ssize_t show_mode(struct device *dev, struct device_attribute *devattr,
 static ssize_t store_mode(struct device *dev, struct device_attribute *devattr,
 			  const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ak8975_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
 	bool value;
@@ -429,7 +431,7 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 	struct ak8975_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		return ak8975_read_axis(indio_dev, chan->address, val);
 	case IIO_CHAN_INFO_SCALE:
 		*val = data->raw_to_gauss[chan->address];
@@ -443,7 +445,8 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,	\
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
 		.address = index,					\
 	}
 
@@ -503,12 +506,13 @@ static int ak8975_probe(struct i2c_client *client,
 	}
 
 	/* Register with IIO */
-	indio_dev = iio_allocate_device(sizeof(*data));
+	indio_dev = iio_device_alloc(sizeof(*data));
 	if (indio_dev == NULL) {
 		err = -ENOMEM;
 		goto exit_gpio;
 	}
 	data = iio_priv(indio_dev);
+	i2c_set_clientdata(client, indio_dev);
 	/* Perform some basic start-of-day setup of the device. */
 	err = ak8975_setup(client);
 	if (err < 0) {
@@ -516,7 +520,6 @@ static int ak8975_probe(struct i2c_client *client,
 		goto exit_free_iio;
 	}
 
-	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	mutex_init(&data->lock);
 	data->eoc_irq = client->irq;
@@ -534,7 +537,7 @@ static int ak8975_probe(struct i2c_client *client,
 	return 0;
 
 exit_free_iio:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 exit_gpio:
 	if (gpio_is_valid(eoc_gpio))
 		gpio_free(eoc_gpio);
@@ -552,7 +555,7 @@ static int ak8975_remove(struct i2c_client *client)
 	if (gpio_is_valid(data->eoc_gpio))
 		gpio_free(data->eoc_gpio);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

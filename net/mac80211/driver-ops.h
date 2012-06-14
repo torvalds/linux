@@ -35,6 +35,43 @@ static inline void drv_tx_frags(struct ieee80211_local *local,
 	local->ops->tx_frags(&local->hw, vif, sta, skbs);
 }
 
+static inline void drv_get_et_strings(struct ieee80211_sub_if_data *sdata,
+				      u32 sset, u8 *data)
+{
+	struct ieee80211_local *local = sdata->local;
+	if (local->ops->get_et_strings) {
+		trace_drv_get_et_strings(local, sset);
+		local->ops->get_et_strings(&local->hw, &sdata->vif, sset, data);
+		trace_drv_return_void(local);
+	}
+}
+
+static inline void drv_get_et_stats(struct ieee80211_sub_if_data *sdata,
+				    struct ethtool_stats *stats,
+				    u64 *data)
+{
+	struct ieee80211_local *local = sdata->local;
+	if (local->ops->get_et_stats) {
+		trace_drv_get_et_stats(local);
+		local->ops->get_et_stats(&local->hw, &sdata->vif, stats, data);
+		trace_drv_return_void(local);
+	}
+}
+
+static inline int drv_get_et_sset_count(struct ieee80211_sub_if_data *sdata,
+					int sset)
+{
+	struct ieee80211_local *local = sdata->local;
+	int rv = 0;
+	if (local->ops->get_et_sset_count) {
+		trace_drv_get_et_sset_count(local, sset);
+		rv = local->ops->get_et_sset_count(&local->hw, &sdata->vif,
+						   sset);
+		trace_drv_return_int(local, rv);
+	}
+	return rv;
+}
+
 static inline int drv_start(struct ieee80211_local *local)
 {
 	int ret;

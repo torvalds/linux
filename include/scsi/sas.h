@@ -103,6 +103,7 @@ enum sas_dev_type {
 };
 
 enum sas_protocol {
+	SAS_PROTOCOL_NONE		= 0,
 	SAS_PROTOCOL_SATA		= 0x01,
 	SAS_PROTOCOL_SMP		= 0x02,
 	SAS_PROTOCOL_STP		= 0x04,

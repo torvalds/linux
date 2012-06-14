@@ -950,11 +950,8 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 	else
 		bitmap = vzalloc(size); /* TODO: get rid of vzalloc */
 
-	if (bitmap == NULL) {
-		udf_err(sb, "Unable to allocate space for bitmap and %d buffer_head pointers\n",
-			nr_groups);
+	if (bitmap == NULL)
 		return NULL;
-	}
 
 	bitmap->s_block_bitmap = (struct buffer_head **)(bitmap + 1);
 	bitmap->s_nr_groups = nr_groups;

@@ -1544,6 +1544,8 @@ static struct fsmc_nand_platform_data nand_platform_data = {
 	.nr_partitions = ARRAY_SIZE(u300_partitions),
 	.options = NAND_SKIP_BBTSCAN,
 	.width = FSMC_NAND_BW8,
+	.ale_off = PLAT_NAND_ALE,
+	.cle_off = PLAT_NAND_CLE,
 };
 
 static struct platform_device nand_device = {
@@ -1665,8 +1667,10 @@ void __init u300_init_irq(void)
 
 	for (i = 0; i < U300_VIC_IRQS_END; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
-	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], mask[0]);
-	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], mask[1]);
+	vic_init((void __iomem *) U300_INTCON0_VBASE, IRQ_U300_INTCON0_START,
+		 mask[0], mask[0]);
+	vic_init((void __iomem *) U300_INTCON1_VBASE, IRQ_U300_INTCON1_START,
+		 mask[1], mask[1]);
 }
 
 

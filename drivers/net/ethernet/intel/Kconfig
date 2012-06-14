@@ -7,7 +7,7 @@ config NET_VENDOR_INTEL
 	default y
 	depends on PCI || PCI_MSI || ISA || ISA_DMA_API || ARM || \
 		   ARCH_ACORN || MCA || MCA_LEGACY || SNI_RM || SUN3 || \
-		   GSC || BVME6000 || MVME16x || ARCH_ENP2611 || \
+		   GSC || BVME6000 || MVME16x || \
 		   (ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR) || \
 		   EXPERIMENTAL
 	---help---
@@ -120,6 +120,17 @@ config IGB_DCA
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
 
+config IGB_PTP
+	bool "PTP Hardware Clock (PHC)"
+	default y
+	depends on IGB && PTP_1588_CLOCK
+	---help---
+	  Say Y here if you want to use PTP Hardware Clock (PHC) in the
+	  driver.  Only the basic clock operations have been implemented.
+
+	  Every timestamp and clock read operations must consult the
+	  overflow counter to form a correct time value.
+
 config IGBVF
 	tristate "Intel(R) 82576 Virtual Function Ethernet support"
 	depends on PCI
@@ -182,6 +193,14 @@ config IXGBE
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.
 
+config IXGBE_HWMON
+	bool "Intel(R) 10GbE PCI Express adapters HWMON support"
+	default y
+	depends on IXGBE && HWMON && !(IXGBE=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor data on some of
+	  our cards, via a hwmon sysfs interface.
+
 config IXGBE_DCA
 	bool "Direct Cache Access (DCA) Support"
 	default y
@@ -198,6 +217,17 @@ config IXGBE_DCB
 	---help---
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
+
+	  If unsure, say N.
+
+config IXGBE_PTP
+	bool "PTP Clock Support"
+	default n
+	depends on IXGBE && PTP_1588_CLOCK
+	---help---
+	  Say Y here if you want support for 1588 Timestamping with a
+	  PHC device, using the PTP 1588 Clock support. This is
+	  required to enable timestamping support for the device.
 
 	  If unsure, say N.
 

@@ -37,13 +37,13 @@
  * data from the device tree.
  */
 static const struct of_dev_auxdata exynos4210_auxdata_lookup[] __initconst = {
-	OF_DEV_AUXDATA("samsung,exynos4210-uart", S5P_PA_UART0,
+	OF_DEV_AUXDATA("samsung,exynos4210-uart", EXYNOS4_PA_UART0,
 				"exynos4210-uart.0", NULL),
-	OF_DEV_AUXDATA("samsung,exynos4210-uart", S5P_PA_UART1,
+	OF_DEV_AUXDATA("samsung,exynos4210-uart", EXYNOS4_PA_UART1,
 				"exynos4210-uart.1", NULL),
-	OF_DEV_AUXDATA("samsung,exynos4210-uart", S5P_PA_UART2,
+	OF_DEV_AUXDATA("samsung,exynos4210-uart", EXYNOS4_PA_UART2,
 				"exynos4210-uart.2", NULL),
-	OF_DEV_AUXDATA("samsung,exynos4210-uart", S5P_PA_UART3,
+	OF_DEV_AUXDATA("samsung,exynos4210-uart", EXYNOS4_PA_UART3,
 				"exynos4210-uart.3", NULL),
 	OF_DEV_AUXDATA("samsung,exynos4210-sdhci", EXYNOS4_PA_HSMMC(0),
 				"exynos4-sdhci.0", NULL),
@@ -83,6 +83,7 @@ DT_MACHINE_START(EXYNOS4210_DT, "Samsung Exynos4 (Flattened Device Tree)")
 	.map_io		= exynos4210_dt_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= exynos4210_dt_machine_init,
+	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
 	.dt_compat	= exynos4210_dt_compat,
 	.restart        = exynos4_restart,

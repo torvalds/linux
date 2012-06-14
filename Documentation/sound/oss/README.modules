@@ -26,7 +26,7 @@ Note that it is no longer necessary or possible to configure sound in the
 drivers/sound dir. Now one simply configures and makes one's kernel and
 modules in the usual way.
 
- Then, add to your /etc/modprobe.conf something like:
+ Then, add to your /etc/modprobe.d/oss.conf something like:
 
 alias char-major-14-* sb
 install sb /sbin/modprobe -i sb && /sbin/modprobe adlib_card
@@ -36,7 +36,7 @@ options adlib_card io=0x388     # FM synthesizer
  Alternatively, if you have compiled in kernel level ISAPnP support:
 
 alias char-major-14 sb
-post-install sb /sbin/modprobe "-k" "adlib_card"
+softdep sb post: adlib_card
 options adlib_card io=0x388
 
   The effect of this is that the sound driver and all necessary bits and
@@ -66,12 +66,12 @@ args are expected.
  Note that at present there is no way to configure the io, irq and other
 parameters for the modular drivers as one does for the wired drivers.. One
 needs to pass the modules the necessary parameters as arguments, either
-with /etc/modprobe.conf or with command-line args to modprobe, e.g.
+with /etc/modprobe.d/*.conf or with command-line args to modprobe, e.g.
 
 modprobe sb io=0x220 irq=7 dma=1 dma16=5 mpu_io=0x330
 modprobe adlib_card io=0x388
 
- recommend using /etc/modprobe.conf.
+ recommend using /etc/modprobe.d/*.conf.
 
 Persistent DMA Buffers:
 
@@ -89,7 +89,7 @@ wasteful of RAM, but it guarantees that sound always works.
 
 To make the sound driver use persistent DMA buffers we need to pass the
 sound.o module a "dmabuf=1" command-line argument. This is normally done
-in /etc/modprobe.conf like so:
+in /etc/modprobe.d/*.conf files like so:
 
 options sound		dmabuf=1
 

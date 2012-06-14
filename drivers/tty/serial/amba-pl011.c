@@ -51,6 +51,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/delay.h>
+#include <linux/types.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/io.h>
 #include <asm/sizes.h>
@@ -66,30 +68,6 @@
 #define UART_DR_ERROR		(UART011_DR_OE|UART011_DR_BE|UART011_DR_PE|UART011_DR_FE)
 #define UART_DUMMY_DR_RX	(1 << 16)
 
-
-#define UART_WA_SAVE_NR 14
-
-static void pl011_lockup_wa(unsigned long data);
-static const u32 uart_wa_reg[UART_WA_SAVE_NR] = {
-	ST_UART011_DMAWM,
-	ST_UART011_TIMEOUT,
-	ST_UART011_LCRH_RX,
-	UART011_IBRD,
-	UART011_FBRD,
-	ST_UART011_LCRH_TX,
-	UART011_IFLS,
-	ST_UART011_XFCR,
-	ST_UART011_XON1,
-	ST_UART011_XON2,
-	ST_UART011_XOFF1,
-	ST_UART011_XOFF2,
-	UART011_CR,
-	UART011_IMSC
-};
-
-static u32 uart_wa_regdata[UART_WA_SAVE_NR];
-static DECLARE_TASKLET(pl011_lockup_tlet, pl011_lockup_wa, 0);
-
 /* There is by now at least one vendor with differing details, so handle it */
 struct vendor_data {
 	unsigned int		ifls;
@@ -99,6 +77,7 @@ struct vendor_data {
 	bool			oversampling;
 	bool			interrupt_may_hang;   /* vendor-specific */
 	bool			dma_threshold;
+	bool			cts_event_workaround;
 };
 
 static struct vendor_data vendor_arm = {
@@ -108,6 +87,7 @@ static struct vendor_data vendor_arm = {
 	.lcrh_rx		= UART011_LCRH,
 	.oversampling		= false,
 	.dma_threshold		= false,
+	.cts_event_workaround	= false,
 };
 
 static struct vendor_data vendor_st = {
@@ -118,6 +98,7 @@ static struct vendor_data vendor_st = {
 	.oversampling		= true,
 	.interrupt_may_hang	= true,
 	.dma_threshold		= true,
+	.cts_event_workaround	= true,
 };
 
 static struct uart_amba_port *amba_ports[UART_NR];
@@ -271,6 +252,7 @@ static void pl011_dma_probe_initcall(struct uart_amba_port *uap)
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 		.direction = DMA_MEM_TO_DEV,
 		.dst_maxburst = uap->fifosize >> 1,
+		.device_fc = false,
 	};
 	struct dma_chan *chan;
 	dma_cap_mask_t mask;
@@ -304,6 +286,7 @@ static void pl011_dma_probe_initcall(struct uart_amba_port *uap)
 			.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 			.direction = DMA_DEV_TO_MEM,
 			.src_maxburst = uap->fifosize >> 1,
+			.device_fc = false,
 		};
 
 		chan = dma_request_channel(mask, plat->dma_filter, plat->dma_rx_param);
@@ -481,7 +464,7 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 		return -EBUSY;
 	}
 
-	desc = dma_dev->device_prep_slave_sg(chan, &dmatx->sg, 1, DMA_MEM_TO_DEV,
+	desc = dmaengine_prep_slave_sg(chan, &dmatx->sg, 1, DMA_MEM_TO_DEV,
 					     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dma_unmap_sg(dma_dev->dev, &dmatx->sg, 1, DMA_TO_DEVICE);
@@ -664,7 +647,6 @@ static void pl011_dma_rx_callback(void *data);
 static int pl011_dma_rx_trigger_dma(struct uart_amba_port *uap)
 {
 	struct dma_chan *rxchan = uap->dmarx.chan;
-	struct dma_device *dma_dev;
 	struct pl011_dmarx_data *dmarx = &uap->dmarx;
 	struct dma_async_tx_descriptor *desc;
 	struct pl011_sgbuf *sgbuf;
@@ -675,8 +657,7 @@ static int pl011_dma_rx_trigger_dma(struct uart_amba_port *uap)
 	/* Start the RX DMA job */
 	sgbuf = uap->dmarx.use_buf_b ?
 		&uap->dmarx.sgbuf_b : &uap->dmarx.sgbuf_a;
-	dma_dev = rxchan->device;
-	desc = rxchan->device->device_prep_slave_sg(rxchan, &sgbuf->sg, 1,
+	desc = dmaengine_prep_slave_sg(rxchan, &sgbuf->sg, 1,
 					DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	/*
@@ -1053,69 +1034,6 @@ static inline bool pl011_dma_rx_running(struct uart_amba_port *uap)
 #define pl011_dma_flush_buffer	NULL
 #endif
 
-
-/*
- * pl011_lockup_wa
- * This workaround aims to break the deadlock situation
- * when after long transfer over uart in hardware flow
- * control, uart interrupt registers cannot be cleared.
- * Hence uart transfer gets blocked.
- *
- * It is seen that during such deadlock condition ICR
- * don't get cleared even on multiple write. This leads
- * pass_counter to decrease and finally reach zero. This
- * can be taken as trigger point to run this UART_BT_WA.
- *
- */
-static void pl011_lockup_wa(unsigned long data)
-{
-	struct uart_amba_port *uap = amba_ports[0];
-	void __iomem *base = uap->port.membase;
-	struct circ_buf *xmit = &uap->port.state->xmit;
-	struct tty_struct *tty = uap->port.state->port.tty;
-	int buf_empty_retries = 200;
-	int loop;
-
-	/* Stop HCI layer from submitting data for tx */
-	tty->hw_stopped = 1;
-	while (!uart_circ_empty(xmit)) {
-		if (buf_empty_retries-- == 0)
-			break;
-		udelay(100);
-	}
-
-	/* Backup registers */
-	for (loop = 0; loop < UART_WA_SAVE_NR; loop++)
-		uart_wa_regdata[loop] = readl(base + uart_wa_reg[loop]);
-
-	/* Disable UART so that FIFO data is flushed out */
-	writew(0x00, uap->port.membase + UART011_CR);
-
-	/* Soft reset UART module */
-	if (uap->port.dev->platform_data) {
-		struct amba_pl011_data *plat;
-
-		plat = uap->port.dev->platform_data;
-		if (plat->reset)
-			plat->reset();
-	}
-
-	/* Restore registers */
-	for (loop = 0; loop < UART_WA_SAVE_NR; loop++)
-		writew(uart_wa_regdata[loop] ,
-				uap->port.membase + uart_wa_reg[loop]);
-
-	/* Initialise the old status of the modem signals */
-	uap->old_status = readw(uap->port.membase + UART01x_FR) &
-		UART01x_FR_MODEM_ANY;
-
-	if (readl(base + UART011_MIS) & 0x2)
-		printk(KERN_EMERG "UART_BT_WA: ***FAILED***\n");
-
-	/* Start Tx/Rx */
-	tty->hw_stopped = 0;
-}
-
 static void pl011_stop_tx(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
@@ -1244,12 +1162,26 @@ static irqreturn_t pl011_int(int irq, void *dev_id)
 	unsigned long flags;
 	unsigned int status, pass_counter = AMBA_ISR_PASS_LIMIT;
 	int handled = 0;
+	unsigned int dummy_read;
 
 	spin_lock_irqsave(&uap->port.lock, flags);
 
 	status = readw(uap->port.membase + UART011_MIS);
 	if (status) {
 		do {
+			if (uap->vendor->cts_event_workaround) {
+				/* workaround to make sure that all bits are unlocked.. */
+				writew(0x00, uap->port.membase + UART011_ICR);
+
+				/*
+				 * WA: introduce 26ns(1 uart clk) delay before W1C;
+				 * single apb access will incur 2 pclk(133.12Mhz) delay,
+				 * so add 2 dummy reads
+				 */
+				dummy_read = readw(uap->port.membase + UART011_ICR);
+				dummy_read = readw(uap->port.membase + UART011_ICR);
+			}
+
 			writew(status & ~(UART011_TXIS|UART011_RTIS|
 					  UART011_RXIS),
 			       uap->port.membase + UART011_ICR);
@@ -1266,11 +1198,8 @@ static irqreturn_t pl011_int(int irq, void *dev_id)
 			if (status & UART011_TXIS)
 				pl011_tx_chars(uap);
 
-			if (pass_counter-- == 0) {
-				if (uap->interrupt_may_hang)
-					tasklet_schedule(&pl011_lockup_tlet);
+			if (pass_counter-- == 0)
 				break;
-			}
 
 			status = readw(uap->port.membase + UART011_MIS);
 		} while (status != 0);
@@ -1915,6 +1844,7 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct uart_amba_port *uap;
 	struct vendor_data *vendor = id->data;
+	struct pinctrl *pinctrl;
 	void __iomem *base;
 	int i, ret;
 
@@ -1939,15 +1869,17 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 		goto free;
 	}
 
+	pinctrl = devm_pinctrl_get_select_default(&dev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		goto unmap;
+	}
+
 	uap->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(uap->clk)) {
 		ret = PTR_ERR(uap->clk);
 		goto unmap;
 	}
-
-	/* Ensure interrupts from this UART are masked and cleared */
-	writew(0, uap->port.membase + UART011_IMSC);
-	writew(0xffff, uap->port.membase + UART011_ICR);
 
 	uap->vendor = vendor;
 	uap->lcrh_rx = vendor->lcrh_rx;
@@ -1965,6 +1897,10 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	uap->port.flags = UPF_BOOT_AUTOCONF;
 	uap->port.line = i;
 	pl011_dma_probe(uap);
+
+	/* Ensure interrupts from this UART are masked and cleared */
+	writew(0, uap->port.membase + UART011_IMSC);
+	writew(0xffff, uap->port.membase + UART011_ICR);
 
 	snprintf(uap->type, sizeof(uap->type), "PL011 rev%u", amba_rev(dev));
 

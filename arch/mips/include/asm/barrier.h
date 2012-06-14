@@ -8,6 +8,8 @@
 #ifndef __ASM_BARRIER_H
 #define __ASM_BARRIER_H
 
+#include <asm/addrspace.h>
+
 /*
  * read_barrier_depends - Flush all pending reads that subsequents reads
  * depend on.

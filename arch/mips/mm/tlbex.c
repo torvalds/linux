@@ -32,6 +32,7 @@
 #include <asm/pgtable.h>
 #include <asm/war.h>
 #include <asm/uasm.h>
+#include <asm/setup.h>
 
 /*
  * TLB load/store/modify handlers.

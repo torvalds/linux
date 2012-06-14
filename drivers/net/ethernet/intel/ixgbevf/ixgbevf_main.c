@@ -57,7 +57,7 @@ const char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver";
 
-#define DRV_VERSION "2.2.0-k"
+#define DRV_VERSION "2.6.0-k"
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] =
 	"Copyright (c) 2009 - 2012 Intel Corporation.";
@@ -91,7 +91,10 @@ MODULE_DESCRIPTION("Intel(R) 82599 Virtual Function Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-#define DEFAULT_DEBUG_LEVEL_SHIFT 3
+#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
+static int debug = -1;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /* forward decls */
 static void ixgbevf_set_itr_msix(struct ixgbevf_q_vector *q_vector);
@@ -1605,13 +1608,14 @@ static void ixgbevf_init_last_counter_stats(struct ixgbevf_adapter *adapter)
 	adapter->stats.base_vfmprc = adapter->stats.last_vfmprc;
 }
 
-static int ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
+static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i, j = 0;
 	int num_rx_rings = adapter->num_rx_queues;
 	u32 txdctl, rxdctl;
+	u32 msg[2];
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		j = adapter->tx_ring[i].reg_idx;
@@ -1650,6 +1654,10 @@ static int ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 			hw->mac.ops.set_rar(hw, 0, hw->mac.perm_addr, 0);
 	}
 
+	msg[0] = IXGBE_VF_SET_LPE;
+	msg[1] = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	hw->mbx.ops.write_posted(hw, msg, 2);
+
 	clear_bit(__IXGBEVF_DOWN, &adapter->state);
 	ixgbevf_napi_enable_all(adapter);
 
@@ -1664,24 +1672,20 @@ static int ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
 	adapter->link_check_timeout = jiffies;
 	mod_timer(&adapter->watchdog_timer, jiffies);
-	return 0;
 }
 
-int ixgbevf_up(struct ixgbevf_adapter *adapter)
+void ixgbevf_up(struct ixgbevf_adapter *adapter)
 {
-	int err;
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	ixgbevf_configure(adapter);
 
-	err = ixgbevf_up_complete(adapter);
+	ixgbevf_up_complete(adapter);
 
 	/* clear any pending interrupts, may auto mask */
 	IXGBE_READ_REG(hw, IXGBE_VTEICR);
 
 	ixgbevf_irq_enable(adapter, true, true);
-
-	return err;
 }
 
 /**
@@ -2670,9 +2674,7 @@ static int ixgbevf_open(struct net_device *netdev)
 	 */
 	ixgbevf_map_rings_to_vectors(adapter);
 
-	err = ixgbevf_up_complete(adapter);
-	if (err)
-		goto err_up;
+	ixgbevf_up_complete(adapter);
 
 	/* clear any pending interrupts, may auto mask */
 	IXGBE_READ_REG(hw, IXGBE_VTEICR);
@@ -2686,7 +2688,6 @@ static int ixgbevf_open(struct net_device *netdev)
 
 err_req_irq:
 	ixgbevf_down(adapter);
-err_up:
 	ixgbevf_free_irq(adapter);
 err_setup_rx:
 	ixgbevf_free_all_rx_resources(adapter);
@@ -3193,9 +3194,11 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
 
-	msg[0] = IXGBE_VF_SET_LPE;
-	msg[1] = max_frame;
-	hw->mbx.ops.write_posted(hw, msg, 2);
+	if (!netif_running(netdev)) {
+		msg[0] = IXGBE_VF_SET_LPE;
+		msg[1] = max_frame;
+		hw->mbx.ops.write_posted(hw, msg, 2);
+	}
 
 	if (netif_running(netdev))
 		ixgbevf_reinit_locked(adapter);
@@ -3367,7 +3370,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	hw = &adapter->hw;
 	hw->back = adapter;
-	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	/*
 	 * call save state here in standalone driver because it relies on

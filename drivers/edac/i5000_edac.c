@@ -270,7 +270,8 @@
 #define MTR3		0x8C
 
 #define NUM_MTRS		4
-#define CHANNELS_PER_BRANCH	(2)
+#define CHANNELS_PER_BRANCH	2
+#define MAX_BRANCHES		2
 
 /* Defines to extract the vaious fields from the
  *	MTRx - Memory Technology Registers
@@ -473,7 +474,6 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	char msg[EDAC_MC_LABEL_LEN + 1 + 160];
 	char *specific = NULL;
 	u32 allErrors;
-	int branch;
 	int channel;
 	int bank;
 	int rank;
@@ -485,8 +485,7 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	if (!allErrors)
 		return;		/* if no error, return now */
 
-	branch = EXTRACT_FBDCHAN_INDX(info->ferr_fat_fbd);
-	channel = branch;
+	channel = EXTRACT_FBDCHAN_INDX(info->ferr_fat_fbd);
 
 	/* Use the NON-Recoverable macros to extract data */
 	bank = NREC_BANK(info->nrecmema);
@@ -495,9 +494,9 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	ras = NREC_RAS(info->nrecmemb);
 	cas = NREC_CAS(info->nrecmemb);
 
-	debugf0("\t\tCSROW= %d  Channels= %d,%d  (Branch= %d "
-		"DRAM Bank= %d rdwr= %s ras= %d cas= %d)\n",
-		rank, channel, channel + 1, branch >> 1, bank,
+	debugf0("\t\tCSROW= %d  Channel= %d "
+		"(DRAM Bank= %d rdwr= %s ras= %d cas= %d)\n",
+		rank, channel, bank,
 		rdwr ? "Write" : "Read", ras, cas);
 
 	/* Only 1 bit will be on */
@@ -533,13 +532,14 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 
 	/* Form out message */
 	snprintf(msg, sizeof(msg),
-		 "(Branch=%d DRAM-Bank=%d RDWR=%s RAS=%d CAS=%d "
-		 "FATAL Err=0x%x (%s))",
-		 branch >> 1, bank, rdwr ? "Write" : "Read", ras, cas,
-		 allErrors, specific);
+		 "Bank=%d RAS=%d CAS=%d FATAL Err=0x%x (%s)",
+		 bank, ras, cas, allErrors, specific);
 
 	/* Call the helper to output message */
-	edac_mc_handle_fbd_ue(mci, rank, channel, channel + 1, msg);
+	edac_mc_handle_error(HW_EVENT_ERR_FATAL, mci, 0, 0, 0,
+			     channel >> 1, channel & 1, rank,
+			     rdwr ? "Write error" : "Read error",
+			     msg, NULL);
 }
 
 /*
@@ -633,13 +633,14 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 
 		/* Form out message */
 		snprintf(msg, sizeof(msg),
-			 "(Branch=%d DRAM-Bank=%d RDWR=%s RAS=%d "
-			 "CAS=%d, UE Err=0x%x (%s))",
-			 branch >> 1, bank, rdwr ? "Write" : "Read", ras, cas,
-			 ue_errors, specific);
+			 "Rank=%d Bank=%d RAS=%d CAS=%d, UE Err=0x%x (%s)",
+			 rank, bank, ras, cas, ue_errors, specific);
 
 		/* Call the helper to output message */
-		edac_mc_handle_fbd_ue(mci, rank, channel, channel + 1, msg);
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
+				channel >> 1, -1, rank,
+				rdwr ? "Write error" : "Read error",
+				msg, NULL);
 	}
 
 	/* Check correctable errors */
@@ -685,13 +686,16 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 
 		/* Form out message */
 		snprintf(msg, sizeof(msg),
-			 "(Branch=%d DRAM-Bank=%d RDWR=%s RAS=%d "
+			 "Rank=%d Bank=%d RDWR=%s RAS=%d "
 			 "CAS=%d, CE Err=0x%x (%s))", branch >> 1, bank,
 			 rdwr ? "Write" : "Read", ras, cas, ce_errors,
 			 specific);
 
 		/* Call the helper to output message */
-		edac_mc_handle_fbd_ce(mci, rank, channel, msg);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0, 0,
+				channel >> 1, channel % 2, rank,
+				rdwr ? "Write error" : "Read error",
+				msg, NULL);
 	}
 
 	if (!misc_messages)
@@ -731,11 +735,12 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 
 		/* Form out message */
 		snprintf(msg, sizeof(msg),
-			 "(Branch=%d Err=%#x (%s))", branch >> 1,
-			 misc_errors, specific);
+			 "Err=%#x (%s)", misc_errors, specific);
 
 		/* Call the helper to output message */
-		edac_mc_handle_fbd_ce(mci, 0, 0, msg);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0, 0,
+				branch >> 1, -1, -1,
+				"Misc error", msg, NULL);
 	}
 }
 
@@ -956,14 +961,14 @@ static int determine_amb_present_reg(struct i5000_pvt *pvt, int channel)
  *
  *	return the proper MTR register as determine by the csrow and channel desired
  */
-static int determine_mtr(struct i5000_pvt *pvt, int csrow, int channel)
+static int determine_mtr(struct i5000_pvt *pvt, int slot, int channel)
 {
 	int mtr;
 
 	if (channel < CHANNELS_PER_BRANCH)
-		mtr = pvt->b0_mtr[csrow >> 1];
+		mtr = pvt->b0_mtr[slot];
 	else
-		mtr = pvt->b1_mtr[csrow >> 1];
+		mtr = pvt->b1_mtr[slot];
 
 	return mtr;
 }
@@ -988,37 +993,34 @@ static void decode_mtr(int slot_row, u16 mtr)
 	debugf2("\t\tNUMCOL: %s\n", numcol_toString[MTR_DIMM_COLS(mtr)]);
 }
 
-static void handle_channel(struct i5000_pvt *pvt, int csrow, int channel,
+static void handle_channel(struct i5000_pvt *pvt, int slot, int channel,
 			struct i5000_dimm_info *dinfo)
 {
 	int mtr;
 	int amb_present_reg;
 	int addrBits;
 
-	mtr = determine_mtr(pvt, csrow, channel);
+	mtr = determine_mtr(pvt, slot, channel);
 	if (MTR_DIMMS_PRESENT(mtr)) {
 		amb_present_reg = determine_amb_present_reg(pvt, channel);
 
-		/* Determine if there is  a  DIMM present in this DIMM slot */
-		if (amb_present_reg & (1 << (csrow >> 1))) {
+		/* Determine if there is a DIMM present in this DIMM slot */
+		if (amb_present_reg) {
 			dinfo->dual_rank = MTR_DIMM_RANK(mtr);
 
-			if (!((dinfo->dual_rank == 0) &&
-				((csrow & 0x1) == 0x1))) {
-				/* Start with the number of bits for a Bank
-				 * on the DRAM */
-				addrBits = MTR_DRAM_BANKS_ADDR_BITS(mtr);
-				/* Add thenumber of ROW bits */
-				addrBits += MTR_DIMM_ROWS_ADDR_BITS(mtr);
-				/* add the number of COLUMN bits */
-				addrBits += MTR_DIMM_COLS_ADDR_BITS(mtr);
+			/* Start with the number of bits for a Bank
+				* on the DRAM */
+			addrBits = MTR_DRAM_BANKS_ADDR_BITS(mtr);
+			/* Add the number of ROW bits */
+			addrBits += MTR_DIMM_ROWS_ADDR_BITS(mtr);
+			/* add the number of COLUMN bits */
+			addrBits += MTR_DIMM_COLS_ADDR_BITS(mtr);
 
-				addrBits += 6;	/* add 64 bits per DIMM */
-				addrBits -= 20;	/* divide by 2^^20 */
-				addrBits -= 3;	/* 8 bits per bytes */
+			addrBits += 6;	/* add 64 bits per DIMM */
+			addrBits -= 20;	/* divide by 2^^20 */
+			addrBits -= 3;	/* 8 bits per bytes */
 
-				dinfo->megabytes = 1 << addrBits;
-			}
+			dinfo->megabytes = 1 << addrBits;
 		}
 	}
 }
@@ -1032,10 +1034,9 @@ static void handle_channel(struct i5000_pvt *pvt, int csrow, int channel,
 static void calculate_dimm_size(struct i5000_pvt *pvt)
 {
 	struct i5000_dimm_info *dinfo;
-	int csrow, max_csrows;
+	int slot, channel, branch;
 	char *p, *mem_buffer;
 	int space, n;
-	int channel;
 
 	/* ================= Generate some debug output ================= */
 	space = PAGE_SIZE;
@@ -1046,22 +1047,17 @@ static void calculate_dimm_size(struct i5000_pvt *pvt)
 		return;
 	}
 
-	n = snprintf(p, space, "\n");
-	p += n;
-	space -= n;
-
-	/* Scan all the actual CSROWS (which is # of DIMMS * 2)
+	/* Scan all the actual slots
 	 * and calculate the information for each DIMM
-	 * Start with the highest csrow first, to display it first
-	 * and work toward the 0th csrow
+	 * Start with the highest slot first, to display it first
+	 * and work toward the 0th slot
 	 */
-	max_csrows = pvt->maxdimmperch * 2;
-	for (csrow = max_csrows - 1; csrow >= 0; csrow--) {
+	for (slot = pvt->maxdimmperch - 1; slot >= 0; slot--) {
 
-		/* on an odd csrow, first output a 'boundary' marker,
+		/* on an odd slot, first output a 'boundary' marker,
 		 * then reset the message buffer  */
-		if (csrow & 0x1) {
-			n = snprintf(p, space, "---------------------------"
+		if (slot & 0x1) {
+			n = snprintf(p, space, "--------------------------"
 				"--------------------------------");
 			p += n;
 			space -= n;
@@ -1069,30 +1065,39 @@ static void calculate_dimm_size(struct i5000_pvt *pvt)
 			p = mem_buffer;
 			space = PAGE_SIZE;
 		}
-		n = snprintf(p, space, "csrow %2d    ", csrow);
+		n = snprintf(p, space, "slot %2d    ", slot);
 		p += n;
 		space -= n;
 
 		for (channel = 0; channel < pvt->maxch; channel++) {
-			dinfo = &pvt->dimm_info[csrow][channel];
-			handle_channel(pvt, csrow, channel, dinfo);
-			n = snprintf(p, space, "%4d MB   | ", dinfo->megabytes);
+			dinfo = &pvt->dimm_info[slot][channel];
+			handle_channel(pvt, slot, channel, dinfo);
+			if (dinfo->megabytes)
+				n = snprintf(p, space, "%4d MB %dR| ",
+					     dinfo->megabytes, dinfo->dual_rank + 1);
+			else
+				n = snprintf(p, space, "%4d MB   | ", 0);
 			p += n;
 			space -= n;
 		}
-		n = snprintf(p, space, "\n");
 		p += n;
 		space -= n;
+		debugf2("%s\n", mem_buffer);
+		p = mem_buffer;
+		space = PAGE_SIZE;
 	}
 
 	/* Output the last bottom 'boundary' marker */
-	n = snprintf(p, space, "---------------------------"
-		"--------------------------------\n");
+	n = snprintf(p, space, "--------------------------"
+		"--------------------------------");
 	p += n;
 	space -= n;
+	debugf2("%s\n", mem_buffer);
+	p = mem_buffer;
+	space = PAGE_SIZE;
 
 	/* now output the 'channel' labels */
-	n = snprintf(p, space, "            ");
+	n = snprintf(p, space, "           ");
 	p += n;
 	space -= n;
 	for (channel = 0; channel < pvt->maxch; channel++) {
@@ -1100,9 +1105,17 @@ static void calculate_dimm_size(struct i5000_pvt *pvt)
 		p += n;
 		space -= n;
 	}
-	n = snprintf(p, space, "\n");
+	debugf2("%s\n", mem_buffer);
+	p = mem_buffer;
+	space = PAGE_SIZE;
+
+	n = snprintf(p, space, "           ");
 	p += n;
-	space -= n;
+	for (branch = 0; branch < MAX_BRANCHES; branch++) {
+		n = snprintf(p, space, "       branch %d       | ", branch);
+		p += n;
+		space -= n;
+	}
 
 	/* output the last message and free buffer */
 	debugf2("%s\n", mem_buffer);
@@ -1235,13 +1248,13 @@ static void i5000_get_mc_regs(struct mem_ctl_info *mci)
 static int i5000_init_csrows(struct mem_ctl_info *mci)
 {
 	struct i5000_pvt *pvt;
-	struct csrow_info *p_csrow;
+	struct dimm_info *dimm;
 	int empty, channel_count;
 	int max_csrows;
-	int mtr, mtr1;
+	int mtr;
 	int csrow_megs;
 	int channel;
-	int csrow;
+	int slot;
 
 	pvt = mci->pvt_info;
 
@@ -1250,43 +1263,40 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 
 	empty = 1;		/* Assume NO memory */
 
-	for (csrow = 0; csrow < max_csrows; csrow++) {
-		p_csrow = &mci->csrows[csrow];
-
-		p_csrow->csrow_idx = csrow;
-
-		/* use branch 0 for the basis */
-		mtr = pvt->b0_mtr[csrow >> 1];
-		mtr1 = pvt->b1_mtr[csrow >> 1];
-
-		/* if no DIMMS on this row, continue */
-		if (!MTR_DIMMS_PRESENT(mtr) && !MTR_DIMMS_PRESENT(mtr1))
-			continue;
-
-		/* FAKE OUT VALUES, FIXME */
-		p_csrow->first_page = 0 + csrow * 20;
-		p_csrow->last_page = 9 + csrow * 20;
-		p_csrow->page_mask = 0xFFF;
-
-		p_csrow->grain = 8;
-
-		csrow_megs = 0;
+	/*
+	 * FIXME: The memory layout used to map slot/channel into the
+	 * real memory architecture is weird: branch+slot are "csrows"
+	 * and channel is channel. That required an extra array (dimm_info)
+	 * to map the dimms. A good cleanup would be to remove this array,
+	 * and do a loop here with branch, channel, slot
+	 */
+	for (slot = 0; slot < max_csrows; slot++) {
 		for (channel = 0; channel < pvt->maxch; channel++) {
-			csrow_megs += pvt->dimm_info[csrow][channel].megabytes;
+
+			mtr = determine_mtr(pvt, slot, channel);
+
+			if (!MTR_DIMMS_PRESENT(mtr))
+				continue;
+
+			dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms, mci->n_layers,
+				       channel / MAX_BRANCHES,
+				       channel % MAX_BRANCHES, slot);
+
+			csrow_megs = pvt->dimm_info[slot][channel].megabytes;
+			dimm->grain = 8;
+
+			/* Assume DDR2 for now */
+			dimm->mtype = MEM_FB_DDR2;
+
+			/* ask what device type on this row */
+			if (MTR_DRAM_WIDTH(mtr))
+				dimm->dtype = DEV_X8;
+			else
+				dimm->dtype = DEV_X4;
+
+			dimm->edac_mode = EDAC_S8ECD8ED;
+			dimm->nr_pages = csrow_megs << 8;
 		}
-
-		p_csrow->nr_pages = csrow_megs << 8;
-
-		/* Assume DDR2 for now */
-		p_csrow->mtype = MEM_FB_DDR2;
-
-		/* ask what device type on this row */
-		if (MTR_DRAM_WIDTH(mtr))
-			p_csrow->dtype = DEV_X8;
-		else
-			p_csrow->dtype = DEV_X4;
-
-		p_csrow->edac_mode = EDAC_S8ECD8ED;
 
 		empty = 0;
 	}
@@ -1317,7 +1327,7 @@ static void i5000_enable_error_reporting(struct mem_ctl_info *mci)
 }
 
 /*
- * i5000_get_dimm_and_channel_counts(pdev, &num_csrows, &num_channels)
+ * i5000_get_dimm_and_channel_counts(pdev, &nr_csrows, &num_channels)
  *
  *	ask the device how many channels are present and how many CSROWS
  *	 as well
@@ -1332,7 +1342,7 @@ static void i5000_get_dimm_and_channel_counts(struct pci_dev *pdev,
 	 * supported on this memory controller
 	 */
 	pci_read_config_byte(pdev, MAXDIMMPERCH, &value);
-	*num_dimms_per_channel = (int)value *2;
+	*num_dimms_per_channel = (int)value;
 
 	pci_read_config_byte(pdev, MAXCH, &value);
 	*num_channels = (int)value;
@@ -1348,10 +1358,10 @@ static void i5000_get_dimm_and_channel_counts(struct pci_dev *pdev,
 static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[3];
 	struct i5000_pvt *pvt;
 	int num_channels;
 	int num_dimms_per_channel;
-	int num_csrows;
 
 	debugf0("MC: %s: %s(), pdev bus %u dev=0x%x fn=0x%x\n",
 		__FILE__, __func__,
@@ -1377,14 +1387,22 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	 */
 	i5000_get_dimm_and_channel_counts(pdev, &num_dimms_per_channel,
 					&num_channels);
-	num_csrows = num_dimms_per_channel * 2;
 
-	debugf0("MC: %s(): Number of - Channels= %d  DIMMS= %d  CSROWS= %d\n",
-		__func__, num_channels, num_dimms_per_channel, num_csrows);
+	debugf0("MC: %s(): Number of Branches=2 Channels= %d  DIMMS= %d\n",
+		__func__, num_channels, num_dimms_per_channel);
 
 	/* allocate a new MC control structure */
-	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
 
+	layers[0].type = EDAC_MC_LAYER_BRANCH;
+	layers[0].size = MAX_BRANCHES;
+	layers[0].is_virt_csrow = false;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = num_channels / MAX_BRANCHES;
+	layers[1].is_virt_csrow = false;
+	layers[2].type = EDAC_MC_LAYER_SLOT;
+	layers[2].size = num_dimms_per_channel;
+	layers[2].is_virt_csrow = true;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
 		return -ENOMEM;
 

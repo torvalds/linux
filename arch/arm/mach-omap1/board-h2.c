@@ -179,28 +179,12 @@ static struct mtd_partition h2_nand_partitions[] = {
 	},
 };
 
-static void h2_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
-{
-	struct nand_chip *this = mtd->priv;
-	unsigned long mask;
-
-	if (cmd == NAND_CMD_NONE)
-		return;
-
-	mask = (ctrl & NAND_CLE) ? 0x02 : 0;
-	if (ctrl & NAND_ALE)
-		mask |= 0x04;
-	writeb(cmd, (unsigned long)this->IO_ADDR_W | mask);
-}
-
 #define H2_NAND_RB_GPIO_PIN	62
 
 static int h2_nand_dev_ready(struct mtd_info *mtd)
 {
 	return gpio_get_value(H2_NAND_RB_GPIO_PIN);
 }
-
-static const char *h2_part_probes[] = { "cmdlinepart", NULL };
 
 static struct platform_nand_data h2_nand_platdata = {
 	.chip	= {
@@ -209,12 +193,10 @@ static struct platform_nand_data h2_nand_platdata = {
 		.nr_partitions		= ARRAY_SIZE(h2_nand_partitions),
 		.partitions		= h2_nand_partitions,
 		.options		= NAND_SAMSUNG_LP_OPTIONS,
-		.part_probe_types	= h2_part_probes,
 	},
 	.ctrl	= {
-		.cmd_ctrl	= h2_nand_cmd_ctl,
+		.cmd_ctrl	= omap1_nand_cmd_ctl,
 		.dev_ready	= h2_nand_dev_ready,
-
 	},
 };
 
@@ -245,8 +227,6 @@ static struct resource h2_smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= OMAP_GPIO_IRQ(0),
-		.end	= OMAP_GPIO_IRQ(0),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
@@ -359,11 +339,9 @@ static struct tps65010_board tps_board = {
 static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("tps65010", 0x48),
-		.irq            = OMAP_GPIO_IRQ(58),
 		.platform_data	= &tps_board,
 	}, {
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
-		.irq		= OMAP_GPIO_IRQ(2),
 	},
 };
 
@@ -428,8 +406,12 @@ static void __init h2_init(void)
 	omap_cfg_reg(E19_1610_KBR4);
 	omap_cfg_reg(N19_1610_KBR5);
 
+	h2_smc91x_resources[1].start = gpio_to_irq(0);
+	h2_smc91x_resources[1].end = gpio_to_irq(0);
 	platform_add_devices(h2_devices, ARRAY_SIZE(h2_devices));
 	omap_serial_init();
+	h2_i2c_board_info[0].irq = gpio_to_irq(58);
+	h2_i2c_board_info[1].irq = gpio_to_irq(2);
 	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
 			      ARRAY_SIZE(h2_i2c_board_info));
 	omap1_usb_init(&h2_usb_config);
@@ -446,6 +428,7 @@ MACHINE_START(OMAP_H2, "TI-H2")
 	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= h2_init,
+	.init_late	= omap1_init_late,
 	.timer		= &omap1_timer,
 	.restart	= omap1_restart,
 MACHINE_END

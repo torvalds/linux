@@ -169,7 +169,7 @@ static void mtdoops_workfunc_erase(struct work_struct *work)
 			cxt->nextpage = 0;
 	}
 
-	while (mtd_can_have_bb(mtd)) {
+	while (1) {
 		ret = mtd_block_isbad(mtd, cxt->nextpage * record_size);
 		if (!ret)
 			break;
@@ -199,9 +199,9 @@ badblock:
 		return;
 	}
 
-	if (mtd_can_have_bb(mtd) && ret == -EIO) {
+	if (ret == -EIO) {
 		ret = mtd_block_markbad(mtd, cxt->nextpage * record_size);
-		if (ret < 0) {
+		if (ret < 0 && ret != -EOPNOTSUPP) {
 			printk(KERN_ERR "mtdoops: block_markbad failed, aborting\n");
 			return;
 		}
@@ -257,8 +257,7 @@ static void find_next_position(struct mtdoops_context *cxt)
 	size_t retlen;
 
 	for (page = 0; page < cxt->oops_pages; page++) {
-		if (mtd_can_have_bb(mtd) &&
-		    mtd_block_isbad(mtd, page * record_size))
+		if (mtd_block_isbad(mtd, page * record_size))
 			continue;
 		/* Assume the page is used */
 		mark_page_used(cxt, page);

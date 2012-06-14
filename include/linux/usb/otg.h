@@ -94,6 +94,7 @@ struct usb_phy {
 
 	struct usb_otg		*otg;
 
+	struct device		*io_dev;
 	struct usb_phy_io_ops	*io_ops;
 	void __iomem		*io_priv;
 

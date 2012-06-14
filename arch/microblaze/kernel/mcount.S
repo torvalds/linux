@@ -138,7 +138,7 @@ NOALIGN_ENTRY(ftrace_call)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 /* static normal trace */
 	lwi	r6, r1, 120; /* MS: load parent addr */
-	addik	r5, r15, 0; /* MS: load current function addr */
+	addik	r5, r15, -4; /* MS: load current function addr */
 	/* MS: here is dependency on previous code */
 	brald	r15, r20; /* MS: jump to ftrace handler */
 	nop;

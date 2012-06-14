@@ -219,7 +219,7 @@ static int __init cmx270_init(void)
 	}
 
 	/* Register the partitions */
-	ret = mtd_device_parse_register(cmx270_nand_mtd, NULL, 0,
+	ret = mtd_device_parse_register(cmx270_nand_mtd, NULL, NULL,
 					partition_info, NUM_PARTITIONS);
 	if (ret)
 		goto err_scan;

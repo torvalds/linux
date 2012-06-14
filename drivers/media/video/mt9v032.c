@@ -481,7 +481,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_EXPOSURE_AUTO:
 		return mt9v032_update_aec_agc(mt9v032, MT9V032_AEC_ENABLE,
-					      ctrl->val);
+					      !ctrl->val);
 
 	case V4L2_CID_EXPOSURE:
 		return mt9v032_write(client, MT9V032_TOTAL_SHUTTER_WIDTH,

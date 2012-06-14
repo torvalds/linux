@@ -39,37 +39,109 @@
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
-static void brcmf_sdioh_irqhandler(struct sdio_func *func)
+#ifdef CONFIG_BRCMFMAC_SDIO_OOB
+static irqreturn_t brcmf_sdio_irqhandler(int irq, void *dev_id)
 {
-	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(dev_id);
 
-	brcmf_dbg(TRACE, "***IRQHandler\n");
+	brcmf_dbg(INTR, "oob intr triggered\n");
 
-	sdio_release_host(func);
+	/*
+	 * out-of-band interrupt is level-triggered which won't
+	 * be cleared until dpc
+	 */
+	if (sdiodev->irq_en) {
+		disable_irq_nosync(irq);
+		sdiodev->irq_en = false;
+	}
 
 	brcmf_sdbrcm_isr(sdiodev->bus);
 
-	sdio_claim_host(func);
+	return IRQ_HANDLED;
+}
+
+int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
+{
+	int ret = 0;
+	u8 data;
+	unsigned long flags;
+
+	brcmf_dbg(TRACE, "Entering\n");
+
+	brcmf_dbg(ERROR, "requesting irq %d\n", sdiodev->irq);
+	ret = request_irq(sdiodev->irq, brcmf_sdio_irqhandler,
+			  sdiodev->irq_flags, "brcmf_oob_intr",
+			  &sdiodev->func[1]->card->dev);
+	if (ret != 0)
+		return ret;
+	spin_lock_init(&sdiodev->irq_en_lock);
+	spin_lock_irqsave(&sdiodev->irq_en_lock, flags);
+	sdiodev->irq_en = true;
+	spin_unlock_irqrestore(&sdiodev->irq_en_lock, flags);
+
+	ret = enable_irq_wake(sdiodev->irq);
+	if (ret != 0)
+		return ret;
+	sdiodev->irq_wake = true;
+
+	/* must configure SDIO_CCCR_IENx to enable irq */
+	data = brcmf_sdio_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
+	data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
+	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, data, &ret);
+
+	/* redirect, configure and enable io for interrupt signal */
+	data = SDIO_SEPINT_MASK | SDIO_SEPINT_OE;
+	if (sdiodev->irq_flags & IRQF_TRIGGER_HIGH)
+		data |= SDIO_SEPINT_ACT_HI;
+	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, data, &ret);
+
+	return 0;
+}
+
+int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
+{
+	brcmf_dbg(TRACE, "Entering\n");
+
+	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
+	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
+
+	if (sdiodev->irq_wake) {
+		disable_irq_wake(sdiodev->irq);
+		sdiodev->irq_wake = false;
+	}
+	free_irq(sdiodev->irq, &sdiodev->func[1]->card->dev);
+	sdiodev->irq_en = false;
+
+	return 0;
+}
+#else		/* CONFIG_BRCMFMAC_SDIO_OOB */
+static void brcmf_sdio_irqhandler(struct sdio_func *func)
+{
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
+
+	brcmf_dbg(INTR, "ib intr triggered\n");
+
+	brcmf_sdbrcm_isr(sdiodev->bus);
 }
 
 /* dummy handler for SDIO function 2 interrupt */
-static void brcmf_sdioh_dummy_irq_handler(struct sdio_func *func)
+static void brcmf_sdio_dummy_irqhandler(struct sdio_func *func)
 {
 }
 
-int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)
+int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(TRACE, "Entering\n");
 
 	sdio_claim_host(sdiodev->func[1]);
-	sdio_claim_irq(sdiodev->func[1], brcmf_sdioh_irqhandler);
-	sdio_claim_irq(sdiodev->func[2], brcmf_sdioh_dummy_irq_handler);
+	sdio_claim_irq(sdiodev->func[1], brcmf_sdio_irqhandler);
+	sdio_claim_irq(sdiodev->func[2], brcmf_sdio_dummy_irqhandler);
 	sdio_release_host(sdiodev->func[1]);
 
 	return 0;
 }
 
-int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)
+int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(TRACE, "Entering\n");
 
@@ -80,154 +152,149 @@ int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)
 
 	return 0;
 }
-
-u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
-			 int *err)
-{
-	int status;
-	s32 retry = 0;
-	u8 data = 0;
-
-	do {
-		if (retry)	/* wait for 1 ms till bus get settled down */
-			udelay(1000);
-		status = brcmf_sdioh_request_byte(sdiodev, SDIOH_READ, fnc_num,
-						  addr, (u8 *) &data);
-	} while (status != 0
-		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
-	if (err)
-		*err = status;
-
-	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, u8data = 0x%x\n",
-		  fnc_num, addr, data);
-
-	return data;
-}
-
-void
-brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
-		       u8 data, int *err)
-{
-	int status;
-	s32 retry = 0;
-
-	do {
-		if (retry)	/* wait for 1 ms till bus get settled down */
-			udelay(1000);
-		status = brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, fnc_num,
-						  addr, (u8 *) &data);
-	} while (status != 0
-		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
-	if (err)
-		*err = status;
-
-	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, u8data = 0x%x\n",
-		  fnc_num, addr, data);
-}
+#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 
 int
 brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 {
-	int err = 0;
-	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW,
-			 (address >> 8) & SBSDIO_SBADDRLOW_MASK, &err);
-	if (!err)
-		brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1,
-				       SBSDIO_FUNC1_SBADDRMID,
-				       (address >> 16) & SBSDIO_SBADDRMID_MASK,
-				       &err);
-	if (!err)
-		brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1,
-				       SBSDIO_FUNC1_SBADDRHIGH,
-				       (address >> 24) & SBSDIO_SBADDRHIGH_MASK,
-				       &err);
+	int err = 0, i;
+	u8 addr[3];
+	s32 retry;
+
+	addr[0] = (address >> 8) & SBSDIO_SBADDRLOW_MASK;
+	addr[1] = (address >> 16) & SBSDIO_SBADDRMID_MASK;
+	addr[2] = (address >> 24) & SBSDIO_SBADDRHIGH_MASK;
+
+	for (i = 0; i < 3; i++) {
+		retry = 0;
+		do {
+			if (retry)
+				usleep_range(1000, 2000);
+			err = brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE,
+					SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW + i,
+					&addr[i]);
+		} while (err != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
+
+		if (err) {
+			brcmf_dbg(ERROR, "failed at addr:0x%0x\n",
+				  SBSDIO_FUNC1_SBADDRLOW + i);
+			break;
+		}
+	}
 
 	return err;
 }
 
-u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size)
+static int
+brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
+			void *data, bool write)
 {
-	int status;
-	u32 word = 0;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
+	u8 func_num, reg_size;
+	u32 bar;
+	s32 retry = 0;
+	int ret;
 
-	brcmf_dbg(INFO, "fun = 1, addr = 0x%x\n", addr);
+	/*
+	 * figure out how to read the register based on address range
+	 * 0x00 ~ 0x7FF: function 0 CCCR and FBR
+	 * 0x10000 ~ 0x1FFFF: function 1 miscellaneous registers
+	 * The rest: function 1 silicon backplane core registers
+	 */
+	if ((addr & ~REG_F0_REG_MASK) == 0) {
+		func_num = SDIO_FUNC_0;
+		reg_size = 1;
+	} else if ((addr & ~REG_F1_MISC_MASK) == 0) {
+		func_num = SDIO_FUNC_1;
+		reg_size = 1;
+	} else {
+		func_num = SDIO_FUNC_1;
+		reg_size = 4;
 
-	if (bar0 != sdiodev->sbwad) {
-		if (brcmf_sdcard_set_sbaddr_window(sdiodev, bar0))
-			return 0xFFFFFFFF;
-
-		sdiodev->sbwad = bar0;
-	}
-
-	addr &= SBSDIO_SB_OFT_ADDR_MASK;
-	if (size == 4)
-		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
-
-	status = brcmf_sdioh_request_word(sdiodev, SDIOH_READ, SDIO_FUNC_1,
-					  addr, &word, size);
-
-	sdiodev->regfail = (status != 0);
-
-	brcmf_dbg(INFO, "u32data = 0x%x\n", word);
-
-	/* if ok, return appropriately masked word */
-	if (status == 0) {
-		switch (size) {
-		case sizeof(u8):
-			return word & 0xff;
-		case sizeof(u16):
-			return word & 0xffff;
-		case sizeof(u32):
-			return word;
-		default:
-			sdiodev->regfail = true;
-
+		/* Set the window for SB core register */
+		bar = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
+		if (bar != sdiodev->sbwad) {
+			ret = brcmf_sdcard_set_sbaddr_window(sdiodev, bar);
+			if (ret != 0) {
+				memset(data, 0xFF, reg_size);
+				return ret;
+			}
+			sdiodev->sbwad = bar;
 		}
-	}
-
-	/* otherwise, bad sdio access or invalid size */
-	brcmf_dbg(ERROR, "error reading addr 0x%04x size %d\n", addr, size);
-	return 0xFFFFFFFF;
-}
-
-u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
-			   u32 data)
-{
-	int status;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
-	int err = 0;
-
-	brcmf_dbg(INFO, "fun = 1, addr = 0x%x, uint%ddata = 0x%x\n",
-		  addr, size * 8, data);
-
-	if (bar0 != sdiodev->sbwad) {
-		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
-		if (err)
-			return err;
-
-		sdiodev->sbwad = bar0;
-	}
-
-	addr &= SBSDIO_SB_OFT_ADDR_MASK;
-	if (size == 4)
+		addr &= SBSDIO_SB_OFT_ADDR_MASK;
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
-	status =
-	    brcmf_sdioh_request_word(sdiodev, SDIOH_WRITE, SDIO_FUNC_1,
-				     addr, &data, size);
-	sdiodev->regfail = (status != 0);
+	}
 
-	if (status == 0)
-		return 0;
+	do {
+		if (!write)
+			memset(data, 0, reg_size);
+		if (retry)	/* wait for 1 ms till bus get settled down */
+			usleep_range(1000, 2000);
+		if (reg_size == 1)
+			ret = brcmf_sdioh_request_byte(sdiodev, write,
+						       func_num, addr, data);
+		else
+			ret = brcmf_sdioh_request_word(sdiodev, write,
+						       func_num, addr, data, 4);
+	} while (ret != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
-	brcmf_dbg(ERROR, "error writing 0x%08x to addr 0x%04x size %d\n",
-		  data, addr, size);
-	return 0xFFFFFFFF;
+	if (ret != 0)
+		brcmf_dbg(ERROR, "failed with %d\n", ret);
+
+	return ret;
 }
 
-bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev)
+u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 {
-	return sdiodev->regfail;
+	u8 data;
+	int retval;
+
+	brcmf_dbg(INFO, "addr:0x%08x\n", addr);
+	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, false);
+	brcmf_dbg(INFO, "data:0x%02x\n", data);
+
+	if (ret)
+		*ret = retval;
+
+	return data;
+}
+
+u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
+{
+	u32 data;
+	int retval;
+
+	brcmf_dbg(INFO, "addr:0x%08x\n", addr);
+	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, false);
+	brcmf_dbg(INFO, "data:0x%08x\n", data);
+
+	if (ret)
+		*ret = retval;
+
+	return data;
+}
+
+void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
+		      u8 data, int *ret)
+{
+	int retval;
+
+	brcmf_dbg(INFO, "addr:0x%08x, data:0x%02x\n", addr, data);
+	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, true);
+
+	if (ret)
+		*ret = retval;
+}
+
+void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
+		      u32 data, int *ret)
+{
+	int retval;
+
+	brcmf_dbg(INFO, "addr:0x%08x, data:0x%08x\n", addr, data);
+	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, true);
+
+	if (ret)
+		*ret = retval;
 }
 
 static int brcmf_sdcard_recv_prepare(struct brcmf_sdio_dev *sdiodev, uint fn,

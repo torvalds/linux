@@ -14,13 +14,13 @@ struct mm_struct;
 #include <asm/sigcontext.h>
 #include <asm/current.h>
 #include <asm/cpufeature.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable_types.h>
 #include <asm/percpu.h>
 #include <asm/msr.h>
 #include <asm/desc_defs.h>
 #include <asm/nops.h>
+#include <asm/special_insns.h>
 
 #include <linux/personality.h>
 #include <linux/cpumask.h>
@@ -29,6 +29,15 @@ struct mm_struct;
 #include <linux/math64.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/irqflags.h>
+
+/*
+ * We handle most unaligned accesses in hardware.  On the other hand
+ * unaligned DMA can be quite expensive on some Nehalem processors.
+ *
+ * Based on this we disable the IP header alignment in network drivers.
+ */
+#define NET_IP_ALIGN	0
 
 #define HBP_NUM 4
 /*
@@ -454,7 +463,7 @@ struct thread_struct {
 	unsigned long           ptrace_dr7;
 	/* Fault info: */
 	unsigned long		cr2;
-	unsigned long		trap_no;
+	unsigned long		trap_nr;
 	unsigned long		error_code;
 	/* floating point and extended processor state */
 	struct fpu		fpu;
@@ -535,13 +544,16 @@ static inline void load_sp0(struct tss_struct *tss,
  * enable), so that any CPU's that boot up
  * after us can get the correct flags.
  */
-extern unsigned long		mmu_cr4_features;
+extern unsigned long mmu_cr4_features;
+extern u32 *trampoline_cr4_features;
 
 static inline void set_in_cr4(unsigned long mask)
 {
 	unsigned long cr4;
 
 	mmu_cr4_features |= mask;
+	if (trampoline_cr4_features)
+		*trampoline_cr4_features = mmu_cr4_features;
 	cr4 = read_cr4();
 	cr4 |= mask;
 	write_cr4(cr4);
@@ -552,6 +564,8 @@ static inline void clear_in_cr4(unsigned long mask)
 	unsigned long cr4;
 
 	mmu_cr4_features &= ~mask;
+	if (trampoline_cr4_features)
+		*trampoline_cr4_features = mmu_cr4_features;
 	cr4 = read_cr4();
 	cr4 &= ~mask;
 	write_cr4(cr4);
@@ -569,9 +583,6 @@ extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-
-/* Prepare to copy thread state - unlazy all lazy state */
-extern void prepare_to_copy(struct task_struct *tsk);
 
 unsigned long get_wchan(struct task_struct *p);
 
@@ -864,9 +875,9 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 #define IA32_PAGE_OFFSET	((current->personality & ADDR_LIMIT_3GB) ? \
 					0xc0000000 : 0xFFFFe000)
 
-#define TASK_SIZE		(test_thread_flag(TIF_IA32) ? \
+#define TASK_SIZE		(test_thread_flag(TIF_ADDR32) ? \
 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
-#define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_IA32)) ? \
+#define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
 
 #define STACK_TOP		TASK_SIZE
@@ -888,6 +899,12 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 #define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.sp0 - 1)
 extern unsigned long KSTK_ESP(struct task_struct *task);
+
+/*
+ * User space RSP while inside the SYSCALL fast path
+ */
+DECLARE_PER_CPU(unsigned long, old_rsp);
+
 #endif /* CONFIG_X86_64 */
 
 extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
@@ -958,5 +975,13 @@ extern bool cpu_has_amd_erratum(const int *);
 #else
 #define cpu_has_amd_erratum(x)	(false)
 #endif /* CONFIG_CPU_SUP_AMD */
+
+extern unsigned long arch_align_stack(unsigned long sp);
+extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
+
+void default_idle(void);
+bool set_pm_idle_to_default(void);
+
+void stop_this_cpu(void *dummy);
 
 #endif /* _ASM_X86_PROCESSOR_H */

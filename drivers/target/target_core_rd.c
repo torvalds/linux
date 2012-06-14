@@ -64,9 +64,6 @@ static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 	pr_debug("CORE_HBA[%d] - TCM Ramdisk HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
 		RD_HBA_VERSION, TARGET_CORE_MOD_VERSION);
-	pr_debug("CORE_HBA[%d] - Attached Ramdisk HBA: %u to Generic"
-		" MaxSectors: %u\n", hba->hba_id,
-		rd_host->rd_host_id, RD_MAX_SECTORS);
 
 	return 0;
 }
@@ -199,10 +196,7 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 	return 0;
 }
 
-static void *rd_allocate_virtdevice(
-	struct se_hba *hba,
-	const char *name,
-	int rd_direct)
+static void *rd_allocate_virtdevice(struct se_hba *hba, const char *name)
 {
 	struct rd_dev *rd_dev;
 	struct rd_host *rd_host = hba->hba_ptr;
@@ -214,25 +208,12 @@ static void *rd_allocate_virtdevice(
 	}
 
 	rd_dev->rd_host = rd_host;
-	rd_dev->rd_direct = rd_direct;
 
 	return rd_dev;
 }
 
-static void *rd_MEMCPY_allocate_virtdevice(struct se_hba *hba, const char *name)
-{
-	return rd_allocate_virtdevice(hba, name, 0);
-}
-
-/*	rd_create_virtdevice():
- *
- *
- */
-static struct se_device *rd_create_virtdevice(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	void *p,
-	int rd_direct)
+static struct se_device *rd_create_virtdevice(struct se_hba *hba,
+		struct se_subsystem_dev *se_dev, void *p)
 {
 	struct se_device *dev;
 	struct se_dev_limits dev_limits;
@@ -247,13 +228,12 @@ static struct se_device *rd_create_virtdevice(
 	if (ret < 0)
 		goto fail;
 
-	snprintf(prod, 16, "RAMDISK-%s", (rd_dev->rd_direct) ? "DR" : "MCP");
-	snprintf(rev, 4, "%s", (rd_dev->rd_direct) ? RD_DR_VERSION :
-						RD_MCP_VERSION);
+	snprintf(prod, 16, "RAMDISK-MCP");
+	snprintf(rev, 4, "%s", RD_MCP_VERSION);
 
 	dev_limits.limits.logical_block_size = RD_BLOCKSIZE;
-	dev_limits.limits.max_hw_sectors = RD_MAX_SECTORS;
-	dev_limits.limits.max_sectors = RD_MAX_SECTORS;
+	dev_limits.limits.max_hw_sectors = UINT_MAX;
+	dev_limits.limits.max_sectors = UINT_MAX;
 	dev_limits.hw_queue_depth = RD_MAX_DEVICE_QUEUE_DEPTH;
 	dev_limits.queue_depth = RD_DEVICE_QUEUE_DEPTH;
 
@@ -264,12 +244,10 @@ static struct se_device *rd_create_virtdevice(
 		goto fail;
 
 	rd_dev->rd_dev_id = rd_host->rd_host_dev_id_count++;
-	rd_dev->rd_queue_depth = dev->queue_depth;
 
-	pr_debug("CORE_RD[%u] - Added TCM %s Ramdisk Device ID: %u of"
+	pr_debug("CORE_RD[%u] - Added TCM MEMCPY Ramdisk Device ID: %u of"
 		" %u pages in %u tables, %lu total bytes\n",
-		rd_host->rd_host_id, (!rd_dev->rd_direct) ? "MEMCPY" :
-		"DIRECT", rd_dev->rd_dev_id, rd_dev->rd_page_count,
+		rd_host->rd_host_id, rd_dev->rd_dev_id, rd_dev->rd_page_count,
 		rd_dev->sg_table_count,
 		(unsigned long)(rd_dev->rd_page_count * PAGE_SIZE));
 
@@ -280,18 +258,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static struct se_device *rd_MEMCPY_create_virtdevice(
-	struct se_hba *hba,
-	struct se_subsystem_dev *se_dev,
-	void *p)
-{
-	return rd_create_virtdevice(hba, se_dev, p, 0);
-}
-
-/*	rd_free_device(): (Part of se_subsystem_api_t template)
- *
- *
- */
 static void rd_free_device(void *p)
 {
 	struct rd_dev *rd_dev = p;
@@ -300,29 +266,6 @@ static void rd_free_device(void *p)
 	kfree(rd_dev);
 }
 
-static inline struct rd_request *RD_REQ(struct se_task *task)
-{
-	return container_of(task, struct rd_request, rd_task);
-}
-
-static struct se_task *
-rd_alloc_task(unsigned char *cdb)
-{
-	struct rd_request *rd_req;
-
-	rd_req = kzalloc(sizeof(struct rd_request), GFP_KERNEL);
-	if (!rd_req) {
-		pr_err("Unable to allocate struct rd_request\n");
-		return NULL;
-	}
-
-	return &rd_req->rd_task;
-}
-
-/*	rd_get_sg_table():
- *
- *
- */
 static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 {
 	u32 i;
@@ -341,31 +284,41 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 	return NULL;
 }
 
-static int rd_MEMCPY(struct rd_request *req, u32 read_rd)
+static int rd_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
+		u32 sgl_nents, enum dma_data_direction data_direction)
 {
-	struct se_task *task = &req->rd_task;
-	struct rd_dev *dev = req->rd_task.task_se_cmd->se_dev->dev_ptr;
+	struct se_device *se_dev = cmd->se_dev;
+	struct rd_dev *dev = se_dev->dev_ptr;
 	struct rd_dev_sg_table *table;
 	struct scatterlist *rd_sg;
 	struct sg_mapping_iter m;
-	u32 rd_offset = req->rd_offset;
+	u32 rd_offset;
+	u32 rd_size;
+	u32 rd_page;
 	u32 src_len;
+	u64 tmp;
 
-	table = rd_get_sg_table(dev, req->rd_page);
+	tmp = cmd->t_task_lba * se_dev->se_sub_dev->se_dev_attrib.block_size;
+	rd_offset = do_div(tmp, PAGE_SIZE);
+	rd_page = tmp;
+	rd_size = cmd->data_length;
+
+	table = rd_get_sg_table(dev, rd_page);
 	if (!table)
 		return -EINVAL;
 
-	rd_sg = &table->sg_table[req->rd_page - table->page_start_offset];
+	rd_sg = &table->sg_table[rd_page - table->page_start_offset];
 
 	pr_debug("RD[%u]: %s LBA: %llu, Size: %u Page: %u, Offset: %u\n",
-			dev->rd_dev_id, read_rd ? "Read" : "Write",
-			task->task_lba, req->rd_size, req->rd_page,
-			rd_offset);
+			dev->rd_dev_id,
+			data_direction == DMA_FROM_DEVICE ? "Read" : "Write",
+			cmd->t_task_lba, rd_size, rd_page, rd_offset);
 
 	src_len = PAGE_SIZE - rd_offset;
-	sg_miter_start(&m, task->task_sg, task->task_sg_nents,
-			read_rd ? SG_MITER_TO_SG : SG_MITER_FROM_SG);
-	while (req->rd_size) {
+	sg_miter_start(&m, sgl, sgl_nents,
+			data_direction == DMA_FROM_DEVICE ?
+				SG_MITER_TO_SG : SG_MITER_FROM_SG);
+	while (rd_size) {
 		u32 len;
 		void *rd_addr;
 
@@ -375,13 +328,13 @@ static int rd_MEMCPY(struct rd_request *req, u32 read_rd)
 
 		rd_addr = sg_virt(rd_sg) + rd_offset;
 
-		if (read_rd)
+		if (data_direction == DMA_FROM_DEVICE)
 			memcpy(m.addr, rd_addr, len);
 		else
 			memcpy(rd_addr, m.addr, len);
 
-		req->rd_size -= len;
-		if (!req->rd_size)
+		rd_size -= len;
+		if (!rd_size)
 			continue;
 
 		src_len -= len;
@@ -391,15 +344,15 @@ static int rd_MEMCPY(struct rd_request *req, u32 read_rd)
 		}
 
 		/* rd page completed, next one please */
-		req->rd_page++;
+		rd_page++;
 		rd_offset = 0;
 		src_len = PAGE_SIZE;
-		if (req->rd_page <= table->page_end_offset) {
+		if (rd_page <= table->page_end_offset) {
 			rd_sg++;
 			continue;
 		}
 
-		table = rd_get_sg_table(dev, req->rd_page);
+		table = rd_get_sg_table(dev, rd_page);
 		if (!table) {
 			sg_miter_stop(&m);
 			return -EINVAL;
@@ -409,41 +362,9 @@ static int rd_MEMCPY(struct rd_request *req, u32 read_rd)
 		rd_sg = table->sg_table;
 	}
 	sg_miter_stop(&m);
+
+	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
-}
-
-/*	rd_MEMCPY_do_task(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static int rd_MEMCPY_do_task(struct se_task *task)
-{
-	struct se_device *dev = task->task_se_cmd->se_dev;
-	struct rd_request *req = RD_REQ(task);
-	u64 tmp;
-	int ret;
-
-	tmp = task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
-	req->rd_offset = do_div(tmp, PAGE_SIZE);
-	req->rd_page = tmp;
-	req->rd_size = task->task_size;
-
-	ret = rd_MEMCPY(req, task->task_data_direction == DMA_FROM_DEVICE);
-	if (ret != 0)
-		return ret;
-
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
-	return 0;
-}
-
-/*	rd_free_task(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static void rd_free_task(struct se_task *task)
-{
-	kfree(RD_REQ(task));
 }
 
 enum {
@@ -512,9 +433,8 @@ static ssize_t rd_show_configfs_dev_params(
 	char *b)
 {
 	struct rd_dev *rd_dev = se_dev->se_dev_su_ptr;
-	ssize_t bl = sprintf(b, "TCM RamDisk ID: %u  RamDisk Makeup: %s\n",
-			rd_dev->rd_dev_id, (rd_dev->rd_direct) ?
-			"rd_direct" : "rd_mcp");
+	ssize_t bl = sprintf(b, "TCM RamDisk ID: %u  RamDisk Makeup: rd_mcp\n",
+			rd_dev->rd_dev_id);
 	bl += sprintf(b + bl, "        PAGES/PAGE_SIZE: %u*%lu"
 			"  SG_table_count: %u\n", rd_dev->rd_page_count,
 			PAGE_SIZE, rd_dev->sg_table_count);
@@ -545,12 +465,10 @@ static struct se_subsystem_api rd_mcp_template = {
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_VDEV,
 	.attach_hba		= rd_attach_hba,
 	.detach_hba		= rd_detach_hba,
-	.allocate_virtdevice	= rd_MEMCPY_allocate_virtdevice,
-	.create_virtdevice	= rd_MEMCPY_create_virtdevice,
+	.allocate_virtdevice	= rd_allocate_virtdevice,
+	.create_virtdevice	= rd_create_virtdevice,
 	.free_device		= rd_free_device,
-	.alloc_task		= rd_alloc_task,
-	.do_task		= rd_MEMCPY_do_task,
-	.free_task		= rd_free_task,
+	.execute_cmd		= rd_execute_cmd,
 	.check_configfs_dev_params = rd_check_configfs_dev_params,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,

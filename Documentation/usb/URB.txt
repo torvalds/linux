@@ -168,6 +168,28 @@ that if the completion handler or anyone else tries to resubmit it
 they will get a -EPERM error.  Thus you can be sure that when
 usb_kill_urb() returns, the URB is totally idle.
 
+There is a lifetime issue to consider.  An URB may complete at any
+time, and the completion handler may free the URB.  If this happens
+while usb_unlink_urb or usb_kill_urb is running, it will cause a
+memory-access violation.  The driver is responsible for avoiding this,
+which often means some sort of lock will be needed to prevent the URB
+from being deallocated while it is still in use.
+
+On the other hand, since usb_unlink_urb may end up calling the
+completion handler, the handler must not take any lock that is held
+when usb_unlink_urb is invoked.  The general solution to this problem
+is to increment the URB's reference count while holding the lock, then
+drop the lock and call usb_unlink_urb or usb_kill_urb, and then
+decrement the URB's reference count.  You increment the reference
+count by calling
+
+	struct urb *usb_get_urb(struct urb *urb)
+
+(ignore the return value; it is the same as the argument) and
+decrement the reference count by calling usb_free_urb.  Of course,
+none of this is necessary if there's no danger of the URB being freed
+by the completion handler.
+
 
 1.7. What about the completion handler?
 

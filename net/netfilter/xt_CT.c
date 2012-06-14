@@ -17,7 +17,6 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
-#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 
@@ -150,6 +149,17 @@ err1:
 	return ret;
 }
 
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+static void __xt_ct_tg_timeout_put(struct ctnl_timeout *timeout)
+{
+	typeof(nf_ct_timeout_put_hook) timeout_put;
+
+	timeout_put = rcu_dereference(nf_ct_timeout_put_hook);
+	if (timeout_put)
+		timeout_put(timeout);
+}
+#endif
+
 static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 {
 	struct xt_ct_target_info_v1 *info = par->targinfo;
@@ -158,7 +168,9 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 	struct nf_conn *ct;
 	int ret = 0;
 	u8 proto;
-
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+	struct ctnl_timeout *timeout;
+#endif
 	if (info->flags & ~XT_CT_NOTRACK)
 		return -EINVAL;
 
@@ -214,9 +226,8 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 	}
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-	if (info->timeout) {
+	if (info->timeout[0]) {
 		typeof(nf_ct_timeout_find_get_hook) timeout_find_get;
-		struct ctnl_timeout *timeout;
 		struct nf_conn_timeout *timeout_ext;
 
 		rcu_read_lock();
@@ -245,7 +256,7 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 				pr_info("Timeout policy `%s' can only be "
 					"used by L3 protocol number %d\n",
 					info->timeout, timeout->l3num);
-				goto err4;
+				goto err5;
 			}
 			/* Make sure the timeout policy matches any existing
 			 * protocol tracker, otherwise default to generic.
@@ -258,13 +269,13 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 					"used by L4 protocol number %d\n",
 					info->timeout,
 					timeout->l4proto->l4proto);
-				goto err4;
+				goto err5;
 			}
 			timeout_ext = nf_ct_timeout_ext_add(ct, timeout,
-							    GFP_KERNEL);
+							    GFP_ATOMIC);
 			if (timeout_ext == NULL) {
 				ret = -ENOMEM;
-				goto err4;
+				goto err5;
 			}
 		} else {
 			ret = -ENOENT;
@@ -281,8 +292,12 @@ out:
 	info->ct = ct;
 	return 0;
 
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+err5:
+	__xt_ct_tg_timeout_put(timeout);
 err4:
 	rcu_read_unlock();
+#endif
 err3:
 	nf_conntrack_free(ct);
 err2:

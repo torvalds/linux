@@ -423,7 +423,7 @@ alloc_sglist(int nents, int max, int vary)
 	unsigned		i;
 	unsigned		size = max;
 
-	sg = kmalloc(nents * sizeof *sg, GFP_KERNEL);
+	sg = kmalloc_array(nents, sizeof *sg, GFP_KERNEL);
 	if (!sg)
 		return NULL;
 	sg_init_table(sg, nents);
@@ -904,6 +904,9 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 	struct ctrl_ctx		context;
 	int			i;
 
+	if (param->sglen == 0 || param->iterations > UINT_MAX / param->sglen)
+		return -EOPNOTSUPP;
+
 	spin_lock_init(&context.lock);
 	context.dev = dev;
 	init_completion(&context.complete);
@@ -1025,7 +1028,10 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 		case 13:	/* short read, resembling case 10 */
 			req.wValue = cpu_to_le16((USB_DT_CONFIG << 8) | 0);
 			/* last data packet "should" be DATA1, not DATA0 */
-			len = 1024 - udev->descriptor.bMaxPacketSize0;
+			if (udev->speed == USB_SPEED_SUPER)
+				len = 1024 - 512;
+			else
+				len = 1024 - udev->descriptor.bMaxPacketSize0;
 			expected = -EREMOTEIO;
 			break;
 		case 14:	/* short read; try to fill the last packet */
@@ -1384,11 +1390,15 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 
 static int halt_simple(struct usbtest_dev *dev)
 {
-	int		ep;
-	int		retval = 0;
-	struct urb	*urb;
+	int			ep;
+	int			retval = 0;
+	struct urb		*urb;
+	struct usb_device	*udev = testdev_to_usbdev(dev);
 
-	urb = simple_alloc_urb(testdev_to_usbdev(dev), 0, 512);
+	if (udev->speed == USB_SPEED_SUPER)
+		urb = simple_alloc_urb(udev, 0, 1024);
+	else
+		urb = simple_alloc_urb(udev, 0, 512);
 	if (urb == NULL)
 		return -ENOMEM;
 
@@ -1981,8 +1991,6 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 
 	/* queued control messaging */
 	case 10:
-		if (param->sglen == 0)
-			break;
 		retval = 0;
 		dev_info(&intf->dev,
 				"TEST 10:  queue %d control calls, %d times\n",
@@ -2276,6 +2284,8 @@ usbtest_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			if (status < 0) {
 				WARNING(dev, "couldn't get endpoints, %d\n",
 						status);
+				kfree(dev->buf);
+				kfree(dev);
 				return status;
 			}
 			/* may find bulk or ISO pipes */

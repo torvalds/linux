@@ -17,6 +17,7 @@
 #include <linux/kthread.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/bc_xprt.h>
+#include <linux/nsproxy.h>
 
 #include <net/inet_sock.h>
 
@@ -253,6 +254,7 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 	char svc_name[12];
 	int ret = 0;
 	int minorversion_setup;
+	struct net *net = current->nsproxy->net_ns;
 
 	mutex_lock(&nfs_callback_mutex);
 	if (cb_info->users++ || cb_info->task != NULL) {
@@ -262,6 +264,12 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, NULL);
 	if (!serv) {
 		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	ret = svc_bind(serv, net);
+	if (ret < 0) {
+		printk(KERN_WARNING "NFS: bind callback service failed\n");
 		goto out_err;
 	}
 
@@ -306,6 +314,8 @@ out_err:
 	dprintk("NFS: Couldn't create callback socket or server thread; "
 		"err = %d\n", ret);
 	cb_info->users--;
+	if (serv)
+		svc_shutdown_net(serv, net);
 	goto out;
 }
 
@@ -320,6 +330,7 @@ void nfs_callback_down(int minorversion)
 	cb_info->users--;
 	if (cb_info->users == 0 && cb_info->task != NULL) {
 		kthread_stop(cb_info->task);
+		svc_shutdown_net(cb_info->serv, current->nsproxy->net_ns);
 		svc_exit_thread(cb_info->rqst);
 		cb_info->serv = NULL;
 		cb_info->rqst = NULL;
@@ -332,7 +343,7 @@ void nfs_callback_down(int minorversion)
 int
 check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
 {
-	char *p = svc_gss_principal(rqstp);
+	char *p = rqstp->rq_cred.cr_principal;
 
 	if (rqstp->rq_authop->flavour != RPC_AUTH_GSS)
 		return 1;

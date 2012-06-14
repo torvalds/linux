@@ -48,7 +48,6 @@
 #define INVALID_NODE_SIG 0x10000
 
 /* Flags used to block (re)establishment of contact with a neighboring node */
-
 #define WAIT_PEER_DOWN	0x0001	/* wait to see that peer's links are down */
 #define WAIT_NAMES_GONE	0x0002	/* wait for peer's publications to be purged */
 #define WAIT_NODE_DOWN	0x0004	/* wait until peer node is declared down */
@@ -79,7 +78,6 @@
  *    @deferred_tail: newest OOS b'cast message received from node
  *    @defragm: list of partially reassembled b'cast message fragments from node
  */
-
 struct tipc_node {
 	u32 addr;
 	spinlock_t lock;

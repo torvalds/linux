@@ -14,12 +14,6 @@
 
 #include <mach/memory.h>
 
-#ifndef __ASSEMBLY__
-#define IOMEM(x) ((void __iomem *)(unsigned long)(x))
-#else
-#define IOMEM(x) x
-#endif /* __ASSEMBLY__ */
-
 /*
  * What hardware must be present
  */

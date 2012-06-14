@@ -2483,6 +2483,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pr_err("Control memory remap failed\n");
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
+		iounmap(card->mem);
 		kfree(card);
 		return -ENODEV;
 	}

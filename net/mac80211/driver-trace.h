@@ -161,6 +161,21 @@ DEFINE_EVENT(local_only_evt, drv_start,
 	TP_ARGS(local)
 );
 
+DEFINE_EVENT(local_u32_evt, drv_get_et_strings,
+	     TP_PROTO(struct ieee80211_local *local, u32 sset),
+	     TP_ARGS(local, sset)
+);
+
+DEFINE_EVENT(local_u32_evt, drv_get_et_sset_count,
+	     TP_PROTO(struct ieee80211_local *local, u32 sset),
+	     TP_ARGS(local, sset)
+);
+
+DEFINE_EVENT(local_only_evt, drv_get_et_stats,
+	     TP_PROTO(struct ieee80211_local *local),
+	     TP_ARGS(local)
+);
+
 DEFINE_EVENT(local_only_evt, drv_suspend,
 	TP_PROTO(struct ieee80211_local *local),
 	TP_ARGS(local)

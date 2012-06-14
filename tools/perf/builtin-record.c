@@ -44,7 +44,6 @@ struct perf_record {
 	struct perf_evlist	*evlist;
 	struct perf_session	*session;
 	const char		*progname;
-	const char		*uid_str;
 	int			output;
 	unsigned int		page_size;
 	int			realtime_prio;
@@ -218,7 +217,7 @@ try_again:
 			if (err == EPERM || err == EACCES) {
 				ui__error_paranoid();
 				exit(EXIT_FAILURE);
-			} else if (err ==  ENODEV && opts->cpu_list) {
+			} else if (err ==  ENODEV && opts->target.cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
 			} else if (err == EINVAL) {
@@ -243,9 +242,13 @@ try_again:
 			/*
 			 * If it's cycles then fall back to hrtimer
 			 * based cpu-clock-tick sw counter, which
-			 * is always available even if no PMU support:
+			 * is always available even if no PMU support.
+			 *
+			 * PPC returns ENXIO until 2.6.37 (behavior changed
+			 * with commit b0a873e).
 			 */
-			if (attr->type == PERF_TYPE_HARDWARE
+			if ((err == ENOENT || err == ENXIO)
+					&& attr->type == PERF_TYPE_HARDWARE
 					&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
 
 				if (verbose)
@@ -253,11 +256,15 @@ try_again:
 						    "trying to fall back to cpu-clock-ticks\n");
 				attr->type = PERF_TYPE_SOFTWARE;
 				attr->config = PERF_COUNT_SW_CPU_CLOCK;
+				if (pos->name) {
+					free(pos->name);
+					pos->name = NULL;
+				}
 				goto try_again;
 			}
 
 			if (err == ENOENT) {
-				ui__warning("The %s event is not supported.\n",
+				ui__error("The %s event is not supported.\n",
 					    event_name(pos));
 				exit(EXIT_FAILURE);
 			}
@@ -389,7 +396,7 @@ static void perf_record__mmap_read_all(struct perf_record *rec)
 			perf_record__mmap_read(rec, &rec->evlist->mmap[i]);
 	}
 
-	if (perf_header__has_feat(&rec->session->header, HEADER_TRACE_INFO))
+	if (perf_header__has_feat(&rec->session->header, HEADER_TRACING_DATA))
 		write_output(rec, &finished_round_event, sizeof(finished_round_event));
 }
 
@@ -471,7 +478,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
 
 	if (!have_tracepoints(&evsel_list->entries))
-		perf_header__clear_feat(&session->header, HEADER_TRACE_INFO);
+		perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
 
 	if (!rec->opts.branch_stack)
 		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
@@ -578,7 +585,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		perf_session__process_machines(session, tool,
 					       perf_event__synthesize_guest_os);
 
-	if (!opts->system_wide)
+	if (!opts->target.system_wide)
 		perf_event__synthesize_thread_map(tool, evsel_list->threads,
 						  process_synthesized_event,
 						  machine);
@@ -746,7 +753,10 @@ static struct perf_record record = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 1000,
+		.freq		     = 4000,
+		.target		     = {
+			.uses_mmap   = true,
+		},
 	},
 	.write_mode = WRITE_FORCE,
 	.file_new   = true,
@@ -765,9 +775,9 @@ const struct option record_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &record.evlist, "filter",
 		     "event filter", parse_filter),
-	OPT_STRING('p', "pid", &record.opts.target_pid, "pid",
+	OPT_STRING('p', "pid", &record.opts.target.pid, "pid",
 		    "record events on existing process id"),
-	OPT_STRING('t', "tid", &record.opts.target_tid, "tid",
+	OPT_STRING('t', "tid", &record.opts.target.tid, "tid",
 		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &record.realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
@@ -775,11 +785,11 @@ const struct option record_options[] = {
 		    "collect data without buffering"),
 	OPT_BOOLEAN('R', "raw-samples", &record.opts.raw_samples,
 		    "collect raw sample records from all opened counters"),
-	OPT_BOOLEAN('a', "all-cpus", &record.opts.system_wide,
+	OPT_BOOLEAN('a', "all-cpus", &record.opts.target.system_wide,
 			    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('A', "append", &record.append_file,
 			    "append to the output file to do incremental profiling"),
-	OPT_STRING('C', "cpu", &record.opts.cpu_list, "cpu",
+	OPT_STRING('C', "cpu", &record.opts.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
 	OPT_BOOLEAN('f', "force", &record.force,
 			"overwrite existing data file (deprecated)"),
@@ -813,7 +823,8 @@ const struct option record_options[] = {
 	OPT_CALLBACK('G', "cgroup", &record.evlist, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
-	OPT_STRING('u', "uid", &record.uid_str, "user", "user to profile"),
+	OPT_STRING('u', "uid", &record.opts.target.uid_str, "user",
+		   "user to profile"),
 
 	OPT_CALLBACK_NOOPT('b', "branch-any", &record.opts.branch_stack,
 		     "branch any", "sample any taken branches",
@@ -831,6 +842,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	struct perf_evsel *pos;
 	struct perf_evlist *evsel_list;
 	struct perf_record *rec = &record;
+	char errbuf[BUFSIZ];
 
 	perf_header__set_cmdline(argc, argv);
 
@@ -842,13 +854,12 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && !rec->opts.target_pid && !rec->opts.target_tid &&
-		!rec->opts.system_wide && !rec->opts.cpu_list && !rec->uid_str)
+	if (!argc && perf_target__none(&rec->opts.target))
 		usage_with_options(record_usage, record_options);
 
 	if (rec->force && rec->append_file) {
-		fprintf(stderr, "Can't overwrite and append at the same time."
-				" You need to choose between -f and -A");
+		ui__error("Can't overwrite and append at the same time."
+			  " You need to choose between -f and -A");
 		usage_with_options(record_usage, record_options);
 	} else if (rec->append_file) {
 		rec->write_mode = WRITE_APPEND;
@@ -856,9 +867,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		rec->write_mode = WRITE_FORCE;
 	}
 
-	if (nr_cgroups && !rec->opts.system_wide) {
-		fprintf(stderr, "cgroup monitoring only available in"
-			" system-wide mode\n");
+	if (nr_cgroups && !rec->opts.target.system_wide) {
+		ui__error("cgroup monitoring only available in"
+			  " system-wide mode\n");
 		usage_with_options(record_usage, record_options);
 	}
 
@@ -883,17 +894,25 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		goto out_symbol_exit;
 	}
 
-	rec->opts.uid = parse_target_uid(rec->uid_str, rec->opts.target_tid,
-					 rec->opts.target_pid);
-	if (rec->uid_str != NULL && rec->opts.uid == UINT_MAX - 1)
+	err = perf_target__validate(&rec->opts.target);
+	if (err) {
+		perf_target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
+		ui__warning("%s", errbuf);
+	}
+
+	err = perf_target__parse_uid(&rec->opts.target);
+	if (err) {
+		int saved_errno = errno;
+
+		perf_target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
+		ui__error("%s", errbuf);
+
+		err = -saved_errno;
 		goto out_free_fd;
+	}
 
-	if (rec->opts.target_pid)
-		rec->opts.target_tid = rec->opts.target_pid;
-
-	if (perf_evlist__create_maps(evsel_list, rec->opts.target_pid,
-				     rec->opts.target_tid, rec->opts.uid,
-				     rec->opts.cpu_list) < 0)
+	err = -ENOMEM;
+	if (perf_evlist__create_maps(evsel_list, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
@@ -914,7 +933,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	else if (rec->opts.freq) {
 		rec->opts.default_interval = rec->opts.freq;
 	} else {
-		fprintf(stderr, "frequency and count are zero, aborting\n");
+		ui__error("frequency and count are zero, aborting\n");
 		err = -EINVAL;
 		goto out_free_fd;
 	}

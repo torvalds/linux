@@ -317,18 +317,16 @@ struct pvr2_hdw {
 	v4l2_std_id std_mask_eeprom; // Hardware supported selections
 	v4l2_std_id std_mask_avail;  // Which standards we may select from
 	v4l2_std_id std_mask_cur;    // Currently selected standard(s)
-	unsigned int std_enum_cnt;   // # of enumerated standards
 	int std_enum_cur;            // selected standard enumeration value
 	int std_dirty;               // True if std_mask_cur has changed
 	struct pvr2_ctl_info std_info_enum;
 	struct pvr2_ctl_info std_info_avail;
 	struct pvr2_ctl_info std_info_cur;
-	struct v4l2_standard *std_defs;
-	const char **std_enum_names;
+	struct pvr2_ctl_info std_info_detect;
 
 	// Generated string names, one per actual V4L2 standard
 	const char *std_mask_ptrs[32];
-	char std_mask_names[32][10];
+	char std_mask_names[32][16];
 
 	int unit_number;             /* ID for driver instance */
 	unsigned long serial_number; /* ID for hardware itself */

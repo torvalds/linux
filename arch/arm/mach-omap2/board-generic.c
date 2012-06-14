@@ -15,7 +15,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
-#include <linux/i2c/twl.h>
 
 #include <mach/hardware.h>
 #include <asm/hardware/gic.h>
@@ -95,22 +94,6 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
-static struct twl4030_platform_data beagle_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-};
-
-static void __init omap3_i2c_init(void)
-{
-	omap3_pmic_init("twl4030", &beagle_twldata);
-}
-
-static void __init omap3_init(void)
-{
-	omap3_i2c_init();
-	omap_generic_init();
-}
-
 static const char *omap3_boards_compat[] __initdata = {
 	"ti,omap3",
 	NULL,
@@ -122,7 +105,7 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 	.init_early	= omap3430_init_early,
 	.init_irq	= omap_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
-	.init_machine	= omap3_init,
+	.init_machine	= omap_generic_init,
 	.timer		= &omap3_timer,
 	.dt_compat	= omap3_boards_compat,
 	.restart	= omap_prcm_restart,
@@ -130,22 +113,6 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_ARCH_OMAP4
-static struct twl4030_platform_data sdp4430_twldata = {
-	.irq_base	= TWL6030_IRQ_BASE,
-	.irq_end	= TWL6030_IRQ_END,
-};
-
-static void __init omap4_i2c_init(void)
-{
-	omap4_pmic_init("twl6030", &sdp4430_twldata);
-}
-
-static void __init omap4_init(void)
-{
-	omap4_i2c_init();
-	omap_generic_init();
-}
-
 static const char *omap4_boards_compat[] __initdata = {
 	"ti,omap4",
 	NULL,
@@ -157,7 +124,8 @@ DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.init_early	= omap4430_init_early,
 	.init_irq	= omap_init_irq,
 	.handle_irq	= gic_handle_irq,
-	.init_machine	= omap4_init,
+	.init_machine	= omap_generic_init,
+	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
 	.dt_compat	= omap4_boards_compat,
 	.restart	= omap_prcm_restart,

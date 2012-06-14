@@ -30,6 +30,8 @@
  *	(c) Copyright 1995    Alan Cox <alan@redhat.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -44,10 +46,8 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 #define WATCHDOG_NAME "w83697ug/uf WDT"
-#define PFX WATCHDOG_NAME ": "
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 
 static unsigned long wdt_is_open;
@@ -64,8 +64,8 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 1<= timeout <=255 (default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -91,8 +91,8 @@ static int w83697ug_select_wd_register(void)
 	version = inb(WDT_EFDR);
 
 	if (version == 0x68) {	/* W83697UG		*/
-		printk(KERN_INFO PFX "Watchdog chip version 0x%02x = "
-			"W83697UG/UF found at 0x%04x\n", version, wdt_io);
+		pr_info("Watchdog chip version 0x%02x = W83697UG/UF found at 0x%04x\n",
+			version, wdt_io);
 
 		outb_p(0x2b, WDT_EFER);
 		c = inb_p(WDT_EFDR);    /* select WDT0 */
@@ -101,7 +101,7 @@ static int w83697ug_select_wd_register(void)
 		outb_p(c, WDT_EFDR);	/* set pin118 to WDT0 */
 
 	} else {
-		printk(KERN_ERR PFX "No W83697UG/UF could be found\n");
+		pr_err("No W83697UG/UF could be found\n");
 		return -ENODEV;
 	}
 
@@ -131,8 +131,8 @@ static int w83697ug_init(void)
 	outb_p(0xF6, WDT_EFER); /* Select CRF6 */
 	t = inb_p(WDT_EFDR);    /* read CRF6 */
 	if (t != 0) {
-		printk(KERN_INFO PFX "Watchdog already running."
-			" Resetting timeout to %d sec\n", timeout);
+		pr_info("Watchdog already running. Resetting timeout to %d sec\n",
+			timeout);
 		outb_p(timeout, WDT_EFDR);    /* Write back to CRF6 */
 	}
 	outb_p(0xF5, WDT_EFER); /* Select CRF5 */
@@ -286,8 +286,7 @@ static int wdt_close(struct inode *inode, struct file *file)
 	if (expect_close == 42)
 		wdt_disable();
 	else {
-		printk(KERN_CRIT PFX
-			"Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, not stopping watchdog!\n");
 		wdt_ping();
 	}
 	expect_close = 0;
@@ -340,18 +339,16 @@ static int __init wdt_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "WDT driver for the Winbond(TM) W83697UG/UF Super I/O chip initialising.\n");
+	pr_info("WDT driver for the Winbond(TM) W83697UG/UF Super I/O chip initialising\n");
 
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
-		printk(KERN_INFO PFX
-			"timeout value must be 1<=timeout<=255, using %d\n",
+		pr_info("timeout value must be 1<=timeout<=255, using %d\n",
 			WATCHDOG_TIMEOUT);
 	}
 
 	if (!request_region(wdt_io, 1, WATCHDOG_NAME)) {
-		printk(KERN_ERR PFX "I/O address 0x%04x already in use\n",
-			wdt_io);
+		pr_err("I/O address 0x%04x already in use\n", wdt_io);
 		ret = -EIO;
 		goto out;
 	}
@@ -362,20 +359,18 @@ static int __init wdt_init(void)
 
 	ret = register_reboot_notifier(&wdt_notifier);
 	if (ret != 0) {
-		printk(KERN_ERR PFX
-			"cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cannot register reboot notifier (err=%d)\n", ret);
 		goto unreg_regions;
 	}
 
 	ret = misc_register(&wdt_miscdev);
 	if (ret != 0) {
-		printk(KERN_ERR PFX
-			"cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, ret);
+		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		       WATCHDOG_MINOR, ret);
 		goto unreg_reboot;
 	}
 
-	printk(KERN_INFO PFX "initialized. timeout=%d sec (nowayout=%d)\n",
+	pr_info("initialized. timeout=%d sec (nowayout=%d)\n",
 		timeout, nowayout);
 
 out:

@@ -16,6 +16,12 @@ config BITREVERSE
 config RATIONAL
 	boolean
 
+config GENERIC_STRNCPY_FROM_USER
+	bool
+
+config GENERIC_STRNLEN_USER
+	bool
+
 config GENERIC_FIND_FIRST_BIT
 	bool
 
@@ -28,6 +34,13 @@ config GENERIC_PCI_IOMAP
 config GENERIC_IOMAP
 	bool
 	select GENERIC_PCI_IOMAP
+
+config GENERIC_IO
+	boolean
+	default n
+
+config STMP_DEVICE
+	bool
 
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
@@ -84,6 +97,10 @@ choice
 	prompt "CRC32 implementation"
 	depends on CRC32
 	default CRC32_SLICEBY8
+	help
+	  This option allows a kernel builder to override the default choice
+	  of CRC32 algorithm.  Choose the default ("slice by 8") unless you
+	  know that you need one of the others.
 
 config CRC32_SLICEBY8
 	bool "Slice by 8 bytes"
@@ -277,6 +294,7 @@ config BTREE
 config HAS_IOMEM
 	boolean
 	depends on !NO_IOMEM
+	select GENERIC_IO
 	default y
 
 config HAS_IOPORT
@@ -343,6 +361,14 @@ config CORDIC
 	help
 	  This option provides an implementation of the CORDIC algorithm;
 	  calculations are in fixed point. Module will be called cordic.
+
+config DDR
+	bool "JEDEC DDR data"
+	help
+	  Data from JEDEC specs for DDR SDRAM memories,
+	  particularly the AC timing parameters and addressing
+	  information. This data is useful for drivers handling
+	  DDR SDRAM controllers.
 
 config MPILIB
 	tristate

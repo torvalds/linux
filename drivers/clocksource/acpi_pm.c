@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/async.h>
 #include <asm/io.h>
 
 /*
@@ -180,15 +179,17 @@ static int verify_pmtmr_rate(void)
 /* Number of reads we try to get two different values */
 #define ACPI_PM_READ_CHECKS 10000
 
-static void __init acpi_pm_clocksource_async(void *unused, async_cookie_t cookie)
+static int __init init_acpi_pm_clocksource(void)
 {
 	cycle_t value1, value2;
 	unsigned int i, j = 0;
 
+	if (!pmtmr_ioport)
+		return -ENODEV;
 
 	/* "verify" this timing source: */
 	for (j = 0; j < ACPI_PM_MONOTONICITY_CHECKS; j++) {
-		usleep_range(100 * j, 100 * j + 100);
+		udelay(100 * j);
 		value1 = clocksource_acpi_pm.read(&clocksource_acpi_pm);
 		for (i = 0; i < ACPI_PM_READ_CHECKS; i++) {
 			value2 = clocksource_acpi_pm.read(&clocksource_acpi_pm);
@@ -202,32 +203,23 @@ static void __init acpi_pm_clocksource_async(void *unused, async_cookie_t cookie
 			       " 0x%#llx, 0x%#llx - aborting.\n",
 			       value1, value2);
 			pmtmr_ioport = 0;
-			return;
+			return -EINVAL;
 		}
 		if (i == ACPI_PM_READ_CHECKS) {
 			printk(KERN_INFO "PM-Timer failed consistency check "
 			       " (0x%#llx) - aborting.\n", value1);
 			pmtmr_ioport = 0;
-			return;
+			return -ENODEV;
 		}
 	}
 
 	if (verify_pmtmr_rate() != 0){
 		pmtmr_ioport = 0;
-		return;
+		return -ENODEV;
 	}
 
-	clocksource_register_hz(&clocksource_acpi_pm,
+	return clocksource_register_hz(&clocksource_acpi_pm,
 						PMTMR_TICKS_PER_SEC);
-}
-
-static int __init init_acpi_pm_clocksource(void)
-{
-	if (!pmtmr_ioport)
-		return -ENODEV;
-
-	async_schedule(acpi_pm_clocksource_async, NULL);
-	return 0;
 }
 
 /* We use fs_initcall because we want the PCI fixups to have run

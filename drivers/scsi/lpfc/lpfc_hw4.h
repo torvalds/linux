@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009 Emulex.  All rights reserved.                *
+ * Copyright (C) 2009-2012 Emulex.  All rights reserved.                *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -228,19 +228,15 @@ struct lpfc_sli4_flags {
 #define lpfc_idx_rsrc_rdy_MASK		0x00000001
 #define lpfc_idx_rsrc_rdy_WORD		word0
 #define LPFC_IDX_RSRC_RDY		1
-#define lpfc_xri_rsrc_rdy_SHIFT		1
-#define lpfc_xri_rsrc_rdy_MASK		0x00000001
-#define lpfc_xri_rsrc_rdy_WORD		word0
-#define LPFC_XRI_RSRC_RDY		1
-#define lpfc_rpi_rsrc_rdy_SHIFT		2
+#define lpfc_rpi_rsrc_rdy_SHIFT		1
 #define lpfc_rpi_rsrc_rdy_MASK		0x00000001
 #define lpfc_rpi_rsrc_rdy_WORD		word0
 #define LPFC_RPI_RSRC_RDY		1
-#define lpfc_vpi_rsrc_rdy_SHIFT		3
+#define lpfc_vpi_rsrc_rdy_SHIFT		2
 #define lpfc_vpi_rsrc_rdy_MASK		0x00000001
 #define lpfc_vpi_rsrc_rdy_WORD		word0
 #define LPFC_VPI_RSRC_RDY		1
-#define lpfc_vfi_rsrc_rdy_SHIFT		4
+#define lpfc_vfi_rsrc_rdy_SHIFT		3
 #define lpfc_vfi_rsrc_rdy_MASK		0x00000001
 #define lpfc_vfi_rsrc_rdy_WORD		word0
 #define LPFC_VFI_RSRC_RDY		1
@@ -337,6 +333,12 @@ struct lpfc_cqe {
 #define CQE_CODE_RECEIVE		0x4
 #define CQE_CODE_XRI_ABORTED		0x5
 #define CQE_CODE_RECEIVE_V1		0x9
+
+/*
+ * Define mask value for xri_aborted and wcqe completed CQE extended status.
+ * Currently, extended status is limited to 9 bits (0x0 -> 0x103) .
+ */
+#define WCQE_PARAM_MASK		0x1FF;
 
 /* completion queue entry for wqe completions */
 struct lpfc_wcqe_complete {
@@ -3293,7 +3295,13 @@ struct els_request64_wqe {
 struct xmit_els_rsp64_wqe {
 	struct ulp_bde64 bde;
 	uint32_t response_payload_len;
-	uint32_t rsvd4;
+	uint32_t word4;
+#define els_rsp64_sid_SHIFT         0
+#define els_rsp64_sid_MASK          0x00FFFFFF
+#define els_rsp64_sid_WORD          word4
+#define els_rsp64_sp_SHIFT          24
+#define els_rsp64_sp_MASK           0x00000001
+#define els_rsp64_sp_WORD           word4
 	struct wqe_did wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
 	uint32_t word12;

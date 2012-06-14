@@ -21,6 +21,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
+#include <asm/system_misc.h>
 #include <asm/hardware/dec21285.h>
 
 #include <asm/mach/irq.h>

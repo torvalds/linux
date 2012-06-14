@@ -84,8 +84,8 @@ static struct regulator_consumer_supply ldo_consumer[] = {
 
 static struct regulator_init_data ldo_init_data = {
 	.constraints = {
-		.min_uV                 = 850000,
-		.max_uV                 = 1600000,
+		.min_uV                 = 1200000,
+		.max_uV                 = 1200000,
 		.valid_modes_mask       = REGULATOR_MODE_NORMAL,
 		.valid_ops_mask         = REGULATOR_CHANGE_STATUS,
 	},
@@ -143,11 +143,11 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 }
 
 /*
- * using codec assist to small pop, hp_powerup or lineout_powerup
- * should stay setting until vag_powerup is fully ramped down,
- * vag fully ramped down require 400ms.
+ * As manual described, ADC/DAC only works when VAG powerup,
+ * So enabled VAG before ADC/DAC up.
+ * In power down case, we need wait 400ms when vag fully ramped down.
  */
-static int small_pop_event(struct snd_soc_dapm_widget *w,
+static int power_vag_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	switch (event) {
@@ -156,7 +156,7 @@ static int small_pop_event(struct snd_soc_dapm_widget *w,
 			SGTL5000_VAG_POWERUP, SGTL5000_VAG_POWERUP);
 		break;
 
-	case SND_SOC_DAPM_PRE_PMD:
+	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_update_bits(w->codec, SGTL5000_CHIP_ANA_POWER,
 			SGTL5000_VAG_POWERUP, 0);
 		msleep(400);
@@ -197,16 +197,12 @@ static const struct snd_soc_dapm_widget sgtl5000_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HP_OUT"),
 	SND_SOC_DAPM_OUTPUT("LINE_OUT"),
 
-	SND_SOC_DAPM_MICBIAS_E("Mic Bias", SGTL5000_CHIP_MIC_CTRL, 8, 0,
-				mic_bias_event,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_SUPPLY("Mic Bias", SGTL5000_CHIP_MIC_CTRL, 8, 0,
+			    mic_bias_event,
+			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_PGA_E("HP", SGTL5000_CHIP_ANA_POWER, 4, 0, NULL, 0,
-			small_pop_event,
-			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_PGA_E("LO", SGTL5000_CHIP_ANA_POWER, 0, 0, NULL, 0,
-			small_pop_event,
-			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_PGA("HP", SGTL5000_CHIP_ANA_POWER, 4, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("LO", SGTL5000_CHIP_ANA_POWER, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MUX("Capture Mux", SND_SOC_NOPM, 0, 0, &adc_mux),
 	SND_SOC_DAPM_MUX("Headphone Mux", SND_SOC_NOPM, 0, 0, &dac_mux),
@@ -221,8 +217,11 @@ static const struct snd_soc_dapm_widget sgtl5000_dapm_widgets[] = {
 				0, SGTL5000_CHIP_DIG_POWER,
 				1, 0),
 
-	SND_SOC_DAPM_ADC("ADC", "Capture", SGTL5000_CHIP_ANA_POWER, 1, 0),
+	SND_SOC_DAPM_SUPPLY("VAG_POWER", SGTL5000_CHIP_ANA_POWER, 7, 0,
+			    power_vag_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
+	SND_SOC_DAPM_ADC("ADC", "Capture", SGTL5000_CHIP_ANA_POWER, 1, 0),
 	SND_SOC_DAPM_DAC("DAC", "Playback", SGTL5000_CHIP_ANA_POWER, 3, 0),
 };
 
@@ -231,9 +230,11 @@ static const struct snd_soc_dapm_route sgtl5000_dapm_routes[] = {
 	{"Capture Mux", "LINE_IN", "LINE_IN"},	/* line_in --> adc_mux */
 	{"Capture Mux", "MIC_IN", "MIC_IN"},	/* mic_in --> adc_mux */
 
+	{"ADC", NULL, "VAG_POWER"},
 	{"ADC", NULL, "Capture Mux"},		/* adc_mux --> adc */
 	{"AIFOUT", NULL, "ADC"},		/* adc --> i2s_out */
 
+	{"DAC", NULL, "VAG_POWER"},
 	{"DAC", NULL, "AIFIN"},			/* i2s-->dac,skip audio mux */
 	{"Headphone Mux", "DAC", "DAC"},	/* dac --> hp_mux */
 	{"LO", NULL, "DAC"},			/* dac --> line_out */
@@ -664,8 +665,7 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
 	int channels = params_channels(params);
 	int i2s_ctl = 0;
@@ -808,6 +808,7 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 {
 	struct ldo_regulator *ldo;
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
+	struct regulator_config config = { };
 
 	ldo = kzalloc(sizeof(struct ldo_regulator), GFP_KERNEL);
 
@@ -831,8 +832,11 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 	ldo->codec_data = codec;
 	ldo->voltage = voltage;
 
-	ldo->dev = regulator_register(&ldo->desc, codec->dev,
-					  init_data, ldo, NULL);
+	config.dev = codec->dev;
+	config.driver_data = ldo;
+	config.init_data = init_data;
+
+	ldo->dev = regulator_register(&ldo->desc, &config);
 	if (IS_ERR(ldo->dev)) {
 		int ret = PTR_ERR(ldo->dev);
 
@@ -1450,17 +1454,7 @@ static struct i2c_driver sgtl5000_i2c_driver = {
 	.id_table = sgtl5000_id,
 };
 
-static int __init sgtl5000_modinit(void)
-{
-	return i2c_add_driver(&sgtl5000_i2c_driver);
-}
-module_init(sgtl5000_modinit);
-
-static void __exit sgtl5000_exit(void)
-{
-	i2c_del_driver(&sgtl5000_i2c_driver);
-}
-module_exit(sgtl5000_exit);
+module_i2c_driver(sgtl5000_i2c_driver);
 
 MODULE_DESCRIPTION("Freescale SGTL5000 ALSA SoC Codec Driver");
 MODULE_AUTHOR("Zeng Zhaoming <zengzm.kernel@gmail.com>");

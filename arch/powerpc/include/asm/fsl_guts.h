@@ -16,15 +16,6 @@
 #define __ASM_POWERPC_FSL_GUTS_H__
 #ifdef __KERNEL__
 
-/*
- * These #ifdefs are safe because it's not possible to build a kernel that
- * runs on e500 and e600 cores.
- */
-
-#if !defined(CONFIG_PPC_85xx) && !defined(CONFIG_PPC_86xx)
-#error Only 85xx and 86xx SOCs are supported
-#endif
-
 /**
  * Global Utility Registers.
  *
@@ -36,11 +27,7 @@
  * different names.  In these cases, one name is chosen to avoid extraneous
  * #ifdefs.
  */
-#ifdef CONFIG_PPC_85xx
-struct ccsr_guts_85xx {
-#else
-struct ccsr_guts_86xx {
-#endif
+struct ccsr_guts {
 	__be32	porpllsr;	/* 0x.0000 - POR PLL Ratio Status Register */
 	__be32	porbmsr;	/* 0x.0004 - POR Boot Mode Status Register */
 	__be32	porimpscr;	/* 0x.0008 - POR I/O Impedance Status and Control Register */
@@ -77,11 +64,8 @@ struct ccsr_guts_86xx {
 	u8	res0a8[0xb0 - 0xa8];
 	__be32	rstcr;		/* 0x.00b0 - Reset Control Register */
 	u8	res0b4[0xc0 - 0xb4];
-#ifdef CONFIG_PPC_85xx
-	__be32  iovselsr;	/* 0x.00c0 - I/O voltage select status register */
-#else
-	__be32	elbcvselcr;	/* 0x.00c0 - eLBC Voltage Select Ctrl Reg */
-#endif
+	__be32  iovselsr;	/* 0x.00c0 - I/O voltage select status register
+					     Called 'elbcvselcr' on 86xx SOCs */
 	u8	res0c4[0x224 - 0xc4];
 	__be32  iodelay1;	/* 0x.0224 - IO delay control register 1 */
 	__be32  iodelay2;	/* 0x.0228 - IO delay control register 2 */
@@ -136,7 +120,7 @@ struct ccsr_guts_86xx {
  * ch: The channel on the DMA controller (0, 1, 2, or 3)
  * device: The device to set as the source (CCSR_GUTS_DMACR_DEV_xx)
  */
-static inline void guts_set_dmacr(struct ccsr_guts_86xx __iomem *guts,
+static inline void guts_set_dmacr(struct ccsr_guts __iomem *guts,
 	unsigned int co, unsigned int ch, unsigned int device)
 {
 	unsigned int shift = 16 + (8 * (1 - co) + 2 * (3 - ch));
@@ -172,7 +156,7 @@ static inline void guts_set_dmacr(struct ccsr_guts_86xx __iomem *guts,
  * ch: The channel on the DMA controller (0, 1, 2, or 3)
  * value: the new value for the bit (0 or 1)
  */
-static inline void guts_set_pmuxcr_dma(struct ccsr_guts_86xx __iomem *guts,
+static inline void guts_set_pmuxcr_dma(struct ccsr_guts __iomem *guts,
 	unsigned int co, unsigned int ch, unsigned int value)
 {
 	if ((ch == 0) || (ch == 3)) {

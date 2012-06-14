@@ -25,7 +25,6 @@
 #include <linux/cpu.h>
 
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/apic.h>
 #include <asm/idle.h>
 #include <asm/mce.h>

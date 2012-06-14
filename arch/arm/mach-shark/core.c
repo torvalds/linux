@@ -15,6 +15,7 @@
 #include <asm/mach-types.h>
 #include <asm/leds.h>
 #include <asm/param.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>

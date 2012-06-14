@@ -194,7 +194,7 @@ static void __init eukrea_cpuimx35_timer_init(void)
 	mx35_clocks_init();
 }
 
-struct sys_timer eukrea_cpuimx35_timer = {
+static struct sys_timer eukrea_cpuimx35_timer = {
 	.init	= eukrea_cpuimx35_timer_init,
 };
 

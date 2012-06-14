@@ -94,7 +94,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	mutex_lock(&dev->struct_mutex);
 
 	/* Flush everything out, we'll be doing GTT only from now on */
-	ret = intel_pin_and_fence_fb_obj(dev, obj, false);
+	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;
@@ -254,6 +254,16 @@ void intel_fbdev_fini(struct drm_device *dev)
 	kfree(dev_priv->fbdev);
 	dev_priv->fbdev = NULL;
 }
+
+void intel_fbdev_set_suspend(struct drm_device *dev, int state)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	if (!dev_priv->fbdev)
+		return;
+
+	fb_set_suspend(dev_priv->fbdev->helper.fbdev, state);
+}
+
 MODULE_LICENSE("GPL and additional rights");
 
 void intel_fb_output_poll_changed(struct drm_device *dev)
@@ -269,6 +279,8 @@ void intel_fb_restore_mode(struct drm_device *dev)
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_plane *plane;
 
+	mutex_lock(&dev->mode_config.mutex);
+
 	ret = drm_fb_helper_restore_fbdev_mode(&dev_priv->fbdev->helper);
 	if (ret)
 		DRM_DEBUG("failed to restore crtc mode\n");
@@ -276,4 +288,6 @@ void intel_fb_restore_mode(struct drm_device *dev)
 	/* Be sure to shut off any planes that may be active */
 	list_for_each_entry(plane, &config->plane_list, head)
 		plane->funcs->disable_plane(plane);
+
+	mutex_unlock(&dev->mode_config.mutex);
 }

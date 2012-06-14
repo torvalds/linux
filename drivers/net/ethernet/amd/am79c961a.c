@@ -30,7 +30,6 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/system.h>
 
 #define TX_BUFFERS 15
 #define RX_BUFFERS 25

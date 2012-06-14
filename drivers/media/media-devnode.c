@@ -40,7 +40,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
-#include <asm/system.h>
 
 #include <media/media-devnode.h>
 

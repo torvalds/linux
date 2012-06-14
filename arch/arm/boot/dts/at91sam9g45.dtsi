@@ -36,7 +36,7 @@
 		};
 	};
 
-	memory@70000000 {
+	memory {
 		reg = <0x70000000 0x10000000>;
 	};
 
@@ -56,8 +56,23 @@
 				#interrupt-cells = <2>;
 				compatible = "atmel,at91rm9200-aic";
 				interrupt-controller;
-				interrupt-parent;
 				reg = <0xfffff000 0x200>;
+			};
+
+			ramc0: ramc@ffffe400 {
+				compatible = "atmel,at91sam9g45-ddramc";
+				reg = <0xffffe400 0x200
+				       0xffffe600 0x200>;
+			};
+
+			pmc: pmc@fffffc00 {
+				compatible = "atmel,at91rm9200-pmc";
+				reg = <0xfffffc00 0x100>;
+			};
+
+			rstc@fffffd00 {
+				compatible = "atmel,at91sam9g45-rstc";
+				reg = <0xfffffd00 0x10>;
 			};
 
 			pit: timer@fffffd30 {
@@ -66,6 +81,11 @@
 				interrupts = <1 4>;
 			};
 
+
+			shdwc@fffffd10 {
+				compatible = "atmel,at91sam9rl-shdwc";
+				reg = <0xfffffd10 0x10>;
+			};
 
 			tcb0: timer@fff7c000 {
 				compatible = "atmel,at91rm9200-tcb";
@@ -179,6 +199,86 @@
 				interrupts = <25 4>;
 				status = "disabled";
 			};
+
+			adc0: adc@fffb0000 {
+				compatible = "atmel,at91sam9260-adc";
+				reg = <0xfffb0000 0x100>;
+				interrupts = <20 4>;
+				atmel,adc-use-external-triggers;
+				atmel,adc-channels-used = <0xff>;
+				atmel,adc-vref = <3300>;
+				atmel,adc-num-channels = <8>;
+				atmel,adc-startup-time = <40>;
+				atmel,adc-channel-base = <0x30>;
+				atmel,adc-drdy-mask = <0x10000>;
+				atmel,adc-status-register = <0x1c>;
+				atmel,adc-trigger-register = <0x08>;
+
+				trigger@0 {
+					trigger-name = "external-rising";
+					trigger-value = <0x1>;
+					trigger-external;
+				};
+				trigger@1 {
+					trigger-name = "external-falling";
+					trigger-value = <0x2>;
+					trigger-external;
+				};
+
+				trigger@2 {
+					trigger-name = "external-any";
+					trigger-value = <0x3>;
+					trigger-external;
+				};
+
+				trigger@3 {
+					trigger-name = "continuous";
+					trigger-value = <0x6>;
+				};
+			};
 		};
+
+		nand0: nand@40000000 {
+			compatible = "atmel,at91rm9200-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x40000000 0x10000000
+			       0xffffe200 0x200
+			      >;
+			atmel,nand-addr-offset = <21>;
+			atmel,nand-cmd-offset = <22>;
+			gpios = <&pioC 8 0
+				 &pioC 14 0
+				 0
+				>;
+			status = "disabled";
+		};
+
+		usb0: ohci@00700000 {
+			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
+			reg = <0x00700000 0x100000>;
+			interrupts = <22 4>;
+			status = "disabled";
+		};
+
+		usb1: ehci@00800000 {
+			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
+			reg = <0x00800000 0x100000>;
+			interrupts = <22 4>;
+			status = "disabled";
+		};
+	};
+
+	i2c@0 {
+		compatible = "i2c-gpio";
+		gpios = <&pioA 20 0 /* sda */
+			 &pioA 21 0 /* scl */
+			>;
+		i2c-gpio,sda-open-drain;
+		i2c-gpio,scl-open-drain;
+		i2c-gpio,delay-us = <5>;	/* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
 	};
 };

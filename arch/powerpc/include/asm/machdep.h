@@ -99,9 +99,7 @@ struct machdep_calls {
 
 	void		(*init_IRQ)(void);
 
-	/* Return an irq, or NO_IRQ to indicate there are none pending.
-	 * If for some reason there is no irq, but the interrupt
-	 * shouldn't be counted as spurious, return NO_IRQ_IGNORE. */
+	/* Return an irq, or NO_IRQ to indicate there are none pending. */
 	unsigned int	(*get_irq)(void);
 
 	/* PCI stuff */

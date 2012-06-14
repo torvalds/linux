@@ -353,8 +353,13 @@ static pteval_t pte_mfn_to_pfn(pteval_t val)
 {
 	if (val & _PAGE_PRESENT) {
 		unsigned long mfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
+		unsigned long pfn = mfn_to_pfn(mfn);
+
 		pteval_t flags = val & PTE_FLAGS_MASK;
-		val = ((pteval_t)mfn_to_pfn(mfn) << PAGE_SHIFT) | flags;
+		if (unlikely(pfn == ~0))
+			val = flags & ~_PAGE_PRESENT;
+		else
+			val = ((pteval_t)pfn << PAGE_SHIFT) | flags;
 	}
 
 	return val;
@@ -1926,29 +1931,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 		set_pte_vaddr_pud(level3_user_vsyscall, vaddr, pte);
 	}
 #endif
-}
-
-void __init xen_ident_map_ISA(void)
-{
-	unsigned long pa;
-
-	/*
-	 * If we're dom0, then linear map the ISA machine addresses into
-	 * the kernel's address space.
-	 */
-	if (!xen_initial_domain())
-		return;
-
-	xen_raw_printk("Xen: setup ISA identity maps\n");
-
-	for (pa = ISA_START_ADDRESS; pa < ISA_END_ADDRESS; pa += PAGE_SIZE) {
-		pte_t pte = mfn_pte(PFN_DOWN(pa), PAGE_KERNEL_IO);
-
-		if (HYPERVISOR_update_va_mapping(PAGE_OFFSET + pa, pte, 0))
-			BUG();
-	}
-
-	xen_flush_tlb();
 }
 
 static void __init xen_post_allocator_init(void)

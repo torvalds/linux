@@ -103,7 +103,34 @@ enum aa_ops {
 };
 
 
-/* define a short hand for apparmor_audit_data portion of common_audit_data */
+struct apparmor_audit_data {
+	int error;
+	int op;
+	int type;
+	void *profile;
+	const char *name;
+	const char *info;
+	struct task_struct *tsk;
+	union {
+		void *target;
+		struct {
+			long pos;
+			void *target;
+		} iface;
+		struct {
+			int rlim;
+			unsigned long max;
+		} rlim;
+		struct {
+			const char *target;
+			u32 request;
+			u32 denied;
+			uid_t ouid;
+		} fs;
+	};
+};
+
+/* define a short hand for apparmor_audit_data structure */
 #define aad apparmor_audit_data
 
 void aa_audit_msg(int type, struct common_audit_data *sa,

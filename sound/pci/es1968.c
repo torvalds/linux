@@ -2898,7 +2898,7 @@ static void __devexit snd_es1968_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver es1968_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_es1968_ids,
 	.probe = snd_es1968_probe,
@@ -2909,15 +2909,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init alsa_card_es1968_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_es1968_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_es1968_init)
-module_exit(alsa_card_es1968_exit)
+module_pci_driver(es1968_driver);

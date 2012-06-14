@@ -11,6 +11,7 @@
 #include <asm/core_tsunami.h>
 #undef __EXTERN_INLINE
 
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>

@@ -42,6 +42,7 @@
 #include "util/debug.h"
 
 #include <assert.h>
+#include <elf.h>
 #include <fcntl.h>
 
 #include <stdio.h>
@@ -59,6 +60,7 @@
 #include <sys/prctl.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
+#include <sys/utsname.h>
 #include <sys/mman.h>
 
 #include <linux/unistd.h>
@@ -162,12 +164,40 @@ static void __zero_source_counters(struct hist_entry *he)
 	symbol__annotate_zero_histograms(sym);
 }
 
+static void ui__warn_map_erange(struct map *map, struct symbol *sym, u64 ip)
+{
+	struct utsname uts;
+	int err = uname(&uts);
+
+	ui__warning("Out of bounds address found:\n\n"
+		    "Addr:   %" PRIx64 "\n"
+		    "DSO:    %s %c\n"
+		    "Map:    %" PRIx64 "-%" PRIx64 "\n"
+		    "Symbol: %" PRIx64 "-%" PRIx64 " %c %s\n"
+		    "Arch:   %s\n"
+		    "Kernel: %s\n"
+		    "Tools:  %s\n\n"
+		    "Not all samples will be on the annotation output.\n\n"
+		    "Please report to linux-kernel@vger.kernel.org\n",
+		    ip, map->dso->long_name, dso__symtab_origin(map->dso),
+		    map->start, map->end, sym->start, sym->end,
+		    sym->binding == STB_GLOBAL ? 'g' :
+		    sym->binding == STB_LOCAL  ? 'l' : 'w', sym->name,
+		    err ? "[unknown]" : uts.machine,
+		    err ? "[unknown]" : uts.release, perf_version_string);
+	if (use_browser <= 0)
+		sleep(5);
+	
+	map->erange_warned = true;
+}
+
 static void perf_top__record_precise_ip(struct perf_top *top,
 					struct hist_entry *he,
 					int counter, u64 ip)
 {
 	struct annotation *notes;
 	struct symbol *sym;
+	int err;
 
 	if (he == NULL || he->ms.sym == NULL ||
 	    ((top->sym_filter_entry == NULL ||
@@ -189,9 +219,12 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 	}
 
 	ip = he->ms.map->map_ip(he->ms.map, ip);
-	symbol__inc_addr_samples(sym, he->ms.map, counter, ip);
+	err = symbol__inc_addr_samples(sym, he->ms.map, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
+
+	if (err == -ERANGE && !he->ms.map->erange_warned)
+		ui__warn_map_erange(he->ms.map, sym, ip);
 }
 
 static void perf_top__show_details(struct perf_top *top)
@@ -555,7 +588,7 @@ static void *display_thread_tui(void *arg)
 	 * via --uid.
 	 */
 	list_for_each_entry(pos, &top->evlist->entries, node)
-		pos->hists.uid_filter_str = top->uid_str;
+		pos->hists.uid_filter_str = top->target.uid_str;
 
 	perf_evlist__tui_browse_hists(top->evlist, help,
 				      perf_top__sort_new_samples,
@@ -615,6 +648,7 @@ process_hotkey:
 
 /* Tag samples to be skipped. */
 static const char *skip_symbols[] = {
+	"intel_idle",
 	"default_idle",
 	"native_safe_halt",
 	"cpu_idle",
@@ -866,6 +900,9 @@ static void perf_top__start_counters(struct perf_top *top)
 			attr->read_format |= PERF_FORMAT_ID;
 		}
 
+		if (perf_target__has_cpu(&top->target))
+			attr->sample_type |= PERF_SAMPLE_CPU;
+
 		if (symbol_conf.use_callchain)
 			attr->sample_type |= PERF_SAMPLE_CALLCHAIN;
 
@@ -914,20 +951,24 @@ try_again:
 
 				attr->type = PERF_TYPE_SOFTWARE;
 				attr->config = PERF_COUNT_SW_CPU_CLOCK;
+				if (counter->name) {
+					free(counter->name);
+					counter->name = NULL;
+				}
 				goto try_again;
 			}
 
 			if (err == ENOENT) {
-				ui__warning("The %s event is not supported.\n",
+				ui__error("The %s event is not supported.\n",
 					    event_name(counter));
 				goto out_err;
 			} else if (err == EMFILE) {
-				ui__warning("Too many events are opened.\n"
+				ui__error("Too many events are opened.\n"
 					    "Try again after reducing the number of events\n");
 				goto out_err;
 			}
 
-			ui__warning("The sys_perf_event_open() syscall "
+			ui__error("The sys_perf_event_open() syscall "
 				    "returned with %d (%s).  /bin/dmesg "
 				    "may provide additional information.\n"
 				    "No CONFIG_PERF_EVENTS=y kernel support "
@@ -937,7 +978,7 @@ try_again:
 	}
 
 	if (perf_evlist__mmap(evlist, top->mmap_pages, false) < 0) {
-		ui__warning("Failed to mmap with %d (%s)\n",
+		ui__error("Failed to mmap with %d (%s)\n",
 			    errno, strerror(errno));
 		goto out_err;
 	}
@@ -953,12 +994,12 @@ static int perf_top__setup_sample_type(struct perf_top *top)
 {
 	if (!top->sort_has_symbols) {
 		if (symbol_conf.use_callchain) {
-			ui__warning("Selected -g but \"sym\" not present in --sort/-s.");
+			ui__error("Selected -g but \"sym\" not present in --sort/-s.");
 			return -EINVAL;
 		}
 	} else if (!top->dont_use_callchains && callchain_param.mode != CHAIN_NONE) {
 		if (callchain_register_param(&callchain_param) < 0) {
-			ui__warning("Can't register callchain params.\n");
+			ui__error("Can't register callchain params.\n");
 			return -EINVAL;
 		}
 	}
@@ -982,7 +1023,7 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
-	if (top->target_tid || top->uid != UINT_MAX)
+	if (perf_target__has_task(&top->target))
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
 						  &top->session->host_machine);
@@ -1000,7 +1041,7 @@ static int __cmd_top(struct perf_top *top)
 
 	if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
 							    display_thread), top)) {
-		printf("Could not create display thread.\n");
+		ui__error("Could not create display thread.\n");
 		exit(-1);
 	}
 
@@ -1009,7 +1050,7 @@ static int __cmd_top(struct perf_top *top)
 
 		param.sched_priority = top->realtime_prio;
 		if (sched_setscheduler(0, SCHED_FIFO, &param)) {
-			printf("Could not set realtime priority.\n");
+			ui__error("Could not set realtime priority.\n");
 			exit(-1);
 		}
 	}
@@ -1116,14 +1157,17 @@ static const char * const top_usage[] = {
 int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	struct perf_evsel *pos;
-	int status = -ENOMEM;
+	int status;
+	char errbuf[BUFSIZ];
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
-		.uid		     = UINT_MAX,
-		.freq		     = 1000, /* 1 KHz */
+		.freq		     = 4000, /* 4 KHz */
 		.mmap_pages	     = 128,
 		.sym_pcnt_filter     = 5,
+		.target		     = {
+			.uses_mmap   = true,
+		},
 	};
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const struct option options[] = {
@@ -1132,13 +1176,13 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		     parse_events_option),
 	OPT_INTEGER('c', "count", &top.default_interval,
 		    "event period to sample"),
-	OPT_STRING('p', "pid", &top.target_pid, "pid",
+	OPT_STRING('p', "pid", &top.target.pid, "pid",
 		    "profile events on existing process id"),
-	OPT_STRING('t', "tid", &top.target_tid, "tid",
+	OPT_STRING('t', "tid", &top.target.tid, "tid",
 		    "profile events on existing thread id"),
-	OPT_BOOLEAN('a', "all-cpus", &top.system_wide,
+	OPT_BOOLEAN('a', "all-cpus", &top.target.system_wide,
 			    "system-wide collection from all CPUs"),
-	OPT_STRING('C', "cpu", &top.cpu_list, "cpu",
+	OPT_STRING('C', "cpu", &top.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
@@ -1193,7 +1237,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		    "Display raw encoding of assembly instructions (default)"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
-	OPT_STRING('u', "uid", &top.uid_str, "user", "user to profile"),
+	OPT_STRING('u', "uid", &top.target.uid_str, "user", "user to profile"),
 	OPT_END()
 	};
 
@@ -1219,27 +1263,32 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	setup_browser(false);
 
-	top.uid = parse_target_uid(top.uid_str, top.target_tid, top.target_pid);
-	if (top.uid_str != NULL && top.uid == UINT_MAX - 1)
-		goto out_delete_evlist;
-
-	/* CPU and PID are mutually exclusive */
-	if (top.target_tid && top.cpu_list) {
-		printf("WARNING: PID switch overriding CPU\n");
-		sleep(1);
-		top.cpu_list = NULL;
+	status = perf_target__validate(&top.target);
+	if (status) {
+		perf_target__strerror(&top.target, status, errbuf, BUFSIZ);
+		ui__warning("%s", errbuf);
 	}
 
-	if (top.target_pid)
-		top.target_tid = top.target_pid;
+	status = perf_target__parse_uid(&top.target);
+	if (status) {
+		int saved_errno = errno;
 
-	if (perf_evlist__create_maps(top.evlist, top.target_pid,
-				     top.target_tid, top.uid, top.cpu_list) < 0)
+		perf_target__strerror(&top.target, status, errbuf, BUFSIZ);
+		ui__error("%s", errbuf);
+
+		status = -saved_errno;
+		goto out_delete_evlist;
+	}
+
+	if (perf_target__none(&top.target))
+		top.target.system_wide = true;
+
+	if (perf_evlist__create_maps(top.evlist, &top.target) < 0)
 		usage_with_options(top_usage, options);
 
 	if (!top.evlist->nr_entries &&
 	    perf_evlist__add_default(top.evlist) < 0) {
-		pr_err("Not enough memory for event selector list\n");
+		ui__error("Not enough memory for event selector list\n");
 		return -ENOMEM;
 	}
 
@@ -1256,7 +1305,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	else if (top.freq) {
 		top.default_interval = top.freq;
 	} else {
-		fprintf(stderr, "frequency and count are zero, aborting\n");
+		ui__error("frequency and count are zero, aborting\n");
 		exit(EXIT_FAILURE);
 	}
 

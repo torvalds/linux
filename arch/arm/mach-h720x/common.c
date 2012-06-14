@@ -24,6 +24,7 @@
 #include <asm/dma.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
+#include <asm/system_misc.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <mach/irqs.h>

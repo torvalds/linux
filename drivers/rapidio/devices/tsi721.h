@@ -167,6 +167,8 @@
 #define TSI721_DEV_INTE		0x29840
 #define TSI721_DEV_INT		0x29844
 #define TSI721_DEV_INTSET	0x29848
+#define TSI721_DEV_INT_BDMA_CH	0x00002000
+#define TSI721_DEV_INT_BDMA_NCH	0x00001000
 #define TSI721_DEV_INT_SMSG_CH	0x00000800
 #define TSI721_DEV_INT_SMSG_NCH	0x00000400
 #define TSI721_DEV_INT_SR2PC_CH	0x00000200
@@ -181,6 +183,8 @@
 #define TSI721_INT_IMSG_CHAN(x)	(1 << (16 + (x)))
 #define TSI721_INT_OMSG_CHAN_M	0x0000ff00
 #define TSI721_INT_OMSG_CHAN(x)	(1 << (8 + (x)))
+#define TSI721_INT_BDMA_CHAN_M	0x000000ff
+#define TSI721_INT_BDMA_CHAN(x)	(1 << (x))
 
 /*
  * PC2SR block registers
@@ -235,14 +239,16 @@
  *   x = 0..7
  */
 
-#define TSI721_DMAC_DWRCNT(x)	(0x51000 + (x) * 0x1000)
-#define TSI721_DMAC_DRDCNT(x)	(0x51004 + (x) * 0x1000)
+#define TSI721_DMAC_BASE(x)	(0x51000 + (x) * 0x1000)
 
-#define TSI721_DMAC_CTL(x)	(0x51008 + (x) * 0x1000)
+#define TSI721_DMAC_DWRCNT	0x000
+#define TSI721_DMAC_DRDCNT	0x004
+
+#define TSI721_DMAC_CTL		0x008
 #define TSI721_DMAC_CTL_SUSP	0x00000002
 #define TSI721_DMAC_CTL_INIT	0x00000001
 
-#define TSI721_DMAC_INT(x)	(0x5100c + (x) * 0x1000)
+#define TSI721_DMAC_INT		0x00c
 #define TSI721_DMAC_INT_STFULL	0x00000010
 #define TSI721_DMAC_INT_DONE	0x00000008
 #define TSI721_DMAC_INT_SUSP	0x00000004
@@ -250,34 +256,33 @@
 #define TSI721_DMAC_INT_IOFDONE	0x00000001
 #define TSI721_DMAC_INT_ALL	0x0000001f
 
-#define TSI721_DMAC_INTSET(x)	(0x51010 + (x) * 0x1000)
+#define TSI721_DMAC_INTSET	0x010
 
-#define TSI721_DMAC_STS(x)	(0x51014 + (x) * 0x1000)
+#define TSI721_DMAC_STS		0x014
 #define TSI721_DMAC_STS_ABORT	0x00400000
 #define TSI721_DMAC_STS_RUN	0x00200000
 #define TSI721_DMAC_STS_CS	0x001f0000
 
-#define TSI721_DMAC_INTE(x)	(0x51018 + (x) * 0x1000)
+#define TSI721_DMAC_INTE	0x018
 
-#define TSI721_DMAC_DPTRL(x)	(0x51024 + (x) * 0x1000)
+#define TSI721_DMAC_DPTRL	0x024
 #define TSI721_DMAC_DPTRL_MASK	0xffffffe0
 
-#define TSI721_DMAC_DPTRH(x)	(0x51028 + (x) * 0x1000)
+#define TSI721_DMAC_DPTRH	0x028
 
-#define TSI721_DMAC_DSBL(x)	(0x5102c + (x) * 0x1000)
+#define TSI721_DMAC_DSBL	0x02c
 #define TSI721_DMAC_DSBL_MASK	0xffffffc0
 
-#define TSI721_DMAC_DSBH(x)	(0x51030 + (x) * 0x1000)
+#define TSI721_DMAC_DSBH	0x030
 
-#define TSI721_DMAC_DSSZ(x)	(0x51034 + (x) * 0x1000)
+#define TSI721_DMAC_DSSZ	0x034
 #define TSI721_DMAC_DSSZ_SIZE_M	0x0000000f
 #define TSI721_DMAC_DSSZ_SIZE(size)	(__fls(size) - 4)
 
-
-#define TSI721_DMAC_DSRP(x)	(0x51038 + (x) * 0x1000)
+#define TSI721_DMAC_DSRP	0x038
 #define TSI721_DMAC_DSRP_MASK	0x0007ffff
 
-#define TSI721_DMAC_DSWP(x)	(0x5103c + (x) * 0x1000)
+#define TSI721_DMAC_DSWP	0x03c
 #define TSI721_DMAC_DSWP_MASK	0x0007ffff
 
 #define TSI721_BDMA_INTE	0x5f000
@@ -612,6 +617,8 @@ enum dma_rtype {
 #define TSI721_DMACH_MAINT	0	/* DMA channel for maint requests */
 #define TSI721_DMACH_MAINT_NBD	32	/* Number of BDs for maint requests */
 
+#define TSI721_DMACH_DMA	1	/* DMA channel for data transfers */
+
 #define MSG_DMA_ENTRY_INX_TO_SIZE(x)	((0x10 << (x)) & 0xFFFF0)
 
 enum tsi721_smsg_int_flag {
@@ -626,7 +633,48 @@ enum tsi721_smsg_int_flag {
 
 /* Structures */
 
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+
+struct tsi721_tx_desc {
+	struct dma_async_tx_descriptor	txd;
+	struct tsi721_dma_desc		*hw_desc;
+	u16				destid;
+	/* low 64-bits of 66-bit RIO address */
+	u64				rio_addr;
+	/* upper 2-bits of 66-bit RIO address */
+	u8				rio_addr_u;
+	bool				interrupt;
+	struct list_head		desc_node;
+	struct list_head		tx_list;
+};
+
 struct tsi721_bdma_chan {
+	int		id;
+	void __iomem	*regs;
+	int		bd_num;		/* number of buffer descriptors */
+	void		*bd_base;	/* start of DMA descriptors */
+	dma_addr_t	bd_phys;
+	void		*sts_base;	/* start of DMA BD status FIFO */
+	dma_addr_t	sts_phys;
+	int		sts_size;
+	u32		sts_rdptr;
+	u32		wr_count;
+	u32		wr_count_next;
+
+	struct dma_chan		dchan;
+	struct tsi721_tx_desc	*tx_desc;
+	spinlock_t		lock;
+	struct list_head	active_list;
+	struct list_head	queue;
+	struct list_head	free_list;
+	dma_cookie_t		completed_cookie;
+	struct tasklet_struct	tasklet;
+};
+
+#endif /* CONFIG_RAPIDIO_DMA_ENGINE */
+
+struct tsi721_bdma_maint {
+	int		ch_id;		/* BDMA channel number */
 	int		bd_num;		/* number of buffer descriptors */
 	void		*bd_base;	/* start of DMA descriptors */
 	dma_addr_t	bd_phys;
@@ -721,6 +769,24 @@ enum tsi721_msix_vect {
 	TSI721_VECT_IMB1_INT,
 	TSI721_VECT_IMB2_INT,
 	TSI721_VECT_IMB3_INT,
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+	TSI721_VECT_DMA0_DONE,
+	TSI721_VECT_DMA1_DONE,
+	TSI721_VECT_DMA2_DONE,
+	TSI721_VECT_DMA3_DONE,
+	TSI721_VECT_DMA4_DONE,
+	TSI721_VECT_DMA5_DONE,
+	TSI721_VECT_DMA6_DONE,
+	TSI721_VECT_DMA7_DONE,
+	TSI721_VECT_DMA0_INT,
+	TSI721_VECT_DMA1_INT,
+	TSI721_VECT_DMA2_INT,
+	TSI721_VECT_DMA3_INT,
+	TSI721_VECT_DMA4_INT,
+	TSI721_VECT_DMA5_INT,
+	TSI721_VECT_DMA6_INT,
+	TSI721_VECT_DMA7_INT,
+#endif /* CONFIG_RAPIDIO_DMA_ENGINE */
 	TSI721_VECT_MAX
 };
 
@@ -754,7 +820,11 @@ struct tsi721_device {
 	u32		pw_discard_count;
 
 	/* BDMA Engine */
+	struct tsi721_bdma_maint mdma; /* Maintenance rd/wr request channel */
+
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
 	struct tsi721_bdma_chan bdma[TSI721_DMA_CHNUM];
+#endif
 
 	/* Inbound Messaging */
 	int		imsg_init[TSI721_IMSG_CHNUM];
@@ -764,5 +834,10 @@ struct tsi721_device {
 	int		omsg_init[TSI721_OMSG_CHNUM];
 	struct tsi721_omsg_ring	omsg_ring[TSI721_OMSG_CHNUM];
 };
+
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+extern void tsi721_bdma_handler(struct tsi721_bdma_chan *bdma_chan);
+extern int __devinit tsi721_register_dma(struct tsi721_device *priv);
+#endif
 
 #endif

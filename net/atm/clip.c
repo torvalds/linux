@@ -37,7 +37,6 @@
 #include <linux/param.h> /* for HZ */
 #include <linux/uaccess.h>
 #include <asm/byteorder.h> /* for htons etc. */
-#include <asm/system.h> /* save/restore_flags */
 #include <linux/atomic.h>
 
 #include "common.h"

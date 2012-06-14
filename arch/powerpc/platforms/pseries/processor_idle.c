@@ -14,9 +14,9 @@
 
 #include <asm/paca.h>
 #include <asm/reg.h>
-#include <asm/system.h>
 #include <asm/machdep.h>
 #include <asm/firmware.h>
+#include <asm/runlatch.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"

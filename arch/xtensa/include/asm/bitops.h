@@ -21,7 +21,6 @@
 
 #include <asm/processor.h>
 #include <asm/byteorder.h>
-#include <asm/system.h>
 
 #ifdef CONFIG_SMP
 # error SMP not supported on this architecture

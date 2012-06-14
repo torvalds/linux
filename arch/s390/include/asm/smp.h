@@ -9,14 +9,14 @@
 
 #ifdef CONFIG_SMP
 
-#include <asm/system.h>
+#include <asm/lowcore.h>
 
 #define raw_smp_processor_id()	(S390_lowcore.cpu_nr)
 
 extern struct mutex smp_cpu_state_mutex;
 extern struct save_area *zfcpdump_save_areas[NR_CPUS + 1];
 
-extern int __cpu_up(unsigned int cpu);
+extern int __cpu_up(unsigned int cpu, struct task_struct *tidle);
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);

@@ -397,9 +397,9 @@ static int crypto_ablkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 	rblkcipher.max_keysize = alg->cra_ablkcipher.max_keysize;
 	rblkcipher.ivsize = alg->cra_ablkcipher.ivsize;
 
-	NLA_PUT(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
-		sizeof(struct crypto_report_blkcipher), &rblkcipher);
-
+	if (nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
+		    sizeof(struct crypto_report_blkcipher), &rblkcipher))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -478,9 +478,9 @@ static int crypto_givcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 	rblkcipher.max_keysize = alg->cra_ablkcipher.max_keysize;
 	rblkcipher.ivsize = alg->cra_ablkcipher.ivsize;
 
-	NLA_PUT(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
-		sizeof(struct crypto_report_blkcipher), &rblkcipher);
-
+	if (nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
+		    sizeof(struct crypto_report_blkcipher), &rblkcipher))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -613,8 +613,7 @@ out:
 	return err;
 }
 
-static struct crypto_alg *crypto_lookup_skcipher(const char *name, u32 type,
-						 u32 mask)
+struct crypto_alg *crypto_lookup_skcipher(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
 
@@ -652,6 +651,7 @@ static struct crypto_alg *crypto_lookup_skcipher(const char *name, u32 type,
 
 	return ERR_PTR(crypto_givcipher_default(alg, type, mask));
 }
+EXPORT_SYMBOL_GPL(crypto_lookup_skcipher);
 
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn, const char *name,
 			 u32 type, u32 mask)

@@ -12,7 +12,6 @@
 #include <linux/interrupt.h>
 #include <linux/of_platform.h>
 
-#include <asm/system.h>
 #include <asm/mpic.h>
 #include <asm/i8259.h>
 

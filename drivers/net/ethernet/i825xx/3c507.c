@@ -63,7 +63,6 @@ static const char version[] =
 
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 /* use 0 for production, 1 for verification, 2..7 for debug */

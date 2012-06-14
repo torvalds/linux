@@ -31,6 +31,7 @@
 #include <mach/hardware.h>
 #include <mach/r8a7779.h>
 #include <mach/common.h>
+#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -97,5 +98,6 @@ MACHINE_START(MARZEN, "marzen")
 	.init_irq	= r8a7779_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= marzen_init,
+	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

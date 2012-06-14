@@ -434,8 +434,8 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 	else {
 		card->info.mac_bits  = 0;
-		if (card->discipline.ccwgdriver) {
-			card->discipline.ccwgdriver->remove(card->gdev);
+		if (card->discipline) {
+			card->discipline->remove(card->gdev);
 			qeth_core_free_discipline(card);
 		}
 	}
@@ -444,7 +444,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 	if (rc)
 		goto out;
 
-	rc = card->discipline.ccwgdriver->probe(card->gdev);
+	rc = card->discipline->setup(card->gdev);
 out:
 	mutex_unlock(&card->discipline_mutex);
 	return rc ? rc : count;
@@ -693,7 +693,6 @@ static struct attribute *qeth_blkt_device_attrs[] = {
 	&dev_attr_inter_jumbo.attr,
 	NULL,
 };
-
 static struct attribute_group qeth_device_blkt_group = {
 	.name = "blkt",
 	.attrs = qeth_blkt_device_attrs,
@@ -716,9 +715,14 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_hw_trap.attr,
 	NULL,
 };
-
 static struct attribute_group qeth_device_attr_group = {
 	.attrs = qeth_device_attrs,
+};
+
+const struct attribute_group *qeth_generic_attr_groups[] = {
+	&qeth_device_attr_group,
+	&qeth_device_blkt_group,
+	NULL,
 };
 
 static struct attribute *qeth_osn_device_attrs[] = {
@@ -730,37 +734,10 @@ static struct attribute *qeth_osn_device_attrs[] = {
 	&dev_attr_recover.attr,
 	NULL,
 };
-
 static struct attribute_group qeth_osn_device_attr_group = {
 	.attrs = qeth_osn_device_attrs,
 };
-
-int qeth_core_create_device_attributes(struct device *dev)
-{
-	int ret;
-	ret = sysfs_create_group(&dev->kobj, &qeth_device_attr_group);
-	if (ret)
-		return ret;
-	ret = sysfs_create_group(&dev->kobj, &qeth_device_blkt_group);
-	if (ret)
-		sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
-
-	return 0;
-}
-
-void qeth_core_remove_device_attributes(struct device *dev)
-{
-	sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
-	sysfs_remove_group(&dev->kobj, &qeth_device_blkt_group);
-}
-
-int qeth_core_create_osn_attributes(struct device *dev)
-{
-	return sysfs_create_group(&dev->kobj, &qeth_osn_device_attr_group);
-}
-
-void qeth_core_remove_osn_attributes(struct device *dev)
-{
-	sysfs_remove_group(&dev->kobj, &qeth_osn_device_attr_group);
-	return;
-}
+const struct attribute_group *qeth_osn_attr_groups[] = {
+	&qeth_osn_device_attr_group,
+	NULL,
+};

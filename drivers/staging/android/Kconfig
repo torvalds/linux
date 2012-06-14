@@ -25,16 +25,9 @@ config ANDROID_LOGGER
 	tristate "Android log driver"
 	default n
 
-config ANDROID_PERSISTENT_RAM
-	bool
-	select REED_SOLOMON
-	select REED_SOLOMON_ENC8
-	select REED_SOLOMON_DEC8
-
 config ANDROID_RAM_CONSOLE
 	bool "Android RAM buffer console"
-	depends on !S390 && !UML
-	select ANDROID_PERSISTENT_RAM
+	depends on !S390 && !UML && HAVE_MEMBLOCK && PSTORE_RAM=y
 	default n
 
 config ANDROID_TIMED_OUTPUT
@@ -52,33 +45,14 @@ config ANDROID_LOW_MEMORY_KILLER
 	---help---
 	  Register processes to be killed when memory is low
 
-source "drivers/staging/android/switch/Kconfig"
-
-config ANDROID_INTF_ALARM
+config ANDROID_INTF_ALARM_DEV
 	bool "Android alarm driver"
 	depends on RTC_CLASS
 	default n
 	help
 	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
 	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
-	  Also provides an interface to set the wall time which must be used
-	  for elapsed realtime to work.
-
-config ANDROID_INTF_ALARM_DEV
-	bool "Android alarm device"
-	depends on ANDROID_INTF_ALARM
-	default y
-	help
-	  Exports the alarm interface to user-space.
-
-config ANDROID_ALARM_OLDDRV_COMPAT
-	bool "Android Alarm compatability with old drivers"
-	depends on ANDROID_INTF_ALARM
-	default n
-	help
-	  Provides preprocessor alias to aid compatability with
-	  older out-of-tree drivers that use the Android Alarm
-	  in-kernel API. This will be removed eventually.
+	  Also exports the alarm interface to user-space.
 
 endif # if ANDROID
 

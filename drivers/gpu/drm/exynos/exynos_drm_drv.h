@@ -77,6 +77,8 @@ struct exynos_drm_overlay_ops {
  *	- the unit is screen coordinates.
  * @fb_width: width of a framebuffer.
  * @fb_height: height of a framebuffer.
+ * @src_width: width of a partial image to be displayed from framebuffer.
+ * @src_height: height of a partial image to be displayed from framebuffer.
  * @crtc_x: offset x on hardware screen.
  * @crtc_y: offset y on hardware screen.
  * @crtc_width: window width to be displayed (hardware screen).
@@ -108,6 +110,8 @@ struct exynos_drm_overlay {
 	unsigned int fb_y;
 	unsigned int fb_width;
 	unsigned int fb_height;
+	unsigned int src_width;
+	unsigned int src_height;
 	unsigned int crtc_x;
 	unsigned int crtc_y;
 	unsigned int crtc_width;
@@ -205,6 +209,18 @@ struct exynos_drm_manager {
 	struct exynos_drm_display_ops *display_ops;
 };
 
+struct exynos_drm_g2d_private {
+	struct device		*dev;
+	struct list_head	inuse_cmdlist;
+	struct list_head	event_list;
+	struct list_head	gem_list;
+	unsigned int		gem_nr;
+};
+
+struct drm_exynos_file_private {
+	struct exynos_drm_g2d_private	*g2d_priv;
+};
+
 /*
  * Exynos drm private structure.
  */
@@ -225,24 +241,25 @@ struct exynos_drm_private {
  * Exynos drm sub driver structure.
  *
  * @list: sub driver has its own list object to register to exynos drm driver.
+ * @dev: pointer to device object for subdrv device driver.
  * @drm_dev: pointer to drm_device and this pointer would be set
  *	when sub driver calls exynos_drm_subdrv_register().
- * @is_local: appear encoder and connector disrelated device.
+ * @manager: subdrv has its own manager to control a hardware appropriately
+ *	and we can access a hardware drawing on this manager.
  * @probe: this callback would be called by exynos drm driver after
  *	subdrv is registered to it.
  * @remove: this callback is used to release resources created
  *	by probe callback.
  * @open: this would be called with drm device file open.
  * @close: this would be called with drm device file close.
- * @manager: subdrv has its own manager to control a hardware appropriately
- *	and we can access a hardware drawing on this manager.
  * @encoder: encoder object owned by this sub driver.
  * @connector: connector object owned by this sub driver.
  */
 struct exynos_drm_subdrv {
 	struct list_head list;
+	struct device *dev;
 	struct drm_device *drm_dev;
-	bool is_local;
+	struct exynos_drm_manager *manager;
 
 	int (*probe)(struct drm_device *drm_dev, struct device *dev);
 	void (*remove)(struct drm_device *dev);
@@ -251,7 +268,6 @@ struct exynos_drm_subdrv {
 	void (*close)(struct drm_device *drm_dev, struct device *dev,
 			struct drm_file *file);
 
-	struct exynos_drm_manager manager;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 };
@@ -287,4 +303,5 @@ extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
 extern struct platform_driver exynos_drm_common_hdmi_driver;
 extern struct platform_driver vidi_driver;
+extern struct platform_driver g2d_driver;
 #endif

@@ -95,7 +95,8 @@ static int __devinit da9052_onkey_probe(struct platform_device *pdev)
 	input_dev = input_allocate_device();
 	if (!onkey || !input_dev) {
 		dev_err(&pdev->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto err_free_mem;
 	}
 
 	onkey->input = input_dev;

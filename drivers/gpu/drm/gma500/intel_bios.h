@@ -127,8 +127,92 @@ struct bdb_general_features {
 	/* bits 5 */
 	u8 int_crt_support:1;
 	u8 int_tv_support:1;
-	u8 rsvd11:6; /* finish byte */
+	u8 int_efp_support:1;
+	u8 dp_ssc_enb:1;	/* PCH attached eDP supports SSC */
+	u8 dp_ssc_freq:1;	/* SSC freq for PCH attached eDP */
+	u8 rsvd11:3; /* finish byte */
 } __attribute__((packed));
+
+/* pre-915 */
+#define GPIO_PIN_DVI_LVDS	0x03 /* "DVI/LVDS DDC GPIO pins" */
+#define GPIO_PIN_ADD_I2C	0x05 /* "ADDCARD I2C GPIO pins" */
+#define GPIO_PIN_ADD_DDC	0x04 /* "ADDCARD DDC GPIO pins" */
+#define GPIO_PIN_ADD_DDC_I2C	0x06 /* "ADDCARD DDC/I2C GPIO pins" */
+
+/* Pre 915 */
+#define DEVICE_TYPE_NONE	0x00
+#define DEVICE_TYPE_CRT		0x01
+#define DEVICE_TYPE_TV		0x09
+#define DEVICE_TYPE_EFP		0x12
+#define DEVICE_TYPE_LFP		0x22
+/* On 915+ */
+#define DEVICE_TYPE_CRT_DPMS		0x6001
+#define DEVICE_TYPE_CRT_DPMS_HOTPLUG	0x4001
+#define DEVICE_TYPE_TV_COMPOSITE	0x0209
+#define DEVICE_TYPE_TV_MACROVISION	0x0289
+#define DEVICE_TYPE_TV_RF_COMPOSITE	0x020c
+#define DEVICE_TYPE_TV_SVIDEO_COMPOSITE	0x0609
+#define DEVICE_TYPE_TV_SCART		0x0209
+#define DEVICE_TYPE_TV_CODEC_HOTPLUG_PWR 0x6009
+#define DEVICE_TYPE_EFP_HOTPLUG_PWR	0x6012
+#define DEVICE_TYPE_EFP_DVI_HOTPLUG_PWR	0x6052
+#define DEVICE_TYPE_EFP_DVI_I		0x6053
+#define DEVICE_TYPE_EFP_DVI_D_DUAL	0x6152
+#define DEVICE_TYPE_EFP_DVI_D_HDCP	0x60d2
+#define DEVICE_TYPE_OPENLDI_HOTPLUG_PWR	0x6062
+#define DEVICE_TYPE_OPENLDI_DUALPIX	0x6162
+#define DEVICE_TYPE_LFP_PANELLINK	0x5012
+#define DEVICE_TYPE_LFP_CMOS_PWR	0x5042
+#define DEVICE_TYPE_LFP_LVDS_PWR	0x5062
+#define DEVICE_TYPE_LFP_LVDS_DUAL	0x5162
+#define DEVICE_TYPE_LFP_LVDS_DUAL_HDCP	0x51e2
+
+#define DEVICE_CFG_NONE		0x00
+#define DEVICE_CFG_12BIT_DVOB	0x01
+#define DEVICE_CFG_12BIT_DVOC	0x02
+#define DEVICE_CFG_24BIT_DVOBC	0x09
+#define DEVICE_CFG_24BIT_DVOCB	0x0a
+#define DEVICE_CFG_DUAL_DVOB	0x11
+#define DEVICE_CFG_DUAL_DVOC	0x12
+#define DEVICE_CFG_DUAL_DVOBC	0x13
+#define DEVICE_CFG_DUAL_LINK_DVOBC	0x19
+#define DEVICE_CFG_DUAL_LINK_DVOCB	0x1a
+
+#define DEVICE_WIRE_NONE	0x00
+#define DEVICE_WIRE_DVOB	0x01
+#define DEVICE_WIRE_DVOC	0x02
+#define DEVICE_WIRE_DVOBC	0x03
+#define DEVICE_WIRE_DVOBB	0x05
+#define DEVICE_WIRE_DVOCC	0x06
+#define DEVICE_WIRE_DVOB_MASTER 0x0d
+#define DEVICE_WIRE_DVOC_MASTER 0x0e
+
+#define DEVICE_PORT_DVOA	0x00 /* none on 845+ */
+#define DEVICE_PORT_DVOB	0x01
+#define DEVICE_PORT_DVOC	0x02
+
+struct child_device_config {
+	u16 handle;
+	u16 device_type;
+	u8  device_id[10]; /* ascii string */
+	u16 addin_offset;
+	u8  dvo_port; /* See Device_PORT_* above */
+	u8  i2c_pin;
+	u8  slave_addr;
+	u8  ddc_pin;
+	u16 edid_ptr;
+	u8  dvo_cfg; /* See DEVICE_CFG_* above */
+	u8  dvo2_port;
+	u8  i2c2_pin;
+	u8  slave2_addr;
+	u8  ddc2_pin;
+	u8  capabilities;
+	u8  dvo_wiring;/* See DEVICE_WIRE_* above */
+	u8  dvo2_wiring;
+	u16 extended_type;
+	u8  dvo_function;
+} __attribute__((packed));
+
 
 struct bdb_general_definitions {
 	/* DDC GPIO */
@@ -144,13 +228,18 @@ struct bdb_general_definitions {
 	u8 boot_display[2];
 	u8 child_dev_size;
 
-	/* device info */
-	u8 tv_or_lvds_info[33];
-	u8 dev1[33];
-	u8 dev2[33];
-	u8 dev3[33];
-	u8 dev4[33];
-	/* may be another device block here on some platforms */
+	/*
+	 * Device info:
+	 * If TV is present, it'll be at devices[0].
+	 * LVDS will be next, either devices[0] or [1], if present.
+	 * On some platforms the number of device is 6. But could be as few as
+	 * 4 if both TV and LVDS are missing.
+	 * And the device num is related with the size of general definition
+	 * block. It is obtained by using the following formula:
+	 * number = (block_size - sizeof(bdb_general_definitions))/
+	 *	     sizeof(child_device_config);
+	 */
+	struct child_device_config devices[0];
 };
 
 struct bdb_lvds_options {
@@ -302,6 +391,45 @@ struct bdb_sdvo_lvds_options {
 	u8 panel_misc_bits_4;
 } __attribute__((packed));
 
+struct bdb_driver_features {
+	u8 boot_dev_algorithm:1;
+	u8 block_display_switch:1;
+	u8 allow_display_switch:1;
+	u8 hotplug_dvo:1;
+	u8 dual_view_zoom:1;
+	u8 int15h_hook:1;
+	u8 sprite_in_clone:1;
+	u8 primary_lfp_id:1;
+
+	u16 boot_mode_x;
+	u16 boot_mode_y;
+	u8 boot_mode_bpp;
+	u8 boot_mode_refresh;
+
+	u16 enable_lfp_primary:1;
+	u16 selective_mode_pruning:1;
+	u16 dual_frequency:1;
+	u16 render_clock_freq:1; /* 0: high freq; 1: low freq */
+	u16 nt_clone_support:1;
+	u16 power_scheme_ui:1; /* 0: CUI; 1: 3rd party */
+	u16 sprite_display_assign:1; /* 0: secondary; 1: primary */
+	u16 cui_aspect_scaling:1;
+	u16 preserve_aspect_ratio:1;
+	u16 sdvo_device_power_down:1;
+	u16 crt_hotplug:1;
+	u16 lvds_config:2;
+	u16 tv_hotplug:1;
+	u16 hdmi_config:2;
+
+	u8 static_display:1;
+	u8 reserved2:7;
+	u16 legacy_crt_max_x;
+	u16 legacy_crt_max_y;
+	u8 legacy_crt_max_refresh;
+
+	u8 hdmi_termination;
+	u8 custom_vbt_version;
+} __attribute__((packed));
 
 extern bool psb_intel_init_bios(struct drm_device *dev);
 extern void psb_intel_destroy_bios(struct drm_device *dev);
@@ -426,5 +554,22 @@ extern void psb_intel_destroy_bios(struct drm_device *dev);
 #define   SWF14_APM_SUSPEND	0x3
 #define   SWF14_APM_STANDBY	0x1
 #define   SWF14_APM_RESTORE	0x0
+
+/* Add the device class for LFP, TV, HDMI */
+#define	 DEVICE_TYPE_INT_LFP	0x1022
+#define	 DEVICE_TYPE_INT_TV	0x1009
+#define	 DEVICE_TYPE_HDMI	0x60D2
+#define	 DEVICE_TYPE_DP		0x68C6
+#define	 DEVICE_TYPE_eDP	0x78C6
+
+/* define the DVO port for HDMI output type */
+#define		DVO_B		1
+#define		DVO_C		2
+#define		DVO_D		3
+
+/* define the PORT for DP output type */
+#define		PORT_IDPB	7
+#define		PORT_IDPC	8
+#define		PORT_IDPD	9
 
 #endif /* _I830_BIOS_H_ */

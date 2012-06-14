@@ -553,6 +553,7 @@ struct mv_host_priv {
 
 #if defined(CONFIG_HAVE_CLK)
 	struct clk		*clk;
+	struct clk              **port_clks;
 #endif
 	/*
 	 * These consistent DMA memory pools give us guaranteed
@@ -4025,7 +4026,11 @@ static int mv_platform_probe(struct platform_device *pdev)
 	struct ata_host *host;
 	struct mv_host_priv *hpriv;
 	struct resource *res;
-	int n_ports, rc;
+	int n_ports = 0;
+	int rc;
+#if defined(CONFIG_HAVE_CLK)
+	int port;
+#endif
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
@@ -4053,6 +4058,13 @@ static int mv_platform_probe(struct platform_device *pdev)
 
 	if (!host || !hpriv)
 		return -ENOMEM;
+#if defined(CONFIG_HAVE_CLK)
+	hpriv->port_clks = devm_kzalloc(&pdev->dev,
+					sizeof(struct clk *) * n_ports,
+					GFP_KERNEL);
+	if (!hpriv->port_clks)
+		return -ENOMEM;
+#endif
 	host->private_data = hpriv;
 	hpriv->n_ports = n_ports;
 	hpriv->board_idx = chip_soc;
@@ -4065,9 +4077,17 @@ static int mv_platform_probe(struct platform_device *pdev)
 #if defined(CONFIG_HAVE_CLK)
 	hpriv->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(hpriv->clk))
-		dev_notice(&pdev->dev, "cannot get clkdev\n");
+		dev_notice(&pdev->dev, "cannot get optional clkdev\n");
 	else
-		clk_enable(hpriv->clk);
+		clk_prepare_enable(hpriv->clk);
+
+	for (port = 0; port < n_ports; port++) {
+		char port_number[16];
+		sprintf(port_number, "%d", port);
+		hpriv->port_clks[port] = clk_get(&pdev->dev, port_number);
+		if (!IS_ERR(hpriv->port_clks[port]))
+			clk_prepare_enable(hpriv->port_clks[port]);
+	}
 #endif
 
 	/*
@@ -4097,8 +4117,14 @@ static int mv_platform_probe(struct platform_device *pdev)
 err:
 #if defined(CONFIG_HAVE_CLK)
 	if (!IS_ERR(hpriv->clk)) {
-		clk_disable(hpriv->clk);
+		clk_disable_unprepare(hpriv->clk);
 		clk_put(hpriv->clk);
+	}
+	for (port = 0; port < n_ports; port++) {
+		if (!IS_ERR(hpriv->port_clks[port])) {
+			clk_disable_unprepare(hpriv->port_clks[port]);
+			clk_put(hpriv->port_clks[port]);
+		}
 	}
 #endif
 
@@ -4118,13 +4144,20 @@ static int __devexit mv_platform_remove(struct platform_device *pdev)
 	struct ata_host *host = platform_get_drvdata(pdev);
 #if defined(CONFIG_HAVE_CLK)
 	struct mv_host_priv *hpriv = host->private_data;
+	int port;
 #endif
 	ata_host_detach(host);
 
 #if defined(CONFIG_HAVE_CLK)
 	if (!IS_ERR(hpriv->clk)) {
-		clk_disable(hpriv->clk);
+		clk_disable_unprepare(hpriv->clk);
 		clk_put(hpriv->clk);
+	}
+	for (port = 0; port < host->n_ports; port++) {
+		if (!IS_ERR(hpriv->port_clks[port])) {
+			clk_disable_unprepare(hpriv->port_clks[port]);
+			clk_put(hpriv->port_clks[port]);
+		}
 	}
 #endif
 	return 0;

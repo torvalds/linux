@@ -14,7 +14,6 @@
 #include <linux/smp.h>
 #include <asm/firmware.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/rtas.h>

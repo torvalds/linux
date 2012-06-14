@@ -1,8 +1,8 @@
 /*
  *  SuperH Ethernet device driver
  *
- *  Copyright (C) 2006-2008 Nobuhiro Iwamatsu
- *  Copyright (C) 2008-2011 Renesas Solutions Corp.
+ *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
+ *  Copyright (C) 2008-2012 Renesas Solutions Corp.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -98,6 +98,8 @@ enum {
 	CEECR,
 	MAFCR,
 	RTRATE,
+	CSMR,
+	RMII_MII,
 
 	/* TSU Absolute address */
 	ARSTR,
@@ -172,6 +174,7 @@ static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[RMCR]	= 0x0458,
 	[RPADIR]	= 0x0460,
 	[FCFTR]	= 0x0468,
+	[CSMR] = 0x04E4,
 
 	[ECMR]	= 0x0500,
 	[ECSR]	= 0x0510,
@@ -200,6 +203,7 @@ static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[CERCR]	= 0x0768,
 	[CEECR]	= 0x0770,
 	[MAFCR]	= 0x0778,
+	[RMII_MII] =  0x0790,
 
 	[ARSTR]	= 0x0000,
 	[TSU_CTRST]	= 0x0004,
@@ -368,7 +372,7 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 };
 
 /* Driver's parameters */
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 #define SH4_SKB_RX_ALIGN	32
 #else
 #define SH2_SH3_SKB_RX_ALIGN	2
@@ -377,7 +381,8 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 /*
  * Register's bits
  */
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
+#if defined(CONFIG_CPU_SUBTYPE_SH7734) || defined(CONFIG_CPU_SUBTYPE_SH7763) ||\
+    defined(CONFIG_ARCH_R8A7740)
 /* EDSR */
 enum EDSR_BIT {
 	EDSR_ENT = 0x01, EDSR_ENR = 0x02,
@@ -689,7 +694,7 @@ enum TSU_FWSLC_BIT {
  */
 struct sh_eth_txdesc {
 	u32 status;		/* TD0 */
-#if defined(CONFIG_CPU_LITTLE_ENDIAN)
+#if defined(__LITTLE_ENDIAN)
 	u16 pad0;		/* TD1 */
 	u16 buffer_length;	/* TD1 */
 #else
@@ -706,7 +711,7 @@ struct sh_eth_txdesc {
  */
 struct sh_eth_rxdesc {
 	u32 status;		/* RD0 */
-#if defined(CONFIG_CPU_LITTLE_ENDIAN)
+#if defined(__LITTLE_ENDIAN)
 	u16 frame_length;	/* RD1 */
 	u16 buffer_length;	/* RD1 */
 #else
@@ -751,6 +756,7 @@ struct sh_eth_cpu_data {
 	unsigned rpadir:1;		/* E-DMAC have RPADIR */
 	unsigned no_trimd:1;		/* E-DMAC DO NOT have TRIMD */
 	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
+	unsigned hw_crc:1;	/* E-DMAC have CSMR */
 };
 
 struct sh_eth_private {

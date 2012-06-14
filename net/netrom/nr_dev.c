@@ -21,7 +21,6 @@
 #include <linux/if_ether.h>	/* For the statistics structure. */
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -98,7 +97,7 @@ static int nr_rebuild_header(struct sk_buff *skb)
 
 static int nr_header(struct sk_buff *skb, struct net_device *dev,
 		     unsigned short type,
-		     const void *daddr, const void *saddr, unsigned len)
+		     const void *daddr, const void *saddr, unsigned int len)
 {
 	unsigned char *buff = skb_push(skb, NR_NETWORK_LEN + NR_TRANSPORT_LEN);
 

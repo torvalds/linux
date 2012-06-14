@@ -14,7 +14,6 @@
 #include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/delay.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/addrs.h>

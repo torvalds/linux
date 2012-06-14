@@ -247,8 +247,7 @@ static int amba_pm_restore(struct device *dev)
 /*
  * Hooks to provide runtime PM of the pclk (bus clock).  It is safe to
  * enable/disable the bus clock at runtime PM suspend/resume as this
- * does not result in loss of context.  However, disabling vcore power
- * would do, so we leave that to the driver.
+ * does not result in loss of context.
  */
 static int amba_pm_runtime_suspend(struct device *dev)
 {
@@ -354,39 +353,6 @@ static void amba_put_disable_pclk(struct amba_device *pcdev)
 	clk_put(pclk);
 }
 
-static int amba_get_enable_vcore(struct amba_device *pcdev)
-{
-	struct regulator *vcore = regulator_get(&pcdev->dev, "vcore");
-	int ret;
-
-	pcdev->vcore = vcore;
-
-	if (IS_ERR(vcore)) {
-		/* It is OK not to supply a vcore regulator */
-		if (PTR_ERR(vcore) == -ENODEV)
-			return 0;
-		return PTR_ERR(vcore);
-	}
-
-	ret = regulator_enable(vcore);
-	if (ret) {
-		regulator_put(vcore);
-		pcdev->vcore = ERR_PTR(-ENODEV);
-	}
-
-	return ret;
-}
-
-static void amba_put_disable_vcore(struct amba_device *pcdev)
-{
-	struct regulator *vcore = pcdev->vcore;
-
-	if (!IS_ERR(vcore)) {
-		regulator_disable(vcore);
-		regulator_put(vcore);
-	}
-}
-
 /*
  * These are the device model conversion veneers; they convert the
  * device model structures to our more specific structures.
@@ -399,10 +365,6 @@ static int amba_probe(struct device *dev)
 	int ret;
 
 	do {
-		ret = amba_get_enable_vcore(pcdev);
-		if (ret)
-			break;
-
 		ret = amba_get_enable_pclk(pcdev);
 		if (ret)
 			break;
@@ -420,7 +382,6 @@ static int amba_probe(struct device *dev)
 		pm_runtime_put_noidle(dev);
 
 		amba_put_disable_pclk(pcdev);
-		amba_put_disable_vcore(pcdev);
 	} while (0);
 
 	return ret;
@@ -442,7 +403,6 @@ static int amba_remove(struct device *dev)
 	pm_runtime_put_noidle(dev);
 
 	amba_put_disable_pclk(pcdev);
-	amba_put_disable_vcore(pcdev);
 
 	return ret;
 }
@@ -567,9 +527,9 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 	if (ret)
 		goto err_release;
 
-	if (dev->irq[0] && dev->irq[0] != NO_IRQ)
+	if (dev->irq[0])
 		ret = device_create_file(&dev->dev, &dev_attr_irq0);
-	if (ret == 0 && dev->irq[1] && dev->irq[1] != NO_IRQ)
+	if (ret == 0 && dev->irq[1])
 		ret = device_create_file(&dev->dev, &dev_attr_irq1);
 	if (ret == 0)
 		return ret;
@@ -582,6 +542,55 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(amba_device_add);
+
+static struct amba_device *
+amba_aphb_device_add(struct device *parent, const char *name,
+		     resource_size_t base, size_t size, int irq1, int irq2,
+		     void *pdata, unsigned int periphid, u64 dma_mask)
+{
+	struct amba_device *dev;
+	int ret;
+
+	dev = amba_device_alloc(name, base, size);
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	dev->dma_mask = dma_mask;
+	dev->dev.coherent_dma_mask = dma_mask;
+	dev->irq[0] = irq1;
+	dev->irq[1] = irq2;
+	dev->periphid = periphid;
+	dev->dev.platform_data = pdata;
+	dev->dev.parent = parent;
+
+	ret = amba_device_add(dev, &iomem_resource);
+	if (ret) {
+		amba_device_put(dev);
+		return ERR_PTR(ret);
+	}
+
+	return dev;
+}
+
+struct amba_device *
+amba_apb_device_add(struct device *parent, const char *name,
+		    resource_size_t base, size_t size, int irq1, int irq2,
+		    void *pdata, unsigned int periphid)
+{
+	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
+				    periphid, 0);
+}
+EXPORT_SYMBOL_GPL(amba_apb_device_add);
+
+struct amba_device *
+amba_ahb_device_add(struct device *parent, const char *name,
+		    resource_size_t base, size_t size, int irq1, int irq2,
+		    void *pdata, unsigned int periphid)
+{
+	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
+				    periphid, ~0ULL);
+}
+EXPORT_SYMBOL_GPL(amba_ahb_device_add);
 
 static void amba_device_initialize(struct amba_device *dev, const char *name)
 {

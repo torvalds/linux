@@ -197,19 +197,6 @@ extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0,
 extern u32 at91_slow_clock_sz;
 #endif
 
-void __iomem *at91_ramc_base[2];
-
-void __init at91_ioremap_ramc(int id, u32 addr, u32 size)
-{
-	if (id < 0 || id > 1) {
-		pr_emerg("Wrong RAM controller id (%d), cannot continue\n", id);
-		BUG();
-	}
-	at91_ramc_base[id] = ioremap(addr, size);
-	if (!at91_ramc_base[id])
-		panic("Impossible to ioremap ramc.%d 0x%x\n", id, addr);
-}
-
 static int at91_pm_enter(suspend_state_t state)
 {
 	at91_gpio_suspend();
@@ -274,7 +261,12 @@ static int at91_pm_enter(suspend_state_t state)
 			 * For ARM 926 based chips, this requirement is weaker
 			 * as at91sam9 can access a RAM in self-refresh mode.
 			 */
-			at91_standby();
+			if (cpu_is_at91rm9200())
+				at91rm9200_standby();
+			else if (cpu_is_at91sam9g45())
+				at91sam9g45_standby();
+			else
+				at91sam9_standby();
 			break;
 
 		case PM_SUSPEND_ON:
@@ -320,10 +312,9 @@ static int __init at91_pm_init(void)
 
 	pr_info("AT91: Power Management%s\n", (slow_clock ? " (with slow clock mode)" : ""));
 
-#ifdef CONFIG_ARCH_AT91RM9200
 	/* AT91RM9200 SDRAM low-power mode cannot be used with self-refresh. */
-	at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
-#endif
+	if (cpu_is_at91rm9200())
+		at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
 
 	suspend_set_ops(&at91_pm_ops);
 

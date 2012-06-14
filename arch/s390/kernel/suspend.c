@@ -9,7 +9,7 @@
 #include <linux/pfn.h>
 #include <linux/suspend.h>
 #include <linux/mm.h>
-#include <asm/system.h>
+#include <asm/ctl_reg.h>
 
 /*
  * References to section boundaries

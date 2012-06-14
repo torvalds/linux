@@ -32,6 +32,8 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/irqdomain.h>
 
 #include <linux/i2c/twl.h>
 
@@ -256,7 +258,8 @@ static int twl_request(struct gpio_chip *chip, unsigned offset)
 		 * and vMMC2 power supplies based on card presence.
 		 */
 		pdata = chip->dev->platform_data;
-		value |= pdata->mmc_cd & 0x03;
+		if (pdata)
+			value |= pdata->mmc_cd & 0x03;
 
 		status = gpio_twl4030_write(REG_GPIO_CTRL, value);
 	}
@@ -395,59 +398,70 @@ static int gpio_twl4030_remove(struct platform_device *pdev);
 static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;
-	int ret;
+	struct device_node *node = pdev->dev.of_node;
+	int ret, irq_base;
 
 	/* maybe setup IRQs */
-	if (pdata->irq_base) {
-		if (is_module()) {
-			dev_err(&pdev->dev,
-				"can't dispatch IRQs from modules\n");
-			goto no_irqs;
-		}
-		ret = twl4030_sih_setup(TWL4030_MODULE_GPIO);
-		if (ret < 0)
-			return ret;
-		WARN_ON(ret != pdata->irq_base);
-		twl4030_gpio_irq_base = ret;
+	if (is_module()) {
+		dev_err(&pdev->dev, "can't dispatch IRQs from modules\n");
+		goto no_irqs;
 	}
 
+	irq_base = irq_alloc_descs(-1, 0, TWL4030_GPIO_MAX, 0);
+	if (irq_base < 0) {
+		dev_err(&pdev->dev, "Failed to alloc irq_descs\n");
+		return irq_base;
+	}
+
+	irq_domain_add_legacy(node, TWL4030_GPIO_MAX, irq_base, 0,
+			      &irq_domain_simple_ops, NULL);
+
+	ret = twl4030_sih_setup(&pdev->dev, TWL4030_MODULE_GPIO, irq_base);
+	if (ret < 0)
+		return ret;
+
+	twl4030_gpio_irq_base = irq_base;
+
 no_irqs:
-	/*
-	 * NOTE:  boards may waste power if they don't set pullups
-	 * and pulldowns correctly ... default for non-ULPI pins is
-	 * pulldown, and some other pins may have external pullups
-	 * or pulldowns.  Careful!
-	 */
-	ret = gpio_twl4030_pulls(pdata->pullups, pdata->pulldowns);
-	if (ret)
-		dev_dbg(&pdev->dev, "pullups %.05x %.05x --> %d\n",
-				pdata->pullups, pdata->pulldowns,
-				ret);
-
-	ret = gpio_twl4030_debounce(pdata->debounce, pdata->mmc_cd);
-	if (ret)
-		dev_dbg(&pdev->dev, "debounce %.03x %.01x --> %d\n",
-				pdata->debounce, pdata->mmc_cd,
-				ret);
-
-	twl_gpiochip.base = pdata->gpio_base;
+	twl_gpiochip.base = -1;
 	twl_gpiochip.ngpio = TWL4030_GPIO_MAX;
 	twl_gpiochip.dev = &pdev->dev;
 
-	/* NOTE: we assume VIBRA_CTL.VIBRA_EN, in MODULE_AUDIO_VOICE,
-	 * is (still) clear if use_leds is set.
-	 */
-	if (pdata->use_leds)
-		twl_gpiochip.ngpio += 2;
+	if (pdata) {
+		twl_gpiochip.base = pdata->gpio_base;
+
+		/*
+		 * NOTE:  boards may waste power if they don't set pullups
+		 * and pulldowns correctly ... default for non-ULPI pins is
+		 * pulldown, and some other pins may have external pullups
+		 * or pulldowns.  Careful!
+		 */
+		ret = gpio_twl4030_pulls(pdata->pullups, pdata->pulldowns);
+		if (ret)
+			dev_dbg(&pdev->dev, "pullups %.05x %.05x --> %d\n",
+					pdata->pullups, pdata->pulldowns,
+					ret);
+
+		ret = gpio_twl4030_debounce(pdata->debounce, pdata->mmc_cd);
+		if (ret)
+			dev_dbg(&pdev->dev, "debounce %.03x %.01x --> %d\n",
+					pdata->debounce, pdata->mmc_cd,
+					ret);
+
+		/*
+		 * NOTE: we assume VIBRA_CTL.VIBRA_EN, in MODULE_AUDIO_VOICE,
+		 * is (still) clear if use_leds is set.
+		 */
+		if (pdata->use_leds)
+			twl_gpiochip.ngpio += 2;
+	}
 
 	ret = gpiochip_add(&twl_gpiochip);
 	if (ret < 0) {
-		dev_err(&pdev->dev,
-				"could not register gpiochip, %d\n",
-				ret);
+		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
 		twl_gpiochip.ngpio = 0;
 		gpio_twl4030_remove(pdev);
-	} else if (pdata->setup) {
+	} else if (pdata && pdata->setup) {
 		int status;
 
 		status = pdata->setup(&pdev->dev,
@@ -465,7 +479,7 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;
 	int status;
 
-	if (pdata->teardown) {
+	if (pdata && pdata->teardown) {
 		status = pdata->teardown(&pdev->dev,
 				pdata->gpio_base, TWL4030_GPIO_MAX);
 		if (status) {
@@ -486,12 +500,21 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 	return -EIO;
 }
 
+static const struct of_device_id twl_gpio_match[] = {
+	{ .compatible = "ti,twl4030-gpio", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, twl_gpio_match);
+
 /* Note:  this hardware lives inside an I2C-based multi-function device. */
 MODULE_ALIAS("platform:twl4030_gpio");
 
 static struct platform_driver gpio_twl4030_driver = {
-	.driver.name	= "twl4030_gpio",
-	.driver.owner	= THIS_MODULE,
+	.driver = {
+		.name	= "twl4030_gpio",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(twl_gpio_match),
+	},
 	.probe		= gpio_twl4030_probe,
 	.remove		= gpio_twl4030_remove,
 };

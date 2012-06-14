@@ -51,8 +51,7 @@
 static intctl_cpm2_t __iomem *cpm2_intctl;
 
 static struct irq_domain *cpm2_pic_host;
-#define NR_MASK_WORDS   ((NR_IRQS + 31) / 32)
-static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+static unsigned long ppc_cached_irq_mask[2]; /* 2 32-bit registers */
 
 static const u_char irq_to_siureg[] = {
 	1, 1, 1, 1, 1, 1, 1, 1,

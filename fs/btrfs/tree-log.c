@@ -212,14 +212,13 @@ int btrfs_pin_log_trans(struct btrfs_root *root)
  * indicate we're done making changes to the log tree
  * and wake up anyone waiting to do a sync
  */
-int btrfs_end_log_trans(struct btrfs_root *root)
+void btrfs_end_log_trans(struct btrfs_root *root)
 {
 	if (atomic_dec_and_test(&root->log_writers)) {
 		smp_mb();
 		if (waitqueue_active(&root->log_writer_wait))
 			wake_up(&root->log_writer_wait);
 	}
-	return 0;
 }
 
 
@@ -280,7 +279,7 @@ static int process_one_buffer(struct btrfs_root *log,
 						log->fs_info->extent_root,
 						eb->start, eb->len);
 
-	if (btrfs_buffer_uptodate(eb, gen)) {
+	if (btrfs_buffer_uptodate(eb, gen, 0)) {
 		if (wc->write)
 			btrfs_write_tree_block(eb);
 		if (wc->wait)
@@ -378,12 +377,11 @@ insert:
 		u32 found_size;
 		found_size = btrfs_item_size_nr(path->nodes[0],
 						path->slots[0]);
-		if (found_size > item_size) {
+		if (found_size > item_size)
 			btrfs_truncate_item(trans, root, path, item_size, 1);
-		} else if (found_size < item_size) {
-			ret = btrfs_extend_item(trans, root, path,
-						item_size - found_size);
-		}
+		else if (found_size < item_size)
+			btrfs_extend_item(trans, root, path,
+					  item_size - found_size);
 	} else if (ret) {
 		return ret;
 	}
@@ -1630,7 +1628,9 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	int i;
 	int ret;
 
-	btrfs_read_buffer(eb, gen);
+	ret = btrfs_read_buffer(eb, gen);
+	if (ret)
+		return ret;
 
 	level = btrfs_header_level(eb);
 
@@ -1751,7 +1751,11 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 			path->slots[*level]++;
 			if (wc->free) {
-				btrfs_read_buffer(next, ptr_gen);
+				ret = btrfs_read_buffer(next, ptr_gen);
+				if (ret) {
+					free_extent_buffer(next);
+					return ret;
+				}
 
 				btrfs_tree_lock(next);
 				btrfs_set_lock_blocking(next);
@@ -1763,12 +1767,16 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 					BTRFS_TREE_LOG_OBJECTID);
 				ret = btrfs_free_and_pin_reserved_extent(root,
 							 bytenr, blocksize);
-				BUG_ON(ret);
+				BUG_ON(ret); /* -ENOMEM or logic errors */
 			}
 			free_extent_buffer(next);
 			continue;
 		}
-		btrfs_read_buffer(next, ptr_gen);
+		ret = btrfs_read_buffer(next, ptr_gen);
+		if (ret) {
+			free_extent_buffer(next);
+			return ret;
+		}
 
 		WARN_ON(*level <= 0);
 		if (path->nodes[*level-1])
@@ -1871,20 +1879,26 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 		wret = walk_down_log_tree(trans, log, path, &level, wc);
 		if (wret > 0)
 			break;
-		if (wret < 0)
+		if (wret < 0) {
 			ret = wret;
+			goto out;
+		}
 
 		wret = walk_up_log_tree(trans, log, path, &level, wc);
 		if (wret > 0)
 			break;
-		if (wret < 0)
+		if (wret < 0) {
 			ret = wret;
+			goto out;
+		}
 	}
 
 	/* was the root node processed? if not, catch it here */
 	if (path->nodes[orig_level]) {
-		wc->process_func(log, path->nodes[orig_level], wc,
+		ret = wc->process_func(log, path->nodes[orig_level], wc,
 			 btrfs_header_generation(path->nodes[orig_level]));
+		if (ret)
+			goto out;
 		if (wc->free) {
 			struct extent_buffer *next;
 
@@ -1900,10 +1914,11 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 				BTRFS_TREE_LOG_OBJECTID);
 			ret = btrfs_free_and_pin_reserved_extent(log, next->start,
 							 next->len);
-			BUG_ON(ret);
+			BUG_ON(ret); /* -ENOMEM or logic errors */
 		}
 	}
 
+out:
 	for (i = 0; i <= orig_level; i++) {
 		if (path->nodes[i]) {
 			free_extent_buffer(path->nodes[i]);
@@ -1963,8 +1978,8 @@ static int wait_log_commit(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int wait_for_writer(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root)
+static void wait_for_writer(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root)
 {
 	DEFINE_WAIT(wait);
 	while (root->fs_info->last_trans_log_full_commit !=
@@ -1978,7 +1993,6 @@ static int wait_for_writer(struct btrfs_trans_handle *trans,
 		mutex_lock(&root->log_mutex);
 		finish_wait(&root->log_writer_wait, &wait);
 	}
-	return 0;
 }
 
 /*
@@ -2046,7 +2060,11 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * wait for them until later.
 	 */
 	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages, mark);
-	BUG_ON(ret);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		mutex_unlock(&root->log_mutex);
+		goto out;
+	}
 
 	btrfs_set_root_node(&log->root_item, log->node);
 
@@ -2077,7 +2095,11 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	}
 
 	if (ret) {
-		BUG_ON(ret != -ENOSPC);
+		if (ret != -ENOSPC) {
+			btrfs_abort_transaction(trans, root, ret);
+			mutex_unlock(&log_root_tree->log_mutex);
+			goto out;
+		}
 		root->fs_info->last_trans_log_full_commit = trans->transid;
 		btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2117,7 +2139,11 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_marked_extents(log_root_tree,
 				&log_root_tree->dirty_log_pages,
 				EXTENT_DIRTY | EXTENT_NEW);
-	BUG_ON(ret);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		mutex_unlock(&log_root_tree->log_mutex);
+		goto out_wake_log_root;
+	}
 	btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 
 	btrfs_set_super_log_root(root->fs_info->super_for_commit,
@@ -2326,7 +2352,9 @@ out_unlock:
 	if (ret == -ENOSPC) {
 		root->fs_info->last_trans_log_full_commit = trans->transid;
 		ret = 0;
-	}
+	} else if (ret < 0)
+		btrfs_abort_transaction(trans, root, ret);
+
 	btrfs_end_log_trans(root);
 
 	return err;
@@ -2357,7 +2385,8 @@ int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 	if (ret == -ENOSPC) {
 		root->fs_info->last_trans_log_full_commit = trans->transid;
 		ret = 0;
-	}
+	} else if (ret < 0 && ret != -ENOENT)
+		btrfs_abort_transaction(trans, root, ret);
 	btrfs_end_log_trans(root);
 
 	return ret;
@@ -2638,6 +2667,8 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 		btrfs_release_path(path);
 	}
 	btrfs_release_path(path);
+	if (ret > 0)
+		ret = 0;
 	return ret;
 }
 
@@ -3009,21 +3040,6 @@ out:
 	return ret;
 }
 
-static int inode_in_log(struct btrfs_trans_handle *trans,
-		 struct inode *inode)
-{
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret = 0;
-
-	mutex_lock(&root->log_mutex);
-	if (BTRFS_I(inode)->logged_trans == trans->transid &&
-	    BTRFS_I(inode)->last_sub_trans <= root->last_log_commit)
-		ret = 1;
-	mutex_unlock(&root->log_mutex);
-	return ret;
-}
-
-
 /*
  * helper function around btrfs_log_inode to make sure newly created
  * parent directories also end up in the log.  A minimal inode and backref
@@ -3064,7 +3080,7 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto end_no_trans;
 
-	if (inode_in_log(trans, inode)) {
+	if (btrfs_inode_in_log(inode, trans->transid)) {
 		ret = BTRFS_NO_LOG_SYNC;
 		goto end_no_trans;
 	}
@@ -3169,13 +3185,20 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	fs_info->log_root_recovering = 1;
 
 	trans = btrfs_start_transaction(fs_info->tree_root, 0);
-	BUG_ON(IS_ERR(trans));
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto error;
+	}
 
 	wc.trans = trans;
 	wc.pin = 1;
 
 	ret = walk_log_tree(trans, log_root_tree, &wc);
-	BUG_ON(ret);
+	if (ret) {
+		btrfs_error(fs_info, ret, "Failed to pin buffers while "
+			    "recovering log root tree.");
+		goto error;
+	}
 
 again:
 	key.objectid = BTRFS_TREE_LOG_OBJECTID;
@@ -3184,8 +3207,12 @@ again:
 
 	while (1) {
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);
-		if (ret < 0)
-			break;
+
+		if (ret < 0) {
+			btrfs_error(fs_info, ret,
+				    "Couldn't find tree log root.");
+			goto error;
+		}
 		if (ret > 0) {
 			if (path->slots[0] == 0)
 				break;
@@ -3199,14 +3226,24 @@ again:
 
 		log = btrfs_read_fs_root_no_radix(log_root_tree,
 						  &found_key);
-		BUG_ON(IS_ERR(log));
+		if (IS_ERR(log)) {
+			ret = PTR_ERR(log);
+			btrfs_error(fs_info, ret,
+				    "Couldn't read tree log root.");
+			goto error;
+		}
 
 		tmp_key.objectid = found_key.offset;
 		tmp_key.type = BTRFS_ROOT_ITEM_KEY;
 		tmp_key.offset = (u64)-1;
 
 		wc.replay_dest = btrfs_read_fs_root_no_name(fs_info, &tmp_key);
-		BUG_ON(IS_ERR_OR_NULL(wc.replay_dest));
+		if (IS_ERR(wc.replay_dest)) {
+			ret = PTR_ERR(wc.replay_dest);
+			btrfs_error(fs_info, ret, "Couldn't read target root "
+				    "for tree log recovery.");
+			goto error;
+		}
 
 		wc.replay_dest->log_root = log;
 		btrfs_record_root_in_trans(trans, wc.replay_dest);
@@ -3254,6 +3291,10 @@ again:
 
 	kfree(log_root_tree);
 	return 0;
+
+error:
+	btrfs_free_path(path);
+	return ret;
 }
 
 /*

@@ -140,8 +140,8 @@ static struct macb_platform_data eth_data;
 
 static struct resource eth_resources[] = {
 	[0] = {
-		.start	= AT91_VA_BASE_EMAC,
-		.end	= AT91_VA_BASE_EMAC + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_EMAC,
+		.end	= AT91RM9200_BASE_EMAC + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -1152,14 +1152,6 @@ void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
 		at91_uarts[portnr] = pdev;
 }
 
-void __init at91_set_serial_console(unsigned portnr)
-{
-	if (portnr < ATMEL_MAX_UART) {
-		atmel_default_console_device = at91_uarts[portnr];
-		at91rm9200_set_console_clock(at91_uarts[portnr]->id);
-	}
-}
-
 void __init at91_add_device_serial(void)
 {
 	int i;
@@ -1168,14 +1160,9 @@ void __init at91_add_device_serial(void)
 		if (at91_uarts[i])
 			platform_device_register(at91_uarts[i]);
 	}
-
-	if (!atmel_default_console_device)
-		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 #else
-void __init __deprecated at91_init_serial(struct at91_uart_config *config) {}
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins) {}
-void __init at91_set_serial_console(unsigned portnr) {}
 void __init at91_add_device_serial(void) {}
 #endif
 

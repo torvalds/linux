@@ -25,6 +25,7 @@
 #include "usbaudio.h"
 #include "helper.h"
 #include "card.h"
+#include "endpoint.h"
 #include "proc.h"
 
 /* convert our full speed USB rate into sampling rate in Hz */
@@ -115,28 +116,33 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 	}
 }
 
+static void proc_dump_ep_status(struct snd_usb_substream *subs,
+				struct snd_usb_endpoint *ep,
+				struct snd_info_buffer *buffer)
+{
+	if (!ep)
+		return;
+	snd_iprintf(buffer, "    Packet Size = %d\n", ep->curpacksize);
+	snd_iprintf(buffer, "    Momentary freq = %u Hz (%#x.%04x)\n",
+		    snd_usb_get_speed(subs->dev) == USB_SPEED_FULL
+		    ? get_full_speed_hz(ep->freqm)
+		    : get_high_speed_hz(ep->freqm),
+		    ep->freqm >> 16, ep->freqm & 0xffff);
+	if (ep->freqshift != INT_MIN) {
+		int res = 16 - ep->freqshift;
+		snd_iprintf(buffer, "    Feedback Format = %d.%d\n",
+			    (ep->syncmaxsize > 3 ? 32 : 24) - res, res);
+	}
+}
+
 static void proc_dump_substream_status(struct snd_usb_substream *subs, struct snd_info_buffer *buffer)
 {
 	if (subs->running) {
-		unsigned int i;
 		snd_iprintf(buffer, "  Status: Running\n");
 		snd_iprintf(buffer, "    Interface = %d\n", subs->interface);
 		snd_iprintf(buffer, "    Altset = %d\n", subs->altset_idx);
-		snd_iprintf(buffer, "    URBs = %d [ ", subs->nurbs);
-		for (i = 0; i < subs->nurbs; i++)
-			snd_iprintf(buffer, "%d ", subs->dataurb[i].packets);
-		snd_iprintf(buffer, "]\n");
-		snd_iprintf(buffer, "    Packet Size = %d\n", subs->curpacksize);
-		snd_iprintf(buffer, "    Momentary freq = %u Hz (%#x.%04x)\n",
-			    snd_usb_get_speed(subs->dev) == USB_SPEED_FULL
-			    ? get_full_speed_hz(subs->freqm)
-			    : get_high_speed_hz(subs->freqm),
-			    subs->freqm >> 16, subs->freqm & 0xffff);
-		if (subs->freqshift != INT_MIN)
-			snd_iprintf(buffer, "    Feedback Format = %d.%d\n",
-				    (subs->syncmaxsize > 3 ? 32 : 24)
-						- (16 - subs->freqshift),
-				    16 - subs->freqshift);
+		proc_dump_ep_status(subs, subs->data_endpoint, buffer);
+		proc_dump_ep_status(subs, subs->sync_endpoint, buffer);
 	} else {
 		snd_iprintf(buffer, "  Status: Stop\n");
 	}

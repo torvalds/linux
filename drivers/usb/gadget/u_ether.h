@@ -69,9 +69,28 @@ struct gether {
 			|USB_CDC_PACKET_TYPE_PROMISCUOUS \
 			|USB_CDC_PACKET_TYPE_DIRECTED)
 
+/* variant of gether_setup that allows customizing network device name */
+int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
+		const char *netname);
 
 /* netdev setup/teardown as directed by the gadget driver */
-int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN]);
+/* gether_setup - initialize one ethernet-over-usb link
+ * @g: gadget to associated with these links
+ * @ethaddr: NULL, or a buffer in which the ethernet address of the
+ *	host side of the link is recorded
+ * Context: may sleep
+ *
+ * This sets up the single network link that may be exported by a
+ * gadget driver using this framework.  The link layer addresses are
+ * set up using module parameters.
+ *
+ * Returns negative errno, or zero on success
+ */
+static inline int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
+{
+	return gether_setup_name(g, ethaddr, "usb");
+}
+
 void gether_cleanup(void);
 
 /* connect/disconnect is handled by individual functions */
@@ -99,16 +118,37 @@ int eem_bind_config(struct usb_configuration *c);
 
 #ifdef USB_ETH_RNDIS
 
-int rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+int rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+				u32 vendorID, const char *manufacturer);
 
 #else
 
 static inline int
-rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+				u32 vendorID, const char *manufacturer)
 {
 	return 0;
 }
 
 #endif
+
+/**
+ * rndis_bind_config - add RNDIS network link to a configuration
+ * @c: the configuration to support the network link
+ * @ethaddr: a buffer in which the ethernet address of the host side
+ *	side of the link was recorded
+ * Context: single threaded during gadget setup
+ *
+ * Returns zero on success, else negative errno.
+ *
+ * Caller must have called @gether_setup().  Caller is also responsible
+ * for calling @gether_cleanup() before module unload.
+ */
+static inline int rndis_bind_config(struct usb_configuration *c,
+				    u8 ethaddr[ETH_ALEN])
+{
+	return rndis_bind_config_vendor(c, ethaddr, 0, NULL);
+}
+
 
 #endif /* __U_ETHER_H */

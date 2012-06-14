@@ -343,10 +343,11 @@ exit:
 	return err;
 }
 
-static int __init smsc47b397_find(unsigned short *addr)
+static int __init smsc47b397_find(void)
 {
 	u8 id, rev;
 	char *name;
+	unsigned short addr;
 
 	superio_enter();
 	id = force_id ? force_id : superio_inb(SUPERIO_REG_DEVID);
@@ -370,14 +371,14 @@ static int __init smsc47b397_find(unsigned short *addr)
 	rev = superio_inb(SUPERIO_REG_DEVREV);
 
 	superio_select(SUPERIO_REG_LD8);
-	*addr = (superio_inb(SUPERIO_REG_BASE_MSB) << 8)
+	addr = (superio_inb(SUPERIO_REG_BASE_MSB) << 8)
 		 |  superio_inb(SUPERIO_REG_BASE_LSB);
 
 	pr_info("found SMSC %s (base address 0x%04x, revision %u)\n",
-		name, *addr, rev);
+		name, addr, rev);
 
 	superio_exit();
-	return 0;
+	return addr;
 }
 
 static int __init smsc47b397_init(void)
@@ -385,9 +386,10 @@ static int __init smsc47b397_init(void)
 	unsigned short address;
 	int ret;
 
-	ret = smsc47b397_find(&address);
-	if (ret)
+	ret = smsc47b397_find();
+	if (ret < 0)
 		return ret;
+	address = ret;
 
 	ret = platform_driver_register(&smsc47b397_driver);
 	if (ret)

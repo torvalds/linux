@@ -404,6 +404,8 @@ struct cfg80211_beacon_data {
  *
  * Used to configure an AP interface.
  *
+ * @channel: the channel to start the AP on
+ * @channel_type: the channel type to use
  * @beacon: beacon data
  * @beacon_interval: beacon interval
  * @dtim_period: DTIM period
@@ -417,6 +419,9 @@ struct cfg80211_beacon_data {
  * @inactivity_timeout: time in seconds to determine station's inactivity.
  */
 struct cfg80211_ap_settings {
+	struct ieee80211_channel *channel;
+	enum nl80211_channel_type channel_type;
+
 	struct cfg80211_beacon_data beacon;
 
 	int beacon_interval, dtim_period;
@@ -821,10 +826,13 @@ struct mesh_config {
 	bool  dot11MeshGateAnnouncementProtocol;
 	bool dot11MeshForwarding;
 	s32 rssi_threshold;
+	u16 ht_opmode;
 };
 
 /**
  * struct mesh_setup - 802.11s mesh setup configuration
+ * @channel: the channel to start the mesh network on
+ * @channel_type: the channel type to use
  * @mesh_id: the mesh ID
  * @mesh_id_len: length of the mesh ID, at least 1 and at most 32 bytes
  * @sync_method: which synchronization method to use
@@ -839,6 +847,8 @@ struct mesh_config {
  * These parameters are fixed when the mesh is created.
  */
 struct mesh_setup {
+	struct ieee80211_channel *channel;
+	enum nl80211_channel_type channel_type;
 	const u8 *mesh_id;
 	u8 mesh_id_len;
 	u8 sync_method;
@@ -1410,11 +1420,14 @@ struct cfg80211_gtk_rekey_data {
  *
  * @set_txq_params: Set TX queue parameters
  *
- * @set_channel: Set channel for a given wireless interface. Some devices
- *	may support multi-channel operation (by channel hopping) so cfg80211
- *	doesn't verify much. Note, however, that the passed netdev may be
- *	%NULL as well if the user requested changing the channel for the
- *	device itself, or for a monitor interface.
+ * @libertas_set_mesh_channel: Only for backward compatibility for libertas,
+ *	as it doesn't implement join_mesh and needs to set the channel to
+ *	join the mesh instead.
+ *
+ * @set_monitor_channel: Set the monitor mode channel for the device. If other
+ *	interfaces are active this callback should reject the configuration.
+ *	If no interfaces are active or the device is down, the channel should
+ *	be stored for when a monitor interface becomes active.
  * @get_channel: Get the current operating channel, should return %NULL if
  *	there's no single defined operating channel if for example the
  *	device implements channel hopping for multi-channel virtual interfaces.
@@ -1514,6 +1527,16 @@ struct cfg80211_gtk_rekey_data {
  *	later passes to cfg80211_probe_status().
  *
  * @set_noack_map: Set the NoAck Map for the TIDs.
+ *
+ * @get_et_sset_count:  Ethtool API to get string-set count.
+ *	See @ethtool_ops.get_sset_count
+ *
+ * @get_et_stats:  Ethtool API to get a set of u64 stats.
+ *	See @ethtool_ops.get_ethtool_stats
+ *
+ * @get_et_strings:  Ethtool API to get a set of strings to describe stats
+ *	and perhaps other supported types of ethtool data-sets.
+ *	See @ethtool_ops.get_strings
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -1594,9 +1617,13 @@ struct cfg80211_ops {
 	int	(*set_txq_params)(struct wiphy *wiphy, struct net_device *dev,
 				  struct ieee80211_txq_params *params);
 
-	int	(*set_channel)(struct wiphy *wiphy, struct net_device *dev,
-			       struct ieee80211_channel *chan,
-			       enum nl80211_channel_type channel_type);
+	int	(*libertas_set_mesh_channel)(struct wiphy *wiphy,
+					     struct net_device *dev,
+					     struct ieee80211_channel *chan);
+
+	int	(*set_monitor_channel)(struct wiphy *wiphy,
+				       struct ieee80211_channel *chan,
+				       enum nl80211_channel_type channel_type);
 
 	int	(*scan)(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_scan_request *request);
@@ -1710,7 +1737,15 @@ struct cfg80211_ops {
 				  struct net_device *dev,
 				  u16 noack_map);
 
-	struct ieee80211_channel *(*get_channel)(struct wiphy *wiphy);
+	struct ieee80211_channel *(*get_channel)(struct wiphy *wiphy,
+					       enum nl80211_channel_type *type);
+
+	int	(*get_et_sset_count)(struct wiphy *wiphy,
+				     struct net_device *dev, int sset);
+	void	(*get_et_stats)(struct wiphy *wiphy, struct net_device *dev,
+				struct ethtool_stats *stats, u64 *data);
+	void	(*get_et_strings)(struct wiphy *wiphy, struct net_device *dev,
+				  u32 sset, u8 *data);
 };
 
 /*
@@ -1744,10 +1779,6 @@ struct cfg80211_ops {
  *	hints read the documenation for regulatory_hint_found_beacon()
  * @WIPHY_FLAG_NETNS_OK: if not set, do not allow changing the netns of this
  *	wiphy at all
- * @WIPHY_FLAG_ENFORCE_COMBINATIONS: Set this flag to enforce interface
- *	combinations for this device. This flag is used for backward
- *	compatibility only until all drivers advertise combinations and
- *	they will always be enforced.
  * @WIPHY_FLAG_PS_ON_BY_DEFAULT: if set to true, powersave will be enabled
  *	by default -- this flag will be set depending on the kernel's default
  *	on wiphy_new(), but can be changed by the driver if it has a good
@@ -1792,7 +1823,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_IBSS_RSN			= BIT(8),
 	WIPHY_FLAG_MESH_AUTH			= BIT(10),
 	WIPHY_FLAG_SUPPORTS_SCHED_SCAN		= BIT(11),
-	WIPHY_FLAG_ENFORCE_COMBINATIONS		= BIT(12),
+	/* use hole at 12 */
 	WIPHY_FLAG_SUPPORTS_FW_ROAM		= BIT(13),
 	WIPHY_FLAG_AP_UAPSD			= BIT(14),
 	WIPHY_FLAG_SUPPORTS_TDLS		= BIT(15),
@@ -2248,7 +2279,10 @@ struct cfg80211_cached_keys;
  * @netdev: (private) Used to reference back to the netdev
  * @current_bss: (private) Used by the internal configuration code
  * @channel: (private) Used by the internal configuration code to track
- *	user-set AP, monitor and WDS channels for wireless extensions
+ *	the user-set AP, monitor and WDS channel
+ * @preset_chan: (private) Used by the internal configuration code to
+ *	track the channel to be used for AP later
+ * @preset_chantype: (private) the corresponding channel type
  * @bssid: (private) Used by the internal configuration code
  * @ssid: (private) Used by the internal configuration code
  * @ssid_len: (private) Used by the internal configuration code
@@ -2298,7 +2332,8 @@ struct wireless_dev {
 	spinlock_t event_lock;
 
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
-	struct ieee80211_channel *channel;
+	struct ieee80211_channel *preset_chan;
+	enum nl80211_channel_type preset_chantype;
 
 	bool ps;
 	int ps_timeout;
@@ -3344,15 +3379,18 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 				 const u8 *frame, size_t len,
 				 int freq, int sig_dbm, gfp_t gfp);
 
-/*
+/**
  * cfg80211_can_beacon_sec_chan - test if ht40 on extension channel can be used
  * @wiphy: the wiphy
  * @chan: main channel
  * @channel_type: HT mode
+ *
+ * This function returns true if there is no secondary channel or the secondary
+ * channel can be used for beaconing (i.e. is not a radar channel etc.)
  */
-int cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
-				 struct ieee80211_channel *chan,
-				 enum nl80211_channel_type channel_type);
+bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
+				  struct ieee80211_channel *chan,
+				  enum nl80211_channel_type channel_type);
 
 /*
  * cfg80211_ch_switch_notify - update wdev channel and notify userspace

@@ -85,32 +85,6 @@
 #define INT_CRERR_CNT		0x06
 #define INT_COL_CNT		0x07
 
-/* Transmit status register errors */
-#define TSR_ECOL		(1<<5)
-#define TSR_LCOL		(1<<4)
-#define TSR_LOSS_CRS		(1<<3)
-#define TSR_JBR			(1<<2)
-#define TSR_ERRORS		(TSR_ECOL | TSR_LCOL | TSR_LOSS_CRS | TSR_JBR)
-/* Receive status register errors */
-#define RSR_CRC			(1<<2)
-#define RSR_FAE			(1<<1)
-#define RSR_ERRORS		(RSR_CRC | RSR_FAE)
-
-/* Media status register definitions */
-#define MSR_DUPLEX		(1<<4)
-#define MSR_SPEED		(1<<3)
-#define MSR_LINK		(1<<2)
-
-/* Interrupt pipe data */
-#define INT_TSR			0x00
-#define INT_RSR			0x01
-#define INT_MSR			0x02
-#define INT_WAKSR		0x03
-#define INT_TXOK_CNT		0x04
-#define INT_RXLOST_CNT		0x05
-#define INT_CRERR_CNT		0x06
-#define INT_COL_CNT		0x07
-
 
 #define	RTL8150_MTU		1540
 #define	RTL8150_TX_TIMEOUT	(HZ)
@@ -229,7 +203,8 @@ static int async_set_registers(rtl8150_t * dev, u16 indx, u16 size)
 	if ((ret = usb_submit_urb(dev->ctrl_urb, GFP_ATOMIC))) {
 		if (ret == -ENODEV)
 			netif_device_detach(dev->netdev);
-		err("control request submission failed: %d", ret);
+		dev_err(&dev->udev->dev,
+			"control request submission failed: %d\n", ret);
 	} else
 		set_bit(RX_REG_SET, &dev->flags);
 
@@ -542,9 +517,9 @@ resubmit:
 	if (res == -ENODEV)
 		netif_device_detach(dev->netdev);
 	else if (res)
-		err ("can't resubmit intr, %s-%s/input0, status %d",
-				dev->udev->bus->bus_name,
-				dev->udev->devpath, res);
+		dev_err(&dev->udev->dev,
+			"can't resubmit intr, %s-%s/input0, status %d\n",
+			dev->udev->bus->bus_name, dev->udev->devpath, res);
 }
 
 static int rtl8150_suspend(struct usb_interface *intf, pm_message_t message)
@@ -916,11 +891,11 @@ static int rtl8150_probe(struct usb_interface *intf,
 	dev->intr_interval = 100;	/* 100ms */
 
 	if (!alloc_all_urbs(dev)) {
-		err("out of memory");
+		dev_err(&intf->dev, "out of memory\n");
 		goto out;
 	}
 	if (!rtl8150_reset(dev)) {
-		err("couldn't reset the device");
+		dev_err(&intf->dev, "couldn't reset the device\n");
 		goto out1;
 	}
 	fill_skb_pool(dev);
@@ -929,7 +904,7 @@ static int rtl8150_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, dev);
 	SET_NETDEV_DEV(netdev, &intf->dev);
 	if (register_netdev(netdev) != 0) {
-		err("couldn't register the device");
+		dev_err(&intf->dev, "couldn't register the device\n");
 		goto out2;
 	}
 
@@ -973,7 +948,8 @@ static struct usb_driver rtl8150_driver = {
 	.disconnect	= rtl8150_disconnect,
 	.id_table	= rtl8150_table,
 	.suspend	= rtl8150_suspend,
-	.resume		= rtl8150_resume
+	.resume		= rtl8150_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(rtl8150_driver);

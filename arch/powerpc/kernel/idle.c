@@ -26,11 +26,11 @@
 #include <linux/sysctl.h>
 #include <linux/tick.h>
 
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
+#include <asm/runlatch.h>
 #include <asm/smp.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -112,29 +112,6 @@ void cpu_idle(void)
 		schedule_preempt_disabled();
 	}
 }
-
-
-/*
- * cpu_idle_wait - Used to ensure that all the CPUs come out of the old
- * idle loop and start using the new idle loop.
- * Required while changing idle handler on SMP systems.
- * Caller must have changed idle handler to the new value before the call.
- * This window may be larger on shared systems.
- */
-void cpu_idle_wait(void)
-{
-	int cpu;
-	smp_mb();
-
-	/* kick all the CPUs so that they exit out of old idle routine */
-	get_online_cpus();
-	for_each_online_cpu(cpu) {
-		if (cpu != smp_processor_id())
-			smp_send_reschedule(cpu);
-	}
-	put_online_cpus();
-}
-EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
 int powersave_nap;
 

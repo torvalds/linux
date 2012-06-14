@@ -51,12 +51,6 @@ config OF_IRQ
 config OF_DEVICE
 	def_bool y
 
-config OF_GPIO
-	def_bool y
-	depends on GPIOLIB && !SPARC
-	help
-	  OpenFirmware GPIO accessors
-
 config OF_I2C
 	def_tristate I2C
 	depends on I2C && !SPARC
@@ -66,12 +60,6 @@ config OF_I2C
 config OF_NET
 	depends on NETDEVICES
 	def_bool y
-
-config OF_SPI
-	def_tristate SPI
-	depends on SPI && !SPARC
-	help
-	  OpenFirmware SPI accessors
 
 config OF_MDIO
 	def_tristate PHYLIB
@@ -90,5 +78,9 @@ config OF_PCI_IRQ
 	depends on OF_PCI && OF_IRQ
 	help
 	  OpenFirmware PCI IRQ routing helpers
+
+config OF_MTD
+	depends on MTD
+	def_bool y
 
 endmenu # OF

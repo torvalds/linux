@@ -34,6 +34,7 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/system_info.h>
 
 #include <mach/pxa27x.h>
 #include <mach/magician.h>
@@ -578,14 +579,8 @@ static struct platform_device power_supply = {
  */
 
 static struct regulator_consumer_supply bq24022_consumers[] = {
-	{
-		.dev = &gpio_vbus.dev,
-		.supply = "vbus_draw",
-	},
-	{
-		.dev = &power_supply.dev,
-		.supply = "ac_draw",
-	},
+	REGULATOR_SUPPLY("vbus_draw", NULL),
+	REGULATOR_SUPPLY("ac_draw", NULL),
 };
 
 static struct regulator_init_data bq24022_init_data = {

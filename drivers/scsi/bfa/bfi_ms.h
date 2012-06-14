@@ -28,17 +28,15 @@ enum bfi_iocfc_h2i_msgs {
 	BFI_IOCFC_H2I_CFG_REQ		= 1,
 	BFI_IOCFC_H2I_SET_INTR_REQ	= 2,
 	BFI_IOCFC_H2I_UPDATEQ_REQ	= 3,
-	BFI_IOCFC_H2I_FAA_ENABLE_REQ	= 4,
-	BFI_IOCFC_H2I_FAA_DISABLE_REQ	= 5,
-	BFI_IOCFC_H2I_FAA_QUERY_REQ	= 6,
+	BFI_IOCFC_H2I_FAA_QUERY_REQ	= 4,
+	BFI_IOCFC_H2I_ADDR_REQ		= 5,
 };
 
 enum bfi_iocfc_i2h_msgs {
 	BFI_IOCFC_I2H_CFG_REPLY		= BFA_I2HM(1),
 	BFI_IOCFC_I2H_UPDATEQ_RSP	= BFA_I2HM(3),
-	BFI_IOCFC_I2H_FAA_ENABLE_RSP	= BFA_I2HM(4),
-	BFI_IOCFC_I2H_FAA_DISABLE_RSP	= BFA_I2HM(5),
-	BFI_IOCFC_I2H_FAA_QUERY_RSP	= BFA_I2HM(6),
+	BFI_IOCFC_I2H_FAA_QUERY_RSP	= BFA_I2HM(4),
+	BFI_IOCFC_I2H_ADDR_MSG		= BFA_I2HM(5),
 };
 
 struct bfi_iocfc_cfg_s {
@@ -182,6 +180,13 @@ union bfi_iocfc_i2h_msg_u {
  */
 struct bfi_faa_en_dis_s {
 	struct bfi_mhdr_s mh;	/* common msg header    */
+};
+
+struct bfi_faa_addr_msg_s {
+	struct  bfi_mhdr_s mh;	/* common msg header	*/
+	u8	rsvd[4];
+	wwn_t	pwwn;		/* Fabric acquired PWWN	*/
+	wwn_t	nwwn;		/* Fabric acquired PWWN	*/
 };
 
 /*

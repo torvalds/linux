@@ -392,10 +392,11 @@ static int mt9m032_set_pad_format(struct v4l2_subdev *subdev,
 	}
 
 	/* Scaling is not supported, the format is thus fixed. */
-	ret = mt9m032_get_pad_format(subdev, fh, fmt);
+	fmt->format = *__mt9m032_get_pad_format(sensor, fh, fmt->which);
+	ret = 0;
 
 done:
-	mutex_lock(&sensor->lock);
+	mutex_unlock(&sensor->lock);
 	return ret;
 }
 
@@ -837,9 +838,9 @@ static int mt9m032_remove(struct i2c_client *client)
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct mt9m032 *sensor = to_mt9m032(subdev);
 
-	v4l2_device_unregister_subdev(&sensor->subdev);
+	v4l2_device_unregister_subdev(subdev);
 	v4l2_ctrl_handler_free(&sensor->ctrls);
-	media_entity_cleanup(&sensor->subdev.entity);
+	media_entity_cleanup(&subdev->entity);
 	mutex_destroy(&sensor->lock);
 	kfree(sensor);
 	return 0;

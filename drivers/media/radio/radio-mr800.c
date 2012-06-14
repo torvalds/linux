@@ -62,6 +62,8 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
 
@@ -101,12 +103,17 @@ devices, that would be 76 and 91.  */
  * List isn't full and will be updated with implementation of new functions
  */
 #define AMRADIO_SET_FREQ	0xa4
+#define AMRADIO_GET_READY_FLAG	0xa5
+#define AMRADIO_GET_SIGNAL	0xa7
+#define AMRADIO_GET_FREQ	0xa8
+#define AMRADIO_SET_SEARCH_UP	0xa9
+#define AMRADIO_SET_SEARCH_DOWN	0xaa
 #define AMRADIO_SET_MUTE	0xab
+#define AMRADIO_SET_RIGHT_MUTE	0xac
+#define AMRADIO_SET_LEFT_MUTE	0xad
 #define AMRADIO_SET_MONO	0xae
-
-/* Comfortable defines for amradio_set_mute */
-#define AMRADIO_START		0x00
-#define AMRADIO_STOP		0x01
+#define AMRADIO_SET_SEARCH_LVL	0xb0
+#define AMRADIO_STOP_SEARCH	0xb1
 
 /* Comfortable defines for amradio_set_stereo */
 #define WANT_STEREO		0x00
@@ -117,29 +124,20 @@ static int radio_nr = -1;
 module_param(radio_nr, int, 0);
 MODULE_PARM_DESC(radio_nr, "Radio Nr");
 
-static int usb_amradio_probe(struct usb_interface *intf,
-			     const struct usb_device_id *id);
-static void usb_amradio_disconnect(struct usb_interface *intf);
-static int usb_amradio_open(struct file *file);
-static int usb_amradio_close(struct file *file);
-static int usb_amradio_suspend(struct usb_interface *intf,
-				pm_message_t message);
-static int usb_amradio_resume(struct usb_interface *intf);
-
 /* Data for one (physical) device */
 struct amradio_device {
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
-	struct video_device videodev;
+	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler hdl;
 
-	unsigned char *buffer;
+	u8 *buffer;
 	struct mutex lock;	/* buffer locking */
 	int curfreq;
 	int stereo;
 	int muted;
-	int initialized;
 };
 
 static inline struct amradio_device *to_amradio_dev(struct v4l2_device *v4l2_dev)
@@ -147,29 +145,8 @@ static inline struct amradio_device *to_amradio_dev(struct v4l2_device *v4l2_dev
 	return container_of(v4l2_dev, struct amradio_device, v4l2_dev);
 }
 
-/* USB Device ID List */
-static struct usb_device_id usb_amradio_device_table[] = {
-	{USB_DEVICE_AND_INTERFACE_INFO(USB_AMRADIO_VENDOR, USB_AMRADIO_PRODUCT,
-							USB_CLASS_HID, 0, 0) },
-	{ }						/* Terminating entry */
-};
-
-MODULE_DEVICE_TABLE(usb, usb_amradio_device_table);
-
-/* USB subsystem interface */
-static struct usb_driver usb_amradio_driver = {
-	.name			= MR800_DRIVER_NAME,
-	.probe			= usb_amradio_probe,
-	.disconnect		= usb_amradio_disconnect,
-	.suspend		= usb_amradio_suspend,
-	.resume			= usb_amradio_resume,
-	.reset_resume		= usb_amradio_resume,
-	.id_table		= usb_amradio_device_table,
-	.supports_autosuspend	= 1,
-};
-
-/* switch on/off the radio. Send 8 bytes to device */
-static int amradio_set_mute(struct amradio_device *radio, char argument)
+static int amradio_send_cmd(struct amradio_device *radio, u8 cmd, u8 arg,
+		u8 *extra, u8 extralen, bool reply)
 {
 	int retval;
 	int size;
@@ -177,99 +154,92 @@ static int amradio_set_mute(struct amradio_device *radio, char argument)
 	radio->buffer[0] = 0x00;
 	radio->buffer[1] = 0x55;
 	radio->buffer[2] = 0xaa;
-	radio->buffer[3] = 0x00;
-	radio->buffer[4] = AMRADIO_SET_MUTE;
-	radio->buffer[5] = argument;
+	radio->buffer[3] = extralen;
+	radio->buffer[4] = cmd;
+	radio->buffer[5] = arg;
 	radio->buffer[6] = 0x00;
-	radio->buffer[7] = 0x00;
+	radio->buffer[7] = extra || reply ? 8 : 0;
 
 	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
-		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
+		radio->buffer, BUFFER_LENGTH, &size, USB_TIMEOUT);
 
 	if (retval < 0 || size != BUFFER_LENGTH) {
-		amradio_dev_warn(&radio->videodev.dev, "set mute failed\n");
-		return retval;
+		if (video_is_registered(&radio->vdev))
+			amradio_dev_warn(&radio->vdev.dev,
+					"cmd %02x failed\n", cmd);
+		return retval ? retval : -EIO;
 	}
+	if (!extra && !reply)
+		return 0;
 
-	radio->muted = argument;
+	if (extra) {
+		memcpy(radio->buffer, extra, extralen);
+		memset(radio->buffer + extralen, 0, 8 - extralen);
+		retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
+			radio->buffer, BUFFER_LENGTH, &size, USB_TIMEOUT);
+	} else {
+		memset(radio->buffer, 0, 8);
+		retval = usb_bulk_msg(radio->usbdev, usb_rcvbulkpipe(radio->usbdev, 0x81),
+			radio->buffer, BUFFER_LENGTH, &size, USB_TIMEOUT);
+	}
+	if (retval == 0 && size == BUFFER_LENGTH)
+		return 0;
+	if (video_is_registered(&radio->vdev) && cmd != AMRADIO_GET_READY_FLAG)
+		amradio_dev_warn(&radio->vdev.dev, "follow-up to cmd %02x failed\n", cmd);
+	return retval ? retval : -EIO;
+}
 
-	return retval;
+/* switch on/off the radio. Send 8 bytes to device */
+static int amradio_set_mute(struct amradio_device *radio, bool mute)
+{
+	int ret = amradio_send_cmd(radio,
+			AMRADIO_SET_MUTE, mute, NULL, 0, false);
+
+	if (!ret)
+		radio->muted = mute;
+	return ret;
 }
 
 /* set a frequency, freq is defined by v4l's TUNER_LOW, i.e. 1/16th kHz */
-static int amradio_setfreq(struct amradio_device *radio, int freq)
+static int amradio_set_freq(struct amradio_device *radio, int freq)
 {
-	int retval;
-	int size;
 	unsigned short freq_send = 0x10 + (freq >> 3) / 25;
-
-	radio->buffer[0] = 0x00;
-	radio->buffer[1] = 0x55;
-	radio->buffer[2] = 0xaa;
-	radio->buffer[3] = 0x03;
-	radio->buffer[4] = AMRADIO_SET_FREQ;
-	radio->buffer[5] = 0x00;
-	radio->buffer[6] = 0x00;
-	radio->buffer[7] = 0x08;
-
-	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
-		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
-
-	if (retval < 0 || size != BUFFER_LENGTH)
-		goto out_err;
+	u8 buf[3];
+	int retval;
 
 	/* frequency is calculated from freq_send and placed in first 2 bytes */
-	radio->buffer[0] = (freq_send >> 8) & 0xff;
-	radio->buffer[1] = freq_send & 0xff;
-	radio->buffer[2] = 0x01;
-	radio->buffer[3] = 0x00;
-	radio->buffer[4] = 0x00;
-	/* 5 and 6 bytes of buffer already = 0x00 */
-	radio->buffer[7] = 0x00;
+	buf[0] = (freq_send >> 8) & 0xff;
+	buf[1] = freq_send & 0xff;
+	buf[2] = 0x01;
 
-	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
-		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
-
-	if (retval < 0 || size != BUFFER_LENGTH)
-		goto out_err;
-
+	retval = amradio_send_cmd(radio, AMRADIO_SET_FREQ, 0, buf, 3, false);
+	if (retval)
+		return retval;
 	radio->curfreq = freq;
-	goto out;
-
-out_err:
-	amradio_dev_warn(&radio->videodev.dev, "set frequency failed\n");
-out:
-	return retval;
+	msleep(40);
+	return 0;
 }
 
-static int amradio_set_stereo(struct amradio_device *radio, char argument)
+static int amradio_set_stereo(struct amradio_device *radio, bool stereo)
 {
-	int retval;
-	int size;
+	int ret = amradio_send_cmd(radio,
+			AMRADIO_SET_MONO, !stereo, NULL, 0, false);
 
-	radio->buffer[0] = 0x00;
-	radio->buffer[1] = 0x55;
-	radio->buffer[2] = 0xaa;
-	radio->buffer[3] = 0x00;
-	radio->buffer[4] = AMRADIO_SET_MONO;
-	radio->buffer[5] = argument;
-	radio->buffer[6] = 0x00;
-	radio->buffer[7] = 0x00;
+	if (!ret)
+		radio->stereo = stereo;
+	return ret;
+}
 
-	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
-		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
+static int amradio_get_stat(struct amradio_device *radio, bool *is_stereo, u32 *signal)
+{
+	int ret = amradio_send_cmd(radio,
+			AMRADIO_GET_SIGNAL, 0, NULL, 0, true);
 
-	if (retval < 0 || size != BUFFER_LENGTH) {
-		amradio_dev_warn(&radio->videodev.dev, "set stereo failed\n");
-		return retval;
-	}
-
-	if (argument == WANT_STEREO)
-		radio->stereo = 1;
-	else
-		radio->stereo = 0;
-
-	return retval;
+	if (ret)
+		return ret;
+	*is_stereo = radio->buffer[2] >> 7;
+	*signal = (radio->buffer[3] & 0xf0) << 8;
+	return 0;
 }
 
 /* Handle unplugging the device.
@@ -282,25 +252,26 @@ static void usb_amradio_disconnect(struct usb_interface *intf)
 	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
 	mutex_lock(&radio->lock);
-	/* increase the device node's refcount */
-	get_device(&radio->videodev.dev);
+	video_unregister_device(&radio->vdev);
+	amradio_set_mute(radio, true);
+	usb_set_intfdata(intf, NULL);
 	v4l2_device_disconnect(&radio->v4l2_dev);
-	video_unregister_device(&radio->videodev);
 	mutex_unlock(&radio->lock);
-	/* decrease the device node's refcount, allowing it to be released */
-	put_device(&radio->videodev.dev);
+	v4l2_device_put(&radio->v4l2_dev);
 }
 
 /* vidioc_querycap - query device capabilities */
 static int vidioc_querycap(struct file *file, void *priv,
 					struct v4l2_capability *v)
 {
-	struct amradio_device *radio = file->private_data;
+	struct amradio_device *radio = video_drvdata(file);
 
 	strlcpy(v->driver, "radio-mr800", sizeof(v->driver));
 	strlcpy(v->card, "AverMedia MR 800 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->capabilities = V4L2_CAP_TUNER;
+	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER |
+					V4L2_CAP_HW_FREQ_SEEK;
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -308,44 +279,34 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	struct amradio_device *radio = file->private_data;
+	struct amradio_device *radio = video_drvdata(file);
+	bool is_stereo = false;
 	int retval;
 
 	if (v->index > 0)
 		return -EINVAL;
 
-/* TODO: Add function which look is signal stereo or not
- * 	amradio_getstat(radio);
- */
-
-/* we call amradio_set_stereo to set radio->stereo
- * Honestly, amradio_getstat should cover this in future and
- * amradio_set_stereo shouldn't be here
- */
-	retval = amradio_set_stereo(radio, WANT_STEREO);
+	v->signal = 0;
+	retval = amradio_get_stat(radio, &is_stereo, &v->signal);
+	if (retval)
+		return retval;
 
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	v->capability = V4L2_TUNER_CAP_LOW;
-	if (radio->stereo)
-		v->audmode = V4L2_TUNER_MODE_STEREO;
-	else
-		v->audmode = V4L2_TUNER_MODE_MONO;
-	v->signal = 0xffff;     /* Can't get the signal strength, sad.. */
-	v->afc = 0; /* Don't know what is this */
-
-	return retval;
+	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
+	v->rxsubchans = is_stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+	v->audmode = radio->stereo ?
+		V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
+	return 0;
 }
 
 /* vidioc_s_tuner - set tuner attributes */
 static int vidioc_s_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	struct amradio_device *radio = file->private_data;
-	int retval = -EINVAL;
+	struct amradio_device *radio = video_drvdata(file);
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -353,34 +314,31 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	/* mono/stereo selector */
 	switch (v->audmode) {
 	case V4L2_TUNER_MODE_MONO:
-		retval = amradio_set_stereo(radio, WANT_MONO);
-		break;
-	case V4L2_TUNER_MODE_STEREO:
-		retval = amradio_set_stereo(radio, WANT_STEREO);
-		break;
+		return amradio_set_stereo(radio, WANT_MONO);
+	default:
+		return amradio_set_stereo(radio, WANT_STEREO);
 	}
-
-	return retval;
 }
 
 /* vidioc_s_frequency - set tuner radio frequency */
 static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct amradio_device *radio = file->private_data;
+	struct amradio_device *radio = video_drvdata(file);
 
-	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+	if (f->tuner != 0)
 		return -EINVAL;
-	return amradio_setfreq(radio, f->frequency);
+	return amradio_set_freq(radio, clamp_t(unsigned, f->frequency,
+				FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL));
 }
 
 /* vidioc_g_frequency - get tuner radio frequency */
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct amradio_device *radio = file->private_data;
+	struct amradio_device *radio = video_drvdata(file);
 
-	if (f->tuner != 0)
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = radio->curfreq;
@@ -388,137 +346,90 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-/* vidioc_queryctrl - enumerate control items */
-static int vidioc_queryctrl(struct file *file, void *priv,
-				struct v4l2_queryctrl *qc)
+static int vidioc_s_hw_freq_seek(struct file *file, void *priv,
+		struct v4l2_hw_freq_seek *seek)
 {
-	switch (qc->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
+	static u8 buf[8] = {
+		0x3d, 0x32, 0x0f, 0x08, 0x3d, 0x32, 0x0f, 0x08
+	};
+	struct amradio_device *radio = video_drvdata(file);
+	unsigned long timeout;
+	int retval;
+
+	if (seek->tuner != 0 || !seek->wrap_around)
+		return -EINVAL;
+
+	retval = amradio_send_cmd(radio,
+			AMRADIO_SET_SEARCH_LVL, 0, buf, 8, false);
+	if (retval)
+		return retval;
+	amradio_set_freq(radio, radio->curfreq);
+	retval = amradio_send_cmd(radio,
+		seek->seek_upward ? AMRADIO_SET_SEARCH_UP : AMRADIO_SET_SEARCH_DOWN,
+		0, NULL, 0, false);
+	if (retval)
+		return retval;
+	timeout = jiffies + msecs_to_jiffies(30000);
+	for (;;) {
+		if (time_after(jiffies, timeout)) {
+			retval = -EAGAIN;
+			break;
+		}
+		if (schedule_timeout_interruptible(msecs_to_jiffies(10))) {
+			retval = -ERESTARTSYS;
+			break;
+		}
+		retval = amradio_send_cmd(radio, AMRADIO_GET_READY_FLAG,
+				0, NULL, 0, true);
+		if (retval)
+			continue;
+		amradio_send_cmd(radio, AMRADIO_GET_FREQ, 0, NULL, 0, true);
+		if (radio->buffer[1] || radio->buffer[2]) {
+			radio->curfreq = (radio->buffer[1] << 8) | radio->buffer[2];
+			radio->curfreq = (radio->curfreq - 0x10) * 200;
+			amradio_send_cmd(radio, AMRADIO_STOP_SEARCH,
+					0, NULL, 0, false);
+			amradio_set_freq(radio, radio->curfreq);
+			retval = 0;
+			break;
+		}
 	}
-
-	return -EINVAL;
-}
-
-/* vidioc_g_ctrl - get the value of a control */
-static int vidioc_g_ctrl(struct file *file, void *priv,
-				struct v4l2_control *ctrl)
-{
-	struct amradio_device *radio = file->private_data;
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = radio->muted;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-/* vidioc_s_ctrl - set the value of a control */
-static int vidioc_s_ctrl(struct file *file, void *priv,
-				struct v4l2_control *ctrl)
-{
-	struct amradio_device *radio = file->private_data;
-	int retval = -EINVAL;
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		if (ctrl->value)
-			retval = amradio_set_mute(radio, AMRADIO_STOP);
-		else
-			retval = amradio_set_mute(radio, AMRADIO_START);
-
-		break;
-	}
-
+	amradio_send_cmd(radio, AMRADIO_STOP_SEARCH, 0, NULL, 0, false);
+	amradio_set_freq(radio, radio->curfreq);
 	return retval;
 }
 
-/* vidioc_g_audio - get audio attributes */
-static int vidioc_g_audio(struct file *file, void *priv,
-				struct v4l2_audio *a)
+static int usb_amradio_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	if (a->index > 1)
-		return -EINVAL;
+	struct amradio_device *radio =
+		container_of(ctrl->handler, struct amradio_device, hdl);
 
-	strcpy(a->name, "Radio");
-	a->capability = V4L2_AUDCAP_STEREO;
-	return 0;
-}
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		return amradio_set_mute(radio, ctrl->val);
+	}
 
-/* vidioc_s_audio - set audio attributes  */
-static int vidioc_s_audio(struct file *file, void *priv,
-					struct v4l2_audio *a)
-{
-	if (a->index != 0)
-		return -EINVAL;
-	return 0;
-}
-
-/* vidioc_g_input - get input */
-static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
-{
-	*i = 0;
-	return 0;
-}
-
-/* vidioc_s_input - set input */
-static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
-{
-	if (i != 0)
-		return -EINVAL;
-	return 0;
+	return -EINVAL;
 }
 
 static int usb_amradio_init(struct amradio_device *radio)
 {
 	int retval;
 
-	retval = amradio_set_mute(radio, AMRADIO_STOP);
+	retval = amradio_set_mute(radio, true);
 	if (retval)
 		goto out_err;
-
-	retval = amradio_set_stereo(radio, WANT_STEREO);
+	retval = amradio_set_stereo(radio, true);
 	if (retval)
 		goto out_err;
-
-	radio->initialized = 1;
-	goto out;
+	retval = amradio_set_freq(radio, radio->curfreq);
+	if (retval)
+		goto out_err;
+	return 0;
 
 out_err:
-	amradio_dev_err(&radio->videodev.dev, "initialization failed\n");
-out:
+	amradio_dev_err(&radio->vdev.dev, "initialization failed\n");
 	return retval;
-}
-
-/* open device - amradio_start() and amradio_setfreq() */
-static int usb_amradio_open(struct file *file)
-{
-	struct amradio_device *radio = video_drvdata(file);
-	int retval;
-
-	file->private_data = radio;
-	retval = usb_autopm_get_interface(radio->intf);
-	if (retval)
-		return retval;
-
-	if (unlikely(!radio->initialized)) {
-		retval = usb_amradio_init(radio);
-		if (retval)
-			usb_autopm_put_interface(radio->intf);
-	}
-	return retval;
-}
-
-/*close device */
-static int usb_amradio_close(struct file *file)
-{
-	struct amradio_device *radio = file->private_data;
-
-	if (video_is_registered(&radio->videodev))
-		usb_autopm_put_interface(radio->intf);
-	return 0;
 }
 
 /* Suspend device - stop device. Need to be checked and fixed */
@@ -527,9 +438,9 @@ static int usb_amradio_suspend(struct usb_interface *intf, pm_message_t message)
 	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
 	mutex_lock(&radio->lock);
-	if (!radio->muted && radio->initialized) {
-		amradio_set_mute(radio, AMRADIO_STOP);
-		radio->muted = 0;
+	if (!radio->muted) {
+		amradio_set_mute(radio, true);
+		radio->muted = false;
 	}
 	mutex_unlock(&radio->lock);
 
@@ -543,31 +454,28 @@ static int usb_amradio_resume(struct usb_interface *intf)
 	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
 	mutex_lock(&radio->lock);
-	if (unlikely(!radio->initialized))
-		goto unlock;
-
-	if (radio->stereo)
-		amradio_set_stereo(radio, WANT_STEREO);
-	else
-		amradio_set_stereo(radio, WANT_MONO);
-
-	amradio_setfreq(radio, radio->curfreq);
+	amradio_set_stereo(radio, radio->stereo);
+	amradio_set_freq(radio, radio->curfreq);
 
 	if (!radio->muted)
-		amradio_set_mute(radio, AMRADIO_START);
+		amradio_set_mute(radio, false);
 
-unlock:
 	mutex_unlock(&radio->lock);
 
 	dev_info(&intf->dev, "coming out of suspend..\n");
 	return 0;
 }
 
+static const struct v4l2_ctrl_ops usb_amradio_ctrl_ops = {
+	.s_ctrl = usb_amradio_s_ctrl,
+};
+
 /* File system interface */
 static const struct v4l2_file_operations usb_amradio_fops = {
 	.owner		= THIS_MODULE,
-	.open		= usb_amradio_open,
-	.release	= usb_amradio_close,
+	.open		= v4l2_fh_open,
+	.release	= v4l2_fh_release,
+	.poll		= v4l2_ctrl_poll,
 	.unlocked_ioctl	= video_ioctl2,
 };
 
@@ -577,20 +485,19 @@ static const struct v4l2_ioctl_ops usb_amradio_ioctl_ops = {
 	.vidioc_s_tuner     = vidioc_s_tuner,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
-	.vidioc_queryctrl   = vidioc_queryctrl,
-	.vidioc_g_ctrl      = vidioc_g_ctrl,
-	.vidioc_s_ctrl      = vidioc_s_ctrl,
-	.vidioc_g_audio     = vidioc_g_audio,
-	.vidioc_s_audio     = vidioc_s_audio,
-	.vidioc_g_input     = vidioc_g_input,
-	.vidioc_s_input     = vidioc_s_input,
+	.vidioc_s_hw_freq_seek = vidioc_s_hw_freq_seek,
+	.vidioc_log_status  = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static void usb_amradio_video_device_release(struct video_device *videodev)
+static void usb_amradio_release(struct v4l2_device *v4l2_dev)
 {
-	struct amradio_device *radio = video_get_drvdata(videodev);
+	struct amradio_device *radio = to_amradio_dev(v4l2_dev);
 
 	/* free rest memory */
+	v4l2_ctrl_handler_free(&radio->hdl);
+	v4l2_device_unregister(&radio->v4l2_dev);
 	kfree(radio->buffer);
 	kfree(radio);
 }
@@ -624,23 +531,38 @@ static int usb_amradio_probe(struct usb_interface *intf,
 		goto err_v4l2;
 	}
 
+	v4l2_ctrl_handler_init(&radio->hdl, 1);
+	v4l2_ctrl_new_std(&radio->hdl, &usb_amradio_ctrl_ops,
+			  V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+	if (radio->hdl.error) {
+		retval = radio->hdl.error;
+		dev_err(&intf->dev, "couldn't register control\n");
+		goto err_ctrl;
+	}
 	mutex_init(&radio->lock);
 
-	strlcpy(radio->videodev.name, radio->v4l2_dev.name,
-		sizeof(radio->videodev.name));
-	radio->videodev.v4l2_dev = &radio->v4l2_dev;
-	radio->videodev.fops = &usb_amradio_fops;
-	radio->videodev.ioctl_ops = &usb_amradio_ioctl_ops;
-	radio->videodev.release = usb_amradio_video_device_release;
-	radio->videodev.lock = &radio->lock;
+	radio->v4l2_dev.ctrl_handler = &radio->hdl;
+	radio->v4l2_dev.release = usb_amradio_release;
+	strlcpy(radio->vdev.name, radio->v4l2_dev.name,
+		sizeof(radio->vdev.name));
+	radio->vdev.v4l2_dev = &radio->v4l2_dev;
+	radio->vdev.fops = &usb_amradio_fops;
+	radio->vdev.ioctl_ops = &usb_amradio_ioctl_ops;
+	radio->vdev.release = video_device_release_empty;
+	radio->vdev.lock = &radio->lock;
+	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;
+	usb_set_intfdata(intf, &radio->v4l2_dev);
 	radio->curfreq = 95.16 * FREQ_MUL;
 
-	video_set_drvdata(&radio->videodev, radio);
+	video_set_drvdata(&radio->vdev, radio);
+	retval = usb_amradio_init(radio);
+	if (retval)
+		goto err_vdev;
 
-	retval = video_register_device(&radio->videodev, VFL_TYPE_RADIO,
+	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO,
 					radio_nr);
 	if (retval < 0) {
 		dev_err(&intf->dev, "could not register video device\n");
@@ -650,6 +572,8 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	return 0;
 
 err_vdev:
+	v4l2_ctrl_handler_free(&radio->hdl);
+err_ctrl:
 	v4l2_device_unregister(&radio->v4l2_dev);
 err_v4l2:
 	kfree(radio->buffer);
@@ -658,5 +582,25 @@ err_nobuf:
 err:
 	return retval;
 }
+
+/* USB Device ID List */
+static struct usb_device_id usb_amradio_device_table[] = {
+	{ USB_DEVICE_AND_INTERFACE_INFO(USB_AMRADIO_VENDOR, USB_AMRADIO_PRODUCT,
+							USB_CLASS_HID, 0, 0) },
+	{ }						/* Terminating entry */
+};
+
+MODULE_DEVICE_TABLE(usb, usb_amradio_device_table);
+
+/* USB subsystem interface */
+static struct usb_driver usb_amradio_driver = {
+	.name			= MR800_DRIVER_NAME,
+	.probe			= usb_amradio_probe,
+	.disconnect		= usb_amradio_disconnect,
+	.suspend		= usb_amradio_suspend,
+	.resume			= usb_amradio_resume,
+	.reset_resume		= usb_amradio_resume,
+	.id_table		= usb_amradio_device_table,
+};
 
 module_usb_driver(usb_amradio_driver);

@@ -18,6 +18,8 @@
 
 static bool request_mem_succeeded = false;
 
+static struct pci_dev *default_vga;
+
 static struct fb_var_screeninfo efifb_defined __devinitdata = {
 	.activate		= FB_ACTIVATE_NOW,
 	.height			= -1,
@@ -298,35 +300,72 @@ static struct fb_ops efifb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
+struct pci_dev *vga_default_device(void)
+{
+	return default_vga;
+}
+
+EXPORT_SYMBOL_GPL(vga_default_device);
+
+void vga_set_default_device(struct pci_dev *pdev)
+{
+	default_vga = pdev;
+}
+
 static int __init efifb_setup(char *options)
 {
 	char *this_opt;
 	int i;
+	struct pci_dev *dev = NULL;
 
-	if (!options || !*options)
-		return 0;
+	if (options && *options) {
+		while ((this_opt = strsep(&options, ",")) != NULL) {
+			if (!*this_opt) continue;
 
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt) continue;
-
-		for (i = 0; i < M_UNKNOWN; i++) {
-			if (!strcmp(this_opt, dmi_list[i].optname) &&
-					dmi_list[i].base != 0) {
-				screen_info.lfb_base = dmi_list[i].base;
-				screen_info.lfb_linelength = dmi_list[i].stride;
-				screen_info.lfb_width = dmi_list[i].width;
-				screen_info.lfb_height = dmi_list[i].height;
+			for (i = 0; i < M_UNKNOWN; i++) {
+				if (!strcmp(this_opt, dmi_list[i].optname) &&
+				    dmi_list[i].base != 0) {
+					screen_info.lfb_base = dmi_list[i].base;
+					screen_info.lfb_linelength = dmi_list[i].stride;
+					screen_info.lfb_width = dmi_list[i].width;
+					screen_info.lfb_height = dmi_list[i].height;
+				}
 			}
+			if (!strncmp(this_opt, "base:", 5))
+				screen_info.lfb_base = simple_strtoul(this_opt+5, NULL, 0);
+			else if (!strncmp(this_opt, "stride:", 7))
+				screen_info.lfb_linelength = simple_strtoul(this_opt+7, NULL, 0) * 4;
+			else if (!strncmp(this_opt, "height:", 7))
+				screen_info.lfb_height = simple_strtoul(this_opt+7, NULL, 0);
+			else if (!strncmp(this_opt, "width:", 6))
+				screen_info.lfb_width = simple_strtoul(this_opt+6, NULL, 0);
 		}
-		if (!strncmp(this_opt, "base:", 5))
-			screen_info.lfb_base = simple_strtoul(this_opt+5, NULL, 0);
-		else if (!strncmp(this_opt, "stride:", 7))
-			screen_info.lfb_linelength = simple_strtoul(this_opt+7, NULL, 0) * 4;
-		else if (!strncmp(this_opt, "height:", 7))
-			screen_info.lfb_height = simple_strtoul(this_opt+7, NULL, 0);
-		else if (!strncmp(this_opt, "width:", 6))
-			screen_info.lfb_width = simple_strtoul(this_opt+6, NULL, 0);
 	}
+
+	for_each_pci_dev(dev) {
+		int i;
+
+		if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+			continue;
+
+		for (i=0; i < DEVICE_COUNT_RESOURCE; i++) {
+			resource_size_t start, end;
+
+			if (!(pci_resource_flags(dev, i) & IORESOURCE_MEM))
+				continue;
+
+			start = pci_resource_start(dev, i);
+			end  = pci_resource_end(dev, i);
+
+			if (!start || !end)
+				continue;
+
+			if (screen_info.lfb_base >= start &&
+			    (screen_info.lfb_base + screen_info.lfb_size) < end)
+				default_vga = dev;
+		}
+	}
+
 	return 0;
 }
 

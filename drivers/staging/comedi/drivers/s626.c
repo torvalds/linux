@@ -79,12 +79,17 @@ INSN_CONFIG instructions:
 #include "comedi_fc.h"
 #include "s626.h"
 
-MODULE_AUTHOR("Gianluca Palli <gpalli@deis.unibo.it>");
-MODULE_DESCRIPTION("Sensoray 626 Comedi driver module");
-MODULE_LICENSE("GPL");
+#define PCI_VENDOR_ID_S626 0x1131
+#define PCI_DEVICE_ID_S626 0x7146
+#define PCI_SUBVENDOR_ID_S626 0x6000
+#define PCI_SUBDEVICE_ID_S626 0x0272
 
 struct s626_board {
 	const char *name;
+	int vendor_id;
+	int device_id;
+	int subvendor_id;
+	int subdevice_id;
 	int ai_chans;
 	int ai_bits;
 	int ao_chans;
@@ -97,6 +102,10 @@ struct s626_board {
 static const struct s626_board s626_boards[] = {
 	{
 	 .name = "s626",
+	 .vendor_id = PCI_VENDOR_ID_S626,
+	 .device_id = PCI_DEVICE_ID_S626,
+	 .subvendor_id = PCI_SUBVENDOR_ID_S626,
+	 .subdevice_id = PCI_SUBDEVICE_ID_S626,
 	 .ai_chans = S626_ADC_CHANNELS,
 	 .ai_bits = 14,
 	 .ao_chans = S626_DAC_CHANNELS,
@@ -108,30 +117,6 @@ static const struct s626_board s626_boards[] = {
 };
 
 #define thisboard ((const struct s626_board *)dev->board_ptr)
-#define PCI_VENDOR_ID_S626 0x1131
-#define PCI_DEVICE_ID_S626 0x7146
-
-/*
- * For devices with vendor:device id == 0x1131:0x7146 you must specify
- * also subvendor:subdevice ids, because otherwise it will conflict with
- * Philips SAA7146 media/dvb based cards.
- */
-static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
-	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, 0x6000, 0x0272, 0, 0, 0},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, s626_pci_table);
-
-static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int s626_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_s626 = {
-	.driver_name = "s626",
-	.module = THIS_MODULE,
-	.attach = s626_attach,
-	.detach = s626_detach,
-};
 
 struct s626_private {
 	struct pci_dev *pdev;
@@ -223,44 +208,6 @@ static struct dio_private *dio_private_word[]={
 
 #define devpriv ((struct s626_private *)dev->private)
 #define diopriv ((struct dio_private *)s->private)
-
-static int __devinit driver_s626_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, driver_s626.driver_name);
-}
-
-static void __devexit driver_s626_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_s626_pci_driver = {
-	.id_table = s626_pci_table,
-	.probe = &driver_s626_pci_probe,
-	.remove = __devexit_p(&driver_s626_pci_remove)
-};
-
-static int __init driver_s626_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_s626);
-	if (retval < 0)
-		return retval;
-
-	driver_s626_pci_driver.name = (char *)driver_s626.driver_name;
-	return pci_register_driver(&driver_s626_pci_driver);
-}
-
-static void __exit driver_s626_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_s626_pci_driver);
-	comedi_driver_unregister(&driver_s626);
-}
-
-module_init(driver_s626_init_module);
-module_exit(driver_s626_cleanup_module);
 
 /* ioctl routines */
 static int s626_ai_insn_config(struct comedi_device *dev,
@@ -554,17 +501,17 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	resource_size_t resourceStart;
 	dma_addr_t appdma;
 	struct comedi_subdevice *s;
-	const struct pci_device_id *ids;
 	struct pci_dev *pdev = NULL;
 
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	for (i = 0; i < (ARRAY_SIZE(s626_pci_table) - 1) && !pdev; i++) {
-		ids = &s626_pci_table[i];
+	for (i = 0; i < ARRAY_SIZE(s626_boards) && !pdev; i++) {
 		do {
-			pdev = pci_get_subsys(ids->vendor, ids->device,
-					      ids->subvendor, ids->subdevice,
+			pdev = pci_get_subsys(s626_boards[i].vendor_id,
+					      s626_boards[i].device_id,
+					      s626_boards[i].subvendor_id,
+					      s626_boards[i].subdevice_id,
 					      pdev);
 
 			if ((it->options[0] || it->options[1]) && pdev) {
@@ -1365,7 +1312,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int s626_detach(struct comedi_device *dev)
+static void s626_detach(struct comedi_device *dev)
 {
 	if (devpriv) {
 		/* stop ai_command */
@@ -1389,20 +1336,14 @@ static int s626_detach(struct comedi_device *dev)
 
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-
 		if (devpriv->base_addr)
 			iounmap(devpriv->base_addr);
-
 		if (devpriv->pdev) {
 			if (devpriv->got_regions)
 				comedi_pci_disable(devpriv->pdev);
 			pci_dev_put(devpriv->pdev);
 		}
 	}
-
-	DEBUG("s626_detach: S626 detached!\n");
-
-	return 0;
 }
 
 /*
@@ -3367,3 +3308,45 @@ static void CountersInit(struct comedi_device *dev)
 	DEBUG("CountersInit: counters initialized\n");
 
 }
+
+static struct comedi_driver s626_driver = {
+	.driver_name	= "s626",
+	.module		= THIS_MODULE,
+	.attach		= s626_attach,
+	.detach		= s626_detach,
+};
+
+static int __devinit s626_pci_probe(struct pci_dev *dev,
+				    const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &s626_driver);
+}
+
+static void __devexit s626_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+/*
+ * For devices with vendor:device id == 0x1131:0x7146 you must specify
+ * also subvendor:subdevice ids, because otherwise it will conflict with
+ * Philips SAA7146 media/dvb based cards.
+ */
+static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
+	{ PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+		PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, s626_pci_table);
+
+static struct pci_driver s626_pci_driver = {
+	.name		= "s626",
+	.id_table	= s626_pci_table,
+	.probe		= s626_pci_probe,
+	.remove		= __devexit_p(s626_pci_remove),
+};
+module_comedi_pci_driver(s626_driver, s626_pci_driver);
+
+MODULE_AUTHOR("Gianluca Palli <gpalli@deis.unibo.it>");
+MODULE_DESCRIPTION("Sensoray 626 Comedi driver module");
+MODULE_LICENSE("GPL");

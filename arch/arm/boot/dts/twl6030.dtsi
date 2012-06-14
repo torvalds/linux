@@ -1,0 +1,86 @@
+/*
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Integrated Power Management Chip
+ * http://www.ti.com/lit/ds/symlink/twl6030.pdf
+ */
+&twl {
+	compatible = "ti,twl6030";
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+	rtc {
+		compatible = "ti,twl4030-rtc";
+		interrupts = <11>;
+	};
+
+	vaux1: regulator@0 {
+		compatible = "ti,twl6030-vaux1";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	vaux2: regulator@1 {
+		compatible = "ti,twl6030-vaux2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <2800000>;
+	};
+
+	vaux3: regulator@2 {
+		compatible = "ti,twl6030-vaux3";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	vmmc: regulator@3 {
+		compatible = "ti,twl6030-vmmc";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	vpp: regulator@4 {
+		compatible = "ti,twl6030-vpp";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <2500000>;
+	};
+
+	vusim: regulator@5 {
+		compatible = "ti,twl6030-vusim";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <2900000>;
+	};
+
+	vdac: regulator@6 {
+		compatible = "ti,twl6030-vdac";
+	};
+
+	vana: regulator@7 {
+		compatible = "ti,twl6030-vana";
+	};
+
+	vcxio: regulator@8 {
+		compatible = "ti,twl6030-vcxio";
+	};
+
+	vusb: regulator@9 {
+		compatible = "ti,twl6030-vusb";
+	};
+
+	v1v8: regulator@10 {
+		compatible = "ti,twl6030-v1v8";
+	};
+
+	v2v1: regulator@11 {
+		compatible = "ti,twl6030-v2v1";
+	};
+
+	clk32kg: regulator@12 {
+		compatible = "ti,twl6030-clk32kg";
+	};
+};

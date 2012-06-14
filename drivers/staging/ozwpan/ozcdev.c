@@ -41,9 +41,6 @@ struct oz_serial_ctx {
 };
 /*------------------------------------------------------------------------------
  */
-int g_taction;
-/*------------------------------------------------------------------------------
- */
 static struct oz_cdev g_cdev;
 /*------------------------------------------------------------------------------
  * Context: process and softirq
@@ -276,20 +273,6 @@ long oz_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				return -EFAULT;
 		}
 		break;
-#ifdef WANT_EVENT_TRACE
-	case OZ_IOCTL_CLEAR_EVENTS:
-		oz_events_clear();
-		break;
-	case OZ_IOCTL_GET_EVENTS:
-		rc = oz_events_copy((void __user *)arg);
-		break;
-	case OZ_IOCTL_SET_EVENT_MASK:
-		if (copy_from_user(&g_evt_mask, (void __user *)arg,
-			sizeof(unsigned long))) {
-			return -EFAULT;
-		}
-		break;
-#endif /* WANT_EVENT_TRACE */
 	case OZ_IOCTL_ADD_BINDING:
 	case OZ_IOCTL_REMOVE_BINDING: {
 			struct oz_binding_info b;

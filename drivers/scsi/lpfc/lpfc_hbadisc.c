@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -713,6 +713,7 @@ lpfc_do_work(void *p)
 	int rc;
 
 	set_user_nice(current, -20);
+	current->flags |= PF_NOFREEZE;
 	phba->data_flags = 0;
 
 	while (!kthread_should_stop()) {
@@ -1094,7 +1095,7 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Start discovery by sending a FLOGI. port_state is identically
 	 * LPFC_FLOGI while waiting for FLOGI cmpl
 	 */
-	if (vport->port_state != LPFC_FLOGI)
+	if (vport->port_state != LPFC_FLOGI || vport->fc_flag & FC_PT2PT_PLOGI)
 		lpfc_initial_flogi(vport);
 	return;
 
@@ -2843,7 +2844,14 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_vport *vport = mboxq->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
-	if (mboxq->u.mb.mbxStatus) {
+	/*
+	 * VFI not supported for interface type 0, so ignore any mailbox
+	 * error (except VFI in use) and continue with the discovery.
+	 */
+	if (mboxq->u.mb.mbxStatus &&
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+			LPFC_SLI_INTF_IF_TYPE_0) &&
+	    mboxq->u.mb.mbxStatus != MBX_VFI_IN_USE) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
 			 "2018 REG_VFI mbxStatus error x%x "
 			 "HBA state x%x\n",
@@ -2874,9 +2882,14 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	}
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
-		/* For private loop just start discovery and we are done. */
-		if ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
-		    !(vport->fc_flag & FC_PUBLIC_LOOP)) {
+		/*
+		 * For private loop or for NPort pt2pt,
+		 * just start discovery and we are done.
+		 */
+		if ((vport->fc_flag & FC_PT2PT) ||
+		    ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
+		    !(vport->fc_flag & FC_PUBLIC_LOOP))) {
+
 			/* Use loop map to make discovery list */
 			lpfc_disc_list_loopmap(vport);
 			/* Start discovery */
@@ -5483,9 +5496,9 @@ lpfc_nlp_release(struct kref *kref)
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			"0279 lpfc_nlp_release: ndlp:x%p "
+			"0279 lpfc_nlp_release: ndlp:x%p did %x "
 			"usgmap:x%x refcnt:%d\n",
-			(void *)ndlp, ndlp->nlp_usg_map,
+			(void *)ndlp, ndlp->nlp_DID, ndlp->nlp_usg_map,
 			atomic_read(&ndlp->kref.refcount));
 
 	/* remove ndlp from action. */
@@ -5673,14 +5686,13 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 				ret = 1;
 				spin_unlock_irq(shost->host_lock);
 				goto out;
-			} else {
+			} else if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
+				ret = 1;
 				lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-					"2624 RPI %x DID %x flg %x still "
-					"logged in\n",
-					ndlp->nlp_rpi, ndlp->nlp_DID,
-					ndlp->nlp_flag);
-				if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
-					ret = 1;
+						"2624 RPI %x DID %x flag %x "
+						"still logged in\n",
+						ndlp->nlp_rpi, ndlp->nlp_DID,
+						ndlp->nlp_flag);
 			}
 		}
 		spin_unlock_irq(shost->host_lock);

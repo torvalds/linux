@@ -23,6 +23,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/list.h>
 
+#ifndef CONFIG_COMMON_CLK
 struct module;
 
 struct clk {
@@ -59,6 +60,9 @@ struct clk {
 
 int clk_register(struct clk *clk);
 void clk_unregister(struct clk *clk);
+#endif /* CONFIG_COMMON_CLK */
+
+extern spinlock_t imx_ccm_lock;
 
 unsigned long mxc_decode_pll(unsigned int pll, u32 f_ref);
 

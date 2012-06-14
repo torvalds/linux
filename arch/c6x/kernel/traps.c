@@ -14,6 +14,7 @@
 #include <linux/bug.h>
 
 #include <asm/soc.h>
+#include <asm/special_insns.h>
 #include <asm/traps.h>
 
 int (*c6x_nmi_handler)(struct pt_regs *regs);

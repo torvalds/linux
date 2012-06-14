@@ -1,4 +1,4 @@
-Flexcan CAN contoller on Freescale's ARM and PowerPC system-on-a-chip (SOC).
+Flexcan CAN controller on Freescale's ARM and PowerPC system-on-a-chip (SOC).
 
 Required properties:
 

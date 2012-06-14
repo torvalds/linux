@@ -285,6 +285,7 @@ static void __exit cx18_alsa_exit(void)
 
 	drv = driver_find("cx18", &pci_bus_type);
 	ret = driver_for_each_device(drv, NULL, NULL, cx18_alsa_exit_callback);
+	(void)ret;	/* suppress compiler warning */
 
 	cx18_ext_init = NULL;
 	printk(KERN_INFO "cx18-alsa: module unload complete\n");

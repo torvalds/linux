@@ -64,18 +64,19 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 /**
  * mesh_matches_local - check if the config of a mesh point matches ours
  *
- * @ie: information elements of a management frame from the mesh peer
  * @sdata: local mesh subif
- * @basic_rates: BSSBasicRateSet of the peer candidate
+ * @ie: information elements of a management frame from the mesh peer
  *
  * This function checks if the mesh configuration of a mesh point matches the
  * local mesh configuration, i.e. if both nodes belong to the same mesh network.
  */
-bool mesh_matches_local(struct ieee802_11_elems *ie,
-			struct ieee80211_sub_if_data *sdata, u32 basic_rates)
+bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
+			struct ieee802_11_elems *ie)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
+	u32 basic_rates = 0;
+	enum nl80211_channel_type sta_channel_type = NL80211_CHAN_NO_HT;
 
 	/*
 	 * As support for each feature is added, check for matching
@@ -96,13 +97,23 @@ bool mesh_matches_local(struct ieee802_11_elems *ie,
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
 		goto mismatch;
 
+	ieee80211_sta_get_rates(local, ie, local->oper_channel->band,
+				&basic_rates);
+
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
 		goto mismatch;
 
-	/* disallow peering with mismatched channel types for now */
+	if (ie->ht_operation)
+		sta_channel_type =
+			ieee80211_ht_oper_to_channel_type(ie->ht_operation);
+
+	/* Disallow HT40+/- mismatch */
 	if (ie->ht_operation &&
-	    (local->_oper_channel_type !=
-	     ieee80211_ht_oper_to_channel_type(ie->ht_operation)))
+	    (local->_oper_channel_type == NL80211_CHAN_HT40MINUS ||
+	    local->_oper_channel_type == NL80211_CHAN_HT40PLUS) &&
+	    (sta_channel_type == NL80211_CHAN_HT40MINUS ||
+	     sta_channel_type == NL80211_CHAN_HT40PLUS) &&
+	    local->_oper_channel_type != sta_channel_type)
 		goto mismatch;
 
 	return true;
@@ -206,7 +217,7 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 			kmem_cache_free(rm_cache, p);
 			--entries;
 		} else if ((seqnum == p->seqnum) &&
-			   (compare_ether_addr(sa, p->sa) == 0))
+			   (ether_addr_equal(sa, p->sa)))
 			return -1;
 	}
 
@@ -393,7 +404,8 @@ int mesh_add_ht_oper_ie(struct sk_buff *skb,
 		return -ENOMEM;
 
 	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
-	ieee80211_ie_build_ht_oper(pos, ht_cap, channel, channel_type);
+	ieee80211_ie_build_ht_oper(pos, ht_cap, channel, channel_type,
+				   sdata->vif.bss_conf.ht_operation_mode);
 
 	return 0;
 }
@@ -512,8 +524,7 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
 	bool free_plinks;
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: running mesh housekeeping\n",
-	       sdata->name);
+	pr_debug("%s: running mesh housekeeping\n", sdata->name);
 #endif
 
 	ieee80211_sta_expire(sdata, IEEE80211_MESH_PEER_INACTIVITY_LIMIT);
@@ -585,12 +596,15 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
 	ieee80211_queue_work(&local->hw, &sdata->work);
+	sdata->vif.bss_conf.ht_operation_mode =
+				ifmsh->mshcfg.ht_opmode;
 	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
 	sdata->vif.bss_conf.basic_rates =
 		ieee80211_mandatory_rates(sdata->local,
 					  sdata->local->hw.conf.channel->band);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
 						BSS_CHANGED_BEACON_ENABLED |
+						BSS_CHANGED_HT |
 						BSS_CHANGED_BASIC_RATES |
 						BSS_CHANGED_BEACON_INT);
 }
@@ -630,14 +644,13 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee802_11_elems elems;
 	struct ieee80211_channel *channel;
-	u32 supp_rates = 0, basic_rates = 0;
 	size_t baselen;
 	int freq;
 	enum ieee80211_band band = rx_status->band;
 
 	/* ignore ProbeResp to foreign address */
 	if (stype == IEEE80211_STYPE_PROBE_RESP &&
-	    compare_ether_addr(mgmt->da, sdata->vif.addr))
+	    !ether_addr_equal(mgmt->da, sdata->vif.addr))
 		return;
 
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
@@ -661,12 +674,9 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
 		return;
 
-	supp_rates = ieee80211_sta_get_rates(local, &elems,
-					     band, &basic_rates);
-
 	if (elems.mesh_id && elems.mesh_config &&
-	    mesh_matches_local(&elems, sdata, basic_rates))
-		mesh_neighbour_update(mgmt->sa, supp_rates, sdata, &elems);
+	    mesh_matches_local(sdata, &elems))
+		mesh_neighbour_update(sdata, mgmt->sa, &elems);
 
 	if (ifmsh->sync_ops)
 		ifmsh->sync_ops->rx_bcn_presp(sdata,

@@ -838,7 +838,10 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 	__le16 fc = hdr->frame_control;
 
 	txrate = ieee80211_get_tx_rate(hw, info);
-	tcb_desc->hw_rate = txrate->hw_value;
+	if (txrate)
+		tcb_desc->hw_rate = txrate->hw_value;
+	else
+		tcb_desc->hw_rate = 0;
 
 	if (ieee80211_is_data(fc)) {
 		/*
@@ -1457,7 +1460,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (compare_ether_addr(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	if (rtl_find_221_ie(hw, data, len))

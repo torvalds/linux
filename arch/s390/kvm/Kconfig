@@ -34,6 +34,15 @@ config KVM
 
 	  If unsure, say N.
 
+config KVM_S390_UCONTROL
+	bool "Userspace controlled virtual machines"
+	depends on KVM
+	---help---
+	  Allow CAP_SYS_ADMIN users to create KVM virtual machines that are
+	  controlled by userspace.
+
+	  If unsure, say N.
+
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source drivers/vhost/Kconfig

@@ -121,7 +121,7 @@ MODULE_PARM_DESC(quirks, "supplemental list of device IDs and their quirks");
 }
 
 static struct us_unusual_dev us_unusual_dev_list[] = {
-#	include "unusual_devs.h" 
+#	include "unusual_devs.h"
 	{ }		/* Terminating entry */
 };
 
@@ -132,6 +132,35 @@ static struct us_unusual_dev for_dynamic_ids =
 #undef COMPLIANT_DEV
 #undef USUAL_DEV
 
+#ifdef CONFIG_LOCKDEP
+
+static struct lock_class_key us_interface_key[USB_MAXINTERFACES];
+
+static void us_set_lock_class(struct mutex *mutex,
+		struct usb_interface *intf)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_host_config *config = udev->actconfig;
+	int i;
+
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+		if (config->interface[i] == intf)
+			break;
+	}
+
+	BUG_ON(i == config->desc.bNumInterfaces);
+
+	lockdep_set_class(mutex, &us_interface_key[i]);
+}
+
+#else
+
+static void us_set_lock_class(struct mutex *mutex,
+		struct usb_interface *intf)
+{
+}
+
+#endif
 
 #ifdef CONFIG_PM	/* Minimal support for suspend and resume */
 
@@ -232,17 +261,17 @@ EXPORT_SYMBOL_GPL(usb_stor_post_reset);
 void fill_inquiry_response(struct us_data *us, unsigned char *data,
 		unsigned int data_len)
 {
-	if (data_len<36) // You lose.
+	if (data_len < 36) /* You lose. */
 		return;
 
 	memset(data+8, ' ', 28);
-	if(data[0]&0x20) { /* USB device currently not connected. Return
+	if (data[0]&0x20) { /* USB device currently not connected. Return
 			      peripheral qualifier 001b ("...however, the
 			      physical device is not currently connected
 			      to this logical unit") and leave vendor and
 			      product identification empty. ("If the target
 			      does store some of the INQUIRY data on the
-			      device, it may return zeros or ASCII spaces 
+			      device, it may return zeros or ASCII spaces
 			      (20h) in those fields until the data is
 			      available from the device."). */
 	} else {
@@ -269,7 +298,7 @@ static int usb_stor_control_thread(void * __us)
 	struct us_data *us = (struct us_data *)__us;
 	struct Scsi_Host *host = us_to_host(us);
 
-	for(;;) {
+	for (;;) {
 		US_DEBUGP("*** thread sleeping.\n");
 		if (wait_for_completion_interruptible(&us->cmnd_ready))
 			break;
@@ -298,7 +327,7 @@ static int usb_stor_control_thread(void * __us)
 
 		scsi_unlock(host);
 
-		/* reject the command if the direction indicator 
+		/* reject the command if the direction indicator
 		 * is UNKNOWN
 		 */
 		if (us->srb->sc_data_direction == DMA_BIDIRECTIONAL) {
@@ -309,7 +338,7 @@ static int usb_stor_control_thread(void * __us)
 		/* reject if target != 0 or if LUN is higher than
 		 * the maximum known LUN
 		 */
-		else if (us->srb->device->id && 
+		else if (us->srb->device->id &&
 				!(us->fflags & US_FL_SCM_MULT_TARG)) {
 			US_DEBUGP("Bad target number (%d:%d)\n",
 				  us->srb->device->id, us->srb->device->lun);
@@ -322,7 +351,7 @@ static int usb_stor_control_thread(void * __us)
 			us->srb->result = DID_BAD_TARGET << 16;
 		}
 
-		/* Handle those devices which need us to fake 
+		/* Handle those devices which need us to fake
 		 * their inquiry data */
 		else if ((us->srb->cmnd[0] == INQUIRY) &&
 			    (us->fflags & US_FL_FIX_INQUIRY)) {
@@ -347,7 +376,7 @@ static int usb_stor_control_thread(void * __us)
 
 		/* indicate that the command is done */
 		if (us->srb->result != DID_ABORT << 16) {
-			US_DEBUGP("scsi cmd done, result=0x%x\n", 
+			US_DEBUGP("scsi cmd done, result=0x%x\n",
 				   us->srb->result);
 			us->srb->scsi_done(us->srb);
 		} else {
@@ -385,7 +414,7 @@ SkipForAbort:
 	}
 	__set_current_state(TASK_RUNNING);
 	return 0;
-}	
+}
 
 /***********************************************************************
  * Device probing and disconnecting
@@ -703,7 +732,7 @@ static int get_pipes(struct us_data *us)
 	us->recv_ctrl_pipe = usb_rcvctrlpipe(us->pusb_dev, 0);
 	us->send_bulk_pipe = usb_sndbulkpipe(us->pusb_dev,
 		usb_endpoint_num(ep_out));
-	us->recv_bulk_pipe = usb_rcvbulkpipe(us->pusb_dev, 
+	us->recv_bulk_pipe = usb_rcvbulkpipe(us->pusb_dev,
 		usb_endpoint_num(ep_in));
 	if (ep_int) {
 		us->recv_intr_pipe = usb_rcvintpipe(us->pusb_dev,
@@ -895,6 +924,7 @@ int usb_stor_probe1(struct us_data **pus,
 	*pus = us = host_to_us(host);
 	memset(us, 0, sizeof(struct us_data));
 	mutex_init(&(us->dev_mutex));
+	us_set_lock_class(&us->dev_mutex, intf);
 	init_completion(&us->cmnd_ready);
 	init_completion(&(us->notify));
 	init_waitqueue_head(&us->delay_wait);

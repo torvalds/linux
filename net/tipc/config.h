@@ -66,6 +66,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd,
 				int headroom);
 
 int  tipc_cfg_init(void);
+void tipc_cfg_reinit(void);
 void tipc_cfg_stop(void);
 
 #endif

@@ -16,7 +16,6 @@
 #include <linux/initrd.h>
 #include <linux/of_platform.h>
 
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/mpic.h>

@@ -127,7 +127,7 @@ the first control with a higher ID. Drivers which do not support this
 flag yet always return an &EINVAL;.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-ctrl-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry>Type of control, see <xref
 		linkend="v4l2-ctrl-type" />.</entry>
@@ -215,11 +215,12 @@ the array to zero.</entry>
 
     <table pgwide="1" frame="none" id="v4l2-querymenu">
       <title>struct <structname>v4l2_querymenu</structname></title>
-      <tgroup cols="3">
+      <tgroup cols="4">
 	&cs-str;
 	<tbody valign="top">
 	  <row>
 	    <entry>__u32</entry>
+	    <entry></entry>
 	    <entry><structfield>id</structfield></entry>
 	    <entry>Identifies the control, set by the application
 from the respective &v4l2-queryctrl;
@@ -227,18 +228,38 @@ from the respective &v4l2-queryctrl;
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
+	    <entry></entry>
 	    <entry><structfield>index</structfield></entry>
 	    <entry>Index of the menu item, starting at zero, set by
 	    the application.</entry>
 	  </row>
 	  <row>
+	    <entry>union</entry>
+	    <entry></entry>
+	    <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
 	    <entry>__u8</entry>
 	    <entry><structfield>name</structfield>[32]</entry>
 	    <entry>Name of the menu item, a NUL-terminated ASCII
-string. This information is intended for the user.</entry>
+string. This information is intended for the user. This field is valid
+for <constant>V4L2_CTRL_FLAG_MENU</constant> type controls.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s64</entry>
+	    <entry><structfield>value</structfield></entry>
+	    <entry>
+              Value of the integer menu item. This field is valid for
+              <constant>V4L2_CTRL_FLAG_INTEGER_MENU</constant> type
+              controls.
+            </entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
+	    <entry></entry>
 	    <entry><structfield>reserved</structfield></entry>
 	    <entry>Reserved for future extensions. Drivers must set
 the array to zero.</entry>
@@ -290,6 +311,20 @@ values which are actually different on the hardware.</entry>
 	    <entry>The control has a menu of N choices. The names of
 the menu items can be enumerated with the
 <constant>VIDIOC_QUERYMENU</constant> ioctl.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_TYPE_INTEGER_MENU</constant></entry>
+	    <entry>&ge; 0</entry>
+	    <entry>1</entry>
+	    <entry>N-1</entry>
+	    <entry>
+              The control has a menu of N choices. The values of the
+              menu items can be enumerated with the
+              <constant>VIDIOC_QUERYMENU</constant> ioctl. This is
+              similar to <constant>V4L2_CTRL_TYPE_MENU</constant>
+              except that instead of strings, the menu items are
+              signed 64-bit integers.
+            </entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CTRL_TYPE_BITMASK</constant></entry>

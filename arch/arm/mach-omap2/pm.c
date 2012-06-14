@@ -17,6 +17,8 @@
 #include <linux/export.h>
 #include <linux/suspend.h>
 
+#include <asm/system_misc.h>
+
 #include <plat/omap-pm.h>
 #include <plat/omap_device.h>
 #include "common.h"
@@ -293,7 +295,7 @@ static int __init omap2_common_pm_init(void)
 }
 postcore_initcall(omap2_common_pm_init);
 
-static int __init omap2_common_pm_late_init(void)
+int __init omap2_common_pm_late_init(void)
 {
 	/*
 	 * In the case of DT, the PMIC and SR initialization will be done using
@@ -320,4 +322,3 @@ static int __init omap2_common_pm_late_init(void)
 
 	return 0;
 }
-late_initcall(omap2_common_pm_late_init);

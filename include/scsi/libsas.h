@@ -217,10 +217,28 @@ struct domain_device {
 	struct kref kref;
 };
 
-struct sas_discovery_event {
+struct sas_work {
+	struct list_head drain_node;
 	struct work_struct work;
+};
+
+static inline void INIT_SAS_WORK(struct sas_work *sw, void (*fn)(struct work_struct *))
+{
+	INIT_WORK(&sw->work, fn);
+	INIT_LIST_HEAD(&sw->drain_node);
+}
+
+struct sas_discovery_event {
+	struct sas_work work;
 	struct asd_sas_port *port;
 };
+
+static inline struct sas_discovery_event *to_sas_discovery_event(struct work_struct *work)
+{
+	struct sas_discovery_event *ev = container_of(work, typeof(*ev), work.work);
+
+	return ev;
+}
 
 struct sas_discovery {
 	struct sas_discovery_event disc_work[DISC_NUM_EVENTS];
@@ -244,7 +262,7 @@ struct asd_sas_port {
 	struct list_head destroy_list;
 	enum   sas_linkrate linkrate;
 
-	struct work_struct work;
+	struct sas_work work;
 
 /* public: */
 	int id;
@@ -270,9 +288,16 @@ struct asd_sas_port {
 };
 
 struct asd_sas_event {
-	struct work_struct work;
+	struct sas_work work;
 	struct asd_sas_phy *phy;
 };
+
+static inline struct asd_sas_event *to_asd_sas_event(struct work_struct *work)
+{
+	struct asd_sas_event *ev = container_of(work, typeof(*ev), work.work);
+
+	return ev;
+}
 
 /* The phy pretty much is controlled by the LLDD.
  * The class only reads those fields.
@@ -333,9 +358,16 @@ struct scsi_core {
 };
 
 struct sas_ha_event {
-	struct work_struct work;
+	struct sas_work work;
 	struct sas_ha_struct *ha;
 };
+
+static inline struct sas_ha_event *to_sas_ha_event(struct work_struct *work)
+{
+	struct sas_ha_event *ev = container_of(work, typeof(*ev), work.work);
+
+	return ev;
+}
 
 enum sas_ha_state {
 	SAS_HA_REGISTERED,

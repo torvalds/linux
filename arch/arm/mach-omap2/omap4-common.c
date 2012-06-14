@@ -25,11 +25,13 @@
 #include <plat/irqs.h>
 #include <plat/sram.h>
 #include <plat/omap-secure.h>
+#include <plat/mmc.h>
 
 #include <mach/hardware.h>
 #include <mach/omap-wakeupgen.h>
 
 #include "common.h"
+#include "hsmmc.h"
 #include "omap4-sar-layout.h"
 #include <linux/export.h>
 
@@ -207,3 +209,59 @@ static int __init omap4_sar_ram_init(void)
 	return 0;
 }
 early_initcall(omap4_sar_ram_init);
+
+#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
+static int omap4_twl6030_hsmmc_late_init(struct device *dev)
+{
+	int irq = 0;
+	struct platform_device *pdev = container_of(dev,
+				struct platform_device, dev);
+	struct omap_mmc_platform_data *pdata = dev->platform_data;
+
+	/* Setting MMC1 Card detect Irq */
+	if (pdev->id == 0) {
+		irq = twl6030_mmc_card_detect_config();
+		if (irq < 0) {
+			dev_err(dev, "%s: Error card detect config(%d)\n",
+				__func__, irq);
+			return irq;
+		}
+		pdata->slots[0].card_detect_irq = irq;
+		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
+	}
+	return 0;
+}
+
+static __init void omap4_twl6030_hsmmc_set_late_init(struct device *dev)
+{
+	struct omap_mmc_platform_data *pdata;
+
+	/* dev can be null if CONFIG_MMC_OMAP_HS is not set */
+	if (!dev) {
+		pr_err("Failed %s\n", __func__);
+		return;
+	}
+	pdata = dev->platform_data;
+	pdata->init =	omap4_twl6030_hsmmc_late_init;
+}
+
+int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
+{
+	struct omap2_hsmmc_info *c;
+
+	omap_hsmmc_init(controllers);
+	for (c = controllers; c->mmc; c++) {
+		/* pdev can be null if CONFIG_MMC_OMAP_HS is not set */
+		if (!c->pdev)
+			continue;
+		omap4_twl6030_hsmmc_set_late_init(&c->pdev->dev);
+	}
+
+	return 0;
+}
+#else
+int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
+{
+	return 0;
+}
+#endif

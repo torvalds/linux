@@ -369,6 +369,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 	unsigned int region_count;
 	size_t bitset_size, buf_size;
 	int r;
+	char dummy;
 
 	if (argc < 1 || argc > 2) {
 		DMWARN("wrong number of arguments to dirty region log");
@@ -387,7 +388,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		}
 	}
 
-	if (sscanf(argv[0], "%u", &region_size) != 1 ||
+	if (sscanf(argv[0], "%u%c", &region_size, &dummy) != 1 ||
 	    !_check_region_size(ti, region_size)) {
 		DMWARN("invalid region size %s", argv[0]);
 		return -EINVAL;

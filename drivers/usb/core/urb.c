@@ -539,6 +539,10 @@ EXPORT_SYMBOL_GPL(usb_submit_urb);
  * never submitted, or it was unlinked before, or the hardware is already
  * finished with it), even if the completion handler has not yet run.
  *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
+ *
  * Unlinking and Endpoint Queues:
  *
  * [The behaviors and guarantees described below do not apply to virtual
@@ -603,6 +607,10 @@ EXPORT_SYMBOL_GPL(usb_unlink_urb);
  * with error -EPERM.  Thus even if the URB's completion handler always
  * tries to resubmit, it will not succeed and the URB will become idle.
  *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
+ *
  * This routine may not be used in an interrupt context (such as a bottom
  * half or a completion handler), or when holding a spinlock, or in other
  * situations where the caller can't schedule().
@@ -640,6 +648,10 @@ EXPORT_SYMBOL_GPL(usb_kill_urb);
  * with error -EPERM.  Thus even if the URB's completion handler always
  * tries to resubmit, it will not succeed and the URB will become idle.
  *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
+ *
  * This routine may not be used in an interrupt context (such as a bottom
  * half or a completion handler), or when holding a spinlock, or in other
  * situations where the caller can't schedule().
@@ -667,6 +679,27 @@ void usb_unpoison_urb(struct urb *urb)
 	atomic_dec(&urb->reject);
 }
 EXPORT_SYMBOL_GPL(usb_unpoison_urb);
+
+/**
+ * usb_block_urb - reliably prevent further use of an URB
+ * @urb: pointer to URB to be blocked, may be NULL
+ *
+ * After the routine has run, attempts to resubmit the URB will fail
+ * with error -EPERM.  Thus even if the URB's completion handler always
+ * tries to resubmit, it will not succeed and the URB will become idle.
+ *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
+ */
+void usb_block_urb(struct urb *urb)
+{
+	if (!urb)
+		return;
+
+	atomic_inc(&urb->reject);
+}
+EXPORT_SYMBOL_GPL(usb_block_urb);
 
 /**
  * usb_kill_anchored_urbs - cancel transfer requests en masse

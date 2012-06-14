@@ -1,7 +1,7 @@
 /*
  * SMP support for Hexagon
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,15 +28,15 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
+#include <linux/cpu.h>
 
-#include <asm/system.h>  /*  xchg  */
 #include <asm/time.h>    /*  timer_interrupt  */
 #include <asm/hexagon_vm.h>
 
 #define BASE_IPI_IRQ 26
 
 /*
- * cpu_possible_map needs to be filled out prior to setup_per_cpu_areas
+ * cpu_possible_mask needs to be filled out prior to setup_per_cpu_areas
  * (which is prior to any of our smp_prepare_cpu crap), in order to set
  * up the...  per_cpu areas.
  */
@@ -178,7 +178,12 @@ void __cpuinit start_secondary(void)
 
 	printk(KERN_INFO "%s cpu %d\n", __func__, current_thread_info()->cpu);
 
+	notify_cpu_starting(cpu);
+
+	ipi_call_lock();
 	set_cpu_online(cpu, true);
+	ipi_call_unlock();
+
 	local_irq_enable();
 
 	cpu_idle();
@@ -191,25 +196,18 @@ void __cpuinit start_secondary(void)
  * maintains control until "cpu_online(cpu)" is set.
  */
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
-	struct task_struct *idle;
-	struct thread_info *thread;
+	struct thread_info *thread = (struct thread_info *)idle->stack;
 	void *stack_start;
 
-	/*  Create new init task for the CPU  */
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle))
-		panic(KERN_ERR "fork_idle failed\n");
-
-	thread = (struct thread_info *)idle->stack;
 	thread->cpu = cpu;
 
 	/*  Boot to the head.  */
 	stack_start =  ((void *) thread) + THREAD_SIZE;
 	__vmstart(start_secondary, stack_start);
 
-	while (!cpu_isset(cpu, cpu_online_map))
+	while (!cpu_online(cpu))
 		barrier();
 
 	return 0;
@@ -230,7 +228,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	/*  Right now, let's just fake it. */
 	for (i = 0; i < max_cpus; i++)
-		cpu_set(i, cpu_present_map);
+		set_cpu_present(i, true);
 
 	/*  Also need to register the interrupts for IPI  */
 	if (max_cpus > 1)
@@ -270,5 +268,5 @@ void smp_start_cpus(void)
 	int i;
 
 	for (i = 0; i < NR_CPUS; i++)
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 }

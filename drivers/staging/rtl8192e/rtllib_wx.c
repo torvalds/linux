@@ -88,7 +88,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	for (i = 0; i < (sizeof(rtllib_modes)/sizeof(rtllib_modes[0])); i++) {
+	for (i = 0; i < ARRAY_SIZE(rtllib_modes); i++) {
 		if (network->mode&(1<<i)) {
 			sprintf(pname, rtllib_modes[i].mode_string,
 				rtllib_modes[i].mode_size);
@@ -408,7 +408,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 				       (*crypt)->priv);
 		sec.flags |= (1 << key);
 		/* This ensures a key will be activated if no key is
-		 * explicitely set */
+		 * explicitly set */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
 		ieee->crypt_info.tx_keyidx = key;

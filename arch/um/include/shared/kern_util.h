@@ -48,7 +48,7 @@ extern void do_uml_exitcalls(void);
  * GFP_ATOMIC.
  */
 extern int __cant_sleep(void);
-extern void *get_current(void);
+extern int get_current_pid(void);
 extern int copy_from_user_proc(void *to, void *from, int size);
 extern int cpu(void);
 extern char *uml_strdup(const char *string);

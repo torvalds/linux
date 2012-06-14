@@ -42,12 +42,6 @@ struct of_device_id;
 /* Number of irqs reserved for a legacy isa controller */
 #define NUM_ISA_INTERRUPTS	16
 
-/* This type is the placeholder for a hardware interrupt number. It has to
- * be big enough to enclose whatever representation is used by a given
- * platform.
- */
-typedef unsigned long irq_hw_number_t;
-
 /**
  * struct irq_domain_ops - Methods for irq_domain objects
  * @match: Match an interrupt controller device node to a host, returns
@@ -104,6 +98,9 @@ struct irq_domain {
 			unsigned int size;
 			unsigned int *revmap;
 		} linear;
+		struct {
+			unsigned int max_irq;
+		} nomap;
 		struct radix_tree_root tree;
 	} revmap_data;
 	const struct irq_domain_ops *ops;
@@ -126,6 +123,7 @@ struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 					 const struct irq_domain_ops *ops,
 					 void *host_data);
 struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
+					 unsigned int max_irq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data);
 struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
@@ -134,7 +132,6 @@ struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
 
 extern struct irq_domain *irq_find_host(struct device_node *node);
 extern void irq_set_default_host(struct irq_domain *host);
-extern void irq_set_virq_count(unsigned int count);
 
 static inline struct irq_domain *irq_domain_add_legacy_isa(
 				struct device_node *of_node,
@@ -144,10 +141,8 @@ static inline struct irq_domain *irq_domain_add_legacy_isa(
 	return irq_domain_add_legacy(of_node, NUM_ISA_INTERRUPTS, 0, 0, ops,
 				     host_data);
 }
-extern struct irq_domain *irq_find_host(struct device_node *node);
-extern void irq_set_default_host(struct irq_domain *host);
-extern void irq_set_virq_count(unsigned int count);
 
+extern void irq_domain_remove(struct irq_domain *host);
 
 extern unsigned int irq_create_mapping(struct irq_domain *host,
 				       irq_hw_number_t hwirq);

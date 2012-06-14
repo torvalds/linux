@@ -650,7 +650,6 @@ struct fusb300_ep {
 
 	unsigned char		epnum;
 	unsigned char		type;
-	const struct usb_endpoint_descriptor	*desc;
 };
 
 struct fusb300 {

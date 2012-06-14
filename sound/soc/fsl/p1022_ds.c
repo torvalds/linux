@@ -14,12 +14,12 @@
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
-#include <linux/of_i2c.h>
 #include <sound/soc.h>
 #include <asm/fsl_guts.h>
 
 #include "fsl_dma.h"
 #include "fsl_ssi.h"
+#include "fsl_utils.h"
 
 /* P1022-specific PMUXCR and DMUXCR bit definitions */
 
@@ -46,7 +46,7 @@
  * ch: The channel on the DMA controller (0, 1, 2, or 3)
  * device: The device to set as the target (CCSR_GUTS_DMUXCR_xxx)
  */
-static inline void guts_set_dmuxcr(struct ccsr_guts_85xx __iomem *guts,
+static inline void guts_set_dmuxcr(struct ccsr_guts __iomem *guts,
 	unsigned int co, unsigned int ch, unsigned int device)
 {
 	unsigned int shift = 16 + (8 * (1 - co) + 2 * (3 - ch));
@@ -56,8 +56,6 @@ static inline void guts_set_dmuxcr(struct ccsr_guts_85xx __iomem *guts,
 
 /* There's only one global utilities register */
 static phys_addr_t guts_phys;
-
-#define DAI_NAME_SIZE	32
 
 /**
  * machine_data: machine-specific ASoC device data
@@ -75,7 +73,6 @@ struct machine_data {
 	unsigned int ssi_id;		/* 0 = SSI1, 1 = SSI2, etc */
 	unsigned int dma_id[2];		/* 0 = DMA1, 1 = DMA2, etc */
 	unsigned int dma_channel_id[2]; /* 0 = ch 0, 1 = ch 1, etc*/
-	char codec_name[DAI_NAME_SIZE];
 	char platform_name[2][DAI_NAME_SIZE]; /* One for each DMA channel */
 };
 
@@ -90,9 +87,9 @@ static int p1022_ds_machine_probe(struct snd_soc_card *card)
 {
 	struct machine_data *mdata =
 		container_of(card, struct machine_data, card);
-	struct ccsr_guts_85xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 
-	guts = ioremap(guts_phys, sizeof(struct ccsr_guts_85xx));
+	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
 		dev_err(card->dev, "could not map global utilities\n");
 		return -ENOMEM;
@@ -164,9 +161,9 @@ static int p1022_ds_machine_remove(struct snd_soc_card *card)
 {
 	struct machine_data *mdata =
 		container_of(card, struct machine_data, card);
-	struct ccsr_guts_85xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 
-	guts = ioremap(guts_phys, sizeof(struct ccsr_guts_85xx));
+	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
 		dev_err(card->dev, "could not map global utilities\n");
 		return -ENOMEM;
@@ -189,136 +186,6 @@ static int p1022_ds_machine_remove(struct snd_soc_card *card)
 static struct snd_soc_ops p1022_ds_ops = {
 	.startup = p1022_ds_startup,
 };
-
-/**
- * get_node_by_phandle_name - get a node by its phandle name
- *
- * This function takes a node, the name of a property in that node, and a
- * compatible string.  Assuming the property is a phandle to another node,
- * it returns that node, (optionally) if that node is compatible.
- *
- * If the property is not a phandle, or the node it points to is not compatible
- * with the specific string, then NULL is returned.
- */
-static struct device_node *get_node_by_phandle_name(struct device_node *np,
-	const char *name, const char *compatible)
-{
-	np = of_parse_phandle(np, name, 0);
-	if (!np)
-		return NULL;
-
-	if (!of_device_is_compatible(np, compatible)) {
-		of_node_put(np);
-		return NULL;
-	}
-
-	return np;
-}
-
-/**
- * get_parent_cell_index -- return the cell-index of the parent of a node
- *
- * Return the value of the cell-index property of the parent of the given
- * node.  This is used for DMA channel nodes that need to know the DMA ID
- * of the controller they are on.
- */
-static int get_parent_cell_index(struct device_node *np)
-{
-	struct device_node *parent = of_get_parent(np);
-	const u32 *iprop;
-	int ret = -1;
-
-	if (!parent)
-		return -1;
-
-	iprop = of_get_property(parent, "cell-index", NULL);
-	if (iprop)
-		ret = be32_to_cpup(iprop);
-
-	of_node_put(parent);
-
-	return ret;
-}
-
-/**
- * codec_node_dev_name - determine the dev_name for a codec node
- *
- * This function determines the dev_name for an I2C node.  This is the name
- * that would be returned by dev_name() if this device_node were part of a
- * 'struct device'  It's ugly and hackish, but it works.
- *
- * The dev_name for such devices include the bus number and I2C address. For
- * example, "cs4270-codec.0-004f".
- */
-static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
-{
-	const u32 *iprop;
-	int addr;
-	char temp[DAI_NAME_SIZE];
-	struct i2c_client *i2c;
-
-	of_modalias_node(np, temp, DAI_NAME_SIZE);
-
-	iprop = of_get_property(np, "reg", NULL);
-	if (!iprop)
-		return -EINVAL;
-
-	addr = be32_to_cpup(iprop);
-
-	/* We need the adapter number */
-	i2c = of_find_i2c_device_by_node(np);
-	if (!i2c)
-		return -ENODEV;
-
-	snprintf(buf, len, "%s.%u-%04x", temp, i2c->adapter->nr, addr);
-
-	return 0;
-}
-
-static int get_dma_channel(struct device_node *ssi_np,
-			   const char *name,
-			   struct snd_soc_dai_link *dai,
-			   unsigned int *dma_channel_id,
-			   unsigned int *dma_id)
-{
-	struct resource res;
-	struct device_node *dma_channel_np;
-	const u32 *iprop;
-	int ret;
-
-	dma_channel_np = get_node_by_phandle_name(ssi_np, name,
-						  "fsl,ssi-dma-channel");
-	if (!dma_channel_np)
-		return -EINVAL;
-
-	/* Determine the dev_name for the device_node.  This code mimics the
-	 * behavior of of_device_make_bus_id(). We need this because ASoC uses
-	 * the dev_name() of the device to match the platform (DMA) device with
-	 * the CPU (SSI) device.  It's all ugly and hackish, but it works (for
-	 * now).
-	 *
-	 * dai->platform name should already point to an allocated buffer.
-	 */
-	ret = of_address_to_resource(dma_channel_np, 0, &res);
-	if (ret) {
-		of_node_put(dma_channel_np);
-		return ret;
-	}
-	snprintf((char *)dai->platform_name, DAI_NAME_SIZE, "%llx.%s",
-		 (unsigned long long) res.start, dma_channel_np->name);
-
-	iprop = of_get_property(dma_channel_np, "cell-index", NULL);
-	if (!iprop) {
-		of_node_put(dma_channel_np);
-		return -EINVAL;
-	}
-
-	*dma_channel_id = be32_to_cpup(iprop);
-	*dma_id = get_parent_cell_index(dma_channel_np);
-	of_node_put(dma_channel_np);
-
-	return 0;
-}
 
 /**
  * p1022_ds_probe: platform probe function for the machine driver
@@ -357,15 +224,8 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	mdata->dai[0].cpu_dai_name = dev_name(&ssi_pdev->dev);
 	mdata->dai[0].ops = &p1022_ds_ops;
 
-	/* Determine the codec name, it will be used as the codec DAI name */
-	ret = codec_node_dev_name(codec_np, mdata->codec_name, DAI_NAME_SIZE);
-	if (ret) {
-		dev_err(&pdev->dev, "invalid codec node %s\n",
-			codec_np->full_name);
-		ret = -EINVAL;
-		goto error;
-	}
-	mdata->dai[0].codec_name = mdata->codec_name;
+	/* ASoC core can match codec with device node */
+	mdata->dai[0].codec_of_node = codec_np;
 
 	/* We register two DAIs per SSI, one for playback and the other for
 	 * capture.  We support codecs that have separate DAIs for both playback
@@ -462,9 +322,9 @@ static int p1022_ds_probe(struct platform_device *pdev)
 
 	/* Find the playback DMA channel to use. */
 	mdata->dai[0].platform_name = mdata->platform_name[0];
-	ret = get_dma_channel(np, "fsl,playback-dma", &mdata->dai[0],
-			      &mdata->dma_channel_id[0],
-			      &mdata->dma_id[0]);
+	ret = fsl_asoc_get_dma_channel(np, "fsl,playback-dma", &mdata->dai[0],
+				       &mdata->dma_channel_id[0],
+				       &mdata->dma_id[0]);
 	if (ret) {
 		dev_err(&pdev->dev, "missing/invalid playback DMA phandle\n");
 		goto error;
@@ -472,9 +332,9 @@ static int p1022_ds_probe(struct platform_device *pdev)
 
 	/* Find the capture DMA channel to use. */
 	mdata->dai[1].platform_name = mdata->platform_name[1];
-	ret = get_dma_channel(np, "fsl,capture-dma", &mdata->dai[1],
-			      &mdata->dma_channel_id[1],
-			      &mdata->dma_id[1]);
+	ret = fsl_asoc_get_dma_channel(np, "fsl,capture-dma", &mdata->dai[1],
+				       &mdata->dma_channel_id[1],
+				       &mdata->dma_id[1]);
 	if (ret) {
 		dev_err(&pdev->dev, "missing/invalid capture DMA phandle\n");
 		goto error;

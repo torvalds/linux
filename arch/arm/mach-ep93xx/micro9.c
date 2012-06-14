@@ -85,6 +85,7 @@ MACHINE_START(MICRO9, "Contec Micro9-High")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= micro9_init_machine,
+	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END
 #endif
@@ -98,6 +99,7 @@ MACHINE_START(MICRO9M, "Contec Micro9-Mid")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= micro9_init_machine,
+	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END
 #endif
@@ -111,6 +113,7 @@ MACHINE_START(MICRO9L, "Contec Micro9-Lite")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= micro9_init_machine,
+	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END
 #endif
@@ -124,6 +127,7 @@ MACHINE_START(MICRO9S, "Contec Micro9-Slim")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= micro9_init_machine,
+	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END
 #endif

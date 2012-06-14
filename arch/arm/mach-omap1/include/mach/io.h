@@ -41,6 +41,5 @@
  * drivers out there that might just work if we fake them...
  */
 #define __io(a)		__typesafe_io(a)
-#define __mem_pci(a)	(a)
 
 #endif

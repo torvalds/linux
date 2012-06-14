@@ -25,11 +25,7 @@
 
 #include <mach/hardware.h>
 #include <asm/leds.h>
-#include <asm/system.h>
 #include <asm/mach-types.h>
-
-#include <asm/hardware/clps7111.h>
-#include <asm/hardware/ep7212.h>
 
 static void p720t_leds_event(led_event_t ledevt)
 {

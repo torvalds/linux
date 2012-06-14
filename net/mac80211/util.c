@@ -106,7 +106,7 @@ void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 	}
 }
 
-int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
+int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
 			     int rate, int erp, int short_preamble)
 {
 	int dur;
@@ -120,7 +120,7 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 	 * DIV_ROUND_UP() operations.
 	 */
 
-	if (local->hw.conf.channel->band == IEEE80211_BAND_5GHZ || erp) {
+	if (band == IEEE80211_BAND_5GHZ || erp) {
 		/*
 		 * OFDM:
 		 *
@@ -162,10 +162,10 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 /* Exported duration function for driver use */
 __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
+					enum ieee80211_band band,
 					size_t frame_len,
 					struct ieee80211_rate *rate)
 {
-	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 	u16 dur;
 	int erp;
@@ -179,7 +179,7 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 			erp = rate->flags & IEEE80211_RATE_ERP_G;
 	}
 
-	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate, erp,
+	dur = ieee80211_frame_duration(band, frame_len, rate->bitrate, erp,
 				       short_preamble);
 
 	return cpu_to_le16(dur);
@@ -198,7 +198,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 	u16 dur;
 	struct ieee80211_supported_band *sband;
 
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	sband = local->hw.wiphy->bands[frame_txctl->band];
 
 	short_preamble = false;
 
@@ -213,13 +213,13 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 	}
 
 	/* CTS duration */
-	dur = ieee80211_frame_duration(local, 10, rate->bitrate,
+	dur = ieee80211_frame_duration(sband->band, 10, rate->bitrate,
 				       erp, short_preamble);
 	/* Data frame duration */
-	dur += ieee80211_frame_duration(local, frame_len, rate->bitrate,
+	dur += ieee80211_frame_duration(sband->band, frame_len, rate->bitrate,
 					erp, short_preamble);
 	/* ACK duration */
-	dur += ieee80211_frame_duration(local, 10, rate->bitrate,
+	dur += ieee80211_frame_duration(sband->band, 10, rate->bitrate,
 					erp, short_preamble);
 
 	return cpu_to_le16(dur);
@@ -239,7 +239,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	u16 dur;
 	struct ieee80211_supported_band *sband;
 
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	sband = local->hw.wiphy->bands[frame_txctl->band];
 
 	short_preamble = false;
 
@@ -253,11 +253,11 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	}
 
 	/* Data frame duration */
-	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate,
+	dur = ieee80211_frame_duration(sband->band, frame_len, rate->bitrate,
 				       erp, short_preamble);
 	if (!(frame_txctl->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		/* ACK duration */
-		dur += ieee80211_frame_duration(local, 10, rate->bitrate,
+		dur += ieee80211_frame_duration(sband->band, 10, rate->bitrate,
 						erp, short_preamble);
 	}
 
@@ -804,7 +804,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
 	int ac;
-	bool use_11b;
+	bool use_11b, enable_qos;
 	int aCWmin, aCWmax;
 
 	if (!local->ops->conf_tx)
@@ -818,6 +818,13 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	use_11b = (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
 
+	/*
+	 * By default disable QoS in STA mode for old access points, which do
+	 * not support 802.11e. New APs will provide proper queue parameters,
+	 * that we will configure later.
+	 */
+	enable_qos = (sdata->vif.type != NL80211_IFTYPE_STATION);
+
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		/* Set defaults according to 802.11-2007 Table 7-37 */
 		aCWmax = 1023;
@@ -826,38 +833,47 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 		else
 			aCWmin = 15;
 
-		switch (ac) {
-		case IEEE80211_AC_BK:
+		if (enable_qos) {
+			switch (ac) {
+			case IEEE80211_AC_BK:
+				qparam.cw_max = aCWmax;
+				qparam.cw_min = aCWmin;
+				qparam.txop = 0;
+				qparam.aifs = 7;
+				break;
+			/* never happens but let's not leave undefined */
+			default:
+			case IEEE80211_AC_BE:
+				qparam.cw_max = aCWmax;
+				qparam.cw_min = aCWmin;
+				qparam.txop = 0;
+				qparam.aifs = 3;
+				break;
+			case IEEE80211_AC_VI:
+				qparam.cw_max = aCWmin;
+				qparam.cw_min = (aCWmin + 1) / 2 - 1;
+				if (use_11b)
+					qparam.txop = 6016/32;
+				else
+					qparam.txop = 3008/32;
+				qparam.aifs = 2;
+				break;
+			case IEEE80211_AC_VO:
+				qparam.cw_max = (aCWmin + 1) / 2 - 1;
+				qparam.cw_min = (aCWmin + 1) / 4 - 1;
+				if (use_11b)
+					qparam.txop = 3264/32;
+				else
+					qparam.txop = 1504/32;
+				qparam.aifs = 2;
+				break;
+			}
+		} else {
+			/* Confiure old 802.11b/g medium access rules. */
 			qparam.cw_max = aCWmax;
 			qparam.cw_min = aCWmin;
 			qparam.txop = 0;
-			qparam.aifs = 7;
-			break;
-		default: /* never happens but let's not leave undefined */
-		case IEEE80211_AC_BE:
-			qparam.cw_max = aCWmax;
-			qparam.cw_min = aCWmin;
-			qparam.txop = 0;
-			qparam.aifs = 3;
-			break;
-		case IEEE80211_AC_VI:
-			qparam.cw_max = aCWmin;
-			qparam.cw_min = (aCWmin + 1) / 2 - 1;
-			if (use_11b)
-				qparam.txop = 6016/32;
-			else
-				qparam.txop = 3008/32;
 			qparam.aifs = 2;
-			break;
-		case IEEE80211_AC_VO:
-			qparam.cw_max = (aCWmin + 1) / 2 - 1;
-			qparam.cw_min = (aCWmin + 1) / 4 - 1;
-			if (use_11b)
-				qparam.txop = 3264/32;
-			else
-				qparam.txop = 1504/32;
-			qparam.aifs = 2;
-			break;
 		}
 
 		qparam.uapsd = false;
@@ -866,12 +882,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 		drv_conf_tx(local, sdata, ac, &qparam);
 	}
 
-	/* after reinitialize QoS TX queues setting to default,
-	 * disable QoS at all */
-
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
-		sdata->vif.bss_conf.qos =
-			sdata->vif.type != NL80211_IFTYPE_STATION;
+		sdata->vif.bss_conf.qos = enable_qos;
 		if (bss_notify)
 			ieee80211_bss_info_change_notify(sdata,
 							 BSS_CHANGED_QOS);
@@ -909,10 +921,8 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 	int i;
 
 	sband = local->hw.wiphy->bands[band];
-	if (!sband) {
-		WARN_ON(1);
-		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	}
+	if (WARN_ON(!sband))
+		return 1;
 
 	if (band == IEEE80211_BAND_2GHZ)
 		mandatory_flag = IEEE80211_RATE_MANDATORY_B;
@@ -1146,10 +1156,8 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 	int i, j;
 	sband = local->hw.wiphy->bands[band];
 
-	if (!sband) {
-		WARN_ON(1);
-		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	}
+	if (WARN_ON(!sband))
+		return 1;
 
 	bitrates = sband->bitrates;
 	num_rates = sband->n_bitrates;
@@ -1271,14 +1279,19 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
-		if (sta->uploaded) {
-			enum ieee80211_sta_state state;
+		enum ieee80211_sta_state state;
 
-			for (state = IEEE80211_STA_NOTEXIST;
-			     state < sta->sta_state - 1; state++)
-				WARN_ON(drv_sta_state(local, sta->sdata, sta,
-						      state, state + 1));
-		}
+		if (!sta->uploaded)
+			continue;
+
+		/* AP-mode stations will be added later */
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
+			continue;
+
+		for (state = IEEE80211_STA_NOTEXIST;
+		     state < sta->sta_state; state++)
+			WARN_ON(drv_sta_state(local, sta->sdata, sta, state,
+					      state + 1));
 	}
 	mutex_unlock(&local->sta_mtx);
 
@@ -1375,6 +1388,30 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
+	/* APs are now beaconing, add back stations */
+	mutex_lock(&local->sta_mtx);
+	list_for_each_entry(sta, &local->sta_list, list) {
+		enum ieee80211_sta_state state;
+
+		if (!sta->uploaded)
+			continue;
+
+		if (sta->sdata->vif.type != NL80211_IFTYPE_AP)
+			continue;
+
+		for (state = IEEE80211_STA_NOTEXIST;
+		     state < sta->sta_state; state++)
+			WARN_ON(drv_sta_state(local, sta->sdata, sta, state,
+					      state + 1));
+	}
+	mutex_unlock(&local->sta_mtx);
+
+	/* add back keys */
+	list_for_each_entry(sdata, &local->interfaces, list)
+		if (ieee80211_sdata_running(sdata))
+			ieee80211_enable_keys(sdata);
+
+ wake_up:
 	/*
 	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
 	 * sessions can be established after a resume.
@@ -1396,12 +1433,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		mutex_unlock(&local->sta_mtx);
 	}
 
-	/* add back keys */
-	list_for_each_entry(sdata, &local->interfaces, list)
-		if (ieee80211_sdata_running(sdata))
-			ieee80211_enable_keys(sdata);
-
- wake_up:
 	ieee80211_wake_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
@@ -1667,7 +1698,8 @@ u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 
 u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       struct ieee80211_channel *channel,
-			       enum nl80211_channel_type channel_type)
+			       enum nl80211_channel_type channel_type,
+			       u16 prot_mode)
 {
 	struct ieee80211_ht_operation *ht_oper;
 	/* Build HT Information */
@@ -1688,14 +1720,12 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 		break;
 	}
-	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
+	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+	    channel_type != NL80211_CHAN_NO_HT &&
+	    channel_type != NL80211_CHAN_HT20)
 		ht_oper->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 
-	/*
-	 * Note: According to 802.11n-2009 9.13.3.1, HT Protection field and
-	 * RIFS Mode are reserved in IBSS mode, therefore keep them at 0
-	 */
-	ht_oper->operation_mode = 0x0000;
+	ht_oper->operation_mode = cpu_to_le16(prot_mode);
 	ht_oper->stbc_param = 0x0000;
 
 	/* It seems that Basic MCS set and Supported MCS set
@@ -1797,3 +1827,16 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
 	}
 	return 0;
 }
+
+int ieee80211_ave_rssi(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION)) {
+		/* non-managed type inferfaces */
+		return 0;
+	}
+	return ifmgd->ave_beacon_signal;
+}
+EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);

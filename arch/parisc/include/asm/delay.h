@@ -1,7 +1,7 @@
 #ifndef _PARISC_DELAY_H
 #define _PARISC_DELAY_H
 
-#include <asm/system.h>    /* for mfctl() */
+#include <asm/special_insns.h>    /* for mfctl() */
 #include <asm/processor.h> /* for boot_cpu_data */
 
 

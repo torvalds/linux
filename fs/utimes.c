@@ -140,18 +140,19 @@ long do_utimes(int dfd, const char __user *filename, struct timespec *times,
 		goto out;
 
 	if (filename == NULL && dfd != AT_FDCWD) {
+		int fput_needed;
 		struct file *file;
 
 		if (flags & AT_SYMLINK_NOFOLLOW)
 			goto out;
 
-		file = fget(dfd);
+		file = fget_light(dfd, &fput_needed);
 		error = -EBADF;
 		if (!file)
 			goto out;
 
 		error = utimes_common(&file->f_path, times);
-		fput(file);
+		fput_light(file, fput_needed);
 	} else {
 		struct path path;
 		int lookup_flags = 0;

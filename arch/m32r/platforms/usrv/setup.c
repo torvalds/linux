@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/system.h>
 #include <asm/m32r.h>
 #include <asm/io.h>
 

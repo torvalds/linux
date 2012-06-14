@@ -17,6 +17,7 @@ config ARCH_OMAP1
 	select IRQ_DOMAIN
 	select HAVE_IDE
 	select NEED_MACH_MEMORY_H
+	select NEED_MACH_IO_H if PCCARD
 	help
 	  "Systems based on omap7xx, omap15xx or omap16xx"
 

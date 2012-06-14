@@ -21,12 +21,35 @@
  * General list handling functions
  */
 
+static int __hw_addr_create_ex(struct netdev_hw_addr_list *list,
+			       unsigned char *addr, int addr_len,
+			       unsigned char addr_type, bool global)
+{
+	struct netdev_hw_addr *ha;
+	int alloc_size;
+
+	alloc_size = sizeof(*ha);
+	if (alloc_size < L1_CACHE_BYTES)
+		alloc_size = L1_CACHE_BYTES;
+	ha = kmalloc(alloc_size, GFP_ATOMIC);
+	if (!ha)
+		return -ENOMEM;
+	memcpy(ha->addr, addr, addr_len);
+	ha->type = addr_type;
+	ha->refcount = 1;
+	ha->global_use = global;
+	ha->synced = false;
+	list_add_tail_rcu(&ha->list, &list->list);
+	list->count++;
+
+	return 0;
+}
+
 static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 			    unsigned char *addr, int addr_len,
 			    unsigned char addr_type, bool global)
 {
 	struct netdev_hw_addr *ha;
-	int alloc_size;
 
 	if (addr_len > MAX_ADDR_LEN)
 		return -EINVAL;
@@ -46,21 +69,7 @@ static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
 		}
 	}
 
-
-	alloc_size = sizeof(*ha);
-	if (alloc_size < L1_CACHE_BYTES)
-		alloc_size = L1_CACHE_BYTES;
-	ha = kmalloc(alloc_size, GFP_ATOMIC);
-	if (!ha)
-		return -ENOMEM;
-	memcpy(ha->addr, addr, addr_len);
-	ha->type = addr_type;
-	ha->refcount = 1;
-	ha->global_use = global;
-	ha->synced = false;
-	list_add_tail_rcu(&ha->list, &list->list);
-	list->count++;
-	return 0;
+	return __hw_addr_create_ex(list, addr, addr_len, addr_type, global);
 }
 
 static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
@@ -377,6 +386,34 @@ EXPORT_SYMBOL(dev_addr_del_multiple);
  */
 
 /**
+ *	dev_uc_add_excl - Add a global secondary unicast address
+ *	@dev: device
+ *	@addr: address to add
+ */
+int dev_uc_add_excl(struct net_device *dev, unsigned char *addr)
+{
+	struct netdev_hw_addr *ha;
+	int err;
+
+	netif_addr_lock_bh(dev);
+	list_for_each_entry(ha, &dev->uc.list, list) {
+		if (!memcmp(ha->addr, addr, dev->addr_len) &&
+		    ha->type == NETDEV_HW_ADDR_T_UNICAST) {
+			err = -EEXIST;
+			goto out;
+		}
+	}
+	err = __hw_addr_create_ex(&dev->uc, addr, dev->addr_len,
+				  NETDEV_HW_ADDR_T_UNICAST, true);
+	if (!err)
+		__dev_set_rx_mode(dev);
+out:
+	netif_addr_unlock_bh(dev);
+	return err;
+}
+EXPORT_SYMBOL(dev_uc_add_excl);
+
+/**
  *	dev_uc_add - Add a secondary unicast address
  *	@dev: device
  *	@addr: address to add
@@ -500,6 +537,34 @@ EXPORT_SYMBOL(dev_uc_init);
 /*
  * Multicast list handling functions
  */
+
+/**
+ *	dev_mc_add_excl - Add a global secondary multicast address
+ *	@dev: device
+ *	@addr: address to add
+ */
+int dev_mc_add_excl(struct net_device *dev, unsigned char *addr)
+{
+	struct netdev_hw_addr *ha;
+	int err;
+
+	netif_addr_lock_bh(dev);
+	list_for_each_entry(ha, &dev->mc.list, list) {
+		if (!memcmp(ha->addr, addr, dev->addr_len) &&
+		    ha->type == NETDEV_HW_ADDR_T_MULTICAST) {
+			err = -EEXIST;
+			goto out;
+		}
+	}
+	err = __hw_addr_create_ex(&dev->mc, addr, dev->addr_len,
+				  NETDEV_HW_ADDR_T_MULTICAST, true);
+	if (!err)
+		__dev_set_rx_mode(dev);
+out:
+	netif_addr_unlock_bh(dev);
+	return err;
+}
+EXPORT_SYMBOL(dev_mc_add_excl);
 
 static int __dev_mc_add(struct net_device *dev, unsigned char *addr,
 			bool global)
@@ -696,7 +761,8 @@ static const struct seq_operations dev_mc_seq_ops = {
 
 static int dev_mc_seq_open(struct inode *inode, struct file *file)
 {
-	return dev_seq_open_ops(inode, file, &dev_mc_seq_ops);
+	return seq_open_net(inode, file, &dev_mc_seq_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations dev_mc_seq_fops = {

@@ -19,7 +19,6 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/system.h>
 
 #include "pd6729.h"
 #include "i82365.h"
@@ -763,13 +762,8 @@ static void __devexit pd6729_pci_remove(struct pci_dev *dev)
 	kfree(socket);
 }
 
-static struct pci_device_id pd6729_pci_ids[] = {
-	{
-		.vendor		= PCI_VENDOR_ID_CIRRUS,
-		.device		= PCI_DEVICE_ID_CIRRUS_6729,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-	},
+static DEFINE_PCI_DEVICE_TABLE(pd6729_pci_ids) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_6729) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pd6729_pci_ids);

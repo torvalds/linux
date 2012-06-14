@@ -31,7 +31,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/mach-types.h>
-#include <asm/system.h>
 
 #include <mach/reg_nand.h>
 #include <mach/reg_umi.h>
@@ -342,7 +341,7 @@ static int bcm_umi_nand_verify_buf(struct mtd_info *mtd, const u_char * buf,
 	 * for MLC parts which may have permanently stuck bits.
 	 */
 	struct nand_chip *chip = mtd->priv;
-	int ret = chip->ecc.read_page(mtd, chip, readbackbuf, 0);
+	int ret = chip->ecc.read_page(mtd, chip, readbackbuf, 0, 0);
 	if (ret < 0)
 		return -EFAULT;
 	else {
@@ -476,6 +475,9 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 			largepage_bbt.options = NAND_BBT_SCAN2NDPAGE;
 		this->badblock_pattern = &largepage_bbt;
 	}
+
+	this->ecc.strength = 8;
+
 #endif
 
 	/* Now finish off the scan, now that ecc.layout has been initialized. */
@@ -488,7 +490,7 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 
 	/* Register the partitions */
 	board_mtd->name = "bcm_umi-nand";
-	mtd_device_parse_register(board_mtd, NULL, 0, NULL, 0);
+	mtd_device_parse_register(board_mtd, NULL, NULL, NULL, 0);
 
 	/* Return happy */
 	return 0;

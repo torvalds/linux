@@ -389,6 +389,8 @@ static void atmel_start_rx(struct uart_port *port)
 {
 	UART_PUT_CR(port, ATMEL_US_RSTSTA);  /* reset status and receiver */
 
+	UART_PUT_CR(port, ATMEL_US_RXEN);
+
 	if (atmel_use_dma_rx(port)) {
 		/* enable PDC controller */
 		UART_PUT_IER(port, ATMEL_US_ENDRX | ATMEL_US_TIMEOUT |
@@ -404,6 +406,8 @@ static void atmel_start_rx(struct uart_port *port)
  */
 static void atmel_stop_rx(struct uart_port *port)
 {
+	UART_PUT_CR(port, ATMEL_US_RXDIS);
+
 	if (atmel_use_dma_rx(port)) {
 		/* disable PDC receive */
 		UART_PUT_PTCR(port, ATMEL_PDC_RXTDIS);

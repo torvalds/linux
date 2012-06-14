@@ -259,7 +259,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (v9fs_proto_dotl(v9ses)) {
 		res = p9_client_statfs(fid, &rs);
 		if (res == 0) {
-			buf->f_type = V9FS_MAGIC;
+			buf->f_type = rs.type;
 			buf->f_bsize = rs.bsize;
 			buf->f_blocks = rs.blocks;
 			buf->f_bfree = rs.bfree;

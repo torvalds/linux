@@ -1099,9 +1099,8 @@ static int srpt_map_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 	dir = cmd->data_direction;
 	BUG_ON(dir == DMA_NONE);
 
-	transport_do_task_sg_chain(cmd);
-	ioctx->sg = sg = sg_orig = cmd->t_tasks_sg_chained;
-	ioctx->sg_cnt = sg_cnt = cmd->t_tasks_sg_chained_no;
+	ioctx->sg = sg = sg_orig = cmd->t_data_sg;
+	ioctx->sg_cnt = sg_cnt = cmd->t_data_nents;
 
 	count = ib_dma_map_sg(ch->sport->sdev->device, sg, sg_cnt,
 			      opposite_dma_dir(dir));
@@ -1769,7 +1768,7 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		goto send_sense;
 	}
-	ret = transport_generic_allocate_tasks(cmd, srp_cmd->cdb);
+	ret = target_setup_cmd_from_cdb(cmd, srp_cmd->cdb);
 	if (ret < 0) {
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		if (cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT) {
@@ -3232,6 +3231,7 @@ static void srpt_add_one(struct ib_device *device)
 	srq_attr.attr.max_wr = sdev->srq_size;
 	srq_attr.attr.max_sge = 1;
 	srq_attr.attr.srq_limit = 0;
+	srq_attr.srq_type = IB_SRQT_BASIC;
 
 	sdev->srq = ib_create_srq(sdev->pd, &srq_attr);
 	if (IS_ERR(sdev->srq))
@@ -4002,9 +4002,6 @@ static int __init srpt_init_module(void)
 	}
 
 	srpt_target->tf_ops = srpt_template;
-
-	/* Enable SG chaining */
-	srpt_target->tf_ops.task_sg_chaining = true;
 
 	/*
 	 * Set up default attribute lists.

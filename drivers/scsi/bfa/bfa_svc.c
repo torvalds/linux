@@ -1280,6 +1280,7 @@ bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 	switch (event) {
 	case BFA_LPS_SM_RESUME:
 		bfa_sm_set_state(lps, bfa_lps_sm_login);
+		bfa_lps_send_login(lps);
 		break;
 
 	case BFA_LPS_SM_OFFLINE:
@@ -1578,7 +1579,7 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 		break;
 
 	case BFA_STATUS_VPORT_MAX:
-		if (!rsp->ext_status)
+		if (rsp->ext_status)
 			bfa_lps_no_res(lps, rsp->ext_status);
 		break;
 
@@ -3084,33 +3085,6 @@ bfa_fcport_set_wwns(struct bfa_fcport_s *fcport)
 }
 
 static void
-bfa_fcport_send_txcredit(void *port_cbarg)
-{
-
-	struct bfa_fcport_s *fcport = port_cbarg;
-	struct bfi_fcport_set_svc_params_req_s *m;
-
-	/*
-	 * check for room in queue to send request now
-	 */
-	m = bfa_reqq_next(fcport->bfa, BFA_REQQ_PORT);
-	if (!m) {
-		bfa_trc(fcport->bfa, fcport->cfg.tx_bbcredit);
-		return;
-	}
-
-	bfi_h2i_set(m->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_SET_SVC_PARAMS_REQ,
-			bfa_fn_lpu(fcport->bfa));
-	m->tx_bbcredit = cpu_to_be16((u16)fcport->cfg.tx_bbcredit);
-	m->bb_scn = fcport->cfg.bb_scn;
-
-	/*
-	 * queue I/O message to firmware
-	 */
-	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT, m->mh);
-}
-
-static void
 bfa_fcport_qos_stats_swap(struct bfa_qos_stats_s *d,
 	struct bfa_qos_stats_s *s)
 {
@@ -3602,26 +3576,24 @@ bfa_fcport_cfg_speed(struct bfa_s *bfa, enum bfa_port_speed speed)
 		return BFA_STATUS_UNSUPP_SPEED;
 	}
 
-	/* For Mezz card, port speed entered needs to be checked */
-	if (bfa_mfg_is_mezz(fcport->bfa->ioc.attr->card_type)) {
-		if (bfa_ioc_get_type(&fcport->bfa->ioc) == BFA_IOC_TYPE_FC) {
-			/* For CT2, 1G is not supported */
-			if ((speed == BFA_PORT_SPEED_1GBPS) &&
-			    (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id)))
-				return BFA_STATUS_UNSUPP_SPEED;
+	/* Port speed entered needs to be checked */
+	if (bfa_ioc_get_type(&fcport->bfa->ioc) == BFA_IOC_TYPE_FC) {
+		/* For CT2, 1G is not supported */
+		if ((speed == BFA_PORT_SPEED_1GBPS) &&
+		    (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id)))
+			return BFA_STATUS_UNSUPP_SPEED;
 
-			/* Already checked for Auto Speed and Max Speed supp */
-			if (!(speed == BFA_PORT_SPEED_1GBPS ||
-			      speed == BFA_PORT_SPEED_2GBPS ||
-			      speed == BFA_PORT_SPEED_4GBPS ||
-			      speed == BFA_PORT_SPEED_8GBPS ||
-			      speed == BFA_PORT_SPEED_16GBPS ||
-			      speed == BFA_PORT_SPEED_AUTO))
-				return BFA_STATUS_UNSUPP_SPEED;
-		} else {
-			if (speed != BFA_PORT_SPEED_10GBPS)
-				return BFA_STATUS_UNSUPP_SPEED;
-		}
+		/* Already checked for Auto Speed and Max Speed supp */
+		if (!(speed == BFA_PORT_SPEED_1GBPS ||
+		      speed == BFA_PORT_SPEED_2GBPS ||
+		      speed == BFA_PORT_SPEED_4GBPS ||
+		      speed == BFA_PORT_SPEED_8GBPS ||
+		      speed == BFA_PORT_SPEED_16GBPS ||
+		      speed == BFA_PORT_SPEED_AUTO))
+			return BFA_STATUS_UNSUPP_SPEED;
+	} else {
+		if (speed != BFA_PORT_SPEED_10GBPS)
+			return BFA_STATUS_UNSUPP_SPEED;
 	}
 
 	fcport->cfg.speed = speed;
@@ -3765,7 +3737,6 @@ bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit, u8 bb_scn)
 	fcport->cfg.bb_scn = bb_scn;
 	if (bb_scn)
 		fcport->bbsc_op_state = BFA_TRUE;
-	bfa_fcport_send_txcredit(fcport);
 }
 
 /*
@@ -3825,8 +3796,6 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 			attr->port_state = BFA_PORT_ST_IOCDIS;
 		else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
 			attr->port_state = BFA_PORT_ST_FWMISMATCH;
-		else if (bfa_ioc_is_acq_addr(&fcport->bfa->ioc))
-			attr->port_state = BFA_PORT_ST_ACQ_ADDR;
 	}
 
 	/* FCoE vlan */

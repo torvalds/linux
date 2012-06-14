@@ -44,7 +44,6 @@
 #include <asm/byteorder.h>
 #include <linux/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_DESC	"USB Host+Gadget Emulator"
@@ -596,14 +595,12 @@ static struct usb_request *dummy_alloc_request(struct usb_ep *_ep,
 
 static void dummy_free_request(struct usb_ep *_ep, struct usb_request *_req)
 {
-	struct dummy_ep		*ep;
 	struct dummy_request	*req;
 
-	if (!_ep || !_req)
+	if (!_ep || !_req) {
+		WARN_ON(1);
 		return;
-	ep = usb_ep_to_dummy_ep(_ep);
-	if (!ep->desc && _ep->name != ep0name)
-		return;
+	}
 
 	req = usb_request_to_dummy_request(_req);
 	WARN_ON(!list_empty(&req->queue));
@@ -928,7 +925,6 @@ static int dummy_udc_stop(struct usb_gadget *g,
 
 	dum->driver = NULL;
 
-	dummy_pullup(&dum->gadget, 0);
 	return 0;
 }
 

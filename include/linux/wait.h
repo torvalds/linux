@@ -22,7 +22,6 @@
 #include <linux/list.h>
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
-#include <asm/system.h>
 #include <asm/current.h>
 
 typedef struct __wait_queue wait_queue_t;

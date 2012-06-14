@@ -489,7 +489,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
 	 */
-	dump_stack();
+	WARN(1, "EEH: failure detected\n");
 	return 1;
 
 dn_unlock:
@@ -984,7 +984,8 @@ int __exit eeh_ops_unregister(const char *name)
  */
 void __init eeh_init(void)
 {
-	struct device_node *phb, *np;
+	struct pci_controller *hose, *tmp;
+	struct device_node *phb;
 	int ret;
 
 	/* call platform initialization function */
@@ -1000,19 +1001,9 @@ void __init eeh_init(void)
 
 	raw_spin_lock_init(&confirm_error_lock);
 
-	np = of_find_node_by_path("/rtas");
-	if (np == NULL)
-		return;
-
-	/* Enable EEH for all adapters.  Note that eeh requires buid's */
-	for (phb = of_find_node_by_name(NULL, "pci"); phb;
-	     phb = of_find_node_by_name(phb, "pci")) {
-		unsigned long buid;
-
-		buid = get_phb_buid(phb);
-		if (buid == 0 || !of_node_to_eeh_dev(phb))
-			continue;
-
+	/* Enable EEH for all adapters */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		phb = hose->dn;
 		traverse_pci_devices(phb, eeh_early_enable, NULL);
 	}
 
@@ -1085,7 +1076,7 @@ static void eeh_add_device_late(struct pci_dev *dev)
 	pr_debug("EEH: Adding device %s\n", pci_name(dev));
 
 	dn = pci_device_to_OF_node(dev);
-	edev = pci_dev_to_eeh_dev(dev);
+	edev = of_node_to_eeh_dev(dn);
 	if (edev->pdev == dev) {
 		pr_debug("EEH: Already referenced !\n");
 		return;

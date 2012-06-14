@@ -81,7 +81,7 @@ static int it913x_bulk_write(struct usb_device *dev,
 	for (i = 0; i < IT913X_RETRY; i++) {
 		ret = usb_bulk_msg(dev, usb_sndbulkpipe(dev, pipe),
 				snd, len , &actual_l, IT913X_SND_TIMEOUT);
-		if (ret == 0 || ret != -EBUSY || ret != -ETIMEDOUT)
+		if (ret != -EBUSY && ret != -ETIMEDOUT)
 			break;
 	}
 
@@ -99,7 +99,7 @@ static int it913x_bulk_read(struct usb_device *dev,
 	for (i = 0; i < IT913X_RETRY; i++) {
 		ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, pipe),
 				 rev, len , &actual_l, IT913X_RCV_TIMEOUT);
-		if (ret == 0 || ret != -EBUSY || ret != -ETIMEDOUT)
+		if (ret != -EBUSY && ret != -ETIMEDOUT)
 			break;
 	}
 
@@ -238,12 +238,27 @@ static int it913x_read_reg(struct usb_device *udev, u32 reg)
 
 static u32 it913x_query(struct usb_device *udev, u8 pro)
 {
-	int ret;
+	int ret, i;
 	u8 data[4];
-	ret = it913x_io(udev, READ_LONG, pro, CMD_DEMOD_READ,
-		0x1222, 0, &data[0], 3);
+	u8 ver;
 
-	it913x_config.chip_ver = data[0];
+	for (i = 0; i < 5; i++) {
+		ret = it913x_io(udev, READ_LONG, pro, CMD_DEMOD_READ,
+			0x1222, 0, &data[0], 3);
+		ver = data[0];
+		if (ver > 0 && ver < 3)
+			break;
+		msleep(100);
+	}
+
+	if (ver < 1 || ver > 2) {
+		info("Failed to identify chip version applying 1");
+		it913x_config.chip_ver = 0x1;
+		it913x_config.chip_type = 0x9135;
+		return 0;
+	}
+
+	it913x_config.chip_ver = ver;
 	it913x_config.chip_type = (u16)(data[2] << 8) + data[1];
 
 	info("Chip Version=%02x Chip Type=%04x", it913x_config.chip_ver,
@@ -660,30 +675,41 @@ static int it913x_download_firmware(struct usb_device *udev,
 			if ((packet_size > min_pkt) || (i == fw->size)) {
 				fw_data = (u8 *)(fw->data + pos);
 				pos += packet_size;
-				if (packet_size > 0)
-					ret |= it913x_io(udev, WRITE_DATA,
+				if (packet_size > 0) {
+					ret = it913x_io(udev, WRITE_DATA,
 						DEV_0, CMD_SCATTER_WRITE, 0,
 						0, fw_data, packet_size);
+					if (ret < 0)
+						break;
+				}
 				udelay(1000);
 			}
 		}
 		i++;
 	}
 
-	ret |= it913x_io(udev, WRITE_CMD, DEV_0, CMD_BOOT, 0, 0, NULL, 0);
-
-	msleep(100);
-
 	if (ret < 0)
-		info("FRM Firmware Download Failed (%04x)" , ret);
+		info("FRM Firmware Download Failed (%d)" , ret);
 	else
 		info("FRM Firmware Download Completed - Resetting Device");
 
-	ret |= it913x_return_status(udev);
+	msleep(30);
+
+	ret = it913x_io(udev, WRITE_CMD, DEV_0, CMD_BOOT, 0, 0, NULL, 0);
+	if (ret < 0)
+		info("FRM Device not responding to reboot");
+
+	ret = it913x_return_status(udev);
+	if (ret == 0) {
+		info("FRM Failed to reboot device");
+		return -ENODEV;
+	}
 
 	msleep(30);
 
-	ret |= it913x_wr_reg(udev, DEV_0,  I2C_CLK, I2C_CLK_400);
+	ret = it913x_wr_reg(udev, DEV_0,  I2C_CLK, I2C_CLK_400);
+
+	msleep(30);
 
 	/* Tuner function */
 	if (it913x_config.dual_mode)
@@ -901,5 +927,5 @@ module_usb_driver(it913x_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.27");
+MODULE_VERSION("1.28");
 MODULE_LICENSE("GPL");

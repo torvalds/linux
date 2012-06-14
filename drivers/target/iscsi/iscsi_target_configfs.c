@@ -1538,7 +1538,7 @@ static int lio_write_pending(struct se_cmd *se_cmd)
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
 	if (!cmd->immediate_data && !cmd->unsolicited_data)
-		return iscsit_build_r2ts_for_cmd(cmd, cmd->conn, 1);
+		return iscsit_build_r2ts_for_cmd(cmd, cmd->conn, false);
 
 	return 0;
 }

@@ -38,10 +38,10 @@
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>
 #include <asm/siginfo.h>
+#include <asm/debug.h>
 #include <mm/mmu_decl.h>
 
 #include "icswx.h"

@@ -13,8 +13,6 @@
  *
  */
 
-#ifdef __KERNEL__
-
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly
 #endif
@@ -63,7 +61,7 @@ extern const char _ni_bitmap[];
 extern const char _zb_findmap[];
 extern const char _sb_findmap[];
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 
 #define __BITOPS_ALIGN		3
 #define __BITOPS_WORDSIZE	32
@@ -83,7 +81,7 @@ extern const char _sb_findmap[];
 		: "d" (__val), "Q" (*(unsigned long *) __addr)	\
 		: "cc");
 
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 
 #define __BITOPS_ALIGN		7
 #define __BITOPS_WORDSIZE	64
@@ -103,7 +101,7 @@ extern const char _sb_findmap[];
 		: "d" (__val), "Q" (*(unsigned long *) __addr)	\
 		: "cc");
 
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 
 #define __BITOPS_WORDS(bits) (((bits)+__BITOPS_WORDSIZE-1)/__BITOPS_WORDSIZE)
 #define __BITOPS_BARRIER() asm volatile("" : : : "memory")
@@ -412,7 +410,7 @@ static inline unsigned long __ffz_word_loop(const unsigned long *addr,
 	unsigned long bytes = 0;
 
 	asm volatile(
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 		"	ahi	%1,-1\n"
 		"	sra	%1,5\n"
 		"	jz	1f\n"
@@ -449,7 +447,7 @@ static inline unsigned long __ffs_word_loop(const unsigned long *addr,
 	unsigned long bytes = 0;
 
 	asm volatile(
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 		"	ahi	%1,-1\n"
 		"	sra	%1,5\n"
 		"	jz	1f\n"
@@ -481,7 +479,7 @@ static inline unsigned long __ffs_word_loop(const unsigned long *addr,
  */
 static inline unsigned long __ffz_word(unsigned long nr, unsigned long word)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	if ((word & 0xffffffff) == 0xffffffff) {
 		word >>= 32;
 		nr += 32;
@@ -505,7 +503,7 @@ static inline unsigned long __ffz_word(unsigned long nr, unsigned long word)
  */
 static inline unsigned long __ffs_word(unsigned long nr, unsigned long word)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	if ((word & 0xffffffff) == 0) {
 		word >>= 32;
 		nr += 32;
@@ -546,7 +544,7 @@ static inline unsigned long __load_ulong_le(const unsigned long *p,
 	unsigned long word;
 
 	p = (unsigned long *)((unsigned long) p + offset);
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	asm volatile(
 		"	ic	%0,%O1(%R1)\n"
 		"	icm	%0,2,%O1+1(%R1)\n"
@@ -833,8 +831,5 @@ static inline int find_next_bit_le(void *vaddr, unsigned long size,
 #include <asm-generic/bitops/le.h>
 
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
-
-
-#endif /* __KERNEL__ */
 
 #endif /* _S390_BITOPS_H */

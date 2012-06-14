@@ -968,7 +968,6 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	proto = npindex_to_proto[npi];
 	put_unaligned_be16(proto, pp);
 
-	netif_stop_queue(dev);
 	skb_queue_tail(&ppp->file.xq, skb);
 	ppp_xmit_process(ppp);
 	return NETDEV_TX_OK;
@@ -1063,6 +1062,8 @@ ppp_xmit_process(struct ppp *ppp)
 		   code that we can accept some more. */
 		if (!ppp->xmit_pending && !skb_peek(&ppp->file.xq))
 			netif_wake_queue(ppp->dev);
+		else
+			netif_stop_queue(ppp->dev);
 	}
 	ppp_xmit_unlock(ppp);
 }
@@ -1091,13 +1092,13 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 				   new_skb->data, skb->len + 2,
 				   compressor_skb_size);
 	if (len > 0 && (ppp->flags & SC_CCP_UP)) {
-		kfree_skb(skb);
+		consume_skb(skb);
 		skb = new_skb;
 		skb_put(skb, len);
 		skb_pull(skb, 2);	/* pull off A/C bytes */
 	} else if (len == 0) {
 		/* didn't compress, or CCP not up yet */
-		kfree_skb(new_skb);
+		consume_skb(new_skb);
 		new_skb = skb;
 	} else {
 		/*
@@ -1111,7 +1112,7 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 		if (net_ratelimit())
 			netdev_err(ppp->dev, "ppp: compressor dropped pkt\n");
 		kfree_skb(skb);
-		kfree_skb(new_skb);
+		consume_skb(new_skb);
 		new_skb = NULL;
 	}
 	return new_skb;
@@ -1177,7 +1178,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 				    !(ppp->flags & SC_NO_TCP_CCID));
 		if (cp == skb->data + 2) {
 			/* didn't compress */
-			kfree_skb(new_skb);
+			consume_skb(new_skb);
 		} else {
 			if (cp[0] & SL_TYPE_COMPRESSED_TCP) {
 				proto = PPP_VJC_COMP;
@@ -1186,7 +1187,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 				proto = PPP_VJC_UNCOMP;
 				cp[0] = skb->data[2];
 			}
-			kfree_skb(skb);
+			consume_skb(skb);
 			skb = new_skb;
 			cp = skb_put(skb, len + 2);
 			cp[0] = 0;
@@ -1702,7 +1703,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			}
 			skb_reserve(ns, 2);
 			skb_copy_bits(skb, 0, skb_put(ns, skb->len), skb->len);
-			kfree_skb(skb);
+			consume_skb(skb);
 			skb = ns;
 		}
 		else
@@ -1850,7 +1851,7 @@ ppp_decompress_frame(struct ppp *ppp, struct sk_buff *skb)
 			goto err;
 		}
 
-		kfree_skb(skb);
+		consume_skb(skb);
 		skb = ns;
 		skb_put(skb, len);
 		skb_pull(skb, 2);	/* pull off the A/C bytes */

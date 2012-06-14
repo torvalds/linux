@@ -2061,11 +2061,8 @@ static struct vio_driver ibmvscsi_driver = {
 	.probe = ibmvscsi_probe,
 	.remove = ibmvscsi_remove,
 	.get_desired_dma = ibmvscsi_get_desired_dma,
-	.driver = {
-		.name = "ibmvscsi",
-		.owner = THIS_MODULE,
-		.pm = &ibmvscsi_pm_ops,
-	}
+	.name = "ibmvscsi",
+	.pm = &ibmvscsi_pm_ops,
 };
 
 static struct srp_function_template ibmvscsi_transport_functions = {

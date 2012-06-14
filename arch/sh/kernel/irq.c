@@ -234,8 +234,10 @@ void __init init_IRQ(void)
 #ifdef CONFIG_SPARSE_IRQ
 int __init arch_probe_nr_irqs(void)
 {
-	nr_irqs = sh_mv.mv_nr_irqs;
-	return NR_IRQS_LEGACY;
+	/*
+	 * No pre-allocated IRQs.
+	 */
+	return 0;
 }
 #endif
 

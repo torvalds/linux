@@ -24,7 +24,6 @@
 
 #include <asm/io.h>
 #include <linux/spinlock.h>
-#include <asm/system.h>
 
 #ifndef MAX_DMA_CHANNELS
 #define MAX_DMA_CHANNELS	8

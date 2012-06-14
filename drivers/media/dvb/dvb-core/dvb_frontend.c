@@ -143,10 +143,12 @@ struct dvb_frontend_private {
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
 static int dtv_get_frontend(struct dvb_frontend *fe,
 			    struct dvb_frontend_parameters *p_out);
+static int dtv_property_legacy_params_sync(struct dvb_frontend *fe,
+					   struct dvb_frontend_parameters *p);
 
 static bool has_get_frontend(struct dvb_frontend *fe)
 {
-	return fe->ops.get_frontend;
+	return fe->ops.get_frontend != NULL;
 }
 
 /*
@@ -180,13 +182,13 @@ static enum dvbv3_emulation_type dvbv3_type(u32 delivery_system)
 	case SYS_DMBTH:
 		return DVBV3_OFDM;
 	case SYS_ATSC:
+	case SYS_ATSCMH:
 	case SYS_DVBC_ANNEX_B:
 		return DVBV3_ATSC;
 	case SYS_UNDEFINED:
 	case SYS_ISDBC:
 	case SYS_DVBH:
 	case SYS_DAB:
-	case SYS_ATSCMH:
 	default:
 		/*
 		 * Doesn't know how to emulate those types and/or
@@ -697,6 +699,7 @@ restart:
 					fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
 					fepriv->delay = HZ / 2;
 				}
+				dtv_property_legacy_params_sync(fe, &fepriv->parameters_out);
 				fe->ops.read_status(fe, &s);
 				if (s != fepriv->status) {
 					dvb_frontend_add_event(fe, s); /* update event list */
@@ -1027,6 +1030,25 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_HIERARCHY, 0, 0),
 
 	_DTV_CMD(DTV_ENUM_DELSYS, 0, 0),
+
+	_DTV_CMD(DTV_ATSCMH_PARADE_ID, 1, 0),
+	_DTV_CMD(DTV_ATSCMH_RS_FRAME_ENSEMBLE, 1, 0),
+
+	_DTV_CMD(DTV_ATSCMH_FIC_VER, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_PARADE_ID, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_NOG, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_TNOG, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_SGN, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_PRC, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_RS_FRAME_MODE, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_RS_FRAME_ENSEMBLE, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_RS_CODE_MODE_PRI, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_RS_CODE_MODE_SEC, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_SCCC_BLOCK_MODE, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_A, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_B, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_C, 0, 0),
+	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_D, 0, 0),
 };
 
 static void dtv_property_dump(struct dtv_property *tvp)
@@ -1118,6 +1140,8 @@ static int dtv_property_cache_sync(struct dvb_frontend *fe,
 	case DVBV3_ATSC:
 		dprintk("%s() Preparing ATSC req\n", __func__);
 		c->modulation = p->u.vsb.modulation;
+		if (c->delivery_system == SYS_ATSCMH)
+			break;
 		if ((c->modulation == VSB_8) || (c->modulation == VSB_16))
 			c->delivery_system = SYS_ATSC;
 		else
@@ -1364,6 +1388,54 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_DVBT2_PLP_ID:
 		tvp->u.data = c->dvbt2_plp_id;
 		break;
+
+	/* ATSC-MH */
+	case DTV_ATSCMH_FIC_VER:
+		tvp->u.data = fe->dtv_property_cache.atscmh_fic_ver;
+		break;
+	case DTV_ATSCMH_PARADE_ID:
+		tvp->u.data = fe->dtv_property_cache.atscmh_parade_id;
+		break;
+	case DTV_ATSCMH_NOG:
+		tvp->u.data = fe->dtv_property_cache.atscmh_nog;
+		break;
+	case DTV_ATSCMH_TNOG:
+		tvp->u.data = fe->dtv_property_cache.atscmh_tnog;
+		break;
+	case DTV_ATSCMH_SGN:
+		tvp->u.data = fe->dtv_property_cache.atscmh_sgn;
+		break;
+	case DTV_ATSCMH_PRC:
+		tvp->u.data = fe->dtv_property_cache.atscmh_prc;
+		break;
+	case DTV_ATSCMH_RS_FRAME_MODE:
+		tvp->u.data = fe->dtv_property_cache.atscmh_rs_frame_mode;
+		break;
+	case DTV_ATSCMH_RS_FRAME_ENSEMBLE:
+		tvp->u.data = fe->dtv_property_cache.atscmh_rs_frame_ensemble;
+		break;
+	case DTV_ATSCMH_RS_CODE_MODE_PRI:
+		tvp->u.data = fe->dtv_property_cache.atscmh_rs_code_mode_pri;
+		break;
+	case DTV_ATSCMH_RS_CODE_MODE_SEC:
+		tvp->u.data = fe->dtv_property_cache.atscmh_rs_code_mode_sec;
+		break;
+	case DTV_ATSCMH_SCCC_BLOCK_MODE:
+		tvp->u.data = fe->dtv_property_cache.atscmh_sccc_block_mode;
+		break;
+	case DTV_ATSCMH_SCCC_CODE_MODE_A:
+		tvp->u.data = fe->dtv_property_cache.atscmh_sccc_code_mode_a;
+		break;
+	case DTV_ATSCMH_SCCC_CODE_MODE_B:
+		tvp->u.data = fe->dtv_property_cache.atscmh_sccc_code_mode_b;
+		break;
+	case DTV_ATSCMH_SCCC_CODE_MODE_C:
+		tvp->u.data = fe->dtv_property_cache.atscmh_sccc_code_mode_c;
+		break;
+	case DTV_ATSCMH_SCCC_CODE_MODE_D:
+		tvp->u.data = fe->dtv_property_cache.atscmh_sccc_code_mode_d;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -1443,6 +1515,28 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 				__func__);
 			return -EINVAL;
 		}
+		/*
+		 * Get a delivery system that is compatible with DVBv3
+		 * NOTE: in order for this to work with softwares like Kaffeine that
+		 *	uses a DVBv5 call for DVB-S2 and a DVBv3 call to go back to
+		 *	DVB-S, drivers that support both should put the SYS_DVBS entry
+		 *	before the SYS_DVBS2, otherwise it won't switch back to DVB-S.
+		 *	The real fix is that userspace applications should not use DVBv3
+		 *	and not trust on calling FE_SET_FRONTEND to switch the delivery
+		 *	system.
+		 */
+		ncaps = 0;
+		while (fe->ops.delsys[ncaps] && ncaps < MAX_DELSYS) {
+			if (fe->ops.delsys[ncaps] == desired_system) {
+				delsys = desired_system;
+				break;
+			}
+			ncaps++;
+		}
+		if (delsys == SYS_UNDEFINED) {
+			dprintk("%s() Couldn't find a delivery system that matches %d\n",
+				__func__, desired_system);
+		}
 	} else {
 		/*
 		 * This is a DVBv5 call. So, it likely knows the supported
@@ -1491,8 +1585,9 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 				__func__);
 			return -EINVAL;
 		}
-		c->delivery_system = delsys;
 	}
+
+	c->delivery_system = delsys;
 
 	/*
 	 * The DVBv3 or DVBv5 call is requesting a different system. So,
@@ -1682,6 +1777,15 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 	case DTV_DVBT2_PLP_ID:
 		c->dvbt2_plp_id = tvp->u.data;
 		break;
+
+	/* ATSC-MH */
+	case DTV_ATSCMH_PARADE_ID:
+		fe->dtv_property_cache.atscmh_parade_id = tvp->u.data;
+		break;
+	case DTV_ATSCMH_RS_FRAME_ENSEMBLE:
+		fe->dtv_property_cache.atscmh_rs_frame_ensemble = tvp->u.data;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -1833,6 +1937,13 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 		return -EINVAL;
 
 	/*
+	 * Initialize output parameters to match the values given by
+	 * the user. FE_SET_FRONTEND triggers an initial frontend event
+	 * with status = 0, which copies output parameters to userspace.
+	 */
+	dtv_property_legacy_params_sync(fe, &fepriv->parameters_out);
+
+	/*
 	 * Be sure that the bandwidth will be filled for all
 	 * non-satellite systems, as tuners need to know what
 	 * low pass/Nyquist half filter should be applied, in
@@ -1888,6 +1999,10 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 	} else {
 		/* default values */
 		switch (c->delivery_system) {
+		case SYS_DVBS:
+		case SYS_DVBS2:
+		case SYS_ISDBS:
+		case SYS_TURBO:
 		case SYS_DVBC_ANNEX_A:
 		case SYS_DVBC_ANNEX_C:
 			fepriv->min_delay = HZ / 20;

@@ -23,7 +23,9 @@
  */
 
 #include <linux/linkage.h>
-#include <mach/io.h>
+
+#include <asm/assembler.h>
+
 #include <mach/iomap.h>
 
 #include "flowctrl.h"

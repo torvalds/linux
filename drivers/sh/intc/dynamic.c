@@ -55,11 +55,3 @@ void destroy_irq(unsigned int irq)
 {
 	irq_free_desc(irq);
 }
-
-void reserve_intc_vectors(struct intc_vect *vectors, unsigned int nr_vecs)
-{
-	int i;
-
-	for (i = 0; i < nr_vecs; i++)
-		irq_reserve_irq(evt2irq(vectors[i].vect));
-}

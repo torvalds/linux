@@ -415,7 +415,7 @@ static int __nfs_idmap_register(struct dentry *dir,
 static void nfs_idmap_unregister(struct nfs_client *clp,
 				      struct rpc_pipe *pipe)
 {
-	struct net *net = clp->net;
+	struct net *net = clp->cl_net;
 	struct super_block *pipefs_sb;
 
 	pipefs_sb = rpc_get_sb_net(net);
@@ -429,7 +429,7 @@ static int nfs_idmap_register(struct nfs_client *clp,
 				   struct idmap *idmap,
 				   struct rpc_pipe *pipe)
 {
-	struct net *net = clp->net;
+	struct net *net = clp->cl_net;
 	struct super_block *pipefs_sb;
 	int err = 0;
 
@@ -530,9 +530,25 @@ static struct nfs_client *nfs_get_client_for_event(struct net *net, int event)
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 	struct dentry *cl_dentry;
 	struct nfs_client *clp;
+	int err;
 
+restart:
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
+		/* Wait for initialisation to finish */
+		if (clp->cl_cons_state == NFS_CS_INITING) {
+			atomic_inc(&clp->cl_count);
+			spin_unlock(&nn->nfs_client_lock);
+			err = nfs_wait_client_init_complete(clp);
+			nfs_put_client(clp);
+			if (err)
+				return NULL;
+			goto restart;
+		}
+		/* Skip nfs_clients that failed to initialise */
+		if (clp->cl_cons_state < 0)
+			continue;
+		smp_rmb();
 		if (clp->rpc_ops != &nfs_v4_clientops)
 			continue;
 		cl_dentry = clp->cl_idmap->idmap_pipe->dentry;
@@ -554,12 +570,16 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 	struct nfs_client *clp;
 	int error = 0;
 
+	if (!try_module_get(THIS_MODULE))
+		return 0;
+
 	while ((clp = nfs_get_client_for_event(sb->s_fs_info, event))) {
 		error = __rpc_pipefs_event(clp, event, sb);
 		nfs_put_client(clp);
 		if (error)
 			break;
 	}
+	module_put(THIS_MODULE);
 	return error;
 }
 
@@ -636,20 +656,16 @@ static int nfs_idmap_legacy_upcall(struct key_construction *cons,
 	struct idmap_msg *im;
 	struct idmap *idmap = (struct idmap *)aux;
 	struct key *key = cons->key;
-	int ret;
+	int ret = -ENOMEM;
 
 	/* msg and im are freed in idmap_pipe_destroy_msg */
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
-	if (IS_ERR(msg)) {
-		ret = PTR_ERR(msg);
+	if (!msg)
 		goto out0;
-	}
 
 	im = kmalloc(sizeof(*im), GFP_KERNEL);
-	if (IS_ERR(im)) {
-		ret = PTR_ERR(im);
+	if (!im)
 		goto out1;
-	}
 
 	ret = nfs_idmap_prepare_message(key->description, im, msg);
 	if (ret < 0)

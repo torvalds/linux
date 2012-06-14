@@ -1000,6 +1000,11 @@ static int __devinit rtsx_probe(struct pci_dev *pci,
 
 	rtsx_init_chip(dev->chip);
 
+	/* set the supported max_lun and max_id for the scsi host
+	 * NOTE: the minimal value of max_id is 1 */
+	host->max_id = 1;
+	host->max_lun = dev->chip->max_lun;
+
 	/* Start up our control thread */
 	th = kthread_run(rtsx_control_thread, dev, CR_DRIVER_NAME);
 	if (IS_ERR(th)) {

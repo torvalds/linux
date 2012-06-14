@@ -344,10 +344,8 @@ setsym:
 
 int conf_read(const char *name)
 {
-	struct symbol *sym, *choice_sym;
-	struct property *prop;
-	struct expr *e;
-	int i, flags;
+	struct symbol *sym;
+	int i;
 
 	sym_set_change_count(0);
 
@@ -357,7 +355,7 @@ int conf_read(const char *name)
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
 		if (sym_is_choice(sym) || (sym->flags & SYMBOL_AUTO))
-			goto sym_ok;
+			continue;
 		if (sym_has_value(sym) && (sym->flags & SYMBOL_WRITE)) {
 			/* check that calculated value agrees with saved value */
 			switch (sym->type) {
@@ -366,30 +364,18 @@ int conf_read(const char *name)
 				if (sym->def[S_DEF_USER].tri != sym_get_tristate_value(sym))
 					break;
 				if (!sym_is_choice(sym))
-					goto sym_ok;
+					continue;
 				/* fall through */
 			default:
 				if (!strcmp(sym->curr.val, sym->def[S_DEF_USER].val))
-					goto sym_ok;
+					continue;
 				break;
 			}
 		} else if (!sym_has_value(sym) && !(sym->flags & SYMBOL_WRITE))
 			/* no previous value and not saved */
-			goto sym_ok;
+			continue;
 		conf_unsaved++;
 		/* maybe print value in verbose mode... */
-	sym_ok:
-		if (!sym_is_choice(sym))
-			continue;
-		/* The choice symbol only has a set value (and thus is not new)
-		 * if all its visible childs have values.
-		 */
-		prop = sym_get_choice_prop(sym);
-		flags = sym->flags;
-		expr_list_for_each_sym(prop->expr, e, choice_sym)
-			if (choice_sym->visible != no)
-				flags &= choice_sym->flags;
-		sym->flags &= flags | ~SYMBOL_DEF_USER;
 	}
 
 	for_all_symbols(i, sym) {
@@ -550,35 +536,6 @@ header_print_comment(FILE *fp, const char *value, void *arg)
 static struct conf_printer header_printer_cb =
 {
 	.print_symbol = header_print_symbol,
-	.print_comment = header_print_comment,
-};
-
-/*
- * Generate the __enabled_CONFIG_* and __enabled_CONFIG_*_MODULE macros for
- * use by the IS_{ENABLED,BUILTIN,MODULE} macros. The _MODULE variant is
- * generated even for booleans so that the IS_ENABLED() macro works.
- */
-static void
-header_print__enabled_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
-{
-
-	switch (sym->type) {
-	case S_BOOLEAN:
-	case S_TRISTATE: {
-		fprintf(fp, "#define __enabled_" CONFIG_ "%s %d\n",
-		    sym->name, (*value == 'y'));
-		fprintf(fp, "#define __enabled_" CONFIG_ "%s_MODULE %d\n",
-		    sym->name, (*value == 'm'));
-		break;
-	}
-	default:
-		break;
-	}
-}
-
-static struct conf_printer header__enabled_printer_cb =
-{
-	.print_symbol = header_print__enabled_symbol,
 	.print_comment = header_print_comment,
 };
 
@@ -963,16 +920,11 @@ int conf_write_autoconf(void)
 	conf_write_heading(out_h, &header_printer_cb, NULL);
 
 	for_all_symbols(i, sym) {
-		if (!sym->name)
-			continue;
-
 		sym_calc_value(sym);
-
-		conf_write_symbol(out_h, sym, &header__enabled_printer_cb, NULL);
-
-		if (!(sym->flags & SYMBOL_WRITE))
+		if (!(sym->flags & SYMBOL_WRITE) || !sym->name)
 			continue;
 
+		/* write symbol to auto.conf, tristate and header files */
 		conf_write_symbol(out, sym, &kconfig_printer_cb, (void *)1);
 
 		conf_write_symbol(tristate, sym, &tristate_printer_cb, (void *)1);

@@ -76,6 +76,7 @@ config TABLET_USB_KBTAB
 config TABLET_USB_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"
 	depends on USB_ARCH_HAS_HCD
+	select POWER_SUPPLY
 	select USB
 	select NEW_LEDS
 	select LEDS_CLASS

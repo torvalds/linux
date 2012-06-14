@@ -268,8 +268,6 @@ static struct mtd_partition palmtx_partition_info[] = {
 	},
 };
 
-static const char *palmtx_part_probes[] = { "cmdlinepart", NULL };
-
 struct platform_nand_data palmtx_nand_platdata = {
 	.chip	= {
 		.nr_chips		= 1,
@@ -277,7 +275,6 @@ struct platform_nand_data palmtx_nand_platdata = {
 		.nr_partitions		= ARRAY_SIZE(palmtx_partition_info),
 		.partitions		= palmtx_partition_info,
 		.chip_delay		= 20,
-		.part_probe_types 	= palmtx_part_probes,
 	},
 	.ctrl	= {
 		.cmd_ctrl	= palmtx_nand_cmd_ctl,
@@ -366,6 +363,7 @@ static void __init palmtx_init(void)
 MACHINE_START(PALMTX, "Palm T|X")
 	.atag_offset	= 0x100,
 	.map_io		= palmtx_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,

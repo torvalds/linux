@@ -182,6 +182,9 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 {
 	struct flash_platform_data *plat = dev->dev.platform_data;
 	struct ixp4xx_flash_info *info;
+	struct mtd_part_parser_data ppdata = {
+		.origin = dev->resource->start,
+	};
 	int err = -1;
 
 	if (!plat)
@@ -247,7 +250,7 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	/* Use the fast version */
 	info->map.write = ixp4xx_write16;
 
-	err = mtd_device_parse_register(info->mtd, probes, dev->resource->start,
+	err = mtd_device_parse_register(info->mtd, probes, &ppdata,
 			plat->parts, plat->nr_parts);
 	if (err) {
 		printk(KERN_ERR "Could not parse partitions\n");

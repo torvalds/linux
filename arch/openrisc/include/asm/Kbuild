@@ -1,9 +1,11 @@
 include include/asm-generic/Kbuild.asm
 
-header-y += spr_defs.h
+header-y += elf.h
+header-y += ucontext.h
 
 generic-y += atomic.h
 generic-y += auxvec.h
+generic-y += barrier.h
 generic-y += bitsperlong.h
 generic-y += bug.h
 generic-y += bugs.h
@@ -19,6 +21,7 @@ generic-y += div64.h
 generic-y += dma.h
 generic-y += emergency-restart.h
 generic-y += errno.h
+generic-y += exec.h
 generic-y += fb.h
 generic-y += fcntl.h
 generic-y += ftrace.h
@@ -55,6 +58,7 @@ generic-y += sockios.h
 generic-y += statfs.h
 generic-y += stat.h
 generic-y += string.h
+generic-y += switch_to.h
 generic-y += swab.h
 generic-y += termbits.h
 generic-y += termios.h
@@ -62,3 +66,4 @@ generic-y += topology.h
 generic-y += types.h
 generic-y += ucontext.h
 generic-y += user.h
+generic-y += word-at-a-time.h

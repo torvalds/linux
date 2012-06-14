@@ -232,12 +232,12 @@ static int handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if ((p->addr & PAGE_MASK) == IOAPIC_DEFAULT_BASE_ADDRESS)
 		goto mmio;
 	vcpu->mmio_needed = 1;
-	vcpu->mmio_phys_addr = kvm_run->mmio.phys_addr = p->addr;
-	vcpu->mmio_size = kvm_run->mmio.len = p->size;
+	vcpu->mmio_fragments[0].gpa = kvm_run->mmio.phys_addr = p->addr;
+	vcpu->mmio_fragments[0].len = kvm_run->mmio.len = p->size;
 	vcpu->mmio_is_write = kvm_run->mmio.is_write = !p->dir;
 
 	if (vcpu->mmio_is_write)
-		memcpy(vcpu->mmio_data, &p->data, p->size);
+		memcpy(vcpu->arch.mmio_data, &p->data, p->size);
 	memcpy(kvm_run->mmio.data, &p->data, p->size);
 	kvm_run->exit_reason = KVM_EXIT_MMIO;
 	return 0;
@@ -719,7 +719,7 @@ static void kvm_set_mmio_data(struct kvm_vcpu *vcpu)
 	struct kvm_mmio_req *p = kvm_get_vcpu_ioreq(vcpu);
 
 	if (!vcpu->mmio_is_write)
-		memcpy(&p->data, vcpu->mmio_data, 8);
+		memcpy(&p->data, vcpu->arch.mmio_data, 8);
 	p->state = STATE_IORESP_READY;
 }
 
@@ -739,7 +739,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	if (vcpu->mmio_needed) {
-		memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);
+		memcpy(vcpu->arch.mmio_data, kvm_run->mmio.data, 8);
 		kvm_set_mmio_data(vcpu);
 		vcpu->mmio_read_completed = 1;
 		vcpu->mmio_needed = 0;
@@ -809,9 +809,12 @@ static void kvm_build_io_pmt(struct kvm *kvm)
 #define GUEST_PHYSICAL_RR4	0x2739
 #define VMM_INIT_RR		0x1660
 
-int kvm_arch_init_vm(struct kvm *kvm)
+int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	BUG_ON(!kvm);
+
+	if (type)
+		return -EINVAL;
 
 	kvm->arch.is_sn2 = ia64_platform_is("sn2");
 
@@ -1168,6 +1171,11 @@ out:
 }
 
 #define PALE_RESET_ENTRY    0x80000000ffffffb0UL
+
+bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu)
+{
+	return irqchip_in_kernel(vcpu->kvm) == (vcpu->arch.apic != NULL);
+}
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
@@ -1563,6 +1571,21 @@ out:
 	return r;
 }
 
+int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
+{
+	return VM_FAULT_SIGBUS;
+}
+
+void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+			   struct kvm_memory_slot *dont)
+{
+}
+
+int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+{
+	return 0;
+}
+
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		struct kvm_memory_slot *memslot,
 		struct kvm_memory_slot old,
@@ -1849,21 +1872,6 @@ void kvm_arch_hardware_unsetup(void)
 {
 }
 
-void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
-{
-	int me;
-	int cpu = vcpu->cpu;
-
-	if (waitqueue_active(&vcpu->wq))
-		wake_up_interruptible(&vcpu->wq);
-
-	me = get_cpu();
-	if (cpu != me && (unsigned) cpu < nr_cpu_ids && cpu_online(cpu))
-		if (!test_and_set_bit(KVM_REQ_KICK, &vcpu->requests))
-			smp_send_reschedule(cpu);
-	put_cpu();
-}
-
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq)
 {
 	return __apic_accept_irq(vcpu, irq->vector);
@@ -1931,6 +1939,11 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
 	return (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE) ||
 		(kvm_highest_pending_irq(vcpu) != -1);
+}
+
+int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
+{
+	return (!test_and_set_bit(KVM_REQ_KICK, &vcpu->requests));
 }
 
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,

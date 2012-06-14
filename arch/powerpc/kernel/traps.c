@@ -39,7 +39,6 @@
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
@@ -58,6 +57,8 @@
 #include <asm/ppc-opcode.h>
 #include <asm/rio.h>
 #include <asm/fadump.h>
+#include <asm/switch_to.h>
+#include <asm/debug.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -247,7 +248,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 				   addr, regs->nip, regs->link, code);
 	}
 
-	if (!arch_irq_disabled_regs(regs))
+	if (arch_irqs_disabled() && !arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
 	memset(&info, 0, sizeof(info));
@@ -1018,7 +1019,9 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		return;
 	}
 
-	local_irq_enable();
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
 
 #ifdef CONFIG_MATH_EMULATION
 	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
@@ -1067,6 +1070,10 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 void alignment_exception(struct pt_regs *regs)
 {
 	int sig, code, fixed = 0;
+
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
 
 	/* we don't implement logging of alignment exceptions */
 	if (!(current->thread.align_ctl & PR_UNALIGN_SIGBUS))

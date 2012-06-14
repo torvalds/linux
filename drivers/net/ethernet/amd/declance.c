@@ -64,7 +64,6 @@
 #include <linux/types.h>
 
 #include <asm/addrspace.h>
-#include <asm/system.h>
 
 #include <asm/dec/interrupts.h>
 #include <asm/dec/ioasic.h>

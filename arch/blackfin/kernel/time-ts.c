@@ -66,8 +66,14 @@ void __init setup_gptimer0(void)
 {
 	disable_gptimers(TIMER0bit);
 
+#ifdef CONFIG_BF60x
+	bfin_write16(TIMER_DATA_IMSK, 0);
+	set_gptimer_config(TIMER0_id,  TIMER_OUT_DIS
+		| TIMER_MODE_PWM_CONT | TIMER_PULSE_HI | TIMER_IRQ_PER);
+#else
 	set_gptimer_config(TIMER0_id, \
 		TIMER_OUT_DIS | TIMER_PERIOD_CNT | TIMER_MODE_PWM);
+#endif
 	set_gptimer_period(TIMER0_id, -1);
 	set_gptimer_pwidth(TIMER0_id, -2);
 	SSYNC();
@@ -135,9 +141,15 @@ static void bfin_gptmr0_set_mode(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC: {
+#ifndef CONFIG_BF60x
 		set_gptimer_config(TIMER0_id, \
 			TIMER_OUT_DIS | TIMER_IRQ_ENA | \
 			TIMER_PERIOD_CNT | TIMER_MODE_PWM);
+#else
+		set_gptimer_config(TIMER0_id,  TIMER_OUT_DIS
+			| TIMER_MODE_PWM_CONT | TIMER_PULSE_HI | TIMER_IRQ_PER);
+#endif
+
 		set_gptimer_period(TIMER0_id, get_sclk() / HZ);
 		set_gptimer_pwidth(TIMER0_id, get_sclk() / HZ - 1);
 		enable_gptimers(TIMER0bit);
@@ -145,8 +157,14 @@ static void bfin_gptmr0_set_mode(enum clock_event_mode mode,
 	}
 	case CLOCK_EVT_MODE_ONESHOT:
 		disable_gptimers(TIMER0bit);
+#ifndef CONFIG_BF60x
 		set_gptimer_config(TIMER0_id, \
 			TIMER_OUT_DIS | TIMER_IRQ_ENA | TIMER_MODE_PWM);
+#else
+		set_gptimer_config(TIMER0_id, TIMER_OUT_DIS | TIMER_MODE_PWM
+			| TIMER_PULSE_HI | TIMER_IRQ_WID_DLY);
+#endif
+
 		set_gptimer_period(TIMER0_id, 0);
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
@@ -160,7 +178,7 @@ static void bfin_gptmr0_set_mode(enum clock_event_mode mode,
 
 static void bfin_gptmr0_ack(void)
 {
-	set_gptimer_status(TIMER_GROUP1, TIMER_STATUS_TIMIL0);
+	clear_gptimer_intr(TIMER0_id);
 }
 
 static void __init bfin_gptmr0_init(void)
@@ -197,7 +215,7 @@ static struct clock_event_device clockevent_gptmr0 = {
 	.rating		= 300,
 	.irq		= IRQ_TIMER0,
 	.shift		= 32,
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.features 	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_next_event = bfin_gptmr0_set_next_event,
 	.set_mode	= bfin_gptmr0_set_mode,
 };
@@ -306,6 +324,11 @@ void bfin_coretmr_clockevent_init(void)
 	unsigned long clock_tick;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(coretmr_events, cpu);
+
+#ifdef CONFIG_SMP
+	evt->broadcast = smp_timer_broadcast;
+#endif
+
 
 #ifdef CONFIG_SMP
 	evt->broadcast = smp_timer_broadcast;

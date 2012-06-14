@@ -40,6 +40,10 @@ enum s3c_cpu_type {
 	TYPE_S3C64XX,
 };
 
+struct s3c_rtc_drv_data {
+	int cpu_type;
+};
+
 /* I have yet to find an S3C implementation with more than one
  * of these rtc blocks in */
 
@@ -446,10 +450,12 @@ static const struct of_device_id s3c_rtc_dt_match[];
 static inline int s3c_rtc_get_driver_data(struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
+	struct s3c_rtc_drv_data *data;
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(s3c_rtc_dt_match, pdev->dev.of_node);
-		return match->data;
+		data = (struct s3c_rtc_drv_data *) match->data;
+		return data->cpu_type;
 	}
 #endif
 	return platform_get_device_id(pdev)->driver_data;
@@ -665,19 +671,26 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_OF
+static struct s3c_rtc_drv_data s3c_rtc_drv_data_array[] = {
+	[TYPE_S3C2410] = { TYPE_S3C2410 },
+	[TYPE_S3C2416] = { TYPE_S3C2416 },
+	[TYPE_S3C2443] = { TYPE_S3C2443 },
+	[TYPE_S3C64XX] = { TYPE_S3C64XX },
+};
+
 static const struct of_device_id s3c_rtc_dt_match[] = {
 	{
-		.compatible = "samsung,s3c2410-rtc"
-		.data = TYPE_S3C2410,
+		.compatible = "samsung,s3c2410-rtc",
+		.data = &s3c_rtc_drv_data_array[TYPE_S3C2410],
 	}, {
-		.compatible = "samsung,s3c2416-rtc"
-		.data = TYPE_S3C2416,
+		.compatible = "samsung,s3c2416-rtc",
+		.data = &s3c_rtc_drv_data_array[TYPE_S3C2416],
 	}, {
-		.compatible = "samsung,s3c2443-rtc"
-		.data = TYPE_S3C2443,
+		.compatible = "samsung,s3c2443-rtc",
+		.data = &s3c_rtc_drv_data_array[TYPE_S3C2443],
 	}, {
-		.compatible = "samsung,s3c6410-rtc"
-		.data = TYPE_S3C64XX,
+		.compatible = "samsung,s3c6410-rtc",
+		.data = &s3c_rtc_drv_data_array[TYPE_S3C64XX],
 	},
 	{},
 };

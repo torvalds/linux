@@ -37,7 +37,6 @@
 #include "rts51x_chip.h"
 #include "rts51x_card.h"
 #include "rts51x_transport.h"
-#include "rts51x_sys.h"
 #include "xd.h"
 #include "sd.h"
 #include "ms.h"
@@ -94,7 +93,7 @@ void do_remaining_work(struct rts51x_chip *chip)
 		ms_cleanup_work(chip);
 }
 
-void do_reset_xd_card(struct rts51x_chip *chip)
+static void do_reset_xd_card(struct rts51x_chip *chip)
 {
 	int retval;
 
@@ -148,7 +147,7 @@ void do_reset_sd_card(struct rts51x_chip *chip)
 	}
 }
 
-void do_reset_ms_card(struct rts51x_chip *chip)
+static void do_reset_ms_card(struct rts51x_chip *chip)
 {
 	int retval;
 
@@ -175,7 +174,7 @@ void do_reset_ms_card(struct rts51x_chip *chip)
 	}
 }
 
-void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
+static void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
 		      u8 *need_release)
 {
 	int retval;
@@ -191,7 +190,6 @@ void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
 		goto Exit_Debounce;
 
 	if (chip->card_exist) {
-		rts51x_clear_start_time(chip);
 		retval = rts51x_read_register(chip, CARD_INT_PEND, &value);
 		if (retval != STATUS_SUCCESS) {
 			rts51x_ep0_write_register(chip, MC_FIFO_CTL, FIFO_FLUSH,
@@ -214,17 +212,11 @@ void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
 		}
 	} else {
 		if (chip->card_status & XD_CD) {
-			rts51x_clear_start_time(chip);
 			reset_map |= XD_CARD;
 		} else if (chip->card_status & SD_CD) {
-			rts51x_clear_start_time(chip);
 			reset_map |= SD_CARD;
 		} else if (chip->card_status & MS_CD) {
-			rts51x_clear_start_time(chip);
 			reset_map |= MS_CARD;
-		} else {
-			if (rts51x_check_start_time(chip))
-				rts51x_set_start_time(chip);
 		}
 	}
 
@@ -709,7 +701,7 @@ u8 get_lun_card(struct rts51x_chip *chip, unsigned int lun)
 	return 0;
 }
 
-int card_share_mode(struct rts51x_chip *chip, int card)
+static int card_share_mode(struct rts51x_chip *chip, int card)
 {
 	u8 value;
 
@@ -823,22 +815,6 @@ int enable_card_clock(struct rts51x_chip *chip, u8 card)
 	return STATUS_SUCCESS;
 }
 
-int disable_card_clock(struct rts51x_chip *chip, u8 card)
-{
-	u8 clk_en = 0;
-
-	if (card & XD_CARD)
-		clk_en |= XD_CLK_EN;
-	if (card & SD_CARD)
-		clk_en |= SD_CLK_EN;
-	if (card & MS_CARD)
-		clk_en |= MS_CLK_EN;
-
-	RTS51X_WRITE_REG(chip, CARD_CLK_EN, clk_en, 0);
-
-	return STATUS_SUCCESS;
-}
-
 int card_power_on(struct rts51x_chip *chip, u8 card)
 {
 	u8 mask, val1, val2;
@@ -851,16 +827,7 @@ int card_power_on(struct rts51x_chip *chip, u8 card)
 	if ((card == SD_CARD) || (card == XD_CARD)) {
 		RTS51X_WRITE_REG(chip, CARD_PWR_CTL, mask | LDO3318_PWR_MASK,
 				 val1 | LDO_SUSPEND);
-		/* RTS51X_WRITE_REG(chip, CARD_PWR_CTL,
-				LDO3318_PWR_MASK, LDO_SUSPEND); */
 	}
-	/* else if(card==XD_CARD)
-	{
-		RTS51X_WRITE_REG(chip, CARD_PWR_CTL,
-			mask|LDO3318_PWR_MASK, val1|LDO_SUSPEND);
-		//RTS51X_WRITE_REG(chip, CARD_PWR_CTL,
-		//	LDO3318_PWR_MASK, LDO_SUSPEND);
-	} */
 	else {
 #endif
 		RTS51X_WRITE_REG(chip, CARD_PWR_CTL, mask, val1);
@@ -875,17 +842,6 @@ int card_power_on(struct rts51x_chip *chip, u8 card)
 				      LDO_ON);
 	}
 #endif
-
-	return STATUS_SUCCESS;
-}
-
-int card_power_off(struct rts51x_chip *chip, u8 card)
-{
-	u8 mask, val;
-
-	mask = POWER_MASK;
-	val = POWER_OFF;
-	RTS51X_WRITE_REG(chip, CARD_PWR_CTL, mask, val);
 
 	return STATUS_SUCCESS;
 }

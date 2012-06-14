@@ -22,7 +22,7 @@ reporting of all the input values but does not provide any alarms.
 Voltage Monitoring
 ------------------
 
-Voltages are sampled by a 12 bit ADC.  Voltages in milivolts are 1.465
+Voltages are sampled by a 12 bit ADC.  Voltages in millivolts are 1.465
 times the ADC value.
 
 Temperature Monitoring

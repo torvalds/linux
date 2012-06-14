@@ -15,6 +15,7 @@
 
 #include <linux/cpumask.h>
 #include <linux/module.h>
+#include <linux/hugetlb.h>
 #include <asm/tlbflush.h>
 #include <asm/homecache.h>
 #include <hv/hypervisor.h>
@@ -49,25 +50,25 @@ void flush_tlb_current_task(void)
 	flush_tlb_mm(current->mm);
 }
 
-void flush_tlb_page_mm(const struct vm_area_struct *vma, struct mm_struct *mm,
+void flush_tlb_page_mm(struct vm_area_struct *vma, struct mm_struct *mm,
 		       unsigned long va)
 {
-	unsigned long size = hv_page_size(vma);
+	unsigned long size = vma_kernel_pagesize(vma);
 	int cache = (vma->vm_flags & VM_EXEC) ? HV_FLUSH_EVICT_L1I : 0;
 	flush_remote(0, cache, mm_cpumask(mm),
 		     va, size, size, mm_cpumask(mm), NULL, 0);
 }
 
-void flush_tlb_page(const struct vm_area_struct *vma, unsigned long va)
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 {
 	flush_tlb_page_mm(vma, vma->vm_mm, va);
 }
 EXPORT_SYMBOL(flush_tlb_page);
 
-void flush_tlb_range(const struct vm_area_struct *vma,
+void flush_tlb_range(struct vm_area_struct *vma,
 		     unsigned long start, unsigned long end)
 {
-	unsigned long size = hv_page_size(vma);
+	unsigned long size = vma_kernel_pagesize(vma);
 	struct mm_struct *mm = vma->vm_mm;
 	int cache = (vma->vm_flags & VM_EXEC) ? HV_FLUSH_EVICT_L1I : 0;
 	flush_remote(0, cache, mm_cpumask(mm), start, end - start, size,

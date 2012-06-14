@@ -49,7 +49,7 @@ you can put:
 
  options floppy omnibook messages
 
-in /etc/modprobe.conf.
+in a configuration file in /etc/modprobe.d/.
 
 
  The floppy driver related options are:

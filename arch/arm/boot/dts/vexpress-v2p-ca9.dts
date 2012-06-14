@@ -105,8 +105,13 @@
 	timer@1e000600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x1e000600 0x20>;
-		interrupts = <1 2 0xf04>,
-			     <1 3 0xf04>;
+		interrupts = <1 13 0xf04>;
+	};
+
+	watchdog@1e000620 {
+		compatible = "arm,cortex-a9-twd-wdt";
+		reg = <0x1e000620 0x20>;
+		interrupts = <1 14 0xf04>;
 	};
 
 	gic: interrupt-controller@1e001000 {

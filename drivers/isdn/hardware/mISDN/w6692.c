@@ -465,6 +465,7 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 {
 	struct w6692_hw *card = wch->bch.hw;
 	u8 *ptr;
+	int maxlen;
 
 	pr_debug("%s: empty_Bfifo %d\n", card->name, count);
 	if (unlikely(wch->bch.state == ISDN_P_NONE)) {
@@ -474,20 +475,18 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 			skb_trim(wch->bch.rx_skb, 0);
 		return;
 	}
-	if (!wch->bch.rx_skb) {
-		wch->bch.rx_skb = mI_alloc_skb(wch->bch.maxlen, GFP_ATOMIC);
-		if (unlikely(!wch->bch.rx_skb)) {
-			pr_info("%s: B receive out of memory\n", card->name);
-			WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK |
-				    W_B_CMDR_RACT);
-			return;
-		}
-	}
-	if (wch->bch.rx_skb->len + count > wch->bch.maxlen) {
-		pr_debug("%s: empty_Bfifo incoming packet too large\n",
-			 card->name);
+	if (test_bit(FLG_RX_OFF, &wch->bch.Flags)) {
+		wch->bch.dropcnt += count;
 		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);
-		skb_trim(wch->bch.rx_skb, 0);
+		return;
+	}
+	maxlen = bchannel_get_rxbuf(&wch->bch, count);
+	if (maxlen < 0) {
+		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);
+		if (wch->bch.rx_skb)
+			skb_trim(wch->bch.rx_skb, 0);
+		pr_warning("%s.B%d: No bufferspace for %d bytes\n",
+			   card->name, wch->bch.nr, count);
 		return;
 	}
 	ptr = skb_put(wch->bch.rx_skb, count);
@@ -504,16 +503,22 @@ static void
 W6692_fill_Bfifo(struct w6692_ch *wch)
 {
 	struct w6692_hw *card = wch->bch.hw;
-	int count;
+	int count, fillempty = 0;
 	u8 *ptr, cmd = W_B_CMDR_RACT | W_B_CMDR_XMS;
 
 	pr_debug("%s: fill Bfifo\n", card->name);
-	if (!wch->bch.tx_skb)
-		return;
-	count = wch->bch.tx_skb->len - wch->bch.tx_idx;
-	if (count <= 0)
-		return;
-	ptr = wch->bch.tx_skb->data + wch->bch.tx_idx;
+	if (!wch->bch.tx_skb) {
+		if (!test_bit(FLG_TX_EMPTY, &wch->bch.Flags))
+			return;
+		ptr = wch->bch.fill;
+		count = W_B_FIFO_THRESH;
+		fillempty = 1;
+	} else {
+		count = wch->bch.tx_skb->len - wch->bch.tx_idx;
+		if (count <= 0)
+			return;
+		ptr = wch->bch.tx_skb->data + wch->bch.tx_idx;
+	}
 	if (count > W_B_FIFO_THRESH)
 		count = W_B_FIFO_THRESH;
 	else if (test_bit(FLG_HDLC, &wch->bch.Flags))
@@ -522,9 +527,16 @@ W6692_fill_Bfifo(struct w6692_ch *wch)
 	pr_debug("%s: fill Bfifo%d/%d\n", card->name,
 		 count, wch->bch.tx_idx);
 	wch->bch.tx_idx += count;
-	outsb(wch->addr + W_B_XFIFO, ptr, count);
+	if (fillempty) {
+		while (count > 0) {
+			outsb(wch->addr + W_B_XFIFO, ptr, MISDN_BCH_FILL_SIZE);
+			count -= MISDN_BCH_FILL_SIZE;
+		}
+	} else {
+		outsb(wch->addr + W_B_XFIFO, ptr, count);
+	}
 	WriteW6692B(wch, W_B_CMDR, cmd);
-	if (debug & DEBUG_HW_DFIFO) {
+	if ((debug & DEBUG_HW_BFIFO) && !fillempty) {
 		snprintf(card->log, 63, "B%1d-send %s %d ",
 			 wch->bch.nr, card->name, count);
 		print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET, ptr, count);
@@ -638,17 +650,17 @@ w6692_mode(struct w6692_ch *wch, u32 pr)
 static void
 send_next(struct w6692_ch *wch)
 {
-	if (wch->bch.tx_skb && wch->bch.tx_idx < wch->bch.tx_skb->len)
+	if (wch->bch.tx_skb && wch->bch.tx_idx < wch->bch.tx_skb->len) {
 		W6692_fill_Bfifo(wch);
-	else {
-		if (wch->bch.tx_skb) {
-			/* send confirm, on trans, free on hdlc. */
-			if (test_bit(FLG_TRANSPARENT, &wch->bch.Flags))
-				confirm_Bsend(&wch->bch);
+	} else {
+		if (wch->bch.tx_skb)
 			dev_kfree_skb(wch->bch.tx_skb);
-		}
-		if (get_next_bframe(&wch->bch))
+		if (get_next_bframe(&wch->bch)) {
 			W6692_fill_Bfifo(wch);
+			test_and_clear_bit(FLG_TX_EMPTY, &wch->bch.Flags);
+		} else if (test_bit(FLG_TX_EMPTY, &wch->bch.Flags)) {
+			W6692_fill_Bfifo(wch);
+		}
 	}
 }
 
@@ -698,7 +710,7 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 			if (count == 0)
 				count = W_B_FIFO_THRESH;
 			W6692_empty_Bfifo(wch, count);
-			recv_Bchannel(&wch->bch, 0);
+			recv_Bchannel(&wch->bch, 0, false);
 		}
 	}
 	if (stat & W_B_EXI_RMR) {
@@ -714,9 +726,8 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 				    W_B_CMDR_RRST | W_B_CMDR_RACT);
 		} else {
 			W6692_empty_Bfifo(wch, W_B_FIFO_THRESH);
-			if (test_bit(FLG_TRANSPARENT, &wch->bch.Flags) &&
-			    wch->bch.rx_skb && (wch->bch.rx_skb->len > 0))
-				recv_Bchannel(&wch->bch, 0);
+			if (test_bit(FLG_TRANSPARENT, &wch->bch.Flags))
+				recv_Bchannel(&wch->bch, 0, false);
 		}
 	}
 	if (stat & W_B_EXI_RDOV) {
@@ -738,8 +749,8 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 				 wch->bch.nr, star);
 		}
 		if (star & W_B_STAR_XDOW) {
-			pr_debug("%s: B%d XDOW proto=%x\n", card->name,
-				 wch->bch.nr, wch->bch.state);
+			pr_warning("%s: B%d XDOW proto=%x\n", card->name,
+				   wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 			wch->bch.err_xdu++;
 #endif
@@ -752,20 +763,21 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 			}
 		}
 		send_next(wch);
-		if (stat & W_B_EXI_XDUN)
+		if (star & W_B_STAR_XDOW)
 			return; /* handle XDOW only once */
 	}
 	if (stat & W_B_EXI_XDUN) {
-		pr_debug("%s: B%d XDUN proto=%x\n", card->name,
-			 wch->bch.nr, wch->bch.state);
+		pr_warning("%s: B%d XDUN proto=%x\n", card->name,
+			   wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 		wch->bch.err_xdu++;
 #endif
-		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_XRST | W_B_CMDR_RACT);
-		/* resend */
+		/* resend - no XRST needed */
 		if (wch->bch.tx_skb) {
 			if (!test_bit(FLG_TRANSPARENT, &wch->bch.Flags))
 				wch->bch.tx_idx = 0;
+		} else if (test_bit(FLG_FILLEMPTY, &wch->bch.Flags)) {
+			test_and_set_bit(FLG_TX_EMPTY, &wch->bch.Flags);
 		}
 		send_next(wch);
 	}
@@ -944,22 +956,17 @@ w6692_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 	struct w6692_hw *card = bch->hw;
 	int ret = -EINVAL;
 	struct mISDNhead *hh = mISDN_HEAD_P(skb);
-	u32 id;
-	u_long flags;
+	unsigned long flags;
 
 	switch (hh->prim) {
 	case PH_DATA_REQ:
 		spin_lock_irqsave(&card->lock, flags);
 		ret = bchannel_senddata(bch, skb);
 		if (ret > 0) { /* direct TX */
-			id = hh->id; /* skb can be freed */
 			ret = 0;
 			W6692_fill_Bfifo(bc);
-			spin_unlock_irqrestore(&card->lock, flags);
-			if (!test_bit(FLG_TRANSPARENT, &bch->Flags))
-				queue_ch_frame(ch, PH_DATA_CNF, id, NULL);
-		} else
-			spin_unlock_irqrestore(&card->lock, flags);
+		}
+		spin_unlock_irqrestore(&card->lock, flags);
 		return ret;
 	case PH_ACTIVATE_REQ:
 		spin_lock_irqsave(&card->lock, flags);
@@ -994,20 +1001,7 @@ w6692_l2l1B(struct mISDNchannel *ch, struct sk_buff *skb)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int	ret = 0;
-
-	switch (cq->op) {
-	case MISDN_CTRL_GETOP:
-		cq->op = 0;
-		break;
-		/* Nothing implemented yet */
-	case MISDN_CTRL_FILL_EMPTY:
-	default:
-		pr_info("%s: unknown Op %x\n", __func__, cq->op);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	return mISDN_ctrl_bchannel(bch, cq);
 }
 
 static int
@@ -1015,14 +1009,13 @@ open_bchannel(struct w6692_hw *card, struct channel_req *rq)
 {
 	struct bchannel *bch;
 
-	if (rq->adr.channel > 2)
+	if (rq->adr.channel == 0 || rq->adr.channel > 2)
 		return -EINVAL;
 	if (rq->protocol == ISDN_P_NONE)
 		return -EINVAL;
 	bch = &card->bc[rq->adr.channel - 1].bch;
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
-	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch;
 	return 0;
@@ -1035,7 +1028,10 @@ channel_ctrl(struct w6692_hw *card, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = 0;
+		cq->op = MISDN_CTRL_L1_TIMER3;
+		break;
+	case MISDN_CTRL_L1_TIMER3:
+		ret = l1_event(card->dch.l1, HW_TIMER3_VALUE | (cq->p1 & 0xff));
 		break;
 	default:
 		pr_info("%s: unknown CTRL OP %x\n", card->name, cq->op);
@@ -1058,15 +1054,10 @@ w6692_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
-		if (test_bit(FLG_ACTIVE, &bch->Flags)) {
-			spin_lock_irqsave(&card->lock, flags);
-			mISDN_freebchannel(bch);
-			w6692_mode(bc, ISDN_P_NONE);
-			spin_unlock_irqrestore(&card->lock, flags);
-		} else {
-			skb_queue_purge(&bch->rqueue);
-			bch->rcount = 0;
-		}
+		spin_lock_irqsave(&card->lock, flags);
+		mISDN_freebchannel(bch);
+		w6692_mode(bc, ISDN_P_NONE);
+		spin_unlock_irqrestore(&card->lock, flags);
 		ch->protocol = ISDN_P_NONE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
@@ -1320,7 +1311,8 @@ setup_instance(struct w6692_hw *card)
 	card->dch.hw = card;
 	card->dch.dev.nrbchan = 2;
 	for (i = 0; i < 2; i++) {
-		mISDN_initbchannel(&card->bc[i].bch, MAX_DATA_MEM);
+		mISDN_initbchannel(&card->bc[i].bch, MAX_DATA_MEM,
+				   W_B_FIFO_THRESH);
 		card->bc[i].bch.hw = card;
 		card->bc[i].bch.nr = i + 1;
 		card->bc[i].bch.ch.nr = i + 1;

@@ -65,6 +65,11 @@ struct symbol {
 
 void symbol__delete(struct symbol *sym);
 
+static inline size_t symbol__size(const struct symbol *sym)
+{
+	return sym->end - sym->start + 1;
+}
+
 struct strlist;
 
 struct symbol_conf {
@@ -237,6 +242,7 @@ void dso__set_long_name(struct dso *dso, char *name);
 void dso__set_build_id(struct dso *dso, void *build_id);
 void dso__read_running_kernel_build_id(struct dso *dso,
 				       struct machine *machine);
+struct map *dso__new_map(const char *name);
 struct symbol *dso__find_symbol(struct dso *dso, enum map_type type,
 				u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,

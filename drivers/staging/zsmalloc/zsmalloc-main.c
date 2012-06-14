@@ -45,12 +45,12 @@ static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
 
 static int is_first_page(struct page *page)
 {
-	return test_bit(PG_private, &page->flags);
+	return PagePrivate(page);
 }
 
 static int is_last_page(struct page *page)
 {
-	return test_bit(PG_private_2, &page->flags);
+	return PagePrivate2(page);
 }
 
 static void get_zspage_mapping(struct page *page, unsigned int *class_idx,
@@ -180,7 +180,7 @@ out:
  * link together 3 PAGE_SIZE sized pages to form a zspage
  * since then we can perfectly fit in 8 such objects.
  */
-static int get_zspage_order(int class_size)
+static int get_pages_per_zspage(int class_size)
 {
 	int i, max_usedpc = 0;
 	/* zspage order which gives maximum used size per KB */
@@ -267,33 +267,39 @@ static unsigned long obj_idx_to_offset(struct page *page,
 	return off + obj_idx * class_size;
 }
 
+static void reset_page(struct page *page)
+{
+	clear_bit(PG_private, &page->flags);
+	clear_bit(PG_private_2, &page->flags);
+	set_page_private(page, 0);
+	page->mapping = NULL;
+	page->freelist = NULL;
+	reset_page_mapcount(page);
+}
+
 static void free_zspage(struct page *first_page)
 {
-	struct page *nextp, *tmp;
+	struct page *nextp, *tmp, *head_extra;
 
 	BUG_ON(!is_first_page(first_page));
 	BUG_ON(first_page->inuse);
 
-	nextp = (struct page *)page_private(first_page);
+	head_extra = (struct page *)page_private(first_page);
 
-	clear_bit(PG_private, &first_page->flags);
-	clear_bit(PG_private_2, &first_page->flags);
-	set_page_private(first_page, 0);
-	first_page->mapping = NULL;
-	first_page->freelist = NULL;
-	reset_page_mapcount(first_page);
+	reset_page(first_page);
 	__free_page(first_page);
 
 	/* zspage with only 1 system page */
-	if (!nextp)
+	if (!head_extra)
 		return;
 
-	list_for_each_entry_safe(nextp, tmp, &nextp->lru, lru) {
+	list_for_each_entry_safe(nextp, tmp, &head_extra->lru, lru) {
 		list_del(&nextp->lru);
-		clear_bit(PG_private_2, &nextp->flags);
-		nextp->index = 0;
+		reset_page(nextp);
 		__free_page(nextp);
 	}
+	reset_page(head_extra);
+	__free_page(head_extra);
 }
 
 /* Initialize a newly allocated zspage */
@@ -362,7 +368,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 	 * identify the last page.
 	 */
 	error = -ENOMEM;
-	for (i = 0; i < class->zspage_order; i++) {
+	for (i = 0; i < class->pages_per_zspage; i++) {
 		struct page *page, *prev_page;
 
 		page = alloc_page(flags);
@@ -371,7 +377,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 
 		INIT_LIST_HEAD(&page->lru);
 		if (i == 0) {	/* first page */
-			set_bit(PG_private, &page->flags);
+			SetPagePrivate(page);
 			set_page_private(page, 0);
 			first_page = page;
 			first_page->inuse = 0;
@@ -382,9 +388,8 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 			page->first_page = first_page;
 		if (i >= 2)
 			list_add(&page->lru, &prev_page->lru);
-		if (i == class->zspage_order - 1)	/* last page */
-			set_bit(PG_private_2, &page->flags);
-
+		if (i == class->pages_per_zspage - 1)	/* last page */
+			SetPagePrivate2(page);
 		prev_page = page;
 	}
 
@@ -392,7 +397,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 
 	first_page->freelist = obj_location_to_handle(first_page, 0);
 	/* Maximum number of objects we can store in this zspage */
-	first_page->objects = class->zspage_order * PAGE_SIZE / class->size;
+	first_page->objects = class->pages_per_zspage * PAGE_SIZE / class->size;
 
 	error = 0; /* Success */
 
@@ -507,7 +512,7 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
 		class->size = size;
 		class->index = i;
 		spin_lock_init(&class->lock);
-		class->zspage_order = get_zspage_order(size);
+		class->pages_per_zspage = get_pages_per_zspage(size);
 
 	}
 
@@ -561,13 +566,9 @@ EXPORT_SYMBOL_GPL(zs_destroy_pool);
  * zs_malloc - Allocate block of given size from pool.
  * @pool: pool to allocate from
  * @size: size of block to allocate
- * @page: page no. that holds the object
- * @offset: location of object within page
  *
- * On success, <page, offset> identifies block allocated
- * and 0 is returned. On failure, <page, offset> is set to
- * 0 and -ENOMEM is returned.
- *
+ * On success, handle to the allocated object is returned,
+ * otherwise NULL.
  * Allocation requests with size > ZS_MAX_ALLOC_SIZE will fail.
  */
 void *zs_malloc(struct zs_pool *pool, size_t size)
@@ -598,7 +599,7 @@ void *zs_malloc(struct zs_pool *pool, size_t size)
 
 		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
 		spin_lock(&class->lock);
-		class->pages_allocated += class->zspage_order;
+		class->pages_allocated += class->pages_per_zspage;
 	}
 
 	obj = first_page->freelist;
@@ -653,7 +654,7 @@ void zs_free(struct zs_pool *pool, void *obj)
 	fullness = fix_fullness_group(pool, first_page);
 
 	if (fullness == ZS_EMPTY)
-		class->pages_allocated -= class->zspage_order;
+		class->pages_allocated -= class->pages_per_zspage;
 
 	spin_unlock(&class->lock);
 
@@ -662,6 +663,15 @@ void zs_free(struct zs_pool *pool, void *obj)
 }
 EXPORT_SYMBOL_GPL(zs_free);
 
+/**
+ * zs_map_object - get address of allocated object from handle.
+ * @pool: pool from which the object was allocated
+ * @handle: handle returned from zs_malloc
+ *
+ * Before using an object allocated from zs_malloc, it must be mapped using
+ * this function. When done with the object, it must be unmapped using
+ * zs_unmap_object
+*/
 void *zs_map_object(struct zs_pool *pool, void *handle)
 {
 	struct page *page;

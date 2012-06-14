@@ -14,6 +14,7 @@
 #include <acpi/processor.h>
 #include <asm/acpi.h>
 #include <asm/mwait.h>
+#include <asm/special_insns.h>
 
 /*
  * Initialize bm_flags based on the CPU cache properties

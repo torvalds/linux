@@ -358,6 +358,7 @@ static const char *usbfs_dir_find(void)
 {
 	static char usbfs_path_0[] = "/dev/usb/devices";
 	static char usbfs_path_1[] = "/proc/bus/usb/devices";
+	static char udev_usb_path[] = "/dev/bus/usb";
 
 	static char *const usbfs_paths[] = {
 		usbfs_path_0, usbfs_path_1
@@ -375,6 +376,10 @@ static const char *usbfs_dir_find(void)
 			return *it;
 		}
 	} while (++it != end);
+
+	/* real device-nodes managed by udev */
+	if (access(udev_usb_path, F_OK) == 0)
+		return udev_usb_path;
 
 	return NULL;
 }

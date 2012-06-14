@@ -30,7 +30,6 @@ struct amba_device {
 	struct device		dev;
 	struct resource		res;
 	struct clk		*pclk;
-	struct regulator	*vcore;
 	u64			dma_mask;
 	unsigned int		periphid;
 	unsigned int		irq[AMBA_NR_IRQS];
@@ -64,6 +63,14 @@ struct amba_device *amba_device_alloc(const char *, resource_size_t, size_t);
 void amba_device_put(struct amba_device *);
 int amba_device_add(struct amba_device *, struct resource *);
 int amba_device_register(struct amba_device *, struct resource *);
+struct amba_device *amba_apb_device_add(struct device *parent, const char *name,
+					resource_size_t base, size_t size,
+					int irq1, int irq2, void *pdata,
+					unsigned int periphid);
+struct amba_device *amba_ahb_device_add(struct device *parent, const char *name,
+					resource_size_t base, size_t size,
+					int irq1, int irq2, void *pdata,
+					unsigned int periphid);
 void amba_device_unregister(struct amba_device *);
 struct amba_device *amba_find_device(const char *, struct device *, unsigned int, unsigned int);
 int amba_request_regions(struct amba_device *, const char *);
@@ -74,12 +81,6 @@ void amba_release_regions(struct amba_device *);
 
 #define amba_pclk_disable(d)	\
 	do { if (!IS_ERR((d)->pclk)) clk_disable((d)->pclk); } while (0)
-
-#define amba_vcore_enable(d)	\
-	(IS_ERR((d)->vcore) ? 0 : regulator_enable((d)->vcore))
-
-#define amba_vcore_disable(d)	\
-	do { if (!IS_ERR((d)->vcore)) regulator_disable((d)->vcore); } while (0)
 
 /* Some drivers don't use the struct amba_device */
 #define AMBA_CONFIG_BITS(a) (((a) >> 24) & 0xff)

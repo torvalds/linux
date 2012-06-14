@@ -113,7 +113,6 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 
 #include <net/neighbour.h>
 
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
 

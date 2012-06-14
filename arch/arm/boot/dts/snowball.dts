@@ -1,0 +1,155 @@
+/*
+ * Copyright 2011 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "db8500.dtsi"
+
+/ {
+	model = "Calao Systems Snowball platform with device tree";
+	compatible = "calaosystems,snowball-a9500";
+
+	memory {
+		reg = <0x00000000 0x20000000>;
+	};
+
+	en_3v3_reg: en_3v3 {
+		compatible = "regulator-fixed";
+                regulator-name = "en-3v3-fixed-supply";
+                regulator-min-microvolt = <3300000>;
+                regulator-max-microvolt = <3300000>;
+                gpios = <&gpio0 26  0x4>; // 26
+                startup-delay-us = <5000>;
+                enable-active-high;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <2>;
+			label = "userpb";
+			gpios = <&gpio1 0 0x4>;
+		};
+		button@2 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <3>;
+			label = "extkb1";
+			gpios = <&gpio4 23 0x4>;
+		};
+		button@3 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <4>;
+			label = "extkb2";
+			gpios = <&gpio4 24 0x4>;
+		};
+		button@4 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <5>;
+			label = "extkb3";
+			gpios = <&gpio5 1 0x4>;
+		};
+		button@5 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <6>;
+			label = "extkb4";
+			gpios = <&gpio5 2 0x4>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		used-led {
+			label = "user_led";
+			gpios = <&gpio4 14 0x4>;
+		};
+	};
+
+	soc-u9500 {
+		external-bus@50000000 {
+			status = "okay";
+
+			ethernet@0 {
+				compatible = "smsc,lan9115";
+				reg = <0 0x10000>;
+				interrupts = <12 0x1>;
+				interrupt-parent = <&gpio4>;
+				vdd33a-supply = <&en_3v3_reg>;
+				vddvario-supply = <&db8500_vape_reg>;
+
+
+				reg-shift = <1>;
+				reg-io-width = <2>;
+				smsc,force-internal-phy;
+				smsc,irq-active-high;
+				smsc,irq-push-pull;
+			};
+		};
+
+		sdi@80126000 {
+			status = "enabled";
+			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			cd-gpios  = <&gpio6 26 0x4>; // 218
+		};
+
+		sdi@80114000 {
+			status = "enabled";
+			vmmc-supply = <&ab8500_ldo_aux2_reg>;
+		};
+
+		uart@80120000 {
+			status = "okay";
+		};
+
+		uart@80121000 {
+			status = "okay";
+		};
+
+		uart@80007000 {
+			status = "okay";
+		};
+
+		i2c@80004000 {
+			tc3589x@42 {
+				//compatible = "tc3589x";
+				reg = <0x42>;
+				gpios = <&gpio6 25 0x4>;
+				interrupt-parent = <&gpio6>;
+			};
+			tps61052@33 {
+				//compatible = "tps61052";
+				reg = <0x33>;
+			};
+		};
+
+		i2c@80128000 {
+			lp5521@0x33 {
+				// compatible = "lp5521";
+				reg = <0x33>;
+			};
+			lp5521@0x34 {
+				// compatible = "lp5521";
+				reg = <0x34>;
+			};
+			bh1780@0x29 {
+				// compatible = "rohm,bh1780gli";
+				reg = <0x33>;
+			};
+		};
+	};
+};

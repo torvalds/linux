@@ -70,9 +70,9 @@ static int __devinit generic_onenand_probe(struct platform_device *pdev)
 		goto out_iounmap;
 	}
 
-	err = mtd_device_parse_register(&info->mtd, NULL, 0,
-			pdata ? pdata->parts : NULL,
-			pdata ? pdata->nr_parts : 0);
+	err = mtd_device_parse_register(&info->mtd, NULL, NULL,
+					pdata ? pdata->parts : NULL,
+					pdata ? pdata->nr_parts : 0);
 
 	platform_set_drvdata(pdev, info);
 

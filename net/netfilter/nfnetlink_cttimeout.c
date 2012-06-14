@@ -170,11 +170,12 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 pid, u32 seq, u32 type,
 	nfmsg->version = NFNETLINK_V0;
 	nfmsg->res_id = 0;
 
-	NLA_PUT_STRING(skb, CTA_TIMEOUT_NAME, timeout->name);
-	NLA_PUT_BE16(skb, CTA_TIMEOUT_L3PROTO, htons(timeout->l3num));
-	NLA_PUT_U8(skb, CTA_TIMEOUT_L4PROTO, timeout->l4proto->l4proto);
-	NLA_PUT_BE32(skb, CTA_TIMEOUT_USE,
-			htonl(atomic_read(&timeout->refcnt)));
+	if (nla_put_string(skb, CTA_TIMEOUT_NAME, timeout->name) ||
+	    nla_put_be16(skb, CTA_TIMEOUT_L3PROTO, htons(timeout->l3num)) ||
+	    nla_put_u8(skb, CTA_TIMEOUT_L4PROTO, timeout->l4proto->l4proto) ||
+	    nla_put_be32(skb, CTA_TIMEOUT_USE,
+			 htonl(atomic_read(&timeout->refcnt))))
+		goto nla_put_failure;
 
 	if (likely(l4proto->ctnl_timeout.obj_to_nlattr)) {
 		struct nlattr *nest_parms;

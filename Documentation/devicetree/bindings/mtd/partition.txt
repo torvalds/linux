@@ -1,0 +1,38 @@
+Representing flash partitions in devicetree
+
+Partitions can be represented by sub-nodes of an mtd device. This can be used
+on platforms which have strong conventions about which portions of a flash are
+used for what purposes, but which don't use an on-flash partition table such
+as RedBoot.
+
+#address-cells & #size-cells must both be present in the mtd device and be
+equal to 1.
+
+Required properties:
+- reg : The partition's offset and size within the mtd bank.
+
+Optional properties:
+- label : The label / name for this partition.  If omitted, the label is taken
+  from the node name (excluding the unit address).
+- read-only : This parameter, if present, is a hint to Linux that this
+  partition should only be mounted read-only. This is usually used for flash
+  partitions containing early-boot firmware images or data which should not be
+  clobbered.
+
+Examples:
+
+
+flash@0 {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	uimage@100000 {
+		reg = <0x0100000 0x200000>;
+	};
+];

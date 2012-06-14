@@ -4,7 +4,7 @@
 
 / {
 	model = "Globalscale Technologies Dreamplug";
-	compatible = "globalscale,dreamplug-003-ds2001", "globalscale,dreamplug", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+	compatible = "globalscale,dreamplug-003-ds2001", "globalscale,dreamplug", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
 
 	memory {
 		device_type = "memory";
@@ -15,11 +15,10 @@
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
 	};
 
-	serial@f1012000 {
-		compatible = "ns16550a";
-		reg = <0xf1012000 0xff>;
-		reg-shift = <2>;
-		interrupts = <33>;
-		clock-frequency = <200000000>;
+	ocp@f1000000 {
+		serial@12000 {
+			clock-frequency = <200000000>;
+			status = "ok";
+		};
 	};
 };

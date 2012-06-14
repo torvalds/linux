@@ -146,7 +146,7 @@ static void __cpuinit yos_boot_secondary(int cpu, struct task_struct *idle)
 }
 
 /*
- * Detect available CPUs, populate cpu_possible_map before smp_init
+ * Detect available CPUs, populate cpu_possible_mask before smp_init
  *
  * We don't want to start the secondary CPU yet nor do we have a nice probing
  * feature in PMON so we just assume presence of the secondary core.
@@ -155,10 +155,10 @@ static void __init yos_smp_setup(void)
 {
 	int i;
 
-	cpus_clear(cpu_possible_map);
+	init_cpu_possible(cpu_none_mask);
 
 	for (i = 0; i < 2; i++) {
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 		__cpu_number_map[i]	= i;
 		__cpu_logical_map[i]	= i;
 	}
@@ -169,7 +169,7 @@ static void __init yos_prepare_cpus(unsigned int max_cpus)
 	/*
 	 * Be paranoid.  Enable the IPI only if we're really about to go SMP.
 	 */
-	if (cpus_weight(cpu_possible_map))
+	if (num_possible_cpus())
 		set_c0_status(STATUSF_IP5);
 }
 

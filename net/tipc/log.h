@@ -44,7 +44,6 @@
  * @crs: pointer to first unused space in character array (i.e. final NUL)
  * @echo: echo output to system console if non-zero
  */
-
 struct print_buf {
 	char *buf;
 	u32 size;

@@ -8,9 +8,9 @@
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+#include <asm/facility.h>
 #include <asm/sysinfo.h>
 #include <asm/ebcdic.h>
-#include <asm/system.h>
 #include <asm/debug.h>
 #include <asm/ipl.h>
 

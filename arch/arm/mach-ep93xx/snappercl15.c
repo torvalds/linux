@@ -82,8 +82,6 @@ static int snappercl15_nand_dev_ready(struct mtd_info *mtd)
 	return !!(__raw_readw(NAND_CTRL_ADDR(chip)) & SNAPPERCL15_NAND_RDY);
 }
 
-static const char *snappercl15_nand_part_probes[] = {"cmdlinepart", NULL};
-
 static struct mtd_partition snappercl15_nand_parts[] = {
 	{
 		.name		= "Kernel",
@@ -100,10 +98,8 @@ static struct mtd_partition snappercl15_nand_parts[] = {
 static struct platform_nand_data snappercl15_nand_data = {
 	.chip = {
 		.nr_chips		= 1,
-		.part_probe_types	= snappercl15_nand_part_probes,
 		.partitions		= snappercl15_nand_parts,
 		.nr_partitions		= ARRAY_SIZE(snappercl15_nand_parts),
-		.options		= NAND_NO_AUTOINCR,
 		.chip_delay		= 25,
 	},
 	.ctrl = {
@@ -183,5 +179,6 @@ MACHINE_START(SNAPPER_CL15, "Bluewater Systems Snapper CL15")
 	.handle_irq	= vic_handle_irq,
 	.timer 		= &ep93xx_timer,
 	.init_machine	= snappercl15_init_machine,
+	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END

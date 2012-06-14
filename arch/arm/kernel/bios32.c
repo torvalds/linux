@@ -299,7 +299,6 @@ static inline int pdev_bad_for_parity(struct pci_dev *dev)
  */
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct pci_sys_data *root = bus->sysdata;
 	struct pci_dev *dev;
 	u16 features = PCI_COMMAND_SERR | PCI_COMMAND_PARITY | PCI_COMMAND_FAST_BACK;
 
@@ -375,16 +374,29 @@ EXPORT_SYMBOL(pcibios_fixup_bus);
 #endif
 
 /*
- * Swizzle the device pin each time we cross a bridge.
- * This might update pin and returns the slot number.
+ * Swizzle the device pin each time we cross a bridge.  If a platform does
+ * not provide a swizzle function, we perform the standard PCI swizzling.
+ *
+ * The default swizzling walks up the bus tree one level at a time, applying
+ * the standard swizzle function at each step, stopping when it finds the PCI
+ * root bus.  This will return the slot number of the bridge device on the
+ * root bus and the interrupt pin on that device which should correspond
+ * with the downstream device interrupt.
+ *
+ * Platforms may override this, in which case the slot and pin returned
+ * depend entirely on the platform code.  However, please note that the
+ * PCI standard swizzle is implemented on plug-in cards and Cardbus based
+ * PCI extenders, so it can not be ignored.
  */
 static u8 __devinit pcibios_swizzle(struct pci_dev *dev, u8 *pin)
 {
 	struct pci_sys_data *sys = dev->sysdata;
-	int slot = 0, oldpin = *pin;
+	int slot, oldpin = *pin;
 
 	if (sys->swizzle)
 		slot = sys->swizzle(dev, pin);
+	else
+		slot = pci_common_swizzle(dev, pin);
 
 	if (debug_pci)
 		printk("PCI: %s swizzling pin %d => pin %d slot %d\n",
@@ -411,7 +423,7 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-static void __init pcibios_init_hw(struct hw_pci *hw)
+static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 {
 	struct pci_sys_data *sys = NULL;
 	int ret;
@@ -425,7 +437,6 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 #ifdef CONFIG_PCI_DOMAINS
 		sys->domain  = hw->domain;
 #endif
-		sys->hw      = hw;
 		sys->busnr   = busnr;
 		sys->swizzle = hw->swizzle;
 		sys->map_irq = hw->map_irq;
@@ -441,14 +452,18 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 					 &iomem_resource, sys->mem_offset);
 			}
 
-			sys->bus = hw->scan(nr, sys);
+			if (hw->scan)
+				sys->bus = hw->scan(nr, sys);
+			else
+				sys->bus = pci_scan_root_bus(NULL, sys->busnr,
+						hw->ops, sys, &sys->resources);
 
 			if (!sys->bus)
 				panic("PCI: unable to scan bus!");
 
 			busnr = sys->bus->subordinate + 1;
 
-			list_add(&sys->node, &hw->buses);
+			list_add(&sys->node, head);
 		} else {
 			kfree(sys);
 			if (ret < 0)
@@ -460,19 +475,18 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 void __init pci_common_init(struct hw_pci *hw)
 {
 	struct pci_sys_data *sys;
-
-	INIT_LIST_HEAD(&hw->buses);
+	LIST_HEAD(head);
 
 	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
 	if (hw->preinit)
 		hw->preinit();
-	pcibios_init_hw(hw);
+	pcibios_init_hw(hw, &head);
 	if (hw->postinit)
 		hw->postinit();
 
 	pci_fixup_irqs(pcibios_swizzle, pcibios_map_irq);
 
-	list_for_each_entry(sys, &hw->buses, node) {
+	list_for_each_entry(sys, &head, node) {
 		struct pci_bus *bus = sys->bus;
 
 		if (!pci_has_flag(PCI_PROBE_ONLY)) {

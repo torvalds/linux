@@ -6,6 +6,9 @@
  * Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -32,7 +35,7 @@
 
 static DEFINE_SPINLOCK(stmp3xxx_wdt_io_lock);
 static unsigned long wdt_status;
-static const int nowayout = WATCHDOG_NOWAYOUT;
+static const bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = DEFAULT_HEARTBEAT;
 static unsigned long boot_status;
 
@@ -221,8 +224,7 @@ static int __devinit stmp3xxx_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	printk(KERN_INFO "stmp3xxx watchdog: initialized, heartbeat %d sec\n",
-		heartbeat);
+	pr_info("initialized, heartbeat %d sec\n", heartbeat);
 
 	return ret;
 }

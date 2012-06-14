@@ -17,6 +17,8 @@
 #include <linux/mfd/wm831x/gpio.h>
 #include <linux/mfd/wm8994/pdata.h>
 
+#include <linux/regulator/machine.h>
+
 #include <sound/wm5100.h>
 #include <sound/wm8996.h>
 #include <sound/wm8962.h>
@@ -153,6 +155,14 @@ static const struct i2c_board_info wm1259_devs[] = {
 	},
 };
 
+static struct regulator_init_data wm8994_ldo1 = {
+	.supply_regulator = "WALLVDD",
+};
+
+static struct regulator_init_data wm8994_ldo2 = {
+	.supply_regulator = "WALLVDD",
+};
+
 static struct wm8994_pdata wm8994_pdata = {
 	.gpio_base = CODEC_GPIO_BASE,
 	.gpio_defaults = {
@@ -160,8 +170,8 @@ static struct wm8994_pdata wm8994_pdata = {
 	},
 	.irq_base = CODEC_IRQ_BASE,
 	.ldo = {
-		{ .supply = "WALLVDD" },
-		{ .supply = "WALLVDD" },
+		 { .init_data = &wm8994_ldo1, },
+		 { .init_data = &wm8994_ldo2, },
 	},
 };
 
@@ -170,6 +180,11 @@ static const struct i2c_board_info wm1277_devs[] = {
 	  .platform_data = &wm8994_pdata,
 	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
 	},
+};
+
+static const struct i2c_board_info wm6230_i2c_devs[] = {
+	{ I2C_BOARD_INFO("wm9081", 0x6c),
+	  .platform_data = &wm9081_pdata, },
 };
 
 static __devinitdata const struct {
@@ -185,7 +200,9 @@ static __devinitdata const struct {
 	{ .id = 0x03, .name = "1252-EV1 Glenlivet" },
 	{ .id = 0x11, .name = "6249-EV2 Glenfarclas", },
 	{ .id = 0x14, .name = "6271-EV1 Lochnagar" },
-	{ .id = 0x15, .name = "XXXX-EV1 Bells" },
+	{ .id = 0x15, .name = "6320-EV1 Bells",
+	  .i2c_devs = wm6230_i2c_devs,
+	  .num_i2c_devs = ARRAY_SIZE(wm6230_i2c_devs) },
 	{ .id = 0x21, .name = "1275-EV1 Mortlach" },
 	{ .id = 0x25, .name = "1274-EV1 Glencadam" },
 	{ .id = 0x31, .name = "1253-EV1 Tomatin",

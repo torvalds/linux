@@ -47,17 +47,17 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
  * with the original PRCM protocol defined for OMAP2420
  */
 #define SYSC_TYPE1_MIDLEMODE_SHIFT	12
-#define SYSC_TYPE1_MIDLEMODE_MASK	(0x3 << SYSC_MIDLEMODE_SHIFT)
+#define SYSC_TYPE1_MIDLEMODE_MASK	(0x3 << SYSC_TYPE1_MIDLEMODE_SHIFT)
 #define SYSC_TYPE1_CLOCKACTIVITY_SHIFT	8
-#define SYSC_TYPE1_CLOCKACTIVITY_MASK	(0x3 << SYSC_CLOCKACTIVITY_SHIFT)
+#define SYSC_TYPE1_CLOCKACTIVITY_MASK	(0x3 << SYSC_TYPE1_CLOCKACTIVITY_SHIFT)
 #define SYSC_TYPE1_SIDLEMODE_SHIFT	3
-#define SYSC_TYPE1_SIDLEMODE_MASK	(0x3 << SYSC_SIDLEMODE_SHIFT)
+#define SYSC_TYPE1_SIDLEMODE_MASK	(0x3 << SYSC_TYPE1_SIDLEMODE_SHIFT)
 #define SYSC_TYPE1_ENAWAKEUP_SHIFT	2
-#define SYSC_TYPE1_ENAWAKEUP_MASK	(1 << SYSC_ENAWAKEUP_SHIFT)
+#define SYSC_TYPE1_ENAWAKEUP_MASK	(1 << SYSC_TYPE1_ENAWAKEUP_SHIFT)
 #define SYSC_TYPE1_SOFTRESET_SHIFT	1
-#define SYSC_TYPE1_SOFTRESET_MASK	(1 << SYSC_SOFTRESET_SHIFT)
+#define SYSC_TYPE1_SOFTRESET_MASK	(1 << SYSC_TYPE1_SOFTRESET_SHIFT)
 #define SYSC_TYPE1_AUTOIDLE_SHIFT	0
-#define SYSC_TYPE1_AUTOIDLE_MASK	(1 << SYSC_AUTOIDLE_SHIFT)
+#define SYSC_TYPE1_AUTOIDLE_MASK	(1 << SYSC_TYPE1_AUTOIDLE_SHIFT)
 
 /*
  * OCP SYSCONFIG bit shifts/masks TYPE2. These are for IPs compliant
@@ -213,10 +213,16 @@ struct omap_hwmod_addr_space {
  */
 #define OCP_USER_MPU			(1 << 0)
 #define OCP_USER_SDMA			(1 << 1)
+#define OCP_USER_DSP			(1 << 2)
+#define OCP_USER_IVA			(1 << 3)
 
 /* omap_hwmod_ocp_if.flags bits */
 #define OCPIF_SWSUP_IDLE		(1 << 0)
 #define OCPIF_CAN_BURST			(1 << 1)
+
+/* omap_hwmod_ocp_if._int_flags possibilities */
+#define _OCPIF_INT_FLAGS_REGISTERED	(1 << 0)
+
 
 /**
  * struct omap_hwmod_ocp_if - OCP interface data
@@ -229,6 +235,7 @@ struct omap_hwmod_addr_space {
  * @width: OCP data width
  * @user: initiators using this interface (see OCP_USER_* macros above)
  * @flags: OCP interface flags (see OCPIF_* macros above)
+ * @_int_flags: internal flags (see _OCPIF_INT_FLAGS* macros above)
  *
  * It may also be useful to add a tag_cnt field for OCP2.x devices.
  *
@@ -247,6 +254,7 @@ struct omap_hwmod_ocp_if {
 	u8				width;
 	u8				user;
 	u8				flags;
+	u8				_int_flags;
 };
 
 
@@ -305,6 +313,7 @@ struct omap_hwmod_sysc_fields {
  * @rev_offs: IP block revision register offset (from module base addr)
  * @sysc_offs: OCP_SYSCONFIG register offset (from module base addr)
  * @syss_offs: OCP_SYSSTATUS register offset (from module base addr)
+ * @srst_udelay: Delay needed after doing a softreset in usecs
  * @idlemodes: One or more of {SIDLE,MSTANDBY}_{OFF,FORCE,SMART}
  * @sysc_flags: SYS{C,S}_HAS* flags indicating SYSCONFIG bits supported
  * @clockact: the default value of the module CLOCKACTIVITY bits
@@ -326,13 +335,14 @@ struct omap_hwmod_sysc_fields {
  * then this field has to be populated with the correct offset structure.
  */
 struct omap_hwmod_class_sysconfig {
-	u16 rev_offs;
-	u16 sysc_offs;
-	u16 syss_offs;
+	u32 rev_offs;
+	u32 sysc_offs;
+	u32 syss_offs;
 	u16 sysc_flags;
+	struct omap_hwmod_sysc_fields *sysc_fields;
+	u8 srst_udelay;
 	u8 idlemodes;
 	u8 clockact;
-	struct omap_hwmod_sysc_fields *sysc_fields;
 };
 
 /**
@@ -474,6 +484,16 @@ struct omap_hwmod_class {
 };
 
 /**
+ * struct omap_hwmod_link - internal structure linking hwmods with ocp_ifs
+ * @ocp_if: OCP interface structure record pointer
+ * @node: list_head pointing to next struct omap_hwmod_link in a list
+ */
+struct omap_hwmod_link {
+	struct omap_hwmod_ocp_if	*ocp_if;
+	struct list_head		node;
+};
+
+/**
  * struct omap_hwmod - integration data for OMAP hardware "modules" (IP blocks)
  * @name: name of the hwmod
  * @class: struct omap_hwmod_class * to the class of this hwmod
@@ -485,12 +505,10 @@ struct omap_hwmod_class {
  * @_clk: pointer to the main struct clk (filled in at runtime)
  * @opt_clks: other device clocks that drivers can request (0..*)
  * @voltdm: pointer to voltage domain (filled in at runtime)
- * @masters: ptr to array of OCP ifs that this hwmod can initiate on
- * @slaves: ptr to array of OCP ifs that this hwmod can respond on
  * @dev_attr: arbitrary device attributes that can be passed to the driver
  * @_sysc_cache: internal-use hwmod flags
  * @_mpu_rt_va: cached register target start address (internal use)
- * @_mpu_port_index: cached MPU register target slave ID (internal use)
+ * @_mpu_port: cached MPU register target slave (internal use)
  * @opt_clks_cnt: number of @opt_clks
  * @master_cnt: number of @master entries
  * @slaves_cnt: number of @slave entries
@@ -509,6 +527,8 @@ struct omap_hwmod_class {
  *
  * Parameter names beginning with an underscore are managed internally by
  * the omap_hwmod code and should not be set during initialization.
+ *
+ * @masters and @slaves are now deprecated.
  */
 struct omap_hwmod {
 	const char			*name;
@@ -527,15 +547,15 @@ struct omap_hwmod {
 	struct omap_hwmod_opt_clk	*opt_clks;
 	char				*clkdm_name;
 	struct clockdomain		*clkdm;
-	struct omap_hwmod_ocp_if	**masters; /* connect to *_IA */
-	struct omap_hwmod_ocp_if	**slaves;  /* connect to *_TA */
+	struct list_head		master_ports; /* connect to *_IA */
+	struct list_head		slave_ports; /* connect to *_TA */
 	void				*dev_attr;
 	u32				_sysc_cache;
 	void __iomem			*_mpu_rt_va;
 	spinlock_t			_lock;
 	struct list_head		node;
+	struct omap_hwmod_ocp_if	*_mpu_port;
 	u16				flags;
-	u8				_mpu_port_index;
 	u8				response_lat;
 	u8				rst_lines_cnt;
 	u8				opt_clks_cnt;
@@ -547,7 +567,6 @@ struct omap_hwmod {
 	u8				_postsetup_state;
 };
 
-int omap_hwmod_register(struct omap_hwmod **ohs);
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 			void *data);
@@ -579,6 +598,8 @@ int omap_hwmod_softreset(struct omap_hwmod *oh);
 
 int omap_hwmod_count_resources(struct omap_hwmod *oh);
 int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res);
+int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
+				   const char *name, struct resource *res);
 
 struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh);
 void __iomem *omap_hwmod_get_mpu_rt_va(struct omap_hwmod *oh);
@@ -616,5 +637,7 @@ extern int omap2420_hwmod_init(void);
 extern int omap2430_hwmod_init(void);
 extern int omap3xxx_hwmod_init(void);
 extern int omap44xx_hwmod_init(void);
+
+extern int __init omap_hwmod_register_links(struct omap_hwmod_ocp_if **ois);
 
 #endif

@@ -22,8 +22,8 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/watchdog.h>
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		 "Watchdog cannot be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -163,6 +163,8 @@ static int wm831x_wdt_set_timeout(struct watchdog_device *wdt_dev,
 			ret);
 	}
 
+	wdt_dev->timeout = timeout;
+
 	return ret;
 }
 
@@ -245,21 +247,14 @@ static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
 		reg |= pdata->software << WM831X_WDOG_RST_SRC_SHIFT;
 
 		if (pdata->update_gpio) {
-			ret = gpio_request(pdata->update_gpio,
-					   "Watchdog update");
+			ret = gpio_request_one(pdata->update_gpio,
+					       GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+					       "Watchdog update");
 			if (ret < 0) {
 				dev_err(wm831x->dev,
 					"Failed to request update GPIO: %d\n",
 					ret);
 				goto err;
-			}
-
-			ret = gpio_direction_output(pdata->update_gpio, 0);
-			if (ret != 0) {
-				dev_err(wm831x->dev,
-					"gpio_direction_output returned: %d\n",
-					ret);
-				goto err_gpio;
 			}
 
 			driver_data->update_gpio = pdata->update_gpio;

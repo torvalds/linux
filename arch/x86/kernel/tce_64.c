@@ -34,6 +34,7 @@
 #include <asm/tce.h>
 #include <asm/calgary.h>
 #include <asm/proto.h>
+#include <asm/cacheflush.h>
 
 /* flush a tce at 'tceaddr' to main memory */
 static inline void flush_tce(void* tceaddr)

@@ -352,7 +352,6 @@ static int debug_async_open(struct inode *, struct file *);
 static int debug_periodic_open(struct inode *, struct file *);
 static int debug_registers_open(struct inode *, struct file *);
 static int debug_async_open(struct inode *, struct file *);
-static int debug_lpm_open(struct inode *, struct file *);
 static ssize_t debug_lpm_read(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos);
 static ssize_t debug_lpm_write(struct file *file, const char __user *buffer,
@@ -385,7 +384,7 @@ static const struct file_operations debug_registers_fops = {
 };
 static const struct file_operations debug_lpm_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_lpm_open,
+	.open		= simple_open,
 	.read		= debug_lpm_read,
 	.write		= debug_lpm_write,
 	.release	= debug_lpm_close,
@@ -970,12 +969,6 @@ static int debug_registers_open(struct inode *inode, struct file *file)
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_lpm_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static int debug_lpm_close(struct inode *inode, struct file *file)
 {
 	return 0;
@@ -1032,10 +1025,8 @@ static ssize_t debug_lpm_write(struct file *file, const char __user *user_buf,
 		if (strict_strtoul(buf + 5, 16, &hird))
 			return -EINVAL;
 		printk(KERN_INFO "setting hird %s %lu\n", buf + 6, hird);
-		temp = ehci_readl(ehci, &ehci->regs->command);
-		temp &= ~CMD_HIRD;
-		temp |= hird << 24;
-		ehci_writel(ehci, temp, &ehci->regs->command);
+		ehci->command = (ehci->command & ~CMD_HIRD) | (hird << 24);
+		ehci_writel(ehci, ehci->command, &ehci->regs->command);
 	} else if (strncmp(buf, "disable", 7) == 0) {
 		if (strict_strtoul(buf + 8, 10, &port))
 			return -EINVAL;

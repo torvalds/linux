@@ -123,12 +123,21 @@ struct cfhsi_rx_state {
 	bool piggy_desc;
 };
 
+/* Priority mapping */
+enum {
+	CFHSI_PRIO_CTL = 0,
+	CFHSI_PRIO_VI,
+	CFHSI_PRIO_VO,
+	CFHSI_PRIO_BEBK,
+	CFHSI_PRIO_LAST,
+};
+
 /* Structure implemented by CAIF HSI drivers. */
 struct cfhsi {
 	struct caif_dev_common cfdev;
 	struct net_device *ndev;
 	struct platform_device *pdev;
-	struct sk_buff_head qhead;
+	struct sk_buff_head qhead[CFHSI_PRIO_LAST];
 	struct cfhsi_drv drv;
 	struct cfhsi_dev *dev;
 	int tx_state;
@@ -151,8 +160,14 @@ struct cfhsi {
 	wait_queue_head_t wake_up_wait;
 	wait_queue_head_t wake_down_wait;
 	wait_queue_head_t flush_fifo_wait;
-	struct timer_list timer;
+	struct timer_list inactivity_timer;
 	struct timer_list rx_slowpath_timer;
+
+	/* TX aggregation */
+	unsigned long aggregation_timeout;
+	int aggregation_len;
+	struct timer_list aggregation_timer;
+
 	unsigned long bits;
 };
 

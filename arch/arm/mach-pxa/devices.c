@@ -12,6 +12,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
+#include <mach/irqs.h>
 #include <mach/ohci.h>
 #include <plat/pxa27x_keypad.h>
 #include <mach/camera.h>

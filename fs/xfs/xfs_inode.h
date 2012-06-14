@@ -387,10 +387,11 @@ xfs_set_projid(struct xfs_inode *ip,
 #define XFS_IFLOCK		(1 << __XFS_IFLOCK_BIT)
 #define __XFS_IPINNED_BIT	8	 /* wakeup key for zero pin count */
 #define XFS_IPINNED		(1 << __XFS_IPINNED_BIT)
+#define XFS_IDONTCACHE		(1 << 9) /* don't cache the inode long term */
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during
- * inode lookup. Thi prevents unintended behaviour on the new inode from
+ * inode lookup. This prevents unintended behaviour on the new inode from
  * ocurring.
  */
 #define XFS_IRECLAIM_RESET_FLAGS	\
@@ -528,10 +529,11 @@ int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
 void		xfs_iunpin_wait(xfs_inode_t *);
-int		xfs_iflush(xfs_inode_t *, uint);
-void		xfs_promote_inode(struct xfs_inode *);
+int		xfs_iflush(struct xfs_inode *, struct xfs_buf **);
 void		xfs_lock_inodes(xfs_inode_t **, int, uint);
 void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
+
+xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
 
 #define IHOLD(ip) \
 do { \
@@ -553,6 +555,7 @@ do { \
  */
 #define XFS_IGET_CREATE		0x1
 #define XFS_IGET_UNTRUSTED	0x2
+#define XFS_IGET_DONTCACHE	0x4
 
 int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
 			    xfs_ino_t, struct xfs_dinode **,

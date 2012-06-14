@@ -62,7 +62,9 @@
  *****************************************************************************/
 
 #include <linux/interrupt.h>
+#include <linux/export.h>
 #include "iwl-debug.h"
+#include "iwl-devtrace.h"
 
 #define __iwl_fn(fn)						\
 void __iwl_ ##fn(struct device *dev, const char *fmt, ...)	\
@@ -80,8 +82,11 @@ void __iwl_ ##fn(struct device *dev, const char *fmt, ...)	\
 }
 
 __iwl_fn(warn)
+EXPORT_SYMBOL_GPL(__iwl_warn);
 __iwl_fn(info)
+EXPORT_SYMBOL_GPL(__iwl_info);
 __iwl_fn(crit)
+EXPORT_SYMBOL_GPL(__iwl_crit);
 
 void __iwl_err(struct device *dev, bool rfkill_prefix, bool trace_only,
 		const char *fmt, ...)
@@ -102,6 +107,7 @@ void __iwl_err(struct device *dev, bool rfkill_prefix, bool trace_only,
 	trace_iwlwifi_err(&vaf);
 	va_end(args);
 }
+EXPORT_SYMBOL_GPL(__iwl_err);
 
 #if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
 void __iwl_dbg(struct device *dev,
@@ -124,4 +130,5 @@ void __iwl_dbg(struct device *dev,
 	trace_iwlwifi_dbg(level, in_interrupt(), function, &vaf);
 	va_end(args);
 }
+EXPORT_SYMBOL_GPL(__iwl_dbg);
 #endif

@@ -11,10 +11,13 @@ endif
 
 all:
 ifeq ($(ARCH),x86)
-	gcc breakpoint_test.c -o run_test
+	gcc breakpoint_test.c -o breakpoint_test
 else
 	echo "Not an x86 target, can't build breakpoints selftests"
 endif
 
+run_tests:
+	./breakpoint_test
+
 clean:
-	rm -fr run_test
+	rm -fr breakpoint_test

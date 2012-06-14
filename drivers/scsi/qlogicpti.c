@@ -35,7 +35,6 @@
 #include "qlogicpti.h"
 
 #include <asm/dma.h>
-#include <asm/system.h>
 #include <asm/ptrace.h>
 #include <asm/pgtable.h>
 #include <asm/oplib.h>

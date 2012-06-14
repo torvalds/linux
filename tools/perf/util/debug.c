@@ -11,6 +11,7 @@
 #include "event.h"
 #include "debug.h"
 #include "util.h"
+#include "target.h"
 
 int verbose;
 bool dump_trace = false, quiet = false;

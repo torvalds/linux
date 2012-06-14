@@ -1,0 +1,15 @@
+menuconfig WL_TI
+	bool "TI Wireless LAN support"
+	---help---
+	  This section contains support for all the wireless drivers
+	  for Texas Instruments WLAN chips, such as wl1251 and the wl12xx
+	  family.
+
+if WL_TI
+source "drivers/net/wireless/ti/wl1251/Kconfig"
+source "drivers/net/wireless/ti/wl12xx/Kconfig"
+source "drivers/net/wireless/ti/wl18xx/Kconfig"
+
+# keep last for automatic dependencies
+source "drivers/net/wireless/ti/wlcore/Kconfig"
+endif # WL_TI

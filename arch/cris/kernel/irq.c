@@ -36,6 +36,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/io.h>
+#include <arch/system.h>
 
 /* called by the assembler IRQ entry functions defined in irq.h
  * to dispatch the interrupts to registered handlers

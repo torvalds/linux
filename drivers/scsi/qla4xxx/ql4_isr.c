@@ -431,9 +431,9 @@ static void qla4xxx_mbox_status_entry(struct scsi_qla_host *ha,
 				  mbox_sts_entry->out_mbox[6]));
 
 		if (mbox_sts_entry->out_mbox[0] == MBOX_STS_COMMAND_COMPLETE)
-			status = QLA_SUCCESS;
+			status = ISCSI_PING_SUCCESS;
 		else
-			status = QLA_ERROR;
+			status = mbox_sts_entry->out_mbox[6];
 
 		data_size = sizeof(mbox_sts_entry->out_mbox);
 

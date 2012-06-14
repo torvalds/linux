@@ -27,7 +27,6 @@
 #include <linux/bitops.h>
 #include <linux/mutex.h>
 
-#include <mach/io.h>
 #include <plat/vrfb.h>
 #include <plat/sdrc.h>
 
@@ -180,8 +179,10 @@ void omap_vrfb_setup(struct vrfb *vrfb, unsigned long paddr,
 		pixel_size_exp = 2;
 	else if (bytespp == 2)
 		pixel_size_exp = 1;
-	else
+	else {
 		BUG();
+		return;
+	}
 
 	vrfb_width = ALIGN(width * bytespp, VRFB_PAGE_WIDTH) / bytespp;
 	vrfb_height = ALIGN(height, VRFB_PAGE_HEIGHT);

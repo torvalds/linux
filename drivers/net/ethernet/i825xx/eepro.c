@@ -148,7 +148,6 @@ static const char version[] =
 #include <linux/bitops.h>
 #include <linux/ethtool.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 

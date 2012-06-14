@@ -40,7 +40,6 @@
 #include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/types.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>

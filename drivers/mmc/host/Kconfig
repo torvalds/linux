@@ -278,10 +278,13 @@ choice
 	  Choose which driver to use for the Atmel MCI Silicon
 
 config MMC_AT91
-	tristate "AT91 SD/MMC Card Interface support"
+	tristate "AT91 SD/MMC Card Interface support (DEPRECATED)"
 	depends on ARCH_AT91
 	help
-	  This selects the AT91 MCI controller.
+	  This selects the AT91 MCI controller. This driver will
+	  be removed soon (for more information have a look to
+	  Documentation/feature-removal-schedule.txt). Please use
+	  MMC_ATMEL_MCI.
 
 	  If unsure, say N.
 
@@ -304,16 +307,6 @@ config MMC_ATMELMCI_DMA
 	  Say Y here to have the Atmel MCI driver use a DMA engine to
 	  do data transfers and thus increase the throughput and
 	  reduce the CPU utilization.
-
-	  If unsure, say N.
-
-config MMC_IMX
-	tristate "Motorola i.MX Multimedia Card Interface support"
-	depends on ARCH_MX1
-	help
-	  This selects the Motorola i.MX Multimedia card Interface.
-	  If you have a i.MX platform with a Multimedia Card slot,
-	  say Y or M here.
 
 	  If unsure, say N.
 
@@ -532,6 +525,31 @@ config MMC_DW_IDMAC
 	  This selects support for the internal DMAC block within the Synopsys
 	  Designware Mobile Storage IP block. This disables the external DMA
 	  interface.
+
+config MMC_DW_PLTFM
+	tristate "Synopsys Designware MCI Support as platform device"
+	depends on MMC_DW
+	default y
+	help
+	  This selects the common helper functions support for Host Controller
+	  Interface based platform driver. Please select this option if the IP
+	  is present as a platform device. This is the common interface for the
+	  Synopsys Designware IP.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say Y.
+
+config MMC_DW_PCI
+	tristate "Synopsys Designware MCI support on PCI bus"
+	depends on MMC_DW && PCI
+	help
+	  This selects the PCI bus for the Synopsys Designware Mobile Storage IP.
+	  Select this option if the IP is present on PCI platform.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"

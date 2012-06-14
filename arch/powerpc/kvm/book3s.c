@@ -258,7 +258,7 @@ static bool clear_irqprio(struct kvm_vcpu *vcpu, unsigned int priority)
 	return true;
 }
 
-void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
+int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned long old_pending = vcpu->arch.pending_exceptions;
@@ -283,11 +283,16 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 
 	/* Tell the guest about our interrupt status */
 	kvmppc_update_int_pending(vcpu, *pending, old_pending);
+
+	return 0;
 }
 
 pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
 	ulong mp_pa = vcpu->arch.magic_page_pa;
+
+	if (!(vcpu->arch.shared->msr & MSR_SF))
+		mp_pa = (uint32_t)mp_pa;
 
 	/* Magic page override */
 	if (unlikely(mp_pa) &&
@@ -423,10 +428,10 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->sprg1 = vcpu->arch.shared->sprg1;
 	regs->sprg2 = vcpu->arch.shared->sprg2;
 	regs->sprg3 = vcpu->arch.shared->sprg3;
-	regs->sprg4 = vcpu->arch.sprg4;
-	regs->sprg5 = vcpu->arch.sprg5;
-	regs->sprg6 = vcpu->arch.sprg6;
-	regs->sprg7 = vcpu->arch.sprg7;
+	regs->sprg4 = vcpu->arch.shared->sprg4;
+	regs->sprg5 = vcpu->arch.shared->sprg5;
+	regs->sprg6 = vcpu->arch.shared->sprg6;
+	regs->sprg7 = vcpu->arch.shared->sprg7;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
@@ -450,10 +455,10 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.shared->sprg1 = regs->sprg1;
 	vcpu->arch.shared->sprg2 = regs->sprg2;
 	vcpu->arch.shared->sprg3 = regs->sprg3;
-	vcpu->arch.sprg4 = regs->sprg4;
-	vcpu->arch.sprg5 = regs->sprg5;
-	vcpu->arch.sprg6 = regs->sprg6;
-	vcpu->arch.sprg7 = regs->sprg7;
+	vcpu->arch.shared->sprg4 = regs->sprg4;
+	vcpu->arch.shared->sprg5 = regs->sprg5;
+	vcpu->arch.shared->sprg6 = regs->sprg6;
+	vcpu->arch.shared->sprg7 = regs->sprg7;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
@@ -477,41 +482,10 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-/*
- * Get (and clear) the dirty memory log for a memory slot.
- */
-int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
-				      struct kvm_dirty_log *log)
+void kvmppc_decrementer_func(unsigned long data)
 {
-	struct kvm_memory_slot *memslot;
-	struct kvm_vcpu *vcpu;
-	ulong ga, ga_end;
-	int is_dirty = 0;
-	int r;
-	unsigned long n;
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
 
-	mutex_lock(&kvm->slots_lock);
-
-	r = kvm_get_dirty_log(kvm, log, &is_dirty);
-	if (r)
-		goto out;
-
-	/* If nothing is dirty, don't bother messing with page tables. */
-	if (is_dirty) {
-		memslot = id_to_memslot(kvm->memslots, log->slot);
-
-		ga = memslot->base_gfn << PAGE_SHIFT;
-		ga_end = ga + (memslot->npages << PAGE_SHIFT);
-
-		kvm_for_each_vcpu(n, vcpu, kvm)
-			kvmppc_mmu_pte_pflush(vcpu, ga, ga_end);
-
-		n = kvm_dirty_bitmap_bytes(memslot);
-		memset(memslot->dirty_bitmap, 0, n);
-	}
-
-	r = 0;
-out:
-	mutex_unlock(&kvm->slots_lock);
-	return r;
+	kvmppc_core_queue_dec(vcpu);
+	kvm_vcpu_kick(vcpu);
 }

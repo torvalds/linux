@@ -141,12 +141,6 @@ static struct pci_ops ks8695_pci_ops = {
 	.write	= ks8695_pci_writeconfig,
 };
 
-static struct pci_bus* __init ks8695_pci_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	return pci_scan_root_bus(NULL, sys->busnr, &ks8695_pci_ops, sys,
-				 &sys->resources);
-}
-
 static struct resource pci_mem = {
 	.name	= "PCI Memory space",
 	.start	= KS8695_PCIMEM_PA,
@@ -302,11 +296,10 @@ static void ks8695_show_pciregs(void)
 
 static struct hw_pci ks8695_pci __initdata = {
 	.nr_controllers	= 1,
+	.ops		= &ks8695_pci_ops,
 	.preinit	= ks8695_pci_preinit,
 	.setup		= ks8695_pci_setup,
-	.scan		= ks8695_pci_scan_bus,
 	.postinit	= NULL,
-	.swizzle	= pci_std_swizzle,
 	.map_irq	= NULL,
 };
 

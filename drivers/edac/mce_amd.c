@@ -754,9 +754,7 @@ static int __init mce_amd_init(void)
 	if (c->x86_vendor != X86_VENDOR_AMD)
 		return 0;
 
-	if ((c->x86 < 0xf || c->x86 > 0x12) &&
-	    (c->x86 != 0x14 || c->x86_model > 0xf) &&
-	    (c->x86 != 0x15 || c->x86_model > 0xf))
+	if (c->x86 < 0xf || c->x86 > 0x15)
 		return 0;
 
 	fam_ops = kzalloc(sizeof(struct amd_decoder_ops), GFP_KERNEL);
@@ -797,7 +795,7 @@ static int __init mce_amd_init(void)
 		break;
 
 	default:
-		printk(KERN_WARNING "Huh? What family is that: %d?!\n", c->x86);
+		printk(KERN_WARNING "Huh? What family is it: 0x%x?!\n", c->x86);
 		kfree(fam_ops);
 		return -EINVAL;
 	}

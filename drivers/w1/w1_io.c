@@ -31,6 +31,9 @@
 static int w1_delay_parm = 1;
 module_param_named(delay_coef, w1_delay_parm, int, 0);
 
+static int w1_disable_irqs = 0;
+module_param_named(disable_irqs, w1_disable_irqs, int, 0);
+
 static u8 w1_crc8_table[] = {
 	0, 94, 188, 226, 97, 63, 221, 131, 194, 156, 126, 32, 163, 253, 31, 65,
 	157, 195, 33, 127, 252, 162, 64, 30, 95, 1, 227, 189, 62, 96, 130, 220,
@@ -79,6 +82,10 @@ static u8 w1_touch_bit(struct w1_master *dev, int bit)
  */
 static void w1_write_bit(struct w1_master *dev, int bit)
 {
+	unsigned long flags = 0;
+
+	if(w1_disable_irqs) local_irq_save(flags);
+
 	if (bit) {
 		dev->bus_master->write_bit(dev->bus_master->data, 0);
 		w1_delay(6);
@@ -90,6 +97,8 @@ static void w1_write_bit(struct w1_master *dev, int bit)
 		dev->bus_master->write_bit(dev->bus_master->data, 1);
 		w1_delay(10);
 	}
+
+	if(w1_disable_irqs) local_irq_restore(flags);
 }
 
 /**
@@ -158,7 +167,7 @@ EXPORT_SYMBOL_GPL(w1_write_8);
 static u8 w1_read_bit(struct w1_master *dev)
 {
 	int result;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	/* sample timing is critical here */
 	local_irq_save(flags);
@@ -318,6 +327,9 @@ EXPORT_SYMBOL_GPL(w1_read_block);
 int w1_reset_bus(struct w1_master *dev)
 {
 	int result;
+	unsigned long flags = 0;
+
+	if(w1_disable_irqs) local_irq_save(flags);
 
 	if (dev->bus_master->reset_bus)
 		result = dev->bus_master->reset_bus(dev->bus_master->data) & 0x1;
@@ -330,18 +342,20 @@ int w1_reset_bus(struct w1_master *dev)
 		 * cpu for such a short amount of time AND get it back in
 		 * the maximum amount of time.
 		 */
-		w1_delay(480);
+		w1_delay(500);
 		dev->bus_master->write_bit(dev->bus_master->data, 1);
 		w1_delay(70);
 
 		result = dev->bus_master->read_bit(dev->bus_master->data) & 0x1;
-		/* minmum 70 (above) + 410 = 480 us
+		/* minmum 70 (above) + 430 = 500 us
 		 * There aren't any timing requirements between a reset and
 		 * the following transactions.  Sleeping is safe here.
 		 */
-		/* w1_delay(410); min required time */
+		/* w1_delay(430); min required time */
 		msleep(1);
 	}
+
+	if(w1_disable_irqs) local_irq_restore(flags);
 
 	return result;
 }

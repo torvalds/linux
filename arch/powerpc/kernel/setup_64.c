@@ -52,7 +52,6 @@
 #include <asm/btext.h>
 #include <asm/nvram.h>
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/rtas.h>
 #include <asm/iommu.h>
 #include <asm/serial.h>
@@ -598,7 +597,7 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize the MMU context management stuff */
 	mmu_context_init();
 
-	kvm_rma_init();
+	kvm_linear_init();
 
 	ppc64_boot_msg(0x15, "Setup Done");
 }

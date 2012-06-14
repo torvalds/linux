@@ -58,7 +58,7 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: setting MTU %d\n", dev->name, new_mtu);
+	pr_debug("%s: setting MTU %d\n", dev->name, new_mtu);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 	dev->mtu = new_mtu;
 	return 0;
@@ -127,7 +127,7 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			 * The remaining checks are only performed for interfaces
 			 * with the same MAC address.
 			 */
-			if (compare_ether_addr(dev->dev_addr, ndev->dev_addr))
+			if (!ether_addr_equal(dev->dev_addr, ndev->dev_addr))
 				continue;
 
 			/*
@@ -163,7 +163,8 @@ static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata)
 			return -EINVAL;
 	}
 
-	if (sdata->vif.type != NL80211_IFTYPE_AP) {
+	if ((sdata->vif.type != NL80211_IFTYPE_AP) ||
+	    !(sdata->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)) {
 		sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 		return 0;
 	}
@@ -205,8 +206,10 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		if (local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
 			sdata->vif.hw_queue[i] = IEEE80211_INVAL_HW_QUEUE;
-		else
+		else if (local->hw.queues >= IEEE80211_NUM_ACS)
 			sdata->vif.hw_queue[i] = i;
+		else
+			sdata->vif.hw_queue[i] = 0;
 	}
 	sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 }
@@ -525,10 +528,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 */
 	netif_tx_stop_all_queues(sdata->dev);
 
-	/*
-	 * Purge work for this interface.
-	 */
-	ieee80211_work_purge(sdata);
+	ieee80211_roc_purge(sdata);
 
 	/*
 	 * Remove all stations associated with this interface.
@@ -605,6 +605,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		/* free all potentially still buffered bcast frames */
 		local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps_bc_buf);
 		skb_queue_purge(&sdata->u.ap.ps_bc_buf);
+	} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+		ieee80211_mgd_stop(sdata);
 	}
 
 	if (going_down)
@@ -767,8 +769,6 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_rmc_free(sdata);
-	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		ieee80211_mgd_teardown(sdata);
 
 	flushed = sta_info_flush(local, sdata);
 	WARN_ON(flushed);
@@ -1030,6 +1030,18 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	ieee80211_debugfs_add_netdev(sdata);
 }
 
+static void ieee80211_clean_sdata(struct ieee80211_sub_if_data *sdata)
+{
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_MESH_POINT:
+		mesh_path_flush_by_iface(sdata);
+		break;
+
+	default:
+		break;
+	}
+}
+
 static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 					   enum nl80211_iftype type)
 {
@@ -1211,7 +1223,7 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 
 		if (__ffs64(mask) + hweight64(mask) != fls64(mask)) {
 			/* not a contiguous mask ... not handled now! */
-			printk(KERN_DEBUG "not contiguous\n");
+			pr_debug("not contiguous\n");
 			break;
 		}
 
@@ -1337,6 +1349,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			sdata->u.mgd.use_4addr = params->use_4addr;
 	}
 
+	ndev->features |= local->hw.netdev_features;
+
 	ret = register_netdevice(ndev);
 	if (ret)
 		goto fail;
@@ -1363,8 +1377,8 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 	list_del_rcu(&sdata->list);
 	mutex_unlock(&sdata->local->iflist_mtx);
 
-	if (ieee80211_vif_is_mesh(&sdata->vif))
-		mesh_path_flush_by_iface(sdata);
+	/* clean up type-dependent data */
+	ieee80211_clean_sdata(sdata);
 
 	synchronize_rcu();
 	unregister_netdevice(sdata->dev);
@@ -1385,8 +1399,7 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
 		list_del(&sdata->list);
 
-		if (ieee80211_vif_is_mesh(&sdata->vif))
-			mesh_path_flush_by_iface(sdata);
+		ieee80211_clean_sdata(sdata);
 
 		unregister_netdevice_queue(sdata->dev, &unreg_list);
 	}
@@ -1428,9 +1441,9 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 	int count = 0;
-	bool working = false, scanning = false, hw_roc = false;
-	struct ieee80211_work *wk;
+	bool working = false, scanning = false;
 	unsigned int led_trig_start = 0, led_trig_stop = 0;
+	struct ieee80211_roc_work *roc;
 
 #ifdef CONFIG_PROVE_LOCKING
 	WARN_ON(debug_locks && !lockdep_rtnl_is_held() &&
@@ -1465,9 +1478,11 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		count++;
 	}
 
-	list_for_each_entry(wk, &local->work_list, list) {
-		working = true;
-		wk->sdata->vif.bss_conf.idle = false;
+	if (!local->ops->remain_on_channel) {
+		list_for_each_entry(roc, &local->roc_list, list) {
+			working = true;
+			roc->sdata->vif.bss_conf.idle = false;
+		}
 	}
 
 	if (local->scan_sdata &&
@@ -1475,9 +1490,6 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		scanning = true;
 		local->scan_sdata->vif.bss_conf.idle = false;
 	}
-
-	if (local->hw_roc_channel)
-		hw_roc = true;
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
@@ -1490,7 +1502,7 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 	}
 
-	if (working || scanning || hw_roc)
+	if (working || scanning)
 		led_trig_start |= IEEE80211_TPT_LEDTRIG_FL_WORK;
 	else
 		led_trig_stop |= IEEE80211_TPT_LEDTRIG_FL_WORK;
@@ -1502,8 +1514,6 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 
 	ieee80211_mod_tpt_led_trig(local, led_trig_start, led_trig_stop);
 
-	if (hw_roc)
-		return ieee80211_idle_off(local, "hw remain-on-channel");
 	if (working)
 		return ieee80211_idle_off(local, "working");
 	if (scanning)

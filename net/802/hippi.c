@@ -35,7 +35,6 @@
 #include <net/arp.h>
 #include <net/sock.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 /*
  * Create the HIPPI MAC header for an arbitrary protocol layer
@@ -46,7 +45,7 @@
 
 static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type,
-			const void *daddr, const void *saddr, unsigned len)
+			const void *daddr, const void *saddr, unsigned int len)
 {
 	struct hippi_hdr *hip = (struct hippi_hdr *)skb_push(skb, HIPPI_HLEN);
 	struct hippi_cb *hcb = (struct hippi_cb *) skb->cb;

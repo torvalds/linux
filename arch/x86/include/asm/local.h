@@ -3,7 +3,6 @@
 
 #include <linux/percpu.h>
 
-#include <asm/system.h>
 #include <linux/atomic.h>
 #include <asm/asm.h>
 

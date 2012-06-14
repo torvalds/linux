@@ -6,6 +6,6 @@ Todo:
 	- testing?
 	- handle churn in v4l layer.
 
-Please send patchs to Greg Kroah-Hartman <greg@kroah.com> and Cc: Ross
+Please send patches to Greg Kroah-Hartman <greg@linuxfoundation.org> and Cc: Ross
 Cohen <rcohen@snurgle.org> as well.
 

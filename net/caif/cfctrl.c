@@ -9,6 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/pkt_sched.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfctrl.h>
@@ -189,6 +190,7 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	cfctrl->serv.dev_info.id = physlinkid;
 	cfpkt_addbdy(pkt, CFCTRL_CMD_ENUM);
 	cfpkt_addbdy(pkt, physlinkid);
+	cfpkt_set_prio(pkt, TC_PRIO_CONTROL);
 	dn->transmit(dn, pkt);
 }
 
@@ -281,6 +283,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	 *	might arrive with the newly allocated channel ID.
 	 */
 	cfpkt_info(pkt)->dev_info->id = param->phyid;
+	cfpkt_set_prio(pkt, TC_PRIO_CONTROL);
 	ret =
 	    dn->transmit(dn, pkt);
 	if (ret < 0) {
@@ -314,6 +317,7 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_DESTROY);
 	cfpkt_addbdy(pkt, channelid);
 	init_info(cfpkt_info(pkt), cfctrl);
+	cfpkt_set_prio(pkt, TC_PRIO_CONTROL);
 	ret =
 	    dn->transmit(dn, pkt);
 #ifndef CAIF_NO_LOOP

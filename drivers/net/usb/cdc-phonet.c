@@ -165,13 +165,13 @@ static void rx_complete(struct urb *req)
 				memcpy(skb_put(skb, 1), page_address(page), 1);
 				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 						page, 1, req->actual_length,
-						req->actual_length);
+						PAGE_SIZE);
 				page = NULL;
 			}
 		} else {
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 					page, 0, req->actual_length,
-					req->actual_length);
+					PAGE_SIZE);
 			page = NULL;
 		}
 		if (req->actual_length < PAGE_SIZE)
@@ -457,6 +457,7 @@ static struct usb_driver usbpn_driver = {
 	.probe =	usbpn_probe,
 	.disconnect =	usbpn_disconnect,
 	.id_table =	usbpn_ids,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(usbpn_driver);

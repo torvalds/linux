@@ -22,14 +22,14 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/irqdomain.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/mach/irq.h>
 
-#include <mach/gpio-tegra.h>
 #include <mach/iomap.h>
 #include <mach/suspend.h>
 
@@ -37,7 +37,8 @@
 #define GPIO_PORT(x)		(((x) >> 3) & 0x3)
 #define GPIO_BIT(x)		((x) & 0x7)
 
-#define GPIO_REG(x)		(GPIO_BANK(x) * 0x80 + GPIO_PORT(x) * 4)
+#define GPIO_REG(x)		(GPIO_BANK(x) * tegra_gpio_bank_stride + \
+					GPIO_PORT(x) * 4)
 
 #define GPIO_CNF(x)		(GPIO_REG(x) + 0x00)
 #define GPIO_OE(x)		(GPIO_REG(x) + 0x10)
@@ -48,12 +49,12 @@
 #define GPIO_INT_LVL(x)		(GPIO_REG(x) + 0x60)
 #define GPIO_INT_CLR(x)		(GPIO_REG(x) + 0x70)
 
-#define GPIO_MSK_CNF(x)		(GPIO_REG(x) + 0x800)
-#define GPIO_MSK_OE(x)		(GPIO_REG(x) + 0x810)
-#define GPIO_MSK_OUT(x)		(GPIO_REG(x) + 0X820)
-#define GPIO_MSK_INT_STA(x)	(GPIO_REG(x) + 0x840)
-#define GPIO_MSK_INT_ENB(x)	(GPIO_REG(x) + 0x850)
-#define GPIO_MSK_INT_LVL(x)	(GPIO_REG(x) + 0x860)
+#define GPIO_MSK_CNF(x)		(GPIO_REG(x) + tegra_gpio_upper_offset + 0x00)
+#define GPIO_MSK_OE(x)		(GPIO_REG(x) + tegra_gpio_upper_offset + 0x10)
+#define GPIO_MSK_OUT(x)		(GPIO_REG(x) + tegra_gpio_upper_offset + 0X20)
+#define GPIO_MSK_INT_STA(x)	(GPIO_REG(x) + tegra_gpio_upper_offset + 0x40)
+#define GPIO_MSK_INT_ENB(x)	(GPIO_REG(x) + tegra_gpio_upper_offset + 0x50)
+#define GPIO_MSK_INT_LVL(x)	(GPIO_REG(x) + tegra_gpio_upper_offset + 0x60)
 
 #define GPIO_INT_LVL_MASK		0x010101
 #define GPIO_INT_LVL_EDGE_RISING	0x000101
@@ -78,6 +79,8 @@ struct tegra_gpio_bank {
 static struct irq_domain *irq_domain;
 static void __iomem *regs;
 static u32 tegra_gpio_bank_count;
+static u32 tegra_gpio_bank_stride;
+static u32 tegra_gpio_upper_offset;
 static struct tegra_gpio_bank *tegra_gpio_banks;
 
 static inline void tegra_gpio_writel(u32 val, u32 reg)
@@ -105,14 +108,27 @@ static void tegra_gpio_mask_write(u32 reg, int gpio, int value)
 	tegra_gpio_writel(val, reg);
 }
 
-void tegra_gpio_enable(int gpio)
+static void tegra_gpio_enable(int gpio)
 {
 	tegra_gpio_mask_write(GPIO_MSK_CNF(gpio), gpio, 1);
 }
+EXPORT_SYMBOL_GPL(tegra_gpio_enable);
 
-void tegra_gpio_disable(int gpio)
+static void tegra_gpio_disable(int gpio)
 {
 	tegra_gpio_mask_write(GPIO_MSK_CNF(gpio), gpio, 0);
+}
+EXPORT_SYMBOL_GPL(tegra_gpio_disable);
+
+int tegra_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(offset);
+}
+
+void tegra_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(offset);
+	tegra_gpio_disable(offset);
 }
 
 static void tegra_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -128,6 +144,7 @@ static int tegra_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int tegra_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	tegra_gpio_mask_write(GPIO_MSK_OE(offset), offset, 0);
+	tegra_gpio_enable(offset);
 	return 0;
 }
 
@@ -136,6 +153,7 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 {
 	tegra_gpio_set(chip, offset, value);
 	tegra_gpio_mask_write(GPIO_MSK_OE(offset), offset, 1);
+	tegra_gpio_enable(offset);
 	return 0;
 }
 
@@ -146,13 +164,14 @@ static int tegra_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 
 static struct gpio_chip tegra_gpio_chip = {
 	.label			= "tegra-gpio",
+	.request		= tegra_gpio_request,
+	.free			= tegra_gpio_free,
 	.direction_input	= tegra_gpio_direction_input,
 	.get			= tegra_gpio_get,
 	.direction_output	= tegra_gpio_direction_output,
 	.set			= tegra_gpio_set,
 	.to_irq			= tegra_gpio_to_irq,
 	.base			= 0,
-	.ngpio			= TEGRA_NR_GPIOS,
 };
 
 static void tegra_gpio_irq_ack(struct irq_data *d)
@@ -218,6 +237,9 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	tegra_gpio_writel(val, GPIO_INT_LVL(gpio));
 
 	spin_unlock_irqrestore(&bank->lvl_lock[port], flags);
+
+	tegra_gpio_mask_write(GPIO_MSK_OE(gpio), gpio, 0);
+	tegra_gpio_enable(gpio);
 
 	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
 		__irq_set_handler_locked(d->irq, handle_level_irq);
@@ -331,6 +353,26 @@ static struct irq_chip tegra_gpio_irq_chip = {
 #endif
 };
 
+struct tegra_gpio_soc_config {
+	u32 bank_stride;
+	u32 upper_offset;
+};
+
+static struct tegra_gpio_soc_config tegra20_gpio_config = {
+	.bank_stride = 0x80,
+	.upper_offset = 0x800,
+};
+
+static struct tegra_gpio_soc_config tegra30_gpio_config = {
+	.bank_stride = 0x100,
+	.upper_offset = 0x80,
+};
+
+static struct of_device_id tegra_gpio_of_match[] __devinitdata = {
+	{ .compatible = "nvidia,tegra30-gpio", .data = &tegra30_gpio_config },
+	{ .compatible = "nvidia,tegra20-gpio", .data = &tegra20_gpio_config },
+	{ },
+};
 
 /* This lock class tells lockdep that GPIO irqs are in a different
  * category than their parents, so it won't report false recursion.
@@ -339,12 +381,23 @@ static struct lock_class_key gpio_lock_class;
 
 static int __devinit tegra_gpio_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
+	struct tegra_gpio_soc_config *config;
 	int irq_base;
 	struct resource *res;
 	struct tegra_gpio_bank *bank;
 	int gpio;
 	int i;
 	int j;
+
+	match = of_match_device(tegra_gpio_of_match, &pdev->dev);
+	if (match)
+		config = (struct tegra_gpio_soc_config *)match->data;
+	else
+		config = &tegra20_gpio_config;
+
+	tegra_gpio_bank_stride = config->bank_stride;
+	tegra_gpio_upper_offset = config->upper_offset;
 
 	for (;;) {
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, tegra_gpio_bank_count);
@@ -400,7 +453,7 @@ static int __devinit tegra_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < tegra_gpio_bank_count; i++) {
 		for (j = 0; j < 4; j++) {
 			int gpio = tegra_gpio_compose(i, j, 0);
 			tegra_gpio_writel(0x00, GPIO_INT_ENB(gpio));
@@ -439,11 +492,6 @@ static int __devinit tegra_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tegra_gpio_of_match[] __devinitdata = {
-	{ .compatible = "nvidia,tegra20-gpio", },
-	{ },
-};
-
 static struct platform_driver tegra_gpio_driver = {
 	.driver		= {
 		.name	= "tegra-gpio",
@@ -459,20 +507,6 @@ static int __init tegra_gpio_init(void)
 }
 postcore_initcall(tegra_gpio_init);
 
-void __init tegra_gpio_config(struct tegra_gpio_table *table, int num)
-{
-	int i;
-
-	for (i = 0; i < num; i++) {
-		int gpio = table[i].gpio;
-
-		if (table[i].enable)
-			tegra_gpio_enable(gpio);
-		else
-			tegra_gpio_disable(gpio);
-	}
-}
-
 #ifdef	CONFIG_DEBUG_FS
 
 #include <linux/debugfs.h>
@@ -483,7 +517,7 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 	int i;
 	int j;
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < tegra_gpio_bank_count; i++) {
 		for (j = 0; j < 4; j++) {
 			int gpio = tegra_gpio_compose(i, j, 0);
 			seq_printf(s,

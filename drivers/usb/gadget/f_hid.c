@@ -374,7 +374,7 @@ static int hidg_setup(struct usb_function *f,
 			break;
 
 		default:
-			VDBG(cdev, "Unknown decriptor request 0x%x\n",
+			VDBG(cdev, "Unknown descriptor request 0x%x\n",
 				 value >> 8);
 			goto stall;
 			break;

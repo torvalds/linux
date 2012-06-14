@@ -111,7 +111,6 @@
 #include <linux/uaccess.h>
 #include <linux/mutex.h>
 
-#include <asm/system.h>
 
 static DEFINE_MUTEX(nvram_mutex);
 static DEFINE_SPINLOCK(nvram_state_lock);

@@ -362,14 +362,14 @@ static int m5mols_reg_mode(struct v4l2_subdev *sd, u8 mode)
 }
 
 /**
- * m5mols_mode - manage the M-5MOLS's mode
+ * m5mols_set_mode - set the M-5MOLS controller mode
  * @mode: the required operation mode
  *
  * The commands of M-5MOLS are grouped into specific modes. Each functionality
- * can be guaranteed only when the sensor is operating in mode which which
- * a command belongs to.
+ * can be guaranteed only when the sensor is operating in mode which a command
+ * belongs to.
  */
-int m5mols_mode(struct m5mols_info *info, u8 mode)
+int m5mols_set_mode(struct m5mols_info *info, u8 mode)
 {
 	struct v4l2_subdev *sd = &info->sd;
 	int ret = -EINVAL;
@@ -645,13 +645,13 @@ static int m5mols_start_monitor(struct m5mols_info *info)
 	struct v4l2_subdev *sd = &info->sd;
 	int ret;
 
-	ret = m5mols_mode(info, REG_PARAMETER);
+	ret = m5mols_set_mode(info, REG_PARAMETER);
 	if (!ret)
 		ret = m5mols_write(sd, PARM_MON_SIZE, info->resolution);
 	if (!ret)
 		ret = m5mols_write(sd, PARM_MON_FPS, REG_FPS_30);
 	if (!ret)
-		ret = m5mols_mode(info, REG_MONITOR);
+		ret = m5mols_set_mode(info, REG_MONITOR);
 	if (!ret)
 		ret = m5mols_restore_controls(info);
 
@@ -674,40 +674,11 @@ static int m5mols_s_stream(struct v4l2_subdev *sd, int enable)
 		return ret;
 	}
 
-	return m5mols_mode(info, REG_PARAMETER);
+	return m5mols_set_mode(info, REG_PARAMETER);
 }
 
 static const struct v4l2_subdev_video_ops m5mols_video_ops = {
 	.s_stream	= m5mols_s_stream,
-};
-
-static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct v4l2_subdev *sd = to_sd(ctrl);
-	struct m5mols_info *info = to_m5mols(sd);
-	int ispstate = info->mode;
-	int ret;
-
-	/*
-	 * If needed, defer restoring the controls until
-	 * the device is fully initialized.
-	 */
-	if (!info->isp_ready) {
-		info->ctrl_sync = 0;
-		return 0;
-	}
-
-	ret = m5mols_mode(info, REG_PARAMETER);
-	if (ret < 0)
-		return ret;
-	ret = m5mols_set_ctrl(ctrl);
-	if (ret < 0)
-		return ret;
-	return m5mols_mode(info, ispstate);
-}
-
-static const struct v4l2_ctrl_ops m5mols_ctrl_ops = {
-	.s_ctrl	= m5mols_s_ctrl,
 };
 
 static int m5mols_sensor_power(struct m5mols_info *info, bool enable)
@@ -802,52 +773,6 @@ static int m5mols_fw_start(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static int m5mols_init_controls(struct m5mols_info *info)
-{
-	struct v4l2_subdev *sd = &info->sd;
-	u16 max_exposure;
-	u16 step_zoom;
-	int ret;
-
-	/* Determine value's range & step of controls for various FW version */
-	ret = m5mols_read_u16(sd, AE_MAX_GAIN_MON, &max_exposure);
-	if (!ret)
-		step_zoom = is_manufacturer(info, REG_SAMSUNG_OPTICS) ? 31 : 1;
-	if (ret)
-		return ret;
-
-	v4l2_ctrl_handler_init(&info->handle, 6);
-	info->autowb = v4l2_ctrl_new_std(&info->handle,
-			&m5mols_ctrl_ops, V4L2_CID_AUTO_WHITE_BALANCE,
-			0, 1, 1, 0);
-	info->saturation = v4l2_ctrl_new_std(&info->handle,
-			&m5mols_ctrl_ops, V4L2_CID_SATURATION,
-			1, 5, 1, 3);
-	info->zoom = v4l2_ctrl_new_std(&info->handle,
-			&m5mols_ctrl_ops, V4L2_CID_ZOOM_ABSOLUTE,
-			1, 70, step_zoom, 1);
-	info->exposure = v4l2_ctrl_new_std(&info->handle,
-			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE,
-			0, max_exposure, 1, (int)max_exposure/2);
-	info->colorfx = v4l2_ctrl_new_std_menu(&info->handle,
-			&m5mols_ctrl_ops, V4L2_CID_COLORFX,
-			4, (1 << V4L2_COLORFX_BW), V4L2_COLORFX_NONE);
-	info->autoexposure = v4l2_ctrl_new_std_menu(&info->handle,
-			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE_AUTO,
-			1, 0, V4L2_EXPOSURE_AUTO);
-
-	sd->ctrl_handler = &info->handle;
-	if (info->handle.error) {
-		v4l2_err(sd, "Failed to initialize controls: %d\n", ret);
-		v4l2_ctrl_handler_free(&info->handle);
-		return info->handle.error;
-	}
-
-	v4l2_ctrl_cluster(2, &info->autoexposure);
-
-	return 0;
-}
-
 /**
  * m5mols_s_power - Main sensor power control function
  *
@@ -868,7 +793,7 @@ static int m5mols_s_power(struct v4l2_subdev *sd, int on)
 	}
 
 	if (is_manufacturer(info, REG_SAMSUNG_TECHWIN)) {
-		ret = m5mols_mode(info, REG_MONITOR);
+		ret = m5mols_set_mode(info, REG_MONITOR);
 		if (!ret)
 			ret = m5mols_write(sd, AF_EXECUTE, REG_AF_STOP);
 		if (!ret)
@@ -1010,7 +935,7 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 
 	ret = m5mols_fw_start(sd);
 	if (!ret)
-		ret = m5mols_init_controls(info);
+		ret = m5mols_init_controls(sd);
 
 	m5mols_sensor_power(info, false);
 	if (!ret)

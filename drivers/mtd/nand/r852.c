@@ -539,14 +539,11 @@ exit:
  * nand_read_oob_syndrome assumes we can send column address - we can't
  */
 static int r852_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			     int page, int sndcmd)
+			     int page)
 {
-	if (sndcmd) {
-		chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-		sndcmd = 0;
-	}
+	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return sndcmd;
+	return 0;
 }
 
 /*
@@ -891,6 +888,7 @@ int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
 	chip->ecc.size = R852_DMA_LEN;
 	chip->ecc.bytes = SM_OOB_SIZE;
+	chip->ecc.strength = 2;
 	chip->ecc.hwctl = r852_ecc_hwctl;
 	chip->ecc.calculate = r852_ecc_calculate;
 	chip->ecc.correct = r852_ecc_correct;
@@ -1103,18 +1101,7 @@ static struct pci_driver r852_pci_driver = {
 	.driver.pm	= &r852_pm_ops,
 };
 
-static __init int r852_module_init(void)
-{
-	return pci_register_driver(&r852_pci_driver);
-}
-
-static void __exit r852_module_exit(void)
-{
-	pci_unregister_driver(&r852_pci_driver);
-}
-
-module_init(r852_module_init);
-module_exit(r852_module_exit);
+module_pci_driver(r852_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxim Levitsky <maximlevitsky@gmail.com>");

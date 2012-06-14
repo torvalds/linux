@@ -24,7 +24,6 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <asm/byteorder.h>
-#include <asm/system.h>
 #include <asm/string.h>
 #include <asm/io.h>
 #include <linux/atomic.h>

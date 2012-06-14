@@ -25,7 +25,7 @@ extern void __iomem *at91_pmc_base;
 #define at91_pmc_write(field, value) \
 	__raw_writel(value, at91_pmc_base + field)
 #else
-.extern at91_aic_base
+.extern at91_pmc_base
 #endif
 
 #define	AT91_PMC_SCER		0x00			/* System Clock Enable Register */

@@ -315,6 +315,7 @@ MACHINE_START(NAS100D, "Iomega NAS 100d")
 	/* Maintainer: www.nslu2-linux.org */
 	.atag_offset	= 0x100,
 	.map_io		= ixp4xx_map_io,
+	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
 	.timer          = &ixp4xx_timer,
 	.init_machine	= nas100d_init,

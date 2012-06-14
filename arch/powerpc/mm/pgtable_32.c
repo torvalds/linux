@@ -33,6 +33,7 @@
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>
 #include <asm/io.h>
+#include <asm/setup.h>
 
 #include "mmu_decl.h"
 

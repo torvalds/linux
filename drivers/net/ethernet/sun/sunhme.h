@@ -432,6 +432,7 @@ struct happy_meal {
 
 	dma_addr_t                hblock_dvma;    /* DVMA visible address happy block  */
 	unsigned int              happy_flags;    /* Driver state flags                */
+	int                       irq;
 	enum happy_transceiver    tcvr_type;      /* Kind of transceiver in use        */
 	unsigned int              happy_bursts;   /* Get your mind out of the gutter   */
 	unsigned int              paddr;          /* PHY address for transceiver       */

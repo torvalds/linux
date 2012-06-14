@@ -17,7 +17,6 @@
 
 #include <asm/page.h>
 #include <asm/desc.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 
 #include "pnpbios.h"

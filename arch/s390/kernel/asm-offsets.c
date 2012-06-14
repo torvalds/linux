@@ -12,7 +12,6 @@
 #include <asm/timer.h>
 #include <asm/vdso.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 
 /*
  * Make sure that the compiler is new enough. We want a compiler that

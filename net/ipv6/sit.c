@@ -17,6 +17,8 @@
  * Fred Templin <fred.l.templin@boeing.com>:	isatap support
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
@@ -87,35 +89,51 @@ struct sit_net {
 
 /* often modified stats are per cpu, other are shared (netdev->stats) */
 struct pcpu_tstats {
-	unsigned long	rx_packets;
-	unsigned long	rx_bytes;
-	unsigned long	tx_packets;
-	unsigned long	tx_bytes;
-} __attribute__((aligned(4*sizeof(unsigned long))));
+	u64	rx_packets;
+	u64	rx_bytes;
+	u64	tx_packets;
+	u64	tx_bytes;
+	struct u64_stats_sync	syncp;
+};
 
-static struct net_device_stats *ipip6_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *ipip6_get_stats64(struct net_device *dev,
+						   struct rtnl_link_stats64 *tot)
 {
-	struct pcpu_tstats sum = { 0 };
 	int i;
 
 	for_each_possible_cpu(i) {
 		const struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, i);
+		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
+		unsigned int start;
 
-		sum.rx_packets += tstats->rx_packets;
-		sum.rx_bytes   += tstats->rx_bytes;
-		sum.tx_packets += tstats->tx_packets;
-		sum.tx_bytes   += tstats->tx_bytes;
+		do {
+			start = u64_stats_fetch_begin_bh(&tstats->syncp);
+			rx_packets = tstats->rx_packets;
+			tx_packets = tstats->tx_packets;
+			rx_bytes = tstats->rx_bytes;
+			tx_bytes = tstats->tx_bytes;
+		} while (u64_stats_fetch_retry_bh(&tstats->syncp, start));
+
+		tot->rx_packets += rx_packets;
+		tot->tx_packets += tx_packets;
+		tot->rx_bytes   += rx_bytes;
+		tot->tx_bytes   += tx_bytes;
 	}
-	dev->stats.rx_packets = sum.rx_packets;
-	dev->stats.rx_bytes   = sum.rx_bytes;
-	dev->stats.tx_packets = sum.tx_packets;
-	dev->stats.tx_bytes   = sum.tx_bytes;
-	return &dev->stats;
+
+	tot->rx_errors = dev->stats.rx_errors;
+	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
+	tot->tx_carrier_errors = dev->stats.tx_carrier_errors;
+	tot->tx_dropped = dev->stats.tx_dropped;
+	tot->tx_aborted_errors = dev->stats.tx_aborted_errors;
+	tot->tx_errors = dev->stats.tx_errors;
+
+	return tot;
 }
+
 /*
  * Must be invoked with rcu_read_lock
  */
-static struct ip_tunnel * ipip6_tunnel_lookup(struct net *net,
+static struct ip_tunnel *ipip6_tunnel_lookup(struct net *net,
 		struct net_device *dev, __be32 remote, __be32 local)
 {
 	unsigned int h0 = HASH(remote);
@@ -686,12 +704,11 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "sit: nexthop == NULL\n");
+			net_dbg_ratelimited("sit: nexthop == NULL\n");
 			goto tx_error;
 		}
 
-		addr6 = (const struct in6_addr*)&neigh->primary_key;
+		addr6 = (const struct in6_addr *)&neigh->primary_key;
 		addr_type = ipv6_addr_type(addr6);
 
 		if ((addr_type & IPV6_ADDR_UNICAST) &&
@@ -716,12 +733,11 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "sit: nexthop == NULL\n");
+			net_dbg_ratelimited("sit: nexthop == NULL\n");
 			goto tx_error;
 		}
 
-		addr6 = (const struct in6_addr*)&neigh->primary_key;
+		addr6 = (const struct in6_addr *)&neigh->primary_key;
 		addr_type = ipv6_addr_type(addr6);
 
 		if (addr_type == IPV6_ADDR_ANY) {
@@ -1126,7 +1142,7 @@ static const struct net_device_ops ipip6_netdev_ops = {
 	.ndo_start_xmit	= ipip6_tunnel_xmit,
 	.ndo_do_ioctl	= ipip6_tunnel_ioctl,
 	.ndo_change_mtu	= ipip6_tunnel_change_mtu,
-	.ndo_get_stats	= ipip6_get_stats,
+	.ndo_get_stats64= ipip6_get_stats64,
 };
 
 static void ipip6_dev_free(struct net_device *dev)
@@ -1287,7 +1303,7 @@ static int __init sit_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "IPv6 over IPv4 tunneling driver\n");
+	pr_info("IPv6 over IPv4 tunneling driver\n");
 
 	err = register_pernet_device(&sit_net_ops);
 	if (err < 0)
@@ -1295,7 +1311,7 @@ static int __init sit_init(void)
 	err = xfrm4_tunnel_register(&sit_handler, AF_INET6);
 	if (err < 0) {
 		unregister_pernet_device(&sit_net_ops);
-		printk(KERN_INFO "sit init: Can't add protocol\n");
+		pr_info("%s: can't add protocol\n", __func__);
 	}
 	return err;
 }

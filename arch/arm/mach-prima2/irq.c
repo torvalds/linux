@@ -42,7 +42,8 @@ sirfsoc_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 static __init void sirfsoc_irq_init(void)
 {
 	sirfsoc_alloc_gc(sirfsoc_intc_base, 0, 32);
-	sirfsoc_alloc_gc(sirfsoc_intc_base + 4, 32, SIRFSOC_INTENAL_IRQ_END - 32);
+	sirfsoc_alloc_gc(sirfsoc_intc_base + 4, 32,
+			SIRFSOC_INTENAL_IRQ_END + 1 - 32);
 
 	writel_relaxed(0, sirfsoc_intc_base + SIRFSOC_INT_RISC_LEVEL0);
 	writel_relaxed(0, sirfsoc_intc_base + SIRFSOC_INT_RISC_LEVEL1);
@@ -68,7 +69,8 @@ void __init sirfsoc_of_irq_init(void)
 	if (!sirfsoc_intc_base)
 		panic("unable to map intc cpu registers\n");
 
-	irq_domain_add_legacy(np, 32, 0, 0, &irq_domain_simple_ops, NULL);
+	irq_domain_add_legacy(np, SIRFSOC_INTENAL_IRQ_END + 1, 0, 0,
+		&irq_domain_simple_ops, NULL);
 
 	of_node_put(np);
 

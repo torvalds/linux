@@ -163,7 +163,6 @@ static char *version =
 #include <linux/jiffies.h>
 #include <linux/io.h>
 
-#include <asm/system.h>
 #include <asm/dma.h>
 
 

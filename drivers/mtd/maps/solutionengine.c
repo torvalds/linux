@@ -92,8 +92,8 @@ static int __init init_soleng_maps(void)
 		mtd_device_register(eprom_mtd, NULL, 0);
 	}
 
-	mtd_device_parse_register(flash_mtd, probes, 0,
-			superh_se_partitions, NUM_PARTITIONS);
+	mtd_device_parse_register(flash_mtd, probes, NULL,
+				  superh_se_partitions, NUM_PARTITIONS);
 
 	return 0;
 }

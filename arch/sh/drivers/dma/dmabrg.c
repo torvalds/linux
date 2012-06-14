@@ -189,8 +189,8 @@ static int __init dmabrg_init(void)
 	if (ret == 0)
 		return ret;
 
-	free_irq(DMABRGI1, 0);
-out1:	free_irq(DMABRGI0, 0);
+	free_irq(DMABRGI1, NULL);
+out1:	free_irq(DMABRGI0, NULL);
 out0:	kfree(dmabrg_handlers);
 	return ret;
 }

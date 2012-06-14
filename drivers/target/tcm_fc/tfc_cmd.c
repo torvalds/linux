@@ -121,6 +121,8 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	struct fc_exch *ep;
 	size_t len;
 
+	if (cmd->aborted)
+		return 0;
 	ft_dump_cmd(cmd, __func__);
 	ep = fc_seq_exch(cmd->seq);
 	lport = ep->lp;
@@ -187,6 +189,8 @@ int ft_write_pending(struct se_cmd *se_cmd)
 
 	ft_dump_cmd(cmd, __func__);
 
+	if (cmd->aborted)
+		return 0;
 	ep = fc_seq_exch(cmd->seq);
 	lport = ep->lp;
 	fp = fc_frame_alloc(lport, sizeof(*txrdy));
@@ -211,20 +215,10 @@ int ft_write_pending(struct se_cmd *se_cmd)
 		 */
 		if ((ep->xid <= lport->lro_xid) &&
 		    (fh->fh_r_ctl == FC_RCTL_DD_DATA_DESC)) {
-			if (se_cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
-				/*
-				 * cmd may have been broken up into multiple
-				 * tasks. Link their sgs together so we can
-				 * operate on them all at once.
-				 */
-				transport_do_task_sg_chain(se_cmd);
-				cmd->sg = se_cmd->t_tasks_sg_chained;
-				cmd->sg_cnt =
-					se_cmd->t_tasks_sg_chained_no;
-			}
-			if (cmd->sg && lport->tt.ddp_target(lport, ep->xid,
-							    cmd->sg,
-							    cmd->sg_cnt))
+			if ((se_cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) &&
+			    lport->tt.ddp_target(lport, ep->xid,
+						 se_cmd->t_data_sg,
+						 se_cmd->t_data_nents))
 				cmd->was_ddp_setup = 1;
 		}
 	}
@@ -252,10 +246,10 @@ static void ft_recv_seq(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 	struct ft_cmd *cmd = arg;
 	struct fc_frame_header *fh;
 
-	if (IS_ERR(fp)) {
+	if (unlikely(IS_ERR(fp))) {
 		/* XXX need to find cmd if queued */
 		cmd->seq = NULL;
-		transport_generic_free_cmd(&cmd->se_cmd, 0);
+		cmd->aborted = true;
 		return;
 	}
 
@@ -399,6 +393,8 @@ int ft_queue_tm_resp(struct se_cmd *se_cmd)
 	struct se_tmr_req *tmr = se_cmd->se_tmr_req;
 	enum fcp_resp_rsp_codes code;
 
+	if (cmd->aborted)
+		return 0;
 	switch (tmr->response) {
 	case TMR_FUNCTION_COMPLETE:
 		code = FCP_TMF_CMPL;

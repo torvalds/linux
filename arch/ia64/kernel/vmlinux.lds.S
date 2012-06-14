@@ -1,7 +1,6 @@
 
 #include <asm/cache.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 
 #include <asm-generic/vmlinux.lds.h>

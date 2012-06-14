@@ -87,6 +87,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/amba/bus.h>
@@ -99,6 +100,8 @@
 #include "common.h"
 
 static DEFINE_SPINLOCK(global_clkregs_lock);
+
+static int usb_pll_enable, usb_pll_valid;
 
 static struct clk clk_armpll;
 static struct clk clk_usbpll;
@@ -384,30 +387,62 @@ static u32 local_clk_usbpll_setup(struct clk_pll_setup *pHCLKPllSetup)
 static int local_usbpll_enable(struct clk *clk, int enable)
 {
 	u32 reg;
-	int ret = -ENODEV;
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
+	int ret = 0;
+	unsigned long timeout = jiffies + msecs_to_jiffies(20);
 
 	reg = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
 
-	if (enable == 0) {
-		reg &= ~(LPC32XX_CLKPWR_USBCTRL_CLK_EN1 |
-			LPC32XX_CLKPWR_USBCTRL_CLK_EN2);
-		__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
-	} else if (reg & LPC32XX_CLKPWR_USBCTRL_PLL_PWRUP) {
+	__raw_writel(reg & ~(LPC32XX_CLKPWR_USBCTRL_CLK_EN2 |
+		LPC32XX_CLKPWR_USBCTRL_PLL_PWRUP),
+		LPC32XX_CLKPWR_USB_CTRL);
+	__raw_writel(reg & ~LPC32XX_CLKPWR_USBCTRL_CLK_EN1,
+		LPC32XX_CLKPWR_USB_CTRL);
+
+	if (enable && usb_pll_valid && usb_pll_enable) {
+		ret = -ENODEV;
+		/*
+		 * If the PLL rate has been previously set, then the rate
+		 * in the PLL register is valid and can be enabled here.
+		 * Otherwise, it needs to be enabled as part of setrate.
+		 */
+
+		/*
+		 * Gate clock into PLL
+		 */
 		reg |= LPC32XX_CLKPWR_USBCTRL_CLK_EN1;
 		__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
 
-		/* Wait for PLL lock */
+		/*
+		 * Enable PLL
+		 */
+		reg |= LPC32XX_CLKPWR_USBCTRL_PLL_PWRUP;
+		__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
+
+		/*
+		 * Wait for PLL to lock
+		 */
 		while (time_before(jiffies, timeout) && (ret == -ENODEV)) {
 			reg = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
 			if (reg & LPC32XX_CLKPWR_USBCTRL_PLL_STS)
 				ret = 0;
+			else
+				udelay(10);
 		}
 
+		/*
+		 * Gate clock from PLL if PLL is locked
+		 */
 		if (ret == 0) {
-			reg |= LPC32XX_CLKPWR_USBCTRL_CLK_EN2;
-			__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
+			__raw_writel(reg | LPC32XX_CLKPWR_USBCTRL_CLK_EN2,
+				LPC32XX_CLKPWR_USB_CTRL);
+		} else {
+			__raw_writel(reg & ~(LPC32XX_CLKPWR_USBCTRL_CLK_EN1 |
+				LPC32XX_CLKPWR_USBCTRL_PLL_PWRUP),
+				LPC32XX_CLKPWR_USB_CTRL);
 		}
+	} else if ((enable == 0) && usb_pll_valid  && usb_pll_enable) {
+		usb_pll_valid = 0;
+		usb_pll_enable = 0;
 	}
 
 	return ret;
@@ -425,7 +460,7 @@ static unsigned long local_usbpll_round_rate(struct clk *clk,
 	 */
 	rate = rate * 1000;
 
-	clkin = clk->parent->rate;
+	clkin = clk->get_rate(clk);
 	usbdiv = (__raw_readl(LPC32XX_CLKPWR_USBCLK_PDIV) &
 		LPC32XX_CLKPWR_USBPDIV_PLL_MASK) + 1;
 	clkin = clkin / usbdiv;
@@ -439,7 +474,8 @@ static unsigned long local_usbpll_round_rate(struct clk *clk,
 
 static int local_usbpll_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 clkin, reg, usbdiv;
+	int ret = -ENODEV;
+	u32 clkin, usbdiv;
 	struct clk_pll_setup pllsetup;
 
 	/*
@@ -448,7 +484,7 @@ static int local_usbpll_set_rate(struct clk *clk, unsigned long rate)
 	 */
 	rate = rate * 1000;
 
-	clkin = clk->get_rate(clk);
+	clkin = clk->get_rate(clk->parent);
 	usbdiv = (__raw_readl(LPC32XX_CLKPWR_USBCLK_PDIV) &
 		LPC32XX_CLKPWR_USBPDIV_PLL_MASK) + 1;
 	clkin = clkin / usbdiv;
@@ -457,22 +493,25 @@ static int local_usbpll_set_rate(struct clk *clk, unsigned long rate)
 	if (local_clk_find_pll_cfg(clkin, rate, &pllsetup) == 0)
 		return -EINVAL;
 
+	/*
+	 * Disable PLL clocks during PLL change
+	 */
 	local_usbpll_enable(clk, 0);
-
-	reg = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
-	reg |= LPC32XX_CLKPWR_USBCTRL_CLK_EN1;
-	__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
-
-	pllsetup.analog_on = 1;
+	pllsetup.analog_on = 0;
 	local_clk_usbpll_setup(&pllsetup);
 
-	clk->rate = clk_check_pll_setup(clkin, &pllsetup);
+	/*
+	 * Start USB PLL and check PLL status
+	 */
 
-	reg = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
-	reg |= LPC32XX_CLKPWR_USBCTRL_CLK_EN2;
-	__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
+	usb_pll_valid = 1;
+	usb_pll_enable = 1;
 
-	return 0;
+	ret = local_usbpll_enable(clk, 1);
+	if (ret >= 0)
+		clk->rate = clk_check_pll_setup(clkin, &pllsetup);
+
+	return ret;
 }
 
 static struct clk clk_usbpll = {
@@ -1056,49 +1095,42 @@ struct clk *clk_get_parent(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_parent);
 
-#define _REGISTER_CLOCK(d, n, c) \
-	{ \
-		.dev_id = (d), \
-		.con_id = (n), \
-		.clk = &(c), \
-	},
-
 static struct clk_lookup lookups[] = {
-	_REGISTER_CLOCK(NULL, "osc_32KHz", osc_32KHz)
-	_REGISTER_CLOCK(NULL, "osc_pll397", osc_pll397)
-	_REGISTER_CLOCK(NULL, "osc_main", osc_main)
-	_REGISTER_CLOCK(NULL, "sys_ck", clk_sys)
-	_REGISTER_CLOCK(NULL, "arm_pll_ck", clk_armpll)
-	_REGISTER_CLOCK(NULL, "ck_pll5", clk_usbpll)
-	_REGISTER_CLOCK(NULL, "hclk_ck", clk_hclk)
-	_REGISTER_CLOCK(NULL, "pclk_ck", clk_pclk)
-	_REGISTER_CLOCK(NULL, "timer0_ck", clk_timer0)
-	_REGISTER_CLOCK(NULL, "timer1_ck", clk_timer1)
-	_REGISTER_CLOCK(NULL, "timer2_ck", clk_timer2)
-	_REGISTER_CLOCK(NULL, "timer3_ck", clk_timer3)
-	_REGISTER_CLOCK(NULL, "vfp9_ck", clk_vfp9)
-	_REGISTER_CLOCK(NULL, "clk_dmac", clk_dma)
-	_REGISTER_CLOCK("pnx4008-watchdog", NULL, clk_wdt)
-	_REGISTER_CLOCK(NULL, "uart3_ck", clk_uart3)
-	_REGISTER_CLOCK(NULL, "uart4_ck", clk_uart4)
-	_REGISTER_CLOCK(NULL, "uart5_ck", clk_uart5)
-	_REGISTER_CLOCK(NULL, "uart6_ck", clk_uart6)
-	_REGISTER_CLOCK("pnx-i2c.0", NULL, clk_i2c0)
-	_REGISTER_CLOCK("pnx-i2c.1", NULL, clk_i2c1)
-	_REGISTER_CLOCK("pnx-i2c.2", NULL, clk_i2c2)
-	_REGISTER_CLOCK("dev:ssp0", NULL, clk_ssp0)
-	_REGISTER_CLOCK("dev:ssp1", NULL, clk_ssp1)
-	_REGISTER_CLOCK("lpc32xx_keys.0", NULL, clk_kscan)
-	_REGISTER_CLOCK("lpc32xx-nand.0", "nand_ck", clk_nand)
-	_REGISTER_CLOCK("lpc32xx-adc", NULL, clk_adc)
-	_REGISTER_CLOCK(NULL, "i2s0_ck", clk_i2s0)
-	_REGISTER_CLOCK(NULL, "i2s1_ck", clk_i2s1)
-	_REGISTER_CLOCK("ts-lpc32xx", NULL, clk_tsc)
-	_REGISTER_CLOCK("dev:mmc0", NULL, clk_mmc)
-	_REGISTER_CLOCK("lpc-net.0", NULL, clk_net)
-	_REGISTER_CLOCK("dev:clcd", NULL, clk_lcd)
-	_REGISTER_CLOCK("lpc32xx_udc", "ck_usbd", clk_usbd)
-	_REGISTER_CLOCK("lpc32xx_rtc", NULL, clk_rtc)
+	CLKDEV_INIT(NULL, "osc_32KHz", &osc_32KHz),
+	CLKDEV_INIT(NULL, "osc_pll397", &osc_pll397),
+	CLKDEV_INIT(NULL, "osc_main", &osc_main),
+	CLKDEV_INIT(NULL, "sys_ck", &clk_sys),
+	CLKDEV_INIT(NULL, "arm_pll_ck", &clk_armpll),
+	CLKDEV_INIT(NULL, "ck_pll5", &clk_usbpll),
+	CLKDEV_INIT(NULL, "hclk_ck", &clk_hclk),
+	CLKDEV_INIT(NULL, "pclk_ck", &clk_pclk),
+	CLKDEV_INIT(NULL, "timer0_ck", &clk_timer0),
+	CLKDEV_INIT(NULL, "timer1_ck", &clk_timer1),
+	CLKDEV_INIT(NULL, "timer2_ck", &clk_timer2),
+	CLKDEV_INIT(NULL, "timer3_ck", &clk_timer3),
+	CLKDEV_INIT(NULL, "vfp9_ck", &clk_vfp9),
+	CLKDEV_INIT("pl08xdmac", NULL, &clk_dma),
+	CLKDEV_INIT("4003c000.watchdog", NULL, &clk_wdt),
+	CLKDEV_INIT(NULL, "uart3_ck", &clk_uart3),
+	CLKDEV_INIT(NULL, "uart4_ck", &clk_uart4),
+	CLKDEV_INIT(NULL, "uart5_ck", &clk_uart5),
+	CLKDEV_INIT(NULL, "uart6_ck", &clk_uart6),
+	CLKDEV_INIT("400a0000.i2c", NULL, &clk_i2c0),
+	CLKDEV_INIT("400a8000.i2c", NULL, &clk_i2c1),
+	CLKDEV_INIT("31020300.i2c", NULL, &clk_i2c2),
+	CLKDEV_INIT("dev:ssp0", NULL, &clk_ssp0),
+	CLKDEV_INIT("dev:ssp1", NULL, &clk_ssp1),
+	CLKDEV_INIT("lpc32xx_keys.0", NULL, &clk_kscan),
+	CLKDEV_INIT("lpc32xx-nand.0", "nand_ck", &clk_nand),
+	CLKDEV_INIT("40048000.adc", NULL, &clk_adc),
+	CLKDEV_INIT(NULL, "i2s0_ck", &clk_i2s0),
+	CLKDEV_INIT(NULL, "i2s1_ck", &clk_i2s1),
+	CLKDEV_INIT("40048000.tsc", NULL, &clk_tsc),
+	CLKDEV_INIT("20098000.sd", NULL, &clk_mmc),
+	CLKDEV_INIT("31060000.ethernet", NULL, &clk_net),
+	CLKDEV_INIT("dev:clcd", NULL, &clk_lcd),
+	CLKDEV_INIT("31020000.usbd", "ck_usbd", &clk_usbd),
+	CLKDEV_INIT("lpc32xx_rtc", NULL, &clk_rtc),
 };
 
 static int __init clk_init(void)

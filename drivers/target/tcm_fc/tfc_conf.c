@@ -300,6 +300,7 @@ static struct se_portal_group *ft_add_tpg(
 {
 	struct ft_lport_acl *lacl;
 	struct ft_tpg *tpg;
+	struct workqueue_struct *wq;
 	unsigned long index;
 	int ret;
 
@@ -321,18 +322,20 @@ static struct se_portal_group *ft_add_tpg(
 	tpg->lport_acl = lacl;
 	INIT_LIST_HEAD(&tpg->lun_list);
 
-	ret = core_tpg_register(&ft_configfs->tf_ops, wwn, &tpg->se_tpg,
-				tpg, TRANSPORT_TPG_TYPE_NORMAL);
-	if (ret < 0) {
+	wq = alloc_workqueue("tcm_fc", 0, 1);
+	if (!wq) {
 		kfree(tpg);
 		return NULL;
 	}
 
-	tpg->workqueue = alloc_workqueue("tcm_fc", 0, 1);
-	if (!tpg->workqueue) {
+	ret = core_tpg_register(&ft_configfs->tf_ops, wwn, &tpg->se_tpg,
+				tpg, TRANSPORT_TPG_TYPE_NORMAL);
+	if (ret < 0) {
+		destroy_workqueue(wq);
 		kfree(tpg);
 		return NULL;
 	}
+	tpg->workqueue = wq;
 
 	mutex_lock(&ft_lport_lock);
 	list_add_tail(&tpg->list, &lacl->tpg_list);
@@ -572,9 +575,6 @@ int ft_register_configfs(void)
 		return PTR_ERR(fabric);
 	}
 	fabric->tf_ops = ft_fabric_ops;
-
-	/* Allowing support for task_sg_chaining */
-	fabric->tf_ops.task_sg_chaining = 1;
 
 	/*
 	 * Setup default attribute lists for various fabric->tf_cit_tmpl

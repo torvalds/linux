@@ -46,7 +46,6 @@
 #include <pcmcia/cisreg.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 

@@ -17,6 +17,7 @@
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/memblock.h>
 
@@ -49,10 +50,22 @@ static void __init msm8x60_map_io(void)
 	msm_map_msm8x60_io();
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id msm_dt_gic_match[] __initdata = {
+	{ .compatible = "qcom,msm-8660-qgic", .data = gic_of_init },
+	{}
+};
+#endif
+
 static void __init msm8x60_init_irq(void)
 {
-	gic_init(0, GIC_PPI_START, MSM_QGIC_DIST_BASE,
-		 (void *)MSM_QGIC_CPU_BASE);
+	if (!of_have_populated_dt())
+		gic_init(0, GIC_PPI_START, MSM_QGIC_DIST_BASE,
+			 (void *)MSM_QGIC_CPU_BASE);
+#ifdef CONFIG_OF
+	else
+		of_irq_init(msm_dt_gic_match);
+#endif
 
 	/* Edge trigger PPIs except AVS_SVICINT and AVS_SVICINTSWDONE */
 	writel(0xFFFFD7FF, MSM_QGIC_DIST_BASE + GIC_DIST_CONFIG + 4);
@@ -68,21 +81,18 @@ static void __init msm8x60_init(void)
 {
 }
 
+static void __init msm8x60_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 #ifdef CONFIG_OF
 static struct of_dev_auxdata msm_auxdata_lookup[] __initdata = {
 	{}
 };
 
-static struct of_device_id msm_dt_gic_match[] __initdata = {
-	{ .compatible = "qcom,msm-8660-qgic", },
-	{}
-};
-
 static void __init msm8x60_dt_init(void)
 {
-	irq_domain_generate_simple(msm_dt_gic_match, MSM8X60_QGIC_DIST_PHYS,
-				GIC_SPI_START);
-
 	if (of_machine_is_compatible("qcom,msm8660-surf")) {
 		printk(KERN_INFO "Init surf UART registers\n");
 		msm8x60_init_uart12dm();
@@ -106,6 +116,7 @@ MACHINE_START(MSM8X60_RUMI3, "QCT MSM8X60 RUMI3")
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -116,6 +127,7 @@ MACHINE_START(MSM8X60_SURF, "QCT MSM8X60 SURF")
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -126,6 +138,7 @@ MACHINE_START(MSM8X60_SIM, "QCT MSM8X60 SIMULATOR")
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -136,6 +149,7 @@ MACHINE_START(MSM8X60_FFA, "QCT MSM8X60 FFA")
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -145,6 +159,7 @@ DT_MACHINE_START(MSM_DT, "Qualcomm MSM (Flattened Device Tree)")
 	.map_io = msm8x60_map_io,
 	.init_irq = msm8x60_init_irq,
 	.init_machine = msm8x60_dt_init,
+	.init_late = msm8x60_init_late,
 	.timer = &msm_timer,
 	.dt_compat = msm8x60_fluid_match,
 MACHINE_END

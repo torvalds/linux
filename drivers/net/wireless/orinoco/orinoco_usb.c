@@ -1752,6 +1752,7 @@ static struct usb_driver orinoco_driver = {
 	.probe = ezusb_probe,
 	.disconnect = ezusb_disconnect,
 	.id_table = ezusb_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(orinoco_driver);

@@ -474,6 +474,7 @@ static int __devinit isp1704_charger_probe(struct platform_device *pdev)
 fail2:
 	power_supply_unregister(&isp->psy);
 fail1:
+	isp1704_charger_set_power(isp, 0);
 	usb_put_transceiver(isp->phy);
 fail0:
 	kfree(isp);

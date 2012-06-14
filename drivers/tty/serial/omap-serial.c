@@ -44,6 +44,13 @@
 #include <plat/dmtimer.h>
 #include <plat/omap-serial.h>
 
+#define UART_BUILD_REVISION(x, y)	(((x) << 8) | (y))
+
+#define OMAP_UART_REV_42 0x0402
+#define OMAP_UART_REV_46 0x0406
+#define OMAP_UART_REV_52 0x0502
+#define OMAP_UART_REV_63 0x0603
+
 #define DEFAULT_CLK_SPEED 48000000 /* 48Mhz*/
 
 /* SCR register bitmasks */
@@ -52,6 +59,17 @@
 /* FCR register bitmasks */
 #define OMAP_UART_FCR_RX_FIFO_TRIG_SHIFT		6
 #define OMAP_UART_FCR_RX_FIFO_TRIG_MASK			(0x3 << 6)
+
+/* MVR register bitmasks */
+#define OMAP_UART_MVR_SCHEME_SHIFT	30
+
+#define OMAP_UART_LEGACY_MVR_MAJ_MASK	0xf0
+#define OMAP_UART_LEGACY_MVR_MAJ_SHIFT	4
+#define OMAP_UART_LEGACY_MVR_MIN_MASK	0x0f
+
+#define OMAP_UART_MVR_MAJ_MASK		0x700
+#define OMAP_UART_MVR_MAJ_SHIFT		8
+#define OMAP_UART_MVR_MIN_MASK		0x3f
 
 static struct uart_omap_port *ui[OMAP_MAX_HSUART_PORTS];
 
@@ -1346,6 +1364,59 @@ static void uart_tx_dma_callback(int lch, u16 ch_status, void *data)
 	return;
 }
 
+static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
+{
+	u32 mvr, scheme;
+	u16 revision, major, minor;
+
+	mvr = serial_in(up, UART_OMAP_MVER);
+
+	/* Check revision register scheme */
+	scheme = mvr >> OMAP_UART_MVR_SCHEME_SHIFT;
+
+	switch (scheme) {
+	case 0: /* Legacy Scheme: OMAP2/3 */
+		/* MINOR_REV[0:4], MAJOR_REV[4:7] */
+		major = (mvr & OMAP_UART_LEGACY_MVR_MAJ_MASK) >>
+					OMAP_UART_LEGACY_MVR_MAJ_SHIFT;
+		minor = (mvr & OMAP_UART_LEGACY_MVR_MIN_MASK);
+		break;
+	case 1:
+		/* New Scheme: OMAP4+ */
+		/* MINOR_REV[0:5], MAJOR_REV[8:10] */
+		major = (mvr & OMAP_UART_MVR_MAJ_MASK) >>
+					OMAP_UART_MVR_MAJ_SHIFT;
+		minor = (mvr & OMAP_UART_MVR_MIN_MASK);
+		break;
+	default:
+		dev_warn(&up->pdev->dev,
+			"Unknown %s revision, defaulting to highest\n",
+			up->name);
+		/* highest possible revision */
+		major = 0xff;
+		minor = 0xff;
+	}
+
+	/* normalize revision for the driver */
+	revision = UART_BUILD_REVISION(major, minor);
+
+	switch (revision) {
+	case OMAP_UART_REV_46:
+		up->errata |= (UART_ERRATA_i202_MDR1_ACCESS |
+				UART_ERRATA_i291_DMA_FORCEIDLE);
+		break;
+	case OMAP_UART_REV_52:
+		up->errata |= (UART_ERRATA_i202_MDR1_ACCESS |
+				UART_ERRATA_i291_DMA_FORCEIDLE);
+		break;
+	case OMAP_UART_REV_63:
+		up->errata |= UART_ERRATA_i202_MDR1_ACCESS;
+		break;
+	default:
+		break;
+	}
+}
+
 static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 {
 	struct omap_uart_port_info *omap_up_info;
@@ -1381,29 +1452,24 @@ static int serial_omap_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!request_mem_region(mem->start, resource_size(mem),
+	if (!devm_request_mem_region(&pdev->dev, mem->start, resource_size(mem),
 				pdev->dev.driver->name)) {
 		dev_err(&pdev->dev, "memory region already claimed\n");
 		return -EBUSY;
 	}
 
 	dma_rx = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
-	if (!dma_rx) {
-		ret = -EINVAL;
-		goto err;
-	}
+	if (!dma_rx)
+		return -ENXIO;
 
 	dma_tx = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
-	if (!dma_tx) {
-		ret = -EINVAL;
-		goto err;
-	}
+	if (!dma_tx)
+		return -ENXIO;
 
-	up = kzalloc(sizeof(*up), GFP_KERNEL);
-	if (up == NULL) {
-		ret = -ENOMEM;
-		goto do_release_region;
-	}
+	up = devm_kzalloc(&pdev->dev, sizeof(*up), GFP_KERNEL);
+	if (!up)
+		return -ENOMEM;
+
 	up->pdev = pdev;
 	up->port.dev = &pdev->dev;
 	up->port.type = PORT_OMAP;
@@ -1423,16 +1489,17 @@ static int serial_omap_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get alias/pdev id, errno %d\n",
 								up->port.line);
 		ret = -ENODEV;
-		goto err;
+		goto err_port_line;
 	}
 
 	sprintf(up->name, "OMAP UART%d", up->port.line);
 	up->port.mapbase = mem->start;
-	up->port.membase = ioremap(mem->start, resource_size(mem));
+	up->port.membase = devm_ioremap(&pdev->dev, mem->start,
+						resource_size(mem));
 	if (!up->port.membase) {
 		dev_err(&pdev->dev, "can't ioremap UART\n");
 		ret = -ENOMEM;
-		goto err;
+		goto err_ioremap;
 	}
 
 	up->port.flags = omap_up_info->flags;
@@ -1443,7 +1510,6 @@ static int serial_omap_probe(struct platform_device *pdev)
 						"%d\n", DEFAULT_CLK_SPEED);
 	}
 	up->uart_dma.uart_base = mem->start;
-	up->errata = omap_up_info->errata;
 
 	if (omap_up_info->dma_enabled) {
 		up->uart_dma.uart_dma_tx = dma_tx->start;
@@ -1473,21 +1539,26 @@ static int serial_omap_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
+	omap_serial_fill_features_erratas(up);
+
 	ui[up->port.line] = up;
 	serial_omap_add_console_port(up);
 
 	ret = uart_add_one_port(&serial_omap_reg, &up->port);
 	if (ret != 0)
-		goto do_release_region;
+		goto err_add_port;
 
 	pm_runtime_put(&pdev->dev);
 	platform_set_drvdata(pdev, up);
 	return 0;
-err:
+
+err_add_port:
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+err_ioremap:
+err_port_line:
 	dev_err(&pdev->dev, "[UART%d]: failure [%s]: %d\n",
 				pdev->id, __func__, ret);
-do_release_region:
-	release_mem_region(mem->start, resource_size(mem));
 	return ret;
 }
 
@@ -1499,8 +1570,6 @@ static int serial_omap_remove(struct platform_device *dev)
 		pm_runtime_disable(&up->pdev->dev);
 		uart_remove_one_port(&serial_omap_reg, &up->port);
 		pm_qos_remove_request(&up->pm_qos_request);
-
-		kfree(up);
 	}
 
 	platform_set_drvdata(dev, NULL);

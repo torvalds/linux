@@ -712,7 +712,7 @@ static long ffs_ep0_ioctl(struct file *file, unsigned code, unsigned long value)
 	if (code == FUNCTIONFS_INTERFACE_REVMAP) {
 		struct ffs_function *func = ffs->func;
 		ret = func ? ffs_func_revmap_intf(func, value) : -ENODEV;
-	} else if (gadget->ops->ioctl) {
+	} else if (gadget && gadget->ops->ioctl) {
 		ret = gadget->ops->ioctl(gadget, code, value);
 	} else {
 		ret = -ENOTTY;
@@ -1031,6 +1031,12 @@ struct ffs_sb_fill_data {
 	struct ffs_file_perms perms;
 	umode_t root_mode;
 	const char *dev_name;
+	union {
+		/* set by ffs_fs_mount(), read by ffs_sb_fill() */
+		void *private_data;
+		/* set by ffs_sb_fill(), read by ffs_fs_mount */
+		struct ffs_data *ffs_data;
+	};
 };
 
 static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
@@ -1047,8 +1053,14 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 		goto Enomem;
 
 	ffs->sb              = sb;
-	ffs->dev_name        = data->dev_name;
+	ffs->dev_name        = kstrdup(data->dev_name, GFP_KERNEL);
+	if (unlikely(!ffs->dev_name))
+		goto Enomem;
 	ffs->file_perms      = data->perms;
+	ffs->private_data    = data->private_data;
+
+	/* used by the caller of this function */
+	data->ffs_data       = ffs;
 
 	sb->s_fs_info        = ffs;
 	sb->s_blocksize      = PAGE_CACHE_SIZE;
@@ -1167,20 +1179,29 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 		},
 		.root_mode = S_IFDIR | 0500,
 	};
+	struct dentry *rv;
 	int ret;
+	void *ffs_dev;
 
 	ENTER();
-
-	ret = functionfs_check_dev_callback(dev_name);
-	if (unlikely(ret < 0))
-		return ERR_PTR(ret);
 
 	ret = ffs_fs_parse_opts(&data, opts);
 	if (unlikely(ret < 0))
 		return ERR_PTR(ret);
 
+	ffs_dev = functionfs_acquire_dev_callback(dev_name);
+	if (IS_ERR(ffs_dev))
+		return ffs_dev;
+
 	data.dev_name = dev_name;
-	return mount_single(t, flags, &data, ffs_sb_fill);
+	data.private_data = ffs_dev;
+	rv = mount_nodev(t, flags, &data, ffs_sb_fill);
+
+	/* data.ffs_data is set by ffs_sb_fill */
+	if (IS_ERR(rv))
+		functionfs_release_dev_callback(data.ffs_data);
+
+	return rv;
 }
 
 static void
@@ -1189,8 +1210,10 @@ ffs_fs_kill_sb(struct super_block *sb)
 	ENTER();
 
 	kill_litter_super(sb);
-	if (sb->s_fs_info)
+	if (sb->s_fs_info) {
+		functionfs_release_dev_callback(sb->s_fs_info);
 		ffs_data_put(sb->s_fs_info);
+	}
 }
 
 static struct file_system_type ffs_fs_type = {
@@ -1256,6 +1279,7 @@ static void ffs_data_put(struct ffs_data *ffs)
 		ffs_data_clear(ffs);
 		BUG_ON(waitqueue_active(&ffs->ev.waitq) ||
 		       waitqueue_active(&ffs->ep0req_completion.wait));
+		kfree(ffs->dev_name);
 		kfree(ffs);
 	}
 }
@@ -1382,6 +1406,7 @@ static void functionfs_unbind(struct ffs_data *ffs)
 		ffs->ep0req = NULL;
 		ffs->gadget = NULL;
 		ffs_data_put(ffs);
+		clear_bit(FFS_FL_BOUND, &ffs->flags);
 	}
 }
 
@@ -1472,7 +1497,21 @@ static int functionfs_bind_config(struct usb_composite_dev *cdev,
 
 static void ffs_func_free(struct ffs_function *func)
 {
+	struct ffs_ep *ep         = func->eps;
+	unsigned count            = func->ffs->eps_count;
+	unsigned long flags;
+
 	ENTER();
+
+	/* cleanup after autoconfig */
+	spin_lock_irqsave(&func->ffs->eps_lock, flags);
+	do {
+		if (ep->ep && ep->req)
+			usb_ep_free_request(ep->ep, ep->req);
+		ep->req = NULL;
+		++ep;
+	} while (--count);
+	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 
 	ffs_data_put(func->ffs);
 

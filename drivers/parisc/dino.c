@@ -55,7 +55,6 @@
 
 #include <asm/pdc.h>
 #include <asm/page.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/hardware.h>
 

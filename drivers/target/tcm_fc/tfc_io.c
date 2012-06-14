@@ -81,6 +81,8 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	void *from;
 	void *to = NULL;
 
+	if (cmd->aborted)
+		return 0;
 	ep = fc_seq_exch(cmd->seq);
 	lport = ep->lp;
 	cmd->seq = lport->tt.seq_start_next(cmd->seq);
@@ -226,7 +228,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 				"payload, Frame will be dropped if"
 				"'Sequence Initiative' bit in f_ctl is"
 				"not set\n", __func__, ep->xid, f_ctl,
-				cmd->sg, cmd->sg_cnt);
+				se_cmd->t_data_sg, se_cmd->t_data_nents);
 		/*
 		 * Invalidate HW DDP context if it was setup for respective
 		 * command. Invalidation of HW DDP context is requited in both

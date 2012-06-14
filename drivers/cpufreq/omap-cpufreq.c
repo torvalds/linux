@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 
-#include <asm/system.h>
 #include <asm/smp_plat.h>
 #include <asm/cpu.h>
 

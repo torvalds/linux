@@ -667,6 +667,9 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_SHORT_GI: Short guard interval was used
  * @RX_FLAG_NO_SIGNAL_VAL: The signal strength value is not present.
  *	Valid only for data frames (mainly A-MPDU)
+ * @RX_FLAG_HT_GF: This frame was received in a HT-greenfield transmission, if
+ *	the driver fills this value it should add %IEEE80211_RADIOTAP_MCS_HAVE_FMT
+ *	to hw.radiotap_mcs_details to advertise that fact
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -681,6 +684,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_40MHZ		= 1<<10,
 	RX_FLAG_SHORT_GI	= 1<<11,
 	RX_FLAG_NO_SIGNAL_VAL	= 1<<12,
+	RX_FLAG_HT_GF		= 1<<13,
 };
 
 /**
@@ -939,7 +943,7 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  *	CCMP key if it requires CCMP encryption of management frames (MFP) to
  *	be done in software.
  * @IEEE80211_KEY_FLAG_PUT_IV_SPACE: This flag should be set by the driver
- *	for a CCMP key if space should be prepared for the IV, but the IV
+ *	if space should be prepared for the IV, but the IV
  *	itself should not be generated. Do not set together with
  *	@IEEE80211_KEY_FLAG_GENERATE_IV on the same key.
  */
@@ -1288,6 +1292,15 @@ enum ieee80211_hw_flags {
  *
  * @offchannel_tx_hw_queue: HW queue ID to use for offchannel TX
  *	(if %IEEE80211_HW_QUEUE_CONTROL is set)
+ *
+ * @radiotap_mcs_details: lists which MCS information can the HW
+ *	reports, by default it is set to _MCS, _GI and _BW but doesn't
+ *	include _FMT. Use %IEEE80211_RADIOTAP_MCS_HAVE_* values, only
+ *	adding _BW is supported today.
+ *
+ * @netdev_features: netdev features to be set in each netdev created
+ *	from this HW. Note only HW checksum features are currently
+ *	compatible with mac80211. Other feature bits will be rejected.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1309,6 +1322,8 @@ struct ieee80211_hw {
 	u8 max_rx_aggregation_subframes;
 	u8 max_tx_aggregation_subframes;
 	u8 offchannel_tx_hw_queue;
+	u8 radiotap_mcs_details;
+	netdev_features_t netdev_features;
 };
 
 /**
@@ -1350,7 +1365,7 @@ static inline struct ieee80211_rate *
 ieee80211_get_tx_rate(const struct ieee80211_hw *hw,
 		      const struct ieee80211_tx_info *c)
 {
-	if (WARN_ON(c->control.rates[0].idx < 0))
+	if (WARN_ON_ONCE(c->control.rates[0].idx < 0))
 		return NULL;
 	return &hw->wiphy->bands[c->band]->bitrates[c->control.rates[0].idx];
 }
@@ -1930,6 +1945,11 @@ enum ieee80211_rate_control_changed {
  *	to also unregister the device. If it returns 1, then mac80211
  *	will also go through the regular complete restart on resume.
  *
+ * @set_wakeup: Enable or disable wakeup when WoWLAN configuration is
+ *	modified. The reason is that device_set_wakeup_enable() is
+ *	supposed to be called when the configuration changes, not only
+ *	in suspend().
+ *
  * @add_interface: Called when a netdevice attached to the hardware is
  *	enabled. Because it is not called for monitor mode devices, @start
  *	and @stop must be implemented.
@@ -2168,7 +2188,10 @@ enum ieee80211_rate_control_changed {
  *	offload. Frames to transmit on the off-channel channel are transmitted
  *	normally except for the %IEEE80211_TX_CTL_TX_OFFCHAN flag. When the
  *	duration (which will always be non-zero) expires, the driver must call
- *	ieee80211_remain_on_channel_expired(). This callback may sleep.
+ *	ieee80211_remain_on_channel_expired().
+ *	Note that this callback may be called while the device is in IDLE and
+ *	must be accepted in this case.
+ *	This callback may sleep.
  * @cancel_remain_on_channel: Requests that an ongoing off-channel period is
  *	aborted before it expires. This callback may sleep.
  *
@@ -2223,6 +2246,14 @@ enum ieee80211_rate_control_changed {
  *	The @tids parameter is a bitmap and tells the driver which TIDs the
  *	frames will be on; it will at most have two bits set.
  *	This callback must be atomic.
+ *
+ * @get_et_sset_count:  Ethtool API to get string-set count.
+ *
+ * @get_et_stats:  Ethtool API to get a set of u64 stats.
+ *
+ * @get_et_strings:  Ethtool API to get a set of strings to describe stats
+ *	and perhaps other supported types of ethtool data-sets.
+ *
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -2353,6 +2384,15 @@ struct ieee80211_ops {
 					u16 tids, int num_frames,
 					enum ieee80211_frame_release_type reason,
 					bool more_data);
+
+	int	(*get_et_sset_count)(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif, int sset);
+	void	(*get_et_stats)(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ethtool_stats *stats, u64 *data);
+	void	(*get_et_strings)(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  u32 sset, u8 *data);
 };
 
 /**
@@ -2939,6 +2979,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
  * ieee80211_generic_frame_duration - Calculate the duration field for a frame
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @band: the band to calculate the frame duration on
  * @frame_len: the length of the frame.
  * @rate: the rate at which the frame is going to be transmitted.
  *
@@ -2947,6 +2988,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
  */
 __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
+					enum ieee80211_band band,
 					size_t frame_len,
 					struct ieee80211_rate *rate);
 
@@ -3523,16 +3565,6 @@ void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       gfp_t gfp);
 
 /**
- * ieee80211_get_operstate - get the operstate of the vif
- *
- * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- *
- * The driver might need to know the operstate of the net_device
- * (specifically, whether the link is IF_OPER_UP after resume)
- */
-unsigned char ieee80211_get_operstate(struct ieee80211_vif *vif);
-
-/**
  * ieee80211_chswitch_done - Complete channel switch process
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @success: make the channel switch successful or not
@@ -3800,4 +3832,39 @@ int ieee80211_add_srates_ie(struct ieee80211_vif *vif,
 
 int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
 				struct sk_buff *skb, bool need_basic);
+
+/**
+ * ieee80211_ave_rssi - report the average rssi for the specified interface
+ *
+ * @vif: the specified virtual interface
+ *
+ * This function return the average rssi value for the requested interface.
+ * It assumes that the given vif is valid.
+ */
+int ieee80211_ave_rssi(struct ieee80211_vif *vif);
+
+/* Extra debugging macros */
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+#define ht_vdbg(fmt, ...)			\
+	pr_debug(fmt, ##__VA_ARGS__)
+#else
+#define ht_vdbg(fmt, ...)			\
+do {						\
+	if (0)					\
+		pr_debug(fmt, ##__VA_ARGS__);	\
+} while (0)
+#endif
+
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+#define ibss_vdbg(fmt, ...)			\
+	pr_debug(fmt, ##__VA_ARGS__)
+#else
+#define ibss_vdbg(fmt, ...)			\
+do {						\
+	if (0)					\
+		pr_debug(fmt, ##__VA_ARGS__);	\
+} while (0)
+#endif
+
 #endif /* MAC80211_H */

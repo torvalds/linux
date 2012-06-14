@@ -274,6 +274,33 @@ struct hv_ring_buffer_debug_info {
 	u32 bytes_avail_towrite;
 };
 
+
+/*
+ *
+ * hv_get_ringbuffer_availbytes()
+ *
+ * Get number of bytes available to read and to write to
+ * for the specified ring buffer
+ */
+static inline void
+hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
+			  u32 *read, u32 *write)
+{
+	u32 read_loc, write_loc, dsize;
+
+	smp_read_barrier_depends();
+
+	/* Capture the read/write indices before they changed */
+	read_loc = rbi->ring_buffer->read_index;
+	write_loc = rbi->ring_buffer->write_index;
+	dsize = rbi->ring_datasize;
+
+	*write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
+		read_loc - write_loc;
+	*read = dsize - *write;
+}
+
+
 /*
  * We use the same version numbering for all Hyper-V modules.
  *
@@ -1035,8 +1062,10 @@ struct hyperv_service_callback {
 	void (*callback) (void *context);
 };
 
+#define MAX_SRV_VER	0x7ffffff
 extern void vmbus_prep_negotiate_resp(struct icmsg_hdr *,
-				      struct icmsg_negotiate *, u8 *);
+					struct icmsg_negotiate *, u8 *, int,
+					int);
 
 int hv_kvp_init(struct hv_util_service *);
 void hv_kvp_deinit(void);

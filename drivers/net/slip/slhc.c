@@ -75,7 +75,6 @@
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <linux/timer.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <net/checksum.h>
 #include <asm/unaligned.h>

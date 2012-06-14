@@ -15,7 +15,7 @@
 #include <linux/sys_soc.h>
 #include <linux/err.h>
 
-static DEFINE_IDR(soc_ida);
+static DEFINE_IDA(soc_ida);
 static DEFINE_SPINLOCK(soc_lock);
 
 static ssize_t soc_info_get(struct device *dev,
@@ -42,7 +42,7 @@ struct device *soc_device_to_device(struct soc_device *soc_dev)
 	return &soc_dev->dev;
 }
 
-static mode_t soc_attribute_mode(struct kobject *kobj,
+static umode_t soc_attribute_mode(struct kobject *kobj,
                                  struct attribute *attr,
                                  int index)
 {
@@ -168,8 +168,6 @@ void soc_device_unregister(struct soc_device *soc_dev)
 
 static int __init soc_bus_register(void)
 {
-	spin_lock_init(&soc_lock);
-
 	return bus_register(&soc_bus_type);
 }
 core_initcall(soc_bus_register);

@@ -244,16 +244,8 @@ static struct s3c2410_platform_nand __initdata osiris_nand_info = {
 /* PCMCIA control and configuration */
 
 static struct resource osiris_pcmcia_resource[] = {
-	[0] = {
-		.start	= 0x0f000000,
-		.end	= 0x0f100000,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 0x0c000000,
-		.end	= 0x0c100000,
-		.flags	= IORESOURCE_MEM,
-	}
+	[0] = DEFINE_RES_MEM(0x0f000000, SZ_1M),
+	[1] = DEFINE_RES_MEM(0x0c000000, SZ_1M),
 };
 
 static struct platform_device osiris_pcmcia = {

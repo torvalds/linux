@@ -21,15 +21,15 @@ typedef unsigned long long __nocast cputime64_t;
 
 static inline unsigned long __div(unsigned long long n, unsigned long base)
 {
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = n >> 1;
 	asm ("dr %0,%1" : "+d" (rp) : "d" (base >> 1));
 	return rp.subreg.odd;
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 	return n / base;
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 }
 
 #define cputime_one_jiffy		jiffies_to_cputime(1)
@@ -100,7 +100,7 @@ static inline void cputime_to_timespec(const cputime_t cputime,
 				       struct timespec *value)
 {
 	unsigned long long __cputime = (__force unsigned long long) cputime;
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = __cputime >> 1;
@@ -128,7 +128,7 @@ static inline void cputime_to_timeval(const cputime_t cputime,
 				      struct timeval *value)
 {
 	unsigned long long __cputime = (__force unsigned long long) cputime;
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = __cputime >> 1;

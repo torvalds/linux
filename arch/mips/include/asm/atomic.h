@@ -18,8 +18,8 @@
 #include <linux/types.h>
 #include <asm/barrier.h>
 #include <asm/cpu-features.h>
+#include <asm/cmpxchg.h>
 #include <asm/war.h>
-#include <asm/system.h>
 
 #define ATOMIC_INIT(i)    { (i) }
 

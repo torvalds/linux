@@ -70,13 +70,13 @@ struct aa_ext {
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
-	if (sa->aad.iface.target) {
-		struct aa_profile *name = sa->aad.iface.target;
+	if (sa->aad->iface.target) {
+		struct aa_profile *name = sa->aad->iface.target;
 		audit_log_format(ab, " name=");
 		audit_log_untrustedstring(ab, name->base.hname);
 	}
-	if (sa->aad.iface.pos)
-		audit_log_format(ab, " offset=%ld", sa->aad.iface.pos);
+	if (sa->aad->iface.pos)
+		audit_log_format(ab, " offset=%ld", sa->aad->iface.pos);
 }
 
 /**
@@ -94,13 +94,15 @@ static int audit_iface(struct aa_profile *new, const char *name,
 {
 	struct aa_profile *profile = __aa_current_profile();
 	struct common_audit_data sa;
-	COMMON_AUDIT_DATA_INIT(&sa, NONE);
+	struct apparmor_audit_data aad = {0,};
+	sa.type = LSM_AUDIT_DATA_NONE;
+	sa.aad = &aad;
 	if (e)
-		sa.aad.iface.pos = e->pos - e->start;
-	sa.aad.iface.target = new;
-	sa.aad.name = name;
-	sa.aad.info = info;
-	sa.aad.error = error;
+		aad.iface.pos = e->pos - e->start;
+	aad.iface.target = new;
+	aad.name = name;
+	aad.info = info;
+	aad.error = error;
 
 	return aa_audit(AUDIT_APPARMOR_STATUS, profile, GFP_KERNEL, &sa,
 			audit_cb);

@@ -94,12 +94,7 @@ neponset_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_sta
 
 	ret = sa1111_pcmcia_configure_socket(skt, state);
 	if (ret == 0) {
-		unsigned long flags;
-
-		local_irq_save(flags);
-		NCR_0 = (NCR_0 & ~ncr_mask) | ncr_set;
-
-		local_irq_restore(flags);
+		neponset_ncr_frob(ncr_mask, ncr_set);
 		sa1111_set_io(s->dev, pa_dwr_mask, pa_dwr_set);
 	}
 

@@ -10,6 +10,8 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -22,24 +24,26 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/clk.h>
 #include <mach/bridge-regs.h>
-#include <plat/orion_wdt.h>
 
 /*
  * Watchdog timer block registers.
  */
-#define TIMER_CTRL		(TIMER_VIRT_BASE + 0x0000)
+#define TIMER_CTRL		0x0000
 #define  WDT_EN			0x0010
-#define WDT_VAL			(TIMER_VIRT_BASE + 0x0024)
+#define WDT_VAL			0x0024
 
 #define WDT_MAX_CYCLE_COUNT	0xffffffff
 #define WDT_IN_USE		0
 #define WDT_OK_TO_CLOSE		1
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
 static unsigned int wdt_max_duration;	/* (seconds) */
+static struct clk *clk;
 static unsigned int wdt_tclk;
+static void __iomem *wdt_reg;
 static unsigned long wdt_status;
 static DEFINE_SPINLOCK(wdt_lock);
 
@@ -48,7 +52,7 @@ static void orion_wdt_ping(void)
 	spin_lock(&wdt_lock);
 
 	/* Reload watchdog duration */
-	writel(wdt_tclk * heartbeat, WDT_VAL);
+	writel(wdt_tclk * heartbeat, wdt_reg + WDT_VAL);
 
 	spin_unlock(&wdt_lock);
 }
@@ -60,7 +64,7 @@ static void orion_wdt_enable(void)
 	spin_lock(&wdt_lock);
 
 	/* Set watchdog duration */
-	writel(wdt_tclk * heartbeat, WDT_VAL);
+	writel(wdt_tclk * heartbeat, wdt_reg + WDT_VAL);
 
 	/* Clear watchdog timer interrupt */
 	reg = readl(BRIDGE_CAUSE);
@@ -68,9 +72,9 @@ static void orion_wdt_enable(void)
 	writel(reg, BRIDGE_CAUSE);
 
 	/* Enable watchdog timer */
-	reg = readl(TIMER_CTRL);
+	reg = readl(wdt_reg + TIMER_CTRL);
 	reg |= WDT_EN;
-	writel(reg, TIMER_CTRL);
+	writel(reg, wdt_reg + TIMER_CTRL);
 
 	/* Enable reset on watchdog */
 	reg = readl(RSTOUTn_MASK);
@@ -92,9 +96,9 @@ static void orion_wdt_disable(void)
 	writel(reg, RSTOUTn_MASK);
 
 	/* Disable watchdog timer */
-	reg = readl(TIMER_CTRL);
+	reg = readl(wdt_reg + TIMER_CTRL);
 	reg &= ~WDT_EN;
-	writel(reg, TIMER_CTRL);
+	writel(reg, wdt_reg + TIMER_CTRL);
 
 	spin_unlock(&wdt_lock);
 }
@@ -102,7 +106,7 @@ static void orion_wdt_disable(void)
 static int orion_wdt_get_timeleft(int *time_left)
 {
 	spin_lock(&wdt_lock);
-	*time_left = readl(WDT_VAL) / wdt_tclk;
+	*time_left = readl(wdt_reg + WDT_VAL) / wdt_tclk;
 	spin_unlock(&wdt_lock);
 	return 0;
 }
@@ -209,8 +213,7 @@ static int orion_wdt_release(struct inode *inode, struct file *file)
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status))
 		orion_wdt_disable();
 	else
-		printk(KERN_CRIT "WATCHDOG: Device closed unexpectedly - "
-					"timer will not stop\n");
+		pr_crit("Device closed unexpectedly - timer will not stop\n");
 	clear_bit(WDT_IN_USE, &wdt_status);
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 
@@ -235,15 +238,20 @@ static struct miscdevice orion_wdt_miscdev = {
 
 static int __devinit orion_wdt_probe(struct platform_device *pdev)
 {
-	struct orion_wdt_platform_data *pdata = pdev->dev.platform_data;
+	struct resource *res;
 	int ret;
 
-	if (pdata) {
-		wdt_tclk = pdata->tclk;
-	} else {
-		printk(KERN_ERR "Orion Watchdog misses platform data\n");
+	clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		printk(KERN_ERR "Orion Watchdog missing clock\n");
 		return -ENODEV;
 	}
+	clk_prepare_enable(clk);
+	wdt_tclk = clk_get_rate(clk);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	wdt_reg = ioremap(res->start, resource_size(res));
 
 	if (orion_wdt_miscdev.parent)
 		return -EBUSY;
@@ -257,8 +265,8 @@ static int __devinit orion_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	printk(KERN_INFO "Orion Watchdog Timer: Initial timeout %d sec%s\n",
-				heartbeat, nowayout ? ", nowayout" : "");
+	pr_info("Initial timeout %d sec%s\n",
+		heartbeat, nowayout ? ", nowayout" : "");
 	return 0;
 }
 
@@ -274,6 +282,9 @@ static int __devexit orion_wdt_remove(struct platform_device *pdev)
 	ret = misc_deregister(&orion_wdt_miscdev);
 	if (!ret)
 		orion_wdt_miscdev.parent = NULL;
+
+	clk_disable_unprepare(clk);
+	clk_put(clk);
 
 	return ret;
 }
@@ -302,7 +313,7 @@ MODULE_DESCRIPTION("Orion Processor Watchdog");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Initial watchdog heartbeat in seconds");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 

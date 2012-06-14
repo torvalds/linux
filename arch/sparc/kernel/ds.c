@@ -868,7 +868,7 @@ void ldom_power_off(void)
 
 static void ds_conn_reset(struct ds_info *dp)
 {
-	printk(KERN_ERR "ds-%llu: ds_conn_reset() from %p\n",
+	printk(KERN_ERR "ds-%llu: ds_conn_reset() from %pf\n",
 	       dp->id, __builtin_return_address(0));
 }
 
@@ -1244,10 +1244,7 @@ static struct vio_driver ds_driver = {
 	.id_table	= ds_match,
 	.probe		= ds_probe,
 	.remove		= ds_remove,
-	.driver		= {
-		.name	= "ds",
-		.owner	= THIS_MODULE,
-	}
+	.name		= "ds",
 };
 
 static int __init ds_init(void)
@@ -1267,4 +1264,4 @@ static int __init ds_init(void)
 	return vio_register_driver(&ds_driver);
 }
 
-subsys_initcall(ds_init);
+fs_initcall(ds_init);

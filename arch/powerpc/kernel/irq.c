@@ -57,7 +57,6 @@
 #include <linux/of_irq.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
@@ -67,6 +66,7 @@
 #include <asm/machdep.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
+#include <asm/debug.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -208,8 +208,8 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 * we are checking the "new" CPU instead of the old one. This
 	 * is only a problem if an event happened on the "old" CPU.
 	 *
-	 * External interrupt events on non-iseries will have caused
-	 * interrupts to be hard-disabled, so there is no problem, we
+	 * External interrupt events will have caused interrupts to
+	 * be hard-disabled, so there is no problem, we
 	 * cannot have preempted.
 	 */
 	irq_happened = get_irq_happened();
@@ -229,6 +229,19 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 */
 	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
 		__hard_irq_disable();
+#ifdef CONFIG_TRACE_IRQFLAG
+	else {
+		/*
+		 * We should already be hard disabled here. We had bugs
+		 * where that wasn't the case so let's dbl check it and
+		 * warn if we are wrong. Only do that when IRQ tracing
+		 * is enabled as mfmsr() can be costly.
+		 */
+		if (WARN_ON(mfmsr() & MSR_EE))
+			__hard_irq_disable();
+	}
+#endif /* CONFIG_TRACE_IRQFLAG */
+
 	set_soft_enabled(0);
 
 	/*
@@ -260,11 +273,17 @@ EXPORT_SYMBOL(arch_local_irq_restore);
  * if they are currently disabled. This is typically called before
  * schedule() or do_signal() when returning to userspace. We do it
  * in C to avoid the burden of dealing with lockdep etc...
+ *
+ * NOTE: This is called with interrupts hard disabled but not marked
+ * as such in paca->irq_happened, so we need to resync this.
  */
 void restore_interrupts(void)
 {
-	if (irqs_disabled())
+	if (irqs_disabled()) {
+		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 		local_irq_enable();
+	} else
+		__hard_irq_enable();
 }
 
 #endif /* CONFIG_PPC64 */
@@ -330,13 +349,9 @@ void migrate_irqs(void)
 
 	alloc_cpumask_var(&mask, GFP_KERNEL);
 
-	for_each_irq(irq) {
+	for_each_irq_desc(irq, desc) {
 		struct irq_data *data;
 		struct irq_chip *chip;
-
-		desc = irq_to_desc(irq);
-		if (!desc)
-			continue;
 
 		data = irq_desc_get_irq_data(desc);
 		if (irqd_is_per_cpu(data))
@@ -445,9 +460,9 @@ void do_IRQ(struct pt_regs *regs)
 	may_hard_irq_enable();
 
 	/* And finally process it */
-	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE)
+	if (irq != NO_IRQ)
 		handle_one_irq(irq);
-	else if (irq != NO_IRQ_IGNORE)
+	else
 		__get_cpu_var(irq_stat).spurious_irqs++;
 
 	irq_exit();
@@ -560,12 +575,6 @@ void do_softirq(void)
 	local_irq_restore(flags);
 }
 
-irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
-{
-	return d->hwirq;
-}
-EXPORT_SYMBOL_GPL(irqd_to_hwirq);
-
 irq_hw_number_t virq_to_hw(unsigned int virq)
 {
 	struct irq_data *irq_data = irq_get_irq_data(virq);
@@ -578,7 +587,7 @@ int irq_choose_cpu(const struct cpumask *mask)
 {
 	int cpuid;
 
-	if (cpumask_equal(mask, cpu_all_mask)) {
+	if (cpumask_equal(mask, cpu_online_mask)) {
 		static int irq_rover;
 		static DEFINE_RAW_SPINLOCK(irq_rover_lock);
 		unsigned long flags;

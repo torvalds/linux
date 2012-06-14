@@ -17,7 +17,6 @@
  * Copyright (C) 2004, 05 Thomas Osterried DL9SAU <thomas@x-berg.in-berlin.de>
  */
 #include <linux/module.h>
-#include <asm/system.h>
 #include <linux/bitops.h>
 #include <asm/uaccess.h>
 #include <linux/crc16.h>

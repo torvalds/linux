@@ -15,6 +15,7 @@
 #include <asm/page.h>
 #include <asm/processor.h>	/* For TASK_SIZE */
 #include <asm/machvec.h>
+#include <asm/setup.h>
 
 struct mm_struct;
 struct vm_area_struct;

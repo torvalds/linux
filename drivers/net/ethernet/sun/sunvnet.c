@@ -618,7 +618,7 @@ struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
 	struct vnet_port *port;
 
 	hlist_for_each_entry(port, n, hp, hash) {
-		if (!compare_ether_addr(port->raddr, skb->data))
+		if (ether_addr_equal(port->raddr, skb->data))
 			return port;
 	}
 	port = NULL;
@@ -1259,10 +1259,7 @@ static struct vio_driver vnet_port_driver = {
 	.id_table	= vnet_port_match,
 	.probe		= vnet_port_probe,
 	.remove		= vnet_port_remove,
-	.driver		= {
-		.name	= "vnet_port",
-		.owner	= THIS_MODULE,
-	}
+	.name		= "vnet_port",
 };
 
 static int __init vnet_init(void)

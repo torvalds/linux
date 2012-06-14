@@ -55,10 +55,11 @@ extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
 #define E1000_SRRCTL_DROP_EN                            0x80000000
 #define E1000_SRRCTL_TIMESTAMP                          0x40000000
 
+
 #define E1000_MRQC_ENABLE_RSS_4Q            0x00000002
 #define E1000_MRQC_ENABLE_VMDQ              0x00000003
-#define E1000_MRQC_ENABLE_VMDQ_RSS_2Q       0x00000005
 #define E1000_MRQC_RSS_FIELD_IPV4_UDP       0x00400000
+#define E1000_MRQC_ENABLE_VMDQ_RSS_2Q       0x00000005
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP       0x00800000
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP_EX    0x01000000
 

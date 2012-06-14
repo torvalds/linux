@@ -97,7 +97,7 @@ config SND_OMAP_SOC_SDP3430
 
 config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	tristate "SoC Audio support for OMAP boards using ABE and twl6040 codec"
-	depends on TWL4030_CORE && SND_OMAP_SOC && ARCH_OMAP4
+	depends on TWL6040_CORE && SND_OMAP_SOC && ARCH_OMAP4
 	select SND_OMAP_SOC_DMIC
 	select SND_OMAP_SOC_MCPDM
 	select SND_SOC_TWL6040
@@ -109,10 +109,12 @@ config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	  - PandaBoard (4430)
 	  - PandaBoardES (4460)
 
-config SND_OMAP_SOC_OMAP4_HDMI
-	tristate "SoC Audio support for Texas Instruments OMAP4 HDMI"
-	depends on SND_OMAP_SOC && OMAP4_DSS_HDMI && OMAP2_DSS && ARCH_OMAP4
+config SND_OMAP_SOC_OMAP_HDMI
+	tristate "SoC Audio support for Texas Instruments OMAP HDMI"
+	depends on SND_OMAP_SOC && OMAP4_DSS_HDMI && OMAP2_DSS
 	select SND_OMAP_SOC_HDMI
+	select SND_SOC_OMAP_HDMI_CODEC
+	select OMAP4_DSS_HDMI_AUDIO
 	help
 	  Say Y if you want to add support for SoC HDMI audio on Texas Instruments
 	  OMAP4 chips

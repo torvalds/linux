@@ -5,8 +5,7 @@
  * its layout.
  */
 
-
-#include <asm/system.h>
+#include <asm/page.h>
 #include "paravirt_patchlist.h"
 
 SECTIONS

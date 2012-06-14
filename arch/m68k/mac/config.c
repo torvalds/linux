@@ -30,7 +30,6 @@
 #include <asm/setup.h>
 #include <asm/bootinfo.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
@@ -980,6 +979,9 @@ static struct platform_device mace_pdev = {
 int __init mac_platform_init(void)
 {
 	u8 *swim_base;
+
+	if (!MACH_IS_MAC)
+		return -ENODEV;
 
 	/*
 	 * Serial devices

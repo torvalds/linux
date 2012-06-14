@@ -17,7 +17,6 @@
 #include <asm/machdep.h>
 #include <asm/smp.h>
 #include <asm/pmc.h>
-#include <asm/system.h>
 
 #include "cacheinfo.h"
 

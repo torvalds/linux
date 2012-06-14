@@ -65,8 +65,6 @@ struct ceph_osdmap {
 #define ceph_file_layout_cas_hash(l) ((__s32)le32_to_cpu((l).fl_cas_hash))
 #define ceph_file_layout_object_su(l) \
 	((__s32)le32_to_cpu((l).fl_object_stripe_unit))
-#define ceph_file_layout_pg_preferred(l) \
-	((__s32)le32_to_cpu((l).fl_pg_preferred))
 #define ceph_file_layout_pg_pool(l) \
 	((__s32)le32_to_cpu((l).fl_pg_pool))
 

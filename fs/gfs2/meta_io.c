@@ -293,11 +293,10 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 	bd->bd_bh = bh;
 	bd->bd_gl = gl;
 
-	INIT_LIST_HEAD(&bd->bd_list_tr);
 	if (meta)
-		lops_init_le(&bd->bd_le, &gfs2_buf_lops);
+		lops_init_le(bd, &gfs2_buf_lops);
 	else
-		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
+		lops_init_le(bd, &gfs2_databuf_lops);
 	bh->b_private = bd;
 
 	if (meta)
@@ -313,7 +312,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 	if (test_clear_buffer_pinned(bh)) {
 		trace_gfs2_pin(bd, 0);
 		atomic_dec(&sdp->sd_log_pinned);
-		list_del_init(&bd->bd_le.le_list);
+		list_del_init(&bd->bd_list);
 		if (meta) {
 			gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
 			sdp->sd_log_num_buf--;
@@ -375,33 +374,24 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
  * @ip: The GFS2 inode
  * @height: The level of this buf in the metadata (indir addr) tree (if any)
  * @num: The block number (device relative) of the buffer
- * @new: Non-zero if we may create a new buffer
  * @bhp: the buffer is returned here
  *
  * Returns: errno
  */
 
 int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
-			      int new, struct buffer_head **bhp)
+			      struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_glock *gl = ip->i_gl;
 	struct buffer_head *bh;
 	int ret = 0;
+	u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
 
-	if (new) {
-		BUG_ON(height == 0);
-		bh = gfs2_meta_new(gl, num);
-		gfs2_trans_add_bh(ip->i_gl, bh, 1);
-		gfs2_metatype_set(bh, GFS2_METATYPE_IN, GFS2_FORMAT_IN);
-		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
-	} else {
-		u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
-		ret = gfs2_meta_read(gl, num, DIO_WAIT, &bh);
-		if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
-			brelse(bh);
-			ret = -EIO;
-		}
+	ret = gfs2_meta_read(gl, num, DIO_WAIT, &bh);
+	if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
+		brelse(bh);
+		ret = -EIO;
 	}
 	*bhp = bh;
 	return ret;

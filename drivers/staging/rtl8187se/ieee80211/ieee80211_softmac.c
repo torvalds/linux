@@ -42,7 +42,7 @@ short ieee80211_is_shortslot(const struct ieee80211_network *net)
 	return net->capability & WLAN_CAPABILITY_SHORT_SLOT;
 }
 
-/* returns the total length needed for pleacing the RATE MFIE
+/* returns the total length needed for placing the RATE MFIE
  * tag and the EXTENDED RATE MFIE tag if needed.
  * It encludes two bytes per tag for the tag itself and its len
  */
@@ -60,7 +60,7 @@ unsigned int ieee80211_MFIE_rate_len(struct ieee80211_device *ieee)
 	return rate_len;
 }
 
-/* pleace the MFIE rate, tag to the memory (double) poined.
+/* place the MFIE rate, tag to the memory (double) poised.
  * Then it updates the pointer so that
  * it points after the new MFIE tag added.
  */
@@ -467,7 +467,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		 *    So we switch to IEEE80211_LINKED_SCANNING to remember
 		 *    that we are still logically linked (not interested in
 		 *    new network events, despite for updating the net list,
-		 *    but we are temporarly 'unlinked' as the driver shall
+		 *    but we are temporarily 'unlinked' as the driver shall
 		 *    not filter RX frames and the channel is changing.
 		 * So the only situation in witch are interested is to check
 		 * if the state become LINKED because of the #1 situation
@@ -530,7 +530,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
                  *    So we switch to IEEE80211_LINKED_SCANNING to remember
                  *    that we are still logically linked (not interested in
                  *    new network events, despite for updating the net list,
-                 *    but we are temporarly 'unlinked' as the driver shall
+                 *    but we are temporarily 'unlinked' as the driver shall
                  *    not filter RX frames and the channel is changing.
                  * So the only situation in witch are interested is to check
                  * if the state become LINKED because of the #1 situation
@@ -1140,7 +1140,7 @@ void ieee80211_associate_abort(struct ieee80211_device *ieee)
 
 	ieee->associate_seq++;
 
-	/* don't scan, and avoid to have the RX path possibily
+	/* don't scan, and avoid to have the RX path possibly
 	 * try again to associate. Even do not react to AUTH or
 	 * ASSOC response. Just wait for the retry wq to be scheduled.
 	 * Here we will check if there are good nets to associate
@@ -1346,14 +1346,14 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 		//printk("apset=%d apmatch=%d ssidset=%d ssidbroad=%d ssidmatch=%d\n",apset,apmatch,ssidset,ssidbroad,ssidmatch);
 
 		if (	/* if the user set the AP check if match.
-			 * if the network does not broadcast essid we check the user supplyed ANY essid
+			 * if the network does not broadcast essid we check the user supplied ANY essid
 			 * if the network does broadcast and the user does not set essid it is OK
 			 * if the network does broadcast and the user did set essid chech if essid match
 			 */
 				( apset && apmatch &&
 				  ((ssidset && ssidbroad && ssidmatch) || (ssidbroad && !ssidset) || (!ssidbroad && ssidset)) ) ||
 				/* if the ap is not set, check that the user set the bssid
-				 * and the network does bradcast and that those two bssid matches
+				 * and the network does broadcast and that those two bssid matches
 				 */
 				(!apset && ssidset && ssidbroad && ssidmatch)
 		   ){
@@ -1821,7 +1821,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 					while (left >= sizeof(struct ieee80211_info_element_hdr)) {
 						if (sizeof(struct ieee80211_info_element_hdr) + info_element->len > left) {
-							printk(KERN_WARNING "[re]associate reeponse error!");
+							printk(KERN_WARNING "[re]associate response error!");
 							return 1;
 						}
 						switch (info_element->id) {
@@ -1905,7 +1905,7 @@ associate_complete:
 							}
 						}else{
 							ieee->softmac_stats.rx_auth_rs_err++;
-							IEEE80211_DEBUG_MGMT("Authentication respose status code 0x%x",errcode);
+							IEEE80211_DEBUG_MGMT("Authentication response status code 0x%x",errcode);
 							ieee80211_associate_abort(ieee);
 						}
 
@@ -2184,15 +2184,15 @@ void ieee80211_start_ibss_wq(struct work_struct *work)
 
 	if(ieee->state == IEEE80211_NOLINK)
 		ieee->current_network.channel = 10;
-	/* if not then the state is not linked. Maybe the user swithced to
+	/* if not then the state is not linked. Maybe the user switched to
 	 * ad-hoc mode just after being in monitor mode, or just after
 	 * being very few time in managed mode (so the card have had no
 	 * time to scan all the chans..) or we have just run up the iface
 	 * after setting ad-hoc mode. So we have to give another try..
 	 * Here, in ibss mode, should be safe to do this without extra care
-	 * (in bss mode we had to make sure no-one tryed to associate when
+	 * (in bss mode we had to make sure no-one tried to associate when
 	 * we had just checked the ieee->state and we was going to start the
-	 * scan) beacause in ibss mode the ieee80211_new_net function, when
+	 * scan) because in ibss mode the ieee80211_new_net function, when
 	 * finds a good net, just set the ieee->state to IEEE80211_LINKED,
 	 * so, at worst, we waste a bit of time to initiate an unneeded syncro
 	 * scan, that will stop at the first round because it sees the state
@@ -2342,7 +2342,7 @@ void ieee80211_associate_retry_wq(struct work_struct *work)
 		goto exit;
 	/* until we do not set the state to IEEE80211_NOLINK
 	* there are no possibility to have someone else trying
-	* to start an association procdure (we get here with
+	* to start an association procedure (we get here with
 	* ieee->state = IEEE80211_ASSOCIATING).
 	* When we set the state to IEEE80211_NOLINK it is possible
 	* that the RX path run an attempt to associate, but

@@ -228,6 +228,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	} else {
 		txhdr->dur_fb = ieee80211_generic_frame_duration(dev->wl->hw,
 							 info->control.vif,
+							 info->band,
 							 fragment_len,
 							 rate_fb);
 	}

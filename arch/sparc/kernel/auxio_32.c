@@ -13,6 +13,7 @@
 #include <asm/io.h>
 #include <asm/auxio.h>
 #include <asm/string.h>		/* memset(), Linux has no bzero() */
+#include <asm/cpu_type.h>
 
 /* Probe and map in the Auxiliary I/O register */
 
@@ -31,7 +32,6 @@ void __init auxio_probe(void)
 	switch (sparc_cpu_model) {
 	case sparc_leon:
 	case sun4d:
-	case sun4:
 		return;
 	default:
 		break;
@@ -64,9 +64,8 @@ void __init auxio_probe(void)
 	r.start = auxregs[0].phys_addr;
 	r.end = auxregs[0].phys_addr + auxregs[0].reg_size - 1;
 	auxio_register = of_ioremap(&r, 0, auxregs[0].reg_size, "auxio");
-	/* Fix the address on sun4m and sun4c. */
-	if((((unsigned long) auxregs[0].phys_addr) & 3) == 3 ||
-	   sparc_cpu_model == sun4c)
+	/* Fix the address on sun4m. */
+	if ((((unsigned long) auxregs[0].phys_addr) & 3) == 3)
 		auxio_register += (3 - ((unsigned long)auxio_register & 3));
 
 	set_auxio(AUXIO_LED, 0);
@@ -85,12 +84,7 @@ void set_auxio(unsigned char bits_on, unsigned char bits_off)
 	unsigned char regval;
 	unsigned long flags;
 	spin_lock_irqsave(&auxio_lock, flags);
-	switch(sparc_cpu_model) {
-	case sun4c:
-		regval = sbus_readb(auxio_register);
-		sbus_writeb(((regval | bits_on) & ~bits_off) | AUXIO_ORMEIN,
-			auxio_register);
-		break;
+	switch (sparc_cpu_model) {
 	case sun4m:
 		if(!auxio_register)
 			break;     /* VME chassis sun4m, no auxio. */

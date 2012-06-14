@@ -38,6 +38,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/hardirq.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
@@ -426,10 +427,8 @@ static int gnttab_end_foreign_access_ref_v1(grant_ref_t ref, int readonly)
 	nflags = *pflags;
 	do {
 		flags = nflags;
-		if (flags & (GTF_reading|GTF_writing)) {
-			printk(KERN_ALERT "WARNING: g.e. still in use!\n");
+		if (flags & (GTF_reading|GTF_writing))
 			return 0;
-		}
 	} while ((nflags = sync_cmpxchg(pflags, flags, 0)) != flags);
 
 	return 1;
@@ -458,11 +457,102 @@ static int gnttab_end_foreign_access_ref_v2(grant_ref_t ref, int readonly)
 	return 1;
 }
 
-int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly)
+static inline int _gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly)
 {
 	return gnttab_interface->end_foreign_access_ref(ref, readonly);
 }
+
+int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly)
+{
+	if (_gnttab_end_foreign_access_ref(ref, readonly))
+		return 1;
+	pr_warn("WARNING: g.e. %#x still in use!\n", ref);
+	return 0;
+}
 EXPORT_SYMBOL_GPL(gnttab_end_foreign_access_ref);
+
+struct deferred_entry {
+	struct list_head list;
+	grant_ref_t ref;
+	bool ro;
+	uint16_t warn_delay;
+	struct page *page;
+};
+static LIST_HEAD(deferred_list);
+static void gnttab_handle_deferred(unsigned long);
+static DEFINE_TIMER(deferred_timer, gnttab_handle_deferred, 0, 0);
+
+static void gnttab_handle_deferred(unsigned long unused)
+{
+	unsigned int nr = 10;
+	struct deferred_entry *first = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gnttab_list_lock, flags);
+	while (nr--) {
+		struct deferred_entry *entry
+			= list_first_entry(&deferred_list,
+					   struct deferred_entry, list);
+
+		if (entry == first)
+			break;
+		list_del(&entry->list);
+		spin_unlock_irqrestore(&gnttab_list_lock, flags);
+		if (_gnttab_end_foreign_access_ref(entry->ref, entry->ro)) {
+			put_free_entry(entry->ref);
+			if (entry->page) {
+				pr_debug("freeing g.e. %#x (pfn %#lx)\n",
+					 entry->ref, page_to_pfn(entry->page));
+				__free_page(entry->page);
+			} else
+				pr_info("freeing g.e. %#x\n", entry->ref);
+			kfree(entry);
+			entry = NULL;
+		} else {
+			if (!--entry->warn_delay)
+				pr_info("g.e. %#x still pending\n",
+					entry->ref);
+			if (!first)
+				first = entry;
+		}
+		spin_lock_irqsave(&gnttab_list_lock, flags);
+		if (entry)
+			list_add_tail(&entry->list, &deferred_list);
+		else if (list_empty(&deferred_list))
+			break;
+	}
+	if (!list_empty(&deferred_list) && !timer_pending(&deferred_timer)) {
+		deferred_timer.expires = jiffies + HZ;
+		add_timer(&deferred_timer);
+	}
+	spin_unlock_irqrestore(&gnttab_list_lock, flags);
+}
+
+static void gnttab_add_deferred(grant_ref_t ref, bool readonly,
+				struct page *page)
+{
+	struct deferred_entry *entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	const char *what = KERN_WARNING "leaking";
+
+	if (entry) {
+		unsigned long flags;
+
+		entry->ref = ref;
+		entry->ro = readonly;
+		entry->page = page;
+		entry->warn_delay = 60;
+		spin_lock_irqsave(&gnttab_list_lock, flags);
+		list_add_tail(&entry->list, &deferred_list);
+		if (!timer_pending(&deferred_timer)) {
+			deferred_timer.expires = jiffies + HZ;
+			add_timer(&deferred_timer);
+		}
+		spin_unlock_irqrestore(&gnttab_list_lock, flags);
+		what = KERN_DEBUG "deferring";
+	}
+	printk("%s g.e. %#x (pfn %#lx)\n",
+	       what, ref, page ? page_to_pfn(page) : -1);
+}
 
 void gnttab_end_foreign_access(grant_ref_t ref, int readonly,
 			       unsigned long page)
@@ -471,12 +561,9 @@ void gnttab_end_foreign_access(grant_ref_t ref, int readonly,
 		put_free_entry(ref);
 		if (page != 0)
 			free_page(page);
-	} else {
-		/* XXX This needs to be fixed so that the ref and page are
-		   placed on a list to be freed up later. */
-		printk(KERN_WARNING
-		       "WARNING: leaking g.e. and page still in use!\n");
-	}
+	} else
+		gnttab_add_deferred(ref, readonly,
+				    page ? virt_to_page(page) : NULL);
 }
 EXPORT_SYMBOL_GPL(gnttab_end_foreign_access);
 
@@ -741,6 +828,7 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		    struct page **pages, unsigned int count)
 {
 	int i, ret;
+	bool lazy = false;
 	pte_t *pte;
 	unsigned long mfn;
 
@@ -750,6 +838,11 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return ret;
+
+	if (!in_interrupt() && paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+		arch_enter_lazy_mmu_mode();
+		lazy = true;
+	}
 
 	for (i = 0; i < count; i++) {
 		/* Do not add to override if the map failed. */
@@ -769,6 +862,9 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 			return ret;
 	}
 
+	if (lazy)
+		arch_leave_lazy_mmu_mode();
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gnttab_map_refs);
@@ -777,6 +873,7 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct page **pages, unsigned int count, bool clear_pte)
 {
 	int i, ret;
+	bool lazy = false;
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap_ops, count);
 	if (ret)
@@ -785,11 +882,19 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return ret;
 
+	if (!in_interrupt() && paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+		arch_enter_lazy_mmu_mode();
+		lazy = true;
+	}
+
 	for (i = 0; i < count; i++) {
 		ret = m2p_remove_override(pages[i], clear_pte);
 		if (ret)
 			return ret;
 	}
+
+	if (lazy)
+		arch_leave_lazy_mmu_mode();
 
 	return ret;
 }
@@ -1029,6 +1134,7 @@ int gnttab_init(void)
 	int i;
 	unsigned int max_nr_glist_frames, nr_glist_frames;
 	unsigned int nr_init_grefs;
+	int ret;
 
 	nr_grant_frames = 1;
 	boot_max_nr_grant_frames = __max_nr_grant_frames();
@@ -1047,12 +1153,16 @@ int gnttab_init(void)
 	nr_glist_frames = (nr_grant_frames * GREFS_PER_GRANT_FRAME + RPP - 1) / RPP;
 	for (i = 0; i < nr_glist_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_KERNEL);
-		if (gnttab_list[i] == NULL)
+		if (gnttab_list[i] == NULL) {
+			ret = -ENOMEM;
 			goto ini_nomem;
+		}
 	}
 
-	if (gnttab_resume() < 0)
-		return -ENODEV;
+	if (gnttab_resume() < 0) {
+		ret = -ENODEV;
+		goto ini_nomem;
+	}
 
 	nr_init_grefs = nr_grant_frames * GREFS_PER_GRANT_FRAME;
 
@@ -1070,7 +1180,7 @@ int gnttab_init(void)
 	for (i--; i >= 0; i--)
 		free_page((unsigned long)gnttab_list[i]);
 	kfree(gnttab_list);
-	return -ENOMEM;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gnttab_init);
 

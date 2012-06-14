@@ -122,6 +122,7 @@ struct ft_cmd {
 	/* Local sense buffer */
 	unsigned char ft_sense_buffer[TRANSPORT_SENSE_BUFFER];
 	u32 was_ddp_setup:1;		/* Set only if ddp is setup */
+	u32 aborted:1;			/* Set if aborted by reset or timeout */
 	struct scatterlist *sg;		/* Set only if DDP is setup */
 	u32 sg_cnt;			/* No. of item in scatterlist */
 };

@@ -14,7 +14,6 @@
 #include <linux/signal.h>
 #include <linux/perf_event.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/io.h>

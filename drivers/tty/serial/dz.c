@@ -52,7 +52,6 @@
 #include <linux/atomic.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include <asm/dec/interrupts.h>
 #include <asm/dec/kn01.h>

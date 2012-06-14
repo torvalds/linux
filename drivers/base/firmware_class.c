@@ -16,10 +16,11 @@
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
-#include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/highmem.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 
 #define to_dev(obj) container_of(obj, struct device, kobj)
 
@@ -80,6 +81,11 @@ enum {
 };
 
 static int loading_timeout = 60;	/* In seconds */
+
+static inline long firmware_loading_timeout(void)
+{
+	return loading_timeout > 0 ? loading_timeout * HZ : MAX_SCHEDULE_TIMEOUT;
+}
 
 /* fw_lock could be moved to 'struct firmware_priv' but since it is just
  * guarding for corner cases a global lock should be OK */
@@ -440,13 +446,11 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 {
 	struct firmware_priv *fw_priv;
 	struct device *f_dev;
-	int error;
 
 	fw_priv = kzalloc(sizeof(*fw_priv) + strlen(fw_name) + 1 , GFP_KERNEL);
 	if (!fw_priv) {
 		dev_err(device, "%s: kmalloc failed\n", __func__);
-		error = -ENOMEM;
-		goto err_out;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	fw_priv->fw = firmware;
@@ -463,98 +467,80 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 	f_dev->parent = device;
 	f_dev->class = &firmware_class;
 
-	dev_set_uevent_suppress(f_dev, true);
-
-	/* Need to pin this module until class device is destroyed */
-	__module_get(THIS_MODULE);
-
-	error = device_add(f_dev);
-	if (error) {
-		dev_err(device, "%s: device_register failed\n", __func__);
-		goto err_put_dev;
-	}
-
-	error = device_create_bin_file(f_dev, &firmware_attr_data);
-	if (error) {
-		dev_err(device, "%s: sysfs_create_bin_file failed\n", __func__);
-		goto err_del_dev;
-	}
-
-	error = device_create_file(f_dev, &dev_attr_loading);
-	if (error) {
-		dev_err(device, "%s: device_create_file failed\n", __func__);
-		goto err_del_bin_attr;
-	}
-
-	if (uevent)
-		dev_set_uevent_suppress(f_dev, false);
-
 	return fw_priv;
-
-err_del_bin_attr:
-	device_remove_bin_file(f_dev, &firmware_attr_data);
-err_del_dev:
-	device_del(f_dev);
-err_put_dev:
-	put_device(f_dev);
-err_out:
-	return ERR_PTR(error);
 }
 
-static void fw_destroy_instance(struct firmware_priv *fw_priv)
+static struct firmware_priv *
+_request_firmware_prepare(const struct firmware **firmware_p, const char *name,
+			  struct device *device, bool uevent, bool nowait)
 {
-	struct device *f_dev = &fw_priv->dev;
-
-	device_remove_file(f_dev, &dev_attr_loading);
-	device_remove_bin_file(f_dev, &firmware_attr_data);
-	device_unregister(f_dev);
-}
-
-static int _request_firmware(const struct firmware **firmware_p,
-			     const char *name, struct device *device,
-			     bool uevent, bool nowait)
-{
-	struct firmware_priv *fw_priv;
 	struct firmware *firmware;
-	int retval = 0;
+	struct firmware_priv *fw_priv;
 
 	if (!firmware_p)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	*firmware_p = firmware = kzalloc(sizeof(*firmware), GFP_KERNEL);
 	if (!firmware) {
 		dev_err(device, "%s: kmalloc(struct firmware) failed\n",
 			__func__);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	if (fw_get_builtin_firmware(firmware, name)) {
 		dev_dbg(device, "firmware: using built-in firmware %s\n", name);
-		return 0;
+		return NULL;
 	}
-
-	read_lock_usermodehelper();
-
-	if (WARN_ON(usermodehelper_is_disabled())) {
-		dev_err(device, "firmware: %s will not be loaded\n", name);
-		retval = -EBUSY;
-		goto out;
-	}
-
-	if (uevent)
-		dev_dbg(device, "firmware: requesting %s\n", name);
 
 	fw_priv = fw_create_instance(firmware, name, device, uevent, nowait);
 	if (IS_ERR(fw_priv)) {
-		retval = PTR_ERR(fw_priv);
-		goto out;
+		release_firmware(firmware);
+		*firmware_p = NULL;
+	}
+	return fw_priv;
+}
+
+static void _request_firmware_cleanup(const struct firmware **firmware_p)
+{
+	release_firmware(*firmware_p);
+	*firmware_p = NULL;
+}
+
+static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
+				  long timeout)
+{
+	int retval = 0;
+	struct device *f_dev = &fw_priv->dev;
+
+	dev_set_uevent_suppress(f_dev, true);
+
+	/* Need to pin this module until class device is destroyed */
+	__module_get(THIS_MODULE);
+
+	retval = device_add(f_dev);
+	if (retval) {
+		dev_err(f_dev, "%s: device_register failed\n", __func__);
+		goto err_put_dev;
+	}
+
+	retval = device_create_bin_file(f_dev, &firmware_attr_data);
+	if (retval) {
+		dev_err(f_dev, "%s: sysfs_create_bin_file failed\n", __func__);
+		goto err_del_dev;
+	}
+
+	retval = device_create_file(f_dev, &dev_attr_loading);
+	if (retval) {
+		dev_err(f_dev, "%s: device_create_file failed\n", __func__);
+		goto err_del_bin_attr;
 	}
 
 	if (uevent) {
-		if (loading_timeout > 0)
+		dev_set_uevent_suppress(f_dev, false);
+		dev_dbg(f_dev, "firmware: requesting %s\n", fw_priv->fw_id);
+		if (timeout != MAX_SCHEDULE_TIMEOUT)
 			mod_timer(&fw_priv->timeout,
-				  round_jiffies_up(jiffies +
-						   loading_timeout * HZ));
+				  round_jiffies_up(jiffies + timeout));
 
 		kobject_uevent(&fw_priv->dev.kobj, KOBJ_ADD);
 	}
@@ -570,16 +556,13 @@ static int _request_firmware(const struct firmware **firmware_p,
 	fw_priv->fw = NULL;
 	mutex_unlock(&fw_lock);
 
-	fw_destroy_instance(fw_priv);
-
-out:
-	read_unlock_usermodehelper();
-
-	if (retval) {
-		release_firmware(firmware);
-		*firmware_p = NULL;
-	}
-
+	device_remove_file(f_dev, &dev_attr_loading);
+err_del_bin_attr:
+	device_remove_bin_file(f_dev, &firmware_attr_data);
+err_del_dev:
+	device_del(f_dev);
+err_put_dev:
+	put_device(f_dev);
 	return retval;
 }
 
@@ -602,7 +585,26 @@ int
 request_firmware(const struct firmware **firmware_p, const char *name,
                  struct device *device)
 {
-        return _request_firmware(firmware_p, name, device, true, false);
+	struct firmware_priv *fw_priv;
+	int ret;
+
+	fw_priv = _request_firmware_prepare(firmware_p, name, device, true,
+					    false);
+	if (IS_ERR_OR_NULL(fw_priv))
+		return PTR_RET(fw_priv);
+
+	ret = usermodehelper_read_trylock();
+	if (WARN_ON(ret)) {
+		dev_err(device, "firmware: %s will not be loaded\n", name);
+	} else {
+		ret = _request_firmware_load(fw_priv, true,
+					firmware_loading_timeout());
+		usermodehelper_read_unlock();
+	}
+	if (ret)
+		_request_firmware_cleanup(firmware_p);
+
+	return ret;
 }
 
 /**
@@ -629,25 +631,39 @@ struct firmware_work {
 	bool uevent;
 };
 
-static int request_firmware_work_func(void *arg)
+static void request_firmware_work_func(struct work_struct *work)
 {
-	struct firmware_work *fw_work = arg;
+	struct firmware_work *fw_work;
 	const struct firmware *fw;
+	struct firmware_priv *fw_priv;
+	long timeout;
 	int ret;
 
-	if (!arg) {
-		WARN_ON(1);
-		return 0;
+	fw_work = container_of(work, struct firmware_work, work);
+	fw_priv = _request_firmware_prepare(&fw, fw_work->name, fw_work->device,
+			fw_work->uevent, true);
+	if (IS_ERR_OR_NULL(fw_priv)) {
+		ret = PTR_RET(fw_priv);
+		goto out;
 	}
 
-	ret = _request_firmware(&fw, fw_work->name, fw_work->device,
-				fw_work->uevent, true);
+	timeout = usermodehelper_read_lock_wait(firmware_loading_timeout());
+	if (timeout) {
+		ret = _request_firmware_load(fw_priv, fw_work->uevent, timeout);
+		usermodehelper_read_unlock();
+	} else {
+		dev_dbg(fw_work->device, "firmware: %s loading timed out\n",
+			fw_work->name);
+		ret = -EAGAIN;
+	}
+	if (ret)
+		_request_firmware_cleanup(&fw);
+
+ out:
 	fw_work->cont(fw, fw_work->context);
 
 	module_put(fw_work->module);
 	kfree(fw_work);
-
-	return ret;
 }
 
 /**
@@ -673,7 +689,6 @@ request_firmware_nowait(
 	const char *name, struct device *device, gfp_t gfp, void *context,
 	void (*cont)(const struct firmware *fw, void *context))
 {
-	struct task_struct *task;
 	struct firmware_work *fw_work;
 
 	fw_work = kzalloc(sizeof (struct firmware_work), gfp);
@@ -692,15 +707,8 @@ request_firmware_nowait(
 		return -EFAULT;
 	}
 
-	task = kthread_run(request_firmware_work_func, fw_work,
-			    "firmware/%s", name);
-	if (IS_ERR(task)) {
-		fw_work->cont(NULL, fw_work->context);
-		module_put(fw_work->module);
-		kfree(fw_work);
-		return PTR_ERR(task);
-	}
-
+	INIT_WORK(&fw_work->work, request_firmware_work_func);
+	schedule_work(&fw_work->work);
 	return 0;
 }
 

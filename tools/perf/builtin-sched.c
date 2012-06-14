@@ -17,6 +17,7 @@
 #include "util/debug.h"
 
 #include <sys/prctl.h>
+#include <sys/resource.h>
 
 #include <semaphore.h>
 #include <pthread.h>
@@ -727,34 +728,34 @@ struct trace_migrate_task_event {
 struct trace_sched_handler {
 	void (*switch_event)(struct trace_switch_event *,
 			     struct machine *,
-			     struct event *,
+			     struct event_format *,
 			     int cpu,
 			     u64 timestamp,
 			     struct thread *thread);
 
 	void (*runtime_event)(struct trace_runtime_event *,
 			      struct machine *,
-			      struct event *,
+			      struct event_format *,
 			      int cpu,
 			      u64 timestamp,
 			      struct thread *thread);
 
 	void (*wakeup_event)(struct trace_wakeup_event *,
 			     struct machine *,
-			     struct event *,
+			     struct event_format *,
 			     int cpu,
 			     u64 timestamp,
 			     struct thread *thread);
 
 	void (*fork_event)(struct trace_fork_event *,
-			   struct event *,
+			   struct event_format *,
 			   int cpu,
 			   u64 timestamp,
 			   struct thread *thread);
 
 	void (*migrate_task_event)(struct trace_migrate_task_event *,
 			   struct machine *machine,
-			   struct event *,
+			   struct event_format *,
 			   int cpu,
 			   u64 timestamp,
 			   struct thread *thread);
@@ -764,7 +765,7 @@ struct trace_sched_handler {
 static void
 replay_wakeup_event(struct trace_wakeup_event *wakeup_event,
 		    struct machine *machine __used,
-		    struct event *event,
+		    struct event_format *event,
 		    int cpu __used,
 		    u64 timestamp __used,
 		    struct thread *thread __used)
@@ -791,7 +792,7 @@ static u64 cpu_last_switched[MAX_CPUS];
 static void
 replay_switch_event(struct trace_switch_event *switch_event,
 		    struct machine *machine __used,
-		    struct event *event,
+		    struct event_format *event,
 		    int cpu,
 		    u64 timestamp,
 		    struct thread *thread __used)
@@ -834,7 +835,7 @@ replay_switch_event(struct trace_switch_event *switch_event,
 
 static void
 replay_fork_event(struct trace_fork_event *fork_event,
-		  struct event *event,
+		  struct event_format *event,
 		  int cpu __used,
 		  u64 timestamp __used,
 		  struct thread *thread __used)
@@ -943,7 +944,7 @@ static void thread_atoms_insert(struct thread *thread)
 
 static void
 latency_fork_event(struct trace_fork_event *fork_event __used,
-		   struct event *event __used,
+		   struct event_format *event __used,
 		   int cpu __used,
 		   u64 timestamp __used,
 		   struct thread *thread __used)
@@ -1025,7 +1026,7 @@ add_sched_in_event(struct work_atoms *atoms, u64 timestamp)
 static void
 latency_switch_event(struct trace_switch_event *switch_event,
 		     struct machine *machine,
-		     struct event *event __used,
+		     struct event_format *event __used,
 		     int cpu,
 		     u64 timestamp,
 		     struct thread *thread __used)
@@ -1078,7 +1079,7 @@ latency_switch_event(struct trace_switch_event *switch_event,
 static void
 latency_runtime_event(struct trace_runtime_event *runtime_event,
 		     struct machine *machine,
-		     struct event *event __used,
+		     struct event_format *event __used,
 		     int cpu,
 		     u64 timestamp,
 		     struct thread *this_thread __used)
@@ -1101,7 +1102,7 @@ latency_runtime_event(struct trace_runtime_event *runtime_event,
 static void
 latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 		     struct machine *machine,
-		     struct event *__event __used,
+		     struct event_format *__event __used,
 		     int cpu __used,
 		     u64 timestamp,
 		     struct thread *thread __used)
@@ -1149,7 +1150,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 static void
 latency_migrate_task_event(struct trace_migrate_task_event *migrate_task_event,
 		     struct machine *machine,
-		     struct event *__event __used,
+		     struct event_format *__event __used,
 		     int cpu __used,
 		     u64 timestamp,
 		     struct thread *thread __used)
@@ -1360,7 +1361,7 @@ static struct trace_sched_handler *trace_handler;
 
 static void
 process_sched_wakeup_event(struct perf_tool *tool __used,
-			   struct event *event,
+			   struct event_format *event,
 			   struct perf_sample *sample,
 			   struct machine *machine,
 			   struct thread *thread)
@@ -1397,7 +1398,7 @@ static char next_shortname2 = '0';
 static void
 map_switch_event(struct trace_switch_event *switch_event,
 		 struct machine *machine,
-		 struct event *event __used,
+		 struct event_format *event __used,
 		 int this_cpu,
 		 u64 timestamp,
 		 struct thread *thread __used)
@@ -1475,7 +1476,7 @@ map_switch_event(struct trace_switch_event *switch_event,
 
 static void
 process_sched_switch_event(struct perf_tool *tool __used,
-			   struct event *event,
+			   struct event_format *event,
 			   struct perf_sample *sample,
 			   struct machine *machine,
 			   struct thread *thread)
@@ -1511,7 +1512,7 @@ process_sched_switch_event(struct perf_tool *tool __used,
 
 static void
 process_sched_runtime_event(struct perf_tool *tool __used,
-			    struct event *event,
+			    struct event_format *event,
 			    struct perf_sample *sample,
 			    struct machine *machine,
 			    struct thread *thread)
@@ -1531,7 +1532,7 @@ process_sched_runtime_event(struct perf_tool *tool __used,
 
 static void
 process_sched_fork_event(struct perf_tool *tool __used,
-			 struct event *event,
+			 struct event_format *event,
 			 struct perf_sample *sample,
 			 struct machine *machine __used,
 			 struct thread *thread)
@@ -1553,7 +1554,7 @@ process_sched_fork_event(struct perf_tool *tool __used,
 
 static void
 process_sched_exit_event(struct perf_tool *tool __used,
-			 struct event *event,
+			 struct event_format *event,
 			 struct perf_sample *sample __used,
 			 struct machine *machine __used,
 			 struct thread *thread __used)
@@ -1564,7 +1565,7 @@ process_sched_exit_event(struct perf_tool *tool __used,
 
 static void
 process_sched_migrate_task_event(struct perf_tool *tool __used,
-				 struct event *event,
+				 struct event_format *event,
 				 struct perf_sample *sample,
 				 struct machine *machine,
 				 struct thread *thread)
@@ -1585,7 +1586,7 @@ process_sched_migrate_task_event(struct perf_tool *tool __used,
 						  sample->time, thread);
 }
 
-typedef void (*tracepoint_handler)(struct perf_tool *tool, struct event *event,
+typedef void (*tracepoint_handler)(struct perf_tool *tool, struct event_format *event,
 				   struct perf_sample *sample,
 				   struct machine *machine,
 				   struct thread *thread);

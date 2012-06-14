@@ -27,6 +27,7 @@ extern unsigned int c6x_devstat;
 extern unsigned char c6x_fuse_mac[6];
 
 extern void machine_init(unsigned long dt_ptr);
+extern void time_init(void);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_C6X_SETUP_H */

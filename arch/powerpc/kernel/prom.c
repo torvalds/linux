@@ -41,7 +41,6 @@
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/smp.h>
-#include <asm/system.h>
 #include <asm/mmu.h>
 #include <asm/paca.h>
 #include <asm/pgtable.h>

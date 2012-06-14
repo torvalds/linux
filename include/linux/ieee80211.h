@@ -1458,7 +1458,7 @@ enum {
  * be specified in a vendor specific information element
  */
 enum {
-	IEEE80211_PATH_PROTOCOL_HWMP = 0,
+	IEEE80211_PATH_PROTOCOL_HWMP = 1,
 	IEEE80211_PATH_PROTOCOL_VENDOR = 255,
 };
 
@@ -1470,7 +1470,7 @@ enum {
  * specified in a vendor specific information element
  */
 enum {
-	IEEE80211_PATH_METRIC_AIRTIME = 0,
+	IEEE80211_PATH_METRIC_AIRTIME = 1,
 	IEEE80211_PATH_METRIC_VENDOR = 255,
 };
 

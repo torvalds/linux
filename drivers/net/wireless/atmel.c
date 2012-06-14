@@ -50,7 +50,6 @@
 #include <linux/timer.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -3990,8 +3989,7 @@ static int reset_atmel_card(struct net_device *dev)
 			atmel_copy_to_card(priv->dev, 0x8000, &fw[0x6000], len - 0x6000);
 		}
 
-		if (fw_entry)
-			release_firmware(fw_entry);
+		release_firmware(fw_entry);
 	}
 
 	err = atmel_wakeup_firmware(priv);

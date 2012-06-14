@@ -32,13 +32,13 @@
 #include <linux/gfp.h>
 
 #include <asm/prom.h>
-#include <asm/system.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
 #include <asm/mmu.h>
+#include <asm/debug.h>
 
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>

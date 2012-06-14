@@ -85,6 +85,8 @@
 #include <linux/slab.h>
 #include <asm/hardware/pl080.h>
 
+#include "dmaengine.h"
+
 #define DRIVER_NAME	"pl08xdmac"
 
 static struct amba_driver pl08x_amba_driver;
@@ -93,10 +95,14 @@ static struct amba_driver pl08x_amba_driver;
  * struct vendor_data - vendor-specific config parameters for PL08x derivatives
  * @channels: the number of channels available in this variant
  * @dualmaster: whether this version supports dual AHB masters or not.
+ * @nomadik: whether the channels have Nomadik security extension bits
+ *	that need to be checked for permission before use and some registers are
+ *	missing
  */
 struct vendor_data {
 	u8 channels;
 	bool dualmaster;
+	bool nomadik;
 };
 
 /*
@@ -383,7 +389,7 @@ pl08x_get_phy_channel(struct pl08x_driver_data *pl08x,
 
 		spin_lock_irqsave(&ch->lock, flags);
 
-		if (!ch->serving) {
+		if (!ch->locked && !ch->serving) {
 			ch->serving = virt_chan;
 			ch->signal = -1;
 			spin_unlock_irqrestore(&ch->lock, flags);
@@ -649,7 +655,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 			}
 
 			if ((bd.srcbus.addr % bd.srcbus.buswidth) ||
-					(bd.srcbus.addr % bd.srcbus.buswidth)) {
+					(bd.dstbus.addr % bd.dstbus.buswidth)) {
 				dev_err(&pl08x->adev->dev,
 					"%s src & dst address must be aligned to src"
 					" & dst width if peripheral is flow controller",
@@ -919,13 +925,10 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(tx->chan);
 	struct pl08x_txd *txd = to_pl08x_txd(tx);
 	unsigned long flags;
+	dma_cookie_t cookie;
 
 	spin_lock_irqsave(&plchan->lock, flags);
-
-	plchan->chan.cookie += 1;
-	if (plchan->chan.cookie < 0)
-		plchan->chan.cookie = 1;
-	tx->cookie = plchan->chan.cookie;
+	cookie = dma_cookie_assign(tx);
 
 	/* Put this onto the pending list */
 	list_add_tail(&txd->node, &plchan->pend_list);
@@ -945,7 +948,7 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_unlock_irqrestore(&plchan->lock, flags);
 
-	return tx->cookie;
+	return cookie;
 }
 
 static struct dma_async_tx_descriptor *pl08x_prep_dma_interrupt(
@@ -965,31 +968,17 @@ static enum dma_status pl08x_dma_tx_status(struct dma_chan *chan,
 		dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
 	enum dma_status ret;
-	u32 bytesleft = 0;
 
-	last_used = plchan->chan.cookie;
-	last_complete = plchan->lc;
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
-	if (ret == DMA_SUCCESS) {
-		dma_set_tx_state(txstate, last_complete, last_used, 0);
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret == DMA_SUCCESS)
 		return ret;
-	}
 
 	/*
 	 * This cookie not complete yet
+	 * Get number of bytes left in the active transactions and queue
 	 */
-	last_used = plchan->chan.cookie;
-	last_complete = plchan->lc;
-
-	/* Get number of bytes left in the active transactions and queue */
-	bytesleft = pl08x_getbytes_chan(plchan);
-
-	dma_set_tx_state(txstate, last_complete, last_used,
-			 bytesleft);
+	dma_set_residue(txstate, pl08x_getbytes_chan(plchan));
 
 	if (plchan->state == PL08X_CHAN_PAUSED)
 		return DMA_PAUSED;
@@ -1138,6 +1127,8 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 	burst = pl08x_burst(maxburst);
 	cctl |= burst << PL080_CONTROL_SB_SIZE_SHIFT;
 	cctl |= burst << PL080_CONTROL_DB_SIZE_SHIFT;
+
+	plchan->device_fc = config->device_fc;
 
 	if (plchan->runtime_direction == DMA_DEV_TO_MEM) {
 		plchan->src_addr = config->src_addr;
@@ -1326,7 +1317,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,
 		unsigned int sg_len, enum dma_transfer_direction direction,
-		unsigned long flags)
+		unsigned long flags, void *context)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 	struct pl08x_driver_data *pl08x = plchan->host;
@@ -1337,7 +1328,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	int ret, tmp;
 
 	dev_dbg(&pl08x->adev->dev, "%s prepare transaction of %d bytes from %s\n",
-			__func__, sgl->length, plchan->name);
+			__func__, sg_dma_len(sgl), plchan->name);
 
 	txd = pl08x_get_txd(plchan, flags);
 	if (!txd) {
@@ -1370,7 +1361,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		return NULL;
 	}
 
-	if (plchan->cd->device_fc)
+	if (plchan->device_fc)
 		tmp = (direction == DMA_MEM_TO_DEV) ? PL080_FLOW_MEM2PER_PER :
 			PL080_FLOW_PER2MEM_PER;
 	else
@@ -1391,11 +1382,11 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 
 		dsg->len = sg_dma_len(sg);
 		if (direction == DMA_MEM_TO_DEV) {
-			dsg->src_addr = sg_phys(sg);
+			dsg->src_addr = sg_dma_address(sg);
 			dsg->dst_addr = slave_addr;
 		} else {
 			dsg->src_addr = slave_addr;
-			dsg->dst_addr = sg_phys(sg);
+			dsg->dst_addr = sg_dma_address(sg);
 		}
 	}
 
@@ -1442,6 +1433,7 @@ static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 			 * signal
 			 */
 			release_phy_channel(plchan);
+			plchan->phychan_hold = 0;
 		}
 		/* Dequeue jobs and free LLIs */
 		if (plchan->at) {
@@ -1496,6 +1488,9 @@ bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
  */
 static void pl08x_ensure_on(struct pl08x_driver_data *pl08x)
 {
+	/* The Nomadik variant does not have the config register */
+	if (pl08x->vd->nomadik)
+		return;
 	writel(PL080_CONFIG_ENABLE, pl08x->base + PL080_CONFIG);
 }
 
@@ -1541,7 +1536,7 @@ static void pl08x_tasklet(unsigned long data)
 
 	if (txd) {
 		/* Update last completed */
-		plchan->lc = txd->tx.cookie;
+		dma_cookie_complete(&txd->tx);
 	}
 
 	/* If a new descriptor is queued, set it up plchan->at is NULL here */
@@ -1628,7 +1623,7 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 			__func__, err);
 		writel(err, pl08x->base + PL080_ERR_CLEAR);
 	}
-	tc = readl(pl08x->base + PL080_INT_STATUS);
+	tc = readl(pl08x->base + PL080_TC_STATUS);
 	if (tc)
 		writel(tc, pl08x->base + PL080_TC_CLEAR);
 
@@ -1722,8 +1717,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			 chan->name);
 
 		chan->chan.device = dmadev;
-		chan->chan.cookie = 0;
-		chan->lc = 0;
+		dma_cookie_init(&chan->chan);
 
 		spin_lock_init(&chan->lock);
 		INIT_LIST_HEAD(&chan->pend_list);
@@ -1786,8 +1780,10 @@ static int pl08x_debugfs_show(struct seq_file *s, void *data)
 		spin_lock_irqsave(&ch->lock, flags);
 		virt_chan = ch->serving;
 
-		seq_printf(s, "%d\t\t%s\n",
-			   ch->id, virt_chan ? virt_chan->name : "(none)");
+		seq_printf(s, "%d\t\t%s%s\n",
+			   ch->id,
+			   virt_chan ? virt_chan->name : "(none)",
+			   ch->locked ? " LOCKED" : "");
 
 		spin_unlock_irqrestore(&ch->lock, flags);
 	}
@@ -1931,7 +1927,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Initialize physical channels */
-	pl08x->phy_chans = kmalloc((vd->channels * sizeof(*pl08x->phy_chans)),
+	pl08x->phy_chans = kzalloc((vd->channels * sizeof(*pl08x->phy_chans)),
 			GFP_KERNEL);
 	if (!pl08x->phy_chans) {
 		dev_err(&adev->dev, "%s failed to allocate "
@@ -1946,8 +1942,23 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		ch->id = i;
 		ch->base = pl08x->base + PL080_Cx_BASE(i);
 		spin_lock_init(&ch->lock);
-		ch->serving = NULL;
 		ch->signal = -1;
+
+		/*
+		 * Nomadik variants can have channels that are locked
+		 * down for the secure world only. Lock up these channels
+		 * by perpetually serving a dummy virtual channel.
+		 */
+		if (vd->nomadik) {
+			u32 val;
+
+			val = readl(ch->base + PL080_CH_CONFIG);
+			if (val & (PL080N_CONFIG_ITPROT | PL080N_CONFIG_SECPROT)) {
+				dev_info(&adev->dev, "physical channel %d reserved for secure access only\n", i);
+				ch->locked = true;
+			}
+		}
+
 		dev_dbg(&adev->dev, "physical channel %d is %s\n",
 			i, pl08x_phy_channel_busy(ch) ? "BUSY" : "FREE");
 	}
@@ -2030,6 +2041,12 @@ static struct vendor_data vendor_pl080 = {
 	.dualmaster = true,
 };
 
+static struct vendor_data vendor_nomadik = {
+	.channels = 8,
+	.dualmaster = true,
+	.nomadik = true,
+};
+
 static struct vendor_data vendor_pl081 = {
 	.channels = 2,
 	.dualmaster = false,
@@ -2050,9 +2067,9 @@ static struct amba_id pl08x_ids[] = {
 	},
 	/* Nomadik 8815 PL080 variant */
 	{
-		.id	= 0x00280880,
+		.id	= 0x00280080,
 		.mask	= 0x00ffffff,
-		.data	= &vendor_pl080,
+		.data	= &vendor_nomadik,
 	},
 	{ 0, 0 },
 };

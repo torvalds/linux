@@ -23,8 +23,6 @@ config IOSCHED_DEADLINE
 
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
-	# If BLK_CGROUP is a module, CFQ has to be built as module.
-	depends on (BLK_CGROUP=m && m) || !BLK_CGROUP || BLK_CGROUP=y
 	default y
 	---help---
 	  The CFQ I/O scheduler tries to distribute bandwidth equally
@@ -33,8 +31,6 @@ config IOSCHED_CFQ
 	  and server systems.
 
 	  This is the default I/O scheduler.
-
-	  Note: If BLK_CGROUP=m, then CFQ can be built only as module.
 
 config CFQ_GROUP_IOSCHED
 	bool "CFQ Group Scheduling support"

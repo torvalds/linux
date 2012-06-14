@@ -17,6 +17,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -45,8 +47,8 @@
 #define WDOG_CTRL_ACTION_NMI	2	/* NMI */
 #define WDOG_CTRL_ACTION_FCR	3	/* full chip reset */
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 			   "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -114,8 +116,7 @@ static int ath79_wdt_release(struct inode *inode, struct file *file)
 	if (test_bit(WDT_FLAGS_EXPECT_CLOSE, &wdt_flags))
 		ath79_wdt_disable();
 	else {
-		pr_crit(DRIVER_NAME ": device closed unexpectedly, "
-			"watchdog timer will not stop!\n");
+		pr_crit("device closed unexpectedly, watchdog timer will not stop!\n");
 		ath79_wdt_keepalive();
 	}
 

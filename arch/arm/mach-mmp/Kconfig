@@ -2,16 +2,6 @@ if ARCH_MMP
 
 menu "Marvell PXA168/910/MMP2 Implmentations"
 
-config MACH_MMP_DT
-	bool "Support MMP2 platforms from device tree"
-	select CPU_PXA168
-	select CPU_PXA910
-	select USE_OF
-	help
-	  Include support for Marvell MMP2 based platforms using
-	  the device tree. Needn't select any other machine while
-	  MACH_MMP_DT is enabled.
-
 config MACH_ASPENITE
 	bool "Marvell's PXA168 Aspenite Development Board"
 	select CPU_PXA168
@@ -94,6 +84,25 @@ config MACH_GPLUGD
 	  Say 'Y' here if you want to support the Marvell PXA168-based
 	  GuruPlug Display (gplugD) Board
 
+config MACH_MMP_DT
+	bool "Support MMP (ARMv5) platforms from device tree"
+	select CPU_PXA168
+	select CPU_PXA910
+	select USE_OF
+	help
+	  Include support for Marvell MMP2 based platforms using
+	  the device tree. Needn't select any other machine while
+	  MACH_MMP_DT is enabled.
+
+config MACH_MMP2_DT
+	bool "Support MMP2 (ARMv7) platforms from device tree"
+	depends on !CPU_MOHAWK
+	select CPU_MMP2
+	select USE_OF
+	help
+	  Include support for Marvell MMP2 based platforms using
+	  the device tree.
+
 endmenu
 
 config CPU_PXA168
@@ -113,4 +122,11 @@ config CPU_MMP2
 	select CPU_PJ4
 	help
 	  Select code specific to MMP2. MMP2 is ARMv7 compatible.
+
+config USB_EHCI_MV_U2O
+        bool "EHCI support for PXA USB OTG controller"
+	depends on USB_EHCI_MV
+	help
+	  Enables support for OTG controller which can be switched to host mode.
+
 endif

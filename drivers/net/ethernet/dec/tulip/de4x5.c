@@ -1874,7 +1874,7 @@ de4x5_local_stats(struct net_device *dev, char *buf, int pkt_len)
 	} else {
 	    lp->pktStats.multicast++;
 	}
-    } else if (compare_ether_addr(buf, dev->dev_addr) == 0) {
+    } else if (ether_addr_equal(buf, dev->dev_addr)) {
         lp->pktStats.unicast++;
     }
 

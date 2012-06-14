@@ -12,7 +12,6 @@
 
 #include <asm/txx9/tx3927.h>
 #include <asm/addrspace.h>
-#include <asm/system.h>
 #include <asm/txx9irq.h>
 
 /* CS */

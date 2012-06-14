@@ -15,13 +15,11 @@
 #include <sys/socket.h>
 #include <sys/mman.h>
 #include <sys/param.h>
-#include "asm/types.h"
-#include "ubd_user.h"
-#include "os.h"
-#include "cow.h"
-
 #include <endian.h>
 #include <byteswap.h>
+
+#include "ubd.h"
+#include "os.h"
 
 void ignore_sigwinch_sig(void)
 {

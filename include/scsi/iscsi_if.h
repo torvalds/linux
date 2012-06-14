@@ -261,7 +261,8 @@ struct iscsi_uevent {
 		} host_event;
 		struct msg_ping_comp {
 			uint32_t        host_no;
-			uint32_t        status;
+			uint32_t        status; /* enum
+						 * iscsi_ping_status_code */
 			uint32_t	pid;	/* unique ping id associated
 						   with each ping request */
 			uint32_t        data_size;
@@ -483,6 +484,20 @@ enum iscsi_port_state {
 	ISCSI_PORT_STATE_UP		= 0x2,
 };
 
+/* iSCSI PING status/error code */
+enum iscsi_ping_status_code {
+	ISCSI_PING_SUCCESS			= 0,
+	ISCSI_PING_FW_DISABLED			= 0x1,
+	ISCSI_PING_IPADDR_INVALID		= 0x2,
+	ISCSI_PING_LINKLOCAL_IPV6_ADDR_INVALID	= 0x3,
+	ISCSI_PING_TIMEOUT			= 0x4,
+	ISCSI_PING_INVALID_DEST_ADDR		= 0x5,
+	ISCSI_PING_OVERSIZE_PACKET		= 0x6,
+	ISCSI_PING_ICMP_ERROR			= 0x7,
+	ISCSI_PING_MAX_REQ_EXCEEDED		= 0x8,
+	ISCSI_PING_NO_ARP_RECEIVED		= 0x9,
+};
+
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
 #define iscsi_handle(_ptr) ((uint64_t)(unsigned long)_ptr)
 
@@ -578,6 +593,6 @@ struct iscsi_chap_rec {
 	char username[ISCSI_CHAP_AUTH_NAME_MAX_LEN];
 	uint8_t password[ISCSI_CHAP_AUTH_SECRET_MAX_LEN];
 	uint8_t password_length;
-} __packed;
+};
 
 #endif

@@ -20,8 +20,8 @@ static int diag_release_pages(struct kvm_vcpu *vcpu)
 	unsigned long start, end;
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
 
-	start = vcpu->arch.guest_gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
-	end = vcpu->arch.guest_gprs[vcpu->arch.sie_block->ipa & 0xf] + 4096;
+	start = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
+	end = vcpu->run->s.regs.gprs[vcpu->arch.sie_block->ipa & 0xf] + 4096;
 
 	if (start & ~PAGE_MASK || end & ~PAGE_MASK || start > end
 	    || start < 2 * PAGE_SIZE)
@@ -47,16 +47,37 @@ static int __diag_time_slice_end(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 5, "%s", "diag time slice end");
 	vcpu->stat.diagnose_44++;
-	vcpu_put(vcpu);
-	yield();
-	vcpu_load(vcpu);
+	kvm_vcpu_on_spin(vcpu);
+	return 0;
+}
+
+static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_vcpu *tcpu;
+	int tid;
+	int i;
+
+	tid = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
+	vcpu->stat.diagnose_9c++;
+	VCPU_EVENT(vcpu, 5, "diag time slice end directed to %d", tid);
+
+	if (tid == vcpu->vcpu_id)
+		return 0;
+
+	kvm_for_each_vcpu(i, tcpu, kvm)
+		if (tcpu->vcpu_id == tid) {
+			kvm_vcpu_yield_to(tcpu);
+			break;
+		}
+
 	return 0;
 }
 
 static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 {
 	unsigned int reg = vcpu->arch.sie_block->ipa & 0xf;
-	unsigned long subcode = vcpu->arch.guest_gprs[reg] & 0xffff;
+	unsigned long subcode = vcpu->run->s.regs.gprs[reg] & 0xffff;
 
 	VCPU_EVENT(vcpu, 5, "diag ipl functions, subcode %lx", subcode);
 	switch (subcode) {
@@ -89,6 +110,8 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 		return diag_release_pages(vcpu);
 	case 0x44:
 		return __diag_time_slice_end(vcpu);
+	case 0x9c:
+		return __diag_time_slice_end_directed(vcpu);
 	case 0x308:
 		return __diag_ipl_functions(vcpu);
 	default:

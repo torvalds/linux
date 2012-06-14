@@ -217,7 +217,6 @@ static struct spi_board_info palmte_spi_info[] __initdata = {
 		.modalias	= "tsc2102",
 		.bus_num	= 2,	/* uWire (officially) */
 		.chip_select	= 0,	/* As opposed to 3 */
-		.irq		= OMAP_GPIO_IRQ(PALMTE_PINTDAV_GPIO),
 		.max_speed_hz	= 8000000,
 	},
 };
@@ -251,6 +250,7 @@ static void __init omap_palmte_init(void)
 
 	platform_add_devices(palmte_devices, ARRAY_SIZE(palmte_devices));
 
+	palmte_spi_info[0].irq = gpio_to_irq(PALMTE_PINTDAV_GPIO);
 	spi_register_board_info(palmte_spi_info, ARRAY_SIZE(palmte_spi_info));
 	palmte_misc_gpio_setup();
 	omap_serial_init();
@@ -267,6 +267,7 @@ MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
 	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_palmte_init,
+	.init_late	= omap1_init_late,
 	.timer		= &omap1_timer,
 	.restart	= omap1_restart,
 MACHINE_END

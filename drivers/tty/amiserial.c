@@ -85,7 +85,6 @@ static char *serial_version = "4.30";
 
 #include <asm/setup.h>
 
-#include <asm/system.h>
 
 #include <asm/irq.h>
 
@@ -1074,8 +1073,10 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 		    (new_serial.close_delay != port->close_delay) ||
 		    (new_serial.xmit_fifo_size != state->xmit_fifo_size) ||
 		    ((new_serial.flags & ~ASYNC_USR_MASK) !=
-		     (port->flags & ~ASYNC_USR_MASK)))
+		     (port->flags & ~ASYNC_USR_MASK))) {
+			tty_unlock();
 			return -EPERM;
+		}
 		port->flags = ((port->flags & ~ASYNC_USR_MASK) |
 			       (new_serial.flags & ASYNC_USR_MASK));
 		state->custom_divisor = new_serial.custom_divisor;

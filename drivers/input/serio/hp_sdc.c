@@ -71,7 +71,6 @@
 #include <linux/slab.h>
 #include <linux/hil.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 /* Machine-specific abstraction */
 

@@ -13,9 +13,9 @@
 
 #include <linux/types.h>
 
+#include <asm/cmpxchg.h>
 #include <asm-generic/atomic64.h>
 
-#include <asm/system.h>
 
 #define ATOMIC_INIT(i)  { (i) }
 

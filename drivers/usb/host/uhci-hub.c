@@ -196,11 +196,12 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	status = get_hub_status_data(uhci, buf);
 
 	switch (uhci->rh_state) {
-	    case UHCI_RH_SUSPENDING:
 	    case UHCI_RH_SUSPENDED:
 		/* if port change, ask to be resumed */
-		if (status || uhci->resuming_ports)
+		if (status || uhci->resuming_ports) {
+			status = 1;
 			usb_hcd_resume_root_hub(hcd);
+		}
 		break;
 
 	    case UHCI_RH_AUTO_STOPPED:

@@ -1,7 +1,6 @@
 #ifndef _CRYSTALHD_H_
 #define _CRYSTALHD_H_
 
-#include <asm/system.h>
 #include "bc_dts_defs.h"
 #include "crystalhd_misc.h"
 #include "bc_dts_glob_lnx.h"

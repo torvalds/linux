@@ -161,6 +161,12 @@ struct e1000_info;
 /* Time to wait before putting the device into D3 if there's no link (in ms). */
 #define LINK_TIMEOUT		100
 
+/*
+ * Count for polling __E1000_RESET condition every 10-20msec.
+ * Experimentation has shown the reset can take approximately 210msec.
+ */
+#define E1000_CHECK_RESET_COUNT		25
+
 #define DEFAULT_RDTR			0
 #define DEFAULT_RADV			8
 #define BURST_RDTR			0x20
@@ -200,6 +206,7 @@ enum e1000_boards {
 	board_ich10lan,
 	board_pchlan,
 	board_pch2lan,
+	board_pch_lpt,
 };
 
 struct e1000_ps_page {
@@ -522,6 +529,7 @@ extern const struct e1000_info e1000_ich9_info;
 extern const struct e1000_info e1000_ich10_info;
 extern const struct e1000_info e1000_pch_info;
 extern const struct e1000_info e1000_pch2_info;
+extern const struct e1000_info e1000_pch_lpt_info;
 extern const struct e1000_info e1000_es2_info;
 
 extern s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
@@ -570,7 +578,7 @@ extern void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count);
 extern void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
 					       u8 *mc_addr_list,
 					       u32 mc_addr_count);
-extern void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index);
+extern void e1000e_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index);
 extern s32 e1000e_set_fc_watermarks(struct e1000_hw *hw);
 extern void e1000e_set_pcie_no_snoop(struct e1000_hw *hw, u32 no_snoop);
 extern s32 e1000e_get_hw_semaphore(struct e1000_hw *hw);
@@ -667,9 +675,19 @@ static inline s32 e1e_rphy(struct e1000_hw *hw, u32 offset, u16 *data)
 	return hw->phy.ops.read_reg(hw, offset, data);
 }
 
+static inline s32 e1e_rphy_locked(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	return hw->phy.ops.read_reg_locked(hw, offset, data);
+}
+
 static inline s32 e1e_wphy(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	return hw->phy.ops.write_reg(hw, offset, data);
+}
+
+static inline s32 e1e_wphy_locked(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	return hw->phy.ops.write_reg_locked(hw, offset, data);
 }
 
 static inline s32 e1000_get_cable_length(struct e1000_hw *hw)
@@ -729,9 +747,46 @@ static inline u32 __er32(struct e1000_hw *hw, unsigned long reg)
 	return readl(hw->hw_addr + reg);
 }
 
+#define er32(reg)	__er32(hw, E1000_##reg)
+
+/**
+ * __ew32_prepare - prepare to write to MAC CSR register on certain parts
+ * @hw: pointer to the HW structure
+ *
+ * When updating the MAC CSR registers, the Manageability Engine (ME) could
+ * be accessing the registers at the same time.  Normally, this is handled in
+ * h/w by an arbiter but on some parts there is a bug that acknowledges Host
+ * accesses later than it should which could result in the register to have
+ * an incorrect value.  Workaround this by checking the FWSM register which
+ * has bit 24 set while ME is accessing MAC CSR registers, wait if it is set
+ * and try again a number of times.
+ **/
+static inline s32 __ew32_prepare(struct e1000_hw *hw)
+{
+	s32 i = E1000_ICH_FWSM_PCIM2PCI_COUNT;
+
+	while ((er32(FWSM) & E1000_ICH_FWSM_PCIM2PCI) && --i)
+		udelay(50);
+
+	return i;
+}
+
 static inline void __ew32(struct e1000_hw *hw, unsigned long reg, u32 val)
 {
+	if (hw->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+		__ew32_prepare(hw);
+
 	writel(val, hw->hw_addr + reg);
 }
+
+#define ew32(reg, val)	__ew32(hw, E1000_##reg, (val))
+
+#define e1e_flush()	er32(STATUS)
+
+#define E1000_WRITE_REG_ARRAY(a, reg, offset, value) \
+	(__ew32((a), (reg + ((offset) << 2)), (value)))
+
+#define E1000_READ_REG_ARRAY(a, reg, offset) \
+	(readl((a)->hw_addr + reg + ((offset) << 2)))
 
 #endif /* _E1000_H_ */

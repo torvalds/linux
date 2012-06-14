@@ -342,7 +342,6 @@ static	void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
 u32 cmpk_message_handle_rx(struct net_device *dev,
 			   struct rtllib_rx_stats *pstats)
 {
-	struct r8192_priv *priv = rtllib_priv(dev);
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;
 	u8			element_id;
@@ -408,8 +407,6 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 				 "unknow CMD Element\n");
 			return 1;
 		}
-
-		priv->stats.rxcmdpkt[element_id]++;
 
 		total_length -= cmd_length;
 		pcmd_buff    += cmd_length;

@@ -29,7 +29,6 @@
 #include <linux/blkdev.h>
 #include <linux/ide.h>
 #include <linux/init.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 #define DRV_NAME "qd65xx"

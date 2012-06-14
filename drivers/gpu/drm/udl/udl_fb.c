@@ -156,8 +156,17 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	if (!fb->active_16)
 		return 0;
 
-	if (!fb->obj->vmapping)
-		udl_gem_vmap(fb->obj);
+	if (!fb->obj->vmapping) {
+		ret = udl_gem_vmap(fb->obj);
+		if (ret == -ENOMEM) {
+			DRM_ERROR("failed to vmap fb\n");
+			return 0;
+		}
+		if (!fb->obj->vmapping) {
+			DRM_ERROR("failed to vmapping\n");
+			return 0;
+		}
+	}
 
 	start_cycles = get_cycles();
 
@@ -593,10 +602,19 @@ udl_fb_user_fb_create(struct drm_device *dev,
 	struct drm_gem_object *obj;
 	struct udl_framebuffer *ufb;
 	int ret;
+	uint32_t size;
 
 	obj = drm_gem_object_lookup(dev, file, mode_cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
+
+	size = mode_cmd->pitches[0] * mode_cmd->height;
+	size = ALIGN(size, PAGE_SIZE);
+
+	if (size > obj->size) {
+		DRM_ERROR("object size not sufficient for fb %d %zu %d %d\n", size, obj->size, mode_cmd->pitches[0], mode_cmd->height);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	ufb = kzalloc(sizeof(*ufb), GFP_KERNEL);
 	if (ufb == NULL)

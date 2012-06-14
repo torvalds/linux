@@ -779,6 +779,72 @@ int ps3_repository_read_mm_info(u64 *rm_base, u64 *rm_size, u64 *region_total)
 }
 
 /**
+ * ps3_repository_read_highmem_region_count - Read the number of highmem regions
+ *
+ * Bootloaders must arrange the repository nodes such that regions are indexed
+ * with a region_index from 0 to region_count-1.
+ */
+
+int ps3_repository_read_highmem_region_count(unsigned int *region_count)
+{
+	int result;
+	u64 v1 = 0;
+
+	result = read_node(PS3_LPAR_ID_CURRENT,
+		make_first_field("highmem", 0),
+		make_field("region", 0),
+		make_field("count", 0),
+		0,
+		&v1, NULL);
+	*region_count = v1;
+	return result;
+}
+
+
+int ps3_repository_read_highmem_base(unsigned int region_index,
+	u64 *highmem_base)
+{
+	return read_node(PS3_LPAR_ID_CURRENT,
+		make_first_field("highmem", 0),
+		make_field("region", region_index),
+		make_field("base", 0),
+		0,
+		highmem_base, NULL);
+}
+
+int ps3_repository_read_highmem_size(unsigned int region_index,
+	u64 *highmem_size)
+{
+	return read_node(PS3_LPAR_ID_CURRENT,
+		make_first_field("highmem", 0),
+		make_field("region", region_index),
+		make_field("size", 0),
+		0,
+		highmem_size, NULL);
+}
+
+/**
+ * ps3_repository_read_highmem_info - Read high memory region info
+ * @region_index: Region index, {0,..,region_count-1}.
+ * @highmem_base: High memory base address.
+ * @highmem_size: High memory size.
+ *
+ * Bootloaders that preallocate highmem regions must place the
+ * region info into the repository at these well known nodes.
+ */
+
+int ps3_repository_read_highmem_info(unsigned int region_index,
+	u64 *highmem_base, u64 *highmem_size)
+{
+	int result;
+
+	*highmem_base = 0;
+	result = ps3_repository_read_highmem_base(region_index, highmem_base);
+	return result ? result
+		: ps3_repository_read_highmem_size(region_index, highmem_size);
+}
+
+/**
  * ps3_repository_read_num_spu_reserved - Number of physical spus reserved.
  * @num_spu: Number of physical spus.
  */
@@ -1001,6 +1067,138 @@ int ps3_repository_read_lpm_privileges(unsigned int be_index, u64 *lpar,
 			    make_field("priv", 0),
 			    lpar, rights);
 }
+
+#if defined(CONFIG_PS3_REPOSITORY_WRITE)
+
+static int create_node(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
+{
+	int result;
+
+	dump_node(0, n1, n2, n3, n4, v1, v2);
+
+	result = lv1_create_repository_node(n1, n2, n3, n4, v1, v2);
+
+	if (result) {
+		pr_devel("%s:%d: lv1_create_repository_node failed: %s\n",
+			__func__, __LINE__, ps3_result(result));
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+static int delete_node(u64 n1, u64 n2, u64 n3, u64 n4)
+{
+	int result;
+
+	dump_node(0, n1, n2, n3, n4, 0, 0);
+
+	result = lv1_delete_repository_node(n1, n2, n3, n4);
+
+	if (result) {
+		pr_devel("%s:%d: lv1_delete_repository_node failed: %s\n",
+			__func__, __LINE__, ps3_result(result));
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+static int write_node(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
+{
+	int result;
+
+	result = create_node(n1, n2, n3, n4, v1, v2);
+
+	if (!result)
+		return 0;
+
+	result = lv1_write_repository_node(n1, n2, n3, n4, v1, v2);
+
+	if (result) {
+		pr_devel("%s:%d: lv1_write_repository_node failed: %s\n",
+			__func__, __LINE__, ps3_result(result));
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+int ps3_repository_write_highmem_region_count(unsigned int region_count)
+{
+	int result;
+	u64 v1 = (u64)region_count;
+
+	result = write_node(
+		make_first_field("highmem", 0),
+		make_field("region", 0),
+		make_field("count", 0),
+		0,
+		v1, 0);
+	return result;
+}
+
+int ps3_repository_write_highmem_base(unsigned int region_index,
+	u64 highmem_base)
+{
+	return write_node(
+		make_first_field("highmem", 0),
+		make_field("region", region_index),
+		make_field("base", 0),
+		0,
+		highmem_base, 0);
+}
+
+int ps3_repository_write_highmem_size(unsigned int region_index,
+	u64 highmem_size)
+{
+	return write_node(
+		make_first_field("highmem", 0),
+		make_field("region", region_index),
+		make_field("size", 0),
+		0,
+		highmem_size, 0);
+}
+
+int ps3_repository_write_highmem_info(unsigned int region_index,
+	u64 highmem_base, u64 highmem_size)
+{
+	int result;
+
+	result = ps3_repository_write_highmem_base(region_index, highmem_base);
+	return result ? result
+		: ps3_repository_write_highmem_size(region_index, highmem_size);
+}
+
+static int ps3_repository_delete_highmem_base(unsigned int region_index)
+{
+	return delete_node(
+		make_first_field("highmem", 0),
+		make_field("region", region_index),
+		make_field("base", 0),
+		0);
+}
+
+static int ps3_repository_delete_highmem_size(unsigned int region_index)
+{
+	return delete_node(
+		make_first_field("highmem", 0),
+		make_field("region", region_index),
+		make_field("size", 0),
+		0);
+}
+
+int ps3_repository_delete_highmem_info(unsigned int region_index)
+{
+	int result;
+
+	result = ps3_repository_delete_highmem_base(region_index);
+	result += ps3_repository_delete_highmem_size(region_index);
+
+	return result ? -1 : 0;
+}
+
+#endif /* defined(CONFIG_PS3_WRITE_REPOSITORY) */
 
 #if defined(DEBUG)
 

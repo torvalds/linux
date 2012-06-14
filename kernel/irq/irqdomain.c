@@ -1,3 +1,5 @@
+#define pr_fmt(fmt)  "irq: " fmt
+
 #include <linux/debugfs.h>
 #include <linux/hardirq.h>
 #include <linux/interrupt.h>
@@ -23,7 +25,6 @@ static LIST_HEAD(irq_domain_list);
 static DEFINE_MUTEX(irq_domain_mutex);
 
 static DEFINE_MUTEX(revmap_trees_mutex);
-static unsigned int irq_virq_count = NR_IRQS;
 static struct irq_domain *irq_default_domain;
 
 /**
@@ -57,14 +58,73 @@ static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
 	return domain;
 }
 
+static void irq_domain_free(struct irq_domain *domain)
+{
+	of_node_put(domain->of_node);
+	kfree(domain);
+}
+
 static void irq_domain_add(struct irq_domain *domain)
 {
 	mutex_lock(&irq_domain_mutex);
 	list_add(&domain->link, &irq_domain_list);
 	mutex_unlock(&irq_domain_mutex);
-	pr_debug("irq: Allocated domain of type %d @0x%p\n",
+	pr_debug("Allocated domain of type %d @0x%p\n",
 		 domain->revmap_type, domain);
 }
+
+/**
+ * irq_domain_remove() - Remove an irq domain.
+ * @domain: domain to remove
+ *
+ * This routine is used to remove an irq domain. The caller must ensure
+ * that all mappings within the domain have been disposed of prior to
+ * use, depending on the revmap type.
+ */
+void irq_domain_remove(struct irq_domain *domain)
+{
+	mutex_lock(&irq_domain_mutex);
+
+	switch (domain->revmap_type) {
+	case IRQ_DOMAIN_MAP_LEGACY:
+		/*
+		 * Legacy domains don't manage their own irq_desc
+		 * allocations, we expect the caller to handle irq_desc
+		 * freeing on their own.
+		 */
+		break;
+	case IRQ_DOMAIN_MAP_TREE:
+		/*
+		 * radix_tree_delete() takes care of destroying the root
+		 * node when all entries are removed. Shout if there are
+		 * any mappings left.
+		 */
+		WARN_ON(domain->revmap_data.tree.height);
+		break;
+	case IRQ_DOMAIN_MAP_LINEAR:
+		kfree(domain->revmap_data.linear.revmap);
+		domain->revmap_data.linear.size = 0;
+		break;
+	case IRQ_DOMAIN_MAP_NOMAP:
+		break;
+	}
+
+	list_del(&domain->link);
+
+	/*
+	 * If the going away domain is the default one, reset it.
+	 */
+	if (unlikely(irq_default_domain == domain))
+		irq_set_default_host(NULL);
+
+	mutex_unlock(&irq_domain_mutex);
+
+	pr_debug("Removed domain of type %d @0x%p\n",
+		 domain->revmap_type, domain);
+
+	irq_domain_free(domain);
+}
+EXPORT_SYMBOL_GPL(irq_domain_remove);
 
 static unsigned int irq_domain_legacy_revmap(struct irq_domain *domain,
 					     irq_hw_number_t hwirq)
@@ -118,8 +178,7 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 
 		if (WARN_ON(!irq_data || irq_data->domain)) {
 			mutex_unlock(&irq_domain_mutex);
-			of_node_put(domain->of_node);
-			kfree(domain);
+			irq_domain_free(domain);
 			return NULL;
 		}
 	}
@@ -153,10 +212,12 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 	irq_domain_add(domain);
 	return domain;
 }
+EXPORT_SYMBOL_GPL(irq_domain_add_legacy);
 
 /**
  * irq_domain_add_linear() - Allocate and register a legacy revmap irq_domain.
  * @of_node: pointer to interrupt controller's device tree node.
+ * @size: Number of interrupts in the domain.
  * @ops: map/unmap domain callbacks
  * @host_data: Controller private data pointer
  */
@@ -182,17 +243,22 @@ struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 	irq_domain_add(domain);
 	return domain;
 }
+EXPORT_SYMBOL_GPL(irq_domain_add_linear);
 
 struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
+					 unsigned int max_irq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
 	struct irq_domain *domain = irq_domain_alloc(of_node,
 					IRQ_DOMAIN_MAP_NOMAP, ops, host_data);
-	if (domain)
+	if (domain) {
+		domain->revmap_data.nomap.max_irq = max_irq ? max_irq : ~0;
 		irq_domain_add(domain);
+	}
 	return domain;
 }
+EXPORT_SYMBOL_GPL(irq_domain_add_nomap);
 
 /**
  * irq_domain_add_tree()
@@ -214,6 +280,7 @@ struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
 	}
 	return domain;
 }
+EXPORT_SYMBOL_GPL(irq_domain_add_tree);
 
 /**
  * irq_find_host() - Locates a domain for a given device node
@@ -257,26 +324,11 @@ EXPORT_SYMBOL_GPL(irq_find_host);
  */
 void irq_set_default_host(struct irq_domain *domain)
 {
-	pr_debug("irq: Default domain set to @0x%p\n", domain);
+	pr_debug("Default domain set to @0x%p\n", domain);
 
 	irq_default_domain = domain;
 }
-
-/**
- * irq_set_virq_count() - Set the maximum number of linux irqs
- * @count: number of linux irqs, capped with NR_IRQS
- *
- * This is mainly for use by platforms like iSeries who want to program
- * the virtual irq number in the controller to avoid the reverse mapping
- */
-void irq_set_virq_count(unsigned int count)
-{
-	pr_debug("irq: Trying to set virq count to %d\n", count);
-
-	BUG_ON(count < NUM_ISA_INTERRUPTS);
-	if (count < NR_IRQS)
-		irq_virq_count = count;
-}
+EXPORT_SYMBOL_GPL(irq_set_default_host);
 
 static int irq_setup_virq(struct irq_domain *domain, unsigned int virq,
 			    irq_hw_number_t hwirq)
@@ -286,7 +338,7 @@ static int irq_setup_virq(struct irq_domain *domain, unsigned int virq,
 	irq_data->hwirq = hwirq;
 	irq_data->domain = domain;
 	if (domain->ops->map(domain, virq, hwirq)) {
-		pr_debug("irq: -> mapping failed, freeing\n");
+		pr_debug("irq-%i==>hwirq-0x%lx mapping failed\n", virq, hwirq);
 		irq_data->domain = NULL;
 		irq_data->hwirq = 0;
 		return -1;
@@ -317,17 +369,16 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 
 	virq = irq_alloc_desc_from(1, 0);
 	if (!virq) {
-		pr_debug("irq: create_direct virq allocation failed\n");
+		pr_debug("create_direct virq allocation failed\n");
 		return 0;
 	}
-	if (virq >= irq_virq_count) {
+	if (virq >= domain->revmap_data.nomap.max_irq) {
 		pr_err("ERROR: no free irqs available below %i maximum\n",
-			irq_virq_count);
+			domain->revmap_data.nomap.max_irq);
 		irq_free_desc(virq);
 		return 0;
 	}
-
-	pr_debug("irq: create_direct obtained virq %d\n", virq);
+	pr_debug("create_direct obtained virq %d\n", virq);
 
 	if (irq_setup_virq(domain, virq, virq)) {
 		irq_free_desc(virq);
@@ -336,6 +387,7 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 
 	return virq;
 }
+EXPORT_SYMBOL_GPL(irq_create_direct_mapping);
 
 /**
  * irq_create_mapping() - Map a hardware interrupt into linux irq space
@@ -350,25 +402,26 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 unsigned int irq_create_mapping(struct irq_domain *domain,
 				irq_hw_number_t hwirq)
 {
-	unsigned int virq, hint;
+	unsigned int hint;
+	int virq;
 
-	pr_debug("irq: irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
+	pr_debug("irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
 
 	/* Look for default domain if nececssary */
 	if (domain == NULL)
 		domain = irq_default_domain;
 	if (domain == NULL) {
-		printk(KERN_WARNING "irq_create_mapping called for"
-		       " NULL domain, hwirq=%lx\n", hwirq);
+		pr_warning("irq_create_mapping called for"
+			   " NULL domain, hwirq=%lx\n", hwirq);
 		WARN_ON(1);
 		return 0;
 	}
-	pr_debug("irq: -> using domain @%p\n", domain);
+	pr_debug("-> using domain @%p\n", domain);
 
 	/* Check if mapping already exists */
 	virq = irq_find_mapping(domain, hwirq);
 	if (virq) {
-		pr_debug("irq: -> existing mapping on virq %d\n", virq);
+		pr_debug("-> existing mapping on virq %d\n", virq);
 		return virq;
 	}
 
@@ -377,14 +430,14 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 		return irq_domain_legacy_revmap(domain, hwirq);
 
 	/* Allocate a virtual interrupt number */
-	hint = hwirq % irq_virq_count;
+	hint = hwirq % nr_irqs;
 	if (hint == 0)
 		hint++;
 	virq = irq_alloc_desc_from(hint, 0);
-	if (!virq)
+	if (virq <= 0)
 		virq = irq_alloc_desc_from(1, 0);
-	if (!virq) {
-		pr_debug("irq: -> virq allocation failed\n");
+	if (virq <= 0) {
+		pr_debug("-> virq allocation failed\n");
 		return 0;
 	}
 
@@ -394,7 +447,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 		return 0;
 	}
 
-	pr_debug("irq: irq %lu on domain %s mapped to virtual irq %u\n",
+	pr_debug("irq %lu on domain %s mapped to virtual irq %u\n",
 		hwirq, domain->of_node ? domain->of_node->full_name : "null", virq);
 
 	return virq;
@@ -423,8 +476,8 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 		if (intsize > 0)
 			return intspec[0];
 #endif
-		printk(KERN_WARNING "irq: no irq domain found for %s !\n",
-		       controller->full_name);
+		pr_warning("no irq domain found for %s !\n",
+			   controller->full_name);
 		return 0;
 	}
 
@@ -515,7 +568,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 			      irq_hw_number_t hwirq)
 {
 	unsigned int i;
-	unsigned int hint = hwirq % irq_virq_count;
+	unsigned int hint = hwirq % nr_irqs;
 
 	/* Look for default domain if nececssary */
 	if (domain == NULL)
@@ -536,7 +589,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 		if (data && (data->domain == domain) && (data->hwirq == hwirq))
 			return i;
 		i++;
-		if (i >= irq_virq_count)
+		if (i >= nr_irqs)
 			i = 1;
 	} while(i != hint);
 	return 0;
@@ -574,6 +627,7 @@ unsigned int irq_radix_revmap_lookup(struct irq_domain *domain,
 	 */
 	return irq_data ? irq_data->irq : irq_find_mapping(domain, hwirq);
 }
+EXPORT_SYMBOL_GPL(irq_radix_revmap_lookup);
 
 /**
  * irq_radix_revmap_insert() - Insert a hw irq to linux irq number mapping.
@@ -598,6 +652,7 @@ void irq_radix_revmap_insert(struct irq_domain *domain, unsigned int virq,
 		mutex_unlock(&revmap_trees_mutex);
 	}
 }
+EXPORT_SYMBOL_GPL(irq_radix_revmap_insert);
 
 /**
  * irq_linear_revmap() - Find a linux irq from a hw irq number.
@@ -631,8 +686,9 @@ unsigned int irq_linear_revmap(struct irq_domain *domain,
 
 	return revmap[hwirq];
 }
+EXPORT_SYMBOL_GPL(irq_linear_revmap);
 
-#ifdef CONFIG_VIRQ_DEBUG
+#ifdef CONFIG_IRQ_DOMAIN_DEBUG
 static int virq_debug_show(struct seq_file *m, void *private)
 {
 	unsigned long flags;
@@ -642,8 +698,9 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	void *data;
 	int i;
 
-	seq_printf(m, "%-5s  %-7s  %-15s  %-18s  %s\n", "virq", "hwirq",
-		      "chip name", "chip data", "domain name");
+	seq_printf(m, "%-5s  %-7s  %-15s  %-*s  %s\n", "irq", "hwirq",
+		      "chip name", (int)(2 * sizeof(void *) + 2), "chip data",
+		      "domain name");
 
 	for (i = 1; i < nr_irqs; i++) {
 		desc = irq_to_desc(i);
@@ -666,9 +723,9 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			seq_printf(m, "%-15s  ", p);
 
 			data = irq_desc_get_chip_data(desc);
-			seq_printf(m, "0x%16p  ", data);
+			seq_printf(m, data ? "0x%p  " : "  %p  ", data);
 
-			if (desc->irq_data.domain->of_node)
+			if (desc->irq_data.domain && desc->irq_data.domain->of_node)
 				p = desc->irq_data.domain->of_node->full_name;
 			else
 				p = none;
@@ -695,17 +752,17 @@ static const struct file_operations virq_debug_fops = {
 
 static int __init irq_debugfs_init(void)
 {
-	if (debugfs_create_file("virq_mapping", S_IRUGO, powerpc_debugfs_root,
+	if (debugfs_create_file("irq_domain_mapping", S_IRUGO, NULL,
 				 NULL, &virq_debug_fops) == NULL)
 		return -ENOMEM;
 
 	return 0;
 }
 __initcall(irq_debugfs_init);
-#endif /* CONFIG_VIRQ_DEBUG */
+#endif /* CONFIG_IRQ_DOMAIN_DEBUG */
 
-int irq_domain_simple_map(struct irq_domain *d, unsigned int irq,
-			  irq_hw_number_t hwirq)
+static int irq_domain_simple_map(struct irq_domain *d, unsigned int irq,
+				 irq_hw_number_t hwirq)
 {
 	return 0;
 }

@@ -122,7 +122,6 @@ static const char version[] =
 #include <linux/skbuff.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 /* Constant definitions for the DE-620 registers, commands and bits */
 #include "de620.h"

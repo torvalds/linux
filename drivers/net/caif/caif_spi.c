@@ -127,12 +127,6 @@ static inline void dev_debugfs_rem(struct cfspi *cfspi)
 	debugfs_remove(cfspi->dbgfs_dir);
 }
 
-static int dbgfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t dbgfs_state(struct file *file, char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
@@ -243,13 +237,13 @@ static ssize_t dbgfs_frame(struct file *file, char __user *user_buf,
 }
 
 static const struct file_operations dbgfs_state_fops = {
-	.open = dbgfs_open,
+	.open = simple_open,
 	.read = dbgfs_state,
 	.owner = THIS_MODULE
 };
 
 static const struct file_operations dbgfs_frame_fops = {
-	.open = dbgfs_open,
+	.open = simple_open,
 	.read = dbgfs_frame,
 	.owner = THIS_MODULE
 };

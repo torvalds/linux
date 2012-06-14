@@ -62,7 +62,7 @@ void * __devinit eeh_dev_init(struct device_node *dn, void *data)
 	}
 
 	/* Associate EEH device with OF node */
-	dn->edev  = edev;
+	PCI_DN(dn)->edev = edev;
 	edev->dn  = dn;
 	edev->phb = phb;
 

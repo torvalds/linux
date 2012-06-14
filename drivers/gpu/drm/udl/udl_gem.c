@@ -9,6 +9,7 @@
 #include "drmP.h"
 #include "udl_drv.h"
 #include <linux/shmem_fs.h>
+#include <linux/dma-buf.h>
 
 struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
 					    size_t size)
@@ -69,6 +70,20 @@ int udl_dumb_destroy(struct drm_file *file, struct drm_device *dev,
 		     uint32_t handle)
 {
 	return drm_gem_handle_delete(file, handle);
+}
+
+int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	int ret;
+
+	ret = drm_gem_mmap(filp, vma);
+	if (ret)
+		return ret;
+
+	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_flags |= VM_MIXEDMAP;
+
+	return ret;
 }
 
 int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -147,6 +162,12 @@ static void udl_gem_put_pages(struct udl_gem_object *obj)
 	int page_count = obj->base.size / PAGE_SIZE;
 	int i;
 
+	if (obj->base.import_attach) {
+		drm_free_large(obj->pages);
+		obj->pages = NULL;
+		return;
+	}
+
 	for (i = 0; i < page_count; i++)
 		page_cache_release(obj->pages[i]);
 
@@ -159,6 +180,18 @@ int udl_gem_vmap(struct udl_gem_object *obj)
 	int page_count = obj->base.size / PAGE_SIZE;
 	int ret;
 
+	if (obj->base.import_attach) {
+		ret = dma_buf_begin_cpu_access(obj->base.import_attach->dmabuf,
+					       0, obj->base.size, DMA_BIDIRECTIONAL);
+		if (ret)
+			return -EINVAL;
+
+		obj->vmapping = dma_buf_vmap(obj->base.import_attach->dmabuf);
+		if (!obj->vmapping)
+			return -ENOMEM;
+		return 0;
+	}
+		
 	ret = udl_gem_get_pages(obj, GFP_KERNEL);
 	if (ret)
 		return ret;
@@ -171,6 +204,13 @@ int udl_gem_vmap(struct udl_gem_object *obj)
 
 void udl_gem_vunmap(struct udl_gem_object *obj)
 {
+	if (obj->base.import_attach) {
+		dma_buf_vunmap(obj->base.import_attach->dmabuf, obj->vmapping);
+		dma_buf_end_cpu_access(obj->base.import_attach->dmabuf, 0,
+				       obj->base.size, DMA_BIDIRECTIONAL);
+		return;
+	}
+
 	if (obj->vmapping)
 		vunmap(obj->vmapping);
 
@@ -183,6 +223,9 @@ void udl_gem_free_object(struct drm_gem_object *gem_obj)
 
 	if (obj->vmapping)
 		udl_gem_vunmap(obj);
+
+	if (gem_obj->import_attach)
+		drm_prime_gem_destroy(gem_obj, obj->sg);
 
 	if (obj->pages)
 		udl_gem_put_pages(obj);
@@ -210,7 +253,7 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 
 	ret = udl_gem_get_pages(gobj, GFP_KERNEL);
 	if (ret)
-		return ret;
+		goto out;
 	if (!gobj->base.map_list.map) {
 		ret = drm_gem_create_mmap_offset(obj);
 		if (ret)
@@ -224,4 +267,67 @@ out:
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
+}
+
+static int udl_prime_create(struct drm_device *dev,
+			    size_t size,
+			    struct sg_table *sg,
+			    struct udl_gem_object **obj_p)
+{
+	struct udl_gem_object *obj;
+	int npages;
+
+	npages = size / PAGE_SIZE;
+
+	*obj_p = NULL;
+	obj = udl_gem_alloc_object(dev, npages * PAGE_SIZE);
+	if (!obj)
+		return -ENOMEM;
+
+	obj->sg = sg;
+	obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	if (obj->pages == NULL) {
+		DRM_ERROR("obj pages is NULL %d\n", npages);
+		return -ENOMEM;
+	}
+
+	drm_prime_sg_to_page_addr_arrays(sg, obj->pages, NULL, npages);
+
+	*obj_p = obj;
+	return 0;
+}
+
+struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf)
+{
+	struct dma_buf_attachment *attach;
+	struct sg_table *sg;
+	struct udl_gem_object *uobj;
+	int ret;
+
+	/* need to attach */
+	attach = dma_buf_attach(dma_buf, dev->dev);
+	if (IS_ERR(attach))
+		return ERR_PTR(PTR_ERR(attach));
+
+	sg = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR(sg)) {
+		ret = PTR_ERR(sg);
+		goto fail_detach;
+	}
+
+	ret = udl_prime_create(dev, dma_buf->size, sg, &uobj);
+	if (ret) {
+		goto fail_unmap;
+	}
+
+	uobj->base.import_attach = attach;
+
+	return &uobj->base;
+
+fail_unmap:
+	dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
+fail_detach:
+	dma_buf_detach(dma_buf, attach);
+	return ERR_PTR(ret);
 }

@@ -14,7 +14,6 @@
 #include <linux/rtc.h>
 
 #include <asm/errno.h>
-#include <asm/system.h>
 #include <asm/rtc.h>
 #include <asm/intersil.h>
 

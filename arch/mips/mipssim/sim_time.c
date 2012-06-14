@@ -11,6 +11,7 @@
 #include <asm/hardirq.h>
 #include <asm/div64.h>
 #include <asm/cpu.h>
+#include <asm/setup.h>
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/mc146818-time.h>

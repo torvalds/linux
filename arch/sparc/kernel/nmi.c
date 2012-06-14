@@ -22,6 +22,7 @@
 #include <asm/perf_event.h>
 #include <asm/ptrace.h>
 #include <asm/pcr.h>
+#include <asm/perfctr.h>
 
 #include "kstack.h"
 

@@ -25,7 +25,7 @@ config  CAIF_DEBUG
 	bool "Enable Debug"
 	depends on CAIF
 	default n
-	--- help ---
+	---help---
 	Enable the inclusion of debug code in the CAIF stack.
 	Be aware that doing this will impact performance.
 	If unsure say N.

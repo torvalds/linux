@@ -21,8 +21,6 @@
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * For UniCore syscalls, we encode the syscall number into the instruction.
  */
@@ -61,10 +59,8 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 	int err;
 
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
-	if (err == 0) {
-		sigdelsetmask(&set, ~_BLOCKABLE);
+	if (err == 0)
 		set_current_blocked(&set);
-	}
 
 	err |= __get_user(regs->UCreg_00, &sf->uc.uc_mcontext.regs.UCreg_00);
 	err |= __get_user(regs->UCreg_01, &sf->uc.uc_mcontext.regs.UCreg_01);
@@ -312,13 +308,12 @@ static inline void setup_syscall_restart(struct pt_regs *regs)
 /*
  * OK, we're invoking a handler
  */
-static int handle_signal(unsigned long sig, struct k_sigaction *ka,
-	      siginfo_t *info, sigset_t *oldset,
-	      struct pt_regs *regs, int syscall)
+static void handle_signal(unsigned long sig, struct k_sigaction *ka,
+	      siginfo_t *info, struct pt_regs *regs, int syscall)
 {
 	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = current;
-	sigset_t blocked;
+	sigset_t *oldset = sigmask_to_save();
 	int usig = sig;
 	int ret;
 
@@ -364,18 +359,10 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 
 	if (ret != 0) {
 		force_sigsegv(sig, tsk);
-		return ret;
+		return;
 	}
 
-	/*
-	 * Block the signal if we were successful.
-	 */
-	sigorsets(&blocked, &tsk->blocked, &ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&blocked, sig);
-	set_current_blocked(&blocked);
-
-	return 0;
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*
@@ -402,32 +389,12 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	if (!user_mode(regs))
 		return;
 
-	if (try_to_freeze())
-		goto no_signal;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
-		sigset_t *oldset;
-
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			oldset = &current->saved_sigmask;
-		else
-			oldset = &current->blocked;
-		if (handle_signal(signr, &ka, &info, oldset, regs, syscall)
-				== 0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
+		handle_signal(signr, &ka, &info, regs, syscall);
 		return;
 	}
 
- no_signal:
 	/*
 	 * No signal to deliver to the process - restart the syscall.
 	 */
@@ -450,15 +417,11 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		    regs->UCreg_00 == -ERESTARTNOINTR) {
 			setup_syscall_restart(regs);
 		}
-
-		/* If there's no signal to deliver, we just put the saved
-		 * sigmask back.
-		 */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
 	}
+	/* If there's no signal to deliver, we just put the saved
+	 * sigmask back.
+	 */
+	restore_saved_sigmask();
 }
 
 asmlinkage void do_notify_resume(struct pt_regs *regs,
@@ -470,8 +433,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 	if (thread_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 	}
 }
 

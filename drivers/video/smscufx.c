@@ -846,7 +846,7 @@ static void ufx_raw_rect(struct ufx_data *dev, u16 *cmd, int x, int y,
 	}
 }
 
-int ufx_handle_damage(struct ufx_data *dev, int x, int y,
+static int ufx_handle_damage(struct ufx_data *dev, int x, int y,
 	int width, int height)
 {
 	size_t packed_line_len = ALIGN((width * 2), 4);
@@ -1083,7 +1083,7 @@ static int ufx_ops_open(struct fb_info *info, int user)
 
 		struct fb_deferred_io *fbdefio;
 
-		fbdefio = kmalloc(sizeof(struct fb_deferred_io), GFP_KERNEL);
+		fbdefio = kzalloc(sizeof(struct fb_deferred_io), GFP_KERNEL);
 
 		if (fbdefio) {
 			fbdefio->delay = UFX_DEFIO_WRITE_DELAY;

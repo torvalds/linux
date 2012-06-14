@@ -17,7 +17,6 @@
 #ifndef _HOST_OS_H_
 #define _HOST_OS_H_
 
-#include <asm/system.h>
 #include <linux/atomic.h>
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>

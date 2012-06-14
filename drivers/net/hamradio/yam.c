@@ -52,7 +52,6 @@
 #include <linux/bitops.h>
 #include <linux/random.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/firmware.h>

@@ -365,10 +365,9 @@ static __init int s3c64xx_pm_initcall(void)
 }
 arch_initcall(s3c64xx_pm_initcall);
 
-static __init int s3c64xx_pm_late_initcall(void)
+int __init s3c64xx_pm_late_initcall(void)
 {
 	pm_genpd_poweroff_unused();
 
 	return 0;
 }
-late_initcall(s3c64xx_pm_late_initcall);

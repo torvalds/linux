@@ -805,7 +805,7 @@ void intel_scu_devices_create(void)
 		} else
 			i2c_register_board_info(i2c_bus[i], i2c_devs[i], 1);
 	}
-	intel_scu_notifier_post(SCU_AVAILABLE, 0L);
+	intel_scu_notifier_post(SCU_AVAILABLE, NULL);
 }
 EXPORT_SYMBOL_GPL(intel_scu_devices_create);
 
@@ -814,7 +814,7 @@ void intel_scu_devices_destroy(void)
 {
 	int i;
 
-	intel_scu_notifier_post(SCU_DOWN, 0L);
+	intel_scu_notifier_post(SCU_DOWN, NULL);
 
 	for (i = 0; i < ipc_next_dev; i++)
 		platform_device_del(ipc_devs[i]);

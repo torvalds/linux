@@ -173,9 +173,8 @@ bonding module at load time, or are specified via sysfs.
 
 	Module options may be given as command line arguments to the
 insmod or modprobe command, but are usually specified in either the
-/etc/modules.conf or /etc/modprobe.conf configuration file, or in a
-distro-specific configuration file (some of which are detailed in the next
-section).
+/etc/modrobe.d/*.conf configuration files, or in a distro-specific
+configuration file (some of which are detailed in the next section).
 
 	Details on bonding support for sysfs is provided in the
 "Configuring Bonding Manually via Sysfs" section, below.
@@ -1021,7 +1020,7 @@ ifcfg-bondX files.
 
 	Because the sysconfig scripts supply the bonding module
 options in the ifcfg-bondX file, it is not necessary to add them to
-the system /etc/modules.conf or /etc/modprobe.conf configuration file.
+the system /etc/modules.d/*.conf configuration files.
 
 3.2 Configuration with Initscripts Support
 ------------------------------------------
@@ -1098,15 +1097,13 @@ queried targets, e.g.,
 	arp_ip_target=+192.168.1.1 arp_ip_target=+192.168.1.2
 
 	is the proper syntax to specify multiple targets.  When specifying
-options via BONDING_OPTS, it is not necessary to edit /etc/modules.conf or
-/etc/modprobe.conf.
+options via BONDING_OPTS, it is not necessary to edit /etc/modprobe.d/*.conf.
 
 	For even older versions of initscripts that do not support
-BONDING_OPTS, it is necessary to edit /etc/modules.conf (or
-/etc/modprobe.conf, depending upon your distro) to load the bonding module
-with your desired options when the bond0 interface is brought up.  The
-following lines in /etc/modules.conf (or modprobe.conf) will load the
-bonding module, and select its options:
+BONDING_OPTS, it is necessary to edit /etc/modprobe.d/*.conf, depending upon
+your distro) to load the bonding module with your desired options when the
+bond0 interface is brought up.  The following lines in /etc/modprobe.d/*.conf
+will load the bonding module, and select its options:
 
 alias bond0 bonding
 options bond0 mode=balance-alb miimon=100
@@ -1152,7 +1149,7 @@ knowledge of bonding.  One such distro is SuSE Linux Enterprise Server
 version 8.
 
 	The general method for these systems is to place the bonding
-module parameters into /etc/modules.conf or /etc/modprobe.conf (as
+module parameters into a config file in /etc/modprobe.d/ (as
 appropriate for the installed distro), then add modprobe and/or
 ifenslave commands to the system's global init script.  The name of
 the global init script differs; for sysconfig, it is
@@ -1228,7 +1225,7 @@ network initialization scripts.
 specify a different name for each instance (the module loading system
 requires that every loaded module, even multiple instances of the same
 module, have a unique name).  This is accomplished by supplying multiple
-sets of bonding options in /etc/modprobe.conf, for example:
+sets of bonding options in /etc/modprobe.d/*.conf, for example:
 
 alias bond0 bonding
 options bond0 -o bond0 mode=balance-rr miimon=100
@@ -1793,8 +1790,8 @@ route additions may cause trouble.
 	On systems with network configuration scripts that do not
 associate physical devices directly with network interface names (so
 that the same physical device always has the same "ethX" name), it may
-be necessary to add some special logic to either /etc/modules.conf or
-/etc/modprobe.conf (depending upon which is installed on the system).
+be necessary to add some special logic to config files in
+/etc/modprobe.d/.
 
 	For example, given a modules.conf containing the following:
 
@@ -1821,20 +1818,15 @@ add above bonding e1000 tg3
 bonding is loaded.  This command is fully documented in the
 modules.conf manual page.
 
-	On systems utilizing modprobe.conf (or modprobe.conf.local),
-an equivalent problem can occur.  In this case, the following can be
-added to modprobe.conf (or modprobe.conf.local, as appropriate), as
-follows (all on one line; it has been split here for clarity):
+	On systems utilizing modprobe an equivalent problem can occur.
+In this case, the following can be added to config files in
+/etc/modprobe.d/ as:
 
-install bonding /sbin/modprobe tg3; /sbin/modprobe e1000;
-	/sbin/modprobe --ignore-install bonding
+softdep bonding pre: tg3 e1000
 
-	This will, when loading the bonding module, rather than
-performing the normal action, instead execute the provided command.
-This command loads the device drivers in the order needed, then calls
-modprobe with --ignore-install to cause the normal action to then take
-place.  Full documentation on this can be found in the modprobe.conf
-and modprobe manual pages.
+	This will load tg3 and e1000 modules before loading the bonding one.
+Full documentation on this can be found in the modprobe.d and modprobe
+manual pages.
 
 8.3. Painfully Slow Or No Failed Link Detection By Miimon
 ---------------------------------------------------------

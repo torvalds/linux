@@ -88,6 +88,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/usb/input.h>
+#include <linux/power_supply.h>
 #include <asm/unaligned.h>
 
 /*
@@ -112,6 +113,7 @@ struct wacom {
 	struct urb *irq;
 	struct wacom_wac wacom_wac;
 	struct mutex lock;
+	struct work_struct work;
 	bool open;
 	char phys[32];
 	struct wacom_led {
@@ -120,12 +122,19 @@ struct wacom {
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
+	struct power_supply battery;
 };
+
+static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
+{
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	schedule_work(&wacom->work);
+}
 
 extern const struct usb_device_id wacom_ids[];
 
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len);
 void wacom_setup_device_quirks(struct wacom_features *features);
-void wacom_setup_input_capabilities(struct input_dev *input_dev,
-				    struct wacom_wac *wacom_wac);
+int wacom_setup_input_capabilities(struct input_dev *input_dev,
+				   struct wacom_wac *wacom_wac);
 #endif

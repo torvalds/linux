@@ -17,8 +17,8 @@
 #include <asm/assembler.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
+#include <asm/cp15.h>
 #include <asm/thread_info.h>
-#include <asm/system.h>
 
 /*
  * Kernel startup entry point.

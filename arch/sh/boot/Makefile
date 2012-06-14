@@ -8,8 +8,6 @@
 # Copyright (C) 1999 Stuart Menefy
 #
 
-MKIMAGE := $(srctree)/scripts/mkuboot.sh
-
 #
 # Assign safe dummy values if these variables are not defined,
 # in order to suppress error message.
@@ -61,10 +59,8 @@ KERNEL_ENTRY	:= $(shell /bin/bash -c 'printf "0x%08x" \
 			$(KERNEL_MEMORY) + \
 			$(CONFIG_ZERO_PAGE_OFFSET) + $(CONFIG_ENTRY_OFFSET)]')
 
-quiet_cmd_uimage = UIMAGE  $@
-      cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sh -O linux -T kernel \
-		   -C $(2) -a $(KERNEL_LOAD) -e $(KERNEL_ENTRY) \
-		   -n 'Linux-$(KERNELRELEASE)' -d $< $@
+UIMAGE_LOADADDR = $(KERNEL_LOAD)
+UIMAGE_ENTRYADDR = $(KERNEL_ENTRY)
 
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)

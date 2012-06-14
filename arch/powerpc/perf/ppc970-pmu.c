@@ -487,6 +487,7 @@ static struct power_pmu ppc970_pmu = {
 	.n_generic		= ARRAY_SIZE(ppc970_generic_events),
 	.generic_events		= ppc970_generic_events,
 	.cache_events		= &ppc970_cache_events,
+	.flags			= PPMU_NO_SIPR | PPMU_NO_CONT_SAMPLING,
 };
 
 static int __init init_ppc970_pmu(void)

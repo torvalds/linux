@@ -43,6 +43,7 @@
 #include <mach/hardware.h>
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
+#include <asm/system_misc.h>
 
 #include <mach/regs-s3c2443-clock.h>
 
@@ -105,6 +106,7 @@ int __init s3c2416_init(void)
 	register_syscore_ops(&s3c2416_pm_syscore_ops);
 #endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
+	register_syscore_ops(&s3c2416_irq_syscore_ops);
 
 	return device_register(&s3c2416_dev);
 }

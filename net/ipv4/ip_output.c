@@ -43,7 +43,6 @@
  */
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -215,8 +214,8 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	}
 	rcu_read_unlock();
 
-	if (net_ratelimit())
-		printk(KERN_DEBUG "ip_finish_output2: No header cache and no neighbour!\n");
+	net_dbg_ratelimited("%s: No header cache and no neighbour!\n",
+			    __func__);
 	kfree_skb(skb);
 	return -EINVAL;
 }

@@ -68,7 +68,7 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, struct na
 
 int dcache_dir_open(struct inode *inode, struct file *file)
 {
-	static struct qstr cursor_name = {.len = 1, .name = "."};
+	static struct qstr cursor_name = QSTR_INIT(".", 1);
 
 	file->private_data = d_alloc(file->f_path.dentry, &cursor_name);
 
@@ -225,7 +225,7 @@ struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
 	struct super_block *s = sget(fs_type, NULL, set_anon_super, NULL);
 	struct dentry *dentry;
 	struct inode *root;
-	struct qstr d_name = {.name = name, .len = strlen(name)};
+	struct qstr d_name = QSTR_INIT(name, strlen(name));
 
 	if (IS_ERR(s))
 		return ERR_CAST(s);
@@ -262,6 +262,13 @@ struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
 Enomem:
 	deactivate_locked_super(s);
 	return ERR_PTR(-ENOMEM);
+}
+
+int simple_open(struct inode *inode, struct file *file)
+{
+	if (inode->i_private)
+		file->private_data = inode->i_private;
+	return 0;
 }
 
 int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
@@ -522,6 +529,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	return 0;
 out:
 	d_genocide(root);
+	shrink_dcache_parent(root);
 	dput(root);
 	return -ENOMEM;
 }
@@ -984,6 +992,7 @@ EXPORT_SYMBOL(simple_dir_operations);
 EXPORT_SYMBOL(simple_empty);
 EXPORT_SYMBOL(simple_fill_super);
 EXPORT_SYMBOL(simple_getattr);
+EXPORT_SYMBOL(simple_open);
 EXPORT_SYMBOL(simple_link);
 EXPORT_SYMBOL(simple_lookup);
 EXPORT_SYMBOL(simple_pin_fs);

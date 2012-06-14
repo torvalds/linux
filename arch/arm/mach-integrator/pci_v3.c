@@ -30,9 +30,9 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <asm/irq.h>
+#include <mach/irqs.h>
+
 #include <asm/signal.h>
-#include <asm/system.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
 
@@ -340,7 +340,7 @@ static int v3_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static struct pci_ops pci_v3_ops = {
+struct pci_ops pci_v3_ops = {
 	.read	= v3_read_config,
 	.write	= v3_write_config,
 };
@@ -486,12 +486,6 @@ int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
 	}
 
 	return ret;
-}
-
-struct pci_bus * __init pci_v3_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	return pci_scan_root_bus(NULL, sys->busnr, &pci_v3_ops, sys,
-				 &sys->resources);
 }
 
 /*

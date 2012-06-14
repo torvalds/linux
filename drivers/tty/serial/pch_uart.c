@@ -39,6 +39,7 @@ enum {
 	PCH_UART_HANDLED_RX_ERR_INT_SHIFT,
 	PCH_UART_HANDLED_RX_TRG_INT_SHIFT,
 	PCH_UART_HANDLED_MS_INT_SHIFT,
+	PCH_UART_HANDLED_LS_INT_SHIFT,
 };
 
 enum {
@@ -62,6 +63,8 @@ enum {
 #define PCH_UART_HANDLED_RX_TRG_INT	(1<<((\
 					PCH_UART_HANDLED_RX_TRG_INT_SHIFT)<<1))
 #define PCH_UART_HANDLED_MS_INT	(1<<((PCH_UART_HANDLED_MS_INT_SHIFT)<<1))
+
+#define PCH_UART_HANDLED_LS_INT	(1<<((PCH_UART_HANDLED_LS_INT_SHIFT)<<1))
 
 #define PCH_UART_RBR		0x00
 #define PCH_UART_THR		0x00
@@ -210,6 +213,7 @@ enum {
 #define CMITC_UARTCLK   192000000 /* 192.0000 MHz */
 #define FRI2_64_UARTCLK  64000000 /*  64.0000 MHz */
 #define FRI2_48_UARTCLK  48000000 /*  48.0000 MHz */
+#define NTC1_UARTCLK     64000000 /*  64.0000 MHz */
 
 struct pch_uart_buffer {
 	unsigned char *buf;
@@ -228,7 +232,6 @@ struct eg20t_port {
 	int start_tx;
 	int start_rx;
 	int tx_empty;
-	int int_dis_flag;
 	int trigger;
 	int trigger_level;
 	struct pch_uart_buffer rxbuf;
@@ -236,7 +239,6 @@ struct eg20t_port {
 	unsigned int fcr;
 	unsigned int mcr;
 	unsigned int use_dma;
-	unsigned int use_dma_flag;
 	struct dma_async_tx_descriptor	*desc_tx;
 	struct dma_async_tx_descriptor	*desc_rx;
 	struct pch_dma_slave		param_tx;
@@ -304,11 +306,7 @@ static const int trigger_level_1[4] = { 1, 1, 1, 1 };
 #ifdef CONFIG_DEBUG_FS
 
 #define PCH_REGS_BUFSIZE	1024
-static int pch_show_regs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
+
 
 static ssize_t port_show_regs(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -362,7 +360,7 @@ static ssize_t port_show_regs(struct file *file, char __user *user_buf,
 
 static const struct file_operations port_regs_ops = {
 	.owner		= THIS_MODULE,
-	.open		= pch_show_regs_open,
+	.open		= simple_open,
 	.read		= port_show_regs,
 	.llseek		= default_llseek,
 };
@@ -387,6 +385,12 @@ static int pch_uart_get_uartclk(void)
 	cmp = dmi_get_system_info(DMI_PRODUCT_NAME);
 	if (cmp && strstr(cmp, "Fish River Island II"))
 		return FRI2_48_UARTCLK;
+
+	/* Kontron COMe-mTT10 (nanoETXexpress-TT) */
+	cmp = dmi_get_system_info(DMI_BOARD_NAME);
+	if (cmp && (strstr(cmp, "COMe-mTT") ||
+		    strstr(cmp, "nanoETXexpress-TT")))
+		return NTC1_UARTCLK;
 
 	return DEFAULT_UARTCLK;
 }
@@ -557,14 +561,10 @@ static int pch_uart_hal_read(struct eg20t_port *priv, unsigned char *buf,
 	return i;
 }
 
-static unsigned int pch_uart_hal_get_iid(struct eg20t_port *priv)
+static unsigned char pch_uart_hal_get_iid(struct eg20t_port *priv)
 {
-	unsigned int iir;
-	int ret;
-
-	iir = ioread8(priv->membase + UART_IIR);
-	ret = (iir & (PCH_UART_IIR_IID | PCH_UART_IIR_TOI | PCH_UART_IIR_IP));
-	return ret;
+	return ioread8(priv->membase + UART_IIR) &\
+		      (PCH_UART_IIR_IID | PCH_UART_IIR_TOI | PCH_UART_IIR_IP);
 }
 
 static u8 pch_uart_hal_get_line_status(struct eg20t_port *priv)
@@ -663,10 +663,13 @@ static void pch_free_dma(struct uart_port *port)
 		dma_release_channel(priv->chan_rx);
 		priv->chan_rx = NULL;
 	}
-	if (sg_dma_address(&priv->sg_rx))
-		dma_free_coherent(port->dev, port->fifosize,
-				  sg_virt(&priv->sg_rx),
-				  sg_dma_address(&priv->sg_rx));
+
+	if (priv->rx_buf_dma) {
+		dma_free_coherent(port->dev, port->fifosize, priv->rx_buf_virt,
+				  priv->rx_buf_dma);
+		priv->rx_buf_virt = NULL;
+		priv->rx_buf_dma = 0;
+	}
 
 	return;
 }
@@ -844,7 +847,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 
 	sg_dma_address(sg) = priv->rx_buf_dma;
 
-	desc = priv->chan_rx->device->device_prep_slave_sg(priv->chan_rx,
+	desc = dmaengine_prep_slave_sg(priv->chan_rx,
 			sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
@@ -1003,7 +1006,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 			sg_dma_len(sg) = size;
 	}
 
-	desc = priv->chan_tx->device->device_prep_slave_sg(priv->chan_tx,
+	desc = dmaengine_prep_slave_sg(priv->chan_tx,
 					priv->sg_tx_p, nent, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
@@ -1050,12 +1053,17 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 	unsigned int handled;
 	u8 lsr;
 	int ret = 0;
-	unsigned int iid;
+	unsigned char iid;
 	unsigned long flags;
+	int next = 1;
+	u8 msr;
 
 	spin_lock_irqsave(&priv->port.lock, flags);
 	handled = 0;
-	while ((iid = pch_uart_hal_get_iid(priv)) > 1) {
+	while (next) {
+		iid = pch_uart_hal_get_iid(priv);
+		if (iid & PCH_UART_IIR_IP) /* No Interrupt */
+			break;
 		switch (iid) {
 		case PCH_UART_IID_RLS:	/* Receiver Line Status */
 			lsr = pch_uart_hal_get_line_status(priv);
@@ -1063,6 +1071,8 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 						UART_LSR_PE | UART_LSR_OE)) {
 				pch_uart_err_ir(priv, lsr);
 				ret = PCH_UART_HANDLED_RX_ERR_INT;
+			} else {
+				ret = PCH_UART_HANDLED_LS_INT;
 			}
 			break;
 		case PCH_UART_IID_RDR:	/* Received Data Ready */
@@ -1089,19 +1099,21 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 				ret = handle_tx(priv);
 			break;
 		case PCH_UART_IID_MS:	/* Modem Status */
-			ret = PCH_UART_HANDLED_MS_INT;
+			msr = pch_uart_hal_get_modem(priv);
+			next = 0; /* MS ir prioirty is the lowest. So, MS ir
+				     means final interrupt */
+			if ((msr & UART_MSR_ANY_DELTA) == 0)
+				break;
+			ret |= PCH_UART_HANDLED_MS_INT;
 			break;
 		default:	/* Never junp to this label */
-			dev_err(priv->port.dev, "%s:iid=%d (%lu)\n", __func__,
+			dev_err(priv->port.dev, "%s:iid=%02x (%lu)\n", __func__,
 				iid, jiffies);
 			ret = -1;
+			next = 0;
 			break;
 		}
 		handled |= (unsigned int)ret;
-	}
-	if (handled == 0 && iid <= 1) {
-		if (priv->int_dis_flag)
-			priv->int_dis_flag = 0;
 	}
 
 	spin_unlock_irqrestore(&priv->port.lock, flags);
@@ -1197,7 +1209,6 @@ static void pch_uart_stop_rx(struct uart_port *port)
 	priv = container_of(port, struct eg20t_port, port);
 	priv->start_rx = 0;
 	pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_RX_INT);
-	priv->int_dis_flag = 1;
 }
 
 /* Enable the modem status interrupts. */
@@ -1444,9 +1455,10 @@ static int pch_uart_verify_port(struct uart_port *port,
 			__func__);
 		return -EOPNOTSUPP;
 #endif
-		priv->use_dma = 1;
-		priv->use_dma_flag = 1;
 		dev_info(priv->port.dev, "PCH UART : Use DMA Mode\n");
+		if (!priv->use_dma)
+			pch_request_dma(port);
+		priv->use_dma = 1;
 	}
 
 	return 0;
@@ -1655,6 +1667,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	}
 
 	pci_enable_msi(pdev);
+	pci_set_master(pdev);
 
 	iobase = pci_resource_start(pdev, 0);
 	mapbase = pci_resource_start(pdev, 1);

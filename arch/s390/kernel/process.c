@@ -23,13 +23,13 @@
 #include <linux/kprobes.h>
 #include <linux/random.h>
 #include <linux/module.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/irq.h>
 #include <asm/timer.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
+#include <asm/switch_to.h>
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");

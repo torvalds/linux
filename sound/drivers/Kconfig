@@ -50,7 +50,8 @@ config SND_PCSP
 	  before the other sound driver of yours, making the
 	  pc-speaker a default sound device. Which is likely not
 	  what you want. To make this driver play nicely with other
-	  sound driver, you can add this into your /etc/modprobe.conf:
+	  sound driver, you can add this in a configuration file under
+	  /etc/modprobe.d/ directory:
 	  options snd-pcsp index=2
 
 	  You don't need this driver if you only want your pc-speaker to beep.

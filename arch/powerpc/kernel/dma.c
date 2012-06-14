@@ -26,7 +26,8 @@
 
 
 void *dma_direct_alloc_coherent(struct device *dev, size_t size,
-				dma_addr_t *dma_handle, gfp_t flag)
+				dma_addr_t *dma_handle, gfp_t flag,
+				struct dma_attrs *attrs)
 {
 	void *ret;
 #ifdef CONFIG_NOT_COHERENT_CACHE
@@ -54,7 +55,8 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 }
 
 void dma_direct_free_coherent(struct device *dev, size_t size,
-			      void *vaddr, dma_addr_t dma_handle)
+			      void *vaddr, dma_addr_t dma_handle,
+			      struct dma_attrs *attrs)
 {
 #ifdef CONFIG_NOT_COHERENT_CACHE
 	__dma_free_coherent(size, vaddr);
@@ -150,8 +152,8 @@ static inline void dma_direct_sync_single(struct device *dev,
 #endif
 
 struct dma_map_ops dma_direct_ops = {
-	.alloc_coherent			= dma_direct_alloc_coherent,
-	.free_coherent			= dma_direct_free_coherent,
+	.alloc				= dma_direct_alloc_coherent,
+	.free				= dma_direct_free_coherent,
 	.map_sg				= dma_direct_map_sg,
 	.unmap_sg			= dma_direct_unmap_sg,
 	.dma_supported			= dma_direct_dma_supported,

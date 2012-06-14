@@ -19,6 +19,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
+#include "print-tree.h"
 
 static int find_name_in_backref(struct btrfs_path *path, const char *name,
 			 int name_len, struct btrfs_inode_ref **ref_ret)
@@ -128,13 +129,14 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 	item_start = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	memmove_extent_buffer(leaf, ptr, ptr + sub_item_len,
 			      item_size - (ptr + sub_item_len - item_start));
-	ret = btrfs_truncate_item(trans, root, path,
+	btrfs_truncate_item(trans, root, path,
 				  item_size - sub_item_len, 1);
 out:
 	btrfs_free_path(path);
 	return ret;
 }
 
+/* Will return 0, -ENOMEM, -EMLINK, or -EEXIST or anything from the CoW path */
 int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   const char *name, int name_len,
@@ -165,7 +167,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 			goto out;
 
 		old_size = btrfs_item_size_nr(path->nodes[0], path->slots[0]);
-		ret = btrfs_extend_item(trans, root, path, ins_len);
+		btrfs_extend_item(trans, root, path, ins_len);
 		ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				     struct btrfs_inode_ref);
 		ref = (struct btrfs_inode_ref *)((unsigned long)ref + old_size);

@@ -10,7 +10,6 @@
 #include <linux/export.h>
 #include <linux/rwsem.h>
 
-#include <asm/system.h>
 #include <linux/atomic.h>
 
 /*

@@ -76,7 +76,7 @@ void __init omap_ads7846_init(int bus_num, int gpio_pendown, int gpio_debounce,
 	}
 
 	spi_bi->bus_num	= bus_num;
-	spi_bi->irq	= OMAP_GPIO_IRQ(gpio_pendown);
+	spi_bi->irq	= gpio_to_irq(gpio_pendown);
 
 	if (board_pdata) {
 		board_pdata->gpio_pendown = gpio_pendown;

@@ -58,7 +58,7 @@ static void omap_fb_output_poll_changed(struct drm_device *dev)
 	}
 }
 
-static struct drm_mode_config_funcs omap_mode_config_funcs = {
+static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.fb_create = omap_framebuffer_create,
 	.output_poll_changed = omap_fb_output_poll_changed,
 };
@@ -726,7 +726,7 @@ static void dev_irq_uninstall(struct drm_device *dev)
 	DBG("irq_uninstall: dev=%p", dev);
 }
 
-static struct vm_operations_struct omap_gem_vm_ops = {
+static const struct vm_operations_struct omap_gem_vm_ops = {
 	.fault = omap_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -746,7 +746,7 @@ static const struct file_operations omapdriver_fops = {
 
 static struct drm_driver omap_drm_driver = {
 		.driver_features =
-				DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM,
+				DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 		.load = dev_load,
 		.unload = dev_unload,
 		.open = dev_open,
@@ -766,6 +766,10 @@ static struct drm_driver omap_drm_driver = {
 		.debugfs_init = omap_debugfs_init,
 		.debugfs_cleanup = omap_debugfs_cleanup,
 #endif
+		.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+		.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+		.gem_prime_export = omap_gem_prime_export,
+		.gem_prime_import = omap_gem_prime_import,
 		.gem_init_object = omap_gem_init_object,
 		.gem_free_object = omap_gem_free_object,
 		.gem_vm_ops = &omap_gem_vm_ops,
@@ -803,9 +807,6 @@ static void pdev_shutdown(struct platform_device *device)
 static int pdev_probe(struct platform_device *device)
 {
 	DBG("%s", device->name);
-	if (platform_driver_register(&omap_dmm_driver))
-		dev_err(&device->dev, "DMM registration failed\n");
-
 	return drm_platform_init(&omap_drm_driver, device);
 }
 
@@ -833,6 +834,10 @@ struct platform_driver pdev = {
 static int __init omap_drm_init(void)
 {
 	DBG("init");
+	if (platform_driver_register(&omap_dmm_driver)) {
+		/* we can continue on without DMM.. so not fatal */
+		dev_err(NULL, "DMM registration failed\n");
+	}
 	return platform_driver_register(&pdev);
 }
 

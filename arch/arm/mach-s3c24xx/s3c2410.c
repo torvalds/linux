@@ -30,6 +30,7 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
+#include <asm/system_misc.h>
 
 #include <plat/cpu-freq.h>
 

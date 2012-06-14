@@ -45,7 +45,7 @@ EXPORT_SYMBOL(readdir64);
 extern void truncate64(void) __attribute__((weak));
 EXPORT_SYMBOL(truncate64);
 
-#ifdef SUBARCH_i386
+#ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
 EXPORT_SYMBOL(vsyscall_ehdr);
 EXPORT_SYMBOL(vsyscall_end);
 #endif

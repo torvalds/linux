@@ -834,7 +834,7 @@ enum ieee80211_state {
 	/* the association procedure is sending AUTH request*/
 	IEEE80211_ASSOCIATING_AUTHENTICATING,
 
-	/* the association procedure has successfully authentcated
+	/* the association procedure has successfully authenticated
 	 * and is sending association request
 	 */
 	IEEE80211_ASSOCIATING_AUTHENTICATED,
@@ -934,7 +934,7 @@ struct ieee80211_device {
 			   * with RX of broad/multicast frames */
 
 	/* Fragmentation structures */
-	// each streaming contain a entry
+	/* each stream contains an entry */
 	struct ieee80211_frag_entry frag_cache[17][IEEE80211_FRAG_CACHE_LEN];
 	unsigned int frag_next_idx[17];
 	u16 fts; /* Fragmentation Threshold */
@@ -972,7 +972,7 @@ struct ieee80211_device {
 
 	int rate;       /* current rate */
 	int basic_rate;
-	//FIXME: pleace callback, see if redundant with softmac_features
+	//FIXME: please callback, see if redundant with softmac_features
 	short active_scan;
 
 	/* this contains flags for selectively enable softmac support */
@@ -1106,7 +1106,7 @@ struct ieee80211_device {
 
 	/* used instead of hard_start_xmit (not softmac_hard_start_xmit)
 	 * if the IEEE_SOFTMAC_TX_QUEUE feature is used to TX data
-	 * frames. I the option IEEE_SOFTMAC_SINGLE_QUEUE is also set
+	 * frames. If the option IEEE_SOFTMAC_SINGLE_QUEUE is also set
 	 * then also management frames are sent via this callback.
 	 * This function can't sleep.
 	 */
@@ -1124,7 +1124,7 @@ struct ieee80211_device {
 
 	/* ask to the driver to retune the radio .
 	 * This function can sleep. the driver should ensure
-	 * the radio has been swithced before return.
+	 * the radio has been switched before return.
 	 */
 	void (*set_chan)(struct net_device *dev,short ch);
 
@@ -1135,7 +1135,7 @@ struct ieee80211_device {
 	 * The syncro version is similar to the start_scan but
 	 * does not return until all channels has been scanned.
 	 * this is called in user context and should sleep,
-	 * it is called in a work_queue when swithcing to ad-hoc mode
+	 * it is called in a work_queue when switching to ad-hoc mode
 	 * or in behalf of iwlist scan when the card is associated
 	 * and root user ask for a scan.
 	 * the function stop_scan should stop both the syncro and
@@ -1196,7 +1196,7 @@ struct ieee80211_device {
 /* Generate probe requests */
 #define IEEE_SOFTMAC_PROBERQ (1<<4)
 
-/* Generate respones to probe requests */
+/* Generate response to probe requests */
 #define IEEE_SOFTMAC_PROBERS (1<<5)
 
 /* The ieee802.11 stack will manages the netif queue

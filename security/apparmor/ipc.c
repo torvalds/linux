@@ -26,7 +26,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
 	audit_log_format(ab, " target=");
-	audit_log_untrustedstring(ab, sa->aad.target);
+	audit_log_untrustedstring(ab, sa->aad->target);
 }
 
 /**
@@ -41,10 +41,12 @@ static int aa_audit_ptrace(struct aa_profile *profile,
 			   struct aa_profile *target, int error)
 {
 	struct common_audit_data sa;
-	COMMON_AUDIT_DATA_INIT(&sa, NONE);
-	sa.aad.op = OP_PTRACE;
-	sa.aad.target = target;
-	sa.aad.error = error;
+	struct apparmor_audit_data aad = {0,};
+	sa.type = LSM_AUDIT_DATA_NONE;
+	sa.aad = &aad;
+	aad.op = OP_PTRACE;
+	aad.target = target;
+	aad.error = error;
 
 	return aa_audit(AUDIT_APPARMOR_AUTO, profile, GFP_ATOMIC, &sa,
 			audit_cb);

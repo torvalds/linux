@@ -51,7 +51,6 @@
 #define VERSION "0.409"
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -1370,6 +1369,8 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 			int nhsel, err;
 
 			if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
+				continue;
+			if (fi->fib_dead)
 				continue;
 			if (fa->fa_info->fib_scope < flp->flowi4_scope)
 				continue;

@@ -305,7 +305,7 @@ arxescsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	info->base = base;
 
 	info->info.scsi.io_base		= base + 0x2000;
-	info->info.scsi.irq		= NO_IRQ;
+	info->info.scsi.irq		= 0;
 	info->info.scsi.dma		= NO_DMA;
 	info->info.scsi.io_shift	= 5;
 	info->info.ifcfg.clockrate	= 24; /* MHz */

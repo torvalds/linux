@@ -22,15 +22,9 @@
  * we can depend on generic_block_fdatasync() to sync the data blocks.
  */
 
-#include <linux/time.h>
 #include <linux/blkdev.h>
-#include <linux/fs.h>
-#include <linux/sched.h>
 #include <linux/writeback.h>
-#include <linux/jbd.h>
-#include <linux/ext3_fs.h>
-#include <linux/ext3_jbd.h>
-#include <trace/events/ext3.h>
+#include "ext3.h"
 
 /*
  * akpm: A new design for ext3_sync_file().

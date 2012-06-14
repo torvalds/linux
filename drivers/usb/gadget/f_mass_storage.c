@@ -2189,7 +2189,7 @@ unknown_cmnd:
 		common->data_size_from_cmnd = 0;
 		sprintf(unknown, "Unknown x%02x", common->cmnd[0]);
 		reply = check_command(common, common->cmnd_size,
-				      DATA_DIR_UNKNOWN, 0xff, 0, unknown);
+				      DATA_DIR_UNKNOWN, ~0, 0, unknown);
 		if (reply == 0) {
 			common->curlun->sense_data = SS_INVALID_COMMAND;
 			reply = -EINVAL;
@@ -3108,13 +3108,6 @@ static int fsg_bind_config(struct usb_composite_dev *cdev,
 	else
 		fsg_common_get(fsg->common);
 	return rc;
-}
-
-static inline int __deprecated __maybe_unused
-fsg_add(struct usb_composite_dev *cdev, struct usb_configuration *c,
-	struct fsg_common *common)
-{
-	return fsg_bind_config(cdev, c, common);
 }
 
 

@@ -52,6 +52,30 @@ Elong:
 }
 
 /*
+ * return the path component of "<server>:<path>"
+ *  nfspath - the "<server>:<path>" string
+ *  end - one past the last char that could contain "<server>:"
+ * returns NULL on failure
+ */
+static char *nfs_path_component(const char *nfspath, const char *end)
+{
+	char *p;
+
+	if (*nfspath == '[') {
+		/* parse [] escaped IPv6 addrs */
+		p = strchr(nfspath, ']');
+		if (p != NULL && ++p < end && *p == ':')
+			return p + 1;
+	} else {
+		/* otherwise split on first colon */
+		p = strchr(nfspath, ':');
+		if (p != NULL && p < end)
+			return p + 1;
+	}
+	return NULL;
+}
+
+/*
  * Determine the mount path as a string
  */
 static char *nfs4_path(struct dentry *dentry, char *buffer, ssize_t buflen)
@@ -59,9 +83,9 @@ static char *nfs4_path(struct dentry *dentry, char *buffer, ssize_t buflen)
 	char *limit;
 	char *path = nfs_path(&limit, dentry, buffer, buflen);
 	if (!IS_ERR(path)) {
-		char *colon = strchr(path, ':');
-		if (colon && colon < limit)
-			path = colon + 1;
+		char *path_component = nfs_path_component(path, limit);
+		if (path_component)
+			return path_component;
 	}
 	return path;
 }
@@ -106,6 +130,87 @@ static size_t nfs_parse_server_name(char *string, size_t len,
 			ret = 0;
 	}
 	return ret;
+}
+
+rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *flavors)
+{
+	struct gss_api_mech *mech;
+	struct xdr_netobj oid;
+	int i;
+	rpc_authflavor_t pseudoflavor = RPC_AUTH_UNIX;
+
+	for (i = 0; i < flavors->num_flavors; i++) {
+		struct nfs4_secinfo_flavor *flavor;
+		flavor = &flavors->flavors[i];
+
+		if (flavor->flavor == RPC_AUTH_NULL || flavor->flavor == RPC_AUTH_UNIX) {
+			pseudoflavor = flavor->flavor;
+			break;
+		} else if (flavor->flavor == RPC_AUTH_GSS) {
+			oid.len  = flavor->gss.sec_oid4.len;
+			oid.data = flavor->gss.sec_oid4.data;
+			mech = gss_mech_get_by_OID(&oid);
+			if (!mech)
+				continue;
+			pseudoflavor = gss_svc_to_pseudoflavor(mech, flavor->gss.service);
+			gss_mech_put(mech);
+			break;
+		}
+	}
+
+	return pseudoflavor;
+}
+
+static rpc_authflavor_t nfs4_negotiate_security(struct inode *inode, struct qstr *name)
+{
+	struct page *page;
+	struct nfs4_secinfo_flavors *flavors;
+	rpc_authflavor_t flavor;
+	int err;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+	flavors = page_address(page);
+
+	err = nfs4_proc_secinfo(inode, name, flavors);
+	if (err < 0) {
+		flavor = err;
+		goto out;
+	}
+
+	flavor = nfs_find_best_sec(flavors);
+
+out:
+	put_page(page);
+	return flavor;
+}
+
+/*
+ * Please call rpc_shutdown_client() when you are done with this client.
+ */
+struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *clnt, struct inode *inode,
+					struct qstr *name)
+{
+	struct rpc_clnt *clone;
+	struct rpc_auth *auth;
+	rpc_authflavor_t flavor;
+
+	flavor = nfs4_negotiate_security(inode, name);
+	if ((int)flavor < 0)
+		return ERR_PTR(flavor);
+
+	clone = rpc_clone_client(clnt);
+	if (IS_ERR(clone))
+		return clone;
+
+	auth = rpcauth_create(flavor, clone);
+	if (!auth) {
+		rpc_shutdown_client(clone);
+		clone = ERR_PTR(-EIO);
+	}
+
+	return clone;
 }
 
 static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
@@ -224,7 +329,7 @@ out:
  * @dentry - dentry of referral
  *
  */
-struct vfsmount *nfs_do_refmount(struct dentry *dentry)
+static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *dentry)
 {
 	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
 	struct dentry *parent;
@@ -250,7 +355,7 @@ struct vfsmount *nfs_do_refmount(struct dentry *dentry)
 	dprintk("%s: getting locations for %s/%s\n",
 		__func__, parent->d_name.name, dentry->d_name.name);
 
-	err = nfs4_proc_fs_locations(parent->d_inode, &dentry->d_name, fs_locations, page);
+	err = nfs4_proc_fs_locations(client, parent->d_inode, &dentry->d_name, fs_locations, page);
 	dput(parent);
 	if (err != 0 ||
 	    fs_locations->nlocations <= 0 ||
@@ -263,5 +368,27 @@ out_free:
 	kfree(fs_locations);
 out:
 	dprintk("%s: done\n", __func__);
+	return mnt;
+}
+
+struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
+			       struct nfs_fh *fh, struct nfs_fattr *fattr)
+{
+	struct dentry *parent = dget_parent(dentry);
+	struct rpc_clnt *client;
+	struct vfsmount *mnt;
+
+	/* Look it up again to get its attributes and sec flavor */
+	client = nfs4_proc_lookup_mountpoint(parent->d_inode, &dentry->d_name, fh, fattr);
+	dput(parent);
+	if (IS_ERR(client))
+		return ERR_CAST(client);
+
+	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
+		mnt = nfs_do_refmount(client, dentry);
+	else
+		mnt = nfs_do_submount(dentry, fh, fattr, client->cl_auth->au_flavor);
+
+	rpc_shutdown_client(client);
 	return mnt;
 }

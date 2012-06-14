@@ -99,8 +99,20 @@ extern const struct raid6_calls raid6_altivec2;
 extern const struct raid6_calls raid6_altivec4;
 extern const struct raid6_calls raid6_altivec8;
 
+struct raid6_recov_calls {
+	void (*data2)(int, size_t, int, int, void **);
+	void (*datap)(int, size_t, int, void **);
+	int  (*valid)(void);
+	const char *name;
+	int priority;
+};
+
+extern const struct raid6_recov_calls raid6_recov_intx1;
+extern const struct raid6_recov_calls raid6_recov_ssse3;
+
 /* Algorithm list */
 extern const struct raid6_calls * const raid6_algos[];
+extern const struct raid6_recov_calls *const raid6_recov_algos[];
 int raid6_select_algo(void);
 
 /* Return values from chk_syndrome */
@@ -111,14 +123,16 @@ int raid6_select_algo(void);
 
 /* Galois field tables */
 extern const u8 raid6_gfmul[256][256] __attribute__((aligned(256)));
+extern const u8 raid6_vgfmul[256][32] __attribute__((aligned(256)));
 extern const u8 raid6_gfexp[256]      __attribute__((aligned(256)));
 extern const u8 raid6_gfinv[256]      __attribute__((aligned(256)));
 extern const u8 raid6_gfexi[256]      __attribute__((aligned(256)));
 
 /* Recovery routines */
-void raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
+extern void (*raid6_2data_recov)(int disks, size_t bytes, int faila, int failb,
 		       void **ptrs);
-void raid6_datap_recov(int disks, size_t bytes, int faila, void **ptrs);
+extern void (*raid6_datap_recov)(int disks, size_t bytes, int faila,
+			void **ptrs);
 void raid6_dual_recov(int disks, size_t bytes, int faila, int failb,
 		      void **ptrs);
 

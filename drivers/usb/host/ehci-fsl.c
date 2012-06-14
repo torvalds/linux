@@ -1,6 +1,6 @@
 /*
  * Copyright 2005-2009 MontaVista Software, Inc.
- * Copyright 2008      Freescale Semiconductor, Inc.
+ * Copyright 2008,2012      Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -150,8 +150,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 			retval = otg_set_host(ehci->transceiver->otg,
 					      &ehci_to_hcd(ehci)->self);
 			if (retval) {
-				if (ehci->transceiver)
-					put_device(ehci->transceiver->dev);
+				usb_put_transceiver(ehci->transceiver);
 				goto err4;
 			}
 		} else {
@@ -195,7 +194,7 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 
 	if (ehci->transceiver) {
 		otg_set_host(ehci->transceiver->otg, NULL);
-		put_device(ehci->transceiver->dev);
+		usb_put_transceiver(ehci->transceiver);
 	}
 
 	usb_remove_hcd(hcd);
@@ -211,19 +210,32 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 	usb_put_hcd(hcd);
 }
 
-static void ehci_fsl_setup_phy(struct ehci_hcd *ehci,
+static void ehci_fsl_setup_phy(struct usb_hcd *hcd,
 			       enum fsl_usb2_phy_modes phy_mode,
 			       unsigned int port_offset)
 {
-	u32 portsc;
-	struct usb_hcd *hcd = ehci_to_hcd(ehci);
+	u32 portsc, temp;
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	void __iomem *non_ehci = hcd->regs;
+	struct device *dev = hcd->self.controller;
+	struct fsl_usb2_platform_data *pdata = dev->platform_data;
+
+	if (pdata->controller_ver < 0) {
+		dev_warn(hcd->self.controller, "Could not get controller version\n");
+		return;
+	}
 
 	portsc = ehci_readl(ehci, &ehci->regs->port_status[port_offset]);
 	portsc &= ~(PORT_PTS_MSK | PORT_PTS_PTW);
 
 	switch (phy_mode) {
 	case FSL_USB2_PHY_ULPI:
+		if (pdata->controller_ver) {
+			/* controller version 1.6 or above */
+			temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
+			out_be32(non_ehci + FSL_SOC_USB_CTRL, temp |
+				USB_CTRL_USB_EN | ULPI_PHY_CLK_SEL);
+		}
 		portsc |= PORT_PTS_ULPI;
 		break;
 	case FSL_USB2_PHY_SERIAL:
@@ -233,8 +245,18 @@ static void ehci_fsl_setup_phy(struct ehci_hcd *ehci,
 		portsc |= PORT_PTS_PTW;
 		/* fall through */
 	case FSL_USB2_PHY_UTMI:
+		if (pdata->controller_ver) {
+			/* controller version 1.6 or above */
+			temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
+			out_be32(non_ehci + FSL_SOC_USB_CTRL, temp |
+				UTMI_PHY_EN | USB_CTRL_USB_EN);
+			mdelay(FSL_UTMI_PHY_DLY);  /* Delay for UTMI PHY CLK to
+						become stable - 10ms*/
+		}
 		/* enable UTMI PHY */
-		setbits32(non_ehci + FSL_SOC_USB_CTRL, CTRL_UTMI_PHY_EN);
+		if (pdata->have_sysif_regs)
+			setbits32(non_ehci + FSL_SOC_USB_CTRL,
+				  CTRL_UTMI_PHY_EN);
 		portsc |= PORT_PTS_UTMI;
 		break;
 	case FSL_USB2_PHY_NONE:
@@ -271,7 +293,7 @@ static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 
 	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
 			(pdata->operating_mode == FSL_USB2_DR_OTG))
-		ehci_fsl_setup_phy(ehci, pdata->phy_mode, 0);
+		ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0);
 
 	if (pdata->operating_mode == FSL_USB2_MPH_HOST) {
 		unsigned int chip, rev, svr;
@@ -285,9 +307,9 @@ static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 			ehci->has_fsl_port_bug = 1;
 
 		if (pdata->port_enables & FSL_USB2_PORT0_ENABLED)
-			ehci_fsl_setup_phy(ehci, pdata->phy_mode, 0);
+			ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0);
 		if (pdata->port_enables & FSL_USB2_PORT1_ENABLED)
-			ehci_fsl_setup_phy(ehci, pdata->phy_mode, 1);
+			ehci_fsl_setup_phy(hcd, pdata->phy_mode, 1);
 	}
 
 	if (pdata->have_sysif_regs) {

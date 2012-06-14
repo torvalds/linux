@@ -332,6 +332,20 @@ struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
 }
 EXPORT_SYMBOL(dma_find_channel);
 
+/*
+ * net_dma_find_channel - find a channel for net_dma
+ * net_dma has alignment requirements
+ */
+struct dma_chan *net_dma_find_channel(void)
+{
+	struct dma_chan *chan = dma_find_channel(DMA_MEMCPY);
+	if (chan && !is_dma_copy_aligned(chan->device, 1, 1, 1))
+		return NULL;
+
+	return chan;
+}
+EXPORT_SYMBOL(net_dma_find_channel);
+
 /**
  * dma_issue_pending_all - flush all pending operations across all channels
  */
@@ -510,8 +524,8 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 					 dma_chan_name(chan));
 				list_del_rcu(&device->global_node);
 			} else if (err)
-				pr_debug("dmaengine: failed to get %s: (%d)\n",
-					 dma_chan_name(chan), err);
+				pr_debug("%s: failed to get %s: (%d)\n",
+					__func__, dma_chan_name(chan), err);
 			else
 				break;
 			if (--device->privatecnt == 0)
@@ -564,8 +578,8 @@ void dmaengine_get(void)
 				list_del_rcu(&device->global_node);
 				break;
 			} else if (err)
-				pr_err("dmaengine: failed to get %s: (%d)\n",
-				       dma_chan_name(chan), err);
+				pr_err("%s: failed to get %s: (%d)\n",
+					__func__, dma_chan_name(chan), err);
 		}
 	}
 

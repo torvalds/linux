@@ -45,9 +45,9 @@
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
-#include <asm/system.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
+#include <asm/system_info.h>
 
 #define EI_SHIFT(x)	(ei_local->reg_offset[x])
 
@@ -635,6 +635,7 @@ static const struct ethtool_ops etherh_ethtool_ops = {
 	.get_settings	= etherh_get_settings,
 	.set_settings	= etherh_set_settings,
 	.get_drvinfo	= etherh_get_drvinfo,
+	.get_ts_info	= ethtool_op_get_ts_info,
 };
 
 static const struct net_device_ops etherh_netdev_ops = {

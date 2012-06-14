@@ -125,9 +125,9 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 	raead.maxauthsize = aead->maxauthsize;
 	raead.ivsize = aead->ivsize;
 
-	NLA_PUT(skb, CRYPTOCFGA_REPORT_AEAD,
-		sizeof(struct crypto_report_aead), &raead);
-
+	if (nla_put(skb, CRYPTOCFGA_REPORT_AEAD,
+		    sizeof(struct crypto_report_aead), &raead))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -210,9 +210,9 @@ static int crypto_nivaead_report(struct sk_buff *skb, struct crypto_alg *alg)
 	raead.maxauthsize = aead->maxauthsize;
 	raead.ivsize = aead->ivsize;
 
-	NLA_PUT(skb, CRYPTOCFGA_REPORT_AEAD,
-		sizeof(struct crypto_report_aead), &raead);
-
+	if (nla_put(skb, CRYPTOCFGA_REPORT_AEAD,
+		    sizeof(struct crypto_report_aead), &raead))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -470,8 +470,7 @@ out:
 	return err;
 }
 
-static struct crypto_alg *crypto_lookup_aead(const char *name, u32 type,
-					     u32 mask)
+struct crypto_alg *crypto_lookup_aead(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
 
@@ -503,6 +502,7 @@ static struct crypto_alg *crypto_lookup_aead(const char *name, u32 type,
 
 	return ERR_PTR(crypto_nivaead_default(alg, type, mask));
 }
+EXPORT_SYMBOL_GPL(crypto_lookup_aead);
 
 int crypto_grab_aead(struct crypto_aead_spawn *spawn, const char *name,
 		     u32 type, u32 mask)

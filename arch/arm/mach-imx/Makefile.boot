@@ -42,4 +42,5 @@ dtb-$(CONFIG_MACH_IMX51_DT) += imx51-babbage.dtb
 dtb-$(CONFIG_MACH_IMX53_DT) += imx53-ard.dtb imx53-evk.dtb \
 			       imx53-qsb.dtb imx53-smd.dtb
 dtb-$(CONFIG_SOC_IMX6Q)	+= imx6q-arm2.dtb \
-			   imx6q-sabrelite.dtb
+			   imx6q-sabrelite.dtb \
+			   imx6q-sabresd.dtb \

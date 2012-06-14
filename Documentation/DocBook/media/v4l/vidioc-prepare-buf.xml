@@ -48,6 +48,12 @@
   <refsect1>
     <title>Description</title>
 
+    <note>
+      <title>Experimental</title>
+      <para>This is an <link linkend="experimental"> experimental </link>
+      interface and may change in the future.</para>
+    </note>
+
     <para>Applications can optionally call the
 <constant>VIDIOC_PREPARE_BUF</constant> ioctl to pass ownership of the buffer
 to the driver before actually enqueuing it, using the

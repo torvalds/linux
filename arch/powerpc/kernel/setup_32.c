@@ -30,7 +30,6 @@
 #include <asm/btext.h>
 #include <asm/machdep.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/pmac_feature.h>
 #include <asm/sections.h>
 #include <asm/nvram.h>
@@ -151,6 +150,9 @@ notrace void __init machine_init(u64 dt_ptr)
 }
 
 #ifdef CONFIG_BOOKE_WDT
+extern u32 booke_wdt_enabled;
+extern u32 booke_wdt_period;
+
 /* Checks wdt=x and wdt_period=xx command-line option */
 notrace int __init early_parse_wdt(char *p)
 {

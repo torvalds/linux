@@ -47,13 +47,11 @@ static int populate_dir(struct kobject *kobj)
 static int create_dir(struct kobject *kobj)
 {
 	int error = 0;
-	if (kobject_name(kobj)) {
-		error = sysfs_create_dir(kobj);
-		if (!error) {
-			error = populate_dir(kobj);
-			if (error)
-				sysfs_remove_dir(kobj);
-		}
+	error = sysfs_create_dir(kobj);
+	if (!error) {
+		error = populate_dir(kobj);
+		if (error)
+			sysfs_remove_dir(kobj);
 	}
 	return error;
 }
@@ -192,14 +190,14 @@ static int kobject_add_internal(struct kobject *kobj)
 
 		/* be noisy on error issues */
 		if (error == -EEXIST)
-			printk(KERN_ERR "%s failed for %s with "
-			       "-EEXIST, don't try to register things with "
-			       "the same name in the same directory.\n",
-			       __func__, kobject_name(kobj));
+			WARN(1, "%s failed for %s with "
+			     "-EEXIST, don't try to register things with "
+			     "the same name in the same directory.\n",
+			     __func__, kobject_name(kobj));
 		else
-			printk(KERN_ERR "%s failed for %s (%d)\n",
-			       __func__, kobject_name(kobj), error);
-		dump_stack();
+			WARN(1, "%s failed for %s (error: %d parent: %s)\n",
+			     __func__, kobject_name(kobj), error,
+			     parent ? kobject_name(parent) : "'none'");
 	} else
 		kobj->state_in_sysfs = 1;
 
@@ -634,7 +632,7 @@ struct kobject *kobject_create(void)
 /**
  * kobject_create_and_add - create a struct kobject dynamically and register it with sysfs
  *
- * @name: the name for the kset
+ * @name: the name for the kobject
  * @parent: the parent kobject of this kobject, if any.
  *
  * This function creates a kobject structure dynamically and registers it

@@ -108,6 +108,14 @@ static inline void activate_irq(int irq)
 #endif
 }
 
+static inline int intc_handle_int_cmp(const void *a, const void *b)
+{
+	const struct intc_handle_int *_a = a;
+	const struct intc_handle_int *_b = b;
+
+	return _a->irq - _b->irq;
+}
+
 /* access.c */
 extern unsigned long
 (*intc_reg_fns[])(unsigned long addr, unsigned long h, unsigned long data);
@@ -157,7 +165,6 @@ void _intc_enable(struct irq_data *data, unsigned long handle);
 /* core.c */
 extern struct list_head intc_list;
 extern raw_spinlock_t intc_big_lock;
-extern unsigned int nr_intc_controllers;
 extern struct bus_type intc_subsys;
 
 unsigned int intc_get_dfl_prio_level(void);

@@ -112,7 +112,6 @@ extern int omap4430_phy_suspend(struct device *dev, int suspend);
  */
 
 #define OMAP2_L4_IO_OFFSET	0xb2000000
-#define IOMEM(x)		((void __force __iomem *)(x))
 #define OMAP2_L4_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_L4_IO_OFFSET)
 
 static inline u8 omap_readb(u32 pa)

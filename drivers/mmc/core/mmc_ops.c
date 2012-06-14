@@ -553,18 +553,22 @@ int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status)
 {
 	struct mmc_command cmd = {0};
 	unsigned int opcode;
-	unsigned int flags;
 	int err;
+
+	if (!card->ext_csd.hpi) {
+		pr_warning("%s: Card didn't support HPI command\n",
+			   mmc_hostname(card->host));
+		return -EINVAL;
+	}
 
 	opcode = card->ext_csd.hpi_cmd;
 	if (opcode == MMC_STOP_TRANSMISSION)
-		flags = MMC_RSP_R1 | MMC_CMD_AC;
+		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
 	else if (opcode == MMC_SEND_STATUS)
-		flags = MMC_RSP_R1 | MMC_CMD_AC;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
 	cmd.opcode = opcode;
 	cmd.arg = card->rca << 16 | 1;
-	cmd.flags = flags;
 	cmd.cmd_timeout_ms = card->ext_csd.out_of_int_time;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);

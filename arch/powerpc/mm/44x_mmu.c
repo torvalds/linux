@@ -27,7 +27,6 @@
 #include <linux/memblock.h>
 
 #include <asm/mmu.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 
