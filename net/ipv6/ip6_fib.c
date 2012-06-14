@@ -1692,19 +1692,23 @@ int __init fib6_init(void)
 	ret = register_pernet_subsys(&fib6_net_ops);
 	if (ret)
 		goto out_kmem_cache_create;
-
-	ret = __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib,
-			      NULL);
-	if (ret)
-		goto out_unregister_subsys;
 out:
 	return ret;
 
-out_unregister_subsys:
-	unregister_pernet_subsys(&fib6_net_ops);
 out_kmem_cache_create:
 	kmem_cache_destroy(fib6_node_kmem);
 	goto out;
+}
+
+int __init fib6_init_late(void)
+{
+	return __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib,
+			       NULL);
+}
+
+void fib6_cleanup_late(void)
+{
+	rtnl_unregister(PF_INET6, RTM_GETROUTE);
 }
 
 void fib6_gc_cleanup(void)

@@ -3018,9 +3018,13 @@ int __init ip6_route_init(void)
 	if (ret)
 		goto out_kmem_cache;
 
-	ret = register_pernet_subsys(&ip6_route_net_ops);
+	ret = fib6_init();
 	if (ret)
 		goto out_dst_entries;
+
+	ret = register_pernet_subsys(&ip6_route_net_ops);
+	if (ret)
+		goto out_fib6_init;
 
 	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops_template.kmem_cachep;
 
@@ -3035,13 +3039,13 @@ int __init ip6_route_init(void)
 	init_net.ipv6.ip6_blk_hole_entry->dst.dev = init_net.loopback_dev;
 	init_net.ipv6.ip6_blk_hole_entry->rt6i_idev = in6_dev_get(init_net.loopback_dev);
   #endif
-	ret = fib6_init();
+	ret = fib6_init_late();
 	if (ret)
 		goto out_register_subsys;
 
 	ret = xfrm6_init();
 	if (ret)
-		goto out_fib6_init;
+		goto out_fib6_init_late;
 
 	ret = fib6_rules_init();
 	if (ret)
@@ -3064,10 +3068,12 @@ fib6_rules_init:
 	fib6_rules_cleanup();
 xfrm6_init:
 	xfrm6_fini();
-out_fib6_init:
-	fib6_gc_cleanup();
+out_fib6_init_late:
+	fib6_cleanup_late();
 out_register_subsys:
 	unregister_pernet_subsys(&ip6_route_net_ops);
+out_fib6_init:
+	fib6_gc_cleanup();
 out_dst_entries:
 	dst_entries_destroy(&ip6_dst_blackhole_ops);
 out_kmem_cache:
