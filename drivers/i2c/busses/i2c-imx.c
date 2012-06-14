@@ -53,7 +53,6 @@
 #include <linux/of_i2c.h>
 #include <linux/pinctrl/consumer.h>
 
-#include <mach/irqs.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 
