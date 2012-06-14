@@ -1,0 +1,18 @@
+#
+# USB media device configuration
+#
+
+menuconfig MEDIA_USB_DRIVERS
+	bool "Supported DVB USB Adapters"
+        depends on USB
+        default y
+
+if MEDIA_USB_DRIVERS && DVB_CORE && I2C
+
+source "drivers/media/usb/dvb-usb/Kconfig"
+source "drivers/media/usb/dvb-usb-v2/Kconfig"
+source "drivers/media/usb/ttusb-budget/Kconfig"
+source "drivers/media/usb/ttusb-dec/Kconfig"
+source "drivers/media/usb/siano/Kconfig"
+
+endif

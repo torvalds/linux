@@ -163,6 +163,7 @@ source "drivers/media/radio/Kconfig"
 
 source "drivers/media/dvb-core/Kconfig"
 source "drivers/media/dvb/Kconfig"
+source "drivers/media/usb/Kconfig"
 
 comment "Supported FireWire (IEEE 1394) Adapters"
 	depends on DVB_CORE && FIREWIRE
