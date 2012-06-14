@@ -959,6 +959,11 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	/* make sure there is no leftover from previous force-detach attempts */
 	clear_bit(FORCE_DETACH, &mdev->flags);
 
+	/* and no leftover from previously aborted resync or verify, either */
+	mdev->rs_total = 0;
+	mdev->rs_failed = 0;
+	atomic_set(&mdev->rs_pending_cnt, 0);
+
 	/* allocation not in the IO path, cqueue thread context */
 	nbc = kzalloc(sizeof(struct drbd_backing_dev), GFP_KERNEL);
 	if (!nbc) {
