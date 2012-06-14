@@ -32,15 +32,6 @@
 #include <asm/pgtable.h>
 #include <asm/fpu.h>
 
-#undef DEBUG_EXCEPTION
-#ifdef DEBUG_EXCEPTION
-/* implemented in ../lib/dbg.c */
-extern void show_excp_regs(char *fname, int trapnr, int signr,
-			   struct pt_regs *regs);
-#else
-#define show_excp_regs(a, b, c, d)
-#endif
-
 static void do_unhandled_exception(int trapnr, int signr, char *str, char *fn_name,
 		unsigned long error_code, struct pt_regs *regs, struct task_struct *tsk);
 
@@ -239,7 +230,6 @@ DO_ERROR(12, SIGILL,  "reserved instruction", reserved_inst, current)
 /* Called with interrupts disabled */
 asmlinkage void do_exception_error(unsigned long ex, struct pt_regs *regs)
 {
-	show_excp_regs(__func__, -1, -1, regs);
 	die_if_kernel("exception", regs, ex);
 }
 
@@ -256,8 +246,6 @@ int do_unknown_trapa(unsigned long scId, struct pt_regs *regs)
 static void do_unhandled_exception(int trapnr, int signr, char *str, char *fn_name,
 		unsigned long error_code, struct pt_regs *regs, struct task_struct *tsk)
 {
-	show_excp_regs(fn_name, trapnr, signr, regs);
-
 	if (user_mode(regs))
 		force_sig(signr, tsk);
 
