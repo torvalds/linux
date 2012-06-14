@@ -1451,12 +1451,8 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	int c = 0;
 	long lval;
 
-	ISR_PDEBUG("me4000_ai_isr() is executed\n");
-
-	if (!dev->attached) {
-		ISR_PDEBUG("me4000_ai_isr() premature interrupt\n");
+	if (!dev->attached)
 		return IRQ_NONE;
-	}
 
 	/* Reset all events */
 	s->async->events = 0;
@@ -1471,16 +1467,12 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 	if (inl(ai_context->irq_status_reg) &
 	    ME4000_IRQ_STATUS_BIT_AI_HF) {
-		ISR_PDEBUG
-		    ("me4000_ai_isr(): Fifo half full interrupt occurred\n");
-
 		/* Read status register to find out what happened */
 		tmp = inl(ai_context->ctrl_reg);
 
 		if (!(tmp & ME4000_AI_STATUS_BIT_FF_DATA) &&
 		    !(tmp & ME4000_AI_STATUS_BIT_HF_DATA) &&
 		    (tmp & ME4000_AI_STATUS_BIT_EF_DATA)) {
-			ISR_PDEBUG("me4000_ai_isr(): Fifo full\n");
 			c = ME4000_AI_FIFO_COUNT;
 
 			/*
@@ -1500,8 +1492,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		} else if ((tmp & ME4000_AI_STATUS_BIT_FF_DATA)
 			   && !(tmp & ME4000_AI_STATUS_BIT_HF_DATA)
 			   && (tmp & ME4000_AI_STATUS_BIT_EF_DATA)) {
-			ISR_PDEBUG("me4000_ai_isr(): Fifo half full\n");
-
 			s->async->events |= COMEDI_CB_BLOCK;
 
 			c = ME4000_AI_FIFO_COUNT / 2;
@@ -1526,8 +1516,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			       "comedi%d: me4000: me4000_ai_isr(): "
 			       "Undefined FIFO state\n", dev->minor);
 		}
-
-		ISR_PDEBUG("me4000_ai_isr(): Try to read %d values\n", c);
 
 		for (i = 0; i < c; i++) {
 			/* Read value from data fifo */
@@ -1555,7 +1543,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		}
 
 		/* Work is done, so reset the interrupt */
-		ISR_PDEBUG("me4000_ai_isr(): Reset fifo half full interrupt\n");
 		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ_RESET;
 		outl(tmp, ai_context->ctrl_reg);
 		tmp &= ~ME4000_AI_CTRL_BIT_HF_IRQ_RESET;
@@ -1563,9 +1550,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	}
 
 	if (inl(ai_context->irq_status_reg) & ME4000_IRQ_STATUS_BIT_SC) {
-		ISR_PDEBUG
-		    ("me4000_ai_isr(): Sample counter interrupt occurred\n");
-
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOA;
 
 		/*
@@ -1593,15 +1577,11 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		}
 
 		/* Work is done, so reset the interrupt */
-		ISR_PDEBUG
-		    ("me4000_ai_isr(): Reset interrupt from sample counter\n");
 		tmp |= ME4000_AI_CTRL_BIT_SC_IRQ_RESET;
 		outl(tmp, ai_context->ctrl_reg);
 		tmp &= ~ME4000_AI_CTRL_BIT_SC_IRQ_RESET;
 		outl(tmp, ai_context->ctrl_reg);
 	}
-
-	ISR_PDEBUG("me4000_ai_isr(): Events = 0x%X\n", s->async->events);
 
 	if (s->async->events)
 		comedi_event(dev, s);

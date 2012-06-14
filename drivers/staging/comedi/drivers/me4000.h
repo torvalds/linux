@@ -28,15 +28,7 @@
   Debug section
   ===========================================================================*/
 
-#undef ME4000_ISR_DEBUG		/*  Debug the interrupt service routine */
 #undef ME4000_DEBUG		/*  General purpose debug masseges */
-
-#ifdef ME4000_ISR_DEBUG
-#undef ISR_PDEBUG
-#define ISR_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
-#else
-#define ISR_PDEBUG(fmt, args...)	/*  no debugging, do nothing */
-#endif
 
 #ifdef ME4000_DEBUG
 #undef PDEBUG
