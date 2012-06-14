@@ -529,6 +529,7 @@ extern int  audit_set_loginuid(uid_t loginuid);
 #define audit_get_loginuid(t) ((t)->loginuid)
 #define audit_get_sessionid(t) ((t)->sessionid)
 extern void audit_log_task_context(struct audit_buffer *ab);
+extern void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk);
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
 extern int __audit_bprm(struct linux_binprm *bprm);
@@ -640,6 +641,7 @@ extern int audit_signals;
 #define audit_get_loginuid(t) (-1)
 #define audit_get_sessionid(t) (-1)
 #define audit_log_task_context(b) do { ; } while (0)
+#define audit_log_task_info(b, t) do { ; } while (0)
 #define audit_ipc_obj(i) ((void)0)
 #define audit_ipc_set_perm(q,u,g,m) ((void)0)
 #define audit_bprm(p) ({ 0; })
