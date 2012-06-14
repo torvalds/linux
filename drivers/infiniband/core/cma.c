@@ -140,6 +140,7 @@ struct rdma_id_private {
 	u8			srq;
 	u8			tos;
 	u8			reuseaddr;
+	u8			afonly;
 };
 
 struct cma_multicast {
@@ -1573,6 +1574,7 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 	list_add_tail(&dev_id_priv->listen_list, &id_priv->listen_list);
 	atomic_inc(&id_priv->refcount);
 	dev_id_priv->internal_id = 1;
+	dev_id_priv->afonly = id_priv->afonly;
 
 	ret = rdma_listen(id, id_priv->backlog);
 	if (ret)
@@ -2187,22 +2189,24 @@ static int cma_check_port(struct rdma_bind_list *bind_list,
 	struct hlist_node *node;
 
 	addr = (struct sockaddr *) &id_priv->id.route.addr.src_addr;
-	if (cma_any_addr(addr) && !reuseaddr)
-		return -EADDRNOTAVAIL;
-
 	hlist_for_each_entry(cur_id, node, &bind_list->owners, node) {
 		if (id_priv == cur_id)
 			continue;
 
-		if ((cur_id->state == RDMA_CM_LISTEN) ||
-		    !reuseaddr || !cur_id->reuseaddr) {
-			cur_addr = (struct sockaddr *) &cur_id->id.route.addr.src_addr;
-			if (cma_any_addr(cur_addr))
-				return -EADDRNOTAVAIL;
+		if ((cur_id->state != RDMA_CM_LISTEN) && reuseaddr &&
+		    cur_id->reuseaddr)
+			continue;
 
-			if (!cma_addr_cmp(addr, cur_addr))
-				return -EADDRINUSE;
-		}
+		cur_addr = (struct sockaddr *) &cur_id->id.route.addr.src_addr;
+		if (id_priv->afonly && cur_id->afonly &&
+		    (addr->sa_family != cur_addr->sa_family))
+			continue;
+
+		if (cma_any_addr(addr) || cma_any_addr(cur_addr))
+			return -EADDRNOTAVAIL;
+
+		if (!cma_addr_cmp(addr, cur_addr))
+			return -EADDRINUSE;
 	}
 	return 0;
 }
@@ -2371,6 +2375,12 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 	}
 
 	memcpy(&id->route.addr.src_addr, addr, ip_addr_size(addr));
+	if (addr->sa_family == AF_INET)
+		id_priv->afonly = 1;
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (addr->sa_family == AF_INET6)
+		id_priv->afonly = init_net.ipv6.sysctl.bindv6only;
+#endif
 	ret = cma_get_port(id_priv);
 	if (ret)
 		goto err2;
