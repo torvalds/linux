@@ -26,7 +26,11 @@
 #include <mach/dvfs.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
-
+#include <linux/fs.h>
+#include <linux/string.h>
+#include <linux/earlysuspend.h>
+#include <asm/unistd.h>
+#include <asm/uaccess.h>
 #ifdef DEBUG
 #define FREQ_PRINTK_DBG(fmt, args...) pr_debug(fmt, ## args)
 #define FREQ_PRINTK_LOG(fmt, args...) pr_debug(fmt, ## args)
@@ -302,6 +306,170 @@ static struct freq_attr *rk30_cpufreq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
+
+/**************************earlysuspend freeze cpu frequency******************************/
+static struct early_suspend ff_early_suspend;
+
+#define FILE_GOV_MODE "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+#define FILE_SETSPEED "/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed"
+#define FILE_CUR_FREQ "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
+
+#define FF_DEBUG(fmt, args...) printk(KERN_DEBUG "FREEZE FREQ DEBUG:\t"fmt, ##args)
+#define FF_ERROR(fmt, args...) printk(KERN_ERR "FREEZE FREQ ERROR:\t"fmt, ##args)
+
+static int ff_read(char *file_path, char *buf)
+{
+	struct file *file = NULL;
+	mm_segment_t old_fs;
+	loff_t offset = 0;
+
+	FF_DEBUG("read %s\n", file_path);
+	file = filp_open(file_path, O_RDONLY, 0);
+
+	if (IS_ERR(file)) {
+		FF_ERROR("%s error open file  %s\n", __func__, file_path);
+		return -1;
+	}
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	file->f_op->read(file, (char *)buf, 32, &offset);
+	sscanf(buf, "%s", buf);
+
+	set_fs(old_fs);
+	filp_close(file, NULL);  
+
+	file = NULL;
+
+	return 0;
+
+}
+
+static int ff_write(char *file_path, char *buf)
+{
+	struct file *file = NULL;
+	mm_segment_t old_fs;
+	loff_t offset = 0;
+
+	FF_DEBUG("write %s %s size = %d\n", file_path, buf, strlen(buf));
+	file = filp_open(file_path, O_RDWR, 0);
+
+	if (IS_ERR(file)) {
+		FF_ERROR("%s error open file  %s\n", __func__, file_path);
+		return -1;
+	}
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	file->f_op->write(file, (char *)buf, strlen(buf), &offset);
+
+	set_fs(old_fs);
+	filp_close(file, NULL);  
+
+	file = NULL;
+
+	return 0;
+
+}
+
+static void ff_scale_votlage(char *name, int volt)
+{
+	struct regulator* regulator;
+	int ret = 0;
+
+	FF_DEBUG("enter %s\n", __func__);
+	regulator = dvfs_get_regulator(name);
+	if (!regulator) {
+		FF_ERROR("get regulator %s ERROR\n", name);
+		return ;
+	}
+
+	ret = regulator_set_voltage(regulator, volt, volt);
+	if (ret != 0) {
+		FF_ERROR("set voltage error %s %d, ret = %d\n", name, volt, ret);
+	}
+
+}
+
+static void ff_early_suspend_func(struct early_suspend *h)
+{
+	char buf[32];
+	FF_DEBUG("enter %s\n", __func__);
+	if (ff_read(FILE_GOV_MODE, buf) != 0) {
+		FF_ERROR("read current governor error\n");
+		return ;
+	} else {
+		FF_DEBUG("current governor = %s\n", buf);
+	}
+
+	strcpy(buf, "userspace");
+	if (ff_write(FILE_GOV_MODE, buf) != 0) {
+		FF_ERROR("set current governor error\n");
+		return ;
+	}
+
+	strcpy(buf, "252000");
+	if (ff_write(FILE_SETSPEED, buf) != 0) {
+		FF_ERROR("set speed to 252MHz error\n");
+		return ;
+	}
+
+	//ff_scale_votlage("vdd_cpu", 1000000);
+	//ff_scale_votlage("vdd_core", 1000000);
+	cpu_down(1);
+}
+
+static void ff_early_resume_func(struct early_suspend *h)
+{
+	char buf[32];
+	FF_DEBUG("enter %s\n", __func__);
+
+	cpu_up(1);
+	if (ff_read(FILE_GOV_MODE, buf) != 0) {
+		FF_ERROR("read current governor error\n");
+		return ;
+	} else {
+		FF_DEBUG("current governor = %s\n", buf);
+	}
+
+	if (ff_read(FILE_CUR_FREQ, buf) != 0) {
+		FF_ERROR("read current frequency error\n");
+		return ;
+	} else {
+		FF_DEBUG("current frequency = %s\n", buf);
+	}
+
+	strcpy(buf, "interactive");
+	if (ff_write(FILE_GOV_MODE, buf) != 0) {
+		FF_ERROR("set current governor error\n");
+		return ;
+	}
+	
+	strcpy(buf, "interactive");
+	if (ff_write(FILE_GOV_MODE, buf) != 0) {
+		FF_ERROR("set current governor error\n");
+		return ;
+	}
+}
+
+static int __init ff_init(void)
+{
+	FF_DEBUG("enter %s\n", __func__);
+	ff_early_suspend.suspend = ff_early_suspend_func;
+	ff_early_suspend.resume = ff_early_resume_func;
+	ff_early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 100;
+	register_early_suspend(&ff_early_suspend);
+	return 0;
+}
+
+static void __exit ff_exit(void)
+{
+	FF_DEBUG("enter %s\n", __func__);
+	unregister_early_suspend(&ff_early_suspend);
+}
+
 
 /**************************target freq******************************/
 static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_policy *policy)
