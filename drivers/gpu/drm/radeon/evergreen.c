@@ -2210,6 +2210,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	smx_dc_ctl0 |= NUMBER_OF_SETS(rdev->config.evergreen.sx_num_of_sets);
 	WREG32(SMX_DC_CTL0, smx_dc_ctl0);
 
+	if (rdev->family <= CHIP_SUMO2)
+		WREG32(SMX_SAR_CTL0, 0x00010000);
+
 	WREG32(SX_EXPORT_BUFFER_SIZES, (COLOR_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_size / 4) - 1) |
 					POSITION_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_pos_size / 4) - 1) |
 					SMX_BUFFER_SIZE((rdev->config.evergreen.sx_max_export_smx_size / 4) - 1)));
