@@ -542,7 +542,7 @@ es7000_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *dest_id)
 
 			return -EINVAL;
 		}
-		apicid = new_apicid;
+		apicid |= new_apicid;
 		round++;
 	}
 	if (!round)
