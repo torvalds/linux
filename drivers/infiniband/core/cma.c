@@ -99,6 +99,10 @@ struct rdma_bind_list {
 	unsigned short		port;
 };
 
+enum {
+	CMA_OPTION_AFONLY,
+};
+
 /*
  * Device removal can occur at anytime, so we need extra handling to
  * serialize notifying the user of device removal with other callbacks.
@@ -137,6 +141,7 @@ struct rdma_id_private {
 	u32			qkey;
 	u32			qp_num;
 	pid_t			owner;
+	u32			options;
 	u8			srq;
 	u8			tos;
 	u8			reuseaddr;
@@ -2104,6 +2109,26 @@ int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse)
 }
 EXPORT_SYMBOL(rdma_set_reuseaddr);
 
+int rdma_set_afonly(struct rdma_cm_id *id, int afonly)
+{
+	struct rdma_id_private *id_priv;
+	unsigned long flags;
+	int ret;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	spin_lock_irqsave(&id_priv->lock, flags);
+	if (id_priv->state == RDMA_CM_IDLE || id_priv->state == RDMA_CM_ADDR_BOUND) {
+		id_priv->options |= (1 << CMA_OPTION_AFONLY);
+		id_priv->afonly = afonly;
+		ret = 0;
+	} else {
+		ret = -EINVAL;
+	}
+	spin_unlock_irqrestore(&id_priv->lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(rdma_set_afonly);
+
 static void cma_bind_port(struct rdma_bind_list *bind_list,
 			  struct rdma_id_private *id_priv)
 {
@@ -2379,12 +2404,14 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 	}
 
 	memcpy(&id->route.addr.src_addr, addr, ip_addr_size(addr));
-	if (addr->sa_family == AF_INET)
-		id_priv->afonly = 1;
+	if (!(id_priv->options & (1 << CMA_OPTION_AFONLY))) {
+		if (addr->sa_family == AF_INET)
+			id_priv->afonly = 1;
 #if IS_ENABLED(CONFIG_IPV6)
-	else if (addr->sa_family == AF_INET6)
-		id_priv->afonly = init_net.ipv6.sysctl.bindv6only;
+		else if (addr->sa_family == AF_INET6)
+			id_priv->afonly = init_net.ipv6.sysctl.bindv6only;
 #endif
+	}
 	ret = cma_get_port(id_priv);
 	if (ret)
 		goto err2;
