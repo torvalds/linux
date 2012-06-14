@@ -2586,6 +2586,10 @@ ioctls.</para>
 	  <para>Vendor and device specific media bus pixel formats.
 	    <xref linkend="v4l2-mbus-vendor-spec-fmts" />.</para>
         </listitem>
+        <listitem>
+	  <para>Importing DMABUF file descriptors as a new IO method described
+	  in <xref linkend="dmabuf" />.</para>
+        </listitem>
       </itemizedlist>
     </section>
 
