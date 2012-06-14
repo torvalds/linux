@@ -65,10 +65,8 @@ struct tps62360_chip {
 	struct regulator_desc desc;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
-	int chip_id;
 	int vsel0_gpio;
 	int vsel1_gpio;
-	int voltage_base;
 	u8 voltage_reg_mask;
 	bool en_internal_pulldn;
 	bool en_discharge;
@@ -401,13 +399,13 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	switch (chip_id) {
 	case TPS62360:
 	case TPS62362:
-		tps->voltage_base = TPS62360_BASE_VOLTAGE;
+		tps->desc.min_uV = TPS62360_BASE_VOLTAGE;
 		tps->voltage_reg_mask = 0x3F;
 		tps->desc.n_voltages = TPS62360_N_VOLTAGES;
 		break;
 	case TPS62361:
 	case TPS62363:
-		tps->voltage_base = TPS62361_BASE_VOLTAGE;
+		tps->desc.min_uV = TPS62361_BASE_VOLTAGE;
 		tps->voltage_reg_mask = 0x7F;
 		tps->desc.n_voltages = TPS62361_N_VOLTAGES;
 		break;
@@ -420,7 +418,6 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	tps->desc.ops = &tps62360_dcdc_ops;
 	tps->desc.type = REGULATOR_VOLTAGE;
 	tps->desc.owner = THIS_MODULE;
-	tps->desc.min_uV = tps->voltage_base;
 	tps->desc.uV_step = 10000;
 
 	tps->regmap = devm_regmap_init_i2c(client, &tps62360_regmap_config);
