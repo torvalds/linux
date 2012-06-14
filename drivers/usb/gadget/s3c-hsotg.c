@@ -895,14 +895,11 @@ static int s3c_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	struct s3c_hsotg_req *hs_req = our_req(req);
 	struct s3c_hsotg_ep *hs_ep = our_ep(ep);
 	struct s3c_hsotg *hs = hs_ep->parent;
-	unsigned long irqflags;
 	bool first;
 
 	dev_dbg(hs->dev, "%s: req %p: %d@%p, noi=%d, zero=%d, snok=%d\n",
 		ep->name, req, req->length, req->buf, req->no_interrupt,
 		req->zero, req->short_not_ok);
-
-	spin_lock_irqsave(&hs->lock, irqflags);
 
 	/* initialise status of the request */
 	INIT_LIST_HEAD(&hs_req->queue);
@@ -922,9 +919,22 @@ static int s3c_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	if (first)
 		s3c_hsotg_start_req(hs, hs_ep, hs_req, false);
 
-	spin_unlock_irqrestore(&hs->lock, irqflags);
-
 	return 0;
+}
+
+static int s3c_hsotg_ep_queue_lock(struct usb_ep *ep, struct usb_request *req,
+			      gfp_t gfp_flags)
+{
+	struct s3c_hsotg_ep *hs_ep = our_ep(ep);
+	struct s3c_hsotg *hs = hs_ep->parent;
+	unsigned long flags = 0;
+	int ret = 0;
+
+	spin_lock_irqsave(&hs->lock, flags);
+	ret = s3c_hsotg_ep_queue(ep, req, gfp_flags);
+	spin_unlock_irqrestore(&hs->lock, flags);
+
+	return ret;
 }
 
 static void s3c_hsotg_ep_free_request(struct usb_ep *ep,
@@ -1403,28 +1413,6 @@ static void s3c_hsotg_complete_request(struct s3c_hsotg *hsotg,
 }
 
 /**
- * s3c_hsotg_complete_request_lock - complete a request given to us (locked)
- * @hsotg: The device state.
- * @hs_ep: The endpoint the request was on.
- * @hs_req: The request to complete.
- * @result: The result code (0 => Ok, otherwise errno)
- *
- * See s3c_hsotg_complete_request(), but called with the endpoint's
- * lock held.
- */
-static void s3c_hsotg_complete_request_lock(struct s3c_hsotg *hsotg,
-					    struct s3c_hsotg_ep *hs_ep,
-					    struct s3c_hsotg_req *hs_req,
-					    int result)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&hsotg->lock, flags);
-	s3c_hsotg_complete_request(hsotg, hs_ep, hs_req, result);
-	spin_unlock_irqrestore(&hsotg->lock, flags);
-}
-
-/**
  * s3c_hsotg_rx_data - receive data from the FIFO for an endpoint
  * @hsotg: The device state.
  * @ep_idx: The endpoint index for the data
@@ -1443,7 +1431,6 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 	int max_req;
 	int read_ptr;
 
-	spin_lock(&hsotg->lock);
 
 	if (!hs_req) {
 		u32 epctl = readl(hsotg->regs + DOEPCTL(ep_idx));
@@ -1457,7 +1444,6 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 		for (ptr = 0; ptr < size; ptr += 4)
 			(void)readl(fifo);
 
-		spin_unlock(&hsotg->lock);
 		return;
 	}
 
@@ -1487,8 +1473,6 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 	 * alignment of the data.
 	 */
 	readsl(fifo, hs_req->req.buf + read_ptr, to_read);
-
-	spin_unlock(&hsotg->lock);
 }
 
 /**
@@ -1609,7 +1593,7 @@ static void s3c_hsotg_handle_outdone(struct s3c_hsotg *hsotg,
 			s3c_hsotg_send_zlp(hsotg, hs_req);
 	}
 
-	s3c_hsotg_complete_request_lock(hsotg, hs_ep, hs_req, result);
+	s3c_hsotg_complete_request(hsotg, hs_ep, hs_req, result);
 }
 
 /**
@@ -1864,7 +1848,7 @@ static void s3c_hsotg_complete_in(struct s3c_hsotg *hsotg,
 	/* Finish ZLP handling for IN EP0 transactions */
 	if (hsotg->eps[0].sent_zlp) {
 		dev_dbg(hsotg->dev, "zlp packet received\n");
-		s3c_hsotg_complete_request_lock(hsotg, hs_ep, hs_req, 0);
+		s3c_hsotg_complete_request(hsotg, hs_ep, hs_req, 0);
 		return;
 	}
 
@@ -1915,7 +1899,7 @@ static void s3c_hsotg_complete_in(struct s3c_hsotg *hsotg,
 		dev_dbg(hsotg->dev, "%s trying more for req...\n", __func__);
 		s3c_hsotg_start_req(hsotg, hs_ep, hs_req, true);
 	} else
-		s3c_hsotg_complete_request_lock(hsotg, hs_ep, hs_req, 0);
+		s3c_hsotg_complete_request(hsotg, hs_ep, hs_req, 0);
 }
 
 /**
@@ -2123,9 +2107,6 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 			      int result, bool force)
 {
 	struct s3c_hsotg_req *req, *treq;
-	unsigned long flags;
-
-	spin_lock_irqsave(&hsotg->lock, flags);
 
 	list_for_each_entry_safe(req, treq, &ep->queue, queue) {
 		/*
@@ -2139,14 +2120,15 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 		s3c_hsotg_complete_request(hsotg, ep, req,
 					   result);
 	}
-
-	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 
 #define call_gadget(_hs, _entry) \
 	if ((_hs)->gadget.speed != USB_SPEED_UNKNOWN &&	\
-	    (_hs)->driver && (_hs)->driver->_entry)	\
-		(_hs)->driver->_entry(&(_hs)->gadget);
+	    (_hs)->driver && (_hs)->driver->_entry) { \
+		spin_unlock(&_hs->lock); \
+		(_hs)->driver->_entry(&(_hs)->gadget); \
+		spin_lock(&_hs->lock); \
+		}
 
 /**
  * s3c_hsotg_disconnect - disconnect service
@@ -2388,6 +2370,7 @@ static irqreturn_t s3c_hsotg_irq(int irq, void *pw)
 	u32 gintsts;
 	u32 gintmsk;
 
+	spin_lock(&hsotg->lock);
 irq_retry:
 	gintsts = readl(hsotg->regs + GINTSTS);
 	gintmsk = readl(hsotg->regs + GINTMSK);
@@ -2557,6 +2540,8 @@ irq_retry:
 	if (gintsts & IRQ_RETRY_MASK && --retry_count > 0)
 			goto irq_retry;
 
+	spin_unlock(&hsotg->lock);
+
 	return IRQ_HANDLED;
 }
 
@@ -2710,10 +2695,10 @@ static int s3c_hsotg_ep_disable(struct usb_ep *ep)
 
 	epctrl_reg = dir_in ? DIEPCTL(index) : DOEPCTL(index);
 
+	spin_lock_irqsave(&hsotg->lock, flags);
 	/* terminate all requests with shutdown */
 	kill_all_requests(hsotg, hs_ep, -ESHUTDOWN, false);
 
-	spin_lock_irqsave(&hsotg->lock, flags);
 
 	ctrl = readl(hsotg->regs + epctrl_reg);
 	ctrl &= ~DxEPCTL_EPEna;
@@ -2784,14 +2769,11 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 	struct s3c_hsotg_ep *hs_ep = our_ep(ep);
 	struct s3c_hsotg *hs = hs_ep->parent;
 	int index = hs_ep->index;
-	unsigned long irqflags;
 	u32 epreg;
 	u32 epctl;
 	u32 xfertype;
 
 	dev_info(hs->dev, "%s(ep %p %s, %d)\n", __func__, ep, ep->name, value);
-
-	spin_lock_irqsave(&hs->lock, irqflags);
 
 	/* write both IN and OUT control registers */
 
@@ -2827,9 +2809,26 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 
 	writel(epctl, hs->regs + epreg);
 
-	spin_unlock_irqrestore(&hs->lock, irqflags);
-
 	return 0;
+}
+
+/**
+ * s3c_hsotg_ep_sethalt_lock - set halt on a given endpoint with lock held
+ * @ep: The endpoint to set halt.
+ * @value: Set or unset the halt.
+ */
+static int s3c_hsotg_ep_sethalt_lock(struct usb_ep *ep, int value)
+{
+	struct s3c_hsotg_ep *hs_ep = our_ep(ep);
+	struct s3c_hsotg *hs = hs_ep->parent;
+	unsigned long flags = 0;
+	int ret = 0;
+
+	spin_lock_irqsave(&hs->lock, flags);
+	ret = s3c_hsotg_ep_sethalt(ep, value);
+	spin_unlock_irqrestore(&hs->lock, flags);
+
+	return ret;
 }
 
 static struct usb_ep_ops s3c_hsotg_ep_ops = {
@@ -2837,9 +2836,9 @@ static struct usb_ep_ops s3c_hsotg_ep_ops = {
 	.disable	= s3c_hsotg_ep_disable,
 	.alloc_request	= s3c_hsotg_ep_alloc_request,
 	.free_request	= s3c_hsotg_ep_free_request,
-	.queue		= s3c_hsotg_ep_queue,
+	.queue		= s3c_hsotg_ep_queue_lock,
 	.dequeue	= s3c_hsotg_ep_dequeue,
-	.set_halt	= s3c_hsotg_ep_sethalt,
+	.set_halt	= s3c_hsotg_ep_sethalt_lock,
 	/* note, don't believe we have any call for the fifo routines */
 };
 
