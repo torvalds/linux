@@ -294,16 +294,8 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	if (level == 0) {
-		if (ret == 1 && path->slots[0] >= btrfs_header_nritems(eb)) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret)
-				goto out;
-			eb = path->nodes[0];
-		}
-
+	if (level == 0)
 		btrfs_item_key_to_cpu(eb, &key, path->slots[0]);
-	}
 
 	ret = add_all_parents(root, path, parents, level, &key,
 				ref->wanted_disk_byte, extent_item_pos);
