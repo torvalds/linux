@@ -35,8 +35,25 @@
 #define _DVB_USB_ANYSEE_H_
 
 #define DVB_USB_LOG_PREFIX "anysee"
-#include "dvb-usb.h"
+#include "dvb_usb.h"
 #include "dvb_ca_en50221.h"
+
+#ifdef CONFIG_DVB_USB_DEBUG
+#define dprintk(var, level, args...) \
+	do { if ((var & level)) printk(args); } while (0)
+#define DVB_USB_DEBUG_STATUS
+#else
+#define dprintk(args...)
+#define debug_dump(b, l, func)
+#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
+#endif
+
+#define debug_dump(b, l, func) {\
+	int loop_; \
+	for (loop_ = 0; loop_ < l; loop_++) \
+		func("%02x ", b[loop_]); \
+	func("\n");\
+}
 
 #define deb_info(args...) dprintk(dvb_usb_anysee_debug, 0x01, args)
 #define deb_xfer(args...) dprintk(dvb_usb_anysee_debug, 0x02, args)
@@ -44,6 +61,13 @@
 #define deb_reg(args...)  dprintk(dvb_usb_anysee_debug, 0x08, args)
 #define deb_i2c(args...)  dprintk(dvb_usb_anysee_debug, 0x10, args)
 #define deb_fw(args...)   dprintk(dvb_usb_anysee_debug, 0x20, args)
+
+#undef err
+#define err(format, arg...)  printk(KERN_ERR     DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+#undef info
+#define info(format, arg...) printk(KERN_INFO    DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+#undef warn
+#define warn(format, arg...) printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
 
 enum cmd {
 	CMD_I2C_READ            = 0x33,
