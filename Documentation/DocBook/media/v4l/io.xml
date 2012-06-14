@@ -488,6 +488,9 @@ DMA buffer from userspace using a file descriptor previously exported for a
 different or the same device (known as the importer role), or both. This
 section describes the DMABUF importer role API in V4L2.</para>
 
+    <para>Refer to <link linked="vidioc-expbuf"> DMABUF exporting </link> for
+details about exporting V4L2 buffers as DMABUF file descriptors.</para>
+
 <para>Input and output devices support the streaming I/O method when the
 <constant>V4L2_CAP_STREAMING</constant> flag in the
 <structfield>capabilities</structfield> field of &v4l2-capability; returned by

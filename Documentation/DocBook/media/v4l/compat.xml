@@ -2590,6 +2590,9 @@ ioctls.</para>
 	  <para>Importing DMABUF file descriptors as a new IO method described
 	  in <xref linkend="dmabuf" />.</para>
         </listitem>
+        <listitem>
+	  <para>Exporting DMABUF files using &VIDIOC-EXPBUF; ioctl.</para>
+        </listitem>
       </itemizedlist>
     </section>
 
