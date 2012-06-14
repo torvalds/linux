@@ -456,6 +456,7 @@ struct wl_priv {
 	bool sched_scan_running;	/* scheduled scan req status */
 	u16 hostapd_chan;            /* remember chan requested by framework for hostapd  */
 	u16 deauth_reason;           /* Place holder to save deauth/disassoc reasons */
+	u16 scan_busy_count;
 };
 
 static inline struct wl_bss_info *next_bss(struct wl_scan_results *list, struct wl_bss_info *bss)
