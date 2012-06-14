@@ -69,6 +69,7 @@ config VIDEOBUF2_DMA_CONTIG
 	tristate
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
+	select DMA_SHARED_BUFFER
 
 config VIDEOBUF2_VMALLOC
 	tristate
