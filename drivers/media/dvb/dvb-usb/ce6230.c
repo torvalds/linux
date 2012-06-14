@@ -1,5 +1,5 @@
 /*
- * DVB USB Linux driver for Intel CE6230 DVB-T USB2.0 receiver
+ * Intel CE6230 DVB USB driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
  *
@@ -20,18 +20,10 @@
  */
 
 #include "ce6230.h"
-#include "zl10353.h"
-#include "mxl5005s.h"
 
-/* debug */
-static int dvb_usb_ce6230_debug;
-module_param_named(debug, dvb_usb_ce6230_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static struct zl10353_config ce6230_zl10353_config;
-
-static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
+static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 {
 	int ret;
 	unsigned int pipe;
@@ -57,8 +49,8 @@ static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 		requesttype = (USB_TYPE_VENDOR | USB_DIR_OUT);
 		break;
 	default:
-		err("unknown command:%02x", req->cmd);
-		ret = -EPERM;
+		pr_debug("%s: unknown command=%02x\n", __func__, req->cmd);
+		ret = -EINVAL;
 		goto error;
 	}
 
@@ -80,13 +72,14 @@ static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	msleep(1); /* avoid I2C errors */
 
 	ret = usb_control_msg(d->udev, pipe, request, requesttype, value, index,
-				buf, req->data_len, CE6230_USB_TIMEOUT);
+			buf, req->data_len, CE6230_USB_TIMEOUT);
 
 	ce6230_debug_dump(request, requesttype, value, index, buf,
-		req->data_len, deb_xfer);
+			req->data_len);
 
 	if (ret < 0)
-		deb_info("%s: usb_control_msg failed:%d\n", __func__, ret);
+		pr_err("%s: usb_control_msg() failed=%d\n", KBUILD_MODNAME,
+				ret);
 	else
 		ret = 0;
 
@@ -100,17 +93,19 @@ error:
 }
 
 /* I2C */
-static int ce6230_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
-			   int num)
+static struct zl10353_config ce6230_zl10353_config;
+
+static int ce6230_i2c_master_xfer(struct i2c_adapter *adap,
+		struct i2c_msg msg[], int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
-	int i = 0;
-	struct req_t req;
-	int ret = 0;
-	memset(&req, 0, sizeof(req));
+	int ret = 0, i = 0;
+	struct usb_req req;
 
 	if (num > 2)
-		return -EINVAL;
+		return -EOPNOTSUPP;
+
+	memset(&req, 0, sizeof(req));
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
@@ -126,8 +121,9 @@ static int ce6230_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				req.data = &msg[i+1].buf[0];
 				ret = ce6230_ctrl_msg(d, &req);
 			} else {
-				err("i2c read not implemented");
-				ret = -EPERM;
+				pr_err("%s: I2C read not implemented\n",
+						KBUILD_MODNAME);
+				ret = -EOPNOTSUPP;
 			}
 			i += 2;
 		} else {
@@ -157,14 +153,14 @@ static int ce6230_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	return ret ? ret : i;
 }
 
-static u32 ce6230_i2c_func(struct i2c_adapter *adapter)
+static u32 ce6230_i2c_functionality(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm ce6230_i2c_algo = {
-	.master_xfer   = ce6230_i2c_xfer,
-	.functionality = ce6230_i2c_func,
+static struct i2c_algorithm ce6230_i2c_algorithm = {
+	.master_xfer   = ce6230_i2c_master_xfer,
+	.functionality = ce6230_i2c_functionality,
 };
 
 /* Callbacks for DVB USB */
@@ -180,11 +176,13 @@ static struct zl10353_config ce6230_zl10353_config = {
 
 static int ce6230_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb_info("%s:\n", __func__);
+	pr_debug("%s:\n", __func__);
+
 	adap->fe[0] = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
 		&adap->dev->i2c_adap);
 	if (adap->fe[0] == NULL)
 		return -ENODEV;
+
 	return 0;
 }
 
@@ -208,7 +206,9 @@ static struct mxl5005s_config ce6230_mxl5003s_config = {
 static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
-	deb_info("%s:\n", __func__);
+
+	pr_debug("%s:\n", __func__);
+
 	ret = dvb_attach(mxl5005s_attach, adap->fe[0], &adap->dev->i2c_adap,
 			&ce6230_mxl5003s_config) == NULL ? -ENODEV : 0;
 	return ret;
@@ -217,13 +217,15 @@ static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 static int ce6230_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	int ret;
-	deb_info("%s: onoff:%d\n", __func__, onoff);
+
+	pr_debug("%s: onoff=%d\n", __func__, onoff);
 
 	/* InterfaceNumber 1 / AlternateSetting 0     idle
 	   InterfaceNumber 1 / AlternateSetting 1     streaming */
 	ret = usb_set_interface(d->udev, 1, onoff);
 	if (ret)
-		err("usb_set_interface failed with error:%d", ret);
+		pr_err("%s: usb_set_interface() failed=%d\n", KBUILD_MODNAME,
+				ret);
 
 	return ret;
 }
@@ -235,7 +237,7 @@ static struct dvb_usb_device_properties ce6230_props = {
 	.adapter_nr = adapter_nr,
 	.bInterfaceNumber = 1,
 
-	.i2c_algo = &ce6230_i2c_algo,
+	.i2c_algo = &ce6230_i2c_algorithm,
 	.power_ctrl = ce6230_power_ctrl,
 	.frontend_attach = ce6230_zl10353_frontend_attach,
 	.tuner_attach = ce6230_mxl5003s_tuner_attach,
@@ -280,5 +282,5 @@ static struct usb_driver ce6230_usb_driver = {
 module_usb_driver(ce6230_usb_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
-MODULE_DESCRIPTION("Driver for Intel CE6230 DVB-T USB2.0");
+MODULE_DESCRIPTION("Intel CE6230 driver");
 MODULE_LICENSE("GPL");

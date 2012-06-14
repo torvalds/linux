@@ -1,5 +1,5 @@
 /*
- * DVB USB Linux driver for Intel CE6230 DVB-T USB2.0 receiver
+ * Intel CE6230 DVB USB driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
  *
@@ -19,51 +19,27 @@
  *
  */
 
-#ifndef _DVB_USB_CE6230_H_
-#define _DVB_USB_CE6230_H_
+#ifndef CE6230_H
+#define CE6230_H
 
-#define DVB_USB_LOG_PREFIX "ce6230"
 #include "dvb_usb.h"
+#include "zl10353.h"
+#include "mxl5005s.h"
 
-#ifdef CONFIG_DVB_USB_DEBUG
-#define dprintk(var, level, args...) \
-	do { if ((var & level)) printk(args); } while (0)
-#define DVB_USB_DEBUG_STATUS
-#else
-#define dprintk(args...)
-#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
-#endif
-
-#undef err
-#define err(format, arg...)  printk(KERN_ERR     DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
-#undef info
-#define info(format, arg...) printk(KERN_INFO    DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
-#undef warn
-#define warn(format, arg...) printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
-
-#define deb_info(args...) dprintk(dvb_usb_ce6230_debug, 0x01, args)
-#define deb_rc(args...)   dprintk(dvb_usb_ce6230_debug, 0x02, args)
-#define deb_xfer(args...) dprintk(dvb_usb_ce6230_debug, 0x04, args)
-#define deb_reg(args...)  dprintk(dvb_usb_ce6230_debug, 0x08, args)
-#define deb_i2c(args...)  dprintk(dvb_usb_ce6230_debug, 0x10, args)
-#define deb_fw(args...)   dprintk(dvb_usb_ce6230_debug, 0x20, args)
-
-#define ce6230_debug_dump(r, t, v, i, b, l, func) { \
-	int loop_; \
-	func("%02x %02x %02x %02x %02x %02x %02x %02x", \
-		t, r, v & 0xff, v >> 8, i & 0xff, i >> 8, l & 0xff, l >> 8); \
+#define ce6230_debug_dump(r, t, v, i, b, l) { \
+	char *direction; \
 	if (t == (USB_TYPE_VENDOR | USB_DIR_OUT)) \
-		func(" >>> "); \
+		direction = ">>>"; \
 	else \
-		func(" <<< "); \
-	for (loop_ = 0; loop_ < l; loop_++) \
-		func("%02x ", b[loop_]); \
-	func("\n");\
+		direction = "<<<"; \
+	pr_debug("%s: %02x %02x %02x %02x %02x %02x %02x %02x %s [%d bytes]\n", \
+			 __func__, t, r, v & 0xff, v >> 8, i & 0xff, i >> 8, \
+			l & 0xff, l >> 8, direction, l); \
 }
 
 #define CE6230_USB_TIMEOUT 1000
 
-struct req_t {
+struct usb_req {
 	u8  cmd;       /* [1] */
 	u16 value;     /* [2|3] */
 	u16 index;     /* [4|5] */
