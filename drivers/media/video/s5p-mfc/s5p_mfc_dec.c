@@ -627,13 +627,13 @@ static int s5p_mfc_dec_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_MFC51_VIDEO_DECODER_H264_DISPLAY_DELAY:
-		ctx->loop_filter_mpeg4 = ctrl->val;
+		ctx->display_delay = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_DECODER_H264_DISPLAY_DELAY_ENABLE:
 		ctx->display_delay_enable = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:
-		ctx->display_delay = ctrl->val;
+		ctx->loop_filter_mpeg4 = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_DECODER_SLICE_INTERFACE:
 		ctx->slice_interface = ctrl->val;
