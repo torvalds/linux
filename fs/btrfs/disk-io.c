@@ -3608,6 +3608,9 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 	cur_trans->commit_done = 1;
 	wake_up(&cur_trans->commit_wait);
 
+	btrfs_destroy_delayed_inodes(root);
+	btrfs_assert_delayed_root_empty(root);
+
 	btrfs_destroy_pending_snapshots(cur_trans);
 
 	btrfs_destroy_marked_extents(root, &cur_trans->dirty_pages,
@@ -3661,6 +3664,9 @@ int btrfs_cleanup_transaction(struct btrfs_root *root)
 		t->commit_done = 1;
 		if (waitqueue_active(&t->commit_wait))
 			wake_up(&t->commit_wait);
+
+		btrfs_destroy_delayed_inodes(root);
+		btrfs_assert_delayed_root_empty(root);
 
 		btrfs_destroy_pending_snapshots(t);
 
