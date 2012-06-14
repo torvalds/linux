@@ -911,8 +911,10 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		const struct iwl_op_mode_ops *ops = op->ops;
 		drv->op_mode = ops->start(drv->trans, drv->cfg, &drv->fw);
 
-		if (!drv->op_mode)
+		if (!drv->op_mode) {
+			mutex_unlock(&iwlwifi_opmode_table_mtx);
 			goto out_unbind;
+		}
 	} else {
 		load_module = true;
 	}
