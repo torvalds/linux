@@ -111,14 +111,12 @@ static int ai_write_chanlist(struct comedi_device *dev,
 static inline void me4000_outb(struct comedi_device *dev, unsigned char value,
 			       unsigned long port)
 {
-	PORT_PDEBUG("--> 0x%02X port 0x%04lX\n", value, port);
 	outb(value, port);
 }
 
 static inline void me4000_outl(struct comedi_device *dev, unsigned long value,
 			       unsigned long port)
 {
-	PORT_PDEBUG("--> 0x%08lX port 0x%04lX\n", value, port);
 	outl(value, port);
 }
 
@@ -127,7 +125,6 @@ static inline unsigned long me4000_inl(struct comedi_device *dev,
 {
 	unsigned long value;
 	value = inl(port);
-	PORT_PDEBUG("<-- 0x%08lX port 0x%04lX\n", value, port);
 	return value;
 }
 
@@ -136,7 +133,6 @@ static inline unsigned char me4000_inb(struct comedi_device *dev,
 {
 	unsigned char value;
 	value = inb(port);
-	PORT_PDEBUG("<-- 0x%08X port 0x%04lX\n", value, port);
 	return value;
 }
 
