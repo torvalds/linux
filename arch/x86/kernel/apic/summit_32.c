@@ -267,7 +267,7 @@ static inline int
 summit_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *dest_id)
 {
 	unsigned int round = 0;
-	int cpu, apicid = 0;
+	unsigned int cpu, apicid = 0;
 
 	/*
 	 * The cpus in the mask must all be on the apic cluster.

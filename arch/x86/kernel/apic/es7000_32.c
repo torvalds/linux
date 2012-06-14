@@ -529,7 +529,7 @@ static inline int
 es7000_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *dest_id)
 {
 	unsigned int round = 0;
-	int cpu, uninitialized_var(apicid);
+	unsigned int cpu, uninitialized_var(apicid);
 
 	/*
 	 * The cpus in the mask must all be on the apic cluster.
