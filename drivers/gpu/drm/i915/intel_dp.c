@@ -368,7 +368,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	int recv_bytes;
 	uint32_t status;
 	uint32_t aux_clock_divider;
-	int try, precharge = 5;
+	int try, precharge;
 
 	intel_dp_check_edp(intel_dp);
 	/* The clock divider is based off the hrawclk,
@@ -387,6 +387,11 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		aux_clock_divider = 63; /* IRL input clock fixed at 125Mhz */
 	else
 		aux_clock_divider = intel_hrawclk(dev) / 2;
+
+	if (IS_GEN6(dev))
+		precharge = 3;
+	else
+		precharge = 5;
 
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
