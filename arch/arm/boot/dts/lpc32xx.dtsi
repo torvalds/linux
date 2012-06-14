@@ -249,6 +249,8 @@
 			key@40050000 {
 				compatible = "nxp,lpc3220-key";
 				reg = <0x40050000 0x1000>;
+				interrupts = <54 0>;
+				status = "disabled";
 			};
 
 		};
