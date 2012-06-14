@@ -59,6 +59,8 @@ struct ion_buffer {
 	void *vaddr;
 	int dmap_cnt;
 	struct sg_table *sg_table;
+	unsigned long *dirty;
+	struct list_head vmas;
 };
 
 /**
