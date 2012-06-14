@@ -126,7 +126,7 @@ int qla4xxx_init_rings(struct scsi_qla_host *ha)
 
 	qla4xxx_init_response_q_entries(ha);
 
-	/* Initialize mabilbox active array */
+	/* Initialize mailbox active array */
 	for (i = 0; i < MAX_MRB; i++)
 		ha->active_mrb_array[i] = NULL;
 
