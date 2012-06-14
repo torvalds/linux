@@ -119,6 +119,7 @@ struct snd_usb_substream {
 	unsigned long unlink_mask;	/* bitmask of unlinked urbs */
 
 	/* data and sync endpoints for this stream */
+	unsigned int ep_num;		/* the endpoint number */
 	struct snd_usb_endpoint *data_endpoint;
 	struct snd_usb_endpoint *sync_endpoint;
 	unsigned long flags;
