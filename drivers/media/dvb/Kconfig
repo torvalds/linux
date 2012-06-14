@@ -39,10 +39,6 @@ comment "Supported SDMC DM1105 Adapters"
 	depends on DVB_CORE && PCI && I2C
 source "drivers/media/dvb/dm1105/Kconfig"
 
-comment "Supported FireWire (IEEE 1394) Adapters"
-	depends on DVB_CORE && FIREWIRE
-source "drivers/media/dvb/firewire/Kconfig"
-
 comment "Supported Earthsoft PT1 Adapters"
 	depends on DVB_CORE && PCI && I2C
 source "drivers/media/dvb/pt1/Kconfig"

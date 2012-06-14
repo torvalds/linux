@@ -164,8 +164,12 @@ source "drivers/media/radio/Kconfig"
 source "drivers/media/dvb-core/Kconfig"
 source "drivers/media/dvb/Kconfig"
 
+comment "Supported FireWire (IEEE 1394) Adapters"
+	depends on DVB_CORE && FIREWIRE
+source "drivers/media/firewire/Kconfig"
+
 comment "Supported DVB Frontends"
-        depends on DVB_CORE
+	depends on DVB_CORE
 source "drivers/media/dvb-frontends/Kconfig"
 
 endif # MEDIA_SUPPORT
