@@ -1595,6 +1595,7 @@ M:	Arend van Spriel <arend@broadcom.com>
 M:	Franky (Zhenhui) Lin <frankyl@broadcom.com>
 M:	Kan Yan	<kanyan@broadcom.com>
 L:	linux-wireless@vger.kernel.org
+L:	brcm80211-dev-list@broadcom.com
 S:	Supported
 F:	drivers/net/wireless/brcm80211/
 
