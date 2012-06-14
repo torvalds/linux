@@ -236,10 +236,6 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 0;
 
-#ifdef DEBUG1
-	printk(KERN_DEBUG "atmio16d_interrupt!\n");
-#endif
-
 	comedi_buf_put(s->async, inw(dev->iobase + AD_FIFO_REG));
 
 	comedi_event(dev, s);
@@ -251,9 +247,7 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 			       struct comedi_cmd *cmd)
 {
 	int err = 0, tmp;
-#ifdef DEBUG1
-	printk(KERN_DEBUG "atmio16d_ai_cmdtest\n");
-#endif
+
 	/* make sure triggers are valid */
 	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
@@ -355,9 +349,7 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	unsigned int timer, base_clock;
 	unsigned int sample_count, tmp, chan, gain;
 	int i;
-#ifdef DEBUG1
-	printk(KERN_DEBUG "atmio16d_ai_cmd\n");
-#endif
+
 	/* This is slowly becoming a working command interface. *
 	 * It is still uber-experimental */
 
@@ -517,9 +509,6 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 	int gain;
 	int status;
 
-#ifdef DEBUG1
-	printk(KERN_DEBUG "atmio16d_ai_insn_read\n");
-#endif
 	chan = CR_CHAN(insn->chanspec);
 	gain = CR_RANGE(insn->chanspec);
 
@@ -538,9 +527,6 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 		for (t = 0; t < ATMIO16D_TIMEOUT; t++) {
 			/* check conversion status */
 			status = inw(dev->iobase + STAT_REG);
-#ifdef DEBUG1
-			printk(KERN_DEBUG "status=%x\n", status);
-#endif
 			if (status & STAT_AD_CONVAVAIL) {
 				/* read the data now */
 				data[i] = inw(dev->iobase + AD_FIFO_REG);
@@ -572,9 +558,6 @@ static int atmio16d_ao_insn_read(struct comedi_device *dev,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
-#ifdef DEBUG1
-	printk(KERN_DEBUG "atmio16d_ao_insn_read\n");
-#endif
 
 	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -588,9 +571,6 @@ static int atmio16d_ao_insn_write(struct comedi_device *dev,
 	int i;
 	int chan;
 	int d;
-#ifdef DEBUG1
-	printk(KERN_DEBUG "atmio16d_ao_insn_write\n");
-#endif
 
 	chan = CR_CHAN(insn->chanspec);
 
