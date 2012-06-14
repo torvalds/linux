@@ -79,4 +79,4 @@ ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends/
 # due to tuner-xc3028
 ccflags-y += -I$(srctree)/drivers/media/common/tuners
-ccflags-y += -I$(srctree)/drivers/media/dvb/ttpci
+ccflags-y += -I$(srctree)/drivers/media/pci/ttpci

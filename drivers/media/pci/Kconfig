@@ -13,38 +13,38 @@ if DVB_CAPTURE_DRIVERS && DVB_CORE
 
 comment "Supported SAA7146 based PCI Adapters"
 	depends on DVB_CORE && PCI && I2C
-source "drivers/media/dvb/ttpci/Kconfig"
+source "drivers/media/pci/ttpci/Kconfig"
 
 comment "Supported FlexCopII (B2C2) Adapters"
 	depends on DVB_CORE && (PCI || USB) && I2C
-source "drivers/media/dvb/b2c2/Kconfig"
+source "drivers/media/pci/b2c2/Kconfig"
 
 comment "Supported BT878 Adapters"
 	depends on DVB_CORE && PCI && I2C
-source "drivers/media/dvb/bt8xx/Kconfig"
+source "drivers/media/pci/bt8xx/Kconfig"
 
 comment "Supported Pluto2 Adapters"
 	depends on DVB_CORE && PCI && I2C
-source "drivers/media/dvb/pluto2/Kconfig"
+source "drivers/media/pci/pluto2/Kconfig"
 
 comment "Supported SDMC DM1105 Adapters"
 	depends on DVB_CORE && PCI && I2C
-source "drivers/media/dvb/dm1105/Kconfig"
+source "drivers/media/pci/dm1105/Kconfig"
 
 comment "Supported Earthsoft PT1 Adapters"
 	depends on DVB_CORE && PCI && I2C
-source "drivers/media/dvb/pt1/Kconfig"
+source "drivers/media/pci/pt1/Kconfig"
 
 comment "Supported Mantis Adapters"
 	depends on DVB_CORE && PCI && I2C
-	source "drivers/media/dvb/mantis/Kconfig"
+	source "drivers/media/pci/mantis/Kconfig"
 
 comment "Supported nGene Adapters"
 	depends on DVB_CORE && PCI && I2C
-	source "drivers/media/dvb/ngene/Kconfig"
+	source "drivers/media/pci/ngene/Kconfig"
 
 comment "Supported ddbridge ('Octopus') Adapters"
 	depends on DVB_CORE && PCI && I2C
-	source "drivers/media/dvb/ddbridge/Kconfig"
+	source "drivers/media/pci/ddbridge/Kconfig"
 
 endif # DVB_CAPTURE_DRIVERS
