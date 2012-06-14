@@ -64,6 +64,17 @@ static void dump_dbg_map(void);
 #define PD_ON	1
 #define PD_OFF	0
 
+struct regulator* dvfs_get_regulator(char *regulator_name)
+{
+	struct vd_node *vd;
+	list_for_each_entry(vd, &rk_dvfs_tree, node) {
+		if (strcmp(regulator_name, vd->regulator_name) == 0) {
+			return vd->regulator;
+		}
+	}
+	return NULL;
+}
+
 int is_support_dvfs(struct clk_node *dvfs_info)
 {
 	return (dvfs_info->vd && dvfs_info->vd->vd_dvfs_target && dvfs_info->enable_dvfs);

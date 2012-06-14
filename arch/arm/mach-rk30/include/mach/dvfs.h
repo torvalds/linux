@@ -15,6 +15,8 @@
 #ifndef _RK30_DVFS_H_
 #define _RK30_DVFS_H_
 
+#include <mach/clock.h>
+
 typedef int (*vd_dvfs_target_callback)(struct clk *clk, unsigned long rate);
 
 typedef int (*dvfs_set_rate_callback)(struct clk *clk, unsigned long rate);
@@ -145,6 +147,8 @@ struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk);
 int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table);
 int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequency_table *table);
 int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table, struct cpufreq_frequency_table *cpu_dvfs_table, struct cpufreq_frequency_table *dep_cpu2core_table);
+struct regulator* dvfs_get_regulator(char *regulator_name);
+
 #else
 static inline int rk30_dvfs_init(void) { return 0; }
 static inline int is_support_dvfs(struct clk_node *dvfs_info) { return 0; }
@@ -156,7 +160,7 @@ static inline struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct cl
 static inline int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table) { return 0; }
 static inline int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequency_table *table) {return 0;}
 static inline int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table, struct cpufreq_frequency_table *cpu_dvfs_table, struct cpufreq_frequency_table *dep_cpu2core_table){ return 0; }
-
+static inline struct regulator* dvfs_get_regulator(char *regulator_name){ return NULL; }
 #endif
 
 #endif
