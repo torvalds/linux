@@ -892,30 +892,32 @@ static struct v4l2_input adv7842_inputs[] = {
 		.name = "Composite",
 		.type = V4L2_INPUT_TYPE_CAMERA,
 		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_IN_CAP_STD,
 	},
 	{
 		.index = 1,
 		.name = "S-Video",
 		.type = V4L2_INPUT_TYPE_CAMERA,
 		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_IN_CAP_STD,
 	},
 	{
 		.index = 2,
 		.name = "Component",
 		.type = V4L2_INPUT_TYPE_CAMERA,
-		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_IN_CAP_CUSTOM_TIMINGS,
 	},
 	{
 		.index = 3,
 		.name = "VGA",
 		.type = V4L2_INPUT_TYPE_CAMERA,
-		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_IN_CAP_CUSTOM_TIMINGS,
 	},
 	{
 		.index = 4,
 		.name = "HDMI",
 		.type = V4L2_INPUT_TYPE_CAMERA,
-		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_IN_CAP_CUSTOM_TIMINGS,
 	},
 };
 
@@ -923,6 +925,8 @@ static struct bcap_route adv7842_routes[] = {
 	{
 		.input = 3,
 		.output = 0,
+		.ppi_control = (PACK_EN | DLEN_8 | EPPI_CTL_FLDSEL
+				| EPPI_CTL_ACTIVE656),
 	},
 	{
 		.input = 4,
@@ -938,7 +942,10 @@ static struct bcap_route adv7842_routes[] = {
 	},
 	{
 		.input = 0,
-		.output = 0,
+		.output = 1,
+		.ppi_control = (EPPI_CTL_SPLTWRD | PACK_EN | DLEN_16
+				| EPPI_CTL_FS1LO_FS2LO | EPPI_CTL_POLC2
+				| EPPI_CTL_SYNC2 | EPPI_CTL_NON656),
 	},
 };
 
@@ -949,6 +956,12 @@ static struct adv7842_output_format adv7842_opf[] = {
 		.op_656_range = 1,
 		.blank_data = 1,
 		.insert_av_codes = 1,
+	},
+	{
+		.op_ch_sel = ADV7842_OP_CH_SEL_RGB,
+		.op_format_sel = ADV7842_OP_FORMAT_SEL_SDR_ITU656_16,
+		.op_656_range = 1,
+		.blank_data = 1,
 	},
 };
 
@@ -967,9 +980,9 @@ static struct adv7842_platform_data adv7842_data = {
 	.i2c_hdmi = 0x35,
 	.i2c_repeater = 0x36,
 	.i2c_edid = 0x37,
-	.i2c_infoframe = 0x38,
-	.i2c_cec = 0x39,
-	.i2c_avlink = 0x3a,
+	.i2c_infoframe = 0x39,
+	.i2c_cec = 0x3a,
+	.i2c_avlink = 0x3b,
 	.i2c_ex = 0x26,
 };
 
