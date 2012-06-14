@@ -279,7 +279,7 @@ static void ixgbevf_receive_skb(struct ixgbevf_q_vector *q_vector,
 	bool is_vlan = (status & IXGBE_RXD_STAT_VP);
 	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
-	if (is_vlan && test_bit(tag, adapter->active_vlans))
+	if (is_vlan && test_bit(tag & VLAN_VID_MASK, adapter->active_vlans))
 		__vlan_hwaccel_put_tag(skb, tag);
 
 	napi_gro_receive(&q_vector->napi, skb);
