@@ -101,7 +101,10 @@ static void __init set_vsmp_pv_ops(void)
 #ifdef CONFIG_SMP
 	if (cap & ctl & BIT(8)) {
 		ctl &= ~BIT(8);
+#ifdef CONFIG_PROC_FS
+		/* Don't let users change irq affinity via procfs */
 		no_irq_affinity = 1;
+#endif
 	}
 #endif
 
