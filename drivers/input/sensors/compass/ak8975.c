@@ -62,20 +62,17 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	int result = 0;
-	int status = 0;
 		
-	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
+	//sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
 	
 	//register setting according to chip datasheet		
 	if(enable)
 	{	
-		status = AK8975_MODE_SNG_MEASURE;
-		sensor->ops->ctrl_data |= status;	
+		sensor->ops->ctrl_data = AK8975_MODE_SNG_MEASURE;	
 	}
 	else
 	{
-		status = ~AK8975_MODE_SNG_MEASURE;
-		sensor->ops->ctrl_data &= status;
+		sensor->ops->ctrl_data = AK8975_MODE_POWERDOWN;
 	}
 
 	DBG("%s:reg=0x%x,reg_ctrl=0x%x,enable=%d\n",__func__,sensor->ops->ctrl_reg, sensor->ops->ctrl_data, enable);
@@ -103,7 +100,7 @@ static int sensor_init(struct i2c_client *client)
 	}
 	
 	sensor->status_cur = SENSOR_OFF;
-	
+#if 0	
 	sensor->ops->ctrl_data = 0;
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
@@ -111,7 +108,7 @@ static int sensor_init(struct i2c_client *client)
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-
+#endif
 	DBG("%s:status_cur=%d\n",__func__, sensor->status_cur);
 	return result;
 }
@@ -206,6 +203,14 @@ static int sensor_report_value(struct i2c_client *client)
 	}
 
 	
+	//trigger next measurement 
+	ret = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
+	if(ret)
+	{
+		printk(KERN_ERR "%s:fail to set ctrl_data:0x%x\n",__func__,sensor->ops->ctrl_data);
+		return ret;
+	}
+
 	return ret;
 }
 
@@ -572,12 +577,17 @@ static long compass_dev_ioctl(struct file *file,
 		case ECS_IOCTL_SET_MODE:		
 			DBG("%s:ECS_IOCTL_SET_MODE start\n",__func__);		
 			mutex_lock(&sensor->operation_mutex);
-			ret = compass_akm_set_mode(client, mode);
-			if (ret < 0) {
-				printk("%s:fait to set mode\n",__func__);		
-				mutex_unlock(&sensor->operation_mutex);
-				return ret;
-			}		
+			if(sensor->ops->ctrl_data != mode)
+			{
+				ret = compass_akm_set_mode(client, mode);
+				if (ret < 0) {
+					printk("%s:fait to set mode\n",__func__);		
+					mutex_unlock(&sensor->operation_mutex);
+					return ret;
+				}
+				
+				sensor->ops->ctrl_data = mode;
+			}
 			mutex_unlock(&sensor->operation_mutex);
 			break;
 		case ECS_IOCTL_GETDATA:		
