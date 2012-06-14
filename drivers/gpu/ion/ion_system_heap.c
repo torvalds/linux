@@ -87,13 +87,20 @@ void *ion_system_heap_map_kernel(struct ion_heap *heap,
 	struct scatterlist *sg;
 	int i;
 	void *vaddr;
+	pgprot_t pgprot;
 	struct sg_table *table = buffer->priv_virt;
 	struct page **pages = kmalloc(sizeof(struct page *) * table->nents,
 				      GFP_KERNEL);
 
 	for_each_sg(table->sgl, sg, table->nents, i)
 		pages[i] = sg_page(sg);
-	vaddr = vmap(pages, table->nents, VM_MAP, PAGE_KERNEL);
+
+	if (buffer->flags & ION_FLAG_CACHED)
+		pgprot = PAGE_KERNEL;
+	else
+		pgprot = pgprot_writecombine(PAGE_KERNEL);
+
+	vaddr = vmap(pages, table->nents, VM_MAP, pgprot);
 	kfree(pages);
 
 	return vaddr;
@@ -179,7 +186,7 @@ static int ion_system_contig_heap_phys(struct ion_heap *heap,
 }
 
 struct sg_table *ion_system_contig_heap_map_dma(struct ion_heap *heap,
-						   struct ion_buffer *buffer)
+						struct ion_buffer *buffer)
 {
 	struct sg_table *table;
 	int ret;
@@ -195,6 +202,13 @@ struct sg_table *ion_system_contig_heap_map_dma(struct ion_heap *heap,
 	sg_set_page(table->sgl, virt_to_page(buffer->priv_virt), buffer->size,
 		    0);
 	return table;
+}
+
+void ion_system_contig_heap_unmap_dma(struct ion_heap *heap,
+				      struct ion_buffer *buffer)
+{
+	sg_free_table(buffer->sg_table);
+	kfree(buffer->sg_table);
 }
 
 int ion_system_contig_heap_map_user(struct ion_heap *heap,
@@ -213,7 +227,7 @@ static struct ion_heap_ops kmalloc_ops = {
 	.free = ion_system_contig_heap_free,
 	.phys = ion_system_contig_heap_phys,
 	.map_dma = ion_system_contig_heap_map_dma,
-	.unmap_dma = ion_system_heap_unmap_dma,
+	.unmap_dma = ion_system_contig_heap_unmap_dma,
 	.map_kernel = ion_system_heap_map_kernel,
 	.unmap_kernel = ion_system_heap_unmap_kernel,
 	.map_user = ion_system_contig_heap_map_user,
