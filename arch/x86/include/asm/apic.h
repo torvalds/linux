@@ -331,8 +331,6 @@ struct apic {
 	unsigned long (*set_apic_id)(unsigned int id);
 	unsigned long apic_id_mask;
 
-	int (*cpu_mask_to_apicid)(const struct cpumask *cpumask,
-				  unsigned int *apicid);
 	int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
 				      const struct cpumask *andmask,
 				      unsigned int *apicid);
@@ -594,9 +592,15 @@ static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 #endif
 
 static inline int
-__flat_cpu_mask_to_apicid(unsigned long cpu_mask, unsigned int *apicid)
+flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+			    const struct cpumask *andmask,
+			    unsigned int *apicid)
 {
-	cpu_mask = cpu_mask & APIC_ALL_CPUS & cpumask_bits(cpu_online_mask)[0];
+	unsigned long cpu_mask = cpumask_bits(cpumask)[0] &
+				 cpumask_bits(andmask)[0] &
+				 cpumask_bits(cpu_online_mask)[0] &
+				 APIC_ALL_CPUS;
+
 	if (likely(cpu_mask)) {
 		*apicid = (unsigned int)cpu_mask;
 		return 0;
@@ -604,27 +608,6 @@ __flat_cpu_mask_to_apicid(unsigned long cpu_mask, unsigned int *apicid)
 		return -EINVAL;
 	}
 }
-
-static inline int
-flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
-			unsigned int *apicid)
-{
-	return __flat_cpu_mask_to_apicid(cpumask_bits(cpumask)[0], apicid);
-}
-
-static inline int
-flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-			    const struct cpumask *andmask,
-			    unsigned int *apicid)
-{
-	unsigned long mask1 = cpumask_bits(cpumask)[0];
-	unsigned long mask2 = cpumask_bits(andmask)[0];
-	return __flat_cpu_mask_to_apicid(mask1 & mask2, apicid);
-}
-
-extern int
-default_cpu_mask_to_apicid(const struct cpumask *cpumask,
-			   unsigned int *apicid);
 
 extern int
 default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,

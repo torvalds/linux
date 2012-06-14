@@ -234,7 +234,6 @@ static struct apic apic_numachip __refconst = {
 	.set_apic_id			= set_apic_id,
 	.apic_id_mask			= 0xffU << 24,
 
-	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= numachip_send_IPI_mask,

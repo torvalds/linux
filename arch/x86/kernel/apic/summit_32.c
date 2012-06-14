@@ -263,7 +263,7 @@ static int summit_check_phys_apicid_present(int physical_apicid)
 	return 1;
 }
 
-static int
+static inline int
 summit_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *dest_id)
 {
 	unsigned int round = 0;
@@ -516,7 +516,6 @@ static struct apic apic_summit = {
 	.set_apic_id			= NULL,
 	.apic_id_mask			= 0xFF << 24,
 
-	.cpu_mask_to_apicid		= summit_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= summit_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= summit_send_IPI_mask,

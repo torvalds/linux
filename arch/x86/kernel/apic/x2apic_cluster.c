@@ -97,22 +97,6 @@ static void x2apic_send_IPI_all(int vector)
 }
 
 static int
-x2apic_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *apicid)
-{
-	int cpu = cpumask_first_and(cpumask, cpu_online_mask);
-	int i;
-
-	if (cpu >= nr_cpu_ids)
-		return -EINVAL;
-
-	*apicid = 0;
-	for_each_cpu_and(i, cpumask, per_cpu(cpus_in_cluster, cpu))
-		*apicid |= per_cpu(x86_cpu_to_logical_apicid, i);
-
-	return 0;
-}
-
-static int
 x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 			      const struct cpumask *andmask,
 			      unsigned int *apicid)
@@ -270,7 +254,6 @@ static struct apic apic_x2apic_cluster = {
 	.set_apic_id			= x2apic_set_apic_id,
 	.apic_id_mask			= 0xFFFFFFFFu,
 
-	.cpu_mask_to_apicid		= x2apic_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= x2apic_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= x2apic_send_IPI_mask,

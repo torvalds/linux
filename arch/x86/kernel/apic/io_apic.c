@@ -1492,7 +1492,8 @@ static void __init setup_timer_IRQ0_pin(unsigned int ioapic_idx,
 	 * We use logical delivery to get the timer IRQ
 	 * to the first CPU.
 	 */
-	if (unlikely(apic->cpu_mask_to_apicid(apic->target_cpus(), &dest)))
+	if (unlikely(apic->cpu_mask_to_apicid_and(apic->target_cpus(),
+						  apic->target_cpus(), &dest)))
 		dest = BAD_APICID;
 
 	entry.dest_mode = apic->irq_dest_mode;

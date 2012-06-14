@@ -144,7 +144,7 @@ arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 	if (err != 0)
 		return err;
 
-	err = apic->cpu_mask_to_apicid(eligible_cpu, &dest);
+	err = apic->cpu_mask_to_apicid_and(eligible_cpu, eligible_cpu, &dest);
 	if (err != 0)
 		return err;
 

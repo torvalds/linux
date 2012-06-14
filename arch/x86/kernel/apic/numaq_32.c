@@ -407,13 +407,6 @@ static inline int numaq_check_phys_apicid_present(int phys_apicid)
  * physical broadcast to stop people from breaking us
  */
 static int
-numaq_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *apicid)
-{
-	*apicid = 0x0F;
-	return 0;
-}
-
-static int
 numaq_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 			     const struct cpumask *andmask,
 			     unsigned int *apicid)
@@ -499,7 +492,6 @@ static struct apic __refdata apic_numaq = {
 	.set_apic_id			= NULL,
 	.apic_id_mask			= 0x0F << 24,
 
-	.cpu_mask_to_apicid		= numaq_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= numaq_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= numaq_send_IPI_mask,

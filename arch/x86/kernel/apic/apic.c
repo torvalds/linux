@@ -2123,23 +2123,6 @@ void default_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static inline int __default_cpu_to_apicid(int cpu, unsigned int *apicid)
-{
-	if (likely((unsigned int)cpu < nr_cpu_ids)) {
-		*apicid = per_cpu(x86_cpu_to_apicid, cpu);
-		return 0;
-	} else {
-		return -EINVAL;
-	}
-}
-
-int default_cpu_mask_to_apicid(const struct cpumask *cpumask,
-			       unsigned int *apicid)
-{
-	int cpu = cpumask_first_and(cpumask, cpu_online_mask);
-	return __default_cpu_to_apicid(cpu, apicid);
-}
-
 int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 				   const struct cpumask *andmask,
 				   unsigned int *apicid)
@@ -2151,7 +2134,12 @@ int default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 			break;
 	}
 
-	return __default_cpu_to_apicid(cpu, apicid);
+	if (likely((unsigned int)cpu < nr_cpu_ids)) {
+		*apicid = per_cpu(x86_cpu_to_apicid, cpu);
+		return 0;
+	} else {
+		return -EINVAL;
+	}
 }
 
 /*
