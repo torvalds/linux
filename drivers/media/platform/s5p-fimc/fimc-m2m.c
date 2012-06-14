@@ -439,6 +439,15 @@ static int fimc_m2m_dqbuf(struct file *file, void *fh,
 	return v4l2_m2m_dqbuf(file, ctx->m2m_ctx, buf);
 }
 
+static int fimc_m2m_expbuf(struct file *file, void *fh,
+			    struct v4l2_exportbuffer *eb)
+{
+	struct fimc_ctx *ctx = fh_to_ctx(fh);
+
+	return v4l2_m2m_expbuf(file, ctx->m2m_ctx, eb);
+}
+
+
 static int fimc_m2m_streamon(struct file *file, void *fh,
 			     enum v4l2_buf_type type)
 {
@@ -607,6 +616,7 @@ static const struct v4l2_ioctl_ops fimc_m2m_ioctl_ops = {
 	.vidioc_querybuf		= fimc_m2m_querybuf,
 	.vidioc_qbuf			= fimc_m2m_qbuf,
 	.vidioc_dqbuf			= fimc_m2m_dqbuf,
+	.vidioc_expbuf			= fimc_m2m_expbuf,
 	.vidioc_streamon		= fimc_m2m_streamon,
 	.vidioc_streamoff		= fimc_m2m_streamoff,
 	.vidioc_g_crop			= fimc_m2m_g_crop,
