@@ -94,6 +94,14 @@
 		};
 
 		apb {
+			uart5: serial@40090000 {
+				status = "okay";
+			};
+
+			uart3: serial@40080000 {
+				status = "okay";
+			};
+
 			i2c1: i2c@400A0000 {
 				clock-frequency = <100000>;
 

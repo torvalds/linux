@@ -126,24 +126,42 @@
 				reg = <0x2009C000 0x1000>;
 			};
 
+			/* UART5 first since it is the default console, ttyS0 */
+			uart5: serial@40090000 {
+				/* actually, ns16550a w/ 64 byte fifos! */
+				compatible = "nxp,lpc3220-uart";
+				reg = <0x40090000 0x1000>;
+				interrupts = <9 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
 			uart3: serial@40080000 {
-				compatible = "nxp,serial";
+				compatible = "nxp,lpc3220-uart";
 				reg = <0x40080000 0x1000>;
+				interrupts = <7 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
 			};
 
 			uart4: serial@40088000 {
-				compatible = "nxp,serial";
+				compatible = "nxp,lpc3220-uart";
 				reg = <0x40088000 0x1000>;
-			};
-
-			uart5: serial@40090000 {
-				compatible = "nxp,serial";
-				reg = <0x40090000 0x1000>;
+				interrupts = <8 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
 			};
 
 			uart6: serial@40098000 {
-				compatible = "nxp,serial";
+				compatible = "nxp,lpc3220-uart";
 				reg = <0x40098000 0x1000>;
+				interrupts = <10 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
 			};
 
 			i2c1: i2c@400A0000 {
