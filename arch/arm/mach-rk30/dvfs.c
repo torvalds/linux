@@ -75,6 +75,28 @@ struct regulator* dvfs_get_regulator(char *regulator_name)
 	return NULL;
 }
 
+int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate)
+{
+	struct clk_node* dvfs_clk;
+	dvfs_clk = clk->dvfs_info;
+
+	dvfs_clk->freq_limit_en = 1;
+	dvfs_clk->min_rate = min_rate;
+	dvfs_clk->max_rate = max_rate;
+	
+	return 0;
+}
+
+int dvfs_clk_disable_limit(struct clk *clk)
+{
+	struct clk_node* dvfs_clk;
+	dvfs_clk = clk->dvfs_info;
+	
+	dvfs_clk->freq_limit_en = 0;
+	
+	return 0;
+}
+
 int is_support_dvfs(struct clk_node *dvfs_info)
 {
 	return (dvfs_info->vd && dvfs_info->vd->vd_dvfs_target && dvfs_info->enable_dvfs);
@@ -680,10 +702,18 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		return -1;
 	}
 	
+	/* Check limit rate */
+	if (dvfs_clk->freq_limit_en) {
+		if (rate_hz < dvfs_clk->min_rate) {
+			rate_hz = dvfs_clk->min_rate;
+		} else if (rate_hz > dvfs_clk->max_rate) {
+			rate_hz = dvfs_clk->max_rate;
+		}
+	}
+	
 	rate_new = rate_hz;
 	rate_old = clk_get_rate(clk);
-	if(!is_suport_round_rate(clk))
-	{
+	if(!is_suport_round_rate(clk)) {
 		rate_new=clk_round_rate_nolock(clk, rate_hz);
 	}
 	if(rate_new==rate_old)
@@ -818,6 +848,15 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 		return -1;
 	}
 
+	/* Check limit rate */
+	if (dvfs_clk->freq_limit_en) {
+		if (rate_hz < dvfs_clk->min_rate) {
+			rate_hz = dvfs_clk->min_rate;
+		} else if (rate_hz > dvfs_clk->max_rate) {
+			rate_hz = dvfs_clk->max_rate;
+		}
+	}
+		
 	/* need round rate */
 	rate_new = clk_round_rate_nolock(clk, rate_hz);
 	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu)\n", dvfs_clk->name, rate_hz, rate_new);

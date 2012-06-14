@@ -119,6 +119,9 @@ struct clk_node {
 	int			set_freq;	//KHZ
 	int			set_volt;	//MV
 	int			enable_dvfs;
+	int			freq_limit_en;	//sign if use limit frequency
+	unsigned int		min_rate;	//limit min frequency
+	unsigned int		max_rate;	//limit max frequency
 	struct clk 		*clk;
 	struct pds_list		*pds;
 	struct vd_node		*vd;
@@ -148,6 +151,8 @@ int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *ta
 int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequency_table *table);
 int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table, struct cpufreq_frequency_table *cpu_dvfs_table, struct cpufreq_frequency_table *dep_cpu2core_table);
 struct regulator* dvfs_get_regulator(char *regulator_name);
+int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate);
+int dvfs_clk_disable_limit(struct clk *clk);
 
 #else
 static inline int rk30_dvfs_init(void) { return 0; }
@@ -161,6 +166,8 @@ static inline int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequ
 static inline int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequency_table *table) {return 0;}
 static inline int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table, struct cpufreq_frequency_table *cpu_dvfs_table, struct cpufreq_frequency_table *dep_cpu2core_table){ return 0; }
 static inline struct regulator* dvfs_get_regulator(char *regulator_name){ return NULL; }
+static inline int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate){ return 0; }
+static inline int dvfs_clk_disable_limit(struct clk *clk){ return 0; };
 #endif
 
 #endif
