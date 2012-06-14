@@ -41,37 +41,6 @@ asmlinkage void do_##name(unsigned long error_code, struct pt_regs *regs) \
 	do_unhandled_exception(trapnr, signr, str, __stringify(name), error_code, regs, current); \
 }
 
-static DEFINE_SPINLOCK(die_lock);
-
-void die(const char * str, struct pt_regs * regs, long err)
-{
-	console_verbose();
-	spin_lock_irq(&die_lock);
-	printk("%s: %lx\n", str, (err & 0xffffff));
-	show_regs(regs);
-	spin_unlock_irq(&die_lock);
-	do_exit(SIGSEGV);
-}
-
-static inline void die_if_kernel(const char * str, struct pt_regs * regs, long err)
-{
-	if (!user_mode(regs))
-		die(str, regs, err);
-}
-
-static void die_if_no_fixup(const char * str, struct pt_regs * regs, long err)
-{
-	if (!user_mode(regs)) {
-		const struct exception_table_entry *fixup;
-		fixup = search_exception_tables(regs->pc);
-		if (fixup) {
-			regs->pc = fixup->fixup;
-			return;
-		}
-		die(str, regs, err);
-	}
-}
-
 DO_ERROR(13, SIGILL,  "illegal slot instruction", illegal_slot_inst, current)
 DO_ERROR(87, SIGSEGV, "address error (exec)", address_error_exec, current)
 
