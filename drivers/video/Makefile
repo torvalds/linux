@@ -30,14 +30,14 @@ obj-$(CONFIG_FB_DDC)           += fb_ddc.o
 obj-$(CONFIG_FB_DEFERRED_IO)   += fb_defio.o
 obj-$(CONFIG_FB_WMT_GE_ROPS)   += wmt_ge_rops.o
 
-obj-$(CONFIG_LYCHEE_FB_SUN3I)     += sun3i/disp/
-obj-$(CONFIG_LYCHEE_HDMI_SUN3I)   += sun3i/hdmi/
-obj-$(CONFIG_LYCHEE_FB_SUN4I)     += sun4i/disp/
-obj-$(CONFIG_LYCHEE_LCD_SUN4I)    += sun4i/lcd/
-obj-$(CONFIG_LYCHEE_HDMI_SUN4I)   += sun4i/hdmi/
-obj-$(CONFIG_LYCHEE_FB_SUN5I)     += sun5i/disp/
-obj-$(CONFIG_LYCHEE_LCD_SUN5I)    += sun5i/lcd/
-obj-$(CONFIG_LYCHEE_HDMI_SUN5I)   += sun5i/hdmi/
+obj-$(CONFIG_SUN3I_FB)     += sun3i/disp/
+obj-$(CONFIG_SUN3I_HDMI)   += sun3i/hdmi/
+obj-$(CONFIG_SUN4I_FB)     += sun4i/disp/
+obj-$(CONFIG_SUN4I_LCD)    += sun4i/lcd/
+obj-$(CONFIG_SUN4I_HDMI)   += sun4i/hdmi/
+obj-$(CONFIG_SUN5I_FB)     += sun5i/disp/
+obj-$(CONFIG_SUN5I_LCD)    += sun5i/lcd/
+obj-$(CONFIG_SUN5I_HDMI)   += sun5i/hdmi/
 
 # Hardware specific drivers go first
 obj-$(CONFIG_FB_AMIGA)            += amifb.o c2p_planar.o

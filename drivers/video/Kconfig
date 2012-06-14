@@ -270,49 +270,49 @@ config FB_GRVGA
 	---help---
 	This enables support for the SVGACTRL framebuffer in the GRLIB IP library from Aeroflex Gaisler.
 
-config LYCHEE_FB_SUN3I
+config SUN3I_FB
 	tristate "FB Controller Driver Support(sun3i)"
 	depends on FB && ARCH_SUN3I
 	---help---
 	default m
 
-config LYCHEE_HDMI_SUN3I
+config SUN3I_HDMI
 	tristate "HDMI Driver Support(sun3i)"
 	depends on ARCH_SUN3I
 	---help---
 	default m
 
-config LYCHEE_FB_SUN4I
+config SUN4I_FB
         tristate "DISP Driver Support(sun4i)"
         depends on FB && ARCH_SUN4I
         ---help---
         default m
 
-config LYCHEE_LCD_SUN4I
+config SUN4I_LCD
         tristate "LCD Driver Support(sun4i)"
         depends on ARCH_SUN4I
         ---help---
         default m
 
-config LYCHEE_HDMI_SUN4I
+config SUN4I_HDMI
         tristate "HDMI Driver Support(sun4i)"
         depends on ARCH_SUN4I
         ---help---
         default m
 
-config LYCHEE_FB_SUN5I
+config SUN5I_FB
         tristate "DISP Driver Support(sun5i)"
         depends on FB && ARCH_SUN5I
         ---help---
         default m
 
-config LYCHEE_LCD_SUN5I
+config SUN5I_LCD
         tristate "LCD Driver Support(sun5i)"
         depends on ARCH_SUN5I
         ---help---
         default m
 
-config LYCHEE_HDMI_SUN5I
+config SUN5I_HDMI
         tristate "HDMI Driver Support(sun5i)"
         depends on ARCH_SUN5I
         ---help---

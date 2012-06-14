@@ -1,4 +1,4 @@
-obj-$(CONFIG_LYCHEE_FB_SUN5I) += disp.o
+obj-$(CONFIG_SUN5I_FB) += disp.o
 
 disp-objs :=  dev_disp.o dev_fb.o\
 							OSAL/OSAL_Cache.o OSAL/OSAL_Clock.o OSAL/OSAL_Dma.o OSAL/OSAL_Int.o OSAL/OSAL_IrqLock.o\

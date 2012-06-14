@@ -934,8 +934,8 @@ CONFIG_FB_CFB_IMAGEBLIT=y
 #
 # Frame buffer hardware drivers
 #
-# CONFIG_LYCHEE_FB_SUN3I is not set
-# CONFIG_LYCHEE_HDMI_SUN3I is not set
+# CONFIG_SUN3I_FB is not set
+# CONFIG_SUN3I_HDMI is not set
 CONFIG_FB_ARMCLCD=y
 # CONFIG_FB_S1D13XXX is not set
 # CONFIG_FB_VIRTUAL is not set
