@@ -191,6 +191,7 @@ extern bool initcall_debug;
  * initializes variables that couldn't be statically initialized.
  *
  * This only exists for built-in code, not for modules.
+ * Keep main.c:initcall_level_names[] in sync.
  */
 #define pure_initcall(fn)		__define_initcall("0",fn,0)
 
@@ -280,7 +281,7 @@ void __init parse_early_options(char *cmdline);
 
 #else /* MODULE */
 
-/* Don't use these in modules, but some people do... */
+/* Don't use these in loadable modules, but some people do... */
 #define early_initcall(fn)		module_init(fn)
 #define core_initcall(fn)		module_init(fn)
 #define postcore_initcall(fn)		module_init(fn)

@@ -724,6 +724,7 @@ static initcall_t *initcall_levels[] __initdata = {
 	__initcall_end,
 };
 
+/* Keep these in sync with initcalls in include/linux/init.h */
 static char *initcall_level_names[] __initdata = {
 	"early",
 	"core",
