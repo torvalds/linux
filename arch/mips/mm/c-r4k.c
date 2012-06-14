@@ -1348,10 +1348,10 @@ static int __init cca_setup(char *str)
 {
 	get_option(&str, &cca);
 
-	return 1;
+	return 0;
 }
 
-__setup("cca=", cca_setup);
+early_param("cca", cca_setup);
 
 static void __cpuinit coherency_setup(void)
 {
@@ -1401,10 +1401,10 @@ static int __init setcoherentio(char *str)
 {
 	coherentio = 1;
 
-	return 1;
+	return 0;
 }
 
-__setup("coherentio", setcoherentio);
+early_param("coherentio", setcoherentio);
 #endif
 
 static void __cpuinit r4k_cache_error_setup(void)
