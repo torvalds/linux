@@ -10,4 +10,5 @@ obj-y        :=	ttpci/		\
 		pt1/		\
 		mantis/		\
 		ngene/		\
-		ddbridge/
+		ddbridge/	\
+		b2c2/

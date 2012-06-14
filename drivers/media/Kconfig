@@ -139,7 +139,6 @@ config DVB_NET
 	  unsure say Y.
 
 comment "Media drivers"
-source "drivers/media/common/Kconfig"
 source "drivers/media/rc/Kconfig"
 
 #
@@ -172,5 +171,8 @@ source "drivers/media/firewire/Kconfig"
 comment "Supported DVB Frontends"
 	depends on DVB_CORE
 source "drivers/media/dvb-frontends/Kconfig"
+
+# Common drivers
+source "drivers/media/common/Kconfig"
 
 endif # MEDIA_SUPPORT

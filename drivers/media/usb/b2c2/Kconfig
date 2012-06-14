@@ -1,0 +1,6 @@
+config DVB_B2C2_FLEXCOP_USB
+	tristate "Technisat/B2C2 Air/Sky/Cable2PC USB"
+	help
+	  Support for the Air/Sky/Cable2PC USB1.1 box (DVB/ATSC) by Technisat/B2C2,
+
+	  Say Y if you own such a device and want to use it.
