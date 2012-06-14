@@ -13,6 +13,7 @@
 #include <linux/proc_fs.h>
 #include <linux/file.h>
 #include <linux/export.h>
+#include <linux/user_namespace.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -145,7 +146,7 @@ static void ops_free_list(const struct pernet_operations *ops,
 /*
  * setup_net runs the initializers for the network namespace object.
  */
-static __net_init int setup_net(struct net *net)
+static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 {
 	/* Must be called with net_mutex held */
 	const struct pernet_operations *ops, *saved_ops;
@@ -155,6 +156,7 @@ static __net_init int setup_net(struct net *net)
 	atomic_set(&net->count, 1);
 	atomic_set(&net->passive, 1);
 	net->dev_base_seq = 1;
+	net->user_ns = user_ns;
 
 #ifdef NETNS_REFCNT_DEBUG
 	atomic_set(&net->use_count, 0);
@@ -232,7 +234,8 @@ void net_drop_ns(void *p)
 		net_free(ns);
 }
 
-struct net *copy_net_ns(unsigned long flags, struct net *old_net)
+struct net *copy_net_ns(unsigned long flags,
+			struct user_namespace *user_ns, struct net *old_net)
 {
 	struct net *net;
 	int rv;
@@ -243,8 +246,11 @@ struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 	net = net_alloc();
 	if (!net)
 		return ERR_PTR(-ENOMEM);
+
+	get_user_ns(user_ns);
+
 	mutex_lock(&net_mutex);
-	rv = setup_net(net);
+	rv = setup_net(net, user_ns);
 	if (rv == 0) {
 		rtnl_lock();
 		list_add_tail_rcu(&net->list, &net_namespace_list);
@@ -252,6 +258,7 @@ struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 	}
 	mutex_unlock(&net_mutex);
 	if (rv < 0) {
+		put_user_ns(user_ns);
 		net_drop_ns(net);
 		return ERR_PTR(rv);
 	}
@@ -308,6 +315,7 @@ static void cleanup_net(struct work_struct *work)
 	/* Finally it is safe to free my network namespace structure */
 	list_for_each_entry_safe(net, tmp, &net_exit_list, exit_list) {
 		list_del_init(&net->exit_list);
+		put_user_ns(net->user_ns);
 		net_drop_ns(net);
 	}
 }
@@ -395,7 +403,7 @@ static int __init net_ns_init(void)
 	rcu_assign_pointer(init_net.gen, ng);
 
 	mutex_lock(&net_mutex);
-	if (setup_net(&init_net))
+	if (setup_net(&init_net, &init_user_ns))
 		panic("Could not setup the initial network namespace");
 
 	rtnl_lock();
