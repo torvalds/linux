@@ -1298,8 +1298,10 @@ static void cma_set_compare_data(enum rdma_port_space ps, struct sockaddr *addr,
 		} else {
 			cma_set_ip_ver(cma_data, 4);
 			cma_set_ip_ver(cma_mask, 0xF);
-			cma_data->dst_addr.ip4.addr = ip4_addr;
-			cma_mask->dst_addr.ip4.addr = htonl(~0);
+			if (!cma_any_addr(addr)) {
+				cma_data->dst_addr.ip4.addr = ip4_addr;
+				cma_mask->dst_addr.ip4.addr = htonl(~0);
+			}
 		}
 		break;
 	case AF_INET6:
@@ -1313,9 +1315,11 @@ static void cma_set_compare_data(enum rdma_port_space ps, struct sockaddr *addr,
 		} else {
 			cma_set_ip_ver(cma_data, 6);
 			cma_set_ip_ver(cma_mask, 0xF);
-			cma_data->dst_addr.ip6 = ip6_addr;
-			memset(&cma_mask->dst_addr.ip6, 0xFF,
-			       sizeof cma_mask->dst_addr.ip6);
+			if (!cma_any_addr(addr)) {
+				cma_data->dst_addr.ip6 = ip6_addr;
+				memset(&cma_mask->dst_addr.ip6, 0xFF,
+				       sizeof cma_mask->dst_addr.ip6);
+			}
 		}
 		break;
 	default:
@@ -1500,7 +1504,7 @@ static int cma_ib_listen(struct rdma_id_private *id_priv)
 
 	addr = (struct sockaddr *) &id_priv->id.route.addr.src_addr;
 	svc_id = cma_get_service_id(id_priv->id.ps, addr);
-	if (cma_any_addr(addr))
+	if (cma_any_addr(addr) && !id_priv->afonly)
 		ret = ib_cm_listen(id_priv->cm_id.ib, svc_id, 0, NULL);
 	else {
 		cma_set_compare_data(id_priv->id.ps, addr, &compare_data);
