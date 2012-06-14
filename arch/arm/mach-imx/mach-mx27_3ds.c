@@ -40,7 +40,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
 #include <mach/ulpi.h>
-#include <mach/irqs.h>
 #include <mach/3ds_debugboard.h>
 
 #include "devices-imx27.h"

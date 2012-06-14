@@ -46,7 +46,6 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
-#include <mach/irqs.h>
 #include <mach/3ds_debugboard.h>
 #include <video/platform_lcd.h>
 

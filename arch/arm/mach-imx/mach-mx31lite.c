@@ -43,7 +43,6 @@
 #include <mach/common.h>
 #include <mach/board-mx31lite.h>
 #include <mach/iomux-mx3.h>
-#include <mach/irqs.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"

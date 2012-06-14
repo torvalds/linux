@@ -36,7 +36,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
 #include <asm/mach/time.h>
-#include <mach/irqs.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"
