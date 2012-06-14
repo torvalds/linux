@@ -396,24 +396,6 @@ void handle_sec_fault(unsigned int irq, struct irq_desc *desc)
 	raw_spin_unlock(&desc->lock);
 }
 
-static int sec_suspend(void)
-{
-	return 0;
-}
-
-static void sec_resume(void)
-{
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_RESET);
-	udelay(100);
-	bfin_write_SEC_GCTL(SEC_GCTL_EN);
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
-}
-
-static struct syscore_ops sec_pm_syscore_ops = {
-	.suspend = sec_suspend,
-	.resume = sec_resume,
-};
-
 #endif
 
 #ifdef CONFIG_SMP
@@ -1093,6 +1075,9 @@ static int bfin_gpio_irq_type(struct irq_data *d, unsigned int type)
 }
 
 #ifdef CONFIG_PM
+static struct bfin_pm_pint_save save_pint_reg[NR_PINT_SYS_IRQS];
+static u32 save_pint_sec_ctl[NR_PINT_SYS_IRQS];
+
 static int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 {
 	u32 pint_irq;
@@ -1128,6 +1113,57 @@ static int bfin_gpio_set_wake(struct irq_data *d, unsigned int state)
 
 	return 0;
 }
+
+void bfin_pint_suspend(void)
+{
+	u32 bank;
+
+	for (bank = 0; bank < NR_PINT_SYS_IRQS; bank++) {
+		save_pint_reg[bank].mask_set = pint[bank]->mask_set;
+		save_pint_reg[bank].assign = pint[bank]->assign;
+		save_pint_reg[bank].edge_set = pint[bank]->edge_set;
+		save_pint_reg[bank].invert_set = pint[bank]->invert_set;
+	}
+}
+
+void bfin_pint_resume(void)
+{
+	u32 bank;
+
+	for (bank = 0; bank < NR_PINT_SYS_IRQS; bank++) {
+		pint[bank]->mask_set = save_pint_reg[bank].mask_set;
+		pint[bank]->assign = save_pint_reg[bank].assign;
+		pint[bank]->edge_set = save_pint_reg[bank].edge_set;
+		pint[bank]->invert_set = save_pint_reg[bank].invert_set;
+	}
+}
+
+static int sec_suspend(void)
+{
+	u32 bank;
+
+	for (bank = 0; bank < NR_PINT_SYS_IRQS; bank++)
+		save_pint_sec_ctl[bank] = bfin_read_SEC_SCTL(bank + SIC_SYSIRQ(IRQ_PINT0));
+	return 0;
+}
+
+static void sec_resume(void)
+{
+	u32 bank;
+
+	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_RESET);
+	udelay(100);
+	bfin_write_SEC_GCTL(SEC_GCTL_EN);
+	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
+
+	for (bank = 0; bank < NR_PINT_SYS_IRQS; bank++)
+		bfin_write_SEC_SCTL(bank + SIC_SYSIRQ(IRQ_PINT0), save_pint_sec_ctl[bank]);
+}
+
+static struct syscore_ops sec_pm_syscore_ops = {
+	.suspend = sec_suspend,
+	.resume = sec_resume,
+};
 #else
 # define bfin_gpio_set_wake NULL
 #endif
