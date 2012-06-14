@@ -3517,6 +3517,8 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		   GEN6_RCPBUNIT_CLOCK_GATE_DISABLE |
 		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
 
+	I915_WRITE(GEN7_UCGCTL4, GEN7_L3BANK2X_CLOCK_GATE_DISABLE);
+
 	for_each_pipe(pipe) {
 		I915_WRITE(DSPCNTR(pipe),
 			   I915_READ(DSPCNTR(pipe)) |
