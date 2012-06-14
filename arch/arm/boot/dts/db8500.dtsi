@@ -60,7 +60,7 @@
 			interrupts = <0 119 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <0>;
@@ -73,7 +73,7 @@
 			interrupts = <0 120 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <1>;
@@ -86,7 +86,7 @@
 			interrupts = <0 121 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <2>;
@@ -99,7 +99,7 @@
 			interrupts = <0 122 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <3>;
@@ -112,7 +112,7 @@
 			interrupts = <0 123 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <4>;
@@ -125,7 +125,7 @@
 			interrupts = <0 124 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <5>;
@@ -138,7 +138,7 @@
 			interrupts = <0 125 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <6>;
@@ -151,7 +151,7 @@
 			interrupts = <0 126 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <7>;
@@ -164,7 +164,7 @@
 			interrupts = <0 127 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <8>;
