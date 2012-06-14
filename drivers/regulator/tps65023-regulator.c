@@ -71,7 +71,7 @@
 
 /* LDO_CTRL bitfields */
 #define TPS65023_LDO_CTRL_LDOx_SHIFT(ldo_id)	((ldo_id)*4)
-#define TPS65023_LDO_CTRL_LDOx_MASK(ldo_id)	(0x0F << ((ldo_id)*4))
+#define TPS65023_LDO_CTRL_LDOx_MASK(ldo_id)	(0x07 << ((ldo_id)*4))
 
 /* Number of step-down converters available */
 #define TPS65023_NUM_DCDC		3
