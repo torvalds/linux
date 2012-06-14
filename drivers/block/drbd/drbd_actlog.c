@@ -411,7 +411,7 @@ w_al_write_transaction(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 		+ mdev->ldev->md.al_offset + mdev->al_tr_pos;
 
 	if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE))
-		drbd_chk_io_error(mdev, 1, true);
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 
 	if (++mdev->al_tr_pos >
 	    div_ceil(mdev->act_log->nr_elements, AL_EXTENTS_PT))

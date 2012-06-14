@@ -111,7 +111,7 @@ void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
 	if (list_empty(&mdev->read_ee))
 		wake_up(&mdev->ee_wait);
 	if (test_bit(__EE_WAS_ERROR, &e->flags))
-		__drbd_chk_io_error(mdev, false);
+		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	drbd_queue_work(&mdev->data.work, &e->w);
@@ -154,7 +154,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 		: list_empty(&mdev->active_ee);
 
 	if (test_bit(__EE_WAS_ERROR, &e->flags))
-		__drbd_chk_io_error(mdev, false);
+		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	if (is_syncer_req)
