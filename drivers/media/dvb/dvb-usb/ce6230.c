@@ -31,7 +31,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static struct zl10353_config ce6230_zl10353_config;
 
-static int ce6230_rw_udev(struct usb_device *udev, struct req_t *req)
+static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 {
 	int ret;
 	unsigned int pipe;
@@ -71,15 +71,15 @@ static int ce6230_rw_udev(struct usb_device *udev, struct req_t *req)
 	if (requesttype == (USB_TYPE_VENDOR | USB_DIR_OUT)) {
 		/* write */
 		memcpy(buf, req->data, req->data_len);
-		pipe = usb_sndctrlpipe(udev, 0);
+		pipe = usb_sndctrlpipe(d->udev, 0);
 	} else {
 		/* read */
-		pipe = usb_rcvctrlpipe(udev, 0);
+		pipe = usb_rcvctrlpipe(d->udev, 0);
 	}
 
 	msleep(1); /* avoid I2C errors */
 
-	ret = usb_control_msg(udev, pipe, request, requesttype, value, index,
+	ret = usb_control_msg(d->udev, pipe, request, requesttype, value, index,
 				buf, req->data_len, CE6230_USB_TIMEOUT);
 
 	ce6230_debug_dump(request, requesttype, value, index, buf,
@@ -97,11 +97,6 @@ static int ce6230_rw_udev(struct usb_device *udev, struct req_t *req)
 	kfree(buf);
 error:
 	return ret;
-}
-
-static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
-{
-	return ce6230_rw_udev(d->udev, req);
 }
 
 /* I2C */
@@ -186,9 +181,9 @@ static struct zl10353_config ce6230_zl10353_config = {
 static int ce6230_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb_info("%s:\n", __func__);
-	adap->fe_adap[0].fe = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
+	adap->fe[0] = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
 		&adap->dev->i2c_adap);
-	if (adap->fe_adap[0].fe == NULL)
+	if (adap->fe[0] == NULL)
 		return -ENODEV;
 	return 0;
 }
@@ -214,7 +209,7 @@ static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
 	deb_info("%s:\n", __func__);
-	ret = dvb_attach(mxl5005s_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap,
+	ret = dvb_attach(mxl5005s_attach, adap->fe[0], &adap->dev->i2c_adap,
 			&ce6230_mxl5003s_config) == NULL ? -ENODEV : 0;
 	return ret;
 }
@@ -234,49 +229,20 @@ static int ce6230_power_ctrl(struct dvb_usb_device *d, int onoff)
 }
 
 /* DVB USB Driver stuff */
-static struct dvb_usb_device_properties ce6230_properties;
+static struct dvb_usb_device_properties ce6230_props = {
+	.driver_name = KBUILD_MODNAME,
+	.owner = THIS_MODULE,
+	.adapter_nr = adapter_nr,
+	.bInterfaceNumber = 1,
 
-static int ce6230_probe(struct usb_interface *intf,
-			const struct usb_device_id *id)
-{
-	int ret = 0;
-	struct dvb_usb_device *d = NULL;
-
-	deb_info("%s: interface:%d\n", __func__,
-		intf->cur_altsetting->desc.bInterfaceNumber);
-
-	if (intf->cur_altsetting->desc.bInterfaceNumber == 1) {
-		ret = dvb_usb_device_init(intf, &ce6230_properties, THIS_MODULE,
-			&d, adapter_nr);
-		if (ret)
-			err("init failed with error:%d\n", ret);
-	}
-
-	return ret;
-}
-
-static struct usb_device_id ce6230_table[] = {
-	{ USB_DEVICE(USB_VID_INTEL, USB_PID_INTEL_CE9500) },
-	{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A310) },
-	{ } /* Terminating entry */
-};
-MODULE_DEVICE_TABLE(usb, ce6230_table);
-
-static struct dvb_usb_device_properties ce6230_properties = {
-	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
-
-	.usb_ctrl = DEVICE_SPECIFIC,
-	.no_reconnect = 1,
-
-	.size_of_priv = 0,
+	.i2c_algo = &ce6230_i2c_algo,
+	.power_ctrl = ce6230_power_ctrl,
+	.frontend_attach = ce6230_zl10353_frontend_attach,
+	.tuner_attach = ce6230_mxl5003s_tuner_attach,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
-		.num_frontends = 1,
-		.fe = {{
-			.frontend_attach  = ce6230_zl10353_frontend_attach,
-			.tuner_attach     = ce6230_mxl5003s_tuner_attach,
 			.stream = {
 				.type = USB_BULK,
 				.count = 6,
@@ -287,37 +253,31 @@ static struct dvb_usb_device_properties ce6230_properties = {
 					}
 				}
 			},
-		}},
 		}
 	},
-
-	.power_ctrl = ce6230_power_ctrl,
-
-	.i2c_algo = &ce6230_i2c_algo,
-
-	.num_device_descs = 2,
-	.devices = {
-		{
-			.name = "Intel CE9500 reference design",
-			.cold_ids = {NULL},
-			.warm_ids = {&ce6230_table[0], NULL},
-		},
-		{
-			.name = "AVerMedia A310 USB 2.0 DVB-T tuner",
-			.cold_ids = {NULL},
-			.warm_ids = {&ce6230_table[1], NULL},
-		},
-	}
 };
 
-static struct usb_driver ce6230_driver = {
-	.name       = "dvb_usb_ce6230",
-	.probe      = ce6230_probe,
-	.disconnect = dvb_usb_device_exit,
-	.id_table   = ce6230_table,
+static const struct usb_device_id ce6230_id_table[] = {
+	{ DVB_USB_DEVICE(USB_VID_INTEL, USB_PID_INTEL_CE9500,
+		&ce6230_props, "Intel CE9500 reference design", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A310,
+		&ce6230_props, "AVerMedia A310 USB 2.0 DVB-T tuner", NULL) },
+	{ }
+};
+MODULE_DEVICE_TABLE(usb, ce6230_id_table);
+
+static struct usb_driver ce6230_usb_driver = {
+	.name = KBUILD_MODNAME,
+	.id_table = ce6230_id_table,
+	.probe = dvb_usbv2_probe,
+	.disconnect = dvb_usbv2_disconnect,
+	.suspend = dvb_usbv2_suspend,
+	.resume = dvb_usbv2_resume,
+	.no_dynamic_id = 1,
+	.soft_unbind = 1,
 };
 
-module_usb_driver(ce6230_driver);
+module_usb_driver(ce6230_usb_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Driver for Intel CE6230 DVB-T USB2.0");

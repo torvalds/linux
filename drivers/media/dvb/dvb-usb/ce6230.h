@@ -23,7 +23,23 @@
 #define _DVB_USB_CE6230_H_
 
 #define DVB_USB_LOG_PREFIX "ce6230"
-#include "dvb-usb.h"
+#include "dvb_usb.h"
+
+#ifdef CONFIG_DVB_USB_DEBUG
+#define dprintk(var, level, args...) \
+	do { if ((var & level)) printk(args); } while (0)
+#define DVB_USB_DEBUG_STATUS
+#else
+#define dprintk(args...)
+#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
+#endif
+
+#undef err
+#define err(format, arg...)  printk(KERN_ERR     DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+#undef info
+#define info(format, arg...) printk(KERN_INFO    DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
+#undef warn
+#define warn(format, arg...) printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
 
 #define deb_info(args...) dprintk(dvb_usb_ce6230_debug, 0x01, args)
 #define deb_rc(args...)   dprintk(dvb_usb_ce6230_debug, 0x02, args)
