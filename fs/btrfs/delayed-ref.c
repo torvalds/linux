@@ -529,8 +529,8 @@ static noinline void add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	ref->is_head = 0;
 	ref->in_tree = 1;
 
-	if (is_fstree(ref_root))
-		seq = btrfs_inc_tree_mod_seq(fs_info);
+	if (need_ref_seq(for_cow, ref_root))
+		seq = btrfs_get_tree_mod_seq(fs_info, &trans->delayed_ref_elem);
 	ref->seq = seq;
 
 	full_ref = btrfs_delayed_node_to_tree_ref(ref);
@@ -588,8 +588,8 @@ static noinline void add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	ref->is_head = 0;
 	ref->in_tree = 1;
 
-	if (is_fstree(ref_root))
-		seq = btrfs_inc_tree_mod_seq(fs_info);
+	if (need_ref_seq(for_cow, ref_root))
+		seq = btrfs_get_tree_mod_seq(fs_info, &trans->delayed_ref_elem);
 	ref->seq = seq;
 
 	full_ref = btrfs_delayed_node_to_data_ref(ref);
@@ -662,10 +662,12 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	add_delayed_tree_ref(fs_info, trans, &ref->node, bytenr,
 				   num_bytes, parent, ref_root, level, action,
 				   for_cow);
-	if (!is_fstree(ref_root) &&
+	if (!need_ref_seq(for_cow, ref_root) &&
 	    waitqueue_active(&fs_info->tree_mod_seq_wait))
 		wake_up(&fs_info->tree_mod_seq_wait);
 	spin_unlock(&delayed_refs->lock);
+	if (need_ref_seq(for_cow, ref_root))
+		btrfs_qgroup_record_ref(trans, &ref->node, extent_op);
 
 	return 0;
 }
@@ -711,10 +713,12 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	add_delayed_data_ref(fs_info, trans, &ref->node, bytenr,
 				   num_bytes, parent, ref_root, owner, offset,
 				   action, for_cow);
-	if (!is_fstree(ref_root) &&
+	if (!need_ref_seq(for_cow, ref_root) &&
 	    waitqueue_active(&fs_info->tree_mod_seq_wait))
 		wake_up(&fs_info->tree_mod_seq_wait);
 	spin_unlock(&delayed_refs->lock);
+	if (need_ref_seq(for_cow, ref_root))
+		btrfs_qgroup_record_ref(trans, &ref->node, extent_op);
 
 	return 0;
 }
