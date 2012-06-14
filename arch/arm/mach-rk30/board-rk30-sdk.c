@@ -43,7 +43,7 @@
 #include <linux/fb.h>
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
-
+#include <linux/sensor-dev.h>
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -689,19 +689,13 @@ static int mma8452_init_platform_hw(void)
 {
 	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
 
-	if (gpio_request(MMA8452_INT_PIN, NULL) != 0) {
-		gpio_free(MMA8452_INT_PIN);
-		printk("mma8452_init_platform_hw gpio_request error\n");
-		return -EIO;
-	}
-	gpio_pull_updown(MMA8452_INT_PIN, 1);
 	return 0;
 }
 
-static struct gsensor_platform_data mma8452_info = {
-        .model = 8452,
-        .swap_xy = 0,
-        .swap_xyz = 1,
+static struct sensor_platform_data mma8452_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
         .init_platform_hw = mma8452_init_platform_hw,
         .orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
 };
@@ -725,14 +719,17 @@ static struct gsensor_platform_data lis3dh_info = {
 };
 #endif
 #if defined (CONFIG_COMPASS_AK8975)
-static struct akm8975_platform_data akm8975_info =
+static struct sensor_platform_data akm8975_info =
 {
+	.type = SENSOR_TYPE_COMPASS,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
 	.m_layout = 
 	{
 		{
 			{1, 0, 0},
-			{0, 0, 1},
 			{0, 1, 0},
+			{0, 0, 1},
 		},
 
 		{
@@ -769,9 +766,12 @@ static int l3g4200d_init_platform_hw(void)
 	return 0;
 }
 
-static struct l3g4200d_platform_data l3g4200d_info = {
+static struct sensor_platform_data l3g4200d_info = {
+	.type = SENSOR_TYPE_GYROSCOPE,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
 	.orientation = {0, 1, 0, -1, 0, 0, 0, 0, 1},
-	.init = l3g4200d_init_platform_hw,
+	.init_platform_hw = l3g4200d_init_platform_hw,
 	.x_min = 40,//x_min,y_min,z_min = (0-100) according to hardware
 	.y_min = 40,
 	.z_min = 20,
@@ -780,44 +780,12 @@ static struct l3g4200d_platform_data l3g4200d_info = {
 #endif
 
 #ifdef CONFIG_LS_CM3217
-
-#define CM3217_POWER_PIN 	INVALID_GPIO
-#define CM3217_IRQ_PIN		INVALID_GPIO
-static int cm3217_init_hw(void)
-{
-#if 0
-	if (gpio_request(CM3217_POWER_PIN, NULL) != 0) {
-		gpio_free(CM3217_POWER_PIN);
-		printk("%s: request cm3217 power pin error\n", __func__);
-		return -EIO;
-	}
-	gpio_pull_updown(CM3217_POWER_PIN, PullDisable);
-
-	if (gpio_request(CM3217_IRQ_PIN, NULL) != 0) {
-		gpio_free(CM3217_IRQ_PIN);
-		printk("%s: request cm3217 int pin error\n", __func__);
-		return -EIO;
-	}
-	gpio_pull_updown(CM3217_IRQ_PIN, PullDisable);
-#endif
-	return 0;
-}
-
-static void cm3217_exit_hw(void)
-{
-#if 0
-	gpio_free(CM3217_POWER_PIN);
-	gpio_free(CM3217_IRQ_PIN);
-#endif
-	return;
-}
-
-static struct cm3217_platform_data cm3217_info = {
-	.irq_pin = CM3217_IRQ_PIN,
-	.power_pin = CM3217_POWER_PIN,
-	.init_platform_hw = cm3217_init_hw,
-	.exit_platform_hw = cm3217_exit_hw,
+static struct sensor_platform_data cm3217_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 0,
+	.poll_delay_ms = 500,
 };
+
 #endif
 
 #ifdef CONFIG_FB_ROCKCHIP
@@ -1443,7 +1411,6 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.type          = "lightsensor",
 		.addr          = 0x10,
 		.flags         = 0,
-		.irq           = CM3217_IRQ_PIN,
 		.platform_data = &cm3217_info,
 	},
 #endif

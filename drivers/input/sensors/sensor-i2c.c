@@ -217,7 +217,7 @@ EXPORT_SYMBOL(sensor_write_reg_normal);
 
 int sensor_read_reg_normal(struct i2c_client *client)
 {
-	char tmp[0];
+	char tmp[1] = {0};
 	int ret = 0;	
 	struct sensor_private_data* sensor = 
 		(struct sensor_private_data *)i2c_get_clientdata(client);
@@ -230,5 +230,4 @@ int sensor_read_reg_normal(struct i2c_client *client)
 }
 
 EXPORT_SYMBOL(sensor_read_reg_normal);
-
 
