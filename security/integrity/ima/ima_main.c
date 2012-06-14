@@ -156,8 +156,8 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
 
-	/* Determine if in appraise/measurement policy,
-	 * returns IMA_MEASURE, IMA_APPRAISE bitmask.  */
+	/* Determine if in appraise/audit/measurement policy,
+	 * returns IMA_MEASURE, IMA_APPRAISE, IMA_AUDIT bitmask.  */
 	action = ima_get_action(inode, mask, function);
 	if (!action)
 		return 0;
@@ -171,7 +171,8 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 		goto out;
 
 	/* Determine if already appraised/measured based on bitmask
-	 * (IMA_MEASURE, IMA_MEASURED, IMA_APPRAISE, IMA_APPRAISED) */
+	 * (IMA_MEASURE, IMA_MEASURED, IMA_APPRAISE, IMA_APPRAISED,
+	 *  IMA_AUDIT, IMA_AUDITED) */
 	iint->flags |= action;
 	action &= ~((iint->flags & IMA_DONE_MASK) >> 1);
 
@@ -202,6 +203,8 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	if (action & IMA_APPRAISE)
 		rc = ima_appraise_measurement(iint, file,
 					      !pathname ? filename : pathname);
+	if (action & IMA_AUDIT)
+		ima_audit_measurement(iint, !pathname ? filename : pathname);
 	kfree(pathbuf);
 out:
 	mutex_unlock(&inode->i_mutex);

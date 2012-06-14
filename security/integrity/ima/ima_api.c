@@ -114,7 +114,7 @@ err_out:
  */
 int ima_get_action(struct inode *inode, int mask, int function)
 {
-	int flags = IMA_MEASURE | IMA_APPRAISE;
+	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
 
 	if (!ima_appraise)
 		flags &= ~IMA_APPRAISE;
@@ -206,4 +206,34 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 		iint->flags |= IMA_MEASURED;
 	if (result < 0)
 		kfree(entry);
+}
+
+void ima_audit_measurement(struct integrity_iint_cache *iint,
+			   const unsigned char *filename)
+{
+	struct audit_buffer *ab;
+	char hash[(IMA_DIGEST_SIZE * 2) + 1];
+	int i;
+
+	if (iint->flags & IMA_AUDITED)
+		return;
+
+	for (i = 0; i < IMA_DIGEST_SIZE; i++)
+		hex_byte_pack(hash + (i * 2), iint->ima_xattr.digest[i]);
+	hash[i * 2] = '\0';
+
+	ab = audit_log_start(current->audit_context, GFP_KERNEL,
+			     AUDIT_INTEGRITY_RULE);
+	if (!ab)
+		return;
+
+	audit_log_format(ab, "file=");
+	audit_log_untrustedstring(ab, filename);
+	audit_log_format(ab, " hash=");
+	audit_log_untrustedstring(ab, hash);
+
+	audit_log_task_info(ab, current);
+	audit_log_end(ab);
+
+	iint->flags |= IMA_AUDITED;
 }

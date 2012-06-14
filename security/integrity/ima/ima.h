@@ -114,6 +114,8 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 			    struct file *file);
 void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
 			   const unsigned char *filename);
+void ima_audit_measurement(struct integrity_iint_cache *iint,
+			   const unsigned char *filename);
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode);
 void ima_template_show(struct seq_file *m, void *e, enum ima_show_type show);

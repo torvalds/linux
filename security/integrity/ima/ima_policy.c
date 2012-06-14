@@ -31,6 +31,7 @@
 #define DONT_MEASURE	0x0002
 #define APPRAISE	0x0004	/* same as IMA_APPRAISE */
 #define DONT_APPRAISE	0x0008
+#define AUDIT		0x0040
 
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
@@ -277,6 +278,7 @@ enum {
 	Opt_err = -1,
 	Opt_measure = 1, Opt_dont_measure,
 	Opt_appraise, Opt_dont_appraise,
+	Opt_audit,
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
 	Opt_func, Opt_mask, Opt_fsmagic, Opt_uid, Opt_fowner
@@ -287,6 +289,7 @@ static match_table_t policy_tokens = {
 	{Opt_dont_measure, "dont_measure"},
 	{Opt_appraise, "appraise"},
 	{Opt_dont_appraise, "dont_appraise"},
+	{Opt_audit, "audit"},
 	{Opt_obj_user, "obj_user=%s"},
 	{Opt_obj_role, "obj_role=%s"},
 	{Opt_obj_type, "obj_type=%s"},
@@ -378,6 +381,14 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				result = -EINVAL;
 
 			entry->action = DONT_APPRAISE;
+			break;
+		case Opt_audit:
+			ima_log_string(ab, "action", "audit");
+
+			if (entry->action != UNKNOWN)
+				result = -EINVAL;
+
+			entry->action = AUDIT;
 			break;
 		case Opt_func:
 			ima_log_string(ab, "func", args[0].from);

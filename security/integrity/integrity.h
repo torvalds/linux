@@ -22,12 +22,15 @@
 #define IMA_APPRAISED		0x0008
 /*#define IMA_COLLECT		0x0010  do not use this flag */
 #define IMA_COLLECTED		0x0020
+#define IMA_AUDIT		0x0040
+#define IMA_AUDITED		0x0080
 
 /* iint cache flags */
 #define IMA_DIGSIG		0x0100
 
-#define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE)
-#define IMA_DONE_MASK		(IMA_MEASURED | IMA_APPRAISED | IMA_COLLECTED)
+#define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT)
+#define IMA_DONE_MASK		(IMA_MEASURED | IMA_APPRAISED | IMA_AUDITED \
+				 | IMA_COLLECTED)
 
 enum evm_ima_xattr_type {
 	IMA_XATTR_DIGEST = 0x01,

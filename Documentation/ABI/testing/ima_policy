@@ -17,7 +17,7 @@ Description:
 
 		rule format: action [condition ...]
 
-		action: measure | dont_measure | appraise | dont_appraise
+		action: measure | dont_measure | appraise | dont_appraise | audit
 		condition:= base | lsm
 			base:	[[func=] [mask=] [fsmagic=] [uid=] [fowner]]
 			lsm:	[[subj_user=] [subj_role=] [subj_type=]
