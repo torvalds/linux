@@ -19,7 +19,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
-
+#include <linux/of.h>
 
 /*
  * NOTE: this is an *EEPROM* driver.  The vagaries of product naming
@@ -305,25 +305,54 @@ static ssize_t at25_mem_write(struct memory_accessor *mem, const char *buf,
 static int at25_probe(struct spi_device *spi)
 {
 	struct at25_data	*at25 = NULL;
-	const struct spi_eeprom *chip;
+	struct spi_eeprom	chip;
+	struct device_node	*np = spi->dev.of_node;
 	int			err;
 	int			sr;
 	int			addrlen;
 
 	/* Chip description */
-	chip = spi->dev.platform_data;
-	if (!chip) {
-		dev_dbg(&spi->dev, "no chip description\n");
-		err = -ENODEV;
-		goto fail;
-	}
+	if (!spi->dev.platform_data) {
+		if (np) {
+			u32 val;
+
+			memset(&chip, 0, sizeof(chip));
+			strncpy(chip.name, np->name, 10);
+
+			err = of_property_read_u32(np, "at25,byte-len", &val);
+			if (err) {
+				dev_dbg(&spi->dev, "invalid chip dt description\n");
+				goto fail;
+			}
+			chip.byte_len = val;
+
+			err = of_property_read_u32(np, "at25,addr-mode", &val);
+			if (err) {
+				dev_dbg(&spi->dev, "invalid chip dt description\n");
+				goto fail;
+			}
+			chip.flags = (u16)val;
+
+			err = of_property_read_u32(np, "at25,page-size", &val);
+			if (err) {
+				dev_dbg(&spi->dev, "invalid chip dt description\n");
+				goto fail;
+			}
+			chip.page_size = (u16)val;
+		} else {
+			dev_dbg(&spi->dev, "no chip description\n");
+			err = -ENODEV;
+			goto fail;
+		}
+	} else
+		chip = *(struct spi_eeprom *)spi->dev.platform_data;
 
 	/* For now we only support 8/16/24 bit addressing */
-	if (chip->flags & EE_ADDR1)
+	if (chip.flags & EE_ADDR1)
 		addrlen = 1;
-	else if (chip->flags & EE_ADDR2)
+	else if (chip.flags & EE_ADDR2)
 		addrlen = 2;
-	else if (chip->flags & EE_ADDR3)
+	else if (chip.flags & EE_ADDR3)
 		addrlen = 3;
 	else {
 		dev_dbg(&spi->dev, "unsupported address type\n");
@@ -348,7 +377,7 @@ static int at25_probe(struct spi_device *spi)
 	}
 
 	mutex_init(&at25->lock);
-	at25->chip = *chip;
+	at25->chip = chip;
 	at25->spi = spi_dev_get(spi);
 	dev_set_drvdata(&spi->dev, at25);
 	at25->addrlen = addrlen;
@@ -369,7 +398,7 @@ static int at25_probe(struct spi_device *spi)
 	at25->mem.read = at25_mem_read;
 
 	at25->bin.size = at25->chip.byte_len;
-	if (!(chip->flags & EE_READONLY)) {
+	if (!(chip.flags & EE_READONLY)) {
 		at25->bin.write = at25_bin_write;
 		at25->bin.attr.mode |= S_IWUSR;
 		at25->mem.write = at25_mem_write;
@@ -379,8 +408,8 @@ static int at25_probe(struct spi_device *spi)
 	if (err)
 		goto fail;
 
-	if (chip->setup)
-		chip->setup(&at25->mem, chip->context);
+	if (chip.setup)
+		chip.setup(&at25->mem, chip.context);
 
 	dev_info(&spi->dev, "%Zd %s %s eeprom%s, pagesize %u\n",
 		(at25->bin.size < 1024)
@@ -388,7 +417,7 @@ static int at25_probe(struct spi_device *spi)
 			: (at25->bin.size / 1024),
 		(at25->bin.size < 1024) ? "Byte" : "KByte",
 		at25->chip.name,
-		(chip->flags & EE_READONLY) ? " (readonly)" : "",
+		(chip.flags & EE_READONLY) ? " (readonly)" : "",
 		at25->chip.page_size);
 	return 0;
 fail:
