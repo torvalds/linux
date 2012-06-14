@@ -148,6 +148,10 @@
 		};
 
 		fab {
+			uart2: serial@40018000 {
+				status = "okay";
+			};
+
 			tsc@40048000 {
 				status = "okay";
 			};
