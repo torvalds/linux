@@ -399,12 +399,16 @@ static void si470x_int_in_callback(struct urb *urb)
 		}
 	}
 
-	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
+	/* Sometimes the device returns len 0 packets */
+	if (urb->actual_length != RDS_REPORT_SIZE)
 		goto resubmit;
 
-	if (urb->actual_length > 0) {
+	radio->registers[STATUSRSSI] =
+		get_unaligned_be16(&radio->int_in_buffer[1]);
+
+	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS)) {
 		/* Update RDS registers with URB data */
-		for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++)
+		for (regnr = 1; regnr < RDS_REGISTER_NUM; regnr++)
 			radio->registers[STATUSRSSI + regnr] =
 			    get_unaligned_be16(&radio->int_in_buffer[
 				regnr * RADIO_REGISTER_SIZE + 1]);
@@ -480,6 +484,7 @@ resubmit:
 			radio->int_in_running = 0;
 		}
 	}
+	radio->status_rssi_auto_update = radio->int_in_running;
 }
 
 
@@ -560,6 +565,7 @@ static int si470x_start_usb(struct si470x_device *radio)
 				"submitting int urb failed (%d)\n", retval);
 		radio->int_in_running = 0;
 	}
+	radio->status_rssi_auto_update = radio->int_in_running;
 	return retval;
 }
 

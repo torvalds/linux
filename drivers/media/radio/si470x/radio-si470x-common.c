@@ -583,14 +583,16 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		struct v4l2_tuner *tuner)
 {
 	struct si470x_device *radio = video_drvdata(file);
-	int retval;
+	int retval = 0;
 
 	if (tuner->index != 0)
 		return -EINVAL;
 
-	retval = si470x_get_register(radio, STATUSRSSI);
-	if (retval < 0)
-		return retval;
+	if (!radio->status_rssi_auto_update) {
+		retval = si470x_get_register(radio, STATUSRSSI);
+		if (retval < 0)
+			return retval;
+	}
 
 	/* driver constants */
 	strcpy(tuner->name, "FM");

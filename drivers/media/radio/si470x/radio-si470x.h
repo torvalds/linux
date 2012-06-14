@@ -161,6 +161,7 @@ struct si470x_device {
 
 	struct completion completion;
 	bool stci_enabled;		/* Seek/Tune Complete Interrupt */
+	bool status_rssi_auto_update;	/* Does RSSI get updated automatic? */
 
 #if defined(CONFIG_USB_SI470X) || defined(CONFIG_USB_SI470X_MODULE)
 	/* reference to USB and video device */
