@@ -241,10 +241,6 @@ static void __init lpc3250_machine_init(void)
 {
 	u32 tmp;
 
-	/* Setup SLC NAND controller muxing */
-	__raw_writel(LPC32XX_CLKPWR_NANDCLK_SEL_SLC,
-		LPC32XX_CLKPWR_NAND_CLK_CTRL);
-
 	/* Setup LCD muxing to RGB565 */
 	tmp = __raw_readl(LPC32XX_CLKPWR_LCDCLK_CTRL) &
 		~(LPC32XX_CLKPWR_LCDCTRL_LCDTYPE_MSK |
