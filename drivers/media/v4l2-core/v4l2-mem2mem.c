@@ -369,6 +369,19 @@ int v4l2_m2m_dqbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 EXPORT_SYMBOL_GPL(v4l2_m2m_dqbuf);
 
 /**
+ * v4l2_m2m_expbuf() - export a source or destination buffer, depending on
+ * the type
+ */
+int v4l2_m2m_expbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+		  struct v4l2_exportbuffer *eb)
+{
+	struct vb2_queue *vq;
+
+	vq = v4l2_m2m_get_vq(m2m_ctx, eb->type);
+	return vb2_expbuf(vq, eb);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_expbuf);
+/**
  * v4l2_m2m_streamon() - turn on streaming for a video queue
  */
 int v4l2_m2m_streamon(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
