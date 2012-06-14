@@ -691,8 +691,19 @@ static struct clk clk_nand = {
 	.parent		= &clk_hclk,
 	.enable		= local_onoff_enable,
 	.enable_reg	= LPC32XX_CLKPWR_NAND_CLK_CTRL,
-	.enable_mask	= LPC32XX_CLKPWR_NANDCLK_SLCCLK_EN,
+	.enable_mask	= LPC32XX_CLKPWR_NANDCLK_SLCCLK_EN |
+			  LPC32XX_CLKPWR_NANDCLK_SEL_SLC,
 	.get_rate	= local_return_parent_rate,
+};
+
+static struct clk clk_nand_mlc = {
+	.parent         = &clk_hclk,
+	.enable         = local_onoff_enable,
+	.enable_reg     = LPC32XX_CLKPWR_NAND_CLK_CTRL,
+	.enable_mask    = LPC32XX_CLKPWR_NANDCLK_MLCCLK_EN |
+			  LPC32XX_CLKPWR_NANDCLK_DMA_INT |
+			  LPC32XX_CLKPWR_NANDCLK_INTSEL_MLC,
+	.get_rate       = local_return_parent_rate,
 };
 
 static struct clk clk_i2s0 = {
@@ -1121,7 +1132,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_INIT("dev:ssp0", NULL, &clk_ssp0),
 	CLKDEV_INIT("dev:ssp1", NULL, &clk_ssp1),
 	CLKDEV_INIT("lpc32xx_keys.0", NULL, &clk_kscan),
-	CLKDEV_INIT("lpc32xx-nand.0", "nand_ck", &clk_nand),
+	CLKDEV_INIT("20020000.flash", NULL, &clk_nand),
+	CLKDEV_INIT("200a8000.flash", NULL, &clk_nand_mlc),
 	CLKDEV_INIT("40048000.adc", NULL, &clk_adc),
 	CLKDEV_INIT(NULL, "i2s0_ck", &clk_i2s0),
 	CLKDEV_INIT(NULL, "i2s1_ck", &clk_i2s1),
