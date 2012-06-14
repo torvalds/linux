@@ -59,6 +59,7 @@ config VIDEOBUF_DVB
 
 # Used by drivers that need Videobuf2 modules
 config VIDEOBUF2_CORE
+	select DMA_SHARED_BUFFER
 	tristate
 
 config VIDEOBUF2_MEMOPS
