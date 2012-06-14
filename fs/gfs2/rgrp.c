@@ -1207,25 +1207,30 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 }
 
 /**
- * get_local_rgrp - Choose and lock a rgrp for allocation
+ * gfs2_inplace_reserve - Reserve space in the filesystem
  * @ip: the inode to reserve space for
- * @last_unlinked: the last unlinked block
- *
- * Try to acquire rgrp in way which avoids contending with others.
+ * @requested: the number of blocks to be reserved
  *
  * Returns: errno
  */
 
-static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
+int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd, *begin = NULL;
 	struct gfs2_blkreserv *rs = ip->i_res;
-	int error, rg_locked, flags = LM_FLAG_TRY;
+	int error = 0, rg_locked, flags = LM_FLAG_TRY;
+	u64 last_unlinked = NO_BLOCK;
 	int loops = 0;
 
 	if (sdp->sd_args.ar_rgrplvb)
 		flags |= GL_SKIP;
+	rs = ip->i_res;
+	rs->rs_requested = requested;
+	if (gfs2_assert_warn(sdp, requested)) {
+		error = -EINVAL;
+		goto out;
+	}
 
 	if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal))
 		rgd = begin = ip->i_rgd;
@@ -1263,63 +1268,34 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			if (rgd->rd_flags & GFS2_RDF_CHECK) {
 				if (sdp->sd_args.ar_rgrplvb)
 					gfs2_rgrp_bh_get(rgd);
-				try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
+				try_rgrp_unlink(rgd, &last_unlinked,
+						ip->i_no_addr);
 			}
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&rs->rs_rgd_gh);
 			/* fall through */
 		case GLR_TRYFAILED:
 			rgd = gfs2_rgrpd_get_next(rgd);
-			if (rgd == begin) {
-				flags &= ~LM_FLAG_TRY;
-				loops++;
-			}
+			if (rgd != begin) /* If we didn't wrap */
+				break;
+
+			flags &= ~LM_FLAG_TRY;
+			loops++;
+			/* Check that fs hasn't grown if writing to rindex */
+			if (ip == GFS2_I(sdp->sd_rindex) &&
+			    !sdp->sd_rindex_uptodate) {
+				error = gfs2_ri_update(ip);
+				if (error)
+					goto out;
+			} else if (loops == 2)
+				/* Flushing the log may release space */
+				gfs2_log_flush(sdp, NULL);
 			break;
 		default:
-			return error;
+			goto out;
 		}
 	}
-
-	return -ENOSPC;
-}
-
-/**
- * gfs2_inplace_reserve - Reserve space in the filesystem
- * @ip: the inode to reserve space for
- * @requested: the number of blocks to be reserved
- *
- * Returns: errno
- */
-
-int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_blkreserv *rs;
-	int error = 0;
-	u64 last_unlinked = NO_BLOCK;
-	int tries = 0;
-
-	rs = ip->i_res;
-	rs->rs_requested = requested;
-	if (gfs2_assert_warn(sdp, requested)) {
-		error = -EINVAL;
-		goto out;
-	}
-
-	do {
-		error = get_local_rgrp(ip, &last_unlinked);
-		if (error != -ENOSPC)
-			break;
-		/* Check that fs hasn't grown if writing to rindex */
-		if (ip == GFS2_I(sdp->sd_rindex) && !sdp->sd_rindex_uptodate) {
-			error = gfs2_ri_update(ip);
-			if (error)
-				break;
-			continue;
-		}
-		/* Flushing the log may release space */
-		gfs2_log_flush(sdp, NULL);
-	} while (tries++ < 3);
+	error = -ENOSPC;
 
 out:
 	if (error)
