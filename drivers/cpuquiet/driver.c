@@ -78,7 +78,8 @@ int cpuquiet_quiesence_cpu(unsigned int cpunumber)
 	if (cpuquiet_curr_driver && cpuquiet_curr_driver->quiesence_cpu)
 		err = cpuquiet_curr_driver->quiesence_cpu(cpunumber);
 
-	stats_update(stats + cpunumber, 0);
+	if (!err)
+		stats_update(stats + cpunumber, 0);
 
 	return err;
 }
@@ -91,7 +92,8 @@ int cpuquiet_wake_cpu(unsigned int cpunumber)
 	if (cpuquiet_curr_driver && cpuquiet_curr_driver->wake_cpu)
 		err = cpuquiet_curr_driver->wake_cpu(cpunumber);
 
-	stats_update(stats + cpunumber, 1);
+	if (!err)
+		stats_update(stats + cpunumber, 1);
 
 	return err;
 }
