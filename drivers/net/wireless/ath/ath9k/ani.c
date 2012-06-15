@@ -176,7 +176,7 @@ static void ath9k_hw_ani_ofdm_err_trigger_old(struct ath_hw *ah)
 		}
 	}
 
-	if (ah->opmode == NL80211_IFTYPE_AP) {
+	if (ah->opmode != NL80211_IFTYPE_STATION) {
 		if (aniState->firstepLevel < HAL_FIRST_STEP_MAX) {
 			ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 					     aniState->firstepLevel + 1);
@@ -236,7 +236,7 @@ static void ath9k_hw_ani_cck_err_trigger_old(struct ath_hw *ah)
 			return;
 		}
 	}
-	if (ah->opmode == NL80211_IFTYPE_AP) {
+	if (ah->opmode != NL80211_IFTYPE_STATION) {
 		if (aniState->firstepLevel < HAL_FIRST_STEP_MAX) {
 			ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 					     aniState->firstepLevel + 1);
@@ -335,8 +335,7 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel)
 		BEACON_RSSI(ah), aniState->rssiThrLow,
 		aniState->rssiThrHigh);
 
-	if ((ah->opmode == NL80211_IFTYPE_STATION ||
-	     ah->opmode == NL80211_IFTYPE_ADHOC) &&
+	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    BEACON_RSSI(ah) <= aniState->rssiThrLow &&
 	    immunityLevel > ATH9K_ANI_CCK_MAX_LEVEL_LOW_RSSI)
 		immunityLevel = ATH9K_ANI_CCK_MAX_LEVEL_LOW_RSSI;
@@ -390,7 +389,7 @@ static void ath9k_hw_ani_lower_immunity_old(struct ath_hw *ah)
 
 	aniState = &ah->curchan->ani;
 
-	if (ah->opmode == NL80211_IFTYPE_AP) {
+	if (ah->opmode != NL80211_IFTYPE_STATION) {
 		if (aniState->firstepLevel > 0) {
 			if (ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 						 aniState->firstepLevel - 1))
@@ -474,8 +473,7 @@ static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
 
 	aniState = &ah->curchan->ani;
 
-	if (ah->opmode != NL80211_IFTYPE_STATION
-	    && ah->opmode != NL80211_IFTYPE_ADHOC) {
+	if (ah->opmode != NL80211_IFTYPE_STATION) {
 		ath_dbg(common, ANI, "Reset ANI state opmode %u\n", ah->opmode);
 		ah->stats.ast_ani_reset++;
 
