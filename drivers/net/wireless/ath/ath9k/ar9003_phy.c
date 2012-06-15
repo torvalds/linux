@@ -825,18 +825,18 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 			REG_CLR_BIT(ah, AR_PHY_SFCORR_LOW,
 				    AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
 
-		if (!on != aniState->ofdmWeakSigDetectOff) {
+		if (on != aniState->ofdmWeakSigDetect) {
 			ath_dbg(common, ANI,
 				"** ch %d: ofdm weak signal: %s=>%s\n",
 				chan->channel,
-				!aniState->ofdmWeakSigDetectOff ?
+				aniState->ofdmWeakSigDetect ?
 				"on" : "off",
 				on ? "on" : "off");
 			if (on)
 				ah->stats.ast_ani_ofdmon++;
 			else
 				ah->stats.ast_ani_ofdmoff++;
-			aniState->ofdmWeakSigDetectOff = !on;
+			aniState->ofdmWeakSigDetect = on;
 		}
 		break;
 	}
@@ -1002,7 +1002,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 	ath_dbg(common, ANI,
 		"ANI parameters: SI=%d, ofdmWS=%s FS=%d MRCcck=%s listenTime=%d ofdmErrs=%d cckErrs=%d\n",
 		aniState->spurImmunityLevel,
-		!aniState->ofdmWeakSigDetectOff ? "on" : "off",
+		aniState->ofdmWeakSigDetect ? "on" : "off",
 		aniState->firstepLevel,
 		!aniState->mrcCCKOff ? "on" : "off",
 		aniState->listenTime,
@@ -1113,7 +1113,7 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	/* these levels just got reset to defaults by the INI */
 	aniState->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL_NEW;
 	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL_NEW;
-	aniState->ofdmWeakSigDetectOff = !ATH9K_ANI_USE_OFDM_WEAK_SIG;
+	aniState->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
 	aniState->mrcCCKOff = !ATH9K_ANI_ENABLE_MRC_CCK;
 }
 

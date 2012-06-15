@@ -122,7 +122,7 @@ struct ar5416AniState {
 	u8 mrcCCKOff;
 	u8 spurImmunityLevel;
 	u8 firstepLevel;
-	u8 ofdmWeakSigDetectOff;
+	u8 ofdmWeakSigDetect;
 	u8 cckWeakSigThreshold;
 	bool update_ani;
 	u32 listenTime;

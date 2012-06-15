@@ -185,7 +185,7 @@ static void ath9k_hw_ani_ofdm_err_trigger_old(struct ath_hw *ah)
 	}
 	rssi = BEACON_RSSI(ah);
 	if (rssi > aniState->rssiThrHigh) {
-		if (!aniState->ofdmWeakSigDetectOff) {
+		if (aniState->ofdmWeakSigDetect) {
 			if (ath9k_hw_ani_control(ah,
 					 ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 					 false)) {
@@ -200,7 +200,7 @@ static void ath9k_hw_ani_ofdm_err_trigger_old(struct ath_hw *ah)
 			return;
 		}
 	} else if (rssi > aniState->rssiThrLow) {
-		if (aniState->ofdmWeakSigDetectOff)
+		if (!aniState->ofdmWeakSigDetect)
 			ath9k_hw_ani_control(ah,
 				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				     true);
@@ -211,7 +211,7 @@ static void ath9k_hw_ani_ofdm_err_trigger_old(struct ath_hw *ah)
 	} else {
 		if ((conf->channel->band == IEEE80211_BAND_2GHZ) &&
 		    !conf_is_ht(conf)) {
-			if (!aniState->ofdmWeakSigDetectOff)
+			if (aniState->ofdmWeakSigDetect)
 				ath9k_hw_ani_control(ah,
 				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				     false);
@@ -296,7 +296,7 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel)
 	    BEACON_RSSI(ah) <= aniState->rssiThrHigh)
 		weak_sig = true;
 
-	if (!aniState->ofdmWeakSigDetectOff != weak_sig)
+	if (aniState->ofdmWeakSigDetect != weak_sig)
 			ath9k_hw_ani_control(ah,
 				ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				entry_ofdm->ofdm_weak_signal_on);
@@ -401,7 +401,7 @@ static void ath9k_hw_ani_lower_immunity_old(struct ath_hw *ah)
 		if (rssi > aniState->rssiThrHigh) {
 			/* XXX: Handle me */
 		} else if (rssi > aniState->rssiThrLow) {
-			if (aniState->ofdmWeakSigDetectOff) {
+			if (!aniState->ofdmWeakSigDetect) {
 				if (ath9k_hw_ani_control(ah,
 					 ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 					 true))
@@ -509,9 +509,9 @@ static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
 	if (aniState->spurImmunityLevel != 0)
 		ath9k_hw_ani_control(ah, ATH9K_ANI_SPUR_IMMUNITY_LEVEL,
 				     aniState->spurImmunityLevel);
-	if (aniState->ofdmWeakSigDetectOff)
+	if (!aniState->ofdmWeakSigDetect)
 		ath9k_hw_ani_control(ah, ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-				     !aniState->ofdmWeakSigDetectOff);
+				     aniState->ofdmWeakSigDetect);
 	if (aniState->cckWeakSigThreshold)
 		ath9k_hw_ani_control(ah, ATH9K_ANI_CCK_WEAK_SIGNAL_THR,
 				     aniState->cckWeakSigThreshold);
@@ -887,8 +887,7 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 		ani->rssiThrHigh = ATH9K_ANI_RSSI_THR_HIGH;
 		ani->rssiThrLow = ATH9K_ANI_RSSI_THR_LOW;
-		ani->ofdmWeakSigDetectOff =
-			!ATH9K_ANI_USE_OFDM_WEAK_SIG;
+		ani->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
 		ani->cckNoiseImmunityLevel = ATH9K_ANI_CCK_DEF_LEVEL;
 		ani->ofdmNoiseImmunityLevel = ATH9K_ANI_OFDM_DEF_LEVEL;
 		ani->update_ani = false;
