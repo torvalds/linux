@@ -79,6 +79,19 @@ modifier_event	[ukhpGH]{1,8}
 modifier_bp	[rwx]
 
 %%
+
+%{
+	{
+		int start_token;
+
+		start_token = (int) parse_events_get_extra(yyscanner);
+		if (start_token) {
+			parse_events_set_extra(NULL, yyscanner);
+			return start_token;
+		}
+         }
+%}
+
 cpu-cycles|cycles				{ return sym(yyscanner, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES); }
 stalled-cycles-frontend|idle-cycles-frontend	{ return sym(yyscanner, PERF_TYPE_HARDWARE, PERF_COUNT_HW_STALLED_CYCLES_FRONTEND); }
 stalled-cycles-backend|idle-cycles-backend	{ return sym(yyscanner, PERF_TYPE_HARDWARE, PERF_COUNT_HW_STALLED_CYCLES_BACKEND); }

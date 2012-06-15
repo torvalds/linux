@@ -25,6 +25,7 @@ do { \
 
 %}
 
+%token PE_START_EVENTS PE_START_TERMS
 %token PE_VALUE PE_VALUE_SYM PE_RAW PE_TERM
 %token PE_NAME
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP
@@ -59,6 +60,11 @@ do { \
 	struct parse_events__term *term;
 }
 %%
+
+start:
+PE_START_EVENTS events
+|
+PE_START_TERMS  terms
 
 events:
 events ',' event | event
@@ -207,6 +213,12 @@ PE_RAW
 	ABORT_ON(parse_events_add_numeric(&list, &data->idx,
 					  PERF_TYPE_RAW, $1, NULL));
 	$$ = list;
+}
+
+terms: event_config
+{
+	struct parse_events_data__terms *data = _data;
+	data->terms = $1;
 }
 
 event_config:

@@ -12,6 +12,7 @@
 #include "header.h"
 #include "debugfs.h"
 #include "parse-events-bison.h"
+#define YY_EXTRA_TYPE int
 #include "parse-events-flex.h"
 #include "pmu.h"
 
@@ -788,13 +789,13 @@ int parse_events_modifier(struct list_head *list, char *str)
 	return 0;
 }
 
-static int parse_events__scanner(const char *str, void *data)
+static int parse_events__scanner(const char *str, void *data, int start_token)
 {
 	YY_BUFFER_STATE buffer;
 	void *scanner;
 	int ret;
 
-	ret = parse_events_lex_init(&scanner);
+	ret = parse_events_lex_init_extra(start_token, &scanner);
 	if (ret)
 		return ret;
 
@@ -811,6 +812,27 @@ static int parse_events__scanner(const char *str, void *data)
 	return ret;
 }
 
+/*
+ * parse event config string, return a list of event terms.
+ */
+int parse_events_terms(struct list_head *terms, const char *str)
+{
+	struct parse_events_data__terms data = {
+		.terms = NULL,
+	};
+	int ret;
+
+	ret = parse_events__scanner(str, &data, PE_START_TERMS);
+	if (!ret) {
+		list_splice(data.terms, terms);
+		free(data.terms);
+		return 0;
+	}
+
+	parse_events__free_terms(data.terms);
+	return ret;
+}
+
 int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 {
 	struct parse_events_data__events data = {
@@ -819,7 +841,7 @@ int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 	};
 	int ret;
 
-	ret = parse_events__scanner(str, &data);
+	ret = parse_events__scanner(str, &data, PE_START_EVENTS);
 	if (!ret) {
 		int entries = data.idx - evlist->nr_entries;
 		perf_evlist__splice_list_tail(evlist, &data.list, entries);
