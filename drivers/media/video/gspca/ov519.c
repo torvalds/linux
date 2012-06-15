@@ -4209,8 +4209,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	set_ov_sensor_window(sd);
 
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
-
 	/* Force clear snapshot state in case the snapshot button was
 	   pressed while we weren't streaming */
 	sd->snapshot_needs_reset = 1;

@@ -1878,7 +1878,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
 	sd->exp_too_high_cnt = 0;
 	sd->exp_too_low_cnt = 0;
 	return gspca_dev->usb_err;

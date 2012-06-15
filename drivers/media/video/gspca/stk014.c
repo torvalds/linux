@@ -287,7 +287,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x0640, 0);
 	reg_w(gspca_dev, 0x0650, 0);
 	reg_w(gspca_dev, 0x0660, 0);
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
 	set_par(gspca_dev, 0x09800000);		/* Red ? */
 	set_par(gspca_dev, 0x0a800000);		/* Green ? */
 	set_par(gspca_dev, 0x0b800000);		/* Blue ? */

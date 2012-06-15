@@ -2620,8 +2620,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
-
 	/* Program max isoc packet size */
 	cit_write_reg(gspca_dev, packet_size >> 8, 0x0106);
 	cit_write_reg(gspca_dev, packet_size & 0xff, 0x0107);

@@ -242,8 +242,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	tv_8532_setReg(gspca_dev);
 
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
-
 	/************************************************/
 	reg_w1(gspca_dev, R31_UPD, 0x01);	/* update registers */
 	msleep(200);

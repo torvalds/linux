@@ -592,7 +592,6 @@ static int sd_start_12a(struct gspca_dev *gspca_dev)
 	memcpy(gspca_dev->usb_buf, Reg8391, 8);
 	reg_w_buf(gspca_dev, 0x8391, 8);
 	reg_w_buf(gspca_dev, 0x8390, 8);
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
 
 	/* Led ON (bit 3 -> 0 */
 	reg_w_val(gspca_dev->dev, 0x8114, 0x00);

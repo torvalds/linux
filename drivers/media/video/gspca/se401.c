@@ -373,7 +373,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	se401_set_feature(gspca_dev, SE401_OPERATINGMODE, mode);
 
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
 	se401_set_feature(gspca_dev, HV7131_REG_ARLV, sd->resetlevel);
 
 	sd->packet_read = 0;

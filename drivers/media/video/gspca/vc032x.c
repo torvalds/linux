@@ -3543,7 +3543,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /*	case SENSOR_POxxxx: */
 		usb_exchange(gspca_dev, poxxxx_init_common);
 		setgamma(gspca_dev);
-		v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
 		usb_exchange(gspca_dev, poxxxx_init_start_3);
 		if (mode)
 			init = poxxxx_initQVGA;
@@ -3576,7 +3575,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			break;
 		}
 		msleep(100);
-		v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
 	}
 	switch (sd->sensor) {
 	case SENSOR_OV7670:

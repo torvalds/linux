@@ -1910,11 +1910,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	reg_write(dev, SPCA501_REG_CTLRL, 0x01, 0x02);
 
-	/* HDG atleast the Intel CreateAndShare needs to have one of its
-	 * brightness / contrast / color set otherwise it assumes what seems
-	 * max contrast. Note that strange enough setting any of these is
-	 * enough to fix the max contrast problem, to be sure we set all 3 */
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
 	return 0;
 }
 

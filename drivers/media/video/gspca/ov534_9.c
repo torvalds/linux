@@ -1235,10 +1235,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	if (sd->sensor == SENSOR_OV971x)
 		return gspca_dev->usb_err;
-	else if (sd->sensor == SENSOR_OV562x) {
-		v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
+	if (sd->sensor == SENSOR_OV562x)
 		return gspca_dev->usb_err;
-	}
+
 	switch (gspca_dev->curr_mode) {
 	case QVGA_MODE:			/* 320x240 */
 		sccb_w_array(gspca_dev, ov965x_start_1_vga,
@@ -1282,8 +1281,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(ov965x_start_2_sxga));
 		break;
 	}
-
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
 
 	reg_w(gspca_dev, 0xe0, 0x00);
 	reg_w(gspca_dev, 0xe0, 0x00);

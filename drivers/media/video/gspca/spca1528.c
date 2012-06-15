@@ -261,10 +261,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* the JPEG quality shall be 85% */
 	jpeg_set_qual(sd->jpeg_hdr, 85);
 
-	/* set the controls */
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
-
-	msleep(5);
 	reg_r(gspca_dev, 0x00, 0x2520, 1);
 	msleep(8);
 

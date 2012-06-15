@@ -679,13 +679,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_write(dev, SPCA50X_REG_COMPRESS, 0x06, mode_tb[mode][1]);
 	reg_write(dev, SPCA50X_REG_COMPRESS, 0x07, mode_tb[mode][2]);
 
-	ret = reg_write(dev, SPCA50X_REG_USB,
+	return reg_write(dev, SPCA50X_REG_USB,
 			 SPCA50X_USB_CTRL,
 			 SPCA50X_CUSB_ENABLE);
-
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
-
-	return ret;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

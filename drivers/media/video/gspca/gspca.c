@@ -930,6 +930,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			goto out;
 		}
 		gspca_dev->streaming = 1;
+		v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
 
 		/* some bulk transfers are started by the subdriver */
 		if (gspca_dev->cam.bulk && gspca_dev->cam.bulk_nurbs == 0)
@@ -2428,7 +2429,6 @@ int gspca_resume(struct usb_interface *intf)
 	 */
 	streaming = gspca_dev->streaming;
 	gspca_dev->streaming = 0;
-	v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
 	if (streaming)
 		ret = gspca_init_transfer(gspca_dev);
 	mutex_unlock(&gspca_dev->usb_lock);

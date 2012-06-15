@@ -558,8 +558,6 @@ static void init_ctl_reg(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int pollreg = 1;
 
-	v4l2_ctrl_handler_setup(&gspca_dev->ctrl_handler);
-
 	switch (sd->bridge) {
 	case BRIDGE_SPCA504:
 	case BRIDGE_SPCA504C:
