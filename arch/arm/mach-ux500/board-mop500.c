@@ -796,8 +796,6 @@ static void __init u8500_init_machine(void)
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
-	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
-		snowball_platform_devs[i]->dev.parent = parent;
 
 	/* automatically probe child nodes of db8500 device */
 	of_platform_populate(NULL, u8500_local_bus_nodes, u8500_auxdata_lookup, parent);
@@ -815,17 +813,6 @@ static void __init u8500_init_machine(void)
 					ARRAY_SIZE(mop500_i2c2_devices));
 
 		mop500_uib_init();
-
-	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
-		/*
-		 * Devices to be DT:ed:
-		 *   snowball_led_dev   = done
-		 *   snowball_key_dev   = todo
-		 *   snowball_sbnet_dev = done
-		 *   ab8500_device      = done
-		 */
-		platform_add_devices(snowball_of_platform_devs,
-				ARRAY_SIZE(snowball_of_platform_devs));
 
 	} else if (of_machine_is_compatible("st-ericsson,hrefv60+")) {
 		/*
