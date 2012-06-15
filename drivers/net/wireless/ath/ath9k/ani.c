@@ -117,8 +117,6 @@ static void ath9k_hw_update_mibstats(struct ath_hw *ah,
 static void ath9k_ani_restart(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
-	struct ath_common *common = ath9k_hw_common(ah);
-	u32 ofdm_base = 0, cck_base = 0;
 
 	if (!DO_ANI(ah))
 		return;
@@ -126,13 +124,10 @@ static void ath9k_ani_restart(struct ath_hw *ah)
 	aniState = &ah->curchan->ani;
 	aniState->listenTime = 0;
 
-	ath_dbg(common, ANI, "Writing ofdmbase=%u   cckbase=%u\n",
-		ofdm_base, cck_base);
-
 	ENABLE_REGWRITE_BUFFER(ah);
 
-	REG_WRITE(ah, AR_PHY_ERR_1, ofdm_base);
-	REG_WRITE(ah, AR_PHY_ERR_2, cck_base);
+	REG_WRITE(ah, AR_PHY_ERR_1, 0);
+	REG_WRITE(ah, AR_PHY_ERR_2, 0);
 	REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
 	REG_WRITE(ah, AR_PHY_ERR_MASK_2, AR_PHY_ERR_CCK_TIMING);
 
@@ -375,9 +370,6 @@ static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ar5416AniState *aniState = &ah->curchan->ani;
-	u32 ofdm_base = 0;
-	u32 cck_base = 0;
-	u32 ofdmPhyErrCnt, cckPhyErrCnt;
 	u32 phyCnt1, phyCnt2;
 	int32_t listenTime;
 
@@ -397,15 +389,12 @@ static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
 	phyCnt1 = REG_READ(ah, AR_PHY_ERR_1);
 	phyCnt2 = REG_READ(ah, AR_PHY_ERR_2);
 
-	ofdmPhyErrCnt = phyCnt1 - ofdm_base;
-	ah->stats.ast_ani_ofdmerrs +=
-		ofdmPhyErrCnt - aniState->ofdmPhyErrCount;
-	aniState->ofdmPhyErrCount = ofdmPhyErrCnt;
+	ah->stats.ast_ani_ofdmerrs += phyCnt1 - aniState->ofdmPhyErrCount;
+	aniState->ofdmPhyErrCount = phyCnt1;
 
-	cckPhyErrCnt = phyCnt2 - cck_base;
-	ah->stats.ast_ani_cckerrs +=
-		cckPhyErrCnt - aniState->cckPhyErrCount;
-	aniState->cckPhyErrCount = cckPhyErrCnt;
+	ah->stats.ast_ani_cckerrs += phyCnt2 - aniState->cckPhyErrCount;
+	aniState->cckPhyErrCount = phyCnt2;
+
 	return true;
 }
 
@@ -565,20 +554,19 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 	ath_dbg(common, ANI, "Initialize ANI\n");
 
-	ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH_NEW;
-	ah->config.ofdm_trig_low = ATH9K_ANI_OFDM_TRIG_LOW_NEW;
+	ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH;
+	ah->config.ofdm_trig_low = ATH9K_ANI_OFDM_TRIG_LOW;
 
-	ah->config.cck_trig_high = ATH9K_ANI_CCK_TRIG_HIGH_NEW;
-	ah->config.cck_trig_low = ATH9K_ANI_CCK_TRIG_LOW_NEW;
+	ah->config.cck_trig_high = ATH9K_ANI_CCK_TRIG_HIGH;
+	ah->config.cck_trig_low = ATH9K_ANI_CCK_TRIG_LOW;
 
 	for (i = 0; i < ARRAY_SIZE(ah->channels); i++) {
 		struct ath9k_channel *chan = &ah->channels[i];
 		struct ar5416AniState *ani = &chan->ani;
 
-		ani->spurImmunityLevel =
-			ATH9K_ANI_SPUR_IMMUNE_LVL_NEW;
+		ani->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
 
-		ani->firstepLevel = ATH9K_ANI_FIRSTEP_LVL_NEW;
+		ani->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
 
 		if (AR_SREV_9300_20_OR_LATER(ah))
 			ani->mrcCCKOff =
@@ -600,8 +588,8 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 	 * since we expect some ongoing maintenance on the tables, let's sanity
 	 * check here default level should not modify INI setting.
 	 */
-	ah->aniperiod = ATH9K_ANI_PERIOD_NEW;
-	ah->config.ani_poll_interval = ATH9K_ANI_POLLINTERVAL_NEW;
+	ah->aniperiod = ATH9K_ANI_PERIOD;
+	ah->config.ani_poll_interval = ATH9K_ANI_POLLINTERVAL;
 
 	if (ah->config.enable_ani)
 		ah->proc_phyerr |= HAL_PROCESS_ANI;
