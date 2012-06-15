@@ -2657,7 +2657,7 @@ static void _notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data)
 {
 	/* call rdev chain first */
-	blocking_notifier_call_chain(&rdev->notifier, event, NULL);
+	blocking_notifier_call_chain(&rdev->notifier, event, data);
 }
 
 /**
