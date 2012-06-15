@@ -581,12 +581,12 @@ static bool consumer_del(struct uprobe *uprobe, struct uprobe_consumer *uc)
 
 static int
 __copy_insn(struct address_space *mapping, struct file *filp, char *insn,
-			unsigned long nbytes, unsigned long offset)
+			unsigned long nbytes, loff_t offset)
 {
 	struct page *page;
 	void *vaddr;
-	unsigned long off1;
-	unsigned long idx;
+	unsigned long off;
+	pgoff_t idx;
 
 	if (!filp)
 		return -EINVAL;
@@ -594,8 +594,8 @@ __copy_insn(struct address_space *mapping, struct file *filp, char *insn,
 	if (!mapping->a_ops->readpage)
 		return -EIO;
 
-	idx = (unsigned long)(offset >> PAGE_CACHE_SHIFT);
-	off1 = offset &= ~PAGE_MASK;
+	idx = offset >> PAGE_CACHE_SHIFT;
+	off = offset & ~PAGE_MASK;
 
 	/*
 	 * Ensure that the page that has the original instruction is
@@ -606,7 +606,7 @@ __copy_insn(struct address_space *mapping, struct file *filp, char *insn,
 		return PTR_ERR(page);
 
 	vaddr = kmap_atomic(page);
-	memcpy(insn, vaddr + off1, nbytes);
+	memcpy(insn, vaddr + off, nbytes);
 	kunmap_atomic(vaddr);
 	page_cache_release(page);
 
