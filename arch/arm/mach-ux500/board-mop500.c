@@ -819,7 +819,7 @@ static void __init u8500_init_machine(void)
 	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
 		/*
 		 * Devices to be DT:ed:
-		 *   snowball_led_dev   = todo
+		 *   snowball_led_dev   = done
 		 *   snowball_key_dev   = todo
 		 *   snowball_sbnet_dev = done
 		 *   ab8500_device      = done
