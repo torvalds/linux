@@ -1019,14 +1019,7 @@ void ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
-/*
- * ANI work can be shared between all families but a next
- * generation implementation of ANI will be used only for AR9003 only
- * for now as the other families still need to be tested with the same
- * next generation ANI. Feel free to start testing it though for the
- * older families (AR5008, AR9001, AR9002) by using modparam_force_new_ani.
- */
-extern int modparam_force_new_ani;
+
 void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_proc_mib_event(struct ath_hw *ah);
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);

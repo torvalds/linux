@@ -995,141 +995,6 @@ static u32 ar5008_hw_compute_pll_control(struct ath_hw *ah,
 	return pll;
 }
 
-static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
-				      enum ath9k_ani_cmd cmd,
-				      int param)
-{
-	struct ar5416AniState *aniState = &ah->curchan->ani;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	switch (cmd & ah->ani_function) {
-	case ATH9K_ANI_NOISE_IMMUNITY_LEVEL:{
-		u32 level = param;
-
-		if (level >= ARRAY_SIZE(ah->totalSizeDesired)) {
-			ath_dbg(common, ANI, "level out of range (%u > %zu)\n",
-				level, ARRAY_SIZE(ah->totalSizeDesired));
-			return false;
-		}
-
-		REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ,
-			      AR_PHY_DESIRED_SZ_TOT_DES,
-			      ah->totalSizeDesired[level]);
-		REG_RMW_FIELD(ah, AR_PHY_AGC_CTL1,
-			      AR_PHY_AGC_CTL1_COARSE_LOW,
-			      ah->coarse_low[level]);
-		REG_RMW_FIELD(ah, AR_PHY_AGC_CTL1,
-			      AR_PHY_AGC_CTL1_COARSE_HIGH,
-			      ah->coarse_high[level]);
-		REG_RMW_FIELD(ah, AR_PHY_FIND_SIG,
-			      AR_PHY_FIND_SIG_FIRPWR,
-			      ah->firpwr[level]);
-
-		if (level > aniState->noiseImmunityLevel)
-			ah->stats.ast_ani_niup++;
-		else if (level < aniState->noiseImmunityLevel)
-			ah->stats.ast_ani_nidown++;
-		aniState->noiseImmunityLevel = level;
-		break;
-	}
-	case ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION:{
-		u32 on = param ? 1 : 0;
-
-		if (on)
-			REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,
-				    AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
-		else
-			REG_CLR_BIT(ah, AR_PHY_SFCORR_LOW,
-				    AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
-
-		if (on != aniState->ofdmWeakSigDetect) {
-			if (on)
-				ah->stats.ast_ani_ofdmon++;
-			else
-				ah->stats.ast_ani_ofdmoff++;
-			aniState->ofdmWeakSigDetect = on;
-		}
-		break;
-	}
-	case ATH9K_ANI_CCK_WEAK_SIGNAL_THR:{
-		static const int weakSigThrCck[] = { 8, 6 };
-		u32 high = param ? 1 : 0;
-
-		REG_RMW_FIELD(ah, AR_PHY_CCK_DETECT,
-			      AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK,
-			      weakSigThrCck[high]);
-		if (high != aniState->cckWeakSigThreshold) {
-			if (high)
-				ah->stats.ast_ani_cckhigh++;
-			else
-				ah->stats.ast_ani_ccklow++;
-			aniState->cckWeakSigThreshold = high;
-		}
-		break;
-	}
-	case ATH9K_ANI_FIRSTEP_LEVEL:{
-		static const int firstep[] = { 0, 4, 8 };
-		u32 level = param;
-
-		if (level >= ARRAY_SIZE(firstep)) {
-			ath_dbg(common, ANI, "level out of range (%u > %zu)\n",
-				level, ARRAY_SIZE(firstep));
-			return false;
-		}
-		REG_RMW_FIELD(ah, AR_PHY_FIND_SIG,
-			      AR_PHY_FIND_SIG_FIRSTEP,
-			      firstep[level]);
-		if (level > aniState->firstepLevel)
-			ah->stats.ast_ani_stepup++;
-		else if (level < aniState->firstepLevel)
-			ah->stats.ast_ani_stepdown++;
-		aniState->firstepLevel = level;
-		break;
-	}
-	case ATH9K_ANI_SPUR_IMMUNITY_LEVEL:{
-		static const int cycpwrThr1[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
-		u32 level = param;
-
-		if (level >= ARRAY_SIZE(cycpwrThr1)) {
-			ath_dbg(common, ANI, "level out of range (%u > %zu)\n",
-				level, ARRAY_SIZE(cycpwrThr1));
-			return false;
-		}
-		REG_RMW_FIELD(ah, AR_PHY_TIMING5,
-			      AR_PHY_TIMING5_CYCPWR_THR1,
-			      cycpwrThr1[level]);
-		if (level > aniState->spurImmunityLevel)
-			ah->stats.ast_ani_spurup++;
-		else if (level < aniState->spurImmunityLevel)
-			ah->stats.ast_ani_spurdown++;
-		aniState->spurImmunityLevel = level;
-		break;
-	}
-	case ATH9K_ANI_PRESENT:
-		break;
-	default:
-		ath_dbg(common, ANI, "invalid cmd %u\n", cmd);
-		return false;
-	}
-
-	ath_dbg(common, ANI, "ANI parameters:\n");
-	ath_dbg(common, ANI,
-		"noiseImmunityLevel=%d, spurImmunityLevel=%d, ofdmWeakSigDetect=%d\n",
-		aniState->noiseImmunityLevel,
-		aniState->spurImmunityLevel,
-		aniState->ofdmWeakSigDetect);
-	ath_dbg(common, ANI,
-		"cckWeakSigThreshold=%d, firstepLevel=%d, listenTime=%d\n",
-		aniState->cckWeakSigThreshold,
-		aniState->firstepLevel,
-		aniState->listenTime);
-	ath_dbg(common, ANI, "ofdmPhyErrCount=%d, cckPhyErrCount=%d\n\n",
-		aniState->ofdmPhyErrCount,
-		aniState->cckPhyErrCount);
-
-	return true;
-}
-
 static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 				      enum ath9k_ani_cmd cmd,
 				      int param)
@@ -1545,11 +1410,8 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->do_getnf = ar5008_hw_do_getnf;
 	priv_ops->set_radar_params = ar5008_hw_set_radar_params;
 
-	if (modparam_force_new_ani) {
-		priv_ops->ani_control = ar5008_hw_ani_control_new;
-		priv_ops->ani_cache_ini_regs = ar5008_hw_ani_cache_ini_regs;
-	} else
-		priv_ops->ani_control = ar5008_hw_ani_control_old;
+	priv_ops->ani_control = ar5008_hw_ani_control_new;
+	priv_ops->ani_cache_ini_regs = ar5008_hw_ani_cache_ini_regs;
 
 	if (AR_SREV_9100(ah) || AR_SREV_9160_10_OR_LATER(ah))
 		priv_ops->compute_pll_control = ar9160_hw_compute_pll_control;
