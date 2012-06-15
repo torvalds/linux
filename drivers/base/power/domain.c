@@ -1615,16 +1615,24 @@ EXPORT_SYMBOL_GPL(__pm_genpd_remove_callbacks);
 static int pm_genpd_default_save_state(struct device *dev)
 {
 	int (*cb)(struct device *__dev);
-	struct device_driver *drv = dev->driver;
 
 	cb = dev_gpd_data(dev)->ops.save_state;
 	if (cb)
 		return cb(dev);
 
-	if (drv && drv->pm && drv->pm->runtime_suspend)
-		return drv->pm->runtime_suspend(dev);
+	if (dev->type && dev->type->pm)
+		cb = dev->type->pm->runtime_suspend;
+	else if (dev->class && dev->class->pm)
+		cb = dev->class->pm->runtime_suspend;
+	else if (dev->bus && dev->bus->pm)
+		cb = dev->bus->pm->runtime_suspend;
+	else
+		cb = NULL;
 
-	return 0;
+	if (!cb && dev->driver && dev->driver->pm)
+		cb = dev->driver->pm->runtime_suspend;
+
+	return cb ? cb(dev) : 0;
 }
 
 /**
@@ -1634,16 +1642,24 @@ static int pm_genpd_default_save_state(struct device *dev)
 static int pm_genpd_default_restore_state(struct device *dev)
 {
 	int (*cb)(struct device *__dev);
-	struct device_driver *drv = dev->driver;
 
 	cb = dev_gpd_data(dev)->ops.restore_state;
 	if (cb)
 		return cb(dev);
 
-	if (drv && drv->pm && drv->pm->runtime_resume)
-		return drv->pm->runtime_resume(dev);
+	if (dev->type && dev->type->pm)
+		cb = dev->type->pm->runtime_resume;
+	else if (dev->class && dev->class->pm)
+		cb = dev->class->pm->runtime_resume;
+	else if (dev->bus && dev->bus->pm)
+		cb = dev->bus->pm->runtime_resume;
+	else
+		cb = NULL;
 
-	return 0;
+	if (!cb && dev->driver && dev->driver->pm)
+		cb = dev->driver->pm->runtime_resume;
+
+	return cb ? cb(dev) : 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
