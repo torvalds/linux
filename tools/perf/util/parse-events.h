@@ -88,7 +88,7 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 			 char *pmu , struct list_head *head_config);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
-void parse_events_error(void *data, char const *msg);
+void parse_events_error(void *data, void *scanner, char const *msg);
 int parse_events__test(void);
 
 void print_events(const char *event_glob);

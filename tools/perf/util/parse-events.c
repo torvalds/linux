@@ -11,6 +11,7 @@
 #include "cache.h"
 #include "header.h"
 #include "debugfs.h"
+#include "parse-events-bison.h"
 #include "parse-events-flex.h"
 #include "pmu.h"
 
@@ -26,7 +27,7 @@ struct event_symbol {
 #ifdef PARSER_DEBUG
 extern int parse_events_debug;
 #endif
-int parse_events_parse(void *data);
+int parse_events_parse(void *data, void *scanner);
 
 #define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
@@ -787,26 +788,38 @@ int parse_events_modifier(struct list_head *list, char *str)
 	return 0;
 }
 
+static int parse_events__scanner(const char *str, void *data)
+{
+	YY_BUFFER_STATE buffer;
+	void *scanner;
+	int ret;
+
+	ret = parse_events_lex_init(&scanner);
+	if (ret)
+		return ret;
+
+	buffer = parse_events__scan_string(str, scanner);
+
+#ifdef PARSER_DEBUG
+	parse_events_debug = 1;
+#endif
+	ret = parse_events_parse(data, scanner);
+
+	parse_events__flush_buffer(buffer, scanner);
+	parse_events__delete_buffer(buffer, scanner);
+	parse_events_lex_destroy(scanner);
+	return ret;
+}
+
 int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 {
 	struct parse_events_data__events data = {
 		.list = LIST_HEAD_INIT(data.list),
 		.idx  = evlist->nr_entries,
 	};
-	YY_BUFFER_STATE buffer;
 	int ret;
 
-	buffer = parse_events__scan_string(str);
-
-#ifdef PARSER_DEBUG
-	parse_events_debug = 1;
-#endif
-	ret = parse_events_parse(&data);
-
-	parse_events__flush_buffer(buffer);
-	parse_events__delete_buffer(buffer);
-	parse_events_lex_destroy();
-
+	ret = parse_events__scanner(str, &data);
 	if (!ret) {
 		int entries = data.idx - evlist->nr_entries;
 		perf_evlist__splice_list_tail(evlist, &data.list, entries);

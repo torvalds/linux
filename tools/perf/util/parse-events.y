@@ -1,6 +1,8 @@
-
+%pure-parser
 %name-prefix "parse_events_"
 %parse-param {void *_data}
+%parse-param {void *scanner}
+%lex-param {void* scanner}
 
 %{
 
@@ -11,8 +13,9 @@
 #include "types.h"
 #include "util.h"
 #include "parse-events.h"
+#include "parse-events-bison.h"
 
-extern int parse_events_lex (void);
+extern int parse_events_lex (YYSTYPE* lvalp, void* scanner);
 
 #define ABORT_ON(val) \
 do { \
@@ -286,7 +289,7 @@ sep_slash_dc: '/' | ':' |
 
 %%
 
-void parse_events_error(void *data __used,
+void parse_events_error(void *data __used, void *scanner __used,
 			char const *msg __used)
 {
 }
