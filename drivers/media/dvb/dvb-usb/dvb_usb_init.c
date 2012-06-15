@@ -294,7 +294,9 @@ static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 {
 	int i;
 
-	for (i = d->num_adapters_initialized - 1; i >= 0; i--) {
+	pr_debug("%s:\n", __func__);
+
+	for (i = MAX_NO_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
 		dvb_usbv2_adapter_frontend_exit(&d->adapter[i]);
 		dvb_usbv2_adapter_dvb_exit(&d->adapter[i]);
 		dvb_usbv2_adapter_stream_exit(&d->adapter[i]);
