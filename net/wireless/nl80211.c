@@ -6718,6 +6718,10 @@ static int nl80211_register_beacons(struct sk_buff *skb, struct genl_info *info)
 #define NL80211_FLAG_CHECK_NETDEV_UP	0x08
 #define NL80211_FLAG_NEED_NETDEV_UP	(NL80211_FLAG_NEED_NETDEV |\
 					 NL80211_FLAG_CHECK_NETDEV_UP)
+#define NL80211_FLAG_NEED_WDEV		0x10
+/* If a netdev is associated, it must be UP */
+#define NL80211_FLAG_NEED_WDEV_UP	(NL80211_FLAG_NEED_WDEV |\
+					 NL80211_FLAG_CHECK_NETDEV_UP)
 
 static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 			    struct genl_info *info)
@@ -6738,7 +6742,8 @@ static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 			return PTR_ERR(rdev);
 		}
 		info->user_ptr[0] = rdev;
-	} else if (ops->internal_flags & NL80211_FLAG_NEED_NETDEV) {
+	} else if (ops->internal_flags & NL80211_FLAG_NEED_NETDEV ||
+		   ops->internal_flags & NL80211_FLAG_NEED_WDEV) {
 		mutex_lock(&cfg80211_mutex);
 		wdev = __cfg80211_wdev_from_attrs(genl_info_net(info),
 						  info->attrs);
@@ -6749,31 +6754,39 @@ static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 			return PTR_ERR(wdev);
 		}
 
-		if (!wdev->netdev) {
-			mutex_unlock(&cfg80211_mutex);
-			if (rtnl)
-				rtnl_unlock();
-			return -EINVAL;
-		}
-
 		dev = wdev->netdev;
 		rdev = wiphy_to_dev(wdev->wiphy);
 
-		if (ops->internal_flags & NL80211_FLAG_CHECK_NETDEV_UP &&
-		    !netif_running(dev)) {
-			mutex_unlock(&cfg80211_mutex);
-			if (rtnl)
-				rtnl_unlock();
-			return -ENETDOWN;
+		if (ops->internal_flags & NL80211_FLAG_NEED_NETDEV) {
+			if (!dev) {
+				mutex_unlock(&cfg80211_mutex);
+				if (rtnl)
+					rtnl_unlock();
+				return -EINVAL;
+			}
+
+			info->user_ptr[1] = dev;
+		} else {
+			info->user_ptr[1] = wdev;
 		}
 
-		dev_hold(dev);
+		if (dev) {
+			if (ops->internal_flags & NL80211_FLAG_CHECK_NETDEV_UP &&
+			    !netif_running(dev)) {
+				mutex_unlock(&cfg80211_mutex);
+				if (rtnl)
+					rtnl_unlock();
+				return -ENETDOWN;
+			}
+
+			dev_hold(dev);
+		}
+
 		cfg80211_lock_rdev(rdev);
 
 		mutex_unlock(&cfg80211_mutex);
 
 		info->user_ptr[0] = rdev;
-		info->user_ptr[1] = dev;
 	}
 
 	return 0;
@@ -6784,8 +6797,16 @@ static void nl80211_post_doit(struct genl_ops *ops, struct sk_buff *skb,
 {
 	if (info->user_ptr[0])
 		cfg80211_unlock_rdev(info->user_ptr[0]);
-	if (info->user_ptr[1])
-		dev_put(info->user_ptr[1]);
+	if (info->user_ptr[1]) {
+		if (ops->internal_flags & NL80211_FLAG_NEED_WDEV) {
+			struct wireless_dev *wdev = info->user_ptr[1];
+
+			if (wdev->netdev)
+				dev_put(wdev->netdev);
+		} else {
+			dev_put(info->user_ptr[1]);
+		}
+	}
 	if (ops->internal_flags & NL80211_FLAG_NEED_RTNL)
 		rtnl_unlock();
 }
