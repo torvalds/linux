@@ -1590,8 +1590,8 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 		found = 0;
 		oldest = NULL;
 		list_for_each_entry(target, &wl->network_list, list) {
-			if (!compare_ether_addr(&target->hwinfo->bssid[2],
-						&scan_info->bssid[2])) {
+			if (ether_addr_equal(&target->hwinfo->bssid[2],
+					     &scan_info->bssid[2])) {
 				found = 1;
 				pr_debug("%s: same BBS found scanned list\n",
 					 __func__);
@@ -1621,10 +1621,9 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 		kfree(target->hwinfo);
 		target->hwinfo = kzalloc(be16_to_cpu(scan_info->size),
 					 GFP_KERNEL);
-		if (!target->hwinfo) {
-			pr_info("%s: kzalloc failed\n", __func__);
+		if (!target->hwinfo)
 			continue;
-		}
+
 		/* copy hw scan info */
 		memcpy(target->hwinfo, scan_info, scan_info->size);
 		target->essid_len = strnlen(scan_info->essid,
@@ -1692,8 +1691,8 @@ struct gelic_wl_scan_info *gelic_wl_find_best_bss(struct gelic_wl_info *wl)
 
 		/* If bss specified, check it only */
 		if (test_bit(GELIC_WL_STAT_BSSID_SET, &wl->stat)) {
-			if (!compare_ether_addr(&scan_info->hwinfo->bssid[2],
-						wl->bssid)) {
+			if (ether_addr_equal(&scan_info->hwinfo->bssid[2],
+					     wl->bssid)) {
 				best_bss = scan_info;
 				pr_debug("%s: bssid matched\n", __func__);
 				break;

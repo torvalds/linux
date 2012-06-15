@@ -11,6 +11,19 @@
 
 #define THIN_METADATA_BLOCK_SIZE 4096
 
+/*
+ * The metadata device is currently limited in size.
+ *
+ * We have one block of index, which can hold 255 index entries.  Each
+ * index entry contains allocation info about 16k metadata blocks.
+ */
+#define THIN_METADATA_MAX_SECTORS (255 * (1 << 14) * (THIN_METADATA_BLOCK_SIZE / (1 << SECTOR_SHIFT)))
+
+/*
+ * A metadata device larger than 16GB triggers a warning.
+ */
+#define THIN_METADATA_MAX_SECTORS_WARNING (16 * (1024 * 1024 * 1024 >> SECTOR_SHIFT))
+
 /*----------------------------------------------------------------*/
 
 struct dm_pool_metadata;
@@ -77,11 +90,18 @@ int dm_pool_get_metadata_transaction_id(struct dm_pool_metadata *pmd,
 
 /*
  * Hold/get root for userspace transaction.
+ *
+ * The metadata snapshot is a copy of the current superblock (minus the
+ * space maps).  Userland can access the data structures for READ
+ * operations only.  A small performance hit is incurred by providing this
+ * copy of the metadata to userland due to extra copy-on-write operations
+ * on the metadata nodes.  Release this as soon as you finish with it.
  */
-int dm_pool_hold_metadata_root(struct dm_pool_metadata *pmd);
+int dm_pool_reserve_metadata_snap(struct dm_pool_metadata *pmd);
+int dm_pool_release_metadata_snap(struct dm_pool_metadata *pmd);
 
-int dm_pool_get_held_metadata_root(struct dm_pool_metadata *pmd,
-				   dm_block_t *result);
+int dm_pool_get_metadata_snap(struct dm_pool_metadata *pmd,
+			      dm_block_t *result);
 
 /*
  * Actions on a single virtual device.

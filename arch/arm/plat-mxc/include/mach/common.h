@@ -53,6 +53,7 @@ extern void imx35_soc_init(void);
 extern void imx50_soc_init(void);
 extern void imx51_soc_init(void);
 extern void imx53_soc_init(void);
+extern void imx51_init_late(void);
 extern void epit_timer_init(struct clk *timer_clk, void __iomem *base, int irq);
 extern void mxc_timer_init(struct clk *timer_clk, void __iomem *, int);
 extern int mx1_clocks_init(unsigned long fref);
@@ -65,6 +66,7 @@ extern int mx51_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
 extern int mx53_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
+extern int mx27_clocks_init_dt(void);
 extern int mx51_clocks_init_dt(void);
 extern int mx53_clocks_init_dt(void);
 extern int mx6q_clocks_init(void);
@@ -75,6 +77,7 @@ extern void mxc_restart(char, const char *);
 extern void mxc_arch_reset_init(void __iomem *);
 extern int mx53_revision(void);
 extern int mx53_display_revision(void);
+extern void imx_set_aips(void __iomem *);
 
 enum mxc_cpu_pwr_mode {
 	WAIT_CLOCKED,		/* wfi only */
@@ -84,6 +87,14 @@ enum mxc_cpu_pwr_mode {
 	STOP_POWER_OFF,		/* STOP + SRPG */
 };
 
+enum mx3_cpu_pwr_mode {
+	MX3_RUN,
+	MX3_WAIT,
+	MX3_DOZE,
+	MX3_SLEEP,
+};
+
+extern void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
 extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
 extern void imx_print_silicon_rev(const char *cpu, int srev);
 
@@ -137,6 +148,12 @@ extern void imx6q_clock_map_io(void);
 extern void imx6q_pm_init(void);
 #else
 static inline void imx6q_pm_init(void) {}
+#endif
+
+#ifdef CONFIG_NEON
+extern int mx51_neon_fixup(void);
+#else
+static inline int mx51_neon_fixup(void) { return 0; }
 #endif
 
 #endif

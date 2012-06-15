@@ -1,14 +1,55 @@
 menu "Versatile Express platform type"
 	depends on ARCH_VEXPRESS
 
-config ARCH_VEXPRESS_CA9X4
-	bool "Versatile Express Cortex-A9x4 tile"
-	select CPU_V7
-	select ARM_GIC
+config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
+	bool
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_751472
-	select PL310_ERRATA_753970
+	select PL310_ERRATA_753970 if CACHE_PL310
+	help
+	  Provides common dependencies for Versatile Express platforms
+	  based on Cortex-A5 and Cortex-A9 processors. In order to
+	  build a working kernel, you must also enable relevant core
+	  tile support or Flattened Device Tree based support options.
+
+config ARCH_VEXPRESS_CA9X4
+	bool "Versatile Express Cortex-A9x4 tile"
+	select ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
+	select ARM_GIC
+	select CPU_V7
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+
+config ARCH_VEXPRESS_DT
+	bool "Device Tree support for Versatile Express platforms"
+	select ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
+	select ARM_GIC
+	select ARM_PATCH_PHYS_VIRT
+	select AUTO_ZRELADDR
+	select CPU_V7
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	select USE_OF
+	help
+	  New Versatile Express platforms require Flattened Device Tree to
+	  be passed to the kernel.
+
+	  This option enables support for systems using Cortex processor based
+	  ARM core and logic (FPGA) tiles on the Versatile Express motherboard,
+	  for example:
+
+	  - CoreTile Express A5x2 (V2P-CA5s)
+	  - CoreTile Express A9x4 (V2P-CA9)
+	  - CoreTile Express A15x2 (V2P-CA15)
+	  - LogicTile Express 13MG (V2F-2XV6) with A5, A7, A9 or A15 SMMs
+	    (Soft Macrocell Models)
+	  - Versatile Express RTSMs (Models)
+
+	  You must boot using a Flattened Device Tree in order to use these
+	  platforms. The traditional (ATAGs) boot method is not usable on
+	  these boards with this option.
+
+	  If your bootloader supports Flattened Device Tree based booting,
+	  say Y here.
 
 endmenu

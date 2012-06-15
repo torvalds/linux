@@ -433,7 +433,6 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 		goto err_alloc;
 	}
 
-	master->bus_num = -1;
 	master->setup = mpc52xx_spi_setup;
 	master->transfer = mpc52xx_spi_transfer;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
@@ -479,8 +478,6 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 			gpio_direction_output(gpio_cs, 1);
 			ms->gpio_cs[i] = gpio_cs;
 		}
-	} else {
-		master->num_chipselect = 1;
 	}
 
 	spin_lock_init(&ms->lock);

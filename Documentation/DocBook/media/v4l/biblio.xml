@@ -128,6 +128,26 @@ url="http://www.ijg.org">http://www.ijg.org</ulink>)</corpauthor>
       <subtitle>Version 1.02</subtitle>
     </biblioentry>
 
+    <biblioentry id="itu-t81">
+      <abbrev>ITU-T.81</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union
+(<ulink url="http://www.itu.int">http://www.itu.int</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-T Recommendation T.81
+"Information Technology &mdash; Digital Compression and Coding of Continous-Tone
+Still Images &mdash; Requirements and Guidelines"</title>
+    </biblioentry>
+
+    <biblioentry id="w3c-jpeg-jfif">
+      <abbrev>W3C JPEG JFIF</abbrev>
+      <authorgroup>
+	<corpauthor>The World Wide Web Consortium (<ulink
+url="http://www.w3.org/Graphics/JPEG">http://www.w3.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>JPEG JFIF</title>
+    </biblioentry>
+
     <biblioentry id="smpte12m">
       <abbrev>SMPTE&nbsp;12M</abbrev>
       <authorgroup>
@@ -175,6 +195,35 @@ in the frequency range from 87,5 to 108,0 MHz</title>
 (<ulink url="http://www.nrscstandards.org">http://www.nrscstandards.org</ulink>)</corpauthor>
       </authorgroup>
       <title>NTSC-4: United States RBDS Standard</title>
+    </biblioentry>
+
+    <biblioentry id="iso12232">
+      <abbrev>ISO&nbsp;12232:2006</abbrev>
+      <authorgroup>
+	<corpauthor>International Organization for Standardization
+(<ulink url="http://www.iso.org">http://www.iso.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>Photography &mdash; Digital still cameras &mdash; Determination
+      of exposure index, ISO speed ratings, standard output sensitivity, and
+      recommended exposure index</title>
+    </biblioentry>
+
+    <biblioentry id="cea861">
+      <abbrev>CEA-861-E</abbrev>
+      <authorgroup>
+	<corpauthor>Consumer Electronics Association
+(<ulink url="http://www.ce.org">http://www.ce.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>A DTV Profile for Uncompressed High Speed Digital Interfaces</title>
+    </biblioentry>
+
+    <biblioentry id="vesadmt">
+      <abbrev>VESA&nbsp;DMT</abbrev>
+      <authorgroup>
+	<corpauthor>Video Electronics Standards Association
+(<ulink url="http://www.vesa.org">http://www.vesa.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>VESA and Industry Standards and Guidelines for Computer Display Monitor Timing (DMT)</title>
     </biblioentry>
 
   </bibliography>

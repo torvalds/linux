@@ -57,6 +57,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
@@ -69,13 +72,6 @@
 
 static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);
-
-
-static int ath5k_debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 
 /* debugfs: registers */
@@ -254,10 +250,10 @@ static ssize_t write_file_beacon(struct file *file,
 
 	if (strncmp(buf, "disable", 7) == 0) {
 		AR5K_REG_DISABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE);
-		printk(KERN_INFO "debugfs disable beacons\n");
+		pr_info("debugfs disable beacons\n");
 	} else if (strncmp(buf, "enable", 6) == 0) {
 		AR5K_REG_ENABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE);
-		printk(KERN_INFO "debugfs enable beacons\n");
+		pr_info("debugfs enable beacons\n");
 	}
 	return count;
 }
@@ -265,7 +261,7 @@ static ssize_t write_file_beacon(struct file *file,
 static const struct file_operations fops_beacon = {
 	.read = read_file_beacon,
 	.write = write_file_beacon,
-	.open = ath5k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -285,7 +281,7 @@ static ssize_t write_file_reset(struct file *file,
 
 static const struct file_operations fops_reset = {
 	.write = write_file_reset,
-	.open = ath5k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 };
@@ -365,7 +361,7 @@ static ssize_t write_file_debug(struct file *file,
 static const struct file_operations fops_debug = {
 	.read = read_file_debug,
 	.write = write_file_debug,
-	.open = ath5k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -457,19 +453,19 @@ static ssize_t write_file_antenna(struct file *file,
 
 	if (strncmp(buf, "diversity", 9) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_DEFAULT);
-		printk(KERN_INFO "ath5k debug: enable diversity\n");
+		pr_info("debug: enable diversity\n");
 	} else if (strncmp(buf, "fixed-a", 7) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_FIXED_A);
-		printk(KERN_INFO "ath5k debugfs: fixed antenna A\n");
+		pr_info("debug: fixed antenna A\n");
 	} else if (strncmp(buf, "fixed-b", 7) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_FIXED_B);
-		printk(KERN_INFO "ath5k debug: fixed antenna B\n");
+		pr_info("debug: fixed antenna B\n");
 	} else if (strncmp(buf, "clear", 5) == 0) {
 		for (i = 0; i < ARRAY_SIZE(ah->stats.antenna_rx); i++) {
 			ah->stats.antenna_rx[i] = 0;
 			ah->stats.antenna_tx[i] = 0;
 		}
-		printk(KERN_INFO "ath5k debug: cleared antenna stats\n");
+		pr_info("debug: cleared antenna stats\n");
 	}
 	return count;
 }
@@ -477,7 +473,7 @@ static ssize_t write_file_antenna(struct file *file,
 static const struct file_operations fops_antenna = {
 	.read = read_file_antenna,
 	.write = write_file_antenna,
-	.open = ath5k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -532,7 +528,7 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_misc = {
 	.read = read_file_misc,
-	.open = ath5k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 };
 
@@ -639,7 +635,7 @@ static ssize_t write_file_frameerrors(struct file *file,
 		st->txerr_fifo = 0;
 		st->txerr_filt = 0;
 		st->tx_all_count = 0;
-		printk(KERN_INFO "ath5k debug: cleared frameerrors stats\n");
+		pr_info("debug: cleared frameerrors stats\n");
 	}
 	return count;
 }
@@ -647,7 +643,7 @@ static ssize_t write_file_frameerrors(struct file *file,
 static const struct file_operations fops_frameerrors = {
 	.read = read_file_frameerrors,
 	.write = write_file_frameerrors,
-	.open = ath5k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -810,7 +806,7 @@ static ssize_t write_file_ani(struct file *file,
 static const struct file_operations fops_ani = {
 	.read = read_file_ani,
 	.write = write_file_ani,
-	.open = ath5k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -881,7 +877,7 @@ static ssize_t write_file_queue(struct file *file,
 static const struct file_operations fops_queue = {
 	.read = read_file_queue,
 	.write = write_file_queue,
-	.open = ath5k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };

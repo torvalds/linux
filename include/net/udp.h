@@ -23,6 +23,7 @@
 #define _UDP_H
 
 #include <linux/list.h>
+#include <linux/bug.h>
 #include <net/inet_sock.h>
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -80,7 +81,7 @@ struct udp_table {
 extern struct udp_table udp_table;
 extern void udp_table_init(struct udp_table *, const char *);
 static inline struct udp_hslot *udp_hashslot(struct udp_table *table,
-					     struct net *net, unsigned num)
+					     struct net *net, unsigned int num)
 {
 	return &table->hash[udp_hashfn(net, num, table->mask)];
 }
@@ -266,4 +267,8 @@ extern void udp_init(void);
 extern int udp4_ufo_send_check(struct sk_buff *skb);
 extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 	netdev_features_t features);
+extern void udp_encap_enable(void);
+#if IS_ENABLED(CONFIG_IPV6)
+extern void udpv6_encap_enable(void);
+#endif
 #endif	/* _UDP_H */

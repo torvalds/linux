@@ -19,6 +19,7 @@
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
 #include <linux/etherdevice.h>
+#include <linux/export.h>
 #include <ar231x_platform.h>
 #include "ath5k.h"
 #include "debug.h"
@@ -119,7 +120,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no IRQ resource found\n");
 		ret = -ENXIO;
-		goto err_out;
+		goto err_iounmap;
 	}
 
 	irq = res->start;
@@ -128,7 +129,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	if (hw == NULL) {
 		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
 		ret = -ENOMEM;
-		goto err_out;
+		goto err_iounmap;
 	}
 
 	ah = hw->priv;
@@ -140,23 +141,23 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	if (bcfg->devid >= AR5K_SREV_AR2315_R6) {
 		/* Enable WMAC AHB arbitration */
-		reg = __raw_readl((void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
+		reg = ioread32((void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
 		reg |= AR5K_AR2315_AHB_ARB_CTL_WLAN;
-		__raw_writel(reg, (void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
+		iowrite32(reg, (void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
 
 		/* Enable global WMAC swapping */
-		reg = __raw_readl((void __iomem *) AR5K_AR2315_BYTESWAP);
+		reg = ioread32((void __iomem *) AR5K_AR2315_BYTESWAP);
 		reg |= AR5K_AR2315_BYTESWAP_WMAC;
-		__raw_writel(reg, (void __iomem *) AR5K_AR2315_BYTESWAP);
+		iowrite32(reg, (void __iomem *) AR5K_AR2315_BYTESWAP);
 	} else {
 		/* Enable WMAC DMA access (assuming 5312 or 231x*/
 		/* TODO: check other platforms */
-		reg = __raw_readl((void __iomem *) AR5K_AR5312_ENABLE);
+		reg = ioread32((void __iomem *) AR5K_AR5312_ENABLE);
 		if (to_platform_device(ah->dev)->id == 0)
 			reg |= AR5K_AR5312_ENABLE_WLAN0;
 		else
 			reg |= AR5K_AR5312_ENABLE_WLAN1;
-		__raw_writel(reg, (void __iomem *) AR5K_AR5312_ENABLE);
+		iowrite32(reg, (void __iomem *) AR5K_AR5312_ENABLE);
 
 		/*
 		 * On a dual-band AR5312, the multiband radio is only
@@ -185,6 +186,8 @@ static int ath_ahb_probe(struct platform_device *pdev)
  err_free_hw:
 	ieee80211_free_hw(hw);
 	platform_set_drvdata(pdev, NULL);
+ err_iounmap:
+        iounmap(mem);
  err_out:
 	return ret;
 }
@@ -203,20 +206,21 @@ static int ath_ahb_remove(struct platform_device *pdev)
 
 	if (bcfg->devid >= AR5K_SREV_AR2315_R6) {
 		/* Disable WMAC AHB arbitration */
-		reg = __raw_readl((void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
+		reg = ioread32((void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
 		reg &= ~AR5K_AR2315_AHB_ARB_CTL_WLAN;
-		__raw_writel(reg, (void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
+		iowrite32(reg, (void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
 	} else {
 		/*Stop DMA access */
-		reg = __raw_readl((void __iomem *) AR5K_AR5312_ENABLE);
+		reg = ioread32((void __iomem *) AR5K_AR5312_ENABLE);
 		if (to_platform_device(ah->dev)->id == 0)
 			reg &= ~AR5K_AR5312_ENABLE_WLAN0;
 		else
 			reg &= ~AR5K_AR5312_ENABLE_WLAN1;
-		__raw_writel(reg, (void __iomem *) AR5K_AR5312_ENABLE);
+		iowrite32(reg, (void __iomem *) AR5K_AR5312_ENABLE);
 	}
 
 	ath5k_deinit_ah(ah);
+	iounmap(ah->iobase);
 	platform_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 

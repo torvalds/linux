@@ -83,11 +83,30 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	u64 total_size = 0;
 	struct mlx4_resource *profile;
 	struct mlx4_resource tmp;
+	struct sysinfo si;
 	int i, j;
 
 	profile = kcalloc(MLX4_RES_NUM, sizeof(*profile), GFP_KERNEL);
 	if (!profile)
 		return -ENOMEM;
+
+	/*
+	 * We want to scale the number of MTTs with the size of the
+	 * system memory, since it makes sense to register a lot of
+	 * memory on a system with a lot of memory.  As a heuristic,
+	 * make sure we have enough MTTs to cover twice the system
+	 * memory (with PAGE_SIZE entries).
+	 *
+	 * This number has to be a power of two and fit into 32 bits
+	 * due to device limitations, so cap this at 2^31 as well.
+	 * That limits us to 8TB of memory registration per HCA with
+	 * 4KB pages, which is probably OK for the next few months.
+	 */
+	si_meminfo(&si);
+	request->num_mtt =
+		roundup_pow_of_two(max_t(unsigned, request->num_mtt,
+					 min(1UL << 31,
+					     si.totalram >> (log_mtts_per_seg - 1))));
 
 	profile[MLX4_RES_QP].size     = dev_cap->qpc_entry_sz;
 	profile[MLX4_RES_RDMARC].size = dev_cap->rdmarc_entry_sz;
@@ -107,7 +126,9 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	profile[MLX4_RES_AUXC].num    = request->num_qp;
 	profile[MLX4_RES_SRQ].num     = request->num_srq;
 	profile[MLX4_RES_CQ].num      = request->num_cq;
-	profile[MLX4_RES_EQ].num      = min_t(unsigned, dev_cap->max_eqs, MAX_MSIX);
+	profile[MLX4_RES_EQ].num      = mlx4_is_mfunc(dev) ?
+					dev->phys_caps.num_phys_eqs :
+					min_t(unsigned, dev_cap->max_eqs, MAX_MSIX);
 	profile[MLX4_RES_DMPT].num    = request->num_mpt;
 	profile[MLX4_RES_CMPT].num    = MLX4_NUM_CMPTS;
 	profile[MLX4_RES_MTT].num     = request->num_mtt * (1 << log_mtts_per_seg);
@@ -196,9 +217,10 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 			init_hca->log_num_cqs = profile[i].log_num;
 			break;
 		case MLX4_RES_EQ:
-			dev->caps.num_eqs     = profile[i].num;
+			dev->caps.num_eqs     = roundup_pow_of_two(min_t(unsigned, dev_cap->max_eqs,
+									 MAX_MSIX));
 			init_hca->eqc_base    = profile[i].start;
-			init_hca->log_num_eqs = profile[i].log_num;
+			init_hca->log_num_eqs = ilog2(dev->caps.num_eqs);
 			break;
 		case MLX4_RES_DMPT:
 			dev->caps.num_mpts	= profile[i].num;

@@ -34,7 +34,6 @@
 #include <asm/current.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/kdebug.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 
 /* Breakpoint currently in use for each BRP. */

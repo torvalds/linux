@@ -119,7 +119,6 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/flow.h>
-#include <asm/system.h>
 #include <asm/ioctls.h>
 #include <linux/capability.h>
 #include <linux/mm.h>
@@ -251,7 +250,7 @@ static void dn_unhash_sock_bh(struct sock *sk)
 static struct hlist_head *listen_hash(struct sockaddr_dn *addr)
 {
 	int i;
-	unsigned hash = addr->sdn_objnum;
+	unsigned int hash = addr->sdn_objnum;
 
 	if (hash == 0) {
 		hash = addr->sdn_objnamel;
@@ -1845,9 +1844,9 @@ static inline int dn_queue_too_long(struct dn_scp *scp, struct sk_buff_head *que
  * inclusion (or not) of the two 16 bit acknowledgement fields so it doesn't
  * make much practical difference.
  */
-unsigned dn_mss_from_pmtu(struct net_device *dev, int mtu)
+unsigned int dn_mss_from_pmtu(struct net_device *dev, int mtu)
 {
-	unsigned mss = 230 - DN_MAX_NSP_DATA_HEADER;
+	unsigned int mss = 230 - DN_MAX_NSP_DATA_HEADER;
 	if (dev) {
 		struct dn_dev *dn_db = rcu_dereference_raw(dev->dn_ptr);
 		mtu -= LL_RESERVED_SPACE(dev);

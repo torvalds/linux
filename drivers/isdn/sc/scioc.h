@@ -17,9 +17,9 @@
 #define SCIOCGETSWITCH	0x06	/* Get switch type */
 #define SCIOCSETSWITCH	0x07	/* Set switch type */
 #define SCIOCGETSPID	0x08	/* Get channel SPID */
-#define SCIOCSETSPID	0x09 	/* Set channel SPID */
+#define SCIOCSETSPID	0x09	/* Set channel SPID */
 #define SCIOCGETDN	0x0A	/* Get channel DN */
-#define SCIOCSETDN	0x0B 	/* Set channel DN */
+#define SCIOCSETDN	0x0B	/* Set channel DN */
 #define SCIOCTRACE	0x0C	/* Toggle trace mode */
 #define SCIOCSTAT	0x0D	/* Get line status */
 #define SCIOCGETSPEED	0x0E	/* Set channel speed */
@@ -108,4 +108,3 @@ typedef struct {
 } boardInfo;
 
 #endif  /*  __ISDN_SC_SCIOC_H__  */
-

@@ -1,8 +1,8 @@
 /*
  * Samsung S5P/EXYNOS4 SoC series MIPI-CSI receiver driver
  *
- * Copyright (C) 2011 Samsung Electronics Co., Ltd.
- * Contact: Sylwester Nawrocki, <s.nawrocki@samsung.com>
+ * Copyright (C) 2011 - 2012 Samsung Electronics Co., Ltd.
+ * Sylwester Nawrocki, <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -100,7 +100,6 @@ enum {
  * @pads: CSIS pads array
  * @sd: v4l2_subdev associated with CSIS device instance
  * @pdev: CSIS platform device
- * @regs_res: requested I/O register memory resource
  * @regs: mmaped I/O registers memory
  * @clock: CSIS clocks
  * @irq: requested s5p-mipi-csis irq number
@@ -113,7 +112,6 @@ struct csis_state {
 	struct media_pad pads[CSIS_PADS_NUM];
 	struct v4l2_subdev sd;
 	struct platform_device *pdev;
-	struct resource *regs_res;
 	void __iomem *regs;
 	struct regulator_bulk_data supplies[CSIS_NUM_SUPPLIES];
 	struct clk *clock[NUM_CSIS_CLOCKS];
@@ -129,20 +127,24 @@ struct csis_state {
  *                       multiple of 2^pix_width_alignment
  * @code: corresponding media bus code
  * @fmt_reg: S5PCSIS_CONFIG register value
+ * @data_alignment: MIPI-CSI data alignment in bits
  */
 struct csis_pix_format {
 	unsigned int pix_width_alignment;
 	enum v4l2_mbus_pixelcode code;
 	u32 fmt_reg;
+	u8 data_alignment;
 };
 
 static const struct csis_pix_format s5pcsis_formats[] = {
 	{
 		.code = V4L2_MBUS_FMT_VYUY8_2X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_YCBCR422_8BIT,
+		.data_alignment = 32,
 	}, {
 		.code = V4L2_MBUS_FMT_JPEG_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
+		.data_alignment = 32,
 	},
 };
 
@@ -241,7 +243,7 @@ static void s5pcsis_set_params(struct csis_state *state)
 	s5pcsis_set_hsync_settle(state, pdata->hs_settle);
 
 	val = s5pcsis_read(state, S5PCSIS_CTRL);
-	if (pdata->alignment == 32)
+	if (state->csis_fmt->data_alignment == 32)
 		val |= S5PCSIS_CTRL_ALIGN_32BIT;
 	else /* 24-bits */
 		val &= ~S5PCSIS_CTRL_ALIGN_32BIT;
@@ -258,26 +260,36 @@ static void s5pcsis_clk_put(struct csis_state *state)
 {
 	int i;
 
-	for (i = 0; i < NUM_CSIS_CLOCKS; i++)
-		if (!IS_ERR_OR_NULL(state->clock[i]))
-			clk_put(state->clock[i]);
+	for (i = 0; i < NUM_CSIS_CLOCKS; i++) {
+		if (IS_ERR_OR_NULL(state->clock[i]))
+			continue;
+		clk_unprepare(state->clock[i]);
+		clk_put(state->clock[i]);
+		state->clock[i] = NULL;
+	}
 }
 
 static int s5pcsis_clk_get(struct csis_state *state)
 {
 	struct device *dev = &state->pdev->dev;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < NUM_CSIS_CLOCKS; i++) {
 		state->clock[i] = clk_get(dev, csi_clock_name[i]);
-		if (IS_ERR(state->clock[i])) {
-			s5pcsis_clk_put(state);
-			dev_err(dev, "failed to get clock: %s\n",
-				csi_clock_name[i]);
-			return -ENXIO;
+		if (IS_ERR(state->clock[i]))
+			goto err;
+		ret = clk_prepare(state->clock[i]);
+		if (ret < 0) {
+			clk_put(state->clock[i]);
+			state->clock[i] = NULL;
+			goto err;
 		}
 	}
 	return 0;
+err:
+	s5pcsis_clk_put(state);
+	dev_err(dev, "failed to get clock: %s\n", csi_clock_name[i]);
+	return -ENXIO;
 }
 
 static int s5pcsis_s_power(struct v4l2_subdev *sd, int on)
@@ -480,12 +492,11 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 {
 	struct s5p_platform_mipi_csis *pdata;
 	struct resource *mem_res;
-	struct resource *regs_res;
 	struct csis_state *state;
 	int ret = -ENOMEM;
 	int i;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc(&pdev->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
@@ -495,52 +506,27 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL || pdata->phy_enable == NULL) {
 		dev_err(&pdev->dev, "Platform data not fully specified\n");
-		goto e_free;
+		return -EINVAL;
 	}
 
 	if ((pdev->id == 1 && pdata->lanes > CSIS1_MAX_LANES) ||
 	    pdata->lanes > CSIS0_MAX_LANES) {
-		ret = -EINVAL;
 		dev_err(&pdev->dev, "Unsupported number of data lanes: %d\n",
 			pdata->lanes);
-		goto e_free;
+		return -EINVAL;
 	}
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(&pdev->dev, "Failed to get IO memory region\n");
-		goto e_free;
+	state->regs = devm_request_and_ioremap(&pdev->dev, mem_res);
+	if (state->regs == NULL) {
+		dev_err(&pdev->dev, "Failed to request and remap io memory\n");
+		return -ENXIO;
 	}
-
-	regs_res = request_mem_region(mem_res->start, resource_size(mem_res),
-				      pdev->name);
-	if (!regs_res) {
-		dev_err(&pdev->dev, "Failed to request IO memory region\n");
-		goto e_free;
-	}
-	state->regs_res = regs_res;
-
-	state->regs = ioremap(mem_res->start, resource_size(mem_res));
-	if (!state->regs) {
-		dev_err(&pdev->dev, "Failed to remap IO region\n");
-		goto e_reqmem;
-	}
-
-	ret = s5pcsis_clk_get(state);
-	if (ret)
-		goto e_unmap;
-
-	clk_enable(state->clock[CSIS_CLK_MUX]);
-	if (pdata->clk_rate)
-		clk_set_rate(state->clock[CSIS_CLK_MUX], pdata->clk_rate);
-	else
-		dev_WARN(&pdev->dev, "No clock frequency specified!\n");
 
 	state->irq = platform_get_irq(pdev, 0);
 	if (state->irq < 0) {
-		ret = state->irq;
 		dev_err(&pdev->dev, "Failed to get irq\n");
-		goto e_clkput;
+		return state->irq;
 	}
 
 	for (i = 0; i < CSIS_NUM_SUPPLIES; i++)
@@ -549,12 +535,22 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 	ret = regulator_bulk_get(&pdev->dev, CSIS_NUM_SUPPLIES,
 				 state->supplies);
 	if (ret)
+		return ret;
+
+	ret = s5pcsis_clk_get(state);
+	if (ret)
 		goto e_clkput;
 
-	ret = request_irq(state->irq, s5pcsis_irq_handler, 0,
-			  dev_name(&pdev->dev), state);
+	clk_enable(state->clock[CSIS_CLK_MUX]);
+	if (pdata->clk_rate)
+		clk_set_rate(state->clock[CSIS_CLK_MUX], pdata->clk_rate);
+	else
+		dev_WARN(&pdev->dev, "No clock frequency specified!\n");
+
+	ret = devm_request_irq(&pdev->dev, state->irq, s5pcsis_irq_handler,
+			       0, dev_name(&pdev->dev), state);
 	if (ret) {
-		dev_err(&pdev->dev, "request_irq failed\n");
+		dev_err(&pdev->dev, "Interrupt request failed\n");
 		goto e_regput;
 	}
 
@@ -573,7 +569,7 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 	ret = media_entity_init(&state->sd.entity,
 				CSIS_PADS_NUM, state->pads, 0);
 	if (ret < 0)
-		goto e_irqfree;
+		goto e_clkput;
 
 	/* This allows to retrieve the platform device id by the host driver */
 	v4l2_set_subdevdata(&state->sd, pdev);
@@ -582,22 +578,13 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, &state->sd);
 
 	pm_runtime_enable(&pdev->dev);
-
 	return 0;
 
-e_irqfree:
-	free_irq(state->irq, state);
 e_regput:
 	regulator_bulk_free(CSIS_NUM_SUPPLIES, state->supplies);
 e_clkput:
 	clk_disable(state->clock[CSIS_CLK_MUX]);
 	s5pcsis_clk_put(state);
-e_unmap:
-	iounmap(state->regs);
-e_reqmem:
-	release_mem_region(regs_res->start, resource_size(regs_res));
-e_free:
-	kfree(state);
 	return ret;
 }
 
@@ -699,21 +686,15 @@ static int __devexit s5pcsis_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csis_state *state = sd_to_csis_state(sd);
-	struct resource *res = state->regs_res;
 
 	pm_runtime_disable(&pdev->dev);
-	s5pcsis_suspend(&pdev->dev);
+	s5pcsis_pm_suspend(&pdev->dev, false);
 	clk_disable(state->clock[CSIS_CLK_MUX]);
 	pm_runtime_set_suspended(&pdev->dev);
-
 	s5pcsis_clk_put(state);
 	regulator_bulk_free(CSIS_NUM_SUPPLIES, state->supplies);
 
 	media_entity_cleanup(&state->sd.entity);
-	free_irq(state->irq, state);
-	iounmap(state->regs);
-	release_mem_region(res->start, resource_size(res));
-	kfree(state);
 
 	return 0;
 }
@@ -734,19 +715,8 @@ static struct platform_driver s5pcsis_driver = {
 	},
 };
 
-static int __init s5pcsis_init(void)
-{
-	return platform_driver_probe(&s5pcsis_driver, s5pcsis_probe);
-}
-
-static void __exit s5pcsis_exit(void)
-{
-	platform_driver_unregister(&s5pcsis_driver);
-}
-
-module_init(s5pcsis_init);
-module_exit(s5pcsis_exit);
+module_platform_driver(s5pcsis_driver);
 
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");
-MODULE_DESCRIPTION("S5P/EXYNOS4 MIPI CSI receiver driver");
+MODULE_DESCRIPTION("Samsung S5P/EXYNOS SoC MIPI-CSI2 receiver driver");
 MODULE_LICENSE("GPL");

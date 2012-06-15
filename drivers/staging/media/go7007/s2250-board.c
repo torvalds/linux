@@ -192,6 +192,7 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 {
 	struct go7007 *go = i2c_get_adapdata(client->adapter);
 	struct go7007_usb *usb;
+	int rc;
 	u8 *buf;
 	struct s2250 *dec = i2c_get_clientdata(client);
 
@@ -216,12 +217,13 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 		kfree(buf);
 		return -EINTR;
 	}
-	if (go7007_usb_vendor_request(go, 0x57, addr, val, buf, 16, 1) < 0) {
+	rc = go7007_usb_vendor_request(go, 0x57, addr, val, buf, 16, 1);
+	mutex_unlock(&usb->i2c_lock);
+	if (rc < 0) {
 		kfree(buf);
-		return -EFAULT;
+		return rc;
 	}
 
-	mutex_unlock(&usb->i2c_lock);
 	if (buf[0] == 0) {
 		unsigned int subaddr, val_read;
 
@@ -254,6 +256,7 @@ static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
 {
 	struct go7007 *go = i2c_get_adapdata(client->adapter);
 	struct go7007_usb *usb;
+	int rc;
 	u8 *buf;
 
 	if (go == NULL)
@@ -276,11 +279,12 @@ static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
 		kfree(buf);
 		return -EINTR;
 	}
-	if (go7007_usb_vendor_request(go, 0x58, addr, 0, buf, 16, 1) < 0) {
-		kfree(buf);
-		return -EFAULT;
-	}
+	rc = go7007_usb_vendor_request(go, 0x58, addr, 0, buf, 16, 1);
 	mutex_unlock(&usb->i2c_lock);
+	if (rc < 0) {
+		kfree(buf);
+		return rc;
+	}
 
 	*val = (buf[0] << 8) | buf[1];
 	kfree(buf);

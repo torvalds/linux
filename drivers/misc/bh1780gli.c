@@ -248,26 +248,15 @@ static const struct i2c_device_id bh1780_id[] = {
 
 static struct i2c_driver bh1780_driver = {
 	.probe		= bh1780_probe,
-	.remove		= bh1780_remove,
+	.remove		= __devexit_p(bh1780_remove),
 	.id_table	= bh1780_id,
 	.driver = {
 		.name = "bh1780",
 		.pm	= BH1780_PMOPS,
-},
+	},
 };
 
-static int __init bh1780_init(void)
-{
-	return i2c_add_driver(&bh1780_driver);
-}
-
-static void __exit bh1780_exit(void)
-{
-	i2c_del_driver(&bh1780_driver);
-}
-
-module_init(bh1780_init)
-module_exit(bh1780_exit)
+module_i2c_driver(bh1780_driver);
 
 MODULE_DESCRIPTION("BH1780GLI Ambient Light Sensor Driver");
 MODULE_LICENSE("GPL");

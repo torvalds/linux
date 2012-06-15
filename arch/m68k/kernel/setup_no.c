@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
+#include <linux/rtc.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -47,7 +48,9 @@ EXPORT_SYMBOL(memory_end);
 char __initdata command_line[COMMAND_LINE_SIZE];
 
 /* machine dependent timer functions */
+void (*mach_sched_init)(irq_handler_t handler) __initdata = NULL;
 int (*mach_set_clock_mmss)(unsigned long);
+int (*mach_hwclk) (int, struct rtc_time*);
 
 /* machine dependent reboot functions */
 void (*mach_reset)(void);

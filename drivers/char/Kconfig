@@ -66,21 +66,6 @@ config TTY_PRINTK
 
 	  If unsure, say N.
 
-config BRIQ_PANEL
-	tristate 'Total Impact briQ front panel driver'
-	depends on PPC_CHRP
-	---help---
-	  The briQ is a small footprint CHRP computer with a frontpanel VFD, a
-	  tristate led and two switches. It is the size of a CDROM drive.
-
-	  If you have such one and want anything showing on the VFD then you
-	  must answer Y here.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called briq_panel.
-
-	  It's safe to say N here.
-
 config BFIN_OTP
 	tristate "Blackfin On-Chip OTP Memory Support"
 	depends on BLACKFIN && (BF51x || BF52x || BF54x)
@@ -599,14 +584,6 @@ config DEVPORT
 	default y
 
 source "drivers/s390/char/Kconfig"
-
-config RAMOOPS
-	tristate "Log panic/oops to a RAM buffer"
-	depends on HAS_IOMEM
-	default n
-	help
-	  This enables panic and oops messages to be logged to a circular
-	  buffer in RAM where it can be read back at some later point.
 
 config MSM_SMD_PKT
 	bool "Enable device interface for some SMD packet ports"

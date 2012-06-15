@@ -47,7 +47,6 @@
  *
  * Additional user-defined print buffers are also permitted.
  */
-
 static struct print_buf null_buf = { NULL, 0, NULL, 0 };
 struct print_buf *const TIPC_NULL = &null_buf;
 
@@ -72,7 +71,6 @@ struct print_buf *const TIPC_LOG = &log_buf;
  * on the caller to prevent simultaneous use of the print buffer(s) being
  * manipulated.
  */
-
 static char print_string[TIPC_PB_MAX_STR];
 static DEFINE_SPINLOCK(print_lock);
 
@@ -97,7 +95,6 @@ static void tipc_printbuf_move(struct print_buf *pb_to,
  * Note: If the character array is too small (or absent), the print buffer
  * becomes a null device that discards anything written to it.
  */
-
 void tipc_printbuf_init(struct print_buf *pb, char *raw, u32 size)
 {
 	pb->buf = raw;
@@ -117,7 +114,6 @@ void tipc_printbuf_init(struct print_buf *pb, char *raw, u32 size)
  * tipc_printbuf_reset - reinitialize print buffer to empty state
  * @pb: pointer to print buffer structure
  */
-
 static void tipc_printbuf_reset(struct print_buf *pb)
 {
 	if (pb->buf) {
@@ -133,7 +129,6 @@ static void tipc_printbuf_reset(struct print_buf *pb)
  *
  * Returns non-zero if print buffer is empty.
  */
-
 static int tipc_printbuf_empty(struct print_buf *pb)
 {
 	return !pb->buf || (pb->crs == pb->buf);
@@ -148,7 +143,6 @@ static int tipc_printbuf_empty(struct print_buf *pb)
  *
  * Returns length of print buffer data string (including trailing NUL)
  */
-
 int tipc_printbuf_validate(struct print_buf *pb)
 {
 	char *err = "\n\n*** PRINT BUFFER OVERFLOW ***\n\n";
@@ -182,14 +176,12 @@ int tipc_printbuf_validate(struct print_buf *pb)
  * Current contents of destination print buffer (if any) are discarded.
  * Source print buffer becomes empty if a successful move occurs.
  */
-
 static void tipc_printbuf_move(struct print_buf *pb_to,
 			       struct print_buf *pb_from)
 {
 	int len;
 
 	/* Handle the cases where contents can't be moved */
-
 	if (!pb_to->buf)
 		return;
 
@@ -206,7 +198,6 @@ static void tipc_printbuf_move(struct print_buf *pb_to,
 	}
 
 	/* Copy data from char after cursor to end (if used) */
-
 	len = pb_from->buf + pb_from->size - pb_from->crs - 2;
 	if ((pb_from->buf[pb_from->size - 1] == 0) && (len > 0)) {
 		strcpy(pb_to->buf, pb_from->crs + 1);
@@ -215,7 +206,6 @@ static void tipc_printbuf_move(struct print_buf *pb_to,
 		pb_to->crs = pb_to->buf;
 
 	/* Copy data from start to cursor (always) */
-
 	len = pb_from->crs - pb_from->buf;
 	strcpy(pb_to->crs, pb_from->buf);
 	pb_to->crs += len;
@@ -228,7 +218,6 @@ static void tipc_printbuf_move(struct print_buf *pb_to,
  * @pb: pointer to print buffer
  * @fmt: formatted info to be printed
  */
-
 void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 {
 	int chars_to_add;
@@ -270,7 +259,6 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
  * tipc_log_resize - change the size of the TIPC log buffer
  * @log_size: print buffer size to use
  */
-
 int tipc_log_resize(int log_size)
 {
 	int res = 0;
@@ -295,7 +283,6 @@ int tipc_log_resize(int log_size)
 /**
  * tipc_log_resize_cmd - reconfigure size of TIPC log buffer
  */
-
 struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area, int req_tlv_space)
 {
 	u32 value;
@@ -304,7 +291,7 @@ struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area, int req_tlv_space)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value != delimit(value, 0, 32768))
+	if (value > 32768)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (log size must be 0-32768)");
 	if (tipc_log_resize(value))
@@ -316,7 +303,6 @@ struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area, int req_tlv_space)
 /**
  * tipc_log_dump - capture TIPC log buffer contents in configuration message
  */
-
 struct sk_buff *tipc_log_dump(void)
 {
 	struct sk_buff *reply;

@@ -60,8 +60,7 @@ static inline int imx_dma_is_ipu(struct dma_chan *chan)
 
 static inline int imx_dma_is_general_purpose(struct dma_chan *chan)
 {
-	return !strcmp(dev_name(chan->device->dev), "imx31-sdma") ||
-		!strcmp(dev_name(chan->device->dev), "imx35-sdma") ||
+	return strstr(dev_name(chan->device->dev), "sdma") ||
 		!strcmp(dev_name(chan->device->dev), "imx-dma");
 }
 

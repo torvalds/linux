@@ -106,7 +106,8 @@ static ssize_t show_adc(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	/* assume the reference voltage to be 2.048V, with an 8-bit sample,
+	/*
+	 * assume the reference voltage to be 2.048V, with an 8-bit sample,
 	 * the LSB weight is 8mV
 	 */
 	return sprintf(buf, "%d\n", ret * 8);
@@ -227,17 +228,7 @@ static struct spi_driver max1111_driver = {
 	.remove		= __devexit_p(max1111_remove),
 };
 
-static int __init max1111_init(void)
-{
-	return spi_register_driver(&max1111_driver);
-}
-module_init(max1111_init);
-
-static void __exit max1111_exit(void)
-{
-	spi_unregister_driver(&max1111_driver);
-}
-module_exit(max1111_exit);
+module_spi_driver(max1111_driver);
 
 MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
 MODULE_DESCRIPTION("MAX1111 ADC Driver");

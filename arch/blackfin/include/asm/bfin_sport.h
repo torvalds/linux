@@ -13,6 +13,7 @@
 #define NORM_MODE	0x0
 #define TDM_MODE	0x1
 #define I2S_MODE	0x2
+#define NDSO_MODE	0x3
 
 /* Data format, normal, a-law or u-law */
 #define NORM_FORMAT	0x0
@@ -23,6 +24,7 @@
 struct sport_config {
 	/* TDM (multichannels), I2S or other mode */
 	unsigned int mode:3;
+	unsigned int polled;	/* use poll instead of irq when set */
 
 	/* if TDM mode is selected, channels must be set */
 	int channels;	/* Must be in 8 units */
@@ -56,6 +58,8 @@ struct sport_config {
 /* Userspace interface */
 #define SPORT_IOC_MAGIC		'P'
 #define SPORT_IOC_CONFIG	_IOWR('P', 0x01, struct sport_config)
+#define SPORT_IOC_GET_SYSTEMCLOCK         _IOR('P', 0x02, unsigned long)
+#define SPORT_IOC_SET_BAUDRATE            _IOW('P', 0x03, unsigned long)
 
 #ifdef __KERNEL__
 

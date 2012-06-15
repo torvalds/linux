@@ -53,7 +53,6 @@
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
-#include <asm/system.h>
 
 #include <linux/dvb/frontend.h>
 

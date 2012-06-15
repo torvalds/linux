@@ -895,6 +895,11 @@ struct e1000_ffvt_entry {
 #define E1000_FCRTL    0x02160	/* Flow Control Receive Threshold Low - RW */
 #define E1000_FCRTH    0x02168	/* Flow Control Receive Threshold High - RW */
 #define E1000_PSRCTL   0x02170	/* Packet Split Receive Control - RW */
+#define E1000_RDFH     0x02410  /* RX Data FIFO Head - RW */
+#define E1000_RDFT     0x02418  /* RX Data FIFO Tail - RW */
+#define E1000_RDFHS    0x02420  /* RX Data FIFO Head Saved - RW */
+#define E1000_RDFTS    0x02428  /* RX Data FIFO Tail Saved - RW */
+#define E1000_RDFPC    0x02430  /* RX Data FIFO Packet Count - RW */
 #define E1000_RDBAL    0x02800	/* RX Descriptor Base Address Low - RW */
 #define E1000_RDBAH    0x02804	/* RX Descriptor Base Address High - RW */
 #define E1000_RDLEN    0x02808	/* RX Descriptor Length - RW */
@@ -1074,6 +1079,11 @@ struct e1000_ffvt_entry {
 #define E1000_82542_IMC      E1000_IMC
 #define E1000_82542_RCTL     E1000_RCTL
 #define E1000_82542_RDTR     0x00108
+#define E1000_82542_RDFH     E1000_RDFH
+#define E1000_82542_RDFT     E1000_RDFT
+#define E1000_82542_RDFHS    E1000_RDFHS
+#define E1000_82542_RDFTS    E1000_RDFTS
+#define E1000_82542_RDFPC    E1000_RDFPC
 #define E1000_82542_RDBAL    0x00110
 #define E1000_82542_RDBAH    0x00114
 #define E1000_82542_RDLEN    0x00118

@@ -57,6 +57,11 @@
   <refsect1>
     <title>Description</title>
 
+    <para>These ioctls are <emphasis role="bold">deprecated</emphasis>.
+    New drivers and applications should use <link linkend="jpeg-controls">
+    JPEG class controls</link> for image quality and JPEG markers control.
+    </para>
+
     <para>[to do]</para>
 
     <para>Ronald Bultje elaborates:</para>
@@ -86,7 +91,10 @@ to add them.</para>
 	  <row>
 	    <entry>int</entry>
 	    <entry><structfield>quality</structfield></entry>
-	    <entry></entry>
+	    <entry>Deprecated. If <link linkend="jpeg-quality-control"><constant>
+	    V4L2_CID_JPEG_IMAGE_QUALITY</constant></link> control is exposed by
+	    a driver applications should use it instead and ignore this field.
+	    </entry>
 	  </row>
 	  <row>
 	    <entry>int</entry>
@@ -116,7 +124,11 @@ to add them.</para>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>jpeg_markers</structfield></entry>
-	    <entry>See <xref linkend="jpeg-markers" />.</entry>
+	    <entry>See <xref linkend="jpeg-markers"/>. Deprecated.
+	    If <link linkend="jpeg-active-marker-control"><constant>
+	    V4L2_CID_JPEG_ACTIVE_MARKER</constant></link> control
+	    is exposed by a driver applications should use it instead
+	    and ignore this field.</entry>
 	  </row>
 	</tbody>
       </tgroup>

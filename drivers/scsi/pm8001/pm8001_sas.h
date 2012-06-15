@@ -235,6 +235,7 @@ struct pm8001_ccb_info {
 	struct pm8001_device	*device;
 	struct pm8001_prd	buf_prd[PM8001_MAX_DMA_SG];
 	struct fw_control_ex	*fw_control_context;
+	u8			open_retry;
 };
 
 struct mpi_mem {
@@ -484,10 +485,15 @@ void pm8001_dev_gone(struct domain_device *dev);
 int pm8001_lu_reset(struct domain_device *dev, u8 *lun);
 int pm8001_I_T_nexus_reset(struct domain_device *dev);
 int pm8001_query_task(struct sas_task *task);
+void pm8001_open_reject_retry(
+	struct pm8001_hba_info *pm8001_ha,
+	struct sas_task *task_to_close,
+	struct pm8001_device *device_to_close);
 int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	dma_addr_t *pphys_addr, u32 *pphys_addr_hi, u32 *pphys_addr_lo,
 	u32 mem_size, u32 align);
 
+int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
 
 /* ctl shared API */
 extern struct device_attribute *pm8001_host_attrs[];

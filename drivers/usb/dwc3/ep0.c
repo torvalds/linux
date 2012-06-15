@@ -76,8 +76,7 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 		u32 len, u32 type)
 {
 	struct dwc3_gadget_ep_cmd_params params;
-	struct dwc3_trb_hw		*trb_hw;
-	struct dwc3_trb			trb;
+	struct dwc3_trb			*trb;
 	struct dwc3_ep			*dep;
 
 	int				ret;
@@ -88,19 +87,17 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 		return 0;
 	}
 
-	trb_hw = dwc->ep0_trb;
-	memset(&trb, 0, sizeof(trb));
+	trb = dwc->ep0_trb;
 
-	trb.trbctl = type;
-	trb.bplh = buf_dma;
-	trb.length = len;
+	trb->bpl = lower_32_bits(buf_dma);
+	trb->bph = upper_32_bits(buf_dma);
+	trb->size = len;
+	trb->ctrl = type;
 
-	trb.hwo	= 1;
-	trb.lst	= 1;
-	trb.ioc	= 1;
-	trb.isp_imi = 1;
-
-	dwc3_trb_to_hw(&trb, trb_hw);
+	trb->ctrl |= (DWC3_TRB_CTRL_HWO
+			| DWC3_TRB_CTRL_LST
+			| DWC3_TRB_CTRL_IOC
+			| DWC3_TRB_CTRL_ISP_IMI);
 
 	memset(&params, 0, sizeof(params));
 	params.param0 = upper_32_bits(dwc->ep0_trb_addr);
@@ -182,7 +179,7 @@ int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
 	int				ret;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	if (!dep->desc) {
+	if (!dep->endpoint.desc) {
 		dev_dbg(dwc->dev, "trying to queue request %p to disabled %s\n",
 				request, dep->name);
 		ret = -ESHUTDOWN;
@@ -264,6 +261,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 {
 	struct dwc3_ep		*dep;
 	u32			recip;
+	u32			reg;
 	u16			usb_status = 0;
 	__le16			*response_pkt;
 
@@ -271,10 +269,18 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 	switch (recip) {
 	case USB_RECIP_DEVICE:
 		/*
-		 * We are self-powered. U1/U2/LTM will be set later
-		 * once we handle this states. RemoteWakeup is 0 on SS
+		 * LTM will be set once we know how to set this in HW.
 		 */
 		usb_status |= dwc->is_selfpowered << USB_DEVICE_SELF_POWERED;
+
+		if (dwc->speed == DWC3_DSTS_SUPERSPEED) {
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (reg & DWC3_DCTL_INITU1ENA)
+				usb_status |= 1 << USB_DEV_STAT_U1_ENABLED;
+			if (reg & DWC3_DCTL_INITU2ENA)
+				usb_status |= 1 << USB_DEV_STAT_U2_ENABLED;
+		}
+
 		break;
 
 	case USB_RECIP_INTERFACE:
@@ -302,7 +308,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 	dep = dwc->eps[0];
 	dwc->ep0_usb_req.dep = dep;
 	dwc->ep0_usb_req.request.length = sizeof(*response_pkt);
-	dwc->ep0_usb_req.request.dma = dwc->setup_buf_addr;
+	dwc->ep0_usb_req.request.buf = dwc->setup_buf;
 	dwc->ep0_usb_req.request.complete = dwc3_ep0_status_cmpl;
 
 	return __dwc3_gadget_ep0_queue(dep, &dwc->ep0_usb_req);
@@ -317,7 +323,6 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	u32			wIndex;
 	u32			reg;
 	int			ret;
-	u32			mode;
 
 	wValue = le16_to_cpu(ctrl->wValue);
 	wIndex = le16_to_cpu(ctrl->wIndex);
@@ -325,29 +330,43 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	switch (recip) {
 	case USB_RECIP_DEVICE:
 
+		switch (wValue) {
+		case USB_DEVICE_REMOTE_WAKEUP:
+			break;
 		/*
 		 * 9.4.1 says only only for SS, in AddressState only for
 		 * default control pipe
 		 */
-		switch (wValue) {
 		case USB_DEVICE_U1_ENABLE:
-		case USB_DEVICE_U2_ENABLE:
-		case USB_DEVICE_LTM_ENABLE:
 			if (dwc->dev_state != DWC3_CONFIGURED_STATE)
 				return -EINVAL;
 			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
 				return -EINVAL;
-		}
 
-		/* XXX add U[12] & LTM */
-		switch (wValue) {
-		case USB_DEVICE_REMOTE_WAKEUP:
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (set)
+				reg |= DWC3_DCTL_INITU1ENA;
+			else
+				reg &= ~DWC3_DCTL_INITU1ENA;
+			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 			break;
-		case USB_DEVICE_U1_ENABLE:
-			break;
+
 		case USB_DEVICE_U2_ENABLE:
+			if (dwc->dev_state != DWC3_CONFIGURED_STATE)
+				return -EINVAL;
+			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
+				return -EINVAL;
+
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (set)
+				reg |= DWC3_DCTL_INITU2ENA;
+			else
+				reg &= ~DWC3_DCTL_INITU2ENA;
+			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 			break;
+
 		case USB_DEVICE_LTM_ENABLE:
+			return -EINVAL;
 			break;
 
 		case USB_DEVICE_TEST_MODE:
@@ -356,22 +375,8 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 			if (!set)
 				return -EINVAL;
 
-			mode = wIndex >> 8;
-			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-			reg &= ~DWC3_DCTL_TSTCTRL_MASK;
-
-			switch (mode) {
-			case TEST_J:
-			case TEST_K:
-			case TEST_SE0_NAK:
-			case TEST_PACKET:
-			case TEST_FORCE_EN:
-				reg |= mode << 1;
-				break;
-			default:
-				return -EINVAL;
-			}
-			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
+			dwc->test_mode_nr = wIndex >> 8;
+			dwc->test_mode = true;
 			break;
 		default:
 			return -EINVAL;
@@ -396,7 +401,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	case USB_RECIP_ENDPOINT:
 		switch (wValue) {
 		case USB_ENDPOINT_HALT:
-			dep =  dwc3_wIndex_to_dep(dwc, wIndex);
+			dep = dwc3_wIndex_to_dep(dwc, wIndex);
 			if (!dep)
 				return -EINVAL;
 			ret = __dwc3_gadget_ep_set_halt(dep, set);
@@ -470,8 +475,11 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	case DWC3_ADDRESS_STATE:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
 		/* if the cfg matches and the cfg is non zero */
-		if (!ret && cfg)
+		if (cfg && (!ret || (ret == USB_GADGET_DELAYED_STATUS))) {
 			dwc->dev_state = DWC3_CONFIGURED_STATE;
+			dwc->resize_fifos = true;
+			dev_dbg(dwc->dev, "resize fifos flag SET\n");
+		}
 		break;
 
 	case DWC3_CONFIGURED_STATE:
@@ -483,6 +491,107 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		ret = -EINVAL;
 	}
 	return ret;
+}
+
+static void dwc3_ep0_set_sel_cmpl(struct usb_ep *ep, struct usb_request *req)
+{
+	struct dwc3_ep	*dep = to_dwc3_ep(ep);
+	struct dwc3	*dwc = dep->dwc;
+
+	u32		param = 0;
+	u32		reg;
+
+	struct timing {
+		u8	u1sel;
+		u8	u1pel;
+		u16	u2sel;
+		u16	u2pel;
+	} __packed timing;
+
+	int		ret;
+
+	memcpy(&timing, req->buf, sizeof(timing));
+
+	dwc->u1sel = timing.u1sel;
+	dwc->u1pel = timing.u1pel;
+	dwc->u2sel = timing.u2sel;
+	dwc->u2pel = timing.u2pel;
+
+	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+	if (reg & DWC3_DCTL_INITU2ENA)
+		param = dwc->u2pel;
+	if (reg & DWC3_DCTL_INITU1ENA)
+		param = dwc->u1pel;
+
+	/*
+	 * According to Synopsys Databook, if parameter is
+	 * greater than 125, a value of zero should be
+	 * programmed in the register.
+	 */
+	if (param > 125)
+		param = 0;
+
+	/* now that we have the time, issue DGCMD Set Sel */
+	ret = dwc3_send_gadget_generic_command(dwc,
+			DWC3_DGCMD_SET_PERIODIC_PAR, param);
+	WARN_ON(ret < 0);
+}
+
+static int dwc3_ep0_set_sel(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
+{
+	struct dwc3_ep	*dep;
+	u16		wLength;
+	u16		wValue;
+
+	if (dwc->dev_state == DWC3_DEFAULT_STATE)
+		return -EINVAL;
+
+	wValue = le16_to_cpu(ctrl->wValue);
+	wLength = le16_to_cpu(ctrl->wLength);
+
+	if (wLength != 6) {
+		dev_err(dwc->dev, "Set SEL should be 6 bytes, got %d\n",
+				wLength);
+		return -EINVAL;
+	}
+
+	/*
+	 * To handle Set SEL we need to receive 6 bytes from Host. So let's
+	 * queue a usb_request for 6 bytes.
+	 *
+	 * Remember, though, this controller can't handle non-wMaxPacketSize
+	 * aligned transfers on the OUT direction, so we queue a request for
+	 * wMaxPacketSize instead.
+	 */
+	dep = dwc->eps[0];
+	dwc->ep0_usb_req.dep = dep;
+	dwc->ep0_usb_req.request.length = dep->endpoint.maxpacket;
+	dwc->ep0_usb_req.request.buf = dwc->setup_buf;
+	dwc->ep0_usb_req.request.complete = dwc3_ep0_set_sel_cmpl;
+
+	return __dwc3_gadget_ep0_queue(dep, &dwc->ep0_usb_req);
+}
+
+static int dwc3_ep0_set_isoch_delay(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
+{
+	u16		wLength;
+	u16		wValue;
+	u16		wIndex;
+
+	wValue = le16_to_cpu(ctrl->wValue);
+	wLength = le16_to_cpu(ctrl->wLength);
+	wIndex = le16_to_cpu(ctrl->wIndex);
+
+	if (wIndex || wLength)
+		return -EINVAL;
+
+	/*
+	 * REVISIT It's unclear from Databook what to do with this
+	 * value. For now, just cache it.
+	 */
+	dwc->isoch_delay = wValue;
+
+	return 0;
 }
 
 static int dwc3_ep0_std_request(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
@@ -509,6 +618,14 @@ static int dwc3_ep0_std_request(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	case USB_REQ_SET_CONFIGURATION:
 		dev_vdbg(dwc->dev, "USB_REQ_SET_CONFIGURATION\n");
 		ret = dwc3_ep0_set_config(dwc, ctrl);
+		break;
+	case USB_REQ_SET_SEL:
+		dev_vdbg(dwc->dev, "USB_REQ_SET_SEL\n");
+		ret = dwc3_ep0_set_sel(dwc, ctrl);
+		break;
+	case USB_REQ_SET_ISOCH_DELAY:
+		dev_vdbg(dwc->dev, "USB_REQ_SET_ISOCH_DELAY\n");
+		ret = dwc3_ep0_set_isoch_delay(dwc, ctrl);
 		break;
 	default:
 		dev_vdbg(dwc->dev, "Forwarding to gadget driver\n");
@@ -560,9 +677,10 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 {
 	struct dwc3_request	*r = NULL;
 	struct usb_request	*ur;
-	struct dwc3_trb		trb;
+	struct dwc3_trb		*trb;
 	struct dwc3_ep		*ep0;
 	u32			transferred;
+	u32			length;
 	u8			epnum;
 
 	epnum = event->endpoint_number;
@@ -573,18 +691,23 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	r = next_request(&ep0->request_list);
 	ur = &r->request;
 
-	dwc3_trb_to_nat(dwc->ep0_trb, &trb);
+	trb = dwc->ep0_trb;
+	length = trb->size & DWC3_TRB_SIZE_MASK;
 
 	if (dwc->ep0_bounced) {
+		unsigned transfer_size = ur->length;
+		unsigned maxp = ep0->endpoint.maxpacket;
 
+		transfer_size += (maxp - (transfer_size % maxp));
 		transferred = min_t(u32, ur->length,
-				ep0->endpoint.maxpacket - trb.length);
+				transfer_size - length);
 		memcpy(ur->buf, dwc->ep0_bounce, transferred);
 		dwc->ep0_bounced = false;
 	} else {
-		transferred = ur->length - trb.length;
-		ur->actual += transferred;
+		transferred = ur->length - length;
 	}
+
+	ur->actual += transferred;
 
 	if ((epnum & 1) && ur->actual < ur->length) {
 		/* for some reason we did not get everything out */
@@ -614,6 +737,17 @@ static void dwc3_ep0_complete_req(struct dwc3 *dwc,
 		dwc3_gadget_giveback(dep, r, 0);
 	}
 
+	if (dwc->test_mode) {
+		int ret;
+
+		ret = dwc3_gadget_set_test_mode(dwc, dwc->test_mode_nr);
+		if (ret < 0) {
+			dev_dbg(dwc->dev, "Invalid Test #%d\n",
+					dwc->test_mode_nr);
+			dwc3_ep0_stall_and_restart(dwc);
+		}
+	}
+
 	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
 }
@@ -624,6 +758,7 @@ static void dwc3_ep0_xfer_complete(struct dwc3 *dwc,
 	struct dwc3_ep		*dep = dwc->eps[event->endpoint_number];
 
 	dep->flags &= ~DWC3_EP_BUSY;
+	dep->res_trans_idx = 0;
 	dwc->setup_packet_pending = false;
 
 	switch (dwc->ep0state) {
@@ -679,7 +814,12 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 				DWC3_TRBCTL_CONTROL_DATA);
 	} else if ((req->request.length % dep->endpoint.maxpacket)
 			&& (event->endpoint_number == 0)) {
-		dwc3_map_buffer_to_dma(req);
+		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
+				event->endpoint_number);
+		if (ret) {
+			dev_dbg(dwc->dev, "failed to map request\n");
+			return;
+		}
 
 		WARN_ON(req->request.length > dep->endpoint.maxpacket);
 
@@ -694,7 +834,12 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 				dwc->ep0_bounce_addr, dep->endpoint.maxpacket,
 				DWC3_TRBCTL_CONTROL_DATA);
 	} else {
-		dwc3_map_buffer_to_dma(req);
+		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
+				event->endpoint_number);
+		if (ret) {
+			dev_dbg(dwc->dev, "failed to map request\n");
+			return;
+		}
 
 		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
 				req->request.dma, req->request.length,
@@ -719,6 +864,12 @@ static int dwc3_ep0_start_control_status(struct dwc3_ep *dep)
 static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum)
 {
 	struct dwc3_ep		*dep = dwc->eps[epnum];
+
+	if (dwc->resize_fifos) {
+		dev_dbg(dwc->dev, "starting to resize fifos\n");
+		dwc3_gadget_resize_tx_fifos(dwc);
+		dwc->resize_fifos = 0;
+	}
 
 	WARN_ON(dwc3_ep0_start_control_status(dep));
 }

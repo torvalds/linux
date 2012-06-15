@@ -481,7 +481,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_EXPOSURE_AUTO:
 		return mt9v032_update_aec_agc(mt9v032, MT9V032_AEC_ENABLE,
-					      ctrl->val);
+					      !ctrl->val);
 
 	case V4L2_CID_EXPOSURE:
 		return mt9v032_write(client, MT9V032_TOTAL_SHUTTER_WIDTH,
@@ -756,18 +756,7 @@ static struct i2c_driver mt9v032_driver = {
 	.id_table	= mt9v032_id,
 };
 
-static int __init mt9v032_init(void)
-{
-	return i2c_add_driver(&mt9v032_driver);
-}
-
-static void __exit mt9v032_exit(void)
-{
-	i2c_del_driver(&mt9v032_driver);
-}
-
-module_init(mt9v032_init);
-module_exit(mt9v032_exit);
+module_i2c_driver(mt9v032_driver);
 
 MODULE_DESCRIPTION("Aptina MT9V032 Camera driver");
 MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");

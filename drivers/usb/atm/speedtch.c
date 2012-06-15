@@ -170,7 +170,7 @@ static void speedtch_set_swbuff(struct speedtch_instance_data *instance, int sta
 			 "%sabling SW buffering: usb_control_msg returned %d\n",
 			 state ? "En" : "Dis", ret);
 	else
-		dbg("speedtch_set_swbuff: %sbled SW buffering", state ? "En" : "Dis");
+		usb_dbg(usbatm, "speedtch_set_swbuff: %sbled SW buffering\n", state ? "En" : "Dis");
 }
 
 static void speedtch_test_sequence(struct speedtch_instance_data *instance)

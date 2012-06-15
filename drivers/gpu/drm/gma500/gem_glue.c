@@ -19,6 +19,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
+#include "gem_glue.h"
 
 void drm_gem_object_release_wrap(struct drm_gem_object *obj)
 {

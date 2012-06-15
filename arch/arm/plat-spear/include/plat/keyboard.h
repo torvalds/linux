@@ -15,7 +15,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/types.h>
 
-#define DECLARE_KEYMAP(_name) \
+#define DECLARE_9x9_KEYMAP(_name) \
 int _name[] = { \
 	KEY(0, 0, KEY_ESC), \
 	KEY(0, 1, KEY_1), \
@@ -53,24 +53,6 @@ int _name[] = { \
 	KEY(3, 6, KEY_H), \
 	KEY(3, 7, KEY_J), \
 	KEY(3, 8, KEY_K), \
-	KEY(4, 0, KEY_L), \
-	KEY(4, 1, KEY_SEMICOLON), \
-	KEY(4, 2, KEY_APOSTROPHE), \
-	KEY(4, 3, KEY_GRAVE), \
-	KEY(4, 4, KEY_LEFTSHIFT), \
-	KEY(4, 5, KEY_BACKSLASH), \
-	KEY(4, 6, KEY_Z), \
-	KEY(4, 7, KEY_X), \
-	KEY(4, 8, KEY_C), \
-	KEY(4, 0, KEY_L), \
-	KEY(4, 1, KEY_SEMICOLON), \
-	KEY(4, 2, KEY_APOSTROPHE), \
-	KEY(4, 3, KEY_GRAVE), \
-	KEY(4, 4, KEY_LEFTSHIFT), \
-	KEY(4, 5, KEY_BACKSLASH), \
-	KEY(4, 6, KEY_Z), \
-	KEY(4, 7, KEY_X), \
-	KEY(4, 8, KEY_C), \
 	KEY(4, 0, KEY_L), \
 	KEY(4, 1, KEY_SEMICOLON), \
 	KEY(4, 2, KEY_APOSTROPHE), \
@@ -118,10 +100,55 @@ int _name[] = { \
 	KEY(8, 8, KEY_KP0), \
 }
 
+#define DECLARE_6x6_KEYMAP(_name) \
+int _name[] = { \
+	KEY(0, 0, KEY_RESERVED), \
+	KEY(0, 1, KEY_1), \
+	KEY(0, 2, KEY_2), \
+	KEY(0, 3, KEY_3), \
+	KEY(0, 4, KEY_4), \
+	KEY(0, 5, KEY_5), \
+	KEY(1, 0, KEY_Q), \
+	KEY(1, 1, KEY_W), \
+	KEY(1, 2, KEY_E), \
+	KEY(1, 3, KEY_R), \
+	KEY(1, 4, KEY_T), \
+	KEY(1, 5, KEY_Y), \
+	KEY(2, 0, KEY_D), \
+	KEY(2, 1, KEY_F), \
+	KEY(2, 2, KEY_G), \
+	KEY(2, 3, KEY_H), \
+	KEY(2, 4, KEY_J), \
+	KEY(2, 5, KEY_K), \
+	KEY(3, 0, KEY_B), \
+	KEY(3, 1, KEY_N), \
+	KEY(3, 2, KEY_M), \
+	KEY(3, 3, KEY_COMMA), \
+	KEY(3, 4, KEY_DOT), \
+	KEY(3, 5, KEY_SLASH), \
+	KEY(4, 0, KEY_F6), \
+	KEY(4, 1, KEY_F7), \
+	KEY(4, 2, KEY_F8), \
+	KEY(4, 3, KEY_F9), \
+	KEY(4, 4, KEY_F10), \
+	KEY(4, 5, KEY_NUMLOCK), \
+	KEY(5, 0, KEY_KP2), \
+	KEY(5, 1, KEY_KP3), \
+	KEY(5, 2, KEY_KP0), \
+	KEY(5, 3, KEY_KPDOT), \
+	KEY(5, 4, KEY_RO), \
+	KEY(5, 5, KEY_ZENKAKUHANKAKU), \
+}
+
+#define KEYPAD_9x9     0
+#define KEYPAD_6x6     1
+#define KEYPAD_2x2     2
+
 /**
  * struct kbd_platform_data - spear keyboard platform data
  * keymap: pointer to keymap data (table and size)
  * rep: enables key autorepeat
+ * mode: choose keyboard support(9x9, 6x6, 2x2)
  *
  * This structure is supposed to be used by platform code to supply
  * keymaps to drivers that implement keyboards.
@@ -129,13 +156,7 @@ int _name[] = { \
 struct kbd_platform_data {
 	const struct matrix_keymap_data *keymap;
 	bool rep;
+	unsigned int mode;
 };
-
-/* This function is used to set platform data field of pdev->dev */
-static inline void
-kbd_set_plat_data(struct platform_device *pdev, struct kbd_platform_data *data)
-{
-	pdev->dev.platform_data = data;
-}
 
 #endif /* __PLAT_KEYBOARD_H */

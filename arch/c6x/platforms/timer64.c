@@ -15,6 +15,7 @@
 #include <linux/of_address.h>
 #include <asm/soc.h>
 #include <asm/dscr.h>
+#include <asm/special_insns.h>
 #include <asm/timer64.h>
 
 struct timer_regs {

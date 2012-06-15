@@ -194,14 +194,14 @@ static ssize_t srom_read(struct file *filp, char __user *buf,
 
 		hv_retval = _srom_read(srom->hv_devhdl, kernbuf,
 				       *f_pos, bytes_this_pass);
-		if (hv_retval > 0) {
-			if (copy_to_user(buf, kernbuf, hv_retval) != 0) {
-				retval = -EFAULT;
-				break;
-			}
-		} else if (hv_retval <= 0) {
+		if (hv_retval <= 0) {
 			if (retval == 0)
 				retval = hv_retval;
+			break;
+		}
+
+		if (copy_to_user(buf, kernbuf, hv_retval) != 0) {
+			retval = -EFAULT;
 			break;
 		}
 

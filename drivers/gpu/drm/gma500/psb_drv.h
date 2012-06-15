@@ -30,6 +30,7 @@
 #include "psb_intel_drv.h"
 #include "gtt.h"
 #include "power.h"
+#include "opregion.h"
 #include "oaktrail.h"
 
 /* Append new drm mode definition here, align with libdrm definition */
@@ -120,6 +121,7 @@ enum {
 #define PSB_HWSTAM		  0x2098
 #define PSB_INSTPM		  0x20C0
 #define PSB_INT_IDENTITY_R        0x20A4
+#define _PSB_IRQ_ASLE		  (1<<0)
 #define _MDFLD_PIPEC_EVENT_FLAG   (1<<2)
 #define _MDFLD_PIPEC_VBLANK_FLAG  (1<<3)
 #define _PSB_DPST_PIPEB_FLAG      (1<<4)
@@ -130,6 +132,7 @@ enum {
 #define _PSB_VSYNC_PIPEA_FLAG	  (1<<7)
 #define _MDFLD_MIPIA_FLAG	  (1<<16)
 #define _MDFLD_MIPIC_FLAG	  (1<<17)
+#define _PSB_IRQ_DISP_HOTSYNC	  (1<<17)
 #define _PSB_IRQ_SGX_FLAG	  (1<<18)
 #define _PSB_IRQ_MSVDX_FLAG	  (1<<19)
 #define _LNC_IRQ_TOPAZ_FLAG	  (1<<20)
@@ -257,7 +260,8 @@ struct psb_intel_opregion {
 	struct opregion_acpi *acpi;
 	struct opregion_swsci *swsci;
 	struct opregion_asle *asle;
-	int enabled;
+	void *vbt;
+	u32 __iomem *lid_state;
 };
 
 struct sdvo_device_mapping {
@@ -276,6 +280,173 @@ struct intel_gmbus {
 	u32 reg0;
 };
 
+/*
+ *	Register offset maps
+ */
+
+struct psb_offset {
+	u32	fp0;
+	u32	fp1;
+	u32	cntr;
+	u32	conf;
+	u32	src;
+	u32	dpll;
+	u32	dpll_md;
+	u32	htotal;
+	u32	hblank;
+	u32	hsync;
+	u32	vtotal;
+	u32	vblank;
+	u32	vsync;
+	u32	stride;
+	u32	size;
+	u32	pos;
+	u32	surf;
+	u32	addr;
+	u32	base;
+	u32	status;
+	u32	linoff;
+	u32	tileoff;
+	u32	palette;
+};
+
+/*
+ *	Register save state. This is used to hold the context when the
+ *	device is powered off. In the case of Oaktrail this can (but does not
+ *	yet) include screen blank. Operations occuring during the save
+ *	update the register cache instead.
+ */
+
+/*
+ *	Common status for pipes.
+ */
+struct psb_pipe {
+	u32	fp0;
+	u32	fp1;
+	u32	cntr;
+	u32	conf;
+	u32	src;
+	u32	dpll;
+	u32	dpll_md;
+	u32	htotal;
+	u32	hblank;
+	u32	hsync;
+	u32	vtotal;
+	u32	vblank;
+	u32	vsync;
+	u32	stride;
+	u32	size;
+	u32	pos;
+	u32	base;
+	u32	surf;
+	u32	addr;
+	u32	status;
+	u32	linoff;
+	u32	tileoff;
+	u32	palette[256];
+};
+
+struct psb_state {
+	uint32_t saveVCLK_DIVISOR_VGA0;
+	uint32_t saveVCLK_DIVISOR_VGA1;
+	uint32_t saveVCLK_POST_DIV;
+	uint32_t saveVGACNTRL;
+	uint32_t saveADPA;
+	uint32_t saveLVDS;
+	uint32_t saveDVOA;
+	uint32_t saveDVOB;
+	uint32_t saveDVOC;
+	uint32_t savePP_ON;
+	uint32_t savePP_OFF;
+	uint32_t savePP_CONTROL;
+	uint32_t savePP_CYCLE;
+	uint32_t savePFIT_CONTROL;
+	uint32_t saveCLOCKGATING;
+	uint32_t saveDSPARB;
+	uint32_t savePFIT_AUTO_RATIOS;
+	uint32_t savePFIT_PGM_RATIOS;
+	uint32_t savePP_ON_DELAYS;
+	uint32_t savePP_OFF_DELAYS;
+	uint32_t savePP_DIVISOR;
+	uint32_t saveBCLRPAT_A;
+	uint32_t saveBCLRPAT_B;
+	uint32_t savePERF_MODE;
+	uint32_t saveDSPFW1;
+	uint32_t saveDSPFW2;
+	uint32_t saveDSPFW3;
+	uint32_t saveDSPFW4;
+	uint32_t saveDSPFW5;
+	uint32_t saveDSPFW6;
+	uint32_t saveCHICKENBIT;
+	uint32_t saveDSPACURSOR_CTRL;
+	uint32_t saveDSPBCURSOR_CTRL;
+	uint32_t saveDSPACURSOR_BASE;
+	uint32_t saveDSPBCURSOR_BASE;
+	uint32_t saveDSPACURSOR_POS;
+	uint32_t saveDSPBCURSOR_POS;
+	uint32_t saveOV_OVADD;
+	uint32_t saveOV_OGAMC0;
+	uint32_t saveOV_OGAMC1;
+	uint32_t saveOV_OGAMC2;
+	uint32_t saveOV_OGAMC3;
+	uint32_t saveOV_OGAMC4;
+	uint32_t saveOV_OGAMC5;
+	uint32_t saveOVC_OVADD;
+	uint32_t saveOVC_OGAMC0;
+	uint32_t saveOVC_OGAMC1;
+	uint32_t saveOVC_OGAMC2;
+	uint32_t saveOVC_OGAMC3;
+	uint32_t saveOVC_OGAMC4;
+	uint32_t saveOVC_OGAMC5;
+
+	/* DPST register save */
+	uint32_t saveHISTOGRAM_INT_CONTROL_REG;
+	uint32_t saveHISTOGRAM_LOGIC_CONTROL_REG;
+	uint32_t savePWM_CONTROL_LOGIC;
+};
+
+struct medfield_state {
+	uint32_t saveMIPI;
+	uint32_t saveMIPI_C;
+
+	uint32_t savePFIT_CONTROL;
+	uint32_t savePFIT_PGM_RATIOS;
+	uint32_t saveHDMIPHYMISCCTL;
+	uint32_t saveHDMIB_CONTROL;
+};
+
+struct cdv_state {
+	uint32_t saveDSPCLK_GATE_D;
+	uint32_t saveRAMCLK_GATE_D;
+	uint32_t saveDSPARB;
+	uint32_t saveDSPFW[6];
+	uint32_t saveADPA;
+	uint32_t savePP_CONTROL;
+	uint32_t savePFIT_PGM_RATIOS;
+	uint32_t saveLVDS;
+	uint32_t savePFIT_CONTROL;
+	uint32_t savePP_ON_DELAYS;
+	uint32_t savePP_OFF_DELAYS;
+	uint32_t savePP_CYCLE;
+	uint32_t saveVGACNTRL;
+	uint32_t saveIER;
+	uint32_t saveIMR;
+	u8	 saveLBB;
+};
+
+struct psb_save_area {
+	struct psb_pipe pipe[3];
+	uint32_t saveBSM;
+	uint32_t saveVBT;
+	union {
+	        struct psb_state psb;
+		struct medfield_state mdfld;
+		struct cdv_state cdv;
+	};
+	uint32_t saveBLC_PWM_CTL2;
+	uint32_t saveBLC_PWM_CTL;
+};
+
 struct psb_ops;
 
 #define PSB_NUM_PIPE		3
@@ -283,15 +454,19 @@ struct psb_ops;
 struct drm_psb_private {
 	struct drm_device *dev;
 	const struct psb_ops *ops;
+	const struct psb_offset *regmap;
+	
+	struct child_device_config *child_dev;
+	int child_dev_num;
 
 	struct psb_gtt gtt;
 
 	/* GTT Memory manager */
 	struct psb_gtt_mm *gtt_mm;
 	struct page *scratch_page;
-	u32 *gtt_map;
+	u32 __iomem *gtt_map;
 	uint32_t stolen_base;
-	void *vram_addr;
+	u8 __iomem *vram_addr;
 	unsigned long vram_stolen_size;
 	int gtt_initialized;
 	u16 gmch_ctrl;		/* Saved GTT setup */
@@ -307,8 +482,8 @@ struct drm_psb_private {
 	 * Register base
 	 */
 
-	uint8_t *sgx_reg;
-	uint8_t *vdc_reg;
+	uint8_t __iomem *sgx_reg;
+	uint8_t __iomem *vdc_reg;
 	uint32_t gatt_free_offset;
 
 	/*
@@ -332,6 +507,7 @@ struct drm_psb_private {
 	 * Modesetting
 	 */
 	struct psb_intel_mode_device mode_dev;
+	bool modeset;	/* true if we have done the mode_device setup */
 
 	struct drm_crtc *plane_to_crtc_mapping[PSB_NUM_PIPE];
 	struct drm_crtc *pipe_to_crtc_mapping[PSB_NUM_PIPE];
@@ -394,225 +570,34 @@ struct drm_psb_private {
 	int rpm_enabled;
 
 	/* MID specific */
-	struct oaktrail_vbt vbt_data;
+	bool has_gct;
 	struct oaktrail_gct_data gct_data;
 
-	/* MIPI Panel type etc */
-	int panel_id;
-	bool dual_mipi;		/* dual display - DPI & DBI */
-	bool dpi_panel_on;	/* The DPI panel power is on */
-	bool dpi_panel_on2;	/* The DPI panel power is on */
-	bool dbi_panel_on;	/* The DBI panel power is on */
-	bool dbi_panel_on2;	/* The DBI panel power is on */
-	u32 dsr_fb_update;	/* DSR FB update counter */
-
-	/* Moorestown HDMI state */
+	/* Oaktrail HDMI state */
 	struct oaktrail_hdmi_dev *hdmi_priv;
-
-	/* Moorestown pipe config register value cache */
-	uint32_t pipeconf;
-	uint32_t pipeconf1;
-	uint32_t pipeconf2;
-
-	/* Moorestown plane control register value cache */
-	uint32_t dspcntr;
-	uint32_t dspcntr1;
-	uint32_t dspcntr2;
-
-	/* Moorestown MM backlight cache */
-	uint8_t saveBKLTCNT;
-	uint8_t saveBKLTREQ;
-	uint8_t saveBKLTBRTL;
-
+	
 	/*
 	 * Register state
 	 */
-	uint32_t saveDSPACNTR;
-	uint32_t saveDSPBCNTR;
-	uint32_t savePIPEACONF;
-	uint32_t savePIPEBCONF;
-	uint32_t savePIPEASRC;
-	uint32_t savePIPEBSRC;
-	uint32_t saveFPA0;
-	uint32_t saveFPA1;
-	uint32_t saveDPLL_A;
-	uint32_t saveDPLL_A_MD;
-	uint32_t saveHTOTAL_A;
-	uint32_t saveHBLANK_A;
-	uint32_t saveHSYNC_A;
-	uint32_t saveVTOTAL_A;
-	uint32_t saveVBLANK_A;
-	uint32_t saveVSYNC_A;
-	uint32_t saveDSPASTRIDE;
-	uint32_t saveDSPASIZE;
-	uint32_t saveDSPAPOS;
-	uint32_t saveDSPABASE;
-	uint32_t saveDSPASURF;
-	uint32_t saveDSPASTATUS;
-	uint32_t saveFPB0;
-	uint32_t saveFPB1;
-	uint32_t saveDPLL_B;
-	uint32_t saveDPLL_B_MD;
-	uint32_t saveHTOTAL_B;
-	uint32_t saveHBLANK_B;
-	uint32_t saveHSYNC_B;
-	uint32_t saveVTOTAL_B;
-	uint32_t saveVBLANK_B;
-	uint32_t saveVSYNC_B;
-	uint32_t saveDSPBSTRIDE;
-	uint32_t saveDSPBSIZE;
-	uint32_t saveDSPBPOS;
-	uint32_t saveDSPBBASE;
-	uint32_t saveDSPBSURF;
-	uint32_t saveDSPBSTATUS;
-	uint32_t saveVCLK_DIVISOR_VGA0;
-	uint32_t saveVCLK_DIVISOR_VGA1;
-	uint32_t saveVCLK_POST_DIV;
-	uint32_t saveVGACNTRL;
-	uint32_t saveADPA;
-	uint32_t saveLVDS;
-	uint32_t saveDVOA;
-	uint32_t saveDVOB;
-	uint32_t saveDVOC;
-	uint32_t savePP_ON;
-	uint32_t savePP_OFF;
-	uint32_t savePP_CONTROL;
-	uint32_t savePP_CYCLE;
-	uint32_t savePFIT_CONTROL;
-	uint32_t savePaletteA[256];
-	uint32_t savePaletteB[256];
-	uint32_t saveBLC_PWM_CTL2;
-	uint32_t saveBLC_PWM_CTL;
-	uint32_t saveCLOCKGATING;
-	uint32_t saveDSPARB;
-	uint32_t saveDSPATILEOFF;
-	uint32_t saveDSPBTILEOFF;
-	uint32_t saveDSPAADDR;
-	uint32_t saveDSPBADDR;
-	uint32_t savePFIT_AUTO_RATIOS;
-	uint32_t savePFIT_PGM_RATIOS;
-	uint32_t savePP_ON_DELAYS;
-	uint32_t savePP_OFF_DELAYS;
-	uint32_t savePP_DIVISOR;
-	uint32_t saveBSM;
-	uint32_t saveVBT;
-	uint32_t saveBCLRPAT_A;
-	uint32_t saveBCLRPAT_B;
-	uint32_t saveDSPALINOFF;
-	uint32_t saveDSPBLINOFF;
-	uint32_t savePERF_MODE;
-	uint32_t saveDSPFW1;
-	uint32_t saveDSPFW2;
-	uint32_t saveDSPFW3;
-	uint32_t saveDSPFW4;
-	uint32_t saveDSPFW5;
-	uint32_t saveDSPFW6;
-	uint32_t saveCHICKENBIT;
-	uint32_t saveDSPACURSOR_CTRL;
-	uint32_t saveDSPBCURSOR_CTRL;
-	uint32_t saveDSPACURSOR_BASE;
-	uint32_t saveDSPBCURSOR_BASE;
-	uint32_t saveDSPACURSOR_POS;
-	uint32_t saveDSPBCURSOR_POS;
-	uint32_t save_palette_a[256];
-	uint32_t save_palette_b[256];
-	uint32_t saveOV_OVADD;
-	uint32_t saveOV_OGAMC0;
-	uint32_t saveOV_OGAMC1;
-	uint32_t saveOV_OGAMC2;
-	uint32_t saveOV_OGAMC3;
-	uint32_t saveOV_OGAMC4;
-	uint32_t saveOV_OGAMC5;
-	uint32_t saveOVC_OVADD;
-	uint32_t saveOVC_OGAMC0;
-	uint32_t saveOVC_OGAMC1;
-	uint32_t saveOVC_OGAMC2;
-	uint32_t saveOVC_OGAMC3;
-	uint32_t saveOVC_OGAMC4;
-	uint32_t saveOVC_OGAMC5;
+
+	struct psb_save_area regs;
 
 	/* MSI reg save */
 	uint32_t msi_addr;
 	uint32_t msi_data;
 
-	/* Medfield specific register save state */
-	uint32_t saveHDMIPHYMISCCTL;
-	uint32_t saveHDMIB_CONTROL;
-	uint32_t saveDSPCCNTR;
-	uint32_t savePIPECCONF;
-	uint32_t savePIPECSRC;
-	uint32_t saveHTOTAL_C;
-	uint32_t saveHBLANK_C;
-	uint32_t saveHSYNC_C;
-	uint32_t saveVTOTAL_C;
-	uint32_t saveVBLANK_C;
-	uint32_t saveVSYNC_C;
-	uint32_t saveDSPCSTRIDE;
-	uint32_t saveDSPCSIZE;
-	uint32_t saveDSPCPOS;
-	uint32_t saveDSPCSURF;
-	uint32_t saveDSPCSTATUS;
-	uint32_t saveDSPCLINOFF;
-	uint32_t saveDSPCTILEOFF;
-	uint32_t saveDSPCCURSOR_CTRL;
-	uint32_t saveDSPCCURSOR_BASE;
-	uint32_t saveDSPCCURSOR_POS;
-	uint32_t save_palette_c[256];
-	uint32_t saveOV_OVADD_C;
-	uint32_t saveOV_OGAMC0_C;
-	uint32_t saveOV_OGAMC1_C;
-	uint32_t saveOV_OGAMC2_C;
-	uint32_t saveOV_OGAMC3_C;
-	uint32_t saveOV_OGAMC4_C;
-	uint32_t saveOV_OGAMC5_C;
-
-	/* DSI register save */
-	uint32_t saveDEVICE_READY_REG;
-	uint32_t saveINTR_EN_REG;
-	uint32_t saveDSI_FUNC_PRG_REG;
-	uint32_t saveHS_TX_TIMEOUT_REG;
-	uint32_t saveLP_RX_TIMEOUT_REG;
-	uint32_t saveTURN_AROUND_TIMEOUT_REG;
-	uint32_t saveDEVICE_RESET_REG;
-	uint32_t saveDPI_RESOLUTION_REG;
-	uint32_t saveHORIZ_SYNC_PAD_COUNT_REG;
-	uint32_t saveHORIZ_BACK_PORCH_COUNT_REG;
-	uint32_t saveHORIZ_FRONT_PORCH_COUNT_REG;
-	uint32_t saveHORIZ_ACTIVE_AREA_COUNT_REG;
-	uint32_t saveVERT_SYNC_PAD_COUNT_REG;
-	uint32_t saveVERT_BACK_PORCH_COUNT_REG;
-	uint32_t saveVERT_FRONT_PORCH_COUNT_REG;
-	uint32_t saveHIGH_LOW_SWITCH_COUNT_REG;
-	uint32_t saveINIT_COUNT_REG;
-	uint32_t saveMAX_RET_PAK_REG;
-	uint32_t saveVIDEO_FMT_REG;
-	uint32_t saveEOT_DISABLE_REG;
-	uint32_t saveLP_BYTECLK_REG;
-	uint32_t saveHS_LS_DBI_ENABLE_REG;
-	uint32_t saveTXCLKESC_REG;
-	uint32_t saveDPHY_PARAM_REG;
-	uint32_t saveMIPI_CONTROL_REG;
-	uint32_t saveMIPI;
-	uint32_t saveMIPI_C;
-
-	/* DPST register save */
-	uint32_t saveHISTOGRAM_INT_CONTROL_REG;
-	uint32_t saveHISTOGRAM_LOGIC_CONTROL_REG;
-	uint32_t savePWM_CONTROL_LOGIC;
-
 	/*
-	 * DSI info. 
+	 * Hotplug handling
 	 */
-	void * dbi_dsr_info;	
-	void * dbi_dpu_info;
-	void * dsi_configs[2];
+
+	struct work_struct hotplug_work;
+
 	/*
 	 * LID-Switch
 	 */
 	spinlock_t lid_lock;
 	struct timer_list lid_timer;
 	struct psb_intel_opregion opregion;
-	u32 *lid_state;
 	u32 lid_last_state;
 
 	/*
@@ -635,6 +620,26 @@ struct drm_psb_private {
 
 	/* 2D acceleration */
 	spinlock_t lock_2d;
+
+	/*
+	 * Panel brightness
+	 */
+	int brightness;
+	int brightness_adjusted;
+
+	bool dsr_enable;
+	u32 dsr_fb_update;
+	bool dpi_panel_on[3];
+	void *dsi_configs[2];
+	u32 bpp;
+	u32 bpp2;
+
+	u32 pipeconf[3];
+	u32 dspcntr[3];
+
+	int mdfld_panel_id;
+
+	bool dplla_96mhz;	/* DPLL data from the VBT */
 };
 
 
@@ -648,6 +653,9 @@ struct psb_ops {
 	int pipes;		/* Number of output pipes */
 	int crtcs;		/* Number of CRTCs */
 	int sgx_offset;		/* Base offset of SGX device */
+	int hdmi_mask;		/* Mask of HDMI CRTCs */
+	int lvds_mask;		/* Mask of LVDS CRTCs */
+	int cursor_needs_phys;  /* If cursor base reg need physical address */
 
 	/* Sub functions */
 	struct drm_crtc_helper_funcs const *crtc_helper;
@@ -656,9 +664,13 @@ struct psb_ops {
 	/* Setup hooks */
 	int (*chip_setup)(struct drm_device *dev);
 	void (*chip_teardown)(struct drm_device *dev);
+	/* Optional helper caller after modeset */
+	void (*errata)(struct drm_device *dev);
 
 	/* Display management hooks */
 	int (*output_init)(struct drm_device *dev);
+	int (*hotplug)(struct drm_device *dev);
+	void (*hotplug_enable)(struct drm_device *dev, bool on);
 	/* Power management hooks */
 	void (*init_pm)(struct drm_device *dev);
 	int (*save_regs)(struct drm_device *dev);
@@ -755,12 +767,6 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
 extern u32 psb_get_vblank_counter(struct drm_device *dev, int crtc);
 
 /*
- * intel_opregion.c
- */
-extern int gma_intel_opregion_init(struct drm_device *dev);
-extern int gma_intel_opregion_exit(struct drm_device *dev);
-
-/*
  * framebuffer.c
  */
 extern int psbfb_probed(struct drm_device *dev);
@@ -829,6 +835,9 @@ extern const struct psb_ops psb_chip_ops;
 
 /* oaktrail_device.c */
 extern const struct psb_ops oaktrail_chip_ops;
+
+/* mdlfd_device.c */
+extern const struct psb_ops mdfld_chip_ops;
 
 /* cdv_device.c */
 extern const struct psb_ops cdv_chip_ops;

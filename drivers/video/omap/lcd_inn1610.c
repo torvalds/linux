@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 #include "omapfb.h"
 
 #define MODULE_NAME	"omapfb-lcd_h3"
@@ -32,20 +32,18 @@ static int innovator1610_panel_init(struct lcd_panel *panel,
 {
 	int r = 0;
 
-	if (gpio_request(14, "lcd_en0")) {
+	/* configure GPIO(14, 15) as outputs */
+	if (gpio_request_one(14, GPIOF_OUT_INIT_LOW, "lcd_en0")) {
 		pr_err(MODULE_NAME ": can't request GPIO 14\n");
 		r = -1;
 		goto exit;
 	}
-	if (gpio_request(15, "lcd_en1")) {
+	if (gpio_request_one(15, GPIOF_OUT_INIT_LOW, "lcd_en1")) {
 		pr_err(MODULE_NAME ": can't request GPIO 15\n");
 		gpio_free(14);
 		r = -1;
 		goto exit;
 	}
-	/* configure GPIO(14, 15) as outputs */
-	gpio_direction_output(14, 0);
-	gpio_direction_output(15, 0);
 exit:
 	return r;
 }

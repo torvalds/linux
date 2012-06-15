@@ -26,9 +26,9 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
+#include <asm/switch_to.h>
 #include "entry.h"
 
 #ifdef CONFIG_COMPAT
@@ -719,7 +719,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	long ret = 0;
 
 	/* Do the secure computing check first. */
-	secure_computing(regs->gprs[2]);
+	secure_computing_strict(regs->gprs[2]);
 
 	/*
 	 * The sysc_tracesys code in entry.S stored the system

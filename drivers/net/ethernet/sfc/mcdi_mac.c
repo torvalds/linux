@@ -9,11 +9,10 @@
 
 #include "net_driver.h"
 #include "efx.h"
-#include "mac.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 
-static int efx_mcdi_set_mac(struct efx_nic *efx)
+int efx_mcdi_set_mac(struct efx_nic *efx)
 {
 	u32 reject, fcntl;
 	u8 cmdbytes[MC_CMD_SET_MAC_IN_LEN];
@@ -45,6 +44,8 @@ static int efx_mcdi_set_mac(struct efx_nic *efx)
 	}
 	if (efx->wanted_fc & EFX_FC_AUTO)
 		fcntl = MC_CMD_FCNTL_AUTO;
+	if (efx->fc_disable)
+		fcntl = MC_CMD_FCNTL_OFF;
 
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_FCNTL, fcntl);
 
@@ -52,7 +53,7 @@ static int efx_mcdi_set_mac(struct efx_nic *efx)
 			    NULL, 0, NULL);
 }
 
-static int efx_mcdi_get_mac_faults(struct efx_nic *efx, u32 *faults)
+bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 {
 	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
 	size_t outlength;
@@ -62,16 +63,13 @@ static int efx_mcdi_get_mac_faults(struct efx_nic *efx, u32 *faults)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlength);
-	if (rc)
-		goto fail;
+	if (rc) {
+		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+			  __func__, rc);
+		return true;
+	}
 
-	*faults = MCDI_DWORD(outbuf, GET_LINK_OUT_MAC_FAULT);
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
-		  __func__, rc);
-	return rc;
+	return MCDI_DWORD(outbuf, GET_LINK_OUT_MAC_FAULT) != 0;
 }
 
 int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
@@ -84,7 +82,7 @@ int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	u32 addr_hi;
 	u32 addr_lo;
 
-	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_LEN != 0);
+	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_DMA_LEN != 0);
 
 	addr_lo = ((u64)dma_addr) >> 0;
 	addr_hi = ((u64)dma_addr) >> 32;
@@ -93,13 +91,13 @@ int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_ADDR_HI, addr_hi);
 	cmd_ptr = (efx_dword_t *)MCDI_PTR(inbuf, MAC_STATS_IN_CMD);
 	EFX_POPULATE_DWORD_7(*cmd_ptr,
-			     MC_CMD_MAC_STATS_CMD_DMA, !!enable,
-			     MC_CMD_MAC_STATS_CMD_CLEAR, clear,
-			     MC_CMD_MAC_STATS_CMD_PERIODIC_CHANGE, 1,
-			     MC_CMD_MAC_STATS_CMD_PERIODIC_ENABLE, !!enable,
-			     MC_CMD_MAC_STATS_CMD_PERIODIC_CLEAR, 0,
-			     MC_CMD_MAC_STATS_CMD_PERIODIC_NOEVENT, 1,
-			     MC_CMD_MAC_STATS_CMD_PERIOD_MS, period);
+			     MC_CMD_MAC_STATS_IN_DMA, !!enable,
+			     MC_CMD_MAC_STATS_IN_CLEAR, clear,
+			     MC_CMD_MAC_STATS_IN_PERIODIC_CHANGE, 1,
+			     MC_CMD_MAC_STATS_IN_PERIODIC_ENABLE, !!enable,
+			     MC_CMD_MAC_STATS_IN_PERIODIC_CLEAR, 0,
+			     MC_CMD_MAC_STATS_IN_PERIODIC_NOEVENT, 1,
+			     MC_CMD_MAC_STATS_IN_PERIOD_MS, period);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),
@@ -115,31 +113,18 @@ fail:
 	return rc;
 }
 
-static int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
+int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
 {
 	int rc;
+
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
 	rc = efx_mcdi_set_mac(efx);
 	if (rc != 0)
 		return rc;
 
-	/* Restore the multicast hash registers. */
-	efx->type->push_multicast_hash(efx);
-
-	return 0;
+	return efx_mcdi_rpc(efx, MC_CMD_SET_MCAST_HASH,
+			    efx->multicast_hash.byte,
+			    sizeof(efx->multicast_hash),
+			    NULL, 0, NULL);
 }
-
-
-static bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
-{
-	u32 faults;
-	int rc = efx_mcdi_get_mac_faults(efx, &faults);
-	return (rc != 0) || (faults != 0);
-}
-
-
-const struct efx_mac_operations efx_mcdi_mac_operations = {
-	.reconfigure	= efx_mcdi_mac_reconfigure,
-	.update_stats	= efx_port_dummy_op_void,
-	.check_fault 	= efx_mcdi_mac_check_fault,
-};

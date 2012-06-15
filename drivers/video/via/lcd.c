@@ -53,10 +53,6 @@ static void __devinit fp_id_to_vindex(int panel_id);
 static int lvds_register_read(int index);
 static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		      int panel_vres);
-static void via_pitch_alignment_patch_lcd(
-	struct lvds_setting_information *plvds_setting_info,
-				   struct lvds_chip_information
-				   *plvds_chip_info);
 static void lcd_patch_skew_dvp0(struct lvds_setting_information
 			 *plvds_setting_info,
 			 struct lvds_chip_information *plvds_chip_info);
@@ -79,9 +75,6 @@ static void check_diport_of_integrated_lvds(
 	struct lvds_chip_information *plvds_chip_info,
 				     struct lvds_setting_information
 				     *plvds_setting_info);
-static struct display_timing lcd_centering_timging(struct display_timing
-					    mode_crt_reg,
-					   struct display_timing panel_crt_reg);
 
 static inline bool check_lvds_chip(int device_id_subaddr, int device_id)
 {
@@ -454,20 +447,17 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 	}
 }
 
-static void via_pitch_alignment_patch_lcd(
-	struct lvds_setting_information *plvds_setting_info,
-				   struct lvds_chip_information
-				   *plvds_chip_info)
+static void via_pitch_alignment_patch_lcd(int iga_path, int hres, int bpp)
 {
 	unsigned char cr13, cr35, cr65, cr66, cr67;
 	unsigned long dwScreenPitch = 0;
 	unsigned long dwPitch;
 
-	dwPitch = plvds_setting_info->h_active * (plvds_setting_info->bpp >> 3);
+	dwPitch = hres * (bpp >> 3);
 	if (dwPitch & 0x1F) {
 		dwScreenPitch = ((dwPitch + 31) & ~31) >> 3;
-		if (plvds_setting_info->iga_path == IGA2) {
-			if (plvds_setting_info->bpp > 8) {
+		if (iga_path == IGA2) {
+			if (bpp > 8) {
 				cr66 = (unsigned char)(dwScreenPitch & 0xFF);
 				viafb_write_reg(CR66, VIACR, cr66);
 				cr67 = viafb_read_reg(VIACR, CR67) & 0xFC;
@@ -485,7 +475,7 @@ static void via_pitch_alignment_patch_lcd(
 			cr65 += 2;
 			viafb_write_reg(CR65, VIACR, cr65);
 		} else {
-			if (plvds_setting_info->bpp > 8) {
+			if (bpp > 8) {
 				cr13 = (unsigned char)(dwScreenPitch & 0xFF);
 				viafb_write_reg(CR13, VIACR, cr13);
 				cr35 = viafb_read_reg(VIACR, CR35) & 0x1F;
@@ -548,49 +538,45 @@ static void lcd_patch_skew(struct lvds_setting_information
 }
 
 /* LCD Set Mode */
-void viafb_lcd_set_mode(struct lvds_setting_information *plvds_setting_info,
+void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
+	u16 cyres, struct lvds_setting_information *plvds_setting_info,
 	struct lvds_chip_information *plvds_chip_info)
 {
 	int set_iga = plvds_setting_info->iga_path;
-	int mode_bpp = plvds_setting_info->bpp;
-	int set_hres = plvds_setting_info->h_active;
-	int set_vres = plvds_setting_info->v_active;
+	int mode_bpp = var->bits_per_pixel;
+	int set_hres = cxres ? cxres : var->xres;
+	int set_vres = cyres ? cyres : var->yres;
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
 	u32 clock;
-	struct display_timing mode_crt_reg, panel_crt_reg, timing;
-	struct crt_mode_table *mode_crt_table, *panel_crt_table;
+	struct display_timing timing;
+	struct fb_var_screeninfo panel_var;
+	const struct fb_videomode *mode_crt_table, *panel_crt_table;
 
 	DEBUG_MSG(KERN_INFO "viafb_lcd_set_mode!!\n");
 	/* Get mode table */
 	mode_crt_table = viafb_get_best_mode(set_hres, set_vres, 60);
-	mode_crt_reg = mode_crt_table->crtc;
 	/* Get panel table Pointer */
 	panel_crt_table = viafb_get_best_mode(panel_hres, panel_vres, 60);
-	panel_crt_reg = panel_crt_table->crtc;
+	viafb_fill_var_timing_info(&panel_var, panel_crt_table);
 	DEBUG_MSG(KERN_INFO "bellow viafb_lcd_set_mode!!\n");
 	if (VT1636_LVDS == plvds_chip_info->lvds_chip_name)
 		viafb_init_lvds_vt1636(plvds_setting_info, plvds_chip_info);
-	clock = panel_crt_reg.hor_total * panel_crt_reg.ver_total
-		* panel_crt_table->refresh_rate;
+	clock = PICOS2KHZ(panel_crt_table->pixclock) * 1000;
 	plvds_setting_info->vclk = clock;
 
 	if (set_iga == IGA2 && (set_hres < panel_hres || set_vres < panel_vres)
 		&& plvds_setting_info->display_method == LCD_EXPANDSION) {
-		timing = panel_crt_reg;
+		timing = var_to_timing(&panel_var, panel_hres, panel_vres);
 		load_lcd_scaling(set_hres, set_vres, panel_hres, panel_vres);
 	} else {
-		timing = lcd_centering_timging(mode_crt_reg, panel_crt_reg);
+		timing = var_to_timing(&panel_var, set_hres, set_vres);
 		if (set_iga == IGA2)
 			/* disable scaling */
 			via_write_reg_mask(VIACR, 0x79, 0x00,
 				BIT0 + BIT1 + BIT2);
 	}
 
-	timing.hor_blank_end += timing.hor_blank_start;
-	timing.hor_sync_end += timing.hor_sync_start;
-	timing.ver_blank_end += timing.ver_blank_start;
-	timing.ver_sync_end += timing.ver_sync_start;
 	if (set_iga == IGA1)
 		via_set_primary_timing(&timing);
 	else if (set_iga == IGA2)
@@ -613,7 +599,8 @@ void viafb_lcd_set_mode(struct lvds_setting_information *plvds_setting_info,
 		viafb_write_reg_mask(CR6A, VIACR, 0x01, BIT0);
 
 	/* Patch for non 32bit alignment mode */
-	via_pitch_alignment_patch_lcd(plvds_setting_info, plvds_chip_info);
+	via_pitch_alignment_patch_lcd(plvds_setting_info->iga_path, set_hres,
+		var->bits_per_pixel);
 }
 
 static void integrated_lvds_disable(struct lvds_setting_information
@@ -971,37 +958,6 @@ void __devinit viafb_init_lvds_output_interface(struct lvds_chip_information
 		}
 		break;
 	}
-}
-
-static struct display_timing lcd_centering_timging(struct display_timing
-					    mode_crt_reg,
-					    struct display_timing panel_crt_reg)
-{
-	struct display_timing crt_reg;
-
-	crt_reg.hor_total = panel_crt_reg.hor_total;
-	crt_reg.hor_addr = mode_crt_reg.hor_addr;
-	crt_reg.hor_blank_start =
-	    (panel_crt_reg.hor_addr - mode_crt_reg.hor_addr) / 2 +
-	    crt_reg.hor_addr;
-	crt_reg.hor_blank_end = panel_crt_reg.hor_blank_end;
-	crt_reg.hor_sync_start =
-	    (panel_crt_reg.hor_sync_start -
-	     panel_crt_reg.hor_blank_start) + crt_reg.hor_blank_start;
-	crt_reg.hor_sync_end = panel_crt_reg.hor_sync_end;
-
-	crt_reg.ver_total = panel_crt_reg.ver_total;
-	crt_reg.ver_addr = mode_crt_reg.ver_addr;
-	crt_reg.ver_blank_start =
-	    (panel_crt_reg.ver_addr - mode_crt_reg.ver_addr) / 2 +
-	    crt_reg.ver_addr;
-	crt_reg.ver_blank_end = panel_crt_reg.ver_blank_end;
-	crt_reg.ver_sync_start =
-	    (panel_crt_reg.ver_sync_start -
-	     panel_crt_reg.ver_blank_start) + crt_reg.ver_blank_start;
-	crt_reg.ver_sync_end = panel_crt_reg.ver_sync_end;
-
-	return crt_reg;
 }
 
 bool viafb_lcd_get_mobile_state(bool *mobile)

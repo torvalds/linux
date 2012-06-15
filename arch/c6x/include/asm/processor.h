@@ -92,9 +92,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
-
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 #define copy_segments(tsk, mm)		do { } while (0)
@@ -128,5 +125,14 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define cpu_relax()		do { } while (0)
 
 extern const struct seq_operations cpuinfo_op;
+
+/* Reset the board */
+#define HARD_RESET_NOW()
+
+extern unsigned int c6x_core_freq;
+
+
+extern void (*c6x_restart)(void);
+extern void (*c6x_halt)(void);
 
 #endif /* ASM_C6X_PROCESSOR_H */

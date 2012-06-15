@@ -457,15 +457,4 @@ static struct i2c_driver adv7175_driver = {
 	.id_table	= adv7175_id,
 };
 
-static __init int init_adv7175(void)
-{
-	return i2c_add_driver(&adv7175_driver);
-}
-
-static __exit void exit_adv7175(void)
-{
-	i2c_del_driver(&adv7175_driver);
-}
-
-module_init(init_adv7175);
-module_exit(exit_adv7175);
+module_i2c_driver(adv7175_driver);

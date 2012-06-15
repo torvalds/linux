@@ -51,6 +51,7 @@ struct sh_mipi_dsi_info {
 	int				lane;
 	unsigned long			flags;
 	u32				clksrc;
+	u32				phyctrl; /* for extra setting */
 	unsigned int			vsynw_offset;
 	int	(*set_dot_clock)(struct platform_device *pdev,
 				 void __iomem *base,

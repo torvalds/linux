@@ -24,9 +24,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/ntfy.h>
 
@@ -266,25 +263,10 @@ err:
  */
 void api_exit(void)
 {
-	DBC_REQUIRE(api_c_refs > 0);
 	api_c_refs--;
 
-	if (api_c_refs == 0) {
-		/* Release all modules initialized in api_init(). */
-		cod_exit();
-		dev_exit();
-		chnl_exit();
-		msg_exit();
-		io_exit();
-		strm_exit();
-		disp_exit();
-		node_exit();
-		proc_exit();
+	if (api_c_refs == 0)
 		mgr_exit();
-		rmm_exit();
-		drv_exit();
-	}
-	DBC_ENSURE(api_c_refs >= 0);
 }
 
 /*
@@ -295,64 +277,10 @@ void api_exit(void)
 bool api_init(void)
 {
 	bool ret = true;
-	bool fdrv, fdev, fcod, fchnl, fmsg, fio;
-	bool fmgr, fproc, fnode, fdisp, fstrm, frmm;
 
-	if (api_c_refs == 0) {
-		/* initialize driver and other modules */
-		fdrv = drv_init();
-		fmgr = mgr_init();
-		fproc = proc_init();
-		fnode = node_init();
-		fdisp = disp_init();
-		fstrm = strm_init();
-		frmm = rmm_init();
-		fchnl = chnl_init();
-		fmsg = msg_mod_init();
-		fio = io_init();
-		fdev = dev_init();
-		fcod = cod_init();
-		ret = fdrv && fdev && fchnl && fcod && fmsg && fio;
-		ret = ret && fmgr && fproc && frmm;
-		if (!ret) {
-			if (fdrv)
-				drv_exit();
+	if (api_c_refs == 0)
+		ret = mgr_init();
 
-			if (fmgr)
-				mgr_exit();
-
-			if (fstrm)
-				strm_exit();
-
-			if (fproc)
-				proc_exit();
-
-			if (fnode)
-				node_exit();
-
-			if (fdisp)
-				disp_exit();
-
-			if (fchnl)
-				chnl_exit();
-
-			if (fmsg)
-				msg_exit();
-
-			if (fio)
-				io_exit();
-
-			if (fdev)
-				dev_exit();
-
-			if (fcod)
-				cod_exit();
-
-			if (frmm)
-				rmm_exit();
-
-		}
-	}
 	if (ret)
 		api_c_refs++;
 
@@ -381,8 +309,6 @@ int api_init_complete2(void)
 	struct dev_object *hdev_obj;
 	struct drv_data *drv_datap;
 	u8 dev_type;
-
-	DBC_REQUIRE(api_c_refs > 0);
 
 	/*  Walk the list of DevObjects, get each devnode, and attempting to
 	 *  autostart the board. Note that this requires COF loading, which

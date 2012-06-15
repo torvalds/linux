@@ -328,7 +328,7 @@ static void tulip_up(struct net_device *dev)
 	udelay(100);
 
 	if (tulip_debug > 1)
-		netdev_dbg(dev, "tulip_up(), irq==%d\n", dev->irq);
+		netdev_dbg(dev, "tulip_up(), irq==%d\n", tp->pdev->irq);
 
 	iowrite32(tp->rx_ring_dma, ioaddr + CSR3);
 	iowrite32(tp->tx_ring_dma, ioaddr + CSR4);
@@ -515,11 +515,13 @@ media_picked:
 static int
 tulip_open(struct net_device *dev)
 {
+	struct tulip_private *tp = netdev_priv(dev);
 	int retval;
 
 	tulip_init_ring (dev);
 
-	retval = request_irq(dev->irq, tulip_interrupt, IRQF_SHARED, dev->name, dev);
+	retval = request_irq(tp->pdev->irq, tulip_interrupt, IRQF_SHARED,
+			     dev->name, dev);
 	if (retval)
 		goto free_ring;
 
@@ -636,16 +638,15 @@ static void tulip_init_ring(struct net_device *dev)
 		dma_addr_t mapping;
 
 		/* Note the receive buffer must be longword aligned.
-		   dev_alloc_skb() provides 16 byte alignment.  But do *not*
+		   netdev_alloc_skb() provides 16 byte alignment.  But do *not*
 		   use skb_reserve() to align the IP header! */
-		struct sk_buff *skb = dev_alloc_skb(PKT_BUF_SZ);
+		struct sk_buff *skb = netdev_alloc_skb(dev, PKT_BUF_SZ);
 		tp->rx_buffers[i].skb = skb;
 		if (skb == NULL)
 			break;
 		mapping = pci_map_single(tp->pdev, skb->data,
 					 PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 		tp->rx_buffers[i].mapping = mapping;
-		skb->dev = dev;			/* Mark as being used by this device. */
 		tp->rx_ring[i].status = cpu_to_le32(DescOwned);	/* Owned by Tulip chip */
 		tp->rx_ring[i].buffer1 = cpu_to_le32(mapping);
 	}
@@ -842,7 +843,7 @@ static int tulip_close (struct net_device *dev)
 		netdev_dbg(dev, "Shutting down ethercard, status was %02x\n",
 			   ioread32 (ioaddr + CSR5));
 
-	free_irq (dev->irq, dev);
+	free_irq (tp->pdev->irq, dev);
 
 	tulip_free_ring (dev);
 
@@ -1424,10 +1425,8 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 	/* alloc_etherdev ensures aligned and zeroed private structures */
 	dev = alloc_etherdev (sizeof (*tp));
-	if (!dev) {
-		pr_err("ether device alloc failed, aborting\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	if (pci_resource_len (pdev, 0) < tulip_tbl[chip_idx].io_size) {
@@ -1491,8 +1490,6 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
 
 	INIT_WORK(&tp->media_work, tulip_tbl[tp->chip_id].media_task);
-
-	dev->base_addr = (unsigned long)ioaddr;
 
 #ifdef CONFIG_TULIP_MWI
 	if (!force_csr0 && (tp->flags & HAS_PCI_MWI))
@@ -1653,7 +1650,6 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	for (i = 0; i < 6; i++)
 		last_phys_addr[i] = dev->dev_addr[i];
 	last_irq = irq;
-	dev->irq = irq;
 
 	/* The lower four bits are the media type. */
 	if (board_idx >= 0  &&  board_idx < MAX_UNITS) {
@@ -1861,7 +1857,8 @@ static int tulip_suspend (struct pci_dev *pdev, pm_message_t state)
 	tulip_down(dev);
 
 	netif_device_detach(dev);
-	free_irq(dev->irq, dev);
+	/* FIXME: it needlessly adds an error path. */
+	free_irq(tp->pdev->irq, dev);
 
 save_state:
 	pci_save_state(pdev);
@@ -1903,7 +1900,9 @@ static int tulip_resume(struct pci_dev *pdev)
 		return retval;
 	}
 
-	if ((retval = request_irq(dev->irq, tulip_interrupt, IRQF_SHARED, dev->name, dev))) {
+	retval = request_irq(pdev->irq, tulip_interrupt, IRQF_SHARED,
+			     dev->name, dev);
+	if (retval) {
 		pr_err("request_irq failed in resume\n");
 		return retval;
 	}
@@ -1963,11 +1962,14 @@ static void __devexit tulip_remove_one (struct pci_dev *pdev)
 
 static void poll_tulip (struct net_device *dev)
 {
+	struct tulip_private *tp = netdev_priv(dev);
+	const int irq = tp->pdev->irq;
+
 	/* disable_irq here is not very nice, but with the lockless
 	   interrupt handler we have no other choice. */
-	disable_irq(dev->irq);
-	tulip_interrupt (dev->irq, dev);
-	enable_irq(dev->irq);
+	disable_irq(irq);
+	tulip_interrupt (irq, dev);
+	enable_irq(irq);
 }
 #endif
 

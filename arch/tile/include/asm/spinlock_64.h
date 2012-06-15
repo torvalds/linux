@@ -137,7 +137,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	__insn_mf();
-	rw->lock = 0;
+	__insn_exch4(&rw->lock, 0);  /* Avoid waiting in the write buffer. */
 }
 
 static inline int arch_read_trylock(arch_rwlock_t *rw)

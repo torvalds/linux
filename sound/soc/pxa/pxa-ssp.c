@@ -85,14 +85,12 @@ struct pxa2xx_pcm_dma_data {
 	char name[20];
 };
 
-static struct pxa2xx_pcm_dma_params *
-pxa_ssp_get_dma_params(struct ssp_device *ssp, int width4, int out)
+static void pxa_ssp_set_dma_params(struct ssp_device *ssp, int width4,
+			int out, struct pxa2xx_pcm_dma_params *dma_data)
 {
 	struct pxa2xx_pcm_dma_data *dma;
 
-	dma = kzalloc(sizeof(struct pxa2xx_pcm_dma_data), GFP_KERNEL);
-	if (dma == NULL)
-		return NULL;
+	dma = container_of(dma_data, struct pxa2xx_pcm_dma_data, params);
 
 	snprintf(dma->name, 20, "SSP%d PCM %s %s", ssp->port_id,
 			width4 ? "32-bit" : "16-bit", out ? "out" : "in");
@@ -103,8 +101,6 @@ pxa_ssp_get_dma_params(struct ssp_device *ssp, int width4, int out)
 				  (DCMD_INCTRGADDR | DCMD_FLOWSRC)) |
 			(width4 ? DCMD_WIDTH4 : DCMD_WIDTH2) | DCMD_BURST16;
 	dma->params.dev_addr = ssp->phys_base + SSDR;
-
-	return &dma->params;
 }
 
 static int pxa_ssp_startup(struct snd_pcm_substream *substream,
@@ -112,6 +108,7 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 {
 	struct ssp_priv *priv = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ssp_device *ssp = priv->ssp;
+	struct pxa2xx_pcm_dma_data *dma;
 	int ret = 0;
 
 	if (!cpu_dai->active) {
@@ -119,8 +116,10 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 		pxa_ssp_disable(ssp);
 	}
 
-	kfree(snd_soc_dai_get_dma_data(cpu_dai, substream));
-	snd_soc_dai_set_dma_data(cpu_dai, substream, NULL);
+	dma = kzalloc(sizeof(struct pxa2xx_pcm_dma_data), GFP_KERNEL);
+	if (!dma)
+		return -ENOMEM;
+	snd_soc_dai_set_dma_data(cpu_dai, substream, &dma->params);
 
 	return ret;
 }
@@ -573,18 +572,13 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 
 	dma_data = snd_soc_dai_get_dma_data(cpu_dai, substream);
 
-	/* generate correct DMA params */
-	kfree(dma_data);
-
 	/* Network mode with one active slot (ttsa == 1) can be used
 	 * to force 16-bit frame width on the wire (for S16_LE), even
 	 * with two channels. Use 16-bit DMA transfers for this case.
 	 */
-	dma_data = pxa_ssp_get_dma_params(ssp,
-			((chn == 2) && (ttsa != 1)) || (width == 32),
-			substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-
-	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
+	pxa_ssp_set_dma_params(ssp,
+		((chn == 2) && (ttsa != 1)) || (width == 32),
+		substream->stream == SNDRV_PCM_STREAM_PLAYBACK, dma_data);
 
 	/* we can only change the settings if the port is not in use */
 	if (pxa_ssp_read_reg(ssp, SSCR0) & SSCR0_SSE)
@@ -668,6 +662,38 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static void pxa_ssp_set_running_bit(struct snd_pcm_substream *substream,
+				    struct ssp_device *ssp, int value)
+{
+	uint32_t sscr0 = pxa_ssp_read_reg(ssp, SSCR0);
+	uint32_t sscr1 = pxa_ssp_read_reg(ssp, SSCR1);
+	uint32_t sspsp = pxa_ssp_read_reg(ssp, SSPSP);
+	uint32_t sssr = pxa_ssp_read_reg(ssp, SSSR);
+
+	if (value && (sscr0 & SSCR0_SSE))
+		pxa_ssp_write_reg(ssp, SSCR0, sscr0 & ~SSCR0_SSE);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (value)
+			sscr1 |= SSCR1_TSRE;
+		else
+			sscr1 &= ~SSCR1_TSRE;
+	} else {
+		if (value)
+			sscr1 |= SSCR1_RSRE;
+		else
+			sscr1 &= ~SSCR1_RSRE;
+	}
+
+	pxa_ssp_write_reg(ssp, SSCR1, sscr1);
+
+	if (value) {
+		pxa_ssp_write_reg(ssp, SSSR, sssr);
+		pxa_ssp_write_reg(ssp, SSPSP, sspsp);
+		pxa_ssp_write_reg(ssp, SSCR0, sscr0 | SSCR0_SSE);
+	}
+}
+
 static int pxa_ssp_trigger(struct snd_pcm_substream *substream, int cmd,
 			   struct snd_soc_dai *cpu_dai)
 {
@@ -681,42 +707,21 @@ static int pxa_ssp_trigger(struct snd_pcm_substream *substream, int cmd,
 		pxa_ssp_enable(ssp);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		val = pxa_ssp_read_reg(ssp, SSCR1);
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			val |= SSCR1_TSRE;
-		else
-			val |= SSCR1_RSRE;
-		pxa_ssp_write_reg(ssp, SSCR1, val);
+		pxa_ssp_set_running_bit(substream, ssp, 1);
 		val = pxa_ssp_read_reg(ssp, SSSR);
 		pxa_ssp_write_reg(ssp, SSSR, val);
 		break;
 	case SNDRV_PCM_TRIGGER_START:
-		val = pxa_ssp_read_reg(ssp, SSCR1);
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			val |= SSCR1_TSRE;
-		else
-			val |= SSCR1_RSRE;
-		pxa_ssp_write_reg(ssp, SSCR1, val);
-		pxa_ssp_enable(ssp);
+		pxa_ssp_set_running_bit(substream, ssp, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		val = pxa_ssp_read_reg(ssp, SSCR1);
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			val &= ~SSCR1_TSRE;
-		else
-			val &= ~SSCR1_RSRE;
-		pxa_ssp_write_reg(ssp, SSCR1, val);
+		pxa_ssp_set_running_bit(substream, ssp, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		pxa_ssp_disable(ssp);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		val = pxa_ssp_read_reg(ssp, SSCR1);
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			val &= ~SSCR1_TSRE;
-		else
-			val &= ~SSCR1_RSRE;
-		pxa_ssp_write_reg(ssp, SSCR1, val);
+		pxa_ssp_set_running_bit(substream, ssp, 0);
 		break;
 
 	default:
@@ -764,7 +769,8 @@ static int pxa_ssp_remove(struct snd_soc_dai *dai)
 
 #define PXA_SSP_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
 			  SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |	\
-			  SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |	\
+			  SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |	\
+			  SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_64000 |	\
 			  SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
 #define PXA_SSP_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\

@@ -194,11 +194,24 @@ void qib_pcie_ddcleanup(struct qib_devdata *dd)
 }
 
 static void qib_msix_setup(struct qib_devdata *dd, int pos, u32 *msixcnt,
-			   struct msix_entry *msix_entry)
+			   struct qib_msix_entry *qib_msix_entry)
 {
 	int ret;
 	u32 tabsize = 0;
 	u16 msix_flags;
+	struct msix_entry *msix_entry;
+	int i;
+
+	/* We can't pass qib_msix_entry array to qib_msix_setup
+	 * so use a dummy msix_entry array and copy the allocated
+	 * irq back to the qib_msix_entry array. */
+	msix_entry = kmalloc(*msixcnt * sizeof(*msix_entry), GFP_KERNEL);
+	if (!msix_entry) {
+		ret = -ENOMEM;
+		goto do_intx;
+	}
+	for (i = 0; i < *msixcnt; i++)
+		msix_entry[i] = qib_msix_entry[i].msix;
 
 	pci_read_config_word(dd->pcidev, pos + PCI_MSIX_FLAGS, &msix_flags);
 	tabsize = 1 + (msix_flags & PCI_MSIX_FLAGS_QSIZE);
@@ -209,11 +222,15 @@ static void qib_msix_setup(struct qib_devdata *dd, int pos, u32 *msixcnt,
 		tabsize = ret;
 		ret = pci_enable_msix(dd->pcidev, msix_entry, tabsize);
 	}
+do_intx:
 	if (ret) {
 		qib_dev_err(dd, "pci_enable_msix %d vectors failed: %d, "
 			    "falling back to INTx\n", tabsize, ret);
 		tabsize = 0;
 	}
+	for (i = 0; i < tabsize; i++)
+		qib_msix_entry[i].msix = msix_entry[i];
+	kfree(msix_entry);
 	*msixcnt = tabsize;
 
 	if (ret)
@@ -251,7 +268,7 @@ static int qib_msi_setup(struct qib_devdata *dd, int pos)
 }
 
 int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent,
-		    struct msix_entry *entry)
+		    struct qib_msix_entry *entry)
 {
 	u16 linkstat, speed;
 	int pos = 0, pose, ret = 1;

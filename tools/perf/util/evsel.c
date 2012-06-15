@@ -14,6 +14,8 @@
 #include "util.h"
 #include "cpumap.h"
 #include "thread_map.h"
+#include "target.h"
+#include "../../include/linux/perf_event.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
@@ -34,7 +36,7 @@ int __perf_evsel__sample_size(u64 sample_type)
 	return size;
 }
 
-static void hists__init(struct hists *hists)
+void hists__init(struct hists *hists)
 {
 	memset(hists, 0, sizeof(*hists));
 	hists->entries_in_array[0] = hists->entries_in_array[1] = RB_ROOT;
@@ -63,12 +65,103 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
-void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
+static const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
+	"cycles",
+	"instructions",
+	"cache-references",
+	"cache-misses",
+	"branches",
+	"branch-misses",
+	"bus-cycles",
+	"stalled-cycles-frontend",
+	"stalled-cycles-backend",
+	"ref-cycles",
+};
+
+const char *__perf_evsel__hw_name(u64 config)
+{
+	if (config < PERF_COUNT_HW_MAX && perf_evsel__hw_names[config])
+		return perf_evsel__hw_names[config];
+
+	return "unknown-hardware";
+}
+
+static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int colon = 0;
+	struct perf_event_attr *attr = &evsel->attr;
+	int r = scnprintf(bf, size, "%s", __perf_evsel__hw_name(attr->config));
+	bool exclude_guest_default = false;
+
+#define MOD_PRINT(context, mod)	do {					\
+		if (!attr->exclude_##context) {				\
+			if (!colon) colon = r++;			\
+			r += scnprintf(bf + r, size - r, "%c", mod);	\
+		} } while(0)
+
+	if (attr->exclude_kernel || attr->exclude_user || attr->exclude_hv) {
+		MOD_PRINT(kernel, 'k');
+		MOD_PRINT(user, 'u');
+		MOD_PRINT(hv, 'h');
+		exclude_guest_default = true;
+	}
+
+	if (attr->precise_ip) {
+		if (!colon)
+			colon = r++;
+		r += scnprintf(bf + r, size - r, "%.*s", attr->precise_ip, "ppp");
+		exclude_guest_default = true;
+	}
+
+	if (attr->exclude_host || attr->exclude_guest == exclude_guest_default) {
+		MOD_PRINT(host, 'H');
+		MOD_PRINT(guest, 'G');
+	}
+#undef MOD_PRINT
+	if (colon)
+		bf[colon] = ':';
+	return r;
+}
+
+int perf_evsel__name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int ret;
+
+	switch (evsel->attr.type) {
+	case PERF_TYPE_RAW:
+		ret = scnprintf(bf, size, "raw 0x%" PRIx64, evsel->attr.config);
+		break;
+
+	case PERF_TYPE_HARDWARE:
+		ret = perf_evsel__hw_name(evsel, bf, size);
+		break;
+	default:
+		/*
+		 * FIXME
+ 		 *
+		 * This is the minimal perf_evsel__name so that we can
+		 * reconstruct event names taking into account event modifiers.
+		 *
+		 * The old event_name uses it now for raw anr hw events, so that
+		 * we don't drag all the parsing stuff into the python binding.
+		 *
+		 * On the next devel cycle the rest of the event naming will be
+		 * brought here.
+ 		 */
+		return 0;
+	}
+
+	return ret;
+}
+
+void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
+			struct perf_evsel *first)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
-	attr->sample_id_all = opts->sample_id_all_avail ? 1 : 0;
+	attr->disabled = 1;
+	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 	attr->read_format   = PERF_FORMAT_TOTAL_TIME_ENABLED |
 			      PERF_FORMAT_TOTAL_TIME_RUNNING |
@@ -105,15 +198,15 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 	if (opts->call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
-	if (opts->system_wide)
+	if (perf_target__has_cpu(&opts->target))
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
 	if (opts->period)
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 
-	if (opts->sample_id_all_avail &&
-	    (opts->sample_time || opts->system_wide ||
-	     !opts->no_inherit || opts->cpu_list))
+	if (!opts->sample_id_all_missing &&
+	    (opts->sample_time || !opts->no_inherit ||
+	     perf_target__has_cpu(&opts->target)))
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 
 	if (opts->raw_samples) {
@@ -126,12 +219,16 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 		attr->watermark = 0;
 		attr->wakeup_events = 1;
 	}
+	if (opts->branch_stack) {
+		attr->sample_type	|= PERF_SAMPLE_BRANCH_STACK;
+		attr->branch_sample_type = opts->branch_stack;
+	}
 
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (opts->target_pid == -1 && opts->target_tid == -1 && !opts->system_wide) {
-		attr->disabled = 1;
+	if (perf_target__none(&opts->target) &&
+	    (!opts->group || evsel == first)) {
 		attr->enable_on_exec = 1;
 	}
 }
@@ -455,10 +552,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	 * used for cross-endian analysis. See git commit 65014ab3
 	 * for why this goofiness is needed.
 	 */
-	union {
-		u64 val64;
-		u32 val32[2];
-	} u;
+	union u64_swap u;
 
 	memset(data, 0, sizeof(*data));
 	data->cpu = data->pid = data->tid = -1;
@@ -536,7 +630,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_READ) {
-		fprintf(stderr, "PERF_SAMPLE_READ is unsuported for now\n");
+		fprintf(stderr, "PERF_SAMPLE_READ is unsupported for now\n");
 		return -1;
 	}
 
@@ -574,8 +668,20 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 			return -EFAULT;
 
 		data->raw_data = (void *) pdata;
+
+		array = (void *)array + data->raw_size + sizeof(u32);
 	}
 
+	if (type & PERF_SAMPLE_BRANCH_STACK) {
+		u64 sz;
+
+		data->branch_stack = (struct branch_stack *)array;
+		array++; /* nr */
+
+		sz = data->branch_stack->nr * sizeof(struct branch_entry);
+		sz /= sizeof(u64);
+		array += sz;
+	}
 	return 0;
 }
 
@@ -589,10 +695,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 	 * used for cross-endian analysis. See git commit 65014ab3
 	 * for why this goofiness is needed.
 	 */
-	union {
-		u64 val64;
-		u32 val32[2];
-	} u;
+	union u64_swap u;
 
 	array = event->sample.array;
 

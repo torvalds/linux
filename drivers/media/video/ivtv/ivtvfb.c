@@ -1293,7 +1293,7 @@ static int __init ivtvfb_init(void)
 
 	drv = driver_find("ivtv", &pci_bus_type);
 	err = driver_for_each_device(drv, NULL, &registered, ivtvfb_callback_init);
-	put_driver(drv);
+	(void)err;	/* suppress compiler warning */
 	if (!registered) {
 		printk(KERN_ERR "ivtvfb:  no cards found\n");
 		return -ENODEV;
@@ -1310,7 +1310,7 @@ static void ivtvfb_cleanup(void)
 
 	drv = driver_find("ivtv", &pci_bus_type);
 	err = driver_for_each_device(drv, NULL, NULL, ivtvfb_callback_cleanup);
-	put_driver(drv);
+	(void)err;	/* suppress compiler warning */
 }
 
 module_init(ivtvfb_init);

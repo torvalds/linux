@@ -54,6 +54,7 @@
 #include <sound/asoundef.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_auto_parser.h"
 #include "hda_jack.h"
 
 /* Pin Widget NID */
@@ -484,7 +485,7 @@ static void activate_output_mix(struct hda_codec *codec, struct nid_path *path,
 
 	if (!path)
 		return;
-	num = snd_hda_get_conn_list(codec, mix_nid, NULL);
+	num = snd_hda_get_num_conns(codec, mix_nid);
 	for (i = 0; i < num; i++) {
 		if (i == idx)
 			val = AMP_IN_UNMUTE(i);
@@ -532,8 +533,7 @@ static void init_output_pin(struct hda_codec *codec, hda_nid_t pin,
 {
 	if (!pin)
 		return;
-	snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
+	snd_hda_set_pin_ctl(codec, pin, pin_type);
 	if (snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_EAPD)
 		snd_hda_codec_write(codec, pin, 0,
 				    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
@@ -550,7 +550,10 @@ static void via_auto_init_output(struct hda_codec *codec,
 	pin = path->path[path->depth - 1];
 
 	init_output_pin(codec, pin, pin_type);
-	caps = query_amp_caps(codec, pin, HDA_OUTPUT);
+	if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
+		caps = query_amp_caps(codec, pin, HDA_OUTPUT);
+	else
+		caps = 0;
 	if (caps & AC_AMPCAP_MUTE) {
 		unsigned int val;
 		val = (caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
@@ -645,6 +648,10 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 
 	/* init ADCs */
 	for (i = 0; i < spec->num_adc_nids; i++) {
+		hda_nid_t nid = spec->adc_nids[i];
+		if (!(get_wcaps(codec, nid) & AC_WCAP_IN_AMP) ||
+		    !(query_amp_caps(codec, nid, HDA_INPUT) & AC_AMPCAP_MUTE))
+			continue;
 		snd_hda_codec_write(codec, spec->adc_nids[i], 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(0));
@@ -655,12 +662,12 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (spec->smart51_enabled && is_smart51_pins(codec, nid))
 			ctl = PIN_OUT;
-		else if (cfg->inputs[i].type == AUTO_PIN_MIC)
-			ctl = PIN_VREF50;
-		else
+		else {
 			ctl = PIN_IN;
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, ctl);
+			if (cfg->inputs[i].type == AUTO_PIN_MIC)
+				ctl |= snd_hda_get_default_vref(codec, nid);
+		}
+		snd_hda_set_pin_ctl(codec, nid, ctl);
 	}
 
 	/* init input-src */
@@ -999,9 +1006,7 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 					  AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		parm &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
 		parm |= out_in;
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    parm);
+		snd_hda_set_pin_ctl(codec, nid, parm);
 		if (out_in == AC_PINCTL_OUT_EN) {
 			mute_aa_path(codec, 1);
 			notify_aa_path_ctls(codec);
@@ -1445,25 +1450,9 @@ static const struct hda_pcm_stream via_pcm_digital_capture = {
 /*
  * slave controls for virtual master
  */
-static const char * const via_slave_vols[] = {
-	"Front Playback Volume",
-	"Surround Playback Volume",
-	"Center Playback Volume",
-	"LFE Playback Volume",
-	"Side Playback Volume",
-	"Headphone Playback Volume",
-	"Speaker Playback Volume",
-	NULL,
-};
-
-static const char * const via_slave_sws[] = {
-	"Front Playback Switch",
-	"Surround Playback Switch",
-	"Center Playback Switch",
-	"LFE Playback Switch",
-	"Side Playback Switch",
-	"Headphone Playback Switch",
-	"Speaker Playback Switch",
+static const char * const via_slave_pfxs[] = {
+	"Front", "Surround", "Center", "LFE", "Side",
+	"Headphone", "Speaker",
 	NULL,
 };
 
@@ -1508,13 +1497,15 @@ static int via_build_controls(struct hda_codec *codec)
 		snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
 					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, via_slave_vols);
+					  vmaster_tlv, via_slave_pfxs,
+					  "Playback Volume");
 		if (err < 0)
 			return err;
 	}
 	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
 		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
-					  NULL, via_slave_sws);
+					  NULL, via_slave_pfxs,
+					  "Playback Switch");
 		if (err < 0)
 			return err;
 	}
@@ -1522,6 +1513,8 @@ static int via_build_controls(struct hda_codec *codec)
 	/* assign Capture Source enums to NID */
 	kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 	for (i = 0; kctl && i < kctl->count; i++) {
+		if (!spec->mux_nids[i])
+			continue;
 		err = snd_hda_add_nid(codec, kctl, i, spec->mux_nids[i]);
 		if (err < 0)
 			return err;
@@ -1652,8 +1645,7 @@ static void toggle_output_mutes(struct hda_codec *codec, int num_pins,
 			parm &= ~AC_PINCTL_OUT_EN;
 		else
 			parm |= AC_PINCTL_OUT_EN;
-		snd_hda_codec_write(codec, pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, parm);
+		snd_hda_set_pin_ctl(codec, pins[i], parm);
 	}
 }
 
@@ -1714,8 +1706,7 @@ static void via_gpio_control(struct hda_codec *codec)
 
 	if (gpio_data == 0x02) {
 		/* unmute line out */
-		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+		snd_hda_set_pin_ctl(codec, spec->autocfg.line_out_pins[0],
 				    PIN_OUT);
 		if (vol_counter & 0x20) {
 			/* decrease volume */
@@ -1733,9 +1724,7 @@ static void via_gpio_control(struct hda_codec *codec)
 		}
 	} else if (!(gpio_data & 0x02)) {
 		/* mute line out */
-		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    0);
+		snd_hda_set_pin_ctl(codec, spec->autocfg.line_out_pins[0], 0);
 	}
 }
 
@@ -2488,6 +2477,8 @@ static int create_mic_boost_ctls(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	const char *prev_label = NULL;
+	int type_idx = 0;
 	int i, err;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
@@ -2502,8 +2493,13 @@ static int create_mic_boost_ctls(struct hda_codec *codec)
 		if (caps == -1 || !(caps & AC_AMPCAP_NUM_STEPS))
 			continue;
 		label = hda_get_autocfg_input_label(codec, cfg, i);
+		if (prev_label && !strcmp(label, prev_label))
+			type_idx++;
+		else
+			type_idx = 0;
+		prev_label = label;
 		snprintf(name, sizeof(name), "%s Boost Volume", label);
-		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
+		err = __via_add_control(spec, VIA_CTL_WIDGET_VOL, name, type_idx,
 			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_INPUT));
 		if (err < 0)
 			return err;
@@ -2755,8 +2751,7 @@ static void via_auto_init_dig_in(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	if (!spec->dig_in_nid)
 		return;
-	snd_hda_codec_write(codec, spec->autocfg.dig_in_pin, 0,
-			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN);
+	snd_hda_set_pin_ctl(codec, spec->autocfg.dig_in_pin, PIN_IN);
 }
 
 /* initialize the unsolicited events */

@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/types.h>
+
 /* The protocol version */
 #define IPSET_PROTOCOL		6
 
@@ -148,6 +150,7 @@ enum ipset_cmd_flags {
 	IPSET_FLAG_LIST_SETNAME	= (1 << IPSET_FLAG_BIT_LIST_SETNAME),
 	IPSET_FLAG_BIT_LIST_HEADER = 2,
 	IPSET_FLAG_LIST_HEADER	= (1 << IPSET_FLAG_BIT_LIST_HEADER),
+	IPSET_FLAG_CMD_MAX = 15,	/* Lower half */
 };
 
 /* Flags at CADT attribute level */
@@ -156,6 +159,9 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_BEFORE	= (1 << IPSET_FLAG_BIT_BEFORE),
 	IPSET_FLAG_BIT_PHYSDEV	= 1,
 	IPSET_FLAG_PHYSDEV	= (1 << IPSET_FLAG_BIT_PHYSDEV),
+	IPSET_FLAG_BIT_NOMATCH	= 2,
+	IPSET_FLAG_NOMATCH	= (1 << IPSET_FLAG_BIT_NOMATCH),
+	IPSET_FLAG_CADT_MAX	= 15,	/* Upper half */
 };
 
 /* Commands with settype-specific attributes */
@@ -168,19 +174,10 @@ enum ipset_adt {
 	IPSET_CADT_MAX,
 };
 
-#ifdef __KERNEL__
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/netlink.h>
-#include <linux/netfilter.h>
-#include <linux/netfilter/x_tables.h>
-#include <linux/vmalloc.h>
-#include <net/netlink.h>
-
 /* Sets are identified by an index in kernel space. Tweak with ip_set_id_t
  * and IPSET_INVALID_ID if you want to increase the max number of sets.
  */
-typedef u16 ip_set_id_t;
+typedef __u16 ip_set_id_t;
 
 #define IPSET_INVALID_ID		65535
 
@@ -202,6 +199,15 @@ enum ip_set_kopt {
 	IPSET_DIM_TWO_SRC = (1 << IPSET_DIM_TWO),
 	IPSET_DIM_THREE_SRC = (1 << IPSET_DIM_THREE),
 };
+
+#ifdef __KERNEL__
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/netlink.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter/x_tables.h>
+#include <linux/vmalloc.h>
+#include <net/netlink.h>
 
 /* Set features */
 enum ip_set_feature {
@@ -288,7 +294,10 @@ struct ip_set_type {
 	u8 features;
 	/* Set type dimension */
 	u8 dimension;
-	/* Supported family: may be AF_UNSPEC for both AF_INET/AF_INET6 */
+	/*
+	 * Supported family: may be NFPROTO_UNSPEC for both
+	 * NFPROTO_IPV4/NFPROTO_IPV6.
+	 */
 	u8 family;
 	/* Type revisions */
 	u8 revision_min, revision_max;
@@ -402,26 +411,32 @@ ip_set_get_h16(const struct nlattr *attr)
 #define ipset_nest_start(skb, attr) nla_nest_start(skb, attr | NLA_F_NESTED)
 #define ipset_nest_end(skb, start)  nla_nest_end(skb, start)
 
-#define NLA_PUT_IPADDR4(skb, type, ipaddr)			\
-do {								\
-	struct nlattr *__nested = ipset_nest_start(skb, type);	\
-								\
-	if (!__nested)						\
-		goto nla_put_failure;				\
-	NLA_PUT_NET32(skb, IPSET_ATTR_IPADDR_IPV4, ipaddr);	\
-	ipset_nest_end(skb, __nested);				\
-} while (0)
+static inline int nla_put_ipaddr4(struct sk_buff *skb, int type, __be32 ipaddr)
+{
+	struct nlattr *__nested = ipset_nest_start(skb, type);
+	int ret;
 
-#define NLA_PUT_IPADDR6(skb, type, ipaddrptr)			\
-do {								\
-	struct nlattr *__nested = ipset_nest_start(skb, type);	\
-								\
-	if (!__nested)						\
-		goto nla_put_failure;				\
-	NLA_PUT(skb, IPSET_ATTR_IPADDR_IPV6,			\
-		sizeof(struct in6_addr), ipaddrptr);		\
-	ipset_nest_end(skb, __nested);				\
-} while (0)
+	if (!__nested)
+		return -EMSGSIZE;
+	ret = nla_put_net32(skb, IPSET_ATTR_IPADDR_IPV4, ipaddr);
+	if (!ret)
+		ipset_nest_end(skb, __nested);
+	return ret;
+}
+
+static inline int nla_put_ipaddr6(struct sk_buff *skb, int type, const struct in6_addr *ipaddrptr)
+{
+	struct nlattr *__nested = ipset_nest_start(skb, type);
+	int ret;
+
+	if (!__nested)
+		return -EMSGSIZE;
+	ret = nla_put(skb, IPSET_ATTR_IPADDR_IPV6,
+		      sizeof(struct in6_addr), ipaddrptr);
+	if (!ret)
+		ipset_nest_end(skb, __nested);
+	return ret;
+}
 
 /* Get address from skbuff */
 static inline __be32
@@ -450,6 +465,8 @@ bitmap_bytes(u32 a, u32 b)
 	return 4 * ((((b - a + 8) / 8) + 3) / 4);
 }
 
+#endif /* __KERNEL__ */
+
 /* Interface to iptables/ip6tables */
 
 #define SO_IP_SET		83
@@ -461,8 +478,8 @@ union ip_set_name_index {
 
 #define IP_SET_OP_GET_BYNAME	0x00000006	/* Get set index by name */
 struct ip_set_req_get_set {
-	unsigned op;
-	unsigned version;
+	unsigned int op;
+	unsigned int version;
 	union ip_set_name_index set;
 };
 
@@ -471,10 +488,8 @@ struct ip_set_req_get_set {
 
 #define IP_SET_OP_VERSION	0x00000100	/* Ask kernel version */
 struct ip_set_req_version {
-	unsigned op;
-	unsigned version;
+	unsigned int op;
+	unsigned int version;
 };
-
-#endif	/* __KERNEL__ */
 
 #endif /*_IP_SET_H */

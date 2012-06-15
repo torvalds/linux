@@ -44,6 +44,7 @@
 #include <asm/msc01_ic.h>
 #include <asm/gic.h>
 #include <asm/gcmpregs.h>
+#include <asm/setup.h>
 
 int gcmp_present = -1;
 int gic_present;

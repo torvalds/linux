@@ -10,7 +10,6 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>

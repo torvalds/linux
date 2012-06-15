@@ -68,16 +68,9 @@ static ssize_t setup_data_read(struct file *file, char __user *user_buf,
 	return count;
 }
 
-static int setup_data_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
-
 static const struct file_operations fops_setup_data = {
 	.read		= setup_data_read,
-	.open		= setup_data_open,
+	.open		= simple_open,
 	.llseek		= default_llseek,
 };
 

@@ -20,7 +20,6 @@
 #include <linux/skbuff.h>
 #include <linux/notifier.h>
 #include <linux/bitops.h>
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/hpsim.h>
 
@@ -129,17 +128,6 @@ netdev_probe(char *name, unsigned char *ether)
 
 
 static inline int
-netdev_connect(int irq)
-{
-	/* XXX Fix me
-	 * this does not support multiple cards
-	 * also no return value
-	 */
-	ia64_ssc_connect_irq(NETWORK_INTR, irq);
-	return 0;
-}
-
-static inline int
 netdev_attach(int fd, int irq, unsigned int ipaddr)
 {
 	/* this puts the host interface in the right mode (start interrupting) */
@@ -193,7 +181,7 @@ simeth_probe1(void)
 	unsigned char mac_addr[ETH_ALEN];
 	struct simeth_local *local;
 	struct net_device *dev;
-	int fd, i, err, rc;
+	int fd, err, rc;
 
 	/*
 	 * XXX Fix me
@@ -226,22 +214,16 @@ simeth_probe1(void)
 		return err;
 	}
 
-	if ((rc = assign_irq_vector(AUTO_ASSIGN)) < 0)
-		panic("%s: out of interrupt vectors!\n", __func__);
-	dev->irq = rc;
-
 	/*
 	 * attach the interrupt in the simulator, this does enable interrupts
 	 * until a netdev_attach() is called
 	 */
-	netdev_connect(dev->irq);
+	if ((rc = hpsim_get_irq(NETWORK_INTR)) < 0)
+		panic("%s: out of interrupt vectors!\n", __func__);
+	dev->irq = rc;
 
-	printk(KERN_INFO "%s: hosteth=%s simfd=%d, HwAddr",
-	       dev->name, simeth_device, local->simfd);
-	for(i = 0; i < ETH_ALEN; i++) {
-		printk(" %2.2x", dev->dev_addr[i]);
-	}
-	printk(", IRQ %d\n", dev->irq);
+	printk(KERN_INFO "%s: hosteth=%s simfd=%d, HwAddr=%pm, IRQ %d\n",
+	       dev->name, simeth_device, local->simfd, dev->dev_addr, dev->irq);
 
 	return 0;
 }

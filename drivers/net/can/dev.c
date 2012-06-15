@@ -130,13 +130,13 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt)
 		/* Error in one-tenth of a percent */
 		error = (best_error * 1000) / bt->bitrate;
 		if (error > CAN_CALC_MAX_ERROR) {
-			dev_err(dev->dev.parent,
-				"bitrate error %ld.%ld%% too high\n",
-				error / 10, error % 10);
+			netdev_err(dev,
+				   "bitrate error %ld.%ld%% too high\n",
+				   error / 10, error % 10);
 			return -EDOM;
 		} else {
-			dev_warn(dev->dev.parent, "bitrate error %ld.%ld%%\n",
-				 error / 10, error % 10);
+			netdev_warn(dev, "bitrate error %ld.%ld%%\n",
+				    error / 10, error % 10);
 		}
 	}
 
@@ -172,7 +172,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt)
 #else /* !CONFIG_CAN_CALC_BITTIMING */
 static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt)
 {
-	dev_err(dev->dev.parent, "bit-timing calculation not available\n");
+	netdev_err(dev, "bit-timing calculation not available\n");
 	return -EINVAL;
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
@@ -313,8 +313,7 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		priv->echo_skb[idx] = skb;
 	} else {
 		/* locking problem with netif_stop_queue() ?? */
-		dev_err(dev->dev.parent, "%s: BUG! echo_skb is occupied!\n",
-			__func__);
+		netdev_err(dev, "%s: BUG! echo_skb is occupied!\n", __func__);
 		kfree_skb(skb);
 	}
 }
@@ -327,16 +326,24 @@ EXPORT_SYMBOL_GPL(can_put_echo_skb);
  * is handled in the device driver. The driver must protect
  * access to priv->echo_skb, if necessary.
  */
-void can_get_echo_skb(struct net_device *dev, unsigned int idx)
+unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
 	BUG_ON(idx >= priv->echo_skb_max);
 
 	if (priv->echo_skb[idx]) {
+		struct sk_buff *skb = priv->echo_skb[idx];
+		struct can_frame *cf = (struct can_frame *)skb->data;
+		u8 dlc = cf->can_dlc;
+
 		netif_rx(priv->echo_skb[idx]);
 		priv->echo_skb[idx] = NULL;
+
+		return dlc;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(can_get_echo_skb);
 
@@ -392,7 +399,7 @@ void can_restart(unsigned long data)
 	stats->rx_bytes += cf->can_dlc;
 
 restart:
-	dev_dbg(dev->dev.parent, "restarted\n");
+	netdev_dbg(dev, "restarted\n");
 	priv->can_stats.restarts++;
 
 	/* Now restart the device */
@@ -400,7 +407,7 @@ restart:
 
 	netif_carrier_on(dev);
 	if (err)
-		dev_err(dev->dev.parent, "Error %d during restart", err);
+		netdev_err(dev, "Error %d during restart", err);
 }
 
 int can_restart_now(struct net_device *dev)
@@ -433,7 +440,7 @@ void can_bus_off(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	dev_dbg(dev->dev.parent, "bus-off\n");
+	netdev_dbg(dev, "bus-off\n");
 
 	netif_carrier_off(dev);
 	priv->can_stats.bus_off++;
@@ -545,7 +552,7 @@ int open_candev(struct net_device *dev)
 	struct can_priv *priv = netdev_priv(dev);
 
 	if (!priv->bittiming.tq && !priv->bittiming.bitrate) {
-		dev_err(dev->dev.parent, "bit-timing not yet defined\n");
+		netdev_err(dev, "bit-timing not yet defined\n");
 		return -EINVAL;
 	}
 
@@ -680,18 +687,19 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (priv->do_get_state)
 		priv->do_get_state(dev, &state);
-	NLA_PUT_U32(skb, IFLA_CAN_STATE, state);
-	NLA_PUT(skb, IFLA_CAN_CTRLMODE, sizeof(cm), &cm);
-	NLA_PUT_U32(skb, IFLA_CAN_RESTART_MS, priv->restart_ms);
-	NLA_PUT(skb, IFLA_CAN_BITTIMING,
-		sizeof(priv->bittiming), &priv->bittiming);
-	NLA_PUT(skb, IFLA_CAN_CLOCK, sizeof(cm), &priv->clock);
-	if (priv->do_get_berr_counter && !priv->do_get_berr_counter(dev, &bec))
-		NLA_PUT(skb, IFLA_CAN_BERR_COUNTER, sizeof(bec), &bec);
-	if (priv->bittiming_const)
-		NLA_PUT(skb, IFLA_CAN_BITTIMING_CONST,
-			sizeof(*priv->bittiming_const), priv->bittiming_const);
-
+	if (nla_put_u32(skb, IFLA_CAN_STATE, state) ||
+	    nla_put(skb, IFLA_CAN_CTRLMODE, sizeof(cm), &cm) ||
+	    nla_put_u32(skb, IFLA_CAN_RESTART_MS, priv->restart_ms) ||
+	    nla_put(skb, IFLA_CAN_BITTIMING,
+		    sizeof(priv->bittiming), &priv->bittiming) ||
+	    nla_put(skb, IFLA_CAN_CLOCK, sizeof(cm), &priv->clock) ||
+	    (priv->do_get_berr_counter &&
+	     !priv->do_get_berr_counter(dev, &bec) &&
+	     nla_put(skb, IFLA_CAN_BERR_COUNTER, sizeof(bec), &bec)) ||
+	    (priv->bittiming_const &&
+	     nla_put(skb, IFLA_CAN_BITTIMING_CONST,
+		     sizeof(*priv->bittiming_const), priv->bittiming_const)))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -707,9 +715,9 @@ static int can_fill_xstats(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	NLA_PUT(skb, IFLA_INFO_XSTATS,
-		sizeof(priv->can_stats), &priv->can_stats);
-
+	if (nla_put(skb, IFLA_INFO_XSTATS,
+		    sizeof(priv->can_stats), &priv->can_stats))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:

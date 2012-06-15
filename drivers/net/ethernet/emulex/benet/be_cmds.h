@@ -189,8 +189,12 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
+#define OPCODE_COMMON_GET_EXT_FAT_CAPABILITES		125
+#define OPCODE_COMMON_SET_EXT_FAT_CAPABILITES		126
 #define OPCODE_COMMON_GET_MAC_LIST			147
 #define OPCODE_COMMON_SET_MAC_LIST			148
+#define OPCODE_COMMON_GET_HSW_CONFIG			152
+#define OPCODE_COMMON_SET_HSW_CONFIG			153
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
 
@@ -223,8 +227,12 @@ struct be_cmd_req_hdr {
 #define RESP_HDR_INFO_OPCODE_SHIFT	0	/* bits 0 - 7 */
 #define RESP_HDR_INFO_SUBSYS_SHIFT	8 	/* bits 8 - 15 */
 struct be_cmd_resp_hdr {
-	u32 info;		/* dword 0 */
-	u32 status;		/* dword 1 */
+	u8 opcode;		/* dword 0 */
+	u8 subsystem;		/* dword 0 */
+	u8 rsvd[2];		/* dword 0 */
+	u8 status;		/* dword 1 */
+	u8 add_status;		/* dword 1 */
+	u8 rsvd1[2];		/* dword 1 */
 	u32 response_length;	/* dword 2 */
 	u32 actual_resp_len;	/* dword 3 */
 };
@@ -592,8 +600,8 @@ struct be_port_rxf_stats_v0 {
 	u32 rx_in_range_errors;	/* dword 10*/
 	u32 rx_out_range_errors;	/* dword 11*/
 	u32 rx_frame_too_long;	/* dword 12*/
-	u32 rx_address_match_errors;	/* dword 13*/
-	u32 rx_vlan_mismatch;	/* dword 14*/
+	u32 rx_address_mismatch_drops;	/* dword 13*/
+	u32 rx_vlan_mismatch_drops;	/* dword 14*/
 	u32 rx_dropped_too_small;	/* dword 15*/
 	u32 rx_dropped_too_short;	/* dword 16*/
 	u32 rx_dropped_header_too_small;	/* dword 17*/
@@ -799,8 +807,8 @@ struct lancer_pport_stats {
 	u32 rx_control_frames_unknown_opcode_hi;
 	u32 rx_in_range_errors;
 	u32 rx_out_of_range_errors;
-	u32 rx_address_match_errors;
-	u32 rx_vlan_mismatch_errors;
+	u32 rx_address_mismatch_drops;
+	u32 rx_vlan_mismatch_drops;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;
@@ -1054,6 +1062,7 @@ struct be_cmd_resp_modify_eq_delay {
 /* The HW can come up in either of the following multi-channel modes
  * based on the skew/IPL.
  */
+#define RDMA_ENABLED				0x4
 #define FLEX10_MODE				0x400
 #define VNIC_MODE				0x20000
 #define UMC_ENABLED				0x1000000
@@ -1206,6 +1215,33 @@ struct be_cmd_req_acpi_wol_magic_config{
 	u8 rsvd2[2];
 } __packed;
 
+struct be_cmd_req_acpi_wol_magic_config_v1 {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd0[2];
+	u8 query_options;
+	u8 rsvd1[5];
+	u32 rsvd2[288];
+	u8 magic_mac[6];
+	u8 rsvd3[22];
+} __packed;
+
+struct be_cmd_resp_acpi_wol_magic_config_v1 {
+	struct be_cmd_resp_hdr hdr;
+	u8 rsvd0[2];
+	u8 wol_settings;
+	u8 rsvd1[5];
+	u32 rsvd2[295];
+} __packed;
+
+#define BE_GET_WOL_CAP			2
+
+#define BE_WOL_CAP			0x1
+#define BE_PME_D0_CAP			0x8
+#define BE_PME_D1_CAP			0x10
+#define BE_PME_D2_CAP			0x20
+#define BE_PME_D3HOT_CAP		0x40
+#define BE_PME_D3COLD_CAP		0x80
+
 /********************** LoopBack test *********************/
 struct be_cmd_req_loopback_test {
 	struct be_cmd_req_hdr hdr;
@@ -1280,8 +1316,35 @@ enum {
 	PHY_TYPE_KX4_10GB,
 	PHY_TYPE_BASET_10GB,
 	PHY_TYPE_BASET_1GB,
+	PHY_TYPE_BASEX_1GB,
+	PHY_TYPE_SGMII,
 	PHY_TYPE_DISABLED = 255
 };
+
+#define BE_SUPPORTED_SPEED_NONE		0
+#define BE_SUPPORTED_SPEED_10MBPS	1
+#define BE_SUPPORTED_SPEED_100MBPS	2
+#define BE_SUPPORTED_SPEED_1GBPS	4
+#define BE_SUPPORTED_SPEED_10GBPS	8
+
+#define BE_AN_EN			0x2
+#define BE_PAUSE_SYM_EN			0x80
+
+/* MAC speed valid values */
+#define SPEED_DEFAULT  0x0
+#define SPEED_FORCED_10GB  0x1
+#define SPEED_FORCED_1GB  0x2
+#define SPEED_AUTONEG_10GB  0x3
+#define SPEED_AUTONEG_1GB  0x4
+#define SPEED_AUTONEG_100MB  0x5
+#define SPEED_AUTONEG_10GB_1GB 0x6
+#define SPEED_AUTONEG_10GB_1GB_100MB 0x7
+#define SPEED_AUTONEG_1GB_100MB  0x8
+#define SPEED_AUTONEG_10MB  0x9
+#define SPEED_AUTONEG_1GB_100MB_10MB 0xa
+#define SPEED_AUTONEG_100MB_10MB 0xb
+#define SPEED_FORCED_100MB  0xc
+#define SPEED_FORCED_10MB  0xd
 
 struct be_cmd_req_get_phy_info {
 	struct be_cmd_req_hdr hdr;
@@ -1292,7 +1355,11 @@ struct be_phy_info {
 	u16 phy_type;
 	u16 interface_type;
 	u32 misc_params;
-	u32 future_use[4];
+	u16 ext_phy_details;
+	u16 rsvd;
+	u16 auto_speeds_supported;
+	u16 fixed_speeds_supported;
+	u32 future_use[2];
 };
 
 struct be_cmd_resp_get_phy_info {
@@ -1346,22 +1413,36 @@ struct be_cmd_resp_set_func_cap {
 
 /******************** GET/SET_MACLIST  **************************/
 #define BE_MAX_MAC			64
-struct amap_get_mac_list_context {
-	u8 macid[31];
-	u8 act;
-} __packed;
-
 struct be_cmd_req_get_mac_list {
 	struct be_cmd_req_hdr hdr;
-	u32 rsvd;
+	u8 mac_type;
+	u8 perm_override;
+	u16 iface_id;
+	u32 mac_id;
+	u32 rsvd[3];
+} __packed;
+
+struct get_list_macaddr {
+	u16 mac_addr_size;
+	union {
+		u8 macaddr[6];
+		struct {
+			u8 rsvd[2];
+			u32 mac_id;
+		} __packed s_mac_id;
+	} __packed mac_addr_id;
 } __packed;
 
 struct be_cmd_resp_get_mac_list {
 	struct be_cmd_resp_hdr hdr;
-	u8 mac_count;
-	u8 rsvd1;
-	u16 rsvd2;
-	u8 context[sizeof(struct amap_get_mac_list_context) / 8][BE_MAX_MAC];
+	struct get_list_macaddr fd_macaddr; /* Factory default mac */
+	struct get_list_macaddr macid_macaddr; /* soft mac */
+	u8 true_mac_count;
+	u8 pseudo_mac_count;
+	u8 mac_list_size;
+	u8 rsvd;
+	/* perm override mac */
+	struct get_list_macaddr macaddr_list[BE_MAX_MAC];
 } __packed;
 
 struct be_cmd_req_set_mac_list {
@@ -1371,6 +1452,55 @@ struct be_cmd_req_set_mac_list {
 	u16 rsvd2;
 	struct macaddr mac[BE_MAX_MAC];
 } __packed;
+
+/*********************** HSW Config ***********************/
+struct amap_set_hsw_context {
+	u8 interface_id[16];
+	u8 rsvd0[14];
+	u8 pvid_valid;
+	u8 rsvd1;
+	u8 rsvd2[16];
+	u8 pvid[16];
+	u8 rsvd3[32];
+	u8 rsvd4[32];
+	u8 rsvd5[32];
+} __packed;
+
+struct be_cmd_req_set_hsw_config {
+	struct be_cmd_req_hdr hdr;
+	u8 context[sizeof(struct amap_set_hsw_context) / 8];
+} __packed;
+
+struct be_cmd_resp_set_hsw_config {
+	struct be_cmd_resp_hdr hdr;
+	u32 rsvd;
+};
+
+struct amap_get_hsw_req_context {
+	u8 interface_id[16];
+	u8 rsvd0[14];
+	u8 pvid_valid;
+	u8 pport;
+} __packed;
+
+struct amap_get_hsw_resp_context {
+	u8 rsvd1[16];
+	u8 pvid[16];
+	u8 rsvd2[32];
+	u8 rsvd3[32];
+	u8 rsvd4[32];
+} __packed;
+
+struct be_cmd_req_get_hsw_config {
+	struct be_cmd_req_hdr hdr;
+	u8 context[sizeof(struct amap_get_hsw_req_context) / 8];
+} __packed;
+
+struct be_cmd_resp_get_hsw_config {
+	struct be_cmd_resp_hdr hdr;
+	u8 context[sizeof(struct amap_get_hsw_resp_context) / 8];
+	u32 rsvd;
+};
 
 /*************** HW Stats Get v1 **********************************/
 #define BE_TXP_SW_SZ			48
@@ -1384,7 +1514,7 @@ struct be_port_rxf_stats_v1 {
 	u32 rx_in_range_errors;
 	u32 rx_out_range_errors;
 	u32 rx_frame_too_long;
-	u32 rx_address_match_errors;
+	u32 rx_address_mismatch_drops;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;
@@ -1475,6 +1605,56 @@ static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
 	}
 }
 
+
+/************** get fat capabilites *******************/
+#define MAX_MODULES 27
+#define MAX_MODES 4
+#define MODE_UART 0
+#define FW_LOG_LEVEL_DEFAULT 48
+#define FW_LOG_LEVEL_FATAL 64
+
+struct ext_fat_mode {
+	u8 mode;
+	u8 rsvd0;
+	u16 port_mask;
+	u32 dbg_lvl;
+	u64 fun_mask;
+} __packed;
+
+struct ext_fat_modules {
+	u8 modules_str[32];
+	u32 modules_id;
+	u32 num_modes;
+	struct ext_fat_mode trace_lvl[MAX_MODES];
+} __packed;
+
+struct be_fat_conf_params {
+	u32 max_log_entries;
+	u32 log_entry_size;
+	u8 log_type;
+	u8 max_log_funs;
+	u8 max_log_ports;
+	u8 rsvd0;
+	u32 supp_modes;
+	u32 num_modules;
+	struct ext_fat_modules module[MAX_MODULES];
+} __packed;
+
+struct be_cmd_req_get_ext_fat_caps {
+	struct be_cmd_req_hdr hdr;
+	u32 parameter_type;
+};
+
+struct be_cmd_resp_get_ext_fat_caps {
+	struct be_cmd_resp_hdr hdr;
+	struct be_fat_conf_params get_params;
+};
+
+struct be_cmd_req_set_ext_fat_caps {
+	struct be_cmd_req_hdr hdr;
+	struct be_fat_conf_params set_params;
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -1492,8 +1672,7 @@ extern int be_cmd_eq_create(struct be_adapter *adapter,
 			struct be_queue_info *eq, int eq_delay);
 extern int be_cmd_cq_create(struct be_adapter *adapter,
 			struct be_queue_info *cq, struct be_queue_info *eq,
-			bool sol_evts, bool no_delay,
-			int num_cqe_dma_coalesce);
+			bool no_delay, int num_cqe_dma_coalesce);
 extern int be_cmd_mccq_create(struct be_adapter *adapter,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
@@ -1502,8 +1681,7 @@ extern int be_cmd_txq_create(struct be_adapter *adapter,
 			struct be_queue_info *cq);
 extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			struct be_queue_info *rxq, u16 cq_id,
-			u16 frag_size, u16 max_frame_size, u32 if_id,
-			u32 rss, u8 *rss_id);
+			u16 frag_size, u32 if_id, u32 rss, u8 *rss_id);
 extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
@@ -1532,7 +1710,7 @@ extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 			u16 table_size);
-extern int be_process_mcc(struct be_adapter *adapter, int *status);
+extern int be_process_mcc(struct be_adapter *adapter);
 extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);
 extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
@@ -1565,8 +1743,7 @@ extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 				struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 				u8 loopback_type, u8 enable);
-extern int be_cmd_get_phy_info(struct be_adapter *adapter,
-				struct be_phy_info *phy_info);
+extern int be_cmd_get_phy_info(struct be_adapter *adapter);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 extern void be_detect_dump_ue(struct be_adapter *adapter);
 extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
@@ -1575,7 +1752,17 @@ extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
 extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
-							u32 *pmac_id);
+				bool *pmac_id_active, u32 *pmac_id, u8 *mac);
 extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 						u8 mac_count, u32 domain);
+extern int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
+			u32 domain, u16 intf_id);
+extern int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
+			u32 domain, u16 intf_id);
+extern int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
+extern int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
+					  struct be_dma_mem *cmd);
+extern int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
+					  struct be_dma_mem *cmd,
+					  struct be_fat_conf_params *cfgs);
 

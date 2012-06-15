@@ -9,6 +9,8 @@
  *
  */
 
+#define pr_fmt(fmt) "IPv4: " fmt
+
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -208,10 +210,10 @@ int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
  *	Simple and stupid 8), but the most efficient way.
  */
 
-void ip_options_fragment(struct sk_buff * skb)
+void ip_options_fragment(struct sk_buff *skb)
 {
 	unsigned char *optptr = skb_network_header(skb) + sizeof(struct iphdr);
-	struct ip_options * opt = &(IPCB(skb)->opt);
+	struct ip_options *opt = &(IPCB(skb)->opt);
 	int  l = opt->optlen;
 	int  optlen;
 
@@ -246,13 +248,13 @@ void ip_options_fragment(struct sk_buff * skb)
  */
 
 int ip_options_compile(struct net *net,
-		       struct ip_options * opt, struct sk_buff * skb)
+		       struct ip_options *opt, struct sk_buff *skb)
 {
 	int l;
-	unsigned char * iph;
-	unsigned char * optptr;
+	unsigned char *iph;
+	unsigned char *optptr;
 	int optlen;
-	unsigned char * pp_ptr = NULL;
+	unsigned char *pp_ptr = NULL;
 	struct rtable *rt = NULL;
 
 	if (skb != NULL) {
@@ -411,7 +413,7 @@ int ip_options_compile(struct net *net,
 					opt->is_changed = 1;
 				}
 			} else {
-				unsigned overflow = optptr[3]>>4;
+				unsigned int overflow = optptr[3]>>4;
 				if (overflow == 15) {
 					pp_ptr = optptr + 3;
 					goto error;
@@ -471,20 +473,20 @@ EXPORT_SYMBOL(ip_options_compile);
  *	Undo all the changes done by ip_options_compile().
  */
 
-void ip_options_undo(struct ip_options * opt)
+void ip_options_undo(struct ip_options *opt)
 {
 	if (opt->srr) {
-		unsigned  char * optptr = opt->__data+opt->srr-sizeof(struct  iphdr);
+		unsigned  char *optptr = opt->__data+opt->srr-sizeof(struct  iphdr);
 		memmove(optptr+7, optptr+3, optptr[1]-7);
 		memcpy(optptr+3, &opt->faddr, 4);
 	}
 	if (opt->rr_needaddr) {
-		unsigned  char * optptr = opt->__data+opt->rr-sizeof(struct  iphdr);
+		unsigned  char *optptr = opt->__data+opt->rr-sizeof(struct  iphdr);
 		optptr[2] -= 4;
 		memset(&optptr[optptr[2]-1], 0, 4);
 	}
 	if (opt->ts) {
-		unsigned  char * optptr = opt->__data+opt->ts-sizeof(struct  iphdr);
+		unsigned  char *optptr = opt->__data+opt->ts-sizeof(struct  iphdr);
 		if (opt->ts_needtime) {
 			optptr[2] -= 4;
 			memset(&optptr[optptr[2]-1], 0, 4);
@@ -547,8 +549,8 @@ int ip_options_get(struct net *net, struct ip_options_rcu **optp,
 
 void ip_forward_options(struct sk_buff *skb)
 {
-	struct   ip_options * opt	= &(IPCB(skb)->opt);
-	unsigned char * optptr;
+	struct   ip_options *opt	= &(IPCB(skb)->opt);
+	unsigned char *optptr;
 	struct rtable *rt = skb_rtable(skb);
 	unsigned char *raw = skb_network_header(skb);
 
@@ -576,8 +578,10 @@ void ip_forward_options(struct sk_buff *skb)
 			ip_hdr(skb)->daddr = opt->nexthop;
 			ip_rt_get_source(&optptr[srrptr-1], skb, rt);
 			optptr[2] = srrptr+4;
-		} else if (net_ratelimit())
-			printk(KERN_CRIT "ip_forward(): Argh! Destination lost!\n");
+		} else {
+			net_crit_ratelimited("%s(): Argh! Destination lost!\n",
+					     __func__);
+		}
 		if (opt->ts_needaddr) {
 			optptr = raw + opt->ts;
 			ip_rt_get_source(&optptr[optptr[2]-9], skb, rt);

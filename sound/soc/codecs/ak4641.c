@@ -296,8 +296,7 @@ static int ak4641_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct ak4641_priv *ak4641 = snd_soc_codec_get_drvdata(codec);
 	int rate = params_rate(params), fs = 256;
 	u8 mode2;
@@ -517,67 +516,24 @@ static int ak4641_resume(struct snd_soc_codec *codec)
 
 static int ak4641_probe(struct snd_soc_codec *codec)
 {
-	struct ak4641_platform_data *pdata = codec->dev->platform_data;
 	int ret;
-
-
-	if (pdata) {
-		if (gpio_is_valid(pdata->gpio_power)) {
-			ret = gpio_request_one(pdata->gpio_power,
-					GPIOF_OUT_INIT_LOW, "ak4641 power");
-			if (ret)
-				goto err_out;
-		}
-		if (gpio_is_valid(pdata->gpio_npdn)) {
-			ret = gpio_request_one(pdata->gpio_npdn,
-					GPIOF_OUT_INIT_LOW, "ak4641 npdn");
-			if (ret)
-				goto err_gpio;
-
-			udelay(1); /* > 150 ns */
-			gpio_set_value(pdata->gpio_npdn, 1);
-		}
-	}
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err_register;
+		return ret;
 	}
 
 	/* power on device */
 	ak4641_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
-
-err_register:
-	if (pdata) {
-		if (gpio_is_valid(pdata->gpio_power))
-			gpio_set_value(pdata->gpio_power, 0);
-		if (gpio_is_valid(pdata->gpio_npdn))
-			gpio_free(pdata->gpio_npdn);
-	}
-err_gpio:
-	if (pdata && gpio_is_valid(pdata->gpio_power))
-		gpio_free(pdata->gpio_power);
-err_out:
-	return ret;
 }
 
 static int ak4641_remove(struct snd_soc_codec *codec)
 {
-	struct ak4641_platform_data *pdata = codec->dev->platform_data;
-
 	ak4641_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
-	if (pdata) {
-		if (gpio_is_valid(pdata->gpio_power)) {
-			gpio_set_value(pdata->gpio_power, 0);
-			gpio_free(pdata->gpio_power);
-		}
-		if (gpio_is_valid(pdata->gpio_npdn))
-			gpio_free(pdata->gpio_npdn);
-	}
 	return 0;
 }
 
@@ -604,6 +560,7 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
 static int __devinit ak4641_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
+	struct ak4641_platform_data *pdata = i2c->dev.platform_data;
 	struct ak4641_priv *ak4641;
 	int ret;
 
@@ -612,16 +569,62 @@ static int __devinit ak4641_i2c_probe(struct i2c_client *i2c,
 	if (!ak4641)
 		return -ENOMEM;
 
+	if (pdata) {
+		if (gpio_is_valid(pdata->gpio_power)) {
+			ret = gpio_request_one(pdata->gpio_power,
+					GPIOF_OUT_INIT_LOW, "ak4641 power");
+			if (ret)
+				goto err_out;
+		}
+		if (gpio_is_valid(pdata->gpio_npdn)) {
+			ret = gpio_request_one(pdata->gpio_npdn,
+					GPIOF_OUT_INIT_LOW, "ak4641 npdn");
+			if (ret)
+				goto err_gpio;
+
+			udelay(1); /* > 150 ns */
+			gpio_set_value(pdata->gpio_npdn, 1);
+		}
+	}
+
 	i2c_set_clientdata(i2c, ak4641);
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_ak4641,
 				ak4641_dai, ARRAY_SIZE(ak4641_dai));
+	if (ret != 0)
+		goto err_gpio2;
+
+	return 0;
+
+err_gpio2:
+	if (pdata) {
+		if (gpio_is_valid(pdata->gpio_power))
+			gpio_set_value(pdata->gpio_power, 0);
+		if (gpio_is_valid(pdata->gpio_npdn))
+			gpio_free(pdata->gpio_npdn);
+	}
+err_gpio:
+	if (pdata && gpio_is_valid(pdata->gpio_power))
+		gpio_free(pdata->gpio_power);
+err_out:
 	return ret;
 }
 
 static int __devexit ak4641_i2c_remove(struct i2c_client *i2c)
 {
+	struct ak4641_platform_data *pdata = i2c->dev.platform_data;
+
 	snd_soc_unregister_codec(&i2c->dev);
+
+	if (pdata) {
+		if (gpio_is_valid(pdata->gpio_power)) {
+			gpio_set_value(pdata->gpio_power, 0);
+			gpio_free(pdata->gpio_power);
+		}
+		if (gpio_is_valid(pdata->gpio_npdn))
+			gpio_free(pdata->gpio_npdn);
+	}
+
 	return 0;
 }
 
@@ -641,23 +644,7 @@ static struct i2c_driver ak4641_i2c_driver = {
 	.id_table = ak4641_i2c_id,
 };
 
-static int __init ak4641_modinit(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&ak4641_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register AK4641 I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(ak4641_modinit);
-
-static void __exit ak4641_exit(void)
-{
-	i2c_del_driver(&ak4641_i2c_driver);
-}
-module_exit(ak4641_exit);
+module_i2c_driver(ak4641_i2c_driver);
 
 MODULE_DESCRIPTION("SoC AK4641 driver");
 MODULE_AUTHOR("Harald Welte <laforge@gnufiish.org>");

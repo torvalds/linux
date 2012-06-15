@@ -13,7 +13,6 @@
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/bitops.h>
-#include <asm/system.h>
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h> /* for USER_DS macros */
 #include <asm/cacheflush.h>
@@ -110,9 +109,7 @@ void cpu_idle(void)
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
 
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 		check_pgt_cache();
 	}
 }
@@ -185,8 +182,12 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #endif
 	ti->cpu_context.r15 = (unsigned long)ret_from_fork - 8;
 
+	/*
+	 *  r21 is the thread reg, r10 is 6th arg to clone
+	 *  which contains TLS area
+	 */
 	if (clone_flags & CLONE_SETTLS)
-		;
+		childregs->r21 = childregs->r10;
 
 	return 0;
 }

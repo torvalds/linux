@@ -134,10 +134,15 @@
  * whether they will be clobbered.
  *
  * Note that r11 can be used as an output parameter.
+ *
+ * The "memory" clobber is only necessary for hcalls where the Hypervisor
+ * will read or write guest memory. However, we add it to all hcalls because
+ * the impact is minimal, and we want to ensure that it's present for the
+ * hcalls that need it.
 */
 
 /* List of common clobbered registers.  Do not use this macro. */
-#define EV_HCALL_CLOBBERS "r0", "r12", "xer", "ctr", "lr", "cc"
+#define EV_HCALL_CLOBBERS "r0", "r12", "xer", "ctr", "lr", "cc", "memory"
 
 #define EV_HCALL_CLOBBERS8 EV_HCALL_CLOBBERS
 #define EV_HCALL_CLOBBERS7 EV_HCALL_CLOBBERS8, "r10"

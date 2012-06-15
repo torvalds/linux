@@ -74,6 +74,6 @@ struct das08_private_struct {
 extern struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS];
 
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase);
-int das08_common_detach(struct comedi_device *dev);
+void das08_common_detach(struct comedi_device *dev);
 
 #endif /* _DAS08_H */

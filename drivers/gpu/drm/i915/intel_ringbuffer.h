@@ -1,15 +1,8 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
-enum {
-	RCS = 0x0,
-	VCS,
-	BCS,
-	I915_NUM_RINGS,
-};
-
 struct  intel_hw_status_page {
-	u32	__iomem	*page_addr;
+	u32		*page_addr;
 	unsigned int	gfx_addr;
 	struct		drm_i915_gem_object *obj;
 };
@@ -36,10 +29,11 @@ struct  intel_hw_status_page {
 struct  intel_ring_buffer {
 	const char	*name;
 	enum intel_ring_id {
-		RING_RENDER = 0x1,
-		RING_BSD = 0x2,
-		RING_BLT = 0x4,
+		RCS = 0x0,
+		VCS,
+		BCS,
 	} id;
+#define I915_NUM_RINGS 3
 	u32		mmio_base;
 	void		__iomem *virtual_start;
 	struct		drm_device *dev;
@@ -52,12 +46,19 @@ struct  intel_ring_buffer {
 	int		effective_size;
 	struct intel_hw_status_page status_page;
 
-	spinlock_t	irq_lock;
-	u32		irq_refcount;
-	u32		irq_mask;
-	u32		irq_seqno;		/* last seq seem at irq time */
+	/** We track the position of the requests in the ring buffer, and
+	 * when each is retired we increment last_retired_head as the GPU
+	 * must have finished processing the request and so we know we
+	 * can advance the ringbuffer up to that position.
+	 *
+	 * last_retired_head is set to -1 after the value is consumed so
+	 * we can detect new retirements.
+	 */
+	u32		last_retired_head;
+
+	u32		irq_refcount;		/* protected by dev_priv->irq_lock */
+	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		trace_irq_seqno;
-	u32		waiting_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
 	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
 	void		(*irq_put)(struct intel_ring_buffer *ring);
@@ -114,10 +115,21 @@ struct  intel_ring_buffer {
 	u32 outstanding_lazy_request;
 
 	wait_queue_head_t irq_queue;
-	drm_local_map_t map;
 
 	void *private;
 };
+
+static inline bool
+intel_ring_initialized(struct intel_ring_buffer *ring)
+{
+	return ring->obj != NULL;
+}
+
+static inline unsigned
+intel_ring_flag(struct intel_ring_buffer *ring)
+{
+	return 1 << ring->id;
+}
 
 static inline u32
 intel_ring_sync_index(struct intel_ring_buffer *ring,
@@ -142,7 +154,9 @@ static inline u32
 intel_read_status_page(struct intel_ring_buffer *ring,
 		       int reg)
 {
-	return ioread32(ring->status_page.page_addr + reg);
+	/* Ensure that the compiler doesn't optimize away the load. */
+	barrier();
+	return ring->status_page.page_addr[reg];
 }
 
 /**
@@ -160,10 +174,7 @@ intel_read_status_page(struct intel_ring_buffer *ring,
  *
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
-#define READ_HWSP(dev_priv, reg) intel_read_status_page(LP_RING(dev_priv), reg)
-#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
-#define I915_BREADCRUMB_INDEX		0x21
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 
@@ -192,6 +203,11 @@ int intel_init_blt_ring_buffer(struct drm_device *dev);
 
 u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
+
+static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)
+{
+	return ring->tail;
+}
 
 static inline void i915_trace_irq_get(struct intel_ring_buffer *ring, u32 seqno)
 {

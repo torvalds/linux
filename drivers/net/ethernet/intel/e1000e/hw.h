@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -36,16 +36,6 @@ struct e1000_adapter;
 
 #include "defines.h"
 
-#define er32(reg)	__er32(hw, E1000_##reg)
-#define ew32(reg,val)	__ew32(hw, E1000_##reg, (val))
-#define e1e_flush()	er32(STATUS)
-
-#define E1000_WRITE_REG_ARRAY(a, reg, offset, value) \
-	(writel((value), ((a)->hw_addr + reg + ((offset) << 2))))
-
-#define E1000_READ_REG_ARRAY(a, reg, offset) \
-	(readl((a)->hw_addr + reg + ((offset) << 2)))
-
 enum e1e_registers {
 	E1000_CTRL     = 0x00000, /* Device Control - RW */
 	E1000_STATUS   = 0x00008, /* Device Status - RO */
@@ -61,6 +51,7 @@ enum e1e_registers {
 	E1000_FEXTNVM  = 0x00028, /* Future Extended NVM - RW */
 	E1000_FCT      = 0x00030, /* Flow Control Type - RW */
 	E1000_VET      = 0x00038, /* VLAN Ether Type - RW */
+	E1000_FEXTNVM3 = 0x0003C, /* Future Extended NVM 3 - RW */
 	E1000_ICR      = 0x000C0, /* Interrupt Cause Read - R/clr */
 	E1000_ITR      = 0x000C4, /* Interrupt Throttling Rate - RW */
 	E1000_ICS      = 0x000C8, /* Interrupt Cause Set - WO */
@@ -94,31 +85,40 @@ enum e1e_registers {
 	E1000_FCRTL    = 0x02160, /* Flow Control Receive Threshold Low - RW */
 	E1000_FCRTH    = 0x02168, /* Flow Control Receive Threshold High - RW */
 	E1000_PSRCTL   = 0x02170, /* Packet Split Receive Control - RW */
-	E1000_RDBAL    = 0x02800, /* Rx Descriptor Base Address Low - RW */
-	E1000_RDBAH    = 0x02804, /* Rx Descriptor Base Address High - RW */
-	E1000_RDLEN    = 0x02808, /* Rx Descriptor Length - RW */
-	E1000_RDH      = 0x02810, /* Rx Descriptor Head - RW */
-	E1000_RDT      = 0x02818, /* Rx Descriptor Tail - RW */
+/*
+ * Convenience macros
+ *
+ * Note: "_n" is the queue number of the register to be written to.
+ *
+ * Example usage:
+ * E1000_RDBAL(current_rx_queue)
+ */
+	E1000_RDBAL_BASE = 0x02800, /* Rx Descriptor Base Address Low - RW */
+#define E1000_RDBAL(_n)	(E1000_RDBAL_BASE + (_n << 8))
+	E1000_RDBAH_BASE = 0x02804, /* Rx Descriptor Base Address High - RW */
+#define E1000_RDBAH(_n)	(E1000_RDBAH_BASE + (_n << 8))
+	E1000_RDLEN_BASE = 0x02808, /* Rx Descriptor Length - RW */
+#define E1000_RDLEN(_n)	(E1000_RDLEN_BASE + (_n << 8))
+	E1000_RDH_BASE = 0x02810, /* Rx Descriptor Head - RW */
+#define E1000_RDH(_n)	(E1000_RDH_BASE + (_n << 8))
+	E1000_RDT_BASE = 0x02818, /* Rx Descriptor Tail - RW */
+#define E1000_RDT(_n)	(E1000_RDT_BASE + (_n << 8))
 	E1000_RDTR     = 0x02820, /* Rx Delay Timer - RW */
 	E1000_RXDCTL_BASE = 0x02828, /* Rx Descriptor Control - RW */
 #define E1000_RXDCTL(_n)   (E1000_RXDCTL_BASE + (_n << 8))
 	E1000_RADV     = 0x0282C, /* Rx Interrupt Absolute Delay Timer - RW */
 
-/* Convenience macros
- *
- * Note: "_n" is the queue number of the register to be written to.
- *
- * Example usage:
- * E1000_RDBAL_REG(current_rx_queue)
- *
- */
-#define E1000_RDBAL_REG(_n)   (E1000_RDBAL + (_n << 8))
 	E1000_KABGTXD  = 0x03004, /* AFE Band Gap Transmit Ref Data */
-	E1000_TDBAL    = 0x03800, /* Tx Descriptor Base Address Low - RW */
-	E1000_TDBAH    = 0x03804, /* Tx Descriptor Base Address High - RW */
-	E1000_TDLEN    = 0x03808, /* Tx Descriptor Length - RW */
-	E1000_TDH      = 0x03810, /* Tx Descriptor Head - RW */
-	E1000_TDT      = 0x03818, /* Tx Descriptor Tail - RW */
+	E1000_TDBAL_BASE = 0x03800, /* Tx Descriptor Base Address Low - RW */
+#define E1000_TDBAL(_n)	(E1000_TDBAL_BASE + (_n << 8))
+	E1000_TDBAH_BASE = 0x03804, /* Tx Descriptor Base Address High - RW */
+#define E1000_TDBAH(_n)	(E1000_TDBAH_BASE + (_n << 8))
+	E1000_TDLEN_BASE = 0x03808, /* Tx Descriptor Length - RW */
+#define E1000_TDLEN(_n)	(E1000_TDLEN_BASE + (_n << 8))
+	E1000_TDH_BASE = 0x03810, /* Tx Descriptor Head - RW */
+#define E1000_TDH(_n)	(E1000_TDH_BASE + (_n << 8))
+	E1000_TDT_BASE = 0x03818, /* Tx Descriptor Tail - RW */
+#define E1000_TDT(_n)	(E1000_TDT_BASE + (_n << 8))
 	E1000_TIDV     = 0x03820, /* Tx Interrupt Delay Value - RW */
 	E1000_TXDCTL_BASE = 0x03828, /* Tx Descriptor Control - RW */
 #define E1000_TXDCTL(_n)   (E1000_TXDCTL_BASE + (_n << 8))
@@ -200,10 +200,19 @@ enum e1e_registers {
 #define E1000_RA        (E1000_RAL(0))
 	E1000_RAH_BASE = 0x05404, /* Receive Address High - RW */
 #define E1000_RAH(_n)   (E1000_RAH_BASE + ((_n) * 8))
+	E1000_SHRAL_PCH_LPT_BASE = 0x05408,
+#define E1000_SHRAL_PCH_LPT(_n)   (E1000_SHRAL_PCH_LPT_BASE + ((_n) * 8))
+	E1000_SHRAH_PCH_LTP_BASE = 0x0540C,
+#define E1000_SHRAH_PCH_LPT(_n)   (E1000_SHRAH_PCH_LTP_BASE + ((_n) * 8))
+	E1000_SHRAL_BASE = 0x05438, /* Shared Receive Address Low - RW */
+#define E1000_SHRAL(_n)   (E1000_SHRAL_BASE + ((_n) * 8))
+	E1000_SHRAH_BASE = 0x0543C, /* Shared Receive Address High - RW */
+#define E1000_SHRAH(_n)   (E1000_SHRAH_BASE + ((_n) * 8))
 	E1000_VFTA     = 0x05600, /* VLAN Filter Table Array - RW Array */
 	E1000_WUC      = 0x05800, /* Wakeup Control - RW */
 	E1000_WUFC     = 0x05808, /* Wakeup Filter Control - RW */
 	E1000_WUS      = 0x05810, /* Wakeup Status - RO */
+	E1000_MRQC     = 0x05818, /* Multiple Receive Control - RW */
 	E1000_MANC     = 0x05820, /* Management Control - RW */
 	E1000_FFLT     = 0x05F00, /* Flexible Filter Length Table - RW Array */
 	E1000_HOST_IF  = 0x08800, /* Host Interface */
@@ -219,6 +228,10 @@ enum e1e_registers {
 	E1000_SWSM      = 0x05B50, /* SW Semaphore */
 	E1000_FWSM      = 0x05B54, /* FW Semaphore */
 	E1000_SWSM2     = 0x05B58, /* Driver-only SW semaphore */
+	E1000_RETA_BASE = 0x05C00, /* Redirection Table - RW */
+#define E1000_RETA(_n)	(E1000_RETA_BASE + ((_n) * 4))
+	E1000_RSSRK_BASE = 0x05C80, /* RSS Random Key - RW */
+#define E1000_RSSRK(_n)	(E1000_RSSRK_BASE + ((_n) * 4))
 	E1000_FFLT_DBG  = 0x05F04, /* Debug Register */
 	E1000_PCH_RAICC_BASE = 0x05F50, /* Receive Address Initial CRC */
 #define E1000_PCH_RAICC(_n)	(E1000_PCH_RAICC_BASE + ((_n) * 4))
@@ -397,6 +410,8 @@ enum e1e_registers {
 #define E1000_DEV_ID_PCH_D_HV_DC		0x10F0
 #define E1000_DEV_ID_PCH2_LV_LM			0x1502
 #define E1000_DEV_ID_PCH2_LV_V			0x1503
+#define E1000_DEV_ID_PCH_LPT_I217_LM		0x153A
+#define E1000_DEV_ID_PCH_LPT_I217_V		0x153B
 
 #define E1000_REVISION_4 4
 
@@ -417,6 +432,7 @@ enum e1000_mac_type {
 	e1000_ich10lan,
 	e1000_pchlan,
 	e1000_pch2lan,
+	e1000_pch_lpt,
 };
 
 enum e1000_media_type {
@@ -454,6 +470,7 @@ enum e1000_phy_type {
 	e1000_phy_82578,
 	e1000_phy_82577,
 	e1000_phy_82579,
+	e1000_phy_i217,
 };
 
 enum e1000_bus_width {
@@ -776,6 +793,8 @@ struct e1000_mac_operations {
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
+	void (*config_collision_dist)(struct e1000_hw *);
+	void (*rar_set)(struct e1000_hw *, u8 *, u32);
 	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
@@ -824,6 +843,7 @@ struct e1000_nvm_operations {
 	s32  (*acquire)(struct e1000_hw *);
 	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
 	void (*release)(struct e1000_hw *);
+	void (*reload)(struct e1000_hw *);
 	s32  (*update)(struct e1000_hw *);
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
 	s32  (*validate)(struct e1000_hw *);
@@ -959,13 +979,14 @@ struct e1000_dev_spec_ich8lan {
 	struct e1000_shadow_ram shadow_ram[E1000_ICH8_SHADOW_RAM_WORDS];
 	bool nvm_k1_enabled;
 	bool eee_disable;
+	u16 eee_lp_ability;
 };
 
 struct e1000_hw {
 	struct e1000_adapter *adapter;
 
-	u8 __iomem *hw_addr;
-	u8 __iomem *flash_address;
+	void __iomem *hw_addr;
+	void __iomem *flash_address;
 
 	struct e1000_mac_info  mac;
 	struct e1000_fc_info   fc;

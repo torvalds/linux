@@ -159,8 +159,7 @@ static int uda134x_mute(struct snd_soc_dai *dai, int mute)
 static int uda134x_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec =rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 	struct snd_pcm_runtime *master_runtime;
 
@@ -191,8 +190,7 @@ static int uda134x_startup(struct snd_pcm_substream *substream,
 static void uda134x_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 
 	if (uda134x->master_substream == substream)
@@ -531,15 +529,15 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 	switch (pd->model) {
 	case UDA134X_UDA1340:
 	case UDA134X_UDA1344:
-		ret = snd_soc_add_controls(codec, uda1340_snd_controls,
+		ret = snd_soc_add_codec_controls(codec, uda1340_snd_controls,
 					ARRAY_SIZE(uda1340_snd_controls));
 	break;
 	case UDA134X_UDA1341:
-		ret = snd_soc_add_controls(codec, uda1341_snd_controls,
+		ret = snd_soc_add_codec_controls(codec, uda1341_snd_controls,
 					ARRAY_SIZE(uda1341_snd_controls));
 	break;
 	case UDA134X_UDA1345:
-		ret = snd_soc_add_controls(codec, uda1345_snd_controls,
+		ret = snd_soc_add_codec_controls(codec, uda1345_snd_controls,
 					ARRAY_SIZE(uda1345_snd_controls));
 	break;
 	default:

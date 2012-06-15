@@ -18,6 +18,11 @@ static const struct cpumask *x2apic_target_cpus(void)
 	return cpu_online_mask;
 }
 
+static int x2apic_apic_id_valid(int apicid)
+{
+	return 1;
+}
+
 static int x2apic_apic_id_registered(void)
 {
 	return 1;

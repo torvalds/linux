@@ -60,6 +60,16 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 	/* Atom E620 */
 	{ 0x8086, 0x4108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops},
 #endif
+#if defined(CONFIG_DRM_MEDFIELD)
+	{0x8086, 0x0130, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops},
+	{0x8086, 0x0131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops},
+	{0x8086, 0x0132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops},
+	{0x8086, 0x0133, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops},
+	{0x8086, 0x0134, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops},
+	{0x8086, 0x0135, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops},
+	{0x8086, 0x0136, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops},
+	{0x8086, 0x0137, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops},
+#endif
 #if defined(CONFIG_DRM_GMA3600)
 	{ 0x8086, 0x0be0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 	{ 0x8086, 0x0be1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
@@ -69,8 +79,16 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 	{ 0x8086, 0x0be5, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 	{ 0x8086, 0x0be6, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 	{ 0x8086, 0x0be7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
+	{ 0x8086, 0x0be8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
+	{ 0x8086, 0x0be9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
+	{ 0x8086, 0x0bea, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
+	{ 0x8086, 0x0beb, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
+	{ 0x8086, 0x0bec, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
+	{ 0x8086, 0x0bed, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
+	{ 0x8086, 0x0bee, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
+	{ 0x8086, 0x0bef, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 #endif
-	{ 0, 0, 0}
+	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
@@ -78,27 +96,27 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
  * Standard IOCTLs.
  */
 
-#define DRM_IOCTL_PSB_ADB	\
+#define DRM_IOCTL_GMA_ADB	\
 		DRM_IOWR(DRM_GMA_ADB + DRM_COMMAND_BASE, uint32_t)
-#define DRM_IOCTL_PSB_MODE_OPERATION	\
+#define DRM_IOCTL_GMA_MODE_OPERATION	\
 		DRM_IOWR(DRM_GMA_MODE_OPERATION + DRM_COMMAND_BASE, \
 			 struct drm_psb_mode_operation_arg)
-#define DRM_IOCTL_PSB_STOLEN_MEMORY	\
+#define DRM_IOCTL_GMA_STOLEN_MEMORY	\
 		DRM_IOWR(DRM_GMA_STOLEN_MEMORY + DRM_COMMAND_BASE, \
 			 struct drm_psb_stolen_memory_arg)
-#define DRM_IOCTL_PSB_GAMMA	\
+#define DRM_IOCTL_GMA_GAMMA	\
 		DRM_IOWR(DRM_GMA_GAMMA + DRM_COMMAND_BASE, \
 			 struct drm_psb_dpst_lut_arg)
-#define DRM_IOCTL_PSB_DPST_BL	\
+#define DRM_IOCTL_GMA_DPST_BL	\
 		DRM_IOWR(DRM_GMA_DPST_BL + DRM_COMMAND_BASE, \
 			 uint32_t)
-#define DRM_IOCTL_PSB_GET_PIPE_FROM_CRTC_ID	\
+#define DRM_IOCTL_GMA_GET_PIPE_FROM_CRTC_ID	\
 		DRM_IOWR(DRM_GMA_GET_PIPE_FROM_CRTC_ID + DRM_COMMAND_BASE, \
 			 struct drm_psb_get_pipe_from_crtc_id_arg)
-#define DRM_IOCTL_PSB_GEM_CREATE	\
+#define DRM_IOCTL_GMA_GEM_CREATE	\
 		DRM_IOWR(DRM_GMA_GEM_CREATE + DRM_COMMAND_BASE, \
 			 struct drm_psb_gem_create)
-#define DRM_IOCTL_PSB_GEM_MMAP	\
+#define DRM_IOCTL_GMA_GEM_MMAP	\
 		DRM_IOWR(DRM_GMA_GEM_MMAP + DRM_COMMAND_BASE, \
 			 struct drm_psb_gem_mmap)
 
@@ -113,32 +131,25 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 
-#define PSB_IOCTL_DEF(ioctl, func, flags) \
-	[DRM_IOCTL_NR(ioctl) - DRM_COMMAND_BASE] = {ioctl, flags, func}
-
 static struct drm_ioctl_desc psb_ioctls[] = {
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_ADB, psb_adb_ioctl, DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_MODE_OPERATION, psb_mode_operation_ioctl,
+	DRM_IOCTL_DEF_DRV(GMA_ADB, psb_adb_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(GMA_MODE_OPERATION, psb_mode_operation_ioctl,
 		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_STOLEN_MEMORY, psb_stolen_memory_ioctl,
+	DRM_IOCTL_DEF_DRV(GMA_STOLEN_MEMORY, psb_stolen_memory_ioctl,
 		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GAMMA, psb_gamma_ioctl, DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GET_PIPE_FROM_CRTC_ID,
+	DRM_IOCTL_DEF_DRV(GMA_GAMMA, psb_gamma_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(GMA_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(GMA_GET_PIPE_FROM_CRTC_ID,
 					psb_intel_get_pipe_from_crtc_id, 0),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GEM_CREATE, psb_gem_create_ioctl,
+	DRM_IOCTL_DEF_DRV(GMA_GEM_CREATE, psb_gem_create_ioctl,
 						DRM_UNLOCKED | DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GEM_MMAP, psb_gem_mmap_ioctl,
+	DRM_IOCTL_DEF_DRV(GMA_GEM_MMAP, psb_gem_mmap_ioctl,
 						DRM_UNLOCKED | DRM_AUTH),
 };
 
 static void psb_lastclose(struct drm_device *dev)
 {
 	return;
-}
-
-static void psb_do_takedown(struct drm_device *dev)
-{
 }
 
 static int psb_do_init(struct drm_device *dev)
@@ -165,24 +176,6 @@ static int psb_do_init(struct drm_device *dev)
 	dev_priv->gatt_free_offset = pg->mmu_gatt_start +
 	    (stolen_gtt << PAGE_SHIFT) * 1024;
 
-	if (1 || drm_debug) {
-		uint32_t core_id = PSB_RSGX32(PSB_CR_CORE_ID);
-		uint32_t core_rev = PSB_RSGX32(PSB_CR_CORE_REVISION);
-		DRM_INFO("SGX core id = 0x%08x\n", core_id);
-		DRM_INFO("SGX core rev major = 0x%02x, minor = 0x%02x\n",
-			 (core_rev & _PSB_CC_REVISION_MAJOR_MASK) >>
-			 _PSB_CC_REVISION_MAJOR_SHIFT,
-			 (core_rev & _PSB_CC_REVISION_MINOR_MASK) >>
-			 _PSB_CC_REVISION_MINOR_SHIFT);
-		DRM_INFO
-		    ("SGX core rev maintenance = 0x%02x, designer = 0x%02x\n",
-		     (core_rev & _PSB_CC_REVISION_MAINTENANCE_MASK) >>
-		     _PSB_CC_REVISION_MAINTENANCE_SHIFT,
-		     (core_rev & _PSB_CC_REVISION_DESIGNER_MASK) >>
-		     _PSB_CC_REVISION_DESIGNER_SHIFT);
-	}
-
-
 	spin_lock_init(&dev_priv->irqmask_lock);
 	spin_lock_init(&dev_priv->lock_2d);
 
@@ -197,7 +190,6 @@ static int psb_do_init(struct drm_device *dev)
 	PSB_WSGX32(pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 	return 0;
 out_err:
-	psb_do_takedown(dev);
 	return ret;
 }
 
@@ -207,18 +199,16 @@ static int psb_driver_unload(struct drm_device *dev)
 
 	/* Kill vblank etc here */
 
-	gma_backlight_exit(dev);
-
-	psb_modeset_cleanup(dev);
 
 	if (dev_priv) {
-		psb_lid_timer_takedown(dev_priv);
-		gma_intel_opregion_exit(dev);
+		if (dev_priv->backlight_device)
+			gma_backlight_exit(dev);
+		psb_modeset_cleanup(dev);
 
 		if (dev_priv->ops->chip_teardown)
 			dev_priv->ops->chip_teardown(dev);
-		psb_do_takedown(dev);
 
+		psb_intel_opregion_fini(dev);
 
 		if (dev_priv->pf_pd) {
 			psb_mmu_free_pagedir(dev_priv->pf_pd);
@@ -239,6 +229,7 @@ static int psb_driver_unload(struct drm_device *dev)
 		}
 		psb_gtt_takedown(dev);
 		if (dev_priv->scratch_page) {
+			set_pages_wb(dev_priv->scratch_page, 1);
 			__free_page(dev_priv->scratch_page);
 			dev_priv->scratch_page = NULL;
 		}
@@ -251,15 +242,13 @@ static int psb_driver_unload(struct drm_device *dev)
 			dev_priv->sgx_reg = NULL;
 		}
 
+		/* Destroy VBT data */
+		psb_intel_destroy_bios(dev);
+
 		kfree(dev_priv);
 		dev->dev_private = NULL;
-
-		/*destroy VBT data*/
-		psb_intel_destroy_bios(dev);
 	}
-
 	gma_power_uninit(dev);
-
 	return 0;
 }
 
@@ -268,10 +257,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct drm_psb_private *dev_priv;
 	unsigned long resource_start;
-	struct psb_gtt *pg;
 	unsigned long irqflags;
 	int ret = -ENOMEM;
-	uint32_t tt_pages;
 	struct drm_connector *connector;
 	struct psb_intel_encoder *psb_intel_encoder;
 
@@ -283,10 +270,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->dev = dev;
 	dev->dev_private = (void *) dev_priv;
 
-	if (!IS_PSB(dev)) {
-		if (pci_enable_msi(dev->pdev))
-			dev_warn(dev->dev, "Enabling MSI failed!\n");
-	}
+	pci_set_master(dev->pdev);
 
 	dev_priv->num_pipe = dev_priv->ops->pipes;
 
@@ -301,6 +285,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 							PSB_SGX_SIZE);
 	if (!dev_priv->sgx_reg)
 		goto out_err;
+
+	psb_intel_opregion_setup(dev);
 
 	ret = dev_priv->ops->chip_setup(dev);
 	if (ret)
@@ -327,12 +313,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->mmu)
 		goto out_err;
 
-	pg = &dev_priv->gtt;
-
-	tt_pages = (pg->gatt_pages < PSB_TT_PRIV0_PLIMIT) ?
-		(pg->gatt_pages) : PSB_TT_PRIV0_PLIMIT;
-
-
 	dev_priv->pf_pd = psb_mmu_alloc_pd(dev_priv->mmu, 1, 0);
 	if (!dev_priv->pf_pd)
 		goto out_err;
@@ -347,10 +327,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WSGX32(0x20000000, PSB_CR_PDS_EXEC_BASE);
 	PSB_WSGX32(0x30000000, PSB_CR_BIF_3D_REQ_BASE);
 
-/*	igd_opregion_init(&dev_priv->opregion_dev); */
 	acpi_video_register();
-	if (dev_priv->lid_state)
-		psb_lid_timer_init(dev_priv);
 
 	ret = drm_vblank_init(dev, dev_priv->num_pipe);
 	if (ret)
@@ -369,8 +346,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
-	if (IS_PSB(dev) && drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_irq_install(dev);
+
+	drm_irq_install(dev);
 
 	dev->vblank_disable_allowed = 1;
 
@@ -409,7 +386,7 @@ out_err:
 	return ret;
 }
 
-int psb_driver_device_is_agp(struct drm_device *dev)
+static int psb_driver_device_is_agp(struct drm_device *dev)
 {
 	return 0;
 }
@@ -600,7 +577,7 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 /* When a client dies:
  *    - Check for and clean up flipped page state
  */
-void psb_driver_preclose(struct drm_device *dev, struct drm_file *priv)
+static void psb_driver_preclose(struct drm_device *dev, struct drm_file *priv)
 {
 }
 
@@ -618,7 +595,7 @@ static const struct dev_pm_ops psb_pm_ops = {
 	.runtime_idle = psb_runtime_idle,
 };
 
-static struct vm_operations_struct psb_gem_vm_ops = {
+static const struct vm_operations_struct psb_gem_vm_ops = {
 	.fault = psb_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -677,7 +654,9 @@ static struct pci_driver psb_pci_driver = {
 	.id_table = pciidlist,
 	.probe = psb_probe,
 	.remove = psb_remove,
-	.driver.pm = &psb_pm_ops,
+	.driver = {
+		.pm = &psb_pm_ops,
+	}
 };
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

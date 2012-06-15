@@ -545,9 +545,6 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	/* Reset the chip to erase previous misconfiguration. */
 	iowrite32(0x00000001, ioaddr + BCR);
 
-	dev->base_addr = (unsigned long)ioaddr;
-	dev->irq = irq;
-
 	/* Make certain the descriptor lists are aligned. */
 	np = netdev_priv(dev);
 	np->mem = ioaddr;
@@ -832,11 +829,13 @@ static int netdev_open(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->mem;
-	int i;
+	const int irq = np->pci_dev->irq;
+	int rc, i;
 
 	iowrite32(0x00000001, ioaddr + BCR);	/* Reset */
 
-	if (request_irq(dev->irq, intr_handler, IRQF_SHARED, dev->name, dev))
+	rc = request_irq(irq, intr_handler, IRQF_SHARED, dev->name, dev);
+	if (rc)
 		return -EAGAIN;
 
 	for (i = 0; i < 3; i++)
@@ -924,8 +923,7 @@ static int netdev_open(struct net_device *dev)
 	np->reset_timer.data = (unsigned long) dev;
 	np->reset_timer.function = reset_timer;
 	np->reset_timer_armed = 0;
-
-	return 0;
+	return rc;
 }
 
 
@@ -1070,14 +1068,13 @@ static void allocate_rx_buffers(struct net_device *dev)
 	while (np->really_rx_count != RX_RING_SIZE) {
 		struct sk_buff *skb;
 
-		skb = dev_alloc_skb(np->rx_buf_sz);
+		skb = netdev_alloc_skb(dev, np->rx_buf_sz);
 		if (skb == NULL)
 			break;	/* Better luck next round. */
 
 		while (np->lack_rxbuf->skbuff)
 			np->lack_rxbuf = np->lack_rxbuf->next_desc_logical;
 
-		skb->dev = dev;	/* Mark as being used by this device. */
 		np->lack_rxbuf->skbuff = skb;
 		np->lack_rxbuf->buffer = pci_map_single(np->pci_dev, skb->data,
 			np->rx_buf_sz, PCI_DMA_FROMDEVICE);
@@ -1265,7 +1262,7 @@ static void init_ring(struct net_device *dev)
 
 	/* allocate skb for rx buffers */
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		struct sk_buff *skb = dev_alloc_skb(np->rx_buf_sz);
+		struct sk_buff *skb = netdev_alloc_skb(dev, np->rx_buf_sz);
 
 		if (skb == NULL) {
 			np->lack_rxbuf = &np->rx_ring[i];
@@ -1274,7 +1271,6 @@ static void init_ring(struct net_device *dev)
 
 		++np->really_rx_count;
 		np->rx_ring[i].skbuff = skb;
-		skb->dev = dev;	/* Mark as being used by this device. */
 		np->rx_ring[i].buffer = pci_map_single(np->pci_dev, skb->data,
 			np->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		np->rx_ring[i].status = RXOWN;
@@ -1704,7 +1700,7 @@ static int netdev_rx(struct net_device *dev)
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
-			    (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(np->pci_dev,
 							    np->cur_rx->buffer,
@@ -1912,7 +1908,7 @@ static int netdev_close(struct net_device *dev)
 	del_timer_sync(&np->timer);
 	del_timer_sync(&np->reset_timer);
 
-	free_irq(dev->irq, dev);
+	free_irq(np->pci_dev->irq, dev);
 
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {

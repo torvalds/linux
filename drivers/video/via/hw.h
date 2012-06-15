@@ -637,7 +637,10 @@ extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
 extern int viafb_hotplug;
 
-void viafb_fill_crtc_timing(const struct fb_var_screeninfo *var, int iga);
+struct display_timing var_to_timing(const struct fb_var_screeninfo *var,
+	u16 cxres, u16 cyres);
+void viafb_fill_crtc_timing(const struct fb_var_screeninfo *var,
+	u16 cxres, u16 cyres, int iga);
 void viafb_set_vclock(u32 CLK, int set_iga);
 void viafb_load_reg(int timing_value, int viafb_load_reg_num,
 	struct io_register *reg,
@@ -657,9 +660,9 @@ void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active);
 void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 					*p_gfx_dpa_setting);
 
-int viafb_setmode(int video_bpp, int video_bpp1);
+int viafb_setmode(void);
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var,
-	struct crt_mode_table *mode);
+	const struct fb_videomode *mode);
 void __devinit viafb_init_chip_info(int chip_type);
 void __devinit viafb_init_dac(int set_iga);
 int viafb_get_refresh(int hres, int vres, u32 float_refresh);

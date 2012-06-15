@@ -1,0 +1,543 @@
+# arch/arm/mach-s3c24xx/Kconfig
+#
+# Copyright (c) 2012 Samsung Electronics Co., Ltd.
+#		http://www.samsung.com/
+#
+# Copyright 2007 Simtec Electronics
+#
+# Licensed under GPLv2
+
+if ARCH_S3C24XX
+
+menu "SAMSUNG S3C24XX SoCs Support"
+
+comment "S3C24XX SoCs"
+
+config CPU_S3C2410
+	bool "SAMSUNG S3C2410"
+	default y
+	select CPU_ARM920T
+	select S3C2410_CLOCK
+	select CPU_LLSERIAL_S3C2410
+	select S3C2410_PM if PM
+	select S3C2410_CPUFREQ if CPU_FREQ_S3C24XX
+	help
+	  Support for S3C2410 and S3C2410A family from the S3C24XX line
+	  of Samsung Mobile CPUs.
+
+config CPU_S3C2412
+	bool "SAMSUNG S3C2412"
+	depends on ARCH_S3C24XX
+	select CPU_ARM926T
+	select CPU_LLSERIAL_S3C2440
+	select S3C2412_PM if PM
+	select S3C2412_DMA if S3C24XX_DMA
+	help
+	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
+
+config CPU_S3C2416
+	bool "SAMSUNG S3C2416/S3C2450"
+	depends on ARCH_S3C24XX
+	select CPU_ARM926T
+	select CPU_LLSERIAL_S3C2440
+	select SAMSUNG_CLKSRC
+	select S3C2443_COMMON
+	select S3C2443_DMA if S3C24XX_DMA
+	select S3C2416_PM if PM
+	help
+	  Support for the S3C2416 SoC from the S3C24XX line
+
+config CPU_S3C2440
+	bool "SAMSUNG S3C2440"
+	select CPU_ARM920T
+	select CPU_LLSERIAL_S3C2440
+	select S3C2410_CLOCK
+	select S3C2410_PM if PM
+	select S3C2440_DMA if S3C24XX_DMA
+	help
+	  Support for S3C2440 Samsung Mobile CPU based systems.
+
+config CPU_S3C2442
+	bool "SAMSUNG S3C2442"
+	select CPU_ARM920T
+	select CPU_LLSERIAL_S3C2440
+	select S3C2410_CLOCK
+	select S3C2410_PM if PM
+	help
+	  Support for S3C2442 Samsung Mobile CPU based systems.
+
+config CPU_S3C244X
+	def_bool y
+	depends on CPU_S3C2440 || CPU_S3C2442
+
+config CPU_S3C2443
+	bool "SAMSUNG S3C2443"
+	depends on ARCH_S3C24XX
+	select CPU_ARM920T
+	select CPU_LLSERIAL_S3C2440
+	select SAMSUNG_CLKSRC
+	select S3C2443_COMMON
+	select S3C2443_DMA if S3C24XX_DMA
+	help
+	  Support for the S3C2443 SoC from the S3C24XX line
+
+# common code
+
+config S3C24XX_SMDK
+	bool
+	help
+	  Common machine code for SMDK2410 and SMDK2440
+
+config S3C24XX_SIMTEC_AUDIO
+	bool
+	depends on (ARCH_BAST || MACH_VR1000 || MACH_OSIRIS || MACH_ANUBIS)
+	default y
+	help
+	  Add audio devices for common Simtec S3C24XX boards
+
+config S3C24XX_SIMTEC_PM
+	bool
+	help
+	  Common power management code for systems that are
+	  compatible with the Simtec style of power management
+
+config S3C24XX_SIMTEC_USB
+	bool
+	help
+	  USB management code for common Simtec S3C24XX boards
+
+config S3C24XX_SETUP_TS
+	bool
+	help
+	  Compile in platform device definition for Samsung TouchScreen.
+
+config S3C2410_DMA
+	bool
+	depends on S3C24XX_DMA && (CPU_S3C2410 || CPU_S3C2442)
+	default y if CPU_S3C2410 || CPU_S3C2442
+	help
+	  DMA device selection for S3C2410 and compatible CPUs
+
+config S3C2410_PM
+	bool
+	help
+	  Power Management code common to S3C2410 and better
+
+# cpu-specific sections
+
+if CPU_S3C2410
+
+config S3C24XX_SIMTEC_NOR
+	bool
+	help
+	  Internal node to specify machine has simtec NOR mapping
+
+config MACH_BAST_IDE
+	bool
+	select HAVE_PATA_PLATFORM
+	help
+	  Internal node for machines with an BAST style IDE
+	  interface
+
+comment "S3C2410 Boards"
+
+#
+# The "S3C2410 Boards" list is ordered alphabetically by option text.
+# (without ARCH_ or MACH_)
+#
+
+config MACH_AML_M5900
+	bool "AML M5900 Series"
+	select S3C24XX_SIMTEC_PM if PM
+	select S3C_DEV_USB_HOST
+	help
+	  Say Y here if you are using the American Microsystems M5900 Series
+	  <http://www.amltd.com>
+
+config ARCH_BAST
+	bool "Simtec Electronics BAST (EB2410ITX)"
+	select S3C2410_IOTIMING if S3C2410_CPUFREQ
+	select S3C24XX_SIMTEC_PM if PM
+	select S3C24XX_SIMTEC_NOR
+	select S3C24XX_SIMTEC_USB
+	select MACH_BAST_IDE
+	select S3C24XX_DCLK
+	select ISA
+	select S3C_DEV_HWMON
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the Simtec Electronics EB2410ITX
+	  development board (also known as BAST)
+
+config BAST_PC104_IRQ
+	bool "BAST PC104 IRQ support"
+	depends on ARCH_BAST
+	default y
+	help
+	  Say Y	here to enable the PC104 IRQ routing on the
+	  Simtec BAST (EB2410ITX)
+
+config ARCH_H1940
+	bool "IPAQ H1940"
+	select PM_H1940 if PM
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	select S3C24XX_SETUP_TS
+	help
+	  Say Y here if you are using the HP IPAQ H1940
+
+config H1940BT
+	tristate "Control the state of H1940 bluetooth chip"
+	depends on ARCH_H1940
+	select RFKILL
+	help
+	  This is a simple driver that is able to control
+	  the state of built in bluetooth chip on h1940.
+
+config PM_H1940
+	bool
+	help
+	  Internal node for H1940 and related PM
+
+config MACH_N30
+	bool "Acer N30 family"
+	select MACH_N35
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you want suppt for the Acer N30, Acer N35,
+	  Navman PiN570, Yakumo AlphaX or Airis NC05 PDAs.
+
+config MACH_OTOM
+	bool "NexVision OTOM Board"
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the Nex Vision OTOM board
+
+config MACH_QT2410
+	bool "QT2410"
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the Armzone QT2410
+
+config ARCH_SMDK2410
+	bool "SMDK2410/A9M2410"
+	select S3C24XX_SMDK
+	help
+	  Say Y here if you are using the SMDK2410 or the derived module A9M2410
+	  <http://www.fsforth.de>
+
+config MACH_TCT_HAMMER
+	bool "TCT Hammer Board"
+	select S3C_DEV_USB_HOST
+	help
+	  Say Y here if you are using the TinCanTools Hammer Board
+	  <http://www.tincantools.com>
+
+config MACH_VR1000
+	bool "Thorcom VR1000"
+	select S3C24XX_SIMTEC_PM if PM
+	select S3C24XX_DCLK
+	select S3C24XX_SIMTEC_NOR
+	select MACH_BAST_IDE
+	select S3C_DEV_USB_HOST
+	select S3C24XX_SIMTEC_USB
+	help
+	  Say Y here if you are using the Thorcom VR1000 board.
+
+endif	# CPU_S3C2410
+
+config S3C2412_PM_SLEEP
+	bool
+	help
+	  Internal config node to apply sleep for S3C2412 power management.
+	  Can be selected by another SoCs such as S3C2416 with similar
+	  sleep procedure.
+
+if CPU_S3C2412
+
+config CPU_S3C2412_ONLY
+	bool
+	depends on ARCH_S3C24XX && !CPU_S3C2410 && \
+		   !CPU_S3C2416 && !CPU_S3C2440 && !CPU_S3C2442 && \
+		   !CPU_S3C2443 && CPU_S3C2412
+	default y
+
+config S3C2412_DMA
+	bool
+	help
+	  Internal config node for S3C2412 DMA support
+
+config S3C2412_PM
+	bool
+	help
+	  Internal config node to apply S3C2412 power management
+
+comment "S3C2412 Boards"
+
+#
+# The "S3C2412 Boards" list is ordered alphabetically by option text.
+# (without ARCH_ or MACH_)
+#
+
+config MACH_JIVE
+	bool "Logitech Jive"
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the Logitech Jive.
+
+config MACH_JIVE_SHOW_BOOTLOADER
+	bool "Allow access to bootloader partitions in MTD (EXPERIMENTAL)"
+	depends on MACH_JIVE && EXPERIMENTAL
+
+config MACH_S3C2413
+	bool
+	help
+	  Internal node for S3C2413 version of SMDK2413, so that
+	  machine_is_s3c2413() will work when MACH_SMDK2413 is
+	  selected
+
+config MACH_SMDK2412
+	bool "SMDK2412"
+	select MACH_SMDK2413
+	help
+	  Say Y here if you are using an SMDK2412
+
+	  Note, this shares support with SMDK2413, so will automatically
+	  select MACH_SMDK2413.
+
+config MACH_SMDK2413
+	bool "SMDK2413"
+	select MACH_S3C2413
+	select S3C24XX_SMDK
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using an SMDK2413
+
+config MACH_VSTMS
+	bool "VMSTMS"
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using an VSTMS board
+
+endif	# CPU_S3C2412
+
+if CPU_S3C2416
+
+config S3C2416_PM
+	bool
+	select S3C2412_PM_SLEEP
+	help
+	  Internal config node to apply S3C2416 power management
+
+config S3C2416_SETUP_SDHCI
+	bool
+	select S3C2416_SETUP_SDHCI_GPIO
+	help
+	  Internal helper functions for S3C2416 based SDHCI systems
+
+config S3C2416_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
+
+comment "S3C2416 Boards"
+
+config MACH_SMDK2416
+	bool "SMDK2416"
+	select S3C24XX_SMDK
+	select S3C_DEV_FB
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
+	select S3C2416_SETUP_SDHCI
+	help
+	  Say Y here if you are using an SMDK2416
+
+endif	# CPU_S3C2416
+
+if CPU_S3C2440
+
+config S3C2440_DMA
+	bool
+	help
+	  Support for S3C2440 specific DMA code5A
+
+comment "S3C2440 Boards"
+
+#
+# The "S3C2440 Boards" list is ordered alphabetically by option text.
+# (without ARCH_ or MACH_)
+#
+
+config MACH_ANUBIS
+	bool "Simtec Electronics ANUBIS"
+	select S3C24XX_DCLK
+	select S3C24XX_SIMTEC_PM if PM
+	select HAVE_PATA_PLATFORM
+	select S3C24XX_GPIO_EXTRA64
+	select S3C2440_XTAL_12000000
+	select S3C_DEV_USB_HOST
+	help
+	  Say Y here if you are using the Simtec Electronics ANUBIS
+	  development system
+
+config MACH_AT2440EVB
+	bool "Avantech AT2440EVB development board"
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the AT2440EVB development board
+
+config MACH_MINI2440
+	bool "MINI2440 development board"
+	select EEPROM_AT24
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGER
+	select LEDS_TRIGGER_BACKLIGHT
+	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
+	help
+	  Say Y here to select support for the MINI2440. Is a 10cm x 10cm board
+	  available via various sources. It can come with a 3.5" or 7" touch LCD.
+
+config MACH_NEXCODER_2440
+	bool "NexVision NEXCODER 2440 Light Board"
+	select S3C2440_XTAL_12000000
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
+
+config MACH_OSIRIS
+	bool "Simtec IM2440D20 (OSIRIS) module"
+	select S3C24XX_DCLK
+	select S3C24XX_SIMTEC_PM if PM
+	select S3C24XX_GPIO_EXTRA128
+	select S3C2440_XTAL_12000000
+	select S3C2410_IOTIMING if S3C2440_CPUFREQ
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the Simtec IM2440D20 module, also
+	  known as the Osiris.
+
+config MACH_OSIRIS_DVS
+	tristate "Simtec IM2440D20 (OSIRIS) Dynamic Voltage Scaling driver"
+	depends on MACH_OSIRIS
+	select TPS65010
+	help
+	  Say Y/M here if you want to have dynamic voltage scaling support
+	  on the Simtec IM2440D20 (OSIRIS) module via the TPS65011.
+
+	  The DVS driver alters the voltage supplied to the ARM core
+	  depending on the frequency it is running at. The driver itself
+	  does not do any of the frequency alteration, which is left up
+	  to the cpufreq driver.
+
+config MACH_RX3715
+	bool "HP iPAQ rx3715"
+	select S3C2440_XTAL_16934400
+	select PM_H1940 if PM
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the HP iPAQ rx3715.
+
+config ARCH_S3C2440
+	bool "SMDK2440"
+	select S3C2440_XTAL_16934400
+	select S3C24XX_SMDK
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	help
+	  Say Y here if you are using the SMDK2440.
+
+config SMDK2440_CPU2440
+	bool "SMDK2440 with S3C2440 CPU module"
+	default y if ARCH_S3C2440
+	select S3C2440_XTAL_16934400
+
+endif	# CPU_S3C2440
+
+if CPU_S3C2442
+
+comment "S3C2442 Boards"
+
+#
+# The "S3C2442 Boards" list is ordered alphabetically by option text.
+# (without ARCH_ or MACH_)
+#
+
+config MACH_NEO1973_GTA02
+	bool "Openmoko GTA02 / Freerunner phone"
+	select MFD_PCF50633
+	select PCF50633_GPIO
+	select I2C
+	select POWER_SUPPLY
+	select MACH_NEO1973
+	select S3C2410_PWM
+	select S3C_DEV_USB_HOST
+	help
+	   Say Y here if you are using the Openmoko GTA02 / Freerunner GSM Phone
+
+config MACH_RX1950
+	bool "HP iPAQ rx1950"
+	select S3C24XX_DCLK
+	select PM_H1940 if PM
+	select I2C
+	select S3C2410_PWM
+	select S3C_DEV_NAND
+	select S3C2410_IOTIMING if S3C2440_CPUFREQ
+	select S3C2440_XTAL_16934400
+	help
+	   Say Y here if you're using HP iPAQ rx1950
+
+config SMDK2440_CPU2442
+	bool "SMDM2440 with S3C2442 CPU module"
+
+endif	# CPU_S3C2440
+
+if CPU_S3C2443 || CPU_S3C2416
+
+config S3C2443_COMMON
+	bool
+	help
+	  Common code for the S3C2443 and similar processors, which includes
+	  the S3C2416 and S3C2450.
+
+config S3C2443_DMA
+	bool
+	help
+	  Internal config node for S3C2443 DMA support
+
+config S3C2443_SETUP_SPI
+	bool
+	help
+	  Common setup code for SPI GPIO configurations
+
+endif	# CPU_S3C2443 || CPU_S3C2416
+
+if CPU_S3C2443
+
+comment "S3C2443 Boards"
+
+config MACH_SMDK2443
+	bool "SMDK2443"
+	select S3C24XX_SMDK
+	select S3C_DEV_HSMMC1
+	help
+	  Say Y here if you are using an SMDK2443
+
+endif	# CPU_S3C2443
+
+endmenu	# SAMSUNG S3C24XX SoCs Support
+
+endif	# ARCH_S3C24XX

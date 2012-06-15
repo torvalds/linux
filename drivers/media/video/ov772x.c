@@ -1123,22 +1123,7 @@ static struct i2c_driver ov772x_i2c_driver = {
 	.id_table = ov772x_id,
 };
 
-/*
- * module function
- */
-
-static int __init ov772x_module_init(void)
-{
-	return i2c_add_driver(&ov772x_i2c_driver);
-}
-
-static void __exit ov772x_module_exit(void)
-{
-	i2c_del_driver(&ov772x_i2c_driver);
-}
-
-module_init(ov772x_module_init);
-module_exit(ov772x_module_exit);
+module_i2c_driver(ov772x_i2c_driver);
 
 MODULE_DESCRIPTION("SoC Camera driver for ov772x");
 MODULE_AUTHOR("Kuninori Morimoto");

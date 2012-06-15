@@ -39,7 +39,6 @@
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/amigaints.h>

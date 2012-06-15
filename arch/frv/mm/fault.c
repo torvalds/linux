@@ -20,7 +20,6 @@
 #include <linux/ptrace.h>
 #include <linux/hardirq.h>
 
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/gdb-stub.h>

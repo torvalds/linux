@@ -1,7 +1,6 @@
 config DRM_EXYNOS
 	tristate "DRM Support for Samsung SoC EXYNOS Series"
 	depends on DRM && PLAT_SAMSUNG
-	default	n
 	select DRM_KMS_HELPER
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -11,17 +10,32 @@ config DRM_EXYNOS
 	  Choose this option if you have a Samsung SoC EXYNOS chipset.
 	  If M is selected the module will be called exynosdrm.
 
+config DRM_EXYNOS_DMABUF
+	bool "EXYNOS DRM DMABUF"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use DMABUF feature for DRM.
+
 config DRM_EXYNOS_FIMD
-	tristate "Exynos DRM FIMD"
+	bool "Exynos DRM FIMD"
 	depends on DRM_EXYNOS && !FB_S3C
-	default n
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
-	  If M is selected, the module will be called exynos_drm_fimd
 
 config DRM_EXYNOS_HDMI
-	tristate "Exynos DRM HDMI"
+	bool "Exynos DRM HDMI"
 	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_TV
 	help
 	  Choose this option if you want to use Exynos HDMI for DRM.
-	  If M is selected, the module will be called exynos_drm_hdmi
+
+config DRM_EXYNOS_VIDI
+	bool "Exynos DRM Virtual Display"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use Exynos VIDI for DRM.
+
+config DRM_EXYNOS_G2D
+	bool "Exynos DRM G2D"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use Exynos G2D for DRM.

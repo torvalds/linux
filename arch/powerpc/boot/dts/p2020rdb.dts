@@ -34,7 +34,7 @@
 
 		/* NOR and NAND Flashes */
 		ranges = <0x0 0x0 0x0 0xef000000 0x01000000
-			  0x1 0x0 0x0 0xffa00000 0x00040000
+			  0x1 0x0 0x0 0xff800000 0x00040000
 			  0x2 0x0 0x0 0xffb00000 0x00020000>;
 
 		nor@0,0 {
@@ -157,7 +157,7 @@
 				#size-cells = <1>;
 				compatible = "spansion,s25sl12801";
 				reg = <0>;
-				spi-max-frequency = <50000000>;
+				spi-max-frequency = <40000000>;
 
 				partition@0 {
 					/* 512KB for u-boot Bootloader Image */

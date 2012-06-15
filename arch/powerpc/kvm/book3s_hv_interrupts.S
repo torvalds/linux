@@ -46,8 +46,10 @@ _GLOBAL(__kvmppc_vcore_entry)
 	/* Save host state to the stack */
 	stdu	r1, -SWITCH_FRAME_SIZE(r1)
 
-	/* Save non-volatile registers (r14 - r31) */
+	/* Save non-volatile registers (r14 - r31) and CR */
 	SAVE_NVGPRS(r1)
+	mfcr	r3
+	std	r3, _CCR(r1)
 
 	/* Save host DSCR */
 BEGIN_FTR_SECTION
@@ -66,19 +68,24 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	rotldi  r10,r10,16
 	mtmsrd  r10,1
 
-	/* Save host PMU registers and load guest PMU registers */
+	/* Save host PMU registers */
 	/* R4 is live here (vcpu pointer) but not r3 or r5 */
 	li	r3, 1
 	sldi	r3, r3, 31		/* MMCR0_FC (freeze counters) bit */
 	mfspr	r7, SPRN_MMCR0		/* save MMCR0 */
 	mtspr	SPRN_MMCR0, r3		/* freeze all counters, disable interrupts */
+	mfspr	r6, SPRN_MMCRA
+BEGIN_FTR_SECTION
+	/* On P7, clear MMCRA in order to disable SDAR updates */
+	li	r5, 0
+	mtspr	SPRN_MMCRA, r5
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	isync
 	ld	r3, PACALPPACAPTR(r13)	/* is the host using the PMU? */
 	lbz	r5, LPPACA_PMCINUSE(r3)
 	cmpwi	r5, 0
 	beq	31f			/* skip if not */
 	mfspr	r5, SPRN_MMCR1
-	mfspr	r6, SPRN_MMCRA
 	std	r7, HSTATE_MMCR(r13)
 	std	r5, HSTATE_MMCR + 8(r13)
 	std	r6, HSTATE_MMCR + 16(r13)
@@ -157,8 +164,10 @@ kvmppc_handler_highmem:
 	 * R13      = PACA
 	 */
 
-	/* Restore non-volatile host registers (r14 - r31) */
+	/* Restore non-volatile host registers (r14 - r31) and CR */
 	REST_NVGPRS(r1)
+	ld	r4, _CCR(r1)
+	mtcr	r4
 
 	addi    r1, r1, SWITCH_FRAME_SIZE
 	ld	r0, PPC_LR_STKOFF(r1)

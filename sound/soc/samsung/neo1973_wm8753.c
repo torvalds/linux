@@ -296,7 +296,7 @@ static int neo1973_gta02_wm8753_init(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_add_controls(codec, neo1973_gta02_wm8753_controls,
+	ret = snd_soc_add_card_controls(codec->card, neo1973_gta02_wm8753_controls,
 			ARRAY_SIZE(neo1973_gta02_wm8753_controls));
 	if (ret)
 		return ret;
@@ -328,7 +328,7 @@ static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 
 	/* add neo1973 specific controls */
-	ret = snd_soc_add_controls(codec, neo1973_wm8753_controls,
+	ret = snd_soc_add_card_controls(rtd->card, neo1973_wm8753_controls,
 			ARRAY_SIZE(neo1973_wm8753_controls));
 	if (ret)
 		return ret;

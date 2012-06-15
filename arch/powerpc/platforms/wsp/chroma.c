@@ -17,7 +17,6 @@
 #include <linux/time.h>
 
 #include <asm/machdep.h>
-#include <asm/system.h>
 #include <asm/udbg.h>
 
 #include "ics.h"

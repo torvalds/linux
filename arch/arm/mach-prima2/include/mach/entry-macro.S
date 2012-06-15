@@ -20,10 +20,3 @@
 	cmp \irqnr, #0x40			@ the irq num can't be larger than 0x3f
 	movges \irqnr, #0
 	.endm
-
-	.macro  disable_fiq
-	.endm
-
-	.macro  arch_ret_to_user, tmp1, tmp2
-	.endm
-

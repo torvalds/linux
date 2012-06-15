@@ -29,7 +29,7 @@ struct as10x_fw_pkt_t {
 	union {
 		unsigned char request[2];
 		unsigned char length[2];
-	} u;
+	} __packed u;
 	struct as10x_raw_fw_pkt raw;
 } __packed;
 

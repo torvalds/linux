@@ -4,8 +4,11 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <plat/prcm.h>
+
+#include <mach/hardware.h>
+
+#include "common.h"
 
 void omap1_restart(char mode, const char *cmd)
 {

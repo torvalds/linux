@@ -1,7 +1,7 @@
 /*
  * PQ3 eTSEC device tree stub [ @ offsets 0x26000 ]
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2011-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,6 +41,7 @@ ethernet@26000 {
 	compatible = "gianfar";
 	reg = <0x26000 0x1000>;
 	ranges = <0x0 0x26000 0x1000>;
+	fsl,magic-packet;
 	local-mac-address = [ 00 00 00 00 00 00 ];
 	interrupts = <31 2 0 0 32 2 0 0 33 2 0 0>;
 };

@@ -150,8 +150,6 @@
 #define QL4_SESS_RECOVERY_TMO		120	/* iSCSI session */
 						/* recovery timeout */
 
-#define MSB(x) ((uint8_t)((uint16_t)(x) >> 8))
-#define LSW(x) ((uint16_t)(x))
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
@@ -223,6 +221,15 @@ struct srb {
 	uint16_t reserved2;
 };
 
+/* Mailbox request block structure */
+struct mrb {
+	struct scsi_qla_host *ha;
+	struct mbox_cmd_iocb *mbox;
+	uint32_t mbox_cmd;
+	uint16_t iocb_cnt;		/* Number of used iocbs */
+	uint32_t pid;
+};
+
 /*
  * Asynchronous Event Queue structure
  */
@@ -265,7 +272,7 @@ struct ddb_entry {
 					   * retried */
 	uint32_t default_time2wait;	  /* Default Min time between
 					   * relogins (+aens) */
-
+	uint16_t chap_tbl_idx;
 };
 
 struct qla_ddb_index {
@@ -284,6 +291,7 @@ struct ql4_tuple_ddb {
 	uint16_t options;
 #define DDB_OPT_IPV6 0x0e0e
 #define DDB_OPT_IPV4 0x0f0f
+	uint8_t isid[6];
 };
 
 /*
@@ -303,7 +311,28 @@ struct ql4_tuple_ddb {
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
 
+enum qla4_work_type {
+	QLA4_EVENT_AEN,
+	QLA4_EVENT_PING_STATUS,
+};
 
+struct qla4_work_evt {
+	struct list_head list;
+	enum qla4_work_type type;
+	union {
+		struct {
+			enum iscsi_host_event_code code;
+			uint32_t data_size;
+			uint8_t data[0];
+		} aen;
+		struct {
+			uint32_t status;
+			uint32_t pid;
+			uint32_t data_size;
+			uint8_t data[0];
+		} ping;
+	} u;
+};
 
 struct ql82xx_hw_data {
 	/* Offsets for flash/nvram access (set to ~0 if not used). */
@@ -367,6 +396,16 @@ struct isp_operations {
 	uint16_t (*rd_shdw_req_q_out) (struct scsi_qla_host *);
 	uint16_t (*rd_shdw_rsp_q_in) (struct scsi_qla_host *);
 	int (*get_sys_info) (struct scsi_qla_host *);
+};
+
+struct ql4_mdump_size_table {
+	uint32_t size;
+	uint32_t size_cmask_02;
+	uint32_t size_cmask_04;
+	uint32_t size_cmask_08;
+	uint32_t size_cmask_10;
+	uint32_t size_cmask_FF;
+	uint32_t version;
 };
 
 /*qla4xxx ipaddress configuration details */
@@ -456,6 +495,10 @@ struct scsi_qla_host {
 #define AF_EEH_BUSY			20 /* 0x00100000 */
 #define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
 #define AF_BUILD_DDB_LIST		22 /* 0x00400000 */
+#define AF_82XX_FW_DUMPED		24 /* 0x01000000 */
+#define AF_82XX_RST_OWNER		25 /* 0x02000000 */
+#define AF_82XX_DUMP_READING		26 /* 0x04000000 */
+
 	unsigned long dpc_flags;
 
 #define DPC_RESET_HA			1 /* 0x00000002 */
@@ -633,6 +676,11 @@ struct scsi_qla_host {
 
 	uint32_t nx_dev_init_timeout;
 	uint32_t nx_reset_timeout;
+	void *fw_dump;
+	uint32_t fw_dump_size;
+	uint32_t fw_dump_capture_mask;
+	void *fw_dump_tmplt_hdr;
+	uint32_t fw_dump_tmplt_size;
 
 	struct completion mbx_intr_comp;
 
@@ -657,6 +705,7 @@ struct scsi_qla_host {
 	struct dma_pool *chap_dma_pool;
 	uint8_t *chap_list; /* CHAP table cache */
 	struct mutex  chap_sem;
+
 #define CHAP_DMA_BLOCK_SIZE    512
 	struct workqueue_struct *task_wq;
 	unsigned long ddb_idx_map[MAX_DDB_ENTRIES / BITS_PER_LONG];
@@ -674,6 +723,15 @@ struct scsi_qla_host {
 	uint16_t sec_ddb_idx;
 	int is_reset;
 	uint16_t temperature;
+
+	/* event work list */
+	struct list_head work_list;
+	spinlock_t work_lock;
+
+	/* mbox iocb */
+#define MAX_MRB		128
+	struct mrb *active_mrb_array[MAX_MRB];
+	uint32_t mrb_index;
 };
 
 struct ql4_task_data {
@@ -896,5 +954,8 @@ static inline int ql4xxx_reset_active(struct scsi_qla_host *ha)
 /* Defines for process_aen() */
 #define PROCESS_ALL_AENS	 0
 #define FLUSH_DDB_CHANGED_AENS	 1
+
+/* Defines for udev events */
+#define QL4_UEVENT_CODE_FW_DUMP		0
 
 #endif	/*_QLA4XXX_H */

@@ -584,7 +584,6 @@ struct pch_gbe_hw_stats {
 /**
  * struct pch_gbe_adapter - board specific private data structure
  * @stats_lock:	Spinlock structure for status
- * @tx_queue_lock:	Spinlock structure for transmit
  * @ethtool_lock:	Spinlock structure for ethtool
  * @irq_sem:		Semaphore for interrupt
  * @netdev:		Pointer of network device structure
@@ -609,7 +608,6 @@ struct pch_gbe_hw_stats {
 
 struct pch_gbe_adapter {
 	spinlock_t stats_lock;
-	spinlock_t tx_queue_lock;
 	spinlock_t ethtool_lock;
 	atomic_t irq_sem;
 	struct net_device *netdev;
@@ -630,6 +628,9 @@ struct pch_gbe_adapter {
 	unsigned long tx_queue_len;
 	bool have_msi;
 	bool rx_stop_flag;
+	int hwts_tx_en;
+	int hwts_rx_en;
+	struct pci_dev *ptp_pdev;
 };
 
 extern const char pch_driver_version[];
@@ -648,6 +649,17 @@ extern void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
 extern void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 				       struct pch_gbe_rx_ring *rx_ring);
 extern void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
+#ifdef CONFIG_PCH_PTP
+extern u32 pch_ch_control_read(struct pci_dev *pdev);
+extern void pch_ch_control_write(struct pci_dev *pdev, u32 val);
+extern u32 pch_ch_event_read(struct pci_dev *pdev);
+extern void pch_ch_event_write(struct pci_dev *pdev, u32 val);
+extern u32 pch_src_uuid_lo_read(struct pci_dev *pdev);
+extern u32 pch_src_uuid_hi_read(struct pci_dev *pdev);
+extern u64 pch_rx_snap_read(struct pci_dev *pdev);
+extern u64 pch_tx_snap_read(struct pci_dev *pdev);
+extern int pch_set_station_address(u8 *addr, struct pci_dev *pdev);
+#endif
 
 /* pch_gbe_param.c */
 extern void pch_gbe_check_options(struct pch_gbe_adapter *adapter);

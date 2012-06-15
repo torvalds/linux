@@ -17,7 +17,6 @@
 #include <linux/bitops.h>
 
 #include <asm/ptrace.h>
-#include <asm/system.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
@@ -26,6 +25,7 @@
 #include <asm/core_cia.h>
 #include <asm/hwrpb.h>
 #include <asm/tlbflush.h>
+#include <asm/special_insns.h>
 
 #include "proto.h"
 #include "irq_impl.h"

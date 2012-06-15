@@ -16,8 +16,7 @@ config DRM_GMA600
 	depends on DRM_GMA500
 	help
 	  Say yes to include support for GMA600 (Intel Moorestown/Oaktrail)
-	  platforms with LVDS ports. HDMI and MIPI are not currently
-	  supported.
+	  platforms with LVDS ports. MIPI is not currently supported.
 
 config DRM_GMA3600
 	bool "Intel GMA3600/3650 support (Experimental)"
@@ -25,3 +24,10 @@ config DRM_GMA3600
 	help
 	  Say yes to include basic support for Intel GMA3600/3650 (Intel
 	  Cedar Trail) platforms.
+
+config DRM_MEDFIELD
+	bool "Intel Medfield support (Experimental)"
+	depends on DRM_GMA500 && X86_INTEL_MID
+	help
+	  Say yes to include support for the Intel Medfield platform.
+

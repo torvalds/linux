@@ -64,7 +64,6 @@
 #include <linux/types.h>
 
 #include <asm/addrspace.h>
-#include <asm/system.h>
 
 #include <asm/dec/interrupts.h>
 #include <asm/dec/ioasic.h>
@@ -605,7 +604,7 @@ static int lance_rx(struct net_device *dev)
 				dev->stats.rx_errors++;
 		} else {
 			len = (*rds_ptr(rd, mblength, lp->type) & 0xfff) - 4;
-			skb = dev_alloc_skb(len + 2);
+			skb = netdev_alloc_skb(dev, len + 2);
 
 			if (skb == 0) {
 				printk("%s: Memory squeeze, deferring packet.\n",
@@ -1052,8 +1051,6 @@ static int __devinit dec_lance_probe(struct device *bdev, const int type)
 
 	dev = alloc_etherdev(sizeof(struct lance_private));
 	if (!dev) {
-		printk(KERN_ERR "%s: Unable to allocate etherdev, aborting.\n",
-			name);
 		ret = -ENOMEM;
 		goto err_out;
 	}

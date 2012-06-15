@@ -15,10 +15,11 @@
   along with this driver.  If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************/
 
+#include "crystalhd.h"
+
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-#include "crystalhd_lnx.h"
 
 static DEFINE_MUTEX(chd_dec_mutex);
 static struct class *crystalhd_class;
@@ -298,7 +299,6 @@ static int chd_dec_open(struct inode *in, struct file *fd)
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 	struct crystalhd_user *uc = NULL;
 
-	BCMLOG_ENTER;
 	if (!adp) {
 		BCMLOG_ERR("Invalid adp\n");
 		return -EINVAL;
@@ -327,7 +327,6 @@ static int chd_dec_close(struct inode *in, struct file *fd)
 	struct crystalhd_adp *adp = chd_get_adp();
 	struct crystalhd_user *uc;
 
-	BCMLOG_ENTER;
 	if (!adp) {
 		BCMLOG_ERR("Invalid adp\n");
 		return -EINVAL;
@@ -512,8 +511,6 @@ static void __devexit chd_dec_pci_remove(struct pci_dev *pdev)
 {
 	struct crystalhd_adp *pinfo;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
-
-	BCMLOG_ENTER;
 
 	pinfo = pci_get_drvdata(pdev);
 	if (!pinfo) {

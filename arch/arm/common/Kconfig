@@ -24,9 +24,6 @@ config ARM_VIC_NR
 config ICST
 	bool
 
-config PL330
-	bool
-
 config SA1111
 	bool
 	select DMABOUNCE if !ARCH_PXA
@@ -34,9 +31,6 @@ config SA1111
 config DMABOUNCE
 	bool
 	select ZONE_DMA
-
-config TIMER_ACORN
-	bool
 
 config SHARP_LOCOMO
 	bool

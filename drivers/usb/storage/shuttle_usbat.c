@@ -1863,6 +1863,7 @@ static struct usb_driver usbat_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	usbat_usb_ids,
 	.soft_unbind =	1,
+	.no_dynamic_id = 1,
 };
 
 module_usb_driver(usbat_driver);

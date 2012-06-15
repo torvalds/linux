@@ -85,6 +85,7 @@ static struct drm_driver driver = {
 
 int r128_driver_load(struct drm_device *dev, unsigned long flags)
 {
+	pci_set_master(dev->pdev);
 	return drm_vblank_init(dev, 1);
 }
 

@@ -26,9 +26,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/sync.h>
 
@@ -62,9 +59,6 @@ int mgr_create(struct mgr_object **mgr_obj,
 	struct mgr_object *pmgr_obj = NULL;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	DBC_REQUIRE(mgr_obj != NULL);
-	DBC_REQUIRE(refs > 0);
-
 	pmgr_obj = kzalloc(sizeof(struct mgr_object), GFP_KERNEL);
 	if (pmgr_obj) {
 		status = dcd_create_manager(ZLDLLNAME, &pmgr_obj->dcd_mgr);
@@ -92,7 +86,6 @@ int mgr_create(struct mgr_object **mgr_obj,
 		status = -ENOMEM;
 	}
 
-	DBC_ENSURE(status || pmgr_obj);
 	return status;
 }
 
@@ -105,9 +98,6 @@ int mgr_destroy(struct mgr_object *hmgr_obj)
 	int status = 0;
 	struct mgr_object *pmgr_obj = (struct mgr_object *)hmgr_obj;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(hmgr_obj);
 
 	/* Free resources */
 	if (hmgr_obj->dcd_mgr)
@@ -140,11 +130,6 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	struct mgr_object *pmgr_obj = NULL;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	DBC_REQUIRE(pndb_props != NULL);
-	DBC_REQUIRE(pu_num_nodes != NULL);
-	DBC_REQUIRE(undb_props_size >= sizeof(struct dsp_ndbprops));
-	DBC_REQUIRE(refs > 0);
-
 	*pu_num_nodes = 0;
 	/* Get the Manager Object from the driver data */
 	if (!drv_datap || !drv_datap->mgr_object) {
@@ -153,7 +138,6 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	}
 	pmgr_obj = drv_datap->mgr_object;
 
-	DBC_ASSERT(pmgr_obj);
 	/* Forever loop till we hit failed or no more items in the
 	 * Enumeration. We will exit the loop other than 0; */
 	while (!status) {
@@ -205,11 +189,6 @@ int mgr_enum_processor_info(u32 processor_id,
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 	bool proc_detect = false;
 
-	DBC_REQUIRE(processor_info != NULL);
-	DBC_REQUIRE(pu_num_procs != NULL);
-	DBC_REQUIRE(processor_info_size >= sizeof(struct dsp_processorinfo));
-	DBC_REQUIRE(refs > 0);
-
 	*pu_num_procs = 0;
 
 	/* Retrieve the Object handle from the driver data */
@@ -242,7 +221,6 @@ int mgr_enum_processor_info(u32 processor_id,
 		dev_dbg(bridge, "%s: Failed to get MGR Object\n", __func__);
 		goto func_end;
 	}
-	DBC_ASSERT(pmgr_obj);
 	/* Forever loop till we hit no more items in the
 	 * Enumeration. We will exit the loop other than 0; */
 	while (status1 == 0) {
@@ -310,12 +288,9 @@ func_end:
  */
 void mgr_exit(void)
 {
-	DBC_REQUIRE(refs > 0);
 	refs--;
 	if (refs == 0)
 		dcd_exit();
-
-	DBC_ENSURE(refs >= 0);
 }
 
 /*
@@ -328,16 +303,11 @@ int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
 	int status = -EPERM;
 	struct mgr_object *pmgr_obj = (struct mgr_object *)mgr_handle;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(dcd_handle != NULL);
-
 	*dcd_handle = (u32) NULL;
 	if (pmgr_obj) {
 		*dcd_handle = (u32) pmgr_obj->dcd_mgr;
 		status = 0;
 	}
-	DBC_ENSURE((!status && *dcd_handle != (u32) NULL) ||
-		   (status && *dcd_handle == (u32) NULL));
 
 	return status;
 }
@@ -349,21 +319,12 @@ int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
 bool mgr_init(void)
 {
 	bool ret = true;
-	bool init_dcd = false;
 
-	DBC_REQUIRE(refs >= 0);
-
-	if (refs == 0) {
-		init_dcd = dcd_init();	/*  DCD Module */
-
-		if (!init_dcd)
-			ret = false;
-	}
+	if (refs == 0)
+		ret = dcd_init();	/*  DCD Module */
 
 	if (ret)
 		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
 
 	return ret;
 }
@@ -379,8 +340,6 @@ int mgr_wait_for_bridge_events(struct dsp_notification **anotifications,
 	int status;
 	struct sync_object *sync_events[MAX_EVENTS];
 	u32 i;
-
-	DBC_REQUIRE(count < MAX_EVENTS);
 
 	for (i = 0; i < count; i++)
 		sync_events[i] = anotifications[i]->handle;

@@ -95,7 +95,7 @@ static int davinci_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return ret;
 
-	dev_dbg(&cpufreq.dev, "transition: %u --> %u\n", freqs.old, freqs.new);
+	dev_dbg(cpufreq.dev, "transition: %u --> %u\n", freqs.old, freqs.new);
 
 	ret = cpufreq_frequency_table_target(policy, pdata->freq_table,
 						freqs.new, relation, &idx);
@@ -240,10 +240,9 @@ static struct platform_driver davinci_cpufreq_driver = {
 	.remove = __exit_p(davinci_cpufreq_remove),
 };
 
-static int __init davinci_cpufreq_init(void)
+int __init davinci_cpufreq_init(void)
 {
 	return platform_driver_probe(&davinci_cpufreq_driver,
 							davinci_cpufreq_probe);
 }
-late_initcall(davinci_cpufreq_init);
 

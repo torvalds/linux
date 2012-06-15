@@ -234,7 +234,6 @@
 void mspro_polling_format_status(struct rts51x_chip *chip);
 void mspro_format_sense(struct rts51x_chip *chip, unsigned int lun);
 
-void mspro_stop_seq_mode(struct rts51x_chip *chip);
 int reset_ms_card(struct rts51x_chip *chip);
 int ms_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 	  u16 sector_cnt);
@@ -242,16 +241,15 @@ int mspro_format(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 		 int short_data_len, int quick_format);
 void ms_free_l2p_tbl(struct rts51x_chip *chip);
 void ms_cleanup_work(struct rts51x_chip *chip);
-int ms_power_off_card3v3(struct rts51x_chip *chip);
 int release_ms_card(struct rts51x_chip *chip);
 int ms_delay_write(struct rts51x_chip *chip);
 
 #ifdef SUPPORT_MAGIC_GATE
 
 int ms_switch_clock(struct rts51x_chip *chip);
-int ms_write_bytes(struct rts51x_chip *chip, u8 tpc, u8 cnt, u8 cfg, u8 * data,
+int ms_write_bytes(struct rts51x_chip *chip, u8 tpc, u8 cnt, u8 cfg, u8 *data,
 		   int data_len);
-int ms_read_bytes(struct rts51x_chip *chip, u8 tpc, u8 cnt, u8 cfg, u8 * data,
+int ms_read_bytes(struct rts51x_chip *chip, u8 tpc, u8 cnt, u8 cfg, u8 *data,
 		  int data_len);
 int ms_set_rw_reg_addr(struct rts51x_chip *chip, u8 read_start, u8 read_cnt,
 		       u8 write_start, u8 write_cnt);

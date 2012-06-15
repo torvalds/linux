@@ -9,7 +9,6 @@
 #define _ASM_DMA_H
 
 #include <asm/io.h>		/* need byte IO */
-#include <asm/system.h>	
 
 #define dma_outb	outb
 #define dma_inb		inb

@@ -50,10 +50,10 @@ put_info_buffer(char *cp)
 	if (!*cp)
 		return;
 	if (!(ib = kmalloc(sizeof(struct divert_info) + strlen(cp), GFP_ATOMIC)))
-		 return;	/* no memory */
+		return;	/* no memory */
 	strcpy(ib->info_start, cp);	/* set output string */
 	ib->next = NULL;
-	spin_lock_irqsave( &divert_info_lock, flags );
+	spin_lock_irqsave(&divert_info_lock, flags);
 	ib->usage_cnt = if_used;
 	if (!divert_info_head)
 		divert_info_head = ib;	/* new head */
@@ -71,7 +71,7 @@ put_info_buffer(char *cp)
 		} else
 			break;
 	}			/* divert_info_head->next */
-	spin_unlock_irqrestore( &divert_info_lock, flags );
+	spin_unlock_irqrestore(&divert_info_lock, flags);
 	wake_up_interruptible(&(rd_queue));
 }				/* put_info_buffer */
 
@@ -81,7 +81,7 @@ put_info_buffer(char *cp)
 /* deflection device read routine */
 /**********************************/
 static ssize_t
-isdn_divert_read(struct file *file, char __user *buf, size_t count, loff_t * off)
+isdn_divert_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 {
 	struct divert_info *inf;
 	int len;
@@ -109,7 +109,7 @@ isdn_divert_read(struct file *file, char __user *buf, size_t count, loff_t * off
 /* deflection device write routine */
 /**********************************/
 static ssize_t
-isdn_divert_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
+isdn_divert_write(struct file *file, const char __user *buf, size_t count, loff_t *off)
 {
 	return (-ENODEV);
 }				/* isdn_divert_write */
@@ -119,7 +119,7 @@ isdn_divert_write(struct file *file, const char __user *buf, size_t count, loff_
 /* select routines for various kernels */
 /***************************************/
 static unsigned int
-isdn_divert_poll(struct file *file, poll_table * wait)
+isdn_divert_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 
@@ -139,13 +139,13 @@ isdn_divert_open(struct inode *ino, struct file *filep)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave( &divert_info_lock, flags );
- 	if_used++;
+	spin_lock_irqsave(&divert_info_lock, flags);
+	if_used++;
 	if (divert_info_head)
 		filep->private_data = &(divert_info_tail->next);
 	else
 		filep->private_data = &divert_info_head;
-	spin_unlock_irqrestore( &divert_info_lock, flags );
+	spin_unlock_irqrestore(&divert_info_lock, flags);
 	/*  start_divert(); */
 	return nonseekable_open(ino, filep);
 }				/* isdn_divert_open */
@@ -159,7 +159,7 @@ isdn_divert_close(struct inode *ino, struct file *filep)
 	struct divert_info *inf;
 	unsigned long flags;
 
-	spin_lock_irqsave( &divert_info_lock, flags );
+	spin_lock_irqsave(&divert_info_lock, flags);
 	if_used--;
 	inf = *((struct divert_info **) filep->private_data);
 	while (inf) {
@@ -172,7 +172,7 @@ isdn_divert_close(struct inode *ino, struct file *filep)
 			divert_info_head = divert_info_head->next;
 			kfree(inf);
 		}
-	spin_unlock_irqrestore( &divert_info_lock, flags );
+	spin_unlock_irqrestore(&divert_info_lock, flags);
 	return (0);
 }				/* isdn_divert_close */
 
@@ -191,75 +191,75 @@ static int isdn_divert_ioctl_unlocked(struct file *file, uint cmd, ulong arg)
 		return -EFAULT;
 
 	switch (cmd) {
-		case IIOCGETVER:
-			dioctl.drv_version = DIVERT_IIOC_VERSION;	/* set version */
-			break;
+	case IIOCGETVER:
+		dioctl.drv_version = DIVERT_IIOC_VERSION;	/* set version */
+		break;
 
-		case IIOCGETDRV:
-			if ((dioctl.getid.drvid = divert_if.name_to_drv(dioctl.getid.drvnam)) < 0)
-				return (-EINVAL);
-			break;
-
-		case IIOCGETNAM:
-			cp = divert_if.drv_to_name(dioctl.getid.drvid);
-			if (!cp)
-				return (-EINVAL);
-			if (!*cp)
-				return (-EINVAL);
-			strcpy(dioctl.getid.drvnam, cp);
-			break;
-
-		case IIOCGETRULE:
-			if (!(rulep = getruleptr(dioctl.getsetrule.ruleidx)))
-				return (-EINVAL);
-			dioctl.getsetrule.rule = *rulep;	/* copy data */
-			break;
-
-		case IIOCMODRULE:
-			if (!(rulep = getruleptr(dioctl.getsetrule.ruleidx)))
-				return (-EINVAL);
-            spin_lock_irqsave(&divert_lock, flags);
-			*rulep = dioctl.getsetrule.rule;	/* copy data */
-			spin_unlock_irqrestore(&divert_lock, flags);
-			return (0);	/* no copy required */
-			break;
-
-		case IIOCINSRULE:
-			return (insertrule(dioctl.getsetrule.ruleidx, &dioctl.getsetrule.rule));
-			break;
-
-		case IIOCDELRULE:
-			return (deleterule(dioctl.getsetrule.ruleidx));
-			break;
-
-		case IIOCDODFACT:
-			return (deflect_extern_action(dioctl.fwd_ctrl.subcmd,
-						  dioctl.fwd_ctrl.callid,
-						 dioctl.fwd_ctrl.to_nr));
-
-		case IIOCDOCFACT:
-		case IIOCDOCFDIS:
-		case IIOCDOCFINT:
-			if (!divert_if.drv_to_name(dioctl.cf_ctrl.drvid))
-				return (-EINVAL);	/* invalid driver */
-			if (strnlen(dioctl.cf_ctrl.msn, sizeof(dioctl.cf_ctrl.msn)) ==
-					sizeof(dioctl.cf_ctrl.msn))
-				return -EINVAL;
-			if (strnlen(dioctl.cf_ctrl.fwd_nr, sizeof(dioctl.cf_ctrl.fwd_nr)) ==
-					sizeof(dioctl.cf_ctrl.fwd_nr))
-				return -EINVAL;
-			if ((i = cf_command(dioctl.cf_ctrl.drvid,
-					    (cmd == IIOCDOCFACT) ? 1 : (cmd == IIOCDOCFDIS) ? 0 : 2,
-					    dioctl.cf_ctrl.cfproc,
-					    dioctl.cf_ctrl.msn,
-					    dioctl.cf_ctrl.service,
-					    dioctl.cf_ctrl.fwd_nr,
-					    &dioctl.cf_ctrl.procid)))
-				return (i);
-			break;
-
-		default:
+	case IIOCGETDRV:
+		if ((dioctl.getid.drvid = divert_if.name_to_drv(dioctl.getid.drvnam)) < 0)
 			return (-EINVAL);
+		break;
+
+	case IIOCGETNAM:
+		cp = divert_if.drv_to_name(dioctl.getid.drvid);
+		if (!cp)
+			return (-EINVAL);
+		if (!*cp)
+			return (-EINVAL);
+		strcpy(dioctl.getid.drvnam, cp);
+		break;
+
+	case IIOCGETRULE:
+		if (!(rulep = getruleptr(dioctl.getsetrule.ruleidx)))
+			return (-EINVAL);
+		dioctl.getsetrule.rule = *rulep;	/* copy data */
+		break;
+
+	case IIOCMODRULE:
+		if (!(rulep = getruleptr(dioctl.getsetrule.ruleidx)))
+			return (-EINVAL);
+		spin_lock_irqsave(&divert_lock, flags);
+		*rulep = dioctl.getsetrule.rule;	/* copy data */
+		spin_unlock_irqrestore(&divert_lock, flags);
+		return (0);	/* no copy required */
+		break;
+
+	case IIOCINSRULE:
+		return (insertrule(dioctl.getsetrule.ruleidx, &dioctl.getsetrule.rule));
+		break;
+
+	case IIOCDELRULE:
+		return (deleterule(dioctl.getsetrule.ruleidx));
+		break;
+
+	case IIOCDODFACT:
+		return (deflect_extern_action(dioctl.fwd_ctrl.subcmd,
+					      dioctl.fwd_ctrl.callid,
+					      dioctl.fwd_ctrl.to_nr));
+
+	case IIOCDOCFACT:
+	case IIOCDOCFDIS:
+	case IIOCDOCFINT:
+		if (!divert_if.drv_to_name(dioctl.cf_ctrl.drvid))
+			return (-EINVAL);	/* invalid driver */
+		if (strnlen(dioctl.cf_ctrl.msn, sizeof(dioctl.cf_ctrl.msn)) ==
+		    sizeof(dioctl.cf_ctrl.msn))
+			return -EINVAL;
+		if (strnlen(dioctl.cf_ctrl.fwd_nr, sizeof(dioctl.cf_ctrl.fwd_nr)) ==
+		    sizeof(dioctl.cf_ctrl.fwd_nr))
+			return -EINVAL;
+		if ((i = cf_command(dioctl.cf_ctrl.drvid,
+				    (cmd == IIOCDOCFACT) ? 1 : (cmd == IIOCDOCFDIS) ? 0 : 2,
+				    dioctl.cf_ctrl.cfproc,
+				    dioctl.cf_ctrl.msn,
+				    dioctl.cf_ctrl.service,
+				    dioctl.cf_ctrl.fwd_nr,
+				    &dioctl.cf_ctrl.procid)))
+			return (i);
+		break;
+
+	default:
+		return (-EINVAL);
 	}			/* switch cmd */
 	return copy_to_user((void __user *)arg, &dioctl, sizeof(dioctl)) ? -EFAULT : 0;
 }				/* isdn_divert_ioctl */
@@ -284,7 +284,7 @@ static const struct file_operations isdn_fops =
 	.poll           = isdn_divert_poll,
 	.unlocked_ioctl = isdn_divert_ioctl,
 	.open           = isdn_divert_open,
-	.release        = isdn_divert_close,                                      
+	.release        = isdn_divert_close,
 };
 
 /****************************/

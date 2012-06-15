@@ -6,6 +6,7 @@
 #include <linux/time.h>
 #ifdef __KERNEL__
 #include <linux/user.h>
+#include <linux/bug.h>
 #endif
 #include <linux/ptrace.h>
 #include <linux/elf.h>

@@ -8,6 +8,8 @@ Optional properties:
 - startup-delay-us: startup time in microseconds
 - enable-active-high: Polarity of GPIO is Active high
 If this property is missing, the default assumed is Active low.
+- gpio-open-drain: GPIO is open drain type.
+  If this property is missing then default assumption is false.
 
 Any property defined as part of the core regulator
 binding, defined in regulator.txt, can also be used.
@@ -25,5 +27,6 @@ Example:
 		gpio = <&gpio1 16 0>;
 		startup-delay-us = <70000>;
 		enable-active-high;
-		regulator-boot-on
+		regulator-boot-on;
+		gpio-open-drain;
 	};

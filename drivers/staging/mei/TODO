@@ -1,7 +1,0 @@
-TODO:
-	- Cleanup and split the timer function
-Upon Unstaging:
-	- move mei.h to include/linux/mei.h
-	- Documentation/ioctl/ioctl-number.txt
-	- drop mei_version.h
-	- Updated MAINTAINERS

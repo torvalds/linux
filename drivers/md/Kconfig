@@ -277,8 +277,8 @@ config DM_MIRROR
          needed for live data migration tools such as 'pvmove'.
 
 config DM_RAID
-       tristate "RAID 1/4/5/6 target (EXPERIMENTAL)"
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       tristate "RAID 1/4/5/6 target"
+       depends on BLK_DEV_DM
        select MD_RAID1
        select MD_RAID456
        select BLK_DEV_MD
@@ -359,8 +359,8 @@ config DM_DELAY
 	If unsure, say N.
 
 config DM_UEVENT
-	bool "DM uevents (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	bool "DM uevents"
+	depends on BLK_DEV_DM
 	---help---
 	Generate udev events for DM events.
 
@@ -369,5 +369,25 @@ config DM_FLAKEY
        depends on BLK_DEV_DM && EXPERIMENTAL
        ---help---
          A target that intermittently fails I/O for debugging purposes.
+
+config DM_VERITY
+	tristate "Verity target support (EXPERIMENTAL)"
+	depends on BLK_DEV_DM && EXPERIMENTAL
+	select CRYPTO
+	select CRYPTO_HASH
+	select DM_BUFIO
+	---help---
+	  This device-mapper target creates a read-only device that
+	  transparently validates the data on one underlying device against
+	  a pre-generated tree of cryptographic checksums stored on a second
+	  device.
+
+	  You'll need to activate the digests you're going to use in the
+	  cryptoapi configuration.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-verity.
+
+	  If unsure, say N.
 
 endif # MD

@@ -1,5 +1,0 @@
-config HYPERV_STORAGE
-	tristate "Microsoft Hyper-V virtual storage driver"
-	depends on HYPERV && SCSI
-	help
-	 Select this option to enable the Hyper-V virtual storage driver.

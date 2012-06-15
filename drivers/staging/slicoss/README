@@ -42,7 +42,7 @@ TODO:
 
 
 Please send patches to:
-        Greg Kroah-Hartman <gregkh@suse.de>
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 and Cc: Lior Dotan <liodot@gmail.com> and Christopher Harrer
 <charrer@alacritech.com> as well as they are also able to test out any
 changes.

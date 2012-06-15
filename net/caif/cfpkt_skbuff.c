@@ -381,6 +381,7 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos)
 	memcpy(skb2->data, split, len2nd);
 	skb2->tail += len2nd;
 	skb2->len += len2nd;
+	skb2->priority = skb->priority;
 	return skb_to_pkt(skb2);
 }
 
@@ -394,3 +395,9 @@ struct caif_payload_info *cfpkt_info(struct cfpkt *pkt)
 	return (struct caif_payload_info *)&pkt_to_skb(pkt)->cb;
 }
 EXPORT_SYMBOL(cfpkt_info);
+
+void cfpkt_set_prio(struct cfpkt *pkt, int prio)
+{
+	pkt_to_skb(pkt)->priority = prio;
+}
+EXPORT_SYMBOL(cfpkt_set_prio);

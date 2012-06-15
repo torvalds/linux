@@ -24,7 +24,7 @@
  */
 #define IRQ_MTU0		(IRQ_SHPI_START + 4)
 
-#define DBX500_NR_INTERNAL_IRQS		160
+#define DBX500_NR_INTERNAL_IRQS		166
 
 /* After chip-specific IRQ numbers we have the GPIO ones */
 #define NOMADIK_NR_GPIO			288
@@ -36,19 +36,14 @@
 /* This will be overridden by SoC-specific irq headers */
 #define IRQ_SOC_END		IRQ_SOC_START
 
-#include <mach/irqs-db5500.h>
 #include <mach/irqs-db8500.h>
 
 #define IRQ_BOARD_START		IRQ_SOC_END
 /* This will be overridden by board-specific irq headers */
 #define IRQ_BOARD_END		IRQ_BOARD_START
 
-#ifdef CONFIG_MACH_U8500
+#ifdef CONFIG_MACH_MOP500
 #include <mach/irqs-board-mop500.h>
-#endif
-
-#ifdef CONFIG_MACH_U5500
-#include <mach/irqs-board-u5500.h>
 #endif
 
 #define NR_IRQS			IRQ_BOARD_END

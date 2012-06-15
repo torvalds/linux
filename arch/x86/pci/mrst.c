@@ -43,6 +43,8 @@
 #define PCI_FIXED_BAR_4_SIZE	0x14
 #define PCI_FIXED_BAR_5_SIZE	0x1c
 
+static int pci_soc_mode = 0;
+
 /**
  * fixed_bar_cap - return the offset of the fixed BAR cap if found
  * @bus: PCI bus
@@ -148,7 +150,9 @@ static bool type1_access_ok(unsigned int bus, unsigned int devfn, int reg)
 	 */
 	if (reg >= 0x100 || reg == PCI_STATUS || reg == PCI_HEADER_TYPE)
 		return 0;
-	if (bus == 0 && (devfn == PCI_DEVFN(2, 0) || devfn == PCI_DEVFN(0, 0)))
+	if (bus == 0 && (devfn == PCI_DEVFN(2, 0)
+				|| devfn == PCI_DEVFN(0, 0)
+				|| devfn == PCI_DEVFN(3, 0)))
 		return 1;
 	return 0; /* langwell on others */
 }
@@ -231,13 +235,42 @@ struct pci_ops pci_mrst_ops = {
  */
 int __init pci_mrst_init(void)
 {
-	printk(KERN_INFO "Moorestown platform detected, using MRST PCI ops\n");
+	printk(KERN_INFO "Intel MID platform detected, using MID PCI ops\n");
 	pci_mmcfg_late_init();
 	pcibios_enable_irq = mrst_pci_irq_enable;
 	pci_root_ops = pci_mrst_ops;
+	pci_soc_mode = 1;
 	/* Continue with standard init */
 	return 1;
 }
+
+/* Langwell devices are not true pci devices, they are not subject to 10 ms
+ * d3 to d0 delay required by pci spec.
+ */
+static void __devinit pci_d3delay_fixup(struct pci_dev *dev)
+{
+	/* PCI fixups are effectively decided compile time. If we have a dual
+	   SoC/non-SoC kernel we don't want to mangle d3 on non SoC devices */
+        if (!pci_soc_mode)
+            return;
+	/* true pci devices in lincroft should allow type 1 access, the rest
+	 * are langwell fake pci devices.
+	 */
+	if (type1_access_ok(dev->bus->number, dev->devfn, PCI_DEVICE_ID))
+		return;
+	dev->d3_delay = 0;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_d3delay_fixup);
+
+static void __devinit mrst_power_off_unused_dev(struct pci_dev *dev)
+{
+	pci_set_power_state(dev, PCI_D3cold);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0801, mrst_power_off_unused_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0809, mrst_power_off_unused_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x080C, mrst_power_off_unused_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0812, mrst_power_off_unused_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0815, mrst_power_off_unused_dev);
 
 /*
  * Langwell devices reside at fixed offsets, don't try to move them.
@@ -247,6 +280,9 @@ static void __devinit pci_fixed_bar_fixup(struct pci_dev *dev)
 	unsigned long offset;
 	u32 size;
 	int i;
+
+	if (!pci_soc_mode)
+		return;
 
 	/* Must have extended configuration space */
 	if (dev->cfg_size < PCIE_CAP_OFFSET + 4)

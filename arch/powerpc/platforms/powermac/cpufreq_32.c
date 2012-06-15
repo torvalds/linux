@@ -33,9 +33,9 @@
 #include <asm/sections.h>
 #include <asm/cputable.h>
 #include <asm/time.h>
-#include <asm/system.h>
 #include <asm/mpic.h>
 #include <asm/keylargo.h>
+#include <asm/switch_to.h>
 
 /* WARNING !!! This will cause calibrate_delay() to be called,
  * but this is an __init function ! So you MUST go edit

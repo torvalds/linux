@@ -1,0 +1,59 @@
+NVIDIA Tegra audio complex
+
+Required properties:
+- compatible : "nvidia,tegra-audio-alc5632"
+- nvidia,model : The user-visible name of this sound complex.
+- nvidia,audio-routing : A list of the connections between audio components.
+  Each entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source. Valid names for sources and
+  sinks are the ALC5632's pins:
+
+  ALC5632 pins:
+
+  * SPK_OUTP
+  * SPK_OUTN
+  * HP_OUT_L
+  * HP_OUT_R
+  * AUX_OUT_P
+  * AUX_OUT_N
+  * LINE_IN_L
+  * LINE_IN_R
+  * PHONE_P
+  * PHONE_N
+  * MIC1_P
+  * MIC1_N
+  * MIC2_P
+  * MIC2_N
+  * MICBIAS1
+  * DMICDAT
+
+  Board connectors:
+
+  * Headset Stereophone
+  * Int Spk
+  * Headset Mic
+  * Digital Mic
+
+- nvidia,i2s-controller : The phandle of the Tegra I2S controller
+- nvidia,audio-codec : The phandle of the ALC5632 audio codec
+
+Example:
+
+sound {
+	compatible = "nvidia,tegra-audio-alc5632-paz00",
+				 "nvidia,tegra-audio-alc5632";
+
+	nvidia,model = "Compal PAZ00";
+
+	nvidia,audio-routing =
+				"Int Spk", "SPK_OUTP",
+				"Int Spk", "SPK_OUTN",
+				"Headset Mic","MICBIAS1",
+				"MIC1_N", "Headset Mic",
+				"MIC1_P", "Headset Mic",
+				"Headset Stereophone", "HP_OUT_R",
+				"Headset Stereophone", "HP_OUT_L";
+
+	nvidia,i2s-controller = <&tegra_i2s1>;
+	nvidia,audio-codec = <&alc5632>;
+};

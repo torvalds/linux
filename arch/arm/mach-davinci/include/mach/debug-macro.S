@@ -22,46 +22,28 @@
 
 #define UART_SHIFT	2
 
-		.pushsection .data
-davinci_uart_phys:	.word	0
-davinci_uart_virt:	.word	0
-		.popsection
+#if defined(CONFIG_DEBUG_DAVINCI_DMx_UART0)
+#define UART_BASE	DAVINCI_UART0_BASE
+#elif defined(CONFIG_DEBUG_DAVINCI_DA8XX_UART0)
+#define UART_BASE	DA8XX_UART0_BASE
+#elif defined(CONFIG_DEBUG_DAVINCI_DA8XX_UART1)
+#define UART_BASE	DA8XX_UART1_BASE
+#elif defined(CONFIG_DEBUG_DAVINCI_DA8XX_UART2)
+#define UART_BASE	DA8XX_UART2_BASE
+#elif defined(CONFIG_DEBUG_DAVINCI_TNETV107X_UART1)
+#define UART_BASE	TNETV107X_UART2_BASE
+#define UART_VIRTBASE	TNETV107X_UART2_VIRT
+#else
+#error "Select a specifc port for DEBUG_LL"
+#endif
+
+#ifndef UART_VIRTBASE
+#define UART_VIRTBASE	IO_ADDRESS(UART_BASE)
+#endif
 
 		.macro addruart, rp, rv, tmp
-
-		/* Use davinci_uart_phys/virt if already configured */
-10:		adr	\rp, 99f		@ get effective addr of 99f
-		ldr	\rv, [\rp]		@ get absolute addr of 99f
-		sub	\rv, \rv, \rp		@ offset between the two
-		ldr	\rp, [\rp, #4]		@ abs addr of omap_uart_phys
-		sub	\tmp, \rp, \rv		@ make it effective
-		ldr	\rp, [\tmp, #0]		@ davinci_uart_phys
-		ldr	\rv, [\tmp, #4]		@ davinci_uart_virt
-		cmp	\rp, #0			@ is port configured?
-		cmpne	\rv, #0
-		bne	100f			@ already configured
-
-		/* Check the debug UART address set in uncompress.h */
-		and	\rp, pc, #0xff000000
-		ldr	\rv, =DAVINCI_UART_INFO_OFS
-		add	\rp, \rp, \rv
-
-		/* Copy uart phys address from decompressor uart info */
-		ldr	\rv, [\rp, #0]
-		str	\rv, [\tmp, #0]
-
-		/* Copy uart virt address from decompressor uart info */
-		ldr	\rv, [\rp, #4]
-		str	\rv, [\tmp, #4]
-
-		b	10b
-
-		.align
-99:		.word	.
-		.word	davinci_uart_phys
-		.ltorg
-
-100:
+		ldr	\rp, =UART_BASE
+		ldr	\rv, =UART_VIRTBASE
 		.endm
 
 		.macro	senduart,rd,rx

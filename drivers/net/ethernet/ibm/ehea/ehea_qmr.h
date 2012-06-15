@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/net/ehea/ehea_qmr.h
+ *  linux/drivers/net/ethernet/ibm/ehea/ehea_qmr.h
  *
  *  eHEA ethernet device driver for IBM eServer System p
  *

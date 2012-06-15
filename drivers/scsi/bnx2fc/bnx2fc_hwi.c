@@ -167,6 +167,7 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 {
 	struct fc_lport *lport = port->lport;
 	struct bnx2fc_interface *interface = port->priv;
+	struct fcoe_ctlr *ctlr = bnx2fc_to_ctlr(interface);
 	struct bnx2fc_hba *hba = interface->hba;
 	struct kwqe *kwqe_arr[4];
 	struct fcoe_kwqe_conn_offload1 ofld_req1;
@@ -314,13 +315,13 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 	ofld_req4.src_mac_addr_mid[1] =  port->data_src_addr[2];
 	ofld_req4.src_mac_addr_hi[0] =  port->data_src_addr[1];
 	ofld_req4.src_mac_addr_hi[1] =  port->data_src_addr[0];
-	ofld_req4.dst_mac_addr_lo[0] =  interface->ctlr.dest_addr[5];
+	ofld_req4.dst_mac_addr_lo[0] =  ctlr->dest_addr[5];
 							/* fcf mac */
-	ofld_req4.dst_mac_addr_lo[1] =  interface->ctlr.dest_addr[4];
-	ofld_req4.dst_mac_addr_mid[0] =  interface->ctlr.dest_addr[3];
-	ofld_req4.dst_mac_addr_mid[1] =  interface->ctlr.dest_addr[2];
-	ofld_req4.dst_mac_addr_hi[0] =  interface->ctlr.dest_addr[1];
-	ofld_req4.dst_mac_addr_hi[1] =  interface->ctlr.dest_addr[0];
+	ofld_req4.dst_mac_addr_lo[1] = ctlr->dest_addr[4];
+	ofld_req4.dst_mac_addr_mid[0] = ctlr->dest_addr[3];
+	ofld_req4.dst_mac_addr_mid[1] = ctlr->dest_addr[2];
+	ofld_req4.dst_mac_addr_hi[0] = ctlr->dest_addr[1];
+	ofld_req4.dst_mac_addr_hi[1] = ctlr->dest_addr[0];
 
 	ofld_req4.lcq_addr_lo = (u32) tgt->lcq_dma;
 	ofld_req4.lcq_addr_hi = (u32)((u64) tgt->lcq_dma >> 32);
@@ -351,6 +352,7 @@ static int bnx2fc_send_session_enable_req(struct fcoe_port *port,
 {
 	struct kwqe *kwqe_arr[2];
 	struct bnx2fc_interface *interface = port->priv;
+	struct fcoe_ctlr *ctlr = bnx2fc_to_ctlr(interface);
 	struct bnx2fc_hba *hba = interface->hba;
 	struct fcoe_kwqe_conn_enable_disable enbl_req;
 	struct fc_lport *lport = port->lport;
@@ -374,12 +376,12 @@ static int bnx2fc_send_session_enable_req(struct fcoe_port *port,
 	enbl_req.src_mac_addr_hi[1] =  port->data_src_addr[0];
 	memcpy(tgt->src_addr, port->data_src_addr, ETH_ALEN);
 
-	enbl_req.dst_mac_addr_lo[0] =  interface->ctlr.dest_addr[5];
-	enbl_req.dst_mac_addr_lo[1] =  interface->ctlr.dest_addr[4];
-	enbl_req.dst_mac_addr_mid[0] =  interface->ctlr.dest_addr[3];
-	enbl_req.dst_mac_addr_mid[1] =  interface->ctlr.dest_addr[2];
-	enbl_req.dst_mac_addr_hi[0] =  interface->ctlr.dest_addr[1];
-	enbl_req.dst_mac_addr_hi[1] =  interface->ctlr.dest_addr[0];
+	enbl_req.dst_mac_addr_lo[0] =  ctlr->dest_addr[5];
+	enbl_req.dst_mac_addr_lo[1] =  ctlr->dest_addr[4];
+	enbl_req.dst_mac_addr_mid[0] = ctlr->dest_addr[3];
+	enbl_req.dst_mac_addr_mid[1] = ctlr->dest_addr[2];
+	enbl_req.dst_mac_addr_hi[0] = ctlr->dest_addr[1];
+	enbl_req.dst_mac_addr_hi[1] = ctlr->dest_addr[0];
 
 	port_id = fc_host_port_id(lport->host);
 	if (port_id != tgt->sid) {
@@ -419,6 +421,7 @@ int bnx2fc_send_session_disable_req(struct fcoe_port *port,
 				    struct bnx2fc_rport *tgt)
 {
 	struct bnx2fc_interface *interface = port->priv;
+	struct fcoe_ctlr *ctlr = bnx2fc_to_ctlr(interface);
 	struct bnx2fc_hba *hba = interface->hba;
 	struct fcoe_kwqe_conn_enable_disable disable_req;
 	struct kwqe *kwqe_arr[2];
@@ -440,12 +443,12 @@ int bnx2fc_send_session_disable_req(struct fcoe_port *port,
 	disable_req.src_mac_addr_hi[0] =  tgt->src_addr[1];
 	disable_req.src_mac_addr_hi[1] =  tgt->src_addr[0];
 
-	disable_req.dst_mac_addr_lo[0] =  interface->ctlr.dest_addr[5];
-	disable_req.dst_mac_addr_lo[1] =  interface->ctlr.dest_addr[4];
-	disable_req.dst_mac_addr_mid[0] =  interface->ctlr.dest_addr[3];
-	disable_req.dst_mac_addr_mid[1] =  interface->ctlr.dest_addr[2];
-	disable_req.dst_mac_addr_hi[0] =  interface->ctlr.dest_addr[1];
-	disable_req.dst_mac_addr_hi[1] =  interface->ctlr.dest_addr[0];
+	disable_req.dst_mac_addr_lo[0] =  ctlr->dest_addr[5];
+	disable_req.dst_mac_addr_lo[1] =  ctlr->dest_addr[4];
+	disable_req.dst_mac_addr_mid[0] = ctlr->dest_addr[3];
+	disable_req.dst_mac_addr_mid[1] = ctlr->dest_addr[2];
+	disable_req.dst_mac_addr_hi[0] = ctlr->dest_addr[1];
+	disable_req.dst_mac_addr_hi[1] = ctlr->dest_addr[0];
 
 	port_id = tgt->sid;
 	disable_req.s_id[0] = (port_id & 0x000000FF);
@@ -1716,15 +1719,19 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 
 	/* Tx only */
 	bd_count = bd_tbl->bd_valid;
+	cached_sge = &task->rxwr_only.union_ctx.read_info.sgl_ctx.cached_sge;
 	if (task_type == FCOE_TASK_TYPE_WRITE) {
 		if ((dev_type == TYPE_DISK) && (bd_count == 1)) {
 			struct fcoe_bd_ctx *fcoe_bd_tbl = bd_tbl->bd_tbl;
 
 			task->txwr_only.sgl_ctx.cached_sge.cur_buf_addr.lo =
+			cached_sge->cur_buf_addr.lo =
 					fcoe_bd_tbl->buf_addr_lo;
 			task->txwr_only.sgl_ctx.cached_sge.cur_buf_addr.hi =
+			cached_sge->cur_buf_addr.hi =
 					fcoe_bd_tbl->buf_addr_hi;
 			task->txwr_only.sgl_ctx.cached_sge.cur_buf_rem =
+			cached_sge->cur_buf_rem =
 					fcoe_bd_tbl->buf_len;
 
 			task->txwr_rxrd.const_ctx.init_flags |= 1 <<
@@ -1790,11 +1797,13 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 	task->rxwr_txrd.var_ctx.rx_id = 0xffff;
 
 	/* Rx Only */
-	cached_sge = &task->rxwr_only.union_ctx.read_info.sgl_ctx.cached_sge;
+	if (task_type != FCOE_TASK_TYPE_READ)
+		return;
+
 	sgl = &task->rxwr_only.union_ctx.read_info.sgl_ctx.sgl;
 	bd_count = bd_tbl->bd_valid;
-	if (task_type == FCOE_TASK_TYPE_READ &&
-	    dev_type == TYPE_DISK) {
+
+	if (dev_type == TYPE_DISK) {
 		if (bd_count == 1) {
 
 			struct fcoe_bd_ctx *fcoe_bd_tbl = bd_tbl->bd_tbl;

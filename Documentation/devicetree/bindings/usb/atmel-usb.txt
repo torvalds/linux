@@ -1,0 +1,49 @@
+Atmel SOC USB controllers
+
+OHCI
+
+Required properties:
+ - compatible: Should be "atmel,at91rm9200-ohci" for USB controllers
+   used in host mode.
+ - num-ports: Number of ports.
+ - atmel,vbus-gpio: If present, specifies a gpio that needs to be
+   activated for the bus to be powered.
+ - atmel,oc-gpio: If present, specifies a gpio that needs to be
+   activated for the overcurrent detection.
+
+usb0: ohci@00500000 {
+	compatible = "atmel,at91rm9200-ohci", "usb-ohci";
+	reg = <0x00500000 0x100000>;
+	interrupts = <20 4>;
+	num-ports = <2>;
+};
+
+EHCI
+
+Required properties:
+ - compatible: Should be "atmel,at91sam9g45-ehci" for USB controllers
+   used in host mode.
+
+usb1: ehci@00800000 {
+	compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
+	reg = <0x00800000 0x100000>;
+	interrupts = <22 4>;
+};
+
+AT91 USB device controller
+
+Required properties:
+ - compatible: Should be "atmel,at91rm9200-udc"
+ - reg: Address and length of the register set for the device
+ - interrupts: Should contain macb interrupt
+
+Optional properties:
+ - atmel,vbus-gpio: If present, specifies a gpio that needs to be
+   activated for the bus to be powered.
+
+usb1: gadget@fffa4000 {
+	compatible = "atmel,at91rm9200-udc";
+	reg = <0xfffa4000 0x4000>;
+	interrupts = <10 4>;
+	atmel,vbus-gpio = <&pioC 5 0>;
+};

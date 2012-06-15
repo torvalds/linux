@@ -29,6 +29,7 @@
 #include <asm/sysinfo.h>
 #include <asm/cpcmd.h>
 #include <asm/sclp.h>
+#include <asm/facility.h>
 #include "entry.h"
 
 /*
@@ -236,7 +237,7 @@ static noinline __init void detect_machine_type(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
-static __init void early_pgm_check_handler(void)
+static void early_pgm_check_handler(void)
 {
 	unsigned long addr;
 	const struct exception_table_entry *fixup;
@@ -262,25 +263,8 @@ static noinline __init void setup_lowcore_early(void)
 
 static noinline __init void setup_facility_list(void)
 {
-	unsigned long nr;
-
-	S390_lowcore.stfl_fac_list = 0;
-	asm volatile(
-		"	.insn	s,0xb2b10000,0(0)\n" /* stfl */
-		"0:\n"
-		EX_TABLE(0b,0b) : "=m" (S390_lowcore.stfl_fac_list));
-	memcpy(&S390_lowcore.stfle_fac_list, &S390_lowcore.stfl_fac_list, 4);
-	nr = 4;				/* # bytes stored by stfl */
-	if (test_facility(7)) {
-		/* More facility bits available with stfle */
-		register unsigned long reg0 asm("0") = MAX_FACILITY_BIT/64 - 1;
-		asm volatile(".insn s,0xb2b00000,%0" /* stfle */
-			     : "=m" (S390_lowcore.stfle_fac_list), "+d" (reg0)
-			     : : "cc");
-		nr = (reg0 + 1) * 8;	/* # bytes stored by stfle */
-	}
-	memset((char *) S390_lowcore.stfle_fac_list + nr, 0,
-	       MAX_FACILITY_BIT/8 - nr);
+	stfle(S390_lowcore.stfle_fac_list,
+	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 }
 
 static noinline __init void setup_hpage(void)
@@ -390,8 +374,6 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
-	if (test_facility(25))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_STCKF;
 #endif
 }
 

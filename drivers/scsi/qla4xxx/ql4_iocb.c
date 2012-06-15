@@ -445,3 +445,95 @@ queuing_error:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return ret;
 }
+
+static struct mrb *qla4xxx_get_new_mrb(struct scsi_qla_host *ha)
+{
+	struct mrb *mrb;
+
+	mrb = kzalloc(sizeof(*mrb), GFP_KERNEL);
+	if (!mrb)
+		return mrb;
+
+	mrb->ha = ha;
+	return mrb;
+}
+
+static int qla4xxx_send_mbox_iocb(struct scsi_qla_host *ha, struct mrb *mrb,
+				  uint32_t *in_mbox)
+{
+	int rval = QLA_SUCCESS;
+	uint32_t i;
+	unsigned long flags;
+	uint32_t index = 0;
+
+	/* Acquire hardware specific lock */
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	/* Get pointer to the queue entry for the marker */
+	rval = qla4xxx_get_req_pkt(ha, (struct queue_entry **) &(mrb->mbox));
+	if (rval != QLA_SUCCESS)
+		goto exit_mbox_iocb;
+
+	index = ha->mrb_index;
+	/* get valid mrb index*/
+	for (i = 0; i < MAX_MRB; i++) {
+		index++;
+		if (index == MAX_MRB)
+			index = 1;
+		if (ha->active_mrb_array[index] == NULL) {
+			ha->mrb_index = index;
+			break;
+		}
+	}
+
+	mrb->iocb_cnt = 1;
+	ha->active_mrb_array[index] = mrb;
+	mrb->mbox->handle = index;
+	mrb->mbox->hdr.entryType = ET_MBOX_CMD;
+	mrb->mbox->hdr.entryCount = mrb->iocb_cnt;
+	memcpy(mrb->mbox->in_mbox, in_mbox, 32);
+	mrb->mbox_cmd = in_mbox[0];
+	wmb();
+
+	ha->isp_ops->queue_iocb(ha);
+exit_mbox_iocb:
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	return rval;
+}
+
+int qla4xxx_ping_iocb(struct scsi_qla_host *ha, uint32_t options,
+		      uint32_t payload_size, uint32_t pid, uint8_t *ipaddr)
+{
+	uint32_t in_mbox[8];
+	struct mrb *mrb = NULL;
+	int rval = QLA_SUCCESS;
+
+	memset(in_mbox, 0, sizeof(in_mbox));
+
+	mrb = qla4xxx_get_new_mrb(ha);
+	if (!mrb) {
+		DEBUG2(ql4_printk(KERN_WARNING, ha, "%s: fail to get new mrb\n",
+				  __func__));
+		rval = QLA_ERROR;
+		goto exit_ping;
+	}
+
+	in_mbox[0] = MBOX_CMD_PING;
+	in_mbox[1] = options;
+	memcpy(&in_mbox[2], &ipaddr[0], 4);
+	memcpy(&in_mbox[3], &ipaddr[4], 4);
+	memcpy(&in_mbox[4], &ipaddr[8], 4);
+	memcpy(&in_mbox[5], &ipaddr[12], 4);
+	in_mbox[6] = payload_size;
+
+	mrb->pid = pid;
+	rval = qla4xxx_send_mbox_iocb(ha, mrb, in_mbox);
+
+	if (rval != QLA_SUCCESS)
+		goto exit_ping;
+
+	return rval;
+exit_ping:
+	kfree(mrb);
+	return rval;
+}

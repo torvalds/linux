@@ -1,0 +1,200 @@
+/*
+ * ARM Ltd. Versatile Express
+ *
+ * Motherboard Express uATX
+ * V2M-P1
+ *
+ * HBI-0190D
+ *
+ * Original memory map ("Legacy memory map" in the board's
+ * Technical Reference Manual)
+ *
+ * WARNING! The hardware described in this file is independent from the
+ * RS1 variant (vexpress-v2m-rs1.dtsi), but there is a strong
+ * correspondence between the two configurations.
+ *
+ * TAKE CARE WHEN MAINTAINING THIS FILE TO PROPAGATE ANY RELEVANT
+ * CHANGES TO vexpress-v2m-rs1.dtsi!
+ */
+
+/ {
+	aliases {
+		arm,v2m_timer = &v2m_timer01;
+	};
+
+	motherboard {
+		compatible = "simple-bus";
+		#address-cells = <2>; /* SMB chipselect number and offset */
+		#size-cells = <1>;
+		#interrupt-cells = <1>;
+
+		flash@0,00000000 {
+			compatible = "arm,vexpress-flash", "cfi-flash";
+			reg = <0 0x00000000 0x04000000>,
+			      <1 0x00000000 0x04000000>;
+			bank-width = <4>;
+		};
+
+		psram@2,00000000 {
+			compatible = "arm,vexpress-psram", "mtd-ram";
+			reg = <2 0x00000000 0x02000000>;
+			bank-width = <4>;
+		};
+
+		vram@3,00000000 {
+			compatible = "arm,vexpress-vram";
+			reg = <3 0x00000000 0x00800000>;
+		};
+
+		ethernet@3,02000000 {
+			compatible = "smsc,lan9118", "smsc,lan9115";
+			reg = <3 0x02000000 0x10000>;
+			interrupts = <15>;
+			phy-mode = "mii";
+			reg-io-width = <4>;
+			smsc,irq-active-high;
+			smsc,irq-push-pull;
+		};
+
+		usb@3,03000000 {
+			compatible = "nxp,usb-isp1761";
+			reg = <3 0x03000000 0x20000>;
+			interrupts = <16>;
+			port1-otg;
+		};
+
+		iofpga@7,00000000 {
+			compatible = "arm,amba-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 7 0 0x20000>;
+
+			sysreg@00000 {
+				compatible = "arm,vexpress-sysreg";
+				reg = <0x00000 0x1000>;
+			};
+
+			sysctl@01000 {
+				compatible = "arm,sp810", "arm,primecell";
+				reg = <0x01000 0x1000>;
+			};
+
+			/* PCI-E I2C bus */
+			v2m_i2c_pcie: i2c@02000 {
+				compatible = "arm,versatile-i2c";
+				reg = <0x02000 0x1000>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pcie-switch@60 {
+					compatible = "idt,89hpes32h8";
+					reg = <0x60>;
+				};
+			};
+
+			aaci@04000 {
+				compatible = "arm,pl041", "arm,primecell";
+				reg = <0x04000 0x1000>;
+				interrupts = <11>;
+			};
+
+			mmci@05000 {
+				compatible = "arm,pl180", "arm,primecell";
+				reg = <0x05000 0x1000>;
+				interrupts = <9 10>;
+			};
+
+			kmi@06000 {
+				compatible = "arm,pl050", "arm,primecell";
+				reg = <0x06000 0x1000>;
+				interrupts = <12>;
+			};
+
+			kmi@07000 {
+				compatible = "arm,pl050", "arm,primecell";
+				reg = <0x07000 0x1000>;
+				interrupts = <13>;
+			};
+
+			v2m_serial0: uart@09000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x09000 0x1000>;
+				interrupts = <5>;
+			};
+
+			v2m_serial1: uart@0a000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x0a000 0x1000>;
+				interrupts = <6>;
+			};
+
+			v2m_serial2: uart@0b000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x0b000 0x1000>;
+				interrupts = <7>;
+			};
+
+			v2m_serial3: uart@0c000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x0c000 0x1000>;
+				interrupts = <8>;
+			};
+
+			wdt@0f000 {
+				compatible = "arm,sp805", "arm,primecell";
+				reg = <0x0f000 0x1000>;
+				interrupts = <0>;
+			};
+
+			v2m_timer01: timer@11000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0x11000 0x1000>;
+				interrupts = <2>;
+			};
+
+			v2m_timer23: timer@12000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0x12000 0x1000>;
+			};
+
+			/* DVI I2C bus */
+			v2m_i2c_dvi: i2c@16000 {
+				compatible = "arm,versatile-i2c";
+				reg = <0x16000 0x1000>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dvi-transmitter@39 {
+					compatible = "sil,sii9022-tpi", "sil,sii9022";
+					reg = <0x39>;
+				};
+
+				dvi-transmitter@60 {
+					compatible = "sil,sii9022-cpi", "sil,sii9022";
+					reg = <0x60>;
+				};
+			};
+
+			rtc@17000 {
+				compatible = "arm,pl031", "arm,primecell";
+				reg = <0x17000 0x1000>;
+				interrupts = <4>;
+			};
+
+			compact-flash@1a000 {
+				compatible = "arm,vexpress-cf", "ata-generic";
+				reg = <0x1a000 0x100
+				       0x1a100 0xf00>;
+				reg-shift = <2>;
+			};
+
+			clcd@1f000 {
+				compatible = "arm,pl111", "arm,primecell";
+				reg = <0x1f000 0x1000>;
+				interrupts = <14>;
+			};
+		};
+	};
+};

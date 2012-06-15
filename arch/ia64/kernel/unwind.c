@@ -41,7 +41,6 @@
 #include <asm/ptrace_offsets.h>
 #include <asm/rse.h>
 #include <asm/sections.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #include "entry.h"

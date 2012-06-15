@@ -41,6 +41,7 @@
 #include <asm/udbg.h>
 #include <asm/smp.h>
 #include <asm/trace.h>
+#include <asm/firmware.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"

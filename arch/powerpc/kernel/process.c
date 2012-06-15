@@ -41,14 +41,16 @@
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
+#include <asm/runlatch.h>
 #include <asm/syscalls.h>
+#include <asm/switch_to.h>
+#include <asm/debug.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #endif
@@ -122,7 +124,7 @@ void enable_kernel_altivec(void)
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC))
 		giveup_altivec(current);
 	else
-		giveup_altivec(NULL);	/* just enable AltiVec for kernel - force */
+		giveup_altivec_notask();
 #else
 	giveup_altivec(last_task_used_altivec);
 #endif /* CONFIG_SMP */
@@ -647,6 +649,9 @@ void show_regs(struct pt_regs * regs)
 	printk("MSR: "REG" ", regs->msr);
 	printbits(regs->msr, msr_bits);
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
+#ifdef CONFIG_PPC64
+	printk("SOFTE: %ld\n", regs->softe);
+#endif
 	trap = TRAP(regs);
 	if ((regs->trap != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
 		printk("CFAR: "REG"\n", regs->orig_gpr3);
@@ -706,18 +711,21 @@ release_thread(struct task_struct *t)
 }
 
 /*
- * This gets called before we allocate a new thread and copy
- * the current task into it.
+ * this gets called so that we can store coprocessor state into memory and
+ * copy the current task into the new thread.
  */
-void prepare_to_copy(struct task_struct *tsk)
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
-	flush_vsx_to_thread(current);
-	flush_spe_to_thread(current);
+	flush_fp_to_thread(src);
+	flush_altivec_to_thread(src);
+	flush_vsx_to_thread(src);
+	flush_spe_to_thread(src);
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-	flush_ptrace_hw_breakpoint(tsk);
+	flush_ptrace_hw_breakpoint(src);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
+
+	*dst = *src;
+	return 0;
 }
 
 /*
@@ -1220,65 +1228,32 @@ void dump_stack(void)
 EXPORT_SYMBOL(dump_stack);
 
 #ifdef CONFIG_PPC64
-void ppc64_runlatch_on(void)
+/* Called with hard IRQs off */
+void __ppc64_runlatch_on(void)
 {
+	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;
 
-	if (cpu_has_feature(CPU_FTR_CTRL) && !test_thread_flag(TIF_RUNLATCH)) {
-		HMT_medium();
+	ctrl = mfspr(SPRN_CTRLF);
+	ctrl |= CTRL_RUNLATCH;
+	mtspr(SPRN_CTRLT, ctrl);
 
-		ctrl = mfspr(SPRN_CTRLF);
-		ctrl |= CTRL_RUNLATCH;
-		mtspr(SPRN_CTRLT, ctrl);
-
-		set_thread_flag(TIF_RUNLATCH);
-	}
+	ti->local_flags |= _TLF_RUNLATCH;
 }
 
+/* Called with hard IRQs off */
 void __ppc64_runlatch_off(void)
 {
+	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;
 
-	HMT_medium();
-
-	clear_thread_flag(TIF_RUNLATCH);
+	ti->local_flags &= ~_TLF_RUNLATCH;
 
 	ctrl = mfspr(SPRN_CTRLF);
 	ctrl &= ~CTRL_RUNLATCH;
 	mtspr(SPRN_CTRLT, ctrl);
 }
-#endif
-
-#if THREAD_SHIFT < PAGE_SHIFT
-
-static struct kmem_cache *thread_info_cache;
-
-struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node)
-{
-	struct thread_info *ti;
-
-	ti = kmem_cache_alloc_node(thread_info_cache, GFP_KERNEL, node);
-	if (unlikely(ti == NULL))
-		return NULL;
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	memset(ti, 0, THREAD_SIZE);
-#endif
-	return ti;
-}
-
-void free_thread_info(struct thread_info *ti)
-{
-	kmem_cache_free(thread_info_cache, ti);
-}
-
-void thread_info_cache_init(void)
-{
-	thread_info_cache = kmem_cache_create("thread_info", THREAD_SIZE,
-					      THREAD_SIZE, 0, NULL);
-	BUG_ON(thread_info_cache == NULL);
-}
-
-#endif /* THREAD_SHIFT < PAGE_SHIFT */
+#endif /* CONFIG_PPC64 */
 
 unsigned long arch_align_stack(unsigned long sp)
 {

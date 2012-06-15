@@ -538,14 +538,12 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (IS_ERR(root))
 		goto error;
 
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		goto error_i;
+		goto error;
 
 	return 0;
 
-error_i:
-	iput(root);
 error:
 	return -EINVAL;
 error_rsb_inval:

@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/apm-emulation.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>

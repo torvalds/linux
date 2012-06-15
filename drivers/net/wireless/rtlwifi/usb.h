@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2011  Realtek Corporation. All rights reserved.
+ * Copyright(c) 2009-2012  Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -28,7 +28,6 @@
 #ifndef __RTL_USB_H__
 #define __RTL_USB_H__
 
-#include <linux/usb.h>
 #include <linux/skbuff.h>
 
 #define RTL_RX_DESC_SIZE		24

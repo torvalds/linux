@@ -1025,8 +1025,6 @@ static int ov5642_probe(struct i2c_client *client,
 	priv->crop_rect.height	= OV5642_DEFAULT_HEIGHT;
 	priv->crop_rect.left	= (OV5642_MAX_WIDTH - OV5642_DEFAULT_WIDTH) / 2;
 	priv->crop_rect.top	= (OV5642_MAX_HEIGHT - OV5642_DEFAULT_HEIGHT) / 2;
-	priv->crop_rect.width	= OV5642_DEFAULT_WIDTH;
-	priv->crop_rect.height	= OV5642_DEFAULT_HEIGHT;
 	priv->total_width = OV5642_DEFAULT_WIDTH + BLANKING_EXTRA_WIDTH;
 	priv->total_height = BLANKING_MIN_HEIGHT;
 
@@ -1068,18 +1066,7 @@ static struct i2c_driver ov5642_i2c_driver = {
 	.id_table	= ov5642_id,
 };
 
-static int __init ov5642_mod_init(void)
-{
-	return i2c_add_driver(&ov5642_i2c_driver);
-}
-
-static void __exit ov5642_mod_exit(void)
-{
-	i2c_del_driver(&ov5642_i2c_driver);
-}
-
-module_init(ov5642_mod_init);
-module_exit(ov5642_mod_exit);
+module_i2c_driver(ov5642_i2c_driver);
 
 MODULE_DESCRIPTION("Omnivision OV5642 Camera driver");
 MODULE_AUTHOR("Bastian Hecht <hechtb@gmail.com>");

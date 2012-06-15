@@ -162,9 +162,7 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	int word_len = 0;
-
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 
 	/* bit size */
 	switch (params_format(params)) {
@@ -277,7 +275,7 @@ static int ad1836_probe(struct snd_soc_codec *codec)
 	if (ad1836->type == AD1836) {
 		/* left/right diff:PGA/MUX */
 		snd_soc_write(codec, AD1836_ADC_CTRL3, 0x3A);
-		ret = snd_soc_add_controls(codec, ad1836_controls,
+		ret = snd_soc_add_codec_controls(codec, ad1836_controls,
 				ARRAY_SIZE(ad1836_controls));
 		if (ret)
 			return ret;
@@ -285,11 +283,11 @@ static int ad1836_probe(struct snd_soc_codec *codec)
 		snd_soc_write(codec, AD1836_ADC_CTRL3, 0x00);
 	}
 
-	ret = snd_soc_add_controls(codec, ad183x_dac_controls, num_dacs * 2);
+	ret = snd_soc_add_codec_controls(codec, ad183x_dac_controls, num_dacs * 2);
 	if (ret)
 		return ret;
 
-	ret = snd_soc_add_controls(codec, ad183x_adc_controls, num_adcs);
+	ret = snd_soc_add_codec_controls(codec, ad183x_adc_controls, num_adcs);
 	if (ret)
 		return ret;
 

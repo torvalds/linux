@@ -37,17 +37,13 @@
 #include <linux/io.h>
 #include <asm/mmu.h>
 #include <asm/sections.h>
+#include <asm/fixmap.h>
 
 #define flush_HPTE(X, va, pg)	_tlbie(va)
 
 unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);
-
-/* The maximum lowmem defaults to 768Mb, but this can be configured to
- * another value.
- */
-#define MAX_LOW_MEM	CONFIG_LOWMEM_SIZE
 
 #ifndef CONFIG_SMP
 struct pgtable_cache_struct quicklists;
@@ -80,7 +76,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		!(p >= virt_to_phys((unsigned long)&__bss_stop) &&
 		p < virt_to_phys((unsigned long)__bss_stop))) {
 		printk(KERN_WARNING "__ioremap(): phys addr "PTE_FMT
-			" is RAM lr %p\n", (unsigned long)p,
+			" is RAM lr %pf\n", (unsigned long)p,
 			__builtin_return_address(0));
 		return NULL;
 	}
@@ -171,7 +167,7 @@ void __init mapin_ram(void)
 
 	v = CONFIG_KERNEL_START;
 	p = memory_start;
-	for (s = 0; s < memory_size; s += PAGE_SIZE) {
+	for (s = 0; s < lowmem_size; s += PAGE_SIZE) {
 		f = _PAGE_PRESENT | _PAGE_ACCESSED |
 				_PAGE_SHARED | _PAGE_HWEXEC;
 		if ((char *) v < _stext || (char *) v >= _etext)
@@ -253,4 +249,14 @@ __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 			clear_page(pte);
 	}
 	return pte;
+}
+
+void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
+{
+	unsigned long address = __fix_to_virt(idx);
+
+	if (idx >= __end_of_fixed_addresses)
+		BUG();
+
+	map_page(address, phys, pgprot_val(flags));
 }

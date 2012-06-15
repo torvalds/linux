@@ -628,7 +628,7 @@ static int ak4671_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	snd_soc_add_controls(codec, ak4671_snd_controls,
+	snd_soc_add_codec_controls(codec, ak4671_snd_controls,
 			     ARRAY_SIZE(ak4671_snd_controls));
 
 	ak4671_set_bias_level(codec, SND_SOC_BIAS_STANDBY);

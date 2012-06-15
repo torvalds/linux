@@ -355,7 +355,7 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 
 	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	snd_soc_add_controls(codec, stac9766_snd_ac97_controls,
+	snd_soc_add_codec_controls(codec, stac9766_snd_ac97_controls,
 			     ARRAY_SIZE(stac9766_snd_ac97_controls));
 
 	return 0;

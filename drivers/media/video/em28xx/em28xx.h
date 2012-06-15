@@ -125,6 +125,9 @@
 #define EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C	  81
 #define EM2884_BOARD_CINERGY_HTC_STICK		  82
 #define EM2860_BOARD_HT_VIDBOX_NW03 		  83
+#define EM2874_BOARD_MAXMEDIA_UB425_TC            84
+#define EM2884_BOARD_PCTV_510E                    85
+#define EM2884_BOARD_PCTV_520E                    86
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -151,12 +154,14 @@
 
 /* number of buffers for isoc transfers */
 #define EM28XX_NUM_BUFS 5
+#define EM28XX_DVB_NUM_BUFS 5
 
 /* number of packets for each buffer
    windows requests only 64 packets .. so we better do the same
    this is what I found out for all alternate numbers there!
  */
 #define EM28XX_NUM_PACKETS 64
+#define EM28XX_DVB_MAX_PACKETS 64
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
@@ -197,9 +202,12 @@ enum em28xx_mode {
 
 struct em28xx;
 
-struct em28xx_usb_isoc_ctl {
+struct em28xx_usb_isoc_bufs {
 		/* max packet size of isoc transaction */
 	int				max_pkt_size;
+
+		/* number of packets in each buffer */
+	int				num_packets;
 
 		/* number of allocated urbs */
 	int				num_bufs;
@@ -209,24 +217,18 @@ struct em28xx_usb_isoc_ctl {
 
 		/* transfer buffers for isoc transfer */
 	char				**transfer_buffer;
+};
 
-		/* Last buffer command and region */
-	u8				cmd;
-	int				pos, size, pktsize;
+struct em28xx_usb_isoc_ctl {
+		/* isoc transfer buffers for analog mode */
+	struct em28xx_usb_isoc_bufs	analog_bufs;
 
-		/* Last field: ODD or EVEN? */
-	int				field;
-
-		/* Stores incomplete commands */
-	u32				tmp_buf;
-	int				tmp_buf_len;
+		/* isoc transfer buffers for digital mode */
+	struct em28xx_usb_isoc_bufs	digital_bufs;
 
 		/* Stores already requested buffers */
 	struct em28xx_buffer    	*vid_buf;
 	struct em28xx_buffer    	*vbi_buf;
-
-		/* Stores the number of received fields */
-	int				nfields;
 
 		/* isoc urb callback */
 	int (*isoc_copy) (struct em28xx *dev, struct urb *urb);
@@ -248,24 +250,15 @@ struct em28xx_buffer {
 
 	struct list_head frame;
 	int top_field;
-	int receiving;
 };
 
 struct em28xx_dmaqueue {
 	struct list_head       active;
-	struct list_head       queued;
 
 	wait_queue_head_t          wq;
 
 	/* Counters to control buffer fill */
 	int                        pos;
-};
-
-/* io methods */
-enum em28xx_io_method {
-	IO_NONE,
-	IO_READ,
-	IO_MMAP,
 };
 
 /* inputs */
@@ -451,6 +444,7 @@ enum em28xx_dev_state {
 /* em28xx extensions */
 #define EM28XX_AUDIO   0x10
 #define EM28XX_DVB     0x20
+#define EM28XX_RC      0x30
 
 /* em28xx resource types (used for res_get/res_lock etc */
 #define EM28XX_RESOURCE_VIDEO 0x01
@@ -561,7 +555,6 @@ struct em28xx {
 
 	/* states */
 	enum em28xx_dev_state state;
-	enum em28xx_io_method io;
 
 	/* vbi related state tracking */
 	int capture_type;
@@ -577,7 +570,6 @@ struct em28xx {
 	struct mutex ctrl_urb_lock;	/* protects urb_buf */
 	/* spinlock_t queue_lock; */
 	struct list_head inqueue, outqueue;
-	wait_queue_head_t open, wait_frame, wait_stream;
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
 
@@ -600,9 +592,6 @@ struct em28xx {
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	int dvb_alt;				/* alternate for DVB */
 	unsigned int dvb_max_pkt_size;		/* wMaxPacketSize for DVB */
-	struct urb *urb[EM28XX_NUM_BUFS];	/* urb for isoc transfers */
-	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc
-						   transfer */
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */
@@ -676,10 +665,13 @@ int em28xx_vbi_supported(struct em28xx *dev);
 int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
-int em28xx_init_isoc(struct em28xx *dev, int max_packets,
-		     int num_bufs, int max_pkt_size,
+int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
+		      int max_packets, int num_bufs, int max_pkt_size);
+int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
+		     int max_packets, int num_bufs, int max_pkt_size,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
-void em28xx_uninit_isoc(struct em28xx *dev);
+void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode);
+void em28xx_stop_urbs(struct em28xx *dev);
 int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
@@ -695,44 +687,11 @@ void em28xx_release_analog_resources(struct em28xx *dev);
 
 /* Provided by em28xx-cards.c */
 extern int em2800_variant_detect(struct usb_device *udev, int model);
-extern void em28xx_pre_card_setup(struct em28xx *dev);
-extern void em28xx_card_setup(struct em28xx *dev);
 extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
-void em28xx_register_i2c_ir(struct em28xx *dev);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
-
-/* Provided by em28xx-input.c */
-
-#ifdef CONFIG_VIDEO_EM28XX_RC
-
-int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
-int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
-int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
-				     u32 *ir_raw);
-int em28xx_get_key_winfast_usbii_deluxe(struct IR_i2c *ir, u32 *ir_key,
-				     u32 *ir_raw);
-void em28xx_register_snapshot_button(struct em28xx *dev);
-void em28xx_deregister_snapshot_button(struct em28xx *dev);
-
-int em28xx_ir_init(struct em28xx *dev);
-int em28xx_ir_fini(struct em28xx *dev);
-
-#else
-
-#define em28xx_get_key_terratec			NULL
-#define em28xx_get_key_em_haup			NULL
-#define em28xx_get_key_pinnacle_usb_grey	NULL
-#define em28xx_get_key_winfast_usbii_deluxe	NULL
-
-static inline void em28xx_register_snapshot_button(struct em28xx *dev) {}
-static inline void em28xx_deregister_snapshot_button(struct em28xx *dev) {}
-static inline int em28xx_ir_init(struct em28xx *dev) { return 0; }
-static inline int em28xx_ir_fini(struct em28xx *dev) { return 0; }
-
-#endif
 
 /* Provided by em28xx-vbi.c */
 extern struct videobuf_queue_ops em28xx_vbi_qops;

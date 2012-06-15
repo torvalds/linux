@@ -242,6 +242,7 @@ struct usbhs_priv {
 
 	void __iomem *base;
 	unsigned int irq;
+	unsigned long irqflags;
 
 	struct renesas_usbhs_platform_callback	pfunc;
 	struct renesas_usbhs_driver_param	dparam;

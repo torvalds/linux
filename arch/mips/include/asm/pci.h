@@ -17,6 +17,7 @@
  */
 
 #include <linux/ioport.h>
+#include <linux/of.h>
 
 /*
  * Each pci channel is a top-level PCI bus seem by CPU.  A machine  with
@@ -26,6 +27,7 @@
 struct pci_controller {
 	struct pci_controller *next;
 	struct pci_bus *bus;
+	struct device_node *of_node;
 
 	struct pci_ops *pci_ops;
 	struct resource *mem_resource;
@@ -92,6 +94,7 @@ extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 #include <asm/scatterlist.h>
 #include <linux/string.h>
 #include <asm/io.h>
+#include <asm-generic/pci-bridge.h>
 
 struct pci_dev;
 
@@ -111,12 +114,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strategy_parameter = ~0UL;
 }
 #endif
-
-extern void pcibios_resource_to_bus(struct pci_dev *dev,
-	struct pci_bus_region *region, struct resource *res);
-
-extern void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-				    struct pci_bus_region *region);
 
 #define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index
 
@@ -145,8 +142,10 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 #define arch_setup_msi_irqs arch_setup_msi_irqs
 #endif
 
-extern int pci_probe_only;
-
 extern char * (*pcibios_plat_setup)(char *str);
+
+/* this function parses memory ranges from a device node */
+extern void __devinit pci_load_of_ranges(struct pci_controller *hose,
+					 struct device_node *node);
 
 #endif /* _ASM_PCI_H */

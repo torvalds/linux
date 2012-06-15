@@ -2,6 +2,10 @@ Kernel driver adm1275
 =====================
 
 Supported chips:
+  * Analog Devices ADM1075
+    Prefix: 'adm1075'
+    Addresses scanned: -
+    Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1075.pdf
   * Analog Devices ADM1275
     Prefix: 'adm1275'
     Addresses scanned: -
@@ -17,13 +21,13 @@ Author: Guenter Roeck <guenter.roeck@ericsson.com>
 Description
 -----------
 
-This driver supports hardware montoring for Analog Devices ADM1275 and ADM1276
-Hot-Swap Controller and Digital Power Monitor.
+This driver supports hardware montoring for Analog Devices ADM1075, ADM1275,
+and ADM1276 Hot-Swap Controller and Digital Power Monitor.
 
-ADM1275 and ADM1276 are hot-swap controllers that allow a circuit board to be
-removed from or inserted into a live backplane. They also feature current and
-voltage readback via an integrated 12-bit analog-to-digital converter (ADC),
-accessed using a PMBus interface.
+ADM1075, ADM1275, and ADM1276 are hot-swap controllers that allow a circuit
+board to be removed from or inserted into a live backplane. They also feature
+current and voltage readback via an integrated 12-bit analog-to-digital
+converter (ADC), accessed using a PMBus interface.
 
 The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus for details on PMBus client drivers.
@@ -35,6 +39,10 @@ Usage Notes
 This driver does not auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices for
 details.
+
+The ADM1075, unlike many other PMBus devices, does not support internal voltage
+or current scaling. Reported voltages, currents, and power are raw measurements,
+and will typically have to be scaled.
 
 
 Platform data support
@@ -51,9 +59,10 @@ The following attributes are supported. Limits are read-write, history reset
 attributes are write-only, all other attributes are read-only.
 
 in1_label		"vin1" or "vout1" depending on chip variant and
-			configuration.
+			configuration. On ADM1075, vout1 reports the voltage on
+			the VAUX pin.
 in1_input		Measured voltage.
-in1_min			Minumum Voltage.
+in1_min			Minimum Voltage.
 in1_max			Maximum voltage.
 in1_min_alarm		Voltage low alarm.
 in1_max_alarm		Voltage high alarm.
@@ -74,3 +83,10 @@ curr1_crit		Critical maximum current. Depending on the chip
 curr1_crit_alarm	Critical current high alarm.
 curr1_highest		Historical maximum current.
 curr1_reset_history	Write any value to reset history.
+
+power1_label		"pin1"
+power1_input		Input power.
+power1_reset_history	Write any value to reset history.
+
+			Power attributes are supported on ADM1075 and ADM1276
+			only.

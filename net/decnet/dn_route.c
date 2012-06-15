@@ -122,7 +122,7 @@ static int dn_route_input(struct sk_buff *);
 static void dn_run_flush(unsigned long dummy);
 
 static struct dn_rt_hash_bucket *dn_rt_hash_table;
-static unsigned dn_rt_hash_mask;
+static unsigned int dn_rt_hash_mask;
 
 static struct timer_list dn_route_timer;
 static DEFINE_TIMER(dn_rt_flush_timer, dn_run_flush, 0, 0);
@@ -149,13 +149,13 @@ static void dn_dst_destroy(struct dst_entry *dst)
 	dst_destroy_metrics_generic(dst);
 }
 
-static __inline__ unsigned dn_hash(__le16 src, __le16 dst)
+static __inline__ unsigned int dn_hash(__le16 src, __le16 dst)
 {
 	__u16 tmp = (__u16 __force)(src ^ dst);
 	tmp ^= (tmp >> 3);
 	tmp ^= (tmp >> 5);
 	tmp ^= (tmp >> 10);
-	return dn_rt_hash_mask & (unsigned)tmp;
+	return dn_rt_hash_mask & (unsigned int)tmp;
 }
 
 static inline void dnrt_free(struct dn_route *rt)
@@ -297,7 +297,7 @@ static inline int compare_keys(struct flowidn *fl1, struct flowidn *fl2)
 		(fl1->flowidn_iif ^ fl2->flowidn_iif)) == 0;
 }
 
-static int dn_insert_route(struct dn_route *rt, unsigned hash, struct dn_route **rp)
+static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_route **rp)
 {
 	struct dn_route *rth;
 	struct dn_route __rcu **rthp;
@@ -724,11 +724,10 @@ static int dn_output(struct sk_buff *skb)
 	struct dn_route *rt = (struct dn_route *)dst;
 	struct net_device *dev = dst->dev;
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
-	struct neighbour *neigh;
 
 	int err = -EINVAL;
 
-	if ((neigh = dst_get_neighbour_noref(dst)) == NULL)
+	if (dst_get_neighbour_noref(dst) == NULL)
 		goto error;
 
 	skb->dev = dev;
@@ -749,8 +748,7 @@ static int dn_output(struct sk_buff *skb)
 		       dn_to_neigh_output);
 
 error:
-	if (net_ratelimit())
-		printk(KERN_DEBUG "dn_output: This should not happen\n");
+	net_dbg_ratelimited("dn_output: This should not happen\n");
 
 	kfree_skb(skb);
 
@@ -808,12 +806,10 @@ drop:
  */
 static int dn_rt_bug(struct sk_buff *skb)
 {
-	if (net_ratelimit()) {
-		struct dn_skb_cb *cb = DN_SKB_CB(skb);
+	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 
-		printk(KERN_DEBUG "dn_rt_bug: skb from:%04x to:%04x\n",
-				le16_to_cpu(cb->src), le16_to_cpu(cb->dst));
-	}
+	net_dbg_ratelimited("dn_rt_bug: skb from:%04x to:%04x\n",
+			    le16_to_cpu(cb->src), le16_to_cpu(cb->dst));
 
 	kfree_skb(skb);
 
@@ -935,8 +931,8 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowidn *o
 	struct dn_route *rt = NULL;
 	struct net_device *dev_out = NULL, *dev;
 	struct neighbour *neigh = NULL;
-	unsigned hash;
-	unsigned flags = 0;
+	unsigned int hash;
+	unsigned int flags = 0;
 	struct dn_fib_res res = { .fi = NULL, .type = RTN_UNICAST };
 	int err;
 	int free_res = 0;
@@ -1210,7 +1206,7 @@ e_neighbour:
  */
 static int __dn_route_output_key(struct dst_entry **pprt, const struct flowidn *flp, int flags)
 {
-	unsigned hash = dn_hash(flp->saddr, flp->daddr);
+	unsigned int hash = dn_hash(flp->saddr, flp->daddr);
 	struct dn_route *rt = NULL;
 
 	if (!(flags & MSG_TRYHARD)) {
@@ -1276,7 +1272,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	struct net_device *out_dev = NULL;
 	struct dn_dev *dn_db;
 	struct neighbour *neigh = NULL;
-	unsigned hash;
+	unsigned int hash;
 	int flags = 0;
 	__le16 gateway = 0;
 	__le16 local_src = 0;
@@ -1328,9 +1324,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 
 		out_dev = DN_FIB_RES_DEV(res);
 		if (out_dev == NULL) {
-			if (net_ratelimit())
-				printk(KERN_CRIT "Bug in dn_route_input_slow() "
-						 "No output device\n");
+			net_crit_ratelimited("Bug in dn_route_input_slow() No output device\n");
 			goto e_inval;
 		}
 		dev_hold(out_dev);
@@ -1491,7 +1485,7 @@ static int dn_route_input(struct sk_buff *skb)
 {
 	struct dn_route *rt;
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
-	unsigned hash = dn_hash(cb->src, cb->dst);
+	unsigned int hash = dn_hash(cb->src, cb->dst);
 
 	if (skb_dst(skb))
 		return 0;

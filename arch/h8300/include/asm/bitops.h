@@ -7,7 +7,6 @@
  */
 
 #include <linux/compiler.h>
-#include <asm/system.h>
 
 #ifdef __KERNEL__
 

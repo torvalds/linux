@@ -55,15 +55,6 @@ static void __init neocore926_init_early(void)
 {
 	/* Initialize processor: 20 MHz crystal */
 	at91_initialize(20000000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
-	at91_register_uart(AT91SAM9263_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*
@@ -190,6 +181,7 @@ static struct atmel_nand_data __initdata neocore926_nand_data = {
 	.rdy_pin		= AT91_PIN_PB19,
 	.rdy_pin_active_low	= 1,
 	.enable_pin		= AT91_PIN_PD15,
+	.ecc_mode		= NAND_ECC_SOFT,
 	.parts			= neocore926_nand_partition,
 	.num_parts		= ARRAY_SIZE(neocore926_nand_partition),
 	.det_pin		= -EINVAL,
@@ -340,6 +332,11 @@ static struct ac97c_platform_data neocore926_ac97_data = {
 static void __init neocore926_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
+	at91_register_uart(AT91SAM9263_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
 	at91_add_device_serial();
 
 	/* USB Host */

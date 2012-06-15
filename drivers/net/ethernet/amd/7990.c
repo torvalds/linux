@@ -33,7 +33,6 @@
 #include <linux/socket.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/pgtable.h>
@@ -316,7 +315,7 @@ static int lance_rx (struct net_device *dev)
                         if (bits & LE_R1_EOP) dev->stats.rx_errors++;
                 } else {
 			int len = (rd->mblength & 0xfff) - 4;
-			struct sk_buff *skb = dev_alloc_skb (len+2);
+			struct sk_buff *skb = netdev_alloc_skb(dev, len + 2);
 
                         if (!skb) {
                                 printk ("%s: Memory squeeze, deferring packet.\n",

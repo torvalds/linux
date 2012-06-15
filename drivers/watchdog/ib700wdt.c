@@ -31,6 +31,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
@@ -44,7 +46,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 static struct platform_device *ibwdt_platform_device;
 static unsigned long ibwdt_is_open;
@@ -53,7 +54,6 @@ static char expect_close;
 
 /* Module information */
 #define DRV_NAME "ib700wdt"
-#define PFX DRV_NAME ": "
 
 /*
  *
@@ -102,8 +102,8 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 0<= timeout <=30, default="
 		__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -246,8 +246,7 @@ static int ibwdt_close(struct inode *inode, struct file *file)
 	if (expect_close == 42) {
 		ibwdt_disable();
 	} else {
-		printk(KERN_CRIT PFX
-		     "WDT device closed unexpectedly.  WDT will not stop!\n");
+		pr_crit("WDT device closed unexpectedly.  WDT will not stop!\n");
 		ibwdt_ping();
 	}
 	clear_bit(0, &ibwdt_is_open);
@@ -284,16 +283,14 @@ static int __devinit ibwdt_probe(struct platform_device *dev)
 
 #if WDT_START != WDT_STOP
 	if (!request_region(WDT_STOP, 1, "IB700 WDT")) {
-		printk(KERN_ERR PFX "STOP method I/O %X is not available.\n",
-								WDT_STOP);
+		pr_err("STOP method I/O %X is not available\n", WDT_STOP);
 		res = -EIO;
 		goto out_nostopreg;
 	}
 #endif
 
 	if (!request_region(WDT_START, 1, "IB700 WDT")) {
-		printk(KERN_ERR PFX "START method I/O %X is not available.\n",
-								WDT_START);
+		pr_err("START method I/O %X is not available\n", WDT_START);
 		res = -EIO;
 		goto out_nostartreg;
 	}
@@ -302,13 +299,12 @@ static int __devinit ibwdt_probe(struct platform_device *dev)
 	 * if not reset to the default */
 	if (ibwdt_set_heartbeat(timeout)) {
 		ibwdt_set_heartbeat(WATCHDOG_TIMEOUT);
-		printk(KERN_INFO PFX
-			"timeout value must be 0<=x<=30, using %d\n", timeout);
+		pr_info("timeout value must be 0<=x<=30, using %d\n", timeout);
 	}
 
 	res = misc_register(&ibwdt_miscdev);
 	if (res) {
-		printk(KERN_ERR PFX "failed to register misc device\n");
+		pr_err("failed to register misc device\n");
 		goto out_nomisc;
 	}
 	return 0;
@@ -353,8 +349,7 @@ static int __init ibwdt_init(void)
 {
 	int err;
 
-	printk(KERN_INFO PFX
-		"WDT driver for IB700 single board computer initialising.\n");
+	pr_info("WDT driver for IB700 single board computer initialising\n");
 
 	err = platform_driver_register(&ibwdt_driver);
 	if (err)
@@ -378,7 +373,7 @@ static void __exit ibwdt_exit(void)
 {
 	platform_device_unregister(ibwdt_platform_device);
 	platform_driver_unregister(&ibwdt_driver);
-	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
+	pr_info("Watchdog Module Unloaded\n");
 }
 
 module_init(ibwdt_init);

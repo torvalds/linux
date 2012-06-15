@@ -56,7 +56,6 @@ iq81340sc_atux_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
 }
 
 static struct hw_pci iq81340sc_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 0,
 	.setup		= iop13xx_pci_setup,
 	.scan		= iop13xx_scan_bus,
@@ -94,6 +93,7 @@ static struct sys_timer iq81340sc_timer = {
 MACHINE_START(IQ81340SC, "Intel IQ81340SC")
 	/* Maintainer: Dan Williams <dan.j.williams@intel.com> */
 	.atag_offset    = 0x100,
+	.init_early     = iop13xx_init_early,
 	.map_io         = iop13xx_map_io,
 	.init_irq       = iop13xx_init_irq,
 	.timer          = &iq81340sc_timer,

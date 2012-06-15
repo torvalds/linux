@@ -26,6 +26,8 @@
 #ifndef _BC_DTS_DEFS_H_
 #define _BC_DTS_DEFS_H_
 
+#include <linux/types.h>
+
 /* BIT Mask */
 #define BC_BIT(_x)		(1 << (_x))
 

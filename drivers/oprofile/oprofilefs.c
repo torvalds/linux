@@ -117,25 +117,17 @@ static ssize_t ulong_write_file(struct file *file, char const __user *buf, size_
 }
 
 
-static int default_open(struct inode *inode, struct file *filp)
-{
-	if (inode->i_private)
-		filp->private_data = inode->i_private;
-	return 0;
-}
-
-
 static const struct file_operations ulong_fops = {
 	.read		= ulong_read_file,
 	.write		= ulong_write_file,
-	.open		= default_open,
+	.open		= simple_open,
 	.llseek		= default_llseek,
 };
 
 
 static const struct file_operations ulong_ro_fops = {
 	.read		= ulong_read_file,
-	.open		= default_open,
+	.open		= simple_open,
 	.llseek		= default_llseek,
 };
 
@@ -187,7 +179,7 @@ static ssize_t atomic_read_file(struct file *file, char __user *buf, size_t coun
 
 static const struct file_operations atomic_ro_fops = {
 	.read		= atomic_read_file,
-	.open		= default_open,
+	.open		= simple_open,
 	.llseek		= default_llseek,
 };
 
@@ -238,7 +230,6 @@ struct dentry *oprofilefs_mkdir(struct super_block *sb,
 static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *root_inode;
-	struct dentry *root_dentry;
 
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
@@ -251,15 +242,11 @@ static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	root_inode->i_op = &simple_dir_inode_operations;
 	root_inode->i_fop = &simple_dir_operations;
-	root_dentry = d_alloc_root(root_inode);
-	if (!root_dentry) {
-		iput(root_inode);
+	sb->s_root = d_make_root(root_inode);
+	if (!sb->s_root)
 		return -ENOMEM;
-	}
 
-	sb->s_root = root_dentry;
-
-	oprofile_create_files(sb, root_dentry);
+	oprofile_create_files(sb, sb->s_root);
 
 	// FIXME: verify kill_litter_super removes our dentries
 	return 0;

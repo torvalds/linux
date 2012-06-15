@@ -38,6 +38,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/ratelimit.h>
 #include <asm/uaccess.h>
 
 #include <linux/dlm.h>
@@ -72,6 +73,13 @@ do { \
 	if (dlm_config.ci_log_debug) \
 		printk(KERN_DEBUG "dlm: %s: " fmt "\n", \
 		       (ls)->ls_name , ##args); \
+} while (0)
+
+#define log_limit(ls, fmt, args...) \
+do { \
+	if (dlm_config.ci_log_debug) \
+		printk_ratelimited(KERN_DEBUG "dlm: %s: " fmt "\n", \
+			(ls)->ls_name , ##args); \
 } while (0)
 
 #define DLM_ASSERT(x, do) \
@@ -263,6 +271,8 @@ struct dlm_lkb {
 	ktime_t			lkb_last_cast_time;	/* for debugging */
 	ktime_t			lkb_last_bast_time;	/* for debugging */
 
+	uint64_t		lkb_recover_seq; /* from ls_recover_seq */
+
 	char			*lkb_lvbptr;
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
 	void			(*lkb_astfn) (void *astparam);
@@ -317,7 +327,7 @@ enum rsb_flags {
 	RSB_NEW_MASTER,
 	RSB_NEW_MASTER2,
 	RSB_RECOVER_CONVERT,
-	RSB_LOCKS_PURGED,
+	RSB_RECOVER_GRANT,
 };
 
 static inline void rsb_set_flag(struct dlm_rsb *r, enum rsb_flags flag)
@@ -563,6 +573,7 @@ struct dlm_ls {
 	struct mutex		ls_requestqueue_mutex;
 	struct dlm_rcom		*ls_recover_buf;
 	int			ls_recover_nodeid; /* for debugging */
+	unsigned int		ls_recover_locks_in; /* for log info */
 	uint64_t		ls_rcom_seq;
 	spinlock_t		ls_rcom_spin;
 	struct list_head	ls_recover_list;
@@ -589,6 +600,7 @@ struct dlm_ls {
 #define LSFL_UEVENT_WAIT	5
 #define LSFL_TIMEWARN		6
 #define LSFL_CB_DELAY		7
+#define LSFL_NODIR		8
 
 /* much of this is just saving user space pointers associated with the
    lock that we pass back to the user lib with an ast */
@@ -636,7 +648,7 @@ static inline int dlm_recovery_stopped(struct dlm_ls *ls)
 
 static inline int dlm_no_directory(struct dlm_ls *ls)
 {
-	return (ls->ls_exflags & DLM_LSFL_NODIR) ? 1 : 0;
+	return test_bit(LSFL_NODIR, &ls->ls_flags);
 }
 
 int dlm_netlink_init(void);

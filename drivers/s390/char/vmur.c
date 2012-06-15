@@ -903,7 +903,7 @@ static int ur_set_online(struct ccw_device *cdev)
 		goto fail_urdev_put;
 	}
 
-	cdev_init(urd->char_device, &ur_fops);
+	urd->char_device->ops = &ur_fops;
 	urd->char_device->dev = MKDEV(major, minor);
 	urd->char_device->owner = ur_fops.owner;
 

@@ -63,6 +63,14 @@ void *dm_bufio_new(struct dm_bufio_client *c, sector_t block,
 		   struct dm_buffer **bp);
 
 /*
+ * Prefetch the specified blocks to the cache.
+ * The function starts to read the blocks and returns without waiting for
+ * I/O to finish.
+ */
+void dm_bufio_prefetch(struct dm_bufio_client *c,
+		       sector_t block, unsigned n_blocks);
+
+/*
  * Release a reference obtained with dm_bufio_{read,get,new}. The data
  * pointer and dm_buffer pointer is no longer valid after this call.
  */

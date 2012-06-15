@@ -18,7 +18,6 @@
 
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/string.h>
@@ -786,10 +785,8 @@ static int __init init_x25_asy(void)
 
 	x25_asy_devs = kcalloc(x25_asy_maxdev, sizeof(struct net_device *),
 				GFP_KERNEL);
-	if (!x25_asy_devs) {
-		pr_warn("Can't allocate x25_asy_ctrls[] array! Uaargh! (-> No X.25 available)\n");
+	if (!x25_asy_devs)
 		return -ENOMEM;
-	}
 
 	return tty_register_ldisc(N_X25, &x25_ldisc);
 }

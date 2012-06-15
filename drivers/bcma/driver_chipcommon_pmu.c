@@ -80,6 +80,7 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 		min_msk = 0x200D;
 		max_msk = 0xFFFF;
 		break;
+	case 0x4331:
 	case 43224:
 	case 43225:
 		break;

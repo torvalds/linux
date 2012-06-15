@@ -1,4 +1,4 @@
-/* drivers/net/ks8851.c
+/* drivers/net/ethernet/micrel/ks8851.c
  *
  * Copyright 2009 Simtec Electronics
  *	http://www.simtec.co.uk/
@@ -439,13 +439,13 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 				dev->dev_addr);
 	}
 
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 	ks8851_write_mac_addr(dev);
 }
 
 /**
  * ks8851_irq - device interrupt handler
- * @irq: Interrupt number passed from the IRQ hnalder.
+ * @irq: Interrupt number passed from the IRQ handler.
  * @pw: The private word passed to register_irq(), our struct ks8851_net.
  *
  * Disable the interrupt from happening again until we've processed the
@@ -618,10 +618,8 @@ static void ks8851_irq_work(struct work_struct *work)
 	netif_dbg(ks, intr, ks->netdev,
 		  "%s: status 0x%04x\n", __func__, status);
 
-	if (status & IRQ_LCI) {
-		/* should do something about checking link status */
+	if (status & IRQ_LCI)
 		handled |= IRQ_LCI;
-	}
 
 	if (status & IRQ_LDI) {
 		u16 pmecr = ks8851_rdreg16(ks, KS_PMECR);
@@ -683,6 +681,9 @@ static void ks8851_irq_work(struct work_struct *work)
 	}
 
 	mutex_unlock(&ks->lock);
+
+	if (status & IRQ_LCI)
+		mii_check_link(&ks->mii);
 
 	if (status & IRQ_TXI)
 		netif_wake_queue(ks->netdev);
@@ -889,16 +890,17 @@ static int ks8851_net_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	mutex_lock(&ks->lock);
+	/* turn off the IRQs and ack any outstanding */
+	ks8851_wrreg16(ks, KS_IER, 0x0000);
+	ks8851_wrreg16(ks, KS_ISR, 0xffff);
+	mutex_unlock(&ks->lock);
 
 	/* stop any outstanding work */
 	flush_work(&ks->irq_work);
 	flush_work(&ks->tx_work);
 	flush_work(&ks->rxctrl_work);
 
-	/* turn off the IRQs and ack any outstanding */
-	ks8851_wrreg16(ks, KS_IER, 0x0000);
-	ks8851_wrreg16(ks, KS_ISR, 0xffff);
-
+	mutex_lock(&ks->lock);
 	/* shutdown RX process */
 	ks8851_wrreg16(ks, KS_RXCR1, 0x0000);
 
@@ -907,6 +909,7 @@ static int ks8851_net_stop(struct net_device *dev)
 
 	/* set powermode to soft power down to save power */
 	ks8851_set_powermode(ks, PMECR_PM_SOFTDOWN);
+	mutex_unlock(&ks->lock);
 
 	/* ensure any queued tx buffers are dumped */
 	while (!skb_queue_empty(&ks->txq)) {
@@ -918,7 +921,6 @@ static int ks8851_net_stop(struct net_device *dev)
 		dev_kfree_skb(txb);
 	}
 
-	mutex_unlock(&ks->lock);
 	return 0;
 }
 
@@ -1050,6 +1052,7 @@ static int ks8851_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	return ks8851_write_mac_addr(dev);
 }
@@ -1417,12 +1420,11 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	struct net_device *ndev;
 	struct ks8851_net *ks;
 	int ret;
+	unsigned cider;
 
 	ndev = alloc_etherdev(sizeof(struct ks8851_net));
-	if (!ndev) {
-		dev_err(&spi->dev, "failed to alloc ethernet device\n");
+	if (!ndev)
 		return -ENOMEM;
-	}
 
 	spi->bits_per_word = 8;
 
@@ -1485,8 +1487,8 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	ks8851_soft_reset(ks, GRR_GSR);
 
 	/* simple check for a valid chip being connected to the bus */
-
-	if ((ks8851_rdreg16(ks, KS_CIDER) & ~CIDER_REV_MASK) != CIDER_ID) {
+	cider = ks8851_rdreg16(ks, KS_CIDER);
+	if ((cider & ~CIDER_REV_MASK) != CIDER_ID) {
 		dev_err(&spi->dev, "failed to read device ID\n");
 		ret = -ENODEV;
 		goto err_id;
@@ -1517,15 +1519,14 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	}
 
 	netdev_info(ndev, "revision %d, MAC %pM, IRQ %d, %s EEPROM\n",
-		    CIDER_REV_GET(ks8851_rdreg16(ks, KS_CIDER)),
-		    ndev->dev_addr, ndev->irq,
+		    CIDER_REV_GET(cider), ndev->dev_addr, ndev->irq,
 		    ks->rc_ccr & CCR_EEPROM ? "has" : "no");
 
 	return 0;
 
 
 err_netdev:
-	free_irq(ndev->irq, ndev);
+	free_irq(ndev->irq, ks);
 
 err_id:
 err_irq:

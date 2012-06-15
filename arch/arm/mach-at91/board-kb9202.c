@@ -38,6 +38,7 @@
 #include <mach/board.h>
 #include <mach/cpu.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91_ramc.h>
 
 #include "generic.h"
 
@@ -49,24 +50,6 @@ static void __init kb9202_init_early(void)
 
 	/* Initialize processor: 10 MHz crystal */
 	at91_initialize(10000000);
-
-	/* Set up the LEDs */
-	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1 (Rx & Tx only) */
-	at91_register_uart(AT91RM9200_ID_US0, 1, 0);
-
-	/* USART1 on ttyS2 (Rx & Tx only) - IRDA (optional) */
-	at91_register_uart(AT91RM9200_ID_US1, 2, 0);
-
-	/* USART3 on ttyS3 (Rx, Tx, CTS, RTS) - RS485 (optional) */
-	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata kb9202_eth_data = {
@@ -107,13 +90,28 @@ static struct atmel_nand_data __initdata kb9202_nand_data = {
 	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PC29,
 	.enable_pin	= AT91_PIN_PC28,
+	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= kb9202_nand_partition,
 	.num_parts	= ARRAY_SIZE(kb9202_nand_partition),
 };
 
 static void __init kb9202_board_init(void)
 {
+	/* Set up the LEDs */
+	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
+
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1 (Rx & Tx only) */
+	at91_register_uart(AT91RM9200_ID_US0, 1, 0);
+
+	/* USART1 on ttyS2 (Rx & Tx only) - IRDA (optional) */
+	at91_register_uart(AT91RM9200_ID_US1, 2, 0);
+
+	/* USART3 on ttyS3 (Rx, Tx, CTS, RTS) - RS485 (optional) */
+	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&kb9202_eth_data);

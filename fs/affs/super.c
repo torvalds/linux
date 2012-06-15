@@ -473,7 +473,7 @@ got_root:
 	root_inode = affs_iget(sb, root_block);
 	if (IS_ERR(root_inode)) {
 		ret = PTR_ERR(root_inode);
-		goto out_error_noinode;
+		goto out_error;
 	}
 
 	if (AFFS_SB(sb)->s_flags & SF_INTL)
@@ -481,7 +481,7 @@ got_root:
 	else
 		sb->s_d_op = &affs_dentry_operations;
 
-	sb->s_root = d_alloc_root(root_inode);
+	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
 		printk(KERN_ERR "AFFS: Get root inode failed\n");
 		goto out_error;
@@ -494,9 +494,6 @@ got_root:
 	 * Begin the cascaded cleanup ...
 	 */
 out_error:
-	if (root_inode)
-		iput(root_inode);
-out_error_noinode:
 	kfree(sbi->s_bitmap);
 	affs_brelse(root_bh);
 	kfree(sbi->s_prefix);

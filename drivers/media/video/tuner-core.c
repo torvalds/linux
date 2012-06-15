@@ -380,6 +380,21 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		tune_now = 0;
 		break;
 	}
+	case TUNER_XC5000C:
+	{
+		struct xc5000_config xc5000c_cfg = {
+			.i2c_address = t->i2c->addr,
+			/* if_khz will be set at dvb_attach() */
+			.if_khz	  = 0,
+			.chip_id  = XC5000C,
+		};
+
+		if (!dvb_attach(xc5000_attach,
+				&t->fe, t->i2c->adapter, &xc5000c_cfg))
+			goto attach_failed;
+		tune_now = 0;
+		break;
+	}
 	case TUNER_NXP_TDA18271:
 	{
 		struct tda18271_config cfg = {
@@ -1226,8 +1241,10 @@ static int tuner_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int tuner_suspend(struct i2c_client *c, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int tuner_suspend(struct device *dev)
 {
+	struct i2c_client *c = to_i2c_client(dev);
 	struct tuner *t = to_tuner(i2c_get_clientdata(c));
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
@@ -1239,8 +1256,9 @@ static int tuner_suspend(struct i2c_client *c, pm_message_t state)
 	return 0;
 }
 
-static int tuner_resume(struct i2c_client *c)
+static int tuner_resume(struct device *dev)
 {
+	struct i2c_client *c = to_i2c_client(dev);
 	struct tuner *t = to_tuner(i2c_get_clientdata(c));
 
 	tuner_dbg("resume\n");
@@ -1251,6 +1269,7 @@ static int tuner_resume(struct i2c_client *c)
 
 	return 0;
 }
+#endif
 
 static int tuner_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
@@ -1295,6 +1314,10 @@ static const struct v4l2_subdev_ops tuner_ops = {
  * I2C structs and module init functions
  */
 
+static const struct dev_pm_ops tuner_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(tuner_suspend, tuner_resume)
+};
+
 static const struct i2c_device_id tuner_id[] = {
 	{ "tuner", }, /* autodetect */
 	{ }
@@ -1305,27 +1328,15 @@ static struct i2c_driver tuner_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "tuner",
+		.pm	= &tuner_pm_ops,
 	},
 	.probe		= tuner_probe,
 	.remove		= tuner_remove,
 	.command	= tuner_command,
-	.suspend	= tuner_suspend,
-	.resume		= tuner_resume,
 	.id_table	= tuner_id,
 };
 
-static __init int init_tuner(void)
-{
-	return i2c_add_driver(&tuner_driver);
-}
-
-static __exit void exit_tuner(void)
-{
-	i2c_del_driver(&tuner_driver);
-}
-
-module_init(init_tuner);
-module_exit(exit_tuner);
+module_i2c_driver(tuner_driver);
 
 MODULE_DESCRIPTION("device driver for various TV and TV+FM radio tuners");
 MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");

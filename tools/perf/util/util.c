@@ -14,6 +14,8 @@ void event_attr_init(struct perf_event_attr *attr)
 		attr->exclude_host  = 1;
 	if (!perf_guest)
 		attr->exclude_guest = 1;
+	/* to capture ABI version */
+	attr->size = sizeof(*attr);
 }
 
 int mkdir_p(char *path, mode_t mode)
@@ -145,4 +147,14 @@ int readn(int fd, void *buf, size_t n)
 	}
 
 	return buf - buf_start;
+}
+
+size_t hex_width(u64 v)
+{
+	size_t n = 1;
+
+	while ((v >>= 4))
+		++n;
+
+	return n;
 }

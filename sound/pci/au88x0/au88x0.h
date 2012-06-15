@@ -26,7 +26,7 @@
 #include <sound/mpu401.h>
 #include <sound/hwdep.h>
 #include <sound/ac97_codec.h>
-
+#include <sound/tlv.h>
 #endif
 
 #ifndef CHIP_AU8820
@@ -107,6 +107,14 @@
 #define NR_WTPB 0x20		/* WT channels per each bank. */
 #define NR_PCM	0x10
 
+struct pcm_vol {
+	struct snd_kcontrol *kctl;
+	int active;
+	int dma;
+	int mixin[4];
+	int vol[4];
+};
+
 /* Structs */
 typedef struct {
 	//int this_08;          /* Still unknown */
@@ -168,6 +176,7 @@ struct snd_vortex {
 	/* Xtalk canceler */
 	int xt_mode;		/* 1: speakers, 0:headphones. */
 #endif
+	struct pcm_vol pcm_vol[NR_PCM];
 
 	int isquad;		/* cache of extended ID codec flag. */
 
@@ -239,7 +248,7 @@ static int vortex_alsafmt_aspfmt(int alsafmt);
 /* Connection  stuff. */
 static void vortex_connect_default(vortex_t * vortex, int en);
 static int vortex_adb_allocroute(vortex_t * vortex, int dma, int nr_ch,
-				 int dir, int type);
+				 int dir, int type, int subdev);
 static char vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out,
 				  int restype);
 #ifndef CHIP_AU8810

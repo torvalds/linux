@@ -10,6 +10,9 @@
  * Caveat: PnP must be enabled in BIOS to allow full access to watchdog
  * control registers. If not, the watchdog must be configured in BIOS manually.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -55,8 +58,8 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds, between 1 and 1023 "
 	"(default = " __MODULE_STRING(WDT_TIMEOUT) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 	"(default = " __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -88,7 +91,7 @@ static inline void wdt_reset(void)
 static void wdt_timer_tick(unsigned long data)
 {
 	if (time_before(jiffies, next_heartbeat) ||
-	   (!test_bit(WDOG_ACTIVE, &wdt_dev.status))) {
+	   (!watchdog_active(&wdt_dev))) {
 		wdt_reset();
 		mod_timer(&timer, jiffies + WDT_HEARTBEAT);
 	} else
@@ -98,7 +101,7 @@ static void wdt_timer_tick(unsigned long data)
 static int wdt_ping(struct watchdog_device *wdd)
 {
 	/* calculate when the next userspace timeout will be */
-	next_heartbeat = jiffies + timeout * HZ;
+	next_heartbeat = jiffies + wdd->timeout * HZ;
 	return 0;
 }
 
@@ -106,7 +109,7 @@ static int wdt_start(struct watchdog_device *wdd)
 {
 	unsigned int ctl = readl(wdt_mem);
 
-	writel(timeout, wdt_mem + VIA_WDT_COUNT);
+	writel(wdd->timeout, wdt_mem + VIA_WDT_COUNT);
 	writel(ctl | VIA_WDT_RUNNING | VIA_WDT_TRIGGER, wdt_mem);
 	wdt_ping(wdd);
 	mod_timer(&timer, jiffies + WDT_HEARTBEAT);
@@ -125,7 +128,7 @@ static int wdt_set_timeout(struct watchdog_device *wdd,
 			   unsigned int new_timeout)
 {
 	writel(new_timeout, wdt_mem + VIA_WDT_COUNT);
-	timeout = new_timeout;
+	wdd->timeout = new_timeout;
 	return 0;
 }
 
@@ -199,6 +202,9 @@ static int __devinit wdt_probe(struct pci_dev *pdev,
 		goto err_out_release;
 	}
 
+	if (timeout < 1 || timeout > WDT_TIMEOUT_MAX)
+		timeout = WDT_TIMEOUT;
+
 	wdt_dev.timeout = timeout;
 	watchdog_set_nowayout(&wdt_dev, nowayout);
 	if (readl(wdt_mem) & VIA_WDT_FIRED)
@@ -247,20 +253,7 @@ static struct pci_driver wdt_driver = {
 	.remove		= __devexit_p(wdt_remove),
 };
 
-static int __init wdt_init(void)
-{
-	if (timeout < 1 || timeout > WDT_TIMEOUT_MAX)
-		timeout = WDT_TIMEOUT;
-	return pci_register_driver(&wdt_driver);
-}
-
-static void __exit wdt_exit(void)
-{
-	pci_unregister_driver(&wdt_driver);
-}
-
-module_init(wdt_init);
-module_exit(wdt_exit);
+module_pci_driver(wdt_driver);
 
 MODULE_AUTHOR("Marc Vertes");
 MODULE_DESCRIPTION("Driver for watchdog timer on VIA chipset");

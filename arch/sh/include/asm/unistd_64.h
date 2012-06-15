@@ -31,7 +31,7 @@
 #define __NR_mknod		 14
 #define __NR_chmod		 15
 #define __NR_lchown		 16
-#define __NR_break		 17
+				 /* 17 was sys_break */
 #define __NR_oldstat		 18
 #define __NR_lseek		 19
 #define __NR_getpid		 20
@@ -45,11 +45,11 @@
 #define __NR_oldfstat		 28
 #define __NR_pause		 29
 #define __NR_utime		 30
-#define __NR_stty		 31
-#define __NR_gtty		 32
+				 /* 31 was sys_stty */
+				 /* 32 was sys_gtty */
 #define __NR_access		 33
 #define __NR_nice		 34
-#define __NR_ftime		 35
+				 /* 35 was sys_ftime */
 #define __NR_sync		 36
 #define __NR_kill		 37
 #define __NR_rename		 38
@@ -58,7 +58,7 @@
 #define __NR_dup		 41
 #define __NR_pipe		 42
 #define __NR_times		 43
-#define __NR_prof		 44
+				 /* 44 was sys_prof */
 #define __NR_brk		 45
 #define __NR_setgid		 46
 #define __NR_getgid		 47
@@ -67,13 +67,13 @@
 #define __NR_getegid		 50
 #define __NR_acct		 51
 #define __NR_umount2		 52
-#define __NR_lock		 53
+				 /* 53 was sys_lock */
 #define __NR_ioctl		 54
 #define __NR_fcntl		 55
-#define __NR_mpx		 56
+				 /* 56 was sys_mpx */
 #define __NR_setpgid		 57
-#define __NR_ulimit		 58
-#define __NR_oldolduname	 59
+				 /* 58 was sys_ulimit */
+				 /* 59 was sys_olduname */
 #define __NR_umask		 60
 #define __NR_chroot		 61
 #define __NR_ustat		 62
@@ -96,7 +96,7 @@
 #define __NR_settimeofday	 79
 #define __NR_getgroups		 80
 #define __NR_setgroups		 81
-#define __NR_select		 82
+				 /* 82 was sys_select */
 #define __NR_symlink		 83
 #define __NR_oldlstat		 84
 #define __NR_readlink		 85
@@ -112,10 +112,10 @@
 #define __NR_fchown		 95
 #define __NR_getpriority	 96
 #define __NR_setpriority	 97
-#define __NR_profil		 98
+				 /* 98 was sys_profil */
 #define __NR_statfs		 99
 #define __NR_fstatfs		100
-#define __NR_ioperm		101
+				/* 101 was sys_ioperm */
 #define __NR_socketcall		102	/* old implementation of socket systemcall */
 #define __NR_syslog		103
 #define __NR_setitimer		104
@@ -124,10 +124,10 @@
 #define __NR_lstat		107
 #define __NR_fstat		108
 #define __NR_olduname		109
-#define __NR_iopl		110
+				/* 110 was sys_iopl */
 #define __NR_vhangup		111
-#define __NR_idle		112
-#define __NR_vm86old		113
+				/* 112 was sys_idle */
+				/* 113 was sys_vm86old */
 #define __NR_wait4		114
 #define __NR_swapoff		115
 #define __NR_sysinfo		116
@@ -141,17 +141,17 @@
 #define __NR_adjtimex		124
 #define __NR_mprotect		125
 #define __NR_sigprocmask	126
-#define __NR_create_module	127
+				/* 127 was sys_create_module */
 #define __NR_init_module	128
 #define __NR_delete_module	129
-#define __NR_get_kernel_syms	130
+				/* 130 was sys_get_kernel_syms */
 #define __NR_quotactl		131
 #define __NR_getpgid		132
 #define __NR_fchdir		133
 #define __NR_bdflush		134
 #define __NR_sysfs		135
 #define __NR_personality	136
-#define __NR_afs_syscall	137 /* Syscall for Andrew File System */
+				/* 137 was sys_afs_syscall */
 #define __NR_setfsuid		138
 #define __NR_setfsgid		139
 #define __NR__llseek		140
@@ -180,8 +180,8 @@
 #define __NR_mremap		163
 #define __NR_setresuid		164
 #define __NR_getresuid		165
-#define __NR_vm86		166
-#define __NR_query_module	167
+				/* 166 was sys_vm86 */
+				/* 167 was sys_query_module */
 #define __NR_poll		168
 #define __NR_nfsservctl		169
 #define __NR_setresgid		170
@@ -202,8 +202,8 @@
 #define __NR_capset		185
 #define __NR_sigaltstack	186
 #define __NR_sendfile		187
-#define __NR_streams1		188	/* some people actually want it */
-#define __NR_streams2		189	/* some people actually want it */
+				/* 188 reserved for getpmsg */
+				/* 189 reserved for putpmsg */
 #define __NR_vfork		190
 #define __NR_ugetrlimit		191	/* SuS compliant getrlimit */
 #define __NR_mmap2		192
@@ -262,16 +262,15 @@
 #define __NR_msgrcv		241
 #define __NR_msgget		242
 #define __NR_msgctl		243
-#if 0
-#define __NR_shmatcall		244
-#endif
+#define __NR_shmat		244
 #define __NR_shmdt		245
 #define __NR_shmget		246
 #define __NR_shmctl		247
 
 #define __NR_getdents64		248
 #define __NR_fcntl64		249
-/* 223 is unused */
+				/* 250 is reserved for tux */
+				/* 251 is unused */
 #define __NR_gettid		252
 #define __NR_readahead		253
 #define __NR_setxattr		254
@@ -291,14 +290,15 @@
 #define __NR_futex		268
 #define __NR_sched_setaffinity	269
 #define __NR_sched_getaffinity	270
-#define __NR_set_thread_area	271
-#define __NR_get_thread_area	272
+				/* 271 is reserved for set_thread_area */
+				/* 272 is reserved for get_thread_area */
 #define __NR_io_setup		273
 #define __NR_io_destroy		274
 #define __NR_io_getevents	275
 #define __NR_io_submit		276
 #define __NR_io_cancel		277
 #define __NR_fadvise64		278
+				/* 279 is unused */
 #define __NR_exit_group		280
 
 #define __NR_lookup_dcookie	281
@@ -321,17 +321,17 @@
 #define __NR_tgkill		298
 #define __NR_utimes		299
 #define __NR_fadvise64_64	300
-#define __NR_vserver		301
-#define __NR_mbind              302
-#define __NR_get_mempolicy      303
-#define __NR_set_mempolicy      304
+				/* 301 is reserved for vserver */
+				/* 302 is reserved for mbind */
+				/* 303 is reserved for get_mempolicy */
+				/* 304 is reserved for set_mempolicy */
 #define __NR_mq_open            305
 #define __NR_mq_unlink          (__NR_mq_open+1)
 #define __NR_mq_timedsend       (__NR_mq_open+2)
 #define __NR_mq_timedreceive    (__NR_mq_open+3)
 #define __NR_mq_notify          (__NR_mq_open+4)
 #define __NR_mq_getsetattr      (__NR_mq_open+5)
-#define __NR_kexec_load		311
+				/* 311 is reserved for kexec */
 #define __NR_waitid		312
 #define __NR_add_key		313
 #define __NR_request_key	314
@@ -341,7 +341,7 @@
 #define __NR_inotify_init	318
 #define __NR_inotify_add_watch	319
 #define __NR_inotify_rm_watch	320
-/* 321 is unused */
+				/* 321 is unused */
 #define __NR_migrate_pages	322
 #define __NR_openat		323
 #define __NR_mkdirat		324
@@ -399,44 +399,6 @@
 #define __NR_process_vm_readv	376
 #define __NR_process_vm_writev	377
 
-#ifdef __KERNEL__
-
 #define NR_syscalls 378
 
-#define __ARCH_WANT_IPC_PARSE_VERSION
-#define __ARCH_WANT_OLD_READDIR
-#define __ARCH_WANT_OLD_STAT
-#define __ARCH_WANT_STAT64
-#define __ARCH_WANT_SYS_ALARM
-#define __ARCH_WANT_SYS_GETHOSTNAME
-#define __ARCH_WANT_SYS_IPC
-#define __ARCH_WANT_SYS_PAUSE
-#define __ARCH_WANT_SYS_SGETMASK
-#define __ARCH_WANT_SYS_SIGNAL
-#define __ARCH_WANT_SYS_TIME
-#define __ARCH_WANT_SYS_UTIME
-#define __ARCH_WANT_SYS_WAITPID
-#define __ARCH_WANT_SYS_SOCKETCALL
-#define __ARCH_WANT_SYS_FADVISE64
-#define __ARCH_WANT_SYS_GETPGRP
-#define __ARCH_WANT_SYS_LLSEEK
-#define __ARCH_WANT_SYS_NICE
-#define __ARCH_WANT_SYS_OLD_GETRLIMIT
-#define __ARCH_WANT_SYS_OLD_UNAME
-#define __ARCH_WANT_SYS_OLDUMOUNT
-#define __ARCH_WANT_SYS_SIGPENDING
-#define __ARCH_WANT_SYS_SIGPROCMASK
-#define __ARCH_WANT_SYS_RT_SIGACTION
-
-/*
- * "Conditional" syscalls
- *
- * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
- * but it doesn't work on all toolchains, so we just do it by hand
- */
-#ifndef cond_syscall
-#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
-#endif
-
-#endif /* __KERNEL__ */
 #endif /* __ASM_SH_UNISTD_64_H */

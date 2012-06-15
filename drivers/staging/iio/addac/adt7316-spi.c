@@ -133,30 +133,14 @@ static const struct spi_device_id adt7316_spi_id[] = {
 
 MODULE_DEVICE_TABLE(spi, adt7316_spi_id);
 
-#ifdef CONFIG_PM
-static int adt7316_spi_suspend(struct spi_device *spi_dev, pm_message_t message)
-{
-	return adt7316_disable(&spi_dev->dev);
-}
-
-static int adt7316_spi_resume(struct spi_device *spi_dev)
-{
-	return adt7316_enable(&spi_dev->dev);
-}
-#else
-# define adt7316_spi_suspend NULL
-# define adt7316_spi_resume  NULL
-#endif
-
 static struct spi_driver adt7316_driver = {
 	.driver = {
 		.name = "adt7316",
+		.pm = ADT7316_PM_OPS,
 		.owner = THIS_MODULE,
 	},
 	.probe = adt7316_spi_probe,
 	.remove = __devexit_p(adt7316_spi_remove),
-	.suspend = adt7316_spi_suspend,
-	.resume = adt7316_spi_resume,
 	.id_table = adt7316_spi_id,
 };
 module_spi_driver(adt7316_driver);

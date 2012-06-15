@@ -87,7 +87,7 @@ static const u8 falcon_lm87_common_regs[] = {
 	0
 };
 
-static int efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
+static int efx_init_lm87(struct efx_nic *efx, const struct i2c_board_info *info,
 			 const u8 *reg_values)
 {
 	struct falcon_board *board = falcon_board(efx);
@@ -179,7 +179,7 @@ static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 #else /* !CONFIG_SENSORS_LM87 */
 
 static inline int
-efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
+efx_init_lm87(struct efx_nic *efx, const struct i2c_board_info *info,
 	      const u8 *reg_values)
 {
 	return 0;
@@ -442,7 +442,7 @@ static int sfe4001_check_hw(struct efx_nic *efx)
 	return (status < 0) ? -EIO : -ERANGE;
 }
 
-static struct i2c_board_info sfe4001_hwmon_info = {
+static const struct i2c_board_info sfe4001_hwmon_info = {
 	I2C_BOARD_INFO("max6647", 0x4e),
 };
 
@@ -522,7 +522,7 @@ static const u8 sfe4002_lm87_regs[] = {
 	0
 };
 
-static struct i2c_board_info sfe4002_hwmon_info = {
+static const struct i2c_board_info sfe4002_hwmon_info = {
 	I2C_BOARD_INFO("lm87", 0x2e),
 	.platform_data	= &sfe4002_lm87_channel,
 };
@@ -591,7 +591,7 @@ static const u8 sfn4112f_lm87_regs[] = {
 	0
 };
 
-static struct i2c_board_info sfn4112f_hwmon_info = {
+static const struct i2c_board_info sfn4112f_hwmon_info = {
 	I2C_BOARD_INFO("lm87", 0x2e),
 	.platform_data	= &sfn4112f_lm87_channel,
 };
@@ -653,7 +653,7 @@ static const u8 sfe4003_lm87_regs[] = {
 	0
 };
 
-static struct i2c_board_info sfe4003_hwmon_info = {
+static const struct i2c_board_info sfe4003_hwmon_info = {
 	I2C_BOARD_INFO("lm87", 0x2e),
 	.platform_data	= &sfe4003_lm87_channel,
 };
@@ -709,8 +709,6 @@ static int sfe4003_init(struct efx_nic *efx)
 static const struct falcon_board_type board_types[] = {
 	{
 		.id		= FALCON_BOARD_SFE4001,
-		.ref_model	= "SFE4001",
-		.gen_type	= "10GBASE-T adapter",
 		.init		= sfe4001_init,
 		.init_phy	= efx_port_dummy_op_void,
 		.fini		= sfe4001_fini,
@@ -719,8 +717,6 @@ static const struct falcon_board_type board_types[] = {
 	},
 	{
 		.id		= FALCON_BOARD_SFE4002,
-		.ref_model	= "SFE4002",
-		.gen_type	= "XFP adapter",
 		.init		= sfe4002_init,
 		.init_phy	= sfe4002_init_phy,
 		.fini		= efx_fini_lm87,
@@ -729,8 +725,6 @@ static const struct falcon_board_type board_types[] = {
 	},
 	{
 		.id		= FALCON_BOARD_SFE4003,
-		.ref_model	= "SFE4003",
-		.gen_type	= "10GBASE-CX4 adapter",
 		.init		= sfe4003_init,
 		.init_phy	= sfe4003_init_phy,
 		.fini		= efx_fini_lm87,
@@ -739,8 +733,6 @@ static const struct falcon_board_type board_types[] = {
 	},
 	{
 		.id		= FALCON_BOARD_SFN4112F,
-		.ref_model	= "SFN4112F",
-		.gen_type	= "SFP+ adapter",
 		.init		= sfn4112f_init,
 		.init_phy	= sfn4112f_init_phy,
 		.fini		= efx_fini_lm87,
@@ -763,11 +755,6 @@ int falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 			board->type = &board_types[i];
 
 	if (board->type) {
-		netif_info(efx, probe, efx->net_dev, "board is %s rev %c%d\n",
-			 (efx->pci_dev->subsystem_vendor ==
-			  PCI_VENDOR_ID_SOLARFLARE)
-			 ? board->type->ref_model : board->type->gen_type,
-			 'A' + board->major, board->minor);
 		return 0;
 	} else {
 		netif_err(efx, probe, efx->net_dev, "unknown board type %d\n",

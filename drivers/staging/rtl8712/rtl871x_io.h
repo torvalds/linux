@@ -117,8 +117,7 @@ struct io_req {
 	u32	command;
 	u32	status;
 	u8	*pbuf;
-	struct semaphore sema;
-	void (*_async_io_callback)(struct _adapter *padater,
+	void (*_async_io_callback)(struct _adapter *padapter,
 				   struct io_req *pio_req, u8 *cnxt);
 	u8 *cnxt;
 };

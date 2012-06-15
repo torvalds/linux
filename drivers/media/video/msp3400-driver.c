@@ -597,19 +597,23 @@ static int msp_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int msp_suspend(struct i2c_client *client, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int msp_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	v4l_dbg(1, msp_debug, client, "suspend\n");
 	msp_reset(client);
 	return 0;
 }
 
-static int msp_resume(struct i2c_client *client)
+static int msp_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	v4l_dbg(1, msp_debug, client, "resume\n");
 	msp_wake_thread(client);
 	return 0;
 }
+#endif
 
 /* ----------------------------------------------------------------------- */
 
@@ -863,6 +867,10 @@ static int msp_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+static const struct dev_pm_ops msp3400_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(msp_suspend, msp_resume)
+};
+
 static const struct i2c_device_id msp_id[] = {
 	{ "msp3400", 0 },
 	{ }
@@ -873,26 +881,14 @@ static struct i2c_driver msp_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "msp3400",
+		.pm	= &msp3400_pm_ops,
 	},
 	.probe		= msp_probe,
 	.remove		= msp_remove,
-	.suspend	= msp_suspend,
-	.resume		= msp_resume,
 	.id_table	= msp_id,
 };
 
-static __init int init_msp(void)
-{
-	return i2c_add_driver(&msp_driver);
-}
-
-static __exit void exit_msp(void)
-{
-	i2c_del_driver(&msp_driver);
-}
-
-module_init(init_msp);
-module_exit(exit_msp);
+module_i2c_driver(msp_driver);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

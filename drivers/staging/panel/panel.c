@@ -58,7 +58,6 @@
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <asm/system.h>
 
 #define LCD_MINOR		156
 #define KEYPAD_MINOR		185
@@ -755,7 +754,7 @@ static void lcd_backlight(int on)
 	if (lcd_bl_pin == PIN_NONE)
 		return;
 
-	/* The backlight is activated by seting the AUTOFEED line to +5V  */
+	/* The backlight is activated by setting the AUTOFEED line to +5V  */
 	spin_lock(&pprt_lock);
 	bits.bl = on;
 	panel_set_bits();

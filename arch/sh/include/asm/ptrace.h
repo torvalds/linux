@@ -37,7 +37,6 @@
 #include <linux/thread_info.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>
-#include <asm/system.h>
 
 #define user_mode(regs)			(((regs)->sr & 0x40000000)==0)
 #define kernel_stack_pointer(_regs)	((unsigned long)(_regs)->regs[15])

@@ -47,6 +47,16 @@ irqreader	Says to invoke RCU readers from irq level.  This is currently
 		permit this.  (Or, more accurately, variants of RCU that do
 		-not- permit this know to ignore this variable.)
 
+n_barrier_cbs	If this is nonzero, RCU barrier testing will be conducted,
+		in which case n_barrier_cbs specifies the number of
+		RCU callbacks (and corresponding kthreads) to use for
+		this testing.  The value cannot be negative.  If you
+		specify this to be non-zero when torture_type indicates a
+		synchronous RCU implementation (one for which a member of
+		the synchronize_rcu() rather than the call_rcu() family is
+		used -- see the documentation for torture_type below), an
+		error will be reported and no testing will be carried out.
+
 nfakewriters	This is the number of RCU fake writer threads to run.  Fake
 		writer threads repeatedly use the synchronous "wait for
 		current readers" function of the interface selected by
@@ -69,6 +79,13 @@ onoff_interval
 		CPU-hotplug operations regardless of what value is
 		specified for onoff_interval.
 
+onoff_holdoff	The number of seconds to wait until starting CPU-hotplug
+		operations.  This would normally only be used when
+		rcutorture was built into the kernel and started
+		automatically at boot time, in which case it is useful
+		in order to avoid confusing boot-time code with CPUs
+		coming and going.
+
 shuffle_interval
 		The number of seconds to keep the test threads affinitied
 		to a particular subset of the CPUs, defaults to 3 seconds.
@@ -78,6 +95,24 @@ shutdown_secs	The number of seconds to run the test before terminating
 		the test and powering off the system.  The default is
 		zero, which disables test termination and system shutdown.
 		This capability is useful for automated testing.
+
+stall_cpu	The number of seconds that a CPU should be stalled while
+		within both an rcu_read_lock() and a preempt_disable().
+		This stall happens only once per rcutorture run.
+		If you need multiple stalls, use modprobe and rmmod to
+		repeatedly run rcutorture.  The default for stall_cpu
+		is zero, which prevents rcutorture from stalling a CPU.
+
+		Note that attempts to rmmod rcutorture while the stall
+		is ongoing will hang, so be careful what value you
+		choose for this module parameter!  In addition, too-large
+		values for stall_cpu might well induce failures and
+		warnings in other parts of the kernel.  You have been
+		warned!
+
+stall_cpu_holdoff
+		The number of seconds to wait after rcutorture starts
+		before stalling a CPU.  Defaults to 10 seconds.
 
 stat_interval	The number of seconds between output of torture
 		statistics (via printk()).  Regardless of the interval,
@@ -163,7 +198,7 @@ OUTPUT
 The statistics output is as follows:
 
 	rcu-torture:--- Start of test: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_no_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
-	rcu-torture: rtc:           (null) ver: 155441 tfle: 0 rta: 155441 rtaf: 8884 rtf: 155440 rtmbe: 0 rtbke: 0 rtbre: 0 rtbf: 0 rtb: 0 nt: 3055767
+	rcu-torture: rtc:           (null) ver: 155441 tfle: 0 rta: 155441 rtaf: 8884 rtf: 155440 rtmbe: 0 rtbe: 0 rtbke: 0 rtbre: 0 rtbf: 0 rtb: 0 nt: 3055767
 	rcu-torture: Reader Pipe:  727860534 34213 0 0 0 0 0 0 0 0 0
 	rcu-torture: Reader Batch:  727877838 17003 0 0 0 0 0 0 0 0 0
 	rcu-torture: Free-Block Circulation:  155440 155440 155440 155440 155440 155440 155440 155440 155440 155440 0
@@ -204,6 +239,9 @@ o	"rtf": Number of frees into the torture freelist.
 o	"rtmbe": A non-zero value indicates that rcutorture believes that
 	rcu_assign_pointer() and rcu_dereference() are not working
 	correctly.  This value should be zero.
+
+o	"rtbe": A non-zero value indicates that one of the rcu_barrier()
+	family of functions is not working correctly.
 
 o	"rtbke": rcutorture was unable to create the real-time kthreads
 	used to force RCU priority inversion.  This value should be zero.
@@ -271,11 +309,13 @@ The following script may be used to torture RCU:
 	#!/bin/sh
 
 	modprobe rcutorture
-	sleep 100
+	sleep 3600
 	rmmod rcutorture
 	dmesg | grep torture:
 
 The output can be manually inspected for the error flag of "!!!".
 One could of course create a more elaborate script that automatically
-checked for such errors.  The "rmmod" command forces a "SUCCESS" or
-"FAILURE" indication to be printk()ed.
+checked for such errors.  The "rmmod" command forces a "SUCCESS",
+"FAILURE", or "RCU_HOTPLUG" indication to be printk()ed.  The first
+two are self-explanatory, while the last indicates that while there
+were no RCU failures, CPU-hotplug problems were detected.

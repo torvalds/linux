@@ -964,7 +964,7 @@ static void ni52_rcv_int(struct net_device *dev)
 				/* the first and the last buffer? */
 				totlen &= RBD_MASK; /* length of this frame */
 				writew(0x00, &rbd->status);
-				skb = (struct sk_buff *)dev_alloc_skb(totlen+2);
+				skb = netdev_alloc_skb(dev, totlen + 2);
 				if (skb != NULL) {
 					skb_reserve(skb, 2);
 					skb_put(skb, totlen);

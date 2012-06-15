@@ -81,7 +81,7 @@ extern struct platform_device *of_device_alloc(struct device_node *np,
 					 struct device *parent);
 extern struct platform_device *of_find_device_by_node(struct device_node *np);
 
-#if !defined(CONFIG_SPARC) /* SPARC has its own device registration method */
+#ifdef CONFIG_OF_ADDRESS /* device reg helpers depend on OF_ADDRESS */
 /* Platform devices and busses creation */
 extern struct platform_device *of_platform_device_create(struct device_node *np,
 						   const char *bus_id,
@@ -94,8 +94,19 @@ extern int of_platform_populate(struct device_node *root,
 				const struct of_device_id *matches,
 				const struct of_dev_auxdata *lookup,
 				struct device *parent);
-#endif /* !CONFIG_SPARC */
+#endif /* CONFIG_OF_ADDRESS */
 
 #endif /* CONFIG_OF_DEVICE */
+
+#if !defined(CONFIG_OF_ADDRESS)
+struct of_dev_auxdata;
+static inline int of_platform_populate(struct device_node *root,
+					const struct of_device_id *matches,
+					const struct of_dev_auxdata *lookup,
+					struct device *parent)
+{
+	return -ENODEV;
+}
+#endif /* !CONFIG_OF_ADDRESS */
 
 #endif	/* _LINUX_OF_PLATFORM_H */

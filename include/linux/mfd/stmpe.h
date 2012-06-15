@@ -8,7 +8,9 @@
 #ifndef __LINUX_MFD_STMPE_H
 #define __LINUX_MFD_STMPE_H
 
-#include <linux/device.h>
+#include <linux/mutex.h>
+
+struct device;
 
 enum stmpe_block {
 	STMPE_BLOCK_GPIO	= 1 << 0,
@@ -26,6 +28,7 @@ enum stmpe_partnum {
 	STMPE1601,
 	STMPE2401,
 	STMPE2403,
+	STMPE_NBR_PARTS
 };
 
 /*
@@ -114,7 +117,7 @@ struct matrix_keymap_data;
  * @no_autorepeat: disable key autorepeat
  */
 struct stmpe_keypad_platform_data {
-	struct matrix_keymap_data *keymap_data;
+	const struct matrix_keymap_data *keymap_data;
 	unsigned int debounce_ms;
 	unsigned int scan_count;
 	bool no_autorepeat;

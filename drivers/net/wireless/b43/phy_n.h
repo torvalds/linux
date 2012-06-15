@@ -798,6 +798,7 @@ struct b43_phy_n {
 	bool txpwrctrl;
 	bool pwg_gain_5ghz;
 	u8 tx_pwr_idx[2];
+	s8 tx_power_offset[101];
 	u16 adj_pwr_tbl[84];
 	u16 txcal_bbmult;
 	u16 txiqlocal_bestc[11];

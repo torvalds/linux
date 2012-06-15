@@ -42,6 +42,7 @@
 #include <xen/page.h>
 #include <xen/hvm.h>
 #include <xen/hvc-console.h>
+#include <xen/acpi.h>
 
 #include <asm/paravirt.h>
 #include <asm/apic.h>
@@ -62,9 +63,20 @@
 #include <asm/reboot.h>
 #include <asm/stackprotector.h>
 #include <asm/hypervisor.h>
+#include <asm/mwait.h>
+#include <asm/pci_x86.h>
+
+#ifdef CONFIG_ACPI
+#include <linux/acpi.h>
+#include <asm/acpi.h>
+#include <acpi/pdc_intel.h>
+#include <acpi/processor.h>
+#include <xen/interface/platform.h>
+#endif
 
 #include "xen-ops.h"
 #include "mmu.h"
+#include "smp.h"
 #include "multicalls.h"
 
 EXPORT_SYMBOL_GPL(hypercall_page);
@@ -200,13 +212,17 @@ static void __init xen_banner(void)
 static __read_mostly unsigned int cpuid_leaf1_edx_mask = ~0;
 static __read_mostly unsigned int cpuid_leaf1_ecx_mask = ~0;
 
+static __read_mostly unsigned int cpuid_leaf1_ecx_set_mask;
+static __read_mostly unsigned int cpuid_leaf5_ecx_val;
+static __read_mostly unsigned int cpuid_leaf5_edx_val;
+
 static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		      unsigned int *cx, unsigned int *dx)
 {
 	unsigned maskebx = ~0;
 	unsigned maskecx = ~0;
 	unsigned maskedx = ~0;
-
+	unsigned setecx = 0;
 	/*
 	 * Mask out inconvenient features, to try and disable as many
 	 * unsupported kernel subsystems as possible.
@@ -214,8 +230,17 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	switch (*ax) {
 	case 1:
 		maskecx = cpuid_leaf1_ecx_mask;
+		setecx = cpuid_leaf1_ecx_set_mask;
 		maskedx = cpuid_leaf1_edx_mask;
 		break;
+
+	case CPUID_MWAIT_LEAF:
+		/* Synthesize the values.. */
+		*ax = 0;
+		*bx = 0;
+		*cx = cpuid_leaf5_ecx_val;
+		*dx = cpuid_leaf5_edx_val;
+		return;
 
 	case 0xb:
 		/* Suppress extended topology stuff */
@@ -232,9 +257,76 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 
 	*bx &= maskebx;
 	*cx &= maskecx;
+	*cx |= setecx;
 	*dx &= maskedx;
+
 }
 
+static bool __init xen_check_mwait(void)
+{
+#if defined(CONFIG_ACPI) && !defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR) && \
+	!defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR_MODULE)
+	struct xen_platform_op op = {
+		.cmd			= XENPF_set_processor_pminfo,
+		.u.set_pminfo.id	= -1,
+		.u.set_pminfo.type	= XEN_PM_PDC,
+	};
+	uint32_t buf[3];
+	unsigned int ax, bx, cx, dx;
+	unsigned int mwait_mask;
+
+	/* We need to determine whether it is OK to expose the MWAIT
+	 * capability to the kernel to harvest deeper than C3 states from ACPI
+	 * _CST using the processor_harvest_xen.c module. For this to work, we
+	 * need to gather the MWAIT_LEAF values (which the cstate.c code
+	 * checks against). The hypervisor won't expose the MWAIT flag because
+	 * it would break backwards compatibility; so we will find out directly
+	 * from the hardware and hypercall.
+	 */
+	if (!xen_initial_domain())
+		return false;
+
+	ax = 1;
+	cx = 0;
+
+	native_cpuid(&ax, &bx, &cx, &dx);
+
+	mwait_mask = (1 << (X86_FEATURE_EST % 32)) |
+		     (1 << (X86_FEATURE_MWAIT % 32));
+
+	if ((cx & mwait_mask) != mwait_mask)
+		return false;
+
+	/* We need to emulate the MWAIT_LEAF and for that we need both
+	 * ecx and edx. The hypercall provides only partial information.
+	 */
+
+	ax = CPUID_MWAIT_LEAF;
+	bx = 0;
+	cx = 0;
+	dx = 0;
+
+	native_cpuid(&ax, &bx, &cx, &dx);
+
+	/* Ask the Hypervisor whether to clear ACPI_PDC_C_C2C3_FFH. If so,
+	 * don't expose MWAIT_LEAF and let ACPI pick the IOPORT version of C3.
+	 */
+	buf[0] = ACPI_PDC_REVISION_ID;
+	buf[1] = 1;
+	buf[2] = (ACPI_PDC_C_CAPABILITY_SMP | ACPI_PDC_EST_CAPABILITY_SWSMP);
+
+	set_xen_guest_handle(op.u.set_pminfo.pdc, buf);
+
+	if ((HYPERVISOR_dom0_op(&op) == 0) &&
+	    (buf[2] & (ACPI_PDC_C_C1_FFH | ACPI_PDC_C_C2C3_FFH))) {
+		cpuid_leaf5_ecx_val = cx;
+		cpuid_leaf5_edx_val = dx;
+	}
+	return true;
+#else
+	return false;
+#endif
+}
 static void __init xen_init_cpuid_mask(void)
 {
 	unsigned int ax, bx, cx, dx;
@@ -261,6 +353,8 @@ static void __init xen_init_cpuid_mask(void)
 	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
 	if ((cx & xsave_mask) != xsave_mask)
 		cpuid_leaf1_ecx_mask &= ~xsave_mask; /* disable XSAVE & OSXSAVE */
+	if (xen_check_mwait())
+		cpuid_leaf1_ecx_set_mask = (1 << (X86_FEATURE_MWAIT % 32));
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
@@ -718,9 +812,40 @@ static void xen_io_delay(void)
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
+static unsigned long xen_set_apic_id(unsigned int x)
+{
+	WARN_ON(1);
+	return x;
+}
+static unsigned int xen_get_apic_id(unsigned long x)
+{
+	return ((x)>>24) & 0xFFu;
+}
 static u32 xen_apic_read(u32 reg)
 {
-	return 0;
+	struct xen_platform_op op = {
+		.cmd = XENPF_get_cpuinfo,
+		.interface_version = XENPF_INTERFACE_VERSION,
+		.u.pcpu_info.xen_cpuid = 0,
+	};
+	int ret = 0;
+
+	/* Shouldn't need this as APIC is turned off for PV, and we only
+	 * get called on the bootup processor. But just in case. */
+	if (!xen_initial_domain() || smp_processor_id())
+		return 0;
+
+	if (reg == APIC_LVR)
+		return 0x10;
+
+	if (reg != APIC_ID)
+		return 0;
+
+	ret = HYPERVISOR_dom0_op(&op);
+	if (ret)
+		return 0;
+
+	return op.u.pcpu_info.apic_id << 24;
 }
 
 static void xen_apic_write(u32 reg, u32 val)
@@ -758,6 +883,16 @@ static void set_xen_basic_apic_ops(void)
 	apic->icr_write = xen_apic_icr_write;
 	apic->wait_icr_idle = xen_apic_wait_icr_idle;
 	apic->safe_wait_icr_idle = xen_safe_apic_wait_icr_idle;
+	apic->set_apic_id = xen_set_apic_id;
+	apic->get_apic_id = xen_get_apic_id;
+
+#ifdef CONFIG_SMP
+	apic->send_IPI_allbutself = xen_send_IPI_allbutself;
+	apic->send_IPI_mask_allbutself = xen_send_IPI_mask_allbutself;
+	apic->send_IPI_mask = xen_send_IPI_mask;
+	apic->send_IPI_all = xen_send_IPI_all;
+	apic->send_IPI_self = xen_send_IPI_self;
+#endif
 }
 
 #endif
@@ -777,11 +912,11 @@ static DEFINE_PER_CPU(unsigned long, xen_cr0_value);
 
 static unsigned long xen_read_cr0(void)
 {
-	unsigned long cr0 = percpu_read(xen_cr0_value);
+	unsigned long cr0 = this_cpu_read(xen_cr0_value);
 
 	if (unlikely(cr0 == 0)) {
 		cr0 = native_read_cr0();
-		percpu_write(xen_cr0_value, cr0);
+		this_cpu_write(xen_cr0_value, cr0);
 	}
 
 	return cr0;
@@ -791,7 +926,7 @@ static void xen_write_cr0(unsigned long cr0)
 {
 	struct multicall_space mcs;
 
-	percpu_write(xen_cr0_value, cr0);
+	this_cpu_write(xen_cr0_value, cr0);
 
 	/* Only pay attention to cr0.TS; everything else is
 	   ignored. */
@@ -876,7 +1011,7 @@ void xen_setup_shared_info(void)
 	xen_setup_mfn_list_list();
 }
 
-/* This is called once we have the cpu_possible_map */
+/* This is called once we have the cpu_possible_mask */
 void xen_setup_vcpu_info_placement(void)
 {
 	int cpu;
@@ -981,7 +1116,10 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.wbinvd = native_wbinvd,
 
 	.read_msr = native_read_msr_safe,
+	.rdmsr_regs = native_rdmsr_safe_regs,
 	.write_msr = xen_write_msr_safe,
+	.wrmsr_regs = native_wrmsr_safe_regs,
+
 	.read_tsc = native_read_tsc,
 	.read_pmc = native_read_pmc,
 
@@ -1215,7 +1353,6 @@ asmlinkage void __init xen_start_kernel(void)
 
 	xen_raw_console_write("mapping kernel into physical memory\n");
 	pgd = xen_setup_kernel_pagetable(pgd, xen_start_info->nr_pages);
-	xen_ident_map_ISA();
 
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
 	xen_build_mfn_list_list();
@@ -1271,11 +1408,17 @@ asmlinkage void __init xen_start_kernel(void)
 		xen_start_info->console.domU.mfn = 0;
 		xen_start_info->console.domU.evtchn = 0;
 
+		xen_init_apic();
+
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
-	}
-		
 
+		xen_acpi_sleep_register();
+	}
+#ifdef CONFIG_PCI
+	/* PCI BIOS service won't work from a PV guest. */
+	pci_probe &= ~PCI_PROBE_BIOS;
+#endif
 	xen_raw_console_write("about to get started...\n");
 
 	xen_setup_runstate_info(0);

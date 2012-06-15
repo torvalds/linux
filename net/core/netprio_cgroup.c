@@ -9,6 +9,8 @@
  * Authors:	Neil Horman <nhorman@tuxdriver.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -22,22 +24,6 @@
 #include <net/pkt_cls.h>
 #include <net/sock.h>
 #include <net/netprio_cgroup.h>
-
-static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
-					       struct cgroup *cgrp);
-static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
-static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp);
-
-struct cgroup_subsys net_prio_subsys = {
-	.name		= "net_prio",
-	.create		= cgrp_create,
-	.destroy	= cgrp_destroy,
-	.populate	= cgrp_populate,
-#ifdef CONFIG_NETPRIO_CGROUP
-	.subsys_id	= net_prio_subsys_id,
-#endif
-	.module		= THIS_MODULE
-};
 
 #define PRIOIDX_SZ 128
 
@@ -89,7 +75,7 @@ static void extend_netdev_table(struct net_device *dev, u32 new_len)
 	old_priomap  = rtnl_dereference(dev->priomap);
 
 	if (!new_priomap) {
-		printk(KERN_WARNING "Unable to alloc new priomap!\n");
+		pr_warn("Unable to alloc new priomap!\n");
 		return;
 	}
 
@@ -121,8 +107,7 @@ static void update_netdev_tables(void)
 	rtnl_unlock();
 }
 
-static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
-						 struct cgroup *cgrp)
+static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
 {
 	struct cgroup_netprio_state *cs;
 	int ret;
@@ -138,7 +123,7 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
 
 	ret = get_prioidx(&cs->prioidx);
 	if (ret != 0) {
-		printk(KERN_WARNING "No space in priority index array\n");
+		pr_warn("No space in priority index array\n");
 		kfree(cs);
 		return ERR_PTR(ret);
 	}
@@ -146,7 +131,7 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
 	return &cs->css;
 }
 
-static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
+static void cgrp_destroy(struct cgroup *cgrp)
 {
 	struct cgroup_netprio_state *cs;
 	struct net_device *dev;
@@ -259,12 +244,19 @@ static struct cftype ss_files[] = {
 		.read_map = read_priomap,
 		.write_string = write_priomap,
 	},
+	{ }	/* terminate */
 };
 
-static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
-{
-	return cgroup_add_files(cgrp, ss, ss_files, ARRAY_SIZE(ss_files));
-}
+struct cgroup_subsys net_prio_subsys = {
+	.name		= "net_prio",
+	.create		= cgrp_create,
+	.destroy	= cgrp_destroy,
+#ifdef CONFIG_NETPRIO_CGROUP
+	.subsys_id	= net_prio_subsys_id,
+#endif
+	.base_cftypes	= ss_files,
+	.module		= THIS_MODULE
+};
 
 static int netprio_device_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)

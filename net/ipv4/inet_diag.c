@@ -141,7 +141,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 			goto rtattr_failure;
 
 	if (icsk == NULL) {
-		r->idiag_rqueue = r->idiag_wqueue = 0;
+		handler->idiag_get_info(sk, r, NULL);
 		goto out;
 	}
 
@@ -960,9 +960,12 @@ static int inet_diag_rcv_msg_compat(struct sk_buff *skb, struct nlmsghdr *nlh)
 			    inet_diag_bc_audit(nla_data(attr), nla_len(attr)))
 				return -EINVAL;
 		}
-
-		return netlink_dump_start(sock_diag_nlsk, skb, nlh,
-					  inet_diag_dump_compat, NULL, 0);
+		{
+			struct netlink_dump_control c = {
+				.dump = inet_diag_dump_compat,
+			};
+			return netlink_dump_start(sock_diag_nlsk, skb, nlh, &c);
+		}
 	}
 
 	return inet_diag_get_exact_compat(skb, nlh);
@@ -985,20 +988,23 @@ static int inet_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 			    inet_diag_bc_audit(nla_data(attr), nla_len(attr)))
 				return -EINVAL;
 		}
-
-		return netlink_dump_start(sock_diag_nlsk, skb, h,
-					  inet_diag_dump, NULL, 0);
+		{
+			struct netlink_dump_control c = {
+				.dump = inet_diag_dump,
+			};
+			return netlink_dump_start(sock_diag_nlsk, skb, h, &c);
+		}
 	}
 
 	return inet_diag_get_exact(skb, h, (struct inet_diag_req_v2 *)NLMSG_DATA(h));
 }
 
-static struct sock_diag_handler inet_diag_handler = {
+static const struct sock_diag_handler inet_diag_handler = {
 	.family = AF_INET,
 	.dump = inet_diag_handler_dump,
 };
 
-static struct sock_diag_handler inet6_diag_handler = {
+static const struct sock_diag_handler inet6_diag_handler = {
 	.family = AF_INET6,
 	.dump = inet_diag_handler_dump,
 };

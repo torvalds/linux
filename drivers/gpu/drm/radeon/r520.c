@@ -33,7 +33,7 @@
 
 /* This files gather functions specifics to: r520,rv530,rv560,rv570,r580 */
 
-static int r520_mc_wait_for_idle(struct radeon_device *rdev)
+int r520_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
 	uint32_t tmp;
@@ -207,12 +207,10 @@ static int r520_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r100_ib_test(rdev);
-	if (r) {
-		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
+
 	return 0;
 }
 

@@ -583,7 +583,7 @@ static void receive_packet(struct net_device *dev, int len)
 	unsigned long flags;
 
 	rlen = (len + 1) & ~1;
-	skb = dev_alloc_skb(rlen + 2);
+	skb = netdev_alloc_skb(dev, rlen + 2);
 
 	if (!skb) {
 		pr_warning("%s: memory squeeze, dropping packet\n", dev->name);

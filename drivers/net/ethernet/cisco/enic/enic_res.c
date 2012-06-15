@@ -44,7 +44,7 @@ int enic_get_vnic_config(struct enic *enic)
 	struct vnic_enet_config *c = &enic->config;
 	int err;
 
-	err = vnic_dev_mac_addr(enic->vdev, enic->mac_addr);
+	err = vnic_dev_get_mac_addr(enic->vdev, enic->mac_addr);
 	if (err) {
 		dev_err(enic_get_dev(enic),
 			"Error getting MAC addr, %d\n", err);

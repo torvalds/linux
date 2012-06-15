@@ -8,7 +8,7 @@ from the windriver disk into this directory.
 
 Then run
 
-./get_dvb_firware opera1
+./get_dvb_firmware opera1
 
 and after that you have 2 files:
 

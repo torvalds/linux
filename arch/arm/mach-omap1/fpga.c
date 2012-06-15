@@ -24,11 +24,14 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 
 #include <plat/fpga.h>
+
+#include <mach/hardware.h>
+
+#include "iomap.h"
 
 static void fpga_mask_irq(struct irq_data *d)
 {
@@ -84,7 +87,7 @@ static void fpga_mask_ack_irq(struct irq_data *d)
 	fpga_ack_irq(d);
 }
 
-void innovator_fpga_IRQ_demux(unsigned int irq, struct irq_desc *desc)
+static void innovator_fpga_IRQ_demux(unsigned int irq, struct irq_desc *desc)
 {
 	u32 stat;
 	int fpga_irq;

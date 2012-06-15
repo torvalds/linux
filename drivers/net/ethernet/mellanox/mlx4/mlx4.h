@@ -53,6 +53,26 @@
 #define DRV_VERSION	"1.1"
 #define DRV_RELDATE	"Dec, 2011"
 
+#define MLX4_NUM_UP		8
+#define MLX4_NUM_TC		8
+#define MLX4_RATELIMIT_UNITS 3 /* 100 Mbps */
+#define MLX4_RATELIMIT_DEFAULT 0xffff
+
+struct mlx4_set_port_prio2tc_context {
+	u8 prio2tc[4];
+};
+
+struct mlx4_port_scheduler_tc_cfg_be {
+	__be16 pg;
+	__be16 bw_precentage;
+	__be16 max_bw_units; /* 3-100Mbps, 4-1Gbps, other values - reserved */
+	__be16 max_bw_value;
+};
+
+struct mlx4_set_port_scheduler_context {
+	struct mlx4_port_scheduler_tc_cfg_be tc[MLX4_NUM_TC];
+};
+
 enum {
 	MLX4_HCR_BASE		= 0x80680,
 	MLX4_HCR_SIZE		= 0x0001c,
@@ -126,6 +146,11 @@ enum mlx4_alloc_mode {
 	RES_OP_MAP_ICM,
 };
 
+enum mlx4_res_tracker_free_type {
+	RES_TR_FREE_ALL,
+	RES_TR_FREE_SLAVES_ONLY,
+	RES_TR_FREE_STRUCTS_ONLY,
+};
 
 /*
  *Virtual HCR structures.
@@ -363,6 +388,10 @@ struct mlx4_eqe {
 		struct {
 			__be32	slave_id;
 		} __packed flr_event;
+		struct {
+			__be16  current_temperature;
+			__be16  warning_threshold;
+		} __packed warming;
 	}			event;
 	u8			slave_id;
 	u8			reserved3[2];
@@ -399,7 +428,7 @@ struct mlx4_profile {
 	int			num_cq;
 	int			num_mcg;
 	int			num_mpt;
-	int			num_mtt;
+	unsigned		num_mtt;
 };
 
 struct mlx4_fw {
@@ -682,6 +711,8 @@ struct mlx4_port_info {
 	char			dev_name[16];
 	struct device_attribute port_attr;
 	enum mlx4_port_type	tmp_type;
+	char			dev_mtu_name[16];
+	struct device_attribute port_mtu_attr;
 	struct mlx4_mac_table	mac_table;
 	struct radix_tree_root	mac_tree;
 	struct mlx4_vlan_table	vlan_table;
@@ -703,7 +734,6 @@ struct mlx4_msix_ctl {
 struct mlx4_steer {
 	struct list_head promisc_qps[MLX4_NUM_STEERS];
 	struct list_head steer_entries[MLX4_NUM_STEERS];
-	struct list_head high_prios;
 };
 
 struct mlx4_priv {
@@ -846,6 +876,10 @@ void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac);
 int __mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
 int __mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		     int start_index, int npages, u64 *page_list);
+int __mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
+void __mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
+int __mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn);
+void __mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn);
 
 void mlx4_start_catas_poll(struct mlx4_dev *dev);
 void mlx4_stop_catas_poll(struct mlx4_dev *dev);
@@ -1002,8 +1036,14 @@ int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave_id);
 int mlx4_init_resource_tracker(struct mlx4_dev *dev);
 
-void mlx4_free_resource_tracker(struct mlx4_dev *dev);
+void mlx4_free_resource_tracker(struct mlx4_dev *dev,
+				enum mlx4_res_tracker_free_type type);
 
+int mlx4_QUERY_FW_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
 int mlx4_SET_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_vhcr *vhcr,
 			  struct mlx4_cmd_mailbox *inbox,
@@ -1019,13 +1059,17 @@ int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_cmd_mailbox *inbox,
 			    struct mlx4_cmd_mailbox *outbox,
 			    struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
+			       struct mlx4_vhcr *vhcr,
+			       struct mlx4_cmd_mailbox *inbox,
+			       struct mlx4_cmd_mailbox *outbox,
+			       struct mlx4_cmd_info *cmd);
 int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_vhcr *vhcr,
 			    struct mlx4_cmd_mailbox *inbox,
 			    struct mlx4_cmd_mailbox *outbox,
 			    struct mlx4_cmd_info *cmd);
 int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
-int mlx4_check_ext_port_caps(struct mlx4_dev *dev, u8 port);
 
 
 int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,

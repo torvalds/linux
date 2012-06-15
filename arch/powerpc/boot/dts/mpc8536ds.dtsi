@@ -32,6 +32,99 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+&lbc {
+	nor@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "cfi-flash";
+		reg = <0x0 0x0 0x8000000>;
+		bank-width = <2>;
+		device-width = <1>;
+
+		partition@0 {
+			reg = <0x0 0x03000000>;
+			label = "ramdisk-nor";
+		};
+
+		partition@3000000 {
+			reg = <0x03000000 0x00e00000>;
+			label = "diagnostic-nor";
+			read-only;
+		};
+
+		partition@3e00000 {
+			reg = <0x03e00000 0x00200000>;
+			label = "dink-nor";
+			read-only;
+		};
+
+		partition@4000000 {
+			reg = <0x04000000 0x00400000>;
+			label = "kernel-nor";
+		};
+
+		partition@4400000 {
+			reg = <0x04400000 0x03b00000>;
+			label = "fs-nor";
+		};
+
+		partition@7f00000 {
+			reg = <0x07f00000 0x00080000>;
+			label = "dtb-nor";
+		};
+
+		partition@7f80000 {
+			reg = <0x07f80000 0x00080000>;
+			label = "u-boot-nor";
+			read-only;
+		};
+	};
+
+	nand@2,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8536-fcm-nand",
+			     "fsl,elbc-fcm-nand";
+		reg = <0x2 0x0 0x40000>;
+
+		partition@0 {
+			reg = <0x0 0x02000000>;
+			label = "u-boot-nand";
+			read-only;
+		};
+
+		partition@2000000 {
+			reg = <0x02000000 0x10000000>;
+			label = "fs-nand";
+		};
+
+		partition@12000000 {
+			reg = <0x12000000 0x08000000>;
+			label = "ramdisk-nand";
+		};
+
+		partition@1a000000 {
+			reg = <0x1a000000 0x04000000>;
+			label = "kernel-nand";
+		};
+
+		partition@1e000000 {
+			reg = <0x1e000000 0x01000000>;
+			label = "dtb-nand";
+		};
+
+		partition@1f000000 {
+			reg = <0x1f000000 0x21000000>;
+			label = "empty-nand";
+		};
+	};
+
+	board-control@3,0 {
+		compatible = "fsl,mpc8536ds-fpga-pixis";
+		reg = <0x3 0x0 0x8000>;
+	};
+};
+
 &board_soc {
 	i2c@3100 {
 		rtc@68 {

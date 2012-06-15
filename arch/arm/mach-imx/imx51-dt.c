@@ -14,6 +14,7 @@
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/machine.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
@@ -47,7 +48,7 @@ static const struct of_dev_auxdata imx51_auxdata_lookup[] __initconst = {
 static int __init imx51_tzic_add_irq_domain(struct device_node *np,
 				struct device_node *interrupt_parent)
 {
-	irq_domain_add_simple(np, 0);
+	irq_domain_add_legacy(np, 128, 0, 0, &irq_domain_simple_ops, NULL);
 	return 0;
 }
 
@@ -57,7 +58,7 @@ static int __init imx51_gpio_add_irq_domain(struct device_node *np,
 	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
 
 	gpio_irq_base -= 32;
-	irq_domain_add_simple(np, gpio_irq_base);
+	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops, NULL);
 
 	return 0;
 }
@@ -80,6 +81,8 @@ static void __init imx51_dt_init(void)
 	void (*func)(void);
 
 	of_irq_init(imx51_irq_match);
+
+	pinctrl_provide_dummies();
 
 	node = of_find_matching_node(NULL, imx51_iomuxc_of_match);
 	if (node) {
@@ -104,6 +107,7 @@ static struct sys_timer imx51_timer = {
 
 static const char *imx51_dt_board_compat[] __initdata = {
 	"fsl,imx51-babbage",
+	"fsl,imx51",
 	NULL
 };
 
@@ -114,6 +118,7 @@ DT_MACHINE_START(IMX51_DT, "Freescale i.MX51 (Device Tree Support)")
 	.handle_irq	= imx51_handle_irq,
 	.timer		= &imx51_timer,
 	.init_machine	= imx51_dt_init,
+	.init_late	= imx51_init_late,
 	.dt_compat	= imx51_dt_board_compat,
 	.restart	= mxc_restart,
 MACHINE_END

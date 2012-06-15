@@ -2,7 +2,7 @@
  * tegra_pcm.c - Tegra PCM driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
- * Copyright (C) 2010 - NVIDIA, Inc.
+ * Copyright (C) 2010,2012 - NVIDIA, Inc.
  *
  * Based on code copyright/by:
  *
@@ -29,8 +29,8 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -38,8 +38,6 @@
 #include <sound/soc.h>
 
 #include "tegra_pcm.h"
-
-#define DRV_NAME "tegra-pcm-audio"
 
 static const struct snd_pcm_hardware tegra_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
@@ -336,7 +334,7 @@ static int tegra_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &tegra_dma_mask;
 	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = 0xffffffff;
+		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = tegra_pcm_preallocate_dma_buffer(pcm,
@@ -372,28 +370,18 @@ static struct snd_soc_platform_driver tegra_pcm_platform = {
 	.pcm_free	= tegra_pcm_free,
 };
 
-static int __devinit tegra_pcm_platform_probe(struct platform_device *pdev)
+int __devinit tegra_pcm_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(&pdev->dev, &tegra_pcm_platform);
+	return snd_soc_register_platform(dev, &tegra_pcm_platform);
 }
+EXPORT_SYMBOL_GPL(tegra_pcm_platform_register);
 
-static int __devexit tegra_pcm_platform_remove(struct platform_device *pdev)
+void __devexit tegra_pcm_platform_unregister(struct device *dev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
+	snd_soc_unregister_platform(dev);
 }
-
-static struct platform_driver tegra_pcm_driver = {
-	.driver = {
-		.name = DRV_NAME,
-		.owner = THIS_MODULE,
-	},
-	.probe = tegra_pcm_platform_probe,
-	.remove = __devexit_p(tegra_pcm_platform_remove),
-};
-module_platform_driver(tegra_pcm_driver);
+EXPORT_SYMBOL_GPL(tegra_pcm_platform_unregister);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra PCM ASoC driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRV_NAME);

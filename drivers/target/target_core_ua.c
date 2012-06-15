@@ -53,7 +53,7 @@ int core_scsi3_ua_check(
 	if (!nacl)
 		return 0;
 
-	deve = &nacl->device_list[cmd->orig_fe_lun];
+	deve = nacl->device_list[cmd->orig_fe_lun];
 	if (!atomic_read(&deve->ua_count))
 		return 0;
 	/*
@@ -110,7 +110,7 @@ int core_scsi3_ua_allocate(
 	ua->ua_ascq = ascq;
 
 	spin_lock_irq(&nacl->device_list_lock);
-	deve = &nacl->device_list[unpacked_lun];
+	deve = nacl->device_list[unpacked_lun];
 
 	spin_lock(&deve->ua_lock);
 	list_for_each_entry_safe(ua_p, ua_tmp, &deve->ua_list, ua_nacl_list) {
@@ -220,7 +220,7 @@ void core_scsi3_ua_for_check_condition(
 		return;
 
 	spin_lock_irq(&nacl->device_list_lock);
-	deve = &nacl->device_list[cmd->orig_fe_lun];
+	deve = nacl->device_list[cmd->orig_fe_lun];
 	if (!atomic_read(&deve->ua_count)) {
 		spin_unlock_irq(&nacl->device_list_lock);
 		return;
@@ -289,7 +289,7 @@ int core_scsi3_ua_clear_for_request_sense(
 		return -EINVAL;
 
 	spin_lock_irq(&nacl->device_list_lock);
-	deve = &nacl->device_list[cmd->orig_fe_lun];
+	deve = nacl->device_list[cmd->orig_fe_lun];
 	if (!atomic_read(&deve->ua_count)) {
 		spin_unlock_irq(&nacl->device_list_lock);
 		return -EPERM;

@@ -3,7 +3,7 @@
  *
  * Description: Driver for S6000 Family I2C Interface
  * Copyright (c) 2008 emlix GmbH
- * Author:	Oskar Schirmer <os@emlix.com>
+ * Author:	Oskar Schirmer <oskar@scara.com>
  *
  * Partially based on i2c-bfin-twi.c driver by <sonic.zhang@analog.com>
  * Copyright (c) 2005-2007 Analog Devices, Inc.

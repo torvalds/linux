@@ -105,6 +105,8 @@ int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
 	overlay->fb_y = pos->fb_y;
 	overlay->fb_width = fb->width;
 	overlay->fb_height = fb->height;
+	overlay->src_width = pos->src_w;
+	overlay->src_height = pos->src_h;
 	overlay->bpp = fb->bits_per_pixel;
 	overlay->pitch = fb->pitches[0];
 	overlay->pixel_format = fb->pixel_format;
@@ -153,6 +155,8 @@ static int exynos_drm_crtc_update(struct drm_crtc *crtc)
 	pos.crtc_y = 0;
 	pos.crtc_w = fb->width - crtc->x;
 	pos.crtc_h = fb->height - crtc->y;
+	pos.src_w = pos.crtc_w;
+	pos.src_h = pos.crtc_h;
 
 	return exynos_drm_overlay_update(overlay, crtc->fb, mode, &pos);
 }
@@ -249,7 +253,11 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	mode = adjusted_mode;
+	/*
+	 * copy the mode data adjusted by mode_fixup() into crtc->mode
+	 * so that hardware can be seet to proper mode.
+	 */
+	memcpy(&crtc->mode, adjusted_mode, sizeof(*adjusted_mode));
 
 	return exynos_drm_crtc_update(crtc);
 }
@@ -426,9 +434,3 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 	exynos_drm_fn_encoder(private->crtc[crtc], &crtc,
 			exynos_drm_disable_vblank);
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM CRTC Driver");
-MODULE_LICENSE("GPL");

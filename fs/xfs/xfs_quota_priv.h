@@ -24,17 +24,6 @@
  */
 #define XFS_DQITER_MAP_SIZE	10
 
-/*
- * Hash into a bucket in the dquot hash table, based on <mp, id>.
- */
-#define XFS_DQ_HASHVAL(mp, id) (((__psunsigned_t)(mp) + \
-				 (__psunsigned_t)(id)) & \
-				(xfs_Gqm->qm_dqhashmask - 1))
-#define XFS_DQ_HASH(mp, id, type)   (type == XFS_DQ_USER ? \
-				     (xfs_Gqm->qm_usr_dqhtable + \
-				      XFS_DQ_HASHVAL(mp, id)) : \
-				     (xfs_Gqm->qm_grp_dqhtable + \
-				      XFS_DQ_HASHVAL(mp, id)))
 #define XFS_IS_DQUOT_UNINITIALIZED(dqp) ( \
 	!dqp->q_core.d_blk_hardlimit && \
 	!dqp->q_core.d_blk_softlimit && \

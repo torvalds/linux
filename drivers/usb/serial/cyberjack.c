@@ -77,21 +77,12 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver cyberjack_driver = {
-	.name =		"cyberjack",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-	.no_dynamic_id = 	1,
-};
-
 static struct usb_serial_driver cyberjack_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"cyberjack",
 	},
 	.description =		"Reiner SCT Cyberjack USB card reader",
-	.usb_driver = 		&cyberjack_driver,
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		cyberjack_startup,
@@ -104,6 +95,10 @@ static struct usb_serial_driver cyberjack_device = {
 	.read_int_callback =	cyberjack_read_int_callback,
 	.read_bulk_callback =	cyberjack_read_bulk_callback,
 	.write_bulk_callback =	cyberjack_write_bulk_callback,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&cyberjack_device, NULL
 };
 
 struct cyberjack_private {
@@ -119,8 +114,6 @@ static int cyberjack_startup(struct usb_serial *serial)
 {
 	struct cyberjack_private *priv;
 	int i;
-
-	dbg("%s", __func__);
 
 	/* allocate the private data structure */
 	priv = kmalloc(sizeof(struct cyberjack_private), GFP_KERNEL);
@@ -153,8 +146,6 @@ static void cyberjack_disconnect(struct usb_serial *serial)
 {
 	int i;
 
-	dbg("%s", __func__);
-
 	for (i = 0; i < serial->num_ports; ++i)
 		usb_kill_urb(serial->port[i]->interrupt_in_urb);
 }
@@ -162,8 +153,6 @@ static void cyberjack_disconnect(struct usb_serial *serial)
 static void cyberjack_release(struct usb_serial *serial)
 {
 	int i;
-
-	dbg("%s", __func__);
 
 	for (i = 0; i < serial->num_ports; ++i) {
 		/* My special items, the standard routines free my urbs */
@@ -177,8 +166,6 @@ static int  cyberjack_open(struct tty_struct *tty,
 	struct cyberjack_private *priv;
 	unsigned long flags;
 	int result = 0;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	dbg("%s - usb_clear_halt", __func__);
 	usb_clear_halt(port->serial->dev, port->write_urb->pipe);
@@ -195,8 +182,6 @@ static int  cyberjack_open(struct tty_struct *tty,
 
 static void cyberjack_close(struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __func__, port->number);
-
 	if (port->serial->dev) {
 		/* shutdown any bulk reads that might be going on */
 		usb_kill_urb(port->write_urb);
@@ -211,8 +196,6 @@ static int cyberjack_write(struct tty_struct *tty,
 	unsigned long flags;
 	int result;
 	int wrexpected;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (count == 0) {
 		dbg("%s - write request of 0 bytes", __func__);
@@ -305,8 +288,6 @@ static void cyberjack_read_int_callback(struct urb *urb)
 	int status = urb->status;
 	int result;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	/* the urb might have been killed. */
 	if (status)
 		return;
@@ -365,8 +346,6 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 	int result;
 	int status = urb->status;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	usb_serial_debug_data(debug, &port->dev, __func__,
 						urb->actual_length, data);
 	if (status) {
@@ -414,8 +393,6 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
 	int status = urb->status;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	set_bit(0, &port->write_urbs_free);
 	if (status) {
@@ -473,35 +450,7 @@ exit:
 	usb_serial_port_softint(port);
 }
 
-static int __init cyberjack_init(void)
-{
-	int retval;
-	retval  = usb_serial_register(&cyberjack_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&cyberjack_driver);
-	if (retval)
-		goto failed_usb_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION " "
-	       DRIVER_AUTHOR "\n");
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
-
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&cyberjack_device);
-failed_usb_serial_register:
-	return retval;
-}
-
-static void __exit cyberjack_exit(void)
-{
-	usb_deregister(&cyberjack_driver);
-	usb_serial_deregister(&cyberjack_device);
-}
-
-module_init(cyberjack_init);
-module_exit(cyberjack_exit);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

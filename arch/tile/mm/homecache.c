@@ -30,6 +30,7 @@
 #include <linux/cache.h>
 #include <linux/smp.h>
 #include <linux/module.h>
+#include <linux/hugetlb.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -394,6 +395,7 @@ int page_home(struct page *page)
 		return pte_to_home(*virt_to_pte(NULL, kva));
 	}
 }
+EXPORT_SYMBOL(page_home);
 
 void homecache_change_page_home(struct page *page, int order, int home)
 {

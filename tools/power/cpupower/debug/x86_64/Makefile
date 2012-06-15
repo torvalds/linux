@@ -1,14 +1,30 @@
+OUTPUT=./
+ifeq ("$(origin O)", "command line")
+	OUTPUT := $(O)/
+endif
+
+DESTDIR =
+bindir  = /usr/bin
+
+INSTALL = /usr/bin/install
+
+
 default: all
 
-centrino-decode: ../i386/centrino-decode.c
+$(OUTPUT)centrino-decode: ../i386/centrino-decode.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-powernow-k8-decode: ../i386/powernow-k8-decode.c
+$(OUTPUT)powernow-k8-decode: ../i386/powernow-k8-decode.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-all: centrino-decode powernow-k8-decode
+all: $(OUTPUT)centrino-decode $(OUTPUT)powernow-k8-decode
 
 clean:
-	rm -rf centrino-decode powernow-k8-decode
+	rm -rf $(OUTPUT)centrino-decode $(OUTPUT)powernow-k8-decode
 
-.PHONY: all default clean
+install:
+	$(INSTALL) -d $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)centrino-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)powernow-k8-decode $(DESTDIR)${bindir}
+
+.PHONY: all default clean install

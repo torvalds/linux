@@ -329,9 +329,10 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 {
 	struct cpc925_mc_pdata *pdata = mci->pvt_info;
 	struct csrow_info *csrow;
-	int index;
+	struct dimm_info *dimm;
+	int index, j;
 	u32 mbmr, mbbar, bba;
-	unsigned long row_size, last_nr_pages = 0;
+	unsigned long row_size, nr_pages, last_nr_pages = 0;
 
 	get_total_mem(pdata);
 
@@ -350,36 +351,41 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 
 		row_size = bba * (1UL << 28);	/* 256M */
 		csrow->first_page = last_nr_pages;
-		csrow->nr_pages = row_size >> PAGE_SHIFT;
-		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
+		nr_pages = row_size >> PAGE_SHIFT;
+		csrow->last_page = csrow->first_page + nr_pages - 1;
 		last_nr_pages = csrow->last_page + 1;
 
-		csrow->mtype = MEM_RDDR;
-		csrow->edac_mode = EDAC_SECDED;
+		for (j = 0; j < csrow->nr_channels; j++) {
+			dimm = csrow->channels[j].dimm;
 
-		switch (csrow->nr_channels) {
-		case 1: /* Single channel */
-			csrow->grain = 32; /* four-beat burst of 32 bytes */
-			break;
-		case 2: /* Dual channel */
-		default:
-			csrow->grain = 64; /* four-beat burst of 64 bytes */
-			break;
-		}
+			dimm->nr_pages = nr_pages / csrow->nr_channels;
+			dimm->mtype = MEM_RDDR;
+			dimm->edac_mode = EDAC_SECDED;
 
-		switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
-		case 6: /* 0110, no way to differentiate X8 VS X16 */
-		case 5:	/* 0101 */
-		case 8: /* 1000 */
-			csrow->dtype = DEV_X16;
-			break;
-		case 7: /* 0111 */
-		case 9: /* 1001 */
-			csrow->dtype = DEV_X8;
-			break;
-		default:
-			csrow->dtype = DEV_UNKNOWN;
-			break;
+			switch (csrow->nr_channels) {
+			case 1: /* Single channel */
+				dimm->grain = 32; /* four-beat burst of 32 bytes */
+				break;
+			case 2: /* Dual channel */
+			default:
+				dimm->grain = 64; /* four-beat burst of 64 bytes */
+				break;
+			}
+
+			switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
+			case 6: /* 0110, no way to differentiate X8 VS X16 */
+			case 5:	/* 0101 */
+			case 8: /* 1000 */
+				dimm->dtype = DEV_X16;
+				break;
+			case 7: /* 0111 */
+			case 9: /* 1001 */
+				dimm->dtype = DEV_X8;
+				break;
+			default:
+				dimm->dtype = DEV_UNKNOWN;
+				break;
+			}
 		}
 	}
 }
@@ -549,13 +555,18 @@ static void cpc925_mc_check(struct mem_ctl_info *mci)
 	if (apiexcp & CECC_EXCP_DETECTED) {
 		cpc925_mc_printk(mci, KERN_INFO, "DRAM CECC Fault\n");
 		channel = cpc925_mc_find_channel(mci, syndrome);
-		edac_mc_handle_ce(mci, pfn, offset, syndrome,
-				  csrow, channel, mci->ctl_name);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+				     pfn, offset, syndrome,
+				     csrow, channel, -1,
+				     mci->ctl_name, "", NULL);
 	}
 
 	if (apiexcp & UECC_EXCP_DETECTED) {
 		cpc925_mc_printk(mci, KERN_INFO, "DRAM UECC Fault\n");
-		edac_mc_handle_ue(mci, pfn, offset, csrow, mci->ctl_name);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+				     pfn, offset, 0,
+				     csrow, -1, -1,
+				     mci->ctl_name, "", NULL);
 	}
 
 	cpc925_mc_printk(mci, KERN_INFO, "Dump registers:\n");
@@ -927,6 +938,7 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 {
 	static int edac_mc_idx;
 	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[2];
 	void __iomem *vbase;
 	struct cpc925_mc_pdata *pdata;
 	struct resource *r;
@@ -962,9 +974,16 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	nr_channels = cpc925_mc_get_channels(vbase);
-	mci = edac_mc_alloc(sizeof(struct cpc925_mc_pdata),
-			CPC925_NR_CSROWS, nr_channels + 1, edac_mc_idx);
+	nr_channels = cpc925_mc_get_channels(vbase) + 1;
+
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = CPC925_NR_CSROWS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = nr_channels;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), layers,
+			    sizeof(struct cpc925_mc_pdata));
 	if (!mci) {
 		cpc925_printk(KERN_ERR, "No memory for mem_ctl_info\n");
 		res = -ENOMEM;

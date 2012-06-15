@@ -22,6 +22,7 @@
 #include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/errno.h>
 #include <linux/firewire.h>
 #include <linux/firewire-cdev.h>
@@ -44,14 +45,13 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
-#include <asm/system.h>
 
 #include "core.h"
 
 /*
  * ABI version history is documented in linux/firewire-cdev.h.
  */
-#define FW_CDEV_KERNEL_VERSION			4
+#define FW_CDEV_KERNEL_VERSION			5
 #define FW_CDEV_VERSION_EVENT_REQUEST2		4
 #define FW_CDEV_VERSION_ALLOCATE_REGION_END	4
 
@@ -71,6 +71,7 @@ struct client {
 	u64 iso_closure;
 	struct fw_iso_buffer buffer;
 	unsigned long vm_start;
+	bool buffer_is_mapped;
 
 	struct list_head phy_receiver_link;
 	u64 phy_receiver_closure;
@@ -389,7 +390,7 @@ static void queue_bus_reset_event(struct client *client)
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL) {
-		fw_notify("Out of memory when allocating event\n");
+		fw_notice(client->device->card, "out of memory when allocating event\n");
 		return;
 	}
 
@@ -438,6 +439,7 @@ union ioctl_arg {
 	struct fw_cdev_send_phy_packet		send_phy_packet;
 	struct fw_cdev_receive_phy_packets	receive_phy_packets;
 	struct fw_cdev_set_iso_channels		set_iso_channels;
+	struct fw_cdev_flush_iso		flush_iso;
 };
 
 static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
@@ -691,7 +693,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
 	if (r == NULL || e == NULL) {
-		fw_notify("Out of memory when allocating event\n");
+		fw_notice(card, "out of memory when allocating event\n");
 		goto failed;
 	}
 	r->card    = card;
@@ -928,7 +930,7 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 
 	e = kmalloc(sizeof(*e) + header_length, GFP_ATOMIC);
 	if (e == NULL) {
-		fw_notify("Out of memory when allocating event\n");
+		fw_notice(context->card, "out of memory when allocating event\n");
 		return;
 	}
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
@@ -948,7 +950,7 @@ static void iso_mc_callback(struct fw_iso_context *context,
 
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
 	if (e == NULL) {
-		fw_notify("Out of memory when allocating event\n");
+		fw_notice(context->card, "out of memory when allocating event\n");
 		return;
 	}
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL;
@@ -959,11 +961,20 @@ static void iso_mc_callback(struct fw_iso_context *context,
 		    sizeof(e->interrupt), NULL, 0);
 }
 
+static enum dma_data_direction iso_dma_direction(struct fw_iso_context *context)
+{
+		if (context->type == FW_ISO_CONTEXT_TRANSMIT)
+			return DMA_TO_DEVICE;
+		else
+			return DMA_FROM_DEVICE;
+}
+
 static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 {
 	struct fw_cdev_create_iso_context *a = &arg->create_iso_context;
 	struct fw_iso_context *context;
 	fw_iso_callback_t cb;
+	int ret;
 
 	BUILD_BUG_ON(FW_CDEV_ISO_CONTEXT_TRANSMIT != FW_ISO_CONTEXT_TRANSMIT ||
 		     FW_CDEV_ISO_CONTEXT_RECEIVE  != FW_ISO_CONTEXT_RECEIVE  ||
@@ -1004,7 +1015,20 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	if (client->iso_context != NULL) {
 		spin_unlock_irq(&client->lock);
 		fw_iso_context_destroy(context);
+
 		return -EBUSY;
+	}
+	if (!client->buffer_is_mapped) {
+		ret = fw_iso_buffer_map_dma(&client->buffer,
+					    client->device->card,
+					    iso_dma_direction(context));
+		if (ret < 0) {
+			spin_unlock_irq(&client->lock);
+			fw_iso_context_destroy(context);
+
+			return ret;
+		}
+		client->buffer_is_mapped = true;
 	}
 	client->iso_closure = a->closure;
 	client->iso_context = context;
@@ -1166,6 +1190,16 @@ static int ioctl_stop_iso(struct client *client, union ioctl_arg *arg)
 		return -EINVAL;
 
 	return fw_iso_context_stop(client->iso_context);
+}
+
+static int ioctl_flush_iso(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_flush_iso *a = &arg->flush_iso;
+
+	if (client->iso_context == NULL || a->handle != 0)
+		return -EINVAL;
+
+	return fw_iso_context_flush_completions(client->iso_context);
 }
 
 static int ioctl_get_cycle_timer2(struct client *client, union ioctl_arg *arg)
@@ -1548,7 +1582,7 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 	list_for_each_entry(client, &card->phy_receiver_list, phy_receiver_link) {
 		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
 		if (e == NULL) {
-			fw_notify("Out of memory when allocating event\n");
+			fw_notice(card, "out of memory when allocating event\n");
 			break;
 		}
 		e->phy_packet.closure	= client->phy_receiver_closure;
@@ -1589,6 +1623,7 @@ static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
 	[0x15] = ioctl_send_phy_packet,
 	[0x16] = ioctl_receive_phy_packets,
 	[0x17] = ioctl_set_iso_channels,
+	[0x18] = ioctl_flush_iso,
 };
 
 static int dispatch_ioctl(struct client *client,
@@ -1640,7 +1675,6 @@ static long fw_device_op_compat_ioctl(struct file *file,
 static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct client *client = file->private_data;
-	enum dma_data_direction direction;
 	unsigned long size;
 	int page_count, ret;
 
@@ -1663,20 +1697,28 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	if (size & ~PAGE_MASK)
 		return -EINVAL;
 
-	if (vma->vm_flags & VM_WRITE)
-		direction = DMA_TO_DEVICE;
-	else
-		direction = DMA_FROM_DEVICE;
-
-	ret = fw_iso_buffer_init(&client->buffer, client->device->card,
-				 page_count, direction);
+	ret = fw_iso_buffer_alloc(&client->buffer, page_count);
 	if (ret < 0)
 		return ret;
 
-	ret = fw_iso_buffer_map(&client->buffer, vma);
+	spin_lock_irq(&client->lock);
+	if (client->iso_context) {
+		ret = fw_iso_buffer_map_dma(&client->buffer,
+				client->device->card,
+				iso_dma_direction(client->iso_context));
+		client->buffer_is_mapped = (ret == 0);
+	}
+	spin_unlock_irq(&client->lock);
 	if (ret < 0)
-		fw_iso_buffer_destroy(&client->buffer, client->device->card);
+		goto fail;
 
+	ret = fw_iso_buffer_map_vma(&client->buffer, vma);
+	if (ret < 0)
+		goto fail;
+
+	return 0;
+ fail:
+	fw_iso_buffer_destroy(&client->buffer, client->device->card);
 	return ret;
 }
 

@@ -139,9 +139,6 @@ static inline void start_thread(struct pt_regs *regs,
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-/* Prepare to copy thread state - unlazy all lazy status */
-extern void prepare_to_copy(struct task_struct *tsk);
-
 /*
  * create a kernel thread without removing it from tasklists
  */

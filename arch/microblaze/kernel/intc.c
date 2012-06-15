@@ -9,6 +9,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/irqdomain.h>
 #include <linux/irq.h>
 #include <asm/page.h>
 #include <linux/io.h>
@@ -24,8 +25,6 @@
 static unsigned int intc_baseaddr;
 #define INTC_BASE	intc_baseaddr
 #endif
-
-unsigned int nr_irq;
 
 /* No one else should require these constants, so define them locally here. */
 #define ISR 0x00			/* Interrupt Status Register */
@@ -84,24 +83,45 @@ static struct irq_chip intc_dev = {
 	.irq_mask_ack = intc_mask_ack,
 };
 
-unsigned int get_irq(struct pt_regs *regs)
-{
-	int irq;
+static struct irq_domain *root_domain;
 
-	/*
-	 * NOTE: This function is the one that needs to be improved in
-	 * order to handle multiple interrupt controllers. It currently
-	 * is hardcoded to check for interrupts only on the first INTC.
-	 */
-	irq = in_be32(INTC_BASE + IVR) + NO_IRQ_OFFSET;
-	pr_debug("get_irq: %d\n", irq);
+unsigned int get_irq(void)
+{
+	unsigned int hwirq, irq = -1;
+
+	hwirq = in_be32(INTC_BASE + IVR);
+	if (hwirq != -1U)
+		irq = irq_find_mapping(root_domain, hwirq);
+
+	pr_debug("get_irq: hwirq=%d, irq=%d\n", hwirq, irq);
 
 	return irq;
 }
 
+int xintc_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
+{
+	u32 intr_mask = (u32)d->host_data;
+
+	if (intr_mask & (1 << hw)) {
+		irq_set_chip_and_handler_name(irq, &intc_dev,
+						handle_edge_irq, "edge");
+		irq_clear_status_flags(irq, IRQ_LEVEL);
+	} else {
+		irq_set_chip_and_handler_name(irq, &intc_dev,
+						handle_level_irq, "level");
+		irq_set_status_flags(irq, IRQ_LEVEL);
+	}
+	return 0;
+}
+
+static const struct irq_domain_ops xintc_irq_domain_ops = {
+	.xlate = irq_domain_xlate_onetwocell,
+	.map = xintc_map,
+};
+
 void __init init_IRQ(void)
 {
-	u32 i, intr_mask;
+	u32 nr_irq, intr_mask;
 	struct device_node *intc = NULL;
 #ifdef CONFIG_SELFMOD_INTC
 	unsigned int intc_baseaddr = 0;
@@ -131,8 +151,8 @@ void __init init_IRQ(void)
 #ifdef CONFIG_SELFMOD_INTC
 	selfmod_function((int *) arr_func, intc_baseaddr);
 #endif
-	printk(KERN_INFO "XPS intc #0 at 0x%08x, num_irq=%d, edge=0x%x\n",
-		intc_baseaddr, nr_irq, intr_mask);
+	printk(KERN_INFO "%s #0 at 0x%08x, num_irq=%d, edge=0x%x\n",
+		intc->name, intc_baseaddr, nr_irq, intr_mask);
 
 	/*
 	 * Disable all external interrupts until they are
@@ -146,16 +166,9 @@ void __init init_IRQ(void)
 	/* Turn on the Master Enable. */
 	out_be32(intc_baseaddr + MER, MER_HIE | MER_ME);
 
-	for (i = IRQ_OFFSET; i < (nr_irq + IRQ_OFFSET); ++i) {
-		if (intr_mask & (0x00000001 << (i - IRQ_OFFSET))) {
-			irq_set_chip_and_handler_name(i, &intc_dev,
-				handle_edge_irq, "edge");
-			irq_clear_status_flags(i, IRQ_LEVEL);
-		} else {
-			irq_set_chip_and_handler_name(i, &intc_dev,
-				handle_level_irq, "level");
-			irq_set_status_flags(i, IRQ_LEVEL);
-		}
-		irq_get_irq_data(i)->hwirq = i - IRQ_OFFSET;
-	}
+	/* Yeah, okay, casting the intr_mask to a void* is butt-ugly, but I'm
+	 * lazy and Michal can clean it up to something nicer when he tests
+	 * and commits this patch.  ~~gcl */
+	root_domain = irq_domain_add_linear(intc, nr_irq, &xintc_irq_domain_ops,
+							(void *)intr_mask);
 }

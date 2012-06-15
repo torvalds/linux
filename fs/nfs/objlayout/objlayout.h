@@ -184,4 +184,6 @@ extern void objlayout_encode_layoutreturn(
 	struct xdr_stream *,
 	const struct nfs4_layoutreturn_args *);
 
+extern int objlayout_autologin(struct pnfs_osd_deviceaddr *deviceaddr);
+
 #endif /* _OBJLAYOUT_H */

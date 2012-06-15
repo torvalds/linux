@@ -30,6 +30,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #include <linux/mfd/wm8350/core.h>
@@ -145,26 +146,29 @@ static struct platform_device smdk6410_lcd_powerdev = {
 };
 
 static struct s3c_fb_pd_win smdk6410_fb_win0 = {
-	/* this is to ensure we use win0 */
-	.win_mode	= {
-		.left_margin	= 8,
-		.right_margin	= 13,
-		.upper_margin	= 7,
-		.lower_margin	= 5,
-		.hsync_len	= 3,
-		.vsync_len	= 1,
-		.xres		= 800,
-		.yres		= 480,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 800,
+	.yres		= 480,
 	.virtual_y	= 480 * 2,
 	.virtual_x	= 800,
+};
+
+static struct fb_videomode smdk6410_lcd_timing = {
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
 };
 
 /* 405566 clocks per frame => 60Hz refresh requires 24333960Hz clock */
 static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
 	.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
+	.vtiming	= &smdk6410_lcd_timing,
 	.win[0]		= &smdk6410_fb_win0,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
@@ -181,16 +185,9 @@ static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
  */
 
 static struct resource smdk6410_smsc911x_resources[] = {
-	[0] = {
-		.start = S3C64XX_PA_XM0CSN1,
-		.end   = S3C64XX_PA_XM0CSN1 + SZ_64K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = S3C_EINT(10),
-		.end   = S3C_EINT(10),
-		.flags = IORESOURCE_IRQ | IRQ_TYPE_LEVEL_LOW,
-	},
+	[0] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN1, SZ_64K),
+	[1] = DEFINE_RES_NAMED(S3C_EINT(10), 1, NULL, IORESOURCE_IRQ \
+					| IRQ_TYPE_LEVEL_LOW),
 };
 
 static struct smsc911x_platform_config smdk6410_smsc911x_pdata = {
@@ -631,6 +628,8 @@ static struct platform_pwm_backlight_data smdk6410_bl_data = {
 	.pwm_id = 1,
 };
 
+static struct s3c_hsotg_plat smdk6410_hsotg_pdata;
+
 static void __init smdk6410_map_io(void)
 {
 	u32 tmp;
@@ -659,6 +658,7 @@ static void __init smdk6410_machine_init(void)
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_fb_set_platdata(&smdk6410_lcd_pdata);
+	s3c_hsotg_set_platdata(&smdk6410_hsotg_pdata);
 
 	samsung_keypad_set_platdata(&smdk6410_keypad_data);
 
@@ -705,6 +705,7 @@ MACHINE_START(SMDK6410, "SMDK6410")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= smdk6410_map_io,
 	.init_machine	= smdk6410_machine_init,
+	.init_late	= s3c64xx_init_late,
 	.timer		= &s3c24xx_timer,
 	.restart	= s3c64xx_restart,
 MACHINE_END

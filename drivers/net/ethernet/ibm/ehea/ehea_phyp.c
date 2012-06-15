@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/net/ehea/ehea_phyp.c
+ *  linux/drivers/net/ethernet/ibm/ehea/ehea_phyp.c
  *
  *  eHEA ethernet device driver for IBM eServer System p
  *

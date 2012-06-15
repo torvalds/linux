@@ -581,6 +581,9 @@ struct b43legacy_wl {
 	struct mutex mutex;		/* locks wireless core state */
 	spinlock_t leds_lock;		/* lock for leds */
 
+	/* firmware loading work */
+	struct work_struct firmware_load;
+
 	/* We can only have one operating interface (802.11 core)
 	 * at a time. General information about this interface follows.
 	 */

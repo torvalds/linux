@@ -36,7 +36,7 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 
 	useraddr = disp2;
 	if (base2)
-		useraddr += vcpu->arch.guest_gprs[base2];
+		useraddr += vcpu->run->s.regs.gprs[base2];
 
 	if (useraddr & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -75,7 +75,7 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 
 	useraddr = disp2;
 	if (base2)
-		useraddr += vcpu->arch.guest_gprs[base2];
+		useraddr += vcpu->run->s.regs.gprs[base2];
 
 	if (useraddr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
@@ -101,6 +101,7 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 }
 
 static intercept_handler_t instruction_handlers[256] = {
+	[0x01] = kvm_s390_handle_01,
 	[0x83] = kvm_s390_handle_diag,
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_b2,
@@ -133,13 +134,6 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_stop_request++;
 	spin_lock_bh(&vcpu->arch.local_int.lock);
-	if (vcpu->arch.local_int.action_bits & ACTION_STORE_ON_STOP) {
-		vcpu->arch.local_int.action_bits &= ~ACTION_STORE_ON_STOP;
-		rc = kvm_s390_vcpu_store_status(vcpu,
-						  KVM_S390_STORE_STATUS_NOADDR);
-		if (rc >= 0)
-			rc = -EOPNOTSUPP;
-	}
 
 	if (vcpu->arch.local_int.action_bits & ACTION_RELOADVCPU_ON_STOP) {
 		vcpu->arch.local_int.action_bits &= ~ACTION_RELOADVCPU_ON_STOP;
@@ -155,7 +149,18 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 		rc = -EOPNOTSUPP;
 	}
 
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
+	if (vcpu->arch.local_int.action_bits & ACTION_STORE_ON_STOP) {
+		vcpu->arch.local_int.action_bits &= ~ACTION_STORE_ON_STOP;
+		/* store status must be called unlocked. Since local_int.lock
+		 * only protects local_int.* and not guest memory we can give
+		 * up the lock here */
+		spin_unlock_bh(&vcpu->arch.local_int.lock);
+		rc = kvm_s390_vcpu_store_status(vcpu,
+						KVM_S390_STORE_STATUS_NOADDR);
+		if (rc >= 0)
+			rc = -EOPNOTSUPP;
+	} else
+		spin_unlock_bh(&vcpu->arch.local_int.lock);
 	return rc;
 }
 

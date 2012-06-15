@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/mc146818rtc.h>
 
-#include <asm/system.h>
 #include <asm/pci-bridge.h>
 
 #define ULI_PIRQA	0x08

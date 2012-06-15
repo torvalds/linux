@@ -53,26 +53,34 @@ ACPI_MODULE_NAME("utinit")
 /* Local prototypes */
 static void acpi_ut_terminate(void);
 
+#if (!ACPI_REDUCED_HARDWARE)
+
+static void acpi_ut_free_gpe_lists(void);
+
+#else
+
+#define acpi_ut_free_gpe_lists()
+#endif				/* !ACPI_REDUCED_HARDWARE */
+
+#if (!ACPI_REDUCED_HARDWARE)
 /******************************************************************************
  *
- * FUNCTION:    acpi_ut_terminate
+ * FUNCTION:    acpi_ut_free_gpe_lists
  *
  * PARAMETERS:  none
  *
  * RETURN:      none
  *
- * DESCRIPTION: Free global memory
+ * DESCRIPTION: Free global GPE lists
  *
  ******************************************************************************/
 
-static void acpi_ut_terminate(void)
+static void acpi_ut_free_gpe_lists(void)
 {
 	struct acpi_gpe_block_info *gpe_block;
 	struct acpi_gpe_block_info *next_gpe_block;
 	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
 	struct acpi_gpe_xrupt_info *next_gpe_xrupt_info;
-
-	ACPI_FUNCTION_TRACE(ut_terminate);
 
 	/* Free global GPE blocks and related info structures */
 
@@ -91,7 +99,26 @@ static void acpi_ut_terminate(void)
 		ACPI_FREE(gpe_xrupt_info);
 		gpe_xrupt_info = next_gpe_xrupt_info;
 	}
+}
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_terminate
+ *
+ * PARAMETERS:  none
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Free global memory
+ *
+ ******************************************************************************/
+
+static void acpi_ut_terminate(void)
+{
+	ACPI_FUNCTION_TRACE(ut_terminate);
+
+	acpi_ut_free_gpe_lists();
 	acpi_ut_delete_address_lists();
 	return_VOID;
 }

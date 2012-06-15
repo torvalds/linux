@@ -18,6 +18,9 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 
+/* Don't hold the runqueue lock over context switch */
+#define __ARCH_WANT_UNLOCKED_CTXSW
+
 /* The sparc has no problems with write protection */
 #define wp_works_ok 1
 #define wp_works_ok__is_a_macro /* for versions in ksyms.c */
@@ -39,7 +42,9 @@
 #define TASK_SIZE_OF(tsk) \
 	(test_tsk_thread_flag(tsk,TIF_32BIT) ? \
 	 (1UL << 32UL) : ((unsigned long)-VPTE_SIZE))
-#define TASK_SIZE	TASK_SIZE_OF(current)
+#define TASK_SIZE \
+	(test_thread_flag(TIF_32BIT) ? \
+	 (1UL << 32UL) : ((unsigned long)-VPTE_SIZE))
 #ifdef __KERNEL__
 
 #define STACK_TOP32	((1UL << 32UL) - PAGE_SIZE)
@@ -182,9 +187,6 @@ do { \
 
 /* Free all resources held by a thread. */
 #define release_thread(tsk)		do { } while (0)
-
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
 
 extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 

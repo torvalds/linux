@@ -33,32 +33,32 @@
  */
 
 crypto@30000 {
-	compatible = "fsl,sec4.4", "fsl,sec4.0";
+	compatible = "fsl,sec-v4.4", "fsl,sec-v4.0";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	reg		 = <0x30000 0x10000>;
 	interrupts	 = <58 2 0 0>;
 
 	sec_jr0: jr@1000 {
-		compatible = "fsl,sec4.4-job-ring", "fsl,sec4.0-job-ring";
+		compatible = "fsl,sec-v4.4-job-ring", "fsl,sec-v4.0-job-ring";
 		reg	   = <0x1000 0x1000>;
 		interrupts	 = <45 2 0 0>;
 	};
 
 	sec_jr1: jr@2000 {
-		compatible = "fsl,sec4.4-job-ring", "fsl,sec4.0-job-ring";
+		compatible = "fsl,sec-v4.4-job-ring", "fsl,sec-v4.0-job-ring";
 		reg	   = <0x2000 0x1000>;
 		interrupts	 = <45 2 0 0>;
 	};
 
 	sec_jr2: jr@3000 {
-		compatible = "fsl,sec4.4-job-ring", "fsl,sec4.0-job-ring";
+		compatible = "fsl,sec-v4.4-job-ring", "fsl,sec-v4.0-job-ring";
 		reg	   = <0x3000 0x1000>;
 		interrupts	 = <45 2 0 0>;
 	};
 
 	sec_jr3: jr@4000 {
-		compatible = "fsl,sec4.4-job-ring", "fsl,sec4.0-job-ring";
+		compatible = "fsl,sec-v4.4-job-ring", "fsl,sec-v4.0-job-ring";
 		reg	   = <0x4000 0x1000>;
 		interrupts	 = <45 2 0 0>;
 	};

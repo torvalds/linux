@@ -652,7 +652,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	}
 
 	memset(&q, 0, sizeof(struct gfs2_quota));
-	err = gfs2_internal_read(ip, NULL, (char *)&q, &loc, sizeof(q));
+	err = gfs2_internal_read(ip, (char *)&q, &loc, sizeof(q));
 	if (err < 0)
 		return err;
 
@@ -681,7 +681,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	ptr = qp;
 	nbytes = sizeof(struct gfs2_quota);
 get_a_page:
-	page = grab_cache_page(mapping, index);
+	page = find_or_create_page(mapping, index, GFP_NOFS);
 	if (!page)
 		return -ENOMEM;
 
@@ -720,12 +720,12 @@ get_a_page:
 
 	gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
-	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr = kmap_atomic(page);
 	if (offset + sizeof(struct gfs2_quota) > PAGE_CACHE_SIZE)
 		nbytes = PAGE_CACHE_SIZE - offset;
 	memcpy(kaddr + offset, ptr, nbytes);
 	flush_dcache_page(page);
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	unlock_page(page);
 	page_cache_release(page);
 
@@ -744,7 +744,7 @@ get_a_page:
 		i_size_write(inode, size);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
 	mark_inode_dirty(inode);
-	return err;
+	return 0;
 
 unlock_out:
 	unlock_page(page);
@@ -852,7 +852,7 @@ static int update_qd(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd)
 
 	memset(&q, 0, sizeof(struct gfs2_quota));
 	pos = qd2offset(qd);
-	error = gfs2_internal_read(ip, NULL, (char *)&q, &pos, sizeof(q));
+	error = gfs2_internal_read(ip, (char *)&q, &pos, sizeof(q));
 	if (error < 0)
 		return error;
 

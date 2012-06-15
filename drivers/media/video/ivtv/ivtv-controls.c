@@ -21,6 +21,7 @@
 #include "ivtv-driver.h"
 #include "ivtv-ioctl.h"
 #include "ivtv-controls.h"
+#include "ivtv-mailbox.h"
 
 static int ivtv_s_stream_vbi_fmt(struct cx2341x_handler *cxhdl, u32 fmt)
 {
@@ -98,4 +99,65 @@ struct cx2341x_handler_ops ivtv_cxhdl_ops = {
 	.s_audio_sampling_freq = ivtv_s_audio_sampling_freq,
 	.s_video_encoding = ivtv_s_video_encoding,
 	.s_stream_vbi_fmt = ivtv_s_stream_vbi_fmt,
+};
+
+int ivtv_g_pts_frame(struct ivtv *itv, s64 *pts, s64 *frame)
+{
+	u32 data[CX2341X_MBOX_MAX_DATA];
+
+	if (test_bit(IVTV_F_I_VALID_DEC_TIMINGS, &itv->i_flags)) {
+		*pts = (s64)((u64)itv->last_dec_timing[2] << 32) |
+			(u64)itv->last_dec_timing[1];
+		*frame = itv->last_dec_timing[0];
+		return 0;
+	}
+	*pts = 0;
+	*frame = 0;
+	if (atomic_read(&itv->decoding)) {
+		if (ivtv_api(itv, CX2341X_DEC_GET_TIMING_INFO, 5, data)) {
+			IVTV_DEBUG_WARN("GET_TIMING: couldn't read clock\n");
+			return -EIO;
+		}
+		memcpy(itv->last_dec_timing, data, sizeof(itv->last_dec_timing));
+		set_bit(IVTV_F_I_VALID_DEC_TIMINGS, &itv->i_flags);
+		*pts = (s64)((u64) data[2] << 32) | (u64) data[1];
+		*frame = data[0];
+		/*timing->scr = (u64) (((u64) data[4] << 32) | (u64) (data[3]));*/
+	}
+	return 0;
+}
+
+static int ivtv_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct ivtv *itv = container_of(ctrl->handler, struct ivtv, cxhdl.hdl);
+
+	switch (ctrl->id) {
+	/* V4L2_CID_MPEG_VIDEO_DEC_PTS and V4L2_CID_MPEG_VIDEO_DEC_FRAME
+	   control cluster */
+	case V4L2_CID_MPEG_VIDEO_DEC_PTS:
+		return ivtv_g_pts_frame(itv, &itv->ctrl_pts->val64,
+					     &itv->ctrl_frame->val64);
+	}
+	return 0;
+}
+
+static int ivtv_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct ivtv *itv = container_of(ctrl->handler, struct ivtv, cxhdl.hdl);
+
+	switch (ctrl->id) {
+	/* V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK and MULTILINGUAL_PLAYBACK
+	   control cluster */
+	case V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK:
+		itv->audio_stereo_mode = itv->ctrl_audio_playback->val - 1;
+		itv->audio_bilingual_mode = itv->ctrl_audio_multilingual_playback->val - 1;
+		ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
+		break;
+	}
+	return 0;
+}
+
+const struct v4l2_ctrl_ops ivtv_hdl_out_ops = {
+	.s_ctrl = ivtv_s_ctrl,
+	.g_volatile_ctrl = ivtv_g_volatile_ctrl,
 };

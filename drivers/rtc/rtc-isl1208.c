@@ -710,22 +710,9 @@ static struct i2c_driver isl1208_driver = {
 	.id_table = isl1208_id,
 };
 
-static int __init
-isl1208_init(void)
-{
-	return i2c_add_driver(&isl1208_driver);
-}
-
-static void __exit
-isl1208_exit(void)
-{
-	i2c_del_driver(&isl1208_driver);
-}
+module_i2c_driver(isl1208_driver);
 
 MODULE_AUTHOR("Herbert Valerio Riedel <hvr@gnu.org>");
 MODULE_DESCRIPTION("Intersil ISL1208 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(isl1208_init);
-module_exit(isl1208_exit);

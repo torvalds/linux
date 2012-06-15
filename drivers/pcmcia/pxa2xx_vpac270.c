@@ -23,27 +23,12 @@
 #include "soc_common.h"
 
 static struct gpio vpac270_pcmcia_gpios[] = {
-	{ GPIO84_VPAC270_PCMCIA_CD,	GPIOF_IN,	"PCMCIA Card Detect" },
-	{ GPIO35_VPAC270_PCMCIA_RDY,	GPIOF_IN,	"PCMCIA Ready" },
 	{ GPIO107_VPAC270_PCMCIA_PPEN,	GPIOF_INIT_LOW,	"PCMCIA PPEN" },
 	{ GPIO11_VPAC270_PCMCIA_RESET,	GPIOF_INIT_LOW,	"PCMCIA Reset" },
 };
 
 static struct gpio vpac270_cf_gpios[] = {
-	{ GPIO17_VPAC270_CF_CD,		GPIOF_IN,	"CF Card Detect" },
-	{ GPIO12_VPAC270_CF_RDY,	GPIOF_IN,	"CF Ready" },
 	{ GPIO16_VPAC270_CF_RESET,	GPIOF_INIT_LOW,	"CF Reset" },
-};
-
-static struct pcmcia_irqs cd_irqs[] = {
-	{
-		.sock = 0,
-		.str  = "PCMCIA CD"
-	},
-	{
-		.sock = 1,
-		.str  = "CF CD"
-	},
 };
 
 static int vpac270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
@@ -54,20 +39,18 @@ static int vpac270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		ret = gpio_request_array(vpac270_pcmcia_gpios,
 				ARRAY_SIZE(vpac270_pcmcia_gpios));
 
-		skt->socket.pci_irq = gpio_to_irq(GPIO35_VPAC270_PCMCIA_RDY);
-		cd_irqs[0].irq = gpio_to_irq(GPIO84_VPAC270_PCMCIA_CD);
-
-		if (!ret)
-			ret = soc_pcmcia_request_irqs(skt, &cd_irqs[0], 1);
+		skt->stat[SOC_STAT_CD].gpio = GPIO84_VPAC270_PCMCIA_CD;
+		skt->stat[SOC_STAT_CD].name = "PCMCIA CD";
+		skt->stat[SOC_STAT_RDY].gpio = GPIO35_VPAC270_PCMCIA_RDY;
+		skt->stat[SOC_STAT_RDY].name = "PCMCIA Ready";
 	} else {
 		ret = gpio_request_array(vpac270_cf_gpios,
 				ARRAY_SIZE(vpac270_cf_gpios));
 
-		skt->socket.pci_irq = gpio_to_irq(GPIO12_VPAC270_CF_RDY);
-		cd_irqs[1].irq = gpio_to_irq(GPIO17_VPAC270_CF_CD);
-
-		if (!ret)
-			ret = soc_pcmcia_request_irqs(skt, &cd_irqs[1], 1);
+		skt->stat[SOC_STAT_CD].gpio = GPIO17_VPAC270_CF_CD;
+		skt->stat[SOC_STAT_CD].name = "CF CD";
+		skt->stat[SOC_STAT_RDY].gpio = GPIO12_VPAC270_CF_RDY;
+		skt->stat[SOC_STAT_RDY].name = "CF Ready";
 	}
 
 	return ret;
@@ -86,16 +69,6 @@ static void vpac270_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 static void vpac270_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 					struct pcmcia_state *state)
 {
-	if (skt->nr == 0) {
-		state->detect = !gpio_get_value(GPIO84_VPAC270_PCMCIA_CD);
-		state->ready  = !!gpio_get_value(GPIO35_VPAC270_PCMCIA_RDY);
-	} else {
-		state->detect = !gpio_get_value(GPIO17_VPAC270_CF_CD);
-		state->ready  = !!gpio_get_value(GPIO12_VPAC270_CF_RDY);
-	}
-	state->bvd1   = 1;
-	state->bvd2   = 1;
-	state->wrprot = 0;
 	state->vs_3v  = 1;
 	state->vs_Xv  = 0;
 }
@@ -117,14 +90,6 @@ vpac270_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	return 0;
 }
 
-static void vpac270_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
-{
-}
-
-static void vpac270_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
-{
-}
-
 static struct pcmcia_low_level vpac270_pcmcia_ops = {
 	.owner			= THIS_MODULE,
 
@@ -136,9 +101,6 @@ static struct pcmcia_low_level vpac270_pcmcia_ops = {
 
 	.socket_state		= vpac270_pcmcia_socket_state,
 	.configure_socket	= vpac270_pcmcia_configure_socket,
-
-	.socket_init		= vpac270_pcmcia_socket_init,
-	.socket_suspend		= vpac270_pcmcia_socket_suspend,
 };
 
 static struct platform_device *vpac270_pcmcia_device;

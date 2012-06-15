@@ -643,7 +643,8 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 		entry->wc_flags   |= cqe->g_mlpath & 0x80 ? IB_WC_GRH : 0;
 		checksum = (be32_to_cpu(cqe->rqpn) >> 24) |
 				((be32_to_cpu(cqe->my_ee) >> 16) & 0xff00);
-		entry->csum_ok = (cqe->sl_ipok & 1 && checksum == 0xffff);
+		entry->wc_flags	  |=  (cqe->sl_ipok & 1 && checksum == 0xffff) ?
+							IB_WC_IP_CSUM_OK : 0;
 	}
 
 	entry->status = IB_WC_SUCCESS;

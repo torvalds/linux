@@ -29,15 +29,6 @@
 
 #include "soc_common.h"
 
-/*
- * These are a list of interrupt sources that provokes a polled
- * check of status
- */
-static struct pcmcia_irqs irqs[] = {
-	{ 0, BALLOON3_S0_CD_IRQ, "PCMCIA0 CD" },
-	{ 0, BALLOON3_BP_NSTSCHG_IRQ, "PCMCIA0 STSCHG" },
-};
-
 static int balloon3_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	uint16_t ver;
@@ -49,12 +40,12 @@ static int balloon3_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 			ver);
 
 	skt->socket.pci_irq = BALLOON3_BP_CF_NRDY_IRQ;
-	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
-}
+	skt->stat[SOC_STAT_CD].gpio = BALLOON3_GPIO_S0_CD;
+	skt->stat[SOC_STAT_CD].name = "PCMCIA0 CD";
+	skt->stat[SOC_STAT_BVD1].irq = BALLOON3_BP_NSTSCHG_IRQ;
+	skt->stat[SOC_STAT_BVD1].name = "PCMCIA0 STSCHG";
 
-static void balloon3_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
-{
-	soc_pcmcia_free_irqs(skt, irqs, ARRAY_SIZE(irqs));
+	return 0;
 }
 
 static unsigned long balloon3_pcmcia_status[2] = {
@@ -85,13 +76,11 @@ static void balloon3_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 			disable_irq(BALLOON3_BP_NSTSCHG_IRQ);
 	}
 
-	state->detect	= !gpio_get_value(BALLOON3_GPIO_S0_CD);
 	state->ready	= !!(status & BALLOON3_CF_nIRQ);
 	state->bvd1	= !!(status & BALLOON3_CF_nSTSCHG_BVD1);
 	state->bvd2	= 0;	/* not available */
 	state->vs_3v	= 1;	/* Always true its a CF card */
 	state->vs_Xv	= 0;	/* not available */
-	state->wrprot	= 0;	/* not available */
 }
 
 static int balloon3_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
@@ -106,7 +95,6 @@ static int balloon3_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 static struct pcmcia_low_level balloon3_pcmcia_ops = {
 	.owner			= THIS_MODULE,
 	.hw_init		= balloon3_pcmcia_hw_init,
-	.hw_shutdown		= balloon3_pcmcia_hw_shutdown,
 	.socket_state		= balloon3_pcmcia_socket_state,
 	.configure_socket	= balloon3_pcmcia_configure_socket,
 	.first			= 0,

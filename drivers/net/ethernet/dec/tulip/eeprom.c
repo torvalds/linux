@@ -1,5 +1,5 @@
 /*
-	drivers/net/tulip/eeprom.c
+	drivers/net/ethernet/dec/tulip/eeprom.c
 
 	Copyright 2000,2001  The Linux Kernel Team
 	Written/copyright 1994-2001 by Donald Becker.

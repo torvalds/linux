@@ -31,18 +31,6 @@ struct dw_dma_platform_data {
 	unsigned char	chan_priority;
 };
 
-/**
- * enum dw_dma_slave_width - DMA slave register access width.
- * @DMA_SLAVE_WIDTH_8BIT: Do 8-bit slave register accesses
- * @DMA_SLAVE_WIDTH_16BIT: Do 16-bit slave register accesses
- * @DMA_SLAVE_WIDTH_32BIT: Do 32-bit slave register accesses
- */
-enum dw_dma_slave_width {
-	DW_DMA_SLAVE_WIDTH_8BIT,
-	DW_DMA_SLAVE_WIDTH_16BIT,
-	DW_DMA_SLAVE_WIDTH_32BIT,
-};
-
 /* bursts size */
 enum dw_dma_msize {
 	DW_DMA_MSIZE_1,
@@ -55,47 +43,21 @@ enum dw_dma_msize {
 	DW_DMA_MSIZE_256,
 };
 
-/* flow controller */
-enum dw_dma_fc {
-	DW_DMA_FC_D_M2M,
-	DW_DMA_FC_D_M2P,
-	DW_DMA_FC_D_P2M,
-	DW_DMA_FC_D_P2P,
-	DW_DMA_FC_P_P2M,
-	DW_DMA_FC_SP_P2P,
-	DW_DMA_FC_P_M2P,
-	DW_DMA_FC_DP_P2P,
-};
-
 /**
  * struct dw_dma_slave - Controller-specific information about a slave
  *
  * @dma_dev: required DMA master device
- * @tx_reg: physical address of data register used for
- *	memory-to-peripheral transfers
- * @rx_reg: physical address of data register used for
- *	peripheral-to-memory transfers
- * @reg_width: peripheral register width
  * @cfg_hi: Platform-specific initializer for the CFG_HI register
  * @cfg_lo: Platform-specific initializer for the CFG_LO register
  * @src_master: src master for transfers on allocated channel.
  * @dst_master: dest master for transfers on allocated channel.
- * @src_msize: src burst size.
- * @dst_msize: dest burst size.
- * @fc: flow controller for DMA transfer
  */
 struct dw_dma_slave {
 	struct device		*dma_dev;
-	dma_addr_t		tx_reg;
-	dma_addr_t		rx_reg;
-	enum dw_dma_slave_width	reg_width;
 	u32			cfg_hi;
 	u32			cfg_lo;
 	u8			src_master;
 	u8			dst_master;
-	u8			src_msize;
-	u8			dst_msize;
-	u8			fc;
 };
 
 /* Platform-configurable bits in CFG_HI */

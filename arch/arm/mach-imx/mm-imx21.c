@@ -20,6 +20,7 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/pinctrl/machine.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/devices-common.h>
@@ -75,6 +76,10 @@ void __init mx21_init_irq(void)
 	mxc_init_irq(MX21_IO_ADDRESS(MX21_AVIC_BASE_ADDR));
 }
 
+static const struct resource imx21_audmux_res[] __initconst = {
+	DEFINE_RES_MEM(MX21_AUDMUX_BASE_ADDR, SZ_4K),
+};
+
 void __init imx21_soc_init(void)
 {
 	mxc_register_gpio("imx21-gpio", 0, MX21_GPIO1_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);
@@ -84,5 +89,8 @@ void __init imx21_soc_init(void)
 	mxc_register_gpio("imx21-gpio", 4, MX21_GPIO5_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);
 	mxc_register_gpio("imx21-gpio", 5, MX21_GPIO6_BASE_ADDR, SZ_256, MX21_INT_GPIO, 0);
 
+	pinctrl_provide_dummies();
 	imx_add_imx_dma();
+	platform_device_register_simple("imx21-audmux", 0, imx21_audmux_res,
+					ARRAY_SIZE(imx21_audmux_res));
 }

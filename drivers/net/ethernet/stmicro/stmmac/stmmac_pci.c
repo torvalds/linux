@@ -28,6 +28,7 @@
 
 struct plat_stmmacenet_data plat_dat;
 struct stmmac_mdio_bus_data mdio_data;
+struct stmmac_dma_cfg dma_cfg;
 
 static void stmmac_default_data(void)
 {
@@ -35,7 +36,6 @@ static void stmmac_default_data(void)
 	plat_dat.bus_id = 1;
 	plat_dat.phy_addr = 0;
 	plat_dat.interface = PHY_INTERFACE_MODE_GMII;
-	plat_dat.pbl = 32;
 	plat_dat.clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
 	plat_dat.has_gmac = 1;
 	plat_dat.force_sf_dma_mode = 1;
@@ -44,6 +44,10 @@ static void stmmac_default_data(void)
 	mdio_data.phy_reset = NULL;
 	mdio_data.phy_mask = 0;
 	plat_dat.mdio_bus_data = &mdio_data;
+
+	dma_cfg.pbl = 32;
+	dma_cfg.burst_len = DMA_AXI_BLEN_256;
+	plat_dat.dma_cfg = &dma_cfg;
 }
 
 /**
@@ -85,7 +89,7 @@ static int __devinit stmmac_pci_probe(struct pci_dev *pdev,
 			continue;
 		addr = pci_iomap(pdev, i, 0);
 		if (addr == NULL) {
-			pr_err("%s: ERROR: cannot map regiser memory, aborting",
+			pr_err("%s: ERROR: cannot map register memory, aborting",
 			       __func__);
 			ret = -EIO;
 			goto err_out_map_failed;

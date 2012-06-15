@@ -11,7 +11,7 @@ Supported chips:
   Socket S1G2: Athlon (X2), Sempron (X2), Turion X2 (Ultra)
 * AMD Family 12h processors: "Llano" (E2/A4/A6/A8-Series)
 * AMD Family 14h processors: "Brazos" (C/E/G/Z-Series)
-* AMD Family 15h processors: "Bulldozer"
+* AMD Family 15h processors: "Bulldozer" (FX-Series), "Trinity"
 
   Prefix: 'k10temp'
   Addresses scanned: PCI space

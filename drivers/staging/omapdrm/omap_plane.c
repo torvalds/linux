@@ -17,6 +17,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/kfifo.h>
+
 #include "omap_drv.h"
 
 /* some hackery because omapdss has an 'enum omap_plane' (which would be
@@ -28,6 +30,11 @@
 /*
  * plane funcs
  */
+
+struct callback {
+	void (*fxn)(void *);
+	void *arg;
+};
 
 #define to_omap_plane(x) container_of(x, struct omap_plane, base)
 
@@ -43,8 +50,84 @@ struct omap_plane {
 
 	/* last fb that we pinned: */
 	struct drm_framebuffer *pinned_fb;
+
+	uint32_t nformats;
+	uint32_t formats[32];
+
+	/* for synchronizing access to unpins fifo */
+	struct mutex unpin_mutex;
+
+	/* set of bo's pending unpin until next END_WIN irq */
+	DECLARE_KFIFO_PTR(unpin_fifo, struct drm_gem_object *);
+	int num_unpins, pending_num_unpins;
+
+	/* for deferred unpin when we need to wait for scanout complete irq */
+	struct work_struct work;
+
+	/* callback on next endwin irq */
+	struct callback endwin;
 };
 
+/* map from ovl->id to the irq we are interested in for scanout-done */
+static const uint32_t id2irq[] = {
+		[OMAP_DSS_GFX]    = DISPC_IRQ_GFX_END_WIN,
+		[OMAP_DSS_VIDEO1] = DISPC_IRQ_VID1_END_WIN,
+		[OMAP_DSS_VIDEO2] = DISPC_IRQ_VID2_END_WIN,
+		[OMAP_DSS_VIDEO3] = DISPC_IRQ_VID3_END_WIN,
+};
+
+static void dispc_isr(void *arg, uint32_t mask)
+{
+	struct drm_plane *plane = arg;
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+	struct omap_drm_private *priv = plane->dev->dev_private;
+
+	omap_dispc_unregister_isr(dispc_isr, plane,
+			id2irq[omap_plane->ovl->id]);
+
+	queue_work(priv->wq, &omap_plane->work);
+}
+
+static void unpin_worker(struct work_struct *work)
+{
+	struct omap_plane *omap_plane =
+			container_of(work, struct omap_plane, work);
+	struct callback endwin;
+
+	mutex_lock(&omap_plane->unpin_mutex);
+	DBG("unpinning %d of %d", omap_plane->num_unpins,
+			omap_plane->num_unpins + omap_plane->pending_num_unpins);
+	while (omap_plane->num_unpins > 0) {
+		struct drm_gem_object *bo = NULL;
+		int ret = kfifo_get(&omap_plane->unpin_fifo, &bo);
+		WARN_ON(!ret);
+		omap_gem_put_paddr(bo);
+		drm_gem_object_unreference_unlocked(bo);
+		omap_plane->num_unpins--;
+	}
+	endwin = omap_plane->endwin;
+	omap_plane->endwin.fxn = NULL;
+	mutex_unlock(&omap_plane->unpin_mutex);
+
+	if (endwin.fxn)
+		endwin.fxn(endwin.arg);
+}
+
+static void install_irq(struct drm_plane *plane)
+{
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+	struct omap_overlay *ovl = omap_plane->ovl;
+	int ret;
+
+	ret = omap_dispc_register_isr(dispc_isr, plane, id2irq[ovl->id]);
+
+	/*
+	 * omapdss has upper limit on # of registered irq handlers,
+	 * which we shouldn't hit.. but if we do the limit should
+	 * be raised or bad things happen:
+	 */
+	WARN_ON(ret == -EBUSY);
+}
 
 /* push changes down to dss2 */
 static int commit(struct drm_plane *plane)
@@ -71,6 +154,11 @@ static int commit(struct drm_plane *plane)
 		return ret;
 	}
 
+	mutex_lock(&omap_plane->unpin_mutex);
+	omap_plane->num_unpins += omap_plane->pending_num_unpins;
+	omap_plane->pending_num_unpins = 0;
+	mutex_unlock(&omap_plane->unpin_mutex);
+
 	/* our encoder doesn't necessarily get a commit() after this, in
 	 * particular in the dpms() and mode_set_base() cases, so force the
 	 * manager to update:
@@ -83,7 +171,19 @@ static int commit(struct drm_plane *plane)
 			dev_err(dev->dev, "could not apply settings\n");
 			return ret;
 		}
+
+		/*
+		 * NOTE: really this should be atomic w/ mgr->apply() but
+		 * omapdss does not expose such an API
+		 */
+		if (omap_plane->num_unpins > 0)
+			install_irq(plane);
+
+	} else {
+		struct omap_drm_private *priv = dev->dev_private;
+		queue_work(priv->wq, &omap_plane->work);
 	}
+
 
 	if (ovl->is_enabled(ovl)) {
 		omap_framebuffer_flush(plane->fb, info->pos_x, info->pos_y,
@@ -137,21 +237,48 @@ static void update_manager(struct drm_plane *plane)
 	}
 }
 
+static void unpin(void *arg, struct drm_gem_object *bo)
+{
+	struct drm_plane *plane = arg;
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+
+	if (kfifo_put(&omap_plane->unpin_fifo,
+			(const struct drm_gem_object **)&bo)) {
+		omap_plane->pending_num_unpins++;
+		/* also hold a ref so it isn't free'd while pinned */
+		drm_gem_object_reference(bo);
+	} else {
+		dev_err(plane->dev->dev, "unpin fifo full!\n");
+		omap_gem_put_paddr(bo);
+	}
+}
+
 /* update which fb (if any) is pinned for scanout */
 static int update_pin(struct drm_plane *plane, struct drm_framebuffer *fb)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	int ret = 0;
+	struct drm_framebuffer *pinned_fb = omap_plane->pinned_fb;
 
-	if (omap_plane->pinned_fb != fb) {
-		if (omap_plane->pinned_fb)
-			omap_framebuffer_unpin(omap_plane->pinned_fb);
+	if (pinned_fb != fb) {
+		int ret;
+
+		DBG("%p -> %p", pinned_fb, fb);
+
+		mutex_lock(&omap_plane->unpin_mutex);
+		ret = omap_framebuffer_replace(pinned_fb, fb, plane, unpin);
+		mutex_unlock(&omap_plane->unpin_mutex);
+
+		if (ret) {
+			dev_err(plane->dev->dev, "could not swap %p -> %p\n",
+					omap_plane->pinned_fb, fb);
+			omap_plane->pinned_fb = NULL;
+			return ret;
+		}
+
 		omap_plane->pinned_fb = fb;
-		if (fb)
-			ret = omap_framebuffer_pin(fb);
 	}
 
-	return ret;
+	return 0;
 }
 
 /* update parameters that are dependent on the framebuffer dimensions and
@@ -241,6 +368,8 @@ static void omap_plane_destroy(struct drm_plane *plane)
 	DBG("%s", omap_plane->ovl->name);
 	omap_plane_disable(plane);
 	drm_plane_cleanup(plane);
+	WARN_ON(omap_plane->pending_num_unpins + omap_plane->num_unpins > 0);
+	kfifo_free(&omap_plane->unpin_fifo);
 	kfree(omap_plane);
 }
 
@@ -258,35 +387,32 @@ int omap_plane_dpms(struct drm_plane *plane, int mode)
 		if (!r)
 			r = ovl->enable(ovl);
 	} else {
+		struct omap_drm_private *priv = plane->dev->dev_private;
 		r = ovl->disable(ovl);
 		update_pin(plane, NULL);
+		queue_work(priv->wq, &omap_plane->work);
 	}
 
 	return r;
+}
+
+void omap_plane_on_endwin(struct drm_plane *plane,
+		void (*fxn)(void *), void *arg)
+{
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+
+	mutex_lock(&omap_plane->unpin_mutex);
+	omap_plane->endwin.fxn = fxn;
+	omap_plane->endwin.arg = arg;
+	mutex_unlock(&omap_plane->unpin_mutex);
+
+	install_irq(plane);
 }
 
 static const struct drm_plane_funcs omap_plane_funcs = {
 		.update_plane = omap_plane_update,
 		.disable_plane = omap_plane_disable,
 		.destroy = omap_plane_destroy,
-};
-
-static const uint32_t formats[] = {
-		DRM_FORMAT_RGB565,
-		DRM_FORMAT_RGBX4444,
-		DRM_FORMAT_XRGB4444,
-		DRM_FORMAT_RGBA4444,
-		DRM_FORMAT_ABGR4444,
-		DRM_FORMAT_XRGB1555,
-		DRM_FORMAT_ARGB1555,
-		DRM_FORMAT_RGB888,
-		DRM_FORMAT_RGBX8888,
-		DRM_FORMAT_XRGB8888,
-		DRM_FORMAT_RGBA8888,
-		DRM_FORMAT_ARGB8888,
-		DRM_FORMAT_NV12,
-		DRM_FORMAT_YUYV,
-		DRM_FORMAT_UYVY,
 };
 
 /* initialize plane */
@@ -296,9 +422,13 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 {
 	struct drm_plane *plane = NULL;
 	struct omap_plane *omap_plane;
+	int ret;
 
 	DBG("%s: possible_crtcs=%08x, priv=%d", ovl->name,
 			possible_crtcs, priv);
+
+	/* friendly reminder to update table for future hw: */
+	WARN_ON(ovl->id >= ARRAY_SIZE(id2irq));
 
 	omap_plane = kzalloc(sizeof(*omap_plane), GFP_KERNEL);
 	if (!omap_plane) {
@@ -306,11 +436,24 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		goto fail;
 	}
 
+	mutex_init(&omap_plane->unpin_mutex);
+
+	ret = kfifo_alloc(&omap_plane->unpin_fifo, 16, GFP_KERNEL);
+	if (ret) {
+		dev_err(dev->dev, "could not allocate unpin FIFO\n");
+		goto fail;
+	}
+
+	INIT_WORK(&omap_plane->work, unpin_worker);
+
+	omap_plane->nformats = omap_framebuffer_get_formats(
+			omap_plane->formats, ARRAY_SIZE(omap_plane->formats),
+			ovl->supported_modes);
 	omap_plane->ovl = ovl;
 	plane = &omap_plane->base;
 
 	drm_plane_init(dev, plane, possible_crtcs, &omap_plane_funcs,
-			formats, ARRAY_SIZE(formats), priv);
+			omap_plane->formats, omap_plane->nformats, priv);
 
 	/* get our starting configuration, set defaults for parameters
 	 * we don't currently use, etc:
@@ -330,7 +473,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	if (priv)
 		omap_plane->info.zorder = 0;
 	else
-		omap_plane->info.zorder = 1;
+		omap_plane->info.zorder = ovl->id;
 
 	update_manager(plane);
 

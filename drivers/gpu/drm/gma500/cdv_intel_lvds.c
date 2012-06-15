@@ -78,13 +78,14 @@ static u32 cdv_intel_lvds_get_max_backlight(struct drm_device *dev)
 
 		gma_power_end(dev);
 	} else
-		retval = ((dev_priv->saveBLC_PWM_CTL &
+		retval = ((dev_priv->regs.saveBLC_PWM_CTL &
 			  BACKLIGHT_MODULATION_FREQ_MASK) >>
 			  BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
 
 	return retval;
 }
 
+#if 0
 /*
  * Set LVDS backlight level by I2C command
  */
@@ -165,6 +166,7 @@ void cdv_intel_lvds_set_brightness(struct drm_device *dev, int level)
 	else
 		cdv_lvds_pwm_set_brightness(dev, level);
 }
+#endif
 
 /**
  * Sets the backlight level.
@@ -184,9 +186,9 @@ static void cdv_intel_lvds_set_backlight(struct drm_device *dev, int level)
 				(level << BACKLIGHT_DUTY_CYCLE_SHIFT)));
 		gma_power_end(dev);
 	} else {
-		blc_pwm_ctl = dev_priv->saveBLC_PWM_CTL &
+		blc_pwm_ctl = dev_priv->regs.saveBLC_PWM_CTL &
 				~BACKLIGHT_DUTY_CYCLE_MASK;
-		dev_priv->saveBLC_PWM_CTL = (blc_pwm_ctl |
+		dev_priv->regs.saveBLC_PWM_CTL = (blc_pwm_ctl |
 					(level << BACKLIGHT_DUTY_CYCLE_SHIFT));
 	}
 }
@@ -242,7 +244,7 @@ static void cdv_intel_lvds_restore(struct drm_connector *connector)
 {
 }
 
-int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
+static int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
 			      struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
@@ -267,7 +269,7 @@ int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
+static bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
@@ -354,6 +356,8 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(
+							encoder->crtc);
 	u32 pfit_control;
 
 	/*
@@ -374,6 +378,8 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 				HORIZ_INTERP_BILINEAR);
 	else
 		pfit_control = 0;
+
+	pfit_control |= psb_intel_crtc->pipe << PFIT_PIPE_SHIFT;
 
 	if (dev_priv->lvds_dither)
 		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
@@ -436,7 +442,7 @@ static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
  * Unregister the DDC bus for this connector then free the driver private
  * structure.
  */
-void cdv_intel_lvds_destroy(struct drm_connector *connector)
+static void cdv_intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct psb_intel_encoder *psb_intel_encoder =
 					psb_intel_attached_encoder(connector);
@@ -448,7 +454,7 @@ void cdv_intel_lvds_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-int cdv_intel_lvds_set_property(struct drm_connector *connector,
+static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 				       struct drm_property *property,
 				       uint64_t value)
 {
@@ -550,9 +556,59 @@ static void cdv_intel_lvds_enc_destroy(struct drm_encoder *encoder)
 	drm_encoder_cleanup(encoder);
 }
 
-const struct drm_encoder_funcs cdv_intel_lvds_enc_funcs = {
+static const struct drm_encoder_funcs cdv_intel_lvds_enc_funcs = {
 	.destroy = cdv_intel_lvds_enc_destroy,
 };
+
+/*
+ * Enumerate the child dev array parsed from VBT to check whether
+ * the LVDS is present.
+ * If it is present, return 1.
+ * If it is not present, return false.
+ * If no child dev is parsed from VBT, it assumes that the LVDS is present.
+ */
+static bool lvds_is_present_in_vbt(struct drm_device *dev,
+				   u8 *i2c_pin)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	int i;
+
+	if (!dev_priv->child_dev_num)
+		return true;
+
+	for (i = 0; i < dev_priv->child_dev_num; i++) {
+		struct child_device_config *child = dev_priv->child_dev + i;
+
+		/* If the device type is not LFP, continue.
+		 * We have to check both the new identifiers as well as the
+		 * old for compatibility with some BIOSes.
+		 */
+		if (child->device_type != DEVICE_TYPE_INT_LFP &&
+		    child->device_type != DEVICE_TYPE_LFP)
+			continue;
+
+		if (child->i2c_pin)
+		    *i2c_pin = child->i2c_pin;
+
+		/* However, we cannot trust the BIOS writers to populate
+		 * the VBT correctly.  Since LVDS requires additional
+		 * information from AIM blocks, a non-zero addin offset is
+		 * a good indicator that the LVDS is actually present.
+		 */
+		if (child->addin_offset)
+			return true;
+
+		/* But even then some BIOS writers perform some black magic
+		 * and instantiate the device without reference to any
+		 * additional data.  Trust that if the VBT was written into
+		 * the OpRegion then they have validated the LVDS's existence.
+		 */
+		if (dev_priv->opregion.vbt)
+			return true;
+	}
+
+	return false;
+}
 
 /**
  * cdv_intel_lvds_init - setup LVDS connectors on this device
@@ -574,6 +630,13 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 lvds;
 	int pipe;
+	u8 pin;
+
+	pin = GMBUS_PORT_PANEL;
+	if (!lvds_is_present_in_vbt(dev, &pin)) {
+		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
+		return;
+	}
 
 	psb_intel_encoder = kzalloc(sizeof(struct psb_intel_encoder),
 				    GFP_KERNEL);
@@ -706,6 +769,19 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 		DRM_DEBUG
 			("Found no modes on the lvds, ignoring the LVDS\n");
 		goto failed_find;
+	}
+
+	/* setup PWM */
+	{
+		u32 pwm;
+
+		pwm = REG_READ(BLC_PWM_CTL2);
+		if (pipe == 1)
+			pwm |= PWM_PIPE_B;
+		else
+			pwm &= ~PWM_PIPE_B;
+		pwm |= PWM_ENABLE;
+		REG_WRITE(BLC_PWM_CTL2, pwm);
 	}
 
 out:

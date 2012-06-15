@@ -192,7 +192,7 @@ static u32 oaktrail_lvds_get_max_backlight(struct drm_device *dev)
 
 		gma_power_end(dev);
 	} else
-		ret = ((dev_priv->saveBLC_PWM_CTL &
+		ret = ((dev_priv->regs.saveBLC_PWM_CTL &
 			  BACKLIGHT_MODULATION_FREQ_MASK) >>
 			  BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
 
@@ -257,7 +257,7 @@ static void oaktrail_lvds_get_configuration_mode(struct drm_device *dev,
 	mode_dev->panel_fixed_mode = NULL;
 
 	/* Use the firmware provided data on Moorestown */
-	if (dev_priv->vbt_data.size != 0x00) { /*if non-zero, then use vbt*/
+	if (dev_priv->has_gct) {
 		mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 		if (!mode)
 			return;
@@ -331,7 +331,6 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	struct drm_encoder *encoder;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct edid *edid;
-	int ret = 0;
 	struct i2c_adapter *i2c_adap;
 	struct drm_display_mode *scan;	/* *modes, *bios_mode; */
 
@@ -372,7 +371,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 					BRIGHTNESS_MAX_LEVEL);
 
 	mode_dev->panel_wants_dither = false;
-	if (dev_priv->vbt_data.size != 0x00)
+	if (dev_priv->has_gct)
 		mode_dev->panel_wants_dither = (dev_priv->gct_data.
 			Panel_Port_Control & MRST_PANEL_8TO6_DITHER_ENABLE);
         if (dev_priv->lvds_dither)
@@ -400,7 +399,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 		if (edid) {
 			drm_mode_connector_update_edid_property(connector,
 									edid);
-			ret = drm_add_edid_modes(connector, edid);
+			drm_add_edid_modes(connector, edid);
 			kfree(edid);
 		}
 

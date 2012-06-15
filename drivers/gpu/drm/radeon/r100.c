@@ -65,6 +65,40 @@ MODULE_FIRMWARE(FIRMWARE_R520);
 
 #include "r100_track.h"
 
+void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
+{
+	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
+	int i;
+
+	if (radeon_crtc->crtc_id == 0) {
+		if (RREG32(RADEON_CRTC_GEN_CNTL) & RADEON_CRTC_EN) {
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (!(RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR))
+					break;
+				udelay(1);
+			}
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR)
+					break;
+				udelay(1);
+			}
+		}
+	} else {
+		if (RREG32(RADEON_CRTC2_GEN_CNTL) & RADEON_CRTC2_EN) {
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (!(RREG32(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_CUR))
+					break;
+				udelay(1);
+			}
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (RREG32(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_CUR)
+					break;
+				udelay(1);
+			}
+		}
+	}
+}
+
 /* This files gather functions specifics to:
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */
@@ -87,23 +121,27 @@ int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
 		r100_cs_dump_packet(p, pkt);
 		return r;
 	}
+
 	value = radeon_get_ib_value(p, idx);
 	tmp = value & 0x003fffff;
 	tmp += (((u32)reloc->lobj.gpu_offset) >> 10);
 
-	if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-		tile_flags |= RADEON_DST_TILE_MACRO;
-	if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
-		if (reg == RADEON_SRC_PITCH_OFFSET) {
-			DRM_ERROR("Cannot src blit from microtiled surface\n");
-			r100_cs_dump_packet(p, pkt);
-			return -EINVAL;
+	if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= RADEON_DST_TILE_MACRO;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+			if (reg == RADEON_SRC_PITCH_OFFSET) {
+				DRM_ERROR("Cannot src blit from microtiled surface\n");
+				r100_cs_dump_packet(p, pkt);
+				return -EINVAL;
+			}
+			tile_flags |= RADEON_DST_TILE_MICRO;
 		}
-		tile_flags |= RADEON_DST_TILE_MICRO;
-	}
 
-	tmp |= tile_flags;
-	p->ib->ptr[idx] = (value & 0x3fc00000) | tmp;
+		tmp |= tile_flags;
+		p->ib.ptr[idx] = (value & 0x3fc00000) | tmp;
+	} else
+		p->ib.ptr[idx] = (value & 0xffc00000) | tmp;
 	return 0;
 }
 
@@ -118,7 +156,7 @@ int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
 	volatile uint32_t *ib;
 	u32 idx_value;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	track = (struct r100_cs_track *)p->track;
 	c = radeon_get_ib_value(p, idx++) & 0x1F;
 	if (c > 16) {
@@ -412,7 +450,7 @@ void r100_pm_misc(struct radeon_device *rdev)
 	/* set pcie lanes */
 	if ((rdev->flags & RADEON_IS_PCIE) &&
 	    !(rdev->flags & RADEON_IS_IGP) &&
-	    rdev->asic->set_pcie_lanes &&
+	    rdev->asic->pm.set_pcie_lanes &&
 	    (ps->pcie_lanes !=
 	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
 		radeon_set_pcie_lanes(rdev,
@@ -592,8 +630,8 @@ int r100_pci_gart_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
-	rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
-	rdev->asic->gart_set_page = &r100_pci_gart_set_page;
+	rdev->asic->gart.tlb_flush = &r100_pci_gart_tlb_flush;
+	rdev->asic->gart.set_page = &r100_pci_gart_set_page;
 	return radeon_gart_table_ram_alloc(rdev);
 }
 
@@ -622,7 +660,7 @@ int r100_pci_gart_enable(struct radeon_device *rdev)
 	tmp = RREG32(RADEON_AIC_CNTL) | RADEON_PCIGART_TRANSLATE_EN;
 	WREG32(RADEON_AIC_CNTL, tmp);
 	r100_pci_gart_tlb_flush(rdev);
-	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+	DRM_INFO("PCI GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(rdev->mc.gtt_size >> 20),
 		 (unsigned long long)rdev->gart.table_addr);
 	rdev->gart.ready = true;
@@ -930,9 +968,8 @@ static int r100_cp_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
-void r100_ring_start(struct radeon_device *rdev)
+void r100_ring_start(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
 	r = radeon_ring_lock(rdev, ring, 2);
@@ -1143,8 +1180,12 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	WREG32(RADEON_CP_RB_WPTR_DELAY, 0);
 	WREG32(RADEON_CP_CSQ_MODE, 0x00004D4D);
 	WREG32(RADEON_CP_CSQ_CNTL, RADEON_CSQ_PRIBM_INDBM);
-	radeon_ring_start(rdev);
-	r = radeon_ring_test(rdev, ring);
+
+	/* at this point everything should be setup correctly to enable master */
+	pci_set_master(rdev->pdev);
+
+	radeon_ring_start(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, ring);
 	if (r) {
 		DRM_ERROR("radeon: cp isn't working (%d).\n", r);
 		return r;
@@ -1234,7 +1275,7 @@ void r100_cs_dump_packet(struct radeon_cs_parser *p,
 	unsigned i;
 	unsigned idx;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	idx = pkt->idx;
 	for (i = 0; i <= (pkt->count + 1); i++, idx++) {
 		DRM_INFO("ib[%d]=0x%08X\n", idx, ib[idx]);
@@ -1313,7 +1354,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	uint32_t header, h_idx, reg;
 	volatile uint32_t *ib;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 
 	/* parse the wait until */
 	r = r100_cs_packet_parse(p, &waitreloc, p->idx);
@@ -1492,7 +1533,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	u32 tile_flags = 0;
 	u32 idx_value;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	track = (struct r100_cs_track *)p->track;
 
 	idx_value = radeon_get_ib_value(p, idx);
@@ -1552,7 +1593,17 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= RADEON_TXO_MACRO_TILE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= RADEON_TXO_MICRO_TILE_X2;
+
+			tmp = idx_value & ~(0x7 << 2);
+			tmp |= tile_flags;
+			ib[idx] = tmp + ((u32)reloc->lobj.gpu_offset);
+		} else
+			ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		track->textures[i].robj = reloc->robj;
 		track->tex_dirty = true;
 		break;
@@ -1623,15 +1674,17 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= RADEON_COLOR_TILE_ENABLE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= RADEON_COLOR_MICROTILE_ENABLE;
 
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-			tile_flags |= RADEON_COLOR_TILE_ENABLE;
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-			tile_flags |= RADEON_COLOR_MICROTILE_ENABLE;
-
-		tmp = idx_value & ~(0x7 << 16);
-		tmp |= tile_flags;
-		ib[idx] = tmp;
+			tmp = idx_value & ~(0x7 << 16);
+			tmp |= tile_flags;
+			ib[idx] = tmp;
+		} else
+			ib[idx] = idx_value;
 
 		track->cb[0].pitch = idx_value & RADEON_COLORPITCH_MASK;
 		track->cb_dirty = true;
@@ -1836,7 +1889,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 	volatile uint32_t *ib;
 	int r;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	idx = pkt->idx + 1;
 	track = (struct r100_cs_track *)p->track;
 	switch (pkt->opcode) {
@@ -1955,6 +2008,8 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 	int r;
 
 	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	if (!track)
+		return -ENOMEM;
 	r100_cs_track_clear(p->rdev, track);
 	p->track = track;
 	do {
@@ -2106,79 +2161,18 @@ int r100_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
-void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup, struct radeon_ring *ring)
-{
-	lockup->last_cp_rptr = ring->rptr;
-	lockup->last_jiffies = jiffies;
-}
-
-/**
- * r100_gpu_cp_is_lockup() - check if CP is lockup by recording information
- * @rdev:	radeon device structure
- * @lockup:	r100_gpu_lockup structure holding CP lockup tracking informations
- * @cp:		radeon_cp structure holding CP information
- *
- * We don't need to initialize the lockup tracking information as we will either
- * have CP rptr to a different value of jiffies wrap around which will force
- * initialization of the lockup tracking informations.
- *
- * A possible false positivie is if we get call after while and last_cp_rptr ==
- * the current CP rptr, even if it's unlikely it might happen. To avoid this
- * if the elapsed time since last call is bigger than 2 second than we return
- * false and update the tracking information. Due to this the caller must call
- * r100_gpu_cp_is_lockup several time in less than 2sec for lockup to be reported
- * the fencing code should be cautious about that.
- *
- * Caller should write to the ring to force CP to do something so we don't get
- * false positive when CP is just gived nothing to do.
- *
- **/
-bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *lockup, struct radeon_ring *ring)
-{
-	unsigned long cjiffies, elapsed;
-
-	cjiffies = jiffies;
-	if (!time_after(cjiffies, lockup->last_jiffies)) {
-		/* likely a wrap around */
-		lockup->last_cp_rptr = ring->rptr;
-		lockup->last_jiffies = jiffies;
-		return false;
-	}
-	if (ring->rptr != lockup->last_cp_rptr) {
-		/* CP is still working no lockup */
-		lockup->last_cp_rptr = ring->rptr;
-		lockup->last_jiffies = jiffies;
-		return false;
-	}
-	elapsed = jiffies_to_msecs(cjiffies - lockup->last_jiffies);
-	if (elapsed >= 10000) {
-		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
-		return true;
-	}
-	/* give a chance to the GPU ... */
-	return false;
-}
-
 bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	u32 rbbm_status;
-	int r;
 
 	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
 	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
-		r100_gpu_lockup_update(&rdev->config.r100.lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, ring, 2);
-	if (!r) {
-		/* PACKET2 NOP */
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_unlock_commit(rdev, ring);
-	}
-	ring->rptr = RREG32(ring->rptr_reg);
-	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r100.lockup, ring);
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 void r100_bm_disable(struct radeon_device *rdev)
@@ -2247,7 +2241,6 @@ int r100_asic_reset(struct radeon_device *rdev)
 	if (G_000E40_SE_BUSY(status) || G_000E40_RE_BUSY(status) ||
 		G_000E40_TAM_BUSY(status) || G_000E40_PB_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
-		rdev->gpu_lockup = true;
 		ret = -1;
 	} else
 		dev_info(rdev->dev, "GPU reset succeed\n");
@@ -2504,7 +2497,7 @@ static void r100_pll_errata_after_data(struct radeon_device *rdev)
 	 * or the chip could hang on a subsequent access
 	 */
 	if (rdev->pll_errata & CHIP_ERRATA_PLL_DELAY) {
-		udelay(5000);
+		mdelay(5);
 	}
 
 	/* This function is required to workaround a hardware bug in some (all?)
@@ -3691,9 +3684,9 @@ void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_ring_write(ring, ib->length_dw);
 }
 
-int r100_ib_test(struct radeon_device *rdev)
+int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	struct radeon_ib *ib;
+	struct radeon_ib ib;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -3709,22 +3702,22 @@ int r100_ib_test(struct radeon_device *rdev)
 	if (r) {
 		return r;
 	}
-	ib->ptr[0] = PACKET0(scratch, 0);
-	ib->ptr[1] = 0xDEADBEEF;
-	ib->ptr[2] = PACKET2(0);
-	ib->ptr[3] = PACKET2(0);
-	ib->ptr[4] = PACKET2(0);
-	ib->ptr[5] = PACKET2(0);
-	ib->ptr[6] = PACKET2(0);
-	ib->ptr[7] = PACKET2(0);
-	ib->length_dw = 8;
-	r = radeon_ib_schedule(rdev, ib);
+	ib.ptr[0] = PACKET0(scratch, 0);
+	ib.ptr[1] = 0xDEADBEEF;
+	ib.ptr[2] = PACKET2(0);
+	ib.ptr[3] = PACKET2(0);
+	ib.ptr[4] = PACKET2(0);
+	ib.ptr[5] = PACKET2(0);
+	ib.ptr[6] = PACKET2(0);
+	ib.ptr[7] = PACKET2(0);
+	ib.length_dw = 8;
+	r = radeon_ib_schedule(rdev, &ib);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);
 		return r;
 	}
-	r = radeon_fence_wait(ib->fence, false);
+	r = radeon_fence_wait(ib.fence, false);
 	if (r) {
 		return r;
 	}
@@ -3916,12 +3909,9 @@ static int r100_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r100_ib_test(rdev);
-	if (r) {
-		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
 
 	return 0;
 }

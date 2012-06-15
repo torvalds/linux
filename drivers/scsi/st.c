@@ -42,7 +42,6 @@ static const char *verstr = "20101219";
 
 #include <asm/uaccess.h>
 #include <asm/dma.h>
-#include <asm/system.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>
@@ -1106,6 +1105,12 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
                                     STp->drv_buffer));
 		}
 		STp->drv_write_prot = ((STp->buffer)->b_data[2] & 0x80) != 0;
+		if (!STp->drv_buffer && STp->immediate_filemark) {
+			printk(KERN_WARNING
+			    "%s: non-buffered tape: disabling writing immediate filemarks\n",
+			    name);
+			STp->immediate_filemark = 0;
+		}
 	}
 	st_release_request(SRpnt);
 	SRpnt = NULL;
@@ -1177,6 +1182,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 static int st_open(struct inode *inode, struct file *filp)
 {
 	int i, retval = (-EIO);
+	int resumed = 0;
 	struct scsi_tape *STp;
 	struct st_partstat *STps;
 	int dev = TAPE_NR(inode);
@@ -1211,6 +1217,11 @@ static int st_open(struct inode *inode, struct file *filp)
 	write_unlock(&st_dev_arr_lock);
 	STp->rew_at_close = STp->autorew_dev = (iminor(inode) & 0x80) == 0;
 
+	if (scsi_autopm_get_device(STp->device) < 0) {
+		retval = -EIO;
+		goto err_out;
+	}
+	resumed = 1;
 	if (!scsi_block_when_processing_errors(STp->device)) {
 		retval = (-ENXIO);
 		goto err_out;
@@ -1258,6 +1269,8 @@ static int st_open(struct inode *inode, struct file *filp)
 	normalize_buffer(STp->buffer);
 	STp->in_use = 0;
 	scsi_tape_put(STp);
+	if (resumed)
+		scsi_autopm_put_device(STp->device);
 	mutex_unlock(&st_mutex);
 	return retval;
 
@@ -1306,6 +1319,8 @@ static int st_flush(struct file *filp, fl_owner_t id)
 
 		memset(cmd, 0, MAX_COMMAND_SIZE);
 		cmd[0] = WRITE_FILEMARKS;
+		if (STp->immediate_filemark)
+			cmd[1] = 1;
 		cmd[4] = 1 + STp->two_fm;
 
 		SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_NONE,
@@ -1391,6 +1406,7 @@ static int st_release(struct inode *inode, struct file *filp)
 	write_lock(&st_dev_arr_lock);
 	STp->in_use = 0;
 	write_unlock(&st_dev_arr_lock);
+	scsi_autopm_put_device(STp->device);
 	scsi_tape_put(STp);
 
 	return result;
@@ -2172,8 +2188,9 @@ static void st_log_options(struct scsi_tape * STp, struct st_modedef * STm, char
 		       name, STm->defaults_for_writes, STp->omit_blklims, STp->can_partitions,
 		       STp->scsi2_logical);
 		printk(KERN_INFO
-		       "%s:    sysv: %d nowait: %d sili: %d\n", name, STm->sysv, STp->immediate,
-			STp->sili);
+		       "%s:    sysv: %d nowait: %d sili: %d nowait_filemark: %d\n",
+		       name, STm->sysv, STp->immediate, STp->sili,
+		       STp->immediate_filemark);
 		printk(KERN_INFO "%s:    debugging: %d\n",
 		       name, debugging);
 	}
@@ -2215,6 +2232,7 @@ static int st_set_options(struct scsi_tape *STp, long options)
 			STp->can_partitions = (options & MT_ST_CAN_PARTITIONS) != 0;
 		STp->scsi2_logical = (options & MT_ST_SCSI2LOGICAL) != 0;
 		STp->immediate = (options & MT_ST_NOWAIT) != 0;
+		STp->immediate_filemark = (options & MT_ST_NOWAIT_EOF) != 0;
 		STm->sysv = (options & MT_ST_SYSV) != 0;
 		STp->sili = (options & MT_ST_SILI) != 0;
 		DEB( debugging = (options & MT_ST_DEBUGGING) != 0;
@@ -2246,6 +2264,8 @@ static int st_set_options(struct scsi_tape *STp, long options)
 			STp->scsi2_logical = value;
 		if ((options & MT_ST_NOWAIT) != 0)
 			STp->immediate = value;
+		if ((options & MT_ST_NOWAIT_EOF) != 0)
+			STp->immediate_filemark = value;
 		if ((options & MT_ST_SYSV) != 0)
 			STm->sysv = value;
 		if ((options & MT_ST_SILI) != 0)
@@ -2705,7 +2725,8 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		cmd[0] = WRITE_FILEMARKS;
 		if (cmd_in == MTWSM)
 			cmd[1] = 2;
-		if (cmd_in == MTWEOFI)
+		if (cmd_in == MTWEOFI ||
+		    (cmd_in == MTWEOF && STp->immediate_filemark))
 			cmd[1] |= 1;
 		cmd[2] = (arg >> 16);
 		cmd[3] = (arg >> 8);
@@ -4084,6 +4105,7 @@ static int st_probe(struct device *dev)
 	tpnt->scsi2_logical = ST_SCSI2LOGICAL;
 	tpnt->sili = ST_SILI;
 	tpnt->immediate = ST_NOWAIT;
+	tpnt->immediate_filemark = 0;
 	tpnt->default_drvbuffer = 0xff;		/* No forced buffering */
 	tpnt->partition = 0;
 	tpnt->new_partition = 0;
@@ -4154,6 +4176,7 @@ static int st_probe(struct device *dev)
 		if (error)
 			goto out_free_tape;
 	}
+	scsi_autopm_put_device(SDp);
 
 	sdev_printk(KERN_NOTICE, SDp,
 		    "Attached scsi tape %s\n", tape_name(tpnt));
@@ -4201,6 +4224,7 @@ static int st_remove(struct device *dev)
 	struct scsi_tape *tpnt;
 	int i, j, mode;
 
+	scsi_autopm_get_device(SDp);
 	write_lock(&st_dev_arr_lock);
 	for (i = 0; i < st_dev_max; i++) {
 		tpnt = scsi_tapes[i];
@@ -4467,6 +4491,7 @@ st_options_show(struct device *dev, struct device_attribute *attr, char *buf)
 	options |= STp->scsi2_logical ? MT_ST_SCSI2LOGICAL : 0;
 	options |= STm->sysv ? MT_ST_SYSV : 0;
 	options |= STp->immediate ? MT_ST_NOWAIT : 0;
+	options |= STp->immediate_filemark ? MT_ST_NOWAIT_EOF : 0;
 	options |= STp->sili ? MT_ST_SILI : 0;
 
 	l = snprintf(buf, PAGE_SIZE, "0x%08x\n", options);

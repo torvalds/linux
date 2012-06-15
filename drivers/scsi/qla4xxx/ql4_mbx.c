@@ -51,25 +51,6 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		}
 	}
 
-	if (is_qla8022(ha)) {
-		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
-			DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: "
-			    "prematurely completing mbx cmd as firmware "
-			    "recovery detected\n", ha->host_no, __func__));
-			return status;
-		}
-		/* Do not send any mbx cmd if h/w is in failed state*/
-		qla4_8xxx_idc_lock(ha);
-		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		qla4_8xxx_idc_unlock(ha);
-		if (dev_state == QLA82XX_DEV_FAILED) {
-			ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: H/W is in "
-			    "failed state, do not send any mailbox commands\n",
-			    ha->host_no, __func__);
-			return status;
-		}
-	}
-
 	if ((is_aer_supported(ha)) &&
 	    (test_bit(AF_PCI_CHANNEL_IO_PERM_FAILURE, &ha->flags))) {
 		DEBUG2(printk(KERN_WARNING "scsi%ld: %s: Perm failure on EEH, "
@@ -94,6 +75,25 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			return status;
 		}
 		msleep(10);
+	}
+
+	if (is_qla8022(ha)) {
+		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
+			DEBUG2(ql4_printk(KERN_WARNING, ha,
+					  "scsi%ld: %s: prematurely completing mbx cmd as firmware recovery detected\n",
+					  ha->host_no, __func__));
+			goto mbox_exit;
+		}
+		/* Do not send any mbx cmd if h/w is in failed state*/
+		qla4_8xxx_idc_lock(ha);
+		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		qla4_8xxx_idc_unlock(ha);
+		if (dev_state == QLA82XX_DEV_FAILED) {
+			ql4_printk(KERN_WARNING, ha,
+				   "scsi%ld: %s: H/W is in failed state, do not send any mailbox commands\n",
+				   ha->host_no, __func__);
+			goto mbox_exit;
+		}
 	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -266,6 +266,79 @@ mbox_exit:
 	clear_bit(AF_MBOX_COMMAND, &ha->flags);
 	mutex_unlock(&ha->mbox_sem);
 	clear_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
+
+	return status;
+}
+
+/**
+ * qla4xxx_get_minidump_template - Get the firmware template
+ * @ha: Pointer to host adapter structure.
+ * @phys_addr: dma address for template
+ *
+ * Obtain the minidump template from firmware during initialization
+ * as it may not be available when minidump is desired.
+ **/
+int qla4xxx_get_minidump_template(struct scsi_qla_host *ha,
+				  dma_addr_t phys_addr)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_MINIDUMP;
+	mbox_cmd[1] = MINIDUMP_GET_TMPLT_SUBCOMMAND;
+	mbox_cmd[2] = LSDW(phys_addr);
+	mbox_cmd[3] = MSDW(phys_addr);
+	mbox_cmd[4] = ha->fw_dump_tmplt_size;
+	mbox_cmd[5] = 0;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 2, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "scsi%ld: %s: Cmd = %08X, mbx[0] = 0x%04x, mbx[1] = 0x%04x\n",
+				  ha->host_no, __func__, mbox_cmd[0],
+				  mbox_sts[0], mbox_sts[1]));
+	}
+	return status;
+}
+
+/**
+ * qla4xxx_req_template_size - Get minidump template size from firmware.
+ * @ha: Pointer to host adapter structure.
+ **/
+int qla4xxx_req_template_size(struct scsi_qla_host *ha)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_MINIDUMP;
+	mbox_cmd[1] = MINIDUMP_GET_SIZE_SUBCOMMAND;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 8, &mbox_cmd[0],
+					 &mbox_sts[0]);
+	if (status == QLA_SUCCESS) {
+		ha->fw_dump_tmplt_size = mbox_sts[1];
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "%s: sts[0]=0x%04x, template  size=0x%04x, size_cm_02=0x%04x, size_cm_04=0x%04x, size_cm_08=0x%04x, size_cm_10=0x%04x, size_cm_FF=0x%04x, version=0x%04x\n",
+				  __func__, mbox_sts[0], mbox_sts[1],
+				  mbox_sts[2], mbox_sts[3], mbox_sts[4],
+				  mbox_sts[5], mbox_sts[6], mbox_sts[7]));
+		if (ha->fw_dump_tmplt_size == 0)
+			status = QLA_ERROR;
+	} else {
+		ql4_printk(KERN_WARNING, ha,
+			   "%s: Error sts[0]=0x%04x, mbx[1]=0x%04x\n",
+			   __func__, mbox_sts[0], mbox_sts[1]);
+		status = QLA_ERROR;
+	}
 
 	return status;
 }
@@ -622,7 +695,7 @@ int qla4xxx_get_firmware_status(struct scsi_qla_host * ha)
 		return QLA_ERROR;
 	}
 
-	ql4_printk(KERN_INFO, ha, "%ld firmare IOCBs available (%d).\n",
+	ql4_printk(KERN_INFO, ha, "%ld firmware IOCBs available (%d).\n",
 	    ha->host_no, mbox_sts[2]);
 
 	return QLA_SUCCESS;
@@ -661,6 +734,8 @@ int qla4xxx_get_fwddb_entry(struct scsi_qla_host *ha,
 	}
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
 	memset(&mbox_sts, 0, sizeof(mbox_sts));
+	if (fw_ddb_entry)
+		memset(fw_ddb_entry, 0, sizeof(struct dev_db_entry));
 
 	mbox_cmd[0] = MBOX_CMD_GET_DATABASE_ENTRY;
 	mbox_cmd[1] = (uint32_t) fw_ddb_index;
@@ -1424,8 +1499,8 @@ exit_set_chap:
  * match is found. If a match is not found then add the entry in FLASH and
  * return the index at which entry is written in the FLASH.
  **/
-static int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
-			    char *password, int bidi, uint16_t *chap_index)
+int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
+			   char *password, int bidi, uint16_t *chap_index)
 {
 	int i, rval;
 	int free_index = -1;
@@ -1441,6 +1516,11 @@ static int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
 
 	if (!ha->chap_list) {
 		ql4_printk(KERN_ERR, ha, "Do not have CHAP table cache\n");
+		return QLA_ERROR;
+	}
+
+	if (!username || !password) {
+		ql4_printk(KERN_ERR, ha, "Do not have username and psw\n");
 		return QLA_ERROR;
 	}
 
@@ -1600,7 +1680,7 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 	char *ip;
 	uint16_t iscsi_opts = 0;
 	uint32_t options = 0;
-	uint16_t idx;
+	uint16_t idx, *ptid;
 
 	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 					  &fw_ddb_entry_dma, GFP_KERNEL);
@@ -1625,6 +1705,14 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 		rval = -EINVAL;
 		goto exit_set_param;
 	}
+
+	ptid = (uint16_t *)&fw_ddb_entry->isid[1];
+	*ptid = cpu_to_le16((uint16_t)ddb_entry->sess->target_id);
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "ISID [%02x%02x%02x%02x%02x%02x]\n",
+			  fw_ddb_entry->isid[5], fw_ddb_entry->isid[4],
+			  fw_ddb_entry->isid[3], fw_ddb_entry->isid[2],
+			  fw_ddb_entry->isid[1], fw_ddb_entry->isid[0]));
 
 	iscsi_opts = le16_to_cpu(fw_ddb_entry->iscsi_options);
 	memset(fw_ddb_entry->iscsi_alias, 0, sizeof(fw_ddb_entry->iscsi_alias));

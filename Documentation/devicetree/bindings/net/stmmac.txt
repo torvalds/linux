@@ -1,0 +1,28 @@
+* STMicroelectronics 10/100/1000 Ethernet driver (GMAC)
+
+Required properties:
+- compatible: Should be "st,spear600-gmac"
+- reg: Address and length of the register set for the device
+- interrupt-parent: Should be the phandle for the interrupt controller
+  that services interrupts for this device
+- interrupts: Should contain the STMMAC interrupts
+- interrupt-names: Should contain the interrupt names "macirq"
+  "eth_wake_irq" if this interrupt is supported in the "interrupts"
+  property
+- phy-mode: String, operation mode of the PHY interface.
+  Supported values are: "mii", "rmii", "gmii", "rgmii".
+
+Optional properties:
+- mac-address: 6 bytes, mac address
+
+Examples:
+
+	gmac0: ethernet@e0800000 {
+		compatible = "st,spear600-gmac";
+		reg = <0xe0800000 0x8000>;
+		interrupt-parent = <&vic1>;
+		interrupts = <24 23>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		mac-address = [000000000000]; /* Filled in by U-Boot */
+		phy-mode = "gmii";
+	};

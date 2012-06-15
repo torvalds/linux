@@ -252,8 +252,8 @@ static int __devinit gpio_flash_probe(struct platform_device *pdev)
 	}
 
 
-	mtd_device_parse_register(state->mtd, part_probe_types, 0,
-			pdata->parts, pdata->nr_parts);
+	mtd_device_parse_register(state->mtd, part_probe_types, NULL,
+				  pdata->parts, pdata->nr_parts);
 
 	return 0;
 }

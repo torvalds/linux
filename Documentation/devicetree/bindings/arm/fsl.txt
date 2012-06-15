@@ -1,6 +1,14 @@
 Freescale i.MX Platforms Device Tree Bindings
 -----------------------------------------------
 
+i.MX23 Evaluation Kit
+Required root node properties:
+    - compatible = "fsl,imx23-evk", "fsl,imx23";
+
+i.MX28 Evaluation Kit
+Required root node properties:
+    - compatible = "fsl,imx28-evk", "fsl,imx28";
+
 i.MX51 Babbage Board
 Required root node properties:
     - compatible = "fsl,imx51-babbage", "fsl,imx51";
@@ -28,3 +36,29 @@ Required root node properties:
 i.MX6 Quad SABRE Lite Board
 Required root node properties:
     - compatible = "fsl,imx6q-sabrelite", "fsl,imx6q";
+
+i.MX6 Quad SABRE Smart Device Board
+Required root node properties:
+    - compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
+
+Generic i.MX boards
+-------------------
+
+No iomux setup is done for these boards, so this must have been configured
+by the bootloader for boards to work with the generic bindings.
+
+i.MX27 generic board
+Required root node properties:
+    - compatible = "fsl,imx27";
+
+i.MX51 generic board
+Required root node properties:
+    - compatible = "fsl,imx51";
+
+i.MX53 generic board
+Required root node properties:
+    - compatible = "fsl,imx53";
+
+i.MX6q generic board
+Required root node properties:
+    - compatible = "fsl,imx6q";

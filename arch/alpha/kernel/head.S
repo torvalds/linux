@@ -8,14 +8,12 @@
  */
 
 #include <linux/init.h>
-#include <asm/system.h>
 #include <asm/asm-offsets.h>
+#include <asm/pal.h>
+#include <asm/setup.h>
 
 __HEAD
-.globl swapper_pg_dir
 .globl _stext
-swapper_pg_dir=SWAPPER_PGD
-
 	.set noreorder
 	.globl	__start
 	.ent	__start

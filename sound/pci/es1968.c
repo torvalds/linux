@@ -142,6 +142,7 @@ static int enable_mpu[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
 #ifdef SUPPORT_JOYSTICK
 static bool joystick[SNDRV_CARDS];
 #endif
+static int radio_nr[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -1};
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
@@ -165,6 +166,9 @@ MODULE_PARM_DESC(enable_mpu, "Enable MPU401.  (0 = off, 1 = on, 2 = auto)");
 module_param_array(joystick, bool, NULL, 0444);
 MODULE_PARM_DESC(joystick, "Enable joystick.");
 #endif
+module_param_array(radio_nr, int, NULL, 0444);
+MODULE_PARM_DESC(radio_nr, "Radio device numbers");
+
 
 
 #define NR_APUS			64
@@ -558,6 +562,7 @@ struct es1968 {
 	struct work_struct hwvol_work;
 
 #ifdef CONFIG_SND_ES1968_RADIO
+	struct v4l2_device v4l2_dev;
 	struct snd_tea575x tea;
 #endif
 };
@@ -2613,6 +2618,7 @@ static int snd_es1968_free(struct es1968 *chip)
 
 #ifdef CONFIG_SND_ES1968_RADIO
 	snd_tea575x_exit(&chip->tea);
+	v4l2_device_unregister(&chip->v4l2_dev);
 #endif
 
 	if (chip->irq >= 0)
@@ -2655,6 +2661,7 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 				       int capt_streams,
 				       int chip_type,
 				       int do_pm,
+				       int radio_nr,
 				       struct es1968 **chip_ret)
 {
 	static struct snd_device_ops ops = {
@@ -2751,7 +2758,14 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 	snd_card_set_dev(card, &pci->dev);
 
 #ifdef CONFIG_SND_ES1968_RADIO
+	err = v4l2_device_register(&pci->dev, &chip->v4l2_dev);
+	if (err < 0) {
+		snd_es1968_free(chip);
+		return err;
+	}
+	chip->tea.v4l2_dev = &chip->v4l2_dev;
 	chip->tea.private_data = chip;
+	chip->tea.radio_nr = radio_nr;
 	chip->tea.ops = &snd_es1968_tea_ops;
 	strlcpy(chip->tea.card, "SF64-PCE2", sizeof(chip->tea.card));
 	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
@@ -2797,6 +2811,7 @@ static int __devinit snd_es1968_probe(struct pci_dev *pci,
 				     pcm_substreams_c[dev],
 				     pci_id->driver_data,
 				     use_pm[dev],
+				     radio_nr[dev],
 				     &chip)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -2883,7 +2898,7 @@ static void __devexit snd_es1968_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver es1968_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_es1968_ids,
 	.probe = snd_es1968_probe,
@@ -2894,15 +2909,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init alsa_card_es1968_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_es1968_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_es1968_init)
-module_exit(alsa_card_es1968_exit)
+module_pci_driver(es1968_driver);

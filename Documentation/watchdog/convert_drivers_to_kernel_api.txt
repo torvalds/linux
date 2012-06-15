@@ -59,6 +59,10 @@ Here is a overview of the functions and probably needed actions:
 	WDIOC_GETTIMEOUT:
 		No preparations needed
 
+	WDIOC_GETTIMELEFT:
+		It needs get_timeleft() callback to be defined. Otherwise it
+		will return EOPNOTSUPP
+
   Other IOCTLs can be served using the ioctl-callback. Note that this is mainly
   intended for porting old drivers; new drivers should not invent private IOCTLs.
   Private IOCTLs are processed first. When the callback returns with

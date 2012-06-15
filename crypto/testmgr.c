@@ -1846,6 +1846,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "ctr(camellia)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = camellia_ctr_enc_tv_template,
+					.count = CAMELLIA_CTR_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = camellia_ctr_dec_tv_template,
+					.count = CAMELLIA_CTR_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "ctr(serpent)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -2297,6 +2312,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "lrw(camellia)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = camellia_lrw_enc_tv_template,
+					.count = CAMELLIA_LRW_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = camellia_lrw_dec_tv_template,
+					.count = CAMELLIA_LRW_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "lrw(serpent)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -2630,6 +2660,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 				.dec = {
 					.vecs = aes_xts_dec_tv_template,
 					.count = AES_XTS_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
+		.alg = "xts(camellia)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = camellia_xts_enc_tv_template,
+					.count = CAMELLIA_XTS_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = camellia_xts_dec_tv_template,
+					.count = CAMELLIA_XTS_DEC_TEST_VECTORS
 				}
 			}
 		}

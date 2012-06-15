@@ -379,14 +379,6 @@ static inline int i2c_slave_did_ack(struct i2c_adapter *i2c_adap)
 	return cx_read(bus->reg_stat) & 0x01;
 }
 
-void cx_i2c_read_print(struct cx25821_dev *dev, u32 reg, const char *reg_string)
-{
-	int tmp = 0;
-	u32 value = 0;
-
-	value = cx25821_i2c_read(&dev->i2c_bus[0], reg, &tmp);
-}
-
 static void cx25821_registers_init(struct cx25821_dev *dev)
 {
 	u32 tmp;
@@ -895,7 +887,7 @@ static void cx25821_iounmap(struct cx25821_dev *dev)
 
 static int cx25821_dev_setup(struct cx25821_dev *dev)
 {
-	int io_size = 0, i;
+	int i;
 
 	pr_info("\n***********************************\n");
 	pr_info("cx25821 set up\n");
@@ -960,7 +952,6 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	/* PCIe stuff */
 	dev->base_io_addr = pci_resource_start(dev->pci, 0);
-	io_size = pci_resource_len(dev->pci, 0);
 
 	if (!dev->base_io_addr) {
 		CX25821_ERR("No PCI Memory resources, exiting!\n");
@@ -1317,13 +1308,12 @@ void cx25821_free_buffer(struct videobuf_queue *q, struct cx25821_buffer *buf)
 static irqreturn_t cx25821_irq(int irq, void *dev_id)
 {
 	struct cx25821_dev *dev = dev_id;
-	u32 pci_status, pci_mask;
+	u32 pci_status;
 	u32 vid_status;
 	int i, handled = 0;
 	u32 mask[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
 	pci_status = cx_read(PCI_INT_STAT);
-	pci_mask = cx_read(PCI_INT_MSK);
 
 	if (pci_status == 0)
 		goto out;
@@ -1474,8 +1464,13 @@ static DEFINE_PCI_DEVICE_TABLE(cx25821_pci_tbl) = {
 		.device = 0x8210,
 		.subvendor = 0x14f1,
 		.subdevice = 0x0920,
-	},
-	{
+	}, {
+		/* CX25821 No Brand */
+		.vendor = 0x14f1,
+		.device = 0x8210,
+		.subvendor = 0x0000,
+		.subdevice = 0x0000,
+	}, {
 		/* --- end of list --- */
 	}
 };

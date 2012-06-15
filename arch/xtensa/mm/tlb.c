@@ -18,7 +18,6 @@
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
-#include <asm/system.h>
 #include <asm/cacheflush.h>
 
 

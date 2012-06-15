@@ -113,7 +113,6 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 
 #include <net/neighbour.h>
 
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
 
@@ -1260,10 +1259,8 @@ static void plip_attach (struct parport *port)
 
 		sprintf(name, "plip%d", unit);
 		dev = alloc_etherdev(sizeof(struct net_local));
-		if (!dev) {
-			printk(KERN_ERR "plip: memory squeeze\n");
+		if (!dev)
 			return;
-		}
 
 		strcpy(dev->name, name);
 

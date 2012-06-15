@@ -81,7 +81,6 @@ typedef void (*tipc_continue_event) (void *usr_handle, u32 portref);
  * @ref: object reference to associated TIPC port
  * <various callback routines>
  */
-
 struct user_port {
 	void *usr_handle;
 	u32 ref;
@@ -201,10 +200,12 @@ int tipc_shutdown(u32 ref);
  * The following routines require that the port be locked on entry
  */
 int tipc_disconnect_port(struct tipc_port *tp_ptr);
+int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
 /*
  * TIPC messaging routines
  */
+int tipc_port_recv_msg(struct sk_buff *buf);
 int tipc_send(u32 portref, unsigned int num_sect, struct iovec const *msg_sect,
 	      unsigned int total_len);
 
@@ -234,7 +235,6 @@ void tipc_port_reinit(void);
 /**
  * tipc_port_lock - lock port instance referred to and return its pointer
  */
-
 static inline struct tipc_port *tipc_port_lock(u32 ref)
 {
 	return (struct tipc_port *)tipc_ref_lock(ref);
@@ -245,7 +245,6 @@ static inline struct tipc_port *tipc_port_lock(u32 ref)
  *
  * Can use pointer instead of tipc_ref_unlock() since port is already locked.
  */
-
 static inline void tipc_port_unlock(struct tipc_port *p_ptr)
 {
 	spin_unlock_bh(p_ptr->lock);
@@ -256,60 +255,9 @@ static inline struct tipc_port *tipc_port_deref(u32 ref)
 	return (struct tipc_port *)tipc_ref_deref(ref);
 }
 
-static inline u32 tipc_peer_port(struct tipc_port *p_ptr)
-{
-	return msg_destport(&p_ptr->phdr);
-}
-
-static inline u32 tipc_peer_node(struct tipc_port *p_ptr)
-{
-	return msg_destnode(&p_ptr->phdr);
-}
-
 static inline int tipc_port_congested(struct tipc_port *p_ptr)
 {
 	return (p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2);
-}
-
-/**
- * tipc_port_recv_msg - receive message from lower layer and deliver to port user
- */
-
-static inline int tipc_port_recv_msg(struct sk_buff *buf)
-{
-	struct tipc_port *p_ptr;
-	struct tipc_msg *msg = buf_msg(buf);
-	u32 destport = msg_destport(msg);
-	u32 dsz = msg_data_sz(msg);
-	u32 err;
-
-	/* forward unresolved named message */
-	if (unlikely(!destport)) {
-		tipc_net_route_msg(buf);
-		return dsz;
-	}
-
-	/* validate destination & pass to port, otherwise reject message */
-	p_ptr = tipc_port_lock(destport);
-	if (likely(p_ptr)) {
-		if (likely(p_ptr->connected)) {
-			if ((unlikely(msg_origport(msg) != tipc_peer_port(p_ptr))) ||
-			    (unlikely(msg_orignode(msg) != tipc_peer_node(p_ptr))) ||
-			    (unlikely(!msg_connected(msg)))) {
-				err = TIPC_ERR_NO_PORT;
-				tipc_port_unlock(p_ptr);
-				goto reject;
-			}
-		}
-		err = p_ptr->dispatcher(p_ptr, buf);
-		tipc_port_unlock(p_ptr);
-		if (likely(!err))
-			return dsz;
-	} else {
-		err = TIPC_ERR_NO_PORT;
-	}
-reject:
-	return tipc_reject_msg(buf, err);
 }
 
 #endif

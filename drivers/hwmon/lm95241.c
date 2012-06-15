@@ -455,19 +455,8 @@ static struct i2c_driver lm95241_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init sensors_lm95241_init(void)
-{
-	return i2c_add_driver(&lm95241_driver);
-}
-
-static void __exit sensors_lm95241_exit(void)
-{
-	i2c_del_driver(&lm95241_driver);
-}
+module_i2c_driver(lm95241_driver);
 
 MODULE_AUTHOR("Davide Rizzo <elpa.rizzo@gmail.com>");
 MODULE_DESCRIPTION("LM95241 sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm95241_init);
-module_exit(sensors_lm95241_exit);

@@ -46,8 +46,7 @@ struct inet_frags {
 						void *arg);
 	void			(*destructor)(struct inet_frag_queue *);
 	void			(*skb_free)(struct sk_buff *);
-	int			(*match)(struct inet_frag_queue *q,
-						void *arg);
+	bool			(*match)(struct inet_frag_queue *q, void *arg);
 	void			(*frag_expire)(unsigned long data);
 };
 

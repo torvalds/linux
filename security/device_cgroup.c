@@ -61,8 +61,8 @@ static inline struct dev_cgroup *task_devcgroup(struct task_struct *task)
 
 struct cgroup_subsys devices_subsys;
 
-static int devcgroup_can_attach(struct cgroup_subsys *ss,
-			struct cgroup *new_cgrp, struct cgroup_taskset *set)
+static int devcgroup_can_attach(struct cgroup *new_cgrp,
+				struct cgroup_taskset *set)
 {
 	struct task_struct *task = cgroup_taskset_first(set);
 
@@ -156,8 +156,7 @@ remove:
 /*
  * called from kernel/cgroup.c with cgroup_lock() held.
  */
-static struct cgroup_subsys_state *devcgroup_create(struct cgroup_subsys *ss,
-						struct cgroup *cgroup)
+static struct cgroup_subsys_state *devcgroup_create(struct cgroup *cgroup)
 {
 	struct dev_cgroup *dev_cgroup, *parent_dev_cgroup;
 	struct cgroup *parent_cgroup;
@@ -195,8 +194,7 @@ static struct cgroup_subsys_state *devcgroup_create(struct cgroup_subsys *ss,
 	return &dev_cgroup->css;
 }
 
-static void devcgroup_destroy(struct cgroup_subsys *ss,
-			struct cgroup *cgroup)
+static void devcgroup_destroy(struct cgroup *cgroup)
 {
 	struct dev_cgroup *dev_cgroup;
 	struct dev_whitelist_item *wh, *tmp;
@@ -449,22 +447,16 @@ static struct cftype dev_cgroup_files[] = {
 		.read_seq_string = devcgroup_seq_read,
 		.private = DEVCG_LIST,
 	},
+	{ }	/* terminate */
 };
-
-static int devcgroup_populate(struct cgroup_subsys *ss,
-				struct cgroup *cgroup)
-{
-	return cgroup_add_files(cgroup, ss, dev_cgroup_files,
-					ARRAY_SIZE(dev_cgroup_files));
-}
 
 struct cgroup_subsys devices_subsys = {
 	.name = "devices",
 	.can_attach = devcgroup_can_attach,
 	.create = devcgroup_create,
 	.destroy = devcgroup_destroy,
-	.populate = devcgroup_populate,
 	.subsys_id = devices_subsys_id,
+	.base_cftypes = dev_cgroup_files,
 };
 
 int __devcgroup_inode_permission(struct inode *inode, int mask)

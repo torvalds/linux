@@ -217,7 +217,7 @@ struct mv_udc {
 	struct work_struct	vbus_work;
 	struct workqueue_struct *qwork;
 
-	struct otg_transceiver	*transceiver;
+	struct usb_phy		*transceiver;
 
 	struct mv_usb_platform_data     *pdata;
 
@@ -232,7 +232,6 @@ struct mv_ep {
 	struct mv_udc		*udc;
 	struct list_head	queue;
 	struct mv_dqh		*dqh;
-	const struct usb_endpoint_descriptor	*desc;
 	u32			direction;
 	char			name[14];
 	unsigned		stopped:1,

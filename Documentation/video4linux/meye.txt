@@ -55,7 +55,7 @@ Module use:
 -----------
 
 In order to automatically load the meye module on use, you can put those lines
-in your /etc/modprobe.conf file:
+in your /etc/modprobe.d/meye.conf file:
 
 	alias char-major-81 videodev
 	alias char-major-81-0 meye

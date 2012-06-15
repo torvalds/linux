@@ -45,6 +45,7 @@ void orion5x_restart(char, const char *);
  */
 struct pci_bus;
 struct pci_sys_data;
+struct pci_dev;
 
 void orion5x_pcie_id(u32 *dev, u32 *rev);
 void orion5x_pci_disable(void);
@@ -57,5 +58,14 @@ struct meminfo;
 struct tag;
 extern void __init tag_fixup_mem32(struct tag *, char **, struct meminfo *);
 
+/*****************************************************************************
+ * Helpers to access Orion registers
+ ****************************************************************************/
+/*
+ * These are not preempt-safe.  Locks, if needed, must be taken
+ * care of by the caller.
+ */
+#define orion5x_setbits(r, mask)	writel(readl(r) | (mask), (r))
+#define orion5x_clrbits(r, mask)	writel(readl(r) & ~(mask), (r))
 
 #endif

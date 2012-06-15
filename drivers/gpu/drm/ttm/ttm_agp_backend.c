@@ -29,6 +29,8 @@
  *          Keith Packard.
  */
 
+#define pr_fmt(fmt) "[TTM] " fmt
+
 #include "ttm/ttm_module.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_page_alloc.h"
@@ -74,7 +76,7 @@ static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 
 	ret = agp_bind_memory(mem, node->start);
 	if (ret)
-		printk(KERN_ERR TTM_PFX "AGP Bind memory failed.\n");
+		pr_err("AGP Bind memory failed\n");
 
 	return ret;
 }

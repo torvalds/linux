@@ -30,6 +30,12 @@ enum {
 	PCI_ENABLE_PROC_DOMAINS	= 0x00000010,
 	/* ... except for domain 0 */
 	PCI_COMPAT_DOMAIN_0	= 0x00000020,
+
+	/* PCIe downstream ports are bridges that normally lead to only a
+	 * device 0, but if this is set, we scan all possible devices, not
+	 * just device 0.
+	 */
+	PCI_SCAN_ALL_PCIE_DEVS	= 0x00000040,
 };
 
 #ifdef CONFIG_PCI
@@ -45,6 +51,11 @@ static inline void pci_add_flags(int flags)
 	pci_flags |= flags;
 }
 
+static inline void pci_clear_flags(int flags)
+{
+	pci_flags &= ~flags;
+}
+
 static inline int pci_has_flag(int flag)
 {
 	return pci_flags & flag;
@@ -52,6 +63,7 @@ static inline int pci_has_flag(int flag)
 #else
 static inline void pci_set_flags(int flags) { }
 static inline void pci_add_flags(int flags) { }
+static inline void pci_clear_flags(int flags) { }
 static inline int pci_has_flag(int flag)
 {
 	return 0;

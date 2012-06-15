@@ -101,9 +101,9 @@ struct SCfgAgc {
 
 struct SNoiseCal {
 	int cpOpt;
-	u16 cpNexpOfs;
-	u16 tdCal2k;
-	u16 tdCal8k;
+	short cpNexpOfs;
+	short tdCal2k;
+	short tdCal8k;
 };
 
 enum app_env {

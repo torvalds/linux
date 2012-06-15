@@ -60,7 +60,6 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
-#include <asm/system.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/termios.h>
@@ -81,12 +80,15 @@ extern int decnet_log_martians;
 
 static void dn_log_martian(struct sk_buff *skb, const char *msg)
 {
-	if (decnet_log_martians && net_ratelimit()) {
+	if (decnet_log_martians) {
 		char *devname = skb->dev ? skb->dev->name : "???";
 		struct dn_skb_cb *cb = DN_SKB_CB(skb);
-		printk(KERN_INFO "DECnet: Martian packet (%s) dev=%s src=0x%04hx dst=0x%04hx srcport=0x%04hx dstport=0x%04hx\n",
-		       msg, devname, le16_to_cpu(cb->src), le16_to_cpu(cb->dst),
-		       le16_to_cpu(cb->src_port), le16_to_cpu(cb->dst_port));
+		net_info_ratelimited("DECnet: Martian packet (%s) dev=%s src=0x%04hx dst=0x%04hx srcport=0x%04hx dstport=0x%04hx\n",
+				     msg, devname,
+				     le16_to_cpu(cb->src),
+				     le16_to_cpu(cb->dst),
+				     le16_to_cpu(cb->src_port),
+				     le16_to_cpu(cb->dst_port));
 	}
 }
 
@@ -589,7 +591,7 @@ static __inline__ int dn_queue_skb(struct sock *sk, struct sk_buff *skb, int sig
 	   number of warnings when compiling with -W --ANK
 	 */
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-	    (unsigned)sk->sk_rcvbuf) {
+	    (unsigned int)sk->sk_rcvbuf) {
 		err = -ENOMEM;
 		goto out;
 	}

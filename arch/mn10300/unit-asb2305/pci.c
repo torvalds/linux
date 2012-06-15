@@ -32,8 +32,7 @@ struct pci_ops *pci_root_ops;
  * insert specific PCI bus resources instead of using the platform-level bus
  * resources directly for the PCI root bus.
  *
- * These are configured and inserted by pcibios_init() and are attached to the
- * root bus by pcibios_fixup_bus().
+ * These are configured and inserted by pcibios_init().
  */
 static struct resource pci_ioport_resource = {
 	.name	= "PCI IO",
@@ -76,52 +75,6 @@ static inline int __query(const struct pci_bus *bus, unsigned int devfn)
 #endif
 	return 1;
 }
-
-/*
- * translate Linuxcentric addresses to PCI bus addresses
- */
-void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			     struct resource *res)
-{
-	if (res->flags & IORESOURCE_IO) {
-		region->start = (res->start & 0x00ffffff);
-		region->end   = (res->end   & 0x00ffffff);
-	}
-
-	if (res->flags & IORESOURCE_MEM) {
-		region->start = (res->start & 0x03ffffff) | MEM_PAGING_REG;
-		region->end   = (res->end   & 0x03ffffff) | MEM_PAGING_REG;
-	}
-
-#if 0
-	printk(KERN_DEBUG "RES->BUS: %lx-%lx => %lx-%lx\n",
-	       res->start, res->end, region->start, region->end);
-#endif
-}
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-
-/*
- * translate PCI bus addresses to Linuxcentric addresses
- */
-void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			     struct pci_bus_region *region)
-{
-	if (res->flags & IORESOURCE_IO) {
-		res->start = (region->start & 0x00ffffff) | 0xbe000000;
-		res->end   = (region->end   & 0x00ffffff) | 0xbe000000;
-	}
-
-	if (res->flags & IORESOURCE_MEM) {
-		res->start = (region->start & 0x03ffffff) | 0xb8000000;
-		res->end   = (region->end   & 0x03ffffff) | 0xb8000000;
-	}
-
-#if 0
-	printk(KERN_INFO "BUS->RES: %lx-%lx => %lx-%lx\n",
-	       region->start, region->end, res->start, res->end);
-#endif
-}
-EXPORT_SYMBOL(pcibios_bus_to_resource);
 
 /*
  *
@@ -364,9 +317,6 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 		if (!dev->resource[i].flags)
 			continue;
 
-		region.start = dev->resource[i].start;
-		region.end = dev->resource[i].end;
-		pcibios_bus_to_resource(dev, &dev->resource[i], &region);
 		if (is_valid_resource(dev, i))
 			pci_claim_resource(dev, i);
 	}
@@ -397,6 +347,7 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
  */
 static int __init pcibios_init(void)
 {
+	resource_size_t io_offset, mem_offset;
 	LIST_HEAD(resources);
 
 	ioport_resource.start	= 0xA0000000;
@@ -420,8 +371,13 @@ static int __init pcibios_init(void)
 	printk(KERN_INFO "PCI: Probing PCI hardware [mempage %08x]\n",
 	       MEM_PAGING_REG);
 
-	pci_add_resource(&resources, &pci_ioport_resource);
-	pci_add_resource(&resources, &pci_iomem_resource);
+	io_offset = pci_ioport_resource.start -
+	    (pci_ioport_resource.start & 0x00ffffff);
+	mem_offset = pci_iomem_resource.start -
+	    ((pci_iomem_resource.start & 0x03ffffff) | MEM_PAGING_REG);
+
+	pci_add_resource_offset(&resources, &pci_ioport_resource, io_offset);
+	pci_add_resource_offset(&resources, &pci_iomem_resource, mem_offset);
 	pci_root_bus = pci_scan_root_bus(NULL, 0, &pci_direct_ampci, NULL,
 					 &resources);
 

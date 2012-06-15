@@ -20,7 +20,6 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>
-#include <asm/unaligned.h>
 
 #include "ieee80211_i.h"
 #include "driver-ops.h"
@@ -35,31 +34,6 @@
 
 #define IEEE80211_IBSS_MAX_STA_ENTRIES 128
 
-
-static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
-					struct ieee80211_mgmt *mgmt,
-					size_t len)
-{
-	u16 auth_alg, auth_transaction;
-
-	lockdep_assert_held(&sdata->u.ibss.mtx);
-
-	if (len < 24 + 6)
-		return;
-
-	auth_alg = le16_to_cpu(mgmt->u.auth.auth_alg);
-	auth_transaction = le16_to_cpu(mgmt->u.auth.auth_transaction);
-
-	/*
-	 * IEEE 802.11 standard does not require authentication in IBSS
-	 * networks and most implementations do not seem to use it.
-	 * However, try to reply to authentication attempts if someone
-	 * has actually implemented this.
-	 */
-	if (auth_alg == WLAN_AUTH_OPEN && auth_transaction == 1)
-		ieee80211_send_auth(sdata, 2, WLAN_AUTH_OPEN, NULL, 0,
-				    sdata->u.ibss.bssid, NULL, 0, 0);
-}
 
 static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				      const u8 *bssid, const int beacon_int,
@@ -92,7 +66,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	skb_reset_tail_pointer(skb);
 	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
 
-	if (memcmp(ifibss->bssid, bssid, ETH_ALEN))
+	if (!ether_addr_equal(ifibss->bssid, bssid))
 		sta_info_flush(sdata->local, sdata);
 
 	/* if merging, indicate to driver that we leave the old IBSS */
@@ -186,16 +160,19 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	if (channel_type && sband->ht_cap.ht_supported) {
 		pos = skb_put(skb, 4 +
 				   sizeof(struct ieee80211_ht_cap) +
-				   sizeof(struct ieee80211_ht_info));
+				   sizeof(struct ieee80211_ht_operation));
 		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
 						sband->ht_cap.cap);
-		pos = ieee80211_ie_build_ht_info(pos,
-						 &sband->ht_cap,
-						 chan,
-						 channel_type);
+		/*
+		 * Note: According to 802.11n-2009 9.13.3.1, HT Protection
+		 * field and RIFS Mode are reserved in IBSS mode, therefore
+		 * keep them at 0
+		 */
+		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
+						 chan, channel_type, 0);
 	}
 
-	if (local->hw.queues >= 4) {
+	if (local->hw.queues >= IEEE80211_NUM_ACS) {
 		pos = skb_put(skb, 9);
 		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
 		*pos++ = 7; /* len */
@@ -276,7 +253,8 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				  cbss->tsf);
 }
 
-static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta)
+static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
+						  bool auth)
 	__acquires(RCU)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -290,22 +268,34 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta)
 		    addr, sdata->name);
 #endif
 
-	sta_info_move_state(sta, IEEE80211_STA_AUTH);
-	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
-	sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
+	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
+	/* authorize the station only if the network is not RSN protected. If
+	 * not wait for the userspace to authorize it */
+	if (!sta->sdata->u.ibss.control_port)
+		sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
 	rate_control_rate_init(sta);
 
 	/* If it fails, maybe we raced another insertion? */
 	if (sta_info_insert_rcu(sta))
 		return sta_info_get(sdata, addr);
+	if (auth) {
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+		printk(KERN_DEBUG "TX Auth SA=%pM DA=%pM BSSID=%pM"
+		       "(auth_transaction=1)\n", sdata->vif.addr,
+		       sdata->u.ibss.bssid, addr);
+#endif
+		ieee80211_send_auth(sdata, 1, WLAN_AUTH_OPEN, NULL, 0,
+				    addr, sdata->u.ibss.bssid, NULL, 0, 0);
+	}
 	return sta;
 }
 
 static struct sta_info *
 ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		       const u8 *bssid, const u8 *addr,
-		       u32 supp_rates)
+		       u32 supp_rates, bool auth)
 	__acquires(RCU)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
@@ -318,9 +308,8 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	 * 	allow new one to be added.
 	 */
 	if (local->num_sta >= IEEE80211_IBSS_MAX_STA_ENTRIES) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
-			       sdata->name, addr);
+		net_dbg_ratelimited("%s: No room for a new IBSS STA entry %pM\n",
+				    sdata->name, addr);
 		rcu_read_lock();
 		return NULL;
 	}
@@ -330,7 +319,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 	}
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid)) {
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid)) {
 		rcu_read_lock();
 		return NULL;
 	}
@@ -347,7 +336,42 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	sta->sta.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(local, band);
 
-	return ieee80211_ibss_finish_sta(sta);
+	return ieee80211_ibss_finish_sta(sta, auth);
+}
+
+static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
+					struct ieee80211_mgmt *mgmt,
+					size_t len)
+{
+	u16 auth_alg, auth_transaction;
+
+	lockdep_assert_held(&sdata->u.ibss.mtx);
+
+	if (len < 24 + 6)
+		return;
+
+	auth_alg = le16_to_cpu(mgmt->u.auth.auth_alg);
+	auth_transaction = le16_to_cpu(mgmt->u.auth.auth_transaction);
+
+	if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1)
+		return;
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+	printk(KERN_DEBUG "%s: RX Auth SA=%pM DA=%pM BSSID=%pM."
+	       "(auth_transaction=%d)\n",
+	       sdata->name, mgmt->sa, mgmt->da, mgmt->bssid, auth_transaction);
+#endif
+	sta_info_destroy_addr(sdata, mgmt->sa);
+	ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, 0, false);
+	rcu_read_unlock();
+
+	/*
+	 * IEEE 802.11 standard does not require authentication in IBSS
+	 * networks and most implementations do not seem to use it.
+	 * However, try to reply to authentication attempts if someone
+	 * has actually implemented this.
+	 */
+	ieee80211_send_auth(sdata, 2, WLAN_AUTH_OPEN, NULL, 0,
+			    mgmt->sa, sdata->u.ibss.bssid, NULL, 0, 0);
 }
 
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
@@ -381,14 +405,14 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-	    memcmp(mgmt->bssid, sdata->u.ibss.bssid, ETH_ALEN) == 0) {
+	    ether_addr_equal(mgmt->bssid, sdata->u.ibss.bssid)) {
 
 		rcu_read_lock();
 		sta = sta_info_get(sdata, mgmt->sa);
 
 		if (elems->supp_rates) {
 			supp_rates = ieee80211_sta_get_rates(local, elems,
-							     band);
+							     band, NULL);
 			if (sta) {
 				u32 prev_rates;
 
@@ -412,20 +436,20 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			} else {
 				rcu_read_unlock();
 				sta = ieee80211_ibss_add_sta(sdata, mgmt->bssid,
-						mgmt->sa, supp_rates);
+						mgmt->sa, supp_rates, true);
 			}
 		}
 
 		if (sta && elems->wmm_info)
 			set_sta_flag(sta, WLAN_STA_WME);
 
-		if (sta && elems->ht_info_elem && elems->ht_cap_elem &&
+		if (sta && elems->ht_operation && elems->ht_cap_elem &&
 		    sdata->u.ibss.channel_type != NL80211_CHAN_NO_HT) {
 			/* we both use HT */
 			struct ieee80211_sta_ht_cap sta_ht_cap_new;
 			enum nl80211_channel_type channel_type =
-				ieee80211_ht_info_to_channel_type(
-							elems->ht_info_elem);
+				ieee80211_ht_oper_to_channel_type(
+							elems->ht_operation);
 
 			ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 							  elems->ht_cap_elem,
@@ -435,8 +459,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			 * fall back to HT20 if we don't use or use
 			 * the other extension channel
 			 */
-			if ((channel_type == NL80211_CHAN_HT40MINUS ||
-			     channel_type == NL80211_CHAN_HT40PLUS) &&
+			if (!(channel_type == NL80211_CHAN_HT40MINUS ||
+			      channel_type == NL80211_CHAN_HT40PLUS) ||
 			    channel_type != sdata->u.ibss.channel_type)
 				sta_ht_cap_new.cap &=
 					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
@@ -486,7 +510,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		goto put_bss;
 
 	/* same BSSID */
-	if (memcmp(cbss->bssid, sdata->u.ibss.bssid, ETH_ALEN) == 0)
+	if (ether_addr_equal(cbss->bssid, sdata->u.ibss.bssid))
 		goto put_bss;
 
 	if (rx_status->flag & RX_FLAG_MACTIME_MPDU) {
@@ -538,9 +562,9 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		       sdata->name, mgmt->bssid);
 #endif
 		ieee80211_sta_join_ibss(sdata, bss);
-		supp_rates = ieee80211_sta_get_rates(local, elems, band);
+		supp_rates = ieee80211_sta_get_rates(local, elems, band, NULL);
 		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
-				       supp_rates);
+				       supp_rates, true);
 		rcu_read_unlock();
 	}
 
@@ -562,16 +586,15 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	 * 	allow new one to be added.
 	 */
 	if (local->num_sta >= IEEE80211_IBSS_MAX_STA_ENTRIES) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
-			       sdata->name, addr);
+		net_dbg_ratelimited("%s: No room for a new IBSS STA entry %pM\n",
+				    sdata->name, addr);
 		return;
 	}
 
 	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH)
 		return;
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid))
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid))
 		return;
 
 	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
@@ -643,8 +666,7 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	       "IBSS networks with same SSID (merge)\n", sdata->name);
 
 	ieee80211_request_internal_scan(sdata,
-			ifibss->ssid, ifibss->ssid_len,
-			ifibss->fixed_channel ? ifibss->channel : NULL);
+			ifibss->ssid, ifibss->ssid_len, NULL);
 }
 
 static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
@@ -810,8 +832,8 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	if (!tx_last_beacon && is_multicast_ether_addr(mgmt->da))
 		return;
 
-	if (memcmp(mgmt->bssid, ifibss->bssid, ETH_ALEN) != 0 &&
-	    memcmp(mgmt->bssid, "\xff\xff\xff\xff\xff\xff", ETH_ALEN) != 0)
+	if (!ether_addr_equal(mgmt->bssid, ifibss->bssid) &&
+	    !is_broadcast_ether_addr(mgmt->bssid))
 		return;
 
 	end = ((u8 *) mgmt) + len;
@@ -854,9 +876,6 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 {
 	size_t baselen;
 	struct ieee802_11_elems elems;
-
-	if (memcmp(mgmt->da, sdata->vif.addr, ETH_ALEN))
-		return; /* ignore ProbeResp to foreign address */
 
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
 	if (baselen > len)
@@ -945,7 +964,7 @@ void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata)
 		list_del(&sta->list);
 		spin_unlock_bh(&ifibss->incomplete_lock);
 
-		ieee80211_ibss_finish_sta(sta);
+		ieee80211_ibss_finish_sta(sta, true);
 		rcu_read_unlock();
 		spin_lock_bh(&ifibss->incomplete_lock);
 	}
@@ -1045,7 +1064,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			    4 /* IBSS params */ +
 			    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
 			    2 + sizeof(struct ieee80211_ht_cap) +
-			    2 + sizeof(struct ieee80211_ht_info) +
+			    2 + sizeof(struct ieee80211_ht_operation) +
 			    params->ie_len);
 	if (!skb)
 		return -ENOMEM;
@@ -1059,6 +1078,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 		sdata->u.ibss.fixed_bssid = false;
 
 	sdata->u.ibss.privacy = params->privacy;
+	sdata->u.ibss.control_port = params->control_port;
 	sdata->u.ibss.basic_rates = params->basic_rates;
 	memcpy(sdata->vif.bss_conf.mcast_rate, params->mcast_rate,
 	       sizeof(params->mcast_rate));

@@ -28,7 +28,6 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
-#include <asm/system.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 

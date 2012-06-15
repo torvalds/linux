@@ -59,7 +59,7 @@ static struct mtd_partition bigflash_parts[] = {
 	}
 };
 
-static const char *part_probes[] __initdata = {"cmdlinepart", "RedBoot", NULL};
+static const char *part_probes[] __initconst = {"cmdlinepart", "RedBoot", NULL};
 
 #define init_sbc82xx_one_flash(map, br, or)			\
 do {								\
@@ -142,7 +142,7 @@ static int __init init_sbc82xx_flash(void)
 			nr_parts = ARRAY_SIZE(smallflash_parts);
 		}
 
-		mtd_device_parse_register(sbcmtd[i], part_probes, 0,
+		mtd_device_parse_register(sbcmtd[i], part_probes, NULL,
 					  defparts, nr_parts);
 	}
 	return 0;

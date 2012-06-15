@@ -1,5 +1,6 @@
 menu "Self-contained MTD device drivers"
 	depends on MTD!=n
+	depends on HAS_IOMEM
 
 config MTD_PMC551
 	tristate "Ramix PMC551 PCI Mezzanine RAM card support"
@@ -101,6 +102,13 @@ config M25PXX_USE_FAST_READ
 	default y
 	help
 	  This option enables FAST_READ access supported by ST M25Pxx.
+
+config MTD_SPEAR_SMI
+	tristate "SPEAR MTD NOR Support through SMI controller"
+	depends on PLAT_SPEAR
+	default y
+	help
+	  This enable SNOR support on SPEAR platforms using SMI controller
 
 config MTD_SST25L
 	tristate "Support SST25L (non JEDEC) SPI Flash chips"

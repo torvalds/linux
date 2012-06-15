@@ -282,8 +282,13 @@ void fixup_irqs(void)
 		else if (!(warned++))
 			set_affinity = 0;
 
+		/*
+		 * We unmask if the irq was not marked masked by the
+		 * core code. That respects the lazy irq disable
+		 * behaviour.
+		 */
 		if (!irqd_can_move_in_process_context(data) &&
-		    !irqd_irq_disabled(data) && chip->irq_unmask)
+		    !irqd_irq_masked(data) && chip->irq_unmask)
 			chip->irq_unmask(data);
 
 		raw_spin_unlock(&desc->lock);

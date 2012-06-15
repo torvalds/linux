@@ -50,6 +50,14 @@ The state of the outputs can be read.
 
 #define PC263_DRIVER_NAME	"amplc_pc263"
 
+#ifdef CONFIG_COMEDI_AMPLC_PC263_ISA_MODULE
+#define CONFIG_COMEDI_AMPLC_PC263_ISA
+#endif
+
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI_MODULE
+#define CONFIG_COMEDI_AMPLC_PC263_PCI
+#endif
+
 /* PCI263 PCI configuration register information */
 #define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI263 0x000c
@@ -73,13 +81,15 @@ struct pc263_board {
 	enum pc263_model model;
 };
 static const struct pc263_board pc263_boards[] = {
+#ifdef CONFIG_COMEDI_AMPLC_PC263_ISA
 	{
 	 .name = "pc263",
 	 .fancy_name = "PC263",
 	 .bustype = isa_bustype,
 	 .model = pc263_model,
 	 },
-#ifdef CONFIG_COMEDI_PCI
+#endif
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 	{
 	 .name = "pci263",
 	 .fancy_name = "PCI263",
@@ -87,8 +97,6 @@ static const struct pc263_board pc263_boards[] = {
 	 .bustype = pci_bustype,
 	 .model = pci263_model,
 	 },
-#endif
-#ifdef CONFIG_COMEDI_PCI
 	{
 	 .name = PC263_DRIVER_NAME,
 	 .fancy_name = PC263_DRIVER_NAME,
@@ -99,14 +107,14 @@ static const struct pc263_board pc263_boards[] = {
 #endif
 };
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 static DEFINE_PCI_DEVICE_TABLE(pc263_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
 	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, pc263_pci_table);
-#endif /* CONFIG_COMEDI_PCI */
+#endif /* CONFIG_COMEDI_AMPLC_PC263_PCI */
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -117,14 +125,14 @@ MODULE_DEVICE_TABLE(pci, pc263_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.
 */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 struct pc263_private {
 	/* PCI device. */
 	struct pci_dev *pci_dev;
 };
 
 #define devpriv ((struct pc263_private *)dev->private)
-#endif /* CONFIG_COMEDI_PCI */
+#endif /* CONFIG_COMEDI_AMPLC_PC263_PCI */
 
 /*
  * The struct comedi_driver structure tells the Comedi core module
@@ -133,7 +141,7 @@ struct pc263_private {
  * the device code.
  */
 static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int pc263_detach(struct comedi_device *dev);
+static void pc263_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_pc263 = {
 	.driver_name = PC263_DRIVER_NAME,
 	.module = THIS_MODULE,
@@ -144,8 +152,10 @@ static struct comedi_driver driver_amplc_pc263 = {
 	.num_names = ARRAY_SIZE(pc263_boards),
 };
 
+#ifdef CONFIG_COMEDI_AMPLC_PC263_ISA
 static int pc263_request_region(unsigned minor, unsigned long from,
 				unsigned long extent);
+#endif
 static int pc263_dio_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data);
@@ -157,7 +167,7 @@ static int pc263_dio_insn_config(struct comedi_device *dev,
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 static int
 pc263_find_pci(struct comedi_device *dev, int bus, int slot,
 	       struct pci_dev **pci_dev_p)
@@ -225,7 +235,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 	struct pci_dev *pci_dev = NULL;
 	int bus = 0, slot = 0;
 #endif
@@ -237,7 +247,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 	ret = alloc_private(dev, sizeof(struct pc263_private));
 	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
@@ -247,10 +257,12 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	/* Process options. */
 	switch (thisboard->bustype) {
+#ifdef CONFIG_COMEDI_AMPLC_PC263_ISA
 	case isa_bustype:
 		iobase = it->options[0];
 		break;
-#ifdef CONFIG_COMEDI_PCI
+#endif
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 	case pci_bustype:
 		bus = it->options[0];
 		slot = it->options[1];
@@ -260,7 +272,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			return ret;
 		devpriv->pci_dev = pci_dev;
 		break;
-#endif /* CONFIG_COMEDI_PCI */
+#endif
 	default:
 		printk(KERN_ERR
 		       "comedi%d: %s: BUG! cannot determine board type!\n",
@@ -275,7 +287,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 	/* Enable device and reserve I/O spaces. */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 	if (pci_dev) {
 		ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME);
 		if (ret < 0) {
@@ -289,9 +301,11 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	} else
 #endif
 	{
+#ifdef CONFIG_COMEDI_AMPLC_PC263_ISA
 		ret = pc263_request_region(dev->minor, iobase, PC263_IO_SIZE);
 		if (ret < 0)
 			return ret;
+#endif
 	}
 	dev->iobase = iobase;
 
@@ -322,12 +336,18 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->state = s->state | (inb(dev->iobase) << 8);
 
 	printk(KERN_INFO "comedi%d: %s ", dev->minor, dev->board_name);
-	if (thisboard->bustype == isa_bustype) {
+	switch (thisboard->bustype) {
+#ifdef CONFIG_COMEDI_AMPLC_PC263_ISA
+	case isa_bustype:
 		printk("(base %#lx) ", iobase);
-	} else {
-#ifdef CONFIG_COMEDI_PCI
-		printk("(pci %s) ", pci_name(pci_dev));
+		break;
 #endif
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
+		printk("(pci %s) ", pci_name(pci_dev));
+		break;
+#endif
+	default:
+		break;
 	}
 
 	printk("attached\n");
@@ -335,23 +355,13 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int pc263_detach(struct comedi_device *dev)
+static void pc263_detach(struct comedi_device *dev)
 {
-	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
-	       PC263_DRIVER_NAME);
-
-#ifdef CONFIG_COMEDI_PCI
-	if (devpriv) {
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
+	if (devpriv)
 #endif
-#ifdef CONFIG_COMEDI_PCI
+	{
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 		if (devpriv->pci_dev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
@@ -359,21 +369,19 @@ static int pc263_detach(struct comedi_device *dev)
 		} else
 #endif
 		{
+#ifdef CONFIG_COMEDI_AMPLC_PC263_ISA
 			if (dev->iobase)
 				release_region(dev->iobase, PC263_IO_SIZE);
+#endif
 		}
 	}
-	if (dev->board_name) {
-		printk(KERN_INFO "comedi%d: %s removed\n",
-		       dev->minor, dev->board_name);
-	}
-	return 0;
 }
 
 /*
  * This function checks and requests an I/O region, reporting an error
  * if there is a conflict.
  */
+#ifdef CONFIG_COMEDI_AMPLC_PC263_ISA
 static int pc263_request_region(unsigned minor, unsigned long from,
 				unsigned long extent)
 {
@@ -384,6 +392,7 @@ static int pc263_request_region(unsigned minor, unsigned long from,
 	}
 	return 0;
 }
+#endif
 
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
@@ -429,12 +438,12 @@ static int pc263_dio_insn_config(struct comedi_device *dev,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_AMPLC_PC263_PCI
 static int __devinit driver_amplc_pc263_pci_probe(struct pci_dev *dev,
 						  const struct pci_device_id
 						  *ent)
 {
-	return comedi_pci_auto_config(dev, driver_amplc_pc263.driver_name);
+	return comedi_pci_auto_config(dev, &driver_amplc_pc263);
 }
 
 static void __devexit driver_amplc_pc263_pci_remove(struct pci_dev *dev)

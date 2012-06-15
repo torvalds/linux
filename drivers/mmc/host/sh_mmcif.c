@@ -56,6 +56,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
@@ -285,7 +286,7 @@ static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
 			 DMA_FROM_DEVICE);
 	if (ret > 0) {
 		host->dma_active = true;
-		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
+		desc = dmaengine_prep_slave_sg(chan, sg, ret,
 			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	}
 
@@ -334,7 +335,7 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 			 DMA_TO_DEVICE);
 	if (ret > 0) {
 		host->dma_active = true;
-		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
+		desc = dmaengine_prep_slave_sg(chan, sg, ret,
 			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	}
 
@@ -453,7 +454,8 @@ static void sh_mmcif_clock_control(struct sh_mmcif_host *host, unsigned int clk)
 		sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_SUP_PCLK);
 	else
 		sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_CLEAR &
-				((fls(host->clk / clk) - 1) << 16));
+				((fls(DIV_ROUND_UP(host->clk,
+						   clk) - 1) - 1) << 16));
 
 	sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_ENABLE);
 }
@@ -745,7 +747,6 @@ static u32 sh_mmcif_set_cmd(struct sh_mmcif_host *host,
 	case MMC_SET_WRITE_PROT:
 	case MMC_CLR_WRITE_PROT:
 	case MMC_ERASE:
-	case MMC_GEN_CMD:
 		tmp |= CMD_SET_RBSY;
 		break;
 	}
@@ -828,7 +829,6 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	case MMC_SET_WRITE_PROT:
 	case MMC_CLR_WRITE_PROT:
 	case MMC_ERASE:
-	case MMC_GEN_CMD:
 		mask = MASK_START_CMD | MASK_MRBSYE;
 		break;
 	default:
@@ -1298,14 +1298,8 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	spin_lock_init(&host->lock);
 
 	mmc->ops = &sh_mmcif_ops;
-	mmc->f_max = host->clk;
-	/* close to 400KHz */
-	if (mmc->f_max < 51200000)
-		mmc->f_min = mmc->f_max / 128;
-	else if (mmc->f_max < 102400000)
-		mmc->f_min = mmc->f_max / 256;
-	else
-		mmc->f_min = mmc->f_max / 512;
+	mmc->f_max = host->clk / 2;
+	mmc->f_min = host->clk / 512;
 	if (pd->ocr)
 		mmc->ocr_avail = pd->ocr;
 	mmc->caps = MMC_CAP_MMC_HIGHSPEED;
@@ -1346,6 +1340,8 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto clean_up5;
 
+	dev_pm_qos_expose_latency_limit(&pdev->dev, 100);
+
 	dev_info(&pdev->dev, "driver version %s\n", DRIVER_VERSION);
 	dev_dbg(&pdev->dev, "chip ver H'%04x\n",
 		sh_mmcif_readl(host->addr, MMCIF_CE_VERSION) & 0x0000ffff);
@@ -1375,6 +1371,8 @@ static int __devexit sh_mmcif_remove(struct platform_device *pdev)
 
 	host->dying = true;
 	pm_runtime_get_sync(&pdev->dev);
+
+	dev_pm_qos_hide_latency_limit(&pdev->dev);
 
 	mmc_remove_host(host->mmc);
 	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);

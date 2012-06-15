@@ -18,6 +18,8 @@
  */
 
 static struct rc_map_table nec_terratec_cinergy_xs[] = {
+
+	/* Terratec Grey IR, with most keys in orange */
 	{ 0x1441, KEY_HOME},
 	{ 0x1401, KEY_POWER2},
 
@@ -78,6 +80,56 @@ static struct rc_map_table nec_terratec_cinergy_xs[] = {
 	{ 0x144e, KEY_REWIND},
 	{ 0x144f, KEY_FASTFORWARD},
 	{ 0x145c, KEY_NEXT},
+
+	/* Terratec Black IR, with most keys in black */
+	{ 0x04eb01, KEY_POWER2},
+
+	{ 0x04eb02, KEY_1},
+	{ 0x04eb03, KEY_2},
+	{ 0x04eb04, KEY_3},
+	{ 0x04eb05, KEY_4},
+	{ 0x04eb06, KEY_5},
+	{ 0x04eb07, KEY_6},
+	{ 0x04eb08, KEY_7},
+	{ 0x04eb09, KEY_8},
+	{ 0x04eb0a, KEY_9},
+	{ 0x04eb0c, KEY_0},
+
+	{ 0x04eb0b, KEY_TEXT},		/* TXT */
+	{ 0x04eb0d, KEY_REFRESH},	/* Refresh */
+
+	{ 0x04eb0e, KEY_HOME},
+	{ 0x04eb0f, KEY_EPG},
+
+	{ 0x04eb10, KEY_UP},
+	{ 0x04eb11, KEY_LEFT},
+	{ 0x04eb12, KEY_OK},
+	{ 0x04eb13, KEY_RIGHT},
+	{ 0x04eb14, KEY_DOWN},
+
+	{ 0x04eb15, KEY_BACKSPACE},
+	{ 0x04eb16, KEY_INFO},
+
+	{ 0x04eb17, KEY_RED},
+	{ 0x04eb18, KEY_GREEN},
+	{ 0x04eb19, KEY_YELLOW},
+	{ 0x04eb1a, KEY_BLUE},
+
+	{ 0x04eb1c, KEY_VOLUMEUP},
+	{ 0x04eb1e, KEY_VOLUMEDOWN},
+
+	{ 0x04eb1d, KEY_MUTE},
+
+	{ 0x04eb1b, KEY_CHANNELUP},
+	{ 0x04eb1f, KEY_CHANNELDOWN},
+
+	{ 0x04eb40, KEY_RECORD},
+	{ 0x04eb4c, KEY_PLAY},
+	{ 0x04eb58, KEY_PAUSE},
+
+	{ 0x04eb54, KEY_REWIND},
+	{ 0x04eb48, KEY_STOP},
+	{ 0x04eb5c, KEY_NEXT},
 };
 
 static struct rc_map_list nec_terratec_cinergy_xs_map = {

@@ -25,7 +25,7 @@
 #include <linux/module.h>
 
 #include <asm/proc-fns.h>
-#include <asm/system.h>
+#include <asm/system_misc.h>
 
 #include <mach/mxs.h>
 #include <mach/common.h>

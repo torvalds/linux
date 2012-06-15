@@ -42,7 +42,6 @@
 #include <asm/calgary.h>
 #include <asm/tce.h>
 #include <asm/pci-direct.h>
-#include <asm/system.h>
 #include <asm/dma.h>
 #include <asm/rio.h>
 #include <asm/bios_ebda.h>
@@ -431,7 +430,7 @@ static void calgary_unmap_page(struct device *dev, dma_addr_t dma_addr,
 }
 
 static void* calgary_alloc_coherent(struct device *dev, size_t size,
-	dma_addr_t *dma_handle, gfp_t flag)
+	dma_addr_t *dma_handle, gfp_t flag, struct dma_attrs *attrs)
 {
 	void *ret = NULL;
 	dma_addr_t mapping;
@@ -464,7 +463,8 @@ error:
 }
 
 static void calgary_free_coherent(struct device *dev, size_t size,
-				  void *vaddr, dma_addr_t dma_handle)
+				  void *vaddr, dma_addr_t dma_handle,
+				  struct dma_attrs *attrs)
 {
 	unsigned int npages;
 	struct iommu_table *tbl = find_iommu_table(dev);
@@ -477,8 +477,8 @@ static void calgary_free_coherent(struct device *dev, size_t size,
 }
 
 static struct dma_map_ops calgary_dma_ops = {
-	.alloc_coherent = calgary_alloc_coherent,
-	.free_coherent = calgary_free_coherent,
+	.alloc = calgary_alloc_coherent,
+	.free = calgary_free_coherent,
 	.map_sg = calgary_map_sg,
 	.unmap_sg = calgary_unmap_sg,
 	.map_page = calgary_map_page,
@@ -1480,8 +1480,9 @@ cleanup:
 static int __init calgary_parse_options(char *p)
 {
 	unsigned int bridge;
+	unsigned long val;
 	size_t len;
-	char* endp;
+	ssize_t ret;
 
 	while (*p) {
 		if (!strncmp(p, "64k", 3))
@@ -1512,10 +1513,11 @@ static int __init calgary_parse_options(char *p)
 				++p;
 			if (*p == '\0')
 				break;
-			bridge = simple_strtoul(p, &endp, 0);
-			if (p == endp)
+			ret = kstrtoul(p, 0, &val);
+			if (ret)
 				break;
 
+			bridge = val;
 			if (bridge < MAX_PHB_BUS_NUM) {
 				printk(KERN_INFO "Calgary: disabling "
 				       "translation for PHB %#x\n", bridge);

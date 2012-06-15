@@ -30,7 +30,7 @@
 #include <asm/smp_twd.h>
 #include <asm/hardware/gic.h>
 
-#define AVECR 0xfe700040
+#define AVECR IOMEM(0xfe700040)
 
 static struct r8a7779_pm_ch r8a7779_ch_cpu1 = {
 	.chan_offs = 0x40, /* PWRSR0 .. PWRER0 */
@@ -64,6 +64,15 @@ static void __iomem *scu_base_addr(void)
 static DEFINE_SPINLOCK(scu_lock);
 static unsigned long tmp;
 
+#ifdef CONFIG_HAVE_ARM_TWD
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, 0xf0000600, 29);
+
+void __init r8a7779_register_twd(void)
+{
+	twd_local_timer_register(&twd_local_timer);
+}
+#endif
+
 static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
 {
 	void __iomem *scu_base = scu_base_addr();
@@ -81,11 +90,6 @@ static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
 unsigned int __init r8a7779_get_core_count(void)
 {
 	void __iomem *scu_base = scu_base_addr();
-
-#ifdef CONFIG_HAVE_ARM_TWD
-	/* twd_base needs to be initialized before percpu_timer_setup() */
-	twd_base = (void __iomem *)0xf0000600;
-#endif
 
 	return scu_get_core_count(scu_base);
 }
@@ -140,7 +144,7 @@ void __init r8a7779_smp_prepare_cpus(void)
 	scu_enable(scu_base_addr());
 
 	/* Map the reset vector (in headsmp.S) */
-	__raw_writel(__pa(shmobile_secondary_vector), __io(AVECR));
+	__raw_writel(__pa(shmobile_secondary_vector), AVECR);
 
 	/* enable cache coherency on CPU0 */
 	modify_scu_cpu_psr(0, 3 << (cpu * 8));

@@ -233,7 +233,7 @@ static struct regulator_init_data sdhc1_data = {
 
 static struct regulator_consumer_supply cam_consumers[] = {
 	{
-		.dev	= NULL,
+		.dev_name = NULL,
 		.supply	= "imx_cam_vcc",
 	},
 };

@@ -986,8 +986,10 @@ static int ewrk3_rx(struct net_device *dev)
 						dev->stats.rx_fifo_errors++;
 				} else {
 					struct sk_buff *skb;
+					skb = netdev_alloc_skb(dev,
+							pkt_len + 2);
 
-					if ((skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+					if (skb != NULL) {
 						unsigned char *p;
 						skb_reserve(skb, 2);	/* Align to 16 bytes */
 						p = skb_put(skb, pkt_len);
@@ -1014,7 +1016,8 @@ static int ewrk3_rx(struct net_device *dev)
 							} else {
 								lp->pktStats.multicast++;
 							}
-						} else if (compare_ether_addr(p, dev->dev_addr) == 0) {
+						} else if (ether_addr_equal(p,
+									    dev->dev_addr)) {
 							lp->pktStats.unicast++;
 						}
 						lp->pktStats.bins[0]++;		/* Duplicates stats.rx_packets */

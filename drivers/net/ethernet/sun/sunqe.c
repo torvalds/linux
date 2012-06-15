@@ -28,7 +28,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/byteorder.h>
@@ -435,7 +434,7 @@ static void qe_rx(struct sunqe *qep)
 			dev->stats.rx_length_errors++;
 			dev->stats.rx_dropped++;
 		} else {
-			skb = dev_alloc_skb(len + 2);
+			skb = netdev_alloc_skb(dev, len + 2);
 			if (skb == NULL) {
 				drops++;
 				dev->stats.rx_dropped++;
@@ -907,14 +906,8 @@ static int __devinit qec_ether_init(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, qe);
 
-	printk(KERN_INFO "%s: qe channel[%d] ", dev->name, qe->channel);
-	for (i = 0; i < 6; i++)
-		printk ("%2.2x%c",
-			dev->dev_addr[i],
-			i == 5 ? ' ': ':');
-	printk("\n");
-
-
+	printk(KERN_INFO "%s: qe channel[%d] %pM\n", dev->name, qe->channel,
+	       dev->dev_addr);
 	return 0;
 
 fail:

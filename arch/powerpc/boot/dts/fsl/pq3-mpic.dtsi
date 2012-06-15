@@ -39,6 +39,9 @@ mpic: pic@40000 {
 	reg = <0x40000 0x40000>;
 	compatible = "fsl,mpic";
 	device_type = "open-pic";
+	big-endian;
+	single-cpu-affinity;
+	last-interrupt-source = <255>;
 };
 
 timer@41100 {
@@ -48,6 +51,16 @@ timer@41100 {
 		      1 0 3 0
 		      2 0 3 0
 		      3 0 3 0>;
+};
+
+message@41400 {
+	compatible = "fsl,mpic-v3.1-msgr";
+	reg = <0x41400 0x200>;
+	interrupts = <
+		0xb0 2 0 0
+		0xb1 2 0 0
+		0xb2 2 0 0
+		0xb3 2 0 0>;
 };
 
 msi@41600 {

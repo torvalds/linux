@@ -13,18 +13,10 @@
  *  more details.
  */
 
-#define SMTC_LINUX_FB_VERSION	"version 0.11.2619.21.01 July 27, 2008"
-
 #define NR_PALETTE        256
 #define NR_RGB            2
 
 #define FB_ACCEL_SMI_LYNX 88
-
-#ifdef __BIG_ENDIAN
-#define PC_VGA            0
-#else
-#define PC_VGA            1
-#endif
 
 #define SCREEN_X_RES      1024
 #define SCREEN_Y_RES      600
@@ -38,7 +30,7 @@
 #define dac_reg	(0x3c8)
 #define dac_val	(0x3c9)
 
-extern char *smtc_RegBaseAddress;
+extern char __iomem *smtc_RegBaseAddress;
 #define smtc_mmiowb(dat, reg)	writeb(dat, smtc_RegBaseAddress + reg)
 #define smtc_mmioww(dat, reg)	writew(dat, smtc_RegBaseAddress + reg)
 #define smtc_mmiowl(dat, reg)	writel(dat, smtc_RegBaseAddress + reg)

@@ -120,7 +120,7 @@ Using the same setup as described above, load the module like this:
 
 	modprobe intelfb mode=800x600-32@75 vram=8 accel=1 hwcursor=1
 
-Or just add the following to /etc/modprobe.conf
+Or just add the following to a configuration file in /etc/modprobe.d/
 
 	options intelfb mode=800x600-32@75 vram=8 accel=1 hwcursor=1
 

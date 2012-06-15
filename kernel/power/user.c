@@ -12,7 +12,6 @@
 #include <linux/suspend.h>
 #include <linux/syscalls.h>
 #include <linux/reboot.h>
-#include <linux/kmod.h>
 #include <linux/string.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
@@ -222,14 +221,8 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		sys_sync();
 		printk("done.\n");
 
-		error = usermodehelper_disable();
-		if (error)
-			break;
-
 		error = freeze_processes();
-		if (error)
-			usermodehelper_enable();
-		else
+		if (!error)
 			data->frozen = 1;
 		break;
 
@@ -238,7 +231,6 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			break;
 		pm_restore_gfp_mask();
 		thaw_processes();
-		usermodehelper_enable();
 		data->frozen = 0;
 		break;
 
@@ -249,16 +241,10 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		}
 		pm_restore_gfp_mask();
 		error = hibernation_snapshot(data->platform_support);
-		if (error) {
-			thaw_kernel_threads();
-		} else {
+		if (!error) {
 			error = put_user(in_suspend, (int __user *)arg);
-			if (!error && !freezer_test_done)
-				data->ready = 1;
-			if (freezer_test_done) {
-				freezer_test_done = false;
-				thaw_kernel_threads();
-			}
+			data->ready = !freezer_test_done && !error;
+			freezer_test_done = false;
 		}
 		break;
 

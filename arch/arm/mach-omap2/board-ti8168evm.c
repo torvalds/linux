@@ -52,6 +52,7 @@ MACHINE_START(TI8168EVM, "ti8168evm")
 	.init_irq	= ti81xx_init_irq,
 	.timer		= &omap3_timer,
 	.init_machine	= ti81xx_evm_init,
+	.init_late	= ti81xx_init_late,
 	.restart	= omap_prcm_restart,
 MACHINE_END
 
@@ -63,5 +64,6 @@ MACHINE_START(TI8148EVM, "ti8148evm")
 	.init_irq	= ti81xx_init_irq,
 	.timer		= &omap3_timer,
 	.init_machine	= ti81xx_evm_init,
+	.init_late	= ti81xx_init_late,
 	.restart	= omap_prcm_restart,
 MACHINE_END

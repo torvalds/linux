@@ -15,10 +15,10 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
-#include <linux/io.h>
 
 #include <asm/mach-types.h>  /* for machine_is_* */
 
@@ -28,6 +28,9 @@
 #include <plat/sram.h>	/* for omap_sram_reprogram_clock() */
 #include <plat/usb.h>   /* for OTG_BASE */
 
+#include <mach/hardware.h>
+
+#include "iomap.h"
 #include "clock.h"
 
 /* Some ARM_IDLECT1 bit shifts - used in struct arm_idlect1_clk */

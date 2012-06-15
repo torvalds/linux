@@ -4,10 +4,10 @@
 
 #include <linux/kallsyms.h>
 
-#define P(f) if (desc->status_use_accessors & f) printk("%14s set\n", #f)
-#define PS(f) if (desc->istate & f) printk("%14s set\n", #f)
+#define ___P(f) if (desc->status_use_accessors & f) printk("%14s set\n", #f)
+#define ___PS(f) if (desc->istate & f) printk("%14s set\n", #f)
 /* FIXME */
-#define PD(f) do { } while (0)
+#define ___PD(f) do { } while (0)
 
 static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 {
@@ -23,23 +23,23 @@ static inline void print_irq_desc(unsigned int irq, struct irq_desc *desc)
 		print_symbol("%s\n", (unsigned long)desc->action->handler);
 	}
 
-	P(IRQ_LEVEL);
-	P(IRQ_PER_CPU);
-	P(IRQ_NOPROBE);
-	P(IRQ_NOREQUEST);
-	P(IRQ_NOTHREAD);
-	P(IRQ_NOAUTOEN);
+	___P(IRQ_LEVEL);
+	___P(IRQ_PER_CPU);
+	___P(IRQ_NOPROBE);
+	___P(IRQ_NOREQUEST);
+	___P(IRQ_NOTHREAD);
+	___P(IRQ_NOAUTOEN);
 
-	PS(IRQS_AUTODETECT);
-	PS(IRQS_REPLAY);
-	PS(IRQS_WAITING);
-	PS(IRQS_PENDING);
+	___PS(IRQS_AUTODETECT);
+	___PS(IRQS_REPLAY);
+	___PS(IRQS_WAITING);
+	___PS(IRQS_PENDING);
 
-	PD(IRQS_INPROGRESS);
-	PD(IRQS_DISABLED);
-	PD(IRQS_MASKED);
+	___PD(IRQS_INPROGRESS);
+	___PD(IRQS_DISABLED);
+	___PD(IRQS_MASKED);
 }
 
-#undef P
-#undef PS
-#undef PD
+#undef ___P
+#undef ___PS
+#undef ___PD

@@ -61,10 +61,6 @@ extern int dmm_create(struct dmm_object **dmm_manager,
 			     struct dev_object *hdev_obj,
 			     const struct dmm_mgrattrs *mgr_attrts);
 
-extern bool dmm_init(void);
-
-extern void dmm_exit(void);
-
 extern int dmm_create_tables(struct dmm_object *dmm_mgr,
 				    u32 addr, u32 size);
 

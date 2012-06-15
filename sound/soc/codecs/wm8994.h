@@ -12,6 +12,7 @@
 #include <sound/soc.h>
 #include <linux/firmware.h>
 #include <linux/completion.h>
+#include <linux/workqueue.h>
 
 #include "wm_hubs.h"
 
@@ -32,12 +33,19 @@
 #define WM8994_FLL_SRC_LRCLK  3
 #define WM8994_FLL_SRC_BCLK   4
 
+enum wm8994_vmid_mode {
+	WM8994_VMID_NORMAL,
+	WM8994_VMID_FORCE,
+};
+
 typedef void (*wm8958_micdet_cb)(u16 status, void *data);
 
 int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
-		      int micbias, int det, int shrt);
+		      int micbias);
 int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      wm8958_micdet_cb cb, void *cb_data);
+
+int wm8994_vmid_mode(struct snd_soc_codec *codec, enum wm8994_vmid_mode mode);
 
 int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event);
@@ -46,8 +54,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec);
 
 struct wm8994_micdet {
 	struct snd_soc_jack *jack;
-	int det;
-	int shrt;
+	bool detecting;
 };
 
 /* codec private data */
@@ -73,9 +80,11 @@ struct wm8994_priv {
 	struct wm8994_fll_config fll[2], fll_suspend[2];
 	struct completion fll_locked[2];
 	bool fll_locked_irq;
+	bool fll_byp;
 
 	int vmid_refcount;
 	int active_refcount;
+	enum wm8994_vmid_mode vmid_mode;
 
 	int dac_rates[2];
 	int lrclk_shared[2];
@@ -119,10 +128,12 @@ struct wm8994_priv {
 
 	struct mutex accdet_lock;
 	struct wm8994_micdet micdet[2];
+	struct delayed_work mic_work;
 	bool mic_detecting;
 	bool jack_mic;
 	int btn_mask;
 	bool jackdet;
+	int jackdet_mode;
 
 	wm8958_micdet_cb jack_cb;
 	void *jack_cb_data;

@@ -5,7 +5,7 @@
 #include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/time.h>
 #include <asm/uaccess.h>
 #include <linux/pagemap.h>

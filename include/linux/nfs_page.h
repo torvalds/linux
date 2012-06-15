@@ -19,12 +19,6 @@
 #include <linux/kref.h>
 
 /*
- * Valid flags for the radix tree
- */
-#define NFS_PAGE_TAG_LOCKED	0
-#define NFS_PAGE_TAG_COMMIT	1
-
-/*
  * Valid flags for a dirty buffer
  */
 enum {
@@ -33,20 +27,15 @@ enum {
 	PG_CLEAN,
 	PG_NEED_COMMIT,
 	PG_NEED_RESCHED,
-	PG_PNFS_COMMIT,
-	PG_PARTIAL_READ_FAILED,
+	PG_COMMIT_TO_DS,
 };
 
 struct nfs_inode;
 struct nfs_page {
-	union {
-		struct list_head	wb_list;	/* Defines state of page: */
-		struct pnfs_layout_segment *wb_commit_lseg; /* Used when PG_PNFS_COMMIT set */
-	};
+	struct list_head	wb_list;	/* Defines state of page: */
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	struct nfs_lock_context	*wb_lock_context;	/* lock context info */
-	atomic_t		wb_complete;	/* i/os we're waiting for */
 	pgoff_t			wb_index;	/* Offset >> PAGE_CACHE_SHIFT */
 	unsigned int		wb_offset,	/* Offset & ~PAGE_CACHE_MASK */
 				wb_pgbase,	/* Start of page data */
@@ -77,7 +66,9 @@ struct nfs_pageio_descriptor {
 	int 			pg_ioflags;
 	int			pg_error;
 	const struct rpc_call_ops *pg_rpc_callops;
+	const struct nfs_pgio_completion_ops *pg_completion_ops;
 	struct pnfs_layout_segment *pg_lseg;
+	struct nfs_direct_req	*pg_dreq;
 };
 
 #define NFS_WBACK_BUSY(req)	(test_bit(PG_BUSY,&(req)->wb_flags))
@@ -90,11 +81,10 @@ extern	struct nfs_page *nfs_create_request(struct nfs_open_context *ctx,
 extern	void nfs_release_request(struct nfs_page *req);
 
 
-extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *dst,
-			  pgoff_t idx_start, unsigned int npages, int tag);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
 			     const struct nfs_pageio_ops *pg_ops,
+			     const struct nfs_pgio_completion_ops *compl_ops,
 			     size_t bsize,
 			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
@@ -106,14 +96,13 @@ extern bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 				struct nfs_page *req);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
-extern	int nfs_set_page_tag_locked(struct nfs_page *req);
-extern  void nfs_clear_page_tag_locked(struct nfs_page *req);
+extern	void nfs_unlock_and_release_request(struct nfs_page *req);
 
 /*
- * Lock the page of an asynchronous request without getting a new reference
+ * Lock the page of an asynchronous request
  */
 static inline int
-nfs_lock_request_dontget(struct nfs_page *req)
+nfs_lock_request(struct nfs_page *req)
 {
 	return !test_and_set_bit(PG_BUSY, &req->wb_flags);
 }

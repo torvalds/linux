@@ -3,8 +3,8 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#include "vb_struct.h"
 #include "vgatypes.h"
+#include "vb_struct.h"
 
 enum xgifb_display_type {
 	XGIFB_DISP_NONE = 0,
@@ -23,9 +23,7 @@ enum xgifb_display_type {
 
 enum XGI_CHIP_TYPE {
 	XG40 = 32,
-	XG41,
 	XG42,
-	XG45,
 	XG20 = 48,
 	XG21,
 	XG27,
@@ -66,9 +64,9 @@ struct xgifb_video_info {
 
 	int           chip_id;
 	unsigned int  video_size;
-	unsigned long video_base;
+	phys_addr_t   video_base;
 	void __iomem *video_vbase;
-	unsigned long mmio_base;
+	phys_addr_t   mmio_base;
 	unsigned long mmio_size;
 	void __iomem *mmio_vbase;
 	unsigned long vga_base;

@@ -10,11 +10,15 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/clk.h>
+#include <linux/clkdev.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/machine.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
@@ -51,7 +55,7 @@ static const struct of_dev_auxdata imx53_auxdata_lookup[] __initconst = {
 static int __init imx53_tzic_add_irq_domain(struct device_node *np,
 				struct device_node *interrupt_parent)
 {
-	irq_domain_add_simple(np, 0);
+	irq_domain_add_legacy(np, 128, 0, 0, &irq_domain_simple_ops, NULL);
 	return 0;
 }
 
@@ -61,7 +65,7 @@ static int __init imx53_gpio_add_irq_domain(struct device_node *np,
 	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
 
 	gpio_irq_base -= 32;
-	irq_domain_add_simple(np, gpio_irq_base);
+	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops, NULL);
 
 	return 0;
 }
@@ -80,6 +84,19 @@ static const struct of_device_id imx53_iomuxc_of_match[] __initconst = {
 	{ /* sentinel */ }
 };
 
+static void __init imx53_qsb_init(void)
+{
+	struct clk *clk;
+
+	clk = clk_get_sys(NULL, "ssi_ext1");
+	if (IS_ERR(clk)) {
+		pr_err("failed to get clk ssi_ext1\n");
+		return;
+	}
+
+	clk_register_clkdev(clk, NULL, "0-000a");
+}
+
 static void __init imx53_dt_init(void)
 {
 	struct device_node *node;
@@ -88,6 +105,8 @@ static void __init imx53_dt_init(void)
 
 	of_irq_init(imx53_irq_match);
 
+	pinctrl_provide_dummies();
+
 	node = of_find_matching_node(NULL, imx53_iomuxc_of_match);
 	if (node) {
 		of_id = of_match_node(imx53_iomuxc_of_match, node);
@@ -95,6 +114,9 @@ static void __init imx53_dt_init(void)
 		func();
 		of_node_put(node);
 	}
+
+	if (of_machine_is_compatible("fsl,imx53-qsb"))
+		imx53_qsb_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     imx53_auxdata_lookup, NULL);
@@ -114,6 +136,7 @@ static const char *imx53_dt_board_compat[] __initdata = {
 	"fsl,imx53-evk",
 	"fsl,imx53-qsb",
 	"fsl,imx53-smd",
+	"fsl,imx53",
 	NULL
 };
 

@@ -2,7 +2,6 @@
 #define __UM_FIXMAP_H
 
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/kmap_types.h>
 #include <asm/archparam.h>
 #include <asm/page.h>

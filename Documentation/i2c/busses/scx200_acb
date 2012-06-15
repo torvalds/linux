@@ -28,5 +28,5 @@ If the scx200_acb driver is built into the kernel, add the following
 parameter to your boot command line:
   scx200_acb.base=0x810,0x820
 If the scx200_acb driver is built as a module, add the following line to
-the file /etc/modprobe.conf instead:
+a configuration file in /etc/modprobe.d/ instead:
   options scx200_acb base=0x810,0x820

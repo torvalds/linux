@@ -444,7 +444,7 @@ static int __devexit mxr_remove(struct platform_device *pdev)
 
 	kfree(mdev);
 
-	dev_info(dev, "remove sucessful\n");
+	dev_info(dev, "remove successful\n");
 	return 0;
 }
 
@@ -461,7 +461,7 @@ static struct platform_driver mxr_driver __refdata = {
 static int __init mxr_init(void)
 {
 	int i, ret;
-	static const char banner[] __initdata = KERN_INFO
+	static const char banner[] __initconst = KERN_INFO
 		"Samsung TV Mixer driver, "
 		"(c) 2010-2011 Samsung Electronics Co., Ltd.\n";
 	printk(banner);

@@ -9,9 +9,10 @@
 #ifndef _ATTRIBUTE_CONTAINER_H_
 #define _ATTRIBUTE_CONTAINER_H_
 
-#include <linux/device.h>
 #include <linux/list.h>
 #include <linux/klist.h>
+
+struct device;
 
 struct attribute_container {
 	struct list_head	node;

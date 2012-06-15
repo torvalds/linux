@@ -16,7 +16,6 @@
 
 #include <mach/hardware.h>
 #include <asm/leds.h>
-#include <asm/system.h>
 
 #include <mach/pxa25x.h>
 #include <mach/idp.h>

@@ -75,6 +75,9 @@ static int qeth_l2_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			mii_data->val_out = qeth_mdio_read(dev,
 				mii_data->phy_id, mii_data->reg_num);
 		break;
+	case SIOC_QETH_QUERY_OAT:
+		rc = qeth_query_oat_command(card, rq->ifr_ifru.ifru_data);
+		break;
 	default:
 		rc = -EOPNOTSUPP;
 	}
@@ -573,7 +576,6 @@ static int qeth_l2_send_setmac_cb(struct qeth_card *card,
 		default:
 			break;
 		}
-		cmd->hdr.return_code = -EIO;
 	} else {
 		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
 		memcpy(card->dev->dev_addr, cmd->data.setdelmac.mac,
@@ -602,7 +604,6 @@ static int qeth_l2_send_delmac_cb(struct qeth_card *card,
 	cmd = (struct qeth_ipa_cmd *) data;
 	if (cmd->hdr.return_code) {
 		QETH_CARD_TEXT_(card, 2, "err%d", cmd->hdr.return_code);
-		cmd->hdr.return_code = -EIO;
 		return 0;
 	}
 	card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
@@ -679,7 +680,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	rc = qeth_l2_send_delmac(card, &card->dev->dev_addr[0]);
 	if (!rc)
 		rc = qeth_l2_send_setmac(card, addr->sa_data);
-	return rc;
+	return rc ? -EINVAL : 0;
 }
 
 static void qeth_l2_set_multicast_list(struct net_device *dev)
@@ -881,12 +882,6 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	INIT_LIST_HEAD(&card->mc_list);
 	card->options.layer2 = 1;
 	card->info.hwtrap = 0;
-	card->discipline.start_poll = qeth_qdio_start_poll;
-	card->discipline.input_handler = (qdio_handler_t *)
-		qeth_qdio_input_handler;
-	card->discipline.output_handler = (qdio_handler_t *)
-		qeth_qdio_output_handler;
-	card->discipline.recover = qeth_l2_recover;
 	return 0;
 }
 
@@ -1226,8 +1221,12 @@ out:
 	return rc;
 }
 
-struct ccwgroup_driver qeth_l2_ccwgroup_driver = {
-	.probe = qeth_l2_probe_device,
+struct qeth_discipline qeth_l2_discipline = {
+	.start_poll = qeth_qdio_start_poll,
+	.input_handler = (qdio_handler_t *) qeth_qdio_input_handler,
+	.output_handler = (qdio_handler_t *) qeth_qdio_output_handler,
+	.recover = qeth_l2_recover,
+	.setup = qeth_l2_probe_device,
 	.remove = qeth_l2_remove_device,
 	.set_online = qeth_l2_set_online,
 	.set_offline = qeth_l2_set_offline,
@@ -1236,7 +1235,7 @@ struct ccwgroup_driver qeth_l2_ccwgroup_driver = {
 	.thaw = qeth_l2_pm_resume,
 	.restore = qeth_l2_pm_resume,
 };
-EXPORT_SYMBOL_GPL(qeth_l2_ccwgroup_driver);
+EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 
 static int qeth_osn_send_control_data(struct qeth_card *card, int len,
 			   struct qeth_cmd_buffer *iob)

@@ -116,7 +116,7 @@ static int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
 		goto fail;
 	}
 
-	*loopback_modes = MCDI_QWORD(outbuf, GET_LOOPBACK_MODES_SUGGESTED);
+	*loopback_modes = MCDI_QWORD(outbuf, GET_LOOPBACK_MODES_OUT_SUGGESTED);
 
 	return 0;
 
@@ -264,22 +264,22 @@ static u32 efx_get_mcdi_phy_flags(struct efx_nic *efx)
 
 	/* TODO: Advertise the capabilities supported by this PHY */
 	supported = 0;
-	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_TXDIS_LBN))
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_TXDIS_LBN))
 		supported |= PHY_MODE_TX_DISABLED;
-	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_LOWPOWER_LBN))
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_LOWPOWER_LBN))
 		supported |= PHY_MODE_LOW_POWER;
-	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_POWEROFF_LBN))
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_POWEROFF_LBN))
 		supported |= PHY_MODE_OFF;
 
 	mode = efx->phy_mode & supported;
 
 	flags = 0;
 	if (mode & PHY_MODE_TX_DISABLED)
-		flags |= (1 << MC_CMD_SET_LINK_TXDIS_LBN);
+		flags |= (1 << MC_CMD_SET_LINK_IN_TXDIS_LBN);
 	if (mode & PHY_MODE_LOW_POWER)
-		flags |= (1 << MC_CMD_SET_LINK_LOWPOWER_LBN);
+		flags |= (1 << MC_CMD_SET_LINK_IN_LOWPOWER_LBN);
 	if (mode & PHY_MODE_OFF)
-		flags |= (1 << MC_CMD_SET_LINK_POWEROFF_LBN);
+		flags |= (1 << MC_CMD_SET_LINK_IN_POWEROFF_LBN);
 
 	return flags;
 }
@@ -436,8 +436,8 @@ void efx_mcdi_phy_decode_link(struct efx_nic *efx,
 		break;
 	}
 
-	link_state->up = !!(flags & (1 << MC_CMD_GET_LINK_LINK_UP_LBN));
-	link_state->fd = !!(flags & (1 << MC_CMD_GET_LINK_FULL_DUPLEX_LBN));
+	link_state->up = !!(flags & (1 << MC_CMD_GET_LINK_OUT_LINK_UP_LBN));
+	link_state->fd = !!(flags & (1 << MC_CMD_GET_LINK_OUT_FULL_DUPLEX_LBN));
 	link_state->speed = speed;
 }
 
@@ -592,7 +592,7 @@ static int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 
 	if (outlen < MC_CMD_GET_PHY_STATE_OUT_LEN)
 		return -EIO;
-	if (MCDI_DWORD(outbuf, GET_PHY_STATE_STATE) != MC_CMD_PHY_STATE_OK)
+	if (MCDI_DWORD(outbuf, GET_PHY_STATE_OUT_STATE) != MC_CMD_PHY_STATE_OK)
 		return -EINVAL;
 
 	return 0;
@@ -680,7 +680,7 @@ static int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results,
 	u32 mode;
 	int rc;
 
-	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_BIST_LBN)) {
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_LBN)) {
 		rc = efx_mcdi_bist(efx, MC_CMD_PHY_BIST, results);
 		if (rc < 0)
 			return rc;
@@ -691,15 +691,15 @@ static int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results,
 	/* If we support both LONG and SHORT, then run each in response to
 	 * break or not. Otherwise, run the one we support */
 	mode = 0;
-	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_SHORT_LBN)) {
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_SHORT_LBN)) {
 		if ((flags & ETH_TEST_FL_OFFLINE) &&
 		    (phy_cfg->flags &
-		     (1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_LONG_LBN)))
+		     (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_LONG_LBN)))
 			mode = MC_CMD_PHY_BIST_CABLE_LONG;
 		else
 			mode = MC_CMD_PHY_BIST_CABLE_SHORT;
 	} else if (phy_cfg->flags &
-		   (1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_LONG_LBN))
+		   (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_LONG_LBN))
 		mode = MC_CMD_PHY_BIST_CABLE_LONG;
 
 	if (mode != 0) {
@@ -717,14 +717,14 @@ static const char *efx_mcdi_phy_test_name(struct efx_nic *efx,
 {
 	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 
-	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_BIST_LBN)) {
+	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_LBN)) {
 		if (index == 0)
 			return "bist";
 		--index;
 	}
 
-	if (phy_cfg->flags & ((1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_SHORT_LBN) |
-			      (1 << MC_CMD_GET_PHY_CFG_BIST_CABLE_LONG_LBN))) {
+	if (phy_cfg->flags & ((1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_SHORT_LBN) |
+			      (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_LONG_LBN))) {
 		if (index == 0)
 			return "cable";
 		--index;
@@ -739,9 +739,83 @@ static const char *efx_mcdi_phy_test_name(struct efx_nic *efx,
 	return NULL;
 }
 
+#define SFP_PAGE_SIZE	128
+#define SFP_NUM_PAGES	2
+static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
+					  struct ethtool_eeprom *ee, u8 *data)
+{
+	u8 outbuf[MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX];
+	u8 inbuf[MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN];
+	size_t outlen;
+	int rc;
+	unsigned int payload_len;
+	unsigned int space_remaining = ee->len;
+	unsigned int page;
+	unsigned int page_off;
+	unsigned int to_copy;
+	u8 *user_data = data;
+
+	BUILD_BUG_ON(SFP_PAGE_SIZE * SFP_NUM_PAGES != ETH_MODULE_SFF_8079_LEN);
+
+	page_off = ee->offset % SFP_PAGE_SIZE;
+	page = ee->offset / SFP_PAGE_SIZE;
+
+	while (space_remaining && (page < SFP_NUM_PAGES)) {
+		MCDI_SET_DWORD(inbuf, GET_PHY_MEDIA_INFO_IN_PAGE, page);
+
+		rc = efx_mcdi_rpc(efx, MC_CMD_GET_PHY_MEDIA_INFO,
+				  inbuf, sizeof(inbuf),
+				  outbuf, sizeof(outbuf),
+				  &outlen);
+		if (rc)
+			return rc;
+
+		if (outlen < (MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_OFST +
+			      SFP_PAGE_SIZE))
+			return -EIO;
+
+		payload_len = MCDI_DWORD(outbuf,
+					 GET_PHY_MEDIA_INFO_OUT_DATALEN);
+		if (payload_len != SFP_PAGE_SIZE)
+			return -EIO;
+
+		/* Copy as much as we can into data */
+		payload_len -= page_off;
+		to_copy = (space_remaining < payload_len) ?
+			space_remaining : payload_len;
+
+		memcpy(user_data,
+		       outbuf + page_off +
+		       MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_OFST,
+		       to_copy);
+
+		space_remaining -= to_copy;
+		user_data += to_copy;
+		page_off = 0;
+		page++;
+	}
+
+	return 0;
+}
+
+static int efx_mcdi_phy_get_module_info(struct efx_nic *efx,
+					struct ethtool_modinfo *modinfo)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+
+	switch (phy_cfg->media) {
+	case MC_CMD_MEDIA_SFP_PLUS:
+		modinfo->type = ETH_MODULE_SFF_8079;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.probe		= efx_mcdi_phy_probe,
-	.init 	 	= efx_port_dummy_op_int,
+	.init		= efx_port_dummy_op_int,
 	.reconfigure	= efx_mcdi_phy_reconfigure,
 	.poll		= efx_mcdi_phy_poll,
 	.fini		= efx_port_dummy_op_void,
@@ -751,4 +825,6 @@ const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.test_alive	= efx_mcdi_phy_test_alive,
 	.run_tests	= efx_mcdi_phy_run_tests,
 	.test_name	= efx_mcdi_phy_test_name,
+	.get_module_eeprom = efx_mcdi_phy_get_module_eeprom,
+	.get_module_info = efx_mcdi_phy_get_module_info,
 };

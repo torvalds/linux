@@ -3,12 +3,6 @@
 
 struct target_core_fabric_ops {
 	struct configfs_subsystem *tf_subsys;
-	/*
-	 * Optional to signal struct se_task->task_sg[] padding entries
-	 * for scatterlist chaining using transport_do_task_sg_link(),
-	 * disabled by default
-	 */
-	bool task_sg_chaining;
 	char *(*get_fabric_name)(void);
 	u8 (*get_fabric_proto_ident)(struct se_portal_group *);
 	char *(*tpg_get_wwn)(struct se_portal_group *);
@@ -58,9 +52,6 @@ struct target_core_fabric_ops {
 	 */
 	int (*shutdown_session)(struct se_session *);
 	void (*close_session)(struct se_session *);
-	void (*stop_session)(struct se_session *, int, int);
-	void (*fall_back_to_erl0)(struct se_session *);
-	int (*sess_logged_in)(struct se_session *);
 	u32 (*sess_get_index)(struct se_session *);
 	/*
 	 * Used only for SCSI fabrics that contain multi-value TransportIDs
@@ -78,7 +69,6 @@ struct target_core_fabric_ops {
 	int (*queue_tm_rsp)(struct se_cmd *);
 	u16 (*set_fabric_sense_len)(struct se_cmd *, u32);
 	u16 (*get_fabric_sense_len)(void);
-	int (*is_state_remove)(struct se_cmd *);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */
@@ -105,7 +95,10 @@ void	__transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 void	transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
+void	target_get_session(struct se_session *);
+void	target_put_session(struct se_session *);
 void	transport_free_session(struct se_session *);
+void	target_put_nacl(struct se_node_acl *);
 void	transport_deregister_session_configfs(struct se_session *);
 void	transport_deregister_session(struct se_session *);
 
@@ -113,15 +106,18 @@ void	transport_deregister_session(struct se_session *);
 void	transport_init_se_cmd(struct se_cmd *, struct target_core_fabric_ops *,
 		struct se_session *, u32, int, int, unsigned char *);
 int	transport_lookup_cmd_lun(struct se_cmd *, u32);
-int	transport_generic_allocate_tasks(struct se_cmd *, unsigned char *);
+int	target_setup_cmd_from_cdb(struct se_cmd *, unsigned char *);
 void	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 		unsigned char *, u32, u32, int, int, int);
+int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
+		unsigned char *sense, u32 unpacked_lun,
+		void *fabric_tmr_ptr, unsigned char tm_type,
+		gfp_t, unsigned int, int);
 int	transport_handle_cdb_direct(struct se_cmd *);
 int	transport_generic_handle_cdb_map(struct se_cmd *);
 int	transport_generic_handle_data(struct se_cmd *);
 int	transport_generic_map_mem_to_cmd(struct se_cmd *cmd,
 		struct scatterlist *, u32, struct scatterlist *, u32);
-void	transport_do_task_sg_chain(struct se_cmd *);
 int	transport_generic_new_cmd(struct se_cmd *);
 
 void	transport_generic_process_write(struct se_cmd *);
@@ -139,9 +135,10 @@ void	target_wait_for_sess_cmds(struct se_session *, int);
 
 int	core_alua_check_nonop_delay(struct se_cmd *);
 
-struct se_tmr_req *core_tmr_alloc_req(struct se_cmd *, void *, u8, gfp_t);
+int	core_tmr_alloc_req(struct se_cmd *, void *, u8, gfp_t);
 void	core_tmr_release_req(struct se_tmr_req *);
 int	transport_generic_handle_tmr(struct se_cmd *);
+void	transport_generic_request_failure(struct se_cmd *);
 int	transport_lookup_tmr_lun(struct se_cmd *, u32);
 
 struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,

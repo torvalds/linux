@@ -9,6 +9,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
@@ -47,10 +49,11 @@ static void *jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	 */
 
 	if (!p) {
-		printk(KERN_ERR "jffs2_follow_link(): can't find symlink target\n");
+		pr_err("%s(): can't find symlink target\n", __func__);
 		p = ERR_PTR(-EIO);
 	}
-	D1(printk(KERN_DEBUG "jffs2_follow_link(): target path is '%s'\n", (char *) f->target));
+	jffs2_dbg(1, "%s(): target path is '%s'\n",
+		  __func__, (char *)f->target);
 
 	nd_set_link(nd, p);
 

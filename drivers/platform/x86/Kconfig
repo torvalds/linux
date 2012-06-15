@@ -26,6 +26,10 @@ config ACER_WMI
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_WMI
 	select INPUT_SPARSEKMAP
+	# Acer WMI depends on ACPI_VIDEO when ACPI is enabled
+	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
+        select VIDEO_OUTPUT_CONTROL if ACPI
+        select ACPI_VIDEO if ACPI
 	---help---
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
 	  wireless radio and bluetooth control, and on some laptops,
@@ -54,7 +58,6 @@ config ACERHDF
 config ASUS_LAPTOP
 	tristate "Asus Laptop Extras"
 	depends on ACPI
-	depends on !ACPI_ASUS
 	select LEDS_CLASS
 	select NEW_LEDS
 	select BACKLIGHT_CLASS_DEVICE
@@ -460,10 +463,9 @@ config INTEL_MENLOW
 	  If unsure, say N.
 
 config EEEPC_LAPTOP
-	tristate "Eee PC Hotkey Driver (EXPERIMENTAL)"
+	tristate "Eee PC Hotkey Driver"
 	depends on ACPI
 	depends on INPUT
-	depends on EXPERIMENTAL
 	depends on RFKILL || RFKILL = n
 	depends on HOTPLUG_PCI
 	select BACKLIGHT_CLASS_DEVICE
@@ -482,11 +484,10 @@ config EEEPC_LAPTOP
 	  doesn't work on your Eee PC, try eeepc-wmi instead.
 
 config ASUS_WMI
-	tristate "ASUS WMI Driver (EXPERIMENTAL)"
+	tristate "ASUS WMI Driver"
 	depends on ACPI_WMI
 	depends on INPUT
 	depends on HWMON
-	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL || RFKILL = n
 	depends on HOTPLUG_PCI
@@ -501,7 +502,7 @@ config ASUS_WMI
 	  be called asus-wmi.
 
 config ASUS_NB_WMI
-	tristate "Asus Notebook WMI Driver (EXPERIMENTAL)"
+	tristate "Asus Notebook WMI Driver"
 	depends on ASUS_WMI
 	---help---
 	  This is a driver for newer Asus notebooks. It adds extra features
@@ -514,7 +515,7 @@ config ASUS_NB_WMI
 	  here.
 
 config EEEPC_WMI
-	tristate "Eee PC WMI Driver (EXPERIMENTAL)"
+	tristate "Eee PC WMI Driver"
 	depends on ASUS_WMI
 	---help---
 	  This is a driver for newer Eee PC laptops. It adds extra features
@@ -559,38 +560,6 @@ config MSI_WMI
 	 To compile this driver as a module, choose M here: the module will
 	 be called msi-wmi.
 
-config ACPI_ASUS
-	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
-	depends on ACPI
-	select BACKLIGHT_CLASS_DEVICE
-	---help---
-	  This driver provides support for extra features of ACPI-compatible
-	  ASUS laptops. As some of Medion laptops are made by ASUS, it may also
-	  support some Medion laptops (such as 9675 for example).  It makes all
-	  the extra buttons generate standard ACPI events that go through
-	  /proc/acpi/events, and (on some models) adds support for changing the
-	  display brightness and output, switching the LCD backlight on and off,
-	  and most importantly, allows you to blink those fancy LEDs intended
-	  for reporting mail and wireless status.
-
-	  Note: display switching code is currently considered EXPERIMENTAL,
-	  toying with these values may even lock your machine.
-
-	  All settings are changed via /proc/acpi/asus directory entries. Owner
-	  and group for these entries can be set with asus_uid and asus_gid
-	  parameters.
-
-	  More information and a userspace daemon for handling the extra buttons
-	  at <http://acpi4asus.sf.net>.
-
-	  If you have an ACPI-compatible ASUS laptop, say Y or M here. This
-	  driver is still under development, so if your laptop is unsupported or
-	  something works not quite as expected, please use the mailing list
-	  available on the above page (acpi4asus-user@lists.sourceforge.net).
-
-	  NOTE: This driver is deprecated and will probably be removed soon,
-	  use asus-laptop instead.
-
 config TOPSTAR_LAPTOP
 	tristate "Topstar Laptop Extras"
 	depends on ACPI
@@ -604,6 +573,7 @@ config TOPSTAR_LAPTOP
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
+	depends on ACPI_WMI
 	select LEDS_CLASS
 	select NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
@@ -696,32 +666,10 @@ config INTEL_MID_POWER_BUTTON
 
 config INTEL_MFLD_THERMAL
        tristate "Thermal driver for Intel Medfield platform"
-       depends on INTEL_SCU_IPC && THERMAL
+       depends on MFD_INTEL_MSIC && THERMAL
        help
          Say Y here to enable thermal driver support for the  Intel Medfield
          platform.
-
-config RAR_REGISTER
-	bool "Restricted Access Region Register Driver"
-	depends on PCI && X86_MRST
-	default n
-	---help---
-	  This driver allows other kernel drivers access to the
-	  contents of the restricted access region control registers.
-
-	  The restricted access region control registers
-	  (rar_registers) are used to pass address and
-	  locking information on restricted access regions
-	  to other drivers that use restricted access regions.
-
-	  The restricted access regions are regions of memory
-	  on the Intel MID Platform that are not accessible to
-	  the x86 processor, but are accessible to dedicated
-	  processors on board peripheral devices.
-
-	  The purpose of the restricted access regions is to
-	  protect sensitive data from compromise by unauthorized
-	  programs running on the x86 processor.
 
 config INTEL_IPS
 	tristate "Intel Intelligent Power Sharing"
@@ -768,13 +716,18 @@ config XO15_EBOOK
 
 config SAMSUNG_LAPTOP
 	tristate "Samsung Laptop driver"
-	depends on RFKILL && BACKLIGHT_CLASS_DEVICE && X86
+	depends on X86
+	depends on RFKILL || RFKILL = n
+	depends on BACKLIGHT_CLASS_DEVICE
+	select LEDS_CLASS
+	select NEW_LEDS
 	---help---
 	  This module implements a driver for a wide range of different
 	  Samsung laptops.  It offers control over the different
-	  function keys, wireless LED, LCD backlight level, and
-	  sometimes provides a "performance_control" sysfs file to allow
-	  the performance level of the laptop to be changed.
+	  function keys, wireless LED, LCD backlight level.
+
+	  It may also provide some sysfs files described in
+	  <file:Documentation/ABI/testing/sysfs-platform-samsung-laptop>
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called samsung-laptop.
@@ -802,5 +755,15 @@ config SAMSUNG_Q10
 	---help---
 	  This driver provides support for backlight control on Samsung Q10
 	  and related laptops, including Dell Latitude X200.
+
+config APPLE_GMUX
+	tristate "Apple Gmux Driver"
+	depends on PNP
+	select BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This driver provides support for the gmux device found on many
+	  Apple laptops, which controls the display mux for the hybrid
+	  graphics as well as the backlight. Currently only backlight
+	  control is supported by the driver.
 
 endif # X86_PLATFORM_DEVICES

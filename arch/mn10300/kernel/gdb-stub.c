@@ -130,7 +130,6 @@
 #include <linux/bug.h>
 
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/gdb-stub.h>
 #include <asm/exceptions.h>
 #include <asm/debugger.h>

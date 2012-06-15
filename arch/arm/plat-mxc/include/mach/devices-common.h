@@ -223,6 +223,8 @@ struct imx_mx2_camera_data {
 struct platform_device *__init imx_add_mx2_camera(
 		const struct imx_mx2_camera_data *data,
 		const struct mx2_camera_platform_data *pdata);
+struct platform_device *__init imx_add_mx2_emmaprp(
+		const struct imx_mx2_camera_data *data);
 
 #include <mach/mxc_ehci.h>
 struct imx_mxc_ehci_data {

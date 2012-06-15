@@ -29,7 +29,7 @@ rtattr_failure:
 
 static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
 {
-	struct dentry *dentry = unix_sk(sk)->dentry;
+	struct dentry *dentry = unix_sk(sk)->path.dentry;
 	struct unix_diag_vfs *uv;
 
 	if (dentry) {
@@ -301,14 +301,16 @@ static int unix_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 	if (nlmsg_len(h) < hdrlen)
 		return -EINVAL;
 
-	if (h->nlmsg_flags & NLM_F_DUMP)
-		return netlink_dump_start(sock_diag_nlsk, skb, h,
-					  unix_diag_dump, NULL, 0);
-	else
+	if (h->nlmsg_flags & NLM_F_DUMP) {
+		struct netlink_dump_control c = {
+			.dump = unix_diag_dump,
+		};
+		return netlink_dump_start(sock_diag_nlsk, skb, h, &c);
+	} else
 		return unix_diag_get_exact(skb, h, (struct unix_diag_req *)NLMSG_DATA(h));
 }
 
-static struct sock_diag_handler unix_diag_handler = {
+static const struct sock_diag_handler unix_diag_handler = {
 	.family = AF_UNIX,
 	.dump = unix_diag_handler_dump,
 };

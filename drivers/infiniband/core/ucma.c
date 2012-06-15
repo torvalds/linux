@@ -66,12 +66,6 @@ static ctl_table ucma_ctl_table[] = {
 	{ }
 };
 
-static struct ctl_path ucma_ctl_path[] = {
-	{ .procname = "net" },
-	{ .procname = "rdma_ucm" },
-	{ }
-};
-
 struct ucma_file {
 	struct mutex		mut;
 	struct file		*filp;
@@ -449,24 +443,6 @@ static void ucma_cleanup_multicast(struct ucma_context *ctx)
 	mutex_unlock(&mut);
 }
 
-static void ucma_cleanup_events(struct ucma_context *ctx)
-{
-	struct ucma_event *uevent, *tmp;
-
-	list_for_each_entry_safe(uevent, tmp, &ctx->file->event_list, list) {
-		if (uevent->ctx != ctx)
-			continue;
-
-		list_del(&uevent->list);
-
-		/* clear incoming connections. */
-		if (uevent->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST)
-			rdma_destroy_id(uevent->cm_id);
-
-		kfree(uevent);
-	}
-}
-
 static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
 {
 	struct ucma_event *uevent, *tmp;
@@ -480,9 +456,16 @@ static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
 	}
 }
 
+/*
+ * We cannot hold file->mut when calling rdma_destroy_id() or we can
+ * deadlock.  We also acquire file->mut in ucma_event_handler(), and
+ * rdma_destroy_id() will wait until all callbacks have completed.
+ */
 static int ucma_free_ctx(struct ucma_context *ctx)
 {
 	int events_reported;
+	struct ucma_event *uevent, *tmp;
+	LIST_HEAD(list);
 
 	/* No new events will be generated after destroying the id. */
 	rdma_destroy_id(ctx->cm_id);
@@ -491,9 +474,19 @@ static int ucma_free_ctx(struct ucma_context *ctx)
 
 	/* Cleanup events not yet reported to the user. */
 	mutex_lock(&ctx->file->mut);
-	ucma_cleanup_events(ctx);
+	list_for_each_entry_safe(uevent, tmp, &ctx->file->event_list, list) {
+		if (uevent->ctx == ctx)
+			list_move_tail(&uevent->list, &list);
+	}
 	list_del(&ctx->list);
 	mutex_unlock(&ctx->file->mut);
+
+	list_for_each_entry_safe(uevent, tmp, &list, list) {
+		list_del(&uevent->list);
+		if (uevent->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST)
+			rdma_destroy_id(uevent->cm_id);
+		kfree(uevent);
+	}
 
 	events_reported = ctx->events_reported;
 	kfree(ctx);
@@ -1393,7 +1386,7 @@ static int __init ucma_init(void)
 		goto err1;
 	}
 
-	ucma_ctl_table_hdr = register_sysctl_paths(ucma_ctl_path, ucma_ctl_table);
+	ucma_ctl_table_hdr = register_net_sysctl(&init_net, "net/rdma_ucm", ucma_ctl_table);
 	if (!ucma_ctl_table_hdr) {
 		printk(KERN_ERR "rdma_ucm: couldn't register sysctl paths\n");
 		ret = -ENOMEM;
@@ -1409,7 +1402,7 @@ err1:
 
 static void __exit ucma_cleanup(void)
 {
-	unregister_sysctl_table(ucma_ctl_table_hdr);
+	unregister_net_sysctl_table(ucma_ctl_table_hdr);
 	device_remove_file(ucma_misc.this_device, &dev_attr_abi_version);
 	misc_deregister(&ucma_misc);
 	idr_destroy(&ctx_idr);

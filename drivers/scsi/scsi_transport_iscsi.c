@@ -727,10 +727,11 @@ static void iscsi_session_release(struct device *dev)
 	kfree(session);
 }
 
-static int iscsi_is_session_dev(const struct device *dev)
+int iscsi_is_session_dev(const struct device *dev)
 {
 	return dev->release == iscsi_session_release;
 }
+EXPORT_SYMBOL_GPL(iscsi_is_session_dev);
 
 static int iscsi_iter_session_fn(struct device *dev, void *data)
 {
@@ -1476,6 +1477,66 @@ void iscsi_conn_login_event(struct iscsi_cls_conn *conn,
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_login_event);
 
+void iscsi_post_host_event(uint32_t host_no, struct iscsi_transport *transport,
+			   enum iscsi_host_event_code code, uint32_t data_size,
+			   uint8_t *data)
+{
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+	struct iscsi_uevent *ev;
+	int len = NLMSG_SPACE(sizeof(*ev) + data_size);
+
+	skb = alloc_skb(len, GFP_NOIO);
+	if (!skb) {
+		printk(KERN_ERR "gracefully ignored host event (%d):%d OOM\n",
+		       host_no, code);
+		return;
+	}
+
+	nlh = __nlmsg_put(skb, 0, 0, 0, (len - sizeof(*nlh)), 0);
+	ev = NLMSG_DATA(nlh);
+	ev->transport_handle = iscsi_handle(transport);
+	ev->type = ISCSI_KEVENT_HOST_EVENT;
+	ev->r.host_event.host_no = host_no;
+	ev->r.host_event.code = code;
+	ev->r.host_event.data_size = data_size;
+
+	if (data_size)
+		memcpy((char *)ev + sizeof(*ev), data, data_size);
+
+	iscsi_multicast_skb(skb, ISCSI_NL_GRP_ISCSID, GFP_NOIO);
+}
+EXPORT_SYMBOL_GPL(iscsi_post_host_event);
+
+void iscsi_ping_comp_event(uint32_t host_no, struct iscsi_transport *transport,
+			   uint32_t status, uint32_t pid, uint32_t data_size,
+			   uint8_t *data)
+{
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+	struct iscsi_uevent *ev;
+	int len = NLMSG_SPACE(sizeof(*ev) + data_size);
+
+	skb = alloc_skb(len, GFP_NOIO);
+	if (!skb) {
+		printk(KERN_ERR "gracefully ignored ping comp: OOM\n");
+		return;
+	}
+
+	nlh = __nlmsg_put(skb, 0, 0, 0, (len - sizeof(*nlh)), 0);
+	ev = NLMSG_DATA(nlh);
+	ev->transport_handle = iscsi_handle(transport);
+	ev->type = ISCSI_KEVENT_PING_COMP;
+	ev->r.ping_comp.host_no = host_no;
+	ev->r.ping_comp.status = status;
+	ev->r.ping_comp.pid = pid;
+	ev->r.ping_comp.data_size = data_size;
+	memcpy((char *)ev + sizeof(*ev), data, data_size);
+
+	iscsi_multicast_skb(skb, ISCSI_NL_GRP_ISCSID, GFP_NOIO);
+}
+EXPORT_SYMBOL_GPL(iscsi_ping_comp_event);
+
 static int
 iscsi_if_send_reply(uint32_t group, int seq, int type, int done, int multi,
 		    void *payload, int size)
@@ -1915,6 +1976,123 @@ iscsi_set_iface_params(struct iscsi_transport *transport,
 }
 
 static int
+iscsi_send_ping(struct iscsi_transport *transport, struct iscsi_uevent *ev)
+{
+	struct Scsi_Host *shost;
+	struct sockaddr *dst_addr;
+	int err;
+
+	if (!transport->send_ping)
+		return -ENOSYS;
+
+	shost = scsi_host_lookup(ev->u.iscsi_ping.host_no);
+	if (!shost) {
+		printk(KERN_ERR "iscsi_ping could not find host no %u\n",
+		       ev->u.iscsi_ping.host_no);
+		return -ENODEV;
+	}
+
+	dst_addr = (struct sockaddr *)((char *)ev + sizeof(*ev));
+	err = transport->send_ping(shost, ev->u.iscsi_ping.iface_num,
+				   ev->u.iscsi_ping.iface_type,
+				   ev->u.iscsi_ping.payload_size,
+				   ev->u.iscsi_ping.pid,
+				   dst_addr);
+	scsi_host_put(shost);
+	return err;
+}
+
+static int
+iscsi_get_chap(struct iscsi_transport *transport, struct nlmsghdr *nlh)
+{
+	struct iscsi_uevent *ev = NLMSG_DATA(nlh);
+	struct Scsi_Host *shost = NULL;
+	struct iscsi_chap_rec *chap_rec;
+	struct iscsi_internal *priv;
+	struct sk_buff *skbchap;
+	struct nlmsghdr *nlhchap;
+	struct iscsi_uevent *evchap;
+	uint32_t chap_buf_size;
+	int len, err = 0;
+	char *buf;
+
+	if (!transport->get_chap)
+		return -EINVAL;
+
+	priv = iscsi_if_transport_lookup(transport);
+	if (!priv)
+		return -EINVAL;
+
+	chap_buf_size = (ev->u.get_chap.num_entries * sizeof(*chap_rec));
+	len = NLMSG_SPACE(sizeof(*ev) + chap_buf_size);
+
+	shost = scsi_host_lookup(ev->u.get_chap.host_no);
+	if (!shost) {
+		printk(KERN_ERR "%s: failed. Cound not find host no %u\n",
+		       __func__, ev->u.get_chap.host_no);
+		return -ENODEV;
+	}
+
+	do {
+		int actual_size;
+
+		skbchap = alloc_skb(len, GFP_KERNEL);
+		if (!skbchap) {
+			printk(KERN_ERR "can not deliver chap: OOM\n");
+			err = -ENOMEM;
+			goto exit_get_chap;
+		}
+
+		nlhchap = __nlmsg_put(skbchap, 0, 0, 0,
+				      (len - sizeof(*nlhchap)), 0);
+		evchap = NLMSG_DATA(nlhchap);
+		memset(evchap, 0, sizeof(*evchap));
+		evchap->transport_handle = iscsi_handle(transport);
+		evchap->type = nlh->nlmsg_type;
+		evchap->u.get_chap.host_no = ev->u.get_chap.host_no;
+		evchap->u.get_chap.chap_tbl_idx = ev->u.get_chap.chap_tbl_idx;
+		evchap->u.get_chap.num_entries = ev->u.get_chap.num_entries;
+		buf = (char *) ((char *)evchap + sizeof(*evchap));
+		memset(buf, 0, chap_buf_size);
+
+		err = transport->get_chap(shost, ev->u.get_chap.chap_tbl_idx,
+				    &evchap->u.get_chap.num_entries, buf);
+
+		actual_size = NLMSG_SPACE(sizeof(*ev) + chap_buf_size);
+		skb_trim(skbchap, NLMSG_ALIGN(actual_size));
+		nlhchap->nlmsg_len = actual_size;
+
+		err = iscsi_multicast_skb(skbchap, ISCSI_NL_GRP_ISCSID,
+					  GFP_KERNEL);
+	} while (err < 0 && err != -ECONNREFUSED);
+
+exit_get_chap:
+	scsi_host_put(shost);
+	return err;
+}
+
+static int iscsi_delete_chap(struct iscsi_transport *transport,
+			     struct iscsi_uevent *ev)
+{
+	struct Scsi_Host *shost;
+	int err = 0;
+
+	if (!transport->delete_chap)
+		return -ENOSYS;
+
+	shost = scsi_host_lookup(ev->u.delete_chap.host_no);
+	if (!shost) {
+		printk(KERN_ERR "%s could not find host no %u\n",
+		       __func__, ev->u.delete_chap.host_no);
+		return -ENODEV;
+	}
+
+	err = transport->delete_chap(shost, ev->u.delete_chap.chap_tbl_idx);
+	scsi_host_put(shost);
+	return err;
+}
+
+static int
 iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 {
 	int err = 0;
@@ -1941,7 +2119,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 	switch (nlh->nlmsg_type) {
 	case ISCSI_UEVENT_CREATE_SESSION:
 		err = iscsi_if_create_session(priv, ep, ev,
-					      NETLINK_CREDS(skb)->pid,
+					      NETLINK_CB(skb).pid,
 					      ev->u.c_session.initial_cmdsn,
 					      ev->u.c_session.cmds_max,
 					      ev->u.c_session.queue_depth);
@@ -1954,7 +2132,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		}
 
 		err = iscsi_if_create_session(priv, ep, ev,
-					NETLINK_CREDS(skb)->pid,
+					NETLINK_CB(skb).pid,
 					ev->u.c_bound_session.initial_cmdsn,
 					ev->u.c_bound_session.cmds_max,
 					ev->u.c_bound_session.queue_depth);
@@ -2059,6 +2237,15 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		err = iscsi_set_iface_params(transport, ev,
 					     nlmsg_attrlen(nlh, sizeof(*ev)));
 		break;
+	case ISCSI_UEVENT_PING:
+		err = iscsi_send_ping(transport, ev);
+		break;
+	case ISCSI_UEVENT_GET_CHAP:
+		err = iscsi_get_chap(transport, nlh);
+		break;
+	case ISCSI_UEVENT_DELETE_CHAP:
+		err = iscsi_delete_chap(transport, ev);
+		break;
 	default:
 		err = -ENOSYS;
 		break;
@@ -2108,9 +2295,11 @@ iscsi_if_rx(struct sk_buff *skb)
 			 */
 			if (ev->type == ISCSI_UEVENT_GET_STATS && !err)
 				break;
+			if (ev->type == ISCSI_UEVENT_GET_CHAP && !err)
+				break;
 			err = iscsi_if_send_reply(group, nlh->nlmsg_seq,
 				nlh->nlmsg_type, 0, 0, ev, sizeof(*ev));
-		} while (err < 0 && err != -ECONNREFUSED);
+		} while (err < 0 && err != -ECONNREFUSED && err != -ESRCH);
 		skb_pull(skb, rlen);
 	}
 	mutex_unlock(&rx_queue_mutex);
@@ -2286,6 +2475,8 @@ iscsi_session_attr(username, ISCSI_PARAM_USERNAME, 1);
 iscsi_session_attr(username_in, ISCSI_PARAM_USERNAME_IN, 1);
 iscsi_session_attr(password, ISCSI_PARAM_PASSWORD, 1);
 iscsi_session_attr(password_in, ISCSI_PARAM_PASSWORD_IN, 1);
+iscsi_session_attr(chap_out_idx, ISCSI_PARAM_CHAP_OUT_IDX, 1);
+iscsi_session_attr(chap_in_idx, ISCSI_PARAM_CHAP_IN_IDX, 1);
 iscsi_session_attr(fast_abort, ISCSI_PARAM_FAST_ABORT, 0);
 iscsi_session_attr(abort_tmo, ISCSI_PARAM_ABORT_TMO, 0);
 iscsi_session_attr(lu_reset_tmo, ISCSI_PARAM_LU_RESET_TMO, 0);
@@ -2382,6 +2573,8 @@ static struct attribute *iscsi_session_attrs[] = {
 	&dev_attr_priv_sess_recovery_tmo.attr,
 	&dev_attr_priv_sess_state.attr,
 	&dev_attr_priv_sess_creator.attr,
+	&dev_attr_sess_chap_out_idx.attr,
+	&dev_attr_sess_chap_in_idx.attr,
 	NULL,
 };
 
@@ -2413,6 +2606,10 @@ static umode_t iscsi_session_attr_is_visible(struct kobject *kobj,
 		param = ISCSI_PARAM_TARGET_NAME;
 	else if (attr == &dev_attr_sess_tpgt.attr)
 		param = ISCSI_PARAM_TPGT;
+	else if (attr == &dev_attr_sess_chap_in_idx.attr)
+		param = ISCSI_PARAM_CHAP_IN_IDX;
+	else if (attr == &dev_attr_sess_chap_out_idx.attr)
+		param = ISCSI_PARAM_CHAP_OUT_IDX;
 	else if (attr == &dev_attr_sess_password.attr)
 		param = ISCSI_PARAM_USERNAME;
 	else if (attr == &dev_attr_sess_password_in.attr)
@@ -2476,12 +2673,16 @@ iscsi_host_attr(netdev, ISCSI_HOST_PARAM_NETDEV_NAME);
 iscsi_host_attr(hwaddress, ISCSI_HOST_PARAM_HWADDRESS);
 iscsi_host_attr(ipaddress, ISCSI_HOST_PARAM_IPADDRESS);
 iscsi_host_attr(initiatorname, ISCSI_HOST_PARAM_INITIATOR_NAME);
+iscsi_host_attr(port_state, ISCSI_HOST_PARAM_PORT_STATE);
+iscsi_host_attr(port_speed, ISCSI_HOST_PARAM_PORT_SPEED);
 
 static struct attribute *iscsi_host_attrs[] = {
 	&dev_attr_host_netdev.attr,
 	&dev_attr_host_hwaddress.attr,
 	&dev_attr_host_ipaddress.attr,
 	&dev_attr_host_initiatorname.attr,
+	&dev_attr_host_port_state.attr,
+	&dev_attr_host_port_speed.attr,
 	NULL,
 };
 
@@ -2501,6 +2702,10 @@ static umode_t iscsi_host_attr_is_visible(struct kobject *kobj,
 		param = ISCSI_HOST_PARAM_IPADDRESS;
 	else if (attr == &dev_attr_host_initiatorname.attr)
 		param = ISCSI_HOST_PARAM_INITIATOR_NAME;
+	else if (attr == &dev_attr_host_port_state.attr)
+		param = ISCSI_HOST_PARAM_PORT_STATE;
+	else if (attr == &dev_attr_host_port_speed.attr)
+		param = ISCSI_HOST_PARAM_PORT_SPEED;
 	else {
 		WARN_ONCE(1, "Invalid host attr");
 		return 0;
@@ -2513,6 +2718,61 @@ static struct attribute_group iscsi_host_group = {
 	.attrs = iscsi_host_attrs,
 	.is_visible = iscsi_host_attr_is_visible,
 };
+
+/* convert iscsi_port_speed values to ascii string name */
+static const struct {
+	enum iscsi_port_speed	value;
+	char			*name;
+} iscsi_port_speed_names[] = {
+	{ISCSI_PORT_SPEED_UNKNOWN,	"Unknown" },
+	{ISCSI_PORT_SPEED_10MBPS,	"10 Mbps" },
+	{ISCSI_PORT_SPEED_100MBPS,	"100 Mbps" },
+	{ISCSI_PORT_SPEED_1GBPS,	"1 Gbps" },
+	{ISCSI_PORT_SPEED_10GBPS,	"10 Gbps" },
+};
+
+char *iscsi_get_port_speed_name(struct Scsi_Host *shost)
+{
+	int i;
+	char *speed = "Unknown!";
+	struct iscsi_cls_host *ihost = shost->shost_data;
+	uint32_t port_speed = ihost->port_speed;
+
+	for (i = 0; i < ARRAY_SIZE(iscsi_port_speed_names); i++) {
+		if (iscsi_port_speed_names[i].value & port_speed) {
+			speed = iscsi_port_speed_names[i].name;
+			break;
+		}
+	}
+	return speed;
+}
+EXPORT_SYMBOL_GPL(iscsi_get_port_speed_name);
+
+/* convert iscsi_port_state values to ascii string name */
+static const struct {
+	enum iscsi_port_state	value;
+	char			*name;
+} iscsi_port_state_names[] = {
+	{ISCSI_PORT_STATE_DOWN,		"LINK DOWN" },
+	{ISCSI_PORT_STATE_UP,		"LINK UP" },
+};
+
+char *iscsi_get_port_state_name(struct Scsi_Host *shost)
+{
+	int i;
+	char *state = "Unknown!";
+	struct iscsi_cls_host *ihost = shost->shost_data;
+	uint32_t port_state = ihost->port_state;
+
+	for (i = 0; i < ARRAY_SIZE(iscsi_port_state_names); i++) {
+		if (iscsi_port_state_names[i].value & port_state) {
+			state = iscsi_port_state_names[i].name;
+			break;
+		}
+	}
+	return state;
+}
+EXPORT_SYMBOL_GPL(iscsi_get_port_state_name);
 
 static int iscsi_session_match(struct attribute_container *cont,
 			   struct device *dev)

@@ -22,7 +22,7 @@ extern struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
 struct unix_address {
 	atomic_t	refcnt;
 	int		len;
-	unsigned	hash;
+	unsigned int	hash;
 	struct sockaddr_un name[0];
 };
 
@@ -49,8 +49,7 @@ struct unix_sock {
 	/* WARNING: sk has to be the first member */
 	struct sock		sk;
 	struct unix_address     *addr;
-	struct dentry		*dentry;
-	struct vfsmount		*mnt;
+	struct path		path;
 	struct mutex		readlock;
 	struct sock		*peer;
 	struct sock		*other;

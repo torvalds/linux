@@ -19,7 +19,14 @@ struct bcma_device_id_name {
 	u16 id;
 	const char *name;
 };
-struct bcma_device_id_name bcma_device_names[] = {
+
+static const struct bcma_device_id_name bcma_arm_device_names[] = {
+	{ BCMA_CORE_ARM_1176, "ARM 1176" },
+	{ BCMA_CORE_ARM_7TDMI, "ARM 7TDMI" },
+	{ BCMA_CORE_ARM_CM3, "ARM CM3" },
+};
+
+static const struct bcma_device_id_name bcma_bcm_device_names[] = {
 	{ BCMA_CORE_OOB_ROUTER, "OOB Router" },
 	{ BCMA_CORE_INVALID, "Invalid" },
 	{ BCMA_CORE_CHIPCOMMON, "ChipCommon" },
@@ -27,7 +34,6 @@ struct bcma_device_id_name bcma_device_names[] = {
 	{ BCMA_CORE_SRAM, "SRAM" },
 	{ BCMA_CORE_SDRAM, "SDRAM" },
 	{ BCMA_CORE_PCI, "PCI" },
-	{ BCMA_CORE_MIPS, "MIPS" },
 	{ BCMA_CORE_ETHERNET, "Fast Ethernet" },
 	{ BCMA_CORE_V90, "V90" },
 	{ BCMA_CORE_USB11_HOSTDEV, "USB 1.1 Hostdev" },
@@ -44,7 +50,6 @@ struct bcma_device_id_name bcma_device_names[] = {
 	{ BCMA_CORE_PHY_A, "PHY A" },
 	{ BCMA_CORE_PHY_B, "PHY B" },
 	{ BCMA_CORE_PHY_G, "PHY G" },
-	{ BCMA_CORE_MIPS_3302, "MIPS 3302" },
 	{ BCMA_CORE_USB11_HOST, "USB 1.1 Host" },
 	{ BCMA_CORE_USB11_DEV, "USB 1.1 Device" },
 	{ BCMA_CORE_USB20_HOST, "USB 2.0 Host" },
@@ -58,15 +63,11 @@ struct bcma_device_id_name bcma_device_names[] = {
 	{ BCMA_CORE_PHY_N, "PHY N" },
 	{ BCMA_CORE_SRAM_CTL, "SRAM Controller" },
 	{ BCMA_CORE_MINI_MACPHY, "Mini MACPHY" },
-	{ BCMA_CORE_ARM_1176, "ARM 1176" },
-	{ BCMA_CORE_ARM_7TDMI, "ARM 7TDMI" },
 	{ BCMA_CORE_PHY_LP, "PHY LP" },
 	{ BCMA_CORE_PMU, "PMU" },
 	{ BCMA_CORE_PHY_SSN, "PHY SSN" },
 	{ BCMA_CORE_SDIO_DEV, "SDIO Device" },
-	{ BCMA_CORE_ARM_CM3, "ARM CM3" },
 	{ BCMA_CORE_PHY_HT, "PHY HT" },
-	{ BCMA_CORE_MIPS_74K, "MIPS 74K" },
 	{ BCMA_CORE_MAC_GBIT, "GBit MAC" },
 	{ BCMA_CORE_DDR12_MEM_CTL, "DDR1/DDR2 Memory Controller" },
 	{ BCMA_CORE_PCIE_RC, "PCIe Root Complex" },
@@ -79,16 +80,41 @@ struct bcma_device_id_name bcma_device_names[] = {
 	{ BCMA_CORE_SHIM, "SHIM" },
 	{ BCMA_CORE_DEFAULT, "Default" },
 };
-const char *bcma_device_name(struct bcma_device_id *id)
-{
-	int i;
 
-	if (id->manuf == BCMA_MANUF_BCM) {
-		for (i = 0; i < ARRAY_SIZE(bcma_device_names); i++) {
-			if (bcma_device_names[i].id == id->id)
-				return bcma_device_names[i].name;
-		}
+static const struct bcma_device_id_name bcma_mips_device_names[] = {
+	{ BCMA_CORE_MIPS, "MIPS" },
+	{ BCMA_CORE_MIPS_3302, "MIPS 3302" },
+	{ BCMA_CORE_MIPS_74K, "MIPS 74K" },
+};
+
+static const char *bcma_device_name(const struct bcma_device_id *id)
+{
+	const struct bcma_device_id_name *names;
+	int size, i;
+
+	/* search manufacturer specific names */
+	switch (id->manuf) {
+	case BCMA_MANUF_ARM:
+		names = bcma_arm_device_names;
+		size = ARRAY_SIZE(bcma_arm_device_names);
+		break;
+	case BCMA_MANUF_BCM:
+		names = bcma_bcm_device_names;
+		size = ARRAY_SIZE(bcma_bcm_device_names);
+		break;
+	case BCMA_MANUF_MIPS:
+		names = bcma_mips_device_names;
+		size = ARRAY_SIZE(bcma_mips_device_names);
+		break;
+	default:
+		return "UNKNOWN";
 	}
+
+	for (i = 0; i < size; i++) {
+		if (names[i].id == id->id)
+			return names[i].name;
+	}
+
 	return "UNKNOWN";
 }
 
@@ -212,6 +238,17 @@ static struct bcma_device *bcma_find_core_by_index(struct bcma_bus *bus,
 	return NULL;
 }
 
+static struct bcma_device *bcma_find_core_reverse(struct bcma_bus *bus, u16 coreid)
+{
+	struct bcma_device *core;
+
+	list_for_each_entry_reverse(core, &bus->cores, list) {
+		if (core->id.id == coreid)
+			return core;
+	}
+	return NULL;
+}
+
 static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			      struct bcma_device_id *match, int core_num,
 			      struct bcma_device *core)
@@ -286,6 +323,23 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			return -EILSEQ;
 	}
 
+	/* First Slave Address Descriptor should be port 0:
+	 * the main register space for the core
+	 */
+	tmp = bcma_erom_get_addr_desc(bus, eromptr, SCAN_ADDR_TYPE_SLAVE, 0);
+	if (tmp <= 0) {
+		/* Try again to see if it is a bridge */
+		tmp = bcma_erom_get_addr_desc(bus, eromptr,
+					      SCAN_ADDR_TYPE_BRIDGE, 0);
+		if (tmp <= 0) {
+			return -EILSEQ;
+		} else {
+			pr_info("Bridge found\n");
+			return -ENXIO;
+		}
+	}
+	core->addr = tmp;
+
 	/* get & parse slave ports */
 	for (i = 0; i < ports[1]; i++) {
 		for (j = 0; ; j++) {
@@ -298,7 +352,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 				break;
 			} else {
 				if (i == 0 && j == 0)
-					core->addr = tmp;
+					core->addr1 = tmp;
 			}
 		}
 	}
@@ -353,6 +407,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 void bcma_init_bus(struct bcma_bus *bus)
 {
 	s32 tmp;
+	struct bcma_chipinfo *chipinfo = &(bus->chipinfo);
 
 	if (bus->init_done)
 		return;
@@ -363,9 +418,12 @@ void bcma_init_bus(struct bcma_bus *bus)
 	bcma_scan_switch_core(bus, BCMA_ADDR_BASE);
 
 	tmp = bcma_scan_read32(bus, 0, BCMA_CC_ID);
-	bus->chipinfo.id = (tmp & BCMA_CC_ID_ID) >> BCMA_CC_ID_ID_SHIFT;
-	bus->chipinfo.rev = (tmp & BCMA_CC_ID_REV) >> BCMA_CC_ID_REV_SHIFT;
-	bus->chipinfo.pkg = (tmp & BCMA_CC_ID_PKG) >> BCMA_CC_ID_PKG_SHIFT;
+	chipinfo->id = (tmp & BCMA_CC_ID_ID) >> BCMA_CC_ID_ID_SHIFT;
+	chipinfo->rev = (tmp & BCMA_CC_ID_REV) >> BCMA_CC_ID_REV_SHIFT;
+	chipinfo->pkg = (tmp & BCMA_CC_ID_PKG) >> BCMA_CC_ID_PKG_SHIFT;
+	pr_info("Found chip with id 0x%04X, rev 0x%02X and package 0x%02X\n",
+		chipinfo->id, chipinfo->rev, chipinfo->pkg);
+
 	bus->init_done = true;
 }
 
@@ -392,6 +450,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 	bcma_scan_switch_core(bus, erombase);
 
 	while (eromptr < eromend) {
+		struct bcma_device *other_core;
 		struct bcma_device *core = kzalloc(sizeof(*core), GFP_KERNEL);
 		if (!core)
 			return -ENOMEM;
@@ -414,6 +473,8 @@ int bcma_bus_scan(struct bcma_bus *bus)
 
 		core->core_index = core_num++;
 		bus->nr_cores++;
+		other_core = bcma_find_core_reverse(bus, core->id.id);
+		core->core_unit = (other_core == NULL) ? 0 : other_core->core_unit + 1;
 
 		pr_info("Core %d found: %s "
 			"(manuf 0x%03X, id 0x%03X, rev 0x%02X, class 0x%X)\n",

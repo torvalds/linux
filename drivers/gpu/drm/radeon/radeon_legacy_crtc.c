@@ -419,7 +419,9 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
-	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &base);
+	/* Only 27 bit offset for legacy CRTC */
+	r = radeon_bo_pin_restricted(rbo, RADEON_GEM_DOMAIN_VRAM, 1 << 27,
+				     &base);
 	if (unlikely(r != 0)) {
 		radeon_bo_unreserve(rbo);
 		return -EINVAL;

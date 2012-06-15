@@ -58,7 +58,7 @@ static struct gpio_port_t * const gpio_array[] = {
 	(struct gpio_port_t *) FIO0_FLAG_D,
 	(struct gpio_port_t *) FIO1_FLAG_D,
 	(struct gpio_port_t *) FIO2_FLAG_D,
-#elif defined(CONFIG_BF54x)
+#elif defined(CONFIG_BF54x) || defined(CONFIG_BF60x) 
 	(struct gpio_port_t *)PORTA_FER,
 	(struct gpio_port_t *)PORTB_FER,
 	(struct gpio_port_t *)PORTC_FER,
@@ -66,9 +66,11 @@ static struct gpio_port_t * const gpio_array[] = {
 	(struct gpio_port_t *)PORTE_FER,
 	(struct gpio_port_t *)PORTF_FER,
 	(struct gpio_port_t *)PORTG_FER,
+# if defined(CONFIG_BF54x)
 	(struct gpio_port_t *)PORTH_FER,
 	(struct gpio_port_t *)PORTI_FER,
 	(struct gpio_port_t *)PORTJ_FER,
+# endif
 #else
 # error no gpio arrays defined
 #endif
@@ -210,7 +212,7 @@ static void port_setup(unsigned gpio, unsigned short usage)
 	else
 		*port_fer[gpio_bank(gpio)] |= gpio_bit(gpio);
 	SSYNC();
-#elif defined(CONFIG_BF54x)
+#elif defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 	if (usage == GPIO_USAGE)
 		gpio_array[gpio_bank(gpio)]->port_fer &= ~gpio_bit(gpio);
 	else
@@ -299,7 +301,7 @@ static void portmux_setup(unsigned short per)
 	pmux |= (function << offset);
 	bfin_write_PORT_MUX(pmux);
 }
-#elif defined(CONFIG_BF54x)
+#elif defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 inline void portmux_setup(unsigned short per)
 {
 	u16 ident = P_IDENT(per);
@@ -377,7 +379,7 @@ static int portmux_group_check(unsigned short per)
 }
 #endif
 
-#ifndef CONFIG_BF54x
+#if !(defined(CONFIG_BF54x) || defined(CONFIG_BF60x))
 /***********************************************************
 *
 * FUNCTIONS: Blackfin General Purpose Ports Access Functions
@@ -680,7 +682,7 @@ void bfin_gpio_pm_hibernate_restore(void)
 
 
 #endif
-#else /* CONFIG_BF54x */
+#else /* CONFIG_BF54x || CONFIG_BF60x */
 #ifdef CONFIG_PM
 
 int bfin_pm_standby_ctrl(unsigned ctrl)
@@ -726,7 +728,7 @@ unsigned short get_gpio_dir(unsigned gpio)
 }
 EXPORT_SYMBOL(get_gpio_dir);
 
-#endif /* CONFIG_BF54x */
+#endif /* CONFIG_BF54x || CONFIG_BF60x */
 
 /***********************************************************
 *
@@ -783,7 +785,7 @@ int peripheral_request(unsigned short per, const char *label)
 		 * be requested and used by several drivers
 		 */
 
-#ifdef CONFIG_BF54x
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 		if (!((per & P_MAYSHARE) && get_portmux(per) == P_FUNCT2MUX(per))) {
 #else
 		if (!(per & P_MAYSHARE)) {
@@ -937,7 +939,7 @@ int bfin_gpio_request(unsigned gpio, const char *label)
 		printk(KERN_NOTICE "bfin-gpio: GPIO %d is already reserved as gpio-irq!"
 		       " (Documentation/blackfin/bfin-gpio-notes.txt)\n", gpio);
 	}
-#ifndef CONFIG_BF54x
+#if !(defined(CONFIG_BF54x) || defined(CONFIG_BF60x))
 	else {	/* Reset POLAR setting when acquiring a gpio for the first time */
 		set_gpio_polar(gpio, 0);
 	}
@@ -1110,7 +1112,7 @@ void bfin_gpio_irq_free(unsigned gpio)
 
 static inline void __bfin_gpio_direction_input(unsigned gpio)
 {
-#ifdef CONFIG_BF54x
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 	gpio_array[gpio_bank(gpio)]->dir_clear = gpio_bit(gpio);
 #else
 	gpio_array[gpio_bank(gpio)]->dir &= ~gpio_bit(gpio);
@@ -1138,13 +1140,13 @@ EXPORT_SYMBOL(bfin_gpio_direction_input);
 
 void bfin_gpio_irq_prepare(unsigned gpio)
 {
-#ifdef CONFIG_BF54x
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 	unsigned long flags;
 #endif
 
 	port_setup(gpio, GPIO_USAGE);
 
-#ifdef CONFIG_BF54x
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 	flags = hard_local_irq_save();
 	__bfin_gpio_direction_input(gpio);
 	hard_local_irq_restore(flags);
@@ -1173,7 +1175,7 @@ int bfin_gpio_direction_output(unsigned gpio, int value)
 
 	gpio_array[gpio_bank(gpio)]->inen &= ~gpio_bit(gpio);
 	gpio_set_value(gpio, value);
-#ifdef CONFIG_BF54x
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 	gpio_array[gpio_bank(gpio)]->dir_set = gpio_bit(gpio);
 #else
 	gpio_array[gpio_bank(gpio)]->dir |= gpio_bit(gpio);
@@ -1188,7 +1190,7 @@ EXPORT_SYMBOL(bfin_gpio_direction_output);
 
 int bfin_gpio_get_value(unsigned gpio)
 {
-#ifdef CONFIG_BF54x
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF60x)
 	return (1 & (gpio_array[gpio_bank(gpio)]->data >> gpio_sub_n(gpio)));
 #else
 	unsigned long flags;

@@ -20,9 +20,18 @@
 
 DEFINE_PER_CPU(struct xfsstats, xfsstats);
 
+static int counter_val(int idx)
+{
+	int val = 0, cpu;
+
+	for_each_possible_cpu(cpu)
+		val += *(((__u32 *)&per_cpu(xfsstats, cpu) + idx));
+	return val;
+}
+
 static int xfs_stat_proc_show(struct seq_file *m, void *v)
 {
-	int		c, i, j, val;
+	int		i, j;
 	__uint64_t	xs_xstrat_bytes = 0;
 	__uint64_t	xs_write_bytes = 0;
 	__uint64_t	xs_read_bytes = 0;
@@ -50,20 +59,16 @@ static int xfs_stat_proc_show(struct seq_file *m, void *v)
 		{ "abtc2",		XFSSTAT_END_ABTC_V2		},
 		{ "bmbt2",		XFSSTAT_END_BMBT_V2		},
 		{ "ibt2",		XFSSTAT_END_IBT_V2		},
+		/* we print both series of quota information together */
+		{ "qm",			XFSSTAT_END_QM			},
 	};
 
 	/* Loop over all stats groups */
-	for (i=j = 0; i < ARRAY_SIZE(xstats); i++) {
+	for (i = j = 0; i < ARRAY_SIZE(xstats); i++) {
 		seq_printf(m, "%s", xstats[i].desc);
 		/* inner loop does each group */
-		while (j < xstats[i].endpoint) {
-			val = 0;
-			/* sum over all cpus */
-			for_each_possible_cpu(c)
-				val += *(((__u32*)&per_cpu(xfsstats, c) + j));
-			seq_printf(m, " %u", val);
-			j++;
-		}
+		for (; j < xstats[i].endpoint; j++)
+			seq_printf(m, " %u", counter_val(j));
 		seq_putc(m, '\n');
 	}
 	/* extra precision counters */
@@ -97,6 +102,58 @@ static const struct file_operations xfs_stat_proc_fops = {
 	.release	= single_release,
 };
 
+/* legacy quota interfaces */
+#ifdef CONFIG_XFS_QUOTA
+static int xqm_proc_show(struct seq_file *m, void *v)
+{
+	/* maximum; incore; ratio free to inuse; freelist */
+	seq_printf(m, "%d\t%d\t%d\t%u\n",
+			0,
+			counter_val(XFSSTAT_END_XQMSTAT),
+			0,
+			counter_val(XFSSTAT_END_XQMSTAT + 1));
+	return 0;
+}
+
+static int xqm_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, xqm_proc_show, NULL);
+}
+
+static const struct file_operations xqm_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= xqm_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/* legacy quota stats interface no 2 */
+static int xqmstat_proc_show(struct seq_file *m, void *v)
+{
+	int j;
+
+	seq_printf(m, "qm");
+	for (j = XFSSTAT_END_IBT_V2; j < XFSSTAT_END_XQMSTAT; j++)
+		seq_printf(m, " %u", counter_val(j));
+	seq_putc(m, '\n');
+	return 0;
+}
+
+static int xqmstat_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, xqmstat_proc_show, NULL);
+}
+
+static const struct file_operations xqmstat_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= xqmstat_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif /* CONFIG_XFS_QUOTA */
+
 int
 xfs_init_procfs(void)
 {
@@ -105,10 +162,24 @@ xfs_init_procfs(void)
 
 	if (!proc_create("fs/xfs/stat", 0, NULL,
 			 &xfs_stat_proc_fops))
-		goto out_remove_entry;
+		goto out_remove_xfs_dir;
+#ifdef CONFIG_XFS_QUOTA
+	if (!proc_create("fs/xfs/xqmstat", 0, NULL,
+			 &xqmstat_proc_fops))
+		goto out_remove_stat_file;
+	if (!proc_create("fs/xfs/xqm", 0, NULL,
+			 &xqm_proc_fops))
+		goto out_remove_xqmstat_file;
+#endif
 	return 0;
 
- out_remove_entry:
+#ifdef CONFIG_XFS_QUOTA
+ out_remove_xqmstat_file:
+	remove_proc_entry("fs/xfs/xqmstat", NULL);
+ out_remove_stat_file:
+	remove_proc_entry("fs/xfs/stat", NULL);
+#endif
+ out_remove_xfs_dir:
 	remove_proc_entry("fs/xfs", NULL);
  out:
 	return -ENOMEM;
@@ -117,6 +188,10 @@ xfs_init_procfs(void)
 void
 xfs_cleanup_procfs(void)
 {
+#ifdef CONFIG_XFS_QUOTA
+	remove_proc_entry("fs/xfs/xqm", NULL);
+	remove_proc_entry("fs/xfs/xqmstat", NULL);
+#endif
 	remove_proc_entry("fs/xfs/stat", NULL);
 	remove_proc_entry("fs/xfs", NULL);
 }

@@ -22,7 +22,6 @@
 #include <linux/kobject.h>
 
 struct pscsi_plugin_task {
-	struct se_task pscsi_task;
 	unsigned char pscsi_sense[SCSI_SENSE_BUFFERSIZE];
 	int	pscsi_direction;
 	int	pscsi_result;
@@ -49,7 +48,7 @@ struct pscsi_dev_virt {
 } ____cacheline_aligned;
 
 typedef enum phv_modes {
-	PHV_VIRUTAL_HOST_ID,
+	PHV_VIRTUAL_HOST_ID,
 	PHV_LLD_SCSI_HOST_NO
 } phv_modes_t;
 

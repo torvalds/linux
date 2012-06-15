@@ -35,14 +35,13 @@ struct rpc_clnt {
 	struct list_head	cl_clients;	/* Global list of clients */
 	struct list_head	cl_tasks;	/* List of tasks */
 	spinlock_t		cl_lock;	/* spinlock */
-	struct rpc_xprt *	cl_xprt;	/* transport */
+	struct rpc_xprt __rcu *	cl_xprt;	/* transport */
 	struct rpc_procinfo *	cl_procinfo;	/* procedure info */
 	u32			cl_prog,	/* RPC program number */
 				cl_vers,	/* RPC version number */
 				cl_maxproc;	/* max procedure number */
 
-	char *			cl_server;	/* server machine name */
-	char *			cl_protname;	/* protocol name */
+	const char *		cl_protname;	/* protocol name */
 	struct rpc_auth *	cl_auth;	/* authenticator */
 	struct rpc_stat *	cl_stats;	/* per-program statistics */
 	struct rpc_iostats *	cl_metrics;	/* per-client statistics */
@@ -57,12 +56,11 @@ struct rpc_clnt {
 
 	int			cl_nodelen;	/* nodename length */
 	char 			cl_nodename[UNX_MAXNODENAME];
-	struct path		cl_path;
+	struct dentry *		cl_dentry;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
 	struct rpc_timeout	cl_timeout_default;
-	struct rpc_program *	cl_program;
-	char			cl_inline_name[32];
+	const struct rpc_program *cl_program;
 	char			*cl_principal;	/* target to authenticate to */
 };
 
@@ -71,12 +69,12 @@ struct rpc_clnt {
  */
 #define RPC_MAXVERSION		4
 struct rpc_program {
-	char *			name;		/* protocol name */
+	const char *		name;		/* protocol name */
 	u32			number;		/* program number */
 	unsigned int		nrvers;		/* number of versions */
-	struct rpc_version **	version;	/* version array */
+	const struct rpc_version **	version;	/* version array */
 	struct rpc_stat *	stats;		/* statistics */
-	char *			pipe_dir_name;	/* path to rpc_pipefs dir */
+	const char *		pipe_dir_name;	/* path to rpc_pipefs dir */
 };
 
 struct rpc_version {
@@ -97,7 +95,7 @@ struct rpc_procinfo {
 	unsigned int		p_count;	/* call count */
 	unsigned int		p_timer;	/* Which RTT timer to use */
 	u32			p_statidx;	/* Which procedure to account */
-	char *			p_name;		/* name of procedure */
+	const char *		p_name;		/* name of procedure */
 };
 
 #ifdef __KERNEL__
@@ -109,8 +107,8 @@ struct rpc_create_args {
 	size_t			addrsize;
 	struct sockaddr		*saddress;
 	const struct rpc_timeout *timeout;
-	char			*servername;
-	struct rpc_program	*program;
+	const char		*servername;
+	const struct rpc_program *program;
 	u32			prognumber;	/* overrides program->number */
 	u32			version;
 	rpc_authflavor_t	authflavor;
@@ -129,17 +127,18 @@ struct rpc_create_args {
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
-				struct rpc_program *, u32);
+				const struct rpc_program *, u32);
 void rpc_task_reset_client(struct rpc_task *task, struct rpc_clnt *clnt);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 void		rpc_shutdown_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
 void		rpc_task_release_client(struct rpc_task *);
 
-int		rpcb_create_local(void);
-void		rpcb_put_local(void);
-int		rpcb_register(u32, u32, int, unsigned short);
-int		rpcb_v4_register(const u32 program, const u32 version,
+int		rpcb_create_local(struct net *);
+void		rpcb_put_local(struct net *);
+int		rpcb_register(struct net *, u32, u32, int, unsigned short);
+int		rpcb_v4_register(struct net *net, const u32 program,
+				 const u32 version,
 				 const struct sockaddr *address,
 				 const char *netid);
 void		rpcb_getport_async(struct rpc_task *);
@@ -156,16 +155,19 @@ struct rpc_task *rpc_call_null(struct rpc_clnt *clnt, struct rpc_cred *cred,
 int		rpc_restart_call_prepare(struct rpc_task *);
 int		rpc_restart_call(struct rpc_task *);
 void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
+int		rpc_protocol(struct rpc_clnt *);
+struct net *	rpc_net_ns(struct rpc_clnt *);
 size_t		rpc_max_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
+int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
 
 size_t		rpc_ntop(const struct sockaddr *, char *, const size_t);
-size_t		rpc_pton(const char *, const size_t,
+size_t		rpc_pton(struct net *, const char *, const size_t,
 			 struct sockaddr *, const size_t);
 char *		rpc_sockaddr2uaddr(const struct sockaddr *, gfp_t);
-size_t		rpc_uaddr2sockaddr(const char *, const size_t,
+size_t		rpc_uaddr2sockaddr(struct net *, const char *, const size_t,
 				   struct sockaddr *, const size_t);
 
 static inline unsigned short rpc_get_port(const struct sockaddr *sap)

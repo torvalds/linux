@@ -8,15 +8,8 @@
  * warranty of any kind, whether express or implied.
  */
 #include <mach/hardware.h>
-#include <asm/hardware/clps7111.h>
-
-		.macro	disable_fiq
-		.endm
 
 		.macro	get_irqnr_preamble, base, tmp
-		.endm
-
-		.macro	arch_ret_to_user, tmp1, tmp2
 		.endm
 
 #if (INTSR2 - INTSR1) != (INTMR2 - INTMR1)
@@ -24,7 +17,7 @@
 #endif
 
 		.macro	get_irqnr_and_base, irqnr, stat, base, mask
-		mov	\base, #CLPS7111_BASE
+		mov	\base, #CLPS711X_VIRT_BASE
 		ldr	\stat, [\base, #INTSR1]
 		ldr	\mask, [\base, #INTMR1]
 		mov	\irqnr, #4

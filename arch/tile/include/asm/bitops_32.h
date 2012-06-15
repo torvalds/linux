@@ -17,7 +17,6 @@
 
 #include <linux/compiler.h>
 #include <linux/atomic.h>
-#include <asm/system.h>
 
 /* Tile-specific routines to support <asm/bitops.h>. */
 unsigned long _atomic_or(volatile unsigned long *p, unsigned long mask);

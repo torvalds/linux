@@ -52,7 +52,7 @@ struct bfa_iocfc_fwcfg_s {
 	u16		num_uf_bufs;	/*  unsolicited recv buffers	*/
 	u8		num_cqs;
 	u8		fw_tick_res;	/*  FW clock resolution in ms */
-	u8		rsvd[2];
+	u8		rsvd[6];
 };
 #pragma pack()
 

@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
-#include <linux/mdio.h>
+#include <linux/mii.h>
 
 static u32 mii_get_an(struct mii_if_info *mii, u16 addr)
 {
@@ -74,7 +74,7 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 
 	/* this isn't fully supported at higher layers */
 	ecmd->phy_address = mii->phy_id;
-	ecmd->mdio_support = MDIO_SUPPORTS_C22;
+	ecmd->mdio_support = ETH_MDIO_SUPPORTS_C22;
 
 	ecmd->advertising = ADVERTISED_TP | ADVERTISED_MII;
 

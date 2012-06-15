@@ -177,16 +177,17 @@ static int psb_save_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
+	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration control + watermarks */
-	dev_priv->saveDSPARB = PSB_RVDC32(DSPARB);
-	dev_priv->saveDSPFW1 = PSB_RVDC32(DSPFW1);
-	dev_priv->saveDSPFW2 = PSB_RVDC32(DSPFW2);
-	dev_priv->saveDSPFW3 = PSB_RVDC32(DSPFW3);
-	dev_priv->saveDSPFW4 = PSB_RVDC32(DSPFW4);
-	dev_priv->saveDSPFW5 = PSB_RVDC32(DSPFW5);
-	dev_priv->saveDSPFW6 = PSB_RVDC32(DSPFW6);
-	dev_priv->saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
+	regs->saveDSPARB = PSB_RVDC32(DSPARB);
+	regs->saveDSPFW1 = PSB_RVDC32(DSPFW1);
+	regs->saveDSPFW2 = PSB_RVDC32(DSPFW2);
+	regs->saveDSPFW3 = PSB_RVDC32(DSPFW3);
+	regs->saveDSPFW4 = PSB_RVDC32(DSPFW4);
+	regs->saveDSPFW5 = PSB_RVDC32(DSPFW5);
+	regs->saveDSPFW6 = PSB_RVDC32(DSPFW6);
+	regs->saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
 
 	/* Save crtc and output state */
 	mutex_lock(&dev->mode_config.mutex);
@@ -196,7 +197,8 @@ static int psb_save_display_registers(struct drm_device *dev)
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->save(connector);
+		if (connector->funcs->save)
+			connector->funcs->save(connector);
 
 	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
@@ -213,16 +215,17 @@ static int psb_restore_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
+	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration + watermarks */
-	PSB_WVDC32(dev_priv->saveDSPARB, DSPARB);
-	PSB_WVDC32(dev_priv->saveDSPFW1, DSPFW1);
-	PSB_WVDC32(dev_priv->saveDSPFW2, DSPFW2);
-	PSB_WVDC32(dev_priv->saveDSPFW3, DSPFW3);
-	PSB_WVDC32(dev_priv->saveDSPFW4, DSPFW4);
-	PSB_WVDC32(dev_priv->saveDSPFW5, DSPFW5);
-	PSB_WVDC32(dev_priv->saveDSPFW6, DSPFW6);
-	PSB_WVDC32(dev_priv->saveCHICKENBIT, DSPCHICKENBIT);
+	PSB_WVDC32(regs->saveDSPARB, DSPARB);
+	PSB_WVDC32(regs->saveDSPFW1, DSPFW1);
+	PSB_WVDC32(regs->saveDSPFW2, DSPFW2);
+	PSB_WVDC32(regs->saveDSPFW3, DSPFW3);
+	PSB_WVDC32(regs->saveDSPFW4, DSPFW4);
+	PSB_WVDC32(regs->saveDSPFW5, DSPFW5);
+	PSB_WVDC32(regs->saveDSPFW6, DSPFW6);
+	PSB_WVDC32(regs->saveCHICKENBIT, DSPCHICKENBIT);
 
 	/*make sure VGA plane is off. it initializes to on after reset!*/
 	PSB_WVDC32(0x80000000, VGACNTRL);
@@ -233,7 +236,8 @@ static int psb_restore_display_registers(struct drm_device *dev)
 			crtc->funcs->restore(crtc);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->restore(connector);
+		if (connector->funcs->restore)
+			connector->funcs->restore(connector);
 
 	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
@@ -287,17 +291,80 @@ static void psb_get_core_freq(struct drm_device *dev)
 	}
 }
 
+/* Poulsbo */
+static const struct psb_offset psb_regmap[2] = {
+	{
+		.fp0 = FPA0,
+		.fp1 = FPA1,
+		.cntr = DSPACNTR,
+		.conf = PIPEACONF,
+		.src = PIPEASRC,
+		.dpll = DPLL_A,
+		.htotal = HTOTAL_A,
+		.hblank = HBLANK_A,
+		.hsync = HSYNC_A,
+		.vtotal = VTOTAL_A,
+		.vblank = VBLANK_A,
+		.vsync = VSYNC_A,
+		.stride = DSPASTRIDE,
+		.size = DSPASIZE,
+		.pos = DSPAPOS,
+		.base = DSPABASE,
+		.surf = DSPASURF,
+		.addr = DSPABASE,
+		.status = PIPEASTAT,
+		.linoff = DSPALINOFF,
+		.tileoff = DSPATILEOFF,
+		.palette = PALETTE_A,
+	},
+	{
+		.fp0 = FPB0,
+		.fp1 = FPB1,
+		.cntr = DSPBCNTR,
+		.conf = PIPEBCONF,
+		.src = PIPEBSRC,
+		.dpll = DPLL_B,
+		.htotal = HTOTAL_B,
+		.hblank = HBLANK_B,
+		.hsync = HSYNC_B,
+		.vtotal = VTOTAL_B,
+		.vblank = VBLANK_B,
+		.vsync = VSYNC_B,
+		.stride = DSPBSTRIDE,
+		.size = DSPBSIZE,
+		.pos = DSPBPOS,
+		.base = DSPBBASE,
+		.surf = DSPBSURF,
+		.addr = DSPBBASE,
+		.status = PIPEBSTAT,
+		.linoff = DSPBLINOFF,
+		.tileoff = DSPBTILEOFF,
+		.palette = PALETTE_B,
+	}
+};
+
 static int psb_chip_setup(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	dev_priv->regmap = psb_regmap;
 	psb_get_core_freq(dev);
 	gma_intel_setup_gmbus(dev);
-	gma_intel_opregion_init(dev);
+	psb_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
 	return 0;
 }
 
+/* Not exactly an erratum more an irritation */
+static void psb_chip_errata(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	psb_lid_timer_init(dev_priv);
+}
+
 static void psb_chip_teardown(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	psb_lid_timer_takedown(dev_priv);
 	gma_intel_teardown_gmbus(dev);
 }
 
@@ -306,9 +373,13 @@ const struct psb_ops psb_chip_ops = {
 	.accel_2d = 1,
 	.pipes = 2,
 	.crtcs = 2,
+	.hdmi_mask = (1 << 0),
+	.lvds_mask = (1 << 1),
+	.cursor_needs_phys = 1,
 	.sgx_offset = PSB_SGX_OFFSET,
 	.chip_setup = psb_chip_setup,
 	.chip_teardown = psb_chip_teardown,
+	.errata = psb_chip_errata,
 
 	.crtc_helper = &psb_intel_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,

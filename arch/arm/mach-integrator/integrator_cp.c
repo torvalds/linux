@@ -26,7 +26,6 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/arm_timer.h>
@@ -34,6 +33,7 @@
 
 #include <mach/cm.h>
 #include <mach/lm.h>
+#include <mach/irqs.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -143,30 +143,14 @@ static void __init intcp_map_io(void)
 	iotable_init(intcp_io_desc, ARRAY_SIZE(intcp_io_desc));
 }
 
-static struct fpga_irq_data cic_irq_data = {
-	.base		= INTCP_VA_CIC_BASE,
-	.irq_start	= IRQ_CIC_START,
-	.chip.name	= "CIC",
-};
-
-static struct fpga_irq_data pic_irq_data = {
-	.base		= INTCP_VA_PIC_BASE,
-	.irq_start	= IRQ_PIC_START,
-	.chip.name	= "PIC",
-};
-
-static struct fpga_irq_data sic_irq_data = {
-	.base		= INTCP_VA_SIC_BASE,
-	.irq_start	= IRQ_SIC_START,
-	.chip.name	= "SIC",
-};
-
 static void __init intcp_init_irq(void)
 {
-	u32 pic_mask, sic_mask;
+	u32 pic_mask, cic_mask, sic_mask;
 
+	/* These masks are for the HW IRQ registers */
 	pic_mask = ~((~0u) << (11 - IRQ_PIC_START));
 	pic_mask |= (~((~0u) << (29 - 22))) << 22;
+	cic_mask = ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START));
 	sic_mask = ~((~0u) << (1 + IRQ_SIC_END - IRQ_SIC_START));
 
 	/*
@@ -179,12 +163,14 @@ static void __init intcp_init_irq(void)
 	writel(sic_mask, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
 	writel(sic_mask, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
 
-	fpga_irq_init(-1, pic_mask, &pic_irq_data);
+	fpga_irq_init(INTCP_VA_PIC_BASE, "PIC", IRQ_PIC_START,
+		      -1, pic_mask, NULL);
 
-	fpga_irq_init(-1, ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START)),
-		&cic_irq_data);
+	fpga_irq_init(INTCP_VA_CIC_BASE, "CIC", IRQ_CIC_START,
+		      -1, cic_mask, NULL);
 
-	fpga_irq_init(IRQ_CP_CPPLDINT, sic_mask, &sic_irq_data);
+	fpga_irq_init(INTCP_VA_SIC_BASE, "SIC", IRQ_SIC_START,
+		      IRQ_CP_CPPLDINT, sic_mask, NULL);
 }
 
 /*
@@ -347,32 +333,14 @@ static struct mmci_platform_data mmc_data = {
 	.gpio_cd	= -1,
 };
 
-static struct amba_device mmc_device = {
-	.dev		= {
-		.init_name = "mb:1c",
-		.platform_data = &mmc_data,
-	},
-	.res		= {
-		.start	= INTEGRATOR_CP_MMC_BASE,
-		.end	= INTEGRATOR_CP_MMC_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 },
-	.periphid	= 0,
-};
+#define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
+#define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
 
-static struct amba_device aaci_device = {
-	.dev		= {
-		.init_name = "mb:1d",
-	},
-	.res		= {
-		.start	= INTEGRATOR_CP_AACI_BASE,
-		.end	= INTEGRATOR_CP_AACI_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_CP_AACIINT, NO_IRQ },
-	.periphid	= 0,
-};
+static AMBA_APB_DEVICE(mmc, "mb:1c", 0, INTEGRATOR_CP_MMC_BASE,
+	INTEGRATOR_CP_MMC_IRQS, &mmc_data);
+
+static AMBA_APB_DEVICE(aaci, "mb:1d", 0, INTEGRATOR_CP_AACI_BASE,
+	INTEGRATOR_CP_AACI_IRQS, NULL);
 
 
 /*
@@ -425,21 +393,8 @@ static struct clcd_board clcd_data = {
 	.remove		= versatile_clcd_remove_dma,
 };
 
-static struct amba_device clcd_device = {
-	.dev		= {
-		.init_name = "mb:c0",
-		.coherent_dma_mask = ~0,
-		.platform_data = &clcd_data,
-	},
-	.res		= {
-		.start	= INTCP_PA_CLCD_BASE,
-		.end	= INTCP_PA_CLCD_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.dma_mask	= ~0,
-	.irq		= { IRQ_CP_CLCDCINT, NO_IRQ },
-	.periphid	= 0,
-};
+static AMBA_AHB_DEVICE(clcd, "mb:c0", 0, INTCP_PA_CLCD_BASE,
+	{ IRQ_CP_CLCDCINT }, &clcd_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&mmc_device,
@@ -495,8 +450,10 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
 	.map_io		= intcp_map_io,
+	.nr_irqs	= NR_IRQS_INTEGRATOR_CP,
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
+	.handle_irq	= fpga_handle_irq,
 	.timer		= &cp_timer,
 	.init_machine	= intcp_init,
 	.restart	= integrator_restart,

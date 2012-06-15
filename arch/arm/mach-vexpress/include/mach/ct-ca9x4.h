@@ -22,9 +22,6 @@
 #define CT_CA9X4_SYSWDT		(0x1e007000)
 #define CT_CA9X4_L2CC		(0x1e00a000)
 
-#define CT_CA9X4_TIMER0		(CT_CA9X4_SP804_TIMER + 0x000)
-#define CT_CA9X4_TIMER1		(CT_CA9X4_SP804_TIMER + 0x020)
-
 #define A9_MPCORE_SCU		(CT_CA9X4_MPIC + 0x0000)
 #define A9_MPCORE_GIC_CPU	(CT_CA9X4_MPIC + 0x0100)
 #define A9_MPCORE_GIT		(CT_CA9X4_MPIC + 0x0200)
@@ -35,7 +32,7 @@
  * Interrupts.  Those in {} are for AMBA devices
  */
 #define IRQ_CT_CA9X4_CLCDC	{ 76 }
-#define IRQ_CT_CA9X4_DMC	{ -1 }
+#define IRQ_CT_CA9X4_DMC	{ 0 }
 #define IRQ_CT_CA9X4_SMC	{ 77, 78 }
 #define IRQ_CT_CA9X4_TIMER0	80
 #define IRQ_CT_CA9X4_TIMER1	81

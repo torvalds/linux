@@ -107,17 +107,6 @@ static struct amba_driver nmk_rng_driver = {
 	.id_table = nmk_rng_ids,
 };
 
-static int __init nmk_rng_init(void)
-{
-	return amba_driver_register(&nmk_rng_driver);
-}
-
-static void __devexit nmk_rng_exit(void)
-{
-	amba_driver_unregister(&nmk_rng_driver);
-}
-
-module_init(nmk_rng_init);
-module_exit(nmk_rng_exit);
+module_amba_driver(nmk_rng_driver);
 
 MODULE_LICENSE("GPL");

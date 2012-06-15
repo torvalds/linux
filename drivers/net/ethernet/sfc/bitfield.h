@@ -448,40 +448,40 @@ typedef union efx_oword {
 	EFX_INSERT32(min, max, low, high, EFX_MASK32(high + 1 - low))
 
 #define EFX_SET_OWORD64(oword, low, high, value) do {			\
-	(oword).u64[0] = (((oword).u64[0] 				\
+	(oword).u64[0] = (((oword).u64[0]				\
 			   & ~EFX_INPLACE_MASK64(0,  63, low, high))	\
 			  | EFX_INSERT64(0,  63, low, high, value));	\
-	(oword).u64[1] = (((oword).u64[1] 				\
+	(oword).u64[1] = (((oword).u64[1]				\
 			   & ~EFX_INPLACE_MASK64(64, 127, low, high))	\
 			  | EFX_INSERT64(64, 127, low, high, value));	\
 	} while (0)
 
 #define EFX_SET_QWORD64(qword, low, high, value) do {			\
-	(qword).u64[0] = (((qword).u64[0] 				\
+	(qword).u64[0] = (((qword).u64[0]				\
 			   & ~EFX_INPLACE_MASK64(0, 63, low, high))	\
 			  | EFX_INSERT64(0, 63, low, high, value));	\
 	} while (0)
 
 #define EFX_SET_OWORD32(oword, low, high, value) do {			\
-	(oword).u32[0] = (((oword).u32[0] 				\
+	(oword).u32[0] = (((oword).u32[0]				\
 			   & ~EFX_INPLACE_MASK32(0, 31, low, high))	\
 			  | EFX_INSERT32(0, 31, low, high, value));	\
-	(oword).u32[1] = (((oword).u32[1] 				\
+	(oword).u32[1] = (((oword).u32[1]				\
 			   & ~EFX_INPLACE_MASK32(32, 63, low, high))	\
 			  | EFX_INSERT32(32, 63, low, high, value));	\
-	(oword).u32[2] = (((oword).u32[2] 				\
+	(oword).u32[2] = (((oword).u32[2]				\
 			   & ~EFX_INPLACE_MASK32(64, 95, low, high))	\
 			  | EFX_INSERT32(64, 95, low, high, value));	\
-	(oword).u32[3] = (((oword).u32[3] 				\
+	(oword).u32[3] = (((oword).u32[3]				\
 			   & ~EFX_INPLACE_MASK32(96, 127, low, high))	\
 			  | EFX_INSERT32(96, 127, low, high, value));	\
 	} while (0)
 
 #define EFX_SET_QWORD32(qword, low, high, value) do {			\
-	(qword).u32[0] = (((qword).u32[0] 				\
+	(qword).u32[0] = (((qword).u32[0]				\
 			   & ~EFX_INPLACE_MASK32(0, 31, low, high))	\
 			  | EFX_INSERT32(0, 31, low, high, value));	\
-	(qword).u32[1] = (((qword).u32[1] 				\
+	(qword).u32[1] = (((qword).u32[1]				\
 			   & ~EFX_INPLACE_MASK32(32, 63, low, high))	\
 			  | EFX_INSERT32(32, 63, low, high, value));	\
 	} while (0)
@@ -531,8 +531,8 @@ typedef union efx_oword {
 
 
 /* Static initialiser */
-#define EFX_OWORD32(a, b, c, d)						\
-	{ .u32 = { cpu_to_le32(a), cpu_to_le32(b), \
+#define EFX_OWORD32(a, b, c, d)				\
+	{ .u32 = { cpu_to_le32(a), cpu_to_le32(b),	\
 		   cpu_to_le32(c), cpu_to_le32(d) } }
 
 #endif /* EFX_BITFIELD_H */

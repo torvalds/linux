@@ -551,14 +551,10 @@ int ssb_sdio_get_invariants(struct ssb_bus *bus,
 			case SSB_SDIO_CIS_ANTGAIN:
 				GOTO_ERROR_ON(tuple->size != 2,
 					      "antg tpl size");
-				sprom->antenna_gain.ghz24.a0 = tuple->data[1];
-				sprom->antenna_gain.ghz24.a1 = tuple->data[1];
-				sprom->antenna_gain.ghz24.a2 = tuple->data[1];
-				sprom->antenna_gain.ghz24.a3 = tuple->data[1];
-				sprom->antenna_gain.ghz5.a0 = tuple->data[1];
-				sprom->antenna_gain.ghz5.a1 = tuple->data[1];
-				sprom->antenna_gain.ghz5.a2 = tuple->data[1];
-				sprom->antenna_gain.ghz5.a3 = tuple->data[1];
+				sprom->antenna_gain.a0 = tuple->data[1];
+				sprom->antenna_gain.a1 = tuple->data[1];
+				sprom->antenna_gain.a2 = tuple->data[1];
+				sprom->antenna_gain.a3 = tuple->data[1];
 				break;
 			case SSB_SDIO_CIS_BFLAGS:
 				GOTO_ERROR_ON((tuple->size != 3) &&

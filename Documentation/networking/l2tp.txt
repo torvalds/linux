@@ -111,7 +111,7 @@ When creating PPPoL2TP sockets, the application provides information
 to the driver about the socket in a socket connect() call. Source and
 destination tunnel and session ids are provided, as well as the file
 descriptor of a UDP socket. See struct pppol2tp_addr in
-include/linux/if_ppp.h. Note that zero tunnel / session ids are
+include/linux/if_pppol2tp.h. Note that zero tunnel / session ids are
 treated specially. When creating the per-tunnel PPPoL2TP management
 socket in Step 2 above, zero source and destination session ids are
 specified, which tells the driver to prepare the supplied UDP file

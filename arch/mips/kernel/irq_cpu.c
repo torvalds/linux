@@ -35,7 +35,6 @@
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
-#include <asm/system.h>
 
 static inline void unmask_mips_irq(struct irq_data *d)
 {

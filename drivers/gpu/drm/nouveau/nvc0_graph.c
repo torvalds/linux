@@ -29,6 +29,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_mm.h"
+#include "nouveau_fifo.h"
 
 #include "nvc0_graph.h"
 #include "nvc0_grhub.fuc.h"
@@ -333,14 +334,6 @@ nvc0_graph_fini(struct drm_device *dev, int engine, bool suspend)
 	return 0;
 }
 
-static int
-nvc0_graph_mthd_page_flip(struct nouveau_channel *chan,
-			  u32 class, u32 mthd, u32 data)
-{
-	nouveau_finish_page_flip(chan, NULL);
-	return 0;
-}
-
 static void
 nvc0_graph_init_obj418880(struct drm_device *dev)
 {
@@ -628,13 +621,14 @@ nvc0_graph_init(struct drm_device *dev, int engine)
 int
 nvc0_graph_isr_chid(struct drm_device *dev, u64 inst)
 {
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan;
 	unsigned long flags;
 	int i;
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
+	for (i = 0; i < pfifo->channels; i++) {
 		chan = dev_priv->channels.ptr[i];
 		if (!chan || !chan->ramin)
 			continue;
@@ -889,7 +883,6 @@ nvc0_graph_create(struct drm_device *dev)
 
 	NVOBJ_CLASS(dev, 0x902d, GR); /* 2D */
 	NVOBJ_CLASS(dev, 0x9039, GR); /* M2MF */
-	NVOBJ_MTHD (dev, 0x9039, 0x0500, nvc0_graph_mthd_page_flip);
 	NVOBJ_CLASS(dev, 0x9097, GR); /* 3D */
 	if (fermi >= 0x9197)
 		NVOBJ_CLASS(dev, 0x9197, GR); /* 3D (NVC1-) */

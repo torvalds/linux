@@ -373,6 +373,22 @@ struct bfa_cb_qe_s {
 };
 
 /*
+ * IOCFC state machine definitions/declarations
+ */
+enum iocfc_event {
+	IOCFC_E_INIT		= 1,	/* IOCFC init request		*/
+	IOCFC_E_START		= 2,	/* IOCFC mod start request	*/
+	IOCFC_E_STOP		= 3,	/* IOCFC stop request		*/
+	IOCFC_E_ENABLE		= 4,	/* IOCFC enable request		*/
+	IOCFC_E_DISABLE		= 5,	/* IOCFC disable request	*/
+	IOCFC_E_IOC_ENABLED	= 6,	/* IOC enabled message		*/
+	IOCFC_E_IOC_DISABLED	= 7,	/* IOC disabled message		*/
+	IOCFC_E_IOC_FAILED	= 8,	/* failure notice by IOC sm	*/
+	IOCFC_E_DCONF_DONE	= 9,	/* dconf read/write done	*/
+	IOCFC_E_CFG_DONE	= 10,	/* IOCFC config complete	*/
+};
+
+/*
  * ASIC block configurtion related
  */
 
@@ -706,7 +722,6 @@ struct bfa_dconf_s {
 struct bfa_dconf_mod_s {
 	bfa_sm_t		sm;
 	u8			instance;
-	bfa_boolean_t		flashdone;
 	bfa_boolean_t		read_data_valid;
 	bfa_boolean_t		min_cfg;
 	struct bfa_timer_s	timer;

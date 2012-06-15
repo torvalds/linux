@@ -352,18 +352,7 @@ static struct i2c_driver ak881x_i2c_driver = {
 	.id_table	= ak881x_id,
 };
 
-static int __init ak881x_module_init(void)
-{
-	return i2c_add_driver(&ak881x_i2c_driver);
-}
-
-static void __exit ak881x_module_exit(void)
-{
-	i2c_del_driver(&ak881x_i2c_driver);
-}
-
-module_init(ak881x_module_init);
-module_exit(ak881x_module_exit);
+module_i2c_driver(ak881x_i2c_driver);
 
 MODULE_DESCRIPTION("TV-output driver for ak8813/ak8814");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");

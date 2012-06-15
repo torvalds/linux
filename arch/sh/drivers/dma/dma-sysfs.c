@@ -29,7 +29,7 @@ static ssize_t dma_show_devices(struct device *dev,
 	ssize_t len = 0;
 	int i;
 
-	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
+	for (i = 0; i < 16; i++) {
 		struct dma_info *info = get_dma_info(i);
 		struct dma_channel *channel = get_dma_channel(i);
 
@@ -54,7 +54,7 @@ static int __init dma_subsys_init(void)
 	if (unlikely(ret))
 		return ret;
 
-	return device_create_file(dma_subsys.dev_root, &dev_attr_devices.attr);
+	return device_create_file(dma_subsys.dev_root, &dev_attr_devices);
 }
 postcore_initcall(dma_subsys_init);
 

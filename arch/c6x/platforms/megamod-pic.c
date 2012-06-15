@@ -48,7 +48,7 @@ struct megamod_regs {
 };
 
 struct megamod_pic {
-	struct irq_host	*irqhost;
+	struct irq_domain *irqhost;
 	struct megamod_regs __iomem *regs;
 	raw_spinlock_t lock;
 
@@ -116,7 +116,7 @@ static void megamod_irq_cascade(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static int megamod_map(struct irq_host *h, unsigned int virq,
+static int megamod_map(struct irq_domain *h, unsigned int virq,
 		       irq_hw_number_t hw)
 {
 	struct megamod_pic *pic = h->host_data;
@@ -136,21 +136,9 @@ static int megamod_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int megamod_xlate(struct irq_host *h, struct device_node *ct,
-			 const u32 *intspec, unsigned int intsize,
-			 irq_hw_number_t *out_hwirq, unsigned int *out_type)
-
-{
-	/* megamod intspecs must have 1 cell */
-	BUG_ON(intsize != 1);
-	*out_hwirq = intspec[0];
-	*out_type = IRQ_TYPE_NONE;
-	return 0;
-}
-
-static struct irq_host_ops megamod_host_ops = {
+static const struct irq_domain_ops megamod_domain_ops = {
 	.map	= megamod_map,
-	.xlate	= megamod_xlate,
+	.xlate	= irq_domain_xlate_onecell,
 };
 
 static void __init set_megamod_mux(struct megamod_pic *pic, int src, int output)
@@ -223,9 +211,8 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 		return NULL;
 	}
 
-	pic->irqhost = irq_alloc_host(np, IRQ_HOST_MAP_LINEAR,
-				      NR_COMBINERS * 32, &megamod_host_ops,
-				      IRQ_UNMAPPED);
+	pic->irqhost = irq_domain_add_linear(np, NR_COMBINERS * 32,
+					     &megamod_domain_ops, pic);
 	if (!pic->irqhost) {
 		pr_err("%s: Could not alloc host.\n", np->full_name);
 		goto error_free;

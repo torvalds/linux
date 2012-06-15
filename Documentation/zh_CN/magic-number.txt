@@ -89,7 +89,7 @@ TTY_DRIVER_MAGIC      0x5402      tty_driver        include/linux/tty_driver.h
 MGSLPC_MAGIC          0x5402      mgslpc_info       drivers/char/pcmcia/synclink_cs.c
 TTY_LDISC_MAGIC       0x5403      tty_ldisc         include/linux/tty_ldisc.h
 USB_SERIAL_MAGIC      0x6702      usb_serial        drivers/usb/serial/usb-serial.h
-FULL_DUPLEX_MAGIC     0x6969                        drivers/net/tulip/de2104x.c
+FULL_DUPLEX_MAGIC     0x6969                        drivers/net/ethernet/dec/tulip/de2104x.c
 USB_BLUETOOTH_MAGIC   0x6d02      usb_bluetooth     drivers/usb/class/bluetty.c
 RFCOMM_TTY_MAGIC      0x6d02                        net/bluetooth/rfcomm/tty.c
 USB_SERIAL_PORT_MAGIC 0x7301      usb_serial_port   drivers/usb/serial/usb-serial.h
@@ -160,7 +160,7 @@ QUEUE_MAGIC_USED      0xf7e1cc33  queue_entry       drivers/scsi/arm/queue.c
 HTB_CMAGIC            0xFEFAFEF1  htb_class         net/sched/sch_htb.c
 NMI_MAGIC             0x48414d4d455201 nmi_s        arch/mips/include/asm/sn/nmi.h
 
-请注意，在声音记忆管理中仍然有每一些被定义的驱动魔术值。查看include/sound/sndmagic.h来获取他们完整的列表信息。很多OSS声音驱动拥有自己从声卡PCI ID构建的魔术值-他们也没有被列在这里。
+请注意，在声音记忆管理中仍然有一些特殊的为每个驱动定义的魔术值。查看include/sound/sndmagic.h来获取他们完整的列表信息。很多OSS声音驱动拥有自己从声卡PCI ID构建的魔术值-他们也没有被列在这里。
 
 IrDA子系统也使用了大量的自己的魔术值，查看include/net/irda/irda.h来获取他们完整的信息。
 

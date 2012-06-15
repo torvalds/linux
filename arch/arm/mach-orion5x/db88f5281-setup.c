@@ -214,7 +214,7 @@ void __init db88f5281_pci_preinit(void)
 		if (gpio_direction_input(pin) == 0) {
 			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
-			printk(KERN_ERR "db88f5281_pci_preinit faield to "
+			printk(KERN_ERR "db88f5281_pci_preinit failed to "
 					"set_irq_type pin %d\n", pin);
 			gpio_free(pin);
 		}
@@ -227,7 +227,7 @@ void __init db88f5281_pci_preinit(void)
 		if (gpio_direction_input(pin) == 0) {
 			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
-			printk(KERN_ERR "db88f5281_pci_preinit faield "
+			printk(KERN_ERR "db88f5281_pci_preinit failed "
 					"to set_irq_type pin %d\n", pin);
 			gpio_free(pin);
 		}
@@ -265,7 +265,6 @@ static int __init db88f5281_pci_map_irq(const struct pci_dev *dev, u8 slot,
 static struct hw_pci db88f5281_pci __initdata = {
 	.nr_controllers	= 2,
 	.preinit	= db88f5281_pci_preinit,
-	.swizzle	= pci_std_swizzle,
 	.setup		= orion5x_pci_sys_setup,
 	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= db88f5281_pci_map_irq,

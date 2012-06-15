@@ -4,6 +4,10 @@
 
 menu "File systems"
 
+# Use unaligned word dcache accesses
+config DCACHE_WORD_ACCESS
+       bool
+
 if BLOCK
 
 source "fs/ext2/Kconfig"
@@ -210,6 +214,7 @@ source "fs/minix/Kconfig"
 source "fs/omfs/Kconfig"
 source "fs/hpfs/Kconfig"
 source "fs/qnx4/Kconfig"
+source "fs/qnx6/Kconfig"
 source "fs/romfs/Kconfig"
 source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"

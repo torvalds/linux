@@ -1,8 +1,8 @@
 config SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
-	depends on ARCH_S3C2410 || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5P64X0 || ARCH_EXYNOS4
+	depends on ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5P64X0 || ARCH_EXYNOS4
 	select S3C64XX_DMA if ARCH_S3C64XX
-	select S3C2410_DMA if ARCH_S3C2410
+	select S3C2410_DMA if ARCH_S3C24XX
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the Samsung SoCs' Audio interfaces. You will also need to
@@ -84,7 +84,7 @@ config SND_SOC_SAMSUNG_SMDK2443_WM9710
 
 config SND_SOC_SAMSUNG_LN2440SBC_ALC650
 	tristate "SoC AC97 Audio support for LN2440SBC - ALC650"
-	depends on SND_SOC_SAMSUNG && ARCH_S3C2410
+	depends on SND_SOC_SAMSUNG && ARCH_S3C24XX
 	select S3C2410_DMA
 	select AC97_BUS
 	select SND_SOC_AC97_CODEC
@@ -95,7 +95,7 @@ config SND_SOC_SAMSUNG_LN2440SBC_ALC650
 
 config SND_SOC_SAMSUNG_S3C24XX_UDA134X
 	tristate "SoC I2S Audio support UDA134X wired to a S3C24XX"
-	depends on SND_SOC_SAMSUNG && ARCH_S3C2410
+	depends on SND_SOC_SAMSUNG && ARCH_S3C24XX
 	select SND_S3C24XX_I2S
 	select SND_SOC_L3
 	select SND_SOC_UDA134X
@@ -107,14 +107,14 @@ config SND_SOC_SAMSUNG_SIMTEC
 
 config SND_SOC_SAMSUNG_SIMTEC_TLV320AIC23
 	tristate "SoC I2S Audio support for TLV320AIC23 on Simtec boards"
-	depends on SND_SOC_SAMSUNG && ARCH_S3C2410
+	depends on SND_SOC_SAMSUNG && ARCH_S3C24XX
 	select SND_S3C24XX_I2S
 	select SND_SOC_TLV320AIC23
 	select SND_SOC_SAMSUNG_SIMTEC
 
 config SND_SOC_SAMSUNG_SIMTEC_HERMES
 	tristate "SoC I2S Audio support for Simtec Hermes board"
-	depends on SND_SOC_SAMSUNG && ARCH_S3C2410
+	depends on SND_SOC_SAMSUNG && ARCH_S3C24XX
 	select SND_S3C24XX_I2S
 	select SND_SOC_TLV320AIC3X
 	select SND_SOC_SAMSUNG_SIMTEC

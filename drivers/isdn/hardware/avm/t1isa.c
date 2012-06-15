@@ -1,9 +1,9 @@
 /* $Id: t1isa.c,v 1.1.2.3 2004/02/10 01:07:12 keil Exp $
- * 
+ *
  * Module for AVM T1 HEMA-card.
- * 
+ *
  * Copyright 1999 by Carsten Paeth <calle@calle.de>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -67,7 +67,7 @@ static int t1_detectandinit(unsigned int base, unsigned irq, int cardnr)
 	int i;
 
 	reverse_cardnr =   ((cardnr & 0x01) << 3) | ((cardnr & 0x02) << 1)
-		         | ((cardnr & 0x04) >> 1) | ((cardnr & 0x08) >> 3);
+		| ((cardnr & 0x04) >> 1) | ((cardnr & 0x08) >> 3);
 	cregs[0] = (HEMA_VERSION_ID << 4) | (reverse_cardnr & 0xf);
 	cregs[1] = 0x00; /* fast & slow link connected to CON1 */
 	cregs[2] = 0x05; /* fast link 20MBit, slow link 20 MBit */
@@ -86,50 +86,50 @@ static int t1_detectandinit(unsigned int base, unsigned irq, int cardnr)
 	/* board reset */
 	t1outp(base, T1_RESETBOARD, 0xf);
 	mdelay(100);
-	dummy = t1inp(base, T1_FASTLINK+T1_OUTSTAT); /* first read */
+	dummy = t1inp(base, T1_FASTLINK + T1_OUTSTAT); /* first read */
 
 	/* write config */
 	dummy = (base >> 4) & 0xff;
-	for (i=1;i<=0xf;i++) t1outp(base, i, dummy);
+	for (i = 1; i <= 0xf; i++) t1outp(base, i, dummy);
 	t1outp(base, HEMA_PAL_ID & 0xf, dummy);
 	t1outp(base, HEMA_PAL_ID >> 4, cregs[0]);
-	for(i=1;i<7;i++) t1outp(base, 0, cregs[i]);
+	for (i = 1; i < 7; i++) t1outp(base, 0, cregs[i]);
 	t1outp(base, ((base >> 4)) & 0x3, cregs[7]);
 	/* restore_flags(flags); */
 
 	mdelay(100);
-	t1outp(base, T1_FASTLINK+T1_RESETLINK, 0);
-	t1outp(base, T1_SLOWLINK+T1_RESETLINK, 0);
+	t1outp(base, T1_FASTLINK + T1_RESETLINK, 0);
+	t1outp(base, T1_SLOWLINK + T1_RESETLINK, 0);
 	mdelay(10);
-	t1outp(base, T1_FASTLINK+T1_RESETLINK, 1);
-	t1outp(base, T1_SLOWLINK+T1_RESETLINK, 1);
+	t1outp(base, T1_FASTLINK + T1_RESETLINK, 1);
+	t1outp(base, T1_SLOWLINK + T1_RESETLINK, 1);
 	mdelay(100);
-	t1outp(base, T1_FASTLINK+T1_RESETLINK, 0);
-	t1outp(base, T1_SLOWLINK+T1_RESETLINK, 0);
+	t1outp(base, T1_FASTLINK + T1_RESETLINK, 0);
+	t1outp(base, T1_SLOWLINK + T1_RESETLINK, 0);
 	mdelay(10);
-	t1outp(base, T1_FASTLINK+T1_ANALYSE, 0);
+	t1outp(base, T1_FASTLINK + T1_ANALYSE, 0);
 	mdelay(5);
-	t1outp(base, T1_SLOWLINK+T1_ANALYSE, 0);
+	t1outp(base, T1_SLOWLINK + T1_ANALYSE, 0);
 
-	if (t1inp(base, T1_FASTLINK+T1_OUTSTAT) != 0x1) /* tx empty */
+	if (t1inp(base, T1_FASTLINK + T1_OUTSTAT) != 0x1) /* tx empty */
 		return 1;
-	if (t1inp(base, T1_FASTLINK+T1_INSTAT) != 0x0) /* rx empty */
+	if (t1inp(base, T1_FASTLINK + T1_INSTAT) != 0x0) /* rx empty */
 		return 2;
-	if (t1inp(base, T1_FASTLINK+T1_IRQENABLE) != 0x0)
+	if (t1inp(base, T1_FASTLINK + T1_IRQENABLE) != 0x0)
 		return 3;
-	if ((t1inp(base, T1_FASTLINK+T1_FIFOSTAT) & 0xf0) != 0x70)
+	if ((t1inp(base, T1_FASTLINK + T1_FIFOSTAT) & 0xf0) != 0x70)
 		return 4;
-	if ((t1inp(base, T1_FASTLINK+T1_IRQMASTER) & 0x0e) != 0)
+	if ((t1inp(base, T1_FASTLINK + T1_IRQMASTER) & 0x0e) != 0)
 		return 5;
-	if ((t1inp(base, T1_FASTLINK+T1_IDENT) & 0x7d) != 1)
+	if ((t1inp(base, T1_FASTLINK + T1_IDENT) & 0x7d) != 1)
 		return 6;
-	if (t1inp(base, T1_SLOWLINK+T1_OUTSTAT) != 0x1) /* tx empty */
+	if (t1inp(base, T1_SLOWLINK + T1_OUTSTAT) != 0x1) /* tx empty */
 		return 7;
-	if ((t1inp(base, T1_SLOWLINK+T1_IRQMASTER) & 0x0e) != 0)
+	if ((t1inp(base, T1_SLOWLINK + T1_IRQMASTER) & 0x0e) != 0)
 		return 8;
-	if ((t1inp(base, T1_SLOWLINK+T1_IDENT) & 0x7d) != 0)
+	if ((t1inp(base, T1_SLOWLINK + T1_IDENT) & 0x7d) != 0)
 		return 9;
-        return 0;
+	return 0;
 }
 
 static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
@@ -163,13 +163,13 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 			spin_unlock_irqrestore(&card->lock, flags);
 
 			if (MsgLen < 30) { /* not CAPI 64Bit */
-				memset(card->msgbuf+MsgLen, 0, 30-MsgLen);
+				memset(card->msgbuf + MsgLen, 0, 30 - MsgLen);
 				MsgLen = 30;
 				CAPIMSG_SETLEN(card->msgbuf, 30);
 			}
-			if (!(skb = alloc_skb(DataB3Len+MsgLen, GFP_ATOMIC))) {
+			if (!(skb = alloc_skb(DataB3Len + MsgLen, GFP_ATOMIC))) {
 				printk(KERN_ERR "%s: incoming packet dropped\n",
-					card->name);
+				       card->name);
 			} else {
 				memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
 				memcpy(skb_put(skb, DataB3Len), card->databuf, DataB3Len);
@@ -184,7 +184,7 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 			if (!(skb = alloc_skb(MsgLen, GFP_ATOMIC))) {
 				spin_unlock_irqrestore(&card->lock, flags);
 				printk(KERN_ERR "%s: incoming packet dropped\n",
-						card->name);
+				       card->name);
 			} else {
 				memcpy(skb_put(skb, MsgLen), card->msgbuf, MsgLen);
 				if (CAPIMSG_CMD(skb->data) == CAPI_DATA_B3)
@@ -242,24 +242,24 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 			MsgLen = t1_get_slice(card->port, card->msgbuf);
 			spin_unlock_irqrestore(&card->lock, flags);
 			card->msgbuf[MsgLen] = 0;
-			while (    MsgLen > 0
-			       && (   card->msgbuf[MsgLen-1] == '\n'
-				   || card->msgbuf[MsgLen-1] == '\r')) {
-				card->msgbuf[MsgLen-1] = 0;
+			while (MsgLen > 0
+			       && (card->msgbuf[MsgLen - 1] == '\n'
+				   || card->msgbuf[MsgLen - 1] == '\r')) {
+				card->msgbuf[MsgLen - 1] = 0;
 				MsgLen--;
 			}
 			printk(KERN_INFO "%s: task %d \"%s\" ready.\n",
-					card->name, ApplId, card->msgbuf);
+			       card->name, ApplId, card->msgbuf);
 			break;
 
 		case RECEIVE_DEBUGMSG:
 			MsgLen = t1_get_slice(card->port, card->msgbuf);
 			spin_unlock_irqrestore(&card->lock, flags);
 			card->msgbuf[MsgLen] = 0;
-			while (    MsgLen > 0
-			       && (   card->msgbuf[MsgLen-1] == '\n'
-				   || card->msgbuf[MsgLen-1] == '\r')) {
-				card->msgbuf[MsgLen-1] = 0;
+			while (MsgLen > 0
+			       && (card->msgbuf[MsgLen - 1] == '\n'
+				   || card->msgbuf[MsgLen - 1] == '\r')) {
+				card->msgbuf[MsgLen - 1] = 0;
 				MsgLen--;
 			}
 			printk(KERN_INFO "%s: DEBUG: %s\n", card->name, card->msgbuf);
@@ -273,7 +273,7 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 		default:
 			spin_unlock_irqrestore(&card->lock, flags);
 			printk(KERN_ERR "%s: b1_interrupt: 0x%x ???\n",
-					card->name, b1cmd);
+			       card->name, b1cmd);
 			return IRQ_NONE;
 		}
 	}
@@ -296,7 +296,7 @@ static int t1isa_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 	if ((retval = b1_load_t4file(card, &data->firmware))) {
 		b1_reset(port);
 		printk(KERN_ERR "%s: failed to load t4file!!\n",
-					card->name);
+		       card->name);
 		return retval;
 	}
 
@@ -304,7 +304,7 @@ static int t1isa_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 		if ((retval = b1_load_config(card, &data->configuration))) {
 			b1_reset(port);
 			printk(KERN_ERR "%s: failed to load config!!\n",
-					card->name);
+			       card->name);
 			return retval;
 		}
 	}
@@ -318,7 +318,7 @@ static int t1isa_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 	b1_setinterrupt(port, card->irq, card->cardtype);
 	b1_put_byte(port, SEND_INIT);
 	b1_put_word(port, CAPI_MAXAPPL);
-	b1_put_word(port, AVM_NCCI_PER_CHANNEL*30);
+	b1_put_word(port, AVM_NCCI_PER_CHANNEL * 30);
 	b1_put_word(port, ctrl->cnr - 1);
 	spin_unlock_irqrestore(&card->lock, flags);
 
@@ -347,7 +347,7 @@ static void t1isa_remove(struct pci_dev *pdev)
 {
 	avmctrl_info *cinfo = pci_get_drvdata(pdev);
 	avmcard *card;
-	
+
 	if (!cinfo)
 		return;
 
@@ -393,7 +393,7 @@ static int t1isa_probe(struct pci_dev *pdev, int cardnr)
 		printk(KERN_WARNING "t1isa: invalid port 0x%x.\n", card->port);
 		retval = -EINVAL;
 		goto err_free;
-        }
+	}
 	if (hema_irq_table[card->irq & 0xf] == 0) {
 		printk(KERN_WARNING "t1isa: irq %d not valid.\n", card->irq);
 		retval = -EINVAL;
@@ -412,7 +412,7 @@ static int t1isa_probe(struct pci_dev *pdev, int cardnr)
 		goto err_release_region;
 	}
 
-        if ((retval = t1_detectandinit(card->port, card->irq, card->cardnr)) != 0) {
+	if ((retval = t1_detectandinit(card->port, card->irq, card->cardnr)) != 0) {
 		printk(KERN_INFO "t1isa: NO card at 0x%x (%d)\n",
 		       card->port, retval);
 		retval = -ENODEV;
@@ -445,13 +445,13 @@ static int t1isa_probe(struct pci_dev *pdev, int cardnr)
 	pci_set_drvdata(pdev, cinfo);
 	return 0;
 
- err_free_irq:
+err_free_irq:
 	free_irq(card->irq, card);
- err_release_region:
+err_release_region:
 	release_region(card->port, AVMB1_PORTLEN);
- err_free:
+err_free:
 	b1_free_card(card);
- err:
+err:
 	return retval;
 }
 
@@ -555,7 +555,7 @@ static int __init t1isa_init(void)
 	if ((p = strchr(revision, ':')) != NULL && p[1]) {
 		strlcpy(rev, p + 2, 32);
 		if ((p = strchr(rev, '$')) != NULL && p > rev)
-		   *(p-1) = 0;
+			*(p - 1) = 0;
 	} else
 		strcpy(rev, "1.0");
 

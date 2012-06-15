@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,22 +69,9 @@
 #ifndef __iwl_commands_h__
 #define __iwl_commands_h__
 
-#include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
+#include <linux/types.h>
 
-struct iwl_priv;
-
-/* uCode version contains 4 values: Major/Minor/API/Serial */
-#define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
-#define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
-#define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
-#define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
-
-
-/* Tx rates */
-#define IWL_CCK_RATES	4
-#define IWL_OFDM_RATES	8
-#define IWL_MAX_RATES	(IWL_CCK_RATES + IWL_OFDM_RATES)
 
 enum {
 	REPLY_ALIVE = 0x1,
@@ -212,48 +199,6 @@ enum {
 
 /* iwl_cmd_header flags value */
 #define IWL_CMD_FAILED_MSK 0x40
-
-#define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
-#define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
-#define SEQ_TO_INDEX(s)	((s) & 0xff)
-#define INDEX_TO_SEQ(i)	((i) & 0xff)
-#define SEQ_RX_FRAME	cpu_to_le16(0x8000)
-
-/**
- * struct iwl_cmd_header
- *
- * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
- */
-struct iwl_cmd_header {
-	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
-	u8 flags;	/* 0:5 reserved, 6 abort, 7 internal */
-	/*
-	 * The driver sets up the sequence number to values of its choosing.
-	 * uCode does not use this value, but passes it back to the driver
-	 * when sending the response to each driver-originated command, so
-	 * the driver can match the response to the command.  Since the values
-	 * don't get used by uCode, the driver may set up an arbitrary format.
-	 *
-	 * There is one exception:  uCode sets bit 15 when it originates
-	 * the response/notification, i.e. when the response/notification
-	 * is not a direct response to a command sent by the driver.  For
-	 * example, uCode issues REPLY_RX when it sends a received frame
-	 * to the driver; it is not a direct response to any driver command.
-	 *
-	 * The Linux driver uses the following format:
-	 *
-	 *  0:7		tfd index - position within TX queue
-	 *  8:12	TX queue id
-	 *  13:14	reserved
-	 *  15		unsolicited RX or uCode-originated notification
-	 */
-	__le16 sequence;
-
-	/* command or response/notification data follows immediately */
-	u8 data[0];
-} __packed;
-
 
 /**
  * iwlagn rate_n_flags bit fields
@@ -1932,9 +1877,16 @@ struct iwl_bt_cmd {
 
 #define IWLAGN_BT3_T7_DEFAULT		1
 
+enum iwl_bt_kill_idx {
+	IWL_BT_KILL_DEFAULT = 0,
+	IWL_BT_KILL_OVERRIDE = 1,
+	IWL_BT_KILL_REDUCE = 2,
+};
+
 #define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffff0000)
 #define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffff0000)
 #define IWLAGN_BT_KILL_ACK_CTS_MASK_SCO	cpu_to_le32(0xffffffff)
+#define IWLAGN_BT_KILL_ACK_CTS_MASK_REDUCE	cpu_to_le32(0)
 
 #define IWLAGN_BT3_PRIO_SAMPLE_DEFAULT	2
 
@@ -1946,7 +1898,7 @@ struct iwl_bt_cmd {
 #define IWLAGN_BT_VALID_3W_TIMERS	cpu_to_le16(BIT(3))
 #define IWLAGN_BT_VALID_KILL_ACK_MASK	cpu_to_le16(BIT(4))
 #define IWLAGN_BT_VALID_KILL_CTS_MASK	cpu_to_le16(BIT(5))
-#define IWLAGN_BT_VALID_BT4_TIMES	cpu_to_le16(BIT(6))
+#define IWLAGN_BT_VALID_REDUCED_TX_PWR	cpu_to_le16(BIT(6))
 #define IWLAGN_BT_VALID_3W_LUT		cpu_to_le16(BIT(7))
 
 #define IWLAGN_BT_ALL_VALID_MSK		(IWLAGN_BT_VALID_ENABLE_FLAGS | \
@@ -1955,8 +1907,12 @@ struct iwl_bt_cmd {
 					IWLAGN_BT_VALID_3W_TIMERS | \
 					IWLAGN_BT_VALID_KILL_ACK_MASK | \
 					IWLAGN_BT_VALID_KILL_CTS_MASK | \
-					IWLAGN_BT_VALID_BT4_TIMES | \
+					IWLAGN_BT_VALID_REDUCED_TX_PWR | \
 					IWLAGN_BT_VALID_3W_LUT)
+
+#define IWLAGN_BT_REDUCED_TX_PWR	BIT(0)
+
+#define IWLAGN_BT_DECISION_LUT_SIZE	12
 
 struct iwl_basic_bt_cmd {
 	u8 flags;
@@ -1968,12 +1924,17 @@ struct iwl_basic_bt_cmd {
 	u8 bt3_prio_sample_time;
 	u8 bt3_timer_t2_value;
 	__le16 bt4_reaction_time; /* unused */
-	__le32 bt3_lookup_table[12];
-	__le16 bt4_decision_time; /* unused */
+	__le32 bt3_lookup_table[IWLAGN_BT_DECISION_LUT_SIZE];
+	/*
+	 * bit 0: use reduced tx power for control frame
+	 * bit 1 - 7: reserved
+	 */
+	u8 reduce_txpower;
+	u8 reserved;
 	__le16 valid;
 };
 
-struct iwl6000_bt_cmd {
+struct iwl_bt_cmd_v1 {
 	struct iwl_basic_bt_cmd basic;
 	u8 prio_boost;
 	/*
@@ -1984,7 +1945,7 @@ struct iwl6000_bt_cmd {
 	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
 };
 
-struct iwl2000_bt_cmd {
+struct iwl_bt_cmd_v2 {
 	struct iwl_basic_bt_cmd basic;
 	__le32 prio_boost;
 	/*
@@ -2317,7 +2278,6 @@ struct iwl_ssid_ie {
 #define IWL_GOOD_CRC_TH_DISABLED	0
 #define IWL_GOOD_CRC_TH_DEFAULT		cpu_to_le16(1)
 #define IWL_GOOD_CRC_TH_NEVER		cpu_to_le16(0xffff)
-#define IWL_MAX_SCAN_SIZE 1024
 #define IWL_MAX_CMD_SIZE 4096
 
 /*
@@ -3151,8 +3111,6 @@ struct iwl_enhance_sensitivity_cmd {
  */
 
 /* Phy calibration command for series */
-/* The default calibrate table size if not specified by firmware */
-#define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 enum {
 	IWL_PHY_CALIBRATE_DC_CMD		= 8,
 	IWL_PHY_CALIBRATE_LO_CMD		= 9,
@@ -3161,10 +3119,7 @@ enum {
 	IWL_PHY_CALIBRATE_BASE_BAND_CMD		= 16,
 	IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD	= 17,
 	IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD	= 18,
-	IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE	= 19,
 };
-
-#define IWL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
 
 /* This enum defines the bitmap of various calibrations to enable in both
  * init ucode and runtime ucode through CALIBRATION_CFG_CMD.
@@ -3694,6 +3649,9 @@ enum iwl_bt_coex_profile_traffic_load {
 		(0x3<<BT_UART_MSG_2_FRAME7RESERVED_POS)
 
 
+#define BT_ENABLE_REDUCED_TXPOWER_THRESHOLD	(-62)
+#define BT_DISABLE_REDUCED_TXPOWER_THRESHOLD	(-65)
+
 struct iwl_bt_uart_msg {
 	u8 header;
 	u8 frame1;
@@ -3904,50 +3862,6 @@ struct iwlagn_wowlan_kek_kck_material_cmd {
 	__le16	kek_len;
 	__le64	replay_ctr;
 } __packed;
-
-/******************************************************************************
- * (13)
- * Union of all expected notifications/responses:
- *
- *****************************************************************************/
-#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
-
-struct iwl_rx_packet {
-	/*
-	 * The first 4 bytes of the RX frame header contain both the RX frame
-	 * size and some flags.
-	 * Bit fields:
-	 * 31:    flag flush RB request
-	 * 30:    flag ignore TC (terminal counter) request
-	 * 29:    flag fast IRQ request
-	 * 28-14: Reserved
-	 * 13-00: RX frame size
-	 */
-	__le32 len_n_flags;
-	struct iwl_cmd_header hdr;
-	union {
-		struct iwl_alive_resp alive_frame;
-		struct iwl_spectrum_notification spectrum_notif;
-		struct iwl_csa_notification csa_notif;
-		struct iwl_error_resp err_resp;
-		struct iwl_card_state_notif card_state_notif;
-		struct iwl_add_sta_resp add_sta;
-		struct iwl_rem_sta_resp rem_sta;
-		struct iwl_sleep_notification sleep_notif;
-		struct iwl_spectrum_resp spectrum;
-		struct iwl_notif_statistics stats;
-		struct iwl_bt_notif_statistics stats_bt;
-		struct iwl_compressed_ba_resp compressed_ba;
-		struct iwl_missed_beacon_notif missed_beacon;
-		struct iwl_coex_medium_notification coex_medium_notif;
-		struct iwl_coex_event_resp coex_event;
-		struct iwl_bt_coex_profile_notif bt_coex_profile_notif;
-		__le32 status;
-		u8 raw[0];
-	} u;
-} __packed;
-
-int iwl_agn_check_rxon_cmd(struct iwl_priv *priv);
 
 /*
  * REPLY_WIPAN_PARAMS = 0xb2 (Commands and Notification)

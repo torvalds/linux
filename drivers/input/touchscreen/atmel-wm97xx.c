@@ -392,9 +392,10 @@ static int __exit atmel_wm97xx_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int atmel_wm97xx_suspend(struct platform_device *pdev, pm_message_t msg)
+#ifdef CONFIG_PM_SLEEP
+static int atmel_wm97xx_suspend(struct *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct atmel_wm97xx *atmel_wm97xx = platform_get_drvdata(pdev);
 
 	ac97c_writel(atmel_wm97xx, IDR, AC97C_INT_CBEVT);
@@ -404,8 +405,9 @@ static int atmel_wm97xx_suspend(struct platform_device *pdev, pm_message_t msg)
 	return 0;
 }
 
-static int atmel_wm97xx_resume(struct platform_device *pdev)
+static int atmel_wm97xx_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct atmel_wm97xx *atmel_wm97xx = platform_get_drvdata(pdev);
 	struct wm97xx *wm = atmel_wm97xx->wm;
 
@@ -416,18 +418,18 @@ static int atmel_wm97xx_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define atmel_wm97xx_suspend	NULL
-#define atmel_wm97xx_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(atmel_wm97xx_pm_ops,
+			 atmel_wm97xx_suspend, atmel_wm97xx_resume);
 
 static struct platform_driver atmel_wm97xx_driver = {
 	.remove		= __exit_p(atmel_wm97xx_remove),
 	.driver		= {
-		.name = "wm97xx-touch",
+		.name	= "wm97xx-touch",
+		.owner	= THIS_MODULE,
+		.pm	= &atmel_wm97xx_pm_ops,
 	},
-	.suspend	= atmel_wm97xx_suspend,
-	.resume		= atmel_wm97xx_resume,
 };
 
 static int __init atmel_wm97xx_init(void)

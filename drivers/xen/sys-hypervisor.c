@@ -97,7 +97,7 @@ static struct attribute *version_attrs[] = {
 	NULL
 };
 
-static struct attribute_group version_group = {
+static const struct attribute_group version_group = {
 	.name = "version",
 	.attrs = version_attrs,
 };
@@ -210,7 +210,7 @@ static struct attribute *xen_compile_attrs[] = {
 	NULL
 };
 
-static struct attribute_group xen_compilation_group = {
+static const struct attribute_group xen_compilation_group = {
 	.name = "compilation",
 	.attrs = xen_compile_attrs,
 };
@@ -340,7 +340,7 @@ static struct attribute *xen_properties_attrs[] = {
 	NULL
 };
 
-static struct attribute_group xen_properties_group = {
+static const struct attribute_group xen_properties_group = {
 	.name = "properties",
 	.attrs = xen_properties_attrs,
 };

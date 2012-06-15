@@ -396,7 +396,7 @@ static int svc_partial_recvfrom(struct svc_rqst *rqstp,
 				int buflen, unsigned int base)
 {
 	size_t save_iovlen;
-	void __user *save_iovbase;
+	void *save_iovbase;
 	unsigned int i;
 	int ret;
 
@@ -617,11 +617,8 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_prot = IPPROTO_UDP;
 
 	if (!svc_udp_get_dest_address(rqstp, cmh)) {
-		if (net_ratelimit())
-			printk(KERN_WARNING
-				"svc: received unknown control message %d/%d; "
-				"dropping RPC reply datagram\n",
-					cmh->cmsg_level, cmh->cmsg_type);
+		net_warn_ratelimited("svc: received unknown control message %d/%d; dropping RPC reply datagram\n",
+				     cmh->cmsg_level, cmh->cmsg_type);
 		skb_free_datagram_locked(svsk->sk_sk, skb);
 		return 0;
 	}
@@ -871,18 +868,17 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 		if (err == -ENOMEM)
 			printk(KERN_WARNING "%s: no more sockets!\n",
 			       serv->sv_name);
-		else if (err != -EAGAIN && net_ratelimit())
-			printk(KERN_WARNING "%s: accept failed (err %d)!\n",
-				   serv->sv_name, -err);
+		else if (err != -EAGAIN)
+			net_warn_ratelimited("%s: accept failed (err %d)!\n",
+					     serv->sv_name, -err);
 		return NULL;
 	}
 	set_bit(XPT_CONN, &svsk->sk_xprt.xpt_flags);
 
 	err = kernel_getpeername(newsock, sin, &slen);
 	if (err < 0) {
-		if (net_ratelimit())
-			printk(KERN_WARNING "%s: peername failed (err %d)!\n",
-				   serv->sv_name, -err);
+		net_warn_ratelimited("%s: peername failed (err %d)!\n",
+				     serv->sv_name, -err);
 		goto failed;		/* aborted connection or whatever */
 	}
 
@@ -1012,19 +1008,15 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 			 *  bit set in the fragment length header.
 			 *  But apparently no known nfs clients send fragmented
 			 *  records. */
-			if (net_ratelimit())
-				printk(KERN_NOTICE "RPC: multiple fragments "
-					"per record not supported\n");
+			net_notice_ratelimited("RPC: multiple fragments per record not supported\n");
 			goto err_delete;
 		}
 
 		svsk->sk_reclen &= RPC_FRAGMENT_SIZE_MASK;
 		dprintk("svc: TCP record, %d bytes\n", svsk->sk_reclen);
 		if (svsk->sk_reclen > serv->sv_max_mesg) {
-			if (net_ratelimit())
-				printk(KERN_NOTICE "RPC: "
-					"fragment too large: 0x%08lx\n",
-					(unsigned long)svsk->sk_reclen);
+			net_notice_ratelimited("RPC: fragment too large: 0x%08lx\n",
+					       (unsigned long)svsk->sk_reclen);
 			goto err_delete;
 		}
 	}
@@ -1381,8 +1373,6 @@ void svc_sock_update_bufs(struct svc_serv *serv)
 	spin_lock_bh(&serv->sv_lock);
 	list_for_each_entry(svsk, &serv->sv_permsocks, sk_xprt.xpt_list)
 		set_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags);
-	list_for_each_entry(svsk, &serv->sv_tempsocks, sk_xprt.xpt_list)
-		set_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags);
 	spin_unlock_bh(&serv->sv_lock);
 }
 EXPORT_SYMBOL_GPL(svc_sock_update_bufs);
@@ -1409,7 +1399,8 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 
 	/* Register socket with portmapper */
 	if (*errp >= 0 && pmap_register)
-		*errp = svc_register(serv, inet->sk_family, inet->sk_protocol,
+		*errp = svc_register(serv, sock_net(sock->sk), inet->sk_family,
+				     inet->sk_protocol,
 				     ntohs(inet_sk(inet)->inet_sport));
 
 	if (*errp < 0) {
@@ -1557,7 +1548,7 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 					(char *)&val, sizeof(val));
 
 	if (type == SOCK_STREAM)
-		sock->sk->sk_reuse = 1;		/* allow address reuse */
+		sock->sk->sk_reuse = SK_CAN_REUSE; /* allow address reuse */
 	error = kernel_bind(sock, sin, len);
 	if (error < 0)
 		goto bummer;

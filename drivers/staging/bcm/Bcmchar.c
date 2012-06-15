@@ -728,14 +728,10 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		if (IoBuffer.InputLength > MAX_CNTL_PKT_SIZE)
 			return -EINVAL;
 
-		pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
-		if (!pvBuffer)
-			return -ENOMEM;
-
-		if (copy_from_user(pvBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength)) {
-			kfree(pvBuffer);
-			return -EFAULT;
-		}
+		pvBuffer = memdup_user(IoBuffer.InputBuffer,
+				       IoBuffer.InputLength);
+		if (IS_ERR(pvBuffer))
+			return PTR_ERR(pvBuffer);
 
 		down(&Adapter->LowPowerModeSync);
 		Status = wait_event_interruptible_timeout(Adapter->lowpower_mode_wait_queue,
@@ -1140,15 +1136,10 @@ cntrlEnd:
 		if (IoBuffer.InputLength < sizeof(ULONG) * 2)
 			return -EINVAL;
 
-		pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
-		if (!pvBuffer)
-			return -ENOMEM;
-
-		/* Get WrmBuffer structure */
-		if (copy_from_user(pvBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength)) {
-			kfree(pvBuffer);
-			return -EFAULT;
-		}
+		pvBuffer = memdup_user(IoBuffer.InputBuffer,
+				       IoBuffer.InputLength);
+		if (IS_ERR(pvBuffer))
+			return PTR_ERR(pvBuffer);
 
 		pBulkBuffer = (PBULKWRM_BUFFER)pvBuffer;
 
@@ -1302,20 +1293,18 @@ cntrlEnd:
 		/*
 		 * Deny the access if the offset crosses the cal area limit.
 		 */
+		if (stNVMReadWrite.uiNumBytes > Adapter->uiNVMDSDSize)
+			return STATUS_FAILURE;
 
-		if ((stNVMReadWrite.uiOffset + stNVMReadWrite.uiNumBytes) > Adapter->uiNVMDSDSize) {
+		if (stNVMReadWrite.uiOffset > Adapter->uiNVMDSDSize - stNVMReadWrite.uiNumBytes) {
 			/* BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Can't allow access beyond NVM Size: 0x%x 0x%x\n", stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes); */
 			return STATUS_FAILURE;
 		}
 
-		pReadData = kzalloc(stNVMReadWrite.uiNumBytes, GFP_KERNEL);
-		if (!pReadData)
-			return -ENOMEM;
-
-		if (copy_from_user(pReadData, stNVMReadWrite.pBuffer, stNVMReadWrite.uiNumBytes)) {
-			kfree(pReadData);
-			return -EFAULT;
-		}
+		pReadData = memdup_user(stNVMReadWrite.pBuffer,
+					stNVMReadWrite.uiNumBytes);
+		if (IS_ERR(pReadData))
+			return PTR_ERR(pReadData);
 
 		do_gettimeofday(&tv0);
 		if (IOCTL_BCM_NVM_READ == cmd) {

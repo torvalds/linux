@@ -735,7 +735,7 @@ static void netdev_rx(struct net_device *dev)
 
 		if (status & RXDS_RXGD) {
 			data = ether->rdesc->recv_buf[ether->cur_rx];
-			skb = dev_alloc_skb(length+2);
+			skb = netdev_alloc_skb(dev, length + 2);
 			if (!skb) {
 				dev_err(&pdev->dev, "get skb buffer error\n");
 				ether->stats.rx_dropped++;

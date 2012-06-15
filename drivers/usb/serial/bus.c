@@ -60,8 +60,6 @@ static int usb_serial_device_probe(struct device *dev)
 		retval = -ENODEV;
 		goto exit;
 	}
-	if (port->dev_state != PORT_REGISTERING)
-		goto exit;
 
 	driver = port->serial->type;
 	if (driver->port_probe) {
@@ -98,9 +96,6 @@ static int usb_serial_device_remove(struct device *dev)
 	if (!port)
 		return -ENODEV;
 
-	if (port->dev_state != PORT_UNREGISTERING)
-		return retval;
-
 	device_remove_file(&port->dev, &dev_attr_port_number);
 
 	driver = port->serial->type;
@@ -129,8 +124,15 @@ static ssize_t store_new_id(struct device_driver *driver,
 	return retval;
 }
 
+static ssize_t show_dynids(struct device_driver *driver, char *buf)
+{
+	struct usb_serial_driver *usb_drv = to_usb_serial_driver(driver);
+
+	return usb_show_dynids(&usb_drv->dynids, buf);
+}
+
 static struct driver_attribute drv_attrs[] = {
-	__ATTR(new_id, S_IWUSR, NULL, store_new_id),
+	__ATTR(new_id, S_IRUGO | S_IWUSR, show_dynids, store_new_id),
 	__ATTR_NULL,
 };
 

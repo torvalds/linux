@@ -139,9 +139,35 @@ void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
 			     unsigned int *tlv);
 struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
-int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
-			unsigned int *tlv, const char * const *slaves);
+int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
+			  unsigned int *tlv, const char * const *slaves,
+			  const char *suffix, bool init_slave_vol,
+			  struct snd_kcontrol **ctl_ret);
+#define snd_hda_add_vmaster(codec, name, tlv, slaves, suffix) \
+	__snd_hda_add_vmaster(codec, name, tlv, slaves, suffix, true, NULL)
 int snd_hda_codec_reset(struct hda_codec *codec);
+
+enum {
+	HDA_VMUTE_OFF,
+	HDA_VMUTE_ON,
+	HDA_VMUTE_FOLLOW_MASTER,
+};
+
+struct hda_vmaster_mute_hook {
+	/* below two fields must be filled by the caller of
+	 * snd_hda_add_vmaster_hook() beforehand
+	 */
+	struct snd_kcontrol *sw_kctl;
+	void (*hook)(void *, int);
+	/* below are initialized automatically */
+	unsigned int mute_mode; /* HDA_VMUTE_XXX */
+	struct hda_codec *codec;
+};
+
+int snd_hda_add_vmaster_hook(struct hda_codec *codec,
+			     struct hda_vmaster_mute_hook *hook,
+			     bool expose_enum_ctl);
+void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook);
 
 /* amp value bits */
 #define HDA_AMP_MUTE	0x80
@@ -236,6 +262,8 @@ int snd_hda_input_mux_put(struct hda_codec *codec,
 			  const struct hda_input_mux *imux,
 			  struct snd_ctl_elem_value *ucontrol, hda_nid_t nid,
 			  unsigned int *cur_val);
+int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
+			  int index, int *type_index_ret);
 
 /*
  * Channel mode helper
@@ -367,72 +395,7 @@ struct hda_bus_unsolicited {
 	struct hda_bus *bus;
 };
 
-/*
- * Helper for automatic pin configuration
- */
-
-enum {
-	AUTO_PIN_MIC,
-	AUTO_PIN_LINE_IN,
-	AUTO_PIN_CD,
-	AUTO_PIN_AUX,
-	AUTO_PIN_LAST
-};
-
-enum {
-	AUTO_PIN_LINE_OUT,
-	AUTO_PIN_SPEAKER_OUT,
-	AUTO_PIN_HP_OUT
-};
-
-#define AUTO_CFG_MAX_OUTS	HDA_MAX_OUTS
-#define AUTO_CFG_MAX_INS	8
-
-struct auto_pin_cfg_item {
-	hda_nid_t pin;
-	int type;
-};
-
-struct auto_pin_cfg;
-const char *hda_get_autocfg_input_label(struct hda_codec *codec,
-					const struct auto_pin_cfg *cfg,
-					int input);
-int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
-			  const struct auto_pin_cfg *cfg,
-			  char *label, int maxlen, int *indexp);
-int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
-			  int index, int *type_index_ret);
-
-enum {
-	INPUT_PIN_ATTR_UNUSED,	/* pin not connected */
-	INPUT_PIN_ATTR_INT,	/* internal mic/line-in */
-	INPUT_PIN_ATTR_DOCK,	/* docking mic/line-in */
-	INPUT_PIN_ATTR_NORMAL,	/* mic/line-in jack */
-	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
-	INPUT_PIN_ATTR_REAR,	/* mic/line-in jack in rear */
-};
-
-int snd_hda_get_input_pin_attr(unsigned int def_conf);
-
-struct auto_pin_cfg {
-	int line_outs;
-	/* sorted in the order of Front/Surr/CLFE/Side */
-	hda_nid_t line_out_pins[AUTO_CFG_MAX_OUTS];
-	int speaker_outs;
-	hda_nid_t speaker_pins[AUTO_CFG_MAX_OUTS];
-	int hp_outs;
-	int line_out_type;	/* AUTO_PIN_XXX_OUT */
-	hda_nid_t hp_pins[AUTO_CFG_MAX_OUTS];
-	int num_inputs;
-	struct auto_pin_cfg_item inputs[AUTO_CFG_MAX_INS];
-	int dig_outs;
-	hda_nid_t dig_out_pins[2];
-	hda_nid_t dig_in_pin;
-	hda_nid_t mono_out_pin;
-	int dig_out_type[2]; /* HDA_PCM_TYPE_XXX */
-	int dig_in_type; /* HDA_PCM_TYPE_XXX */
-};
-
+/* helper macros to retrieve pin default-config values */
 #define get_defcfg_connect(cfg) \
 	((cfg & AC_DEFCFG_PORT_CONN) >> AC_DEFCFG_PORT_CONN_SHIFT)
 #define get_defcfg_association(cfg) \
@@ -445,19 +408,6 @@ struct auto_pin_cfg {
 	((cfg & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT)
 #define get_defcfg_misc(cfg) \
 	((cfg & AC_DEFCFG_MISC) >> AC_DEFCFG_MISC_SHIFT)
-
-/* bit-flags for snd_hda_parse_pin_def_config() behavior */
-#define HDA_PINCFG_NO_HP_FIXUP	(1 << 0) /* no HP-split */
-#define HDA_PINCFG_NO_LO_FIXUP	(1 << 1) /* don't take other outs as LO */
-
-int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
-			     struct auto_pin_cfg *cfg,
-			     const hda_nid_t *ignore_nids,
-			     unsigned int cond_flags);
-
-/* older function */
-#define snd_hda_parse_pin_def_config(codec, cfg, ignore) \
-	snd_hda_parse_pin_defcfg(codec, cfg, ignore, 0)
 
 /* amp values */
 #define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
@@ -475,6 +425,46 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 #define PIN_OUT			(AC_PINCTL_OUT_EN)
 #define PIN_HP			(AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN)
 #define PIN_HP_AMP		(AC_PINCTL_HP_EN)
+
+unsigned int snd_hda_get_default_vref(struct hda_codec *codec, hda_nid_t pin);
+int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
+			 unsigned int val, bool cached);
+
+/**
+ * _snd_hda_set_pin_ctl - Set a pin-control value safely
+ * @codec: the codec instance
+ * @pin: the pin NID to set the control
+ * @val: the pin-control value (AC_PINCTL_* bits)
+ *
+ * This function sets the pin-control value to the given pin, but
+ * filters out the invalid pin-control bits when the pin has no such
+ * capabilities.  For example, when PIN_HP is passed but the pin has no
+ * HP-drive capability, the HP bit is omitted.
+ *
+ * The function doesn't check the input VREF capability bits, though.
+ * Use snd_hda_get_default_vref() to guess the right value.
+ * Also, this function is only for analog pins, not for HDMI pins.
+ */
+static inline int
+snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin, unsigned int val)
+{
+	return _snd_hda_set_pin_ctl(codec, pin, val, false);
+}
+
+/**
+ * snd_hda_set_pin_ctl_cache - Set a pin-control value safely
+ * @codec: the codec instance
+ * @pin: the pin NID to set the control
+ * @val: the pin-control value (AC_PINCTL_* bits)
+ *
+ * Just like snd_hda_set_pin_ctl() but write to cache as well.
+ */
+static inline int
+snd_hda_set_pin_ctl_cache(struct hda_codec *codec, hda_nid_t pin,
+			  unsigned int val)
+{
+	return _snd_hda_set_pin_ctl(codec, pin, val, true);
+}
 
 /*
  * get widget capabilities

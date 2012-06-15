@@ -233,6 +233,7 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 	ret = __get_mtd_device(dev->mtd);
 	if (ret)
 		goto error_release;
+	dev->file_mode = mode;
 
 unlock:
 	dev->open++;

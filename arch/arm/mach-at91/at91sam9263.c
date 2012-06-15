@@ -12,9 +12,11 @@
 
 #include <linux/module.h>
 
+#include <asm/proc-fns.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/system_misc.h>
 #include <mach/at91sam9263.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_rstc.h>
@@ -197,6 +199,16 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_ID("pioC", &pioCDE_clk),
 	CLKDEV_CON_ID("pioD", &pioCDE_clk),
 	CLKDEV_CON_ID("pioE", &pioCDE_clk),
+	/* more usart lookup table for DT entries */
+	CLKDEV_CON_DEV_ID("usart", "ffffee00.serial", &mck),
+	CLKDEV_CON_DEV_ID("usart", "fff8c000.serial", &usart0_clk),
+	CLKDEV_CON_DEV_ID("usart", "fff90000.serial", &usart1_clk),
+	CLKDEV_CON_DEV_ID("usart", "fff94000.serial", &usart2_clk),
+	/* more tc lookup table for DT entries */
+	CLKDEV_CON_DEV_ID("t0_clk", "fff7c000.timer", &tcb_clk),
+	CLKDEV_CON_DEV_ID("hclk", "a00000.ohci", &ohci_clk),
+	CLKDEV_CON_DEV_ID("spi_clk", "fffa4000.spi", &spi0_clk),
+	CLKDEV_CON_DEV_ID("spi_clk", "fffa8000.spi", &spi1_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -253,18 +265,6 @@ static void __init at91sam9263_register_clocks(void)
 	clk_register(&pck3);
 }
 
-static struct clk_lookup console_clock_lookup;
-
-void __init at91sam9263_set_console_clock(int id)
-{
-	if (id >= ARRAY_SIZE(usart_clocks_lookups))
-		return;
-
-	console_clock_lookup.con_id = "usart";
-	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
-	clkdev_add(&console_clock_lookup);
-}
-
 /* --------------------------------------------------------------------
  *  GPIO
  * -------------------------------------------------------------------- */
@@ -302,13 +302,17 @@ static void __init at91sam9263_ioremap_registers(void)
 {
 	at91_ioremap_shdwc(AT91SAM9263_BASE_SHDWC);
 	at91_ioremap_rstc(AT91SAM9263_BASE_RSTC);
+	at91_ioremap_ramc(0, AT91SAM9263_BASE_SDRAMC0, 512);
+	at91_ioremap_ramc(1, AT91SAM9263_BASE_SDRAMC1, 512);
 	at91sam926x_ioremap_pit(AT91SAM9263_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91SAM9263_BASE_SMC0);
 	at91sam9_ioremap_smc(1, AT91SAM9263_BASE_SMC1);
+	at91_ioremap_matrix(AT91SAM9263_BASE_MATRIX);
 }
 
 static void __init at91sam9263_initialize(void)
 {
+	arm_pm_idle = at91sam9_idle;
 	arm_pm_restart = at91sam9_alt_restart;
 	at91_extern_irq = (1 << AT91SAM9263_ID_IRQ0) | (1 << AT91SAM9263_ID_IRQ1);
 

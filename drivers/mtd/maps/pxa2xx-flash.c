@@ -98,7 +98,8 @@ static int __devinit pxa2xx_flash_probe(struct platform_device *pdev)
 	}
 	info->mtd->owner = THIS_MODULE;
 
-	mtd_device_parse_register(info->mtd, probes, 0, flash->parts, flash->nr_parts);
+	mtd_device_parse_register(info->mtd, probes, NULL, flash->parts,
+				  flash->nr_parts);
 
 	platform_set_drvdata(pdev, info);
 	return 0;

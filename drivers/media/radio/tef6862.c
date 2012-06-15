@@ -211,24 +211,12 @@ static struct i2c_driver tef6862_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= tef6862_probe,
-	.remove		= tef6862_remove,
+	.remove		= __devexit_p(tef6862_remove),
 	.id_table	= tef6862_id,
 };
 
-static __init int tef6862_init(void)
-{
-	return i2c_add_driver(&tef6862_driver);
-}
-
-static __exit void tef6862_exit(void)
-{
-	i2c_del_driver(&tef6862_driver);
-}
-
-module_init(tef6862_init);
-module_exit(tef6862_exit);
+module_i2c_driver(tef6862_driver);
 
 MODULE_DESCRIPTION("TEF6862 Car Radio Enhanced Selectivity Tuner");
 MODULE_AUTHOR("Mocean Laboratories");
 MODULE_LICENSE("GPL v2");
-

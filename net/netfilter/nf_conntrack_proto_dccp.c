@@ -423,7 +423,7 @@ static bool dccp_invert_tuple(struct nf_conntrack_tuple *inv,
 }
 
 static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff)
+		     unsigned int dataoff, unsigned int *timeouts)
 {
 	struct net *net = nf_ct_net(ct);
 	struct dccp_net *dn;
@@ -472,12 +472,17 @@ static u64 dccp_ack_seq(const struct dccp_hdr *dh)
 		     ntohl(dhack->dccph_ack_nr_low);
 }
 
+static unsigned int *dccp_get_timeouts(struct net *net)
+{
+	return dccp_pernet(net)->dccp_timeout;
+}
+
 static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       u_int8_t pf, unsigned int hooknum)
+		       u_int8_t pf, unsigned int hooknum,
+		       unsigned int *timeouts)
 {
 	struct net *net = nf_ct_net(ct);
-	struct dccp_net *dn;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
 	u_int8_t type, old_state, new_state;
@@ -559,8 +564,7 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 	if (new_state != old_state)
 		nf_conntrack_event_cache(IPCT_PROTOINFO, ct);
 
-	dn = dccp_pernet(net);
-	nf_ct_refresh_acct(ct, ctinfo, skb, dn->dccp_timeout[new_state]);
+	nf_ct_refresh_acct(ct, ctinfo, skb, timeouts[new_state]);
 
 	return NF_ACCEPT;
 }
@@ -639,11 +643,12 @@ static int dccp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_DCCP | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
-	NLA_PUT_U8(skb, CTA_PROTOINFO_DCCP_STATE, ct->proto.dccp.state);
-	NLA_PUT_U8(skb, CTA_PROTOINFO_DCCP_ROLE,
-		   ct->proto.dccp.role[IP_CT_DIR_ORIGINAL]);
-	NLA_PUT_BE64(skb, CTA_PROTOINFO_DCCP_HANDSHAKE_SEQ,
-		     cpu_to_be64(ct->proto.dccp.handshake_seq));
+	if (nla_put_u8(skb, CTA_PROTOINFO_DCCP_STATE, ct->proto.dccp.state) ||
+	    nla_put_u8(skb, CTA_PROTOINFO_DCCP_ROLE,
+		       ct->proto.dccp.role[IP_CT_DIR_ORIGINAL]) ||
+	    nla_put_be64(skb, CTA_PROTOINFO_DCCP_HANDSHAKE_SEQ,
+			 cpu_to_be64(ct->proto.dccp.handshake_seq)))
+		goto nla_put_failure;
 	nla_nest_end(skb, nest_parms);
 	spin_unlock_bh(&ct->lock);
 	return 0;
@@ -702,7 +707,60 @@ static int dccp_nlattr_size(void)
 	return nla_total_size(0)	/* CTA_PROTOINFO_DCCP */
 		+ nla_policy_len(dccp_nla_policy, CTA_PROTOINFO_DCCP_MAX + 1);
 }
+
 #endif
+
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_cttimeout.h>
+
+static int dccp_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+{
+	struct dccp_net *dn = dccp_pernet(&init_net);
+	unsigned int *timeouts = data;
+	int i;
+
+	/* set default DCCP timeouts. */
+	for (i=0; i<CT_DCCP_MAX; i++)
+		timeouts[i] = dn->dccp_timeout[i];
+
+	/* there's a 1:1 mapping between attributes and protocol states. */
+	for (i=CTA_TIMEOUT_DCCP_UNSPEC+1; i<CTA_TIMEOUT_DCCP_MAX+1; i++) {
+		if (tb[i]) {
+			timeouts[i] = ntohl(nla_get_be32(tb[i])) * HZ;
+		}
+	}
+	return 0;
+}
+
+static int
+dccp_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
+{
+        const unsigned int *timeouts = data;
+	int i;
+
+	for (i=CTA_TIMEOUT_DCCP_UNSPEC+1; i<CTA_TIMEOUT_DCCP_MAX+1; i++) {
+		if (nla_put_be32(skb, i, htonl(timeouts[i] / HZ)))
+			goto nla_put_failure;
+	}
+	return 0;
+
+nla_put_failure:
+	return -ENOSPC;
+}
+
+static const struct nla_policy
+dccp_timeout_nla_policy[CTA_TIMEOUT_DCCP_MAX+1] = {
+	[CTA_TIMEOUT_DCCP_REQUEST]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_DCCP_RESPOND]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_DCCP_PARTOPEN]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_DCCP_OPEN]		= { .type = NLA_U32 },
+	[CTA_TIMEOUT_DCCP_CLOSEREQ]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_DCCP_CLOSING]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_DCCP_TIMEWAIT]	= { .type = NLA_U32 },
+};
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 
 #ifdef CONFIG_SYSCTL
 /* template, data assigned later */
@@ -767,6 +825,7 @@ static struct nf_conntrack_l4proto dccp_proto4 __read_mostly = {
 	.invert_tuple		= dccp_invert_tuple,
 	.new			= dccp_new,
 	.packet			= dccp_packet,
+	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
@@ -779,6 +838,15 @@ static struct nf_conntrack_l4proto dccp_proto4 __read_mostly = {
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= dccp_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= dccp_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_DCCP_MAX,
+		.obj_size	= sizeof(unsigned int) * CT_DCCP_MAX,
+		.nla_policy	= dccp_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 };
 
 static struct nf_conntrack_l4proto dccp_proto6 __read_mostly = {
@@ -789,6 +857,7 @@ static struct nf_conntrack_l4proto dccp_proto6 __read_mostly = {
 	.invert_tuple		= dccp_invert_tuple,
 	.new			= dccp_new,
 	.packet			= dccp_packet,
+	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
@@ -801,6 +870,15 @@ static struct nf_conntrack_l4proto dccp_proto6 __read_mostly = {
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= dccp_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= dccp_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_DCCP_MAX,
+		.obj_size	= sizeof(unsigned int) * CT_DCCP_MAX,
+		.nla_policy	= dccp_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 };
 
 static __net_init int dccp_net_init(struct net *net)
@@ -832,8 +910,8 @@ static __net_init int dccp_net_init(struct net *net)
 	dn->sysctl_table[6].data = &dn->dccp_timeout[CT_DCCP_TIMEWAIT];
 	dn->sysctl_table[7].data = &dn->dccp_loose;
 
-	dn->sysctl_header = register_net_sysctl_table(net,
-			nf_net_netfilter_sysctl_path, dn->sysctl_table);
+	dn->sysctl_header = register_net_sysctl(net, "net/netfilter",
+						dn->sysctl_table);
 	if (!dn->sysctl_header) {
 		kfree(dn->sysctl_table);
 		return -ENOMEM;

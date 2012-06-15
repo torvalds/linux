@@ -1221,12 +1221,13 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 	ret_size = atomic_read(&chip->data_pending);
 	atomic_set(&chip->data_pending, 0);
 	if (ret_size > 0) {	/* relay data */
+		ssize_t orig_ret_size = ret_size;
 		if (size < ret_size)
 			ret_size = size;
 
 		mutex_lock(&chip->buffer_mutex);
 		rc = copy_to_user(buf, chip->data_buffer, ret_size);
-		memset(chip->data_buffer, 0, ret_size);
+		memset(chip->data_buffer, 0, orig_ret_size);
 		if (rc)
 			ret_size = -EFAULT;
 

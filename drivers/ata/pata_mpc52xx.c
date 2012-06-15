@@ -687,11 +687,11 @@ mpc52xx_ata_probe(struct platform_device *op)
 	int ata_irq = 0;
 	struct mpc52xx_ata __iomem *ata_regs;
 	struct mpc52xx_ata_priv *priv = NULL;
-	int rv, ret, task_irq = 0;
+	int rv, task_irq;
 	int mwdma_mask = 0, udma_mask = 0;
 	const __be32 *prop;
 	int proplen;
-	struct bcom_task *dmatsk = NULL;
+	struct bcom_task *dmatsk;
 
 	/* Get ipb frequency */
 	ipb_freq = mpc5xxx_get_bus_frequency(op->dev.of_node);
@@ -717,8 +717,7 @@ mpc52xx_ata_probe(struct platform_device *op)
 	ata_regs = devm_ioremap(&op->dev, res_mem.start, sizeof(*ata_regs));
 	if (!ata_regs) {
 		dev_err(&op->dev, "error mapping device registers\n");
-		rv = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	/*
@@ -753,7 +752,7 @@ mpc52xx_ata_probe(struct platform_device *op)
 	if (!priv) {
 		dev_err(&op->dev, "error allocating private structure\n");
 		rv = -ENOMEM;
-		goto err;
+		goto err1;
 	}
 
 	priv->ipb_period = 1000000000 / (ipb_freq / 1000);
@@ -776,15 +775,15 @@ mpc52xx_ata_probe(struct platform_device *op)
 	if (!dmatsk) {
 		dev_err(&op->dev, "bestcomm initialization failed\n");
 		rv = -ENOMEM;
-		goto err;
+		goto err1;
 	}
 
 	task_irq = bcom_get_task_irq(dmatsk);
-	ret = request_irq(task_irq, &mpc52xx_ata_task_irq, 0,
+	rv = devm_request_irq(&op->dev, task_irq, &mpc52xx_ata_task_irq, 0,
 				"ATA task", priv);
-	if (ret) {
+	if (rv) {
 		dev_err(&op->dev, "error requesting DMA IRQ\n");
-		goto err;
+		goto err2;
 	}
 	priv->dmatsk = dmatsk;
 
@@ -792,7 +791,7 @@ mpc52xx_ata_probe(struct platform_device *op)
 	rv = mpc52xx_ata_hw_init(priv);
 	if (rv) {
 		dev_err(&op->dev, "error initializing hardware\n");
-		goto err;
+		goto err2;
 	}
 
 	/* Register ourselves to libata */
@@ -800,23 +799,16 @@ mpc52xx_ata_probe(struct platform_device *op)
 				  mwdma_mask, udma_mask);
 	if (rv) {
 		dev_err(&op->dev, "error registering with ATA layer\n");
-		goto err;
+		goto err2;
 	}
 
 	return 0;
 
- err:
-	devm_release_mem_region(&op->dev, res_mem.start, sizeof(*ata_regs));
-	if (ata_irq)
-		irq_dispose_mapping(ata_irq);
-	if (task_irq)
-		irq_dispose_mapping(task_irq);
-	if (dmatsk)
-		bcom_ata_release(dmatsk);
-	if (ata_regs)
-		devm_iounmap(&op->dev, ata_regs);
-	if (priv)
-		devm_kfree(&op->dev, priv);
+ err2:
+	irq_dispose_mapping(task_irq);
+	bcom_ata_release(dmatsk);
+ err1:
+	irq_dispose_mapping(ata_irq);
 	return rv;
 }
 
@@ -834,12 +826,6 @@ mpc52xx_ata_remove(struct platform_device *op)
 	irq_dispose_mapping(task_irq);
 	bcom_ata_release(priv->dmatsk);
 	irq_dispose_mapping(priv->ata_irq);
-
-	/* Clear up IO allocations */
-	devm_iounmap(&op->dev, priv->ata_regs);
-	devm_release_mem_region(&op->dev, priv->ata_regs_pa,
-				sizeof(*priv->ata_regs));
-	devm_kfree(&op->dev, priv);
 
 	return 0;
 }

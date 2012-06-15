@@ -30,7 +30,6 @@
 #include <linux/module.h>
 
 #include <linux/string.h>
-#include <asm/system.h>
 
 #ifdef __HAVE_ARCH_MEMCPY
 #ifndef CONFIG_OPT_LIB_FUNCTION

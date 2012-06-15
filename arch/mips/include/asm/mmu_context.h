@@ -37,12 +37,6 @@ extern void tlbmiss_handler_setup_pgd(unsigned long pgd);
 		write_c0_xcontext((unsigned long) smp_processor_id() << 51); \
 	} while (0)
 
-
-static inline unsigned long get_current_pgd(void)
-{
-	return PHYS_TO_XKSEG_CACHED((read_c0_context() >> 11) & ~0xfffUL);
-}
-
 #else /* CONFIG_MIPS_PGD_C0_CONTEXT: using  pgd_current*/
 
 /*

@@ -63,6 +63,7 @@ enum {
 	NFS_LAYOUT_BULK_RECALL,		/* bulk recall affecting layout */
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
 	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
+	NFS_LAYOUT_INVALID,		/* layout is being destroyed */
 };
 
 enum layoutdriver_policy_flags {
@@ -94,12 +95,20 @@ struct pnfs_layoutdriver_type {
 	const struct nfs_pageio_ops *pg_read_ops;
 	const struct nfs_pageio_ops *pg_write_ops;
 
-	/* Returns true if layoutdriver wants to divert this request to
-	 * driver's commit routine.
-	 */
-	bool (*mark_pnfs_commit)(struct pnfs_layout_segment *lseg);
-	struct list_head * (*choose_commit_list) (struct nfs_page *req);
-	int (*commit_pagelist)(struct inode *inode, struct list_head *mds_pages, int how);
+	struct pnfs_ds_commit_info *(*get_ds_info) (struct inode *inode);
+	void (*mark_request_commit) (struct nfs_page *req,
+				     struct pnfs_layout_segment *lseg,
+				     struct nfs_commit_info *cinfo);
+	void (*clear_request_commit) (struct nfs_page *req,
+				      struct nfs_commit_info *cinfo);
+	int (*scan_commit_lists) (struct nfs_commit_info *cinfo,
+				  int max);
+	void (*recover_commit_reqs) (struct list_head *list,
+				     struct nfs_commit_info *cinfo);
+	int (*commit_pagelist)(struct inode *inode,
+			       struct list_head *mds_pages,
+			       int how,
+			       struct nfs_commit_info *cinfo);
 
 	/*
 	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
@@ -169,8 +178,10 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 void get_layout_hdr(struct pnfs_layout_hdr *lo);
 void put_lseg(struct pnfs_layout_segment *lseg);
 
-bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *);
-bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *, int);
+bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
+			   const struct nfs_pgio_completion_ops *);
+bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *,
+			    int, const struct nfs_pgio_completion_ops *);
 
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
 void unset_pnfs_layoutdriver(struct nfs_server *);
@@ -212,6 +223,11 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       gfp_t gfp_flags);
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
+int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head,
+			const struct nfs_pgio_completion_ops *compl_ops);
+int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head,
+			const struct nfs_pgio_completion_ops *compl_ops);
+struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 
 /* nfs4_deviceid_flags */
 enum {
@@ -229,7 +245,6 @@ struct nfs4_deviceid_node {
 	atomic_t			ref;
 };
 
-void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
 struct nfs4_deviceid_node *nfs4_find_get_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
 void nfs4_delete_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
 void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
@@ -262,49 +277,67 @@ static inline int pnfs_enabled_sb(struct nfs_server *nfss)
 	return nfss->pnfs_curr_ld != NULL;
 }
 
-static inline void
-pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
+static inline int
+pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how,
+		 struct nfs_commit_info *cinfo)
 {
-	if (lseg) {
-		struct pnfs_layoutdriver_type *ld;
+	if (cinfo->ds == NULL || cinfo->ds->ncommitting == 0)
+		return PNFS_NOT_ATTEMPTED;
+	return NFS_SERVER(inode)->pnfs_curr_ld->commit_pagelist(inode, mds_pages, how, cinfo);
+}
 
-		ld = NFS_SERVER(req->wb_page->mapping->host)->pnfs_curr_ld;
-		if (ld->mark_pnfs_commit && ld->mark_pnfs_commit(lseg)) {
-			set_bit(PG_PNFS_COMMIT, &req->wb_flags);
-			req->wb_commit_lseg = get_lseg(lseg);
-		}
-	}
+static inline struct pnfs_ds_commit_info *
+pnfs_get_ds_info(struct inode *inode)
+{
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
+
+	if (ld == NULL || ld->get_ds_info == NULL)
+		return NULL;
+	return ld->get_ds_info(inode);
+}
+
+static inline bool
+pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
+			 struct nfs_commit_info *cinfo)
+{
+	struct inode *inode = req->wb_context->dentry->d_inode;
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
+
+	if (lseg == NULL || ld->mark_request_commit == NULL)
+		return false;
+	ld->mark_request_commit(req, lseg, cinfo);
+	return true;
+}
+
+static inline bool
+pnfs_clear_request_commit(struct nfs_page *req, struct nfs_commit_info *cinfo)
+{
+	struct inode *inode = req->wb_context->dentry->d_inode;
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
+
+	if (ld == NULL || ld->clear_request_commit == NULL)
+		return false;
+	ld->clear_request_commit(req, cinfo);
+	return true;
 }
 
 static inline int
-pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how)
+pnfs_scan_commit_lists(struct inode *inode, struct nfs_commit_info *cinfo,
+		       int max)
 {
-	if (!test_and_clear_bit(NFS_INO_PNFS_COMMIT, &NFS_I(inode)->flags))
-		return PNFS_NOT_ATTEMPTED;
-	return NFS_SERVER(inode)->pnfs_curr_ld->commit_pagelist(inode, mds_pages, how);
+	if (cinfo->ds == NULL || cinfo->ds->nwritten == 0)
+		return 0;
+	else
+		return NFS_SERVER(inode)->pnfs_curr_ld->scan_commit_lists(cinfo, max);
 }
 
-static inline struct list_head *
-pnfs_choose_commit_list(struct nfs_page *req, struct list_head *mds)
+static inline void
+pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
+			 struct nfs_commit_info *cinfo)
 {
-	struct list_head *rv;
-
-	if (test_and_clear_bit(PG_PNFS_COMMIT, &req->wb_flags)) {
-		struct inode *inode = req->wb_commit_lseg->pls_layout->plh_inode;
-
-		set_bit(NFS_INO_PNFS_COMMIT, &NFS_I(inode)->flags);
-		rv = NFS_SERVER(inode)->pnfs_curr_ld->choose_commit_list(req);
-		/* matched by ref taken when PG_PNFS_COMMIT is set */
-		put_lseg(req->wb_commit_lseg);
-	} else
-		rv = mds;
-	return rv;
-}
-
-static inline void pnfs_clear_request_commit(struct nfs_page *req)
-{
-	if (test_and_clear_bit(PG_PNFS_COMMIT, &req->wb_flags))
-		put_lseg(req->wb_commit_lseg);
+	if (cinfo->ds == NULL || cinfo->ds->nwritten == 0)
+		return;
+	NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
 }
 
 /* Should the pNFS client commit and return the layout upon a setattr */
@@ -328,6 +361,21 @@ static inline int pnfs_return_layout(struct inode *ino)
 	return 0;
 }
 
+static inline bool
+pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
+		   struct nfs_server *nfss)
+{
+	return (dst && src && src->bm != 0 &&
+					nfss->pnfs_curr_ld->id == src->l_type);
+}
+
+#ifdef NFS_DEBUG
+void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
+#else
+static inline void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id)
+{
+}
+#endif /* NFS_DEBUG */
 #else  /* CONFIG_NFS_V4_1 */
 
 static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)
@@ -390,34 +438,54 @@ static inline void unset_pnfs_layoutdriver(struct nfs_server *s)
 {
 }
 
-static inline bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
+static inline bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
+					 const struct nfs_pgio_completion_ops *compl_ops)
 {
 	return false;
 }
 
-static inline bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags)
+static inline bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags,
+					  const struct nfs_pgio_completion_ops *compl_ops)
 {
 	return false;
-}
-
-static inline void
-pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
-{
 }
 
 static inline int
-pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how)
+pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how,
+		 struct nfs_commit_info *cinfo)
 {
 	return PNFS_NOT_ATTEMPTED;
 }
 
-static inline struct list_head *
-pnfs_choose_commit_list(struct nfs_page *req, struct list_head *mds)
+static inline struct pnfs_ds_commit_info *
+pnfs_get_ds_info(struct inode *inode)
 {
-	return mds;
+	return NULL;
 }
 
-static inline void pnfs_clear_request_commit(struct nfs_page *req)
+static inline bool
+pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
+			 struct nfs_commit_info *cinfo)
+{
+	return false;
+}
+
+static inline bool
+pnfs_clear_request_commit(struct nfs_page *req, struct nfs_commit_info *cinfo)
+{
+	return false;
+}
+
+static inline int
+pnfs_scan_commit_lists(struct inode *inode, struct nfs_commit_info *cinfo,
+		       int max)
+{
+	return 0;
+}
+
+static inline void
+pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
+			 struct nfs_commit_info *cinfo)
 {
 }
 
@@ -426,9 +494,18 @@ static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	return 0;
 }
 
-static inline void nfs4_deviceid_purge_client(struct nfs_client *ncl)
+static inline bool
+pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
+		   struct nfs_server *nfss)
 {
+	return false;
 }
+
+static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
+{
+	return NULL;
+}
+
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* FS_NFS_PNFS_H */

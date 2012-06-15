@@ -22,7 +22,6 @@
 #include <linux/of_net.h>
 #include <asm/tsi108.h>
 
-#include <asm/system.h>
 #include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/irq.h>

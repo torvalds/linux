@@ -13,6 +13,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
+#include <asm/psr.h>
 
 extern void arch_local_irq_restore(unsigned long);
 extern unsigned long arch_local_irq_save(void);

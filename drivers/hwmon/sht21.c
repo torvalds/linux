@@ -261,28 +261,7 @@ static struct i2c_driver sht21_driver = {
 	.id_table    = sht21_id,
 };
 
-/**
- * sht21_init() - initialize driver
- *
- * Called when kernel is booted or module is inserted.
- * Returns 0 on success.
- */
-static int __init sht21_init(void)
-{
-	return i2c_add_driver(&sht21_driver);
-}
-module_init(sht21_init);
-
-/**
- * sht21_init() - clean up driver
- *
- * Called when module is removed.
- */
-static void __exit sht21_exit(void)
-{
-	i2c_del_driver(&sht21_driver);
-}
-module_exit(sht21_exit);
+module_i2c_driver(sht21_driver);
 
 MODULE_AUTHOR("Urs Fleisch <urs.fleisch@sensirion.com>");
 MODULE_DESCRIPTION("Sensirion SHT21 humidity and temperature sensor driver");

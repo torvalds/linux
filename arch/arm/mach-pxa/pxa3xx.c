@@ -31,6 +31,7 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/smemc.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -89,6 +90,7 @@ static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_mmc2, "pxa2xx-mci.1", NULL),
 	INIT_CLKREG(&clk_pxa3xx_smemc, "pxa2xx-pcmcia", NULL),
 	INIT_CLKREG(&clk_pxa3xx_gpio, "pxa-gpio", NULL),
+	INIT_CLKREG(&clk_dummy, "sa1100-rtc", NULL),
 };
 
 #ifdef CONFIG_PM

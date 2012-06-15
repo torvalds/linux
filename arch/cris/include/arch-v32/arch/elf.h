@@ -1,6 +1,8 @@
 #ifndef _ASM_CRIS_ELF_H
 #define _ASM_CRIS_ELF_H
 
+#include <arch/system.h>
+
 #define ELF_CORE_EFLAGS EF_CRIS_VARIANT_V32
 
 /*

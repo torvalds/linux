@@ -22,8 +22,8 @@
 #include <linux/sysfs.h>
 
 #include "iio_dummy_evgen.h"
-#include "iio.h"
-#include "sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 /* Fiddly bit of faking and irq without hardware */
 #define IIO_EVENTGEN_NO 10
@@ -32,7 +32,7 @@
  * @chip: irq chip we are faking
  * @base: base of irq range
  * @enabled: mask of which irqs are enabled
- * @inuse: mask of which irqs actually have anyone connected
+ * @inuse: mask of which irqs are connected
  * @lock: protect the evgen state
  */
 struct iio_dummy_eventgen {

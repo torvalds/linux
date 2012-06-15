@@ -31,7 +31,6 @@
 #include <hwregs/gio_defs.h>
 #include <hwregs/intr_vect_defs.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/pinmux.h>
 

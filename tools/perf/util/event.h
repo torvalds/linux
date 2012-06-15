@@ -81,6 +81,7 @@ struct perf_sample {
 	u32 raw_size;
 	void *raw_data;
 	struct ip_callchain *callchain;
+	struct branch_stack *branch_stack;
 };
 
 #define BUILD_ID_SIZE 20

@@ -16,4 +16,6 @@
  */
 #define AT_SYSINFO_EHDR		33
 
+#define AT_VECTOR_SIZE_ARCH 6 /* entries in ARCH_DLINFO */
+
 #endif

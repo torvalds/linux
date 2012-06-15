@@ -15,6 +15,7 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/system_misc.h>
 #include <mach/at91rm9200.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_st.h>
@@ -24,15 +25,6 @@
 #include "generic.h"
 #include "clock.h"
 #include "sam9_smc.h"
-
-static struct map_desc at91rm9200_io_desc[] __initdata = {
-	{
-		.virtual	= AT91_VA_BASE_EMAC,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_EMAC),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	},
-};
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -257,18 +249,6 @@ static void __init at91rm9200_register_clocks(void)
 	clk_register(&pck3);
 }
 
-static struct clk_lookup console_clock_lookup;
-
-void __init at91rm9200_set_console_clock(int id)
-{
-	if (id >= ARRAY_SIZE(usart_clocks_lookups))
-		return;
-
-	console_clock_lookup.con_id = "usart";
-	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
-	clkdev_add(&console_clock_lookup);
-}
-
 /* --------------------------------------------------------------------
  *  GPIO
  * -------------------------------------------------------------------- */
@@ -289,13 +269,22 @@ static struct at91_gpio_bank at91rm9200_gpio[] __initdata = {
 	}
 };
 
+static void at91rm9200_idle(void)
+{
+	/*
+	 * Disable the processor clock.  The processor will be automatically
+	 * re-enabled by an interrupt or by a reset.
+	 */
+	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+}
+
 static void at91rm9200_restart(char mode, const char *cmd)
 {
 	/*
 	 * Perform a hardware reset with the use of the Watchdog timer.
 	 */
-	at91_sys_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
-	at91_sys_write(AT91_ST_CR, AT91_ST_WDRST);
+	at91_st_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
+	at91_st_write(AT91_ST_CR, AT91_ST_WDRST);
 }
 
 /* --------------------------------------------------------------------
@@ -305,15 +294,17 @@ static void __init at91rm9200_map_io(void)
 {
 	/* Map peripherals */
 	at91_init_sram(0, AT91RM9200_SRAM_BASE, AT91RM9200_SRAM_SIZE);
-	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
 }
 
 static void __init at91rm9200_ioremap_registers(void)
 {
+	at91rm9200_ioremap_st(AT91RM9200_BASE_ST);
+	at91_ioremap_ramc(0, AT91RM9200_BASE_MC, 256);
 }
 
 static void __init at91rm9200_initialize(void)
 {
+	arm_pm_idle = at91rm9200_idle;
 	arm_pm_restart = at91rm9200_restart;
 	at91_extern_irq = (1 << AT91RM9200_ID_IRQ0) | (1 << AT91RM9200_ID_IRQ1)
 			| (1 << AT91RM9200_ID_IRQ2) | (1 << AT91RM9200_ID_IRQ3)

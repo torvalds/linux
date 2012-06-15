@@ -13,9 +13,6 @@
 
 #include <mach/addr-map.h>
 
-#define APBC_VIRT_BASE	(APB_VIRT_BASE + 0x015000)
-#define APBC_REG(x)	(APBC_VIRT_BASE + (x))
-
 /*
  * APB clock register offsets for PXA168
  */
@@ -57,6 +54,7 @@
 #define APBC_PXA910_SSP1	APBC_REG(0x01c)
 #define APBC_PXA910_SSP2	APBC_REG(0x020)
 #define APBC_PXA910_IPC		APBC_REG(0x024)
+#define APBC_PXA910_RTC		APBC_REG(0x028)
 #define APBC_PXA910_TWSI0	APBC_REG(0x02c)
 #define APBC_PXA910_KPC		APBC_REG(0x030)
 #define APBC_PXA910_TIMERS	APBC_REG(0x034)

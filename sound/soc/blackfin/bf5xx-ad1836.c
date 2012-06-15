@@ -40,20 +40,8 @@ static int bf5xx_ad1836_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	unsigned int channel_map[] = {0, 4, 1, 5, 2, 6, 3, 7};
 	int ret = 0;
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_DSP_A |
-		SND_SOC_DAIFMT_IB_IF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
-		SND_SOC_DAIFMT_IB_IF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
 
 	/* set cpu DAI channel mapping */
 	ret = snd_soc_dai_set_channel_map(cpu_dai, ARRAY_SIZE(channel_map),
@@ -68,6 +56,9 @@ static struct snd_soc_ops bf5xx_ad1836_ops = {
 	.hw_params = bf5xx_ad1836_hw_params,
 };
 
+#define BF5XX_AD1836_DAIFMT (SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_IF | \
+				SND_SOC_DAIFMT_CBM_CFM)
+
 static struct snd_soc_dai_link bf5xx_ad1836_dai[] = {
 	{
 		.name = "ad1836",
@@ -77,6 +68,7 @@ static struct snd_soc_dai_link bf5xx_ad1836_dai[] = {
 		.platform_name = "bfin-tdm-pcm-audio",
 		.codec_name = "spi0.4",
 		.ops = &bf5xx_ad1836_ops,
+		.dai_fmt = BF5XX_AD1836_DAIFMT,
 	},
 	{
 		.name = "ad1836",
@@ -86,6 +78,7 @@ static struct snd_soc_dai_link bf5xx_ad1836_dai[] = {
 		.platform_name = "bfin-tdm-pcm-audio",
 		.codec_name = "spi0.4",
 		.ops = &bf5xx_ad1836_ops,
+		.dai_fmt = BF5XX_AD1836_DAIFMT,
 	},
 };
 

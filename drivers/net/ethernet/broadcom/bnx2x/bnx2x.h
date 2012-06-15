@@ -1,6 +1,6 @@
 /* bnx2x.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2011 Broadcom Corporation
+ * Copyright (c) 2007-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,13 +23,17 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.70.35-0"
-#define DRV_MODULE_RELDATE      "2011/11/10"
+#define DRV_MODULE_VERSION      "1.72.50-0"
+#define DRV_MODULE_RELDATE      "2012/04/23"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_DCB)
 #define BCM_DCBNL
 #endif
+
+
+#include "bnx2x_hsi.h"
+
 #if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
 #define BCM_CNIC 1
 #include "../cnic_if.h"
@@ -58,18 +62,22 @@
 #define DRV_MODULE_NAME		"bnx2x"
 
 /* for messages that are currently off */
-#define BNX2X_MSG_OFF			0
-#define BNX2X_MSG_MCP			0x010000 /* was: NETIF_MSG_HW */
-#define BNX2X_MSG_STATS			0x020000 /* was: NETIF_MSG_TIMER */
-#define BNX2X_MSG_NVM			0x040000 /* was: NETIF_MSG_HW */
-#define BNX2X_MSG_DMAE			0x080000 /* was: NETIF_MSG_HW */
-#define BNX2X_MSG_SP			0x100000 /* was: NETIF_MSG_INTR */
-#define BNX2X_MSG_FP			0x200000 /* was: NETIF_MSG_INTR */
+#define BNX2X_MSG_OFF			0x0
+#define BNX2X_MSG_MCP			0x0010000 /* was: NETIF_MSG_HW */
+#define BNX2X_MSG_STATS			0x0020000 /* was: NETIF_MSG_TIMER */
+#define BNX2X_MSG_NVM			0x0040000 /* was: NETIF_MSG_HW */
+#define BNX2X_MSG_DMAE			0x0080000 /* was: NETIF_MSG_HW */
+#define BNX2X_MSG_SP			0x0100000 /* was: NETIF_MSG_INTR */
+#define BNX2X_MSG_FP			0x0200000 /* was: NETIF_MSG_INTR */
+#define BNX2X_MSG_IOV			0x0800000
+#define BNX2X_MSG_IDLE			0x2000000 /* used for idle check*/
+#define BNX2X_MSG_ETHTOOL		0x4000000
+#define BNX2X_MSG_DCB			0x8000000
 
 /* regular debug print */
 #define DP(__mask, fmt, ...)					\
 do {								\
-	if (bp->msg_enable & (__mask))				\
+	if (unlikely(bp->msg_enable & (__mask)))		\
 		pr_notice("[%s:%d(%s)]" fmt,			\
 			  __func__, __LINE__,			\
 			  bp->dev ? (bp->dev->name) : "?",	\
@@ -78,14 +86,14 @@ do {								\
 
 #define DP_CONT(__mask, fmt, ...)				\
 do {								\
-	if (bp->msg_enable & (__mask))				\
+	if (unlikely(bp->msg_enable & (__mask)))		\
 		pr_cont(fmt, ##__VA_ARGS__);			\
 } while (0)
 
 /* errors debug print */
 #define BNX2X_DBG_ERR(fmt, ...)					\
 do {								\
-	if (netif_msg_probe(bp))				\
+	if (unlikely(netif_msg_probe(bp)))			\
 		pr_err("[%s:%d(%s)]" fmt,			\
 		       __func__, __LINE__,			\
 		       bp->dev ? (bp->dev->name) : "?",		\
@@ -108,7 +116,7 @@ do {								\
 /* before we have a dev->name use dev_info() */
 #define BNX2X_DEV_INFO(fmt, ...)				 \
 do {								 \
-	if (netif_msg_probe(bp))				 \
+	if (unlikely(netif_msg_probe(bp)))			 \
 		dev_info(&bp->pdev->dev, fmt, ##__VA_ARGS__);	 \
 } while (0)
 
@@ -445,6 +453,8 @@ struct bnx2x_agg_info {
 	u16			vlan_tag;
 	u16			len_on_bd;
 	u32			rxhash;
+	u16			gro_size;
+	u16			full_page;
 };
 
 #define Q_STATS_OFFSET32(stat_name) \
@@ -473,6 +483,11 @@ struct bnx2x_fp_txdata {
 	int			txq_index;
 };
 
+enum bnx2x_tpa_mode_t {
+	TPA_MODE_LRO,
+	TPA_MODE_GRO
+};
+
 struct bnx2x_fastpath {
 	struct bnx2x		*bp; /* parent */
 
@@ -488,6 +503,8 @@ struct bnx2x_fastpath {
 	u32			rx_buf_size;
 
 	dma_addr_t		status_blk_mapping;
+
+	enum bnx2x_tpa_mode_t	mode;
 
 	u8			max_cos; /* actual number of active tx coses */
 	struct bnx2x_fp_txdata	txdata[BNX2X_MULTI_TX_COS];
@@ -540,6 +557,7 @@ struct bnx2x_fastpath {
 	struct ustorm_per_queue_stats old_uclient;
 	struct xstorm_per_queue_stats old_xclient;
 	struct bnx2x_eth_q_stats eth_q_stats;
+	struct bnx2x_eth_q_stats_old eth_q_stats_old;
 
 	/* The size is calculated using the following:
 	     sizeof name field from netdev structure +
@@ -800,6 +818,8 @@ struct bnx2x_common {
 #define CHIP_NUM_57800_MF		0x16a5
 #define CHIP_NUM_57810			0x168e
 #define CHIP_NUM_57810_MF		0x16ae
+#define CHIP_NUM_57811			0x163d
+#define CHIP_NUM_57811_MF		0x163e
 #define CHIP_NUM_57840			0x168d
 #define CHIP_NUM_57840_MF		0x16ab
 #define CHIP_IS_E1(bp)			(CHIP_NUM(bp) == CHIP_NUM_57710)
@@ -811,6 +831,8 @@ struct bnx2x_common {
 #define CHIP_IS_57800_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57800_MF)
 #define CHIP_IS_57810(bp)		(CHIP_NUM(bp) == CHIP_NUM_57810)
 #define CHIP_IS_57810_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57810_MF)
+#define CHIP_IS_57811(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811)
+#define CHIP_IS_57811_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811_MF)
 #define CHIP_IS_57840(bp)		(CHIP_NUM(bp) == CHIP_NUM_57840)
 #define CHIP_IS_57840_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57840_MF)
 #define CHIP_IS_E1H(bp)			(CHIP_IS_57711(bp) || \
@@ -821,6 +843,8 @@ struct bnx2x_common {
 					 CHIP_IS_57800_MF(bp) || \
 					 CHIP_IS_57810(bp) || \
 					 CHIP_IS_57810_MF(bp) || \
+					 CHIP_IS_57811(bp) || \
+					 CHIP_IS_57811_MF(bp) || \
 					 CHIP_IS_57840(bp) || \
 					 CHIP_IS_57840_MF(bp))
 #define CHIP_IS_E1x(bp)			(CHIP_IS_E1((bp)) || CHIP_IS_E1H((bp)))
@@ -1038,6 +1062,13 @@ struct bnx2x_slowpath {
 		struct flow_control_configuration pfc_config;
 	} func_rdata;
 
+	/* afex ramrod can not be a part of func_rdata union because these
+	 * events might arrive in parallel to other events from func_rdata.
+	 * Therefore, if they would have been defined in the same union,
+	 * data can get corrupted.
+	 */
+	struct afex_vif_list_ramrod_data func_afex_rdata;
+
 	/* used by dmae command executer */
 	struct dmae_command		dmae[MAX_DMAE_C];
 
@@ -1046,7 +1077,6 @@ struct bnx2x_slowpath {
 	struct nig_stats		nig_stats;
 	struct host_port_stats		port_stats;
 	struct host_func_stats		func_stats;
-	struct host_func_stats		func_stats_base;
 
 	u32				wb_comp;
 	u32				wb_data[4];
@@ -1088,7 +1118,8 @@ enum bnx2x_recovery_state {
 	BNX2X_RECOVERY_DONE,
 	BNX2X_RECOVERY_INIT,
 	BNX2X_RECOVERY_WAIT,
-	BNX2X_RECOVERY_FAILED
+	BNX2X_RECOVERY_FAILED,
+	BNX2X_RECOVERY_NIC_LOADING
 };
 
 /*
@@ -1154,9 +1185,17 @@ struct bnx2x_fw_stats_data {
 enum {
 	BNX2X_SP_RTNL_SETUP_TC,
 	BNX2X_SP_RTNL_TX_TIMEOUT,
+	BNX2X_SP_RTNL_AFEX_F_UPDATE,
 	BNX2X_SP_RTNL_FAN_FAILURE,
 };
 
+
+struct bnx2x_prev_path_list {
+	u8 bus;
+	u8 slot;
+	u8 path;
+	struct list_head list;
+};
 
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
@@ -1198,6 +1237,8 @@ struct bnx2x {
 #define ETH_MIN_PACKET_SIZE		60
 #define ETH_MAX_PACKET_SIZE		1500
 #define ETH_MAX_JUMBO_PACKET_SIZE	9600
+/* TCP with Timestamp Option (32) + IPv6 (40) */
+#define ETH_MAX_TPA_HEADER_SIZE		72
 
 	/* Max supported alignment is 256 (8 shift) */
 #define BNX2X_RX_ALIGN_SHIFT		min(8, L1_CACHE_SHIFT)
@@ -1268,12 +1309,14 @@ struct bnx2x {
 #define NO_MCP_FLAG			(1 << 9)
 
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
+#define GRO_ENABLE_FLAG			(1 << 10)
 #define MF_FUNC_DIS			(1 << 11)
 #define OWN_CNIC_IRQ			(1 << 12)
 #define NO_ISCSI_OOO_FLAG		(1 << 13)
 #define NO_ISCSI_FLAG			(1 << 14)
 #define NO_FCOE_FLAG			(1 << 15)
 #define BC_SUPPORTS_PFC_STATS		(1 << 17)
+#define USING_SINGLE_MSIX_FLAG		(1 << 20)
 
 #define NO_ISCSI(bp)		((bp)->flags & NO_ISCSI_FLAG)
 #define NO_ISCSI_OOO(bp)	((bp)->flags & NO_ISCSI_OOO_FLAG)
@@ -1303,16 +1346,17 @@ struct bnx2x {
 	struct bnx2x_common	common;
 	struct bnx2x_port	port;
 
-	struct cmng_struct_per_port cmng;
-	u32			vn_weight_sum;
+	struct cmng_init	cmng;
+
 	u32			mf_config[E1HVN_MAX];
-	u32			mf2_config[E2_FUNC_MAX];
+	u32			mf_ext_config;
 	u32			path_has_ovlan; /* E3 */
 	u16			mf_ov;
 	u8			mf_mode;
 #define IS_MF(bp)		(bp->mf_mode != 0)
 #define IS_MF_SI(bp)		(bp->mf_mode == MULTI_FUNCTION_SI)
 #define IS_MF_SD(bp)		(bp->mf_mode == MULTI_FUNCTION_SD)
+#define IS_MF_AFEX(bp)		(bp->mf_mode == MULTI_FUNCTION_AFEX)
 
 	u8			wol;
 
@@ -1343,7 +1387,6 @@ struct bnx2x {
 #define BNX2X_STATE_DIAG		0xe000
 #define BNX2X_STATE_ERROR		0xf000
 
-	int			multi_mode;
 #define BNX2X_MAX_PRIORITY		8
 #define BNX2X_MAX_ENTRIES_PER_PRI	16
 #define BNX2X_MAX_COS			3
@@ -1461,6 +1504,11 @@ struct bnx2x {
 
 	u16			stats_counter;
 	struct bnx2x_eth_stats	eth_stats;
+	struct host_func_stats		func_stats;
+	struct bnx2x_eth_stats_old	eth_stats_old;
+	struct bnx2x_net_stats_old	net_stats_old;
+	struct bnx2x_fw_port_stats_old	fw_stats_old;
+	bool			stats_init;
 
 	struct z_stream_s	*strm;
 	void			*gunzip_buf;
@@ -1549,6 +1597,9 @@ struct bnx2x {
 	struct dcbx_features			dcbx_remote_feat;
 	u32					dcbx_remote_flags;
 #endif
+	/* AFEX: store default vlan used */
+	int					afex_def_vlan_tag;
+	enum mf_cfg_afex_vlan_mode		afex_vlan_mode;
 	u32					pending_max;
 
 	/* multiple tx classes of service */
@@ -2073,8 +2124,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_VPD_LEN			128
 #define VENDOR_ID_LEN			4
 
-int bnx2x_close(struct net_device *dev);
-
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE		0
 #define CMNG_FNS_MINMAX		1
@@ -2094,14 +2143,29 @@ void bnx2x_set_ethtool_ops(struct net_device *netdev);
 void bnx2x_notify_link_changed(struct bnx2x *bp);
 
 
-#define BNX2X_MF_PROTOCOL(bp) \
+#define BNX2X_MF_SD_PROTOCOL(bp) \
 	((bp)->mf_config[BP_VN(bp)] & FUNC_MF_CFG_PROTOCOL_MASK)
 
 #ifdef BCM_CNIC
-#define BNX2X_IS_MF_PROTOCOL_ISCSI(bp) \
-	(BNX2X_MF_PROTOCOL(bp) == FUNC_MF_CFG_PROTOCOL_ISCSI)
+#define BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp) \
+	(BNX2X_MF_SD_PROTOCOL(bp) == FUNC_MF_CFG_PROTOCOL_ISCSI)
 
-#define IS_MF_ISCSI_SD(bp) (IS_MF_SD(bp) && BNX2X_IS_MF_PROTOCOL_ISCSI(bp))
+#define BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp) \
+	(BNX2X_MF_SD_PROTOCOL(bp) == FUNC_MF_CFG_PROTOCOL_FCOE)
+
+#define IS_MF_ISCSI_SD(bp) (IS_MF_SD(bp) && BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp))
+#define IS_MF_FCOE_SD(bp) (IS_MF_SD(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp))
+
+#define BNX2X_MF_EXT_PROTOCOL_FCOE(bp)  ((bp)->mf_ext_config & \
+					 MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+
+#define IS_MF_FCOE_AFEX(bp) (IS_MF_AFEX(bp) && BNX2X_MF_EXT_PROTOCOL_FCOE(bp))
+#define IS_MF_STORAGE_SD(bp) (IS_MF_SD(bp) && \
+				(BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp) || \
+				 BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)))
+#else
+#define IS_MF_FCOE_AFEX(bp)	false
 #endif
+
 
 #endif /* bnx2x.h */

@@ -11,6 +11,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/bug.h>
 #include <linux/types.h>
 #include <mach/hardware.h>
 #include <linux/kernel.h>

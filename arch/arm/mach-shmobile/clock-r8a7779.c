@@ -107,7 +107,7 @@ static unsigned long mul4_recalc(struct clk *clk)
 	return clk->parent->rate * 4;
 }
 
-static struct clk_ops mul4_clk_ops = {
+static struct sh_clk_ops mul4_clk_ops = {
 	.recalc		= mul4_recalc,
 };
 
@@ -170,7 +170,7 @@ void __init r8a7779_clock_init(void)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup r8a7779 clocks\n");
 }

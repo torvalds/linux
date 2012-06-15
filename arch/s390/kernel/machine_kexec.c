@@ -14,16 +14,17 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
+#include <linux/debug_locks.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/system.h>
 #include <asm/smp.h>
 #include <asm/reset.h>
 #include <asm/ipl.h>
 #include <asm/diag.h>
 #include <asm/asm-offsets.h>
+#include <asm/os_info.h>
 
 typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long);
 
@@ -49,50 +50,21 @@ static void add_elf_notes(int cpu)
 }
 
 /*
- * Store status of next available physical CPU
- */
-static int store_status_next(int start_cpu, int this_cpu)
-{
-	struct save_area *sa = (void *) 4608 + store_prefix();
-	int cpu, rc;
-
-	for (cpu = start_cpu; cpu < 65536; cpu++) {
-		if (cpu == this_cpu)
-			continue;
-		do {
-			rc = raw_sigp(cpu, sigp_stop_and_store_status);
-		} while (rc == sigp_busy);
-		if (rc != sigp_order_code_accepted)
-			continue;
-		if (sa->pref_reg)
-			return cpu;
-	}
-	return -1;
-}
-
-/*
  * Initialize CPU ELF notes
  */
 void setup_regs(void)
 {
 	unsigned long sa = S390_lowcore.prefixreg_save_area + SAVE_AREA_BASE;
-	int cpu, this_cpu, phys_cpu = 0, first = 1;
+	int cpu, this_cpu;
 
-	this_cpu = stap();
-
-	if (!S390_lowcore.prefixreg_save_area)
-		first = 0;
+	this_cpu = smp_find_processor_id(stap());
+	add_elf_notes(this_cpu);
 	for_each_online_cpu(cpu) {
-		if (first) {
-			add_elf_notes(cpu);
-			first = 0;
+		if (cpu == this_cpu)
 			continue;
-		}
-		phys_cpu = store_status_next(phys_cpu, this_cpu);
-		if (phys_cpu == -1)
-			break;
+		if (smp_store_status(cpu))
+			continue;
 		add_elf_notes(cpu);
-		phys_cpu++;
 	}
 	/* Copy dump CPU store status info to absolute zero */
 	memcpy((void *) SAVE_AREA_BASE, (void *) sa, sizeof(struct save_area));
@@ -108,8 +80,8 @@ static void __do_machine_kdump(void *image)
 #ifdef CONFIG_CRASH_DUMP
 	int (*start_kdump)(int) = (void *)((struct kimage *) image)->start;
 
-	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
 	setup_regs();
+	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
 	start_kdump(1);
 #endif
 }
@@ -143,8 +115,13 @@ static void crash_map_pages(int enable)
 	       size % KEXEC_CRASH_MEM_ALIGN);
 	if (enable)
 		vmem_add_mapping(crashk_res.start, size);
-	else
+	else {
 		vmem_remove_mapping(crashk_res.start, size);
+		if (size)
+			os_info_crashkernel_add(crashk_res.start, size);
+		else
+			os_info_crashkernel_add(0, 0);
+	}
 }
 
 /*
@@ -237,11 +214,16 @@ static void __machine_kexec(void *data)
 {
 	struct kimage *image = data;
 
+	__arch_local_irq_stosm(0x04); /* enable DAT */
 	pfault_fini();
-	if (image->type == KEXEC_TYPE_CRASH)
+	tracing_off();
+	debug_locks_off();
+	if (image->type == KEXEC_TYPE_CRASH) {
+		lgr_info_log();
 		s390_reset_system(__do_machine_kdump, data);
-	else
+	} else {
 		s390_reset_system(__do_machine_kexec, data);
+	}
 	disabled_wait((unsigned long) __builtin_return_address(0));
 }
 
@@ -255,5 +237,5 @@ void machine_kexec(struct kimage *image)
 		return;
 	tracer_disable();
 	smp_send_stop();
-	smp_switch_to_ipl_cpu(__machine_kexec, image);
+	smp_call_ipl_cpu(__machine_kexec, image);
 }

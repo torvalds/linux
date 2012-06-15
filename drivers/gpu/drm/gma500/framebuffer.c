@@ -111,39 +111,6 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
         return 0;
 }
 
-void psbfb_suspend(struct drm_device *dev)
-{
-	struct drm_framebuffer *fb;
-
-	console_lock();
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
-		struct psb_framebuffer *psbfb = to_psb_fb(fb);
-		struct fb_info *info = psbfb->fbdev;
-		fb_set_suspend(info, 1);
-		drm_fb_helper_blank(FB_BLANK_POWERDOWN, info);
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-	console_unlock();
-}
-
-void psbfb_resume(struct drm_device *dev)
-{
-	struct drm_framebuffer *fb;
-
-	console_lock();
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
-		struct psb_framebuffer *psbfb = to_psb_fb(fb);
-		struct fb_info *info = psbfb->fbdev;
-		fb_set_suspend(info, 0);
-		drm_fb_helper_blank(FB_BLANK_UNBLANK, info);
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-	console_unlock();
-	drm_helper_disable_unused_functions(dev);
-}
-
 static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
@@ -158,7 +125,7 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base;
 
 	page_num = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-	address = (unsigned long)vmf->virtual_address;
+	address = (unsigned long)vmf->virtual_address - (vmf->pgoff << PAGE_SHIFT);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
@@ -186,7 +153,7 @@ static void psbfb_vm_close(struct vm_area_struct *vma)
 {
 }
 
-static struct vm_operations_struct psbfb_vm_ops = {
+static const struct vm_operations_struct psbfb_vm_ops = {
 	.fault	= psbfb_vm_fault,
 	.open	= psbfb_vm_open,
 	.close	= psbfb_vm_close
@@ -390,6 +357,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 	bpp = sizes->surface_bpp;
+	depth = sizes->surface_depth;
 
 	/* No 24bit packed */
 	if (bpp == 24)
@@ -402,7 +370,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		 * is ok with some fonts
 		 */
         	mode_cmd.pitches[0] =  ALIGN(mode_cmd.width * ((bpp + 7) / 8), 4096 >> pitch_lines);
-        	depth = sizes->surface_depth;
 
         	size = mode_cmd.pitches[0] * mode_cmd.height;
         	size = ALIGN(size, PAGE_SIZE);
@@ -441,6 +408,8 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 			return -ENOMEM;
 	}
 
+	memset(dev_priv->vram_addr + backing->offset, 0, size);
+
 	mutex_lock(&dev->struct_mutex);
 
 	info = framebuffer_alloc(0, device);
@@ -462,6 +431,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	fbdev->psb_fb_helper.fb = fb;
 	fbdev->psb_fb_helper.fbdev = info;
 
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	strcpy(info->fix.id, "psbfb");
 
 	info->flags = FBINFO_DEFAULT;
@@ -485,8 +455,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->fix.ypanstep = 0;
 
 	/* Accessed stolen memory directly */
-	info->screen_base = (char *)dev_priv->vram_addr +
-							backing->offset;
+	info->screen_base = dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
 
 	if (dev_priv->gtt.stolen_size) {
@@ -499,20 +468,15 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
 	}
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &fbdev->psb_fb_helper,
 				sizes->fb_width, sizes->fb_height);
 
 	info->fix.mmio_start = pci_resource_start(dev->pdev, 0);
 	info->fix.mmio_len = pci_resource_len(dev->pdev, 0);
 
-	info->pixmap.size = 64 * 1024;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
+	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	dev_info(dev->dev, "allocated %dx%d fb\n",
+	dev_dbg(dev->dev, "allocated %dx%d fb\n",
 					psbfb->base.width, psbfb->base.height);
 
 	mutex_unlock(&dev->struct_mutex);
@@ -559,19 +523,45 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 static void psbfb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 							u16 blue, int regno)
 {
+	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+
+	intel_crtc->lut_r[regno] = red >> 8;
+	intel_crtc->lut_g[regno] = green >> 8;
+	intel_crtc->lut_b[regno] = blue >> 8;
 }
 
 static void psbfb_gamma_get(struct drm_crtc *crtc, u16 *red,
 					u16 *green, u16 *blue, int regno)
 {
+	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+
+	*red = intel_crtc->lut_r[regno] << 8;
+	*green = intel_crtc->lut_g[regno] << 8;
+	*blue = intel_crtc->lut_b[regno] << 8;
 }
 
 static int psbfb_probe(struct drm_fb_helper *helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
 	struct psb_fbdev *psb_fbdev = (struct psb_fbdev *)helper;
+	struct drm_device *dev = psb_fbdev->psb_fb_helper.dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	int new_fb = 0;
+	int bytespp;
 	int ret;
+
+	bytespp = sizes->surface_bpp / 8;
+	if (bytespp == 3)	/* no 24bit packed */
+		bytespp = 4;
+
+	/* If the mode will not fit in 32bit then switch to 16bit to get
+	   a console on full resolution. The X mode setting server will
+	   allocate its own 32bit GEM framebuffer */
+	if (ALIGN(sizes->fb_width * bytespp, 64) * sizes->fb_height >
+	                dev_priv->vram_stolen_size) {
+                sizes->surface_bpp = 16;
+                sizes->surface_depth = 16;
+        }
 
 	if (!helper->fb) {
 		ret = psbfb_create(psb_fbdev, sizes);
@@ -582,13 +572,13 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 	return new_fb;
 }
 
-struct drm_fb_helper_funcs psb_fb_helper_funcs = {
+static struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 	.gamma_set = psbfb_gamma_set,
 	.gamma_get = psbfb_gamma_get,
 	.fb_probe = psbfb_probe,
 };
 
-int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
+static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 {
 	struct fb_info *info;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
@@ -630,7 +620,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	return 0;
 }
 
-void psb_fbdev_fini(struct drm_device *dev)
+static void psb_fbdev_fini(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
@@ -724,10 +714,7 @@ static int psb_create_backlight_property(struct drm_device *dev)
 	if (dev_priv->backlight_property)
 		return 0;
 
-	backlight = drm_property_create(dev, DRM_MODE_PROP_RANGE,
-							"backlight", 2);
-	backlight->values[0] = 0;
-	backlight->values[1] = 100;
+	backlight = drm_property_create_range(dev, 0, "backlight", 0, 100);
 
 	dev_priv->backlight_property = backlight;
 
@@ -762,10 +749,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_SDVO);
 			break;
 		case INTEL_OUTPUT_LVDS:
-			if (IS_MRST(dev))
-				crtc_mask = (1 << 0);
-			else
-				crtc_mask = (1 << 1);
+		        crtc_mask = dev_priv->ops->lvds_mask;
 			clone_mask = (1 << INTEL_OUTPUT_LVDS);
 			break;
 		case INTEL_OUTPUT_MIPI:
@@ -777,10 +761,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_MIPI2);
 			break;
 		case INTEL_OUTPUT_HDMI:
-			if (IS_MFLD(dev))
-				crtc_mask = (1 << 1);
-			else	
-				crtc_mask = (1 << 0);
+		        crtc_mask = dev_priv->ops->hdmi_mask;
 			clone_mask = (1 << INTEL_OUTPUT_HDMI);
 			break;
 		}
@@ -801,7 +782,7 @@ void psb_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 
-	dev->mode_config.funcs = (void *) &psb_mode_funcs;
+	dev->mode_config.funcs = &psb_mode_funcs;
 
 	/* set memory base */
 	/* Oaktrail and Poulsbo should use BAR 2*/
@@ -816,15 +797,23 @@ void psb_modeset_init(struct drm_device *dev)
 	dev->mode_config.max_height = 2048;
 
 	psb_setup_outputs(dev);
+
+	if (dev_priv->ops->errata)
+	        dev_priv->ops->errata(dev);
+
+        dev_priv->modeset = true;
 }
 
 void psb_modeset_cleanup(struct drm_device *dev)
 {
-	mutex_lock(&dev->struct_mutex);
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	if (dev_priv->modeset) {
+		mutex_lock(&dev->struct_mutex);
 
-	drm_kms_helper_poll_fini(dev);
-	psb_fbdev_fini(dev);
-	drm_mode_config_cleanup(dev);
+		drm_kms_helper_poll_fini(dev);
+		psb_fbdev_fini(dev);
+		drm_mode_config_cleanup(dev);
 
-	mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&dev->struct_mutex);
+	}
 }

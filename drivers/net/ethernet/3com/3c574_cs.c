@@ -95,7 +95,6 @@ earlier 3Com products.
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 /*====================================================================*/
 
@@ -1012,7 +1011,7 @@ static int el3_rx(struct net_device *dev, int worklimit)
 			short pkt_len = rx_status & 0x7ff;
 			struct sk_buff *skb;
 
-			skb = dev_alloc_skb(pkt_len+5);
+			skb = netdev_alloc_skb(dev, pkt_len + 5);
 
 			pr_debug("  Receiving packet size %d status %4.4x.\n",
 				  pkt_len, rx_status);

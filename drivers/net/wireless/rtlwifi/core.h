@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * Tmis program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -30,8 +30,6 @@
 #ifndef __RTL_CORE_H__
 #define __RTL_CORE_H__
 
-#include <net/mac80211.h>
-
 #define RTL_SUPPORTED_FILTERS		\
 	(FIF_PROMISC_IN_BSS | \
 	FIF_ALLMULTI | FIF_CONTROL | \
@@ -42,4 +40,6 @@
 #define RTL_SUPPORTED_CTRL_FILTER	0xFF
 
 extern const struct ieee80211_ops rtl_ops;
+void rtl_fw_cb(const struct firmware *firmware, void *context);
+
 #endif

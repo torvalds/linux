@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -32,6 +32,7 @@
 #include "soft-interface.h"
 #include "vis.h"
 #include "icmp_socket.h"
+#include "bridge_loop_avoidance.h"
 
 static struct dentry *bat_debugfs;
 
@@ -82,8 +83,8 @@ int debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
 
 	va_start(args, fmt);
 	vscnprintf(tmp_log_buf, sizeof(tmp_log_buf), fmt, args);
-	fdebug_log(bat_priv->debug_log, "[%10lu] %s",
-		   (jiffies / HZ), tmp_log_buf);
+	fdebug_log(bat_priv->debug_log, "[%10u] %s",
+		   jiffies_to_msecs(jiffies), tmp_log_buf);
 	va_end(args);
 
 	return 0;
@@ -221,6 +222,11 @@ static void debug_log_cleanup(struct bat_priv *bat_priv)
 }
 #endif
 
+static int bat_algorithms_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, bat_algo_seq_print_text, NULL);
+}
+
 static int originators_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
@@ -233,17 +239,19 @@ static int gateways_open(struct inode *inode, struct file *file)
 	return single_open(file, gw_client_seq_print_text, net_dev);
 }
 
-static int softif_neigh_open(struct inode *inode, struct file *file)
-{
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, softif_neigh_seq_print_text, net_dev);
-}
-
 static int transtable_global_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
 	return single_open(file, tt_global_seq_print_text, net_dev);
 }
+
+#ifdef CONFIG_BATMAN_ADV_BLA
+static int bla_claim_table_open(struct inode *inode, struct file *file)
+{
+	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	return single_open(file, bla_claim_table_seq_print_text, net_dev);
+}
+#endif
 
 static int transtable_local_open(struct inode *inode, struct file *file)
 {
@@ -274,18 +282,23 @@ struct bat_debuginfo bat_debuginfo_##_name = {	\
 		}				\
 };
 
+static BAT_DEBUGINFO(routing_algos, S_IRUGO, bat_algorithms_open);
 static BAT_DEBUGINFO(originators, S_IRUGO, originators_open);
 static BAT_DEBUGINFO(gateways, S_IRUGO, gateways_open);
-static BAT_DEBUGINFO(softif_neigh, S_IRUGO, softif_neigh_open);
 static BAT_DEBUGINFO(transtable_global, S_IRUGO, transtable_global_open);
+#ifdef CONFIG_BATMAN_ADV_BLA
+static BAT_DEBUGINFO(bla_claim_table, S_IRUGO, bla_claim_table_open);
+#endif
 static BAT_DEBUGINFO(transtable_local, S_IRUGO, transtable_local_open);
 static BAT_DEBUGINFO(vis_data, S_IRUGO, vis_data_open);
 
 static struct bat_debuginfo *mesh_debuginfos[] = {
 	&bat_debuginfo_originators,
 	&bat_debuginfo_gateways,
-	&bat_debuginfo_softif_neigh,
 	&bat_debuginfo_transtable_global,
+#ifdef CONFIG_BATMAN_ADV_BLA
+	&bat_debuginfo_bla_claim_table,
+#endif
 	&bat_debuginfo_transtable_local,
 	&bat_debuginfo_vis_data,
 	NULL,
@@ -293,9 +306,25 @@ static struct bat_debuginfo *mesh_debuginfos[] = {
 
 void debugfs_init(void)
 {
+	struct bat_debuginfo *bat_debug;
+	struct dentry *file;
+
 	bat_debugfs = debugfs_create_dir(DEBUGFS_BAT_SUBDIR, NULL);
 	if (bat_debugfs == ERR_PTR(-ENODEV))
 		bat_debugfs = NULL;
+
+	if (!bat_debugfs)
+		goto out;
+
+	bat_debug = &bat_debuginfo_routing_algos;
+	file = debugfs_create_file(bat_debug->attr.name,
+				   S_IFREG | bat_debug->attr.mode,
+				   bat_debugfs, NULL, &bat_debug->fops);
+	if (!file)
+		pr_err("Can't add debugfs file: %s\n", bat_debug->attr.name);
+
+out:
+	return;
 }
 
 void debugfs_destroy(void)

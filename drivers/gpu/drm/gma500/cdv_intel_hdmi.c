@@ -34,6 +34,7 @@
 #include "psb_intel_drv.h"
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
+#include "cdv_device.h"
 #include <linux/pm_runtime.h>
 
 /* hdmi control bits */
@@ -241,8 +242,6 @@ static int cdv_hdmi_get_modes(struct drm_connector *connector)
 static int cdv_hdmi_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
-
 	if (mode->clock > 165000)
 		return MODE_CLOCK_HIGH;
 	if (mode->clock < 20000)
@@ -255,11 +254,6 @@ static int cdv_hdmi_mode_valid(struct drm_connector *connector,
 	/* just in case */
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return MODE_NO_INTERLACE;
-
-	/* We assume worst case scenario of 32 bpp here, since we don't know */
-	if ((ALIGN(mode->hdisplay * 4, 64) * mode->vdisplay) >
-	    dev_priv->vram_stolen_size)
-		return MODE_MEM;
 
 	return MODE_OK;
 }

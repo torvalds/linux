@@ -37,9 +37,6 @@ parameters may be changed at runtime by the command
 
 	eata=		[HW,SCSI]
 
-	fd_mcs=		[HW,SCSI]
-			See header of drivers/scsi/fd_mcs.c.
-
 	fdomain=	[HW,SCSI]
 			See header of drivers/scsi/fdomain.c.
 
@@ -47,9 +44,6 @@ parameters may be changed at runtime by the command
 			See header of drivers/scsi/gdth.c.
 
 	gvp11=		[HW,SCSI]
-
-	ibmmcascsi=	[HW,MCA,SCSI] IBM MicroChannel SCSI adapter
-			See Documentation/mca.txt.
 
 	in2000=		[HW,SCSI]
 			See header of drivers/scsi/in2000.c.

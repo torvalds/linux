@@ -9,6 +9,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -61,21 +63,6 @@ static void jffs2_i_init_once(void *foo)
 	inode_init_once(&f->vfs_inode);
 }
 
-static void jffs2_write_super(struct super_block *sb)
-{
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
-
-	lock_super(sb);
-	sb->s_dirt = 0;
-
-	if (!(sb->s_flags & MS_RDONLY)) {
-		D1(printk(KERN_DEBUG "jffs2_write_super()\n"));
-		jffs2_flush_wbuf_gc(c, 0);
-	}
-
-	unlock_super(sb);
-}
-
 static const char *jffs2_compr_name(unsigned int compr)
 {
 	switch (compr) {
@@ -103,6 +90,8 @@ static int jffs2_show_options(struct seq_file *s, struct dentry *root)
 
 	if (opts->override_compr)
 		seq_printf(s, ",compr=%s", jffs2_compr_name(opts->compr));
+	if (opts->rp_size)
+		seq_printf(s, ",rp_size=%u", opts->rp_size / 1024);
 
 	return 0;
 }
@@ -110,8 +99,6 @@ static int jffs2_show_options(struct seq_file *s, struct dentry *root)
 static int jffs2_sync_fs(struct super_block *sb, int wait)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
-
-	jffs2_write_super(sb);
 
 	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
@@ -169,15 +156,18 @@ static const struct export_operations jffs2_export_ops = {
  * JFFS2 mount options.
  *
  * Opt_override_compr: override default compressor
+ * Opt_rp_size: size of reserved pool in KiB
  * Opt_err: just end of array marker
  */
 enum {
 	Opt_override_compr,
+	Opt_rp_size,
 	Opt_err,
 };
 
 static const match_table_t tokens = {
 	{Opt_override_compr, "compr=%s"},
+	{Opt_rp_size, "rp_size=%u"},
 	{Opt_err, NULL},
 };
 
@@ -185,6 +175,7 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *p, *name;
+	unsigned int opt;
 
 	if (!data)
 		return 0;
@@ -214,17 +205,28 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 						JFFS2_COMPR_MODE_FORCEZLIB;
 #endif
 			else {
-				printk(KERN_ERR "JFFS2 Error: unknown compressor \"%s\"",
-						name);
+				pr_err("Error: unknown compressor \"%s\"\n",
+				       name);
 				kfree(name);
 				return -EINVAL;
 			}
 			kfree(name);
 			c->mount_opts.override_compr = true;
 			break;
+		case Opt_rp_size:
+			if (match_int(&args[0], &opt))
+				return -EINVAL;
+			opt *= 1024;
+			if (opt > c->mtd->size) {
+				pr_warn("Too large reserve pool specified, max "
+					"is %llu KB\n", c->mtd->size / 1024);
+				return -EINVAL;
+			}
+			c->mount_opts.rp_size = opt;
+			break;
 		default:
-			printk(KERN_ERR "JFFS2 Error: unrecognized mount option '%s' or missing value\n",
-					p);
+			pr_err("Error: unrecognized mount option '%s' or missing value\n",
+			       p);
 			return -EINVAL;
 		}
 	}
@@ -249,7 +251,6 @@ static const struct super_operations jffs2_super_operations =
 	.alloc_inode =	jffs2_alloc_inode,
 	.destroy_inode =jffs2_destroy_inode,
 	.put_super =	jffs2_put_super,
-	.write_super =	jffs2_write_super,
 	.statfs =	jffs2_statfs,
 	.remount_fs =	jffs2_remount_fs,
 	.evict_inode =	jffs2_evict_inode,
@@ -266,9 +267,9 @@ static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 	struct jffs2_sb_info *c;
 	int ret;
 
-	D1(printk(KERN_DEBUG "jffs2_get_sb_mtd():"
+	jffs2_dbg(1, "jffs2_get_sb_mtd():"
 		  " New superblock for device %d (\"%s\")\n",
-		  sb->s_mtd->index, sb->s_mtd->name));
+		  sb->s_mtd->index, sb->s_mtd->name);
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
@@ -315,10 +316,7 @@ static void jffs2_put_super (struct super_block *sb)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
-	D2(printk(KERN_DEBUG "jffs2: jffs2_put_super()\n"));
-
-	if (sb->s_dirt)
-		jffs2_write_super(sb);
+	jffs2_dbg(2, "%s()\n", __func__);
 
 	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
@@ -336,7 +334,7 @@ static void jffs2_put_super (struct super_block *sb)
 	kfree(c->inocache_list);
 	jffs2_clear_xattr_subsystem(c);
 	mtd_sync(c->mtd);
-	D1(printk(KERN_DEBUG "jffs2_put_super returning\n"));
+	jffs2_dbg(1, "%s(): returning\n", __func__);
 }
 
 static void jffs2_kill_sb(struct super_block *sb)
@@ -371,7 +369,7 @@ static int __init init_jffs2_fs(void)
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
 
-	printk(KERN_INFO "JFFS2 version 2.2."
+	pr_info("version 2.2."
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
 #endif
@@ -386,22 +384,22 @@ static int __init init_jffs2_fs(void)
 						SLAB_MEM_SPREAD),
 					     jffs2_i_init_once);
 	if (!jffs2_inode_cachep) {
-		printk(KERN_ERR "JFFS2 error: Failed to initialise inode cache\n");
+		pr_err("error: Failed to initialise inode cache\n");
 		return -ENOMEM;
 	}
 	ret = jffs2_compressors_init();
 	if (ret) {
-		printk(KERN_ERR "JFFS2 error: Failed to initialise compressors\n");
+		pr_err("error: Failed to initialise compressors\n");
 		goto out;
 	}
 	ret = jffs2_create_slab_caches();
 	if (ret) {
-		printk(KERN_ERR "JFFS2 error: Failed to initialise slab caches\n");
+		pr_err("error: Failed to initialise slab caches\n");
 		goto out_compressors;
 	}
 	ret = register_filesystem(&jffs2_fs_type);
 	if (ret) {
-		printk(KERN_ERR "JFFS2 error: Failed to register filesystem\n");
+		pr_err("error: Failed to register filesystem\n");
 		goto out_slab;
 	}
 	return 0;

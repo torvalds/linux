@@ -23,18 +23,12 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/dev.h>
 
 /*  ----------------------------------- This */
 #include <ioobj.h>
 #include <dspbridge/io.h>
-
-/*  ----------------------------------- Globals */
-static u32 refs;
 
 /*
  *  ======== io_create ========
@@ -49,10 +43,6 @@ int io_create(struct io_mgr **io_man, struct dev_object *hdev_obj,
 	struct io_mgr *hio_mgr = NULL;
 	struct io_mgr_ *pio_mgr = NULL;
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(io_man != NULL);
-	DBC_REQUIRE(mgr_attrts != NULL);
 
 	*io_man = NULL;
 
@@ -94,45 +84,10 @@ int io_destroy(struct io_mgr *hio_mgr)
 	struct io_mgr_ *pio_mgr = (struct io_mgr_ *)hio_mgr;
 	int status;
 
-	DBC_REQUIRE(refs > 0);
-
 	intf_fxns = pio_mgr->intf_fxns;
 
 	/* Let Bridge channel module destroy the io_mgr: */
 	status = (*intf_fxns->io_destroy) (hio_mgr);
 
 	return status;
-}
-
-/*
- *  ======== io_exit ========
- *  Purpose:
- *      Discontinue usage of the IO module.
- */
-void io_exit(void)
-{
-	DBC_REQUIRE(refs > 0);
-
-	refs--;
-
-	DBC_ENSURE(refs >= 0);
-}
-
-/*
- *  ======== io_init ========
- *  Purpose:
- *      Initialize the IO module's private state.
- */
-bool io_init(void)
-{
-	bool ret = true;
-
-	DBC_REQUIRE(refs >= 0);
-
-	if (ret)
-		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
-
-	return ret;
 }

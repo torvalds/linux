@@ -6,7 +6,6 @@
 #include <linux/types.h>
 
 #include <asm/page.h>      /* IO address mapping routines need this */
-#include <asm/system.h>
 #include <asm/asi.h>
 #include <asm-generic/pci_iomap.h>
 

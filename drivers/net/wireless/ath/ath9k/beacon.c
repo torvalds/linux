@@ -67,7 +67,7 @@ int ath_beaconq_config(struct ath_softc *sc)
  *  up rate codes, and channel flags. Beacons are always sent out at the
  *  lowest rate, and are not retried.
 */
-static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
+static void ath_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 			     struct ath_buf *bf, int rateidx)
 {
 	struct sk_buff *skb = bf->bf_mpdu;
@@ -82,7 +82,7 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 
 	sband = &sc->sbands[common->hw->conf.channel->band];
 	rate = sband->bitrates[rateidx].hw_value;
-	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
+	if (vif->bss_conf.use_short_preamble)
 		rate |= sband->bitrates[rateidx].hw_value_short;
 
 	memset(&info, 0, sizeof(info));
@@ -91,7 +91,7 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	info.txpower = MAX_RATE_POWER;
 	info.keyix = ATH9K_TXKEYIX_INVALID;
 	info.keytype = ATH9K_KEY_TYPE_CLEAR;
-	info.flags = ATH9K_TXDESC_NOACK;
+	info.flags = ATH9K_TXDESC_NOACK | ATH9K_TXDESC_CLRDMASK;
 
 	info.buf_addr[0] = bf->bf_buf_addr;
 	info.buf_len[0] = roundup(skb->len, 4);
@@ -209,7 +209,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 		}
 	}
 
-	ath_beacon_setup(sc, avp, bf, info->control.rates[0].idx);
+	ath_beacon_setup(sc, vif, bf, info->control.rates[0].idx);
 
 	while (skb) {
 		ath_tx_cabq(hw, skb);
@@ -355,11 +355,15 @@ void ath_beacon_tasklet(unsigned long data)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_buf *bf = NULL;
 	struct ieee80211_vif *vif;
-	struct ath_tx_status ts;
 	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int slot;
 	u32 bfaddr, bc = 0;
 
+	if (work_pending(&sc->hw_reset_work)) {
+		ath_dbg(common, RESET,
+			"reset work is pending, skip beaconing now\n");
+		return;
+	}
 	/*
 	 * Check if the previous beacon has gone out.  If
 	 * not don't try to post another, skip this period
@@ -370,6 +374,9 @@ void ath_beacon_tasklet(unsigned long data)
 	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0) {
 		sc->beacon.bmisscnt++;
 
+		if (!ath9k_hw_check_alive(ah))
+			ieee80211_queue_work(sc->hw, &sc->hw_check_work);
+
 		if (sc->beacon.bmisscnt < BSTUCK_THRESH * sc->nbcnvifs) {
 			ath_dbg(common, BSTUCK,
 				"missed %u consecutive beacons\n",
@@ -379,6 +386,7 @@ void ath_beacon_tasklet(unsigned long data)
 				ath9k_hw_bstuck_nfcal(ah);
 		} else if (sc->beacon.bmisscnt >= BSTUCK_THRESH) {
 			ath_dbg(common, BSTUCK, "beacon is officially stuck\n");
+			sc->beacon.bmisscnt = 0;
 			sc->sc_flags |= SC_OP_TSF_RESET;
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		}
@@ -462,11 +470,6 @@ void ath_beacon_tasklet(unsigned long data)
 			ath9k_hw_txstart(ah, sc->beacon.beaconq);
 
 		sc->beacon.ast_be_xmit += bc;     /* XXX per-vif? */
-		if (edma) {
-			spin_lock_bh(&sc->sc_pcu_lock);
-			ath9k_hw_txprocdesc(ah, bf->bf_desc, (void *)&ts);
-			spin_unlock_bh(&sc->sc_pcu_lock);
-		}
 	}
 }
 
@@ -656,6 +659,8 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	u32 tsf, intval, nexttbtt;
 
 	ath9k_reset_beacon_status(sc);
+	if (!(sc->sc_flags & SC_OP_BEACONS))
+		ath9k_hw_settsf64(ah, sc->beacon.bc_tstamp);
 
 	intval = TU_TO_USEC(conf->beacon_interval);
 	tsf = roundup(ath9k_hw_gettsf32(ah) + TU_TO_USEC(FUDGE), intval);
@@ -812,8 +817,10 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
 {
 	struct ath_hw *ah = sc->sc_ah;
 
-	if (!ath_has_valid_bslot(sc))
+	if (!ath_has_valid_bslot(sc)) {
+		sc->sc_flags &= ~SC_OP_BEACONS;
 		return;
+	}
 
 	ath9k_ps_wakeup(sc);
 	if (status) {

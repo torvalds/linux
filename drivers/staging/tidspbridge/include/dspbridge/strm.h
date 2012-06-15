@@ -40,7 +40,6 @@
  *      -EPERM:      Failure occurred, unable to allocate buffers.
  *      -EINVAL:      usize must be > 0 bytes.
  *  Requires:
- *      strm_init(void) called.
  *      ap_buffer != NULL.
  *  Ensures:
  */
@@ -63,7 +62,6 @@ extern int strm_allocate_buffer(struct strm_res_object *strmres,
  *                      been reclaimed.
  *      -EPERM:      Failure to close stream.
  *  Requires:
- *      strm_init(void) called.
  *  Ensures:
  */
 extern int strm_close(struct strm_res_object *strmres,
@@ -83,7 +81,6 @@ extern int strm_close(struct strm_res_object *strmres,
  *      -ENOMEM:    Insufficient memory for requested resources.
  *      -EPERM:      General failure.
  *  Requires:
- *      strm_init(void) called.
  *      strm_man != NULL.
  *      dev_obj != NULL.
  *  Ensures:
@@ -101,24 +98,11 @@ extern int strm_create(struct strm_mgr **strm_man,
  *      strm_mgr_obj:       Handle to STRM manager object from strm_create.
  *  Returns:
  *  Requires:
- *      strm_init(void) called.
  *      Valid strm_mgr_obj.
  *  Ensures:
  *      strm_mgr_obj is not valid.
  */
 extern void strm_delete(struct strm_mgr *strm_mgr_obj);
-
-/*
- *  ======== strm_exit ========
- *  Purpose:
- *      Discontinue usage of STRM module.
- *  Parameters:
- *  Returns:
- *  Requires:
- *      strm_init(void) successfully called before.
- *  Ensures:
- */
-extern void strm_exit(void);
 
 /*
  *  ======== strm_free_buffer ========
@@ -133,7 +117,6 @@ extern void strm_exit(void);
  *      -EFAULT:    Invalid stream handle.
  *      -EPERM:      Failure occurred, unable to free buffers.
  *  Requires:
- *      strm_init(void) called.
  *      ap_buffer != NULL.
  *  Ensures:
  */
@@ -156,7 +139,6 @@ extern int strm_free_buffer(struct strm_res_object *strmres,
  *      -EINVAL:          stream_info_size < sizeof(dsp_streaminfo).
  *      -EPERM:          Unable to get stream info.
  *  Requires:
- *      strm_init(void) called.
  *      stream_info != NULL.
  *  Ensures:
  */
@@ -184,22 +166,9 @@ extern int strm_get_info(struct strm_object *stream_obj,
  *      -ETIME:   A timeout occurred before the stream could be idled.
  *      -EPERM:      Unable to idle stream.
  *  Requires:
- *      strm_init(void) called.
  *  Ensures:
  */
 extern int strm_idle(struct strm_object *stream_obj, bool flush_data);
-
-/*
- *  ======== strm_init ========
- *  Purpose:
- *      Initialize the STRM module.
- *  Parameters:
- *  Returns:
- *      TRUE if initialization succeeded, FALSE otherwise.
- *  Requires:
- *  Ensures:
- */
-extern bool strm_init(void);
 
 /*
  *  ======== strm_issue ========
@@ -217,8 +186,7 @@ extern bool strm_init(void);
  *      -ENOSR:    The stream is full.
  *      -EPERM:          Failure occurred, unable to issue buffer.
  *  Requires:
- *      strm_init(void) called.
- *      pbuf != NULL.
+*      pbuf != NULL.
  *  Ensures:
  */
 extern int strm_issue(struct strm_object *stream_obj, u8 * pbuf,
@@ -244,7 +212,6 @@ extern int strm_issue(struct strm_object *stream_obj, u8 * pbuf,
  *              Unable to open stream.
  *      -EINVAL:     Invalid index.
  *  Requires:
- *      strm_init(void) called.
  *      strmres != NULL.
  *      pattr != NULL.
  *  Ensures:
@@ -275,7 +242,6 @@ extern int strm_open(struct node_object *hnode, u32 dir,
  *                      retrieved.
  *      -EPERM:      Failure occurred, unable to reclaim buffer.
  *  Requires:
- *      strm_init(void) called.
  *      buf_ptr != NULL.
  *      nbytes != NULL.
  *      pdw_arg != NULL.
@@ -302,7 +268,6 @@ extern int strm_reclaim(struct strm_object *stream_obj,
  *      -ENOSYS:   Notification type specified by notify_type is not
  *                      supported.
  *  Requires:
- *      strm_init(void) called.
  *      hnotification != NULL.
  *  Ensures:
  */
@@ -328,7 +293,6 @@ extern int strm_register_notify(struct strm_object *stream_obj,
  *      -ETIME:   A timeout occurred before a stream became ready.
  *      -EPERM:      Failure occurred, unable to select a stream.
  *  Requires:
- *      strm_init(void) called.
  *      strm_tab != NULL.
  *      strms > 0.
  *      pmask != NULL.

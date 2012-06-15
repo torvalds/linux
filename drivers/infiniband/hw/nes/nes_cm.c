@@ -338,18 +338,21 @@ static int parse_mpa(struct nes_cm_node *cm_node, u8 *buffer, u32 *type,
 	case IETF_MPA_V2: {
 		u16 ird_size;
 		u16 ord_size;
+		u16 rtr_ctrl_ird;
+		u16 rtr_ctrl_ord;
+
 		mpa_v2_frame = (struct ietf_mpa_v2 *)buffer;
 		mpa_hdr_len += IETF_RTR_MSG_SIZE;
 		cm_node->mpa_frame_size -= IETF_RTR_MSG_SIZE;
 		rtr_msg = &mpa_v2_frame->rtr_msg;
 
 		/* parse rtr message */
-		rtr_msg->ctrl_ird = ntohs(rtr_msg->ctrl_ird);
-		rtr_msg->ctrl_ord = ntohs(rtr_msg->ctrl_ord);
-		ird_size = rtr_msg->ctrl_ird & IETF_NO_IRD_ORD;
-		ord_size = rtr_msg->ctrl_ord & IETF_NO_IRD_ORD;
+		rtr_ctrl_ird = ntohs(rtr_msg->ctrl_ird);
+		rtr_ctrl_ord = ntohs(rtr_msg->ctrl_ord);
+		ird_size = rtr_ctrl_ird & IETF_NO_IRD_ORD;
+		ord_size = rtr_ctrl_ord & IETF_NO_IRD_ORD;
 
-		if (!(rtr_msg->ctrl_ird & IETF_PEER_TO_PEER)) {
+		if (!(rtr_ctrl_ird & IETF_PEER_TO_PEER)) {
 			/* send reset */
 			return -EINVAL;
 		}
@@ -370,9 +373,9 @@ static int parse_mpa(struct nes_cm_node *cm_node, u8 *buffer, u32 *type,
 			}
 		}
 
-		if (rtr_msg->ctrl_ord & IETF_RDMA0_READ) {
+		if (rtr_ctrl_ord & IETF_RDMA0_READ) {
 			cm_node->send_rdma0_op = SEND_RDMA_READ_ZERO;
-		} else if (rtr_msg->ctrl_ord & IETF_RDMA0_WRITE) {
+		} else if (rtr_ctrl_ord & IETF_RDMA0_WRITE) {
 			cm_node->send_rdma0_op = SEND_RDMA_WRITE_ZERO;
 		} else {        /* Not supported RDMA0 operation */
 			return -EINVAL;
@@ -543,6 +546,8 @@ static void build_mpa_v2(struct nes_cm_node *cm_node,
 {
 	struct ietf_mpa_v2 *mpa_frame = (struct ietf_mpa_v2 *)start_addr;
 	struct ietf_rtr_msg *rtr_msg = &mpa_frame->rtr_msg;
+	u16 ctrl_ird;
+	u16 ctrl_ord;
 
 	/* initialize the upper 5 bytes of the frame */
 	build_mpa_v1(cm_node, start_addr, mpa_key);
@@ -550,31 +555,31 @@ static void build_mpa_v2(struct nes_cm_node *cm_node,
 	mpa_frame->priv_data_len += htons(IETF_RTR_MSG_SIZE);
 
 	/* initialize RTR msg */
-	rtr_msg->ctrl_ird = (cm_node->ird_size > IETF_NO_IRD_ORD) ?
+	ctrl_ird = (cm_node->ird_size > IETF_NO_IRD_ORD) ?
 			    IETF_NO_IRD_ORD : cm_node->ird_size;
-	rtr_msg->ctrl_ord = (cm_node->ord_size > IETF_NO_IRD_ORD) ?
+	ctrl_ord = (cm_node->ord_size > IETF_NO_IRD_ORD) ?
 			    IETF_NO_IRD_ORD : cm_node->ord_size;
 
-	rtr_msg->ctrl_ird |= IETF_PEER_TO_PEER;
-	rtr_msg->ctrl_ird |= IETF_FLPDU_ZERO_LEN;
+	ctrl_ird |= IETF_PEER_TO_PEER;
+	ctrl_ird |= IETF_FLPDU_ZERO_LEN;
 
 	switch (mpa_key) {
 	case MPA_KEY_REQUEST:
-		rtr_msg->ctrl_ord |= IETF_RDMA0_WRITE;
-		rtr_msg->ctrl_ord |= IETF_RDMA0_READ;
+		ctrl_ord |= IETF_RDMA0_WRITE;
+		ctrl_ord |= IETF_RDMA0_READ;
 		break;
 	case MPA_KEY_REPLY:
 		switch (cm_node->send_rdma0_op) {
 		case SEND_RDMA_WRITE_ZERO:
-			rtr_msg->ctrl_ord |= IETF_RDMA0_WRITE;
+			ctrl_ord |= IETF_RDMA0_WRITE;
 			break;
 		case SEND_RDMA_READ_ZERO:
-			rtr_msg->ctrl_ord |= IETF_RDMA0_READ;
+			ctrl_ord |= IETF_RDMA0_READ;
 			break;
 		}
 	}
-	rtr_msg->ctrl_ird = htons(rtr_msg->ctrl_ird);
-	rtr_msg->ctrl_ord = htons(rtr_msg->ctrl_ord);
+	rtr_msg->ctrl_ird = htons(ctrl_ird);
+	rtr_msg->ctrl_ord = htons(ctrl_ord);
 }
 
 /**
@@ -1351,8 +1356,9 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	else
 		netdev = nesvnic->netdev;
 
+	neigh = dst_neigh_lookup(&rt->dst, &dst_ip);
+
 	rcu_read_lock();
-	neigh = dst_get_neighbour_noref(&rt->dst);
 	if (neigh) {
 		if (neigh->nud_state & NUD_VALID) {
 			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
@@ -1379,9 +1385,12 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 			neigh_event_send(neigh, NULL);
 		}
 	}
-
 out:
 	rcu_read_unlock();
+
+	if (neigh)
+		neigh_release(neigh);
+
 	ip_rt_put(rt);
 	return rc;
 }
@@ -2875,7 +2884,8 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			ibevent.device = nesqp->ibqp.device;
 			ibevent.event = nesqp->terminate_eventtype;
 			ibevent.element.qp = &nesqp->ibqp;
-			nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
+			if (nesqp->ibqp.event_handler)
+				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
 		}
 	}
 
@@ -3311,6 +3321,10 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	nesqp->private_data_len = conn_param->private_data_len;
 	nesqp->nesqp_context->ird_ord_sizes |= cpu_to_le32((u32)conn_param->ord);
+	/* space for rdma0 read msg */
+	if (conn_param->ord == 0)
+		nesqp->nesqp_context->ird_ord_sizes |= cpu_to_le32(1);
+
 	nes_debug(NES_DBG_CM, "requested ord = 0x%08X.\n", (u32)conn_param->ord);
 	nes_debug(NES_DBG_CM, "mpa private data len =%u\n",
 		  conn_param->private_data_len);

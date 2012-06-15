@@ -57,6 +57,7 @@ struct it913x_fe_state {
 	u32 frequency;
 	fe_modulation_t constellation;
 	fe_transmit_mode_t transmission_mode;
+	u8 priority;
 	u32 crystalFrequency;
 	u32 adcFrequency;
 	u8 tuner_type;
@@ -500,19 +501,87 @@ static int it913x_fe_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
+/* FEC values based on fe_code_rate_t non supported values 0*/
+int it913x_qpsk_pval[] = {0, -93, -91, -90, 0, -89, -88};
+int it913x_16qam_pval[] = {0, -87, -85, -84, 0, -83, -82};
+int it913x_64qam_pval[] = {0, -82, -80, -78, 0, -77, -76};
+
+static int it913x_get_signal_strength(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	struct it913x_fe_state *state = fe->demodulator_priv;
+	u8 code_rate;
+	int ret, temp;
+	u8 lna_gain_os;
+
+	ret = it913x_read_reg_u8(state, VAR_P_INBAND);
+	if (ret < 0)
+		return ret;
+
+	/* VHF/UHF gain offset */
+	if (state->frequency < 300000000)
+		lna_gain_os = 7;
+	else
+		lna_gain_os = 14;
+
+	temp = (ret - 100) - lna_gain_os;
+
+	if (state->priority == PRIORITY_HIGH)
+		code_rate = p->code_rate_HP;
+	else
+		code_rate = p->code_rate_LP;
+
+	if (code_rate >= ARRAY_SIZE(it913x_qpsk_pval))
+		return -EINVAL;
+
+	deb_info("Reg VAR_P_INBAND:%d Calc Offset Value:%d", ret, temp);
+
+	/* Apply FEC offset values*/
+	switch (p->modulation) {
+	case QPSK:
+		temp -= it913x_qpsk_pval[code_rate];
+		break;
+	case QAM_16:
+		temp -= it913x_16qam_pval[code_rate];
+		break;
+	case QAM_64:
+		temp -= it913x_64qam_pval[code_rate];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (temp < -15)
+		ret = 0;
+	else if ((-15 <= temp) && (temp < 0))
+		ret = (2 * (temp + 15)) / 3;
+	else if ((0 <= temp) && (temp < 20))
+		ret = 4 * temp + 10;
+	else if ((20 <= temp) && (temp < 35))
+		ret = (2 * (temp - 20)) / 3 + 90;
+	else if (temp >= 35)
+		ret = 100;
+
+	deb_info("Signal Strength :%d", ret);
+
+	return ret;
+}
+
 static int it913x_fe_read_signal_strength(struct dvb_frontend *fe,
 		u16 *strength)
 {
 	struct it913x_fe_state *state = fe->demodulator_priv;
-	int ret = it913x_read_reg_u8(state, SIGNAL_LEVEL);
-	/*SIGNAL_LEVEL always returns 100%! so using FE_HAS_SIGNAL as switch*/
-	if (state->it913x_status & FE_HAS_SIGNAL)
-		ret = (ret * 0xff) / 0x64;
-	else
-		ret = 0x0;
-	ret |= ret << 0x8;
-	*strength = ret;
-	return 0;
+	int ret = 0;
+	if (state->config->read_slevel) {
+		if (state->it913x_status & FE_HAS_SIGNAL)
+			ret = it913x_read_reg_u8(state, SIGNAL_LEVEL);
+	} else
+		ret = it913x_get_signal_strength(fe);
+
+	if (ret >= 0)
+		*strength = (u16)((u32)ret * 0xffff / 0x64);
+
+	return (ret < 0) ? -ENODEV : 0;
 }
 
 static int it913x_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
@@ -564,10 +633,9 @@ static int it913x_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int it913x_fe_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct it913x_fe_state *state = fe->demodulator_priv;
-	int ret;
 	u8 reg[5];
 	/* Read Aborted Packets and Pre-Viterbi error rate 5 bytes */
-	ret = it913x_read_reg(state, RSD_ABORT_PKT_LSB, reg, sizeof(reg));
+	it913x_read_reg(state, RSD_ABORT_PKT_LSB, reg, sizeof(reg));
 	state->ucblocks += (u32)(reg[1] << 8) | reg[0];
 	*ber = (u32)(reg[4] << 16) | (reg[3] << 8) | reg[2];
 	return 0;
@@ -589,10 +657,9 @@ static int it913x_fe_get_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct it913x_fe_state *state = fe->demodulator_priv;
-	int ret;
 	u8 reg[8];
 
-	ret = it913x_read_reg(state, REG_TPSD_TX_MODE, reg, sizeof(reg));
+	it913x_read_reg(state, REG_TPSD_TX_MODE, reg, sizeof(reg));
 
 	if (reg[3] < 3)
 		p->modulation = fe_con[reg[3]];
@@ -605,6 +672,8 @@ static int it913x_fe_get_frontend(struct dvb_frontend *fe)
 
 	if (reg[2] < 4)
 		p->hierarchy = fe_hi[reg[2]];
+
+	state->priority = reg[5];
 
 	p->code_rate_HP = (reg[6] < 6) ? fe_code[reg[6]] : FEC_NONE;
 	p->code_rate_LP = (reg[7] < 6) ? fe_code[reg[7]] : FEC_NONE;
@@ -620,25 +689,25 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct it913x_fe_state *state = fe->demodulator_priv;
-	int ret, i;
+	int i;
 	u8 empty_ch, last_ch;
 
 	state->it913x_status = 0;
 
 	/* Set bw*/
-	ret = it913x_fe_select_bw(state, p->bandwidth_hz,
+	it913x_fe_select_bw(state, p->bandwidth_hz,
 		state->adcFrequency);
 
 	/* Training Mode Off */
-	ret = it913x_write_reg(state, PRO_LINK, TRAINING_MODE, 0x0);
+	it913x_write_reg(state, PRO_LINK, TRAINING_MODE, 0x0);
 
 	/* Clear Empty Channel */
-	ret = it913x_write_reg(state, PRO_DMOD, EMPTY_CHANNEL_STATUS, 0x0);
+	it913x_write_reg(state, PRO_DMOD, EMPTY_CHANNEL_STATUS, 0x0);
 
 	/* Clear bits */
-	ret = it913x_write_reg(state, PRO_DMOD, MP2IF_SYNC_LK, 0x0);
+	it913x_write_reg(state, PRO_DMOD, MP2IF_SYNC_LK, 0x0);
 	/* LED on */
-	ret = it913x_write_reg(state, PRO_LINK, GPIOH3_O, 0x1);
+	it913x_write_reg(state, PRO_LINK, GPIOH3_O, 0x1);
 	/* Select Band*/
 	if ((p->frequency >= 51000000) && (p->frequency <= 230000000))
 		i = 0;
@@ -649,7 +718,7 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe)
 	else
 		return -EOPNOTSUPP;
 
-	ret = it913x_write_reg(state, PRO_DMOD, FREE_BAND, i);
+	it913x_write_reg(state, PRO_DMOD, FREE_BAND, i);
 
 	deb_info("Frontend Set Tuner Type %02x", state->tuner_type);
 	switch (state->tuner_type) {
@@ -659,7 +728,7 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe)
 	case IT9135_60:
 	case IT9135_61:
 	case IT9135_62:
-		ret = it9137_set_tuner(state,
+		it9137_set_tuner(state,
 			p->bandwidth_hz, p->frequency);
 		break;
 	default:
@@ -671,9 +740,9 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe)
 		break;
 	}
 	/* LED off */
-	ret = it913x_write_reg(state, PRO_LINK, GPIOH3_O, 0x0);
+	it913x_write_reg(state, PRO_LINK, GPIOH3_O, 0x0);
 	/* Trigger ofsm */
-	ret = it913x_write_reg(state, PRO_DMOD, TRIGGER_OFSM, 0x0);
+	it913x_write_reg(state, PRO_DMOD, TRIGGER_OFSM, 0x0);
 	last_ch = 2;
 	for (i = 0; i < 40; ++i) {
 		empty_ch = it913x_read_reg_u8(state, EMPTY_CHANNEL_STATUS);
@@ -972,5 +1041,5 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 
 MODULE_DESCRIPTION("it913x Frontend and it9137 tuner");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
-MODULE_VERSION("1.13");
+MODULE_VERSION("1.15");
 MODULE_LICENSE("GPL");

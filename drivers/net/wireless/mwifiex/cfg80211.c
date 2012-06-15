@@ -20,6 +20,23 @@
 #include "cfg80211.h"
 #include "main.h"
 
+static const struct ieee80211_iface_limit mwifiex_ap_sta_limits[] = {
+	{
+		.max = 1, .types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1, .types = BIT(NL80211_IFTYPE_AP),
+	},
+};
+
+static const struct ieee80211_iface_combination mwifiex_iface_comb_ap_sta = {
+	.limits = mwifiex_ap_sta_limits,
+	.num_different_channels = 1,
+	.n_limits = ARRAY_SIZE(mwifiex_ap_sta_limits),
+	.max_interfaces = MWIFIEX_MAX_BSS_NUM,
+	.beacon_int_infra_match = true,
+};
+
 /*
  * This function maps the nl802.11 channel type into driver channel type.
  *
@@ -67,7 +84,7 @@ mwifiex_is_alg_wep(u32 cipher)
 /*
  * This function retrieves the private structure from kernel wiphy structure.
  */
-static void *mwifiex_cfg80211_get_priv(struct wiphy *wiphy)
+static void *mwifiex_cfg80211_get_adapter(struct wiphy *wiphy)
 {
 	return (void *) (*(unsigned long *) wiphy_priv(wiphy));
 }
@@ -79,9 +96,11 @@ static int
 mwifiex_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
 			 u8 key_index, bool pairwise, const u8 *mac_addr)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
+	const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	const u8 *peer_mac = pairwise ? mac_addr : bc_mac;
 
-	if (mwifiex_set_encode(priv, NULL, 0, key_index, 1)) {
+	if (mwifiex_set_encode(priv, NULL, 0, key_index, peer_mac, 1)) {
 		wiphy_err(wiphy, "deleting the crypto keys\n");
 		return -EFAULT;
 	}
@@ -98,7 +117,8 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 			      enum nl80211_tx_power_setting type,
 			      int mbm)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv;
 	struct mwifiex_power_cfg power_cfg;
 	int dbm = MBM_TO_DBM(mbm);
 
@@ -108,6 +128,8 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 	} else {
 		power_cfg.is_power_auto = 1;
 	}
+
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
 	return mwifiex_set_tx_power(priv, &power_cfg);
 }
@@ -122,13 +144,12 @@ mwifiex_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 				struct net_device *dev,
 				bool enabled, int timeout)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	u32 ps_mode;
 
 	if (timeout)
 		wiphy_dbg(wiphy,
-			"info: ignoring the timeout value"
-			" for IEEE power save\n");
+			  "info: ignore timeout value for IEEE Power Save\n");
 
 	ps_mode = enabled;
 
@@ -143,13 +164,13 @@ mwifiex_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 				 u8 key_index, bool unicast,
 				 bool multicast)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
 
 	/* Return if WEP key not configured */
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED)
+	if (!priv->sec_info.wep_enabled)
 		return 0;
 
-	if (mwifiex_set_encode(priv, NULL, 0, key_index, 0)) {
+	if (mwifiex_set_encode(priv, NULL, 0, key_index, NULL, 0)) {
 		wiphy_err(wiphy, "set default Tx key index\n");
 		return -EFAULT;
 	}
@@ -165,10 +186,12 @@ mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
 			 u8 key_index, bool pairwise, const u8 *mac_addr,
 			 struct key_params *params)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
+	const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	const u8 *peer_mac = pairwise ? mac_addr : bc_mac;
 
 	if (mwifiex_set_encode(priv, params->key, params->key_len,
-							key_index, 0)) {
+			       key_index, peer_mac, 0)) {
 		wiphy_err(wiphy, "crypto keys added\n");
 		return -EFAULT;
 	}
@@ -193,13 +216,13 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 	enum ieee80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv;
 	struct mwifiex_802_11d_domain_reg *domain_info = &adapter->domain_reg;
 
 	/* Set country code */
-	domain_info->country_code[0] = priv->country_code[0];
-	domain_info->country_code[1] = priv->country_code[1];
+	domain_info->country_code[0] = adapter->country_code[0];
+	domain_info->country_code[1] = adapter->country_code[1];
 	domain_info->country_code[2] = ' ';
 
 	band = mwifiex_band_to_radio_type(adapter->config_bands);
@@ -225,7 +248,7 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 		}
 
 		if (ch->hw_value == next_chan + 1 &&
-				ch->max_power == max_pwr) {
+		    ch->max_power == max_pwr) {
 			next_chan++;
 			no_of_parsed_chan++;
 		} else {
@@ -251,8 +274,10 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 
 	domain_info->no_of_triplet = no_of_triplet;
 
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
+
 	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
-				     HostCmd_ACT_GEN_SET, 0, NULL)) {
+				   HostCmd_ACT_GEN_SET, 0, NULL)) {
 		wiphy_err(wiphy, "11D: setting domain info in FW\n");
 		return -1;
 	}
@@ -271,14 +296,14 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
  *      - Set bt Country IE
  */
 static int mwifiex_reg_notifier(struct wiphy *wiphy,
-		struct regulatory_request *request)
+				struct regulatory_request *request)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 
-	wiphy_dbg(wiphy, "info: cfg80211 regulatory domain callback for domain"
-			" %c%c\n", request->alpha2[0], request->alpha2[1]);
+	wiphy_dbg(wiphy, "info: cfg80211 regulatory domain callback for %c%c\n",
+		  request->alpha2[0], request->alpha2[1]);
 
-	memcpy(priv->country_code, request->alpha2, sizeof(request->alpha2));
+	memcpy(adapter->country_code, request->alpha2, sizeof(request->alpha2));
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_DRIVER:
@@ -316,7 +341,7 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 		if (chan->band == IEEE80211_BAND_2GHZ) {
 			if (channel_type == NL80211_CHAN_NO_HT)
 				if (priv->adapter->config_bands == BAND_B ||
-					  priv->adapter->config_bands == BAND_G)
+				    priv->adapter->config_bands == BAND_G)
 					config_bands =
 						priv->adapter->config_bands;
 				else
@@ -336,7 +361,7 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 			if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 				adapter->adhoc_start_band = config_bands;
 				if ((config_bands & BAND_GN) ||
-						(config_bands & BAND_AN))
+				    (config_bands & BAND_AN))
 					adapter->adhoc_11n_enabled = true;
 				else
 					adapter->adhoc_11n_enabled = false;
@@ -350,9 +375,8 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 		mwifiex_send_domain_info_cmd_fw(wiphy);
 	}
 
-	wiphy_dbg(wiphy, "info: setting band %d, channel offset %d and "
-		"mode %d\n", config_bands, adapter->sec_chan_offset,
-		priv->bss_mode);
+	wiphy_dbg(wiphy, "info: setting band %d, chan offset %d, mode %d\n",
+		  config_bands, adapter->sec_chan_offset, priv->bss_mode);
 	if (!chan)
 		return 0;
 
@@ -363,28 +387,10 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 	if (mwifiex_bss_set_channel(priv, &cfp))
 		return -EFAULT;
 
-	return mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
-}
-
-/*
- * CFG802.11 operation handler to set channel.
- *
- * This function can only be used when station is not connected.
- */
-static int
-mwifiex_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
-			     struct ieee80211_channel *chan,
-			     enum nl80211_channel_type channel_type)
-{
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-
-	if (priv->media_connected) {
-		wiphy_err(wiphy, "This setting is valid only when station "
-				"is not connected\n");
-		return -EINVAL;
-	}
-
-	return mwifiex_set_rf_channel(priv, chan, channel_type);
+	if (priv->bss_type == MWIFIEX_BSS_TYPE_STA)
+		return mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
+	else
+		return mwifiex_uap_set_channel(priv, cfp.channel);
 }
 
 /*
@@ -396,18 +402,13 @@ mwifiex_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 static int
 mwifiex_set_frag(struct mwifiex_private *priv, u32 frag_thr)
 {
-	int ret;
+	if (frag_thr < MWIFIEX_FRAG_MIN_VALUE ||
+	    frag_thr > MWIFIEX_FRAG_MAX_VALUE)
+		frag_thr = MWIFIEX_FRAG_MAX_VALUE;
 
-	if (frag_thr < MWIFIEX_FRAG_MIN_VALUE
-	    || frag_thr > MWIFIEX_FRAG_MAX_VALUE)
-		return -EINVAL;
-
-	/* Send request to firmware */
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-				    HostCmd_ACT_GEN_SET, FRAG_THRESH_I,
-				    &frag_thr);
-
-	return ret;
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				     HostCmd_ACT_GEN_SET, FRAG_THRESH_I,
+				     &frag_thr);
 }
 
 /*
@@ -436,19 +437,85 @@ mwifiex_set_rts(struct mwifiex_private *priv, u32 rts_thr)
 static int
 mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-	int ret = 0;
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv;
+	struct mwifiex_uap_bss_param *bss_cfg;
+	int ret, bss_started, i;
 
-	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
-		ret = mwifiex_set_rts(priv, wiphy->rts_threshold);
-		if (ret)
-			return ret;
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+
+		switch (priv->bss_role) {
+		case MWIFIEX_BSS_ROLE_UAP:
+			bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param),
+					  GFP_KERNEL);
+			if (!bss_cfg)
+				return -ENOMEM;
+
+			mwifiex_set_sys_config_invalid_data(bss_cfg);
+
+			if (changed & WIPHY_PARAM_RTS_THRESHOLD)
+				bss_cfg->rts_threshold = wiphy->rts_threshold;
+			if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
+				bss_cfg->frag_threshold = wiphy->frag_threshold;
+			if (changed & WIPHY_PARAM_RETRY_LONG)
+				bss_cfg->retry_limit = wiphy->retry_long;
+
+			bss_started = priv->bss_started;
+
+			ret = mwifiex_send_cmd_sync(priv,
+						    HostCmd_CMD_UAP_BSS_STOP,
+						    HostCmd_ACT_GEN_SET, 0,
+						    NULL);
+			if (ret) {
+				wiphy_err(wiphy, "Failed to stop the BSS\n");
+				kfree(bss_cfg);
+				return ret;
+			}
+
+			ret = mwifiex_send_cmd_async(priv,
+						     HostCmd_CMD_UAP_SYS_CONFIG,
+						     HostCmd_ACT_GEN_SET,
+						     UAP_BSS_PARAMS_I, bss_cfg);
+
+			kfree(bss_cfg);
+
+			if (ret) {
+				wiphy_err(wiphy, "Failed to set bss config\n");
+				return ret;
+			}
+
+			if (!bss_started)
+				break;
+
+			ret = mwifiex_send_cmd_async(priv,
+						     HostCmd_CMD_UAP_BSS_START,
+						     HostCmd_ACT_GEN_SET, 0,
+						     NULL);
+			if (ret) {
+				wiphy_err(wiphy, "Failed to start BSS\n");
+				return ret;
+			}
+
+			break;
+		case MWIFIEX_BSS_ROLE_STA:
+			if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
+				ret = mwifiex_set_rts(priv,
+						      wiphy->rts_threshold);
+				if (ret)
+					return ret;
+			}
+			if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
+				ret = mwifiex_set_frag(priv,
+						       wiphy->frag_threshold);
+				if (ret)
+					return ret;
+			}
+			break;
+		}
 	}
 
-	if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
-		ret = mwifiex_set_frag(priv, wiphy->frag_threshold);
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -463,31 +530,59 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 	int ret;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
-	if (priv->bss_mode == type) {
-		wiphy_warn(wiphy, "already set to required type\n");
-		return 0;
-	}
-
-	priv->bss_mode = type;
-
-	switch (type) {
+	switch (dev->ieee80211_ptr->iftype) {
 	case NL80211_IFTYPE_ADHOC:
-		dev->ieee80211_ptr->iftype = NL80211_IFTYPE_ADHOC;
-		wiphy_dbg(wiphy, "info: setting interface type to adhoc\n");
+		switch (type) {
+		case NL80211_IFTYPE_STATION:
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+			wiphy_warn(wiphy, "%s: kept type as IBSS\n", dev->name);
+		case NL80211_IFTYPE_ADHOC:	/* This shouldn't happen */
+			return 0;
+		case NL80211_IFTYPE_AP:
+		default:
+			wiphy_err(wiphy, "%s: changing to %d not supported\n",
+				  dev->name, type);
+			return -EOPNOTSUPP;
+		}
 		break;
 	case NL80211_IFTYPE_STATION:
-		dev->ieee80211_ptr->iftype = NL80211_IFTYPE_STATION;
-		wiphy_dbg(wiphy, "info: setting interface type to managed\n");
+		switch (type) {
+		case NL80211_IFTYPE_ADHOC:
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+			wiphy_warn(wiphy, "%s: kept type as STA\n", dev->name);
+		case NL80211_IFTYPE_STATION:	/* This shouldn't happen */
+			return 0;
+		case NL80211_IFTYPE_AP:
+		default:
+			wiphy_err(wiphy, "%s: changing to %d not supported\n",
+				  dev->name, type);
+			return -EOPNOTSUPP;
+		}
 		break;
-	case NL80211_IFTYPE_UNSPECIFIED:
-		dev->ieee80211_ptr->iftype = NL80211_IFTYPE_STATION;
-		wiphy_dbg(wiphy, "info: setting interface type to auto\n");
-		return 0;
+	case NL80211_IFTYPE_AP:
+		switch (type) {
+		case NL80211_IFTYPE_UNSPECIFIED:
+			wiphy_warn(wiphy, "%s: kept type as AP\n", dev->name);
+		case NL80211_IFTYPE_AP:		/* This shouldn't happen */
+			return 0;
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_STATION:
+		default:
+			wiphy_err(wiphy, "%s: changing to %d not supported\n",
+				  dev->name, type);
+			return -EOPNOTSUPP;
+		}
+		break;
 	default:
-		wiphy_err(wiphy, "unknown interface type: %d\n", type);
-		return -EINVAL;
+		wiphy_err(wiphy, "%s: unknown iftype: %d\n",
+			  dev->name, dev->ieee80211_ptr->iftype);
+		return -EOPNOTSUPP;
 	}
 
+	dev->ieee80211_ptr->iftype = type;
+	priv->bss_mode = type;
 	mwifiex_deauthenticate(priv, NULL);
 
 	priv->sec_info.authentication_mode = NL80211_AUTHTYPE_OPEN_SYSTEM;
@@ -513,26 +608,29 @@ static int
 mwifiex_dump_station_info(struct mwifiex_private *priv,
 			  struct station_info *sinfo)
 {
-	struct mwifiex_ds_get_signal signal;
 	struct mwifiex_rate_cfg rate;
-	int ret = 0;
 
 	sinfo->filled = STATION_INFO_RX_BYTES | STATION_INFO_TX_BYTES |
-		STATION_INFO_RX_PACKETS |
-		STATION_INFO_TX_PACKETS
-		| STATION_INFO_SIGNAL | STATION_INFO_TX_BITRATE;
+			STATION_INFO_RX_PACKETS | STATION_INFO_TX_PACKETS |
+			STATION_INFO_TX_BITRATE |
+			STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
 
 	/* Get signal information from the firmware */
-	memset(&signal, 0, sizeof(struct mwifiex_ds_get_signal));
-	if (mwifiex_get_signal_info(priv, &signal)) {
-		dev_err(priv->adapter->dev, "getting signal information\n");
-		ret = -EFAULT;
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_RSSI_INFO,
+				  HostCmd_ACT_GEN_GET, 0, NULL)) {
+		dev_err(priv->adapter->dev, "failed to get signal information\n");
+		return -EFAULT;
 	}
 
 	if (mwifiex_drv_get_data_rate(priv, &rate)) {
 		dev_err(priv->adapter->dev, "getting data rate\n");
-		ret = -EFAULT;
+		return -EFAULT;
 	}
+
+	/* Get DTIM period information from firmware */
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, DTIM_PERIOD_I,
+			      &priv->dtim_period);
 
 	/*
 	 * Bit 0 in tx_htinfo indicates that current Tx rate is 11n rate. Valid
@@ -549,15 +647,32 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
 	}
 
+	sinfo->signal_avg = priv->bcn_rssi_avg;
 	sinfo->rx_bytes = priv->stats.rx_bytes;
 	sinfo->tx_bytes = priv->stats.tx_bytes;
 	sinfo->rx_packets = priv->stats.rx_packets;
 	sinfo->tx_packets = priv->stats.tx_packets;
-	sinfo->signal = priv->qual_level;
+	sinfo->signal = priv->bcn_rssi_avg;
 	/* bit rate is in 500 kb/s units. Convert it to 100kb/s units */
 	sinfo->txrate.legacy = rate.rate * 5;
 
-	return ret;
+	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+		sinfo->filled |= STATION_INFO_BSS_PARAM;
+		sinfo->bss_param.flags = 0;
+		if (priv->curr_bss_params.bss_descriptor.cap_info_bitmap &
+						WLAN_CAPABILITY_SHORT_PREAMBLE)
+			sinfo->bss_param.flags |=
+					BSS_PARAM_FLAGS_SHORT_PREAMBLE;
+		if (priv->curr_bss_params.bss_descriptor.cap_info_bitmap &
+						WLAN_CAPABILITY_SHORT_SLOT_TIME)
+			sinfo->bss_param.flags |=
+					BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
+		sinfo->bss_param.dtim_period = priv->dtim_period;
+		sinfo->bss_param.beacon_interval =
+			priv->curr_bss_params.bss_descriptor.beacon_period;
+	}
+
+	return 0;
 }
 
 /*
@@ -580,6 +695,23 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return mwifiex_dump_station_info(priv, sinfo);
 }
 
+/*
+ * CFG802.11 operation handler to dump station information.
+ */
+static int
+mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
+			      int idx, u8 *mac, struct station_info *sinfo)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (!priv->media_connected || idx)
+		return -ENOENT;
+
+	memcpy(mac, priv->cfg_bssid, ETH_ALEN);
+
+	return mwifiex_dump_station_info(priv, sinfo);
+}
+
 /* Supported rates to be advertised to the cfg80211 */
 
 static struct ieee80211_rate mwifiex_rates[] = {
@@ -587,7 +719,6 @@ static struct ieee80211_rate mwifiex_rates[] = {
 	{.bitrate = 20, .hw_value = 4, },
 	{.bitrate = 55, .hw_value = 11, },
 	{.bitrate = 110, .hw_value = 22, },
-	{.bitrate = 220, .hw_value = 44, },
 	{.bitrate = 60, .hw_value = 12, },
 	{.bitrate = 90, .hw_value = 18, },
 	{.bitrate = 120, .hw_value = 24, },
@@ -596,7 +727,6 @@ static struct ieee80211_rate mwifiex_rates[] = {
 	{.bitrate = 360, .hw_value = 72, },
 	{.bitrate = 480, .hw_value = 96, },
 	{.bitrate = 540, .hw_value = 108, },
-	{.bitrate = 720, .hw_value = 144, },
 };
 
 /* Channel definitions to be advertised to cfg80211 */
@@ -622,7 +752,7 @@ static struct ieee80211_supported_band mwifiex_band_2ghz = {
 	.channels = mwifiex_channels_2ghz,
 	.n_channels = ARRAY_SIZE(mwifiex_channels_2ghz),
 	.bitrates = mwifiex_rates,
-	.n_bitrates = 14,
+	.n_bitrates = ARRAY_SIZE(mwifiex_rates),
 };
 
 static struct ieee80211_channel mwifiex_channels_5ghz[] = {
@@ -662,8 +792,8 @@ static struct ieee80211_channel mwifiex_channels_5ghz[] = {
 static struct ieee80211_supported_band mwifiex_band_5ghz = {
 	.channels = mwifiex_channels_5ghz,
 	.n_channels = ARRAY_SIZE(mwifiex_channels_5ghz),
-	.bitrates = mwifiex_rates - 4,
-	.n_bitrates = ARRAY_SIZE(mwifiex_rates) + 4,
+	.bitrates = mwifiex_rates + 4,
+	.n_bitrates = ARRAY_SIZE(mwifiex_rates) - 4,
 };
 
 
@@ -722,8 +852,130 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 	adapter->channel_type = NL80211_CHAN_NO_HT;
 
 	wiphy_debug(wiphy, "info: device configured in 802.11%s%s mode\n",
-				(mode & BAND_B) ? "b" : "",
-				(mode & BAND_G) ? "g" : "");
+		    (mode & BAND_B) ? "b" : "", (mode & BAND_G) ? "g" : "");
+
+	return 0;
+}
+
+/*
+ * CFG802.11 operation handler for connection quality monitoring.
+ *
+ * This function subscribes/unsubscribes HIGH_RSSI and LOW_RSSI
+ * events to FW.
+ */
+static int mwifiex_cfg80211_set_cqm_rssi_config(struct wiphy *wiphy,
+						struct net_device *dev,
+						s32 rssi_thold, u32 rssi_hyst)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_ds_misc_subsc_evt subsc_evt;
+
+	priv->cqm_rssi_thold = rssi_thold;
+	priv->cqm_rssi_hyst = rssi_hyst;
+
+	memset(&subsc_evt, 0x00, sizeof(struct mwifiex_ds_misc_subsc_evt));
+	subsc_evt.events = BITMASK_BCN_RSSI_LOW | BITMASK_BCN_RSSI_HIGH;
+
+	/* Subscribe/unsubscribe low and high rssi events */
+	if (rssi_thold && rssi_hyst) {
+		subsc_evt.action = HostCmd_ACT_BITWISE_SET;
+		subsc_evt.bcn_l_rssi_cfg.abs_value = abs(rssi_thold);
+		subsc_evt.bcn_h_rssi_cfg.abs_value = abs(rssi_thold);
+		subsc_evt.bcn_l_rssi_cfg.evt_freq = 1;
+		subsc_evt.bcn_h_rssi_cfg.evt_freq = 1;
+		return mwifiex_send_cmd_sync(priv,
+					     HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+					     0, 0, &subsc_evt);
+	} else {
+		subsc_evt.action = HostCmd_ACT_BITWISE_CLR;
+		return mwifiex_send_cmd_sync(priv,
+					     HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+					     0, 0, &subsc_evt);
+	}
+
+	return 0;
+}
+
+/* cfg80211 operation handler for stop ap.
+ * Function stops BSS running at uAP interface.
+ */
+static int mwifiex_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (mwifiex_del_mgmt_ies(priv))
+		wiphy_err(wiphy, "Failed to delete mgmt IEs!\n");
+
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
+				  HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(wiphy, "Failed to stop the BSS\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+/* cfg80211 operation handler for start_ap.
+ * Function sets beacon period, DTIM period, SSID and security into
+ * AP config structure.
+ * AP is configured with these settings and BSS is started.
+ */
+static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
+				     struct net_device *dev,
+				     struct cfg80211_ap_settings *params)
+{
+	struct mwifiex_uap_bss_param *bss_cfg;
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP)
+		return -1;
+	if (mwifiex_set_mgmt_ies(priv, params))
+		return -1;
+
+	bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param), GFP_KERNEL);
+	if (!bss_cfg)
+		return -ENOMEM;
+
+	mwifiex_set_sys_config_invalid_data(bss_cfg);
+
+	if (params->beacon_interval)
+		bss_cfg->beacon_period = params->beacon_interval;
+	if (params->dtim_period)
+		bss_cfg->dtim_period = params->dtim_period;
+
+	if (params->ssid && params->ssid_len) {
+		memcpy(bss_cfg->ssid.ssid, params->ssid, params->ssid_len);
+		bss_cfg->ssid.ssid_len = params->ssid_len;
+	}
+
+	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
+		kfree(bss_cfg);
+		wiphy_err(wiphy, "Failed to parse secuirty parameters!\n");
+		return -1;
+	}
+
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
+				  HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(wiphy, "Failed to stop the BSS\n");
+		kfree(bss_cfg);
+		return -1;
+	}
+
+	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
+				   HostCmd_ACT_GEN_SET,
+				   UAP_BSS_PARAMS_I, bss_cfg)) {
+		wiphy_err(wiphy, "Failed to set the SSID\n");
+		kfree(bss_cfg);
+		return -1;
+	}
+
+	kfree(bss_cfg);
+
+	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_BSS_START,
+				   HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(wiphy, "Failed to start the BSS\n");
+		return -1;
+	}
 
 	return 0;
 }
@@ -778,8 +1030,7 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 	ie_buf[1] = bss_info.ssid.ssid_len;
 
 	memcpy(&ie_buf[sizeof(struct ieee_types_header)],
-			&bss_info.ssid.ssid,
-			bss_info.ssid.ssid_len);
+	       &bss_info.ssid.ssid, bss_info.ssid.ssid_len);
 	ie_len = ie_buf[1] + sizeof(struct ieee_types_header);
 
 	band = mwifiex_band_to_radio_type(priv->curr_bss_params.band);
@@ -788,8 +1039,8 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 						       band));
 
 	bss = cfg80211_inform_bss(priv->wdev->wiphy, chan,
-		bss_info.bssid, 0, WLAN_CAPABILITY_IBSS,
-		0, ie_buf, ie_len, 0, GFP_KERNEL);
+				  bss_info.bssid, 0, WLAN_CAPABILITY_IBSS,
+				  0, ie_buf, ie_len, 0, GFP_KERNEL);
 	cfg80211_put_bss(bss);
 	memcpy(priv->cfg_bssid, bss_info.bssid, ETH_ALEN);
 
@@ -815,12 +1066,12 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		       u8 *bssid, int mode, struct ieee80211_channel *channel,
 		       struct cfg80211_connect_params *sme, bool privacy)
 {
-	struct mwifiex_802_11_ssid req_ssid;
+	struct cfg80211_ssid req_ssid;
 	int ret, auth_type = 0;
 	struct cfg80211_bss *bss = NULL;
 	u8 is_scanning_required = 0;
 
-	memset(&req_ssid, 0, sizeof(struct mwifiex_802_11_ssid));
+	memset(&req_ssid, 0, sizeof(struct cfg80211_ssid));
 
 	req_ssid.ssid_len = ssid_len;
 	if (ssid_len > IEEE80211_MAX_SSID_LEN) {
@@ -847,7 +1098,8 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	priv->sec_info.wpa2_enabled = false;
 	priv->wep_key_curr_index = 0;
 	priv->sec_info.encryption_mode = 0;
-	ret = mwifiex_set_encode(priv, NULL, 0, 0, 1);
+	priv->sec_info.is_authtype_auto = 0;
+	ret = mwifiex_set_encode(priv, NULL, 0, 0, NULL, 1);
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
 		/* "privacy" is set only for ad-hoc mode */
@@ -868,11 +1120,12 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	}
 
 	/* Now handle infra mode. "sme" is valid for infra mode only */
-	if (sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC
-			|| sme->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM)
+	if (sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC) {
 		auth_type = NL80211_AUTHTYPE_OPEN_SYSTEM;
-	else if (sme->auth_type == NL80211_AUTHTYPE_SHARED_KEY)
-		auth_type = NL80211_AUTHTYPE_SHARED_KEY;
+		priv->sec_info.is_authtype_auto = 1;
+	} else {
+		auth_type = sme->auth_type;
+	}
 
 	if (sme->crypto.n_ciphers_pairwise) {
 		priv->sec_info.encryption_mode =
@@ -894,16 +1147,10 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 				" with key len %d\n", sme->key_len);
 			priv->wep_key_curr_index = sme->key_idx;
 			ret = mwifiex_set_encode(priv, sme->key, sme->key_len,
-							sme->key_idx, 0);
+						 sme->key_idx, NULL, 0);
 		}
 	}
 done:
-	/* Do specific SSID scanning */
-	if (mwifiex_request_scan(priv, &req_ssid)) {
-		dev_err(priv->adapter->dev, "scan error\n");
-		return -EFAULT;
-	}
-
 	/*
 	 * Scan entries are valid for some time (15 sec). So we can save one
 	 * active scan time if we just try cfg80211_get_bss first. If it fails
@@ -932,14 +1179,15 @@ done:
 
 		if (!bss) {
 			if (is_scanning_required) {
-				dev_warn(priv->adapter->dev, "assoc: requested "
-					 "bss not found in scan results\n");
+				dev_warn(priv->adapter->dev,
+					 "assoc: requested bss not found in scan results\n");
 				break;
 			}
 			is_scanning_required = 1;
 		} else {
-			dev_dbg(priv->adapter->dev, "info: trying to associate to %s and bssid %pM\n",
-					(char *) req_ssid.ssid, bss->bssid);
+			dev_dbg(priv->adapter->dev,
+				"info: trying to associate to '%s' bssid %pM\n",
+				(char *) req_ssid.ssid, bss->bssid);
 			memcpy(&priv->cfg_bssid, bss->bssid, ETH_ALEN);
 			break;
 		}
@@ -978,8 +1226,13 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		goto done;
 	}
 
+	if (priv->bss_mode == NL80211_IFTYPE_AP) {
+		wiphy_err(wiphy, "skip association request for AP interface\n");
+		goto done;
+	}
+
 	wiphy_dbg(wiphy, "info: Trying to associate to %s and bssid %pM\n",
-	       (char *) sme->ssid, sme->bssid);
+		  (char *) sme->ssid, sme->bssid);
 
 	ret = mwifiex_cfg80211_assoc(priv, sme->ssid_len, sme->ssid, sme->bssid,
 				     priv->bss_mode, sme->channel, sme, 0);
@@ -1011,7 +1264,7 @@ static int
 mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 			   struct cfg80211_ibss_params *params)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	int ret = 0;
 
 	if (priv->bss_mode != NL80211_IFTYPE_ADHOC) {
@@ -1021,11 +1274,11 @@ mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	wiphy_dbg(wiphy, "info: trying to join to %s and bssid %pM\n",
-	       (char *) params->ssid, params->bssid);
+		  (char *) params->ssid, params->bssid);
 
 	ret = mwifiex_cfg80211_assoc(priv, params->ssid_len, params->ssid,
-				params->bssid, priv->bss_mode,
-				params->channel, NULL, params->privacy);
+				     params->bssid, priv->bss_mode,
+				     params->channel, NULL, params->privacy);
 done:
 	if (!ret) {
 		cfg80211_ibss_joined(priv->netdev, priv->cfg_bssid, GFP_KERNEL);
@@ -1049,10 +1302,10 @@ done:
 static int
 mwifiex_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
 	wiphy_dbg(wiphy, "info: disconnecting from essid %pM\n",
-			priv->cfg_bssid);
+		  priv->cfg_bssid);
 	if (mwifiex_deauthenticate(priv, NULL))
 		return -EFAULT;
 
@@ -1081,17 +1334,26 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 	priv->scan_request = request;
 
 	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
-					GFP_KERNEL);
+				      GFP_KERNEL);
 	if (!priv->user_scan_cfg) {
 		dev_err(priv->adapter->dev, "failed to alloc scan_req\n");
 		return -ENOMEM;
 	}
-	for (i = 0; i < request->n_ssids; i++) {
-		memcpy(priv->user_scan_cfg->ssid_list[i].ssid,
-			request->ssids[i].ssid, request->ssids[i].ssid_len);
-		priv->user_scan_cfg->ssid_list[i].max_len =
-			request->ssids[i].ssid_len;
+
+	priv->user_scan_cfg->num_ssids = request->n_ssids;
+	priv->user_scan_cfg->ssid_list = request->ssids;
+
+	if (request->ie && request->ie_len) {
+		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {
+			if (priv->vs_ie[i].mask != MWIFIEX_VSIE_MASK_CLEAR)
+				continue;
+			priv->vs_ie[i].mask = MWIFIEX_VSIE_MASK_SCAN;
+			memcpy(&priv->vs_ie[i].ie, request->ie,
+			       request->ie_len);
+			break;
+		}
 	}
+
 	for (i = 0; i < request->n_channels; i++) {
 		chan = request->channels[i];
 		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
@@ -1099,16 +1361,25 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 
 		if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 			priv->user_scan_cfg->chan_list[i].scan_type =
-				MWIFIEX_SCAN_TYPE_PASSIVE;
+						MWIFIEX_SCAN_TYPE_PASSIVE;
 		else
 			priv->user_scan_cfg->chan_list[i].scan_type =
-				MWIFIEX_SCAN_TYPE_ACTIVE;
+						MWIFIEX_SCAN_TYPE_ACTIVE;
 
 		priv->user_scan_cfg->chan_list[i].scan_time = 0;
 	}
 	if (mwifiex_set_user_scan_ioctl(priv, priv->user_scan_cfg))
 		return -EFAULT;
 
+	if (request->ie && request->ie_len) {
+		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {
+			if (priv->vs_ie[i].mask == MWIFIEX_VSIE_MASK_SCAN) {
+				priv->vs_ie[i].mask = MWIFIEX_VSIE_MASK_CLEAR;
+				memset(&priv->vs_ie[i].ie, 0,
+				       MWIFIEX_MAX_VSIE_LEN);
+			}
+		}
+	}
 	return 0;
 }
 
@@ -1173,9 +1444,9 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 	memset(mcs, 0xff, rx_mcs_supp);
 	/* Clear all the other values */
 	memset(&mcs[rx_mcs_supp], 0,
-			sizeof(struct ieee80211_mcs_info) - rx_mcs_supp);
+	       sizeof(struct ieee80211_mcs_info) - rx_mcs_supp);
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
-			ISSUPP_CHANWIDTH40(adapter->hw_dot_11n_dev_cap))
+	    ISSUPP_CHANWIDTH40(adapter->hw_dot_11n_dev_cap))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(mcs_set.rx_mask);
 
@@ -1188,20 +1459,17 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
  *  create a new virtual interface with the given name
  */
 struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
-						char *name,
-						enum nl80211_iftype type,
-						u32 *flags,
-						struct vif_params *params)
+					    char *name,
+					    enum nl80211_iftype type,
+					    u32 *flags,
+					    struct vif_params *params)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-	struct mwifiex_adapter *adapter;
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv;
 	struct net_device *dev;
 	void *mdev_priv;
+	struct wireless_dev *wdev;
 
-	if (!priv)
-		return NULL;
-
-	adapter = priv->adapter;
 	if (!adapter)
 		return NULL;
 
@@ -1209,11 +1477,20 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
+		priv = adapter->priv[MWIFIEX_BSS_TYPE_STA];
 		if (priv->bss_mode) {
-			wiphy_err(wiphy, "cannot create multiple"
-					" station/adhoc interfaces\n");
+			wiphy_err(wiphy,
+				  "cannot create multiple sta/adhoc ifaces\n");
 			return NULL;
 		}
+
+		wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
+		if (!wdev)
+			return NULL;
+
+		wdev->wiphy = wiphy;
+		priv->wdev = wdev;
+		wdev->iftype = NL80211_IFTYPE_STATION;
 
 		if (type == NL80211_IFTYPE_UNSPECIFIED)
 			priv->bss_mode = NL80211_IFTYPE_STATION;
@@ -1222,10 +1499,34 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 		priv->bss_type = MWIFIEX_BSS_TYPE_STA;
 		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
-		priv->bss_priority = 0;
+		priv->bss_priority = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
-		priv->bss_index = 0;
 		priv->bss_num = 0;
+
+		break;
+	case NL80211_IFTYPE_AP:
+		priv = adapter->priv[MWIFIEX_BSS_TYPE_UAP];
+
+		if (priv->bss_mode) {
+			wiphy_err(wiphy, "Can't create multiple AP interfaces");
+			return NULL;
+		}
+
+		wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
+		if (!wdev)
+			return NULL;
+
+		priv->wdev = wdev;
+		wdev->wiphy = wiphy;
+		wdev->iftype = NL80211_IFTYPE_AP;
+
+		priv->bss_type = MWIFIEX_BSS_TYPE_UAP;
+		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
+		priv->bss_priority = MWIFIEX_BSS_ROLE_UAP;
+		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
+		priv->bss_started = 0;
+		priv->bss_num = 0;
+		priv->bss_mode = type;
 
 		break;
 	default:
@@ -1240,6 +1541,15 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		goto error;
 	}
 
+	mwifiex_init_priv_params(priv, dev);
+	priv->netdev = dev;
+
+	mwifiex_setup_ht_caps(&wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap, priv);
+
+	if (adapter->config_bands & BAND_A)
+		mwifiex_setup_ht_caps(
+			&wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap, priv);
+
 	dev_net_set(dev, wiphy_net(wiphy));
 	dev->ieee80211_ptr = priv->wdev;
 	dev->ieee80211_ptr->iftype = priv->bss_mode;
@@ -1253,9 +1563,6 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 	mdev_priv = netdev_priv(dev);
 	*((unsigned long *) mdev_priv) = (unsigned long) priv;
-
-	priv->netdev = dev;
-	mwifiex_init_priv_params(priv, dev);
 
 	SET_NETDEV_DEV(dev, adapter->dev);
 
@@ -1288,10 +1595,7 @@ EXPORT_SYMBOL_GPL(mwifiex_add_virtual_intf);
  */
 int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-
-	if (!priv || !dev)
-		return 0;
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
 #ifdef CONFIG_DEBUG_FS
 	mwifiex_dev_debugfs_remove(priv);
@@ -1329,8 +1633,8 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.connect = mwifiex_cfg80211_connect,
 	.disconnect = mwifiex_cfg80211_disconnect,
 	.get_station = mwifiex_cfg80211_get_station,
+	.dump_station = mwifiex_cfg80211_dump_station,
 	.set_wiphy_params = mwifiex_cfg80211_set_wiphy_params,
-	.set_channel = mwifiex_cfg80211_set_channel,
 	.join_ibss = mwifiex_cfg80211_join_ibss,
 	.leave_ibss = mwifiex_cfg80211_leave_ibss,
 	.add_key = mwifiex_cfg80211_add_key,
@@ -1339,6 +1643,9 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,
 	.set_bitrate_mask = mwifiex_cfg80211_set_bitrate_mask,
+	.start_ap = mwifiex_cfg80211_start_ap,
+	.stop_ap = mwifiex_cfg80211_stop_ap,
+	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 };
 
 /*
@@ -1348,74 +1655,67 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
  * default parameters and handler function pointers, and finally
  * registers the device.
  */
-int mwifiex_register_cfg80211(struct mwifiex_private *priv)
+
+int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 {
 	int ret;
 	void *wdev_priv;
-	struct wireless_dev *wdev;
+	struct wiphy *wiphy;
+	struct mwifiex_private *priv = adapter->priv[MWIFIEX_BSS_TYPE_STA];
+	u8 *country_code;
 
-	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
-	if (!wdev) {
-		dev_err(priv->adapter->dev, "%s: allocating wireless device\n",
-						__func__);
+	/* create a new wiphy for use with cfg80211 */
+	wiphy = wiphy_new(&mwifiex_cfg80211_ops,
+			  sizeof(struct mwifiex_adapter *));
+	if (!wiphy) {
+		dev_err(adapter->dev, "%s: creating new wiphy\n", __func__);
 		return -ENOMEM;
 	}
-	wdev->wiphy =
-		wiphy_new(&mwifiex_cfg80211_ops,
-			  sizeof(struct mwifiex_private *));
-	if (!wdev->wiphy) {
-		kfree(wdev);
-		return -ENOMEM;
-	}
-	wdev->iftype = NL80211_IFTYPE_STATION;
-	wdev->wiphy->max_scan_ssids = 10;
-	wdev->wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
+	wiphy->max_scan_ssids = MWIFIEX_MAX_SSID_LIST_LENGTH;
+	wiphy->max_scan_ie_len = MWIFIEX_MAX_VSIE_LEN;
+	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_ADHOC) |
+				 BIT(NL80211_IFTYPE_AP);
 
-	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &mwifiex_band_2ghz;
-	mwifiex_setup_ht_caps(
-		&wdev->wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap, priv);
+	wiphy->bands[IEEE80211_BAND_2GHZ] = &mwifiex_band_2ghz;
+	if (adapter->config_bands & BAND_A)
+		wiphy->bands[IEEE80211_BAND_5GHZ] = &mwifiex_band_5ghz;
+	else
+		wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
-	if (priv->adapter->config_bands & BAND_A) {
-		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &mwifiex_band_5ghz;
-		mwifiex_setup_ht_caps(
-			&wdev->wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap, priv);
-	} else {
-		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
-	}
+	wiphy->iface_combinations = &mwifiex_iface_comb_ap_sta;
+	wiphy->n_iface_combinations = 1;
 
 	/* Initialize cipher suits */
-	wdev->wiphy->cipher_suites = mwifiex_cipher_suites;
-	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(mwifiex_cipher_suites);
+	wiphy->cipher_suites = mwifiex_cipher_suites;
+	wiphy->n_cipher_suites = ARRAY_SIZE(mwifiex_cipher_suites);
 
-	memcpy(wdev->wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
-	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	memcpy(wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
+	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME | WIPHY_FLAG_CUSTOM_REGULATORY;
 
-	/* Reserve space for bss band information */
-	wdev->wiphy->bss_priv_size = sizeof(u8);
+	/* Reserve space for mwifiex specific private data for BSS */
+	wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
 
-	wdev->wiphy->reg_notifier = mwifiex_reg_notifier;
+	wiphy->reg_notifier = mwifiex_reg_notifier;
 
-	/* Set struct mwifiex_private pointer in wiphy_priv */
-	wdev_priv = wiphy_priv(wdev->wiphy);
+	/* Set struct mwifiex_adapter pointer in wiphy_priv */
+	wdev_priv = wiphy_priv(wiphy);
+	*(unsigned long *)wdev_priv = (unsigned long)adapter;
 
-	*(unsigned long *) wdev_priv = (unsigned long) priv;
+	set_wiphy_dev(wiphy, (struct device *)priv->adapter->dev);
 
-	set_wiphy_dev(wdev->wiphy, (struct device *) priv->adapter->dev);
-
-	ret = wiphy_register(wdev->wiphy);
+	ret = wiphy_register(wiphy);
 	if (ret < 0) {
-		dev_err(priv->adapter->dev, "%s: registering cfg80211 device\n",
-						__func__);
-		wiphy_free(wdev->wiphy);
-		kfree(wdev);
+		dev_err(adapter->dev,
+			"%s: wiphy_register failed: %d\n", __func__, ret);
+		wiphy_free(wiphy);
 		return ret;
-	} else {
-		dev_dbg(priv->adapter->dev,
-				"info: successfully registered wiphy device\n");
 	}
+	country_code = mwifiex_11d_code_2_region(priv->adapter->region_code);
+	if (country_code && regulatory_hint(wiphy, country_code))
+		dev_err(adapter->dev, "regulatory_hint() failed\n");
 
-	priv->wdev = wdev;
-
+	adapter->wiphy = wiphy;
 	return ret;
 }

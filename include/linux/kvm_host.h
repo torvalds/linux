@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/bug.h>
 #include <linux/mm.h>
 #include <linux/mmu_notifier.h>
 #include <linux/preempt.h>
@@ -32,6 +33,20 @@
 #ifndef KVM_MMIO_SIZE
 #define KVM_MMIO_SIZE 8
 #endif
+
+/*
+ * If we support unaligned MMIO, at most one fragment will be split into two:
+ */
+#ifdef KVM_UNALIGNED_MMIO
+#  define KVM_EXTRA_MMIO_FRAGMENTS 1
+#else
+#  define KVM_EXTRA_MMIO_FRAGMENTS 0
+#endif
+
+#define KVM_USER_MMIO_SIZE 8
+
+#define KVM_MAX_MMIO_FRAGMENTS \
+	(KVM_MMIO_SIZE / KVM_USER_MMIO_SIZE + KVM_EXTRA_MMIO_FRAGMENTS)
 
 /*
  * vcpu->requests bit members
@@ -67,10 +82,11 @@ struct kvm_io_range {
 	struct kvm_io_device *dev;
 };
 
+#define NR_IOBUS_DEVS 1000
+
 struct kvm_io_bus {
 	int                   dev_count;
-#define NR_IOBUS_DEVS 300
-	struct kvm_io_range range[NR_IOBUS_DEVS];
+	struct kvm_io_range range[];
 };
 
 enum kvm_bus {
@@ -112,7 +128,18 @@ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 enum {
 	OUTSIDE_GUEST_MODE,
 	IN_GUEST_MODE,
-	EXITING_GUEST_MODE
+	EXITING_GUEST_MODE,
+	READING_SHADOW_PAGE_TABLES,
+};
+
+/*
+ * Sometimes a large or cross-page mmio needs to be broken up into separate
+ * exits for userspace servicing.
+ */
+struct kvm_mmio_fragment {
+	gpa_t gpa;
+	void *data;
+	unsigned len;
 };
 
 struct kvm_vcpu {
@@ -142,10 +169,9 @@ struct kvm_vcpu {
 	int mmio_needed;
 	int mmio_read_completed;
 	int mmio_is_write;
-	int mmio_size;
-	int mmio_index;
-	unsigned char mmio_data[KVM_MMIO_SIZE];
-	gpa_t mmio_phys_addr;
+	int mmio_cur_fragment;
+	int mmio_nr_fragments;
+	struct kvm_mmio_fragment mmio_fragments[KVM_MAX_MMIO_FRAGMENTS];
 #endif
 
 #ifdef CONFIG_KVM_ASYNC_PF
@@ -171,20 +197,13 @@ static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
  */
 #define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
 
-struct kvm_lpage_info {
-	unsigned long rmap_pde;
-	int write_count;
-};
-
 struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
 	unsigned long flags;
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
-	unsigned long *dirty_bitmap_head;
-	unsigned long nr_dirty_pages;
-	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
+	struct kvm_arch_memory_slot arch;
 	unsigned long userspace_addr;
 	int user_alloc;
 	int id;
@@ -376,6 +395,9 @@ int kvm_set_memory_region(struct kvm *kvm,
 int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem,
 			    int user_alloc);
+void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+			   struct kvm_memory_slot *dont);
+int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages);
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot *memslot,
 				struct kvm_memory_slot old,
@@ -385,6 +407,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
 				struct kvm_memory_slot old,
 				int user_alloc);
+bool kvm_largepages_enabled(void);
 void kvm_disable_largepages(void);
 void kvm_arch_flush_shadow(struct kvm *kvm);
 
@@ -438,6 +461,8 @@ void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			     gfn_t gfn);
 
 void kvm_vcpu_block(struct kvm_vcpu *vcpu);
+void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
+bool kvm_vcpu_yield_to(struct kvm_vcpu *target);
 void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
 void kvm_resched(struct kvm_vcpu *vcpu);
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
@@ -450,6 +475,7 @@ long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg);
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg);
+int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf);
 
 int kvm_dev_ioctl_check_extension(long ext);
 
@@ -505,6 +531,7 @@ int kvm_arch_hardware_setup(void);
 void kvm_arch_hardware_unsetup(void);
 void kvm_arch_check_processor_compat(void *rtn);
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu);
+int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu);
 
 void kvm_free_physmem(struct kvm *kvm);
 
@@ -520,7 +547,16 @@ static inline void kvm_arch_free_vm(struct kvm *kvm)
 }
 #endif
 
-int kvm_arch_init_vm(struct kvm *kvm);
+static inline wait_queue_head_t *kvm_arch_vcpu_wq(struct kvm_vcpu *vcpu)
+{
+#ifdef __KVM_HAVE_ARCH_WQP
+	return vcpu->arch.wqp;
+#else
+	return &vcpu->wq;
+#endif
+}
+
+int kvm_arch_init_vm(struct kvm *kvm, unsigned long type);
 void kvm_arch_destroy_vm(struct kvm *kvm);
 void kvm_free_all_assigned_devices(struct kvm *kvm);
 void kvm_arch_sync_events(struct kvm *kvm);
@@ -546,6 +582,7 @@ struct kvm_assigned_dev_kernel {
 	unsigned int entries_nr;
 	int host_irq;
 	bool host_irq_disabled;
+	bool pci_2_3;
 	struct msix_entry *host_msix_entries;
 	int guest_irq;
 	struct msix_entry *guest_msix_entries;
@@ -555,6 +592,7 @@ struct kvm_assigned_dev_kernel {
 	struct pci_dev *dev;
 	struct kvm *kvm;
 	spinlock_t intx_lock;
+	spinlock_t intx_mask_lock;
 	char irq_name[32];
 	struct pci_saved_state *pci_saved_state;
 };
@@ -593,6 +631,7 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 
 #ifdef CONFIG_IOMMU_API
 int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
+void kvm_iommu_unmap_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
 int kvm_iommu_map_guest(struct kvm *kvm);
 int kvm_iommu_unmap_guest(struct kvm *kvm);
 int kvm_assign_device(struct kvm *kvm,
@@ -604,6 +643,11 @@ static inline int kvm_iommu_map_pages(struct kvm *kvm,
 				      struct kvm_memory_slot *slot)
 {
 	return 0;
+}
+
+static inline void kvm_iommu_unmap_pages(struct kvm *kvm,
+					 struct kvm_memory_slot *slot)
+{
 }
 
 static inline int kvm_iommu_map_guest(struct kvm *kvm)
@@ -650,9 +694,41 @@ static inline void kvm_guest_exit(void)
 	current->flags &= ~PF_VCPU;
 }
 
+/*
+ * search_memslots() and __gfn_to_memslot() are here because they are
+ * used in non-modular code in arch/powerpc/kvm/book3s_hv_rm_mmu.c.
+ * gfn_to_memslot() itself isn't here as an inline because that would
+ * bloat other code too much.
+ */
+static inline struct kvm_memory_slot *
+search_memslots(struct kvm_memslots *slots, gfn_t gfn)
+{
+	struct kvm_memory_slot *memslot;
+
+	kvm_for_each_memslot(memslot, slots)
+		if (gfn >= memslot->base_gfn &&
+		      gfn < memslot->base_gfn + memslot->npages)
+			return memslot;
+
+	return NULL;
+}
+
+static inline struct kvm_memory_slot *
+__gfn_to_memslot(struct kvm_memslots *slots, gfn_t gfn)
+{
+	return search_memslots(slots, gfn);
+}
+
 static inline int memslot_id(struct kvm *kvm, gfn_t gfn)
 {
 	return gfn_to_memslot(kvm, gfn)->id;
+}
+
+static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
+{
+	/* KVM_HPAGE_GFN_SHIFT(PT_PAGE_TABLE_LEVEL) must be 0. */
+	return (gfn >> KVM_HPAGE_GFN_SHIFT(level)) -
+		(base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
 }
 
 static inline unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot,
@@ -701,12 +777,16 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 	if (unlikely(vcpu->kvm->mmu_notifier_count))
 		return 1;
 	/*
-	 * Both reads happen under the mmu_lock and both values are
-	 * modified under mmu_lock, so there's no need of smb_rmb()
-	 * here in between, otherwise mmu_notifier_count should be
-	 * read before mmu_notifier_seq, see
-	 * mmu_notifier_invalidate_range_end write side.
+	 * Ensure the read of mmu_notifier_count happens before the read
+	 * of mmu_notifier_seq.  This interacts with the smp_wmb() in
+	 * mmu_notifier_invalidate_range_end to make sure that the caller
+	 * either sees the old (non-zero) value of mmu_notifier_count or
+	 * the new (incremented) value of mmu_notifier_seq.
+	 * PowerPC Book3s HV KVM calls this under a per-page lock
+	 * rather than under kvm->mmu_lock, for scalability, so
+	 * can't rely on kvm->mmu_lock to keep things ordered.
 	 */
+	smp_rmb();
 	if (vcpu->kvm->mmu_notifier_seq != mmu_seq)
 		return 1;
 	return 0;
@@ -723,6 +803,8 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			unsigned nr,
 			unsigned flags);
 void kvm_free_irq_routing(struct kvm *kvm);
+
+int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
 
 #else
 
@@ -769,6 +851,13 @@ static inline bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
 {
 	return vcpu->kvm->bsp_vcpu_id == vcpu->vcpu_id;
 }
+
+bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu);
+
+#else
+
+static inline bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu) { return true; }
+
 #endif
 
 #ifdef __KVM_HAVE_DEVICE_ASSIGNMENT

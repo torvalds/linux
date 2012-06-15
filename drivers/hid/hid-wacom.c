@@ -24,28 +24,38 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/leds.h>
 #include <linux/slab.h>
-#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
 #include <linux/power_supply.h>
-#endif
 
 #include "hid-ids.h"
 
+#define PAD_DEVICE_ID	0x0F
+
+#define WAC_CMD_LED_CONTROL     0x20
+
 struct wacom_data {
 	__u16 tool;
-	unsigned char butstate;
+	__u16 butstate;
+	__u8 whlstate;
 	__u8 features;
+	__u32 id;
+	__u32 serial;
 	unsigned char high_speed;
-#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
-	int battery_capacity;
+	__u8 battery_capacity;
+	__u8 power_raw;
+	__u8 ps_connected;
 	struct power_supply battery;
 	struct power_supply ac;
-#endif
+	__u8 led_selector;
+	struct led_classdev *leds[4];
 };
 
-#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
-/*percent of battery capacity, 0 means AC online*/
-static unsigned short batcap[8] = { 1, 15, 25, 35, 50, 70, 100, 0 };
+/*percent of battery capacity for Graphire
+  8th value means AC online and show 100% capacity */
+static unsigned short batcap_gr[8] = { 1, 15, 25, 35, 50, 70, 100, 100 };
+/*percent of battery capacity for Intuos4 WL, AC has a separate bit*/
+static unsigned short batcap_i4[8] = { 1, 15, 30, 45, 60, 70, 85, 100 };
 
 static enum power_supply_property wacom_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
@@ -59,13 +69,123 @@ static enum power_supply_property wacom_ac_props[] = {
 	POWER_SUPPLY_PROP_SCOPE,
 };
 
+static void wacom_leds_set_brightness(struct led_classdev *led_dev,
+						enum led_brightness value)
+{
+	struct device *dev = led_dev->dev->parent;
+	struct hid_device *hdev;
+	struct wacom_data *wdata;
+	unsigned char *buf;
+	__u8 led = 0;
+	int i;
+
+	hdev = container_of(dev, struct hid_device, dev);
+	wdata = hid_get_drvdata(hdev);
+	for (i = 0; i < 4; ++i) {
+		if (wdata->leds[i] == led_dev)
+			wdata->led_selector = i;
+	}
+
+	led = wdata->led_selector | 0x04;
+	buf = kzalloc(9, GFP_KERNEL);
+	if (buf) {
+		buf[0] = WAC_CMD_LED_CONTROL;
+		buf[1] = led;
+		buf[2] = value;
+		hdev->hid_output_raw_report(hdev, buf, 9, HID_FEATURE_REPORT);
+		kfree(buf);
+	}
+
+	return;
+}
+
+static enum led_brightness wacom_leds_get_brightness(struct led_classdev *led_dev)
+{
+	struct wacom_data *wdata;
+	struct device *dev = led_dev->dev->parent;
+	int value = 0;
+	int i;
+
+	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
+
+	for (i = 0; i < 4; ++i) {
+		if (wdata->leds[i] == led_dev) {
+			value = wdata->leds[i]->brightness;
+			break;
+		}
+	}
+
+	return value;
+}
+
+
+static int wacom_initialize_leds(struct hid_device *hdev)
+{
+	struct wacom_data *wdata = hid_get_drvdata(hdev);
+	struct led_classdev *led;
+	struct device *dev = &hdev->dev;
+	size_t namesz = strlen(dev_name(dev)) + 12;
+	char *name;
+	int i, ret;
+
+	wdata->led_selector = 0;
+
+	for (i = 0; i < 4; i++) {
+		led = kzalloc(sizeof(struct led_classdev) + namesz, GFP_KERNEL);
+		if (!led) {
+			hid_warn(hdev,
+				 "can't allocate memory for LED selector\n");
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		name = (void *)&led[1];
+		snprintf(name, namesz, "%s:selector:%d", dev_name(dev), i);
+		led->name = name;
+		led->brightness = 0;
+		led->max_brightness = 127;
+		led->brightness_get = wacom_leds_get_brightness;
+		led->brightness_set = wacom_leds_set_brightness;
+
+		wdata->leds[i] = led;
+
+		ret = led_classdev_register(dev, wdata->leds[i]);
+
+		if (ret) {
+			wdata->leds[i] = NULL;
+			kfree(led);
+			hid_warn(hdev, "can't register LED\n");
+			goto err;
+		}
+	}
+
+err:
+	return ret;
+}
+
+static void wacom_destroy_leds(struct hid_device *hdev)
+{
+	struct wacom_data *wdata = hid_get_drvdata(hdev);
+	struct led_classdev *led;
+	int i;
+
+	for (i = 0; i < 4; ++i) {
+		if (wdata->leds[i]) {
+			led = wdata->leds[i];
+			wdata->leds[i] = NULL;
+			led_classdev_unregister(led);
+			kfree(led);
+		}
+	}
+
+}
+
 static int wacom_battery_get_property(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
 {
 	struct wacom_data *wdata = container_of(psy,
 					struct wacom_data, battery);
-	int power_state = batcap[wdata->battery_capacity];
 	int ret = 0;
 
 	switch (psp) {
@@ -76,11 +196,7 @@ static int wacom_battery_get_property(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		/* show 100% battery capacity when charging */
-		if (power_state == 0)
-			val->intval = 100;
-		else
-			val->intval = power_state;
+		val->intval = wdata->battery_capacity;
 		break;
 	default:
 		ret = -EINVAL;
@@ -94,17 +210,13 @@ static int wacom_ac_get_property(struct power_supply *psy,
 				union power_supply_propval *val)
 {
 	struct wacom_data *wdata = container_of(psy, struct wacom_data, ac);
-	int power_state = batcap[wdata->battery_capacity];
 	int ret = 0;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
 		/* fall through */
 	case POWER_SUPPLY_PROP_ONLINE:
-		if (power_state == 0)
-			val->intval = 1;
-		else
-			val->intval = 0;
+		val->intval = wdata->ps_connected;
 		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
@@ -115,41 +227,16 @@ static int wacom_ac_get_property(struct power_supply *psy,
 	}
 	return ret;
 }
-#endif
 
-static void wacom_set_features(struct hid_device *hdev)
-{
-	int ret;
-	__u8 rep_data[2];
-
-	/*set high speed, tablet mode*/
-	rep_data[0] = 0x03;
-	rep_data[1] = 0x20;
-	ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
-				HID_FEATURE_REPORT);
-	return;
-}
-
-static void wacom_poke(struct hid_device *hdev, u8 speed)
+static void wacom_set_features(struct hid_device *hdev, u8 speed)
 {
 	struct wacom_data *wdata = hid_get_drvdata(hdev);
 	int limit, ret;
-	char rep_data[2];
+	__u8 rep_data[2];
 
-	rep_data[0] = 0x03 ; rep_data[1] = 0x00;
-	limit = 3;
-	do {
-		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
-				HID_FEATURE_REPORT);
-	} while (ret < 0 && limit-- > 0);
-
-	if (ret >= 0) {
-		if (speed == 0)
-			rep_data[0] = 0x05;
-		else
-			rep_data[0] = 0x06;
-
-		rep_data[1] = 0x00;
+	switch (hdev->product) {
+	case USB_DEVICE_ID_WACOM_GRAPHIRE_BLUETOOTH:
+		rep_data[0] = 0x03 ; rep_data[1] = 0x00;
 		limit = 3;
 		do {
 			ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
@@ -157,17 +244,47 @@ static void wacom_poke(struct hid_device *hdev, u8 speed)
 		} while (ret < 0 && limit-- > 0);
 
 		if (ret >= 0) {
-			wdata->high_speed = speed;
-			return;
+			if (speed == 0)
+				rep_data[0] = 0x05;
+			else
+				rep_data[0] = 0x06;
+
+			rep_data[1] = 0x00;
+			limit = 3;
+			do {
+				ret = hdev->hid_output_raw_report(hdev,
+					rep_data, 2, HID_FEATURE_REPORT);
+			} while (ret < 0 && limit-- > 0);
+
+			if (ret >= 0) {
+				wdata->high_speed = speed;
+				return;
+			}
 		}
+
+		/*
+		 * Note that if the raw queries fail, it's not a hard failure
+		 * and it is safe to continue
+		 */
+		hid_warn(hdev, "failed to poke device, command %d, err %d\n",
+			 rep_data[0], ret);
+		break;
+	case USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH:
+		if (speed == 1)
+			wdata->features &= ~0x20;
+		else
+			wdata->features |= 0x20;
+
+		rep_data[0] = 0x03;
+		rep_data[1] = wdata->features;
+
+		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
+					HID_FEATURE_REPORT);
+		if (ret >= 0)
+			wdata->high_speed = speed;
+		break;
 	}
 
-	/*
-	 * Note that if the raw queries fail, it's not a hard failure and it
-	 * is safe to continue
-	 */
-	hid_warn(hdev, "failed to poke device, command %d, err %d\n",
-		 rep_data[0], ret);
 	return;
 }
 
@@ -191,7 +308,7 @@ static ssize_t wacom_store_speed(struct device *dev,
 		return -EINVAL;
 
 	if (new_speed == 0 || new_speed == 1) {
-		wacom_poke(hdev, new_speed);
+		wacom_set_features(hdev, new_speed);
 		return strnlen(buf, PAGE_SIZE);
 	} else
 		return -EINVAL;
@@ -305,39 +422,96 @@ static int wacom_gr_parse_report(struct hid_device *hdev,
 		input_sync(input);
 	}
 
-#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
-	/* Store current battery capacity */
+	/* Store current battery capacity and power supply state*/
 	rw = (data[7] >> 2 & 0x07);
-	if (rw != wdata->battery_capacity)
-		wdata->battery_capacity = rw;
-#endif
+	if (rw != wdata->power_raw) {
+		wdata->power_raw = rw;
+		wdata->battery_capacity = batcap_gr[rw];
+		if (rw == 7)
+			wdata->ps_connected = 1;
+		else
+			wdata->ps_connected = 0;
+	}
 	return 1;
+}
+
+static void wacom_i4_parse_button_report(struct wacom_data *wdata,
+			struct input_dev *input, unsigned char *data)
+{
+	__u16 new_butstate;
+	__u8 new_whlstate;
+	__u8 sync = 0;
+
+	new_whlstate = data[1];
+	if (new_whlstate != wdata->whlstate) {
+		wdata->whlstate = new_whlstate;
+		if (new_whlstate & 0x80) {
+			input_report_key(input, BTN_TOUCH, 1);
+			input_report_abs(input, ABS_WHEEL, (new_whlstate & 0x7f));
+			input_report_key(input, BTN_TOOL_FINGER, 1);
+		} else {
+			input_report_key(input, BTN_TOUCH, 0);
+			input_report_abs(input, ABS_WHEEL, 0);
+			input_report_key(input, BTN_TOOL_FINGER, 0);
+		}
+		sync = 1;
+	}
+
+	new_butstate = (data[3] << 1) | (data[2] & 0x01);
+	if (new_butstate != wdata->butstate) {
+		wdata->butstate = new_butstate;
+		input_report_key(input, BTN_0, new_butstate & 0x001);
+		input_report_key(input, BTN_1, new_butstate & 0x002);
+		input_report_key(input, BTN_2, new_butstate & 0x004);
+		input_report_key(input, BTN_3, new_butstate & 0x008);
+		input_report_key(input, BTN_4, new_butstate & 0x010);
+		input_report_key(input, BTN_5, new_butstate & 0x020);
+		input_report_key(input, BTN_6, new_butstate & 0x040);
+		input_report_key(input, BTN_7, new_butstate & 0x080);
+		input_report_key(input, BTN_8, new_butstate & 0x100);
+		input_report_key(input, BTN_TOOL_FINGER, 1);
+		sync = 1;
+	}
+
+	if (sync) {
+		input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
+		input_event(input, EV_MSC, MSC_SERIAL, 0xffffffff);
+		input_sync(input);
+	}
 }
 
 static void wacom_i4_parse_pen_report(struct wacom_data *wdata,
 			struct input_dev *input, unsigned char *data)
 {
 	__u16 x, y, pressure;
-	__u32 id;
+	__u8 distance;
+	__u8 tilt_x, tilt_y;
 
 	switch (data[1]) {
 	case 0x80: /* Out of proximity report */
-		wdata->tool = 0;
 		input_report_key(input, BTN_TOUCH, 0);
 		input_report_abs(input, ABS_PRESSURE, 0);
+		input_report_key(input, BTN_STYLUS, 0);
+		input_report_key(input, BTN_STYLUS2, 0);
 		input_report_key(input, wdata->tool, 0);
+		input_report_abs(input, ABS_MISC, 0);
+		input_event(input, EV_MSC, MSC_SERIAL, wdata->serial);
+		wdata->tool = 0;
 		input_sync(input);
 		break;
 	case 0xC2: /* Tool report */
-		id = ((data[2] << 4) | (data[3] >> 4) |
+		wdata->id = ((data[2] << 4) | (data[3] >> 4) |
 			((data[7] & 0x0f) << 20) |
-			((data[8] & 0xf0) << 12)) & 0xfffff;
+			((data[8] & 0xf0) << 12));
+		wdata->serial = ((data[3] & 0x0f) << 28) +
+				(data[4] << 20) + (data[5] << 12) +
+				(data[6] << 4) + (data[7] >> 4);
 
-		switch (id) {
-		case 0x802:
+		switch (wdata->id) {
+		case 0x100802:
 			wdata->tool = BTN_TOOL_PEN;
 			break;
-		case 0x80A:
+		case 0x10080A:
 			wdata->tool = BTN_TOOL_RUBBER;
 			break;
 		}
@@ -347,6 +521,9 @@ static void wacom_i4_parse_pen_report(struct wacom_data *wdata,
 		y = data[4] << 9 | data[5] << 1 | (data[9] & 0x01);
 		pressure = (data[6] << 3) | ((data[7] & 0xC0) >> 5)
 			| (data[1] & 0x01);
+		distance = (data[9] >> 2) & 0x3f;
+		tilt_x = ((data[7] << 1) & 0x7e) | (data[8] >> 7);
+		tilt_y = data[8] & 0x7f;
 
 		input_report_key(input, BTN_TOUCH, pressure > 1);
 
@@ -356,6 +533,12 @@ static void wacom_i4_parse_pen_report(struct wacom_data *wdata,
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
 		input_report_abs(input, ABS_PRESSURE, pressure);
+		input_report_abs(input, ABS_DISTANCE, distance);
+		input_report_abs(input, ABS_TILT_X, tilt_x);
+		input_report_abs(input, ABS_TILT_Y, tilt_y);
+		input_report_abs(input, ABS_MISC, wdata->id);
+		input_event(input, EV_MSC, MSC_SERIAL, wdata->serial);
+		input_report_key(input, wdata->tool, 1);
 		input_sync(input);
 		break;
 	}
@@ -377,6 +560,7 @@ static void wacom_i4_parse_report(struct hid_device *hdev,
 		wdata->features = data[2];
 		break;
 	case 0x0C: /* Button report */
+		wacom_i4_parse_button_report(wdata, input, data);
 		break;
 	default:
 		hid_err(hdev, "Unknown report: %d,%d\n", data[0], data[1]);
@@ -392,6 +576,7 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 	struct input_dev *input;
 	unsigned char *data = (unsigned char *) raw_data;
 	int i;
+	__u8 power_raw;
 
 	if (!(hdev->claimed & HID_CLAIMED_INPUT))
 		return 0;
@@ -399,13 +584,15 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
 	input = hidinput->input;
 
-	/* Check if this is a tablet report */
-	if (data[0] != 0x03)
-		return 0;
-
 	switch (hdev->product) {
 	case USB_DEVICE_ID_WACOM_GRAPHIRE_BLUETOOTH:
-		return wacom_gr_parse_report(hdev, wdata, input, data);
+		if (data[0] == 0x03) {
+			return wacom_gr_parse_report(hdev, wdata, input, data);
+		} else {
+			hid_err(hdev, "Unknown report: %d,%d size:%d\n",
+					data[0], data[1], size);
+			return 0;
+		}
 		break;
 	case USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH:
 		i = 1;
@@ -419,6 +606,13 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 			wacom_i4_parse_report(hdev, wdata, input, data + i);
 			i += 10;
 			wacom_i4_parse_report(hdev, wdata, input, data + i);
+			power_raw = data[i+10];
+			if (power_raw != wdata->power_raw) {
+				wdata->power_raw = power_raw;
+				wdata->battery_capacity = batcap_i4[power_raw & 0x07];
+				wdata->ps_connected = power_raw & 0x08;
+			}
+
 			break;
 		default:
 			hid_err(hdev, "Unknown report: %d,%d size:%d\n",
@@ -451,9 +645,7 @@ static int wacom_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 	__set_bit(BTN_MIDDLE, input->keybit);
 
 	/* Pad */
-	input->evbit[0] |= BIT(EV_MSC);
-
-	__set_bit(MSC_SERIAL, input->mscbit);
+	input_set_capability(input, EV_MSC, MSC_SERIAL);
 
 	__set_bit(BTN_0, input->keybit);
 	__set_bit(BTN_1, input->keybit);
@@ -471,9 +663,22 @@ static int wacom_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		input_set_abs_params(input, ABS_DISTANCE, 0, 32, 0, 0);
 		break;
 	case USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH:
+		__set_bit(ABS_WHEEL, input->absbit);
+		__set_bit(ABS_MISC, input->absbit);
+		__set_bit(BTN_2, input->keybit);
+		__set_bit(BTN_3, input->keybit);
+		__set_bit(BTN_4, input->keybit);
+		__set_bit(BTN_5, input->keybit);
+		__set_bit(BTN_6, input->keybit);
+		__set_bit(BTN_7, input->keybit);
+		__set_bit(BTN_8, input->keybit);
+		input_set_abs_params(input, ABS_WHEEL, 0, 71, 0, 0);
 		input_set_abs_params(input, ABS_X, 0, 40640, 4, 0);
 		input_set_abs_params(input, ABS_Y, 0, 25400, 4, 0);
 		input_set_abs_params(input, ABS_PRESSURE, 0, 2047, 0, 0);
+		input_set_abs_params(input, ABS_DISTANCE, 0, 63, 0, 0);
+		input_set_abs_params(input, ABS_TILT_X, 0, 127, 0, 0);
+		input_set_abs_params(input, ABS_TILT_Y, 0, 127, 0, 0);
 		break;
 	}
 
@@ -512,18 +717,19 @@ static int wacom_probe(struct hid_device *hdev,
 		hid_warn(hdev,
 			 "can't create sysfs speed attribute err: %d\n", ret);
 
-	switch (hdev->product) {
-	case USB_DEVICE_ID_WACOM_GRAPHIRE_BLUETOOTH:
-		/* Set Wacom mode 2 with high reporting speed */
-		wacom_poke(hdev, 1);
-		break;
-	case USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH:
-		wdata->features = 0;
-		wacom_set_features(hdev);
-		break;
+	wdata->features = 0;
+	wacom_set_features(hdev, 1);
+
+	if (hdev->product == USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH) {
+		sprintf(hdev->name, "%s", "Wacom Intuos4 WL");
+		ret = wacom_initialize_leds(hdev);
+		if (ret) {
+			hid_warn(hdev,
+				 "can't create led attribute, err: %d\n", ret);
+			goto destroy_leds;
+		}
 	}
 
-#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
 	wdata->battery.properties = wacom_battery_props;
 	wdata->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
 	wdata->battery.get_property = wacom_battery_get_property;
@@ -556,16 +762,15 @@ static int wacom_probe(struct hid_device *hdev,
 	}
 
 	power_supply_powers(&wdata->ac, &hdev->dev);
-#endif
 	return 0;
 
-#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
 err_ac:
 	power_supply_unregister(&wdata->battery);
 err_battery:
 	device_remove_file(&hdev->dev, &dev_attr_speed);
 	hid_hw_stop(hdev);
-#endif
+destroy_leds:
+	wacom_destroy_leds(hdev);
 err_free:
 	kfree(wdata);
 	return ret;
@@ -573,16 +778,14 @@ err_free:
 
 static void wacom_remove(struct hid_device *hdev)
 {
-#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
 	struct wacom_data *wdata = hid_get_drvdata(hdev);
-#endif
+
+	wacom_destroy_leds(hdev);
 	device_remove_file(&hdev->dev, &dev_attr_speed);
 	hid_hw_stop(hdev);
 
-#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
 	power_supply_unregister(&wdata->battery);
 	power_supply_unregister(&wdata->ac);
-#endif
 	kfree(hid_get_drvdata(hdev));
 }
 
@@ -620,5 +823,5 @@ static void __exit wacom_exit(void)
 
 module_init(wacom_init);
 module_exit(wacom_exit);
+MODULE_DESCRIPTION("Driver for Wacom Graphire Bluetooth and Wacom Intuos4 WL");
 MODULE_LICENSE("GPL");
-

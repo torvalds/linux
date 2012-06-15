@@ -16,6 +16,7 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/system_misc.h>
 #include <mach/at91sam9g45.h>
 #include <mach/at91_pmc.h>
 #include <mach/cpu.h>
@@ -175,6 +176,12 @@ static struct clk vdec_clk = {
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 
+static struct clk adc_op_clk = {
+	.name		= "adc_op_clk",
+	.type		= CLK_TYPE_PERIPHERAL,
+	.rate_hz	= 13200000,
+};
+
 static struct clk *periph_clocks[] __initdata = {
 	&pioA_clk,
 	&pioB_clk,
@@ -203,6 +210,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&isi_clk,
 	&udphs_clk,
 	&mmc1_clk,
+	&adc_op_clk,
 	// irq0
 };
 
@@ -229,6 +237,11 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("usart", "fff90000.serial", &usart1_clk),
 	CLKDEV_CON_DEV_ID("usart", "fff94000.serial", &usart2_clk),
 	CLKDEV_CON_DEV_ID("usart", "fff98000.serial", &usart3_clk),
+	/* more tc lookup table for DT entries */
+	CLKDEV_CON_DEV_ID("t0_clk", "fff7c000.timer", &tcb0_clk),
+	CLKDEV_CON_DEV_ID("t0_clk", "fffd4000.timer", &tcb0_clk),
+	CLKDEV_CON_DEV_ID("hclk", "700000.ohci", &uhphs_clk),
+	CLKDEV_CON_DEV_ID("ehci_clk", "800000.ehci", &uhphs_clk),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &uhphs_clk),
 	CLKDEV_CON_ID("pioA", &pioA_clk),
@@ -236,6 +249,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_ID("pioC", &pioC_clk),
 	CLKDEV_CON_ID("pioD", &pioDE_clk),
 	CLKDEV_CON_ID("pioE", &pioDE_clk),
+	/* Fake adc clock */
+	CLKDEV_CON_ID("adc_clk", &tsc_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -282,18 +297,6 @@ static void __init at91sam9g45_register_clocks(void)
 	clk_register(&pck1);
 }
 
-static struct clk_lookup console_clock_lookup;
-
-void __init at91sam9g45_set_console_clock(int id)
-{
-	if (id >= ARRAY_SIZE(usart_clocks_lookups))
-		return;
-
-	console_clock_lookup.con_id = "usart";
-	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
-	clkdev_add(&console_clock_lookup);
-}
-
 /* --------------------------------------------------------------------
  *  GPIO
  * -------------------------------------------------------------------- */
@@ -331,12 +334,16 @@ static void __init at91sam9g45_ioremap_registers(void)
 {
 	at91_ioremap_shdwc(AT91SAM9G45_BASE_SHDWC);
 	at91_ioremap_rstc(AT91SAM9G45_BASE_RSTC);
+	at91_ioremap_ramc(0, AT91SAM9G45_BASE_DDRSDRC1, 512);
+	at91_ioremap_ramc(1, AT91SAM9G45_BASE_DDRSDRC0, 512);
 	at91sam926x_ioremap_pit(AT91SAM9G45_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91SAM9G45_BASE_SMC);
+	at91_ioremap_matrix(AT91SAM9G45_BASE_MATRIX);
 }
 
 static void __init at91sam9g45_initialize(void)
 {
+	arm_pm_idle = at91sam9_idle;
 	arm_pm_restart = at91sam9g45_restart;
 	at91_extern_irq = (1 << AT91SAM9G45_ID_IRQ0);
 

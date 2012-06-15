@@ -28,7 +28,8 @@
 #include <linux/delay.h>
 #include "pmbus.h"
 
-enum chips { zl2004, zl2005, zl2006, zl2008, zl2105, zl2106, zl6100, zl6105 };
+enum chips { zl2004, zl2005, zl2006, zl2008, zl2105, zl2106, zl6100, zl6105,
+	     zl9101, zl9117 };
 
 struct zl6100_data {
 	int id;
@@ -152,6 +153,8 @@ static const struct i2c_device_id zl6100_id[] = {
 	{"zl2106", zl2106},
 	{"zl6100", zl6100},
 	{"zl6105", zl6105},
+	{"zl9101", zl9101},
+	{"zl9117", zl9117},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, zl6100_id);
@@ -193,7 +196,8 @@ static int zl6100_probe(struct i2c_client *client,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
 
-	data = kzalloc(sizeof(struct zl6100_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct zl6100_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -223,7 +227,8 @@ static int zl6100_probe(struct i2c_client *client,
 
 	ret = i2c_smbus_read_word_data(client, ZL6100_MFR_CONFIG);
 	if (ret < 0)
-		goto err_mem;
+		return ret;
+
 	if (ret & ZL6100_MFR_XTEMP_ENABLE)
 		info->func[0] |= PMBUS_HAVE_TEMP2;
 
@@ -235,24 +240,7 @@ static int zl6100_probe(struct i2c_client *client,
 	info->write_word_data = zl6100_write_word_data;
 	info->write_byte = zl6100_write_byte;
 
-	ret = pmbus_do_probe(client, mid, info);
-	if (ret)
-		goto err_mem;
-	return 0;
-
-err_mem:
-	kfree(data);
-	return ret;
-}
-
-static int zl6100_remove(struct i2c_client *client)
-{
-	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
-	const struct zl6100_data *data = to_zl6100_data(info);
-
-	pmbus_do_remove(client);
-	kfree(data);
-	return 0;
+	return pmbus_do_probe(client, mid, info);
 }
 
 static struct i2c_driver zl6100_driver = {
@@ -260,22 +248,12 @@ static struct i2c_driver zl6100_driver = {
 		   .name = "zl6100",
 		   },
 	.probe = zl6100_probe,
-	.remove = zl6100_remove,
+	.remove = pmbus_do_remove,
 	.id_table = zl6100_id,
 };
 
-static int __init zl6100_init(void)
-{
-	return i2c_add_driver(&zl6100_driver);
-}
-
-static void __exit zl6100_exit(void)
-{
-	i2c_del_driver(&zl6100_driver);
-}
+module_i2c_driver(zl6100_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for ZL6100 and compatibles");
 MODULE_LICENSE("GPL");
-module_init(zl6100_init);
-module_exit(zl6100_exit);

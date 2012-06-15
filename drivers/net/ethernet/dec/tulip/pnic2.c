@@ -1,5 +1,5 @@
 /*
-	drivers/net/tulip/pnic2.c
+	drivers/net/ethernet/dec/tulip/pnic2.c
 
 	Copyright 2000,2001  The Linux Kernel Team
 	Written/copyright 1994-2001 by Donald Becker.

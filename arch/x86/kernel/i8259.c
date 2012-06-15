@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 
 #include <linux/atomic.h>
-#include <asm/system.h>
 #include <asm/timer.h>
 #include <asm/hw_irq.h>
 #include <asm/pgtable.h>

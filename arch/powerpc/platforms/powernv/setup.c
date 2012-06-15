@@ -31,7 +31,6 @@
 #include <asm/xics.h>
 #include <asm/rtas.h>
 #include <asm/opal.h>
-#include <asm/xics.h>
 
 #include "powernv.h"
 

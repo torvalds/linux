@@ -21,15 +21,15 @@ typedef unsigned long long __nocast cputime64_t;
 
 static inline unsigned long __div(unsigned long long n, unsigned long base)
 {
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = n >> 1;
 	asm ("dr %0,%1" : "+d" (rp) : "d" (base >> 1));
 	return rp.subreg.odd;
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 	return n / base;
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 }
 
 #define cputime_one_jiffy		jiffies_to_cputime(1)
@@ -100,7 +100,7 @@ static inline void cputime_to_timespec(const cputime_t cputime,
 				       struct timespec *value)
 {
 	unsigned long long __cputime = (__force unsigned long long) cputime;
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = __cputime >> 1;
@@ -128,7 +128,7 @@ static inline void cputime_to_timeval(const cputime_t cputime,
 				      struct timeval *value)
 {
 	unsigned long long __cputime = (__force unsigned long long) cputime;
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	register_pair rp;
 
 	rp.pair = __cputime >> 1;
@@ -170,23 +170,16 @@ struct s390_idle_data {
 	unsigned int sequence;
 	unsigned long long idle_count;
 	unsigned long long idle_enter;
+	unsigned long long idle_exit;
 	unsigned long long idle_time;
 	int nohz_delay;
 };
 
 DECLARE_PER_CPU(struct s390_idle_data, s390_idle);
 
-void vtime_start_cpu(__u64 int_clock, __u64 enter_timer);
 cputime64_t s390_get_idle_time(int cpu);
 
 #define arch_idle_time(cpu) s390_get_idle_time(cpu)
-
-static inline void s390_idle_check(struct pt_regs *regs, __u64 int_clock,
-				   __u64 enter_timer)
-{
-	if (regs->psw.mask & PSW_MASK_WAIT)
-		vtime_start_cpu(int_clock, enter_timer);
-}
 
 static inline int s390_nohz_delay(int cpu)
 {

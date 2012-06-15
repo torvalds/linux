@@ -65,21 +65,6 @@
 #define MULTI_TLB 1
 #endif
 
-#define v3_tlb_flags	(TLB_V3_FULL | TLB_V3_PAGE)
-
-#ifdef CONFIG_CPU_TLB_V3
-# define v3_possible_flags	v3_tlb_flags
-# define v3_always_flags	v3_tlb_flags
-# ifdef _TLB
-#  define MULTI_TLB 1
-# else
-#  define _TLB v3
-# endif
-#else
-# define v3_possible_flags	0
-# define v3_always_flags	(-1UL)
-#endif
-
 #define v4_tlb_flags	(TLB_V4_U_FULL | TLB_V4_U_PAGE)
 
 #ifdef CONFIG_CPU_TLB_V4WT
@@ -298,8 +283,7 @@ extern struct cpu_tlb_fns cpu_tlb;
  * implemented the "%?" method, but this has been discontinued due to too
  * many people getting it wrong.
  */
-#define possible_tlb_flags	(v3_possible_flags | \
-				 v4_possible_flags | \
+#define possible_tlb_flags	(v4_possible_flags | \
 				 v4wbi_possible_flags | \
 				 fr_possible_flags | \
 				 v4wb_possible_flags | \
@@ -307,8 +291,7 @@ extern struct cpu_tlb_fns cpu_tlb;
 				 v6wbi_possible_flags | \
 				 v7wbi_possible_flags)
 
-#define always_tlb_flags	(v3_always_flags & \
-				 v4_always_flags & \
+#define always_tlb_flags	(v4_always_flags & \
 				 v4wbi_always_flags & \
 				 fr_always_flags & \
 				 v4wb_always_flags & \
@@ -318,6 +301,21 @@ extern struct cpu_tlb_fns cpu_tlb;
 
 #define tlb_flag(f)	((always_tlb_flags & (f)) || (__tlb_flag & possible_tlb_flags & (f)))
 
+#define __tlb_op(f, insnarg, arg)					\
+	do {								\
+		if (always_tlb_flags & (f))				\
+			asm("mcr " insnarg				\
+			    : : "r" (arg) : "cc");			\
+		else if (possible_tlb_flags & (f))			\
+			asm("tst %1, %2\n\t"				\
+			    "mcrne " insnarg				\
+			    : : "r" (arg), "r" (__tlb_flag), "Ir" (f)	\
+			    : "cc");					\
+	} while (0)
+
+#define tlb_op(f, regs, arg)	__tlb_op(f, "p15, 0, %0, " regs, arg)
+#define tlb_l2_op(f, regs, arg)	__tlb_op(f, "p15, 1, %0, " regs, arg)
+
 static inline void local_flush_tlb_all(void)
 {
 	const int zero = 0;
@@ -326,16 +324,11 @@ static inline void local_flush_tlb_all(void)
 	if (tlb_flag(TLB_WB))
 		dsb();
 
-	if (tlb_flag(TLB_V3_FULL))
-		asm("mcr p15, 0, %0, c6, c0, 0" : : "r" (zero) : "cc");
-	if (tlb_flag(TLB_V4_U_FULL | TLB_V6_U_FULL))
-		asm("mcr p15, 0, %0, c8, c7, 0" : : "r" (zero) : "cc");
-	if (tlb_flag(TLB_V4_D_FULL | TLB_V6_D_FULL))
-		asm("mcr p15, 0, %0, c8, c6, 0" : : "r" (zero) : "cc");
-	if (tlb_flag(TLB_V4_I_FULL | TLB_V6_I_FULL))
-		asm("mcr p15, 0, %0, c8, c5, 0" : : "r" (zero) : "cc");
-	if (tlb_flag(TLB_V7_UIS_FULL))
-		asm("mcr p15, 0, %0, c8, c3, 0" : : "r" (zero) : "cc");
+	tlb_op(TLB_V3_FULL, "c6, c0, 0", zero);
+	tlb_op(TLB_V4_U_FULL | TLB_V6_U_FULL, "c8, c7, 0", zero);
+	tlb_op(TLB_V4_D_FULL | TLB_V6_D_FULL, "c8, c6, 0", zero);
+	tlb_op(TLB_V4_I_FULL | TLB_V6_I_FULL, "c8, c5, 0", zero);
+	tlb_op(TLB_V7_UIS_FULL, "c8, c3, 0", zero);
 
 	if (tlb_flag(TLB_BARRIER)) {
 		dsb();
@@ -352,29 +345,23 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 	if (tlb_flag(TLB_WB))
 		dsb();
 
-	if (cpumask_test_cpu(get_cpu(), mm_cpumask(mm))) {
-		if (tlb_flag(TLB_V3_FULL))
-			asm("mcr p15, 0, %0, c6, c0, 0" : : "r" (zero) : "cc");
-		if (tlb_flag(TLB_V4_U_FULL))
-			asm("mcr p15, 0, %0, c8, c7, 0" : : "r" (zero) : "cc");
-		if (tlb_flag(TLB_V4_D_FULL))
-			asm("mcr p15, 0, %0, c8, c6, 0" : : "r" (zero) : "cc");
-		if (tlb_flag(TLB_V4_I_FULL))
-			asm("mcr p15, 0, %0, c8, c5, 0" : : "r" (zero) : "cc");
+	if (possible_tlb_flags & (TLB_V3_FULL|TLB_V4_U_FULL|TLB_V4_D_FULL|TLB_V4_I_FULL)) {
+		if (cpumask_test_cpu(get_cpu(), mm_cpumask(mm))) {
+			tlb_op(TLB_V3_FULL, "c6, c0, 0", zero);
+			tlb_op(TLB_V4_U_FULL, "c8, c7, 0", zero);
+			tlb_op(TLB_V4_D_FULL, "c8, c6, 0", zero);
+			tlb_op(TLB_V4_I_FULL, "c8, c5, 0", zero);
+		}
+		put_cpu();
 	}
-	put_cpu();
 
-	if (tlb_flag(TLB_V6_U_ASID))
-		asm("mcr p15, 0, %0, c8, c7, 2" : : "r" (asid) : "cc");
-	if (tlb_flag(TLB_V6_D_ASID))
-		asm("mcr p15, 0, %0, c8, c6, 2" : : "r" (asid) : "cc");
-	if (tlb_flag(TLB_V6_I_ASID))
-		asm("mcr p15, 0, %0, c8, c5, 2" : : "r" (asid) : "cc");
-	if (tlb_flag(TLB_V7_UIS_ASID))
+	tlb_op(TLB_V6_U_ASID, "c8, c7, 2", asid);
+	tlb_op(TLB_V6_D_ASID, "c8, c6, 2", asid);
+	tlb_op(TLB_V6_I_ASID, "c8, c5, 2", asid);
 #ifdef CONFIG_ARM_ERRATA_720789
-		asm("mcr p15, 0, %0, c8, c3, 0" : : "r" (zero) : "cc");
+	tlb_op(TLB_V7_UIS_ASID, "c8, c3, 0", zero);
 #else
-		asm("mcr p15, 0, %0, c8, c3, 2" : : "r" (asid) : "cc");
+	tlb_op(TLB_V7_UIS_ASID, "c8, c3, 2", asid);
 #endif
 
 	if (tlb_flag(TLB_BARRIER))
@@ -392,30 +379,23 @@ local_flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 	if (tlb_flag(TLB_WB))
 		dsb();
 
-	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
-		if (tlb_flag(TLB_V3_PAGE))
-			asm("mcr p15, 0, %0, c6, c0, 0" : : "r" (uaddr) : "cc");
-		if (tlb_flag(TLB_V4_U_PAGE))
-			asm("mcr p15, 0, %0, c8, c7, 1" : : "r" (uaddr) : "cc");
-		if (tlb_flag(TLB_V4_D_PAGE))
-			asm("mcr p15, 0, %0, c8, c6, 1" : : "r" (uaddr) : "cc");
-		if (tlb_flag(TLB_V4_I_PAGE))
-			asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (uaddr) : "cc");
+	if (possible_tlb_flags & (TLB_V3_PAGE|TLB_V4_U_PAGE|TLB_V4_D_PAGE|TLB_V4_I_PAGE|TLB_V4_I_FULL) &&
+	    cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
+		tlb_op(TLB_V3_PAGE, "c6, c0, 0", uaddr);
+		tlb_op(TLB_V4_U_PAGE, "c8, c7, 1", uaddr);
+		tlb_op(TLB_V4_D_PAGE, "c8, c6, 1", uaddr);
+		tlb_op(TLB_V4_I_PAGE, "c8, c5, 1", uaddr);
 		if (!tlb_flag(TLB_V4_I_PAGE) && tlb_flag(TLB_V4_I_FULL))
 			asm("mcr p15, 0, %0, c8, c5, 0" : : "r" (zero) : "cc");
 	}
 
-	if (tlb_flag(TLB_V6_U_PAGE))
-		asm("mcr p15, 0, %0, c8, c7, 1" : : "r" (uaddr) : "cc");
-	if (tlb_flag(TLB_V6_D_PAGE))
-		asm("mcr p15, 0, %0, c8, c6, 1" : : "r" (uaddr) : "cc");
-	if (tlb_flag(TLB_V6_I_PAGE))
-		asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (uaddr) : "cc");
-	if (tlb_flag(TLB_V7_UIS_PAGE))
+	tlb_op(TLB_V6_U_PAGE, "c8, c7, 1", uaddr);
+	tlb_op(TLB_V6_D_PAGE, "c8, c6, 1", uaddr);
+	tlb_op(TLB_V6_I_PAGE, "c8, c5, 1", uaddr);
 #ifdef CONFIG_ARM_ERRATA_720789
-		asm("mcr p15, 0, %0, c8, c3, 3" : : "r" (uaddr & PAGE_MASK) : "cc");
+	tlb_op(TLB_V7_UIS_PAGE, "c8, c3, 3", uaddr & PAGE_MASK);
 #else
-		asm("mcr p15, 0, %0, c8, c3, 1" : : "r" (uaddr) : "cc");
+	tlb_op(TLB_V7_UIS_PAGE, "c8, c3, 1", uaddr);
 #endif
 
 	if (tlb_flag(TLB_BARRIER))
@@ -432,25 +412,17 @@ static inline void local_flush_tlb_kernel_page(unsigned long kaddr)
 	if (tlb_flag(TLB_WB))
 		dsb();
 
-	if (tlb_flag(TLB_V3_PAGE))
-		asm("mcr p15, 0, %0, c6, c0, 0" : : "r" (kaddr) : "cc");
-	if (tlb_flag(TLB_V4_U_PAGE))
-		asm("mcr p15, 0, %0, c8, c7, 1" : : "r" (kaddr) : "cc");
-	if (tlb_flag(TLB_V4_D_PAGE))
-		asm("mcr p15, 0, %0, c8, c6, 1" : : "r" (kaddr) : "cc");
-	if (tlb_flag(TLB_V4_I_PAGE))
-		asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (kaddr) : "cc");
+	tlb_op(TLB_V3_PAGE, "c6, c0, 0", kaddr);
+	tlb_op(TLB_V4_U_PAGE, "c8, c7, 1", kaddr);
+	tlb_op(TLB_V4_D_PAGE, "c8, c6, 1", kaddr);
+	tlb_op(TLB_V4_I_PAGE, "c8, c5, 1", kaddr);
 	if (!tlb_flag(TLB_V4_I_PAGE) && tlb_flag(TLB_V4_I_FULL))
 		asm("mcr p15, 0, %0, c8, c5, 0" : : "r" (zero) : "cc");
 
-	if (tlb_flag(TLB_V6_U_PAGE))
-		asm("mcr p15, 0, %0, c8, c7, 1" : : "r" (kaddr) : "cc");
-	if (tlb_flag(TLB_V6_D_PAGE))
-		asm("mcr p15, 0, %0, c8, c6, 1" : : "r" (kaddr) : "cc");
-	if (tlb_flag(TLB_V6_I_PAGE))
-		asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (kaddr) : "cc");
-	if (tlb_flag(TLB_V7_UIS_PAGE))
-		asm("mcr p15, 0, %0, c8, c3, 1" : : "r" (kaddr) : "cc");
+	tlb_op(TLB_V6_U_PAGE, "c8, c7, 1", kaddr);
+	tlb_op(TLB_V6_D_PAGE, "c8, c6, 1", kaddr);
+	tlb_op(TLB_V6_I_PAGE, "c8, c5, 1", kaddr);
+	tlb_op(TLB_V7_UIS_PAGE, "c8, c3, 1", kaddr);
 
 	if (tlb_flag(TLB_BARRIER)) {
 		dsb();
@@ -475,13 +447,8 @@ static inline void flush_pmd_entry(void *pmd)
 {
 	const unsigned int __tlb_flag = __cpu_tlb_flags;
 
-	if (tlb_flag(TLB_DCLEAN))
-		asm("mcr	p15, 0, %0, c7, c10, 1	@ flush_pmd"
-			: : "r" (pmd) : "cc");
-
-	if (tlb_flag(TLB_L2CLEAN_FR))
-		asm("mcr	p15, 1, %0, c15, c9, 1  @ L2 flush_pmd"
-			: : "r" (pmd) : "cc");
+	tlb_op(TLB_DCLEAN, "c7, c10, 1	@ flush_pmd", pmd);
+	tlb_l2_op(TLB_L2CLEAN_FR, "c15, c9, 1  @ L2 flush_pmd", pmd);
 
 	if (tlb_flag(TLB_WB))
 		dsb();
@@ -491,15 +458,11 @@ static inline void clean_pmd_entry(void *pmd)
 {
 	const unsigned int __tlb_flag = __cpu_tlb_flags;
 
-	if (tlb_flag(TLB_DCLEAN))
-		asm("mcr	p15, 0, %0, c7, c10, 1	@ flush_pmd"
-			: : "r" (pmd) : "cc");
-
-	if (tlb_flag(TLB_L2CLEAN_FR))
-		asm("mcr	p15, 1, %0, c15, c9, 1  @ L2 flush_pmd"
-			: : "r" (pmd) : "cc");
+	tlb_op(TLB_DCLEAN, "c7, c10, 1	@ flush_pmd", pmd);
+	tlb_l2_op(TLB_L2CLEAN_FR, "c15, c9, 1  @ L2 flush_pmd", pmd);
 }
 
+#undef tlb_op
 #undef tlb_flag
 #undef always_tlb_flags
 #undef possible_tlb_flags

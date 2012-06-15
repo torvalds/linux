@@ -30,11 +30,15 @@
 
 #include <linux/nfs_fs.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #include "internal.h"
 #include "nfs4filelayout.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
+
+static unsigned int dataserver_timeo = NFS4_DEF_DS_TIMEO;
+static unsigned int dataserver_retrans = NFS4_DEF_DS_RETRANS;
 
 /*
  * Data server cache
@@ -45,7 +49,7 @@
  *   - incremented when a device id maps a data server already in the cache.
  *   - decremented when deviceid is removed from the cache.
  */
-DEFINE_SPINLOCK(nfs4_ds_cache_lock);
+static DEFINE_SPINLOCK(nfs4_ds_cache_lock);
 static LIST_HEAD(nfs4_data_server_cache);
 
 /* Debug routines */
@@ -108,58 +112,62 @@ same_sockaddr(struct sockaddr *addr1, struct sockaddr *addr2)
 	return false;
 }
 
-/*
- * Lookup DS by addresses.  The first matching address returns true.
- * nfs4_ds_cache_lock is held
- */
-static struct nfs4_pnfs_ds *
-_data_server_lookup_locked(struct list_head *dsaddrs)
+static bool
+_same_data_server_addrs_locked(const struct list_head *dsaddrs1,
+			       const struct list_head *dsaddrs2)
 {
-	struct nfs4_pnfs_ds *ds;
 	struct nfs4_pnfs_ds_addr *da1, *da2;
 
-	list_for_each_entry(da1, dsaddrs, da_node) {
-		list_for_each_entry(ds, &nfs4_data_server_cache, ds_node) {
-			list_for_each_entry(da2, &ds->ds_addrs, da_node) {
-				if (same_sockaddr(
-					(struct sockaddr *)&da1->da_addr,
-					(struct sockaddr *)&da2->da_addr))
-					return ds;
-			}
-		}
+	/* step through both lists, comparing as we go */
+	for (da1 = list_first_entry(dsaddrs1, typeof(*da1), da_node),
+	     da2 = list_first_entry(dsaddrs2, typeof(*da2), da_node);
+	     da1 != NULL && da2 != NULL;
+	     da1 = list_entry(da1->da_node.next, typeof(*da1), da_node),
+	     da2 = list_entry(da2->da_node.next, typeof(*da2), da_node)) {
+		if (!same_sockaddr((struct sockaddr *)&da1->da_addr,
+				   (struct sockaddr *)&da2->da_addr))
+			return false;
 	}
+	if (da1 == NULL && da2 == NULL)
+		return true;
+
+	return false;
+}
+
+/*
+ * Lookup DS by addresses.  nfs4_ds_cache_lock is held
+ */
+static struct nfs4_pnfs_ds *
+_data_server_lookup_locked(const struct list_head *dsaddrs)
+{
+	struct nfs4_pnfs_ds *ds;
+
+	list_for_each_entry(ds, &nfs4_data_server_cache, ds_node)
+		if (_same_data_server_addrs_locked(&ds->ds_addrs, dsaddrs))
+			return ds;
 	return NULL;
 }
 
 /*
- * Compare two lists of addresses.
+ * Lookup DS by nfs_client pointer. Zero data server client pointer
  */
-static bool
-_data_server_match_all_addrs_locked(struct list_head *dsaddrs1,
-				    struct list_head *dsaddrs2)
+void nfs4_ds_disconnect(struct nfs_client *clp)
 {
-	struct nfs4_pnfs_ds_addr *da1, *da2;
-	size_t count1 = 0,
-	       count2 = 0;
+	struct nfs4_pnfs_ds *ds;
+	struct nfs_client *found = NULL;
 
-	list_for_each_entry(da1, dsaddrs1, da_node)
-		count1++;
-
-	list_for_each_entry(da2, dsaddrs2, da_node) {
-		bool found = false;
-		count2++;
-		list_for_each_entry(da1, dsaddrs1, da_node) {
-			if (same_sockaddr((struct sockaddr *)&da1->da_addr,
-				(struct sockaddr *)&da2->da_addr)) {
-				found = true;
-				break;
-			}
+	dprintk("%s clp %p\n", __func__, clp);
+	spin_lock(&nfs4_ds_cache_lock);
+	list_for_each_entry(ds, &nfs4_data_server_cache, ds_node)
+		if (ds->ds_clp && ds->ds_clp == clp) {
+			found = ds->ds_clp;
+			ds->ds_clp = NULL;
 		}
-		if (!found)
-			return false;
+	spin_unlock(&nfs4_ds_cache_lock);
+	if (found) {
+		set_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state);
+		nfs_put_client(clp);
 	}
-
-	return (count1 == count2);
 }
 
 /*
@@ -183,8 +191,9 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 			__func__, ds->ds_remotestr, da->da_remotestr);
 
 		clp = nfs4_set_ds_client(mds_srv->nfs_client,
-				 (struct sockaddr *)&da->da_addr,
-				 da->da_addrlen, IPPROTO_TCP);
+					(struct sockaddr *)&da->da_addr,
+					da->da_addrlen, IPPROTO_TCP,
+					dataserver_timeo, dataserver_retrans);
 		if (!IS_ERR(clp))
 			break;
 	}
@@ -194,28 +203,7 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 		goto out;
 	}
 
-	if ((clp->cl_exchange_flags & EXCHGID4_FLAG_MASK_PNFS) != 0) {
-		if (!is_ds_client(clp)) {
-			status = -ENODEV;
-			goto out_put;
-		}
-		ds->ds_clp = clp;
-		dprintk("%s [existing] server=%s\n", __func__,
-			ds->ds_remotestr);
-		goto out;
-	}
-
-	/*
-	 * Do not set NFS_CS_CHECK_LEASE_TIME instead set the DS lease to
-	 * be equal to the MDS lease. Renewal is scheduled in create_session.
-	 */
-	spin_lock(&mds_srv->nfs_client->cl_lock);
-	clp->cl_lease_time = mds_srv->nfs_client->cl_lease_time;
-	spin_unlock(&mds_srv->nfs_client->cl_lock);
-	clp->cl_last_renewal = jiffies;
-
-	/* New nfs_client */
-	status = nfs4_init_ds_session(clp);
+	status = nfs4_init_ds_session(clp, mds_srv->nfs_client->cl_lease_time);
 	if (status)
 		goto out_put;
 
@@ -356,11 +344,6 @@ nfs4_pnfs_ds_add(struct list_head *dsaddrs, gfp_t gfp_flags)
 		dprintk("%s add new data server %s\n", __func__,
 			ds->ds_remotestr);
 	} else {
-		if (!_data_server_match_all_addrs_locked(&tmp_ds->ds_addrs,
-							 dsaddrs)) {
-			dprintk("%s:  multipath address mismatch: %s != %s",
-				__func__, tmp_ds->ds_remotestr, remotestr);
-		}
 		kfree(remotestr);
 		kfree(ds);
 		atomic_inc(&tmp_ds->ds_count);
@@ -378,7 +361,7 @@ out:
  * Currently only supports ipv4, ipv6 and one multi-path address.
  */
 static struct nfs4_pnfs_ds_addr *
-decode_ds_addr(struct xdr_stream *streamp, gfp_t gfp_flags)
+decode_ds_addr(struct net *net, struct xdr_stream *streamp, gfp_t gfp_flags)
 {
 	struct nfs4_pnfs_ds_addr *da = NULL;
 	char *buf, *portstr;
@@ -457,7 +440,7 @@ decode_ds_addr(struct xdr_stream *streamp, gfp_t gfp_flags)
 
 	INIT_LIST_HEAD(&da->da_node);
 
-	if (!rpc_pton(buf, portstr-buf, (struct sockaddr *)&da->da_addr,
+	if (!rpc_pton(net, buf, portstr-buf, (struct sockaddr *)&da->da_addr,
 		      sizeof(da->da_addr))) {
 		dprintk("%s: error parsing address %s\n", __func__, buf);
 		goto out_free_da;
@@ -554,7 +537,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	cnt = be32_to_cpup(p);
 	dprintk("%s stripe count  %d\n", __func__, cnt);
 	if (cnt > NFS4_PNFS_MAX_STRIPE_CNT) {
-		printk(KERN_WARNING "%s: stripe count %d greater than "
+		printk(KERN_WARNING "NFS: %s: stripe count %d greater than "
 		       "supported maximum %d\n", __func__,
 			cnt, NFS4_PNFS_MAX_STRIPE_CNT);
 		goto out_err_free_scratch;
@@ -585,7 +568,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	num = be32_to_cpup(p);
 	dprintk("%s ds_num %u\n", __func__, num);
 	if (num > NFS4_PNFS_MAX_MULTI_CNT) {
-		printk(KERN_WARNING "%s: multipath count %d greater than "
+		printk(KERN_WARNING "NFS: %s: multipath count %d greater than "
 			"supported maximum %d\n", __func__,
 			num, NFS4_PNFS_MAX_MULTI_CNT);
 		goto out_err_free_stripe_indices;
@@ -593,7 +576,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 
 	/* validate stripe indices are all < num */
 	if (max_stripe_index >= num) {
-		printk(KERN_WARNING "%s: stripe index %u >= num ds %u\n",
+		printk(KERN_WARNING "NFS: %s: stripe index %u >= num ds %u\n",
 			__func__, max_stripe_index, num);
 		goto out_err_free_stripe_indices;
 	}
@@ -625,7 +608,8 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 
 		mp_count = be32_to_cpup(p); /* multipath count */
 		for (j = 0; j < mp_count; j++) {
-			da = decode_ds_addr(&stream, gfp_flags);
+			da = decode_ds_addr(NFS_SERVER(ino)->nfs_client->cl_net,
+					    &stream, gfp_flags);
 			if (da)
 				list_add_tail(&da->da_node, &dsaddrs);
 		}
@@ -686,7 +670,7 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_fl
 
 	new = decode_device(inode, dev, gfp_flags);
 	if (!new) {
-		printk(KERN_WARNING "%s: Could not decode or add device\n",
+		printk(KERN_WARNING "NFS: %s: Could not decode or add device\n",
 			__func__);
 		return NULL;
 	}
@@ -721,7 +705,7 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_fla
 	 * GETDEVICEINFO's maxcount
 	 */
 	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
-	max_pages = max_resp_sz >> PAGE_SHIFT;
+	max_pages = nfs_page_array_len(0, max_resp_sz);
 	dprintk("%s inode %p max_resp_sz %u max_pages %d\n",
 		__func__, inode, max_resp_sz, max_pages);
 
@@ -813,48 +797,42 @@ nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j)
 	return flseg->fh_array[i];
 }
 
-static void
-filelayout_mark_devid_negative(struct nfs4_file_layout_dsaddr *dsaddr,
-			       int err, const char *ds_remotestr)
-{
-	u32 *p = (u32 *)&dsaddr->id_node.deviceid;
-
-	printk(KERN_ERR "NFS: data server %s connection error %d."
-		" Deviceid [%x%x%x%x] marked out of use.\n",
-		ds_remotestr, err, p[0], p[1], p[2], p[3]);
-
-	spin_lock(&nfs4_ds_cache_lock);
-	dsaddr->flags |= NFS4_DEVICE_ID_NEG_ENTRY;
-	spin_unlock(&nfs4_ds_cache_lock);
-}
-
 struct nfs4_pnfs_ds *
 nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 {
 	struct nfs4_file_layout_dsaddr *dsaddr = FILELAYOUT_LSEG(lseg)->dsaddr;
 	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
+	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
+
+	if (filelayout_test_devid_invalid(devid))
+		return NULL;
 
 	if (ds == NULL) {
-		printk(KERN_ERR "%s: No data server for offset index %d\n",
+		printk(KERN_ERR "NFS: %s: No data server for offset index %d\n",
 			__func__, ds_idx);
-		return NULL;
+		goto mark_dev_invalid;
 	}
 
 	if (!ds->ds_clp) {
 		struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_inode);
 		int err;
 
-		if (dsaddr->flags & NFS4_DEVICE_ID_NEG_ENTRY) {
-			/* Already tried to connect, don't try again */
-			dprintk("%s Deviceid marked out of use\n", __func__);
-			return NULL;
-		}
 		err = nfs4_ds_connect(s, ds);
-		if (err) {
-			filelayout_mark_devid_negative(dsaddr, err,
-						       ds->ds_remotestr);
-			return NULL;
-		}
+		if (err)
+			goto mark_dev_invalid;
 	}
 	return ds;
+
+mark_dev_invalid:
+	filelayout_mark_devid_invalid(devid);
+	return NULL;
 }
+
+module_param(dataserver_retrans, uint, 0644);
+MODULE_PARM_DESC(dataserver_retrans, "The  number of times the NFSv4.1 client "
+			"retries a request before it attempts further "
+			" recovery  action.");
+module_param(dataserver_timeo, uint, 0644);
+MODULE_PARM_DESC(dataserver_timeo, "The time (in tenths of a second) the "
+			"NFSv4.1  client  waits for a response from a "
+			" data server before it retries an NFS request.");

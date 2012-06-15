@@ -30,7 +30,7 @@ Status: works
 Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio), PXI-6533,
   PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
   PXI-6503, PCI-6533, PCI-6534
-Updated: Sun, 21 Apr 2002 21:03:38 -0700
+Updated: Mon, 09 Jan 2012 14:27:23 +0000
 
 The DIO-96 appears as four 8255 subdevices.  See the 8255
 driver notes for details.
@@ -41,6 +41,11 @@ is 0=A0, 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0.  The driver only
 supports simple digital I/O; no handshaking is supported.
 
 DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
+
+The PCI-DIO-32HS/PCI-6533 has a configurable external trigger. Setting
+scan_begin_arg to 0 or CR_EDGE triggers on the leading edge. Setting
+scan_begin_arg to CR_INVERT or (CR_EDGE | CR_INVERT) triggers on the
+trailing edge.
 
 This driver could be easily modified to support AT-MIO32HS and
 AT-MIO96.
@@ -288,17 +293,8 @@ enum FPGA_Control_Bits {
 #define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
 #endif
 
-static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int nidio_detach(struct comedi_device *dev);
 static int ni_pcidio_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
-
-static struct comedi_driver driver_pcidio = {
-	.driver_name = "ni_pcidio",
-	.module = THIS_MODULE,
-	.attach = nidio_attach,
-	.detach = nidio_detach,
-};
 
 struct nidio_board {
 
@@ -376,22 +372,6 @@ static const struct nidio_board nidio_boards[] = {
 #define n_nidio_boards ARRAY_SIZE(nidio_boards)
 #define this_board ((const struct nidio_board *)dev->board_ptr)
 
-static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1150)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1320)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x12b0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0160)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1630)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x13c0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0400)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1250)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x17d0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1800)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, ni_pcidio_pci_table);
-
 struct nidio96_private {
 	struct mite_struct *mite;
 	int boardtype;
@@ -409,7 +389,6 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ni_pcidio_inttrig(struct comedi_device *dev,
 			     struct comedi_subdevice *s, unsigned int trignum);
-static int nidio_find_device(struct comedi_device *dev, int bus, int slot);
 static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode);
 static int setup_mite_dma(struct comedi_device *dev,
 			  struct comedi_subdevice *s);
@@ -436,6 +415,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 		comedi_error(dev, "failed to reserve mite dma channel.");
 		return -EBUSY;
 	}
+	devpriv->di_mite_chan->dir = COMEDI_INPUT;
 	writeb(primary_DMAChannel_bits(devpriv->di_mite_chan->channel) |
 	       secondary_DMAChannel_bits(devpriv->di_mite_chan->channel),
 	       devpriv->mite->daq_io_addr + DMA_Line_Control_Group1);
@@ -482,6 +462,21 @@ void ni_pcidio_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	comedi_event(dev, s);
 }
 
+static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	unsigned long irq_flags;
+	int count;
+
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
+	spin_lock(&devpriv->mite_channel_lock);
+	if (devpriv->di_mite_chan)
+		mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+	spin_unlock(&devpriv->mite_channel_lock);
+	count = s->async->buf_write_count - s->async->buf_read_count;
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	return count;
+}
+
 static irqreturn_t nidio_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -497,13 +492,15 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	int status;
 	int work = 0;
 	unsigned int m_status = 0;
-	unsigned long irq_flags;
 
 	/* interrupcions parasites */
 	if (dev->attached == 0) {
 		/* assume it's from another card */
 		return IRQ_NONE;
 	}
+
+	/* Lock to avoid race with comedi_poll */
+	spin_lock(&dev->spinlock);
 
 	status = readb(devpriv->mite->daq_io_addr +
 		       Interrupt_And_Window_Status);
@@ -518,7 +515,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	/* printk("buf[4096]=%08x\n",
 	       *(unsigned int *)(async->prealloc_buf+4096)); */
 
-	spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
+	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
 		m_status = mite_get_status(devpriv->di_mite_chan);
 #ifdef MITE_DEBUG
@@ -543,7 +540,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			disable_irq(dev->irq);
 		}
 	}
-	spin_unlock_irqrestore(&devpriv->mite_channel_lock, irq_flags);
+	spin_unlock(&devpriv->mite_channel_lock);
 
 	while (status & DataLeft) {
 		work++;
@@ -645,6 +642,8 @@ out:
 		       Master_DMA_And_Interrupt_Control);
 	}
 #endif
+
+	spin_unlock(&dev->spinlock);
 	return IRQ_HANDLED;
 }
 
@@ -825,8 +824,8 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 	} else {
 		/* TRIG_EXT */
 		/* should be level/edge, hi/lo specification here */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
+		if ((cmd->scan_begin_arg & ~(CR_EDGE | CR_INVERT)) != 0) {
+			cmd->scan_begin_arg &= (CR_EDGE | CR_INVERT);
 			err++;
 		}
 	}
@@ -941,7 +940,13 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writeb(0, devpriv->mite->daq_io_addr + Sequence);
 		writeb(0x00, devpriv->mite->daq_io_addr + ReqReg);
 		writeb(4, devpriv->mite->daq_io_addr + BlockMode);
-		writeb(0, devpriv->mite->daq_io_addr + LinePolarities);
+		if (!(cmd->scan_begin_arg & CR_INVERT)) {
+			/* Leading Edge pulse mode */
+			writeb(0, devpriv->mite->daq_io_addr + LinePolarities);
+		} else {
+			/* Trailing Edge pulse mode */
+			writeb(2, devpriv->mite->daq_io_addr + LinePolarities);
+		}
 		writeb(0x00, devpriv->mite->daq_io_addr + AckSer);
 		writel(1, devpriv->mite->daq_io_addr + StartDelay);
 		writeb(1, devpriv->mite->daq_io_addr + ReqDelay);
@@ -1005,17 +1010,24 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int retval;
+	unsigned long flags;
 
 	retval = ni_pcidio_request_di_mite_channel(dev);
 	if (retval)
 		return retval;
 
-	devpriv->di_mite_chan->dir = COMEDI_INPUT;
+	/* write alloc the entire buffer */
+	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
-	mite_prep_dma(devpriv->di_mite_chan, 32, 32);
+	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if (devpriv->di_mite_chan) {
+		mite_prep_dma(devpriv->di_mite_chan, 32, 32);
+		mite_dma_arm(devpriv->di_mite_chan);
+	} else
+		retval = -EIO;
+	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
-	mite_dma_arm(devpriv->di_mite_chan);
-	return 0;
+	return retval;
 }
 
 static int ni_pcidio_inttrig(struct comedi_device *dev,
@@ -1167,6 +1179,33 @@ static int pci_6534_upload_firmware(struct comedi_device *dev, int options[])
 	return 0;
 }
 
+static int nidio_find_device(struct comedi_device *dev, int bus, int slot)
+{
+	struct mite_struct *mite;
+	int i;
+
+	for (mite = mite_devices; mite; mite = mite->next) {
+		if (mite->used)
+			continue;
+		if (bus || slot) {
+			if (bus != mite->pcidev->bus->number ||
+			    slot != PCI_SLOT(mite->pcidev->devfn))
+				continue;
+		}
+		for (i = 0; i < n_nidio_boards; i++) {
+			if (mite_device_id(mite) == nidio_boards[i].dev_id) {
+				dev->board_ptr = nidio_boards + i;
+				devpriv->mite = mite;
+
+				return 0;
+			}
+		}
+	}
+	printk(KERN_WARNING "no device found\n");
+	mite_list_devices();
+	return -EIO;
+}
+
 static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
@@ -1244,6 +1283,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->len_chanlist = 32;	/* XXX */
 		s->buf_change = &ni_pcidio_change;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
+		s->poll = &ni_pcidio_poll;
 
 		writel(0, devpriv->mite->daq_io_addr + Port_IO(0));
 		writel(0, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));
@@ -1267,7 +1307,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int nidio_detach(struct comedi_device *dev)
+static void nidio_detach(struct comedi_device *dev)
 {
 	int i;
 
@@ -1275,10 +1315,8 @@ static int nidio_detach(struct comedi_device *dev)
 		for (i = 0; i < this_board->n_8255; i++)
 			subdev_8255_cleanup(dev, dev->subdevices + i);
 	}
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv) {
 		if (devpriv->di_mite_ring) {
 			mite_free_ring(devpriv->di_mite_ring);
@@ -1287,73 +1325,48 @@ static int nidio_detach(struct comedi_device *dev)
 		if (devpriv->mite)
 			mite_unsetup(devpriv->mite);
 	}
-	return 0;
 }
 
-static int nidio_find_device(struct comedi_device *dev, int bus, int slot)
+static struct comedi_driver ni_pcidio_driver = {
+	.driver_name	= "ni_pcidio",
+	.module		= THIS_MODULE,
+	.attach		= nidio_attach,
+	.detach		= nidio_detach,
+};
+
+static int __devinit ni_pcidio_pci_probe(struct pci_dev *dev,
+					 const struct pci_device_id *ent)
 {
-	struct mite_struct *mite;
-	int i;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-			    slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-		for (i = 0; i < n_nidio_boards; i++) {
-			if (mite_device_id(mite) == nidio_boards[i].dev_id) {
-				dev->board_ptr = nidio_boards + i;
-				devpriv->mite = mite;
-
-				return 0;
-			}
-		}
-	}
-	printk(KERN_WARNING "no device found\n");
-	mite_list_devices();
-	return -EIO;
+	return comedi_pci_auto_config(dev, &ni_pcidio_driver);
 }
 
-static int __devinit driver_pcidio_pci_probe(struct pci_dev *dev,
-					     const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, driver_pcidio.driver_name);
-}
-
-static void __devexit driver_pcidio_pci_remove(struct pci_dev *dev)
+static void __devexit ni_pcidio_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_pcidio_pci_driver = {
-	.id_table = ni_pcidio_pci_table,
-	.probe = &driver_pcidio_pci_probe,
-	.remove = __devexit_p(&driver_pcidio_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1150) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1320) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x12b0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0160) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1630) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x13c0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0400) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1250) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x17d0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1800) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, ni_pcidio_pci_table);
 
-static int __init driver_pcidio_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_pcidio);
-	if (retval < 0)
-		return retval;
-
-	driver_pcidio_pci_driver.name = (char *)driver_pcidio.driver_name;
-	return pci_register_driver(&driver_pcidio_pci_driver);
-}
-
-static void __exit driver_pcidio_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_pcidio_pci_driver);
-	comedi_driver_unregister(&driver_pcidio);
-}
-
-module_init(driver_pcidio_init_module);
-module_exit(driver_pcidio_cleanup_module);
+static struct pci_driver ni_pcidio_pci_driver = {
+	.name		= "ni_pcidio",
+	.id_table	= ni_pcidio_pci_table,
+	.probe		= ni_pcidio_pci_probe,
+	.remove		= __devexit_p(ni_pcidio_pci_remove),
+};
+module_comedi_pci_driver(ni_pcidio_driver, ni_pcidio_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

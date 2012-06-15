@@ -9,7 +9,7 @@ mac80211-y := \
 	scan.o offchannel.o \
 	ht.o agg-tx.o agg-rx.o \
 	ibss.o \
-	mlme.o work.o \
+	work.o \
 	iface.o \
 	rate.o \
 	michael.o \
@@ -25,7 +25,7 @@ mac80211-y := \
 	wme.o \
 	event.o \
 	chan.o \
-	driver-trace.o
+	driver-trace.o mlme.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
 mac80211-$(CONFIG_MAC80211_DEBUGFS) += \
@@ -38,7 +38,8 @@ mac80211-$(CONFIG_MAC80211_MESH) += \
 	mesh.o \
 	mesh_pathtbl.o \
 	mesh_plink.o \
-	mesh_hwmp.o
+	mesh_hwmp.o \
+	mesh_sync.o
 
 mac80211-$(CONFIG_PM) += pm.o
 

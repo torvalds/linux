@@ -36,9 +36,11 @@ extern void __iomem *at91_shdwc_base;
 #define			AT91_SHDW_WKMODE0_HIGH		1
 #define			AT91_SHDW_WKMODE0_LOW		2
 #define			AT91_SHDW_WKMODE0_ANYLEVEL	3
-#define		AT91_SHDW_CPTWK0	(0xf << 4)		/* Counter On Wake Up 0 */
+#define		AT91_SHDW_CPTWK0_MAX	0xf			/* Maximum Counter On Wake Up 0 */
+#define		AT91_SHDW_CPTWK0	(AT91_SHDW_CPTWK0_MAX << 4) /* Counter On Wake Up 0 */
 #define			AT91_SHDW_CPTWK0_(x)	((x) << 4)
 #define		AT91_SHDW_RTTWKEN	(1   << 16)		/* Real Time Timer Wake-up Enable */
+#define		AT91_SHDW_RTCWKEN	(1   << 17)		/* Real Time Clock Wake-up Enable */
 
 #define AT91_SHDW_SR		0x08			/* Shut Down Status Register */
 #define		AT91_SHDW_WAKEUP0	(1 <<  0)		/* Wake-up 0 Status */

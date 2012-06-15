@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
+#include <linux/of_serial.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/pda_power.h>
@@ -52,6 +53,7 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.irq		= INT_UARTD,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
 		.type		= PORT_TEGRA,
+		.handle_break	= tegra_serial_handle_break,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,
@@ -101,7 +103,6 @@ static struct wm8903_platform_data harmony_wm8903_pdata = {
 static struct i2c_board_info __initdata wm8903_board_info = {
 	I2C_BOARD_INFO("wm8903", 0x1a),
 	.platform_data = &harmony_wm8903_pdata,
-	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ),
 };
 
 static void __init harmony_i2c_init(void)
@@ -111,6 +112,7 @@ static void __init harmony_i2c_init(void)
 	platform_device_register(&tegra_i2c_device3);
 	platform_device_register(&tegra_i2c_device4);
 
+	wm8903_board_info.irq = gpio_to_irq(TEGRA_GPIO_CDC_IRQ);
 	i2c_register_board_info(0, &wm8903_board_info, 1);
 }
 
@@ -122,7 +124,6 @@ static struct platform_device *harmony_devices[] __initdata = {
 	&tegra_ehci3_device,
 	&tegra_i2s_device1,
 	&tegra_das_device,
-	&tegra_pcm_device,
 	&harmony_audio_device,
 };
 
@@ -191,5 +192,6 @@ MACHINE_START(HARMONY, "harmony")
 	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_harmony_init,
+	.init_late	= tegra_init_late,
 	.restart	= tegra_assert_system_reset,
 MACHINE_END

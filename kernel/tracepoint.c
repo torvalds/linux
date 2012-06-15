@@ -25,7 +25,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/jump_label.h>
+#include <linux/static_key.h>
 
 extern struct tracepoint * const __start___tracepoints_ptrs[];
 extern struct tracepoint * const __stop___tracepoints_ptrs[];
@@ -256,9 +256,9 @@ static void set_tracepoint(struct tracepoint_entry **entry,
 {
 	WARN_ON(strcmp((*entry)->name, elem->name) != 0);
 
-	if (elem->regfunc && !jump_label_enabled(&elem->key) && active)
+	if (elem->regfunc && !static_key_enabled(&elem->key) && active)
 		elem->regfunc();
-	else if (elem->unregfunc && jump_label_enabled(&elem->key) && !active)
+	else if (elem->unregfunc && static_key_enabled(&elem->key) && !active)
 		elem->unregfunc();
 
 	/*
@@ -269,10 +269,10 @@ static void set_tracepoint(struct tracepoint_entry **entry,
 	 * is used.
 	 */
 	rcu_assign_pointer(elem->funcs, (*entry)->funcs);
-	if (active && !jump_label_enabled(&elem->key))
-		jump_label_inc(&elem->key);
-	else if (!active && jump_label_enabled(&elem->key))
-		jump_label_dec(&elem->key);
+	if (active && !static_key_enabled(&elem->key))
+		static_key_slow_inc(&elem->key);
+	else if (!active && static_key_enabled(&elem->key))
+		static_key_slow_dec(&elem->key);
 }
 
 /*
@@ -283,11 +283,11 @@ static void set_tracepoint(struct tracepoint_entry **entry,
  */
 static void disable_tracepoint(struct tracepoint *elem)
 {
-	if (elem->unregfunc && jump_label_enabled(&elem->key))
+	if (elem->unregfunc && static_key_enabled(&elem->key))
 		elem->unregfunc();
 
-	if (jump_label_enabled(&elem->key))
-		jump_label_dec(&elem->key);
+	if (static_key_enabled(&elem->key))
+		static_key_slow_dec(&elem->key);
 	rcu_assign_pointer(elem->funcs, NULL);
 }
 

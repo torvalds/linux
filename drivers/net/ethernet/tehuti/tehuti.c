@@ -341,8 +341,8 @@ static int bdx_fw_load(struct bdx_priv *priv)
 out:
 	if (master)
 		WRITE_REG(priv, regINIT_SEMAPHORE, 1);
-	if (fw)
-		release_firmware(fw);
+
+	release_firmware(fw);
 
 	if (rc) {
 		netdev_err(priv->ndev, "firmware loading failed\n");
@@ -1089,12 +1089,11 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	ENTER;
 	dno = bdx_rxdb_available(db) - 1;
 	while (dno > 0) {
-		skb = dev_alloc_skb(f->m.pktsz + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(priv->ndev, f->m.pktsz + NET_IP_ALIGN);
 		if (!skb) {
-			pr_err("NO MEM: dev_alloc_skb failed\n");
+			pr_err("NO MEM: netdev_alloc_skb failed\n");
 			break;
 		}
-		skb->dev = priv->ndev;
 		skb_reserve(skb, NET_IP_ALIGN);
 
 		idx = bdx_rxdb_alloc_elem(db);
@@ -1258,7 +1257,7 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 		skb = dm->skb;
 
 		if (len < BDX_COPYBREAK &&
-		    (skb2 = dev_alloc_skb(len + NET_IP_ALIGN))) {
+		    (skb2 = netdev_alloc_skb(priv->ndev, len + NET_IP_ALIGN))) {
 			skb_reserve(skb2, NET_IP_ALIGN);
 			/*skb_put(skb2, len); */
 			pci_dma_sync_single_for_cpu(priv->pdev,
@@ -1318,7 +1317,7 @@ static void print_rxdd(struct rxd_desc *rxdd, u32 rxd_val1, u16 len,
 
 static void print_rxfd(struct rxf_desc *rxfd)
 {
-	DBG("=== RxF desc CHIP ORDER/ENDIANESS =============\n"
+	DBG("=== RxF desc CHIP ORDER/ENDIANNESS =============\n"
 	    "info 0x%x va_lo %u pa_lo 0x%x pa_hi 0x%x len 0x%x\n",
 	    rxfd->info, rxfd->va_lo, rxfd->pa_lo, rxfd->pa_hi, rxfd->len);
 }
@@ -1978,7 +1977,6 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ndev = alloc_etherdev(sizeof(struct bdx_priv));
 		if (!ndev) {
 			err = -ENOMEM;
-			pr_err("alloc_etherdev failed\n");
 			goto err_out_iomap;
 		}
 
@@ -1990,10 +1988,6 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* these fields are used for info purposes only
 		 * so we can have them same for all ports of the board */
 		ndev->if_port = port;
-		ndev->base_addr = pciaddr;
-		ndev->mem_start = pciaddr;
-		ndev->mem_end = pciaddr + regionSize;
-		ndev->irq = pdev->irq;
 		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
 		    | NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
 		    NETIF_F_HW_VLAN_FILTER | NETIF_F_RXCSUM

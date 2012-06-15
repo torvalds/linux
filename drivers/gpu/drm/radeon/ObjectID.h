@@ -85,6 +85,7 @@
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA   0x1F
 #define ENCODER_OBJECT_ID_INTERNAL_UNIPHY1        0x20
 #define ENCODER_OBJECT_ID_INTERNAL_UNIPHY2        0x21
+#define ENCODER_OBJECT_ID_INTERNAL_VCE            0x24
 
 #define ENCODER_OBJECT_ID_GENERAL_EXTERNAL_DVO    0xFF
 
@@ -386,6 +387,10 @@
 #define ENCODER_NUTMEG_ENUM_ID1                  ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
                                                   GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                   ENCODER_OBJECT_ID_NUTMEG << OBJECT_ID_SHIFT)
+
+#define ENCODER_VCE_ENUM_ID1                     ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
+                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                  ENCODER_OBJECT_ID_INTERNAL_VCE << OBJECT_ID_SHIFT)
 
 /****************************************************/
 /* Connector Object ID definition - Shared with BIOS */

@@ -494,6 +494,11 @@ static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
 	u32 irq;
+	int r;
+
+	r = dispc_runtime_get();
+	if (r)
+		return r;
 
 	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC) {
 		irq = DISPC_IRQ_EVSYNC_ODD;
@@ -505,7 +510,12 @@ static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 		else
 			irq = DISPC_IRQ_VSYNC2;
 	}
-	return omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
+
+	r = omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
+
+	dispc_runtime_put();
+
+	return r;
 }
 
 int dss_init_overlay_managers(struct platform_device *pdev)
@@ -644,9 +654,20 @@ static int dss_mgr_check_zorder(struct omap_overlay_manager *mgr,
 	return 0;
 }
 
+int dss_mgr_check_timings(struct omap_overlay_manager *mgr,
+		const struct omap_video_timings *timings)
+{
+	if (!dispc_mgr_timings_ok(mgr->id, timings)) {
+		DSSERR("check_manager: invalid timings\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int dss_mgr_check(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *dssdev,
 		struct omap_overlay_manager_info *info,
+		const struct omap_video_timings *mgr_timings,
 		struct omap_overlay_info **overlay_infos)
 {
 	struct omap_overlay *ovl;
@@ -658,6 +679,10 @@ int dss_mgr_check(struct omap_overlay_manager *mgr,
 			return r;
 	}
 
+	r = dss_mgr_check_timings(mgr, mgr_timings);
+	if (r)
+		return r;
+
 	list_for_each_entry(ovl, &mgr->overlays, list) {
 		struct omap_overlay_info *oi;
 		int r;
@@ -667,7 +692,7 @@ int dss_mgr_check(struct omap_overlay_manager *mgr,
 		if (oi == NULL)
 			continue;
 
-		r = dss_ovl_check(ovl, oi, dssdev);
+		r = dss_ovl_check(ovl, oi, mgr_timings);
 		if (r)
 			return r;
 	}

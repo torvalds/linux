@@ -40,7 +40,6 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
@@ -154,7 +153,7 @@ static int omap_ep_enable(struct usb_ep *_ep,
 	u16		maxp;
 
 	/* catch various bogus parameters */
-	if (!_ep || !desc || ep->desc
+	if (!_ep || !desc || ep->ep.desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
 			|| ep->maxpacket < usb_endpoint_maxp(desc)) {
@@ -201,7 +200,7 @@ static int omap_ep_enable(struct usb_ep *_ep,
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->irqs = 0;
 	ep->stopped = 0;
 	ep->ep.maxpacket = maxp;
@@ -243,14 +242,14 @@ static int omap_ep_disable(struct usb_ep *_ep)
 	struct omap_ep	*ep = container_of(_ep, struct omap_ep, ep);
 	unsigned long	flags;
 
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		DBG("%s, %s not enabled\n", __func__,
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&ep->udc->lock, flags);
-	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	nuke (ep, -ESHUTDOWN);
 	ep->ep.maxpacket = ep->maxpacket;
 	ep->has_dma = 0;
@@ -917,7 +916,7 @@ omap_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		DBG("%s, bad params\n", __func__);
 		return -EINVAL;
 	}
-	if (!_ep || (!ep->desc && ep->bEndpointAddress)) {
+	if (!_ep || (!ep->ep.desc && ep->bEndpointAddress)) {
 		DBG("%s, bad ep\n", __func__);
 		return -EINVAL;
 	}
@@ -1121,7 +1120,7 @@ static int omap_ep_set_halt(struct usb_ep *_ep, int value)
 			status = 0;
 
 	/* otherwise, all active non-ISO endpoints can halt */
-	} else if (ep->bmAttributes != USB_ENDPOINT_XFER_ISOC && ep->desc) {
+	} else if (ep->bmAttributes != USB_ENDPOINT_XFER_ISOC && ep->ep.desc) {
 
 		/* IN endpoints must already be idle */
 		if ((ep->bEndpointAddress & USB_DIR_IN)
@@ -1213,7 +1212,7 @@ static int omap_wakeup(struct usb_gadget *gadget)
 	/* NOTE:  non-OTG systems may use SRP TOO... */
 	} else if (!(udc->devstat & UDC_ATT)) {
 		if (udc->transceiver)
-			retval = otg_start_srp(udc->transceiver);
+			retval = otg_start_srp(udc->transceiver->otg);
 	}
 	spin_unlock_irqrestore(&udc->lock, flags);
 
@@ -1345,7 +1344,7 @@ static int omap_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 
 	udc = container_of(gadget, struct omap_udc, gadget);
 	if (udc->transceiver)
-		return otg_set_power(udc->transceiver, mA);
+		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
 
@@ -1625,7 +1624,7 @@ static void ep0_irq(struct omap_udc *udc, u16 irq_src)
 				if (w_index & USB_DIR_IN)
 					ep += 16;
 				if (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
-						|| !ep->desc)
+						|| !ep->ep.desc)
 					goto do_stall;
 				use_ep(ep, 0);
 				omap_writew(udc->clr_halt, UDC_CTRL);
@@ -1653,7 +1652,7 @@ static void ep0_irq(struct omap_udc *udc, u16 irq_src)
 			if (w_index & USB_DIR_IN)
 				ep += 16;
 			if (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
-					|| ep == ep0 || !ep->desc)
+					|| ep == ep0 || !ep->ep.desc)
 				goto do_stall;
 			if (use_dma && ep->has_dma) {
 				/* this has rude side-effects (aborts) and
@@ -1688,7 +1687,7 @@ ep0out_status_stage:
 			ep = &udc->ep[w_index & 0xf];
 			if (w_index & USB_DIR_IN)
 				ep += 16;
-			if (!ep->desc)
+			if (!ep->ep.desc)
 				goto do_stall;
 
 			/* iso never stalls */
@@ -1839,11 +1838,13 @@ static void devstate_irq(struct omap_udc *udc, u16 irq_src)
 					spin_lock(&udc->lock);
 				}
 				if (udc->transceiver)
-					otg_set_suspend(udc->transceiver, 1);
+					usb_phy_set_suspend(
+							udc->transceiver, 1);
 			} else {
 				VDBG("resume\n");
 				if (udc->transceiver)
-					otg_set_suspend(udc->transceiver, 0);
+					usb_phy_set_suspend(
+							udc->transceiver, 0);
 				if (udc->gadget.speed == USB_SPEED_FULL
 						&& udc->driver->resume) {
 					spin_unlock(&udc->lock);
@@ -2154,7 +2155,8 @@ static int omap_udc_start(struct usb_gadget_driver *driver,
 
 	/* connect to bus through transceiver */
 	if (udc->transceiver) {
-		status = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		status = otg_set_peripheral(udc->transceiver->otg,
+						&udc->gadget);
 		if (status < 0) {
 			ERR("can't bind to transceiver\n");
 			if (driver->unbind) {
@@ -2200,7 +2202,7 @@ static int omap_udc_stop(struct usb_gadget_driver *driver)
 		omap_vbus_session(&udc->gadget, 0);
 
 	if (udc->transceiver)
-		(void) otg_set_peripheral(udc->transceiver, NULL);
+		(void) otg_set_peripheral(udc->transceiver->otg, NULL);
 	else
 		pullup_disable(udc);
 
@@ -2506,7 +2508,7 @@ static int proc_udc_show(struct seq_file *s, void *_)
 		if (tmp & UDC_ADD) {
 			list_for_each_entry (ep, &udc->gadget.ep_list,
 					ep.ep_list) {
-				if (ep->desc)
+				if (ep->ep.desc)
 					proc_ep_show(s, ep);
 			}
 		}
@@ -2650,7 +2652,7 @@ static void omap_udc_release(struct device *dev)
 }
 
 static int __init
-omap_udc_setup(struct platform_device *odev, struct otg_transceiver *xceiv)
+omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 {
 	unsigned	tmp, buf;
 
@@ -2790,7 +2792,7 @@ static int __init omap_udc_probe(struct platform_device *pdev)
 {
 	int			status = -ENODEV;
 	int			hmc;
-	struct otg_transceiver	*xceiv = NULL;
+	struct usb_phy		*xceiv = NULL;
 	const char		*type = NULL;
 	struct omap_usb_config	*config = pdev->dev.platform_data;
 	struct clk		*dc_clk;
@@ -2863,7 +2865,7 @@ static int __init omap_udc_probe(struct platform_device *pdev)
 		 * use it.  Except for OTG, we don't _need_ to talk to one;
 		 * but not having one probably means no VBUS detection.
 		 */
-		xceiv = otg_get_transceiver();
+		xceiv = usb_get_transceiver();
 		if (xceiv)
 			type = xceiv->label;
 		else if (config->otg) {
@@ -3009,7 +3011,7 @@ cleanup1:
 
 cleanup0:
 	if (xceiv)
-		otg_put_transceiver(xceiv);
+		usb_put_transceiver(xceiv);
 
 	if (cpu_is_omap16xx() || cpu_is_omap24xx() || cpu_is_omap7xx()) {
 		clk_disable(hhc_clk);
@@ -3039,7 +3041,7 @@ static int __exit omap_udc_remove(struct platform_device *pdev)
 
 	pullup_disable(udc);
 	if (udc->transceiver) {
-		otg_put_transceiver(udc->transceiver);
+		usb_put_transceiver(udc->transceiver);
 		udc->transceiver = NULL;
 	}
 	omap_writew(0, UDC_SYSCON1);

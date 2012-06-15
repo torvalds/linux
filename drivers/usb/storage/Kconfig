@@ -222,7 +222,7 @@ config USB_LIBUSUAL
 	  for usb-storage and ub drivers, and allows to switch binding
 	  of these devices without rebuilding modules.
 
-	  Typical syntax of /etc/modprobe.conf is:
+	  Typical syntax of /etc/modprobe.d/*conf is:
 
 		options libusual bias="ub"
 

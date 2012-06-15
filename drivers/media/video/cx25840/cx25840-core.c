@@ -5301,15 +5301,4 @@ static struct i2c_driver cx25840_driver = {
 	.id_table	= cx25840_id,
 };
 
-static __init int init_cx25840(void)
-{
-	return i2c_add_driver(&cx25840_driver);
-}
-
-static __exit void exit_cx25840(void)
-{
-	i2c_del_driver(&cx25840_driver);
-}
-
-module_init(init_cx25840);
-module_exit(exit_cx25840);
+module_i2c_driver(cx25840_driver);

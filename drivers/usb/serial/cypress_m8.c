@@ -89,14 +89,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver cypress_driver = {
-	.name =		"cypress",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
-};
-
 enum packet_format {
 	packet_format_1,  /* b0:status, b1:payload count */
 	packet_format_2   /* b0[7:3]:status, b0[2:0]:payload count */
@@ -163,7 +155,6 @@ static struct usb_serial_driver cypress_earthmate_device = {
 		.name =			"earthmate",
 	},
 	.description =			"DeLorme Earthmate USB",
-	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_earthmate,
 	.num_ports =			1,
 	.attach =			cypress_earthmate_startup,
@@ -190,7 +181,6 @@ static struct usb_serial_driver cypress_hidcom_device = {
 		.name =			"cyphidcom",
 	},
 	.description =			"HID->COM RS232 Adapter",
-	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_cyphidcomrs232,
 	.num_ports =			1,
 	.attach =			cypress_hidcom_startup,
@@ -217,7 +207,6 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 		.name =			"nokiaca42v2",
 	},
 	.description =			"Nokia CA-42 V2 Adapter",
-	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_nokiaca42v2,
 	.num_ports =			1,
 	.attach =			cypress_ca42v2_startup,
@@ -236,6 +225,11 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 	.unthrottle =			cypress_unthrottle,
 	.read_int_callback =		cypress_read_int_callback,
 	.write_int_callback =		cypress_write_int_callback,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&cypress_earthmate_device, &cypress_hidcom_device,
+	&cypress_ca42v2_device, NULL
 };
 
 /*****************************************************************************
@@ -303,8 +297,6 @@ static int cypress_serial_control(struct tty_struct *tty,
 	u8 *feature_buffer;
 	const unsigned int feature_len = 5;
 	unsigned long flags;
-
-	dbg("%s", __func__);
 
 	priv = usb_get_serial_port_data(port);
 
@@ -450,8 +442,6 @@ static int generic_startup(struct usb_serial *serial)
 	struct cypress_private *priv;
 	struct usb_serial_port *port = serial->port[0];
 
-	dbg("%s - port %d", __func__, port->number);
-
 	priv = kzalloc(sizeof(struct cypress_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -504,8 +494,6 @@ static int cypress_earthmate_startup(struct usb_serial *serial)
 	struct cypress_private *priv;
 	struct usb_serial_port *port = serial->port[0];
 
-	dbg("%s", __func__);
-
 	if (generic_startup(serial)) {
 		dbg("%s - Failed setting up port %d", __func__,
 				port->number);
@@ -536,8 +524,6 @@ static int cypress_hidcom_startup(struct usb_serial *serial)
 {
 	struct cypress_private *priv;
 
-	dbg("%s", __func__);
-
 	if (generic_startup(serial)) {
 		dbg("%s - Failed setting up port %d", __func__,
 				serial->port[0]->number);
@@ -554,8 +540,6 @@ static int cypress_hidcom_startup(struct usb_serial *serial)
 static int cypress_ca42v2_startup(struct usb_serial *serial)
 {
 	struct cypress_private *priv;
-
-	dbg("%s", __func__);
 
 	if (generic_startup(serial)) {
 		dbg("%s - Failed setting up port %d", __func__,
@@ -574,10 +558,7 @@ static void cypress_release(struct usb_serial *serial)
 {
 	struct cypress_private *priv;
 
-	dbg("%s - port %d", __func__, serial->port[0]->number);
-
 	/* all open ports are closed at this point */
-
 	priv = usb_get_serial_port_data(serial->port[0]);
 
 	if (priv) {
@@ -593,8 +574,6 @@ static int cypress_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	unsigned long flags;
 	int result = 0;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (!priv->comm_is_ok)
 		return -EIO;
@@ -660,8 +639,6 @@ static void cypress_close(struct usb_serial_port *port)
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	/* writing is potentially harmful, lock must be taken */
 	mutex_lock(&port->serial->disc_mutex);
 	if (port->serial->disconnected) {
@@ -719,7 +696,6 @@ static void cypress_send(struct usb_serial_port *port)
 	if (!priv->comm_is_ok)
 		return;
 
-	dbg("%s - port %d", __func__, port->number);
 	dbg("%s - interrupt out size is %d", __func__,
 						port->interrupt_out_size);
 
@@ -800,7 +776,7 @@ send:
 		cypress_write_int_callback, port, priv->write_urb_interval);
 	result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev,
+		dev_err_console(port,
 				"%s - failed submitting write urb, error %d\n",
 							__func__, result);
 		priv->write_urb_in_use = 0;
@@ -827,8 +803,6 @@ static int cypress_write_room(struct tty_struct *tty)
 	int room = 0;
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	room = kfifo_avail(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -845,8 +819,6 @@ static int cypress_tiocmget(struct tty_struct *tty)
 	__u8 status, control;
 	unsigned int result = 0;
 	unsigned long flags;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	control = priv->line_control;
@@ -872,8 +844,6 @@ static int cypress_tiocmset(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (set & TIOCM_RTS)
@@ -946,8 +916,6 @@ static void cypress_set_termios(struct tty_struct *tty,
 	unsigned long flags;
 	__u8 oldlines;
 	int linechange = 0;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	/* We can't clean this one up as we don't know the device type
@@ -1095,8 +1063,6 @@ static int cypress_chars_in_buffer(struct tty_struct *tty)
 	int chars = 0;
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	chars = kfifo_len(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1111,8 +1077,6 @@ static void cypress_throttle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 
-	dbg("%s - port %d", __func__, port->number);
-
 	spin_lock_irq(&priv->lock);
 	priv->rx_flags = THROTTLED;
 	spin_unlock_irq(&priv->lock);
@@ -1124,8 +1088,6 @@ static void cypress_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	int actually_throttled, result;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irq(&priv->lock);
 	actually_throttled = priv->rx_flags & ACTUALLY_THROTTLED;
@@ -1159,8 +1121,6 @@ static void cypress_read_int_callback(struct urb *urb)
 	int result;
 	int i = 0;
 	int status = urb->status;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	switch (status) {
 	case 0: /* success */
@@ -1302,8 +1262,6 @@ static void cypress_write_int_callback(struct urb *urb)
 	int result;
 	int status = urb->status;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	switch (status) {
 	case 0:
 		/* success */
@@ -1345,58 +1303,7 @@ static void cypress_write_int_callback(struct urb *urb)
 	cypress_send(port);
 }
 
-
-/*****************************************************************************
- * Module functions
- *****************************************************************************/
-
-static int __init cypress_init(void)
-{
-	int retval;
-
-	dbg("%s", __func__);
-
-	retval = usb_serial_register(&cypress_earthmate_device);
-	if (retval)
-		goto failed_em_register;
-	retval = usb_serial_register(&cypress_hidcom_device);
-	if (retval)
-		goto failed_hidcom_register;
-	retval = usb_serial_register(&cypress_ca42v2_device);
-	if (retval)
-		goto failed_ca42v2_register;
-	retval = usb_register(&cypress_driver);
-	if (retval)
-		goto failed_usb_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-
-failed_usb_register:
-	usb_serial_deregister(&cypress_ca42v2_device);
-failed_ca42v2_register:
-	usb_serial_deregister(&cypress_hidcom_device);
-failed_hidcom_register:
-	usb_serial_deregister(&cypress_earthmate_device);
-failed_em_register:
-	return retval;
-}
-
-
-static void __exit cypress_exit(void)
-{
-	dbg("%s", __func__);
-
-	usb_deregister(&cypress_driver);
-	usb_serial_deregister(&cypress_earthmate_device);
-	usb_serial_deregister(&cypress_hidcom_device);
-	usb_serial_deregister(&cypress_ca42v2_device);
-}
-
-
-module_init(cypress_init);
-module_exit(cypress_exit);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -16,7 +16,6 @@
 #include <asm/mach/pci.h>
 
 static int debug_pci;
-static int use_firmware;
 
 /*
  * We can't use pci_find_device() here since we are
@@ -295,34 +294,11 @@ static inline int pdev_bad_for_parity(struct pci_dev *dev)
 }
 
 /*
- * Adjust the device resources from bus-centric to Linux-centric.
- */
-static void __devinit
-pdev_fixup_device_resources(struct pci_sys_data *root, struct pci_dev *dev)
-{
-	resource_size_t offset;
-	int i;
-
-	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-		if (dev->resource[i].start == 0)
-			continue;
-		if (dev->resource[i].flags & IORESOURCE_MEM)
-			offset = root->mem_offset;
-		else
-			offset = root->io_offset;
-
-		dev->resource[i].start += offset;
-		dev->resource[i].end   += offset;
-	}
-}
-
-/*
  * pcibios_fixup_bus - Called after each bus is probed,
  * but before its children are examined.
  */
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct pci_sys_data *root = bus->sysdata;
 	struct pci_dev *dev;
 	u16 features = PCI_COMMAND_SERR | PCI_COMMAND_PARITY | PCI_COMMAND_FAST_BACK;
 
@@ -332,8 +308,6 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	 */
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 status;
-
-		pdev_fixup_device_resources(root, dev);
 
 		pci_read_config_word(dev, PCI_STATUS, &status);
 
@@ -400,53 +374,29 @@ EXPORT_SYMBOL(pcibios_fixup_bus);
 #endif
 
 /*
- * Convert from Linux-centric to bus-centric addresses for bridge devices.
- */
-void
-pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			 struct resource *res)
-{
-	struct pci_sys_data *root = dev->sysdata;
-	unsigned long offset = 0;
-
-	if (res->flags & IORESOURCE_IO)
-		offset = root->io_offset;
-	if (res->flags & IORESOURCE_MEM)
-		offset = root->mem_offset;
-
-	region->start = res->start - offset;
-	region->end   = res->end - offset;
-}
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-
-void __devinit
-pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			struct pci_bus_region *region)
-{
-	struct pci_sys_data *root = dev->sysdata;
-	unsigned long offset = 0;
-
-	if (res->flags & IORESOURCE_IO)
-		offset = root->io_offset;
-	if (res->flags & IORESOURCE_MEM)
-		offset = root->mem_offset;
-
-	res->start = region->start + offset;
-	res->end   = region->end + offset;
-}
-EXPORT_SYMBOL(pcibios_bus_to_resource);
-
-/*
- * Swizzle the device pin each time we cross a bridge.
- * This might update pin and returns the slot number.
+ * Swizzle the device pin each time we cross a bridge.  If a platform does
+ * not provide a swizzle function, we perform the standard PCI swizzling.
+ *
+ * The default swizzling walks up the bus tree one level at a time, applying
+ * the standard swizzle function at each step, stopping when it finds the PCI
+ * root bus.  This will return the slot number of the bridge device on the
+ * root bus and the interrupt pin on that device which should correspond
+ * with the downstream device interrupt.
+ *
+ * Platforms may override this, in which case the slot and pin returned
+ * depend entirely on the platform code.  However, please note that the
+ * PCI standard swizzle is implemented on plug-in cards and Cardbus based
+ * PCI extenders, so it can not be ignored.
  */
 static u8 __devinit pcibios_swizzle(struct pci_dev *dev, u8 *pin)
 {
 	struct pci_sys_data *sys = dev->sysdata;
-	int slot = 0, oldpin = *pin;
+	int slot, oldpin = *pin;
 
 	if (sys->swizzle)
 		slot = sys->swizzle(dev, pin);
+	else
+		slot = pci_common_swizzle(dev, pin);
 
 	if (debug_pci)
 		printk("PCI: %s swizzling pin %d => pin %d slot %d\n",
@@ -473,7 +423,7 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-static void __init pcibios_init_hw(struct hw_pci *hw)
+static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 {
 	struct pci_sys_data *sys = NULL;
 	int ret;
@@ -487,7 +437,6 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 #ifdef CONFIG_PCI_DOMAINS
 		sys->domain  = hw->domain;
 #endif
-		sys->hw      = hw;
 		sys->busnr   = busnr;
 		sys->swizzle = hw->swizzle;
 		sys->map_irq = hw->map_irq;
@@ -497,20 +446,24 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 
 		if (ret > 0) {
 			if (list_empty(&sys->resources)) {
-				pci_add_resource(&sys->resources,
-						 &ioport_resource);
-				pci_add_resource(&sys->resources,
-						 &iomem_resource);
+				pci_add_resource_offset(&sys->resources,
+					 &ioport_resource, sys->io_offset);
+				pci_add_resource_offset(&sys->resources,
+					 &iomem_resource, sys->mem_offset);
 			}
 
-			sys->bus = hw->scan(nr, sys);
+			if (hw->scan)
+				sys->bus = hw->scan(nr, sys);
+			else
+				sys->bus = pci_scan_root_bus(NULL, sys->busnr,
+						hw->ops, sys, &sys->resources);
 
 			if (!sys->bus)
 				panic("PCI: unable to scan bus!");
 
 			busnr = sys->bus->subordinate + 1;
 
-			list_add(&sys->node, &hw->buses);
+			list_add(&sys->node, head);
 		} else {
 			kfree(sys);
 			if (ret < 0)
@@ -522,21 +475,21 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 void __init pci_common_init(struct hw_pci *hw)
 {
 	struct pci_sys_data *sys;
+	LIST_HEAD(head);
 
-	INIT_LIST_HEAD(&hw->buses);
-
+	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
 	if (hw->preinit)
 		hw->preinit();
-	pcibios_init_hw(hw);
+	pcibios_init_hw(hw, &head);
 	if (hw->postinit)
 		hw->postinit();
 
 	pci_fixup_irqs(pcibios_swizzle, pcibios_map_irq);
 
-	list_for_each_entry(sys, &hw->buses, node) {
+	list_for_each_entry(sys, &head, node) {
 		struct pci_bus *bus = sys->bus;
 
-		if (!use_firmware) {
+		if (!pci_has_flag(PCI_PROBE_ONLY)) {
 			/*
 			 * Size the bridge windows.
 			 */
@@ -573,7 +526,7 @@ char * __init pcibios_setup(char *str)
 		debug_pci = 1;
 		return NULL;
 	} else if (!strcmp(str, "firmware")) {
-		use_firmware = 1;
+		pci_add_flags(PCI_PROBE_ONLY);
 		return NULL;
 	}
 	return str;

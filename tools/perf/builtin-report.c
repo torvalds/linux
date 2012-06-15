@@ -40,7 +40,7 @@ struct perf_report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
 	char const		*input_name;
-	bool			force, use_tui, use_stdio;
+	bool			force, use_tui, use_gtk, use_stdio;
 	bool			hide_unresolved;
 	bool			dont_use_callchains;
 	bool			show_full_info;
@@ -50,8 +50,85 @@ struct perf_report {
 	const char		*pretty_printing_style;
 	symbol_filter_t		annotate_init;
 	const char		*cpu_list;
+	const char		*symbol_filter_str;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
+
+static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
+					struct addr_location *al,
+					struct perf_sample *sample,
+					struct perf_evsel *evsel,
+				      struct machine *machine)
+{
+	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+	struct symbol *parent = NULL;
+	int err = 0;
+	unsigned i;
+	struct hist_entry *he;
+	struct branch_info *bi, *bx;
+
+	if ((sort__has_parent || symbol_conf.use_callchain)
+	    && sample->callchain) {
+		err = machine__resolve_callchain(machine, evsel, al->thread,
+						 sample->callchain, &parent);
+		if (err)
+			return err;
+	}
+
+	bi = machine__resolve_bstack(machine, al->thread,
+				     sample->branch_stack);
+	if (!bi)
+		return -ENOMEM;
+
+	for (i = 0; i < sample->branch_stack->nr; i++) {
+		if (rep->hide_unresolved && !(bi[i].from.sym && bi[i].to.sym))
+			continue;
+		/*
+		 * The report shows the percentage of total branches captured
+		 * and not events sampled. Thus we use a pseudo period of 1.
+		 */
+		he = __hists__add_branch_entry(&evsel->hists, al, parent,
+				&bi[i], 1);
+		if (he) {
+			struct annotation *notes;
+			err = -ENOMEM;
+			bx = he->branch_info;
+			if (bx->from.sym && use_browser > 0) {
+				notes = symbol__annotation(bx->from.sym);
+				if (!notes->src
+				    && symbol__alloc_hist(bx->from.sym) < 0)
+					goto out;
+
+				err = symbol__inc_addr_samples(bx->from.sym,
+							       bx->from.map,
+							       evsel->idx,
+							       bx->from.al_addr);
+				if (err)
+					goto out;
+			}
+
+			if (bx->to.sym && use_browser > 0) {
+				notes = symbol__annotation(bx->to.sym);
+				if (!notes->src
+				    && symbol__alloc_hist(bx->to.sym) < 0)
+					goto out;
+
+				err = symbol__inc_addr_samples(bx->to.sym,
+							       bx->to.map,
+							       evsel->idx,
+							       bx->to.al_addr);
+				if (err)
+					goto out;
+			}
+			evsel->hists.stats.total_period += 1;
+			hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+			err = 0;
+		} else
+			return -ENOMEM;
+	}
+out:
+	return err;
+}
 
 static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 				      struct addr_location *al,
@@ -126,14 +203,21 @@ static int process_sample_event(struct perf_tool *tool,
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		return 0;
 
-	if (al.map != NULL)
-		al.map->dso->hit = 1;
+	if (sort__branch_mode == 1) {
+		if (perf_report__add_branch_hist_entry(tool, &al, sample,
+						       evsel, machine)) {
+			pr_debug("problem adding lbr entry, skipping event\n");
+			return -1;
+		}
+	} else {
+		if (al.map != NULL)
+			al.map->dso->hit = 1;
 
-	if (perf_evsel__add_hist_entry(evsel, &al, sample, machine)) {
-		pr_debug("problem incrementing symbol period, skipping event\n");
-		return -1;
+		if (perf_evsel__add_hist_entry(evsel, &al, sample, machine)) {
+			pr_debug("problem incrementing symbol period, skipping event\n");
+			return -1;
+		}
 	}
-
 	return 0;
 }
 
@@ -167,13 +251,13 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 
 	if (!(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
-			ui__warning("Selected --sort parent, but no "
+			ui__error("Selected --sort parent, but no "
 				    "callchain data. Did you call "
 				    "'perf record' without -g?\n");
 			return -EINVAL;
 		}
 		if (symbol_conf.use_callchain) {
-			ui__warning("Selected -g but no callchain data. Did "
+			ui__error("Selected -g but no callchain data. Did "
 				    "you call 'perf record' without -g?\n");
 			return -1;
 		}
@@ -182,10 +266,17 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
 			if (callchain_register_param(&callchain_param) < 0) {
-				ui__warning("Can't register callchain "
-					    "params.\n");
+				ui__error("Can't register callchain params.\n");
 				return -EINVAL;
 			}
+	}
+
+	if (sort__branch_mode == 1) {
+		if (!(self->sample_type & PERF_SAMPLE_BRANCH_STACK)) {
+			ui__error("Selected -b but no branch data. "
+				  "Did you call perf record without -b?\n");
+			return -1;
+		}
 	}
 
 	return 0;
@@ -203,12 +294,15 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 {
 	size_t ret;
 	char unit;
-	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
+	unsigned long nr_samples = self->stats.nr_events[PERF_RECORD_SAMPLE];
+	u64 nr_events = self->stats.total_period;
 
-	nr_events = convert_unit(nr_events, &unit);
-	ret = fprintf(fp, "# Events: %lu%c", nr_events, unit);
+	nr_samples = convert_unit(nr_samples, &unit);
+	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
 	if (evname != NULL)
-		ret += fprintf(fp, " %s", evname);
+		ret += fprintf(fp, " of event '%s'", evname);
+
+	ret += fprintf(fp, "\n# Event count (approx.): %" PRIu64, nr_events);
 	return ret + fprintf(fp, "\n#\n");
 }
 
@@ -246,20 +340,13 @@ static int __cmd_report(struct perf_report *rep)
 {
 	int ret = -EINVAL;
 	u64 nr_samples;
-	struct perf_session *session;
+	struct perf_session *session = rep->session;
 	struct perf_evsel *pos;
 	struct map *kernel_map;
 	struct kmap *kernel_kmap;
 	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
 
 	signal(SIGINT, sig_handler);
-
-	session = perf_session__new(rep->input_name, O_RDONLY,
-				    rep->force, false, &rep->tool);
-	if (session == NULL)
-		return -ENOMEM;
-
-	rep->session = session;
 
 	if (rep->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
@@ -288,16 +375,23 @@ static int __cmd_report(struct perf_report *rep)
 	    (kernel_map->dso->hit &&
 	     (kernel_kmap->ref_reloc_sym == NULL ||
 	      kernel_kmap->ref_reloc_sym->addr == 0))) {
-		const struct dso *kdso = kernel_map->dso;
+		const char *desc =
+		    "As no suitable kallsyms nor vmlinux was found, kernel samples\n"
+		    "can't be resolved.";
+
+		if (kernel_map) {
+			const struct dso *kdso = kernel_map->dso;
+			if (!RB_EMPTY_ROOT(&kdso->symbols[MAP__FUNCTION])) {
+				desc = "If some relocation was applied (e.g. "
+				       "kexec) symbols may be misresolved.";
+			}
+		}
 
 		ui__warning(
 "Kernel address maps (/proc/{kallsyms,modules}) were restricted.\n\n"
 "Check /proc/sys/kernel/kptr_restrict before running 'perf record'.\n\n%s\n\n"
 "Samples in kernel modules can't be resolved as well.\n\n",
-			    RB_EMPTY_ROOT(&kdso->symbols[MAP__FUNCTION]) ?
-"As no suitable kallsyms nor vmlinux was found, kernel samples\n"
-"can't be resolved." :
-"If some relocation was applied (e.g. kexec) symbols may be misresolved.");
+		desc);
 	}
 
 	if (dump_trace) {
@@ -315,19 +409,27 @@ static int __cmd_report(struct perf_report *rep)
 	list_for_each_entry(pos, &session->evlist->entries, node) {
 		struct hists *hists = &pos->hists;
 
+		if (pos->idx == 0)
+			hists->symbol_filter_str = rep->symbol_filter_str;
+
 		hists__collapse_resort(hists);
 		hists__output_resort(hists);
 		nr_samples += hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	}
 
 	if (nr_samples == 0) {
-		ui__warning("The %s file has no samples!\n", session->filename);
+		ui__error("The %s file has no samples!\n", session->filename);
 		goto out_delete;
 	}
 
 	if (use_browser > 0) {
-		perf_evlist__tui_browse_hists(session->evlist, help,
-					      NULL, NULL, 0);
+		if (use_browser == 1) {
+			perf_evlist__tui_browse_hists(session->evlist, help,
+						      NULL, NULL, 0);
+		} else if (use_browser == 2) {
+			perf_evlist__gtk_browse_hists(session->evlist, help,
+						      NULL, NULL, 0);
+		}
 	} else
 		perf_evlist__tty_browse_hists(session->evlist, rep, help);
 
@@ -427,9 +529,19 @@ setup:
 	return 0;
 }
 
+static int
+parse_branch_mode(const struct option *opt __used, const char *str __used, int unset)
+{
+	sort__branch_mode = !unset;
+	return 0;
+}
+
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
+	struct perf_session *session;
 	struct stat st;
+	bool has_br_stack = false;
+	int ret = -1;
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const char * const report_usage[] = {
 		"perf report [<options>]",
@@ -474,10 +586,12 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	OPT_STRING(0, "pretty", &report.pretty_printing_style, "key",
 		   "pretty printing style key: normal raw"),
 	OPT_BOOLEAN(0, "tui", &report.use_tui, "Use the TUI interface"),
+	OPT_BOOLEAN(0, "gtk", &report.use_gtk, "Use the GTK2 interface"),
 	OPT_BOOLEAN(0, "stdio", &report.use_stdio,
 		    "Use the stdio interface"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
-		   "sort by key(s): pid, comm, dso, symbol, parent"),
+		   "sort by key(s): pid, comm, dso, symbol, parent, dso_to,"
+		   " dso_from, symbol_to, symbol_from, mispredict"),
 	OPT_BOOLEAN(0, "showcpuutilization", &symbol_conf.show_cpu_utilization,
 		    "Show sample percentage for different cpu modes"),
 	OPT_STRING('p', "parent", &parent_pattern, "regex",
@@ -495,6 +609,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		   "only consider symbols in these comms"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
+	OPT_STRING(0, "symbol-filter", &report.symbol_filter_str, "filter",
+		   "only show symbols that (partially) match with this filter"),
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
@@ -517,6 +633,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
+	OPT_CALLBACK_NOOPT('b', "branch-stack", &sort__branch_mode, "",
+		    "use branch records for histogram filling", parse_branch_mode),
 	OPT_END()
 	};
 
@@ -526,6 +644,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		use_browser = 0;
 	else if (report.use_tui)
 		use_browser = 1;
+	else if (report.use_gtk)
+		use_browser = 2;
 
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
@@ -535,6 +655,30 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 			report.input_name = "-";
 		else
 			report.input_name = "perf.data";
+	}
+	session = perf_session__new(report.input_name, O_RDONLY,
+				    report.force, false, &report.tool);
+	if (session == NULL)
+		return -ENOMEM;
+
+	report.session = session;
+
+	has_br_stack = perf_header__has_feat(&session->header,
+					     HEADER_BRANCH_STACK);
+
+	if (sort__branch_mode == -1 && has_br_stack)
+		sort__branch_mode = 1;
+
+	/* sort__branch_mode could be 0 if --no-branch-stack */
+	if (sort__branch_mode == 1) {
+		/*
+		 * if no sort_order is provided, then specify
+		 * branch-mode specific order
+		 */
+		if (sort_order == default_sort_order)
+			sort_order = "comm,dso_from,symbol_from,"
+				     "dso_to,symbol_to";
+
 	}
 
 	if (strcmp(report.input_name, "-") != 0)
@@ -568,13 +712,13 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	}
 
 	if (symbol__init() < 0)
-		return -1;
+		goto error;
 
 	setup_sorting(report_usage, options);
 
 	if (parent_pattern != default_parent_pattern) {
 		if (sort_dimension__add("parent") < 0)
-			return -1;
+			goto error;
 
 		/*
 		 * Only show the parent fields if we explicitly
@@ -586,15 +730,31 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	} else
 		symbol_conf.exclude_other = false;
 
-	/*
-	 * Any (unrecognized) arguments left?
-	 */
-	if (argc)
-		usage_with_options(report_usage, options);
+	if (argc) {
+		/*
+		 * Special case: if there's an argument left then assume that
+		 * it's a symbol filter:
+		 */
+		if (argc > 1)
+			usage_with_options(report_usage, options);
 
-	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
+		report.symbol_filter_str = argv[0];
+	}
+
 	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
-	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
 
-	return __cmd_report(&report);
+	if (sort__branch_mode == 1) {
+		sort_entry__setup_elide(&sort_dso_from, symbol_conf.dso_from_list, "dso_from", stdout);
+		sort_entry__setup_elide(&sort_dso_to, symbol_conf.dso_to_list, "dso_to", stdout);
+		sort_entry__setup_elide(&sort_sym_from, symbol_conf.sym_from_list, "sym_from", stdout);
+		sort_entry__setup_elide(&sort_sym_to, symbol_conf.sym_to_list, "sym_to", stdout);
+	} else {
+		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
+		sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
+	}
+
+	ret = __cmd_report(&report);
+error:
+	perf_session__delete(session);
+	return ret;
 }

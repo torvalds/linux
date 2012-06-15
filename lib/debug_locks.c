@@ -10,7 +10,7 @@
  */
 #include <linux/rwsem.h>
 #include <linux/mutex.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/debug_locks.h>
 

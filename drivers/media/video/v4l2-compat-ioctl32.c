@@ -14,11 +14,10 @@
  */
 
 #include <linux/compat.h>
-#include <linux/videodev2.h>
 #include <linux/module.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
-
-#ifdef CONFIG_COMPAT
 
 static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -38,7 +37,7 @@ struct v4l2_clip32 {
 
 struct v4l2_window32 {
 	struct v4l2_rect        w;
-	enum v4l2_field  	field;
+	__u32		  	field;	/* enum v4l2_field */
 	__u32			chromakey;
 	compat_caddr_t		clips; /* actually struct v4l2_clip32 * */
 	__u32			clipcount;
@@ -148,7 +147,7 @@ static inline int put_v4l2_sliced_vbi_format(struct v4l2_sliced_vbi_format *kp, 
 }
 
 struct v4l2_format32 {
-	enum v4l2_buf_type type;
+	__u32	type;	/* enum v4l2_buf_type */
 	union {
 		struct v4l2_pix_format	pix;
 		struct v4l2_pix_format_mplane	pix_mp;
@@ -171,7 +170,7 @@ struct v4l2_format32 {
 struct v4l2_create_buffers32 {
 	__u32			index;
 	__u32			count;
-	enum v4l2_memory        memory;
+	__u32			memory;	/* enum v4l2_memory */
 	struct v4l2_format32	format;
 	__u32			reserved[8];
 };
@@ -312,16 +311,16 @@ struct v4l2_plane32 {
 
 struct v4l2_buffer32 {
 	__u32			index;
-	enum v4l2_buf_type      type;
+	__u32			type;	/* enum v4l2_buf_type */
 	__u32			bytesused;
 	__u32			flags;
-	enum v4l2_field		field;
+	__u32			field;	/* enum v4l2_field */
 	struct compat_timeval	timestamp;
 	struct v4l2_timecode	timecode;
 	__u32			sequence;
 
 	/* memory location */
-	enum v4l2_memory        memory;
+	__u32			memory;	/* enum v4l2_memory */
 	union {
 		__u32           offset;
 		compat_long_t   userptr;
@@ -937,6 +936,7 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 
 long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct video_device *vdev = video_devdata(file);
 	long ret = -ENOIOCTLCMD;
 
 	if (!file->f_op->unlocked_ioctl)
@@ -1005,6 +1005,8 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOC_G_ENC_INDEX:
 	case VIDIOC_ENCODER_CMD:
 	case VIDIOC_TRY_ENCODER_CMD:
+	case VIDIOC_DECODER_CMD:
+	case VIDIOC_TRY_DECODER_CMD:
 	case VIDIOC_DBG_S_REGISTER:
 	case VIDIOC_DBG_G_REGISTER:
 	case VIDIOC_DBG_G_CHIP_IDENT:
@@ -1021,18 +1023,23 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOC_UNSUBSCRIBE_EVENT:
 	case VIDIOC_CREATE_BUFS32:
 	case VIDIOC_PREPARE_BUF32:
+	case VIDIOC_ENUM_DV_TIMINGS:
+	case VIDIOC_QUERY_DV_TIMINGS:
+	case VIDIOC_DV_TIMINGS_CAP:
 		ret = do_video_ioctl(file, cmd, arg);
 		break;
 
 	default:
-		printk(KERN_WARNING "compat_ioctl32: "
-			"unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
-			_IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd), cmd);
+		if (vdev->fops->compat_ioctl32)
+			ret = vdev->fops->compat_ioctl32(file, cmd, arg);
+
+		if (ret == -ENOIOCTLCMD)
+			printk(KERN_WARNING "compat_ioctl32: "
+				"unknown ioctl '%c', dir=%d, #%d (0x%08x)\n",
+				_IOC_TYPE(cmd), _IOC_DIR(cmd), _IOC_NR(cmd),
+				cmd);
 		break;
 	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(v4l2_compat_ioctl32);
-#endif
-
-MODULE_LICENSE("GPL");

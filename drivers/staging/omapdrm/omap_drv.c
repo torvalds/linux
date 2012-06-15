@@ -21,6 +21,7 @@
 
 #include "drm_crtc_helper.h"
 #include "drm_fb_helper.h"
+#include "omap_dmm_tiler.h"
 
 #define DRIVER_NAME		MODULE_NAME
 #define DRIVER_DESC		"OMAP DRM"
@@ -57,7 +58,7 @@ static void omap_fb_output_poll_changed(struct drm_device *dev)
 	}
 }
 
-static struct drm_mode_config_funcs omap_mode_config_funcs = {
+static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.fb_create = omap_framebuffer_create,
 	.output_poll_changed = omap_fb_output_poll_changed,
 };
@@ -570,6 +571,11 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = priv;
 
+	priv->wq = alloc_workqueue("omapdrm",
+			WQ_UNBOUND | WQ_NON_REENTRANT, 1);
+
+	INIT_LIST_HEAD(&priv->obj_list);
+
 	omap_gem_init(dev);
 
 	ret = omap_modeset_init(dev);
@@ -598,6 +604,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 static int dev_unload(struct drm_device *dev)
 {
+	struct omap_drm_private *priv = dev->dev_private;
+
 	DBG("unload: dev=%p", dev);
 
 	drm_vblank_cleanup(dev);
@@ -606,6 +614,9 @@ static int dev_unload(struct drm_device *dev)
 	omap_fbdev_free(dev);
 	omap_modeset_free(dev);
 	omap_gem_deinit(dev);
+
+	flush_workqueue(priv->wq);
+	destroy_workqueue(priv->wq);
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
@@ -715,7 +726,7 @@ static void dev_irq_uninstall(struct drm_device *dev)
 	DBG("irq_uninstall: dev=%p", dev);
 }
 
-static struct vm_operations_struct omap_gem_vm_ops = {
+static const struct vm_operations_struct omap_gem_vm_ops = {
 	.fault = omap_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -735,7 +746,7 @@ static const struct file_operations omapdriver_fops = {
 
 static struct drm_driver omap_drm_driver = {
 		.driver_features =
-				DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM,
+				DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 		.load = dev_load,
 		.unload = dev_unload,
 		.open = dev_open,
@@ -755,6 +766,10 @@ static struct drm_driver omap_drm_driver = {
 		.debugfs_init = omap_debugfs_init,
 		.debugfs_cleanup = omap_debugfs_cleanup,
 #endif
+		.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+		.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+		.gem_prime_export = omap_gem_prime_export,
+		.gem_prime_import = omap_gem_prime_import,
 		.gem_init_object = omap_gem_init_object,
 		.gem_free_object = omap_gem_free_object,
 		.gem_vm_ops = &omap_gem_vm_ops,
@@ -799,6 +814,8 @@ static int pdev_remove(struct platform_device *device)
 {
 	DBG("");
 	drm_platform_exit(&omap_drm_driver, device);
+
+	platform_driver_unregister(&omap_dmm_driver);
 	return 0;
 }
 
@@ -817,6 +834,10 @@ struct platform_driver pdev = {
 static int __init omap_drm_init(void)
 {
 	DBG("init");
+	if (platform_driver_register(&omap_dmm_driver)) {
+		/* we can continue on without DMM.. so not fatal */
+		dev_err(NULL, "DMM registration failed\n");
+	}
 	return platform_driver_register(&pdev);
 }
 

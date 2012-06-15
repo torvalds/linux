@@ -41,6 +41,7 @@
 #include <linux/mutex.h>
 #include <linux/export.h>
 
+#include "power.h"
 
 static DEFINE_MUTEX(dev_pm_qos_mtx);
 
@@ -165,6 +166,12 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 {
 	struct dev_pm_qos_request *req, *tmp;
 	struct pm_qos_constraints *c;
+
+	/*
+	 * If the device's PM QoS resume latency limit has been exposed to user
+	 * space, it has to be hidden at this point.
+	 */
+	dev_pm_qos_hide_latency_limit(dev);
 
 	mutex_lock(&dev_pm_qos_mtx);
 
@@ -345,21 +352,26 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_remove_request);
  *
  * Will register the notifier into a notification chain that gets called
  * upon changes to the target value for the device.
+ *
+ * If the device's constraints object doesn't exist when this routine is called,
+ * it will be created (or error code will be returned if that fails).
  */
 int dev_pm_qos_add_notifier(struct device *dev, struct notifier_block *notifier)
 {
-	int retval = 0;
+	int ret = 0;
 
 	mutex_lock(&dev_pm_qos_mtx);
 
-	/* Silently return if the constraints object is not present. */
-	if (dev->power.constraints)
-		retval = blocking_notifier_chain_register(
-				dev->power.constraints->notifiers,
-				notifier);
+	if (!dev->power.constraints)
+		ret = dev->power.power_state.event != PM_EVENT_INVALID ?
+			dev_pm_qos_constraints_allocate(dev) : -ENODEV;
+
+	if (!ret)
+		ret = blocking_notifier_chain_register(
+				dev->power.constraints->notifiers, notifier);
 
 	mutex_unlock(&dev_pm_qos_mtx);
-	return retval;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_notifier);
 
@@ -445,3 +457,57 @@ int dev_pm_qos_add_ancestor_request(struct device *dev,
 	return error;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_ancestor_request);
+
+#ifdef CONFIG_PM_RUNTIME
+static void __dev_pm_qos_drop_user_request(struct device *dev)
+{
+	dev_pm_qos_remove_request(dev->power.pq_req);
+	dev->power.pq_req = 0;
+}
+
+/**
+ * dev_pm_qos_expose_latency_limit - Expose PM QoS latency limit to user space.
+ * @dev: Device whose PM QoS latency limit is to be exposed to user space.
+ * @value: Initial value of the latency limit.
+ */
+int dev_pm_qos_expose_latency_limit(struct device *dev, s32 value)
+{
+	struct dev_pm_qos_request *req;
+	int ret;
+
+	if (!device_is_registered(dev) || value < 0)
+		return -EINVAL;
+
+	if (dev->power.pq_req)
+		return -EEXIST;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	ret = dev_pm_qos_add_request(dev, req, value);
+	if (ret < 0)
+		return ret;
+
+	dev->power.pq_req = req;
+	ret = pm_qos_sysfs_add(dev);
+	if (ret)
+		__dev_pm_qos_drop_user_request(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_qos_expose_latency_limit);
+
+/**
+ * dev_pm_qos_hide_latency_limit - Hide PM QoS latency limit from user space.
+ * @dev: Device whose PM QoS latency limit is to be hidden from user space.
+ */
+void dev_pm_qos_hide_latency_limit(struct device *dev)
+{
+	if (dev->power.pq_req) {
+		pm_qos_sysfs_remove(dev);
+		__dev_pm_qos_drop_user_request(dev);
+	}
+}
+EXPORT_SYMBOL_GPL(dev_pm_qos_hide_latency_limit);
+#endif /* CONFIG_PM_RUNTIME */

@@ -258,8 +258,7 @@ static int adau1701_set_playback_pcm_format(struct snd_soc_codec *codec,
 static int adau1701_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	snd_pcm_format_t format;
 	unsigned int val;
 
@@ -457,7 +456,6 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 {
 	int ret;
 
-	codec->dapm.idle_bias_off = 1;
 	codec->control_data = to_i2c_client(codec->dev);
 
 	ret = adau1701_load_firmware(codec);
@@ -473,6 +471,7 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver adau1701_codec_drv = {
 	.probe			= adau1701_probe,
 	.set_bias_level		= adau1701_set_bias_level,
+	.idle_bias_off		= true,
 
 	.reg_cache_size		= ADAU1701_NUM_REGS,
 	.reg_word_size		= sizeof(u16),

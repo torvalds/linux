@@ -60,13 +60,26 @@ static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
 	return nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
 }
 
-extern int nf_conntrack_helper_init(void);
-extern void nf_conntrack_helper_fini(void);
+extern int nf_conntrack_helper_init(struct net *net);
+extern void nf_conntrack_helper_fini(struct net *net);
 
 extern int nf_conntrack_broadcast_help(struct sk_buff *skb,
 				       unsigned int protoff,
 				       struct nf_conn *ct,
 				       enum ip_conntrack_info ctinfo,
 				       unsigned int timeout);
+
+struct nf_ct_helper_expectfn {
+	struct list_head head;
+	const char *name;
+	void (*expectfn)(struct nf_conn *ct, struct nf_conntrack_expect *exp);
+};
+
+void nf_ct_helper_expectfn_register(struct nf_ct_helper_expectfn *n);
+void nf_ct_helper_expectfn_unregister(struct nf_ct_helper_expectfn *n);
+struct nf_ct_helper_expectfn *
+nf_ct_helper_expectfn_find_by_name(const char *name);
+struct nf_ct_helper_expectfn *
+nf_ct_helper_expectfn_find_by_symbol(const void *symbol);
 
 #endif /*_NF_CONNTRACK_HELPER_H*/

@@ -28,7 +28,7 @@
 #include <linux/init.h>
 #include <linux/if_pppox.h>
 #include <linux/ppp_defs.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/ppp_channel.h>
 #include <linux/kmod.h>
 

@@ -18,7 +18,6 @@
 #ifndef __MFD_PM8921_H
 #define __MFD_PM8921_H
 
-#include <linux/device.h>
 #include <linux/mfd/pm8xxx/irq.h>
 
 #define PM8921_NR_IRQS		256

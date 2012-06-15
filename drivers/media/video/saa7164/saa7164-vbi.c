@@ -730,11 +730,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_log_status(struct file *file, void *priv)
-{
-	return 0;
-}
-
 static int fill_queryctrl(struct saa7164_vbi_params *params,
 	struct v4l2_queryctrl *c)
 {
@@ -957,7 +952,7 @@ static int saa7164_vbi_start_streaming(struct saa7164_port *port)
 
 		/* Stop the hardware, regardless */
 		result = saa7164_vbi_stop_port(port);
-		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
+		if (result != SAA_OK) {
 			printk(KERN_ERR "%s() pause/forced stop transition "
 				"failed, res = 0x%x\n", __func__, result);
 		}
@@ -976,7 +971,7 @@ static int saa7164_vbi_start_streaming(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_vbi_acquire_port(port);
 		result = saa7164_vbi_stop_port(port);
-		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
+		if (result != SAA_OK) {
 			printk(KERN_ERR "%s() run/forced stop transition "
 				"failed, res = 0x%x\n", __func__, result);
 		}
@@ -1256,7 +1251,6 @@ static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_g_ext_ctrls	 = vidioc_g_ext_ctrls,
 	.vidioc_s_ext_ctrls	 = vidioc_s_ext_ctrls,
 	.vidioc_try_ext_ctrls	 = vidioc_try_ext_ctrls,
-	.vidioc_log_status	 = vidioc_log_status,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
 #if 0
 	.vidioc_g_chip_ident	 = saa7164_g_chip_ident,

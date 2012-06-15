@@ -58,7 +58,6 @@ static struct v4l2_subdev *find_and_register_subdev(
 	}
 
 done:
-	put_driver(drv);
 	return sd;
 }
 
@@ -141,7 +140,7 @@ fail:
 	return ret;
 }
 
-void __devexit mxr_release_video(struct mxr_device *mdev)
+void mxr_release_video(struct mxr_device *mdev)
 {
 	int i;
 
@@ -854,8 +853,8 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
 	*nplanes = fmt->num_subframes;
 	for (i = 0; i < fmt->num_subframes; ++i) {
 		alloc_ctxs[i] = layer->mdev->alloc_ctx;
-		sizes[i] = PAGE_ALIGN(planes[i].sizeimage);
-		mxr_dbg(mdev, "size[%d] = %08lx\n", i, sizes[i]);
+		sizes[i] = planes[i].sizeimage;
+		mxr_dbg(mdev, "size[%d] = %08x\n", i, sizes[i]);
 	}
 
 	if (*nbuffers == 0)
@@ -1070,6 +1069,10 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 	set_bit(V4L2_FL_USE_FH_PRIO, &layer->vfd.flags);
 
 	video_set_drvdata(&layer->vfd, layer);
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &layer->vfd.flags);
 	layer->vfd.lock = &layer->mutex;
 	layer->vfd.v4l2_dev = &mdev->v4l2_dev;
 

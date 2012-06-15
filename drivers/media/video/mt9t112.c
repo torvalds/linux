@@ -453,6 +453,7 @@ static int mt9t112_init_pll(const struct i2c_client *client)
 	 * I2C Master Clock Divider
 	 */
 	mt9t112_reg_write(ret, client, 0x0014, 0x3046);
+	mt9t112_reg_write(ret, client, 0x0016, 0x0400); /* JPEG initialization workaround */
 	mt9t112_reg_write(ret, client, 0x0022, 0x0190);
 	mt9t112_reg_write(ret, client, 0x3B84, 0x0212);
 
@@ -1117,21 +1118,7 @@ static struct i2c_driver mt9t112_i2c_driver = {
 	.id_table = mt9t112_id,
 };
 
-/************************************************************************
-			module function
-************************************************************************/
-static int __init mt9t112_module_init(void)
-{
-	return i2c_add_driver(&mt9t112_i2c_driver);
-}
-
-static void __exit mt9t112_module_exit(void)
-{
-	i2c_del_driver(&mt9t112_i2c_driver);
-}
-
-module_init(mt9t112_module_init);
-module_exit(mt9t112_module_exit);
+module_i2c_driver(mt9t112_i2c_driver);
 
 MODULE_DESCRIPTION("SoC Camera driver for mt9t112");
 MODULE_AUTHOR("Kuninori Morimoto");

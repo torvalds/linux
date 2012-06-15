@@ -1,7 +1,7 @@
 /*
  * AD7190 AD7192 AD7195 SPI ADC driver
  *
- * Copyright 2011 Analog Devices Inc.
+ * Copyright 2011-2012 Analog Devices Inc.
  *
  * Licensed under the GPL-2.
  */
@@ -17,12 +17,12 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
-#include "../ring_sw.h"
-#include "../trigger.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/kfifo_buf.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/trigger_consumer.h>
 
 #include "ad7192.h"
 
@@ -456,30 +456,18 @@ out:
 static int ad7192_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7192_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
-	size_t d_size;
 	unsigned channel;
+	int ret;
 
 	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
+	ret = iio_sw_buffer_preenable(indio_dev);
+	if (ret < 0)
+		return ret;
+
 	channel = find_first_bit(indio_dev->active_scan_mask,
 				 indio_dev->masklength);
-
-	d_size = bitmap_weight(indio_dev->active_scan_mask,
-			       indio_dev->masklength) *
-		 indio_dev->channels[0].scan_type.storagebits / 8;
-
-	if (ring->scan_timestamp) {
-		d_size += sizeof(s64);
-
-		if (d_size % sizeof(s64))
-			d_size += sizeof(s64) - (d_size % sizeof(s64));
-	}
-
-	if (indio_dev->buffer->access->set_bytes_per_datum)
-		indio_dev->buffer->access->
-			set_bytes_per_datum(indio_dev->buffer, d_size);
 
 	st->mode  = (st->mode & ~AD7192_MODE_SEL(-1)) |
 		    AD7192_MODE_SEL(AD7192_MODE_CONT);
@@ -533,7 +521,7 @@ static irqreturn_t ad7192_trigger_handler(int irq, void *p)
 				  indio_dev->channels[0].scan_type.realbits/8);
 
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (ring->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		dat64[1] = pf->timestamp;
 
 	ring->access->store_to(ring, (u8 *)dat64, pf->timestamp);
@@ -556,13 +544,11 @@ static int ad7192_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	int ret;
 
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
 	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	/* Effectively select the ring buffer implementation */
-	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &ad7192_trigger_handler,
 						 IRQF_ONESHOT,
@@ -571,7 +557,7 @@ static int ad7192_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 						 indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
+		goto error_deallocate_kfifo;
 	}
 
 	/* Ring buffer functions - here trigger setup related */
@@ -581,8 +567,8 @@ static int ad7192_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
-error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->buffer);
+error_deallocate_kfifo:
+	iio_kfifo_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -590,7 +576,7 @@ error_ret:
 static void ad7192_ring_cleanup(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }
 
 /**
@@ -618,7 +604,7 @@ static int ad7192_probe_trigger(struct iio_dev *indio_dev)
 	struct ad7192_state *st = iio_priv(indio_dev);
 	int ret;
 
-	st->trig = iio_allocate_trigger("%s-dev%d",
+	st->trig = iio_trigger_alloc("%s-dev%d",
 					spi_get_device_id(st->spi)->name,
 					indio_dev->id);
 	if (st->trig == NULL) {
@@ -651,7 +637,7 @@ static int ad7192_probe_trigger(struct iio_dev *indio_dev)
 error_free_irq:
 	free_irq(st->spi->irq, indio_dev);
 error_free_trig:
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 error_ret:
 	return ret;
 }
@@ -662,14 +648,14 @@ static void ad7192_remove_trigger(struct iio_dev *indio_dev)
 
 	iio_trigger_unregister(st->trig);
 	free_irq(st->spi->irq, indio_dev);
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 }
 
 static ssize_t ad7192_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", st->mclk /
@@ -681,7 +667,7 @@ static ssize_t ad7192_write_frequency(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 	unsigned long lval;
 	int div, ret;
@@ -720,7 +706,7 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 static ssize_t ad7192_show_scale_available(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 	int i, len = 0;
 
@@ -744,7 +730,7 @@ static ssize_t ad7192_show_ac_excitation(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", !!(st->mode & AD7192_MODE_ACX));
@@ -754,7 +740,7 @@ static ssize_t ad7192_show_bridge_switch(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", !!(st->gpocon & AD7192_GPOCON_BPDSW));
@@ -765,7 +751,7 @@ static ssize_t ad7192_set(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
@@ -824,25 +810,20 @@ static struct attribute *ad7192_attributes[] = {
 	NULL
 };
 
-static umode_t ad7192_attr_is_visible(struct kobject *kobj,
-				     struct attribute *attr, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad7192_state *st = iio_priv(indio_dev);
-
-	umode_t mode = attr->mode;
-
-	if ((st->devid != ID_AD7195) &&
-		(attr == &iio_dev_attr_ac_excitation_en.dev_attr.attr))
-		mode = 0;
-
-	return mode;
-}
-
 static const struct attribute_group ad7192_attribute_group = {
 	.attrs = ad7192_attributes,
-	.is_visible = ad7192_attr_is_visible,
+};
+
+static struct attribute *ad7195_attributes[] = {
+	&iio_dev_attr_sampling_frequency.dev_attr.attr,
+	&iio_dev_attr_in_v_m_v_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage_scale_available.dev_attr.attr,
+	&iio_dev_attr_bridge_switch_en.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group ad7195_attribute_group = {
+	.attrs = ad7195_attributes,
 };
 
 static int ad7192_read_raw(struct iio_dev *indio_dev,
@@ -856,7 +837,7 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 	bool unipolar = !!(st->conf & AD7192_CONF_UNIPOLAR);
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
@@ -972,6 +953,15 @@ static const struct iio_info ad7192_info = {
 	.driver_module = THIS_MODULE,
 };
 
+static const struct iio_info ad7195_info = {
+	.read_raw = &ad7192_read_raw,
+	.write_raw = &ad7192_write_raw,
+	.write_raw_get_fmt = &ad7192_write_raw_get_fmt,
+	.attrs = &ad7195_attribute_group,
+	.validate_trigger = ad7192_validate_trigger,
+	.driver_module = THIS_MODULE,
+};
+
 #define AD7192_CHAN_DIFF(_chan, _chan2, _name, _address, _si)		\
 	{ .type = IIO_VOLTAGE,						\
 	  .differential = 1,						\
@@ -979,7 +969,8 @@ static const struct iio_info ad7192_info = {
 	  .extend_name = _name,						\
 	  .channel = _chan,						\
 	  .channel2 = _chan2,						\
-	  .info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
+	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
@@ -988,7 +979,8 @@ static const struct iio_info ad7192_info = {
 	{ .type = IIO_VOLTAGE,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
-	  .info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
+	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
@@ -997,7 +989,8 @@ static const struct iio_info ad7192_info = {
 	{ .type = IIO_TEMP,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
-	  .info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
+	  IIO_CHAN_INFO_SCALE_SEPARATE_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
@@ -1031,7 +1024,7 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -1064,7 +1057,10 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	indio_dev->channels = ad7192_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7192_channels);
 	indio_dev->available_scan_masks = st->available_scan_masks;
-	indio_dev->info = &ad7192_info;
+	if (st->devid == ID_AD7195)
+		indio_dev->info = &ad7195_info;
+	else
+		indio_dev->info = &ad7192_info;
 
 	for (i = 0; i < indio_dev->num_channels; i++)
 		st->available_scan_masks[i] = (1 << i) | (1 <<
@@ -1109,7 +1105,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }

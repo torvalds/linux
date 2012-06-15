@@ -39,10 +39,8 @@
 
 
 /*---  PCMCIA  ---*/
-#define GPIO_CF_CD              GPIO_GPIO24
-#define GPIO_CF_IRQ             GPIO_GPIO1
-#define IRQ_GPIO_CF_IRQ         IRQ_GPIO1
-#define IRQ_GPIO_CF_CD          IRQ_GPIO24
+#define GPIO_CF_CD              24
+#define GPIO_CF_IRQ             1
 
 /*--- SmartCard ---*/
 #define GPIO_SMART_CARD		GPIO_GPIO10

@@ -56,6 +56,7 @@
 /* HPSA_DRIVER_VERSION must be 3 byte values (0-255) separated by '.' */
 #define HPSA_DRIVER_VERSION "2.0.2-1"
 #define DRIVER_NAME "HP HPSA Driver (v " HPSA_DRIVER_VERSION ")"
+#define HPSA "hpsa"
 
 /* How long to wait (in milliseconds) for board to go into simple mode */
 #define MAX_CONFIG_WAIT 30000
@@ -158,6 +159,7 @@ static int hpsa_change_queue_depth(struct scsi_device *sdev,
 	int qdepth, int reason);
 
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
+static int hpsa_eh_abort_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_slave_alloc(struct scsi_device *sdev);
 static void hpsa_slave_destroy(struct scsi_device *sdev);
 
@@ -170,7 +172,7 @@ static void check_ioctl_unit_attention(struct ctlr_info *h,
 static void calc_bucket_map(int *bucket, int num_buckets,
 	int nsgs, int *bucket_map);
 static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h);
-static inline u32 next_command(struct ctlr_info *h);
+static inline u32 next_command(struct ctlr_info *h, u8 q);
 static int __devinit hpsa_find_cfg_addrs(struct pci_dev *pdev,
 	void __iomem *vaddr, u32 *cfg_base_addr, u64 *cfg_base_addr_index,
 	u64 *cfg_offset);
@@ -179,6 +181,7 @@ static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id);
 static int __devinit hpsa_wait_for_board_state(struct pci_dev *pdev,
 	void __iomem *vaddr, int wait_for_ready);
+static inline void finish_cmd(struct CommandList *c);
 #define BOARD_NOT_READY 0
 #define BOARD_READY 1
 
@@ -202,33 +205,44 @@ static int check_for_unit_attention(struct ctlr_info *h,
 
 	switch (c->err_info->SenseInfo[12]) {
 	case STATE_CHANGED:
-		dev_warn(&h->pdev->dev, "hpsa%d: a state change "
+		dev_warn(&h->pdev->dev, HPSA "%d: a state change "
 			"detected, command retried\n", h->ctlr);
 		break;
 	case LUN_FAILED:
-		dev_warn(&h->pdev->dev, "hpsa%d: LUN failure "
+		dev_warn(&h->pdev->dev, HPSA "%d: LUN failure "
 			"detected, action required\n", h->ctlr);
 		break;
 	case REPORT_LUNS_CHANGED:
-		dev_warn(&h->pdev->dev, "hpsa%d: report LUN data "
+		dev_warn(&h->pdev->dev, HPSA "%d: report LUN data "
 			"changed, action required\n", h->ctlr);
 	/*
-	 * Note: this REPORT_LUNS_CHANGED condition only occurs on the MSA2012.
+	 * Note: this REPORT_LUNS_CHANGED condition only occurs on the external
+	 * target (array) devices.
 	 */
 		break;
 	case POWER_OR_RESET:
-		dev_warn(&h->pdev->dev, "hpsa%d: a power on "
+		dev_warn(&h->pdev->dev, HPSA "%d: a power on "
 			"or device reset detected\n", h->ctlr);
 		break;
 	case UNIT_ATTENTION_CLEARED:
-		dev_warn(&h->pdev->dev, "hpsa%d: unit attention "
+		dev_warn(&h->pdev->dev, HPSA "%d: unit attention "
 		    "cleared by another initiator\n", h->ctlr);
 		break;
 	default:
-		dev_warn(&h->pdev->dev, "hpsa%d: unknown "
+		dev_warn(&h->pdev->dev, HPSA "%d: unknown "
 			"unit attention detected\n", h->ctlr);
 		break;
 	}
+	return 1;
+}
+
+static int check_for_busy(struct ctlr_info *h, struct CommandList *c)
+{
+	if (c->err_info->CommandStatus != CMD_TARGET_STATUS ||
+		(c->err_info->ScsiStatus != SAM_STAT_BUSY &&
+		 c->err_info->ScsiStatus != SAM_STAT_TASK_SET_FULL))
+		return 0;
+	dev_warn(&h->pdev->dev, HPSA "device busy");
 	return 1;
 }
 
@@ -296,11 +310,23 @@ static u32 unresettable_controller[] = {
 	0x40800E11, /* Smart Array 5i */
 	0x409C0E11, /* Smart Array 6400 */
 	0x409D0E11, /* Smart Array 6400 EM */
+	0x40700E11, /* Smart Array 5300 */
+	0x40820E11, /* Smart Array 532 */
+	0x40830E11, /* Smart Array 5312 */
+	0x409A0E11, /* Smart Array 641 */
+	0x409B0E11, /* Smart Array 642 */
+	0x40910E11, /* Smart Array 6i */
 };
 
 /* List of controllers which cannot even be soft reset */
 static u32 soft_unresettable_controller[] = {
 	0x40800E11, /* Smart Array 5i */
+	0x40700E11, /* Smart Array 5300 */
+	0x40820E11, /* Smart Array 532 */
+	0x40830E11, /* Smart Array 5312 */
+	0x409A0E11, /* Smart Array 641 */
+	0x409B0E11, /* Smart Array 642 */
+	0x40910E11, /* Smart Array 6i */
 	/* Exclude 640x boards.  These are two pci devices in one slot
 	 * which share a battery backed cache module.  One controls the
 	 * cache, the other accesses the cache through the one that controls
@@ -354,7 +380,7 @@ static inline int is_logical_dev_addr_mode(unsigned char scsi3addr[])
 }
 
 static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
-	"UNKNOWN"
+	"1(ADM)", "UNKNOWN"
 };
 #define RAID_UNKNOWN (ARRAY_SIZE(raid_label) - 1)
 
@@ -475,14 +501,15 @@ static struct device_attribute *hpsa_shost_attrs[] = {
 
 static struct scsi_host_template hpsa_driver_template = {
 	.module			= THIS_MODULE,
-	.name			= "hpsa",
-	.proc_name		= "hpsa",
+	.name			= HPSA,
+	.proc_name		= HPSA,
 	.queuecommand		= hpsa_scsi_queue_command,
 	.scan_start		= hpsa_scan_start,
 	.scan_finished		= hpsa_scan_finished,
 	.change_queue_depth	= hpsa_change_queue_depth,
 	.this_id		= -1,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.eh_abort_handler	= hpsa_eh_abort_handler,
 	.eh_device_reset_handler = hpsa_eh_device_reset_handler,
 	.ioctl			= hpsa_ioctl,
 	.slave_alloc		= hpsa_slave_alloc,
@@ -502,24 +529,28 @@ static inline void addQ(struct list_head *list, struct CommandList *c)
 	list_add_tail(&c->list, list);
 }
 
-static inline u32 next_command(struct ctlr_info *h)
+static inline u32 next_command(struct ctlr_info *h, u8 q)
 {
 	u32 a;
+	struct reply_pool *rq = &h->reply_queue[q];
+	unsigned long flags;
 
 	if (unlikely(!(h->transMethod & CFGTBL_Trans_Performant)))
-		return h->access.command_completed(h);
+		return h->access.command_completed(h, q);
 
-	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
-		a = *(h->reply_pool_head); /* Next cmd in ring buffer */
-		(h->reply_pool_head)++;
+	if ((rq->head[rq->current_entry] & 1) == rq->wraparound) {
+		a = rq->head[rq->current_entry];
+		rq->current_entry++;
+		spin_lock_irqsave(&h->lock, flags);
 		h->commands_outstanding--;
+		spin_unlock_irqrestore(&h->lock, flags);
 	} else {
 		a = FIFO_EMPTY;
 	}
 	/* Check for wraparound */
-	if (h->reply_pool_head == (h->reply_pool + h->max_commands)) {
-		h->reply_pool_head = h->reply_pool;
-		h->reply_pool_wraparound ^= 1;
+	if (rq->current_entry == h->max_commands) {
+		rq->current_entry = 0;
+		rq->wraparound ^= 1;
 	}
 	return a;
 }
@@ -530,8 +561,41 @@ static inline u32 next_command(struct ctlr_info *h)
  */
 static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
 {
-	if (likely(h->transMethod & CFGTBL_Trans_Performant))
+	if (likely(h->transMethod & CFGTBL_Trans_Performant)) {
 		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
+		if (likely(h->msix_vector))
+			c->Header.ReplyQueue =
+				smp_processor_id() % h->nreply_queues;
+	}
+}
+
+static int is_firmware_flash_cmd(u8 *cdb)
+{
+	return cdb[0] == BMIC_WRITE && cdb[6] == BMIC_FLASH_FIRMWARE;
+}
+
+/*
+ * During firmware flash, the heartbeat register may not update as frequently
+ * as it should.  So we dial down lockup detection during firmware flash. and
+ * dial it back up when firmware flash completes.
+ */
+#define HEARTBEAT_SAMPLE_INTERVAL_DURING_FLASH (240 * HZ)
+#define HEARTBEAT_SAMPLE_INTERVAL (30 * HZ)
+static void dial_down_lockup_detection_during_fw_flash(struct ctlr_info *h,
+		struct CommandList *c)
+{
+	if (!is_firmware_flash_cmd(c->Request.CDB))
+		return;
+	atomic_inc(&h->firmware_flash_in_progress);
+	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL_DURING_FLASH;
+}
+
+static void dial_up_lockup_detection_on_fw_flash_complete(struct ctlr_info *h,
+		struct CommandList *c)
+{
+	if (is_firmware_flash_cmd(c->Request.CDB) &&
+		atomic_dec_and_test(&h->firmware_flash_in_progress))
+		h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
 }
 
 static void enqueue_cmd_and_start_io(struct ctlr_info *h,
@@ -540,11 +604,12 @@ static void enqueue_cmd_and_start_io(struct ctlr_info *h,
 	unsigned long flags;
 
 	set_performant_mode(h, c);
+	dial_down_lockup_detection_during_fw_flash(h, c);
 	spin_lock_irqsave(&h->lock, flags);
 	addQ(&h->reqQ, c);
 	h->Qdepth++;
-	start_io(h);
 	spin_unlock_irqrestore(&h->lock, flags);
+	start_io(h);
 }
 
 static inline void removeQ(struct CommandList *c)
@@ -577,21 +642,19 @@ static int hpsa_find_target_lun(struct ctlr_info *h,
 	int i, found = 0;
 	DECLARE_BITMAP(lun_taken, HPSA_MAX_DEVICES);
 
-	memset(&lun_taken[0], 0, HPSA_MAX_DEVICES >> 3);
+	bitmap_zero(lun_taken, HPSA_MAX_DEVICES);
 
 	for (i = 0; i < h->ndevices; i++) {
 		if (h->dev[i]->bus == bus && h->dev[i]->target != -1)
-			set_bit(h->dev[i]->target, lun_taken);
+			__set_bit(h->dev[i]->target, lun_taken);
 	}
 
-	for (i = 0; i < HPSA_MAX_DEVICES; i++) {
-		if (!test_bit(i, lun_taken)) {
-			/* *bus = 1; */
-			*target = i;
-			*lun = 0;
-			found = 1;
-			break;
-		}
+	i = find_first_zero_bit(lun_taken, HPSA_MAX_DEVICES);
+	if (i < HPSA_MAX_DEVICES) {
+		/* *bus = 1; */
+		*target = i;
+		*lun = 0;
+		found = 1;
 	}
 	return !found;
 }
@@ -673,6 +736,20 @@ lun_assigned:
 			scsi_device_type(device->devtype), hostno,
 			device->bus, device->target, device->lun);
 	return 0;
+}
+
+/* Update an entry in h->dev[] array. */
+static void hpsa_scsi_update_entry(struct ctlr_info *h, int hostno,
+	int entry, struct hpsa_scsi_dev_t *new_entry)
+{
+	/* assumes h->devlock is held */
+	BUG_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
+
+	/* Raid level changed. */
+	h->dev[entry]->raid_level = new_entry->raid_level;
+	dev_info(&h->pdev->dev, "%s device c%db%dt%dl%d updated.\n",
+		scsi_device_type(new_entry->devtype), hostno, new_entry->bus,
+		new_entry->target, new_entry->lun);
 }
 
 /* Replace an entry from h->dev[] array. */
@@ -781,10 +858,25 @@ static inline int device_is_the_same(struct hpsa_scsi_dev_t *dev1,
 	return 1;
 }
 
+static inline int device_updated(struct hpsa_scsi_dev_t *dev1,
+	struct hpsa_scsi_dev_t *dev2)
+{
+	/* Device attributes that can change, but don't mean
+	 * that the device is a different device, nor that the OS
+	 * needs to be told anything about the change.
+	 */
+	if (dev1->raid_level != dev2->raid_level)
+		return 1;
+	return 0;
+}
+
 /* Find needle in haystack.  If exact match found, return DEVICE_SAME,
  * and return needle location in *index.  If scsi3addr matches, but not
  * vendor, model, serial num, etc. return DEVICE_CHANGED, and return needle
- * location in *index.  If needle not found, return DEVICE_NOT_FOUND.
+ * location in *index.
+ * In the case of a minor device attribute change, such as RAID level, just
+ * return DEVICE_UPDATED, along with the updated device's location in index.
+ * If needle not found, return DEVICE_NOT_FOUND.
  */
 static int hpsa_scsi_find_entry(struct hpsa_scsi_dev_t *needle,
 	struct hpsa_scsi_dev_t *haystack[], int haystack_size,
@@ -794,15 +886,19 @@ static int hpsa_scsi_find_entry(struct hpsa_scsi_dev_t *needle,
 #define DEVICE_NOT_FOUND 0
 #define DEVICE_CHANGED 1
 #define DEVICE_SAME 2
+#define DEVICE_UPDATED 3
 	for (i = 0; i < haystack_size; i++) {
 		if (haystack[i] == NULL) /* previously removed. */
 			continue;
 		if (SCSI3ADDR_EQ(needle->scsi3addr, haystack[i]->scsi3addr)) {
 			*index = i;
-			if (device_is_the_same(needle, haystack[i]))
+			if (device_is_the_same(needle, haystack[i])) {
+				if (device_updated(needle, haystack[i]))
+					return DEVICE_UPDATED;
 				return DEVICE_SAME;
-			else
+			} else {
 				return DEVICE_CHANGED;
+			}
 		}
 	}
 	*index = -1;
@@ -838,6 +934,8 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 	 * sd[] and remove them from h->dev[], and for any
 	 * devices which have changed, remove the old device
 	 * info and add the new device info.
+	 * If minor device attributes change, just update
+	 * the existing device structure.
 	 */
 	i = 0;
 	nremoved = 0;
@@ -858,6 +956,8 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 			 * at the bottom of hpsa_update_scsi_devices()
 			 */
 			sd[entry] = NULL;
+		} else if (device_change == DEVICE_UPDATED) {
+			hpsa_scsi_update_entry(h, hostno, i, sd[entry]);
 		}
 		i++;
 	}
@@ -1144,7 +1244,7 @@ static void complete_scsi_command(struct CommandList *cp)
 				break;
 			}
 			/* Must be some other type of check condition */
-			dev_warn(&h->pdev->dev, "cp %p has check condition: "
+			dev_dbg(&h->pdev->dev, "cp %p has check condition: "
 					"unknown type: "
 					"Sense: 0x%x, ASC: 0x%x, ASCQ: 0x%x, "
 					"Returning result: 0x%x, "
@@ -1257,46 +1357,6 @@ static void complete_scsi_command(struct CommandList *cp)
 	cmd_free(h, cp);
 }
 
-static int hpsa_scsi_detect(struct ctlr_info *h)
-{
-	struct Scsi_Host *sh;
-	int error;
-
-	sh = scsi_host_alloc(&hpsa_driver_template, sizeof(h));
-	if (sh == NULL)
-		goto fail;
-
-	sh->io_port = 0;
-	sh->n_io_port = 0;
-	sh->this_id = -1;
-	sh->max_channel = 3;
-	sh->max_cmd_len = MAX_COMMAND_SIZE;
-	sh->max_lun = HPSA_MAX_LUN;
-	sh->max_id = HPSA_MAX_LUN;
-	sh->can_queue = h->nr_cmds;
-	sh->cmd_per_lun = h->nr_cmds;
-	sh->sg_tablesize = h->maxsgentries;
-	h->scsi_host = sh;
-	sh->hostdata[0] = (unsigned long) h;
-	sh->irq = h->intr[h->intr_mode];
-	sh->unique_id = sh->irq;
-	error = scsi_add_host(sh, &h->pdev->dev);
-	if (error)
-		goto fail_host_put;
-	scsi_scan_host(sh);
-	return 0;
-
- fail_host_put:
-	dev_err(&h->pdev->dev, "hpsa_scsi_detect: scsi_add_host"
-		" failed for controller %d\n", h->ctlr);
-	scsi_host_put(sh);
-	return error;
- fail:
-	dev_err(&h->pdev->dev, "hpsa_scsi_detect: scsi_host_alloc"
-		" failed for controller %d\n", h->ctlr);
-	return -ENOMEM;
-}
-
 static void hpsa_pci_unmap(struct pci_dev *pdev,
 	struct CommandList *c, int sg_used, int data_direction)
 {
@@ -1361,16 +1421,24 @@ static void hpsa_scsi_do_simple_cmd_core_if_no_lockup(struct ctlr_info *h,
 	}
 }
 
+#define MAX_DRIVER_CMD_RETRIES 25
 static void hpsa_scsi_do_simple_cmd_with_retry(struct ctlr_info *h,
 	struct CommandList *c, int data_direction)
 {
-	int retry_count = 0;
+	int backoff_time = 10, retry_count = 0;
 
 	do {
 		memset(c->err_info, 0, sizeof(*c->err_info));
 		hpsa_scsi_do_simple_cmd_core(h, c);
 		retry_count++;
-	} while (check_for_unit_attention(h, c) && retry_count <= 3);
+		if (retry_count > 3) {
+			msleep(backoff_time);
+			if (backoff_time < 1000)
+				backoff_time *= 2;
+		}
+	} while ((check_for_unit_attention(h, c) ||
+			check_for_busy(h, c)) &&
+			retry_count <= MAX_DRIVER_CMD_RETRIES);
 	hpsa_pci_unmap(h->pdev, c, 1, data_direction);
 }
 
@@ -1641,7 +1709,7 @@ bail_out:
 	return 1;
 }
 
-static unsigned char *msa2xxx_model[] = {
+static unsigned char *ext_target_model[] = {
 	"MSA2012",
 	"MSA2024",
 	"MSA2312",
@@ -1650,78 +1718,54 @@ static unsigned char *msa2xxx_model[] = {
 	NULL,
 };
 
-static int is_msa2xxx(struct ctlr_info *h, struct hpsa_scsi_dev_t *device)
+static int is_ext_target(struct ctlr_info *h, struct hpsa_scsi_dev_t *device)
 {
 	int i;
 
-	for (i = 0; msa2xxx_model[i]; i++)
-		if (strncmp(device->model, msa2xxx_model[i],
-			strlen(msa2xxx_model[i])) == 0)
+	for (i = 0; ext_target_model[i]; i++)
+		if (strncmp(device->model, ext_target_model[i],
+			strlen(ext_target_model[i])) == 0)
 			return 1;
 	return 0;
 }
 
 /* Helper function to assign bus, target, lun mapping of devices.
- * Puts non-msa2xxx logical volumes on bus 0, msa2xxx logical
+ * Puts non-external target logical volumes on bus 0, external target logical
  * volumes on bus 1, physical devices on bus 2. and the hba on bus 3.
  * Logical drive target and lun are assigned at this time, but
  * physical device lun and target assignment are deferred (assigned
  * in hpsa_find_target_lun, called by hpsa_scsi_add_entry.)
  */
 static void figure_bus_target_lun(struct ctlr_info *h,
-	u8 *lunaddrbytes, int *bus, int *target, int *lun,
-	struct hpsa_scsi_dev_t *device)
+	u8 *lunaddrbytes, struct hpsa_scsi_dev_t *device)
 {
-	u32 lunid;
+	u32 lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
 
-	if (is_logical_dev_addr_mode(lunaddrbytes)) {
-		/* logical device */
-		if (unlikely(is_scsi_rev_5(h))) {
-			/* p1210m, logical drives lun assignments
-			 * match SCSI REPORT LUNS data.
-			 */
-			lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
-			*bus = 0;
-			*target = 0;
-			*lun = (lunid & 0x3fff) + 1;
-		} else {
-			/* not p1210m... */
-			lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
-			if (is_msa2xxx(h, device)) {
-				/* msa2xxx way, put logicals on bus 1
-				 * and match target/lun numbers box
-				 * reports.
-				 */
-				*bus = 1;
-				*target = (lunid >> 16) & 0x3fff;
-				*lun = lunid & 0x00ff;
-			} else {
-				/* Traditional smart array way. */
-				*bus = 0;
-				*lun = 0;
-				*target = lunid & 0x3fff;
-			}
-		}
-	} else {
-		/* physical device */
+	if (!is_logical_dev_addr_mode(lunaddrbytes)) {
+		/* physical device, target and lun filled in later */
 		if (is_hba_lunid(lunaddrbytes))
-			if (unlikely(is_scsi_rev_5(h))) {
-				*bus = 0; /* put p1210m ctlr at 0,0,0 */
-				*target = 0;
-				*lun = 0;
-				return;
-			} else
-				*bus = 3; /* traditional smartarray */
+			hpsa_set_bus_target_lun(device, 3, 0, lunid & 0x3fff);
 		else
-			*bus = 2; /* physical disk */
-		*target = -1;
-		*lun = -1; /* we will fill these in later. */
+			/* defer target, lun assignment for physical devices */
+			hpsa_set_bus_target_lun(device, 2, -1, -1);
+		return;
 	}
+	/* It's a logical device */
+	if (is_ext_target(h, device)) {
+		/* external target way, put logicals on bus 1
+		 * and match target/lun numbers box
+		 * reports, other smart array, bus 0, target 0, match lunid
+		 */
+		hpsa_set_bus_target_lun(device,
+			1, (lunid >> 16) & 0x3fff, lunid & 0x00ff);
+		return;
+	}
+	hpsa_set_bus_target_lun(device, 0, 0, lunid & 0x3fff);
 }
 
 /*
  * If there is no lun 0 on a target, linux won't find any devices.
- * For the MSA2xxx boxes, we have to manually detect the enclosure
+ * For the external targets (arrays), we have to manually detect the enclosure
  * which is at lun zero, as CCISS_REPORT_PHYSICAL_LUNS doesn't report
  * it for some reason.  *tmpdevice is the target we're adding,
  * this_device is a pointer into the current element of currentsd[]
@@ -1730,46 +1774,46 @@ static void figure_bus_target_lun(struct ctlr_info *h,
  * lun 0 assigned.
  * Returns 1 if an enclosure was added, 0 if not.
  */
-static int add_msa2xxx_enclosure_device(struct ctlr_info *h,
+static int add_ext_target_dev(struct ctlr_info *h,
 	struct hpsa_scsi_dev_t *tmpdevice,
 	struct hpsa_scsi_dev_t *this_device, u8 *lunaddrbytes,
-	int bus, int target, int lun, unsigned long lunzerobits[],
-	int *nmsa2xxx_enclosures)
+	unsigned long lunzerobits[], int *n_ext_target_devs)
 {
 	unsigned char scsi3addr[8];
 
-	if (test_bit(target, lunzerobits))
+	if (test_bit(tmpdevice->target, lunzerobits))
 		return 0; /* There is already a lun 0 on this target. */
 
 	if (!is_logical_dev_addr_mode(lunaddrbytes))
 		return 0; /* It's the logical targets that may lack lun 0. */
 
-	if (!is_msa2xxx(h, tmpdevice))
-		return 0; /* It's only the MSA2xxx that have this problem. */
+	if (!is_ext_target(h, tmpdevice))
+		return 0; /* Only external target devices have this problem. */
 
-	if (lun == 0) /* if lun is 0, then obviously we have a lun 0. */
+	if (tmpdevice->lun == 0) /* if lun is 0, then we have a lun 0. */
 		return 0;
 
 	memset(scsi3addr, 0, 8);
-	scsi3addr[3] = target;
+	scsi3addr[3] = tmpdevice->target;
 	if (is_hba_lunid(scsi3addr))
 		return 0; /* Don't add the RAID controller here. */
 
 	if (is_scsi_rev_5(h))
 		return 0; /* p1210m doesn't need to do this. */
 
-	if (*nmsa2xxx_enclosures >= MAX_MSA2XXX_ENCLOSURES) {
-		dev_warn(&h->pdev->dev, "Maximum number of MSA2XXX "
-			"enclosures exceeded.  Check your hardware "
+	if (*n_ext_target_devs >= MAX_EXT_TARGETS) {
+		dev_warn(&h->pdev->dev, "Maximum number of external "
+			"target devices exceeded.  Check your hardware "
 			"configuration.");
 		return 0;
 	}
 
 	if (hpsa_update_device_info(h, scsi3addr, this_device, NULL))
 		return 0;
-	(*nmsa2xxx_enclosures)++;
-	hpsa_set_bus_target_lun(this_device, bus, target, 0);
-	set_bit(target, lunzerobits);
+	(*n_ext_target_devs)++;
+	hpsa_set_bus_target_lun(this_device,
+				tmpdevice->bus, tmpdevice->target, 0);
+	set_bit(tmpdevice->target, lunzerobits);
 	return 1;
 }
 
@@ -1863,10 +1907,9 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	struct hpsa_scsi_dev_t **currentsd, *this_device, *tmpdevice;
 	int ncurrent = 0;
 	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 8;
-	int i, nmsa2xxx_enclosures, ndevs_to_allocate;
-	int bus, target, lun;
+	int i, n_ext_target_devs, ndevs_to_allocate;
 	int raid_ctlr_position;
-	DECLARE_BITMAP(lunzerobits, HPSA_MAX_TARGETS_PER_CTLR);
+	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
 	physdev_list = kzalloc(reportlunsize, GFP_KERNEL);
@@ -1883,11 +1926,11 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 			logdev_list, &nlogicals))
 		goto out;
 
-	/* We might see up to 32 MSA2xxx enclosures, actually 8 of them
-	 * but each of them 4 times through different paths.  The plus 1
-	 * is for the RAID controller.
+	/* We might see up to the maximum number of logical and physical disks
+	 * plus external target devices, and a device for the local RAID
+	 * controller.
 	 */
-	ndevs_to_allocate = nphysicals + nlogicals + MAX_MSA2XXX_ENCLOSURES + 1;
+	ndevs_to_allocate = nphysicals + nlogicals + MAX_EXT_TARGETS + 1;
 
 	/* Allocate the per device structures */
 	for (i = 0; i < ndevs_to_allocate; i++) {
@@ -1913,7 +1956,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		raid_ctlr_position = nphysicals + nlogicals;
 
 	/* adjust our table of devices */
-	nmsa2xxx_enclosures = 0;
+	n_ext_target_devs = 0;
 	for (i = 0; i < nphysicals + nlogicals + 1; i++) {
 		u8 *lunaddrbytes, is_OBDR = 0;
 
@@ -1929,26 +1972,24 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		if (hpsa_update_device_info(h, lunaddrbytes, tmpdevice,
 							&is_OBDR))
 			continue; /* skip it if we can't talk to it. */
-		figure_bus_target_lun(h, lunaddrbytes, &bus, &target, &lun,
-			tmpdevice);
+		figure_bus_target_lun(h, lunaddrbytes, tmpdevice);
 		this_device = currentsd[ncurrent];
 
 		/*
-		 * For the msa2xxx boxes, we have to insert a LUN 0 which
+		 * For external target devices, we have to insert a LUN 0 which
 		 * doesn't show up in CCISS_REPORT_PHYSICAL data, but there
 		 * is nonetheless an enclosure device there.  We have to
 		 * present that otherwise linux won't find anything if
 		 * there is no lun 0.
 		 */
-		if (add_msa2xxx_enclosure_device(h, tmpdevice, this_device,
-				lunaddrbytes, bus, target, lun, lunzerobits,
-				&nmsa2xxx_enclosures)) {
+		if (add_ext_target_dev(h, tmpdevice, this_device,
+				lunaddrbytes, lunzerobits,
+				&n_ext_target_devs)) {
 			ncurrent++;
 			this_device = currentsd[ncurrent];
 		}
 
 		*this_device = *tmpdevice;
-		hpsa_set_bus_target_lun(this_device, bus, target, lun);
 
 		switch (this_device->devtype) {
 		case TYPE_ROM:
@@ -2083,9 +2124,8 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 		done(cmd);
 		return 0;
 	}
-	/* Need a lock as this is being allocated from the pool */
-	c = cmd_alloc(h);
 	spin_unlock_irqrestore(&h->lock, flags);
+	c = cmd_alloc(h);
 	if (c == NULL) {			/* trouble... */
 		dev_err(&h->pdev->dev, "cmd_alloc returned NULL!\n");
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -2228,13 +2268,42 @@ static void hpsa_unregister_scsi(struct ctlr_info *h)
 
 static int hpsa_register_scsi(struct ctlr_info *h)
 {
-	int rc;
+	struct Scsi_Host *sh;
+	int error;
 
-	rc = hpsa_scsi_detect(h);
-	if (rc != 0)
-		dev_err(&h->pdev->dev, "hpsa_register_scsi: failed"
-			" hpsa_scsi_detect(), rc is %d\n", rc);
-	return rc;
+	sh = scsi_host_alloc(&hpsa_driver_template, sizeof(h));
+	if (sh == NULL)
+		goto fail;
+
+	sh->io_port = 0;
+	sh->n_io_port = 0;
+	sh->this_id = -1;
+	sh->max_channel = 3;
+	sh->max_cmd_len = MAX_COMMAND_SIZE;
+	sh->max_lun = HPSA_MAX_LUN;
+	sh->max_id = HPSA_MAX_LUN;
+	sh->can_queue = h->nr_cmds;
+	sh->cmd_per_lun = h->nr_cmds;
+	sh->sg_tablesize = h->maxsgentries;
+	h->scsi_host = sh;
+	sh->hostdata[0] = (unsigned long) h;
+	sh->irq = h->intr[h->intr_mode];
+	sh->unique_id = sh->irq;
+	error = scsi_add_host(sh, &h->pdev->dev);
+	if (error)
+		goto fail_host_put;
+	scsi_scan_host(sh);
+	return 0;
+
+ fail_host_put:
+	dev_err(&h->pdev->dev, "%s: scsi_add_host"
+		" failed for controller %d\n", __func__, h->ctlr);
+	scsi_host_put(sh);
+	return error;
+ fail:
+	dev_err(&h->pdev->dev, "%s: scsi_host_alloc"
+		" failed for controller %d\n", __func__, h->ctlr);
+	return -ENOMEM;
 }
 
 static int wait_for_device_to_become_ready(struct ctlr_info *h,
@@ -2323,6 +2392,261 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	return FAILED;
 }
 
+static void swizzle_abort_tag(u8 *tag)
+{
+	u8 original_tag[8];
+
+	memcpy(original_tag, tag, 8);
+	tag[0] = original_tag[3];
+	tag[1] = original_tag[2];
+	tag[2] = original_tag[1];
+	tag[3] = original_tag[0];
+	tag[4] = original_tag[7];
+	tag[5] = original_tag[6];
+	tag[6] = original_tag[5];
+	tag[7] = original_tag[4];
+}
+
+static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
+	struct CommandList *abort, int swizzle)
+{
+	int rc = IO_OK;
+	struct CommandList *c;
+	struct ErrorInfo *ei;
+
+	c = cmd_special_alloc(h);
+	if (c == NULL) {	/* trouble... */
+		dev_warn(&h->pdev->dev, "cmd_special_alloc returned NULL!\n");
+		return -ENOMEM;
+	}
+
+	fill_cmd(c, HPSA_ABORT_MSG, h, abort, 0, 0, scsi3addr, TYPE_MSG);
+	if (swizzle)
+		swizzle_abort_tag(&c->Request.CDB[4]);
+	hpsa_scsi_do_simple_cmd_core(h, c);
+	dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: do_simple_cmd_core completed.\n",
+		__func__, abort->Header.Tag.upper, abort->Header.Tag.lower);
+	/* no unmap needed here because no data xfer. */
+
+	ei = c->err_info;
+	switch (ei->CommandStatus) {
+	case CMD_SUCCESS:
+		break;
+	case CMD_UNABORTABLE: /* Very common, don't make noise. */
+		rc = -1;
+		break;
+	default:
+		dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: interpreting error.\n",
+			__func__, abort->Header.Tag.upper,
+			abort->Header.Tag.lower);
+		hpsa_scsi_interpret_error(c);
+		rc = -1;
+		break;
+	}
+	cmd_special_free(h, c);
+	dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: Finished.\n", __func__,
+		abort->Header.Tag.upper, abort->Header.Tag.lower);
+	return rc;
+}
+
+/*
+ * hpsa_find_cmd_in_queue
+ *
+ * Used to determine whether a command (find) is still present
+ * in queue_head.   Optionally excludes the last element of queue_head.
+ *
+ * This is used to avoid unnecessary aborts.  Commands in h->reqQ have
+ * not yet been submitted, and so can be aborted by the driver without
+ * sending an abort to the hardware.
+ *
+ * Returns pointer to command if found in queue, NULL otherwise.
+ */
+static struct CommandList *hpsa_find_cmd_in_queue(struct ctlr_info *h,
+			struct scsi_cmnd *find, struct list_head *queue_head)
+{
+	unsigned long flags;
+	struct CommandList *c = NULL;	/* ptr into cmpQ */
+
+	if (!find)
+		return 0;
+	spin_lock_irqsave(&h->lock, flags);
+	list_for_each_entry(c, queue_head, list) {
+		if (c->scsi_cmd == NULL) /* e.g.: passthru ioctl */
+			continue;
+		if (c->scsi_cmd == find) {
+			spin_unlock_irqrestore(&h->lock, flags);
+			return c;
+		}
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	return NULL;
+}
+
+static struct CommandList *hpsa_find_cmd_in_queue_by_tag(struct ctlr_info *h,
+					u8 *tag, struct list_head *queue_head)
+{
+	unsigned long flags;
+	struct CommandList *c;
+
+	spin_lock_irqsave(&h->lock, flags);
+	list_for_each_entry(c, queue_head, list) {
+		if (memcmp(&c->Header.Tag, tag, 8) != 0)
+			continue;
+		spin_unlock_irqrestore(&h->lock, flags);
+		return c;
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	return NULL;
+}
+
+/* Some Smart Arrays need the abort tag swizzled, and some don't.  It's hard to
+ * tell which kind we're dealing with, so we send the abort both ways.  There
+ * shouldn't be any collisions between swizzled and unswizzled tags due to the
+ * way we construct our tags but we check anyway in case the assumptions which
+ * make this true someday become false.
+ */
+static int hpsa_send_abort_both_ways(struct ctlr_info *h,
+	unsigned char *scsi3addr, struct CommandList *abort)
+{
+	u8 swizzled_tag[8];
+	struct CommandList *c;
+	int rc = 0, rc2 = 0;
+
+	/* we do not expect to find the swizzled tag in our queue, but
+	 * check anyway just to be sure the assumptions which make this
+	 * the case haven't become wrong.
+	 */
+	memcpy(swizzled_tag, &abort->Request.CDB[4], 8);
+	swizzle_abort_tag(swizzled_tag);
+	c = hpsa_find_cmd_in_queue_by_tag(h, swizzled_tag, &h->cmpQ);
+	if (c != NULL) {
+		dev_warn(&h->pdev->dev, "Unexpectedly found byte-swapped tag in completion queue.\n");
+		return hpsa_send_abort(h, scsi3addr, abort, 0);
+	}
+	rc = hpsa_send_abort(h, scsi3addr, abort, 0);
+
+	/* if the command is still in our queue, we can't conclude that it was
+	 * aborted (it might have just completed normally) but in any case
+	 * we don't need to try to abort it another way.
+	 */
+	c = hpsa_find_cmd_in_queue(h, abort->scsi_cmd, &h->cmpQ);
+	if (c)
+		rc2 = hpsa_send_abort(h, scsi3addr, abort, 1);
+	return rc && rc2;
+}
+
+/* Send an abort for the specified command.
+ *	If the device and controller support it,
+ *		send a task abort request.
+ */
+static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
+{
+
+	int i, rc;
+	struct ctlr_info *h;
+	struct hpsa_scsi_dev_t *dev;
+	struct CommandList *abort; /* pointer to command to be aborted */
+	struct CommandList *found;
+	struct scsi_cmnd *as;	/* ptr to scsi cmd inside aborted command. */
+	char msg[256];		/* For debug messaging. */
+	int ml = 0;
+
+	/* Find the controller of the command to be aborted */
+	h = sdev_to_hba(sc->device);
+	if (WARN(h == NULL,
+			"ABORT REQUEST FAILED, Controller lookup failed.\n"))
+		return FAILED;
+
+	/* Check that controller supports some kind of task abort */
+	if (!(HPSATMF_PHYS_TASK_ABORT & h->TMFSupportFlags) &&
+		!(HPSATMF_LOG_TASK_ABORT & h->TMFSupportFlags))
+		return FAILED;
+
+	memset(msg, 0, sizeof(msg));
+	ml += sprintf(msg+ml, "ABORT REQUEST on C%d:B%d:T%d:L%d ",
+		h->scsi_host->host_no, sc->device->channel,
+		sc->device->id, sc->device->lun);
+
+	/* Find the device of the command to be aborted */
+	dev = sc->device->hostdata;
+	if (!dev) {
+		dev_err(&h->pdev->dev, "%s FAILED, Device lookup failed.\n",
+				msg);
+		return FAILED;
+	}
+
+	/* Get SCSI command to be aborted */
+	abort = (struct CommandList *) sc->host_scribble;
+	if (abort == NULL) {
+		dev_err(&h->pdev->dev, "%s FAILED, Command to abort is NULL.\n",
+				msg);
+		return FAILED;
+	}
+
+	ml += sprintf(msg+ml, "Tag:0x%08x:%08x ",
+		abort->Header.Tag.upper, abort->Header.Tag.lower);
+	as  = (struct scsi_cmnd *) abort->scsi_cmd;
+	if (as != NULL)
+		ml += sprintf(msg+ml, "Command:0x%x SN:0x%lx ",
+			as->cmnd[0], as->serial_number);
+	dev_dbg(&h->pdev->dev, "%s\n", msg);
+	dev_warn(&h->pdev->dev, "Abort request on C%d:B%d:T%d:L%d\n",
+		h->scsi_host->host_no, dev->bus, dev->target, dev->lun);
+
+	/* Search reqQ to See if command is queued but not submitted,
+	 * if so, complete the command with aborted status and remove
+	 * it from the reqQ.
+	 */
+	found = hpsa_find_cmd_in_queue(h, sc, &h->reqQ);
+	if (found) {
+		found->err_info->CommandStatus = CMD_ABORTED;
+		finish_cmd(found);
+		dev_info(&h->pdev->dev, "%s Request SUCCEEDED (driver queue).\n",
+				msg);
+		return SUCCESS;
+	}
+
+	/* not in reqQ, if also not in cmpQ, must have already completed */
+	found = hpsa_find_cmd_in_queue(h, sc, &h->cmpQ);
+	if (!found)  {
+		dev_dbg(&h->pdev->dev, "%s Request FAILED (not known to driver).\n",
+				msg);
+		return SUCCESS;
+	}
+
+	/*
+	 * Command is in flight, or possibly already completed
+	 * by the firmware (but not to the scsi mid layer) but we can't
+	 * distinguish which.  Send the abort down.
+	 */
+	rc = hpsa_send_abort_both_ways(h, dev->scsi3addr, abort);
+	if (rc != 0) {
+		dev_dbg(&h->pdev->dev, "%s Request FAILED.\n", msg);
+		dev_warn(&h->pdev->dev, "FAILED abort on device C%d:B%d:T%d:L%d\n",
+			h->scsi_host->host_no,
+			dev->bus, dev->target, dev->lun);
+		return FAILED;
+	}
+	dev_info(&h->pdev->dev, "%s REQUEST SUCCEEDED.\n", msg);
+
+	/* If the abort(s) above completed and actually aborted the
+	 * command, then the command to be aborted should already be
+	 * completed.  If not, wait around a bit more to see if they
+	 * manage to complete normally.
+	 */
+#define ABORT_COMPLETE_WAIT_SECS 30
+	for (i = 0; i < ABORT_COMPLETE_WAIT_SECS * 10; i++) {
+		found = hpsa_find_cmd_in_queue(h, sc, &h->cmpQ);
+		if (!found)
+			return SUCCESS;
+		msleep(100);
+	}
+	dev_warn(&h->pdev->dev, "%s FAILED. Aborted command has not completed after %d seconds.\n",
+		msg, ABORT_COMPLETE_WAIT_SECS);
+	return FAILED;
+}
+
+
 /*
  * For operations that cannot sleep, a command block is allocated at init,
  * and managed by cmd_alloc() and cmd_free() using a simple bitmap to track
@@ -2335,14 +2659,21 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 	int i;
 	union u64bit temp64;
 	dma_addr_t cmd_dma_handle, err_dma_handle;
+	unsigned long flags;
 
+	spin_lock_irqsave(&h->lock, flags);
 	do {
 		i = find_first_zero_bit(h->cmd_pool_bits, h->nr_cmds);
-		if (i == h->nr_cmds)
+		if (i == h->nr_cmds) {
+			spin_unlock_irqrestore(&h->lock, flags);
 			return NULL;
+		}
 	} while (test_and_set_bit
 		 (i & (BITS_PER_LONG - 1),
 		  h->cmd_pool_bits + (i / BITS_PER_LONG)) != 0);
+	h->nr_allocs++;
+	spin_unlock_irqrestore(&h->lock, flags);
+
 	c = h->cmd_pool + i;
 	memset(c, 0, sizeof(*c));
 	cmd_dma_handle = h->cmd_pool_dhandle
@@ -2351,7 +2682,6 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 	memset(c->err_info, 0, sizeof(*c->err_info));
 	err_dma_handle = h->errinfo_pool_dhandle
 	    + i * sizeof(*c->err_info);
-	h->nr_allocs++;
 
 	c->cmdindex = i;
 
@@ -2407,11 +2737,14 @@ static struct CommandList *cmd_special_alloc(struct ctlr_info *h)
 static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 {
 	int i;
+	unsigned long flags;
 
 	i = c - h->cmd_pool;
+	spin_lock_irqsave(&h->lock, flags);
 	clear_bit(i & (BITS_PER_LONG - 1),
 		  h->cmd_pool_bits + (i / BITS_PER_LONG));
 	h->nr_frees++;
+	spin_unlock_irqrestore(&h->lock, flags);
 }
 
 static void cmd_special_free(struct ctlr_info *h, struct CommandList *c)
@@ -2700,16 +3033,16 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		status = -EINVAL;
 		goto cleanup1;
 	}
-	if (ioc->buf_size > ioc->malloc_size * MAXSGENTRIES) {
+	if (ioc->buf_size > ioc->malloc_size * SG_ENTRIES_IN_CMD) {
 		status = -EINVAL;
 		goto cleanup1;
 	}
-	buff = kzalloc(MAXSGENTRIES * sizeof(char *), GFP_KERNEL);
+	buff = kzalloc(SG_ENTRIES_IN_CMD * sizeof(char *), GFP_KERNEL);
 	if (!buff) {
 		status = -ENOMEM;
 		goto cleanup1;
 	}
-	buff_size = kmalloc(MAXSGENTRIES * sizeof(int), GFP_KERNEL);
+	buff_size = kmalloc(SG_ENTRIES_IN_CMD * sizeof(int), GFP_KERNEL);
 	if (!buff_size) {
 		status = -ENOMEM;
 		goto cleanup1;
@@ -2855,6 +3188,7 @@ static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 	int cmd_type)
 {
 	int pci_dir = XFER_NONE;
+	struct CommandList *a; /* for commands to be aborted */
 
 	c->cmd_type = CMD_IOCTL_PEND;
 	c->Header.ReplyQueue = 0;
@@ -2938,8 +3272,35 @@ static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.CDB[5] = 0x00;
 			c->Request.CDB[6] = 0x00;
 			c->Request.CDB[7] = 0x00;
+			break;
+		case  HPSA_ABORT_MSG:
+			a = buff;       /* point to command to be aborted */
+			dev_dbg(&h->pdev->dev, "Abort Tag:0x%08x:%08x using request Tag:0x%08x:%08x\n",
+				a->Header.Tag.upper, a->Header.Tag.lower,
+				c->Header.Tag.upper, c->Header.Tag.lower);
+			c->Request.CDBLen = 16;
+			c->Request.Type.Type = TYPE_MSG;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_WRITE;
+			c->Request.Timeout = 0; /* Don't time out */
+			c->Request.CDB[0] = HPSA_TASK_MANAGEMENT;
+			c->Request.CDB[1] = HPSA_TMF_ABORT_TASK;
+			c->Request.CDB[2] = 0x00; /* reserved */
+			c->Request.CDB[3] = 0x00; /* reserved */
+			/* Tag to abort goes in CDB[4]-CDB[11] */
+			c->Request.CDB[4] = a->Header.Tag.lower & 0xFF;
+			c->Request.CDB[5] = (a->Header.Tag.lower >> 8) & 0xFF;
+			c->Request.CDB[6] = (a->Header.Tag.lower >> 16) & 0xFF;
+			c->Request.CDB[7] = (a->Header.Tag.lower >> 24) & 0xFF;
+			c->Request.CDB[8] = a->Header.Tag.upper & 0xFF;
+			c->Request.CDB[9] = (a->Header.Tag.upper >> 8) & 0xFF;
+			c->Request.CDB[10] = (a->Header.Tag.upper >> 16) & 0xFF;
+			c->Request.CDB[11] = (a->Header.Tag.upper >> 24) & 0xFF;
+			c->Request.CDB[12] = 0x00; /* reserved */
+			c->Request.CDB[13] = 0x00; /* reserved */
+			c->Request.CDB[14] = 0x00; /* reserved */
+			c->Request.CDB[15] = 0x00; /* reserved */
 		break;
-
 		default:
 			dev_warn(&h->pdev->dev, "unknown message type %d\n",
 				cmd);
@@ -2987,7 +3348,9 @@ static void __iomem *remap_pci_mem(ulong base, ulong size)
 static void start_io(struct ctlr_info *h)
 {
 	struct CommandList *c;
+	unsigned long flags;
 
+	spin_lock_irqsave(&h->lock, flags);
 	while (!list_empty(&h->reqQ)) {
 		c = list_entry(h->reqQ.next, struct CommandList, list);
 		/* can't do anything if fifo is full */
@@ -3000,17 +3363,28 @@ static void start_io(struct ctlr_info *h)
 		removeQ(c);
 		h->Qdepth--;
 
-		/* Tell the controller execute command */
-		h->access.submit_command(h, c);
-
 		/* Put job onto the completed Q */
 		addQ(&h->cmpQ, c);
+
+		/* Must increment commands_outstanding before unlocking
+		 * and submitting to avoid race checking for fifo full
+		 * condition.
+		 */
+		h->commands_outstanding++;
+		if (h->commands_outstanding > h->max_outstanding)
+			h->max_outstanding = h->commands_outstanding;
+
+		/* Tell the controller execute command */
+		spin_unlock_irqrestore(&h->lock, flags);
+		h->access.submit_command(h, c);
+		spin_lock_irqsave(&h->lock, flags);
 	}
+	spin_unlock_irqrestore(&h->lock, flags);
 }
 
-static inline unsigned long get_next_completion(struct ctlr_info *h)
+static inline unsigned long get_next_completion(struct ctlr_info *h, u8 q)
 {
-	return h->access.command_completed(h);
+	return h->access.command_completed(h, q);
 }
 
 static inline bool interrupt_pending(struct ctlr_info *h)
@@ -3034,9 +3408,14 @@ static inline int bad_tag(struct ctlr_info *h, u32 tag_index,
 	return 0;
 }
 
-static inline void finish_cmd(struct CommandList *c, u32 raw_tag)
+static inline void finish_cmd(struct CommandList *c)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&c->h->lock, flags);
 	removeQ(c);
+	spin_unlock_irqrestore(&c->h->lock, flags);
+	dial_up_lockup_detection_on_fw_flash_complete(c->h, c);
 	if (likely(c->cmd_type == CMD_SCSI))
 		complete_scsi_command(c);
 	else if (c->cmd_type == CMD_IOCTL_PEND)
@@ -3064,36 +3443,38 @@ static inline u32 hpsa_tag_discard_error_bits(struct ctlr_info *h, u32 tag)
 }
 
 /* process completion of an indexed ("direct lookup") command */
-static inline u32 process_indexed_cmd(struct ctlr_info *h,
+static inline void process_indexed_cmd(struct ctlr_info *h,
 	u32 raw_tag)
 {
 	u32 tag_index;
 	struct CommandList *c;
 
 	tag_index = hpsa_tag_to_index(raw_tag);
-	if (bad_tag(h, tag_index, raw_tag))
-		return next_command(h);
-	c = h->cmd_pool + tag_index;
-	finish_cmd(c, raw_tag);
-	return next_command(h);
+	if (!bad_tag(h, tag_index, raw_tag)) {
+		c = h->cmd_pool + tag_index;
+		finish_cmd(c);
+	}
 }
 
 /* process completion of a non-indexed command */
-static inline u32 process_nonindexed_cmd(struct ctlr_info *h,
+static inline void process_nonindexed_cmd(struct ctlr_info *h,
 	u32 raw_tag)
 {
 	u32 tag;
 	struct CommandList *c = NULL;
+	unsigned long flags;
 
 	tag = hpsa_tag_discard_error_bits(h, raw_tag);
+	spin_lock_irqsave(&h->lock, flags);
 	list_for_each_entry(c, &h->cmpQ, list) {
 		if ((c->busaddr & 0xFFFFFFE0) == (tag & 0xFFFFFFE0)) {
-			finish_cmd(c, raw_tag);
-			return next_command(h);
+			spin_unlock_irqrestore(&h->lock, flags);
+			finish_cmd(c);
+			return;
 		}
 	}
+	spin_unlock_irqrestore(&h->lock, flags);
 	bad_tag(h, h->nr_cmds + 1, raw_tag);
-	return next_command(h);
 }
 
 /* Some controllers, like p400, will give us one interrupt
@@ -3115,10 +3496,20 @@ static int ignore_bogus_interrupt(struct ctlr_info *h)
 	return 1;
 }
 
-static irqreturn_t hpsa_intx_discard_completions(int irq, void *dev_id)
+/*
+ * Convert &h->q[x] (passed to interrupt handlers) back to h.
+ * Relies on (h-q[x] == x) being true for x such that
+ * 0 <= x < MAX_REPLY_QUEUES.
+ */
+static struct ctlr_info *queue_to_hba(u8 *queue)
 {
-	struct ctlr_info *h = dev_id;
-	unsigned long flags;
+	return container_of((queue - *queue), struct ctlr_info, q[0]);
+}
+
+static irqreturn_t hpsa_intx_discard_completions(int irq, void *queue)
+{
+	struct ctlr_info *h = queue_to_hba(queue);
+	u8 q = *(u8 *) queue;
 	u32 raw_tag;
 
 	if (ignore_bogus_interrupt(h))
@@ -3126,74 +3517,68 @@ static irqreturn_t hpsa_intx_discard_completions(int irq, void *dev_id)
 
 	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
-	spin_lock_irqsave(&h->lock, flags);
 	h->last_intr_timestamp = get_jiffies_64();
 	while (interrupt_pending(h)) {
-		raw_tag = get_next_completion(h);
+		raw_tag = get_next_completion(h, q);
 		while (raw_tag != FIFO_EMPTY)
-			raw_tag = next_command(h);
+			raw_tag = next_command(h, q);
 	}
-	spin_unlock_irqrestore(&h->lock, flags);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t hpsa_msix_discard_completions(int irq, void *dev_id)
+static irqreturn_t hpsa_msix_discard_completions(int irq, void *queue)
 {
-	struct ctlr_info *h = dev_id;
-	unsigned long flags;
+	struct ctlr_info *h = queue_to_hba(queue);
 	u32 raw_tag;
+	u8 q = *(u8 *) queue;
 
 	if (ignore_bogus_interrupt(h))
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&h->lock, flags);
 	h->last_intr_timestamp = get_jiffies_64();
-	raw_tag = get_next_completion(h);
+	raw_tag = get_next_completion(h, q);
 	while (raw_tag != FIFO_EMPTY)
-		raw_tag = next_command(h);
-	spin_unlock_irqrestore(&h->lock, flags);
+		raw_tag = next_command(h, q);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id)
+static irqreturn_t do_hpsa_intr_intx(int irq, void *queue)
 {
-	struct ctlr_info *h = dev_id;
-	unsigned long flags;
+	struct ctlr_info *h = queue_to_hba((u8 *) queue);
 	u32 raw_tag;
+	u8 q = *(u8 *) queue;
 
 	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
-	spin_lock_irqsave(&h->lock, flags);
 	h->last_intr_timestamp = get_jiffies_64();
 	while (interrupt_pending(h)) {
-		raw_tag = get_next_completion(h);
+		raw_tag = get_next_completion(h, q);
 		while (raw_tag != FIFO_EMPTY) {
-			if (hpsa_tag_contains_index(raw_tag))
-				raw_tag = process_indexed_cmd(h, raw_tag);
+			if (likely(hpsa_tag_contains_index(raw_tag)))
+				process_indexed_cmd(h, raw_tag);
 			else
-				raw_tag = process_nonindexed_cmd(h, raw_tag);
+				process_nonindexed_cmd(h, raw_tag);
+			raw_tag = next_command(h, q);
 		}
 	}
-	spin_unlock_irqrestore(&h->lock, flags);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id)
+static irqreturn_t do_hpsa_intr_msi(int irq, void *queue)
 {
-	struct ctlr_info *h = dev_id;
-	unsigned long flags;
+	struct ctlr_info *h = queue_to_hba(queue);
 	u32 raw_tag;
+	u8 q = *(u8 *) queue;
 
-	spin_lock_irqsave(&h->lock, flags);
 	h->last_intr_timestamp = get_jiffies_64();
-	raw_tag = get_next_completion(h);
+	raw_tag = get_next_completion(h, q);
 	while (raw_tag != FIFO_EMPTY) {
-		if (hpsa_tag_contains_index(raw_tag))
-			raw_tag = process_indexed_cmd(h, raw_tag);
+		if (likely(hpsa_tag_contains_index(raw_tag)))
+			process_indexed_cmd(h, raw_tag);
 		else
-			raw_tag = process_nonindexed_cmd(h, raw_tag);
+			process_nonindexed_cmd(h, raw_tag);
+		raw_tag = next_command(h, q);
 	}
-	spin_unlock_irqrestore(&h->lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -3354,7 +3739,7 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 static __devinit void init_driver_version(char *driver_version, int len)
 {
 	memset(driver_version, 0, len);
-	strncpy(driver_version, "hpsa " HPSA_DRIVER_VERSION, len - 1);
+	strncpy(driver_version, HPSA " " HPSA_DRIVER_VERSION, len - 1);
 }
 
 static __devinit int write_driver_ver_to_cfgtable(
@@ -3627,10 +4012,13 @@ static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
 static void __devinit hpsa_interrupt_mode(struct ctlr_info *h)
 {
 #ifdef CONFIG_PCI_MSI
-	int err;
-	struct msix_entry hpsa_msix_entries[4] = { {0, 0}, {0, 1},
-	{0, 2}, {0, 3}
-	};
+	int err, i;
+	struct msix_entry hpsa_msix_entries[MAX_REPLY_QUEUES];
+
+	for (i = 0; i < MAX_REPLY_QUEUES; i++) {
+		hpsa_msix_entries[i].vector = 0;
+		hpsa_msix_entries[i].entry = i;
+	}
 
 	/* Some boards advertise MSI but don't really support it */
 	if ((h->board_id == 0x40700E11) || (h->board_id == 0x40800E11) ||
@@ -3638,12 +4026,11 @@ static void __devinit hpsa_interrupt_mode(struct ctlr_info *h)
 		goto default_int_mode;
 	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSIX)) {
 		dev_info(&h->pdev->dev, "MSIX\n");
-		err = pci_enable_msix(h->pdev, hpsa_msix_entries, 4);
+		err = pci_enable_msix(h->pdev, hpsa_msix_entries,
+						MAX_REPLY_QUEUES);
 		if (!err) {
-			h->intr[0] = hpsa_msix_entries[0].vector;
-			h->intr[1] = hpsa_msix_entries[1].vector;
-			h->intr[2] = hpsa_msix_entries[2].vector;
-			h->intr[3] = hpsa_msix_entries[3].vector;
+			for (i = 0; i < MAX_REPLY_QUEUES; i++)
+				h->intr[i] = hpsa_msix_entries[i].vector;
 			h->msix_vector = 1;
 			return;
 		}
@@ -3692,14 +4079,6 @@ static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
 			return -ENODEV;
 	}
 	return ARRAY_SIZE(products) - 1; /* generic unknown smart array */
-}
-
-static inline bool hpsa_board_disabled(struct pci_dev *pdev)
-{
-	u16 command;
-
-	(void) pci_read_config_word(pdev, PCI_COMMAND, &command);
-	return ((command & PCI_COMMAND_MEMORY) == 0);
 }
 
 static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
@@ -3827,14 +4206,14 @@ static void __devinit hpsa_find_board_params(struct ctlr_info *h)
 		h->maxsgentries = 31; /* default to traditional values */
 		h->chainsize = 0;
 	}
+
+	/* Find out what task management functions are supported and cache */
+	h->TMFSupportFlags = readl(&(h->cfgtable->TMFSupportFlags));
 }
 
 static inline bool hpsa_CISS_signature_present(struct ctlr_info *h)
 {
-	if ((readb(&h->cfgtable->Signature[0]) != 'C') ||
-	    (readb(&h->cfgtable->Signature[1]) != 'I') ||
-	    (readb(&h->cfgtable->Signature[2]) != 'S') ||
-	    (readb(&h->cfgtable->Signature[3]) != 'S')) {
+	if (!check_signature(h->cfgtable->Signature, "CISS", 4)) {
 		dev_warn(&h->pdev->dev, "not a valid CISS config table\n");
 		return false;
 	}
@@ -3921,11 +4300,6 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	h->product_name = products[prod_index].product_name;
 	h->access = *(products[prod_index].access);
 
-	if (hpsa_board_disabled(h->pdev)) {
-		dev_warn(&h->pdev->dev, "controller appears to be disabled\n");
-		return -ENODEV;
-	}
-
 	pci_disable_link_state(h->pdev, PCIE_LINK_STATE_L0S |
 			       PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_CLKPM);
 
@@ -3935,7 +4309,10 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		return err;
 	}
 
-	err = pci_request_regions(h->pdev, "hpsa");
+	/* Enable bus mastering (pci_disable_device may disable this) */
+	pci_set_master(h->pdev);
+
+	err = pci_request_regions(h->pdev, HPSA);
 	if (err) {
 		dev_err(&h->pdev->dev,
 			"cannot obtain PCI resources, aborting\n");
@@ -3976,10 +4353,7 @@ err_out_free_res:
 		iounmap(h->cfgtable);
 	if (h->vaddr)
 		iounmap(h->vaddr);
-	/*
-	 * Deliberately omit pci_disable_device(): it does something nasty to
-	 * Smart Array controllers that pci_enable_device does not undo
-	 */
+	pci_disable_device(h->pdev);
 	pci_release_regions(h->pdev);
 	return err;
 }
@@ -4070,14 +4444,33 @@ static int hpsa_request_irq(struct ctlr_info *h,
 	irqreturn_t (*msixhandler)(int, void *),
 	irqreturn_t (*intxhandler)(int, void *))
 {
-	int rc;
+	int rc, i;
 
-	if (h->msix_vector || h->msi_vector)
-		rc = request_irq(h->intr[h->intr_mode], msixhandler,
-				0, h->devname, h);
-	else
-		rc = request_irq(h->intr[h->intr_mode], intxhandler,
-				IRQF_SHARED, h->devname, h);
+	/*
+	 * initialize h->q[x] = x so that interrupt handlers know which
+	 * queue to process.
+	 */
+	for (i = 0; i < MAX_REPLY_QUEUES; i++)
+		h->q[i] = (u8) i;
+
+	if (h->intr_mode == PERF_MODE_INT && h->msix_vector) {
+		/* If performant mode and MSI-X, use multiple reply queues */
+		for (i = 0; i < MAX_REPLY_QUEUES; i++)
+			rc = request_irq(h->intr[i], msixhandler,
+					0, h->devname,
+					&h->q[i]);
+	} else {
+		/* Use single reply pool */
+		if (h->msix_vector || h->msi_vector) {
+			rc = request_irq(h->intr[h->intr_mode],
+				msixhandler, 0, h->devname,
+				&h->q[h->intr_mode]);
+		} else {
+			rc = request_irq(h->intr[h->intr_mode],
+				intxhandler, IRQF_SHARED, h->devname,
+				&h->q[h->intr_mode]);
+		}
+	}
 	if (rc) {
 		dev_err(&h->pdev->dev, "unable to get irq %d for %s\n",
 		       h->intr[h->intr_mode], h->devname);
@@ -4110,15 +4503,38 @@ static int __devinit hpsa_kdump_soft_reset(struct ctlr_info *h)
 	return 0;
 }
 
+static void free_irqs(struct ctlr_info *h)
+{
+	int i;
+
+	if (!h->msix_vector || h->intr_mode != PERF_MODE_INT) {
+		/* Single reply queue, only one irq to free */
+		i = h->intr_mode;
+		free_irq(h->intr[i], &h->q[i]);
+		return;
+	}
+
+	for (i = 0; i < MAX_REPLY_QUEUES; i++)
+		free_irq(h->intr[i], &h->q[i]);
+}
+
+static void hpsa_free_irqs_and_disable_msix(struct ctlr_info *h)
+{
+	free_irqs(h);
+#ifdef CONFIG_PCI_MSI
+	if (h->msix_vector) {
+		if (h->pdev->msix_enabled)
+			pci_disable_msix(h->pdev);
+	} else if (h->msi_vector) {
+		if (h->pdev->msi_enabled)
+			pci_disable_msi(h->pdev);
+	}
+#endif /* CONFIG_PCI_MSI */
+}
+
 static void hpsa_undo_allocations_after_kdump_soft_reset(struct ctlr_info *h)
 {
-	free_irq(h->intr[h->intr_mode], h);
-#ifdef CONFIG_PCI_MSI
-	if (h->msix_vector)
-		pci_disable_msix(h->pdev);
-	else if (h->msi_vector)
-		pci_disable_msi(h->pdev);
-#endif /* CONFIG_PCI_MSI */
+	hpsa_free_irqs_and_disable_msix(h);
 	hpsa_free_sg_chain_blocks(h);
 	hpsa_free_cmd_pool(h);
 	kfree(h->blockFetchTable);
@@ -4154,7 +4570,7 @@ static void fail_all_cmds_on_list(struct ctlr_info *h, struct list_head *list)
 	while (!list_empty(list)) {
 		c = list_entry(list->next, struct CommandList, list);
 		c->err_info->CommandStatus = CMD_HARDWARE_ERR;
-		finish_cmd(c, c->Header.Tag.lower);
+		finish_cmd(c);
 	}
 }
 
@@ -4177,9 +4593,6 @@ static void controller_lockup_detected(struct ctlr_info *h)
 	spin_unlock_irqrestore(&h->lock, flags);
 }
 
-#define HEARTBEAT_SAMPLE_INTERVAL (10 * HZ)
-#define HEARTBEAT_CHECK_MINIMUM_INTERVAL (HEARTBEAT_SAMPLE_INTERVAL / 2)
-
 static void detect_controller_lockup(struct ctlr_info *h)
 {
 	u64 now;
@@ -4190,7 +4603,7 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	now = get_jiffies_64();
 	/* If we've received an interrupt recently, we're ok. */
 	if (time_after64(h->last_intr_timestamp +
-				(HEARTBEAT_CHECK_MINIMUM_INTERVAL), now))
+				(h->heartbeat_sample_interval), now))
 		return;
 
 	/*
@@ -4199,7 +4612,7 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	 * otherwise don't care about signals in this thread.
 	 */
 	if (time_after64(h->last_heartbeat_timestamp +
-				(HEARTBEAT_CHECK_MINIMUM_INTERVAL), now))
+				(h->heartbeat_sample_interval), now))
 		return;
 
 	/* If heartbeat has not changed since we last looked, we're not ok. */
@@ -4241,6 +4654,7 @@ static void add_ctlr_to_lockup_detector_list(struct ctlr_info *h)
 {
 	unsigned long flags;
 
+	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
 	spin_lock_irqsave(&lockup_detector_lock, flags);
 	list_add_tail(&h->lockup_list, &hpsa_ctlr_list);
 	spin_unlock_irqrestore(&lockup_detector_lock, flags);
@@ -4253,7 +4667,7 @@ static void start_controller_lockup_detector(struct ctlr_info *h)
 		spin_lock_init(&lockup_detector_lock);
 		hpsa_lockup_detector =
 			kthread_run(detect_controller_lockup_thread,
-						NULL, "hpsa");
+						NULL, HPSA);
 	}
 	if (!hpsa_lockup_detector) {
 		dev_warn(&h->pdev->dev,
@@ -4325,7 +4739,7 @@ reinit_after_soft_reset:
 	if (rc != 0)
 		goto clean1;
 
-	sprintf(h->devname, "hpsa%d", number_of_controllers);
+	sprintf(h->devname, HPSA "%d", number_of_controllers);
 	h->ctlr = number_of_controllers;
 	number_of_controllers++;
 
@@ -4380,7 +4794,7 @@ reinit_after_soft_reset:
 		spin_lock_irqsave(&h->lock, flags);
 		h->access.set_intr_mask(h, HPSA_INTR_OFF);
 		spin_unlock_irqrestore(&h->lock, flags);
-		free_irq(h->intr[h->intr_mode], h);
+		free_irqs(h);
 		rc = hpsa_request_irq(h, hpsa_msix_discard_completions,
 					hpsa_intx_discard_completions);
 		if (rc) {
@@ -4430,7 +4844,7 @@ reinit_after_soft_reset:
 clean4:
 	hpsa_free_sg_chain_blocks(h);
 	hpsa_free_cmd_pool(h);
-	free_irq(h->intr[h->intr_mode], h);
+	free_irqs(h);
 clean2:
 clean1:
 	kfree(h);
@@ -4473,13 +4887,15 @@ static void hpsa_shutdown(struct pci_dev *pdev)
 	 */
 	hpsa_flush_cache(h);
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
-	free_irq(h->intr[h->intr_mode], h);
-#ifdef CONFIG_PCI_MSI
-	if (h->msix_vector)
-		pci_disable_msix(h->pdev);
-	else if (h->msi_vector)
-		pci_disable_msi(h->pdev);
-#endif				/* CONFIG_PCI_MSI */
+	hpsa_free_irqs_and_disable_msix(h);
+}
+
+static void __devexit hpsa_free_device_info(struct ctlr_info *h)
+{
+	int i;
+
+	for (i = 0; i < h->ndevices; i++)
+		kfree(h->dev[i]);
 }
 
 static void __devexit hpsa_remove_one(struct pci_dev *pdev)
@@ -4497,6 +4913,7 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 	iounmap(h->vaddr);
 	iounmap(h->transtable);
 	iounmap(h->cfgtable);
+	hpsa_free_device_info(h);
 	hpsa_free_sg_chain_blocks(h);
 	pci_free_consistent(h->pdev,
 		h->nr_cmds * sizeof(struct CommandList),
@@ -4509,10 +4926,7 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 	kfree(h->cmd_pool_bits);
 	kfree(h->blockFetchTable);
 	kfree(h->hba_inquiry_data);
-	/*
-	 * Deliberately omit pci_disable_device(): it does something nasty to
-	 * Smart Array controllers that pci_enable_device does not undo
-	 */
+	pci_disable_device(pdev);
 	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
 	kfree(h);
@@ -4530,7 +4944,7 @@ static int hpsa_resume(__attribute__((unused)) struct pci_dev *pdev)
 }
 
 static struct pci_driver hpsa_pci_driver = {
-	.name = "hpsa",
+	.name = HPSA,
 	.probe = hpsa_init_one,
 	.remove = __devexit_p(hpsa_remove_one),
 	.id_table = hpsa_pci_device_id,	/* id_table */
@@ -4592,40 +5006,45 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h,
 	 * Each SG entry requires 16 bytes.  The eight registers are programmed
 	 * with the number of 16-byte blocks a command of that size requires.
 	 * The smallest command possible requires 5 such 16 byte blocks.
-	 * the largest command possible requires MAXSGENTRIES + 4 16-byte
+	 * the largest command possible requires SG_ENTRIES_IN_CMD + 4 16-byte
 	 * blocks.  Note, this only extends to the SG entries contained
 	 * within the command block, and does not extend to chained blocks
 	 * of SG elements.   bft[] contains the eight values we write to
 	 * the registers.  They are not evenly distributed, but have more
 	 * sizes for small commands, and fewer sizes for larger commands.
 	 */
-	int bft[8] = {5, 6, 8, 10, 12, 20, 28, MAXSGENTRIES + 4};
-	BUILD_BUG_ON(28 > MAXSGENTRIES + 4);
+	int bft[8] = {5, 6, 8, 10, 12, 20, 28, SG_ENTRIES_IN_CMD + 4};
+	BUILD_BUG_ON(28 > SG_ENTRIES_IN_CMD + 4);
 	/*  5 = 1 s/g entry or 4k
 	 *  6 = 2 s/g entry or 8k
 	 *  8 = 4 s/g entry or 16k
 	 * 10 = 6 s/g entry or 24k
 	 */
 
-	h->reply_pool_wraparound = 1; /* spec: init to 1 */
-
 	/* Controller spec: zero out this buffer. */
 	memset(h->reply_pool, 0, h->reply_pool_size);
-	h->reply_pool_head = h->reply_pool;
 
-	bft[7] = h->max_sg_entries + 4;
-	calc_bucket_map(bft, ARRAY_SIZE(bft), 32, h->blockFetchTable);
+	bft[7] = SG_ENTRIES_IN_CMD + 4;
+	calc_bucket_map(bft, ARRAY_SIZE(bft),
+				SG_ENTRIES_IN_CMD, h->blockFetchTable);
 	for (i = 0; i < 8; i++)
 		writel(bft[i], &h->transtable->BlockFetch[i]);
 
 	/* size of controller ring buffer */
 	writel(h->max_commands, &h->transtable->RepQSize);
-	writel(1, &h->transtable->RepQCount);
+	writel(h->nreply_queues, &h->transtable->RepQCount);
 	writel(0, &h->transtable->RepQCtrAddrLow32);
 	writel(0, &h->transtable->RepQCtrAddrHigh32);
-	writel(h->reply_pool_dhandle, &h->transtable->RepQAddr0Low32);
-	writel(0, &h->transtable->RepQAddr0High32);
-	writel(CFGTBL_Trans_Performant | use_short_tags,
+
+	for (i = 0; i < h->nreply_queues; i++) {
+		writel(0, &h->transtable->RepQAddr[i].upper);
+		writel(h->reply_pool_dhandle +
+			(h->max_commands * sizeof(u64) * i),
+			&h->transtable->RepQAddr[i].lower);
+	}
+
+	writel(CFGTBL_Trans_Performant | use_short_tags |
+		CFGTBL_Trans_enable_directed_msix,
 		&(h->cfgtable->HostWrite.TransportRequest));
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
 	hpsa_wait_for_mode_change_ack(h);
@@ -4643,6 +5062,7 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h,
 static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 {
 	u32 trans_support;
+	int i;
 
 	if (hpsa_simple_mode)
 		return;
@@ -4651,15 +5071,22 @@ static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 	if (!(trans_support & PERFORMANT_MODE))
 		return;
 
+	h->nreply_queues = h->msix_vector ? MAX_REPLY_QUEUES : 1;
 	hpsa_get_max_perf_mode_cmds(h);
-	h->max_sg_entries = 32;
 	/* Performant mode ring buffer and supporting data structures */
-	h->reply_pool_size = h->max_commands * sizeof(u64);
+	h->reply_pool_size = h->max_commands * sizeof(u64) * h->nreply_queues;
 	h->reply_pool = pci_alloc_consistent(h->pdev, h->reply_pool_size,
 				&(h->reply_pool_dhandle));
 
+	for (i = 0; i < h->nreply_queues; i++) {
+		h->reply_queue[i].head = &h->reply_pool[h->max_commands * i];
+		h->reply_queue[i].size = h->max_commands;
+		h->reply_queue[i].wraparound = 1;  /* spec: init to 1 */
+		h->reply_queue[i].current_entry = 0;
+	}
+
 	/* Need a block fetch table for performant mode */
-	h->blockFetchTable = kmalloc(((h->max_sg_entries+1) *
+	h->blockFetchTable = kmalloc(((SG_ENTRIES_IN_CMD + 1) *
 				sizeof(u32)), GFP_KERNEL);
 
 	if ((h->reply_pool == NULL)

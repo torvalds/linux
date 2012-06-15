@@ -12,6 +12,8 @@
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/percpu.h>
 
 #include <asm/apic.h>
 #include <asm/nmi.h>
@@ -20,35 +22,35 @@
 #define FAILURE		1
 #define TIMEOUT		2
 
-static int nmi_fail;
+static int __initdata nmi_fail;
 
 /* check to see if NMI IPIs work on this machine */
-static DECLARE_BITMAP(nmi_ipi_mask, NR_CPUS) __read_mostly;
+static DECLARE_BITMAP(nmi_ipi_mask, NR_CPUS) __initdata;
 
-static int testcase_total;
-static int testcase_successes;
-static int expected_testcase_failures;
-static int unexpected_testcase_failures;
-static int unexpected_testcase_unknowns;
+static int __initdata testcase_total;
+static int __initdata testcase_successes;
+static int __initdata expected_testcase_failures;
+static int __initdata unexpected_testcase_failures;
+static int __initdata unexpected_testcase_unknowns;
 
-static int nmi_unk_cb(unsigned int val, struct pt_regs *regs)
+static int __init nmi_unk_cb(unsigned int val, struct pt_regs *regs)
 {
 	unexpected_testcase_unknowns++;
 	return NMI_HANDLED;
 }
 
-static void init_nmi_testsuite(void)
+static void __init init_nmi_testsuite(void)
 {
 	/* trap all the unknown NMIs we may generate */
 	register_nmi_handler(NMI_UNKNOWN, nmi_unk_cb, 0, "nmi_selftest_unk");
 }
 
-static void cleanup_nmi_testsuite(void)
+static void __init cleanup_nmi_testsuite(void)
 {
 	unregister_nmi_handler(NMI_UNKNOWN, "nmi_selftest_unk");
 }
 
-static int test_nmi_ipi_callback(unsigned int val, struct pt_regs *regs)
+static int __init test_nmi_ipi_callback(unsigned int val, struct pt_regs *regs)
 {
         int cpu = raw_smp_processor_id();
 
@@ -58,7 +60,7 @@ static int test_nmi_ipi_callback(unsigned int val, struct pt_regs *regs)
         return NMI_DONE;
 }
 
-static void test_nmi_ipi(struct cpumask *mask)
+static void __init test_nmi_ipi(struct cpumask *mask)
 {
 	unsigned long timeout;
 
@@ -86,7 +88,7 @@ static void test_nmi_ipi(struct cpumask *mask)
 	return;
 }
 
-static void remote_ipi(void)
+static void __init remote_ipi(void)
 {
 	cpumask_copy(to_cpumask(nmi_ipi_mask), cpu_online_mask);
 	cpumask_clear_cpu(smp_processor_id(), to_cpumask(nmi_ipi_mask));
@@ -94,19 +96,19 @@ static void remote_ipi(void)
 		test_nmi_ipi(to_cpumask(nmi_ipi_mask));
 }
 
-static void local_ipi(void)
+static void __init local_ipi(void)
 {
 	cpumask_clear(to_cpumask(nmi_ipi_mask));
 	cpumask_set_cpu(smp_processor_id(), to_cpumask(nmi_ipi_mask));
 	test_nmi_ipi(to_cpumask(nmi_ipi_mask));
 }
 
-static void reset_nmi(void)
+static void __init reset_nmi(void)
 {
 	nmi_fail = 0;
 }
 
-static void dotest(void (*testcase_fn)(void), int expected)
+static void __init dotest(void (*testcase_fn)(void), int expected)
 {
 	testcase_fn();
 	/*
@@ -116,27 +118,27 @@ static void dotest(void (*testcase_fn)(void), int expected)
 		unexpected_testcase_failures++;
 
 		if (nmi_fail == FAILURE)
-			printk("FAILED |");
+			printk(KERN_CONT "FAILED |");
 		else if (nmi_fail == TIMEOUT)
-			printk("TIMEOUT|");
+			printk(KERN_CONT "TIMEOUT|");
 		else
-			printk("ERROR  |");
+			printk(KERN_CONT "ERROR  |");
 		dump_stack();
 	} else {
 		testcase_successes++;
-		printk("  ok  |");
+		printk(KERN_CONT "  ok  |");
 	}
 	testcase_total++;
 
 	reset_nmi();
 }
 
-static inline void print_testname(const char *testname)
+static inline void __init print_testname(const char *testname)
 {
 	printk("%12s:", testname);
 }
 
-void nmi_selftest(void)
+void __init nmi_selftest(void)
 {
 	init_nmi_testsuite();
 
@@ -149,10 +151,10 @@ void nmi_selftest(void)
 
 	print_testname("remote IPI");
 	dotest(remote_ipi, SUCCESS);
-	printk("\n");
+	printk(KERN_CONT "\n");
 	print_testname("local IPI");
 	dotest(local_ipi, SUCCESS);
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	cleanup_nmi_testsuite();
 

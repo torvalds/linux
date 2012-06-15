@@ -32,63 +32,63 @@ struct brcmf_cfg80211_ibss;
 #define WL_DBG_MASK		((WL_DBG_INFO | WL_DBG_ERR | WL_DBG_TRACE) | \
 				(WL_DBG_SCAN) | (WL_DBG_CONN))
 
-#define	WL_ERR(fmt, args...)					\
+#define	WL_ERR(fmt, ...)					\
 do {								\
 	if (brcmf_dbg_level & WL_DBG_ERR) {			\
 		if (net_ratelimit()) {				\
-			printk(KERN_ERR "ERROR @%s : " fmt,	\
-				__func__, ##args);		\
+			pr_err("ERROR @%s : " fmt,		\
+			       __func__, ##__VA_ARGS__);	\
 		}						\
 	}							\
 } while (0)
 
-#if (defined BCMDBG)
-#define	WL_INFO(fmt, args...)					\
+#if (defined DEBUG)
+#define	WL_INFO(fmt, ...)					\
 do {								\
 	if (brcmf_dbg_level & WL_DBG_INFO) {			\
 		if (net_ratelimit()) {				\
-			printk(KERN_ERR "INFO @%s : " fmt,	\
-				__func__, ##args);		\
+			pr_err("INFO @%s : " fmt,		\
+			       __func__, ##__VA_ARGS__);	\
 		}						\
 	}							\
 } while (0)
 
-#define	WL_TRACE(fmt, args...)					\
+#define	WL_TRACE(fmt, ...)					\
 do {								\
 	if (brcmf_dbg_level & WL_DBG_TRACE) {			\
 		if (net_ratelimit()) {				\
-			printk(KERN_ERR "TRACE @%s : " fmt,	\
-				__func__, ##args);		\
+			pr_err("TRACE @%s : " fmt,		\
+			       __func__, ##__VA_ARGS__);	\
 		}						\
 	}							\
 } while (0)
 
-#define	WL_SCAN(fmt, args...)					\
+#define	WL_SCAN(fmt, ...)					\
 do {								\
 	if (brcmf_dbg_level & WL_DBG_SCAN) {			\
 		if (net_ratelimit()) {				\
-			printk(KERN_ERR "SCAN @%s : " fmt,	\
-				__func__, ##args);		\
+			pr_err("SCAN @%s : " fmt,		\
+			       __func__, ##__VA_ARGS__);	\
 		}						\
 	}							\
 } while (0)
 
-#define	WL_CONN(fmt, args...)					\
+#define	WL_CONN(fmt, ...)					\
 do {								\
 	if (brcmf_dbg_level & WL_DBG_CONN) {			\
 		if (net_ratelimit()) {				\
-			printk(KERN_ERR "CONN @%s : " fmt,	\
-				__func__, ##args);		\
+			pr_err("CONN @%s : " fmt,		\
+			       __func__, ##__VA_ARGS__);	\
 		}						\
 	}							\
 } while (0)
 
-#else /* (defined BCMDBG) */
+#else /* (defined DEBUG) */
 #define	WL_INFO(fmt, args...)
 #define	WL_TRACE(fmt, args...)
 #define	WL_SCAN(fmt, args...)
 #define	WL_CONN(fmt, args...)
-#endif /* (defined BCMDBG) */
+#endif /* (defined DEBUG) */
 
 #define WL_NUM_SCAN_MAX		1
 #define WL_NUM_PMKIDS_MAX	MAXPMKID	/* will be used

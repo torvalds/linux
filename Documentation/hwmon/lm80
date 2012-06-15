@@ -7,6 +7,11 @@ Supported chips:
     Addresses scanned: I2C 0x28 - 0x2f
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/
+  * National Semiconductor LM96080
+    Prefix: 'lm96080'
+    Addresses scanned: I2C 0x28 - 0x2f
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/
 
 Authors:
         Frodo Looijaard <frodol@dds.nl>,
@@ -17,7 +22,9 @@ Description
 
 This driver implements support for the National Semiconductor LM80.
 It is described as a 'Serial Interface ACPI-Compatible Microprocessor
-System Hardware Monitor'.
+System Hardware Monitor'. The LM96080 is a more recent incarnation,
+it is pin and register compatible, with a few additional features not
+yet supported by the driver.
 
 The LM80 implements one temperature sensor, two fan rotation speed sensors,
 seven voltage sensors, alarms, and some miscellaneous stuff.

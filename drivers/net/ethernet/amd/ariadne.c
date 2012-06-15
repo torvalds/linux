@@ -191,7 +191,7 @@ static int ariadne_rx(struct net_device *dev)
 			short pkt_len = swapw(priv->rx_ring[entry]->RMD3);
 			struct sk_buff *skb;
 
-			skb = dev_alloc_skb(pkt_len + 2);
+			skb = netdev_alloc_skb(dev, pkt_len + 2);
 			if (skb == NULL) {
 				netdev_warn(dev, "Memory squeeze, deferring packet\n");
 				for (i = 0; i < RX_RING_SIZE; i++)
@@ -213,10 +213,10 @@ static int ariadne_rx(struct net_device *dev)
 						(const void *)priv->rx_buff[entry],
 						pkt_len);
 			skb->protocol = eth_type_trans(skb, dev);
-			netdev_dbg(dev, "RX pkt type 0x%04x from %pM to %pM data 0x%08x len %d\n",
+			netdev_dbg(dev, "RX pkt type 0x%04x from %pM to %pM data %p len %u\n",
 				   ((u_short *)skb->data)[6],
 				   skb->data + 6, skb->data,
-				   (int)skb->data, (int)skb->len);
+				   skb->data, skb->len);
 
 			netif_rx(skb);
 			dev->stats.rx_packets++;
@@ -566,10 +566,10 @@ static netdev_tx_t ariadne_start_xmit(struct sk_buff *skb,
 
 	/* Fill in a Tx ring entry */
 
-	netdev_dbg(dev, "TX pkt type 0x%04x from %pM to %pM data 0x%08x len %d\n",
+	netdev_dbg(dev, "TX pkt type 0x%04x from %pM to %pM data %p len %u\n",
 		   ((u_short *)skb->data)[6],
 		   skb->data + 6, skb->data,
-		   (int)skb->data, (int)skb->len);
+		   skb->data, skb->len);
 
 	local_irq_save(flags);
 

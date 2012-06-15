@@ -33,8 +33,27 @@
  * Process-level increment to ->dynticks_nesting field.  This allows for
  * architectures that use half-interrupts and half-exceptions from
  * process context.
+ *
+ * DYNTICK_TASK_NEST_MASK defines a field of width DYNTICK_TASK_NEST_WIDTH
+ * that counts the number of process-based reasons why RCU cannot
+ * consider the corresponding CPU to be idle, and DYNTICK_TASK_NEST_VALUE
+ * is the value used to increment or decrement this field.
+ *
+ * The rest of the bits could in principle be used to count interrupts,
+ * but this would mean that a negative-one value in the interrupt
+ * field could incorrectly zero out the DYNTICK_TASK_NEST_MASK field.
+ * We therefore provide a two-bit guard field defined by DYNTICK_TASK_MASK
+ * that is set to DYNTICK_TASK_FLAG upon initial exit from idle.
+ * The DYNTICK_TASK_EXIT_IDLE value is thus the combined value used upon
+ * initial exit from idle.
  */
-#define DYNTICK_TASK_NESTING (LLONG_MAX / 2 - 1)
+#define DYNTICK_TASK_NEST_WIDTH 7
+#define DYNTICK_TASK_NEST_VALUE ((LLONG_MAX >> DYNTICK_TASK_NEST_WIDTH) + 1)
+#define DYNTICK_TASK_NEST_MASK  (LLONG_MAX - DYNTICK_TASK_NEST_VALUE + 1)
+#define DYNTICK_TASK_FLAG	   ((DYNTICK_TASK_NEST_VALUE / 8) * 2)
+#define DYNTICK_TASK_MASK	   ((DYNTICK_TASK_NEST_VALUE / 8) * 3)
+#define DYNTICK_TASK_EXIT_IDLE	   (DYNTICK_TASK_NEST_VALUE + \
+				    DYNTICK_TASK_FLAG)
 
 /*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
@@ -50,7 +69,6 @@ extern struct debug_obj_descr rcuhead_debug_descr;
 
 static inline void debug_rcu_head_queue(struct rcu_head *head)
 {
-	WARN_ON_ONCE((unsigned long)head & 0x3);
 	debug_object_activate(head, &rcuhead_debug_descr);
 	debug_object_active_state(head, &rcuhead_debug_descr,
 				  STATE_RCU_HEAD_READY,
@@ -76,16 +94,18 @@ static inline void debug_rcu_head_unqueue(struct rcu_head *head)
 
 extern void kfree(const void *);
 
-static inline void __rcu_reclaim(char *rn, struct rcu_head *head)
+static inline bool __rcu_reclaim(char *rn, struct rcu_head *head)
 {
 	unsigned long offset = (unsigned long)head->func;
 
 	if (__is_kfree_rcu_offset(offset)) {
 		RCU_TRACE(trace_rcu_invoke_kfree_callback(rn, head, offset));
 		kfree((void *)head - offset);
+		return 1;
 	} else {
 		RCU_TRACE(trace_rcu_invoke_callback(rn, head));
 		head->func(head);
+		return 0;
 	}
 }
 

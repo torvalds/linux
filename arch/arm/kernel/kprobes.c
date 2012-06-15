@@ -29,6 +29,7 @@
 #include <asm/cacheflush.h>
 
 #include "kprobes.h"
+#include "patch.h"
 
 #define MIN_STACK_SIZE(addr) 				\
 	min((unsigned long)MAX_STACK_SIZE,		\
@@ -103,57 +104,33 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	return 0;
 }
 
-#ifdef CONFIG_THUMB2_KERNEL
-
-/*
- * For a 32-bit Thumb breakpoint spanning two memory words we need to take
- * special precautions to insert the breakpoint atomically, especially on SMP
- * systems. This is achieved by calling this arming function using stop_machine.
- */
-static int __kprobes set_t32_breakpoint(void *addr)
-{
-	((u16 *)addr)[0] = KPROBE_THUMB32_BREAKPOINT_INSTRUCTION >> 16;
-	((u16 *)addr)[1] = KPROBE_THUMB32_BREAKPOINT_INSTRUCTION & 0xffff;
-	flush_insns(addr, 2*sizeof(u16));
-	return 0;
-}
-
 void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
-	uintptr_t addr = (uintptr_t)p->addr & ~1; /* Remove any Thumb flag */
+	unsigned int brkp;
+	void *addr;
 
-	if (!is_wide_instruction(p->opcode)) {
-		*(u16 *)addr = KPROBE_THUMB16_BREAKPOINT_INSTRUCTION;
-		flush_insns(addr, sizeof(u16));
-	} else if (addr & 2) {
-		/* A 32-bit instruction spanning two words needs special care */
-		stop_machine(set_t32_breakpoint, (void *)addr, &cpu_online_map);
+	if (IS_ENABLED(CONFIG_THUMB2_KERNEL)) {
+		/* Remove any Thumb flag */
+		addr = (void *)((uintptr_t)p->addr & ~1);
+
+		if (is_wide_instruction(p->opcode))
+			brkp = KPROBE_THUMB32_BREAKPOINT_INSTRUCTION;
+		else
+			brkp = KPROBE_THUMB16_BREAKPOINT_INSTRUCTION;
 	} else {
-		/* Word aligned 32-bit instruction can be written atomically */
-		u32 bkp = KPROBE_THUMB32_BREAKPOINT_INSTRUCTION;
-#ifndef __ARMEB__ /* Swap halfwords for little-endian */
-		bkp = (bkp >> 16) | (bkp << 16);
-#endif
-		*(u32 *)addr = bkp;
-		flush_insns(addr, sizeof(u32));
+		kprobe_opcode_t insn = p->opcode;
+
+		addr = p->addr;
+		brkp = KPROBE_ARM_BREAKPOINT_INSTRUCTION;
+
+		if (insn >= 0xe0000000)
+			brkp |= 0xe0000000;  /* Unconditional instruction */
+		else
+			brkp |= insn & 0xf0000000;  /* Copy condition from insn */
 	}
+
+	patch_text(addr, brkp);
 }
-
-#else /* !CONFIG_THUMB2_KERNEL */
-
-void __kprobes arch_arm_kprobe(struct kprobe *p)
-{
-	kprobe_opcode_t insn = p->opcode;
-	kprobe_opcode_t brkp = KPROBE_ARM_BREAKPOINT_INSTRUCTION;
-	if (insn >= 0xe0000000)
-		brkp |= 0xe0000000;  /* Unconditional instruction */
-	else
-		brkp |= insn & 0xf0000000;  /* Copy condition from insn */
-	*p->addr = brkp;
-	flush_insns(p->addr, sizeof(p->addr[0]));
-}
-
-#endif /* !CONFIG_THUMB2_KERNEL */
 
 /*
  * The actual disarming is done here on each CPU and synchronized using
@@ -166,31 +143,16 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 int __kprobes __arch_disarm_kprobe(void *p)
 {
 	struct kprobe *kp = p;
-#ifdef CONFIG_THUMB2_KERNEL
-	u16 *addr = (u16 *)((uintptr_t)kp->addr & ~1);
-	kprobe_opcode_t insn = kp->opcode;
-	unsigned int len;
+	void *addr = (void *)((uintptr_t)kp->addr & ~1);
 
-	if (is_wide_instruction(insn)) {
-		((u16 *)addr)[0] = insn>>16;
-		((u16 *)addr)[1] = insn;
-		len = 2*sizeof(u16);
-	} else {
-		((u16 *)addr)[0] = insn;
-		len = sizeof(u16);
-	}
-	flush_insns(addr, len);
+	__patch_text(addr, kp->opcode);
 
-#else /* !CONFIG_THUMB2_KERNEL */
-	*kp->addr = kp->opcode;
-	flush_insns(kp->addr, sizeof(kp->addr[0]));
-#endif
 	return 0;
 }
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
-	stop_machine(__arch_disarm_kprobe, p, &cpu_online_map);
+	stop_machine(__arch_disarm_kprobe, p, cpu_online_mask);
 }
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)

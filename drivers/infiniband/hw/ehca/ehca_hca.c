@@ -233,7 +233,7 @@ int ehca_query_port(struct ib_device *ibdev,
 		props->phys_state      = 5;
 		props->state           = rblock->state;
 		props->active_width    = IB_WIDTH_12X;
-		props->active_speed    = 0x1;
+		props->active_speed    = IB_SPEED_SDR;
 	}
 
 query_port1:

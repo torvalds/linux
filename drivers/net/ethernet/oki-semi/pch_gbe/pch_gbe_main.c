@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 1999 - 2010 Intel Corporation.
- * Copyright (C) 2010 OKI SEMICONDUCTOR CO., LTD.
+ * Copyright (C) 2010 - 2012 LAPIS SEMICONDUCTOR CO., LTD.
  *
  * This code was derived from the Intel e1000e Linux driver.
  *
@@ -21,6 +21,10 @@
 #include "pch_gbe.h"
 #include "pch_gbe_api.h"
 #include <linux/module.h>
+#ifdef CONFIG_PCH_PTP
+#include <linux/net_tstamp.h>
+#include <linux/ptp_classify.h>
+#endif
 
 #define DRV_VERSION     "1.00"
 const char pch_driver_version[] = DRV_VERSION;
@@ -75,7 +79,6 @@ const char pch_driver_version[] = DRV_VERSION;
 #define	PCH_GBE_PAUSE_PKT4_VALUE    0x01000888
 #define	PCH_GBE_PAUSE_PKT5_VALUE    0x0000FFFF
 
-#define PCH_GBE_ETH_ALEN            6
 
 /* This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
@@ -95,11 +98,200 @@ const char pch_driver_version[] = DRV_VERSION;
 
 #define PCH_GBE_INT_DISABLE_ALL		0
 
+#ifdef CONFIG_PCH_PTP
+/* Macros for ieee1588 */
+/* 0x40 Time Synchronization Channel Control Register Bits */
+#define MASTER_MODE   (1<<0)
+#define SLAVE_MODE    (0)
+#define V2_MODE       (1<<31)
+#define CAP_MODE0     (0)
+#define CAP_MODE2     (1<<17)
+
+/* 0x44 Time Synchronization Channel Event Register Bits */
+#define TX_SNAPSHOT_LOCKED (1<<0)
+#define RX_SNAPSHOT_LOCKED (1<<1)
+
+#define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
+#define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
+#endif
+
 static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
 
 static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
 static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
 			       int data);
+static void pch_gbe_set_multi(struct net_device *netdev);
+
+#ifdef CONFIG_PCH_PTP
+static struct sock_filter ptp_filter[] = {
+	PTP_FILTER
+};
+
+static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
+{
+	u8 *data = skb->data;
+	unsigned int offset;
+	u16 *hi, *id;
+	u32 lo;
+
+	if (sk_run_filter(skb, ptp_filter) == PTP_CLASS_NONE)
+		return 0;
+
+	offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
+
+	if (skb->len < offset + OFF_PTP_SEQUENCE_ID + sizeof(seqid))
+		return 0;
+
+	hi = (u16 *)(data + offset + OFF_PTP_SOURCE_UUID);
+	id = (u16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
+
+	memcpy(&lo, &hi[1], sizeof(lo));
+
+	return (uid_hi == *hi &&
+		uid_lo == lo &&
+		seqid  == *id);
+}
+
+static void
+pch_rx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
+{
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct pci_dev *pdev;
+	u64 ns;
+	u32 hi, lo, val;
+	u16 uid, seq;
+
+	if (!adapter->hwts_rx_en)
+		return;
+
+	/* Get ieee1588's dev information */
+	pdev = adapter->ptp_pdev;
+
+	val = pch_ch_event_read(pdev);
+
+	if (!(val & RX_SNAPSHOT_LOCKED))
+		return;
+
+	lo = pch_src_uuid_lo_read(pdev);
+	hi = pch_src_uuid_hi_read(pdev);
+
+	uid = hi & 0xffff;
+	seq = (hi >> 16) & 0xffff;
+
+	if (!pch_ptp_match(skb, htons(uid), htonl(lo), htons(seq)))
+		goto out;
+
+	ns = pch_rx_snap_read(pdev);
+
+	shhwtstamps = skb_hwtstamps(skb);
+	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+	shhwtstamps->hwtstamp = ns_to_ktime(ns);
+out:
+	pch_ch_event_write(pdev, RX_SNAPSHOT_LOCKED);
+}
+
+static void
+pch_tx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
+{
+	struct skb_shared_hwtstamps shhwtstamps;
+	struct pci_dev *pdev;
+	struct skb_shared_info *shtx;
+	u64 ns;
+	u32 cnt, val;
+
+	shtx = skb_shinfo(skb);
+	if (likely(!(shtx->tx_flags & SKBTX_HW_TSTAMP && adapter->hwts_tx_en)))
+		return;
+
+	shtx->tx_flags |= SKBTX_IN_PROGRESS;
+
+	/* Get ieee1588's dev information */
+	pdev = adapter->ptp_pdev;
+
+	/*
+	 * This really stinks, but we have to poll for the Tx time stamp.
+	 */
+	for (cnt = 0; cnt < 100; cnt++) {
+		val = pch_ch_event_read(pdev);
+		if (val & TX_SNAPSHOT_LOCKED)
+			break;
+		udelay(1);
+	}
+	if (!(val & TX_SNAPSHOT_LOCKED)) {
+		shtx->tx_flags &= ~SKBTX_IN_PROGRESS;
+		return;
+	}
+
+	ns = pch_tx_snap_read(pdev);
+
+	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+	shhwtstamps.hwtstamp = ns_to_ktime(ns);
+	skb_tstamp_tx(skb, &shhwtstamps);
+
+	pch_ch_event_write(pdev, TX_SNAPSHOT_LOCKED);
+}
+
+static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	struct hwtstamp_config cfg;
+	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev;
+	u8 station[20];
+
+	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
+		return -EFAULT;
+
+	if (cfg.flags) /* reserved for future extensions */
+		return -EINVAL;
+
+	/* Get ieee1588's dev information */
+	pdev = adapter->ptp_pdev;
+
+	switch (cfg.tx_type) {
+	case HWTSTAMP_TX_OFF:
+		adapter->hwts_tx_en = 0;
+		break;
+	case HWTSTAMP_TX_ON:
+		adapter->hwts_tx_en = 1;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (cfg.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		adapter->hwts_rx_en = 0;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+		adapter->hwts_rx_en = 0;
+		pch_ch_control_write(pdev, SLAVE_MODE | CAP_MODE0);
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+		adapter->hwts_rx_en = 1;
+		pch_ch_control_write(pdev, MASTER_MODE | CAP_MODE0);
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+		adapter->hwts_rx_en = 1;
+		pch_ch_control_write(pdev, V2_MODE | CAP_MODE2);
+		strcpy(station, PTP_L4_MULTICAST_SA);
+		pch_set_station_address(station, pdev);
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+		adapter->hwts_rx_en = 1;
+		pch_ch_control_write(pdev, V2_MODE | CAP_MODE2);
+		strcpy(station, PTP_L2_MULTICAST_SA);
+		pch_set_station_address(station, pdev);
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	/* Clear out any old time stamps. */
+	pch_ch_event_write(pdev, TX_SNAPSHOT_LOCKED | RX_SNAPSHOT_LOCKED);
+
+	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+}
+#endif
 
 inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
 {
@@ -212,18 +404,18 @@ static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 	iowrite32(PCH_GBE_MODE_GMII_ETHER, &hw->reg->MODE);
 #endif
 	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
-	/* Setup the receive address */
+	/* Setup the receive addresses */
 	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
 	return;
 }
 
 static void pch_gbe_mac_reset_rx(struct pch_gbe_hw *hw)
 {
-	/* Read the MAC address. and store to the private data */
+	/* Read the MAC addresses. and store to the private data */
 	pch_gbe_mac_read_mac_addr(hw);
 	iowrite32(PCH_GBE_RX_RST, &hw->reg->RESET);
 	pch_gbe_wait_clr_bit_irq(&hw->reg->RESET, PCH_GBE_RX_RST);
-	/* Setup the MAC address */
+	/* Setup the MAC addresses */
 	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
 	return;
 }
@@ -273,7 +465,7 @@ static void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
 		if (mc_addr_count) {
 			pch_gbe_mac_mar_set(hw, mc_addr_list, i);
 			mc_addr_count--;
-			mc_addr_list += PCH_GBE_ETH_ALEN;
+			mc_addr_list += ETH_ALEN;
 		} else {
 			/* Clear MAC address mask */
 			adrmask = ioread32(&hw->reg->ADDR_MASK);
@@ -453,14 +645,11 @@ static void pch_gbe_mac_set_pause_packet(struct pch_gbe_hw *hw)
  */
 static int pch_gbe_alloc_queues(struct pch_gbe_adapter *adapter)
 {
-	int size;
-
-	size = (int)sizeof(struct pch_gbe_tx_ring);
-	adapter->tx_ring = kzalloc(size, GFP_KERNEL);
+	adapter->tx_ring = kzalloc(sizeof(*adapter->tx_ring), GFP_KERNEL);
 	if (!adapter->tx_ring)
 		return -ENOMEM;
-	size = (int)sizeof(struct pch_gbe_rx_ring);
-	adapter->rx_ring = kzalloc(size, GFP_KERNEL);
+
+	adapter->rx_ring = kzalloc(sizeof(*adapter->rx_ring), GFP_KERNEL);
 	if (!adapter->rx_ring) {
 		kfree(adapter->tx_ring);
 		return -ENOMEM;
@@ -591,6 +780,8 @@ void pch_gbe_reinit_locked(struct pch_gbe_adapter *adapter)
 void pch_gbe_reset(struct pch_gbe_adapter *adapter)
 {
 	pch_gbe_mac_reset_hw(&adapter->hw);
+	/* reprogram multicast address register after reset */
+	pch_gbe_set_multi(adapter->netdev);
 	/* Setup the receive address. */
 	pch_gbe_mac_init_rx_addrs(&adapter->hw, PCH_GBE_MAR_ENTRIES);
 	if (pch_gbe_hal_init_hw(&adapter->hw))
@@ -975,7 +1166,6 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	struct sk_buff *tmp_skb;
 	unsigned int frame_ctrl;
 	unsigned int ring_num;
-	unsigned long flags;
 
 	/*-- Set frame control --*/
 	frame_ctrl = 0;
@@ -995,8 +1185,6 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
 			unsigned int offset;
-			iph->check = 0;
-			iph->check = ip_fast_csum((u8 *) iph, iph->ihl);
 			offset = skb_transport_offset(skb);
 			if (iph->protocol == IPPROTO_TCP) {
 				skb->csum = 0;
@@ -1024,14 +1212,14 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 			}
 		}
 	}
-	spin_lock_irqsave(&tx_ring->tx_lock, flags);
+
 	ring_num = tx_ring->next_to_use;
 	if (unlikely((ring_num + 1) == tx_ring->count))
 		tx_ring->next_to_use = 0;
 	else
 		tx_ring->next_to_use = ring_num + 1;
 
-	spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
+
 	buffer_info = &tx_ring->buffer_info[ring_num];
 	tmp_skb = buffer_info->skb;
 
@@ -1072,6 +1260,11 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	iowrite32(tx_ring->dma +
 		  (int)sizeof(struct pch_gbe_tx_desc) * ring_num,
 		  &hw->reg->TX_DSC_SW_P);
+
+#ifdef CONFIG_PCH_PTP
+	pch_tx_timestamp(adapter, skb);
+#endif
+
 	dev_kfree_skb_any(skb);
 }
 
@@ -1150,6 +1343,8 @@ static void pch_gbe_stop_receive(struct pch_gbe_adapter *adapter)
 		/* Stop Receive */
 		pch_gbe_mac_reset_rx(hw);
 	}
+	/* reprogram multicast address register after reset */
+	pch_gbe_set_multi(adapter->netdev);
 }
 
 static void pch_gbe_start_receive(struct pch_gbe_hw *hw)
@@ -1224,7 +1419,7 @@ static irqreturn_t pch_gbe_intr(int irq, void *data)
 
 	/* When request status is Receive interruption */
 	if ((int_st & (PCH_GBE_INT_RX_DMA_CMPLT | PCH_GBE_INT_TX_CMPLT)) ||
-	    (adapter->rx_stop_flag == true)) {
+	    (adapter->rx_stop_flag)) {
 		if (likely(napi_schedule_prep(&adapter->napi))) {
 			/* Enable only Rx Descriptor empty */
 			atomic_inc(&adapter->irq_sem);
@@ -1326,7 +1521,7 @@ pch_gbe_alloc_rx_buffers_pool(struct pch_gbe_adapter *adapter,
 						&rx_ring->rx_buff_pool_logic,
 						GFP_KERNEL);
 	if (!rx_ring->rx_buff_pool) {
-		pr_err("Unable to allocate memory for the receive poll buffer\n");
+		pr_err("Unable to allocate memory for the receive pool buffer\n");
 		return -ENOMEM;
 	}
 	memset(rx_ring->rx_buff_pool, 0, size);
@@ -1445,15 +1640,17 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	pr_debug("called pch_gbe_unmap_and_free_tx_resource() %d count\n",
 		 cleaned_count);
 	/* Recover from running out of Tx resources in xmit_frame */
+	spin_lock(&tx_ring->tx_lock);
 	if (unlikely(cleaned && (netif_queue_stopped(adapter->netdev)))) {
 		netif_wake_queue(adapter->netdev);
 		adapter->stats.tx_restart_count++;
 		pr_debug("Tx wake queue\n");
 	}
-	spin_lock(&adapter->tx_queue_lock);
+
 	tx_ring->next_to_clean = i;
-	spin_unlock(&adapter->tx_queue_lock);
+
 	pr_debug("next_to_clean : %d\n", tx_ring->next_to_clean);
+	spin_unlock(&tx_ring->tx_lock);
 	return cleaned;
 }
 
@@ -1543,6 +1740,11 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 				adapter->stats.multicast++;
 			/* Write meta date of skb */
 			skb_put(skb, length);
+
+#ifdef CONFIG_PCH_PTP
+			pch_rx_timestamp(adapter, skb);
+#endif
+
 			skb->protocol = eth_type_trans(skb, netdev);
 			if (tcp_ip_status & PCH_GBE_RXD_ACC_STAT_TCPIPOK)
 				skb->ip_summed = CHECKSUM_NONE;
@@ -1587,10 +1789,8 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 
 	size = (int)sizeof(struct pch_gbe_buffer) * tx_ring->count;
 	tx_ring->buffer_info = vzalloc(size);
-	if (!tx_ring->buffer_info) {
-		pr_err("Unable to allocate memory for the buffer information\n");
+	if (!tx_ring->buffer_info)
 		return -ENOMEM;
-	}
 
 	tx_ring->size = tx_ring->count * (int)sizeof(struct pch_gbe_tx_desc);
 
@@ -1636,10 +1836,9 @@ int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
 
 	size = (int)sizeof(struct pch_gbe_buffer) * rx_ring->count;
 	rx_ring->buffer_info = vzalloc(size);
-	if (!rx_ring->buffer_info) {
-		pr_err("Unable to allocate memory for the receive descriptor ring\n");
+	if (!rx_ring->buffer_info)
 		return -ENOMEM;
-	}
+
 	rx_ring->size = rx_ring->count * (int)sizeof(struct pch_gbe_rx_desc);
 	rx_ring->desc =	dma_alloc_coherent(&pdev->dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);
@@ -1730,7 +1929,6 @@ static int pch_gbe_request_irq(struct pch_gbe_adapter *adapter)
 }
 
 
-static void pch_gbe_set_multi(struct net_device *netdev);
 /**
  * pch_gbe_up - Up GbE network device
  * @adapter:  Board private structure
@@ -1843,7 +2041,6 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 		return -ENOMEM;
 	}
 	spin_lock_init(&adapter->hw.miim_lock);
-	spin_lock_init(&adapter->tx_queue_lock);
 	spin_lock_init(&adapter->stats_lock);
 	spin_lock_init(&adapter->ethtool_lock);
 	atomic_set(&adapter->irq_sem, 0);
@@ -1948,10 +2145,10 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			 tx_ring->next_to_use, tx_ring->next_to_clean);
 		return NETDEV_TX_BUSY;
 	}
-	spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
 
 	/* CRC,ITAG no support */
 	pch_gbe_tx_queue(adapter, tx_ring, skb);
+	spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
 	return NETDEV_TX_OK;
 }
 
@@ -2146,6 +2343,11 @@ static int pch_gbe_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 
 	pr_debug("cmd : 0x%04x\n", cmd);
+
+#ifdef CONFIG_PCH_PTP
+	if (cmd == SIOCSHWTSTAMP)
+		return hwtstamp_ioctl(netdev, ifr, cmd);
+#endif
 
 	return generic_mii_ioctl(&adapter->mii, if_mii(ifr), cmd, NULL);
 }
@@ -2422,8 +2624,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netdev = alloc_etherdev((int)sizeof(struct pch_gbe_adapter));
 	if (!netdev) {
 		ret = -ENOMEM;
-		dev_err(&pdev->dev,
-			"ERR: Can't allocate and set up an Ethernet device\n");
 		goto err_release_pci;
 	}
 	SET_NETDEV_DEV(netdev, &pdev->dev);
@@ -2439,6 +2639,15 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Can't ioremap\n");
 		goto err_free_netdev;
 	}
+
+#ifdef CONFIG_PCH_PTP
+	adapter->ptp_pdev = pci_get_bus_and_slot(adapter->pdev->bus->number,
+					       PCI_DEVFN(12, 4));
+	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
+		pr_err("Bad ptp filter\n");
+		return -EINVAL;
+	}
+#endif
 
 	netdev->netdev_ops = &pch_gbe_netdev_ops;
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;
@@ -2504,7 +2713,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	dev_dbg(&pdev->dev, "OKIsemi(R) PCH Network Connection\n");
+	dev_dbg(&pdev->dev, "PCH Network Connection\n");
 
 	device_set_wakeup_enable(&pdev->dev, 1);
 	return 0;
@@ -2605,7 +2814,7 @@ module_init(pch_gbe_init_module);
 module_exit(pch_gbe_exit_module);
 
 MODULE_DESCRIPTION("EG20T PCH Gigabit ethernet Driver");
-MODULE_AUTHOR("OKI SEMICONDUCTOR, <toshiharu-linux@dsn.okisemi.com>");
+MODULE_AUTHOR("LAPIS SEMICONDUCTOR, <tshimizu818@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, pch_gbe_pcidev_id);

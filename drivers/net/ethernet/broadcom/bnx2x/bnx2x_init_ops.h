@@ -2,7 +2,7 @@
  *               Static functions needed during the initialization.
  *               This file is "included" in bnx2x_main.c.
  *
- * Copyright (c) 2007-2011 Broadcom Corporation
+ * Copyright (c) 2007-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,12 +69,12 @@ static void bnx2x_write_big_buf(struct bnx2x *bp, u32 addr, u32 len,
 {
 	if (bp->dmae_ready)
 		bnx2x_write_dmae_phys_len(bp, GUNZIP_PHYS(bp), addr, len);
-	else if (wb)
-		/*
-		 * Wide bus registers with no dmae need to be written
-		 * using indirect write.
-		 */
+
+	/* in E1 chips BIOS initiated ZLR may interrupt widebus writes */
+	else if (wb && CHIP_IS_E1(bp))
 		bnx2x_init_ind_wr(bp, addr, GUNZIP_BUF(bp), len);
+
+	/* in later chips PXP root complex handles BIOS ZLR w/o interrupting */
 	else
 		bnx2x_init_str_wr(bp, addr, GUNZIP_BUF(bp), len);
 }
@@ -99,8 +99,14 @@ static void bnx2x_write_big_buf_wb(struct bnx2x *bp, u32 addr, u32 len)
 {
 	if (bp->dmae_ready)
 		bnx2x_write_dmae_phys_len(bp, GUNZIP_PHYS(bp), addr, len);
-	else
+
+	/* in E1 chips BIOS initiated ZLR may interrupt widebus writes */
+	else if (CHIP_IS_E1(bp))
 		bnx2x_init_ind_wr(bp, addr, GUNZIP_BUF(bp), len);
+
+	/* in later chips PXP root complex handles BIOS ZLR w/o interrupting */
+	else
+		bnx2x_init_str_wr(bp, addr, GUNZIP_BUF(bp), len);
 }
 
 static void bnx2x_init_wr_64(struct bnx2x *bp, u32 addr,
@@ -177,8 +183,14 @@ static void bnx2x_init_wr_wb(struct bnx2x *bp, u32 addr,
 {
 	if (bp->dmae_ready)
 		VIRT_WR_DMAE_LEN(bp, data, addr, len, 0);
-	else
+
+	/* in E1 chips BIOS initiated ZLR may interrupt widebus writes */
+	else if (CHIP_IS_E1(bp))
 		bnx2x_init_ind_wr(bp, addr, data, len);
+
+	/* in later chips PXP root complex handles BIOS ZLR w/o interrupting */
+	else
+		bnx2x_init_str_wr(bp, addr, data, len);
 }
 
 static void bnx2x_wr_64(struct bnx2x *bp, u32 reg, u32 val_lo,
@@ -840,25 +852,15 @@ static void bnx2x_qm_init_cid_count(struct bnx2x *bp, int qm_cid_count,
 	}
 }
 
-static void bnx2x_qm_set_ptr_table(struct bnx2x *bp, int qm_cid_count)
+static void bnx2x_qm_set_ptr_table(struct bnx2x *bp, int qm_cid_count,
+				   u32 base_reg, u32 reg)
 {
 	int i;
-	u32 wb_data[2];
-
-	wb_data[0] = wb_data[1] = 0;
-
+	u32 wb_data[2] = {0, 0};
 	for (i = 0; i < 4 * QM_QUEUES_PER_FUNC; i++) {
-		REG_WR(bp, QM_REG_BASEADDR + i*4,
+		REG_WR(bp, base_reg + i*4,
 		       qm_cid_count * 4 * (i % QM_QUEUES_PER_FUNC));
-		bnx2x_init_ind_wr(bp, QM_REG_PTRTBL + i*8,
-				  wb_data, 2);
-
-		if (CHIP_IS_E1H(bp)) {
-			REG_WR(bp, QM_REG_BASEADDR_EXT_A + i*4,
-			       qm_cid_count * 4 * (i % QM_QUEUES_PER_FUNC));
-			bnx2x_init_ind_wr(bp, QM_REG_PTRTBL_EXT_A + i*8,
-					  wb_data, 2);
-		}
+		bnx2x_init_wr_wb(bp, reg + i*8,	 wb_data, 2);
 	}
 }
 
@@ -873,7 +875,12 @@ static void bnx2x_qm_init_ptr_table(struct bnx2x *bp, int qm_cid_count,
 	case INITOP_INIT:
 		/* set in the init-value array */
 	case INITOP_SET:
-		bnx2x_qm_set_ptr_table(bp, qm_cid_count);
+		bnx2x_qm_set_ptr_table(bp, qm_cid_count,
+				       QM_REG_BASEADDR, QM_REG_PTRTBL);
+		if (CHIP_IS_E1H(bp))
+			bnx2x_qm_set_ptr_table(bp, qm_cid_count,
+					       QM_REG_BASEADDR_EXT_A,
+					       QM_REG_PTRTBL_EXT_A);
 		break;
 	case INITOP_CLEAR:
 		break;

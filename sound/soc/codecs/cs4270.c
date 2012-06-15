@@ -307,8 +307,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 	unsigned int i;
@@ -521,7 +520,7 @@ static int cs4270_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Add the non-DAPM controls */
-	ret = snd_soc_add_controls(codec, cs4270_snd_controls,
+	ret = snd_soc_add_codec_controls(codec, cs4270_snd_controls,
 				ARRAY_SIZE(cs4270_snd_controls));
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to add controls\n");
@@ -600,10 +599,12 @@ static int cs4270_soc_suspend(struct snd_soc_codec *codec)
 static int cs4270_soc_resume(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	int reg;
+	int reg, ret;
 
-	regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
-			      cs4270->supplies);
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
+				    cs4270->supplies);
+	if (ret != 0)
+		return ret;
 
 	/* In case the device was put to hard reset during sleep, we need to
 	 * wait 500ns here before any I2C communication. */
@@ -715,7 +716,7 @@ MODULE_DEVICE_TABLE(i2c, cs4270_id);
  */
 static struct i2c_driver cs4270_i2c_driver = {
 	.driver = {
-		.name = "cs4270-codec",
+		.name = "cs4270",
 		.owner = THIS_MODULE,
 	},
 	.id_table = cs4270_id,

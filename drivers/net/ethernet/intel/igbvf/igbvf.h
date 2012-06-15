@@ -43,7 +43,18 @@ struct igbvf_info;
 struct igbvf_adapter;
 
 /* Interrupt defines */
-#define IGBVF_START_ITR                 648 /* ~6000 ints/sec */
+#define IGBVF_START_ITR                    488 /* ~8000 ints/sec */
+#define IGBVF_4K_ITR                       980
+#define IGBVF_20K_ITR                      196
+#define IGBVF_70K_ITR                       56
+
+enum latency_range {
+	lowest_latency = 0,
+	low_latency = 1,
+	bulk_latency = 2,
+	latency_invalid = 255
+};
+
 
 /* Interrupt modes, as used by the IntMode parameter */
 #define IGBVF_INT_MODE_LEGACY           0
@@ -155,6 +166,7 @@ struct igbvf_ring {
 	char name[IFNAMSIZ + 5];
 	u32 eims_value;
 	u32 itr_val;
+	enum latency_range itr_range;
 	u16 itr_register;
 	int set_itr;
 
@@ -187,10 +199,8 @@ struct igbvf_adapter {
 	unsigned long state;
 
 	/* Interrupt Throttle Rate */
-	u32 itr;
-	u32 itr_setting;
-	u16 tx_itr;
-	u16 rx_itr;
+	u32 requested_itr; /* ints/sec or adaptive */
+	u32 current_itr; /* Actual ITR register value, not ints/sec */
 
 	/*
 	 * Tx
@@ -297,13 +307,6 @@ enum igbvf_state_t {
 	__IGBVF_TESTING,
 	__IGBVF_RESETTING,
 	__IGBVF_DOWN
-};
-
-enum latency_range {
-	lowest_latency = 0,
-	low_latency = 1,
-	bulk_latency = 2,
-	latency_invalid = 255
 };
 
 extern char igbvf_driver_name[];

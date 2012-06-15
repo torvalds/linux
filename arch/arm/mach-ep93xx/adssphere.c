@@ -20,6 +20,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include "soc.h"
 
 static struct ep93xx_eth_data __initdata adssphere_eth_data = {
 	.phy_id		= 1,
@@ -40,5 +41,6 @@ MACHINE_START(ADSSPHERE, "ADS Sphere board")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= adssphere_init_machine,
+	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END

@@ -614,7 +614,7 @@ static struct inode *hppfs_alloc_inode(struct super_block *sb)
 
 void hppfs_evict_inode(struct inode *ino)
 {
-	end_writeback(ino);
+	clear_inode(ino);
 	dput(HPPFS_I(ino)->proc_dentry);
 	mntput(ino->i_sb->s_fs_info);
 }
@@ -726,17 +726,12 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 
 	err = -ENOMEM;
 	root_inode = get_inode(sb, dget(proc_mnt->mnt_root));
-	if (!root_inode)
-		goto out_mntput;
-
-	sb->s_root = d_alloc_root(root_inode);
+	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root)
-		goto out_iput;
+		goto out_mntput;
 
 	return 0;
 
- out_iput:
-	iput(root_inode);
  out_mntput:
 	mntput(proc_mnt);
  out:

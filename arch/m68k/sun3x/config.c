@@ -12,7 +12,6 @@
 #include <linux/console.h>
 #include <linux/init.h>
 
-#include <asm/system.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
 #include <asm/sun3xprom.h>

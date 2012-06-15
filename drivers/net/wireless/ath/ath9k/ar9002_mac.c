@@ -136,6 +136,7 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 	}
 
 	if (sync_cause) {
+		ath9k_debug_sync_cause(common, sync_cause);
 		fatal_int =
 			(sync_cause &
 			 (AR_INTR_SYNC_HOST1_FATAL | AR_INTR_SYNC_HOST1_PERR))
@@ -347,15 +348,12 @@ void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
-	struct ath9k_hw_capabilities *pCap = &ah->caps;
 
 	ads->ds_ctl1 = size & AR_BufLen;
 	if (flags & ATH9K_RXDESC_INTREQ)
 		ads->ds_ctl1 |= AR_RxIntrReq;
 
-	ads->ds_rxstatus8 &= ~AR_RxDone;
-	if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
-		memset(&(ads->u), 0, sizeof(ads->u));
+	memset(&ads->u.rx, 0, sizeof(ads->u.rx));
 }
 EXPORT_SYMBOL(ath9k_hw_setuprxdesc);
 

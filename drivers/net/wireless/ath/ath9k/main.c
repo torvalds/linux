@@ -113,21 +113,25 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	enum ath9k_power_mode mode;
 	unsigned long flags;
+	bool reset;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
-	if (sc->ps_idle && (sc->ps_flags & PS_WAIT_FOR_TX_ACK))
+	if (sc->ps_idle) {
+		ath9k_hw_setrxabort(sc->sc_ah, 1);
+		ath9k_hw_stopdmarecv(sc->sc_ah, &reset);
 		mode = ATH9K_PM_FULL_SLEEP;
-	else if (sc->ps_enabled &&
-		 !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
-			      PS_WAIT_FOR_CAB |
-			      PS_WAIT_FOR_PSPOLL_DATA |
-			      PS_WAIT_FOR_TX_ACK)))
+	} else if (sc->ps_enabled &&
+		   !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
+				     PS_WAIT_FOR_CAB |
+				     PS_WAIT_FOR_PSPOLL_DATA |
+				     PS_WAIT_FOR_TX_ACK))) {
 		mode = ATH9K_PM_NETWORK_SLEEP;
-	else
+	} else {
 		goto unlock;
+	}
 
 	spin_lock(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
@@ -235,19 +239,21 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	bool ret;
+	bool ret = true;
 
 	ieee80211_stop_queues(sc->hw);
 
 	sc->hw_busy_count = 0;
 	del_timer_sync(&common->ani.timer);
+	del_timer_sync(&sc->rx_poll_timer);
 
 	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
 
-	ret = ath_drain_all_txq(sc, retry_tx);
-
 	if (!ath_stoprecv(sc))
+		ret = false;
+
+	if (!ath_drain_all_txq(sc, retry_tx))
 		ret = false;
 
 	if (!flush) {
@@ -282,6 +288,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/2);
+		ath_start_rx_poll(sc, 3);
 		if (!common->disable_ani)
 			ath_start_ani(common);
 	}
@@ -332,17 +339,11 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		hchan = ah->curchan;
 	}
 
-	if (fastcc && (ah->chip_fullsleep ||
-	    !ath9k_hw_check_alive(ah)))
-		fastcc = false;
-
 	if (!ath_prepare_reset(sc, retry_tx, flush))
 		fastcc = false;
 
 	ath_dbg(common, CONFIG, "Reset to %u MHz, HT40: %d fastcc: %d\n",
-		hchan->channel, !!(hchan->channelFlags & (CHANNEL_HT40MINUS |
-							  CHANNEL_HT40PLUS)),
-		fastcc);
+		hchan->channel, IS_CHAN_HT40(hchan), fastcc);
 
 	r = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (r) {
@@ -373,11 +374,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
 
-	ath9k_ps_wakeup(sc);
-
 	r = ath_reset_internal(sc, hchan, false);
-
-	ath9k_ps_restore(sc);
 
 	return r;
 }
@@ -647,7 +644,8 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 #endif
 	an->sta = sta;
 	an->vif = vif;
-	if (sc->sc_flags & SC_OP_TXAGGR) {
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		ath_tx_node_init(sc, an);
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 				     sta->ht_cap.ampdu_factor);
@@ -666,7 +664,7 @@ static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 	an->sta = NULL;
 #endif
 
-	if (sc->sc_flags & SC_OP_TXAGGR)
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ath_tx_node_cleanup(sc, an);
 }
 
@@ -699,17 +697,6 @@ void ath9k_tasklet(unsigned long data)
 		goto out;
 	}
 
-	/*
-	 * Only run the baseband hang check if beacons stop working in AP or
-	 * IBSS mode, because it has a high false positive rate. For station
-	 * mode it should not be necessary, since the upper layers will detect
-	 * this through a beacon miss automatically and the following channel
-	 * change will trigger a hardware reset anyway
-	 */
-	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0 &&
-	    !ath9k_hw_check_alive(ah))
-		ieee80211_queue_work(sc->hw, &sc->hw_check_work);
-
 	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
 		/*
 		 * TSF sync does not look correct; remain awake to sync with
@@ -741,12 +728,7 @@ void ath9k_tasklet(unsigned long data)
 			ath_tx_tasklet(sc);
 	}
 
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-		if (status & ATH9K_INT_GENTIMER)
-			ath_gen_timer_isr(sc->sc_ah);
-
-	if ((status & ATH9K_INT_MCI) && ATH9K_HW_CAP_MCI)
-		ath_mci_intr(sc);
+	ath9k_btcoex_handle_interrupt(sc, status);
 
 out:
 	/* re-enable hardware interrupt */
@@ -926,10 +908,19 @@ void ath_hw_check(struct work_struct *work)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long flags;
 	int busy;
+	u8 is_alive, nbeacon = 1;
 
 	ath9k_ps_wakeup(sc);
-	if (ath9k_hw_check_alive(sc->sc_ah))
+	is_alive = ath9k_hw_check_alive(sc->sc_ah);
+
+	if (is_alive && !AR_SREV_9300(sc->sc_ah))
 		goto out;
+	else if (!is_alive && AR_SREV_9300(sc->sc_ah)) {
+		ath_dbg(common, RESET,
+			"DCU stuck is detected. Schedule chip reset\n");
+		RESET_STAT_INC(sc, RESET_TYPE_MAC_HANG);
+		goto sched_reset;
+	}
 
 	spin_lock_irqsave(&common->cc_lock, flags);
 	busy = ath_update_survey_stats(sc);
@@ -940,12 +931,18 @@ void ath_hw_check(struct work_struct *work)
 	if (busy >= 99) {
 		if (++sc->hw_busy_count >= 3) {
 			RESET_STAT_INC(sc, RESET_TYPE_BB_HANG);
-			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+			goto sched_reset;
 		}
-
-	} else if (busy >= 0)
+	} else if (busy >= 0) {
 		sc->hw_busy_count = 0;
+		nbeacon = 3;
+	}
 
+	ath_start_rx_poll(sc, nbeacon);
+	goto out;
+
+sched_reset:
+	ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 out:
 	ath9k_ps_restore(sc);
 }
@@ -1004,11 +1001,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		curchan->center_freq);
 
 	ath9k_ps_wakeup(sc);
-
 	mutex_lock(&sc->mutex);
-
-	/* setup initial channel */
-	sc->chan_idx = curchan->hw_value;
 
 	init_channel = ath9k_cmn_get_curchannel(hw, ah);
 
@@ -1058,9 +1051,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	sc->sc_flags &= ~SC_OP_INVALID;
 	sc->sc_ah->is_monitoring = false;
 
-	/* Disable BMISS interrupt when we're not associated */
-	ah->imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
-
 	if (!ath_complete_reset(sc, false)) {
 		r = -EIO;
 		spin_unlock_bh(&sc->sc_pcu_lock);
@@ -1081,16 +1071,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) &&
-	    !ah->btcoex_hw.enabled) {
-		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
-			ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-						   AR_STOMP_LOW_WLAN_WGHT);
-		ath9k_hw_btcoex_enable(ah);
-
-		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-			ath9k_btcoex_timer_resume(sc);
-	}
+	ath9k_start_btcoex(sc);
 
 	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
 		common->bus_ops->extn_synch_en(common);
@@ -1124,14 +1105,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 	}
 
-	/*
-	 * Cannot tx while the hardware is in full sleep, it first needs a full
-	 * chip reset to recover from that
-	 */
-	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP))
-		goto exit;
-
-	if (unlikely(sc->sc_ah->power_mode != ATH9K_PM_AWAKE)) {
+	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_NETWORK_SLEEP)) {
 		/*
 		 * We are using PS-Poll and mac80211 can request TX while in
 		 * power save mode. Need to wake up hardware for the TX to be
@@ -1150,10 +1124,19 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 		/*
 		 * The actual restore operation will happen only after
-		 * the sc_flags bit is cleared. We are just dropping
+		 * the ps_flags bit is cleared. We are just dropping
 		 * the ps_usecount here.
 		 */
 		ath9k_ps_restore(sc);
+	}
+
+	/*
+	 * Cannot tx while the hardware is in full sleep, it first needs a full
+	 * chip reset to recover from that
+	 */
+	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP)) {
+		ath_err(common, "TX while HW is in FULL_SLEEP mode\n");
+		goto exit;
 	}
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
@@ -1163,6 +1146,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (ath_tx_start(hw, skb, &txctl) != 0) {
 		ath_dbg(common, XMIT, "TX failed\n");
+		TX_STAT_INC(txctl.txq->axq_qnum, txfailed);
 		goto exit;
 	}
 
@@ -1181,6 +1165,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
+	del_timer_sync(&sc->rx_poll_timer);
 
 	if (sc->sc_flags & SC_OP_INVALID) {
 		ath_dbg(common, ANY, "Device not present\n");
@@ -1191,13 +1176,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	/* Ensure HW is awake when we try to shut it down. */
 	ath9k_ps_wakeup(sc);
 
-	if (ah->btcoex_hw.enabled &&
-	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
-		ath9k_hw_btcoex_disable(ah);
-		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-			ath9k_btcoex_timer_pause(sc);
-		ath_mci_flush_profile(&sc->btcoex.mci);
-	}
+	ath9k_stop_btcoex(sc);
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 
@@ -1273,7 +1252,6 @@ static void ath9k_reclaim_beacon(struct ath_softc *sc,
 	ath9k_set_beaconing_status(sc, false);
 	ath_beacon_return(sc, avp);
 	ath9k_set_beaconing_status(sc, true);
-	sc->sc_flags &= ~SC_OP_BEACONS;
 }
 
 static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -1303,7 +1281,6 @@ static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		iter_data->nwds++;
 		break;
 	default:
-		iter_data->nothers++;
 		break;
 	}
 }
@@ -1405,21 +1382,31 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 	ath9k_calculate_summary_state(hw, vif);
 
 	if (ath9k_uses_beacons(vif->type)) {
-		int error;
-		/* This may fail because upper levels do not have beacons
-		 * properly configured yet.  That's OK, we assume it
-		 * will be properly configured and then we will be notified
-		 * in the info_changed method and set up beacons properly
-		 * there.
-		 */
+		/* Reserve a beacon slot for the vif */
 		ath9k_set_beaconing_status(sc, false);
-		error = ath_beacon_alloc(sc, vif);
-		if (!error)
-			ath_beacon_config(sc, vif);
+		ath_beacon_alloc(sc, vif);
 		ath9k_set_beaconing_status(sc, true);
 	}
 }
 
+void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon)
+{
+	if (!AR_SREV_9300(sc->sc_ah))
+		return;
+
+	if (!(sc->sc_flags & SC_OP_PRIM_STA_VIF))
+		return;
+
+	mod_timer(&sc->rx_poll_timer, jiffies + msecs_to_jiffies
+			(nbeacon * sc->cur_beacon_conf.beacon_interval));
+}
+
+void ath_rx_poll(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *)data;
+
+	ieee80211_queue_work(sc->hw, &sc->hw_check_work);
+}
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif)
@@ -1548,6 +1535,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 static void ath9k_enable_ps(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	sc->ps_enabled = true;
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
@@ -1557,11 +1545,13 @@ static void ath9k_enable_ps(struct ath_softc *sc)
 		}
 		ath9k_hw_setrxabort(ah, 1);
 	}
+	ath_dbg(common, PS, "PowerSave enabled\n");
 }
 
 static void ath9k_disable_ps(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	sc->ps_enabled = false;
 	ath9k_hw_setpower(ah, ATH9K_PM_AWAKE);
@@ -1576,7 +1566,7 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 			ath9k_hw_set_interrupts(ah);
 		}
 	}
-
+	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
@@ -1585,20 +1575,21 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &hw->conf;
+	bool reset_channel = false;
 
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	/*
-	 * Leave this as the first check because we need to turn on the
-	 * radio if it was disabled before prior to processing the rest
-	 * of the changes. Likewise we must only disable the radio towards
-	 * the end.
-	 */
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		sc->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 		if (sc->ps_idle)
 			ath_cancel_work(sc);
+		else
+			/*
+			 * The chip needs a reset to properly wake up from
+			 * full sleep
+			 */
+			reset_channel = ah->chip_fullsleep;
 	}
 
 	/*
@@ -1627,7 +1618,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || reset_channel) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos = curchan->hw_value;
 		int old_pos = -1;
@@ -1793,7 +1784,7 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_node *an = (struct ath_node *) sta->drv_priv;
 
-	if (!(sc->sc_flags & SC_OP_TXAGGR))
+	if (!sta->ht_cap.ht_supported)
 		return;
 
 	switch (cmd) {
@@ -1947,6 +1938,8 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
+		ath_start_rx_poll(sc, 3);
+
 		if (!common->disable_ani) {
 			sc->sc_flags |= SC_OP_ANI_RUN;
 			ath_start_ani(common);
@@ -1986,6 +1979,7 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 		/* Stop ANI */
 		sc->sc_flags &= ~SC_OP_ANI_RUN;
 		del_timer_sync(&common->ani.timer);
+		del_timer_sync(&sc->rx_poll_timer);
 		memset(&sc->caldata, 0, sizeof(sc->caldata));
 	}
 }
@@ -2000,12 +1994,11 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	int slottime;
-	int error;
 
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	if (changed & BSS_CHANGED_BSSID) {
+	if (changed & BSS_CHANGED_ASSOC) {
 		ath9k_config_bss(sc, vif);
 
 		ath_dbg(common, CONFIG, "BSSID: %pM aid: 0x%x\n",
@@ -2029,16 +2022,29 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		} else {
 			sc->sc_flags &= ~SC_OP_ANI_RUN;
 			del_timer_sync(&common->ani.timer);
+			del_timer_sync(&sc->rx_poll_timer);
 		}
 	}
 
-	/* Enable transmission of beacons (AP, IBSS, MESH) */
-	if ((changed & BSS_CHANGED_BEACON) ||
-	    ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon)) {
+	/*
+	 * In case of AP mode, the HW TSF has to be reset
+	 * when the beacon interval changes.
+	 */
+	if ((changed & BSS_CHANGED_BEACON_INT) &&
+	    (vif->type == NL80211_IFTYPE_AP))
+		sc->sc_flags |= SC_OP_TSF_RESET;
+
+	/* Configure beaconing (AP, IBSS, MESH) */
+	if (ath9k_uses_beacons(vif->type) &&
+	    ((changed & BSS_CHANGED_BEACON) ||
+	     (changed & BSS_CHANGED_BEACON_ENABLED) ||
+	     (changed & BSS_CHANGED_BEACON_INT))) {
 		ath9k_set_beaconing_status(sc, false);
-		error = ath_beacon_alloc(sc, vif);
-		if (!error)
-			ath_beacon_config(sc, vif);
+		if (bss_conf->enable_beacon)
+			ath_beacon_alloc(sc, vif);
+		else
+			avp->is_bslot_active = false;
+		ath_beacon_config(sc, vif);
 		ath9k_set_beaconing_status(sc, true);
 	}
 
@@ -2059,49 +2065,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			ah->slottime = slottime;
 			ath9k_hw_init_global_settings(ah);
 		}
-	}
-
-	/* Disable transmission of beacons */
-	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
-	    !bss_conf->enable_beacon) {
-		ath9k_set_beaconing_status(sc, false);
-		avp->is_bslot_active = false;
-		ath9k_set_beaconing_status(sc, true);
-	}
-
-	if (changed & BSS_CHANGED_BEACON_INT) {
-		/*
-		 * In case of AP mode, the HW TSF has to be reset
-		 * when the beacon interval changes.
-		 */
-		if (vif->type == NL80211_IFTYPE_AP) {
-			sc->sc_flags |= SC_OP_TSF_RESET;
-			ath9k_set_beaconing_status(sc, false);
-			error = ath_beacon_alloc(sc, vif);
-			if (!error)
-				ath_beacon_config(sc, vif);
-			ath9k_set_beaconing_status(sc, true);
-		} else
-			ath_beacon_config(sc, vif);
-	}
-
-	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		ath_dbg(common, CONFIG, "BSS Changed PREAMBLE %d\n",
-			bss_conf->use_short_preamble);
-		if (bss_conf->use_short_preamble)
-			sc->sc_flags |= SC_OP_PREAMBLE_SHORT;
-		else
-			sc->sc_flags &= ~SC_OP_PREAMBLE_SHORT;
-	}
-
-	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		ath_dbg(common, CONFIG, "BSS Changed CTS PROT %d\n",
-			bss_conf->use_cts_prot);
-		if (bss_conf->use_cts_prot &&
-		    hw->conf.channel->band != IEEE80211_BAND_5GHZ)
-			sc->sc_flags |= SC_OP_PROTECT_ENABLE;
-		else
-			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
 	}
 
 	mutex_unlock(&sc->mutex);
@@ -2161,15 +2124,10 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (!(sc->sc_flags & SC_OP_RXAGGR))
-			ret = -ENOTSUPP;
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!(sc->sc_flags & SC_OP_TXAGGR))
-			return -EOPNOTSUPP;
-
 		ath9k_ps_wakeup(sc);
 		ret = ath_tx_aggr_start(sc, sta, tid, ssn);
 		if (!ret)
@@ -2332,6 +2290,7 @@ static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 	struct ath_vif *avp;
 	struct ath_buf *bf;
 	struct ath_tx_status ts;
+	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int status;
 
 	vif = sc->beacon.bslot[0];
@@ -2342,7 +2301,7 @@ static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 	if (!avp->is_bslot_active)
 		return 0;
 
-	if (!sc->beacon.tx_processed) {
+	if (!sc->beacon.tx_processed && !edma) {
 		tasklet_disable(&sc->bcon_tasklet);
 
 		bf = avp->av_bcbuf;

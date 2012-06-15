@@ -42,6 +42,7 @@
 void __iomem *prm_base;
 void __iomem *cm_base;
 void __iomem *cm2_base;
+void __iomem *prcm_mpu_base;
 
 #define MAX_MODULE_ENABLE_WAIT		100000
 
@@ -155,4 +156,11 @@ void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 		cm_base = omap2_globals->cm;
 	if (omap2_globals->cm2)
 		cm2_base = omap2_globals->cm2;
+	if (omap2_globals->prcm_mpu)
+		prcm_mpu_base = omap2_globals->prcm_mpu;
+
+	if (cpu_is_omap44xx()) {
+		omap_prm_base_init();
+		omap_cm_base_init();
+	}
 }

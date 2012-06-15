@@ -121,7 +121,7 @@ static ssize_t set_min_uV(struct device *dev, struct device_attribute *attr,
 	struct virtual_consumer_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val) != 0)
+	if (kstrtol(buf, 10, &val) != 0)
 		return count;
 
 	mutex_lock(&data->lock);
@@ -147,7 +147,7 @@ static ssize_t set_max_uV(struct device *dev, struct device_attribute *attr,
 	struct virtual_consumer_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val) != 0)
+	if (kstrtol(buf, 10, &val) != 0)
 		return count;
 
 	mutex_lock(&data->lock);
@@ -173,7 +173,7 @@ static ssize_t set_min_uA(struct device *dev, struct device_attribute *attr,
 	struct virtual_consumer_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val) != 0)
+	if (kstrtol(buf, 10, &val) != 0)
 		return count;
 
 	mutex_lock(&data->lock);
@@ -199,7 +199,7 @@ static ssize_t set_max_uA(struct device *dev, struct device_attribute *attr,
 	struct virtual_consumer_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val) != 0)
+	if (kstrtol(buf, 10, &val) != 0)
 		return count;
 
 	mutex_lock(&data->lock);
@@ -291,18 +291,19 @@ static int __devinit regulator_virtual_probe(struct platform_device *pdev)
 	struct virtual_consumer_data *drvdata;
 	int ret;
 
-	drvdata = kzalloc(sizeof(struct virtual_consumer_data), GFP_KERNEL);
+	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct virtual_consumer_data),
+			       GFP_KERNEL);
 	if (drvdata == NULL)
 		return -ENOMEM;
 
 	mutex_init(&drvdata->lock);
 
-	drvdata->regulator = regulator_get(&pdev->dev, reg_id);
+	drvdata->regulator = devm_regulator_get(&pdev->dev, reg_id);
 	if (IS_ERR(drvdata->regulator)) {
 		ret = PTR_ERR(drvdata->regulator);
 		dev_err(&pdev->dev, "Failed to obtain supply '%s': %d\n",
 			reg_id, ret);
-		goto err;
+		return ret;
 	}
 
 	ret = sysfs_create_group(&pdev->dev.kobj,
@@ -310,7 +311,7 @@ static int __devinit regulator_virtual_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev,
 			"Failed to create attribute group: %d\n", ret);
-		goto err_regulator;
+		return ret;
 	}
 
 	drvdata->mode = regulator_get_mode(drvdata->regulator);
@@ -318,12 +319,6 @@ static int __devinit regulator_virtual_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, drvdata);
 
 	return 0;
-
-err_regulator:
-	regulator_put(drvdata->regulator);
-err:
-	kfree(drvdata);
-	return ret;
 }
 
 static int __devexit regulator_virtual_remove(struct platform_device *pdev)
@@ -334,9 +329,6 @@ static int __devexit regulator_virtual_remove(struct platform_device *pdev)
 
 	if (drvdata->enabled)
 		regulator_disable(drvdata->regulator);
-	regulator_put(drvdata->regulator);
-
-	kfree(drvdata);
 
 	platform_set_drvdata(pdev, NULL);
 

@@ -32,6 +32,8 @@
 #include <linux/usb/ulpi.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <media/soc_camera.h>
 
@@ -570,6 +572,11 @@ static int __init pcm037_otg_mode(char *options)
 }
 __setup("otg_mode=", pcm037_otg_mode);
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+};
+
 /*
  * Board specific initialization.
  */
@@ -578,6 +585,8 @@ static void __init pcm037_init(void)
 	int ret;
 
 	imx31_soc_init();
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	mxc_iomux_set_gpr(MUX_PGP_UH2, 1);
 
@@ -674,7 +683,7 @@ static void __init pcm037_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-struct sys_timer pcm037_timer = {
+static struct sys_timer pcm037_timer = {
 	.init	= pcm037_timer_init,
 };
 
@@ -683,6 +692,11 @@ static void __init pcm037_reserve(void)
 	/* reserve 4 MiB for mx3-camera */
 	mx3_camera_base = arm_memblock_steal(MX3_CAMERA_BUF_SIZE,
 			MX3_CAMERA_BUF_SIZE);
+}
+
+static void __init pcm037_init_late(void)
+{
+	pcm037_eet_init_devices();
 }
 
 MACHINE_START(PCM037, "Phytec Phycore pcm037")
@@ -695,5 +709,6 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.handle_irq = imx31_handle_irq,
 	.timer = &pcm037_timer,
 	.init_machine = pcm037_init,
+	.init_late = pcm037_init_late,
 	.restart	= mxc_restart,
 MACHINE_END

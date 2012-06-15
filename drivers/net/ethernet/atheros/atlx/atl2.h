@@ -47,7 +47,6 @@ extern int ethtool_ioctl(struct ifreq *ifr);
 
 #define PCI_COMMAND_REGISTER	PCI_COMMAND
 #define CMD_MEM_WRT_INVALIDATE	PCI_COMMAND_INVALIDATE
-#define ETH_ADDR_LEN		ETH_ALEN
 
 #define ATL2_WRITE_REG(a, reg, value) (iowrite32((value), \
 	((a)->hw_addr + (reg))))
@@ -429,8 +428,8 @@ struct atl2_hw {
 	u8 flash_vendor;
 
 	u8 dma_fairness;
-	u8 mac_addr[NODE_ADDRESS_SIZE];
-	u8 perm_mac_addr[NODE_ADDRESS_SIZE];
+	u8 mac_addr[ETH_ALEN];
+	u8 perm_mac_addr[ETH_ALEN];
 
 	/* FIXME */
 	/* bool phy_preamble_sup; */

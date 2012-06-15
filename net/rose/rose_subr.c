@@ -22,7 +22,6 @@
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
-#include <asm/system.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -400,7 +399,7 @@ int rose_parse_facilities(unsigned char *p, unsigned packet_len,
 
 	facilities_len = *p++;
 
-	if (facilities_len == 0 || (unsigned)facilities_len > packet_len)
+	if (facilities_len == 0 || (unsigned int)facilities_len > packet_len)
 		return 0;
 
 	while (facilities_len >= 3 && *p == 0x00) {

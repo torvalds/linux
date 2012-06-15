@@ -8,8 +8,9 @@
 
 #include <linux/kbuild.h>
 #include <linux/sched.h>
+#include <asm/cputime.h>
+#include <asm/timer.h>
 #include <asm/vdso.h>
-#include <asm/sigp.h>
 #include <asm/pgtable.h>
 
 /*
@@ -70,15 +71,15 @@ int main(void)
 	DEFINE(__CLOCK_MONOTONIC, CLOCK_MONOTONIC);
 	DEFINE(__CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
 	BLANK();
-	/* constants for SIGP */
-	DEFINE(__SIGP_STOP, sigp_stop);
-	DEFINE(__SIGP_RESTART, sigp_restart);
-	DEFINE(__SIGP_SENSE, sigp_sense);
-	DEFINE(__SIGP_INITIAL_CPU_RESET, sigp_initial_cpu_reset);
-	BLANK();
+	/* idle data offsets */
+	DEFINE(__IDLE_ENTER, offsetof(struct s390_idle_data, idle_enter));
+	DEFINE(__IDLE_EXIT, offsetof(struct s390_idle_data, idle_exit));
+	/* vtimer queue offsets */
+	DEFINE(__VQ_IDLE_ENTER, offsetof(struct vtimer_queue, idle_enter));
+	DEFINE(__VQ_IDLE_EXIT, offsetof(struct vtimer_queue, idle_exit));
 	/* lowcore offsets */
 	DEFINE(__LC_EXT_PARAMS, offsetof(struct _lowcore, ext_params));
-	DEFINE(__LC_CPU_ADDRESS, offsetof(struct _lowcore, cpu_addr));
+	DEFINE(__LC_EXT_CPU_ADDR, offsetof(struct _lowcore, ext_cpu_addr));
 	DEFINE(__LC_EXT_INT_CODE, offsetof(struct _lowcore, ext_int_code));
 	DEFINE(__LC_SVC_ILC, offsetof(struct _lowcore, svc_ilc));
 	DEFINE(__LC_SVC_INT_CODE, offsetof(struct _lowcore, svc_code));
@@ -95,20 +96,19 @@ int main(void)
 	DEFINE(__LC_IO_INT_WORD, offsetof(struct _lowcore, io_int_word));
 	DEFINE(__LC_STFL_FAC_LIST, offsetof(struct _lowcore, stfl_fac_list));
 	DEFINE(__LC_MCCK_CODE, offsetof(struct _lowcore, mcck_interruption_code));
-	DEFINE(__LC_DUMP_REIPL, offsetof(struct _lowcore, ipib));
-	BLANK();
-	DEFINE(__LC_RST_NEW_PSW, offsetof(struct _lowcore, restart_psw));
 	DEFINE(__LC_RST_OLD_PSW, offsetof(struct _lowcore, restart_old_psw));
 	DEFINE(__LC_EXT_OLD_PSW, offsetof(struct _lowcore, external_old_psw));
 	DEFINE(__LC_SVC_OLD_PSW, offsetof(struct _lowcore, svc_old_psw));
 	DEFINE(__LC_PGM_OLD_PSW, offsetof(struct _lowcore, program_old_psw));
 	DEFINE(__LC_MCK_OLD_PSW, offsetof(struct _lowcore, mcck_old_psw));
 	DEFINE(__LC_IO_OLD_PSW, offsetof(struct _lowcore, io_old_psw));
+	DEFINE(__LC_RST_NEW_PSW, offsetof(struct _lowcore, restart_psw));
 	DEFINE(__LC_EXT_NEW_PSW, offsetof(struct _lowcore, external_new_psw));
 	DEFINE(__LC_SVC_NEW_PSW, offsetof(struct _lowcore, svc_new_psw));
 	DEFINE(__LC_PGM_NEW_PSW, offsetof(struct _lowcore, program_new_psw));
 	DEFINE(__LC_MCK_NEW_PSW, offsetof(struct _lowcore, mcck_new_psw));
 	DEFINE(__LC_IO_NEW_PSW, offsetof(struct _lowcore, io_new_psw));
+	BLANK();
 	DEFINE(__LC_SAVE_AREA_SYNC, offsetof(struct _lowcore, save_area_sync));
 	DEFINE(__LC_SAVE_AREA_ASYNC, offsetof(struct _lowcore, save_area_async));
 	DEFINE(__LC_SAVE_AREA_RESTART, offsetof(struct _lowcore, save_area_restart));
@@ -129,12 +129,16 @@ int main(void)
 	DEFINE(__LC_KERNEL_STACK, offsetof(struct _lowcore, kernel_stack));
 	DEFINE(__LC_ASYNC_STACK, offsetof(struct _lowcore, async_stack));
 	DEFINE(__LC_PANIC_STACK, offsetof(struct _lowcore, panic_stack));
+	DEFINE(__LC_RESTART_STACK, offsetof(struct _lowcore, restart_stack));
+	DEFINE(__LC_RESTART_FN, offsetof(struct _lowcore, restart_fn));
 	DEFINE(__LC_USER_ASCE, offsetof(struct _lowcore, user_asce));
 	DEFINE(__LC_INT_CLOCK, offsetof(struct _lowcore, int_clock));
 	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
 	DEFINE(__LC_FTRACE_FUNC, offsetof(struct _lowcore, ftrace_func));
 	DEFINE(__LC_IRB, offsetof(struct _lowcore, irb));
+	DEFINE(__LC_DUMP_REIPL, offsetof(struct _lowcore, ipib));
+	BLANK();
 	DEFINE(__LC_CPU_TIMER_SAVE_AREA, offsetof(struct _lowcore, cpu_timer_save_area));
 	DEFINE(__LC_CLOCK_COMP_SAVE_AREA, offsetof(struct _lowcore, clock_comp_save_area));
 	DEFINE(__LC_PSW_SAVE_AREA, offsetof(struct _lowcore, psw_save_area));

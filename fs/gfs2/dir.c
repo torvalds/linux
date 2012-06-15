@@ -821,7 +821,7 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	struct buffer_head *bh;
 	struct gfs2_leaf *leaf;
 	struct gfs2_dirent *dent;
-	struct qstr name = { .name = "", .len = 0, .hash = 0 };
+	struct qstr name = { .name = "" };
 
 	error = gfs2_alloc_blocks(ip, &bn, &n, 0, NULL);
 	if (error)
@@ -1843,6 +1843,10 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 	char *ht;
 	unsigned int x, size = len * sizeof(u64);
 	int error;
+
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
 
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 

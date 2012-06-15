@@ -16,9 +16,10 @@
 #endif
 
 #include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <asm/assembler.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
+#include <asm/dcache_clear.h>
 #include <asm/types.h>
 
 /*

@@ -18,7 +18,6 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/dm355.h>
 #include <mach/cputype.h>
 #include <mach/edma.h>
 #include <mach/psc.h>
@@ -31,6 +30,7 @@
 #include <mach/spi.h>
 #include <mach/gpio-davinci.h>
 
+#include "davinci.h"
 #include "clock.h"
 #include "mux.h"
 
@@ -424,7 +424,7 @@ static struct platform_device dm355_spi0_device = {
 };
 
 void __init dm355_init_spi0(unsigned chipselect_mask,
-		struct spi_board_info *info, unsigned len)
+		const struct spi_board_info *info, unsigned len)
 {
 	/* for now, assume we need MISO */
 	davinci_cfg_reg(DM355_SPI0_SDI);
@@ -871,6 +871,7 @@ void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata)
 void __init dm355_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm355);
+	davinci_map_sysmod();
 }
 
 static int __init dm355_init_devices(void)

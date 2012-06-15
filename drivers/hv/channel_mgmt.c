@@ -37,81 +37,6 @@ struct vmbus_channel_message_table_entry {
 	void (*message_handler)(struct vmbus_channel_message_header *msg);
 };
 
-#define MAX_MSG_TYPES                    4
-#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 8
-
-static const uuid_le
-	supported_device_classes[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
-	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-	/* Storage - SCSI */
-	{
-		.b  = {
-			0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
-			0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
-		}
-	},
-
-	/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
-	/* Network */
-	{
-		.b = {
-			0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
-			0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E
-		}
-	},
-
-	/* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
-	/* Input */
-	{
-		.b = {
-			0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c,
-			0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A
-		}
-	},
-
-	/* {32412632-86cb-44a2-9b5c-50d1417354f5} */
-	/* IDE */
-	{
-		.b = {
-			0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
-			0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
-		}
-	},
-	/* 0E0B6031-5213-4934-818B-38D90CED39DB */
-	/* Shutdown */
-	{
-		.b = {
-			0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
-			0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB
-		}
-	},
-	/* {9527E630-D0AE-497b-ADCE-E80AB0175CAF} */
-	/* TimeSync */
-	{
-		.b = {
-			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
-			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf
-		}
-	},
-	/* {57164f39-9115-4e78-ab55-382f3bd5422d} */
-	/* Heartbeat */
-	{
-		.b = {
-			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
-			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d
-		}
-	},
-	/* {A9A0F4E7-5A45-4d96-B827-8A841E8C03E6} */
-	/* KVP */
-	{
-		.b = {
-			0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
-			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6
-	}
-	},
-
-};
-
 
 /**
  * vmbus_prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
@@ -121,40 +46,61 @@ static const uuid_le
  *
  * @icmsghdrp is of type &struct icmsg_hdr.
  * @negop is of type &struct icmsg_negotiate.
- * Set up and fill in default negotiate response message. This response can
- * come from both the vmbus driver and the hv_utils driver. The current api
- * will respond properly to both Windows 2008 and Windows 2008-R2 operating
- * systems.
+ * Set up and fill in default negotiate response message.
+ *
+ * The max_fw_version specifies the maximum framework version that
+ * we can support and max _srv_version specifies the maximum service
+ * version we can support. A special value MAX_SRV_VER can be
+ * specified to indicate that we can handle the maximum version
+ * exposed by the host.
  *
  * Mainly used by Hyper-V drivers.
  */
 void vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
-			       struct icmsg_negotiate *negop, u8 *buf)
+				struct icmsg_negotiate *negop, u8 *buf,
+				int max_fw_version, int max_srv_version)
 {
-	if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-		icmsghdrp->icmsgsize = 0x10;
+	int icframe_vercnt;
+	int icmsg_vercnt;
+	int i;
 
-		negop = (struct icmsg_negotiate *)&buf[
-			sizeof(struct vmbuspipe_hdr) +
-			sizeof(struct icmsg_hdr)];
+	icmsghdrp->icmsgsize = 0x10;
 
-		if (negop->icframe_vercnt == 2 &&
-		   negop->icversion_data[1].major == 3) {
-			negop->icversion_data[0].major = 3;
-			negop->icversion_data[0].minor = 0;
-			negop->icversion_data[1].major = 3;
-			negop->icversion_data[1].minor = 0;
-		} else {
-			negop->icversion_data[0].major = 1;
-			negop->icversion_data[0].minor = 0;
-			negop->icversion_data[1].major = 1;
-			negop->icversion_data[1].minor = 0;
-		}
+	negop = (struct icmsg_negotiate *)&buf[
+		sizeof(struct vmbuspipe_hdr) +
+		sizeof(struct icmsg_hdr)];
 
-		negop->icframe_vercnt = 1;
-		negop->icmsg_vercnt = 1;
+	icframe_vercnt = negop->icframe_vercnt;
+	icmsg_vercnt = negop->icmsg_vercnt;
+
+	/*
+	 * Select the framework version number we will
+	 * support.
+	 */
+
+	for (i = 0; i < negop->icframe_vercnt; i++) {
+		if (negop->icversion_data[i].major <= max_fw_version)
+			icframe_vercnt = negop->icversion_data[i].major;
 	}
+
+	for (i = negop->icframe_vercnt;
+		 (i < negop->icframe_vercnt + negop->icmsg_vercnt); i++) {
+		if (negop->icversion_data[i].major <= max_srv_version)
+			icmsg_vercnt = negop->icversion_data[i].major;
+	}
+
+	/*
+	 * Respond with the maximum framework and service
+	 * version numbers we can support.
+	 */
+	negop->icframe_vercnt = 1;
+	negop->icmsg_vercnt = 1;
+	negop->icversion_data[0].major = icframe_vercnt;
+	negop->icversion_data[0].minor = 0;
+	negop->icversion_data[1].major = icmsg_vercnt;
+	negop->icversion_data[1].minor = 0;
 }
+
 EXPORT_SYMBOL_GPL(vmbus_prep_negotiate_resp);
 
 /*
@@ -321,20 +267,8 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	struct vmbus_channel *newchannel;
 	uuid_le *guidtype;
 	uuid_le *guidinstance;
-	int i;
-	int fsupported = 0;
 
 	offer = (struct vmbus_channel_offer_channel *)hdr;
-	for (i = 0; i < MAX_NUM_DEVICE_CLASSES_SUPPORTED; i++) {
-		if (!uuid_le_cmp(offer->offer.if_type,
-				supported_device_classes[i])) {
-			fsupported = 1;
-			break;
-		}
-	}
-
-	if (!fsupported)
-		return;
 
 	guidtype = &offer->offer.if_type;
 	guidinstance = &offer->offer.if_instance;

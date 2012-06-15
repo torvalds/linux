@@ -108,12 +108,9 @@ static inline void *value_base(struct node *n)
 	return &n->keys[le32_to_cpu(n->header.max_entries)];
 }
 
-/*
- * FIXME: Now that value size is stored in node we don't need the third parm.
- */
-static inline void *value_ptr(struct node *n, uint32_t index, size_t value_size)
+static inline void *value_ptr(struct node *n, uint32_t index)
 {
-	BUG_ON(value_size != le32_to_cpu(n->header.value_size));
+	uint32_t value_size = le32_to_cpu(n->header.value_size);
 	return value_base(n) + (value_size * index);
 }
 

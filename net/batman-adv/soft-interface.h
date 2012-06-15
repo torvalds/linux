@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -23,8 +23,6 @@
 #define _NET_BATMAN_ADV_SOFT_INTERFACE_H_
 
 int my_skb_head_push(struct sk_buff *skb, unsigned int len);
-int softif_neigh_seq_print_text(struct seq_file *seq, void *offset);
-void softif_neigh_purge(struct bat_priv *bat_priv);
 void interface_rx(struct net_device *soft_iface,
 		  struct sk_buff *skb, struct hard_iface *recv_if,
 		  int hdr_size);

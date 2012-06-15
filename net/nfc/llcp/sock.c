@@ -27,6 +27,42 @@
 #include "../nfc.h"
 #include "llcp.h"
 
+static int sock_wait_state(struct sock *sk, int state, unsigned long timeo)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	int err = 0;
+
+	pr_debug("sk %p", sk);
+
+	add_wait_queue(sk_sleep(sk), &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	while (sk->sk_state != state) {
+		if (!timeo) {
+			err = -EINPROGRESS;
+			break;
+		}
+
+		if (signal_pending(current)) {
+			err = sock_intr_errno(timeo);
+			break;
+		}
+
+		release_sock(sk);
+		timeo = schedule_timeout(timeo);
+		lock_sock(sk);
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		err = sock_error(sk);
+		if (err)
+			break;
+	}
+
+	__set_current_state(TASK_RUNNING);
+	remove_wait_queue(sk_sleep(sk), &wait);
+	return err;
+}
+
 static struct proto llcp_sock_proto = {
 	.name     = "NFC_LLCP",
 	.owner    = THIS_MODULE,
@@ -78,9 +114,11 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	llcp_sock->local = local;
 	llcp_sock->nfc_protocol = llcp_addr.nfc_protocol;
 	llcp_sock->service_name_len = min_t(unsigned int,
-			llcp_addr.service_name_len, NFC_LLCP_MAX_SERVICE_NAME);
+					    llcp_addr.service_name_len,
+					    NFC_LLCP_MAX_SERVICE_NAME);
 	llcp_sock->service_name = kmemdup(llcp_addr.service_name,
-				llcp_sock->service_name_len, GFP_KERNEL);
+					  llcp_sock->service_name_len,
+					  GFP_KERNEL);
 
 	llcp_sock->ssap = nfc_llcp_get_sdp_ssap(local, llcp_sock);
 	if (llcp_sock->ssap == LLCP_MAX_SAP)
@@ -110,7 +148,7 @@ static int llcp_sock_listen(struct socket *sock, int backlog)
 	lock_sock(sk);
 
 	if ((sock->type != SOCK_SEQPACKET && sock->type != SOCK_STREAM)
-			|| sk->sk_state != LLCP_BOUND) {
+	    || sk->sk_state != LLCP_BOUND) {
 		ret = -EBADFD;
 		goto error;
 	}
@@ -149,13 +187,13 @@ void nfc_llcp_accept_enqueue(struct sock *parent, struct sock *sk)
 	sock_hold(sk);
 
 	list_add_tail(&llcp_sock->accept_queue,
-			&llcp_sock_parent->accept_queue);
+		      &llcp_sock_parent->accept_queue);
 	llcp_sock->parent = parent;
 	sk_acceptq_added(parent);
 }
 
 struct sock *nfc_llcp_accept_dequeue(struct sock *parent,
-					struct socket *newsock)
+				     struct socket *newsock)
 {
 	struct nfc_llcp_sock *lsk, *n, *llcp_parent;
 	struct sock *sk;
@@ -163,7 +201,7 @@ struct sock *nfc_llcp_accept_dequeue(struct sock *parent,
 	llcp_parent = nfc_llcp_sock(parent);
 
 	list_for_each_entry_safe(lsk, n, &llcp_parent->accept_queue,
-							accept_queue) {
+				 accept_queue) {
 		sk = &lsk->sk;
 		lock_sock(sk);
 
@@ -192,7 +230,7 @@ struct sock *nfc_llcp_accept_dequeue(struct sock *parent,
 }
 
 static int llcp_sock_accept(struct socket *sock, struct socket *newsock,
-								int flags)
+			    int flags)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct sock *sk = sock->sk, *new_sk;
@@ -248,7 +286,7 @@ error:
 static int llcp_sock_getname(struct socket *sock, struct sockaddr *addr,
 			     int *len, int peer)
 {
-	struct sockaddr_nfc_llcp *llcp_addr = (struct sockaddr_nfc_llcp *) addr;
+	struct sockaddr_nfc_llcp *llcp_addr = (struct sockaddr_nfc_llcp *)addr;
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
 
@@ -262,7 +300,7 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *addr,
 	llcp_addr->ssap = llcp_sock->ssap;
 	llcp_addr->service_name_len = llcp_sock->service_name_len;
 	memcpy(llcp_addr->service_name, llcp_sock->service_name,
-					llcp_addr->service_name_len);
+	       llcp_addr->service_name_len);
 
 	return 0;
 }
@@ -275,7 +313,7 @@ static inline unsigned int llcp_accept_poll(struct sock *parent)
 	parent_sock = nfc_llcp_sock(parent);
 
 	list_for_each_entry_safe(llcp_sock, n, &parent_sock->accept_queue,
-								accept_queue) {
+				 accept_queue) {
 		sk = &llcp_sock->sk;
 
 		if (sk->sk_state == LLCP_CONNECTED)
@@ -286,7 +324,7 @@ static inline unsigned int llcp_accept_poll(struct sock *parent)
 }
 
 static unsigned int llcp_sock_poll(struct file *file, struct socket *sock,
-							poll_table *wait)
+				   poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	unsigned int mask = 0;
@@ -302,10 +340,23 @@ static unsigned int llcp_sock_poll(struct file *file, struct socket *sock,
 		mask |= POLLERR;
 
 	if (!skb_queue_empty(&sk->sk_receive_queue))
-		mask |= POLLIN;
+		mask |= POLLIN | POLLRDNORM;
 
 	if (sk->sk_state == LLCP_CLOSED)
 		mask |= POLLHUP;
+
+	if (sk->sk_shutdown & RCV_SHUTDOWN)
+		mask |= POLLRDHUP | POLLIN | POLLRDNORM;
+
+	if (sk->sk_shutdown == SHUTDOWN_MASK)
+		mask |= POLLHUP;
+
+	if (sock_writeable(sk))
+		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+	else
+		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+
+	pr_debug("mask 0x%x\n", mask);
 
 	return mask;
 }
@@ -315,6 +366,7 @@ static int llcp_sock_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_local *local;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
+	int err = 0;
 
 	if (!sk)
 		return 0;
@@ -322,25 +374,17 @@ static int llcp_sock_release(struct socket *sock)
 	pr_debug("%p\n", sk);
 
 	local = llcp_sock->local;
-	if (local == NULL)
-		return -ENODEV;
+	if (local == NULL) {
+		err = -ENODEV;
+		goto out;
+	}
 
 	mutex_lock(&local->socket_lock);
 
-	if (llcp_sock == local->sockets[llcp_sock->ssap]) {
+	if (llcp_sock == local->sockets[llcp_sock->ssap])
 		local->sockets[llcp_sock->ssap] = NULL;
-	} else {
-		struct nfc_llcp_sock *parent, *s, *n;
-
-		parent = local->sockets[llcp_sock->ssap];
-
-		list_for_each_entry_safe(s, n, &parent->list, list)
-			if (llcp_sock == s) {
-				list_del(&s->list);
-				break;
-			}
-
-	}
+	else
+		list_del_init(&llcp_sock->list);
 
 	mutex_unlock(&local->socket_lock);
 
@@ -355,7 +399,7 @@ static int llcp_sock_release(struct socket *sock)
 		struct sock *accept_sk;
 
 		list_for_each_entry_safe(lsk, n, &llcp_sock->accept_queue,
-								accept_queue) {
+					 accept_queue) {
 			accept_sk = &lsk->sk;
 			lock_sock(accept_sk);
 
@@ -364,31 +408,27 @@ static int llcp_sock_release(struct socket *sock)
 
 			release_sock(accept_sk);
 
-			sock_set_flag(sk, SOCK_DEAD);
 			sock_orphan(accept_sk);
-			sock_put(accept_sk);
 		}
 	}
 
 	/* Freeing the SAP */
 	if ((sk->sk_state == LLCP_CONNECTED
-			&& llcp_sock->ssap > LLCP_LOCAL_SAP_OFFSET) ||
-	    sk->sk_state == LLCP_BOUND ||
-	    sk->sk_state == LLCP_LISTEN)
+	     && llcp_sock->ssap > LLCP_LOCAL_SAP_OFFSET) ||
+	    sk->sk_state == LLCP_BOUND || sk->sk_state == LLCP_LISTEN)
 		nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
-
-	sock_set_flag(sk, SOCK_DEAD);
 
 	release_sock(sk);
 
+out:
 	sock_orphan(sk);
 	sock_put(sk);
 
-	return 0;
+	return err;
 }
 
 static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
-							int len, int flags)
+			     int len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
@@ -400,7 +440,7 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	pr_debug("sock %p sk %p flags 0x%x\n", sock, sk, flags);
 
 	if (!addr || len < sizeof(struct sockaddr_nfc) ||
-			addr->sa_family != AF_NFC) {
+	    addr->sa_family != AF_NFC) {
 		pr_err("Invalid socket\n");
 		return -EINVAL;
 	}
@@ -411,7 +451,7 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	}
 
 	pr_debug("addr dev_idx=%u target_idx=%u protocol=%u\n", addr->dev_idx,
-					addr->target_idx, addr->nfc_protocol);
+		 addr->target_idx, addr->nfc_protocol);
 
 	lock_sock(sk);
 
@@ -441,7 +481,7 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	device_unlock(&dev->dev);
 
 	if (local->rf_mode == NFC_RF_INITIATOR &&
-			addr->target_idx != local->target_idx) {
+	    addr->target_idx != local->target_idx) {
 		ret = -ENOLINK;
 		goto put_dev;
 	}
@@ -459,9 +499,11 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 		llcp_sock->dsap = LLCP_SAP_SDP;
 	llcp_sock->nfc_protocol = addr->nfc_protocol;
 	llcp_sock->service_name_len = min_t(unsigned int,
-			addr->service_name_len, NFC_LLCP_MAX_SERVICE_NAME);
+					    addr->service_name_len,
+					    NFC_LLCP_MAX_SERVICE_NAME);
 	llcp_sock->service_name = kmemdup(addr->service_name,
-				 llcp_sock->service_name_len, GFP_KERNEL);
+					  llcp_sock->service_name_len,
+					  GFP_KERNEL);
 
 	local->sockets[llcp_sock->ssap] = llcp_sock;
 
@@ -469,9 +511,13 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	if (ret)
 		goto put_dev;
 
-	sk->sk_state = LLCP_CONNECTED;
+	ret = sock_wait_state(sk, LLCP_CONNECTED,
+			      sock_sndtimeo(sk, flags & O_NONBLOCK));
+	if (ret)
+		goto put_dev;
 
 	release_sock(sk);
+
 	return 0;
 
 put_dev:
@@ -480,6 +526,34 @@ put_dev:
 error:
 	release_sock(sk);
 	return ret;
+}
+
+static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
+			     struct msghdr *msg, size_t len)
+{
+	struct sock *sk = sock->sk;
+	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
+	int ret;
+
+	pr_debug("sock %p sk %p", sock, sk);
+
+	ret = sock_error(sk);
+	if (ret)
+		return ret;
+
+	if (msg->msg_flags & MSG_OOB)
+		return -EOPNOTSUPP;
+
+	lock_sock(sk);
+
+	if (sk->sk_state != LLCP_CONNECTED) {
+		release_sock(sk);
+		return -ENOTCONN;
+	}
+
+	release_sock(sk);
+
+	return nfc_llcp_send_i_frame(llcp_sock, msg, len);
 }
 
 static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
@@ -496,7 +570,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	lock_sock(sk);
 
 	if (sk->sk_state == LLCP_CLOSED &&
-			skb_queue_empty(&sk->sk_receive_queue)) {
+	    skb_queue_empty(&sk->sk_receive_queue)) {
 		release_sock(sk);
 		return 0;
 	}
@@ -509,7 +583,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb) {
 		pr_err("Recv datagram failed state %d %d %d",
-				sk->sk_state, err, sock_error(sk));
+		       sk->sk_state, err, sock_error(sk));
 
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			return 0;
@@ -517,7 +591,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return err;
 	}
 
-	rlen   = skb->len;		/* real length of skb */
+	rlen = skb->len;		/* real length of skb */
 	copied = min_t(unsigned int, rlen, len);
 
 	cskb = skb;
@@ -567,7 +641,7 @@ static const struct proto_ops llcp_sock_ops = {
 	.shutdown       = sock_no_shutdown,
 	.setsockopt     = sock_no_setsockopt,
 	.getsockopt     = sock_no_getsockopt,
-	.sendmsg        = sock_no_sendmsg,
+	.sendmsg        = llcp_sock_sendmsg,
 	.recvmsg        = llcp_sock_recvmsg,
 	.mmap           = sock_no_mmap,
 };
@@ -627,6 +701,8 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 
 void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 {
+	struct nfc_llcp_local *local = sock->local;
+
 	kfree(sock->service_name);
 
 	skb_queue_purge(&sock->tx_queue);
@@ -635,11 +711,16 @@ void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 
 	list_del_init(&sock->accept_queue);
 
+	if (local != NULL && sock == local->sockets[sock->ssap])
+		local->sockets[sock->ssap] = NULL;
+	else
+		list_del_init(&sock->list);
+
 	sock->parent = NULL;
 }
 
 static int llcp_sock_create(struct net *net, struct socket *sock,
-				const struct nfc_protocol *nfc_proto)
+			    const struct nfc_protocol *nfc_proto)
 {
 	struct sock *sk;
 

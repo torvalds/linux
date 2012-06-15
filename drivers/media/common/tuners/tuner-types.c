@@ -1868,6 +1868,10 @@ struct tunertype tuners[] = {
 		.params = tuner_tena_tnf_5337_params,
 		.count  = ARRAY_SIZE(tuner_tena_tnf_5337_params),
 	},
+	[TUNER_XC5000C] = { /* Xceive 5000C */
+		.name   = "Xceive 5000C tuner",
+		/* see xc5000.c for details */
+	},
 };
 EXPORT_SYMBOL(tuners);
 

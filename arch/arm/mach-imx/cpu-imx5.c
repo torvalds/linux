@@ -62,11 +62,8 @@ EXPORT_SYMBOL(mx51_revision);
  * Dependent on link order - so the assumption is that vfp_init is called
  * before us.
  */
-static int __init mx51_neon_fixup(void)
+int __init mx51_neon_fixup(void)
 {
-	if (!cpu_is_mx51())
-		return 0;
-
 	if (mx51_revision() < IMX_CHIP_REVISION_3_0 &&
 			(elf_hwcap & HWCAP_NEON)) {
 		elf_hwcap &= ~HWCAP_NEON;
@@ -75,7 +72,6 @@ static int __init mx51_neon_fixup(void)
 	return 0;
 }
 
-late_initcall(mx51_neon_fixup);
 #endif
 
 static int get_mx53_srev(void)
@@ -149,39 +145,3 @@ int mx50_revision(void)
 	return mx5_cpu_rev;
 }
 EXPORT_SYMBOL(mx50_revision);
-
-static int __init post_cpu_init(void)
-{
-	unsigned int reg;
-	void __iomem *base;
-
-	if (cpu_is_mx51() || cpu_is_mx53()) {
-		if (cpu_is_mx51())
-			base = MX51_IO_ADDRESS(MX51_AIPS1_BASE_ADDR);
-		else
-			base = MX53_IO_ADDRESS(MX53_AIPS1_BASE_ADDR);
-
-		__raw_writel(0x0, base + 0x40);
-		__raw_writel(0x0, base + 0x44);
-		__raw_writel(0x0, base + 0x48);
-		__raw_writel(0x0, base + 0x4C);
-		reg = __raw_readl(base + 0x50) & 0x00FFFFFF;
-		__raw_writel(reg, base + 0x50);
-
-		if (cpu_is_mx51())
-			base = MX51_IO_ADDRESS(MX51_AIPS2_BASE_ADDR);
-		else
-			base = MX53_IO_ADDRESS(MX53_AIPS2_BASE_ADDR);
-
-		__raw_writel(0x0, base + 0x40);
-		__raw_writel(0x0, base + 0x44);
-		__raw_writel(0x0, base + 0x48);
-		__raw_writel(0x0, base + 0x4C);
-		reg = __raw_readl(base + 0x50) & 0x00FFFFFF;
-		__raw_writel(reg, base + 0x50);
-	}
-
-	return 0;
-}
-
-postcore_initcall(post_cpu_init);

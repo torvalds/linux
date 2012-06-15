@@ -45,35 +45,35 @@
 #include <asm/cputhreads.h>
 #include <asm/page.h>
 #include <asm/hvcall.h>
+#include <asm/switch_to.h>
 #include <linux/gfp.h>
-#include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
-
-/*
- * For now, limit memory to 64GB and require it to be large pages.
- * This value is chosen because it makes the ram_pginfo array be
- * 64kB in size, which is about as large as we want to be trying
- * to allocate with kmalloc.
- */
-#define MAX_MEM_ORDER		36
-
-#define LARGE_PAGE_ORDER	24	/* 16MB pages */
+#include <linux/hugetlb.h>
 
 /* #define EXIT_DEBUG */
 /* #define EXIT_DEBUG_SIMPLE */
 /* #define EXIT_DEBUG_INT */
 
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
+static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu);
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
 	local_paca->kvm_hstate.kvm_vcpu = vcpu;
-	local_paca->kvm_hstate.kvm_vcore = vcpu->arch.vcore;
+	local_paca->kvm_hstate.kvm_vcore = vc;
+	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
+		vc->stolen_tb += mftb() - vc->preempt_tb;
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
+	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
+		vc->preempt_tb = mftb();
 }
 
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
@@ -142,85 +142,204 @@ static void init_vpa(struct kvm_vcpu *vcpu, struct lppaca *vpa)
 	vpa->yield_count = 1;
 }
 
+/* Length for a per-processor buffer is passed in at offset 4 in the buffer */
+struct reg_vpa {
+	u32 dummy;
+	union {
+		u16 hword;
+		u32 word;
+	} length;
+};
+
+static int vpa_is_registered(struct kvmppc_vpa *vpap)
+{
+	if (vpap->update_pending)
+		return vpap->next_gpa != 0;
+	return vpap->pinned_addr != NULL;
+}
+
 static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 				       unsigned long flags,
 				       unsigned long vcpuid, unsigned long vpa)
 {
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long pg_index, ra, len;
-	unsigned long pg_offset;
+	unsigned long len, nb;
 	void *va;
 	struct kvm_vcpu *tvcpu;
+	int err;
+	int subfunc;
+	struct kvmppc_vpa *vpap;
 
 	tvcpu = kvmppc_find_vcpu(kvm, vcpuid);
 	if (!tvcpu)
 		return H_PARAMETER;
 
-	flags >>= 63 - 18;
-	flags &= 7;
-	if (flags == 0 || flags == 4)
-		return H_PARAMETER;
-	if (flags < 4) {
-		if (vpa & 0x7f)
+	subfunc = (flags >> H_VPA_FUNC_SHIFT) & H_VPA_FUNC_MASK;
+	if (subfunc == H_VPA_REG_VPA || subfunc == H_VPA_REG_DTL ||
+	    subfunc == H_VPA_REG_SLB) {
+		/* Registering new area - address must be cache-line aligned */
+		if ((vpa & (L1_CACHE_BYTES - 1)) || !vpa)
 			return H_PARAMETER;
-		/* registering new area; convert logical addr to real */
-		pg_index = vpa >> kvm->arch.ram_porder;
-		pg_offset = vpa & (kvm->arch.ram_psize - 1);
-		if (pg_index >= kvm->arch.ram_npages)
+
+		/* convert logical addr to kernel addr and read length */
+		va = kvmppc_pin_guest_page(kvm, vpa, &nb);
+		if (va == NULL)
 			return H_PARAMETER;
-		if (kvm->arch.ram_pginfo[pg_index].pfn == 0)
-			return H_PARAMETER;
-		ra = kvm->arch.ram_pginfo[pg_index].pfn << PAGE_SHIFT;
-		ra |= pg_offset;
-		va = __va(ra);
-		if (flags <= 1)
-			len = *(unsigned short *)(va + 4);
+		if (subfunc == H_VPA_REG_VPA)
+			len = ((struct reg_vpa *)va)->length.hword;
 		else
-			len = *(unsigned int *)(va + 4);
-		if (pg_offset + len > kvm->arch.ram_psize)
+			len = ((struct reg_vpa *)va)->length.word;
+		kvmppc_unpin_guest_page(kvm, va);
+
+		/* Check length */
+		if (len > nb || len < sizeof(struct reg_vpa))
 			return H_PARAMETER;
-		switch (flags) {
-		case 1:		/* register VPA */
-			if (len < 640)
-				return H_PARAMETER;
-			tvcpu->arch.vpa = va;
-			init_vpa(vcpu, va);
-			break;
-		case 2:		/* register DTL */
-			if (len < 48)
-				return H_PARAMETER;
-			if (!tvcpu->arch.vpa)
-				return H_RESOURCE;
-			len -= len % 48;
-			tvcpu->arch.dtl = va;
-			tvcpu->arch.dtl_end = va + len;
-			break;
-		case 3:		/* register SLB shadow buffer */
-			if (len < 8)
-				return H_PARAMETER;
-			if (!tvcpu->arch.vpa)
-				return H_RESOURCE;
-			tvcpu->arch.slb_shadow = va;
-			len = (len - 16) / 16;
-			tvcpu->arch.slb_shadow = va;
-			break;
-		}
 	} else {
-		switch (flags) {
-		case 5:		/* unregister VPA */
-			if (tvcpu->arch.slb_shadow || tvcpu->arch.dtl)
-				return H_RESOURCE;
-			tvcpu->arch.vpa = NULL;
+		vpa = 0;
+		len = 0;
+	}
+
+	err = H_PARAMETER;
+	vpap = NULL;
+	spin_lock(&tvcpu->arch.vpa_update_lock);
+
+	switch (subfunc) {
+	case H_VPA_REG_VPA:		/* register VPA */
+		if (len < sizeof(struct lppaca))
 			break;
-		case 6:		/* unregister DTL */
-			tvcpu->arch.dtl = NULL;
+		vpap = &tvcpu->arch.vpa;
+		err = 0;
+		break;
+
+	case H_VPA_REG_DTL:		/* register DTL */
+		if (len < sizeof(struct dtl_entry))
 			break;
-		case 7:		/* unregister SLB shadow buffer */
-			tvcpu->arch.slb_shadow = NULL;
+		len -= len % sizeof(struct dtl_entry);
+
+		/* Check that they have previously registered a VPA */
+		err = H_RESOURCE;
+		if (!vpa_is_registered(&tvcpu->arch.vpa))
 			break;
+
+		vpap = &tvcpu->arch.dtl;
+		err = 0;
+		break;
+
+	case H_VPA_REG_SLB:		/* register SLB shadow buffer */
+		/* Check that they have previously registered a VPA */
+		err = H_RESOURCE;
+		if (!vpa_is_registered(&tvcpu->arch.vpa))
+			break;
+
+		vpap = &tvcpu->arch.slb_shadow;
+		err = 0;
+		break;
+
+	case H_VPA_DEREG_VPA:		/* deregister VPA */
+		/* Check they don't still have a DTL or SLB buf registered */
+		err = H_RESOURCE;
+		if (vpa_is_registered(&tvcpu->arch.dtl) ||
+		    vpa_is_registered(&tvcpu->arch.slb_shadow))
+			break;
+
+		vpap = &tvcpu->arch.vpa;
+		err = 0;
+		break;
+
+	case H_VPA_DEREG_DTL:		/* deregister DTL */
+		vpap = &tvcpu->arch.dtl;
+		err = 0;
+		break;
+
+	case H_VPA_DEREG_SLB:		/* deregister SLB shadow buffer */
+		vpap = &tvcpu->arch.slb_shadow;
+		err = 0;
+		break;
+	}
+
+	if (vpap) {
+		vpap->next_gpa = vpa;
+		vpap->len = len;
+		vpap->update_pending = 1;
+	}
+
+	spin_unlock(&tvcpu->arch.vpa_update_lock);
+
+	return err;
+}
+
+static void kvmppc_update_vpa(struct kvm *kvm, struct kvmppc_vpa *vpap)
+{
+	void *va;
+	unsigned long nb;
+
+	vpap->update_pending = 0;
+	va = NULL;
+	if (vpap->next_gpa) {
+		va = kvmppc_pin_guest_page(kvm, vpap->next_gpa, &nb);
+		if (nb < vpap->len) {
+			/*
+			 * If it's now too short, it must be that userspace
+			 * has changed the mappings underlying guest memory,
+			 * so unregister the region.
+			 */
+			kvmppc_unpin_guest_page(kvm, va);
+			va = NULL;
 		}
 	}
-	return H_SUCCESS;
+	if (vpap->pinned_addr)
+		kvmppc_unpin_guest_page(kvm, vpap->pinned_addr);
+	vpap->pinned_addr = va;
+	if (va)
+		vpap->pinned_end = va + vpap->len;
+}
+
+static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	spin_lock(&vcpu->arch.vpa_update_lock);
+	if (vcpu->arch.vpa.update_pending) {
+		kvmppc_update_vpa(kvm, &vcpu->arch.vpa);
+		init_vpa(vcpu, vcpu->arch.vpa.pinned_addr);
+	}
+	if (vcpu->arch.dtl.update_pending) {
+		kvmppc_update_vpa(kvm, &vcpu->arch.dtl);
+		vcpu->arch.dtl_ptr = vcpu->arch.dtl.pinned_addr;
+		vcpu->arch.dtl_index = 0;
+	}
+	if (vcpu->arch.slb_shadow.update_pending)
+		kvmppc_update_vpa(kvm, &vcpu->arch.slb_shadow);
+	spin_unlock(&vcpu->arch.vpa_update_lock);
+}
+
+static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
+				    struct kvmppc_vcore *vc)
+{
+	struct dtl_entry *dt;
+	struct lppaca *vpa;
+	unsigned long old_stolen;
+
+	dt = vcpu->arch.dtl_ptr;
+	vpa = vcpu->arch.vpa.pinned_addr;
+	old_stolen = vcpu->arch.stolen_logged;
+	vcpu->arch.stolen_logged = vc->stolen_tb;
+	if (!dt || !vpa)
+		return;
+	memset(dt, 0, sizeof(struct dtl_entry));
+	dt->dispatch_reason = 7;
+	dt->processor_id = vc->pcpu + vcpu->arch.ptid;
+	dt->timebase = mftb();
+	dt->enqueue_to_dispatch_time = vc->stolen_tb - old_stolen;
+	dt->srr0 = kvmppc_get_pc(vcpu);
+	dt->srr1 = vcpu->arch.shregs.msr;
+	++dt;
+	if (dt == vcpu->arch.dtl.pinned_end)
+		dt = vcpu->arch.dtl.pinned_addr;
+	vcpu->arch.dtl_ptr = dt;
+	/* order writing *dt vs. writing vpa->dtl_idx */
+	smp_wmb();
+	vpa->dtl_idx = ++vcpu->arch.dtl_index;
 }
 
 int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
@@ -230,6 +349,12 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	struct kvm_vcpu *tvcpu;
 
 	switch (req) {
+	case H_ENTER:
+		ret = kvmppc_virtmode_h_enter(vcpu, kvmppc_get_gpr(vcpu, 4),
+					      kvmppc_get_gpr(vcpu, 5),
+					      kvmppc_get_gpr(vcpu, 6),
+					      kvmppc_get_gpr(vcpu, 7));
+		break;
 	case H_CEDE:
 		break;
 	case H_PROD:
@@ -319,20 +444,19 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	}
 	/*
-	 * We get these next two if the guest does a bad real-mode access,
-	 * as we have enabled VRMA (virtualized real mode area) mode in the
-	 * LPCR.  We just generate an appropriate DSI/ISI to the guest.
+	 * We get these next two if the guest accesses a page which it thinks
+	 * it has mapped but which is not actually present, either because
+	 * it is for an emulated I/O device or because the corresonding
+	 * host page has been paged out.  Any other HDSI/HISI interrupts
+	 * have been handled already.
 	 */
 	case BOOK3S_INTERRUPT_H_DATA_STORAGE:
-		vcpu->arch.shregs.dsisr = vcpu->arch.fault_dsisr;
-		vcpu->arch.shregs.dar = vcpu->arch.fault_dar;
-		kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE, 0);
-		r = RESUME_GUEST;
+		r = kvmppc_book3s_hv_page_fault(run, vcpu,
+				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
 		break;
 	case BOOK3S_INTERRUPT_H_INST_STORAGE:
-		kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_INST_STORAGE,
-					0x08000000);
-		r = RESUME_GUEST;
+		r = kvmppc_book3s_hv_page_fault(run, vcpu,
+				kvmppc_get_pc(vcpu), 0);
 		break;
 	/*
 	 * This occurs if the guest executes an illegal instruction.
@@ -392,6 +516,42 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r = -EINVAL;
+
+	switch (reg->id) {
+	case KVM_REG_PPC_HIOR:
+		r = put_user(0, (u64 __user *)reg->addr);
+		break;
+	default:
+		break;
+	}
+
+	return r;
+}
+
+int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r = -EINVAL;
+
+	switch (reg->id) {
+	case KVM_REG_PPC_HIOR:
+	{
+		u64 hior;
+		/* Only allow this to be set to zero */
+		r = get_user(hior, (u64 __user *)reg->addr);
+		if (!r && (hior != 0))
+			r = -EINVAL;
+		break;
+	}
+	default:
+		break;
+	}
+
+	return r;
+}
+
 int kvmppc_core_check_processor_compat(void)
 {
 	if (cpu_has_feature(CPU_FTR_HVMODE))
@@ -411,7 +571,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 		goto out;
 
 	err = -ENOMEM;
-	vcpu = kzalloc(sizeof(struct kvm_vcpu), GFP_KERNEL);
+	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
 	if (!vcpu)
 		goto out;
 
@@ -426,6 +586,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	/* default to host PVR, since we can't spoof it */
 	vcpu->arch.pvr = mfspr(SPRN_PVR);
 	kvmppc_set_pvr(vcpu, vcpu->arch.pvr);
+	spin_lock_init(&vcpu->arch.vpa_update_lock);
 
 	kvmppc_mmu_book3s_hv_init(vcpu);
 
@@ -444,6 +605,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 			INIT_LIST_HEAD(&vcore->runnable_threads);
 			spin_lock_init(&vcore->lock);
 			init_waitqueue_head(&vcore->wq);
+			vcore->preempt_tb = mftb();
 		}
 		kvm->arch.vcores[core] = vcore;
 	}
@@ -456,6 +618,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	++vcore->num_threads;
 	spin_unlock(&vcore->lock);
 	vcpu->arch.vcore = vcore;
+	vcpu->arch.stolen_logged = vcore->stolen_tb;
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
@@ -463,15 +626,23 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	return vcpu;
 
 free_vcpu:
-	kfree(vcpu);
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 out:
 	return ERR_PTR(err);
 }
 
 void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
+	spin_lock(&vcpu->arch.vpa_update_lock);
+	if (vcpu->arch.dtl.pinned_addr)
+		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.dtl.pinned_addr);
+	if (vcpu->arch.slb_shadow.pinned_addr)
+		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.slb_shadow.pinned_addr);
+	if (vcpu->arch.vpa.pinned_addr)
+		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.vpa.pinned_addr);
+	spin_unlock(&vcpu->arch.vpa_update_lock);
 	kvm_vcpu_uninit(vcpu);
-	kfree(vcpu);
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
 
 static void kvmppc_set_timer(struct kvm_vcpu *vcpu)
@@ -482,7 +653,7 @@ static void kvmppc_set_timer(struct kvm_vcpu *vcpu)
 	if (now > vcpu->arch.dec_expires) {
 		/* decrementer has already gone negative */
 		kvmppc_core_queue_dec(vcpu);
-		kvmppc_core_deliver_interrupts(vcpu);
+		kvmppc_core_prepare_to_enter(vcpu);
 		return;
 	}
 	dec_nsec = (vcpu->arch.dec_expires - now) * NSEC_PER_SEC
@@ -521,6 +692,45 @@ static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 	list_del(&vcpu->arch.run_list);
 }
 
+static int kvmppc_grab_hwthread(int cpu)
+{
+	struct paca_struct *tpaca;
+	long timeout = 1000;
+
+	tpaca = &paca[cpu];
+
+	/* Ensure the thread won't go into the kernel if it wakes */
+	tpaca->kvm_hstate.hwthread_req = 1;
+
+	/*
+	 * If the thread is already executing in the kernel (e.g. handling
+	 * a stray interrupt), wait for it to get back to nap mode.
+	 * The smp_mb() is to ensure that our setting of hwthread_req
+	 * is visible before we look at hwthread_state, so if this
+	 * races with the code at system_reset_pSeries and the thread
+	 * misses our setting of hwthread_req, we are sure to see its
+	 * setting of hwthread_state, and vice versa.
+	 */
+	smp_mb();
+	while (tpaca->kvm_hstate.hwthread_state == KVM_HWTHREAD_IN_KERNEL) {
+		if (--timeout <= 0) {
+			pr_err("KVM: couldn't grab cpu %d\n", cpu);
+			return -EBUSY;
+		}
+		udelay(1);
+	}
+	return 0;
+}
+
+static void kvmppc_release_hwthread(int cpu)
+{
+	struct paca_struct *tpaca;
+
+	tpaca = &paca[cpu];
+	tpaca->kvm_hstate.hwthread_req = 0;
+	tpaca->kvm_hstate.kvm_vcpu = NULL;
+}
+
 static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 {
 	int cpu;
@@ -540,8 +750,7 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	smp_wmb();
 #if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
 	if (vcpu->arch.ptid) {
-		tpaca->cpu_start = 0x80;
-		wmb();
+		kvmppc_grab_hwthread(cpu);
 		xics_wake_cpu(cpu);
 		++vc->n_woken;
 	}
@@ -591,7 +800,7 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	struct kvm_vcpu *vcpu, *vcpu0, *vnext;
 	long ret;
 	u64 now;
-	int ptid;
+	int ptid, i;
 
 	/* don't start if any threads have a signal pending */
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
@@ -633,17 +842,29 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	vc->nap_count = 0;
 	vc->entry_exit_count = 0;
 	vc->vcore_state = VCORE_RUNNING;
+	vc->stolen_tb += mftb() - vc->preempt_tb;
 	vc->in_guest = 0;
 	vc->pcpu = smp_processor_id();
 	vc->napping_threads = 0;
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
+	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 		kvmppc_start_thread(vcpu);
+		if (vcpu->arch.vpa.update_pending ||
+		    vcpu->arch.slb_shadow.update_pending ||
+		    vcpu->arch.dtl.update_pending)
+			kvmppc_update_vpas(vcpu);
+		kvmppc_create_dtl_entry(vcpu, vc);
+	}
+	/* Grab any remaining hw threads so they can't go into the kernel */
+	for (i = ptid; i < threads_per_core; ++i)
+		kvmppc_grab_hwthread(vc->pcpu + i);
 
 	preempt_disable();
 	spin_unlock(&vc->lock);
 
 	kvm_guest_enter();
 	__kvmppc_vcore_entry(NULL, vcpu0);
+	for (i = 0; i < threads_per_core; ++i)
+		kvmppc_release_hwthread(vc->pcpu + i);
 
 	spin_lock(&vc->lock);
 	/* disable sending of IPIs on virtual external irqs */
@@ -689,6 +910,7 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	spin_lock(&vc->lock);
  out:
 	vc->vcore_state = VCORE_INACTIVE;
+	vc->preempt_tb = mftb();
 	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
 				 arch.run_list) {
 		if (vcpu->arch.ret != RESUME_GUEST) {
@@ -787,6 +1009,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			spin_lock(&vc->lock);
 			continue;
 		}
+		vc->runner = vcpu;
 		n_ceded = 0;
 		list_for_each_entry(v, &vc->runnable_threads, arch.run_list)
 			n_ceded += v->arch.ceded;
@@ -797,7 +1020,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 		list_for_each_entry_safe(v, vn, &vc->runnable_threads,
 					 arch.run_list) {
-			kvmppc_core_deliver_interrupts(v);
+			kvmppc_core_prepare_to_enter(v);
 			if (signal_pending(v->arch.run_task)) {
 				kvmppc_remove_runnable(vc, v);
 				v->stat.signal_exits++;
@@ -806,6 +1029,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 				wake_up(&v->arch.cpu_run);
 			}
 		}
+		vc->runner = NULL;
 	}
 
 	if (signal_pending(current)) {
@@ -836,20 +1060,26 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		return -EINVAL;
 	}
 
+	kvmppc_core_prepare_to_enter(vcpu);
+
 	/* No need to go into the guest when all we'll do is come back out */
 	if (signal_pending(current)) {
 		run->exit_reason = KVM_EXIT_INTR;
 		return -EINTR;
 	}
 
-	/* On PPC970, check that we have an RMA region */
-	if (!vcpu->kvm->arch.rma && cpu_has_feature(CPU_FTR_ARCH_201))
-		return -EPERM;
+	/* On the first time here, set up VRMA or RMA */
+	if (!vcpu->kvm->arch.rma_setup_done) {
+		r = kvmppc_hv_setup_rma(vcpu);
+		if (r)
+			return r;
+	}
 
 	flush_fp_to_thread(current);
 	flush_altivec_to_thread(current);
 	flush_vsx_to_thread(current);
 	vcpu->arch.wqp = &vcpu->arch.vcore->wq;
+	vcpu->arch.pgdir = current->mm->pgd;
 
 	do {
 		r = kvmppc_run_vcpu(run, vcpu);
@@ -857,121 +1087,12 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		if (run->exit_reason == KVM_EXIT_PAPR_HCALL &&
 		    !(vcpu->arch.shregs.msr & MSR_PR)) {
 			r = kvmppc_pseries_do_hcall(vcpu);
-			kvmppc_core_deliver_interrupts(vcpu);
+			kvmppc_core_prepare_to_enter(vcpu);
 		}
 	} while (r == RESUME_GUEST);
 	return r;
 }
 
-static long kvmppc_stt_npages(unsigned long window_size)
-{
-	return ALIGN((window_size >> SPAPR_TCE_SHIFT)
-		     * sizeof(u64), PAGE_SIZE) / PAGE_SIZE;
-}
-
-static void release_spapr_tce_table(struct kvmppc_spapr_tce_table *stt)
-{
-	struct kvm *kvm = stt->kvm;
-	int i;
-
-	mutex_lock(&kvm->lock);
-	list_del(&stt->list);
-	for (i = 0; i < kvmppc_stt_npages(stt->window_size); i++)
-		__free_page(stt->pages[i]);
-	kfree(stt);
-	mutex_unlock(&kvm->lock);
-
-	kvm_put_kvm(kvm);
-}
-
-static int kvm_spapr_tce_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	struct kvmppc_spapr_tce_table *stt = vma->vm_file->private_data;
-	struct page *page;
-
-	if (vmf->pgoff >= kvmppc_stt_npages(stt->window_size))
-		return VM_FAULT_SIGBUS;
-
-	page = stt->pages[vmf->pgoff];
-	get_page(page);
-	vmf->page = page;
-	return 0;
-}
-
-static const struct vm_operations_struct kvm_spapr_tce_vm_ops = {
-	.fault = kvm_spapr_tce_fault,
-};
-
-static int kvm_spapr_tce_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	vma->vm_ops = &kvm_spapr_tce_vm_ops;
-	return 0;
-}
-
-static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
-{
-	struct kvmppc_spapr_tce_table *stt = filp->private_data;
-
-	release_spapr_tce_table(stt);
-	return 0;
-}
-
-static struct file_operations kvm_spapr_tce_fops = {
-	.mmap           = kvm_spapr_tce_mmap,
-	.release	= kvm_spapr_tce_release,
-};
-
-long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
-				   struct kvm_create_spapr_tce *args)
-{
-	struct kvmppc_spapr_tce_table *stt = NULL;
-	long npages;
-	int ret = -ENOMEM;
-	int i;
-
-	/* Check this LIOBN hasn't been previously allocated */
-	list_for_each_entry(stt, &kvm->arch.spapr_tce_tables, list) {
-		if (stt->liobn == args->liobn)
-			return -EBUSY;
-	}
-
-	npages = kvmppc_stt_npages(args->window_size);
-
-	stt = kzalloc(sizeof(*stt) + npages* sizeof(struct page *),
-		      GFP_KERNEL);
-	if (!stt)
-		goto fail;
-
-	stt->liobn = args->liobn;
-	stt->window_size = args->window_size;
-	stt->kvm = kvm;
-
-	for (i = 0; i < npages; i++) {
-		stt->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
-		if (!stt->pages[i])
-			goto fail;
-	}
-
-	kvm_get_kvm(kvm);
-
-	mutex_lock(&kvm->lock);
-	list_add(&stt->list, &kvm->arch.spapr_tce_tables);
-
-	mutex_unlock(&kvm->lock);
-
-	return anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
-				stt, O_RDWR);
-
-fail:
-	if (stt) {
-		for (i = 0; i < npages; i++)
-			if (stt->pages[i])
-				__free_page(stt->pages[i]);
-
-		kfree(stt);
-	}
-	return ret;
-}
 
 /* Work out RMLS (real mode limit selector) field value for a given RMA size.
    Assumes POWER7 or PPC970. */
@@ -1001,7 +1122,7 @@ static inline int lpcr_rmls(unsigned long rma_size)
 
 static int kvm_rma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	struct kvmppc_rma_info *ri = vma->vm_file->private_data;
+	struct kvmppc_linear_info *ri = vma->vm_file->private_data;
 	struct page *page;
 
 	if (vmf->pgoff >= ri->npages)
@@ -1026,7 +1147,7 @@ static int kvm_rma_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int kvm_rma_release(struct inode *inode, struct file *filp)
 {
-	struct kvmppc_rma_info *ri = filp->private_data;
+	struct kvmppc_linear_info *ri = filp->private_data;
 
 	kvm_release_rma(ri);
 	return 0;
@@ -1039,7 +1160,7 @@ static struct file_operations kvm_rma_fops = {
 
 long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
 {
-	struct kvmppc_rma_info *ri;
+	struct kvmppc_linear_info *ri;
 	long fd;
 
 	ri = kvm_alloc_rma();
@@ -1054,89 +1175,219 @@ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
 	return fd;
 }
 
-static struct page *hva_to_page(unsigned long addr)
+static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
+				     int linux_psize)
 {
-	struct page *page[1];
-	int npages;
+	struct mmu_psize_def *def = &mmu_psize_defs[linux_psize];
 
-	might_sleep();
+	if (!def->shift)
+		return;
+	(*sps)->page_shift = def->shift;
+	(*sps)->slb_enc = def->sllp;
+	(*sps)->enc[0].page_shift = def->shift;
+	(*sps)->enc[0].pte_enc = def->penc;
+	(*sps)++;
+}
 
-	npages = get_user_pages_fast(addr, 1, 1, page);
+int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
+{
+	struct kvm_ppc_one_seg_page_size *sps;
 
-	if (unlikely(npages != 1))
-		return 0;
+	info->flags = KVM_PPC_PAGE_SIZES_REAL;
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
+		info->flags |= KVM_PPC_1T_SEGMENTS;
+	info->slb_size = mmu_slb_size;
 
-	return page[0];
+	/* We only support these sizes for now, and no muti-size segments */
+	sps = &info->sps[0];
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_4K);
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_64K);
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_16M);
+
+	return 0;
+}
+
+/*
+ * Get (and clear) the dirty memory log for a memory slot.
+ */
+int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
+{
+	struct kvm_memory_slot *memslot;
+	int r;
+	unsigned long n;
+
+	mutex_lock(&kvm->slots_lock);
+
+	r = -EINVAL;
+	if (log->slot >= KVM_MEMORY_SLOTS)
+		goto out;
+
+	memslot = id_to_memslot(kvm->memslots, log->slot);
+	r = -ENOENT;
+	if (!memslot->dirty_bitmap)
+		goto out;
+
+	n = kvm_dirty_bitmap_bytes(memslot);
+	memset(memslot->dirty_bitmap, 0, n);
+
+	r = kvmppc_hv_get_dirty_log(kvm, memslot);
+	if (r)
+		goto out;
+
+	r = -EFAULT;
+	if (copy_to_user(log->dirty_bitmap, memslot->dirty_bitmap, n))
+		goto out;
+
+	r = 0;
+out:
+	mutex_unlock(&kvm->slots_lock);
+	return r;
+}
+
+static unsigned long slb_pgsize_encoding(unsigned long psize)
+{
+	unsigned long senc = 0;
+
+	if (psize > 0x1000) {
+		senc = SLB_VSID_L;
+		if (psize == 0x10000)
+			senc |= SLB_VSID_LP_01;
+	}
+	return senc;
 }
 
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem)
 {
-	unsigned long psize, porder;
-	unsigned long i, npages, totalpages;
-	unsigned long pg_ix;
-	struct kvmppc_pginfo *pginfo;
-	unsigned long hva;
-	struct kvmppc_rma_info *ri = NULL;
+	unsigned long npages;
+	unsigned long *phys;
+
+	/* Allocate a slot_phys array */
+	phys = kvm->arch.slot_phys[mem->slot];
+	if (!kvm->arch.using_mmu_notifiers && !phys) {
+		npages = mem->memory_size >> PAGE_SHIFT;
+		phys = vzalloc(npages * sizeof(unsigned long));
+		if (!phys)
+			return -ENOMEM;
+		kvm->arch.slot_phys[mem->slot] = phys;
+		kvm->arch.slot_npages[mem->slot] = npages;
+	}
+
+	return 0;
+}
+
+static void unpin_slot(struct kvm *kvm, int slot_id)
+{
+	unsigned long *physp;
+	unsigned long j, npages, pfn;
 	struct page *page;
 
-	/* For now, only allow 16MB pages */
-	porder = LARGE_PAGE_ORDER;
-	psize = 1ul << porder;
-	if ((mem->memory_size & (psize - 1)) ||
-	    (mem->guest_phys_addr & (psize - 1))) {
-		pr_err("bad memory_size=%llx @ %llx\n",
-		       mem->memory_size, mem->guest_phys_addr);
-		return -EINVAL;
+	physp = kvm->arch.slot_phys[slot_id];
+	npages = kvm->arch.slot_npages[slot_id];
+	if (physp) {
+		spin_lock(&kvm->arch.slot_phys_lock);
+		for (j = 0; j < npages; j++) {
+			if (!(physp[j] & KVMPPC_GOT_PAGE))
+				continue;
+			pfn = physp[j] >> PAGE_SHIFT;
+			page = pfn_to_page(pfn);
+			SetPageDirty(page);
+			put_page(page);
+		}
+		kvm->arch.slot_phys[slot_id] = NULL;
+		spin_unlock(&kvm->arch.slot_phys_lock);
+		vfree(physp);
 	}
+}
 
-	npages = mem->memory_size >> porder;
-	totalpages = (mem->guest_phys_addr + mem->memory_size) >> porder;
+void kvmppc_core_commit_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem)
+{
+}
 
-	/* More memory than we have space to track? */
-	if (totalpages > (1ul << (MAX_MEM_ORDER - LARGE_PAGE_ORDER)))
-		return -EINVAL;
+static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
+{
+	int err = 0;
+	struct kvm *kvm = vcpu->kvm;
+	struct kvmppc_linear_info *ri = NULL;
+	unsigned long hva;
+	struct kvm_memory_slot *memslot;
+	struct vm_area_struct *vma;
+	unsigned long lpcr, senc;
+	unsigned long psize, porder;
+	unsigned long rma_size;
+	unsigned long rmls;
+	unsigned long *physp;
+	unsigned long i, npages;
 
-	/* Do we already have an RMA registered? */
-	if (mem->guest_phys_addr == 0 && kvm->arch.rma)
-		return -EINVAL;
+	mutex_lock(&kvm->lock);
+	if (kvm->arch.rma_setup_done)
+		goto out;	/* another vcpu beat us to it */
 
-	if (totalpages > kvm->arch.ram_npages)
-		kvm->arch.ram_npages = totalpages;
+	/* Look up the memslot for guest physical address 0 */
+	memslot = gfn_to_memslot(kvm, 0);
+
+	/* We must have some memory at 0 by now */
+	err = -EINVAL;
+	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
+		goto out;
+
+	/* Look up the VMA for the start of this memory slot */
+	hva = memslot->userspace_addr;
+	down_read(&current->mm->mmap_sem);
+	vma = find_vma(current->mm, hva);
+	if (!vma || vma->vm_start > hva || (vma->vm_flags & VM_IO))
+		goto up_out;
+
+	psize = vma_kernel_pagesize(vma);
+	porder = __ilog2(psize);
 
 	/* Is this one of our preallocated RMAs? */
-	if (mem->guest_phys_addr == 0) {
-		struct vm_area_struct *vma;
+	if (vma->vm_file && vma->vm_file->f_op == &kvm_rma_fops &&
+	    hva == vma->vm_start)
+		ri = vma->vm_file->private_data;
 
-		down_read(&current->mm->mmap_sem);
-		vma = find_vma(current->mm, mem->userspace_addr);
-		if (vma && vma->vm_file &&
-		    vma->vm_file->f_op == &kvm_rma_fops &&
-		    mem->userspace_addr == vma->vm_start)
-			ri = vma->vm_file->private_data;
-		up_read(&current->mm->mmap_sem);
-		if (!ri && cpu_has_feature(CPU_FTR_ARCH_201)) {
-			pr_err("CPU requires an RMO\n");
-			return -EINVAL;
+	up_read(&current->mm->mmap_sem);
+
+	if (!ri) {
+		/* On POWER7, use VRMA; on PPC970, give up */
+		err = -EPERM;
+		if (cpu_has_feature(CPU_FTR_ARCH_201)) {
+			pr_err("KVM: CPU requires an RMO\n");
+			goto out;
 		}
-	}
 
-	if (ri) {
-		unsigned long rma_size;
-		unsigned long lpcr;
-		long rmls;
+		/* We can handle 4k, 64k or 16M pages in the VRMA */
+		err = -EINVAL;
+		if (!(psize == 0x1000 || psize == 0x10000 ||
+		      psize == 0x1000000))
+			goto out;
 
-		rma_size = ri->npages << PAGE_SHIFT;
-		if (rma_size > mem->memory_size)
-			rma_size = mem->memory_size;
+		/* Update VRMASD field in the LPCR */
+		senc = slb_pgsize_encoding(psize);
+		kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
+			(VRMA_VSID << SLB_VSID_SHIFT_1T);
+		lpcr = kvm->arch.lpcr & ~LPCR_VRMASD;
+		lpcr |= senc << (LPCR_VRMASD_SH - 4);
+		kvm->arch.lpcr = lpcr;
+
+		/* Create HPTEs in the hash page table for the VRMA */
+		kvmppc_map_vrma(vcpu, memslot, porder);
+
+	} else {
+		/* Set up to use an RMO region */
+		rma_size = ri->npages;
+		if (rma_size > memslot->npages)
+			rma_size = memslot->npages;
+		rma_size <<= PAGE_SHIFT;
 		rmls = lpcr_rmls(rma_size);
+		err = -EINVAL;
 		if (rmls < 0) {
-			pr_err("Can't use RMA of 0x%lx bytes\n", rma_size);
-			return -EINVAL;
+			pr_err("KVM: Can't use RMA of 0x%lx bytes\n", rma_size);
+			goto out;
 		}
 		atomic_inc(&ri->use_count);
 		kvm->arch.rma = ri;
-		kvm->arch.n_rma_pages = rma_size >> porder;
 
 		/* Update LPCR and RMOR */
 		lpcr = kvm->arch.lpcr;
@@ -1156,53 +1407,35 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 			kvm->arch.rmor = kvm->arch.rma->base_pfn << PAGE_SHIFT;
 		}
 		kvm->arch.lpcr = lpcr;
-		pr_info("Using RMO at %lx size %lx (LPCR = %lx)\n",
+		pr_info("KVM: Using RMO at %lx size %lx (LPCR = %lx)\n",
 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
+
+		/* Initialize phys addrs of pages in RMO */
+		npages = ri->npages;
+		porder = __ilog2(npages);
+		physp = kvm->arch.slot_phys[memslot->id];
+		spin_lock(&kvm->arch.slot_phys_lock);
+		for (i = 0; i < npages; ++i)
+			physp[i] = ((ri->base_pfn + i) << PAGE_SHIFT) + porder;
+		spin_unlock(&kvm->arch.slot_phys_lock);
 	}
 
-	pg_ix = mem->guest_phys_addr >> porder;
-	pginfo = kvm->arch.ram_pginfo + pg_ix;
-	for (i = 0; i < npages; ++i, ++pg_ix) {
-		if (ri && pg_ix < kvm->arch.n_rma_pages) {
-			pginfo[i].pfn = ri->base_pfn +
-				(pg_ix << (porder - PAGE_SHIFT));
-			continue;
-		}
-		hva = mem->userspace_addr + (i << porder);
-		page = hva_to_page(hva);
-		if (!page) {
-			pr_err("oops, no pfn for hva %lx\n", hva);
-			goto err;
-		}
-		/* Check it's a 16MB page */
-		if (!PageHead(page) ||
-		    compound_order(page) != (LARGE_PAGE_ORDER - PAGE_SHIFT)) {
-			pr_err("page at %lx isn't 16MB (o=%d)\n",
-			       hva, compound_order(page));
-			goto err;
-		}
-		pginfo[i].pfn = page_to_pfn(page);
-	}
+	/* Order updates to kvm->arch.lpcr etc. vs. rma_setup_done */
+	smp_wmb();
+	kvm->arch.rma_setup_done = 1;
+	err = 0;
+ out:
+	mutex_unlock(&kvm->lock);
+	return err;
 
-	return 0;
-
- err:
-	return -EINVAL;
-}
-
-void kvmppc_core_commit_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem)
-{
-	if (mem->guest_phys_addr == 0 && mem->memory_size != 0 &&
-	    !kvm->arch.rma)
-		kvmppc_map_vrma(kvm, mem);
+ up_out:
+	up_read(&current->mm->mmap_sem);
+	goto out;
 }
 
 int kvmppc_core_init_vm(struct kvm *kvm)
 {
 	long r;
-	unsigned long npages = 1ul << (MAX_MEM_ORDER - LARGE_PAGE_ORDER);
-	long err = -ENOMEM;
 	unsigned long lpcr;
 
 	/* Allocate hashed page table */
@@ -1212,19 +1445,7 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 
 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
 
-	kvm->arch.ram_pginfo = kzalloc(npages * sizeof(struct kvmppc_pginfo),
-				       GFP_KERNEL);
-	if (!kvm->arch.ram_pginfo) {
-		pr_err("kvmppc_core_init_vm: couldn't alloc %lu bytes\n",
-		       npages * sizeof(struct kvmppc_pginfo));
-		goto out_free;
-	}
-
-	kvm->arch.ram_npages = 0;
-	kvm->arch.ram_psize = 1ul << LARGE_PAGE_ORDER;
-	kvm->arch.ram_porder = LARGE_PAGE_ORDER;
 	kvm->arch.rma = NULL;
-	kvm->arch.n_rma_pages = 0;
 
 	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
 
@@ -1242,30 +1463,25 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_LPCR);
 		lpcr &= LPCR_PECE | LPCR_LPES;
 		lpcr |= (4UL << LPCR_DPFD_SH) | LPCR_HDICE |
-			LPCR_VPM0 | LPCR_VRMA_L;
+			LPCR_VPM0 | LPCR_VPM1;
+		kvm->arch.vrma_slb_v = SLB_VSID_B_1T |
+			(VRMA_VSID << SLB_VSID_SHIFT_1T);
 	}
 	kvm->arch.lpcr = lpcr;
 
+	kvm->arch.using_mmu_notifiers = !!cpu_has_feature(CPU_FTR_ARCH_206);
+	spin_lock_init(&kvm->arch.slot_phys_lock);
 	return 0;
-
- out_free:
-	kvmppc_free_hpt(kvm);
-	return err;
 }
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
-	struct kvmppc_pginfo *pginfo;
 	unsigned long i;
 
-	if (kvm->arch.ram_pginfo) {
-		pginfo = kvm->arch.ram_pginfo;
-		kvm->arch.ram_pginfo = NULL;
-		for (i = kvm->arch.n_rma_pages; i < kvm->arch.ram_npages; ++i)
-			if (pginfo[i].pfn)
-				put_page(pfn_to_page(pginfo[i].pfn));
-		kfree(pginfo);
-	}
+	if (!kvm->arch.using_mmu_notifiers)
+		for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
+			unpin_slot(kvm, i);
+
 	if (kvm->arch.rma) {
 		kvm_release_rma(kvm->arch.rma);
 		kvm->arch.rma = NULL;
@@ -1287,12 +1503,12 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return EMULATE_FAIL;
 }
 
-int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
+int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 {
 	return EMULATE_FAIL;
 }
 
-int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
+int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 {
 	return EMULATE_FAIL;
 }

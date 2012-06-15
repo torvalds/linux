@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/list.h>
@@ -24,6 +25,8 @@
 #include <linux/atomic.h>
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
 
 #include "uvcvideo.h"
@@ -504,6 +507,8 @@ static int uvc_v4l2_open(struct file *file)
 		}
 	}
 
+	v4l2_fh_init(&handle->vfh, stream->vdev);
+	v4l2_fh_add(&handle->vfh);
 	handle->chain = stream->chain;
 	handle->stream = stream;
 	handle->state = UVC_HANDLE_PASSIVE;
@@ -527,6 +532,8 @@ static int uvc_v4l2_release(struct file *file)
 
 	/* Release the file handle. */
 	uvc_dismiss_privileges(handle);
+	v4l2_fh_del(&handle->vfh);
+	v4l2_fh_exit(&handle->vfh);
 	kfree(handle);
 	file->private_data = NULL;
 
@@ -583,7 +590,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return ret;
 
 		ret = uvc_ctrl_get(chain, &xctrl);
-		uvc_ctrl_rollback(chain);
+		uvc_ctrl_rollback(handle);
 		if (ret >= 0)
 			ctrl->value = xctrl.value;
 		break;
@@ -604,10 +611,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		ret = uvc_ctrl_set(chain, &xctrl);
 		if (ret < 0) {
-			uvc_ctrl_rollback(chain);
+			uvc_ctrl_rollback(handle);
 			return ret;
 		}
-		ret = uvc_ctrl_commit(chain);
+		ret = uvc_ctrl_commit(handle, &xctrl, 1);
 		if (ret == 0)
 			ctrl->value = xctrl.value;
 		break;
@@ -629,13 +636,13 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		for (i = 0; i < ctrls->count; ++ctrl, ++i) {
 			ret = uvc_ctrl_get(chain, ctrl);
 			if (ret < 0) {
-				uvc_ctrl_rollback(chain);
+				uvc_ctrl_rollback(handle);
 				ctrls->error_idx = i;
 				return ret;
 			}
 		}
 		ctrls->error_idx = 0;
-		ret = uvc_ctrl_rollback(chain);
+		ret = uvc_ctrl_rollback(handle);
 		break;
 	}
 
@@ -653,7 +660,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		for (i = 0; i < ctrls->count; ++ctrl, ++i) {
 			ret = uvc_ctrl_set(chain, ctrl);
 			if (ret < 0) {
-				uvc_ctrl_rollback(chain);
+				uvc_ctrl_rollback(handle);
 				ctrls->error_idx = i;
 				return ret;
 			}
@@ -662,9 +669,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		ctrls->error_idx = 0;
 
 		if (cmd == VIDIOC_S_EXT_CTRLS)
-			ret = uvc_ctrl_commit(chain);
+			ret = uvc_ctrl_commit(handle,
+					      ctrls->controls, ctrls->count);
 		else
-			ret = uvc_ctrl_rollback(chain);
+			ret = uvc_ctrl_rollback(handle);
 		break;
 	}
 
@@ -686,7 +694,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 					break;
 			}
 			pin = iterm->id;
-		} else if (pin < selector->bNrInPins) {
+		} else if (index < selector->bNrInPins) {
 			pin = selector->baSourceID[index];
 			list_for_each_entry(iterm, &chain->entities, chain) {
 				if (!UVC_ENTITY_IS_ITERM(iterm))
@@ -989,6 +997,26 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return uvc_video_enable(stream, 0);
 	}
 
+	case VIDIOC_SUBSCRIBE_EVENT:
+	{
+		struct v4l2_event_subscription *sub = arg;
+
+		switch (sub->type) {
+		case V4L2_EVENT_CTRL:
+			return v4l2_event_subscribe(&handle->vfh, sub, 0,
+						    &uvc_ctrl_sub_ev_ops);
+		default:
+			return -EINVAL;
+		}
+	}
+
+	case VIDIOC_UNSUBSCRIBE_EVENT:
+		return v4l2_event_unsubscribe(&handle->vfh, arg);
+
+	case VIDIOC_DQEVENT:
+		return v4l2_event_dequeue(&handle->vfh, arg,
+					  file->f_flags & O_NONBLOCK);
+
 	/* Analog video standards make no sense for digital cameras. */
 	case VIDIOC_ENUMSTD:
 	case VIDIOC_QUERYSTD:
@@ -1012,7 +1040,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	default:
 		uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n", cmd);
-		return -EINVAL;
+		return -ENOTTY;
 	}
 
 	return ret;
@@ -1029,6 +1057,206 @@ static long uvc_v4l2_ioctl(struct file *file,
 
 	return video_usercopy(file, cmd, arg, uvc_v4l2_do_ioctl);
 }
+
+#ifdef CONFIG_COMPAT
+struct uvc_xu_control_mapping32 {
+	__u32 id;
+	__u8 name[32];
+	__u8 entity[16];
+	__u8 selector;
+
+	__u8 size;
+	__u8 offset;
+	__u32 v4l2_type;
+	__u32 data_type;
+
+	compat_caddr_t menu_info;
+	__u32 menu_count;
+
+	__u32 reserved[4];
+};
+
+static int uvc_v4l2_get_xu_mapping(struct uvc_xu_control_mapping *kp,
+			const struct uvc_xu_control_mapping32 __user *up)
+{
+	struct uvc_menu_info __user *umenus;
+	struct uvc_menu_info __user *kmenus;
+	compat_caddr_t p;
+
+	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
+	    __copy_from_user(kp, up, offsetof(typeof(*up), menu_info)) ||
+	    __get_user(kp->menu_count, &up->menu_count))
+		return -EFAULT;
+
+	memset(kp->reserved, 0, sizeof(kp->reserved));
+
+	if (kp->menu_count == 0) {
+		kp->menu_info = NULL;
+		return 0;
+	}
+
+	if (__get_user(p, &up->menu_info))
+		return -EFAULT;
+	umenus = compat_ptr(p);
+	if (!access_ok(VERIFY_READ, umenus, kp->menu_count * sizeof(*umenus)))
+		return -EFAULT;
+
+	kmenus = compat_alloc_user_space(kp->menu_count * sizeof(*kmenus));
+	if (kmenus == NULL)
+		return -EFAULT;
+	kp->menu_info = kmenus;
+
+	if (copy_in_user(kmenus, umenus, kp->menu_count * sizeof(*umenus)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int uvc_v4l2_put_xu_mapping(const struct uvc_xu_control_mapping *kp,
+			struct uvc_xu_control_mapping32 __user *up)
+{
+	struct uvc_menu_info __user *umenus;
+	struct uvc_menu_info __user *kmenus = kp->menu_info;
+	compat_caddr_t p;
+
+	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)) ||
+	    __copy_to_user(up, kp, offsetof(typeof(*up), menu_info)) ||
+	    __put_user(kp->menu_count, &up->menu_count))
+		return -EFAULT;
+
+	if (__clear_user(up->reserved, sizeof(up->reserved)))
+		return -EFAULT;
+
+	if (kp->menu_count == 0)
+		return 0;
+
+	if (get_user(p, &up->menu_info))
+		return -EFAULT;
+	umenus = compat_ptr(p);
+
+	if (copy_in_user(umenus, kmenus, kp->menu_count * sizeof(*umenus)))
+		return -EFAULT;
+
+	return 0;
+}
+
+struct uvc_xu_control_query32 {
+	__u8 unit;
+	__u8 selector;
+	__u8 query;
+	__u16 size;
+	compat_caddr_t data;
+};
+
+static int uvc_v4l2_get_xu_query(struct uvc_xu_control_query *kp,
+			const struct uvc_xu_control_query32 __user *up)
+{
+	u8 __user *udata;
+	u8 __user *kdata;
+	compat_caddr_t p;
+
+	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
+	    __copy_from_user(kp, up, offsetof(typeof(*up), data)))
+		return -EFAULT;
+
+	if (kp->size == 0) {
+		kp->data = NULL;
+		return 0;
+	}
+
+	if (__get_user(p, &up->data))
+		return -EFAULT;
+	udata = compat_ptr(p);
+	if (!access_ok(VERIFY_READ, udata, kp->size))
+		return -EFAULT;
+
+	kdata = compat_alloc_user_space(kp->size);
+	if (kdata == NULL)
+		return -EFAULT;
+	kp->data = kdata;
+
+	if (copy_in_user(kdata, udata, kp->size))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int uvc_v4l2_put_xu_query(const struct uvc_xu_control_query *kp,
+			struct uvc_xu_control_query32 __user *up)
+{
+	u8 __user *udata;
+	u8 __user *kdata = kp->data;
+	compat_caddr_t p;
+
+	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)) ||
+	    __copy_to_user(up, kp, offsetof(typeof(*up), data)))
+		return -EFAULT;
+
+	if (kp->size == 0)
+		return 0;
+
+	if (get_user(p, &up->data))
+		return -EFAULT;
+	udata = compat_ptr(p);
+	if (!access_ok(VERIFY_READ, udata, kp->size))
+		return -EFAULT;
+
+	if (copy_in_user(udata, kdata, kp->size))
+		return -EFAULT;
+
+	return 0;
+}
+
+#define UVCIOC_CTRL_MAP32	_IOWR('u', 0x20, struct uvc_xu_control_mapping32)
+#define UVCIOC_CTRL_QUERY32	_IOWR('u', 0x21, struct uvc_xu_control_query32)
+
+static long uvc_v4l2_compat_ioctl32(struct file *file,
+		     unsigned int cmd, unsigned long arg)
+{
+	union {
+		struct uvc_xu_control_mapping xmap;
+		struct uvc_xu_control_query xqry;
+	} karg;
+	void __user *up = compat_ptr(arg);
+	mm_segment_t old_fs;
+	long ret;
+
+	switch (cmd) {
+	case UVCIOC_CTRL_MAP32:
+		cmd = UVCIOC_CTRL_MAP;
+		ret = uvc_v4l2_get_xu_mapping(&karg.xmap, up);
+		break;
+
+	case UVCIOC_CTRL_QUERY32:
+		cmd = UVCIOC_CTRL_QUERY;
+		ret = uvc_v4l2_get_xu_query(&karg.xqry, up);
+		break;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	ret = uvc_v4l2_ioctl(file, cmd, (unsigned long)&karg);
+	set_fs(old_fs);
+
+	if (ret < 0)
+		return ret;
+
+	switch (cmd) {
+	case UVCIOC_CTRL_MAP:
+		ret = uvc_v4l2_put_xu_mapping(&karg.xmap, up);
+		break;
+
+	case UVCIOC_CTRL_QUERY:
+		ret = uvc_v4l2_put_xu_query(&karg.xqry, up);
+		break;
+	}
+
+	return ret;
+}
+#endif
 
 static ssize_t uvc_v4l2_read(struct file *file, char __user *data,
 		    size_t count, loff_t *ppos)
@@ -1076,6 +1304,9 @@ const struct v4l2_file_operations uvc_fops = {
 	.open		= uvc_v4l2_open,
 	.release	= uvc_v4l2_release,
 	.unlocked_ioctl	= uvc_v4l2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32	= uvc_v4l2_compat_ioctl32,
+#endif
 	.read		= uvc_v4l2_read,
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,

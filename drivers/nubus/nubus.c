@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/hwtest.h>
 #include <linux/proc_fs.h>

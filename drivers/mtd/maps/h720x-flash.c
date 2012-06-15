@@ -85,8 +85,8 @@ static int __init h720x_mtd_init(void)
 	if (mymtd) {
 		mymtd->owner = THIS_MODULE;
 
-		mtd_device_parse_register(mymtd, NULL, 0,
-				h720x_partitions, NUM_PARTITIONS);
+		mtd_device_parse_register(mymtd, NULL, NULL,
+					  h720x_partitions, NUM_PARTITIONS);
 		return 0;
 	}
 

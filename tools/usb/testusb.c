@@ -3,7 +3,7 @@
 /*
  * Copyright (c) 2002 by David Brownell
  * Copyright (c) 2010 by Samsung Electronics
- * Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
+ * Author: Michal Nazarewicz <mina86@mina86.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -358,6 +358,7 @@ static const char *usbfs_dir_find(void)
 {
 	static char usbfs_path_0[] = "/dev/usb/devices";
 	static char usbfs_path_1[] = "/proc/bus/usb/devices";
+	static char udev_usb_path[] = "/dev/bus/usb";
 
 	static char *const usbfs_paths[] = {
 		usbfs_path_0, usbfs_path_1
@@ -375,6 +376,10 @@ static const char *usbfs_dir_find(void)
 			return *it;
 		}
 	} while (++it != end);
+
+	/* real device-nodes managed by udev */
+	if (access(udev_usb_path, F_OK) == 0)
+		return udev_usb_path;
 
 	return NULL;
 }

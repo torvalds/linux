@@ -1,26 +1,26 @@
 
 /*
  *
-  Copyright (c) Eicon Networks, 2002.
+ Copyright (c) Eicon Networks, 2002.
  *
-  This source file is supplied for the use with
-  Eicon Networks range of DIVA Server Adapters.
+ This source file is supplied for the use with
+ Eicon Networks range of DIVA Server Adapters.
  *
-  Eicon File Revision :    2.1
+ Eicon File Revision :    2.1
  *
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
  *
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY OF ANY KIND WHATSOEVER INCLUDING ANY
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY OF ANY KIND WHATSOEVER INCLUDING ANY
+ implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ See the GNU General Public License for more details.
  *
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -29,8 +29,8 @@
 
 
 
-  
-  
+
+
 
 
 
@@ -82,7 +82,7 @@
 #define CODEC_PERMANENT    0x02
 #define ADV_VOICE          0x03
 #define MAX_CIP_TYPES      5  /* kind of CIP types for group optimization */
-#define C_IND_MASK_DWORDS  ((MAX_APPL+32) >> 5)
+#define C_IND_MASK_DWORDS  ((MAX_APPL + 32) >> 5)
 
 
 #define FAX_CONNECT_INFO_BUFFER_SIZE  256
@@ -116,289 +116,289 @@ typedef struct msn_config_max_s MSN_CONFIG_MAX;
 typedef struct msn_ld_s MSN_LD;
 
 struct manufacturer_profile_s {
-  dword private_options;
-  dword rtp_primary_payloads;
-  dword rtp_additional_payloads;
+	dword private_options;
+	dword rtp_primary_payloads;
+	dword rtp_additional_payloads;
 };
 
 struct fax_ncpi_s {
-  word options;
-  word format;
+	word options;
+	word format;
 };
 
 struct msn_config_s {
-  byte msn[MAX_CPN_MASK_SIZE];
+	byte msn[MAX_CPN_MASK_SIZE];
 };
 
 struct msn_config_max_s {
-  MSN_CONFIG    msn_conf[MAX_MSN_CONFIG];
+	MSN_CONFIG    msn_conf[MAX_MSN_CONFIG];
 };
 
 struct msn_ld_s {
-  dword low;
-  dword high;
+	dword low;
+	dword high;
 };
 
 struct api_parse_s {
-  word          length;
-  byte   *    info;
+	word          length;
+	byte *info;
 };
 
 struct api_save_s {
-  API_PARSE     parms[MAX_MSG_PARMS+1];
-  byte          info[MAX_MSG_SIZE];
+	API_PARSE     parms[MAX_MSG_PARMS + 1];
+	byte          info[MAX_MSG_SIZE];
 };
 
 struct _DATA_B3_DESC {
-  word          Handle;
-  word          Number;
-  word          Flags;
-  word          Length;
-  void   *    P;
+	word          Handle;
+	word          Number;
+	word          Flags;
+	word          Length;
+	void *P;
 };
 
 struct _DATA_ACK_DESC {
-  word          Handle;
-  word          Number;
+	word          Handle;
+	word          Number;
 };
 
-typedef void (* t_std_internal_command)(dword Id, PLCI   *plci, byte Rc);
+typedef void (*t_std_internal_command)(dword Id, PLCI *plci, byte Rc);
 
 /************************************************************************/
 /* Don't forget to adapt dos.asm after changing the _APPL structure!!!! */
 struct _APPL {
-  word          Id;
-  word          NullCREnable;
-  word          CDEnable;
-  dword         S_Handle;
+	word          Id;
+	word          NullCREnable;
+	word          CDEnable;
+	dword         S_Handle;
 
 
 
 
 
 
-  LIST_ENTRY    s_function;
-  dword         s_context;
-  word          s_count;
-  APPL *        s_next;
-  byte *        xbuffer_used;
-  void **       xbuffer_internal;
-  void **       xbuffer_ptr;
+	LIST_ENTRY    s_function;
+	dword         s_context;
+	word          s_count;
+	APPL *s_next;
+	byte *xbuffer_used;
+	void **xbuffer_internal;
+	void **xbuffer_ptr;
 
 
 
 
 
 
-  byte   *    queue;
-  word          queue_size;
-  word          queue_free;
-  word          queue_read;
-  word          queue_write;
-  word          queue_signal;
-  byte          msg_lost;
-  byte          appl_flags;
-  word          Number;
+	byte *queue;
+	word          queue_size;
+	word          queue_free;
+	word          queue_read;
+	word          queue_write;
+	word          queue_signal;
+	byte          msg_lost;
+	byte          appl_flags;
+	word          Number;
 
-  word          MaxBuffer;
-  byte          MaxNCCI;
-  byte          MaxNCCIData;
-  word          MaxDataLength;
-  word          NCCIDataFlowCtrlTimer;
-  byte   *    ReceiveBuffer;
-  word   *    DataNCCI;
-  word   *    DataFlags;
+	word          MaxBuffer;
+	byte          MaxNCCI;
+	byte          MaxNCCIData;
+	word          MaxDataLength;
+	word          NCCIDataFlowCtrlTimer;
+	byte *ReceiveBuffer;
+	word *DataNCCI;
+	word *DataFlags;
 };
 
 
 struct _PLCI {
-  ENTITY        Sig;
-  ENTITY        NL;
-  word          RNum;
-  word          RFlags;
-  BUFFERS       RData[2];
-  BUFFERS       XData[1];
-  BUFFERS       NData[2];
+	ENTITY        Sig;
+	ENTITY        NL;
+	word          RNum;
+	word          RFlags;
+	BUFFERS       RData[2];
+	BUFFERS       XData[1];
+	BUFFERS       NData[2];
 
-  DIVA_CAPI_ADAPTER   *adapter;
-  APPL      *appl;
-  PLCI      *relatedPTYPLCI;
-  byte          Id;
-  byte          State;
-  byte          sig_req;
-  byte          nl_req;
-  byte          SuppState;
-  byte          channels;
-  byte          tel;
-  byte          B1_resource;
-  byte          B2_prot;
-  byte          B3_prot;
+	DIVA_CAPI_ADAPTER   *adapter;
+	APPL      *appl;
+	PLCI      *relatedPTYPLCI;
+	byte          Id;
+	byte          State;
+	byte          sig_req;
+	byte          nl_req;
+	byte          SuppState;
+	byte          channels;
+	byte          tel;
+	byte          B1_resource;
+	byte          B2_prot;
+	byte          B3_prot;
 
-  word          command;
-  word          m_command;
-  word          internal_command;
-  word          number;
-  word          req_in_start;
-  word          req_in;
-  word          req_out;
-  word          msg_in_write_pos;
-  word          msg_in_read_pos;
-  word          msg_in_wrap_pos;
+	word          command;
+	word          m_command;
+	word          internal_command;
+	word          number;
+	word          req_in_start;
+	word          req_in;
+	word          req_out;
+	word          msg_in_write_pos;
+	word          msg_in_read_pos;
+	word          msg_in_wrap_pos;
 
-  void   *    data_sent_ptr;
-  byte          data_sent;
-  byte          send_disc;
-  byte          sig_global_req;
-  byte          sig_remove_id;
-  byte          nl_global_req;
-  byte          nl_remove_id;
-  byte          b_channel;
-  byte          adv_nl;
-  byte          manufacturer;
-  byte          call_dir;
-  byte          hook_state;
-  byte          spoofed_msg;
-  byte          ptyState;
-  byte          cr_enquiry;
-  word          hangup_flow_ctrl_timer;
+	void *data_sent_ptr;
+	byte          data_sent;
+	byte          send_disc;
+	byte          sig_global_req;
+	byte          sig_remove_id;
+	byte          nl_global_req;
+	byte          nl_remove_id;
+	byte          b_channel;
+	byte          adv_nl;
+	byte          manufacturer;
+	byte          call_dir;
+	byte          hook_state;
+	byte          spoofed_msg;
+	byte          ptyState;
+	byte          cr_enquiry;
+	word          hangup_flow_ctrl_timer;
 
-  word          ncci_ring_list;
-  byte          inc_dis_ncci_table[MAX_CHANNELS_PER_PLCI];
-  t_std_internal_command internal_command_queue[MAX_INTERNAL_COMMAND_LEVELS];
-  dword         c_ind_mask_table[C_IND_MASK_DWORDS];
-  dword         group_optimization_mask_table[C_IND_MASK_DWORDS];
-  byte          RBuffer[200];
-  dword         msg_in_queue[MSG_IN_QUEUE_SIZE/sizeof(dword)];
-  API_SAVE      saved_msg;
-  API_SAVE      B_protocol;
-  byte          fax_connect_info_length;
-  byte          fax_connect_info_buffer[FAX_CONNECT_INFO_BUFFER_SIZE];
-  byte          fax_edata_ack_length;
-  word          nsf_control_bits;
-  byte          ncpi_state;
-  byte          ncpi_buffer[NCPI_BUFFER_SIZE];
+	word          ncci_ring_list;
+	byte          inc_dis_ncci_table[MAX_CHANNELS_PER_PLCI];
+	t_std_internal_command internal_command_queue[MAX_INTERNAL_COMMAND_LEVELS];
+	dword         c_ind_mask_table[C_IND_MASK_DWORDS];
+	dword         group_optimization_mask_table[C_IND_MASK_DWORDS];
+	byte          RBuffer[200];
+	dword         msg_in_queue[MSG_IN_QUEUE_SIZE/sizeof(dword)];
+	API_SAVE      saved_msg;
+	API_SAVE      B_protocol;
+	byte          fax_connect_info_length;
+	byte          fax_connect_info_buffer[FAX_CONNECT_INFO_BUFFER_SIZE];
+	byte          fax_edata_ack_length;
+	word          nsf_control_bits;
+	byte          ncpi_state;
+	byte          ncpi_buffer[NCPI_BUFFER_SIZE];
 
-  byte          internal_req_buffer[INTERNAL_REQ_BUFFER_SIZE];
-  byte          internal_ind_buffer[INTERNAL_IND_BUFFER_SIZE + 3];
-  dword         requested_options_conn;
-  dword         requested_options;
-  word          B1_facilities;
-  API_SAVE   *adjust_b_parms_msg;
-  word          adjust_b_facilities;
-  word          adjust_b_command;
-  word          adjust_b_ncci;
-  word          adjust_b_mode;
-  word          adjust_b_state;
-  byte          adjust_b_restore;
+	byte          internal_req_buffer[INTERNAL_REQ_BUFFER_SIZE];
+	byte          internal_ind_buffer[INTERNAL_IND_BUFFER_SIZE + 3];
+	dword         requested_options_conn;
+	dword         requested_options;
+	word          B1_facilities;
+	API_SAVE   *adjust_b_parms_msg;
+	word          adjust_b_facilities;
+	word          adjust_b_command;
+	word          adjust_b_ncci;
+	word          adjust_b_mode;
+	word          adjust_b_state;
+	byte          adjust_b_restore;
 
-  byte          dtmf_rec_active;
-  word          dtmf_rec_pulse_ms;
-  word          dtmf_rec_pause_ms;
-  byte          dtmf_send_requests;
-  word          dtmf_send_pulse_ms;
-  word          dtmf_send_pause_ms;
-  word          dtmf_cmd;
-  word          dtmf_msg_number_queue[8];
-  byte          dtmf_parameter_length;
-  byte          dtmf_parameter_buffer[DTMF_PARAMETER_BUFFER_SIZE];
-
-
-  t_capidtmf_state capidtmf_state;
+	byte          dtmf_rec_active;
+	word          dtmf_rec_pulse_ms;
+	word          dtmf_rec_pause_ms;
+	byte          dtmf_send_requests;
+	word          dtmf_send_pulse_ms;
+	word          dtmf_send_pause_ms;
+	word          dtmf_cmd;
+	word          dtmf_msg_number_queue[8];
+	byte          dtmf_parameter_length;
+	byte          dtmf_parameter_buffer[DTMF_PARAMETER_BUFFER_SIZE];
 
 
-  byte          li_bchannel_id;    /* BRI: 1..2, PRI: 1..32 */
-  byte          li_channel_bits;
-  byte          li_notify_update;
-  word          li_cmd;
-  word          li_write_command;
-  word          li_write_channel;
-  word          li_plci_b_write_pos;
-  word          li_plci_b_read_pos;
-  word          li_plci_b_req_pos;
-  dword         li_plci_b_queue[LI_PLCI_B_QUEUE_ENTRIES];
+	t_capidtmf_state capidtmf_state;
 
 
-  word          ec_cmd;
-  word          ec_idi_options;
-  word          ec_tail_length;
+	byte          li_bchannel_id;    /* BRI: 1..2, PRI: 1..32 */
+	byte          li_channel_bits;
+	byte          li_notify_update;
+	word          li_cmd;
+	word          li_write_command;
+	word          li_write_channel;
+	word          li_plci_b_write_pos;
+	word          li_plci_b_read_pos;
+	word          li_plci_b_req_pos;
+	dword         li_plci_b_queue[LI_PLCI_B_QUEUE_ENTRIES];
 
 
-  byte          tone_last_indication_code;
+	word          ec_cmd;
+	word          ec_idi_options;
+	word          ec_tail_length;
 
-  byte          vswitchstate;
-  byte          vsprot;
-  byte          vsprotdialect;
-  byte          notifiedcall; /* Flag if it is a spoofed call */
 
-  int           rx_dma_descriptor;
-  dword         rx_dma_magic;
+	byte          tone_last_indication_code;
+
+	byte          vswitchstate;
+	byte          vsprot;
+	byte          vsprotdialect;
+	byte          notifiedcall; /* Flag if it is a spoofed call */
+
+	int           rx_dma_descriptor;
+	dword         rx_dma_magic;
 };
 
 
 struct _NCCI {
-  byte          data_out;
-  byte          data_pending;
-  byte          data_ack_out;
-  byte          data_ack_pending;
-  DATA_B3_DESC  DBuffer[MAX_DATA_B3];
-  DATA_ACK_DESC DataAck[MAX_DATA_ACK];
+	byte          data_out;
+	byte          data_pending;
+	byte          data_ack_out;
+	byte          data_ack_pending;
+	DATA_B3_DESC  DBuffer[MAX_DATA_B3];
+	DATA_ACK_DESC DataAck[MAX_DATA_ACK];
 };
 
 
 struct _DIVA_CAPI_ADAPTER {
-  IDI_CALL      request;
-  byte          Id;
-  byte          max_plci;
-  byte          max_listen;
-  byte          listen_active;
-  PLCI      *plci;
-  byte          ch_ncci[MAX_NL_CHANNEL+1];
-  byte          ncci_ch[MAX_NCCI+1];
-  byte          ncci_plci[MAX_NCCI+1];
-  byte          ncci_state[MAX_NCCI+1];
-  byte          ncci_next[MAX_NCCI+1];
-  NCCI          ncci[MAX_NCCI+1];
+	IDI_CALL      request;
+	byte          Id;
+	byte          max_plci;
+	byte          max_listen;
+	byte          listen_active;
+	PLCI      *plci;
+	byte          ch_ncci[MAX_NL_CHANNEL + 1];
+	byte          ncci_ch[MAX_NCCI + 1];
+	byte          ncci_plci[MAX_NCCI + 1];
+	byte          ncci_state[MAX_NCCI + 1];
+	byte          ncci_next[MAX_NCCI + 1];
+	NCCI          ncci[MAX_NCCI + 1];
 
-  byte          ch_flow_control[MAX_NL_CHANNEL+1];  /* Used by XON protocol */
-  byte          ch_flow_control_pending;
-  byte          ch_flow_plci[MAX_NL_CHANNEL+1];
-  int           last_flow_control_ch;
+	byte          ch_flow_control[MAX_NL_CHANNEL + 1];  /* Used by XON protocol */
+	byte          ch_flow_control_pending;
+	byte          ch_flow_plci[MAX_NL_CHANNEL + 1];
+	int           last_flow_control_ch;
 
-  dword         Info_Mask[MAX_APPL];
-  dword         CIP_Mask[MAX_APPL];
+	dword         Info_Mask[MAX_APPL];
+	dword         CIP_Mask[MAX_APPL];
 
-  dword         Notification_Mask[MAX_APPL];
-  PLCI      *codec_listen[MAX_APPL];
-  dword         requested_options_table[MAX_APPL];
-  API_PROFILE   profile;
-  MANUFACTURER_PROFILE man_profile;
-  dword         manufacturer_features;
+	dword         Notification_Mask[MAX_APPL];
+	PLCI      *codec_listen[MAX_APPL];
+	dword         requested_options_table[MAX_APPL];
+	API_PROFILE   profile;
+	MANUFACTURER_PROFILE man_profile;
+	dword         manufacturer_features;
 
-  byte          AdvCodecFLAG;
-  PLCI      *AdvCodecPLCI;
-  PLCI      *AdvSignalPLCI;
-  APPL      *AdvSignalAppl;
-  byte          TelOAD[23];
-  byte          TelOSA[23];
-  byte          scom_appl_disable;
-  PLCI      *automatic_lawPLCI;
-  byte          automatic_law;
-  byte          u_law;
+	byte          AdvCodecFLAG;
+	PLCI      *AdvCodecPLCI;
+	PLCI      *AdvSignalPLCI;
+	APPL      *AdvSignalAppl;
+	byte          TelOAD[23];
+	byte          TelOSA[23];
+	byte          scom_appl_disable;
+	PLCI      *automatic_lawPLCI;
+	byte          automatic_law;
+	byte          u_law;
 
-  byte          adv_voice_coef_length;
-  byte          adv_voice_coef_buffer[ADV_VOICE_COEF_BUFFER_SIZE];
+	byte          adv_voice_coef_length;
+	byte          adv_voice_coef_buffer[ADV_VOICE_COEF_BUFFER_SIZE];
 
-  byte          li_pri;
-  byte          li_channels;
-  word          li_base;
+	byte          li_pri;
+	byte          li_channels;
+	word          li_base;
 
-  byte adapter_disabled;
-  byte group_optimization_enabled; /* use application groups if enabled */
-  dword sdram_bar;
-  byte flag_dynamic_l1_down; /* for hunt groups:down layer 1 if no appl present*/
-  byte FlowControlIdTable[256];
-  byte FlowControlSkipTable[256];
-  void* os_card; /* pointer to associated OS dependent adapter structure */
+	byte adapter_disabled;
+	byte group_optimization_enabled; /* use application groups if enabled */
+	dword sdram_bar;
+	byte flag_dynamic_l1_down; /* for hunt groups:down layer 1 if no appl present*/
+	byte FlowControlIdTable[256];
+	byte FlowControlSkipTable[256];
+	void *os_card; /* pointer to associated OS dependent adapter structure */
 };
 
 
@@ -451,23 +451,23 @@ struct _DIVA_CAPI_ADAPTER {
 
 typedef struct t30_info_s T30_INFO;
 struct t30_info_s {
-  byte          code;
-  byte          rate_div_2400;
-  byte          resolution;
-  byte          data_format;
-  byte          pages_low;
-  byte          pages_high;
-  byte          operating_mode;
-  byte          control_bits_low;
-  byte          control_bits_high;
-  byte          feature_bits_low;
-  byte          feature_bits_high;
-  byte          recording_properties;
-  byte          universal_6;
-  byte          universal_7;
-  byte          station_id_len;
-  byte          head_line_len;
-  byte          station_id[T30_MAX_STATION_ID_LENGTH];
+	byte          code;
+	byte          rate_div_2400;
+	byte          resolution;
+	byte          data_format;
+	byte          pages_low;
+	byte          pages_high;
+	byte          operating_mode;
+	byte          control_bits_low;
+	byte          control_bits_high;
+	byte          feature_bits_low;
+	byte          feature_bits_high;
+	byte          recording_properties;
+	byte          universal_6;
+	byte          universal_7;
+	byte          station_id_len;
+	byte          head_line_len;
+	byte          station_id[T30_MAX_STATION_ID_LENGTH];
 /* byte          head_line[];      */
 /* byte          sub_sep_length;   */
 /* byte          sub_sep_field[];  */
@@ -528,13 +528,13 @@ struct t30_info_s {
 #define T30_OPERATING_MODE_CAPI_NEG     4
 #define T30_OPERATING_MODE_COUNT        5
 
-        /* EDATA transmit messages */
+/* EDATA transmit messages */
 #define EDATA_T30_DIS         0x01
 #define EDATA_T30_FTT         0x02
 #define EDATA_T30_MCF         0x03
 #define EDATA_T30_PARAMETERS  0x04
 
-        /* EDATA receive messages */
+/* EDATA receive messages */
 #define EDATA_T30_DCS         0x81
 #define EDATA_T30_TRAIN_OK    0x82
 #define EDATA_T30_EOP         0x83
@@ -639,11 +639,11 @@ struct t30_info_s {
 
 typedef struct async_s ASYNC_FORMAT;
 struct async_s {
-  unsigned pe:    1;
-  unsigned parity:2;
-  unsigned spare: 2;
-  unsigned stp:   1;
-  unsigned ch_len:2;   /* 3th octett in CAI */
+	unsigned pe:1;
+	unsigned parity:2;
+	unsigned spare:2;
+	unsigned stp:1;
+	unsigned ch_len:2;   /* 3th octett in CAI */
 };
 
 
@@ -686,14 +686,14 @@ struct async_s {
 /*------------------------------------------------------------------*/
 /* Capi IE + Msg types                                              */
 /*------------------------------------------------------------------*/
-#define ESC_CAUSE        0x800|CAU          /* Escape cause element */
-#define ESC_MSGTYPE      0x800|MSGTYPEIE    /* Escape message type  */
-#define ESC_CHI          0x800|CHI          /* Escape channel id    */
-#define ESC_LAW          0x800|BC           /* Escape law info      */
-#define ESC_CR           0x800|CRIE         /* Escape CallReference */
-#define ESC_PROFILE      0x800|PROFILEIE    /* Escape profile       */
-#define ESC_SSEXT        0x800|SSEXTIE      /* Escape Supplem. Serv.*/
-#define ESC_VSWITCH      0x800|VSWITCHIE    /* Escape VSwitch       */
+#define ESC_CAUSE        0x800 | CAU        /* Escape cause element */
+#define ESC_MSGTYPE      0x800 | MSGTYPEIE  /* Escape message type  */
+#define ESC_CHI          0x800 | CHI        /* Escape channel id    */
+#define ESC_LAW          0x800 | BC         /* Escape law info      */
+#define ESC_CR           0x800 | CRIE       /* Escape CallReference */
+#define ESC_PROFILE      0x800 | PROFILEIE  /* Escape profile       */
+#define ESC_SSEXT        0x800 | SSEXTIE    /* Escape Supplem. Serv.*/
+#define ESC_VSWITCH      0x800 | VSWITCHIE  /* Escape VSwitch       */
 #define CST              0x14               /* Call State i.e.      */
 #define PI               0x1E               /* Progress Indicator   */
 #define NI               0x27               /* Notification Ind     */
@@ -903,25 +903,25 @@ struct async_s {
 typedef struct li_config_s LI_CONFIG;
 
 struct xconnect_card_address_s {
-  dword low;
-  dword high;
+	dword low;
+	dword high;
 };
 
 struct xconnect_transfer_address_s {
-  struct xconnect_card_address_s card_address;
-  dword offset;
+	struct xconnect_card_address_s card_address;
+	dword offset;
 };
 
 struct li_config_s {
-  DIVA_CAPI_ADAPTER   *adapter;
-  PLCI   *plci;
-  struct xconnect_transfer_address_s send_b;
-  struct xconnect_transfer_address_s send_pc;
-  byte   *flag_table;  /* dword aligned and sized */
-  byte   *coef_table;  /* dword aligned and sized */
-  byte channel;
-  byte curchnl;
-  byte chflags;
+	DIVA_CAPI_ADAPTER   *adapter;
+	PLCI   *plci;
+	struct xconnect_transfer_address_s send_b;
+	struct xconnect_transfer_address_s send_pc;
+	byte   *flag_table;  /* dword aligned and sized */
+	byte   *coef_table;  /* dword aligned and sized */
+	byte channel;
+	byte curchnl;
+	byte chflags;
 };
 
 extern LI_CONFIG   *li_config_table;
@@ -1110,33 +1110,33 @@ extern word li_total_channels;
 #define B1_PIAFS                29
 #define B2_PIAFS                29
 
-#define PRIVATE_PIAFS           29 
+#define PRIVATE_PIAFS           29
 
 /*
   B2 configuration for PIAFS:
-+---------------------+------+-----------------------------------------+
-| PIAFS Protocol      | byte | Bit 1 - Protocol Speed                  |
-| Speed configuration |      |         0 - 32K                         |
-|                     |      |         1 - 64K (default)               |
-|                     |      | Bit 2 - Variable Protocol Speed         |
-|                     |      |         0 - Speed is fix                |
-|                     |      |         1 - Speed is variable (default) |
-+---------------------+------+-----------------------------------------+
-| Direction           | word | Enable compression/decompression for    |
-|                     |      | 0: All direction                        |
-|                     |      | 1: disable outgoing data                |
-|                     |      | 2: disable incomming data               |
-|                     |      | 3: disable both direction (default)     |
-+---------------------+------+-----------------------------------------+
-| Number of code      | word | Parameter P1 of V.42bis in accordance   |
-| words               |      | with V.42bis                            |
-+---------------------+------+-----------------------------------------+
-| Maximum String      | word | Parameter P2 of V.42bis in accordance   |
-| Length              |      | with V.42bis                            |
-+---------------------+------+-----------------------------------------+
-| control (UDATA)     | byte | enable PIAFS control communication      |
-| abilities           |      |                                         |
-+---------------------+------+-----------------------------------------+
+  +---------------------+------+-----------------------------------------+
+  | PIAFS Protocol      | byte | Bit 1 - Protocol Speed                  |
+  | Speed configuration |      |         0 - 32K                         |
+  |                     |      |         1 - 64K (default)               |
+  |                     |      | Bit 2 - Variable Protocol Speed         |
+  |                     |      |         0 - Speed is fix                |
+  |                     |      |         1 - Speed is variable (default) |
+  +---------------------+------+-----------------------------------------+
+  | Direction           | word | Enable compression/decompression for    |
+  |                     |      | 0: All direction                        |
+  |                     |      | 1: disable outgoing data                |
+  |                     |      | 2: disable incomming data               |
+  |                     |      | 3: disable both direction (default)     |
+  +---------------------+------+-----------------------------------------+
+  | Number of code      | word | Parameter P1 of V.42bis in accordance   |
+  | words               |      | with V.42bis                            |
+  +---------------------+------+-----------------------------------------+
+  | Maximum String      | word | Parameter P2 of V.42bis in accordance   |
+  | Length              |      | with V.42bis                            |
+  +---------------------+------+-----------------------------------------+
+  | control (UDATA)     | byte | enable PIAFS control communication      |
+  | abilities           |      |                                         |
+  +---------------------+------+-----------------------------------------+
 */
 #define PIAFS_UDATA_ABILITIES  0x80
 

@@ -283,8 +283,9 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 		      union acpi_operand_object **return_object_ptr);
 
 acpi_status
-acpi_ns_repair_package_list(struct acpi_predefined_data *data,
-			    union acpi_operand_object **obj_desc_ptr);
+acpi_ns_wrap_with_package(struct acpi_predefined_data *data,
+			  union acpi_operand_object *original_object,
+			  union acpi_operand_object **obj_desc_ptr);
 
 acpi_status
 acpi_ns_repair_null_element(struct acpi_predefined_data *data,

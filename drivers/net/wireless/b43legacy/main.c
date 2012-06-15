@@ -1056,6 +1056,7 @@ static void b43legacy_write_probe_resp_plcp(struct b43legacy_wldev *dev,
 	b43legacy_generate_plcp_hdr(&plcp, size + FCS_LEN, rate->hw_value);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
 					       dev->wl->vif,
+					       IEEE80211_BAND_2GHZ,
 					       size,
 					       rate);
 	/* Write PLCP in two parts and timing for packet transfer */
@@ -1121,6 +1122,7 @@ static const u8 *b43legacy_generate_probe_resp(struct b43legacy_wldev *dev,
 					 IEEE80211_STYPE_PROBE_RESP);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
 					       dev->wl->vif,
+					       IEEE80211_BAND_2GHZ,
 					       *dest_size,
 					       rate);
 	hdr->duration_id = dur;
@@ -1557,15 +1559,20 @@ err_format:
 	return -EPROTO;
 }
 
-static int b43legacy_request_firmware(struct b43legacy_wldev *dev)
+static int b43legacy_one_core_attach(struct ssb_device *dev,
+				     struct b43legacy_wl *wl);
+static void b43legacy_one_core_detach(struct ssb_device *dev);
+
+static void b43legacy_request_firmware(struct work_struct *work)
 {
+	struct b43legacy_wl *wl = container_of(work,
+				  struct b43legacy_wl, firmware_load);
+	struct b43legacy_wldev *dev = wl->current_dev;
 	struct b43legacy_firmware *fw = &dev->fw;
 	const u8 rev = dev->dev->id.revision;
 	const char *filename;
 	int err;
 
-	/* do dummy read */
-	ssb_read32(dev->dev, SSB_TMSHIGH);
 	if (!fw->ucode) {
 		if (rev == 2)
 			filename = "ucode2";
@@ -1624,8 +1631,14 @@ static int b43legacy_request_firmware(struct b43legacy_wldev *dev)
 		if (err)
 			goto err_load;
 	}
+	err = ieee80211_register_hw(wl->hw);
+	if (err)
+		goto err_one_core_detach;
+	return;
 
-	return 0;
+err_one_core_detach:
+	b43legacy_one_core_detach(dev->dev);
+	goto error;
 
 err_load:
 	b43legacy_print_fw_helptext(dev->wl);
@@ -1639,7 +1652,7 @@ err_no_initvals:
 
 error:
 	b43legacy_release_firmware(dev);
-	return err;
+	return;
 }
 
 static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
@@ -2153,9 +2166,6 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	macctl |= B43legacy_MACCTL_INFRA;
 	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, macctl);
 
-	err = b43legacy_request_firmware(dev);
-	if (err)
-		goto out;
 	err = b43legacy_upload_microcode(dev);
 	if (err)
 		goto out; /* firmware is released later */
@@ -3769,7 +3779,7 @@ static void b43legacy_sprom_fixup(struct ssb_bus *bus)
 	/* boardflags workarounds */
 	if (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
 	    bus->boardinfo.type == 0x4E &&
-	    bus->boardinfo.rev > 0x40)
+	    bus->sprom.board_rev > 0x40)
 		bus->sprom.boardflags_lo |= B43legacy_BFL_PACTRL;
 }
 
@@ -3860,17 +3870,13 @@ static int b43legacy_probe(struct ssb_device *dev,
 	if (err)
 		goto err_wireless_exit;
 
-	if (first) {
-		err = ieee80211_register_hw(wl->hw);
-		if (err)
-			goto err_one_core_detach;
-	}
+	/* setup and start work to load firmware */
+	INIT_WORK(&wl->firmware_load, b43legacy_request_firmware);
+	schedule_work(&wl->firmware_load);
 
 out:
 	return err;
 
-err_one_core_detach:
-	b43legacy_one_core_detach(dev);
 err_wireless_exit:
 	if (first)
 		b43legacy_wireless_exit(dev, wl);
@@ -3885,6 +3891,7 @@ static void b43legacy_remove(struct ssb_device *dev)
 	/* We must cancel any work here before unregistering from ieee80211,
 	 * as the ieee80211 unreg will destroy the workqueue. */
 	cancel_work_sync(&wldev->restart_work);
+	cancel_work_sync(&wl->firmware_load);
 
 	B43legacy_WARN_ON(!wl);
 	if (wl->current_dev == wldev)

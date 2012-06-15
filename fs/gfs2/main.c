@@ -17,6 +17,7 @@
 #include <linux/rcupdate.h>
 #include <linux/rculist_bl.h>
 #include <linux/atomic.h>
+#include <linux/mempool.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -132,6 +133,12 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_quotad_cachep)
 		goto fail;
 
+	gfs2_rsrv_cachep = kmem_cache_create("gfs2_mblk",
+					     sizeof(struct gfs2_blkreserv),
+					       0, 0, NULL);
+	if (!gfs2_rsrv_cachep)
+		goto fail;
+
 	register_shrinker(&qd_shrinker);
 
 	error = register_filesystem(&gfs2_fs_type);
@@ -151,6 +158,10 @@ static int __init init_gfs2_fs(void)
 	gfs2_control_wq = alloc_workqueue("gfs2_control",
 			       WQ_NON_REENTRANT | WQ_UNBOUND | WQ_FREEZABLE, 0);
 	if (!gfs2_control_wq)
+		goto fail_recovery;
+
+	gfs2_page_pool = mempool_create_page_pool(64, 0);
+	if (!gfs2_page_pool)
 		goto fail_control;
 
 	gfs2_register_debugfs();
@@ -160,6 +171,8 @@ static int __init init_gfs2_fs(void)
 	return 0;
 
 fail_control:
+	destroy_workqueue(gfs2_control_wq);
+fail_recovery:
 	destroy_workqueue(gfs_recovery_wq);
 fail_wq:
 	unregister_filesystem(&gfs2meta_fs_type);
@@ -168,6 +181,9 @@ fail_unregister:
 fail:
 	unregister_shrinker(&qd_shrinker);
 	gfs2_glock_exit();
+
+	if (gfs2_rsrv_cachep)
+		kmem_cache_destroy(gfs2_rsrv_cachep);
 
 	if (gfs2_quotad_cachep)
 		kmem_cache_destroy(gfs2_quotad_cachep);
@@ -208,6 +224,8 @@ static void __exit exit_gfs2_fs(void)
 
 	rcu_barrier();
 
+	mempool_destroy(gfs2_page_pool);
+	kmem_cache_destroy(gfs2_rsrv_cachep);
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);
 	kmem_cache_destroy(gfs2_bufdata_cachep);

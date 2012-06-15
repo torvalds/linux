@@ -26,7 +26,6 @@
 
 #include <asm/udbg.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/rheap.h>
 #include <asm/cpm.h>
 

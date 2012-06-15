@@ -604,7 +604,6 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 	alloc_size = sizeof(card_t) + ports * sizeof(port_t);
 	card = kzalloc(alloc_size, GFP_KERNEL);
 	if (card == NULL) {
-		pr_err("%s: unable to allocate memory\n", pci_name(pdev));
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		return -ENOBUFS;

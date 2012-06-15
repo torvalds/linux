@@ -248,18 +248,7 @@ static struct spi_driver adcxx_driver = {
 	.remove	= __devexit_p(adcxx_remove),
 };
 
-static int __init init_adcxx(void)
-{
-	return spi_register_driver(&adcxx_driver);
-}
-
-static void __exit exit_adcxx(void)
-{
-	spi_unregister_driver(&adcxx_driver);
-}
-
-module_init(init_adcxx);
-module_exit(exit_adcxx);
+module_spi_driver(adcxx_driver);
 
 MODULE_AUTHOR("Marc Pignat");
 MODULE_DESCRIPTION("National Semiconductor adcxx8sxxx Linux driver");

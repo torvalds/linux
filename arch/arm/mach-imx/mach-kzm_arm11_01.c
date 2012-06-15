@@ -24,6 +24,8 @@
 #include <linux/serial_8250.h>
 #include <linux/smsc911x.h>
 #include <linux/types.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -166,6 +168,11 @@ static struct platform_device kzm_smsc9118_device = {
 			  },
 };
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+};
+
 static int __init kzm_init_smsc9118(void)
 {
 	/*
@@ -174,6 +181,8 @@ static int __init kzm_init_smsc9118(void)
 	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_GPIO1_2, IOMUX_CONFIG_GPIO));
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO1_2), "smsc9118-int");
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO1_2));
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	return platform_device_register(&kzm_smsc9118_device);
 }

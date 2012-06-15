@@ -163,7 +163,7 @@ EXPORT_SYMBOL_GPL(drop_cop);
 
 static int acop_use_cop(int ct)
 {
-	/* todo */
+	/* There is no alternate policy, yet */
 	return -1;
 }
 
@@ -227,11 +227,30 @@ int acop_handle_fault(struct pt_regs *regs, unsigned long address,
 		ct = (ccw >> 16) & 0x3f;
 	}
 
+	/*
+	 * We could be here because another thread has enabled acop
+	 * but the ACOP register has yet to be updated.
+	 *
+	 * This should have been taken care of by the IPI to sync all
+	 * the threads (see smp_call_function(sync_cop, mm, 1)), but
+	 * that could take forever if there are a significant amount
+	 * of threads.
+	 *
+	 * Given the number of threads on some of these systems,
+	 * perhaps this is the best way to sync ACOP rather than whack
+	 * every thread with an IPI.
+	 */
+	if ((acop_copro_type_bit(ct) & current->active_mm->context.acop) != 0) {
+		sync_cop(current->active_mm);
+		return 0;
+	}
+
+	/* check for alternate policy */
 	if (!acop_use_cop(ct))
 		return 0;
 
 	/* at this point the CT is unknown to the system */
-	pr_warn("%s[%d]: Coprocessor %d is unavailable",
+	pr_warn("%s[%d]: Coprocessor %d is unavailable\n",
 		current->comm, current->pid, ct);
 
 	/* get inst if we don't already have it */

@@ -247,17 +247,7 @@ static struct i2c_driver mma8450_driver = {
 	.id_table	= mma8450_id,
 };
 
-static int __init mma8450_init(void)
-{
-	return i2c_add_driver(&mma8450_driver);
-}
-module_init(mma8450_init);
-
-static void __exit mma8450_exit(void)
-{
-	i2c_del_driver(&mma8450_driver);
-}
-module_exit(mma8450_exit);
+module_i2c_driver(mma8450_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MMA8450 3-Axis Accelerometer Driver");

@@ -60,8 +60,8 @@
 #include "igb.h"
 
 #define MAJ 3
-#define MIN 2
-#define BUILD 10
+#define MIN 4
+#define BUILD 7
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
 char igb_driver_name[] = "igb";
@@ -75,6 +75,11 @@ static const struct e1000_info *igb_info_tbl[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(igb_pci_tbl) = {
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I211_COPPER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_COPPER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_FIBER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SERDES), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SGMII), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_FIBER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SERDES), board_82575 },
@@ -114,7 +119,6 @@ static void igb_free_all_rx_resources(struct igb_adapter *);
 static void igb_setup_mrqc(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
 static void __devexit igb_remove(struct pci_dev *pdev);
-static void igb_init_hw_timer(struct igb_adapter *adapter);
 static int igb_sw_init(struct igb_adapter *);
 static int igb_open(struct net_device *);
 static int igb_close(struct net_device *);
@@ -173,7 +177,9 @@ static int igb_check_vf_assignment(struct igb_adapter *adapter);
 #endif
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int igb_suspend(struct device *);
+#endif
 static int igb_resume(struct device *);
 #ifdef CONFIG_PM_RUNTIME
 static int igb_runtime_suspend(struct device *dev);
@@ -235,6 +241,11 @@ MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Ethernet Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
+
+#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
+static int debug = -1;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 struct igb_reg_info {
 	u32 ofs;
@@ -558,33 +569,6 @@ exit:
 	return;
 }
 
-
-/**
- * igb_read_clock - read raw cycle counter (to be used by time counter)
- */
-static cycle_t igb_read_clock(const struct cyclecounter *tc)
-{
-	struct igb_adapter *adapter =
-		container_of(tc, struct igb_adapter, cycles);
-	struct e1000_hw *hw = &adapter->hw;
-	u64 stamp = 0;
-	int shift = 0;
-
-	/*
-	 * The timestamp latches on lowest register read. For the 82580
-	 * the lowest register is SYSTIMR instead of SYSTIML.  However we never
-	 * adjusted TIMINCA so SYSTIMR will just read as all 0s so ignore it.
-	 */
-	if (hw->mac.type >= e1000_82580) {
-		stamp = rd32(E1000_SYSTIMR) >> 8;
-		shift = IGB_82580_TSYNC_SHIFT;
-	}
-
-	stamp |= (u64)rd32(E1000_SYSTIML) << shift;
-	stamp |= (u64)rd32(E1000_SYSTIMH) << (shift + 32);
-	return stamp;
-}
-
 /**
  * igb_get_hw_dev - return device
  * used by hardware layer to print debugging information
@@ -662,6 +646,8 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 	case e1000_82575:
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
 	default:
 		for (; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i]->reg_idx = rbase_offset + i;
@@ -748,8 +734,11 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		if (adapter->hw.mac.type >= e1000_82576)
 			set_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags);
 
-		/* On i350, loopback VLAN packets have the tag byte-swapped. */
-		if (adapter->hw.mac.type == e1000_i350)
+		/*
+		 * On i350, i210, and i211, loopback VLAN packets
+		 * have the tag byte-swapped.
+		 * */
+		if (adapter->hw.mac.type >= e1000_i350)
 			set_bit(IGB_RING_FLAG_RX_LB_VLAN_BSWAP, &ring->flags);
 
 		adapter->rx_ring[i] = ring;
@@ -843,6 +832,8 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 		break;
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
 		/*
 		 * On 82580 and newer adapters the scheme is similar to 82576
 		 * however instead of ordering column-major we have things
@@ -909,6 +900,8 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
 		/* Turn on MSI-X capability first, or our settings
 		 * won't stick.  And it will take days to debug. */
 		wr32(E1000_GPIE, E1000_GPIE_MSIX_MODE |
@@ -1055,6 +1048,11 @@ static int igb_set_interrupt_capability(struct igb_adapter *adapter)
 	if (!(adapter->flags & IGB_FLAG_QUEUE_PAIRS))
 		numvecs += adapter->num_tx_queues;
 
+	/* i210 and i211 can only have 4 MSIX vectors for rx/tx queues. */
+	if ((adapter->hw.mac.type == e1000_i210)
+		|| (adapter->hw.mac.type == e1000_i211))
+		numvecs = 4;
+
 	/* store the number of vectors reserved for queues */
 	adapter->num_q_vectors = numvecs;
 
@@ -1062,6 +1060,7 @@ static int igb_set_interrupt_capability(struct igb_adapter *adapter)
 	numvecs++;
 	adapter->msix_entries = kcalloc(numvecs, sizeof(struct msix_entry),
 					GFP_KERNEL);
+
 	if (!adapter->msix_entries)
 		goto msi_only;
 
@@ -1104,9 +1103,12 @@ msi_only:
 		adapter->flags |= IGB_FLAG_HAS_MSI;
 out:
 	/* Notify the stack of the (possibly) reduced queue counts. */
+	rtnl_lock();
 	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
-	return netif_set_real_num_rx_queues(adapter->netdev,
-					    adapter->num_rx_queues);
+	err = netif_set_real_num_rx_queues(adapter->netdev,
+		adapter->num_rx_queues);
+	rtnl_unlock();
+	return err;
 }
 
 /**
@@ -1652,6 +1654,8 @@ void igb_reset(struct igb_adapter *adapter)
 		pba &= E1000_RXPBS_SIZE_MASK_82576;
 		break;
 	case e1000_82575:
+	case e1000_i210:
+	case e1000_i211:
 	default:
 		pba = E1000_PBA_34K;
 		break;
@@ -1736,6 +1740,13 @@ void igb_reset(struct igb_adapter *adapter)
 	if (hw->mac.ops.init_hw(hw))
 		dev_err(&pdev->dev, "Hardware Error\n");
 
+	/*
+	 * Flow control settings reset on hardware reset, so guarantee flow
+	 * control is off when forcing speed.
+	 */
+	if (!hw->mac.autoneg)
+		igb_force_mac_fc(hw);
+
 	igb_init_dmac(adapter, pba);
 	if (!netif_running(adapter->netdev))
 		igb_power_down_link(adapter);
@@ -1767,9 +1778,20 @@ static int igb_set_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	netdev_features_t changed = netdev->features ^ features;
+	struct igb_adapter *adapter = netdev_priv(netdev);
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		igb_vlan_mode(netdev, features);
+
+	if (!(changed & NETIF_F_RXALL))
+		return 0;
+
+	netdev->features = features;
+
+	if (netif_running(netdev))
+		igb_reinit_locked(adapter);
+	else
+		igb_reset(adapter);
 
 	return 0;
 }
@@ -1829,7 +1851,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	 */
 	if (pdev->is_virtfn) {
 		WARN(1, KERN_ERR "%s (%hx:%hx) should not be a VF!\n",
-		     pci_name(pdev), pdev->vendor, pdev->device);
+			pci_name(pdev), pdev->vendor, pdev->device);
 		return -EINVAL;
 	}
 
@@ -1880,7 +1902,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	hw = &adapter->hw;
 	hw->back = adapter;
-	adapter->msg_enable = NETIF_MSG_DRV | NETIF_MSG_PROBE;
+	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);
@@ -1952,6 +1974,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
+	netdev->hw_features |= NETIF_F_RXALL;
 
 	/* set this bit last since it cannot be part of hw_features */
 	netdev->features |= NETIF_F_HW_VLAN_FILTER;
@@ -1961,6 +1984,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 				 NETIF_F_IP_CSUM |
 				 NETIF_F_IPV6_CSUM |
 				 NETIF_F_SG;
+
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -1980,11 +2005,16 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	 * known good starting state */
 	hw->mac.ops.reset_hw(hw);
 
-	/* make sure the NVM is good */
-	if (hw->nvm.ops.validate(hw) < 0) {
-		dev_err(&pdev->dev, "The NVM Checksum Is Not Valid\n");
-		err = -EIO;
-		goto err_eeprom;
+	/*
+	 * make sure the NVM is good , i211 parts have special NVM that
+	 * doesn't contain a checksum
+	 */
+	if (hw->mac.type != e1000_i211) {
+		if (hw->nvm.ops.validate(hw) < 0) {
+			dev_err(&pdev->dev, "The NVM Checksum Is Not Valid\n");
+			err = -EIO;
+			goto err_eeprom;
+		}
 	}
 
 	/* copy the MAC address out of the NVM */
@@ -2089,9 +2119,11 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	}
 
 #endif
+#ifdef CONFIG_IGB_PTP
 	/* do hw tstamp init after resetting */
-	igb_init_hw_timer(adapter);
+	igb_ptp_init(adapter);
 
+#endif
 	dev_info(&pdev->dev, "Intel(R) Gigabit Ethernet Network Connection\n");
 	/* print bus type/speed/width info */
 	dev_info(&pdev->dev, "%s: (PCIe:%s:%s) %pM\n",
@@ -2116,6 +2148,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		adapter->num_rx_queues, adapter->num_tx_queues);
 	switch (hw->mac.type) {
 	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
 		igb_set_eee_i350(hw);
 		break;
 	default:
@@ -2163,7 +2197,10 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	struct e1000_hw *hw = &adapter->hw;
 
 	pm_runtime_get_noresume(&pdev->dev);
+#ifdef CONFIG_IGB_PTP
+	igb_ptp_remove(adapter);
 
+#endif
 	/*
 	 * The watchdog timer may be rescheduled, so explicitly
 	 * disable watchdog from being rescheduled.
@@ -2239,8 +2276,13 @@ static void __devinit igb_probe_vfs(struct igb_adapter * adapter)
 {
 #ifdef CONFIG_PCI_IOV
 	struct pci_dev *pdev = adapter->pdev;
+	struct e1000_hw *hw = &adapter->hw;
 	int old_vfs = igb_find_enabled_vfs(adapter);
 	int i;
+
+	/* Virtualization features not supported on i210 family. */
+	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211))
+		return;
 
 	if (old_vfs) {
 		dev_info(&pdev->dev, "%d pre-allocated VFs found - override "
@@ -2253,6 +2295,7 @@ static void __devinit igb_probe_vfs(struct igb_adapter * adapter)
 
 	adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
 				sizeof(struct vf_data_storage), GFP_KERNEL);
+
 	/* if allocation failed then we do not support SR-IOV */
 	if (!adapter->vf_data) {
 		adapter->vfs_allocated_count = 0;
@@ -2280,112 +2323,6 @@ err_out:
 out:
 	return;
 #endif /* CONFIG_PCI_IOV */
-}
-
-/**
- * igb_init_hw_timer - Initialize hardware timer used with IEEE 1588 timestamp
- * @adapter: board private structure to initialize
- *
- * igb_init_hw_timer initializes the function pointer and values for the hw
- * timer found in hardware.
- **/
-static void igb_init_hw_timer(struct igb_adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-
-	switch (hw->mac.type) {
-	case e1000_i350:
-	case e1000_82580:
-		memset(&adapter->cycles, 0, sizeof(adapter->cycles));
-		adapter->cycles.read = igb_read_clock;
-		adapter->cycles.mask = CLOCKSOURCE_MASK(64);
-		adapter->cycles.mult = 1;
-		/*
-		 * The 82580 timesync updates the system timer every 8ns by 8ns
-		 * and the value cannot be shifted.  Instead we need to shift
-		 * the registers to generate a 64bit timer value.  As a result
-		 * SYSTIMR/L/H, TXSTMPL/H, RXSTMPL/H all have to be shifted by
-		 * 24 in order to generate a larger value for synchronization.
-		 */
-		adapter->cycles.shift = IGB_82580_TSYNC_SHIFT;
-		/* disable system timer temporarily by setting bit 31 */
-		wr32(E1000_TSAUXC, 0x80000000);
-		wrfl();
-
-		/* Set registers so that rollover occurs soon to test this. */
-		wr32(E1000_SYSTIMR, 0x00000000);
-		wr32(E1000_SYSTIML, 0x80000000);
-		wr32(E1000_SYSTIMH, 0x000000FF);
-		wrfl();
-
-		/* enable system timer by clearing bit 31 */
-		wr32(E1000_TSAUXC, 0x0);
-		wrfl();
-
-		timecounter_init(&adapter->clock,
-				 &adapter->cycles,
-				 ktime_to_ns(ktime_get_real()));
-		/*
-		 * Synchronize our NIC clock against system wall clock. NIC
-		 * time stamp reading requires ~3us per sample, each sample
-		 * was pretty stable even under load => only require 10
-		 * samples for each offset comparison.
-		 */
-		memset(&adapter->compare, 0, sizeof(adapter->compare));
-		adapter->compare.source = &adapter->clock;
-		adapter->compare.target = ktime_get_real;
-		adapter->compare.num_samples = 10;
-		timecompare_update(&adapter->compare, 0);
-		break;
-	case e1000_82576:
-		/*
-		 * Initialize hardware timer: we keep it running just in case
-		 * that some program needs it later on.
-		 */
-		memset(&adapter->cycles, 0, sizeof(adapter->cycles));
-		adapter->cycles.read = igb_read_clock;
-		adapter->cycles.mask = CLOCKSOURCE_MASK(64);
-		adapter->cycles.mult = 1;
-		/**
-		 * Scale the NIC clock cycle by a large factor so that
-		 * relatively small clock corrections can be added or
-		 * subtracted at each clock tick. The drawbacks of a large
-		 * factor are a) that the clock register overflows more quickly
-		 * (not such a big deal) and b) that the increment per tick has
-		 * to fit into 24 bits.  As a result we need to use a shift of
-		 * 19 so we can fit a value of 16 into the TIMINCA register.
-		 */
-		adapter->cycles.shift = IGB_82576_TSYNC_SHIFT;
-		wr32(E1000_TIMINCA,
-		                (1 << E1000_TIMINCA_16NS_SHIFT) |
-		                (16 << IGB_82576_TSYNC_SHIFT));
-
-		/* Set registers so that rollover occurs soon to test this. */
-		wr32(E1000_SYSTIML, 0x00000000);
-		wr32(E1000_SYSTIMH, 0xFF800000);
-		wrfl();
-
-		timecounter_init(&adapter->clock,
-				 &adapter->cycles,
-				 ktime_to_ns(ktime_get_real()));
-		/*
-		 * Synchronize our NIC clock against system wall clock. NIC
-		 * time stamp reading requires ~3us per sample, each sample
-		 * was pretty stable even under load => only require 10
-		 * samples for each offset comparison.
-		 */
-		memset(&adapter->compare, 0, sizeof(adapter->compare));
-		adapter->compare.source = &adapter->clock;
-		adapter->compare.target = ktime_get_real;
-		adapter->compare.num_samples = 10;
-		timecompare_update(&adapter->compare, 0);
-		break;
-	case e1000_82575:
-		/* 82575 does not support timesync */
-	default:
-		break;
-	}
-
 }
 
 /**
@@ -2433,11 +2370,28 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 		} else
 			adapter->vfs_allocated_count = max_vfs;
 		break;
+	case e1000_i210:
+	case e1000_i211:
+		adapter->vfs_allocated_count = 0;
+		break;
 	default:
 		break;
 	}
 #endif /* CONFIG_PCI_IOV */
-	adapter->rss_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
+	switch (hw->mac.type) {
+	case e1000_i210:
+		adapter->rss_queues = min_t(u32, IGB_MAX_RX_QUEUES_I210,
+			num_online_cpus());
+		break;
+	case e1000_i211:
+		adapter->rss_queues = min_t(u32, IGB_MAX_RX_QUEUES_I211,
+			num_online_cpus());
+		break;
+	default:
+		adapter->rss_queues = min_t(u32, IGB_MAX_RX_QUEUES,
+		num_online_cpus());
+		break;
+	}
 	/* i350 cannot do RSS and SR-IOV at the same time */
 	if (hw->mac.type == e1000_i350 && adapter->vfs_allocated_count)
 		adapter->rss_queues = 1;
@@ -2467,7 +2421,7 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	/* Explicitly disable IRQ since the NIC can be in any state. */
 	igb_irq_disable(adapter);
 
-	if (hw->mac.type == e1000_i350)
+	if (hw->mac.type >= e1000_i350)
 		adapter->flags &= ~IGB_FLAG_DMAC;
 
 	set_bit(__IGB_DOWN, &adapter->state);
@@ -2920,6 +2874,17 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 
 	/* Don't need to set TUOFL or IPOFL, they default to 1 */
 	wr32(E1000_RXCSUM, rxcsum);
+	/*
+	 * Generate RSS hash based on TCP port numbers and/or
+	 * IPv4/v6 src and dst addresses since UDP cannot be
+	 * hashed reliably due to IP fragmentation
+	 */
+
+	mrqc = E1000_MRQC_RSS_FIELD_IPV4 |
+	       E1000_MRQC_RSS_FIELD_IPV4_TCP |
+	       E1000_MRQC_RSS_FIELD_IPV6 |
+	       E1000_MRQC_RSS_FIELD_IPV6_TCP |
+	       E1000_MRQC_RSS_FIELD_IPV6_TCP_EX;
 
 	/* If VMDq is enabled then we set the appropriate mode for that, else
 	 * we default to RSS so that an RSS hash is calculated per packet even
@@ -2935,24 +2900,14 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 			wr32(E1000_VT_CTL, vtctl);
 		}
 		if (adapter->rss_queues > 1)
-			mrqc = E1000_MRQC_ENABLE_VMDQ_RSS_2Q;
+			mrqc |= E1000_MRQC_ENABLE_VMDQ_RSS_2Q;
 		else
-			mrqc = E1000_MRQC_ENABLE_VMDQ;
+			mrqc |= E1000_MRQC_ENABLE_VMDQ;
 	} else {
-		mrqc = E1000_MRQC_ENABLE_RSS_4Q;
+		if (hw->mac.type != e1000_i211)
+			mrqc |= E1000_MRQC_ENABLE_RSS_4Q;
 	}
 	igb_vmm_control(adapter);
-
-	/*
-	 * Generate RSS hash based on TCP port numbers and/or
-	 * IPv4/v6 src and dst addresses since UDP cannot be
-	 * hashed reliably due to IP fragmentation
-	 */
-	mrqc |= E1000_MRQC_RSS_FIELD_IPV4 |
-		E1000_MRQC_RSS_FIELD_IPV4_TCP |
-		E1000_MRQC_RSS_FIELD_IPV6 |
-		E1000_MRQC_RSS_FIELD_IPV6_TCP |
-		E1000_MRQC_RSS_FIELD_IPV6_TCP_EX;
 
 	wr32(E1000_MRQC, mrqc);
 }
@@ -2997,6 +2952,22 @@ void igb_setup_rctl(struct igb_adapter *adapter)
 	if (adapter->vfs_allocated_count) {
 		/* set all queue drop enable bits */
 		wr32(E1000_QDE, ALL_QUEUES);
+	}
+
+	/* This is useful for sniffing bad packets. */
+	if (adapter->netdev->features & NETIF_F_RXALL) {
+		/* UPE and MPE will be handled by normal PROMISC logic
+		 * in e1000e_set_rx_mode */
+		rctl |= (E1000_RCTL_SBP | /* Receive bad packets */
+			 E1000_RCTL_BAM | /* RX All Bcast Pkts */
+			 E1000_RCTL_PMCF); /* RX All MAC Ctrl Pkts */
+
+		rctl &= ~(E1000_RCTL_VFE | /* Disable VLAN filter */
+			  E1000_RCTL_DPF | /* Allow filtered pause */
+			  E1000_RCTL_CFIEN); /* Dis VLAN CFIEN Filter */
+		/* Do not mess with E1000_CTRL_VME, it affects transmit as well,
+		 * and that breaks VLANs.
+		 */
 	}
 
 	wr32(E1000_RCTL, rctl);
@@ -3242,6 +3213,7 @@ static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 		buffer_info = &tx_ring->tx_buffer_info[i];
 		igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
 	}
+
 	netdev_tx_reset_queue(txring_txq(tx_ring));
 
 	size = sizeof(struct igb_tx_buffer) * tx_ring->count;
@@ -3538,7 +3510,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	 * we will have issues with VLAN tag stripping not being done for frames
 	 * that are only arriving because we are the default pool
 	 */
-	if (hw->mac.type < e1000_82576)
+	if ((hw->mac.type < e1000_82576) || (hw->mac.type > e1000_i350))
 		return;
 
 	vmolr |= rd32(E1000_VMOLR(vfn)) &
@@ -3635,7 +3607,7 @@ static bool igb_thermal_sensor_event(struct e1000_hw *hw, u32 event)
 	bool ret = false;
 	u32 ctrl_ext, thstat;
 
-	/* check for thermal sensor event on i350, copper only */
+	/* check for thermal sensor event on i350 copper only */
 	if (hw->mac.type == e1000_i350) {
 		thstat = rd32(E1000_THSTAT);
 		ctrl_ext = rd32(E1000_CTRL_EXT);
@@ -4290,6 +4262,8 @@ static void igb_tx_map(struct igb_ring *tx_ring,
 
 	/* write last descriptor with RS and EOP bits */
 	cmd_type |= cpu_to_le32(size) | cpu_to_le32(IGB_TXD_DCMD);
+	if (unlikely(skb->no_fcs))
+		cmd_type &= ~(cpu_to_le32(E1000_ADVTXD_DCMD_IFCS));
 	tx_desc->read.cmd_type_len = cmd_type;
 
 	/* set the timestamp */
@@ -5678,35 +5652,7 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-/**
- * igb_systim_to_hwtstamp - convert system time value to hw timestamp
- * @adapter: board private structure
- * @shhwtstamps: timestamp structure to update
- * @regval: unsigned 64bit system time value.
- *
- * We need to convert the system time value stored in the RX/TXSTMP registers
- * into a hwtstamp which can be used by the upper level timestamping functions
- */
-static void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
-                                   struct skb_shared_hwtstamps *shhwtstamps,
-                                   u64 regval)
-{
-	u64 ns;
-
-	/*
-	 * The 82580 starts with 1ns at bit 0 in RX/TXSTMPL, shift this up to
-	 * 24 to match clock shift we setup earlier.
-	 */
-	if (adapter->hw.mac.type >= e1000_82580)
-		regval <<= IGB_82580_TSYNC_SHIFT;
-
-	ns = timecounter_cyc2time(&adapter->clock, regval);
-	timecompare_update(&adapter->compare, ns);
-	memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
-	shhwtstamps->hwtstamp = ns_to_ktime(ns);
-	shhwtstamps->syststamp = timecompare_transform(&adapter->compare, ns);
-}
-
+#ifdef CONFIG_IGB_PTP
 /**
  * igb_tx_hwtstamp - utility function which checks for TX time stamp
  * @q_vector: pointer to q_vector containing needed info
@@ -5736,6 +5682,7 @@ static void igb_tx_hwtstamp(struct igb_q_vector *q_vector,
 	skb_tstamp_tx(buffer_info->skb, &shhwtstamps);
 }
 
+#endif
 /**
  * igb_clean_tx_irq - Reclaim resources after transmit completes
  * @q_vector: pointer to q_vector containing needed info
@@ -5779,9 +5726,11 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
 
+#ifdef CONFIG_IGB_PTP
 		/* retrieve hardware timestamp */
 		igb_tx_hwtstamp(q_vector, tx_buffer);
 
+#endif
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 		tx_buffer->skb = NULL;
@@ -5953,6 +5902,7 @@ static inline void igb_rx_hash(struct igb_ring *ring,
 		skb->rxhash = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 }
 
+#ifdef CONFIG_IGB_PTP
 static void igb_rx_hwtstamp(struct igb_q_vector *q_vector,
 			    union e1000_adv_rx_desc *rx_desc,
 			    struct sk_buff *skb)
@@ -5992,6 +5942,7 @@ static void igb_rx_hwtstamp(struct igb_q_vector *q_vector,
 	igb_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
 }
 
+#endif
 static void igb_rx_vlan(struct igb_ring *ring,
 			union e1000_adv_rx_desc *rx_desc,
 			struct sk_buff *skb)
@@ -6095,13 +6046,16 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 			goto next_desc;
 		}
 
-		if (igb_test_staterr(rx_desc,
-				     E1000_RXDEXT_ERR_FRAME_ERR_MASK)) {
+		if (unlikely((igb_test_staterr(rx_desc,
+					       E1000_RXDEXT_ERR_FRAME_ERR_MASK))
+			     && !(rx_ring->netdev->features & NETIF_F_RXALL))) {
 			dev_kfree_skb_any(skb);
 			goto next_desc;
 		}
 
+#ifdef CONFIG_IGB_PTP
 		igb_rx_hwtstamp(q_vector, rx_desc, skb);
+#endif
 		igb_rx_hash(rx_ring, rx_desc, skb);
 		igb_rx_checksum(rx_ring, rx_desc, skb);
 		igb_rx_vlan(rx_ring, rx_desc, skb);
@@ -6710,6 +6664,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 }
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int igb_suspend(struct device *dev)
 {
 	int retval;
@@ -6729,6 +6684,7 @@ static int igb_suspend(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static int igb_resume(struct device *dev)
 {
@@ -6753,18 +6709,7 @@ static int igb_resume(struct device *dev)
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
-	if (!rtnl_is_locked()) {
-		/*
-		 * shut up ASSERT_RTNL() warning in
-		 * netif_set_real_num_tx/rx_queues.
-		 */
-		rtnl_lock();
-		err = igb_init_interrupt_scheme(adapter);
-		rtnl_unlock();
-	} else {
-		err = igb_init_interrupt_scheme(adapter);
-	}
-	if (err) {
+	if (igb_init_interrupt_scheme(adapter)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
@@ -7127,6 +7072,8 @@ static void igb_vmm_control(struct igb_adapter *adapter)
 
 	switch (hw->mac.type) {
 	case e1000_82575:
+	case e1000_i210:
+	case e1000_i211:
 	default:
 		/* replication is not supported for 82575 */
 		return;
@@ -7200,6 +7147,9 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 
 			/* watchdog timer= +-1000 usec in 32usec intervals */
 			reg |= (1000 >> 5);
+
+			/* Disable BMC-to-OS Watchdog Enable */
+			reg &= ~E1000_DMACR_DC_BMC2OSW_EN;
 			wr32(E1000_DMACR, reg);
 
 			/*

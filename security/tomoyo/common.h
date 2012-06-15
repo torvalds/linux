@@ -788,7 +788,7 @@ struct tomoyo_acl_param {
 struct tomoyo_io_buffer {
 	void (*read) (struct tomoyo_io_buffer *);
 	int (*write) (struct tomoyo_io_buffer *);
-	int (*poll) (struct file *file, poll_table *wait);
+	unsigned int (*poll) (struct file *file, poll_table *wait);
 	/* Exclusive lock for this structure.   */
 	struct mutex io_sem;
 	char __user *read_user_buf;
@@ -860,7 +860,6 @@ struct tomoyo_aggregator {
 /* Structure for policy manager. */
 struct tomoyo_manager {
 	struct tomoyo_acl_head head;
-	bool is_domain;  /* True if manager is a domainname. */
 	/* A path to program or a domainname. */
 	const struct tomoyo_path_info *manager;
 };
@@ -981,8 +980,8 @@ int tomoyo_path_number_perm(const u8 operation, struct path *path,
 			    unsigned long number);
 int tomoyo_path_perm(const u8 operation, struct path *path,
 		     const char *target);
-int tomoyo_poll_control(struct file *file, poll_table *wait);
-int tomoyo_poll_log(struct file *file, poll_table *wait);
+unsigned int tomoyo_poll_control(struct file *file, poll_table *wait);
+unsigned int tomoyo_poll_log(struct file *file, poll_table *wait);
 int tomoyo_socket_bind_permission(struct socket *sock, struct sockaddr *addr,
 				  int addr_len);
 int tomoyo_socket_connect_permission(struct socket *sock,

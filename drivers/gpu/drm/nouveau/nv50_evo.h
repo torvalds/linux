@@ -104,7 +104,8 @@
 #define NV50_EVO_CRTC_SCALE_CTRL_INACTIVE                            0x00000000
 #define NV50_EVO_CRTC_SCALE_CTRL_ACTIVE                              0x00000009
 #define NV50_EVO_CRTC_COLOR_CTRL                                     0x000008a8
-#define NV50_EVO_CRTC_COLOR_CTRL_COLOR                               0x00040000
+#define NV50_EVO_CRTC_COLOR_CTRL_VIBRANCE                            0x000fff00
+#define NV50_EVO_CRTC_COLOR_CTRL_HUE                                 0xfff00000
 #define NV50_EVO_CRTC_FB_POS                                         0x000008c0
 #define NV50_EVO_CRTC_REAL_RES                                       0x000008c8
 #define NV50_EVO_CRTC_SCALE_CENTER_OFFSET                            0x000008d4

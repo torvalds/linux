@@ -118,7 +118,7 @@ int send_and_receive(int card, unsigned int procid, unsigned char type,
 		     unsigned char class, unsigned char code,
 		     unsigned char link, unsigned char data_len,
 		     unsigned char *data,  RspMessage *mesgdata, int timeout);
-void flushreadfifo (int card);
+void flushreadfifo(int card);
 int sendmessage(int card, unsigned int procid, unsigned int type,
 		unsigned int class, unsigned int code, unsigned int link,
 		unsigned int data_len, unsigned int *data);

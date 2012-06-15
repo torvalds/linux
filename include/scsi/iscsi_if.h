@@ -60,6 +60,9 @@ enum iscsi_uevent_e {
 
 	ISCSI_UEVENT_PATH_UPDATE	= UEVENT_BASE + 20,
 	ISCSI_UEVENT_SET_IFACE_PARAMS	= UEVENT_BASE + 21,
+	ISCSI_UEVENT_PING		= UEVENT_BASE + 22,
+	ISCSI_UEVENT_GET_CHAP		= UEVENT_BASE + 23,
+	ISCSI_UEVENT_DELETE_CHAP	= UEVENT_BASE + 24,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -72,12 +75,21 @@ enum iscsi_uevent_e {
 	ISCSI_KEVENT_PATH_REQ		= KEVENT_BASE + 7,
 	ISCSI_KEVENT_IF_DOWN		= KEVENT_BASE + 8,
 	ISCSI_KEVENT_CONN_LOGIN_STATE   = KEVENT_BASE + 9,
+	ISCSI_KEVENT_HOST_EVENT		= KEVENT_BASE + 10,
+	ISCSI_KEVENT_PING_COMP		= KEVENT_BASE + 11,
 };
 
 enum iscsi_tgt_dscvr {
 	ISCSI_TGT_DSCVR_SEND_TARGETS	= 1,
 	ISCSI_TGT_DSCVR_ISNS		= 2,
 	ISCSI_TGT_DSCVR_SLP		= 3,
+};
+
+enum iscsi_host_event_code {
+	ISCSI_EVENT_LINKUP		= 1,
+	ISCSI_EVENT_LINKDOWN,
+	/* must always be last */
+	ISCSI_EVENT_MAX,
 };
 
 struct iscsi_uevent {
@@ -178,6 +190,26 @@ struct iscsi_uevent {
 			uint32_t	host_no;
 			uint32_t	count;
 		} set_iface_params;
+		struct msg_iscsi_ping {
+			uint32_t        host_no;
+			uint32_t        iface_num;
+			uint32_t        iface_type;
+			uint32_t        payload_size;
+			uint32_t	pid;	/* unique ping id associated
+						   with each ping request */
+		} iscsi_ping;
+		struct msg_get_chap {
+			uint32_t	host_no;
+			uint32_t	num_entries; /* number of CHAP entries
+						      * on request, number of
+						      * valid CHAP entries on
+						      * response */
+			uint16_t	chap_tbl_idx;
+		} get_chap;
+		struct msg_delete_chap {
+		       uint32_t        host_no;
+		       uint16_t        chap_tbl_idx;
+		} delete_chap;
 	} u;
 	union {
 		/* messages k -> u */
@@ -222,6 +254,19 @@ struct iscsi_uevent {
 		struct msg_notify_if_down {
 			uint32_t	host_no;
 		} notify_if_down;
+		struct msg_host_event {
+			uint32_t	host_no;
+			uint32_t	data_size;
+			enum iscsi_host_event_code code;
+		} host_event;
+		struct msg_ping_comp {
+			uint32_t        host_no;
+			uint32_t        status; /* enum
+						 * iscsi_ping_status_code */
+			uint32_t	pid;	/* unique ping id associated
+						   with each ping request */
+			uint32_t        data_size;
+		} ping_comp;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
@@ -406,6 +451,9 @@ enum iscsi_param {
 
 	ISCSI_PARAM_TGT_RESET_TMO,
 	ISCSI_PARAM_TARGET_ALIAS,
+
+	ISCSI_PARAM_CHAP_IN_IDX,
+	ISCSI_PARAM_CHAP_OUT_IDX,
 	/* must always be last */
 	ISCSI_PARAM_MAX,
 };
@@ -416,7 +464,38 @@ enum iscsi_host_param {
 	ISCSI_HOST_PARAM_INITIATOR_NAME,
 	ISCSI_HOST_PARAM_NETDEV_NAME,
 	ISCSI_HOST_PARAM_IPADDRESS,
+	ISCSI_HOST_PARAM_PORT_STATE,
+	ISCSI_HOST_PARAM_PORT_SPEED,
 	ISCSI_HOST_PARAM_MAX,
+};
+
+/* iSCSI port Speed */
+enum iscsi_port_speed {
+	ISCSI_PORT_SPEED_UNKNOWN	= 0x1,
+	ISCSI_PORT_SPEED_10MBPS		= 0x2,
+	ISCSI_PORT_SPEED_100MBPS	= 0x4,
+	ISCSI_PORT_SPEED_1GBPS		= 0x8,
+	ISCSI_PORT_SPEED_10GBPS		= 0x10,
+};
+
+/* iSCSI port state */
+enum iscsi_port_state {
+	ISCSI_PORT_STATE_DOWN		= 0x1,
+	ISCSI_PORT_STATE_UP		= 0x2,
+};
+
+/* iSCSI PING status/error code */
+enum iscsi_ping_status_code {
+	ISCSI_PING_SUCCESS			= 0,
+	ISCSI_PING_FW_DISABLED			= 0x1,
+	ISCSI_PING_IPADDR_INVALID		= 0x2,
+	ISCSI_PING_LINKLOCAL_IPV6_ADDR_INVALID	= 0x3,
+	ISCSI_PING_TIMEOUT			= 0x4,
+	ISCSI_PING_INVALID_DEST_ADDR		= 0x5,
+	ISCSI_PING_OVERSIZE_PACKET		= 0x6,
+	ISCSI_PING_ICMP_ERROR			= 0x7,
+	ISCSI_PING_MAX_REQ_EXCEEDED		= 0x8,
+	ISCSI_PING_NO_ARP_RECEIVED		= 0x9,
 };
 
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
@@ -499,6 +578,21 @@ struct iscsi_stats {
 	uint32_t custom_length;
 	struct iscsi_stats_custom custom[0]
 		__attribute__ ((aligned (sizeof(uint64_t))));
+};
+
+enum chap_type_e {
+	CHAP_TYPE_OUT,
+	CHAP_TYPE_IN,
+};
+
+#define ISCSI_CHAP_AUTH_NAME_MAX_LEN	256
+#define ISCSI_CHAP_AUTH_SECRET_MAX_LEN	256
+struct iscsi_chap_rec {
+	uint16_t chap_tbl_idx;
+	enum chap_type_e chap_type;
+	char username[ISCSI_CHAP_AUTH_NAME_MAX_LEN];
+	uint8_t password[ISCSI_CHAP_AUTH_SECRET_MAX_LEN];
+	uint8_t password_length;
 };
 
 #endif

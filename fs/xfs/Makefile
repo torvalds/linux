@@ -33,6 +33,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_discard.o \
 				   xfs_error.o \
 				   xfs_export.o \
+				   xfs_extent_busy.o \
 				   xfs_file.o \
 				   xfs_filestream.o \
 				   xfs_fsops.o \
@@ -49,7 +50,6 @@ xfs-y				+= xfs_aops.o \
 				   xfs_sync.o \
 				   xfs_xattr.o \
 				   xfs_rename.o \
-				   xfs_rw.o \
 				   xfs_utils.o \
 				   xfs_vnodeops.o \
 				   kmem.o \
@@ -96,9 +96,6 @@ xfs-$(CONFIG_XFS_QUOTA)		+= xfs_dquot.o \
 				   xfs_qm_bhv.o \
 				   xfs_qm.o \
 				   xfs_quotaops.o
-ifeq ($(CONFIG_XFS_QUOTA),y)
-xfs-$(CONFIG_PROC_FS)		+= xfs_qm_stats.o
-endif
 xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o
 xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
 xfs-$(CONFIG_PROC_FS)		+= xfs_stats.o

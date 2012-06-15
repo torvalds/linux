@@ -230,18 +230,7 @@ static struct i2c_driver isl29020_driver = {
 	.id_table = isl29020_id,
 };
 
-static int __init sensor_isl29020_init(void)
-{
-	return i2c_add_driver(&isl29020_driver);
-}
-
-static void  __exit sensor_isl29020_exit(void)
-{
-	i2c_del_driver(&isl29020_driver);
-}
-
-module_init(sensor_isl29020_init);
-module_exit(sensor_isl29020_exit);
+module_i2c_driver(isl29020_driver);
 
 MODULE_AUTHOR("Kalhan Trisal <kalhan.trisal@intel.com>");
 MODULE_DESCRIPTION("Intersil isl29020 ALS Driver");

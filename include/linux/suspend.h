@@ -42,8 +42,10 @@ enum suspend_stat_step {
 	SUSPEND_FREEZE = 1,
 	SUSPEND_PREPARE,
 	SUSPEND_SUSPEND,
+	SUSPEND_SUSPEND_LATE,
 	SUSPEND_SUSPEND_NOIRQ,
 	SUSPEND_RESUME_NOIRQ,
+	SUSPEND_RESUME_EARLY,
 	SUSPEND_RESUME
 };
 
@@ -53,8 +55,10 @@ struct suspend_stats {
 	int	failed_freeze;
 	int	failed_prepare;
 	int	failed_suspend;
+	int	failed_suspend_late;
 	int	failed_suspend_noirq;
 	int	failed_resume;
+	int	failed_resume_early;
 	int	failed_resume_noirq;
 #define	REC_FAILED_NUM	2
 	int	last_failed_dev;
@@ -352,8 +356,9 @@ extern int unregister_pm_notifier(struct notifier_block *nb);
 extern bool events_check_enabled;
 
 extern bool pm_wakeup_pending(void);
-extern bool pm_get_wakeup_count(unsigned int *count);
+extern bool pm_get_wakeup_count(unsigned int *count, bool block);
 extern bool pm_save_wakeup_count(unsigned int count);
+extern void pm_wakep_autosleep_enabled(bool set);
 
 static inline void lock_system_sleep(void)
 {
@@ -402,6 +407,17 @@ static inline void lock_system_sleep(void) {}
 static inline void unlock_system_sleep(void) {}
 
 #endif /* !CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM_AUTOSLEEP
+
+/* kernel/power/autosleep.c */
+void queue_up_suspend_work(void);
+
+#else /* !CONFIG_PM_AUTOSLEEP */
+
+static inline void queue_up_suspend_work(void) {}
+
+#endif /* !CONFIG_PM_AUTOSLEEP */
 
 #ifdef CONFIG_ARCH_SAVE_PAGE_KEYS
 /*

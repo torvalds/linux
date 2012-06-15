@@ -789,7 +789,7 @@ static void prepare_write_banner(struct ceph_connection *con)
 
 static int prepare_write_connect(struct ceph_connection *con)
 {
-	unsigned global_seq = get_global_seq(con->msgr, 0);
+	unsigned int global_seq = get_global_seq(con->msgr, 0);
 	int proto;
 	int auth_proto;
 	struct ceph_auth_handshake *auth;
@@ -917,7 +917,7 @@ static void iter_bio_next(struct bio **bio_iter, int *seg)
 static int write_partial_msg_pages(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->out_msg;
-	unsigned data_len = le32_to_cpu(msg->hdr.data_len);
+	unsigned int data_len = le32_to_cpu(msg->hdr.data_len);
 	size_t len;
 	bool do_datacrc = !con->msgr->nocrc;
 	int ret;
@@ -1673,7 +1673,7 @@ static bool ceph_con_in_msg_alloc(struct ceph_connection *con,
 
 static int read_partial_message_pages(struct ceph_connection *con,
 				      struct page **pages,
-				      unsigned data_len, bool do_datacrc)
+				      unsigned int data_len, bool do_datacrc)
 {
 	void *p;
 	int ret;
@@ -1706,7 +1706,7 @@ static int read_partial_message_pages(struct ceph_connection *con,
 #ifdef CONFIG_BLOCK
 static int read_partial_message_bio(struct ceph_connection *con,
 				    struct bio **bio_iter, int *bio_seg,
-				    unsigned data_len, bool do_datacrc)
+				    unsigned int data_len, bool do_datacrc)
 {
 	struct bio_vec *bv = bio_iovec_idx(*bio_iter, *bio_seg);
 	void *p;
@@ -1749,7 +1749,7 @@ static int read_partial_message(struct ceph_connection *con)
 	int size;
 	int end;
 	int ret;
-	unsigned front_len, middle_len, data_len;
+	unsigned int front_len, middle_len, data_len;
 	bool do_datacrc = !con->msgr->nocrc;
 	u64 seq;
 	u32 crc;
@@ -2473,9 +2473,9 @@ void ceph_msg_revoke_incoming(struct ceph_msg *msg)
 	con = msg->con;
 	mutex_lock(&con->mutex);
 	if (con->in_msg == msg) {
-		unsigned front_len = le32_to_cpu(con->in_hdr.front_len);
-		unsigned middle_len = le32_to_cpu(con->in_hdr.middle_len);
-		unsigned data_len = le32_to_cpu(con->in_hdr.data_len);
+		unsigned int front_len = le32_to_cpu(con->in_hdr.front_len);
+		unsigned int middle_len = le32_to_cpu(con->in_hdr.middle_len);
+		unsigned int data_len = le32_to_cpu(con->in_hdr.data_len);
 
 		/* skip rest of message */
 		dout("%s %p msg %p revoked\n", __func__, con, msg);

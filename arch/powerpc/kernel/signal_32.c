@@ -43,6 +43,7 @@
 #include <asm/syscalls.h>
 #include <asm/sigcontext.h>
 #include <asm/vdso.h>
+#include <asm/switch_to.h>
 #ifdef CONFIG_PPC64
 #include "ppc32.h"
 #include <asm/unistd.h>
@@ -203,10 +204,10 @@ static inline int get_old_sigaction(struct k_sigaction *new_ka,
 
 	if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 			__get_user(new_ka->sa.sa_handler, &act->sa_handler) ||
-			__get_user(new_ka->sa.sa_restorer, &act->sa_restorer))
+			__get_user(new_ka->sa.sa_restorer, &act->sa_restorer) ||
+			__get_user(new_ka->sa.sa_flags, &act->sa_flags) ||
+			__get_user(mask, &act->sa_mask))
 		return -EFAULT;
-	__get_user(new_ka->sa.sa_flags, &act->sa_flags);
-	__get_user(mask, &act->sa_mask);
 	siginitset(&new_ka->sa.sa_mask, mask);
 	return 0;
 }
@@ -242,17 +243,9 @@ static inline int restore_general_regs(struct pt_regs *regs,
  */
 long sys_sigsuspend(old_sigset_t mask)
 {
-	mask &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	current->saved_sigmask = current->blocked;
-	siginitset(&current->blocked, mask);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
- 	current->state = TASK_INTERRUPTIBLE;
- 	schedule();
-	set_restore_sigmask();
- 	return -ERESTARTNOHAND;
+	sigset_t blocked;
+	siginitset(&blocked, mask);
+	return sigsuspend(&blocked);
 }
 
 long sys_sigaction(int sig, struct old_sigaction __user *act,
@@ -926,7 +919,7 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 	if (!access_ok(VERIFY_READ, mcp, sizeof(*mcp)))
 		return -EFAULT;
 #endif
-	restore_sigmask(&set);
+	set_current_blocked(&set);
 	if (restore_user_regs(regs, mcp, sig))
 		return -EFAULT;
 
@@ -1280,7 +1273,7 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	set.sig[0] = sigctx.oldmask;
 	set.sig[1] = sigctx._unused[3];
 #endif
-	restore_sigmask(&set);
+	set_current_blocked(&set);
 
 	sr = (struct mcontext __user *)from_user_ptr(sigctx.regs);
 	addr = sr;

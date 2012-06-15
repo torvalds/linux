@@ -255,7 +255,7 @@ struct mpic
 	struct device_node *node;
 
 	/* The remapper for this MPIC */
-	struct irq_host		*irqhost;
+	struct irq_domain	*irqhost;
 
 	/* The "linux" controller struct */
 	struct irq_chip		hc_irq;
@@ -273,12 +273,8 @@ struct mpic
 	unsigned int		isu_size;
 	unsigned int		isu_shift;
 	unsigned int		isu_mask;
-	unsigned int		irq_count;
 	/* Number of sources */
 	unsigned int		num_sources;
-	/* default senses array */
-	unsigned char		*senses;
-	unsigned int		senses_count;
 
 	/* vector numbers used for internal sources (ipi/timers) */
 	unsigned int		ipi_vecs[4];
@@ -349,8 +345,6 @@ struct mpic
 #define MPIC_U3_HT_IRQS			0x00000004
 /* Broken IPI registers (autodetected) */
 #define MPIC_BROKEN_IPI			0x00000008
-/* MPIC wants a reset */
-#define MPIC_WANTS_RESET		0x00000010
 /* Spurious vector requires EOI */
 #define MPIC_SPV_EOI			0x00000020
 /* No passthrough disable */
@@ -363,15 +357,11 @@ struct mpic
 #define MPIC_ENABLE_MCK			0x00000200
 /* Disable bias among target selection, spread interrupts evenly */
 #define MPIC_NO_BIAS			0x00000400
-/* Ignore NIRQS as reported by FRR */
-#define MPIC_BROKEN_FRR_NIRQS		0x00000800
 /* Destination only supports a single CPU at a time */
 #define MPIC_SINGLE_DEST_CPU		0x00001000
 /* Enable CoreInt delivery of interrupts */
 #define MPIC_ENABLE_COREINT		0x00002000
-/* Disable resetting of the MPIC.
- * NOTE: This flag trumps MPIC_WANTS_RESET.
- */
+/* Do not reset the MPIC during initialization */
 #define MPIC_NO_RESET			0x00004000
 /* Freescale MPIC (compatible includes "fsl,mpic") */
 #define MPIC_FSL			0x00008000
@@ -421,21 +411,6 @@ extern struct mpic *mpic_alloc(struct device_node *node,
  */
 extern void mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 			    phys_addr_t phys_addr);
-
-/* Set default sense codes
- *
- * @mpic:	controller
- * @senses:	array of sense codes
- * @count:	size of above array
- *
- * Optionally provide an array (indexed on hardware interrupt numbers
- * for this MPIC) of default sense codes for the chip. Those are linux
- * sense codes IRQ_TYPE_*
- *
- * The driver gets ownership of the pointer, don't dispose of it or
- * anything like that. __init only.
- */
-extern void mpic_set_default_senses(struct mpic *mpic, u8 *senses, int count);
 
 
 /* Initialize the controller. After this has been called, none of the above

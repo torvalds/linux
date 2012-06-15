@@ -1,0 +1,10 @@
+menu "Rpmsg drivers (EXPERIMENTAL)"
+
+# RPMSG always gets selected by whoever wants it
+config RPMSG
+	tristate
+	select VIRTIO
+	select VIRTIO_RING
+	depends on EXPERIMENTAL
+
+endmenu

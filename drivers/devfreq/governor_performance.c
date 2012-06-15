@@ -10,6 +10,7 @@
  */
 
 #include <linux/devfreq.h>
+#include "governor.h"
 
 static int devfreq_performance_func(struct devfreq *df,
 				    unsigned long *freq)
@@ -18,12 +19,21 @@ static int devfreq_performance_func(struct devfreq *df,
 	 * target callback should be able to get floor value as
 	 * said in devfreq.h
 	 */
-	*freq = UINT_MAX;
+	if (!df->max_freq)
+		*freq = UINT_MAX;
+	else
+		*freq = df->max_freq;
 	return 0;
+}
+
+static int performance_init(struct devfreq *devfreq)
+{
+	return update_devfreq(devfreq);
 }
 
 const struct devfreq_governor devfreq_performance = {
 	.name = "performance",
+	.init = performance_init,
 	.get_target_freq = devfreq_performance_func,
 	.no_central_polling = true,
 };

@@ -40,7 +40,7 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 
-struct se_tmr_req *core_tmr_alloc_req(
+int core_tmr_alloc_req(
 	struct se_cmd *se_cmd,
 	void *fabric_tmr_ptr,
 	u8 function,
@@ -48,17 +48,20 @@ struct se_tmr_req *core_tmr_alloc_req(
 {
 	struct se_tmr_req *tmr;
 
-	tmr = kmem_cache_zalloc(se_tmr_req_cache, gfp_flags);
+	tmr = kzalloc(sizeof(struct se_tmr_req), gfp_flags);
 	if (!tmr) {
 		pr_err("Unable to allocate struct se_tmr_req\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
+
+	se_cmd->se_cmd_flags |= SCF_SCSI_TMR_CDB;
+	se_cmd->se_tmr_req = tmr;
 	tmr->task_cmd = se_cmd;
 	tmr->fabric_tmr_ptr = fabric_tmr_ptr;
 	tmr->function = function;
 	INIT_LIST_HEAD(&tmr->tmr_list);
 
-	return tmr;
+	return 0;
 }
 EXPORT_SYMBOL(core_tmr_alloc_req);
 
@@ -69,7 +72,7 @@ void core_tmr_release_req(
 	unsigned long flags;
 
 	if (!dev) {
-		kmem_cache_free(se_tmr_req_cache, tmr);
+		kfree(tmr);
 		return;
 	}
 
@@ -77,7 +80,7 @@ void core_tmr_release_req(
 	list_del(&tmr->tmr_list);
 	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
-	kmem_cache_free(se_tmr_req_cache, tmr);
+	kfree(tmr);
 }
 
 static void core_tmr_handle_tas_abort(
@@ -115,6 +118,70 @@ static int target_check_cdb_and_preempt(struct list_head *list,
 	return 1;
 }
 
+void core_tmr_abort_task(
+	struct se_device *dev,
+	struct se_tmr_req *tmr,
+	struct se_session *se_sess)
+{
+	struct se_cmd *se_cmd, *tmp_cmd;
+	unsigned long flags;
+	int ref_tag;
+
+	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+	list_for_each_entry_safe(se_cmd, tmp_cmd,
+			&se_sess->sess_cmd_list, se_cmd_list) {
+
+		if (dev != se_cmd->se_dev)
+			continue;
+		ref_tag = se_cmd->se_tfo->get_task_tag(se_cmd);
+		if (tmr->ref_task_tag != ref_tag)
+			continue;
+
+		printk("ABORT_TASK: Found referenced %s task_tag: %u\n",
+			se_cmd->se_tfo->get_fabric_name(), ref_tag);
+
+		spin_lock_irq(&se_cmd->t_state_lock);
+		if (se_cmd->transport_state & CMD_T_COMPLETE) {
+			printk("ABORT_TASK: ref_tag: %u already complete, skipping\n", ref_tag);
+			spin_unlock_irq(&se_cmd->t_state_lock);
+			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+			goto out;
+		}
+		se_cmd->transport_state |= CMD_T_ABORTED;
+		spin_unlock_irq(&se_cmd->t_state_lock);
+
+		list_del_init(&se_cmd->se_cmd_list);
+		kref_get(&se_cmd->cmd_kref);
+		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+
+		cancel_work_sync(&se_cmd->work);
+		transport_wait_for_tasks(se_cmd);
+		/*
+		 * Now send SAM_STAT_TASK_ABORTED status for the referenced
+		 * se_cmd descriptor..
+		 */
+		transport_send_task_abort(se_cmd);
+		/*
+		 * Also deal with possible extra acknowledge reference..
+		 */
+		if (se_cmd->se_cmd_flags & SCF_ACK_KREF)
+			target_put_sess_cmd(se_sess, se_cmd);
+
+		target_put_sess_cmd(se_sess, se_cmd);
+
+		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
+				" ref_tag: %d\n", ref_tag);
+		tmr->response = TMR_FUNCTION_COMPLETE;
+		return;
+	}
+	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+
+out:
+	printk("ABORT_TASK: Sending TMR_TASK_DOES_NOT_EXIST for ref_tag: %d\n",
+			tmr->ref_task_tag);
+	tmr->response = TMR_TASK_DOES_NOT_EXIST;
+}
+
 static void core_tmr_drain_tmr_list(
 	struct se_device *dev,
 	struct se_tmr_req *tmr,
@@ -150,7 +217,7 @@ static void core_tmr_drain_tmr_list(
 			continue;
 
 		spin_lock(&cmd->t_state_lock);
-		if (!atomic_read(&cmd->t_transport_active)) {
+		if (!(cmd->transport_state & CMD_T_ACTIVE)) {
 			spin_unlock(&cmd->t_state_lock);
 			continue;
 		}
@@ -177,7 +244,7 @@ static void core_tmr_drain_tmr_list(
 	}
 }
 
-static void core_tmr_drain_task_list(
+static void core_tmr_drain_state_list(
 	struct se_device *dev,
 	struct se_cmd *prout_cmd,
 	struct se_node_acl *tmr_nacl,
@@ -185,12 +252,13 @@ static void core_tmr_drain_task_list(
 	struct list_head *preempt_and_abort_list)
 {
 	LIST_HEAD(drain_task_list);
-	struct se_cmd *cmd;
-	struct se_task *task, *task_tmp;
+	struct se_cmd *cmd, *next;
 	unsigned long flags;
 	int fe_count;
+
 	/*
-	 * Complete outstanding struct se_task CDBs with TASK_ABORTED SAM status.
+	 * Complete outstanding commands with TASK_ABORTED SAM status.
+	 *
 	 * This is following sam4r17, section 5.6 Aborting commands, Table 38
 	 * for TMR LUN_RESET:
 	 *
@@ -211,59 +279,46 @@ static void core_tmr_drain_task_list(
 	 * in the Control Mode Page.
 	 */
 	spin_lock_irqsave(&dev->execute_task_lock, flags);
-	list_for_each_entry_safe(task, task_tmp, &dev->state_task_list,
-				t_state_list) {
-		if (!task->task_se_cmd) {
-			pr_err("task->task_se_cmd is NULL!\n");
-			continue;
-		}
-		cmd = task->task_se_cmd;
-
+	list_for_each_entry_safe(cmd, next, &dev->state_list, state_list) {
 		/*
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
 		 */
 		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
+
 		/*
 		 * Not aborting PROUT PREEMPT_AND_ABORT CDB..
 		 */
 		if (prout_cmd == cmd)
 			continue;
 
-		list_move_tail(&task->t_state_list, &drain_task_list);
-		task->t_state_active = false;
-		/*
-		 * Remove from task execute list before processing drain_task_list
-		 */
-		if (!list_empty(&task->t_execute_list))
-			__transport_remove_task_from_execute_queue(task, dev);
+		list_move_tail(&cmd->state_list, &drain_task_list);
+		cmd->state_active = false;
+
+		if (!list_empty(&cmd->execute_list))
+			__target_remove_from_execute_list(cmd);
 	}
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 
 	while (!list_empty(&drain_task_list)) {
-		task = list_entry(drain_task_list.next, struct se_task, t_state_list);
-		list_del(&task->t_state_list);
-		cmd = task->task_se_cmd;
+		cmd = list_entry(drain_task_list.next, struct se_cmd, state_list);
+		list_del(&cmd->state_list);
 
-		pr_debug("LUN_RESET: %s cmd: %p task: %p"
+		pr_debug("LUN_RESET: %s cmd: %p"
 			" ITT/CmdSN: 0x%08x/0x%08x, i_state: %d, t_state: %d"
 			"cdb: 0x%02x\n",
-			(preempt_and_abort_list) ? "Preempt" : "", cmd, task,
+			(preempt_and_abort_list) ? "Preempt" : "", cmd,
 			cmd->se_tfo->get_task_tag(cmd), 0,
 			cmd->se_tfo->get_cmd_state(cmd), cmd->t_state,
 			cmd->t_task_cdb[0]);
 		pr_debug("LUN_RESET: ITT[0x%08x] - pr_res_key: 0x%016Lx"
-			" t_task_cdbs: %d t_task_cdbs_left: %d"
-			" t_task_cdbs_sent: %d -- t_transport_active: %d"
-			" t_transport_stop: %d t_transport_sent: %d\n",
+			" -- CMD_T_ACTIVE: %d"
+			" CMD_T_STOP: %d CMD_T_SENT: %d\n",
 			cmd->se_tfo->get_task_tag(cmd), cmd->pr_res_key,
-			cmd->t_task_list_num,
-			atomic_read(&cmd->t_task_cdbs_left),
-			atomic_read(&cmd->t_task_cdbs_sent),
-			atomic_read(&cmd->t_transport_active),
-			atomic_read(&cmd->t_transport_stop),
-			atomic_read(&cmd->t_transport_sent));
+			(cmd->transport_state & CMD_T_ACTIVE) != 0,
+			(cmd->transport_state & CMD_T_STOP) != 0,
+			(cmd->transport_state & CMD_T_SENT) != 0);
 
 		/*
 		 * If the command may be queued onto a workqueue cancel it now.
@@ -276,30 +331,23 @@ static void core_tmr_drain_task_list(
 			cancel_work_sync(&cmd->work);
 
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		target_stop_task(task, &flags);
+		target_stop_cmd(cmd, &flags);
 
-		if (!atomic_dec_and_test(&cmd->t_task_cdbs_ex_left)) {
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			pr_debug("LUN_RESET: Skipping task: %p, dev: %p for"
-				" t_task_cdbs_ex_left: %d\n", task, dev,
-				atomic_read(&cmd->t_task_cdbs_ex_left));
-			continue;
-		}
 		fe_count = atomic_read(&cmd->t_fe_count);
 
-		if (atomic_read(&cmd->t_transport_active)) {
-			pr_debug("LUN_RESET: got t_transport_active = 1 for"
-				" task: %p, t_fe_count: %d dev: %p\n", task,
+		if (!(cmd->transport_state & CMD_T_ACTIVE)) {
+			pr_debug("LUN_RESET: got CMD_T_ACTIVE for"
+				" cdb: %p, t_fe_count: %d dev: %p\n", cmd,
 				fe_count, dev);
-			atomic_set(&cmd->t_transport_aborted, 1);
+			cmd->transport_state |= CMD_T_ABORTED;
 			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 			core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
 			continue;
 		}
-		pr_debug("LUN_RESET: Got t_transport_active = 0 for task: %p,"
-			" t_fe_count: %d dev: %p\n", task, fe_count, dev);
-		atomic_set(&cmd->t_transport_aborted, 1);
+		pr_debug("LUN_RESET: Got !CMD_T_ACTIVE for cdb: %p,"
+			" t_fe_count: %d dev: %p\n", cmd, fe_count, dev);
+		cmd->transport_state |= CMD_T_ABORTED;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
@@ -317,13 +365,11 @@ static void core_tmr_drain_cmd_list(
 	struct se_queue_obj *qobj = &dev->dev_queue_obj;
 	struct se_cmd *cmd, *tcmd;
 	unsigned long flags;
+
 	/*
-	 * Release all commands remaining in the struct se_device cmd queue.
+	 * Release all commands remaining in the per-device command queue.
 	 *
-	 * This follows the same logic as above for the struct se_device
-	 * struct se_task state list, where commands are returned with
-	 * TASK_ABORTED status, if there is an outstanding $FABRIC_MOD
-	 * reference, otherwise the struct se_cmd is released.
+	 * This follows the same logic as above for the state list.
 	 */
 	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
 	list_for_each_entry_safe(cmd, tcmd, &qobj->qobj_list, se_queue_node) {
@@ -339,7 +385,7 @@ static void core_tmr_drain_cmd_list(
 		if (prout_cmd == cmd)
 			continue;
 
-		atomic_set(&cmd->t_transport_queue_active, 0);
+		cmd->transport_state &= ~CMD_T_QUEUED;
 		atomic_dec(&qobj->queue_cnt);
 		list_move_tail(&cmd->se_queue_node, &drain_cmd_list);
 	}
@@ -399,7 +445,7 @@ int core_tmr_lun_reset(
 		dev->transport->name, tas);
 
 	core_tmr_drain_tmr_list(dev, tmr, preempt_and_abort_list);
-	core_tmr_drain_task_list(dev, prout_cmd, tmr_nacl, tas,
+	core_tmr_drain_state_list(dev, prout_cmd, tmr_nacl, tas,
 				preempt_and_abort_list);
 	core_tmr_drain_cmd_list(dev, prout_cmd, tmr_nacl, tas,
 				preempt_and_abort_list);

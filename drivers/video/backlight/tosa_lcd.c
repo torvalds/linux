@@ -174,7 +174,8 @@ static int __devinit tosa_lcd_probe(struct spi_device *spi)
 	int ret;
 	struct tosa_lcd_data *data;
 
-	data = kzalloc(sizeof(struct tosa_lcd_data), GFP_KERNEL);
+	data = devm_kzalloc(&spi->dev, sizeof(struct tosa_lcd_data),
+				GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -187,7 +188,7 @@ static int __devinit tosa_lcd_probe(struct spi_device *spi)
 
 	ret = spi_setup(spi);
 	if (ret < 0)
-		goto err_spi;
+		return ret;
 
 	data->spi = spi;
 	dev_set_drvdata(&spi->dev, data);
@@ -224,8 +225,6 @@ err_gpio_dir:
 	gpio_free(TOSA_GPIO_TG_ON);
 err_gpio_tg:
 	dev_set_drvdata(&spi->dev, NULL);
-err_spi:
-	kfree(data);
 	return ret;
 }
 
@@ -242,7 +241,6 @@ static int __devexit tosa_lcd_remove(struct spi_device *spi)
 
 	gpio_free(TOSA_GPIO_TG_ON);
 	dev_set_drvdata(&spi->dev, NULL);
-	kfree(data);
 
 	return 0;
 }
@@ -271,7 +269,7 @@ static int tosa_lcd_resume(struct spi_device *spi)
 }
 #else
 #define tosa_lcd_suspend	NULL
-#define tosa_lcd_reume NULL
+#define tosa_lcd_resume NULL
 #endif
 
 static struct spi_driver tosa_lcd_driver = {
@@ -285,18 +283,7 @@ static struct spi_driver tosa_lcd_driver = {
 	.resume		= tosa_lcd_resume,
 };
 
-static int __init tosa_lcd_init(void)
-{
-	return spi_register_driver(&tosa_lcd_driver);
-}
-
-static void __exit tosa_lcd_exit(void)
-{
-	spi_unregister_driver(&tosa_lcd_driver);
-}
-
-module_init(tosa_lcd_init);
-module_exit(tosa_lcd_exit);
+module_spi_driver(tosa_lcd_driver);
 
 MODULE_AUTHOR("Dmitry Baryshkov");
 MODULE_LICENSE("GPL v2");

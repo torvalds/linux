@@ -29,8 +29,6 @@
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
 
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/cod.h>
@@ -85,8 +83,6 @@ int dcd_auto_register(struct dcd_manager *hdcd_mgr,
 {
 	int status = 0;
 
-	DBC_REQUIRE(refs > 0);
-
 	if (hdcd_mgr)
 		status = dcd_get_objects(hdcd_mgr, sz_coff_path,
 					 (dcd_registerfxn) dcd_register_object,
@@ -106,8 +102,6 @@ int dcd_auto_unregister(struct dcd_manager *hdcd_mgr,
 			       char *sz_coff_path)
 {
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
 
 	if (hdcd_mgr)
 		status = dcd_get_objects(hdcd_mgr, sz_coff_path,
@@ -131,9 +125,6 @@ int dcd_create_manager(char *sz_zl_dll_name,
 	struct dcd_manager *dcd_mgr_obj = NULL;	/* DCD Manager pointer */
 	int status = 0;
 
-	DBC_REQUIRE(refs >= 0);
-	DBC_REQUIRE(dcd_mgr);
-
 	status = cod_create(&cod_mgr, sz_zl_dll_name);
 	if (status)
 		goto func_end;
@@ -156,9 +147,6 @@ int dcd_create_manager(char *sz_zl_dll_name,
 		cod_delete(cod_mgr);
 	}
 
-	DBC_ENSURE((!status) ||
-			((dcd_mgr_obj == NULL) && (status == -ENOMEM)));
-
 func_end:
 	return status;
 }
@@ -172,8 +160,6 @@ int dcd_destroy_manager(struct dcd_manager *hdcd_mgr)
 {
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;
 	int status = -EFAULT;
-
-	DBC_REQUIRE(refs >= 0);
 
 	if (hdcd_mgr) {
 		/* Delete the COD manager. */
@@ -205,10 +191,6 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 	struct dcd_key_elem *dcd_key;
 	int len;
 
-	DBC_REQUIRE(refs >= 0);
-	DBC_REQUIRE(index >= 0);
-	DBC_REQUIRE(uuid_obj != NULL);
-
 	if ((index != 0) && (enum_refs == 0)) {
 		/*
 		 * If an enumeration is being performed on an index greater
@@ -222,7 +204,6 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 		 *  "_\0" + length of sz_obj_type string + terminating NULL.
 		 */
 		dw_key_len = strlen(DCD_REGKEY) + 1 + sizeof(sz_obj_type) + 1;
-		DBC_ASSERT(dw_key_len < DCD_MAXPATHLENGTH);
 
 		/* Create proper REG key; concatenate DCD_REGKEY with
 		 * obj_type. */
@@ -294,8 +275,6 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 		}
 	}
 
-	DBC_ENSURE(uuid_obj || (status == -EPERM));
-
 	return status;
 }
 
@@ -307,11 +286,9 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 void dcd_exit(void)
 {
 	struct dcd_key_elem *rv, *rv_tmp;
-	DBC_REQUIRE(refs > 0);
 
 	refs--;
 	if (refs == 0) {
-		cod_exit();
 		list_for_each_entry_safe(rv, rv_tmp, &reg_key_list, link) {
 			list_del(&rv->link);
 			kfree(rv->path);
@@ -319,7 +296,6 @@ void dcd_exit(void)
 		}
 	}
 
-	DBC_ENSURE(refs >= 0);
 }
 
 /*
@@ -332,12 +308,6 @@ int dcd_get_dep_libs(struct dcd_manager *hdcd_mgr,
 			    enum nldr_phase phase)
 {
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(hdcd_mgr);
-	DBC_REQUIRE(uuid_obj != NULL);
-	DBC_REQUIRE(dep_lib_uuids != NULL);
-	DBC_REQUIRE(prstnt_dep_libs != NULL);
 
 	status =
 	    get_dep_lib_info(hdcd_mgr, uuid_obj, &num_libs, NULL, dep_lib_uuids,
@@ -355,12 +325,6 @@ int dcd_get_num_dep_libs(struct dcd_manager *hdcd_mgr,
 				enum nldr_phase phase)
 {
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(hdcd_mgr);
-	DBC_REQUIRE(num_libs != NULL);
-	DBC_REQUIRE(num_pers_libs != NULL);
-	DBC_REQUIRE(uuid_obj != NULL);
 
 	status = get_dep_lib_info(hdcd_mgr, uuid_obj, num_libs, num_pers_libs,
 				  NULL, NULL, phase);
@@ -393,10 +357,6 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	u32 dw_key_len;		/* Len of REG key. */
 	char sz_obj_type[MAX_INT2CHAR_LENGTH];	/* str. rep. of obj_type. */
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(obj_def != NULL);
-	DBC_REQUIRE(obj_uuid != NULL);
-
 	sz_uuid = kzalloc(MAXUUIDLEN, GFP_KERNEL);
 	if (!sz_uuid) {
 		status = -ENOMEM;
@@ -411,7 +371,6 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	/* Pre-determine final key length. It's length of DCD_REGKEY +
 	 *  "_\0" + length of sz_obj_type string + terminating NULL */
 	dw_key_len = strlen(DCD_REGKEY) + 1 + sizeof(sz_obj_type) + 1;
-	DBC_ASSERT(dw_key_len < DCD_MAXPATHLENGTH);
 
 	/* Create proper REG key; concatenate DCD_REGKEY with obj_type. */
 	strncpy(sz_reg_key, DCD_REGKEY, strlen(DCD_REGKEY) + 1);
@@ -470,7 +429,6 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	}
 
 	/* Ensure sz_uuid + 1 is not greater than sizeof sz_sect_name. */
-	DBC_ASSERT((strlen(sz_uuid) + 1) < sizeof(sz_sect_name));
 
 	/* Create section name based on node UUID. A period is
 	 * pre-pended to the UUID string to form the section name.
@@ -553,7 +511,6 @@ int dcd_get_objects(struct dcd_manager *hdcd_mgr,
 	struct dsp_uuid dsp_uuid_obj;
 	s32 object_type;
 
-	DBC_REQUIRE(refs > 0);
 	if (!hdcd_mgr) {
 		status = -EFAULT;
 		goto func_end;
@@ -663,11 +620,6 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 	int status = 0;
 	struct dcd_key_elem *dcd_key = NULL;
 
-	DBC_REQUIRE(uuid_obj != NULL);
-	DBC_REQUIRE(str_lib_name != NULL);
-	DBC_REQUIRE(buff_size != NULL);
-	DBC_REQUIRE(hdcd_mgr);
-
 	dev_dbg(bridge, "%s: hdcd_mgr %p, uuid_obj %p, str_lib_name %p,"
 		" buff_size %p\n", __func__, hdcd_mgr, uuid_obj, str_lib_name,
 		buff_size);
@@ -677,7 +629,6 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 	 *  "_\0" + length of sz_obj_type string + terminating NULL.
 	 */
 	dw_key_len = strlen(DCD_REGKEY) + 1 + sizeof(sz_obj_type) + 1;
-	DBC_ASSERT(dw_key_len < DCD_MAXPATHLENGTH);
 
 	/* Create proper REG key; concatenate DCD_REGKEY with obj_type. */
 	strncpy(sz_reg_key, DCD_REGKEY, strlen(DCD_REGKEY) + 1);
@@ -705,7 +656,6 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 		break;
 	default:
 		status = -EINVAL;
-		DBC_ASSERT(false);
 	}
 	if (!status) {
 		if ((strlen(sz_reg_key) + strlen(sz_obj_type)) <
@@ -787,29 +737,13 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
  */
 bool dcd_init(void)
 {
-	bool init_cod;
 	bool ret = true;
 
-	DBC_REQUIRE(refs >= 0);
-
-	if (refs == 0) {
-		/* Initialize required modules. */
-		init_cod = cod_init();
-
-		if (!init_cod) {
-			ret = false;
-			/* Exit initialized modules. */
-			if (init_cod)
-				cod_exit();
-		}
-
+	if (refs == 0)
 		INIT_LIST_HEAD(&reg_key_list);
-	}
 
 	if (ret)
 		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs == 0)));
 
 	return ret;
 }
@@ -832,15 +766,6 @@ int dcd_register_object(struct dsp_uuid *uuid_obj,
 	char sz_obj_type[MAX_INT2CHAR_LENGTH];	/* str. rep. of obj_type. */
 	struct dcd_key_elem *dcd_key = NULL;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(uuid_obj != NULL);
-	DBC_REQUIRE((obj_type == DSP_DCDNODETYPE) ||
-		    (obj_type == DSP_DCDPROCESSORTYPE) ||
-		    (obj_type == DSP_DCDLIBRARYTYPE) ||
-		    (obj_type == DSP_DCDCREATELIBTYPE) ||
-		    (obj_type == DSP_DCDEXECUTELIBTYPE) ||
-		    (obj_type == DSP_DCDDELETELIBTYPE));
-
 	dev_dbg(bridge, "%s: object UUID %p, obj_type %d, szPathName %s\n",
 		__func__, uuid_obj, obj_type, psz_path_name);
 
@@ -849,7 +774,6 @@ int dcd_register_object(struct dsp_uuid *uuid_obj,
 	 *  "_\0" + length of sz_obj_type string + terminating NULL.
 	 */
 	dw_key_len = strlen(DCD_REGKEY) + 1 + sizeof(sz_obj_type) + 1;
-	DBC_ASSERT(dw_key_len < DCD_MAXPATHLENGTH);
 
 	/* Create proper REG key; concatenate DCD_REGKEY with obj_type. */
 	strncpy(sz_reg_key, DCD_REGKEY, strlen(DCD_REGKEY) + 1);
@@ -987,15 +911,6 @@ int dcd_unregister_object(struct dsp_uuid *uuid_obj,
 {
 	int status = 0;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(uuid_obj != NULL);
-	DBC_REQUIRE((obj_type == DSP_DCDNODETYPE) ||
-		    (obj_type == DSP_DCDPROCESSORTYPE) ||
-		    (obj_type == DSP_DCDLIBRARYTYPE) ||
-		    (obj_type == DSP_DCDCREATELIBTYPE) ||
-		    (obj_type == DSP_DCDEXECUTELIBTYPE) ||
-		    (obj_type == DSP_DCDDELETELIBTYPE));
-
 	/*
 	 *  When dcd_register_object is called with NULL as pathname,
 	 *  it indicates an unregister object operation.
@@ -1055,12 +970,6 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 	s32 entry_id;
 #endif
 
-	DBC_REQUIRE(psz_buf != NULL);
-	DBC_REQUIRE(ul_buf_size != 0);
-	DBC_REQUIRE((obj_type == DSP_DCDNODETYPE)
-		    || (obj_type == DSP_DCDPROCESSORTYPE));
-	DBC_REQUIRE(gen_obj != NULL);
-
 	switch (obj_type) {
 	case DSP_DCDNODETYPE:
 		/*
@@ -1082,7 +991,6 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		token = strsep(&psz_cur, seps);
 
 		/* ac_name */
-		DBC_REQUIRE(token);
 		token_len = strlen(token);
 		if (token_len > DSP_MAXNAMELEN - 1)
 			token_len = DSP_MAXNAMELEN - 1;
@@ -1167,7 +1075,6 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		token = strsep(&psz_cur, seps);
 
 		/* char *str_create_phase_fxn */
-		DBC_REQUIRE(token);
 		token_len = strlen(token);
 		gen_obj->obj_data.node_obj.str_create_phase_fxn =
 					kzalloc(token_len + 1, GFP_KERNEL);
@@ -1178,7 +1085,6 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		token = strsep(&psz_cur, seps);
 
 		/* char *str_execute_phase_fxn */
-		DBC_REQUIRE(token);
 		token_len = strlen(token);
 		gen_obj->obj_data.node_obj.str_execute_phase_fxn =
 					kzalloc(token_len + 1, GFP_KERNEL);
@@ -1189,7 +1095,6 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		token = strsep(&psz_cur, seps);
 
 		/* char *str_delete_phase_fxn */
-		DBC_REQUIRE(token);
 		token_len = strlen(token);
 		gen_obj->obj_data.node_obj.str_delete_phase_fxn =
 					kzalloc(token_len + 1, GFP_KERNEL);
@@ -1420,12 +1325,6 @@ static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 	bool get_uuids = (dep_lib_uuids != NULL);
 	u16 dep_libs = 0;
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-
-	DBC_REQUIRE(hdcd_mgr);
-	DBC_REQUIRE(num_libs != NULL);
-	DBC_REQUIRE(uuid_obj != NULL);
 
 	/*  Initialize to 0 dependent libraries, if only counting number of
 	 *  dependent libraries */

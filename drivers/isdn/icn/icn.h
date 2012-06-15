@@ -54,7 +54,7 @@ typedef struct icn_cdef {
 
 /* some useful macros for debugging */
 #ifdef ICN_DEBUG_PORT
-#define OUTB_P(v,p) {printk(KERN_DEBUG "icn: outb_p(0x%02x,0x%03x)\n",v,p); outb_p(v,p);}
+#define OUTB_P(v, p) {printk(KERN_DEBUG "icn: outb_p(0x%02x,0x%03x)\n", v, p); outb_p(v, p);}
 #else
 #define OUTB_P outb
 #endif
@@ -71,8 +71,8 @@ typedef struct icn_cdef {
 
 #define ICN_BOOT_TIMEOUT1  1000 /* Delay for Boot-download (msecs)         */
 
-#define ICN_TIMER_BCREAD (HZ/100)	/* B-Channel poll-cycle                    */
-#define ICN_TIMER_DCREAD (HZ/2) /* D-Channel poll-cycle                    */
+#define ICN_TIMER_BCREAD (HZ / 100)	/* B-Channel poll-cycle                    */
+#define ICN_TIMER_DCREAD (HZ / 2) /* D-Channel poll-cycle                    */
 
 #define ICN_CODE_STAGE1 4096    /* Size of bootcode                        */
 #define ICN_CODE_STAGE2 65536   /* Size of protocol-code                   */
@@ -140,7 +140,7 @@ typedef struct icn_card {
 	int myid;               /* Driver-Nr. assigned by linklevel */
 	int rvalid;             /* IO-portregion has been requested */
 	int leased;             /* Flag: This Adapter is connected  */
-	                        /*       to a leased line           */
+				/*       to a leased line           */
 	unsigned short flags;   /* Statusflags                      */
 	int doubleS0;           /* Flag: ICN4B                      */
 	int secondhalf;         /* Flag: Second half of a doubleS0  */
@@ -197,16 +197,16 @@ static icn_dev dev;
 
 /* Macros for accessing ports */
 #define ICN_CFG    (card->port)
-#define ICN_MAPRAM (card->port+1)
-#define ICN_RUN    (card->port+2)
-#define ICN_BANK   (card->port+3)
+#define ICN_MAPRAM (card->port + 1)
+#define ICN_RUN    (card->port + 2)
+#define ICN_BANK   (card->port + 3)
 
 /* Return true, if there is a free transmit-buffer */
-#define sbfree (((readb(&dev.shmem->data_control.scns)+1) & 0xf) != \
+#define sbfree (((readb(&dev.shmem->data_control.scns) + 1) & 0xf) !=	\
 		readb(&dev.shmem->data_control.scnr))
 
 /* Switch to next transmit-buffer */
-#define sbnext (writeb((readb(&dev.shmem->data_control.scns)+1) & 0xf, \
+#define sbnext (writeb((readb(&dev.shmem->data_control.scns) + 1) & 0xf,	\
 		       &dev.shmem->data_control.scns))
 
 /* Shortcuts for transmit-buffer-access */
@@ -220,7 +220,7 @@ static icn_dev dev;
 		readb(&dev.shmem->data_control.ecns))
 
 /* Switch to next receive-buffer */
-#define rbnext (writeb((readb(&dev.shmem->data_control.ecnr)+1) & 0xf, \
+#define rbnext (writeb((readb(&dev.shmem->data_control.ecnr) + 1) & 0xf,	\
 		       &dev.shmem->data_control.ecnr))
 
 /* Shortcuts for receive-buffer-access */
@@ -234,18 +234,18 @@ static icn_dev dev;
 #define cmd_i (dev.shmem->comm_control.pcio_i)
 
 /* Return free space in command-buffer */
-#define cmd_free ((readb(&cmd_i)>=readb(&cmd_o))? \
-		  0x100-readb(&cmd_i)+readb(&cmd_o): \
-		  readb(&cmd_o)-readb(&cmd_i))
+#define cmd_free ((readb(&cmd_i) >= readb(&cmd_o)) ?		\
+		  0x100 - readb(&cmd_i) + readb(&cmd_o) :	\
+		  readb(&cmd_o) - readb(&cmd_i))
 
 /* Shortcuts for message-buffer-access */
 #define msg_o (dev.shmem->comm_control.iopc_o)
 #define msg_i (dev.shmem->comm_control.iopc_i)
 
 /* Return length of Message, if avail. */
-#define msg_avail ((readb(&msg_o)>readb(&msg_i))? \
-		   0x100-readb(&msg_o)+readb(&msg_i): \
-		   readb(&msg_i)-readb(&msg_o))
+#define msg_avail ((readb(&msg_o) > readb(&msg_i)) ?		\
+		   0x100 - readb(&msg_o) + readb(&msg_i) :	\
+		   readb(&msg_i) - readb(&msg_o))
 
 #define CID (card->interface.id)
 

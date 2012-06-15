@@ -2,8 +2,8 @@
 
 config SND_TEA575X
 	tristate
-	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO || RADIO_SF16FMR2
-	default SND_FM801 || SND_ES1968 || RADIO_SF16FMR2
+	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO || RADIO_SF16FMR2 || RADIO_MAXIRADIO
+	default SND_FM801 || SND_ES1968 || RADIO_SF16FMR2 || RADIO_MAXIRADIO
 
 menuconfig SND_PCI
 	bool "PCI sound devices"
@@ -228,7 +228,7 @@ config SND_OXYGEN
 	  Say Y here to include support for sound cards based on the
 	  C-Media CMI8788 (Oxygen HD Audio) chip:
 	   * Asound A-8788
-	   * Asus Xonar DG
+	   * Asus Xonar DG/DGX
 	   * AuzenTech X-Meridian
 	   * AuzenTech X-Meridian 2G
 	   * Bgears b-Enspirer

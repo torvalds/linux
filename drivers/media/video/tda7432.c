@@ -482,15 +482,4 @@ static struct i2c_driver tda7432_driver = {
 	.id_table	= tda7432_id,
 };
 
-static __init int init_tda7432(void)
-{
-	return i2c_add_driver(&tda7432_driver);
-}
-
-static __exit void exit_tda7432(void)
-{
-	i2c_del_driver(&tda7432_driver);
-}
-
-module_init(init_tda7432);
-module_exit(exit_tda7432);
+module_i2c_driver(tda7432_driver);

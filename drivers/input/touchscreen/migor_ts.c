@@ -242,19 +242,8 @@ static struct i2c_driver migor_ts_driver = {
 	.id_table = migor_ts_id,
 };
 
-static int __init migor_ts_init(void)
-{
-	return i2c_add_driver(&migor_ts_driver);
-}
-
-static void __exit migor_ts_exit(void)
-{
-	i2c_del_driver(&migor_ts_driver);
-}
+module_i2c_driver(migor_ts_driver);
 
 MODULE_DESCRIPTION("MigoR Touchscreen driver");
 MODULE_AUTHOR("Magnus Damm <damm@opensource.se>");
 MODULE_LICENSE("GPL");
-
-module_init(migor_ts_init);
-module_exit(migor_ts_exit);

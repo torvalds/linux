@@ -49,12 +49,6 @@ static void __init cam60_init_early(void)
 {
 	/* Initialize processor: 10 MHz crystal */
 	at91_initialize(10000000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*
@@ -140,6 +134,7 @@ static struct atmel_nand_data __initdata cam60_nand_data = {
 	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PA9,
 	.enable_pin	= AT91_PIN_PA7,
+	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= cam60_nand_partition,
 	.num_parts	= ARRAY_SIZE(cam60_nand_partition),
 };
@@ -174,6 +169,8 @@ static void __init cam60_add_device_nand(void)
 static void __init cam60_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* SPI */
 	at91_add_device_spi(cam60_spi_devices, ARRAY_SIZE(cam60_spi_devices));

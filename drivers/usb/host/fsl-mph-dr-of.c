@@ -94,7 +94,6 @@ struct platform_device * __devinit fsl_usb2_device_register(
 	pdev->dev.parent = &ofdev->dev;
 
 	pdev->dev.coherent_dma_mask = ofdev->dev.coherent_dma_mask;
-	pdev->dev.dma_mask = &pdev->archdata.dma_mask;
 	*pdev->dev.dma_mask = *ofdev->dev.dma_mask;
 
 	retval = platform_device_add_data(pdev, pdata, sizeof(*pdata));
@@ -119,6 +118,39 @@ error:
 }
 
 static const struct of_device_id fsl_usb2_mph_dr_of_match[];
+
+static int usb_get_ver_info(struct device_node *np)
+{
+	int ver = -1;
+
+	/*
+	 * returns 1 for usb controller version 1.6
+	 * returns 2 for usb controller version 2.2
+	 * returns 0 otherwise
+	 */
+	if (of_device_is_compatible(np, "fsl-usb2-dr")) {
+		if (of_device_is_compatible(np, "fsl-usb2-dr-v1.6"))
+			ver = FSL_USB_VER_1_6;
+		else if (of_device_is_compatible(np, "fsl-usb2-dr-v2.2"))
+			ver = FSL_USB_VER_2_2;
+		else /* for previous controller versions */
+			ver = FSL_USB_VER_OLD;
+
+		if (ver > -1)
+			return ver;
+	}
+
+	if (of_device_is_compatible(np, "fsl-usb2-mph")) {
+		if (of_device_is_compatible(np, "fsl-usb2-mph-v1.6"))
+			ver = FSL_USB_VER_1_6;
+		else if (of_device_is_compatible(np, "fsl-usb2-mph-v2.2"))
+			ver = FSL_USB_VER_2_2;
+		else /* for previous controller versions */
+			ver = FSL_USB_VER_OLD;
+	}
+
+	return ver;
+}
 
 static int __devinit fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 {
@@ -167,6 +199,14 @@ static int __devinit fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 
 	prop = of_get_property(np, "phy_type", NULL);
 	pdata->phy_mode = determine_usb_phy(prop);
+	pdata->controller_ver = usb_get_ver_info(np);
+
+	if (pdata->have_sysif_regs) {
+		if (pdata->controller_ver < 0) {
+			dev_warn(&ofdev->dev, "Could not get controller version\n");
+			return -ENODEV;
+		}
+	}
 
 	for (i = 0; i < ARRAY_SIZE(dev_data->drivers); i++) {
 		if (!dev_data->drivers[i])

@@ -62,7 +62,6 @@ static struct scsi_host_template pm8001_sht = {
 	.queuecommand		= sas_queuecommand,
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= sas_slave_configure,
-	.slave_destroy		= sas_slave_destroy,
 	.scan_finished		= pm8001_scan_finished,
 	.scan_start		= pm8001_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
@@ -76,7 +75,6 @@ static struct scsi_host_template pm8001_sht = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
 	.eh_bus_reset_handler	= sas_eh_bus_reset_handler,
-	.slave_alloc		= sas_slave_alloc,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= pm8001_host_attrs,
@@ -237,15 +235,15 @@ static int __devinit pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->memoryMap.region[PI].alignment = 4;
 
 	/* MPI Memory region 5 inbound queues */
-	pm8001_ha->memoryMap.region[IB].num_elements = 256;
+	pm8001_ha->memoryMap.region[IB].num_elements = PM8001_MPI_QUEUE;
 	pm8001_ha->memoryMap.region[IB].element_size = 64;
-	pm8001_ha->memoryMap.region[IB].total_len = 256 * 64;
+	pm8001_ha->memoryMap.region[IB].total_len = PM8001_MPI_QUEUE * 64;
 	pm8001_ha->memoryMap.region[IB].alignment = 64;
 
-	/* MPI Memory region 6 inbound queues */
-	pm8001_ha->memoryMap.region[OB].num_elements = 256;
+	/* MPI Memory region 6 outbound queues */
+	pm8001_ha->memoryMap.region[OB].num_elements = PM8001_MPI_QUEUE;
 	pm8001_ha->memoryMap.region[OB].element_size = 64;
-	pm8001_ha->memoryMap.region[OB].total_len = 256 * 64;
+	pm8001_ha->memoryMap.region[OB].total_len = PM8001_MPI_QUEUE * 64;
 	pm8001_ha->memoryMap.region[OB].alignment = 64;
 
 	/* Memory region write DMA*/

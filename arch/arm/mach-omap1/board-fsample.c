@@ -21,8 +21,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/smc91x.h>
+#include <linux/omapfb.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -32,8 +32,12 @@
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/keypad.h>
-#include "common.h"
 #include <plat/board.h>
+
+#include <mach/hardware.h>
+
+#include "iomap.h"
+#include "common.h"
 
 /* fsample is pretty close to p2-sample */
 
@@ -181,20 +185,6 @@ static struct platform_device nor_device = {
 	.resource	= &nor_resource,
 };
 
-static void nand_cmd_ctl(struct mtd_info *mtd, int cmd,	unsigned int ctrl)
-{
-	struct nand_chip *this = mtd->priv;
-	unsigned long mask;
-
-	if (cmd == NAND_CMD_NONE)
-		return;
-
-	mask = (ctrl & NAND_CLE) ? 0x02 : 0;
-	if (ctrl & NAND_ALE)
-		mask |= 0x04;
-	writeb(cmd, (unsigned long)this->IO_ADDR_W | mask);
-}
-
 #define FSAMPLE_NAND_RB_GPIO_PIN	62
 
 static int nand_dev_ready(struct mtd_info *mtd)
@@ -202,17 +192,14 @@ static int nand_dev_ready(struct mtd_info *mtd)
 	return gpio_get_value(FSAMPLE_NAND_RB_GPIO_PIN);
 }
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 static struct platform_nand_data nand_data = {
 	.chip	= {
 		.nr_chips		= 1,
 		.chip_offset		= 0,
 		.options		= NAND_SAMSUNG_LP_OPTIONS,
-		.part_probe_types	= part_probes,
 	},
 	.ctrl	= {
-		.cmd_ctrl	= nand_cmd_ctl,
+		.cmd_ctrl	= omap1_nand_cmd_ctl,
 		.dev_ready	= nand_dev_ready,
 	},
 };
@@ -273,25 +260,15 @@ static struct platform_device kp_device = {
 	.resource	= kp_resources,
 };
 
-static struct platform_device lcd_device = {
-	.name		= "lcd_p2",
-	.id		= -1,
-};
-
 static struct platform_device *devices[] __initdata = {
 	&nor_device,
 	&nand_device,
 	&smc91x_device,
 	&kp_device,
-	&lcd_device,
 };
 
 static struct omap_lcd_config fsample_lcd_config = {
 	.ctrl_name	= "internal",
-};
-
-static struct omap_board_config_kernel fsample_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&fsample_lcd_config },
 };
 
 static void __init omap_fsample_init(void)
@@ -352,10 +329,10 @@ static void __init omap_fsample_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	omap_board_config = fsample_config;
-	omap_board_config_size = ARRAY_SIZE(fsample_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
+
+	omapfb_set_lcd_config(&fsample_lcd_config);
 }
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
@@ -389,6 +366,7 @@ MACHINE_START(OMAP_FSAMPLE, "OMAP730 F-Sample")
 	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_fsample_init,
+	.init_late	= omap1_init_late,
 	.timer		= &omap1_timer,
 	.restart	= omap1_restart,
 MACHINE_END

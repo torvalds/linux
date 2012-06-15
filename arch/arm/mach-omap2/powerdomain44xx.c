@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/bug.h>
 
 #include "powerdomain.h"
 #include <plat/prcm.h>

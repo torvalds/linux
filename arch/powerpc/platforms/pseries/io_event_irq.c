@@ -63,71 +63,7 @@ EXPORT_SYMBOL_GPL(pseries_ioei_notifier_list);
 
 static int ioei_check_exception_token;
 
-/* pSeries event log format */
-
-/* Two bytes ASCII section IDs */
-#define PSERIES_ELOG_SECT_ID_PRIV_HDR		(('P' << 8) | 'H')
-#define PSERIES_ELOG_SECT_ID_USER_HDR		(('U' << 8) | 'H')
-#define PSERIES_ELOG_SECT_ID_PRIMARY_SRC	(('P' << 8) | 'S')
-#define PSERIES_ELOG_SECT_ID_EXTENDED_UH	(('E' << 8) | 'H')
-#define PSERIES_ELOG_SECT_ID_FAILING_MTMS	(('M' << 8) | 'T')
-#define PSERIES_ELOG_SECT_ID_SECONDARY_SRC	(('S' << 8) | 'S')
-#define PSERIES_ELOG_SECT_ID_DUMP_LOCATOR	(('D' << 8) | 'H')
-#define PSERIES_ELOG_SECT_ID_FW_ERROR		(('S' << 8) | 'W')
-#define PSERIES_ELOG_SECT_ID_IMPACT_PART_ID	(('L' << 8) | 'P')
-#define PSERIES_ELOG_SECT_ID_LOGIC_RESOURCE_ID	(('L' << 8) | 'R')
-#define PSERIES_ELOG_SECT_ID_HMC_ID		(('H' << 8) | 'M')
-#define PSERIES_ELOG_SECT_ID_EPOW		(('E' << 8) | 'P')
-#define PSERIES_ELOG_SECT_ID_IO_EVENT		(('I' << 8) | 'E')
-#define PSERIES_ELOG_SECT_ID_MANUFACT_INFO	(('M' << 8) | 'I')
-#define PSERIES_ELOG_SECT_ID_CALL_HOME		(('C' << 8) | 'H')
-#define PSERIES_ELOG_SECT_ID_USER_DEF		(('U' << 8) | 'D')
-
-/* Vendor specific Platform Event Log Format, Version 6, section header */
-struct pseries_elog_section {
-	uint16_t id;			/* 0x00 2-byte ASCII section ID	*/
-	uint16_t length;		/* 0x02 Section length in bytes	*/
-	uint8_t version;		/* 0x04 Section version		*/
-	uint8_t subtype;		/* 0x05 Section subtype		*/
-	uint16_t creator_component;	/* 0x06 Creator component ID	*/
-	uint8_t data[];			/* 0x08 Start of section data	*/
-};
-
 static char ioei_rtas_buf[RTAS_DATA_BUF_SIZE] __cacheline_aligned;
-
-/**
- * Find data portion of a specific section in RTAS extended event log.
- * @elog: RTAS error/event log.
- * @sect_id: secsion ID.
- *
- * Return:
- *	pointer to the section data of the specified section
- *	NULL if not found
- */
-static struct pseries_elog_section *find_xelog_section(struct rtas_error_log *elog,
-						       uint16_t sect_id)
-{
-	struct rtas_ext_event_log_v6 *xelog =
-		(struct rtas_ext_event_log_v6 *) elog->buffer;
-	struct pseries_elog_section *sect;
-	unsigned char *p, *log_end;
-
-	/* Check that we understand the format */
-	if (elog->extended_log_length < sizeof(struct rtas_ext_event_log_v6) ||
-	    xelog->log_format != RTAS_V6EXT_LOG_FORMAT_EVENT_LOG ||
-	    xelog->company_id != RTAS_V6EXT_COMPANY_ID_IBM)
-		return NULL;
-
-	log_end = elog->buffer + elog->extended_log_length;
-	p = xelog->vendor_log;
-	while (p < log_end) {
-		sect = (struct pseries_elog_section *)p;
-		if (sect->id == sect_id)
-			return sect;
-		p += sect->length;
-	}
-	return NULL;
-}
 
 /**
  * Find the data portion of an IO Event section from event log.
@@ -138,7 +74,7 @@ static struct pseries_elog_section *find_xelog_section(struct rtas_error_log *el
  */
 static struct pseries_io_event * ioei_find_event(struct rtas_error_log *elog)
 {
-	struct pseries_elog_section *sect;
+	struct pseries_errorlog *sect;
 
 	/* We should only ever get called for io-event interrupts, but if
 	 * we do get called for another type then something went wrong so
@@ -152,7 +88,7 @@ static struct pseries_io_event * ioei_find_event(struct rtas_error_log *elog)
 		return NULL;
 	}
 
-	sect = find_xelog_section(elog, PSERIES_ELOG_SECT_ID_IO_EVENT);
+	sect = get_pseries_errorlog(elog, PSERIES_ELOG_SECT_ID_IO_EVENT);
 	if (unlikely(!sect)) {
 		printk_once(KERN_WARNING "io_event_irq: RTAS extended event "
 			    "log does not contain an IO Event section. "

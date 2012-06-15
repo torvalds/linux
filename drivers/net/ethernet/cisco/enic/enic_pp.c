@@ -184,7 +184,7 @@ static int (*enic_pp_handlers[])(struct enic *enic, int vf,
 };
 
 static const int enic_pp_handlers_count =
-			sizeof(enic_pp_handlers)/sizeof(*enic_pp_handlers);
+			ARRAY_SIZE(enic_pp_handlers);
 
 static int enic_pp_preassociate(struct enic *enic, int vf,
 	struct enic_port_profile *prev_pp, int *restore_pp)
@@ -207,7 +207,7 @@ static int enic_pp_disassociate(struct enic *enic, int vf,
 	if (!is_zero_ether_addr(pp->mac_addr))
 		ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_del_addr,
 			pp->mac_addr);
-	else if (!is_zero_ether_addr(netdev->dev_addr))
+	else if (vf == PORT_SELF_VF && !is_zero_ether_addr(netdev->dev_addr))
 		ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_del_addr,
 			netdev->dev_addr);
 
@@ -294,7 +294,7 @@ static int enic_pp_associate(struct enic *enic, int vf,
 	if (!is_zero_ether_addr(pp->mac_addr))
 		ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_add_addr,
 			pp->mac_addr);
-	else if (!is_zero_ether_addr(netdev->dev_addr))
+	else if (vf == PORT_SELF_VF && !is_zero_ether_addr(netdev->dev_addr))
 		ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_add_addr,
 			netdev->dev_addr);
 

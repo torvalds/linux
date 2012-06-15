@@ -171,7 +171,7 @@ static bool __sub_expired(struct ceph_mon_client *monc)
  */
 static void __schedule_delayed(struct ceph_mon_client *monc)
 {
-	unsigned delay;
+	unsigned int delay;
 
 	if (monc->cur_mon < 0 || __sub_expired(monc))
 		delay = 10 * HZ;
@@ -187,7 +187,7 @@ static void __schedule_delayed(struct ceph_mon_client *monc)
 static void __send_subscribe(struct ceph_mon_client *monc)
 {
 	dout("__send_subscribe sub_sent=%u exp=%u want_osd=%d\n",
-	     (unsigned)monc->sub_sent, __sub_expired(monc),
+	     (unsigned int)monc->sub_sent, __sub_expired(monc),
 	     monc->want_next_osdmap);
 	if ((__sub_expired(monc) && !monc->sub_sent) ||
 	    monc->want_next_osdmap == 1) {
@@ -204,7 +204,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 
 		if (monc->want_next_osdmap) {
 			dout("__send_subscribe to 'osdmap' %u\n",
-			     (unsigned)monc->have_osdmap);
+			     (unsigned int)monc->have_osdmap);
 			ceph_encode_string(&p, end, "osdmap", 6);
 			i = p;
 			i->have = cpu_to_le64(monc->have_osdmap);
@@ -214,7 +214,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 		}
 		if (monc->want_mdsmap) {
 			dout("__send_subscribe to 'mdsmap' %u+\n",
-			     (unsigned)monc->have_mdsmap);
+			     (unsigned int)monc->have_mdsmap);
 			ceph_encode_string(&p, end, "mdsmap", 6);
 			i = p;
 			i->have = cpu_to_le64(monc->have_mdsmap);
@@ -239,7 +239,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 static void handle_subscribe_ack(struct ceph_mon_client *monc,
 				 struct ceph_msg *msg)
 {
-	unsigned seconds;
+	unsigned int seconds;
 	struct ceph_mon_subscribe_ack *h = msg->front.iov_base;
 
 	if (msg->front.iov_len < sizeof(*h))

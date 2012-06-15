@@ -58,6 +58,7 @@ static int nfsd_inject_set(void *op_ptr, u64 val)
 
 static int nfsd_inject_get(void *data, u64 *val)
 {
+	*val = 0;
 	return 0;
 }
 
@@ -72,7 +73,7 @@ int nfsd_fault_inject_init(void)
 {
 	unsigned int i;
 	struct nfsd_fault_inject_op *op;
-	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 
 	debug_dir = debugfs_create_dir("nfsd", NULL);
 	if (!debug_dir)

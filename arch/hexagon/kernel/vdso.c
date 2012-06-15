@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/binfmts.h>
 
 #include <asm/vdso.h>
 
@@ -78,8 +79,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	/* MAYWRITE to allow gdb to COW and set breakpoints. */
 	ret = install_special_mapping(mm, vdso_base, PAGE_SIZE,
 				      VM_READ|VM_EXEC|
-				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
-				      VM_ALWAYSDUMP,
+				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				      &vdso_page);
 
 	if (ret)

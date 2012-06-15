@@ -140,18 +140,6 @@ static struct mwifiex_debug_data items[] = {
 static int num_of_items = ARRAY_SIZE(items);
 
 /*
- * Generic proc file open handler.
- *
- * This function is called every time a file is accessed for read or write.
- */
-static int
-mwifiex_open_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-/*
  * Proc info file read handler.
  *
  * This function is called when the 'info' file is opened for reading.
@@ -224,7 +212,7 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 		p += sprintf(p, "essid=\"%s\"\n", info.ssid.ssid);
 		p += sprintf(p, "bssid=\"%pM\"\n", info.bssid);
 		p += sprintf(p, "channel=\"%d\"\n", (int) info.bss_chan);
-		p += sprintf(p, "region_code = \"%02x\"\n", info.region_code);
+		p += sprintf(p, "country_code = \"%s\"\n", info.country_code);
 
 		netdev_for_each_mc_addr(ha, netdev)
 			p += sprintf(p, "multicast_address[%d]=\"%pM\"\n",
@@ -676,19 +664,19 @@ done:
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.read = mwifiex_##name##_read,                                  \
 	.write = mwifiex_##name##_write,                                \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 #define MWIFIEX_DFS_FILE_READ_OPS(name)                                 \
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.read = mwifiex_##name##_read,                                  \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 #define MWIFIEX_DFS_FILE_WRITE_OPS(name)                                \
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.write = mwifiex_##name##_write,                                \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 

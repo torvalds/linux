@@ -330,7 +330,7 @@ the USB documentation for how to setup an USB mouse.
   The TM DirectConnect (BSP) protocol is supported by the tmdc.c
 module. This includes, but is not limited to:
 
-* ThrustMaster Millenium 3D Inceptor
+* ThrustMaster Millennium 3D Interceptor
 * ThrustMaster 3D Rage Pad
 * ThrustMaster Fusion Digital Game Pad
 

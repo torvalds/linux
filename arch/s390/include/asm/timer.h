@@ -10,8 +10,6 @@
 #ifndef _ASM_S390_TIMER_H
 #define _ASM_S390_TIMER_H
 
-#ifdef __KERNEL__
-
 #include <linux/timer.h>
 
 #define VTIMER_MAX_SLICE (0x7ffffffffffff000LL)
@@ -33,8 +31,8 @@ struct vtimer_queue {
 	spinlock_t lock;
 	__u64 timer;		/* last programmed timer */
 	__u64 elapsed;		/* elapsed time of timer expire values */
-	__u64 idle;		/* temp var for idle */
-	int do_spt;		/* =1: reprogram cpu timer in idle */
+	__u64 idle_enter;	/* cpu timer on idle enter */
+	__u64 idle_exit;	/* cpu timer on idle exit */
 };
 
 extern void init_virt_timer(struct vtimer_list *timer);
@@ -49,7 +47,5 @@ extern void vtime_init(void);
 
 extern void vtime_stop_cpu(void);
 extern void vtime_start_leave(void);
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_S390_TIMER_H */

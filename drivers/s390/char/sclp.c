@@ -393,7 +393,7 @@ __sclp_find_req(u32 sccb)
 /* Handler for external interruption. Perform request post-processing.
  * Prepare read event data request if necessary. Start processing of next
  * request on queue. */
-static void sclp_interrupt_handler(unsigned int ext_int_code,
+static void sclp_interrupt_handler(struct ext_code ext_code,
 				   unsigned int param32, unsigned long param64)
 {
 	struct sclp_req *req;
@@ -818,7 +818,7 @@ EXPORT_SYMBOL(sclp_reactivate);
 
 /* Handler for external interruption used during initialization. Modify
  * request state to done. */
-static void sclp_check_handler(unsigned int ext_int_code,
+static void sclp_check_handler(struct ext_code ext_code,
 			       unsigned int param32, unsigned long param64)
 {
 	u32 finished_sccb;

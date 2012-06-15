@@ -326,9 +326,7 @@ static inline void get_next_buf(struct cx231xx_dmaqueue *dma_q,
  */
 static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 {
-	struct cx231xx_buffer *buf;
 	struct cx231xx_dmaqueue *dma_q = urb->context;
-	unsigned char *outp = NULL;
 	int i, rc = 1;
 	unsigned char *p_buffer;
 	u32 bytes_parsed = 0, buffer_size = 0;
@@ -345,10 +343,6 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 		if (urb->status == -ENOENT)
 			return 0;
 	}
-
-	buf = dev->video_mode.isoc_ctl.buf;
-	if (buf != NULL)
-		outp = videobuf_to_vmalloc(&buf->vb);
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
@@ -429,9 +423,7 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 
 static inline int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 {
-	struct cx231xx_buffer *buf;
 	struct cx231xx_dmaqueue *dma_q = urb->context;
-	unsigned char *outp = NULL;
 	int rc = 1;
 	unsigned char *p_buffer;
 	u32 bytes_parsed = 0, buffer_size = 0;
@@ -448,10 +440,6 @@ static inline int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 		if (urb->status == -ENOENT)
 			return 0;
 	}
-
-	buf = dev->video_mode.bulk_ctl.buf;
-	if (buf != NULL)
-		outp = videobuf_to_vmalloc(&buf->vb);
 
 	if (1) {
 
@@ -701,12 +689,8 @@ void cx231xx_reset_video_buffer(struct cx231xx *dev,
 		buf = dev->video_mode.bulk_ctl.buf;
 
 	if (buf == NULL) {
-		u8 *outp = NULL;
 		/* first try to get the buffer */
 		get_next_buf(dma_q, &buf);
-
-		if (buf)
-			outp = videobuf_to_vmalloc(&buf->vb);
 
 		dma_q->pos = 0;
 		dma_q->field1_done = 0;
@@ -2319,8 +2303,7 @@ static int cx231xx_v4l2_close(struct file *filp)
 			if (dev->state & DEV_DISCONNECTED) {
 				if (atomic_read(&dev->devlist_count) > 0) {
 					cx231xx_release_resources(dev);
-					kfree(dev);
-					dev = NULL;
+					fh->dev = NULL;
 					return 0;
 				}
 				return 0;
@@ -2350,8 +2333,7 @@ static int cx231xx_v4l2_close(struct file *filp)
 		   free the remaining resources */
 		if (dev->state & DEV_DISCONNECTED) {
 			cx231xx_release_resources(dev);
-			kfree(dev);
-			dev = NULL;
+			fh->dev = NULL;
 			return 0;
 		}
 
@@ -2563,6 +2545,10 @@ static struct video_device *cx231xx_vdev_init(struct cx231xx *dev,
 	vfd->release = video_device_release;
 	vfd->debug = video_debug;
 	vfd->lock = &dev->lock;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);
 

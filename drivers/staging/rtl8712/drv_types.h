@@ -140,14 +140,13 @@ struct dvobj_priv {
 	u8   ishighspeed;
 	uint(*inirp_init)(struct _adapter *adapter);
 	uint(*inirp_deinit)(struct _adapter *adapter);
-	struct semaphore usb_suspend_sema;
 	struct usb_device *pusbdev;
 };
 
 /**
  * struct _adapter - the main adapter structure for this device.
  *
- * bup: True indicates that the interface is Up.
+ * bup: True indicates that the interface is up.
  */
 struct _adapter {
 	struct	dvobj_priv dvobjpriv;

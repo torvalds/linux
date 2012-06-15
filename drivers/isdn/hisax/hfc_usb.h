@@ -76,11 +76,11 @@
 #define SINK_MIN	48
 #define SINK_DMIN	12
 #define SINK_DMAX	18
-#define BITLINE_INF	(-64*8)
+#define BITLINE_INF	(-64 * 8)
 
 /* HFC-S USB register access by Control-URSs */
-#define write_usb(a,b,c)usb_control_msg((a)->dev,(a)->ctrl_out_pipe,0,0x40,(c),(b),NULL,0,HFC_CTRL_TIMEOUT)
-#define read_usb(a,b,c) usb_control_msg((a)->dev,(a)->ctrl_in_pipe,1,0xC0,0,(b),(c),1,HFC_CTRL_TIMEOUT)
+#define write_usb(a, b, c) usb_control_msg((a)->dev, (a)->ctrl_out_pipe, 0, 0x40, (c), (b), NULL, 0, HFC_CTRL_TIMEOUT)
+#define read_usb(a, b, c) usb_control_msg((a)->dev, (a)->ctrl_in_pipe, 1, 0xC0, 0, (b), (c), 1, HFC_CTRL_TIMEOUT)
 #define HFC_CTRL_BUFSIZE 32
 
 /* entry and size of output/input control buffer */
@@ -200,8 +200,8 @@ typedef struct {
 #define LED_B2_OFF	9
 #define LED_B2_DATA	10
 
-#define LED_NORMAL   	0	// LEDs are normal
-#define LED_INVERTED 	1	// LEDs are inverted
+#define LED_NORMAL	0	// LEDs are normal
+#define LED_INVERTED	1	// LEDs are inverted
 
 
 #endif	// __HFC_USB_H__

@@ -10,6 +10,10 @@
  *  You may use this code as per GPL version 2
  */
 
+struct device;
+struct device_type;
+struct power_supply;
+
 #ifdef CONFIG_SYSFS
 
 extern void power_supply_init_attrs(struct device_type *dev_type);

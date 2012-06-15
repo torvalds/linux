@@ -76,26 +76,29 @@
   GENERIC DRIVER DEFINITIONS
 \****************************/
 
-#define ATH5K_PRINTF(fmt, ...) \
-	printk(KERN_WARNING "%s: " fmt, __func__, ##__VA_ARGS__)
+#define ATH5K_PRINTF(fmt, ...)						\
+	pr_warn("%s: " fmt, __func__, ##__VA_ARGS__)
 
-#define ATH5K_PRINTK(_sc, _level, _fmt, ...) \
-	printk(_level "ath5k %s: " _fmt, \
-		((_sc) && (_sc)->hw) ? wiphy_name((_sc)->hw->wiphy) : "", \
-		##__VA_ARGS__)
+void __printf(3, 4)
+_ath5k_printk(const struct ath5k_hw *ah, const char *level,
+	      const char *fmt, ...);
 
-#define ATH5K_PRINTK_LIMIT(_sc, _level, _fmt, ...) do { \
-	if (net_ratelimit()) \
-		ATH5K_PRINTK(_sc, _level, _fmt, ##__VA_ARGS__); \
-	} while (0)
+#define ATH5K_PRINTK(_sc, _level, _fmt, ...)				\
+	_ath5k_printk(_sc, _level, _fmt, ##__VA_ARGS__)
 
-#define ATH5K_INFO(_sc, _fmt, ...) \
+#define ATH5K_PRINTK_LIMIT(_sc, _level, _fmt, ...)			\
+do {									\
+	if (net_ratelimit())						\
+		ATH5K_PRINTK(_sc, _level, _fmt, ##__VA_ARGS__); 	\
+} while (0)
+
+#define ATH5K_INFO(_sc, _fmt, ...)					\
 	ATH5K_PRINTK(_sc, KERN_INFO, _fmt, ##__VA_ARGS__)
 
-#define ATH5K_WARN(_sc, _fmt, ...) \
+#define ATH5K_WARN(_sc, _fmt, ...)					\
 	ATH5K_PRINTK_LIMIT(_sc, KERN_WARNING, _fmt, ##__VA_ARGS__)
 
-#define ATH5K_ERR(_sc, _fmt, ...) \
+#define ATH5K_ERR(_sc, _fmt, ...)					\
 	ATH5K_PRINTK_LIMIT(_sc, KERN_ERR, _fmt, ##__VA_ARGS__)
 
 /*
@@ -1320,6 +1323,7 @@ struct ath5k_hw {
 	struct ieee80211_vif	*bslot[ATH_BCBUF];
 	u16			num_ap_vifs;
 	u16			num_adhoc_vifs;
+	u16			num_mesh_vifs;
 	unsigned int		bhalq,		/* SW q for outgoing beacons */
 				bmisscount,	/* missed beacon transmits */
 				bintval,	/* beacon interval in TU */
@@ -1523,7 +1527,7 @@ void ath5k_eeprom_detach(struct ath5k_hw *ah);
 
 /* Protocol Control Unit Functions */
 /* Helpers */
-int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
+int ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum ieee80211_band band,
 		int len, struct ieee80211_rate *rate, bool shortpre);
 unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah);
 unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah);
@@ -1656,12 +1660,12 @@ static inline void __iomem *ath5k_ahb_reg(struct ath5k_hw *ah, u16 reg)
 
 static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 {
-	return __raw_readl(ath5k_ahb_reg(ah, reg));
+	return ioread32(ath5k_ahb_reg(ah, reg));
 }
 
 static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
-	__raw_writel(val, ath5k_ahb_reg(ah, reg));
+	iowrite32(val, ath5k_ahb_reg(ah, reg));
 }
 
 #else

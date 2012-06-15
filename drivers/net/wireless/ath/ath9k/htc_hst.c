@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "htc.h"
 
 static int htc_issue_send(struct htc_target *target, struct sk_buff* skb,
@@ -431,11 +433,8 @@ struct htc_target *ath9k_htc_hw_alloc(void *hif_handle,
 	struct htc_target *target;
 
 	target = kzalloc(sizeof(struct htc_target), GFP_KERNEL);
-	if (!target) {
-		printk(KERN_ERR "Unable to allocate memory for"
-			"target device\n");
+	if (!target)
 		return NULL;
-	}
 
 	init_completion(&target->target_wait);
 	init_completion(&target->cmd_wait);
@@ -464,7 +463,7 @@ int ath9k_htc_hw_init(struct htc_target *target,
 		      char *product, u32 drv_info)
 {
 	if (ath9k_htc_probe_device(target, dev, devid, product, drv_info)) {
-		printk(KERN_ERR "Failed to initialize the device\n");
+		pr_err("Failed to initialize the device\n");
 		return -ENODEV;
 	}
 

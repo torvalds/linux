@@ -40,7 +40,7 @@ static int lpddr_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 static int lpddr_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 			size_t *retlen, void **mtdbuf, resource_size_t *phys);
-static void lpddr_unpoint(struct mtd_info *mtd, loff_t adr, size_t len);
+static int lpddr_unpoint(struct mtd_info *mtd, loff_t adr, size_t len);
 static int get_chip(struct map_info *map, struct flchip *chip, int mode);
 static int chip_ready(struct map_info *map, struct flchip *chip, int mode);
 static void put_chip(struct map_info *map, struct flchip *chip);
@@ -63,18 +63,18 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
 	mtd->type = MTD_NORFLASH;
 
 	/* Fill in the default mtd operations */
-	mtd->read = lpddr_read;
+	mtd->_read = lpddr_read;
 	mtd->type = MTD_NORFLASH;
 	mtd->flags = MTD_CAP_NORFLASH;
 	mtd->flags &= ~MTD_BIT_WRITEABLE;
-	mtd->erase = lpddr_erase;
-	mtd->write = lpddr_write_buffers;
-	mtd->writev = lpddr_writev;
-	mtd->lock = lpddr_lock;
-	mtd->unlock = lpddr_unlock;
+	mtd->_erase = lpddr_erase;
+	mtd->_write = lpddr_write_buffers;
+	mtd->_writev = lpddr_writev;
+	mtd->_lock = lpddr_lock;
+	mtd->_unlock = lpddr_unlock;
 	if (map_is_linear(map)) {
-		mtd->point = lpddr_point;
-		mtd->unpoint = lpddr_unpoint;
+		mtd->_point = lpddr_point;
+		mtd->_unpoint = lpddr_unpoint;
 	}
 	mtd->size = 1 << lpddr->qinfo->DevSizeShift;
 	mtd->erasesize = 1 << lpddr->qinfo->UniformBlockSizeShift;
@@ -530,14 +530,12 @@ static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 	struct flchip *chip = &lpddr->chips[chipnum];
 	int ret = 0;
 
-	if (!map->virt || (adr + len > mtd->size))
+	if (!map->virt)
 		return -EINVAL;
 
 	/* ofs: offset within the first chip that the first read should start */
 	ofs = adr - (chipnum << lpddr->chipshift);
-
 	*mtdbuf = (void *)map->virt + chip->start + ofs;
-	*retlen = 0;
 
 	while (len) {
 		unsigned long thislen;
@@ -575,11 +573,11 @@ static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 	return 0;
 }
 
-static void lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
+static int lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 {
 	struct map_info *map = mtd->priv;
 	struct lpddr_private *lpddr = map->fldrv_priv;
-	int chipnum = adr >> lpddr->chipshift;
+	int chipnum = adr >> lpddr->chipshift, err = 0;
 	unsigned long ofs;
 
 	/* ofs: offset within the first chip that the first read should start */
@@ -603,9 +601,11 @@ static void lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 			chip->ref_point_counter--;
 			if (chip->ref_point_counter == 0)
 				chip->state = FL_READY;
-		} else
+		} else {
 			printk(KERN_WARNING "%s: Warning: unpoint called on non"
 					"pointed region\n", map->name);
+			err = -EINVAL;
+		}
 
 		put_chip(map, chip);
 		mutex_unlock(&chip->mutex);
@@ -614,6 +614,8 @@ static void lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 		ofs = 0;
 		chipnum++;
 	}
+
+	return err;
 }
 
 static int lpddr_write_buffers(struct mtd_info *mtd, loff_t to, size_t len,
@@ -637,13 +639,11 @@ static int lpddr_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	int chipnum;
 	unsigned long ofs, vec_seek, i;
 	int wbufsize = 1 << lpddr->qinfo->BufSizeShift;
-
 	size_t len = 0;
 
 	for (i = 0; i < count; i++)
 		len += vecs[i].iov_len;
 
-	*retlen = 0;
 	if (!len)
 		return 0;
 
@@ -687,9 +687,6 @@ static int lpddr_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	ofs = instr->addr;
 	len = instr->len;
-
-	if (ofs > mtd->size || (len + ofs) > mtd->size)
-		return -EINVAL;
 
 	while (len > 0) {
 		ret = do_erase_oneblock(mtd, ofs);

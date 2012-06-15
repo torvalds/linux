@@ -181,6 +181,9 @@ struct virtqueue {
 #define smp_mb()	mb()
 # define smp_rmb()	barrier()
 # define smp_wmb()	barrier()
+/* Weak barriers should be used. If not - it's a bug */
+# define rmb()	abort()
+# define wmb()	abort()
 #else
 #error Please fill in barrier macros
 #endif
@@ -200,6 +203,7 @@ void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
 void virtqueue_disable_cb(struct virtqueue *vq);
 
 bool virtqueue_enable_cb(struct virtqueue *vq);
+bool virtqueue_enable_cb_delayed(struct virtqueue *vq);
 
 void *virtqueue_detach_unused_buf(struct virtqueue *vq);
 struct virtqueue *vring_new_virtqueue(unsigned int num,

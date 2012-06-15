@@ -22,6 +22,8 @@
 #include "ioctl.h"
 #include "ulist.h"
 
+#define BTRFS_BACKREF_SEARCH_COMMIT_ROOT ((struct btrfs_trans_handle *)0)
+
 struct inode_fs_paths {
 	struct btrfs_path		*btrfs_path;
 	struct btrfs_root		*fs_root;
@@ -44,9 +46,8 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 				u64 *out_root, u8 *out_level);
 
 int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
-				struct btrfs_path *path,
 				u64 extent_item_objectid,
-				u64 extent_offset,
+				u64 extent_offset, int search_commit_root,
 				iterate_extent_inodes_t *iterate, void *ctx);
 
 int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
@@ -57,7 +58,8 @@ int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
 
 int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 				struct btrfs_fs_info *fs_info, u64 bytenr,
-				u64 num_bytes, u64 seq, struct ulist **roots);
+				u64 delayed_ref_seq, u64 time_seq,
+				struct ulist **roots);
 
 struct btrfs_data_container *init_data_container(u32 total_bytes);
 struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,

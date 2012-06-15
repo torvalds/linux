@@ -503,30 +503,32 @@ static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
 static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
 static void rhine_restart_tx(struct net_device *dev);
 
-static void rhine_wait_bit(struct rhine_private *rp, u8 reg, u8 mask, bool high)
+static void rhine_wait_bit(struct rhine_private *rp, u8 reg, u8 mask, bool low)
 {
 	void __iomem *ioaddr = rp->base;
 	int i;
 
 	for (i = 0; i < 1024; i++) {
-		if (high ^ !!(ioread8(ioaddr + reg) & mask))
+		bool has_mask_bits = !!(ioread8(ioaddr + reg) & mask);
+
+		if (low ^ has_mask_bits)
 			break;
 		udelay(10);
 	}
 	if (i > 64) {
 		netif_dbg(rp, hw, rp->dev, "%s bit wait (%02x/%02x) cycle "
-			  "count: %04d\n", high ? "high" : "low", reg, mask, i);
+			  "count: %04d\n", low ? "low" : "high", reg, mask, i);
 	}
 }
 
 static void rhine_wait_bit_high(struct rhine_private *rp, u8 reg, u8 mask)
 {
-	rhine_wait_bit(rp, reg, mask, true);
+	rhine_wait_bit(rp, reg, mask, false);
 }
 
 static void rhine_wait_bit_low(struct rhine_private *rp, u8 reg, u8 mask)
 {
-	rhine_wait_bit(rp, reg, mask, false);
+	rhine_wait_bit(rp, reg, mask, true);
 }
 
 static u32 rhine_get_events(struct rhine_private *rp)
@@ -687,9 +689,12 @@ static void __devinit rhine_reload_eeprom(long pioaddr, struct net_device *dev)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void rhine_poll(struct net_device *dev)
 {
-	disable_irq(dev->irq);
-	rhine_interrupt(dev->irq, (void *)dev);
-	enable_irq(dev->irq);
+	struct rhine_private *rp = netdev_priv(dev);
+	const int irq = rp->pdev->irq;
+
+	disable_irq(irq);
+	rhine_interrupt(irq, dev);
+	enable_irq(irq);
 }
 #endif
 
@@ -927,7 +932,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	dev = alloc_etherdev(sizeof(struct rhine_private));
 	if (!dev) {
 		rc = -ENOMEM;
-		dev_err(&pdev->dev, "alloc_etherdev failed\n");
 		goto err_out;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -971,7 +975,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	}
 #endif /* USE_MMIO */
 
-	dev->base_addr = (unsigned long)ioaddr;
 	rp->base = ioaddr;
 
 	/* Get chip registers into a sane state */
@@ -984,7 +987,7 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/* Report it and use a random ethernet address instead */
 		netdev_err(dev, "Invalid MAC address: %pM\n", dev->dev_addr);
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		netdev_info(dev, "Using random MAC address: %pM\n",
 			    dev->dev_addr);
 	}
@@ -993,8 +996,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	/* For Rhine-I/II, phy_id is loaded from EEPROM */
 	if (!phy_id)
 		phy_id = ioread8(ioaddr + 0x6C);
-
-	dev->irq = pdev->irq;
 
 	spin_lock_init(&rp->lock);
 	mutex_init(&rp->task_lock);
@@ -1156,7 +1157,6 @@ static void alloc_rbufs(struct net_device *dev)
 		rp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
-		skb->dev = dev;                 /* Mark as being used by this device. */
 
 		rp->rx_skbuff_dma[i] =
 			pci_map_single(rp->pdev, skb->data, rp->rx_buf_sz,
@@ -1941,7 +1941,6 @@ static int rhine_rx(struct net_device *dev, int limit)
 			rp->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;	/* Better luck next round. */
-			skb->dev = dev;	/* Mark as being used by this device. */
 			rp->rx_skbuff_dma[entry] =
 				pci_map_single(rp->pdev, skb->data,
 					       rp->rx_buf_sz,

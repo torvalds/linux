@@ -41,9 +41,10 @@
 /* MAS registers bit definitions */
 
 #define MAS0_TLBSEL(x)		(((x) << 28) & 0x30000000)
-#define MAS0_ESEL(x)		(((x) << 16) & 0x0FFF0000)
-#define MAS0_NV(x)		((x) & 0x00000FFF)
 #define MAS0_ESEL_MASK		0x0FFF0000
+#define MAS0_ESEL_SHIFT		16
+#define MAS0_ESEL(x)		(((x) << MAS0_ESEL_SHIFT) & MAS0_ESEL_MASK)
+#define MAS0_NV(x)		((x) & 0x00000FFF)
 #define MAS0_HES		0x00004000
 #define MAS0_WQ_ALLWAYS		0x00000000
 #define MAS0_WQ_COND		0x00001000
@@ -103,6 +104,8 @@
 #define MAS4_TSIZED_MASK	0x00000f80	/* Default TSIZE */
 #define MAS4_TSIZED_SHIFT	7
 
+#define MAS5_SGS		0x80000000
+
 #define MAS6_SPID0		0x3FFF0000
 #define MAS6_SPID1		0x00007FFE
 #define MAS6_ISIZE(x)		MAS1_TSIZE(x)
@@ -116,6 +119,10 @@
 #define MAS6_ISIZE_SHIFT	7
 
 #define MAS7_RPN		0xFFFFFFFF
+
+#define MAS8_TGS		0x80000000 /* Guest space */
+#define MAS8_VF			0x40000000 /* Virtualization Fault */
+#define MAS8_TLPID		0x000000ff
 
 /* Bit definitions for MMUCFG */
 #define MMUCFG_MAVN	0x00000003	/* MMU Architecture Version Number */
@@ -167,6 +174,7 @@
 #define TLBnCFG_MAXSIZE		0x000f0000	/* Maximum Page Size (v1.0) */
 #define TLBnCFG_MAXSIZE_SHIFT	16
 #define TLBnCFG_ASSOC		0xff000000	/* Associativity */
+#define TLBnCFG_ASSOC_SHIFT	24
 
 /* TLBnPS encoding */
 #define TLBnPS_4K		0x00000004

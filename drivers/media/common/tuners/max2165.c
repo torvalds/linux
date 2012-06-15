@@ -168,7 +168,7 @@ int fixpt_div32(u32 dividend, u32 divisor, u32 *quotient, u32 *fraction)
 	int i;
 
 	if (0 == divisor)
-		return -1;
+		return -EINVAL;
 
 	q = dividend / divisor;
 	remainder = dividend - q * divisor;
@@ -194,10 +194,13 @@ static int max2165_set_rf(struct max2165_priv *priv, u32 freq)
 	u8 tf_ntch;
 	u32 t;
 	u32 quotient, fraction;
+	int ret;
 
 	/* Set PLL divider according to RF frequency */
-	fixpt_div32(freq / 1000, priv->config->osc_clk * 1000,
-		&quotient, &fraction);
+	ret = fixpt_div32(freq / 1000, priv->config->osc_clk * 1000,
+			 &quotient, &fraction);
+	if (ret != 0)
+		return ret;
 
 	/* 20-bit fraction */
 	fraction >>= 12;

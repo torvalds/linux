@@ -25,10 +25,12 @@
 #include "netns.h"
 
 int sunrpc_net_id;
+EXPORT_SYMBOL_GPL(sunrpc_net_id);
 
 static __net_init int sunrpc_init_net(struct net *net)
 {
 	int err;
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
 	err = rpc_proc_init(net);
 	if (err)
@@ -38,8 +40,18 @@ static __net_init int sunrpc_init_net(struct net *net)
 	if (err)
 		goto err_ipmap;
 
+	err = unix_gid_cache_create(net);
+	if (err)
+		goto err_unixgid;
+
+	rpc_pipefs_init_net(net);
+	INIT_LIST_HEAD(&sn->all_clients);
+	spin_lock_init(&sn->rpc_client_lock);
+	spin_lock_init(&sn->rpcb_clnt_lock);
 	return 0;
 
+err_unixgid:
+	ip_map_cache_destroy(net);
 err_ipmap:
 	rpc_proc_exit(net);
 err_proc:
@@ -48,6 +60,7 @@ err_proc:
 
 static __net_exit void sunrpc_exit_net(struct net *net)
 {
+	unix_gid_cache_destroy(net);
 	ip_map_cache_destroy(net);
 	rpc_proc_exit(net);
 }
@@ -59,40 +72,38 @@ static struct pernet_operations sunrpc_net_ops = {
 	.size = sizeof(struct sunrpc_net),
 };
 
-extern struct cache_detail unix_gid_cache;
-
 static int __init
 init_sunrpc(void)
 {
-	int err = register_rpc_pipefs();
+	int err = rpc_init_mempool();
 	if (err)
 		goto out;
-	err = rpc_init_mempool();
-	if (err)
-		goto out2;
 	err = rpcauth_init_module();
 	if (err)
-		goto out3;
+		goto out2;
 
 	cache_initialize();
 
 	err = register_pernet_subsys(&sunrpc_net_ops);
 	if (err)
+		goto out3;
+
+	err = register_rpc_pipefs();
+	if (err)
 		goto out4;
 #ifdef RPC_DEBUG
 	rpc_register_sysctl();
 #endif
-	cache_register(&unix_gid_cache);
 	svc_init_xprt_sock();	/* svc sock transport */
 	init_socket_xprt();	/* clnt sock transport */
 	return 0;
 
 out4:
-	rpcauth_remove_module();
+	unregister_pernet_subsys(&sunrpc_net_ops);
 out3:
-	rpc_destroy_mempool();
+	rpcauth_remove_module();
 out2:
-	unregister_rpc_pipefs();
+	rpc_destroy_mempool();
 out:
 	return err;
 }
@@ -105,7 +116,6 @@ cleanup_sunrpc(void)
 	svc_cleanup_xprt_sock();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
-	cache_unregister(&unix_gid_cache);
 	unregister_pernet_subsys(&sunrpc_net_ops);
 #ifdef RPC_DEBUG
 	rpc_unregister_sysctl();

@@ -217,6 +217,7 @@ ov534_9		06f8:3003	Hercules Dualpix HD Weblog
 sonixj		06f8:3004	Hercules Classic Silver
 sonixj		06f8:3008	Hercules Deluxe Optical Glass
 pac7302		06f8:3009	Hercules Classic Link
+pac7302		06f8:301b	Hercules Link
 nw80x		0728:d001	AVerMedia Camguard
 spca508		0733:0110	ViewQuest VQ110
 spca501		0733:0401	Intel Create and Share
@@ -275,6 +276,7 @@ pac7302		093a:2622	Genius Eye 312
 pac7302		093a:2624	PAC7302
 pac7302		093a:2625	Genius iSlim 310
 pac7302		093a:2626	Labtec 2200
+pac7302		093a:2627	Genius FaceCam 300
 pac7302		093a:2628	Genius iLook 300
 pac7302		093a:2629	Genious iSlim 300
 pac7302		093a:262a	Webcam 300k

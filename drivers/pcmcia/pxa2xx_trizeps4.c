@@ -29,32 +29,17 @@
 
 extern void board_pcmcia_power(int power);
 
-static struct pcmcia_irqs irqs[] = {
-	{ .sock = 0, .str = "cs0_cd" }
-	/* on other baseboards we can have more inputs */
-};
-
 static int trizeps_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	int ret, i;
 	/* we dont have voltage/card/ready detection
 	 * so we dont need interrupts for it
 	 */
 	switch (skt->nr) {
 	case 0:
-		if (gpio_request(GPIO_PRDY, "cf_irq") < 0) {
-			pr_err("%s: sock %d unable to request gpio %d\n", __func__,
-				skt->nr, GPIO_PRDY);
-			return -EBUSY;
-		}
-		if (gpio_direction_input(GPIO_PRDY) < 0) {
-			pr_err("%s: sock %d unable to set input gpio %d\n", __func__,
-				skt->nr, GPIO_PRDY);
-			gpio_free(GPIO_PRDY);
-			return -EINVAL;
-		}
-		skt->socket.pci_irq = gpio_to_irq(GPIO_PRDY);
-		irqs[0].irq = gpio_to_irq(GPIO_PCD);
+		skt->stat[SOC_STAT_CD].gpio = GPIO_PCD;
+		skt->stat[SOC_STAT_CD].name = "cs0_cd";
+		skt->stat[SOC_STAT_RDY].gpio = GPIO_PRDY;
+		skt->stat[SOC_STAT_RDY].name = "cs0_rdy";
 		break;
 	default:
 		break;
@@ -62,39 +47,7 @@ static int trizeps_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	/* release the reset of this card */
 	pr_debug("%s: sock %d irq %d\n", __func__, skt->nr, skt->socket.pci_irq);
 
-	/* supplementory irqs for the socket */
-	for (i = 0; i < ARRAY_SIZE(irqs); i++) {
-		if (irqs[i].sock != skt->nr)
-			continue;
-		if (gpio_request(irq_to_gpio(irqs[i].irq), irqs[i].str) < 0) {
-			pr_err("%s: sock %d unable to request gpio %d\n",
-				__func__, skt->nr, irq_to_gpio(irqs[i].irq));
-			ret = -EBUSY;
-			goto error;
-		}
-		if (gpio_direction_input(irq_to_gpio(irqs[i].irq)) < 0) {
-			pr_err("%s: sock %d unable to set input gpio %d\n",
-				__func__, skt->nr, irq_to_gpio(irqs[i].irq));
-			ret = -EINVAL;
-			goto error;
-		}
-	}
-	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
-
-error:
-	for (; i >= 0; i--) {
-		gpio_free(irq_to_gpio(irqs[i].irq));
-	}
-	return (ret);
-}
-
-static void trizeps_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
-{
-	int i;
-	/* free allocated gpio's */
-	gpio_free(GPIO_PRDY);
-	for (i = 0; i < ARRAY_SIZE(irqs); i++)
-		gpio_free(irq_to_gpio(irqs[i].irq));
+	return 0;
 }
 
 static unsigned long trizeps_pcmcia_status[2];
@@ -118,13 +71,10 @@ static void trizeps_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 	switch (skt->nr) {
 	case 0:
 		/* just fill in fix states */
-		state->detect = gpio_get_value(GPIO_PCD) ? 0 : 1;
-		state->ready  = gpio_get_value(GPIO_PRDY) ? 1 : 0;
 		state->bvd1   = (status & ConXS_CFSR_BVD1) ? 1 : 0;
 		state->bvd2   = (status & ConXS_CFSR_BVD2) ? 1 : 0;
 		state->vs_3v  = (status & ConXS_CFSR_VS1) ? 0 : 1;
 		state->vs_Xv  = (status & ConXS_CFSR_VS2) ? 0 : 1;
-		state->wrprot = 0;	/* not available */
 		break;
 
 #ifndef CONFIG_MACH_TRIZEPS_CONXS
@@ -136,7 +86,6 @@ static void trizeps_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 		state->bvd2   = 0;
 		state->vs_3v  = 0;
 		state->vs_Xv  = 0;
-		state->wrprot = 0;
 		break;
 
 #endif
@@ -204,7 +153,6 @@ static void trizeps_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 static struct pcmcia_low_level trizeps_pcmcia_ops = {
 	.owner			= THIS_MODULE,
 	.hw_init		= trizeps_pcmcia_hw_init,
-	.hw_shutdown		= trizeps_pcmcia_hw_shutdown,
 	.socket_state		= trizeps_pcmcia_socket_state,
 	.configure_socket	= trizeps_pcmcia_configure_socket,
 	.socket_init		= trizeps_pcmcia_socket_init,

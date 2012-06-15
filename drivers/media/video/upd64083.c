@@ -243,15 +243,4 @@ static struct i2c_driver upd64083_driver = {
 	.id_table	= upd64083_id,
 };
 
-static __init int init_upd64083(void)
-{
-	return i2c_add_driver(&upd64083_driver);
-}
-
-static __exit void exit_upd64083(void)
-{
-	i2c_del_driver(&upd64083_driver);
-}
-
-module_init(init_upd64083);
-module_exit(exit_upd64083);
+module_i2c_driver(upd64083_driver);

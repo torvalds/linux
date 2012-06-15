@@ -80,6 +80,8 @@
 					 * skbs on transmit */
 #define IFF_UNICAST_FLT	0x20000		/* Supports unicast filtering	*/
 #define IFF_TEAM_PORT	0x40000		/* device used as team port */
+#define IFF_SUPP_NOFCS	0x80000		/* device supports sending custom FCS */
+
 
 #define IF_GET_IFACE	0x0001		/* for querying only */
 #define IF_GET_PROTO	0x0002

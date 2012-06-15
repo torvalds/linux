@@ -31,6 +31,7 @@
 # define ATMCI_MR_PDCFBYTE		(  1 << 13)	/* Force Byte Transfer */
 # define ATMCI_MR_PDCPADV		(  1 << 14)	/* Padding Value */
 # define ATMCI_MR_PDCMODE		(  1 << 15)	/* PDC-oriented Mode */
+# define ATMCI_MR_CLKODD(x)		((x) << 16)	/* LSB of Clock Divider */
 #define ATMCI_DTOR			0x0008	/* Data Timeout */
 # define ATMCI_DTOCYC(x)		((x) <<  0)	/* Data Timeout Cycles */
 # define ATMCI_DTOMUL(x)		((x) <<  4)	/* Data Timeout Multiplier */

@@ -1,0 +1,17 @@
+config NFC_HCI
+       depends on NFC
+       tristate "NFC HCI implementation"
+       default n
+       help
+	 Say Y here if you want to build support for a kernel NFC HCI
+	 implementation. This is mostly needed for devices that only process
+	 HCI frames, like for example the NXP pn544.
+
+config NFC_SHDLC
+	depends on NFC_HCI
+	select CRC_CCITT
+	bool "SHDLC link layer for HCI based NFC drivers"
+	default n
+	---help---
+	  Say yes if you use an NFC HCI driver that requires SHDLC link layer.
+	  If unsure, say N here.

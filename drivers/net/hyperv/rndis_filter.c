@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 
 #include "hyperv_net.h"
 
@@ -128,8 +129,8 @@ static void dump_rndis_message(struct hv_device *hv_dev,
 	netdev = net_device->ndev;
 
 	switch (rndis_msg->ndis_msg_type) {
-	case REMOTE_NDIS_PACKET_MSG:
-		netdev_dbg(netdev, "REMOTE_NDIS_PACKET_MSG (len %u, "
+	case RNDIS_MSG_PACKET:
+		netdev_dbg(netdev, "RNDIS_MSG_PACKET (len %u, "
 			   "data offset %u data len %u, # oob %u, "
 			   "oob offset %u, oob len %u, pkt offset %u, "
 			   "pkt len %u\n",
@@ -143,8 +144,8 @@ static void dump_rndis_message(struct hv_device *hv_dev,
 			   rndis_msg->msg.pkt.per_pkt_info_len);
 		break;
 
-	case REMOTE_NDIS_INITIALIZE_CMPLT:
-		netdev_dbg(netdev, "REMOTE_NDIS_INITIALIZE_CMPLT "
+	case RNDIS_MSG_INIT_C:
+		netdev_dbg(netdev, "RNDIS_MSG_INIT_C "
 			"(len %u, id 0x%x, status 0x%x, major %d, minor %d, "
 			"device flags %d, max xfer size 0x%x, max pkts %u, "
 			"pkt aligned %u)\n",
@@ -161,8 +162,8 @@ static void dump_rndis_message(struct hv_device *hv_dev,
 			   pkt_alignment_factor);
 		break;
 
-	case REMOTE_NDIS_QUERY_CMPLT:
-		netdev_dbg(netdev, "REMOTE_NDIS_QUERY_CMPLT "
+	case RNDIS_MSG_QUERY_C:
+		netdev_dbg(netdev, "RNDIS_MSG_QUERY_C "
 			"(len %u, id 0x%x, status 0x%x, buf len %u, "
 			"buf offset %u)\n",
 			rndis_msg->msg_len,
@@ -174,16 +175,16 @@ static void dump_rndis_message(struct hv_device *hv_dev,
 			   info_buf_offset);
 		break;
 
-	case REMOTE_NDIS_SET_CMPLT:
+	case RNDIS_MSG_SET_C:
 		netdev_dbg(netdev,
-			"REMOTE_NDIS_SET_CMPLT (len %u, id 0x%x, status 0x%x)\n",
+			"RNDIS_MSG_SET_C (len %u, id 0x%x, status 0x%x)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.set_complete.req_id,
 			rndis_msg->msg.set_complete.status);
 		break;
 
-	case REMOTE_NDIS_INDICATE_STATUS_MSG:
-		netdev_dbg(netdev, "REMOTE_NDIS_INDICATE_STATUS_MSG "
+	case RNDIS_MSG_INDICATE:
+		netdev_dbg(netdev, "RNDIS_MSG_INDICATE "
 			"(len %u, status 0x%x, buf len %u, buf offset %u)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.indicate_status.status,
@@ -263,14 +264,14 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 				sizeof(struct rndis_filter_packet));
 
 			if (resp->ndis_msg_type ==
-			    REMOTE_NDIS_RESET_CMPLT) {
+			    RNDIS_MSG_RESET_C) {
 				/* does not have a request id field */
 				request->response_msg.msg.reset_complete.
-					status = STATUS_BUFFER_OVERFLOW;
+					status = RNDIS_STATUS_BUFFER_OVERFLOW;
 			} else {
 				request->response_msg.msg.
 				init_complete.status =
-					STATUS_BUFFER_OVERFLOW;
+					RNDIS_STATUS_BUFFER_OVERFLOW;
 			}
 		}
 
@@ -303,12 +304,39 @@ static void rndis_filter_receive_indicate_status(struct rndis_device *dev,
 	}
 }
 
+/*
+ * Get the Per-Packet-Info with the specified type
+ * return NULL if not found.
+ */
+static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
+{
+	struct rndis_per_packet_info *ppi;
+	int len;
+
+	if (rpkt->per_pkt_info_offset == 0)
+		return NULL;
+
+	ppi = (struct rndis_per_packet_info *)((ulong)rpkt +
+		rpkt->per_pkt_info_offset);
+	len = rpkt->per_pkt_info_len;
+
+	while (len > 0) {
+		if (ppi->type == type)
+			return (void *)((ulong)ppi + ppi->ppi_offset);
+		len -= ppi->size;
+		ppi = (struct rndis_per_packet_info *)((ulong)ppi + ppi->size);
+	}
+
+	return NULL;
+}
+
 static void rndis_filter_receive_data(struct rndis_device *dev,
 				   struct rndis_message *msg,
 				   struct hv_netvsc_packet *pkt)
 {
 	struct rndis_packet *rndis_pkt;
 	u32 data_offset;
+	struct ndis_pkt_8021q_info *vlan;
 
 	rndis_pkt = &msg->msg.pkt;
 
@@ -344,6 +372,14 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 
 	pkt->is_data_pkt = true;
 
+	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO);
+	if (vlan) {
+		pkt->vlan_tci = VLAN_TAG_PRESENT | vlan->vlanid |
+			(vlan->pri << VLAN_PRIO_SHIFT);
+	} else {
+		pkt->vlan_tci = 0;
+	}
+
 	netvsc_recv_callback(dev->net_dev->dev, pkt);
 }
 
@@ -352,8 +388,7 @@ int rndis_filter_receive(struct hv_device *dev,
 {
 	struct netvsc_device *net_dev = hv_get_drvdata(dev);
 	struct rndis_device *rndis_dev;
-	struct rndis_message rndis_msg;
-	struct rndis_message *rndis_hdr;
+	struct rndis_message *rndis_msg;
 	struct net_device *ndev;
 
 	if (!net_dev)
@@ -375,46 +410,32 @@ int rndis_filter_receive(struct hv_device *dev,
 		return -ENODEV;
 	}
 
-	rndis_hdr = pkt->data;
+	rndis_msg = pkt->data;
 
-	/* Make sure we got a valid rndis message */
-	if ((rndis_hdr->ndis_msg_type != REMOTE_NDIS_PACKET_MSG) &&
-	    (rndis_hdr->msg_len > sizeof(struct rndis_message))) {
-		netdev_err(ndev, "incoming rndis message buffer overflow "
-			   "detected (got %u, max %zu)..marking it an error!\n",
-			   rndis_hdr->msg_len,
-			   sizeof(struct rndis_message));
-	}
+	dump_rndis_message(dev, rndis_msg);
 
-	memcpy(&rndis_msg, rndis_hdr,
-		(rndis_hdr->msg_len > sizeof(struct rndis_message)) ?
-			sizeof(struct rndis_message) :
-			rndis_hdr->msg_len);
-
-	dump_rndis_message(dev, &rndis_msg);
-
-	switch (rndis_msg.ndis_msg_type) {
-	case REMOTE_NDIS_PACKET_MSG:
+	switch (rndis_msg->ndis_msg_type) {
+	case RNDIS_MSG_PACKET:
 		/* data msg */
-		rndis_filter_receive_data(rndis_dev, &rndis_msg, pkt);
+		rndis_filter_receive_data(rndis_dev, rndis_msg, pkt);
 		break;
 
-	case REMOTE_NDIS_INITIALIZE_CMPLT:
-	case REMOTE_NDIS_QUERY_CMPLT:
-	case REMOTE_NDIS_SET_CMPLT:
+	case RNDIS_MSG_INIT_C:
+	case RNDIS_MSG_QUERY_C:
+	case RNDIS_MSG_SET_C:
 		/* completion msgs */
-		rndis_filter_receive_response(rndis_dev, &rndis_msg);
+		rndis_filter_receive_response(rndis_dev, rndis_msg);
 		break;
 
-	case REMOTE_NDIS_INDICATE_STATUS_MSG:
+	case RNDIS_MSG_INDICATE:
 		/* notification msgs */
-		rndis_filter_receive_indicate_status(rndis_dev, &rndis_msg);
+		rndis_filter_receive_indicate_status(rndis_dev, rndis_msg);
 		break;
 	default:
 		netdev_err(ndev,
 			"unhandled rndis message (type %u len %u)\n",
-			   rndis_msg.ndis_msg_type,
-			   rndis_msg.msg_len);
+			   rndis_msg->ndis_msg_type,
+			   rndis_msg->msg_len);
 		break;
 	}
 
@@ -435,7 +456,7 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 		return -EINVAL;
 
 	*result_size = 0;
-	request = get_rndis_request(dev, REMOTE_NDIS_QUERY_MSG,
+	request = get_rndis_request(dev, RNDIS_MSG_QUERY,
 			RNDIS_MESSAGE_SIZE(struct rndis_query_request));
 	if (!request) {
 		ret = -ENOMEM;
@@ -515,7 +536,7 @@ int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
 
 	ndev = dev->net_dev->ndev;
 
-	request = get_rndis_request(dev, REMOTE_NDIS_SET_MSG,
+	request = get_rndis_request(dev, RNDIS_MSG_SET,
 			RNDIS_MESSAGE_SIZE(struct rndis_set_request) +
 			sizeof(u32));
 	if (!request) {
@@ -567,7 +588,7 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	u32 status;
 	int ret, t;
 
-	request = get_rndis_request(dev, REMOTE_NDIS_INITIALIZE_MSG,
+	request = get_rndis_request(dev, RNDIS_MSG_INIT,
 			RNDIS_MESSAGE_SIZE(struct rndis_initialize_request));
 	if (!request) {
 		ret = -ENOMEM;
@@ -620,7 +641,7 @@ static void rndis_filter_halt_device(struct rndis_device *dev)
 	struct rndis_halt_request *halt;
 
 	/* Attempt to do a rndis device halt */
-	request = get_rndis_request(dev, REMOTE_NDIS_HALT_MSG,
+	request = get_rndis_request(dev, RNDIS_MSG_HALT,
 				RNDIS_MESSAGE_SIZE(struct rndis_halt_request));
 	if (!request)
 		goto cleanup;
@@ -758,66 +779,88 @@ int rndis_filter_open(struct hv_device *dev)
 
 int rndis_filter_close(struct hv_device *dev)
 {
-	struct netvsc_device *netDevice = hv_get_drvdata(dev);
+	struct netvsc_device *nvdev = hv_get_drvdata(dev);
 
-	if (!netDevice)
+	if (!nvdev)
 		return -EINVAL;
 
-	return rndis_filter_close_device(netDevice->extension);
+	return rndis_filter_close_device(nvdev->extension);
 }
 
 int rndis_filter_send(struct hv_device *dev,
 			     struct hv_netvsc_packet *pkt)
 {
 	int ret;
-	struct rndis_filter_packet *filterPacket;
-	struct rndis_message *rndisMessage;
-	struct rndis_packet *rndisPacket;
-	u32 rndisMessageSize;
+	struct rndis_filter_packet *filter_pkt;
+	struct rndis_message *rndis_msg;
+	struct rndis_packet *rndis_pkt;
+	u32 rndis_msg_size;
+	bool isvlan = pkt->vlan_tci & VLAN_TAG_PRESENT;
 
 	/* Add the rndis header */
-	filterPacket = (struct rndis_filter_packet *)pkt->extension;
+	filter_pkt = (struct rndis_filter_packet *)pkt->extension;
 
-	memset(filterPacket, 0, sizeof(struct rndis_filter_packet));
+	rndis_msg = &filter_pkt->msg;
+	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
+	if (isvlan)
+		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
 
-	rndisMessage = &filterPacket->msg;
-	rndisMessageSize = RNDIS_MESSAGE_SIZE(struct rndis_packet);
+	rndis_msg->ndis_msg_type = RNDIS_MSG_PACKET;
+	rndis_msg->msg_len = pkt->total_data_buflen +
+				      rndis_msg_size;
 
-	rndisMessage->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
-	rndisMessage->msg_len = pkt->total_data_buflen +
-				      rndisMessageSize;
+	rndis_pkt = &rndis_msg->msg.pkt;
+	rndis_pkt->data_offset = sizeof(struct rndis_packet);
+	if (isvlan)
+		rndis_pkt->data_offset += NDIS_VLAN_PPI_SIZE;
+	rndis_pkt->data_len = pkt->total_data_buflen;
 
-	rndisPacket = &rndisMessage->msg.pkt;
-	rndisPacket->data_offset = sizeof(struct rndis_packet);
-	rndisPacket->data_len = pkt->total_data_buflen;
+	if (isvlan) {
+		struct rndis_per_packet_info *ppi;
+		struct ndis_pkt_8021q_info *vlan;
+
+		rndis_pkt->per_pkt_info_offset = sizeof(struct rndis_packet);
+		rndis_pkt->per_pkt_info_len = NDIS_VLAN_PPI_SIZE;
+
+		ppi = (struct rndis_per_packet_info *)((ulong)rndis_pkt +
+			rndis_pkt->per_pkt_info_offset);
+		ppi->size = NDIS_VLAN_PPI_SIZE;
+		ppi->type = IEEE_8021Q_INFO;
+		ppi->ppi_offset = sizeof(struct rndis_per_packet_info);
+
+		vlan = (struct ndis_pkt_8021q_info *)((ulong)ppi +
+			ppi->ppi_offset);
+		vlan->vlanid = pkt->vlan_tci & VLAN_VID_MASK;
+		vlan->pri = (pkt->vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+	}
 
 	pkt->is_data_pkt = true;
-	pkt->page_buf[0].pfn = virt_to_phys(rndisMessage) >> PAGE_SHIFT;
+	pkt->page_buf[0].pfn = virt_to_phys(rndis_msg) >> PAGE_SHIFT;
 	pkt->page_buf[0].offset =
-			(unsigned long)rndisMessage & (PAGE_SIZE-1);
-	pkt->page_buf[0].len = rndisMessageSize;
+			(unsigned long)rndis_msg & (PAGE_SIZE-1);
+	pkt->page_buf[0].len = rndis_msg_size;
 
 	/* Add one page_buf if the rndis msg goes beyond page boundary */
-	if (pkt->page_buf[0].offset + rndisMessageSize > PAGE_SIZE) {
+	if (pkt->page_buf[0].offset + rndis_msg_size > PAGE_SIZE) {
 		int i;
 		for (i = pkt->page_buf_cnt; i > 1; i--)
 			pkt->page_buf[i] = pkt->page_buf[i-1];
 		pkt->page_buf_cnt++;
 		pkt->page_buf[0].len = PAGE_SIZE - pkt->page_buf[0].offset;
 		pkt->page_buf[1].pfn = virt_to_phys((void *)((ulong)
-			rndisMessage + pkt->page_buf[0].len)) >> PAGE_SHIFT;
+			rndis_msg + pkt->page_buf[0].len)) >> PAGE_SHIFT;
 		pkt->page_buf[1].offset = 0;
-		pkt->page_buf[1].len = rndisMessageSize - pkt->page_buf[0].len;
+		pkt->page_buf[1].len = rndis_msg_size - pkt->page_buf[0].len;
 	}
 
 	/* Save the packet send completion and context */
-	filterPacket->completion = pkt->completion.send.send_completion;
-	filterPacket->completion_ctx =
+	filter_pkt->completion = pkt->completion.send.send_completion;
+	filter_pkt->completion_ctx =
 				pkt->completion.send.send_completion_ctx;
 
 	/* Use ours */
 	pkt->completion.send.send_completion = rndis_filter_send_completion;
-	pkt->completion.send.send_completion_ctx = filterPacket;
+	pkt->completion.send.send_completion_ctx = filter_pkt;
 
 	ret = netvsc_send(dev, pkt);
 	if (ret != 0) {
@@ -826,9 +869,9 @@ int rndis_filter_send(struct hv_device *dev,
 		 * above
 		 */
 		pkt->completion.send.send_completion =
-				filterPacket->completion;
+				filter_pkt->completion;
 		pkt->completion.send.send_completion_ctx =
-				filterPacket->completion_ctx;
+				filter_pkt->completion_ctx;
 	}
 
 	return ret;
@@ -836,10 +879,10 @@ int rndis_filter_send(struct hv_device *dev,
 
 static void rndis_filter_send_completion(void *ctx)
 {
-	struct rndis_filter_packet *filterPacket = ctx;
+	struct rndis_filter_packet *filter_pkt = ctx;
 
 	/* Pass it back to the original handler */
-	filterPacket->completion(filterPacket->completion_ctx);
+	filter_pkt->completion(filter_pkt->completion_ctx);
 }
 
 

@@ -51,6 +51,7 @@
 #include <rdma/rdma_cm.h>
 #include <linux/sunrpc/svc_rdma.h>
 #include <linux/export.h>
+#include "xprt_rdma.h"
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -89,12 +90,6 @@ struct svc_xprt_class svc_rdma_class = {
 	.xcl_ops = &svc_rdma_ops,
 	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
 };
-
-/* WR context cache. Created in svc_rdma.c  */
-extern struct kmem_cache *svc_rdma_ctxt_cachep;
-
-/* Workqueue created in svc_rdma.c */
-extern struct workqueue_struct *svc_rdma_wq;
 
 struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
@@ -149,9 +144,6 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 	kmem_cache_free(svc_rdma_ctxt_cachep, ctxt);
 	atomic_dec(&xprt->sc_ctxt_used);
 }
-
-/* Temporary NFS request map cache. Created in svc_rdma.c  */
-extern struct kmem_cache *svc_rdma_map_cachep;
 
 /*
  * Temporary NFS req mappings are shared across all transport

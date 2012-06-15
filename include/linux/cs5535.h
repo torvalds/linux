@@ -95,6 +95,7 @@ static inline int cs5535_pic_unreqz_select_high(unsigned int group,
 
 /* CS5536_PM1_STS bits */
 #define CS5536_WAK_FLAG		(1 << 15)
+#define CS5536_RTC_FLAG		(1 << 10)
 #define CS5536_PWRBTN_FLAG	(1 << 8)
 
 /* CS5536_PM1_EN bits */

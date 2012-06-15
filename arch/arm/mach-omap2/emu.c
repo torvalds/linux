@@ -21,6 +21,10 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
+#include <mach/hardware.h>
+
+#include "iomap.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Shishkin");
 
@@ -30,29 +34,8 @@ MODULE_AUTHOR("Alexander Shishkin");
 #define ETB_BASE	(L4_EMU_34XX_PHYS + 0x1b000)
 #define DAPCTL		(L4_EMU_34XX_PHYS + 0x1d000)
 
-static struct amba_device omap3_etb_device = {
-	.dev		= {
-		.init_name = "etb",
-	},
-	.res		= {
-		.start	= ETB_BASE,
-		.end	= ETB_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.periphid	= 0x000bb907,
-};
-
-static struct amba_device omap3_etm_device = {
-	.dev		= {
-		.init_name = "etm",
-	},
-	.res		= {
-		.start	= ETM_BASE,
-		.end	= ETM_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.periphid	= 0x102bb921,
-};
+static AMBA_APB_DEVICE(omap3_etb, "etb", 0x000bb907, ETB_BASE, { }, NULL);
+static AMBA_APB_DEVICE(omap3_etm, "etm", 0x102bb921, ETM_BASE, { }, NULL);
 
 static int __init emu_init(void)
 {
@@ -66,4 +49,3 @@ static int __init emu_init(void)
 }
 
 subsys_initcall(emu_init);
-

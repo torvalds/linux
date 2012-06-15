@@ -36,9 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
-
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #include "bfin_adv7393fb.h"
 
@@ -411,18 +409,19 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 
 	/* Workaround "PPI Does Not Start Properly In Specific Mode" */
 	if (ANOMALY_05000400) {
-		if (gpio_request(P_IDENT(P_PPI0_FS3), "PPI0_FS3")) {
+		ret = gpio_request_one(P_IDENT(P_PPI0_FS3), GPIOF_OUT_INIT_LOW,
+					"PPI0_FS3")
+		if (ret) {
 			dev_err(&client->dev, "PPI0_FS3 GPIO request failed\n");
 			ret = -EBUSY;
-			goto out_8;
+			goto free_fbdev;
 		}
-		gpio_direction_output(P_IDENT(P_PPI0_FS3), 0);
 	}
 
 	if (peripheral_request_list(ppi_pins, DRIVER_NAME)) {
 		dev_err(&client->dev, "requesting PPI peripheral failed\n");
 		ret = -EFAULT;
-		goto out_8;
+		goto free_gpio;
 	}
 
 	fbdev->fb_mem =
@@ -433,7 +432,7 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 		dev_err(&client->dev, "couldn't allocate dma buffer (%d bytes)\n",
 		       (u32) fbdev->fb_len);
 		ret = -ENOMEM;
-		goto out_7;
+		goto free_ppi_pins;
 	}
 
 	fbdev->info.screen_base = (void *)fbdev->fb_mem;
@@ -465,27 +464,27 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 	if (!fbdev->info.pseudo_palette) {
 		dev_err(&client->dev, "failed to allocate pseudo_palette\n");
 		ret = -ENOMEM;
-		goto out_6;
+		goto free_fb_mem;
 	}
 
 	if (fb_alloc_cmap(&fbdev->info.cmap, BFIN_LCD_NBR_PALETTE_ENTRIES, 0) < 0) {
 		dev_err(&client->dev, "failed to allocate colormap (%d entries)\n",
 			   BFIN_LCD_NBR_PALETTE_ENTRIES);
 		ret = -EFAULT;
-		goto out_5;
+		goto free_palette;
 	}
 
 	if (request_dma(CH_PPI, "BF5xx_PPI_DMA") < 0) {
 		dev_err(&client->dev, "unable to request PPI DMA\n");
 		ret = -EFAULT;
-		goto out_4;
+		goto free_cmap;
 	}
 
 	if (request_irq(IRQ_PPI_ERROR, ppi_irq_error, 0,
 			"PPI ERROR", fbdev) < 0) {
 		dev_err(&client->dev, "unable to request PPI ERROR IRQ\n");
 		ret = -EFAULT;
-		goto out_3;
+		goto free_ch_ppi;
 	}
 
 	fbdev->open = 0;
@@ -495,14 +494,14 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 
 	if (ret) {
 		dev_err(&client->dev, "i2c attach: init error\n");
-		goto out_1;
+		goto free_irq_ppi;
 	}
 
 
 	if (register_framebuffer(&fbdev->info) < 0) {
 		dev_err(&client->dev, "unable to register framebuffer\n");
 		ret = -EFAULT;
-		goto out_1;
+		goto free_irq_ppi;
 	}
 
 	dev_info(&client->dev, "fb%d: %s frame buffer device\n",
@@ -513,7 +512,7 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 	if (!entry) {
 		dev_err(&client->dev, "unable to create /proc entry\n");
 		ret = -EFAULT;
-		goto out_0;
+		goto free_fb;
 	}
 
 	entry->read_proc = adv7393_read_proc;
@@ -522,22 +521,25 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 
 	return 0;
 
- out_0:
+free_fb:
 	unregister_framebuffer(&fbdev->info);
- out_1:
+free_irq_ppi:
 	free_irq(IRQ_PPI_ERROR, fbdev);
- out_3:
+free_ch_ppi:
 	free_dma(CH_PPI);
- out_4:
+free_cmap:
+	fb_dealloc_cmap(&fbdev->info.cmap);
+free_palette:
+	kfree(fbdev->info.pseudo_palette);
+free_fb_mem:
 	dma_free_coherent(NULL, fbdev->fb_len, fbdev->fb_mem,
 			  fbdev->dma_handle);
- out_5:
-	fb_dealloc_cmap(&fbdev->info.cmap);
- out_6:
-	kfree(fbdev->info.pseudo_palette);
- out_7:
+free_ppi_pins:
 	peripheral_free_list(ppi_pins);
- out_8:
+free_gpio:
+	if (ANOMALY_05000400)
+		gpio_free(P_IDENT(P_PPI0_FS3));
+free_fbdev:
 	kfree(fbdev);
 
 	return ret;

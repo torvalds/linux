@@ -1,0 +1,36 @@
+OMAP GPIO controller bindings
+
+Required properties:
+- compatible:
+  - "ti,omap2-gpio" for OMAP2 controllers
+  - "ti,omap3-gpio" for OMAP3 controllers
+  - "ti,omap4-gpio" for OMAP4 controllers
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify optional parameters (unused)
+- gpio-controller : Marks the device node as a GPIO controller.
+- #interrupt-cells : Should be 2.
+- interrupt-controller: Mark the device node as an interrupt controller
+  The first cell is the GPIO number.
+  The second cell is used to specify flags:
+    bits[3:0] trigger type and level flags:
+      1 = low-to-high edge triggered.
+      2 = high-to-low edge triggered.
+      4 = active high level-sensitive.
+      8 = active low level-sensitive.
+
+OMAP specific properties:
+- ti,hwmods: Name of the hwmod associated to the GPIO:
+  "gpio<X>", <X> being the 1-based instance number from the HW spec
+
+
+Example:
+
+gpio4: gpio4 {
+    compatible = "ti,omap4-gpio";
+    ti,hwmods = "gpio4";
+    #gpio-cells = <2>;
+    gpio-controller;
+    #interrupt-cells = <2>;
+    interrupt-controller;
+};

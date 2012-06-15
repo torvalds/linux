@@ -87,7 +87,7 @@ static struct omap_onenand_platform_data board_onenand_data = {
 	.dma_channel	= -1,   /* disable DMA in OMAP OneNAND driver */
 };
 
-static void
+void
 __init board_onenand_init(struct mtd_partition *onenand_parts,
 				u8 nr_parts, u8 cs)
 {
@@ -98,7 +98,7 @@ __init board_onenand_init(struct mtd_partition *onenand_parts,
 	gpmc_onenand_init(&board_onenand_data);
 }
 #else
-static void
+void
 __init board_onenand_init(struct mtd_partition *nor_parts, u8 nr_parts, u8 cs)
 {
 }
@@ -189,7 +189,7 @@ unmap:
  *
  * @return - void.
  */
-void board_flash_init(struct flash_partitions partition_info[],
+void __init board_flash_init(struct flash_partitions partition_info[],
 			char chip_sel_board[][GPMC_CS_NUM], int nand_type)
 {
 	u8		cs = 0;

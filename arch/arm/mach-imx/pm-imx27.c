@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/suspend.h>
 #include <linux/io.h>
-#include <mach/system.h>
 #include <mach/hardware.h>
 
 static int mx27_suspend_enter(suspend_state_t state)
@@ -23,7 +22,7 @@ static int mx27_suspend_enter(suspend_state_t state)
 		cscr &= 0xFFFFFFFC;
 		__raw_writel(cscr, MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR));
 		/* Executes WFI */
-		arch_idle();
+		cpu_do_idle();
 		break;
 
 	default:

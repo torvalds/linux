@@ -54,6 +54,7 @@
 #include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/console.h>
 
 #include <mach/hardware.h>
 #include <asm/io.h>
@@ -730,9 +731,12 @@ static int overlayfb_open(struct fb_info *info, int user)
 	if (user == 0)
 		return -ENODEV;
 
-	if (ofb->usage++ == 0)
+	if (ofb->usage++ == 0) {
 		/* unblank the base framebuffer */
+		console_lock();
 		fb_blank(&ofb->fbi->fb, FB_BLANK_UNBLANK);
+		console_unlock();
+	}
 
 	return 0;
 }
@@ -1431,7 +1435,7 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	pr_debug("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
 
 	/* enable LCD controller clock */
-	clk_enable(fbi->clk);
+	clk_prepare_enable(fbi->clk);
 
 	if (fbi->lccr0 & LCCR0_LCDT)
 		return;
@@ -1471,7 +1475,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 	wait_for_completion_timeout(&fbi->disable_done, 200 * HZ / 1000);
 
 	/* disable LCD controller clock */
-	clk_disable(fbi->clk);
+	clk_disable_unprepare(fbi->clk);
 }
 
 /*

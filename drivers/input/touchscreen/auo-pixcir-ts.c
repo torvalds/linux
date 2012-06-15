@@ -635,17 +635,7 @@ static struct i2c_driver auo_pixcir_driver = {
 	.id_table	= auo_pixcir_idtable,
 };
 
-static int __init auo_pixcir_init(void)
-{
-	return i2c_add_driver(&auo_pixcir_driver);
-}
-module_init(auo_pixcir_init);
-
-static void __exit auo_pixcir_exit(void)
-{
-	i2c_del_driver(&auo_pixcir_driver);
-}
-module_exit(auo_pixcir_exit);
+module_i2c_driver(auo_pixcir_driver);
 
 MODULE_DESCRIPTION("AUO-PIXCIR touchscreen driver");
 MODULE_LICENSE("GPL v2");

@@ -19,8 +19,6 @@
 #ifndef __ASM_OPENRISC_PTRACE_H
 #define __ASM_OPENRISC_PTRACE_H
 
-#include <asm/spr_defs.h>
-
 #ifndef __ASSEMBLY__
 /*
  * This is the layout of the regset returned by the GETREGSET ptrace call
@@ -30,12 +28,12 @@ struct user_regs_struct {
 	unsigned long gpr[32];
 	unsigned long pc;
 	unsigned long sr;
-	unsigned long pad1;
-	unsigned long pad2;
 };
 #endif
 
 #ifdef __KERNEL__
+
+#include <asm/spr_defs.h>
 
 /*
  * Make kernel PTrace/register structures opaque to userspace... userspace can
@@ -73,9 +71,13 @@ struct pt_regs {
 		};
 	};
 	long  pc;
+	/* For restarting system calls:
+	 * Set to syscall number for syscall exceptions,
+	 * -1 for all other exceptions.
+	 */
 	long  orig_gpr11;	/* For restarting system calls */
-	long  syscallno;	/* Syscall number (used by strace) */
 	long dummy;		/* Cheap alignment fix */
+	long dummy2;		/* Cheap alignment fix */
 };
 
 /* TODO: Rename this to REDZONE because that's what it is */

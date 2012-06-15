@@ -100,7 +100,7 @@ static int port_accept(struct port_list *port)
 		  .port 	= port });
 
 	if (um_request_irq(TELNETD_IRQ, socket[0], IRQ_READ, pipe_interrupt,
-			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+			  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
 			  "telnetd", conn)) {
 		printk(KERN_ERR "port_accept : failed to get IRQ for "
 		       "telnetd\n");
@@ -184,7 +184,7 @@ void *port_data(int port_num)
 	}
 
 	if (um_request_irq(ACCEPT_IRQ, fd, IRQ_READ, port_interrupt,
-			  IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+			  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
 			  "port", port)) {
 		printk(KERN_ERR "Failed to get IRQ for port %d\n", port_num);
 		goto out_close;
@@ -254,7 +254,7 @@ int port_wait(void *data)
 		 * connection.  Then we loop here throwing out failed
 		 * connections until a good one is found.
 		 */
-		free_irq(TELNETD_IRQ, conn);
+		um_free_irq(TELNETD_IRQ, conn);
 
 		if (conn->fd >= 0)
 			break;

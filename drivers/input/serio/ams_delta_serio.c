@@ -92,8 +92,7 @@ static irqreturn_t ams_delta_serio_interrupt(int irq, void *dev_id)
 static int ams_delta_serio_open(struct serio *serio)
 {
 	/* enable keyboard */
-	ams_delta_latch2_write(AMD_DELTA_LATCH2_KEYBRD_PWR,
-			AMD_DELTA_LATCH2_KEYBRD_PWR);
+	gpio_set_value(AMS_DELTA_GPIO_PIN_KEYBRD_PWR, 1);
 
 	return 0;
 }
@@ -101,8 +100,31 @@ static int ams_delta_serio_open(struct serio *serio)
 static void ams_delta_serio_close(struct serio *serio)
 {
 	/* disable keyboard */
-	ams_delta_latch2_write(AMD_DELTA_LATCH2_KEYBRD_PWR, 0);
+	gpio_set_value(AMS_DELTA_GPIO_PIN_KEYBRD_PWR, 0);
 }
+
+static const struct gpio ams_delta_gpios[] __initconst_or_module = {
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_DATA,
+		.flags	= GPIOF_DIR_IN,
+		.label	= "serio-data",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_CLK,
+		.flags	= GPIOF_DIR_IN,
+		.label	= "serio-clock",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_PWR,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "serio-power",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_DATAOUT,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "serio-dataout",
+	},
+};
 
 static int __init ams_delta_serio_init(void)
 {
@@ -123,19 +145,12 @@ static int __init ams_delta_serio_init(void)
 	strlcpy(ams_delta_serio->phys, "GPIO/serio0",
 			sizeof(ams_delta_serio->phys));
 
-	err = gpio_request(AMS_DELTA_GPIO_PIN_KEYBRD_DATA, "serio-data");
+	err = gpio_request_array(ams_delta_gpios,
+				ARRAY_SIZE(ams_delta_gpios));
 	if (err) {
-		pr_err("ams_delta_serio: Couldn't request gpio pin for data\n");
+		pr_err("ams_delta_serio: Couldn't request gpio pins\n");
 		goto serio;
 	}
-	gpio_direction_input(AMS_DELTA_GPIO_PIN_KEYBRD_DATA);
-
-	err = gpio_request(AMS_DELTA_GPIO_PIN_KEYBRD_CLK, "serio-clock");
-	if (err) {
-		pr_err("ams_delta_serio: couldn't request gpio pin for clock\n");
-		goto gpio_data;
-	}
-	gpio_direction_input(AMS_DELTA_GPIO_PIN_KEYBRD_CLK);
 
 	err = request_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK),
 			ams_delta_serio_interrupt, IRQ_TYPE_EDGE_RISING,
@@ -143,7 +158,7 @@ static int __init ams_delta_serio_init(void)
 	if (err < 0) {
 		pr_err("ams_delta_serio: couldn't request gpio interrupt %d\n",
 				gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK));
-		goto gpio_clk;
+		goto gpio;
 	}
 	/*
 	 * Since GPIO register handling for keyboard clock pin is performed
@@ -157,10 +172,9 @@ static int __init ams_delta_serio_init(void)
 	dev_info(&ams_delta_serio->dev, "%s\n", ams_delta_serio->name);
 
 	return 0;
-gpio_clk:
-	gpio_free(AMS_DELTA_GPIO_PIN_KEYBRD_CLK);
-gpio_data:
-	gpio_free(AMS_DELTA_GPIO_PIN_KEYBRD_DATA);
+gpio:
+	gpio_free_array(ams_delta_gpios,
+			ARRAY_SIZE(ams_delta_gpios));
 serio:
 	kfree(ams_delta_serio);
 	return err;
@@ -170,8 +184,8 @@ module_init(ams_delta_serio_init);
 static void __exit ams_delta_serio_exit(void)
 {
 	serio_unregister_port(ams_delta_serio);
-	free_irq(OMAP_GPIO_IRQ(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), 0);
-	gpio_free(AMS_DELTA_GPIO_PIN_KEYBRD_CLK);
-	gpio_free(AMS_DELTA_GPIO_PIN_KEYBRD_DATA);
+	free_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), 0);
+	gpio_free_array(ams_delta_gpios,
+			ARRAY_SIZE(ams_delta_gpios));
 }
 module_exit(ams_delta_serio_exit);

@@ -24,11 +24,11 @@ cflags += getenv('CFLAGS', '').split()
 build_lib = getenv('PYTHON_EXTBUILD_LIB')
 build_tmp = getenv('PYTHON_EXTBUILD_TMP')
 
+ext_sources = [f.strip() for f in file('util/python-ext-sources')
+				if len(f.strip()) > 0 and f[0] != '#']
+
 perf = Extension('perf',
-		  sources = ['util/python.c', 'util/ctype.c', 'util/evlist.c',
-			     'util/evsel.c', 'util/cpumap.c', 'util/thread_map.c',
-			     'util/util.c', 'util/xyarray.c', 'util/cgroup.c',
-			     'util/debugfs.c'],
+		  sources = ext_sources,
 		  include_dirs = ['util/include'],
 		  extra_compile_args = cflags,
                  )

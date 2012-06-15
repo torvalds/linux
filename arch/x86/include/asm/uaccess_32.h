@@ -213,28 +213,6 @@ static inline unsigned long __must_check copy_from_user(void *to,
 	return n;
 }
 
-long __must_check strncpy_from_user(char *dst, const char __user *src,
-				    long count);
-long __must_check __strncpy_from_user(char *dst,
-				      const char __user *src, long count);
-
-/**
- * strlen_user: - Get the size of a string in user space.
- * @str: The string to measure.
- *
- * Context: User context only.  This function may sleep.
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
- */
-#define strlen_user(str) strnlen_user(str, LONG_MAX)
-
-long strnlen_user(const char __user *str, long n);
 unsigned long __must_check clear_user(void __user *mem, unsigned long len);
 unsigned long __must_check __clear_user(void __user *mem, unsigned long len);
 

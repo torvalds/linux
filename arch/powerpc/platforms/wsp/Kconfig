@@ -25,6 +25,7 @@ config PPC_CHROMA
 	bool "PowerEN PCIe Chroma Card"
 	select EPAPR_BOOT
 	select PPC_WSP
+	select OF_DYNAMIC
 	default y
 
 endmenu

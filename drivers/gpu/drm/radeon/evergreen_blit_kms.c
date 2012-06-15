@@ -32,17 +32,7 @@
 #include "evergreend.h"
 #include "evergreen_blit_shaders.h"
 #include "cayman_blit_shaders.h"
-
-#define DI_PT_RECTLIST        0x11
-#define DI_INDEX_SIZE_16_BIT  0x0
-#define DI_SRC_SEL_AUTO_INDEX 0x2
-
-#define FMT_8                 0x1
-#define FMT_5_6_5             0x8
-#define FMT_8_8_8_8           0x1a
-#define COLOR_8               0x1
-#define COLOR_5_6_5           0x8
-#define COLOR_8_8_8_8         0x1a
+#include "radeon_blit_common.h"
 
 /* emits 17 */
 static void
@@ -236,7 +226,7 @@ set_scissors(struct radeon_device *rdev, int x1, int y1,
 		x1 = 1;
 	if (y2 == 0)
 		y1 = 1;
-	if (rdev->family == CHIP_CAYMAN) {
+	if (rdev->family >= CHIP_CAYMAN) {
 		if ((x2 == 1) && (y2 == 1))
 			x2 = 2;
 	}
@@ -647,7 +637,6 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	if (rdev->r600_blit.shader_obj)
 		goto done;
 
-	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
 
 	if (rdev->family < CHIP_CAYMAN)
@@ -679,7 +668,7 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	obj_size = ALIGN(obj_size, 256);
 
 	r = radeon_bo_create(rdev, obj_size, PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				&rdev->r600_blit.shader_obj);
+			     NULL, &rdev->r600_blit.shader_obj);
 	if (r) {
 		DRM_ERROR("evergreen failed to allocate shader\n");
 		return r;

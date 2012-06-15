@@ -9,55 +9,6 @@
 #include <asm/uaccess.h>
 
 /*
- * Copy a null terminated string from userspace.
- */
-
-#define __do_strncpy_from_user(dst,src,count,res)			   \
-do {									   \
-	long __d0, __d1, __d2;						   \
-	might_fault();							   \
-	__asm__ __volatile__(						   \
-		"	testq %1,%1\n"					   \
-		"	jz 2f\n"					   \
-		"0:	lodsb\n"					   \
-		"	stosb\n"					   \
-		"	testb %%al,%%al\n"				   \
-		"	jz 1f\n"					   \
-		"	decq %1\n"					   \
-		"	jnz 0b\n"					   \
-		"1:	subq %1,%0\n"					   \
-		"2:\n"							   \
-		".section .fixup,\"ax\"\n"				   \
-		"3:	movq %5,%0\n"					   \
-		"	jmp 2b\n"					   \
-		".previous\n"						   \
-		_ASM_EXTABLE(0b,3b)					   \
-		: "=&r"(res), "=&c"(count), "=&a" (__d0), "=&S" (__d1),	   \
-		  "=&D" (__d2)						   \
-		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src), "4"(dst) \
-		: "memory");						   \
-} while (0)
-
-long
-__strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	long res;
-	__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
-EXPORT_SYMBOL(__strncpy_from_user);
-
-long
-strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	long res = -EFAULT;
-	if (access_ok(VERIFY_READ, src, 1))
-		return __strncpy_from_user(dst, src, count);
-	return res;
-}
-EXPORT_SYMBOL(strncpy_from_user);
-
-/*
  * Zero Userspace
  */
 
@@ -100,54 +51,6 @@ unsigned long clear_user(void __user *to, unsigned long n)
 	return n;
 }
 EXPORT_SYMBOL(clear_user);
-
-/*
- * Return the size of a string (including the ending 0)
- *
- * Return 0 on exception, a value greater than N if too long
- */
-
-long __strnlen_user(const char __user *s, long n)
-{
-	long res = 0;
-	char c;
-
-	while (1) {
-		if (res>n)
-			return n+1;
-		if (__get_user(c, s))
-			return 0;
-		if (!c)
-			return res+1;
-		res++;
-		s++;
-	}
-}
-EXPORT_SYMBOL(__strnlen_user);
-
-long strnlen_user(const char __user *s, long n)
-{
-	if (!access_ok(VERIFY_READ, s, 1))
-		return 0;
-	return __strnlen_user(s, n);
-}
-EXPORT_SYMBOL(strnlen_user);
-
-long strlen_user(const char __user *s)
-{
-	long res = 0;
-	char c;
-
-	for (;;) {
-		if (get_user(c, s))
-			return 0;
-		if (!c)
-			return res+1;
-		res++;
-		s++;
-	}
-}
-EXPORT_SYMBOL(strlen_user);
 
 unsigned long copy_in_user(void __user *to, const void __user *from, unsigned len)
 {

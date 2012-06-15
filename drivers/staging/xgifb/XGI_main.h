@@ -7,47 +7,29 @@
 
 #include "XGIfb.h"
 #include "vb_struct.h"
+#include "../../video/sis/sis.h"
 #include "vb_def.h"
 
 #define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while (0)
 
-#ifndef PCI_VENDOR_ID_XG
-#define PCI_VENDOR_ID_XG          0x18CA
+#ifndef PCI_DEVICE_ID_XGI_42
+#define PCI_DEVICE_ID_XGI_42      0x042
 #endif
-
-#ifndef PCI_DEVICE_ID_XG_40
-#define PCI_DEVICE_ID_XG_40      0x040
-#endif
-#ifndef PCI_DEVICE_ID_XG_41
-#define PCI_DEVICE_ID_XG_41      0x041
-#endif
-#ifndef PCI_DEVICE_ID_XG_42
-#define PCI_DEVICE_ID_XG_42      0x042
-#endif
-#ifndef PCI_DEVICE_ID_XG_20
-#define PCI_DEVICE_ID_XG_20      0x020
-#endif
-#ifndef PCI_DEVICE_ID_XG_27
-#define PCI_DEVICE_ID_XG_27      0x027
+#ifndef PCI_DEVICE_ID_XGI_27
+#define PCI_DEVICE_ID_XGI_27      0x027
 #endif
 
 static DEFINE_PCI_DEVICE_TABLE(xgifb_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_20)},
-	{PCI_DEVICE(PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_27)},
-	{PCI_DEVICE(PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_40)},
-	{PCI_DEVICE(PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_42)},
+	{PCI_DEVICE(PCI_VENDOR_ID_XGI, PCI_DEVICE_ID_XGI_20)},
+	{PCI_DEVICE(PCI_VENDOR_ID_XGI, PCI_DEVICE_ID_XGI_27)},
+	{PCI_DEVICE(PCI_VENDOR_ID_XGI, PCI_DEVICE_ID_XGI_40)},
+	{PCI_DEVICE(PCI_VENDOR_ID_XGI, PCI_DEVICE_ID_XGI_42)},
 	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 /* To be included in fb.h */
-#ifndef FB_ACCEL_XGI_XABRE
-#define FB_ACCEL_XGI_XABRE      41	/* XGI 330 ("Xabre")		*/
-#endif
-
-#define SEQ_DATA                  0x15
-
 #define XGISR			  (xgifb_info->dev_info.P3c4)
 #define XGICR			  (xgifb_info->dev_info.P3d4)
 #define XGIDACA			  (xgifb_info->dev_info.P3c8)
@@ -60,22 +42,12 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGIDAC2A                  XGIPART5
 #define XGIDAC2D                  (XGIPART5 + 1)
 
-#define IND_XGI_PASSWORD          0x05  /* SRs */
-#define IND_XGI_RAMDAC_CONTROL    0x07
-#define IND_XGI_DRAM_SIZE         0x14
-#define IND_XGI_MODULE_ENABLE     0x1E
-#define IND_XGI_PCI_ADDRESS_SET   0x20
-
 #define IND_XGI_SCRATCH_REG_CR30  0x30  /* CRs */
 #define IND_XGI_SCRATCH_REG_CR31  0x31
 #define IND_XGI_SCRATCH_REG_CR32  0x32
 #define IND_XGI_SCRATCH_REG_CR33  0x33
 #define IND_XGI_LCD_PANEL         0x36
 #define IND_XGI_SCRATCH_REG_CR37  0x37
-
-#define IND_XGI_CRT2_WRITE_ENABLE_315 0x2F
-
-#define XGI_PASSWORD              0x86  /* SR05 */
 
 #define XGI_DRAM_SIZE_MASK     0xF0  /*SR14 */
 #define XGI_DRAM_SIZE_1MB      0x00
@@ -87,37 +59,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGI_DRAM_SIZE_64MB     0x06
 #define XGI_DRAM_SIZE_128MB    0x07
 #define XGI_DRAM_SIZE_256MB    0x08
-
-#define XGI_ENABLE_2D             0x40  /* SR1E */
-
-#define XGI_MEM_MAP_IO_ENABLE     0x01  /* SR20 */
-#define XGI_PCI_ADDR_ENABLE       0x80
-
-#define XGI_SIMULTANEOUS_VIEW_ENABLE  0x01  /* CR30 */
-#define XGI_VB_OUTPUT_COMPOSITE   0x04
-#define XGI_VB_OUTPUT_SVIDEO      0x08
-#define XGI_VB_OUTPUT_SCART       0x10
-#define XGI_VB_OUTPUT_LCD         0x20
-#define XGI_VB_OUTPUT_CRT2        0x40
-#define XGI_VB_OUTPUT_HIVISION    0x80
-
-#define XGI_VB_OUTPUT_DISABLE     0x20  /* CR31 */
-#define XGI_DRIVER_MODE           0x40
-
-#define XGI_VB_COMPOSITE          0x01  /* CR32 */
-#define XGI_VB_SVIDEO             0x02
-#define XGI_VB_SCART              0x04
-#define XGI_VB_LCD                0x08
-#define XGI_VB_CRT2               0x10
-#define XGI_CRT1                  0x20
-#define XGI_VB_HIVISION           0x40
-#define XGI_VB_YPBPR              0x80
-#define XGI_VB_TV		  (XGI_VB_COMPOSITE | XGI_VB_SVIDEO | \
-				   XGI_VB_SCART | XGI_VB_HIVISION|XGI_VB_YPBPR)
-
-#define XGI_EXTERNAL_CHIP_MASK		   0x0E  /* CR37 */
-#define XGI310_EXTERNAL_CHIP_LVDS          0x02  /* in CR37 << 1 ! */
-#define XGI310_EXTERNAL_CHIP_LVDS_CHRONTEL 0x03  /* in CR37 << 1 ! */
 
 /* ------------------- Global Variables ----------------------------- */
 
@@ -138,176 +79,78 @@ static int XGIfb_tvplug = -1;
 /* TW: For ioctl XGIFB_GET_INFO */
 /* XGIfb_info XGIfbinfo; */
 
-#define MD_XGI300 1
-#define MD_XGI315 2
+#define MD_XGI315 1
 
 /* mode table */
 static const struct _XGIbios_mode {
-	char name[15];
 	u8 mode_no;
 	u16 vesa_mode_no_1;  /* "XGI defined" VESA mode number */
 	u16 vesa_mode_no_2;  /* Real VESA mode numbers */
 	u16 xres;
 	u16 yres;
 	u16 bpp;
-	u16 rate_idx;
-	u16 cols;
-	u16 rows;
 	u8  chipset;
 } XGIbios_mode[] = {
-	{"320x240x16",   0x56, 0x0000, 0x0000,  320,  240, 16, 1,  40, 15,
-	 MD_XGI315},
-	{"320x480x8",    0x5A, 0x0000, 0x0000,  320,  480,  8, 1,  40, 30,
-	 MD_XGI315},  /* TW: FSTN */
-	{"320x480x16",   0x5B, 0x0000, 0x0000,  320,  480, 16, 1,  40, 30,
-	 MD_XGI315},  /* TW: FSTN */
-	{"640x480x8",    0x2E, 0x0101, 0x0101,  640,  480,  8, 1,  80, 30,
-	 MD_XGI300|MD_XGI315},
-	{"640x480x16",   0x44, 0x0111, 0x0111,  640,  480, 16, 1,  80, 30,
-	 MD_XGI300|MD_XGI315},
-	{"640x480x24",   0x62, 0x013a, 0x0112,  640,  480, 32, 1,  80, 30,
-	 MD_XGI300|MD_XGI315},  /* TW: That's for people who mix up color-
-					and fb depth */
-	{"640x480x32",   0x62, 0x013a, 0x0112,  640,  480, 32, 1,  80, 30,
-	 MD_XGI300|MD_XGI315},
-	{"720x480x8",    0x31, 0x0000, 0x0000,  720,  480,  8, 1,  90, 30,
-	 MD_XGI300|MD_XGI315},
-	{"720x480x16",   0x33, 0x0000, 0x0000,  720,  480, 16, 1,  90, 30,
-	 MD_XGI300|MD_XGI315},
-	{"720x480x24",   0x35, 0x0000, 0x0000,  720,  480, 32, 1,  90, 30,
-	 MD_XGI300|MD_XGI315},
-	{"720x480x32",   0x35, 0x0000, 0x0000,  720,  480, 32, 1,  90, 30,
-	 MD_XGI300|MD_XGI315},
-	{"720x576x8",    0x32, 0x0000, 0x0000,  720,  576,  8, 1,  90, 36,
-	 MD_XGI300|MD_XGI315},
-	{"720x576x16",   0x34, 0x0000, 0x0000,  720,  576, 16, 1,  90, 36,
-	 MD_XGI300|MD_XGI315},
-	{"720x576x24",   0x36, 0x0000, 0x0000,  720,  576, 32, 1,  90, 36,
-	 MD_XGI300|MD_XGI315},
-	{"720x576x32",   0x36, 0x0000, 0x0000,  720,  576, 32, 1,  90, 36,
-	 MD_XGI300|MD_XGI315},
-	{"800x480x8",    0x70, 0x0000, 0x0000,  800,  480,  8, 1, 100, 30,
-	 MD_XGI300|MD_XGI315},
-	{"800x480x16",   0x7a, 0x0000, 0x0000,  800,  480, 16, 1, 100, 30,
-	 MD_XGI300|MD_XGI315},
-	{"800x480x24",   0x76, 0x0000, 0x0000,  800,  480, 32, 1, 100, 30,
-	 MD_XGI300|MD_XGI315},
-	{"800x480x32",   0x76, 0x0000, 0x0000,  800,  480, 32, 1, 100, 30,
-	 MD_XGI300|MD_XGI315},
-	{"800x600x8",    0x30, 0x0103, 0x0103,  800,  600,  8, 1, 100, 37,
-	 MD_XGI300|MD_XGI315},
-#define DEFAULT_MODE              20 /* index for 800x600x16 */
-	{"800x600x16",   0x47, 0x0114, 0x0114,  800,  600, 16, 1, 100, 37,
-	 MD_XGI300|MD_XGI315},
-	{"800x600x24",   0x63, 0x013b, 0x0115,  800,  600, 32, 1, 100, 37,
-	 MD_XGI300|MD_XGI315},
-	{"800x600x32",   0x63, 0x013b, 0x0115,  800,  600, 32, 1, 100, 37,
-	 MD_XGI300|MD_XGI315},
-	{"1024x576x8",   0x71, 0x0000, 0x0000, 1024,  576,  8, 1, 128, 36,
-	 MD_XGI300|MD_XGI315},
-	{"1024x576x16",  0x74, 0x0000, 0x0000, 1024,  576, 16, 1, 128, 36,
-	 MD_XGI300|MD_XGI315},
-	{"1024x576x24",  0x77, 0x0000, 0x0000, 1024,  576, 32, 1, 128, 36,
-	 MD_XGI300|MD_XGI315},
-	{"1024x576x32",  0x77, 0x0000, 0x0000, 1024,  576, 32, 1, 128, 36,
-	 MD_XGI300|MD_XGI315},
-	{"1024x600x8",   0x20, 0x0000, 0x0000, 1024,  600,  8, 1, 128, 37,
-	 MD_XGI300          },  /* TW: 300 series only */
-	{"1024x600x16",  0x21, 0x0000, 0x0000, 1024,  600, 16, 1, 128, 37,
-	 MD_XGI300          },
-	{"1024x600x24",  0x22, 0x0000, 0x0000, 1024,  600, 32, 1, 128, 37,
-	 MD_XGI300          },
-	{"1024x600x32",  0x22, 0x0000, 0x0000, 1024,  600, 32, 1, 128, 37,
-	 MD_XGI300          },
-	{"1024x768x8",   0x38, 0x0105, 0x0105, 1024,  768,  8, 1, 128, 48,
-	 MD_XGI300|MD_XGI315},
-	{"1024x768x16",  0x4A, 0x0117, 0x0117, 1024,  768, 16, 1, 128, 48,
-	 MD_XGI300|MD_XGI315},
-	{"1024x768x24",  0x64, 0x013c, 0x0118, 1024,  768, 32, 1, 128, 48,
-	 MD_XGI300|MD_XGI315},
-	{"1024x768x32",  0x64, 0x013c, 0x0118, 1024,  768, 32, 1, 128, 48,
-	 MD_XGI300|MD_XGI315},
-	{"1152x768x8",   0x23, 0x0000, 0x0000, 1152,  768,  8, 1, 144, 48,
-	 MD_XGI300          },  /* TW: 300 series only */
-	{"1152x768x16",  0x24, 0x0000, 0x0000, 1152,  768, 16, 1, 144, 48,
-	 MD_XGI300          },
-	{"1152x768x24",  0x25, 0x0000, 0x0000, 1152,  768, 32, 1, 144, 48,
-	 MD_XGI300          },
-	{"1152x768x32",  0x25, 0x0000, 0x0000, 1152,  768, 32, 1, 144, 48,
-	 MD_XGI300          },
-	{"1280x720x8",   0x79, 0x0000, 0x0000, 1280,  720,  8, 1, 160, 45,
-	 MD_XGI300|MD_XGI315},
-	{"1280x720x16",  0x75, 0x0000, 0x0000, 1280,  720, 16, 1, 160, 45,
-	 MD_XGI300|MD_XGI315},
-	{"1280x720x24",  0x78, 0x0000, 0x0000, 1280,  720, 32, 1, 160, 45,
-	 MD_XGI300|MD_XGI315},
-	{"1280x720x32",  0x78, 0x0000, 0x0000, 1280,  720, 32, 1, 160, 45,
-	 MD_XGI300|MD_XGI315},
-	{"1280x768x8",   0x23, 0x0000, 0x0000, 1280,  768,  8, 1, 160, 48,
-	 MD_XGI315},  /* TW: 310/325 series only */
-	{"1280x768x16",  0x24, 0x0000, 0x0000, 1280,  768, 16, 1, 160, 48,
-	 MD_XGI315},
-	{"1280x768x24",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,
-	 MD_XGI315},
-	{"1280x768x32",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,
-	 MD_XGI315},
-	{"1280x960x8",   0x7C, 0x0000, 0x0000, 1280,  960,  8, 1, 160, 60,
-	 MD_XGI300|MD_XGI315},
-	{"1280x960x16",  0x7D, 0x0000, 0x0000, 1280,  960, 16, 1, 160, 60,
-	 MD_XGI300|MD_XGI315},
-	{"1280x960x24",  0x7E, 0x0000, 0x0000, 1280,  960, 32, 1, 160, 60,
-	 MD_XGI300|MD_XGI315},
-	{"1280x960x32",  0x7E, 0x0000, 0x0000, 1280,  960, 32, 1, 160, 60,
-	 MD_XGI300|MD_XGI315},
-	{"1280x1024x8",  0x3A, 0x0107, 0x0107, 1280, 1024,  8, 1, 160, 64,
-	 MD_XGI300|MD_XGI315},
-	{"1280x1024x16", 0x4D, 0x011a, 0x011a, 1280, 1024, 16, 1, 160, 64,
-	 MD_XGI300|MD_XGI315},
-	{"1280x1024x24", 0x65, 0x013d, 0x011b, 1280, 1024, 32, 1, 160, 64,
-	 MD_XGI300|MD_XGI315},
-	{"1280x1024x32", 0x65, 0x013d, 0x011b, 1280, 1024, 32, 1, 160, 64,
-	 MD_XGI300|MD_XGI315},
-	{"1400x1050x8",  0x26, 0x0000, 0x0000, 1400, 1050,  8, 1, 175, 65,
-	 MD_XGI315},  /* TW: 310/325 series only */
-	{"1400x1050x16", 0x27, 0x0000, 0x0000, 1400, 1050, 16, 1, 175, 65,
-	 MD_XGI315},
-	{"1400x1050x24", 0x28, 0x0000, 0x0000, 1400, 1050, 32, 1, 175, 65,
-	 MD_XGI315},
-	{"1400x1050x32", 0x28, 0x0000, 0x0000, 1400, 1050, 32, 1, 175, 65,
-	 MD_XGI315},
-	{"1600x1200x8",  0x3C, 0x0130, 0x011c, 1600, 1200,  8, 1, 200, 75,
-	 MD_XGI300|MD_XGI315},
-	{"1600x1200x16", 0x3D, 0x0131, 0x011e, 1600, 1200, 16, 1, 200, 75,
-	 MD_XGI300|MD_XGI315},
-	{"1600x1200x24", 0x66, 0x013e, 0x011f, 1600, 1200, 32, 1, 200, 75,
-	 MD_XGI300|MD_XGI315},
-	{"1600x1200x32", 0x66, 0x013e, 0x011f, 1600, 1200, 32, 1, 200, 75,
-	 MD_XGI300|MD_XGI315},
-	{"1920x1440x8",  0x68, 0x013f, 0x0000, 1920, 1440,  8, 1, 240, 75,
-	 MD_XGI300|MD_XGI315},
-	{"1920x1440x16", 0x69, 0x0140, 0x0000, 1920, 1440, 16, 1, 240, 75,
-	 MD_XGI300|MD_XGI315},
-	{"1920x1440x24", 0x6B, 0x0141, 0x0000, 1920, 1440, 32, 1, 240, 75,
-	 MD_XGI300|MD_XGI315},
-	{"1920x1440x32", 0x6B, 0x0141, 0x0000, 1920, 1440, 32, 1, 240, 75,
-	 MD_XGI300|MD_XGI315},
-	{"2048x1536x8",  0x6c, 0x0000, 0x0000, 2048, 1536,  8, 1, 256, 96,
-	 MD_XGI315},  /* TW: 310/325 series only */
-	{"2048x1536x16", 0x6d, 0x0000, 0x0000, 2048, 1536, 16, 1, 256, 96,
-	 MD_XGI315},
-	{"2048x1536x24", 0x6e, 0x0000, 0x0000, 2048, 1536, 32, 1, 256, 96,
-	 MD_XGI315},
-	{"2048x1536x32", 0x6e, 0x0000, 0x0000, 2048, 1536, 32, 1, 256, 96,
-	 MD_XGI315},
-	{"\0", 0x00, 0, 0, 0, 0, 0, 0, 0}
+	{ 0x56, 0x0000, 0x0000,  320,  240, 16, MD_XGI315 },
+	{ 0x5A, 0x0000, 0x0000,  320,  480,  8, MD_XGI315 },
+	{ 0x5B, 0x0000, 0x0000,  320,  480, 16, MD_XGI315 },
+	{ 0x2E, 0x0101, 0x0101,  640,  480,  8, MD_XGI315 },
+	{ 0x44, 0x0111, 0x0111,  640,  480, 16, MD_XGI315 },
+	{ 0x62, 0x013a, 0x0112,  640,  480, 32, MD_XGI315 },
+	{ 0x31, 0x0000, 0x0000,  720,  480,  8, MD_XGI315 },
+	{ 0x33, 0x0000, 0x0000,  720,  480, 16, MD_XGI315 },
+	{ 0x35, 0x0000, 0x0000,  720,  480, 32, MD_XGI315 },
+	{ 0x32, 0x0000, 0x0000,  720,  576,  8, MD_XGI315 },
+	{ 0x34, 0x0000, 0x0000,  720,  576, 16, MD_XGI315 },
+	{ 0x36, 0x0000, 0x0000,  720,  576, 32, MD_XGI315 },
+	{ 0x36, 0x0000, 0x0000,  720,  576, 32, MD_XGI315 },
+	{ 0x70, 0x0000, 0x0000,  800,  480,  8, MD_XGI315 },
+	{ 0x7a, 0x0000, 0x0000,  800,  480, 16, MD_XGI315 },
+	{ 0x76, 0x0000, 0x0000,  800,  480, 32, MD_XGI315 },
+	{ 0x30, 0x0103, 0x0103,  800,  600,  8, MD_XGI315 },
+#define DEFAULT_MODE              17 /* index for 800x600x16 */
+	{ 0x47, 0x0114, 0x0114,  800,  600, 16, MD_XGI315 },
+	{ 0x63, 0x013b, 0x0115,  800,  600, 32, MD_XGI315 },
+	{ 0x71, 0x0000, 0x0000, 1024,  576,  8, MD_XGI315 },
+	{ 0x74, 0x0000, 0x0000, 1024,  576, 16, MD_XGI315 },
+	{ 0x77, 0x0000, 0x0000, 1024,  576, 32, MD_XGI315 },
+	{ 0x77, 0x0000, 0x0000, 1024,  576, 32, MD_XGI315 },
+	{ 0x20, 0x0000, 0x0000, 1024,  600,  8, },
+	{ 0x21, 0x0000, 0x0000, 1024,  600, 16, },
+	{ 0x22, 0x0000, 0x0000, 1024,  600, 32, },
+	{ 0x38, 0x0105, 0x0105, 1024,  768,  8, MD_XGI315 },
+	{ 0x4A, 0x0117, 0x0117, 1024,  768, 16, MD_XGI315 },
+	{ 0x64, 0x013c, 0x0118, 1024,  768, 32, MD_XGI315 },
+	{ 0x64, 0x013c, 0x0118, 1024,  768, 32, MD_XGI315 },
+	{ 0x23, 0x0000, 0x0000, 1152,  768,  8, },
+	{ 0x24, 0x0000, 0x0000, 1152,  768, 16, },
+	{ 0x25, 0x0000, 0x0000, 1152,  768, 32, },
+	{ 0x79, 0x0000, 0x0000, 1280,  720,  8, MD_XGI315 },
+	{ 0x75, 0x0000, 0x0000, 1280,  720, 16, MD_XGI315 },
+	{ 0x78, 0x0000, 0x0000, 1280,  720, 32, MD_XGI315 },
+	{ 0x23, 0x0000, 0x0000, 1280,  768,  8, MD_XGI315 },
+	{ 0x24, 0x0000, 0x0000, 1280,  768, 16, MD_XGI315 },
+	{ 0x25, 0x0000, 0x0000, 1280,  768, 32, MD_XGI315 },
+	{ 0x7C, 0x0000, 0x0000, 1280,  960,  8, MD_XGI315 },
+	{ 0x7D, 0x0000, 0x0000, 1280,  960, 16, MD_XGI315 },
+	{ 0x7E, 0x0000, 0x0000, 1280,  960, 32, MD_XGI315 },
+	{ 0x3A, 0x0107, 0x0107, 1280, 1024,  8, MD_XGI315 },
+	{ 0x4D, 0x011a, 0x011a, 1280, 1024, 16, MD_XGI315 },
+	{ 0x65, 0x013d, 0x011b, 1280, 1024, 32, MD_XGI315 },
+	{ 0x26, 0x0000, 0x0000, 1400, 1050,  8, MD_XGI315 },
+	{ 0x27, 0x0000, 0x0000, 1400, 1050, 16, MD_XGI315 },
+	{ 0x28, 0x0000, 0x0000, 1400, 1050, 32, MD_XGI315 },
+	{ 0x3C, 0x0130, 0x011c, 1600, 1200,  8, MD_XGI315 },
+	{ 0x3D, 0x0131, 0x011e, 1600, 1200, 16, MD_XGI315 },
+	{ 0x66, 0x013e, 0x011f, 1600, 1200, 32, MD_XGI315 },
+	{ 0x68, 0x013f, 0x0000, 1920, 1440,  8, MD_XGI315 },
+	{ 0x69, 0x0140, 0x0000, 1920, 1440, 16, MD_XGI315 },
+	{ 0x6B, 0x0141, 0x0000, 1920, 1440, 32, MD_XGI315 },
+	{ 0x6c, 0x0000, 0x0000, 2048, 1536,  8, MD_XGI315 },
+	{ 0x6d, 0x0000, 0x0000, 2048, 1536, 16, MD_XGI315 },
+	{ 0x6e, 0x0000, 0x0000, 2048, 1536, 32, MD_XGI315 },
+	{ 0 },
 };
-
-/* TW: CR36 evaluation */
-static const unsigned short XGI300paneltype[] = {
-	 LCD_UNKNOWN,  LCD_800x600, LCD_1024x768, LCD_1280x1024,
-	LCD_1280x960,  LCD_640x480, LCD_1024x600, LCD_1152x768,
-	LCD_1024x768, LCD_1024x768, LCD_1024x768,
-	LCD_1024x768, LCD_1024x768, LCD_1024x768, LCD_1024x768};
 
 static const unsigned short XGI310paneltype[] = {
 	 LCD_UNKNOWN,   LCD_800x600, LCD_1024x768, LCD_1280x1024,

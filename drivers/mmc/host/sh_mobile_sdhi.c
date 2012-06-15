@@ -90,6 +90,15 @@ static int sh_mobile_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 	return 0;
 }
 
+static void sh_mobile_sdhi_cd_wakeup(const struct platform_device *pdev)
+{
+	mmc_detect_change(dev_get_drvdata(&pdev->dev), msecs_to_jiffies(100));
+}
+
+static const struct sh_mobile_sdhi_ops sdhi_ops = {
+	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
+};
+
 static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_sdhi *priv;
@@ -109,6 +118,12 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data = &priv->mmc_data;
 	p->pdata = mmc_data;
 
+	if (p->init) {
+		ret = p->init(pdev, &sdhi_ops);
+		if (ret)
+			goto einit;
+	}
+
 	snprintf(clk_name, sizeof(clk_name), "sdhi%d", pdev->id);
 	priv->clk = clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(priv->clk)) {
@@ -116,8 +131,6 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(priv->clk);
 		goto eclkget;
 	}
-
-	clk_enable(priv->clk);
 
 	mmc_data->hclk = clk_get_rate(priv->clk);
 	mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
@@ -129,6 +142,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 			mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
+		mmc_data->cd_gpio = p->cd_gpio;
 
 		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
 			priv->param_tx.slave_id = p->dma_slave_tx;
@@ -211,7 +225,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
 		 mmc_hostname(host->mmc), (unsigned long)
-		 (platform_get_resource(pdev,IORESOURCE_MEM, 0)->start),
+		 (platform_get_resource(pdev, IORESOURCE_MEM, 0)->start),
 		 mmc_data->hclk / 1000000);
 
 	return ret;
@@ -232,9 +246,11 @@ eirq_sdio:
 eirq_card_detect:
 	tmio_mmc_host_remove(host);
 eprobe:
-	clk_disable(priv->clk);
 	clk_put(priv->clk);
 eclkget:
+	if (p->cleanup)
+		p->cleanup(pdev);
+einit:
 	kfree(priv);
 	return ret;
 }
@@ -258,8 +274,11 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 		free_irq(irq, host);
 	}
 
-	clk_disable(priv->clk);
 	clk_put(priv->clk);
+
+	if (p->cleanup)
+		p->cleanup(pdev);
+
 	kfree(priv);
 
 	return 0;

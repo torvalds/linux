@@ -1,5 +1,4 @@
 #include <linux/kernel.h>
-#include <asm/system.h>
 
 typedef unsigned int instr;
 

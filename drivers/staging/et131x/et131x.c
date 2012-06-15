@@ -70,7 +70,6 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
-#include <asm/system.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -802,7 +801,7 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 	/* THIS IS A WORKAROUND:
 	 * I need to call this function twice to get my card in a
 	 * LG M1 Express Dual running. I tried also a msleep before this
-	 * function, because I thougth there could be some time condidions
+	 * function, because I thought there could be some time condidions
 	 * but it didn't work. Call the whole function twice also work.
 	 */
 	if (pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus)) {
@@ -987,7 +986,7 @@ static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 	writel(station1, &macregs->station_addr_1);
 	writel(station2, &macregs->station_addr_2);
 
-	/* Max ethernet packet in bytes that will passed by the mac without
+	/* Max ethernet packet in bytes that will be passed by the mac without
 	 * being truncated.  Allow the MAC to pass 4 more than our max packet
 	 * size.  This is 4 for the Ethernet CRC.
 	 *
@@ -1711,7 +1710,8 @@ static int et131x_mdio_read(struct mii_bus *bus, int phy_addr, int reg)
 		return value;
 }
 
-static int et131x_mdio_write(struct mii_bus *bus, int phy_addr, int reg, u16 value)
+static int et131x_mdio_write(struct mii_bus *bus, int phy_addr,
+			     int reg, u16 value)
 {
 	struct net_device *netdev = bus->priv;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
@@ -3109,7 +3109,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		skb->protocol = eth_type_trans(skb, adapter->netdev);
 		skb->ip_summed = CHECKSUM_NONE;
 
-		netif_rx(skb);
+		netif_rx_ni(skb);
 	} else {
 		rfd->len = 0;
 	}
@@ -4014,7 +4014,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 		dev_err(&pdev->dev, "Missing PCIe capabilities\n");
 		goto err_out;
 	}
-		
+
 	/* Let's set up the PORT LOGIC Register.  First we need to know what
 	 * the max_payload_size is
 	 */
@@ -4061,7 +4061,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 		goto err_out;
 	}
 
-	ctl = (ctl & ~PCI_EXP_DEVCTL_READRQ) | ( 0x04 << 12);
+	ctl = (ctl & ~PCI_EXP_DEVCTL_READRQ) | (0x04 << 12);
 
 	if (pci_write_config_word(pdev, cap + PCI_EXP_DEVCTL, ctl)) {
 		dev_err(&pdev->dev,
@@ -4413,7 +4413,7 @@ static void et131x_up(struct net_device *netdev)
 
 /**
  * et131x_down - Bring down the device
- * @netdev: device to be broght down
+ * @netdev: device to be brought down
  */
 static void et131x_down(struct net_device *netdev)
 {
@@ -4825,7 +4825,8 @@ static int et131x_open(struct net_device *netdev)
 	adapter->error_timer.data = (unsigned long)adapter;
 	add_timer(&adapter->error_timer);
 
-	result = request_irq(irq, et131x_isr, IRQF_SHARED, netdev->name, netdev);
+	result = request_irq(irq, et131x_isr,
+			     IRQF_SHARED, netdev->name, netdev);
 	if (result) {
 		dev_err(&pdev->dev, "could not register IRQ %d\n", irq);
 		return result;
@@ -5177,7 +5178,7 @@ static int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	/* Make sure the requested MAC is valid */
 	if (!is_valid_ether_addr(address->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	et131x_disable_txrx(netdev);
 	et131x_handle_send_interrupt(adapter);

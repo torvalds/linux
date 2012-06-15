@@ -60,6 +60,8 @@
 #define AR_PHY_RF_CTL3                  0x9828
 #define AR_PHY_TX_END_TO_A2_RX_ON       0x00FF0000
 #define AR_PHY_TX_END_TO_A2_RX_ON_S     16
+#define AR_PHY_TX_END_TO_ADC_ON         0xFF000000
+#define AR_PHY_TX_END_TO_ADC_ON_S       24
 
 #define AR_PHY_ADC_CTL                  0x982C
 #define AR_PHY_ADC_CTL_OFF_INBUFGAIN    0x00000003

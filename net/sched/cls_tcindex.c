@@ -438,10 +438,11 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 
 	if (!fh) {
 		t->tcm_handle = ~0; /* whatever ... */
-		NLA_PUT_U32(skb, TCA_TCINDEX_HASH, p->hash);
-		NLA_PUT_U16(skb, TCA_TCINDEX_MASK, p->mask);
-		NLA_PUT_U32(skb, TCA_TCINDEX_SHIFT, p->shift);
-		NLA_PUT_U32(skb, TCA_TCINDEX_FALL_THROUGH, p->fall_through);
+		if (nla_put_u32(skb, TCA_TCINDEX_HASH, p->hash) ||
+		    nla_put_u16(skb, TCA_TCINDEX_MASK, p->mask) ||
+		    nla_put_u32(skb, TCA_TCINDEX_SHIFT, p->shift) ||
+		    nla_put_u32(skb, TCA_TCINDEX_FALL_THROUGH, p->fall_through))
+			goto nla_put_failure;
 		nla_nest_end(skb, nest);
 	} else {
 		if (p->perfect) {
@@ -460,8 +461,9 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 			}
 		}
 		pr_debug("handle = %d\n", t->tcm_handle);
-		if (r->res.class)
-			NLA_PUT_U32(skb, TCA_TCINDEX_CLASSID, r->res.classid);
+		if (r->res.class &&
+		    nla_put_u32(skb, TCA_TCINDEX_CLASSID, r->res.classid))
+			goto nla_put_failure;
 
 		if (tcf_exts_dump(skb, &r->exts, &tcindex_ext_map) < 0)
 			goto nla_put_failure;

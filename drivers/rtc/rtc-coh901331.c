@@ -199,7 +199,7 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	}
 
 	rtap->irq = platform_get_irq(pdev, 0);
-	if (request_irq(rtap->irq, coh901331_interrupt, IRQF_DISABLED,
+	if (request_irq(rtap->irq, coh901331_interrupt, 0,
 			"RTC COH 901 331 Alarm", rtap)) {
 		ret = -EIO;
 		goto out_no_irq;

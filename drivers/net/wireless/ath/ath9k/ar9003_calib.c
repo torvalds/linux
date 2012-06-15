@@ -892,40 +892,11 @@ static void ar9003_hw_tx_iq_cal_reload(struct ath_hw *ah)
 		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
 }
 
-static bool ar9003_hw_rtt_restore(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	struct ath9k_rtt_hist *hist;
-	u32 *table;
-	int i;
-	bool restore;
-
-	if (!ah->caldata)
-		return false;
-
-	hist = &ah->caldata->rtt_hist;
-	if (!hist->num_readings)
-		return false;
-
-	ar9003_hw_rtt_enable(ah);
-	ar9003_hw_rtt_set_mask(ah, 0x00);
-	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-		if (!(ah->rxchainmask & (1 << i)))
-			continue;
-		table = &hist->table[i][hist->num_readings][0];
-		ar9003_hw_rtt_load_hist(ah, i, table);
-	}
-	restore = ar9003_hw_rtt_force_restore(ah);
-	ar9003_hw_rtt_disable(ah);
-
-	return restore;
-}
-
 static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			       struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
-	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
 	bool txiqcal_done = false, txclcal_done = false;
 	bool is_reusable = true, status = true;
 	bool run_rtt_cal = false, run_agc_cal;
@@ -943,9 +914,10 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		if (!ar9003_hw_rtt_restore(ah, chan))
 			run_rtt_cal = true;
 
-		ath_dbg(common, CALIBRATE, "RTT restore %s\n",
-			run_rtt_cal ? "failed" : "succeed");
+		if (run_rtt_cal)
+			ath_dbg(common, CALIBRATE, "RTT calibration to be done\n");
 	}
+
 	run_agc_cal = run_rtt_cal;
 
 	if (run_rtt_cal) {
@@ -998,35 +970,15 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	} else if (caldata && !caldata->done_txiqcal_once)
 		run_agc_cal = true;
 
-	if (mci && IS_CHAN_2GHZ(chan) &&
-	    (mci_hw->bt_state  == MCI_BT_AWAKE) &&
-	    run_agc_cal &&
-	    !(mci_hw->config & ATH_MCI_CONFIG_DISABLE_MCI_CAL)) {
+	if (mci && IS_CHAN_2GHZ(chan) && run_agc_cal)
+		ar9003_mci_init_cal_req(ah, &is_reusable);
 
-		u32 pld[4] = {0, 0, 0, 0};
-
-		/* send CAL_REQ only when BT is AWAKE. */
-		ath_dbg(common, MCI, "MCI send WLAN_CAL_REQ 0x%x\n",
-			mci_hw->wlan_cal_seq);
-		MCI_GPM_SET_CAL_TYPE(pld, MCI_GPM_WLAN_CAL_REQ);
-		pld[MCI_GPM_WLAN_CAL_W_SEQUENCE] = mci_hw->wlan_cal_seq++;
-		ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
-
-		/* Wait BT_CAL_GRANT for 50ms */
-		ath_dbg(common, MCI, "MCI wait for BT_CAL_GRANT\n");
-
-		if (ar9003_mci_wait_for_gpm(ah, MCI_GPM_BT_CAL_GRANT, 0, 50000))
-			ath_dbg(common, MCI, "MCI got BT_CAL_GRANT\n");
-		else {
-			is_reusable = false;
-			ath_dbg(common, MCI, "\nMCI BT is not responding\n");
-		}
+	if (!(IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))) {
+		txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
+		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+		udelay(5);
+		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 	}
-
-	txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
-	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
-	udelay(5);
-	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 
 skip_tx_iqcal:
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
@@ -1041,19 +993,8 @@ skip_tx_iqcal:
 				       0, AH_WAIT_TIMEOUT);
 	}
 
-	if (mci && IS_CHAN_2GHZ(chan) &&
-	    (mci_hw->bt_state  == MCI_BT_AWAKE)	&&
-	    run_agc_cal	&&
-	    !(mci_hw->config & ATH_MCI_CONFIG_DISABLE_MCI_CAL)) {
-
-		u32 pld[4] = {0, 0, 0, 0};
-
-		ath_dbg(common, MCI, "MCI Send WLAN_CAL_DONE 0x%x\n",
-			mci_hw->wlan_cal_done);
-		MCI_GPM_SET_CAL_TYPE(pld, MCI_GPM_WLAN_CAL_DONE);
-		pld[MCI_GPM_WLAN_CAL_W_SEQUENCE] = mci_hw->wlan_cal_done++;
-		ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
-	}
+	if (mci && IS_CHAN_2GHZ(chan) && run_agc_cal)
+		ar9003_mci_init_cal_done(ah);
 
 	if (rtt && !run_rtt_cal) {
 		agc_ctrl |= agc_supp_cals;
@@ -1101,17 +1042,14 @@ skip_tx_iqcal:
 #undef CL_TAB_ENTRY
 
 	if (run_rtt_cal && caldata) {
-		struct ath9k_rtt_hist *hist = &caldata->rtt_hist;
-		if (is_reusable && (hist->num_readings < RTT_HIST_MAX)) {
-			u32 *table;
+		if (is_reusable) {
+			if (!ath9k_hw_rfbus_req(ah))
+				ath_err(ath9k_hw_common(ah),
+					"Could not stop baseband\n");
+			else
+				ar9003_hw_rtt_fill_hist(ah);
 
-			hist->num_readings++;
-			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-				if (!(ah->rxchainmask & (1 << i)))
-					continue;
-				table = &hist->table[i][hist->num_readings][0];
-				ar9003_hw_rtt_fill_hist(ah, i, table);
-			}
+			ath9k_hw_rfbus_done(ah);
 		}
 
 		ar9003_hw_rtt_disable(ah);

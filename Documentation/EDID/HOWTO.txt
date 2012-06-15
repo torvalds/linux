@@ -1,0 +1,39 @@
+In the good old days when graphics parameters were configured explicitly
+in a file called xorg.conf, even broken hardware could be managed.
+
+Today, with the advent of Kernel Mode Setting, a graphics board is
+either correctly working because all components follow the standards -
+or the computer is unusable, because the screen remains dark after
+booting or it displays the wrong area. Cases when this happens are:
+- The graphics board does not recognize the monitor.
+- The graphics board is unable to detect any EDID data.
+- The graphics board incorrectly forwards EDID data to the driver.
+- The monitor sends no or bogus EDID data.
+- A KVM sends its own EDID data instead of querying the connected monitor.
+Adding the kernel parameter "nomodeset" helps in most cases, but causes
+restrictions later on.
+
+As a remedy for such situations, the kernel configuration item
+CONFIG_DRM_LOAD_EDID_FIRMWARE was introduced. It allows to provide an
+individually prepared or corrected EDID data set in the /lib/firmware
+directory from where it is loaded via the firmware interface. The code
+(see drivers/gpu/drm/drm_edid_load.c) contains built-in data sets for
+commonly used screen resolutions (1024x768, 1280x1024, 1680x1050,
+1920x1080) as binary blobs, but the kernel source tree does not contain
+code to create these data. In order to elucidate the origin of the
+built-in binary EDID blobs and to facilitate the creation of individual
+data for a specific misbehaving monitor, commented sources and a
+Makefile environment are given here.
+
+To create binary EDID and C source code files from the existing data
+material, simply type "make".
+
+If you want to create your own EDID file, copy the file 1024x768.S and
+replace the settings with your own data. The CRC value in the last line
+  #define CRC 0x55
+is a bit tricky. After a first version of the binary data set is
+created, it must be be checked with the "edid-decode" utility which will
+most probably complain about a wrong CRC. Fortunately, the utility also
+displays the correct CRC which must then be inserted into the source
+file. After the make procedure is repeated, the EDID data set is ready
+to be used.

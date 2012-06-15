@@ -345,7 +345,7 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-				skb->len <= 1, req->actual);
+				skb->len <= 1, req->actual, PAGE_SIZE);
 		page = NULL;
 
 		if (req->actual < req->length) { /* Last fragment */

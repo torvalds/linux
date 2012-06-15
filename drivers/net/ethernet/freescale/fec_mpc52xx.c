@@ -160,7 +160,7 @@ static int mpc52xx_fec_alloc_rx_buffers(struct net_device *dev, struct bcom_task
 	struct sk_buff *skb;
 
 	while (!bcom_queue_full(rxtsk)) {
-		skb = dev_alloc_skb(FEC_RX_BUFFER_SIZE);
+		skb = netdev_alloc_skb(dev, FEC_RX_BUFFER_SIZE);
 		if (!skb)
 			return -EAGAIN;
 
@@ -416,7 +416,7 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 
 		/* skbs are allocated on open, so now we allocate a new one,
 		 * and remove the old (with the packet) */
-		skb = dev_alloc_skb(FEC_RX_BUFFER_SIZE);
+		skb = netdev_alloc_skb(dev, FEC_RX_BUFFER_SIZE);
 		if (!skb) {
 			/* Can't get a new one : reuse the same & drop pkt */
 			dev_notice(&dev->dev, "Low memory - dropped packet.\n");
@@ -437,7 +437,7 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 		length = status & BCOM_FEC_RX_BD_LEN_MASK;
 		skb_put(rskb, length - 4);	/* length without CRC32 */
 		rskb->protocol = eth_type_trans(rskb, dev);
-		if (!skb_defer_rx_timestamp(skb))
+		if (!skb_defer_rx_timestamp(rskb))
 			netif_rx(rskb);
 
 		spin_lock(&priv->lock);
@@ -811,6 +811,7 @@ static const struct ethtool_ops mpc52xx_fec_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = mpc52xx_fec_get_msglevel,
 	.set_msglevel = mpc52xx_fec_set_msglevel,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 

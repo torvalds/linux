@@ -34,7 +34,6 @@
 # include <linux/seq_file.h>
 #endif
 
-#include <asm/system.h>
 #include <asm/bootparam.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>

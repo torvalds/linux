@@ -55,6 +55,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <net/af_ieee802154.h>
 #include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
@@ -195,7 +196,7 @@ lowpan_compress_addr_64(u8 **hc06_ptr, u8 shift, const struct in6_addr *ipaddr,
 static void
 lowpan_uip_ds6_set_addr_iid(struct in6_addr *ipaddr, unsigned char *lladdr)
 {
-	memcpy(&ipaddr->s6_addr[8], lladdr, IEEE802154_ALEN);
+	memcpy(&ipaddr->s6_addr[8], lladdr, IEEE802154_ADDR_LEN);
 	/* second bit-flip (Universe/Local) is done according RFC2464 */
 	ipaddr->s6_addr[8] ^= 0x02;
 }
@@ -220,7 +221,7 @@ lowpan_uncompress_addr(struct sk_buff *skb, struct in6_addr *ipaddr,
 
 	if (lladdr)
 		lowpan_raw_dump_inline(__func__, "linklocal address",
-						lladdr,	IEEE802154_ALEN);
+						lladdr,	IEEE802154_ADDR_LEN);
 	if (prefcount > 0)
 		memcpy(ipaddr, prefix, prefcount);
 
@@ -370,7 +371,7 @@ err:
 static int lowpan_header_create(struct sk_buff *skb,
 			   struct net_device *dev,
 			   unsigned short type, const void *_daddr,
-			   const void *_saddr, unsigned len)
+			   const void *_saddr, unsigned int len)
 {
 	u8 tmp, iphc0, iphc1, *hc06_ptr;
 	struct ipv6hdr *hdr;
@@ -649,6 +650,53 @@ static void lowpan_fragment_timer_expired(unsigned long entry_addr)
 	kfree(entry);
 }
 
+static struct lowpan_fragment *
+lowpan_alloc_new_frame(struct sk_buff *skb, u8 iphc0, u8 len, u8 tag)
+{
+	struct lowpan_fragment *frame;
+
+	frame = kzalloc(sizeof(struct lowpan_fragment),
+			GFP_ATOMIC);
+	if (!frame)
+		goto frame_err;
+
+	INIT_LIST_HEAD(&frame->list);
+
+	frame->length = (iphc0 & 7) | (len << 3);
+	frame->tag = tag;
+
+	/* allocate buffer for frame assembling */
+	frame->skb = alloc_skb(frame->length +
+			       sizeof(struct ipv6hdr), GFP_ATOMIC);
+
+	if (!frame->skb)
+		goto skb_err;
+
+	frame->skb->priority = skb->priority;
+	frame->skb->dev = skb->dev;
+
+	/* reserve headroom for uncompressed ipv6 header */
+	skb_reserve(frame->skb, sizeof(struct ipv6hdr));
+	skb_put(frame->skb, frame->length);
+
+	init_timer(&frame->timer);
+	/* time out is the same as for ipv6 - 60 sec */
+	frame->timer.expires = jiffies + LOWPAN_FRAG_TIMEOUT;
+	frame->timer.data = (unsigned long)frame;
+	frame->timer.function = lowpan_fragment_timer_expired;
+
+	add_timer(&frame->timer);
+
+	list_add_tail(&frame->list, &lowpan_fragments);
+
+	return frame;
+
+skb_err:
+	kfree(frame);
+frame_err:
+	return NULL;
+}
+
 static int
 lowpan_process_data(struct sk_buff *skb)
 {
@@ -691,41 +739,9 @@ lowpan_process_data(struct sk_buff *skb)
 
 		/* alloc new frame structure */
 		if (!found) {
-			frame = kzalloc(sizeof(struct lowpan_fragment),
-								GFP_ATOMIC);
+			frame = lowpan_alloc_new_frame(skb, iphc0, len, tag);
 			if (!frame)
 				goto unlock_and_drop;
-
-			INIT_LIST_HEAD(&frame->list);
-
-			frame->length = (iphc0 & 7) | (len << 3);
-			frame->tag = tag;
-
-			/* allocate buffer for frame assembling */
-			frame->skb = alloc_skb(frame->length +
-					sizeof(struct ipv6hdr), GFP_ATOMIC);
-
-			if (!frame->skb) {
-				kfree(frame);
-				goto unlock_and_drop;
-			}
-
-			frame->skb->priority = skb->priority;
-			frame->skb->dev = skb->dev;
-
-			/* reserve headroom for uncompressed ipv6 header */
-			skb_reserve(frame->skb, sizeof(struct ipv6hdr));
-			skb_put(frame->skb, frame->length);
-
-			init_timer(&frame->timer);
-			/* time out is the same as for ipv6 - 60 sec */
-			frame->timer.expires = jiffies + LOWPAN_FRAG_TIMEOUT;
-			frame->timer.data = (unsigned long)frame;
-			frame->timer.function = lowpan_fragment_timer_expired;
-
-			add_timer(&frame->timer);
-
-			list_add_tail(&frame->list, &lowpan_fragments);
 		}
 
 		if ((iphc0 & LOWPAN_DISPATCH_MASK) == LOWPAN_DISPATCH_FRAG1)
@@ -924,19 +940,6 @@ drop:
 	return -EINVAL;
 }
 
-static int lowpan_set_address(struct net_device *dev, void *p)
-{
-	struct sockaddr *sa = p;
-
-	if (netif_running(dev))
-		return -EBUSY;
-
-	/* TODO: validate addr */
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
-
-	return 0;
-}
-
 static int lowpan_get_mac_header_length(struct sk_buff *skb)
 {
 	/*
@@ -1056,13 +1059,37 @@ static void lowpan_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+static struct wpan_phy *lowpan_get_phy(const struct net_device *dev)
+{
+	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	return ieee802154_mlme_ops(real_dev)->get_phy(real_dev);
+}
+
+static u16 lowpan_get_pan_id(const struct net_device *dev)
+{
+	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	return ieee802154_mlme_ops(real_dev)->get_pan_id(real_dev);
+}
+
+static u16 lowpan_get_short_addr(const struct net_device *dev)
+{
+	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);
+}
+
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
 
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_start_xmit		= lowpan_xmit,
-	.ndo_set_mac_address	= lowpan_set_address,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
+static struct ieee802154_mlme_ops lowpan_mlme = {
+	.get_pan_id = lowpan_get_pan_id,
+	.get_phy = lowpan_get_phy,
+	.get_short_addr = lowpan_get_short_addr,
 };
 
 static void lowpan_setup(struct net_device *dev)
@@ -1082,6 +1109,7 @@ static void lowpan_setup(struct net_device *dev)
 
 	dev->netdev_ops		= &lowpan_netdev_ops;
 	dev->header_ops		= &lowpan_header_ops;
+	dev->ml_priv		= &lowpan_mlme;
 	dev->destructor		= lowpan_dev_free;
 }
 
@@ -1155,6 +1183,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	list_add_tail(&entry->list, &lowpan_devices);
 	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
 
+	spin_lock_init(&flist_lock);
+
 	register_netdevice(dev);
 
 	return 0;
@@ -1164,10 +1194,19 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(dev);
 	struct net_device *real_dev = lowpan_dev->real_dev;
-	struct lowpan_dev_record *entry;
-	struct lowpan_dev_record *tmp;
+	struct lowpan_dev_record *entry, *tmp;
+	struct lowpan_fragment *frame, *tframe;
 
 	ASSERT_RTNL();
+
+	spin_lock(&flist_lock);
+	list_for_each_entry_safe(frame, tframe, &lowpan_fragments, list) {
+		del_timer(&frame->timer);
+		list_del(&frame->list);
+		dev_kfree_skb(frame->skb);
+		kfree(frame);
+	}
+	spin_unlock(&flist_lock);
 
 	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
 	list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {

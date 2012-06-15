@@ -5,6 +5,7 @@
 
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
+#include <asm/special_insns.h>
 
 struct thread_info {
 	struct task_struct *task;	/* main task structure */
@@ -73,7 +74,7 @@ struct thread_info {
 #define _TIF_BLOCKSTEP		(1 << TIF_BLOCKSTEP)
 
 #define _TIF_USER_WORK_MASK     (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | \
-                                 _TIF_NEED_RESCHED | _TIF_RESTORE_SIGMASK)
+                                 _TIF_NEED_RESCHED)
 
 #endif /* __KERNEL__ */
 

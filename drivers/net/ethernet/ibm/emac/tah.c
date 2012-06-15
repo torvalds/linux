@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/tah.c
+ * drivers/net/ethernet/ibm/emac/tah.c
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, TAH support.
  *
@@ -96,11 +96,8 @@ static int __devinit tah_probe(struct platform_device *ofdev)
 
 	rc = -ENOMEM;
 	dev = kzalloc(sizeof(struct tah_instance), GFP_KERNEL);
-	if (dev == NULL) {
-		printk(KERN_ERR "%s: could not allocate TAH device!\n",
-		       np->full_name);
+	if (dev == NULL)
 		goto err_gone;
-	}
 
 	mutex_init(&dev->lock);
 	dev->ofdev = ofdev;

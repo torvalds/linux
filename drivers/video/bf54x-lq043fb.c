@@ -240,7 +240,7 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 	u16 eppi_req_18[] = EPPI0_18;
 	u16 disp = fbi->mach_info->disp;
 
-	if (gpio_request(disp, DRIVER_NAME)) {
+	if (gpio_request_one(disp, GPIOF_OUT_INIT_HIGH, DRIVER_NAME)) {
 		printk(KERN_ERR "Requesting GPIO %d failed\n", disp);
 		return -EFAULT;
 	}
@@ -262,8 +262,6 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 			return -EFAULT;
 		}
 	}
-
-	gpio_direction_output(disp, 1);
 
 	return 0;
 }

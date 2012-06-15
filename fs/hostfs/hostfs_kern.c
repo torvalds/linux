@@ -240,7 +240,7 @@ static struct inode *hostfs_alloc_inode(struct super_block *sb)
 static void hostfs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 	if (HOSTFS_I(inode)->fd != -1) {
 		close_file(&HOSTFS_I(inode)->fd);
 		HOSTFS_I(inode)->fd = -1;
@@ -283,6 +283,7 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	char *name;
 	unsigned long long next, ino;
 	int error, len;
+	unsigned int type;
 
 	name = dentry_name(file->f_path.dentry);
 	if (name == NULL)
@@ -292,9 +293,9 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	if (dir == NULL)
 		return -error;
 	next = file->f_pos;
-	while ((name = read_dir(dir, &next, &ino, &len)) != NULL) {
+	while ((name = read_dir(dir, &next, &ino, &len, &type)) != NULL) {
 		error = (*filldir)(ent, name, len, file->f_pos,
-				   ino, DT_UNKNOWN);
+				   ino, type);
 		if (error) break;
 		file->f_pos = next;
 	}
@@ -966,9 +967,9 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	}
 
 	err = -ENOMEM;
-	sb->s_root = d_alloc_root(root_inode);
+	sb->s_root = d_make_root(root_inode);
 	if (sb->s_root == NULL)
-		goto out_put;
+		goto out;
 
 	return 0;
 

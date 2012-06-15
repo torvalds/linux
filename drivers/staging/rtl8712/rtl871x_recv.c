@@ -28,15 +28,15 @@
 
 #define _RTL871X_RECV_C_
 
+#include <linux/ip.h>
 #include <linux/slab.h>
+#include <linux/if_ether.h>
 #include <linux/kmemleak.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
 #include "recv_osdep.h"
 #include "mlme_osdep.h"
-#include "ip.h"
-#include "if_ether.h"
 #include "ethernet.h"
 #include "usb_ops.h"
 #include "wifi.h"
@@ -93,7 +93,6 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 		precvframe++;
 	}
 	precvpriv->rx_pending_cnt = 1;
-	sema_init(&precvpriv->allrxreturnevt, 0);
 	return r8712_init_recv_priv(precvpriv, padapter);
 }
 

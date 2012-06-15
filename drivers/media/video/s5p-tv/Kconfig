@@ -46,6 +46,16 @@ config VIDEO_SAMSUNG_S5P_HDMIPHY
 	  as module. It is an I2C driver, that exposes a V4L2
 	  subdev for use by other drivers.
 
+config VIDEO_SAMSUNG_S5P_SII9234
+	tristate "Samsung SII9234 Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && I2C
+	depends on VIDEO_SAMSUNG_S5P_TV
+	help
+	  Say Y here if you want support for the MHL interface
+	  in S5P Samsung SoC. The driver can be compiled
+	  as module. It is an I2C driver, that exposes a V4L2
+	  subdev for use by other drivers.
+
 config VIDEO_SAMSUNG_S5P_SDO
 	tristate "Samsung Analog TV Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2

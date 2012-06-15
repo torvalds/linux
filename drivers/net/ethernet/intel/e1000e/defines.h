@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -74,7 +74,9 @@
 #define E1000_WUS_BC           E1000_WUFC_BC
 
 /* Extended Device Control */
+#define E1000_CTRL_EXT_LPCD  0x00000004     /* LCD Power Cycle Done */
 #define E1000_CTRL_EXT_SDP3_DATA 0x00000080 /* Value of SW Definable Pin 3 */
+#define E1000_CTRL_EXT_FORCE_SMBUS 0x00000800 /* Force SMBus mode */
 #define E1000_CTRL_EXT_EE_RST    0x00002000 /* Reinitialize from EEPROM */
 #define E1000_CTRL_EXT_SPD_BYPS  0x00008000 /* Speed Select Bypass */
 #define E1000_CTRL_EXT_RO_DIS    0x00020000 /* Relaxed Ordering disable */
@@ -126,6 +128,13 @@
     E1000_RXDEXT_STATERR_CXE |            \
     E1000_RXDEXT_STATERR_RXE)
 
+#define E1000_MRQC_RSS_FIELD_MASK              0xFFFF0000
+#define E1000_MRQC_RSS_FIELD_IPV4_TCP          0x00010000
+#define E1000_MRQC_RSS_FIELD_IPV4              0x00020000
+#define E1000_MRQC_RSS_FIELD_IPV6_TCP_EX       0x00040000
+#define E1000_MRQC_RSS_FIELD_IPV6              0x00100000
+#define E1000_MRQC_RSS_FIELD_IPV6_TCP          0x00200000
+
 #define E1000_RXDPS_HDRSTAT_HDRSP              0x00008000
 
 /* Management Control */
@@ -170,6 +179,7 @@
 #define E1000_RCTL_VFE            0x00040000    /* vlan filter enable */
 #define E1000_RCTL_CFIEN          0x00080000    /* canonical form enable */
 #define E1000_RCTL_CFI            0x00100000    /* canonical form indicator */
+#define E1000_RCTL_DPF            0x00400000    /* Discard Pause Frames */
 #define E1000_RCTL_PMCF           0x00800000    /* pass MAC control frames */
 #define E1000_RCTL_BSEX           0x02000000    /* Buffer size extension */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
@@ -326,6 +336,7 @@
 /* Receive Checksum Control */
 #define E1000_RXCSUM_TUOFL     0x00000200   /* TCP / UDP checksum offload */
 #define E1000_RXCSUM_IPPCSE    0x00001000   /* IP payload checksum enable */
+#define E1000_RXCSUM_PCSD      0x00002000   /* packet checksum disabled */
 
 /* Header split receive */
 #define E1000_RFCTL_NFSW_DIS            0x00000040
@@ -564,6 +575,7 @@
 #define NWAY_AR_ASM_DIR          0x0800   /* Asymmetric Pause Direction bit */
 
 /* Link Partner Ability Register (Base Page) */
+#define NWAY_LPAR_100TX_FD_CAPS  0x0100 /* LP 100TX Full Dplx Capable */
 #define NWAY_LPAR_PAUSE          0x0400 /* LP Pause operation desired */
 #define NWAY_LPAR_ASM_DIR        0x0800 /* LP Asymmetric Pause Direction bit */
 
@@ -730,6 +742,7 @@
 #define I82577_E_PHY_ID      0x01540050
 #define I82578_E_PHY_ID      0x004DD040
 #define I82579_E_PHY_ID      0x01540090
+#define I217_E_PHY_ID        0x015400A0
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */
@@ -840,5 +853,9 @@
 
 /* SerDes Control */
 #define E1000_GEN_POLL_TIMEOUT          640
+
+/* FW Semaphore */
+#define E1000_FWSM_WLOCK_MAC_MASK	0x0380
+#define E1000_FWSM_WLOCK_MAC_SHIFT	7
 
 #endif /* _E1000_DEFINES_H_ */

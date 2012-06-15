@@ -23,6 +23,8 @@
 #include <asm/ptrace.h>
 #include <asm/domain.h>
 
+#define IOMEM(x)	(x)
+
 /*
  * Endian independent macros for shifting bytes within registers.
  */

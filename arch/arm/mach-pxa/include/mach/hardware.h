@@ -40,7 +40,6 @@
 #define io_p2v(x) IOMEM(0xf2000000 + ((x) & 0x01ffffff) + (((x) & 0x1c000000) >> 1))
 
 #ifndef __ASSEMBLY__
-# define IOMEM(x) ((void __iomem *)(x))
 # define __REG(x)	(*((volatile u32 __iomem *)io_p2v(x)))
 
 /* With indexed regs we don't want to feed the index through io_p2v()
@@ -52,7 +51,6 @@
 
 #else
 
-# define IOMEM(x)	x 
 # define __REG(x)	io_p2v(x)
 # define __PREG(x)	io_v2p(x)
 
@@ -335,10 +333,6 @@ extern unsigned int get_memclk_frequency_10khz(void);
 
 /* return the clock tick rate of the OS timer */
 extern unsigned long get_clock_tick_rate(void);
-#endif
-
-#if defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)
-#define ARCH_HAS_DMA_SET_COHERENT_MASK
 #endif
 
 #endif  /* _ASM_ARCH_HARDWARE_H */

@@ -21,7 +21,6 @@
 #include <linux/irq.h>
 #include <linux/bitrev.h>
 #include <linux/console.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>

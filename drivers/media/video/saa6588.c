@@ -539,15 +539,4 @@ static struct i2c_driver saa6588_driver = {
 	.id_table	= saa6588_id,
 };
 
-static __init int init_saa6588(void)
-{
-	return i2c_add_driver(&saa6588_driver);
-}
-
-static __exit void exit_saa6588(void)
-{
-	i2c_del_driver(&saa6588_driver);
-}
-
-module_init(init_saa6588);
-module_exit(exit_saa6588);
+module_i2c_driver(saa6588_driver);

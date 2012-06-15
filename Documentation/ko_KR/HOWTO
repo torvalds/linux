@@ -354,7 +354,7 @@ Andrew Morton에 의해 배포된 실험적인 커널 패치들이다. Andrew는
     git.kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-misc-2.6.git
 
   quilt trees:
-    - USB, PCI, Driver Core, and I2C, Greg Kroah-Hartman < gregkh@suse.de>
+    - USB, PCI, Driver Core, and I2C, Greg Kroah-Hartman < gregkh@linuxfoundation.org>
     kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
     - x86-64, partly i386, Andi Kleen < ak@suse.de>
         ftp.firstfloor.org:/pub/ak/x86_64/quilt/

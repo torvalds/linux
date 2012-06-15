@@ -20,8 +20,6 @@
 #include "idle_monitor/cpupower-monitor.h"
 #include "helpers/helpers.h"
 
-/******** PCI parts could go into own file and get shared ***************/
-
 #define PCI_NON_PC0_OFFSET	0xb0
 #define PCI_PC1_OFFSET		0xb4
 #define PCI_PC6_OFFSET		0xb8
@@ -82,10 +80,7 @@ static cstate_t amd_fam14h_cstates[AMD_FAM14H_STATE_NUM] = {
 };
 
 static struct pci_access *pci_acc;
-static int pci_vendor_id = 0x1022;
-static int pci_dev_ids[2] = {0x1716, 0};
 static struct pci_dev *amd_fam14h_pci_dev;
-
 static int nbp1_entered;
 
 struct timespec start_time;
@@ -286,13 +281,13 @@ struct cpuidle_monitor *amd_fam14h_register(void)
 	if (cpupower_cpu_info.vendor != X86_VENDOR_AMD)
 		return NULL;
 
-	if (cpupower_cpu_info.family == 0x14) {
-		if (cpu_count <= 0 || cpu_count > 2) {
-			fprintf(stderr, "AMD fam14h: Invalid cpu count: %d\n",
-				cpu_count);
-			return NULL;
-		}
-	} else
+	if (cpupower_cpu_info.family == 0x14)
+		strncpy(amd_fam14h_monitor.name, "Fam_14h",
+			MONITOR_NAME_LEN - 1);
+	else if (cpupower_cpu_info.family == 0x12)
+		strncpy(amd_fam14h_monitor.name, "Fam_12h",
+			MONITOR_NAME_LEN - 1);
+	else
 		return NULL;
 
 	/* We do not alloc for nbp1 machine wide counter */
@@ -303,7 +298,9 @@ struct cpuidle_monitor *amd_fam14h_register(void)
 					      sizeof(unsigned long long));
 	}
 
-	amd_fam14h_pci_dev = pci_acc_init(&pci_acc, pci_vendor_id, pci_dev_ids);
+	/* We need PCI device: Slot 18, Func 6, compare with BKDG
+	   for fam 12h/14h */
+	amd_fam14h_pci_dev = pci_slot_func_init(&pci_acc, 0x18, 6);
 	if (amd_fam14h_pci_dev == NULL || pci_acc == NULL)
 		return NULL;
 
@@ -325,7 +322,7 @@ static void amd_fam14h_unregister(void)
 }
 
 struct cpuidle_monitor amd_fam14h_monitor = {
-	.name			= "Ontario",
+	.name			= "",
 	.hw_states		= amd_fam14h_cstates,
 	.hw_states_num		= AMD_FAM14H_STATE_NUM,
 	.start			= amd_fam14h_start,

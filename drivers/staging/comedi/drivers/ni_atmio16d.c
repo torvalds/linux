@@ -110,59 +110,7 @@ struct atmio16_board_t {
 	int has_8255;
 };
 
-static const struct atmio16_board_t atmio16_boards[] = {
-	{
-	 .name = "atmio16",
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "atmio16d",
-	 .has_8255 = 1,
-	 },
-};
-
-#define n_atmio16_boards ARRAY_SIZE(atmio16_boards)
-
 #define boardtype ((const struct atmio16_board_t *)dev->board_ptr)
-
-/* function prototypes */
-static int atmio16d_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it);
-static int atmio16d_detach(struct comedi_device *dev);
-static irqreturn_t atmio16d_interrupt(int irq, void *d);
-static int atmio16d_ai_cmdtest(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_cmd *cmd);
-static int atmio16d_ai_cmd(struct comedi_device *dev,
-			   struct comedi_subdevice *s);
-static int atmio16d_ai_cancel(struct comedi_device *dev,
-			      struct comedi_subdevice *s);
-static void reset_counters(struct comedi_device *dev);
-static void reset_atmio16d(struct comedi_device *dev);
-
-/* main driver struct */
-static struct comedi_driver driver_atmio16d = {
-	.driver_name = "atmio16",
-	.module = THIS_MODULE,
-	.attach = atmio16d_attach,
-	.detach = atmio16d_detach,
-	.board_name = &atmio16_boards[0].name,
-	.num_names = n_atmio16_boards,
-	.offset = sizeof(struct atmio16_board_t),
-};
-
-static int __init driver_atmio16d_init_module(void)
-{
-	return comedi_driver_register(&driver_atmio16d);
-}
-
-static void __exit driver_atmio16d_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_atmio16d);
-}
-
-module_init(driver_atmio16d_init_module);
-module_exit(driver_atmio16d_cleanup_module);
 
 /* range structs */
 static const struct comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
@@ -881,23 +829,37 @@ static int atmio16d_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int atmio16d_detach(struct comedi_device *dev)
+static void atmio16d_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: atmio16d: remove\n", dev->minor);
-
 	if (dev->subdevices && boardtype->has_8255)
 		subdev_8255_cleanup(dev, dev->subdevices + 3);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	reset_atmio16d(dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, ATMIO16D_SIZE);
-
-	return 0;
 }
+
+static const struct atmio16_board_t atmio16_boards[] = {
+	{
+		.name		= "atmio16",
+		.has_8255	= 0,
+	}, {
+		.name		= "atmio16d",
+		.has_8255	= 1,
+	},
+};
+
+static struct comedi_driver atmio16d_driver = {
+	.driver_name	= "atmio16",
+	.module		= THIS_MODULE,
+	.attach		= atmio16d_attach,
+	.detach		= atmio16d_detach,
+	.board_name	= &atmio16_boards[0].name,
+	.num_names	= ARRAY_SIZE(atmio16_boards),
+	.offset		= sizeof(struct atmio16_board_t),
+};
+module_comedi_driver(atmio16d_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

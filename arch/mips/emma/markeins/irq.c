@@ -27,7 +27,6 @@
 #include <linux/delay.h>
 
 #include <asm/irq_cpu.h>
-#include <asm/system.h>
 #include <asm/mipsregs.h>
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>

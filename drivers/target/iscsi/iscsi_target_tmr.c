@@ -78,10 +78,7 @@ int iscsit_tmr_task_warm_reset(
 {
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
-#if 0
-	struct iscsi_init_task_mgt_cmnd *hdr =
-		(struct iscsi_init_task_mgt_cmnd *) buf;
-#endif
+
 	if (!na->tmr_warm_reset) {
 		pr_err("TMR Opcode TARGET_WARM_RESET authorization"
 			" failed for Initiator Node: %s\n",
@@ -216,7 +213,7 @@ static int iscsit_task_reassign_complete_nop_out(
 	iscsit_task_reassign_remove_cmd(cmd, cr, conn->sess);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_add_tail(&cmd->i_list, &conn->conn_cmd_list);
+	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
 	spin_unlock_bh(&conn->cmd_lock);
 
 	cmd->i_state = ISTATE_SEND_NOPIN;
@@ -250,7 +247,7 @@ static int iscsit_task_reassign_complete_write(
 	 * so if we have received all DataOUT we can safety ignore Initiator.
 	 */
 	if (cmd->cmd_flags & ICF_GOT_LAST_DATAOUT) {
-		if (!atomic_read(&cmd->se_cmd.t_transport_sent)) {
+		if (!(cmd->se_cmd.transport_state & CMD_T_SENT)) {
 			pr_debug("WRITE ITT: 0x%08x: t_state: %d"
 				" never sent to transport\n",
 				cmd->init_task_tag, cmd->se_cmd.t_state);
@@ -272,9 +269,9 @@ static int iscsit_task_reassign_complete_write(
 		offset = cmd->next_burst_len = cmd->write_data_done;
 
 		if ((conn->sess->sess_ops->FirstBurstLength - offset) >=
-		     cmd->data_length) {
+		     cmd->se_cmd.data_length) {
 			no_build_r2ts = 1;
-			length = (cmd->data_length - offset);
+			length = (cmd->se_cmd.data_length - offset);
 		} else
 			length = (conn->sess->sess_ops->FirstBurstLength - offset);
 
@@ -292,7 +289,7 @@ static int iscsit_task_reassign_complete_write(
 	/*
 	 * iscsit_build_r2ts_for_cmd() can handle the rest from here.
 	 */
-	return iscsit_build_r2ts_for_cmd(cmd, conn, 2);
+	return iscsit_build_r2ts_for_cmd(cmd, conn, true);
 }
 
 static int iscsit_task_reassign_complete_read(
@@ -314,7 +311,7 @@ static int iscsit_task_reassign_complete_read(
 		cmd->acked_data_sn = (tmr_req->exp_data_sn - 1);
 	}
 
-	if (!atomic_read(&cmd->se_cmd.t_transport_sent)) {
+	if (!(cmd->se_cmd.transport_state & CMD_T_SENT)) {
 		pr_debug("READ ITT: 0x%08x: t_state: %d never sent to"
 			" transport\n", cmd->init_task_tag,
 			cmd->se_cmd.t_state);
@@ -322,7 +319,7 @@ static int iscsit_task_reassign_complete_read(
 		return 0;
 	}
 
-	if (!atomic_read(&se_cmd->t_transport_complete)) {
+	if (!(se_cmd->transport_state & CMD_T_COMPLETE)) {
 		pr_err("READ ITT: 0x%08x: t_state: %d, never returned"
 			" from transport\n", cmd->init_task_tag,
 			cmd->se_cmd.t_state);
@@ -385,7 +382,7 @@ static int iscsit_task_reassign_complete_scsi_cmnd(
 	iscsit_task_reassign_remove_cmd(cmd, cr, conn->sess);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_add_tail(&cmd->i_list, &conn->conn_cmd_list);
+	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
 	spin_unlock_bh(&conn->cmd_lock);
 
 	if (se_cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {

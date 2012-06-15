@@ -33,9 +33,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <media/adp1653.h>
 #include <media/v4l2-device.h>
 
@@ -283,19 +281,19 @@ adp1653_init_device(struct adp1653_flash *flash)
 		return -EIO;
 	}
 
-	mutex_lock(&flash->ctrls.lock);
+	mutex_lock(flash->ctrls.lock);
 	/* Reset faults before reading new ones. */
 	flash->fault = 0;
 	rval = adp1653_get_fault(flash);
-	mutex_unlock(&flash->ctrls.lock);
+	mutex_unlock(flash->ctrls.lock);
 	if (rval > 0) {
 		dev_err(&client->dev, "faults detected: 0x%1.1x\n", rval);
 		return -EIO;
 	}
 
-	mutex_lock(&flash->ctrls.lock);
+	mutex_lock(flash->ctrls.lock);
 	rval = adp1653_update_hw(flash);
-	mutex_unlock(&flash->ctrls.lock);
+	mutex_unlock(flash->ctrls.lock);
 	if (rval) {
 		dev_err(&client->dev,
 			"adp1653_update_hw failed at %s\n", __func__);
@@ -482,24 +480,7 @@ static struct i2c_driver adp1653_i2c_driver = {
 	.id_table	= adp1653_id_table,
 };
 
-static int __init adp1653_init(void)
-{
-	int rval;
-
-	rval = i2c_add_driver(&adp1653_i2c_driver);
-	if (rval)
-		printk(KERN_ALERT "%s: failed at i2c_add_driver\n", __func__);
-
-	return rval;
-}
-
-static void __exit adp1653_exit(void)
-{
-	i2c_del_driver(&adp1653_i2c_driver);
-}
-
-module_init(adp1653_init);
-module_exit(adp1653_exit);
+module_i2c_driver(adp1653_i2c_driver);
 
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@nokia.com>");
 MODULE_DESCRIPTION("Analog Devices ADP1653 LED flash driver");

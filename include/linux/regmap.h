@@ -13,12 +13,13 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/device.h>
 #include <linux/list.h>
 
 struct module;
+struct device;
 struct i2c_client;
 struct spi_device;
+struct regmap;
 
 /* An enum of all the supported cache types */
 enum regcache_type {
@@ -40,10 +41,19 @@ struct reg_default {
 	unsigned int def;
 };
 
+#ifdef CONFIG_REGMAP
+
 /**
  * Configuration for the register map of a device.
  *
+ * @name: Optional name of the regmap. Useful when a device has multiple
+ *        register regions.
+ *
  * @reg_bits: Number of bits in a register address, mandatory.
+ * @reg_stride: The register address stride. Valid register addresses are a
+ *              multiple of this value. If set to 0, a value of 1 will be
+ *              used.
+ * @pad_bits: Number of bits of padding between register and value.
  * @val_bits: Number of bits in a register value, mandatory.
  *
  * @writeable_reg: Optional callback returning true if the register
@@ -66,6 +76,9 @@ struct reg_default {
  * @write_flag_mask: Mask to be set in the top byte of the register when doing
  *                   a write. If both read_flag_mask and write_flag_mask are
  *                   empty the regmap_bus default masks are used.
+ * @use_single_rw: If set, converts the bulk read and write operations into
+ *		    a series of single read and write operations. This is useful
+ *		    for device that does not support bulk read and write.
  *
  * @cache_type: The actual cache type.
  * @reg_defaults_raw: Power on reset values for registers (for use with
@@ -73,7 +86,11 @@ struct reg_default {
  * @num_reg_defaults_raw: Number of elements in reg_defaults_raw.
  */
 struct regmap_config {
+	const char *name;
+
 	int reg_bits;
+	int reg_stride;
+	int pad_bits;
 	int val_bits;
 
 	bool (*writeable_reg)(struct device *dev, unsigned int reg);
@@ -90,20 +107,25 @@ struct regmap_config {
 
 	u8 read_flag_mask;
 	u8 write_flag_mask;
+
+	bool use_single_rw;
 };
 
-typedef int (*regmap_hw_write)(struct device *dev, const void *data,
+typedef int (*regmap_hw_write)(void *context, const void *data,
 			       size_t count);
-typedef int (*regmap_hw_gather_write)(struct device *dev,
+typedef int (*regmap_hw_gather_write)(void *context,
 				      const void *reg, size_t reg_len,
 				      const void *val, size_t val_len);
-typedef int (*regmap_hw_read)(struct device *dev,
+typedef int (*regmap_hw_read)(void *context,
 			      const void *reg_buf, size_t reg_size,
 			      void *val_buf, size_t val_size);
+typedef void (*regmap_hw_free_context)(void *context);
 
 /**
  * Description of a hardware bus for the register map infrastructure.
  *
+ * @fast_io: Register IO is fast. Use a spinlock instead of a mutex
+ *           to perform locking.
  * @write: Write operation.
  * @gather_write: Write operation with split register/value, return -ENOTSUPP
  *                if not implemented  on a given device.
@@ -113,26 +135,47 @@ typedef int (*regmap_hw_read)(struct device *dev,
  *                  a read.
  */
 struct regmap_bus {
+	bool fast_io;
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
 	regmap_hw_read read;
+	regmap_hw_free_context free_context;
 	u8 read_flag_mask;
 };
 
 struct regmap *regmap_init(struct device *dev,
 			   const struct regmap_bus *bus,
+			   void *bus_context,
 			   const struct regmap_config *config);
 struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 			       const struct regmap_config *config);
 struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
+struct regmap *regmap_init_mmio(struct device *dev,
+				void __iomem *regs,
+				const struct regmap_config *config);
+
+struct regmap *devm_regmap_init(struct device *dev,
+				const struct regmap_bus *bus,
+				void *bus_context,
+				const struct regmap_config *config);
+struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
+				    const struct regmap_config *config);
+struct regmap *devm_regmap_init_spi(struct spi_device *dev,
+				    const struct regmap_config *config);
+struct regmap *devm_regmap_init_mmio(struct device *dev,
+				     void __iomem *regs,
+				     const struct regmap_config *config);
 
 void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,
 			const struct regmap_config *config);
+struct regmap *dev_get_regmap(struct device *dev, const char *name);
 int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
+int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
+			size_t val_count);
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);
 int regmap_raw_read(struct regmap *map, unsigned int reg,
 		    void *val, size_t val_len);
@@ -143,11 +186,17 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 			     unsigned int mask, unsigned int val,
 			     bool *change);
+int regmap_get_val_bytes(struct regmap *map);
 
 int regcache_sync(struct regmap *map);
+int regcache_sync_region(struct regmap *map, unsigned int min,
+			 unsigned int max);
 void regcache_cache_only(struct regmap *map, bool enable);
 void regcache_cache_bypass(struct regmap *map, bool enable);
 void regcache_mark_dirty(struct regmap *map);
+
+int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
+			  int num_regs);
 
 /**
  * Description of an IRQ for the generic regmap irq_chip.
@@ -170,6 +219,7 @@ struct regmap_irq {
  * @status_base: Base status register address.
  * @mask_base:   Base mask register address.
  * @ack_base:    Base ack address.  If zero then the chip is clear on read.
+ * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  *
  * @num_regs:    Number of registers in each control bank.
  * @irqs:        Descriptors for individual IRQs.  Interrupt numbers are
@@ -182,6 +232,7 @@ struct regmap_irq_chip {
 	unsigned int status_base;
 	unsigned int mask_base;
 	unsigned int ack_base;
+	unsigned int irq_reg_stride;
 
 	int num_regs;
 
@@ -196,5 +247,124 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			struct regmap_irq_chip_data **data);
 void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *data);
 int regmap_irq_chip_get_base(struct regmap_irq_chip_data *data);
+int regmap_irq_get_virq(struct regmap_irq_chip_data *data, int irq);
+
+#else
+
+/*
+ * These stubs should only ever be called by generic code which has
+ * regmap based facilities, if they ever get called at runtime
+ * something is going wrong and something probably needs to select
+ * REGMAP.
+ */
+
+static inline int regmap_write(struct regmap *map, unsigned int reg,
+			       unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_raw_write(struct regmap *map, unsigned int reg,
+				   const void *val, size_t val_len)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_bulk_write(struct regmap *map, unsigned int reg,
+				    const void *val, size_t val_count)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_read(struct regmap *map, unsigned int reg,
+			      unsigned int *val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_raw_read(struct regmap *map, unsigned int reg,
+				  void *val, size_t val_len)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_bulk_read(struct regmap *map, unsigned int reg,
+				   void *val, size_t val_count)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_update_bits(struct regmap *map, unsigned int reg,
+				     unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_update_bits_check(struct regmap *map,
+					   unsigned int reg,
+					   unsigned int mask, unsigned int val,
+					   bool *change)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_get_val_bytes(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regcache_sync(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regcache_sync_region(struct regmap *map, unsigned int min,
+				       unsigned int max)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline void regcache_cache_only(struct regmap *map, bool enable)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+static inline void regcache_cache_bypass(struct regmap *map, bool enable)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+static inline void regcache_mark_dirty(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+static inline int regmap_register_patch(struct regmap *map,
+					const struct reg_default *regs,
+					int num_regs)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline struct regmap *dev_get_regmap(struct device *dev,
+					    const char *name)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return NULL;
+}
+
+#endif
 
 #endif

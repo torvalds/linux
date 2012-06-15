@@ -507,29 +507,32 @@ static int __devinit ep93xxfb_probe(struct platform_device *pdev)
 
 	err = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (err)
-		goto failed;
+		goto failed_cmap;
 
 	err = ep93xxfb_alloc_videomem(info);
 	if (err)
-		goto failed;
+		goto failed_videomem;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		err = -ENXIO;
-		goto failed;
+		goto failed_resource;
 	}
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (!res) {
-		err = -EBUSY;
-		goto failed;
-	}
-
+	/*
+	 * FIXME - We don't do a request_mem_region here because we are
+	 * sharing the register space with the backlight driver (see
+	 * drivers/video/backlight/ep93xx_bl.c) and doing so will cause
+	 * the second loaded driver to return -EBUSY.
+	 *
+	 * NOTE: No locking is required; the backlight does not touch
+	 * any of the framebuffer registers.
+	 */
 	fbi->res = res;
 	fbi->mmio_base = ioremap(res->start, resource_size(res));
 	if (!fbi->mmio_base) {
 		err = -ENXIO;
-		goto failed;
+		goto failed_resource;
 	}
 
 	strcpy(info->fix.id, pdev->name);
@@ -550,24 +553,24 @@ static int __devinit ep93xxfb_probe(struct platform_device *pdev)
 	if (err == 0) {
 		dev_err(info->dev, "No suitable video mode found\n");
 		err = -EINVAL;
-		goto failed;
+		goto failed_mode;
 	}
 
 	if (mach_info->setup) {
 		err = mach_info->setup(pdev);
 		if (err)
-			return err;
+			goto failed_mode;
 	}
 
 	err = ep93xxfb_check_var(&info->var, info);
 	if (err)
-		goto failed;
+		goto failed_check;
 
 	fbi->clk = clk_get(info->dev, NULL);
 	if (IS_ERR(fbi->clk)) {
 		err = PTR_ERR(fbi->clk);
 		fbi->clk = NULL;
-		goto failed;
+		goto failed_check;
 	}
 
 	ep93xxfb_set_par(info);
@@ -582,17 +585,17 @@ static int __devinit ep93xxfb_probe(struct platform_device *pdev)
 	return 0;
 
 failed:
-	if (fbi->clk)
-		clk_put(fbi->clk);
-	if (fbi->mmio_base)
-		iounmap(fbi->mmio_base);
-	if (fbi->res)
-		release_mem_region(fbi->res->start, resource_size(fbi->res));
-	ep93xxfb_dealloc_videomem(info);
-	if (&info->cmap)
-		fb_dealloc_cmap(&info->cmap);
+	clk_put(fbi->clk);
+failed_check:
 	if (fbi->mach_info->teardown)
 		fbi->mach_info->teardown(pdev);
+failed_mode:
+	iounmap(fbi->mmio_base);
+failed_resource:
+	ep93xxfb_dealloc_videomem(info);
+failed_videomem:
+	fb_dealloc_cmap(&info->cmap);
+failed_cmap:
 	kfree(info);
 	platform_set_drvdata(pdev, NULL);
 
@@ -608,7 +611,6 @@ static int __devexit ep93xxfb_remove(struct platform_device *pdev)
 	clk_disable(fbi->clk);
 	clk_put(fbi->clk);
 	iounmap(fbi->mmio_base);
-	release_mem_region(fbi->res->start, resource_size(fbi->res));
 	ep93xxfb_dealloc_videomem(info);
 	fb_dealloc_cmap(&info->cmap);
 

@@ -12,14 +12,8 @@
 
 #define IRQ_STAT		0xff000000	/* read */
 
-	.macro	disable_fiq
-	.endm
-
 	.macro  get_irqnr_preamble, base, tmp
 	mov	\base, #IRQ_STAT
-	.endm
-
-	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm
 
 	.macro	get_irqnr_and_base, irqnr, stat, base, tmp

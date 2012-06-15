@@ -34,21 +34,31 @@
 #include <net/nfc/nfc.h>
 #include <net/nfc/nci.h>
 
-/* NCI device state */
-enum {
+/* NCI device flags */
+enum nci_flag {
 	NCI_INIT,
 	NCI_UP,
-	NCI_DISCOVERY,
-	NCI_POLL_ACTIVE,
 	NCI_DATA_EXCHANGE,
+	NCI_DATA_EXCHANGE_TO,
+};
+
+/* NCI device states */
+enum nci_state {
+	NCI_IDLE,
+	NCI_DISCOVERY,
+	NCI_W4_ALL_DISCOVERIES,
+	NCI_W4_HOST_SELECT,
+	NCI_POLL_ACTIVE,
 };
 
 /* NCI timeouts */
 #define NCI_RESET_TIMEOUT			5000
 #define NCI_INIT_TIMEOUT			5000
 #define NCI_RF_DISC_TIMEOUT			5000
-#define NCI_RF_DEACTIVATE_TIMEOUT		5000
+#define NCI_RF_DISC_SELECT_TIMEOUT		5000
+#define NCI_RF_DEACTIVATE_TIMEOUT		30000
 #define NCI_CMD_TIMEOUT				5000
+#define NCI_DATA_TIMEOUT			700
 
 struct nci_dev;
 
@@ -59,6 +69,7 @@ struct nci_ops {
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
+#define NCI_MAX_DISCOVERED_TARGETS		10
 
 /* NCI Core structures */
 struct nci_dev {
@@ -68,12 +79,14 @@ struct nci_dev {
 	int			tx_headroom;
 	int			tx_tailroom;
 
+	atomic_t		state;
 	unsigned long		flags;
 
 	atomic_t		cmd_cnt;
 	atomic_t		credits_cnt;
 
 	struct timer_list	cmd_timer;
+	struct timer_list	data_timer;
 
 	struct workqueue_struct	*cmd_wq;
 	struct work_struct	cmd_work;
@@ -96,8 +109,10 @@ struct nci_dev {
 	void			*driver_data;
 
 	__u32			poll_prots;
-	__u32			target_available_prots;
 	__u32			target_active_prot;
+
+	struct nfc_target	targets[NCI_MAX_DISCOVERED_TARGETS];
+	int			n_targets;
 
 	/* received during NCI_OP_CORE_RESET_RSP */
 	__u8			nci_ver;
@@ -126,17 +141,17 @@ struct nci_dev {
 
 /* ----- NCI Devices ----- */
 struct nci_dev *nci_allocate_device(struct nci_ops *ops,
-				__u32 supported_protocols,
-				int tx_headroom,
-				int tx_tailroom);
+				    __u32 supported_protocols,
+				    int tx_headroom,
+				    int tx_tailroom);
 void nci_free_device(struct nci_dev *ndev);
 int nci_register_device(struct nci_dev *ndev);
 void nci_unregister_device(struct nci_dev *ndev);
 int nci_recv_frame(struct sk_buff *skb);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,
-						unsigned int len,
-						gfp_t how)
+					    unsigned int len,
+					    gfp_t how)
 {
 	struct sk_buff *skb;
 
@@ -169,6 +184,7 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload);
 int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb);
 void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
 				int err);
+void nci_clear_target_list(struct nci_dev *ndev);
 
 /* ----- NCI requests ----- */
 #define NCI_REQ_DONE		0

@@ -144,6 +144,7 @@ tmp=$tmpdir/zImage.$$.o
 ksection=.kernel:vmlinux.strip
 isection=.kernel:initrd
 link_address='0x400000'
+make_space=y
 
 case "$platform" in
 pseries)
@@ -210,6 +211,7 @@ ps3)
     ksection=.kernel:vmlinux.bin
     isection=.kernel:initrd
     link_address=''
+    make_space=n
     pie=
     ;;
 ep88xc|ep405|ep8248e)
@@ -278,17 +280,19 @@ else
     rm -f $vmz.$$
 fi
 
-# Round the size to next higher MB limit
-round_size=$(((strip_size + 0xfffff) & 0xfff00000))
+if [ "$make_space" = "y" ]; then
+	# Round the size to next higher MB limit
+	round_size=$(((strip_size + 0xfffff) & 0xfff00000))
 
-round_size=0x$(printf "%x" $round_size)
-link_addr=$(printf "%d" $link_address)
+	round_size=0x$(printf "%x" $round_size)
+	link_addr=$(printf "%d" $link_address)
 
-if [ $link_addr -lt $strip_size ]; then
-    echo "INFO: Uncompressed kernel (size 0x$(printf "%x\n" $strip_size))" \
-		"overlaps the address of the wrapper($link_address)"
-    echo "INFO: Fixing the link_address of wrapper to ($round_size)"
-    link_address=$round_size
+	if [ $link_addr -lt $strip_size ]; then
+	    echo "INFO: Uncompressed kernel (size 0x$(printf "%x\n" $strip_size))" \
+			"overlaps the address of the wrapper($link_address)"
+	    echo "INFO: Fixing the link_address of wrapper to ($round_size)"
+	    link_address=$round_size
+	fi
 fi
 
 vmz="$vmz$gzip"

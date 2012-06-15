@@ -367,7 +367,7 @@ static int __devinit mpu3050_probe(struct i2c_client *client,
 
 	error = request_threaded_irq(client->irq,
 				     NULL, mpu3050_interrupt_thread,
-				     IRQF_TRIGGER_RISING,
+				     IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				     "mpu3050", sensor);
 	if (error) {
 		dev_err(&client->dev,
@@ -475,17 +475,7 @@ static struct i2c_driver mpu3050_i2c_driver = {
 	.id_table	= mpu3050_ids,
 };
 
-static int __init mpu3050_init(void)
-{
-	return i2c_add_driver(&mpu3050_i2c_driver);
-}
-module_init(mpu3050_init);
-
-static void __exit mpu3050_exit(void)
-{
-	i2c_del_driver(&mpu3050_i2c_driver);
-}
-module_exit(mpu3050_exit);
+module_i2c_driver(mpu3050_i2c_driver);
 
 MODULE_AUTHOR("Wistron Corp.");
 MODULE_DESCRIPTION("MPU3050 Tri-axis gyroscope driver");

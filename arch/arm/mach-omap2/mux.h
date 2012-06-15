@@ -246,7 +246,7 @@ static inline void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
 {
 }
 
-static struct omap_board_mux *board_mux __initdata __maybe_unused;
+static struct omap_board_mux *board_mux __maybe_unused;
 
 #endif
 

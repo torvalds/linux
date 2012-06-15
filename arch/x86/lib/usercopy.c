@@ -7,6 +7,8 @@
 #include <linux/highmem.h>
 #include <linux/module.h>
 
+#include <asm/word-at-a-time.h>
+
 /*
  * best effort, GUP based copy_from_user() that is NMI-safe
  */

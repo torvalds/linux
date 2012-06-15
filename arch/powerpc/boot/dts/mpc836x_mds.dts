@@ -405,6 +405,10 @@
 				reg = <0x1>;
 				device_type = "ethernet-phy";
 			};
+			tbi-phy@2 {
+				device_type = "tbi-phy";
+				reg = <0x2>;
+			};
 		};
 
 		qeic: interrupt-controller@80 {

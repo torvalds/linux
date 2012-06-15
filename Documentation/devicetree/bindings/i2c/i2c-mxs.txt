@@ -1,0 +1,16 @@
+* Freescale MXS Inter IC (I2C) Controller
+
+Required properties:
+- compatible: Should be "fsl,<chip>-i2c"
+- reg: Should contain registers location and length
+- interrupts: Should contain ERROR and DMA interrupts
+
+Examples:
+
+i2c0: i2c@80058000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "fsl,imx28-i2c";
+	reg = <0x80058000 2000>;
+	interrupts = <111 68>;
+};

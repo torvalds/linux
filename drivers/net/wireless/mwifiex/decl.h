@@ -28,7 +28,7 @@
 #include <linux/ieee80211.h>
 
 
-#define MWIFIEX_MAX_BSS_NUM         (1)
+#define MWIFIEX_MAX_BSS_NUM         (2)
 
 #define MWIFIEX_MIN_DATA_HEADER_LEN 36	/* sizeof(mwifiex_txpd)
 					 *   + 4 byte alignment
@@ -53,12 +53,19 @@
 #define MWIFIEX_RATE_BITMAP_MCS127 159
 
 #define MWIFIEX_RX_DATA_BUF_SIZE     (4 * 1024)
+#define MWIFIEX_RX_CMD_BUF_SIZE	     (2 * 1024)
+
+#define MAX_BEACON_PERIOD                  (4000)
+#define MIN_BEACON_PERIOD                  (50)
+#define MAX_DTIM_PERIOD                    (100)
+#define MIN_DTIM_PERIOD                    (1)
 
 #define MWIFIEX_RTS_MIN_VALUE              (0)
 #define MWIFIEX_RTS_MAX_VALUE              (2347)
 #define MWIFIEX_FRAG_MIN_VALUE             (256)
 #define MWIFIEX_FRAG_MAX_VALUE             (2346)
 
+#define MWIFIEX_RETRY_LIMIT                14
 #define MWIFIEX_SDIO_BLOCK_SIZE            256
 
 #define MWIFIEX_BUF_FLAG_REQUEUED_PKT      BIT(0)
@@ -102,7 +109,8 @@ struct mwifiex_wait_queue {
 };
 
 struct mwifiex_rxinfo {
-	u8 bss_index;
+	u8 bss_num;
+	u8 bss_type;
 	struct sk_buff *parent;
 	u8 use_count;
 };
@@ -110,7 +118,8 @@ struct mwifiex_rxinfo {
 struct mwifiex_txinfo {
 	u32 status_code;
 	u8 flags;
-	u8 bss_index;
+	u8 bss_num;
+	u8 bss_type;
 };
 
 enum mwifiex_wmm_ac_e {

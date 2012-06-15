@@ -26,12 +26,10 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
-#include <asm/iseries/hv_lp_config.h>
 #include <asm/lppaca.h>
 #include <asm/hvcall.h>
 #include <asm/firmware.h>
 #include <asm/rtas.h>
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>
@@ -55,80 +53,14 @@ static unsigned long get_purr(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		if (firmware_has_feature(FW_FEATURE_ISERIES))
-			sum_purr += lppaca_of(cpu).emulated_time_base;
-		else {
-			struct cpu_usage *cu;
+		struct cpu_usage *cu;
 
-			cu = &per_cpu(cpu_usage_array, cpu);
-			sum_purr += cu->current_tb;
-		}
+		cu = &per_cpu(cpu_usage_array, cpu);
+		sum_purr += cu->current_tb;
 	}
 	return sum_purr;
 }
 
-#ifdef CONFIG_PPC_ISERIES
-
-/*
- * Methods used to fetch LPAR data when running on an iSeries platform.
- */
-static int iseries_lparcfg_data(struct seq_file *m, void *v)
-{
-	unsigned long pool_id;
-	int shared, entitled_capacity, max_entitled_capacity;
-	int processors, max_processors;
-	unsigned long purr = get_purr();
-
-	shared = (int)(local_paca->lppaca_ptr->shared_proc);
-
-	seq_printf(m, "system_active_processors=%d\n",
-		   (int)HvLpConfig_getSystemPhysicalProcessors());
-
-	seq_printf(m, "system_potential_processors=%d\n",
-		   (int)HvLpConfig_getSystemPhysicalProcessors());
-
-	processors = (int)HvLpConfig_getPhysicalProcessors();
-	seq_printf(m, "partition_active_processors=%d\n", processors);
-
-	max_processors = (int)HvLpConfig_getMaxPhysicalProcessors();
-	seq_printf(m, "partition_potential_processors=%d\n", max_processors);
-
-	if (shared) {
-		entitled_capacity = HvLpConfig_getSharedProcUnits();
-		max_entitled_capacity = HvLpConfig_getMaxSharedProcUnits();
-	} else {
-		entitled_capacity = processors * 100;
-		max_entitled_capacity = max_processors * 100;
-	}
-	seq_printf(m, "partition_entitled_capacity=%d\n", entitled_capacity);
-
-	seq_printf(m, "partition_max_entitled_capacity=%d\n",
-		   max_entitled_capacity);
-
-	if (shared) {
-		pool_id = HvLpConfig_getSharedPoolIndex();
-		seq_printf(m, "pool=%d\n", (int)pool_id);
-		seq_printf(m, "pool_capacity=%d\n",
-			   (int)(HvLpConfig_getNumProcsInSharedPool(pool_id) *
-				 100));
-		seq_printf(m, "purr=%ld\n", purr);
-	}
-
-	seq_printf(m, "shared_processor_mode=%d\n", shared);
-
-	return 0;
-}
-
-#else				/* CONFIG_PPC_ISERIES */
-
-static int iseries_lparcfg_data(struct seq_file *m, void *v)
-{
-	return 0;
-}
-
-#endif				/* CONFIG_PPC_ISERIES */
-
-#ifdef CONFIG_PPC_PSERIES
 /*
  * Methods used to fetch LPAR data when running on a pSeries platform.
  */
@@ -648,8 +580,7 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 	u8 new_weight, *new_weight_ptr = &new_weight;
 	ssize_t retval;
 
-	if (!firmware_has_feature(FW_FEATURE_SPLPAR) ||
-			firmware_has_feature(FW_FEATURE_ISERIES))
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return -EINVAL;
 
 	if (count > kbuf_sz)
@@ -709,21 +640,6 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 	return retval;
 }
 
-#else				/* CONFIG_PPC_PSERIES */
-
-static int pseries_lparcfg_data(struct seq_file *m, void *v)
-{
-	return 0;
-}
-
-static ssize_t lparcfg_write(struct file *file, const char __user * buf,
-			     size_t count, loff_t * off)
-{
-	return -EINVAL;
-}
-
-#endif				/* CONFIG_PPC_PSERIES */
-
 static int lparcfg_data(struct seq_file *m, void *v)
 {
 	struct device_node *rootdn;
@@ -738,19 +654,11 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	rootdn = of_find_node_by_path("/");
 	if (rootdn) {
 		tmp = of_get_property(rootdn, "model", NULL);
-		if (tmp) {
+		if (tmp)
 			model = tmp;
-			/* Skip "IBM," - see platforms/iseries/dt.c */
-			if (firmware_has_feature(FW_FEATURE_ISERIES))
-				model += 4;
-		}
 		tmp = of_get_property(rootdn, "system-id", NULL);
-		if (tmp) {
+		if (tmp)
 			system_id = tmp;
-			/* Skip "IBM," - see platforms/iseries/dt.c */
-			if (firmware_has_feature(FW_FEATURE_ISERIES))
-				system_id += 4;
-		}
 		lp_index_ptr = of_get_property(rootdn, "ibm,partition-no",
 					NULL);
 		if (lp_index_ptr)
@@ -761,8 +669,6 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "system_type=%s\n", model);
 	seq_printf(m, "partition_id=%d\n", (int)lp_index);
 
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		return iseries_lparcfg_data(m, v);
 	return pseries_lparcfg_data(m, v);
 }
 
@@ -786,8 +692,7 @@ static int __init lparcfg_init(void)
 	umode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR) &&
-			!firmware_has_feature(FW_FEATURE_ISERIES))
+	if (firmware_has_feature(FW_FEATURE_SPLPAR))
 		mode |= S_IWUSR;
 
 	ent = proc_create("powerpc/lparcfg", mode, NULL, &lparcfg_fops);

@@ -636,18 +636,6 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 {
 	return rt2x00queue_available(queue) < queue->threshold;
 }
-
-/**
- * rt2x00queue_status_timeout - Check if a timeout occurred for STATUS reports
- * @entry: Queue entry to check.
- */
-static inline int rt2x00queue_status_timeout(struct queue_entry *entry)
-{
-	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
-		return false;
-	return time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
-}
-
 /**
  * rt2x00queue_dma_timeout - Check if a timeout occurred for DMA transfers
  * @entry: Queue entry to check.

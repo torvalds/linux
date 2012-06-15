@@ -74,6 +74,9 @@
 #define TEGRA_QUATERNARY_ICTLR_BASE	0x60004300
 #define TEGRA_QUATERNARY_ICTLR_SIZE	SZ_64
 
+#define TEGRA_QUINARY_ICTLR_BASE	0x60004400
+#define TEGRA_QUINARY_ICTLR_SIZE	SZ_64
+
 #define TEGRA_TMR1_BASE			0x60005000
 #define TEGRA_TMR1_SIZE			SZ_8
 
@@ -109,6 +112,9 @@
 
 #define TEGRA_AHB_GIZMO_BASE		0x6000C004
 #define TEGRA_AHB_GIZMO_SIZE		0x10C
+
+#define TEGRA_SB_BASE			0x6000C200
+#define TEGRA_SB_SIZE			256
 
 #define TEGRA_STATMON_BASE		0x6000C400
 #define TEGRA_STATMON_SIZE		SZ_1K
@@ -270,5 +276,47 @@
 #elif defined(CONFIG_TEGRA_DEBUG_UARTE)
 # define TEGRA_DEBUG_UART_BASE TEGRA_UARTE_BASE
 #endif
+
+/* On TEGRA, many peripherals are very closely packed in
+ * two 256MB io windows (that actually only use about 64KB
+ * at the start of each).
+ *
+ * We will just map the first 1MB of each window (to minimize
+ * pt entries needed) and provide a macro to transform physical
+ * io addresses to an appropriate void __iomem *.
+ *
+ */
+
+#define IO_IRAM_PHYS	0x40000000
+#define IO_IRAM_VIRT	IOMEM(0xFE400000)
+#define IO_IRAM_SIZE	SZ_256K
+
+#define IO_CPU_PHYS     0x50040000
+#define IO_CPU_VIRT     IOMEM(0xFE000000)
+#define IO_CPU_SIZE	SZ_16K
+
+#define IO_PPSB_PHYS	0x60000000
+#define IO_PPSB_VIRT	IOMEM(0xFE200000)
+#define IO_PPSB_SIZE	SZ_1M
+
+#define IO_APB_PHYS	0x70000000
+#define IO_APB_VIRT	IOMEM(0xFE300000)
+#define IO_APB_SIZE	SZ_1M
+
+#define IO_TO_VIRT_BETWEEN(p, st, sz)	((p) >= (st) && (p) < ((st) + (sz)))
+#define IO_TO_VIRT_XLATE(p, pst, vst)	(((p) - (pst) + (vst)))
+
+#define IO_TO_VIRT(n) ( \
+	IO_TO_VIRT_BETWEEN((n), IO_PPSB_PHYS, IO_PPSB_SIZE) ?		\
+		IO_TO_VIRT_XLATE((n), IO_PPSB_PHYS, IO_PPSB_VIRT) :	\
+	IO_TO_VIRT_BETWEEN((n), IO_APB_PHYS, IO_APB_SIZE) ?		\
+		IO_TO_VIRT_XLATE((n), IO_APB_PHYS, IO_APB_VIRT) :	\
+	IO_TO_VIRT_BETWEEN((n), IO_CPU_PHYS, IO_CPU_SIZE) ?		\
+		IO_TO_VIRT_XLATE((n), IO_CPU_PHYS, IO_CPU_VIRT) :	\
+	IO_TO_VIRT_BETWEEN((n), IO_IRAM_PHYS, IO_IRAM_SIZE) ?		\
+		IO_TO_VIRT_XLATE((n), IO_IRAM_PHYS, IO_IRAM_VIRT) :	\
+	NULL)
+
+#define IO_ADDRESS(n) (IO_TO_VIRT(n))
 
 #endif

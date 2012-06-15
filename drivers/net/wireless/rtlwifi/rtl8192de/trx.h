@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -530,12 +530,8 @@
 	SET_BITS_OFFSET_LE(__pdesc+28, 0, 32, __val)
 
 #define CLEAR_PCI_TX_DESC_CONTENT(__pdesc, _size)	\
-do {							\
-	if (_size > TX_DESC_NEXT_DESC_OFFSET)		\
-		memset((void *)__pdesc, 0, TX_DESC_NEXT_DESC_OFFSET);	\
-	else						\
-		memset((void *)__pdesc, 0, _size);	\
-} while (0);
+	memset((void *)__pdesc, 0,			\
+	       min_t(size_t, _size, TX_DESC_NEXT_DESC_OFFSET))
 
 /* For 92D early mode */
 #define SET_EARLYMODE_PKTNUM(__paddr, __value)		\

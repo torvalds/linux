@@ -213,10 +213,10 @@ struct atm_cirange {
 
 #ifdef __KERNEL__
 
-#include <linux/device.h>
 #include <linux/wait.h> /* wait_queue_head_t */
 #include <linux/time.h> /* struct timeval */
 #include <linux/net.h>
+#include <linux/bug.h>
 #include <linux/skbuff.h> /* struct sk_buff */
 #include <linux/uio.h>
 #include <net/sock.h>
@@ -249,6 +249,7 @@ struct k_atm_dev_stats {
 	struct k_atm_aal_stats aal5;
 };
 
+struct device;
 
 enum {
 	ATM_VF_ADDR,		/* Address is in use. Set by anybody, cleared

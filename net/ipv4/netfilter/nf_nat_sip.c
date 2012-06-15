@@ -283,7 +283,7 @@ static unsigned int ip_nat_sip_expect(struct sk_buff *skb, unsigned int dataoff,
 	__be32 newip;
 	u_int16_t port;
 	char buffer[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
-	unsigned buflen;
+	unsigned int buflen;
 
 	/* Connection will come from reply */
 	if (ct->tuplehash[dir].tuple.src.u3.ip == ct->tuplehash[!dir].tuple.dst.u3.ip)
@@ -526,6 +526,11 @@ err1:
 	return NF_DROP;
 }
 
+static struct nf_ct_helper_expectfn sip_nat = {
+        .name           = "sip",
+        .expectfn       = ip_nat_sip_expected,
+};
+
 static void __exit nf_nat_sip_fini(void)
 {
 	RCU_INIT_POINTER(nf_nat_sip_hook, NULL);
@@ -535,6 +540,7 @@ static void __exit nf_nat_sip_fini(void)
 	RCU_INIT_POINTER(nf_nat_sdp_port_hook, NULL);
 	RCU_INIT_POINTER(nf_nat_sdp_session_hook, NULL);
 	RCU_INIT_POINTER(nf_nat_sdp_media_hook, NULL);
+	nf_ct_helper_expectfn_unregister(&sip_nat);
 	synchronize_rcu();
 }
 
@@ -554,6 +560,7 @@ static int __init nf_nat_sip_init(void)
 	RCU_INIT_POINTER(nf_nat_sdp_port_hook, ip_nat_sdp_port);
 	RCU_INIT_POINTER(nf_nat_sdp_session_hook, ip_nat_sdp_session);
 	RCU_INIT_POINTER(nf_nat_sdp_media_hook, ip_nat_sdp_media);
+	nf_ct_helper_expectfn_register(&sip_nat);
 	return 0;
 }
 

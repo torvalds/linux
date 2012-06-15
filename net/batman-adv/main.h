@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -28,7 +28,7 @@
 #define DRIVER_DEVICE "batman-adv"
 
 #ifndef SOURCE_VERSION
-#define SOURCE_VERSION "2012.0.0"
+#define SOURCE_VERSION "2012.2.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -41,13 +41,14 @@
 
 /* purge originators after time in seconds if no valid packet comes in
  * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE */
-#define PURGE_TIMEOUT 200
-#define TT_LOCAL_TIMEOUT 3600 /* in seconds */
-#define TT_CLIENT_ROAM_TIMEOUT 600
+#define PURGE_TIMEOUT 200000 /* 200 seconds */
+#define TT_LOCAL_TIMEOUT 3600000 /* in miliseconds */
+#define TT_CLIENT_ROAM_TIMEOUT 600000 /* in miliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size) */
 #define TQ_LOCAL_WINDOW_SIZE 64
-#define TT_REQUEST_TIMEOUT 3 /* seconds we have to keep pending tt_req */
+#define TT_REQUEST_TIMEOUT 3000 /* miliseconds we have to keep
+				 * pending tt_req */
 
 #define TQ_GLOBAL_WINDOW_SIZE 5
 #define TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
@@ -56,15 +57,15 @@
 
 #define TT_OGM_APPEND_MAX 3 /* number of OGMs sent with the last tt diff */
 
-#define ROAMING_MAX_TIME 20 /* Time in which a client can roam at most
-			     * ROAMING_MAX_COUNT times */
+#define ROAMING_MAX_TIME 20000 /* Time in which a client can roam at most
+				* ROAMING_MAX_COUNT times in miliseconds*/
 #define ROAMING_MAX_COUNT 5
 
 #define NO_FLAGS 0
 
 #define NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
 
-#define NUM_WORDS (TQ_LOCAL_WINDOW_SIZE / WORD_BIT_SIZE)
+#define NUM_WORDS BITS_TO_LONGS(TQ_LOCAL_WINDOW_SIZE)
 
 #define LOG_BUF_LEN 8192	  /* has to be a power of 2 */
 
@@ -79,8 +80,12 @@
 #define MAX_AGGREGATION_BYTES 512
 #define MAX_AGGREGATION_MS 100
 
-#define SOFTIF_NEIGH_TIMEOUT 180000 /* 3 minutes */
+#define BLA_PERIOD_LENGTH	10000	/* 10 seconds */
+#define BLA_BACKBONE_TIMEOUT	(BLA_PERIOD_LENGTH * 3)
+#define BLA_CLAIM_TIMEOUT	(BLA_PERIOD_LENGTH * 10)
 
+#define DUPLIST_SIZE		16
+#define DUPLIST_TIMEOUT		500	/* 500 ms */
 /* don't reset again within 30 seconds */
 #define RESET_PROTECTION_MS 30000
 #define EXPECTED_SEQNO_RANGE	65536
@@ -106,9 +111,7 @@ enum uev_type {
 
 #define GW_THRESHOLD	50
 
-/*
- * Debug Messages
- */
+/* Debug Messages */
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -120,17 +123,11 @@ enum dbg_level {
 	DBG_BATMAN = 1 << 0,
 	DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
 	DBG_TT	   = 1 << 2, /* translation table operations */
-	DBG_ALL    = 7
+	DBG_BLA    = 1 << 3, /* bridge loop avoidance */
+	DBG_ALL    = 15
 };
 
-
-/*
- *  Vis
- */
-
-/*
- * Kernel headers
- */
+/* Kernel headers */
 
 #include <linux/mutex.h>	/* mutex */
 #include <linux/module.h>	/* needed by all modules */
@@ -147,6 +144,7 @@ enum dbg_level {
 #include <linux/seq_file.h>
 #include "types.h"
 
+extern char bat_routing_algo[];
 extern struct list_head hardif_list;
 
 extern unsigned char broadcast_addr[];
@@ -157,6 +155,15 @@ void mesh_free(struct net_device *soft_iface);
 void inc_module_count(void);
 void dec_module_count(void);
 int is_my_mac(const uint8_t *addr);
+int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
+		    struct packet_type *ptype, struct net_device *orig_dev);
+int recv_handler_register(uint8_t packet_type,
+			  int (*recv_handler)(struct sk_buff *,
+					      struct hard_iface *));
+void recv_handler_unregister(uint8_t packet_type);
+int bat_algo_register(struct bat_algo_ops *bat_algo_ops);
+int bat_algo_select(struct bat_priv *bat_priv, char *name);
+int bat_algo_seq_print_text(struct seq_file *seq, void *offset);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 int debug_log(struct bat_priv *bat_priv, const char *fmt, ...) __printf(2, 3);
@@ -202,6 +209,17 @@ static inline int compare_eth(const void *data1, const void *data2)
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
+/**
+ * has_timed_out - compares current time (jiffies) and timestamp + timeout
+ * @timestamp:		base value to compare with (in jiffies)
+ * @timeout:		added to base value before comparing (in milliseconds)
+ *
+ * Returns true if current time is after timestamp + timeout
+ */
+static inline bool has_timed_out(unsigned long timestamp, unsigned int timeout)
+{
+	return time_is_before_jiffies(timestamp + msecs_to_jiffies(timeout));
+}
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 

@@ -14,7 +14,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
-#include <asm/system.h>
+#include <asm/cp15.h>
 
 extern volatile int pen_release;
 

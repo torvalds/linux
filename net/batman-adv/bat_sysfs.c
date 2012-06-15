@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -63,7 +63,7 @@ struct bat_attribute bat_attr_##_name = {	\
 	.store  = _store,			\
 };
 
-#define BAT_ATTR_STORE_BOOL(_name, _post_func)				\
+#define BAT_ATTR_SIF_STORE_BOOL(_name, _post_func)			\
 ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
 		      char *buff, size_t count)				\
 {									\
@@ -73,9 +73,9 @@ ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
 				 &bat_priv->_name, net_dev);		\
 }
 
-#define BAT_ATTR_SHOW_BOOL(_name)					\
-ssize_t show_##_name(struct kobject *kobj, struct attribute *attr,	\
-			    char *buff)					\
+#define BAT_ATTR_SIF_SHOW_BOOL(_name)					\
+ssize_t show_##_name(struct kobject *kobj,				\
+		     struct attribute *attr, char *buff)		\
 {									\
 	struct bat_priv *bat_priv = kobj_to_batpriv(kobj);		\
 	return sprintf(buff, "%s\n",					\
@@ -83,16 +83,17 @@ ssize_t show_##_name(struct kobject *kobj, struct attribute *attr,	\
 		       "disabled" : "enabled");				\
 }									\
 
-/* Use this, if you are going to turn a [name] in bat_priv on or off */
-#define BAT_ATTR_BOOL(_name, _mode, _post_func)				\
-	static BAT_ATTR_STORE_BOOL(_name, _post_func)			\
-	static BAT_ATTR_SHOW_BOOL(_name)				\
+/* Use this, if you are going to turn a [name] in the soft-interface
+ * (bat_priv) on or off */
+#define BAT_ATTR_SIF_BOOL(_name, _mode, _post_func)			\
+	static BAT_ATTR_SIF_STORE_BOOL(_name, _post_func)		\
+	static BAT_ATTR_SIF_SHOW_BOOL(_name)				\
 	static BAT_ATTR(_name, _mode, show_##_name, store_##_name)
 
 
-#define BAT_ATTR_STORE_UINT(_name, _min, _max, _post_func)		\
+#define BAT_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)		\
 ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
-			     char *buff, size_t count)			\
+		      char *buff, size_t count)				\
 {									\
 	struct net_device *net_dev = kobj_to_netdev(kobj);		\
 	struct bat_priv *bat_priv = netdev_priv(net_dev);		\
@@ -100,19 +101,62 @@ ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
 				 attr, &bat_priv->_name, net_dev);	\
 }
 
-#define BAT_ATTR_SHOW_UINT(_name)					\
-ssize_t show_##_name(struct kobject *kobj, struct attribute *attr,	\
-			    char *buff)					\
+#define BAT_ATTR_SIF_SHOW_UINT(_name)					\
+ssize_t show_##_name(struct kobject *kobj,				\
+		     struct attribute *attr, char *buff)		\
 {									\
 	struct bat_priv *bat_priv = kobj_to_batpriv(kobj);		\
 	return sprintf(buff, "%i\n", atomic_read(&bat_priv->_name));	\
 }									\
 
-/* Use this, if you are going to set [name] in bat_priv to unsigned integer
- * values only */
-#define BAT_ATTR_UINT(_name, _mode, _min, _max, _post_func)		\
-	static BAT_ATTR_STORE_UINT(_name, _min, _max, _post_func)	\
-	static BAT_ATTR_SHOW_UINT(_name)				\
+/* Use this, if you are going to set [name] in the soft-interface
+ * (bat_priv) to an unsigned integer value */
+#define BAT_ATTR_SIF_UINT(_name, _mode, _min, _max, _post_func)		\
+	static BAT_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)	\
+	static BAT_ATTR_SIF_SHOW_UINT(_name)				\
+	static BAT_ATTR(_name, _mode, show_##_name, store_##_name)
+
+
+#define BAT_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)		\
+ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
+		      char *buff, size_t count)				\
+{									\
+	struct net_device *net_dev = kobj_to_netdev(kobj);		\
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);	\
+	ssize_t length;							\
+									\
+	if (!hard_iface)						\
+		return 0;						\
+									\
+	length = __store_uint_attr(buff, count, _min, _max, _post_func,	\
+				   attr, &hard_iface->_name, net_dev);	\
+									\
+	hardif_free_ref(hard_iface);					\
+	return length;							\
+}
+
+#define BAT_ATTR_HIF_SHOW_UINT(_name)					\
+ssize_t show_##_name(struct kobject *kobj,				\
+		     struct attribute *attr, char *buff)		\
+{									\
+	struct net_device *net_dev = kobj_to_netdev(kobj);		\
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);	\
+	ssize_t length;							\
+									\
+	if (!hard_iface)						\
+		return 0;						\
+									\
+	length = sprintf(buff, "%i\n", atomic_read(&hard_iface->_name));\
+									\
+	hardif_free_ref(hard_iface);					\
+	return length;							\
+}
+
+/* Use this, if you are going to set [name] in hard_iface to an
+ * unsigned integer value*/
+#define BAT_ATTR_HIF_UINT(_name, _mode, _min, _max, _post_func)		\
+	static BAT_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)	\
+	static BAT_ATTR_HIF_SHOW_UINT(_name)				\
 	static BAT_ATTR(_name, _mode, show_##_name, store_##_name)
 
 
@@ -149,7 +193,7 @@ static int store_bool_attr(char *buff, size_t count,
 		 atomic_read(attr) == 1 ? "enabled" : "disabled",
 		 enabled == 1 ? "enabled" : "disabled");
 
-	atomic_set(attr, (unsigned)enabled);
+	atomic_set(attr, (unsigned int)enabled);
 	return count;
 }
 
@@ -255,8 +299,8 @@ static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
 			buff[count - 1] = '\0';
 
 		bat_info(net_dev,
-			 "Invalid parameter for 'vis mode' setting received: "
-			 "%s\n", buff);
+			 "Invalid parameter for 'vis mode' setting received: %s\n",
+			 buff);
 		return -EINVAL;
 	}
 
@@ -268,8 +312,15 @@ static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
 		 "client" : "server", vis_mode_tmp == VIS_TYPE_CLIENT_UPDATE ?
 		 "client" : "server");
 
-	atomic_set(&bat_priv->vis_mode, (unsigned)vis_mode_tmp);
+	atomic_set(&bat_priv->vis_mode, (unsigned int)vis_mode_tmp);
 	return count;
+}
+
+static ssize_t show_bat_algo(struct kobject *kobj, struct attribute *attr,
+			    char *buff)
+{
+	struct bat_priv *bat_priv = kobj_to_batpriv(kobj);
+	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
 }
 
 static void post_gw_deselect(struct net_device *net_dev)
@@ -314,17 +365,17 @@ static ssize_t store_gw_mode(struct kobject *kobj, struct attribute *attr,
 		gw_mode_tmp = GW_MODE_OFF;
 
 	if (strncmp(buff, GW_MODE_CLIENT_NAME,
-		   strlen(GW_MODE_CLIENT_NAME)) == 0)
+		    strlen(GW_MODE_CLIENT_NAME)) == 0)
 		gw_mode_tmp = GW_MODE_CLIENT;
 
 	if (strncmp(buff, GW_MODE_SERVER_NAME,
-		   strlen(GW_MODE_SERVER_NAME)) == 0)
+		    strlen(GW_MODE_SERVER_NAME)) == 0)
 		gw_mode_tmp = GW_MODE_SERVER;
 
 	if (gw_mode_tmp < 0) {
 		bat_info(net_dev,
-			 "Invalid parameter for 'gw mode' setting received: "
-			 "%s\n", buff);
+			 "Invalid parameter for 'gw mode' setting received: %s\n",
+			 buff);
 		return -EINVAL;
 	}
 
@@ -347,7 +398,7 @@ static ssize_t store_gw_mode(struct kobject *kobj, struct attribute *attr,
 		 curr_gw_mode_str, buff);
 
 	gw_deselect(bat_priv);
-	atomic_set(&bat_priv->gw_mode, (unsigned)gw_mode_tmp);
+	atomic_set(&bat_priv->gw_mode, (unsigned int)gw_mode_tmp);
 	return count;
 }
 
@@ -377,28 +428,36 @@ static ssize_t store_gw_bwidth(struct kobject *kobj, struct attribute *attr,
 	return gw_bandwidth_set(net_dev, buff, count);
 }
 
-BAT_ATTR_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
-BAT_ATTR_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
-BAT_ATTR_BOOL(fragmentation, S_IRUGO | S_IWUSR, update_min_mtu);
-BAT_ATTR_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
+BAT_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
+BAT_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
+#ifdef CONFIG_BATMAN_ADV_BLA
+BAT_ATTR_SIF_BOOL(bridge_loop_avoidance, S_IRUGO | S_IWUSR, NULL);
+#endif
+BAT_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, update_min_mtu);
+BAT_ATTR_SIF_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
+static BAT_ATTR(routing_algo, S_IRUGO, show_bat_algo, NULL);
 static BAT_ATTR(gw_mode, S_IRUGO | S_IWUSR, show_gw_mode, store_gw_mode);
-BAT_ATTR_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * JITTER, INT_MAX, NULL);
-BAT_ATTR_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, TQ_MAX_VALUE, NULL);
-BAT_ATTR_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, TQ_MAX_VALUE,
-	      post_gw_deselect);
+BAT_ATTR_SIF_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * JITTER, INT_MAX, NULL);
+BAT_ATTR_SIF_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, TQ_MAX_VALUE, NULL);
+BAT_ATTR_SIF_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, TQ_MAX_VALUE,
+		  post_gw_deselect);
 static BAT_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, show_gw_bwidth,
 		store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-BAT_ATTR_UINT(log_level, S_IRUGO | S_IWUSR, 0, 7, NULL);
+BAT_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, 15, NULL);
 #endif
 
 static struct bat_attribute *mesh_attrs[] = {
 	&bat_attr_aggregated_ogms,
 	&bat_attr_bonding,
+#ifdef CONFIG_BATMAN_ADV_BLA
+	&bat_attr_bridge_loop_avoidance,
+#endif
 	&bat_attr_fragmentation,
 	&bat_attr_ap_isolation,
 	&bat_attr_vis_mode,
+	&bat_attr_routing_algo,
 	&bat_attr_gw_mode,
 	&bat_attr_orig_interval,
 	&bat_attr_hop_penalty,
@@ -493,8 +552,8 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 		buff[count - 1] = '\0';
 
 	if (strlen(buff) >= IFNAMSIZ) {
-		pr_err("Invalid parameter for 'mesh_iface' setting received: "
-		       "interface name too long '%s'\n", buff);
+		pr_err("Invalid parameter for 'mesh_iface' setting received: interface name too long '%s'\n",
+		       buff);
 		hardif_free_ref(hard_iface);
 		return -EINVAL;
 	}
@@ -668,8 +727,8 @@ out:
 		hardif_free_ref(primary_if);
 
 	if (ret)
-		bat_dbg(DBG_BATMAN, bat_priv, "Impossible to send "
-			"uevent for (%s,%s,%s) event (err: %d)\n",
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
 			uev_type_str[type], uev_action_str[action],
 			(action == UEV_DEL ? "NULL" : data), ret);
 	return ret;

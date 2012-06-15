@@ -99,7 +99,6 @@ static int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 	buf_priv = buf->dev_private;
 
 	vma->vm_flags |= (VM_IO | VM_DONTCOPY);
-	vma->vm_file = filp;
 
 	buf_priv->currently_mapped = I810_BUF_MAPPED;
 
@@ -130,11 +129,11 @@ static int i810_map_buffer(struct drm_buf *buf, struct drm_file *file_priv)
 	if (buf_priv->currently_mapped == I810_BUF_MAPPED)
 		return -EINVAL;
 
-	down_write(&current->mm->mmap_sem);
+	/* This is all entirely broken */
 	old_fops = file_priv->filp->f_op;
 	file_priv->filp->f_op = &i810_buffer_fops;
 	dev_priv->mmap_buffer = buf;
-	buf_priv->virtual = (void *)do_mmap(file_priv->filp, 0, buf->total,
+	buf_priv->virtual = (void *)vm_mmap(file_priv->filp, 0, buf->total,
 					    PROT_READ | PROT_WRITE,
 					    MAP_SHARED, buf->bus_address);
 	dev_priv->mmap_buffer = NULL;
@@ -145,7 +144,6 @@ static int i810_map_buffer(struct drm_buf *buf, struct drm_file *file_priv)
 		retcode = PTR_ERR(buf_priv->virtual);
 		buf_priv->virtual = NULL;
 	}
-	up_write(&current->mm->mmap_sem);
 
 	return retcode;
 }
@@ -158,11 +156,8 @@ static int i810_unmap_buffer(struct drm_buf *buf)
 	if (buf_priv->currently_mapped != I810_BUF_MAPPED)
 		return -EINVAL;
 
-	down_write(&current->mm->mmap_sem);
-	retcode = do_munmap(current->mm,
-			    (unsigned long)buf_priv->virtual,
+	retcode = vm_munmap((unsigned long)buf_priv->virtual,
 			    (size_t) buf->total);
-	up_write(&current->mm->mmap_sem);
 
 	buf_priv->currently_mapped = I810_BUF_UNMAPPED;
 	buf_priv->virtual = NULL;
@@ -1207,6 +1202,8 @@ int i810_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->types[7] = _DRM_STAT_PRIMARY;
 	dev->types[8] = _DRM_STAT_SECONDARY;
 	dev->types[9] = _DRM_STAT_DMA;
+
+	pci_set_master(dev->pdev);
 
 	return 0;
 }

@@ -52,8 +52,8 @@
 
 extern struct t10_alua_lu_gp *default_lu_gp;
 
-static struct list_head g_tf_list;
-static struct mutex g_tf_lock;
+static LIST_HEAD(g_tf_list);
+static DEFINE_MUTEX(g_tf_lock);
 
 struct target_core_configfs_attribute {
 	struct configfs_attribute attr;
@@ -421,18 +421,6 @@ static int target_fabric_tf_ops_check(
 		pr_err("Missing tfo->close_session()\n");
 		return -EINVAL;
 	}
-	if (!tfo->stop_session) {
-		pr_err("Missing tfo->stop_session()\n");
-		return -EINVAL;
-	}
-	if (!tfo->fall_back_to_erl0) {
-		pr_err("Missing tfo->fall_back_to_erl0()\n");
-		return -EINVAL;
-	}
-	if (!tfo->sess_logged_in) {
-		pr_err("Missing tfo->sess_logged_in()\n");
-		return -EINVAL;
-	}
 	if (!tfo->sess_get_index) {
 		pr_err("Missing tfo->sess_get_index()\n");
 		return -EINVAL;
@@ -475,10 +463,6 @@ static int target_fabric_tf_ops_check(
 	}
 	if (!tfo->get_fabric_sense_len) {
 		pr_err("Missing tfo->get_fabric_sense_len()\n");
-		return -EINVAL;
-	}
-	if (!tfo->is_state_remove) {
-		pr_err("Missing tfo->is_state_remove()\n");
 		return -EINVAL;
 	}
 	/*
@@ -699,8 +683,8 @@ SE_DEV_ATTR(block_size, S_IRUGO | S_IWUSR);
 DEF_DEV_ATTRIB_RO(hw_max_sectors);
 SE_DEV_ATTR_RO(hw_max_sectors);
 
-DEF_DEV_ATTRIB(max_sectors);
-SE_DEV_ATTR(max_sectors, S_IRUGO | S_IWUSR);
+DEF_DEV_ATTRIB(fabric_max_sectors);
+SE_DEV_ATTR(fabric_max_sectors, S_IRUGO | S_IWUSR);
 
 DEF_DEV_ATTRIB(optimal_sectors);
 SE_DEV_ATTR(optimal_sectors, S_IRUGO | S_IWUSR);
@@ -740,7 +724,7 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_hw_block_size.attr,
 	&target_core_dev_attrib_block_size.attr,
 	&target_core_dev_attrib_hw_max_sectors.attr,
-	&target_core_dev_attrib_max_sectors.attr,
+	&target_core_dev_attrib_fabric_max_sectors.attr,
 	&target_core_dev_attrib_optimal_sectors.attr,
 	&target_core_dev_attrib_hw_queue_depth.attr,
 	&target_core_dev_attrib_queue_depth.attr,
@@ -2304,7 +2288,7 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 
 	if (!(tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICT_ALUA)) {
 		pr_err("Unable to process implict configfs ALUA"
-			" transition while TPGS_IMPLICT_ALUA is diabled\n");
+			" transition while TPGS_IMPLICT_ALUA is disabled\n");
 		return -EINVAL;
 	}
 
@@ -2463,6 +2447,26 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_trans_delay_msecs(
 SE_DEV_ALUA_TG_PT_ATTR(trans_delay_msecs, S_IRUGO | S_IWUSR);
 
 /*
+ * implict_trans_secs
+ */
+static ssize_t target_core_alua_tg_pt_gp_show_attr_implict_trans_secs(
+	struct t10_alua_tg_pt_gp *tg_pt_gp,
+	char *page)
+{
+	return core_alua_show_implict_trans_secs(tg_pt_gp, page);
+}
+
+static ssize_t target_core_alua_tg_pt_gp_store_attr_implict_trans_secs(
+	struct t10_alua_tg_pt_gp *tg_pt_gp,
+	const char *page,
+	size_t count)
+{
+	return core_alua_store_implict_trans_secs(tg_pt_gp, page, count);
+}
+
+SE_DEV_ALUA_TG_PT_ATTR(implict_trans_secs, S_IRUGO | S_IWUSR);
+
+/*
  * preferred
  */
 
@@ -2586,6 +2590,7 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	&target_core_alua_tg_pt_gp_alua_write_metadata.attr,
 	&target_core_alua_tg_pt_gp_nonop_delay_msecs.attr,
 	&target_core_alua_tg_pt_gp_trans_delay_msecs.attr,
+	&target_core_alua_tg_pt_gp_implict_trans_secs.attr,
 	&target_core_alua_tg_pt_gp_preferred.attr,
 	&target_core_alua_tg_pt_gp_tg_pt_gp_id.attr,
 	&target_core_alua_tg_pt_gp_members.attr,
@@ -2865,7 +2870,6 @@ static void target_core_drop_subdev(
 	struct se_subsystem_dev *se_dev = container_of(to_config_group(item),
 				struct se_subsystem_dev, se_dev_group);
 	struct se_hba *hba;
-	struct se_subsystem_api *t;
 	struct config_item *df_item;
 	struct config_group *dev_cg, *tg_pt_gp_cg, *dev_stat_grp;
 	int i;
@@ -2873,7 +2877,6 @@ static void target_core_drop_subdev(
 	hba = item_to_hba(&se_dev->se_dev_hba->hba_group.cg_item);
 
 	mutex_lock(&hba->hba_access_mutex);
-	t = hba->transport;
 
 	dev_stat_grp = &se_dev->dev_stat_grps.stat_group;
 	for (i = 0; dev_stat_grp->default_groups[i]; i++) {
@@ -3117,8 +3120,6 @@ static int __init target_core_init_configfs(void)
 	config_group_init(&subsys->su_group);
 	mutex_init(&subsys->su_mutex);
 
-	INIT_LIST_HEAD(&g_tf_list);
-	mutex_init(&g_tf_lock);
 	ret = init_se_kmem_caches();
 	if (ret < 0)
 		return ret;

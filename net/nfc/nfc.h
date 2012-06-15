@@ -32,7 +32,7 @@ struct nfc_protocol {
 	struct proto *proto;
 	struct module *owner;
 	int (*create)(struct net *net, struct socket *sock,
-			const struct nfc_protocol *nfc_proto);
+		      const struct nfc_protocol *nfc_proto);
 };
 
 struct nfc_rawsock {
@@ -54,7 +54,7 @@ void nfc_llcp_mac_is_up(struct nfc_dev *dev, u32 target_idx,
 int nfc_llcp_register_device(struct nfc_dev *dev);
 void nfc_llcp_unregister_device(struct nfc_dev *dev);
 int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len);
-u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, u8 *general_bytes_len);
+u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *general_bytes_len);
 int __init nfc_llcp_init(void);
 void nfc_llcp_exit(void);
 
@@ -65,7 +65,7 @@ static inline void nfc_llcp_mac_is_down(struct nfc_dev *dev)
 }
 
 static inline void nfc_llcp_mac_is_up(struct nfc_dev *dev, u32 target_idx,
-			u8 comm_mode, u8 rf_mode)
+				      u8 comm_mode, u8 rf_mode)
 {
 }
 
@@ -78,12 +78,13 @@ static inline void nfc_llcp_unregister_device(struct nfc_dev *dev)
 {
 }
 
-static inline int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len)
+static inline int nfc_llcp_set_remote_gb(struct nfc_dev *dev,
+					 u8 *gb, u8 gb_len)
 {
 	return 0;
 }
 
-static inline u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, u8 *gb_len)
+static inline u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *gb_len)
 {
 	*gb_len = 0;
 	return NULL;
@@ -118,6 +119,7 @@ void nfc_genl_data_init(struct nfc_genl_data *genl_data);
 void nfc_genl_data_exit(struct nfc_genl_data *genl_data);
 
 int nfc_genl_targets_found(struct nfc_dev *dev);
+int nfc_genl_target_lost(struct nfc_dev *dev, u32 target_idx);
 
 int nfc_genl_device_added(struct nfc_dev *dev);
 int nfc_genl_device_removed(struct nfc_dev *dev);
@@ -126,7 +128,7 @@ int nfc_genl_dep_link_up_event(struct nfc_dev *dev, u32 target_idx,
 			       u8 comm_mode, u8 rf_mode);
 int nfc_genl_dep_link_down_event(struct nfc_dev *dev);
 
-struct nfc_dev *nfc_get_device(unsigned idx);
+struct nfc_dev *nfc_get_device(unsigned int idx);
 
 static inline void nfc_put_device(struct nfc_dev *dev)
 {
@@ -160,8 +162,7 @@ int nfc_start_poll(struct nfc_dev *dev, u32 protocols);
 
 int nfc_stop_poll(struct nfc_dev *dev);
 
-int nfc_dep_link_up(struct nfc_dev *dev, int target_idx,
-				u8 comm_mode, u8 rf_mode);
+int nfc_dep_link_up(struct nfc_dev *dev, int target_idx, u8 comm_mode);
 
 int nfc_dep_link_down(struct nfc_dev *dev);
 
@@ -169,9 +170,7 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol);
 
 int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx);
 
-int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx,
-					struct sk_buff *skb,
-					data_exchange_cb_t cb,
-					void *cb_context);
+int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
+		      data_exchange_cb_t cb, void *cb_context);
 
 #endif /* __LOCAL_NFC_H */

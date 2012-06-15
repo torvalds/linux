@@ -3,6 +3,7 @@ config PPC_PSERIES
 	bool "IBM pSeries & new (POWER5-based) iSeries"
 	select HAVE_PCSPKR_PLATFORM
 	select MPIC
+	select OF_DYNAMIC
 	select PCI_MSI
 	select PPC_XICS
 	select PPC_ICP_NATIVE
@@ -29,9 +30,9 @@ config PPC_SPLPAR
 	  two or more partitions.
 
 config EEH
-	bool "PCI Extended Error Handling (EEH)" if EXPERT
+	bool
 	depends on PPC_PSERIES && PCI
-	default y if !EXPERT
+	default y
 
 config PSERIES_MSI
        bool
@@ -66,13 +67,13 @@ config IO_EVENT_IRQ
 
 	  This option will only enable the IO event platform code. You
 	  will still need to enable or compile the actual drivers
-	  that use this infrastruture to handle IO event interrupts.
+	  that use this infrastructure to handle IO event interrupts.
 
 	  Say Y if you are unsure.
 
 config LPARCFG
 	bool "LPAR Configuration Data"
-	depends on PPC_PSERIES || PPC_ISERIES
+	depends on PPC_PSERIES
 	help
 	Provide system capacity information via human readable
 	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.

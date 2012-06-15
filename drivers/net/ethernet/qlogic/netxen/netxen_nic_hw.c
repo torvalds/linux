@@ -46,7 +46,6 @@ static void netxen_nic_io_write_128M(struct netxen_adapter *adapter,
 		void __iomem *addr, u32 data);
 static u32 netxen_nic_io_read_128M(struct netxen_adapter *adapter,
 		void __iomem *addr);
-
 #ifndef readq
 static inline u64 readq(void __iomem *addr)
 {
@@ -910,7 +909,7 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 	return rv;
 }
 
-int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd)
+int netxen_config_ipaddr(struct netxen_adapter *adapter, __be32 ip, int cmd)
 {
 	nx_nic_req_t req;
 	u64 word;
@@ -923,7 +922,7 @@ int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd)
 	req.req_hdr = cpu_to_le64(word);
 
 	req.words[0] = cpu_to_le64(cmd);
-	req.words[1] = cpu_to_le64(ip);
+	memcpy(&req.words[1], &ip, sizeof(u32));
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
@@ -1051,7 +1050,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac)
 	if (netxen_get_flash_block(adapter, offset, sizeof(u64), pmac) == -1)
 		return -1;
 
-	if (*mac == cpu_to_le64(~0ULL)) {
+	if (*mac == ~0ULL) {
 
 		offset = NX_OLD_MAC_ADDR_OFFSET +
 			(adapter->portnum * sizeof(u64));
@@ -1060,7 +1059,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac)
 					offset, sizeof(u64), pmac) == -1)
 			return -1;
 
-		if (*mac == cpu_to_le64(~0ULL))
+		if (*mac == ~0ULL)
 			return -1;
 	}
 	return 0;
@@ -1973,4 +1972,632 @@ netxen_nic_wol_supported(struct netxen_adapter *adapter)
 	}
 
 	return 0;
+}
+
+static u32 netxen_md_cntrl(struct netxen_adapter *adapter,
+			struct netxen_minidump_template_hdr *template_hdr,
+			struct netxen_minidump_entry_crb *crtEntry)
+{
+	int loop_cnt, i, rv = 0, timeout_flag;
+	u32 op_count, stride;
+	u32 opcode, read_value, addr;
+	unsigned long timeout, timeout_jiffies;
+	addr = crtEntry->addr;
+	op_count = crtEntry->op_count;
+	stride = crtEntry->addr_stride;
+
+	for (loop_cnt = 0; loop_cnt < op_count; loop_cnt++) {
+		for (i = 0; i < sizeof(crtEntry->opcode) * 8; i++) {
+			opcode = (crtEntry->opcode & (0x1 << i));
+			if (opcode) {
+				switch (opcode) {
+				case NX_DUMP_WCRB:
+					NX_WR_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+							crtEntry->value_1);
+					break;
+				case NX_DUMP_RWCRB:
+					NX_RD_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								&read_value);
+					NX_WR_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								read_value);
+					break;
+				case NX_DUMP_ANDCRB:
+					NX_RD_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								&read_value);
+					read_value &= crtEntry->value_2;
+					NX_WR_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								read_value);
+					break;
+				case NX_DUMP_ORCRB:
+					NX_RD_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								&read_value);
+					read_value |= crtEntry->value_3;
+					NX_WR_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								read_value);
+					break;
+				case NX_DUMP_POLLCRB:
+					timeout = crtEntry->poll_timeout;
+					NX_RD_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								&read_value);
+					timeout_jiffies =
+					msecs_to_jiffies(timeout) + jiffies;
+					for (timeout_flag = 0;
+						!timeout_flag
+					&& ((read_value & crtEntry->value_2)
+					!= crtEntry->value_1);) {
+						if (time_after(jiffies,
+							timeout_jiffies))
+							timeout_flag = 1;
+					NX_RD_DUMP_REG(addr,
+							adapter->ahw.pci_base0,
+								&read_value);
+					}
+
+					if (timeout_flag) {
+						dev_err(&adapter->pdev->dev, "%s : "
+							"Timeout in poll_crb control operation.\n"
+								, __func__);
+						return -1;
+					}
+					break;
+				case NX_DUMP_RD_SAVE:
+					/* Decide which address to use */
+					if (crtEntry->state_index_a)
+						addr =
+						template_hdr->saved_state_array
+						[crtEntry->state_index_a];
+					NX_RD_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								&read_value);
+					template_hdr->saved_state_array
+					[crtEntry->state_index_v]
+						= read_value;
+					break;
+				case NX_DUMP_WRT_SAVED:
+					/* Decide which value to use */
+					if (crtEntry->state_index_v)
+						read_value =
+						template_hdr->saved_state_array
+						[crtEntry->state_index_v];
+					else
+						read_value = crtEntry->value_1;
+
+					/* Decide which address to use */
+					if (crtEntry->state_index_a)
+						addr =
+						template_hdr->saved_state_array
+						[crtEntry->state_index_a];
+
+					NX_WR_DUMP_REG(addr,
+						adapter->ahw.pci_base0,
+								read_value);
+					break;
+				case NX_DUMP_MOD_SAVE_ST:
+					read_value =
+					template_hdr->saved_state_array
+						[crtEntry->state_index_v];
+					read_value <<= crtEntry->shl;
+					read_value >>= crtEntry->shr;
+					if (crtEntry->value_2)
+						read_value &=
+						crtEntry->value_2;
+					read_value |= crtEntry->value_3;
+					read_value += crtEntry->value_1;
+					/* Write value back to state area.*/
+					template_hdr->saved_state_array
+						[crtEntry->state_index_v]
+							= read_value;
+					break;
+				default:
+					rv = 1;
+					break;
+				}
+			}
+		}
+		addr = addr + stride;
+	}
+	return rv;
+}
+
+/* Read memory or MN */
+static u32
+netxen_md_rdmem(struct netxen_adapter *adapter,
+		struct netxen_minidump_entry_rdmem
+			*memEntry, u64 *data_buff)
+{
+	u64 addr, value = 0;
+	int i = 0, loop_cnt;
+
+	addr = (u64)memEntry->read_addr;
+	loop_cnt = memEntry->read_data_size;    /* This is size in bytes */
+	loop_cnt /= sizeof(value);
+
+	for (i = 0; i < loop_cnt; i++) {
+		if (netxen_nic_pci_mem_read_2M(adapter, addr, &value))
+			goto out;
+		*data_buff++ = value;
+		addr += sizeof(value);
+	}
+out:
+	return i * sizeof(value);
+}
+
+/* Read CRB operation */
+static u32 netxen_md_rd_crb(struct netxen_adapter *adapter,
+			struct netxen_minidump_entry_crb
+				*crbEntry, u32 *data_buff)
+{
+	int loop_cnt;
+	u32 op_count, addr, stride, value;
+
+	addr = crbEntry->addr;
+	op_count = crbEntry->op_count;
+	stride = crbEntry->addr_stride;
+
+	for (loop_cnt = 0; loop_cnt < op_count; loop_cnt++) {
+		NX_RD_DUMP_REG(addr, adapter->ahw.pci_base0, &value);
+		*data_buff++ = addr;
+		*data_buff++ = value;
+		addr = addr + stride;
+	}
+	return loop_cnt * (2 * sizeof(u32));
+}
+
+/* Read ROM */
+static u32
+netxen_md_rdrom(struct netxen_adapter *adapter,
+			struct netxen_minidump_entry_rdrom
+				*romEntry, __le32 *data_buff)
+{
+	int i, count = 0;
+	u32 size, lck_val;
+	u32 val;
+	u32 fl_addr, waddr, raddr;
+	fl_addr = romEntry->read_addr;
+	size = romEntry->read_data_size/4;
+lock_try:
+	lck_val = readl((void __iomem *)(adapter->ahw.pci_base0 +
+							NX_FLASH_SEM2_LK));
+	if (!lck_val && count < MAX_CTL_CHECK) {
+		msleep(20);
+		count++;
+		goto lock_try;
+	}
+	writel(adapter->ahw.pci_func, (void __iomem *)(adapter->ahw.pci_base0 +
+							NX_FLASH_LOCK_ID));
+	for (i = 0; i < size; i++) {
+		waddr = fl_addr & 0xFFFF0000;
+		NX_WR_DUMP_REG(FLASH_ROM_WINDOW, adapter->ahw.pci_base0, waddr);
+		raddr = FLASH_ROM_DATA + (fl_addr & 0x0000FFFF);
+		NX_RD_DUMP_REG(raddr, adapter->ahw.pci_base0, &val);
+		*data_buff++ = cpu_to_le32(val);
+		fl_addr += sizeof(val);
+	}
+	readl((void __iomem *)(adapter->ahw.pci_base0 + NX_FLASH_SEM2_ULK));
+	return romEntry->read_data_size;
+}
+
+/* Handle L2 Cache */
+static u32
+netxen_md_L2Cache(struct netxen_adapter *adapter,
+				struct netxen_minidump_entry_cache
+					*cacheEntry, u32 *data_buff)
+{
+	int loop_cnt, i, k, timeout_flag = 0;
+	u32 addr, read_addr, read_value, cntrl_addr, tag_reg_addr;
+	u32 tag_value, read_cnt;
+	u8 cntl_value_w, cntl_value_r;
+	unsigned long timeout, timeout_jiffies;
+
+	loop_cnt = cacheEntry->op_count;
+	read_addr = cacheEntry->read_addr;
+	cntrl_addr = cacheEntry->control_addr;
+	cntl_value_w = (u32) cacheEntry->write_value;
+	tag_reg_addr = cacheEntry->tag_reg_addr;
+	tag_value = cacheEntry->init_tag_value;
+	read_cnt = cacheEntry->read_addr_cnt;
+
+	for (i = 0; i < loop_cnt; i++) {
+		NX_WR_DUMP_REG(tag_reg_addr, adapter->ahw.pci_base0, tag_value);
+		if (cntl_value_w)
+			NX_WR_DUMP_REG(cntrl_addr, adapter->ahw.pci_base0,
+					(u32)cntl_value_w);
+		if (cacheEntry->poll_mask) {
+			timeout = cacheEntry->poll_wait;
+			NX_RD_DUMP_REG(cntrl_addr, adapter->ahw.pci_base0,
+							&cntl_value_r);
+			timeout_jiffies = msecs_to_jiffies(timeout) + jiffies;
+			for (timeout_flag = 0; !timeout_flag &&
+			((cntl_value_r & cacheEntry->poll_mask) != 0);) {
+				if (time_after(jiffies, timeout_jiffies))
+					timeout_flag = 1;
+				NX_RD_DUMP_REG(cntrl_addr,
+					adapter->ahw.pci_base0,
+							&cntl_value_r);
+			}
+			if (timeout_flag) {
+				dev_err(&adapter->pdev->dev,
+						"Timeout in processing L2 Tag poll.\n");
+				return -1;
+			}
+		}
+		addr = read_addr;
+		for (k = 0; k < read_cnt; k++) {
+			NX_RD_DUMP_REG(addr, adapter->ahw.pci_base0,
+					&read_value);
+			*data_buff++ = read_value;
+			addr += cacheEntry->read_addr_stride;
+		}
+		tag_value += cacheEntry->tag_value_stride;
+	}
+	return read_cnt * loop_cnt * sizeof(read_value);
+}
+
+
+/* Handle L1 Cache */
+static u32 netxen_md_L1Cache(struct netxen_adapter *adapter,
+				struct netxen_minidump_entry_cache
+					*cacheEntry, u32 *data_buff)
+{
+	int i, k, loop_cnt;
+	u32 addr, read_addr, read_value, cntrl_addr, tag_reg_addr;
+	u32 tag_value, read_cnt;
+	u8 cntl_value_w;
+
+	loop_cnt = cacheEntry->op_count;
+	read_addr = cacheEntry->read_addr;
+	cntrl_addr = cacheEntry->control_addr;
+	cntl_value_w = (u32) cacheEntry->write_value;
+	tag_reg_addr = cacheEntry->tag_reg_addr;
+	tag_value = cacheEntry->init_tag_value;
+	read_cnt = cacheEntry->read_addr_cnt;
+
+	for (i = 0; i < loop_cnt; i++) {
+		NX_WR_DUMP_REG(tag_reg_addr, adapter->ahw.pci_base0, tag_value);
+		NX_WR_DUMP_REG(cntrl_addr, adapter->ahw.pci_base0,
+						(u32) cntl_value_w);
+		addr = read_addr;
+		for (k = 0; k < read_cnt; k++) {
+			NX_RD_DUMP_REG(addr,
+				adapter->ahw.pci_base0,
+						&read_value);
+			*data_buff++ = read_value;
+			addr += cacheEntry->read_addr_stride;
+		}
+		tag_value += cacheEntry->tag_value_stride;
+	}
+	return read_cnt * loop_cnt * sizeof(read_value);
+}
+
+/* Reading OCM memory */
+static u32
+netxen_md_rdocm(struct netxen_adapter *adapter,
+				struct netxen_minidump_entry_rdocm
+					*ocmEntry, u32 *data_buff)
+{
+	int i, loop_cnt;
+	u32 value;
+	void __iomem *addr;
+	addr = (ocmEntry->read_addr + adapter->ahw.pci_base0);
+	loop_cnt = ocmEntry->op_count;
+
+	for (i = 0; i < loop_cnt; i++) {
+		value = readl(addr);
+		*data_buff++ = value;
+		addr += ocmEntry->read_addr_stride;
+	}
+	return i * sizeof(u32);
+}
+
+/* Read MUX data */
+static u32
+netxen_md_rdmux(struct netxen_adapter *adapter, struct netxen_minidump_entry_mux
+					*muxEntry, u32 *data_buff)
+{
+	int loop_cnt = 0;
+	u32 read_addr, read_value, select_addr, sel_value;
+
+	read_addr = muxEntry->read_addr;
+	sel_value = muxEntry->select_value;
+	select_addr = muxEntry->select_addr;
+
+	for (loop_cnt = 0; loop_cnt < muxEntry->op_count; loop_cnt++) {
+		NX_WR_DUMP_REG(select_addr, adapter->ahw.pci_base0, sel_value);
+		NX_RD_DUMP_REG(read_addr, adapter->ahw.pci_base0, &read_value);
+		*data_buff++ = sel_value;
+		*data_buff++ = read_value;
+		sel_value += muxEntry->select_value_stride;
+	}
+	return loop_cnt * (2 * sizeof(u32));
+}
+
+/* Handling Queue State Reads */
+static u32
+netxen_md_rdqueue(struct netxen_adapter *adapter,
+				struct netxen_minidump_entry_queue
+					*queueEntry, u32 *data_buff)
+{
+	int loop_cnt, k;
+	u32 queue_id, read_addr, read_value, read_stride, select_addr, read_cnt;
+
+	read_cnt = queueEntry->read_addr_cnt;
+	read_stride = queueEntry->read_addr_stride;
+	select_addr = queueEntry->select_addr;
+
+	for (loop_cnt = 0, queue_id = 0; loop_cnt < queueEntry->op_count;
+				 loop_cnt++) {
+		NX_WR_DUMP_REG(select_addr, adapter->ahw.pci_base0, queue_id);
+		read_addr = queueEntry->read_addr;
+		for (k = 0; k < read_cnt; k--) {
+			NX_RD_DUMP_REG(read_addr, adapter->ahw.pci_base0,
+							&read_value);
+			*data_buff++ = read_value;
+			read_addr += read_stride;
+		}
+		queue_id += queueEntry->queue_id_stride;
+	}
+	return loop_cnt * (read_cnt * sizeof(read_value));
+}
+
+
+/*
+* We catch an error where driver does not read
+* as much data as we expect from the entry.
+*/
+
+static int netxen_md_entry_err_chk(struct netxen_adapter *adapter,
+				struct netxen_minidump_entry *entry, int esize)
+{
+	if (esize < 0) {
+		entry->hdr.driver_flags |= NX_DUMP_SKIP;
+		return esize;
+	}
+	if (esize != entry->hdr.entry_capture_size) {
+		entry->hdr.entry_capture_size = esize;
+		entry->hdr.driver_flags |= NX_DUMP_SIZE_ERR;
+		dev_info(&adapter->pdev->dev,
+			"Invalidate dump, Type:%d\tMask:%d\tSize:%dCap_size:%d\n",
+			entry->hdr.entry_type, entry->hdr.entry_capture_mask,
+			esize, entry->hdr.entry_capture_size);
+		dev_info(&adapter->pdev->dev, "Aborting further dump capture\n");
+	}
+	return 0;
+}
+
+static int netxen_parse_md_template(struct netxen_adapter *adapter)
+{
+	int num_of_entries, buff_level, e_cnt, esize;
+	int end_cnt = 0, rv = 0, sane_start = 0, sane_end = 0;
+	char *dbuff;
+	void *template_buff = adapter->mdump.md_template;
+	char *dump_buff = adapter->mdump.md_capture_buff;
+	int capture_mask = adapter->mdump.md_capture_mask;
+	struct netxen_minidump_template_hdr *template_hdr;
+	struct netxen_minidump_entry *entry;
+
+	if ((capture_mask & 0x3) != 0x3) {
+		dev_err(&adapter->pdev->dev, "Capture mask %02x below minimum needed "
+			"for valid firmware dump\n", capture_mask);
+		return -EINVAL;
+	}
+	template_hdr = (struct netxen_minidump_template_hdr *) template_buff;
+	num_of_entries = template_hdr->num_of_entries;
+	entry = (struct netxen_minidump_entry *) ((char *) template_buff +
+				template_hdr->first_entry_offset);
+	memcpy(dump_buff, template_buff, adapter->mdump.md_template_size);
+	dump_buff = dump_buff + adapter->mdump.md_template_size;
+
+	if (template_hdr->entry_type == TLHDR)
+		sane_start = 1;
+
+	for (e_cnt = 0, buff_level = 0; e_cnt < num_of_entries; e_cnt++) {
+		if (!(entry->hdr.entry_capture_mask & capture_mask)) {
+			entry->hdr.driver_flags |= NX_DUMP_SKIP;
+			entry = (struct netxen_minidump_entry *)
+				((char *) entry + entry->hdr.entry_size);
+			continue;
+		}
+		switch (entry->hdr.entry_type) {
+		case RDNOP:
+			entry->hdr.driver_flags |= NX_DUMP_SKIP;
+			break;
+		case RDEND:
+			entry->hdr.driver_flags |= NX_DUMP_SKIP;
+			if (!sane_end)
+				end_cnt = e_cnt;
+			sane_end += 1;
+			break;
+		case CNTRL:
+			rv = netxen_md_cntrl(adapter,
+				template_hdr, (void *)entry);
+			if (rv)
+				entry->hdr.driver_flags |= NX_DUMP_SKIP;
+			break;
+		case RDCRB:
+			dbuff = dump_buff + buff_level;
+			esize = netxen_md_rd_crb(adapter,
+					(void *) entry, (void *) dbuff);
+			rv = netxen_md_entry_err_chk
+				(adapter, entry, esize);
+			if (rv < 0)
+				break;
+			buff_level += esize;
+			break;
+		case RDMN:
+		case RDMEM:
+			dbuff = dump_buff + buff_level;
+			esize = netxen_md_rdmem(adapter,
+				(void *) entry, (void *) dbuff);
+			rv = netxen_md_entry_err_chk
+				(adapter, entry, esize);
+			if (rv < 0)
+				break;
+			buff_level += esize;
+			break;
+		case BOARD:
+		case RDROM:
+			dbuff = dump_buff + buff_level;
+			esize = netxen_md_rdrom(adapter,
+				(void *) entry, (void *) dbuff);
+			rv = netxen_md_entry_err_chk
+				(adapter, entry, esize);
+			if (rv < 0)
+				break;
+			buff_level += esize;
+			break;
+		case L2ITG:
+		case L2DTG:
+		case L2DAT:
+		case L2INS:
+			dbuff = dump_buff + buff_level;
+			esize = netxen_md_L2Cache(adapter,
+				(void *) entry, (void *) dbuff);
+			rv = netxen_md_entry_err_chk
+				(adapter, entry, esize);
+			if (rv < 0)
+				break;
+			buff_level += esize;
+			break;
+		case L1DAT:
+		case L1INS:
+			dbuff = dump_buff + buff_level;
+			esize = netxen_md_L1Cache(adapter,
+				(void *) entry, (void *) dbuff);
+			rv = netxen_md_entry_err_chk
+				(adapter, entry, esize);
+			if (rv < 0)
+				break;
+			buff_level += esize;
+			break;
+		case RDOCM:
+			dbuff = dump_buff + buff_level;
+			esize = netxen_md_rdocm(adapter,
+				(void *) entry, (void *) dbuff);
+			rv = netxen_md_entry_err_chk
+				(adapter, entry, esize);
+			if (rv < 0)
+				break;
+			buff_level += esize;
+			break;
+		case RDMUX:
+			dbuff = dump_buff + buff_level;
+			esize = netxen_md_rdmux(adapter,
+				(void *) entry, (void *) dbuff);
+			rv = netxen_md_entry_err_chk
+				(adapter, entry, esize);
+			if (rv < 0)
+				break;
+			buff_level += esize;
+			break;
+		case QUEUE:
+			dbuff = dump_buff + buff_level;
+			esize = netxen_md_rdqueue(adapter,
+				(void *) entry, (void *) dbuff);
+			rv = netxen_md_entry_err_chk
+				(adapter, entry, esize);
+			if (rv  < 0)
+				break;
+			buff_level += esize;
+			break;
+		default:
+			entry->hdr.driver_flags |= NX_DUMP_SKIP;
+			break;
+		}
+		/* Next entry in the template */
+		entry = (struct netxen_minidump_entry *)
+			((char *) entry + entry->hdr.entry_size);
+	}
+	if (!sane_start || sane_end > 1) {
+		dev_err(&adapter->pdev->dev,
+				"Firmware minidump template configuration error.\n");
+	}
+	return 0;
+}
+
+static int
+netxen_collect_minidump(struct netxen_adapter *adapter)
+{
+	int ret = 0;
+	struct netxen_minidump_template_hdr *hdr;
+	struct timespec val;
+	hdr = (struct netxen_minidump_template_hdr *)
+				adapter->mdump.md_template;
+	hdr->driver_capture_mask = adapter->mdump.md_capture_mask;
+	jiffies_to_timespec(jiffies, &val);
+	hdr->driver_timestamp = (u32) val.tv_sec;
+	hdr->driver_info_word2 = adapter->fw_version;
+	hdr->driver_info_word3 = NXRD32(adapter, CRB_DRIVER_VERSION);
+	ret = netxen_parse_md_template(adapter);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+
+void
+netxen_dump_fw(struct netxen_adapter *adapter)
+{
+	struct netxen_minidump_template_hdr *hdr;
+	int i, k, data_size = 0;
+	u32 capture_mask;
+	hdr = (struct netxen_minidump_template_hdr *)
+				adapter->mdump.md_template;
+	capture_mask = adapter->mdump.md_capture_mask;
+
+	for (i = 0x2, k = 1; (i & NX_DUMP_MASK_MAX); i <<= 1, k++) {
+		if (i & capture_mask)
+			data_size += hdr->capture_size_array[k];
+	}
+	if (!data_size) {
+		dev_err(&adapter->pdev->dev,
+				"Invalid cap sizes for capture_mask=0x%x\n",
+			adapter->mdump.md_capture_mask);
+		return;
+	}
+	adapter->mdump.md_capture_size = data_size;
+	adapter->mdump.md_dump_size = adapter->mdump.md_template_size +
+					adapter->mdump.md_capture_size;
+	if (!adapter->mdump.md_capture_buff) {
+		adapter->mdump.md_capture_buff =
+				vmalloc(adapter->mdump.md_dump_size);
+		if (!adapter->mdump.md_capture_buff) {
+			dev_info(&adapter->pdev->dev,
+				"Unable to allocate memory for minidump "
+				"capture_buffer(%d bytes).\n",
+					adapter->mdump.md_dump_size);
+			return;
+		}
+		memset(adapter->mdump.md_capture_buff, 0,
+				adapter->mdump.md_dump_size);
+		if (netxen_collect_minidump(adapter)) {
+			adapter->mdump.has_valid_dump = 0;
+			adapter->mdump.md_dump_size = 0;
+			vfree(adapter->mdump.md_capture_buff);
+			adapter->mdump.md_capture_buff = NULL;
+			dev_err(&adapter->pdev->dev,
+				"Error in collecting firmware minidump.\n");
+		} else {
+			adapter->mdump.md_timestamp = jiffies;
+			adapter->mdump.has_valid_dump = 1;
+			adapter->fw_mdump_rdy = 1;
+			dev_info(&adapter->pdev->dev, "%s Successfully "
+				"collected fw dump.\n", adapter->netdev->name);
+		}
+
+	} else {
+		dev_info(&adapter->pdev->dev,
+					"Cannot overwrite previously collected "
+							"firmware minidump.\n");
+		adapter->fw_mdump_rdy = 1;
+		return;
+	}
 }

@@ -33,7 +33,9 @@
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
 #include "nouveau_connector.h"
+#include "nouveau_software.h"
 #include "nouveau_gpio.h"
+#include "nouveau_fence.h"
 #include "nv50_display.h"
 
 static void
@@ -155,20 +157,20 @@ static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 };
 
 
-struct drm_prop_enum_list {
+struct nouveau_drm_prop_enum_list {
 	u8 gen_mask;
 	int type;
 	char *name;
 };
 
-static struct drm_prop_enum_list underscan[] = {
+static struct nouveau_drm_prop_enum_list underscan[] = {
 	{ 6, UNDERSCAN_AUTO, "auto" },
 	{ 6, UNDERSCAN_OFF, "off" },
 	{ 6, UNDERSCAN_ON, "on" },
 	{}
 };
 
-static struct drm_prop_enum_list dither_mode[] = {
+static struct nouveau_drm_prop_enum_list dither_mode[] = {
 	{ 7, DITHERING_MODE_AUTO, "auto" },
 	{ 7, DITHERING_MODE_OFF, "off" },
 	{ 1, DITHERING_MODE_ON, "on" },
@@ -178,7 +180,7 @@ static struct drm_prop_enum_list dither_mode[] = {
 	{}
 };
 
-static struct drm_prop_enum_list dither_depth[] = {
+static struct nouveau_drm_prop_enum_list dither_depth[] = {
 	{ 6, DITHERING_DEPTH_AUTO, "auto" },
 	{ 6, DITHERING_DEPTH_6BPC, "6 bpc" },
 	{ 6, DITHERING_DEPTH_8BPC, "8 bpc" },
@@ -186,7 +188,7 @@ static struct drm_prop_enum_list dither_depth[] = {
 };
 
 #define PROP_ENUM(p,gen,n,list) do {                                           \
-	struct drm_prop_enum_list *l = (list);                                 \
+	struct nouveau_drm_prop_enum_list *l = (list);                         \
 	int c = 0;                                                             \
 	while (l->gen_mask) {                                                  \
 		if (l->gen_mask & (1 << (gen)))                                \
@@ -281,18 +283,26 @@ nouveau_display_create(struct drm_device *dev)
 	PROP_ENUM(disp->underscan_property, gen, "underscan", underscan);
 
 	disp->underscan_hborder_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "underscan hborder", 2);
-	disp->underscan_hborder_property->values[0] = 0;
-	disp->underscan_hborder_property->values[1] = 128;
+		drm_property_create_range(dev, 0, "underscan hborder", 0, 128);
 
 	disp->underscan_vborder_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "underscan vborder", 2);
-	disp->underscan_vborder_property->values[0] = 0;
-	disp->underscan_vborder_property->values[1] = 128;
+		drm_property_create_range(dev, 0, "underscan vborder", 0, 128);
 
-	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
+	if (gen == 1) {
+		disp->vibrant_hue_property =
+			drm_property_create(dev, DRM_MODE_PROP_RANGE,
+					    "vibrant hue", 2);
+		disp->vibrant_hue_property->values[0] = 0;
+		disp->vibrant_hue_property->values[1] = 180; /* -90..+90 */
+
+		disp->color_vibrance_property =
+			drm_property_create(dev, DRM_MODE_PROP_RANGE,
+					    "color vibrance", 2);
+		disp->color_vibrance_property->values[0] = 0;
+		disp->color_vibrance_property->values[1] = 200; /* -100..+100 */
+	}
+
+	dev->mode_config.funcs = &nouveau_mode_config_funcs;
 	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);
 
 	dev->mode_config.min_width = 0;
@@ -309,19 +319,29 @@ nouveau_display_create(struct drm_device *dev)
 		dev->mode_config.max_height = 8192;
 	}
 
+	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.prefer_shadow = 1;
+
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
 	ret = disp->create(dev);
 	if (ret)
-		return ret;
+		goto disp_create_err;
 
 	if (dev->mode_config.num_crtc) {
 		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
 		if (ret)
-			return ret;
+			goto vblank_err;
 	}
 
+	return 0;
+
+vblank_err:
+	disp->destroy(dev);
+disp_create_err:
+	drm_kms_helper_poll_fini(dev);
+	drm_mode_config_cleanup(dev);
 	return ret;
 }
 
@@ -414,6 +434,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 		       struct nouveau_page_flip_state *s,
 		       struct nouveau_fence **pfence)
 {
+	struct nouveau_software_chan *swch = chan->engctx[NVOBJ_ENGINE_SW];
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct drm_device *dev = chan->dev;
 	unsigned long flags;
@@ -421,7 +442,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 
 	/* Queue it to the pending list */
 	spin_lock_irqsave(&dev->event_lock, flags);
-	list_add_tail(&s->head, &chan->nvsw.flip);
+	list_add_tail(&s->head, &swch->flip);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* Synchronize with the old framebuffer */
@@ -430,18 +451,22 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 		goto fail;
 
 	/* Emit the pageflip */
-	ret = RING_SPACE(chan, 2);
+	ret = RING_SPACE(chan, 3);
 	if (ret)
 		goto fail;
 
-	if (dev_priv->card_type < NV_C0)
-		BEGIN_RING(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
-	else
-		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0500, 1);
-	OUT_RING  (chan, 0);
+	if (dev_priv->card_type < NV_C0) {
+		BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
+		OUT_RING  (chan, 0x00000000);
+		OUT_RING  (chan, 0x00000000);
+	} else {
+		BEGIN_NVC0(chan, 0, NV10_SUBCHAN_REF_CNT, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_IMC0(chan, 0, NVSW_SUBCHAN_PAGE_FLIP, 0x0000);
+	}
 	FIRE_RING (chan);
 
-	ret = nouveau_fence_new(chan, pfence, true);
+	ret = nouveau_fence_new(chan, pfence);
 	if (ret)
 		goto fail;
 
@@ -462,7 +487,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_bo *old_bo = nouveau_framebuffer(crtc->fb)->nvbo;
 	struct nouveau_bo *new_bo = nouveau_framebuffer(fb)->nvbo;
 	struct nouveau_page_flip_state *s;
-	struct nouveau_channel *chan;
+	struct nouveau_channel *chan = NULL;
 	struct nouveau_fence *fence;
 	int ret;
 
@@ -485,7 +510,9 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		  new_bo->bo.offset };
 
 	/* Choose the channel the flip will be handled in */
-	chan = nouveau_fence_channel(new_bo->bo.sync_obj);
+	fence = new_bo->bo.sync_obj;
+	if (fence)
+		chan = nouveau_channel_get_unlocked(fence->channel);
 	if (!chan)
 		chan = nouveau_channel_get_unlocked(dev_priv->channel);
 	mutex_lock(&chan->mutex);
@@ -525,20 +552,20 @@ int
 nouveau_finish_page_flip(struct nouveau_channel *chan,
 			 struct nouveau_page_flip_state *ps)
 {
+	struct nouveau_software_chan *swch = chan->engctx[NVOBJ_ENGINE_SW];
 	struct drm_device *dev = chan->dev;
 	struct nouveau_page_flip_state *s;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
-	if (list_empty(&chan->nvsw.flip)) {
+	if (list_empty(&swch->flip)) {
 		NV_ERROR(dev, "Unexpected pageflip in channel %d.\n", chan->id);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return -EINVAL;
 	}
 
-	s = list_first_entry(&chan->nvsw.flip,
-			     struct nouveau_page_flip_state, head);
+	s = list_first_entry(&swch->flip, struct nouveau_page_flip_state, head);
 	if (s->event) {
 		struct drm_pending_vblank_event *e = s->event;
 		struct timeval now;

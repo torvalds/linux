@@ -114,16 +114,6 @@ config DEBUGGER
 	depends on KGDB || XMON
 	default y
 
-config VIRQ_DEBUG
-	bool "Expose hardware/virtual IRQ mapping via debugfs"
-	depends on DEBUG_FS
-	help
-	  This option will show the mapping relationship between hardware irq
-	  numbers and virtual irq numbers. The mapping is exposed via debugfs
-	  in the file powerpc/virq_mapping.
-
-	  If you don't know what this means you don't need it.
-
 config BDI_SWITCH
 	bool "Include BDI-2000 user context switcher"
 	depends on DEBUG_KERNEL && PPC32
@@ -195,13 +185,6 @@ config PPC_EARLY_DEBUG_MAPLE
 	depends on PPC_MAPLE
 	help
 	  Select this to enable early debugging for Maple.
-
-config PPC_EARLY_DEBUG_ISERIES
-	bool "iSeries HV Console"
-	depends on PPC_ISERIES
-	help
-	  Select this to enable early debugging for legacy iSeries. You need
-	  to hit "Ctrl-x Ctrl-x" to see the messages on the console.
 
 config PPC_EARLY_DEBUG_PAS_REALMODE
 	bool "PA Semi real mode"

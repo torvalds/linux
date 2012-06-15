@@ -166,33 +166,16 @@ static int pmbus_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
 	struct pmbus_driver_info *info;
-	int ret;
 
-	info = kzalloc(sizeof(struct pmbus_driver_info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
+			    GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	info->pages = id->driver_data;
 	info->identify = pmbus_identify;
 
-	ret = pmbus_do_probe(client, id, info);
-	if (ret < 0)
-		goto out;
-	return 0;
-
-out:
-	kfree(info);
-	return ret;
-}
-
-static int pmbus_remove(struct i2c_client *client)
-{
-	const struct pmbus_driver_info *info;
-
-	info = pmbus_get_driver_info(client);
-	pmbus_do_remove(client);
-	kfree(info);
-	return 0;
+	return pmbus_do_probe(client, id, info);
 }
 
 /*
@@ -202,12 +185,15 @@ static const struct i2c_device_id pmbus_id[] = {
 	{"adp4000", 1},
 	{"bmr453", 1},
 	{"bmr454", 1},
+	{"mdt040", 1},
 	{"ncp4200", 1},
 	{"ncp4208", 1},
 	{"pdt003", 1},
 	{"pdt006", 1},
 	{"pdt012", 1},
 	{"pmbus", 0},
+	{"tps40400", 1},
+	{"tps40422", 2},
 	{"udt020", 1},
 	{}
 };
@@ -220,22 +206,12 @@ static struct i2c_driver pmbus_driver = {
 		   .name = "pmbus",
 		   },
 	.probe = pmbus_probe,
-	.remove = pmbus_remove,
+	.remove = pmbus_do_remove,
 	.id_table = pmbus_id,
 };
 
-static int __init pmbus_init(void)
-{
-	return i2c_add_driver(&pmbus_driver);
-}
-
-static void __exit pmbus_exit(void)
-{
-	i2c_del_driver(&pmbus_driver);
-}
+module_i2c_driver(pmbus_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("Generic PMBus driver");
 MODULE_LICENSE("GPL");
-module_init(pmbus_init);
-module_exit(pmbus_exit);

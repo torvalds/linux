@@ -21,36 +21,33 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/clk.h>
-#include <linux/omapfb.h>
 
 #include <asm/tlb.h>
-
 #include <asm/mach/map.h>
 
 #include <plat/sram.h>
 #include <plat/sdrc.h>
 #include <plat/serial.h>
+#include <plat/omap-pm.h>
+#include <plat/omap_hwmod.h>
+#include <plat/multi.h>
+#include <plat/dma.h>
 
+#include "iomap.h"
+#include "voltage.h"
+#include "powerdomain.h"
+#include "clockdomain.h"
+#include "common.h"
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
-
-#include "common.h"
-#include <plat/omap-pm.h>
-#include "voltage.h"
-#include "powerdomain.h"
-
-#include "clockdomain.h"
-#include <plat/omap_hwmod.h>
-#include <plat/multi.h>
-#include "common.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
  */
 
-#ifdef CONFIG_ARCH_OMAP2
+#if defined(CONFIG_SOC_OMAP2420) || defined(CONFIG_SOC_OMAP2430)
 static struct map_desc omap24xx_io_desc[] __initdata = {
 	{
 		.virtual	= L3_24XX_VIRT,
@@ -176,7 +173,7 @@ static struct map_desc omap34xx_io_desc[] __initdata = {
 };
 #endif
 
-#ifdef CONFIG_SOC_OMAPTI81XX
+#ifdef CONFIG_SOC_TI81XX
 static struct map_desc omapti81xx_io_desc[] __initdata = {
 	{
 		.virtual	= L4_34XX_VIRT,
@@ -187,7 +184,7 @@ static struct map_desc omapti81xx_io_desc[] __initdata = {
 };
 #endif
 
-#ifdef CONFIG_SOC_OMAPAM33XX
+#ifdef CONFIG_SOC_AM33XX
 static struct map_desc omapam33xx_io_desc[] __initdata = {
 	{
 		.virtual	= L4_34XX_VIRT,
@@ -219,39 +216,9 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 		.type		= MT_DEVICE,
 	},
 	{
-		.virtual	= OMAP44XX_GPMC_VIRT,
-		.pfn		= __phys_to_pfn(OMAP44XX_GPMC_PHYS),
-		.length		= OMAP44XX_GPMC_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= OMAP44XX_EMIF1_VIRT,
-		.pfn		= __phys_to_pfn(OMAP44XX_EMIF1_PHYS),
-		.length		= OMAP44XX_EMIF1_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= OMAP44XX_EMIF2_VIRT,
-		.pfn		= __phys_to_pfn(OMAP44XX_EMIF2_PHYS),
-		.length		= OMAP44XX_EMIF2_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= OMAP44XX_DMM_VIRT,
-		.pfn		= __phys_to_pfn(OMAP44XX_DMM_PHYS),
-		.length		= OMAP44XX_DMM_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
 		.virtual	= L4_PER_44XX_VIRT,
 		.pfn		= __phys_to_pfn(L4_PER_44XX_PHYS),
 		.length		= L4_PER_44XX_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
-		.virtual	= L4_EMU_44XX_VIRT,
-		.pfn		= __phys_to_pfn(L4_EMU_44XX_PHYS),
-		.length		= L4_EMU_44XX_SIZE,
 		.type		= MT_DEVICE,
 	},
 #ifdef CONFIG_OMAP4_ERRATA_I688
@@ -289,14 +256,14 @@ void __init omap34xx_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPTI81XX
+#ifdef CONFIG_SOC_TI81XX
 void __init omapti81xx_map_common_io(void)
 {
 	iotable_init(omapti81xx_io_desc, ARRAY_SIZE(omapti81xx_io_desc));
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPAM33XX
+#ifdef CONFIG_SOC_AM33XX
 void __init omapam33xx_map_common_io(void)
 {
 	iotable_init(omapam33xx_io_desc, ARRAY_SIZE(omapam33xx_io_desc));
@@ -352,7 +319,6 @@ static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 
 static void __init omap_common_init_early(void)
 {
-	omap2_check_revision();
 	omap_init_consistent_dma_size();
 }
 
@@ -368,24 +334,6 @@ static void __init omap_hwmod_init_postsetup(void)
 #endif
 	omap_hwmod_for_each(_set_hwmod_postsetup_state, &postsetup_state);
 
-	/*
-	 * Set the default postsetup state for unusual modules (like
-	 * MPU WDT).
-	 *
-	 * The postsetup_state is not actually used until
-	 * omap_hwmod_late_init(), so boards that desire full watchdog
-	 * coverage of kernel initialization can reprogram the
-	 * postsetup_state between the calls to
-	 * omap2_init_common_infra() and omap_sdrc_init().
-	 *
-	 * XXX ideally we could detect whether the MPU WDT was currently
-	 * enabled here and make this conditional
-	 */
-	postsetup_state = _HWMOD_STATE_DISABLED;
-	omap_hwmod_for_each_by_class("wd_timer",
-				     _set_hwmod_postsetup_state,
-				     &postsetup_state);
-
 	omap_pm_if_early_init();
 }
 
@@ -393,6 +341,7 @@ static void __init omap_hwmod_init_postsetup(void)
 void __init omap2420_init_early(void)
 {
 	omap2_set_globals_242x();
+	omap2xxx_check_revision();
 	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap242x_powerdomains_init();
@@ -401,12 +350,20 @@ void __init omap2420_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap2420_clk_init();
 }
+
+void __init omap2420_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap2_pm_init();
+}
 #endif
 
 #ifdef CONFIG_SOC_OMAP2430
 void __init omap2430_init_early(void)
 {
 	omap2_set_globals_243x();
+	omap2xxx_check_revision();
 	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap243x_powerdomains_init();
@@ -414,6 +371,13 @@ void __init omap2430_init_early(void)
 	omap2430_hwmod_init();
 	omap_hwmod_init_postsetup();
 	omap2430_clk_init();
+}
+
+void __init omap2430_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap2_pm_init();
 }
 #endif
 
@@ -425,6 +389,8 @@ void __init omap2430_init_early(void)
 void __init omap3_init_early(void)
 {
 	omap2_set_globals_3xxx();
+	omap3xxx_check_revision();
+	omap3xxx_check_features();
 	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
@@ -457,6 +423,8 @@ void __init am35xx_init_early(void)
 void __init ti81xx_init_early(void)
 {
 	omap2_set_globals_ti81xx();
+	omap3xxx_check_revision();
+	ti81xx_check_features();
 	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
@@ -465,12 +433,56 @@ void __init ti81xx_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap3xxx_clk_init();
 }
+
+void __init omap3_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init omap3430_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init omap35xx_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init omap3630_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init am35xx_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
+
+void __init ti81xx_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap3_pm_init();
+}
 #endif
 
 #ifdef CONFIG_ARCH_OMAP4
 void __init omap4430_init_early(void)
 {
 	omap2_set_globals_443x();
+	omap4xxx_check_revision();
+	omap4xxx_check_features();
 	omap_common_init_early();
 	omap44xx_voltagedomains_init();
 	omap44xx_powerdomains_init();
@@ -478,6 +490,13 @@ void __init omap4430_init_early(void)
 	omap44xx_hwmod_init();
 	omap_hwmod_init_postsetup();
 	omap4xxx_clk_init();
+}
+
+void __init omap4430_init_late(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap4_pm_init();
 }
 #endif
 
@@ -491,43 +510,3 @@ void __init omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 		_omap2_init_reprogram_sdrc();
 	}
 }
-
-/*
- * NOTE: Please use ioremap + __raw_read/write where possible instead of these
- */
-
-u8 omap_readb(u32 pa)
-{
-	return __raw_readb(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readb);
-
-u16 omap_readw(u32 pa)
-{
-	return __raw_readw(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readw);
-
-u32 omap_readl(u32 pa)
-{
-	return __raw_readl(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readl);
-
-void omap_writeb(u8 v, u32 pa)
-{
-	__raw_writeb(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writeb);
-
-void omap_writew(u16 v, u32 pa)
-{
-	__raw_writew(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writew);
-
-void omap_writel(u32 v, u32 pa)
-{
-	__raw_writel(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writel);

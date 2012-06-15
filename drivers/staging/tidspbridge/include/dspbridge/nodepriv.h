@@ -96,7 +96,6 @@ struct node_createargs {
  *      -EINVAL:     The node's stream corresponding to index and dir
  *                      is not a stream to or from the host.
  *  Requires:
- *      node_init(void) called.
  *      Valid dir.
  *      chan_id != NULL.
  *  Ensures:

@@ -29,15 +29,12 @@
 #include <asm/ptrace.h>
 #include <asm/sal.h>
 #include <asm/sections.h>
-#include <asm/system.h>
 
 #include "fsyscall_gtod_data.h"
 
 static cycle_t itc_get_cycles(struct clocksource *cs);
 
-struct fsyscall_gtod_data_t fsyscall_gtod_data = {
-	.lock = __SEQLOCK_UNLOCKED(fsyscall_gtod_data.lock),
-};
+struct fsyscall_gtod_data_t fsyscall_gtod_data;
 
 struct itc_jitter_data_t itc_jitter_data;
 
@@ -460,9 +457,7 @@ void update_vsyscall_tz(void)
 void update_vsyscall(struct timespec *wall, struct timespec *wtm,
 			struct clocksource *c, u32 mult)
 {
-        unsigned long flags;
-
-        write_seqlock_irqsave(&fsyscall_gtod_data.lock, flags);
+	write_seqcount_begin(&fsyscall_gtod_data.seq);
 
         /* copy fsyscall clock data */
         fsyscall_gtod_data.clk_mask = c->mask;
@@ -485,6 +480,6 @@ void update_vsyscall(struct timespec *wall, struct timespec *wtm,
 		fsyscall_gtod_data.monotonic_time.tv_sec++;
 	}
 
-        write_sequnlock_irqrestore(&fsyscall_gtod_data.lock, flags);
+	write_seqcount_end(&fsyscall_gtod_data.seq);
 }
 

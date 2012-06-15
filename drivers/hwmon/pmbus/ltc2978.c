@@ -287,7 +287,7 @@ MODULE_DEVICE_TABLE(i2c, ltc2978_id);
 static int ltc2978_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	int chip_id, ret, i;
+	int chip_id, i;
 	struct ltc2978_data *data;
 	struct pmbus_driver_info *info;
 
@@ -295,15 +295,14 @@ static int ltc2978_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct ltc2978_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct ltc2978_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	chip_id = i2c_smbus_read_word_data(client, LTC2978_MFR_SPECIAL_ID);
-	if (chip_id < 0) {
-		ret = chip_id;
-		goto err_mem;
-	}
+	if (chip_id < 0)
+		return chip_id;
 
 	if (chip_id == LTC2978_ID_REV1 || chip_id == LTC2978_ID_REV2) {
 		data->id = ltc2978;
@@ -311,8 +310,7 @@ static int ltc2978_probe(struct i2c_client *client,
 		data->id = ltc3880;
 	} else {
 		dev_err(&client->dev, "Unsupported chip ID 0x%x\n", chip_id);
-		ret = -ENODEV;
-		goto err_mem;
+		return -ENODEV;
 	}
 	if (data->id != id->driver_data)
 		dev_warn(&client->dev,
@@ -357,28 +355,10 @@ static int ltc2978_probe(struct i2c_client *client,
 		data->vout_min[1] = 0xffff;
 		break;
 	default:
-		ret = -ENODEV;
-		goto err_mem;
+		return -ENODEV;
 	}
 
-	ret = pmbus_do_probe(client, id, info);
-	if (ret)
-		goto err_mem;
-	return 0;
-
-err_mem:
-	kfree(data);
-	return ret;
-}
-
-static int ltc2978_remove(struct i2c_client *client)
-{
-	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
-	const struct ltc2978_data *data = to_ltc2978_data(info);
-
-	pmbus_do_remove(client);
-	kfree(data);
-	return 0;
+	return pmbus_do_probe(client, id, info);
 }
 
 /* This is the driver that will be inserted */
@@ -387,22 +367,12 @@ static struct i2c_driver ltc2978_driver = {
 		   .name = "ltc2978",
 		   },
 	.probe = ltc2978_probe,
-	.remove = ltc2978_remove,
+	.remove = pmbus_do_remove,
 	.id_table = ltc2978_id,
 };
 
-static int __init ltc2978_init(void)
-{
-	return i2c_add_driver(&ltc2978_driver);
-}
-
-static void __exit ltc2978_exit(void)
-{
-	i2c_del_driver(&ltc2978_driver);
-}
+module_i2c_driver(ltc2978_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for LTC2978 and LTC3880");
 MODULE_LICENSE("GPL");
-module_init(ltc2978_init);
-module_exit(ltc2978_exit);

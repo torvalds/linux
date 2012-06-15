@@ -93,15 +93,15 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 	 */
 
 	dev_dbg(adapter->dev, "info: previous SSID=%s, SSID len=%u\n",
-	       priv->prev_ssid.ssid, priv->prev_ssid.ssid_len);
+		priv->prev_ssid.ssid, priv->prev_ssid.ssid_len);
 
 	dev_dbg(adapter->dev, "info: current SSID=%s, SSID len=%u\n",
-	       priv->curr_bss_params.bss_descriptor.ssid.ssid,
-	       priv->curr_bss_params.bss_descriptor.ssid.ssid_len);
+		priv->curr_bss_params.bss_descriptor.ssid.ssid,
+		priv->curr_bss_params.bss_descriptor.ssid.ssid_len);
 
 	memcpy(&priv->prev_ssid,
 	       &priv->curr_bss_params.bss_descriptor.ssid,
-	       sizeof(struct mwifiex_802_11_ssid));
+	       sizeof(struct cfg80211_ssid));
 
 	memcpy(priv->prev_bssid,
 	       priv->curr_bss_params.bss_descriptor.mac_address, ETH_ALEN);
@@ -115,9 +115,9 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 	if (adapter->num_cmd_timeout && adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
-	dev_dbg(adapter->dev, "info: successfully disconnected from"
-			" %pM: reason code %d\n", priv->cfg_bssid,
-			WLAN_REASON_DEAUTH_LEAVING);
+	dev_dbg(adapter->dev,
+		"info: successfully disconnected from %pM: reason code %d\n",
+		priv->cfg_bssid, WLAN_REASON_DEAUTH_LEAVING);
 	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
 		cfg80211_disconnected(priv->netdev, WLAN_REASON_DEAUTH_LEAVING,
 				      NULL, 0, GFP_KERNEL);
@@ -128,9 +128,6 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
-	/* Reset wireless stats signal info */
-	priv->qual_level = 0;
-	priv->qual_noise = 0;
 }
 
 /*
@@ -187,13 +184,15 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 int mwifiex_process_sta_event(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int ret = 0;
+	int len, ret = 0;
 	u32 eventcause = adapter->event_cause;
+	struct station_info sinfo;
+	struct mwifiex_assoc_event *event;
 
 	switch (eventcause) {
 	case EVENT_DUMMY_HOST_WAKEUP_SIGNAL:
-		dev_err(adapter->dev, "invalid EVENT: DUMMY_HOST_WAKEUP_SIGNAL,"
-				" ignoring it\n");
+		dev_err(adapter->dev,
+			"invalid EVENT: DUMMY_HOST_WAKEUP_SIGNAL, ignore it\n");
 		break;
 	case EVENT_LINK_SENSED:
 		dev_dbg(adapter->dev, "event: LINK_SENSED\n");
@@ -235,8 +234,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	case EVENT_PS_AWAKE:
 		dev_dbg(adapter->dev, "info: EVENT: AWAKE\n");
 		if (!adapter->pps_uapsd_mode &&
-			priv->media_connected &&
-			adapter->sleep_period.period) {
+		    priv->media_connected && adapter->sleep_period.period) {
 				adapter->pps_uapsd_mode = true;
 				dev_dbg(adapter->dev,
 					"event: PPS/UAPSD mode activated\n");
@@ -244,15 +242,19 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->tx_lock_flag = false;
 		if (adapter->pps_uapsd_mode && adapter->gen_null_pkt) {
 			if (mwifiex_check_last_packet_indication(priv)) {
-				if (!adapter->data_sent) {
-					if (!mwifiex_send_null_packet(priv,
-					MWIFIEX_TxPD_POWER_MGMT_NULL_PACKET
-					|
-					MWIFIEX_TxPD_POWER_MGMT_LAST_PACKET))
+				if (adapter->data_sent) {
+					adapter->ps_state = PS_STATE_AWAKE;
+					adapter->pm_wakeup_card_req = false;
+					adapter->pm_wakeup_fw_try = false;
+					break;
+				}
+				if (!mwifiex_send_null_packet
+					(priv,
+					 MWIFIEX_TxPD_POWER_MGMT_NULL_PACKET |
+					 MWIFIEX_TxPD_POWER_MGMT_LAST_PACKET))
 						adapter->ps_state =
 							PS_STATE_SLEEP;
 					return 0;
-				}
 			}
 		}
 		adapter->ps_state = PS_STATE_AWAKE;
@@ -314,6 +316,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_RSSI_LOW:
+		cfg80211_cqm_rssi_notify(priv->netdev,
+					 NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+					 GFP_KERNEL);
+		mwifiex_send_cmd_async(priv, HostCmd_CMD_RSSI_INFO,
+				       HostCmd_ACT_GEN_GET, 0, NULL);
+		priv->subsc_evt_rssi_state = RSSI_LOW_RECVD;
 		dev_dbg(adapter->dev, "event: Beacon RSSI_LOW\n");
 		break;
 	case EVENT_SNR_LOW:
@@ -323,6 +331,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "event: MAX_FAIL\n");
 		break;
 	case EVENT_RSSI_HIGH:
+		cfg80211_cqm_rssi_notify(priv->netdev,
+					 NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+					 GFP_KERNEL);
+		mwifiex_send_cmd_async(priv, HostCmd_CMD_RSSI_INFO,
+				       HostCmd_ACT_GEN_GET, 0, NULL);
+		priv->subsc_evt_rssi_state = RSSI_HIGH_RECVD;
 		dev_dbg(adapter->dev, "event: Beacon RSSI_HIGH\n");
 		break;
 	case EVENT_SNR_HIGH:
@@ -371,12 +385,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 	case EVENT_AMSDU_AGGR_CTRL:
 		dev_dbg(adapter->dev, "event:  AMSDU_AGGR_CTRL %d\n",
-		       *(u16 *) adapter->event_body);
+			*(u16 *) adapter->event_body);
 		adapter->tx_buf_size =
 			min(adapter->curr_tx_buf_size,
 			    le16_to_cpu(*(__le16 *) adapter->event_body));
 		dev_dbg(adapter->dev, "event: tx_buf_size %d\n",
-				adapter->tx_buf_size);
+			adapter->tx_buf_size);
 		break;
 
 	case EVENT_WEP_ICV_ERR:
@@ -390,9 +404,56 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	case EVENT_HOSTWAKE_STAIE:
 		dev_dbg(adapter->dev, "event: HOSTWAKE_STAIE %d\n", eventcause);
 		break;
+
+	case EVENT_UAP_STA_ASSOC:
+		skb_pull(adapter->event_skb, MWIFIEX_UAP_EVENT_EXTRA_HEADER);
+		memset(&sinfo, 0, sizeof(sinfo));
+		event = (struct mwifiex_assoc_event *)adapter->event_skb->data;
+		if (le16_to_cpu(event->type) == TLV_TYPE_UAP_MGMT_FRAME) {
+			len = -1;
+
+			if (ieee80211_is_assoc_req(event->frame_control))
+				len = 0;
+			else if (ieee80211_is_reassoc_req(event->frame_control))
+				/* There will be ETH_ALEN bytes of
+				 * current_ap_addr before the re-assoc ies.
+				 */
+				len = ETH_ALEN;
+
+			if (len != -1) {
+				sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
+				sinfo.assoc_req_ies = (u8 *)&event->data[len];
+				len = (u8 *)sinfo.assoc_req_ies -
+				      (u8 *)&event->frame_control;
+				sinfo.assoc_req_ies_len =
+					le16_to_cpu(event->len) - (u16)len;
+			}
+		}
+		cfg80211_new_sta(priv->netdev, event->sta_addr, &sinfo,
+				 GFP_KERNEL);
+		break;
+	case EVENT_UAP_STA_DEAUTH:
+		skb_pull(adapter->event_skb, MWIFIEX_UAP_EVENT_EXTRA_HEADER);
+		cfg80211_del_sta(priv->netdev, adapter->event_skb->data,
+				 GFP_KERNEL);
+		break;
+	case EVENT_UAP_BSS_IDLE:
+		priv->media_connected = false;
+		break;
+	case EVENT_UAP_BSS_ACTIVE:
+		priv->media_connected = true;
+		break;
+	case EVENT_UAP_BSS_START:
+		dev_dbg(adapter->dev, "AP EVENT: event id: %#x\n", eventcause);
+		memcpy(priv->netdev->dev_addr, adapter->event_body+2, ETH_ALEN);
+		break;
+	case EVENT_UAP_MIC_COUNTERMEASURES:
+		/* For future development */
+		dev_dbg(adapter->dev, "AP EVENT: event id: %#x\n", eventcause);
+		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
-						eventcause);
+			eventcause);
 		break;
 	}
 

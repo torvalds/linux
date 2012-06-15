@@ -107,7 +107,6 @@ struct mcam_camera {
 	enum mcam_state state;
 	unsigned long flags;		/* Buffer status, mainly (dev_lock) */
 	int users;			/* How many open FDs */
-	struct file *owner;		/* Who has data access (v4l2) */
 
 	/*
 	 * Subsystem structures.

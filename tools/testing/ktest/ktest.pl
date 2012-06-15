@@ -39,6 +39,7 @@ my %default = (
     "CLEAR_LOG"			=> 0,
     "BISECT_MANUAL"		=> 0,
     "BISECT_SKIP"		=> 1,
+    "MIN_CONFIG_TYPE"		=> "boot",
     "SUCCESS_LINE"		=> "login:",
     "DETECT_TRIPLE_FAULT"	=> 1,
     "NO_INSTALL"		=> 0,
@@ -46,6 +47,7 @@ my %default = (
     "DIE_ON_FAILURE"		=> 1,
     "SSH_EXEC"			=> "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND",
     "SCP_TO_TARGET"		=> "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE",
+    "SCP_TO_TARGET_INSTALL"	=> "\${SCP_TO_TARGET}",
     "REBOOT"			=> "ssh \$SSH_USER\@\$MACHINE reboot",
     "STOP_AFTER_SUCCESS"	=> 10,
     "STOP_AFTER_FAILURE"	=> 60,
@@ -65,6 +67,7 @@ my %default = (
 
 my $ktest_config;
 my $version;
+my $have_version = 0;
 my $machine;
 my $ssh_user;
 my $tmpdir;
@@ -86,11 +89,13 @@ my $reboot_on_error;
 my $switch_to_good;
 my $switch_to_test;
 my $poweroff_on_error;
+my $reboot_on_success;
 my $die_on_failure;
 my $powercycle_after_reboot;
 my $poweroff_after_halt;
 my $ssh_exec;
 my $scp_to_target;
+my $scp_to_target_install;
 my $power_off;
 my $grub_menu;
 my $grub_number;
@@ -103,6 +108,8 @@ my $minconfig;
 my $start_minconfig;
 my $start_minconfig_defined;
 my $output_minconfig;
+my $minconfig_type;
+my $use_output_minconfig;
 my $ignore_config;
 my $ignore_errors;
 my $addconfig;
@@ -180,6 +187,9 @@ my %force_config;
 # do not force reboots on config problems
 my $no_reboot = 1;
 
+# reboot on success
+my $reboot_success = 0;
+
 my %option_map = (
     "MACHINE"			=> \$machine,
     "SSH_USER"			=> \$ssh_user,
@@ -199,6 +209,8 @@ my %option_map = (
     "MIN_CONFIG"		=> \$minconfig,
     "OUTPUT_MIN_CONFIG"		=> \$output_minconfig,
     "START_MIN_CONFIG"		=> \$start_minconfig,
+    "MIN_CONFIG_TYPE"		=> \$minconfig_type,
+    "USE_OUTPUT_MIN_CONFIG"	=> \$use_output_minconfig,
     "IGNORE_CONFIG"		=> \$ignore_config,
     "TEST"			=> \$run_test,
     "ADD_CONFIG"		=> \$addconfig,
@@ -211,6 +223,7 @@ my %option_map = (
     "SWITCH_TO_GOOD"		=> \$switch_to_good,
     "SWITCH_TO_TEST"		=> \$switch_to_test,
     "POWEROFF_ON_ERROR"		=> \$poweroff_on_error,
+    "REBOOT_ON_SUCCESS"		=> \$reboot_on_success,
     "DIE_ON_FAILURE"		=> \$die_on_failure,
     "POWER_OFF"			=> \$power_off,
     "POWERCYCLE_AFTER_REBOOT"	=> \$powercycle_after_reboot,
@@ -243,6 +256,7 @@ my %option_map = (
     "BUILD_TARGET"		=> \$build_target,
     "SSH_EXEC"			=> \$ssh_exec,
     "SCP_TO_TARGET"		=> \$scp_to_target,
+    "SCP_TO_TARGET_INSTALL"	=> \$scp_to_target_install,
     "CHECKOUT"			=> \$checkout,
     "TARGET_IMAGE"		=> \$target_image,
     "LOCALVERSION"		=> \$localversion,
@@ -1113,7 +1127,6 @@ sub reboot_to_good {
 
     if (defined($switch_to_good)) {
 	run_command $switch_to_good;
-	return;
     }
 
     reboot $time;
@@ -1349,13 +1362,28 @@ sub run_ssh {
 }
 
 sub run_scp {
-    my ($src, $dst) = @_;
-    my $cp_scp = $scp_to_target;
+    my ($src, $dst, $cp_scp) = @_;
 
     $cp_scp =~ s/\$SRC_FILE/$src/g;
     $cp_scp =~ s/\$DST_FILE/$dst/g;
 
     return run_command "$cp_scp";
+}
+
+sub run_scp_install {
+    my ($src, $dst) = @_;
+
+    my $cp_scp = $scp_to_target_install;
+
+    return run_scp($src, $dst, $cp_scp);
+}
+
+sub run_scp_mod {
+    my ($src, $dst) = @_;
+
+    my $cp_scp = $scp_to_target;
+
+    return run_scp($src, $dst, $cp_scp);
 }
 
 sub get_grub_index {
@@ -1460,6 +1488,7 @@ sub get_sha1 {
 sub monitor {
     my $booted = 0;
     my $bug = 0;
+    my $bug_ignored = 0;
     my $skip_call_trace = 0;
     my $loops;
 
@@ -1531,9 +1560,13 @@ sub monitor {
 	}
 
 	if ($full_line =~ /call trace:/i) {
-	    if (!$ignore_errors && !$bug && !$skip_call_trace) {
-		$bug = 1;
-		$failure_start = time;
+	    if (!$bug && !$skip_call_trace) {
+		if ($ignore_errors) {
+		    $bug_ignored = 1;
+		} else {
+		    $bug = 1;
+		    $failure_start = time;
+		}
 	    }
 	}
 
@@ -1595,6 +1628,10 @@ sub monitor {
 	fail "failed - never got a boot prompt." and return 0;
     }
 
+    if ($bug_ignored) {
+	doprint "WARNING: Call Trace detected but ignored due to IGNORE_ERRORS=1\n";
+    }
+
     return 1;
 }
 
@@ -1621,7 +1658,7 @@ sub install {
 
     my $cp_target = eval_kernel_version $target_image;
 
-    run_scp "$outputdir/$build_target", "$cp_target" or
+    run_scp_install "$outputdir/$build_target", "$cp_target" or
 	dodie "failed to copy image";
 
     my $install_mods = 0;
@@ -1643,7 +1680,7 @@ sub install {
 	return;
     }
 
-    run_command "$make INSTALL_MOD_PATH=$tmpdir modules_install" or
+    run_command "$make INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$tmpdir modules_install" or
 	dodie "Failed to install modules";
 
     my $modlib = "/lib/modules/$version";
@@ -1656,7 +1693,7 @@ sub install {
     run_command "cd $tmpdir && tar -cjf $modtar lib/modules/$version" or
 	dodie "making tarball";
 
-    run_scp "$tmpdir/$modtar", "/tmp" or
+    run_scp_mod "$tmpdir/$modtar", "/tmp" or
 	dodie "failed to copy modules";
 
     unlink "$tmpdir/$modtar";
@@ -1671,10 +1708,12 @@ sub install {
 
 sub get_version {
     # get the release name
+    return if ($have_version);
     doprint "$make kernelrelease ... ";
     $version = `$make kernelrelease | tail -1`;
     chomp($version);
     doprint "$version\n";
+    $have_version = 1;
 }
 
 sub start_monitor_and_boot {
@@ -1797,6 +1836,9 @@ sub build {
     my $save_no_reboot = $no_reboot;
     $no_reboot = 1;
 
+    # Calculate a new version from here.
+    $have_version = 0;
+
     if (defined($pre_build)) {
 	my $ret = run_command $pre_build;
 	if (!$ret && defined($pre_build_die) &&
@@ -1856,6 +1898,9 @@ sub build {
     undef $redirect;
 
     if (defined($post_build)) {
+	# Because a post build may change the kernel version
+	# do it now.
+	get_version;
 	my $ret = run_command $post_build;
 	if (!$ret && defined($post_build_die) &&
 	    $post_build_die) {
@@ -2164,7 +2209,7 @@ sub run_bisect {
     }
 
     # Are we looking for where it worked, not failed?
-    if ($reverse_bisect) {
+    if ($reverse_bisect && $ret >= 0) {
 	$ret = !$ret;
     }
 
@@ -2601,7 +2646,7 @@ sub config_bisect {
     # read directly what we want to check
     my %config_check;
     open (IN, $output_config)
-	or dodie "faied to open $output_config";
+	or dodie "failed to open $output_config";
 
     while (<IN>) {
 	if (/^((CONFIG\S*)=.*)/) {
@@ -3088,6 +3133,12 @@ sub test_this_config {
 sub make_min_config {
     my ($i) = @_;
 
+    my $type = $minconfig_type;
+    if ($type ne "boot" && $type ne "test") {
+	fail "Invalid MIN_CONFIG_TYPE '$minconfig_type'\n" .
+	    " make_min_config works only with 'boot' and 'test'\n" and return;
+    }
+
     if (!defined($output_minconfig)) {
 	fail "OUTPUT_MIN_CONFIG not defined" and return;
     }
@@ -3097,8 +3148,15 @@ sub make_min_config {
     # that instead.
     if (-f $output_minconfig && !$start_minconfig_defined) {
 	print "$output_minconfig exists\n";
-	if (read_yn " Use it as minconfig?") {
+	if (!defined($use_output_minconfig)) {
+	    if (read_yn " Use it as minconfig?") {
+		$start_minconfig = $output_minconfig;
+	    }
+	} elsif ($use_output_minconfig > 0) {
+	    doprint "Using $output_minconfig as MIN_CONFIG\n";
 	    $start_minconfig = $output_minconfig;
+	} else {
+	    doprint "Set to still use MIN_CONFIG as starting point\n";
 	}
     }
 
@@ -3247,6 +3305,11 @@ sub make_min_config {
 	build "oldconfig" or $failed = 1;
 	if (!$failed) {
 		start_monitor_and_boot or $failed = 1;
+
+		if ($type eq "test" && !$failed) {
+		    do_run_test or $failed = 1;
+		}
+
 		end_monitor;
 	}
 
@@ -3441,6 +3504,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     # Do not reboot on failing test options
     $no_reboot = 1;
+    $reboot_success = 0;
+
+    $have_version = 0;
 
     $iteration = $i;
 
@@ -3528,6 +3594,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     $no_reboot = 0;
 
+    # A test may opt to not reboot the box
+    if ($reboot_on_success) {
+	$reboot_success = 1;
+    }
 
     if ($test_type eq "bisect") {
 	bisect $i;
@@ -3570,9 +3640,13 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
 if ($opt{"POWEROFF_ON_SUCCESS"}) {
     halt;
-} elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot) {
+} elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot && $reboot_success) {
     reboot_to_good;
+} elsif (defined($switch_to_good)) {
+    # still need to get to the good kernel
+    run_command $switch_to_good;
 }
+
 
 doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 

@@ -92,7 +92,8 @@ struct ar9003_txc {
 	u32 ctl20;  /* DMA control 20 */
 	u32 ctl21;  /* DMA control 21 */
 	u32 ctl22;  /* DMA control 22 */
-	u32 pad[9]; /* pad to cache line (128 bytes/32 dwords) */
+	u32 ctl23;  /* DMA control 23 */
+	u32 pad[8]; /* pad to cache line (128 bytes/32 dwords) */
 } __packed __aligned(4);
 
 struct ar9003_txs {

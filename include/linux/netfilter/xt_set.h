@@ -58,8 +58,8 @@ struct xt_set_info_target_v1 {
 struct xt_set_info_target_v2 {
 	struct xt_set_info add_set;
 	struct xt_set_info del_set;
-	u32 flags;
-	u32 timeout;
+	__u32 flags;
+	__u32 timeout;
 };
 
 #endif /*_XT_SET_H*/

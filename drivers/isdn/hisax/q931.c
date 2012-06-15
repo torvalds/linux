@@ -21,7 +21,7 @@
 #include "l3_1tr6.h"
 
 void
-iecpy(u_char * dest, u_char * iestart, int ieoffset)
+iecpy(u_char *dest, u_char *iestart, int ieoffset)
 {
 	u_char *p;
 	int l;
@@ -215,7 +215,7 @@ prbits(char *dest, u_char b, int start, int len)
 
 static
 u_char *
-skipext(u_char * p)
+skipext(u_char *p)
 {
 	while (!(*p++ & 0x80));
 	return (p);
@@ -442,7 +442,7 @@ struct CauseValue {
 
 static
 int
-prcause(char *dest, u_char * p)
+prcause(char *dest, u_char *p)
 {
 	u_char *end;
 	char *dp = dest;
@@ -519,7 +519,7 @@ struct MessageType cause_1tr6[] =
 static int cause_1tr6_len = ARRAY_SIZE(cause_1tr6);
 
 static int
-prcause_1tr6(char *dest, u_char * p)
+prcause_1tr6(char *dest, u_char *p)
 {
 	char *dp = dest;
 	int i, cause;
@@ -554,7 +554,7 @@ prcause_1tr6(char *dest, u_char * p)
 }
 
 static int
-prchident(char *dest, u_char * p)
+prchident(char *dest, u_char *p)
 {
 	char *dp = dest;
 
@@ -566,7 +566,7 @@ prchident(char *dest, u_char * p)
 }
 
 static int
-prcalled(char *dest, u_char * p)
+prcalled(char *dest, u_char *p)
 {
 	int l;
 	char *dp = dest;
@@ -583,7 +583,7 @@ prcalled(char *dest, u_char * p)
 	return (dp - dest);
 }
 static int
-prcalling(char *dest, u_char * p)
+prcalling(char *dest, u_char *p)
 {
 	int l;
 	char *dp = dest;
@@ -610,7 +610,7 @@ prcalling(char *dest, u_char * p)
 
 static
 int
-prbearer(char *dest, u_char * p)
+prbearer(char *dest, u_char *p)
 {
 	char *dp = dest, ch;
 
@@ -658,7 +658,7 @@ prbearer(char *dest, u_char * p)
 
 static
 int
-prbearer_ni1(char *dest, u_char * p)
+prbearer_ni1(char *dest, u_char *p)
 {
 	char *dp = dest;
 	u_char len;
@@ -668,46 +668,46 @@ prbearer_ni1(char *dest, u_char * p)
 	dp += sprintf(dp, "    octet 3  ");
 	dp += prbits(dp, *p, 8, 8);
 	switch (*p++) {
-		case 0x80:
-			dp += sprintf(dp, " Speech");
-			break;
-		case 0x88:
-			dp += sprintf(dp, " Unrestricted digital information");
-			break;
-		case 0x90:
-			dp += sprintf(dp, " 3.1 kHz audio");
-			break;
-		default:
-			dp += sprintf(dp, " Unknown information-transfer capability");
+	case 0x80:
+		dp += sprintf(dp, " Speech");
+		break;
+	case 0x88:
+		dp += sprintf(dp, " Unrestricted digital information");
+		break;
+	case 0x90:
+		dp += sprintf(dp, " 3.1 kHz audio");
+		break;
+	default:
+		dp += sprintf(dp, " Unknown information-transfer capability");
 	}
 	*dp++ = '\n';
 	dp += sprintf(dp, "    octet 4  ");
 	dp += prbits(dp, *p, 8, 8);
 	switch (*p++) {
-		case 0x90:
-			dp += sprintf(dp, " 64 kbps, circuit mode");
-			break;
-		case 0xc0:
-			dp += sprintf(dp, " Packet mode");
-			break;
-		default:
-			dp += sprintf(dp, " Unknown transfer mode");
+	case 0x90:
+		dp += sprintf(dp, " 64 kbps, circuit mode");
+		break;
+	case 0xc0:
+		dp += sprintf(dp, " Packet mode");
+		break;
+	default:
+		dp += sprintf(dp, " Unknown transfer mode");
 	}
 	*dp++ = '\n';
 	if (len > 2) {
 		dp += sprintf(dp, "    octet 5  ");
 		dp += prbits(dp, *p, 8, 8);
 		switch (*p++) {
-			case 0x21:
-				dp += sprintf(dp, " Rate adaption\n");
-				dp += sprintf(dp, "    octet 5a ");
-				dp += prbits(dp, *p, 8, 8);
-				break;
-			case 0xa2:
-				dp += sprintf(dp, " u-law");
-				break;
-			default:
-				dp += sprintf(dp, " Unknown UI layer 1 protocol");
+		case 0x21:
+			dp += sprintf(dp, " Rate adaption\n");
+			dp += sprintf(dp, "    octet 5a ");
+			dp += prbits(dp, *p, 8, 8);
+			break;
+		case 0xa2:
+			dp += sprintf(dp, " u-law");
+			break;
+		default:
+			dp += sprintf(dp, " Unknown UI layer 1 protocol");
 		}
 		*dp++ = '\n';
 	}
@@ -715,7 +715,7 @@ prbearer_ni1(char *dest, u_char * p)
 }
 
 static int
-general(char *dest, u_char * p)
+general(char *dest, u_char *p)
 {
 	char *dp = dest;
 	char ch = ' ';
@@ -742,7 +742,7 @@ general(char *dest, u_char * p)
 }
 
 static int
-general_ni1(char *dest, u_char * p)
+general_ni1(char *dest, u_char *p)
 {
 	char *dp = dest;
 	char ch = ' ';
@@ -769,7 +769,7 @@ general_ni1(char *dest, u_char * p)
 }
 
 static int
-prcharge(char *dest, u_char * p)
+prcharge(char *dest, u_char *p)
 {
 	char *dp = dest;
 	int l;
@@ -786,7 +786,7 @@ prcharge(char *dest, u_char * p)
 	return (dp - dest);
 }
 static int
-prtext(char *dest, u_char * p)
+prtext(char *dest, u_char *p)
 {
 	char *dp = dest;
 	int l;
@@ -802,7 +802,7 @@ prtext(char *dest, u_char * p)
 }
 
 static int
-prfeatureind(char *dest, u_char * p)
+prfeatureind(char *dest, u_char *p)
 {
 	char *dp = dest;
 
@@ -817,21 +817,21 @@ prfeatureind(char *dest, u_char * p)
 	}
 	dp += sprintf(dp, "    Status:  ");
 	switch (*p) {
-		case 0:
-			dp += sprintf(dp, "Idle");
-			break;
-		case 1:
-			dp += sprintf(dp, "Active");
-			break;
-		case 2:
-			dp += sprintf(dp, "Prompt");
-			break;
-		case 3:
-			dp += sprintf(dp, "Pending");
-			break;
-		default:
-			dp += sprintf(dp, "(Reserved)");
-			break;
+	case 0:
+		dp += sprintf(dp, "Idle");
+		break;
+	case 1:
+		dp += sprintf(dp, "Active");
+		break;
+	case 2:
+		dp += sprintf(dp, "Prompt");
+		break;
+	case 3:
+		dp += sprintf(dp, "Pending");
+		break;
+	default:
+		dp += sprintf(dp, "(Reserved)");
+		break;
 	}
 	*dp++ = '\n';
 	return (dp - dest);
@@ -868,7 +868,7 @@ struct DTag { /* Display tags */
 #define DTAGSIZE ARRAY_SIZE(dtaglist)
 
 static int
-disptext_ni1(char *dest, u_char * p)
+disptext_ni1(char *dest, u_char *p)
 {
 	char *dp = dest;
 	int l, tag, len, i;
@@ -902,12 +902,12 @@ disptext_ni1(char *dest, u_char * p)
 					*dp++ = *p++;
 			}
 			dp += sprintf(dp, "\n");
-                }
+		}
 	}
 	return (dp - dest);
 }
 static int
-display(char *dest, u_char * p)
+display(char *dest, u_char *p)
 {
 	char *dp = dest;
 	char ch = ' ';
@@ -936,7 +936,7 @@ display(char *dest, u_char * p)
 }
 
 static int
-prfacility(char *dest, u_char * p)
+prfacility(char *dest, u_char *p)
 {
 	char *dp = dest;
 	int l, l2;
@@ -1148,7 +1148,7 @@ static struct InformationElement we_6[] =
 #define WE_6_LEN ARRAY_SIZE(we_6)
 
 int
-QuickHex(char *txt, u_char * p, int cnt)
+QuickHex(char *txt, u_char *p, int cnt)
 {
 	register int i;
 	register char *t = txt;
@@ -1163,7 +1163,7 @@ QuickHex(char *txt, u_char * p, int cnt)
 }
 
 void
-LogFrame(struct IsdnCardState *cs, u_char * buf, int size)
+LogFrame(struct IsdnCardState *cs, u_char *buf, int size)
 {
 	char *dp;
 
@@ -1206,7 +1206,7 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 	buf = skb->data;
 	dp += sprintf(dp, "frame %s ", dir ? "network->user" : "user->network");
 	size = skb->len;
-	
+
 	if (tei == GROUP_TEI) {
 		if (sapi == CTRL_SAPI) { /* sapi 0 */
 			if (ftyp == 3) {
@@ -1291,28 +1291,28 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 			/* Is it a single octet information element? */
 			if (*buf & 0x80) {
 				switch ((*buf >> 4) & 7) {
-					case 1:
-						dp += sprintf(dp, "  Shift %x\n", *buf & 0xf);
-						cs_old = cset;
-						cset = *buf & 7;
-						cs_fest = *buf & 8;
+				case 1:
+					dp += sprintf(dp, "  Shift %x\n", *buf & 0xf);
+					cs_old = cset;
+					cset = *buf & 7;
+					cs_fest = *buf & 8;
+					break;
+				case 3:
+					dp += sprintf(dp, "  Congestion level %x\n", *buf & 0xf);
+					break;
+				case 2:
+					if (*buf == 0xa0) {
+						dp += sprintf(dp, "  More data\n");
 						break;
-					case 3:
-						dp += sprintf(dp, "  Congestion level %x\n", *buf & 0xf);
-						break;
-					case 2:
-						if (*buf == 0xa0) {
-							dp += sprintf(dp, "  More data\n");
-							break;
-						}
-						if (*buf == 0xa1) {
-							dp += sprintf(dp, "  Sending complete\n");
-						}
-						break;
-						/* fall through */
-					default:
-						dp += sprintf(dp, "  Reserved %x\n", *buf);
-						break;
+					}
+					if (*buf == 0xa1) {
+						dp += sprintf(dp, "  Sending complete\n");
+					}
+					break;
+					/* fall through */
+				default:
+					dp += sprintf(dp, "  Reserved %x\n", *buf);
+					break;
 				}
 				buf++;
 				continue;
@@ -1366,11 +1366,11 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 		/* display message type if it exists */
 		if (i == MTSIZE)
 			dp += sprintf(dp, "callref %d %s size %d unknown message type %x!\n",
-			    cr & 0x7f, (cr & 0x80) ? "called" : "caller",
+				      cr & 0x7f, (cr & 0x80) ? "called" : "caller",
 				      size, mt);
 		else
 			dp += sprintf(dp, "callref %d %s size %d message type %s\n",
-			    cr & 0x7f, (cr & 0x80) ? "called" : "caller",
+				      cr & 0x7f, (cr & 0x80) ? "called" : "caller",
 				      size, mtlist[i].descr);
 
 		/* display each information element */
@@ -1378,15 +1378,15 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 			/* Is it a single octet information element? */
 			if (*buf & 0x80) {
 				switch ((*buf >> 4) & 7) {
-					case 1:
-						dp += sprintf(dp, "  Shift %x\n", *buf & 0xf);
-						cs_old = cset;
-						cset = *buf & 7;
-						cs_fest = *buf & 8;
-						break;
-					default:
-						dp += sprintf(dp, "  Unknown single-octet IE %x\n", *buf);
-						break;
+				case 1:
+					dp += sprintf(dp, "  Shift %x\n", *buf & 0xf);
+					cs_old = cset;
+					cset = *buf & 7;
+					cs_fest = *buf & 8;
+					break;
+				default:
+					dp += sprintf(dp, "  Unknown single-octet IE %x\n", *buf);
+					break;
 				}
 				buf++;
 				continue;
@@ -1452,11 +1452,11 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 		/* display message type if it exists */
 		if (i == MTSIZE)
 			dp += sprintf(dp, "callref %d %s size %d unknown message type %x!\n",
-			    cr & 0x7f, (cr & 0x80) ? "called" : "caller",
+				      cr & 0x7f, (cr & 0x80) ? "called" : "caller",
 				      size, mt);
 		else
 			dp += sprintf(dp, "callref %d %s size %d message type %s\n",
-			    cr & 0x7f, (cr & 0x80) ? "called" : "caller",
+				      cr & 0x7f, (cr & 0x80) ? "called" : "caller",
 				      size, mtlist[i].descr);
 
 		/* display each information element */
@@ -1464,28 +1464,28 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 			/* Is it a single octet information element? */
 			if (*buf & 0x80) {
 				switch ((*buf >> 4) & 7) {
-					case 1:
-						dp += sprintf(dp, "  Shift %x\n", *buf & 0xf);
+				case 1:
+					dp += sprintf(dp, "  Shift %x\n", *buf & 0xf);
+					break;
+				case 3:
+					dp += sprintf(dp, "  Congestion level %x\n", *buf & 0xf);
+					break;
+				case 5:
+					dp += sprintf(dp, "  Repeat indicator %x\n", *buf & 0xf);
+					break;
+				case 2:
+					if (*buf == 0xa0) {
+						dp += sprintf(dp, "  More data\n");
 						break;
-					case 3:
-						dp += sprintf(dp, "  Congestion level %x\n", *buf & 0xf);
-						break;
-					case 5:
-						dp += sprintf(dp, "  Repeat indicator %x\n", *buf & 0xf);
-						break;
-					case 2:
-						if (*buf == 0xa0) {
-							dp += sprintf(dp, "  More data\n");
-							break;
-						}
-						if (*buf == 0xa1) {
-							dp += sprintf(dp, "  Sending complete\n");
-						}
-						break;
-						/* fall through */
-					default:
-						dp += sprintf(dp, "  Reserved %x\n", *buf);
-						break;
+					}
+					if (*buf == 0xa1) {
+						dp += sprintf(dp, "  Sending complete\n");
+					}
+					break;
+					/* fall through */
+				default:
+					dp += sprintf(dp, "  Reserved %x\n", *buf);
+					break;
 				}
 				buf++;
 				continue;

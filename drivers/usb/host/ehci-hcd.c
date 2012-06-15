@@ -45,7 +45,6 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #if defined(CONFIG_PPC_PS3)
@@ -227,8 +226,13 @@ static int ehci_halt (struct ehci_hcd *ehci)
 	if ((temp & STS_HALT) != 0)
 		return 0;
 
+	/*
+	 * This routine gets called during probe before ehci->command
+	 * has been initialized, so we can't rely on its value.
+	 */
+	ehci->command &= ~CMD_RUN;
 	temp = ehci_readl(ehci, &ehci->regs->command);
-	temp &= ~CMD_RUN;
+	temp &= ~(CMD_RUN | CMD_IAAD);
 	ehci_writel(ehci, temp, &ehci->regs->command);
 	return handshake (ehci, &ehci->regs->status,
 			  STS_HALT, STS_HALT, 16 * 125);
@@ -348,6 +352,8 @@ static int ehci_reset (struct ehci_hcd *ehci)
 	if (ehci->debug)
 		dbgp_external_startup();
 
+	ehci->port_c_suspend = ehci->suspended_ports =
+			ehci->resuming_ports = 0;
 	return retval;
 }
 
@@ -362,16 +368,14 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 #endif
 
 	/* wait for any schedule enables/disables to take effect */
-	temp = ehci_readl(ehci, &ehci->regs->command) << 10;
-	temp &= STS_ASS | STS_PSS;
+	temp = (ehci->command << 10) & (STS_ASS | STS_PSS);
 	if (handshake_on_error_set_halt(ehci, &ehci->regs->status,
 					STS_ASS | STS_PSS, temp, 16 * 125))
 		return;
 
 	/* then disable anything that's still active */
-	temp = ehci_readl(ehci, &ehci->regs->command);
-	temp &= ~(CMD_ASE | CMD_IAAD | CMD_PSE);
-	ehci_writel(ehci, temp, &ehci->regs->command);
+	ehci->command &= ~(CMD_ASE | CMD_PSE);
+	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 
 	/* hardware can take 16 microframes to turn off ... */
 	handshake_on_error_set_halt(ehci, &ehci->regs->status,
@@ -416,9 +420,6 @@ static void ehci_iaa_watchdog(unsigned long param)
 		 * CMD_IAAD when it sets STS_IAA.)
 		 */
 		cmd = ehci_readl(ehci, &ehci->regs->command);
-		if (cmd & CMD_IAAD)
-			ehci_writel(ehci, cmd & ~CMD_IAAD,
-					&ehci->regs->command);
 
 		/* If IAA is set here it either legitimately triggered
 		 * before we cleared IAAD above (but _way_ late, so we'll
@@ -857,8 +858,13 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		goto dead;
 	}
 
+	/*
+	 * We don't use STS_FLR, but some controllers don't like it to
+	 * remain on, so mask it out along with the other status bits.
+	 */
+	masked_status = status & (INTR_MASK | STS_FLR);
+
 	/* Shared IRQ? */
-	masked_status = status & INTR_MASK;
 	if (!masked_status || unlikely(ehci->rh_state == EHCI_RH_HALTED)) {
 		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
@@ -888,11 +894,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* complete the unlinking of some qh [4.15.2.3] */
 	if (status & STS_IAA) {
 		/* guard against (alleged) silicon errata */
-		if (cmd & CMD_IAAD) {
-			ehci_writel(ehci, cmd & ~CMD_IAAD,
-					&ehci->regs->command);
+		if (cmd & CMD_IAAD)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
-		}
 		if (ehci->reclaim) {
 			COUNT(ehci->stats.reclaim);
 			end_unlink_async(ehci);
@@ -909,7 +912,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		pcd_status = status;
 
 		/* resume root hub? */
-		if (!(cmd & CMD_RUN))
+		if (ehci->rh_state == EHCI_RH_SUSPENDED)
 			usb_hcd_resume_root_hub(hcd);
 
 		/* get per-port change detect bits */
@@ -940,6 +943,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			 * like usb_port_resume() does.
 			 */
 			ehci->reset_done[i] = jiffies + msecs_to_jiffies(25);
+			set_bit(i, &ehci->resuming_ports);
 			ehci_dbg (ehci, "port %d remote wakeup\n", i + 1);
 			mod_timer(&hcd->rh_timer, ehci->reset_done[i]);
 		}
@@ -1241,6 +1245,13 @@ static int ehci_get_frame (struct usb_hcd *hcd)
 }
 
 /*-------------------------------------------------------------------------*/
+/*
+ * The EHCI in ChipIdea HDRC cannot be a separate module or device,
+ * because its registers (and irq) are shared between host/gadget/otg
+ * functions  and in order to facilitate role switching we cannot
+ * give the ehci driver exclusive access to those.
+ */
+#ifndef CHIPIDEA_EHCI
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR (DRIVER_AUTHOR);
@@ -1351,19 +1362,9 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		s5p_ehci_driver
 #endif
 
-#ifdef CONFIG_USB_EHCI_ATH79
-#include "ehci-ath79.c"
-#define PLATFORM_DRIVER		ehci_ath79_driver
-#endif
-
 #ifdef CONFIG_SPARC_LEON
 #include "ehci-grlib.c"
 #define PLATFORM_DRIVER		ehci_grlib_driver
-#endif
-
-#ifdef CONFIG_USB_PXA168_EHCI
-#include "ehci-pxa168.c"
-#define PLATFORM_DRIVER		ehci_pxa168_driver
 #endif
 
 #ifdef CONFIG_CPU_XLR
@@ -1374,6 +1375,21 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_EHCI_MV
 #include "ehci-mv.c"
 #define        PLATFORM_DRIVER         ehci_mv_driver
+#endif
+
+#ifdef CONFIG_MACH_LOONGSON1
+#include "ehci-ls1x.c"
+#define PLATFORM_DRIVER		ehci_ls1x_driver
+#endif
+
+#ifdef CONFIG_MIPS_SEAD3
+#include "ehci-sead3.c"
+#define	PLATFORM_DRIVER		ehci_hcd_sead3_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_HCD_PLATFORM
+#include "ehci-platform.c"
+#define PLATFORM_DRIVER		ehci_platform_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
@@ -1494,3 +1510,4 @@ static void __exit ehci_hcd_cleanup(void)
 }
 module_exit(ehci_hcd_cleanup);
 
+#endif /* CHIPIDEA_EHCI */

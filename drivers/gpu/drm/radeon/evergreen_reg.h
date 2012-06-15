@@ -219,6 +219,7 @@
 #       define EVERGREEN_CRTC_MASTER_EN                 (1 << 0)
 #       define EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE (1 << 24)
 #define EVERGREEN_CRTC_STATUS                           0x6e8c
+#       define EVERGREEN_CRTC_V_BLANK                   (1 << 0)
 #define EVERGREEN_CRTC_STATUS_POSITION                  0x6e90
 #define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8
 #define EVERGREEN_CRTC_UPDATE_LOCK                      0x6ed4
@@ -230,7 +231,5 @@
 
 /* HDMI blocks at 0x7030, 0x7c30, 0x10830, 0x11430, 0x12030, 0x12c30 */
 #define EVERGREEN_HDMI_BASE				0x7030
-
-#define EVERGREEN_HDMI_CONFIG_OFFSET			0xf0
 
 #endif

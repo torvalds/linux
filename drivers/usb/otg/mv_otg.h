@@ -136,7 +136,7 @@ struct mv_otg_regs {
 };
 
 struct mv_otg {
-	struct otg_transceiver otg;
+	struct usb_phy phy;
 	struct mv_otg_ctrl otg_ctrl;
 
 	/* base address */

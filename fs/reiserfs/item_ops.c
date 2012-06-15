@@ -3,7 +3,7 @@
  */
 
 #include <linux/time.h>
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 
 // this contains item handlers for old item types: sd, direct,
 // indirect, directory

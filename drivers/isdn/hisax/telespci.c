@@ -6,7 +6,7 @@
  *              Karsten Keil
  * Copyright    by Ton van Rosmalen
  *              by Karsten Keil      <keil@isdn4linux.de>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -36,9 +36,9 @@ static const char *telespci_revision = "$Revision: 2.23.2.3 $";
 #define READ_DATA_HSCX	(ZORAN_PO_GID1 | ZORAN_PO_GREG1)
 #define WRITE_DATA_HSCX	(ZORAN_PO_WR | ZORAN_PO_GID1 | ZORAN_PO_GREG1)
 
-#define ZORAN_WAIT_NOBUSY	do { \
-					portdata = readl(adr + 0x200); \
-				} while (portdata & ZORAN_PO_RQ_PEN)
+#define ZORAN_WAIT_NOBUSY	do {		\
+		portdata = readl(adr + 0x200);	\
+	} while (portdata & ZORAN_PO_RQ_PEN)
 
 static inline u_char
 readisac(void __iomem *adr, u_char off)
@@ -46,15 +46,15 @@ readisac(void __iomem *adr, u_char off)
 	register unsigned int portdata;
 
 	ZORAN_WAIT_NOBUSY;
-	
+
 	/* set address for ISAC */
 	writel(WRITE_ADDR_ISAC | off, adr + 0x200);
 	ZORAN_WAIT_NOBUSY;
-	
+
 	/* read data from ISAC */
 	writel(READ_DATA_ISAC, adr + 0x200);
 	ZORAN_WAIT_NOBUSY;
-	return((u_char)(portdata & ZORAN_PO_DMASK));
+	return ((u_char)(portdata & ZORAN_PO_DMASK));
 }
 
 static inline void
@@ -63,7 +63,7 @@ writeisac(void __iomem *adr, u_char off, u_char data)
 	register unsigned int portdata;
 
 	ZORAN_WAIT_NOBUSY;
-	
+
 	/* set address for ISAC */
 	writel(WRITE_ADDR_ISAC | off, adr + 0x200);
 	ZORAN_WAIT_NOBUSY;
@@ -80,9 +80,9 @@ readhscx(void __iomem *adr, int hscx, u_char off)
 
 	ZORAN_WAIT_NOBUSY;
 	/* set address for HSCX */
-	writel(WRITE_ADDR_HSCX | ((hscx ? 0x40:0) + off), adr + 0x200);
+	writel(WRITE_ADDR_HSCX | ((hscx ? 0x40 : 0) + off), adr + 0x200);
 	ZORAN_WAIT_NOBUSY;
-	
+
 	/* read data from HSCX */
 	writel(READ_DATA_HSCX, adr + 0x200);
 	ZORAN_WAIT_NOBUSY;
@@ -96,7 +96,7 @@ writehscx(void __iomem *adr, int hscx, u_char off, u_char data)
 
 	ZORAN_WAIT_NOBUSY;
 	/* set address for HSCX */
-	writel(WRITE_ADDR_HSCX | ((hscx ? 0x40:0) + off), adr + 0x200);
+	writel(WRITE_ADDR_HSCX | ((hscx ? 0x40 : 0) + off), adr + 0x200);
 	ZORAN_WAIT_NOBUSY;
 
 	/* write data to HSCX */
@@ -105,7 +105,7 @@ writehscx(void __iomem *adr, int hscx, u_char off, u_char data)
 }
 
 static inline void
-read_fifo_isac(void __iomem *adr, u_char * data, int size)
+read_fifo_isac(void __iomem *adr, u_char *data, int size)
 {
 	register unsigned int portdata;
 	register int i;
@@ -123,7 +123,7 @@ read_fifo_isac(void __iomem *adr, u_char * data, int size)
 }
 
 static void
-write_fifo_isac(void __iomem *adr, u_char * data, int size)
+write_fifo_isac(void __iomem *adr, u_char *data, int size)
 {
 	register unsigned int portdata;
 	register int i;
@@ -140,7 +140,7 @@ write_fifo_isac(void __iomem *adr, u_char * data, int size)
 }
 
 static inline void
-read_fifo_hscx(void __iomem *adr, int hscx, u_char * data, int size)
+read_fifo_hscx(void __iomem *adr, int hscx, u_char *data, int size)
 {
 	register unsigned int portdata;
 	register int i;
@@ -149,7 +149,7 @@ read_fifo_hscx(void __iomem *adr, int hscx, u_char * data, int size)
 	/* read data from HSCX */
 	for (i = 0; i < size; i++) {
 		/* set address for HSCX fifo */
-		writel(WRITE_ADDR_HSCX |(hscx ? 0x5F:0x1F), adr + 0x200);
+		writel(WRITE_ADDR_HSCX | (hscx ? 0x5F : 0x1F), adr + 0x200);
 		ZORAN_WAIT_NOBUSY;
 		writel(READ_DATA_HSCX, adr + 0x200);
 		ZORAN_WAIT_NOBUSY;
@@ -158,7 +158,7 @@ read_fifo_hscx(void __iomem *adr, int hscx, u_char * data, int size)
 }
 
 static inline void
-write_fifo_hscx(void __iomem *adr, int hscx, u_char * data, int size)
+write_fifo_hscx(void __iomem *adr, int hscx, u_char *data, int size)
 {
 	unsigned int portdata;
 	register int i;
@@ -167,7 +167,7 @@ write_fifo_hscx(void __iomem *adr, int hscx, u_char * data, int size)
 	/* write data to HSCX */
 	for (i = 0; i < size; i++) {
 		/* set address for HSCX fifo */
-		writel(WRITE_ADDR_HSCX |(hscx ? 0x5F:0x1F), adr + 0x200);
+		writel(WRITE_ADDR_HSCX | (hscx ? 0x5F : 0x1F), adr + 0x200);
 		ZORAN_WAIT_NOBUSY;
 		writel(WRITE_DATA_HSCX | data[i], adr + 0x200);
 		ZORAN_WAIT_NOBUSY;
@@ -190,13 +190,13 @@ WriteISAC(struct IsdnCardState *cs, u_char offset, u_char value)
 }
 
 static void
-ReadISACfifo(struct IsdnCardState *cs, u_char * data, int size)
+ReadISACfifo(struct IsdnCardState *cs, u_char *data, int size)
 {
 	read_fifo_isac(cs->hw.teles0.membase, data, size);
 }
 
 static void
-WriteISACfifo(struct IsdnCardState *cs, u_char * data, int size)
+WriteISACfifo(struct IsdnCardState *cs, u_char *data, int size)
 {
 	write_fifo_isac(cs->hw.teles0.membase, data, size);
 }
@@ -267,20 +267,20 @@ TelesPCI_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	u_long flags;
 
 	switch (mt) {
-		case CARD_RESET:
-			return(0);
-		case CARD_RELEASE:
-			release_io_telespci(cs);
-			return(0);
-		case CARD_INIT:
-			spin_lock_irqsave(&cs->lock, flags);
-			inithscxisac(cs, 3);
-			spin_unlock_irqrestore(&cs->lock, flags);
-			return(0);
-		case CARD_TEST:
-			return(0);
+	case CARD_RESET:
+		return (0);
+	case CARD_RELEASE:
+		release_io_telespci(cs);
+		return (0);
+	case CARD_INIT:
+		spin_lock_irqsave(&cs->lock, flags);
+		inithscxisac(cs, 3);
+		spin_unlock_irqrestore(&cs->lock, flags);
+		return (0);
+	case CARD_TEST:
+		return (0);
 	}
-	return(0);
+	return (0);
 }
 
 static struct pci_dev *dev_tel __devinitdata = NULL;
@@ -300,22 +300,22 @@ setup_telespci(struct IsdnCard *card)
 	if (cs->typ != ISDN_CTYPE_TELESPCI)
 		return (0);
 
-	if ((dev_tel = hisax_find_pci_device (PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36120, dev_tel))) {
+	if ((dev_tel = hisax_find_pci_device(PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36120, dev_tel))) {
 		if (pci_enable_device(dev_tel))
-			return(0);
+			return (0);
 		cs->irq = dev_tel->irq;
 		if (!cs->irq) {
 			printk(KERN_WARNING "Teles: No IRQ for PCI card found\n");
-			return(0);
+			return (0);
 		}
 		cs->hw.teles0.membase = ioremap(pci_resource_start(dev_tel, 0),
-			PAGE_SIZE);
+						PAGE_SIZE);
 		printk(KERN_INFO "Found: Zoran, base-address: 0x%llx, irq: 0x%x\n",
-			(unsigned long long)pci_resource_start(dev_tel, 0),
-			dev_tel->irq);
+		       (unsigned long long)pci_resource_start(dev_tel, 0),
+		       dev_tel->irq);
 	} else {
 		printk(KERN_WARNING "TelesPCI: No PCI card found\n");
-		return(0);
+		return (0);
 	}
 
 	/* Initialize Zoran PCI controller */
@@ -346,7 +346,7 @@ setup_telespci(struct IsdnCard *card)
 	ISACVersion(cs, "TelesPCI:");
 	if (HscxVersion(cs, "TelesPCI:")) {
 		printk(KERN_WARNING
-		 "TelesPCI: wrong HSCX versions check IO/MEM addresses\n");
+		       "TelesPCI: wrong HSCX versions check IO/MEM addresses\n");
 		release_io_telespci(cs);
 		return (0);
 	}

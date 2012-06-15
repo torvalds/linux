@@ -33,6 +33,7 @@
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_pm.h"
+#include "nouveau_fifo.h"
 #include "nv50_display.h"
 
 #include "drm_pciids.h"
@@ -56,6 +57,10 @@ module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 MODULE_PARM_DESC(vram_notify, "Force DMA notifiers to be in VRAM");
 int nouveau_vram_notify = 0;
 module_param_named(vram_notify, nouveau_vram_notify, int, 0400);
+
+MODULE_PARM_DESC(vram_type, "Override detected VRAM type");
+char *nouveau_vram_type;
+module_param_named(vram_type, nouveau_vram_type, charp, 0400);
 
 MODULE_PARM_DESC(duallink, "Allow dual-link TMDS (>=GeForce 8)");
 int nouveau_duallink = 1;
@@ -89,7 +94,7 @@ MODULE_PARM_DESC(override_conntype, "Ignore DCB connector type");
 int nouveau_override_conntype = 0;
 module_param_named(override_conntype, nouveau_override_conntype, int, 0400);
 
-MODULE_PARM_DESC(tv_disable, "Disable TV-out detection\n");
+MODULE_PARM_DESC(tv_disable, "Disable TV-out detection");
 int nouveau_tv_disable = 0;
 module_param_named(tv_disable, nouveau_tv_disable, int, 0400);
 
@@ -104,27 +109,27 @@ module_param_named(tv_norm, nouveau_tv_norm, charp, 0400);
 MODULE_PARM_DESC(reg_debug, "Register access debug bitmask:\n"
 		"\t\t0x1 mc, 0x2 video, 0x4 fb, 0x8 extdev,\n"
 		"\t\t0x10 crtc, 0x20 ramdac, 0x40 vgacrtc, 0x80 rmvio,\n"
-		"\t\t0x100 vgaattr, 0x200 EVO (G80+). ");
+		"\t\t0x100 vgaattr, 0x200 EVO (G80+)");
 int nouveau_reg_debug;
 module_param_named(reg_debug, nouveau_reg_debug, int, 0600);
 
-MODULE_PARM_DESC(perflvl, "Performance level (default: boot)\n");
+MODULE_PARM_DESC(perflvl, "Performance level (default: boot)");
 char *nouveau_perflvl;
 module_param_named(perflvl, nouveau_perflvl, charp, 0400);
 
-MODULE_PARM_DESC(perflvl_wr, "Allow perflvl changes (warning: dangerous!)\n");
+MODULE_PARM_DESC(perflvl_wr, "Allow perflvl changes (warning: dangerous!)");
 int nouveau_perflvl_wr;
 module_param_named(perflvl_wr, nouveau_perflvl_wr, int, 0400);
 
-MODULE_PARM_DESC(msi, "Enable MSI (default: off)\n");
+MODULE_PARM_DESC(msi, "Enable MSI (default: off)");
 int nouveau_msi;
 module_param_named(msi, nouveau_msi, int, 0400);
 
-MODULE_PARM_DESC(ctxfw, "Use external HUB/GPC ucode (fermi)\n");
+MODULE_PARM_DESC(ctxfw, "Use external HUB/GPC ucode (fermi)");
 int nouveau_ctxfw;
 module_param_named(ctxfw, nouveau_ctxfw, int, 0400);
 
-MODULE_PARM_DESC(mxmdcb, "Santise DCB table according to MXM-SIS\n");
+MODULE_PARM_DESC(mxmdcb, "Santise DCB table according to MXM-SIS");
 int nouveau_mxmdcb = 1;
 module_param_named(mxmdcb, nouveau_mxmdcb, int, 0400);
 
@@ -171,7 +176,7 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct nouveau_channel *chan;
 	struct drm_crtc *crtc;
 	int ret, i, e;
@@ -210,16 +215,12 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	ttm_bo_evict_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 
 	NV_INFO(dev, "Idling channels...\n");
-	for (i = 0; i < pfifo->channels; i++) {
+	for (i = 0; i < (pfifo ? pfifo->channels : 0); i++) {
 		chan = dev_priv->channels.ptr[i];
 
 		if (chan && chan->pushbuf_bo)
 			nouveau_channel_idle(chan);
 	}
-
-	pfifo->reassign(dev, false);
-	pfifo->disable(dev);
-	pfifo->unload_context(dev);
 
 	for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
 		if (!dev_priv->eng[e])
@@ -261,8 +262,6 @@ out_abort:
 		if (dev_priv->eng[e])
 			dev_priv->eng[e]->init(dev, e);
 	}
-	pfifo->enable(dev);
-	pfifo->reassign(dev, true);
 	return ret;
 }
 
@@ -270,6 +269,7 @@ int
 nouveau_pci_resume(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
 	struct drm_crtc *crtc;
@@ -317,7 +317,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		if (dev_priv->eng[i])
 			dev_priv->eng[i]->init(dev, i);
 	}
-	engine->fifo.init(dev);
 
 	nouveau_irq_postinstall(dev);
 
@@ -326,7 +325,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		struct nouveau_channel *chan;
 		int j;
 
-		for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
+		for (i = 0; i < (pfifo ? pfifo->channels : 0); i++) {
 			chan = dev_priv->channels.ptr[i];
 			if (!chan || !chan->pushbuf_bo)
 				continue;
@@ -404,7 +403,7 @@ static struct drm_driver driver = {
 	.driver_features =
 		DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
 		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
-		DRIVER_MODESET,
+		DRIVER_MODESET | DRIVER_PRIME,
 	.load = nouveau_load,
 	.firstopen = nouveau_firstopen,
 	.lastclose = nouveau_lastclose,
@@ -426,6 +425,12 @@ static struct drm_driver driver = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = nouveau_ioctls,
 	.fops = &nouveau_driver_fops,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = nouveau_gem_prime_export,
+	.gem_prime_import = nouveau_gem_prime_import,
+
 	.gem_init_object = nouveau_gem_object_new,
 	.gem_free_object = nouveau_gem_object_del,
 	.gem_open_object = nouveau_gem_object_open,

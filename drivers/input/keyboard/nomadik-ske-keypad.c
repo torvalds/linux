@@ -39,7 +39,8 @@
 #define SKE_KPRISA	(0x1 << 2)
 
 #define SKE_KEYPAD_ROW_SHIFT	3
-#define SKE_KPD_KEYMAP_SIZE	(8 * 8)
+#define SKE_KPD_NUM_ROWS	8
+#define SKE_KPD_NUM_COLS	8
 
 /* keypad auto scan registers */
 #define SKE_ASR0	0x20
@@ -63,7 +64,7 @@ struct ske_keypad {
 	void __iomem *reg_base;
 	struct input_dev *input;
 	const struct ske_keypad_platform_data *board;
-	unsigned short keymap[SKE_KPD_KEYMAP_SIZE];
+	unsigned short keymap[SKE_KPD_NUM_ROWS * SKE_KPD_NUM_COLS];
 	struct clk *clk;
 	spinlock_t ske_keypad_lock;
 };
@@ -88,7 +89,7 @@ static void ske_keypad_set_bits(struct ske_keypad *keypad, u16 addr,
  *
  * Enable Multi key press detection, auto scan mode
  */
-static int __devinit ske_keypad_chip_init(struct ske_keypad *keypad)
+static int __init ske_keypad_chip_init(struct ske_keypad *keypad)
 {
 	u32 value;
 	int timeout = 50;
@@ -198,7 +199,7 @@ static irqreturn_t ske_keypad_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit ske_keypad_probe(struct platform_device *pdev)
+static int __init ske_keypad_probe(struct platform_device *pdev)
 {
 	const struct ske_keypad_platform_data *plat = pdev->dev.platform_data;
 	struct ske_keypad *keypad;
@@ -261,18 +262,17 @@ static int __devinit ske_keypad_probe(struct platform_device *pdev)
 	input->name = "ux500-ske-keypad";
 	input->dev.parent = &pdev->dev;
 
-	input->keycode = keypad->keymap;
-	input->keycodesize = sizeof(keypad->keymap[0]);
-	input->keycodemax = ARRAY_SIZE(keypad->keymap);
+	error = matrix_keypad_build_keymap(plat->keymap_data, NULL,
+					   SKE_KPD_NUM_ROWS, SKE_KPD_NUM_COLS,
+					   keypad->keymap, input);
+	if (error) {
+		dev_err(&pdev->dev, "Failed to build keymap\n");
+		goto err_iounmap;
+	}
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-
-	__set_bit(EV_KEY, input->evbit);
 	if (!plat->no_autorepeat)
 		__set_bit(EV_REP, input->evbit);
-
-	matrix_keypad_build_keymap(plat->keymap_data, SKE_KEYPAD_ROW_SHIFT,
-			input->keycode, input->keybit);
 
 	clk_enable(keypad->clk);
 
@@ -344,7 +344,7 @@ static int __devexit ske_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ske_keypad_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -372,22 +372,17 @@ static int ske_keypad_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops ske_keypad_dev_pm_ops = {
-	.suspend = ske_keypad_suspend,
-	.resume = ske_keypad_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(ske_keypad_dev_pm_ops,
+			 ske_keypad_suspend, ske_keypad_resume);
 
 static struct platform_driver ske_keypad_driver = {
 	.driver = {
 		.name = "nmk-ske-keypad",
 		.owner  = THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm = &ske_keypad_dev_pm_ops,
-#endif
 	},
-	.probe = ske_keypad_probe,
 	.remove = __devexit_p(ske_keypad_remove),
 };
 

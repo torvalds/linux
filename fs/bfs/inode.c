@@ -174,7 +174,7 @@ static void bfs_evict_inode(struct inode *inode)
 
 	truncate_inode_pages(&inode->i_data, 0);
 	invalidate_inode_buffers(inode);
-	end_writeback(inode);
+	clear_inode(inode);
 
 	if (inode->i_nlink)
 		return;
@@ -367,9 +367,8 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		ret = PTR_ERR(inode);
 		goto out2;
 	}
-	s->s_root = d_alloc_root(inode);
+	s->s_root = d_make_root(inode);
 	if (!s->s_root) {
-		iput(inode);
 		ret = -ENOMEM;
 		goto out2;
 	}

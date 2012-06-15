@@ -47,15 +47,13 @@ struct tmio_mmc_host {
 	struct mmc_request      *mrq;
 	struct mmc_data         *data;
 	struct mmc_host         *mmc;
-	unsigned int		sdio_irq_enabled;
+
+	/* Controller power state */
+	bool			power;
 
 	/* Callbacks for clock / power control */
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
-
-	int			pm_error;
-	/* recognise system-wide suspend in runtime PM methods */
-	bool			pm_global;
 
 	/* pio related stuff */
 	struct scatterlist      *sg_ptr;
@@ -86,6 +84,7 @@ struct tmio_mmc_host {
 	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
 	struct mutex		ios_lock;	/* protect set_ios() context */
+	bool			native_hotplug;
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,

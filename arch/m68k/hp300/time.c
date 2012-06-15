@@ -15,7 +15,6 @@
 #include <asm/machdep.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/blinken.h>
 

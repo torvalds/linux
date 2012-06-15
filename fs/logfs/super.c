@@ -315,11 +315,9 @@ static int logfs_get_sb_final(struct super_block *sb)
 	if (IS_ERR(rootdir))
 		goto fail;
 
-	sb->s_root = d_alloc_root(rootdir);
-	if (!sb->s_root) {
-		iput(rootdir);
+	sb->s_root = d_make_root(rootdir);
+	if (!sb->s_root)
 		goto fail;
-	}
 
 	/* at that point we know that ->put_super() will be called */
 	super->s_erase_page = alloc_pages(GFP_KERNEL, 0);
@@ -542,6 +540,7 @@ static struct dentry *logfs_get_sb_device(struct logfs_super *super,
 	 * the filesystem incompatible with 32bit systems.
 	 */
 	sb->s_maxbytes	= (1ull << 43) - 1;
+	sb->s_max_links = LOGFS_LINK_MAX;
 	sb->s_op	= &logfs_super_operations;
 	sb->s_flags	= flags | MS_NOATIME;
 
@@ -627,7 +626,10 @@ static int __init logfs_init(void)
 	if (ret)
 		goto out2;
 
-	return register_filesystem(&logfs_fs_type);
+	ret = register_filesystem(&logfs_fs_type);
+	if (!ret)
+		return 0;
+	logfs_destroy_inode_cache();
 out2:
 	logfs_compr_exit();
 out1:

@@ -8,6 +8,8 @@
 
 obj-$(CONFIG_VIDEO_SAMSUNG_S5P_HDMIPHY) += s5p-hdmiphy.o
 s5p-hdmiphy-y += hdmiphy_drv.o
+obj-$(CONFIG_VIDEO_SAMSUNG_S5P_SII9234) += s5p-sii9234.o
+s5p-sii9234-y += sii9234_drv.o
 obj-$(CONFIG_VIDEO_SAMSUNG_S5P_HDMI) += s5p-hdmi.o
 s5p-hdmi-y += hdmi_drv.o
 obj-$(CONFIG_VIDEO_SAMSUNG_S5P_SDO) += s5p-sdo.o

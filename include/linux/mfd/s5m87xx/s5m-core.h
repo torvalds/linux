@@ -335,6 +335,7 @@ extern int s5m_reg_update(struct s5m87xx_dev *s5m87xx, u8 reg, u8 val, u8 mask);
 
 struct s5m_platform_data {
 	struct s5m_regulator_data	*regulators;
+	struct s5m_opmode_data		*opmode;
 	int				device_type;
 	int				num_regulators;
 

@@ -558,21 +558,18 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 			printk( "Lance: request for irq %d failed\n", IRQ_AUTO_5 );
 			return 0;
 		}
-		dev->irq = (unsigned short)IRQ_AUTO_5;
+		dev->irq = IRQ_AUTO_5;
 	}
 	else {
-		/* For VME-RieblCards, request a free VME int;
-		 * (This must be unsigned long, since dev->irq is short and the
-		 * IRQ_MACHSPEC bit would be cut off...)
-		 */
-		unsigned long irq = atari_register_vme_int();
+		/* For VME-RieblCards, request a free VME int */
+		unsigned int irq = atari_register_vme_int();
 		if (!irq) {
 			printk( "Lance: request for VME interrupt failed\n" );
 			return 0;
 		}
 		if (request_irq(irq, lance_interrupt, IRQ_TYPE_PRIO,
 		            "Riebl-VME Ethernet", dev)) {
-			printk( "Lance: request for irq %ld failed\n", irq );
+			printk( "Lance: request for irq %u failed\n", irq );
 			return 0;
 		}
 		dev->irq = irq;
@@ -997,7 +994,7 @@ static int lance_rx( struct net_device *dev )
 				dev->stats.rx_errors++;
 			}
 			else {
-				skb = dev_alloc_skb( pkt_len+2 );
+				skb = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skb == NULL) {
 					DPRINTK( 1, ( "%s: Memory squeeze, deferring packet.\n",
 								  dev->name ));

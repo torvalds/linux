@@ -130,13 +130,11 @@ static int adv7343_setstd(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7343_state *state = to_state(sd);
 	struct adv7343_std_info *std_info;
-	int output_idx, num_std;
+	int num_std;
 	char *fsc_ptr;
 	u8 reg, val;
 	int err = 0;
 	int i = 0;
-
-	output_idx = state->output;
 
 	std_info = (struct adv7343_std_info *)stdinfo;
 	num_std = ARRAY_SIZE(stdinfo);
@@ -475,15 +473,4 @@ static struct i2c_driver adv7343_driver = {
 	.id_table	= adv7343_id,
 };
 
-static __init int init_adv7343(void)
-{
-	return i2c_add_driver(&adv7343_driver);
-}
-
-static __exit void exit_adv7343(void)
-{
-	i2c_del_driver(&adv7343_driver);
-}
-
-module_init(init_adv7343);
-module_exit(exit_adv7343);
+module_i2c_driver(adv7343_driver);

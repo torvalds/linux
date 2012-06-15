@@ -71,22 +71,19 @@
 /*
  * Figure out the MAX IRQ number.
  *
- * If we have an SA1111, the max IRQ is S1_BVD1_STSCHG+1.
- * If we have an LoCoMo, the max IRQ is IRQ_BOARD_START + 4
- * Otherwise, we have the standard IRQs only.
+ * Neponset, SA1111 and UCB1x00 are sparse IRQ aware, so can dynamically
+ * allocate their IRQs above NR_IRQS.
+ *
+ * LoCoMo has 4 additional IRQs, but is not sparse IRQ aware, and so has
+ * to be included in the NR_IRQS calculation.
  */
-#ifdef CONFIG_SA1111
-#define NR_IRQS			(IRQ_BOARD_END + 55)
-#elif defined(CONFIG_SHARP_LOCOMO)
-#define NR_IRQS			(IRQ_BOARD_START + 4)
+#ifdef CONFIG_SHARP_LOCOMO
+#define NR_IRQS_LOCOMO		4
 #else
-#define NR_IRQS			(IRQ_BOARD_START)
+#define NR_IRQS_LOCOMO		0
 #endif
 
-/*
- * Board specific IRQs.  Define them here.
- * Do not surround them with ifdefs.
- */
-#define IRQ_NEPONSET_SMC9196	(IRQ_BOARD_START + 0)
-#define IRQ_NEPONSET_USAR	(IRQ_BOARD_START + 1)
-#define IRQ_NEPONSET_SA1111	(IRQ_BOARD_START + 2)
+#ifndef NR_IRQS
+#define NR_IRQS (IRQ_BOARD_START + NR_IRQS_LOCOMO)
+#endif
+#define SA1100_NR_IRQS (IRQ_BOARD_START + NR_IRQS_LOCOMO)

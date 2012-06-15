@@ -53,7 +53,6 @@
 #define K_INT_PERF_CNT K_BCM1480_INT_PERF_CNT
 #endif
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #define SBPROF_TB_MAJOR 240

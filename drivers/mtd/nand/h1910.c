@@ -24,7 +24,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
-#include <mach/hardware.h>	/* for CLPS7111_VIRT_BASE */
+#include <mach/hardware.h>
 #include <asm/sizes.h>
 #include <mach/h1900-gpio.h>
 #include <mach/ipaq.h>
@@ -124,7 +124,6 @@ static int __init h1910_init(void)
 	/* 15 us command delay time */
 	this->chip_delay = 50;
 	this->ecc.mode = NAND_ECC_SOFT;
-	this->options = NAND_NO_AUTOINCR;
 
 	/* Scan to find existence of the device */
 	if (nand_scan(h1910_nand_mtd, 1)) {
@@ -135,8 +134,8 @@ static int __init h1910_init(void)
 	}
 
 	/* Register the partitions */
-	mtd_device_parse_register(h1910_nand_mtd, NULL, 0,
-			partition_info, NUM_PARTITIONS);
+	mtd_device_parse_register(h1910_nand_mtd, NULL, NULL, partition_info,
+				  NUM_PARTITIONS);
 
 	/* Return happy */
 	return 0;

@@ -7,6 +7,7 @@
 #include <linux/dma-mapping.h>
 #include <asm/scatterlist.h>
 #include <asm/machvec.h>
+#include <asm-generic/pci-bridge.h>
 
 /*
  * The following structure is used to manage multiple PCI busses.
@@ -98,12 +99,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return channel ? 15 : 14;
 }
-
-extern void pcibios_resource_to_bus(struct pci_dev *, struct pci_bus_region *,
-				    struct resource *);
-
-extern void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-				    struct pci_bus_region *region);
 
 #define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index
 

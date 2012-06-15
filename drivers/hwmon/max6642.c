@@ -352,19 +352,8 @@ static struct i2c_driver max6642_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init max6642_init(void)
-{
-	return i2c_add_driver(&max6642_driver);
-}
-
-static void __exit max6642_exit(void)
-{
-	i2c_del_driver(&max6642_driver);
-}
+module_i2c_driver(max6642_driver);
 
 MODULE_AUTHOR("Per Dalen <per.dalen@appeartv.com>");
 MODULE_DESCRIPTION("MAX6642 sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(max6642_init);
-module_exit(max6642_exit);

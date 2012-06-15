@@ -13,6 +13,9 @@
 #include <linux/ssb/ssb_driver_chipcommon.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#ifdef CONFIG_BCM47XX
+#include <asm/mach-bcm47xx/nvram.h>
+#endif
 
 #include "ssb_private.h"
 
@@ -92,10 +95,6 @@ static void ssb_pmu0_pllinit_r0(struct ssb_chipcommon *cc,
 	u32 pmuctl, tmp, pllctl;
 	unsigned int i;
 
-	if ((bus->chip_id == 0x5354) && !crystalfreq) {
-		/* The 5354 crystal freq is 25MHz */
-		crystalfreq = 25000;
-	}
 	if (crystalfreq)
 		e = pmu0_plltab_find_entry(crystalfreq);
 	if (!e)
@@ -321,7 +320,11 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 	u32 crystalfreq = 0; /* in kHz. 0 = keep default freq. */
 
 	if (bus->bustype == SSB_BUSTYPE_SSB) {
-		/* TODO: The user may override the crystal frequency. */
+#ifdef CONFIG_BCM47XX
+		char buf[20];
+		if (nvram_getenv("xtalfreq", buf, sizeof(buf)) >= 0)
+			crystalfreq = simple_strtoul(buf, NULL, 0);
+#endif
 	}
 
 	switch (bus->chip_id) {
@@ -330,7 +333,11 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 		ssb_pmu1_pllinit_r0(cc, crystalfreq);
 		break;
 	case 0x4328:
+		ssb_pmu0_pllinit_r0(cc, crystalfreq);
+		break;
 	case 0x5354:
+		if (crystalfreq == 0)
+			crystalfreq = 25000;
 		ssb_pmu0_pllinit_r0(cc, crystalfreq);
 		break;
 	case 0x4322:
@@ -607,3 +614,34 @@ void ssb_pmu_set_ldo_paref(struct ssb_chipcommon *cc, bool on)
 
 EXPORT_SYMBOL(ssb_pmu_set_ldo_voltage);
 EXPORT_SYMBOL(ssb_pmu_set_ldo_paref);
+
+u32 ssb_pmu_get_cpu_clock(struct ssb_chipcommon *cc)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+
+	switch (bus->chip_id) {
+	case 0x5354:
+		/* 5354 chip uses a non programmable PLL of frequency 240MHz */
+		return 240000000;
+	default:
+		ssb_printk(KERN_ERR PFX
+			   "ERROR: PMU cpu clock unknown for device %04X\n",
+			   bus->chip_id);
+		return 0;
+	}
+}
+
+u32 ssb_pmu_get_controlclock(struct ssb_chipcommon *cc)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+
+	switch (bus->chip_id) {
+	case 0x5354:
+		return 120000000;
+	default:
+		ssb_printk(KERN_ERR PFX
+			   "ERROR: PMU controlclock unknown for device %04X\n",
+			   bus->chip_id);
+		return 0;
+	}
+}

@@ -131,7 +131,6 @@ static struct sk_buff *tipc_show_stats(void)
 	tipc_printf(&pb, "TIPC version " TIPC_MOD_VER "\n");
 
 	/* Use additional tipc_printf()'s to return more info ... */
-
 	str_len = tipc_printbuf_validate(&pb);
 	skb_put(buf, TLV_SPACE(str_len));
 	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
@@ -179,7 +178,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (!tipc_addr_node_valid(addr))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (node address)");
-	if (tipc_mode == TIPC_NET_MODE)
+	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
 
@@ -191,7 +190,6 @@ static struct sk_buff *cfg_set_own_addr(void)
 	 * configuration commands can't be received until a local configuration
 	 * command to enable the first bearer is received and processed.
 	 */
-
 	spin_unlock_bh(&config_lock);
 	tipc_core_start_net(addr);
 	spin_lock_bh(&config_lock);
@@ -218,7 +216,7 @@ static struct sk_buff *cfg_set_max_publications(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value != delimit(value, 1, 65535))
+	if (value < 1 || value > 65535)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max publications must be 1-65535)");
 	tipc_max_publications = value;
@@ -233,7 +231,7 @@ static struct sk_buff *cfg_set_max_subscriptions(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value != delimit(value, 1, 65535))
+	if (value < 1 || value > 65535)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max subscriptions must be 1-65535");
 	tipc_max_subscriptions = value;
@@ -249,14 +247,11 @@ static struct sk_buff *cfg_set_max_ports(void)
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value == tipc_max_ports)
 		return tipc_cfg_reply_none();
-	if (value != delimit(value, 127, 65535))
+	if (value < 127 || value > 65535)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max ports must be 127-65535)");
-	if (tipc_mode != TIPC_NOT_RUNNING)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-			" (cannot change max ports while TIPC is active)");
-	tipc_max_ports = value;
-	return tipc_cfg_reply_none();
+	return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+		" (cannot change max ports while TIPC is active)");
 }
 
 static struct sk_buff *cfg_set_netid(void)
@@ -268,10 +263,10 @@ static struct sk_buff *cfg_set_netid(void)
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value == tipc_net_id)
 		return tipc_cfg_reply_none();
-	if (value != delimit(value, 1, 9999))
+	if (value < 1 || value > 9999)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network id must be 1-9999)");
-	if (tipc_mode == TIPC_NET_MODE)
+	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 			" (cannot change network id once TIPC has joined a network)");
 	tipc_net_id = value;
@@ -286,14 +281,12 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	spin_lock_bh(&config_lock);
 
 	/* Save request and reply details in a well-known location */
-
 	req_tlv_area = request_area;
 	req_tlv_space = request_space;
 	rep_headroom = reply_headroom;
 
 	/* Check command authorization */
-
-	if (likely(orig_node == tipc_own_addr)) {
+	if (likely(in_own_node(orig_node))) {
 		/* command is permitted */
 	} else if (cmd >= 0x8000) {
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
@@ -313,7 +306,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	}
 
 	/* Call appropriate processing routine */
-
 	switch (cmd) {
 	case TIPC_CMD_NOOP:
 		rep_tlv_buf = tipc_cfg_reply_none();
@@ -436,7 +428,6 @@ static void cfg_named_msg_event(void *userdata,
 	struct sk_buff *rep_buf;
 
 	/* Validate configuration message header (ignore invalid message) */
-
 	req_hdr = (struct tipc_cfg_msg_hdr *)msg;
 	if ((size < sizeof(*req_hdr)) ||
 	    (size != TCM_ALIGN(ntohl(req_hdr->tcm_len))) ||
@@ -446,7 +437,6 @@ static void cfg_named_msg_event(void *userdata,
 	}
 
 	/* Generate reply for request (if can't, return request) */
-
 	rep_buf = tipc_cfg_do_cmd(orig->node,
 				  ntohs(req_hdr->tcm_type),
 				  msg + sizeof(*req_hdr),
@@ -481,7 +471,7 @@ int tipc_cfg_init(void)
 
 	seq.type = TIPC_CFG_SRV;
 	seq.lower = seq.upper = tipc_own_addr;
-	res = tipc_nametbl_publish_rsv(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
 	if (res)
 		goto failed;
 
@@ -492,10 +482,23 @@ failed:
 	return res;
 }
 
+void tipc_cfg_reinit(void)
+{
+	struct tipc_name_seq seq;
+	int res;
+
+	seq.type = TIPC_CFG_SRV;
+	seq.lower = seq.upper = 0;
+	tipc_withdraw(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+
+	seq.lower = seq.upper = tipc_own_addr;
+	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+	if (res)
+		err("Unable to reinitialize configuration service\n");
+}
+
 void tipc_cfg_stop(void)
 {
-	if (config_port_ref) {
-		tipc_deleteport(config_port_ref);
-		config_port_ref = 0;
-	}
+	tipc_deleteport(config_port_ref);
+	config_port_ref = 0;
 }

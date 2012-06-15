@@ -168,7 +168,6 @@ static void tm6000_ir_urb_received(struct urb *urb)
 	struct tm6000_IR *ir = dev->ir;
 	struct tm6000_ir_poll_result poll_result;
 	char *buf;
-	int rc;
 
 	dprintk(2, "%s\n",__func__);
 	if (urb->status < 0 || urb->actual_length <= 0) {
@@ -192,7 +191,7 @@ static void tm6000_ir_urb_received(struct urb *urb)
 	dprintk(1, "%s, scancode: 0x%04x\n",__func__, poll_result.rc_data);
 	rc_keydown(ir->rc, poll_result.rc_data, 0);
 
-	rc = usb_submit_urb(urb, GFP_ATOMIC);
+	usb_submit_urb(urb, GFP_ATOMIC);
 	/*
 	 * Flash the led. We can't do it here, as it is running on IRQ context.
 	 * So, use the scheduler to do it, in a few ms.
@@ -481,8 +480,6 @@ int tm6000_ir_fini(struct tm6000_core *dev)
 
 	dprintk(2, "%s\n",__func__);
 
-	rc_unregister_device(ir->rc);
-
 	if (!ir->polling)
 		__tm6000_ir_int_stop(ir->rc);
 
@@ -492,6 +489,7 @@ int tm6000_ir_fini(struct tm6000_core *dev)
 	tm6000_flash_led(dev, 0);
 	ir->pwled = 0;
 
+	rc_unregister_device(ir->rc);
 
 	kfree(ir);
 	dev->ir = NULL;

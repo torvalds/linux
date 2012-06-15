@@ -656,12 +656,10 @@ static u32 fwspk_read_firmware_version(struct fw_unit *unit)
 static void fwspk_card_free(struct snd_card *card)
 {
 	struct fwspk *fwspk = card->private_data;
-	struct fw_device *dev = fw_parent_device(fwspk->unit);
 
 	amdtp_out_stream_destroy(&fwspk->stream);
 	cmp_connection_destroy(&fwspk->connection);
 	fw_unit_put(fwspk->unit);
-	fw_device_put(dev);
 	mutex_destroy(&fwspk->mutex);
 }
 
@@ -718,7 +716,6 @@ static int __devinit fwspk_probe(struct device *unit_dev)
 	fwspk = card->private_data;
 	fwspk->card = card;
 	mutex_init(&fwspk->mutex);
-	fw_device_get(fw_dev);
 	fwspk->unit = fw_unit_get(unit);
 	fwspk->device_info = fwspk_detect(fw_dev);
 	if (!fwspk->device_info) {
@@ -767,7 +764,6 @@ err_connection:
 	cmp_connection_destroy(&fwspk->connection);
 err_unit:
 	fw_unit_put(fwspk->unit);
-	fw_device_put(fw_dev);
 	mutex_destroy(&fwspk->mutex);
 error:
 	snd_card_free(card);

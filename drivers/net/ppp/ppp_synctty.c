@@ -39,7 +39,7 @@
 #include <linux/netdevice.h>
 #include <linux/poll.h>
 #include <linux/ppp_defs.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/ppp_channel.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -588,7 +588,7 @@ ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *skb)
 			skb_reserve(npkt,2);
 			skb_copy_from_linear_data(skb,
 				      skb_put(npkt, skb->len), skb->len);
-			kfree_skb(skb);
+			consume_skb(skb);
 			skb = npkt;
 		}
 		skb_push(skb,2);
@@ -656,7 +656,7 @@ ppp_sync_push(struct syncppp *ap)
 			if (sent < ap->tpkt->len) {
 				tty_stuffed = 1;
 			} else {
-				kfree_skb(ap->tpkt);
+				consume_skb(ap->tpkt);
 				ap->tpkt = NULL;
 				clear_bit(XMIT_FULL, &ap->xmit_flags);
 				done = 1;

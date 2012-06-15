@@ -59,9 +59,9 @@ commit=nrsec	(*)	Ext3 can be told to sync all its data and metadata
 			Setting it to very large values will improve
 			performance.
 
-barrier=<0(*)|1>	This enables/disables the use of write barriers in
-barrier			the jbd code.  barrier=0 disables, barrier=1 enables.
-nobarrier	(*)	This also requires an IO stack which can support
+barrier=<0|1(*)>	This enables/disables the use of write barriers in
+barrier	(*)		the jbd code.  barrier=0 disables, barrier=1 enables.
+nobarrier		This also requires an IO stack which can support
 			barriers, and if jbd gets an error on a barrier
 			write, it will disable again with a warning.
 			Write barriers enforce proper on-disk ordering

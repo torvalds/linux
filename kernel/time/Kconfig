@@ -1,6 +1,59 @@
 #
 # Timer subsystem related configuration options
 #
+
+# Options selectable by arch Kconfig
+
+# Watchdog function for clocksources to detect instabilities
+config CLOCKSOURCE_WATCHDOG
+	bool
+
+# Architecture has extra clocksource data
+config ARCH_CLOCKSOURCE_DATA
+	bool
+
+# Timekeeping vsyscall support
+config GENERIC_TIME_VSYSCALL
+	bool
+
+# ktime_t scalar 64bit nsec representation
+config KTIME_SCALAR
+	bool
+
+# Old style timekeeping
+config ARCH_USES_GETTIMEOFFSET
+	bool
+
+# The generic clock events infrastructure
+config GENERIC_CLOCKEVENTS
+	bool
+
+# Migration helper. Builds, but does not invoke
+config GENERIC_CLOCKEVENTS_BUILD
+	bool
+	default y
+	depends on GENERIC_CLOCKEVENTS
+
+# Clockevents broadcasting infrastructure
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	depends on GENERIC_CLOCKEVENTS
+
+# Automatically adjust the min. reprogramming time for
+# clock event device
+config GENERIC_CLOCKEVENTS_MIN_ADJUST
+	bool
+
+# Generic update of CMOS clock
+config GENERIC_CMOS_UPDATE
+	bool
+
+if GENERIC_CLOCKEVENTS
+menu "Timers subsystem"
+
+# Core internal switch. Selected by NO_HZ / HIGH_RES_TIMERS. This is
+# only related to the tick functionality. Oneshot clockevent devices
+# are supported independ of this.
 config TICK_ONESHOT
 	bool
 
@@ -22,10 +75,5 @@ config HIGH_RES_TIMERS
 	  hardware is not capable then this option only increases
 	  the size of the kernel image.
 
-config GENERIC_CLOCKEVENTS_BUILD
-	bool
-	default y
-	depends on GENERIC_CLOCKEVENTS
-
-config GENERIC_CLOCKEVENTS_MIN_ADJUST
-	bool
+endmenu
+endif

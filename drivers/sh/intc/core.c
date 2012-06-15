@@ -2,7 +2,7 @@
  * Shared interrupt handling code for IPR and INTC2 types of IRQs.
  *
  * Copyright (C) 2007, 2008 Magnus Damm
- * Copyright (C) 2009, 2010 Paul Mundt
+ * Copyright (C) 2009 - 2012 Paul Mundt
  *
  * Based on intc2.c and ipr.c
  *
@@ -31,18 +31,19 @@
 #include <linux/spinlock.h>
 #include <linux/radix-tree.h>
 #include <linux/export.h>
+#include <linux/sort.h>
 #include "internals.h"
 
 LIST_HEAD(intc_list);
 DEFINE_RAW_SPINLOCK(intc_big_lock);
-unsigned int nr_intc_controllers;
+static unsigned int nr_intc_controllers;
 
 /*
  * Default priority level
  * - this needs to be at least 2 for 5-bit priorities on 7780
  */
 static unsigned int default_prio_level = 2;	/* 2 - 16 */
-static unsigned int intc_prio_level[NR_IRQS];	/* for now */
+static unsigned int intc_prio_level[INTC_NR_IRQS];	/* for now */
 
 unsigned int intc_get_dfl_prio_level(void)
 {
@@ -267,6 +268,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 			k += save_reg(d, k, hw->prio_regs[i].set_reg, smp);
 			k += save_reg(d, k, hw->prio_regs[i].clr_reg, smp);
 		}
+
+		sort(d->prio, hw->nr_prio_regs, sizeof(*d->prio),
+		     intc_handle_int_cmp, NULL);
 	}
 
 	if (hw->sense_regs) {
@@ -277,6 +281,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 		for (i = 0; i < hw->nr_sense_regs; i++)
 			k += save_reg(d, k, hw->sense_regs[i].reg, 0);
+
+		sort(d->sense, hw->nr_sense_regs, sizeof(*d->sense),
+		     intc_handle_int_cmp, NULL);
 	}
 
 	if (hw->subgroups)

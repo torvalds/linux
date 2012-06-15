@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -34,6 +34,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 
 #include "e1000.h"
 
@@ -257,9 +258,8 @@ static int e1000_set_settings(struct net_device *netdev,
 	 * When SoL/IDER sessions are active, autoneg/speed/duplex
 	 * cannot be changed
 	 */
-	if (e1000_check_reset_block(hw)) {
-		e_err("Cannot change link characteristics when SoL/IDER is "
-		      "active.\n");
+	if (hw->phy.ops.check_reset_block(hw)) {
+		e_err("Cannot change link characteristics when SoL/IDER is active.\n");
 		return -EINVAL;
 	}
 
@@ -402,15 +402,15 @@ static void e1000_get_regs(struct net_device *netdev,
 	regs_buff[1]  = er32(STATUS);
 
 	regs_buff[2]  = er32(RCTL);
-	regs_buff[3]  = er32(RDLEN);
-	regs_buff[4]  = er32(RDH);
-	regs_buff[5]  = er32(RDT);
+	regs_buff[3]  = er32(RDLEN(0));
+	regs_buff[4]  = er32(RDH(0));
+	regs_buff[5]  = er32(RDT(0));
 	regs_buff[6]  = er32(RDTR);
 
 	regs_buff[7]  = er32(TCTL);
-	regs_buff[8]  = er32(TDLEN);
-	regs_buff[9]  = er32(TDH);
-	regs_buff[10] = er32(TDT);
+	regs_buff[8]  = er32(TDLEN(0));
+	regs_buff[9]  = er32(TDH(0));
+	regs_buff[10] = er32(TDT(0));
 	regs_buff[11] = er32(TIDV);
 
 	regs_buff[12] = adapter->hw.phy.type;  /* PHY type (IGP=1, M88=0) */
@@ -536,7 +536,7 @@ static int e1000_set_eeprom(struct net_device *netdev,
 		ret_val = e1000_read_nvm(hw, first_word, 1, &eeprom_buff[0]);
 		ptr++;
 	}
-	if (((eeprom->offset + eeprom->len) & 1) && (ret_val == 0))
+	if (((eeprom->offset + eeprom->len) & 1) && (!ret_val))
 		/* need read/modify/write of last changed EEPROM word */
 		/* only the first byte of the word is being modified */
 		ret_val = e1000_read_nvm(hw, last_word, 1,
@@ -552,7 +552,7 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	memcpy(ptr, bytes, eeprom->len);
 
 	for (i = 0; i < last_word - first_word + 1; i++)
-		eeprom_buff[i] = cpu_to_le16(eeprom_buff[i]);
+		cpu_to_le16s(&eeprom_buff[i]);
 
 	ret_val = e1000_write_nvm(hw, first_word,
 				  last_word - first_word + 1, eeprom_buff);
@@ -605,94 +605,112 @@ static void e1000_get_ringparam(struct net_device *netdev,
 				struct ethtool_ringparam *ring)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_ring *tx_ring = adapter->tx_ring;
-	struct e1000_ring *rx_ring = adapter->rx_ring;
 
 	ring->rx_max_pending = E1000_MAX_RXD;
 	ring->tx_max_pending = E1000_MAX_TXD;
-	ring->rx_pending = rx_ring->count;
-	ring->tx_pending = tx_ring->count;
+	ring->rx_pending = adapter->rx_ring_count;
+	ring->tx_pending = adapter->tx_ring_count;
 }
 
 static int e1000_set_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_ring *tx_ring, *tx_old;
-	struct e1000_ring *rx_ring, *rx_old;
-	int err;
+	struct e1000_ring *temp_tx = NULL, *temp_rx = NULL;
+	int err = 0, size = sizeof(struct e1000_ring);
+	bool set_tx = false, set_rx = false;
+	u16 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
+	new_rx_count = clamp_t(u32, ring->rx_pending, E1000_MIN_RXD,
+			       E1000_MAX_RXD);
+	new_rx_count = ALIGN(new_rx_count, REQ_RX_DESCRIPTOR_MULTIPLE);
+
+	new_tx_count = clamp_t(u32, ring->tx_pending, E1000_MIN_TXD,
+			       E1000_MAX_TXD);
+	new_tx_count = ALIGN(new_tx_count, REQ_TX_DESCRIPTOR_MULTIPLE);
+
+	if ((new_tx_count == adapter->tx_ring_count) &&
+	    (new_rx_count == adapter->rx_ring_count))
+		/* nothing to do */
+		return 0;
+
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
 
-	if (netif_running(adapter->netdev))
-		e1000e_down(adapter);
+	if (!netif_running(adapter->netdev)) {
+		/* Set counts now and allocate resources during open() */
+		adapter->tx_ring->count = new_tx_count;
+		adapter->rx_ring->count = new_rx_count;
+		adapter->tx_ring_count = new_tx_count;
+		adapter->rx_ring_count = new_rx_count;
+		goto clear_reset;
+	}
 
-	tx_old = adapter->tx_ring;
-	rx_old = adapter->rx_ring;
+	set_tx = (new_tx_count != adapter->tx_ring_count);
+	set_rx = (new_rx_count != adapter->rx_ring_count);
 
-	err = -ENOMEM;
-	tx_ring = kmemdup(tx_old, sizeof(struct e1000_ring), GFP_KERNEL);
-	if (!tx_ring)
-		goto err_alloc_tx;
+	/* Allocate temporary storage for ring updates */
+	if (set_tx) {
+		temp_tx = vmalloc(size);
+		if (!temp_tx) {
+			err = -ENOMEM;
+			goto free_temp;
+		}
+	}
+	if (set_rx) {
+		temp_rx = vmalloc(size);
+		if (!temp_rx) {
+			err = -ENOMEM;
+			goto free_temp;
+		}
+	}
 
-	rx_ring = kmemdup(rx_old, sizeof(struct e1000_ring), GFP_KERNEL);
-	if (!rx_ring)
-		goto err_alloc_rx;
+	e1000e_down(adapter);
 
-	adapter->tx_ring = tx_ring;
-	adapter->rx_ring = rx_ring;
-
-	rx_ring->count = max(ring->rx_pending, (u32)E1000_MIN_RXD);
-	rx_ring->count = min(rx_ring->count, (u32)(E1000_MAX_RXD));
-	rx_ring->count = ALIGN(rx_ring->count, REQ_RX_DESCRIPTOR_MULTIPLE);
-
-	tx_ring->count = max(ring->tx_pending, (u32)E1000_MIN_TXD);
-	tx_ring->count = min(tx_ring->count, (u32)(E1000_MAX_TXD));
-	tx_ring->count = ALIGN(tx_ring->count, REQ_TX_DESCRIPTOR_MULTIPLE);
-
-	if (netif_running(adapter->netdev)) {
-		/* Try to get new resources before deleting old */
-		err = e1000e_setup_rx_resources(adapter);
-		if (err)
-			goto err_setup_rx;
-		err = e1000e_setup_tx_resources(adapter);
-		if (err)
-			goto err_setup_tx;
-
-		/*
-		 * restore the old in order to free it,
-		 * then add in the new
-		 */
-		adapter->rx_ring = rx_old;
-		adapter->tx_ring = tx_old;
-		e1000e_free_rx_resources(adapter);
-		e1000e_free_tx_resources(adapter);
-		kfree(tx_old);
-		kfree(rx_old);
-		adapter->rx_ring = rx_ring;
-		adapter->tx_ring = tx_ring;
-		err = e1000e_up(adapter);
+	/*
+	 * We can't just free everything and then setup again, because the
+	 * ISRs in MSI-X mode get passed pointers to the Tx and Rx ring
+	 * structs.  First, attempt to allocate new resources...
+	 */
+	if (set_tx) {
+		memcpy(temp_tx, adapter->tx_ring, size);
+		temp_tx->count = new_tx_count;
+		err = e1000e_setup_tx_resources(temp_tx);
 		if (err)
 			goto err_setup;
 	}
+	if (set_rx) {
+		memcpy(temp_rx, adapter->rx_ring, size);
+		temp_rx->count = new_rx_count;
+		err = e1000e_setup_rx_resources(temp_rx);
+		if (err)
+			goto err_setup_rx;
+	}
 
-	clear_bit(__E1000_RESETTING, &adapter->state);
-	return 0;
-err_setup_tx:
-	e1000e_free_rx_resources(adapter);
+	/* ...then free the old resources and copy back any new ring data */
+	if (set_tx) {
+		e1000e_free_tx_resources(adapter->tx_ring);
+		memcpy(adapter->tx_ring, temp_tx, size);
+		adapter->tx_ring_count = new_tx_count;
+	}
+	if (set_rx) {
+		e1000e_free_rx_resources(adapter->rx_ring);
+		memcpy(adapter->rx_ring, temp_rx, size);
+		adapter->rx_ring_count = new_rx_count;
+	}
+
 err_setup_rx:
-	adapter->rx_ring = rx_old;
-	adapter->tx_ring = tx_old;
-	kfree(rx_ring);
-err_alloc_rx:
-	kfree(tx_ring);
-err_alloc_tx:
-	e1000e_up(adapter);
+	if (err && set_tx)
+		e1000e_free_tx_resources(temp_tx);
 err_setup:
+	e1000e_up(adapter);
+free_temp:
+	vfree(temp_tx);
+	vfree(temp_rx);
+clear_reset:
 	clear_bit(__E1000_RESETTING, &adapter->state);
 	return err;
 }
@@ -708,9 +726,8 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
 				      (test[pat] & write));
 		val = E1000_READ_REG_ARRAY(&adapter->hw, reg, offset);
 		if (val != (test[pat] & write & mask)) {
-			e_err("pattern test reg %04X failed: got 0x%08X "
-			      "expected 0x%08X\n", reg + offset, val,
-			      (test[pat] & write & mask));
+			e_err("pattern test reg %04X failed: got 0x%08X expected 0x%08X\n",
+			      reg + offset, val, (test[pat] & write & mask));
 			*data = reg;
 			return 1;
 		}
@@ -725,8 +742,8 @@ static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
 	__ew32(&adapter->hw, reg, write & mask);
 	val = __er32(&adapter->hw, reg);
 	if ((write & mask) != (val & mask)) {
-		e_err("set/check reg %04X test failed: got 0x%08X "
-		      "expected 0x%08X\n", reg, (val & mask), (write & mask));
+		e_err("set/check reg %04X test failed: got 0x%08X expected 0x%08X\n",
+		      reg, (val & mask), (write & mask));
 		*data = reg;
 		return 1;
 	}
@@ -756,6 +773,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	u32 i;
 	u32 toggle;
 	u32 mask;
+	u32 wlock_mac = 0;
 
 	/*
 	 * The status register is Read Only, so a write should fail.
@@ -778,8 +796,8 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	ew32(STATUS, toggle);
 	after = er32(STATUS) & toggle;
 	if (value != after) {
-		e_err("failed STATUS register test got: 0x%08X expected: "
-		      "0x%08X\n", after, value);
+		e_err("failed STATUS register test got: 0x%08X expected: 0x%08X\n",
+		      after, value);
 		*data = 1;
 		return 1;
 	}
@@ -794,15 +812,15 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	}
 
 	REG_PATTERN_TEST(E1000_RDTR, 0x0000FFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(E1000_RDBAH, 0xFFFFFFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(E1000_RDLEN, 0x000FFF80, 0x000FFFFF);
-	REG_PATTERN_TEST(E1000_RDH, 0x0000FFFF, 0x0000FFFF);
-	REG_PATTERN_TEST(E1000_RDT, 0x0000FFFF, 0x0000FFFF);
+	REG_PATTERN_TEST(E1000_RDBAH(0), 0xFFFFFFFF, 0xFFFFFFFF);
+	REG_PATTERN_TEST(E1000_RDLEN(0), 0x000FFF80, 0x000FFFFF);
+	REG_PATTERN_TEST(E1000_RDH(0), 0x0000FFFF, 0x0000FFFF);
+	REG_PATTERN_TEST(E1000_RDT(0), 0x0000FFFF, 0x0000FFFF);
 	REG_PATTERN_TEST(E1000_FCRTH, 0x0000FFF8, 0x0000FFF8);
 	REG_PATTERN_TEST(E1000_FCTTV, 0x0000FFFF, 0x0000FFFF);
 	REG_PATTERN_TEST(E1000_TIPG, 0x3FFFFFFF, 0x3FFFFFFF);
-	REG_PATTERN_TEST(E1000_TDBAH, 0xFFFFFFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(E1000_TDLEN, 0x000FFF80, 0x000FFFFF);
+	REG_PATTERN_TEST(E1000_TDBAH(0), 0xFFFFFFFF, 0xFFFFFFFF);
+	REG_PATTERN_TEST(E1000_TDLEN(0), 0x000FFF80, 0x000FFFFF);
 
 	REG_SET_AND_CHECK(E1000_RCTL, 0xFFFFFFFF, 0x00000000);
 
@@ -811,29 +829,41 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	REG_SET_AND_CHECK(E1000_TCTL, 0xFFFFFFFF, 0x00000000);
 
 	REG_SET_AND_CHECK(E1000_RCTL, before, 0xFFFFFFFF);
-	REG_PATTERN_TEST(E1000_RDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
+	REG_PATTERN_TEST(E1000_RDBAL(0), 0xFFFFFFF0, 0xFFFFFFFF);
 	if (!(adapter->flags & FLAG_IS_ICH))
 		REG_PATTERN_TEST(E1000_TXCW, 0xC000FFFF, 0x0000FFFF);
-	REG_PATTERN_TEST(E1000_TDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
+	REG_PATTERN_TEST(E1000_TDBAL(0), 0xFFFFFFF0, 0xFFFFFFFF);
 	REG_PATTERN_TEST(E1000_TIDV, 0x0000FFFF, 0x0000FFFF);
 	mask = 0x8003FFFF;
 	switch (mac->type) {
 	case e1000_ich10lan:
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		mask |= (1 << 18);
 		break;
 	default:
 		break;
 	}
-	for (i = 0; i < mac->rar_entry_count; i++)
+
+	if (mac->type == e1000_pch_lpt)
+		wlock_mac = (er32(FWSM) & E1000_FWSM_WLOCK_MAC_MASK) >>
+		    E1000_FWSM_WLOCK_MAC_SHIFT;
+
+	for (i = 0; i < mac->rar_entry_count; i++) {
+		/* Cannot test write-protected SHRAL[n] registers */
+		if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
+			continue;
+
 		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1),
-		                       mask, 0xFFFFFFFF);
+				       mask, 0xFFFFFFFF);
+	}
 
 	for (i = 0; i < mac->mta_reg_count; i++)
 		REG_PATTERN_TEST_ARRAY(E1000_MTA, i, 0xFFFFFFFF, 0xFFFFFFFF);
 
 	*data = 0;
+
 	return 0;
 }
 
@@ -1069,7 +1099,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	tx_ring->buffer_info = kcalloc(tx_ring->count,
 				       sizeof(struct e1000_buffer),
 				       GFP_KERNEL);
-	if (!(tx_ring->buffer_info)) {
+	if (!tx_ring->buffer_info) {
 		ret_val = 1;
 		goto err_nomem;
 	}
@@ -1085,11 +1115,11 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
 
-	ew32(TDBAL, ((u64) tx_ring->dma & 0x00000000FFFFFFFF));
-	ew32(TDBAH, ((u64) tx_ring->dma >> 32));
-	ew32(TDLEN, tx_ring->count * sizeof(struct e1000_tx_desc));
-	ew32(TDH, 0);
-	ew32(TDT, 0);
+	ew32(TDBAL(0), ((u64) tx_ring->dma & 0x00000000FFFFFFFF));
+	ew32(TDBAH(0), ((u64) tx_ring->dma >> 32));
+	ew32(TDLEN(0), tx_ring->count * sizeof(struct e1000_tx_desc));
+	ew32(TDH(0), 0);
+	ew32(TDT(0), 0);
 	ew32(TCTL, E1000_TCTL_PSP | E1000_TCTL_EN | E1000_TCTL_MULR |
 	     E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT |
 	     E1000_COLLISION_DISTANCE << E1000_COLD_SHIFT);
@@ -1131,7 +1161,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	rx_ring->buffer_info = kcalloc(rx_ring->count,
 				       sizeof(struct e1000_buffer),
 				       GFP_KERNEL);
-	if (!(rx_ring->buffer_info)) {
+	if (!rx_ring->buffer_info) {
 		ret_val = 5;
 		goto err_nomem;
 	}
@@ -1149,11 +1179,11 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	rctl = er32(RCTL);
 	if (!(adapter->flags2 & FLAG2_NO_DISABLE_RX))
 		ew32(RCTL, rctl & ~E1000_RCTL_EN);
-	ew32(RDBAL, ((u64) rx_ring->dma & 0xFFFFFFFF));
-	ew32(RDBAH, ((u64) rx_ring->dma >> 32));
-	ew32(RDLEN, rx_ring->size);
-	ew32(RDH, 0);
-	ew32(RDT, 0);
+	ew32(RDBAL(0), ((u64) rx_ring->dma & 0xFFFFFFFF));
+	ew32(RDBAH(0), ((u64) rx_ring->dma >> 32));
+	ew32(RDLEN(0), rx_ring->size);
+	ew32(RDH(0), 0);
+	ew32(RDT(0), 0);
 	rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_SZ_2048 |
 		E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_LPE |
 		E1000_RCTL_SBP | E1000_RCTL_SECRC |
@@ -1515,7 +1545,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 	int ret_val = 0;
 	unsigned long time;
 
-	ew32(RDT, rx_ring->count - 1);
+	ew32(RDT(0), rx_ring->count - 1);
 
 	/*
 	 * Calculate the loop count based on the largest descriptor ring
@@ -1542,7 +1572,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			if (k == tx_ring->count)
 				k = 0;
 		}
-		ew32(TDT, k);
+		ew32(TDT(0), k);
 		e1e_flush();
 		msleep(200);
 		time = jiffies; /* set the start time for the receive */
@@ -1579,11 +1609,13 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 
 static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 {
+	struct e1000_hw *hw = &adapter->hw;
+
 	/*
 	 * PHY loopback cannot be performed if SoL/IDER
 	 * sessions are active
 	 */
-	if (e1000_check_reset_block(&adapter->hw)) {
+	if (hw->phy.ops.check_reset_block(hw)) {
 		e_err("Cannot do PHY loopback test when SoL/IDER is active.\n");
 		*data = 0;
 		goto out;
@@ -1770,8 +1802,7 @@ static void e1000_get_wol(struct net_device *netdev,
 		wol->supported &= ~WAKE_UCAST;
 
 		if (adapter->wol & E1000_WUFC_EX)
-			e_err("Interface does not support directed (unicast) "
-			      "frame wake-up packets\n");
+			e_err("Interface does not support directed (unicast) frame wake-up packets\n");
 	}
 
 	if (adapter->wol & E1000_WUFC_EX)
@@ -1837,11 +1868,11 @@ static int e1000_set_phys_id(struct net_device *netdev,
 		break;
 
 	case ETHTOOL_ID_ON:
-		adapter->hw.mac.ops.led_on(&adapter->hw);
+		hw->mac.ops.led_on(hw);
 		break;
 
 	case ETHTOOL_ID_OFF:
-		adapter->hw.mac.ops.led_off(&adapter->hw);
+		hw->mac.ops.led_off(hw);
 		break;
 	}
 	return 0;
@@ -1955,6 +1986,53 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 	}
 }
 
+static int e1000_get_rxnfc(struct net_device *netdev,
+			   struct ethtool_rxnfc *info, u32 *rule_locs)
+{
+	info->data = 0;
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXFH: {
+		struct e1000_adapter *adapter = netdev_priv(netdev);
+		struct e1000_hw *hw = &adapter->hw;
+		u32 mrqc = er32(MRQC);
+
+		if (!(mrqc & E1000_MRQC_RSS_FIELD_MASK))
+			return 0;
+
+		switch (info->flow_type) {
+		case TCP_V4_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV4_TCP)
+				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case UDP_V4_FLOW:
+		case SCTP_V4_FLOW:
+		case AH_ESP_V4_FLOW:
+		case IPV4_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV4)
+				info->data |= RXH_IP_SRC | RXH_IP_DST;
+			break;
+		case TCP_V6_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV6_TCP)
+				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case UDP_V6_FLOW:
+		case SCTP_V6_FLOW:
+		case AH_ESP_V6_FLOW:
+		case IPV6_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV6)
+				info->data |= RXH_IP_SRC | RXH_IP_DST;
+			break;
+		default:
+			break;
+		}
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_settings		= e1000_get_settings,
 	.set_settings		= e1000_set_settings,
@@ -1981,6 +2059,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_sset_count		= e1000e_get_sset_count,
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
+	.get_rxnfc		= e1000_get_rxnfc,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

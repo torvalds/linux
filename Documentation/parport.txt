@@ -36,18 +36,17 @@ addresses should not be specified for supported PCI cards since they
 are automatically detected.
 
 
-KMod
-----
+modprobe
+--------
 
-If you use kmod, you will find it useful to edit /etc/modprobe.conf.
-Here is an example of the lines that need to be added:
+If you use modprobe , you will find it useful to add lines as below to a
+configuration file in /etc/modprobe.d/ directory:.
 
 	alias parport_lowlevel parport_pc
 	options parport_pc io=0x378,0x278 irq=7,auto
 
-KMod will then automatically load parport_pc (with the options
-"io=0x378,0x278 irq=7,auto") whenever a parallel port device driver
-(such as lp) is loaded.
+modprobe will load parport_pc (with the options "io=0x378,0x278 irq=7,auto")
+whenever a parallel port device driver (such as lp) is loaded.
 
 Note that these are example lines only!  You shouldn't in general need
 to specify any options to parport_pc in order to be able to use a

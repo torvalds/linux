@@ -40,6 +40,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -80,7 +82,7 @@ static bool modparam_fastchanswitch;
 module_param_named(fastchanswitch, modparam_fastchanswitch, bool, S_IRUGO);
 MODULE_PARM_DESC(fastchanswitch, "Enable fast channel switching for AR2413/AR5413 radios.");
 
-static int ath5k_modparam_no_hw_rfkill_switch;
+static bool ath5k_modparam_no_hw_rfkill_switch;
 module_param_named(no_hw_rfkill_switch, ath5k_modparam_no_hw_rfkill_switch,
 								bool, S_IRUGO);
 MODULE_PARM_DESC(no_hw_rfkill_switch, "Ignore the GPIO RFKill switch state");
@@ -460,7 +462,7 @@ void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	}
 
 	if (iter_data->need_set_hw_addr && iter_data->hw_macaddr)
-		if (compare_ether_addr(iter_data->hw_macaddr, mac) == 0)
+		if (ether_addr_equal(iter_data->hw_macaddr, mac))
 			iter_data->need_set_hw_addr = false;
 
 	if (!iter_data->any_assoc) {
@@ -1168,7 +1170,7 @@ ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 
 	if (ieee80211_is_beacon(mgmt->frame_control) &&
 	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
-	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) == 0) {
+	    ether_addr_equal(mgmt->bssid, common->curbssid)) {
 		/*
 		 * Received an IBSS beacon with the same BSSID. Hardware *must*
 		 * have updated the local TSF. We have to work around various
@@ -1232,7 +1234,7 @@ ath5k_update_beacon_rssi(struct ath5k_hw *ah, struct sk_buff *skb, int rssi)
 
 	/* only beacons from our BSSID */
 	if (!ieee80211_is_beacon(mgmt->frame_control) ||
-	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) != 0)
+	    !ether_addr_equal(mgmt->bssid, common->curbssid))
 		return;
 
 	ewma_add(&ah->ah_beacon_rssi_avg, rssi);
@@ -1867,7 +1869,8 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 		ah->bmisscount = 0;
 	}
 
-	if ((ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs > 1) ||
+	if ((ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs +
+			ah->num_mesh_vifs > 1) ||
 			ah->opmode == NL80211_IFTYPE_MESH_POINT) {
 		u64 tsf = ath5k_hw_get_tsf64(ah);
 		u32 tsftu = TSF_TO_TU(tsf);
@@ -1952,7 +1955,8 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 	u64 hw_tsf;
 
 	intval = ah->bintval & AR5K_BEACON_PERIOD;
-	if (ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs > 1) {
+	if (ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs
+		+ ah->num_mesh_vifs > 1) {
 		intval /= ATH_BCBUF;	/* staggered multi-bss beacons */
 		if (intval < 15)
 			ATH5K_WARN(ah, "intval %u is too low, min 15\n",
@@ -2330,15 +2334,6 @@ ath5k_calibrate_work(struct work_struct *work)
 					"got new rfgain, resetting\n");
 			ieee80211_queue_work(ah->hw, &ah->reset_work);
 		}
-
-		/* TODO: On full calibration we should stop TX here,
-		 * so that it doesn't interfere (mostly due to gain_f
-		 * calibration that messes with tx packets -see phy.c).
-		 *
-		 * NOTE: Stopping the queues from above is not enough
-		 * to stop TX but saves us from disconecting (at least
-		 * we don't lose packets). */
-		ieee80211_stop_queues(ah->hw);
 	} else
 		ah->ah_cal_mask |= AR5K_CALIBRATION_SHORT;
 
@@ -2353,10 +2348,9 @@ ath5k_calibrate_work(struct work_struct *work)
 				ah->curchan->center_freq));
 
 	/* Clear calibration flags */
-	if (ah->ah_cal_mask & AR5K_CALIBRATION_FULL) {
-		ieee80211_wake_queues(ah->hw);
+	if (ah->ah_cal_mask & AR5K_CALIBRATION_FULL)
 		ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
-	} else if (ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)
+	else if (ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)
 		ah->ah_cal_mask &= ~AR5K_CALIBRATION_SHORT;
 }
 
@@ -2421,6 +2415,22 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 * Initialization routines *
 \*************************/
 
+static const struct ieee80211_iface_limit if_limits[] = {
+	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_STATION) },
+	{ .max = 4,	.types =
+#ifdef CONFIG_MAC80211_MESH
+				 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+				 BIT(NL80211_IFTYPE_AP) },
+};
+
+static const struct ieee80211_iface_combination if_comb = {
+	.limits = if_limits,
+	.n_limits = ARRAY_SIZE(if_limits),
+	.max_interfaces = 2048,
+	.num_different_channels = 1,
+};
+
 int __devinit
 ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 {
@@ -2441,6 +2451,12 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
+
+	hw->wiphy->iface_combinations = &if_comb;
+	hw->wiphy->n_iface_combinations = 1;
+
+	/* SW support for IBSS_RSN is provided by mac80211 */
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
 	/* both antennas can be configured as RX or TX */
 	hw->wiphy->available_antennas_tx = 0x3;
@@ -3042,4 +3058,24 @@ ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable)
 		rfilt &= ~AR5K_RX_FILTER_BEACON;
 	ath5k_hw_set_rx_filter(ah, rfilt);
 	ah->filter_flags = rfilt;
+}
+
+void _ath5k_printk(const struct ath5k_hw *ah, const char *level,
+		   const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (ah && ah->hw)
+		printk("%s" pr_fmt("%s: %pV"),
+		       level, wiphy_name(ah->hw->wiphy), &vaf);
+	else
+		printk("%s" pr_fmt("%pV"), level, &vaf);
+
+	va_end(args);
 }

@@ -151,15 +151,6 @@ enum spcp8x5_type {
 	SPCP835_TYPE,
 };
 
-static struct usb_driver spcp8x5_driver = {
-	.name =			"spcp8x5",
-	.probe =		usb_serial_probe,
-	.disconnect =		usb_serial_disconnect,
-	.id_table =		id_table,
-	.no_dynamic_id =	1,
-};
-
-
 struct spcp8x5_private {
 	spinlock_t 	lock;
 	enum spcp8x5_type	type;
@@ -434,7 +425,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	if (i < 0)
 		dev_err(&port->dev, "Set UART format %#x failed (error = %d)\n",
 			uartdata, i);
-	dbg("0x21:0x40:0:0  %d", i);
+	dev_dbg(&port->dev, "0x21:0x40:0:0  %d\n", i);
 
 	if (cflag & CRTSCTS) {
 		/* enable hardware flow control */
@@ -454,8 +445,6 @@ static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long flags;
 	u8 status = 0x30;
 	/* status 0x30 means DSR and CTS = 1 other CDC RI and delta = 0 */
-
-	dbg("%s -  port %d", __func__, port->number);
 
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
@@ -580,15 +569,19 @@ static int spcp8x5_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	dbg("%s (%d) cmd = 0x%04x", __func__, port->number, cmd);
+
+	dev_dbg(&port->dev, "%s (%d) cmd = 0x%04x\n", __func__,
+		port->number, cmd);
 
 	switch (cmd) {
 	case TIOCMIWAIT:
-		dbg("%s (%d) TIOCMIWAIT", __func__,  port->number);
+		dev_dbg(&port->dev, "%s (%d) TIOCMIWAIT\n", __func__,
+			port->number);
 		return spcp8x5_wait_modem_info(port, arg);
 
 	default:
-		dbg("%s not supported = 0x%04x", __func__, cmd);
+		dev_dbg(&port->dev, "%s not supported = 0x%04x", __func__,
+			cmd);
 		break;
 	}
 
@@ -649,7 +642,6 @@ static struct usb_serial_driver spcp8x5_device = {
 		.name =		"SPCP8x5",
 	},
 	.id_table		= id_table,
-	.usb_driver		= &spcp8x5_driver,
 	.num_ports		= 1,
 	.open 			= spcp8x5_open,
 	.dtr_rts		= spcp8x5_dtr_rts,
@@ -664,32 +656,11 @@ static struct usb_serial_driver spcp8x5_device = {
 	.process_read_urb	= spcp8x5_process_read_urb,
 };
 
-static int __init spcp8x5_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&spcp8x5_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&spcp8x5_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&spcp8x5_device);
-failed_usb_serial_register:
-	return retval;
-}
+static struct usb_serial_driver * const serial_drivers[] = {
+	&spcp8x5_device, NULL
+};
 
-static void __exit spcp8x5_exit(void)
-{
-	usb_deregister(&spcp8x5_driver);
-	usb_serial_deregister(&spcp8x5_device);
-}
-
-module_init(spcp8x5_init);
-module_exit(spcp8x5_exit);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);

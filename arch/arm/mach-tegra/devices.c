@@ -23,7 +23,6 @@
 #include <linux/fsl_devices.h>
 #include <linux/serial_8250.h>
 #include <linux/i2c-tegra.h>
-#include <linux/platform_data/tegra_usb.h>
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
@@ -111,7 +110,7 @@ static struct resource pinmux_resource[] = {
 };
 
 struct platform_device tegra_pinmux_device = {
-	.name		= "tegra-pinmux",
+	.name		= "tegra20-pinctrl",
 	.id		= -1,
 	.resource	= pinmux_resource,
 	.num_resources	= ARRAY_SIZE(pinmux_resource),
@@ -440,26 +439,28 @@ static struct resource tegra_usb3_resources[] = {
 	},
 };
 
-static struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config = {
-	/* All existing boards use GPIO PV0 for phy reset */
-	.reset_gpio = TEGRA_GPIO_PV0,
+struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config = {
+	.reset_gpio = -1,
 	.clk = "cdev2",
 };
 
-static struct tegra_ehci_platform_data tegra_ehci1_pdata = {
+struct tegra_ehci_platform_data tegra_ehci1_pdata = {
 	.operating_mode = TEGRA_USB_OTG,
 	.power_down_on_bus_suspend = 1,
+	.vbus_gpio = -1,
 };
 
-static struct tegra_ehci_platform_data tegra_ehci2_pdata = {
+struct tegra_ehci_platform_data tegra_ehci2_pdata = {
 	.phy_config = &tegra_ehci2_ulpi_phy_config,
 	.operating_mode = TEGRA_USB_HOST,
 	.power_down_on_bus_suspend = 1,
+	.vbus_gpio = -1,
 };
 
-static struct tegra_ehci_platform_data tegra_ehci3_pdata = {
+struct tegra_ehci_platform_data tegra_ehci3_pdata = {
 	.operating_mode = TEGRA_USB_HOST,
 	.power_down_on_bus_suspend = 1,
+	.vbus_gpio = -1,
 };
 
 static u64 tegra_ehci_dmamask = DMA_BIT_MASK(32);
@@ -672,14 +673,14 @@ static struct resource i2s_resource2[] = {
 };
 
 struct platform_device tegra_i2s_device1 = {
-	.name		= "tegra-i2s",
+	.name		= "tegra20-i2s",
 	.id		= 0,
 	.resource	= i2s_resource1,
 	.num_resources	= ARRAY_SIZE(i2s_resource1),
 };
 
 struct platform_device tegra_i2s_device2 = {
-	.name		= "tegra-i2s",
+	.name		= "tegra20-i2s",
 	.id		= 1,
 	.resource	= i2s_resource2,
 	.num_resources	= ARRAY_SIZE(i2s_resource2),
@@ -694,13 +695,8 @@ static struct resource tegra_das_resources[] = {
 };
 
 struct platform_device tegra_das_device = {
-	.name		= "tegra-das",
+	.name		= "tegra20-das",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(tegra_das_resources),
 	.resource	= tegra_das_resources,
-};
-
-struct platform_device tegra_pcm_device = {
-	.name = "tegra-pcm-audio",
-	.id = -1,
 };

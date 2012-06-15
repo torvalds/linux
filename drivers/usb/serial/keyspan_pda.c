@@ -86,14 +86,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver keyspan_pda_driver = {
-	.name =		"keyspan_pda",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
-};
-
 static const struct usb_device_id id_table_std[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, KEYSPAN_PDA_ID) },
 	{ }						/* Terminating entry */
@@ -132,7 +124,6 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 	struct usb_serial *serial = priv->serial;
 	int result;
 
-	dbg(" request_unthrottle");
 	/* ask the device to tell us when the tx buffer becomes
 	   sufficiently empty */
 	result = usb_control_msg(serial->dev,
@@ -227,7 +218,7 @@ static void keyspan_pda_rx_throttle(struct tty_struct *tty)
 	   send an XOFF, although it might make sense to foist that off
 	   upon the device too. */
 	struct usb_serial_port *port = tty->driver_data;
-	dbg("keyspan_pda_rx_throttle port %d", port->number);
+
 	usb_kill_urb(port->interrupt_in_urb);
 }
 
@@ -236,7 +227,7 @@ static void keyspan_pda_rx_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	/* just restart the receive interrupt URB */
-	dbg("keyspan_pda_rx_unthrottle port %d", port->number);
+
 	if (usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL))
 		dbg(" usb_submit_urb(read urb) failed");
 }
@@ -467,7 +458,6 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	   select() or poll() too) until we receive that unthrottle interrupt.
 	   Block if we can't write anything at all, otherwise write as much as
 	   we can. */
-	dbg("keyspan_pda_write(%d)", count);
 	if (count == 0) {
 		dbg(" write request of 0 bytes");
 		return 0;
@@ -767,8 +757,6 @@ static int keyspan_pda_startup(struct usb_serial *serial)
 
 static void keyspan_pda_release(struct usb_serial *serial)
 {
-	dbg("%s", __func__);
-
 	kfree(usb_get_serial_port_data(serial->port[0]));
 }
 
@@ -779,7 +767,6 @@ static struct usb_serial_driver keyspan_pda_fake_device = {
 		.name =		"keyspan_pda_pre",
 	},
 	.description =		"Keyspan PDA - (prerenumeration)",
-	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake,
 	.num_ports =		1,
 	.attach =		keyspan_pda_fake_startup,
@@ -793,7 +780,6 @@ static struct usb_serial_driver xircom_pgs_fake_device = {
 		.name =		"xircom_no_firm",
 	},
 	.description =		"Xircom / Entregra PGS - (prerenumeration)",
-	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake_xircom,
 	.num_ports =		1,
 	.attach =		keyspan_pda_fake_startup,
@@ -806,7 +792,6 @@ static struct usb_serial_driver keyspan_pda_device = {
 		.name =		"keyspan_pda",
 	},
 	.description =		"Keyspan PDA",
-	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_std,
 	.num_ports =		1,
 	.dtr_rts =		keyspan_pda_dtr_rts,
@@ -827,61 +812,18 @@ static struct usb_serial_driver keyspan_pda_device = {
 	.release =		keyspan_pda_release,
 };
 
-
-static int __init keyspan_pda_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&keyspan_pda_device);
-	if (retval)
-		goto failed_pda_register;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&keyspan_pda_device,
 #ifdef KEYSPAN
-	retval = usb_serial_register(&keyspan_pda_fake_device);
-	if (retval)
-		goto failed_pda_fake_register;
+	&keyspan_pda_fake_device,
 #endif
 #ifdef XIRCOM
-	retval = usb_serial_register(&xircom_pgs_fake_device);
-	if (retval)
-		goto failed_xircom_register;
+	&xircom_pgs_fake_device,
 #endif
-	retval = usb_register(&keyspan_pda_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-#ifdef XIRCOM
-	usb_serial_deregister(&xircom_pgs_fake_device);
-failed_xircom_register:
-#endif /* XIRCOM */
-#ifdef KEYSPAN
-	usb_serial_deregister(&keyspan_pda_fake_device);
-#endif
-#ifdef KEYSPAN
-failed_pda_fake_register:
-#endif
-	usb_serial_deregister(&keyspan_pda_device);
-failed_pda_register:
-	return retval;
-}
+	NULL
+};
 
-
-static void __exit keyspan_pda_exit(void)
-{
-	usb_deregister(&keyspan_pda_driver);
-	usb_serial_deregister(&keyspan_pda_device);
-#ifdef KEYSPAN
-	usb_serial_deregister(&keyspan_pda_fake_device);
-#endif
-#ifdef XIRCOM
-	usb_serial_deregister(&xircom_pgs_fake_device);
-#endif
-}
-
-
-module_init(keyspan_pda_init);
-module_exit(keyspan_pda_exit);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -889,4 +831,3 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-

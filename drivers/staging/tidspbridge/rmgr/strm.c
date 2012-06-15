@@ -24,9 +24,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/sync.h>
 
@@ -84,9 +81,6 @@ struct strm_object {
 	struct cmm_xlatorobject *xlator;
 };
 
-/*  ----------------------------------- Globals */
-static u32 refs;		/* module reference count */
-
 /*  ----------------------------------- Function Prototypes */
 static int delete_strm(struct strm_object *stream_obj);
 
@@ -104,9 +98,6 @@ int strm_allocate_buffer(struct strm_res_object *strmres, u32 usize,
 	u32 i;
 	struct strm_object *stream_obj = strmres->stream;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(ap_buffer != NULL);
-
 	if (stream_obj) {
 		/*
 		 * Allocate from segment specified at time of stream open.
@@ -122,7 +113,6 @@ int strm_allocate_buffer(struct strm_res_object *strmres, u32 usize,
 		goto func_end;
 
 	for (i = 0; i < num_bufs; i++) {
-		DBC_ASSERT(stream_obj->xlator != NULL);
 		(void)cmm_xlator_alloc_buf(stream_obj->xlator, &ap_buffer[i],
 					   usize);
 		if (ap_buffer[i] == NULL) {
@@ -156,8 +146,6 @@ int strm_close(struct strm_res_object *strmres,
 	int status = 0;
 	struct strm_object *stream_obj = strmres->stream;
 
-	DBC_REQUIRE(refs > 0);
-
 	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
@@ -167,7 +155,6 @@ int strm_close(struct strm_res_object *strmres,
 		status =
 		    (*intf_fxns->chnl_get_info) (stream_obj->chnl_obj,
 						     &chnl_info_obj);
-		DBC_ASSERT(!status);
 
 		if (chnl_info_obj.cio_cs > 0 || chnl_info_obj.cio_reqs > 0)
 			status = -EPIPE;
@@ -180,9 +167,6 @@ int strm_close(struct strm_res_object *strmres,
 
 	idr_remove(pr_ctxt->stream_id, strmres->id);
 func_end:
-	DBC_ENSURE(status == 0 || status == -EFAULT ||
-		   status == -EPIPE || status == -EPERM);
-
 	dev_dbg(bridge, "%s: stream_obj: %p, status 0x%x\n", __func__,
 		stream_obj, status);
 	return status;
@@ -199,10 +183,6 @@ int strm_create(struct strm_mgr **strm_man,
 	struct strm_mgr *strm_mgr_obj;
 	int status = 0;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(strm_man != NULL);
-	DBC_REQUIRE(dev_obj != NULL);
-
 	*strm_man = NULL;
 	/* Allocate STRM manager object */
 	strm_mgr_obj = kzalloc(sizeof(struct strm_mgr), GFP_KERNEL);
@@ -217,7 +197,6 @@ int strm_create(struct strm_mgr **strm_man,
 		if (!status) {
 			(void)dev_get_intf_fxns(dev_obj,
 						&(strm_mgr_obj->intf_fxns));
-			DBC_ASSERT(strm_mgr_obj->intf_fxns != NULL);
 		}
 	}
 
@@ -225,8 +204,6 @@ int strm_create(struct strm_mgr **strm_man,
 		*strm_man = strm_mgr_obj;
 	else
 		kfree(strm_mgr_obj);
-
-	DBC_ENSURE((!status && *strm_man) || (status && *strm_man == NULL));
 
 	return status;
 }
@@ -238,24 +215,7 @@ int strm_create(struct strm_mgr **strm_man,
  */
 void strm_delete(struct strm_mgr *strm_mgr_obj)
 {
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(strm_mgr_obj);
-
 	kfree(strm_mgr_obj);
-}
-
-/*
- *  ======== strm_exit ========
- *  Purpose:
- *      Discontinue usage of STRM module.
- */
-void strm_exit(void)
-{
-	DBC_REQUIRE(refs > 0);
-
-	refs--;
-
-	DBC_ENSURE(refs >= 0);
 }
 
 /*
@@ -270,15 +230,11 @@ int strm_free_buffer(struct strm_res_object *strmres, u8 ** ap_buffer,
 	u32 i = 0;
 	struct strm_object *stream_obj = strmres->stream;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(ap_buffer != NULL);
-
 	if (!stream_obj)
 		status = -EFAULT;
 
 	if (!status) {
 		for (i = 0; i < num_bufs; i++) {
-			DBC_ASSERT(stream_obj->xlator != NULL);
 			status =
 			    cmm_xlator_free_buf(stream_obj->xlator,
 						ap_buffer[i]);
@@ -306,10 +262,6 @@ int strm_get_info(struct strm_object *stream_obj,
 	int status = 0;
 	void *virt_base = NULL;	/* NULL if no SM used */
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(stream_info != NULL);
-	DBC_REQUIRE(stream_info_size >= sizeof(struct stream_info));
-
 	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
@@ -330,7 +282,6 @@ int strm_get_info(struct strm_object *stream_obj,
 
 	if (stream_obj->xlator) {
 		/* We have a translator */
-		DBC_ASSERT(stream_obj->segment_id > 0);
 		cmm_xlator_info(stream_obj->xlator, (u8 **) &virt_base, 0,
 				stream_obj->segment_id, false);
 	}
@@ -370,8 +321,6 @@ int strm_idle(struct strm_object *stream_obj, bool flush_data)
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
 
-	DBC_REQUIRE(refs > 0);
-
 	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
@@ -388,25 +337,6 @@ int strm_idle(struct strm_object *stream_obj, bool flush_data)
 }
 
 /*
- *  ======== strm_init ========
- *  Purpose:
- *      Initialize the STRM module.
- */
-bool strm_init(void)
-{
-	bool ret = true;
-
-	DBC_REQUIRE(refs >= 0);
-
-	if (ret)
-		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
-
-	return ret;
-}
-
-/*
  *  ======== strm_issue ========
  *  Purpose:
  *      Issues a buffer on a stream
@@ -417,9 +347,6 @@ int strm_issue(struct strm_object *stream_obj, u8 *pbuf, u32 ul_bytes,
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
 	void *tmp_buf = NULL;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pbuf != NULL);
 
 	if (!stream_obj) {
 		status = -EFAULT;
@@ -471,9 +398,6 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 
 	void *stream_res;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(strmres != NULL);
-	DBC_REQUIRE(pattr != NULL);
 	*strmres = NULL;
 	if (dir != DSP_TONODE && dir != DSP_FROMNODE) {
 		status = -EPERM;
@@ -536,14 +460,12 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 		goto func_cont;
 
 	/* No System DMA */
-	DBC_ASSERT(strm_obj->strm_mode != STRMMODE_LDMA);
 	/* Get the shared mem mgr for this streams dev object */
 	status = dev_get_cmm_mgr(strm_mgr_obj->dev_obj, &hcmm_mgr);
 	if (!status) {
 		/*Allocate a SM addr translator for this strm. */
 		status = cmm_xlator_create(&strm_obj->xlator, hcmm_mgr, NULL);
 		if (!status) {
-			DBC_ASSERT(strm_obj->segment_id > 0);
 			/*  Set translators Virt Addr attributes */
 			status = cmm_xlator_info(strm_obj->xlator,
 						 (u8 **) &pattr->virt_base,
@@ -575,10 +497,6 @@ func_cont:
 				 * strm_mgr_obj->chnl_mgr better be valid or we
 				 * assert here), and then return -EPERM.
 				 */
-				DBC_ASSERT(status == -ENOSR ||
-					   status == -ECHRNG ||
-					   status == -EALREADY ||
-					   status == -EIO);
 				status = -EPERM;
 			}
 		}
@@ -593,12 +511,6 @@ func_cont:
 	} else {
 		(void)delete_strm(strm_obj);
 	}
-
-	/* ensure we return a documented error code */
-	DBC_ENSURE((!status && strm_obj) ||
-		   (*strmres == NULL && (status == -EFAULT ||
-					status == -EPERM
-					|| status == -EINVAL)));
 
 	dev_dbg(bridge, "%s: hnode: %p dir: 0x%x index: 0x%x pattr: %p "
 		"strmres: %p status: 0x%x\n", __func__,
@@ -618,11 +530,6 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 	struct chnl_ioc chnl_ioc_obj;
 	int status = 0;
 	void *tmp_buf = NULL;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(buf_ptr != NULL);
-	DBC_REQUIRE(nbytes != NULL);
-	DBC_REQUIRE(pdw_arg != NULL);
 
 	if (!stream_obj) {
 		status = -EFAULT;
@@ -679,11 +586,6 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 		*buf_ptr = chnl_ioc_obj.buf;
 	}
 func_end:
-	/* ensure we return a documented return code */
-	DBC_ENSURE(!status || status == -EFAULT ||
-		   status == -ETIME || status == -ESRCH ||
-		   status == -EPERM);
-
 	dev_dbg(bridge, "%s: stream_obj: %p buf_ptr: %p nbytes: %p "
 		"pdw_arg: %p status 0x%x\n", __func__, stream_obj,
 		buf_ptr, nbytes, pdw_arg, status);
@@ -701,9 +603,6 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 {
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(hnotification != NULL);
 
 	if (!stream_obj) {
 		status = -EFAULT;
@@ -725,10 +624,7 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 							    notify_type,
 							    hnotification);
 	}
-	/* ensure we return a documented return code */
-	DBC_ENSURE(!status || status == -EFAULT ||
-		   status == -ETIME || status == -ESRCH ||
-		   status == -ENOSYS || status == -EPERM);
+
 	return status;
 }
 
@@ -746,11 +642,6 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 	struct sync_object **sync_events = NULL;
 	u32 i;
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(strm_tab != NULL);
-	DBC_REQUIRE(pmask != NULL);
-	DBC_REQUIRE(strms > 0);
 
 	*pmask = 0;
 	for (i = 0; i < strms; i++) {
@@ -810,9 +701,6 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 	}
 func_end:
 	kfree(sync_events);
-
-	DBC_ENSURE((!status && (*pmask != 0 || utimeout == 0)) ||
-		   (status && *pmask == 0));
 
 	return status;
 }

@@ -1,10 +1,11 @@
 /*
  *  Atheros AR71XX/AR724X/AR913X specific setup
  *
+ *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
  *  Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
- *  Parts of this file are based on Atheros' 2.6.15 BSP
+ *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -116,18 +117,6 @@ static void __init ath79_detect_sys_type(void)
 		rev = id & AR724X_REV_ID_REVISION_MASK;
 		break;
 
-	case REV_ID_MAJOR_AR9330:
-		ath79_soc = ATH79_SOC_AR9330;
-		chip = "9330";
-		rev = id & AR933X_REV_ID_REVISION_MASK;
-		break;
-
-	case REV_ID_MAJOR_AR9331:
-		ath79_soc = ATH79_SOC_AR9331;
-		chip = "9331";
-		rev = id & AR933X_REV_ID_REVISION_MASK;
-		break;
-
 	case REV_ID_MAJOR_AR913X:
 		minor = id & AR913X_REV_ID_MINOR_MASK;
 		rev = id >> AR913X_REV_ID_REVISION_SHIFT;
@@ -143,6 +132,36 @@ static void __init ath79_detect_sys_type(void)
 			chip = "9132";
 			break;
 		}
+		break;
+
+	case REV_ID_MAJOR_AR9330:
+		ath79_soc = ATH79_SOC_AR9330;
+		chip = "9330";
+		rev = id & AR933X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9331:
+		ath79_soc = ATH79_SOC_AR9331;
+		chip = "9331";
+		rev = id & AR933X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9341:
+		ath79_soc = ATH79_SOC_AR9341;
+		chip = "9341";
+		rev = id & AR934X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9342:
+		ath79_soc = ATH79_SOC_AR9342;
+		chip = "9342";
+		rev = id & AR934X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9344:
+		ath79_soc = ATH79_SOC_AR9344;
+		chip = "9344";
+		rev = id & AR934X_REV_ID_REVISION_MASK;
 		break;
 
 	default:

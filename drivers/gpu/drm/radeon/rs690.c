@@ -31,7 +31,7 @@
 #include "atom.h"
 #include "rs690d.h"
 
-static int rs690_mc_wait_for_idle(struct radeon_device *rdev)
+int rs690_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
 	uint32_t tmp;
@@ -647,12 +647,9 @@ static int rs690_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r100_ib_test(rdev);
-	if (r) {
-		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
 
 	return 0;
 }

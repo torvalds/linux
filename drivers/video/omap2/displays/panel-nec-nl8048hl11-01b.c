@@ -350,18 +350,8 @@ static struct spi_driver nec_8048_spi_driver = {
 	},
 };
 
-static int __init nec_8048_lcd_init(void)
-{
-	return spi_register_driver(&nec_8048_spi_driver);
-}
+module_spi_driver(nec_8048_spi_driver);
 
-static void __exit nec_8048_lcd_exit(void)
-{
-	return spi_unregister_driver(&nec_8048_spi_driver);
-}
-
-module_init(nec_8048_lcd_init);
-module_exit(nec_8048_lcd_exit);
 MODULE_AUTHOR("Erik Gilling <konkers@android.com>");
 MODULE_DESCRIPTION("NEC-nl8048hl11-01b Driver");
 MODULE_LICENSE("GPL");

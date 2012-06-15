@@ -28,7 +28,7 @@
 #include <linux/io.h>
 
 #include <asm/mach/time.h>
-#include <asm/localtimer.h>
+#include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
 
 #include <mach/iomap.h>
@@ -124,7 +124,7 @@ static u64 tegra_rtc_read_ms(void)
 }
 
 /*
- * read_persistent_clock -  Return time from a persistent clock.
+ * tegra_read_persistent_clock -  Return time from a persistent clock.
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
@@ -133,7 +133,7 @@ static u64 tegra_rtc_read_ms(void)
  * tegra_rtc driver could be executing to avoid race conditions
  * on the RTC shadow register
  */
-void read_persistent_clock(struct timespec *ts)
+static void tegra_read_persistent_clock(struct timespec *ts)
 {
 	u64 delta;
 	struct timespec *tsp = &persistent_ts;
@@ -162,6 +162,21 @@ static struct irqaction tegra_timer_irq = {
 	.irq		= INT_TMR3,
 };
 
+#ifdef CONFIG_HAVE_ARM_TWD
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
+			      TEGRA_ARM_PERIF_BASE + 0x600,
+			      IRQ_LOCALTIMER);
+
+static void __init tegra_twd_init(void)
+{
+	int err = twd_local_timer_register(&twd_local_timer);
+	if (err)
+		pr_err("twd_local_timer_register failed %d\n", err);
+}
+#else
+#define tegra_twd_init()	do {} while(0)
+#endif
+
 static void __init tegra_init_timer(void)
 {
 	struct clk *clk;
@@ -187,10 +202,6 @@ static void __init tegra_init_timer(void)
 		pr_warn("Unable to get rtc-tegra clock\n");
 	else
 		clk_enable(clk);
-
-#ifdef CONFIG_HAVE_ARM_TWD
-	twd_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x600);
-#endif
 
 	switch (rate) {
 	case 12000000:
@@ -231,6 +242,8 @@ static void __init tegra_init_timer(void)
 	tegra_clockevent.cpumask = cpu_all_mask;
 	tegra_clockevent.irq = tegra_timer_irq.irq;
 	clockevents_register_device(&tegra_clockevent);
+	tegra_twd_init();
+	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }
 
 struct sys_timer tegra_timer = {

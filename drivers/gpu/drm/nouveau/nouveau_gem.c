@@ -23,12 +23,14 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include <linux/dma-buf.h>
 #include "drmP.h"
 #include "drm.h"
 
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
+#include "nouveau_fence.h"
 
 #define nouveau_gem_pushbuf_sync(chan) 0
 
@@ -52,6 +54,9 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 		nvbo->pin_refcnt = 1;
 		nouveau_bo_unpin(nvbo);
 	}
+
+	if (gem->import_attach)
+		drm_prime_gem_destroy(gem, nvbo->bo.sg);
 
 	ttm_bo_unref(&bo);
 
@@ -139,7 +144,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 		flags |= TTM_PL_FLAG_SYSTEM;
 
 	ret = nouveau_bo_new(dev, size, align, flags, tile_mode,
-			     tile_flags, pnvbo);
+			     tile_flags, NULL, pnvbo);
 	if (ret)
 		return ret;
 	nvbo = *pnvbo;
@@ -426,9 +431,7 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 			return ret;
 		}
 
-		nvbo->channel = (b->read_domains & (1 << 31)) ? NULL : chan;
 		ret = nouveau_bo_validate(nvbo, true, false, false);
-		nvbo->channel = NULL;
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
 				NV_ERROR(dev, "fail ttm_validate\n");
@@ -678,19 +681,13 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		return PTR_ERR(bo);
 	}
 
-	/* Mark push buffers as being used on PFIFO, the validation code
-	 * will then make sure that if the pushbuf bo moves, that they
-	 * happen on the kernel channel, which will in turn cause a sync
-	 * to happen before we try and submit the push buffer.
-	 */
+	/* Ensure all push buffers are on validate list */
 	for (i = 0; i < req->nr_push; i++) {
 		if (push[i].bo_index >= req->nr_buffers) {
 			NV_ERROR(dev, "push %d buffer not in list\n", i);
 			ret = -EINVAL;
 			goto out_prevalid;
 		}
-
-		bo[push[i].bo_index].read_domains |= (1 << 31);
 	}
 
 	/* Validate buffer list */
@@ -712,7 +709,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 	if (chan->dma.ib_max) {
-		ret = nouveau_dma_wait(chan, req->nr_push + 1, 6);
+		ret = nouveau_dma_wait(chan, req->nr_push + 1, 16);
 		if (ret) {
 			NV_INFO(dev, "nv50cal_space: %d\n", ret);
 			goto out;
@@ -782,7 +779,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		}
 	}
 
-	ret = nouveau_fence_new(chan, &fence, true);
+	ret = nouveau_fence_new(chan, &fence);
 	if (ret) {
 		NV_ERROR(dev, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);

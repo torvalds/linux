@@ -13,11 +13,10 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/w1-gpio.h>
+#include <linux/gpio.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
-
-#include <asm/gpio.h>
 
 static void w1_gpio_write_bit_dir(void *data, u8 bit)
 {

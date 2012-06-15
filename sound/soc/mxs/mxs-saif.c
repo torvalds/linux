@@ -18,18 +18,21 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/time.h>
+#include <linux/fsl/mxs-dma.h>
+#include <linux/pinctrl/consumer.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/saif.h>
-#include <mach/dma.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/mxs.h>
@@ -620,34 +623,61 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int mxs_saif_probe(struct platform_device *pdev)
+static int __devinit mxs_saif_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct resource *iores, *dmares;
 	struct mxs_saif *saif;
 	struct mxs_saif_platform_data *pdata;
+	struct pinctrl *pinctrl;
 	int ret = 0;
 
-	if (pdev->id >= ARRAY_SIZE(mxs_saif))
+
+	if (!np && pdev->id >= ARRAY_SIZE(mxs_saif))
 		return -EINVAL;
 
-	saif = kzalloc(sizeof(*saif), GFP_KERNEL);
+	saif = devm_kzalloc(&pdev->dev, sizeof(*saif), GFP_KERNEL);
 	if (!saif)
 		return -ENOMEM;
 
-	mxs_saif[pdev->id] = saif;
-	saif->id = pdev->id;
-
-	pdata = pdev->dev.platform_data;
-	if (pdata && !pdata->master_mode) {
-		saif->master_id = pdata->master_id;
-		if (saif->master_id < 0 ||
-			saif->master_id >= ARRAY_SIZE(mxs_saif) ||
-			saif->master_id == saif->id) {
-			dev_err(&pdev->dev, "get wrong master id\n");
-			return -EINVAL;
+	if (np) {
+		struct device_node *master;
+		saif->id = of_alias_get_id(np, "saif");
+		if (saif->id < 0)
+			return saif->id;
+		/*
+		 * If there is no "fsl,saif-master" phandle, it's a saif
+		 * master.  Otherwise, it's a slave and its phandle points
+		 * to the master.
+		 */
+		master = of_parse_phandle(np, "fsl,saif-master", 0);
+		if (!master) {
+			saif->master_id = saif->id;
+		} else {
+			saif->master_id = of_alias_get_id(master, "saif");
+			if (saif->master_id < 0)
+				return saif->master_id;
 		}
 	} else {
-		saif->master_id = saif->id;
+		saif->id = pdev->id;
+		pdata = pdev->dev.platform_data;
+		if (pdata && !pdata->master_mode)
+			saif->master_id = pdata->master_id;
+		else
+			saif->master_id = saif->id;
+	}
+
+	if (saif->master_id < 0 || saif->master_id >= ARRAY_SIZE(mxs_saif)) {
+		dev_err(&pdev->dev, "get wrong master id\n");
+		return -EINVAL;
+	}
+
+	mxs_saif[saif->id] = saif;
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		return ret;
 	}
 
 	saif->clk = clk_get(&pdev->dev, NULL);
@@ -655,53 +685,48 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		ret = PTR_ERR(saif->clk);
 		dev_err(&pdev->dev, "Cannot get the clock: %d\n",
 			ret);
-		goto failed_clk;
+		return ret;
 	}
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores) {
-		ret = -ENODEV;
-		dev_err(&pdev->dev, "failed to get io resource: %d\n",
-			ret);
-		goto failed_get_resource;
-	}
 
-	if (!request_mem_region(iores->start, resource_size(iores),
-				"mxs-saif")) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		ret = -EBUSY;
-		goto failed_get_resource;
-	}
-
-	saif->base = ioremap(iores->start, resource_size(iores));
+	saif->base = devm_request_and_ioremap(&pdev->dev, iores);
 	if (!saif->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENODEV;
-		goto failed_ioremap;
+		goto failed_get_resource;
 	}
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!dmares) {
-		ret = -ENODEV;
-		dev_err(&pdev->dev, "failed to get dma resource: %d\n",
-			ret);
-		goto failed_ioremap;
+		/*
+		 * TODO: This is a temporary solution and should be changed
+		 * to use generic DMA binding later when the helplers get in.
+		 */
+		ret = of_property_read_u32(np, "fsl,saif-dma-channel",
+					   &saif->dma_param.chan_num);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get dma channel\n");
+			goto failed_get_resource;
+		}
+	} else {
+		saif->dma_param.chan_num = dmares->start;
 	}
-	saif->dma_param.chan_num = dmares->start;
 
 	saif->irq = platform_get_irq(pdev, 0);
 	if (saif->irq < 0) {
 		ret = saif->irq;
 		dev_err(&pdev->dev, "failed to get irq resource: %d\n",
 			ret);
-		goto failed_get_irq1;
+		goto failed_get_resource;
 	}
 
 	saif->dev = &pdev->dev;
-	ret = request_irq(saif->irq, mxs_saif_irq, 0, "mxs-saif", saif);
+	ret = devm_request_irq(&pdev->dev, saif->irq, mxs_saif_irq, 0,
+			       "mxs-saif", saif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		goto failed_get_irq1;
+		goto failed_get_resource;
 	}
 
 	saif->dma_param.chan_irq = platform_get_irq(pdev, 1);
@@ -709,7 +734,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		ret = saif->dma_param.chan_irq;
 		dev_err(&pdev->dev, "failed to get dma irq resource: %d\n",
 			ret);
-		goto failed_get_irq2;
+		goto failed_get_resource;
 	}
 
 	platform_set_drvdata(pdev, saif);
@@ -717,62 +742,41 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &mxs_saif_dai);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
-		goto failed_register;
+		goto failed_get_resource;
 	}
 
-	saif->soc_platform_pdev = platform_device_alloc(
-					"mxs-pcm-audio", pdev->id);
-	if (!saif->soc_platform_pdev) {
-		ret = -ENOMEM;
-		goto failed_pdev_alloc;
-	}
-
-	platform_set_drvdata(saif->soc_platform_pdev, saif);
-	ret = platform_device_add(saif->soc_platform_pdev);
+	ret = mxs_pcm_platform_register(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to add soc platform device\n");
-		goto failed_pdev_add;
+		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+		goto failed_pdev_alloc;
 	}
 
 	return 0;
 
-failed_pdev_add:
-	platform_device_put(saif->soc_platform_pdev);
 failed_pdev_alloc:
 	snd_soc_unregister_dai(&pdev->dev);
-failed_register:
-failed_get_irq2:
-	free_irq(saif->irq, saif);
-failed_get_irq1:
-	iounmap(saif->base);
-failed_ioremap:
-	release_mem_region(iores->start, resource_size(iores));
 failed_get_resource:
 	clk_put(saif->clk);
-failed_clk:
-	kfree(saif);
 
 	return ret;
 }
 
 static int __devexit mxs_saif_remove(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct mxs_saif *saif = platform_get_drvdata(pdev);
 
-	platform_device_unregister(saif->soc_platform_pdev);
-
+	mxs_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
-
-	iounmap(saif->base);
-	release_mem_region(res->start, resource_size(res));
-	free_irq(saif->irq, saif);
-
 	clk_put(saif->clk);
-	kfree(saif);
 
 	return 0;
 }
+
+static const struct of_device_id mxs_saif_dt_ids[] = {
+	{ .compatible = "fsl,imx28-saif", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_saif_dt_ids);
 
 static struct platform_driver mxs_saif_driver = {
 	.probe = mxs_saif_probe,
@@ -781,6 +785,7 @@ static struct platform_driver mxs_saif_driver = {
 	.driver = {
 		.name = "mxs-saif",
 		.owner = THIS_MODULE,
+		.of_match_table = mxs_saif_dt_ids,
 	},
 };
 

@@ -37,25 +37,6 @@
 #include <linux/export.h>
 #include "drmP.h"
 
-/**
- * Called when "/proc/dri/%dev%/mem" is read.
- *
- * \param buf output buffer.
- * \param start start of output data.
- * \param offset requested start offset.
- * \param len requested number of bytes.
- * \param eof whether there is no more data to return.
- * \param data private data.
- * \return number of written bytes.
- *
- * No-op.
- */
-int drm_mem_info(char *buf, char **start, off_t offset,
-		 int len, int *eof, void *data)
-{
-	return 0;
-}
-
 #if __OS_HAS_AGP
 static void *agp_remap(unsigned long offset, unsigned long size,
 		       struct drm_device * dev)

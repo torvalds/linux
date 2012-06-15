@@ -10,7 +10,6 @@
  * option) any later version.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -20,8 +19,8 @@
 #include <linux/ctype.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/vme.h>
 
-#include "../vme.h"
 #include "vme_pio2.h"
 
 
@@ -35,10 +34,10 @@ static int vector[PIO2_CARDS_MAX];
 static int vector_num;
 static int level[PIO2_CARDS_MAX];
 static int level_num;
-static const char *variant[PIO2_CARDS_MAX];
+static char *variant[PIO2_CARDS_MAX];
 static int variant_num;
 
-static int loopback;
+static bool loopback;
 
 static int pio2_match(struct vme_dev *);
 static int __devinit pio2_probe(struct vme_dev *);

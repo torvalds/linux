@@ -56,13 +56,6 @@ static void nftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	if (memcmp(mtd->name, "DiskOnChip", 10))
 		return;
 
-	if (!mtd_can_have_bb(mtd)) {
-		printk(KERN_ERR
-"NFTL no longer supports the old DiskOnChip drivers loaded via docprobe.\n"
-"Please use the new diskonchip driver under the NAND subsystem.\n");
-		return;
-	}
-
 	pr_debug("NFTL: add_mtd for %s\n", mtd->name);
 
 	nftl = kzalloc(sizeof(struct NFTLrecord), GFP_KERNEL);

@@ -315,7 +315,7 @@ static int run(struct mddev *mddev)
 	}
 	conf->nfaults = 0;
 
-	list_for_each_entry(rdev, &mddev->disks, same_set)
+	rdev_for_each(rdev, mddev)
 		conf->rdev = rdev;
 
 	md_set_array_sectors(mddev, faulty_size(mddev, 0, 0));

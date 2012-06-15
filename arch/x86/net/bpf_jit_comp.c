@@ -30,7 +30,10 @@ int bpf_jit_enable __read_mostly;
  * assembly code in arch/x86/net/bpf_jit.S
  */
 extern u8 sk_load_word[], sk_load_half[], sk_load_byte[], sk_load_byte_msh[];
-extern u8 sk_load_word_ind[], sk_load_half_ind[], sk_load_byte_ind[];
+extern u8 sk_load_word_positive_offset[], sk_load_half_positive_offset[];
+extern u8 sk_load_byte_positive_offset[], sk_load_byte_msh_positive_offset[];
+extern u8 sk_load_word_negative_offset[], sk_load_half_negative_offset[];
+extern u8 sk_load_byte_negative_offset[], sk_load_byte_msh_negative_offset[];
 
 static inline u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 {
@@ -117,6 +120,8 @@ static inline void bpf_flush_icache(void *start, void *end)
 	set_fs(old_fs);
 }
 
+#define CHOOSE_LOAD_FUNC(K, func) \
+	((int)K < 0 ? ((int)K >= SKF_LL_OFF ? func##_negative_offset : func) : func##_positive_offset)
 
 void bpf_jit_compile(struct sk_filter *fp)
 {
@@ -289,7 +294,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 					EMIT2(0x24, K & 0xFF); /* and imm8,%al */
 				} else if (K >= 0xFFFF0000) {
 					EMIT2(0x66, 0x25);	/* and imm16,%ax */
-					EMIT2(K, 2);
+					EMIT(K, 2);
 				} else {
 					EMIT1_off32(0x25, K);	/* and imm32,%eax */
 				}
@@ -473,48 +478,46 @@ void bpf_jit_compile(struct sk_filter *fp)
 #endif
 				break;
 			case BPF_S_LD_W_ABS:
-				func = sk_load_word;
+				func = CHOOSE_LOAD_FUNC(K, sk_load_word);
 common_load:			seen |= SEEN_DATAREF;
-				if ((int)K < 0)
-					goto out;
 				t_offset = func - (image + addrs[i]);
 				EMIT1_off32(0xbe, K); /* mov imm32,%esi */
 				EMIT1_off32(0xe8, t_offset); /* call */
 				break;
 			case BPF_S_LD_H_ABS:
-				func = sk_load_half;
+				func = CHOOSE_LOAD_FUNC(K, sk_load_half);
 				goto common_load;
 			case BPF_S_LD_B_ABS:
-				func = sk_load_byte;
+				func = CHOOSE_LOAD_FUNC(K, sk_load_byte);
 				goto common_load;
 			case BPF_S_LDX_B_MSH:
-				if ((int)K < 0) {
-					if (pc_ret0 > 0) {
-						/* addrs[pc_ret0 - 1] is the start address */
-						EMIT_JMP(addrs[pc_ret0 - 1] - addrs[i]);
-						break;
-					}
-					CLEAR_A();
-					EMIT_JMP(cleanup_addr - addrs[i]);
-					break;
-				}
+				func = CHOOSE_LOAD_FUNC(K, sk_load_byte_msh);
 				seen |= SEEN_DATAREF | SEEN_XREG;
-				t_offset = sk_load_byte_msh - (image + addrs[i]);
+				t_offset = func - (image + addrs[i]);
 				EMIT1_off32(0xbe, K);	/* mov imm32,%esi */
 				EMIT1_off32(0xe8, t_offset); /* call sk_load_byte_msh */
 				break;
 			case BPF_S_LD_W_IND:
-				func = sk_load_word_ind;
+				func = sk_load_word;
 common_load_ind:		seen |= SEEN_DATAREF | SEEN_XREG;
 				t_offset = func - (image + addrs[i]);
-				EMIT1_off32(0xbe, K);	/* mov imm32,%esi   */
+				if (K) {
+					if (is_imm8(K)) {
+						EMIT3(0x8d, 0x73, K); /* lea imm8(%rbx), %esi */
+					} else {
+						EMIT2(0x8d, 0xb3); /* lea imm32(%rbx),%esi */
+						EMIT(K, 4);
+					}
+				} else {
+					EMIT2(0x89,0xde); /* mov %ebx,%esi */
+				}
 				EMIT1_off32(0xe8, t_offset);	/* call sk_load_xxx_ind */
 				break;
 			case BPF_S_LD_H_IND:
-				func = sk_load_half_ind;
+				func = sk_load_half;
 				goto common_load_ind;
 			case BPF_S_LD_B_IND:
-				func = sk_load_byte_ind;
+				func = sk_load_byte;
 				goto common_load_ind;
 			case BPF_S_JMP_JA:
 				t_offset = addrs[i + K] - addrs[i];

@@ -34,6 +34,7 @@ enum {
 	__ND_OPT_ARRAY_MAX,
 	ND_OPT_ROUTE_INFO = 24,		/* RFC4191 */
 	ND_OPT_RDNSS = 25,		/* RFC5006 */
+	ND_OPT_DNSSL = 31,		/* RFC6106 */
 	__ND_OPT_MAX
 };
 
@@ -133,7 +134,6 @@ extern void			ndisc_send_rs(struct net_device *dev,
 					      const struct in6_addr *daddr);
 
 extern void			ndisc_send_redirect(struct sk_buff *skb,
-						    struct neighbour *neigh,
 						    const struct in6_addr *target);
 
 extern int			ndisc_mc_map(const struct in6_addr *addr, char *buf,

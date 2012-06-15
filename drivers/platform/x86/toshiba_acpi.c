@@ -52,6 +52,8 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/leds.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
+#include <linux/i8042.h>
 
 #include <asm/uaccess.h>
 
@@ -60,6 +62,11 @@
 MODULE_AUTHOR("John Belmonte");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Extras Driver");
 MODULE_LICENSE("GPL");
+
+#define TOSHIBA_WMI_EVENT_GUID "59142400-C6A3-40FA-BADB-8A2652834100"
+
+/* Scan code for Fn key on TOS1900 models */
+#define TOS1900_FN_SCAN		0x6e
 
 /* Toshiba ACPI method paths */
 #define METHOD_VIDEO_OUT	"\\_SB_.VALX.DSSX"
@@ -88,6 +95,7 @@ MODULE_LICENSE("GPL");
 
 /* registers */
 #define HCI_FAN				0x0004
+#define HCI_TR_BACKLIGHT		0x0005
 #define HCI_SYSTEM_EVENT		0x0016
 #define HCI_VIDEO_OUT			0x001c
 #define HCI_HOTKEY_EVENT		0x001e
@@ -95,6 +103,8 @@ MODULE_LICENSE("GPL");
 #define HCI_WIRELESS			0x0056
 
 /* field definitions */
+#define HCI_HOTKEY_DISABLE		0x0b
+#define HCI_HOTKEY_ENABLE		0x09
 #define HCI_LCD_BRIGHTNESS_BITS		3
 #define HCI_LCD_BRIGHTNESS_SHIFT	(16-HCI_LCD_BRIGHTNESS_BITS)
 #define HCI_LCD_BRIGHTNESS_LEVELS	(1 << HCI_LCD_BRIGHTNESS_BITS)
@@ -111,6 +121,7 @@ struct toshiba_acpi_dev {
 	const char *method_hci;
 	struct rfkill *bt_rfk;
 	struct input_dev *hotkey_dev;
+	struct work_struct hotkey_work;
 	struct backlight_device *backlight_dev;
 	struct led_classdev led_dev;
 
@@ -118,13 +129,18 @@ struct toshiba_acpi_dev {
 	int last_key_event;
 	int key_event_valid;
 
-	int illumination_supported:1;
-	int video_supported:1;
-	int fan_supported:1;
-	int system_event_supported:1;
+	unsigned int illumination_supported:1;
+	unsigned int video_supported:1;
+	unsigned int fan_supported:1;
+	unsigned int system_event_supported:1;
+	unsigned int ntfy_supported:1;
+	unsigned int info_supported:1;
+	unsigned int tr_backlight_supported:1;
 
 	struct mutex mutex;
 };
+
+static struct toshiba_acpi_dev *toshiba_acpi;
 
 static const struct acpi_device_id toshiba_device_ids[] = {
 	{"TOS6200", 0},
@@ -138,6 +154,8 @@ static const struct key_entry toshiba_acpi_keymap[] __devinitconst = {
 	{ KE_KEY, 0x101, { KEY_MUTE } },
 	{ KE_KEY, 0x102, { KEY_ZOOMOUT } },
 	{ KE_KEY, 0x103, { KEY_ZOOMIN } },
+	{ KE_KEY, 0x12c, { KEY_KBDILLUMTOGGLE } },
+	{ KE_KEY, 0x139, { KEY_ZOOMRESET } },
 	{ KE_KEY, 0x13b, { KEY_COFFEE } },
 	{ KE_KEY, 0x13c, { KEY_BATTERY } },
 	{ KE_KEY, 0x13d, { KEY_SLEEP } },
@@ -146,7 +164,7 @@ static const struct key_entry toshiba_acpi_keymap[] __devinitconst = {
 	{ KE_KEY, 0x140, { KEY_BRIGHTNESSDOWN } },
 	{ KE_KEY, 0x141, { KEY_BRIGHTNESSUP } },
 	{ KE_KEY, 0x142, { KEY_WLAN } },
-	{ KE_KEY, 0x143, { KEY_PROG1 } },
+	{ KE_KEY, 0x143, { KEY_TOUCHPAD_TOGGLE } },
 	{ KE_KEY, 0x17f, { KEY_FN } },
 	{ KE_KEY, 0xb05, { KEY_PROG2 } },
 	{ KE_KEY, 0xb06, { KEY_WWW } },
@@ -156,6 +174,7 @@ static const struct key_entry toshiba_acpi_keymap[] __devinitconst = {
 	{ KE_KEY, 0xb32, { KEY_NEXTSONG } },
 	{ KE_KEY, 0xb33, { KEY_PLAYPAUSE } },
 	{ KE_KEY, 0xb5a, { KEY_MEDIA } },
+	{ KE_IGNORE, 0x1430, { KEY_RESERVED } },
 	{ KE_END, 0 },
 };
 
@@ -461,34 +480,70 @@ static const struct rfkill_ops toshiba_rfk_ops = {
 	.poll = bt_rfkill_poll,
 };
 
+static int get_tr_backlight_status(struct toshiba_acpi_dev *dev, bool *enabled)
+{
+	u32 hci_result;
+	u32 status;
+
+	hci_read1(dev, HCI_TR_BACKLIGHT, &status, &hci_result);
+	*enabled = !status;
+	return hci_result == HCI_SUCCESS ? 0 : -EIO;
+}
+
+static int set_tr_backlight_status(struct toshiba_acpi_dev *dev, bool enable)
+{
+	u32 hci_result;
+	u32 value = !enable;
+
+	hci_write1(dev, HCI_TR_BACKLIGHT, value, &hci_result);
+	return hci_result == HCI_SUCCESS ? 0 : -EIO;
+}
+
 static struct proc_dir_entry *toshiba_proc_dir /*= 0*/ ;
 
-static int get_lcd(struct backlight_device *bd)
+static int __get_lcd_brightness(struct toshiba_acpi_dev *dev)
 {
-	struct toshiba_acpi_dev *dev = bl_get_data(bd);
 	u32 hci_result;
 	u32 value;
+	int brightness = 0;
+
+	if (dev->tr_backlight_supported) {
+		bool enabled;
+		int ret = get_tr_backlight_status(dev, &enabled);
+		if (ret)
+			return ret;
+		if (enabled)
+			return 0;
+		brightness++;
+	}
 
 	hci_read1(dev, HCI_LCD_BRIGHTNESS, &value, &hci_result);
 	if (hci_result == HCI_SUCCESS)
-		return (value >> HCI_LCD_BRIGHTNESS_SHIFT);
+		return brightness + (value >> HCI_LCD_BRIGHTNESS_SHIFT);
 
 	return -EIO;
+}
+
+static int get_lcd_brightness(struct backlight_device *bd)
+{
+	struct toshiba_acpi_dev *dev = bl_get_data(bd);
+	return __get_lcd_brightness(dev);
 }
 
 static int lcd_proc_show(struct seq_file *m, void *v)
 {
 	struct toshiba_acpi_dev *dev = m->private;
 	int value;
+	int levels;
 
 	if (!dev->backlight_dev)
 		return -ENODEV;
 
-	value = get_lcd(dev->backlight_dev);
+	levels = dev->backlight_dev->props.max_brightness + 1;
+	value = get_lcd_brightness(dev->backlight_dev);
 	if (value >= 0) {
 		seq_printf(m, "brightness:              %d\n", value);
-		seq_printf(m, "brightness_levels:       %d\n",
-			     HCI_LCD_BRIGHTNESS_LEVELS);
+		seq_printf(m, "brightness_levels:       %d\n", levels);
 		return 0;
 	}
 
@@ -501,9 +556,18 @@ static int lcd_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, lcd_proc_show, PDE(inode)->data);
 }
 
-static int set_lcd(struct toshiba_acpi_dev *dev, int value)
+static int set_lcd_brightness(struct toshiba_acpi_dev *dev, int value)
 {
 	u32 hci_result;
+
+	if (dev->tr_backlight_supported) {
+		bool enable = !value;
+		int ret = set_tr_backlight_status(dev, enable);
+		if (ret)
+			return ret;
+		if (value)
+			value--;
+	}
 
 	value = value << HCI_LCD_BRIGHTNESS_SHIFT;
 	hci_write1(dev, HCI_LCD_BRIGHTNESS, value, &hci_result);
@@ -513,7 +577,7 @@ static int set_lcd(struct toshiba_acpi_dev *dev, int value)
 static int set_lcd_status(struct backlight_device *bd)
 {
 	struct toshiba_acpi_dev *dev = bl_get_data(bd);
-	return set_lcd(dev, bd->props.brightness);
+	return set_lcd_brightness(dev, bd->props.brightness);
 }
 
 static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
@@ -524,6 +588,7 @@ static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 	size_t len;
 	int value;
 	int ret;
+	int levels = dev->backlight_dev->props.max_brightness + 1;
 
 	len = min(count, sizeof(cmd) - 1);
 	if (copy_from_user(cmd, buf, len))
@@ -531,8 +596,8 @@ static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 	cmd[len] = '\0';
 
 	if (sscanf(cmd, " brightness : %i", &value) == 1 &&
-	    value >= 0 && value < HCI_LCD_BRIGHTNESS_LEVELS) {
-		ret = set_lcd(dev, value);
+	    value >= 0 && value < levels) {
+		ret = set_lcd_brightness(dev, value);
 		if (ret == 0)
 			ret = count;
 	} else {
@@ -843,14 +908,83 @@ static void remove_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 }
 
 static const struct backlight_ops toshiba_backlight_data = {
-        .get_brightness = get_lcd,
-        .update_status  = set_lcd_status,
+	.options = BL_CORE_SUSPENDRESUME,
+	.get_brightness = get_lcd_brightness,
+	.update_status  = set_lcd_status,
 };
+
+static bool toshiba_acpi_i8042_filter(unsigned char data, unsigned char str,
+				      struct serio *port)
+{
+	if (str & 0x20)
+		return false;
+
+	if (unlikely(data == 0xe0))
+		return false;
+
+	if ((data & 0x7f) == TOS1900_FN_SCAN) {
+		schedule_work(&toshiba_acpi->hotkey_work);
+		return true;
+	}
+
+	return false;
+}
+
+static void toshiba_acpi_hotkey_work(struct work_struct *work)
+{
+	acpi_handle ec_handle = ec_get_handle();
+	acpi_status status;
+
+	if (!ec_handle)
+		return;
+
+	status = acpi_evaluate_object(ec_handle, "NTFY", NULL, NULL);
+	if (ACPI_FAILURE(status))
+		pr_err("ACPI NTFY method execution failed\n");
+}
+
+/*
+ * Returns hotkey scancode, or < 0 on failure.
+ */
+static int toshiba_acpi_query_hotkey(struct toshiba_acpi_dev *dev)
+{
+	struct acpi_buffer buf;
+	union acpi_object out_obj;
+	acpi_status status;
+
+	buf.pointer = &out_obj;
+	buf.length = sizeof(out_obj);
+
+	status = acpi_evaluate_object(dev->acpi_dev->handle, "INFO",
+				      NULL, &buf);
+	if (ACPI_FAILURE(status) || out_obj.type != ACPI_TYPE_INTEGER) {
+		pr_err("ACPI INFO method execution failed\n");
+		return -EIO;
+	}
+
+	return out_obj.integer.value;
+}
+
+static void toshiba_acpi_report_hotkey(struct toshiba_acpi_dev *dev,
+				       int scancode)
+{
+	if (scancode == 0x100)
+		return;
+
+	/* act on key press; ignore key release */
+	if (scancode & 0x80)
+		return;
+
+	if (!sparse_keymap_report_event(dev->hotkey_dev, scancode, 1, true))
+		pr_info("Unknown key %x\n", scancode);
+}
 
 static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 {
 	acpi_status status;
+	acpi_handle ec_handle, handle;
 	int error;
+	u32 hci_result;
 
 	dev->hotkey_dev = input_allocate_device();
 	if (!dev->hotkey_dev) {
@@ -866,21 +1000,67 @@ static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	if (error)
 		goto err_free_dev;
 
+	/*
+	 * For some machines the SCI responsible for providing hotkey
+	 * notification doesn't fire. We can trigger the notification
+	 * whenever the Fn key is pressed using the NTFY method, if
+	 * supported, so if it's present set up an i8042 key filter
+	 * for this purpose.
+	 */
+	status = AE_ERROR;
+	ec_handle = ec_get_handle();
+	if (ec_handle)
+		status = acpi_get_handle(ec_handle, "NTFY", &handle);
+
+	if (ACPI_SUCCESS(status)) {
+		INIT_WORK(&dev->hotkey_work, toshiba_acpi_hotkey_work);
+
+		error = i8042_install_filter(toshiba_acpi_i8042_filter);
+		if (error) {
+			pr_err("Error installing key filter\n");
+			goto err_free_keymap;
+		}
+
+		dev->ntfy_supported = 1;
+	}
+
+	/*
+	 * Determine hotkey query interface. Prefer using the INFO
+	 * method when it is available.
+	 */
+	status = acpi_get_handle(dev->acpi_dev->handle, "INFO", &handle);
+	if (ACPI_SUCCESS(status)) {
+		dev->info_supported = 1;
+	} else {
+		hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
+		if (hci_result == HCI_SUCCESS)
+			dev->system_event_supported = 1;
+	}
+
+	if (!dev->info_supported && !dev->system_event_supported) {
+		pr_warn("No hotkey query interface found\n");
+		goto err_remove_filter;
+	}
+
 	status = acpi_evaluate_object(dev->acpi_dev->handle, "ENAB", NULL, NULL);
 	if (ACPI_FAILURE(status)) {
 		pr_info("Unable to enable hotkeys\n");
 		error = -ENODEV;
-		goto err_free_keymap;
+		goto err_remove_filter;
 	}
 
 	error = input_register_device(dev->hotkey_dev);
 	if (error) {
 		pr_info("Unable to register input device\n");
-		goto err_free_keymap;
+		goto err_remove_filter;
 	}
 
+	hci_write1(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_ENABLE, &hci_result);
 	return 0;
 
+ err_remove_filter:
+	if (dev->ntfy_supported)
+		i8042_remove_filter(toshiba_acpi_i8042_filter);
  err_free_keymap:
 	sparse_keymap_free(dev->hotkey_dev);
  err_free_dev:
@@ -889,11 +1069,66 @@ static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	return error;
 }
 
+static int __devinit toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
+{
+	struct backlight_properties props;
+	int brightness;
+	int ret;
+	bool enabled;
+
+	/*
+	 * Some machines don't support the backlight methods at all, and
+	 * others support it read-only. Either of these is pretty useless,
+	 * so only register the backlight device if the backlight method
+	 * supports both reads and writes.
+	 */
+	brightness = __get_lcd_brightness(dev);
+	if (brightness < 0)
+		return 0;
+	ret = set_lcd_brightness(dev, brightness);
+	if (ret) {
+		pr_debug("Backlight method is read-only, disabling backlight support\n");
+		return 0;
+	}
+
+	/* Determine whether or not BIOS supports transflective backlight */
+	ret = get_tr_backlight_status(dev, &enabled);
+	dev->tr_backlight_supported = !ret;
+
+	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_PLATFORM;
+	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
+
+	/* adding an extra level and having 0 change to transflective mode */
+	if (dev->tr_backlight_supported)
+		props.max_brightness++;
+
+	dev->backlight_dev = backlight_device_register("toshiba",
+						       &dev->acpi_dev->dev,
+						       dev,
+						       &toshiba_backlight_data,
+						       &props);
+	if (IS_ERR(dev->backlight_dev)) {
+		ret = PTR_ERR(dev->backlight_dev);
+		pr_err("Could not register toshiba backlight device\n");
+		dev->backlight_dev = NULL;
+		return ret;
+	}
+
+	dev->backlight_dev->props.brightness = brightness;
+	return 0;
+}
+
 static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 
 	remove_toshiba_proc_entries(dev);
+
+	if (dev->ntfy_supported) {
+		i8042_remove_filter(toshiba_acpi_i8042_filter);
+		cancel_work_sync(&dev->hotkey_work);
+	}
 
 	if (dev->hotkey_dev) {
 		input_unregister_device(dev->hotkey_dev);
@@ -910,6 +1145,9 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 
 	if (dev->illumination_supported)
 		led_classdev_unregister(&dev->led_dev);
+
+	if (toshiba_acpi)
+		toshiba_acpi = NULL;
 
 	kfree(dev);
 
@@ -936,11 +1174,12 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev;
 	const char *hci_method;
-	u32 hci_result;
 	u32 dummy;
 	bool bt_present;
 	int ret = 0;
-	struct backlight_properties props;
+
+	if (toshiba_acpi)
+		return -EBUSY;
 
 	pr_info("Toshiba Laptop ACPI Extras version %s\n",
 	       TOSHIBA_ACPI_VERSION);
@@ -963,26 +1202,9 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	mutex_init(&dev->mutex);
 
-	/* enable event fifo */
-	hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
-	if (hci_result == HCI_SUCCESS)
-		dev->system_event_supported = 1;
-
-	props.type = BACKLIGHT_PLATFORM;
-	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
-	dev->backlight_dev = backlight_device_register("toshiba",
-						       &acpi_dev->dev,
-						       dev,
-						       &toshiba_backlight_data,
-						       &props);
-	if (IS_ERR(dev->backlight_dev)) {
-		ret = PTR_ERR(dev->backlight_dev);
-
-		pr_err("Could not register toshiba backlight device\n");
-		dev->backlight_dev = NULL;
+	ret = toshiba_acpi_setup_backlight(dev);
+	if (ret)
 		goto error;
-	}
-	dev->backlight_dev->props.brightness = get_lcd(dev->backlight_dev);
 
 	/* Register rfkill switch for Bluetooth */
 	if (hci_get_bt_present(dev, &bt_present) == HCI_SUCCESS && bt_present) {
@@ -1024,6 +1246,8 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	create_toshiba_proc_entries(dev);
 
+	toshiba_acpi = dev;
+
 	return 0;
 
 error:
@@ -1036,40 +1260,64 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 	u32 hci_result, value;
 	int retries = 3;
+	int scancode;
 
-	if (!dev->system_event_supported || event != 0x80)
+	if (event != 0x80)
 		return;
 
-	do {
-		hci_read1(dev, HCI_SYSTEM_EVENT, &value, &hci_result);
-		switch (hci_result) {
-		case HCI_SUCCESS:
-			if (value == 0x100)
-				continue;
-			/* act on key press; ignore key release */
-			if (value & 0x80)
-				continue;
-
-			if (!sparse_keymap_report_event(dev->hotkey_dev,
-							value, 1, true)) {
-				pr_info("Unknown key %x\n",
-				       value);
+	if (dev->info_supported) {
+		scancode = toshiba_acpi_query_hotkey(dev);
+		if (scancode < 0)
+			pr_err("Failed to query hotkey event\n");
+		else if (scancode != 0)
+			toshiba_acpi_report_hotkey(dev, scancode);
+	} else if (dev->system_event_supported) {
+		do {
+			hci_read1(dev, HCI_SYSTEM_EVENT, &value, &hci_result);
+			switch (hci_result) {
+			case HCI_SUCCESS:
+				toshiba_acpi_report_hotkey(dev, (int)value);
+				break;
+			case HCI_NOT_SUPPORTED:
+				/*
+				 * This is a workaround for an unresolved
+				 * issue on some machines where system events
+				 * sporadically become disabled.
+				 */
+				hci_write1(dev, HCI_SYSTEM_EVENT, 1,
+					   &hci_result);
+				pr_notice("Re-enabled hotkeys\n");
+				/* fall through */
+			default:
+				retries--;
+				break;
 			}
-			break;
-		case HCI_NOT_SUPPORTED:
-			/* This is a workaround for an unresolved issue on
-			 * some machines where system events sporadically
-			 * become disabled. */
-			hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
-			pr_notice("Re-enabled hotkeys\n");
-			/* fall through */
-		default:
-			retries--;
-			break;
-		}
-	} while (retries && hci_result != HCI_EMPTY);
+		} while (retries && hci_result != HCI_EMPTY);
+	}
 }
 
+static int toshiba_acpi_suspend(struct acpi_device *acpi_dev,
+				pm_message_t state)
+{
+	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
+	u32 result;
+
+	if (dev->hotkey_dev)
+		hci_write1(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_DISABLE, &result);
+
+	return 0;
+}
+
+static int toshiba_acpi_resume(struct acpi_device *acpi_dev)
+{
+	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
+	u32 result;
+
+	if (dev->hotkey_dev)
+		hci_write1(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_ENABLE, &result);
+
+	return 0;
+}
 
 static struct acpi_driver toshiba_acpi_driver = {
 	.name	= "Toshiba ACPI driver",
@@ -1080,12 +1328,22 @@ static struct acpi_driver toshiba_acpi_driver = {
 		.add		= toshiba_acpi_add,
 		.remove		= toshiba_acpi_remove,
 		.notify		= toshiba_acpi_notify,
+		.suspend	= toshiba_acpi_suspend,
+		.resume		= toshiba_acpi_resume,
 	},
 };
 
 static int __init toshiba_acpi_init(void)
 {
 	int ret;
+
+	/*
+	 * Machines with this WMI guid aren't supported due to bugs in
+	 * their AML. This check relies on wmi initializing before
+	 * toshiba_acpi to guarantee guids have been identified.
+	 */
+	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID))
+		return -ENODEV;
 
 	toshiba_proc_dir = proc_mkdir(PROC_TOSHIBA, acpi_root_dir);
 	if (!toshiba_proc_dir) {

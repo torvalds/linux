@@ -336,7 +336,7 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 }
 
 
-static struct mesh_path *path_lookup(struct mesh_table *tbl, u8 *dst,
+static struct mesh_path *mpath_lookup(struct mesh_table *tbl, u8 *dst,
 					  struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_path *mpath;
@@ -348,7 +348,7 @@ static struct mesh_path *path_lookup(struct mesh_table *tbl, u8 *dst,
 	hlist_for_each_entry_rcu(node, n, bucket, list) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata &&
-				memcmp(dst, mpath->dst, ETH_ALEN) == 0) {
+		    ether_addr_equal(dst, mpath->dst)) {
 			if (MPATH_EXPIRED(mpath)) {
 				spin_lock_bh(&mpath->state_lock);
 				mpath->flags &= ~MESH_PATH_ACTIVE;
@@ -371,12 +371,12 @@ static struct mesh_path *path_lookup(struct mesh_table *tbl, u8 *dst,
  */
 struct mesh_path *mesh_path_lookup(u8 *dst, struct ieee80211_sub_if_data *sdata)
 {
-	return path_lookup(rcu_dereference(mesh_paths), dst, sdata);
+	return mpath_lookup(rcu_dereference(mesh_paths), dst, sdata);
 }
 
 struct mesh_path *mpp_path_lookup(u8 *dst, struct ieee80211_sub_if_data *sdata)
 {
-	return path_lookup(rcu_dereference(mpp_paths), dst, sdata);
+	return mpath_lookup(rcu_dereference(mpp_paths), dst, sdata);
 }
 
 
@@ -411,12 +411,6 @@ struct mesh_path *mesh_path_lookup_by_idx(int idx, struct ieee80211_sub_if_data 
 	}
 
 	return NULL;
-}
-
-static void mesh_gate_node_reclaim(struct rcu_head *rp)
-{
-	struct mpath_node *node = container_of(rp, struct mpath_node, rcu);
-	kfree(node);
 }
 
 /**
@@ -479,7 +473,7 @@ static int mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 		if (gate->mpath == mpath) {
 			spin_lock_bh(&tbl->gates_lock);
 			hlist_del_rcu(&gate->list);
-			call_rcu(&gate->rcu, mesh_gate_node_reclaim);
+			kfree_rcu(gate, rcu);
 			spin_unlock_bh(&tbl->gates_lock);
 			mpath->sdata->u.mesh.num_gates--;
 			mpath->is_gate = false;
@@ -523,7 +517,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	int err = 0;
 	u32 hash_idx;
 
-	if (memcmp(dst, sdata->vif.addr, ETH_ALEN) == 0)
+	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
 		return -ENOTSUPP;
 
@@ -544,6 +538,8 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 
 	read_lock_bh(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
+	memset(new_mpath->rann_snd_addr, 0xff, ETH_ALEN);
+	new_mpath->is_root = false;
 	new_mpath->sdata = sdata;
 	new_mpath->flags = 0;
 	skb_queue_head_init(&new_mpath->frame_queue);
@@ -559,12 +555,13 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	hash_idx = mesh_table_hash(dst, sdata, tbl);
 	bucket = &tbl->hash_buckets[hash_idx];
 
-	spin_lock_bh(&tbl->hashwlock[hash_idx]);
+	spin_lock(&tbl->hashwlock[hash_idx]);
 
 	err = -EEXIST;
 	hlist_for_each_entry(node, n, bucket, list) {
 		mpath = node->mpath;
-		if (mpath->sdata == sdata && memcmp(dst, mpath->dst, ETH_ALEN) == 0)
+		if (mpath->sdata == sdata &&
+		    ether_addr_equal(dst, mpath->dst))
 			goto err_exists;
 	}
 
@@ -575,7 +572,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 
 	mesh_paths_generation++;
 
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPATH_TABLE,  &ifmsh->wrkq_flags);
@@ -584,7 +581,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	return 0;
 
 err_exists:
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	kfree(new_node);
 err_node_alloc:
@@ -655,7 +652,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	int err = 0;
 	u32 hash_idx;
 
-	if (memcmp(dst, sdata->vif.addr, ETH_ALEN) == 0)
+	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
 		return -ENOTSUPP;
 
@@ -687,12 +684,13 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	hash_idx = mesh_table_hash(dst, sdata, tbl);
 	bucket = &tbl->hash_buckets[hash_idx];
 
-	spin_lock_bh(&tbl->hashwlock[hash_idx]);
+	spin_lock(&tbl->hashwlock[hash_idx]);
 
 	err = -EEXIST;
 	hlist_for_each_entry(node, n, bucket, list) {
 		mpath = node->mpath;
-		if (mpath->sdata == sdata && memcmp(dst, mpath->dst, ETH_ALEN) == 0)
+		if (mpath->sdata == sdata &&
+		    ether_addr_equal(dst, mpath->dst))
 			goto err_exists;
 	}
 
@@ -701,7 +699,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	    tbl->mean_chain_len * (tbl->hash_mask + 1))
 		grow = 1;
 
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPP_TABLE,  &ifmsh->wrkq_flags);
@@ -710,7 +708,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	return 0;
 
 err_exists:
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	kfree(new_node);
 err_node_alloc:
@@ -809,9 +807,9 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
 		if (rcu_dereference(mpath->next_hop) == sta) {
-			spin_lock_bh(&tbl->hashwlock[i]);
+			spin_lock(&tbl->hashwlock[i]);
 			__mesh_path_del(tbl, node);
-			spin_unlock_bh(&tbl->hashwlock[i]);
+			spin_unlock(&tbl->hashwlock[i]);
 		}
 	}
 	read_unlock_bh(&pathtbl_resize_lock);
@@ -882,11 +880,11 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 	hash_idx = mesh_table_hash(addr, sdata, tbl);
 	bucket = &tbl->hash_buckets[hash_idx];
 
-	spin_lock_bh(&tbl->hashwlock[hash_idx]);
+	spin_lock(&tbl->hashwlock[hash_idx]);
 	hlist_for_each_entry(node, n, bucket, list) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata &&
-		    memcmp(addr, mpath->dst, ETH_ALEN) == 0) {
+		    ether_addr_equal(addr, mpath->dst)) {
 			__mesh_path_del(tbl, node);
 			goto enddel;
 		}
@@ -895,7 +893,7 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 	err = -ENXIO;
 enddel:
 	mesh_paths_generation++;
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	return err;
 }

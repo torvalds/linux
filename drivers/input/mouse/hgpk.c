@@ -640,7 +640,6 @@ static int hgpk_reset_device(struct psmouse *psmouse, bool recalibrate)
 
 static int hgpk_force_recalibrate(struct psmouse *psmouse)
 {
-	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	struct hgpk_data *priv = psmouse->private;
 	int err;
 
@@ -669,11 +668,8 @@ static int hgpk_force_recalibrate(struct psmouse *psmouse)
 	 * we don't have a good way to deal with it.  The 2s window stuff
 	 * (below) is our best option for now.
 	 */
-
-	if (ps2_command(ps2dev, NULL, PSMOUSE_CMD_ENABLE))
+	if (psmouse_activate(psmouse))
 		return -1;
-
-	psmouse_set_state(psmouse, PSMOUSE_ACTIVATED);
 
 	if (tpdebug)
 		psmouse_dbg(psmouse, "touchpad reactivated\n");
@@ -733,8 +729,7 @@ static int hgpk_toggle_powersave(struct psmouse *psmouse, int enable)
 		}
 
 		/* should be all set, enable the touchpad */
-		ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_ENABLE);
-		psmouse_set_state(psmouse, PSMOUSE_ACTIVATED);
+		psmouse_activate(psmouse);
 		psmouse_dbg(psmouse, "Touchpad powered up.\n");
 	} else {
 		psmouse_dbg(psmouse, "Powering off touchpad.\n");

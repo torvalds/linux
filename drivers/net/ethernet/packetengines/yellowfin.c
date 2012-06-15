@@ -397,10 +397,9 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 	if (i) return i;
 
 	dev = alloc_etherdev(sizeof(*np));
-	if (!dev) {
-		pr_err("cannot allocate ethernet device\n");
+	if (!dev)
 		return -ENOMEM;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	np = netdev_priv(dev);
@@ -427,9 +426,6 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 
 	/* Reset the chip. */
 	iowrite32(0x80000000, ioaddr + DMACtrl);
-
-	dev->base_addr = (unsigned long)ioaddr;
-	dev->irq = irq;
 
 	pci_set_drvdata(pdev, dev);
 	spin_lock_init(&np->lock);
@@ -570,25 +566,20 @@ static void mdio_write(void __iomem *ioaddr, int phy_id, int location, int value
 static int yellowfin_open(struct net_device *dev)
 {
 	struct yellowfin_private *yp = netdev_priv(dev);
+	const int irq = yp->pci_dev->irq;
 	void __iomem *ioaddr = yp->base;
-	int i, ret;
+	int i, rc;
 
 	/* Reset the chip. */
 	iowrite32(0x80000000, ioaddr + DMACtrl);
 
-	ret = request_irq(dev->irq, yellowfin_interrupt, IRQF_SHARED, dev->name, dev);
-	if (ret)
-		return ret;
+	rc = request_irq(irq, yellowfin_interrupt, IRQF_SHARED, dev->name, dev);
+	if (rc)
+		return rc;
 
-	if (yellowfin_debug > 1)
-		netdev_printk(KERN_DEBUG, dev, "%s() irq %d\n",
-			      __func__, dev->irq);
-
-	ret = yellowfin_init_ring(dev);
-	if (ret) {
-		free_irq(dev->irq, dev);
-		return ret;
-	}
+	rc = yellowfin_init_ring(dev);
+	if (rc < 0)
+		goto err_free_irq;
 
 	iowrite32(yp->rx_ring_dma, ioaddr + RxPtr);
 	iowrite32(yp->tx_ring_dma, ioaddr + TxPtr);
@@ -648,8 +639,12 @@ static int yellowfin_open(struct net_device *dev)
 	yp->timer.data = (unsigned long)dev;
 	yp->timer.function = yellowfin_timer;				/* timer handler */
 	add_timer(&yp->timer);
+out:
+	return rc;
 
-	return 0;
+err_free_irq:
+	free_irq(irq, dev);
+	goto out;
 }
 
 static void yellowfin_timer(unsigned long data)
@@ -744,11 +739,10 @@ static int yellowfin_init_ring(struct net_device *dev)
 	}
 
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		struct sk_buff *skb = dev_alloc_skb(yp->rx_buf_sz + 2);
+		struct sk_buff *skb = netdev_alloc_skb(dev, yp->rx_buf_sz + 2);
 		yp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
-		skb->dev = dev;		/* Mark as being used by this device. */
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
 		yp->rx_ring[i].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
 			skb->data, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
@@ -1134,7 +1128,7 @@ static int yellowfin_rx(struct net_device *dev)
 					PCI_DMA_FROMDEVICE);
 				yp->rx_skbuff[entry] = NULL;
 			} else {
-				skb = dev_alloc_skb(pkt_len + 2);
+				skb = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skb == NULL)
 					break;
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
@@ -1157,11 +1151,10 @@ static int yellowfin_rx(struct net_device *dev)
 	for (; yp->cur_rx - yp->dirty_rx > 0; yp->dirty_rx++) {
 		entry = yp->dirty_rx % RX_RING_SIZE;
 		if (yp->rx_skbuff[entry] == NULL) {
-			struct sk_buff *skb = dev_alloc_skb(yp->rx_buf_sz + 2);
+			struct sk_buff *skb = netdev_alloc_skb(dev, yp->rx_buf_sz + 2);
 			if (skb == NULL)
 				break;				/* Better luck next round. */
 			yp->rx_skbuff[entry] = skb;
-			skb->dev = dev;	/* Mark as being used by this device. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 			yp->rx_ring[entry].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
 				skb->data, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
@@ -1254,7 +1247,7 @@ static int yellowfin_close(struct net_device *dev)
 	}
 #endif /* __i386__ debugging only */
 
-	free_irq(dev->irq, dev);
+	free_irq(yp->pci_dev->irq, dev);
 
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {

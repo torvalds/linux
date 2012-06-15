@@ -31,6 +31,7 @@
 #include <crypto/internal/hash.h>
 
 #include <asm/cpufeature.h>
+#include <asm/cpu_device_id.h>
 
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
@@ -173,13 +174,17 @@ static struct shash_alg alg = {
 	}
 };
 
+static const struct x86_cpu_id crc32c_cpu_id[] = {
+	X86_FEATURE_MATCH(X86_FEATURE_XMM4_2),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, crc32c_cpu_id);
 
 static int __init crc32c_intel_mod_init(void)
 {
-	if (cpu_has_xmm4_2)
-		return crypto_register_shash(&alg);
-	else
+	if (!x86_match_cpu(crc32c_cpu_id))
 		return -ENODEV;
+	return crypto_register_shash(&alg);
 }
 
 static void __exit crc32c_intel_mod_fini(void)

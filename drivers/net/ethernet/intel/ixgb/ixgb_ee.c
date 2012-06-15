@@ -533,10 +533,8 @@ __le16
 ixgb_get_eeprom_word(struct ixgb_hw *hw, u16 index)
 {
 
-	if ((index < IXGB_EEPROM_SIZE) &&
-		(ixgb_check_and_get_eeprom_data(hw) == true)) {
-	   return hw->eeprom[index];
-	}
+	if (index < IXGB_EEPROM_SIZE && ixgb_check_and_get_eeprom_data(hw))
+		return hw->eeprom[index];
 
 	return 0;
 }
@@ -558,7 +556,7 @@ ixgb_get_ee_mac_addr(struct ixgb_hw *hw,
 
 	ENTER();
 
-	if (ixgb_check_and_get_eeprom_data(hw) == true) {
+	if (ixgb_check_and_get_eeprom_data(hw)) {
 		for (i = 0; i < ETH_ALEN; i++) {
 			mac_addr[i] = ee_map->mac_addr[i];
 		}
@@ -578,7 +576,7 @@ ixgb_get_ee_mac_addr(struct ixgb_hw *hw,
 u32
 ixgb_get_ee_pba_number(struct ixgb_hw *hw)
 {
-	if (ixgb_check_and_get_eeprom_data(hw) == true)
+	if (ixgb_check_and_get_eeprom_data(hw))
 		return le16_to_cpu(hw->eeprom[EEPROM_PBA_1_2_REG])
 			| (le16_to_cpu(hw->eeprom[EEPROM_PBA_3_4_REG])<<16);
 
@@ -599,7 +597,7 @@ ixgb_get_ee_device_id(struct ixgb_hw *hw)
 {
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
-	if (ixgb_check_and_get_eeprom_data(hw) == true)
+	if (ixgb_check_and_get_eeprom_data(hw))
 		return le16_to_cpu(ee_map->device_id);
 
 	return 0;

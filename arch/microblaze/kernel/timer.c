@@ -27,7 +27,6 @@
 #include <asm/setup.h>
 #include <asm/prom.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <linux/cnt32_to_63.h>
 
 #ifdef CONFIG_SELFMOD_TIMER
@@ -79,7 +78,7 @@ static inline void microblaze_timer0_start_periodic(unsigned long load_val)
 	 * !PWMA - disable pwm
 	 * TINT - clear interrupt status
 	 * ENT- enable timer itself
-	 * EINT - enable interrupt
+	 * ENIT - enable interrupt
 	 * !LOAD - clear the bit to let go
 	 * ARHT - auto reload
 	 * !CAPT - no external trigger
@@ -274,8 +273,8 @@ void __init time_init(void)
 #ifdef CONFIG_SELFMOD_TIMER
 	selfmod_function((int *) arr_func, timer_baseaddr);
 #endif
-	printk(KERN_INFO "XPS timer #0 at 0x%08x, irq=%d\n",
-		timer_baseaddr, irq);
+	printk(KERN_INFO "%s #0 at 0x%08x, irq=%d\n",
+		timer->name, timer_baseaddr, irq);
 
 	/* If there is clock-frequency property than use it */
 	prop = of_get_property(timer, "clock-frequency", NULL);

@@ -4,7 +4,7 @@
  *
  * Author       Karsten Keil
  * Copyright    by Karsten Keil      <keil@isdn4linux.de>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -54,7 +54,7 @@ modehscx(struct BCState *bcs, int mode, int bc)
 	cs->BC_Write_Reg(cs, hscx, HSCX_XBCH, 0x0);
 	cs->BC_Write_Reg(cs, hscx, HSCX_RLCR, 0x0);
 	cs->BC_Write_Reg(cs, hscx, HSCX_CCR1,
-		test_bit(HW_IPAC, &cs->HW_Flags) ? 0x82 : 0x85);
+			 test_bit(HW_IPAC, &cs->HW_Flags) ? 0x82 : 0x85);
 	cs->BC_Write_Reg(cs, hscx, HSCX_CCR2, 0x30);
 	cs->BC_Write_Reg(cs, hscx, HSCX_XCCR, 7);
 	cs->BC_Write_Reg(cs, hscx, HSCX_RCCR, 7);
@@ -65,27 +65,27 @@ modehscx(struct BCState *bcs, int mode, int bc)
 
 	if (bc == 0) {
 		cs->BC_Write_Reg(cs, hscx, HSCX_TSAX,
-			      test_bit(HW_IOM1, &cs->HW_Flags) ? 0x7 : bcs->hw.hscx.tsaxr0);
+				 test_bit(HW_IOM1, &cs->HW_Flags) ? 0x7 : bcs->hw.hscx.tsaxr0);
 		cs->BC_Write_Reg(cs, hscx, HSCX_TSAR,
-			      test_bit(HW_IOM1, &cs->HW_Flags) ? 0x7 : bcs->hw.hscx.tsaxr0);
+				 test_bit(HW_IOM1, &cs->HW_Flags) ? 0x7 : bcs->hw.hscx.tsaxr0);
 	} else {
 		cs->BC_Write_Reg(cs, hscx, HSCX_TSAX, bcs->hw.hscx.tsaxr1);
 		cs->BC_Write_Reg(cs, hscx, HSCX_TSAR, bcs->hw.hscx.tsaxr1);
 	}
 	switch (mode) {
-		case (L1_MODE_NULL):
-			cs->BC_Write_Reg(cs, hscx, HSCX_TSAX, 0x1f);
-			cs->BC_Write_Reg(cs, hscx, HSCX_TSAR, 0x1f);
-			cs->BC_Write_Reg(cs, hscx, HSCX_MODE, 0x84);
-			break;
-		case (L1_MODE_TRANS):
-			cs->BC_Write_Reg(cs, hscx, HSCX_MODE, 0xe4);
-			break;
-		case (L1_MODE_HDLC):
-			cs->BC_Write_Reg(cs, hscx, HSCX_CCR1,
-				test_bit(HW_IPAC, &cs->HW_Flags) ? 0x8a : 0x8d);
-			cs->BC_Write_Reg(cs, hscx, HSCX_MODE, 0x8c);
-			break;
+	case (L1_MODE_NULL):
+		cs->BC_Write_Reg(cs, hscx, HSCX_TSAX, 0x1f);
+		cs->BC_Write_Reg(cs, hscx, HSCX_TSAR, 0x1f);
+		cs->BC_Write_Reg(cs, hscx, HSCX_MODE, 0x84);
+		break;
+	case (L1_MODE_TRANS):
+		cs->BC_Write_Reg(cs, hscx, HSCX_MODE, 0xe4);
+		break;
+	case (L1_MODE_HDLC):
+		cs->BC_Write_Reg(cs, hscx, HSCX_CCR1,
+				 test_bit(HW_IPAC, &cs->HW_Flags) ? 0x8a : 0x8d);
+		cs->BC_Write_Reg(cs, hscx, HSCX_MODE, 0x8c);
+		break;
 	}
 	if (mode)
 		cs->BC_Write_Reg(cs, hscx, HSCX_CMDR, 0x41);
@@ -100,55 +100,55 @@ hscx_l2l1(struct PStack *st, int pr, void *arg)
 	struct sk_buff *skb = arg;
 
 	switch (pr) {
-		case (PH_DATA | REQUEST):
-			spin_lock_irqsave(&bcs->cs->lock, flags);
-			if (bcs->tx_skb) {
-				skb_queue_tail(&bcs->squeue, skb);
-			} else {
-				bcs->tx_skb = skb;
-				test_and_set_bit(BC_FLG_BUSY, &bcs->Flag);
-				bcs->hw.hscx.count = 0;
-				bcs->cs->BC_Send_Data(bcs);
-			}
-			spin_unlock_irqrestore(&bcs->cs->lock, flags);
-			break;
-		case (PH_PULL | INDICATION):
-			spin_lock_irqsave(&bcs->cs->lock, flags);
-			if (bcs->tx_skb) {
-				printk(KERN_WARNING "hscx_l2l1: this shouldn't happen\n");
-			} else {
-				test_and_set_bit(BC_FLG_BUSY, &bcs->Flag);
-				bcs->tx_skb = skb;
-				bcs->hw.hscx.count = 0;
-				bcs->cs->BC_Send_Data(bcs);
-			}
-			spin_unlock_irqrestore(&bcs->cs->lock, flags);
-			break;
-		case (PH_PULL | REQUEST):
-			if (!bcs->tx_skb) {
-				test_and_clear_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
-				st->l1.l1l2(st, PH_PULL | CONFIRM, NULL);
-			} else
-				test_and_set_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
-			break;
-		case (PH_ACTIVATE | REQUEST):
-			spin_lock_irqsave(&bcs->cs->lock, flags);
-			test_and_set_bit(BC_FLG_ACTIV, &bcs->Flag);
-			modehscx(bcs, st->l1.mode, st->l1.bc);
-			spin_unlock_irqrestore(&bcs->cs->lock, flags);
-			l1_msg_b(st, pr, arg);
-			break;
-		case (PH_DEACTIVATE | REQUEST):
-			l1_msg_b(st, pr, arg);
-			break;
-		case (PH_DEACTIVATE | CONFIRM):
-			spin_lock_irqsave(&bcs->cs->lock, flags);
-			test_and_clear_bit(BC_FLG_ACTIV, &bcs->Flag);
-			test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
-			modehscx(bcs, 0, st->l1.bc);
-			spin_unlock_irqrestore(&bcs->cs->lock, flags);
-			st->l1.l1l2(st, PH_DEACTIVATE | CONFIRM, NULL);
-			break;
+	case (PH_DATA | REQUEST):
+		spin_lock_irqsave(&bcs->cs->lock, flags);
+		if (bcs->tx_skb) {
+			skb_queue_tail(&bcs->squeue, skb);
+		} else {
+			bcs->tx_skb = skb;
+			test_and_set_bit(BC_FLG_BUSY, &bcs->Flag);
+			bcs->hw.hscx.count = 0;
+			bcs->cs->BC_Send_Data(bcs);
+		}
+		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+		break;
+	case (PH_PULL | INDICATION):
+		spin_lock_irqsave(&bcs->cs->lock, flags);
+		if (bcs->tx_skb) {
+			printk(KERN_WARNING "hscx_l2l1: this shouldn't happen\n");
+		} else {
+			test_and_set_bit(BC_FLG_BUSY, &bcs->Flag);
+			bcs->tx_skb = skb;
+			bcs->hw.hscx.count = 0;
+			bcs->cs->BC_Send_Data(bcs);
+		}
+		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+		break;
+	case (PH_PULL | REQUEST):
+		if (!bcs->tx_skb) {
+			test_and_clear_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
+			st->l1.l1l2(st, PH_PULL | CONFIRM, NULL);
+		} else
+			test_and_set_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
+		break;
+	case (PH_ACTIVATE | REQUEST):
+		spin_lock_irqsave(&bcs->cs->lock, flags);
+		test_and_set_bit(BC_FLG_ACTIV, &bcs->Flag);
+		modehscx(bcs, st->l1.mode, st->l1.bc);
+		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+		l1_msg_b(st, pr, arg);
+		break;
+	case (PH_DEACTIVATE | REQUEST):
+		l1_msg_b(st, pr, arg);
+		break;
+	case (PH_DEACTIVATE | CONFIRM):
+		spin_lock_irqsave(&bcs->cs->lock, flags);
+		test_and_clear_bit(BC_FLG_ACTIV, &bcs->Flag);
+		test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
+		modehscx(bcs, 0, st->l1.bc);
+		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+		st->l1.l1l2(st, PH_DEACTIVATE | CONFIRM, NULL);
+		break;
 	}
 }
 
@@ -177,13 +177,13 @@ open_hscxstate(struct IsdnCardState *cs, struct BCState *bcs)
 	if (!test_and_set_bit(BC_FLG_INIT, &bcs->Flag)) {
 		if (!(bcs->hw.hscx.rcvbuf = kmalloc(HSCX_BUFMAX, GFP_ATOMIC))) {
 			printk(KERN_WARNING
-				"HiSax: No memory for hscx.rcvbuf\n");
+			       "HiSax: No memory for hscx.rcvbuf\n");
 			test_and_clear_bit(BC_FLG_INIT, &bcs->Flag);
 			return (1);
 		}
 		if (!(bcs->blog = kmalloc(MAX_BLOG_SPACE, GFP_ATOMIC))) {
 			printk(KERN_WARNING
-				"HiSax: No memory for bcs->blog\n");
+			       "HiSax: No memory for bcs->blog\n");
 			test_and_clear_bit(BC_FLG_INIT, &bcs->Flag);
 			kfree(bcs->hw.hscx.rcvbuf);
 			bcs->hw.hscx.rcvbuf = NULL;

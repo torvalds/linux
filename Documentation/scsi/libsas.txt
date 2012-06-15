@@ -398,21 +398,6 @@ struct sas_task {
 	task_done -- callback when the task has finished execution
 };
 
-When an external entity, entity other than the LLDD or the
-SAS Layer, wants to work with a struct domain_device, it
-_must_ call kobject_get() when getting a handle on the
-device and kobject_put() when it is done with the device.
-
-This does two things:
-     A) implements proper kfree() for the device;
-     B) increments/decrements the kref for all players:
-     domain_device
-	all domain_device's ... (if past an expander)
-	    port
-		host adapter
-		     pci device
-			 and up the ladder, etc.
-
 DISCOVERY
 ---------
 

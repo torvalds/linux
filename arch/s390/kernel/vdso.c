@@ -25,12 +25,12 @@
 #include <linux/compat.h>
 #include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
 #include <asm/vdso.h>
+#include <asm/facility.h>
 
 #if defined(CONFIG_32BIT) || defined(CONFIG_COMPAT)
 extern char vdso32_start, vdso32_end;
@@ -89,18 +89,11 @@ static void vdso_init_data(struct vdso_data *vd)
 
 #ifdef CONFIG_64BIT
 /*
- * Setup per cpu vdso data page.
- */
-static void vdso_init_per_cpu_data(int cpu, struct vdso_per_cpu_data *vpcd)
-{
-}
-
-/*
  * Allocate/free per cpu vdso data.
  */
 #define SEGMENT_ORDER	2
 
-int vdso_alloc_per_cpu(int cpu, struct _lowcore *lowcore)
+int vdso_alloc_per_cpu(struct _lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
 	u32 *psal, *aste;
@@ -139,7 +132,6 @@ int vdso_alloc_per_cpu(int cpu, struct _lowcore *lowcore)
 	aste[4] = (u32)(addr_t) psal;
 	lowcore->vdso_per_cpu_data = page_frame;
 
-	vdso_init_per_cpu_data(cpu, (struct vdso_per_cpu_data *) page_frame);
 	return 0;
 
 out:
@@ -149,7 +141,7 @@ out:
 	return -ENOMEM;
 }
 
-void vdso_free_per_cpu(int cpu, struct _lowcore *lowcore)
+void vdso_free_per_cpu(struct _lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
 	u32 *psal, *aste;
@@ -168,18 +160,14 @@ void vdso_free_per_cpu(int cpu, struct _lowcore *lowcore)
 	free_pages(segment_table, SEGMENT_ORDER);
 }
 
-static void __vdso_init_cr5(void *dummy)
+static void vdso_init_cr5(void)
 {
 	unsigned long cr5;
 
+	if (user_mode == HOME_SPACE_MODE || !vdso_enabled)
+		return;
 	cr5 = offsetof(struct _lowcore, paste);
 	__ctl_load(cr5, 5, 5);
-}
-
-static void vdso_init_cr5(void)
-{
-	if (user_mode != HOME_SPACE_MODE && vdso_enabled)
-		on_each_cpu(__vdso_init_cr5, NULL, 1);
 }
 #endif /* CONFIG_64BIT */
 
@@ -253,17 +241,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * on the "data" page of the vDSO or you'll stop getting kernel
 	 * updates and your nice userland gettimeofday will be totally dead.
 	 * It's fine to use that for setting breakpoints in the vDSO code
-	 * pages though
-	 *
-	 * Make sure the vDSO gets into every core dump.
-	 * Dumping its contents makes post-mortem fully interpretable later
-	 * without matching up the same kernel and hardware config to see
-	 * what PC values meant.
+	 * pages though.
 	 */
 	rc = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
 				     VM_READ|VM_EXEC|
-				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
-				     VM_ALWAYSDUMP,
+				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				     vdso_pagelist);
 	if (rc)
 		current->mm->context.vdso_base = 0;
@@ -322,10 +304,8 @@ static int __init vdso_init(void)
 	}
 	vdso64_pagelist[vdso64_pages - 1] = virt_to_page(vdso_data);
 	vdso64_pagelist[vdso64_pages] = NULL;
-#ifndef CONFIG_SMP
-	if (vdso_alloc_per_cpu(0, &S390_lowcore))
+	if (vdso_alloc_per_cpu(&S390_lowcore))
 		BUG();
-#endif
 	vdso_init_cr5();
 #endif /* CONFIG_64BIT */
 
@@ -335,7 +315,7 @@ static int __init vdso_init(void)
 
 	return 0;
 }
-arch_initcall(vdso_init);
+early_initcall(vdso_init);
 
 int in_gate_area_no_mm(unsigned long addr)
 {

@@ -8,7 +8,6 @@
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <asm/system.h>
 #include <linux/atomic.h>
 
 #ifdef CONFIG_SMP

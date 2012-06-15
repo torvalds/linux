@@ -211,35 +211,6 @@ void ipv6_sock_ac_close(struct sock *sk)
 	rcu_read_unlock();
 }
 
-#if 0
-/* The function is not used, which is funny. Apparently, author
- * supposed to use it to filter out datagrams inside udp/raw but forgot.
- *
- * It is OK, anycasts are not special comparing to delivery to unicasts.
- */
-
-int inet6_ac_check(struct sock *sk, struct in6_addr *addr, int ifindex)
-{
-	struct ipv6_ac_socklist *pac;
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	int	found;
-
-	found = 0;
-	read_lock(&ipv6_sk_ac_lock);
-	for (pac=np->ipv6_ac_list; pac; pac=pac->acl_next) {
-		if (ifindex && pac->acl_ifindex != ifindex)
-			continue;
-		found = ipv6_addr_equal(&pac->acl_addr, addr);
-		if (found)
-			break;
-	}
-	read_unlock(&ipv6_sk_ac_lock);
-
-	return found;
-}
-
-#endif
-
 static void aca_put(struct ifacaddr6 *ac)
 {
 	if (atomic_dec_and_test(&ac->aca_refcnt)) {
@@ -371,7 +342,7 @@ static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr)
  *	check if the interface has this anycast address
  *	called with rcu_read_lock()
  */
-static int ipv6_chk_acast_dev(struct net_device *dev, const struct in6_addr *addr)
+static bool ipv6_chk_acast_dev(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct inet6_dev *idev;
 	struct ifacaddr6 *aca;
@@ -385,16 +356,16 @@ static int ipv6_chk_acast_dev(struct net_device *dev, const struct in6_addr *add
 		read_unlock_bh(&idev->lock);
 		return aca != NULL;
 	}
-	return 0;
+	return false;
 }
 
 /*
  *	check if given interface (or any, if dev==0) has this anycast address
  */
-int ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
-			const struct in6_addr *addr)
+bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
+			 const struct in6_addr *addr)
 {
-	int found = 0;
+	bool found = false;
 
 	rcu_read_lock();
 	if (dev)
@@ -402,7 +373,7 @@ int ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 	else
 		for_each_netdev_rcu(net, dev)
 			if (ipv6_chk_acast_dev(dev, addr)) {
-				found = 1;
+				found = true;
 				break;
 			}
 	rcu_read_unlock();

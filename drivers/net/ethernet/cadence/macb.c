@@ -87,7 +87,7 @@ static void __init macb_get_hwaddr(struct macb *bp)
 		memcpy(bp->dev->dev_addr, addr, sizeof(addr));
 	} else {
 		netdev_info(bp->dev, "invalid hw address, using random\n");
-		random_ether_addr(bp->dev->dev_addr);
+		eth_hw_addr_random(bp->dev);
 	}
 }
 
@@ -397,7 +397,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	netdev_dbg(bp->dev, "macb_rx_frame frags %u - %u (len %u)\n",
 		   first_frag, last_frag, len);
 
-	skb = dev_alloc_skb(len + RX_OFFSET);
+	skb = netdev_alloc_skb(bp->dev, len + RX_OFFSET);
 	if (!skb) {
 		bp->stats.rx_dropped++;
 		for (frag = first_frag; ; frag = NEXT_RX(frag)) {
@@ -1213,6 +1213,7 @@ static const struct ethtool_ops macb_ethtool_ops = {
 	.set_settings		= macb_set_settings,
 	.get_drvinfo		= macb_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -1308,10 +1309,8 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	err = -ENOMEM;
 	dev = alloc_etherdev(sizeof(*bp));
-	if (!dev) {
-		dev_err(&pdev->dev, "etherdev alloc failed, aborting.\n");
+	if (!dev)
 		goto err_out;
-	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 

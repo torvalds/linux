@@ -139,7 +139,7 @@ void __init generate_cplb_tables_all(void)
 	dcplb_bounds[i_d].eaddr = BOOT_ROM_START;
 	dcplb_bounds[i_d++].data = 0;
 	/* BootROM -- largest one should be less than 1 meg.  */
-	dcplb_bounds[i_d].eaddr = BOOT_ROM_START + (1 * 1024 * 1024);
+	dcplb_bounds[i_d].eaddr = BOOT_ROM_START + BOOT_ROM_LENGTH;
 	dcplb_bounds[i_d++].data = SDRAM_DGENERIC;
 	if (L2_LENGTH) {
 		/* Addressing hole up to L2 SRAM.  */
@@ -178,7 +178,7 @@ void __init generate_cplb_tables_all(void)
 	icplb_bounds[i_i].eaddr = BOOT_ROM_START;
 	icplb_bounds[i_i++].data = 0;
 	/* BootROM -- largest one should be less than 1 meg.  */
-	icplb_bounds[i_i].eaddr = BOOT_ROM_START + (1 * 1024 * 1024);
+	icplb_bounds[i_i].eaddr = BOOT_ROM_START + BOOT_ROM_LENGTH;
 	icplb_bounds[i_i++].data = SDRAM_IGENERIC;
 
 	if (L2_LENGTH) {

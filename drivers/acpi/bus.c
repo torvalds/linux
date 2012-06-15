@@ -250,6 +250,10 @@ static int __acpi_bus_set_power(struct acpi_device *device, int state)
 		return -ENODEV;
 	}
 
+	/* For D3cold we should execute _PS3, not _PS4. */
+	if (state == ACPI_STATE_D3_COLD)
+		object_name[3] = '3';
+
 	/*
 	 * Transition Power
 	 * ----------------
@@ -1010,6 +1014,7 @@ static int __init acpi_bus_init(void)
 }
 
 struct kobject *acpi_kobj;
+EXPORT_SYMBOL_GPL(acpi_kobj);
 
 static int __init acpi_init(void)
 {

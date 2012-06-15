@@ -45,7 +45,6 @@
  *
  * Returns 1 if domain address is valid, otherwise 0
  */
-
 int tipc_addr_domain_valid(u32 addr)
 {
 	u32 n = tipc_node(addr);
@@ -66,7 +65,6 @@ int tipc_addr_domain_valid(u32 addr)
  *
  * Returns 1 if address can be used, otherwise 0
  */
-
 int tipc_addr_node_valid(u32 addr)
 {
 	return tipc_addr_domain_valid(addr) && tipc_node(addr);
@@ -86,7 +84,6 @@ int tipc_in_scope(u32 domain, u32 addr)
 /**
  * tipc_addr_scope - convert message lookup domain to a 2-bit scope value
  */
-
 int tipc_addr_scope(u32 domain)
 {
 	if (likely(!domain))

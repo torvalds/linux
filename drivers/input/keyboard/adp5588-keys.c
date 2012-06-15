@@ -197,6 +197,7 @@ static int __devinit adp5588_gpio_add(struct adp5588_kpad *kpad)
 	kpad->gc.base = gpio_data->gpio_start;
 	kpad->gc.label = kpad->client->name;
 	kpad->gc.owner = THIS_MODULE;
+	kpad->gc.names = gpio_data->names;
 
 	mutex_init(&kpad->gpio_lock);
 
@@ -653,17 +654,7 @@ static struct i2c_driver adp5588_driver = {
 	.id_table = adp5588_id,
 };
 
-static int __init adp5588_init(void)
-{
-	return i2c_add_driver(&adp5588_driver);
-}
-module_init(adp5588_init);
-
-static void __exit adp5588_exit(void)
-{
-	i2c_del_driver(&adp5588_driver);
-}
-module_exit(adp5588_exit);
+module_i2c_driver(adp5588_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");

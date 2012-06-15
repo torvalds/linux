@@ -11,6 +11,6 @@ TODO:
 	- Use of kmem_cache seems a bit unusual
 
 Please send patches to:
-	Greg Kroah-Hartman <gregkh@suse.de>
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 	Mark Einon <mark.einon@gmail.com>
 

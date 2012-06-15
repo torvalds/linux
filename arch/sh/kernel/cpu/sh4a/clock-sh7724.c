@@ -70,7 +70,7 @@ static unsigned long fll_recalc(struct clk *clk)
 	return (clk->parent->rate * mult) / div;
 }
 
-static struct clk_ops fll_clk_ops = {
+static struct sh_clk_ops fll_clk_ops = {
 	.recalc		= fll_recalc,
 };
 
@@ -90,7 +90,7 @@ static unsigned long pll_recalc(struct clk *clk)
 	return clk->parent->rate * mult;
 }
 
-static struct clk_ops pll_clk_ops = {
+static struct sh_clk_ops pll_clk_ops = {
 	.recalc		= pll_recalc,
 };
 
@@ -105,7 +105,7 @@ static unsigned long div3_recalc(struct clk *clk)
 	return clk->parent->rate / 3;
 }
 
-static struct clk_ops div3_clk_ops = {
+static struct sh_clk_ops div3_clk_ops = {
 	.recalc		= div3_recalc,
 };
 

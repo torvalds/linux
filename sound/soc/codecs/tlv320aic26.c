@@ -126,8 +126,7 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params,
 			   struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
 	int fsref, divisor, wlen, pval, jval, dval, qval;
 	u16 reg;
@@ -389,7 +388,7 @@ static int aic26_probe(struct snd_soc_codec *codec)
 
 	/* register controls */
 	dev_dbg(codec->dev, "Registering controls\n");
-	err = snd_soc_add_controls(codec, aic26_snd_controls,
+	err = snd_soc_add_codec_controls(codec, aic26_snd_controls,
 			ARRAY_SIZE(aic26_snd_controls));
 	WARN_ON(err < 0);
 

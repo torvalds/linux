@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/net/am79c961.c
+ *  linux/drivers/net/ethernet/amd/am79c961a.c
  *
  *  by Russell King <rmk@arm.linux.org.uk> 1995-2001.
  *
@@ -30,7 +30,6 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/system.h>
 
 #define TX_BUFFERS 15
 #define RX_BUFFERS 25
@@ -516,7 +515,7 @@ am79c961_rx(struct net_device *dev, struct dev_priv *priv)
 		}
 
 		len = am_readword(dev, hdraddr + 6);
-		skb = dev_alloc_skb(len + 2);
+		skb = netdev_alloc_skb(dev, len + 2);
 
 		if (skb) {
 			skb_reserve(skb, 2);
