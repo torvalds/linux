@@ -14,7 +14,6 @@ KernelVersion:	3.5
 Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
 		Get the hysteresis for thresholds Y, that is,
-
 		threshY_hysteresis = threshY_raising - threshY_falling
 
 What:		/sys/.../events/illuminance_threshY_falling_value
@@ -31,7 +30,7 @@ Description:
 		threshY_raising.
 
 		These thresholds correspond to the eight zone-boundary
-		registers (boundaryY_{low,high}) and defines the five light
+		registers (boundaryY_{low,high}) and define the five light
 		zones.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_zone
