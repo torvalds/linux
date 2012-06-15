@@ -771,11 +771,6 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	bool root_is_gate;
 
 	ttl = rann->rann_ttl;
-	if (ttl <= 1) {
-		ifmsh->mshstats.dropped_frames_ttl++;
-		return;
-	}
-	ttl--;
 	flags = rann->rann_flags;
 	root_is_gate = !!(flags & RANN_FLAG_IS_GATE);
 	orig_addr = rann->rann_addr;
@@ -812,36 +807,48 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+	if (!(SN_LT(mpath->sn, orig_sn)) &&
+	    !(mpath->sn == orig_sn && metric < mpath->rann_metric)) {
+		rcu_read_unlock();
+		return;
+	}
+
 	if ((!(mpath->flags & (MESH_PATH_ACTIVE | MESH_PATH_RESOLVING)) ||
 	     (time_after(jiffies, mpath->last_preq_to_root +
 				  root_path_confirmation_jiffies(sdata)) ||
 	     time_before(jiffies, mpath->last_preq_to_root))) &&
-	     !(mpath->flags & MESH_PATH_FIXED)) {
+	     !(mpath->flags & MESH_PATH_FIXED) && (ttl != 0)) {
 		mhwmp_dbg("%s time to refresh root mpath %pM", sdata->name,
 							       orig_addr);
 		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 		mpath->last_preq_to_root = jiffies;
 	}
 
-	if ((SN_LT(mpath->sn, orig_sn) || (mpath->sn == orig_sn &&
-	   metric < mpath->rann_metric)) && ifmsh->mshcfg.dot11MeshForwarding) {
+	mpath->sn = orig_sn;
+	mpath->rann_metric = metric + metric_txsta;
+	mpath->is_root = true;
+	/* Recording RANNs sender address to send individually
+	 * addressed PREQs destined for root mesh STA */
+	memcpy(mpath->rann_snd_addr, mgmt->sa, ETH_ALEN);
+
+	if (root_is_gate)
+		mesh_path_add_gate(mpath);
+
+	if (ttl <= 1) {
+		ifmsh->mshstats.dropped_frames_ttl++;
+		rcu_read_unlock();
+		return;
+	}
+	ttl--;
+
+	if (ifmsh->mshcfg.dot11MeshForwarding) {
 		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
 				       cpu_to_le32(orig_sn),
 				       0, NULL, 0, broadcast_addr,
 				       hopcount, ttl, cpu_to_le32(interval),
 				       cpu_to_le32(metric + metric_txsta),
 				       0, sdata);
-		mpath->sn = orig_sn;
-		mpath->rann_metric = metric + metric_txsta;
-		/* Recording RANNs sender address to send individually
-		 * addressed PREQs destined for root mesh STA */
-		memcpy(mpath->rann_snd_addr, mgmt->sa, ETH_ALEN);
 	}
-
-	mpath->is_root = true;
-
-	if (root_is_gate)
-		mesh_path_add_gate(mpath);
 
 	rcu_read_unlock();
 }
