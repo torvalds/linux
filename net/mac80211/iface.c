@@ -449,6 +449,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 	case NUM_NL80211_IFTYPES:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_P2P_DEVICE:
 		/* cannot happen */
 		WARN_ON(1);
 		break;
@@ -1146,6 +1147,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_AP_VLAN:
 		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		/* not yet supported */
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NUM_NL80211_IFTYPES:
 		BUG();

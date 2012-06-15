@@ -105,7 +105,7 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (!netif_running(wdev->netdev))
+	if (wdev->netdev && !netif_running(wdev->netdev))
 		return;
 
 	switch (wdev->iftype) {
@@ -142,6 +142,11 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_WDS:
 		/* these interface types don't really have a channel */
+		return;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		if (wdev->wiphy->features &
+				NL80211_FEATURE_P2P_DEVICE_NEEDS_CHANNEL)
+			*chanmode = CHAN_MODE_EXCLUSIVE;
 		return;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NUM_NL80211_IFTYPES:

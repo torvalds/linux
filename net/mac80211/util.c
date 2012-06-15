@@ -1390,6 +1390,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		case NL80211_IFTYPE_MONITOR:
 			/* ignore virtual */
 			break;
+		case NL80211_IFTYPE_P2P_DEVICE:
+			/* not yet supported */
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NUM_NL80211_IFTYPES:
 		case NL80211_IFTYPE_P2P_CLIENT:
