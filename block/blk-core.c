@@ -361,9 +361,10 @@ EXPORT_SYMBOL(blk_put_queue);
  */
 void blk_drain_queue(struct request_queue *q, bool drain_all)
 {
+	int i;
+
 	while (true) {
 		bool drain = false;
-		int i;
 
 		spin_lock_irq(q->queue_lock);
 
@@ -407,6 +408,18 @@ void blk_drain_queue(struct request_queue *q, bool drain_all)
 		if (!drain)
 			break;
 		msleep(10);
+	}
+
+	/*
+	 * With queue marked dead, any woken up waiter will fail the
+	 * allocation path, so the wakeup chaining is lost and we're
+	 * left with hung waiters. We need to wake up those waiters.
+	 */
+	if (q->request_fn) {
+		spin_lock_irq(q->queue_lock);
+		for (i = 0; i < ARRAY_SIZE(q->rq.wait); i++)
+			wake_up_all(&q->rq.wait[i]);
+		spin_unlock_irq(q->queue_lock);
 	}
 }
 
