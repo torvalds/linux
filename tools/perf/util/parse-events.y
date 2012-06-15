@@ -1,7 +1,6 @@
 
 %name-prefix "parse_events_"
-%parse-param {struct list_head *list_all}
-%parse-param {int *idx}
+%parse-param {void *_data}
 
 %{
 
@@ -64,18 +63,22 @@ events ',' event | event
 event:
 event_def PE_MODIFIER_EVENT
 {
+	struct parse_events_data__events *data = _data;
+
 	/*
 	 * Apply modifier on all events added by single event definition
 	 * (there could be more events added for multiple tracepoint
 	 * definitions via '*?'.
 	 */
 	ABORT_ON(parse_events_modifier($1, $2));
-	parse_events_update_lists($1, list_all);
+	parse_events_update_lists($1, &data->list);
 }
 |
 event_def
 {
-	parse_events_update_lists($1, list_all);
+	struct parse_events_data__events *data = _data;
+
+	parse_events_update_lists($1, &data->list);
 }
 
 event_def: event_pmu |
@@ -89,9 +92,10 @@ event_def: event_pmu |
 event_pmu:
 PE_NAME '/' event_config '/'
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_pmu(&list, idx, $1, $3));
+	ABORT_ON(parse_events_add_pmu(&list, &data->idx, $1, $3));
 	parse_events__free_terms($3);
 	$$ = list;
 }
@@ -99,91 +103,106 @@ PE_NAME '/' event_config '/'
 event_legacy_symbol:
 PE_VALUE_SYM '/' event_config '/'
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 	int type = $1 >> 16;
 	int config = $1 & 255;
 
-	ABORT_ON(parse_events_add_numeric(&list, idx, type, config, $3));
+	ABORT_ON(parse_events_add_numeric(&list, &data->idx,
+					  type, config, $3));
 	parse_events__free_terms($3);
 	$$ = list;
 }
 |
 PE_VALUE_SYM sep_slash_dc
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 	int type = $1 >> 16;
 	int config = $1 & 255;
 
-	ABORT_ON(parse_events_add_numeric(&list, idx, type, config, NULL));
+	ABORT_ON(parse_events_add_numeric(&list, &data->idx,
+					  type, config, NULL));
 	$$ = list;
 }
 
 event_legacy_cache:
 PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT '-' PE_NAME_CACHE_OP_RESULT
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_cache(&list, idx, $1, $3, $5));
+	ABORT_ON(parse_events_add_cache(&list, &data->idx, $1, $3, $5));
 	$$ = list;
 }
 |
 PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_cache(&list, idx, $1, $3, NULL));
+	ABORT_ON(parse_events_add_cache(&list, &data->idx, $1, $3, NULL));
 	$$ = list;
 }
 |
 PE_NAME_CACHE_TYPE
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_cache(&list, idx, $1, NULL, NULL));
+	ABORT_ON(parse_events_add_cache(&list, &data->idx, $1, NULL, NULL));
 	$$ = list;
 }
 
 event_legacy_mem:
 PE_PREFIX_MEM PE_VALUE ':' PE_MODIFIER_BP sep_dc
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_breakpoint(&list, idx, (void *) $2, $4));
+	ABORT_ON(parse_events_add_breakpoint(&list, &data->idx,
+					     (void *) $2, $4));
 	$$ = list;
 }
 |
 PE_PREFIX_MEM PE_VALUE sep_dc
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_breakpoint(&list, idx, (void *) $2, NULL));
+	ABORT_ON(parse_events_add_breakpoint(&list, &data->idx,
+					     (void *) $2, NULL));
 	$$ = list;
 }
 
 event_legacy_tracepoint:
 PE_NAME ':' PE_NAME
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_tracepoint(&list, idx, $1, $3));
+	ABORT_ON(parse_events_add_tracepoint(&list, &data->idx, $1, $3));
 	$$ = list;
 }
 
 event_legacy_numeric:
 PE_VALUE ':' PE_VALUE
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_numeric(&list, idx, $1, $3, NULL));
+	ABORT_ON(parse_events_add_numeric(&list, &data->idx, $1, $3, NULL));
 	$$ = list;
 }
 
 event_legacy_raw:
 PE_RAW
 {
+	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_numeric(&list, idx, PERF_TYPE_RAW, $1, NULL));
+	ABORT_ON(parse_events_add_numeric(&list, &data->idx,
+					  PERF_TYPE_RAW, $1, NULL));
 	$$ = list;
 }
 
@@ -267,8 +286,7 @@ sep_slash_dc: '/' | ':' |
 
 %%
 
-void parse_events_error(struct list_head *list_all __used,
-			int *idx __used,
+void parse_events_error(void *data __used,
 			char const *msg __used)
 {
 }

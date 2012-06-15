@@ -26,7 +26,7 @@ struct event_symbol {
 #ifdef PARSER_DEBUG
 extern int parse_events_debug;
 #endif
-int parse_events_parse(struct list_head *list, int *idx);
+int parse_events_parse(void *data);
 
 #define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
@@ -789,25 +789,27 @@ int parse_events_modifier(struct list_head *list, char *str)
 
 int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 {
-	LIST_HEAD(list);
-	LIST_HEAD(list_tmp);
+	struct parse_events_data__events data = {
+		.list = LIST_HEAD_INIT(data.list),
+		.idx  = evlist->nr_entries,
+	};
 	YY_BUFFER_STATE buffer;
-	int ret, idx = evlist->nr_entries;
+	int ret;
 
 	buffer = parse_events__scan_string(str);
 
 #ifdef PARSER_DEBUG
 	parse_events_debug = 1;
 #endif
-	ret = parse_events_parse(&list, &idx);
+	ret = parse_events_parse(&data);
 
 	parse_events__flush_buffer(buffer);
 	parse_events__delete_buffer(buffer);
 	parse_events_lex_destroy();
 
 	if (!ret) {
-		int entries = idx - evlist->nr_entries;
-		perf_evlist__splice_list_tail(evlist, &list, entries);
+		int entries = data.idx - evlist->nr_entries;
+		perf_evlist__splice_list_tail(evlist, &data.list, entries);
 		return 0;
 	}
 

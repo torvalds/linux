@@ -63,6 +63,11 @@ struct parse_events__term {
 	struct list_head list;
 };
 
+struct parse_events_data__events {
+	struct list_head list;
+	int idx;
+};
+
 int parse_events__is_hardcoded_term(struct parse_events__term *term);
 int parse_events__term_num(struct parse_events__term **_term,
 			   int type_term, char *config, long num);
@@ -83,8 +88,7 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 			 char *pmu , struct list_head *head_config);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
-void parse_events_error(struct list_head *list_all,
-			int *idx, char const *msg);
+void parse_events_error(void *data, char const *msg);
 int parse_events__test(void);
 
 void print_events(const char *event_glob);
