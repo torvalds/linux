@@ -1146,6 +1146,84 @@ MODULE_LICENSE("GPL and additional rights");
         ((reg) != FORCEWAKE)) && \
        (!IS_VALLEYVIEW((dev_priv)->dev))
 
+static bool IS_DISPLAYREG(u32 reg)
+{
+	/*
+	 * This should make it easier to transition modules over to the
+	 * new register block scheme, since we can do it incrementally.
+	 */
+	if (reg >= 0x180000)
+		return false;
+
+	if (reg >= RENDER_RING_BASE &&
+	    reg < RENDER_RING_BASE + 0xff)
+		return false;
+	if (reg >= GEN6_BSD_RING_BASE &&
+	    reg < GEN6_BSD_RING_BASE + 0xff)
+		return false;
+	if (reg >= BLT_RING_BASE &&
+	    reg < BLT_RING_BASE + 0xff)
+		return false;
+
+	if (reg == PGTBL_ER)
+		return false;
+
+	if (reg >= IPEIR_I965 &&
+	    reg < HWSTAM)
+		return false;
+
+	if (reg == MI_MODE)
+		return false;
+
+	if (reg == GFX_MODE_GEN7)
+		return false;
+
+	if (reg == RENDER_HWS_PGA_GEN7 ||
+	    reg == BSD_HWS_PGA_GEN7 ||
+	    reg == BLT_HWS_PGA_GEN7)
+		return false;
+
+	if (reg == GEN6_BSD_SLEEP_PSMI_CONTROL ||
+	    reg == GEN6_BSD_RNCID)
+		return false;
+
+	if (reg == GEN6_BLITTER_ECOSKPD)
+		return false;
+
+	if (reg >= 0x4000c &&
+	    reg <= 0x4002c)
+		return false;
+
+	if (reg >= 0x4f000 &&
+	    reg <= 0x4f08f)
+		return false;
+
+	if (reg >= 0x4f100 &&
+	    reg <= 0x4f11f)
+		return false;
+
+	if (reg >= VLV_MASTER_IER &&
+	    reg <= GEN6_PMIER)
+		return false;
+
+	if (reg >= FENCE_REG_SANDYBRIDGE_0 &&
+	    reg < (FENCE_REG_SANDYBRIDGE_0 + (16*8)))
+		return false;
+
+	if (reg >= VLV_IIR_RW &&
+	    reg <= VLV_ISR)
+		return false;
+
+	if (reg == FORCEWAKE_VLV ||
+	    reg == FORCEWAKE_ACK_VLV)
+		return false;
+
+	if (reg == GEN6_GDRST)
+		return false;
+
+	return true;
+}
+
 #define __i915_read(x, y) \
 u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	u##x val = 0; \
@@ -1158,6 +1236,8 @@ u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 		if (dev_priv->forcewake_count == 0) \
 			dev_priv->display.force_wake_put(dev_priv); \
 		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags); \
+	} else if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
+		val = read##y(dev_priv->regs + reg + 0x180000);		\
 	} else { \
 		val = read##y(dev_priv->regs + reg); \
 	} \
@@ -1178,7 +1258,11 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
-	write##y(val, dev_priv->regs + reg); \
+	if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
+		write##y(val, dev_priv->regs + reg + 0x180000);		\
+	} else {							\
+		write##y(val, dev_priv->regs + reg);			\
+	}								\
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
