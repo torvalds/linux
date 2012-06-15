@@ -43,6 +43,7 @@
 
 #define ADIS16300_PITCH_OUT 0x12 /* X axis inclinometer output measurement */
 #define ADIS16300_ROLL_OUT  0x14 /* Y axis inclinometer output measurement */
+#define ADIS16300_AUX_ADC   0x16 /* Auxiliary ADC measurement */
 
 /* Calibration parameters */
 #define ADIS16400_XGYRO_OFF 0x1A /* X-axis gyroscope bias offset factor */

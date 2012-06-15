@@ -472,11 +472,12 @@ enum adis16400_chan {
 	temp,
 	temp0, temp1, temp2,
 	in1,
+	in2,
 	incli_x,
 	incli_y,
 };
 
-static u8 adis16400_addresses[17][2] = {
+static u8 adis16400_addresses[18][2] = {
 	[in_supply] = { ADIS16400_SUPPLY_OUT },
 	[gyro_x] = { ADIS16400_XGYRO_OUT, ADIS16400_XGYRO_OFF },
 	[gyro_y] = { ADIS16400_YGYRO_OUT, ADIS16400_YGYRO_OFF },
@@ -491,7 +492,8 @@ static u8 adis16400_addresses[17][2] = {
 	[temp0] = { ADIS16350_XTEMP_OUT },
 	[temp1] = { ADIS16350_YTEMP_OUT },
 	[temp2] = { ADIS16350_ZTEMP_OUT },
-	[in1] = { ADIS16400_AUX_ADC },
+	[in1] = { ADIS16300_AUX_ADC },
+	[in2] = { ADIS16400_AUX_ADC },
 	[incli_x] = { ADIS16300_PITCH_OUT },
 	[incli_y] = { ADIS16300_ROLL_OUT }
 };
@@ -752,7 +754,7 @@ static struct iio_chan_spec adis16400_channels[] = {
 		.channel = 1,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-		.address = in1,
+		.address = in2,
 		.scan_index = ADIS16400_SCAN_ADC_0,
 		.scan_type = IIO_ST('s', 12, 16, 0),
 	},
