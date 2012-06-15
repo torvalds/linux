@@ -1377,6 +1377,19 @@ static int simple_playback_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+/* unsolicited event for jack sensing */
+static void simple_hdmi_unsol_event(struct hda_codec *codec,
+				    unsigned int res)
+{
+	snd_hda_jack_get_action(codec, res >> AC_UNSOL_RES_TAG_SHIFT);
+	snd_hda_jack_report_sync(codec);
+}
+
+/* generic_hdmi_build_jack can be used for simple_hdmi, too,
+ * as long as spec->pins[] is set correctly
+ */
+#define simple_hdmi_build_jack	generic_hdmi_build_jack
+
 static int simple_playback_build_controls(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -1389,6 +1402,11 @@ static int simple_playback_build_controls(struct hda_codec *codec)
 						    spec->cvts[i].cvt_nid);
 		if (err < 0)
 			return err;
+		if (codec->patch_ops.unsol_event) {
+			err = simple_hdmi_build_jack(codec, i);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	return 0;
@@ -1876,6 +1894,7 @@ static struct hda_verb viahdmi_basic_init[] = {
 static int via_hdmi_init(struct hda_codec *codec)
 {
 	snd_hda_sequence_write(codec, viahdmi_basic_init);
+	snd_hda_jack_report_sync(codec);
 	return 0;
 }
 
@@ -1884,6 +1903,7 @@ static const struct hda_codec_ops via_hdmi_patch_ops = {
 	.build_pcms = simple_playback_build_pcms,
 	.init = via_hdmi_init,
 	.free = simple_playback_free,
+	.unsol_event = simple_hdmi_unsol_event,
 };
 
 static struct hda_pcm_stream via_hdmi_digital_playback = {
