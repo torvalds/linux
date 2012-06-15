@@ -664,9 +664,8 @@ static int copy_insn(struct uprobe *uprobe, struct file *filp)
  */
 static int
 install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
-			struct vm_area_struct *vma, loff_t vaddr)
+			struct vm_area_struct *vma, unsigned long vaddr)
 {
-	unsigned long addr;
 	int ret;
 
 	/*
@@ -679,8 +678,6 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 	if (!uprobe->consumers)
 		return -EEXIST;
 
-	addr = (unsigned long)vaddr;
-
 	if (!(uprobe->flags & UPROBE_COPY_INSN)) {
 		ret = copy_insn(uprobe, vma->vm_file);
 		if (ret)
@@ -689,7 +686,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 		if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
 			return -ENOTSUPP;
 
-		ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, addr);
+		ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, vaddr);
 		if (ret)
 			return ret;
 
@@ -709,7 +706,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 	 * Hence increment before and decrement on failure.
 	 */
 	atomic_inc(&mm->uprobes_state.count);
-	ret = set_swbp(&uprobe->arch, mm, addr);
+	ret = set_swbp(&uprobe->arch, mm, vaddr);
 	if (ret)
 		atomic_dec(&mm->uprobes_state.count);
 
@@ -717,9 +714,9 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 }
 
 static void
-remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, loff_t vaddr)
+remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	if (!set_orig_insn(&uprobe->arch, mm, (unsigned long)vaddr, true))
+	if (!set_orig_insn(&uprobe->arch, mm, vaddr, true))
 		atomic_dec(&mm->uprobes_state.count);
 }
 
@@ -743,7 +740,7 @@ static void delete_uprobe(struct uprobe *uprobe)
 struct map_info {
 	struct map_info *next;
 	struct mm_struct *mm;
-	loff_t vaddr;
+	unsigned long vaddr;
 };
 
 static inline struct map_info *free_map_info(struct map_info *info)
@@ -837,7 +834,6 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 	while (info) {
 		struct mm_struct *mm = info->mm;
 		struct vm_area_struct *vma;
-		loff_t vaddr;
 
 		if (err)
 			goto free;
@@ -847,9 +843,8 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		if (!vma || !valid_vma(vma, is_register))
 			goto unlock;
 
-		vaddr = vma_address(vma, uprobe->offset);
 		if (vma->vm_file->f_mapping->host != uprobe->inode ||
-						vaddr != info->vaddr)
+		    vma_address(vma, uprobe->offset) != info->vaddr)
 			goto unlock;
 
 		if (is_register) {
@@ -1055,10 +1050,8 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	count = 0;
 
 	list_for_each_entry(uprobe, &tmp_list, pending_list) {
-		loff_t vaddr;
-
 		if (!ret) {
-			vaddr = vma_address(vma, uprobe->offset);
+			loff_t vaddr = vma_address(vma, uprobe->offset);
 
 			if (vaddr < vma->vm_start || vaddr >= vma->vm_end) {
 				put_uprobe(uprobe);
@@ -1122,9 +1115,8 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	build_probe_list(inode, &tmp_list);
 
 	list_for_each_entry(uprobe, &tmp_list, pending_list) {
-		loff_t vaddr;
+		loff_t vaddr = vma_address(vma, uprobe->offset);
 
-		vaddr = vma_address(vma, uprobe->offset);
 		if (vaddr >= start && vaddr < end) {
 			/*
 			 * An unregister could have removed the probe before
