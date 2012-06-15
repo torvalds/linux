@@ -1,5 +1,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
 #include <linux/perf_event.h>
 #include "perf_event.h"
 
@@ -110,6 +111,7 @@ struct intel_uncore_pmu {
 	int func_id;
 	struct intel_uncore_type *type;
 	struct intel_uncore_box ** __percpu box;
+	struct list_head box_list;
 };
 
 struct intel_uncore_box {
@@ -123,6 +125,7 @@ struct intel_uncore_box {
 	struct perf_event *event_list[UNCORE_PMC_IDX_MAX];
 	unsigned long active_mask[BITS_TO_LONGS(UNCORE_PMC_IDX_MAX)];
 	u64 tags[UNCORE_PMC_IDX_MAX];
+	struct pci_dev *pci_dev;
 	struct intel_uncore_pmu *pmu;
 	struct hrtimer hrtimer;
 	struct list_head list;
@@ -159,6 +162,33 @@ static ssize_t uncore_event_show(struct kobject *kobj,
 	struct uncore_event_desc *event =
 		container_of(attr, struct uncore_event_desc, attr);
 	return sprintf(buf, "%s", event->config);
+}
+
+static inline unsigned uncore_pci_box_ctl(struct intel_uncore_box *box)
+{
+	return box->pmu->type->box_ctl;
+}
+
+static inline unsigned uncore_pci_fixed_ctl(struct intel_uncore_box *box)
+{
+	return box->pmu->type->fixed_ctl;
+}
+
+static inline unsigned uncore_pci_fixed_ctr(struct intel_uncore_box *box)
+{
+	return box->pmu->type->fixed_ctr;
+}
+
+static inline
+unsigned uncore_pci_event_ctl(struct intel_uncore_box *box, int idx)
+{
+	return idx * 4 + box->pmu->type->event_ctl;
+}
+
+static inline
+unsigned uncore_pci_perf_ctr(struct intel_uncore_box *box, int idx)
+{
+	return idx * 8 + box->pmu->type->perf_ctr;
 }
 
 static inline
@@ -198,6 +228,42 @@ unsigned uncore_msr_perf_ctr(struct intel_uncore_box *box, int idx)
 {
 	return idx + box->pmu->type->perf_ctr +
 		box->pmu->type->msr_offset * box->pmu->pmu_idx;
+}
+
+static inline
+unsigned uncore_fixed_ctl(struct intel_uncore_box *box)
+{
+	if (box->pci_dev)
+		return uncore_pci_fixed_ctl(box);
+	else
+		return uncore_msr_fixed_ctl(box);
+}
+
+static inline
+unsigned uncore_fixed_ctr(struct intel_uncore_box *box)
+{
+	if (box->pci_dev)
+		return uncore_pci_fixed_ctr(box);
+	else
+		return uncore_msr_fixed_ctr(box);
+}
+
+static inline
+unsigned uncore_event_ctl(struct intel_uncore_box *box, int idx)
+{
+	if (box->pci_dev)
+		return uncore_pci_event_ctl(box, idx);
+	else
+		return uncore_msr_event_ctl(box, idx);
+}
+
+static inline
+unsigned uncore_perf_ctr(struct intel_uncore_box *box, int idx)
+{
+	if (box->pci_dev)
+		return uncore_pci_perf_ctr(box, idx);
+	else
+		return uncore_msr_perf_ctr(box, idx);
 }
 
 static inline int uncore_perf_ctr_bits(struct intel_uncore_box *box)
