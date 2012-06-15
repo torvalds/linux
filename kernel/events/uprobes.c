@@ -693,7 +693,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 			return ret;
 
 		if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
-			return -EEXIST;
+			return -ENOTSUPP;
 
 		ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, addr);
 		if (ret)
