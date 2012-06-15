@@ -790,12 +790,10 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		total_packets += tx_buffer->gso_segs;
 
 #ifdef CONFIG_IXGBE_PTP
-		if (unlikely(tx_buffer->tx_flags &
-			     IXGBE_TX_FLAGS_TSTAMP))
-			ixgbe_ptp_tx_hwtstamp(q_vector,
-					      tx_buffer->skb);
-
+		if (unlikely(tx_buffer->tx_flags & IXGBE_TX_FLAGS_TSTAMP))
+			ixgbe_ptp_tx_hwtstamp(q_vector, tx_buffer->skb);
 #endif
+
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 
@@ -1399,8 +1397,7 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 	ixgbe_rx_checksum(rx_ring, rx_desc, skb);
 
 #ifdef CONFIG_IXGBE_PTP
-	if (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS))
-		ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, skb);
+	ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
 #endif
 
 	if ((dev->features & NETIF_F_HW_VLAN_RX) &&

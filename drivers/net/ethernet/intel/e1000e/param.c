@@ -199,16 +199,19 @@ static int __devinit e1000_validate_option(unsigned int *value,
 	case enable_option:
 		switch (*value) {
 		case OPTION_ENABLED:
-			e_info("%s Enabled\n", opt->name);
+			dev_info(&adapter->pdev->dev, "%s Enabled\n",
+				 opt->name);
 			return 0;
 		case OPTION_DISABLED:
-			e_info("%s Disabled\n", opt->name);
+			dev_info(&adapter->pdev->dev, "%s Disabled\n",
+				 opt->name);
 			return 0;
 		}
 		break;
 	case range_option:
 		if (*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
-			e_info("%s set to %i\n", opt->name, *value);
+			dev_info(&adapter->pdev->dev, "%s set to %i\n",
+				 opt->name, *value);
 			return 0;
 		}
 		break;
@@ -220,7 +223,8 @@ static int __devinit e1000_validate_option(unsigned int *value,
 			ent = &opt->arg.l.p[i];
 			if (*value == ent->i) {
 				if (ent->str[0] != '\0')
-					e_info("%s\n", ent->str);
+					dev_info(&adapter->pdev->dev, "%s\n",
+						 ent->str);
 				return 0;
 			}
 		}
@@ -230,8 +234,8 @@ static int __devinit e1000_validate_option(unsigned int *value,
 		BUG();
 	}
 
-	e_info("Invalid %s value specified (%i) %s\n", opt->name, *value,
-	       opt->err);
+	dev_info(&adapter->pdev->dev, "Invalid %s value specified (%i) %s\n",
+		 opt->name, *value, opt->err);
 	*value = opt->def;
 	return -1;
 }
@@ -251,8 +255,10 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 	int bd = adapter->bd_number;
 
 	if (bd >= E1000_MAX_NIC) {
-		e_notice("Warning: no configuration for board #%i\n", bd);
-		e_notice("Using defaults for all values\n");
+		dev_notice(&adapter->pdev->dev,
+			   "Warning: no configuration for board #%i\n", bd);
+		dev_notice(&adapter->pdev->dev,
+			   "Using defaults for all values\n");
 	}
 
 	{ /* Transmit Interrupt Delay */
@@ -366,27 +372,32 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 			 * default values
 			 */
 			if (adapter->itr > 4)
-				e_info("%s set to default %d\n", opt.name,
-				       adapter->itr);
+				dev_info(&adapter->pdev->dev,
+					 "%s set to default %d\n", opt.name,
+					 adapter->itr);
 		}
 
 		adapter->itr_setting = adapter->itr;
 		switch (adapter->itr) {
 		case 0:
-			e_info("%s turned off\n", opt.name);
+			dev_info(&adapter->pdev->dev, "%s turned off\n",
+				 opt.name);
 			break;
 		case 1:
-			e_info("%s set to dynamic mode\n", opt.name);
+			dev_info(&adapter->pdev->dev,
+				 "%s set to dynamic mode\n", opt.name);
 			adapter->itr = 20000;
 			break;
 		case 3:
-			e_info("%s set to dynamic conservative mode\n",
-			       opt.name);
+			dev_info(&adapter->pdev->dev,
+				 "%s set to dynamic conservative mode\n",
+				 opt.name);
 			adapter->itr = 20000;
 			break;
 		case 4:
-			e_info("%s set to simplified (2000-8000 ints) mode\n",
-			       opt.name);
+			dev_info(&adapter->pdev->dev,
+				 "%s set to simplified (2000-8000 ints) mode\n",
+				 opt.name);
 			break;
 		default:
 			/*

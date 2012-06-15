@@ -6238,7 +6238,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	}
 
 	if (hw->phy.ops.check_reset_block && hw->phy.ops.check_reset_block(hw))
-		e_info("PHY reset is blocked due to SOL/IDER session.\n");
+		dev_info(&pdev->dev,
+			 "PHY reset is blocked due to SOL/IDER session.\n");
 
 	/* Set initial default active device features */
 	netdev->features = (NETIF_F_SG |
@@ -6288,7 +6289,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		if (e1000_validate_nvm_checksum(&adapter->hw) >= 0)
 			break;
 		if (i == 2) {
-			e_err("The NVM Checksum Is Not Valid\n");
+			dev_err(&pdev->dev, "The NVM Checksum Is Not Valid\n");
 			err = -EIO;
 			goto err_eeprom;
 		}
@@ -6298,13 +6299,15 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* copy the MAC address */
 	if (e1000e_read_mac_addr(&adapter->hw))
-		e_err("NVM Read Error while reading MAC address\n");
+		dev_err(&pdev->dev,
+			"NVM Read Error while reading MAC address\n");
 
 	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
 	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
-		e_err("Invalid MAC Address: %pM\n", netdev->perm_addr);
+		dev_err(&pdev->dev, "Invalid MAC Address: %pM\n",
+			netdev->perm_addr);
 		err = -EIO;
 		goto err_eeprom;
 	}
