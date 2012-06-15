@@ -511,7 +511,7 @@ config LEDS_TRIGGER_TRANSIENT
 	depends on LEDS_TRIGGERS
 	help
 	  This allows one time activation of a transient state on
-	  GPIO/PWM based hadrware.
+	  GPIO/PWM based hardware.
 	  If unsure, say Y.
 
 endif # NEW_LEDS
