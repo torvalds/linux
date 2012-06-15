@@ -386,8 +386,6 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		}
 	}
 
-	adap->num_frontends_initialized = count_registered;
-
 	return 0;
 
 err_dvb_unregister_frontend:
@@ -410,14 +408,12 @@ int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 	int i;
 	pr_debug("%s: adap=%d\n", __func__, adap->id);
 
-	for (i = adap->num_frontends_initialized - 1; i >= 0; i--) {
+	for (i = MAX_NO_OF_FE_PER_ADAP - 1; i >= 0; i--) {
 		if (adap->fe[i]) {
 			dvb_unregister_frontend(adap->fe[i]);
 			dvb_frontend_detach(adap->fe[i]);
 		}
 	}
-
-	adap->num_frontends_initialized = 0;
 
 	return 0;
 }

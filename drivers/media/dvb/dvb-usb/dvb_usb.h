@@ -288,7 +288,6 @@ struct dvb_usb_adapter {
 	int (*fe_sleep[MAX_NO_OF_FE_PER_ADAP]) (struct dvb_frontend *);
 
 	int active_fe;
-	int num_frontends_initialized;
 };
 
 /**
