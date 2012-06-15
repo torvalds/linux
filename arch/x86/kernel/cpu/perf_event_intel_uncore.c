@@ -21,6 +21,482 @@ DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
 DEFINE_UNCORE_FORMAT_ATTR(inv, inv, "config:23");
 DEFINE_UNCORE_FORMAT_ATTR(cmask5, cmask, "config:24-28");
 DEFINE_UNCORE_FORMAT_ATTR(cmask8, cmask, "config:24-31");
+DEFINE_UNCORE_FORMAT_ATTR(thresh8, thresh, "config:24-31");
+DEFINE_UNCORE_FORMAT_ATTR(thresh5, thresh, "config:24-28");
+DEFINE_UNCORE_FORMAT_ATTR(occ_sel, occ_sel, "config:14-15");
+DEFINE_UNCORE_FORMAT_ATTR(occ_invert, occ_invert, "config:30");
+DEFINE_UNCORE_FORMAT_ATTR(occ_edge, occ_edge, "config:14-51");
+
+/* Sandy Bridge-EP uncore support */
+static void snbep_uncore_pci_disable_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	int box_ctl = uncore_pci_box_ctl(box);
+	u32 config;
+
+	pci_read_config_dword(pdev, box_ctl, &config);
+	config |= SNBEP_PMON_BOX_CTL_FRZ;
+	pci_write_config_dword(pdev, box_ctl, config);
+}
+
+static void snbep_uncore_pci_enable_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	int box_ctl = uncore_pci_box_ctl(box);
+	u32 config;
+
+	pci_read_config_dword(pdev, box_ctl, &config);
+	config &= ~SNBEP_PMON_BOX_CTL_FRZ;
+	pci_write_config_dword(pdev, box_ctl, config);
+}
+
+static void snbep_uncore_pci_enable_event(struct intel_uncore_box *box,
+					struct perf_event *event)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	struct hw_perf_event *hwc = &event->hw;
+
+	pci_write_config_dword(pdev, hwc->config_base, hwc->config |
+				SNBEP_PMON_CTL_EN);
+}
+
+static void snbep_uncore_pci_disable_event(struct intel_uncore_box *box,
+					struct perf_event *event)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	struct hw_perf_event *hwc = &event->hw;
+
+	pci_write_config_dword(pdev, hwc->config_base, hwc->config);
+}
+
+static u64 snbep_uncore_pci_read_counter(struct intel_uncore_box *box,
+					struct perf_event *event)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	struct hw_perf_event *hwc = &event->hw;
+	u64 count;
+
+	pci_read_config_dword(pdev, hwc->event_base, (u32 *)&count);
+	pci_read_config_dword(pdev, hwc->event_base + 4, (u32 *)&count + 1);
+	return count;
+}
+
+static void snbep_uncore_pci_init_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = box->pci_dev;
+	pci_write_config_dword(pdev, SNBEP_PCI_PMON_BOX_CTL,
+				SNBEP_PMON_BOX_CTL_INT);
+}
+
+static void snbep_uncore_msr_disable_box(struct intel_uncore_box *box)
+{
+	u64 config;
+	unsigned msr;
+
+	msr = uncore_msr_box_ctl(box);
+	if (msr) {
+		rdmsrl(msr, config);
+		config |= SNBEP_PMON_BOX_CTL_FRZ;
+		wrmsrl(msr, config);
+		return;
+	}
+}
+
+static void snbep_uncore_msr_enable_box(struct intel_uncore_box *box)
+{
+	u64 config;
+	unsigned msr;
+
+	msr = uncore_msr_box_ctl(box);
+	if (msr) {
+		rdmsrl(msr, config);
+		config &= ~SNBEP_PMON_BOX_CTL_FRZ;
+		wrmsrl(msr, config);
+		return;
+	}
+}
+
+static void snbep_uncore_msr_enable_event(struct intel_uncore_box *box,
+					struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	wrmsrl(hwc->config_base, hwc->config | SNBEP_PMON_CTL_EN);
+}
+
+static void snbep_uncore_msr_disable_event(struct intel_uncore_box *box,
+					struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	wrmsrl(hwc->config_base, hwc->config);
+}
+
+static u64 snbep_uncore_msr_read_counter(struct intel_uncore_box *box,
+					struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	u64 count;
+
+	rdmsrl(hwc->event_base, count);
+	return count;
+}
+
+static void snbep_uncore_msr_init_box(struct intel_uncore_box *box)
+{
+	unsigned msr = uncore_msr_box_ctl(box);
+	if (msr)
+		wrmsrl(msr, SNBEP_PMON_BOX_CTL_INT);
+}
+
+static struct attribute *snbep_uncore_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh8.attr,
+	NULL,
+};
+
+static struct attribute *snbep_uncore_ubox_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh5.attr,
+	NULL,
+};
+
+static struct attribute *snbep_uncore_pcu_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_occ_sel.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh5.attr,
+	&format_attr_occ_invert.attr,
+	&format_attr_occ_edge.attr,
+	NULL,
+};
+
+static struct uncore_event_desc snbep_uncore_imc_events[] = {
+	INTEL_UNCORE_EVENT_DESC(CLOCKTICKS, "config=0xffff"),
+	/* read */
+	INTEL_UNCORE_EVENT_DESC(CAS_COUNT_RD, "event=0x4,umask=0x3"),
+	/* write */
+	INTEL_UNCORE_EVENT_DESC(CAS_COUNT_WR, "event=0x4,umask=0xc"),
+	{ /* end: all zeroes */ },
+};
+
+static struct uncore_event_desc snbep_uncore_qpi_events[] = {
+	INTEL_UNCORE_EVENT_DESC(CLOCKTICKS, "event=0x14"),
+	/* outgoing data+nondata flits */
+	INTEL_UNCORE_EVENT_DESC(TxL_FLITS_ACTIVE, "event=0x0,umask=0x6"),
+	/* DRS data received */
+	INTEL_UNCORE_EVENT_DESC(DRS_DATA, "event=0x2,umask=0x8"),
+	/* NCB data received */
+	INTEL_UNCORE_EVENT_DESC(NCB_DATA, "event=0x3,umask=0x4"),
+	{ /* end: all zeroes */ },
+};
+
+static struct attribute_group snbep_uncore_format_group = {
+	.name = "format",
+	.attrs = snbep_uncore_formats_attr,
+};
+
+static struct attribute_group snbep_uncore_ubox_format_group = {
+	.name = "format",
+	.attrs = snbep_uncore_ubox_formats_attr,
+};
+
+static struct attribute_group snbep_uncore_pcu_format_group = {
+	.name = "format",
+	.attrs = snbep_uncore_pcu_formats_attr,
+};
+
+static struct intel_uncore_ops snbep_uncore_msr_ops = {
+	.init_box	= snbep_uncore_msr_init_box,
+	.disable_box	= snbep_uncore_msr_disable_box,
+	.enable_box	= snbep_uncore_msr_enable_box,
+	.disable_event	= snbep_uncore_msr_disable_event,
+	.enable_event	= snbep_uncore_msr_enable_event,
+	.read_counter	= snbep_uncore_msr_read_counter,
+};
+
+static struct intel_uncore_ops snbep_uncore_pci_ops = {
+	.init_box	= snbep_uncore_pci_init_box,
+	.disable_box	= snbep_uncore_pci_disable_box,
+	.enable_box	= snbep_uncore_pci_enable_box,
+	.disable_event	= snbep_uncore_pci_disable_event,
+	.enable_event	= snbep_uncore_pci_enable_event,
+	.read_counter	= snbep_uncore_pci_read_counter,
+};
+
+static struct event_constraint snbep_uncore_cbox_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x01, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x02, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x04, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x05, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x07, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x11, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x12, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x13, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x1b, 0xc),
+	UNCORE_EVENT_CONSTRAINT(0x1c, 0xc),
+	UNCORE_EVENT_CONSTRAINT(0x1d, 0xc),
+	UNCORE_EVENT_CONSTRAINT(0x1e, 0xc),
+	UNCORE_EVENT_CONSTRAINT(0x1f, 0xe),
+	UNCORE_EVENT_CONSTRAINT(0x21, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x23, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x31, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x32, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x33, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x34, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x35, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x36, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x37, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x38, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x39, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x3b, 0x1),
+	EVENT_CONSTRAINT_END
+};
+
+static struct event_constraint snbep_uncore_r2pcie_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x10, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x11, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x12, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x23, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x24, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x25, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x26, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x32, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x33, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x34, 0x3),
+	EVENT_CONSTRAINT_END
+};
+
+static struct event_constraint snbep_uncore_r3qpi_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x10, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x11, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x12, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x13, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x20, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x21, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x22, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x23, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x24, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x25, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x26, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x30, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x31, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x32, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x33, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x34, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x36, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x37, 0x3),
+	EVENT_CONSTRAINT_END
+};
+
+static struct intel_uncore_type snbep_uncore_ubox = {
+	.name		= "ubox",
+	.num_counters   = 2,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 44,
+	.fixed_ctr_bits	= 48,
+	.perf_ctr	= SNBEP_U_MSR_PMON_CTR0,
+	.event_ctl	= SNBEP_U_MSR_PMON_CTL0,
+	.event_mask	= SNBEP_U_MSR_PMON_RAW_EVENT_MASK,
+	.fixed_ctr	= SNBEP_U_MSR_PMON_UCLK_FIXED_CTR,
+	.fixed_ctl	= SNBEP_U_MSR_PMON_UCLK_FIXED_CTL,
+	.ops		= &snbep_uncore_msr_ops,
+	.format_group	= &snbep_uncore_ubox_format_group,
+};
+
+static struct intel_uncore_type snbep_uncore_cbox = {
+	.name		= "cbox",
+	.num_counters   = 4,
+	.num_boxes	= 8,
+	.perf_ctr_bits	= 44,
+	.event_ctl	= SNBEP_C0_MSR_PMON_CTL0,
+	.perf_ctr	= SNBEP_C0_MSR_PMON_CTR0,
+	.event_mask	= SNBEP_PMON_RAW_EVENT_MASK,
+	.box_ctl	= SNBEP_C0_MSR_PMON_BOX_CTL,
+	.msr_offset	= SNBEP_CBO_MSR_OFFSET,
+	.constraints	= snbep_uncore_cbox_constraints,
+	.ops		= &snbep_uncore_msr_ops,
+	.format_group	= &snbep_uncore_format_group,
+};
+
+static struct intel_uncore_type snbep_uncore_pcu = {
+	.name		= "pcu",
+	.num_counters   = 4,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 48,
+	.perf_ctr	= SNBEP_PCU_MSR_PMON_CTR0,
+	.event_ctl	= SNBEP_PCU_MSR_PMON_CTL0,
+	.event_mask	= SNBEP_PCU_MSR_PMON_RAW_EVENT_MASK,
+	.box_ctl	= SNBEP_PCU_MSR_PMON_BOX_CTL,
+	.ops		= &snbep_uncore_msr_ops,
+	.format_group	= &snbep_uncore_pcu_format_group,
+};
+
+static struct intel_uncore_type *snbep_msr_uncores[] = {
+	&snbep_uncore_ubox,
+	&snbep_uncore_cbox,
+	&snbep_uncore_pcu,
+	NULL,
+};
+
+#define SNBEP_UNCORE_PCI_COMMON_INIT()				\
+	.perf_ctr	= SNBEP_PCI_PMON_CTR0,			\
+	.event_ctl	= SNBEP_PCI_PMON_CTL0,			\
+	.event_mask	= SNBEP_PMON_RAW_EVENT_MASK,		\
+	.box_ctl	= SNBEP_PCI_PMON_BOX_CTL,		\
+	.ops		= &snbep_uncore_pci_ops,		\
+	.format_group	= &snbep_uncore_format_group
+
+static struct intel_uncore_type snbep_uncore_ha = {
+	.name		= "ha",
+	.num_counters   = 4,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 48,
+	SNBEP_UNCORE_PCI_COMMON_INIT(),
+};
+
+static struct intel_uncore_type snbep_uncore_imc = {
+	.name		= "imc",
+	.num_counters   = 4,
+	.num_boxes	= 4,
+	.perf_ctr_bits	= 48,
+	.fixed_ctr_bits	= 48,
+	.fixed_ctr	= SNBEP_MC_CHy_PCI_PMON_FIXED_CTR,
+	.fixed_ctl	= SNBEP_MC_CHy_PCI_PMON_FIXED_CTL,
+	.event_descs	= snbep_uncore_imc_events,
+	SNBEP_UNCORE_PCI_COMMON_INIT(),
+};
+
+static struct intel_uncore_type snbep_uncore_qpi = {
+	.name		= "qpi",
+	.num_counters   = 4,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 48,
+	.event_descs	= snbep_uncore_qpi_events,
+	SNBEP_UNCORE_PCI_COMMON_INIT(),
+};
+
+
+static struct intel_uncore_type snbep_uncore_r2pcie = {
+	.name		= "r2pcie",
+	.num_counters   = 4,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 44,
+	.constraints	= snbep_uncore_r2pcie_constraints,
+	SNBEP_UNCORE_PCI_COMMON_INIT(),
+};
+
+static struct intel_uncore_type snbep_uncore_r3qpi = {
+	.name		= "r3qpi",
+	.num_counters   = 3,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 44,
+	.constraints	= snbep_uncore_r3qpi_constraints,
+	SNBEP_UNCORE_PCI_COMMON_INIT(),
+};
+
+static struct intel_uncore_type *snbep_pci_uncores[] = {
+	&snbep_uncore_ha,
+	&snbep_uncore_imc,
+	&snbep_uncore_qpi,
+	&snbep_uncore_r2pcie,
+	&snbep_uncore_r3qpi,
+	NULL,
+};
+
+static DEFINE_PCI_DEVICE_TABLE(snbep_uncore_pci_ids) = {
+	{ /* Home Agent */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_HA),
+		.driver_data = (unsigned long)&snbep_uncore_ha,
+	},
+	{ /* MC Channel 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_IMC0),
+		.driver_data = (unsigned long)&snbep_uncore_imc,
+	},
+	{ /* MC Channel 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_IMC1),
+		.driver_data = (unsigned long)&snbep_uncore_imc,
+	},
+	{ /* MC Channel 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_IMC2),
+		.driver_data = (unsigned long)&snbep_uncore_imc,
+	},
+	{ /* MC Channel 3 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_IMC3),
+		.driver_data = (unsigned long)&snbep_uncore_imc,
+	},
+	{ /* QPI Port 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_QPI0),
+		.driver_data = (unsigned long)&snbep_uncore_qpi,
+	},
+	{ /* QPI Port 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_QPI1),
+		.driver_data = (unsigned long)&snbep_uncore_qpi,
+	},
+	{ /* P2PCIe */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_R2PCIE),
+		.driver_data = (unsigned long)&snbep_uncore_r2pcie,
+	},
+	{ /* R3QPI Link 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_R3QPI0),
+		.driver_data = (unsigned long)&snbep_uncore_r3qpi,
+	},
+	{ /* R3QPI Link 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_R3QPI1),
+		.driver_data = (unsigned long)&snbep_uncore_r3qpi,
+	},
+	{ /* end: all zeroes */ }
+};
+
+static struct pci_driver snbep_uncore_pci_driver = {
+	.name		= "snbep_uncore",
+	.id_table	= snbep_uncore_pci_ids,
+};
+
+/*
+ * build pci bus to socket mapping
+ */
+static void snbep_pci2phy_map_init(void)
+{
+	struct pci_dev *ubox_dev = NULL;
+	int i, bus, nodeid;
+	u32 config;
+
+	while (1) {
+		/* find the UBOX device */
+		ubox_dev = pci_get_device(PCI_VENDOR_ID_INTEL,
+					PCI_DEVICE_ID_INTEL_JAKETOWN_UBOX,
+					ubox_dev);
+		if (!ubox_dev)
+			break;
+		bus = ubox_dev->bus->number;
+		/* get the Node ID of the local register */
+		pci_read_config_dword(ubox_dev, 0x40, &config);
+		nodeid = config;
+		/* get the Node ID mapping */
+		pci_read_config_dword(ubox_dev, 0x54, &config);
+		/*
+		 * every three bits in the Node ID mapping register maps
+		 * to a particular node.
+		 */
+		for (i = 0; i < 8; i++) {
+			if (nodeid == ((config >> (3 * i)) & 0x7)) {
+				pcibus_to_physid[bus] = i;
+				break;
+			}
+		}
+	};
+	return;
+}
+/* end of Sandy Bridge-EP uncore support */
+
 
 /* Sandy Bridge uncore support */
 static void snb_uncore_msr_enable_event(struct intel_uncore_box *box,
@@ -894,6 +1370,11 @@ static int __init uncore_pci_init(void)
 	int ret;
 
 	switch (boot_cpu_data.x86_model) {
+	case 45: /* Sandy Bridge-EP */
+		pci_uncores = snbep_pci_uncores;
+		uncore_pci_driver = &snbep_uncore_pci_driver;
+		snbep_pci2phy_map_init();
+		break;
 	default:
 		return 0;
 	}
@@ -1154,6 +1635,9 @@ static int __init uncore_cpu_init(void)
 		break;
 	case 42: /* Sandy Bridge */
 		msr_uncores = snb_msr_uncores;
+		break;
+	case 45: /* Sandy Birdge-EP */
+		msr_uncores = snbep_msr_uncores;
 		break;
 	default:
 		return 0;
