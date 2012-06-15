@@ -99,8 +99,6 @@ typedef enum
 typedef script_gpio_set_t user_gpio_set_t;
 
 /* script operations */
-extern int script_parser_init(char *script_buf);
-extern int script_parser_exit(void);
 extern int script_parser_fetch(char *main_name, char *sub_name, int value[], int count);
 extern int script_parser_fetch_ex(char *main_name, char *sub_name, int value[],
                script_parser_value_type_t *type, int count);
