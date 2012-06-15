@@ -90,6 +90,7 @@ struct mwifiex_uap_bss_param {
 	u16 key_mgmt;
 	u16 key_mgmt_operation;
 	struct wpa_param wpa_cfg;
+	struct ieee80211_ht_cap ht_cap;
 };
 
 enum {

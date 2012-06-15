@@ -118,6 +118,33 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 	return 0;
 }
 
+/* This function updates 11n related parameters from IE and sets them into
+ * bss_config structure.
+ */
+void
+mwifiex_set_ht_params(struct mwifiex_private *priv,
+		      struct mwifiex_uap_bss_param *bss_cfg,
+		      struct cfg80211_ap_settings *params)
+{
+	const u8 *ht_ie;
+
+	if (!ISSUPP_11NENABLED(priv->adapter->fw_cap_info))
+		return;
+
+	ht_ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, params->beacon.tail,
+				 params->beacon.tail_len);
+	if (ht_ie) {
+		memcpy(&bss_cfg->ht_cap, ht_ie + 2,
+		       sizeof(struct ieee80211_ht_cap));
+	} else {
+		memset(&bss_cfg->ht_cap , 0, sizeof(struct ieee80211_ht_cap));
+		bss_cfg->ht_cap.cap_info = cpu_to_le16(MWIFIEX_DEF_HT_CAP);
+		bss_cfg->ht_cap.ampdu_params_info = MWIFIEX_DEF_AMPDU;
+	}
+
+	return;
+}
+
 /* This function initializes some of mwifiex_uap_bss_param variables.
  * This helps FW in ignoring invalid values. These values may or may not
  * be get updated to valid ones at later stage.
@@ -154,6 +181,7 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	struct host_cmd_tlv_auth_type *auth_type;
 	struct host_cmd_tlv_passphrase *passphrase;
 	struct host_cmd_tlv_akmp *tlv_akmp;
+	struct mwifiex_ie_types_htcap *htcap;
 	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
 	u16 cmd_size = *param_size;
 
@@ -328,6 +356,25 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 		encrypt_protocol->proto = cpu_to_le16(bss_cfg->protocol);
 		cmd_size += sizeof(struct host_cmd_tlv_encrypt_protocol);
 		tlv += sizeof(struct host_cmd_tlv_encrypt_protocol);
+	}
+
+	if (bss_cfg->ht_cap.cap_info) {
+		htcap = (struct mwifiex_ie_types_htcap *)tlv;
+		htcap->header.type = cpu_to_le16(WLAN_EID_HT_CAPABILITY);
+		htcap->header.len =
+				cpu_to_le16(sizeof(struct ieee80211_ht_cap));
+		htcap->ht_cap.cap_info = bss_cfg->ht_cap.cap_info;
+		htcap->ht_cap.ampdu_params_info =
+					     bss_cfg->ht_cap.ampdu_params_info;
+		memcpy(&htcap->ht_cap.mcs, &bss_cfg->ht_cap.mcs,
+		       sizeof(struct ieee80211_mcs_info));
+		htcap->ht_cap.extended_ht_cap_info =
+					bss_cfg->ht_cap.extended_ht_cap_info;
+		htcap->ht_cap.tx_BF_cap_info = bss_cfg->ht_cap.tx_BF_cap_info;
+		htcap->ht_cap.antenna_selection_info =
+					bss_cfg->ht_cap.antenna_selection_info;
+		cmd_size += sizeof(struct mwifiex_ie_types_htcap);
+		tlv += sizeof(struct mwifiex_ie_types_htcap);
 	}
 
 	*param_size = cmd_size;
