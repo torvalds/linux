@@ -27,7 +27,7 @@
 
 /*
  * A few elements needed to fake a bus for this driver
- * Note instances parmeter controls how many of these
+ * Note instances parameter controls how many of these
  * dummy devices are registered.
  */
 static unsigned instances = 1;
@@ -178,7 +178,7 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		.scan_index = accelx,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
-			.realbits = 16, /* 12 bits */
+			.realbits = 16, /* 16 bits */
 			.storagebits = 16, /* 16 bits used for storage */
 			.shift = 0, /* zero shift */
 		},
@@ -285,9 +285,9 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
  * iio_dummy_write_raw() - data write function.
  * @indio_dev:	the struct iio_dev associated with this device instance
  * @chan:	the channel whose data is to be read
- * @val:	first element of returned value (typically INT)
- * @val2:	second element of returned value (typically MICRO)
- * @mask:	what we actually want to read. 0 is the channel, everything else
+ * @val:	first element of value to set (typically INT)
+ * @val2:	second element of value to set (typically MICRO)
+ * @mask:	what we actually want to write. 0 is the channel, everything else
  *		is as per the info_mask in iio_chan_spec.
  *
  * Note that all raw writes are assumed IIO_VAL_INT and info mask elements
