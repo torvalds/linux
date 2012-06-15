@@ -22,6 +22,11 @@
 		gpio4 = &gpio4;
 		saif0 = &saif0;
 		saif1 = &saif1;
+		serial0 = &auart0;
+		serial1 = &auart1;
+		serial2 = &auart2;
+		serial3 = &auart3;
+		serial4 = &auart4;
 	};
 
 	cpus {
@@ -182,6 +187,22 @@
 				gpmi_status_cfg: gpmi-status-cfg {
 					fsl,pinmux-ids = <0x0180 0x0190 0x01c0>;
 					fsl,drive-strength = <2>;
+				};
+
+				auart0_pins_a: auart0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x3000 0x3010 0x3020 0x3030>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart3_pins_a: auart3@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x30c0 0x30d0 0x30e0 0x30f0>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
 				};
 
 				mac0_pins_a: mac0@0 {
@@ -421,30 +442,35 @@
 			};
 
 			auart0: serial@8006a000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006a000 0x2000>;
 				interrupts = <112 70 71>;
 				status = "disabled";
 			};
 
 			auart1: serial@8006c000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006c000 0x2000>;
 				interrupts = <113 72 73>;
 				status = "disabled";
 			};
 
 			auart2: serial@8006e000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006e000 0x2000>;
 				interrupts = <114 74 75>;
 				status = "disabled";
 			};
 
 			auart3: serial@80070000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80070000 0x2000>;
 				interrupts = <115 76 77>;
 				status = "disabled";
 			};
 
 			auart4: serial@80072000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80072000 0x2000>;
 				interrupts = <116 78 79>;
 				status = "disabled";
