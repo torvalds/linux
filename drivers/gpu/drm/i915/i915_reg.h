@@ -3896,6 +3896,19 @@
 #define PCH_LVDS	0xe1180
 #define  LVDS_DETECTED	(1 << 1)
 
+/* vlv has 2 sets of panel control regs. */
+#define PIPEA_PP_STATUS         0x61200
+#define PIPEA_PP_CONTROL        0x61204
+#define PIPEA_PP_ON_DELAYS      0x61208
+#define PIPEA_PP_OFF_DELAYS     0x6120c
+#define PIPEA_PP_DIVISOR        0x61210
+
+#define PIPEB_PP_STATUS         0x61300
+#define PIPEB_PP_CONTROL        0x61304
+#define PIPEB_PP_ON_DELAYS      0x61308
+#define PIPEB_PP_OFF_DELAYS     0x6130c
+#define PIPEB_PP_DIVISOR        0x61310
+
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
 #define  PANEL_UNLOCK_REGS	(0xabcd << 16)
