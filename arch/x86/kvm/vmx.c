@@ -7290,23 +7290,21 @@ static int __init vmx_init(void)
 	if (!vmx_io_bitmap_a)
 		return -ENOMEM;
 
+	r = -ENOMEM;
+
 	vmx_io_bitmap_b = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_io_bitmap_b) {
-		r = -ENOMEM;
+	if (!vmx_io_bitmap_b)
 		goto out;
-	}
 
 	vmx_msr_bitmap_legacy = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_legacy) {
-		r = -ENOMEM;
+	if (!vmx_msr_bitmap_legacy)
 		goto out1;
-	}
+
 
 	vmx_msr_bitmap_longmode = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_longmode) {
-		r = -ENOMEM;
+	if (!vmx_msr_bitmap_longmode)
 		goto out2;
-	}
+
 
 	/*
 	 * Allow direct access to the PC debug port (it is often used for I/O
