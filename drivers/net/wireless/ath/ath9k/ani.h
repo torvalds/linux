@@ -128,7 +128,6 @@ struct ar5416AniState {
 	u32 listenTime;
 	int32_t rssiThrLow;
 	int32_t rssiThrHigh;
-	u32 noiseFloor;
 	u32 ofdmPhyErrCount;
 	u32 cckPhyErrCount;
 	int16_t pktRssi[2];
