@@ -265,6 +265,7 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel)
 	struct ath_common *common = ath9k_hw_common(ah);
 	const struct ani_ofdm_level_entry *entry_ofdm;
 	const struct ani_cck_level_entry *entry_cck;
+	bool weak_sig;
 
 	ath_dbg(common, ANI, "**** ofdmlevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
 		aniState->ofdmNoiseImmunityLevel,
@@ -290,13 +291,15 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel)
 				     ATH9K_ANI_FIRSTEP_LEVEL,
 				     entry_ofdm->fir_step_level);
 
-	if (BEACON_RSSI(ah) >= aniState->rssiThrHigh &&
-	    (!aniState->ofdmWeakSigDetectOff !=
-	     entry_ofdm->ofdm_weak_signal_on)) {
+	weak_sig = entry_ofdm->ofdm_weak_signal_on;
+	if (ah->opmode == NL80211_IFTYPE_STATION &&
+	    BEACON_RSSI(ah) <= aniState->rssiThrHigh)
+		weak_sig = true;
+
+	if (!aniState->ofdmWeakSigDetectOff != weak_sig)
 			ath9k_hw_ani_control(ah,
 				ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				entry_ofdm->ofdm_weak_signal_on);
-	}
 }
 
 static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
