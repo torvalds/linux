@@ -1401,11 +1401,9 @@ static int simple_playback_build_controls(struct hda_codec *codec)
 						    spec->cvts[i].cvt_nid);
 		if (err < 0)
 			return err;
-		if (codec->patch_ops.unsol_event) {
-			err = simple_hdmi_build_jack(codec, i);
-			if (err < 0)
-				return err;
-		}
+		err = simple_hdmi_build_jack(codec, i);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -1589,6 +1587,7 @@ static const struct hda_codec_ops simple_hdmi_patch_ops = {
 	.build_pcms = simple_playback_build_pcms,
 	.init = simple_playback_init,
 	.free = simple_playback_free,
+	.unsol_event = simple_hdmi_unsol_event,
 };
 
 static int patch_simple_hdmi(struct hda_codec *codec,
@@ -1875,11 +1874,7 @@ static int patch_atihdmi(struct hda_codec *codec)
 
 static int patch_via_hdmi(struct hda_codec *codec)
 {
-	int err = patch_simple_hdmi(codec, VIAHDMI_CVT_NID, VIAHDMI_PIN_NID);
-	if (err < 0)
-		return err;
-	codec->patch_ops.unsol_event = simple_hdmi_unsol_event;
-	return 0;
+	return patch_simple_hdmi(codec, VIAHDMI_CVT_NID, VIAHDMI_PIN_NID);
 }
 
 /*
