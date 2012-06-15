@@ -100,9 +100,6 @@ struct dvb_usb_adapter_properties {
 	int (*pid_filter_ctrl) (struct dvb_usb_adapter *, int);
 	int (*pid_filter) (struct dvb_usb_adapter *, int, u16, int);
 
-	int (*fe_ioctl_override) (struct dvb_frontend *,
-			unsigned int, void *, unsigned int);
-
 	struct usb_data_stream_properties stream;
 };
 
@@ -189,6 +186,8 @@ struct dvb_usb_device_properties {
 	int (*tuner_attach) (struct dvb_usb_adapter *);
 	int (*frontend_ctrl) (struct dvb_frontend *, int);
 	int (*streaming_ctrl) (struct dvb_usb_adapter *, int);
+	int (*fe_ioctl_override) (struct dvb_frontend *,
+			unsigned int, void *, unsigned int);
 
 #define WARM                  0
 #define COLD                  1
