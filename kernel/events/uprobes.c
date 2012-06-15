@@ -641,10 +641,10 @@ static int copy_insn(struct uprobe *uprobe, struct file *filp)
 
 	/* Instruction at the page-boundary; copy bytes in second page */
 	if (nbytes < bytes) {
-		if (__copy_insn(mapping, filp, uprobe->arch.insn + nbytes,
-				bytes - nbytes, uprobe->offset + nbytes))
-			return -ENOMEM;
-
+		int err = __copy_insn(mapping, filp, uprobe->arch.insn + nbytes,
+				bytes - nbytes, uprobe->offset + nbytes);
+		if (err)
+			return err;
 		bytes = nbytes;
 	}
 	return __copy_insn(mapping, filp, uprobe->arch.insn, bytes, uprobe->offset);
