@@ -26,6 +26,7 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			      struct mwifiex_uap_bss_param *bss_config,
 			      struct cfg80211_ap_settings *params) {
 	int i;
+	struct mwifiex_wep_key wep_key;
 
 	if (!params->privacy) {
 		bss_config->protocol = PROTOCOL_NO_SECURITY;
@@ -104,6 +105,27 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 	switch (params->crypto.cipher_group) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
+		if (priv->sec_info.wep_enabled) {
+			bss_config->protocol = PROTOCOL_STATIC_WEP;
+			bss_config->key_mgmt = KEY_MGMT_NONE;
+			bss_config->wpa_cfg.length = 0;
+
+			for (i = 0; i < NUM_WEP_KEYS; i++) {
+				wep_key = priv->wep_key[i];
+				bss_config->wep_cfg[i].key_index = i;
+
+				if (priv->wep_key_curr_index == i)
+					bss_config->wep_cfg[i].is_default = 1;
+				else
+					bss_config->wep_cfg[i].is_default = 0;
+
+				bss_config->wep_cfg[i].length =
+							     wep_key.key_length;
+				memcpy(&bss_config->wep_cfg[i].key,
+				       &wep_key.key_material,
+				       wep_key.key_length);
+			}
+		}
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		bss_config->wpa_cfg.group_cipher = CIPHER_TKIP;
@@ -238,6 +260,44 @@ mwifiex_uap_bss_wpa(u8 **tlv_buf, void *cmd_buf, u16 *param_size)
 }
 
 /* This function parses BSS related parameters from structure
+ * and prepares TLVs specific to WEP encryption.
+ * These TLVs are appended to command buffer.
+ */
+static void
+mwifiex_uap_bss_wep(u8 **tlv_buf, void *cmd_buf, u16 *param_size)
+{
+	struct host_cmd_tlv_wep_key *wep_key;
+	u16 cmd_size = *param_size;
+	int i;
+	u8 *tlv = *tlv_buf;
+	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
+
+	for (i = 0; i < NUM_WEP_KEYS; i++) {
+		if (bss_cfg->wep_cfg[i].length &&
+		    (bss_cfg->wep_cfg[i].length == WLAN_KEY_LEN_WEP40 ||
+		     bss_cfg->wep_cfg[i].length == WLAN_KEY_LEN_WEP104)) {
+			wep_key = (struct host_cmd_tlv_wep_key *)tlv;
+			wep_key->tlv.type = cpu_to_le16(TLV_TYPE_UAP_WEP_KEY);
+			wep_key->tlv.len =
+				cpu_to_le16(bss_cfg->wep_cfg[i].length + 2);
+			wep_key->key_index = bss_cfg->wep_cfg[i].key_index;
+			wep_key->is_default = bss_cfg->wep_cfg[i].is_default;
+			memcpy(wep_key->key, bss_cfg->wep_cfg[i].key,
+			       bss_cfg->wep_cfg[i].length);
+			cmd_size += sizeof(struct host_cmd_tlv) + 2 +
+				    bss_cfg->wep_cfg[i].length;
+			tlv += sizeof(struct host_cmd_tlv) + 2 +
+				    bss_cfg->wep_cfg[i].length;
+		}
+	}
+
+	*param_size = cmd_size;
+	*tlv_buf = tlv;
+
+	return;
+}
+
+/* This function parses BSS related parameters from structure
  * and prepares TLVs. These TLVs are appended to command buffer.
 */
 static int
@@ -345,6 +405,8 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	    (bss_cfg->protocol & PROTOCOL_WPA2) ||
 	    (bss_cfg->protocol & PROTOCOL_EAP))
 		mwifiex_uap_bss_wpa(&tlv, cmd_buf, &cmd_size);
+	else
+		mwifiex_uap_bss_wep(&tlv, cmd_buf, &cmd_size);
 
 	if ((bss_cfg->auth_mode <= WLAN_AUTH_SHARED_KEY) ||
 	    (bss_cfg->auth_mode == MWIFIEX_AUTH_MODE_AUTO)) {
