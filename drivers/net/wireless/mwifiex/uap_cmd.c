@@ -66,7 +66,7 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			}
 			if (params->crypto.wpa_versions &
 			    NL80211_WPA_VERSION_2) {
-				bss_config->protocol = PROTOCOL_WPA2;
+				bss_config->protocol |= PROTOCOL_WPA2;
 				bss_config->key_mgmt = KEY_MGMT_EAP;
 			}
 			break;
@@ -78,7 +78,7 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			}
 			if (params->crypto.wpa_versions &
 			    NL80211_WPA_VERSION_2) {
-				bss_config->protocol = PROTOCOL_WPA2;
+				bss_config->protocol |= PROTOCOL_WPA2;
 				bss_config->key_mgmt = KEY_MGMT_PSK;
 			}
 			break;
@@ -92,10 +92,19 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 		case WLAN_CIPHER_SUITE_WEP104:
 			break;
 		case WLAN_CIPHER_SUITE_TKIP:
-			bss_config->wpa_cfg.pairwise_cipher_wpa = CIPHER_TKIP;
+			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_1)
+				bss_config->wpa_cfg.pairwise_cipher_wpa |=
+								CIPHER_TKIP;
+			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_2)
+				bss_config->wpa_cfg.pairwise_cipher_wpa2 |=
+								CIPHER_TKIP;
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
-			bss_config->wpa_cfg.pairwise_cipher_wpa2 =
+			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_1)
+				bss_config->wpa_cfg.pairwise_cipher_wpa |=
+								CIPHER_AES_CCMP;
+			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_2)
+				bss_config->wpa_cfg.pairwise_cipher_wpa2 |=
 								CIPHER_AES_CCMP;
 		default:
 			break;
