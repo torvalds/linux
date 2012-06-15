@@ -324,12 +324,6 @@ struct dvb_usb_device {
 	struct work_struct probe_work;
 	pid_t work_pid;
 	struct usb_interface *intf;
-
-#define DVB_USB_STATE_INIT        0x000
-#define DVB_USB_STATE_I2C         0x001
-#define DVB_USB_STATE_DVB         0x002
-	int state;
-
 	int powered;
 
 	/* locking */

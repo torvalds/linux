@@ -72,25 +72,23 @@ static int dvb_usbv2_i2c_init(struct dvb_usb_device *d)
 {
 	int ret;
 
-	if (!d->props->i2c_algo) {
-		ret = 0;
-		goto err;
-	}
+	pr_debug("%s:\n", __func__);
+
+	if (!d->props->i2c_algo)
+		return 0;
 
 	strlcpy(d->i2c_adap.name, d->name, sizeof(d->i2c_adap.name));
 	d->i2c_adap.algo = d->props->i2c_algo;
-	d->i2c_adap.algo_data = NULL;
 	d->i2c_adap.dev.parent = &d->udev->dev;
-
 	i2c_set_adapdata(&d->i2c_adap, d);
 
 	ret = i2c_add_adapter(&d->i2c_adap);
 	if (ret < 0) {
-		pr_err("%s: i2c_add_adapter() failed\n", KBUILD_MODNAME);
+		d->i2c_adap.algo = NULL;
+		pr_err("%s: i2c_add_adapter() failed=%d\n", KBUILD_MODNAME,
+				ret);
 		goto err;
 	}
-
-	d->state |= DVB_USB_STATE_I2C;
 
 	return 0;
 err:
@@ -100,10 +98,10 @@ err:
 
 static int dvb_usbv2_i2c_exit(struct dvb_usb_device *d)
 {
-	if (d->state & DVB_USB_STATE_I2C)
-		i2c_del_adapter(&d->i2c_adap);
+	pr_debug("%s:\n", __func__);
 
-	d->state &= ~DVB_USB_STATE_I2C;
+	if (d->i2c_adap.algo)
+		i2c_del_adapter(&d->i2c_adap);
 
 	return 0;
 }
@@ -282,7 +280,6 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 			adap->dvb_adap.mfe_shared = 1;
 
 		d->num_adapters_initialized++;
-		d->state |= DVB_USB_STATE_DVB;
 	}
 
 	return 0;
@@ -304,7 +301,6 @@ static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 	}
 
 	d->num_adapters_initialized = 0;
-	d->state &= ~DVB_USB_STATE_DVB;
 
 	return 0;
 }
@@ -312,12 +308,11 @@ static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 /* general initialization functions */
 static int dvb_usbv2_exit(struct dvb_usb_device *d)
 {
-	pr_debug("%s: state before exiting everything: %x\n", __func__, d->state);
+	pr_debug("%s:\n", __func__);
+
 	dvb_usbv2_remote_exit(d);
 	dvb_usbv2_adapter_exit(d);
 	dvb_usbv2_i2c_exit(d);
-	pr_debug("%s: state should be zero now: %x\n", __func__, d->state);
-	d->state = DVB_USB_STATE_INIT;
 	kfree(d->priv);
 	kfree(d);
 
@@ -328,9 +323,6 @@ static int dvb_usbv2_init(struct dvb_usb_device *d)
 {
 	int ret = 0;
 
-	d->state = DVB_USB_STATE_INIT;
-
-	/* check the capabilities and set appropriate variables */
 	dvb_usbv2_device_power_ctrl(d, 1);
 
 	if (d->props->read_config) {
