@@ -41,6 +41,8 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <linux/capability.h>
+#include <linux/poll.h>
+#include <linux/sched.h>
 
 #include <xen/interface/xen.h>
 #include <xen/events.h>
@@ -66,6 +68,8 @@ static struct xen_mce_log xen_mcelog = {
 static DEFINE_SPINLOCK(xen_mce_chrdev_state_lock);
 static int xen_mce_chrdev_open_count;	/* #times opened */
 static int xen_mce_chrdev_open_exclu;	/* already open exclusive? */
+
+static DECLARE_WAIT_QUEUE_HEAD(xen_mce_chrdev_wait);
 
 static int xen_mce_chrdev_open(struct inode *inode, struct file *file)
 {
@@ -135,6 +139,16 @@ out:
 	return err ? err : buf - ubuf;
 }
 
+static unsigned int xen_mce_chrdev_poll(struct file *file, poll_table *wait)
+{
+	poll_wait(file, &xen_mce_chrdev_wait, wait);
+
+	if (xen_mcelog.next)
+		return POLLIN | POLLRDNORM;
+
+	return 0;
+}
+
 static long xen_mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 				unsigned long arg)
 {
@@ -166,6 +180,7 @@ static const struct file_operations xen_mce_chrdev_ops = {
 	.open			= xen_mce_chrdev_open,
 	.release		= xen_mce_chrdev_release,
 	.read			= xen_mce_chrdev_read,
+	.poll			= xen_mce_chrdev_poll,
 	.unlocked_ioctl		= xen_mce_chrdev_ioctl,
 	.llseek			= no_llseek,
 };
@@ -328,6 +343,9 @@ static void xen_mce_work_fn(struct work_struct *work)
 	if (err)
 		pr_err(XEN_MCELOG
 		       "Failed to handle nonurgent mc_info queue.\n");
+
+	/* wake processes polling /dev/mcelog */
+	wake_up_interruptible(&xen_mce_chrdev_wait);
 
 	mutex_unlock(&mcelog_lock);
 }
