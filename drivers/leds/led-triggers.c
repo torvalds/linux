@@ -230,7 +230,7 @@ void led_trigger_event(struct led_trigger *trig,
 }
 EXPORT_SYMBOL_GPL(led_trigger_event);
 
-void led_trigger_blink_setup(struct led_trigger *trig,
+static void led_trigger_blink_setup(struct led_trigger *trig,
 			     unsigned long *delay_on,
 			     unsigned long *delay_off,
 			     int oneshot,
