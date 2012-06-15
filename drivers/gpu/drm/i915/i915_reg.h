@@ -3865,7 +3865,6 @@
 #define  ADPA_CRT_HOTPLUG_FORCE_TRIGGER (1<<16)
 
 /* or SDVOB */
-#define VLV_HDMIB 0x61140
 #define HDMIB   0xe1140
 #define  PORT_ENABLE    (1 << 31)
 #define  TRANSCODER(pipe)       ((pipe) << 30)
