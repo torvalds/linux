@@ -293,8 +293,8 @@ static int sensor_irq_init(struct i2c_client *client)
 	
 		gpio_pull_updown(client->irq, PullEnable);
 		irq = gpio_to_irq(client->irq);
-		//result = request_irq(irq, sensor_interrupt, sensor->ops->trig, client->dev.driver->name, sensor);
-		result = request_threaded_irq(irq, NULL, sensor_interrupt, sensor->ops->trig, client->dev.driver->name, sensor);
+		//result = request_irq(irq, sensor_interrupt, sensor->ops->trig, sensor->ops->name, sensor);
+		result = request_threaded_irq(irq, NULL, sensor_interrupt, sensor->ops->trig, sensor->ops->name, sensor);
 		if (result) {
 			printk(KERN_ERR "%s:fail to request irq = %d, ret = 0x%x\n",__func__, irq, result);	       
 			goto error;	       
@@ -1284,9 +1284,11 @@ static const struct i2c_device_id sensor_id[] = {
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},	
 	{"light_al3006", LIGHT_ID_AL3006},
+	{"ls_stk3171", LIGHT_ID_STK3171},
 	/*proximity sensor*/
 	{"psensor", PROXIMITY_ID_ALL},
 	{"proximity_al3006", PROXIMITY_ID_AL3006},	
+	{"ps_stk3171", PROXIMITY_ID_STK3171},
 	/*temperature*/
 	{"temperature", TEMPERATURE_ID_ALL},
 	{},

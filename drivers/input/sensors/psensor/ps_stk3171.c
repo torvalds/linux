@@ -62,8 +62,8 @@
 #define ALS_2T_200MS	(1<<2)
 #define ALS_4T_400MS	(2<<2)
 #define ALS_8T_800MS	(3<<2)
-#define ALS_RANGE_57671	(0<<5)
-#define ALS_RANGE_28836	(1<<5)
+#define ALS_RANGE_57671	(0<<6)
+#define ALS_RANGE_28836	(1<<6)
 
 //PS_CMD
 #define PS_SD_ENABLE	(0<<0)
@@ -74,18 +74,18 @@
 #define PS_15T_3MS	(1<<2)
 #define PS_20T_4MS	(2<<2)
 #define PS_25T_5MS	(3<<2)
-#define PS_CUR_100MA	(0<<3)
-#define PS_CUR_200MA	(1<<3)
-#define PS_SLP_10MS	(0<<4)
-#define PS_SLP_30MS	(1<<4)
-#define PS_SLP_90MS	(2<<4)
-#define PS_SLP_270MS	(3<<4)
-#define TRIG_PS_OR_LS	(0<<5)
-#define TRIG_PS_AND_LS	(1<<5)
+#define PS_CUR_100MA	(0<<4)
+#define PS_CUR_200MA	(1<<4)
+#define PS_SLP_10MS	(0<<5)
+#define PS_SLP_30MS	(1<<5)
+#define PS_SLP_90MS	(2<<5)
+#define PS_SLP_270MS	(3<<5)
+#define TRIG_PS_OR_LS	(0<<7)
+#define TRIG_PS_AND_LS	(1<<7)
 
 //STA_TUS
-#define STA_PS_INT	(1<<4)
-#define	STA_ALS_INT	(1<<3)
+#define STA_PS_INT	(1<<5)
+#define	STA_ALS_INT	(1<<4)
 
 
 /****************operate according to sensor chip:start************/
@@ -116,6 +116,9 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	if(result)
 		printk("%s:fail to active sensor\n",__func__);
 
+	if(enable)
+	sensor->ops->report(sensor->client);
+
 	return result;
 
 }
@@ -144,7 +147,8 @@ static int sensor_init(struct i2c_client *client)
 	}
 
 
-	sensor->ops->ctrl_data |= (PS_15T_3MS| PS_SLP_90MS | TRIG_PS_OR_LS);
+	sensor->ops->ctrl_data |= PS_15T_3MS| PS_SLP_90MS;
+	sensor->ops->ctrl_data &= ~TRIG_PS_AND_LS;
 
 	if(sensor->pdata->irq_enable)
 		sensor->ops->ctrl_data |= PS_INT_ENABLE;
@@ -179,17 +183,20 @@ static int sensor_report_value(struct i2c_client *client)
 	
 	memset(buffer, 0, 1);
 
-	result = sensor_rx_data(client, buffer, sensor->ops->read_len);
+	buffer[0] = sensor->ops->read_reg;
+	result = sensor_rx_data(client, buffer, sensor->ops->read_len);	
+	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
 
+
 	value = buffer[0];
 	
-	input_report_abs(sensor->input_dev, ABS_DISTANCE, value?0:1);
+	input_report_abs(sensor->input_dev, ABS_DISTANCE, (value>>2)?0:1);
 	input_sync(sensor->input_dev);
-	DBG("%s:%s result=0x%x,index=%d\n",__func__,sensor->ops->name, value,value?0:1);		
+	DBG("%s:%s result=0x%x,index=%d\n",__func__,sensor->ops->name, value,(value>>2)?0:1);		
 	
 	if(sensor->pdata->irq_enable)
 	{
