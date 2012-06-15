@@ -177,6 +177,8 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 		return -EOPNOTSUPP;
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+		if (!wdev->netdev)
+			continue;
 		wdev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
 		err = dev_change_net_namespace(wdev->netdev, net, "wlan%d");
 		if (err)
@@ -190,6 +192,8 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 
 		list_for_each_entry_continue_reverse(wdev, &rdev->wdev_list,
 						     list) {
+			if (!wdev->netdev)
+				continue;
 			wdev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
 			err = dev_change_net_namespace(wdev->netdev, net,
 							"wlan%d");
@@ -227,7 +231,8 @@ static int cfg80211_rfkill_set_block(void *data, bool blocked)
 	mutex_lock(&rdev->devlist_mtx);
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list)
-		dev_close(wdev->netdev);
+		if (wdev->netdev)
+			dev_close(wdev->netdev);
 
 	mutex_unlock(&rdev->devlist_mtx);
 	rtnl_unlock();
