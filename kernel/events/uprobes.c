@@ -1392,7 +1392,6 @@ static struct uprobe_task *add_utask(void)
 	if (unlikely(!utask))
 		return NULL;
 
-	utask->active_uprobe = NULL;
 	current->utask = utask;
 	return utask;
 }
