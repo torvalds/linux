@@ -372,7 +372,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid);
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev,
+			  struct wireless_dev *wdev,
 			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,

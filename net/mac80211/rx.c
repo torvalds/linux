@@ -2404,7 +2404,7 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 	if (rx->local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		sig = status->signal;
 
-	if (cfg80211_rx_mgmt(rx->sdata->dev, status->freq, sig,
+	if (cfg80211_rx_mgmt(&rx->sdata->wdev, status->freq, sig,
 			     rx->skb->data, rx->skb->len,
 			     GFP_ATOMIC)) {
 		if (rx->sta)

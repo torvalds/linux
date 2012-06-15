@@ -1753,23 +1753,23 @@ struct cfg80211_ops {
 	int	(*flush_pmksa)(struct wiphy *wiphy, struct net_device *netdev);
 
 	int	(*remain_on_channel)(struct wiphy *wiphy,
-				     struct net_device *dev,
+				     struct wireless_dev *wdev,
 				     struct ieee80211_channel *chan,
 				     enum nl80211_channel_type channel_type,
 				     unsigned int duration,
 				     u64 *cookie);
 	int	(*cancel_remain_on_channel)(struct wiphy *wiphy,
-					    struct net_device *dev,
+					    struct wireless_dev *wdev,
 					    u64 cookie);
 
-	int	(*mgmt_tx)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*mgmt_tx)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, bool no_cck,
 			  bool dont_wait_for_ack, u64 *cookie);
 	int	(*mgmt_tx_cancel_wait)(struct wiphy *wiphy,
-				       struct net_device *dev,
+				       struct wireless_dev *wdev,
 				       u64 cookie);
 
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,
@@ -1780,7 +1780,7 @@ struct cfg80211_ops {
 				       s32 rssi_thold, u32 rssi_hyst);
 
 	void	(*mgmt_frame_register)(struct wiphy *wiphy,
-				       struct net_device *dev,
+				       struct wireless_dev *wdev,
 				       u16 frame_type, bool reg);
 
 	int	(*set_antenna)(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant);
@@ -3279,7 +3279,7 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
 
 /**
  * cfg80211_ready_on_channel - notification of remain_on_channel start
- * @dev: network device
+ * @wdev: wireless device
  * @cookie: the request cookie
  * @chan: The current channel (from remain_on_channel request)
  * @channel_type: Channel type
@@ -3287,21 +3287,20 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
  *	channel
  * @gfp: allocation flags
  */
-void cfg80211_ready_on_channel(struct net_device *dev, u64 cookie,
+void cfg80211_ready_on_channel(struct wireless_dev *wdev, u64 cookie,
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type channel_type,
 			       unsigned int duration, gfp_t gfp);
 
 /**
  * cfg80211_remain_on_channel_expired - remain_on_channel duration expired
- * @dev: network device
+ * @wdev: wireless device
  * @cookie: the request cookie
  * @chan: The current channel (from remain_on_channel request)
  * @channel_type: Channel type
  * @gfp: allocation flags
  */
-void cfg80211_remain_on_channel_expired(struct net_device *dev,
-					u64 cookie,
+void cfg80211_remain_on_channel_expired(struct wireless_dev *wdev, u64 cookie,
 					struct ieee80211_channel *chan,
 					enum nl80211_channel_type channel_type,
 					gfp_t gfp);
@@ -3329,7 +3328,7 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
 
 /**
  * cfg80211_rx_mgmt - notification of received, unprocessed management frame
- * @dev: network device
+ * @wdev: wireless device receiving the frame
  * @freq: Frequency on which the frame was received in MHz
  * @sig_dbm: signal strength in mBm, or 0 if unknown
  * @buf: Management frame (header + body)
@@ -3344,12 +3343,12 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
  * This function is called whenever an Action frame is received for a station
  * mode interface, but is not processed in kernel.
  */
-bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_dbm,
+bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
 		      const u8 *buf, size_t len, gfp_t gfp);
 
 /**
  * cfg80211_mgmt_tx_status - notification of TX status for management frame
- * @dev: network device
+ * @wdev: wireless device receiving the frame
  * @cookie: Cookie returned by cfg80211_ops::mgmt_tx()
  * @buf: Management frame (header + body)
  * @len: length of the frame data
@@ -3360,7 +3359,7 @@ bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_dbm,
  * transmitted with cfg80211_ops::mgmt_tx() to report the TX status of the
  * transmission attempt.
  */
-void cfg80211_mgmt_tx_status(struct net_device *dev, u64 cookie,
+void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 			     const u8 *buf, size_t len, bool ack, gfp_t gfp);
 
 

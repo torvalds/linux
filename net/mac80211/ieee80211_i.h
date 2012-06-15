@@ -1091,6 +1091,12 @@ IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
 	return netdev_priv(dev);
 }
 
+static inline struct ieee80211_sub_if_data *
+IEEE80211_WDEV_TO_SUB_IF(struct wireless_dev *wdev)
+{
+	return container_of(wdev, struct ieee80211_sub_if_data, wdev);
+}
+
 /* this struct represents 802.11n's RA/TID combination */
 struct ieee80211_ra_tid {
 	u8 ra[ETH_ALEN];

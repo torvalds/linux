@@ -2975,14 +2975,14 @@ static int ath6kl_change_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ath6kl_remain_on_channel(struct wiphy *wiphy,
-				    struct net_device *dev,
+				    struct wireless_dev *wdev,
 				    struct ieee80211_channel *chan,
 				    enum nl80211_channel_type channel_type,
 				    unsigned int duration,
 				    u64 *cookie)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
+	struct ath6kl *ar = ath6kl_priv(vif->ndev);
 	u32 id;
 
 	/* TODO: if already pending or ongoing remain-on-channel,
@@ -2999,11 +2999,11 @@ static int ath6kl_remain_on_channel(struct wiphy *wiphy,
 }
 
 static int ath6kl_cancel_remain_on_channel(struct wiphy *wiphy,
-					   struct net_device *dev,
+					   struct wireless_dev *wdev,
 					   u64 cookie)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
+	struct ath6kl *ar = ath6kl_priv(vif->ndev);
 
 	if (cookie != vif->last_roc_id)
 		return -ENOENT;
@@ -3134,15 +3134,15 @@ static bool ath6kl_is_p2p_go_ssid(const u8 *buf, size_t len)
 	return false;
 }
 
-static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
+static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, bool no_cck,
 			  bool dont_wait_for_ack, u64 *cookie)
 {
-	struct ath6kl *ar = ath6kl_priv(dev);
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
+	struct ath6kl *ar = ath6kl_priv(vif->ndev);
 	u32 id;
 	const struct ieee80211_mgmt *mgmt;
 	bool more_data, queued;
@@ -3187,10 +3187,10 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
-				       struct net_device *dev,
+				       struct wireless_dev *wdev,
 				       u16 frame_type, bool reg)
 {
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: frame_type=0x%x reg=%d\n",
 		   __func__, frame_type, reg);

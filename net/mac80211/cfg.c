@@ -2299,13 +2299,13 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 }
 
 static int ieee80211_remain_on_channel(struct wiphy *wiphy,
-				       struct net_device *dev,
+				       struct wireless_dev *wdev,
 				       struct ieee80211_channel *chan,
 				       enum nl80211_channel_type channel_type,
 				       unsigned int duration,
 				       u64 *cookie)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
 	int ret;
 
@@ -2392,23 +2392,23 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 }
 
 static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
-					      struct net_device *dev,
+					      struct wireless_dev *wdev,
 					      u64 cookie)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
 
 	return ieee80211_cancel_roc(local, cookie, false);
 }
 
-static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
+static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     struct ieee80211_channel *chan, bool offchan,
 			     enum nl80211_channel_type channel_type,
 			     bool channel_type_valid, unsigned int wait,
 			     const u8 *buf, size_t len, bool no_cck,
 			     bool dont_wait_for_ack, u64 *cookie)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct sta_info *sta;
@@ -2513,21 +2513,20 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
-					 struct net_device *dev,
+					 struct wireless_dev *wdev,
 					 u64 cookie)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_local *local = wiphy_priv(wiphy);
 
 	return ieee80211_cancel_roc(local, cookie, true);
 }
 
 static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
-					  struct net_device *dev,
+					  struct wireless_dev *wdev,
 					  u16 frame_type, bool reg)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
 	switch (frame_type) {
 	case IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_AUTH:
