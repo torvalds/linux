@@ -37,7 +37,7 @@ TRACE_EVENT(kvm_userspace_exit,
 		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
 );
 
-#if defined(__KVM_HAVE_IOAPIC)
+#if defined(__KVM_HAVE_IRQ_LINE)
 TRACE_EVENT(kvm_set_irq,
 	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
 	TP_ARGS(gsi, level, irq_source_id),
@@ -57,7 +57,9 @@ TRACE_EVENT(kvm_set_irq,
 	TP_printk("gsi %u level %d source %d",
 		  __entry->gsi, __entry->level, __entry->irq_source_id)
 );
+#endif
 
+#if defined(__KVM_HAVE_IOAPIC)
 #define kvm_deliver_mode		\
 	{0x0, "Fixed"},			\
 	{0x1, "LowPrio"},		\
