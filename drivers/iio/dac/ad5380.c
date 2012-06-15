@@ -373,7 +373,7 @@ static int __devinit ad5380_probe(struct device *dev, struct regmap *regmap,
 	if (indio_dev == NULL) {
 		dev_err(dev, "Failed to allocate iio device\n");
 		ret = -ENOMEM;
-		goto error_regmap_exit;
+		goto error_out;
 	}
 
 	st = iio_priv(indio_dev);
@@ -436,8 +436,7 @@ error_free_reg:
 	kfree(indio_dev->channels);
 error_free:
 	iio_device_free(indio_dev);
-error_regmap_exit:
-	regmap_exit(regmap);
+error_out:
 
 	return ret;
 }
@@ -456,7 +455,6 @@ static int __devexit ad5380_remove(struct device *dev)
 		regulator_put(st->vref_reg);
 	}
 
-	regmap_exit(st->regmap);
 	iio_device_free(indio_dev);
 
 	return 0;
@@ -485,7 +483,7 @@ static int __devinit ad5380_spi_probe(struct spi_device *spi)
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct regmap *regmap;
 
-	regmap = regmap_init_spi(spi, &ad5380_regmap_config);
+	regmap = devm_regmap_init_spi(spi, &ad5380_regmap_config);
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
@@ -559,7 +557,7 @@ static int __devinit ad5380_i2c_probe(struct i2c_client *i2c,
 {
 	struct regmap *regmap;
 
-	regmap = regmap_init_i2c(i2c, &ad5380_regmap_config);
+	regmap = devm_regmap_init_i2c(i2c, &ad5380_regmap_config);
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
