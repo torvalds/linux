@@ -1049,7 +1049,10 @@ static void ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 	struct rt6_info *rt6 = (struct rt6_info*)dst;
 
+	dst_confirm(dst);
 	if (mtu < dst_mtu(dst) && rt6->rt6i_dst.plen == 128) {
+		struct net *net = dev_net(dst->dev);
+
 		rt6->rt6i_flags |= RTF_MODIFIED;
 		if (mtu < IPV6_MIN_MTU) {
 			u32 features = dst_metric(dst, RTAX_FEATURES);
@@ -1058,8 +1061,38 @@ static void ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 			dst_metric_set(dst, RTAX_FEATURES, features);
 		}
 		dst_metric_set(dst, RTAX_MTU, mtu);
+		rt6_update_expires(rt6, net->ipv6.sysctl.ip6_rt_mtu_expires);
 	}
 }
+
+void ip6_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
+		     int oif, __be32 mark)
+{
+	const struct ipv6hdr *iph = (struct ipv6hdr *) skb->data;
+	struct dst_entry *dst;
+	struct flowi6 fl6;
+
+	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_oif = oif;
+	fl6.flowi6_mark = mark;
+	fl6.flowi6_flags = FLOWI_FLAG_PRECOW_METRICS;
+	fl6.daddr = iph->daddr;
+	fl6.saddr = iph->saddr;
+	fl6.flowlabel = (*(__be32 *) iph) & IPV6_FLOWINFO_MASK;
+
+	dst = ip6_route_output(net, NULL, &fl6);
+	if (!dst->error)
+		ip6_rt_update_pmtu(dst, ntohl(mtu));
+	dst_release(dst);
+}
+EXPORT_SYMBOL_GPL(ip6_update_pmtu);
+
+void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu)
+{
+	ip6_update_pmtu(skb, sock_net(sk), mtu,
+			sk->sk_bound_dev_if, sk->sk_mark);
+}
+EXPORT_SYMBOL_GPL(ip6_sk_update_pmtu);
 
 static unsigned int ip6_default_advmss(const struct dst_entry *dst)
 {
@@ -1701,116 +1734,6 @@ void rt6_redirect(const struct in6_addr *dest, const struct in6_addr *src,
 
 out:
 	dst_release(&rt->dst);
-}
-
-/*
- *	Handle ICMP "packet too big" messages
- *	i.e. Path MTU discovery
- */
-
-static void rt6_do_pmtu_disc(const struct in6_addr *daddr, const struct in6_addr *saddr,
-			     struct net *net, u32 pmtu, int ifindex)
-{
-	struct rt6_info *rt, *nrt;
-	int allfrag = 0;
-again:
-	rt = rt6_lookup(net, daddr, saddr, ifindex, 0);
-	if (!rt)
-		return;
-
-	if (rt6_check_expired(rt)) {
-		ip6_del_rt(rt);
-		goto again;
-	}
-
-	if (pmtu >= dst_mtu(&rt->dst))
-		goto out;
-
-	if (pmtu < IPV6_MIN_MTU) {
-		/*
-		 * According to RFC2460, PMTU is set to the IPv6 Minimum Link
-		 * MTU (1280) and a fragment header should always be included
-		 * after a node receiving Too Big message reporting PMTU is
-		 * less than the IPv6 Minimum Link MTU.
-		 */
-		pmtu = IPV6_MIN_MTU;
-		allfrag = 1;
-	}
-
-	/* New mtu received -> path was valid.
-	   They are sent only in response to data packets,
-	   so that this nexthop apparently is reachable. --ANK
-	 */
-	dst_confirm(&rt->dst);
-
-	/* Host route. If it is static, it would be better
-	   not to override it, but add new one, so that
-	   when cache entry will expire old pmtu
-	   would return automatically.
-	 */
-	if (rt->rt6i_flags & RTF_CACHE) {
-		dst_metric_set(&rt->dst, RTAX_MTU, pmtu);
-		if (allfrag) {
-			u32 features = dst_metric(&rt->dst, RTAX_FEATURES);
-			features |= RTAX_FEATURE_ALLFRAG;
-			dst_metric_set(&rt->dst, RTAX_FEATURES, features);
-		}
-		rt6_update_expires(rt, net->ipv6.sysctl.ip6_rt_mtu_expires);
-		rt->rt6i_flags |= RTF_MODIFIED;
-		goto out;
-	}
-
-	/* Network route.
-	   Two cases are possible:
-	   1. It is connected route. Action: COW
-	   2. It is gatewayed route or NONEXTHOP route. Action: clone it.
-	 */
-	if (!dst_get_neighbour_noref_raw(&rt->dst) && !(rt->rt6i_flags & RTF_NONEXTHOP))
-		nrt = rt6_alloc_cow(rt, daddr, saddr);
-	else
-		nrt = rt6_alloc_clone(rt, daddr);
-
-	if (nrt) {
-		dst_metric_set(&nrt->dst, RTAX_MTU, pmtu);
-		if (allfrag) {
-			u32 features = dst_metric(&nrt->dst, RTAX_FEATURES);
-			features |= RTAX_FEATURE_ALLFRAG;
-			dst_metric_set(&nrt->dst, RTAX_FEATURES, features);
-		}
-
-		/* According to RFC 1981, detecting PMTU increase shouldn't be
-		 * happened within 5 mins, the recommended timer is 10 mins.
-		 * Here this route expiration time is set to ip6_rt_mtu_expires
-		 * which is 10 mins. After 10 mins the decreased pmtu is expired
-		 * and detecting PMTU increase will be automatically happened.
-		 */
-		rt6_update_expires(nrt, net->ipv6.sysctl.ip6_rt_mtu_expires);
-		nrt->rt6i_flags |= RTF_DYNAMIC;
-		ip6_ins_rt(nrt);
-	}
-out:
-	dst_release(&rt->dst);
-}
-
-void rt6_pmtu_discovery(const struct in6_addr *daddr, const struct in6_addr *saddr,
-			struct net_device *dev, u32 pmtu)
-{
-	struct net *net = dev_net(dev);
-
-	/*
-	 * RFC 1981 states that a node "MUST reduce the size of the packets it
-	 * is sending along the path" that caused the Packet Too Big message.
-	 * Since it's not possible in the general case to determine which
-	 * interface was used to send the original packet, we update the MTU
-	 * on the interface that will be used to send future packets. We also
-	 * update the MTU on the interface that received the Packet Too Big in
-	 * case the original packet was forced out that interface with
-	 * SO_BINDTODEVICE or similar. This is the next best thing to the
-	 * correct behaviour, which would be to update the MTU on all
-	 * interfaces.
-	 */
-	rt6_do_pmtu_disc(daddr, saddr, net, pmtu, 0);
-	rt6_do_pmtu_disc(daddr, saddr, net, pmtu, dev->ifindex);
 }
 
 /*

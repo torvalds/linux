@@ -35,6 +35,7 @@
 #include <linux/pfkeyv2.h>
 #include <linux/string.h>
 #include <linux/scatterlist.h>
+#include <net/ip6_route.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
 #include <net/protocol.h>
@@ -621,7 +622,7 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/%pI6\n",
 		 ntohl(ah->spi), &iph->daddr);
-
+	ip6_update_pmtu(skb, net, info, 0, 0);
 	xfrm_state_put(x);
 }
 

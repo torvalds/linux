@@ -140,10 +140,10 @@ extern void			rt6_redirect(const struct in6_addr *dest,
 					     u8 *lladdr,
 					     int on_link);
 
-extern void			rt6_pmtu_discovery(const struct in6_addr *daddr,
-						   const struct in6_addr *saddr,
-						   struct net_device *dev,
-						   u32 pmtu);
+extern void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
+			    int oif, u32 mark);
+extern void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk,
+			       __be32 mtu);
 
 struct netlink_callback;
 
