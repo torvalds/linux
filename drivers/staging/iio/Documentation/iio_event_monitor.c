@@ -45,6 +45,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_ANGL] = "angl",
 	[IIO_TIMESTAMP] = "timestamp",
 	[IIO_CAPACITANCE] = "capacitance",
+	[IIO_ALTVOLTAGE] = "altvoltage",
 };
 
 static const char * const iio_ev_type_text[] = {
@@ -92,6 +93,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_ANGL:
 	case IIO_TIMESTAMP:
 	case IIO_CAPACITANCE:
+	case IIO_ALTVOLTAGE:
 		break;
 	default:
 		return false;
