@@ -24,7 +24,7 @@
  * @read_p:		read pointer (oldest available)
  * @write_p:		write pointer
  * @half_p:		half buffer length behind write_p (event generation)
- * @update_needed:	flag to indicated change in size requested
+ * @update_needed:	flag to indicate change in size requested
  *
  * Note that the first element of all ring buffers must be a
  * struct iio_buffer.
@@ -363,5 +363,5 @@ void iio_sw_rb_free(struct iio_buffer *r)
 }
 EXPORT_SYMBOL(iio_sw_rb_free);
 
-MODULE_DESCRIPTION("Industrialio I/O software ring buffer");
+MODULE_DESCRIPTION("Industrial I/O software ring buffer");
 MODULE_LICENSE("GPL");

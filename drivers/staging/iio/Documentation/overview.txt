@@ -8,7 +8,7 @@ actual devices combine some ADCs with digital to analog converters
 The aim is to fill the gap between the somewhat similar hwmon and
 input subsystems.  Hwmon is very much directed at low sample rate
 sensors used in applications such as fan speed control and temperature
-measurement.  Input is, as it's name suggests focused on input
+measurement.  Input is, as its name suggests focused on input
 devices. In some cases there is considerable overlap between these and
 IIO.
 
