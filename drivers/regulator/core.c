@@ -2142,7 +2142,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	if (rdev->desc->ops->list_voltage)
 		best_val = rdev->desc->ops->list_voltage(rdev, selector);
 	else
-		best_val = -1;
+		best_val = _regulator_get_voltage(rdev);
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
 	if (_regulator_is_enabled(rdev) && ret == 0 && old_selector >= 0 &&
@@ -2165,9 +2165,9 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 		udelay(delay);
 	}
 
-	if (ret == 0)
+	if (ret == 0 && best_val >= 0)
 		_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE,
-				     NULL);
+				     (void *)best_val);
 
 	trace_regulator_set_voltage_complete(rdev_get_name(rdev), best_val);
 
