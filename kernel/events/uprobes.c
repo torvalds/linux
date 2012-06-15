@@ -129,33 +129,17 @@ static loff_t vma_address(struct vm_area_struct *vma, loff_t offset)
 static int __replace_page(struct vm_area_struct *vma, struct page *page, struct page *kpage)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *ptep;
-	spinlock_t *ptl;
 	unsigned long addr;
-	int err = -EFAULT;
+	spinlock_t *ptl;
+	pte_t *ptep;
 
 	addr = page_address_in_vma(page, vma);
 	if (addr == -EFAULT)
-		goto out;
+		return -EFAULT;
 
-	pgd = pgd_offset(mm, addr);
-	if (!pgd_present(*pgd))
-		goto out;
-
-	pud = pud_offset(pgd, addr);
-	if (!pud_present(*pud))
-		goto out;
-
-	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd))
-		goto out;
-
-	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
+	ptep = page_check_address(page, mm, addr, &ptl, 0);
 	if (!ptep)
-		goto out;
+		return -EAGAIN;
 
 	get_page(kpage);
 	page_add_new_anon_rmap(kpage, vma, addr);
@@ -174,10 +158,8 @@ static int __replace_page(struct vm_area_struct *vma, struct page *page, struct 
 		try_to_free_swap(page);
 	put_page(page);
 	pte_unmap_unlock(ptep, ptl);
-	err = 0;
 
-out:
-	return err;
+	return 0;
 }
 
 /**
@@ -222,9 +204,10 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	void *vaddr_old, *vaddr_new;
 	struct vm_area_struct *vma;
 	struct uprobe *uprobe;
+	unsigned long pgoff;
 	loff_t addr;
 	int ret;
-
+retry:
 	/* Read the page with vaddr into memory */
 	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 0, &old_page, &vma);
 	if (ret <= 0)
@@ -269,9 +252,9 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	memcpy(vaddr_new, vaddr_old, PAGE_SIZE);
 
 	/* poke the new insn in, ASSUMES we don't cross page boundary */
-	vaddr &= ~PAGE_MASK;
-	BUG_ON(vaddr + UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
-	memcpy(vaddr_new + vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
+	pgoff = (vaddr & ~PAGE_MASK);
+	BUG_ON(pgoff + UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
+	memcpy(vaddr_new + pgoff, &opcode, UPROBE_SWBP_INSN_SIZE);
 
 	kunmap_atomic(vaddr_new);
 	kunmap_atomic(vaddr_old);
@@ -291,6 +274,8 @@ unlock_out:
 put_out:
 	put_page(old_page);
 
+	if (unlikely(ret == -EAGAIN))
+		goto retry;
 	return ret;
 }
 
