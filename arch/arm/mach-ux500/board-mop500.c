@@ -625,11 +625,6 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 	&ab8500_device,
 };
 
-static struct platform_device *snowball_of_platform_devs[] __initdata = {
-	&snowball_led_dev,
-	&snowball_key_dev,
-};
-
 static void __init mop500_init_machine(void)
 {
 	struct device *parent = NULL;
@@ -768,6 +763,11 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 MACHINE_END
 
 #ifdef CONFIG_MACH_UX500_DT
+
+static struct platform_device *snowball_of_platform_devs[] __initdata = {
+	&snowball_led_dev,
+	&snowball_key_dev,
+};
 
 struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires DMA and call-back bindings. */
