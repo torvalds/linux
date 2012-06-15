@@ -15,6 +15,56 @@
 
 #define UNCORE_EVENT_CONSTRAINT(c, n) EVENT_CONSTRAINT(c, n, 0xff)
 
+/* SNB event control */
+#define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
+#define SNB_UNC_CTL_UMASK_MASK			0x0000ff00
+#define SNB_UNC_CTL_EDGE_DET			(1 << 18)
+#define SNB_UNC_CTL_EN				(1 << 22)
+#define SNB_UNC_CTL_INVERT			(1 << 23)
+#define SNB_UNC_CTL_CMASK_MASK			0x1f000000
+#define NHM_UNC_CTL_CMASK_MASK			0xff000000
+#define NHM_UNC_FIXED_CTR_CTL_EN		(1 << 0)
+
+#define SNB_UNC_RAW_EVENT_MASK			(SNB_UNC_CTL_EV_SEL_MASK | \
+						 SNB_UNC_CTL_UMASK_MASK | \
+						 SNB_UNC_CTL_EDGE_DET | \
+						 SNB_UNC_CTL_INVERT | \
+						 SNB_UNC_CTL_CMASK_MASK)
+
+#define NHM_UNC_RAW_EVENT_MASK			(SNB_UNC_CTL_EV_SEL_MASK | \
+						 SNB_UNC_CTL_UMASK_MASK | \
+						 SNB_UNC_CTL_EDGE_DET | \
+						 SNB_UNC_CTL_INVERT | \
+						 NHM_UNC_CTL_CMASK_MASK)
+
+/* SNB global control register */
+#define SNB_UNC_PERF_GLOBAL_CTL                 0x391
+#define SNB_UNC_FIXED_CTR_CTRL                  0x394
+#define SNB_UNC_FIXED_CTR                       0x395
+
+/* SNB uncore global control */
+#define SNB_UNC_GLOBAL_CTL_CORE_ALL             ((1 << 4) - 1)
+#define SNB_UNC_GLOBAL_CTL_EN                   (1 << 29)
+
+/* SNB Cbo register */
+#define SNB_UNC_CBO_0_PERFEVTSEL0               0x700
+#define SNB_UNC_CBO_0_PER_CTR0                  0x706
+#define SNB_UNC_CBO_MSR_OFFSET                  0x10
+
+/* NHM global control register */
+#define NHM_UNC_PERF_GLOBAL_CTL                 0x391
+#define NHM_UNC_FIXED_CTR                       0x394
+#define NHM_UNC_FIXED_CTR_CTRL                  0x395
+
+/* NHM uncore global control */
+#define NHM_UNC_GLOBAL_CTL_EN_PC_ALL            ((1ULL << 8) - 1)
+#define NHM_UNC_GLOBAL_CTL_EN_FC                (1ULL << 32)
+
+/* NHM uncore register */
+#define NHM_UNC_PERFEVTSEL0                     0x3c0
+#define NHM_UNC_UNCORE_PMC0                     0x3b0
+
+
 struct intel_uncore_ops;
 struct intel_uncore_pmu;
 struct intel_uncore_box;
