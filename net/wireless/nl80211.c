@@ -70,6 +70,88 @@ static int get_rdev_dev_by_ifindex(struct net *netns, struct nlattr **attrs,
 	return 0;
 }
 
+static struct cfg80211_registered_device *
+__cfg80211_rdev_from_info(struct genl_info *info)
+{
+	int ifindex;
+	struct cfg80211_registered_device *bywiphyidx = NULL, *byifidx = NULL;
+	struct net_device *dev;
+	int err = -EINVAL;
+
+	assert_cfg80211_lock();
+
+	if (info->attrs[NL80211_ATTR_WIPHY]) {
+		bywiphyidx = cfg80211_rdev_by_wiphy_idx(
+				nla_get_u32(info->attrs[NL80211_ATTR_WIPHY]));
+		err = -ENODEV;
+	}
+
+	if (info->attrs[NL80211_ATTR_IFINDEX]) {
+		ifindex = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
+		dev = dev_get_by_index(genl_info_net(info), ifindex);
+		if (dev) {
+			if (dev->ieee80211_ptr)
+				byifidx =
+					wiphy_to_dev(dev->ieee80211_ptr->wiphy);
+			dev_put(dev);
+		}
+		err = -ENODEV;
+	}
+
+	if (bywiphyidx && byifidx) {
+		if (bywiphyidx != byifidx)
+			return ERR_PTR(-EINVAL);
+		else
+			return bywiphyidx; /* == byifidx */
+	}
+	if (bywiphyidx)
+		return bywiphyidx;
+
+	if (byifidx)
+		return byifidx;
+
+	return ERR_PTR(err);
+}
+
+/*
+ * This function returns a pointer to the driver
+ * that the genl_info item that is passed refers to.
+ * If successful, it returns non-NULL and also locks
+ * the driver's mutex!
+ *
+ * This means that you need to call cfg80211_unlock_rdev()
+ * before being allowed to acquire &cfg80211_mutex!
+ *
+ * This is necessary because we need to lock the global
+ * mutex to get an item off the list safely, and then
+ * we lock the rdev mutex so it doesn't go away under us.
+ *
+ * We don't want to keep cfg80211_mutex locked
+ * for all the time in order to allow requests on
+ * other interfaces to go through at the same time.
+ *
+ * The result of this can be a PTR_ERR and hence must
+ * be checked with IS_ERR() for errors.
+ */
+static struct cfg80211_registered_device *
+cfg80211_get_dev_from_info(struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev;
+
+	mutex_lock(&cfg80211_mutex);
+	rdev = __cfg80211_rdev_from_info(info);
+
+	/* if it is not an error we grab the lock on
+	 * it to assure it won't be going away while
+	 * we operate on it */
+	if (!IS_ERR(rdev))
+		mutex_lock(&rdev->mtx);
+
+	mutex_unlock(&cfg80211_mutex);
+
+	return rdev;
+}
+
 /* policy for the attributes */
 static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_WIPHY] = { .type = NLA_U32 },
