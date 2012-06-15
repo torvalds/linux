@@ -135,7 +135,6 @@ struct snd_opti9xx {
 	unsigned long mc_base_size;
 #ifdef OPTi93X
 	unsigned long mc_indir_index;
-	unsigned long mc_indir_size;
 	struct resource *res_mc_indir;
 	struct snd_wss *codec;
 #endif	/* OPTi93X */
@@ -245,10 +244,8 @@ static int __devinit snd_opti9xx_init(struct snd_opti9xx *chip,
 	case OPTi9XX_HW_82C931:
 	case OPTi9XX_HW_82C933:
 		chip->mc_base = (hardware == OPTi9XX_HW_82C930) ? 0xf8f : 0xf8d;
-		if (!chip->mc_indir_index) {
+		if (!chip->mc_indir_index)
 			chip->mc_indir_index = 0xe0e;
-			chip->mc_indir_size = 2;
-		}
 		chip->password = 0xe4;
 		chip->pwd_reg = 0;
 		break;
@@ -403,7 +400,9 @@ static int __devinit snd_opti9xx_configure(struct snd_opti9xx *chip,
 
 #else	/* OPTi93X */
 	case OPTi9XX_HW_82C931:
-	case OPTi9XX_HW_82C933:
+		/* disable 3D sound (set GPIO1 as output, low) */
+		snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(20), 0x04, 0x0c);
+	case OPTi9XX_HW_82C933: /* FALL THROUGH */
 		/*
 		 * The BTC 1817DW has QS1000 wavetable which is connected
 		 * to the serial digital input of the OPTI931.
@@ -696,8 +695,7 @@ static int __devinit snd_opti9xx_read_check(struct snd_opti9xx *chip)
 		if (value == snd_opti9xx_read(chip, OPTi9XX_MC_REG(1)))
 			return 0;
 #else	/* OPTi93X */
-	chip->res_mc_indir = request_region(chip->mc_indir_index,
-					    chip->mc_indir_size,
+	chip->res_mc_indir = request_region(chip->mc_indir_index, 2,
 					    "OPTi93x MC");
 	if (chip->res_mc_indir == NULL)
 		return -EBUSY;
@@ -770,8 +768,9 @@ static int __devinit snd_card_opti9xx_pnp(struct snd_opti9xx *chip,
 #ifdef OPTi93X
 	port = pnp_port_start(pdev, 0) - 4;
 	fm_port = pnp_port_start(pdev, 1) + 8;
-	chip->mc_indir_index = pnp_port_start(pdev, 3) + 2;
-	chip->mc_indir_size = pnp_port_len(pdev, 3) - 2;
+	/* adjust mc_indir_index - some cards report it at 0xe?d,
+	   other at 0xe?c but it really is always at 0xe?e */
+	chip->mc_indir_index = (pnp_port_start(pdev, 3) & ~0xf) | 0xe;
 #else
 	devmc = pnp_request_card_device(card, pid->devs[2].id, NULL);
 	if (devmc == NULL)
