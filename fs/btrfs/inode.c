@@ -4518,6 +4518,11 @@ int btrfs_dirty_inode(struct inode *inode)
 static int btrfs_update_time(struct inode *inode, struct timespec *now,
 			     int flags)
 {
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
+	if (btrfs_root_readonly(root))
+		return -EROFS;
+
 	if (flags & S_VERSION)
 		inode_inc_iversion(inode);
 	if (flags & S_CTIME)
