@@ -40,22 +40,8 @@
 #include <arch/sim.h>
 
 /*
- * Initialization flow and process
- * -------------------------------
- *
- * This files containes the routines to search for PCI buses,
+ * This file containes the routines to search for PCI buses,
  * enumerate the buses, and configure any attached devices.
- *
- * There are two entry points here:
- * 1) tile_pci_init
- *    This sets up the pci_controller structs, and opens the
- *    FDs to the hypervisor.  This is called from setup_arch() early
- *    in the boot process.
- * 2) pcibios_init
- *    This probes the PCI bus(es) for any attached hardware.  It's
- *    called by subsys_initcall.  All of the real work is done by the
- *    generic Linux PCI layer.
- *
  */
 
 #define DEBUG_PCI_CFG	0
@@ -109,6 +95,21 @@ static struct pci_ops tile_cfg_ops;
 
 /* Mask of CPUs that should receive PCIe interrupts. */
 static struct cpumask intr_cpus_map;
+
+/* PCI I/O space support is not implemented. */
+static struct resource pci_ioport_resource = {
+	.name	= "PCI IO",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_IO,
+};
+
+static struct resource pci_iomem_resource = {
+	.name	= "PCI mem",
+	.start	= TILE_PCI_MEM_START,
+	.end	= TILE_PCI_MEM_END,
+	.flags	= IORESOURCE_MEM,
+};
 
 /*
  * We don't need to worry about the alignment of resources.
@@ -334,8 +335,6 @@ free_irqs:
 }
 
 /*
- * First initialization entry point, called from setup_arch().
- *
  * Find valid controllers and fill in pci_controller structs for each
  * of them.
  *
@@ -583,10 +582,7 @@ static int __devinit setup_pcie_rc_delay(char *str)
 early_param("pcie_rc_delay", setup_pcie_rc_delay);
 
 /*
- * Second PCI initialization entry point, called by subsys_initcall.
- *
- * The controllers have been set up by the time we get here, by a call to
- * tile_pci_init.
+ * PCI initialization entry point, called by subsys_initcall.
  */
 int __init pcibios_init(void)
 {
@@ -594,15 +590,13 @@ int __init pcibios_init(void)
 	LIST_HEAD(resources);
 	int i;
 
+	tile_pci_init();
+
 	if (num_rc_controllers == 0 && num_ep_controllers == 0)
 		return 0;
 
-	pr_info("PCI: Probing PCI hardware\n");
-
 	/*
 	 * We loop over all the TRIO shims and set up the MMIO mappings.
-	 * This step can't be done in tile_pci_init because the MM subsystem
-	 * hasn't been initialized then.
 	 */
 	for (i = 0; i < TILEGX_NUM_TRIO; i++) {
 		gxio_trio_context_t *context = &trio_contexts[i];
@@ -645,9 +639,7 @@ int __init pcibios_init(void)
 		unsigned int class_code_revision;
 		int trio_index;
 		int mac;
-#ifndef USE_SHARED_PCIE_CONFIG_REGION
 		int ret;
-#endif
 
 		if (trio_context->fd < 0)
 			continue;
@@ -802,8 +794,6 @@ int __init pcibios_init(void)
 			pr_err("PCI: PCI CFG PIO alloc failure for mac %d "
 				"on TRIO %d, give up\n", mac, trio_index);
 
-			/* TBD: cleanup ... */
-
 			continue;
 		}
 
@@ -818,8 +808,6 @@ int __init pcibios_init(void)
 		if (ret < 0) {
 			pr_err("PCI: PCI CFG PIO init failure for mac %d "
 				"on TRIO %d, give up\n", mac, trio_index);
-
-			/* TBD: cleanup ... */
 
 			continue;
 		}
@@ -837,8 +825,6 @@ int __init pcibios_init(void)
 			pr_err("PCI: PIO map failure for mac %d on TRIO %d\n",
 				mac, trio_index);
 
-			/* TBD: cleanup ... */
-
 			continue;
 		}
 
@@ -852,7 +838,14 @@ int __init pcibios_init(void)
 			continue;
 		}
 
-		pci_add_resource(&resources, &iomem_resource);
+		/*
+		 * The PCI memory resource is located above the PA space.
+		 * The memory range for the PCI root bus should not overlap
+		 * with the physical RAM
+		 */
+		pci_add_resource_offset(&resources, &iomem_resource,
+					1ULL << CHIP_PA_WIDTH());
+
 		bus = pci_scan_root_bus(NULL, 0, controller->ops,
 					controller, &resources);
 		controller->root_bus = bus;
@@ -923,11 +916,6 @@ int __init pcibios_init(void)
 		}
 
 		/*
-		 * We always assign 32-bit PCI bus BAR ranges.
-		 */
-		BUG_ON(bus_address_hi != 0);
-
-		/*
 		 * Alloc a PIO region for PCI memory access for each RC port.
 		 */
 		ret = gxio_trio_alloc_pio_regions(trio_context, 1, 0, 0);
@@ -935,8 +923,6 @@ int __init pcibios_init(void)
 			pr_err("PCI: MEM PIO alloc failure on TRIO %d mac %d, "
 				"give up\n", controller->trio_index,
 				controller->mac);
-
-			/* TBD: cleanup ... */
 
 			continue;
 		}
@@ -950,14 +936,12 @@ int __init pcibios_init(void)
 		ret = gxio_trio_init_pio_region_aux(trio_context,
 						    controller->pio_mem_index,
 						    controller->mac,
-						    bus_address_hi,
+						    0,
 						    0);
 		if (ret < 0) {
 			pr_err("PCI: MEM PIO init failure on TRIO %d mac %d, "
 				"give up\n", controller->trio_index,
 				controller->mac);
-
-			/* TBD: cleanup ... */
 
 			continue;
 		}
@@ -980,8 +964,6 @@ int __init pcibios_init(void)
 					controller->trio_index,
 					controller->mac, j);
 
-				/* TBD: cleanup ... */
-
 				goto alloc_mem_map_failed;
 			}
 
@@ -991,9 +973,13 @@ int __init pcibios_init(void)
 			 * Initialize the Mem-Map and the I/O MMU so that all
 			 * the physical memory can be accessed by the endpoint
 			 * devices. The base bus address is set to the base CPA
-			 * of this memory controller, so is the base VA. The
+			 * of this memory controller plus an offset (see pci.h).
+			 * The region's base VA is set to the base CPA. The
 			 * I/O MMU table essentially translates the CPA to
-			 * the real PA.
+			 * the real PA. Implicitly, for node 0, we create
+			 * a separate Mem-Map region that serves as the inbound
+			 * window for legacy 32-bit devices. This is a direct
+			 * map of the low 4GB CPA space.
 			 */
 			ret = gxio_trio_init_memory_map_mmu_aux(trio_context,
 				controller->mem_maps[j],
@@ -1001,7 +987,8 @@ int __init pcibios_init(void)
 				nr_pages << PAGE_SHIFT,
 				trio_context->asid,
 				controller->mac,
-				start_pfn << PAGE_SHIFT,
+				(start_pfn << PAGE_SHIFT) +
+				TILE_PCI_MEM_MAP_BASE_OFFSET,
 				j,
 				GXIO_TRIO_ORDER_MODE_UNORDERED);
 			if (ret < 0) {
@@ -1010,11 +997,8 @@ int __init pcibios_init(void)
 					controller->trio_index,
 					controller->mac, j);
 
-				/* TBD: cleanup ... */
-
 				goto alloc_mem_map_failed;
 			}
-
 			continue;
 
 alloc_mem_map_failed:
@@ -1028,11 +1012,19 @@ alloc_mem_map_failed:
 subsys_initcall(pcibios_init);
 
 /*
- * No bus fixups needed.
+ * PCI scan code calls the arch specific pcibios_fixup_bus() each time it scans
+ * a new bridge. Called after each bus is probed, but before its children are
+ * examined.
  */
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
-	/* Nothing needs to be done. */
+	struct pci_dev *dev = bus->self;
+
+	if (!dev) {
+		/* This is the root bus. */
+		bus->resource[0] = &pci_ioport_resource;
+		bus->resource[1] = &pci_iomem_resource;
+	}
 }
 
 /*
@@ -1068,6 +1060,17 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	return pci_enable_resources(dev, mask);
 }
+
+/* Called for each device after PCI setup is done. */
+static void __init
+pcibios_fixup_final(struct pci_dev *pdev)
+{
+	set_dma_ops(&pdev->dev, gx_pci_dma_map_ops);
+	set_dma_offset(&pdev->dev, TILE_PCI_MEM_MAP_BASE_OFFSET);
+	pdev->dev.archdata.max_direct_dma_addr =
+		TILE_PCI_MAX_DIRECT_DMA_ADDRESS;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_final);
 
 /* Map a PCI MMIO bus address into VA space. */
 void __iomem *ioremap(resource_size_t phys_addr, unsigned long size)
@@ -1127,7 +1130,7 @@ got_it:
 	 * We need to keep the PCI bus address's in-page offset in the VA.
 	 */
 	return iorpc_ioremap(trio_fd, offset, size) +
-					(phys_addr & (PAGE_SIZE - 1));
+		(phys_addr & (PAGE_SIZE - 1));
 }
 EXPORT_SYMBOL(ioremap);
 

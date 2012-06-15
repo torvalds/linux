@@ -3,6 +3,8 @@
 
 config TILE
 	def_bool y
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select USE_GENERIC_SMP_HELPERS
@@ -78,6 +80,9 @@ config ARCH_DMA_ADDR_T_64BIT
 
 config NEED_DMA_MAP_STATE
 	def_bool y
+
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+	bool
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -214,6 +219,19 @@ config HIGHMEM
 
 config ZONE_DMA
 	def_bool y
+
+config IOMMU_HELPER
+	bool
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config SWIOTLB
+	bool
+	default TILEGX
+	select IOMMU_HELPER
+	select NEED_SG_DMA_LENGTH
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
 
 # We do not currently support disabling NUMA.
 config NUMA
