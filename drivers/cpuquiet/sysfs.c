@@ -286,5 +286,6 @@ void cpuquiet_add_dev(struct sys_device *sys_dev, unsigned int cpu)
 
 void cpuquiet_remove_dev(unsigned int cpu)
 {
-	kobject_put(cpuquiet_cpu_devices[cpu]);
+	if (cpu < CONFIG_NR_CPUS && cpuquiet_cpu_devices[cpu])
+		kobject_put(&cpuquiet_cpu_devices[cpu]->kobj);
 }
