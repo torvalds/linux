@@ -2224,81 +2224,6 @@ void send_cleanup_vector(struct irq_cfg *cfg)
 	cfg->move_in_progress = 0;
 }
 
-static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq_cfg *cfg)
-{
-	int apic, pin;
-	struct irq_pin_list *entry;
-	u8 vector = cfg->vector;
-
-	for_each_irq_pin(entry, cfg->irq_2_pin) {
-		unsigned int reg;
-
-		apic = entry->apic;
-		pin = entry->pin;
-		/*
-		 * With interrupt-remapping, destination information comes
-		 * from interrupt-remapping table entry.
-		 */
-		if (!irq_remapped(cfg))
-			io_apic_write(apic, 0x11 + pin*2, dest);
-		reg = io_apic_read(apic, 0x10 + pin*2);
-		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
-		reg |= vector;
-		io_apic_modify(apic, 0x10 + pin*2, reg);
-	}
-}
-
-/*
- * Either sets data->affinity to a valid value, and returns
- * ->cpu_mask_to_apicid of that in dest_id, or returns -1 and
- * leaves data->affinity untouched.
- */
-int __ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
-			  unsigned int *dest_id)
-{
-	struct irq_cfg *cfg = data->chip_data;
-	unsigned int irq = data->irq;
-	int err;
-
-	if (!cpumask_intersects(mask, cpu_online_mask))
-		return -EINVAL;
-
-	err = assign_irq_vector(irq, cfg, mask);
-	if (err)
-		return err;
-
-	err = apic->cpu_mask_to_apicid_and(mask, cfg->domain, dest_id);
-	if (err) {
-		if (assign_irq_vector(irq, cfg, data->affinity))
-			pr_err("Failed to recover vector for irq %d\n", irq);
-		return err;
-	}
-
-	cpumask_copy(data->affinity, mask);
-
-	return 0;
-}
-
-static int
-ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
-		    bool force)
-{
-	unsigned int dest, irq = data->irq;
-	unsigned long flags;
-	int ret;
-
-	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	ret = __ioapic_set_affinity(data, mask, &dest);
-	if (!ret) {
-		/* Only the high 8 bits are valid. */
-		dest = SET_APIC_LOGICAL_ID(dest);
-		__target_IO_APIC_irq(irq, dest, data->chip_data);
-		ret = IRQ_SET_MASK_OK_NOCOPY;
-	}
-	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
-	return ret;
-}
-
 asmlinkage void smp_irq_move_cleanup_interrupt(void)
 {
 	unsigned vector, me;
@@ -2385,6 +2310,87 @@ void irq_force_complete_move(int irq)
 #else
 static inline void irq_complete_move(struct irq_cfg *cfg) { }
 #endif
+
+static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq_cfg *cfg)
+{
+	int apic, pin;
+	struct irq_pin_list *entry;
+	u8 vector = cfg->vector;
+
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
+		unsigned int reg;
+
+		apic = entry->apic;
+		pin = entry->pin;
+		/*
+		 * With interrupt-remapping, destination information comes
+		 * from interrupt-remapping table entry.
+		 */
+		if (!irq_remapped(cfg))
+			io_apic_write(apic, 0x11 + pin*2, dest);
+		reg = io_apic_read(apic, 0x10 + pin*2);
+		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
+		reg |= vector;
+		io_apic_modify(apic, 0x10 + pin*2, reg);
+	}
+}
+
+/*
+ * Either sets data->affinity to a valid value, and returns
+ * ->cpu_mask_to_apicid of that in dest_id, or returns -1 and
+ * leaves data->affinity untouched.
+ */
+int __ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
+			  unsigned int *dest_id)
+{
+	struct irq_cfg *cfg = data->chip_data;
+	unsigned int irq = data->irq;
+	int err;
+
+	if (!config_enabled(CONFIG_SMP))
+		return -1;
+
+	if (!cpumask_intersects(mask, cpu_online_mask))
+		return -EINVAL;
+
+	err = assign_irq_vector(irq, cfg, mask);
+	if (err)
+		return err;
+
+	err = apic->cpu_mask_to_apicid_and(mask, cfg->domain, dest_id);
+	if (err) {
+		if (assign_irq_vector(irq, cfg, data->affinity))
+			pr_err("Failed to recover vector for irq %d\n", irq);
+		return err;
+	}
+
+	cpumask_copy(data->affinity, mask);
+
+	return 0;
+}
+
+static int
+ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
+		    bool force)
+{
+	unsigned int dest, irq = data->irq;
+	unsigned long flags;
+	int ret;
+
+	if (!config_enabled(CONFIG_SMP))
+		return -1;
+
+	raw_spin_lock_irqsave(&ioapic_lock, flags);
+	ret = __ioapic_set_affinity(data, mask, &dest);
+	if (!ret) {
+		/* Only the high 8 bits are valid. */
+		dest = SET_APIC_LOGICAL_ID(dest);
+		__target_IO_APIC_irq(irq, dest, data->chip_data);
+		ret = IRQ_SET_MASK_OK_NOCOPY;
+	}
+	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
+	return ret;
+}
 
 static void ack_apic_edge(struct irq_data *data)
 {
@@ -2565,9 +2571,7 @@ static void irq_remap_modify_chip_defaults(struct irq_chip *chip)
 	chip->irq_ack = ir_ack_apic_edge;
 	chip->irq_eoi = ir_ack_apic_level;
 
-#ifdef CONFIG_SMP
 	chip->irq_set_affinity = set_remapped_irq_affinity;
-#endif
 }
 #endif /* CONFIG_IRQ_REMAP */
 
@@ -2578,9 +2582,7 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.irq_unmask		= unmask_ioapic_irq,
 	.irq_ack		= ack_apic_edge,
 	.irq_eoi		= ack_apic_level,
-#ifdef CONFIG_SMP
 	.irq_set_affinity	= ioapic_set_affinity,
-#endif
 	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
@@ -3099,7 +3101,6 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 	return err;
 }
 
-#ifdef CONFIG_SMP
 static int
 msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 {
@@ -3121,7 +3122,6 @@ msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
-#endif /* CONFIG_SMP */
 
 /*
  * IRQ Chip for MSI PCI/PCI-X/PCI-Express Devices,
@@ -3132,9 +3132,7 @@ static struct irq_chip msi_chip = {
 	.irq_unmask		= unmask_msi_irq,
 	.irq_mask		= mask_msi_irq,
 	.irq_ack		= ack_apic_edge,
-#ifdef CONFIG_SMP
 	.irq_set_affinity	= msi_set_affinity,
-#endif
 	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
@@ -3219,7 +3217,6 @@ void native_teardown_msi_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_DMAR_TABLE
-#ifdef CONFIG_SMP
 static int
 dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
 		      bool force)
@@ -3244,16 +3241,12 @@ dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
-#endif /* CONFIG_SMP */
-
 static struct irq_chip dmar_msi_type = {
 	.name			= "DMAR_MSI",
 	.irq_unmask		= dmar_msi_unmask,
 	.irq_mask		= dmar_msi_mask,
 	.irq_ack		= ack_apic_edge,
-#ifdef CONFIG_SMP
 	.irq_set_affinity	= dmar_msi_set_affinity,
-#endif
 	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
@@ -3274,7 +3267,6 @@ int arch_setup_dmar_msi(unsigned int irq)
 
 #ifdef CONFIG_HPET_TIMER
 
-#ifdef CONFIG_SMP
 static int hpet_msi_set_affinity(struct irq_data *data,
 				 const struct cpumask *mask, bool force)
 {
@@ -3297,16 +3289,12 @@ static int hpet_msi_set_affinity(struct irq_data *data,
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
-#endif /* CONFIG_SMP */
-
 static struct irq_chip hpet_msi_type = {
 	.name = "HPET_MSI",
 	.irq_unmask = hpet_msi_unmask,
 	.irq_mask = hpet_msi_mask,
 	.irq_ack = ack_apic_edge,
-#ifdef CONFIG_SMP
 	.irq_set_affinity = hpet_msi_set_affinity,
-#endif
 	.irq_retrigger = ioapic_retrigger_irq,
 };
 
@@ -3341,8 +3329,6 @@ int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
  */
 #ifdef CONFIG_HT_IRQ
 
-#ifdef CONFIG_SMP
-
 static void target_ht_irq(unsigned int irq, unsigned int dest, u8 vector)
 {
 	struct ht_irq_msg msg;
@@ -3370,16 +3356,12 @@ ht_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
-#endif
-
 static struct irq_chip ht_irq_chip = {
 	.name			= "PCI-HT",
 	.irq_mask		= mask_ht_irq,
 	.irq_unmask		= unmask_ht_irq,
 	.irq_ack		= ack_apic_edge,
-#ifdef CONFIG_SMP
 	.irq_set_affinity	= ht_set_affinity,
-#endif
 	.irq_retrigger		= ioapic_retrigger_irq,
 };
 

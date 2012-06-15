@@ -902,7 +902,6 @@ static int intel_setup_ioapic_entry(int irq,
 	return 0;
 }
 
-#ifdef CONFIG_SMP
 /*
  * Migrate the IO-APIC irq in the presence of intr-remapping.
  *
@@ -925,6 +924,9 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	unsigned int dest, irq = data->irq;
 	struct irte irte;
 	int err;
+
+	if (!config_enabled(CONFIG_SMP))
+		return -EINVAL;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
 		return -EINVAL;
@@ -963,7 +965,6 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	cpumask_copy(data->affinity, mask);
 	return 0;
 }
-#endif
 
 static void intel_compose_msi_msg(struct pci_dev *pdev,
 				  unsigned int irq, unsigned int dest,
@@ -1065,9 +1066,7 @@ struct irq_remap_ops intel_irq_remap_ops = {
 	.reenable		= reenable_irq_remapping,
 	.enable_faulting	= enable_drhd_fault_handling,
 	.setup_ioapic_entry	= intel_setup_ioapic_entry,
-#ifdef CONFIG_SMP
 	.set_affinity		= intel_ioapic_set_affinity,
-#endif
 	.free_irq		= free_irte,
 	.compose_msi_msg	= intel_compose_msi_msg,
 	.msi_alloc_irq		= intel_msi_alloc_irq,
