@@ -1253,6 +1253,7 @@ static int i9xx_setup(void)
 		switch (INTEL_GTT_GEN) {
 		case 5:
 		case 6:
+		case 7:
 			gtt_offset = MB(2);
 			break;
 		case 4:
