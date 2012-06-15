@@ -1136,7 +1136,7 @@ static inline struct tps65910_board *tps65910_parse_dt_reg_data(
 			struct of_regulator_match **tps65910_reg_matches)
 {
 	*tps65910_reg_matches = NULL;
-	return 0;
+	return NULL;
 }
 #endif
 
