@@ -421,33 +421,3 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 
 	return 0;
 }
-
-/* This function sets the RF channel for AP.
- *
- * This function populates channel information in AP config structure
- * and sends command to configure channel information in AP.
- */
-int mwifiex_uap_set_channel(struct mwifiex_private *priv, int channel)
-{
-	struct mwifiex_uap_bss_param *bss_cfg;
-	struct wiphy *wiphy = priv->wdev->wiphy;
-
-	bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param), GFP_KERNEL);
-	if (!bss_cfg)
-		return -ENOMEM;
-
-	mwifiex_set_sys_config_invalid_data(bss_cfg);
-	bss_cfg->band_cfg = BAND_CONFIG_MANUAL;
-	bss_cfg->channel = channel;
-
-	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
-				   HostCmd_ACT_GEN_SET,
-				   UAP_BSS_PARAMS_I, bss_cfg)) {
-		wiphy_err(wiphy, "Failed to set the uAP channel\n");
-		kfree(bss_cfg);
-		return -1;
-	}
-
-	kfree(bss_cfg);
-	return 0;
-}

@@ -384,13 +384,13 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 	cfp.freq = chan->center_freq;
 	cfp.channel = ieee80211_frequency_to_channel(chan->center_freq);
 
-	if (mwifiex_bss_set_channel(priv, &cfp))
-		return -EFAULT;
-
-	if (priv->bss_type == MWIFIEX_BSS_TYPE_STA)
+	if (priv->bss_type == MWIFIEX_BSS_TYPE_STA) {
+		if (mwifiex_bss_set_channel(priv, &cfp))
+			return -EFAULT;
 		return mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
-	else
-		return mwifiex_uap_set_channel(priv, cfp.channel);
+	}
+
+	return 0;
 }
 
 /*
@@ -959,6 +959,17 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		/* firmware doesn't support this type of hidden SSID */
 	default:
 		return -EINVAL;
+	}
+
+	bss_cfg->channel =
+	    (u8)ieee80211_frequency_to_channel(params->channel->center_freq);
+	bss_cfg->band_cfg = BAND_CONFIG_MANUAL;
+
+	if (mwifiex_set_rf_channel(priv, params->channel,
+				   params->channel_type)) {
+		kfree(bss_cfg);
+		wiphy_err(wiphy, "Failed to set band config information!\n");
+		return -1;
 	}
 
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
