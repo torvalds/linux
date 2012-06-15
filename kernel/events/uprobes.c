@@ -210,7 +210,6 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	void *vaddr_old, *vaddr_new;
 	struct vm_area_struct *vma;
 	struct uprobe *uprobe;
-	unsigned long pgoff;
 	int ret;
 retry:
 	/* Read the page with vaddr into memory */
@@ -251,11 +250,7 @@ retry:
 	vaddr_new = kmap_atomic(new_page);
 
 	memcpy(vaddr_new, vaddr_old, PAGE_SIZE);
-
-	/* poke the new insn in, ASSUMES we don't cross page boundary */
-	pgoff = (vaddr & ~PAGE_MASK);
-	BUG_ON(pgoff + UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
-	memcpy(vaddr_new + pgoff, &opcode, UPROBE_SWBP_INSN_SIZE);
+	memcpy(vaddr_new + (vaddr & ~PAGE_MASK), &opcode, UPROBE_SWBP_INSN_SIZE);
 
 	kunmap_atomic(vaddr_new);
 	kunmap_atomic(vaddr_old);
@@ -698,6 +693,10 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 		ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, addr);
 		if (ret)
 			return ret;
+
+		/* write_opcode() assumes we don't cross page boundary */
+		BUG_ON((uprobe->offset & ~PAGE_MASK) +
+				UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
 
 		uprobe->flags |= UPROBE_COPY_INSN;
 	}
