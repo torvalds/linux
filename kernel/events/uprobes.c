@@ -591,10 +591,9 @@ static bool consumer_del(struct uprobe *uprobe, struct uprobe_consumer *uc)
 }
 
 static int
-__copy_insn(struct address_space *mapping, struct vm_area_struct *vma, char *insn,
+__copy_insn(struct address_space *mapping, struct file *filp, char *insn,
 			unsigned long nbytes, unsigned long offset)
 {
-	struct file *filp = vma->vm_file;
 	struct page *page;
 	void *vaddr;
 	unsigned long off1;
@@ -625,15 +624,13 @@ __copy_insn(struct address_space *mapping, struct vm_area_struct *vma, char *ins
 	return 0;
 }
 
-static int
-copy_insn(struct uprobe *uprobe, struct vm_area_struct *vma, unsigned long addr)
+static int copy_insn(struct uprobe *uprobe, struct file *filp)
 {
 	struct address_space *mapping;
 	unsigned long nbytes;
 	int bytes;
 
-	addr &= ~PAGE_MASK;
-	nbytes = PAGE_SIZE - addr;
+	nbytes = PAGE_SIZE - (uprobe->offset & ~PAGE_MASK);
 	mapping = uprobe->inode->i_mapping;
 
 	/* Instruction at end of binary; copy only available bytes */
@@ -644,13 +641,13 @@ copy_insn(struct uprobe *uprobe, struct vm_area_struct *vma, unsigned long addr)
 
 	/* Instruction at the page-boundary; copy bytes in second page */
 	if (nbytes < bytes) {
-		if (__copy_insn(mapping, vma, uprobe->arch.insn + nbytes,
+		if (__copy_insn(mapping, filp, uprobe->arch.insn + nbytes,
 				bytes - nbytes, uprobe->offset + nbytes))
 			return -ENOMEM;
 
 		bytes = nbytes;
 	}
-	return __copy_insn(mapping, vma, uprobe->arch.insn, bytes, uprobe->offset);
+	return __copy_insn(mapping, filp, uprobe->arch.insn, bytes, uprobe->offset);
 }
 
 /*
@@ -696,7 +693,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 	addr = (unsigned long)vaddr;
 
 	if (!(uprobe->flags & UPROBE_COPY_INSN)) {
-		ret = copy_insn(uprobe, vma, addr);
+		ret = copy_insn(uprobe, vma->vm_file);
 		if (ret)
 			return ret;
 
