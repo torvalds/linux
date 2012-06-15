@@ -1138,6 +1138,7 @@ void bfin_pint_resume(void)
 	}
 }
 
+#ifdef CONFIG_BF60x
 static int sec_suspend(void)
 {
 	u32 bank;
@@ -1164,6 +1165,7 @@ static struct syscore_ops sec_pm_syscore_ops = {
 	.suspend = sec_suspend,
 	.resume = sec_resume,
 };
+#endif
 #else
 # define bfin_gpio_set_wake NULL
 #endif
