@@ -95,6 +95,8 @@ struct iommu_cmd {
 	u32 data[4];
 };
 
+struct kmem_cache *amd_iommu_irq_cache;
+
 static void update_domain(struct protection_domain *domain);
 static int __init alloc_passthrough_domain(void);
 
