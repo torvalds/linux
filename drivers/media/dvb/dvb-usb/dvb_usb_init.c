@@ -137,6 +137,8 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	int ret;
 	struct rc_dev *dev;
 
+	pr_debug("%s:\n", __func__);
+
 	if (dvb_usbv2_disable_rc_polling || !d->props->get_rc_config)
 		return 0;
 
@@ -190,8 +192,6 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 				msecs_to_jiffies(d->rc.interval));
 	}
 
-	d->state |= DVB_USB_STATE_REMOTE;
-
 	return 0;
 err:
 	pr_debug("%s: failed=%d\n", __func__, ret);
@@ -200,12 +200,13 @@ err:
 
 static int dvb_usbv2_remote_exit(struct dvb_usb_device *d)
 {
-	if (d->state & DVB_USB_STATE_REMOTE) {
+	pr_debug("%s:\n", __func__);
+
+	if (d->rc_dev) {
 		cancel_delayed_work_sync(&d->rc_query_work);
 		rc_unregister_device(d->rc_dev);
+		d->rc_dev = NULL;
 	}
-
-	d->state &= ~DVB_USB_STATE_REMOTE;
 
 	return 0;
 }

@@ -328,7 +328,6 @@ struct dvb_usb_device {
 #define DVB_USB_STATE_INIT        0x000
 #define DVB_USB_STATE_I2C         0x001
 #define DVB_USB_STATE_DVB         0x002
-#define DVB_USB_STATE_REMOTE      0x004
 	int state;
 
 	int powered;
