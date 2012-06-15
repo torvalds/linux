@@ -211,7 +211,6 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	struct vm_area_struct *vma;
 	struct uprobe *uprobe;
 	unsigned long pgoff;
-	loff_t addr;
 	int ret;
 retry:
 	/* Read the page with vaddr into memory */
@@ -233,10 +232,6 @@ retry:
 	uprobe = container_of(auprobe, struct uprobe, arch);
 	mapping = uprobe->inode->i_mapping;
 	if (mapping != vma->vm_file->f_mapping)
-		goto put_out;
-
-	addr = vma_address(vma, uprobe->offset);
-	if (vaddr != (unsigned long)addr)
 		goto put_out;
 
 	ret = -ENOMEM;
