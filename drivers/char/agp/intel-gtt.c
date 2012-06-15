@@ -1183,9 +1183,17 @@ static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
 static void valleyview_write_entry(dma_addr_t addr, unsigned int entry,
 				   unsigned int flags)
 {
+	unsigned int type_mask = flags & ~AGP_USER_CACHED_MEMORY_GFDT;
+	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
 	u32 pte_flags;
 
-	pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
+	if (type_mask == AGP_USER_MEMORY)
+		pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
+	else {
+		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
+		if (gfdt)
+			pte_flags |= GEN6_PTE_GFDT;
+	}
 
 	/* gen6 has bit11-4 for physical addr bit39-32 */
 	addr |= (addr >> 28) & 0xff0;
@@ -1380,7 +1388,6 @@ static const struct intel_gtt_driver valleyview_gtt_driver = {
 	.write_entry = valleyview_write_entry,
 	.dma_mask_size = 40,
 	.check_flags = gen6_check_flags,
-	.chipset_flush = i9xx_chipset_flush,
 };
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
