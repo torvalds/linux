@@ -2164,16 +2164,12 @@ int del_perf_probe_events(struct strlist *dellist)
 
 error:
 	if (kfd >= 0) {
-		if (namelist)
-			strlist__delete(namelist);
-
+		strlist__delete(namelist);
 		close(kfd);
 	}
 
 	if (ufd >= 0) {
-		if (unamelist)
-			strlist__delete(unamelist);
-
+		strlist__delete(unamelist);
 		close(ufd);
 	}
 

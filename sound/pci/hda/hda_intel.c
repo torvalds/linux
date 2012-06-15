@@ -2484,9 +2484,9 @@ static void azx_notifier_unregister(struct azx *chip)
 static int DELAYED_INIT_MARK azx_first_init(struct azx *chip);
 static int DELAYED_INIT_MARK azx_probe_continue(struct azx *chip);
 
+#ifdef SUPPORT_VGA_SWITCHEROO
 static struct pci_dev __devinit *get_bound_vga(struct pci_dev *pci);
 
-#ifdef SUPPORT_VGA_SWITCHEROO
 static void azx_vs_set_state(struct pci_dev *pci,
 			     enum vga_switcheroo_state state)
 {
@@ -2578,6 +2578,7 @@ static int __devinit register_vga_switcheroo(struct azx *chip)
 #else
 #define init_vga_switcheroo(chip)		/* NOP */
 #define register_vga_switcheroo(chip)		0
+#define check_hdmi_disabled(pci)	false
 #endif /* SUPPORT_VGA_SWITCHER */
 
 /*
@@ -2638,6 +2639,7 @@ static int azx_dev_free(struct snd_device *device)
 	return azx_free(device->device_data);
 }
 
+#ifdef SUPPORT_VGA_SWITCHEROO
 /*
  * Check of disabled HDMI controller by vga-switcheroo
  */
@@ -2670,12 +2672,13 @@ static bool __devinit check_hdmi_disabled(struct pci_dev *pci)
 	struct pci_dev *p = get_bound_vga(pci);
 
 	if (p) {
-		if (vga_default_device() && p != vga_default_device())
+		if (vga_switcheroo_get_client_state(p) == VGA_SWITCHEROO_OFF)
 			vga_inactive = true;
 		pci_dev_put(p);
 	}
 	return vga_inactive;
 }
+#endif /* SUPPORT_VGA_SWITCHEROO */
 
 /*
  * white/black-listing for position_fix
@@ -3351,6 +3354,11 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	{ PCI_DEVICE(0x6549, 0x1200),
 	  .driver_data = AZX_DRIVER_TERA | AZX_DCAPS_NO_64BIT },
 	/* Creative X-Fi (CA0110-IBG) */
+	/* CTHDA chips */
+	{ PCI_DEVICE(0x1102, 0x0010),
+	  .driver_data = AZX_DRIVER_CTHDA | AZX_DCAPS_PRESET_CTHDA },
+	{ PCI_DEVICE(0x1102, 0x0012),
+	  .driver_data = AZX_DRIVER_CTHDA | AZX_DCAPS_PRESET_CTHDA },
 #if !defined(CONFIG_SND_CTXFI) && !defined(CONFIG_SND_CTXFI_MODULE)
 	/* the following entry conflicts with snd-ctxfi driver,
 	 * as ctxfi driver mutates from HD-audio to native mode with
@@ -3367,11 +3375,6 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	  .driver_data = AZX_DRIVER_CTX | AZX_DCAPS_CTX_WORKAROUND |
 	  AZX_DCAPS_RIRB_PRE_DELAY | AZX_DCAPS_POSFIX_LPIB },
 #endif
-	/* CTHDA chips */
-	{ PCI_DEVICE(0x1102, 0x0010),
-	  .driver_data = AZX_DRIVER_CTHDA | AZX_DCAPS_PRESET_CTHDA },
-	{ PCI_DEVICE(0x1102, 0x0012),
-	  .driver_data = AZX_DRIVER_CTHDA | AZX_DCAPS_PRESET_CTHDA },
 	/* Vortex86MX */
 	{ PCI_DEVICE(0x17f3, 0x3010), .driver_data = AZX_DRIVER_GENERIC },
 	/* VMware HDAudio */

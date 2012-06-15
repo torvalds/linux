@@ -668,7 +668,7 @@ static int annotate_browser__run(struct annotate_browser *browser, int evidx,
 		"q/ESC/CTRL+C  Exit\n\n"
 		"->            Go to target\n"
 		"<-            Exit\n"
-		"h             Cycle thru hottest instructions\n"
+		"H             Cycle thru hottest instructions\n"
 		"j             Toggle showing jump to target arrows\n"
 		"J             Toggle showing number of jump sources on targets\n"
 		"n             Search next string\n"

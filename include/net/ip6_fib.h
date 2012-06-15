@@ -302,6 +302,8 @@ extern void			fib6_run_gc(unsigned long expires,
 extern void			fib6_gc_cleanup(void);
 
 extern int			fib6_init(void);
+extern int			fib6_init_late(void);
+extern void			fib6_cleanup_late(void);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 extern int			fib6_rules_init(void);
