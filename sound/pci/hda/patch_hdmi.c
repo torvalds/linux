@@ -1412,6 +1412,24 @@ static int simple_playback_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
+static int simple_playback_init(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->num_pins; i++) {
+		snd_hda_codec_write(codec, spec->pins[i].pin_nid, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+		/* some codecs require to unmute the pin */
+		if (get_wcaps(codec, spec->pins[i].pin_nid) & AC_WCAP_OUT_AMP)
+			snd_hda_codec_write(codec, spec->pins[i].pin_nid, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_OUT_UNMUTE);
+	}
+	snd_hda_jack_report_sync(codec);
+	return 0;
+}
+
 static void simple_playback_free(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -1831,29 +1849,10 @@ static const struct hda_pcm_stream atihdmi_pcm_digital_playback = {
 	},
 };
 
-static const struct hda_verb atihdmi_basic_init[] = {
-	/* enable digital output on pin widget */
-	{ 0x03, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{} /* terminator */
-};
-
-static int atihdmi_init(struct hda_codec *codec)
-{
-	struct hdmi_spec *spec = codec->spec;
-
-	snd_hda_sequence_write(codec, atihdmi_basic_init);
-	/* SI codec requires to unmute the pin */
-	if (get_wcaps(codec, spec->pins[0].pin_nid) & AC_WCAP_OUT_AMP)
-		snd_hda_codec_write(codec, spec->pins[0].pin_nid, 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE,
-				    AMP_OUT_UNMUTE);
-	return 0;
-}
-
 static const struct hda_codec_ops atihdmi_patch_ops = {
 	.build_controls = simple_playback_build_controls,
 	.build_pcms = simple_playback_build_pcms,
-	.init = atihdmi_init,
+	.init = simple_playback_init,
 	.free = simple_playback_free,
 };
 
@@ -1872,6 +1871,7 @@ static int patch_atihdmi(struct hda_codec *codec)
 	spec->multiout.max_channels = 2;
 	spec->multiout.dig_out_nid = ATIHDMI_CVT_NID;
 	spec->num_cvts = 1;
+	spec->num_pins = 1;
 	spec->cvts[0].cvt_nid = ATIHDMI_CVT_NID;
 	spec->pins[0].pin_nid = ATIHDMI_PIN_NID;
 	spec->pcm_playback = &atihdmi_pcm_digital_playback;
@@ -1885,23 +1885,10 @@ static int patch_atihdmi(struct hda_codec *codec)
 #define VIAHDMI_CVT_NID	0x02	/* audio converter1 */
 #define VIAHDMI_PIN_NID	0x03	/* HDMI output pin1 */
 
-static struct hda_verb viahdmi_basic_init[] = {
-	/* enable digital output on pin widget */
-	{ VIAHDMI_PIN_NID, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{} /* terminator */
-};
-
-static int via_hdmi_init(struct hda_codec *codec)
-{
-	snd_hda_sequence_write(codec, viahdmi_basic_init);
-	snd_hda_jack_report_sync(codec);
-	return 0;
-}
-
 static const struct hda_codec_ops via_hdmi_patch_ops = {
 	.build_controls = simple_playback_build_controls,
 	.build_pcms = simple_playback_build_pcms,
-	.init = via_hdmi_init,
+	.init = simple_playback_init,
 	.free = simple_playback_free,
 	.unsol_event = simple_hdmi_unsol_event,
 };
@@ -1930,6 +1917,7 @@ static int patch_via_hdmi(struct hda_codec *codec)
 	spec->multiout.max_channels = 2;
 	spec->multiout.dig_out_nid = VIAHDMI_CVT_NID; /* pure-digital case */
 	spec->num_cvts = 1;
+	spec->num_pins = 1;
 	spec->cvts[0].cvt_nid = VIAHDMI_CVT_NID;
 	spec->pins[0].pin_nid = VIAHDMI_PIN_NID;
 	spec->pcm_playback = &via_hdmi_digital_playback;
