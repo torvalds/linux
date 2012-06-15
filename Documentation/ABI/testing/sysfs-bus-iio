@@ -122,7 +122,7 @@ Description:
 		If an axis is specified it generally means that the temperature
 		sensor is associated with one part of a compound device (e.g.
 		a gyroscope axis). Units after application of scale and offset
-		are milli degrees Celsuis.
+		are milli degrees Celsius.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_input
 KernelVersion:	2.6.38
