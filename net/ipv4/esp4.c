@@ -494,6 +494,7 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 		return;
 	NETDEBUG(KERN_DEBUG "pmtu discovery on SA ESP/%08x/%08x\n",
 		 ntohl(esph->spi), ntohl(iph->daddr));
+	ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_ESP, 0);
 	xfrm_state_put(x);
 }
 

@@ -348,9 +348,6 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
 			return 0;
-		case ICMP_FRAG_NEEDED:
-			/* Soft state for pmtu is maintained by IP core. */
-			return 0;
 		default:
 			/* All others are translated to HOST_UNREACH.
 			   rfc2003 contains "deep thoughts" about NET_UNREACH,
@@ -369,7 +366,17 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 
 	rcu_read_lock();
 	t = ipip_tunnel_lookup(dev_net(skb->dev), iph->daddr, iph->saddr);
-	if (t == NULL || t->parms.iph.daddr == 0)
+	if (t == NULL)
+		goto out;
+
+	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
+		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
+				 t->dev->ifindex, 0, IPPROTO_IPIP, 0);
+		err = 0;
+		goto out;
+	}
+
+	if (t->parms.iph.daddr == 0)
 		goto out;
 
 	err = 0;

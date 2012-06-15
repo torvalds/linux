@@ -1711,6 +1711,34 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 	}
 }
 
+void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
+		      int oif, u32 mark, u8 protocol, int flow_flags)
+{
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
+	struct flowi4 fl4;
+	struct rtable *rt;
+
+	flowi4_init_output(&fl4, oif, mark, RT_TOS(iph->tos), RT_SCOPE_UNIVERSE,
+			   protocol, flow_flags | FLOWI_FLAG_PRECOW_METRICS,
+			   iph->daddr, iph->saddr, 0, 0);
+	rt = __ip_route_output_key(net, &fl4);
+	if (!IS_ERR(rt)) {
+		ip_rt_update_pmtu(&rt->dst, mtu);
+		ip_rt_put(rt);
+	}
+}
+EXPORT_SYMBOL_GPL(ipv4_update_pmtu);
+
+void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
+{
+	const struct inet_sock *inet = inet_sk(sk);
+
+	return ipv4_update_pmtu(skb, sock_net(sk), mtu,
+				sk->sk_bound_dev_if, sk->sk_mark,
+				inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
+				inet_sk_flowi_flags(sk));
+}
+EXPORT_SYMBOL_GPL(ipv4_sk_update_pmtu);
 
 static void ipv4_validate_peer(struct rtable *rt)
 {

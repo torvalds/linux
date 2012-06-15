@@ -516,9 +516,6 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
 			return;
-		case ICMP_FRAG_NEEDED:
-			/* Soft state for pmtu is maintained by IP core. */
-			return;
 		default:
 			/* All others are translated to HOST_UNREACH.
 			   rfc2003 contains "deep thoughts" about NET_UNREACH,
@@ -538,7 +535,16 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 				flags & GRE_KEY ?
 				*(((__be32 *)p) + (grehlen / 4) - 1) : 0,
 				p[1]);
-	if (t == NULL || t->parms.iph.daddr == 0 ||
+	if (t == NULL)
+		goto out;
+
+	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
+		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
+				 t->parms.link, 0, IPPROTO_GRE, 0);
+		goto out;
+	}
+
+	if (t->parms.iph.daddr == 0 ||
 	    ipv4_is_multicast(t->parms.iph.daddr))
 		goto out;
 

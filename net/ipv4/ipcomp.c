@@ -42,6 +42,7 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 		return;
 	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/%pI4\n",
 		 spi, &iph->daddr);
+	ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_COMP, 0);
 	xfrm_state_put(x);
 }
 
