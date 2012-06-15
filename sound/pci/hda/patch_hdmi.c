@@ -1453,7 +1453,15 @@ static const hda_nid_t nvhdmi_con_nids_7x[4] = {
 	0x6, 0x8, 0xa, 0xc,
 };
 
-static const struct hda_verb nvhdmi_basic_init_7x[] = {
+static const struct hda_verb nvhdmi_basic_init_7x_2ch[] = {
+	/* set audio protect on */
+	{ 0x1, Nv_VERB_SET_Audio_Protection_On, 0x1},
+	/* enable digital output on pin widget */
+	{ 0x5, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT | 0x5 },
+	{} /* terminator */
+};
+
+static const struct hda_verb nvhdmi_basic_init_7x_8ch[] = {
 	/* set audio protect on */
 	{ 0x1, Nv_VERB_SET_Audio_Protection_On, 0x1},
 	/* enable digital output on pin widget */
@@ -1481,9 +1489,15 @@ static const struct hda_verb nvhdmi_basic_init_7x[] = {
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 #endif
 
-static int nvhdmi_7x_init(struct hda_codec *codec)
+static int nvhdmi_7x_init_2ch(struct hda_codec *codec)
 {
-	snd_hda_sequence_write(codec, nvhdmi_basic_init_7x);
+	snd_hda_sequence_write(codec, nvhdmi_basic_init_7x_2ch);
+	return 0;
+}
+
+static int nvhdmi_7x_init_8ch(struct hda_codec *codec)
+{
+	snd_hda_sequence_write(codec, nvhdmi_basic_init_7x_8ch);
 	return 0;
 }
 
@@ -1782,7 +1796,7 @@ static int patch_nvhdmi_2ch(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	codec->patch_ops.init = nvhdmi_7x_init;
+	codec->patch_ops.init = nvhdmi_7x_init_2ch;
 	/* override the PCM rates, etc, as the codec doesn't give full list */
 	spec = codec->spec;
 	spec->pcm_playback.rates = SUPPORTED_RATES;
@@ -1800,6 +1814,7 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->multiout.max_channels = 8;
 	spec->pcm_playback = nvhdmi_pcm_playback_8ch_7x;
+	codec->patch_ops.init = nvhdmi_7x_init_8ch;
 
 	/* Initialize the audio infoframe channel mask and checksum to something
 	 * valid */
