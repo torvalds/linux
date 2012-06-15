@@ -802,7 +802,7 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 }
 #endif
 
-#ifdef CONFIG_HAVE_KVM_IRQCHIP
+#ifdef KVM_CAP_IRQ_ROUTING
 
 #define KVM_MAX_IRQ_ROUTES 1024
 
