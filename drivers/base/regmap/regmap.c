@@ -982,11 +982,9 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 	int ret;
 	unsigned int tmp, orig;
 
-	map->lock(map);
-
 	ret = _regmap_read(map, reg, &orig);
 	if (ret != 0)
-		goto out;
+		return ret;
 
 	tmp = orig & ~mask;
 	tmp |= val & mask;
@@ -997,9 +995,6 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 	} else {
 		*change = false;
 	}
-
-out:
-	map->unlock(map);
 
 	return ret;
 }
@@ -1018,7 +1013,13 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val)
 {
 	bool change;
-	return _regmap_update_bits(map, reg, mask, val, &change);
+	int ret;
+
+	map->lock(map);
+	ret = _regmap_update_bits(map, reg, mask, val, &change);
+	map->unlock(map);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_update_bits);
 
@@ -1038,7 +1039,12 @@ int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 			     unsigned int mask, unsigned int val,
 			     bool *change)
 {
-	return _regmap_update_bits(map, reg, mask, val, change);
+	int ret;
+
+	map->lock(map);
+	ret = _regmap_update_bits(map, reg, mask, val, change);
+	map->unlock(map);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_update_bits_check);
 
