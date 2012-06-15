@@ -516,24 +516,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 		ath9k_hw_set_interrupts(ah);
 	}
 
-	if (status & ATH9K_INT_MIB) {
-		/*
-		 * Disable interrupts until we service the MIB
-		 * interrupt; otherwise it will continue to
-		 * fire.
-		 */
-		ath9k_hw_disable_interrupts(ah);
-		/*
-		 * Let the hal handle the event. We assume
-		 * it will clear whatever condition caused
-		 * the interrupt.
-		 */
-		spin_lock(&common->cc_lock);
-		ath9k_hw_proc_mib_event(ah);
-		spin_unlock(&common->cc_lock);
-		ath9k_hw_enable_interrupts(ah);
-	}
-
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
 		if (status & ATH9K_INT_TIM_TIMER) {
 			if (ATH_DBG_WARN_ON_ONCE(sc->ps_idle))
@@ -959,14 +941,10 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	/*
 	 * Enable MIB interrupts when there are hardware phy counters.
 	 */
-	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0) {
-		if (ah->config.enable_ani)
-			ah->imask |= ATH9K_INT_MIB;
+	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0)
 		ah->imask |= ATH9K_INT_TSFOOR;
-	} else {
-		ah->imask &= ~ATH9K_INT_MIB;
+	else
 		ah->imask &= ~ATH9K_INT_TSFOOR;
-	}
 
 	ath9k_hw_set_interrupts(ah);
 

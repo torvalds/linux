@@ -490,46 +490,6 @@ void ath9k_hw_disable_mib_counters(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_disable_mib_counters);
 
-/*
- * Process a MIB interrupt.  We may potentially be invoked because
- * any of the MIB counters overflow/trigger so don't assume we're
- * here because a PHY error counter triggered.
- */
-void ath9k_hw_proc_mib_event(struct ath_hw *ah)
-{
-	u32 phyCnt1, phyCnt2;
-
-	/* Reset these counters regardless */
-	REG_WRITE(ah, AR_FILT_OFDM, 0);
-	REG_WRITE(ah, AR_FILT_CCK, 0);
-	if (!(REG_READ(ah, AR_SLP_MIB_CTRL) & AR_SLP_MIB_PENDING))
-		REG_WRITE(ah, AR_SLP_MIB_CTRL, AR_SLP_MIB_CLEAR);
-
-	/* Clear the mib counters and save them in the stats */
-	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
-
-	if (!DO_ANI(ah)) {
-		/*
-		 * We must always clear the interrupt cause by
-		 * resetting the phy error regs.
-		 */
-		REG_WRITE(ah, AR_PHY_ERR_1, 0);
-		REG_WRITE(ah, AR_PHY_ERR_2, 0);
-		return;
-	}
-
-	/* NB: these are not reset-on-read */
-	phyCnt1 = REG_READ(ah, AR_PHY_ERR_1);
-	phyCnt2 = REG_READ(ah, AR_PHY_ERR_2);
-	if (((phyCnt1 & AR_MIBCNT_INTRMASK) == AR_MIBCNT_INTRMASK) ||
-	    ((phyCnt2 & AR_MIBCNT_INTRMASK) == AR_MIBCNT_INTRMASK)) {
-
-		/* NB: always restart to insure the h/w counters are reset */
-		ath9k_ani_restart(ah);
-	}
-}
-EXPORT_SYMBOL(ath9k_hw_proc_mib_event);
-
 void ath9k_hw_ani_setup(struct ath_hw *ah)
 {
 	int i;
