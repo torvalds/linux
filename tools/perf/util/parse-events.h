@@ -78,6 +78,8 @@ int parse_events__term_num(struct parse_events__term **_term,
 			   int type_term, char *config, long num);
 int parse_events__term_str(struct parse_events__term **_term,
 			   int type_term, char *config, char *str);
+int parse_events__term_clone(struct parse_events__term **new,
+			     struct parse_events__term *term);
 void parse_events__free_terms(struct list_head *terms);
 int parse_events_modifier(struct list_head *list, char *str);
 int parse_events_add_tracepoint(struct list_head **list, int *idx,

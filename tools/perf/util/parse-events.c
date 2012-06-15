@@ -701,6 +701,9 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 
 	memset(&attr, 0, sizeof(attr));
 
+	if (perf_pmu__check_alias(pmu, head_config))
+		return -EINVAL;
+
 	/*
 	 * Configure hardcoded terms first, no need to check
 	 * return value when called with fail == 0 ;)
@@ -1141,6 +1144,13 @@ int parse_events__term_str(struct parse_events__term **term,
 {
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_STR, type_term,
 			config, str, 0);
+}
+
+int parse_events__term_clone(struct parse_events__term **new,
+			     struct parse_events__term *term)
+{
+	return new_term(new, term->type_val, term->type_term, term->config,
+			term->val.str, term->val.num);
 }
 
 void parse_events__free_terms(struct list_head *terms)
