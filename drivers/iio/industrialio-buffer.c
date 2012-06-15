@@ -553,6 +553,10 @@ int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
 					    buffer->scan_mask);
 	else
 		indio_dev->active_scan_mask = buffer->scan_mask;
+
+	if (indio_dev->active_scan_mask == NULL)
+		return -EINVAL;
+
 	iio_update_demux(indio_dev);
 
 	if (indio_dev->info->update_scan_mode)
