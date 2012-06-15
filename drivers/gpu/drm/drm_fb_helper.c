@@ -1353,7 +1353,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
 	u32 max_width, max_height, bpp_sel;
-	bool bound = false, crtcs_bound = false;
+	int bound = 0, crtcs_bound = 0;
 	struct drm_crtc *crtc;
 
 	if (!fb_helper->fb)
@@ -1362,12 +1362,12 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc->fb)
-			crtcs_bound = true;
+			crtcs_bound++;
 		if (crtc->fb == fb_helper->fb)
-			bound = true;
+			bound++;
 	}
 
-	if (!bound && crtcs_bound) {
+	if (bound < crtcs_bound) {
 		fb_helper->delayed_hotplug = true;
 		mutex_unlock(&dev->mode_config.mutex);
 		return 0;
