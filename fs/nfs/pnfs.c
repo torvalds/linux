@@ -70,6 +70,10 @@ find_pnfs_driver(u32 id)
 
 	spin_lock(&pnfs_spinlock);
 	local = find_pnfs_driver_locked(id);
+	if (local != NULL && !try_module_get(local->owner)) {
+		dprintk("%s: Could not grab reference on module\n", __func__);
+		local = NULL;
+	}
 	spin_unlock(&pnfs_spinlock);
 	return local;
 }
@@ -117,10 +121,6 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 				__func__, id);
 			goto out_no_driver;
 		}
-	}
-	if (!try_module_get(ld_type->owner)) {
-		dprintk("%s: Could not grab reference on module\n", __func__);
-		goto out_no_driver;
 	}
 	server->pnfs_curr_ld = ld_type;
 	if (ld_type->set_layoutdriver
