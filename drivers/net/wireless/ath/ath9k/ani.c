@@ -154,9 +154,7 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel)
 		aniState->rssiThrLow, aniState->rssiThrHigh);
 
 	if (aniState->update_ani)
-		aniState->ofdmNoiseImmunityLevel =
-			(immunityLevel > ATH9K_ANI_OFDM_DEF_LEVEL) ?
-			immunityLevel : ATH9K_ANI_OFDM_DEF_LEVEL;
+		aniState->ofdmNoiseImmunityLevel = immunityLevel;
 
 	entry_ofdm = &ofdm_level_table[aniState->ofdmNoiseImmunityLevel];
 	entry_cck = &cck_level_table[aniState->cckNoiseImmunityLevel];
@@ -217,9 +215,7 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel)
 		immunityLevel = ATH9K_ANI_CCK_MAX_LEVEL_LOW_RSSI;
 
 	if (aniState->update_ani)
-		aniState->cckNoiseImmunityLevel =
-			(immunityLevel > ATH9K_ANI_CCK_DEF_LEVEL) ?
-			immunityLevel : ATH9K_ANI_CCK_DEF_LEVEL;
+		aniState->cckNoiseImmunityLevel = immunityLevel;
 
 	entry_ofdm = &ofdm_level_table[aniState->ofdmNoiseImmunityLevel];
 	entry_cck = &cck_level_table[aniState->cckNoiseImmunityLevel];
@@ -285,6 +281,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 	struct ar5416AniState *aniState = &ah->curchan->ani;
 	struct ath9k_channel *chan = ah->curchan;
 	struct ath_common *common = ath9k_hw_common(ah);
+	int ofdm_nil, cck_nil;
 
 	if (!DO_ANI(ah))
 		return;
@@ -305,6 +302,11 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 
 	/* always allow mode (on/off) to be controlled */
 	ah->ani_function |= ATH9K_ANI_MODE;
+
+	ofdm_nil = max_t(int, ATH9K_ANI_OFDM_DEF_LEVEL,
+			 aniState->ofdmNoiseImmunityLevel);
+	cck_nil = max_t(int, ATH9K_ANI_CCK_DEF_LEVEL,
+			 aniState->cckNoiseImmunityLevel);
 
 	if (is_scanning ||
 	    (ah->opmode != NL80211_IFTYPE_STATION &&
@@ -329,8 +331,8 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 				aniState->cckNoiseImmunityLevel);
 
 			aniState->update_ani = false;
-			ath9k_hw_set_ofdm_nil(ah, ATH9K_ANI_OFDM_DEF_LEVEL);
-			ath9k_hw_set_cck_nil(ah, ATH9K_ANI_CCK_DEF_LEVEL);
+			ofdm_nil = ATH9K_ANI_OFDM_DEF_LEVEL;
+			cck_nil = ATH9K_ANI_CCK_DEF_LEVEL;
 		}
 	} else {
 		/*
@@ -346,11 +348,9 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 			aniState->cckNoiseImmunityLevel);
 
 			aniState->update_ani = true;
-			ath9k_hw_set_ofdm_nil(ah,
-					      aniState->ofdmNoiseImmunityLevel);
-			ath9k_hw_set_cck_nil(ah,
-					     aniState->cckNoiseImmunityLevel);
 	}
+	ath9k_hw_set_ofdm_nil(ah, ofdm_nil);
+	ath9k_hw_set_cck_nil(ah, cck_nil);
 
 	/*
 	 * enable phy counters if hw supports or if not, enable phy
