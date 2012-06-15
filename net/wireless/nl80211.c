@@ -73,44 +73,47 @@ static int get_rdev_dev_by_ifindex(struct net *netns, struct nlattr **attrs,
 static struct cfg80211_registered_device *
 __cfg80211_rdev_from_info(struct genl_info *info)
 {
-	int ifindex;
-	struct cfg80211_registered_device *bywiphyidx = NULL, *byifidx = NULL;
-	struct net_device *dev;
-	int err = -EINVAL;
+	struct cfg80211_registered_device *rdev = NULL, *tmp;
+	struct net_device *netdev;
 
 	assert_cfg80211_lock();
 
-	if (info->attrs[NL80211_ATTR_WIPHY]) {
-		bywiphyidx = cfg80211_rdev_by_wiphy_idx(
+	if (!info->attrs[NL80211_ATTR_WIPHY] &&
+	    !info->attrs[NL80211_ATTR_IFINDEX])
+		return ERR_PTR(-EINVAL);
+
+	if (info->attrs[NL80211_ATTR_WIPHY])
+		rdev = cfg80211_rdev_by_wiphy_idx(
 				nla_get_u32(info->attrs[NL80211_ATTR_WIPHY]));
-		err = -ENODEV;
-	}
 
 	if (info->attrs[NL80211_ATTR_IFINDEX]) {
-		ifindex = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
-		dev = dev_get_by_index(genl_info_net(info), ifindex);
-		if (dev) {
-			if (dev->ieee80211_ptr)
-				byifidx =
-					wiphy_to_dev(dev->ieee80211_ptr->wiphy);
-			dev_put(dev);
+		int ifindex = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
+		netdev = dev_get_by_index(genl_info_net(info), ifindex);
+		if (netdev) {
+			if (netdev->ieee80211_ptr)
+				tmp = wiphy_to_dev(
+						netdev->ieee80211_ptr->wiphy);
+			else
+				tmp = NULL;
+
+			dev_put(netdev);
+
+			/* not wireless device -- return error */
+			if (!tmp)
+				return ERR_PTR(-EINVAL);
+
+			/* mismatch -- return error */
+			if (rdev && tmp != rdev)
+				return ERR_PTR(-EINVAL);
+
+			rdev = tmp;
 		}
-		err = -ENODEV;
 	}
 
-	if (bywiphyidx && byifidx) {
-		if (bywiphyidx != byifidx)
-			return ERR_PTR(-EINVAL);
-		else
-			return bywiphyidx; /* == byifidx */
-	}
-	if (bywiphyidx)
-		return bywiphyidx;
+	if (rdev)
+		return rdev;
 
-	if (byifidx)
-		return byifidx;
-
-	return ERR_PTR(err);
+	return ERR_PTR(-ENODEV);
 }
 
 /*
