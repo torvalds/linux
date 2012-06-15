@@ -148,7 +148,7 @@
 	  <row>
 	    <entry><constant>V4L2_SEL_FLAG_KEEP_CONFIG</constant></entry>
 	    <entry>(1 &lt;&lt; 2)</entry>
-	    <entry>The configuration should not be propagated to any
+	    <entry>The configuration must not be propagated to any
 	    further processing steps. If this flag is not given, the
 	    configuration is propagated inside the subdevice to all
 	    further processing steps.</entry>
