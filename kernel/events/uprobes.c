@@ -610,6 +610,9 @@ __copy_insn(struct address_space *mapping, struct vm_area_struct *vma, char *ins
 	if (!filp)
 		return -EINVAL;
 
+	if (!mapping->a_ops->readpage)
+		return -EIO;
+
 	idx = (unsigned long)(offset >> PAGE_CACHE_SHIFT);
 	off1 = offset &= ~PAGE_MASK;
 
