@@ -124,6 +124,9 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev);
 /* Used for drop dead root */
 void btrfs_kill_all_delayed_nodes(struct btrfs_root *root);
 
+/* Used for clean the transaction */
+void btrfs_destroy_delayed_inodes(struct btrfs_root *root);
+
 /* Used for readdir() */
 void btrfs_get_delayed_items(struct inode *inode, struct list_head *ins_list,
 			     struct list_head *del_list);
