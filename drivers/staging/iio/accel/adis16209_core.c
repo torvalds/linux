@@ -606,8 +606,6 @@ static int adis16209_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
-	flush_scheduled_work();
-
 	iio_device_unregister(indio_dev);
 	adis16209_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);

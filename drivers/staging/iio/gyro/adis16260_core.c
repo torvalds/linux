@@ -728,8 +728,6 @@ static int adis16260_remove(struct spi_device *spi)
 	if (ret)
 		goto err_ret;
 
-	flush_scheduled_work();
-
 	adis16260_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	adis16260_unconfigure_ring(indio_dev);

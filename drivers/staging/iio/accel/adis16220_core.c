@@ -694,8 +694,6 @@ static int adis16220_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
-	flush_scheduled_work();
-
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc2_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
