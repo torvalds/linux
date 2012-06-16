@@ -659,13 +659,15 @@ out:
 				  FIF_FCSFAIL | \
 				  FIF_BCN_PRBRESP_PROMISC | \
 				  FIF_CONTROL | \
-				  FIF_OTHER_BSS)
+				  FIF_OTHER_BSS | \
+				  FIF_PROBE_REQ)
 
 static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 				       unsigned int changed,
 				       unsigned int *total,u64 multicast)
 {
 	struct wl1251 *wl = hw->priv;
+	int ret;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 configure filter");
 
@@ -676,7 +678,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 		/* no filters which we support changed */
 		return;
 
-	/* FIXME: wl->rx_config and wl->rx_filter are not protected */
+	mutex_lock(&wl->mutex);
 
 	wl->rx_config = WL1251_DEFAULT_RX_CONFIG;
 	wl->rx_filter = WL1251_DEFAULT_RX_FILTER;
@@ -699,8 +701,25 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	}
 	if (*total & FIF_CONTROL)
 		wl->rx_filter |= CFG_RX_CTL_EN;
-	if (*total & FIF_OTHER_BSS)
-		wl->rx_filter &= ~CFG_BSSID_FILTER_EN;
+	if (*total & FIF_OTHER_BSS || is_zero_ether_addr(wl->bssid))
+		wl->rx_config &= ~CFG_BSSID_FILTER_EN;
+	if (*total & FIF_PROBE_REQ)
+		wl->rx_filter |= CFG_RX_PREQ_EN;
+
+	if (wl->state == WL1251_STATE_OFF)
+		goto out;
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	/* send filters to firmware */
+	wl1251_acx_rx_config(wl, wl->rx_config, wl->rx_filter);
+
+	wl1251_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
 }
 
 /* HW encryption */
