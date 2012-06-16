@@ -1151,7 +1151,8 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 	return -EINVAL;
 }
 
-int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream, int cmd)
+static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream,
+					     int cmd)
 {
 	int err;
 	struct snd_usb_substream *subs = substream->runtime->private_data;
