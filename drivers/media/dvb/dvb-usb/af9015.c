@@ -602,22 +602,8 @@ error:
 static int af9015_get_usb_stream_config(struct dvb_frontend *fe,
 		struct usb_data_stream_properties *stream)
 {
-	struct dvb_usb_adapter *adap;
-
-	deb_info("%s: fe=%p\n", __func__, fe);
-
-	stream->type = USB_BULK;
-	stream->count = 8;
-	stream->endpoint = 0x84;
-	stream->u.bulk.buffersize = TS_USB20_FRAME_SIZE;
-
-	if (fe == NULL)
-		return 0;
-
-	 adap = fe->dvb->priv;
-
-	if (adap->id == 1)
-		stream->endpoint = 0x85;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	deb_info("%s: adap=%d\n", __func__, adap->id);
 
 	if (adap->dev->udev->speed == USB_SPEED_FULL)
 		stream->u.bulk.buffersize = TS_USB11_FRAME_SIZE;
@@ -1335,6 +1321,10 @@ static struct dvb_usb_device_properties af9015_props = {
 			.pid_filter_count = 32,
 			.pid_filter = af9015_pid_filter,
 			.pid_filter_ctrl = af9015_pid_filter_ctrl,
+
+			.stream = DVB_USB_STREAM_BULK(0x84, 8, TS_USB20_FRAME_SIZE),
+		}, {
+			.stream = DVB_USB_STREAM_BULK(0x85, 8, TS_USB20_FRAME_SIZE),
 		},
 	},
 };
