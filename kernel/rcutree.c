@@ -73,8 +73,6 @@ static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
 	.orphan_donetail = &sname##_state.orphan_donelist, \
 	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
 	.fqslock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.fqslock), \
-	.n_force_qs = 0, \
-	.n_force_qs_ngp = 0, \
 	.name = #sname, \
 }
 
