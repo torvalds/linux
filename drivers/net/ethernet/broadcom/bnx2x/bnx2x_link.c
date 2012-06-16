@@ -9754,7 +9754,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 
 	msleep(1);
 
-	if (!(CHIP_IS_E1(bp)))
+	if (!(CHIP_IS_E1x(bp)))
 		port = BP_PATH(bp);
 	else
 		port = params->port;
