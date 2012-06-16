@@ -514,6 +514,7 @@ static int __devexit max8997_muic_remove(struct platform_device *pdev)
 
 	extcon_dev_unregister(info->edev);
 
+	kfree(info->edev);
 	kfree(info);
 
 	return 0;
