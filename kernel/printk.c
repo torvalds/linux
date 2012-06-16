@@ -880,7 +880,9 @@ static int syslog_print(char __user *buf, int size)
 	syslog_seq++;
 	raw_spin_unlock_irq(&logbuf_lock);
 
-	if (len > 0 && copy_to_user(buf, text, len))
+	if (len > size)
+		len = -EINVAL;
+	else if (len > 0 && copy_to_user(buf, text, len))
 		len = -EFAULT;
 
 	kfree(text);
