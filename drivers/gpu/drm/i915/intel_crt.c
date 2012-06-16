@@ -453,17 +453,26 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	struct intel_load_detect_pipe tmp;
 
 	if (I915_HAS_HOTPLUG(dev)) {
+		/* We can not rely on the HPD pin always being correctly wired
+		 * up, for example many KVM do not pass it through, and so
+		 * only trust an assertion that the monitor is connected.
+		 */
 		if (intel_crt_detect_hotplug(connector)) {
 			DRM_DEBUG_KMS("CRT detected via hotplug\n");
 			return connector_status_connected;
-		} else {
+		} else
 			DRM_DEBUG_KMS("CRT not detected via hotplug\n");
-			return connector_status_disconnected;
-		}
 	}
 
 	if (intel_crt_detect_ddc(connector))
 		return connector_status_connected;
+
+	/* Load detection is broken on HPD capable machines. Whoever wants a
+	 * broken monitor (without edid) to work behind a broken kvm (that fails
+	 * to have the right resistors for HP detection) needs to fix this up.
+	 * For now just bail out. */
+	if (I915_HAS_HOTPLUG(dev))
+		return connector_status_disconnected;
 
 	if (!force)
 		return connector->status;
