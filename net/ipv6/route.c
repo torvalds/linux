@@ -1065,8 +1065,8 @@ static void ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 	}
 }
 
-void ip6_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
-		     int oif, __be32 mark)
+void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
+		     int oif, u32 mark)
 {
 	const struct ipv6hdr *iph = (struct ipv6hdr *) skb->data;
 	struct dst_entry *dst;
