@@ -34,31 +34,20 @@ static void dvb_usb_data_complete_raw(struct usb_data_stream *stream,
 
 int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
-	int ret;
-	struct usb_data_stream_properties stream_props;
+	pr_debug("%s: adap=%d\n", __func__, adap->id);
 
 	adap->stream.udev = adap->dev->udev;
 	adap->stream.user_priv = adap;
-
-	/* resolve USB stream configuration for buffer alloc */
-	if (adap->dev->props->get_usb_stream_config) {
-		ret = adap->dev->props->get_usb_stream_config(NULL,
-				&stream_props);
-		if (ret < 0)
-			return ret;
-	} else {
-		stream_props = adap->props->stream;
-	}
-
-	/* FIXME: can be removed as set later in anyway */
 	adap->stream.complete = dvb_usb_data_complete;
 
-	return usb_urb_initv2(&adap->stream, &stream_props);
+	return usb_urb_initv2(&adap->stream, &adap->props->stream);
 }
 
 int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 {
+	pr_debug("%s: adap=%d\n", __func__, adap->id);
 	usb_urb_exitv2(&adap->stream);
+
 	return 0;
 }
 
@@ -133,6 +122,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 		/* resolve USB stream configuration */
 		if (adap->dev->props->get_usb_stream_config) {
+			memcpy(&stream_props, &adap->props->stream,
+				sizeof(struct usb_data_stream_properties));
 			ret = adap->dev->props->get_usb_stream_config(
 					adap->fe[adap->active_fe],
 					&stream_props);

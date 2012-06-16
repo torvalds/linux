@@ -17,7 +17,7 @@ extern int dvb_usbv2_disable_rc_polling;
 extern int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff);
 
 extern int usb_urb_initv2(struct usb_data_stream *stream,
-		struct usb_data_stream_properties *props);
+		const struct usb_data_stream_properties *props);
 extern int usb_urb_exitv2(struct usb_data_stream *stream);
 extern int usb_urb_submitv2(struct usb_data_stream *stream,
 		struct usb_data_stream_properties *props);

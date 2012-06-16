@@ -306,7 +306,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 }
 
 int usb_urb_initv2(struct usb_data_stream *stream,
-		struct usb_data_stream_properties *props)
+		const struct usb_data_stream_properties *props)
 {
 	int ret;
 
