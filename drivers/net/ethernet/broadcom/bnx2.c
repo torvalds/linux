@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
+#include <linux/stringify.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/errno.h>
@@ -6405,6 +6406,75 @@ bnx2_reset_task(struct work_struct *work)
 	rtnl_unlock();
 }
 
+#define BNX2_FTQ_ENTRY(ftq) { __stringify(ftq##FTQ_CTL), BNX2_##ftq##FTQ_CTL }
+
+static void
+bnx2_dump_ftq(struct bnx2 *bp)
+{
+	int i;
+	u32 reg, bdidx, cid, valid;
+	struct net_device *dev = bp->dev;
+	static const struct ftq_reg {
+		char *name;
+		u32 off;
+	} ftq_arr[] = {
+		BNX2_FTQ_ENTRY(RV2P_P),
+		BNX2_FTQ_ENTRY(RV2P_T),
+		BNX2_FTQ_ENTRY(RV2P_M),
+		BNX2_FTQ_ENTRY(TBDR_),
+		BNX2_FTQ_ENTRY(TDMA_),
+		BNX2_FTQ_ENTRY(TXP_),
+		BNX2_FTQ_ENTRY(TXP_),
+		BNX2_FTQ_ENTRY(TPAT_),
+		BNX2_FTQ_ENTRY(RXP_C),
+		BNX2_FTQ_ENTRY(RXP_),
+		BNX2_FTQ_ENTRY(COM_COMXQ_),
+		BNX2_FTQ_ENTRY(COM_COMTQ_),
+		BNX2_FTQ_ENTRY(COM_COMQ_),
+		BNX2_FTQ_ENTRY(CP_CPQ_),
+	};
+
+	netdev_err(dev, "<--- start FTQ dump --->\n");
+	for (i = 0; i < ARRAY_SIZE(ftq_arr); i++)
+		netdev_err(dev, "%s %08x\n", ftq_arr[i].name,
+			   bnx2_reg_rd_ind(bp, ftq_arr[i].off));
+
+	netdev_err(dev, "CPU states:\n");
+	for (reg = BNX2_TXP_CPU_MODE; reg <= BNX2_CP_CPU_MODE; reg += 0x40000)
+		netdev_err(dev, "%06x mode %x state %x evt_mask %x pc %x pc %x instr %x\n",
+			   reg, bnx2_reg_rd_ind(bp, reg),
+			   bnx2_reg_rd_ind(bp, reg + 4),
+			   bnx2_reg_rd_ind(bp, reg + 8),
+			   bnx2_reg_rd_ind(bp, reg + 0x1c),
+			   bnx2_reg_rd_ind(bp, reg + 0x1c),
+			   bnx2_reg_rd_ind(bp, reg + 0x20));
+
+	netdev_err(dev, "<--- end FTQ dump --->\n");
+	netdev_err(dev, "<--- start TBDC dump --->\n");
+	netdev_err(dev, "TBDC free cnt: %ld\n",
+		   REG_RD(bp, BNX2_TBDC_STATUS) & BNX2_TBDC_STATUS_FREE_CNT);
+	netdev_err(dev, "LINE     CID  BIDX   CMD  VALIDS\n");
+	for (i = 0; i < 0x20; i++) {
+		int j = 0;
+
+		REG_WR(bp, BNX2_TBDC_BD_ADDR, i);
+		REG_WR(bp, BNX2_TBDC_CAM_OPCODE,
+		       BNX2_TBDC_CAM_OPCODE_OPCODE_CAM_READ);
+		REG_WR(bp, BNX2_TBDC_COMMAND, BNX2_TBDC_COMMAND_CMD_REG_ARB);
+		while ((REG_RD(bp, BNX2_TBDC_COMMAND) &
+			BNX2_TBDC_COMMAND_CMD_REG_ARB) && j < 100)
+			j++;
+
+		cid = REG_RD(bp, BNX2_TBDC_CID);
+		bdidx = REG_RD(bp, BNX2_TBDC_BIDX);
+		valid = REG_RD(bp, BNX2_TBDC_CAM_OPCODE);
+		netdev_err(dev, "%02x    %06x  %04lx   %02x    [%x]\n",
+			   i, cid, bdidx & BNX2_TBDC_BDIDX_BDIDX,
+			   bdidx >> 24, (valid >> 8) & 0x0ff);
+	}
+	netdev_err(dev, "<--- end TBDC dump --->\n");
+}
+
 static void
 bnx2_dump_state(struct bnx2 *bp)
 {
@@ -6434,6 +6504,7 @@ bnx2_tx_timeout(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
+	bnx2_dump_ftq(bp);
 	bnx2_dump_state(bp);
 	bnx2_dump_mcp_state(bp);
 
