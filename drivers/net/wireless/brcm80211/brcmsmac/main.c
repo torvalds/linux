@@ -18,6 +18,7 @@
 
 #include <linux/pci_ids.h>
 #include <linux/if_ether.h>
+#include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include <brcm_hw_ids.h>
 #include <aiutils.h>
@@ -5384,11 +5385,6 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 		 (wlc->bandstate[OTHERBANDUNIT(wlc)]->bandtype == BRCM_BAND_2G))
 		band = wlc->bandstate[OTHERBANDUNIT(wlc)];
 	else
-		return -EINVAL;
-
-	/* Legacy or bust when no OFDM is supported by regulatory */
-	if ((brcms_c_channel_locale_flags_in_band(wlc->cmi, band->bandunit) &
-	     BRCMS_NO_OFDM) && (gmode != GMODE_LEGACY_B))
 		return -EINVAL;
 
 	/* update configuration value */

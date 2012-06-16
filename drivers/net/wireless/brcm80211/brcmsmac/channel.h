@@ -37,9 +37,6 @@ brcms_c_channel_mgr_attach(struct brcms_c_info *wlc);
 
 extern void brcms_c_channel_mgr_detach(struct brcms_cm_info *wlc_cm);
 
-extern u8 brcms_c_channel_locale_flags_in_band(struct brcms_cm_info *wlc_cm,
-					   uint bandunit);
-
 extern bool brcms_c_valid_chanspec_db(struct brcms_cm_info *wlc_cm,
 				      u16 chspec);
 
