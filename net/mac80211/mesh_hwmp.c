@@ -516,10 +516,11 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 	struct mesh_path *mpath = NULL;
 	u8 *target_addr, *orig_addr;
 	const u8 *da;
-	u8 target_flags, ttl;
-	u32 orig_sn, target_sn, lifetime;
+	u8 target_flags, ttl, flags;
+	u32 orig_sn, target_sn, lifetime, orig_metric;
 	bool reply = false;
 	bool forward = true;
+	bool root_is_gate;
 
 	/* Update target SN, if present */
 	target_addr = PREQ_IE_TARGET_ADDR(preq_elem);
@@ -527,6 +528,10 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 	target_sn = PREQ_IE_TARGET_SN(preq_elem);
 	orig_sn = PREQ_IE_ORIG_SN(preq_elem);
 	target_flags = PREQ_IE_TARGET_F(preq_elem);
+	orig_metric = metric;
+	/* Proactive PREQ gate announcements */
+	flags = PREQ_IE_FLAGS(preq_elem);
+	root_is_gate = !!(flags & RANN_FLAG_IS_GATE);
 
 	mhwmp_dbg("received PREQ from %pM", orig_addr);
 
@@ -541,6 +546,22 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 			target_sn = ++ifmsh->sn;
 			ifmsh->last_sn_update = jiffies;
 		}
+	} else if (is_broadcast_ether_addr(target_addr) &&
+		   (target_flags & IEEE80211_PREQ_TO_FLAG)) {
+		rcu_read_lock();
+		mpath = mesh_path_lookup(orig_addr, sdata);
+		if (mpath) {
+			if (flags & IEEE80211_PREQ_PROACTIVE_PREP_FLAG) {
+				reply = true;
+				target_addr = sdata->vif.addr;
+				target_sn = ++ifmsh->sn;
+				metric = 0;
+				ifmsh->last_sn_update = jiffies;
+			}
+			if (root_is_gate)
+				mesh_path_add_gate(mpath);
+		}
+		rcu_read_unlock();
 	} else {
 		rcu_read_lock();
 		mpath = mesh_path_lookup(target_addr, sdata);
@@ -573,13 +594,14 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				cpu_to_le32(target_sn), mgmt->sa, 0, ttl,
 				cpu_to_le32(lifetime), cpu_to_le32(metric),
 				0, sdata);
-		} else
+		} else {
 			ifmsh->mshstats.dropped_frames_ttl++;
+		}
 	}
 
 	if (forward && ifmsh->mshcfg.dot11MeshForwarding) {
 		u32 preq_id;
-		u8 hopcount, flags;
+		u8 hopcount;
 
 		ttl = PREQ_IE_TTL(preq_elem);
 		lifetime = PREQ_IE_LIFETIME(preq_elem);
@@ -589,11 +611,17 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		}
 		mhwmp_dbg("forwarding the PREQ from %pM", orig_addr);
 		--ttl;
-		flags = PREQ_IE_FLAGS(preq_elem);
 		preq_id = PREQ_IE_PREQ_ID(preq_elem);
 		hopcount = PREQ_IE_HOPCOUNT(preq_elem) + 1;
 		da = (mpath && mpath->is_root) ?
 			mpath->rann_snd_addr : broadcast_addr;
+
+		if (flags & IEEE80211_PREQ_PROACTIVE_PREP_FLAG) {
+			target_addr = PREQ_IE_TARGET_ADDR(preq_elem);
+			target_sn = PREQ_IE_TARGET_SN(preq_elem);
+			metric = orig_metric;
+		}
+
 		mesh_path_sel_frame_tx(MPATH_PREQ, flags, orig_addr,
 				cpu_to_le32(orig_sn), target_flags, target_addr,
 				cpu_to_le32(target_sn), da,
