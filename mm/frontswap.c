@@ -120,7 +120,7 @@ static inline void __frontswap_clear(struct swap_info_struct *sis, pgoff_t offse
  * "Store" data from a page to frontswap and associate it with the page's
  * swaptype and offset.  Page must be locked and in the swap cache.
  * If frontswap already contains a page with matching swaptype and
- * offset, the frontswap implmentation may either overwrite the data and
+ * offset, the frontswap implementation may either overwrite the data and
  * return success or invalidate the page from frontswap and return failure.
  */
 int __frontswap_store(struct page *page)
