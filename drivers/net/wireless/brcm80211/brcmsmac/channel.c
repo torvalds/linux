@@ -677,46 +677,6 @@ brcms_c_channel_min_txpower_limits_with_local_constraint(
 
 }
 
-/* Update the radio state (enable/disable) and tx power targets
- * based on a new set of channel/regulatory information
- */
-static void brcms_c_channels_commit(struct brcms_cm_info *wlc_cm)
-{
-	struct brcms_c_info *wlc = wlc_cm->wlc;
-	uint chan;
-
-	/* search for the existence of any valid channel */
-	for (chan = 0; chan < MAXCHANNEL; chan++) {
-		if (brcms_c_valid_channel20_db(wlc->cmi, chan))
-			break;
-	}
-	if (chan == MAXCHANNEL)
-		chan = INVCHANNEL;
-
-	/*
-	 * based on the channel search above, set or
-	 * clear WL_RADIO_COUNTRY_DISABLE.
-	 */
-	if (chan == INVCHANNEL) {
-		/*
-		 * country/locale with no valid channels, set
-		 * the radio disable bit
-		 */
-		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
-		wiphy_err(wlc->wiphy, "wl%d: %s: no valid channel for \"%s\" "
-			  "nbands %d bandlocked %d\n", wlc->pub->unit,
-			  __func__, wlc_cm->world_regd->regdomain->alpha2,
-			  wlc->pub->_nbands, wlc->bandlocked);
-	} else if (mboolisset(wlc->pub->radio_disabled,
-			      WL_RADIO_COUNTRY_DISABLE)) {
-		/*
-		 * country/locale with valid channel, clear
-		 * the radio disable bit
-		 */
-		mboolclr(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
-	}
-}
-
 static int
 brcms_c_channels_init(struct brcms_cm_info *wlc_cm,
 		      const struct country_info *country)
@@ -762,7 +722,6 @@ brcms_c_channels_init(struct brcms_cm_info *wlc_cm,
 	}
 
 	brcms_c_quiet_channels_reset(wlc_cm);
-	brcms_c_channels_commit(wlc_cm);
 
 	return 0;
 }
@@ -1235,11 +1194,37 @@ static int brcms_reg_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct brcms_info *wl = hw->priv;
 	struct brcms_c_info *wlc = wl->wlc;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *ch;
+	int band, i;
+	bool ch_found = false;
 
 	brcms_reg_apply_radar_flags(wiphy);
 
 	if (request->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE)
 		brcms_reg_apply_beaconing_flags(wiphy, request->initiator);
+
+	/* Disable radio if all channels disallowed by regulatory */
+	for (band = 0; !ch_found && band < IEEE80211_NUM_BANDS; band++) {
+		sband = wiphy->bands[band];
+		if (!sband)
+			continue;
+
+		for (i = 0; !ch_found && i < sband->n_channels; i++) {
+			ch = &sband->channels[i];
+
+			if (!(ch->flags & IEEE80211_CHAN_DISABLED))
+				ch_found = true;
+		}
+	}
+
+	if (ch_found) {
+		mboolclr(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
+	} else {
+		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
+		wiphy_err(wlc->wiphy, "wl%d: %s: no valid channel for \"%s\"\n",
+			  wlc->pub->unit, __func__, request->alpha2);
+	}
 
 	if (wlc->pub->_nbands > 1 || wlc->band->bandtype == BRCM_BAND_2G)
 		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
