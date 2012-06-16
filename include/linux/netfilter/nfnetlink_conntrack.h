@@ -191,6 +191,7 @@ enum ctattr_expect_nat {
 enum ctattr_help {
 	CTA_HELP_UNSPEC,
 	CTA_HELP_NAME,
+	CTA_HELP_INFO,
 	__CTA_HELP_MAX
 };
 #define CTA_HELP_MAX (__CTA_HELP_MAX - 1)

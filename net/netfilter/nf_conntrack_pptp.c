@@ -174,7 +174,7 @@ static int destroy_sibling_or_exp(struct net *net, struct nf_conn *ct,
 static void pptp_destroy_siblings(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
-	const struct nf_conn_help *help = nfct_help(ct);
+	const struct nf_ct_pptp_master *ct_pptp_info = nfct_help_data(ct);
 	struct nf_conntrack_tuple t;
 
 	nf_ct_gre_keymap_destroy(ct);
@@ -182,16 +182,16 @@ static void pptp_destroy_siblings(struct nf_conn *ct)
 	/* try original (pns->pac) tuple */
 	memcpy(&t, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple, sizeof(t));
 	t.dst.protonum = IPPROTO_GRE;
-	t.src.u.gre.key = help->help.ct_pptp_info.pns_call_id;
-	t.dst.u.gre.key = help->help.ct_pptp_info.pac_call_id;
+	t.src.u.gre.key = ct_pptp_info->pns_call_id;
+	t.dst.u.gre.key = ct_pptp_info->pac_call_id;
 	if (!destroy_sibling_or_exp(net, ct, &t))
 		pr_debug("failed to timeout original pns->pac ct/exp\n");
 
 	/* try reply (pac->pns) tuple */
 	memcpy(&t, &ct->tuplehash[IP_CT_DIR_REPLY].tuple, sizeof(t));
 	t.dst.protonum = IPPROTO_GRE;
-	t.src.u.gre.key = help->help.ct_pptp_info.pac_call_id;
-	t.dst.u.gre.key = help->help.ct_pptp_info.pns_call_id;
+	t.src.u.gre.key = ct_pptp_info->pac_call_id;
+	t.dst.u.gre.key = ct_pptp_info->pns_call_id;
 	if (!destroy_sibling_or_exp(net, ct, &t))
 		pr_debug("failed to timeout reply pac->pns ct/exp\n");
 }
@@ -269,7 +269,7 @@ pptp_inbound_pkt(struct sk_buff *skb,
 		 struct nf_conn *ct,
 		 enum ip_conntrack_info ctinfo)
 {
-	struct nf_ct_pptp_master *info = &nfct_help(ct)->help.ct_pptp_info;
+	struct nf_ct_pptp_master *info = nfct_help_data(ct);
 	u_int16_t msg;
 	__be16 cid = 0, pcid = 0;
 	typeof(nf_nat_pptp_hook_inbound) nf_nat_pptp_inbound;
@@ -396,7 +396,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 		  struct nf_conn *ct,
 		  enum ip_conntrack_info ctinfo)
 {
-	struct nf_ct_pptp_master *info = &nfct_help(ct)->help.ct_pptp_info;
+	struct nf_ct_pptp_master *info = nfct_help_data(ct);
 	u_int16_t msg;
 	__be16 cid = 0, pcid = 0;
 	typeof(nf_nat_pptp_hook_outbound) nf_nat_pptp_outbound;
@@ -506,7 +506,7 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 
 {
 	int dir = CTINFO2DIR(ctinfo);
-	const struct nf_ct_pptp_master *info = &nfct_help(ct)->help.ct_pptp_info;
+	const struct nf_ct_pptp_master *info = nfct_help_data(ct);
 	const struct tcphdr *tcph;
 	struct tcphdr _tcph;
 	const struct pptp_pkt_hdr *pptph;
@@ -592,6 +592,7 @@ static const struct nf_conntrack_expect_policy pptp_exp_policy = {
 static struct nf_conntrack_helper pptp __read_mostly = {
 	.name			= "pptp",
 	.me			= THIS_MODULE,
+	.data_len		= sizeof(struct nf_ct_pptp_master),
 	.tuple.src.l3num	= AF_INET,
 	.tuple.src.u.tcp.port	= cpu_to_be16(PPTP_CONTROL_PORT),
 	.tuple.dst.protonum	= IPPROTO_TCP,

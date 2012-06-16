@@ -30,6 +30,7 @@
 #include <linux/list.h>
 #include <net/sock.h>
 #include <net/netfilter/nf_queue.h>
+#include <net/netfilter/nf_conntrack.h>
 
 #include <linux/atomic.h>
 
@@ -233,6 +234,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	struct sk_buff *entskb = entry->skb;
 	struct net_device *indev;
 	struct net_device *outdev;
+	struct nfq_ct_hook *nfq_ct;
+	struct nf_conn *ct = NULL;
+	enum ip_conntrack_info uninitialized_var(ctinfo);
 
 	size =    NLMSG_SPACE(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
@@ -266,6 +270,17 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		break;
 	}
 
+	/* rcu_read_lock()ed by __nf_queue already. */
+	nfq_ct = rcu_dereference(nfq_ct_hook);
+	if (nfq_ct != NULL && (queue->flags & NFQA_CFG_F_CONNTRACK)) {
+		ct = nf_ct_get(entskb, &ctinfo);
+		if (ct) {
+			if (!nf_ct_is_untracked(ct))
+				size += nfq_ct->build_size(ct);
+			else
+				ct = NULL;
+		}
+	}
 
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb)
@@ -389,6 +404,24 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			BUG();
 	}
 
+	if (ct) {
+		struct nlattr *nest_parms;
+		u_int32_t tmp;
+
+		nest_parms = nla_nest_start(skb, NFQA_CT | NLA_F_NESTED);
+		if (!nest_parms)
+			goto nla_put_failure;
+
+		if (nfq_ct->build(skb, ct) < 0)
+			goto nla_put_failure;
+
+		nla_nest_end(skb, nest_parms);
+
+		tmp = ctinfo;
+		if (nla_put_u32(skb, NFQA_CT_INFO, htonl(ctinfo)))
+			goto nla_put_failure;
+	}
+
 	nlh->nlmsg_len = skb->tail - old_tail;
 	return skb;
 
@@ -469,12 +502,10 @@ err_out:
 }
 
 static int
-nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e)
+nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e, int diff)
 {
 	struct sk_buff *nskb;
-	int diff;
 
-	diff = data_len - e->skb->len;
 	if (diff < 0) {
 		if (pskb_trim(e->skb, data_len))
 			return -ENOMEM;
@@ -632,6 +663,7 @@ static const struct nla_policy nfqa_verdict_policy[NFQA_MAX+1] = {
 	[NFQA_VERDICT_HDR]	= { .len = sizeof(struct nfqnl_msg_verdict_hdr) },
 	[NFQA_MARK]		= { .type = NLA_U32 },
 	[NFQA_PAYLOAD]		= { .type = NLA_UNSPEC },
+	[NFQA_CT]		= { .type = NLA_UNSPEC },
 };
 
 static const struct nla_policy nfqa_verdict_batch_policy[NFQA_MAX+1] = {
@@ -732,6 +764,9 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	struct nfqnl_instance *queue;
 	unsigned int verdict;
 	struct nf_queue_entry *entry;
+	struct nfq_ct_hook *nfq_ct;
+	enum ip_conntrack_info uninitialized_var(ctinfo);
+	struct nf_conn *ct = NULL;
 
 	queue = instance_lookup(queue_num);
 	if (!queue)
@@ -750,11 +785,27 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	if (entry == NULL)
 		return -ENOENT;
 
-	if (nfqa[NFQA_PAYLOAD]) {
-		if (nfqnl_mangle(nla_data(nfqa[NFQA_PAYLOAD]),
-				 nla_len(nfqa[NFQA_PAYLOAD]), entry) < 0)
-			verdict = NF_DROP;
+	rcu_read_lock();
+	nfq_ct = rcu_dereference(nfq_ct_hook);
+	if (nfq_ct != NULL &&
+	    (queue->flags & NFQA_CFG_F_CONNTRACK) && nfqa[NFQA_CT]) {
+		ct = nf_ct_get(entry->skb, &ctinfo);
+		if (ct && !nf_ct_is_untracked(ct))
+			nfq_ct->parse(nfqa[NFQA_CT], ct);
 	}
+
+	if (nfqa[NFQA_PAYLOAD]) {
+		u16 payload_len = nla_len(nfqa[NFQA_PAYLOAD]);
+		int diff = payload_len - entry->skb->len;
+
+		if (nfqnl_mangle(nla_data(nfqa[NFQA_PAYLOAD]),
+				 payload_len, entry, diff) < 0)
+			verdict = NF_DROP;
+
+		if (ct && (ct->status & IPS_NAT_MASK) && diff)
+			nfq_ct->seq_adjust(skb, ct, ctinfo, diff);
+	}
+	rcu_read_unlock();
 
 	if (nfqa[NFQA_MARK])
 		entry->skb->mark = ntohl(nla_get_be32(nfqa[NFQA_MARK]));

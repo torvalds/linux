@@ -49,7 +49,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 	const struct nf_nat_pptp *nat_pptp_info;
 	struct nf_nat_ipv4_range range;
 
-	ct_pptp_info = &nfct_help(master)->help.ct_pptp_info;
+	ct_pptp_info = nfct_help_data(master);
 	nat_pptp_info = &nfct_nat(master)->help.nat_pptp_info;
 
 	/* And here goes the grand finale of corrosion... */
@@ -123,7 +123,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 	__be16 new_callid;
 	unsigned int cid_off;
 
-	ct_pptp_info  = &nfct_help(ct)->help.ct_pptp_info;
+	ct_pptp_info = nfct_help_data(ct);
 	nat_pptp_info = &nfct_nat(ct)->help.nat_pptp_info;
 
 	new_callid = ct_pptp_info->pns_call_id;
@@ -192,7 +192,7 @@ pptp_exp_gre(struct nf_conntrack_expect *expect_orig,
 	struct nf_ct_pptp_master *ct_pptp_info;
 	struct nf_nat_pptp *nat_pptp_info;
 
-	ct_pptp_info  = &nfct_help(ct)->help.ct_pptp_info;
+	ct_pptp_info = nfct_help_data(ct);
 	nat_pptp_info = &nfct_nat(ct)->help.nat_pptp_info;
 
 	/* save original PAC call ID in nat_info */
