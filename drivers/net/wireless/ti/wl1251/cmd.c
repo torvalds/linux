@@ -277,15 +277,6 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 	join->rx_config_options = wl->rx_config;
 	join->rx_filter_options = wl->rx_filter;
 
-	/*
-	 * FIXME: disable temporarily all filters because after commit
-	 * 9cef8737 "mac80211: fix managed mode BSSID handling" broke
-	 * association. The filter logic needs to be implemented properly
-	 * and once that is done, this hack can be removed.
-	 */
-	join->rx_config_options = 0;
-	join->rx_filter_options = WL1251_DEFAULT_RX_FILTER;
-
 	join->basic_rate_set = RATE_MASK_1MBPS | RATE_MASK_2MBPS |
 		RATE_MASK_5_5MBPS | RATE_MASK_11MBPS;
 

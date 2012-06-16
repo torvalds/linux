@@ -334,6 +334,12 @@ static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 	if (ret < 0)
 		goto out;
 
+	/*
+	 * Join command applies filters, and if we are not associated,
+	 * BSSID filter must be disabled for association to work.
+	 */
+	if (is_zero_ether_addr(wl->bssid))
+		wl->rx_config &= ~CFG_BSSID_FILTER_EN;
 
 	ret = wl1251_cmd_join(wl, bss_type, channel, beacon_interval,
 			      dtim_period);
