@@ -1050,6 +1050,8 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 		goto fail;
 	}
 
+	brcms_c_regd_init(wl->wlc);
+
 	memcpy(perm, &wl->pub->cur_etheraddr, ETH_ALEN);
 	if (WARN_ON(!is_valid_ether_addr(perm)))
 		goto fail;
