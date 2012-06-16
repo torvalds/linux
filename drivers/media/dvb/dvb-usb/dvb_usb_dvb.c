@@ -203,22 +203,21 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 				ret);
 		goto err;
 	}
+
 	adap->dvb_adap.priv = adap;
 
 	if (adap->dev->props->read_mac_address) {
-		if (adap->dev->props->read_mac_address(adap->dev,
-				adap->dvb_adap.proposed_mac) == 0)
-			pr_info("%s: MAC address: %pM\n", KBUILD_MODNAME,
-					adap->dvb_adap.proposed_mac);
-		else
-			pr_err("%s: MAC address reading failed\n",
-					KBUILD_MODNAME);
-	}
+		ret = adap->dev->props->read_mac_address(adap,
+				adap->dvb_adap.proposed_mac);
+		if (ret < 0)
+			goto err_dmx;
 
+		pr_info("%s: MAC address: %pM\n", KBUILD_MODNAME,
+				adap->dvb_adap.proposed_mac);
+	}
 
 	adap->demux.dmx.capabilities = DMX_TS_FILTERING | DMX_SECTION_FILTERING;
 	adap->demux.priv             = adap;
-
 	adap->demux.filternum        = 0;
 	if (adap->demux.filternum < adap->max_feed_count)
 		adap->demux.filternum = adap->max_feed_count;

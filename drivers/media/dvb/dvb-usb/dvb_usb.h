@@ -181,7 +181,7 @@ struct dvb_usb_device_properties {
 
 	int (*power_ctrl)       (struct dvb_usb_device *, int);
 	int (*read_config) (struct dvb_usb_device *d);
-	int (*read_mac_address) (struct dvb_usb_device *, u8 []);
+	int (*read_mac_address) (struct dvb_usb_adapter *, u8 []);
 	int (*frontend_attach) (struct dvb_usb_adapter *);
 	int (*tuner_attach) (struct dvb_usb_adapter *);
 	int (*frontend_ctrl) (struct dvb_frontend *, int);
