@@ -860,8 +860,6 @@ int i915_reset(struct drm_device *dev)
 	if (!mutex_trylock(&dev->struct_mutex))
 		return -EBUSY;
 
-	dev_priv->stop_rings = 0;
-
 	i915_gem_reset(dev);
 
 	ret = -ENODEV;
