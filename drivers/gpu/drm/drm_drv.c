@@ -486,7 +486,7 @@ long drm_ioctl(struct file *filp,
 		kfree(kdata);
 	atomic_dec(&dev->ioctl_count);
 	if (retcode)
-		DRM_DEBUG("ret = %x\n", retcode);
+		DRM_DEBUG("ret = %d\n", retcode);
 	return retcode;
 }
 
