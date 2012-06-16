@@ -22,6 +22,14 @@
 #include "dmxdev.h"
 #include "dvb-usb-ids.h"
 
+/* helper macros for every DVB USB driver use */
+#define adap_to_d(adap) ((adap)->dev)
+#define adap_to_priv(adap) (adap_to_d(adap)->priv)
+#define fe_to_adap(fe) ((struct dvb_usb_adapter *) ((fe)->dvb->priv))
+#define fe_to_d(fe) (adap_to_d(fe_to_adap(fe)))
+#define fe_to_priv(fe) (fe_to_d(fe)->priv)
+#define d_to_priv(d) (d->priv)
+
 #define DVB_USB_STREAM_BULK(endpoint_, count_, size_) { \
 	.type = USB_BULK, \
 	.count = count_, \
