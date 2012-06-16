@@ -908,7 +908,6 @@ static void brcms_c_channels_commit(struct brcms_cm_info *wlc_cm)
 {
 	struct brcms_c_info *wlc = wlc_cm->wlc;
 	uint chan;
-	struct txpwr_limits txpwr;
 
 	/* search for the existence of any valid channel */
 	for (chan = 0; chan < MAXCHANNEL; chan++) {
@@ -949,13 +948,6 @@ static void brcms_c_channels_commit(struct brcms_cm_info *wlc_cm)
 		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
 						     brcms_c_japan(wlc) ? true :
 						     false);
-
-	if (wlc->pub->up && chan != INVCHANNEL) {
-		brcms_c_channel_reg_limits(wlc_cm, wlc->chanspec, &txpwr);
-		brcms_c_channel_min_txpower_limits_with_local_constraint(wlc_cm,
-			&txpwr, BRCMS_TXPWR_MAX);
-		wlc_phy_txpower_limit_set(wlc->band->pi, &txpwr, wlc->chanspec);
-	}
 }
 
 static int
