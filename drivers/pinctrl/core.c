@@ -1395,9 +1395,9 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	struct pinctrl_dev *pctldev;
 	int ret;
 
-	if (pctldesc == NULL)
+	if (!pctldesc)
 		return NULL;
-	if (pctldesc->name == NULL)
+	if (!pctldesc->name)
 		return NULL;
 
 	pctldev = kzalloc(sizeof(*pctldev), GFP_KERNEL);
@@ -1415,23 +1415,20 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	pctldev->dev = dev;
 
 	/* check core ops for sanity */
-	ret = pinctrl_check_ops(pctldev);
-	if (ret) {
+	if (pinctrl_check_ops(pctldev)) {
 		dev_err(dev, "pinctrl ops lacks necessary functions\n");
 		goto out_err;
 	}
 
 	/* If we're implementing pinmuxing, check the ops for sanity */
 	if (pctldesc->pmxops) {
-		ret = pinmux_check_ops(pctldev);
-		if (ret)
+		if (pinmux_check_ops(pctldev))
 			goto out_err;
 	}
 
 	/* If we're implementing pinconfig, check the ops for sanity */
 	if (pctldesc->confops) {
-		ret = pinconf_check_ops(pctldev);
-		if (ret)
+		if (pinconf_check_ops(pctldev))
 			goto out_err;
 	}
 
@@ -1457,11 +1454,9 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		if (IS_ERR(s)) {
 			dev_dbg(dev, "failed to lookup the default state\n");
 		} else {
-			ret = pinctrl_select_state_locked(pctldev->p, s);
-			if (ret) {
+			if (pinctrl_select_state_locked(pctldev->p, s))
 				dev_err(dev,
 					"failed to select default state\n");
-			}
 		}
 	}
 
