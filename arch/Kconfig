@@ -281,4 +281,7 @@ config SECCOMP_FILTER
 
 	  See Documentation/prctl/seccomp_filter.txt for details.
 
+config HAVE_VIRT_CPU_ACCOUNTING
+	bool
+
 source "kernel/gcov/Kconfig"
