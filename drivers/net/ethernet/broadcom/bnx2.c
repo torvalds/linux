@@ -2473,6 +2473,7 @@ bnx2_dump_mcp_state(struct bnx2 *bp)
 		   bnx2_shmem_rd(bp, BNX2_BC_STATE_RESET_TYPE));
 	pr_cont(" condition[%08x]\n",
 		bnx2_shmem_rd(bp, BNX2_BC_STATE_CONDITION));
+	DP_SHMEM_LINE(bp, BNX2_BC_RESET_TYPE);
 	DP_SHMEM_LINE(bp, 0x3cc);
 	DP_SHMEM_LINE(bp, 0x3dc);
 	DP_SHMEM_LINE(bp, 0x3ec);

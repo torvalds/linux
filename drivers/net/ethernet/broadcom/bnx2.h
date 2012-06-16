@@ -7355,6 +7355,8 @@ struct bnx2_rv2p_fw_file {
 #define BNX2_BC_STATE_RESET_TYPE_VALUE(msg) (BNX2_BC_STATE_RESET_TYPE_SIG | \
 					     (msg))
 
+#define BNX2_BC_RESET_TYPE			0x000001c0
+
 #define BNX2_BC_STATE				0x000001c4
 #define BNX2_BC_STATE_ERR_MASK			 0x0000ff00
 #define BNX2_BC_STATE_SIGN			 0x42530000
