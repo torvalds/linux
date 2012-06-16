@@ -22,11 +22,29 @@
 #include "dmxdev.h"
 #include "dvb-usb-ids.h"
 
-struct dvb_usb_driver_info {
-	const char *name;
-	const char *rc_map;
-	const struct dvb_usb_device_properties *props;
-};
+#define DVB_USB_STREAM_BULK(endpoint_, count_, size_) { \
+	.type = USB_BULK, \
+	.count = count_, \
+	.endpoint = endpoint_, \
+	.u = { \
+		.bulk = { \
+			.buffersize = size_, \
+		} \
+	} \
+}
+
+#define DVB_USB_STREAM_ISOC(endpoint_, count_, frames_, size_, interval_) { \
+	.type = USB_ISOC, \
+	.count = count_, \
+	.endpoint = endpoint_, \
+	.u = { \
+		.isoc = { \
+			.framesperurb = frames_, \
+			.framesize = size_,\
+			.interval = interval_, \
+		} \
+	} \
+}
 
 #define DVB_USB_DEVICE(vend, prod, props_, name_, rc) \
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE, \
@@ -37,6 +55,12 @@ struct dvb_usb_driver_info {
 		.name = (name_), \
 		.rc_map = (rc), \
 	})
+
+struct dvb_usb_driver_info {
+	const char *name;
+	const char *rc_map;
+	const struct dvb_usb_device_properties *props;
+};
 
 struct dvb_usb_device;
 struct dvb_usb_adapter;
