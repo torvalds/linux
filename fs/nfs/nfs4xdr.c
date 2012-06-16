@@ -1198,12 +1198,13 @@ static void encode_getfattr(struct xdr_stream *xdr, const u32* bitmask, struct c
 }
 
 static void encode_getfattr_open(struct xdr_stream *xdr, const u32 *bitmask,
+				 const u32 *open_bitmap,
 				 struct compound_hdr *hdr)
 {
 	encode_getattr_three(xdr,
-			     bitmask[0] & nfs4_fattr_bitmap[0],
-			     bitmask[1] & nfs4_fattr_bitmap[1],
-			     bitmask[2] & FATTR4_WORD2_MDSTHRESHOLD,
+			     bitmask[0] & open_bitmap[0],
+			     bitmask[1] & open_bitmap[1],
+			     bitmask[2] & open_bitmap[2],
 			     hdr);
 }
 
@@ -2221,7 +2222,7 @@ static void nfs4_xdr_enc_open(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_putfh(xdr, args->fh, &hdr);
 	encode_open(xdr, args, &hdr);
 	encode_getfh(xdr, &hdr);
-	encode_getfattr_open(xdr, args->bitmask, &hdr);
+	encode_getfattr_open(xdr, args->bitmask, args->open_bitmap, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -4359,7 +4360,10 @@ static int decode_attr_mdsthreshold(struct xdr_stream *xdr,
 
 	if (unlikely(bitmap[2] & (FATTR4_WORD2_MDSTHRESHOLD - 1U)))
 		return -EIO;
-	if (likely(bitmap[2] & FATTR4_WORD2_MDSTHRESHOLD)) {
+	if (bitmap[2] & FATTR4_WORD2_MDSTHRESHOLD) {
+		/* Did the server return an unrequested attribute? */
+		if (unlikely(res == NULL))
+			return -EREMOTEIO;
 		p = xdr_inline_decode(xdr, 4);
 		if (unlikely(!p))
 			goto out_overflow;
@@ -4372,6 +4376,7 @@ static int decode_attr_mdsthreshold(struct xdr_stream *xdr,
 				__func__);
 
 		status = decode_first_threshold_item4(xdr, res);
+		bitmap[2] &= ~FATTR4_WORD2_MDSTHRESHOLD;
 	}
 	return status;
 out_overflow:
