@@ -2929,6 +2929,16 @@ static void __devinit disable_igfx_irq(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0102, disable_igfx_irq);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x010a, disable_igfx_irq);
 
+/*
+ * Some devices may pass our check in pci_intx_mask_supported if
+ * PCI_COMMAND_INTX_DISABLE works though they actually do not properly
+ * support this feature.
+ */
+static void __devinit quirk_broken_intx_masking(struct pci_dev *dev)
+{
+	dev->broken_intx_masking = 1;
+}
+
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
 {

@@ -2876,6 +2876,9 @@ bool pci_intx_mask_supported(struct pci_dev *dev)
 	bool mask_supported = false;
 	u16 orig, new;
 
+	if (dev->broken_intx_masking)
+		return false;
+
 	pci_cfg_access_lock(dev);
 
 	pci_read_config_word(dev, PCI_COMMAND, &orig);
