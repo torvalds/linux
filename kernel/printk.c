@@ -414,7 +414,9 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	if (!user)
 		return -EBADF;
 
-	mutex_lock(&user->lock);
+	ret = mutex_lock_interruptible(&user->lock);
+	if (ret)
+		return ret;
 	raw_spin_lock(&logbuf_lock);
 	while (user->seq == log_next_seq) {
 		if (file->f_flags & O_NONBLOCK) {
@@ -976,6 +978,7 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 {
 	bool clear = false;
 	static int saved_console_loglevel = -1;
+	static DEFINE_MUTEX(syslog_mutex);
 	int error;
 
 	error = check_syslog_permissions(type, from_file);
@@ -1002,11 +1005,17 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 			error = -EFAULT;
 			goto out;
 		}
-		error = wait_event_interruptible(log_wait,
-						 syslog_seq != log_next_seq);
+		error = mutex_lock_interruptible(&syslog_mutex);
 		if (error)
 			goto out;
+		error = wait_event_interruptible(log_wait,
+						 syslog_seq != log_next_seq);
+		if (error) {
+			mutex_unlock(&syslog_mutex);
+			goto out;
+		}
 		error = syslog_print(buf, len);
+		mutex_unlock(&syslog_mutex);
 		break;
 	/* Read/clear last kernel messages */
 	case SYSLOG_ACTION_READ_CLEAR:
