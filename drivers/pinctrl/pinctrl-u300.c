@@ -1183,7 +1183,6 @@ static int __devexit u300_pmx_remove(struct platform_device *pdev)
 	iounmap(upmx->virtbase);
 	release_mem_region(upmx->phybase, upmx->physize);
 	platform_set_drvdata(pdev, NULL);
-	devm_kfree(&pdev->dev, upmx);
 
 	return 0;
 }
