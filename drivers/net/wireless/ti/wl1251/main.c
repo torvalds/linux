@@ -348,33 +348,6 @@ out:
 	return ret;
 }
 
-static void wl1251_filter_work(struct work_struct *work)
-{
-	struct wl1251 *wl =
-		container_of(work, struct wl1251, filter_work);
-	int ret;
-
-	mutex_lock(&wl->mutex);
-
-	if (wl->state == WL1251_STATE_OFF)
-		goto out;
-
-	ret = wl1251_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out;
-
-	ret = wl1251_join(wl, wl->bss_type, wl->channel, wl->beacon_int,
-			  wl->dtim_period);
-	if (ret < 0)
-		goto out_sleep;
-
-out_sleep:
-	wl1251_ps_elp_sleep(wl);
-
-out:
-	mutex_unlock(&wl->mutex);
-}
-
 static void wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1251 *wl = hw->priv;
@@ -478,7 +451,6 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->tx_work);
-	cancel_work_sync(&wl->filter_work);
 	cancel_delayed_work_sync(&wl->elp_work);
 
 	mutex_lock(&wl->mutex);
@@ -723,13 +695,6 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 		wl->rx_filter |= CFG_RX_CTL_EN;
 	if (*total & FIF_OTHER_BSS)
 		wl->rx_filter &= ~CFG_BSSID_FILTER_EN;
-
-	/*
-	 * FIXME: workqueues need to be properly cancelled on stop(), for
-	 * now let's just disable changing the filter settings. They will
-	 * be updated any on config().
-	 */
-	/* schedule_work(&wl->filter_work); */
 }
 
 /* HW encryption */
@@ -1390,7 +1355,6 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	skb_queue_head_init(&wl->tx_queue);
 
-	INIT_WORK(&wl->filter_work, wl1251_filter_work);
 	INIT_DELAYED_WORK(&wl->elp_work, wl1251_elp_work);
 	wl->channel = WL1251_DEFAULT_CHANNEL;
 	wl->scanning = false;
