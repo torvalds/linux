@@ -7903,7 +7903,7 @@ bnx2_get_5709_media(struct bnx2 *bp)
 	else
 		strap = (val & BNX2_MISC_DUAL_MEDIA_CTRL_PHY_CTRL_STRAP) >> 8;
 
-	if (PCI_FUNC(bp->pdev->devfn) == 0) {
+	if (bp->func == 0) {
 		switch (strap) {
 		case 0x4:
 		case 0x5:
@@ -8202,9 +8202,12 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	reg = bnx2_reg_rd_ind(bp, BNX2_SHM_HDR_SIGNATURE);
 
+	if (bnx2_reg_rd_ind(bp, BNX2_MCP_TOE_ID) & BNX2_MCP_TOE_ID_FUNCTION_ID)
+		bp->func = 1;
+
 	if ((reg & BNX2_SHM_HDR_SIGNATURE_SIG_MASK) ==
 	    BNX2_SHM_HDR_SIGNATURE_SIG) {
-		u32 off = PCI_FUNC(pdev->devfn) << 2;
+		u32 off = bp->func << 2;
 
 		bp->shmem_base = bnx2_reg_rd_ind(bp, BNX2_SHM_HDR_ADDR_0 + off);
 	} else
