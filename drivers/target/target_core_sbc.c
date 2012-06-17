@@ -99,63 +99,6 @@ static int sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	return 0;
 }
 
-/*
- * Used for TCM/IBLOCK and TCM/FILEIO for block/blk-lib.c level discard support.
- * Note this is not used for TCM/pSCSI passthrough
- */
-static int sbc_emulate_unmap(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf, *ptr = NULL;
-	unsigned char *cdb = &cmd->t_task_cdb[0];
-	sector_t lba;
-	unsigned int size = cmd->data_length, range;
-	int ret = 0, offset;
-	unsigned short dl, bd_dl;
-
-	if (!dev->transport->do_discard) {
-		pr_err("UNMAP emulation not supported for: %s\n",
-				dev->transport->name);
-		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
-		return -ENOSYS;
-	}
-
-	/* First UNMAP block descriptor starts at 8 byte offset */
-	offset = 8;
-	size -= 8;
-	dl = get_unaligned_be16(&cdb[0]);
-	bd_dl = get_unaligned_be16(&cdb[2]);
-
-	buf = transport_kmap_data_sg(cmd);
-
-	ptr = &buf[offset];
-	pr_debug("UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
-		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
-
-	while (size) {
-		lba = get_unaligned_be64(&ptr[0]);
-		range = get_unaligned_be32(&ptr[8]);
-		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
-				 (unsigned long long)lba, range);
-
-		ret = dev->transport->do_discard(dev, lba, range);
-		if (ret < 0) {
-			pr_err("blkdev_issue_discard() failed: %d\n",
-					ret);
-			goto err;
-		}
-
-		ptr += 16;
-		size -= 16;
-	}
-
-err:
-	transport_kunmap_data_sg(cmd);
-	if (!ret)
-		target_complete_cmd(cmd, GOOD);
-	return ret;
-}
-
 int spc_get_write_same_sectors(struct se_cmd *cmd)
 {
 	u32 num_blocks;
@@ -533,8 +476,11 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 		cmd->execute_cmd = ops->execute_sync_cache;
 		break;
 	case UNMAP:
+		if (!ops->execute_unmap)
+			goto out_unsupported_cdb;
+
 		size = get_unaligned_be16(&cdb[7]);
-		cmd->execute_cmd = sbc_emulate_unmap;
+		cmd->execute_cmd = ops->execute_unmap;
 		break;
 	case WRITE_SAME_16:
 		if (!ops->execute_write_same)

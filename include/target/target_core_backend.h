@@ -26,7 +26,6 @@ struct se_subsystem_api {
 	int (*transport_complete)(struct se_cmd *cmd, struct scatterlist *);
 
 	int (*parse_cdb)(struct se_cmd *cmd);
-	int (*do_discard)(struct se_device *, sector_t, u32);
 	ssize_t (*check_configfs_dev_params)(struct se_hba *,
 			struct se_subsystem_dev *);
 	ssize_t (*set_configfs_dev_params)(struct se_hba *,
@@ -43,6 +42,7 @@ struct spc_ops {
 	int (*execute_rw)(struct se_cmd *cmd);
 	int (*execute_sync_cache)(struct se_cmd *cmd);
 	int (*execute_write_same)(struct se_cmd *cmd);
+	int (*execute_unmap)(struct se_cmd *cmd);
 };
 
 int	transport_subsystem_register(struct se_subsystem_api *);

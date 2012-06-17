@@ -40,6 +40,7 @@
 #include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
+#include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
@@ -318,13 +319,52 @@ static int iblock_execute_sync_cache(struct se_cmd *cmd)
 	return 0;
 }
 
-static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
+static int iblock_execute_unmap(struct se_cmd *cmd)
 {
+	struct se_device *dev = cmd->se_dev;
 	struct iblock_dev *ibd = dev->dev_ptr;
-	struct block_device *bd = ibd->ibd_bd;
-	int barrier = 0;
+	unsigned char *buf, *ptr = NULL;
+	unsigned char *cdb = &cmd->t_task_cdb[0];
+	sector_t lba;
+	unsigned int size = cmd->data_length, range;
+	int ret = 0, offset;
+	unsigned short dl, bd_dl;
 
-	return blkdev_issue_discard(bd, lba, range, GFP_KERNEL, barrier);
+	/* First UNMAP block descriptor starts at 8 byte offset */
+	offset = 8;
+	size -= 8;
+	dl = get_unaligned_be16(&cdb[0]);
+	bd_dl = get_unaligned_be16(&cdb[2]);
+
+	buf = transport_kmap_data_sg(cmd);
+
+	ptr = &buf[offset];
+	pr_debug("UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
+		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
+
+	while (size) {
+		lba = get_unaligned_be64(&ptr[0]);
+		range = get_unaligned_be32(&ptr[8]);
+		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
+				 (unsigned long long)lba, range);
+
+		ret = blkdev_issue_discard(ibd->ibd_bd, lba, range,
+					   GFP_KERNEL, 0);
+		if (ret < 0) {
+			pr_err("blkdev_issue_discard() failed: %d\n",
+					ret);
+			goto err;
+		}
+
+		ptr += 16;
+		size -= 16;
+	}
+
+err:
+	transport_kunmap_data_sg(cmd);
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
+	return ret;
 }
 
 static int iblock_execute_write_same(struct se_cmd *cmd)
@@ -687,6 +727,7 @@ static struct spc_ops iblock_spc_ops = {
 	.execute_rw		= iblock_execute_rw,
 	.execute_sync_cache	= iblock_execute_sync_cache,
 	.execute_write_same	= iblock_execute_write_same,
+	.execute_unmap		= iblock_execute_unmap,
 };
 
 static int iblock_parse_cdb(struct se_cmd *cmd)
@@ -706,7 +747,6 @@ static struct se_subsystem_api iblock_template = {
 	.create_virtdevice	= iblock_create_virtdevice,
 	.free_device		= iblock_free_device,
 	.parse_cdb		= iblock_parse_cdb,
-	.do_discard		= iblock_do_discard,
 	.check_configfs_dev_params = iblock_check_configfs_dev_params,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
