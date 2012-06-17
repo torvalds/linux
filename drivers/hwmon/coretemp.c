@@ -224,6 +224,9 @@ static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
 			tjmax = 90000;
 
 		pci_dev_put(host_bridge);
+	} else if (c->x86_model == 0x36) {
+		usemsr_ee = 0;
+		tjmax = 100000;
 	}
 
 	if (c->x86_model > 0xe && usemsr_ee) {
