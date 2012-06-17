@@ -410,36 +410,61 @@ static void irq_domain_disassociate_many(struct irq_domain *domain,
 	}
 }
 
-static int irq_setup_virq(struct irq_domain *domain, unsigned int virq,
-			    irq_hw_number_t hwirq)
+int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
+			      irq_hw_number_t hwirq_base, int count)
 {
-	struct irq_data *irq_data = irq_get_irq_data(virq);
+	unsigned int virq = irq_base;
+	irq_hw_number_t hwirq = hwirq_base;
+	int i;
 
-	irq_data->hwirq = hwirq;
-	irq_data->domain = domain;
-	if (domain->ops->map && domain->ops->map(domain, virq, hwirq)) {
-		pr_err("irq-%i==>hwirq-0x%lx mapping failed\n", virq, hwirq);
-		irq_data->domain = NULL;
-		irq_data->hwirq = 0;
-		return -1;
+	pr_debug("%s(%s, irqbase=%i, hwbase=%i, count=%i)\n", __func__,
+		of_node_full_name(domain->of_node), irq_base, (int)hwirq_base, count);
+
+	for (i = 0; i < count; i++) {
+		struct irq_data *irq_data = irq_get_irq_data(virq + i);
+
+		if (WARN(!irq_data, "error: irq_desc not allocated; "
+			 "irq=%i hwirq=0x%x\n", virq + i, (int)hwirq + i))
+			return -EINVAL;
+		if (WARN(irq_data->domain, "error: irq_desc already associated; "
+			 "irq=%i hwirq=0x%x\n", virq + i, (int)hwirq + i))
+			return -EINVAL;
+	};
+
+	for (i = 0; i < count; i++, virq++, hwirq++) {
+		struct irq_data *irq_data = irq_get_irq_data(virq);
+
+		irq_data->hwirq = hwirq;
+		irq_data->domain = domain;
+		if (domain->ops->map && domain->ops->map(domain, virq, hwirq)) {
+			pr_err("irq-%i==>hwirq-0x%lx mapping failed\n", virq, hwirq);
+			irq_data->domain = NULL;
+			irq_data->hwirq = 0;
+			goto err_unmap;
+		}
+
+		switch (domain->revmap_type) {
+		case IRQ_DOMAIN_MAP_LINEAR:
+			if (hwirq < domain->revmap_data.linear.size)
+				domain->revmap_data.linear.revmap[hwirq] = virq;
+			break;
+		case IRQ_DOMAIN_MAP_TREE:
+			mutex_lock(&revmap_trees_mutex);
+			irq_radix_revmap_insert(domain, virq, hwirq);
+			mutex_unlock(&revmap_trees_mutex);
+			break;
+		}
+
+		irq_clear_status_flags(virq, IRQ_NOREQUEST);
 	}
-
-	switch (domain->revmap_type) {
-	case IRQ_DOMAIN_MAP_LINEAR:
-		if (hwirq < domain->revmap_data.linear.size)
-			domain->revmap_data.linear.revmap[hwirq] = virq;
-		break;
-	case IRQ_DOMAIN_MAP_TREE:
-		mutex_lock(&revmap_trees_mutex);
-		irq_radix_revmap_insert(domain, virq, hwirq);
-		mutex_unlock(&revmap_trees_mutex);
-		break;
-	}
-
-	irq_clear_status_flags(virq, IRQ_NOREQUEST);
 
 	return 0;
+
+ err_unmap:
+	irq_domain_disassociate_many(domain, irq_base, i);
+	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(irq_domain_associate_many);
 
 /**
  * irq_create_direct_mapping() - Allocate an irq for direct mapping
@@ -472,7 +497,7 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 	}
 	pr_debug("create_direct obtained virq %d\n", virq);
 
-	if (irq_setup_virq(domain, virq, virq)) {
+	if (irq_domain_associate(domain, virq, virq)) {
 		irq_free_desc(virq);
 		return 0;
 	}
@@ -533,7 +558,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 		return 0;
 	}
 
-	if (irq_setup_virq(domain, virq, hwirq)) {
+	if (irq_domain_associate(domain, virq, hwirq)) {
 		irq_free_desc(virq);
 		return 0;
 	}
@@ -544,6 +569,44 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_mapping);
+
+/**
+ * irq_create_strict_mappings() - Map a range of hw irqs to fixed linux irqs
+ * @domain: domain owning the interrupt range
+ * @irq_base: beginning of linux IRQ range
+ * @hwirq_base: beginning of hardware IRQ range
+ * @count: Number of interrupts to map
+ *
+ * This routine is used for allocating and mapping a range of hardware
+ * irqs to linux irqs where the linux irq numbers are at pre-defined
+ * locations. For use by controllers that already have static mappings
+ * to insert in to the domain.
+ *
+ * Non-linear users can use irq_create_identity_mapping() for IRQ-at-a-time
+ * domain insertion.
+ *
+ * 0 is returned upon success, while any failure to establish a static
+ * mapping is treated as an error.
+ */
+int irq_create_strict_mappings(struct irq_domain *domain, unsigned int irq_base,
+			       irq_hw_number_t hwirq_base, int count)
+{
+	int ret;
+
+	ret = irq_alloc_descs(irq_base, irq_base, count,
+			      of_node_to_nid(domain->of_node));
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = irq_domain_associate_many(domain, irq_base, hwirq_base, count);
+	if (unlikely(ret < 0)) {
+		irq_free_descs(irq_base, count);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(irq_create_strict_mappings);
 
 unsigned int irq_create_of_mapping(struct device_node *controller,
 				   const u32 *intspec, unsigned int intsize)
