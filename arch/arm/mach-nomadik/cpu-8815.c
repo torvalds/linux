@@ -22,6 +22,10 @@
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/irq.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_data/clk-nomadik.h>
 
 #include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
@@ -32,91 +36,63 @@
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include "clock.h"
 #include "cpu-8815.h"
 
-#define __MEM_4K_RESOURCE(x) \
-	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
-
 /* The 8815 has 4 GPIO blocks, let's register them immediately */
+static resource_size_t __initdata cpu8815_gpio_base[] = {
+	NOMADIK_GPIO0_BASE,
+	NOMADIK_GPIO1_BASE,
+	NOMADIK_GPIO2_BASE,
+	NOMADIK_GPIO3_BASE,
+};
 
-#define GPIO_RESOURCE(block)						\
-	{								\
-		.start	= NOMADIK_GPIO##block##_BASE,			\
-		.end	= NOMADIK_GPIO##block##_BASE + SZ_4K - 1,	\
-		.flags	= IORESOURCE_MEM,				\
-	},								\
-	{								\
-		.start	= IRQ_GPIO##block,				\
-		.end	= IRQ_GPIO##block,				\
-		.flags	= IORESOURCE_IRQ,				\
+static struct platform_device *
+cpu8815_add_gpio(int id, resource_size_t addr, int irq,
+		 struct nmk_gpio_platform_data *pdata)
+{
+	struct resource resources[] = {
+		{
+			.start	= addr,
+			.end	= addr + 127,
+			.flags	= IORESOURCE_MEM,
+		},
+		{
+			.start	= irq,
+			.end	= irq,
+			.flags	= IORESOURCE_IRQ,
+		}
+	};
+
+	return platform_device_register_resndata(NULL, "gpio", id,
+				resources, ARRAY_SIZE(resources),
+				pdata, sizeof(*pdata));
+}
+
+void cpu8815_add_gpios(resource_size_t *base, int num, int irq,
+		       struct nmk_gpio_platform_data *pdata)
+{
+	int first = 0;
+	int i;
+
+	for (i = 0; i < num; i++, first += 32, irq++) {
+		pdata->first_gpio = first;
+		pdata->first_irq = NOMADIK_GPIO_TO_IRQ(first);
+		pdata->num_gpio = 32;
+
+		cpu8815_add_gpio(i, base[i], irq, pdata);
 	}
-
-#define GPIO_DEVICE(block)						\
-	{								\
-		.name 		= "gpio",				\
-		.id		= block,				\
-		.num_resources 	= 2,					\
-		.resource	= &cpu8815_gpio_resources[block * 2],	\
-		.dev = {						\
-			.platform_data = &cpu8815_gpio[block],		\
-		},							\
-	}
-
-static struct nmk_gpio_platform_data cpu8815_gpio[] = {
-	{
-		.name = "GPIO-0-31",
-		.first_gpio = 0,
-		.first_irq = NOMADIK_GPIO_TO_IRQ(0),
-	}, {
-		.name = "GPIO-32-63",
-		.first_gpio = 32,
-		.first_irq = NOMADIK_GPIO_TO_IRQ(32),
-	}, {
-		.name = "GPIO-64-95",
-		.first_gpio = 64,
-		.first_irq = NOMADIK_GPIO_TO_IRQ(64),
-	}, {
-		.name = "GPIO-96-127", /* 124..127 not routed to pin */
-		.first_gpio = 96,
-		.first_irq = NOMADIK_GPIO_TO_IRQ(96),
-	}
-};
-
-static struct resource cpu8815_gpio_resources[] = {
-	GPIO_RESOURCE(0),
-	GPIO_RESOURCE(1),
-	GPIO_RESOURCE(2),
-	GPIO_RESOURCE(3),
-};
-
-static struct platform_device cpu8815_platform_gpio[] = {
-	GPIO_DEVICE(0),
-	GPIO_DEVICE(1),
-	GPIO_DEVICE(2),
-	GPIO_DEVICE(3),
-};
-
-static AMBA_APB_DEVICE(cpu8815_amba_rng, "rng", 0, NOMADIK_RNG_BASE, { }, NULL);
-
-static struct platform_device *platform_devs[] __initdata = {
-	cpu8815_platform_gpio + 0,
-	cpu8815_platform_gpio + 1,
-	cpu8815_platform_gpio + 2,
-	cpu8815_platform_gpio + 3,
-};
-
-static struct amba_device *amba_devs[] __initdata = {
-	&cpu8815_amba_rng_device
-};
+}
 
 static int __init cpu8815_init(void)
 {
-	int i;
+	struct nmk_gpio_platform_data pdata = {
+		/* No custom data yet */
+	};
 
-	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
-		amba_device_register(amba_devs[i], &iomem_resource);
+	cpu8815_add_gpios(cpu8815_gpio_base, ARRAY_SIZE(cpu8815_gpio_base),
+			  IRQ_GPIO0, &pdata);
+	amba_apb_device_add(NULL, "rng", NOMADIK_RNG_BASE, SZ_4K, 0, 0, NULL, 0);
+	amba_apb_device_add(NULL, "rtc-pl031", NOMADIK_RTC_BASE, SZ_4K, IRQ_RTC_RTT, 0, NULL, 0);
 	return 0;
 }
 arch_initcall(cpu8815_init);
@@ -147,7 +123,7 @@ void __init cpu8815_init_irq(void)
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
-	clk_init();
+	nomadik_clk_init();
 }
 
 /*
