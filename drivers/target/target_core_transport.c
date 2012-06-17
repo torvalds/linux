@@ -1865,7 +1865,7 @@ EXPORT_SYMBOL(transport_generic_request_failure);
 
 static void __target_execute_cmd(struct se_cmd *cmd)
 {
-	int error;
+	int error = 0;
 
 	spin_lock_irq(&cmd->t_state_lock);
 	cmd->transport_state |= (CMD_T_BUSY|CMD_T_SENT);
@@ -1873,10 +1873,6 @@ static void __target_execute_cmd(struct se_cmd *cmd)
 
 	if (cmd->execute_cmd)
 		error = cmd->execute_cmd(cmd);
-	else {
-		error = cmd->se_dev->transport->execute_cmd(cmd, cmd->t_data_sg,
-				cmd->t_data_nents, cmd->data_direction);
-	}
 
 	if (error) {
 		spin_lock_irq(&cmd->t_state_lock);

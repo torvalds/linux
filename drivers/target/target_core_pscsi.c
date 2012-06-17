@@ -55,6 +55,7 @@
 
 static struct se_subsystem_api pscsi_template;
 
+static int pscsi_execute_cmd(struct se_cmd *cmd);
 static void pscsi_req_done(struct request *, int);
 
 /*	pscsi_attach_hba():
@@ -1081,17 +1082,20 @@ static int pscsi_parse_cdb(struct se_cmd *cmd)
 	case WRITE_16:
 	case WRITE_VERIFY:
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
+		/* FALLTHROUGH*/
 	default:
+		cmd->execute_cmd = pscsi_execute_cmd;
 		break;
 	}
 
 	return 0;
 }
 
-static int pscsi_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, enum dma_data_direction data_direction)
+static int pscsi_execute_cmd(struct se_cmd *cmd)
 {
+	struct scatterlist *sgl = cmd->t_data_sg;
+	u32 sgl_nents = cmd->t_data_nents;
+	enum dma_data_direction data_direction = cmd->data_direction;
 	struct pscsi_dev_virt *pdv = cmd->se_dev->dev_ptr;
 	struct pscsi_plugin_task *pt;
 	struct request *req;
@@ -1259,7 +1263,6 @@ static struct se_subsystem_api pscsi_template = {
 	.free_device		= pscsi_free_device,
 	.transport_complete	= pscsi_transport_complete,
 	.parse_cdb		= pscsi_parse_cdb,
-	.execute_cmd		= pscsi_execute_cmd,
 	.check_configfs_dev_params = pscsi_check_configfs_dev_params,
 	.set_configfs_dev_params = pscsi_set_configfs_dev_params,
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,

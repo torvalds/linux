@@ -514,9 +514,11 @@ static void iblock_submit_bios(struct bio_list *list, int rw)
 	blk_finish_plug(&plug);
 }
 
-static int iblock_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, enum dma_data_direction data_direction)
+static int iblock_execute_rw(struct se_cmd *cmd)
 {
+	struct scatterlist *sgl = cmd->t_data_sg;
+	u32 sgl_nents = cmd->t_data_nents;
+	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *dev = cmd->se_dev;
 	struct iblock_req *ibr;
 	struct bio *bio;
@@ -663,6 +665,15 @@ static void iblock_bio_done(struct bio *bio, int err)
 	iblock_complete_cmd(cmd);
 }
 
+static struct spc_ops iblock_spc_ops = {
+	.execute_rw		= iblock_execute_rw,
+};
+
+static int iblock_parse_cdb(struct se_cmd *cmd)
+{
+	return sbc_parse_cdb(cmd, &iblock_spc_ops);
+}
+
 static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.owner			= THIS_MODULE,
@@ -674,8 +685,7 @@ static struct se_subsystem_api iblock_template = {
 	.allocate_virtdevice	= iblock_allocate_virtdevice,
 	.create_virtdevice	= iblock_create_virtdevice,
 	.free_device		= iblock_free_device,
-	.parse_cdb		= sbc_parse_cdb,
-	.execute_cmd		= iblock_execute_cmd,
+	.parse_cdb		= iblock_parse_cdb,
 	.do_discard		= iblock_do_discard,
 	.do_sync_cache		= iblock_emulate_sync_cache,
 	.check_configfs_dev_params = iblock_check_configfs_dev_params,

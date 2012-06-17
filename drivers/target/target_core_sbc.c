@@ -395,7 +395,7 @@ out:
 	kfree(buf);
 }
 
-int sbc_parse_cdb(struct se_cmd *cmd)
+int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 {
 	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
 	struct se_device *dev = cmd->se_dev;
@@ -409,26 +409,31 @@ int sbc_parse_cdb(struct se_cmd *cmd)
 		sectors = transport_get_sectors_6(cdb);
 		cmd->t_task_lba = transport_lba_21(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		cmd->execute_cmd = ops->execute_rw;
 		break;
 	case READ_10:
 		sectors = transport_get_sectors_10(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		cmd->execute_cmd = ops->execute_rw;
 		break;
 	case READ_12:
 		sectors = transport_get_sectors_12(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		cmd->execute_cmd = ops->execute_rw;
 		break;
 	case READ_16:
 		sectors = transport_get_sectors_16(cdb);
 		cmd->t_task_lba = transport_lba_64(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		cmd->execute_cmd = ops->execute_rw;
 		break;
 	case WRITE_6:
 		sectors = transport_get_sectors_6(cdb);
 		cmd->t_task_lba = transport_lba_21(cdb);
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		cmd->execute_cmd = ops->execute_rw;
 		break;
 	case WRITE_10:
 	case WRITE_VERIFY:
@@ -437,6 +442,7 @@ int sbc_parse_cdb(struct se_cmd *cmd)
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		cmd->execute_cmd = ops->execute_rw;
 		break;
 	case WRITE_12:
 		sectors = transport_get_sectors_12(cdb);
@@ -444,6 +450,7 @@ int sbc_parse_cdb(struct se_cmd *cmd)
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		cmd->execute_cmd = ops->execute_rw;
 		break;
 	case WRITE_16:
 		sectors = transport_get_sectors_16(cdb);
@@ -451,6 +458,7 @@ int sbc_parse_cdb(struct se_cmd *cmd)
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		cmd->execute_cmd = ops->execute_rw;
 		break;
 	case XDWRITEREAD_10:
 		if ((cmd->data_direction != DMA_TO_DEVICE) ||
@@ -464,6 +472,7 @@ int sbc_parse_cdb(struct se_cmd *cmd)
 		/*
 		 * Setup BIDI XOR callback to be run after I/O completion.
 		 */
+		cmd->execute_cmd = ops->execute_rw;
 		cmd->transport_complete_callback = &xdreadwrite_callback;
 		if (cdb[1] & 0x8)
 			cmd->se_cmd_flags |= SCF_FUA;
@@ -486,6 +495,7 @@ int sbc_parse_cdb(struct se_cmd *cmd)
 			 * Setup BIDI XOR callback to be run during after I/O
 			 * completion.
 			 */
+			cmd->execute_cmd = ops->execute_rw;
 			cmd->transport_complete_callback = &xdreadwrite_callback;
 			if (cdb[1] & 0x8)
 				cmd->se_cmd_flags |= SCF_FUA;

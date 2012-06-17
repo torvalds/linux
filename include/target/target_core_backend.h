@@ -26,8 +26,6 @@ struct se_subsystem_api {
 	int (*transport_complete)(struct se_cmd *cmd, struct scatterlist *);
 
 	int (*parse_cdb)(struct se_cmd *cmd);
-	int (*execute_cmd)(struct se_cmd *, struct scatterlist *, u32,
-			enum dma_data_direction);
 	int (*do_discard)(struct se_device *, sector_t, u32);
 	void (*do_sync_cache)(struct se_cmd *);
 	ssize_t (*check_configfs_dev_params)(struct se_hba *,
@@ -42,6 +40,10 @@ struct se_subsystem_api {
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);
 };
 
+struct spc_ops {
+	int (*execute_rw)(struct se_cmd *cmd);
+};
+
 int	transport_subsystem_register(struct se_subsystem_api *);
 void	transport_subsystem_release(struct se_subsystem_api *);
 
@@ -51,7 +53,7 @@ struct se_device *transport_add_device_to_core_hba(struct se_hba *,
 
 void	target_complete_cmd(struct se_cmd *, u8);
 
-int	sbc_parse_cdb(struct se_cmd *cmd);
+int	sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops);
 int	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
 
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
