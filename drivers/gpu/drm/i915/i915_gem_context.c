@@ -243,8 +243,10 @@ void i915_gem_context_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t ctx_size;
 
-	if (!HAS_HW_CONTEXTS(dev))
+	if (!HAS_HW_CONTEXTS(dev)) {
+		dev_priv->hw_contexts_disabled = true;
 		return;
+	}
 
 	/* If called from reset, or thaw... we've been here already */
 	if (dev_priv->hw_contexts_disabled ||
