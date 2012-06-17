@@ -25,7 +25,7 @@ static void batadv_hash_init(struct batadv_hashtable *hash)
 {
 	uint32_t i;
 
-	for (i = 0 ; i < hash->size; i++) {
+	for (i = 0; i < hash->size; i++) {
 		INIT_HLIST_HEAD(&hash->table[i]);
 		spin_lock_init(&hash->list_locks[i]);
 	}
