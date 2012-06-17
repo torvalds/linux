@@ -1216,12 +1216,7 @@ static void mmci_dt_populate_generic_pdata(struct device_node *np,
 	int bus_width = 0;
 
 	pdata->gpio_wp = of_get_named_gpio(np, "wp-gpios", 0);
-	if (!pdata->gpio_wp)
-		pdata->gpio_wp = -1;
-
 	pdata->gpio_cd = of_get_named_gpio(np, "cd-gpios", 0);
-	if (!pdata->gpio_cd)
-		pdata->gpio_cd = -1;
 
 	if (of_get_property(np, "cd-inverted", NULL))
 		pdata->cd_invert = true;
