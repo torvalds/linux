@@ -54,6 +54,17 @@ Some information comes from ark.intel.com
 
 Process		Processor					TjMax(C)
 
+22nm		Core i5/i7 Processors
+		i7 3920XM, 3820QM, 3720QM, 3667U, 3520M		105
+		i5 3427U, 3360M/3320M				105
+		i7 3770/3770K					105
+		i5 3570/3570K, 3550, 3470/3450			105
+		i7 3770S					103
+		i5 3570S/3550S, 3475S/3470S/3450S		103
+		i7 3770T					94
+		i5 3570T					94
+		i5 3470T					91
+
 32nm		Core i3/i5/i7 Processors
 		i7 660UM/640/620, 640LM/620, 620M, 610E		105
 		i5 540UM/520/430, 540M/520/450/430		105
