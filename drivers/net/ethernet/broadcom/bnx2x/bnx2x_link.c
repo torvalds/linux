@@ -4057,18 +4057,12 @@ static void bnx2x_warpcore_set_10G_XFI(struct bnx2x_phy *phy,
 			 MDIO_WC_REG_DIGITAL4_MISC3, val | 0x8080);
 
 	/* Enable LPI pass through */
-	if ((params->eee_mode & EEE_MODE_ADV_LPI) &&
-	    (phy->flags & FLAGS_EEE_10GBT) &&
-	    (!(params->eee_mode & EEE_MODE_ENABLE_LPI) ||
-	      bnx2x_eee_calc_timer(params)) &&
-	    (params->req_duplex[bnx2x_phy_selection(params)] == DUPLEX_FULL)) {
-		DP(NETIF_MSG_LINK, "Configure WC for LPI pass through\n");
-		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
-				 MDIO_WC_REG_EEE_COMBO_CONTROL0,
-				 0x7c);
-		bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
-					 MDIO_WC_REG_DIGITAL4_MISC5, 0xc000);
-	}
+	DP(NETIF_MSG_LINK, "Configure WC for LPI pass through\n");
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_EEE_COMBO_CONTROL0,
+			 0x7c);
+	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_DIGITAL4_MISC5, 0xc000);
 
 	/* 10G XFI Full Duplex */
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
