@@ -1933,7 +1933,6 @@ static void target_execute_cmd(struct se_cmd *cmd)
 
 	if (atomic_read(&dev->dev_ordered_sync) != 0) {
 		spin_lock(&dev->delayed_cmd_lock);
-		cmd->se_cmd_flags |= SCF_DELAYED_CMD_FROM_SAM_ATTR;
 		list_add_tail(&cmd->se_delayed_node, &dev->delayed_cmd_list);
 		spin_unlock(&dev->delayed_cmd_lock);
 
