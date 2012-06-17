@@ -309,6 +309,9 @@ struct dvb_usb_adapter {
 	int feedcount;
 	int max_feed_count;
 
+	/* sync frontend and streaming as those are different tasks */
+	struct mutex sync_mutex;
+
 	/* dvb */
 	struct dvb_adapter   dvb_adap;
 	struct dmxdev        dmxdev;

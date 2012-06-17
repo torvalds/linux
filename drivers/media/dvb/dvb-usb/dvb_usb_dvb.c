@@ -77,9 +77,10 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			if (ret < 0) {
 				pr_err("%s: error while stopping stream\n",
 						KBUILD_MODNAME);
-				return ret;
+				goto err_mutex_unlock;
 			}
 		}
+		mutex_unlock(&adap->sync_mutex);
 	}
 
 	adap->feedcount = newfeedcount;
@@ -95,12 +96,14 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		adap->props->pid_filter(adap, dvbdmxfeed->index,
 				dvbdmxfeed->pid, onoff);
 
-	/* start the feed if this was the first feed and there is still a feed
+	/*
+	 * Start the feed if this was the first feed and there is still a feed
 	 * for reception.
 	 */
 	if (adap->feedcount == onoff && adap->feedcount > 0) {
 		struct usb_data_stream_properties stream_props;
 		unsigned int ts_props;
+		mutex_lock(&adap->sync_mutex);
 
 		/* resolve TS configuration */
 		if (adap->dev->props->get_ts_config) {
@@ -108,7 +111,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 					adap->fe[adap->active_fe],
 					&ts_props);
 			if (ret < 0)
-				return ret;
+				goto err_mutex_unlock;
 		} else {
 			ts_props = 0; /* normal 188 payload only TS */
 		}
@@ -128,13 +131,12 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 					adap->fe[adap->active_fe],
 					&stream_props);
 			if (ret < 0)
-				return ret;
+				goto err_mutex_unlock;
 		} else {
 			stream_props = adap->props->stream;
 		}
 
 		pr_debug("%s: submitting all URBs\n", __func__);
-
 		usb_urb_submitv2(&adap->stream, &stream_props);
 
 		pr_debug("%s: controlling pid parser\n", __func__);
@@ -147,7 +149,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			if (ret < 0) {
 				pr_err("%s: could not handle pid_parser\n",
 						KBUILD_MODNAME);
-				return ret;
+				goto err_mutex_unlock;
 			}
 		}
 		pr_debug("%s: start feeding\n", __func__);
@@ -156,12 +158,15 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			if (ret < 0) {
 				pr_err("%s: error while enabling fifo\n",
 						KBUILD_MODNAME);
-				return ret;
+				goto err_mutex_unlock;
 			}
 		}
 
 	}
+
 	return 0;
+err_mutex_unlock:
+	mutex_unlock(&adap->sync_mutex);
 err:
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -238,6 +243,7 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 		goto err_net_init;
 	}
 
+	mutex_init(&adap->sync_mutex);
 	adap->state |= DVB_USB_ADAP_STATE_DVB;
 	return 0;
 
@@ -271,6 +277,7 @@ static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	mutex_lock(&adap->sync_mutex);
 	pr_debug("%s: adap=%d fe=%d\n", __func__, adap->id, fe->id);
 
 	ret = dvb_usbv2_device_power_ctrl(adap->dev, 1);
@@ -290,9 +297,11 @@ static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 	}
 
 	adap->active_fe = fe->id;
+	mutex_unlock(&adap->sync_mutex);
 
 	return 0;
 err:
+	mutex_unlock(&adap->sync_mutex);
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
@@ -301,6 +310,7 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	mutex_lock(&adap->sync_mutex);
 	pr_debug("%s: adap=%d fe=%d\n", __func__, adap->id, fe->id);
 
 	if (adap->fe_sleep[fe->id]) {
@@ -320,9 +330,11 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 		goto err;
 
 	adap->active_fe = -1;
+	mutex_unlock(&adap->sync_mutex);
 
 	return 0;
 err:
+	mutex_unlock(&adap->sync_mutex);
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
