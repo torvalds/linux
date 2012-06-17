@@ -193,9 +193,11 @@ static struct clk __init *kirkwood_register_gate_fn(const char *name,
 				    bit_idx, 0, &gating_lock, fn);
 }
 
+static struct clk *ge0, *ge1;
+
 void __init kirkwood_clk_init(void)
 {
-	struct clk *runit, *ge0, *ge1, *sata0, *sata1, *usb0, *sdio;
+	struct clk *runit, *sata0, *sata1, *usb0, *sdio;
 	struct clk *crypto, *xor0, *xor1, *pex0, *pex1, *audio;
 
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL,
@@ -257,6 +259,9 @@ void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 	orion_ge00_init(eth_data,
 			GE00_PHYS_BASE, IRQ_KIRKWOOD_GE00_SUM,
 			IRQ_KIRKWOOD_GE00_ERR);
+	/* The interface forgets the MAC address assigned by u-boot if
+	the clock is turned off, so claim the clk now. */
+	clk_prepare_enable(ge0);
 }
 
 
@@ -268,6 +273,7 @@ void __init kirkwood_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 	orion_ge01_init(eth_data,
 			GE01_PHYS_BASE, IRQ_KIRKWOOD_GE01_SUM,
 			IRQ_KIRKWOOD_GE01_ERR);
+	clk_prepare_enable(ge1);
 }
 
 
