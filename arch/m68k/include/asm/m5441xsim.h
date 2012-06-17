@@ -180,6 +180,12 @@
 #define MCFEPORT_EPPAR		0xfc090000
 #define MCFEPORT_EPIER		0xfc090003
 #define MCFEPORT_EPFR		0xfc090006
+/*
+ *  RTC Module.
+ */
+#define MCFRTC_BASE		0xfc0a8000
+#define MCFRTC_SIZE		(0xfc0a8840 - 0xfc0a8000)
+#define MCF_IRQ_RTC		(MCFINT2_VECBASE + MCFINT2_RTC)
 
 /*
  *  GPIO Module.
