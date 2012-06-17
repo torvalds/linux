@@ -209,9 +209,9 @@ struct wl1271_scan {
 };
 
 struct wl1271_if_operations {
-	void (*read)(struct device *child, int addr, void *buf, size_t len,
-		     bool fixed);
-	void (*write)(struct device *child, int addr, void *buf, size_t len,
+	int (*read)(struct device *child, int addr, void *buf, size_t len,
+		    bool fixed);
+	int (*write)(struct device *child, int addr, void *buf, size_t len,
 		     bool fixed);
 	void (*reset)(struct device *child);
 	void (*init)(struct device *child);
