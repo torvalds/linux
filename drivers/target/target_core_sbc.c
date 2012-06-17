@@ -156,24 +156,9 @@ err:
 	return ret;
 }
 
-/*
- * Used for TCM/IBLOCK and TCM/FILEIO for block/blk-lib.c level discard support.
- * Note this is not used for TCM/pSCSI passthrough
- */
-static int sbc_emulate_write_same(struct se_cmd *cmd)
+int spc_get_write_same_sectors(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
-	sector_t range;
-	sector_t lba = cmd->t_task_lba;
 	u32 num_blocks;
-	int ret;
-
-	if (!dev->transport->do_discard) {
-		pr_err("WRITE_SAME emulation not supported"
-				" for: %s\n", dev->transport->name);
-		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
-		return -ENOSYS;
-	}
 
 	if (cmd->t_task_cdb[0] == WRITE_SAME)
 		num_blocks = get_unaligned_be16(&cmd->t_task_cdb[7]);
@@ -186,23 +171,13 @@ static int sbc_emulate_write_same(struct se_cmd *cmd)
 	 * Use the explicit range when non zero is supplied, otherwise calculate
 	 * the remaining range based on ->get_blocks() - starting LBA.
 	 */
-	if (num_blocks != 0)
-		range = num_blocks;
-	else
-		range = (dev->transport->get_blocks(dev) - lba) + 1;
+	if (num_blocks)
+		return num_blocks;
 
-	pr_debug("WRITE_SAME UNMAP: LBA: %llu Range: %llu\n",
-		 (unsigned long long)lba, (unsigned long long)range);
-
-	ret = dev->transport->do_discard(dev, lba, range);
-	if (ret < 0) {
-		pr_debug("blkdev_issue_discard() failed for WRITE_SAME\n");
-		return ret;
-	}
-
-	target_complete_cmd(cmd, GOOD);
-	return 0;
+	return cmd->se_dev->transport->get_blocks(cmd->se_dev) -
+		cmd->t_task_lba + 1;
 }
+EXPORT_SYMBOL(spc_get_write_same_sectors);
 
 static int sbc_emulate_verify(struct se_cmd *cmd)
 {
@@ -488,6 +463,9 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 				cmd->se_cmd_flags |= SCF_FUA;
 			break;
 		case WRITE_SAME_32:
+			if (!ops->execute_write_same)
+				goto out_unsupported_cdb;
+
 			sectors = transport_get_sectors_32(cdb);
 			if (!sectors) {
 				pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not"
@@ -500,7 +478,7 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 
 			if (sbc_write_same_supported(dev, &cdb[10]) < 0)
 				goto out_unsupported_cdb;
-			cmd->execute_cmd = sbc_emulate_write_same;
+			cmd->execute_cmd = ops->execute_write_same;
 			break;
 		default:
 			pr_err("VARIABLE_LENGTH_CMD service action"
@@ -559,6 +537,9 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 		cmd->execute_cmd = sbc_emulate_unmap;
 		break;
 	case WRITE_SAME_16:
+		if (!ops->execute_write_same)
+			goto out_unsupported_cdb;
+
 		sectors = transport_get_sectors_16(cdb);
 		if (!sectors) {
 			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
@@ -570,9 +551,12 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 
 		if (sbc_write_same_supported(dev, &cdb[1]) < 0)
 			goto out_unsupported_cdb;
-		cmd->execute_cmd = sbc_emulate_write_same;
+		cmd->execute_cmd = ops->execute_write_same;
 		break;
 	case WRITE_SAME:
+		if (!ops->execute_write_same)
+			goto out_unsupported_cdb;
+
 		sectors = transport_get_sectors_10(cdb);
 		if (!sectors) {
 			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
@@ -588,7 +572,7 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 		 */
 		if (sbc_write_same_supported(dev, &cdb[1]) < 0)
 			goto out_unsupported_cdb;
-		cmd->execute_cmd = sbc_emulate_write_same;
+		cmd->execute_cmd = ops->execute_write_same;
 		break;
 	case VERIFY:
 		size = 0;

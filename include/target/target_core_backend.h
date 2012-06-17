@@ -42,6 +42,7 @@ struct se_subsystem_api {
 struct spc_ops {
 	int (*execute_rw)(struct se_cmd *cmd);
 	int (*execute_sync_cache)(struct se_cmd *cmd);
+	int (*execute_write_same)(struct se_cmd *cmd);
 };
 
 int	transport_subsystem_register(struct se_subsystem_api *);
@@ -55,6 +56,7 @@ void	target_complete_cmd(struct se_cmd *, u8);
 
 int	sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops);
 int	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
+int	spc_get_write_same_sectors(struct se_cmd *cmd);
 
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_assoc(struct t10_vpd *, unsigned char *);

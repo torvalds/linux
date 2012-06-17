@@ -327,6 +327,23 @@ static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
 	return blkdev_issue_discard(bd, lba, range, GFP_KERNEL, barrier);
 }
 
+static int iblock_execute_write_same(struct se_cmd *cmd)
+{
+	struct iblock_dev *ibd = cmd->se_dev->dev_ptr;
+	int ret;
+
+	ret = blkdev_issue_discard(ibd->ibd_bd, cmd->t_task_lba,
+				   spc_get_write_same_sectors(cmd), GFP_KERNEL,
+				   0);
+	if (ret < 0) {
+		pr_debug("blkdev_issue_discard() failed for WRITE_SAME\n");
+		return ret;
+	}
+
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
 enum {
 	Opt_udev_path, Opt_readonly, Opt_force, Opt_err
 };
@@ -669,6 +686,7 @@ static void iblock_bio_done(struct bio *bio, int err)
 static struct spc_ops iblock_spc_ops = {
 	.execute_rw		= iblock_execute_rw,
 	.execute_sync_cache	= iblock_execute_sync_cache,
+	.execute_write_same	= iblock_execute_write_same,
 };
 
 static int iblock_parse_cdb(struct se_cmd *cmd)
