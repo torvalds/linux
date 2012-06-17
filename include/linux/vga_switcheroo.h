@@ -9,6 +9,8 @@
 
 #include <linux/fb.h>
 
+struct pci_dev;
+
 enum vga_switcheroo_state {
 	VGA_SWITCHEROO_OFF,
 	VGA_SWITCHEROO_ON,
