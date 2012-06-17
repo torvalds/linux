@@ -2026,7 +2026,9 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 	if (!trans->op_mode)
 		return -EAGAIN;
 
+	local_bh_disable();
 	iwl_op_mode_nic_error(trans->op_mode);
+	local_bh_enable();
 
 	return count;
 }
