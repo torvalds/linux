@@ -65,16 +65,16 @@ static inline int wlcore_raw_read(struct wl1271 *wl, int addr, void *buf,
 	return wl->if_ops->read(wl->dev, addr, buf, len, fixed);
 }
 
-static inline void wlcore_raw_read_data(struct wl1271 *wl, int reg, void *buf,
-					size_t len, bool fixed)
+static inline int wlcore_raw_read_data(struct wl1271 *wl, int reg, void *buf,
+				       size_t len, bool fixed)
 {
-	wlcore_raw_read(wl, wl->rtable[reg], buf, len, fixed);
+	return wlcore_raw_read(wl, wl->rtable[reg], buf, len, fixed);
 }
 
-static inline void wlcore_raw_write_data(struct wl1271 *wl, int reg, void *buf,
-					 size_t len, bool fixed)
+static inline int wlcore_raw_write_data(struct wl1271 *wl, int reg, void *buf,
+					size_t len, bool fixed)
 {
-	wlcore_raw_write(wl, wl->rtable[reg], buf, len, fixed);
+	return wlcore_raw_write(wl, wl->rtable[reg], buf, len, fixed);
 }
 
 static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
