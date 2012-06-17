@@ -28,7 +28,7 @@
 #define DRIVER_DEVICE "batman-adv"
 
 #ifndef SOURCE_VERSION
-#define SOURCE_VERSION "2012.2.0"
+#define SOURCE_VERSION "2012.3.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
