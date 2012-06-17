@@ -161,7 +161,7 @@ static struct phy_driver ks8051_driver = {
 static struct phy_driver ks8001_driver = {
 	.phy_id		= PHY_ID_KS8001,
 	.name		= "Micrel KS8001 or KS8721",
-	.phy_id_mask	= 0x00fffff0,
+	.phy_id_mask	= 0x00ffffff,
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
 	.config_init	= kszphy_config_init,
@@ -174,7 +174,7 @@ static struct phy_driver ks8001_driver = {
 
 static struct phy_driver ksz9021_driver = {
 	.phy_id		= PHY_ID_KSZ9021,
-	.phy_id_mask	= 0x000fff10,
+	.phy_id_mask	= 0x000ffffe,
 	.name		= "Micrel KSZ9021 Gigabit PHY",
 	.features	= (PHY_GBIT_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
@@ -240,8 +240,8 @@ MODULE_AUTHOR("David J. Choi");
 MODULE_LICENSE("GPL");
 
 static struct mdio_device_id __maybe_unused micrel_tbl[] = {
-	{ PHY_ID_KSZ9021, 0x000fff10 },
-	{ PHY_ID_KS8001, 0x00fffff0 },
+	{ PHY_ID_KSZ9021, 0x000ffffe },
+	{ PHY_ID_KS8001, 0x00ffffff },
 	{ PHY_ID_KS8737, 0x00fffff0 },
 	{ PHY_ID_KS8041, 0x00fffff0 },
 	{ PHY_ID_KS8051, 0x00fffff0 },
