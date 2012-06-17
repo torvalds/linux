@@ -1175,7 +1175,7 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 	struct tree_mod_elem *tm;
 	struct extent_buffer *eb;
 	struct tree_mod_root *old_root = NULL;
-	u64 old_generation;
+	u64 old_generation = 0;
 	u64 logical;
 
 	eb = btrfs_read_lock_root_node(root);

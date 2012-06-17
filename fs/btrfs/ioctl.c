@@ -1308,7 +1308,8 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 	}
 	if (device->fs_devices && device->fs_devices->seeding) {
 		printk(KERN_INFO "btrfs: resizer unable to apply on "
-		       "seeding device %llu\n", devid);
+		       "seeding device %llu\n",
+		       (unsigned long long)devid);
 		ret = -EINVAL;
 		goto out_free;
 	}
