@@ -204,19 +204,6 @@ static int sbc_emulate_write_same(struct se_cmd *cmd)
 	return 0;
 }
 
-static int sbc_emulate_synchronize_cache(struct se_cmd *cmd)
-{
-	if (!cmd->se_dev->transport->do_sync_cache) {
-		pr_err("SYNCHRONIZE_CACHE emulation not supported"
-			" for: %s\n", cmd->se_dev->transport->name);
-		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
-		return -ENOSYS;
-	}
-
-	cmd->se_dev->transport->do_sync_cache(cmd);
-	return 0;
-}
-
 static int sbc_emulate_verify(struct se_cmd *cmd)
 {
 	target_complete_cmd(cmd, GOOD);
@@ -541,6 +528,9 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 		break;
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
+		if (!ops->execute_sync_cache)
+			goto out_unsupported_cdb;
+
 		/*
 		 * Extract LBA and range to be flushed for emulated SYNCHRONIZE_CACHE
 		 */
@@ -562,7 +552,7 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 			if (sbc_check_valid_sectors(cmd) < 0)
 				goto out_invalid_cdb_field;
 		}
-		cmd->execute_cmd = sbc_emulate_synchronize_cache;
+		cmd->execute_cmd = ops->execute_sync_cache;
 		break;
 	case UNMAP:
 		size = get_unaligned_be16(&cdb[7]);

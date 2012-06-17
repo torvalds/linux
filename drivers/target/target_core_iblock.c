@@ -296,7 +296,7 @@ static void iblock_end_io_flush(struct bio *bio, int err)
  * Implement SYCHRONIZE CACHE.  Note that we can't handle lba ranges and must
  * always flush the whole cache.
  */
-static void iblock_emulate_sync_cache(struct se_cmd *cmd)
+static int iblock_execute_sync_cache(struct se_cmd *cmd)
 {
 	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
 	int immed = (cmd->t_task_cdb[1] & 0x2);
@@ -315,6 +315,7 @@ static void iblock_emulate_sync_cache(struct se_cmd *cmd)
 	if (!immed)
 		bio->bi_private = cmd;
 	submit_bio(WRITE_FLUSH, bio);
+	return 0;
 }
 
 static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
@@ -667,6 +668,7 @@ static void iblock_bio_done(struct bio *bio, int err)
 
 static struct spc_ops iblock_spc_ops = {
 	.execute_rw		= iblock_execute_rw,
+	.execute_sync_cache	= iblock_execute_sync_cache,
 };
 
 static int iblock_parse_cdb(struct se_cmd *cmd)
@@ -687,7 +689,6 @@ static struct se_subsystem_api iblock_template = {
 	.free_device		= iblock_free_device,
 	.parse_cdb		= iblock_parse_cdb,
 	.do_discard		= iblock_do_discard,
-	.do_sync_cache		= iblock_emulate_sync_cache,
 	.check_configfs_dev_params = iblock_check_configfs_dev_params,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,

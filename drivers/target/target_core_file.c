@@ -331,7 +331,7 @@ static int fd_do_writev(struct se_cmd *cmd, struct scatterlist *sgl,
 	return 1;
 }
 
-static void fd_emulate_sync_cache(struct se_cmd *cmd)
+static int fd_execute_sync_cache(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
@@ -365,7 +365,7 @@ static void fd_emulate_sync_cache(struct se_cmd *cmd)
 		pr_err("FILEIO: vfs_fsync_range() failed: %d\n", ret);
 
 	if (immed)
-		return;
+		return 0;
 
 	if (ret) {
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -373,6 +373,8 @@ static void fd_emulate_sync_cache(struct se_cmd *cmd)
 	} else {
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	}
+
+	return 0;
 }
 
 static int fd_execute_rw(struct se_cmd *cmd)
@@ -554,6 +556,7 @@ static sector_t fd_get_blocks(struct se_device *dev)
 
 static struct spc_ops fd_spc_ops = {
 	.execute_rw		= fd_execute_rw,
+	.execute_sync_cache	= fd_execute_sync_cache,
 };
 
 static int fd_parse_cdb(struct se_cmd *cmd)
@@ -573,7 +576,6 @@ static struct se_subsystem_api fileio_template = {
 	.create_virtdevice	= fd_create_virtdevice,
 	.free_device		= fd_free_device,
 	.parse_cdb		= fd_parse_cdb,
-	.do_sync_cache		= fd_emulate_sync_cache,
 	.check_configfs_dev_params = fd_check_configfs_dev_params,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
