@@ -190,5 +190,15 @@
 #define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
 #define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
 
+/*
+ *  Power Management.
+ */
+#define MCFPM_WCR		0xfc040013
+#define MCFPM_PPMSR0		0xfc04002c
+#define MCFPM_PPMCR0		0xfc04002d
+#define MCFPM_PPMHR0		0xfc040030
+#define MCFPM_PPMLR0		0xfc040034
+#define MCFPM_LPCR		0xfc0a0007
+
 /****************************************************************************/
 #endif  /* m520xsim_h */
