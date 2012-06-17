@@ -801,7 +801,7 @@ MODULE_DEVICE_TABLE(x86cpu, coretemp_ids);
 
 static int __init coretemp_init(void)
 {
-	int i, err = -ENODEV;
+	int i, err;
 
 	/*
 	 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
