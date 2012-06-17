@@ -343,11 +343,9 @@ static int lm77_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct lm77_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct lm77_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(dev, sizeof(struct lm77_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->valid = 0;
@@ -359,7 +357,7 @@ static int lm77_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&dev->kobj, &lm77_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -371,9 +369,6 @@ static int lm77_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 exit_remove:
 	sysfs_remove_group(&dev->kobj, &lm77_group);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -382,7 +377,6 @@ static int lm77_remove(struct i2c_client *client)
 	struct lm77_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm77_group);
-	kfree(data);
 	return 0;
 }
 
