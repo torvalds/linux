@@ -138,7 +138,7 @@ struct fw_card {
 struct fw_attribute_group {
 	struct attribute_group *groups[2];
 	struct attribute_group group;
-	struct attribute *attrs[12];
+	struct attribute *attrs[13];
 };
 
 enum fw_device_state {
