@@ -33,12 +33,6 @@ static unsigned int refresh_rate;
 #undef XGIFBDEBUG
 
 #ifdef XGIFBDEBUG
-#define DPRINTK(fmt, args...) pr_debug("%s: " fmt, __func__ , ## args)
-#else
-#define DPRINTK(fmt, args...)
-#endif
-
-#ifdef XGIFBDEBUG
 static void dumpVGAReg(void)
 {
 	u8 i, reg;
@@ -662,8 +656,8 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 				break;
 			} else if (XGIfb_vrate[i].refresh > rate) {
 				if ((XGIfb_vrate[i].refresh - rate) <= 3) {
-					DPRINTK("XGIfb: Adjusting rate from %d up to %d\n",
-						rate, XGIfb_vrate[i].refresh);
+					pr_debug("XGIfb: Adjusting rate from %d up to %d\n",
+						 rate, XGIfb_vrate[i].refresh);
 					xgifb_info->rate_idx =
 						XGIfb_vrate[i].idx;
 					xgifb_info->refresh_rate =
@@ -671,8 +665,8 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 				} else if (((rate - XGIfb_vrate[i - 1].refresh)
 						<= 2) && (XGIfb_vrate[i].idx
 						!= 1)) {
-					DPRINTK("XGIfb: Adjusting rate from %d down to %d\n",
-						rate, XGIfb_vrate[i-1].refresh);
+					pr_debug("XGIfb: Adjusting rate from %d down to %d\n",
+						 rate, XGIfb_vrate[i-1].refresh);
 					xgifb_info->rate_idx =
 						XGIfb_vrate[i - 1].idx;
 					xgifb_info->refresh_rate =
@@ -680,8 +674,8 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 				}
 				break;
 			} else if ((rate - XGIfb_vrate[i].refresh) <= 2) {
-				DPRINTK("XGIfb: Adjusting rate from %d down to %d\n",
-					rate, XGIfb_vrate[i].refresh);
+				pr_debug("XGIfb: Adjusting rate from %d down to %d\n",
+					 rate, XGIfb_vrate[i].refresh);
 				xgifb_info->rate_idx = XGIfb_vrate[i].idx;
 				break;
 			}
@@ -995,15 +989,15 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 			}
 
 			if ((filter >= 0) && (filter <= 7)) {
-				DPRINTK("FilterTable[%d]-%d: %02x %02x %02x %02x\n",
-					filter_tb, filter,
-					XGI_TV_filter[filter_tb].
+				pr_debug("FilterTable[%d]-%d: %02x %02x %02x %02x\n",
+					 filter_tb, filter,
+					 XGI_TV_filter[filter_tb].
 						filter[filter][0],
-					XGI_TV_filter[filter_tb].
+					 XGI_TV_filter[filter_tb].
 						filter[filter][1],
-					XGI_TV_filter[filter_tb].
+					 XGI_TV_filter[filter_tb].
 						filter[filter][2],
-					XGI_TV_filter[filter_tb].
+					 XGI_TV_filter[filter_tb].
 						filter[filter][3]
 				);
 				xgifb_reg_set(
@@ -1064,7 +1058,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	}
 
 	if (!htotal || !vtotal) {
-		DPRINTK("XGIfb: Invalid 'var' information\n");
+		pr_debug("XGIfb: Invalid 'var' information\n");
 		return -EINVAL;
 	} pr_debug("var->pixclock=%d, htotal=%d, vtotal=%d\n",
 			var->pixclock, htotal, vtotal);
@@ -1140,11 +1134,11 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 
 		XGIfb_post_setmode(xgifb_info);
 
-		DPRINTK("XGIfb: Set new mode: %dx%dx%d-%d\n",
-				XGIbios_mode[xgifb_info->mode_idx].xres,
-				XGIbios_mode[xgifb_info->mode_idx].yres,
-				XGIbios_mode[xgifb_info->mode_idx].bpp,
-				xgifb_info->refresh_rate);
+		pr_debug("XGIfb: Set new mode: %dx%dx%d-%d\n",
+			 XGIbios_mode[xgifb_info->mode_idx].xres,
+			 XGIbios_mode[xgifb_info->mode_idx].yres,
+			 XGIbios_mode[xgifb_info->mode_idx].bpp,
+			 xgifb_info->refresh_rate);
 
 		xgifb_info->video_bpp = XGIbios_mode[xgifb_info->mode_idx].bpp;
 		xgifb_info->video_vwidth = info->var.xres_virtual;
