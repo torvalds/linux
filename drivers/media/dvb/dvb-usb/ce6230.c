@@ -179,7 +179,7 @@ static int ce6230_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 	pr_debug("%s:\n", __func__);
 
 	adap->fe[0] = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
-		&adap->dev->i2c_adap);
+			&adap_to_d(adap)->i2c_adap);
 	if (adap->fe[0] == NULL)
 		return -ENODEV;
 
@@ -209,7 +209,8 @@ static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 
 	pr_debug("%s:\n", __func__);
 
-	ret = dvb_attach(mxl5005s_attach, adap->fe[0], &adap->dev->i2c_adap,
+	ret = dvb_attach(mxl5005s_attach, adap->fe[0],
+			&adap_to_d(adap)->i2c_adap,
 			&ce6230_mxl5003s_config) == NULL ? -ENODEV : 0;
 	return ret;
 }
@@ -251,7 +252,7 @@ static struct dvb_usb_device_properties ce6230_props = {
 				.endpoint = 0x82,
 				.u = {
 					.bulk = {
-						.buffersize = (16*512),
+						.buffersize = (16 * 512),
 					}
 				}
 			},
