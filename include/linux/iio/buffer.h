@@ -184,7 +184,7 @@ static inline int iio_buffer_register(struct iio_dev *indio_dev,
 }
 
 static inline void iio_buffer_unregister(struct iio_dev *indio_dev)
-{};
+{}
 
 #endif /* CONFIG_IIO_BUFFER */
 
