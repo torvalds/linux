@@ -181,13 +181,11 @@ static int w83l785ts_probe(struct i2c_client *client,
 {
 	struct w83l785ts_data *data;
 	struct device *dev = &client->dev;
-	int err = 0;
+	int err;
 
-	data = kzalloc(sizeof(struct w83l785ts_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(dev, sizeof(struct w83l785ts_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->valid = 0;
@@ -203,7 +201,7 @@ static int w83l785ts_probe(struct i2c_client *client,
 
 	err = device_create_file(dev, &sensor_dev_attr_temp1_input.dev_attr);
 	if (err)
-		goto exit_remove;
+		return err;
 
 	err = device_create_file(dev, &sensor_dev_attr_temp1_max.dev_attr);
 	if (err)
@@ -221,8 +219,6 @@ static int w83l785ts_probe(struct i2c_client *client,
 exit_remove:
 	device_remove_file(dev, &sensor_dev_attr_temp1_input.dev_attr);
 	device_remove_file(dev, &sensor_dev_attr_temp1_max.dev_attr);
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -236,7 +232,6 @@ static int w83l785ts_remove(struct i2c_client *client)
 	device_remove_file(&client->dev,
 			   &sensor_dev_attr_temp1_max.dev_attr);
 
-	kfree(data);
 	return 0;
 }
 
