@@ -155,7 +155,8 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	dev_err(dev->hw_dev, "No supported ComputerBoards/MeasurementComputing card found on requested position\n");
+	dev_err(dev->class_dev,
+		"No supported ComputerBoards/MeasurementComputing card found on requested position\n");
 	return -EIO;
 
 found:
@@ -167,8 +168,8 @@ found:
 	dev->board_name = thisboard->name;
 
 	devpriv->pci_dev = pcidev;
-	dev_dbg(dev->hw_dev, "Found %s on bus %i, slot %i\n", thisboard->name,
-		devpriv->pci_dev->bus->number,
+	dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
+		thisboard->name, devpriv->pci_dev->bus->number,
 		PCI_SLOT(devpriv->pci_dev->devfn));
 	if (comedi_pci_enable(pcidev, thisboard->name))
 		return -EIO;
@@ -185,7 +186,7 @@ found:
 	for (i = 0; i < thisboard->n_8255; i++) {
 		subdev_8255_init(dev, dev->subdevices + i,
 				 NULL, devpriv->dio_reg_base + i * 4);
-		dev_dbg(dev->hw_dev, "subdev %d: base = 0x%lx\n", i,
+		dev_dbg(dev->class_dev, "subdev %d: base = 0x%lx\n", i,
 			devpriv->dio_reg_base + i * 4);
 	}
 

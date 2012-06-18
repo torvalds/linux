@@ -71,8 +71,8 @@ static int contec_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 
-	dev_dbg(dev->hw_dev, "contec_do_insn_bits called\n");
-	dev_dbg(dev->hw_dev, "data: %d %d\n", data[0], data[1]);
+	dev_dbg(dev->class_dev, "contec_do_insn_bits called\n");
+	dev_dbg(dev->class_dev, "data: %d %d\n", data[0], data[1]);
 
 	if (insn->n != 2)
 		return -EINVAL;
@@ -80,7 +80,7 @@ static int contec_do_insn_bits(struct comedi_device *dev,
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
-		dev_dbg(dev->hw_dev, "out: %d on %lx\n", s->state,
+		dev_dbg(dev->class_dev, "out: %d on %lx\n", s->state,
 			dev->iobase + thisboard->out_offs);
 		outw(s->state, dev->iobase + thisboard->out_offs);
 	}
@@ -92,8 +92,8 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 
-	dev_dbg(dev->hw_dev, "contec_di_insn_bits called\n");
-	dev_dbg(dev->hw_dev, "data: %d %d\n", data[0], data[1]);
+	dev_dbg(dev->class_dev, "contec_di_insn_bits called\n");
+	dev_dbg(dev->class_dev, "data: %d %d\n", data[0], data[1]);
 
 	if (insn->n != 2)
 		return -EINVAL;

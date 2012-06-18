@@ -1405,22 +1405,26 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			devpriv->dma_bits |= DMA_CH7_CH5;
 			break;
 		default:
-			dev_err(dev->hw_dev, " only supports dma channels 5 through 7\n"
-				" Dual dma only allows the following combinations:\n"
-				" dma 5,6 / 6,7 / or 7,5\n");
+			dev_err(dev->class_dev,
+				"only supports dma channels 5 through 7\n");
+			dev_err(dev->class_dev,
+				"Dual dma only allows the following combinations:\n");
+			dev_err(dev->class_dev,
+				"dma 5,6 / 6,7 / or 7,5\n");
 			return -EINVAL;
 			break;
 		}
 		if (request_dma(dma0, dev->driver->driver_name)) {
-			dev_err(dev->hw_dev, "failed to allocate dma channel %i\n",
-				dma0);
+			dev_err(dev->class_dev,
+				"failed to allocate dma channel %i\n", dma0);
 			return -EINVAL;
 		}
 		devpriv->dma0 = dma0;
 		devpriv->dma_current = dma0;
 		if (dma1) {
 			if (request_dma(dma1, dev->driver->driver_name)) {
-				dev_err(dev->hw_dev, "failed to allocate dma channel %i\n",
+				dev_err(dev->class_dev,
+					"failed to allocate dma channel %i\n",
 					dma1);
 				return -EINVAL;
 			}
@@ -1460,7 +1464,7 @@ static int das1800_probe(struct comedi_device *dev)
 	case 0x3:
 		if (board == das1801st_da || board == das1802st_da ||
 		    board == das1701st_da || board == das1702st_da) {
-			dev_dbg(dev->hw_dev, "Board model: %s\n",
+			dev_dbg(dev->class_dev, "Board model: %s\n",
 				das1800_boards[board].name);
 			return board;
 		}
@@ -1470,7 +1474,7 @@ static int das1800_probe(struct comedi_device *dev)
 		break;
 	case 0x4:
 		if (board == das1802hr_da || board == das1702hr_da) {
-			dev_dbg(dev->hw_dev, "Board model: %s\n",
+			dev_dbg(dev->class_dev, "Board model: %s\n",
 				das1800_boards[board].name);
 			return board;
 		}
@@ -1481,7 +1485,7 @@ static int das1800_probe(struct comedi_device *dev)
 	case 0x5:
 		if (board == das1801ao || board == das1802ao ||
 		    board == das1701ao || board == das1702ao) {
-			dev_dbg(dev->hw_dev, "Board model: %s\n",
+			dev_dbg(dev->class_dev, "Board model: %s\n",
 				das1800_boards[board].name);
 			return board;
 		}
@@ -1491,7 +1495,7 @@ static int das1800_probe(struct comedi_device *dev)
 		break;
 	case 0x6:
 		if (board == das1802hr || board == das1702hr) {
-			dev_dbg(dev->hw_dev, "Board model: %s\n",
+			dev_dbg(dev->class_dev, "Board model: %s\n",
 				das1800_boards[board].name);
 			return board;
 		}
@@ -1502,7 +1506,7 @@ static int das1800_probe(struct comedi_device *dev)
 	case 0x7:
 		if (board == das1801st || board == das1802st ||
 		    board == das1701st || board == das1702st) {
-			dev_dbg(dev->hw_dev, "Board model: %s\n",
+			dev_dbg(dev->class_dev, "Board model: %s\n",
 				das1800_boards[board].name);
 			return board;
 		}
@@ -1512,7 +1516,7 @@ static int das1800_probe(struct comedi_device *dev)
 		break;
 	case 0x8:
 		if (board == das1801hc || board == das1802hc) {
-			dev_dbg(dev->hw_dev, "Board model: %s\n",
+			dev_dbg(dev->class_dev, "Board model: %s\n",
 				das1800_boards[board].name);
 			return board;
 		}
@@ -1559,7 +1563,7 @@ static int das1800_attach(struct comedi_device *dev,
 	printk(KERN_CONT "\n");
 
 	if (iobase == 0) {
-		dev_err(dev->hw_dev, "io base address required\n");
+		dev_err(dev->class_dev, "io base address required\n");
 		return -EINVAL;
 	}
 
@@ -1574,7 +1578,7 @@ static int das1800_attach(struct comedi_device *dev,
 
 	board = das1800_probe(dev);
 	if (board < 0) {
-		dev_err(dev->hw_dev, "unable to determine board type\n");
+		dev_err(dev->class_dev, "unable to determine board type\n");
 		return -ENODEV;
 	}
 
@@ -1598,7 +1602,7 @@ static int das1800_attach(struct comedi_device *dev,
 	if (irq) {
 		if (request_irq(irq, das1800_interrupt, 0,
 				dev->driver->driver_name, dev)) {
-			dev_dbg(dev->hw_dev, "unable to allocate irq %u\n",
+			dev_dbg(dev->class_dev, "unable to allocate irq %u\n",
 				irq);
 			return -EINVAL;
 		}
@@ -1628,7 +1632,7 @@ static int das1800_attach(struct comedi_device *dev,
 		devpriv->irq_dma_bits |= 0x38;
 		break;
 	default:
-		dev_err(dev->hw_dev, "irq out of range\n");
+		dev_err(dev->class_dev, "irq out of range\n");
 		return -EINVAL;
 		break;
 	}

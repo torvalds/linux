@@ -782,7 +782,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev_dbg(dev->hw_dev, "comedi%d: attached\n", dev->minor);
+	dev_dbg(dev->class_dev, "serial2002: attach\n");
 	dev->board_name = board->name;
 	if (alloc_private(dev, sizeof(struct serial2002_private)) < 0)
 		return -ENOMEM;
@@ -790,7 +790,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	dev->close = serial_2002_close;
 	devpriv->port = it->options[0];
 	devpriv->speed = it->options[1];
-	dev_dbg(dev->hw_dev, "/dev/ttyS%d @ %d\n", devpriv->port,
+	dev_dbg(dev->class_dev, "/dev/ttyS%d @ %d\n", devpriv->port,
 		devpriv->speed);
 
 	ret = comedi_alloc_subdevices(dev, 5);

@@ -567,12 +567,13 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 		}
 	}
 
-	dev_err(dev->hw_dev, "No supported ComputerBoards/MeasurementComputing card found on requested position\n");
+	dev_err(dev->class_dev,
+		"No supported ComputerBoards/MeasurementComputing card found on requested position\n");
 	return -EIO;
 
 found:
 
-	dev_dbg(dev->hw_dev, "Found %s on bus %i, slot %i\n",
+	dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
 		cb_pcidas_boards[index].name, pcidev->bus->number,
 		PCI_SLOT(pcidev->devfn));
 
@@ -580,7 +581,8 @@ found:
 	 * Enable PCI device and reserve I/O ports.
 	 */
 	if (comedi_pci_enable(pcidev, "cb_pcidas")) {
-		dev_err(dev->hw_dev, "Failed to enable PCI device and request regions\n");
+		dev_err(dev->class_dev,
+			"Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	/*
@@ -606,7 +608,7 @@ found:
 	/*  get irq */
 	if (request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt,
 			IRQF_SHARED, "cb_pcidas", dev)) {
-		dev_dbg(dev->hw_dev, "unable to allocate irq %d\n",
+		dev_dbg(dev->class_dev, "unable to allocate irq %d\n",
 			devpriv->pci_dev->irq);
 		return -EINVAL;
 	}
@@ -807,7 +809,7 @@ static int ai_config_calibration_source(struct comedi_device *dev,
 	unsigned int source = data[1];
 
 	if (source >= num_calibration_sources) {
-		dev_err(dev->hw_dev, "invalid calibration source: %i\n",
+		dev_err(dev->class_dev, "invalid calibration source: %i\n",
 			source);
 		return -EINVAL;
 	}
@@ -1229,7 +1231,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
 #ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->hw_dev, "comedi: sent 0x%x to adcmux control\n", bits);
+	dev_dbg(dev->class_dev, "sent 0x%x to adcmux control\n", bits);
 #endif
 
 	/*  load counters */
@@ -1256,7 +1258,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 		devpriv->adc_fifo_bits |= INT_FHF;	/* interrupt fifo half full */
 	}
 #ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->hw_dev, "comedi: adc_fifo_bits are 0x%x\n",
+	dev_dbg(dev->class_dev, "adc_fifo_bits are 0x%x\n",
 		devpriv->adc_fifo_bits);
 #endif
 	/*  enable (and clear) interrupts */
@@ -1283,7 +1285,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 		bits |= BURSTE;
 	outw(bits, devpriv->control_status + TRIG_CONTSTAT);
 #ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->hw_dev, "comedi: sent 0x%x to trig control\n", bits);
+	dev_dbg(dev->class_dev, "sent 0x%x to trig control\n", bits);
 #endif
 
 	return 0;
@@ -1500,7 +1502,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
 #ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->hw_dev, "comedi: adc_fifo_bits are 0x%x\n",
+	dev_dbg(dev->class_dev, "adc_fifo_bits are 0x%x\n",
 		devpriv->adc_fifo_bits);
 #endif
 	/*  enable and clear interrupts */
@@ -1511,7 +1513,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
 	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
 #ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->hw_dev, "comedi: sent 0x%x to dac control\n",
+	dev_dbg(dev->class_dev, "sent 0x%x to dac control\n",
 		devpriv->ao_control_bits);
 #endif
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -1540,8 +1542,8 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 
 	s5933_status = inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 #ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->hw_dev, "intcsr 0x%x\n", s5933_status);
-	dev_dbg(dev->hw_dev, "mbef 0x%x\n",
+	dev_dbg(dev->class_dev, "intcsr 0x%x\n", s5933_status);
+	dev_dbg(dev->class_dev, "mbef 0x%x\n",
 		inl(devpriv->s5933_config + AMCC_OP_REG_MBEF));
 #endif
 

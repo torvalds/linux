@@ -485,7 +485,7 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 
 static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 {
-	dev_dbg(dev->hw_dev, "daqboard2000_resetLocalBus\n");
+	dev_dbg(dev->class_dev, "daqboard2000_resetLocalBus\n");
 	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
@@ -494,7 +494,7 @@ static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 
 static void daqboard2000_reloadPLX(struct comedi_device *dev)
 {
-	dev_dbg(dev->hw_dev, "daqboard2000_reloadPLX\n");
+	dev_dbg(dev->class_dev, "daqboard2000_reloadPLX\n");
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
@@ -505,7 +505,7 @@ static void daqboard2000_reloadPLX(struct comedi_device *dev)
 
 static void daqboard2000_pulseProgPin(struct comedi_device *dev)
 {
-	dev_dbg(dev->hw_dev, "daqboard2000_pulseProgPin 1\n");
+	dev_dbg(dev->class_dev, "daqboard2000_pulseProgPin 1\n");
 	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
@@ -557,14 +557,14 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 	secr = readl(devpriv->plx + 0x6c);
 	if (!(secr & DAQBOARD2000_EEPROM_PRESENT)) {
 #ifdef DEBUG_EEPROM
-		dev_dbg(dev->hw_dev, "no serial eeprom\n");
+		dev_dbg(dev->class_dev, "no serial eeprom\n");
 #endif
 		return -EIO;
 	}
 
 	for (retry = 0; retry < 3; retry++) {
 #ifdef DEBUG_EEPROM
-		dev_dbg(dev->hw_dev, "Programming EEPROM try %x\n", retry);
+		dev_dbg(dev->class_dev, "Programming EEPROM try %x\n", retry);
 #endif
 
 		daqboard2000_resetLocalBus(dev);
@@ -575,8 +575,8 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 				if (cpld_array[i] == 0xff
 				    && cpld_array[i + 1] == 0x20) {
 #ifdef DEBUG_EEPROM
-					dev_dbg(dev->hw_dev, "Preamble found at %d\n",
-						i);
+					dev_dbg(dev->class_dev,
+						"Preamble found at %d\n", i);
 #endif
 					break;
 				}
@@ -589,7 +589,7 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 			}
 			if (i >= len) {
 #ifdef DEBUG_EEPROM
-				dev_dbg(dev->hw_dev, "Programmed\n");
+				dev_dbg(dev->class_dev, "Programmed\n");
 #endif
 				daqboard2000_resetLocalBus(dev);
 				daqboard2000_reloadPLX(dev);
@@ -733,10 +733,11 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	}
 	if (!card) {
 		if (bus || slot)
-			dev_err(dev->hw_dev, "no daqboard2000 found at bus/slot: %d/%d\n",
+			dev_err(dev->class_dev,
+				"no daqboard2000 found at bus/slot: %d/%d\n",
 				bus, slot);
 		else
-			dev_err(dev->hw_dev, "no daqboard2000 found\n");
+			dev_err(dev->class_dev, "no daqboard2000 found\n");
 		return -EIO;
 	} else {
 		u32 id;
@@ -746,7 +747,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 		      subsystem_device << 16) | card->subsystem_vendor;
 		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
 			if (boardtypes[i].id == id) {
-				dev_dbg(dev->hw_dev, "%s\n",
+				dev_dbg(dev->class_dev, "%s\n",
 					boardtypes[i].name);
 				dev->board_ptr = boardtypes + i;
 			}
@@ -761,7 +762,8 @@ static int daqboard2000_attach(struct comedi_device *dev,
 
 	result = comedi_pci_enable(card, "daqboard2000");
 	if (result < 0) {
-		dev_err(dev->hw_dev, "failed to enable PCI device and request regions\n");
+		dev_err(dev->class_dev,
+			"failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	devpriv->got_regions = 1;
@@ -791,7 +793,8 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	if (aux_data && aux_len) {
 		result = initialize_daqboard2000(dev, aux_data, aux_len);
 	} else {
-		dev_dbg(dev->hw_dev, "no FPGA initialization code, aborting\n");
+		dev_dbg(dev->class_dev,
+			"no FPGA initialization code, aborting\n");
 		result = -EIO;
 	}
 	if (result < 0)

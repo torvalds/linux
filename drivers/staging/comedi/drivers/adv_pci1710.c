@@ -1347,7 +1347,7 @@ static int pci1710_attach(struct comedi_device *dev,
 	int i;
 	int board_index;
 
-	dev_info(dev->hw_dev, "comedi%d: adv_pci1710:\n", dev->minor);
+	dev_info(dev->class_dev, DRV_NAME ": attach\n");
 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
@@ -1399,10 +1399,10 @@ static int pci1710_attach(struct comedi_device *dev,
 
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
-			dev_err(dev->hw_dev, "- Card at b:s %d:%d %s\n",
+			dev_err(dev->class_dev, "- Card at b:s %d:%d %s\n",
 				opt_bus, opt_slot, errstr);
 		} else {
-			dev_err(dev->hw_dev, "- Card %s\n", errstr);
+			dev_err(dev->class_dev, "- Card %s\n", errstr);
 		}
 		return -EIO;
 	}
@@ -1413,8 +1413,8 @@ static int pci1710_attach(struct comedi_device *dev,
 	irq = pcidev->irq;
 	iobase = pci_resource_start(pcidev, 2);
 
-	dev_dbg(dev->hw_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n", pci_bus, pci_slot,
-		pci_func, iobase);
+	dev_dbg(dev->class_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
+		pci_bus, pci_slot, pci_func, iobase);
 
 	dev->iobase = iobase;
 
@@ -1444,14 +1444,15 @@ static int pci1710_attach(struct comedi_device *dev,
 			if (request_irq(irq, interrupt_service_pci1710,
 					IRQF_SHARED, "Advantech PCI-1710",
 					dev)) {
-				dev_dbg(dev->hw_dev, "unable to allocate IRQ %d, DISABLING IT",
+				dev_dbg(dev->class_dev,
+					"unable to allocate IRQ %d, DISABLING IT",
 					irq);
 				irq = 0;	/* Can't use IRQ */
 			} else {
-				dev_dbg(dev->hw_dev, "irq=%u", irq);
+				dev_dbg(dev->class_dev, "irq=%u", irq);
 			}
 		} else {
-			dev_dbg(dev->hw_dev, "IRQ disabled");
+			dev_dbg(dev->class_dev, "IRQ disabled");
 		}
 	} else {
 		irq = 0;

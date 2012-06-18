@@ -227,7 +227,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 #ifdef DAMMIT_ITS_BROKEN
 	/* DEBUG */
-	dev_dbg(dev->hw_dev, "write mask: %08x  data: %08x\n", data[0],
+	dev_dbg(dev->class_dev, "write mask: %08x  data: %08x\n", data[0],
 		data[1]);
 #endif
 
@@ -264,7 +264,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 		}
 #ifdef DAMMIT_ITS_BROKEN
 		/* DEBUG */
-		dev_dbg(dev->hw_dev, "data_out_byte %02x\n", (unsigned)byte);
+		dev_dbg(dev->class_dev, "data_out_byte %02x\n", (unsigned)byte);
 #endif
 		/* save the digital input lines for this byte.. */
 		s->state |= ((unsigned int)byte) << offset;
@@ -275,7 +275,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 #ifdef DAMMIT_ITS_BROKEN
 	/* DEBUG */
-	dev_dbg(dev->hw_dev, "s->state %08x data_out %08x\n", s->state,
+	dev_dbg(dev->class_dev, "s->state %08x data_out %08x\n", s->state,
 		data[1]);
 #endif
 
@@ -760,7 +760,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	irq[0] = it->options[1];
 	irq[1] = it->options[2];
 
-	dev_dbg(dev->hw_dev, "comedi%d: %s: io: %lx attached\n", dev->minor,
+	dev_dbg(dev->class_dev, "%s: io: %lx attach\n",
 		dev->driver->driver_name, iobase);
 
 	dev->iobase = iobase;
@@ -768,7 +768,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!iobase || !request_region(iobase,
 				       board->num_asics * ASIC_IOSIZE,
 				       dev->driver->driver_name)) {
-		dev_err(dev->hw_dev, "I/O port conflict\n");
+		dev_err(dev->class_dev, "I/O port conflict\n");
 		return -EIO;
 	}
 
@@ -779,7 +779,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * convenient macro defined in comedidev.h.
  */
 	if (alloc_private(dev, sizeof(struct pcmuio_private)) < 0) {
-		dev_warn(dev->hw_dev, "cannot allocate private data structure\n");
+		dev_warn(dev->class_dev,
+			 "cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
 
@@ -798,7 +799,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	    kcalloc(n_subdevs, sizeof(struct pcmuio_subdev_private),
 		    GFP_KERNEL);
 	if (!devpriv->sprivs) {
-		dev_warn(dev->hw_dev, "cannot allocate subdevice private data structures\n");
+		dev_warn(dev->class_dev,
+			 "cannot allocate subdevice private data structures\n");
 		return -ENOMEM;
 	}
 
@@ -890,11 +892,12 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				   irqs.. */
 
 	if (irq[0]) {
-		dev_dbg(dev->hw_dev, "irq: %u\n", irq[0]);
+		dev_dbg(dev->class_dev, "irq: %u\n", irq[0]);
 		if (irq[1] && board->num_asics == 2)
-			dev_dbg(dev->hw_dev, "second ASIC irq: %u\n", irq[1]);
+			dev_dbg(dev->class_dev, "second ASIC irq: %u\n",
+				irq[1]);
 	} else {
-		dev_dbg(dev->hw_dev, "(IRQ mode disabled)\n");
+		dev_dbg(dev->class_dev, "(IRQ mode disabled)\n");
 	}
 
 

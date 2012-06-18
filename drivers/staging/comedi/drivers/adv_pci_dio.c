@@ -1121,16 +1121,18 @@ static int pci_dio_attach(struct comedi_device *dev,
 	}
 
 	if (!dev->board_ptr) {
-		dev_err(dev->hw_dev, "Error: Requested type of the card was not found!\n");
+		dev_err(dev->class_dev,
+			"Error: Requested type of the card was not found!\n");
 		return -EIO;
 	}
 
 	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
-		dev_err(dev->hw_dev, "Error: Can't enable PCI device and request regions!\n");
+		dev_err(dev->class_dev,
+			"Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
 	iobase = pci_resource_start(pcidev, this_board->main_pci_region);
-	dev_dbg(dev->hw_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
+	dev_dbg(dev->class_dev, "b:s:f=%d:%d:%d, io=0x%4lx\n",
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn),
 		PCI_FUNC(pcidev->devfn), iobase);
 

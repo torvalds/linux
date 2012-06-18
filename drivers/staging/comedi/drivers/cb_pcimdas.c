@@ -223,12 +223,13 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 		}
 	}
 
-	dev_err(dev->hw_dev, "No supported ComputerBoards/MeasurementComputing card found on requested position\n");
+	dev_err(dev->class_dev,
+		"No supported ComputerBoards/MeasurementComputing card found on requested position\n");
 	return -EIO;
 
 found:
 
-	dev_dbg(dev->hw_dev, "Found %s on bus %i, slot %i\n",
+	dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
 		cb_pcimdas_boards[index].name, pcidev->bus->number,
 		PCI_SLOT(pcidev->devfn));
 
@@ -237,12 +238,14 @@ found:
 	case 0x56:
 		break;
 	default:
-		dev_dbg(dev->hw_dev, "THIS CARD IS UNSUPPORTED.\n"
+		dev_dbg(dev->class_dev, "THIS CARD IS UNSUPPORTED.\n");
+		dev_dbg(dev->class_dev,
 			"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
 	}
 
 	if (comedi_pci_enable(pcidev, "cb_pcimdas")) {
-		dev_err(dev->hw_dev, "Failed to enable PCI device and request regions\n");
+		dev_err(dev->class_dev,
+			"Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 
@@ -252,11 +255,11 @@ found:
 	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
 	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4);
 
-	dev_dbg(dev->hw_dev, "devpriv->BADR0 = 0x%lx\n", devpriv->BADR0);
-	dev_dbg(dev->hw_dev, "devpriv->BADR1 = 0x%lx\n", devpriv->BADR1);
-	dev_dbg(dev->hw_dev, "devpriv->BADR2 = 0x%lx\n", devpriv->BADR2);
-	dev_dbg(dev->hw_dev, "devpriv->BADR3 = 0x%lx\n", devpriv->BADR3);
-	dev_dbg(dev->hw_dev, "devpriv->BADR4 = 0x%lx\n", devpriv->BADR4);
+	dev_dbg(dev->class_dev, "devpriv->BADR0 = 0x%lx\n", devpriv->BADR0);
+	dev_dbg(dev->class_dev, "devpriv->BADR1 = 0x%lx\n", devpriv->BADR1);
+	dev_dbg(dev->class_dev, "devpriv->BADR2 = 0x%lx\n", devpriv->BADR2);
+	dev_dbg(dev->class_dev, "devpriv->BADR3 = 0x%lx\n", devpriv->BADR3);
+	dev_dbg(dev->class_dev, "devpriv->BADR4 = 0x%lx\n", devpriv->BADR4);
 
 /* Dont support IRQ yet */
 /*  get irq */

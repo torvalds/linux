@@ -150,7 +150,7 @@ static const struct das16cs_board *das16cs_probe(struct comedi_device *dev,
 			return das16cs_boards + i;
 	}
 
-	dev_dbg(dev->hw_dev, "unknown board!\n");
+	dev_dbg(dev->class_dev, "unknown board!\n");
 
 	return NULL;
 }
@@ -163,18 +163,18 @@ static int das16cs_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	dev_dbg(dev->hw_dev, "comedi%d: cb_das16_cs: attached\n", dev->minor);
+	dev_dbg(dev->class_dev, "cb_das16_cs: attach\n");
 
 	link = cur_dev;		/* XXX hack */
 	if (!link)
 		return -EIO;
 
 	dev->iobase = link->resource[0]->start;
-	dev_dbg(dev->hw_dev, "I/O base=0x%04lx\n", dev->iobase);
+	dev_dbg(dev->class_dev, "I/O base=0x%04lx\n", dev->iobase);
 
-	dev_dbg(dev->hw_dev, "fingerprint:\n");
+	dev_dbg(dev->class_dev, "fingerprint:\n");
 	for (i = 0; i < 48; i += 2)
-		dev_dbg(dev->hw_dev, "%04x\n", inw(dev->iobase + i));
+		dev_dbg(dev->class_dev, "%04x\n", inw(dev->iobase + i));
 
 
 	ret = request_irq(link->irq, das16cs_interrupt,
@@ -184,7 +184,7 @@ static int das16cs_attach(struct comedi_device *dev,
 
 	dev->irq = link->irq;
 
-	dev_dbg(dev->hw_dev, "irq=%u\n", dev->irq);
+	dev_dbg(dev->class_dev, "irq=%u\n", dev->irq);
 
 	dev->board_ptr = das16cs_probe(dev, link);
 	if (!dev->board_ptr)
@@ -306,7 +306,7 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 				break;
 		}
 		if (to == TIMEOUT) {
-			dev_dbg(dev->hw_dev, "cb_das16_cs: ai timeout\n");
+			dev_dbg(dev->class_dev, "cb_das16_cs: ai timeout\n");
 			return -ETIME;
 		}
 		data[i] = (unsigned short)inw(dev->iobase + 0);
