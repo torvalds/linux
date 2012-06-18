@@ -27,6 +27,8 @@ int batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid);
 int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 			      struct batadv_orig_node *orig_node, int hdr_size);
 int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset);
+int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq,
+					     void *offset);
 int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig);
 int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 				   struct batadv_bcast_packet *bcast_packet,
@@ -61,6 +63,12 @@ static inline int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 
 static inline int batadv_bla_claim_table_seq_print_text(struct seq_file *seq,
 							void *offset)
+{
+	return 0;
+}
+
+static inline int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq,
+							   void *offset)
 {
 	return 0;
 }
