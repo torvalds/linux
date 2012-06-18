@@ -144,6 +144,7 @@ struct isp_prev_device {
 	struct isp_video video_out;
 
 	struct {
+		unsigned int cfa_order;
 		struct prev_params params[2];
 		u32 active;
 		spinlock_t lock;

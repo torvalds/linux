@@ -131,7 +131,7 @@ static struct omap3isp_prev_csc flr_prev_csc = {
  * CFA Filter Coefficient Table
  *
  */
-static u32 cfa_coef_table[] = {
+static u32 cfa_coef_table[4][OMAP3ISP_PREV_CFA_BLK_SIZE] = {
 #include "cfa_coef_table.h"
 };
 
@@ -237,19 +237,27 @@ static void preview_enable_hmed(struct isp_prev_device *prev, bool enable)
 }
 
 /*
- * preview_config_cfa - Configure CFA Interpolation
+ * preview_config_cfa - Configure CFA Interpolation for Bayer formats
+ *
+ * The CFA table is organised in four blocks, one per Bayer component. The
+ * hardware expects blocks to follow the Bayer order of the input data, while
+ * the driver stores the table in GRBG order in memory. The blocks need to be
+ * reordered to support non-GRBG Bayer patterns.
  */
-static void
-preview_config_cfa(struct isp_prev_device *prev,
-		   const struct prev_params *params)
+static void preview_config_cfa(struct isp_prev_device *prev,
+			       const struct prev_params *params)
 {
-	struct isp_device *isp = to_isp_device(prev);
+	static const unsigned int cfa_coef_order[4][4] = {
+		{ 0, 1, 2, 3 }, /* GRBG */
+		{ 1, 0, 3, 2 }, /* RGGB */
+		{ 2, 3, 0, 1 }, /* BGGR */
+		{ 3, 2, 1, 0 }, /* GBRG */
+	};
+	const unsigned int *order = cfa_coef_order[prev->params.cfa_order];
 	const struct omap3isp_prev_cfa *cfa = &params->cfa;
+	struct isp_device *isp = to_isp_device(prev);
 	unsigned int i;
-
-	isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			ISPPRV_PCR_CFAFMT_MASK,
-			cfa->format << ISPPRV_PCR_CFAFMT_SHIFT);
+	unsigned int j;
 
 	isp_reg_writel(isp,
 		(cfa->gradthrs_vert << ISPPRV_CFA_GRADTH_VER_SHIFT) |
@@ -259,9 +267,12 @@ preview_config_cfa(struct isp_prev_device *prev,
 	isp_reg_writel(isp, ISPPRV_CFA_TABLE_ADDR,
 		       OMAP3_ISP_IOMEM_PREV, ISPPRV_SET_TBL_ADDR);
 
-	for (i = 0; i < OMAP3ISP_PREV_CFA_TBL_SIZE; i++) {
-		isp_reg_writel(isp, cfa->table[i],
-			       OMAP3_ISP_IOMEM_PREV, ISPPRV_SET_TBL_DATA);
+	for (i = 0; i < 4; ++i) {
+		const __u32 *block = cfa->table[order[i]];
+
+		for (j = 0; j < OMAP3ISP_PREV_CFA_BLK_SIZE; ++j)
+			isp_reg_writel(isp, block[j], OMAP3_ISP_IOMEM_PREV,
+				       ISPPRV_SET_TBL_DATA);
 	}
 }
 
@@ -993,42 +1004,60 @@ preview_config_ycpos(struct isp_prev_device *prev,
 static void preview_config_averager(struct isp_prev_device *prev, u8 average)
 {
 	struct isp_device *isp = to_isp_device(prev);
-	struct prev_params *params;
-	int reg = 0;
 
-	params = (prev->params.active & OMAP3ISP_PREV_CFA)
-	       ? &prev->params.params[0] : &prev->params.params[1];
-
-	if (params->cfa.format == OMAP3ISP_CFAFMT_BAYER)
-		reg = ISPPRV_AVE_EVENDIST_2 << ISPPRV_AVE_EVENDIST_SHIFT |
-		      ISPPRV_AVE_ODDDIST_2 << ISPPRV_AVE_ODDDIST_SHIFT |
-		      average;
-	else if (params->cfa.format == OMAP3ISP_CFAFMT_RGBFOVEON)
-		reg = ISPPRV_AVE_EVENDIST_3 << ISPPRV_AVE_EVENDIST_SHIFT |
-		      ISPPRV_AVE_ODDDIST_3 << ISPPRV_AVE_ODDDIST_SHIFT |
-		      average;
-	isp_reg_writel(isp, reg, OMAP3_ISP_IOMEM_PREV, ISPPRV_AVE);
+	isp_reg_writel(isp, ISPPRV_AVE_EVENDIST_2 << ISPPRV_AVE_EVENDIST_SHIFT |
+		       ISPPRV_AVE_ODDDIST_2 << ISPPRV_AVE_ODDDIST_SHIFT |
+		       average, OMAP3_ISP_IOMEM_PREV, ISPPRV_AVE);
 }
+
 
 /*
  * preview_config_input_format - Configure the input format
  * @prev: The preview engine
  * @format: Format on the preview engine sink pad
  *
- * Enable CFA interpolation for Bayer formats and disable it for greyscale
- * formats.
+ * Enable and configure CFA interpolation for Bayer formats and disable it for
+ * greyscale formats.
+ *
+ * The CFA table is organised in four blocks, one per Bayer component. The
+ * hardware expects blocks to follow the Bayer order of the input data, while
+ * the driver stores the table in GRBG order in memory. The blocks need to be
+ * reordered to support non-GRBG Bayer patterns.
  */
 static void preview_config_input_format(struct isp_prev_device *prev,
 					const struct v4l2_mbus_framefmt *format)
 {
 	struct isp_device *isp = to_isp_device(prev);
+	struct prev_params *params;
 
-	if (format->code != V4L2_MBUS_FMT_Y10_1X10)
-		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_CFAEN);
-	else
+	switch (format->code) {
+	case V4L2_MBUS_FMT_SGRBG10_1X10:
+		prev->params.cfa_order = 0;
+		break;
+	case V4L2_MBUS_FMT_SRGGB10_1X10:
+		prev->params.cfa_order = 1;
+		break;
+	case V4L2_MBUS_FMT_SBGGR10_1X10:
+		prev->params.cfa_order = 2;
+		break;
+	case V4L2_MBUS_FMT_SGBRG10_1X10:
+		prev->params.cfa_order = 3;
+		break;
+	default:
+		/* Disable CFA for non-Bayer formats. */
 		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
 			    ISPPRV_PCR_CFAEN);
+		return;
+	}
+
+	isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR, ISPPRV_PCR_CFAEN);
+	isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			ISPPRV_PCR_CFAFMT_MASK, ISPPRV_PCR_CFAFMT_BAYER);
+
+	params = (prev->params.active & OMAP3ISP_PREV_CFA)
+	       ? &prev->params.params[0] : &prev->params.params[1];
+
+	preview_config_cfa(prev, params);
 }
 
 /*
@@ -1371,22 +1400,6 @@ static void preview_configure(struct isp_prev_device *prev)
 	active = prev->params.active;
 	spin_unlock_irqrestore(&prev->params.lock, flags);
 
-	preview_setup_hw(prev, update, active);
-
-	if (prev->output & PREVIEW_OUTPUT_MEMORY)
-		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_SDRPORT);
-	else
-		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_SDRPORT);
-
-	if (prev->output & PREVIEW_OUTPUT_RESIZER)
-		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_RSZPORT);
-	else
-		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_RSZPORT);
-
 	/* PREV_PAD_SINK */
 	format = &prev->formats[PREV_PAD_SINK];
 
@@ -1401,8 +1414,24 @@ static void preview_configure(struct isp_prev_device *prev)
 		preview_config_inlineoffset(prev,
 				ALIGN(format->width, 0x20) * 2);
 
+	preview_setup_hw(prev, update, active);
+
 	/* PREV_PAD_SOURCE */
 	format = &prev->formats[PREV_PAD_SOURCE];
+
+	if (prev->output & PREVIEW_OUTPUT_MEMORY)
+		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_SDRPORT);
+	else
+		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_SDRPORT);
+
+	if (prev->output & PREVIEW_OUTPUT_RESIZER)
+		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_RSZPORT);
+	else
+		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_RSZPORT);
 
 	if (prev->output & PREVIEW_OUTPUT_MEMORY)
 		preview_config_outlineoffset(prev,
