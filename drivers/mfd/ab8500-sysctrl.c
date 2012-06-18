@@ -28,6 +28,11 @@ void ab8500_power_off(void)
 	struct power_supply *psy;
 	int ret;
 
+	if (sysctrl_dev == NULL) {
+		pr_err("%s: sysctrl not initialized\n", __func__);
+		return;
+	}
+
 	/*
 	 * If we have a charger connected and we're powering off,
 	 * reboot into charge-only mode.
@@ -85,7 +90,7 @@ int ab8500_sysctrl_read(u16 reg, u8 *value)
 	u8 bank;
 
 	if (sysctrl_dev == NULL)
-		return -EAGAIN;
+		return -EINVAL;
 
 	bank = (reg >> 8);
 	if (!valid_bank(bank))
@@ -101,7 +106,7 @@ int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value)
 	u8 bank;
 
 	if (sysctrl_dev == NULL)
-		return -EAGAIN;
+		return -EINVAL;
 
 	bank = (reg >> 8);
 	if (!valid_bank(bank))
@@ -116,31 +121,32 @@ static int ab8500_sysctrl_probe(struct platform_device *pdev)
 {
 	struct ab8500_platform_data *plat;
 	struct ab8500_sysctrl_platform_data *pdata;
+	int ret, i, j;
 
-	sysctrl_dev = &pdev->dev;
 	plat = dev_get_platdata(pdev->dev.parent);
+
+	if (!(plat && plat->sysctrl))
+		return -EINVAL;
+
 	if (plat->pm_power_off)
 		pm_power_off = ab8500_power_off;
 
 	pdata = plat->sysctrl;
 
-	if (pdata) {
-		int ret, i, j;
 
-		for (i = AB8500_SYSCLKREQ1RFCLKBUF;
-		     i <= AB8500_SYSCLKREQ8RFCLKBUF; i++) {
-			j = i - AB8500_SYSCLKREQ1RFCLKBUF;
-			ret = ab8500_sysctrl_write(i, 0xff,
-						   pdata->initial_req_buf_config[j]);
-			dev_dbg(&pdev->dev,
+	for (i = AB8500_SYSCLKREQ1RFCLKBUF;
+	     i <= AB8500_SYSCLKREQ8RFCLKBUF; i++) {
+		j = i - AB8500_SYSCLKREQ1RFCLKBUF;
+		ret = ab8500_sysctrl_write(i, 0xff,
+				pdata->initial_req_buf_config[j]);
+		dev_dbg(&pdev->dev,
 				"Setting SysClkReq%dRfClkBuf 0x%X\n",
 				j + 1,
 				pdata->initial_req_buf_config[j]);
-			if (ret < 0) {
-				dev_err(&pdev->dev,
-					"unable to set sysClkReq%dRfClkBuf: "
-					"%d\n", j + 1, ret);
-			}
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"unable to set sysClkReq%dRfClkBuf: "
+				"%d\n", j + 1, ret);
 		}
 	}
 
