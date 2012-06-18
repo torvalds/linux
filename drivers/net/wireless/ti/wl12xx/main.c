@@ -1162,13 +1162,13 @@ static u32 wl12xx_get_rx_packet_len(struct wl1271 *wl, void *rx_data,
 	return data_len - sizeof(*desc) - desc->pad_len;
 }
 
-static void wl12xx_tx_delayed_compl(struct wl1271 *wl)
+static int wl12xx_tx_delayed_compl(struct wl1271 *wl)
 {
 	if (wl->fw_status_1->tx_results_counter ==
 	    (wl->tx_results_count & 0xff))
-		return;
+		return 0;
 
-	wl1271_tx_complete(wl);
+	return wlcore_tx_complete(wl);
 }
 
 static int wl12xx_hw_init(struct wl1271 *wl)

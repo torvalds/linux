@@ -200,7 +200,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	return is_data;
 }
 
-void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
+int wlcore_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 {
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	u32 buf_size;
@@ -211,6 +211,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 	u32 pkt_offset, des;
 	u8 hlid;
 	enum wl_rx_buf_align rx_align;
+	int ret = 0;
 
 	while (drv_rx_counter != fw_rx_counter) {
 		buf_size = 0;
@@ -235,8 +236,11 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 		/* Read all available packets at once */
 		des = le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]);
 		wlcore_hw_prepare_read(wl, des, buf_size);
-		wlcore_read_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-				 buf_size, true);
+
+		ret = wlcore_read_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
+				       buf_size, true);
+		if (ret < 0)
+			goto out;
 
 		/* Split data into separate packets */
 		pkt_offset = 0;
@@ -278,6 +282,9 @@ void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 			       wl->rx_counter);
 
 	wl12xx_rearm_rx_streaming(wl, active_hlids);
+
+out:
+	return ret;
 }
 
 #ifdef CONFIG_PM

@@ -572,7 +572,11 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 		if (likely(intr & WL1271_ACX_INTR_DATA)) {
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
 
-			wl12xx_rx(wl, wl->fw_status_1);
+			ret = wlcore_rx(wl, wl->fw_status_1);
+			if (ret < 0) {
+				wl12xx_queue_recovery_work(wl);
+				goto out;
+			}
 
 			/* Check if any tx blocks were freed */
 			spin_lock_irqsave(&wl->wl_lock, flags);
@@ -589,7 +593,11 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 			}
 
 			/* check for tx results */
-			wlcore_hw_tx_delayed_compl(wl);
+			ret = wlcore_hw_tx_delayed_compl(wl);
+			if (ret < 0) {
+				wl12xx_queue_recovery_work(wl);
+				goto out;
+			}
 
 			/* Make sure the deferred queues don't get too long */
 			defer_count = skb_queue_len(&wl->deferred_tx_queue) +
@@ -600,12 +608,20 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 
 		if (intr & WL1271_ACX_INTR_EVENT_A) {
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_A");
-			wl1271_event_handle(wl, 0);
+			ret = wl1271_event_handle(wl, 0);
+			if (ret < 0) {
+				wl12xx_queue_recovery_work(wl);
+				goto out;
+			}
 		}
 
 		if (intr & WL1271_ACX_INTR_EVENT_B) {
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_B");
-			wl1271_event_handle(wl, 1);
+			ret = wl1271_event_handle(wl, 1);
+			if (ret < 0) {
+				wl12xx_queue_recovery_work(wl);
+				goto out;
+			}
 		}
 
 		if (intr & WL1271_ACX_INTR_INIT_COMPLETE)

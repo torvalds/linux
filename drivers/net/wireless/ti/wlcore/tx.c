@@ -881,16 +881,20 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 }
 
 /* Called upon reception of a TX complete interrupt */
-void wl1271_tx_complete(struct wl1271 *wl)
+int wlcore_tx_complete(struct wl1271 *wl)
 {
 	struct wl1271_acx_mem_map *memmap =
 		(struct wl1271_acx_mem_map *)wl->target_mem_map;
 	u32 count, fw_counter;
 	u32 i;
+	int ret;
 
 	/* read the tx results from the chipset */
-	wl1271_read(wl, le32_to_cpu(memmap->tx_result),
-		    wl->tx_res_if, sizeof(*wl->tx_res_if), false);
+	ret = wlcore_read(wl, le32_to_cpu(memmap->tx_result),
+			  wl->tx_res_if, sizeof(*wl->tx_res_if), false);
+	if (ret < 0)
+		goto out;
+
 	fw_counter = le32_to_cpu(wl->tx_res_if->tx_result_fw_counter);
 
 	/* write host counter to chipset (to ack) */
@@ -916,8 +920,11 @@ void wl1271_tx_complete(struct wl1271 *wl)
 
 		wl->tx_results_count++;
 	}
+
+out:
+	return ret;
 }
-EXPORT_SYMBOL(wl1271_tx_complete);
+EXPORT_SYMBOL(wlcore_tx_complete);
 
 void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 {

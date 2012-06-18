@@ -87,7 +87,9 @@ static int wlcore_boot_static_data(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl1271_read(wl, wl->cmd_box_addr, static_data, len, false);
+	ret = wlcore_read(wl, wl->cmd_box_addr, static_data, len, false);
+	if (ret < 0)
+		goto out_free;
 
 	ret = wlcore_boot_parse_fw_ver(wl, static_data);
 	if (ret < 0)

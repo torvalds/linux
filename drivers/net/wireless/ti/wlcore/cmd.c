@@ -95,7 +95,10 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	/* read back the status code of the command */
 	if (res_len == 0)
 		res_len = sizeof(struct wl1271_cmd_header);
-	wl1271_read(wl, wl->cmd_box_addr, cmd, res_len, false);
+
+	ret = wlcore_read(wl, wl->cmd_box_addr, cmd, res_len, false);
+	if (ret < 0)
+		goto fail;
 
 	status = le16_to_cpu(cmd->status);
 	if (status != CMD_STATUS_SUCCESS) {
@@ -141,11 +144,18 @@ static int wl1271_cmd_wait_for_event_or_timeout(struct wl1271 *wl, u32 mask)
 		msleep(1);
 
 		/* read from both event fields */
-		wl1271_read(wl, wl->mbox_ptr[0], events_vector,
-			    sizeof(*events_vector), false);
+		ret = wlcore_read(wl, wl->mbox_ptr[0], events_vector,
+				  sizeof(*events_vector), false);
+		if (ret < 0)
+			goto out;
+
 		event = *events_vector & mask;
-		wl1271_read(wl, wl->mbox_ptr[1], events_vector,
-			    sizeof(*events_vector), false);
+
+		ret = wlcore_read(wl, wl->mbox_ptr[1], events_vector,
+				  sizeof(*events_vector), false);
+		if (ret < 0)
+			goto out;
+
 		event |= *events_vector & mask;
 	} while (!event);
 
