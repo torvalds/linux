@@ -2634,72 +2634,35 @@ static void usbduxsigma_disconnect(struct usb_interface *intf)
 	dev_info(&intf->dev, "comedi_: disconnected from the usb\n");
 }
 
-/* is called when comedi-config is called */
-static int usbduxsigma_attach(struct comedi_device *dev,
-			      struct comedi_devconfig *it)
+/* common part of attach and attach_usb */
+static int usbduxsigma_attach_common(struct comedi_device *dev,
+				     struct usbduxsub *uds,
+				     void *aux_data, int aux_len)
 {
 	int ret;
-	int index;
-	int i;
-	struct usbduxsub *udev;
+	struct comedi_subdevice *s;
 	int n_subdevs;
-
 	int offset;
 
-	struct comedi_subdevice *s = NULL;
-	dev->private = NULL;
-
-	down(&start_stop_sem);
-	/* find a valid device which has been detected by the probe function of
-	 * the usb */
-	index = -1;
-	for (i = 0; i < NUMUSBDUX; i++) {
-		if ((usbduxsub[i].probed) && (!usbduxsub[i].attached)) {
-			index = i;
-			break;
-		}
-	}
-
-	if (index < 0) {
-		printk(KERN_ERR "comedi%d: usbduxsigma: error: attach failed,"
-		       "dev not connected to the usb bus.\n", dev->minor);
-		up(&start_stop_sem);
-		return -ENODEV;
-	}
-
-	udev = &usbduxsub[index];
-	down(&udev->sem);
+	down(&uds->sem);
 	/* pointer back to the corresponding comedi device */
-	udev->comedidev = dev;
-
+	uds->comedidev = dev;
 	/* trying to upload the firmware into the FX2 */
-	if (comedi_aux_data(it->options, 0) &&
-	    it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		firmwareUpload(udev, comedi_aux_data(it->options, 0),
-			       it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
-	}
-
+	if (aux_data)
+		firmwareUpload(uds, aux_data, aux_len);
 	dev->board_name = BOARDNAME;
-
 	/* set number of subdevices */
-	if (udev->high_speed) {
-		/* with pwm */
-		n_subdevs = 4;
-	} else {
-		/* without pwm */
-		n_subdevs = 3;
-	}
-
+	if (uds->high_speed)
+		n_subdevs = 4;	/* with pwm */
+	else
+		n_subdevs = 3;	/* without pwm */
 	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret) {
-		up(&udev->sem);
-		up(&start_stop_sem);
+		up(&uds->sem);
 		return ret;
 	}
-
 	/* private structure is also simply the usb-structure */
-	dev->private = udev;
-
+	dev->private = uds;
 	/* the first subdevice is the A/D converter */
 	s = dev->subdevices + SUBDEV_AD;
 	/* the URBs get the comedi subdevice */
@@ -2727,8 +2690,7 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	s->maxdata = 0x00FFFFFF;
 	/* range table to convert to physical units */
 	s->range_table = (&range_usbdux_ai_range);
-
-	/* analog out */
+	/* analog output subdevice */
 	s = dev->subdevices + SUBDEV_DA;
 	/* analog out */
 	s->type = COMEDI_SUBD_AO;
@@ -2753,8 +2715,7 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	s->cancel = usbdux_ao_cancel;
 	s->insn_read = usbdux_ao_insn_read;
 	s->insn_write = usbdux_ao_insn_write;
-
-	/* digital I/O */
+	/* digital I/O subdevice */
 	s = dev->subdevices + SUBDEV_DIO;
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -2766,37 +2727,94 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	s->insn_config = usbdux_dio_insn_config;
 	/* we don't use it */
 	s->private = NULL;
-
-	if (udev->high_speed) {
-		/* timer / pwm */
+	if (uds->high_speed) {
+		/* timer / pwm subdevice */
 		s = dev->subdevices + SUBDEV_PWM;
 		s->type = COMEDI_SUBD_PWM;
 		s->subdev_flags = SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan = 8;
 		/* this defines the max duty cycle resolution */
-		s->maxdata = udev->sizePwmBuf;
+		s->maxdata = uds->sizePwmBuf;
 		s->insn_write = usbdux_pwm_write;
 		s->insn_read = usbdux_pwm_read;
 		s->insn_config = usbdux_pwm_config;
 		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
 	}
 	/* finally decide that it's attached */
-	udev->attached = 1;
-
-	up(&udev->sem);
-
-	up(&start_stop_sem);
-
+	uds->attached = 1;
+	up(&uds->sem);
 	offset = usbdux_getstatusinfo(dev, 0);
 	if (offset < 0)
-		dev_err(&udev->interface->dev,
-			"Communication to USBDUXSIGMA failed!"
-			"Check firmware and cabling.");
-
-	dev_info(&udev->interface->dev,
-		 "comedi%d: attached, ADC_zero = %x", dev->minor, offset);
-
+		dev_err(&uds->interface->dev,
+			"Communication to USBDUXSIGMA failed! Check firmware and cabling.");
+	dev_info(&uds->interface->dev,
+		 "comedi%d: attached, ADC_zero = %x\n", dev->minor, offset);
 	return 0;
+}
+
+/* is called for COMEDI_DEVCONFIG ioctl (when comedi_config is run) */
+static int usbduxsigma_attach(struct comedi_device *dev,
+			      struct comedi_devconfig *it)
+{
+	int ret;
+	int index;
+	int i;
+	void *aux_data;
+	int aux_len;
+
+	dev->private = NULL;
+
+	aux_data = comedi_aux_data(it->options, 0);
+	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
+	if (aux_data == NULL)
+		aux_len = 0;
+	else if (aux_len == 0)
+		aux_data = NULL;
+
+	down(&start_stop_sem);
+	/* find a valid device which has been detected by the probe function of
+	 * the usb */
+	index = -1;
+	for (i = 0; i < NUMUSBDUX; i++) {
+		if ((usbduxsub[i].probed) && (!usbduxsub[i].attached)) {
+			index = i;
+			break;
+		}
+	}
+	if (index < 0) {
+		dev_err(dev->class_dev,
+			"usbduxsigma: error: attach failed, dev not connected to the usb bus.\n");
+		up(&start_stop_sem);
+		ret = -ENODEV;
+	} else
+		ret = usbduxsigma_attach_common(dev, &usbduxsub[index],
+						aux_data, aux_len);
+	up(&start_stop_sem);
+	return ret;
+}
+
+/* is called from comedi_usb_auto_config() */
+static int usbduxsigma_attach_usb(struct comedi_device *dev,
+				  struct usb_interface *uinterf)
+{
+	int ret;
+	struct usbduxsub *uds;
+
+	dev->private = NULL;
+	down(&start_stop_sem);
+	uds = usb_get_intfdata(uinterf);
+	if (!uds || !uds->probed) {
+		dev_err(dev->class_dev,
+			"usbduxsigma: error: attach_usb failed, not connected\n");
+		ret = -ENODEV;
+	} else if (uds->attached) {
+		dev_err(dev->class_dev,
+		       "usbduxsigma: error: attach_usb failed, already attached\n");
+		ret = -ENODEV;
+	} else
+		ret = usbduxsigma_attach_common(dev, uds, NULL, 0);
+	up(&start_stop_sem);
+	return ret;
 }
 
 static void usbduxsigma_detach(struct comedi_device *dev)
@@ -2818,6 +2836,7 @@ static struct comedi_driver driver_usbduxsigma = {
 	.module = THIS_MODULE,
 	.attach = usbduxsigma_attach,
 	.detach = usbduxsigma_detach,
+	.attach_usb = usbduxsigma_attach_usb,
 };
 
 /* Table with the USB-devices */
