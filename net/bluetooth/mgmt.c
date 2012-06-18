@@ -3546,9 +3546,9 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	ev->addr.type = link_to_bdaddr(link_type, addr_type);
 	ev->rssi = rssi;
 	if (cfm_name)
-		ev->flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
+		ev->flags |= cpu_to_le32(MGMT_DEV_FOUND_CONFIRM_NAME);
 	if (!ssp)
-		ev->flags |= MGMT_DEV_FOUND_LEGACY_PAIRING;
+		ev->flags |= cpu_to_le32(MGMT_DEV_FOUND_LEGACY_PAIRING);
 
 	if (eir_len > 0)
 		memcpy(ev->eir, eir, eir_len);
@@ -3558,8 +3558,6 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 					  dev_class, 3);
 
 	ev->eir_len = cpu_to_le16(eir_len);
-	ev->flags = cpu_to_le32(ev->flags);
-
 	ev_size = sizeof(*ev) + eir_len;
 
 	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev, ev_size, NULL);
