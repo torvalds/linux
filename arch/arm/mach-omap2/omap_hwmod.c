@@ -178,6 +178,7 @@
 struct omap_hwmod_soc_ops {
 	void (*enable_module)(struct omap_hwmod *oh);
 	int (*disable_module)(struct omap_hwmod *oh);
+	int (*wait_target_ready)(struct omap_hwmod *oh);
 };
 
 /* soc_ops: adapts the omap_hwmod code to the currently-booted SoC */
@@ -1362,53 +1363,6 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
 }
 
 /**
- * _wait_target_ready - wait for a module to leave slave idle
- * @oh: struct omap_hwmod *
- *
- * Wait for a module @oh to leave slave idle.  Returns 0 if the module
- * does not have an IDLEST bit or if the module successfully leaves
- * slave idle; otherwise, pass along the return value of the
- * appropriate *_cm*_wait_module_ready() function.
- */
-static int _wait_target_ready(struct omap_hwmod *oh)
-{
-	struct omap_hwmod_ocp_if *os;
-	int ret;
-
-	if (!oh)
-		return -EINVAL;
-
-	if (oh->flags & HWMOD_NO_IDLEST)
-		return 0;
-
-	os = _find_mpu_rt_port(oh);
-	if (!os)
-		return 0;
-
-	/* XXX check module SIDLEMODE */
-
-	/* XXX check clock enable states */
-
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
-		ret = omap2_cm_wait_module_ready(oh->prcm.omap2.module_offs,
-						 oh->prcm.omap2.idlest_reg_id,
-						 oh->prcm.omap2.idlest_idle_bit);
-	} else if (cpu_is_omap44xx()) {
-		if (!oh->clkdm)
-			return -EINVAL;
-
-		ret = omap4_cminst_wait_module_ready(oh->clkdm->prcm_partition,
-						     oh->clkdm->cm_inst,
-						     oh->clkdm->clkdm_offs,
-						     oh->prcm.omap4.clkctrl_offs);
-	} else {
-		BUG();
-	};
-
-	return ret;
-}
-
-/**
  * _lookup_hardreset - fill register bit info for this hwmod/reset line
  * @oh: struct omap_hwmod *
  * @name: name of the reset line in the context of this hwmod
@@ -1826,7 +1780,8 @@ static int _enable(struct omap_hwmod *oh)
 	if (soc_ops.enable_module)
 		soc_ops.enable_module(oh);
 
-	r = _wait_target_ready(oh);
+	r = (soc_ops.wait_target_ready) ? soc_ops.wait_target_ready(oh) :
+		-EINVAL;
 	if (!r) {
 		/*
 		 * Set the clockdomain to HW_AUTO only if the target is ready,
@@ -2441,6 +2396,63 @@ static int __init _alloc_linkspace(struct omap_hwmod_ocp_if **ois)
 	memset(linkspace, 0, sz);
 
 	return 0;
+}
+
+/* Static functions intended only for use in soc_ops field function pointers */
+
+/**
+ * _omap2_wait_target_ready - wait for a module to leave slave idle
+ * @oh: struct omap_hwmod *
+ *
+ * Wait for a module @oh to leave slave idle.  Returns 0 if the module
+ * does not have an IDLEST bit or if the module successfully leaves
+ * slave idle; otherwise, pass along the return value of the
+ * appropriate *_cm*_wait_module_ready() function.
+ */
+static int _omap2_wait_target_ready(struct omap_hwmod *oh)
+{
+	if (!oh)
+		return -EINVAL;
+
+	if (oh->flags & HWMOD_NO_IDLEST)
+		return 0;
+
+	if (!_find_mpu_rt_port(oh))
+		return 0;
+
+	/* XXX check module SIDLEMODE, hardreset status, enabled clocks */
+
+	return omap2_cm_wait_module_ready(oh->prcm.omap2.module_offs,
+					  oh->prcm.omap2.idlest_reg_id,
+					  oh->prcm.omap2.idlest_idle_bit);
+}
+
+/**
+ * _omap4_wait_target_ready - wait for a module to leave slave idle
+ * @oh: struct omap_hwmod *
+ *
+ * Wait for a module @oh to leave slave idle.  Returns 0 if the module
+ * does not have an IDLEST bit or if the module successfully leaves
+ * slave idle; otherwise, pass along the return value of the
+ * appropriate *_cm*_wait_module_ready() function.
+ */
+static int _omap4_wait_target_ready(struct omap_hwmod *oh)
+{
+	if (!oh || !oh->clkdm)
+		return -EINVAL;
+
+	if (oh->flags & HWMOD_NO_IDLEST)
+		return 0;
+
+	if (!_find_mpu_rt_port(oh))
+		return 0;
+
+	/* XXX check module SIDLEMODE, hardreset status */
+
+	return omap4_cminst_wait_module_ready(oh->clkdm->prcm_partition,
+					      oh->clkdm->cm_inst,
+					      oh->clkdm->clkdm_offs,
+					      oh->prcm.omap4.clkctrl_offs);
 }
 
 /* Public functions */
@@ -3429,9 +3441,14 @@ int omap_hwmod_pad_route_irq(struct omap_hwmod *oh, int pad_idx, int irq_idx)
  */
 void __init omap_hwmod_init(void)
 {
-	if (cpu_is_omap44xx()) {
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		soc_ops.wait_target_ready = _omap2_wait_target_ready;
+	} else if (cpu_is_omap44xx()) {
 		soc_ops.enable_module = _omap4_enable_module;
 		soc_ops.disable_module = _omap4_disable_module;
+		soc_ops.wait_target_ready = _omap4_wait_target_ready;
+	} else {
+		WARN(1, "omap_hwmod: unknown SoC type\n");
 	}
 
 	inited = true;
