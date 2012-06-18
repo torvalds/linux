@@ -47,7 +47,7 @@
  *      Oasis cards (single and dual port PCI-x Gigabit) copper and fiber
  *      Kalahari cards (dual and quad port PCI-e Gigabit) copper and fiber
  *
- * The driver was acutally tested on Oasis and Kalahari cards.
+ * The driver was actually tested on Oasis and Kalahari cards.
  *
  *
  * NOTE: This is the standard, non-accelerated version of Alacritech's
