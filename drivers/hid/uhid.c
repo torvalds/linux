@@ -154,7 +154,7 @@ static int uhid_hid_get_raw(struct hid_device *hid, unsigned char rnum,
 	struct uhid_event *ev;
 	unsigned long flags;
 	int ret;
-	size_t len;
+	size_t uninitialized_var(len);
 	struct uhid_feature_answer_req *req;
 
 	if (!uhid->running)
