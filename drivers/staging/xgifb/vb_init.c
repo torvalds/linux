@@ -1319,11 +1319,11 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	/* Newdebugcode(0x99); */
 
 	if (pVBInfo->FBAddr == NULL) {
-		pr_debug("pVBInfo->FBAddr == 0\n");
+		dev_dbg(&pdev->dev, "pVBInfo->FBAddr == 0\n");
 		return 0;
 	}
 	if (pVBInfo->BaseAddr == 0) {
-		pr_debug("pVBInfo->BaseAddr == 0\n");
+		dev_dbg(&pdev->dev, "pVBInfo->BaseAddr == 0\n");
 		return 0;
 	}
 
