@@ -129,6 +129,11 @@ config SND_SOC_ALL_CODECS
 config SND_SOC_88PM860X
 	tristate
 
+config SND_SOC_ARIZONA
+	tristate
+	default y if SND_SOC_WM5102=y
+	default m if SND_SOC_WM5102=m
+
 config SND_SOC_WM_HUBS
 	tristate
 	default y if SND_SOC_WM8993=y || SND_SOC_WM8994=y
