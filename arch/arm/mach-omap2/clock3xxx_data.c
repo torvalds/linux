@@ -3514,7 +3514,7 @@ int __init omap3xxx_clk_init(void)
 	struct omap_clk *c;
 	u32 cpu_clkflg = 0;
 
-	if (cpu_is_omap3517()) {
+	if (soc_is_am35xx()) {
 		cpu_mask = RATE_IN_34XX;
 		cpu_clkflg = CK_AM35XX;
 	} else if (cpu_is_omap3630()) {

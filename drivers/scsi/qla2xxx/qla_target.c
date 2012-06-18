@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -2477,11 +2476,9 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 	}
 
 	cmd = qlt_ctio_to_cmd(vha, handle, ctio);
-	if (cmd == NULL) {
-		if (status != CTIO_SUCCESS)
-			qlt_term_ctio_exchange(vha, ctio, NULL, status);
+	if (cmd == NULL)
 		return;
-	}
+
 	se_cmd = &cmd->se_cmd;
 	tfo = se_cmd->se_tfo;
 
@@ -2727,10 +2724,12 @@ static void qlt_do_work(struct work_struct *work)
 out_term:
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf020, "Terminating work cmd %p", cmd);
 	/*
-	 * cmd has not sent to target yet, so pass NULL as the second argument
+	 * cmd has not sent to target yet, so pass NULL as the second
+	 * argument to qlt_send_term_exchange() and free the memory here.
 	 */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qlt_send_term_exchange(vha, NULL, &cmd->atio, 1);
+	kmem_cache_free(qla_tgt_cmd_cachep, cmd);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (sess)
 		ha->tgt.tgt_ops->put_sess(sess);
