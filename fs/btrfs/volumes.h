@@ -58,7 +58,7 @@ struct btrfs_device {
 	/* the mode sent to blkdev_get */
 	fmode_t mode;
 
-	char *name;
+	struct rcu_string *name;
 
 	/* the internal btrfs device id */
 	u64 devid;

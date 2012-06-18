@@ -760,7 +760,7 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 	u32 ecr = 0;
 
 	hsep = our_ep(_ep);
-	if (!_ep || !desc || hsep->ep.desc || _ep->name == ep0name
+	if (!_ep || !desc || _ep->name == ep0name
 		|| desc->bDescriptorType != USB_DT_ENDPOINT
 		|| hsep->bEndpointAddress != desc->bEndpointAddress
 		|| ep_maxpacket(hsep) < usb_endpoint_maxp(desc))

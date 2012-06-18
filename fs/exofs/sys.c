@@ -109,7 +109,7 @@ static struct kobj_type odev_ktype = {
 static struct kobj_type uuid_ktype = {
 };
 
-void exofs_sysfs_dbg_print()
+void exofs_sysfs_dbg_print(void)
 {
 #ifdef CONFIG_EXOFS_DEBUG
 	struct kobject *k_name, *k_tmp;

@@ -122,6 +122,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
 #define TLV_TYPE_UAP_BEACON_PERIOD  (PROPRIETARY_TLV_BASE_ID + 44)
 #define TLV_TYPE_UAP_DTIM_PERIOD    (PROPRIETARY_TLV_BASE_ID + 45)
+#define TLV_TYPE_UAP_BCAST_SSID     (PROPRIETARY_TLV_BASE_ID + 48)
 #define TLV_TYPE_UAP_RTS_THRESHOLD  (PROPRIETARY_TLV_BASE_ID + 51)
 #define TLV_TYPE_UAP_WPA_PASSPHRASE (PROPRIETARY_TLV_BASE_ID + 60)
 #define TLV_TYPE_UAP_ENCRY_PROTOCOL (PROPRIETARY_TLV_BASE_ID + 64)
@@ -1207,6 +1208,11 @@ struct host_cmd_tlv_encrypt_protocol {
 struct host_cmd_tlv_ssid {
 	struct host_cmd_tlv tlv;
 	u8 ssid[0];
+} __packed;
+
+struct host_cmd_tlv_bcast_ssid {
+	struct host_cmd_tlv tlv;
+	u8 bcast_ctl;
 } __packed;
 
 struct host_cmd_tlv_beacon_period {
