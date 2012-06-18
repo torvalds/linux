@@ -285,6 +285,9 @@ int iio_buffer_register(struct iio_dev *indio_dev,
 	if (channels) {
 		/* new magic */
 		for (i = 0; i < num_channels; i++) {
+			if (channels[i].scan_index < 0)
+				continue;
+
 			/* Establish necessary mask length */
 			if (channels[i].scan_index >
 			    (int)indio_dev->masklength - 1)
