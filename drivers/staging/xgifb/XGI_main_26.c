@@ -30,9 +30,7 @@ static unsigned int refresh_rate;
 
 /* -------------------- Macro definitions ---------------------------- */
 
-#undef XGIFBDEBUG
-
-#ifdef XGIFBDEBUG
+#ifdef DEBUG
 static void dumpVGAReg(void)
 {
 	u8 i, reg;
