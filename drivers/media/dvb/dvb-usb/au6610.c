@@ -137,7 +137,7 @@ static struct zl10353_config au6610_zl10353_config = {
 static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	adap->fe[0] = dvb_attach(zl10353_attach, &au6610_zl10353_config,
-		&adap->dev->i2c_adap);
+			&adap_to_d(adap)->i2c_adap);
 	if (adap->fe[0] == NULL)
 		return -ENODEV;
 
@@ -150,9 +150,9 @@ static struct qt1010_config au6610_qt1010_config = {
 
 static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	return dvb_attach(qt1010_attach,
-			  adap->fe[0], &adap->dev->i2c_adap,
-			  &au6610_qt1010_config) == NULL ? -ENODEV : 0;
+	return dvb_attach(qt1010_attach, adap->fe[0],
+			&adap_to_d(adap)->i2c_adap,
+			&au6610_qt1010_config) == NULL ? -ENODEV : 0;
 }
 
 static int au6610_init(struct dvb_usb_device *d)
@@ -175,18 +175,7 @@ static struct dvb_usb_device_properties au6610_props = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-			.stream = {
-				.type = USB_ISOC,
-				.count = 5,
-				.endpoint = 0x82,
-				.u = {
-					.isoc = {
-						.framesperurb = 40,
-						.framesize = 942,
-						.interval = 1,
-					}
-				}
-			},
+			.stream = DVB_USB_STREAM_ISOC(0x82, 5, 40, 942, 1),
 		},
 	},
 };
