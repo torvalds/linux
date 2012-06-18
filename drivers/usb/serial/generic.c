@@ -39,13 +39,6 @@ MODULE_PARM_DESC(product, "User specified USB idProduct");
 
 static struct usb_device_id generic_device_ids[2]; /* Initially all zeroes. */
 
-/* we want to look at all devices, as the vendor/product id can change
- * depending on the command line argument */
-static const struct usb_device_id generic_serial_ids[] = {
-	{.driver_info = 42},
-	{}
-};
-
 /* All of the device info needed for the Generic Serial Converter */
 struct usb_serial_driver usb_serial_generic_device = {
 	.driver = {
@@ -79,7 +72,8 @@ int usb_serial_generic_register(int _debug)
 		USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_PRODUCT;
 
 	/* register our generic driver with ourselves */
-	retval = usb_serial_register_drivers(serial_drivers, "usbserial_generic", generic_serial_ids);
+	retval = usb_serial_register_drivers(serial_drivers,
+			"usbserial_generic", generic_device_ids);
 #endif
 	return retval;
 }
