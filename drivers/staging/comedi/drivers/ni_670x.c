@@ -319,7 +319,7 @@ static int ni_670x_dio_insn_bits(struct comedi_device *dev,
 	 * input lines. */
 	data[1] = readl(devpriv->mite->daq_io_addr + DIO_PORT0_DATA_OFFSET);
 
-	return 2;
+	return insn->n;
 }
 
 static int ni_670x_dio_insn_config(struct comedi_device *dev,

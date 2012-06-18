@@ -163,7 +163,7 @@ static int multiq3_di_insn_bits(struct comedi_device *dev,
 {
 	data[1] = inw(dev->iobase + MULTIQ3_DIGIN_PORT);
 
-	return 2;
+	return insn->n;
 }
 
 static int multiq3_do_insn_bits(struct comedi_device *dev,
@@ -176,7 +176,7 @@ static int multiq3_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int multiq3_encoder_insn_read(struct comedi_device *dev,

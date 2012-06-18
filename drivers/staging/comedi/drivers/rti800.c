@@ -264,7 +264,7 @@ static int rti800_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	data[1] = inb(dev->iobase + RTI800_DI);
-	return 2;
+	return insn->n;
 }
 
 static int rti800_do_insn_bits(struct comedi_device *dev,
@@ -280,7 +280,7 @@ static int rti800_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*

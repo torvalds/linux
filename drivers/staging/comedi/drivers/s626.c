@@ -2160,7 +2160,7 @@ static int s626_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = DEBIread(dev, diopriv->RDDIn);
 
-	return 2;
+	return insn->n;
 }
 
 static int s626_dio_insn_config(struct comedi_device *dev,

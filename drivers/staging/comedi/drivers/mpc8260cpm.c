@@ -113,7 +113,7 @@ static int mpc8260cpm_dio_bits(struct comedi_device *dev,
 
 	p = cpm_pdat((int)s->private);
 
-	return 2;
+	return insn->n;
 }
 
 static int mpc8260cpm_attach(struct comedi_device *dev,

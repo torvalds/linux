@@ -1675,7 +1675,7 @@ static int me4000_dio_insn_bits(struct comedi_device *dev,
 		  ((inl(info->dio_context.port_2_reg) & 0xFF) << 16) |
 		  ((inl(info->dio_context.port_3_reg) & 0xFF) << 24);
 
-	return 2;
+	return insn->n;
 }
 
 static int me4000_dio_insn_config(struct comedi_device *dev,

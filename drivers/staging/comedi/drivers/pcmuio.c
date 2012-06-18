@@ -277,7 +277,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 		data[1]);
 #endif
 
-	return 2;
+	return insn->n;
 }
 
 /* The input or output configuration of each digital line is

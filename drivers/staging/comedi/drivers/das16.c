@@ -812,7 +812,7 @@ static int das16_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	data[1] = bits;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 static int das16_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -832,7 +832,7 @@ static int das16_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	outb(s->state, dev->iobase + DAS16_DIO);
 
-	return 2;
+	return insn->n;
 }
 
 static int das16_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,

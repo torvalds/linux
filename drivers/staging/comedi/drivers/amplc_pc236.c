@@ -293,7 +293,7 @@ static int pc236_intr_insn(struct comedi_device *dev,
 			   unsigned int *data)
 {
 	data[1] = 0;
-	return 2;
+	return insn->n;
 }
 
 /*

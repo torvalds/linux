@@ -80,7 +80,7 @@ static int aio_iiro_16_dio_insn_bits_write(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
@@ -92,7 +92,7 @@ static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
 	data[1] |= inb(dev->iobase + AIO_IIRO_16_INPUT_0_7);
 	data[1] |= inb(dev->iobase + AIO_IIRO_16_INPUT_8_15) << 8;
 
-	return 2;
+	return insn->n;
 }
 
 static int aio_iiro_16_attach(struct comedi_device *dev,

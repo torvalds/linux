@@ -565,7 +565,7 @@ static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
 	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
 	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
 
-	return 2;
+	return insn->n;
 }
 
 static void pci20xxx_dio_config(struct comedi_device *dev,

@@ -1353,7 +1353,7 @@ static int das1800_di_rbits(struct comedi_device *dev,
 	data[1] = inb(dev->iobase + DAS1800_DIGITAL) & 0xf;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 /* writes to digital output channels */
@@ -1374,7 +1374,7 @@ static int das1800_do_wbits(struct comedi_device *dev,
 
 	data[1] = devpriv->do_bits;
 
-	return 2;
+	return insn->n;
 }
 
 static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,

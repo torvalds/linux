@@ -435,7 +435,7 @@ static int pci171x_insn_bits_di(struct comedi_device *dev,
 {
 	data[1] = inw(dev->iobase + PCI171x_DI);
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -452,7 +452,7 @@ static int pci171x_insn_bits_do(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*

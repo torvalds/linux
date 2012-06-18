@@ -752,7 +752,7 @@ static int dt3k_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = dt3k_readsingle(dev, SUBS_DIN, 0, 0);
 
-	return 2;
+	return insn->n;
 }
 
 static int dt3k_mem_insn_read(struct comedi_device *dev,

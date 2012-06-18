@@ -1153,7 +1153,7 @@ static int pci9111_di_insn_bits(struct comedi_device *dev,
 	bits = pci9111_di_get_bits();
 	data[1] = bits;
 
-	return 2;
+	return insn->n;
 }
 
 /*  Digital outputs */
@@ -1179,7 +1179,7 @@ static int pci9111_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = bits;
 
-	return 2;
+	return insn->n;
 }
 
 /*  ------------------------------------------------------------------ */

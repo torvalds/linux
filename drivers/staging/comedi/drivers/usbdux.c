@@ -1809,7 +1809,7 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 
 	data[1] = le16_to_cpu(this_usbduxsub->insnBuffer[1]);
 	up(&this_usbduxsub->sem);
-	return 2;
+	return insn->n;
 }
 
 /* reads the 4 counters, only two are used just now */

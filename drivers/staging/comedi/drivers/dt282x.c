@@ -1038,7 +1038,7 @@ static int dt282x_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = inw(dev->iobase + DT2821_DIODAT);
 
-	return 2;
+	return insn->n;
 }
 
 static int dt282x_dio_insn_config(struct comedi_device *dev,

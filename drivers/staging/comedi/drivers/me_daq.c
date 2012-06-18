@@ -331,7 +331,7 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 		data[1] |= readw(dev_private->me_regbase + ME_DIO_PORT_B) << 16;
 	}
 
-	return 2;
+	return insn->n;
 }
 
 /*

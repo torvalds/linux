@@ -178,7 +178,7 @@ static int ni6527_di_insn_bits(struct comedi_device *dev,
 	data[1] |= readb(devpriv->mite->daq_io_addr + Port_Register(1)) << 8;
 	data[1] |= readb(devpriv->mite->daq_io_addr + Port_Register(2)) << 16;
 
-	return 2;
+	return insn->n;
 }
 
 static int ni6527_do_insn_bits(struct comedi_device *dev,
@@ -206,7 +206,7 @@ static int ni6527_do_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static irqreturn_t ni6527_interrupt(int irq, void *d)
@@ -335,7 +335,7 @@ static int ni6527_intr_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	data[1] = 0;
-	return 2;
+	return insn->n;
 }
 
 static int ni6527_intr_insn_config(struct comedi_device *dev,

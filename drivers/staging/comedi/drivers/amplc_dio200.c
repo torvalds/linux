@@ -551,7 +551,7 @@ dio200_subdev_intr_insn_bits(struct comedi_device *dev,
 		data[0] = 0;
 	}
 
-	return 2;
+	return insn->n;
 }
 
 /*

@@ -606,7 +606,7 @@ static int atmio16d_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = inw(dev->iobase + MIO_16_DIG_IN_REG);
 
-	return 2;
+	return insn->n;
 }
 
 static int atmio16d_dio_insn_config(struct comedi_device *dev,

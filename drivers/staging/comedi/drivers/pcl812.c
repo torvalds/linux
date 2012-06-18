@@ -504,7 +504,7 @@ static int pcl812_di_insn_bits(struct comedi_device *dev,
 	data[1] = inb(dev->iobase + PCL812_DI_LO);
 	data[1] |= inb(dev->iobase + PCL812_DI_HI) << 8;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -522,7 +522,7 @@ static int pcl812_do_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*

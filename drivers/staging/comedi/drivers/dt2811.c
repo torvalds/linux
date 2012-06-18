@@ -354,7 +354,7 @@ static int dt2811_di_insn_bits(struct comedi_device *dev,
 {
 	data[1] = inb(dev->iobase + DT2811_DIO);
 
-	return 2;
+	return insn->n;
 }
 
 static int dt2811_do_insn_bits(struct comedi_device *dev,
@@ -367,7 +367,7 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*

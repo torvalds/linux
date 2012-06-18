@@ -284,7 +284,7 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 		outw(s->state, dev->iobase + PCI1723_WRITE_DIGITAL_OUTPUT_CMD);
 	}
 	data[1] = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
-	return 2;
+	return insn->n;
 }
 
 static int pci1723_attach(struct comedi_device *dev,

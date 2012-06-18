@@ -1826,7 +1826,7 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
 
 	/*DPRINTK("rtd520:port_0 wrote: 0x%x read: 0x%x\n", s->state, data[1]); */
 
-	return 2;
+	return insn->n;
 }
 
 /*

@@ -344,7 +344,7 @@ static int pcmmio_dio_insn_bits(struct comedi_device *dev,
 	printk(KERN_DEBUG "s->state %08x data_out %08x\n", s->state, data[1]);
 #endif
 
-	return 2;
+	return insn->n;
 }
 
 /* The input or output configuration of each digital line is

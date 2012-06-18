@@ -3584,7 +3584,7 @@ static int ni_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = devpriv->stc_readw(dev, DIO_Parallel_Input_Register);
 
-	return 2;
+	return insn->n;
 }
 
 static int ni_m_series_dio_insn_config(struct comedi_device *dev,
@@ -3636,7 +3636,7 @@ static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = ni_readl(M_Offset_Static_Digital_Input);
 
-	return 2;
+	return insn->n;
 }
 
 static int ni_cdio_cmdtest(struct comedi_device *dev,
@@ -5394,7 +5394,7 @@ static int ni_pfi_insn_bits(struct comedi_device *dev,
 		ni_writew(s->state, M_Offset_PFI_DO);
 	}
 	data[1] = ni_readw(M_Offset_PFI_DI);
-	return 2;
+	return insn->n;
 }
 
 static int ni_pfi_insn_config(struct comedi_device *dev,
@@ -5485,7 +5485,7 @@ static int ni_rtsi_insn_bits(struct comedi_device *dev,
 {
 	data[1] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 /* Find best multiplier/divider to try and get the PLL running at 80 MHz

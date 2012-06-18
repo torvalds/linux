@@ -313,7 +313,7 @@ static int das08_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	data[0] = 0;
 	data[1] = DAS08_IP(inb(dev->iobase + DAS08_STATUS));
 
-	return 2;
+	return insn->n;
 }
 
 static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -338,7 +338,7 @@ static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = wbits;
 
-	return 2;
+	return insn->n;
 }
 
 static int __maybe_unused
@@ -348,7 +348,7 @@ das08jr_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	data[0] = 0;
 	data[1] = inb(dev->iobase + DAS08JR_DIO);
 
-	return 2;
+	return insn->n;
 }
 
 static int __maybe_unused
@@ -365,7 +365,7 @@ das08jr_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = devpriv->do_bits;
 
-	return 2;
+	return insn->n;
 }
 
 static int __maybe_unused

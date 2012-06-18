@@ -65,7 +65,7 @@ static int adl_pci7432_do_insn_bits(struct comedi_device *dev,
 		       dev->iobase + PCI7432_DO);
 		outl(s->state & 0xffffffff, dev->iobase + PCI7432_DO);
 	}
-	return 2;
+	return insn->n;
 }
 
 static int adl_pci7432_di_insn_bits(struct comedi_device *dev,
@@ -79,7 +79,7 @@ static int adl_pci7432_di_insn_bits(struct comedi_device *dev,
 	data[1] = inl(dev->iobase + PCI7432_DI) & 0xffffffff;
 	printk(KERN_DEBUG "comedi: data1 %8x\n", data[1]);
 
-	return 2;
+	return insn->n;
 }
 
 static struct pci_dev *adl_pci7432_find_pci(struct comedi_device *dev,

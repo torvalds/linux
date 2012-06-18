@@ -424,7 +424,7 @@ static int pci_dio_insn_bits_di_b(struct comedi_device *dev,
 		data[1] |= inb(dev->iobase + d->addr + i) << (8 * i);
 
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -441,7 +441,7 @@ static int pci_dio_insn_bits_di_w(struct comedi_device *dev,
 	for (i = 0; i < d->regs; i++)
 		data[1] |= inw(dev->iobase + d->addr + 2 * i) << (16 * i);
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -463,7 +463,7 @@ static int pci_dio_insn_bits_do_b(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -485,7 +485,7 @@ static int pci_dio_insn_bits_do_w(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -634,7 +634,7 @@ static int pci1760_insn_bits_di(struct comedi_device *dev,
 {
 	data[1] = inb(dev->iobase + IMB3);
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -663,7 +663,7 @@ static int pci1760_insn_bits_do(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*

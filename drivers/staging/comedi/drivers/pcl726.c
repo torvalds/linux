@@ -200,7 +200,7 @@ static int pcl726_di_insn_bits(struct comedi_device *dev,
 	data[1] = inb(dev->iobase + board->di_lo) |
 	    (inb(dev->iobase + board->di_hi) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl726_do_insn_bits(struct comedi_device *dev,
@@ -220,7 +220,7 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)

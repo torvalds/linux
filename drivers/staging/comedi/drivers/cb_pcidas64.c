@@ -3617,7 +3617,7 @@ static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	data[1] = bits;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -3633,7 +3633,7 @@ static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int dio_60xx_config_insn(struct comedi_device *dev,
@@ -3676,7 +3676,7 @@ static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = readb(priv(dev)->dio_counter_iobase + DIO_DATA_60XX_REG);
 
-	return 2;
+	return insn->n;
 }
 
 static void caldac_write(struct comedi_device *dev, unsigned int channel,

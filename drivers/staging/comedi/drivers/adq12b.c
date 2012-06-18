@@ -193,7 +193,7 @@ static int adq12b_di_insn_bits(struct comedi_device *dev,
 	/* only bits 0-4 have information about digital inputs */
 	data[1] = (inb(dev->iobase + ADQ12B_STINR) & (0x1f));
 
-	return 2;
+	return insn->n;
 }
 
 static int adq12b_do_insn_bits(struct comedi_device *dev,
@@ -215,7 +215,7 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = devpriv->digital_state;
 
-	return 2;
+	return insn->n;
 }
 
 static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)

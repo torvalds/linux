@@ -104,7 +104,7 @@ static int pcl733_insn_bits(struct comedi_device *dev,
 	data[1] |= (inb(dev->iobase + 2) << 16);
 	data[1] |= (inb(dev->iobase + 3) << 24);
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl734_insn_bits(struct comedi_device *dev,
@@ -125,7 +125,7 @@ static int pcl734_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)

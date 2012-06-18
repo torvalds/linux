@@ -560,7 +560,7 @@ static int das16cs_dio_insn_bits(struct comedi_device *dev,
 	 * input and output lines. */
 	data[1] = inw(dev->iobase + 16);
 
-	return 2;
+	return insn->n;
 }
 
 static int das16cs_dio_insn_config(struct comedi_device *dev,

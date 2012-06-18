@@ -39,7 +39,7 @@ static int pcm3730_do_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcm3730_di_insn_bits(struct comedi_device *dev,
@@ -47,7 +47,7 @@ static int pcm3730_di_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	data[1] = inb(dev->iobase + (unsigned long)(s->private));
-	return 2;
+	return insn->n;
 }
 
 static int pcm3730_attach(struct comedi_device *dev,

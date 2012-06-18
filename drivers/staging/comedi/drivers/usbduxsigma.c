@@ -1884,7 +1884,7 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	s->state = data[1];
 
 	up(&this_usbduxsub->sem);
-	return 2;
+	return insn->n;
 }
 
 /***********************************/

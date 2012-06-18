@@ -602,7 +602,7 @@ static int ni_65xx_intr_insn_bits(struct comedi_device *dev,
 				  struct comedi_insn *insn, unsigned int *data)
 {
 	data[1] = 0;
-	return 2;
+	return insn->n;
 }
 
 static int ni_65xx_intr_insn_config(struct comedi_device *dev,

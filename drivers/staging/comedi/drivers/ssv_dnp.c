@@ -110,7 +110,7 @@ static int dnp_dio_insn_bits(struct comedi_device *dev,
 	outb(PCDR, CSCIR);
 	data[0] += ((inb(CSCDR) & 0xF0) << 12);
 
-	return 2;
+	return insn->n;
 
 }
 

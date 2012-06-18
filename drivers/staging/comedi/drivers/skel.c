@@ -577,7 +577,7 @@ static int skel_dio_insn_bits(struct comedi_device *dev,
 	 * it was a purely digital output subdevice */
 	/* data[1]=s->state; */
 
-	return 2;
+	return insn->n;
 }
 
 static int skel_dio_insn_config(struct comedi_device *dev,

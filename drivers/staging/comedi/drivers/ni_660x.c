@@ -1285,7 +1285,7 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 	data[1] =
 	    (ni_660x_read_register(dev, 0,
 				   DIO32Input) >> base_bitfield_channel);
-	return 2;
+	return insn->n;
 }
 
 static void ni_660x_select_pfi_output(struct comedi_device *dev,

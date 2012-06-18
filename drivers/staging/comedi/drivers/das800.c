@@ -875,7 +875,7 @@ static int das800_di_rbits(struct comedi_device *dev,
 	data[1] = bits;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 static int das800_do_wbits(struct comedi_device *dev,
@@ -899,7 +899,7 @@ static int das800_do_wbits(struct comedi_device *dev,
 
 	data[1] = wbits;
 
-	return 2;
+	return insn->n;
 }
 
 /* loads counters with divisor1, divisor2 from private structure */

@@ -61,7 +61,7 @@ static int adl_pci7230_do_insn_bits(struct comedi_device *dev,
 		outl((s->state  << 16) & 0xffffffff, dev->iobase + PCI7230_DO);
 	}
 
-	return 2;
+	return insn->n;
 }
 
 static int adl_pci7230_di_insn_bits(struct comedi_device *dev,
@@ -71,7 +71,7 @@ static int adl_pci7230_di_insn_bits(struct comedi_device *dev,
 {
 	data[1] = inl(dev->iobase + PCI7230_DI) & 0xffffffff;
 
-	return 2;
+	return insn->n;
 }
 
 static struct pci_dev *adl_pci7230_find_pci(struct comedi_device *dev,

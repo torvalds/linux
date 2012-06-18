@@ -452,7 +452,7 @@ static int pcl711_di_insn_bits(struct comedi_device *dev,
 	data[1] = inb(dev->iobase + PCL711_DI_LO) |
 	    (inb(dev->iobase + PCL711_DI_HI) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 /* Digital port write - Untested on 8112 */
@@ -471,7 +471,7 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)

@@ -31,7 +31,7 @@ static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl725_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -39,7 +39,7 @@ static int pcl725_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	data[1] = inb(dev->iobase + PCL725_DI);
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)

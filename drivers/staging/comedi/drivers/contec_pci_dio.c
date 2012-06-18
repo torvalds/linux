@@ -81,7 +81,7 @@ static int contec_do_insn_bits(struct comedi_device *dev,
 			dev->iobase + thisboard->out_offs);
 		outw(s->state, dev->iobase + thisboard->out_offs);
 	}
-	return 2;
+	return insn->n;
 }
 
 static int contec_di_insn_bits(struct comedi_device *dev,
@@ -94,7 +94,7 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 
 	data[1] = inw(dev->iobase + thisboard->in_offs);
 
-	return 2;
+	return insn->n;
 }
 
 static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)

@@ -546,7 +546,7 @@ static int dt2801_dio_insn_bits(struct comedi_device *dev,
 	dt2801_writedata(dev, which);
 	dt2801_readdata(dev, data + 1);
 
-	return 2;
+	return insn->n;
 }
 
 static int dt2801_dio_insn_config(struct comedi_device *dev,

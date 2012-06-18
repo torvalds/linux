@@ -198,7 +198,7 @@ static int dyna_pci10xx_di_insn_bits(struct comedi_device *dev,
 	data[1] = d;
 	data[0] = s->state;
 	mutex_unlock(&devpriv->mutex);
-	return 2;
+	return insn->n;
 }
 
 /* digital output bit interface */
@@ -226,7 +226,7 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 	 */
 	data[1] = s->state;
 	mutex_unlock(&devpriv->mutex);
-	return 2;
+	return insn->n;
 }
 
 /******************************************************************************/

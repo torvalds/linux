@@ -174,7 +174,7 @@ static int subdev_700_insn(struct comedi_device *dev,
 	data[1] = s->state & 0xff;
 	data[1] |= CALLBACK_FUNC(0, _700_DATA, 0, CALLBACK_ARG) << 8;
 
-	return 2;
+	return insn->n;
 }
 
 static int subdev_700_insn_config(struct comedi_device *dev,

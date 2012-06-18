@@ -542,7 +542,7 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 {
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -585,7 +585,7 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev,
 #ifdef ICP_MULTI_EXTDEBUG
 	printk(KERN_DEBUG "icp multi EDBG: END: icp_multi_insn_bits_do(...)\n");
 #endif
-	return 2;
+	return insn->n;
 }
 
 /*

@@ -43,7 +43,7 @@ static int acl7225b_do_insn(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int acl7225b_di_insn(struct comedi_device *dev,
@@ -53,7 +53,7 @@ static int acl7225b_di_insn(struct comedi_device *dev,
 	data[1] = inb(dev->iobase + (unsigned long)s->private) |
 	    (inb(dev->iobase + (unsigned long)s->private + 1) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 static int acl7225b_attach(struct comedi_device *dev,

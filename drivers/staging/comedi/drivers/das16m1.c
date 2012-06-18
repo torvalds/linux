@@ -428,7 +428,7 @@ static int das16m1_di_rbits(struct comedi_device *dev,
 	data[1] = bits;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 static int das16m1_do_wbits(struct comedi_device *dev,
@@ -449,7 +449,7 @@ static int das16m1_do_wbits(struct comedi_device *dev,
 
 	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
 
-	return 2;
+	return insn->n;
 }
 
 static void das16m1_handler(struct comedi_device *dev, unsigned int status)

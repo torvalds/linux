@@ -48,7 +48,7 @@ static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl730_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -57,7 +57,7 @@ static int pcl730_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	data[1] = inb(dev->iobase + ((unsigned long)s->private)) |
 	    (inb(dev->iobase + ((unsigned long)s->private) + 1) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
