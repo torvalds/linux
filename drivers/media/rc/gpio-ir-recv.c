@@ -194,18 +194,7 @@ static struct platform_driver gpio_ir_recv_driver = {
 #endif
 	},
 };
-
-static int __init gpio_ir_recv_init(void)
-{
-	return platform_driver_register(&gpio_ir_recv_driver);
-}
-module_init(gpio_ir_recv_init);
-
-static void __exit gpio_ir_recv_exit(void)
-{
-	platform_driver_unregister(&gpio_ir_recv_driver);
-}
-module_exit(gpio_ir_recv_exit);
+module_platform_driver(gpio_ir_recv_driver);
 
 MODULE_DESCRIPTION("GPIO IR Receiver driver");
 MODULE_LICENSE("GPL v2");
