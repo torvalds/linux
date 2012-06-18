@@ -1,35 +1,26 @@
 /*
-************************************************************************************************************************
-*                                                  NAND BSP for sun
-*                                 NAND hardware registers definition and BSP interfaces
-*
-*                             Copyright(C), 2006-2008, uLIVE
-*											       All Rights Reserved
-*
-* File Name : nfc.h
-*
-* Author : Gary.Wang
-*
-* Version : 1.1.0
-*
-* Date : 2008.03.25
-*
-* Description : This file provides some definition of NAND's hardware registers and BSP interfaces.
-*             This file is very similar to file "nand.inc"; the two files should be modified at the
-*             same time to keep coherence of information.
-*
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* Gary.Wang      2008.03.25       1.1.0        build the file
-* penggang       2009.09.09       1.1.1        modify the file
-*
-************************************************************************************************************************
-*/
+ * drivers/block/sun3i_nand/nfc/nfc.h
+ *
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
+
 #ifndef _NFC_H_
 #define _NFC_H_
 

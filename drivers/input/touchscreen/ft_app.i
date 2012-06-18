@@ -1,3 +1,25 @@
+/*
+ * drivers/input/touchscreen/ft_app.i
+ *
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
 0x2, 0x5, 0xe9,0x2, 0x52,0xde,0xc3,0xee,0x64,0x80,0x94,0x80,0x40,0x2, 0x80,0x7,
 0xc3,0xe4,0x9f,0xff,0xe4,0x9e,0xfe,0x22,0x22,0x22,0xff,0x2, 0x30,0xa, 0x8f,0xd9,
 0x8d,0xda,0x22,0x2, 0x4f,0xdb,0xbd,0x77,0xb, 0xef,0xc3,0x94,0x13,0x40,0x19,0x74,
