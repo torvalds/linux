@@ -624,7 +624,7 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 	*p = dentry->d_inode->i_op->follow_link(dentry, nd);
 	error = PTR_ERR(*p);
 	if (IS_ERR(*p))
-		goto out_put_link;
+		goto out_put_nd_path;
 
 	error = 0;
 	s = nd_get_link(nd);
@@ -646,7 +646,6 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 
 out_put_nd_path:
 	path_put(&nd->path);
-out_put_link:
 	path_put(link);
 	return error;
 }
