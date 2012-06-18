@@ -297,9 +297,6 @@ struct usb_data_stream {
  * @stream: the usb data stream.
  */
 struct dvb_usb_adapter {
-#define DVB_USB_ADAP_STATE_INIT 0x000
-#define DVB_USB_ADAP_STATE_DVB  0x001
-	int state;
 	struct dvb_usb_device *dev;
 	const struct dvb_usb_adapter_properties *props;
 	struct usb_data_stream stream;

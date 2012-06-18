@@ -8,28 +8,25 @@
  */
 #include "dvb_usb_common.h"
 
-static void dvb_usb_data_complete(struct usb_data_stream *stream, u8 *buffer,
-		size_t length)
+static void dvb_usb_data_complete(struct usb_data_stream *stream, u8 *buf,
+		size_t len)
 {
 	struct dvb_usb_adapter *adap = stream->user_priv;
-	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
-		dvb_dmx_swfilter(&adap->demux, buffer, length);
+	dvb_dmx_swfilter(&adap->demux, buf, len);
 }
 
-static void dvb_usb_data_complete_204(struct usb_data_stream *stream,
-		u8 *buffer, size_t length)
+static void dvb_usb_data_complete_204(struct usb_data_stream *stream, u8 *buf,
+		size_t len)
 {
 	struct dvb_usb_adapter *adap = stream->user_priv;
-	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
-		dvb_dmx_swfilter_204(&adap->demux, buffer, length);
+	dvb_dmx_swfilter_204(&adap->demux, buf, len);
 }
 
-static void dvb_usb_data_complete_raw(struct usb_data_stream *stream,
-				      u8 *buffer, size_t length)
+static void dvb_usb_data_complete_raw(struct usb_data_stream *stream, u8 *buf,
+		size_t len)
 {
 	struct dvb_usb_adapter *adap = stream->user_priv;
-	if (adap->feedcount > 0 && adap->state & DVB_USB_ADAP_STATE_DVB)
-		dvb_dmx_swfilter_raw(&adap->demux, buffer, length);
+	dvb_dmx_swfilter_raw(&adap->demux, buf, len);
 }
 
 int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
@@ -244,9 +241,8 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	}
 
 	mutex_init(&adap->sync_mutex);
-	adap->state |= DVB_USB_ADAP_STATE_DVB;
-	return 0;
 
+	return 0;
 err_net_init:
 	dvb_dmxdev_release(&adap->dmxdev);
 err_dmx_dev:
@@ -254,6 +250,7 @@ err_dmx_dev:
 err_dmx:
 	dvb_unregister_adapter(&adap->dvb_adap);
 err:
+	adap->dvb_adap.priv = NULL;
 	return ret;
 }
 
@@ -261,15 +258,14 @@ int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 {
 	pr_debug("%s: adap=%d\n", __func__, adap->id);
 
-	if (adap->state & DVB_USB_ADAP_STATE_DVB) {
-		pr_debug("%s: unregistering DVB part\n", __func__);
+	if (adap->dvb_adap.priv) {
 		dvb_net_release(&adap->dvb_net);
 		adap->demux.dmx.close(&adap->demux.dmx);
 		dvb_dmxdev_release(&adap->dmxdev);
 		dvb_dmx_release(&adap->demux);
 		dvb_unregister_adapter(&adap->dvb_adap);
-		adap->state &= ~DVB_USB_ADAP_STATE_DVB;
 	}
+
 	return 0;
 }
 
