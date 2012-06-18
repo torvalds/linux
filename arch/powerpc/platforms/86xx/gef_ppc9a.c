@@ -164,7 +164,7 @@ static void gef_ppc9a_show_cpuinfo(struct seq_file *m)
 		gef_ppc9a_get_vme_is_syscon() ? "yes" : "no");
 }
 
-static void __init gef_ppc9a_nec_fixup(struct pci_dev *pdev)
+static void __devinit gef_ppc9a_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 
