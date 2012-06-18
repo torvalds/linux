@@ -130,4 +130,10 @@ extern void account_process_tick(struct task_struct *, int user);
 extern void account_steal_ticks(unsigned long ticks);
 extern void account_idle_ticks(unsigned long ticks);
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+extern void account_switch_vtime(struct task_struct *prev);
+#else
+static inline void account_switch_vtime(struct task_struct *prev) { }
+#endif
+
 #endif /* _LINUX_KERNEL_STAT_H */

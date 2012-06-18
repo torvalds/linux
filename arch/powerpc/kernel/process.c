@@ -514,9 +514,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	local_irq_save(flags);
 
-	account_system_vtime(current);
-	account_process_vtime(current);
-
 	/*
 	 * We can't take a PMU exception inside _switch() since there is a
 	 * window where the kernel stack SLB and the kernel stack are out

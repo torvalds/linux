@@ -366,6 +366,12 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 	account_user_time(tsk, utime, utimescaled);
 }
 
+void account_switch_vtime(struct task_struct *prev)
+{
+	account_system_vtime(prev);
+	account_process_tick(prev, 0);
+}
+
 #else /* ! CONFIG_VIRT_CPU_ACCOUNTING */
 #define calc_cputime_factors()
 #endif

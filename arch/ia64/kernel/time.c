@@ -88,10 +88,10 @@ extern cputime_t cycle_to_cputime(u64 cyc);
  * accumulated times to the current process, and to prepare accounting on
  * the next process.
  */
-void ia64_account_on_switch(struct task_struct *prev, struct task_struct *next)
+void account_switch_vtime(struct task_struct *prev)
 {
 	struct thread_info *pi = task_thread_info(prev);
-	struct thread_info *ni = task_thread_info(next);
+	struct thread_info *ni = task_thread_info(current);
 	cputime_t delta_stime, delta_utime;
 	__u64 now;
 
