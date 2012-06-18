@@ -50,6 +50,7 @@ struct omap_desc {
 	enum dma_transfer_direction dir;
 	dma_addr_t dev_addr;
 
+	int16_t fi;		/* for OMAP_DMA_SYNC_PACKET */
 	uint8_t es;		/* OMAP_DMA_DATA_TYPE_xxx */
 	uint8_t sync_mode;	/* OMAP_DMA_SYNC_xxx */
 	uint8_t sync_type;	/* OMAP_DMA_xxx_SYNC* */
@@ -120,10 +121,10 @@ static void omap_dma_start_desc(struct omap_chan *c)
 
 	if (d->dir == DMA_DEV_TO_MEM)
 		omap_set_dma_src_params(c->dma_ch, d->periph_port,
-			OMAP_DMA_AMODE_CONSTANT, d->dev_addr, 0, 0);
+			OMAP_DMA_AMODE_CONSTANT, d->dev_addr, 0, d->fi);
 	else
 		omap_set_dma_dest_params(c->dma_ch, d->periph_port,
-			OMAP_DMA_AMODE_CONSTANT, d->dev_addr, 0, 0);
+			OMAP_DMA_AMODE_CONSTANT, d->dev_addr, 0, d->fi);
 
 	omap_dma_start_sg(c, d, 0);
 }
