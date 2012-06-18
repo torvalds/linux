@@ -677,6 +677,7 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 	new_sock->nfc_protocol = sock->nfc_protocol;
 	new_sock->ssap = sock->ssap;
 	new_sock->dsap = ssap;
+	new_sock->target_idx = local->target_idx;
 	new_sock->parent = parent;
 
 	nfc_llcp_parse_connection_tlv(new_sock, &skb->data[LLCP_HEADER_SIZE],
