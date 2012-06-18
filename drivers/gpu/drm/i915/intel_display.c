@@ -7505,7 +7505,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	default:
 		WARN_ONCE(1, "unknown plane in flip command\n");
 		ret = -ENODEV;
-		goto err;
+		goto err_unpin;
 	}
 
 	ret = intel_ring_begin(ring, 4);
