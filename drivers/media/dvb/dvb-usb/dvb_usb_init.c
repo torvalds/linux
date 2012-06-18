@@ -226,7 +226,6 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 
 	for (i = 0; i < adapter_count; i++) {
 		adap = &d->adapter[i];
-		adap->dev = d;
 		adap->id = i;
 		adap->props = &d->props->adapter[i];
 

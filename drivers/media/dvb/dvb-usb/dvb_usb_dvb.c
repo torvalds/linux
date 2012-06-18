@@ -33,7 +33,7 @@ int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
 	pr_debug("%s: adap=%d\n", __func__, adap->id);
 
-	adap->stream.udev = adap->dev->udev;
+	adap->stream.udev = adap_to_d(adap)->udev;
 	adap->stream.user_priv = adap;
 	adap->stream.complete = dvb_usb_data_complete;
 
@@ -52,6 +52,7 @@ int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 {
 	struct dvb_usb_adapter *adap = dvbdmxfeed->demux->priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
 	int newfeedcount, ret;
 
 	if (adap == NULL) {
@@ -69,8 +70,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		pr_debug("%s: stop feeding\n", __func__);
 		usb_urb_killv2(&adap->stream);
 
-		if (adap->dev->props->streaming_ctrl != NULL) {
-			ret = adap->dev->props->streaming_ctrl(adap, 0);
+		if (d->props->streaming_ctrl != NULL) {
+			ret = d->props->streaming_ctrl(adap, 0);
 			if (ret < 0) {
 				pr_err("%s: error while stopping stream\n",
 						KBUILD_MODNAME);
@@ -103,9 +104,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		mutex_lock(&adap->sync_mutex);
 
 		/* resolve TS configuration */
-		if (adap->dev->props->get_ts_config) {
-			ret = adap->dev->props->get_ts_config(
-					adap->fe[adap->active_fe],
+		if (d->props->get_ts_config) {
+			ret = d->props->get_ts_config(adap->fe[adap->active_fe],
 					&ts_props);
 			if (ret < 0)
 				goto err_mutex_unlock;
@@ -121,10 +121,10 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			adap->stream.complete = dvb_usb_data_complete;
 
 		/* resolve USB stream configuration */
-		if (adap->dev->props->get_usb_stream_config) {
+		if (d->props->get_usb_stream_config) {
 			memcpy(&stream_props, &adap->props->stream,
 				sizeof(struct usb_data_stream_properties));
-			ret = adap->dev->props->get_usb_stream_config(
+			ret = d->props->get_usb_stream_config(
 					adap->fe[adap->active_fe],
 					&stream_props);
 			if (ret < 0)
@@ -150,8 +150,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			}
 		}
 		pr_debug("%s: start feeding\n", __func__);
-		if (adap->dev->props->streaming_ctrl != NULL) {
-			ret = adap->dev->props->streaming_ctrl(adap, 1);
+		if (d->props->streaming_ctrl != NULL) {
+			ret = d->props->streaming_ctrl(adap, 1);
 			if (ret < 0) {
 				pr_err("%s: error while enabling fifo\n",
 						KBUILD_MODNAME);
@@ -186,11 +186,11 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
 	int ret;
+	struct dvb_usb_device *d = adap_to_d(adap);
 	pr_debug("%s: adap=%d\n", __func__, adap->id);
 
-	ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->name,
-			adap->dev->props->owner, &adap->dev->udev->dev,
-			adap->dev->props->adapter_nr);
+	ret = dvb_register_adapter(&adap->dvb_adap, d->name, d->props->owner,
+			&d->udev->dev, d->props->adapter_nr);
 	if (ret < 0) {
 		pr_debug("%s: dvb_register_adapter() failed=%d\n", __func__,
 				ret);
@@ -199,8 +199,8 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 
 	adap->dvb_adap.priv = adap;
 
-	if (adap->dev->props->read_mac_address) {
-		ret = adap->dev->props->read_mac_address(adap,
+	if (d->props->read_mac_address) {
+		ret = d->props->read_mac_address(adap,
 				adap->dvb_adap.proposed_mac);
 		if (ret < 0)
 			goto err_dmx;
@@ -273,15 +273,16 @@ static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
 	mutex_lock(&adap->sync_mutex);
 	pr_debug("%s: adap=%d fe=%d\n", __func__, adap->id, fe->id);
 
-	ret = dvb_usbv2_device_power_ctrl(adap->dev, 1);
+	ret = dvb_usbv2_device_power_ctrl(d, 1);
 	if (ret < 0)
 		goto err;
 
-	if (adap->dev->props->frontend_ctrl) {
-		ret = adap->dev->props->frontend_ctrl(fe, 1);
+	if (d->props->frontend_ctrl) {
+		ret = d->props->frontend_ctrl(fe, 1);
 		if (ret < 0)
 			goto err;
 	}
@@ -306,6 +307,7 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
 	mutex_lock(&adap->sync_mutex);
 	pr_debug("%s: adap=%d fe=%d\n", __func__, adap->id, fe->id);
 
@@ -315,13 +317,13 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	if (adap->dev->props->frontend_ctrl) {
-		ret = adap->dev->props->frontend_ctrl(fe, 0);
+	if (d->props->frontend_ctrl) {
+		ret = d->props->frontend_ctrl(fe, 0);
 		if (ret < 0)
 			goto err;
 	}
 
-	ret = dvb_usbv2_device_power_ctrl(adap->dev, 0);
+	ret = dvb_usbv2_device_power_ctrl(d, 0);
 	if (ret < 0)
 		goto err;
 
@@ -338,13 +340,14 @@ err:
 int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 {
 	int ret, i, count_registered = 0;
+	struct dvb_usb_device *d = adap_to_d(adap);
 	pr_debug("%s: adap=%d\n", __func__, adap->id);
 
 	memset(adap->fe, 0, sizeof(adap->fe));
 	adap->active_fe = -1;
 
-	if (adap->dev->props->frontend_attach) {
-		ret = adap->dev->props->frontend_attach(adap);
+	if (d->props->frontend_attach) {
+		ret = d->props->frontend_attach(adap);
 		if (ret < 0) {
 			pr_debug("%s: frontend_attach() failed=%d\n", __func__,
 					ret);
@@ -375,8 +378,8 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		count_registered++;
 	}
 
-	if (adap->dev->props->tuner_attach) {
-		ret = adap->dev->props->tuner_attach(adap);
+	if (d->props->tuner_attach) {
+		ret = d->props->tuner_attach(adap);
 		if (ret < 0) {
 			pr_debug("%s: tuner_attach() failed=%d\n", __func__,
 					ret);

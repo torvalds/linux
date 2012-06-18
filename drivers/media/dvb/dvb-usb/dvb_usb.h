@@ -23,7 +23,8 @@
 #include "dvb-usb-ids.h"
 
 /* helper macros for every DVB USB driver use */
-#define adap_to_d(adap) ((adap)->dev)
+#define adap_to_d(adap) (container_of(adap, struct dvb_usb_device, \
+		adapter[adap->id]))
 #define adap_to_priv(adap) (adap_to_d(adap)->priv)
 #define fe_to_adap(fe) ((struct dvb_usb_adapter *) ((fe)->dvb->priv))
 #define fe_to_d(fe) (adap_to_d(fe_to_adap(fe)))
@@ -297,7 +298,6 @@ struct usb_data_stream {
  * @stream: the usb data stream.
  */
 struct dvb_usb_adapter {
-	struct dvb_usb_device *dev;
 	const struct dvb_usb_adapter_properties *props;
 	struct usb_data_stream stream;
 	u8  id;
