@@ -966,11 +966,11 @@ static int ath6kl_set_probed_ssids(struct ath6kl *ar,
 	return 0;
 }
 
-static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
+static int ath6kl_cfg80211_scan(struct wiphy *wiphy,
 				struct cfg80211_scan_request *request)
 {
-	struct ath6kl *ar = ath6kl_priv(ndev);
-	struct ath6kl_vif *vif = netdev_priv(ndev);
+	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(request->wdev);
+	struct ath6kl *ar = ath6kl_priv(vif->ndev);
 	s8 n_channels = 0;
 	u16 *channels = NULL;
 	int ret = 0;

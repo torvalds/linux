@@ -1376,9 +1376,10 @@ mwifiex_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
  * it also informs the results.
  */
 static int
-mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
+mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		      struct cfg80211_scan_request *request)
 {
+	struct net_device *dev = request->wdev->netdev;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	int i;
 	struct ieee80211_channel *chan;

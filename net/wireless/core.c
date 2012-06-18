@@ -708,7 +708,7 @@ static void wdev_cleanup_work(struct work_struct *work)
 
 	cfg80211_lock_rdev(rdev);
 
-	if (WARN_ON(rdev->scan_req && rdev->scan_req->dev == wdev->netdev)) {
+	if (WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev)) {
 		rdev->scan_req->aborted = true;
 		___cfg80211_scan_done(rdev, true);
 	}

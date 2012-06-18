@@ -353,9 +353,10 @@ static int iwm_cfg80211_change_iface(struct wiphy *wiphy,
 	return 0;
 }
 
-static int iwm_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
+static int iwm_cfg80211_scan(struct wiphy *wiphy,
 			     struct cfg80211_scan_request *request)
 {
+	struct net_device *ndev = request->wdev->netdev;
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
 	int ret;
 

@@ -136,15 +136,15 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 		wdev->conn->params.ssid_len);
 	request->ssids[0].ssid_len = wdev->conn->params.ssid_len;
 
-	request->dev = wdev->netdev;
+	request->wdev = wdev;
 	request->wiphy = &rdev->wiphy;
 
 	rdev->scan_req = request;
 
-	err = rdev->ops->scan(wdev->wiphy, wdev->netdev, request);
+	err = rdev->ops->scan(wdev->wiphy, request);
 	if (!err) {
 		wdev->conn->state = CFG80211_CONN_SCANNING;
-		nl80211_send_scan_start(rdev, wdev->netdev);
+		nl80211_send_scan_start(rdev, wdev);
 		dev_hold(wdev->netdev);
 	} else {
 		rdev->scan_req = NULL;
