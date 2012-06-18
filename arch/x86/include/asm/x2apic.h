@@ -9,15 +9,6 @@
 #include <asm/ipi.h>
 #include <linux/cpumask.h>
 
-/*
- * Need to use more than cpu 0, because we need more vectors
- * when MSI-X are used.
- */
-static const struct cpumask *x2apic_target_cpus(void)
-{
-	return cpu_online_mask;
-}
-
 static int x2apic_apic_id_valid(int apicid)
 {
 	return 1;
@@ -26,15 +17,6 @@ static int x2apic_apic_id_valid(int apicid)
 static int x2apic_apic_id_registered(void)
 {
 	return 1;
-}
-
-/*
- * For now each logical cpu is in its own vector allocation domain.
- */
-static void x2apic_vector_allocation_domain(int cpu, struct cpumask *retmask)
-{
-	cpumask_clear(retmask);
-	cpumask_set_cpu(cpu, retmask);
 }
 
 static void

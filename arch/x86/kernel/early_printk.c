@@ -119,7 +119,7 @@ static __init void early_serial_init(char *s)
 	unsigned char c;
 	unsigned divisor;
 	unsigned baud = DEFAULT_BAUD;
-	char *e;
+	ssize_t ret;
 
 	if (*s == ',')
 		++s;
@@ -127,14 +127,14 @@ static __init void early_serial_init(char *s)
 	if (*s) {
 		unsigned port;
 		if (!strncmp(s, "0x", 2)) {
-			early_serial_base = simple_strtoul(s, &e, 16);
+			ret = kstrtoint(s, 16, &early_serial_base);
 		} else {
 			static const int __initconst bases[] = { 0x3f8, 0x2f8 };
 
 			if (!strncmp(s, "ttyS", 4))
 				s += 4;
-			port = simple_strtoul(s, &e, 10);
-			if (port > 1 || s == e)
+			ret = kstrtouint(s, 10, &port);
+			if (ret || port > 1)
 				port = 0;
 			early_serial_base = bases[port];
 		}
@@ -149,8 +149,8 @@ static __init void early_serial_init(char *s)
 	outb(0x3, early_serial_base + MCR);	/* DTR + RTS */
 
 	if (*s) {
-		baud = simple_strtoul(s, &e, 0);
-		if (baud == 0 || s == e)
+		ret = kstrtouint(s, 0, &baud);
+		if (ret || baud == 0)
 			baud = DEFAULT_BAUD;
 	}
 
