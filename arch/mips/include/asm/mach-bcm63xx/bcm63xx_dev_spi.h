@@ -9,6 +9,8 @@ int __init bcm63xx_spi_register(void);
 
 struct bcm63xx_spi_pdata {
 	unsigned int	fifo_size;
+	unsigned int	msg_type_shift;
+	unsigned int	msg_ctl_width;
 	int		bus_num;
 	int		num_chipselect;
 	u32		speed_hz;
