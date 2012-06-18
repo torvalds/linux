@@ -74,9 +74,6 @@ static int contec_do_insn_bits(struct comedi_device *dev,
 	dev_dbg(dev->class_dev, "contec_do_insn_bits called\n");
 	dev_dbg(dev->class_dev, "data: %d %d\n", data[0], data[1]);
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
@@ -94,9 +91,6 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 
 	dev_dbg(dev->class_dev, "contec_di_insn_bits called\n");
 	dev_dbg(dev->class_dev, "data: %d %d\n", data[0], data[1]);
-
-	if (insn->n != 2)
-		return -EINVAL;
 
 	data[1] = inw(dev->iobase + thisboard->in_offs);
 

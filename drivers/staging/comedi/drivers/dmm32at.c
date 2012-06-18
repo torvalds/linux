@@ -914,9 +914,6 @@ static int dmm32at_dio_insn_bits(struct comedi_device *dev,
 {
 	unsigned char diobits;
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
 	if (data[0]) {

@@ -139,9 +139,6 @@ static int subdev_8255_insn(struct comedi_device *dev,
 	unsigned int bits;
 	unsigned int v;
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	mask = data[0];
 	bits = data[1];
 

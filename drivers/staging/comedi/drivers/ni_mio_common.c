@@ -3567,8 +3567,7 @@ static int ni_dio_insn_bits(struct comedi_device *dev,
 #ifdef DEBUG_DIO
 	printk("ni_dio_insn_bits() mask=0x%x bits=0x%x\n", data[0], data[1]);
 #endif
-	if (insn->n != 2)
-		return -EINVAL;
+
 	if (data[0]) {
 		/* Perform check to make sure we're not using the
 		   serial part of the dio */
@@ -3629,8 +3628,7 @@ static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
 	printk("ni_m_series_dio_insn_bits() mask=0x%x bits=0x%x\n", data[0],
 	       data[1]);
 #endif
-	if (insn->n != 2)
-		return -EINVAL;
+
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -5485,9 +5483,6 @@ static int ni_rtsi_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = 0;
 
 	return 2;

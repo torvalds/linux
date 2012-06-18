@@ -535,8 +535,6 @@ static int dt2801_dio_insn_bits(struct comedi_device *dev,
 	if (s == dev->subdevices + 4)
 		which = 1;
 
-	if (insn->n != 2)
-		return -EINVAL;
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);

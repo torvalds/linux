@@ -57,9 +57,6 @@ static int adl_pci7432_do_insn_bits(struct comedi_device *dev,
 	printk(KERN_DEBUG "comedi: pci7432_do_insn_bits called\n");
 	printk(KERN_DEBUG "comedi: data0: %8x data1: %8x\n", data[0], data[1]);
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -78,9 +75,6 @@ static int adl_pci7432_di_insn_bits(struct comedi_device *dev,
 {
 	printk(KERN_DEBUG "comedi: pci7432_di_insn_bits called\n");
 	printk(KERN_DEBUG "comedi: data0: %8x data1: %8x\n", data[0], data[1]);
-
-	if (insn->n != 2)
-		return -EINVAL;
 
 	data[1] = inl(dev->iobase + PCI7432_DI) & 0xffffffff;
 	printk(KERN_DEBUG "comedi: data1 %8x\n", data[1]);

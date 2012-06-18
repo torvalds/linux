@@ -1643,17 +1643,6 @@ static int me4000_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	/* Length of data must be 2 (mask and new data, see below) */
-	if (insn->n == 0)
-		return 0;
-
-	if (insn->n != 2) {
-		printk
-		    ("comedi%d: me4000: me4000_dio_insn_bits(): "
-		     "Invalid instruction length\n", dev->minor);
-		return -EINVAL;
-	}
-
 	/*
 	 * The insn data consists of a mask in data[0] and the new data
 	 * in data[1]. The mask defines which bits we are concerning about.

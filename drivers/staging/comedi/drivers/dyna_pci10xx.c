@@ -189,9 +189,6 @@ static int dyna_pci10xx_di_insn_bits(struct comedi_device *dev,
 {
 	u16 d = 0;
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	mutex_lock(&devpriv->mutex);
 	smp_mb();
 	d = inw_p(devpriv->BADR3);
@@ -209,9 +206,6 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit.
 	 * s->state contains the previous write data

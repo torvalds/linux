@@ -442,9 +442,6 @@ static int pcl818_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + PCL818_DI_LO) |
 	    (inb(dev->iobase + PCL818_DI_HI) << 8);
 
@@ -461,9 +458,6 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	s->state &= ~data[0];
 	s->state |= (data[0] & data[1]);
 

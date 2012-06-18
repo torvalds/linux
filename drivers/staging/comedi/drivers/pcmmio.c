@@ -275,8 +275,6 @@ static int pcmmio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	int byte_no;
-	if (insn->n != 2)
-		return -EINVAL;
 
 	/* NOTE:
 	   reading a 0 means this channel was high

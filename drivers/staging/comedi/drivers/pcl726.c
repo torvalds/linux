@@ -197,9 +197,6 @@ static int pcl726_di_insn_bits(struct comedi_device *dev,
 {
 	const struct pcl726_board *board = comedi_board(dev);
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + board->di_lo) |
 	    (inb(dev->iobase + board->di_hi) << 8);
 
@@ -211,9 +208,6 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	const struct pcl726_board *board = comedi_board(dev);
-
-	if (insn->n != 2)
-		return -EINVAL;
 
 	if (data[0]) {
 		s->state &= ~data[0];

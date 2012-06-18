@@ -54,9 +54,6 @@ static int adl_pci7230_do_insn_bits(struct comedi_device *dev,
 	struct comedi_insn *insn,
 	unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -72,9 +69,6 @@ static int adl_pci7230_di_insn_bits(struct comedi_device *dev,
 	struct comedi_insn *insn,
 	unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inl(dev->iobase + PCI7230_DI) & 0xffffffff;
 
 	return 2;

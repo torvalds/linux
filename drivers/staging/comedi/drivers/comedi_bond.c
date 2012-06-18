@@ -133,8 +133,6 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 {
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
 	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
-	if (insn->n != 2)
-		return -EINVAL;
 
 	if (devpriv->nchans < nchans)
 		nchans = devpriv->nchans;

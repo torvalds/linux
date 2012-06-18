@@ -23,9 +23,6 @@ Devices: [Advantech] PCL-725 (pcl725)
 static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -40,9 +37,6 @@ static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int pcl725_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + PCL725_DI);
 
 	return 2;

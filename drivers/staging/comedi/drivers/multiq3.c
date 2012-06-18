@@ -161,9 +161,6 @@ static int multiq3_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inw(dev->iobase + MULTIQ3_DIGIN_PORT);
 
 	return 2;
@@ -173,9 +170,6 @@ static int multiq3_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	s->state &= ~data[0];
 	s->state |= (data[0] & data[1]);
 	outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);

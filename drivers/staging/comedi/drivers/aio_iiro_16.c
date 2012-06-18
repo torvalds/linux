@@ -70,9 +70,6 @@ static int aio_iiro_16_dio_insn_bits_write(struct comedi_device *dev,
 					   struct comedi_insn *insn,
 					   unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
@@ -91,9 +88,6 @@ static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
 					  struct comedi_insn *insn,
 					  unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = 0;
 	data[1] |= inb(dev->iobase + AIO_IIRO_16_INPUT_0_7);
 	data[1] |= inb(dev->iobase + AIO_IIRO_16_INPUT_8_15) << 8;
