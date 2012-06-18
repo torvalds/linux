@@ -117,12 +117,6 @@ static inline void dumpVGAReg(void)
 }
 #endif
 
-#if 1
-#define DEBUGPRN(x)
-#else
-#define DEBUGPRN(x) pr_info(x "\n");
-#endif
-
 /* --------------- Hardware Access Routines -------------------------- */
 
 static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
@@ -1054,7 +1048,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	int old_mode;
 	/* unsigned char reg, reg1; */
 
-	DEBUGPRN("Inside do_set_var");
 	/* printk(KERN_DEBUG "XGIfb:var->yres=%d, var->upper_margin=%d, var->lower_margin=%d, var->vsync_len=%d\n", var->yres, var->upper_margin, var->lower_margin, var->vsync_len); */
 
 	info->var.xres_virtual = var->xres_virtual;
@@ -1199,7 +1192,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		}
 	}
 	XGIfb_bpp_to_var(xgifb_info, var); /*update ARGB info*/
-	DEBUGPRN("End of do_set_var");
 
 	dumpVGAReg();
 	return 0;
@@ -1321,7 +1313,6 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 {
 	struct xgifb_video_info *xgifb_info = info->par;
 
-	DEBUGPRN("inside get_fix");
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
 
 	strncpy(fix->id, "XGI", sizeof(fix->id) - 1);
@@ -1352,7 +1343,6 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 	fix->mmio_len = xgifb_info->mmio_size;
 	fix->accel = FB_ACCEL_SIS_XABRE;
 
-	DEBUGPRN("end of get_fix");
 	return 0;
 }
 
@@ -1378,8 +1368,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	unsigned int drate = 0, hrate = 0;
 	int found_mode = 0;
 	int refresh_rate, search_idx;
-
-	DEBUGPRN("Inside check_var");
 
 	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED) {
 		vtotal = var->upper_margin + var->yres + var->lower_margin
@@ -1511,7 +1499,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->blue.msb_right =
 	var->transp.offset = var->transp.length = var->transp.msb_right = 0;
 
-	DEBUGPRN("end of check_var");
 	return 0;
 }
 
