@@ -771,13 +771,13 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
 }
 
 /**
- * _enable_module - enable CLKCTRL modulemode on OMAP4
+ * _omap4_enable_module - enable CLKCTRL modulemode on OMAP4
  * @oh: struct omap_hwmod *
  *
  * Enables the PRCM module mode related to the hwmod @oh.
  * No return value.
  */
-static void _enable_module(struct omap_hwmod *oh)
+static void _omap4_enable_module(struct omap_hwmod *oh)
 {
 	/* The module mode does not exist prior OMAP4 */
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
@@ -786,8 +786,8 @@ static void _enable_module(struct omap_hwmod *oh)
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
 		return;
 
-	pr_debug("omap_hwmod: %s: _enable_module: %d\n",
-		 oh->name, oh->prcm.omap4.modulemode);
+	pr_debug("omap_hwmod: %s: %s: %d\n",
+		 oh->name, __func__, oh->prcm.omap4.modulemode);
 
 	omap4_cminst_module_enable(oh->prcm.omap4.modulemode,
 				   oh->clkdm->prcm_partition,
@@ -1814,7 +1814,7 @@ static int _enable(struct omap_hwmod *oh)
 	}
 
 	_enable_clocks(oh);
-	_enable_module(oh);
+	_omap4_enable_module(oh);
 
 	r = _wait_target_ready(oh);
 	if (!r) {
