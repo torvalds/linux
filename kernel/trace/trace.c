@@ -830,6 +830,8 @@ int register_tracer(struct tracer *type)
 		current_trace = saved_tracer;
 		if (ret) {
 			printk(KERN_CONT "FAILED!\n");
+			/* Add the warning after printing 'FAILED' */
+			WARN_ON(1);
 			goto out;
 		}
 		/* Only reset on passing, to avoid touching corrupted buffers */
