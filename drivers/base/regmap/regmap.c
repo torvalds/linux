@@ -693,10 +693,11 @@ static int _regmap_select_page(struct regmap *map, unsigned int *reg,
 					range->selector_mask,
 					win_page << range->selector_shift,
 					&page_chg);
-			if (ret < 0)
-				return ret;
 
 			map->work_buf = orig_work_buf;
+
+			if (ret < 0)
+				return ret;
 		}
 
 		*reg = range->window_start + win_offset;
