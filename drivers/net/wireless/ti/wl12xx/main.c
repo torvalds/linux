@@ -598,8 +598,10 @@ static const int wl12xx_rtable[REG_TABLE_LEN] = {
 #define WL128X_FW_NAME_SINGLE	"ti-connectivity/wl128x-fw-4-sr.bin"
 #define WL128X_PLT_FW_NAME	"ti-connectivity/wl128x-fw-4-plt.bin"
 
-static void wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
+static int wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 {
+	int ret;
+
 	if (wl->chip.id != CHIP_ID_1283_PG20) {
 		struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
 		struct wl127x_rx_mem_pool_addr rx_mem_addr;
@@ -616,9 +618,13 @@ static void wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 
 		rx_mem_addr.addr_extra = rx_mem_addr.addr + 4;
 
-		wl1271_write(wl, WL1271_SLV_REG_DATA,
-			     &rx_mem_addr, sizeof(rx_mem_addr), false);
+		ret = wlcore_write(wl, WL1271_SLV_REG_DATA, &rx_mem_addr,
+				   sizeof(rx_mem_addr), false);
+		if (ret < 0)
+			return ret;
 	}
+
+	return 0;
 }
 
 static int wl12xx_identify_chip(struct wl1271 *wl)
@@ -1073,11 +1079,18 @@ out:
 	return ret;
 }
 
-static void wl12xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
+static int wl12xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
 			       void *buf, size_t len)
 {
-	wl1271_write(wl, cmd_box_addr, buf, len, false);
+	int ret;
+
+	ret = wlcore_write(wl, cmd_box_addr, buf, len, false);
+	if (ret < 0)
+		return ret;
+
 	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, WL12XX_INTR_TRIG_CMD);
+
+	return ret;
 }
 
 static void wl12xx_ack_event(struct wl1271 *wl)

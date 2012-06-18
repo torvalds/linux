@@ -662,7 +662,7 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
 	}
 }
 
-void wl1271_tx_work_locked(struct wl1271 *wl)
+int wlcore_tx_work_locked(struct wl1271 *wl)
 {
 	struct wl12xx_vif *wlvif;
 	struct sk_buff *skb;
@@ -670,10 +670,10 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 	u32 buf_offset = 0, last_len = 0;
 	bool sent_packets = false;
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
-	int ret;
+	int ret = 0;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
-		return;
+		return -EIO;
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -694,8 +694,11 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 
 			buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset,
 							    last_len);
-			wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-					  buf_offset, true);
+			ret = wlcore_write_data(wl, REG_SLV_MEM_DATA,
+						wl->aggr_buf, buf_offset, true);
+			if (ret < 0)
+				goto out;
+
 			sent_packets = true;
 			buf_offset = 0;
 			continue;
@@ -731,8 +734,11 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 out_ack:
 	if (buf_offset) {
 		buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset, last_len);
-		wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-				  buf_offset, true);
+		ret = wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
+					buf_offset, true);
+		if (ret < 0)
+			goto out;
+
 		sent_packets = true;
 	}
 	if (sent_packets) {
@@ -747,6 +753,9 @@ out_ack:
 		wl1271_handle_tx_low_watermark(wl);
 	}
 	wl12xx_rearm_rx_streaming(wl, active_hlids);
+
+out:
+	return ret;
 }
 
 void wl1271_tx_work(struct work_struct *work)
@@ -759,7 +768,11 @@ void wl1271_tx_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	wl1271_tx_work_locked(wl);
+	ret = wlcore_tx_work_locked(wl);
+	if (ret < 0) {
+		wl12xx_queue_recovery_work(wl);
+		goto out;
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:

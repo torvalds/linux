@@ -65,11 +65,13 @@ wlcore_hw_get_rx_buf_align(struct wl1271 *wl, u32 rx_desc)
 	return wl->ops->get_rx_buf_align(wl, rx_desc);
 }
 
-static inline void
+static inline int
 wlcore_hw_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 {
 	if (wl->ops->prepare_read)
-		wl->ops->prepare_read(wl, rx_desc, len);
+		return wl->ops->prepare_read(wl, rx_desc, len);
+
+	return 0;
 }
 
 static inline u32

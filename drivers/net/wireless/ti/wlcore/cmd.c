@@ -65,13 +65,17 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	WARN_ON(len % 4 != 0);
 	WARN_ON(test_bit(WL1271_FLAG_IN_ELP, &wl->flags));
 
-	wl1271_write(wl, wl->cmd_box_addr, buf, len, false);
+	ret = wlcore_write(wl, wl->cmd_box_addr, buf, len, false);
+	if (ret < 0)
+		goto fail;
 
 	/*
 	 * TODO: we just need this because one bit is in a different
 	 * place.  Is there any better way?
 	 */
-	wl->ops->trigger_cmd(wl, wl->cmd_box_addr, buf, len);
+	ret = wl->ops->trigger_cmd(wl, wl->cmd_box_addr, buf, len);
+	if (ret < 0)
+		goto fail;
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_COMMAND_TIMEOUT);
 
@@ -1764,7 +1768,9 @@ int wl12xx_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		return -EINVAL;
 
 	/* flush all pending packets */
-	wl1271_tx_work_locked(wl);
+	ret = wlcore_tx_work_locked(wl);
+	if (ret < 0)
+		goto out;
 
 	if (test_bit(wlvif->dev_role_id, wl->roc_map)) {
 		ret = wl12xx_croc(wl, wlvif->dev_role_id);

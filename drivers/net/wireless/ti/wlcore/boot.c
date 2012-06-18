@@ -111,6 +111,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	struct wlcore_partition_set partition;
 	int addr, chunk_num, partition_limit;
 	u8 *p, *chunk;
+	int ret;
 
 	/* whal_FwCtrl_LoadFwImageSm() */
 
@@ -155,7 +156,9 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 		memcpy(chunk, p, CHUNK_SIZE);
 		wl1271_debug(DEBUG_BOOT, "uploading fw chunk 0x%p to 0x%x",
 			     p, addr);
-		wl1271_write(wl, addr, chunk, CHUNK_SIZE, false);
+		ret = wlcore_write(wl, addr, chunk, CHUNK_SIZE, false);
+		if (ret < 0)
+			goto out;
 
 		chunk_num++;
 	}
@@ -166,10 +169,11 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	memcpy(chunk, p, fw_data_len % CHUNK_SIZE);
 	wl1271_debug(DEBUG_BOOT, "uploading fw last chunk (%zd B) 0x%p to 0x%x",
 		     fw_data_len % CHUNK_SIZE, p, addr);
-	wl1271_write(wl, addr, chunk, fw_data_len % CHUNK_SIZE, false);
+	ret = wlcore_write(wl, addr, chunk, fw_data_len % CHUNK_SIZE, false);
 
+out:
 	kfree(chunk);
-	return 0;
+	return ret;
 }
 
 int wlcore_boot_upload_firmware(struct wl1271 *wl)
@@ -212,6 +216,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	int i;
 	u32 dest_addr, val;
 	u8 *nvs_ptr, *nvs_aligned;
+	int ret;
 
 	if (wl->nvs == NULL) {
 		wl1271_error("NVS file is needed during boot");
@@ -343,11 +348,11 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 		return -ENOMEM;
 
 	/* And finally we upload the NVS tables */
-	wlcore_write_data(wl, REG_CMD_MBOX_ADDRESS,
-			  nvs_aligned, nvs_len, false);
+	ret = wlcore_write_data(wl, REG_CMD_MBOX_ADDRESS, nvs_aligned, nvs_len,
+				false);
 
 	kfree(nvs_aligned);
-	return 0;
+	return ret;
 
 out_badnvs:
 	wl1271_error("nvs data is malformed");

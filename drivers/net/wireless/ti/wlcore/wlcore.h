@@ -41,8 +41,8 @@ struct wlcore_ops {
 	int (*identify_fw)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
 	int (*plt_init)(struct wl1271 *wl);
-	void (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
-			    void *buf, size_t len);
+	int (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
+			   void *buf, size_t len);
 	void (*ack_event)(struct wl1271 *wl);
 	u32 (*calc_tx_blocks)(struct wl1271 *wl, u32 len, u32 spare_blks);
 	void (*set_tx_desc_blocks)(struct wl1271 *wl,
@@ -53,7 +53,7 @@ struct wlcore_ops {
 				     struct sk_buff *skb);
 	enum wl_rx_buf_align (*get_rx_buf_align)(struct wl1271 *wl,
 						 u32 rx_desc);
-	void (*prepare_read)(struct wl1271 *wl, u32 rx_desc, u32 len);
+	int (*prepare_read)(struct wl1271 *wl, u32 rx_desc, u32 len);
 	u32 (*get_rx_packet_len)(struct wl1271 *wl, void *rx_data,
 				 u32 data_len);
 	int (*tx_delayed_compl)(struct wl1271 *wl);

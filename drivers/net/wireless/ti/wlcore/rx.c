@@ -235,7 +235,9 @@ int wlcore_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 
 		/* Read all available packets at once */
 		des = le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]);
-		wlcore_hw_prepare_read(wl, des, buf_size);
+		ret = wlcore_hw_prepare_read(wl, des, buf_size);
+		if (ret < 0)
+			goto out;
 
 		ret = wlcore_read_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
 				       buf_size, true);

@@ -105,6 +105,7 @@ static int wl1271_event_process(struct wl1271 *wl)
 	u32 vector;
 	bool disconnect_sta = false;
 	unsigned long sta_bitmap = 0;
+	int ret;
 
 	wl1271_event_mbox_dump(mbox);
 
@@ -228,7 +229,9 @@ static int wl1271_event_process(struct wl1271 *wl)
 
 	if ((vector & DUMMY_PACKET_EVENT_ID)) {
 		wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
-		wl1271_tx_dummy_packet(wl);
+		ret = wl1271_tx_dummy_packet(wl);
+		if (ret < 0)
+			return ret;
 	}
 
 	/*

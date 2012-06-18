@@ -720,10 +720,11 @@ static void wl18xx_pre_upload(struct wl1271 *wl)
 	tmp = wl1271_read32(wl, WL18XX_SCR_PAD2);
 }
 
-static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
+static int wl18xx_set_mac_and_phy(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
 	size_t len;
+	int ret;
 
 	/* the parameters struct is smaller for PG1 */
 	if (wl->chip.id == CHIP_ID_185x_PG10)
@@ -732,8 +733,10 @@ static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
 		len = sizeof(struct wl18xx_mac_and_phy_params);
 
 	wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
-	wl1271_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&priv->conf.phy, len,
-		     false);
+	ret = wlcore_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&priv->conf.phy,
+			   len, false);
+
+	return ret;
 }
 
 static void wl18xx_enable_interrupts(struct wl1271 *wl)
@@ -769,7 +772,9 @@ static int wl18xx_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl18xx_set_mac_and_phy(wl);
+	ret = wl18xx_set_mac_and_phy(wl);
+	if (ret < 0)
+		goto out;
 
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)
@@ -781,7 +786,7 @@ out:
 	return ret;
 }
 
-static void wl18xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
+static int wl18xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
 			       void *buf, size_t len)
 {
 	struct wl18xx_priv *priv = wl->priv;
@@ -789,8 +794,8 @@ static void wl18xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
 	memcpy(priv->cmd_buf, buf, len);
 	memset(priv->cmd_buf + len, 0, WL18XX_CMD_MAX_SIZE - len);
 
-	wl1271_write(wl, cmd_box_addr, priv->cmd_buf, WL18XX_CMD_MAX_SIZE,
-		     false);
+	return wlcore_write(wl, cmd_box_addr, priv->cmd_buf,
+			    WL18XX_CMD_MAX_SIZE, false);
 }
 
 static void wl18xx_ack_event(struct wl1271 *wl)
