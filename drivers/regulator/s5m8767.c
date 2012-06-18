@@ -121,27 +121,6 @@ static const struct s5m_voltage_desc *reg_voltage_map[] = {
 	[S5M8767_BUCK9] = &buck_voltage_val3,
 };
 
-static int s5m8767_list_voltage(struct regulator_dev *rdev,
-				unsigned int selector)
-{
-	const struct s5m_voltage_desc *desc;
-	int reg_id = rdev_get_id(rdev);
-	int val;
-
-	if (reg_id >= ARRAY_SIZE(reg_voltage_map) || reg_id < 0)
-		return -EINVAL;
-
-	desc = reg_voltage_map[reg_id];
-	if (desc == NULL)
-		return -EINVAL;
-
-	val = desc->min + desc->step * selector;
-	if (val > desc->max)
-		return -EINVAL;
-
-	return val;
-}
-
 static unsigned int s5m8767_opmode_reg[][4] = {
 	/* {OFF, ON, LOWPOWER, SUSPEND} */
 	/* LDO1 ... LDO28 */
@@ -449,7 +428,7 @@ static int s5m8767_set_voltage_time_sel(struct regulator_dev *rdev,
 }
 
 static struct regulator_ops s5m8767_ops = {
-	.list_voltage		= s5m8767_list_voltage,
+	.list_voltage		= regulator_list_voltage_linear,
 	.is_enabled		= s5m8767_reg_is_enabled,
 	.enable			= s5m8767_reg_enable,
 	.disable		= s5m8767_reg_disable,
@@ -458,10 +437,24 @@ static struct regulator_ops s5m8767_ops = {
 	.set_voltage_time_sel	= s5m8767_set_voltage_time_sel,
 };
 
+static struct regulator_ops s5m8767_buck78_ops = {
+	.is_enabled		= s5m8767_reg_is_enabled,
+	.enable			= s5m8767_reg_enable,
+	.disable		= s5m8767_reg_disable,
+};
+
 #define s5m8767_regulator_desc(_name) {		\
 	.name		= #_name,		\
 	.id		= S5M8767_##_name,	\
 	.ops		= &s5m8767_ops,		\
+	.type		= REGULATOR_VOLTAGE,	\
+	.owner		= THIS_MODULE,		\
+}
+
+#define s5m8767_regulator_buck78_desc(_name) {	\
+	.name		= #_name,		\
+	.id		= S5M8767_##_name,	\
+	.ops		= &s5m8767_buck78_ops,	\
 	.type		= REGULATOR_VOLTAGE,	\
 	.owner		= THIS_MODULE,		\
 }
@@ -501,8 +494,8 @@ static struct regulator_desc regulators[] = {
 	s5m8767_regulator_desc(BUCK4),
 	s5m8767_regulator_desc(BUCK5),
 	s5m8767_regulator_desc(BUCK6),
-	s5m8767_regulator_desc(BUCK7),
-	s5m8767_regulator_desc(BUCK8),
+	s5m8767_regulator_buck78_desc(BUCK7),
+	s5m8767_regulator_buck78_desc(BUCK8),
 	s5m8767_regulator_desc(BUCK9),
 };
 
@@ -751,9 +744,12 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 		int id = pdata->regulators[i].id;
 
 		desc = reg_voltage_map[id];
-		if (desc)
+		if (desc) {
 			regulators[id].n_voltages =
 				(desc->max - desc->min) / desc->step + 1;
+			regulators[id].min_uV = desc->min;
+			regulators[id].uV_step = desc->step;
+		}
 
 		config.dev = s5m8767->dev;
 		config.init_data = pdata->regulators[i].initdata;
