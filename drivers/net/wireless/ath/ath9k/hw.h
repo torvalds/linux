@@ -1030,7 +1030,8 @@ static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
 }
 static inline bool ath9k_hw_mci_is_enabled(struct ath_hw *ah)
 {
-	return ah->btcoex_hw.enabled && (ah->caps.hw_caps & ATH9K_HW_CAP_MCI);
+	return ah->common.btcoex_enabled &&
+	       (ah->caps.hw_caps & ATH9K_HW_CAP_MCI);
 
 }
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
