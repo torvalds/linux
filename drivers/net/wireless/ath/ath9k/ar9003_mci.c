@@ -767,10 +767,6 @@ static void ar9003_mci_mute_bt(struct ath_hw *ah)
 {
 	/* disable all MCI messages */
 	REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE, 0xffff0000);
-	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS0, 0xffffffff);
-	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS1, 0xffffffff);
-	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS2, 0xffffffff);
-	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS3, 0xffffffff);
 	REG_SET_BIT(ah, AR_MCI_TX_CTRL, AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 
 	/* wait pending HW messages to flush out */
