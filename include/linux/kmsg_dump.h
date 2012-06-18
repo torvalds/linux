@@ -71,19 +71,19 @@ static inline void kmsg_dump(enum kmsg_dump_reason reason)
 {
 }
 
-bool kmsg_dump_get_line(struct kmsg_dumper *dumper, bool syslog,
-			  const char *line, size_t size, size_t *len)
+static inline bool kmsg_dump_get_line(struct kmsg_dumper *dumper, bool syslog,
+				const char *line, size_t size, size_t *len)
 {
 	return false;
 }
 
-bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
-			    char *buf, size_t size, size_t *len)
+static inline bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
+					char *buf, size_t size, size_t *len)
 {
 	return false;
 }
 
-void kmsg_dump_rewind(struct kmsg_dumper *dumper)
+static inline void kmsg_dump_rewind(struct kmsg_dumper *dumper)
 {
 }
 
