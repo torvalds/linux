@@ -63,7 +63,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 
 	ramp_delay = of_get_property(np, "regulator-ramp-delay", NULL);
 	if (ramp_delay)
-		constraints->min_uV = be32_to_cpu(*ramp_delay);
+		constraints->ramp_delay = be32_to_cpu(*ramp_delay);
 }
 
 /**
