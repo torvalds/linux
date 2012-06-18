@@ -33,16 +33,22 @@
 #include "rx.h"
 #include "hw_ops.h"
 
-static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
+static int wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 {
 	u32 cpu_ctrl;
+	int ret;
 
 	/* 10.5.0 run the firmware (I) */
-	cpu_ctrl = wlcore_read_reg(wl, REG_ECPU_CONTROL);
+	ret = wlcore_read_reg(wl, REG_ECPU_CONTROL, &cpu_ctrl);
+	if (ret < 0)
+		goto out;
 
 	/* 10.5.1 run the firmware (II) */
 	cpu_ctrl |= flag;
 	wlcore_write_reg(wl, REG_ECPU_CONTROL, cpu_ctrl);
+
+out:
+	return ret;
 }
 
 static int wlcore_boot_parse_fw_ver(struct wl1271 *wl,
@@ -368,9 +374,13 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	/* Make sure we have the boot partition */
 	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
 
-	wl1271_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
+	ret = wl1271_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
+	if (ret < 0)
+		return ret;
 
-	chip_id = wlcore_read_reg(wl, REG_CHIP_ID_B);
+	ret = wlcore_read_reg(wl, REG_CHIP_ID_B, &chip_id);
+	if (ret < 0)
+		return ret;
 
 	wl1271_debug(DEBUG_BOOT, "chip id after firmware boot: 0x%x", chip_id);
 
@@ -383,7 +393,9 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	loop = 0;
 	while (loop++ < INIT_LOOP) {
 		udelay(INIT_LOOP_DELAY);
-		intr = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR);
+		ret = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR, &intr);
+		if (ret < 0)
+			return ret;
 
 		if (intr == 0xffffffff) {
 			wl1271_error("error reading hardware complete "
@@ -405,12 +417,17 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	}
 
 	/* get hardware config command mail box */
-	wl->cmd_box_addr = wlcore_read_reg(wl, REG_COMMAND_MAILBOX_PTR);
+	ret = wlcore_read_reg(wl, REG_COMMAND_MAILBOX_PTR, &wl->cmd_box_addr);
+	if (ret < 0)
+		return ret;
 
 	wl1271_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x", wl->cmd_box_addr);
 
 	/* get hardware config event mail box */
-	wl->mbox_ptr[0] = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR);
+	ret = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR, &wl->mbox_ptr[0]);
+	if (ret < 0)
+		return ret;
+
 	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
 
 	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",

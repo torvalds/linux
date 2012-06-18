@@ -77,12 +77,19 @@ static inline int wlcore_raw_write_data(struct wl1271 *wl, int reg, void *buf,
 	return wlcore_raw_write(wl, wl->rtable[reg], buf, len, fixed);
 }
 
-static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
+static inline int wlcore_raw_read32(struct wl1271 *wl, int addr, u32 *val)
 {
-	wlcore_raw_read(wl, addr, &wl->buffer_32,
-			    sizeof(wl->buffer_32), false);
+	int ret;
 
-	return le32_to_cpu(wl->buffer_32);
+	ret = wlcore_raw_read(wl, addr, &wl->buffer_32,
+			      sizeof(wl->buffer_32), false);
+	if (ret < 0)
+		return ret;
+
+	if (val)
+		*val = le32_to_cpu(wl->buffer_32);
+
+	return 0;
 }
 
 static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
@@ -138,9 +145,9 @@ static inline void wl1271_read_hwaddr(struct wl1271 *wl, int hwaddr,
 	wlcore_raw_read(wl, physical, buf, len, fixed);
 }
 
-static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
+static inline int wlcore_read32(struct wl1271 *wl, int addr, u32 *val)
 {
-	return wl1271_raw_read32(wl, wlcore_translate_addr(wl, addr));
+	return wlcore_raw_read32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
 static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
@@ -148,10 +155,11 @@ static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
 	wl1271_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
-static inline u32 wlcore_read_reg(struct wl1271 *wl, int reg)
+static inline int wlcore_read_reg(struct wl1271 *wl, int reg, u32 *val)
 {
-	return wl1271_raw_read32(wl,
-				 wlcore_translate_addr(wl, wl->rtable[reg]));
+	return wlcore_raw_read32(wl,
+				 wlcore_translate_addr(wl, wl->rtable[reg]),
+				 val);
 }
 
 static inline void wlcore_write_reg(struct wl1271 *wl, int reg, u32 val)

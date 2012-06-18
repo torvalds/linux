@@ -872,6 +872,32 @@ out:
 	kfree(block);
 }
 
+static void wlcore_print_recovery(struct wl1271 *wl)
+{
+	u32 pc = 0;
+	u32 hint_sts = 0;
+	int ret;
+
+	wl1271_info("Hardware recovery in progress. FW ver: %s",
+		    wl->chip.fw_ver_str);
+
+	/* change partitions momentarily so we can read the FW pc */
+	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+
+	ret = wlcore_read_reg(wl, REG_PC_ON_RECOVERY, &pc);
+	if (ret < 0)
+		return;
+
+	ret = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR, &hint_sts);
+	if (ret < 0)
+		return;
+
+	wl1271_info("pc: 0x%x, hint_sts: 0x%08x", pc, hint_sts);
+
+	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+}
+
+
 static void wl1271_recovery_work(struct work_struct *work)
 {
 	struct wl1271 *wl =
@@ -886,14 +912,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	wl12xx_read_fwlog_panic(wl);
 
-	/* change partitions momentarily so we can read the FW pc */
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
-	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x "
-		    "hint_sts: 0x%08x",
-		    wl->chip.fw_ver_str,
-		    wlcore_read_reg(wl, REG_PC_ON_RECOVERY),
-		    wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR));
-	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+	wlcore_print_recovery(wl);
 
 	BUG_ON(bug_on_recovery &&
 	       !test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags));
@@ -4979,18 +4998,22 @@ static int wl12xx_get_hw_info(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl->chip.id = wlcore_read_reg(wl, REG_CHIP_ID_B);
+	ret = wlcore_read_reg(wl, REG_CHIP_ID_B, &wl->chip.id);
+	if (ret < 0)
+		goto out;
 
 	wl->fuse_oui_addr = 0;
 	wl->fuse_nic_addr = 0;
 
-	wl->hw_pg_ver = wl->ops->get_pg_ver(wl);
+	ret = wl->ops->get_pg_ver(wl, &wl->hw_pg_ver);
+	if (ret < 0)
+		goto out;
 
 	if (wl->ops->get_mac)
-		wl->ops->get_mac(wl);
+		ret = wl->ops->get_mac(wl);
 
-	wl1271_power_off(wl);
 out:
+	wl1271_power_off(wl);
 	return ret;
 }
 

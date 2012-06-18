@@ -62,8 +62,8 @@ struct wlcore_ops {
 	int (*init_vif)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 	u32 (*sta_get_ap_rate_mask)(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif);
-	s8 (*get_pg_ver)(struct wl1271 *wl);
-	void (*get_mac)(struct wl1271 *wl);
+	int (*get_pg_ver)(struct wl1271 *wl, s8 *ver);
+	int (*get_mac)(struct wl1271 *wl);
 	void (*set_tx_desc_csum)(struct wl1271 *wl,
 				 struct wl1271_tx_hw_descr *desc,
 				 struct sk_buff *skb);
