@@ -28,22 +28,12 @@
 #include <crypto/algapi.h>
 #include <crypto/twofish.h>
 #include <crypto/b128ops.h>
+#include <asm/crypto/twofish.h>
 #include <asm/crypto/glue_helper.h>
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
 
-/* regular block cipher functions from twofish_x86_64 module */
-asmlinkage void twofish_enc_blk(struct twofish_ctx *ctx, u8 *dst,
-				const u8 *src);
-asmlinkage void twofish_dec_blk(struct twofish_ctx *ctx, u8 *dst,
-				const u8 *src);
-
-/* 3-way parallel cipher functions */
-asmlinkage void __twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
-				       const u8 *src, bool xor);
 EXPORT_SYMBOL_GPL(__twofish_enc_blk_3way);
-asmlinkage void twofish_dec_blk_3way(struct twofish_ctx *ctx, u8 *dst,
-				     const u8 *src);
 EXPORT_SYMBOL_GPL(twofish_dec_blk_3way);
 
 static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
@@ -58,7 +48,7 @@ static inline void twofish_enc_blk_xor_3way(struct twofish_ctx *ctx, u8 *dst,
 	__twofish_enc_blk_3way(ctx, dst, src, true);
 }
 
-static void twofish_dec_blk_cbc_3way(void *ctx, u128 *dst, const u128 *src)
+void twofish_dec_blk_cbc_3way(void *ctx, u128 *dst, const u128 *src)
 {
 	u128 ivs[2];
 
@@ -70,8 +60,9 @@ static void twofish_dec_blk_cbc_3way(void *ctx, u128 *dst, const u128 *src)
 	u128_xor(&dst[1], &dst[1], &ivs[0]);
 	u128_xor(&dst[2], &dst[2], &ivs[1]);
 }
+EXPORT_SYMBOL_GPL(twofish_dec_blk_cbc_3way);
 
-static void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src, u128 *iv)
+void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src, u128 *iv)
 {
 	be128 ctrblk;
 
@@ -84,8 +75,9 @@ static void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src, u128 *iv)
 	twofish_enc_blk(ctx, (u8 *)&ctrblk, (u8 *)&ctrblk);
 	u128_xor(dst, dst, (u128 *)&ctrblk);
 }
+EXPORT_SYMBOL_GPL(twofish_enc_blk_ctr);
 
-static void twofish_enc_blk_ctr_3way(void *ctx, u128 *dst, const u128 *src,
+void twofish_enc_blk_ctr_3way(void *ctx, u128 *dst, const u128 *src,
 				     u128 *iv)
 {
 	be128 ctrblks[3];
@@ -105,6 +97,7 @@ static void twofish_enc_blk_ctr_3way(void *ctx, u128 *dst, const u128 *src,
 
 	twofish_enc_blk_xor_3way(ctx, (u8 *)dst, (u8 *)ctrblks);
 }
+EXPORT_SYMBOL_GPL(twofish_enc_blk_ctr_3way);
 
 static const struct common_glue_ctx twofish_enc = {
 	.num_funcs = 2,
@@ -220,13 +213,8 @@ static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 		twofish_dec_blk(ctx, srcdst, srcdst);
 }
 
-struct twofish_lrw_ctx {
-	struct lrw_table_ctx lrw_table;
-	struct twofish_ctx twofish_ctx;
-};
-
-static int lrw_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
-			      unsigned int keylen)
+int lrw_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
+		       unsigned int keylen)
 {
 	struct twofish_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
 	int err;
@@ -238,6 +226,7 @@ static int lrw_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
 
 	return lrw_init_table(&ctx->lrw_table, key + keylen - TF_BLOCK_SIZE);
 }
+EXPORT_SYMBOL_GPL(lrw_twofish_setkey);
 
 static int lrw_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
@@ -273,20 +262,16 @@ static int lrw_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	return lrw_crypt(desc, dst, src, nbytes, &req);
 }
 
-static void lrw_exit_tfm(struct crypto_tfm *tfm)
+void lrw_twofish_exit_tfm(struct crypto_tfm *tfm)
 {
 	struct twofish_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	lrw_free_table(&ctx->lrw_table);
 }
+EXPORT_SYMBOL_GPL(lrw_twofish_exit_tfm);
 
-struct twofish_xts_ctx {
-	struct twofish_ctx tweak_ctx;
-	struct twofish_ctx crypt_ctx;
-};
-
-static int xts_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
-			      unsigned int keylen)
+int xts_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
+		       unsigned int keylen)
 {
 	struct twofish_xts_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 *flags = &tfm->crt_flags;
@@ -309,6 +294,7 @@ static int xts_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
 	return __twofish_setkey(&ctx->tweak_ctx, key + keylen / 2, keylen / 2,
 				flags);
 }
+EXPORT_SYMBOL_GPL(xts_twofish_setkey);
 
 static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
@@ -419,7 +405,7 @@ static struct crypto_alg tf_algs[5] = { {
 	.cra_type		= &crypto_blkcipher_type,
 	.cra_module		= THIS_MODULE,
 	.cra_list		= LIST_HEAD_INIT(tf_algs[3].cra_list),
-	.cra_exit		= lrw_exit_tfm,
+	.cra_exit		= lrw_twofish_exit_tfm,
 	.cra_u = {
 		.blkcipher = {
 			.min_keysize	= TF_MIN_KEY_SIZE + TF_BLOCK_SIZE,
