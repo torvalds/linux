@@ -16,6 +16,7 @@
 struct gpio_ir_recv_platform_data {
 	int gpio_nr;
 	bool active_low;
+	const char *map_name;
 };
 
 #endif /* __GPIO_IR_RECV_H__ */
