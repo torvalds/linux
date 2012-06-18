@@ -3283,6 +3283,8 @@ int __init omap3xxx_hwmod_init(void)
 	struct omap_hwmod_ocp_if **h = NULL;
 	unsigned int rev;
 
+	omap_hwmod_init();
+
 	/* Register hwmod links common to all OMAP3 */
 	r = omap_hwmod_register_links(omap3xxx_hwmod_ocp_ifs);
 	if (r < 0)

@@ -166,6 +166,23 @@
  */
 #define LINKS_PER_OCP_IF		2
 
+/**
+ * struct omap_hwmod_soc_ops - fn ptrs for some SoC-specific operations
+ * @enable_module: function to enable a module (via MODULEMODE)
+ * @disable_module: function to disable a module (via MODULEMODE)
+ *
+ * XXX Eventually this functionality will be hidden inside the PRM/CM
+ * device drivers.  Until then, this should avoid huge blocks of cpu_is_*()
+ * conditionals in this code.
+ */
+struct omap_hwmod_soc_ops {
+	void (*enable_module)(struct omap_hwmod *oh);
+	int (*disable_module)(struct omap_hwmod *oh);
+};
+
+/* soc_ops: adapts the omap_hwmod code to the currently-booted SoC */
+static struct omap_hwmod_soc_ops soc_ops;
+
 /* omap_hwmod_list contains all registered struct omap_hwmods */
 static LIST_HEAD(omap_hwmod_list);
 
@@ -185,6 +202,9 @@ static struct omap_hwmod_link *linkspace;
  * struct omap_hwmod_link records allocated (respectively)
  */
 static unsigned short free_ls, max_ls, ls_supp;
+
+/* inited: set to true once the hwmod code is initialized */
+static bool inited;
 
 /* Private functions */
 
@@ -779,10 +799,6 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
  */
 static void _omap4_enable_module(struct omap_hwmod *oh)
 {
-	/* The module mode does not exist prior OMAP4 */
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		return;
-
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
 		return;
 
@@ -1571,10 +1587,6 @@ static int _omap4_disable_module(struct omap_hwmod *oh)
 {
 	int v;
 
-	/* The module mode does not exist prior OMAP4 */
-	if (!cpu_is_omap44xx())
-		return -EINVAL;
-
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
 		return -EINVAL;
 
@@ -1814,7 +1826,8 @@ static int _enable(struct omap_hwmod *oh)
 	}
 
 	_enable_clocks(oh);
-	_omap4_enable_module(oh);
+	if (soc_ops.enable_module)
+		soc_ops.enable_module(oh);
 
 	r = _wait_target_ready(oh);
 	if (!r) {
@@ -1870,7 +1883,8 @@ static int _idle(struct omap_hwmod *oh)
 		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
 
-	_omap4_disable_module(oh);
+	if (soc_ops.disable_module)
+		soc_ops.disable_module(oh);
 
 	/*
 	 * The module must be in idle mode before disabling any parents
@@ -1975,7 +1989,8 @@ static int _shutdown(struct omap_hwmod *oh)
 	if (oh->_state == _HWMOD_STATE_ENABLED) {
 		_del_initiator_dep(oh, mpu_oh);
 		/* XXX what about the other system initiators here? dma, dsp */
-		_omap4_disable_module(oh);
+		if (soc_ops.disable_module)
+			soc_ops.disable_module(oh);
 		_disable_clocks(oh);
 		if (oh->clkdm)
 			clkdm_hwmod_disable(oh->clkdm, oh);
@@ -2563,11 +2578,17 @@ int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
  *
  * Intended to be called early in boot before the clock framework is
  * initialized.  If @ois is not null, will register all omap_hwmods
- * listed in @ois that are valid for this chip.  Returns 0.
+ * listed in @ois that are valid for this chip.  Returns -EINVAL if
+ * omap_hwmod_init() hasn't been called before calling this function,
+ * -ENOMEM if the link memory area can't be allocated, or 0 upon
+ * success.
  */
 int __init omap_hwmod_register_links(struct omap_hwmod_ocp_if **ois)
 {
 	int r, i;
+
+	if (!inited)
+		return -EINVAL;
 
 	if (!ois)
 		return 0;
@@ -3400,4 +3421,21 @@ int omap_hwmod_pad_route_irq(struct omap_hwmod *oh, int pad_idx, int irq_idx)
 	oh->mux->irqs[pad_idx] = irq_idx;
 
 	return 0;
+}
+
+/**
+ * omap_hwmod_init - initialize the hwmod code
+ *
+ * Sets up some function pointers needed by the hwmod code to operate on the
+ * currently-booted SoC.  Intended to be called once during kernel init
+ * before any hwmods are registered.  No return value.
+ */
+void __init omap_hwmod_init(void)
+{
+	if (cpu_is_omap44xx()) {
+		soc_ops.enable_module = _omap4_enable_module;
+		soc_ops.disable_module = _omap4_disable_module;
+	}
+
+	inited = true;
 }
