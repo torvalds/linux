@@ -884,11 +884,6 @@ void __init sun4m_pci_init_IRQ(void)
 	sparc_config.load_profile_irq = pcic_load_profile_irq;
 }
 
-int pcibios_assign_resource(struct pci_dev *pdev, int resource)
-{
-	return -ENXIO;
-}
-
 /*
  * This probably belongs here rather than ioport.c because
  * we do not want this crud linked into SBus kernels.
