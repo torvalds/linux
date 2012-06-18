@@ -1224,19 +1224,12 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 			if (helper->from_nlattr && helpinfo)
 				helper->from_nlattr(helpinfo, ct);
 			return 0;
-		}
-		if (help->helper)
+		} else
 			return -EBUSY;
-		/* need to zero data of old helper */
-		memset(help->data, 0, help->helper->data_len);
-	} else {
-		/* we cannot set a helper for an existing conntrack */
-		return -EOPNOTSUPP;
 	}
 
-	rcu_assign_pointer(help->helper, helper);
-
-	return 0;
+	/* we cannot set a helper for an existing conntrack */
+	return -EOPNOTSUPP;
 }
 
 static inline int
