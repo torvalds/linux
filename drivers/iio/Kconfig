@@ -30,6 +30,13 @@ config IIO_KFIFO_BUF
 	  no buffer events so it is up to userspace to work out how
 	  often to read from the buffer.
 
+config IIO_TRIGGERED_BUFFER
+	tristate
+	select IIO_TRIGGER
+	select IIO_KFIFO_BUF
+	help
+	  Provides helper functions for setting up triggered buffers.
+
 endif # IIO_BUFFER
 
 config IIO_TRIGGER
