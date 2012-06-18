@@ -3,6 +3,7 @@
 #
 
 obj-$(CONFIG_CRYPTO_ABLK_HELPER_X86) += ablk_helper.o
+obj-$(CONFIG_CRYPTO_GLUE_HELPER_X86) += glue_helper.o
 
 obj-$(CONFIG_CRYPTO_AES_586) += aes-i586.o
 obj-$(CONFIG_CRYPTO_TWOFISH_586) += twofish-i586.o
