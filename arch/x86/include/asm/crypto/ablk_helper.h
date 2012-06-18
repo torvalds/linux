@@ -24,6 +24,8 @@ extern int ablk_decrypt(struct ablkcipher_request *req);
 
 extern void ablk_exit(struct crypto_tfm *tfm);
 
+extern int ablk_init_common(struct crypto_tfm *tfm, const char *drv_name);
+
 extern int ablk_init(struct crypto_tfm *tfm);
 
 #endif /* _CRYPTO_ABLK_HELPER_H */

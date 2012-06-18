@@ -118,32 +118,31 @@ void ablk_exit(struct crypto_tfm *tfm)
 }
 EXPORT_SYMBOL_GPL(ablk_exit);
 
-void ablk_init_common(struct crypto_tfm *tfm,
-		      struct cryptd_ablkcipher *cryptd_tfm)
+int ablk_init_common(struct crypto_tfm *tfm, const char *drv_name)
 {
 	struct async_helper_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	ctx->cryptd_tfm = cryptd_tfm;
-	tfm->crt_ablkcipher.reqsize = sizeof(struct ablkcipher_request) +
-		crypto_ablkcipher_reqsize(&cryptd_tfm->base);
-}
-EXPORT_SYMBOL_GPL(ablk_init_common);
-
-int ablk_init(struct crypto_tfm *tfm)
-{
 	struct cryptd_ablkcipher *cryptd_tfm;
-	char drv_name[CRYPTO_MAX_ALG_NAME];
-
-	snprintf(drv_name, sizeof(drv_name), "__driver-%s",
-					crypto_tfm_alg_driver_name(tfm));
 
 	cryptd_tfm = cryptd_alloc_ablkcipher(drv_name, 0, 0);
 	if (IS_ERR(cryptd_tfm))
 		return PTR_ERR(cryptd_tfm);
 
-	ablk_init_common(tfm, cryptd_tfm);
+	ctx->cryptd_tfm = cryptd_tfm;
+	tfm->crt_ablkcipher.reqsize = sizeof(struct ablkcipher_request) +
+		crypto_ablkcipher_reqsize(&cryptd_tfm->base);
 
 	return 0;
+}
+EXPORT_SYMBOL_GPL(ablk_init_common);
+
+int ablk_init(struct crypto_tfm *tfm)
+{
+	char drv_name[CRYPTO_MAX_ALG_NAME];
+
+	snprintf(drv_name, sizeof(drv_name), "__driver-%s",
+					crypto_tfm_alg_driver_name(tfm));
+
+	return ablk_init_common(tfm, drv_name);
 }
 EXPORT_SYMBOL_GPL(ablk_init);
 
