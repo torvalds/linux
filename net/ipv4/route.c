@@ -1951,8 +1951,6 @@ static void rt_set_nexthop(struct rtable *rt, const struct flowi4 *fl4,
 
 	if (dst_mtu(dst) > IP_MAX_MTU)
 		dst_metric_set(dst, RTAX_MTU, IP_MAX_MTU);
-	if (dst_metric_raw(dst, RTAX_ADVMSS) > 65535 - 40)
-		dst_metric_set(dst, RTAX_ADVMSS, 65535 - 40);
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
 #ifdef CONFIG_IP_MULTIPLE_TABLES

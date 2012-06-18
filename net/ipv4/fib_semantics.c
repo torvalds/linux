@@ -779,9 +779,14 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 			int type = nla_type(nla);
 
 			if (type) {
+				u32 val;
+
 				if (type > RTAX_MAX)
 					goto err_inval;
-				fi->fib_metrics[type - 1] = nla_get_u32(nla);
+				val = nla_get_u32(nla);
+				if (type == RTAX_ADVMSS && val > 65535 - 40)
+					val = 65535 - 40;
+				fi->fib_metrics[type - 1] = val;
 			}
 		}
 	}
