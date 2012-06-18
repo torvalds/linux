@@ -813,7 +813,6 @@ enum {
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
 	SEND_PING,		/* whether asender should send a ping asap */
 
-	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
 	MD_DIRTY,		/* current uuids and flags not yet on disk */
 	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
@@ -824,7 +823,6 @@ enum {
 	CRASHED_PRIMARY,	/* This node was a crashed primary.
 				 * Gets cleared when the state.conn
 				 * goes into C_CONNECTED state. */
-	NO_BARRIER_SUPP,	/* underlying block device doesn't implement barriers */
 	CONSIDER_RESYNC,
 
 	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
