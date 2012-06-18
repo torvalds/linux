@@ -69,37 +69,37 @@ static void dumpVGAReg(void)
 
 	for (i = 0; i < 0x4f; i++) {
 		reg = xgifb_reg_get(XGISR, i);
-		printk("\no 3c4 %x", i);
-		printk("\ni 3c5 => %x", reg);
+		pr_debug("\no 3c4 %x", i);
+		pr_debug("\ni 3c5 => %x", reg);
 	}
 
 	for (i = 0; i < 0xF0; i++) {
 		reg = xgifb_reg_get(XGICR, i);
-		printk("\no 3d4 %x", i);
-		printk("\ni 3d5 => %x", reg);
+		pr_debug("\no 3d4 %x", i);
+		pr_debug("\ni 3d5 => %x", reg);
 	}
 	/*
 	xgifb_reg_set(XGIPART1,0x2F,1);
 	for (i=1; i < 0x50; i++) {
 		reg = xgifb_reg_get(XGIPART1, i);
-		printk("\no d004 %x", i);
-		printk("\ni d005 => %x", reg);
+		pr_debug("\no d004 %x", i);
+		pr_debug("\ni d005 => %x", reg);
 	}
 
 	for (i=0; i < 0x50; i++) {
 		 reg = xgifb_reg_get(XGIPART2, i);
-		 printk("\no d010 %x", i);
-		 printk("\ni d011 => %x", reg);
+		 pr_debug("\no d010 %x", i);
+		 pr_debug("\ni d011 => %x", reg);
 	}
 	for (i=0; i < 0x50; i++) {
 		reg = xgifb_reg_get(XGIPART3, i);
-		printk("\no d012 %x",i);
-		printk("\ni d013 => %x",reg);
+		pr_debug("\no d012 %x",i);
+		pr_debug("\ni d013 => %x",reg);
 	}
 	for (i=0; i < 0x50; i++) {
 		reg = xgifb_reg_get(XGIPART4, i);
-		printk("\no d014 %x",i);
-		printk("\ni d015 => %x",reg);
+		pr_debug("\no d014 %x",i);
+		pr_debug("\ni d015 => %x",reg);
 	}
 	*/
 }
@@ -1040,8 +1040,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	int old_mode;
 	/* unsigned char reg, reg1; */
 
-	/* printk(KERN_DEBUG "XGIfb:var->yres=%d, var->upper_margin=%d, var->lower_margin=%d, var->vsync_len=%d\n", var->yres, var->upper_margin, var->lower_margin, var->vsync_len); */
-
 	info->var.xres_virtual = var->xres_virtual;
 	info->var.yres_virtual = var->yres_virtual;
 	info->var.bits_per_pixel = var->bits_per_pixel;
@@ -1194,8 +1192,6 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct xgifb_video_info *xgifb_info = info->par;
 	unsigned int base;
 
-	/* printk("Inside pan_var"); */
-
 	base = var->yoffset * info->var.xres_virtual + var->xoffset;
 
 	/* calculate base bpp dep. */
@@ -1229,7 +1225,6 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var, struct fb_info *info)
 				 0x7F,
 				 ((base >> 24) & 0x01) << 7);
 	}
-	/* printk("End of pan_var"); */
 	return 0;
 }
 
@@ -1342,12 +1337,10 @@ static int XGIfb_set_par(struct fb_info *info)
 {
 	int err;
 
-	/* printk("XGIfb: inside set_par\n"); */
 	err = XGIfb_do_set_var(&info->var, 1, info);
 	if (err)
 		return err;
 	XGIfb_get_fix(&info->fix, -1, info);
-	/* printk("XGIfb: end of set_par\n"); */
 	return 0;
 }
 
@@ -1501,8 +1494,6 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 {
 	int err;
 
-	/* printk("\nInside pan_display:\n"); */
-
 	if (var->xoffset > (info->var.xres_virtual - info->var.xres))
 		return -EINVAL;
 	if (var->yoffset > (info->var.yres_virtual - info->var.yres))
@@ -1529,7 +1520,6 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 	else
 		info->var.vmode &= ~FB_VMODE_YWRAP;
 
-	/* printk("End of pan_display\n"); */
 	return 0;
 }
 
@@ -1986,7 +1976,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		/* else if (reg >= 0xB0) {
 			hw_info->ujVBChipID = VB_CHIP_301B;
 			reg1 = xgifb_reg_get(XGIPART4, 0x23);
-			printk("XGIfb: XGI301B bridge detected\n");
+			pr_debug("XGIfb: XGI301B bridge detected\n");
 		} */
 		else {
 			hw_info->ujVBChipID = VB_CHIP_301;
