@@ -2515,18 +2515,12 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	int wi;
 
 	val = (ucontrol->value.integer.value[0] & mask);
+	connect = !!val;
 
 	if (invert)
 		val = max - val;
 	mask = mask << shift;
 	val = val << shift;
-
-	if (val)
-		/* new connection */
-		connect = invert ? 0 : 1;
-	else
-		/* old connection must be powered down */
-		connect = invert ? 1 : 0;
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
