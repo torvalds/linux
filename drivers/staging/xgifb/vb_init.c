@@ -5,6 +5,7 @@
 #include "vb_def.h"
 #include "vb_util.h"
 #include "vb_setmode.h"
+#include "vb_init.h"
 static const unsigned short XGINew_DDRDRAM_TYPE340[4][2] = {
 	{ 16, 0x45},
 	{  8, 0x35},

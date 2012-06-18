@@ -4,7 +4,7 @@
 #include "vb_def.h"
 #include "vb_util.h"
 #include "vb_table.h"
-
+#include "vb_setmode.h"
 
 #define  IndexMask 0xff
 #define TVCLKBASE_315_25 (TVCLKBASE_315 + 25)

@@ -1,4 +1,5 @@
 #include "vgatypes.h"
+#include "vb_util.h"
 
 void xgifb_reg_set(unsigned long port, u8 index, u8 data)
 {
