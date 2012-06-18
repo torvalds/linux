@@ -192,6 +192,11 @@ static struct omap_hwmod_class omap2420_mcbsp_hwmod_class = {
 	.name = "mcbsp",
 };
 
+static struct omap_hwmod_opt_clk mcbsp_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "mcbsp_clks" },
+	{ .role = "prcm_fck", .clk = "func_96m_ck" },
+};
+
 /* mcbsp1 */
 static struct omap_hwmod_irq_info omap2420_mcbsp1_irqs[] = {
 	{ .name = "tx", .irq = 59 },
@@ -214,6 +219,8 @@ static struct omap_hwmod omap2420_mcbsp1_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_MCBSP1_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp_opt_clks),
 };
 
 /* mcbsp2 */
@@ -238,6 +245,8 @@ static struct omap_hwmod omap2420_mcbsp2_hwmod = {
 			.idlest_idle_bit = OMAP24XX_ST_MCBSP2_SHIFT,
 		},
 	},
+	.opt_clks	= mcbsp_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp_opt_clks),
 };
 
 static struct omap_hwmod_class_sysconfig omap2420_msdi_sysc = {
