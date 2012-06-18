@@ -78,7 +78,7 @@ struct comedi_subdevice {
 	unsigned runflags;
 	spinlock_t spin_lock;
 
-	int io_bits;
+	unsigned int io_bits;
 
 	unsigned int maxdata;	/* if maxdata==0, use list */
 	const unsigned int *maxdata_list;	/* list is channel specific */
