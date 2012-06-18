@@ -2297,23 +2297,23 @@ static struct pci_driver xgifb_driver = {
 
 module_param(mode, charp, 0);
 MODULE_PARM_DESC(mode,
-	"\nSelects the desired default display mode in the format XxYxDepth,\n"
-	"eg. 1024x768x16.\n");
+	"Selects the desired default display mode in the format XxYxDepth "
+	"(eg. 1024x768x16).");
 
 module_param(forcecrt2type, charp, 0);
 MODULE_PARM_DESC(forcecrt2type,
-	"\nForce the second display output type. Possible values are NONE,\n"
-	"LCD, TV, VGA, SVIDEO or COMPOSITE.\n");
+	"Force the second display output type. Possible values are NONE, "
+	"LCD, TV, VGA, SVIDEO or COMPOSITE.");
 
 module_param(vesa, int, 0);
 MODULE_PARM_DESC(vesa,
-	"\nSelects the desired default display mode by VESA mode number, eg.\n"
-	"0x117.\n");
+	"Selects the desired default display mode by VESA mode number "
+	"(eg. 0x117).");
 
 module_param(filter, int, 0);
 MODULE_PARM_DESC(filter,
-	"\nSelects TV flicker filter type (only for systems with a SiS301 video bridge).\n"
-	"(Possible values 0-7, default: [no filter])\n");
+	"Selects TV flicker filter type (only for systems with a SiS301 video bridge). "
+	"Possible values 0-7. Default: [no filter]).");
 
 static int __init xgifb_init(void)
 {
