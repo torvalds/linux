@@ -25,8 +25,7 @@ config AD7606
 	tristate "Analog Devices AD7606 ADC driver"
 	depends on GPIOLIB
 	select IIO_BUFFER
-	select IIO_TRIGGER
-	select IIO_KFIFO_BUF
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices:
 	  ad7606, ad7606-6, ad7606-4 analog to digital converters (ADC).
