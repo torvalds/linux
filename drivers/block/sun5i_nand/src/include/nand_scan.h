@@ -1,33 +1,25 @@
 /*
-************************************************************************************************************************
-*                                                      eNand
-*                                     Nand flash driver scan module define
-*
-*                             Copyright(C), 2008-2009, SoftWinners Microelectronic Co., Ltd.
-*											       All Rights Reserved
-*
-* File Name : nand_scan.h
-*
-* Author : Kevin.z
-*
-* Version : v0.1
-*
-* Date : 2008.03.25
-*
-* Description : This file define the function __s32erface and some data structure export
-*               for the nand flash scan module.
-*
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* Kevin.z         2008.03.25      0.1          build the file
-*
-************************************************************************************************************************
-*/
+ * drivers/block/sun5i_nand/src/include/nand_scan.h
+ *
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
 #ifndef __NAND_SCAN_H__
 #define __NAND_SCAN_H__
 

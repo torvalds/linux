@@ -1,14 +1,25 @@
-/*********************************************************************************************************
-*                                                                NAND FLASH DRIVER
-*								(c) Copyright 2008, SoftWinners Co,Ld.
-*                                          			    All Right Reserved
-*file : nand_simple.c
-*description : this file creates some physic basic access function based on single plane for boot .
-*history :
-*	v0.1  2008-03-26 Richard
-* v0.2  2009-9-3 penggang modified for 1615
-*
-*********************************************************************************************************/
+/*
+ * drivers/block/sun3i_nand/src/physic/nand_simple_w.c
+ *
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
 #include "../include/nand_type.h"
 #include "../include/nand_physic.h"
 #include "../include/nand_simple.h"

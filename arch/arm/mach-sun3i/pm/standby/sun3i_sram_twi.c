@@ -1,20 +1,28 @@
 /*
-*********************************************************************************************************
-*                                                    ePDK
-*                                    the Easy Portable/Player Develop Kits
-*                                                 TWI module
-*
-*                                   (c) Copyright 2008-2009, kevin China
-*                                             All Rights Reserved
-*
-* File    : twi.c
-* By      : kevin
-* Version : V1.00
-* Date    : 2009-6-16 15:50
-*********************************************************************************************************
-*/
+ * arch/arm/mach-sun3i/pm/standby/sun3i_sram_twi.c
+ *
+ * (C) Copyright 2007-2012
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
+ */
+
+
  #include <mach/platform.h>
-  #include <sun3i_standby.h>
+ #include <sun3i_standby.h>
 
 static __twic_reg_t*   TWI_REG_BASE[3] = {
 		(__twic_reg_t*)SW_VA_TWI0_IO_BASE,
