@@ -130,7 +130,7 @@ config PINCTRL_U300
 
 config PINCTRL_COH901
 	bool "ST-Ericsson U300 COH 901 335/571 GPIO"
-	depends on GPIOLIB && ARCH_U300 && PINMUX_U300
+	depends on GPIOLIB && ARCH_U300 && PINCTRL_U300
 	help
 	  Say yes here to support GPIO interface on ST-Ericsson U300.
 	  The names of the two IP block variants supported are
