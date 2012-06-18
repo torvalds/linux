@@ -186,6 +186,7 @@ sub read_kconfig {
 	    $state = "NEW";
 	    $config = $2;
 
+	    # Add depends for 'if' nesting
 	    for (my $i = 0; $i < $iflevel; $i++) {
 		if ($i) {
 		    $depends{$config} .= " " . $ifdeps[$i];
@@ -204,10 +205,11 @@ sub read_kconfig {
 
 	# Get the configs that select this config
 	} elsif ($state ne "NONE" && /^\s*select\s+(\S+)/) {
-	    if (defined($selects{$1})) {
-		$selects{$1} .= " " . $config;
+	    my $conf = $1;
+	    if (defined($selects{$conf})) {
+		$selects{$conf} .= " " . $config;
 	    } else {
-		$selects{$1} = $config;
+		$selects{$conf} = $config;
 	    }
 
 	# configs without prompts must be selected
@@ -250,6 +252,7 @@ if ($kconfig) {
     read_kconfig($kconfig);
 }
 
+# Makefiles can use variables to define their dependencies
 sub convert_vars {
     my ($line, %vars) = @_;
 
@@ -293,6 +296,7 @@ foreach my $makefile (@makefiles) {
 
 	my $objs;
 
+	# Convert variables in a line (could define configs)
 	$_ = convert_vars($_, %make_vars);
 
 	# collect objects after obj-$(CONFIG_FOO_BAR)
@@ -373,7 +377,8 @@ while (<LIN>) {
 close (LIN);
 
 # add to the configs hash all configs that are needed to enable
-# a loaded module.
+# a loaded module. This is a direct obj-${CONFIG_FOO} += bar.o
+# where we know we need bar.o so we add FOO to the list.
 my %configs;
 foreach my $module (keys(%modules)) {
     if (defined($objects{$module})) {
