@@ -2812,8 +2812,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		if (!bssid) {
 			if (!ether_addr_equal(sdata->vif.addr, hdr->addr1))
 				return 0;
-		} else if (!ieee80211_bssid_match(bssid,
-					sdata->vif.addr)) {
+		} else if (!ieee80211_bssid_match(bssid, sdata->vif.addr)) {
 			/*
 			 * Accept public action frames even when the
 			 * BSSID doesn't match, this is used for P2P
@@ -2833,9 +2832,18 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		if (!ether_addr_equal(sdata->u.wds.remote_addr, hdr->addr2))
 			return 0;
 		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		if (!ieee80211_is_public_action(hdr, skb->len) &&
+		    !ieee80211_is_probe_req(hdr->frame_control) &&
+		    !ieee80211_is_probe_resp(hdr->frame_control) &&
+		    !ieee80211_is_beacon(hdr->frame_control))
+			return 0;
+		if (!ether_addr_equal(sdata->vif.addr, hdr->addr1))
+			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
+		break;
 	default:
 		/* should never get here */
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		break;
 	}
 

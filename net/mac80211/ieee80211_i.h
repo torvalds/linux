@@ -1080,6 +1080,8 @@ struct ieee80211_local {
 	struct idr ack_status_frames;
 	spinlock_t ack_status_lock;
 
+	struct ieee80211_sub_if_data __rcu *p2p_sdata;
+
 	/* dummy netdev for use w/ NAPI */
 	struct net_device napi_dev;
 
@@ -1296,6 +1298,8 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local);
 void ieee80211_recalc_idle(struct ieee80211_local *local);
 void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 				    const int offset);
+int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up);
+void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {

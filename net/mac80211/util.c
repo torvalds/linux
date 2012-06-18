@@ -276,6 +276,9 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		int ac;
 
+		if (!sdata->dev)
+			continue;
+
 		if (test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state))
 			continue;
 
@@ -363,6 +366,9 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		int ac;
+
+		if (!sdata->dev)
+			continue;
 
 		for (ac = 0; ac < n_acs; ac++) {
 			if (sdata->vif.hw_queue[ac] == queue ||
@@ -902,7 +908,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 		drv_conf_tx(local, sdata, ac, &qparam);
 	}
 
-	if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
+	if (sdata->vif.type != NL80211_IFTYPE_MONITOR &&
+	    sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE) {
 		sdata->vif.bss_conf.qos = enable_qos;
 		if (bss_notify)
 			ieee80211_bss_info_change_notify(sdata,
@@ -1391,7 +1398,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			/* ignore virtual */
 			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
-			/* not yet supported */
+			changed = BSS_CHANGED_IDLE;
+			break;
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NUM_NL80211_IFTYPES:
 		case NL80211_IFTYPE_P2P_CLIENT:
@@ -1577,6 +1585,8 @@ void ieee80211_recalc_smps(struct ieee80211_local *local)
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
+			continue;
+		if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE)
 			continue;
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
 			goto set;

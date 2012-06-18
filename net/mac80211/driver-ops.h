@@ -9,7 +9,7 @@ static inline void check_sdata_in_driver(struct ieee80211_sub_if_data *sdata)
 {
 	WARN(!(sdata->flags & IEEE80211_SDATA_IN_DRIVER),
 	     "%s:  Failed check-sdata-in-driver check, flags: 0x%x\n",
-	     sdata->dev->name, sdata->flags);
+	     sdata->dev ? sdata->dev->name : sdata->name, sdata->flags);
 }
 
 static inline struct ieee80211_sub_if_data *
