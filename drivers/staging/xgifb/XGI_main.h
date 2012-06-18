@@ -4,8 +4,6 @@
 #include "XGIfb.h"
 #include "vb_def.h"
 
-#define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while (0)
-
 #ifndef PCI_DEVICE_ID_XGI_42
 #define PCI_DEVICE_ID_XGI_42      0x042
 #endif

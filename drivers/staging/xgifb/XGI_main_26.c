@@ -1376,8 +1376,10 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		vtotal = var->upper_margin + var->yres + var->lower_margin
 				+ var->vsync_len;
 
-	if (!(htotal) || !(vtotal))
-		XGIFAIL("XGIfb: no valid timing data");
+	if (!(htotal) || !(vtotal)) {
+		pr_debug("XGIfb: no valid timing data\n");
+		return -EINVAL;
+	}
 
 	if (var->pixclock && htotal && vtotal) {
 		drate = 1000000000 / var->pixclock;
