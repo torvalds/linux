@@ -1127,46 +1127,25 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 	return n;
 }
 
-static int vmk80xx_attach(struct comedi_device *cdev,
-			  struct comedi_devconfig *it)
+static int vmk80xx_attach_common(struct comedi_device *cdev,
+				 struct vmk80xx_usb *dev)
 {
-	int i;
-	struct vmk80xx_usb *dev;
 	int n_subd;
 	struct comedi_subdevice *s;
-	int minor;
 	int ret;
 
-	mutex_lock(&glb_mutex);
-
-	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
-		if (vmb[i].probed && !vmb[i].attached)
-			break;
-
-	if (i == VMK80XX_MAX_BOARDS) {
-		mutex_unlock(&glb_mutex);
-		return -ENODEV;
-	}
-
-	dev = &vmb[i];
-
 	down(&dev->limit_sem);
-
 	cdev->board_name = dev->board.name;
 	cdev->private = dev;
-
 	if (dev->board.model == VMK8055_MODEL)
 		n_subd = 5;
 	else
 		n_subd = 6;
-
 	ret = comedi_alloc_subdevices(cdev, n_subd);
 	if (ret) {
 		up(&dev->limit_sem);
-		mutex_unlock(&glb_mutex);
 		return ret;
 	}
-
 	/* Analog input subdevice */
 	s = cdev->subdevices + VMK80XX_SUBD_AI;
 	s->type = COMEDI_SUBD_AI;
@@ -1175,7 +1154,6 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	s->maxdata = (1 << dev->board.ai_bits) - 1;
 	s->range_table = dev->board.range;
 	s->insn_read = vmk80xx_ai_rinsn;
-
 	/* Analog output subdevice */
 	s = cdev->subdevices + VMK80XX_SUBD_AO;
 	s->type = COMEDI_SUBD_AO;
@@ -1184,12 +1162,10 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	s->maxdata = (1 << dev->board.ao_bits) - 1;
 	s->range_table = dev->board.range;
 	s->insn_write = vmk80xx_ao_winsn;
-
 	if (dev->board.model == VMK8061_MODEL) {
 		s->subdev_flags |= SDF_READABLE;
 		s->insn_read = vmk80xx_ao_rinsn;
 	}
-
 	/* Digital input subdevice */
 	s = cdev->subdevices + VMK80XX_SUBD_DI;
 	s->type = COMEDI_SUBD_DI;
@@ -1198,7 +1174,6 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	s->maxdata = 1;
 	s->insn_read = vmk80xx_di_rinsn;
 	s->insn_bits = vmk80xx_di_bits;
-
 	/* Digital output subdevice */
 	s = cdev->subdevices + VMK80XX_SUBD_DO;
 	s->type = COMEDI_SUBD_DO;
@@ -1207,12 +1182,10 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	s->maxdata = 1;
 	s->insn_write = vmk80xx_do_winsn;
 	s->insn_bits = vmk80xx_do_bits;
-
 	if (dev->board.model == VMK8061_MODEL) {
 		s->subdev_flags |= SDF_READABLE;
 		s->insn_read = vmk80xx_do_rinsn;
 	}
-
 	/* Counter subdevice */
 	s = cdev->subdevices + VMK80XX_SUBD_CNT;
 	s->type = COMEDI_SUBD_COUNTER;
@@ -1220,13 +1193,11 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	s->n_chan = dev->board.cnt_chans;
 	s->insn_read = vmk80xx_cnt_rinsn;
 	s->insn_config = vmk80xx_cnt_cinsn;
-
 	if (dev->board.model == VMK8055_MODEL) {
 		s->subdev_flags |= SDF_WRITEABLE;
 		s->maxdata = (1 << dev->board.cnt_bits) - 1;
 		s->insn_write = vmk80xx_cnt_winsn;
 	}
-
 	/* PWM subdevice */
 	if (dev->board.model == VMK8061_MODEL) {
 		s = cdev->subdevices + VMK80XX_SUBD_PWM;
@@ -1237,19 +1208,51 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 		s->insn_read = vmk80xx_pwm_rinsn;
 		s->insn_write = vmk80xx_pwm_winsn;
 	}
-
 	dev->attached = 1;
-
-	minor = cdev->minor;
-
-	printk(KERN_INFO
-	       "comedi%d: vmk80xx: board #%d [%s] attached to comedi\n",
-	       minor, dev->count, dev->board.name);
-
+	dev_info(cdev->class_dev, "vmk80xx: board #%d [%s] attached\n",
+		 dev->count, dev->board.name);
 	up(&dev->limit_sem);
-	mutex_unlock(&glb_mutex);
-
 	return 0;
+}
+
+/* called for COMEDI_DEVCONFIG ioctl for board_name "vmk80xx" */
+static int vmk80xx_attach(struct comedi_device *cdev,
+			  struct comedi_devconfig *it)
+{
+	int i;
+	int ret;
+
+	mutex_lock(&glb_mutex);
+	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
+		if (vmb[i].probed && !vmb[i].attached)
+			break;
+	if (i == VMK80XX_MAX_BOARDS)
+		ret = -ENODEV;
+	else
+		ret = vmk80xx_attach_common(cdev, &vmb[i]);
+	mutex_unlock(&glb_mutex);
+	return ret;
+}
+
+/* called via comedi_usb_auto_config() */
+static int vmk80xx_attach_usb(struct comedi_device *cdev,
+			      struct usb_interface *intf)
+{
+	int i;
+	int ret;
+
+	mutex_lock(&glb_mutex);
+	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
+		if (vmb[i].probed && vmb[i].intf == intf)
+			break;
+	if (i == VMK80XX_MAX_BOARDS)
+		ret = -ENODEV;
+	else if (vmb[i].attached)
+		ret = -EBUSY;
+	else
+		ret = vmk80xx_attach_common(cdev, &vmb[i]);
+	mutex_unlock(&glb_mutex);
+	return ret;
 }
 
 static void vmk80xx_detach(struct comedi_device *dev)
@@ -1457,7 +1460,8 @@ static struct comedi_driver driver_vmk80xx = {
 	.module = THIS_MODULE,
 	.driver_name = "vmk80xx",
 	.attach = vmk80xx_attach,
-	.detach = vmk80xx_detach
+	.detach = vmk80xx_detach,
+	.attach_usb = vmk80xx_attach_usb,
 };
 
 static int __init vmk80xx_init(void)
