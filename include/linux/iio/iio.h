@@ -214,7 +214,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  * @event_mask:		What events can this channel produce.
  * @ext_info:		Array of extended info attributes for this channel.
  *			The array is NULL terminated, the last element should
- *			have it's name field set to NULL.
+ *			have its name field set to NULL.
  * @extend_name:	Allows labeling of channel attributes with an
  *			informative name. Note this has no effect codes etc,
  *			unlike modifiers.
