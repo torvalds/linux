@@ -608,7 +608,6 @@ struct ab8500_register_dump
 	u8 bank;
 	u8 reg;
 	u8 value;
-	int ret;
 } ab8500_complete_register_dump[DUMP_MAX_REGS];
 
 extern int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
@@ -618,6 +617,7 @@ void ab8500_dump_all_banks_to_mem(void)
 {
 	int i, r = 0;
 	u8 bank;
+	int err = 0;
 
 	pr_info("Saving all ABB registers at \"ab8500_complete_register_dump\" "
 		"for crash analyze.\n");
@@ -630,11 +630,12 @@ void ab8500_dump_all_banks_to_mem(void)
 			     reg <= debug_ranges[bank].range[i].last;
 			     reg++) {
 				u8 value;
-				int err;
 
 				err = prcmu_abb_read(bank, reg, &value, 1);
 
-				ab8500_complete_register_dump[r].ret = err;
+				if (err < 0)
+					goto out;
+
 				ab8500_complete_register_dump[r].bank = bank;
 				ab8500_complete_register_dump[r].reg = reg;
 				ab8500_complete_register_dump[r].value = value;
@@ -644,11 +645,17 @@ void ab8500_dump_all_banks_to_mem(void)
 				if (r >= DUMP_MAX_REGS) {
 					pr_err("%s: too many register to dump!\n",
 						__func__);
-					return;
+					err = -EINVAL;
+					goto out;
 				}
 			}
 		}
 	}
+out:
+	if (err >= 0)
+		pr_info("Saved all ABB registers.\n");
+	else
+		pr_info("Failed to save all ABB registers.\n");
 }
 
 static int ab8500_all_banks_open(struct inode *inode, struct file *file)
