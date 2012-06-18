@@ -80,6 +80,8 @@ extern int follow_up(struct path *);
 extern struct dentry *lock_rename(struct dentry *, struct dentry *);
 extern void unlock_rename(struct dentry *, struct dentry *);
 
+extern void nd_jump_link(struct nameidata *nd, struct path *path);
+
 static inline void nd_set_link(struct nameidata *nd, char *path)
 {
 	nd->saved_names[nd->depth] = path;
