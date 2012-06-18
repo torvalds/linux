@@ -3012,7 +3012,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
-	struct sta_info *sta;
+	struct sta_info *sta = NULL;
 	bool have_sta = false;
 	int err;
 	int ht_cfreq;
@@ -3102,7 +3102,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	local->oper_channel = cbss->channel;
 	ieee80211_hw_config(local, 0);
 
-	if (!have_sta) {
+	if (sta) {
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
 		int min_rate = INT_MAX, min_rate_index = -1;
