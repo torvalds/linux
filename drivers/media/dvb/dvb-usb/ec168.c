@@ -271,7 +271,7 @@ static int ec168_ec100_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	pr_debug("%s:\n", __func__);
 	adap->fe[0] = dvb_attach(ec100_attach, &ec168_ec100_config,
-		&adap->dev->i2c_adap);
+			&adap_to_d(adap)->i2c_adap);
 	if (adap->fe[0] == NULL)
 		return -ENODEV;
 
@@ -299,7 +299,7 @@ static int ec168_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	pr_debug("%s:\n", __func__);
 	return dvb_attach(mxl5005s_attach, adap->fe[0],
-			&adap->dev->i2c_adap,
+			&adap_to_d(adap)->i2c_adap,
 			&ec168_mxl5003s_config) == NULL ? -ENODEV : 0;
 }
 
@@ -309,7 +309,7 @@ static int ec168_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	pr_debug("%s: onoff=%d\n", __func__, onoff);
 	if (onoff)
 		req.index = 0x0102;
-	return ec168_ctrl_msg(adap->dev, &req);
+	return ec168_ctrl_msg(adap_to_d(adap), &req);
 }
 
 /* DVB USB Driver stuff */
@@ -333,16 +333,7 @@ static struct dvb_usb_device_properties ec168_props = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-			.stream = {
-				.type = USB_BULK,
-				.count = 6,
-				.endpoint = 0x82,
-				.u = {
-					.bulk = {
-						.buffersize = (32*512),
-					}
-				}
-			},
+			.stream = DVB_USB_STREAM_BULK(0x82, 6, 32 * 512),
 		}
 	},
 };
