@@ -86,7 +86,6 @@ void show_regs(struct pt_regs *regs)
 {
 	int i;
 
-	print_modules();
 	__show_regs(regs, !user_mode_vm(regs));
 
 	pr_emerg("Process %.*s (pid: %d, ti=%p task=%p task.ti=%p)\n",
