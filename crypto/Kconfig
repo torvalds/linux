@@ -671,6 +671,7 @@ config CRYPTO_CAMELLIA_X86_64
 	depends on X86 && 64BIT
 	depends on CRYPTO
 	select CRYPTO_ALGAPI
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_LRW
 	select CRYPTO_XTS
 	help
