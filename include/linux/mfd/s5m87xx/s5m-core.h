@@ -347,6 +347,7 @@ struct s5m_platform_data {
 	bool				buck_voltage_lock;
 
 	int				buck_gpios[3];
+	int				buck_ds[3];
 	int				buck2_voltage[8];
 	bool				buck2_gpiodvs;
 	int				buck3_voltage[8];
@@ -369,6 +370,10 @@ struct s5m_platform_data {
 	bool                            buck2_ramp_enable;
 	bool                            buck3_ramp_enable;
 	bool                            buck4_ramp_enable;
+
+	int				buck2_init;
+	int				buck3_init;
+	int				buck4_init;
 };
 
 #endif /*  __LINUX_MFD_S5M_CORE_H */
