@@ -1637,6 +1637,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			eh = mdev->ldev->dc.on_io_error;
 			was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
 
+			if (was_io_error && eh == EP_CALL_HELPER)
+				drbd_khelper(mdev, "local-io-error");
+
 			/* Immediately allow completion of all application IO,
 			 * that waits for completion from the local disk,
 			 * if this was a force-detach due to disk_timeout
@@ -1672,9 +1675,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			drbd_md_sync(mdev);
 		}
 		put_ldev(mdev);
-
-		if (was_io_error && eh == EP_CALL_HELPER)
-			drbd_khelper(mdev, "local-io-error");
 	}
 
         /* second half of local IO error, failure to attach,
