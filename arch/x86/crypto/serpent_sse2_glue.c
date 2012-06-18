@@ -41,7 +41,7 @@
 #include <crypto/ctr.h>
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
-#include <asm/serpent-sse2.h>
+#include <asm/crypto/serpent-sse2.h>
 #include <asm/crypto/ablk_helper.h>
 #include <asm/crypto/glue_helper.h>
 

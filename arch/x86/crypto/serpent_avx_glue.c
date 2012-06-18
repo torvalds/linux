@@ -38,7 +38,7 @@
 #include <crypto/xts.h>
 #include <asm/xcr.h>
 #include <asm/xsave.h>
-#include <asm/serpent-avx.h>
+#include <asm/crypto/serpent-avx.h>
 #include <asm/crypto/ablk_helper.h>
 #include <asm/crypto/glue_helper.h>
 
