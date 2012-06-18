@@ -2319,11 +2319,11 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 	if (rdev->desc->uV_step) {
 		return DIV_ROUND_UP(rdev->desc->uV_step *
 				    abs(new_selector - old_selector),
-				    ramp_delay * 1000);
+				    ramp_delay);
 	} else if (rdev->desc->volt_table) {
 		return DIV_ROUND_UP(abs(rdev->desc->volt_table[new_selector] -
 					rdev->desc->volt_table[old_selector]),
-				    ramp_delay * 1000);
+				    ramp_delay);
 	} else {
 		rdev_warn(rdev, "Unsupported voltage mapping settings\n");
 	}
