@@ -185,6 +185,7 @@ struct omap_hwmod_soc_ops {
 				  struct omap_hwmod_rst_info *ohri);
 	int (*is_hardreset_asserted)(struct omap_hwmod *oh,
 				     struct omap_hwmod_rst_info *ohri);
+	int (*init_clkdm)(struct omap_hwmod *oh);
 };
 
 /* soc_ops: adapts the omap_hwmod code to the currently-booted SoC */
@@ -1315,9 +1316,6 @@ static struct omap_hwmod *_lookup(const char *name)
  */
 static int _init_clkdm(struct omap_hwmod *oh)
 {
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		return 0;
-
 	if (!oh->clkdm_name) {
 		pr_warning("omap_hwmod: %s: no clkdm_name\n", oh->name);
 		return -EINVAL;
@@ -1358,7 +1356,8 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
 	ret |= _init_main_clk(oh);
 	ret |= _init_interface_clks(oh);
 	ret |= _init_opt_clks(oh);
-	ret |= _init_clkdm(oh);
+	if (soc_ops.init_clkdm)
+		ret |= soc_ops.init_clkdm(oh);
 
 	if (!ret)
 		oh->_state = _HWMOD_STATE_CLKS_INITED;
@@ -3569,6 +3568,7 @@ void __init omap_hwmod_init(void)
 		soc_ops.assert_hardreset = _omap4_assert_hardreset;
 		soc_ops.deassert_hardreset = _omap4_deassert_hardreset;
 		soc_ops.is_hardreset_asserted = _omap4_is_hardreset_asserted;
+		soc_ops.init_clkdm = _init_clkdm;
 	} else {
 		WARN(1, "omap_hwmod: unknown SoC type\n");
 	}
