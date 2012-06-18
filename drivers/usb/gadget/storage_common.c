@@ -38,12 +38,6 @@
  */
 
 /*
- * When FSG_BUFFHD_STATIC_BUFFER is defined when this file is included
- * the fsg_buffhd structure's buf field will be an array of FSG_BUFLEN
- * characters rather then a pointer to void.
- */
-
-/*
  * When USB_GADGET_DEBUG_FILES is defined the module param num_buffers
  * sets the number of pipeline buffers (length of the fsg_buffhd array).
  * The valid range of num_buffers is: num >= 2 && num <= 4.
@@ -260,11 +254,7 @@ enum fsg_buffer_state {
 };
 
 struct fsg_buffhd {
-#ifdef FSG_BUFFHD_STATIC_BUFFER
-	char				buf[FSG_BUFLEN];
-#else
 	void				*buf;
-#endif
 	enum fsg_buffer_state		state;
 	struct fsg_buffhd		*next;
 
