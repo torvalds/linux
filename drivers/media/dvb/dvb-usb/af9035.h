@@ -22,10 +22,7 @@
 #ifndef AF9035_H
 #define AF9035_H
 
-/* prefix for dvb-usb log writings */
-#define DVB_USB_LOG_PREFIX "af9035"
-
-#include "dvb-usb.h"
+#include "dvb_usb.h"
 #include "af9033.h"
 #include "tua9001.h"
 #include "fc0011.h"
@@ -53,6 +50,7 @@ struct usb_req {
 };
 
 struct state {
+	u8 seq; /* packet sequence number */
 	bool dual_mode;
 
 	struct af9033_config af9033_config[2];
