@@ -188,12 +188,12 @@ static const struct nf_afinfo nf_ip_afinfo = {
 	.route_key_size		= sizeof(struct ip_rt_info),
 };
 
-static int ipv4_netfilter_init(void)
+static int __init ipv4_netfilter_init(void)
 {
 	return nf_register_afinfo(&nf_ip_afinfo);
 }
 
-static void ipv4_netfilter_fini(void)
+static void __exit ipv4_netfilter_fini(void)
 {
 	nf_unregister_afinfo(&nf_ip_afinfo);
 }
