@@ -78,7 +78,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		     i++) {
 			j = find_next_bit(buffer->scan_mask,
 					  indio_dev->masklength, j + 1);
-			/* random access read form the 'device' */
+			/* random access read from the 'device' */
 			data[i] = fakedata[j];
 			len += 2;
 		}
