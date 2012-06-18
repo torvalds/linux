@@ -131,7 +131,7 @@ static inline int wlcore_read_data(struct wl1271 *wl, int reg, void *buf,
 	return wlcore_read(wl, wl->rtable[reg], buf, len, fixed);
 }
 
-static inline void wl1271_read_hwaddr(struct wl1271 *wl, int hwaddr,
+static inline int wlcore_read_hwaddr(struct wl1271 *wl, int hwaddr,
 				      void *buf, size_t len, bool fixed)
 {
 	int physical;
@@ -142,7 +142,7 @@ static inline void wl1271_read_hwaddr(struct wl1271 *wl, int hwaddr,
 
 	physical = wlcore_translate_addr(wl, addr);
 
-	wlcore_raw_read(wl, physical, buf, len, fixed);
+	return wlcore_raw_read(wl, physical, buf, len, fixed);
 }
 
 static inline int wlcore_read32(struct wl1271 *wl, int addr, u32 *val)
