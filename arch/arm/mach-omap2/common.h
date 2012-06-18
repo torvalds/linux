@@ -129,6 +129,7 @@ void omap3430_init_early(void);
 void omap35xx_init_early(void);
 void omap3630_init_early(void);
 void omap3_init_early(void);	/* Do not use this one */
+void am33xx_init_early(void);
 void am35xx_init_early(void);
 void ti81xx_init_early(void);
 void am33xx_init_early(void);

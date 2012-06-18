@@ -484,6 +484,7 @@ void __init am33xx_init_early(void)
 	omap3xxx_check_revision();
 	ti81xx_check_features();
 	omap_common_init_early();
+	am33xx_voltagedomains_init();
 }
 #endif
 
