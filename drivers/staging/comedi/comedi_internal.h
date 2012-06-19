@@ -1,3 +1,6 @@
+#ifndef _COMEDI_INTERNAL_H
+#define _COMEDI_INTERNAL_H
+
 /*
  * various internal comedi stuff
  */
@@ -14,3 +17,5 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 
 extern unsigned int comedi_default_buf_size_kb;
 extern unsigned int comedi_default_buf_maxsize_kb;
+
+#endif /* _COMEDI_INTERNAL_H */
