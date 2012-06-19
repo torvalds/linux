@@ -593,17 +593,7 @@ static struct usb_driver qmi_wwan_driver = {
 	.disable_hub_initiated_lpm = 1,
 };
 
-static int __init qmi_wwan_init(void)
-{
-	return usb_register(&qmi_wwan_driver);
-}
-module_init(qmi_wwan_init);
-
-static void __exit qmi_wwan_exit(void)
-{
-	usb_deregister(&qmi_wwan_driver);
-}
-module_exit(qmi_wwan_exit);
+module_usb_driver(qmi_wwan_driver);
 
 MODULE_AUTHOR("Bjørn Mork <bjorn@mork.no>");
 MODULE_DESCRIPTION("Qualcomm MSM Interface (QMI) WWAN driver");
