@@ -172,6 +172,7 @@ void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 
 	return ptr;
 }
+EXPORT_SYMBOL(rproc_da_to_va);
 
 int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 {
@@ -1149,6 +1150,9 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	dev_set_name(&rproc->dev, "remoteproc%d", rproc->index);
 
 	atomic_set(&rproc->power, 0);
+
+	/* Set ELF as the default fw_ops handler */
+	rproc->fw_ops = &rproc_elf_fw_ops;
 
 	mutex_init(&rproc->lock);
 

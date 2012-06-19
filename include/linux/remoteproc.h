@@ -369,6 +369,7 @@ enum rproc_state {
  * @priv: private data which belongs to the platform-specific rproc module
  * @ops: platform-specific start/stop rproc handlers
  * @dev: virtual device for refcounting and common remoteproc behavior
+ * @fw_ops: firmware-specific handlers
  * @power: refcount of users who need this rproc powered up
  * @state: state of the device
  * @lock: lock which protects concurrent manipulations of the rproc
@@ -391,6 +392,7 @@ struct rproc {
 	void *priv;
 	const struct rproc_ops *ops;
 	struct device dev;
+	const struct rproc_fw_ops *fw_ops;
 	atomic_t power;
 	unsigned int state;
 	struct mutex lock;
