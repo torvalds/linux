@@ -229,7 +229,13 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			goto out;
 		}
 	} else {
-		memset(help->data, 0, helper->data_len);
+		/* We only allow helper re-assignment of the same sort since
+		 * we cannot reallocate the helper extension area.
+		 */
+		if (help->helper != helper) {
+			RCU_INIT_POINTER(help->helper, NULL);
+			goto out;
+		}
 	}
 
 	rcu_assign_pointer(help->helper, helper);

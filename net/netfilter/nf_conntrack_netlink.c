@@ -1224,19 +1224,12 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 			if (helper->from_nlattr && helpinfo)
 				helper->from_nlattr(helpinfo, ct);
 			return 0;
-		}
-		if (help->helper)
+		} else
 			return -EBUSY;
-		/* need to zero data of old helper */
-		memset(help->data, 0, help->helper->data_len);
-	} else {
-		/* we cannot set a helper for an existing conntrack */
-		return -EOPNOTSUPP;
 	}
 
-	rcu_assign_pointer(help->helper, helper);
-
-	return 0;
+	/* we cannot set a helper for an existing conntrack */
+	return -EOPNOTSUPP;
 }
 
 static inline int
@@ -1634,8 +1627,7 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	return err;
 }
 
-#if defined(CONFIG_NETFILTER_NETLINK_QUEUE) ||	\
-    defined(CONFIG_NETFILTER_NETLINK_QUEUE_MODULE)
+#ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
 static size_t
 ctnetlink_nfqueue_build_size(const struct nf_conn *ct)
 {
@@ -1769,7 +1761,7 @@ static struct nfq_ct_hook ctnetlink_nfqueue_hook = {
 	.seq_adjust	= nf_nat_tcp_seq_adjust,
 #endif
 };
-#endif /* CONFIG_NETFILTER_NETLINK_QUEUE */
+#endif /* CONFIG_NETFILTER_NETLINK_QUEUE_CT */
 
 /***********************************************************************
  * EXPECT
@@ -2575,8 +2567,7 @@ static int __init ctnetlink_init(void)
 		pr_err("ctnetlink_init: cannot register pernet operations\n");
 		goto err_unreg_exp_subsys;
 	}
-#if defined(CONFIG_NETFILTER_NETLINK_QUEUE) ||	\
-    defined(CONFIG_NETFILTER_NETLINK_QUEUE_MODULE)
+#ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
 	/* setup interaction between nf_queue and nf_conntrack_netlink. */
 	RCU_INIT_POINTER(nfq_ct_hook, &ctnetlink_nfqueue_hook);
 #endif
@@ -2597,8 +2588,7 @@ static void __exit ctnetlink_exit(void)
 	unregister_pernet_subsys(&ctnetlink_net_ops);
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
 	nfnetlink_subsys_unregister(&ctnl_subsys);
-#if defined(CONFIG_NETFILTER_NETLINK_QUEUE) ||	\
-    defined(CONFIG_NETFILTER_NETLINK_QUEUE_MODULE)
+#ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
 	RCU_INIT_POINTER(nfq_ct_hook, NULL);
 #endif
 }

@@ -12,14 +12,6 @@ tristate "Netfilter NFACCT over NFNETLINK interface"
 	  If this option is enabled, the kernel will include support
 	  for extended accounting via NFNETLINK.
 
-config NETFILTER_NETLINK_CTHELPER
-tristate "Netfilter CTHELPER over NFNETLINK interface"
-	depends on NETFILTER_ADVANCED
-	select NETFILTER_NETLINK
-	help
-	  If this option is enabled, the kernel will include support
-	  for user-space connection tracking helpers via NFNETLINK.
-
 config NETFILTER_NETLINK_QUEUE
 	tristate "Netfilter NFQUEUE over NFNETLINK interface"
 	depends on NETFILTER_ADVANCED
@@ -342,6 +334,27 @@ config NF_CT_NETLINK_TIMEOUT
 	  policies to flows, instead of using the global timeout policy.
 
 	  If unsure, say `N'.
+
+config NF_CT_NETLINK_HELPER
+	tristate 'Connection tracking helpers in user-space via Netlink'
+	select NETFILTER_NETLINK
+	depends on NF_CT_NETLINK
+	depends on NETFILTER_NETLINK_QUEUE
+	depends on NETFILTER_NETLINK_QUEUE_CT
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables the user-space connection tracking helpers
+	  infrastructure.
+
+	  If unsure, say `N'.
+
+config NETFILTER_NETLINK_QUEUE_CT
+        bool "NFQUEUE integration with Connection Tracking"
+        default n
+        depends on NETFILTER_NETLINK_QUEUE
+	help
+	  If this option is enabled, NFQUEUE can include Connection Tracking
+	  information together with the packet is the enqueued via NFNETLINK.
 
 endif # NF_CONNTRACK
 
