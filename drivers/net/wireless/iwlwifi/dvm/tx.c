@@ -403,6 +403,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	info->driver_data[0] = ctx;
 	info->driver_data[1] = dev_cmd;
+	/* From now on, we cannot access info->control */
 
 	spin_lock(&priv->sta_lock);
 
@@ -1182,7 +1183,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 		}
 
 		/*we can free until ssn % q.n_bd not inclusive */
-		WARN_ON(iwl_reclaim(priv, sta_id, tid, txq_id, ssn, &skbs));
+		WARN_ON_ONCE(iwl_reclaim(priv, sta_id, tid,
+					 txq_id, ssn, &skbs));
 		iwlagn_check_ratid_empty(priv, sta_id, tid);
 		freed = 0;
 
