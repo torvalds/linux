@@ -1977,9 +1977,11 @@ static int drbd_nl_invalidate(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	int retcode;
 
 	/* If there is still bitmap IO pending, probably because of a previous
-	 * resync just being finished, wait for it before requesting a new resync. */
+	 * resync just being finished, wait for it before requesting a new resync.
+	 * Also wait for it's after_state_ch(). */
 	drbd_suspend_io(mdev);
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+	drbd_flush_workqueue(mdev);
 
 	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T), CS_ORDERED);
 
@@ -2018,9 +2020,11 @@ static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_re
 	int retcode;
 
 	/* If there is still bitmap IO pending, probably because of a previous
-	 * resync just being finished, wait for it before requesting a new resync. */
+	 * resync just being finished, wait for it before requesting a new resync.
+	 * Also wait for it's after_state_ch(). */
 	drbd_suspend_io(mdev);
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+	drbd_flush_workqueue(mdev);
 
 	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
 

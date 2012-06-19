@@ -2421,15 +2421,17 @@ static inline void dec_ap_bio(struct drbd_conf *mdev)
 	int ap_bio = atomic_dec_return(&mdev->ap_bio_cnt);
 
 	D_ASSERT(ap_bio >= 0);
+
+	if (ap_bio == 0 && test_bit(BITMAP_IO, &mdev->flags)) {
+		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
+			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
+	}
+
 	/* this currently does wake_up for every dec_ap_bio!
 	 * maybe rather introduce some type of hysteresis?
 	 * e.g. (ap_bio == mxb/2 || ap_bio == 0) ? */
 	if (ap_bio < mxb)
 		wake_up(&mdev->misc_wait);
-	if (ap_bio == 0 && test_bit(BITMAP_IO, &mdev->flags)) {
-		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
-			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
-	}
 }
 
 static inline int drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)
