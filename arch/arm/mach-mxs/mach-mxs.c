@@ -71,6 +71,68 @@ static struct sys_timer imx28_timer = {
 	.init = imx28_timer_init,
 };
 
+enum mac_oui {
+	OUI_FSL,
+	OUI_DENX,
+};
+
+static void __init update_fec_mac_prop(enum mac_oui oui)
+{
+	struct device_node *np, *from = NULL;
+	struct property *oldmac, *newmac;
+	const u32 *ocotp = mxs_get_ocotp();
+	u8 *macaddr;
+	u32 val;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		np = of_find_compatible_node(from, NULL, "fsl,imx28-fec");
+		if (!np)
+			return;
+		from = np;
+
+		newmac = kzalloc(sizeof(*newmac) + 6, GFP_KERNEL);
+		if (!newmac)
+			return;
+		newmac->value = newmac + 1;
+		newmac->length = 6;
+
+		newmac->name = kstrdup("local-mac-address", GFP_KERNEL);
+		if (!newmac->name) {
+			kfree(newmac);
+			return;
+		}
+
+		/*
+		 * OCOTP only stores the last 4 octets for each mac address,
+		 * so hard-code OUI here.
+		 */
+		macaddr = newmac->value;
+		switch (oui) {
+		case OUI_FSL:
+			macaddr[0] = 0x00;
+			macaddr[1] = 0x04;
+			macaddr[2] = 0x9f;
+			break;
+		case OUI_DENX:
+			macaddr[0] = 0xc0;
+			macaddr[1] = 0xe5;
+			macaddr[2] = 0x4e;
+			break;
+		}
+		val = ocotp[i];
+		macaddr[3] = (val >> 16) & 0xff;
+		macaddr[4] = (val >> 8) & 0xff;
+		macaddr[5] = (val >> 0) & 0xff;
+
+		oldmac = of_find_property(np, newmac->name, NULL);
+		if (oldmac)
+			prom_update_property(np, newmac, oldmac);
+		else
+			prom_add_property(np, newmac);
+	}
+}
+
 static void __init imx28_evk_init(void)
 {
 	struct clk *clk;
@@ -79,6 +141,8 @@ static void __init imx28_evk_init(void)
 	clk = clk_get_sys("enet_out", NULL);
 	if (!IS_ERR(clk))
 		clk_prepare_enable(clk);
+
+	update_fec_mac_prop(OUI_FSL);
 }
 
 static void __init mxs_machine_init(void)
