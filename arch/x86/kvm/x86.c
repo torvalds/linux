@@ -6350,7 +6350,7 @@ int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 
 out_free:
 	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
-		vfree(slot->arch.lpage_info[i]);
+		kvm_kvfree(slot->arch.lpage_info[i]);
 		slot->arch.lpage_info[i] = NULL;
 	}
 	return -ENOMEM;
