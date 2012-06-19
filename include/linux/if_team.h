@@ -105,7 +105,6 @@ struct team_option {
 };
 
 struct team_mode {
-	struct list_head list;
 	const char *kind;
 	struct module *owner;
 	size_t priv_size;
@@ -178,8 +177,8 @@ extern int team_options_register(struct team *team,
 extern void team_options_unregister(struct team *team,
 				    const struct team_option *option,
 				    size_t option_count);
-extern int team_mode_register(struct team_mode *mode);
-extern int team_mode_unregister(struct team_mode *mode);
+extern int team_mode_register(const struct team_mode *mode);
+extern void team_mode_unregister(const struct team_mode *mode);
 
 #endif /* __KERNEL__ */
 

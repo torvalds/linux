@@ -108,7 +108,7 @@ static const struct team_mode_ops ab_mode_ops = {
 	.port_leave		= ab_port_leave,
 };
 
-static struct team_mode ab_mode = {
+static const struct team_mode ab_mode = {
 	.kind		= "activebackup",
 	.owner		= THIS_MODULE,
 	.priv_size	= sizeof(struct ab_priv),

@@ -371,13 +371,18 @@ static int team_option_set(struct team *team,
 static LIST_HEAD(mode_list);
 static DEFINE_SPINLOCK(mode_list_lock);
 
-static struct team_mode *__find_mode(const char *kind)
-{
-	struct team_mode *mode;
+struct team_mode_item {
+	struct list_head list;
+	const struct team_mode *mode;
+};
 
-	list_for_each_entry(mode, &mode_list, list) {
-		if (strcmp(mode->kind, kind) == 0)
-			return mode;
+static struct team_mode_item *__find_mode(const char *kind)
+{
+	struct team_mode_item *mitem;
+
+	list_for_each_entry(mitem, &mode_list, list) {
+		if (strcmp(mitem->mode->kind, kind) == 0)
+			return mitem;
 	}
 	return NULL;
 }
@@ -392,49 +397,65 @@ static bool is_good_mode_name(const char *name)
 	return true;
 }
 
-int team_mode_register(struct team_mode *mode)
+int team_mode_register(const struct team_mode *mode)
 {
 	int err = 0;
+	struct team_mode_item *mitem;
 
 	if (!is_good_mode_name(mode->kind) ||
 	    mode->priv_size > TEAM_MODE_PRIV_SIZE)
 		return -EINVAL;
+
+	mitem = kmalloc(sizeof(*mitem), GFP_KERNEL);
+	if (!mitem)
+		return -ENOMEM;
+
 	spin_lock(&mode_list_lock);
 	if (__find_mode(mode->kind)) {
 		err = -EEXIST;
+		kfree(mitem);
 		goto unlock;
 	}
-	list_add_tail(&mode->list, &mode_list);
+	mitem->mode = mode;
+	list_add_tail(&mitem->list, &mode_list);
 unlock:
 	spin_unlock(&mode_list_lock);
 	return err;
 }
 EXPORT_SYMBOL(team_mode_register);
 
-int team_mode_unregister(struct team_mode *mode)
+void team_mode_unregister(const struct team_mode *mode)
 {
+	struct team_mode_item *mitem;
+
 	spin_lock(&mode_list_lock);
-	list_del_init(&mode->list);
+	mitem = __find_mode(mode->kind);
+	if (mitem) {
+		list_del_init(&mitem->list);
+		kfree(mitem);
+	}
 	spin_unlock(&mode_list_lock);
-	return 0;
 }
 EXPORT_SYMBOL(team_mode_unregister);
 
-static struct team_mode *team_mode_get(const char *kind)
+static const struct team_mode *team_mode_get(const char *kind)
 {
-	struct team_mode *mode;
+	struct team_mode_item *mitem;
+	const struct team_mode *mode = NULL;
 
 	spin_lock(&mode_list_lock);
-	mode = __find_mode(kind);
-	if (!mode) {
+	mitem = __find_mode(kind);
+	if (!mitem) {
 		spin_unlock(&mode_list_lock);
 		request_module("team-mode-%s", kind);
 		spin_lock(&mode_list_lock);
-		mode = __find_mode(kind);
+		mitem = __find_mode(kind);
 	}
-	if (mode)
+	if (mitem) {
+		mode = mitem->mode;
 		if (!try_module_get(mode->owner))
 			mode = NULL;
+	}
 
 	spin_unlock(&mode_list_lock);
 	return mode;
@@ -523,7 +544,7 @@ static int __team_change_mode(struct team *team,
 
 static int team_change_mode(struct team *team, const char *kind)
 {
-	struct team_mode *new_mode;
+	const struct team_mode *new_mode;
 	struct net_device *dev = team->dev;
 	int err;
 

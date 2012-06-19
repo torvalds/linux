@@ -148,7 +148,7 @@ static const struct team_mode_ops lb_mode_ops = {
 	.transmit		= lb_transmit,
 };
 
-static struct team_mode lb_mode = {
+static const struct team_mode lb_mode = {
 	.kind		= "loadbalance",
 	.owner		= THIS_MODULE,
 	.priv_size	= sizeof(struct lb_priv),
