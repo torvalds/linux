@@ -1173,7 +1173,6 @@ out_no_resource:
 static int __devexit u300_pmx_remove(struct platform_device *pdev)
 {
 	struct u300_pmx *upmx = platform_get_drvdata(pdev);
-	int i;
 
 	pinctrl_unregister(upmx->pctl);
 	iounmap(upmx->virtbase);
