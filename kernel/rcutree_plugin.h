@@ -2224,6 +2224,7 @@ static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 
 static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 {
+	*cp = '\0';
 }
 
 #endif /* #else #ifdef CONFIG_RCU_FAST_NO_HZ */
