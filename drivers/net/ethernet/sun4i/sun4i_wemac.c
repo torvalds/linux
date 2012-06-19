@@ -296,7 +296,7 @@ __s32 emacrx_WaitDmaFinish(void)
 			local_irq_restore(flags);
 			break;
 		}
-		for(i=0;i<1000;i++);
+		/*for(i=0;i<1000;i++);*/
 		local_irq_restore(flags);
 	}
 
@@ -1269,7 +1269,7 @@ wemac_rx(struct net_device *dev)
 		//add by penggang 20110621
 		if(!Rxcount)
 		{
-			udelay(100);
+			udelay(150); /* 100 */
 			Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
 		}
 
@@ -1568,7 +1568,7 @@ static int wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
 	spin_unlock_irqrestore(&db->lock,flags);
 
 	//    wemac_msleep(db, 1);		/* Wait read complete */
-	udelay(100);
+	udelay(150); /* 100 */
 
 	/* push down the phy io line and read data */
 	spin_lock_irqsave(&db->lock,flags);
@@ -1602,7 +1602,7 @@ static void wemac_phy_write(struct net_device *dev,
 	spin_unlock_irqrestore(&db->lock, flags);
 
 	//wemac_msleep(db, 1);		/* Wait write complete */
-	udelay(100);
+	udelay(150); /* 100 */
 
 	spin_lock_irqsave(&db->lock,flags);
 	/* push down the phy io line */
