@@ -24,19 +24,10 @@ module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage,
 MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a" \
 		" PID filter, if any (default: 0).");
 
-static int dvb_usbv2_download_firmware(struct dvb_usb_device *d)
+static int dvb_usbv2_download_firmware(struct dvb_usb_device *d, const char *name)
 {
 	int ret;
-	const struct firmware *fw = NULL;
-	const char *name;
-
-	/* resolve firmware name */
-	name = d->props->firmware;
-	if (d->props->get_firmware_name) {
-		ret = d->props->get_firmware_name(d, &name);
-		if (ret < 0)
-			goto err;
-	}
+	const struct firmware *fw;
 
 	if (!d->props->download_firmware) {
 		ret = -EINVAL;
@@ -395,7 +386,6 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 	int ret;
 	struct dvb_usb_device *d =
 			container_of(work, struct dvb_usb_device, probe_work);
-	bool cold = false;
 
 	d->work_pid = current->pid;
 
@@ -411,40 +401,42 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 	}
 
 	if (d->props->identify_state) {
-		ret = d->props->identify_state(d);
+		const char *name = NULL;
+		ret = d->props->identify_state(d, &name);
 		if (ret == 0) {
 			;
 		} else if (ret == COLD) {
-			cold = true;
-			ret = 0;
-		} else {
-			goto err_usb_driver_release_interface;
-		}
-	}
+			pr_info("%s: found a '%s' in cold state\n",
+					KBUILD_MODNAME, d->name);
 
-	if (cold) {
-		pr_info("%s: found a '%s' in cold state\n",
-				KBUILD_MODNAME, d->name);
-		ret = dvb_usbv2_download_firmware(d);
-		if (ret == 0) {
-			/* device is warm, continue initialization */
-			;
-		} else if (ret == RECONNECTS_USB) {
-			/*
-			 * USB core will call disconnect() and then probe()
-			 * as device reconnects itself from the USB bus.
-			 * disconnect() will release all driver resources
-			 * and probe() is called for 'new' device. As 'new'
-			 * device is warm we should never go here again.
-			 */
-			return;
+			if (!name)
+				name = d->props->firmware;
+
+			ret = dvb_usbv2_download_firmware(d, name);
+			if (ret == 0) {
+				/* device is warm, continue initialization */
+				;
+			} else if (ret == RECONNECTS_USB) {
+				/*
+				 * USB core will call disconnect() and then
+				 * probe() as device reconnects itself from the
+				 * USB bus. disconnect() will release all driver
+				 * resources and probe() is called for 'new'
+				 * device. As 'new' device is warm we should
+				 * never go here again.
+				 */
+				return;
+			} else {
+				/* Unexpected error. We must unregister driver
+				 * manually from the device, because device is
+				 * already register by returning from probe()
+				 * with success. usb_driver_release_interface()
+				 * finally calls disconnect() in order to free
+				 * resources.
+				 */
+				goto err_usb_driver_release_interface;
+			}
 		} else {
-			/* Unexpected fatal error. We must unregister driver
-			 * manually from the device, because device is already
-			 * register by returning from probe() with success.
-			 * usb_driver_release_interface() finally calls
-			 * disconnect() in order to free resources.
-			 */
 			goto err_usb_driver_release_interface;
 		}
 	}

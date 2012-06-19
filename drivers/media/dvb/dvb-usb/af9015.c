@@ -324,7 +324,7 @@ static struct i2c_algorithm af9015_i2c_algo = {
 	.functionality = af9015_i2c_func,
 };
 
-static int af9015_identify_state(struct dvb_usb_device *d)
+static int af9015_identify_state(struct dvb_usb_device *d, const char **name)
 {
 	int ret;
 	u8 reply;

@@ -182,7 +182,7 @@ static struct i2c_algorithm ec168_i2c_algo = {
 };
 
 /* Callbacks for DVB USB */
-static int ec168_identify_state(struct dvb_usb_device *d)
+static int ec168_identify_state(struct dvb_usb_device *d, const char **name)
 {
 	int ret;
 	u8 reply;

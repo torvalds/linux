@@ -197,12 +197,13 @@ struct dvb_usb_device_properties {
 	struct module *owner;
 	short *adapter_nr;
 	u8 bInterfaceNumber;
-
 	int size_of_priv;
 
+#define WARM                  0
+#define COLD                  1
+	int (*identify_state) (struct dvb_usb_device *, const char **);
 	const char *firmware;
-	int (*get_firmware_name) (struct dvb_usb_device *, const char **);
-#define RECONNECTS_USB                  1
+#define RECONNECTS_USB        1
 	int (*download_firmware) (struct dvb_usb_device *,
 			const struct firmware *);
 
@@ -219,10 +220,6 @@ struct dvb_usb_device_properties {
 	int (*streaming_ctrl) (struct dvb_usb_adapter *, int);
 	int (*fe_ioctl_override) (struct dvb_frontend *,
 			unsigned int, void *, unsigned int);
-
-#define WARM                  0
-#define COLD                  1
-	int (*identify_state) (struct dvb_usb_device *);
 	int (*init) (struct dvb_usb_device *);
 	void (*disconnect) (struct dvb_usb_device *);
 	int (*get_rc_config) (struct dvb_usb_device *, struct dvb_usb_rc *);
