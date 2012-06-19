@@ -48,9 +48,9 @@ struct persistent_ram_zone {
 	size_t old_log_size;
 };
 
-struct persistent_ram_zone * __init persistent_ram_new(phys_addr_t start,
-						       size_t size,
-						       bool ecc);
+struct persistent_ram_zone * __devinit persistent_ram_new(phys_addr_t start,
+							  size_t size,
+							  bool ecc);
 void persistent_ram_free(struct persistent_ram_zone *prz);
 void persistent_ram_zap(struct persistent_ram_zone *prz);
 

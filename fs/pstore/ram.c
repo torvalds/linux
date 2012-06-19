@@ -330,7 +330,7 @@ static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
 	return 0;
 }
 
-static int __init ramoops_probe(struct platform_device *pdev)
+static int __devinit ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata = pdev->dev.platform_data;
@@ -452,6 +452,7 @@ static int __exit ramoops_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ramoops_driver = {
+	.probe		= ramoops_probe,
 	.remove		= __exit_p(ramoops_remove),
 	.driver		= {
 		.name	= "ramoops",
@@ -459,46 +460,46 @@ static struct platform_driver ramoops_driver = {
 	},
 };
 
-static int __init ramoops_init(void)
+static void ramoops_register_dummy(void)
 {
-	int ret;
-	ret = platform_driver_probe(&ramoops_driver, ramoops_probe);
-	if (ret == -ENODEV) {
-		/*
-		 * If we didn't find a platform device, we use module parameters
-		 * building platform data on the fly.
-		 */
-		pr_info("platform device not found, using module parameters\n");
-		dummy_data = kzalloc(sizeof(struct ramoops_platform_data),
-				     GFP_KERNEL);
-		if (!dummy_data)
-			return -ENOMEM;
-		dummy_data->mem_size = mem_size;
-		dummy_data->mem_address = mem_address;
-		dummy_data->record_size = record_size;
-		dummy_data->console_size = ramoops_console_size;
-		dummy_data->dump_oops = dump_oops;
-		dummy_data->ecc = ramoops_ecc;
-		dummy = platform_create_bundle(&ramoops_driver, ramoops_probe,
-			NULL, 0, dummy_data,
-			sizeof(struct ramoops_platform_data));
+	if (!mem_size)
+		return;
 
-		if (IS_ERR(dummy))
-			ret = PTR_ERR(dummy);
-		else
-			ret = 0;
+	pr_info("using module parameters\n");
+
+	dummy_data = kzalloc(sizeof(*dummy_data), GFP_KERNEL);
+	if (!dummy_data) {
+		pr_info("could not allocate pdata\n");
+		return;
 	}
 
-	return ret;
+	dummy_data->mem_size = mem_size;
+	dummy_data->mem_address = mem_address;
+	dummy_data->record_size = record_size;
+	dummy_data->console_size = ramoops_console_size;
+	dummy_data->dump_oops = dump_oops;
+	dummy_data->ecc = ramoops_ecc;
+
+	dummy = platform_device_register_data(NULL, "ramoops", -1,
+			dummy_data, sizeof(struct ramoops_platform_data));
+	if (IS_ERR(dummy)) {
+		pr_info("could not create platform device: %ld\n",
+			PTR_ERR(dummy));
+	}
 }
+
+static int __init ramoops_init(void)
+{
+	ramoops_register_dummy();
+	return platform_driver_register(&ramoops_driver);
+}
+postcore_initcall(ramoops_init);
 
 static void __exit ramoops_exit(void)
 {
 	platform_driver_unregister(&ramoops_driver);
 	kfree(dummy_data);
 }
-
-module_init(ramoops_init);
 module_exit(ramoops_exit);
 
 MODULE_LICENSE("GPL");
