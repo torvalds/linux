@@ -746,9 +746,12 @@ out_ack:
 		 * Interrupt the firmware with the new packets. This is only
 		 * required for older hardware revisions
 		 */
-		if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION)
-			wl1271_write32(wl, WL12XX_HOST_WR_ACCESS,
-				       wl->tx_packets_count);
+		if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION) {
+			ret = wlcore_write32(wl, WL12XX_HOST_WR_ACCESS,
+					     wl->tx_packets_count);
+			if (ret < 0)
+				goto out;
+		}
 
 		wl1271_handle_tx_low_watermark(wl);
 	}
@@ -911,9 +914,11 @@ int wlcore_tx_complete(struct wl1271 *wl)
 	fw_counter = le32_to_cpu(wl->tx_res_if->tx_result_fw_counter);
 
 	/* write host counter to chipset (to ack) */
-	wl1271_write32(wl, le32_to_cpu(memmap->tx_result) +
-		       offsetof(struct wl1271_tx_hw_res_if,
-				tx_result_host_counter), fw_counter);
+	ret = wlcore_write32(wl, le32_to_cpu(memmap->tx_result) +
+			     offsetof(struct wl1271_tx_hw_res_if,
+				      tx_result_host_counter), fw_counter);
+	if (ret < 0)
+		goto out;
 
 	count = fw_counter - wl->tx_results_count;
 	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);

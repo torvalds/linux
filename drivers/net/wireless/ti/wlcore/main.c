@@ -882,7 +882,9 @@ static void wlcore_print_recovery(struct wl1271 *wl)
 		    wl->chip.fw_ver_str);
 
 	/* change partitions momentarily so we can read the FW pc */
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ret < 0)
+		return;
 
 	ret = wlcore_read_reg(wl, REG_PC_ON_RECOVERY, &pc);
 	if (ret < 0)
@@ -967,9 +969,9 @@ out_unlock:
 	mutex_unlock(&wl->mutex);
 }
 
-static void wl1271_fw_wakeup(struct wl1271 *wl)
+static int wlcore_fw_wakeup(struct wl1271 *wl)
 {
-	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_WAKE_UP);
+	return wlcore_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_WAKE_UP);
 }
 
 static int wl1271_setup(struct wl1271 *wl)
@@ -1005,12 +1007,20 @@ static int wl12xx_set_power_on(struct wl1271 *wl)
 	wl1271_io_reset(wl);
 	wl1271_io_init(wl);
 
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ret < 0)
+		goto fail;
 
 	/* ELP module wake up */
-	wl1271_fw_wakeup(wl);
+	ret = wlcore_fw_wakeup(wl);
+	if (ret < 0)
+		goto fail;
 
 out:
+	return ret;
+
+fail:
+	wl1271_power_off(wl);
 	return ret;
 }
 

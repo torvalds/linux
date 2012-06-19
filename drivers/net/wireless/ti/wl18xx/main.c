@@ -641,7 +641,9 @@ static int wl18xx_set_clk(struct wl1271 *wl)
 	u16 clk_freq;
 	int ret;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	if (ret < 0)
+		goto out;
 
 	/* TODO: PG2: apparently we need to read the clk type */
 
@@ -699,13 +701,20 @@ out:
 	return ret;
 }
 
-static void wl18xx_boot_soft_reset(struct wl1271 *wl)
+static int wl18xx_boot_soft_reset(struct wl1271 *wl)
 {
+	int ret;
+
 	/* disable Rx/Tx */
-	wl1271_write32(wl, WL18XX_ENABLE, 0x0);
+	ret = wlcore_write32(wl, WL18XX_ENABLE, 0x0);
+	if (ret < 0)
+		goto out;
 
 	/* disable auto calibration on start*/
-	wl1271_write32(wl, WL18XX_SPARE_A2, 0xffff);
+	ret = wlcore_write32(wl, WL18XX_SPARE_A2, 0xffff);
+
+out:
+	return ret;
 }
 
 static int wl18xx_pre_boot(struct wl1271 *wl)
@@ -717,15 +726,22 @@ static int wl18xx_pre_boot(struct wl1271 *wl)
 		goto out;
 
 	/* Continue the ELP wake up sequence */
-	wl1271_write32(wl, WL18XX_WELP_ARM_COMMAND, WELP_ARM_COMMAND_VAL);
+	ret = wlcore_write32(wl, WL18XX_WELP_ARM_COMMAND, WELP_ARM_COMMAND_VAL);
+	if (ret < 0)
+		goto out;
+
 	udelay(500);
 
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ret < 0)
+		goto out;
 
 	/* Disable interrupts */
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
+	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
+	if (ret < 0)
+		goto out;
 
-	wl18xx_boot_soft_reset(wl);
+	ret = wl18xx_boot_soft_reset(wl);
 
 out:
 	return ret;
@@ -736,10 +752,14 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 	u32 tmp;
 	int ret;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ret < 0)
+		goto out;
 
 	/* TODO: check if this is all needed */
-	wl1271_write32(wl, WL18XX_EEPROMLESS_IND, WL18XX_EEPROMLESS_IND);
+	ret = wlcore_write32(wl, WL18XX_EEPROMLESS_IND, WL18XX_EEPROMLESS_IND);
+	if (ret < 0)
+		goto out;
 
 	ret = wlcore_read_reg(wl, REG_CHIP_ID_B, &tmp);
 	if (ret < 0)
@@ -765,16 +785,21 @@ static int wl18xx_set_mac_and_phy(struct wl1271 *wl)
 	else
 		len = sizeof(struct wl18xx_mac_and_phy_params);
 
-	wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
+	if (ret < 0)
+		goto out;
+
 	ret = wlcore_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&priv->conf.phy,
 			   len, false);
 
+out:
 	return ret;
 }
 
-static void wl18xx_enable_interrupts(struct wl1271 *wl)
+static int wl18xx_enable_interrupts(struct wl1271 *wl)
 {
 	u32 event_mask, intr_mask;
+	int ret;
 
 	if (wl->chip.id == CHIP_ID_185x_PG10) {
 		event_mask = WL18XX_ACX_EVENTS_VECTOR_PG1;
@@ -784,11 +809,17 @@ static void wl18xx_enable_interrupts(struct wl1271 *wl)
 		intr_mask = WL18XX_INTR_MASK_PG2;
 	}
 
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK, event_mask);
+	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK, event_mask);
+	if (ret < 0)
+		goto out;
 
 	wlcore_enable_interrupts(wl);
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK,
-			 WL1271_ACX_INTR_ALL & ~intr_mask);
+
+	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK,
+			       WL1271_ACX_INTR_ALL & ~intr_mask);
+
+out:
+	return ret;
 }
 
 static int wl18xx_boot(struct wl1271 *wl)
@@ -815,7 +846,7 @@ static int wl18xx_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl18xx_enable_interrupts(wl);
+	ret = wl18xx_enable_interrupts(wl);
 
 out:
 	return ret;
@@ -833,9 +864,10 @@ static int wl18xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
 			    WL18XX_CMD_MAX_SIZE, false);
 }
 
-static void wl18xx_ack_event(struct wl1271 *wl)
+static int wl18xx_ack_event(struct wl1271 *wl)
 {
-	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, WL18XX_INTR_TRIG_EVENT_ACK);
+	return wlcore_write_reg(wl, REG_INTERRUPT_TRIG,
+				WL18XX_INTR_TRIG_EVENT_ACK);
 }
 
 static u32 wl18xx_calc_tx_blocks(struct wl1271 *wl, u32 len, u32 spare_blks)
@@ -1038,7 +1070,9 @@ static int wl18xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 	u32 fuse;
 	int ret;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	if (ret < 0)
+		goto out;
 
 	ret = wlcore_read32(wl, WL18XX_REG_FUSE_DATA_1_3, &fuse);
 	if (ret < 0)
@@ -1047,7 +1081,7 @@ static int wl18xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 	if (ver)
 		*ver = (fuse & WL18XX_PG_VER_MASK) >> WL18XX_PG_VER_OFFSET;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
 
 out:
 	return ret;
@@ -1116,7 +1150,11 @@ out:
 
 static int wl18xx_plt_init(struct wl1271 *wl)
 {
-	wl1271_write32(wl, WL18XX_SCR_PAD8, WL18XX_SCR_PAD8_PLT);
+	int ret;
+
+	ret = wlcore_write32(wl, WL18XX_SCR_PAD8, WL18XX_SCR_PAD8_PLT);
+	if (ret < 0)
+		return ret;
 
 	return wl->ops->boot(wl);
 }
@@ -1126,7 +1164,9 @@ static int wl18xx_get_mac(struct wl1271 *wl)
 	u32 mac1, mac2;
 	int ret;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	if (ret < 0)
+		goto out;
 
 	ret = wlcore_read32(wl, WL18XX_REG_FUSE_BD_ADDR_1, &mac1);
 	if (ret < 0)
@@ -1141,7 +1181,7 @@ static int wl18xx_get_mac(struct wl1271 *wl)
 		((mac1 & 0xff000000) >> 24);
 	wl->fuse_nic_addr = (mac1 & 0xffffff);
 
-	wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
 
 out:
 	return ret;

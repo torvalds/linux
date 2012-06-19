@@ -92,11 +92,11 @@ static inline int wlcore_raw_read32(struct wl1271 *wl, int addr, u32 *val)
 	return 0;
 }
 
-static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
+static inline int wlcore_raw_write32(struct wl1271 *wl, int addr, u32 val)
 {
 	wl->buffer_32 = cpu_to_le32(val);
-	wlcore_raw_write(wl, addr, &wl->buffer_32,
-			     sizeof(wl->buffer_32), false);
+	return wlcore_raw_write(wl, addr, &wl->buffer_32,
+				sizeof(wl->buffer_32), false);
 }
 
 static inline int wlcore_read(struct wl1271 *wl, int addr, void *buf,
@@ -150,9 +150,9 @@ static inline int wlcore_read32(struct wl1271 *wl, int addr, u32 *val)
 	return wlcore_raw_read32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
-static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
+static inline int wlcore_write32(struct wl1271 *wl, int addr, u32 val)
 {
-	wl1271_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
+	return wlcore_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
 static inline int wlcore_read_reg(struct wl1271 *wl, int reg, u32 *val)
@@ -162,9 +162,11 @@ static inline int wlcore_read_reg(struct wl1271 *wl, int reg, u32 *val)
 				 val);
 }
 
-static inline void wlcore_write_reg(struct wl1271 *wl, int reg, u32 val)
+static inline int wlcore_write_reg(struct wl1271 *wl, int reg, u32 val)
 {
-	wl1271_raw_write32(wl, wlcore_translate_addr(wl, wl->rtable[reg]), val);
+	return wlcore_raw_write32(wl,
+				  wlcore_translate_addr(wl, wl->rtable[reg]),
+				  val);
 }
 
 static inline void wl1271_power_off(struct wl1271 *wl)
@@ -188,15 +190,13 @@ static inline int wl1271_power_on(struct wl1271 *wl)
 	return ret;
 }
 
-void wlcore_set_partition(struct wl1271 *wl,
-			  const struct wlcore_partition_set *p);
+int wlcore_set_partition(struct wl1271 *wl,
+			 const struct wlcore_partition_set *p);
 
 bool wl1271_set_block_size(struct wl1271 *wl);
 
 /* Functions from wl1271_main.c */
 
 int wl1271_tx_dummy_packet(struct wl1271 *wl);
-
-void wlcore_select_partition(struct wl1271 *wl, u8 part);
 
 #endif

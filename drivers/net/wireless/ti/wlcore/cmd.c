@@ -116,7 +116,11 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		goto fail;
 	}
 
-	wlcore_write_reg(wl, REG_INTERRUPT_ACK, WL1271_ACX_INTR_CMD_COMPLETE);
+	ret = wlcore_write_reg(wl, REG_INTERRUPT_ACK,
+			       WL1271_ACX_INTR_CMD_COMPLETE);
+	if (ret < 0)
+		goto fail;
+
 	return 0;
 
 fail:

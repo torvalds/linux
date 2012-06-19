@@ -43,7 +43,7 @@ struct wlcore_ops {
 	int (*plt_init)(struct wl1271 *wl);
 	int (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
 			   void *buf, size_t len);
-	void (*ack_event)(struct wl1271 *wl);
+	int (*ack_event)(struct wl1271 *wl);
 	u32 (*calc_tx_blocks)(struct wl1271 *wl, u32 len, u32 spare_blks);
 	void (*set_tx_desc_blocks)(struct wl1271 *wl,
 				   struct wl1271_tx_hw_descr *desc,

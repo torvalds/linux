@@ -45,7 +45,7 @@ static int wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 
 	/* 10.5.1 run the firmware (II) */
 	cpu_ctrl |= flag;
-	wlcore_write_reg(wl, REG_ECPU_CONTROL, cpu_ctrl);
+	ret = wlcore_write_reg(wl, REG_ECPU_CONTROL, cpu_ctrl);
 
 out:
 	return ret;
@@ -139,7 +139,9 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 
 	memcpy(&partition, &wl->ptable[PART_DOWN], sizeof(partition));
 	partition.mem.start = dest;
-	wlcore_set_partition(wl, &partition);
+	ret = wlcore_set_partition(wl, &partition);
+	if (ret < 0)
+		return ret;
 
 	/* 10.1 set partition limit and chunk num */
 	chunk_num = 0;
@@ -153,7 +155,9 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 			partition_limit = chunk_num * CHUNK_SIZE +
 				wl->ptable[PART_DOWN].mem.size;
 			partition.mem.start = addr;
-			wlcore_set_partition(wl, &partition);
+			ret = wlcore_set_partition(wl, &partition);
+			if (ret < 0)
+				return ret;
 		}
 
 		/* 10.3 upload the chunk */
@@ -320,7 +324,9 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 			wl1271_debug(DEBUG_BOOT,
 				     "nvs burst write 0x%x: 0x%x",
 				     dest_addr, val);
-			wl1271_write32(wl, dest_addr, val);
+			ret = wlcore_write32(wl, dest_addr, val);
+			if (ret < 0)
+				return ret;
 
 			nvs_ptr += 4;
 			dest_addr += 4;
@@ -346,7 +352,9 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	nvs_len -= nvs_ptr - (u8 *)wl->nvs;
 
 	/* Now we must set the partition correctly */
-	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+	if (ret < 0)
+		return ret;
 
 	/* Copy the NVS tables to a new block to ensure alignment */
 	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL);
@@ -372,7 +380,9 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	u32 chip_id, intr;
 
 	/* Make sure we have the boot partition */
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ret < 0)
+		return ret;
 
 	ret = wl1271_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
 	if (ret < 0)
@@ -404,8 +414,10 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 		}
 		/* check that ACX_INTR_INIT_COMPLETE is enabled */
 		else if (intr & WL1271_ACX_INTR_INIT_COMPLETE) {
-			wlcore_write_reg(wl, REG_INTERRUPT_ACK,
-					 WL1271_ACX_INTR_INIT_COMPLETE);
+			ret = wlcore_write_reg(wl, REG_INTERRUPT_ACK,
+					       WL1271_ACX_INTR_INIT_COMPLETE);
+			if (ret < 0)
+				return ret;
 			break;
 		}
 	}
@@ -469,9 +481,9 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	}
 
 	/* set the working partition to its "running" mode offset */
-	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
 
 	/* firmware startup completed */
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(wlcore_boot_run_firmware);

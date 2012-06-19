@@ -38,14 +38,14 @@ int wl18xx_top_reg_write(struct wl1271 *wl, int addr, u16 val)
 			goto out;
 
 		tmp = (tmp & 0xffff0000) | val;
-		wl1271_write32(wl, addr, tmp);
+		ret = wlcore_write32(wl, addr, tmp);
 	} else {
 		ret = wlcore_read32(wl, addr - 2, &tmp);
 		if (ret < 0)
 			goto out;
 
 		tmp = (tmp & 0xffff) | (val << 16);
-		wl1271_write32(wl, addr - 2, tmp);
+		ret = wlcore_write32(wl, addr - 2, tmp);
 	}
 
 out:
