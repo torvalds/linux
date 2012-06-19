@@ -83,6 +83,11 @@ enum team_option_type {
 	TEAM_OPTION_TYPE_BOOL,
 };
 
+struct team_option_inst_info {
+	u32 array_index;
+	struct team_port *port; /* != NULL if per-port */
+};
+
 struct team_gsetter_ctx {
 	union {
 		u32 u32_val;
@@ -93,8 +98,7 @@ struct team_gsetter_ctx {
 		} bin_val;
 		bool bool_val;
 	} data;
-	u32 array_index;
-	struct team_port *port;
+	struct team_option_inst_info *info;
 };
 
 struct team_option {
@@ -103,6 +107,7 @@ struct team_option {
 	bool per_port;
 	unsigned int array_size; /* != 0 means the option is array */
 	enum team_option_type type;
+	int (*init)(struct team *team, struct team_option_inst_info *info);
 	int (*getter)(struct team *team, struct team_gsetter_ctx *ctx);
 	int (*setter)(struct team *team, struct team_gsetter_ctx *ctx);
 };
