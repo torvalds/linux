@@ -904,10 +904,13 @@ int i915_reset(struct drm_device *dev)
 		i915_gem_context_init(dev);
 		i915_gem_init_ppgtt(dev);
 
-		mutex_unlock(&dev->struct_mutex);
+		/*
+		 * It would make sense to re-init all the other hw state, at
+		 * least the rps/rc6/emon init done within modeset_init_hw. For
+		 * some unknown reason, this blows up my ilk, so don't.
+		 */
 
-		if (drm_core_check_feature(dev, DRIVER_MODESET))
-			intel_modeset_init_hw(dev);
+		mutex_unlock(&dev->struct_mutex);
 
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
