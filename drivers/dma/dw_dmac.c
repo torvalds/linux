@@ -191,6 +191,21 @@ static void dwc_initialize(struct dw_dma_chan *dwc)
 
 /*----------------------------------------------------------------------*/
 
+static inline unsigned int dwc_fast_fls(unsigned long long v)
+{
+	/*
+	 * We can be a lot more clever here, but this should take care
+	 * of the most common optimization.
+	 */
+	if (!(v & 7))
+		return 3;
+	else if (!(v & 3))
+		return 2;
+	else if (!(v & 1))
+		return 1;
+	return 0;
+}
+
 static void dwc_dump_chan_regs(struct dw_dma_chan *dwc)
 {
 	dev_err(chan2dev(&dwc->chan),
@@ -641,18 +656,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 	}
 
-	/*
-	 * We can be a lot more clever here, but this should take care
-	 * of the most common optimization.
-	 */
-	if (!((src | dest  | len) & 7))
-		src_width = dst_width = 3;
-	else if (!((src | dest  | len) & 3))
-		src_width = dst_width = 2;
-	else if (!((src | dest | len) & 1))
-		src_width = dst_width = 1;
-	else
-		src_width = dst_width = 0;
+	src_width = dst_width = dwc_fast_fls(src | dest | len);
 
 	ctllo = DWC_DEFAULT_CTLLO(chan)
 			| DWC_CTLL_DST_WIDTH(dst_width)
@@ -752,14 +756,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
-			if (!((mem | len) & 7))
-				mem_width = 3;
-			else if (!((mem | len) & 3))
-				mem_width = 2;
-			else if (!((mem | len) & 1))
-				mem_width = 1;
-			else
-				mem_width = 0;
+			mem_width = dwc_fast_fls(mem | len);
 
 slave_sg_todev_fill_desc:
 			desc = dwc_desc_get(dwc);
@@ -819,14 +816,7 @@ slave_sg_todev_fill_desc:
 			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
-			if (!((mem | len) & 7))
-				mem_width = 3;
-			else if (!((mem | len) & 3))
-				mem_width = 2;
-			else if (!((mem | len) & 1))
-				mem_width = 1;
-			else
-				mem_width = 0;
+			mem_width = dwc_fast_fls(mem | len);
 
 slave_sg_fromdev_fill_desc:
 			desc = dwc_desc_get(dwc);
