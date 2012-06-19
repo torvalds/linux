@@ -1900,8 +1900,10 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PCICFG_LINK_SPEED		0xf0000
 #define PCICFG_LINK_SPEED_SHIFT		16
 
-
-#define BNX2X_NUM_TESTS			8
+#define BNX2X_NUM_TESTS_SF		7
+#define BNX2X_NUM_TESTS_MF		3
+#define BNX2X_NUM_TESTS(bp)		(IS_MF(bp) ? BNX2X_NUM_TESTS_MF : \
+						     BNX2X_NUM_TESTS_SF)
 
 #define BNX2X_PHY_LOOPBACK		0
 #define BNX2X_MAC_LOOPBACK		1
