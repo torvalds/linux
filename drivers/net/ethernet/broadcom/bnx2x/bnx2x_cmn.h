@@ -94,7 +94,7 @@ void bnx2x_send_unload_done(struct bnx2x *bp);
  * @config_hash:	re-configure RSS hash keys configuration
  */
 int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
-			u8 *ind_table, bool config_hash);
+			bool config_hash);
 
 /**
  * bnx2x__init_func_obj - init function object
@@ -865,11 +865,9 @@ static inline int func_by_vn(struct bnx2x *bp, int vn)
 	return 2 * vn + BP_PORT(bp);
 }
 
-static inline int bnx2x_config_rss_eth(struct bnx2x *bp, u8 *ind_table,
-				       bool config_hash)
+static inline int bnx2x_config_rss_eth(struct bnx2x *bp, bool config_hash)
 {
-	return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, ind_table,
-				   config_hash);
+	return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, config_hash);
 }
 
 /**

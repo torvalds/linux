@@ -1666,14 +1666,13 @@ static void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 static int bnx2x_init_rss_pf(struct bnx2x *bp)
 {
 	int i;
-	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
 	u8 num_eth_queues = BNX2X_NUM_ETH_QUEUES(bp);
 
 	/* Prepare the initial contents fo the indirection table if RSS is
 	 * enabled
 	 */
-	for (i = 0; i < sizeof(ind_table); i++)
-		ind_table[i] =
+	for (i = 0; i < sizeof(bp->rss_conf_obj.ind_table); i++)
+		bp->rss_conf_obj.ind_table[i] =
 			bp->fp->cl_id +
 			ethtool_rxfh_indir_default(i, num_eth_queues);
 
@@ -1685,12 +1684,11 @@ static int bnx2x_init_rss_pf(struct bnx2x *bp)
 	 * For 57712 and newer on the other hand it's a per-function
 	 * configuration.
 	 */
-	return bnx2x_config_rss_eth(bp, ind_table,
-				    bp->port.pmf || !CHIP_IS_E1x(bp));
+	return bnx2x_config_rss_eth(bp, bp->port.pmf || !CHIP_IS_E1x(bp));
 }
 
 int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
-			u8 *ind_table, bool config_hash)
+			bool config_hash)
 {
 	struct bnx2x_config_rss_params params = {NULL};
 	int i;
@@ -1713,11 +1711,15 @@ int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 	__set_bit(BNX2X_RSS_IPV4_TCP, &params.rss_flags);
 	__set_bit(BNX2X_RSS_IPV6, &params.rss_flags);
 	__set_bit(BNX2X_RSS_IPV6_TCP, &params.rss_flags);
+	if (rss_obj->udp_rss_v4)
+		__set_bit(BNX2X_RSS_IPV4_UDP, &params.rss_flags);
+	if (rss_obj->udp_rss_v6)
+		__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
 
 	/* Hash bits */
 	params.rss_result_mask = MULTI_MASK;
 
-	memcpy(params.ind_table, ind_table, sizeof(params.ind_table));
+	memcpy(params.ind_table, rss_obj->ind_table, sizeof(params.ind_table));
 
 	if (config_hash) {
 		/* RSS keys */

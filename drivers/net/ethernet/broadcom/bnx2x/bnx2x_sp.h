@@ -694,8 +694,10 @@ enum {
 
 	BNX2X_RSS_IPV4,
 	BNX2X_RSS_IPV4_TCP,
+	BNX2X_RSS_IPV4_UDP,
 	BNX2X_RSS_IPV6,
 	BNX2X_RSS_IPV6_TCP,
+	BNX2X_RSS_IPV6_UDP,
 };
 
 struct bnx2x_config_rss_params {
@@ -728,6 +730,10 @@ struct bnx2x_rss_config_obj {
 
 	/* Last configured indirection table */
 	u8			ind_table[T_ETH_INDIRECTION_TABLE_SIZE];
+
+	/* flags for enabling 4-tupple hash on UDP */
+	u8			udp_rss_v4;
+	u8			udp_rss_v6;
 
 	int (*config_rss)(struct bnx2x *bp,
 			  struct bnx2x_config_rss_params *p);
