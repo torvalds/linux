@@ -260,7 +260,7 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 	if (!cxt->przs)
 		return;
 
-	for (i = 0; cxt->przs[i]; i++)
+	for (i = 0; !IS_ERR_OR_NULL(cxt->przs[i]); i++)
 		persistent_ram_free(cxt->przs[i]);
 	kfree(cxt->przs);
 }
