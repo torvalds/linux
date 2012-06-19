@@ -11813,13 +11813,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	max_non_def_sbs = bnx2x_get_num_non_def_sbs(pdev);
 
-	/* !!! FIXME !!!
-	 * Do not allow the maximum SB count to grow above 16
-	 * since Special CIDs starts from 16*BNX2X_MULTI_TX_COS=48.
-	 * We will use the FP_SB_MAX_E1x macro for this matter.
-	 */
-	max_non_def_sbs = min_t(int, FP_SB_MAX_E1x, max_non_def_sbs);
-
 	WARN_ON(!max_non_def_sbs);
 
 	/* Maximum number of RSS queues: one IGU SB goes to CNIC */
@@ -11841,9 +11834,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	bp = netdev_priv(dev);
 
-	BNX2X_DEV_INFO("Allocated netdev with %d tx and %d rx queues\n",
-			  tx_count, rx_count);
-
 	bp->igu_sb_cnt = max_non_def_sbs;
 	bp->msg_enable = debug;
 	pci_set_drvdata(pdev, dev);
@@ -11855,6 +11845,9 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	}
 
 	BNX2X_DEV_INFO("max_non_def_sbs %d\n", max_non_def_sbs);
+
+	BNX2X_DEV_INFO("Allocated netdev with %d tx and %d rx queues\n",
+			  tx_count, rx_count);
 
 	rc = bnx2x_init_bp(bp);
 	if (rc)
