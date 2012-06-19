@@ -427,11 +427,17 @@ static int __devinit persistent_ram_post_init(struct persistent_ram_zone *prz,
 
 void persistent_ram_free(struct persistent_ram_zone *prz)
 {
-	if (pfn_valid(prz->paddr >> PAGE_SHIFT)) {
-		vunmap(prz->vaddr);
-	} else {
-		iounmap(prz->vaddr);
-		release_mem_region(prz->paddr, prz->size);
+	if (!prz)
+		return;
+
+	if (prz->vaddr) {
+		if (pfn_valid(prz->paddr >> PAGE_SHIFT)) {
+			vunmap(prz->vaddr);
+		} else {
+			iounmap(prz->vaddr);
+			release_mem_region(prz->paddr, prz->size);
+		}
+		prz->vaddr = NULL;
 	}
 	persistent_ram_free_old(prz);
 	kfree(prz);
@@ -454,10 +460,12 @@ struct persistent_ram_zone * __devinit persistent_ram_new(phys_addr_t start,
 	if (ret)
 		goto err;
 
-	persistent_ram_post_init(prz, ecc);
+	ret = persistent_ram_post_init(prz, ecc);
+	if (ret)
+		goto err;
 
 	return prz;
 err:
-	kfree(prz);
+	persistent_ram_free(prz);
 	return ERR_PTR(ret);
 }
