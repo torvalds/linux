@@ -1959,7 +1959,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	unsigned char *packet;
 	struct bnx2x_fastpath *fp_rx = &bp->fp[0];
 	struct bnx2x_fastpath *fp_tx = &bp->fp[0];
-	struct bnx2x_fp_txdata *txdata = &fp_tx->txdata[0];
+	struct bnx2x_fp_txdata *txdata = fp_tx->txdata_ptr[0];
 	u16 tx_start_idx, tx_idx;
 	u16 rx_start_idx, rx_idx;
 	u16 pkt_prod, bd_prod;

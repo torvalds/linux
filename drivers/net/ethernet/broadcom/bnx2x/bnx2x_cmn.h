@@ -728,7 +728,7 @@ static inline bool bnx2x_has_tx_work(struct bnx2x_fastpath *fp)
 {
 	u8 cos;
 	for_each_cos_in_tx_queue(fp, cos)
-		if (bnx2x_tx_queue_has_work(&fp->txdata[cos]))
+		if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
 			return true;
 	return false;
 }
@@ -1066,12 +1066,14 @@ static inline u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp)
 }
 
 static inline void bnx2x_init_txdata(struct bnx2x *bp,
-	struct bnx2x_fp_txdata *txdata, u32 cid, int txq_index,
-	__le16 *tx_cons_sb)
+				     struct bnx2x_fp_txdata *txdata, u32 cid,
+				     int txq_index, __le16 *tx_cons_sb,
+				     struct bnx2x_fastpath *fp)
 {
 	txdata->cid = cid;
 	txdata->txq_index = txq_index;
 	txdata->tx_cons_sb = tx_cons_sb;
+	txdata->parent_fp = fp;
 
 	DP(NETIF_MSG_IFUP, "created tx data cid %d, txq %d\n",
 	   txdata->cid, txdata->txq_index);
@@ -1114,9 +1116,9 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	bnx2x_fcoe(bp, fw_sb_id) = DEF_SB_ID;
 	bnx2x_fcoe(bp, igu_sb_id) = bp->igu_dsb_id;
 	bnx2x_fcoe(bp, rx_cons_sb) = BNX2X_FCOE_L2_RX_INDEX;
-
-	bnx2x_init_txdata(bp, &bnx2x_fcoe(bp, txdata[0]),
-			  fp->cid, FCOE_TXQ_IDX(bp), BNX2X_FCOE_L2_TX_INDEX);
+	bnx2x_init_txdata(bp, bnx2x_fcoe(bp, txdata_ptr[0]),
+			  fp->cid, FCOE_TXQ_IDX(bp), BNX2X_FCOE_L2_TX_INDEX,
+			  fp);
 
 	DP(NETIF_MSG_IFUP, "created fcoe tx data (fp index %d)\n", fp->index);
 

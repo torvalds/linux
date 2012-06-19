@@ -1432,7 +1432,7 @@ static void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 					query[first_queue_query_index + i];
 
 		cur_query_entry->kind = STATS_TYPE_QUEUE;
-		cur_query_entry->index = bnx2x_stats_id(&bp->fp[FCOE_IDX]);
+		cur_query_entry->index = bnx2x_stats_id(&bp->fp[FCOE_IDX(bp)]);
 		cur_query_entry->funcID = cpu_to_le16(BP_FUNC(bp));
 		cur_query_entry->address.hi =
 			cpu_to_le32(U64_HI(cur_data_offset));
@@ -1573,7 +1573,7 @@ void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
 	struct afex_stats *afex_stats = (struct afex_stats *)void_afex_stats;
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
 	struct per_queue_stats *fcoe_q_stats =
-		&bp->fw_stats_data->queue_stats[FCOE_IDX];
+		&bp->fw_stats_data->queue_stats[FCOE_IDX(bp)];
 
 	struct tstorm_per_queue_stats *fcoe_q_tstorm_stats =
 		&fcoe_q_stats->tstorm_queue_statistics;

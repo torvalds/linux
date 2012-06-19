@@ -758,7 +758,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 		/* Tx */
 		for_each_cos_in_tx_queue(fp, cos)
 		{
-			txdata = fp->txdata[cos];
+			txdata = *fp->txdata_ptr[cos];
 			BNX2X_ERR("fp%d: tx_pkt_prod(0x%x)  tx_pkt_cons(0x%x)  tx_bd_prod(0x%x)  tx_bd_cons(0x%x)  *tx_cons_sb(0x%x)\n",
 				  i, txdata.tx_pkt_prod,
 				  txdata.tx_pkt_cons, txdata.tx_bd_prod,
@@ -876,7 +876,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 	for_each_tx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 		for_each_cos_in_tx_queue(fp, cos) {
-			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
+			struct bnx2x_fp_txdata *txdata = fp->txdata_ptr[cos];
 
 			start = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) - 10);
 			end = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) + 245);
@@ -1710,7 +1710,7 @@ irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 			/* Handle Rx or Tx according to SB id */
 			prefetch(fp->rx_cons_sb);
 			for_each_cos_in_tx_queue(fp, cos)
-				prefetch(fp->txdata[cos].tx_cons_sb);
+				prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 			prefetch(&fp->sb_running_index[SM_RX_ID]);
 			napi_schedule(&bnx2x_fp(bp, fp->index, napi));
 			status &= ~mask;
@@ -2921,7 +2921,7 @@ static void bnx2x_pf_tx_q_prep(struct bnx2x *bp,
 	struct bnx2x_fastpath *fp, struct bnx2x_txq_setup_params *txq_init,
 	u8 cos)
 {
-	txq_init->dscr_map = fp->txdata[cos].tx_desc_mapping;
+	txq_init->dscr_map = fp->txdata_ptr[cos]->tx_desc_mapping;
 	txq_init->sb_cq_index = HC_INDEX_ETH_FIRST_TX_CQ_CONS + cos;
 	txq_init->traffic_type = LLFC_TRAFFIC_TYPE_NW;
 	txq_init->fw_sb_id = fp->fw_sb_id;
@@ -3068,11 +3068,11 @@ static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
 	/* insert FCoE stats from ramrod response */
 	if (!NO_FCOE(bp)) {
 		struct tstorm_per_queue_stats *fcoe_q_tstorm_stats =
-			&bp->fw_stats_data->queue_stats[FCOE_IDX].
+			&bp->fw_stats_data->queue_stats[FCOE_IDX(bp)].
 			tstorm_queue_statistics;
 
 		struct xstorm_per_queue_stats *fcoe_q_xstorm_stats =
-			&bp->fw_stats_data->queue_stats[FCOE_IDX].
+			&bp->fw_stats_data->queue_stats[FCOE_IDX(bp)].
 			xstorm_queue_statistics;
 
 		struct fcoe_statistics_params *fw_fcoe_stat =
@@ -4741,7 +4741,7 @@ static void bnx2x_after_function_update(struct bnx2x *bp)
 
 #ifdef BCM_CNIC
 	if (!NO_FCOE(bp)) {
-		fp = &bp->fp[FCOE_IDX];
+		fp = &bp->fp[FCOE_IDX(bp)];
 		queue_params.q_obj = &fp->q_obj;
 
 		/* clear pending completion bit */
@@ -4778,7 +4778,7 @@ static struct bnx2x_queue_sp_obj *bnx2x_cid_to_q_obj(
 		return &bnx2x_fcoe(bp, q_obj);
 	else
 #endif
-		return &bnx2x_fp(bp, CID_TO_FP(cid), q_obj);
+		return &bnx2x_fp(bp, CID_TO_FP(cid, bp), q_obj);
 }
 
 static void bnx2x_eq_int(struct bnx2x *bp)
@@ -5660,11 +5660,11 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 
 	/* init tx data */
 	for_each_cos_in_tx_queue(fp, cos) {
-		bnx2x_init_txdata(bp, &fp->txdata[cos],
-				  CID_COS_TO_TX_ONLY_CID(fp->cid, cos),
-				  FP_COS_TO_TXQ(fp, cos),
-				  BNX2X_TX_SB_INDEX_BASE + cos);
-		cids[cos] = fp->txdata[cos].cid;
+		bnx2x_init_txdata(bp, fp->txdata_ptr[cos],
+				  CID_COS_TO_TX_ONLY_CID(fp->cid, cos, bp),
+				  FP_COS_TO_TXQ(fp, cos, bp),
+				  BNX2X_TX_SB_INDEX_BASE + cos, fp);
+		cids[cos] = fp->txdata_ptr[cos]->cid;
 	}
 
 	bnx2x_init_queue_obj(bp, &fp->q_obj, fp->cl_id, cids, fp->max_cos,
@@ -5719,7 +5719,7 @@ static void bnx2x_init_tx_rings(struct bnx2x *bp)
 
 	for_each_tx_queue(bp, i)
 		for_each_cos_in_tx_queue(&bp->fp[i], cos)
-			bnx2x_init_tx_ring_one(&bp->fp[i].txdata[cos]);
+			bnx2x_init_tx_ring_one(bp->fp[i].txdata_ptr[cos]);
 }
 
 void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
@@ -7807,8 +7807,8 @@ static void bnx2x_pf_q_prep_init(struct bnx2x *bp,
 
 	/* set the context pointers queue object */
 	for (cos = FIRST_TX_COS_INDEX; cos < init_params->max_cos; cos++) {
-		cxt_index = fp->txdata[cos].cid / ILT_PAGE_CIDS;
-		cxt_offset = fp->txdata[cos].cid - (cxt_index *
+		cxt_index = fp->txdata_ptr[cos]->cid / ILT_PAGE_CIDS;
+		cxt_offset = fp->txdata_ptr[cos]->cid - (cxt_index *
 				ILT_PAGE_CIDS);
 		init_params->cxts[cos] =
 			&bp->context[cxt_index].vcxt[cxt_offset].eth;
@@ -7961,7 +7961,7 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 	     tx_index++){
 
 		/* ascertain this is a normal queue*/
-		txdata = &fp->txdata[tx_index];
+		txdata = fp->txdata_ptr[tx_index];
 
 		DP(NETIF_MSG_IFDOWN, "stopping tx-only queue %d\n",
 							txdata->txq_index);
@@ -8328,7 +8328,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		for_each_cos_in_tx_queue(fp, cos)
-			rc = bnx2x_clean_tx_queue(bp, &fp->txdata[cos]);
+			rc = bnx2x_clean_tx_queue(bp, fp->txdata_ptr[cos]);
 #ifdef BNX2X_STOP_ON_ERROR
 		if (rc)
 			return;
@@ -11769,7 +11769,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	struct bnx2x *bp;
 	int pcie_width, pcie_speed;
 	int rc, max_non_def_sbs;
-	int rx_count, tx_count, rss_count;
+	int rx_count, tx_count, rss_count, doorbell_size;
 	/*
 	 * An estimated maximum supported CoS number according to the chip
 	 * version.
@@ -11863,8 +11863,10 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	 * Map doorbels here as we need the real value of bp->max_cos which
 	 * is initialized in bnx2x_init_bp().
 	 */
+	doorbell_size = (rss_count * max_cos_est + NON_ETH_CONTEXT_USE +
+			 CNIC_PRESENT) * (1 << BNX2X_DB_SHIFT);
 	bp->doorbells = ioremap_nocache(pci_resource_start(pdev, 2),
-					min_t(u64, BNX2X_DB_SIZE(bp),
+					min_t(u64, doorbell_size,
 					      pci_resource_len(pdev, 2)));
 	if (!bp->doorbells) {
 		dev_err(&bp->pdev->dev,

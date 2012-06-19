@@ -276,29 +276,32 @@ enum {
 #define FIRST_TX_ONLY_COS_INDEX		1
 #define FIRST_TX_COS_INDEX		0
 
-/* defines for decodeing the fastpath index and the cos index out of the
- * transmission queue index
- */
 #define MAX_TXQS_PER_COS	FP_SB_MAX_E1x
 
-#define TXQ_TO_FP(txq_index)	((txq_index) % MAX_TXQS_PER_COS)
-#define TXQ_TO_COS(txq_index)	((txq_index) / MAX_TXQS_PER_COS)
-
 /* rules for calculating the cids of tx-only connections */
-#define CID_TO_FP(cid)		((cid) % MAX_TXQS_PER_COS)
-#define CID_COS_TO_TX_ONLY_CID(cid, cos)	(cid + cos * MAX_TXQS_PER_COS)
+#define CID_TO_FP(cid, bp)		((cid) % BNX2X_NUM_NON_CNIC_QUEUES(bp))
+#define CID_COS_TO_TX_ONLY_CID(cid, cos, bp) \
+				(cid + cos * BNX2X_NUM_NON_CNIC_QUEUES(bp))
 
 /* fp index inside class of service range */
-#define FP_COS_TO_TXQ(fp, cos)    ((fp)->index + cos * MAX_TXQS_PER_COS)
+#define FP_COS_TO_TXQ(fp, cos, bp) \
+			((fp)->index + cos * BNX2X_NUM_NON_CNIC_QUEUES(bp))
 
-/*
- * 0..15 eth cos0
- * 16..31 eth cos1 if applicable
- * 32..47 eth cos2 If applicable
- * fcoe queue follows eth queues (16, 32, 48 depending on cos)
+/* Indexes for transmission queues array:
+ * txdata for RSS i CoS j is at location i + (j * num of RSS)
+ * txdata for FCoE (if exist) is at location max cos * num of RSS
+ * txdata for FWD (if exist) is one location after FCoE
+ * txdata for OOO (if exist) is one location after FWD
  */
-#define MAX_ETH_TXQ_IDX(bp)	(MAX_TXQS_PER_COS * (bp)->max_cos)
-#define FCOE_TXQ_IDX(bp)	(MAX_ETH_TXQ_IDX(bp))
+enum {
+	FCOE_TXQ_IDX_OFFSET,
+	FWD_TXQ_IDX_OFFSET,
+	OOO_TXQ_IDX_OFFSET,
+};
+#define MAX_ETH_TXQ_IDX(bp)	(BNX2X_NUM_NON_CNIC_QUEUES(bp) * (bp)->max_cos)
+#ifdef BCM_CNIC
+#define FCOE_TXQ_IDX(bp)	(MAX_ETH_TXQ_IDX(bp) + FCOE_TXQ_IDX_OFFSET)
+#endif
 
 /* fast path */
 /*
@@ -481,6 +484,8 @@ struct bnx2x_fp_txdata {
 	__le16			*tx_cons_sb;
 
 	int			txq_index;
+	struct bnx2x_fastpath	*parent_fp;
+	int			tx_ring_size;
 };
 
 enum bnx2x_tpa_mode_t {
@@ -507,7 +512,7 @@ struct bnx2x_fastpath {
 	enum bnx2x_tpa_mode_t	mode;
 
 	u8			max_cos; /* actual number of active tx coses */
-	struct bnx2x_fp_txdata	txdata[BNX2X_MULTI_TX_COS];
+	struct bnx2x_fp_txdata	*txdata_ptr[BNX2X_MULTI_TX_COS];
 
 	struct sw_rx_bd		*rx_buf_ring;	/* BDs mappings ring */
 	struct sw_rx_page	*rx_page_ring;	/* SGE pages mappings ring */
@@ -579,19 +584,22 @@ struct bnx2x_fastpath {
 /* Use 2500 as a mini-jumbo MTU for FCoE */
 #define BNX2X_FCOE_MINI_JUMBO_MTU	2500
 
-/* FCoE L2 `fastpath' entry is right after the eth entries */
-#define FCOE_IDX			BNX2X_NUM_ETH_QUEUES(bp)
-#define bnx2x_fcoe_fp(bp)		(&bp->fp[FCOE_IDX])
-#define bnx2x_fcoe(bp, var)		(bnx2x_fcoe_fp(bp)->var)
-#define bnx2x_fcoe_tx(bp, var)		(bnx2x_fcoe_fp(bp)-> \
-						txdata[FIRST_TX_COS_INDEX].var)
+#define	FCOE_IDX_OFFSET		0
+
+#define FCOE_IDX(bp)		(BNX2X_NUM_NON_CNIC_QUEUES(bp) + \
+				 FCOE_IDX_OFFSET)
+#define bnx2x_fcoe_fp(bp)	(&bp->fp[FCOE_IDX(bp)])
+#define bnx2x_fcoe(bp, var)	(bnx2x_fcoe_fp(bp)->var)
+#define bnx2x_fcoe_tx(bp, var)	(bnx2x_fcoe_fp(bp)-> \
+						txdata_ptr[FIRST_TX_COS_INDEX] \
+						->var)
 
 
 #define IS_ETH_FP(fp)			(fp->index < \
 					 BNX2X_NUM_ETH_QUEUES(fp->bp))
 #ifdef BCM_CNIC
-#define IS_FCOE_FP(fp)			(fp->index == FCOE_IDX)
-#define IS_FCOE_IDX(idx)		((idx) == FCOE_IDX)
+#define IS_FCOE_FP(fp)			(fp->index == FCOE_IDX(fp->bp))
+#define IS_FCOE_IDX(idx)		((idx) == FCOE_IDX(bp))
 #else
 #define IS_FCOE_FP(fp)		false
 #define IS_FCOE_IDX(idx)	false
@@ -1187,6 +1195,8 @@ struct bnx2x {
 	 * are grouped together in the beginning of the structure
 	 */
 	struct bnx2x_fastpath	*fp;
+	struct bnx2x_fp_txdata	*bnx2x_txq;
+	int			bnx2x_txq_size;
 	void __iomem		*regview;
 	void __iomem		*doorbells;
 	u16			db_size;
@@ -1389,6 +1399,7 @@ struct bnx2x {
 	u8			igu_dsb_id;
 	u8			igu_base_sb;
 	u8			igu_sb_cnt;
+
 	dma_addr_t		def_status_blk_mapping;
 
 	struct bnx2x_slowpath	*slowpath;
@@ -1443,7 +1454,6 @@ struct bnx2x {
 					NON_ETH_CONTEXT_USE + CNIC_PRESENT)
 #define L2_ILT_LINES(bp)	(DIV_ROUND_UP(BNX2X_L2_CID_COUNT(bp),\
 					ILT_PAGE_CIDS))
-#define BNX2X_DB_SIZE(bp)	(BNX2X_L2_CID_COUNT(bp) * (1 << BNX2X_DB_SHIFT))
 
 	int			qm_cid_count;
 
@@ -1602,6 +1612,8 @@ struct bnx2x {
 extern int num_queues;
 #define BNX2X_NUM_QUEUES(bp)	(bp->num_queues)
 #define BNX2X_NUM_ETH_QUEUES(bp) (BNX2X_NUM_QUEUES(bp) - NON_ETH_CONTEXT_USE)
+#define BNX2X_NUM_NON_CNIC_QUEUES(bp)	(BNX2X_NUM_QUEUES(bp) - \
+					 NON_ETH_CONTEXT_USE)
 #define BNX2X_NUM_RX_QUEUES(bp)	BNX2X_NUM_QUEUES(bp)
 
 #define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
