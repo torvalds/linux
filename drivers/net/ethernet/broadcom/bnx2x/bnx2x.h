@@ -248,13 +248,12 @@ enum {
 	BNX2X_MAX_CNIC_ETH_CL_ID_IDX,
 };
 
-#define BNX2X_CNIC_START_ETH_CID	48
-enum {
+#define BNX2X_CNIC_START_ETH_CID(bp)	(BNX2X_NUM_NON_CNIC_QUEUES(bp) *\
+					 (bp)->max_cos)
 	/* iSCSI L2 */
-	BNX2X_ISCSI_ETH_CID = BNX2X_CNIC_START_ETH_CID,
+#define	BNX2X_ISCSI_ETH_CID(bp)		(BNX2X_CNIC_START_ETH_CID(bp))
 	/* FCoE L2 */
-	BNX2X_FCOE_ETH_CID,
-};
+#define	BNX2X_FCOE_ETH_CID(bp)		(BNX2X_CNIC_START_ETH_CID(bp) + 1)
 
 /** Additional rings budgeting */
 #ifdef BCM_CNIC
@@ -275,8 +274,6 @@ enum {
 /* defines for multiple tx priority indices */
 #define FIRST_TX_ONLY_COS_INDEX		1
 #define FIRST_TX_COS_INDEX		0
-
-#define MAX_TXQS_PER_COS	FP_SB_MAX_E1x
 
 /* rules for calculating the cids of tx-only connections */
 #define CID_TO_FP(cid, bp)		((cid) % BNX2X_NUM_NON_CNIC_QUEUES(bp))
@@ -1448,10 +1445,12 @@ struct bnx2x {
 
 /*
  * Maximum CID count that might be required by the bnx2x:
- * Max Tss * Max_Tx_Multi_Cos + CNIC L2 Clients (FCoE and iSCSI related)
+ * Max RSS * Max_Tx_Multi_Cos + FCoE + iSCSI
  */
-#define BNX2X_L2_CID_COUNT(bp)	(MAX_TXQS_PER_COS * BNX2X_MULTI_TX_COS +\
-					NON_ETH_CONTEXT_USE + CNIC_PRESENT)
+#define BNX2X_L2_CID_COUNT(bp)	(BNX2X_NUM_ETH_QUEUES(bp) * BNX2X_MULTI_TX_COS \
+				+ NON_ETH_CONTEXT_USE + CNIC_PRESENT)
+#define BNX2X_L2_MAX_CID(bp)	(BNX2X_MAX_RSS_COUNT(bp) * BNX2X_MULTI_TX_COS \
+				+ NON_ETH_CONTEXT_USE + CNIC_PRESENT)
 #define L2_ILT_LINES(bp)	(DIV_ROUND_UP(BNX2X_L2_CID_COUNT(bp),\
 					ILT_PAGE_CIDS))
 

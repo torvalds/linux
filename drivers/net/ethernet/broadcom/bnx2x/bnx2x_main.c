@@ -4628,7 +4628,7 @@ static void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 	case BNX2X_FILTER_MAC_PENDING:
 		DP(BNX2X_MSG_SP, "Got SETUP_MAC completions\n");
 #ifdef BCM_CNIC
-		if (cid == BNX2X_ISCSI_ETH_CID)
+		if (cid == BNX2X_ISCSI_ETH_CID(bp))
 			vlan_mac_obj = &bp->iscsi_l2_mac_obj;
 		else
 #endif
@@ -4774,7 +4774,7 @@ static struct bnx2x_queue_sp_obj *bnx2x_cid_to_q_obj(
 {
 	DP(BNX2X_MSG_SP, "retrieving fp from cid %d\n", cid);
 #ifdef BCM_CNIC
-	if (cid == BNX2X_FCOE_ETH_CID)
+	if (cid == BNX2X_FCOE_ETH_CID(bp))
 		return &bnx2x_fcoe(bp, q_obj);
 	else
 #endif
@@ -11724,7 +11724,7 @@ void bnx2x__init_func_obj(struct bnx2x *bp)
 /* must be called after sriov-enable */
 static int bnx2x_set_qm_cid_count(struct bnx2x *bp)
 {
-	int cid_count = BNX2X_L2_CID_COUNT(bp);
+	int cid_count = BNX2X_L2_MAX_CID(bp);
 
 #ifdef BCM_CNIC
 	cid_count += CNIC_CID_MAX;
@@ -11829,9 +11829,9 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	/*
 	 * Maximum number of netdev Tx queues:
-	 *      Maximum TSS queues * Maximum supported number of CoS  + FCoE L2
+	 * Maximum TSS queues * Maximum supported number of CoS  + FCoE L2
 	 */
-	tx_count = MAX_TXQS_PER_COS * max_cos_est + FCOE_PRESENT;
+	tx_count = rss_count * max_cos_est + FCOE_PRESENT;
 
 	/* dev zeroed in init_etherdev */
 	dev = alloc_etherdev_mqs(sizeof(*bp), tx_count, rx_count);
@@ -11863,11 +11863,15 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	 * Map doorbels here as we need the real value of bp->max_cos which
 	 * is initialized in bnx2x_init_bp().
 	 */
-	doorbell_size = (rss_count * max_cos_est + NON_ETH_CONTEXT_USE +
-			 CNIC_PRESENT) * (1 << BNX2X_DB_SHIFT);
+	doorbell_size = BNX2X_L2_MAX_CID(bp) * (1 << BNX2X_DB_SHIFT);
+	if (doorbell_size > pci_resource_len(pdev, 2)) {
+		dev_err(&bp->pdev->dev,
+			"Cannot map doorbells, bar size too small, aborting\n");
+		rc = -ENOMEM;
+		goto init_one_exit;
+	}
 	bp->doorbells = ioremap_nocache(pci_resource_start(pdev, 2),
-					min_t(u64, doorbell_size,
-					      pci_resource_len(pdev, 2)));
+					doorbell_size);
 	if (!bp->doorbells) {
 		dev_err(&bp->pdev->dev,
 			"Cannot map doorbell space, aborting\n");
@@ -12254,14 +12258,14 @@ static void bnx2x_cnic_sp_post(struct bnx2x *bp, int count)
 		 */
 		if (type == ETH_CONNECTION_TYPE) {
 			if (cmd == RAMROD_CMD_ID_ETH_CLIENT_SETUP) {
-				cxt_index = BNX2X_ISCSI_ETH_CID /
+				cxt_index = BNX2X_ISCSI_ETH_CID(bp) /
 					ILT_PAGE_CIDS;
-				cxt_offset = BNX2X_ISCSI_ETH_CID -
+				cxt_offset = BNX2X_ISCSI_ETH_CID(bp) -
 					(cxt_index * ILT_PAGE_CIDS);
 				bnx2x_set_ctx_validation(bp,
 					&bp->context[cxt_index].
 							 vcxt[cxt_offset].eth,
-					BNX2X_ISCSI_ETH_CID);
+					BNX2X_ISCSI_ETH_CID(bp));
 			}
 		}
 
@@ -12615,6 +12619,21 @@ void bnx2x_setup_cnic_irq_info(struct bnx2x *bp)
 	cp->num_irq = 2;
 }
 
+void bnx2x_setup_cnic_info(struct bnx2x *bp)
+{
+	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
+
+
+	cp->ctx_tbl_offset = FUNC_ILT_BASE(BP_FUNC(bp)) +
+			     bnx2x_cid_ilt_lines(bp);
+	cp->starting_cid = bnx2x_cid_ilt_lines(bp) * ILT_PAGE_CIDS;
+	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
+	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
+
+	if (NO_ISCSI_OOO(bp))
+		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
+}
+
 static int bnx2x_register_cnic(struct net_device *dev, struct cnic_ops *ops,
 			       void *data)
 {
@@ -12693,10 +12712,10 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	cp->drv_ctl = bnx2x_drv_ctl;
 	cp->drv_register_cnic = bnx2x_register_cnic;
 	cp->drv_unregister_cnic = bnx2x_unregister_cnic;
-	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID;
+	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
 	cp->iscsi_l2_client_id =
 		bnx2x_cnic_eth_cl_id(bp, BNX2X_ISCSI_ETH_CL_ID_IDX);
-	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID;
+	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
 
 	if (NO_ISCSI_OOO(bp))
 		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;

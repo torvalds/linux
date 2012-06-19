@@ -244,6 +244,14 @@ int bnx2x_cnic_notify(struct bnx2x *bp, int cmd);
  * @bp:		driver handle
  */
 void bnx2x_setup_cnic_irq_info(struct bnx2x *bp);
+
+/**
+ * bnx2x_setup_cnic_info - provides cnic with updated info
+ *
+ * @bp:		driver handle
+ */
+void bnx2x_setup_cnic_info(struct bnx2x *bp);
+
 #endif
 
 /**
@@ -1107,12 +1115,7 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	bnx2x_fcoe(bp, rx_queue) = BNX2X_NUM_ETH_QUEUES(bp);
 	bnx2x_fcoe(bp, cl_id) = bnx2x_cnic_eth_cl_id(bp,
 						     BNX2X_FCOE_ETH_CL_ID_IDX);
-	/** Current BNX2X_FCOE_ETH_CID deffinition implies not more than
-	 *  16 ETH clients per function when CNIC is enabled!
-	 *
-	 *  Fix it ASAP!!!
-	 */
-	bnx2x_fcoe(bp, cid) = BNX2X_FCOE_ETH_CID;
+	bnx2x_fcoe(bp, cid) = BNX2X_FCOE_ETH_CID(bp);
 	bnx2x_fcoe(bp, fw_sb_id) = DEF_SB_ID;
 	bnx2x_fcoe(bp, igu_sb_id) = bp->igu_dsb_id;
 	bnx2x_fcoe(bp, rx_cons_sb) = BNX2X_FCOE_L2_RX_INDEX;
