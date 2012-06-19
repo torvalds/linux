@@ -29,6 +29,7 @@
 extern int load_count[2][3]; /* per-path: 0-common, 1-port0, 2-port1 */
 
 extern int num_queues;
+extern int int_mode;
 
 /************************ Macros ********************************/
 #define BNX2X_PCI_FREE(x, y, size) \
@@ -495,7 +496,7 @@ void bnx2x_netif_start(struct bnx2x *bp);
  * fills msix_table, requests vectors, updates num_queues
  * according to number of available vectors.
  */
-int __devinit bnx2x_enable_msix(struct bnx2x *bp);
+int bnx2x_enable_msix(struct bnx2x *bp);
 
 /**
  * bnx2x_enable_msi - request msi mode from OS, updated internals accordingly
@@ -788,8 +789,10 @@ static inline void bnx2x_add_all_napi(struct bnx2x *bp)
 {
 	int i;
 
+	bp->num_napi_queues = bp->num_queues;
+
 	/* Add NAPI objects */
-	for_each_rx_queue(bp, i)
+	for_each_napi_rx_queue(bp, i)
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, BNX2X_NAPI_WEIGHT);
 }
@@ -798,9 +801,11 @@ static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_rx_queue(bp, i)
+	for_each_napi_rx_queue(bp, i)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 }
+
+void bnx2x_set_int_mode(struct bnx2x *bp);
 
 static inline void bnx2x_disable_msi(struct bnx2x *bp)
 {

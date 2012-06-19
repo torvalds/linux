@@ -1393,6 +1393,7 @@ struct bnx2x {
 #define BNX2X_MAX_COS			3
 #define BNX2X_MAX_TX_COS		2
 	int			num_queues;
+	int			num_napi_queues;
 	int			disable_tpa;
 
 	u32			rx_mode;
@@ -1679,6 +1680,9 @@ struct bnx2x_func_init_params {
 		if (skip_rx_queue(bp, var))	\
 			continue;		\
 		else
+
+#define for_each_napi_rx_queue(bp, var) \
+	for ((var) = 0; (var) < bp->num_napi_queues; (var)++)
 
 /* Skip OOO FP */
 #define for_each_tx_queue(bp, var) \

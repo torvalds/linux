@@ -104,7 +104,7 @@ MODULE_PARM_DESC(disable_tpa, " Disable the TPA (LRO) feature");
 
 #define INT_MODE_INTx			1
 #define INT_MODE_MSI			2
-static int int_mode;
+int int_mode;
 module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode other than MSI-X "
 				"(1 INT#x; 2 MSI)");
@@ -7612,7 +7612,7 @@ int bnx2x_setup_leading(struct bnx2x *bp)
  *
  * In case of MSI-X it will also try to enable MSI-X.
  */
-static void __devinit bnx2x_set_int_mode(struct bnx2x *bp)
+void bnx2x_set_int_mode(struct bnx2x *bp)
 {
 	switch (int_mode) {
 	case INT_MODE_MSI:
@@ -7623,11 +7623,6 @@ static void __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 		BNX2X_DEV_INFO("set number of queues to 1\n");
 		break;
 	default:
-		/* Set number of queues for MSI-X mode */
-		bnx2x_set_num_queues(bp);
-
-		BNX2X_DEV_INFO("set number of queues to %d\n", bp->num_queues);
-
 		/* if we can't use MSI-X we only need one fp,
 		 * so try to enable MSI-X with the requested number of fp's
 		 * and fallback to MSI or legacy INTx with one fp
@@ -11883,8 +11878,12 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 #endif
 
+
+	/* Set bp->num_queues for MSI-X mode*/
+	bnx2x_set_num_queues(bp);
+
 	/* Configure interrupt mode: try to enable MSI-X/MSI if
-	 * needed, set bp->num_queues appropriately.
+	 * needed.
 	 */
 	bnx2x_set_int_mode(bp);
 

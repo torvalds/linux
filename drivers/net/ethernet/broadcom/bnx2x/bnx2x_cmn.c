@@ -1360,7 +1360,7 @@ void bnx2x_free_irq(struct bnx2x *bp)
 		free_irq(bp->dev->irq, bp->dev);
 }
 
-int __devinit bnx2x_enable_msix(struct bnx2x *bp)
+int bnx2x_enable_msix(struct bnx2x *bp)
 {
 	int msix_vec = 0, i, rc, req_cnt;
 
