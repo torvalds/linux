@@ -2108,7 +2108,7 @@ int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type type)
 		return -ENOTSUPP; /* no OBFF support at all */
 
 	/* Make sure the topology supports OBFF as well */
-	if (dev->bus) {
+	if (dev->bus->self) {
 		ret = pci_enable_obff(dev->bus->self, type);
 		if (ret)
 			return ret;
@@ -2215,7 +2215,7 @@ int pci_enable_ltr(struct pci_dev *dev)
 		return -EINVAL;
 
 	/* Enable upstream ports first */
-	if (dev->bus) {
+	if (dev->bus->self) {
 		ret = pci_enable_ltr(dev->bus->self);
 		if (ret)
 			return ret;
