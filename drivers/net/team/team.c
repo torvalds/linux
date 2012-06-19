@@ -714,6 +714,8 @@ static void team_port_enable(struct team *team,
 	port->index = team->en_port_count++;
 	hlist_add_head_rcu(&port->hlist,
 			   team_port_index_hash(team, port->index));
+	if (team->ops.port_enabled)
+		team->ops.port_enabled(team, port);
 }
 
 static void __reconstruct_port_hlist(struct team *team, int rm_index)
@@ -737,6 +739,8 @@ static void team_port_disable(struct team *team,
 
 	if (!team_port_enabled(port))
 		return;
+	if (team->ops.port_disabled)
+		team->ops.port_disabled(team, port);
 	hlist_del_rcu(&port->hlist);
 	__reconstruct_port_hlist(team, rm_index);
 	team->en_port_count--;
