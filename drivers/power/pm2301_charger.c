@@ -227,21 +227,14 @@ int pm2xxx_charger_die_therm_mngt(struct pm2xxx_charger *pm2, int val)
 
 static int pm2xxx_charger_ovv_mngt(struct pm2xxx_charger *pm2, int val)
 {
-	int ret = 0;
+	dev_err(pm2->dev, "Overvoltage detected\n");
+	pm2->flags.ovv = true;
+	power_supply_changed(&pm2->ac_chg.psy);
 
-	pm2->failure_input_ovv++;
-	if (pm2->failure_input_ovv < 4) {
-		ret = pm2xxx_charging_enable_mngt(pm2);
-		goto out;
-	} else {
-		pm2->failure_input_ovv = 0;
-		dev_err(pm2->dev, "Overvoltage detected\n");
-		pm2->flags.ovv = true;
-		power_supply_changed(&pm2->ac_chg.psy);
-	}
+	/* Schedule a new HW failure check */
+	queue_delayed_work(pm2->charger_wq, &pm2->check_hw_failure_work, 0);
 
-out:
-	return ret;
+	return 0;
 }
 
 static int pm2xxx_charger_wd_exp_mngt(struct pm2xxx_charger *pm2, int val)
@@ -630,6 +623,8 @@ static int pm2xxx_charger_ac_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
 		else if (pm2->flags.main_thermal_prot)
 			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+		else if (pm2->flags.ovv)
+			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
 		else
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		break;
@@ -860,6 +855,30 @@ static void pm2xxx_charger_ac_work(struct work_struct *work)
 	sysfs_notify(&pm2->ac_chg.psy.dev->kobj, NULL, "present");
 };
 
+static void pm2xxx_charger_check_hw_failure_work(struct work_struct *work)
+{
+	u8 reg_value;
+
+	struct pm2xxx_charger *pm2 = container_of(work,
+		struct pm2xxx_charger, check_hw_failure_work.work);
+
+	if (pm2->flags.ovv) {
+		pm2xxx_reg_read(pm2, PM2XXX_SRCE_REG_INT4, &reg_value);
+
+		if (!(reg_value & (PM2XXX_INT4_S_ITVPWR1OVV |
+					PM2XXX_INT4_S_ITVPWR2OVV))) {
+			pm2->flags.ovv = false;
+			power_supply_changed(&pm2->ac_chg.psy);
+		}
+	}
+
+	/* If we still have a failure, schedule a new check */
+	if (pm2->flags.ovv) {
+		queue_delayed_work(pm2->charger_wq,
+			&pm2->check_hw_failure_work, round_jiffies(HZ));
+	}
+}
+
 static void pm2xxx_charger_check_main_thermal_prot_work(
 	struct work_struct *work)
 {
@@ -982,6 +1001,10 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	/* Init work for checking HW status */
 	INIT_WORK(&pm2->check_main_thermal_prot_work,
 		pm2xxx_charger_check_main_thermal_prot_work);
+
+	/* Init work for HW failure check */
+	INIT_DEFERRABLE_WORK(&pm2->check_hw_failure_work,
+		pm2xxx_charger_check_hw_failure_work);
 
 	/*
 	 * VDD ADC supply needs to be enabled from this driver when there
@@ -1123,4 +1146,3 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Rajkumar kasirajan, Olivier Launay");
 MODULE_ALIAS("platform:pm2xxx-charger");
 MODULE_DESCRIPTION("PM2xxx charger management driver");
-
