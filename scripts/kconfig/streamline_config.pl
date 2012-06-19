@@ -45,6 +45,16 @@
 use strict;
 use Getopt::Long;
 
+# set the environment variable LOCALMODCONFIG_DEBUG to get
+# debug output.
+my $debugprint = 0;
+$debugprint = 1 if (defined($ENV{LOCALMODCONFIG_DEBUG}));
+
+sub dprint {
+    return if (!$debugprint);
+    print STDERR @_;
+}
+
 my $config = ".config";
 
 my $uname = `uname -r`;
@@ -389,6 +399,7 @@ foreach my $module (keys(%modules)) {
 	my @arr = @{$objects{$module}};
 	foreach my $conf (@arr) {
 	    $configs{$conf} = $module;
+	    dprint "$conf added by direct ($module)\n";
 	}
     } else {
 	# Most likely, someone has a custom (binary?) module loaded.
@@ -411,6 +422,8 @@ foreach my $line (@config_file) {
 }
 
 my $repeat = 1;
+
+my $depconfig;
 
 #
 # Note, we do not care about operands (like: &&, ||, !) we want to add any
@@ -440,6 +453,7 @@ sub parse_config_depends
 		# We must make sure that this config has its
 		# dependencies met.
 		$repeat = 1; # do again
+		dprint "$conf selected by depend $depconfig\n";
 		$configs{$conf} = 1;
 	    }
 	} else {
@@ -473,15 +487,18 @@ sub parse_config_selects
 
 	    # Make sure that this config exists in the current .config file
 	    if (!defined($orig_configs{$conf})) {
+		dprint "$conf not set for $config select\n";
 		next;
 	    }
 
 	    # Check if something other than a module selects this config
 	    if (defined($orig_configs{$conf}) && $orig_configs{$conf} ne "m") {
+		dprint "$conf (non module) selects config, we are good\n";
 		# we are good with this
 		return;
 	    }
 	    if (defined($configs{$conf})) {
+		dprint "$conf selects $config so we are good\n";
 		# A set config selects this config, we are good
 		return;
 	    }
@@ -506,6 +523,7 @@ sub parse_config_selects
     $repeat = 1;
     # Make this config need to be selected
     $configs{$next_config} = 1;
+    dprint "$next_config selected by select $config\n";
 }
 
 my %process_selects;
@@ -526,6 +544,7 @@ sub loop_depend {
 	    }
 
 	    $config =~ s/^CONFIG_//;
+	    $depconfig = $config;
 
 	    if (defined($depends{$config})) {
 		# This config has dependencies. Make sure they are also included
@@ -545,6 +564,8 @@ sub loop_select {
 
     foreach my $config (keys %process_selects) {
 	$config =~ s/^CONFIG_//;
+
+	dprint "Process select $config\n";
 
 	# config has no prompt and must be selected.
 	parse_config_selects $config, $selects{$config};
