@@ -24,9 +24,10 @@ static void regulator_fixed_release(struct device *dev)
  * @name: name to be used for the regulator
  * @supplies: consumers for this regulator
  * @num_supplies: number of consumers
+ * @uv: voltage in microvolts
  */
 struct platform_device *regulator_register_always_on(int id, const char *name,
-		struct regulator_consumer_supply *supplies, int num_supplies)
+	struct regulator_consumer_supply *supplies, int num_supplies, int uv)
 {
 	struct fixed_regulator_data *data;
 
@@ -40,7 +41,7 @@ struct platform_device *regulator_register_always_on(int id, const char *name,
 		return NULL;
 	}
 
-	data->cfg.microvolts = 0;
+	data->cfg.microvolts = uv;
 	data->cfg.gpio = -EINVAL;
 	data->cfg.enabled_at_boot = 1;
 	data->cfg.init_data = &data->init_data;
