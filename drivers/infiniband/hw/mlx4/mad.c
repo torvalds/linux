@@ -242,6 +242,25 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	int err;
 	struct ib_port_attr pattr;
 
+	if (in_wc && in_wc->qp->qp_num) {
+		pr_debug("received MAD: slid:%d sqpn:%d "
+			"dlid_bits:%d dqpn:%d wc_flags:0x%x, cls %x, mtd %x, atr %x\n",
+			in_wc->slid, in_wc->src_qp,
+			in_wc->dlid_path_bits,
+			in_wc->qp->qp_num,
+			in_wc->wc_flags,
+			in_mad->mad_hdr.mgmt_class, in_mad->mad_hdr.method,
+			be16_to_cpu(in_mad->mad_hdr.attr_id));
+		if (in_wc->wc_flags & IB_WC_GRH) {
+			pr_debug("sgid_hi:0x%016llx sgid_lo:0x%016llx\n",
+				 be64_to_cpu(in_grh->sgid.global.subnet_prefix),
+				 be64_to_cpu(in_grh->sgid.global.interface_id));
+			pr_debug("dgid_hi:0x%016llx dgid_lo:0x%016llx\n",
+				 be64_to_cpu(in_grh->dgid.global.subnet_prefix),
+				 be64_to_cpu(in_grh->dgid.global.interface_id));
+		}
+	}
+
 	slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
 
 	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP && slid == 0) {
