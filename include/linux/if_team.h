@@ -93,6 +93,7 @@ struct team_gsetter_ctx {
 		} bin_val;
 		bool bool_val;
 	} data;
+	u32 array_index;
 	struct team_port *port;
 };
 
@@ -100,6 +101,7 @@ struct team_option {
 	struct list_head list;
 	const char *name;
 	bool per_port;
+	unsigned int array_size; /* != 0 means the option is array */
 	enum team_option_type type;
 	int (*getter)(struct team *team, struct team_gsetter_ctx *ctx);
 	int (*setter)(struct team *team, struct team_gsetter_ctx *ctx);
@@ -242,6 +244,7 @@ enum {
 	TEAM_ATTR_OPTION_DATA,		/* dynamic */
 	TEAM_ATTR_OPTION_REMOVED,	/* flag */
 	TEAM_ATTR_OPTION_PORT_IFINDEX,	/* u32 */ /* for per-port options */
+	TEAM_ATTR_OPTION_ARRAY_INDEX,	/* u32 */ /* for array options */
 
 	__TEAM_ATTR_OPTION_MAX,
 	TEAM_ATTR_OPTION_MAX = __TEAM_ATTR_OPTION_MAX - 1,

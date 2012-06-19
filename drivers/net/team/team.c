@@ -90,6 +90,7 @@ struct team_option_inst { /* One for each option instance */
 	struct list_head list;
 	struct team_option *option;
 	struct team_port *port; /* != NULL if per-port */
+	u32 array_index;
 	bool changed;
 	bool removed;
 };
@@ -104,22 +105,6 @@ static struct team_option *__team_find_option(struct team *team,
 			return option;
 	}
 	return NULL;
-}
-
-static int __team_option_inst_add(struct team *team, struct team_option *option,
-				  struct team_port *port)
-{
-	struct team_option_inst *opt_inst;
-
-	opt_inst = kmalloc(sizeof(*opt_inst), GFP_KERNEL);
-	if (!opt_inst)
-		return -ENOMEM;
-	opt_inst->option = option;
-	opt_inst->port = port;
-	opt_inst->changed = true;
-	opt_inst->removed = false;
-	list_add_tail(&opt_inst->list, &team->option_inst_list);
-	return 0;
 }
 
 static void __team_option_inst_del(struct team_option_inst *opt_inst)
@@ -139,14 +124,42 @@ static void __team_option_inst_del_option(struct team *team,
 	}
 }
 
+static int __team_option_inst_add(struct team *team, struct team_option *option,
+				  struct team_port *port)
+{
+	struct team_option_inst *opt_inst;
+	unsigned int array_size;
+	unsigned int i;
+
+	array_size = option->array_size;
+	if (!array_size)
+		array_size = 1; /* No array but still need one instance */
+
+	for (i = 0; i < array_size; i++) {
+		opt_inst = kmalloc(sizeof(*opt_inst), GFP_KERNEL);
+		if (!opt_inst)
+			return -ENOMEM;
+		opt_inst->option = option;
+		opt_inst->port = port;
+		opt_inst->array_index = i;
+		opt_inst->changed = true;
+		opt_inst->removed = false;
+		list_add_tail(&opt_inst->list, &team->option_inst_list);
+	}
+	return 0;
+}
+
 static int __team_option_inst_add_option(struct team *team,
 					 struct team_option *option)
 {
 	struct team_port *port;
 	int err;
 
-	if (!option->per_port)
-		return __team_option_inst_add(team, option, 0);
+	if (!option->per_port) {
+		err = __team_option_inst_add(team, option, 0);
+		if (err)
+			goto inst_del_option;
+	}
 
 	list_for_each_entry(port, &team->port_list, list) {
 		err = __team_option_inst_add(team, option, port);
@@ -1567,6 +1580,11 @@ static int team_nl_fill_options_get(struct sk_buff *skb,
 				opt_inst->port->dev->ifindex))
 			goto nla_put_failure;
 		ctx.port = opt_inst->port;
+		if (opt_inst->option->array_size &&
+		    nla_put_u32(skb, TEAM_ATTR_OPTION_ARRAY_INDEX,
+				opt_inst->array_index))
+			goto nla_put_failure;
+		ctx.array_index = opt_inst->array_index;
 		switch (option->type) {
 		case TEAM_OPTION_TYPE_U32:
 			if (nla_put_u8(skb, TEAM_ATTR_OPTION_TYPE, NLA_U32))
@@ -1668,10 +1686,12 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 
 	nla_for_each_nested(nl_option, info->attrs[TEAM_ATTR_LIST_OPTION], i) {
 		struct nlattr *opt_attrs[TEAM_ATTR_OPTION_MAX + 1];
-		struct nlattr *attr_port_ifindex;
+		struct nlattr *attr;
 		struct nlattr *attr_data;
 		enum team_option_type opt_type;
 		int opt_port_ifindex = 0; /* != 0 for per-port options */
+		u32 opt_array_index = 0;
+		bool opt_is_array = false;
 		struct team_option_inst *opt_inst;
 		char *opt_name;
 		bool opt_found = false;
@@ -1713,9 +1733,15 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		opt_name = nla_data(opt_attrs[TEAM_ATTR_OPTION_NAME]);
-		attr_port_ifindex = opt_attrs[TEAM_ATTR_OPTION_PORT_IFINDEX];
-		if (attr_port_ifindex)
-			opt_port_ifindex = nla_get_u32(attr_port_ifindex);
+		attr = opt_attrs[TEAM_ATTR_OPTION_PORT_IFINDEX];
+		if (attr)
+			opt_port_ifindex = nla_get_u32(attr);
+
+		attr = opt_attrs[TEAM_ATTR_OPTION_ARRAY_INDEX];
+		if (attr) {
+			opt_is_array = true;
+			opt_array_index = nla_get_u32(attr);
+		}
 
 		list_for_each_entry(opt_inst, &team->option_inst_list, list) {
 			struct team_option *option = opt_inst->option;
@@ -1726,10 +1752,13 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 				      opt_inst->port->dev->ifindex : 0;
 			if (option->type != opt_type ||
 			    strcmp(option->name, opt_name) ||
-			    tmp_ifindex != opt_port_ifindex)
+			    tmp_ifindex != opt_port_ifindex ||
+			    (option->array_size && !opt_is_array) ||
+			    opt_inst->array_index != opt_array_index)
 				continue;
 			opt_found = true;
 			ctx.port = opt_inst->port;
+			ctx.array_index = opt_inst->array_index;
 			switch (opt_type) {
 			case TEAM_OPTION_TYPE_U32:
 				ctx.data.u32_val = nla_get_u32(attr_data);
