@@ -127,52 +127,39 @@ int mei_count_empty_write_slots(struct mei_device *dev)
  *
  * This function returns -EIO if write has failed
  */
-int mei_write_message(struct mei_device *dev,
-		      struct mei_msg_hdr *header,
-		      unsigned char *write_buffer,
-		      unsigned long write_length)
+int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
+		      unsigned char *buf, unsigned long length)
 {
-	u32 temp_msg = 0;
-	unsigned long bytes_written = 0;
-	unsigned char buffer_depth, filled_slots, empty_slots;
-	unsigned long dw_to_write;
+	unsigned long rem, dw_cnt;
+	u32 *reg_buf = (u32 *)buf;
+	int i;
+	int empty_slots;
 
-	dev->host_hw_state = mei_hcsr_read(dev);
-
-	dev_dbg(&dev->pdev->dev,
-			"host_hw_state = 0x%08x.\n",
-			dev->host_hw_state);
 
 	dev_dbg(&dev->pdev->dev,
 			"mei_write_message header=%08x.\n",
 			*((u32 *) header));
 
-	buffer_depth = (unsigned char) ((dev->host_hw_state & H_CBD) >> 24);
-	filled_slots = _host_get_filled_slots(dev);
-	empty_slots = buffer_depth - filled_slots;
-	dev_dbg(&dev->pdev->dev,
-			"filled = %hu, empty = %hu.\n",
-			filled_slots, empty_slots);
+	empty_slots = mei_count_empty_write_slots(dev);
+	dev_dbg(&dev->pdev->dev, "empty slots = %hu.\n", empty_slots);
 
-	dw_to_write = ((write_length + 3) / 4);
-
-	if (dw_to_write > empty_slots)
+	dw_cnt = (length + sizeof(*header) + 3) / 4;
+	if (empty_slots < 0 || dw_cnt > empty_slots)
 		return -EIO;
 
 	mei_reg_write(dev, H_CB_WW, *((u32 *) header));
 
-	while (write_length >= 4) {
-		mei_reg_write(dev, H_CB_WW,
-				*(u32 *) (write_buffer + bytes_written));
-		bytes_written += 4;
-		write_length -= 4;
+	for (i = 0; i < length / 4; i++)
+		mei_reg_write(dev, H_CB_WW, reg_buf[i]);
+
+	rem = length & 0x3;
+	if (rem > 0) {
+		u32 reg = 0;
+		memcpy(&reg, &buf[length - rem], rem);
+		mei_reg_write(dev, H_CB_WW, reg);
 	}
 
-	if (write_length > 0) {
-		memcpy(&temp_msg, &write_buffer[bytes_written], write_length);
-		mei_reg_write(dev, H_CB_WW, temp_msg);
-	}
-
+	dev->host_hw_state = mei_hcsr_read(dev);
 	dev->host_hw_state |= H_IG;
 	mei_hcsr_set(dev);
 	dev->me_hw_state = mei_mecsr_read(dev);
