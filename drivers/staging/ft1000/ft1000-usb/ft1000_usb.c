@@ -67,14 +67,12 @@ static int ft1000_probe(struct usb_interface *interface,
 	struct ft1000_info *pft1000info = NULL;
 	const struct firmware *dsp_fw;
 
-	ft1000dev = kmalloc(sizeof(struct ft1000_device), GFP_KERNEL);
+	ft1000dev = kzalloc(sizeof(struct ft1000_device), GFP_KERNEL);
 
 	if (!ft1000dev) {
 		printk(KERN_ERR "out of memory allocating device structure\n");
 		return -ENOMEM;
 	}
-
-	memset(ft1000dev, 0, sizeof(*ft1000dev));
 
 	dev = interface_to_usbdev(interface);
 	DEBUG("ft1000_probe: usb device descriptor info:\n");
