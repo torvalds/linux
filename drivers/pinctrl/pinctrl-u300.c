@@ -1113,8 +1113,6 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	pr_err("U300 PMX PROBE\n");
-
 	/* Create state holders etc for this driver */
 	upmx = devm_kzalloc(&pdev->dev, sizeof(*upmx), GFP_KERNEL);
 	if (!upmx)
