@@ -978,8 +978,8 @@ union cdu_context {
 };
 
 /* CDU host DB constants */
-#define CDU_ILT_PAGE_SZ_HW	3
-#define CDU_ILT_PAGE_SZ		(8192 << CDU_ILT_PAGE_SZ_HW) /* 64K */
+#define CDU_ILT_PAGE_SZ_HW	2
+#define CDU_ILT_PAGE_SZ		(8192 << CDU_ILT_PAGE_SZ_HW) /* 32K */
 #define ILT_PAGE_CIDS		(CDU_ILT_PAGE_SZ / sizeof(union cdu_context))
 
 #ifdef BCM_CNIC
@@ -1420,7 +1420,11 @@ struct bnx2x {
 	dma_addr_t			fw_stats_data_mapping;
 	int				fw_stats_data_sz;
 
-	struct hw_context	context;
+	/* For max 196 cids (64*3 + non-eth), 32KB ILT page size and 1KB
+	 * context size we need 8 ILT entries.
+	 */
+#define ILT_MAX_L2_LINES	8
+	struct hw_context	context[ILT_MAX_L2_LINES];
 
 	struct bnx2x_ilt	*ilt;
 #define BP_ILT(bp)		((bp)->ilt)
