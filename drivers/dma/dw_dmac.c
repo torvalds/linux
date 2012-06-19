@@ -1431,6 +1431,9 @@ static int __init dw_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(dw->clk);
 
+	/* Calculate all channel mask before DMA setup */
+	dw->all_chan_mask = (1 << pdata->nr_channels) - 1;
+
 	/* force dma off, just in case */
 	dw_dma_off(dw);
 
@@ -1441,8 +1444,6 @@ static int __init dw_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dw);
 
 	tasklet_init(&dw->tasklet, dw_dma_tasklet, (unsigned long)dw);
-
-	dw->all_chan_mask = (1 << pdata->nr_channels) - 1;
 
 	INIT_LIST_HEAD(&dw->dma.channels);
 	for (i = 0; i < pdata->nr_channels; i++) {
@@ -1473,16 +1474,11 @@ static int __init dw_probe(struct platform_device *pdev)
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 	}
 
-	/* Clear/disable all interrupts on all channels. */
+	/* Clear all interrupts on all channels. */
 	dma_writel(dw, CLEAR.XFER, dw->all_chan_mask);
 	dma_writel(dw, CLEAR.SRC_TRAN, dw->all_chan_mask);
 	dma_writel(dw, CLEAR.DST_TRAN, dw->all_chan_mask);
 	dma_writel(dw, CLEAR.ERROR, dw->all_chan_mask);
-
-	channel_clear_bit(dw, MASK.XFER, dw->all_chan_mask);
-	channel_clear_bit(dw, MASK.SRC_TRAN, dw->all_chan_mask);
-	channel_clear_bit(dw, MASK.DST_TRAN, dw->all_chan_mask);
-	channel_clear_bit(dw, MASK.ERROR, dw->all_chan_mask);
 
 	dma_cap_set(DMA_MEMCPY, dw->dma.cap_mask);
 	dma_cap_set(DMA_SLAVE, dw->dma.cap_mask);
