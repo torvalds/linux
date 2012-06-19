@@ -289,14 +289,9 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 static int context_idr_cleanup(int id, void *p, void *data)
 {
-	struct drm_file *file = (struct drm_file *)data;
-	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct i915_hw_context *ctx;
+	struct i915_hw_context *ctx = p;
 
 	BUG_ON(id == DEFAULT_CONTEXT_ID);
-	ctx = i915_gem_context_get(file_priv, id);
-	if (WARN_ON(ctx == NULL))
-		return -ENXIO;
 
 	do_destroy(ctx);
 
@@ -308,7 +303,7 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	mutex_lock(&dev->struct_mutex);
-	idr_for_each(&file_priv->context_idr, context_idr_cleanup, file);
+	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
 	idr_destroy(&file_priv->context_idr);
 	mutex_unlock(&dev->struct_mutex);
 }
