@@ -1334,7 +1334,6 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 				    loff_t *ppos, size_t count, size_t ocount)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = fdentry(file)->d_inode;
 	struct iov_iter i;
 	ssize_t written;
 	ssize_t written_buffered;
@@ -1343,18 +1342,6 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 
 	written = generic_file_direct_write(iocb, iov, &nr_segs, pos, ppos,
 					    count, ocount);
-
-	/*
-	 * the generic O_DIRECT will update in-memory i_size after the
-	 * DIOs are done.  But our endio handlers that update the on
-	 * disk i_size never update past the in memory i_size.  So we
-	 * need one more update here to catch any additions to the
-	 * file
-	 */
-	if (inode->i_size != BTRFS_I(inode)->disk_i_size) {
-		btrfs_ordered_update_i_size(inode, inode->i_size, NULL);
-		mark_inode_dirty(inode);
-	}
 
 	if (written < 0 || written == count)
 		return written;
