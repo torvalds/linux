@@ -344,7 +344,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		return;
 	}
 
-	dev_vdbg(chan2dev(&dwc->chan), "scan_descriptors: llp=0x%llx\n",
+	dev_vdbg(chan2dev(&dwc->chan), "%s: llp=0x%llx\n", __func__,
 			(unsigned long long)llp);
 
 	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_node) {
@@ -531,7 +531,7 @@ static void dw_dma_tasklet(unsigned long data)
 	status_xfer = dma_readl(dw, RAW.XFER);
 	status_err = dma_readl(dw, RAW.ERROR);
 
-	dev_vdbg(dw->dma.dev, "tasklet: status_err=%x\n", status_err);
+	dev_vdbg(dw->dma.dev, "%s: status_err=%x\n", __func__, status_err);
 
 	for (i = 0; i < dw->dma.chancnt; i++) {
 		dwc = &dw->chan[i];
@@ -555,7 +555,7 @@ static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 	struct dw_dma *dw = dev_id;
 	u32 status;
 
-	dev_vdbg(dw->dma.dev, "interrupt: status=0x%x\n",
+	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__,
 			dma_readl(dw, STATUS_INT));
 
 	/*
@@ -601,12 +601,12 @@ static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
 	 * for DMA. But this is hard to do in a race-free manner.
 	 */
 	if (list_empty(&dwc->active_list)) {
-		dev_vdbg(chan2dev(tx->chan), "tx_submit: started %u\n",
+		dev_vdbg(chan2dev(tx->chan), "%s: started %u\n", __func__,
 				desc->txd.cookie);
 		list_add_tail(&desc->desc_node, &dwc->active_list);
 		dwc_dostart(dwc, dwc_first_active(dwc));
 	} else {
-		dev_vdbg(chan2dev(tx->chan), "tx_submit: queued %u\n",
+		dev_vdbg(chan2dev(tx->chan), "%s: queued %u\n", __func__,
 				desc->txd.cookie);
 
 		list_add_tail(&desc->desc_node, &dwc->queue);
@@ -632,12 +632,12 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	u32			ctllo;
 
 	dev_vdbg(chan2dev(chan),
-			"prep_dma_memcpy d0x%llx s0x%llx l0x%zx f0x%lx\n",
+			"%s: d0x%llx s0x%llx l0x%zx f0x%lx\n", __func__,
 			(unsigned long long)dest, (unsigned long long)src,
 			len, flags);
 
 	if (unlikely(!len)) {
-		dev_dbg(chan2dev(chan), "prep_dma_memcpy: length is zero!\n");
+		dev_dbg(chan2dev(chan), "%s: length is zero!\n", __func__);
 		return NULL;
 	}
 
@@ -726,7 +726,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct scatterlist	*sg;
 	size_t			total_len = 0;
 
-	dev_vdbg(chan2dev(chan), "prep_dma_slave\n");
+	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
 	if (unlikely(!dws || !sg_len))
 		return NULL;
@@ -1020,7 +1020,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 	int			i;
 	unsigned long		flags;
 
-	dev_vdbg(chan2dev(chan), "alloc_chan_resources\n");
+	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
@@ -1063,8 +1063,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
-	dev_dbg(chan2dev(chan),
-		"alloc_chan_resources allocated %d descriptors\n", i);
+	dev_dbg(chan2dev(chan), "%s: allocated %d descriptors\n", __func__, i);
 
 	return i;
 }
@@ -1077,7 +1076,7 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	unsigned long		flags;
 	LIST_HEAD(list);
 
-	dev_dbg(chan2dev(chan), "free_chan_resources (descs allocated=%u)\n",
+	dev_dbg(chan2dev(chan), "%s: descs allocated=%u\n", __func__,
 			dwc->descs_allocated);
 
 	/* ASSERT:  channel is idle */
@@ -1103,7 +1102,7 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 		kfree(desc);
 	}
 
-	dev_vdbg(chan2dev(chan), "free_chan_resources done\n");
+	dev_vdbg(chan2dev(chan), "%s: done\n", __func__);
 }
 
 /* --------------------- Cyclic DMA API extensions -------------------- */
@@ -1340,7 +1339,7 @@ void dw_dma_cyclic_free(struct dma_chan *chan)
 	int			i;
 	unsigned long		flags;
 
-	dev_dbg(chan2dev(&dwc->chan), "cyclic free\n");
+	dev_dbg(chan2dev(&dwc->chan), "%s\n", __func__);
 
 	if (!cdesc)
 		return;
