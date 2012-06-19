@@ -124,7 +124,7 @@ static struct team_port *lb_htpm_select_tx_port(struct team *team,
 						struct sk_buff *skb,
 						unsigned char hash)
 {
-	return rcu_dereference(LB_HTPM_PORT_BY_HASH(lb_priv, hash));
+	return rcu_dereference_bh(LB_HTPM_PORT_BY_HASH(lb_priv, hash));
 }
 
 struct lb_select_tx_port {
@@ -179,7 +179,7 @@ static unsigned int lb_get_skb_hash(struct lb_priv *lb_priv,
 	uint32_t lhash;
 	unsigned char *c;
 
-	fp = rcu_dereference(lb_priv->fp);
+	fp = rcu_dereference_bh(lb_priv->fp);
 	if (unlikely(!fp))
 		return 0;
 	lhash = SK_RUN_FILTER(fp, skb);
@@ -213,7 +213,7 @@ static bool lb_transmit(struct team *team, struct sk_buff *skb)
 	unsigned int tx_bytes = skb->len;
 
 	hash = lb_get_skb_hash(lb_priv, skb);
-	select_tx_port_func = rcu_dereference(lb_priv->select_tx_port_func);
+	select_tx_port_func = rcu_dereference_bh(lb_priv->select_tx_port_func);
 	port = select_tx_port_func(team, lb_priv, skb, hash);
 	if (unlikely(!port))
 		goto drop;

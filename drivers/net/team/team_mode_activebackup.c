@@ -40,7 +40,7 @@ static bool ab_transmit(struct team *team, struct sk_buff *skb)
 {
 	struct team_port *active_port;
 
-	active_port = rcu_dereference(ab_priv(team)->active_port);
+	active_port = rcu_dereference_bh(ab_priv(team)->active_port);
 	if (unlikely(!active_port))
 		goto drop;
 	skb->dev = active_port->dev;
