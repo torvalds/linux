@@ -633,6 +633,11 @@ struct mlx4_init_port_param {
 
 void handle_port_mgmt_change_event(struct work_struct *work);
 
+static inline int mlx4_master_func_num(struct mlx4_dev *dev)
+{
+	return dev->caps.function;
+}
+
 static inline int mlx4_is_master(struct mlx4_dev *dev)
 {
 	return dev->flags & MLX4_FLAG_MASTER;
