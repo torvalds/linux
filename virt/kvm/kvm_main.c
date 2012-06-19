@@ -1598,7 +1598,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 	 */
 	for (pass = 0; pass < 2 && !yielded; pass++) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
-			if (!pass && i < last_boosted_vcpu) {
+			if (!pass && i <= last_boosted_vcpu) {
 				i = last_boosted_vcpu;
 				continue;
 			} else if (pass && i > last_boosted_vcpu)
