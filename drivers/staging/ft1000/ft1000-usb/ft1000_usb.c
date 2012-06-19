@@ -71,7 +71,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	if (!ft1000dev) {
 		printk(KERN_ERR "out of memory allocating device structure\n");
-		return 0;
+		return -ENOMEM;
 	}
 
 	memset(ft1000dev, 0, sizeof(*ft1000dev));
