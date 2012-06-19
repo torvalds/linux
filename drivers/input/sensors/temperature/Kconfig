@@ -1,0 +1,7 @@
+#
+# temperature sensor drivers configuration
+#
+
+menuconfig TEMPERATURE_DEVICE
+	bool "temperature sensor device support"
+	default n	

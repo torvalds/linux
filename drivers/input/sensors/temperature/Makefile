@@ -1,0 +1,3 @@
+#
+# temperature sensor drivers configuration
+#
