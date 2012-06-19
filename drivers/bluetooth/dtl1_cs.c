@@ -586,29 +586,31 @@ static int dtl1_confcheck(struct pcmcia_device *p_dev, void *priv_data)
 static int dtl1_config(struct pcmcia_device *link)
 {
 	dtl1_info_t *info = link->priv;
-	int i;
+	int ret;
 
 	/* Look for a generic full-sized window */
 	link->resource[0]->end = 8;
-	if (pcmcia_loop_config(link, dtl1_confcheck, NULL) < 0)
+	ret = pcmcia_loop_config(link, dtl1_confcheck, NULL);
+	if (ret)
 		goto failed;
 
-	i = pcmcia_request_irq(link, dtl1_interrupt);
-	if (i != 0)
+	ret = pcmcia_request_irq(link, dtl1_interrupt);
+	if (ret)
 		goto failed;
 
-	i = pcmcia_enable_device(link);
-	if (i != 0)
+	ret = pcmcia_enable_device(link);
+	if (ret)
 		goto failed;
 
-	if (dtl1_open(info) != 0)
+	ret = dtl1_open(info);
+	if (ret)
 		goto failed;
 
 	return 0;
 
 failed:
 	dtl1_detach(link);
-	return -ENODEV;
+	return ret;
 }
 
 static const struct pcmcia_device_id dtl1_ids[] = {
