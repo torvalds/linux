@@ -27,18 +27,27 @@ static struct lb_priv *lb_priv(struct team *team)
 	return (struct lb_priv *) &team->mode_priv;
 }
 
-static bool lb_transmit(struct team *team, struct sk_buff *skb)
+static unsigned char lb_get_skb_hash(struct lb_priv *lb_priv,
+				     struct sk_buff *skb)
 {
 	struct sk_filter *fp;
+	uint32_t lhash;
+	unsigned char *c;
+
+	fp = rcu_dereference(lb_priv->fp);
+	if (unlikely(!fp))
+		return 0;
+	lhash = SK_RUN_FILTER(fp, skb);
+	c = (char *) &lhash;
+	return c[0] ^ c[1] ^ c[2] ^ c[3];
+}
+
+static bool lb_transmit(struct team *team, struct sk_buff *skb)
+{
 	struct team_port *port;
-	unsigned int hash;
 	int port_index;
 
-	fp = rcu_dereference(lb_priv(team)->fp);
-	if (unlikely(!fp))
-		goto drop;
-	hash = SK_RUN_FILTER(fp, skb);
-	port_index = hash % team->en_port_count;
+	port_index = lb_get_skb_hash(lb_priv(team), skb) % team->en_port_count;
 	port = team_get_port_by_index_rcu(team, port_index);
 	if (unlikely(!port))
 		goto drop;
