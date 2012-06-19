@@ -171,12 +171,12 @@ static void persistent_ram_ecc_old(struct persistent_ram_zone *prz)
 	}
 }
 
-static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
-	size_t buffer_size)
+static int persistent_ram_init_ecc(struct persistent_ram_zone *prz)
 {
 	int numerr;
 	struct persistent_ram_buffer *buffer = prz->buffer;
 	int ecc_blocks;
+	size_t ecc_total;
 
 	if (!prz->ecc)
 		return 0;
@@ -187,14 +187,14 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
 	prz->ecc_poly = 0x11d;
 
 	ecc_blocks = DIV_ROUND_UP(prz->buffer_size, prz->ecc_block_size);
-	prz->buffer_size -= (ecc_blocks + 1) * prz->ecc_size;
-
-	if (prz->buffer_size > buffer_size) {
-		pr_err("persistent_ram: invalid size %zu, non-ecc datasize %zu\n",
-		       buffer_size, prz->buffer_size);
+	ecc_total = (ecc_blocks + 1) * prz->ecc_size;
+	if (ecc_total >= prz->buffer_size) {
+		pr_err("%s: invalid ecc_size %u (total %zu, buffer size %zu)\n",
+		       __func__, prz->ecc_size, ecc_total, prz->buffer_size);
 		return -EINVAL;
 	}
 
+	prz->buffer_size -= ecc_total;
 	prz->par_buffer = buffer->data + prz->buffer_size;
 	prz->par_header = prz->par_buffer + ecc_blocks * prz->ecc_size;
 
@@ -397,7 +397,7 @@ static int __devinit persistent_ram_post_init(struct persistent_ram_zone *prz,
 
 	prz->ecc = ecc;
 
-	ret = persistent_ram_init_ecc(prz, prz->buffer_size);
+	ret = persistent_ram_init_ecc(prz);
 	if (ret)
 		return ret;
 
