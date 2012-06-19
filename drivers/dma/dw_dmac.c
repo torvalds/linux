@@ -105,13 +105,13 @@ static struct dw_desc *dwc_desc_get(struct dw_dma_chan *dwc)
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	list_for_each_entry_safe(desc, _desc, &dwc->free_list, desc_node) {
+		i++;
 		if (async_tx_test_ack(&desc->txd)) {
 			list_del(&desc->desc_node);
 			ret = desc;
 			break;
 		}
 		dev_dbg(chan2dev(&dwc->chan), "desc %p not ACKed\n", desc);
-		i++;
 	}
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
