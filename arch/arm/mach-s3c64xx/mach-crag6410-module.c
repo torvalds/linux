@@ -182,6 +182,11 @@ static const struct i2c_board_info wm1277_devs[] = {
 	},
 };
 
+static const struct i2c_board_info wm5102_devs[] = {
+	{ I2C_BOARD_INFO("wm5102", 0x1a),
+	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2, },
+};
+
 static const struct i2c_board_info wm6230_i2c_devs[] = {
 	{ I2C_BOARD_INFO("wm9081", 0x6c),
 	  .platform_data = &wm9081_pdata, },
@@ -219,6 +224,8 @@ static __devinitdata const struct {
 	{ .id = 0x3c, .name = "1273-EV1 Longmorn" },
 	{ .id = 0x3d, .name = "1277-EV1 Littlemill",
 	  .i2c_devs = wm1277_devs, .num_i2c_devs = ARRAY_SIZE(wm1277_devs) },
+	{ .id = 0x3e, .name = "WM5102-6271-EV1-CS127",
+	  .i2c_devs = wm5102_devs, .num_i2c_devs = ARRAY_SIZE(wm5102_devs) },
 };
 
 static __devinit int wlf_gf_module_probe(struct i2c_client *i2c,
