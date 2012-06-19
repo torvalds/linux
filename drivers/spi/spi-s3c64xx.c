@@ -262,14 +262,24 @@ static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 					unsigned len, dma_addr_t buf)
 {
 	struct s3c64xx_spi_driver_data *sdd;
-	struct samsung_dma_prep_info info;
+	struct samsung_dma_prep info;
+	struct samsung_dma_config config;
 
-	if (dma->direction == DMA_DEV_TO_MEM)
+	if (dma->direction == DMA_DEV_TO_MEM) {
 		sdd = container_of((void *)dma,
 			struct s3c64xx_spi_driver_data, rx_dma);
-	else
+		config.direction = sdd->rx_dma.direction;
+		config.fifo = sdd->sfr_start + S3C64XX_SPI_RX_DATA;
+		config.width = sdd->cur_bpw / 8;
+		sdd->ops->config(sdd->rx_dma.ch, &config);
+	} else {
 		sdd = container_of((void *)dma,
 			struct s3c64xx_spi_driver_data, tx_dma);
+		config.direction =  sdd->tx_dma.direction;
+		config.fifo = sdd->sfr_start + S3C64XX_SPI_TX_DATA;
+		config.width = sdd->cur_bpw / 8;
+		sdd->ops->config(sdd->tx_dma.ch, &config);
+	}
 
 	info.cap = DMA_SLAVE;
 	info.len = len;
@@ -284,20 +294,15 @@ static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 
 static int acquire_dma(struct s3c64xx_spi_driver_data *sdd)
 {
-	struct samsung_dma_info info;
+	struct samsung_dma_req req;
 
 	sdd->ops = samsung_dma_get_ops();
 
-	info.cap = DMA_SLAVE;
-	info.client = &s3c64xx_spi_dma_client;
-	info.width = sdd->cur_bpw / 8;
+	req.cap = DMA_SLAVE;
+	req.client = &s3c64xx_spi_dma_client;
 
-	info.direction = sdd->rx_dma.direction;
-	info.fifo = sdd->sfr_start + S3C64XX_SPI_RX_DATA;
-	sdd->rx_dma.ch = sdd->ops->request(sdd->rx_dma.dmach, &info);
-	info.direction =  sdd->tx_dma.direction;
-	info.fifo = sdd->sfr_start + S3C64XX_SPI_TX_DATA;
-	sdd->tx_dma.ch = sdd->ops->request(sdd->tx_dma.dmach, &info);
+	sdd->rx_dma.ch = sdd->ops->request(sdd->rx_dma.dmach, &req);
+	sdd->tx_dma.ch = sdd->ops->request(sdd->tx_dma.dmach, &req);
 
 	return 1;
 }
