@@ -70,7 +70,6 @@ void (*omap3_do_wfi_sram)(void);
 
 static struct powerdomain *mpu_pwrdm, *neon_pwrdm;
 static struct powerdomain *core_pwrdm, *per_pwrdm;
-static struct powerdomain *cam_pwrdm;
 
 static void omap3_core_save_context(void)
 {
@@ -354,8 +353,6 @@ void omap_sram_idle(void)
 		pwrdm_post_transition(mpu_pwrdm);
 		pwrdm_post_transition(neon_pwrdm);
 	}
-
-	clkdm_allow_idle(mpu_pwrdm->pwrdm_clkdms[0]);
 }
 
 static void omap3_pm_idle(void)
@@ -716,7 +713,6 @@ int __init omap3_pm_init(void)
 	neon_pwrdm = pwrdm_lookup("neon_pwrdm");
 	per_pwrdm = pwrdm_lookup("per_pwrdm");
 	core_pwrdm = pwrdm_lookup("core_pwrdm");
-	cam_pwrdm = pwrdm_lookup("cam_pwrdm");
 
 	neon_clkdm = clkdm_lookup("neon_clkdm");
 	mpu_clkdm = clkdm_lookup("mpu_clkdm");
