@@ -1187,9 +1187,6 @@ static void iwl_set_hw_params(struct iwl_priv *priv)
 		priv->hw_params.use_rts_for_aggregation =
 			priv->cfg->ht_params->use_rts_for_aggregation;
 
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
-		priv->hw_params.sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
-
 	/* Device-specific setup */
 	priv->lib->set_hw_params(priv);
 }
@@ -1234,20 +1231,20 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
 	u16 radio_cfg;
 
-	priv->hw_params.sku = priv->eeprom_data->sku;
+	priv->eeprom_data->sku = priv->eeprom_data->sku;
 
-	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE &&
+	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE &&
 	    !priv->cfg->ht_params) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}
 
-	if (!priv->hw_params.sku) {
+	if (!priv->eeprom_data->sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->hw_params.sku);
+	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->eeprom_data->sku);
 
 	radio_cfg = priv->eeprom_data->radio_cfg;
 
@@ -1453,7 +1450,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	iwl_set_hw_params(priv);
 
-	if (!(priv->hw_params.sku & EEPROM_SKU_CAP_IPAN_ENABLE)) {
+	if (!(priv->eeprom_data->sku & EEPROM_SKU_CAP_IPAN_ENABLE)) {
 		IWL_DEBUG_INFO(priv, "Your EEPROM disabled PAN");
 		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 		/*
