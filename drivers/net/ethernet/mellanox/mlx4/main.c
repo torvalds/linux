@@ -391,6 +391,23 @@ static int mlx4_how_many_lives_vf(struct mlx4_dev *dev)
 	return ret;
 }
 
+int mlx4_get_parav_qkey(struct mlx4_dev *dev, u32 qpn, u32 *qkey)
+{
+	u32 qk = MLX4_RESERVED_QKEY_BASE;
+	if (qpn >= dev->caps.base_tunnel_sqpn + 8 * MLX4_MFUNC_MAX ||
+	    qpn < dev->caps.sqp_start)
+		return -EINVAL;
+
+	if (qpn >= dev->caps.base_tunnel_sqpn)
+		/* tunnel qp */
+		qk += qpn - dev->caps.base_tunnel_sqpn;
+	else
+		qk += qpn - dev->caps.sqp_start;
+	*qkey = qk;
+	return 0;
+}
+EXPORT_SYMBOL(mlx4_get_parav_qkey);
+
 int mlx4_is_slave_active(struct mlx4_dev *dev, int slave)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
