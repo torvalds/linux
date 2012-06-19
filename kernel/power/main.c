@@ -132,6 +132,38 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 power_attr(pm_test);
+
+/*
+ * pm_print_times: print time taken by devices to suspend and resume.
+ *
+ * show() returns whether printing of suspend and resume times is enabled.
+ * store() accepts 0 or 1.  0 disables printing and 1 enables it.
+ */
+int pm_print_times_enabled;
+
+static ssize_t pm_print_times_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", pm_print_times_enabled);
+}
+
+static ssize_t pm_print_times_store(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > 1)
+		return -EINVAL;
+
+	pm_print_times_enabled = val;
+	return n;
+}
+
+power_attr(pm_print_times);
 #endif /* CONFIG_PM_DEBUG */
 
 #ifdef CONFIG_DEBUG_FS
@@ -530,6 +562,7 @@ static struct attribute * g[] = {
 #endif
 #ifdef CONFIG_PM_DEBUG
 	&pm_test_attr.attr,
+	&pm_print_times_attr.attr,
 #endif
 #endif
 	NULL,

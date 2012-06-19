@@ -166,7 +166,7 @@ static ktime_t initcall_debug_start(struct device *dev)
 {
 	ktime_t calltime = ktime_set(0, 0);
 
-	if (initcall_debug) {
+	if (pm_print_times) {
 		pr_info("calling  %s+ @ %i, parent: %s\n",
 			dev_name(dev), task_pid_nr(current),
 			dev->parent ? dev_name(dev->parent) : "none");
@@ -181,7 +181,7 @@ static void initcall_debug_report(struct device *dev, ktime_t calltime,
 {
 	ktime_t delta, rettime;
 
-	if (initcall_debug) {
+	if (pm_print_times) {
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
 		pr_info("call %s+ returned %d after %Ld usecs\n", dev_name(dev),

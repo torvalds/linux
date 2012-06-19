@@ -231,3 +231,16 @@ Description:
 		Reads from this file return a string consisting of the names of
 		wakeup sources created with the help of /sys/power/wake_lock
 		that are inactive at the moment, separated with spaces.
+
+What:		/sys/power/pm_print_times
+Date:		May 2012
+Contact:	Sameer Nanda <snanda@chromium.org>
+Description:
+		The /sys/power/pm_print_times file allows user space to
+		control whether the time taken by devices to suspend and
+		resume is printed.  These prints are useful for hunting down
+		devices that take too long to suspend or resume.
+
+		Writing a "1" enables this printing while writing a "0"
+		disables it.  The default value is "0".  Reading from this file
+		will display the current value.
