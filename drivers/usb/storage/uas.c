@@ -242,6 +242,13 @@ static void uas_stat_cmplt(struct urb *urb)
 			uas_sense_old(urb, cmnd);
 		else
 			uas_sense(urb, cmnd);
+		if (cmnd->result != 0) {
+			/* cancel data transfers on error */
+			if (cmdinfo->state & DATA_IN_URB_INFLIGHT)
+				usb_unlink_urb(cmdinfo->data_in_urb);
+			if (cmdinfo->state & DATA_OUT_URB_INFLIGHT)
+				usb_unlink_urb(cmdinfo->data_out_urb);
+		}
 		cmdinfo->state &= ~COMMAND_INFLIGHT;
 		uas_try_complete(cmnd, __func__);
 		break;
@@ -272,7 +279,12 @@ static void uas_data_cmplt(struct urb *urb)
 		cmdinfo->state &= ~DATA_OUT_URB_INFLIGHT;
 	}
 	BUG_ON(sdb == NULL);
-	sdb->resid = sdb->length - urb->actual_length;
+	if (urb->status) {
+		/* error: no data transfered */
+		sdb->resid = sdb->length;
+	} else {
+		sdb->resid = sdb->length - urb->actual_length;
+	}
 	uas_try_complete(cmnd, __func__);
 }
 
