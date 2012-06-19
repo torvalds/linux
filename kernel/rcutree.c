@@ -1981,28 +1981,16 @@ EXPORT_SYMBOL_GPL(call_rcu_bh);
  * occasionally incorrectly indicate that there are multiple CPUs online
  * when there was in fact only one the whole time, as this just adds
  * some overhead: RCU still operates correctly.
- *
- * Of course, sampling num_online_cpus() with preemption enabled can
- * give erroneous results if there are concurrent CPU-hotplug operations.
- * For example, given a demonic sequence of preemptions in num_online_cpus()
- * and CPU-hotplug operations, there could be two or more CPUs online at
- * all times, but num_online_cpus() might well return one (or even zero).
- *
- * However, all such demonic sequences require at least one CPU-offline
- * operation.  Furthermore, rcu_blocking_is_gp() giving the wrong answer
- * is only a problem if there is an RCU read-side critical section executing
- * throughout.  But RCU-sched and RCU-bh read-side critical sections
- * disable either preemption or bh, which prevents a CPU from going offline.
- * Therefore, the only way that rcu_blocking_is_gp() can incorrectly return
- * that there is only one CPU when in fact there was more than one throughout
- * is when there were no RCU readers in the system.  If there are no
- * RCU readers, the grace period by definition can be of zero length,
- * regardless of the number of online CPUs.
  */
 static inline int rcu_blocking_is_gp(void)
 {
+	int ret;
+
 	might_sleep();  /* Check for RCU read-side critical section. */
-	return num_online_cpus() <= 1;
+	preempt_disable();
+	ret = num_online_cpus() <= 1;
+	preempt_enable();
+	return ret;
 }
 
 /**
