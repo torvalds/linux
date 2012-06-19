@@ -337,7 +337,8 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		return;
 	}
 
-	dev_vdbg(chan2dev(&dwc->chan), "scan_descriptors: llp=0x%x\n", llp);
+	dev_vdbg(chan2dev(&dwc->chan), "scan_descriptors: llp=0x%llx\n",
+			(unsigned long long)llp);
 
 	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_node) {
 		/* check first descriptors addr */
@@ -387,8 +388,10 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 static void dwc_dump_lli(struct dw_dma_chan *dwc, struct dw_lli *lli)
 {
 	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
-			"  desc: s0x%x d0x%x l0x%x c0x%x:%x\n",
-			lli->sar, lli->dar, lli->llp,
+			"  desc: s0x%llx d0x%llx l0x%llx c0x%x:%x\n",
+			(unsigned long long)lli->sar,
+			(unsigned long long)lli->dar,
+			(unsigned long long)lli->llp,
 			lli->ctlhi, lli->ctllo);
 }
 
@@ -627,8 +630,10 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	unsigned int		dst_width;
 	u32			ctllo;
 
-	dev_vdbg(chan2dev(chan), "prep_dma_memcpy d0x%x s0x%x l0x%zx f0x%lx\n",
-			dest, src, len, flags);
+	dev_vdbg(chan2dev(chan),
+			"prep_dma_memcpy d0x%llx s0x%llx l0x%zx f0x%lx\n",
+			(unsigned long long)dest, (unsigned long long)src,
+			len, flags);
 
 	if (unlikely(!len)) {
 		dev_dbg(chan2dev(chan), "prep_dma_memcpy: length is zero!\n");
@@ -1308,9 +1313,9 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 	dma_sync_single_for_device(chan2parent(chan), last->txd.phys,
 			sizeof(last->lli), DMA_TO_DEVICE);
 
-	dev_dbg(chan2dev(&dwc->chan), "cyclic prepared buf 0x%08x len %zu "
-			"period %zu periods %d\n", buf_addr, buf_len,
-			period_len, periods);
+	dev_dbg(chan2dev(&dwc->chan), "cyclic prepared buf 0x%llx len %zu "
+			"period %zu periods %d\n", (unsigned long long)buf_addr,
+			buf_len, period_len, periods);
 
 	cdesc->periods = periods;
 	dwc->cdesc = cdesc;
