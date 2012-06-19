@@ -1,5 +1,5 @@
 /*
- * net/drivers/team/team.c - Network team device driver
+ * drivers/net/team/team.c - Network team device driver
  * Copyright (c) 2011 Jiri Pirko <jpirko@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify

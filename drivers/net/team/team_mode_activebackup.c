@@ -1,5 +1,5 @@
 /*
- * net/drivers/team/team_mode_activebackup.c - Active-backup mode for team
+ * drivers/net/team/team_mode_activebackup.c - Active-backup mode for team
  * Copyright (c) 2011 Jiri Pirko <jpirko@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
