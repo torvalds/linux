@@ -385,6 +385,9 @@ struct rcu_state {
 	u8	boost;				/* Subject to priority boost. */
 	unsigned long gpnum;			/* Current gp number. */
 	unsigned long completed;		/* # of last completed gp. */
+	struct task_struct *gp_kthread;		/* Task for grace periods. */
+	wait_queue_head_t gp_wq;		/* Where GP task waits. */
+	int gp_flags;				/* Commands for GP task. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 
