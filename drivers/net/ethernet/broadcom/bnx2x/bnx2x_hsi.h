@@ -1253,6 +1253,7 @@ struct drv_func_mb {
 
 	#define DRV_MSG_CODE_DCBX_ADMIN_PMF_MSG         0xb0000000
 	#define DRV_MSG_CODE_DCBX_PMF_DRV_OK            0xb2000000
+	#define REQ_BC_VER_4_DCBX_ADMIN_MSG_NON_PMF     0x00070401
 
 	#define DRV_MSG_CODE_VF_DISABLED_DONE           0xc0000000
 

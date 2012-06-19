@@ -972,9 +972,13 @@ void bnx2x_dcbx_init_params(struct bnx2x *bp)
 	bp->dcbx_config_params.admin_default_priority = 0;
 }
 
-void bnx2x_dcbx_init(struct bnx2x *bp)
+void bnx2x_dcbx_init(struct bnx2x *bp, bool update_shmem)
 {
 	u32 dcbx_lldp_params_offset = SHMEM_LLDP_DCBX_PARAMS_NONE;
+
+	/* only PMF can send ADMIN msg to MFW in old MFW versions */
+	if ((!bp->port.pmf) && (!(bp->flags & BC_SUPPORTS_DCBX_MSG_NON_PMF)))
+		return;
 
 	if (bp->dcbx_enabled <= 0)
 		return;
@@ -982,13 +986,12 @@ void bnx2x_dcbx_init(struct bnx2x *bp)
 	/* validate:
 	 * chip of good for dcbx version,
 	 * dcb is wanted
-	 * the function is pmf
 	 * shmem2 contains DCBX support fields
 	 */
 	DP(BNX2X_MSG_DCB, "dcb_state %d bp->port.pmf %d\n",
 	   bp->dcb_state, bp->port.pmf);
 
-	if (bp->dcb_state == BNX2X_DCB_STATE_ON && bp->port.pmf &&
+	if (bp->dcb_state == BNX2X_DCB_STATE_ON &&
 	    SHMEM2_HAS(bp, dcbx_lldp_params_offset)) {
 		dcbx_lldp_params_offset =
 			SHMEM2_RD(bp, dcbx_lldp_params_offset);
@@ -999,12 +1002,23 @@ void bnx2x_dcbx_init(struct bnx2x *bp)
 		bnx2x_update_drv_flags(bp, 1 << DRV_FLAGS_DCB_CONFIGURED, 0);
 
 		if (SHMEM_LLDP_DCBX_PARAMS_NONE != dcbx_lldp_params_offset) {
-			bnx2x_dcbx_admin_mib_updated_params(bp,
-				dcbx_lldp_params_offset);
+			/* need HW lock to avoid scenario of two drivers
+			 * writing in parallel to shmem
+			 */
+			bnx2x_acquire_hw_lock(bp,
+					      HW_LOCK_RESOURCE_DCBX_ADMIN_MIB);
+			if (update_shmem)
+				bnx2x_dcbx_admin_mib_updated_params(bp,
+					dcbx_lldp_params_offset);
 
 			/* Let HW start negotiation */
 			bnx2x_fw_command(bp,
 					 DRV_MSG_CODE_DCBX_ADMIN_PMF_MSG, 0);
+			/* release HW lock only after MFW acks that it finished
+			 * reading values from shmem
+			 */
+			bnx2x_release_hw_lock(bp,
+					      HW_LOCK_RESOURCE_DCBX_ADMIN_MIB);
 		}
 	}
 }
@@ -2063,10 +2077,8 @@ static u8 bnx2x_dcbnl_set_all(struct net_device *netdev)
 			   "Handling parity error recovery. Try again later\n");
 		return 1;
 	}
-	if (netif_running(bp->dev)) {
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
-		rc = bnx2x_nic_load(bp, LOAD_NORMAL);
-	}
+	if (netif_running(bp->dev))
+		bnx2x_dcbx_init(bp, true);
 	DP(BNX2X_MSG_DCB, "set_dcbx_params done (%d)\n", rc);
 	if (rc)
 		return 1;

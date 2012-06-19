@@ -418,7 +418,7 @@ void bnx2x_ilt_set_info(struct bnx2x *bp);
  *
  * @bp:		driver handle
  */
-void bnx2x_dcbx_init(struct bnx2x *bp);
+void bnx2x_dcbx_init(struct bnx2x *bp, bool update_shmem);
 
 /**
  * bnx2x_set_power_state - set power state to the requested value.

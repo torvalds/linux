@@ -2274,8 +2274,10 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		return -EBUSY;
 	}
 
-	if (bp->state != BNX2X_STATE_DIAG)
-		bnx2x_dcbx_init(bp);
+	/* If PMF - send ADMIN DCBX msg to MFW to initiate DCBX FSM */
+	if (bp->port.pmf && (bp->state != BNX2X_STATE_DIAG))
+		bnx2x_dcbx_init(bp, false);
+
 	return 0;
 
 #ifndef BNX2X_STOP_ON_ERROR
