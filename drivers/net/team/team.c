@@ -320,8 +320,6 @@ static void __team_options_unregister(struct team *team,
 }
 
 static void __team_options_change_check(struct team *team);
-static void __team_option_inst_change(struct team *team,
-				      struct team_option_inst *opt_inst);
 
 int team_options_register(struct team *team,
 			  const struct team_option *option,
@@ -360,16 +358,9 @@ static int team_option_set(struct team *team,
 			   struct team_option_inst *opt_inst,
 			   struct team_gsetter_ctx *ctx)
 {
-	int err;
-
 	if (!opt_inst->option->setter)
 		return -EOPNOTSUPP;
-	err = opt_inst->option->setter(team, ctx);
-	if (err)
-		return err;
-
-	__team_option_inst_change(team, opt_inst);
-	return err;
+	return opt_inst->option->setter(team, ctx);
 }
 
 void team_option_inst_set_change(struct team_option_inst_info *opt_inst_info)
@@ -1750,12 +1741,16 @@ static int team_nl_cmd_options_get(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int team_nl_send_event_options_get(struct team *team,
+					  struct list_head *sel_opt_inst_list);
+
 static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 {
 	struct team *team;
 	int err = 0;
 	int i;
 	struct nlattr *nl_option;
+	LIST_HEAD(opt_inst_list);
 
 	team = team_nl_team_get(info);
 	if (!team)
@@ -1867,12 +1862,16 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			err = team_option_set(team, opt_inst, &ctx);
 			if (err)
 				goto team_put;
+			opt_inst->changed = true;
+			list_add(&opt_inst->tmp_list, &opt_inst_list);
 		}
 		if (!opt_found) {
 			err = -ENOENT;
 			goto team_put;
 		}
 	}
+
+	err = team_nl_send_event_options_get(team, &opt_inst_list);
 
 team_put:
 	team_nl_team_put(team);
@@ -2071,20 +2070,6 @@ static void __team_options_change_check(struct team *team)
 	err = team_nl_send_event_options_get(team, &sel_opt_inst_list);
 	if (err)
 		netdev_warn(team->dev, "Failed to send options change via netlink (err %d)\n",
-			    err);
-}
-
-static void __team_option_inst_change(struct team *team,
-				      struct team_option_inst *sel_opt_inst)
-{
-	int err;
-	LIST_HEAD(sel_opt_inst_list);
-
-	sel_opt_inst->changed = true;
-	list_add(&sel_opt_inst->tmp_list, &sel_opt_inst_list);
-	err = team_nl_send_event_options_get(team, &sel_opt_inst_list);
-	if (err)
-		netdev_warn(team->dev, "Failed to send option change via netlink (err %d)\n",
 			    err);
 }
 
