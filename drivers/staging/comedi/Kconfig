@@ -672,7 +672,6 @@ config COMEDI_ADDI_APCI_3XXX
 
 config COMEDI_ADL_PCI6208
 	tristate "ADLink PCI-6208A support"
-	select COMEDI_8255
 	---help---
 	  Enable support for ADLink PCI-6208A cards
 
@@ -689,6 +688,7 @@ config COMEDI_ADL_PCI7230
 
 config COMEDI_ADL_PCI7296
 	tristate "ADLink PCI-7296 96 ch. digital io board support"
+	select COMEDI_8255
 	---help---
 	  Enable support for ADlink PCI-7296 96 ch. digital io board support
 
@@ -1061,7 +1061,6 @@ config COMEDI_NI_PCIMIO
 
 config COMEDI_RTD520
 	tristate "Real Time Devices PCI4520/DM7520 support"
-	select COMEDI_8255
 	---help---
 	  Enable support for Real Time Devices PCI4520/DM7520
 
