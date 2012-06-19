@@ -793,7 +793,8 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		return -EBUSY;
 	}
 
-	port = kzalloc(sizeof(struct team_port), GFP_KERNEL);
+	port = kzalloc(sizeof(struct team_port) + team->mode->port_priv_size,
+		       GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
