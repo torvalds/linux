@@ -106,10 +106,9 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 	if (ret < 0) {
 		dev_err(&dev->dev, "led_classdev_register failed\n");
 		kfree(led);
-		return ret;
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct platform_driver s3c24xx_led_driver = {
