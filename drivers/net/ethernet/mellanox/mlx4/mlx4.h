@@ -969,7 +969,7 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
 
-int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
+int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port, int pkey_tbl_sz);
 /* resource tracker functions*/
 int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource resource_type,
@@ -1012,6 +1012,8 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_cmd_info *cmd);
 int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
 
+int mlx4_get_slave_pkey_gid_tbl_len(struct mlx4_dev *dev, u8 port,
+				    int *gid_tbl_len, int *pkey_tbl_len);
 
 int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 			   struct mlx4_vhcr *vhcr,

@@ -268,6 +268,8 @@ static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 }
 
 struct mlx4_phys_caps {
+	u32			gid_phys_table_len[MLX4_MAX_PORTS + 1];
+	u32			pkey_phys_table_len[MLX4_MAX_PORTS + 1];
 	u32			num_phys_eqs;
 };
 

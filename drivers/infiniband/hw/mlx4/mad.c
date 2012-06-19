@@ -184,8 +184,10 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad,
 			break;
 
 		case IB_SMP_ATTR_GUID_INFO:
-			mlx4_ib_dispatch_event(dev, port_num,
-					       IB_EVENT_GID_CHANGE);
+			/* paravirtualized master's guid is guid 0 -- does not change */
+			if (!mlx4_is_master(dev->dev))
+				mlx4_ib_dispatch_event(dev, port_num,
+						       IB_EVENT_GID_CHANGE);
 			break;
 		default:
 			break;
@@ -487,7 +489,9 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 		mlx4_ib_dispatch_event(dev, port, IB_EVENT_PKEY_CHANGE);
 		break;
 	case MLX4_DEV_PMC_SUBTYPE_GUID_INFO:
-		mlx4_ib_dispatch_event(dev, port, IB_EVENT_GID_CHANGE);
+		/* paravirtualized master's guid is guid 0 -- does not change */
+		if (!mlx4_is_master(dev->dev))
+			mlx4_ib_dispatch_event(dev, port, IB_EVENT_GID_CHANGE);
 		break;
 	default:
 		pr_warn("Unsupported subtype 0x%x for "

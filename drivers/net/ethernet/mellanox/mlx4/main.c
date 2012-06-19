@@ -215,6 +215,10 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
 		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
 		dev->caps.ib_mtu_cap[i]	    = dev_cap->ib_mtu[i];
+		dev->phys_caps.gid_phys_table_len[i]  = dev_cap->max_gids[i];
+		dev->phys_caps.pkey_phys_table_len[i] = dev_cap->max_pkeys[i];
+		/* set gid and pkey table operating lengths by default
+		 * to non-sriov values */
 		dev->caps.gid_table_len[i]  = dev_cap->max_gids[i];
 		dev->caps.pkey_table_len[i] = dev_cap->max_pkeys[i];
 		dev->caps.port_width_cap[i] = dev_cap->max_port_width[i];
@@ -498,8 +502,13 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return -ENODEV;
 	}
 
-	for (i = 1; i <= dev->caps.num_ports; ++i)
+	for (i = 1; i <= dev->caps.num_ports; ++i) {
 		dev->caps.port_mask[i] = dev->caps.port_type[i];
+		if (mlx4_get_slave_pkey_gid_tbl_len(dev, i,
+						    &dev->caps.gid_table_len[i],
+						    &dev->caps.pkey_table_len[i]))
+			return -ENODEV;
+	}
 
 	if (dev->caps.uar_page_size * (dev->caps.num_uars -
 				       dev->caps.reserved_uars) >
@@ -536,7 +545,7 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 		for (port = 1; port <= dev->caps.num_ports; port++) {
 			mlx4_CLOSE_PORT(dev, port);
 			dev->caps.port_type[port] = port_types[port - 1];
-			err = mlx4_SET_PORT(dev, port);
+			err = mlx4_SET_PORT(dev, port, -1);
 			if (err) {
 				mlx4_err(dev, "Failed to set port %d, "
 					      "aborting\n", port);
@@ -722,7 +731,7 @@ static ssize_t set_port_ib_mtu(struct device *dev,
 	mlx4_unregister_device(mdev);
 	for (port = 1; port <= mdev->caps.num_ports; port++) {
 		mlx4_CLOSE_PORT(mdev, port);
-		err = mlx4_SET_PORT(mdev, port);
+		err = mlx4_SET_PORT(mdev, port, -1);
 		if (err) {
 			mlx4_err(mdev, "Failed to set port %d, "
 				      "aborting\n", port);
@@ -1173,6 +1182,17 @@ err:
 	return -EIO;
 }
 
+static void mlx4_parav_master_pf_caps(struct mlx4_dev *dev)
+{
+	int i;
+
+	for (i = 1; i <= dev->caps.num_ports; i++) {
+		dev->caps.gid_table_len[i] = 1;
+		dev->caps.pkey_table_len[i] =
+			dev->phys_caps.pkey_phys_table_len[i] - 1;
+	}
+}
+
 static int mlx4_init_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv	  *priv = mlx4_priv(dev);
@@ -1211,6 +1231,9 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
 			goto err_stop_fw;
 		}
+
+		if (mlx4_is_master(dev))
+			mlx4_parav_master_pf_caps(dev);
 
 		profile = default_profile;
 
@@ -1500,7 +1523,8 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 			else
 				dev->caps.port_ib_mtu[port] = IB_MTU_4096;
 
-			err = mlx4_SET_PORT(dev, port);
+			err = mlx4_SET_PORT(dev, port, mlx4_is_master(dev) ?
+					    dev->caps.pkey_table_len[port] : -1);
 			if (err) {
 				mlx4_err(dev, "Failed to set port %d, aborting\n",
 					port);

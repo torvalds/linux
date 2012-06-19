@@ -730,9 +730,12 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 {
 	u64 def_mac;
 	u8 port_type;
+	u16 short_field;
 	int err;
 
 #define MLX4_VF_PORT_NO_LINK_SENSE_MASK	0xE0
+#define QUERY_PORT_CUR_MAX_PKEY_OFFSET	0x0c
+#define QUERY_PORT_CUR_MAX_GID_OFFSET	0x0e
 
 	err = mlx4_cmd_box(dev, 0, outbox->dma, vhcr->in_modifier, 0,
 			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
@@ -755,10 +758,50 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 
 		MLX4_PUT(outbox->buf, port_type,
 			 QUERY_PORT_SUPPORTED_TYPE_OFFSET);
+
+		short_field = 1; /* slave max gids */
+		MLX4_PUT(outbox->buf, short_field,
+			 QUERY_PORT_CUR_MAX_GID_OFFSET);
+
+		short_field = dev->caps.pkey_table_len[vhcr->in_modifier];
+		MLX4_PUT(outbox->buf, short_field,
+			 QUERY_PORT_CUR_MAX_PKEY_OFFSET);
 	}
 
 	return err;
 }
+
+int mlx4_get_slave_pkey_gid_tbl_len(struct mlx4_dev *dev, u8 port,
+				    int *gid_tbl_len, int *pkey_tbl_len)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	u32			*outbox;
+	u16			field;
+	int			err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	err =  mlx4_cmd_box(dev, 0, mailbox->dma, port, 0,
+			    MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
+			    MLX4_CMD_WRAPPED);
+	if (err)
+		goto out;
+
+	outbox = mailbox->buf;
+
+	MLX4_GET(field, outbox, QUERY_PORT_CUR_MAX_GID_OFFSET);
+	*gid_tbl_len = field;
+
+	MLX4_GET(field, outbox, QUERY_PORT_CUR_MAX_PKEY_OFFSET);
+	*pkey_tbl_len = field;
+
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_get_slave_pkey_gid_tbl_len);
 
 int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 {
