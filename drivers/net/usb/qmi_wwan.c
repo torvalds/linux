@@ -360,7 +360,7 @@ err:
 }
 
 static const struct driver_info	qmi_wwan_info = {
-	.description	= "QMI speaking wwan device",
+	.description	= "WWAN/QMI device",
 	.flags		= FLAG_WWAN,
 	.bind		= qmi_wwan_bind,
 	.unbind		= qmi_wwan_unbind,
@@ -368,7 +368,7 @@ static const struct driver_info	qmi_wwan_info = {
 };
 
 static const struct driver_info	qmi_wwan_shared = {
-	.description	= "QMI speaking wwan device with combined interface",
+	.description	= "WWAN/QMI device",
 	.flags		= FLAG_WWAN,
 	.bind		= qmi_wwan_bind_shared,
 	.unbind		= qmi_wwan_unbind,
