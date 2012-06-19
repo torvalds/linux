@@ -688,7 +688,8 @@ out:
 	return ret;
 }
 
-static int wl12xx_top_reg_write(struct wl1271 *wl, int addr, u16 val)
+static int __must_check wl12xx_top_reg_write(struct wl1271 *wl, int addr,
+					     u16 val)
 {
 	int ret;
 
@@ -712,7 +713,8 @@ out:
 	return ret;
 }
 
-static int wl12xx_top_reg_read(struct wl1271 *wl, int addr, u16 *out)
+static int __must_check wl12xx_top_reg_read(struct wl1271 *wl, int addr,
+					    u16 *out)
 {
 	u32 val;
 	int timeout = OCP_CMD_LOOP;

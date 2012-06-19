@@ -193,8 +193,8 @@ static int wl12xx_spi_read_busy(struct device *child)
 	return -ETIMEDOUT;
 }
 
-static int wl12xx_spi_raw_read(struct device *child, int addr, void *buf,
-			       size_t len, bool fixed)
+static int __must_check wl12xx_spi_raw_read(struct device *child, int addr,
+					    void *buf, size_t len, bool fixed)
 {
 	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
 	struct wl1271 *wl = dev_get_drvdata(child);
@@ -260,8 +260,8 @@ static int wl12xx_spi_raw_read(struct device *child, int addr, void *buf,
 	return 0;
 }
 
-static int wl12xx_spi_raw_write(struct device *child, int addr, void *buf,
-				size_t len, bool fixed)
+static int __must_check wl12xx_spi_raw_write(struct device *child, int addr,
+					     void *buf, size_t len, bool fixed)
 {
 	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
 	struct spi_transfer t[2 * WSPI_MAX_NUM_OF_CHUNKS];
