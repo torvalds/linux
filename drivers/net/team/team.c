@@ -1583,7 +1583,7 @@ static int team_nl_fill_options_get(struct sk_buff *skb,
 		goto nla_put_failure;
 	option_list = nla_nest_start(skb, TEAM_ATTR_LIST_OPTION);
 	if (!option_list)
-		return -EMSGSIZE;
+		goto nla_put_failure;
 
 	list_for_each_entry(opt_inst, &team->option_inst_list, list) {
 		struct nlattr *option_item;
