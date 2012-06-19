@@ -810,7 +810,7 @@ static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 	if (!cpu_is_omap44xx())
 		return 0;
 
-	if (!oh)
+	if (!oh || !oh->clkdm)
 		return -EINVAL;
 
 	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
@@ -1285,23 +1285,22 @@ static struct omap_hwmod *_lookup(const char *name)
 
 	return oh;
 }
+
 /**
  * _init_clkdm - look up a clockdomain name, store pointer in omap_hwmod
  * @oh: struct omap_hwmod *
  *
  * Convert a clockdomain name stored in a struct omap_hwmod into a
  * clockdomain pointer, and save it into the struct omap_hwmod.
- * return -EINVAL if clkdm_name does not exist or if the lookup failed.
+ * Return -EINVAL if the clkdm_name lookup failed.
  */
 static int _init_clkdm(struct omap_hwmod *oh)
 {
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
 		return 0;
 
-	if (!oh->clkdm_name) {
-		pr_warning("omap_hwmod: %s: no clkdm_name\n", oh->name);
-		return -EINVAL;
-	}
+	if (!oh->clkdm_name)
+		return 0;
 
 	oh->clkdm = clkdm_lookup(oh->clkdm_name);
 	if (!oh->clkdm) {
@@ -1447,16 +1446,20 @@ static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
 	if (IS_ERR_VALUE(ret))
 		return ret;
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		return omap2_prm_assert_hardreset(oh->prcm.omap2.module_offs,
 						  ohri.rst_shift);
-	else if (cpu_is_omap44xx())
+	} else if (cpu_is_omap44xx()) {
+		if (!oh->clkdm)
+			return -EINVAL;
+
 		return omap4_prminst_assert_hardreset(ohri.rst_shift,
 				  oh->clkdm->pwrdm.ptr->prcm_partition,
 				  oh->clkdm->pwrdm.ptr->prcm_offs,
 				  oh->prcm.omap4.rstctrl_offs);
-	else
+	} else {
 		return -EINVAL;
+	}
 }
 
 /**
@@ -1489,6 +1492,10 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 		if (ohri.st_shift)
 			pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
 			       oh->name, name);
+
+		if (!oh->clkdm)
+			return -EINVAL;
+
 		ret = omap4_prminst_deassert_hardreset(ohri.rst_shift,
 				  oh->clkdm->pwrdm.ptr->prcm_partition,
 				  oh->clkdm->pwrdm.ptr->prcm_offs,
@@ -1527,6 +1534,9 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 		return omap2_prm_is_hardreset_asserted(oh->prcm.omap2.module_offs,
 						       ohri.st_shift);
 	} else if (cpu_is_omap44xx()) {
+		if (!oh->clkdm)
+			return -EINVAL;
+
 		return omap4_prminst_is_hardreset_asserted(ohri.rst_shift,
 				  oh->clkdm->pwrdm.ptr->prcm_partition,
 				  oh->clkdm->pwrdm.ptr->prcm_offs,
