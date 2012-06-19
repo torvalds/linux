@@ -998,6 +998,24 @@ static int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 	return 0;
 }
 
+/**
+ * rproc_get_boot_addr() - Get rproc's boot address.
+ * @rproc: the remote processor handle
+ * @fw: the ELF firmware image
+ *
+ * This function returns the entry point address of the ELF
+ * image.
+ *
+ * Note that the boot address is not a configurable property of all remote
+ * processors. Some will always boot at a specific hard-coded address.
+ */
+u32 rproc_get_boot_addr(struct rproc *rproc, const struct firmware *fw)
+{
+	struct elf32_hdr *ehdr  = (struct elf32_hdr *)fw->data;
+
+	return ehdr->e_entry;
+}
+
 /*
  * take a firmware and boot a remote processor with it.
  */
@@ -1005,15 +1023,12 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev = &rproc->dev;
 	const char *name = rproc->firmware;
-	struct elf32_hdr *ehdr;
 	struct resource_table *table;
 	int ret, tablesz;
 
 	ret = rproc_fw_sanity_check(rproc, fw);
 	if (ret)
 		return ret;
-
-	ehdr = (struct elf32_hdr *)fw->data;
 
 	dev_info(dev, "Booting fw image %s, size %d\n", name, fw->size);
 
@@ -1027,12 +1042,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 		return ret;
 	}
 
-	/*
-	 * The ELF entry point is the rproc's boot addr (though this is not
-	 * a configurable property of all remote processors: some will always
-	 * boot at a specific hardcoded address).
-	 */
-	rproc->bootaddr = ehdr->e_entry;
+	rproc->bootaddr = rproc_get_boot_addr(rproc, fw);
 
 	/* look for the resource table */
 	table = rproc_find_rsc_table(rproc, fw, &tablesz);
