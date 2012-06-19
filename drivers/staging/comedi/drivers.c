@@ -45,7 +45,7 @@
 #include <linux/io.h>
 
 #include "comedidev.h"
-#include "internal.h"
+#include "comedi_internal.h"
 
 static int postconfig(struct comedi_device *dev);
 static int insn_rw_emulate_bits(struct comedi_device *dev,

@@ -49,7 +49,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include "internal.h"
+#include "comedi_internal.h"
 
 MODULE_AUTHOR("http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi core module");

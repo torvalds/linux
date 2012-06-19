@@ -23,7 +23,7 @@
 
 #include <linux/uaccess.h>
 #include "comedidev.h"
-#include "internal.h"
+#include "comedi_internal.h"
 
 const struct comedi_lrange range_bipolar10 = { 1, {BIP_RANGE(10)} };
 EXPORT_SYMBOL(range_bipolar10);
