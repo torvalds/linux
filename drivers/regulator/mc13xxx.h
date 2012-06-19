@@ -33,7 +33,6 @@ struct mc13xxx_regulator_priv {
 };
 
 extern int mc13xxx_sw_regulator(struct regulator_dev *rdev);
-extern int mc13xxx_sw_regulator_is_enabled(struct regulator_dev *rdev);
 extern int mc13xxx_fixed_regulator_set_voltage(struct regulator_dev *rdev,
 		int min_uV, int max_uV, unsigned *selector);
 extern int mc13xxx_fixed_regulator_get_voltage(struct regulator_dev *rdev);

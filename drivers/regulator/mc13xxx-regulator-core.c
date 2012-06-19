@@ -170,12 +170,6 @@ struct regulator_ops mc13xxx_fixed_regulator_ops = {
 };
 EXPORT_SYMBOL_GPL(mc13xxx_fixed_regulator_ops);
 
-int mc13xxx_sw_regulator_is_enabled(struct regulator_dev *rdev)
-{
-	return 1;
-}
-EXPORT_SYMBOL_GPL(mc13xxx_sw_regulator_is_enabled);
-
 #ifdef CONFIG_OF
 int __devinit mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 {
