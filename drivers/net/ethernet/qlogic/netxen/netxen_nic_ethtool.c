@@ -489,7 +489,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 	int port = adapter->physical_port;
 
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
-		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
+		if ((port < 0) || (port >= NETXEN_NIU_MAX_GBE_PORTS))
 			return;
 		/* get flow control settings */
 		val = NXRD32(adapter, NETXEN_NIU_GB_MAC_CONFIG_0(port));
@@ -534,7 +534,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 	int port = adapter->physical_port;
 	/* read mode */
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
-		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
+		if ((port < 0) || (port >= NETXEN_NIU_MAX_GBE_PORTS))
 			return -EIO;
 		/* set flow control */
 		val = NXRD32(adapter, NETXEN_NIU_GB_MAC_CONFIG_0(port));
