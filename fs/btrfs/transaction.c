@@ -100,8 +100,8 @@ loop:
 		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
 		cur_trans = fs_info->running_transaction;
 		goto loop;
-	} else if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
-		spin_unlock(&root->fs_info->trans_lock);
+	} else if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+		spin_unlock(&fs_info->trans_lock);
 		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
 		return -EROFS;
 	}
