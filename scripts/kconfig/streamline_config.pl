@@ -113,6 +113,10 @@ sub find_config {
 
 find_config;
 
+# Read in the entire config file into config_file
+my @config_file = <CIN>;
+close CIN;
+
 # Parse options
 my $localmodconfig = 0;
 my $localyesconfig = 0;
@@ -392,7 +396,20 @@ foreach my $module (keys(%modules)) {
     }
 }
 
+# Read the current config, and see what is enabled. We want to
+# ignore configs that we would not enable anyway.
+
+my %orig_configs;
 my $valid = "A-Za-z_0-9";
+
+foreach my $line (@config_file) {
+    $_ = $line;
+
+    if (/(CONFIG_[$valid]*)=(m|y)/) {
+	$orig_configs{$1} = $2;
+    }
+}
+
 my $repeat = 1;
 
 #
@@ -413,6 +430,11 @@ sub parse_config_dep_select
 	    my $conf = "CONFIG_" . $1;
 
 	    $p =~ s/^[^$valid]*[$valid]+//;
+
+	    # We only need to process if the depend config is a module
+	    if (!defined($orig_configs{$conf}) || !$orig_configs{conf} eq "m") {
+		next;
+	    }
 
 	    if (!defined($configs{$conf})) {
 		# We must make sure that this config has its
@@ -450,7 +472,8 @@ my %setconfigs;
 
 # Finally, read the .config file and turn off any module enabled that
 # we could not find a reason to keep enabled.
-while(<CIN>) {
+foreach my $line (@config_file) {
+    $_ = $line;
 
     if (/CONFIG_IKCONFIG/) {
 	if (/# CONFIG_IKCONFIG is not set/) {
@@ -478,7 +501,6 @@ while(<CIN>) {
     }
     print;
 }
-close(CIN);
 
 # Integrity check, make sure all modules that we want enabled do
 # indeed have their configs set.
