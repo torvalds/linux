@@ -351,7 +351,7 @@ static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
 
 	data->dev = &pdev->dev;
 	data->pdata = pdata;
-	strncpy(data->name, pdev->id_entry->name, PLATFORM_NAME_SIZE);
+	strlcpy(data->name, pdev->id_entry->name, sizeof(data->name));
 
 	switch (pdev->id_entry->driver_data) {
 	case TYPE_NCPXXWB473:
