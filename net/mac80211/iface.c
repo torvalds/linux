@@ -1313,7 +1313,6 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 	    local->hw.wiphy->n_addresses <= 1)
 		return;
 
-
 	mutex_lock(&local->iflist_mtx);
 
 	switch (type) {
@@ -1331,6 +1330,19 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 		}
 		/* keep default if no AP interface present */
 		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_GO:
+		if (local->hw.flags & IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF) {
+			list_for_each_entry(sdata, &local->interfaces, list) {
+				if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE)
+					continue;
+				if (!ieee80211_sdata_running(sdata))
+					continue;
+				memcpy(perm_addr, sdata->vif.addr, ETH_ALEN);
+				goto out_unlock;
+			}
+		}
+		/* otherwise fall through */
 	default:
 		/* assign a new address if possible -- try n_addresses first */
 		for (i = 0; i < local->hw.wiphy->n_addresses; i++) {
@@ -1405,6 +1417,7 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 		break;
 	}
 
+ out_unlock:
 	mutex_unlock(&local->iflist_mtx);
 }
 
