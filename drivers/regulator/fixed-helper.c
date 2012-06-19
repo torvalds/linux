@@ -1,4 +1,5 @@
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -13,16 +14,18 @@ static void regulator_fixed_release(struct device *dev)
 {
 	struct fixed_regulator_data *data = container_of(dev,
 			struct fixed_regulator_data, pdev.dev);
+	kfree(data->cfg.supply_name);
 	kfree(data);
 }
 
 /**
- * regulator_register_fixed - register a no-op fixed regulator
+ * regulator_register_fixed_name - register a no-op fixed regulator
  * @id: platform device id
+ * @name: name to be used for the regulator
  * @supplies: consumers for this regulator
  * @num_supplies: number of consumers
  */
-struct platform_device *regulator_register_fixed(int id,
+struct platform_device *regulator_register_always_on(int id, const char *name,
 		struct regulator_consumer_supply *supplies, int num_supplies)
 {
 	struct fixed_regulator_data *data;
@@ -31,7 +34,12 @@ struct platform_device *regulator_register_fixed(int id,
 	if (!data)
 		return NULL;
 
-	data->cfg.supply_name = "fixed-dummy";
+	data->cfg.supply_name = kstrdup(name, GFP_KERNEL);
+	if (!data->cfg.supply_name) {
+		kfree(data);
+		return NULL;
+	}
+
 	data->cfg.microvolts = 0;
 	data->cfg.gpio = -EINVAL;
 	data->cfg.enabled_at_boot = 1;
