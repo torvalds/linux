@@ -24,7 +24,6 @@
 #define _GNU_SOURCE
 
 #define __NO_VERSION__
-#include "comedi_fops.h"
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>

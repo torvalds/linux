@@ -1,6 +1,8 @@
 #ifndef _COMEDI_INTERNAL_H
 #define _COMEDI_INTERNAL_H
 
+#include <linux/types.h>
+
 /*
  * various internal comedi stuff
  */
@@ -17,5 +19,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 
 extern unsigned int comedi_default_buf_size_kb;
 extern unsigned int comedi_default_buf_maxsize_kb;
+extern bool comedi_autoconfig;
+extern struct comedi_driver *comedi_drivers;
 
 #endif /* _COMEDI_INTERNAL_H */
