@@ -9,6 +9,7 @@
 
 struct list_head adc_host_head;
 
+static void adc_host_work(struct work_struct *work);
 struct adc_host *adc_alloc_host(struct device *dev, int extra, enum host_chn_mask mask)
 {
 	struct adc_host *adc;
@@ -18,8 +19,10 @@ struct adc_host *adc_alloc_host(struct device *dev, int extra, enum host_chn_mas
 		return NULL;
         adc->mask = mask;
 	adc->dev = dev;
+        adc->chn = -1;
         spin_lock_init(&adc->lock);
-        INIT_LIST_HEAD(&adc->request_head);
+        INIT_LIST_HEAD(&adc->req_head);
+        INIT_WORK(&adc->work, adc_host_work);
 
         list_add_tail(&adc->entry, &adc_host_head);
 
@@ -77,36 +80,38 @@ static inline void trigger_next_adc_job_if_any(struct adc_host *adc)
 {
         struct adc_request *req = NULL;
 
-        if(list_empty(&adc->request_head))
+        if(adc->chn != -1)
                 return;
+        req = list_first_entry(&adc->req_head, struct adc_request, entry);
+        if(req){
+                adc->chn = req->client->chn;
+        	adc->ops->start(adc);
+        }
 
-        req = list_first_entry(&adc->request_head, struct adc_request, entry);
-
-        if(req == NULL)
-                return;
-        list_del_init(&req->entry);
-	adc->cur = req->client;
-	kfree(req);
-	adc->ops->start(adc);
 	return;
+}
+static void adc_host_work(struct work_struct *work)
+{
+        unsigned long flags;
+	struct adc_host *adc =
+		container_of(work, struct adc_host, work);
+
+	spin_lock_irqsave(&adc->lock, flags);
+        trigger_next_adc_job_if_any(adc);
+	spin_unlock_irqrestore(&adc->lock, flags);
 }
 static int adc_request_add(struct adc_host *adc, struct adc_client *client)
 {
         struct adc_request *req = NULL;
 
-        list_for_each_entry(req, &adc->request_head, entry) {
-                if(req->client->index == client->index)
-                        return 0;
-        }
         req = kzalloc(sizeof(struct adc_request), GFP_ATOMIC);
 
         if(!req)
                 return -ENOMEM;
+        INIT_LIST_HEAD(&req->entry);
         req->client = client;
-        list_add_tail(&req->entry, &adc->request_head);
-
+        list_add_tail(&req->entry, &adc->req_head);
         trigger_next_adc_job_if_any(adc);
-
         return 0;
 }
 static void
@@ -114,18 +119,41 @@ adc_sync_read_callback(struct adc_client *client, void *param, int result)
 {
         client->result = result;
 }
+static void adc_finished(struct adc_host *adc, int result)
+{
+        struct adc_request *req = NULL, *n = NULL;
+
+        adc_dbg(adc->dev, "chn[%d] read value: %d\n", adc->chn, result);
+        adc->ops->stop(adc);
+        list_for_each_entry_safe(req, n, &adc->req_head, entry) {
+                if(req->client->chn == adc->chn){
+                        if(req->client->flags & (1<<ADC_ASYNC_READ)){
+                                req->client->callback(req->client, req->client->callback_param, result);
+                        }
+                        if(req->client->flags & (1<<ADC_SYNC_READ)){
+                                adc_sync_read_callback(req->client, NULL, result);
+                                req->client->is_finished = 1;
+                                wake_up(&req->client->wait);
+                        }
+                        req->client->result = result;
+                        req->client->flags = 0;
+                        list_del_init(&req->entry);
+                        kfree(req);
+                }
+        }
+        adc->chn = -1;
+}
 void adc_core_irq_handle(struct adc_host *adc)
 {
-        int result = adc->ops->read(adc);
+        int result = 0;
 
 	spin_lock(&adc->lock);
-        adc->ops->stop(adc);
-        adc->cur->callback(adc->cur, adc->cur->callback_param, result);
-        adc_sync_read_callback(adc->cur, NULL, result);
-        adc->cur->is_finished = 1;
-        wake_up(&adc->cur->wait);
+        result = adc->ops->read(adc);
 
-        trigger_next_adc_job_if_any(adc);
+        adc_finished(adc, result);
+
+        if(!list_empty(&adc->req_head))
+                schedule_work(&adc->work);
 	spin_unlock(&adc->lock);
 }
 
@@ -141,29 +169,45 @@ int adc_host_read(struct adc_client *client, enum read_type type)
 	}
         adc = client->adc;
 	if(adc->is_suspended == 1) {
-		dev_dbg(adc->dev, "system enter sleep\n");
+		dev_err(adc->dev, "adc is in suspend state\n");
 		return -EIO;
 	}
 
 	spin_lock_irqsave(&adc->lock, flags);
-        ret = adc_request_add(adc, client);
-        if(ret < 0){
-                spin_unlock_irqrestore(&adc->lock, flags);
-                dev_err(adc->dev, "No memory for req\n");
-                return ret;
+        if(client->flags & (1<<type)){
+	        spin_unlock_irqrestore(&adc->lock, flags);
+                adc_dbg(adc->dev, "req is exist: %s, client->index: %d\n", 
+                                (type == ADC_ASYNC_READ)?"async_read":"sync_read", client->index);
+                return -EEXIST;
+        }else if(client->flags != 0){
+                client->flags |= 1<<type;
+        }else{
+                client->flags = 1<<type;
+                ret = adc_request_add(adc, client);
+                if(ret < 0){
+                        spin_unlock_irqrestore(&adc->lock, flags);
+                        dev_err(adc->dev, "fail to add request\n");
+                        return ret;
+                }
+        }
+        if(type == ADC_ASYNC_READ){
+	        spin_unlock_irqrestore(&adc->lock, flags);
+                return 0;
         }
         client->is_finished = 0;
 	spin_unlock_irqrestore(&adc->lock, flags);
 
-        if(type == ADC_ASYNC_READ)
-                return 0;
-
         tmo = wait_event_timeout(client->wait, ( client->is_finished == 1 ), msecs_to_jiffies(ADC_READ_TMO));
-        if(tmo <= 0) {
-                adc->ops->stop(adc);
-                dev_dbg(adc->dev, "get adc value timeout\n");
+	spin_lock_irqsave(&adc->lock, flags);
+        if(unlikely((tmo <= 0) && (client->is_finished == 0))) {
+                if(adc->ops->dump)
+                        adc->ops->dump(adc);
+                dev_err(adc->dev, "get adc value timeout.................................\n");
+                adc_finished(adc, -1);
+	        spin_unlock_irqrestore(&adc->lock, flags);
                 return -ETIMEDOUT;
         } 
+	spin_unlock_irqrestore(&adc->lock, flags);
 
         return client->result;
 }

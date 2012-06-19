@@ -19,12 +19,22 @@ struct rk30_adc_device {
 	struct resource		*ioarea;
 	struct adc_host		*adc;
 };
+static void rk30_adc_dump(struct adc_host *adc)
+{
+	struct rk30_adc_device *dev  = adc_priv(adc);
+
+        dev_info(adc->dev, "[0x00-0x0c]: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+                        adc_readl(dev->regs + 0x00),
+                        adc_readl(dev->regs + 0x04),
+                        adc_readl(dev->regs + 0x08),
+                        adc_readl(dev->regs + 0x0c));
+}
 static void rk30_adc_start(struct adc_host *adc)
 {
 	struct rk30_adc_device *dev  = adc_priv(adc);
-	int chn = adc->cur->chn;
+	int chn = adc->chn;
 
-	adc_writel(0, dev->regs + ADC_CTRL);
+	//adc_writel(0, dev->regs + ADC_CTRL);
         adc_writel(0x08, dev->regs + ADC_DELAY_PU_SOC);
 	adc_writel(ADC_CTRL_POWER_UP|ADC_CTRL_CH(chn)|ADC_CTRL_IRQ_ENABLE, dev->regs + ADC_CTRL);
 
@@ -53,8 +63,11 @@ static const struct adc_ops rk30_adc_ops = {
 	.start		= rk30_adc_start,
 	.stop		= rk30_adc_stop,
 	.read		= rk30_adc_read,
+	.dump		= rk30_adc_dump,
 };
 #ifdef ADC_TEST
+#define CHN_NR  3
+struct workqueue_struct *adc_wq;
 struct adc_test_data {
 	struct adc_client *client;
 	struct timer_list timer;
@@ -62,14 +75,17 @@ struct adc_test_data {
 };
 static void callback(struct adc_client *client, void *param, int result)
 {
-	dev_info(client->adc->dev, "[chn%d] async_read = %d\n", client->chn, result);
+        if(result < 70)
+	        dev_info(client->adc->dev, "[chn%d] async_read = %d\n", client->chn, result);
+        else
+	        dev_dbg(client->adc->dev, "[chn%d] async_read = %d\n", client->chn, result);
 	return;
 }
 static void adc_timer(unsigned long data)
 {
 	 struct adc_test_data *test=(struct adc_test_data *)data;
 	
-	schedule_work(&test->timer_work);
+	queue_work(adc_wq, &test->timer_work);
 	add_timer(&test->timer);
 }
 static void adc_timer_work(struct work_struct *work)
@@ -79,20 +95,26 @@ static void adc_timer_work(struct work_struct *work)
 						timer_work);
 	adc_async_read(test->client);
 	sync_read = adc_sync_read(test->client);
-	dev_info(test->client->adc->dev, "[chn%d] sync_read = %d\n", test->client->chn, sync_read);
+        if(sync_read < 70)
+	        dev_info(test->client->adc->dev, "[chn%d] sync_read = %d\n", test->client->chn, sync_read);
+        else
+	        dev_dbg(test->client->adc->dev, "[chn%d] sync_read = %d\n", test->client->chn, sync_read);
 }
 
 static int rk30_adc_test(void)
 {
-	struct adc_test_data *test = NULL;
+        int i;
+	struct adc_test_data *test[CHN_NR];
 
-	test = kzalloc(sizeof(struct adc_test_data), GFP_KERNEL);
-	
-	test->client = adc_register(1, callback, NULL);
-	INIT_WORK(&test->timer_work, adc_timer_work);
-	setup_timer(&test->timer, adc_timer, (unsigned long)test);
-	test->timer.expires  = jiffies + 1;
-	add_timer(&test->timer);
+        adc_wq = create_singlethread_workqueue("adc_test");
+	for(i = 0; i < CHN_NR; i++){
+	        test[i] = kzalloc(sizeof(struct adc_test_data), GFP_KERNEL);
+	        test[i]->client = adc_register(i, callback, NULL);
+	        INIT_WORK(&test[i]->timer_work, adc_timer_work);
+	        setup_timer(&test[i]->timer, adc_timer, (unsigned long)test[i]);
+	        test[i]->timer.expires  = jiffies + 1;
+	        add_timer(&test[i]->timer);
+        }
 	
 	return 0;
 

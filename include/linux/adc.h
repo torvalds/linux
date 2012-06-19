@@ -27,6 +27,7 @@ struct adc_client {
         unsigned int index;
         unsigned int chn;
         unsigned int is_finished;
+        unsigned int flags;
         int result;
 	struct adc_host *adc;
         struct list_head list;

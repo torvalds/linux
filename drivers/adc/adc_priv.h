@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <mach/board.h>
 
@@ -27,8 +28,15 @@
 #define adc_writel                 writel_relaxed
 #define adc_readl                  readl_relaxed
 
+#if 0
+#define adc_dbg(dev, format, arg...)		\
+	dev_printk(KERN_INFO , dev , format , ## arg)
+#else
+#define adc_dbg(dev, format, arg...)
+#endif
+
 enum read_type{
-        ADC_SYNC_READ,
+        ADC_SYNC_READ = 0,
         ADC_ASYNC_READ,
 };
 
@@ -40,17 +48,19 @@ struct adc_ops {
 	void (*start)(struct adc_host *);
 	void (*stop)(struct adc_host *);
 	int (*read)(struct adc_host *);
+	void (*dump)(struct adc_host *);
 };
 struct adc_host {
         struct list_head entry;
-        struct list_head request_head;
+        struct list_head req_head;
         unsigned int is_suspended;
         enum host_chn_mask mask;
         struct device *dev;
-        struct adc_client *cur;
+        unsigned int chn;
         spinlock_t lock;
         unsigned int client_count;
 	const struct adc_ops *ops;
+        struct work_struct work;
         unsigned long priv[0];
 };
 

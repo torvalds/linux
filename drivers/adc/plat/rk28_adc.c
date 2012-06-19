@@ -21,7 +21,7 @@ struct rk28_adc_device {
 static void rk28_adc_start(struct adc_host *adc)
 {
 	struct rk28_adc_device *dev  = adc_priv(adc);
-	int chn = adc->cur->chn;
+	int chn = adc->chn;
 	
 	writel(ADC_CTRL_IRQ_ENABLE|ADC_CTRL_POWER_UP|ADC_CTRL_START|ADC_CTRL_CH(chn),
 		dev->regs + ADC_CTRL);
