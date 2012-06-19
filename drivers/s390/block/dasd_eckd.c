@@ -4247,6 +4247,7 @@ static struct ccw_driver dasd_eckd_driver = {
 	.set_online  = dasd_eckd_set_online,
 	.notify      = dasd_generic_notify,
 	.path_event  = dasd_generic_path_event,
+	.shutdown    = dasd_generic_shutdown,
 	.freeze      = dasd_generic_pm_freeze,
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,
