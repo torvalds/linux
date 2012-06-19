@@ -155,7 +155,7 @@ struct tps_driver_data {
 	u8 core_regulator;
 };
 
-static int tps65023_dcdc_get_voltage(struct regulator_dev *dev)
+static int tps65023_dcdc_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
 	int ret;
@@ -169,9 +169,9 @@ static int tps65023_dcdc_get_voltage(struct regulator_dev *dev)
 		if (ret != 0)
 			return ret;
 		data &= (tps->info[dcdc]->table_len - 1);
-		return tps->info[dcdc]->table[data];
+		return data;
 	} else
-		return tps->info[dcdc]->table[0];
+		return 0;
 }
 
 static int tps65023_dcdc_set_voltage_sel(struct regulator_dev *dev,
@@ -198,7 +198,7 @@ out:
 	return ret;
 }
 
-static int tps65023_ldo_get_voltage(struct regulator_dev *dev)
+static int tps65023_ldo_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
 	int data, ldo = rdev_get_id(dev);
@@ -213,7 +213,7 @@ static int tps65023_ldo_get_voltage(struct regulator_dev *dev)
 
 	data >>= (TPS65023_LDO_CTRL_LDOx_SHIFT(ldo - TPS65023_LDO_1));
 	data &= (tps->info[ldo]->table_len - 1);
-	return tps->info[ldo]->table[data];
+	return data;
 }
 
 static int tps65023_ldo_set_voltage_sel(struct regulator_dev *dev,
@@ -232,7 +232,7 @@ static struct regulator_ops tps65023_dcdc_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
-	.get_voltage = tps65023_dcdc_get_voltage,
+	.get_voltage_sel = tps65023_dcdc_get_voltage_sel,
 	.set_voltage_sel = tps65023_dcdc_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
 };
@@ -242,7 +242,7 @@ static struct regulator_ops tps65023_ldo_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
-	.get_voltage = tps65023_ldo_get_voltage,
+	.get_voltage_sel = tps65023_ldo_get_voltage_sel,
 	.set_voltage_sel = tps65023_ldo_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
 };
