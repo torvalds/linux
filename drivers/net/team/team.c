@@ -346,6 +346,8 @@ static int team_option_get(struct team *team,
 			   struct team_option_inst *opt_inst,
 			   struct team_gsetter_ctx *ctx)
 {
+	if (!opt_inst->option->getter)
+		return -EOPNOTSUPP;
 	return opt_inst->option->getter(team, ctx);
 }
 
@@ -355,6 +357,8 @@ static int team_option_set(struct team *team,
 {
 	int err;
 
+	if (!opt_inst->option->setter)
+		return -EOPNOTSUPP;
 	err = opt_inst->option->setter(team, ctx);
 	if (err)
 		return err;
