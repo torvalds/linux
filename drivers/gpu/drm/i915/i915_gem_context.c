@@ -480,12 +480,16 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_context_create *args = data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_hw_context *ctx;
 	int ret;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
+		return -ENODEV;
+
+	if (dev_priv->hw_contexts_disabled)
 		return -ENODEV;
 
 	ret = i915_mutex_lock_interruptible(dev);
