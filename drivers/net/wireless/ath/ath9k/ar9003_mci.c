@@ -321,7 +321,7 @@ void ar9003_mci_set_full_sleep(struct ath_hw *ah)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
-	if (ar9003_mci_state(ah, MCI_STATE_ENABLE, NULL) &&
+	if (ar9003_mci_state(ah, MCI_STATE_ENABLE) &&
 	    (mci->bt_state != MCI_BT_SLEEP) &&
 	    !mci->halted_bt_gpm) {
 		ar9003_mci_send_coex_halt_bt_gpm(ah, true, true);
@@ -484,7 +484,7 @@ static void ar9003_mci_sync_bt_state(struct ath_hw *ah)
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 cur_bt_state;
 
-	cur_bt_state = ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP, NULL);
+	cur_bt_state = ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP);
 
 	if (mci->bt_state != cur_bt_state)
 		mci->bt_state = cur_bt_state;
@@ -593,8 +593,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 		if (!time_out)
 			break;
 
-		offset = ar9003_mci_state(ah, MCI_STATE_NEXT_GPM_OFFSET,
-					  &more_data);
+		offset = ar9003_mci_get_next_gpm_offset(ah, false, &more_data);
 
 		if (offset == MCI_GPM_INVALID)
 			continue;
@@ -658,8 +657,7 @@ static u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 		time_out = 0;
 
 	while (more_data == MCI_GPM_MORE) {
-		offset = ar9003_mci_state(ah, MCI_STATE_NEXT_GPM_OFFSET,
-					  &more_data);
+		offset = ar9003_mci_get_next_gpm_offset(ah, false, &more_data);
 		if (offset == MCI_GPM_INVALID)
 			break;
 
@@ -893,13 +891,16 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		udelay(100);
 	}
 
+	/* Check pending GPM msg before MCI Reset Rx */
+	ar9003_mci_check_gpm_offset(ah);
+
 	regval |= SM(1, AR_MCI_COMMAND2_RESET_RX);
 	REG_WRITE(ah, AR_MCI_COMMAND2, regval);
 	udelay(1);
 	regval &= ~SM(1, AR_MCI_COMMAND2_RESET_RX);
 	REG_WRITE(ah, AR_MCI_COMMAND2, regval);
 
-	ar9003_mci_state(ah, MCI_STATE_INIT_GPM_OFFSET, NULL);
+	ar9003_mci_get_next_gpm_offset(ah, true, NULL);
 
 	REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE,
 		  (SM(0xe801, AR_MCI_MSG_ATTRIBUTES_TABLE_INVALID_HDR) |
@@ -1010,38 +1011,32 @@ static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
 	}
 }
 
-void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done)
+void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
-	if (!mci->update_2g5g)
+	if (!mci->update_2g5g && !force)
 		return;
 
 	if (mci->is_2g) {
 		ar9003_mci_send_2g5g_status(ah, true);
-		ar9003_mci_send_lna_transfer(ah, true);
-		udelay(5);
 
-		REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
+		REG_SET_BIT(ah, AR_MCI_TX_CTRL,
 			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 		REG_CLR_BIT(ah, AR_PHY_GLB_CONTROL,
 			    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
 
 		if (!(mci->config & ATH_MCI_CONFIG_DISABLE_OSLA))
-			REG_SET_BIT(ah, AR_BTCOEX_CTRL,
-				    AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
+			ar9003_mci_osla_setup(ah, true);
 	} else {
-		ar9003_mci_send_lna_take(ah, true);
-		udelay(5);
-
 		REG_SET_BIT(ah, AR_MCI_TX_CTRL,
 			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 		REG_SET_BIT(ah, AR_PHY_GLB_CONTROL,
 			    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
-		REG_CLR_BIT(ah, AR_BTCOEX_CTRL,
-			    AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
 
-		ar9003_mci_send_2g5g_status(ah, true);
+		ar9003_mci_osla_setup(ah, false);
+		if (!force)
+			ar9003_mci_send_2g5g_status(ah, true);
 	}
 }
 
@@ -1169,11 +1164,10 @@ void ar9003_mci_cleanup(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ar9003_mci_cleanup);
 
-u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
+u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
-	u32 value = 0, more_gpm = 0, gpm_ptr;
+	u32 value = 0;
 	u8 query_type;
 
 	switch (state_type) {
@@ -1186,81 +1180,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		}
 		value &= AR_BTCOEX_CTRL_MCI_MODE_EN;
 		break;
-	case MCI_STATE_INIT_GPM_OFFSET:
-		value = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
-		mci->gpm_idx = value;
-		break;
-	case MCI_STATE_NEXT_GPM_OFFSET:
-	case MCI_STATE_LAST_GPM_OFFSET:
-		/*
-		* This could be useful to avoid new GPM message interrupt which
-		* may lead to spurious interrupt after power sleep, or multiple
-		* entry of ath_mci_intr().
-		* Adding empty GPM check by returning HAL_MCI_GPM_INVALID can
-		* alleviate this effect, but clearing GPM RX interrupt bit is
-		* safe, because whether this is called from hw or driver code
-		* there must be an interrupt bit set/triggered initially
-		*/
-		REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW,
-			  AR_MCI_INTERRUPT_RX_MSG_GPM);
-
-		gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
-		value = gpm_ptr;
-
-		if (value == 0)
-			value = mci->gpm_len - 1;
-		else if (value >= mci->gpm_len) {
-			if (value != 0xFFFF)
-				value = 0;
-		} else {
-			value--;
-		}
-
-		if (value == 0xFFFF) {
-			value = MCI_GPM_INVALID;
-			more_gpm = MCI_GPM_NOMORE;
-		} else if (state_type == MCI_STATE_NEXT_GPM_OFFSET) {
-			if (gpm_ptr == mci->gpm_idx) {
-				value = MCI_GPM_INVALID;
-				more_gpm = MCI_GPM_NOMORE;
-			} else {
-				for (;;) {
-					u32 temp_index;
-
-					/* skip reserved GPM if any */
-
-					if (value != mci->gpm_idx)
-						more_gpm = MCI_GPM_MORE;
-					else
-						more_gpm = MCI_GPM_NOMORE;
-
-					temp_index = mci->gpm_idx;
-					mci->gpm_idx++;
-
-					if (mci->gpm_idx >=
-					    mci->gpm_len)
-						mci->gpm_idx = 0;
-
-					if (ar9003_mci_is_gpm_valid(ah,
-								    temp_index)) {
-						value = temp_index;
-						break;
-					}
-
-					if (more_gpm == MCI_GPM_NOMORE) {
-						value = MCI_GPM_INVALID;
-						break;
-					}
-				}
-			}
-			if (p_data)
-				*p_data = more_gpm;
-		}
-
-		if (value != MCI_GPM_INVALID)
-			value <<= 4;
-
-		break;
 	case MCI_STATE_LAST_SCHD_MSG_OFFSET:
 		value = MS(REG_READ(ah, AR_MCI_RX_STATUS),
 				    AR_MCI_RX_LAST_SCHD_MSG_INDEX);
@@ -1272,21 +1191,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 			   AR_MCI_RX_REMOTE_SLEEP) ?
 			MCI_BT_SLEEP : MCI_BT_AWAKE;
 		break;
-	case MCI_STATE_CONT_RSSI_POWER:
-		value = MS(mci->cont_status, AR_MCI_CONT_RSSI_POWER);
-		break;
-	case MCI_STATE_CONT_PRIORITY:
-		value = MS(mci->cont_status, AR_MCI_CONT_RRIORITY);
-		break;
-	case MCI_STATE_CONT_TXRX:
-		value = MS(mci->cont_status, AR_MCI_CONT_TXRX);
-		break;
-	case MCI_STATE_BT:
-		value = mci->bt_state;
-		break;
-	case MCI_STATE_SET_BT_SLEEP:
-		mci->bt_state = MCI_BT_SLEEP;
-		break;
 	case MCI_STATE_SET_BT_AWAKE:
 		mci->bt_state = MCI_BT_AWAKE;
 		ar9003_mci_send_coex_version_query(ah, true);
@@ -1295,7 +1199,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		if (mci->unhalt_bt_gpm)
 			ar9003_mci_send_coex_halt_bt_gpm(ah, false, true);
 
-		ar9003_mci_2g5g_switch(ah, true);
+		ar9003_mci_2g5g_switch(ah, false);
 		break;
 	case MCI_STATE_SET_BT_CAL_START:
 		mci->bt_state = MCI_BT_CAL_START;
@@ -1319,34 +1223,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 	case MCI_STATE_SEND_WLAN_COEX_VERSION:
 		ar9003_mci_send_coex_version_response(ah, true);
 		break;
-	case MCI_STATE_SET_BT_COEX_VERSION:
-		if (!p_data)
-			ath_dbg(common, MCI,
-				"MCI Set BT Coex version with NULL data!!\n");
-		else {
-			mci->bt_ver_major = (*p_data >> 8) & 0xff;
-			mci->bt_ver_minor = (*p_data) & 0xff;
-			mci->bt_version_known = true;
-			ath_dbg(common, MCI, "MCI BT version set: %d.%d\n",
-				mci->bt_ver_major, mci->bt_ver_minor);
-		}
-		break;
-	case MCI_STATE_SEND_WLAN_CHANNELS:
-		if (p_data) {
-			if (((mci->wlan_channels[1] & 0xffff0000) ==
-			     (*(p_data + 1) & 0xffff0000)) &&
-			    (mci->wlan_channels[2] == *(p_data + 2)) &&
-			    (mci->wlan_channels[3] == *(p_data + 3)))
-				break;
-
-			mci->wlan_channels[0] = *p_data++;
-			mci->wlan_channels[1] = *p_data++;
-			mci->wlan_channels[2] = *p_data++;
-			mci->wlan_channels[3] = *p_data++;
-		}
-		mci->wlan_channels_update = true;
-		ar9003_mci_send_coex_wlan_channels(ah, true);
-		break;
 	case MCI_STATE_SEND_VERSION_QUERY:
 		ar9003_mci_send_coex_version_query(ah, true);
 		break;
@@ -1354,29 +1230,12 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		query_type = MCI_GPM_COEX_QUERY_BT_TOPOLOGY;
 		ar9003_mci_send_coex_bt_status_query(ah, true, query_type);
 		break;
-	case MCI_STATE_NEED_FLUSH_BT_INFO:
-		/*
-		 * btcoex_hw.mci.unhalt_bt_gpm means whether it's
-		 * needed to send UNHALT message. It's set whenever
-		 * there's a request to send HALT message.
-		 * mci_halted_bt_gpm means whether HALT message is sent
-		 * out successfully.
-		 *
-		 * Checking (mci_unhalt_bt_gpm == false) instead of
-		 * checking (ah->mci_halted_bt_gpm == false) will make
-		 * sure currently is in UNHALT-ed mode and BT can
-		 * respond to status query.
-		 */
-		value = (!mci->unhalt_bt_gpm && mci->need_flush_btinfo) ? 1 : 0;
-		if (p_data)
-			mci->need_flush_btinfo = (*p_data != 0) ? true : false;
-		break;
 	case MCI_STATE_RECOVER_RX:
 		ar9003_mci_prep_interface(ah);
 		mci->query_bt = true;
 		mci->need_flush_btinfo = true;
 		ar9003_mci_send_coex_wlan_channels(ah, true);
-		ar9003_mci_2g5g_switch(ah, true);
+		ar9003_mci_2g5g_switch(ah, false);
 		break;
 	case MCI_STATE_NEED_FTP_STOMP:
 		value = !(mci->config & ATH_MCI_CONFIG_DISABLE_FTP_STOMP);
@@ -1404,3 +1263,154 @@ void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah)
 	/* Force another 2g5g update at next scanning */
 	mci->update_2g5g = true;
 }
+
+void ar9003_mci_set_power_awake(struct ath_hw *ah)
+{
+	u32 btcoex_ctrl2, diag_sw;
+	int i;
+	u8 lna_ctrl, bt_sleep;
+
+	for (i = 0; i < AH_WAIT_TIMEOUT; i++) {
+		btcoex_ctrl2 = REG_READ(ah, AR_BTCOEX_CTRL2);
+		if (btcoex_ctrl2 != 0xdeadbeef)
+			break;
+		udelay(AH_TIME_QUANTUM);
+	}
+	REG_WRITE(ah, AR_BTCOEX_CTRL2, (btcoex_ctrl2 | BIT(23)));
+
+	for (i = 0; i < AH_WAIT_TIMEOUT; i++) {
+		diag_sw = REG_READ(ah, AR_DIAG_SW);
+		if (diag_sw != 0xdeadbeef)
+			break;
+		udelay(AH_TIME_QUANTUM);
+	}
+	REG_WRITE(ah, AR_DIAG_SW, (diag_sw | BIT(27) | BIT(19) | BIT(18)));
+	lna_ctrl = REG_READ(ah, AR_OBS_BUS_CTRL) & 0x3;
+	bt_sleep = REG_READ(ah, AR_MCI_RX_STATUS) & AR_MCI_RX_REMOTE_SLEEP;
+
+	REG_WRITE(ah, AR_BTCOEX_CTRL2, btcoex_ctrl2);
+	REG_WRITE(ah, AR_DIAG_SW, diag_sw);
+
+	if (bt_sleep && (lna_ctrl == 2)) {
+		REG_SET_BIT(ah, AR_BTCOEX_RC, 0x1);
+		REG_CLR_BIT(ah, AR_BTCOEX_RC, 0x1);
+		udelay(50);
+	}
+}
+
+void ar9003_mci_check_gpm_offset(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+	u32 offset;
+
+	/*
+	 * This should only be called before "MAC Warm Reset" or "MCI Reset Rx".
+	 */
+	offset = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+	if (mci->gpm_idx == offset)
+		return;
+	ath_dbg(common, MCI, "GPM cached write pointer mismatch %d %d\n",
+		mci->gpm_idx, offset);
+	mci->query_bt = true;
+	mci->need_flush_btinfo = true;
+	mci->gpm_idx = 0;
+}
+
+u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
+{
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+	u32 offset, more_gpm = 0, gpm_ptr;
+
+	if (first) {
+		gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+		mci->gpm_idx = gpm_ptr;
+		return gpm_ptr;
+	}
+
+	/*
+	 * This could be useful to avoid new GPM message interrupt which
+	 * may lead to spurious interrupt after power sleep, or multiple
+	 * entry of ath_mci_intr().
+	 * Adding empty GPM check by returning HAL_MCI_GPM_INVALID can
+	 * alleviate this effect, but clearing GPM RX interrupt bit is
+	 * safe, because whether this is called from hw or driver code
+	 * there must be an interrupt bit set/triggered initially
+	 */
+	REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW,
+			AR_MCI_INTERRUPT_RX_MSG_GPM);
+
+	gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+	offset = gpm_ptr;
+
+	if (!offset)
+		offset = mci->gpm_len - 1;
+	else if (offset >= mci->gpm_len) {
+		if (offset != 0xFFFF)
+			offset = 0;
+	} else {
+		offset--;
+	}
+
+	if ((offset == 0xFFFF) || (gpm_ptr == mci->gpm_idx)) {
+		offset = MCI_GPM_INVALID;
+		more_gpm = MCI_GPM_NOMORE;
+		goto out;
+	}
+	for (;;) {
+		u32 temp_index;
+
+		/* skip reserved GPM if any */
+
+		if (offset != mci->gpm_idx)
+			more_gpm = MCI_GPM_MORE;
+		else
+			more_gpm = MCI_GPM_NOMORE;
+
+		temp_index = mci->gpm_idx;
+		mci->gpm_idx++;
+
+		if (mci->gpm_idx >= mci->gpm_len)
+			mci->gpm_idx = 0;
+
+		if (ar9003_mci_is_gpm_valid(ah, temp_index)) {
+			offset = temp_index;
+			break;
+		}
+
+		if (more_gpm == MCI_GPM_NOMORE) {
+			offset = MCI_GPM_INVALID;
+			break;
+		}
+	}
+
+	if (offset != MCI_GPM_INVALID)
+		offset <<= 4;
+out:
+	if (more)
+		*more = more_gpm;
+
+	return offset;
+}
+EXPORT_SYMBOL(ar9003_mci_get_next_gpm_offset);
+
+void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 minor)
+{
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	mci->bt_ver_major = major;
+	mci->bt_ver_minor = minor;
+	mci->bt_version_known = true;
+	ath_dbg(ath9k_hw_common(ah), MCI, "MCI BT version set: %d.%d\n",
+		mci->bt_ver_major, mci->bt_ver_minor);
+}
+EXPORT_SYMBOL(ar9003_mci_set_bt_version);
+
+void ar9003_mci_send_wlan_channels(struct ath_hw *ah)
+{
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	mci->wlan_channels_update = true;
+	ar9003_mci_send_coex_wlan_channels(ah, true);
+}
+EXPORT_SYMBOL(ar9003_mci_send_wlan_channels);

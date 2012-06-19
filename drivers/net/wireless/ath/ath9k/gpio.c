@@ -202,7 +202,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 	btcoex->bt_wait_time += btcoex->btcoex_period;
 	if (btcoex->bt_wait_time > ATH_BTCOEX_RX_WAIT_TIME) {
-		if (ar9003_mci_state(ah, MCI_STATE_NEED_FTP_STOMP, NULL) &&
+		if (ar9003_mci_state(ah, MCI_STATE_NEED_FTP_STOMP) &&
 		    (mci->num_pan || mci->num_other_acl))
 			ah->btcoex_hw.mci.stomp_ftp =
 				(sc->rx.num_pkts < ATH_BTCOEX_STOMP_FTP_THRESH);
@@ -232,7 +232,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 	}
 
 	ath9k_ps_restore(sc);
-	timer_period = btcoex->btcoex_period / 1000;
+	timer_period = btcoex->btcoex_period;
 	mod_timer(&btcoex->period_timer, jiffies + msecs_to_jiffies(timer_period));
 }
 
@@ -267,10 +267,10 @@ static int ath_init_btcoex_timer(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 
-	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD * 1000;
-	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
+	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD;
+	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) * 1000 *
 		btcoex->btcoex_period / 100;
-	btcoex->btscan_no_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) *
+	btcoex->btscan_no_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) * 1000 *
 				   btcoex->btcoex_period / 100;
 
 	setup_timer(&btcoex->period_timer, ath_btcoex_period_timer,

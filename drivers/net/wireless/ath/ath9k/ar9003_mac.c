@@ -181,11 +181,14 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 	u32 mask2 = 0;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 sync_cause = 0, async_cause;
+	u32 sync_cause = 0, async_cause, async_mask = AR_INTR_MAC_IRQ;
+
+	if (ath9k_hw_mci_is_enabled(ah))
+		async_mask |= AR_INTR_ASYNC_MASK_MCI;
 
 	async_cause = REG_READ(ah, AR_INTR_ASYNC_CAUSE);
 
-	if (async_cause & (AR_INTR_MAC_IRQ | AR_INTR_ASYNC_MASK_MCI)) {
+	if (async_cause & async_mask) {
 		if ((REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M)
 				== AR_RTC_STATUS_ON)
 			isr = REG_READ(ah, AR_ISR);

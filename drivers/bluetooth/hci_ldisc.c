@@ -394,7 +394,7 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
 
 	if (!test_bit(HCI_UART_RESET_ON_INIT, &hu->hdev_flags))
-		set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
+		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
 	if (test_bit(HCI_UART_CREATE_AMP, &hu->hdev_flags))
 		hdev->dev_type = HCI_AMP;

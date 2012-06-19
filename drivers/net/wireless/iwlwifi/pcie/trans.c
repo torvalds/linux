@@ -298,6 +298,10 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 	struct iwl_tx_queue *txq = (void *)data;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
+	u32 scd_sram_addr = trans_pcie->scd_base_addr +
+		SCD_TX_STTS_MEM_LOWER_BOUND + (16 * txq->q.id);
+	u8 buf[16];
+	int i;
 
 	spin_lock(&txq->lock);
 	/* check if triggered erroneously */
@@ -307,15 +311,40 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 	}
 	spin_unlock(&txq->lock);
 
-
 	IWL_ERR(trans, "Queue %d stuck for %u ms.\n", txq->q.id,
 		jiffies_to_msecs(trans_pcie->wd_timeout));
 	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
 		txq->q.read_ptr, txq->q.write_ptr);
-	IWL_ERR(trans, "Current HW read_ptr %d write_ptr %d\n",
-		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq->q.id))
-					& (TFD_QUEUE_SIZE_MAX - 1),
-		iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq->q.id)));
+
+	iwl_read_targ_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
+
+	iwl_print_hex_error(trans, buf, sizeof(buf));
+
+	for (i = 0; i < FH_TCSR_CHNL_NUM; i++)
+		IWL_ERR(trans, "FH TRBs(%d) = 0x%08x\n", i,
+			iwl_read_direct32(trans, FH_TX_TRB_REG(i)));
+
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
+		u32 status = iwl_read_prph(trans, SCD_QUEUE_STATUS_BITS(i));
+		u8 fifo = (status >> SCD_QUEUE_STTS_REG_POS_TXF) & 0x7;
+		bool active = !!(status & BIT(SCD_QUEUE_STTS_REG_POS_ACTIVE));
+		u32 tbl_dw =
+			iwl_read_targ_mem(trans,
+					  trans_pcie->scd_base_addr +
+					  SCD_TRANS_TBL_OFFSET_QUEUE(i));
+
+		if (i & 0x1)
+			tbl_dw = (tbl_dw & 0xFFFF0000) >> 16;
+		else
+			tbl_dw = tbl_dw & 0x0000FFFF;
+
+		IWL_ERR(trans,
+			"Q %d is %sactive and mapped to fifo %d ra_tid 0x%04x [%d,%d]\n",
+			i, active ? "" : "in", fifo, tbl_dw,
+			iwl_read_prph(trans,
+				      SCD_QUEUE_RDPTR(i)) & (txq->q.n_bd - 1),
+			iwl_read_prph(trans, SCD_QUEUE_WRPTR(i)));
+	}
 
 	iwl_op_mode_nic_error(trans->op_mode);
 }
@@ -1054,22 +1083,20 @@ static void iwl_tx_start(struct iwl_trans *trans)
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->scd_bc_tbls.dma >> 10);
 
-	for (i = 0; i < trans_pcie->n_q_to_fifo; i++) {
-		int fifo = trans_pcie->setup_q_to_fifo[i];
-
-		__iwl_trans_pcie_txq_enable(trans, i, fifo, IWL_INVALID_STATION,
-					    IWL_TID_NON_QOS,
-					    SCD_FRAME_LIMIT, 0);
-	}
-
-	/* Activate all Tx DMA/FIFO channels */
-	iwl_trans_txq_set_sched(trans, IWL_MASK(0, 7));
-
 	/* The chain extension of the SCD doesn't work well. This feature is
 	 * enabled by default by the HW, so we need to disable it manually.
 	 */
 	iwl_write_prph(trans, SCD_CHAINEXT_EN, 0);
 
+	for (i = 0; i < trans_pcie->n_q_to_fifo; i++) {
+		int fifo = trans_pcie->setup_q_to_fifo[i];
+
+		iwl_trans_pcie_txq_enable(trans, i, fifo, IWL_INVALID_STATION,
+					  IWL_TID_NON_QOS, SCD_FRAME_LIMIT, 0);
+	}
+
+	/* Activate all Tx DMA/FIFO channels */
+	iwl_trans_txq_set_sched(trans, IWL_MASK(0, 7));
 
 	/* Enable DMA channel */
 	for (chan = 0; chan < FH_TCSR_CHNL_NUM ; chan++)
@@ -1239,6 +1266,19 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	spin_lock(&txq->lock);
 
+	/* In AGG mode, the index in the ring must correspond to the WiFi
+	 * sequence number. This is a HW requirements to help the SCD to parse
+	 * the BA.
+	 * Check here that the packets are in the right place on the ring.
+	 */
+#ifdef CONFIG_IWLWIFI_DEBUG
+	wifi_seq = SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	WARN_ONCE((iwl_read_prph(trans, SCD_AGGR_SEL) & BIT(txq_id)) &&
+		  ((wifi_seq & 0xff) != q->write_ptr),
+		  "Q: %d WiFi Seq %d tfdNum %d",
+		  txq_id, wifi_seq, q->write_ptr);
+#endif
+
 	/* Set up driver data for this TFD */
 	txq->entries[q->write_ptr].skb = skb;
 	txq->entries[q->write_ptr].cmd = dev_cmd;
@@ -1332,7 +1372,8 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			     skb->data + hdr_len, secondlen);
 
 	/* start timer if queue currently empty */
-	if (q->read_ptr == q->write_ptr && trans_pcie->wd_timeout)
+	if (txq->need_update && q->read_ptr == q->write_ptr &&
+	    trans_pcie->wd_timeout)
 		mod_timer(&txq->stuck_timer, jiffies + trans_pcie->wd_timeout);
 
 	/* Tell device the write index *just past* this latest filled TFD */

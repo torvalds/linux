@@ -476,7 +476,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 			}
 
 			if (priv->wowlan_sram)
-				_iwl_read_targ_mem_words(
+				_iwl_read_targ_mem_dwords(
 				      priv->trans, 0x800000,
 				      priv->wowlan_sram,
 				      img->sec[IWL_UCODE_SECTION_DATA].len / 4);

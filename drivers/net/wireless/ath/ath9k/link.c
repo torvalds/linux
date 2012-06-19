@@ -136,6 +136,14 @@ void ath_hw_pll_work(struct work_struct *work)
 	u32 pll_sqsum;
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    hw_pll_work.work);
+	/*
+	 * ensure that the PLL WAR is executed only
+	 * after the STA is associated (or) if the
+	 * beaconing had started in interfaces that
+	 * uses beacons.
+	 */
+	if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
+		return;
 
 	ath9k_ps_wakeup(sc);
 	pll_sqsum = ar9003_get_pll_sqsum_dvc(sc->sc_ah);

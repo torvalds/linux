@@ -1337,6 +1337,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(!ifmgd->associated))
 		return;
 
+	ieee80211_stop_poll(sdata);
+
 	memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
 
 	ifmgd->associated = NULL;
@@ -2591,8 +2593,6 @@ static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[DEAUTH_DISASSOC_LEN];
-
-	ieee80211_stop_poll(sdata);
 
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH, reason,
 			       false, frame_buf);

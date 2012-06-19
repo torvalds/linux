@@ -258,6 +258,7 @@ const struct iwl_cfg iwl6030_2bg_cfg = {
 	.eeprom_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
 	.base_params = &iwl6000_g2_base_params,			\
 	.bt_params = &iwl6000_bt_params,			\
+	.eeprom_params = &iwl6000_eeprom_params,		\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true
