@@ -599,7 +599,7 @@ error:
 	return ret;
 }
 
-static int af9015_get_usb_stream_config(struct dvb_frontend *fe,
+static int af9015_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 		struct usb_data_stream_properties *stream)
 {
 	deb_info("%s: adap=%d\n", __func__, fe_to_adap(fe)->id);
@@ -1304,7 +1304,7 @@ static struct dvb_usb_device_properties af9015_props = {
 	.tuner_attach = af9015_tuner_attach,
 	.init = af9015_init,
 	.get_rc_config = af9015_get_rc_config,
-	.get_usb_stream_config = af9015_get_usb_stream_config,
+	.get_stream_config = af9015_get_stream_config,
 
 	.get_adapter_count = af9015_get_adapter_count,
 	.adapter = {

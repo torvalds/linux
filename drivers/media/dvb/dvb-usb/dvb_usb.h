@@ -124,8 +124,6 @@ struct dvb_usb_adapter_properties {
 #define DVB_USB_ADAP_HAS_PID_FILTER               0x01
 #define DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF 0x02
 #define DVB_USB_ADAP_NEED_PID_FILTERING           0x04
-#define DVB_USB_ADAP_RECEIVES_204_BYTE_TS         0x08
-#define DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD         0x10
 	int caps;
 	int size_of_priv;
 
@@ -228,9 +226,11 @@ struct dvb_usb_device_properties {
 	int (*init) (struct dvb_usb_device *);
 	void (*disconnect) (struct dvb_usb_device *);
 	int (*get_rc_config) (struct dvb_usb_device *, struct dvb_usb_rc *);
-	int (*get_usb_stream_config) (struct dvb_frontend *,
+#define DVB_USB_FE_TS_TYPE_188        0
+#define DVB_USB_FE_TS_TYPE_204        1
+#define DVB_USB_FE_TS_TYPE_RAW        2
+	int (*get_stream_config) (struct dvb_frontend *,  u8 *,
 			struct usb_data_stream_properties *);
-	int (*get_ts_config) (struct dvb_frontend *, unsigned int *);
 
 	struct i2c_algorithm *i2c_algo;
 
@@ -301,7 +301,7 @@ struct dvb_usb_adapter {
 	const struct dvb_usb_adapter_properties *props;
 	struct usb_data_stream stream;
 	u8  id;
-
+	u8 ts_type;
 	int pid_filtering;
 	int feedcount;
 	int max_feed_count;

@@ -100,37 +100,32 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	 */
 	if (adap->feedcount == onoff && adap->feedcount > 0) {
 		struct usb_data_stream_properties stream_props;
-		unsigned int ts_props;
 		mutex_lock(&adap->sync_mutex);
 
-		/* resolve TS configuration */
-		if (d->props->get_ts_config) {
-			ret = d->props->get_ts_config(adap->fe[adap->active_fe],
-					&ts_props);
-			if (ret < 0)
-				goto err_mutex_unlock;
-		} else {
-			ts_props = 0; /* normal 188 payload only TS */
-		}
-
-		if (ts_props & DVB_USB_ADAP_RECEIVES_204_BYTE_TS)
-			adap->stream.complete = dvb_usb_data_complete_204;
-		else if (ts_props & DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD)
-			adap->stream.complete = dvb_usb_data_complete_raw;
-		else
-			adap->stream.complete = dvb_usb_data_complete;
-
-		/* resolve USB stream configuration */
-		if (d->props->get_usb_stream_config) {
+		/* resolve input and output streaming paramters */
+		if (d->props->get_stream_config) {
 			memcpy(&stream_props, &adap->props->stream,
 				sizeof(struct usb_data_stream_properties));
-			ret = d->props->get_usb_stream_config(
+			ret = d->props->get_stream_config(
 					adap->fe[adap->active_fe],
-					&stream_props);
+					&adap->ts_type, &stream_props);
 			if (ret < 0)
 				goto err_mutex_unlock;
 		} else {
 			stream_props = adap->props->stream;
+		}
+
+		switch (adap->ts_type) {
+		case DVB_USB_FE_TS_TYPE_204:
+			adap->stream.complete = dvb_usb_data_complete_204;
+			break;
+		case DVB_USB_FE_TS_TYPE_RAW:
+			adap->stream.complete = dvb_usb_data_complete_raw;
+			break;
+		case DVB_USB_FE_TS_TYPE_188:
+		default:
+			adap->stream.complete = dvb_usb_data_complete;
+			break;
 		}
 
 		pr_debug("%s: submitting all URBs\n", __func__);
