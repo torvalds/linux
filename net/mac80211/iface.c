@@ -97,15 +97,12 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sub_if_data *nsdata;
-	struct net_device *dev = sdata->dev;
 
 	ASSERT_RTNL();
 
 	/* we hold the RTNL here so can safely walk the list */
 	list_for_each_entry(nsdata, &local->interfaces, list) {
-		struct net_device *ndev = nsdata->dev;
-
-		if (ndev != dev && ieee80211_sdata_running(nsdata)) {
+		if (nsdata != sdata && ieee80211_sdata_running(nsdata)) {
 			/*
 			 * Allow only a single IBSS interface to be up at any
 			 * time. This is restricted because beacon distribution
@@ -124,7 +121,8 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			 * The remaining checks are only performed for interfaces
 			 * with the same MAC address.
 			 */
-			if (!ether_addr_equal(dev->dev_addr, ndev->dev_addr))
+			if (!ether_addr_equal(sdata->vif.addr,
+					      nsdata->vif.addr))
 				continue;
 
 			/*
