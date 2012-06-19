@@ -215,28 +215,27 @@ static int smk_set_access(struct smack_rule *srp, struct list_head *rule_list,
  * @access: access string
  * @rule: Smack rule
  * @import: if non-zero, import labels
+ * @len: label length limit
  *
  * Returns 0 on success, -1 on failure
  */
 static int smk_fill_rule(const char *subject, const char *object,
 				const char *access, struct smack_rule *rule,
-				int import)
+				int import, int len)
 {
-	int rc = -1;
-	int done;
 	const char *cp;
 	struct smack_known *skp;
 
 	if (import) {
-		rule->smk_subject = smk_import(subject, 0);
+		rule->smk_subject = smk_import(subject, len);
 		if (rule->smk_subject == NULL)
 			return -1;
 
-		rule->smk_object = smk_import(object, 0);
+		rule->smk_object = smk_import(object, len);
 		if (rule->smk_object == NULL)
 			return -1;
 	} else {
-		cp = smk_parse_smack(subject, 0);
+		cp = smk_parse_smack(subject, len);
 		if (cp == NULL)
 			return -1;
 		skp = smk_find_entry(cp);
@@ -245,7 +244,7 @@ static int smk_fill_rule(const char *subject, const char *object,
 			return -1;
 		rule->smk_subject = skp->smk_known;
 
-		cp = smk_parse_smack(object, 0);
+		cp = smk_parse_smack(object, len);
 		if (cp == NULL)
 			return -1;
 		skp = smk_find_entry(cp);
@@ -257,7 +256,7 @@ static int smk_fill_rule(const char *subject, const char *object,
 
 	rule->smk_access = 0;
 
-	for (cp = access, done = 0; *cp && !done; cp++) {
+	for (cp = access; *cp != '\0'; cp++) {
 		switch (*cp) {
 		case '-':
 			break;
@@ -282,13 +281,11 @@ static int smk_fill_rule(const char *subject, const char *object,
 			rule->smk_access |= MAY_TRANSMUTE;
 			break;
 		default:
-			done = 1;
-			break;
+			return 0;
 		}
 	}
-	rc = 0;
 
-	return rc;
+	return 0;
 }
 
 /**
@@ -304,7 +301,8 @@ static int smk_parse_rule(const char *data, struct smack_rule *rule, int import)
 	int rc;
 
 	rc = smk_fill_rule(data, data + SMK_LABELLEN,
-			   data + SMK_LABELLEN + SMK_LABELLEN, rule, import);
+			   data + SMK_LABELLEN + SMK_LABELLEN, rule, import,
+			   SMK_LABELLEN);
 	return rc;
 }
 
@@ -340,7 +338,7 @@ static int smk_parse_long_rule(const char *data, struct smack_rule *rule,
 		goto free_out_o;
 
 	if (sscanf(data, "%s %s %s", subject, object, access) == 3)
-		rc = smk_fill_rule(subject, object, access, rule, import);
+		rc = smk_fill_rule(subject, object, access, rule, import, 0);
 
 	kfree(access);
 free_out_o:
