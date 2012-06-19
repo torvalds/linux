@@ -82,7 +82,7 @@ struct dw_dma_regs {
 	DW_REG(ID);
 	DW_REG(TEST);
 
-	/* optional encoded params, 0x3c8..0x3 */
+	/* optional encoded params, 0x3c8..0x3f7 */
 };
 
 /* Bitfields in CTL_LO */
