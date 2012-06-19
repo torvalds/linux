@@ -217,6 +217,14 @@ static void dwc_dump_chan_regs(struct dw_dma_chan *dwc)
 		channel_readl(dwc, CTL_LO));
 }
 
+
+static inline void dwc_chan_disable(struct dw_dma *dw, struct dw_dma_chan *dwc)
+{
+	channel_clear_bit(dw, CH_EN, dwc->mask);
+	while (dma_readl(dw, CH_EN) & dwc->mask)
+		cpu_relax();
+}
+
 /*----------------------------------------------------------------------*/
 
 /* Called with dwc->lock held and bh disabled */
@@ -312,9 +320,7 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 			"BUG: XFER bit set, but channel not idle!\n");
 
 		/* Try to continue after resetting the channel... */
-		channel_clear_bit(dw, CH_EN, dwc->mask);
-		while (dma_readl(dw, CH_EN) & dwc->mask)
-			cpu_relax();
+		dwc_chan_disable(dw, dwc);
 	}
 
 	/*
@@ -396,9 +402,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		"BUG: All descriptors done, but channel not idle!\n");
 
 	/* Try to continue after resetting the channel... */
-	channel_clear_bit(dw, CH_EN, dwc->mask);
-	while (dma_readl(dw, CH_EN) & dwc->mask)
-		cpu_relax();
+	dwc_chan_disable(dw, dwc);
 
 	if (!list_empty(&dwc->queue)) {
 		list_move(dwc->queue.next, &dwc->active_list);
@@ -514,9 +518,7 @@ static void dwc_handle_cyclic(struct dw_dma *dw, struct dw_dma_chan *dwc,
 
 		dwc_dump_chan_regs(dwc);
 
-		channel_clear_bit(dw, CH_EN, dwc->mask);
-		while (dma_readl(dw, CH_EN) & dwc->mask)
-			cpu_relax();
+		dwc_chan_disable(dw, dwc);
 
 		/* make sure DMA does not restart by loading a new list */
 		channel_writel(dwc, LLP, 0);
@@ -946,9 +948,7 @@ static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	} else if (cmd == DMA_TERMINATE_ALL) {
 		spin_lock_irqsave(&dwc->lock, flags);
 
-		channel_clear_bit(dw, CH_EN, dwc->mask);
-		while (dma_readl(dw, CH_EN) & dwc->mask)
-			cpu_relax();
+		dwc_chan_disable(dw, dwc);
 
 		dwc->paused = false;
 
@@ -1156,9 +1156,7 @@ void dw_dma_cyclic_stop(struct dma_chan *chan)
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
-	channel_clear_bit(dw, CH_EN, dwc->mask);
-	while (dma_readl(dw, CH_EN) & dwc->mask)
-		cpu_relax();
+	dwc_chan_disable(dw, dwc);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 }
@@ -1336,9 +1334,7 @@ void dw_dma_cyclic_free(struct dma_chan *chan)
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
-	channel_clear_bit(dw, CH_EN, dwc->mask);
-	while (dma_readl(dw, CH_EN) & dwc->mask)
-		cpu_relax();
+	dwc_chan_disable(dw, dwc);
 
 	dma_writel(dw, CLEAR.ERROR, dwc->mask);
 	dma_writel(dw, CLEAR.XFER, dwc->mask);
