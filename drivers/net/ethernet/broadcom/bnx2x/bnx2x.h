@@ -1817,6 +1817,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define LOAD_NORMAL			0
 #define LOAD_OPEN			1
 #define LOAD_DIAG			2
+#define LOAD_LOOPBACK_EXT		3
 #define UNLOAD_NORMAL			0
 #define UNLOAD_CLOSE			1
 #define UNLOAD_RECOVERY			2
@@ -1900,12 +1901,14 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PCICFG_LINK_SPEED_SHIFT		16
 
 
-#define BNX2X_NUM_TESTS			7
+#define BNX2X_NUM_TESTS			8
 
 #define BNX2X_PHY_LOOPBACK		0
 #define BNX2X_MAC_LOOPBACK		1
+#define BNX2X_EXT_LOOPBACK		2
 #define BNX2X_PHY_LOOPBACK_FAILED	1
 #define BNX2X_MAC_LOOPBACK_FAILED	2
+#define BNX2X_EXT_LOOPBACK_FAILED	3
 #define BNX2X_LOOPBACK_FAILED		(BNX2X_MAC_LOOPBACK_FAILED | \
 					 BNX2X_PHY_LOOPBACK_FAILED)
 

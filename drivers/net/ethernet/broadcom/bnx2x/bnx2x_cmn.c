@@ -2176,6 +2176,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		break;
 
 	case LOAD_DIAG:
+	case LOAD_LOOPBACK_EXT:
 		bp->state = BNX2X_STATE_DIAG;
 		break;
 
@@ -2215,7 +2216,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		return -EBUSY;
 	}
 
-	bnx2x_dcbx_init(bp);
+	if (bp->state != BNX2X_STATE_DIAG)
+		bnx2x_dcbx_init(bp);
 	return 0;
 
 #ifndef BNX2X_STOP_ON_ERROR

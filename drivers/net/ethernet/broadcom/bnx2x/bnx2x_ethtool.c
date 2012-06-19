@@ -1538,7 +1538,8 @@ static const struct {
 } bnx2x_tests_str_arr[BNX2X_NUM_TESTS] = {
 	{ "register_test (offline)" },
 	{ "memory_test (offline)" },
-	{ "loopback_test (offline)" },
+	{ "int_loopback_test (offline)" },
+	{ "ext_loopback_test (offline)" },
 	{ "nvram_test (online)" },
 	{ "interrupt_test (online)" },
 	{ "link_test (online)" },
@@ -1943,6 +1944,14 @@ static void bnx2x_wait_for_link(struct bnx2x *bp, u8 link_up, u8 is_serdes)
 
 		if (cnt <= 0 && bnx2x_link_test(bp, is_serdes))
 			DP(BNX2X_MSG_ETHTOOL, "Timeout waiting for link up\n");
+
+		cnt = 1400;
+		while (!bp->link_vars.link_up && cnt--)
+			msleep(20);
+
+		if (cnt <= 0 && !bp->link_vars.link_up)
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Timeout waiting for link init\n");
 	}
 }
 
@@ -1968,13 +1977,16 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	u16 len;
 	int rc = -ENODEV;
 	u8 *data;
-	struct netdev_queue *txq = netdev_get_tx_queue(bp->dev, txdata->txq_index);
+	struct netdev_queue *txq = netdev_get_tx_queue(bp->dev,
+						       txdata->txq_index);
 
 	/* check the loopback mode */
 	switch (loopback_mode) {
 	case BNX2X_PHY_LOOPBACK:
-		if (bp->link_params.loopback_mode != LOOPBACK_XGXS)
+		if (bp->link_params.loopback_mode != LOOPBACK_XGXS) {
+			DP(BNX2X_MSG_ETHTOOL, "PHY loopback not supported\n");
 			return -EINVAL;
+		}
 		break;
 	case BNX2X_MAC_LOOPBACK:
 		if (CHIP_IS_E3(bp)) {
@@ -1990,6 +2002,13 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 			bp->link_params.loopback_mode = LOOPBACK_BMAC;
 
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
+		break;
+	case BNX2X_EXT_LOOPBACK:
+		if (bp->link_params.loopback_mode != LOOPBACK_EXT) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Can't configure external loopback\n");
+			return -EINVAL;
+		}
 		break;
 	default:
 		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
@@ -2162,6 +2181,38 @@ static int bnx2x_test_loopback(struct bnx2x *bp)
 	return rc;
 }
 
+static int bnx2x_test_ext_loopback(struct bnx2x *bp)
+{
+	int rc;
+	u8 is_serdes =
+		(bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) > 0;
+
+	if (BP_NOMCP(bp))
+		return -ENODEV;
+
+	if (!netif_running(bp->dev))
+		return BNX2X_EXT_LOOPBACK_FAILED;
+
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	rc = bnx2x_nic_load(bp, LOAD_LOOPBACK_EXT);
+	if (rc) {
+		DP(BNX2X_MSG_ETHTOOL,
+		   "Can't perform self-test, nic_load (for external lb) failed\n");
+		return -ENODEV;
+	}
+	bnx2x_wait_for_link(bp, 1, is_serdes);
+
+	bnx2x_netif_stop(bp, 1);
+
+	rc = bnx2x_run_loopback(bp, BNX2X_EXT_LOOPBACK);
+	if (rc)
+		DP(BNX2X_MSG_ETHTOOL, "EXT loopback failed  (res %d)\n", rc);
+
+	bnx2x_netif_start(bp);
+
+	return rc;
+}
+
 #define CRC32_RESIDUAL			0xdebb20e3
 
 static int bnx2x_test_nvram(struct bnx2x *bp)
@@ -2263,6 +2314,10 @@ static void bnx2x_self_test(struct net_device *dev,
 		etest->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}
+	DP(BNX2X_MSG_ETHTOOL,
+	   "Self-test command parameters: offline = %d, external_lb = %d\n",
+	   (etest->flags & ETH_TEST_FL_OFFLINE),
+	   (etest->flags & ETH_TEST_FL_EXTERNAL_LB)>>2);
 
 	memset(buf, 0, sizeof(u64) * BNX2X_NUM_TESTS);
 
@@ -2300,9 +2355,16 @@ static void bnx2x_self_test(struct net_device *dev,
 			etest->flags |= ETH_TEST_FL_FAILED;
 		}
 
-		buf[2] = bnx2x_test_loopback(bp);
+		buf[2] = bnx2x_test_loopback(bp); /* internal LB */
 		if (buf[2] != 0)
 			etest->flags |= ETH_TEST_FL_FAILED;
+
+		if (etest->flags & ETH_TEST_FL_EXTERNAL_LB) {
+			buf[3] = bnx2x_test_ext_loopback(bp); /* external LB */
+			if (buf[3] != 0)
+				etest->flags |= ETH_TEST_FL_FAILED;
+			etest->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
+		}
 
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
 
@@ -2314,16 +2376,16 @@ static void bnx2x_self_test(struct net_device *dev,
 		bnx2x_wait_for_link(bp, link_up, is_serdes);
 	}
 	if (bnx2x_test_nvram(bp) != 0) {
-		buf[3] = 1;
+		buf[4] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 	if (bnx2x_test_intr(bp) != 0) {
-		buf[4] = 1;
+		buf[5] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 
 	if (bnx2x_link_test(bp, is_serdes) != 0) {
-		buf[5] = 1;
+		buf[6] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 

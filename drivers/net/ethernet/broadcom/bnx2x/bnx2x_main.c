@@ -2124,6 +2124,11 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 			}
 		}
 
+		if (load_mode == LOAD_LOOPBACK_EXT) {
+			struct link_params *lp = &bp->link_params;
+			lp->loopback_mode = LOOPBACK_EXT;
+		}
+
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 
 		bnx2x_release_phy_lock(bp);
