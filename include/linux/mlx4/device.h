@@ -96,7 +96,8 @@ enum {
 	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
 	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
 	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48,
-	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55
+	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55,
+	MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV = 1LL << 59,
 };
 
 enum {
@@ -138,6 +139,7 @@ enum mlx4_event {
 	MLX4_EVENT_TYPE_COMM_CHANNEL	   = 0x18,
 	MLX4_EVENT_TYPE_FATAL_WARNING	   = 0x1b,
 	MLX4_EVENT_TYPE_FLR_EVENT	   = 0x1c,
+	MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT = 0x1d,
 	MLX4_EVENT_TYPE_NONE		   = 0xff,
 };
 
@@ -234,6 +236,24 @@ enum {
 enum {
 	MLX4_MAX_FAST_REG_PAGES = 511,
 };
+
+enum {
+	MLX4_DEV_PMC_SUBTYPE_GUID_INFO	 = 0x14,
+	MLX4_DEV_PMC_SUBTYPE_PORT_INFO	 = 0x15,
+	MLX4_DEV_PMC_SUBTYPE_PKEY_TABLE	 = 0x16,
+};
+
+/* Port mgmt change event handling */
+enum {
+	MLX4_EQ_PORT_INFO_MSTR_SM_LID_CHANGE_MASK	= 1 << 0,
+	MLX4_EQ_PORT_INFO_GID_PFX_CHANGE_MASK		= 1 << 1,
+	MLX4_EQ_PORT_INFO_LID_CHANGE_MASK		= 1 << 2,
+	MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK		= 1 << 3,
+	MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK	= 1 << 4,
+};
+
+#define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
+			     MLX4_EQ_PORT_INFO_MSTR_SM_LID_CHANGE_MASK)
 
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
@@ -511,6 +531,81 @@ struct mlx4_dev {
 	int			num_vfs;
 };
 
+struct mlx4_eqe {
+	u8			reserved1;
+	u8			type;
+	u8			reserved2;
+	u8			subtype;
+	union {
+		u32		raw[6];
+		struct {
+			__be32	cqn;
+		} __packed comp;
+		struct {
+			u16	reserved1;
+			__be16	token;
+			u32	reserved2;
+			u8	reserved3[3];
+			u8	status;
+			__be64	out_param;
+		} __packed cmd;
+		struct {
+			__be32	qpn;
+		} __packed qp;
+		struct {
+			__be32	srqn;
+		} __packed srq;
+		struct {
+			__be32	cqn;
+			u32	reserved1;
+			u8	reserved2[3];
+			u8	syndrome;
+		} __packed cq_err;
+		struct {
+			u32	reserved1[2];
+			__be32	port;
+		} __packed port_change;
+		struct {
+			#define COMM_CHANNEL_BIT_ARRAY_SIZE	4
+			u32 reserved;
+			u32 bit_vec[COMM_CHANNEL_BIT_ARRAY_SIZE];
+		} __packed comm_channel_arm;
+		struct {
+			u8	port;
+			u8	reserved[3];
+			__be64	mac;
+		} __packed mac_update;
+		struct {
+			__be32	slave_id;
+		} __packed flr_event;
+		struct {
+			__be16  current_temperature;
+			__be16  warning_threshold;
+		} __packed warming;
+		struct {
+			u8 reserved[3];
+			u8 port;
+			union {
+				struct {
+					__be16 mstr_sm_lid;
+					__be16 port_lid;
+					__be32 changed_attr;
+					u8 reserved[3];
+					u8 mstr_sm_sl;
+					__be64 gid_prefix;
+				} __packed port_info;
+				struct {
+					__be32 block_ptr;
+					__be32 tbl_entries_mask;
+				} __packed tbl_change_info;
+			} params;
+		} __packed port_mgmt_change;
+	}			event;
+	u8			slave_id;
+	u8			reserved3[2];
+	u8			owner;
+} __packed;
+
 struct mlx4_init_port_param {
 	int			set_guid0;
 	int			set_node_guid;
@@ -535,6 +630,8 @@ struct mlx4_init_port_param {
 			((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
 
 #define MLX4_INVALID_SLAVE_ID	0xFF
+
+void handle_port_mgmt_change_event(struct work_struct *work);
 
 static inline int mlx4_is_master(struct mlx4_dev *dev)
 {

@@ -898,7 +898,6 @@ static void update_gids_task(struct work_struct *work)
 	union ib_gid *gids;
 	int err;
 	struct mlx4_dev	*dev = gw->dev->dev;
-	struct ib_event event;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
@@ -916,10 +915,7 @@ static void update_gids_task(struct work_struct *work)
 		pr_warn("set port command failed\n");
 	else {
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
-		event.device = &gw->dev->ib_dev;
-		event.element.port_num = gw->port;
-		event.event    = IB_EVENT_GID_CHANGE;
-		ib_dispatch_event(&event);
+		mlx4_ib_dispatch_event(gw->dev, gw->port, IB_EVENT_GID_CHANGE);
 	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
@@ -1383,10 +1379,18 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 }
 
 static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
-			  enum mlx4_dev_event event, int port)
+			  enum mlx4_dev_event event, unsigned long param)
 {
 	struct ib_event ibev;
 	struct mlx4_ib_dev *ibdev = to_mdev((struct ib_device *) ibdev_ptr);
+	struct mlx4_eqe *eqe = NULL;
+	struct ib_event_work *ew;
+	int port = 0;
+
+	if (event == MLX4_DEV_EVENT_PORT_MGMT_CHANGE)
+		eqe = (struct mlx4_eqe *)param;
+	else
+		port = (u8)param;
 
 	if (port > ibdev->num_ports)
 		return;
@@ -1404,6 +1408,19 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 		ibdev->ib_active = false;
 		ibev.event = IB_EVENT_DEVICE_FATAL;
 		break;
+
+	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
+		ew = kmalloc(sizeof *ew, GFP_ATOMIC);
+		if (!ew) {
+			pr_err("failed to allocate memory for events work\n");
+			break;
+		}
+
+		INIT_WORK(&ew->work, handle_port_mgmt_change_event);
+		memcpy(&ew->ib_eqe, eqe, sizeof *eqe);
+		ew->ib_dev = ibdev;
+		handle_port_mgmt_change_event(&ew->work);
+		return;
 
 	default:
 		return;
