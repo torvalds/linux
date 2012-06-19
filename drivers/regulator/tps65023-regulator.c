@@ -69,10 +69,6 @@
 #define TPS65023_REG_CTRL2_DCDC1	BIT(1)
 #define TPS65023_REG_CTRL2_DCDC3	BIT(0)
 
-/* LDO_CTRL bitfields */
-#define TPS65023_LDO_CTRL_LDOx_SHIFT(ldo_id)	((ldo_id)*4)
-#define TPS65023_LDO_CTRL_LDOx_MASK(ldo_id)	(0x0F << ((ldo_id)*4))
-
 /* Number of step-down converters available */
 #define TPS65023_NUM_DCDC		3
 /* Number of LDO voltage regulators  available */
@@ -198,35 +194,6 @@ out:
 	return ret;
 }
 
-static int tps65023_ldo_get_voltage_sel(struct regulator_dev *dev)
-{
-	struct tps_pmic *tps = rdev_get_drvdata(dev);
-	int data, ldo = rdev_get_id(dev);
-	int ret;
-
-	if (ldo < TPS65023_LDO_1 || ldo > TPS65023_LDO_2)
-		return -EINVAL;
-
-	ret = regmap_read(tps->regmap, TPS65023_REG_LDO_CTRL, &data);
-	if (ret != 0)
-		return ret;
-
-	data >>= (TPS65023_LDO_CTRL_LDOx_SHIFT(ldo - TPS65023_LDO_1));
-	data &= (tps->info[ldo]->table_len - 1);
-	return data;
-}
-
-static int tps65023_ldo_set_voltage_sel(struct regulator_dev *dev,
-					unsigned selector)
-{
-	struct tps_pmic *tps = rdev_get_drvdata(dev);
-	int ldo_index = rdev_get_id(dev) - TPS65023_LDO_1;
-
-	return regmap_update_bits(tps->regmap, TPS65023_REG_LDO_CTRL,
-			TPS65023_LDO_CTRL_LDOx_MASK(ldo_index),
-			selector << TPS65023_LDO_CTRL_LDOx_SHIFT(ldo_index));
-}
-
 /* Operations permitted on VDCDCx */
 static struct regulator_ops tps65023_dcdc_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
@@ -242,8 +209,8 @@ static struct regulator_ops tps65023_ldo_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
-	.get_voltage_sel = tps65023_ldo_get_voltage_sel,
-	.set_voltage_sel = tps65023_ldo_set_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_table,
 };
 
@@ -304,13 +271,21 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 		tps->desc[i].owner = THIS_MODULE;
 
 		tps->desc[i].enable_reg = TPS65023_REG_REG_CTRL;
-		if (i == TPS65023_LDO_1)
+		switch (i) {
+		case TPS65023_LDO_1:
+			tps->desc[i].vsel_reg = TPS65023_REG_LDO_CTRL;
+			tps->desc[i].vsel_mask = 0x07;
 			tps->desc[i].enable_mask = 1 << 1;
-		else if (i == TPS65023_LDO_2)
+			break;
+		case TPS65023_LDO_2:
+			tps->desc[i].vsel_reg = TPS65023_REG_LDO_CTRL;
+			tps->desc[i].vsel_mask = 0x70;
 			tps->desc[i].enable_mask = 1 << 2;
-		else /* DCDCx */
+			break;
+		default: /* DCDCx */
 			tps->desc[i].enable_mask =
 					1 << (TPS65023_NUM_REGULATOR - i);
+		}
 
 		config.dev = &client->dev;
 		config.init_data = init_data;
