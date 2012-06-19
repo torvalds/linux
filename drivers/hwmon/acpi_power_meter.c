@@ -237,7 +237,7 @@ static ssize_t set_cap(struct device *dev, struct device_attribute *devattr,
 	if (res)
 		return res;
 
-	temp /= 1000;
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 	if (temp > resource->caps.max_cap || temp < resource->caps.min_cap)
 		return -EINVAL;
 	arg0.integer.value = temp;
@@ -307,8 +307,8 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 	if (res)
 		return res;
 
-	temp /= 1000;
-	if (temp < 0)
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
+	if (temp > INT_MAX)
 		return -EINVAL;
 
 	mutex_lock(&resource->lock);
