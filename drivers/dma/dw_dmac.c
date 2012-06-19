@@ -1437,6 +1437,9 @@ static int __init dw_probe(struct platform_device *pdev)
 	/* force dma off, just in case */
 	dw_dma_off(dw);
 
+	/* disable BLOCK interrupts as well */
+	channel_clear_bit(dw, MASK.BLOCK, dw->all_chan_mask);
+
 	err = request_irq(irq, dw_dma_interrupt, 0, "dw_dmac", dw);
 	if (err)
 		goto err_irq;
@@ -1476,6 +1479,7 @@ static int __init dw_probe(struct platform_device *pdev)
 
 	/* Clear all interrupts on all channels. */
 	dma_writel(dw, CLEAR.XFER, dw->all_chan_mask);
+	dma_writel(dw, CLEAR.BLOCK, dw->all_chan_mask);
 	dma_writel(dw, CLEAR.SRC_TRAN, dw->all_chan_mask);
 	dma_writel(dw, CLEAR.DST_TRAN, dw->all_chan_mask);
 	dma_writel(dw, CLEAR.ERROR, dw->all_chan_mask);
