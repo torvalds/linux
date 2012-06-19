@@ -512,7 +512,7 @@ static void pcmmio_stop_intr(struct comedi_device *dev,
 
 	subpriv->dio.intr.enabled_mask = 0;
 	subpriv->dio.intr.active = 0;
-	s->async->inttrig = 0;
+	s->async->inttrig = NULL;
 	nports = subpriv->dio.intr.num_asic_chans / CHANS_PER_PORT;
 	firstport = subpriv->dio.intr.asic_chan / CHANS_PER_PORT;
 	switch_page(dev, asic, PAGE_ENAB);
@@ -778,7 +778,7 @@ pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 		return -EINVAL;
 
 	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
-	s->async->inttrig = 0;
+	s->async->inttrig = NULL;
 	if (subpriv->dio.intr.active)
 		event = pcmmio_start_intr(dev, s);
 	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
