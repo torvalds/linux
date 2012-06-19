@@ -1349,7 +1349,7 @@ void pcim_pin_device(struct pci_dev *pdev)
  * is the default implementation. Architecture implementations can
  * override this.
  */
-void __attribute__ ((weak)) pcibios_disable_device (struct pci_dev *dev) {}
+void __weak pcibios_disable_device (struct pci_dev *dev) {}
 
 static void do_pci_disable_device(struct pci_dev *dev)
 {
@@ -1413,8 +1413,8 @@ pci_disable_device(struct pci_dev *dev)
  * Sets the PCIe reset state for the device. This is the default
  * implementation. Architecture implementations can override this.
  */
-int __attribute__ ((weak)) pcibios_set_pcie_reset_state(struct pci_dev *dev,
-							enum pcie_reset_state state)
+int __weak pcibios_set_pcie_reset_state(struct pci_dev *dev,
+					enum pcie_reset_state state)
 {
 	return -EINVAL;
 }
@@ -3851,7 +3851,7 @@ static void __devinit pci_no_domains(void)
  * greater than 0xff). This is the default implementation. Architecture
  * implementations can override this.
  */
-int __attribute__ ((weak)) pci_ext_cfg_avail(struct pci_dev *dev)
+int __weak pci_ext_cfg_avail(struct pci_dev *dev)
 {
 	return 1;
 }
