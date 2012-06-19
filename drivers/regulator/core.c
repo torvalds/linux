@@ -2296,8 +2296,7 @@ EXPORT_SYMBOL_GPL(regulator_set_voltage_time);
  * Provided with the starting and target voltage selectors, this function
  * returns time in microseconds required to rise or fall to this new voltage
  *
- * Drivers providing uV_step or volt_table in their regulator_desc and
- * ramp_delay in regulation_constraints can use this as their
+ * Drivers providing ramp_delay in regulation_constraints can use this as their
  * set_voltage_time_sel() operation.
  */
 int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
@@ -2305,6 +2304,7 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 				   unsigned int new_selector)
 {
 	unsigned int ramp_delay = 0;
+	int old_volt, new_volt;
 
 	if (rdev->constraints->ramp_delay)
 		ramp_delay = rdev->constraints->ramp_delay;
@@ -2316,19 +2316,14 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 		return 0;
 	}
 
-	if (rdev->desc->uV_step) {
-		return DIV_ROUND_UP(rdev->desc->uV_step *
-				    abs(new_selector - old_selector),
-				    ramp_delay);
-	} else if (rdev->desc->volt_table) {
-		return DIV_ROUND_UP(abs(rdev->desc->volt_table[new_selector] -
-					rdev->desc->volt_table[old_selector]),
-				    ramp_delay);
-	} else {
-		rdev_warn(rdev, "Unsupported voltage mapping settings\n");
-	}
+	/* sanity check */
+	if (!rdev->desc->ops->list_voltage)
+		return -EINVAL;
 
-	return 0;
+	old_volt = rdev->desc->ops->list_voltage(rdev, old_selector);
+	new_volt = rdev->desc->ops->list_voltage(rdev, new_selector);
+
+	return DIV_ROUND_UP(abs(new_volt - old_volt), ramp_delay);
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage_time_sel);
 
