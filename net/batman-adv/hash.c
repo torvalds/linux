@@ -69,3 +69,12 @@ free_hash:
 	kfree(hash);
 	return NULL;
 }
+
+void batadv_hash_set_lock_class(struct hashtable_t *hash,
+				struct lock_class_key *key)
+{
+	uint32_t i;
+
+	for (i = 0; i < hash->size; i++)
+		lockdep_set_class(&hash->list_locks[i], key);
+}

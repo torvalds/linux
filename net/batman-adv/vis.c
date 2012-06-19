@@ -207,7 +207,6 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 	int vis_server = atomic_read(&bat_priv->vis_mode);
 	size_t buff_pos, buf_size;
 	char *buff;
-	int compare;
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if)
@@ -228,14 +227,18 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 			entries = (struct vis_info_entry *)
 				((char *)packet + sizeof(*packet));
 
+			vis_data_insert_interface(packet->vis_orig,
+						  &vis_if_list, true);
+
 			for (j = 0; j < packet->entries; j++) {
 				if (entries[j].quality == 0)
 					continue;
-				compare =
-				 compare_eth(entries[j].src, packet->vis_orig);
+				if (compare_eth(entries[j].src,
+						packet->vis_orig))
+					continue;
 				vis_data_insert_interface(entries[j].src,
 							  &vis_if_list,
-							  compare);
+							  false);
 			}
 
 			hlist_for_each_entry(entry, pos, &vis_if_list, list) {
@@ -276,14 +279,18 @@ int vis_seq_print_text(struct seq_file *seq, void *offset)
 			entries = (struct vis_info_entry *)
 				((char *)packet + sizeof(*packet));
 
+			vis_data_insert_interface(packet->vis_orig,
+						  &vis_if_list, true);
+
 			for (j = 0; j < packet->entries; j++) {
 				if (entries[j].quality == 0)
 					continue;
-				compare =
-				 compare_eth(entries[j].src, packet->vis_orig);
+				if (compare_eth(entries[j].src,
+						packet->vis_orig))
+					continue;
 				vis_data_insert_interface(entries[j].src,
 							  &vis_if_list,
-							  compare);
+							  false);
 			}
 
 			hlist_for_each_entry(entry, pos, &vis_if_list, list) {
@@ -626,7 +633,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 		best_tq = find_best_vis_server(bat_priv, info);
 
 		if (best_tq < 0)
-			return -1;
+			return best_tq;
 	}
 
 	for (i = 0; i < hash->size; i++) {
@@ -878,7 +885,7 @@ int vis_init(struct bat_priv *bat_priv)
 	int hash_added;
 
 	if (bat_priv->vis_hash)
-		return 1;
+		return 0;
 
 	spin_lock_bh(&bat_priv->vis_hash_lock);
 
@@ -929,7 +936,7 @@ int vis_init(struct bat_priv *bat_priv)
 
 	spin_unlock_bh(&bat_priv->vis_hash_lock);
 	start_vis_timer(bat_priv);
-	return 1;
+	return 0;
 
 free_info:
 	kfree(bat_priv->my_vis_info);
@@ -937,7 +944,7 @@ free_info:
 err:
 	spin_unlock_bh(&bat_priv->vis_hash_lock);
 	vis_quit(bat_priv);
-	return 0;
+	return -ENOMEM;
 }
 
 /* Decrease the reference count on a hash item info */

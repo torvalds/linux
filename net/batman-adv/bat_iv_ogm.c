@@ -34,11 +34,12 @@ static struct neigh_node *bat_iv_ogm_neigh_new(struct hard_iface *hard_iface,
 					       const uint8_t *neigh_addr,
 					       struct orig_node *orig_node,
 					       struct orig_node *orig_neigh,
-					       uint32_t seqno)
+					       __be32 seqno)
 {
 	struct neigh_node *neigh_node;
 
-	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr, seqno);
+	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr,
+					   ntohl(seqno));
 	if (!neigh_node)
 		goto out;
 
@@ -59,7 +60,7 @@ static int bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 	uint32_t random_seqno;
-	int res = -1;
+	int res = -ENOMEM;
 
 	/* randomize initial seqno to avoid collision */
 	get_random_bytes(&random_seqno, sizeof(random_seqno));
@@ -196,8 +197,12 @@ static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 
 	/* create clone because function is called more than once */
 	skb = skb_clone(forw_packet->skb, GFP_ATOMIC);
-	if (skb)
+	if (skb) {
+		batadv_inc_counter(bat_priv, BAT_CNT_MGMT_TX);
+		batadv_add_counter(bat_priv, BAT_CNT_MGMT_TX_BYTES,
+				   skb->len + ETH_HLEN);
 		send_skb_packet(skb, hard_iface, broadcast_addr);
+	}
 }
 
 /* send a batman ogm packet */
@@ -542,9 +547,6 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 		"Forwarding packet: tq: %i, ttl: %i\n",
 		batman_ogm_packet->tq, batman_ogm_packet->header.ttl);
 
-	batman_ogm_packet->seqno = htonl(batman_ogm_packet->seqno);
-	batman_ogm_packet->tt_crc = htons(batman_ogm_packet->tt_crc);
-
 	/* switch of primaries first hop flag when forwarding */
 	batman_ogm_packet->flags &= ~PRIMARIES_FIRST_HOP;
 	if (is_single_hop_neigh)
@@ -557,26 +559,31 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 			     if_incoming, 0, bat_iv_ogm_fwd_send_time());
 }
 
-static void bat_iv_ogm_schedule(struct hard_iface *hard_iface,
-				int tt_num_changes)
+static void bat_iv_ogm_schedule(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batman_ogm_packet *batman_ogm_packet;
 	struct hard_iface *primary_if;
-	int vis_server;
+	int vis_server, tt_num_changes = 0;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
 	primary_if = primary_if_get_selected(bat_priv);
+
+	if (hard_iface == primary_if)
+		tt_num_changes = batadv_tt_append_diff(bat_priv,
+						       &hard_iface->packet_buff,
+						       &hard_iface->packet_len,
+						       BATMAN_OGM_HLEN);
 
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
 
 	/* change sequence number to network order */
 	batman_ogm_packet->seqno =
 			htonl((uint32_t)atomic_read(&hard_iface->seqno));
+	atomic_inc(&hard_iface->seqno);
 
 	batman_ogm_packet->ttvn = atomic_read(&bat_priv->ttvn);
-	batman_ogm_packet->tt_crc = htons((uint16_t)
-						atomic_read(&bat_priv->tt_crc));
+	batman_ogm_packet->tt_crc = htons(bat_priv->tt_crc);
 	if (tt_num_changes >= 0)
 		batman_ogm_packet->tt_num_changes = tt_num_changes;
 
@@ -591,8 +598,6 @@ static void bat_iv_ogm_schedule(struct hard_iface *hard_iface,
 				(uint8_t)atomic_read(&bat_priv->gw_bandwidth);
 	else
 		batman_ogm_packet->gw_flags = NO_FLAGS;
-
-	atomic_inc(&hard_iface->seqno);
 
 	slide_own_bcast_window(hard_iface);
 	bat_iv_ogm_queue_add(bat_priv, hard_iface->packet_buff,
@@ -721,7 +726,7 @@ update_tt:
 		tt_update_orig(bat_priv, orig_node, tt_buff,
 			       batman_ogm_packet->tt_num_changes,
 			       batman_ogm_packet->ttvn,
-			       batman_ogm_packet->tt_crc);
+			       ntohs(batman_ogm_packet->tt_crc));
 
 	if (orig_node->gw_flags != batman_ogm_packet->gw_flags)
 		gw_node_update(bat_priv, orig_node,
@@ -868,13 +873,14 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	int32_t seq_diff;
 	int need_update = 0;
 	int set_mark, ret = -1;
+	uint32_t seqno = ntohl(batman_ogm_packet->seqno);
 
 	orig_node = get_orig_node(bat_priv, batman_ogm_packet->orig);
 	if (!orig_node)
 		return 0;
 
 	spin_lock_bh(&orig_node->ogm_cnt_lock);
-	seq_diff = batman_ogm_packet->seqno - orig_node->last_real_seqno;
+	seq_diff = seqno - orig_node->last_real_seqno;
 
 	/* signalize caller that the packet is to be dropped. */
 	if (!hlist_empty(&orig_node->neigh_list) &&
@@ -888,7 +894,7 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 
 		is_duplicate |= bat_test_bit(tmp_neigh_node->real_bits,
 					     orig_node->last_real_seqno,
-					     batman_ogm_packet->seqno);
+					     seqno);
 
 		if (compare_eth(tmp_neigh_node->addr, ethhdr->h_source) &&
 		    (tmp_neigh_node->if_incoming == if_incoming))
@@ -910,8 +916,8 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	if (need_update) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"updating last_seqno: old %u, new %u\n",
-			orig_node->last_real_seqno, batman_ogm_packet->seqno);
-		orig_node->last_real_seqno = batman_ogm_packet->seqno;
+			orig_node->last_real_seqno, seqno);
+		orig_node->last_real_seqno = seqno;
 	}
 
 	ret = is_duplicate;
@@ -967,8 +973,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		"Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, ttvn %u, crc %u, changes %u, td %d, TTL %d, V %d, IDF %d)\n",
 		ethhdr->h_source, if_incoming->net_dev->name,
 		if_incoming->net_dev->dev_addr, batman_ogm_packet->orig,
-		batman_ogm_packet->prev_sender, batman_ogm_packet->seqno,
-		batman_ogm_packet->ttvn, batman_ogm_packet->tt_crc,
+		batman_ogm_packet->prev_sender, ntohl(batman_ogm_packet->seqno),
+		batman_ogm_packet->ttvn, ntohs(batman_ogm_packet->tt_crc),
 		batman_ogm_packet->tt_num_changes, batman_ogm_packet->tq,
 		batman_ogm_packet->header.ttl,
 		batman_ogm_packet->header.version, has_directlink_flag);
@@ -1039,7 +1045,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 			word = &(orig_neigh_node->bcast_own[offset]);
 			bat_set_bit(word,
 				    if_incoming_seqno -
-						batman_ogm_packet->seqno - 2);
+					ntohl(batman_ogm_packet->seqno) - 2);
 			orig_neigh_node->bcast_own_sum[if_incoming->if_num] =
 				bitmap_weight(word, TQ_LOCAL_WINDOW_SIZE);
 			spin_unlock_bh(&orig_neigh_node->ogm_cnt_lock);
@@ -1132,7 +1138,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	 * seqno and similar ttl as the non-duplicate */
 	if (is_bidirectional &&
 	    (!is_duplicate ||
-	     ((orig_node->last_real_seqno == batman_ogm_packet->seqno) &&
+	     ((orig_node->last_real_seqno == ntohl(batman_ogm_packet->seqno)) &&
 	      (orig_node->last_ttl - 3 <= batman_ogm_packet->header.ttl))))
 		bat_iv_ogm_orig_update(bat_priv, orig_node, ethhdr,
 				       batman_ogm_packet, if_incoming,
@@ -1204,6 +1210,10 @@ static int bat_iv_ogm_receive(struct sk_buff *skb,
 	if (bat_priv->bat_algo_ops->bat_ogm_emit != bat_iv_ogm_emit)
 		return NET_RX_DROP;
 
+	batadv_inc_counter(bat_priv, BAT_CNT_MGMT_RX);
+	batadv_add_counter(bat_priv, BAT_CNT_MGMT_RX_BYTES,
+			   skb->len + ETH_HLEN);
+
 	packet_len = skb_headlen(skb);
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 	packet_buff = skb->data;
@@ -1211,11 +1221,6 @@ static int bat_iv_ogm_receive(struct sk_buff *skb,
 
 	/* unpack the aggregated packets and process them one by one */
 	do {
-		/* network to host order for our 32bit seqno and the
-		   orig_interval */
-		batman_ogm_packet->seqno = ntohl(batman_ogm_packet->seqno);
-		batman_ogm_packet->tt_crc = ntohs(batman_ogm_packet->tt_crc);
-
 		tt_buff = packet_buff + buff_pos + BATMAN_OGM_HLEN;
 
 		bat_iv_ogm_process(ethhdr, batman_ogm_packet,
@@ -1234,7 +1239,7 @@ static int bat_iv_ogm_receive(struct sk_buff *skb,
 }
 
 static struct bat_algo_ops batman_iv __read_mostly = {
-	.name = "BATMAN IV",
+	.name = "BATMAN_IV",
 	.bat_iface_enable = bat_iv_ogm_iface_enable,
 	.bat_iface_disable = bat_iv_ogm_iface_disable,
 	.bat_iface_update_mac = bat_iv_ogm_iface_update_mac,

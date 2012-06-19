@@ -573,7 +573,7 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct tt_query_packet *tt_query;
-	uint16_t tt_len;
+	uint16_t tt_size;
 	struct ethhdr *ethhdr;
 
 	/* drop packet if it has not necessary minimum size */
@@ -596,10 +596,10 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	tt_query = (struct tt_query_packet *)skb->data;
 
-	tt_query->tt_data = ntohs(tt_query->tt_data);
-
 	switch (tt_query->flags & TT_QUERY_TYPE_MASK) {
 	case TT_REQUEST:
+		batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_RX);
+
 		/* If we cannot provide an answer the tt_request is
 		 * forwarded */
 		if (!send_tt_response(bat_priv, tt_query)) {
@@ -607,22 +607,25 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 				"Routing TT_REQUEST to %pM [%c]\n",
 				tt_query->dst,
 				(tt_query->flags & TT_FULL_TABLE ? 'F' : '.'));
-			tt_query->tt_data = htons(tt_query->tt_data);
 			return route_unicast_packet(skb, recv_if);
 		}
 		break;
 	case TT_RESPONSE:
+		batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_RX);
+
 		if (is_my_mac(tt_query->dst)) {
 			/* packet needs to be linearized to access the TT
 			 * changes */
 			if (skb_linearize(skb) < 0)
 				goto out;
+			/* skb_linearize() possibly changed skb->data */
+			tt_query = (struct tt_query_packet *)skb->data;
 
-			tt_len = tt_query->tt_data * sizeof(struct tt_change);
+			tt_size = tt_len(ntohs(tt_query->tt_data));
 
 			/* Ensure we have all the claimed data */
 			if (unlikely(skb_headlen(skb) <
-				     sizeof(struct tt_query_packet) + tt_len))
+				     sizeof(struct tt_query_packet) + tt_size))
 				goto out;
 
 			handle_tt_response(bat_priv, tt_query);
@@ -631,7 +634,6 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 				"Routing TT_RESPONSE to %pM [%c]\n",
 				tt_query->dst,
 				(tt_query->flags & TT_FULL_TABLE ? 'F' : '.'));
-			tt_query->tt_data = htons(tt_query->tt_data);
 			return route_unicast_packet(skb, recv_if);
 		}
 		break;
@@ -662,6 +664,8 @@ int recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 	/* packet with broadcast sender address */
 	if (is_broadcast_ether_addr(ethhdr->h_source))
 		goto out;
+
+	batadv_inc_counter(bat_priv, BAT_CNT_TT_ROAM_ADV_RX);
 
 	roam_adv_packet = (struct roam_adv_packet *)skb->data;
 
@@ -869,6 +873,11 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	/* decrement ttl */
 	unicast_packet->header.ttl--;
+
+	/* Update stats counter */
+	batadv_inc_counter(bat_priv, BAT_CNT_FORWARD);
+	batadv_add_counter(bat_priv, BAT_CNT_FORWARD_BYTES,
+			   skb->len + ETH_HLEN);
 
 	/* route it */
 	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);

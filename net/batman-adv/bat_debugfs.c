@@ -195,13 +195,13 @@ static int debug_log_setup(struct bat_priv *bat_priv)
 
 	d = debugfs_create_file("log", S_IFREG | S_IRUSR,
 				bat_priv->debug_dir, bat_priv, &log_fops);
-	if (d)
+	if (!d)
 		goto err;
 
 	return 0;
 
 err:
-	return 1;
+	return -ENOMEM;
 }
 
 static void debug_log_cleanup(struct bat_priv *bat_priv)
@@ -348,8 +348,11 @@ int debugfs_add_meshif(struct net_device *dev)
 	if (!bat_priv->debug_dir)
 		goto out;
 
-	bat_socket_setup(bat_priv);
-	debug_log_setup(bat_priv);
+	if (bat_socket_setup(bat_priv) < 0)
+		goto rem_attr;
+
+	if (debug_log_setup(bat_priv) < 0)
+		goto rem_attr;
 
 	for (bat_debug = mesh_debuginfos; *bat_debug; ++bat_debug) {
 		file = debugfs_create_file(((*bat_debug)->attr).name,

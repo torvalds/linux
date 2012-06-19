@@ -40,7 +40,7 @@
  * list traversals just rcu-locked */
 struct list_head hardif_list;
 static int (*recv_packet_handler[256])(struct sk_buff *, struct hard_iface *);
-char bat_routing_algo[20] = "BATMAN IV";
+char bat_routing_algo[20] = "BATMAN_IV";
 static struct hlist_head bat_algo_list;
 
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -92,6 +92,7 @@ static void __exit batman_exit(void)
 int mesh_init(struct net_device *soft_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
+	int ret;
 
 	spin_lock_init(&bat_priv->forw_bat_list_lock);
 	spin_lock_init(&bat_priv->forw_bcast_list_lock);
@@ -110,30 +111,32 @@ int mesh_init(struct net_device *soft_iface)
 	INIT_LIST_HEAD(&bat_priv->tt_req_list);
 	INIT_LIST_HEAD(&bat_priv->tt_roam_list);
 
-	if (originator_init(bat_priv) < 1)
+	ret = originator_init(bat_priv);
+	if (ret < 0)
 		goto err;
 
-	if (tt_init(bat_priv) < 1)
+	ret = tt_init(bat_priv);
+	if (ret < 0)
 		goto err;
 
 	tt_local_add(soft_iface, soft_iface->dev_addr, NULL_IFINDEX);
 
-	if (vis_init(bat_priv) < 1)
+	ret = vis_init(bat_priv);
+	if (ret < 0)
 		goto err;
 
-	if (bla_init(bat_priv) < 1)
+	ret = bla_init(bat_priv);
+	if (ret < 0)
 		goto err;
 
 	atomic_set(&bat_priv->gw_reselect, 0);
 	atomic_set(&bat_priv->mesh_state, MESH_ACTIVE);
-	goto end;
+
+	return 0;
 
 err:
 	mesh_free(soft_iface);
-	return -1;
-
-end:
-	return 0;
+	return ret;
 }
 
 void mesh_free(struct net_device *soft_iface)
@@ -152,6 +155,8 @@ void mesh_free(struct net_device *soft_iface)
 	tt_free(bat_priv);
 
 	bla_free(bat_priv);
+
+	free_percpu(bat_priv->bat_counters);
 
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 }
@@ -317,12 +322,13 @@ static struct bat_algo_ops *bat_algo_get(char *name)
 int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
 {
 	struct bat_algo_ops *bat_algo_ops_tmp;
-	int ret = -1;
+	int ret;
 
 	bat_algo_ops_tmp = bat_algo_get(bat_algo_ops->name);
 	if (bat_algo_ops_tmp) {
 		pr_info("Trying to register already registered routing algorithm: %s\n",
 			bat_algo_ops->name);
+		ret = -EEXIST;
 		goto out;
 	}
 
@@ -335,6 +341,7 @@ int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
 	    !bat_algo_ops->bat_ogm_emit) {
 		pr_info("Routing algo '%s' does not implement required ops\n",
 			bat_algo_ops->name);
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -349,7 +356,7 @@ out:
 int bat_algo_select(struct bat_priv *bat_priv, char *name)
 {
 	struct bat_algo_ops *bat_algo_ops;
-	int ret = -1;
+	int ret = -EINVAL;
 
 	bat_algo_ops = bat_algo_get(name);
 	if (!bat_algo_ops)
@@ -379,14 +386,19 @@ int bat_algo_seq_print_text(struct seq_file *seq, void *offset)
 static int param_set_ra(const char *val, const struct kernel_param *kp)
 {
 	struct bat_algo_ops *bat_algo_ops;
+	char *algo_name = (char *)val;
+	size_t name_len = strlen(algo_name);
 
-	bat_algo_ops = bat_algo_get((char *)val);
+	if (algo_name[name_len - 1] == '\n')
+		algo_name[name_len - 1] = '\0';
+
+	bat_algo_ops = bat_algo_get(algo_name);
 	if (!bat_algo_ops) {
-		pr_err("Routing algorithm '%s' is not supported\n", val);
+		pr_err("Routing algorithm '%s' is not supported\n", algo_name);
 		return -EINVAL;
 	}
 
-	return param_set_copystring(val, kp);
+	return param_set_copystring(algo_name, kp);
 }
 
 static const struct kernel_param_ops param_ops_ra = {

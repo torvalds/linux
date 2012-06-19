@@ -50,7 +50,7 @@ static int compare_orig(const struct hlist_node *node, const void *data2)
 int originator_init(struct bat_priv *bat_priv)
 {
 	if (bat_priv->orig_hash)
-		return 1;
+		return 0;
 
 	bat_priv->orig_hash = hash_new(1024);
 
@@ -58,10 +58,10 @@ int originator_init(struct bat_priv *bat_priv)
 		goto err;
 
 	start_purge_timer(bat_priv);
-	return 1;
+	return 0;
 
 err:
-	return 0;
+	return -ENOMEM;
 }
 
 void neigh_node_free_ref(struct neigh_node *neigh_node)
@@ -488,7 +488,7 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 	data_ptr = kmalloc(max_if_num * sizeof(unsigned long) * NUM_WORDS,
 			   GFP_ATOMIC);
 	if (!data_ptr)
-		return -1;
+		return -ENOMEM;
 
 	memcpy(data_ptr, orig_node->bcast_own,
 	       (max_if_num - 1) * sizeof(unsigned long) * NUM_WORDS);
@@ -497,7 +497,7 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 
 	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr)
-		return -1;
+		return -ENOMEM;
 
 	memcpy(data_ptr, orig_node->bcast_own_sum,
 	       (max_if_num - 1) * sizeof(uint8_t));
@@ -528,7 +528,7 @@ int orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num)
 			ret = orig_node_add_if(orig_node, max_if_num);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 
-			if (ret == -1)
+			if (ret == -ENOMEM)
 				goto err;
 		}
 		rcu_read_unlock();
@@ -554,7 +554,7 @@ static int orig_node_del_if(struct orig_node *orig_node,
 	chunk_size = sizeof(unsigned long) * NUM_WORDS;
 	data_ptr = kmalloc(max_if_num * chunk_size, GFP_ATOMIC);
 	if (!data_ptr)
-		return -1;
+		return -ENOMEM;
 
 	/* copy first part */
 	memcpy(data_ptr, orig_node->bcast_own, del_if_num * chunk_size);
@@ -573,7 +573,7 @@ free_bcast_own:
 
 	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr)
-		return -1;
+		return -ENOMEM;
 
 	memcpy(data_ptr, orig_node->bcast_own_sum,
 	       del_if_num * sizeof(uint8_t));
@@ -612,7 +612,7 @@ int orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num)
 					hard_iface->if_num);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 
-			if (ret == -1)
+			if (ret == -ENOMEM)
 				goto err;
 		}
 		rcu_read_unlock();

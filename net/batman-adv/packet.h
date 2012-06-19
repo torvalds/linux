@@ -105,7 +105,7 @@ enum bla_claimframe {
 struct bla_claim_dst {
 	uint8_t magic[3];	/* FF:43:05 */
 	uint8_t type;		/* bla_claimframe */
-	uint16_t group;		/* group id */
+	__be16 group;		/* group id */
 } __packed;
 
 struct batman_header {
@@ -117,14 +117,14 @@ struct batman_header {
 struct batman_ogm_packet {
 	struct batman_header header;
 	uint8_t  flags;    /* 0x40: DIRECTLINK flag, 0x20 VIS_SERVER flag... */
-	uint32_t seqno;
+	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
 	uint8_t  prev_sender[ETH_ALEN];
 	uint8_t  gw_flags;  /* flags related to gateway class */
 	uint8_t  tq;
 	uint8_t  tt_num_changes;
 	uint8_t  ttvn; /* translation table version number */
-	uint16_t tt_crc;
+	__be16   tt_crc;
 } __packed;
 
 #define BATMAN_OGM_HLEN sizeof(struct batman_ogm_packet)
@@ -134,7 +134,7 @@ struct icmp_packet {
 	uint8_t  msg_type; /* see ICMP message types above */
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  orig[ETH_ALEN];
-	uint16_t seqno;
+	__be16   seqno;
 	uint8_t  uid;
 	uint8_t  reserved;
 } __packed;
@@ -148,7 +148,7 @@ struct icmp_packet_rr {
 	uint8_t  msg_type; /* see ICMP message types above */
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  orig[ETH_ALEN];
-	uint16_t seqno;
+	__be16   seqno;
 	uint8_t  uid;
 	uint8_t  rr_cur;
 	uint8_t  rr[BAT_RR_LEN][ETH_ALEN];
@@ -167,20 +167,20 @@ struct unicast_frag_packet {
 	uint8_t  flags;
 	uint8_t  align;
 	uint8_t  orig[ETH_ALEN];
-	uint16_t seqno;
+	__be16   seqno;
 } __packed;
 
 struct bcast_packet {
 	struct batman_header header;
 	uint8_t  reserved;
-	uint32_t seqno;
+	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
 } __packed;
 
 struct vis_packet {
 	struct batman_header header;
 	uint8_t  vis_type;	 /* which type of vis-participant sent this? */
-	uint32_t seqno;		 /* sequence number */
+	__be32   seqno;		 /* sequence number */
 	uint8_t  entries;	 /* number of entries behind this struct */
 	uint8_t  reserved;
 	uint8_t  vis_orig[ETH_ALEN];	/* originator reporting its neighbors */
@@ -206,7 +206,7 @@ struct tt_query_packet {
 	 * if TT_REQUEST: crc associated with the
 	 *		  ttvn
 	 * if TT_RESPONSE: table_size */
-	uint16_t tt_data;
+	__be16   tt_data;
 } __packed;
 
 struct roam_adv_packet {

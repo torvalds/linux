@@ -258,7 +258,7 @@ static void bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 	struct net_device *soft_iface;
 	uint8_t *hw_src;
 	struct bla_claim_dst local_claim_dest;
-	uint32_t zeroip = 0;
+	__be32 zeroip = 0;
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if)
@@ -506,11 +506,11 @@ static void bla_send_announce(struct bat_priv *bat_priv,
 			      struct backbone_gw *backbone_gw)
 {
 	uint8_t mac[ETH_ALEN];
-	uint16_t crc;
+	__be16 crc;
 
 	memcpy(mac, announce_mac, 4);
 	crc = htons(backbone_gw->crc);
-	memcpy(&mac[4], (uint8_t *)&crc, 2);
+	memcpy(&mac[4], &crc, 2);
 
 	bla_send_claim(bat_priv, mac, backbone_gw->vid, CLAIM_TYPE_ANNOUNCE);
 
@@ -627,7 +627,7 @@ static int handle_announce(struct bat_priv *bat_priv,
 
 	/* handle as ANNOUNCE frame */
 	backbone_gw->lasttime = jiffies;
-	crc = ntohs(*((uint16_t *)(&an_addr[4])));
+	crc = ntohs(*((__be16 *)(&an_addr[4])));
 
 	bat_dbg(DBG_BLA, bat_priv,
 		"handle_announce(): ANNOUNCE vid %d (sent by %pM)... CRC = %04x\n",
@@ -1127,6 +1127,14 @@ out:
 	bla_start_timer(bat_priv);
 }
 
+/* The hash for claim and backbone hash receive the same key because they
+ * are getting initialized by hash_new with the same key. Reinitializing
+ * them with to different keys to allow nested locking without generating
+ * lockdep warnings
+ */
+static struct lock_class_key claim_hash_lock_class_key;
+static struct lock_class_key backbone_hash_lock_class_key;
+
 /* initialize all bla structures */
 int bla_init(struct bat_priv *bat_priv)
 {
@@ -1156,18 +1164,23 @@ int bla_init(struct bat_priv *bat_priv)
 	bat_priv->bcast_duplist_curr = 0;
 
 	if (bat_priv->claim_hash)
-		return 1;
+		return 0;
 
 	bat_priv->claim_hash = hash_new(128);
 	bat_priv->backbone_hash = hash_new(32);
 
 	if (!bat_priv->claim_hash || !bat_priv->backbone_hash)
-		return -1;
+		return -ENOMEM;
+
+	batadv_hash_set_lock_class(bat_priv->claim_hash,
+				   &claim_hash_lock_class_key);
+	batadv_hash_set_lock_class(bat_priv->backbone_hash,
+				   &backbone_hash_lock_class_key);
 
 	bat_dbg(DBG_BLA, bat_priv, "bla hashes initialized\n");
 
 	bla_start_timer(bat_priv);
-	return 1;
+	return 0;
 }
 
 /**

@@ -148,9 +148,26 @@ struct bcast_duplist_entry {
 };
 #endif
 
+enum bat_counters {
+	BAT_CNT_FORWARD,
+	BAT_CNT_FORWARD_BYTES,
+	BAT_CNT_MGMT_TX,
+	BAT_CNT_MGMT_TX_BYTES,
+	BAT_CNT_MGMT_RX,
+	BAT_CNT_MGMT_RX_BYTES,
+	BAT_CNT_TT_REQUEST_TX,
+	BAT_CNT_TT_REQUEST_RX,
+	BAT_CNT_TT_RESPONSE_TX,
+	BAT_CNT_TT_RESPONSE_RX,
+	BAT_CNT_TT_ROAM_ADV_TX,
+	BAT_CNT_TT_ROAM_ADV_RX,
+	BAT_CNT_NUM,
+};
+
 struct bat_priv {
 	atomic_t mesh_state;
 	struct net_device_stats stats;
+	uint64_t __percpu *bat_counters; /* Per cpu counters */
 	atomic_t aggregated_ogms;	/* boolean */
 	atomic_t bonding;		/* boolean */
 	atomic_t fragmentation;		/* boolean */
@@ -210,7 +227,7 @@ struct bat_priv {
 	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
 	atomic_t num_local_tt;
 	/* Checksum of the local table, recomputed before sending a new OGM */
-	atomic_t tt_crc;
+	uint16_t tt_crc;
 	unsigned char *tt_buff;
 	int16_t tt_buff_len;
 	spinlock_t tt_buff_lock; /* protects tt_buff */
@@ -388,8 +405,7 @@ struct bat_algo_ops {
 	/* called when primary interface is selected / changed */
 	void (*bat_primary_iface_set)(struct hard_iface *hard_iface);
 	/* prepare a new outgoing OGM for the send queue */
-	void (*bat_ogm_schedule)(struct hard_iface *hard_iface,
-				 int tt_num_changes);
+	void (*bat_ogm_schedule)(struct hard_iface *hard_iface);
 	/* send scheduled OGM */
 	void (*bat_ogm_emit)(struct forw_packet *forw_packet);
 };
