@@ -460,7 +460,7 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 	} else {
 		to = i915_gem_context_get(file_priv, to_id);
 		if (to == NULL)
-			return -EINVAL;
+			return -ENOENT;
 	}
 
 	if (from_obj == to->obj)
@@ -526,7 +526,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	ctx = i915_gem_context_get(file_priv, args->ctx_id);
 	if (!ctx) {
 		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	do_destroy(ctx);
