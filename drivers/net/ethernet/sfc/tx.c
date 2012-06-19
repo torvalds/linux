@@ -926,7 +926,6 @@ static void tso_start(struct tso_state *st, const struct sk_buff *skb)
 	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->syn);
 	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->rst);
 
-	st->packet_space = st->full_packet_size;
 	st->out_len = skb->len - st->header_len;
 	st->unmap_len = 0;
 	st->unmap_single = false;
