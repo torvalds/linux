@@ -176,8 +176,7 @@ static void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 /**
  * rproc_load_segments() - load firmware segments to memory
  * @rproc: remote processor which will be booted using these fw segments
- * @elf_data: the content of the ELF firmware image
- * @len: firmware size (in bytes)
+ * @fw: the ELF firmware image
  *
  * This function loads the firmware segments to memory, where the remote
  * processor expects them.
@@ -199,12 +198,13 @@ static void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
  * supported, though.
  */
 static int
-rproc_load_segments(struct rproc *rproc, const u8 *elf_data, size_t len)
+rproc_load_segments(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev = &rproc->dev;
 	struct elf32_hdr *ehdr;
 	struct elf32_phdr *phdr;
 	int i, ret = 0;
+	const u8 *elf_data = fw->data;
 
 	ehdr = (struct elf32_hdr *)elf_data;
 	phdr = (struct elf32_phdr *)(elf_data + ehdr->e_phoff);
@@ -230,9 +230,9 @@ rproc_load_segments(struct rproc *rproc, const u8 *elf_data, size_t len)
 			break;
 		}
 
-		if (offset + filesz > len) {
+		if (offset + filesz > fw->size) {
 			dev_err(dev, "truncated fw: need 0x%x avail 0x%x\n",
-					offset + filesz, len);
+					offset + filesz, fw->size);
 			ret = -EINVAL;
 			break;
 		}
@@ -819,8 +819,7 @@ rproc_handle_virtio_rsc(struct rproc *rproc, struct resource_table *table, int l
 /**
  * rproc_find_rsc_table() - find the resource table
  * @rproc: the rproc handle
- * @elf_data: the content of the ELF firmware image
- * @len: firmware size (in bytes)
+ * @fw: the ELF firmware image
  * @tablesz: place holder for providing back the table size
  *
  * This function finds the resource table inside the remote processor's
@@ -833,7 +832,7 @@ rproc_handle_virtio_rsc(struct rproc *rproc, struct resource_table *table, int l
  * (and @tablesz isn't set).
  */
 static struct resource_table *
-rproc_find_rsc_table(struct rproc *rproc, const u8 *elf_data, size_t len,
+rproc_find_rsc_table(struct rproc *rproc, const struct firmware *fw,
 							int *tablesz)
 {
 	struct elf32_hdr *ehdr;
@@ -842,6 +841,7 @@ rproc_find_rsc_table(struct rproc *rproc, const u8 *elf_data, size_t len,
 	struct device *dev = &rproc->dev;
 	struct resource_table *table = NULL;
 	int i;
+	const u8 *elf_data = fw->data;
 
 	ehdr = (struct elf32_hdr *)elf_data;
 	shdr = (struct elf32_shdr *)(elf_data + ehdr->e_shoff);
@@ -858,7 +858,7 @@ rproc_find_rsc_table(struct rproc *rproc, const u8 *elf_data, size_t len,
 		table = (struct resource_table *)(elf_data + offset);
 
 		/* make sure we have the entire table */
-		if (offset + size > len) {
+		if (offset + size > fw->size) {
 			dev_err(dev, "resource table truncated\n");
 			return NULL;
 		}
@@ -1035,7 +1035,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	rproc->bootaddr = ehdr->e_entry;
 
 	/* look for the resource table */
-	table = rproc_find_rsc_table(rproc, fw->data, fw->size, &tablesz);
+	table = rproc_find_rsc_table(rproc, fw, &tablesz);
 	if (!table)
 		goto clean_up;
 
@@ -1047,7 +1047,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	}
 
 	/* load the ELF segments to memory */
-	ret = rproc_load_segments(rproc, fw->data, fw->size);
+	ret = rproc_load_segments(rproc, fw);
 	if (ret) {
 		dev_err(dev, "Failed to load program segments: %d\n", ret);
 		goto clean_up;
@@ -1090,7 +1090,7 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 		goto out;
 
 	/* look for the resource table */
-	table = rproc_find_rsc_table(rproc, fw->data, fw->size, &tablesz);
+	table = rproc_find_rsc_table(rproc, fw,  &tablesz);
 	if (!table)
 		goto out;
 
