@@ -3,6 +3,9 @@
 #include "rk30_hdmi.h"
 #include "rk30_hdmi_hw.h"
 
+#ifdef CONFIG_HDMI_RK30_CTL_CODEC
+extern void codec_set_spk(bool on);
+#endif
 
 #define HDMI_MAX_TRY_TIMES	1
 
@@ -82,6 +85,9 @@ void hdmi_sys_remove(void)
 	kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
 	#ifdef CONFIG_SWITCH
 	switch_set_state(&(hdmi->switch_hdmi), 0);
+	#endif
+	#if CONFIG_HDMI_RK30_CTL_CODEC
+	codec_set_spk(1);
 	#endif
 }
 
@@ -218,6 +224,9 @@ void hdmi_work(struct work_struct *work)
 					kobject_uevent_env(&hdmi->dev->kobj, KOBJ_ADD, envp);
 					#ifdef CONFIG_SWITCH
 					switch_set_state(&(hdmi->switch_hdmi), 1);
+					#endif
+					#ifdef CONFIG_HDMI_RK30_CTL_CODEC
+					codec_set_spk(0);
 					#endif
 				}
 				break;

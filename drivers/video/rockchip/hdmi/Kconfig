@@ -1,9 +1,17 @@
-config HDMI_RK30
+menuconfig HDMI_RK30
         bool "RK30 HDMI support"
         depends on LCDC_RK30
         select FB_MODE_HELPERS
         help
            Support rk30 hdmi if you say y here
+
+config HDMI_RK30_CTL_CODEC
+		bool "Mute Codec When HDMI Actived"
+		depends on HDMI_RK30
+		default n
+		help
+			If you say y heres, Codec will be mute when hdmi inserted,
+			and unmute when removed. 
 
 config HDMI_RK30_DEBUG
 		bool "RK30 HDMI Debugging"
