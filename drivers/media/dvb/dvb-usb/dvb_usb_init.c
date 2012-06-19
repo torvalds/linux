@@ -270,8 +270,6 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 			adap->dvb_adap.mfe_shared = 1;
 
 		adap->dvb_adap.fe_ioctl_override = d->props->fe_ioctl_override;
-
-		d->num_adapters_initialized++;
 	}
 
 	return 0;
@@ -291,8 +289,6 @@ static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 		dvb_usbv2_adapter_dvb_exit(&d->adapter[i]);
 		dvb_usbv2_adapter_stream_exit(&d->adapter[i]);
 	}
-
-	d->num_adapters_initialized = 0;
 
 	return 0;
 }
@@ -551,8 +547,9 @@ int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 		cancel_delayed_work_sync(&d->rc_query_work);
 
 	/* stop streaming */
-	for (i = d->num_adapters_initialized - 1; i >= 0; i--) {
-		if (d->adapter[i].active_fe != -1)
+	for (i = MAX_NO_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
+		if (d->adapter[i].dvb_adap.priv &&
+				d->adapter[i].active_fe != -1)
 			usb_urb_killv2(&d->adapter[i].stream);
 	}
 
@@ -568,8 +565,9 @@ int dvb_usbv2_resume(struct usb_interface *intf)
 	pr_debug("%s:\n", __func__);
 
 	/* start streaming */
-	for (i = 0; i < d->num_adapters_initialized; i++) {
-		if (d->adapter[i].active_fe != -1)
+	for (i = 0; i < MAX_NO_OF_ADAPTER_PER_DEVICE; i++) {
+		if (d->adapter[i].dvb_adap.priv &&
+				d->adapter[i].active_fe != -1)
 			usb_urb_submitv2(&d->adapter[i].stream, NULL);
 	}
 
