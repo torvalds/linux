@@ -58,8 +58,79 @@
 struct qmi_wwan_state {
 	struct usb_driver *subdriver;
 	atomic_t pmcount;
-	unsigned long unused[3];
+	unsigned long unused;
+	struct usb_interface *control;
+	struct usb_interface *data;
 };
+
+/* using a counter to merge subdriver requests with our own into a combined state */
+static int qmi_wwan_manage_power(struct usbnet *dev, int on)
+{
+	struct qmi_wwan_state *info = (void *)&dev->data;
+	int rv = 0;
+
+	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__, atomic_read(&info->pmcount), on);
+
+	if ((on && atomic_add_return(1, &info->pmcount) == 1) || (!on && atomic_dec_and_test(&info->pmcount))) {
+		/* need autopm_get/put here to ensure the usbcore sees the new value */
+		rv = usb_autopm_get_interface(dev->intf);
+		if (rv < 0)
+			goto err;
+		dev->intf->needs_remote_wakeup = on;
+		usb_autopm_put_interface(dev->intf);
+	}
+err:
+	return rv;
+}
+
+static int qmi_wwan_cdc_wdm_manage_power(struct usb_interface *intf, int on)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	return qmi_wwan_manage_power(dev, on);
+}
+
+/* collect all three endpoints and register subdriver */
+static int qmi_wwan_register_subdriver(struct usbnet *dev)
+{
+	int rv;
+	struct usb_driver *subdriver = NULL;
+	struct qmi_wwan_state *info = (void *)&dev->data;
+
+	/* collect bulk endpoints */
+	rv = usbnet_get_endpoints(dev, info->data);
+	if (rv < 0)
+		goto err;
+
+	/* update status endpoint if separate control interface */
+	if (info->control != info->data)
+		dev->status = &info->control->cur_altsetting->endpoint[0];
+
+	/* require interrupt endpoint for subdriver */
+	if (!dev->status) {
+		rv = -EINVAL;
+		goto err;
+	}
+
+	/* for subdriver power management */
+	atomic_set(&info->pmcount, 0);
+
+	/* register subdriver */
+	subdriver = usb_cdc_wdm_register(info->control, &dev->status->desc, 512, &qmi_wwan_cdc_wdm_manage_power);
+	if (IS_ERR(subdriver)) {
+		dev_err(&info->control->dev, "subdriver registration failed\n");
+		rv = PTR_ERR(subdriver);
+		goto err;
+	}
+
+	/* prevent usbnet from using status endpoint */
+	dev->status = NULL;
+
+	/* save subdriver struct for suspend/resume wrappers */
+	info->subdriver = subdriver;
+
+err:
+	return rv;
+}
 
 static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 {
@@ -183,32 +254,6 @@ err:
 	return status;
 }
 
-/* using a counter to merge subdriver requests with our own into a combined state */
-static int qmi_wwan_manage_power(struct usbnet *dev, int on)
-{
-	struct qmi_wwan_state *info = (void *)&dev->data;
-	int rv = 0;
-
-	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__, atomic_read(&info->pmcount), on);
-
-	if ((on && atomic_add_return(1, &info->pmcount) == 1) || (!on && atomic_dec_and_test(&info->pmcount))) {
-		/* need autopm_get/put here to ensure the usbcore sees the new value */
-		rv = usb_autopm_get_interface(dev->intf);
-		if (rv < 0)
-			goto err;
-		dev->intf->needs_remote_wakeup = on;
-		usb_autopm_put_interface(dev->intf);
-	}
-err:
-	return rv;
-}
-
-static int qmi_wwan_cdc_wdm_manage_power(struct usb_interface *intf, int on)
-{
-	struct usbnet *dev = usb_get_intfdata(intf);
-	return qmi_wwan_manage_power(dev, on);
-}
-
 /* Some devices combine the "control" and "data" functions into a
  * single interface with all three endpoints: interrupt + bulk in and
  * out
@@ -220,7 +265,6 @@ static int qmi_wwan_cdc_wdm_manage_power(struct usb_interface *intf, int on)
 static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
 {
 	int rv;
-	struct usb_driver *subdriver = NULL;
 	struct qmi_wwan_state *info = (void *)&dev->data;
 
 	/* ZTE makes devices where the interface descriptors and endpoint
@@ -237,30 +281,10 @@ static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
 		goto err;
 	}
 
-	atomic_set(&info->pmcount, 0);
-
-	/* collect all three endpoints */
-	rv = usbnet_get_endpoints(dev, intf);
-	if (rv < 0)
-		goto err;
-
-	/* require interrupt endpoint for subdriver */
-	if (!dev->status) {
-		rv = -EINVAL;
-		goto err;
-	}
-
-	subdriver = usb_cdc_wdm_register(intf, &dev->status->desc, 512, &qmi_wwan_cdc_wdm_manage_power);
-	if (IS_ERR(subdriver)) {
-		rv = PTR_ERR(subdriver);
-		goto err;
-	}
-
-	/* can't let usbnet use the interrupt endpoint */
-	dev->status = NULL;
-
-	/* save subdriver struct for suspend/resume wrappers */
-	info->subdriver = subdriver;
+	/*  control and data is shared */
+	info->control = intf;
+	info->data = intf;
+	rv = qmi_wwan_register_subdriver(dev);
 
 err:
 	return rv;
