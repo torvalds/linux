@@ -174,6 +174,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_FLAGS_OFFSET		0x0
 #define QUERY_FUNC_CAP_NUM_PORTS_OFFSET		0x1
 #define QUERY_FUNC_CAP_PF_BHVR_OFFSET		0x4
+#define QUERY_FUNC_CAP_FMR_OFFSET		0x8
 #define QUERY_FUNC_CAP_QP_QUOTA_OFFSET		0x10
 #define QUERY_FUNC_CAP_CQ_QUOTA_OFFSET		0x14
 #define QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET		0x18
@@ -183,24 +184,43 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_MAX_EQ_OFFSET		0x2c
 #define QUERY_FUNC_CAP_RESERVED_EQ_OFFSET	0X30
 
+#define QUERY_FUNC_CAP_FMR_FLAG			0x80
+#define QUERY_FUNC_CAP_FLAG_RDMA		0x40
+#define QUERY_FUNC_CAP_FLAG_ETH			0x80
+
+/* when opcode modifier = 1 */
 #define QUERY_FUNC_CAP_PHYS_PORT_OFFSET		0x3
+#define QUERY_FUNC_CAP_RDMA_PROPS_OFFSET	0x8
 #define QUERY_FUNC_CAP_ETH_PROPS_OFFSET		0xc
+
+#define QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC	0x40
+#define QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN	0x80
+
+#define QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID 0x80
 
 	if (vhcr->op_modifier == 1) {
 		field = vhcr->in_modifier;
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
 
-		field = 0; /* ensure fvl bit is not set */
+		field = 0;
+		/* ensure force vlan and force mac bits are not set */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
+		/* ensure that phy_wqe_gid bit is not set */
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+
 	} else if (vhcr->op_modifier == 0) {
-		field = 1 << 7; /* enable only ethernet interface */
+		/* enable rdma and ethernet interfaces */
+		field = (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA);
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS_OFFSET);
 
 		field = dev->caps.num_ports;
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
 
-		size = 0; /* no PF behavious is set for now */
+		size = 0; /* no PF behaviour is set for now */
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_PF_BHVR_OFFSET);
+
+		field = 0; /* protected FMR support not available as yet */
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FMR_OFFSET);
 
 		size = dev->caps.num_qps;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
@@ -254,11 +274,12 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, struct mlx4_func_cap *func_cap)
 	outbox = mailbox->buf;
 
 	MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS_OFFSET);
-	if (!(field & (1 << 7))) {
-		mlx4_err(dev, "The host doesn't support eth interface\n");
+	if (!(field & (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA))) {
+		mlx4_err(dev, "The host supports neither eth nor rdma interfaces\n");
 		err = -EPROTONOSUPPORT;
 		goto out;
 	}
+	func_cap->flags = field;
 
 	MLX4_GET(field, outbox, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
 	func_cap->num_ports = field;
@@ -297,17 +318,27 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, struct mlx4_func_cap *func_cap)
 		if (err)
 			goto out;
 
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
-		if (field & (1 << 7)) {
-			mlx4_err(dev, "VLAN is enforced on this port\n");
-			err = -EPROTONOSUPPORT;
-			goto out;
-		}
+		if (dev->caps.port_type[i] == MLX4_PORT_TYPE_ETH) {
+			MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
+			if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN) {
+				mlx4_err(dev, "VLAN is enforced on this port\n");
+				err = -EPROTONOSUPPORT;
+				goto out;
+			}
 
-		if (field & (1 << 6)) {
-			mlx4_err(dev, "Force mac is enabled on this port\n");
-			err = -EPROTONOSUPPORT;
-			goto out;
+			if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC) {
+				mlx4_err(dev, "Force mac is enabled on this port\n");
+				err = -EPROTONOSUPPORT;
+				goto out;
+			}
+		} else if (dev->caps.port_type[i] == MLX4_PORT_TYPE_IB) {
+			MLX4_GET(field, outbox, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+			if (field & QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID) {
+				mlx4_err(dev, "phy_wqe_gid is "
+					 "enforced on this ib port\n");
+				err = -EPROTONOSUPPORT;
+				goto out;
+			}
 		}
 
 		MLX4_GET(field, outbox, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
@@ -701,12 +732,7 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	u8 port_type;
 	int err;
 
-#define MLX4_PORT_SUPPORT_IB		(1 << 0)
-#define MLX4_PORT_SUGGEST_TYPE		(1 << 3)
-#define MLX4_PORT_DEFAULT_SENSE		(1 << 4)
-#define MLX4_VF_PORT_ETH_ONLY_MASK	(0xff & ~MLX4_PORT_SUPPORT_IB & \
-					 ~MLX4_PORT_SUGGEST_TYPE & \
-					 ~MLX4_PORT_DEFAULT_SENSE)
+#define MLX4_VF_PORT_NO_LINK_SENSE_MASK	0xE0
 
 	err = mlx4_cmd_box(dev, 0, outbox->dma, vhcr->in_modifier, 0,
 			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
@@ -722,12 +748,10 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 		MLX4_GET(port_type, outbox->buf,
 			 QUERY_PORT_SUPPORTED_TYPE_OFFSET);
 
-		/* Allow only Eth port, no link sensing allowed */
-		port_type &= MLX4_VF_PORT_ETH_ONLY_MASK;
-
-		/* check eth is enabled for this port */
-		if (!(port_type & 2))
-			mlx4_dbg(dev, "QUERY PORT: eth not supported by host");
+		/* No link sensing allowed */
+		port_type &= MLX4_VF_PORT_NO_LINK_SENSE_MASK;
+		/* set port type to currently operating port type */
+		port_type |= (dev->caps.port_type[vhcr->in_modifier] & 0x3);
 
 		MLX4_PUT(outbox->buf, port_type,
 			 QUERY_PORT_SUPPORTED_TYPE_OFFSET);

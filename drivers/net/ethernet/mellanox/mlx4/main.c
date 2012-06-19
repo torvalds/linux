@@ -288,29 +288,19 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			/* if only ETH is supported - assign ETH */
 			if (dev->caps.supported_type[i] == MLX4_PORT_TYPE_ETH)
 				dev->caps.port_type[i] = MLX4_PORT_TYPE_ETH;
-			/* if only IB is supported,
-			 * assign IB only if SRIOV is off*/
+			/* if only IB is supported, assign IB */
 			else if (dev->caps.supported_type[i] ==
-				 MLX4_PORT_TYPE_IB) {
-				if (dev->flags & MLX4_FLAG_SRIOV)
-					dev->caps.port_type[i] =
-						MLX4_PORT_TYPE_NONE;
-				else
-					dev->caps.port_type[i] =
-						MLX4_PORT_TYPE_IB;
-			/* if IB and ETH are supported,
-			 * first of all check if SRIOV is on */
-			} else if (dev->flags & MLX4_FLAG_SRIOV)
-				dev->caps.port_type[i] = MLX4_PORT_TYPE_ETH;
+				 MLX4_PORT_TYPE_IB)
+				dev->caps.port_type[i] = MLX4_PORT_TYPE_IB;
 			else {
-				/* In non-SRIOV mode, we set the port type
-				 * according to user selection of port type,
-				 * if usere selected none, take the FW hint */
-				if (port_type_array[i-1] == MLX4_PORT_TYPE_NONE)
+				/* if IB and ETH are supported, we set the port
+				 * type according to user selection of port type;
+				 * if user selected none, take the FW hint */
+				if (port_type_array[i - 1] == MLX4_PORT_TYPE_NONE)
 					dev->caps.port_type[i] = dev->caps.suggested_type[i] ?
 						MLX4_PORT_TYPE_ETH : MLX4_PORT_TYPE_IB;
 				else
-					dev->caps.port_type[i] = port_type_array[i-1];
+					dev->caps.port_type[i] = port_type_array[i - 1];
 			}
 		}
 		/*
