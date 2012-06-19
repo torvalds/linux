@@ -534,6 +534,8 @@ struct mlx4_init_port_param {
 		if (((dev)->caps.port_mask[port] == MLX4_PORT_TYPE_IB) || \
 			((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
 
+#define MLX4_INVALID_SLAVE_ID	0xFF
+
 static inline int mlx4_is_master(struct mlx4_dev *dev)
 {
 	return dev->flags & MLX4_FLAG_MASTER;

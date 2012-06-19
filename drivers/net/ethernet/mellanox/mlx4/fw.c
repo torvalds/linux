@@ -881,11 +881,12 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 		((fw_ver & 0xffff0000ull) >> 16) |
 		((fw_ver & 0x0000ffffull) << 16);
 
+	MLX4_GET(lg, outbox, QUERY_FW_PPF_ID);
+	dev->caps.function = lg;
+
 	if (mlx4_is_slave(dev))
 		goto out;
 
-	MLX4_GET(lg, outbox, QUERY_FW_PPF_ID);
-	dev->caps.function = lg;
 
 	MLX4_GET(cmd_if_rev, outbox, QUERY_FW_CMD_IF_REV_OFFSET);
 	if (cmd_if_rev < MLX4_COMMAND_INTERFACE_MIN_REV ||
@@ -966,9 +967,12 @@ int mlx4_QUERY_FW_wrapper(struct mlx4_dev *dev, int slave,
 	if (err)
 		return err;
 
-	/* for slaves, zero out everything except FW version */
+	/* for slaves, set pci PPF ID to invalid and zero out everything
+	 * else except FW version */
 	outbuf[0] = outbuf[1] = 0;
 	memset(&outbuf[8], 0, QUERY_FW_OUT_SIZE - 8);
+	outbuf[QUERY_FW_PPF_ID] = MLX4_INVALID_SLAVE_ID;
+
 	return 0;
 }
 
