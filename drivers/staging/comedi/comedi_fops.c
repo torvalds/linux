@@ -2182,7 +2182,7 @@ static int comedi_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
 
-const struct file_operations comedi_fops = {
+static const struct file_operations comedi_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = comedi_unlocked_ioctl,
 	.compat_ioctl = comedi_compat_ioctl,
@@ -2196,7 +2196,7 @@ const struct file_operations comedi_fops = {
 	.llseek = noop_llseek,
 };
 
-struct class *comedi_class;
+static struct class *comedi_class;
 static struct cdev comedi_cdev;
 
 static void comedi_cleanup_legacy_minors(void)
