@@ -513,11 +513,5 @@ void comedi_usb_auto_unconfig(struct usb_interface *intf);
 #ifdef CONFIG_COMEDI_PCI_DRIVERS_MODULE
 #define CONFIG_COMEDI_PCI
 #endif
-#ifdef CONFIG_COMEDI_PCMCIA_DRIVERS
-#define CONFIG_COMEDI_PCMCIA
-#endif
-#ifdef CONFIG_COMEDI_PCMCIA_DRIVERS_MODULE
-#define CONFIG_COMEDI_PCMCIA
-#endif
 
 #endif /* _COMEDIDEV_H */
