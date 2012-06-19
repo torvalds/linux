@@ -287,17 +287,6 @@ void i915_gem_context_fini(struct drm_device *dev)
 	do_destroy(dev_priv->ring[RCS].default_context);
 }
 
-void i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_file_private *file_priv = file->driver_priv;
-
-	if (dev_priv->hw_contexts_disabled)
-		return;
-
-	idr_init(&file_priv->context_idr);
-}
-
 static int context_idr_cleanup(int id, void *p, void *data)
 {
 	struct drm_file *file = (struct drm_file *)data;
@@ -316,11 +305,7 @@ static int context_idr_cleanup(int id, void *p, void *data)
 
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-
-	if (dev_priv->hw_contexts_disabled)
-		return;
 
 	mutex_lock(&dev->struct_mutex);
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, file);

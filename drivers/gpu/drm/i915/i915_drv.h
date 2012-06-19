@@ -1383,7 +1383,6 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 /* i915_gem_context.c */
 void i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_fini(struct drm_device *dev);
-void i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_ring_buffer *ring,
 			struct drm_file *file, int to_id);

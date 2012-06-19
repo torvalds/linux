@@ -1759,7 +1759,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
 
-	i915_gem_context_open(dev, file);
+	idr_init(&file_priv->context_idr);
 
 	return 0;
 }
