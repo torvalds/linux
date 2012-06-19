@@ -54,6 +54,13 @@
  *     corresponding management interface
  */
 
+/* driver specific data */
+struct qmi_wwan_state {
+	struct usb_driver *subdriver;
+	atomic_t pmcount;
+	unsigned long unused[3];
+};
+
 static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int status = -1;
@@ -65,9 +72,11 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct usb_cdc_ether_desc *cdc_ether = NULL;
 	u32 required = 1 << USB_CDC_HEADER_TYPE | 1 << USB_CDC_UNION_TYPE;
 	u32 found = 0;
-	atomic_t *pmcount = (void *)&dev->data[1];
+	struct qmi_wwan_state *info = (void *)&dev->data;
 
-	atomic_set(pmcount, 0);
+	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) < sizeof(struct qmi_wwan_state)));
+
+	atomic_set(&info->pmcount, 0);
 
 	/*
 	 * assume a data interface has no additional descriptors and
@@ -177,12 +186,12 @@ err:
 /* using a counter to merge subdriver requests with our own into a combined state */
 static int qmi_wwan_manage_power(struct usbnet *dev, int on)
 {
-	atomic_t *pmcount = (void *)&dev->data[1];
+	struct qmi_wwan_state *info = (void *)&dev->data;
 	int rv = 0;
 
-	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__, atomic_read(pmcount), on);
+	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__, atomic_read(&info->pmcount), on);
 
-	if ((on && atomic_add_return(1, pmcount) == 1) || (!on && atomic_dec_and_test(pmcount))) {
+	if ((on && atomic_add_return(1, &info->pmcount) == 1) || (!on && atomic_dec_and_test(&info->pmcount))) {
 		/* need autopm_get/put here to ensure the usbcore sees the new value */
 		rv = usb_autopm_get_interface(dev->intf);
 		if (rv < 0)
@@ -212,7 +221,7 @@ static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
 {
 	int rv;
 	struct usb_driver *subdriver = NULL;
-	atomic_t *pmcount = (void *)&dev->data[1];
+	struct qmi_wwan_state *info = (void *)&dev->data;
 
 	/* ZTE makes devices where the interface descriptors and endpoint
 	 * configurations of two or more interfaces are identical, even
@@ -228,7 +237,7 @@ static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
 		goto err;
 	}
 
-	atomic_set(pmcount, 0);
+	atomic_set(&info->pmcount, 0);
 
 	/* collect all three endpoints */
 	rv = usbnet_get_endpoints(dev, intf);
@@ -251,7 +260,7 @@ static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
 	dev->status = NULL;
 
 	/* save subdriver struct for suspend/resume wrappers */
-	dev->data[0] = (unsigned long)subdriver;
+	info->subdriver = subdriver;
 
 err:
 	return rv;
@@ -282,12 +291,12 @@ err:
 
 static void qmi_wwan_unbind_shared(struct usbnet *dev, struct usb_interface *intf)
 {
-	struct usb_driver *subdriver = (void *)dev->data[0];
+	struct qmi_wwan_state *info = (void *)&dev->data;
 
-	if (subdriver && subdriver->disconnect)
-		subdriver->disconnect(intf);
+	if (info->subdriver && info->subdriver->disconnect)
+		info->subdriver->disconnect(intf);
 
-	dev->data[0] = (unsigned long)NULL;
+	info->subdriver = NULL;
 }
 
 /* suspend/resume wrappers calling both usbnet and the cdc-wdm
@@ -299,15 +308,15 @@ static void qmi_wwan_unbind_shared(struct usbnet *dev, struct usb_interface *int
 static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	struct usb_driver *subdriver = (void *)dev->data[0];
+	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret;
 
 	ret = usbnet_suspend(intf, message);
 	if (ret < 0)
 		goto err;
 
-	if (subdriver && subdriver->suspend)
-		ret = subdriver->suspend(intf, message);
+	if (info->subdriver && info->subdriver->suspend)
+		ret = info->subdriver->suspend(intf, message);
 	if (ret < 0)
 		usbnet_resume(intf);
 err:
@@ -317,16 +326,16 @@ err:
 static int qmi_wwan_resume(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	struct usb_driver *subdriver = (void *)dev->data[0];
+	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret = 0;
 
-	if (subdriver && subdriver->resume)
-		ret = subdriver->resume(intf);
+	if (info->subdriver && info->subdriver->resume)
+		ret = info->subdriver->resume(intf);
 	if (ret < 0)
 		goto err;
 	ret = usbnet_resume(intf);
-	if (ret < 0 && subdriver && subdriver->resume && subdriver->suspend)
-		subdriver->suspend(intf, PMSG_SUSPEND);
+	if (ret < 0 && info->subdriver && info->subdriver->resume && info->subdriver->suspend)
+		info->subdriver->suspend(intf, PMSG_SUSPEND);
 err:
 	return ret;
 }
