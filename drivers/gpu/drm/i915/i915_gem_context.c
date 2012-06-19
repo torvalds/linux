@@ -277,11 +277,14 @@ void i915_gem_context_fini(struct drm_device *dev)
 	if (dev_priv->hw_contexts_disabled)
 		return;
 
+	/* The only known way to stop the gpu from accessing the hw context is
+	 * to reset it. Do this as the very last operation to avoid confusing
+	 * other code, leading to spurious errors. */
+	intel_gpu_reset(dev);
+
 	i915_gem_object_unpin(dev_priv->ring[RCS].default_context->obj);
 
 	do_destroy(dev_priv->ring[RCS].default_context);
-
-	intel_gpu_reset(dev);
 }
 
 void i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
