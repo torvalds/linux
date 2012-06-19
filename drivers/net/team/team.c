@@ -164,7 +164,7 @@ static int __team_option_inst_add_option(struct team *team,
 	int err;
 
 	if (!option->per_port) {
-		err = __team_option_inst_add(team, option, 0);
+		err = __team_option_inst_add(team, option, NULL);
 		if (err)
 			goto inst_del_option;
 	}
