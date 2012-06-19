@@ -112,6 +112,9 @@ struct team_option {
 	int (*setter)(struct team *team, struct team_gsetter_ctx *ctx);
 };
 
+extern void team_option_inst_set_change(struct team_option_inst_info *opt_inst_info);
+extern void team_options_change_check(struct team *team);
+
 struct team_mode {
 	const char *kind;
 	struct module *owner;

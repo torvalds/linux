@@ -82,6 +82,7 @@ static void team_refresh_port_linkup(struct team_port *port)
 						   port->state.linkup;
 }
 
+
 /*******************
  * Options handling
  *******************/
@@ -386,6 +387,22 @@ static int team_option_set(struct team *team,
 	__team_options_change_check(team);
 	return err;
 }
+
+void team_option_inst_set_change(struct team_option_inst_info *opt_inst_info)
+{
+	struct team_option_inst *opt_inst;
+
+	opt_inst = container_of(opt_inst_info, struct team_option_inst, info);
+	opt_inst->changed = true;
+}
+EXPORT_SYMBOL(team_option_inst_set_change);
+
+void team_options_change_check(struct team *team)
+{
+	__team_options_change_check(team);
+}
+EXPORT_SYMBOL(team_options_change_check);
+
 
 /****************
  * Mode handling
@@ -2050,6 +2067,7 @@ static void team_port_change_check(struct team_port *port, bool linkup)
 	__team_port_change_check(port, linkup);
 	mutex_unlock(&team->lock);
 }
+
 
 /************************************
  * Net device notifier event handler
