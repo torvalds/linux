@@ -296,6 +296,7 @@ int batadv_unicast_send_skb(struct sk_buff *skb, struct batadv_priv *bat_priv)
 	struct batadv_neigh_node *neigh_node;
 	int data_len = skb->len;
 	int ret = 1;
+	unsigned int dev_mtu;
 
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
@@ -344,9 +345,9 @@ find_router:
 	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
+	dev_mtu = neigh_node->if_incoming->net_dev->mtu;
 	if (atomic_read(&bat_priv->fragmentation) &&
-	    data_len + sizeof(*unicast_packet) >
-				neigh_node->if_incoming->net_dev->mtu) {
+	    data_len + sizeof(*unicast_packet) > dev_mtu) {
 		/* send frag skb decreases ttl */
 		unicast_packet->header.ttl++;
 		ret = batadv_frag_send_skb(skb, bat_priv,

@@ -111,6 +111,11 @@ static int batadv_log_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int batadv_log_empty(struct batadv_debug_log *debug_log)
+{
+	return !(debug_log->log_start - debug_log->log_end);
+}
+
 static ssize_t batadv_log_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
@@ -120,8 +125,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 	char *char_addr;
 	char c;
 
-	if ((file->f_flags & O_NONBLOCK) &&
-	    !(debug_log->log_end - debug_log->log_start))
+	if ((file->f_flags & O_NONBLOCK) && batadv_log_empty(debug_log))
 		return -EAGAIN;
 
 	if (!buf)
@@ -134,7 +138,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 		return -EFAULT;
 
 	error = wait_event_interruptible(debug_log->queue_wait,
-				(debug_log->log_start - debug_log->log_end));
+					 (!batadv_log_empty(debug_log)));
 
 	if (error)
 		return error;
@@ -175,7 +179,7 @@ static unsigned int batadv_log_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &debug_log->queue_wait, wait);
 
-	if (debug_log->log_end - debug_log->log_start)
+	if (!batadv_log_empty(debug_log))
 		return POLLIN | POLLRDNORM;
 
 	return 0;
@@ -370,9 +374,9 @@ int batadv_debugfs_add_meshif(struct net_device *dev)
 
 	for (bat_debug = batadv_mesh_debuginfos; *bat_debug; ++bat_debug) {
 		file = debugfs_create_file(((*bat_debug)->attr).name,
-					  S_IFREG | ((*bat_debug)->attr).mode,
-					  bat_priv->debug_dir,
-					  dev, &(*bat_debug)->fops);
+					   S_IFREG | ((*bat_debug)->attr).mode,
+					   bat_priv->debug_dir,
+					   dev, &(*bat_debug)->fops);
 		if (!file) {
 			batadv_err(dev, "Can't add debugfs file: %s/%s\n",
 				   dev->name, ((*bat_debug)->attr).name);

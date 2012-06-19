@@ -969,8 +969,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 				  ETH_HLEN) < 0)
 			return 0;
 
-		ethhdr = (struct ethhdr *)(skb->data +
-			sizeof(struct batadv_unicast_packet));
+		ethhdr = (struct ethhdr *)(skb->data + sizeof(*unicast_packet));
 
 		/* we don't have an updated route for this client, so we should
 		 * not try to reroute the packet!!

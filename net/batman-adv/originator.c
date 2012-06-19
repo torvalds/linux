@@ -413,6 +413,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 	int batman_count = 0;
 	int last_seen_secs;
 	int last_seen_msecs;
+	unsigned long last_seen_jiffies;
 	uint32_t i;
 	int ret = 0;
 
@@ -451,10 +452,10 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 			if (neigh_node->tq_avg == 0)
 				goto next;
 
-			last_seen_secs = jiffies_to_msecs(jiffies -
-						orig_node->last_seen) / 1000;
-			last_seen_msecs = jiffies_to_msecs(jiffies -
-						orig_node->last_seen) % 1000;
+			last_seen_jiffies = jiffies - orig_node->last_seen;
+			last_seen_msecs = jiffies_to_msecs(last_seen_jiffies);
+			last_seen_secs = last_seen_msecs / 1000;
+			last_seen_msecs = last_seen_msecs % 1000;
 
 			seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
 				   orig_node->orig, last_seen_secs,
