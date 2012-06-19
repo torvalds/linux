@@ -168,7 +168,6 @@ static struct wm8994_pdata wm8994_pdata = {
 	.gpio_defaults = {
 		0x3,          /* IRQ out, active high, CMOS */
 	},
-	.irq_base = CODEC_IRQ_BASE,
 	.ldo = {
 		 { .init_data = &wm8994_ldo1, },
 		 { .init_data = &wm8994_ldo2, },
