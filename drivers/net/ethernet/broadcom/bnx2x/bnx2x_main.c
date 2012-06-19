@@ -1583,7 +1583,7 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 	int cid = SW_CID(rr_cqe->ramrod_cqe.conn_and_cmd_data);
 	int command = CQE_CMD(rr_cqe->ramrod_cqe.conn_and_cmd_data);
 	enum bnx2x_queue_cmd drv_cmd = BNX2X_Q_CMD_MAX;
-	struct bnx2x_queue_sp_obj *q_obj = &fp->q_obj;
+	struct bnx2x_queue_sp_obj *q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
 	DP(BNX2X_MSG_SP,
 	   "fp %d  cid %d  got ramrod #%d  state is %x  type is %d\n",
@@ -3035,9 +3035,9 @@ static void bnx2x_drv_info_ether_stat(struct bnx2x *bp)
 	memcpy(ether_stat->version, DRV_MODULE_VERSION,
 	       ETH_STAT_INFO_VERSION_LEN - 1);
 
-	bp->fp[0].mac_obj.get_n_elements(bp, &bp->fp[0].mac_obj,
-					 DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED,
-					 ether_stat->mac_local);
+	bp->sp_objs[0].mac_obj.get_n_elements(bp, &bp->sp_objs[0].mac_obj,
+					DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED,
+					ether_stat->mac_local);
 
 	ether_stat->mtu_size = bp->dev->mtu;
 
@@ -4632,7 +4632,7 @@ static void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 			vlan_mac_obj = &bp->iscsi_l2_mac_obj;
 		else
 #endif
-			vlan_mac_obj = &bp->fp[cid].mac_obj;
+			vlan_mac_obj = &bp->sp_objs[cid].mac_obj;
 
 		break;
 	case BNX2X_FILTER_MCAST_PENDING:
@@ -4730,7 +4730,7 @@ static void bnx2x_after_function_update(struct bnx2x *bp)
 	for_each_eth_queue(bp, q) {
 		/* Set the appropriate Queue object */
 		fp = &bp->fp[q];
-		queue_params.q_obj = &fp->q_obj;
+		queue_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
 		/* send the ramrod */
 		rc = bnx2x_queue_state_change(bp, &queue_params);
@@ -4742,7 +4742,7 @@ static void bnx2x_after_function_update(struct bnx2x *bp)
 #ifdef BCM_CNIC
 	if (!NO_FCOE(bp)) {
 		fp = &bp->fp[FCOE_IDX(bp)];
-		queue_params.q_obj = &fp->q_obj;
+		queue_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
 		/* clear pending completion bit */
 		__clear_bit(RAMROD_COMP_WAIT, &queue_params.ramrod_flags);
@@ -4775,10 +4775,10 @@ static struct bnx2x_queue_sp_obj *bnx2x_cid_to_q_obj(
 	DP(BNX2X_MSG_SP, "retrieving fp from cid %d\n", cid);
 #ifdef BCM_CNIC
 	if (cid == BNX2X_FCOE_ETH_CID(bp))
-		return &bnx2x_fcoe(bp, q_obj);
+		return &bnx2x_fcoe_sp_obj(bp, q_obj);
 	else
 #endif
-		return &bnx2x_fp(bp, CID_TO_FP(cid, bp), q_obj);
+		return &bp->sp_objs[CID_TO_FP(cid, bp)].q_obj;
 }
 
 static void bnx2x_eq_int(struct bnx2x *bp)
@@ -5667,8 +5667,8 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 		cids[cos] = fp->txdata_ptr[cos]->cid;
 	}
 
-	bnx2x_init_queue_obj(bp, &fp->q_obj, fp->cl_id, cids, fp->max_cos,
-			     BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
+	bnx2x_init_queue_obj(bp, &bnx2x_sp_obj(bp, fp).q_obj, fp->cl_id, cids,
+			     fp->max_cos, BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
 			     bnx2x_sp_mapping(bp, q_rdata), q_type);
 
 	/**
@@ -7596,8 +7596,8 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 
 	__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
 	/* Eth MAC is set on RSS leading client (fp[0]) */
-	return bnx2x_set_mac_one(bp, bp->dev->dev_addr, &bp->fp->mac_obj, set,
-				 BNX2X_ETH_MAC, &ramrod_flags);
+	return bnx2x_set_mac_one(bp, bp->dev->dev_addr, &bp->sp_objs->mac_obj,
+				 set, BNX2X_ETH_MAC, &ramrod_flags);
 }
 
 int bnx2x_setup_leading(struct bnx2x *bp)
@@ -7877,7 +7877,7 @@ int bnx2x_setup_queue(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		bnx2x_ack_sb(bp, fp->igu_sb_id, USTORM_ID, 0,
 			     IGU_INT_ENABLE, 0);
 
-	q_params.q_obj = &fp->q_obj;
+	q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 	/* We want to wait for completion in this context */
 	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
 
@@ -7950,7 +7950,7 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 
 	DP(NETIF_MSG_IFDOWN, "stopping queue %d cid %d\n", index, fp->cid);
 
-	q_params.q_obj = &fp->q_obj;
+	q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 	/* We want to wait for completion in this context */
 	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
 
@@ -8339,12 +8339,13 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 	usleep_range(1000, 1000);
 
 	/* Clean all ETH MACs */
-	rc = bnx2x_del_all_macs(bp, &bp->fp[0].mac_obj, BNX2X_ETH_MAC, false);
+	rc = bnx2x_del_all_macs(bp, &bp->sp_objs[0].mac_obj, BNX2X_ETH_MAC,
+				false);
 	if (rc < 0)
 		BNX2X_ERR("Failed to delete all ETH macs: %d\n", rc);
 
 	/* Clean up UC list  */
-	rc = bnx2x_del_all_macs(bp, &bp->fp[0].mac_obj, BNX2X_UC_LIST_MAC,
+	rc = bnx2x_del_all_macs(bp, &bp->sp_objs[0].mac_obj, BNX2X_UC_LIST_MAC,
 				true);
 	if (rc < 0)
 		BNX2X_ERR("Failed to schedule DEL commands for UC MACs list: %d\n",
@@ -11049,7 +11050,7 @@ static int bnx2x_set_uc_list(struct bnx2x *bp)
 	int rc;
 	struct net_device *dev = bp->dev;
 	struct netdev_hw_addr *ha;
-	struct bnx2x_vlan_mac_obj *mac_obj = &bp->fp->mac_obj;
+	struct bnx2x_vlan_mac_obj *mac_obj = &bp->sp_objs->mac_obj;
 	unsigned long ramrod_flags = 0;
 
 	/* First schedule a cleanup up of old configuration */

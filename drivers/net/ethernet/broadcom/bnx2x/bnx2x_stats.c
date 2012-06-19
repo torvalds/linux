@@ -859,17 +859,22 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 		struct tstorm_per_queue_stats *tclient =
 			&bp->fw_stats_data->queue_stats[i].
 			tstorm_queue_statistics;
-		struct tstorm_per_queue_stats *old_tclient = &fp->old_tclient;
+		struct tstorm_per_queue_stats *old_tclient =
+			&bnx2x_fp_stats(bp, fp)->old_tclient;
 		struct ustorm_per_queue_stats *uclient =
 			&bp->fw_stats_data->queue_stats[i].
 			ustorm_queue_statistics;
-		struct ustorm_per_queue_stats *old_uclient = &fp->old_uclient;
+		struct ustorm_per_queue_stats *old_uclient =
+			&bnx2x_fp_stats(bp, fp)->old_uclient;
 		struct xstorm_per_queue_stats *xclient =
 			&bp->fw_stats_data->queue_stats[i].
 			xstorm_queue_statistics;
-		struct xstorm_per_queue_stats *old_xclient = &fp->old_xclient;
-		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
-		struct bnx2x_eth_q_stats_old *qstats_old = &fp->eth_q_stats_old;
+		struct xstorm_per_queue_stats *old_xclient =
+			&bnx2x_fp_stats(bp, fp)->old_xclient;
+		struct bnx2x_eth_q_stats *qstats =
+			&bnx2x_fp_stats(bp, fp)->eth_q_stats;
+		struct bnx2x_eth_q_stats_old *qstats_old =
+			&bnx2x_fp_stats(bp, fp)->eth_q_stats_old;
 
 		u32 diff;
 
@@ -1052,8 +1057,11 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 	nstats->tx_bytes = bnx2x_hilo(&estats->total_bytes_transmitted_hi);
 
 	tmp = estats->mac_discard;
-	for_each_rx_queue(bp, i)
-		tmp += le32_to_cpu(bp->fp[i].old_tclient.checksum_discard);
+	for_each_rx_queue(bp, i) {
+		struct tstorm_per_queue_stats *old_tclient =
+			&bp->fp_stats[i].old_tclient;
+		tmp += le32_to_cpu(old_tclient->checksum_discard);
+	}
 	nstats->rx_dropped = tmp + bp->net_stats_old.rx_dropped;
 
 	nstats->tx_dropped = 0;
@@ -1103,9 +1111,9 @@ static void bnx2x_drv_stats_update(struct bnx2x *bp)
 	int i;
 
 	for_each_queue(bp, i) {
-		struct bnx2x_eth_q_stats *qstats = &bp->fp[i].eth_q_stats;
+		struct bnx2x_eth_q_stats *qstats = &bp->fp_stats[i].eth_q_stats;
 		struct bnx2x_eth_q_stats_old *qstats_old =
-						&bp->fp[i].eth_q_stats_old;
+			&bp->fp_stats[i].eth_q_stats_old;
 
 		UPDATE_ESTAT_QSTAT(driver_xoff);
 		UPDATE_ESTAT_QSTAT(rx_err_discard_pkt);
@@ -1483,15 +1491,19 @@ void bnx2x_stats_init(struct bnx2x *bp)
 
 	/* function stats */
 	for_each_queue(bp, i) {
-		struct bnx2x_fastpath *fp = &bp->fp[i];
+		struct bnx2x_fp_stats *fp_stats = &bp->fp_stats[i];
 
-		memset(&fp->old_tclient, 0, sizeof(fp->old_tclient));
-		memset(&fp->old_uclient, 0, sizeof(fp->old_uclient));
-		memset(&fp->old_xclient, 0, sizeof(fp->old_xclient));
+		memset(&fp_stats->old_tclient, 0,
+		       sizeof(fp_stats->old_tclient));
+		memset(&fp_stats->old_uclient, 0,
+		       sizeof(fp_stats->old_uclient));
+		memset(&fp_stats->old_xclient, 0,
+		       sizeof(fp_stats->old_xclient));
 		if (bp->stats_init) {
-			memset(&fp->eth_q_stats, 0, sizeof(fp->eth_q_stats));
-			memset(&fp->eth_q_stats_old, 0,
-			       sizeof(fp->eth_q_stats_old));
+			memset(&fp_stats->eth_q_stats, 0,
+			       sizeof(fp_stats->eth_q_stats));
+			memset(&fp_stats->eth_q_stats_old, 0,
+			       sizeof(fp_stats->eth_q_stats_old));
 		}
 	}
 
@@ -1533,8 +1545,10 @@ void bnx2x_save_statistics(struct bnx2x *bp)
 	/* save queue statistics */
 	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
-		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
-		struct bnx2x_eth_q_stats_old *qstats_old = &fp->eth_q_stats_old;
+		struct bnx2x_eth_q_stats *qstats =
+			&bnx2x_fp_stats(bp, fp)->eth_q_stats;
+		struct bnx2x_eth_q_stats_old *qstats_old =
+			&bnx2x_fp_stats(bp, fp)->eth_q_stats_old;
 
 		UPDATE_QSTAT_OLD(total_unicast_bytes_received_hi);
 		UPDATE_QSTAT_OLD(total_unicast_bytes_received_lo);
@@ -1590,8 +1604,7 @@ void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
 	memset(afex_stats, 0, sizeof(struct afex_stats));
 
 	for_each_eth_queue(bp, i) {
-		struct bnx2x_fastpath *fp = &bp->fp[i];
-		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
+		struct bnx2x_eth_q_stats *qstats = &bp->fp_stats[i].eth_q_stats;
 
 		ADD_64(afex_stats->rx_unicast_bytes_hi,
 		       qstats->total_unicast_bytes_received_hi,

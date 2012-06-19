@@ -981,8 +981,8 @@ static inline void bnx2x_init_vlan_mac_fp_objs(struct bnx2x_fastpath *fp,
 	struct bnx2x *bp = fp->bp;
 
 	/* Configure classification DBs */
-	bnx2x_init_mac_obj(bp, &fp->mac_obj, fp->cl_id, fp->cid,
-			   BP_FUNC(bp), bnx2x_sp(bp, mac_rdata),
+	bnx2x_init_mac_obj(bp, &bnx2x_sp_obj(bp, fp).mac_obj, fp->cl_id,
+			   fp->cid, BP_FUNC(bp), bnx2x_sp(bp, mac_rdata),
 			   bnx2x_sp_mapping(bp, mac_rdata),
 			   BNX2X_FILTER_MAC_PENDING,
 			   &bp->sp_state, obj_type,
@@ -1138,8 +1138,8 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	/* No multi-CoS for FCoE L2 client */
 	BUG_ON(fp->max_cos != 1);
 
-	bnx2x_init_queue_obj(bp, &fp->q_obj, fp->cl_id, &fp->cid, 1,
-			     BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
+	bnx2x_init_queue_obj(bp, &bnx2x_sp_obj(bp, fp).q_obj, fp->cl_id,
+			     &fp->cid, 1, BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
 			     bnx2x_sp_mapping(bp, q_rdata), q_type);
 
 	DP(NETIF_MSG_IFUP,

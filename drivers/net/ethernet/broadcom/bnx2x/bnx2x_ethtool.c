@@ -2292,7 +2292,7 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 		return -ENODEV;
 	}
 
-	params.q_obj = &bp->fp->q_obj;
+	params.q_obj = &bp->sp_objs->q_obj;
 	params.cmd = BNX2X_Q_CMD_EMPTY;
 
 	__set_bit(RAMROD_COMP_WAIT, &params.ramrod_flags);
@@ -2516,7 +2516,7 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 
 	if (is_multi(bp)) {
 		for_each_eth_queue(bp, i) {
-			hw_stats = (u32 *)&bp->fp[i].eth_q_stats;
+			hw_stats = (u32 *)&bp->fp_stats[i].eth_q_stats;
 			for (j = 0; j < BNX2X_NUM_Q_STATS; j++) {
 				if (bnx2x_q_stats_arr[j].size == 0) {
 					/* skip this counter */

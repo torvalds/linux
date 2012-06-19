@@ -549,34 +549,23 @@ struct bnx2x_fastpath {
 				rx_calls;
 
 	/* TPA related */
-	struct bnx2x_agg_info	tpa_info[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
+	struct bnx2x_agg_info	*tpa_info;
 	u8			disable_tpa;
 #ifdef BNX2X_STOP_ON_ERROR
 	u64			tpa_queue_used;
 #endif
-
-	struct tstorm_per_queue_stats old_tclient;
-	struct ustorm_per_queue_stats old_uclient;
-	struct xstorm_per_queue_stats old_xclient;
-	struct bnx2x_eth_q_stats eth_q_stats;
-	struct bnx2x_eth_q_stats_old eth_q_stats_old;
-
 	/* The size is calculated using the following:
 	     sizeof name field from netdev structure +
 	     4 ('-Xx-' string) +
 	     4 (for the digits and to make it DWORD aligned) */
 #define FP_NAME_SIZE		(sizeof(((struct net_device *)0)->name) + 8)
 	char			name[FP_NAME_SIZE];
-
-	/* MACs object */
-	struct bnx2x_vlan_mac_obj mac_obj;
-
-	/* Queue State object */
-	struct bnx2x_queue_sp_obj q_obj;
-
 };
 
-#define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
+#define bnx2x_fp(bp, nr, var)	((bp)->fp[(nr)].var)
+#define bnx2x_sp_obj(bp, fp)	((bp)->sp_objs[(fp)->index])
+#define bnx2x_fp_stats(bp, fp)	(&((bp)->fp_stats[(fp)->index]))
+#define bnx2x_fp_qstats(bp, fp)	(&((bp)->fp_stats[(fp)->index].eth_q_stats))
 
 /* Use 2500 as a mini-jumbo MTU for FCoE */
 #define BNX2X_FCOE_MINI_JUMBO_MTU	2500
@@ -587,6 +576,8 @@ struct bnx2x_fastpath {
 				 FCOE_IDX_OFFSET)
 #define bnx2x_fcoe_fp(bp)	(&bp->fp[FCOE_IDX(bp)])
 #define bnx2x_fcoe(bp, var)	(bnx2x_fcoe_fp(bp)->var)
+#define bnx2x_fcoe_inner_sp_obj(bp)	(&bp->sp_objs[FCOE_IDX(bp)])
+#define bnx2x_fcoe_sp_obj(bp, var)	(bnx2x_fcoe_inner_sp_obj(bp)->var)
 #define bnx2x_fcoe_tx(bp, var)	(bnx2x_fcoe_fp(bp)-> \
 						txdata_ptr[FIRST_TX_COS_INDEX] \
 						->var)
@@ -1187,11 +1178,29 @@ struct bnx2x_prev_path_list {
 	struct list_head list;
 };
 
+struct bnx2x_sp_objs {
+	/* MACs object */
+	struct bnx2x_vlan_mac_obj mac_obj;
+
+	/* Queue State object */
+	struct bnx2x_queue_sp_obj q_obj;
+};
+
+struct bnx2x_fp_stats {
+	struct tstorm_per_queue_stats old_tclient;
+	struct ustorm_per_queue_stats old_uclient;
+	struct xstorm_per_queue_stats old_xclient;
+	struct bnx2x_eth_q_stats eth_q_stats;
+	struct bnx2x_eth_q_stats_old eth_q_stats_old;
+};
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure
 	 */
 	struct bnx2x_fastpath	*fp;
+	struct bnx2x_sp_objs	*sp_objs;
+	struct bnx2x_fp_stats	*fp_stats;
 	struct bnx2x_fp_txdata	*bnx2x_txq;
 	int			bnx2x_txq_size;
 	void __iomem		*regview;
