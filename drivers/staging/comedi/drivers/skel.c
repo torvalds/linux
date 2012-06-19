@@ -611,7 +611,7 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_PCI_DRIVERS
 static int __devinit driver_skel_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {

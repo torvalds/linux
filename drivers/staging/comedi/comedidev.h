@@ -507,11 +507,4 @@ int comedi_usb_auto_config(struct usb_interface *intf,
 			   struct comedi_driver *driver);
 void comedi_usb_auto_unconfig(struct usb_interface *intf);
 
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-#define CONFIG_COMEDI_PCI
-#endif
-#ifdef CONFIG_COMEDI_PCI_DRIVERS_MODULE
-#define CONFIG_COMEDI_PCI
-#endif
-
 #endif /* _COMEDIDEV_H */
