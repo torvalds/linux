@@ -213,7 +213,6 @@ config COMEDI_PCM3730
 config COMEDI_AMPLC_DIO200_ISA
 	tristate "Amplicon PC212E/PC214E/PC215E/PC218E/PC272E"
 	select COMEDI_AMPLC_DIO200
-	depends on COMEDI_ISA_DRIVERS
 	---help---
 	  Enable support for Amplicon PC212E, PC214E, PC215E, PC218E and
 	  PC272E ISA DIO boards
@@ -1236,7 +1235,6 @@ endif # COMEDI_USB_DRIVERS
 
 menuconfig COMEDI_NI_COMMON
 	tristate "Comedi National Instruments card support"
-	depends on COMEDI
 	---help---
 	  Enable comedi support for National Instruments cards.
 	  Modules in this section are used by many comedi NI drivers.
