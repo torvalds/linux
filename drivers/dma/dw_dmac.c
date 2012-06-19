@@ -191,6 +191,19 @@ static void dwc_initialize(struct dw_dma_chan *dwc)
 
 /*----------------------------------------------------------------------*/
 
+static void dwc_dump_chan_regs(struct dw_dma_chan *dwc)
+{
+	dev_err(chan2dev(&dwc->chan),
+		"  SAR: 0x%x DAR: 0x%x LLP: 0x%x CTL: 0x%x:%08x\n",
+		channel_readl(dwc, SAR),
+		channel_readl(dwc, DAR),
+		channel_readl(dwc, LLP),
+		channel_readl(dwc, CTL_HI),
+		channel_readl(dwc, CTL_LO));
+}
+
+/*----------------------------------------------------------------------*/
+
 /* Called with dwc->lock held and bh disabled */
 static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 {
@@ -200,13 +213,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
 			"BUG: Attempted to start non-idle channel\n");
-		dev_err(chan2dev(&dwc->chan),
-			"  SAR: 0x%x DAR: 0x%x LLP: 0x%x CTL: 0x%x:%08x\n",
-			channel_readl(dwc, SAR),
-			channel_readl(dwc, DAR),
-			channel_readl(dwc, LLP),
-			channel_readl(dwc, CTL_HI),
-			channel_readl(dwc, CTL_LO));
+		dwc_dump_chan_regs(dwc);
 
 		/* The tasklet will hopefully advance the queue... */
 		return;
@@ -490,13 +497,7 @@ static void dwc_handle_cyclic(struct dw_dma *dw, struct dw_dma_chan *dwc,
 
 		spin_lock_irqsave(&dwc->lock, flags);
 
-		dev_err(chan2dev(&dwc->chan),
-			"  SAR: 0x%x DAR: 0x%x LLP: 0x%x CTL: 0x%x:%08x\n",
-			channel_readl(dwc, SAR),
-			channel_readl(dwc, DAR),
-			channel_readl(dwc, LLP),
-			channel_readl(dwc, CTL_HI),
-			channel_readl(dwc, CTL_LO));
+		dwc_dump_chan_regs(dwc);
 
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 		while (dma_readl(dw, CH_EN) & dwc->mask)
@@ -1131,13 +1132,7 @@ int dw_dma_cyclic_start(struct dma_chan *chan)
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
 			"BUG: Attempted to start non-idle channel\n");
-		dev_err(chan2dev(&dwc->chan),
-			"  SAR: 0x%x DAR: 0x%x LLP: 0x%x CTL: 0x%x:%08x\n",
-			channel_readl(dwc, SAR),
-			channel_readl(dwc, DAR),
-			channel_readl(dwc, LLP),
-			channel_readl(dwc, CTL_HI),
-			channel_readl(dwc, CTL_LO));
+		dwc_dump_chan_regs(dwc);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -EBUSY;
 	}
