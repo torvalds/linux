@@ -33,7 +33,7 @@ config COMEDI_DEFAULT_BUF_MAXSIZE_KB
 	  channels running at 100 kHz has 2-4 seconds of buffer.
 
 menuconfig COMEDI_MISC_DRIVERS
-	tristate "Comedi misc drivers"
+	bool "Comedi misc drivers"
 	---help---
 	  Enable comedi misc drivers to be built
 
@@ -100,7 +100,7 @@ config COMEDI_SKEL
 endif # COMEDI_MISC_DRIVERS
 
 menuconfig COMEDI_ISA_DRIVERS
-	tristate "Comedi ISA and PC/104 drivers"
+	bool "Comedi ISA and PC/104 drivers"
 	depends on ISA
 	---help---
 	  Enable comedi ISA and PC/104 drivers to be built
@@ -540,7 +540,7 @@ config COMEDI_POC
 endif # COMEDI_ISA_DRIVERS
 
 menuconfig COMEDI_PCI_DRIVERS
-	tristate "Comedi PCI drivers"
+	bool "Comedi PCI drivers"
 	depends on PCI
 	---help---
 	  Enable comedi PCI drivers to be built
@@ -1095,7 +1095,7 @@ config COMEDI_SSV_DNP
 endif # COMEDI_PCI_DRIVERS
 
 menuconfig COMEDI_PCMCIA_DRIVERS
-	tristate "Comedi PCMCIA drivers"
+	bool "Comedi PCMCIA drivers"
 	depends on PCMCIA
 	---help---
 	  Enable comedi PCMCIA and PCCARD drivers to be built
@@ -1178,7 +1178,7 @@ config COMEDI_QUATECH_DAQP_CS
 endif # COMEDI_PCMCIA_DRIVERS
 
 menuconfig COMEDI_USB_DRIVERS
-	tristate "Comedi USB drivers"
+	bool "Comedi USB drivers"
 	depends on USB
 	---help---
 	  Enable comedi USB drivers to be built
