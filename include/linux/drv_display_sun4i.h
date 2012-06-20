@@ -787,7 +787,10 @@ typedef enum tag_DISP_CMD
 //---pwm --------
     DISP_CMD_PWM_SET_PARA = 0x300,
     DISP_CMD_PWM_GET_PARA = 0x301,
-}__disp_cmd_t;
+}__disP_cmd_t;
+
+
+#define GET_UMP_SECURE_ID _IOWR('m', 310, unsigned int)
 
 #define FBIOGET_LAYER_HDL_0 0x4700
 #define FBIOGET_LAYER_HDL_1 0x4701
