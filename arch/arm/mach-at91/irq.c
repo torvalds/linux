@@ -30,6 +30,7 @@
 #include <linux/of_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -42,6 +43,7 @@
 void __iomem *at91_aic_base;
 static struct irq_domain *at91_aic_domain;
 static struct device_node *at91_aic_np;
+static unsigned int *at91_aic_irq_priorities;
 
 static void at91_aic_mask_irq(struct irq_data *d)
 {
@@ -177,8 +179,9 @@ static int at91_aic_irq_map(struct irq_domain *h, unsigned int virq,
 	/* Put virq number in Source Vector Register */
 	at91_aic_write(AT91_AIC_SVR(hw), virq);
 
-	/* Active Low interrupt, without priority */
-	at91_aic_write(AT91_AIC_SMR(hw), AT91_AIC_SRCTYPE_LOW);
+	/* Active Low interrupt, with priority */
+	at91_aic_write(AT91_AIC_SMR(hw),
+		       AT91_AIC_SRCTYPE_LOW | at91_aic_irq_priorities[hw]);
 
 	irq_set_chip_and_handler(virq, &at91_aic_chip, handle_fasteoi_irq);
 	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
@@ -186,9 +189,28 @@ static int at91_aic_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
+static int at91_aic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+				const u32 *intspec, unsigned int intsize,
+				irq_hw_number_t *out_hwirq, unsigned int *out_type)
+{
+	if (WARN_ON(intsize < 3))
+		return -EINVAL;
+	if (WARN_ON(intspec[0] >= NR_AIC_IRQS))
+		return -EINVAL;
+	if (WARN_ON((intspec[2] < AT91_AIC_IRQ_MIN_PRIORITY)
+		    || (intspec[2] > AT91_AIC_IRQ_MAX_PRIORITY)))
+		return -EINVAL;
+
+	*out_hwirq = intspec[0];
+	*out_type = intspec[1] & IRQ_TYPE_SENSE_MASK;
+	at91_aic_irq_priorities[*out_hwirq] = intspec[2];
+
+	return 0;
+}
+
 static struct irq_domain_ops at91_aic_irq_ops = {
 	.map	= at91_aic_irq_map,
-	.xlate	= irq_domain_xlate_twocell,
+	.xlate	= at91_aic_irq_domain_xlate,
 };
 
 int __init at91_aic_of_init(struct device_node *node,
@@ -197,6 +219,12 @@ int __init at91_aic_of_init(struct device_node *node,
 	struct property *prop;
 	const __be32 *p;
 	u32 val;
+
+	at91_aic_irq_priorities = kzalloc(NR_AIC_IRQS
+					  * sizeof(*at91_aic_irq_priorities),
+					  GFP_KERNEL);
+	if (!at91_aic_irq_priorities)
+		return -ENOMEM;
 
 	at91_aic_base = of_iomap(node, 0);
 	at91_aic_np = node;

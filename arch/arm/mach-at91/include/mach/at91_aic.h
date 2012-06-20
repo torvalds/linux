@@ -28,6 +28,9 @@ extern void __iomem *at91_aic_base;
 .extern at91_aic_base
 #endif
 
+#define AT91_AIC_IRQ_MIN_PRIORITY	0
+#define AT91_AIC_IRQ_MAX_PRIORITY	7
+
 #define AT91_AIC_SMR(n)		((n) * 4)		/* Source Mode Registers 0-31 */
 #define		AT91_AIC_PRIOR		(7 << 0)		/* Priority Level */
 #define		AT91_AIC_SRCTYPE	(3 << 5)		/* Interrupt Source Type */
