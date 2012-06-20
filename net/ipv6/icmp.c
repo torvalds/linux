@@ -600,9 +600,8 @@ static void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 {
 	const struct inet6_protocol *ipprot;
 	int inner_offset;
-	int hash;
-	u8 nexthdr;
 	__be16 frag_off;
+	u8 nexthdr;
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		return;
@@ -629,10 +628,8 @@ static void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 	   --ANK (980726)
 	 */
 
-	hash = nexthdr & (MAX_INET_PROTOS - 1);
-
 	rcu_read_lock();
-	ipprot = rcu_dereference(inet6_protos[hash]);
+	ipprot = rcu_dereference(inet6_protos[nexthdr]);
 	if (ipprot && ipprot->err_handler)
 		ipprot->err_handler(skb, NULL, type, code, inner_offset, info);
 	rcu_read_unlock();

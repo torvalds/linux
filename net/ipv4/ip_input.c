@@ -198,14 +198,13 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 	rcu_read_lock();
 	{
 		int protocol = ip_hdr(skb)->protocol;
-		int hash, raw;
 		const struct net_protocol *ipprot;
+		int raw;
 
 	resubmit:
 		raw = raw_local_deliver(skb, protocol);
 
-		hash = protocol & (MAX_INET_PROTOS - 1);
-		ipprot = rcu_dereference(inet_protos[hash]);
+		ipprot = rcu_dereference(inet_protos[protocol]);
 		if (ipprot != NULL) {
 			int ret;
 
