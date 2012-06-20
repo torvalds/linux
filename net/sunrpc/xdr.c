@@ -630,12 +630,15 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 	xdr->buf = buf;
 	xdr->scratch.iov_base = NULL;
 	xdr->scratch.iov_len = 0;
+	xdr->nwords = XDR_QUADLEN(buf->len);
 	if (buf->head[0].iov_len != 0)
 		xdr_set_iov(xdr, buf->head, buf->len);
 	else if (buf->page_len != 0)
 		xdr_set_page_base(xdr, 0, buf->len);
-	if (p != NULL && p > xdr->p && xdr->end >= p)
+	if (p != NULL && p > xdr->p && xdr->end >= p) {
+		xdr->nwords -= p - xdr->p;
 		xdr->p = p;
+	}
 }
 EXPORT_SYMBOL_GPL(xdr_init_decode);
 
@@ -660,12 +663,14 @@ EXPORT_SYMBOL_GPL(xdr_init_decode_pages);
 
 static __be32 * __xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
 {
+	unsigned int nwords = XDR_QUADLEN(nbytes);
 	__be32 *p = xdr->p;
-	__be32 *q = p + XDR_QUADLEN(nbytes);
+	__be32 *q = p + nwords;
 
-	if (unlikely(q > xdr->end || q < p))
+	if (unlikely(nwords > xdr->nwords || q > xdr->end || q < p))
 		return NULL;
 	xdr->p = q;
+	xdr->nwords -= nwords;
 	return p;
 }
 
@@ -746,9 +751,16 @@ void xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	struct xdr_buf *buf = xdr->buf;
 	struct kvec *iov;
 	ssize_t shift;
+	unsigned int nwords = XDR_QUADLEN(len);
 	unsigned int end;
 	int padding;
 
+	if (xdr->nwords == 0)
+		return;
+	if (nwords > xdr->nwords) {
+		nwords = xdr->nwords;
+		len = nwords << 2;
+	}
 	/* Realign pages to current pointer position */
 	iov  = buf->head;
 	shift = iov->iov_len + (char *)iov->iov_base - (char *)xdr->p;
@@ -758,15 +770,15 @@ void xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	/* Truncate page data and move it into the tail */
 	if (buf->page_len > len)
 		xdr_shrink_pagelen(buf, buf->page_len - len);
-	padding = (XDR_QUADLEN(len) << 2) - len;
+	padding = (nwords << 2) - len;
 	xdr->iov = iov = buf->tail;
 	/* Compute remaining message length.  */
 	end = iov->iov_len;
 	shift = buf->buflen - buf->len;
-	if (shift < end)
+	if (end > shift + padding)
 		end -= shift;
-	else if (shift > 0)
-		end = 0;
+	else
+		end = padding;
 	/*
 	 * Position current pointer at beginning of tail, and
 	 * set remaining message length.
@@ -774,6 +786,7 @@ void xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	xdr->p = (__be32 *)((char *)iov->iov_base + padding);
 	xdr->end = (__be32 *)((char *)iov->iov_base + end);
 	xdr->page_ptr = NULL;
+	xdr->nwords = XDR_QUADLEN(end - padding);
 }
 EXPORT_SYMBOL_GPL(xdr_read_pages);
 
@@ -795,6 +808,7 @@ void xdr_enter_page(struct xdr_stream *xdr, unsigned int len)
 	 * set remaining message length.
 	 */
 	xdr_set_page_base(xdr, 0, len);
+	xdr->nwords += XDR_QUADLEN(xdr->buf->page_len);
 }
 EXPORT_SYMBOL_GPL(xdr_enter_page);
 
