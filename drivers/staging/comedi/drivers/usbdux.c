@@ -317,7 +317,7 @@ static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
-static struct comedi_driver driver_usbdux;	/* see below for initializer */
+static struct comedi_driver usbdux_driver;	/* see below for initializer */
 
 /*
  * Stops the data acquision
@@ -2323,7 +2323,7 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(uinterf, &driver_usbdux);
+	comedi_usb_auto_config(uinterf, &usbdux_driver);
  out:
 	release_firmware(fw);
 }
@@ -2832,12 +2832,12 @@ static void usbdux_detach(struct comedi_device *dev)
 }
 
 /* main driver struct */
-static struct comedi_driver driver_usbdux = {
-	.driver_name = "usbdux",
-	.module = THIS_MODULE,
-	.attach = usbdux_attach,
-	.detach = usbdux_detach,
-	.attach_usb = usbdux_attach_usb,
+static struct comedi_driver usbdux_driver = {
+	.driver_name	= "usbdux",
+	.module		= THIS_MODULE,
+	.attach		= usbdux_attach,
+	.detach		= usbdux_detach,
+	.attach_usb	= usbdux_attach_usb,
 };
 
 /* Table with the USB-devices: just now only testing IDs */
@@ -2849,35 +2849,13 @@ static const struct usb_device_id usbduxsub_table[] = {
 
 MODULE_DEVICE_TABLE(usb, usbduxsub_table);
 
-/* The usbduxsub-driver */
-static struct usb_driver usbduxsub_driver = {
-	.name = BOARDNAME,
-	.probe = usbduxsub_probe,
-	.disconnect = usbduxsub_disconnect,
-	.id_table = usbduxsub_table,
+static struct usb_driver usbdux_usb_driver = {
+	.name		= BOARDNAME,
+	.probe		= usbduxsub_probe,
+	.disconnect	= usbduxsub_disconnect,
+	.id_table	= usbduxsub_table,
 };
-
-/* Can't use the nice macro as I have also to initialise the USB */
-/* subsystem: */
-/* registering the usb-system _and_ the comedi-driver */
-static int __init init_usbdux(void)
-{
-	printk(KERN_INFO KBUILD_MODNAME ": "
-	       DRIVER_VERSION ":" DRIVER_DESC "\n");
-	usb_register(&usbduxsub_driver);
-	comedi_driver_register(&driver_usbdux);
-	return 0;
-}
-
-/* deregistering the comedi driver and the usb-subsystem */
-static void __exit exit_usbdux(void)
-{
-	comedi_driver_unregister(&driver_usbdux);
-	usb_deregister(&usbduxsub_driver);
-}
-
-module_init(init_usbdux);
-module_exit(exit_usbdux);
+module_comedi_usb_driver(usbdux_driver, usbdux_usb_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
