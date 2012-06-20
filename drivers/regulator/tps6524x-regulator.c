@@ -110,8 +110,6 @@
 #define N_SWITCH		2
 #define N_REGULATORS		(N_DCDC + N_LDO + N_SWITCH)
 
-#define FIXED_ILIMSEL		BIT(0)
-
 #define CMD_READ(reg)		((reg) << 6)
 #define CMD_WRITE(reg)		(BIT(5) | (reg) << 6)
 #define STAT_CLK		BIT(3)
@@ -130,9 +128,7 @@ struct supply_info {
 	int		n_voltages;
 	const unsigned int *voltages;
 	int		n_ilimsels;
-	const int	*ilimsels;
-	int		fixed_ilimsel;
-	int		flags;
+	const unsigned int *ilimsels;
 	struct field	enable, voltage, ilimsel;
 };
 
@@ -353,12 +349,24 @@ static const unsigned int fixed_5000000_voltage[] = {
 	5000000
 };
 
-static const int ldo_ilimsel[] = {
+static const unsigned int ldo_ilimsel[] = {
 	400000, 1500000
 };
 
-static const int usb_ilimsel[] = {
+static const unsigned int usb_ilimsel[] = {
 	200000, 400000, 800000, 1000000
+};
+
+static const unsigned int fixed_2400000_ilimsel[] = {
+	2400000
+};
+
+static const unsigned int fixed_1200000_ilimsel[] = {
+	1200000
+};
+
+static const unsigned int fixed_400000_ilimsel[] = {
+	400000
 };
 
 #define __MK_FIELD(_reg, _mask, _shift) \
@@ -367,10 +375,10 @@ static const int usb_ilimsel[] = {
 static const struct supply_info supply_info[N_REGULATORS] = {
 	{
 		.name		= "DCDC1",
-		.flags		= FIXED_ILIMSEL,
 		.n_voltages	= ARRAY_SIZE(dcdc1_voltages),
 		.voltages	= dcdc1_voltages,
-		.fixed_ilimsel	= 2400000,
+		.n_ilimsels	= ARRAY_SIZE(fixed_2400000_ilimsel),
+		.ilimsels	= fixed_2400000_ilimsel,
 		.enable		= __MK_FIELD(REG_DCDC_EN, DCDCDCDC_EN_MASK,
 					     DCDCDCDC1_EN_SHIFT),
 		.voltage	= __MK_FIELD(REG_DCDC_SET, DCDC_VDCDC_MASK,
@@ -378,10 +386,10 @@ static const struct supply_info supply_info[N_REGULATORS] = {
 	},
 	{
 		.name		= "DCDC2",
-		.flags		= FIXED_ILIMSEL,
 		.n_voltages	= ARRAY_SIZE(dcdc2_voltages),
 		.voltages	= dcdc2_voltages,
-		.fixed_ilimsel	= 1200000,
+		.n_ilimsels	= ARRAY_SIZE(fixed_1200000_ilimsel),
+		.ilimsels	= fixed_1200000_ilimsel,
 		.enable		= __MK_FIELD(REG_DCDC_EN, DCDCDCDC_EN_MASK,
 					     DCDCDCDC2_EN_SHIFT),
 		.voltage	= __MK_FIELD(REG_DCDC_SET, DCDC_VDCDC_MASK,
@@ -389,10 +397,10 @@ static const struct supply_info supply_info[N_REGULATORS] = {
 	},
 	{
 		.name		= "DCDC3",
-		.flags		= FIXED_ILIMSEL,
 		.n_voltages	= ARRAY_SIZE(dcdc3_voltages),
 		.voltages	= dcdc3_voltages,
-		.fixed_ilimsel	= 1200000,
+		.n_ilimsels	= ARRAY_SIZE(fixed_1200000_ilimsel),
+		.ilimsels	= fixed_1200000_ilimsel,
 		.enable		= __MK_FIELD(REG_DCDC_EN, DCDCDCDC_EN_MASK,
 					DCDCDCDC3_EN_SHIFT),
 		.voltage	= __MK_FIELD(REG_DCDC_SET, DCDC_VDCDC_MASK,
@@ -439,8 +447,8 @@ static const struct supply_info supply_info[N_REGULATORS] = {
 		.name		= "LCD",
 		.n_voltages	= ARRAY_SIZE(fixed_5000000_voltage),
 		.voltages	= fixed_5000000_voltage,
-		.flags		= FIXED_ILIMSEL,
-		.fixed_ilimsel	=  400000,
+		.n_ilimsels	= ARRAY_SIZE(fixed_400000_ilimsel),
+		.ilimsels	= fixed_400000_ilimsel,
 		.enable		= __MK_FIELD(REG_BLOCK_EN, BLOCK_MASK,
 					     BLOCK_LCD_SHIFT),
 	},
@@ -491,7 +499,7 @@ static int set_current_limit(struct regulator_dev *rdev, int min_uA,
 	hw	= rdev_get_drvdata(rdev);
 	info	= &supply_info[rdev_get_id(rdev)];
 
-	if (info->flags & FIXED_ILIMSEL)
+	if (info->n_ilimsels == 1)
 		return -EINVAL;
 
 	for (i = 0; i < info->n_ilimsels; i++)
@@ -514,8 +522,8 @@ static int get_current_limit(struct regulator_dev *rdev)
 	hw	= rdev_get_drvdata(rdev);
 	info	= &supply_info[rdev_get_id(rdev)];
 
-	if (info->flags & FIXED_ILIMSEL)
-		return info->fixed_ilimsel;
+	if (info->n_ilimsels == 1)
+		return info->ilimsels[0];
 
 	ret = read_field(hw, &info->ilimsel);
 	if (ret < 0)
