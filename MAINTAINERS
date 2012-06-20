@@ -7421,7 +7421,7 @@ F:	include/linux/vlynq.h
 
 VME SUBSYSTEM
 M:	Martyn Welch <martyn.welch@ge.com>
-M:	Manohar Vanga <manohar.vanga@cern.ch>
+M:	Manohar Vanga <manohar.vanga@gmail.com>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	devel@driverdev.osuosl.org
 S:	Maintained
