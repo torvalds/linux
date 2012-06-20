@@ -144,6 +144,41 @@ static struct clock_event_device clockevent_gpt = {
 	.set_mode	= omap2_gp_timer_set_mode,
 };
 
+static struct property device_disabled = {
+	.name = "status",
+	.length = sizeof("disabled"),
+	.value = "disabled",
+};
+
+static struct of_device_id omap_timer_match[] __initdata = {
+	{ .compatible = "ti,omap2-timer", },
+	{ }
+};
+
+/**
+ * omap_dmtimer_init - initialisation function when device tree is used
+ *
+ * For secure OMAP3 devices, timers with device type "timer-secure" cannot
+ * be used by the kernel as they are reserved. Therefore, to prevent the
+ * kernel registering these devices remove them dynamically from the device
+ * tree on boot.
+ */
+void __init omap_dmtimer_init(void)
+{
+	struct device_node *np;
+
+	if (!cpu_is_omap34xx())
+		return;
+
+	/* If we are a secure device, remove any secure timer nodes */
+	if ((omap_type() != OMAP2_DEVICE_TYPE_GP)) {
+		for_each_matching_node(np, omap_timer_match) {
+			if (of_get_property(np, "ti,timer-secure", NULL))
+				prom_add_property(np, &device_disabled);
+		}
+	}
+}
+
 static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 						int gptimer_id,
 						const char *fck_source)
@@ -437,6 +472,7 @@ static inline void __init realtime_counter_init(void)
 				clksrc_nr, clksrc_src)			\
 static void __init omap##name##_timer_init(void)			\
 {									\
+	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src);		\
 	omap2_clocksource_init((clksrc_nr), clksrc_src);		\
 }
