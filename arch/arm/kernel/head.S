@@ -96,13 +96,13 @@ ENTRY(stext)
 	b	_real_start
 
 #if defined(CONFIG_ARCH_SUN3I)
-1:	.long 0xf37
+1:	.long 0x1094
 	.long 0x81000000
 #elif defined(CONFIG_ARCH_SUN4I)
 1:	.long 0x1008
 	.long 0x81000000
 #elif defined(CONFIG_ARCH_SUN5I)
-1:      .long 0xf35
+1:      .long 0x102A
         .long 0x81000000
 #else
 #error "unsupport chip"
