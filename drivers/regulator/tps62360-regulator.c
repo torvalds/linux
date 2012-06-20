@@ -74,7 +74,6 @@ struct tps62360_chip {
 	int lru_index[4];
 	int curr_vset_vsel[4];
 	int curr_vset_id;
-	int change_uv_per_us;
 };
 
 /*
@@ -173,16 +172,6 @@ static int tps62360_dcdc_set_voltage_sel(struct regulator_dev *dev,
 	return 0;
 }
 
-static int tps62360_set_voltage_time_sel(struct regulator_dev *rdev,
-		unsigned int old_selector, unsigned int new_selector)
-{
-	struct tps62360_chip *tps = rdev_get_drvdata(rdev);
-
-	return DIV_ROUND_UP(abs(new_selector - old_selector) *
-			    rdev->desc->uV_step,
-			    tps->change_uv_per_us);
-}
-
 static int tps62360_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
 	struct tps62360_chip *tps = rdev_get_drvdata(rdev);
@@ -249,7 +238,7 @@ static struct regulator_ops tps62360_dcdc_ops = {
 	.set_voltage_sel	= tps62360_dcdc_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
-	.set_voltage_time_sel	= tps62360_set_voltage_time_sel,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_mode		= tps62360_set_mode,
 	.get_mode		= tps62360_get_mode,
 };
@@ -292,7 +281,7 @@ static int __devinit tps62360_init_dcdc(struct tps62360_chip *tps,
 	ramp_ctrl = (ramp_ctrl >> 4) & 0x7;
 
 	/* ramp mV/us = 32/(2^ramp_ctrl) */
-	tps->change_uv_per_us = DIV_ROUND_UP(32000, BIT(ramp_ctrl));
+	tps->desc.ramp_delay = DIV_ROUND_UP(32000, BIT(ramp_ctrl));
 	return ret;
 }
 
