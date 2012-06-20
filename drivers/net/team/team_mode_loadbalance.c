@@ -97,7 +97,7 @@ static void lb_tx_hash_to_port_mapping_null_port(struct team *team,
 
 		pm = &lb_priv->ex->tx_hash_to_port_mapping[i];
 		if (rcu_access_pointer(pm->port) == port) {
-			rcu_assign_pointer(pm->port, NULL);
+			RCU_INIT_POINTER(pm->port, NULL);
 			team_option_inst_set_change(pm->opt_inst_info);
 			changed = true;
 		}
