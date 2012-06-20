@@ -338,6 +338,9 @@ static struct pcf857x_platform_data pcf8575_pdata = {
 static struct i2c_board_info i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("ak4648", 0x12),
+	},
+	{
+		I2C_BOARD_INFO("r2025sd", 0x32),
 	}
 };
 
