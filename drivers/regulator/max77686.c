@@ -65,10 +65,33 @@ enum max77686_ramp_rate {
 };
 
 struct max77686_data {
-	struct device *dev;
-	struct max77686_dev *iodev;
 	struct regulator_dev **rdev;
 };
+
+static int max77686_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
+{
+	unsigned int ramp_value = RAMP_RATE_NO_CTRL;
+
+	switch (ramp_delay) {
+	case 1 ... 13750:
+		ramp_value = RAMP_RATE_13P75MV;
+		break;
+	case 13751 ... 27500:
+		ramp_value = RAMP_RATE_27P5MV;
+		break;
+	case 27501 ... 55000:
+		ramp_value = RAMP_RATE_55MV;
+		break;
+	case 55001 ... 100000:
+		break;
+	default:
+		pr_warn("%s: ramp_delay: %d not supported, setting 100000\n",
+			rdev->desc->name, ramp_delay);
+	}
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
+				  MAX77686_RAMP_RATE_MASK, ramp_value << 6);
+}
 
 static struct regulator_ops max77686_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
@@ -90,6 +113,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_ramp_delay		= max77686_set_ramp_delay,
 };
 
 #define regulator_desc_ldo(num)		{				\
@@ -238,20 +262,17 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rdev = max77686->rdev;
-	max77686->dev = &pdev->dev;
-	max77686->iodev = iodev;
+	config.dev = &pdev->dev;
+	config.regmap = iodev->regmap;
 	platform_set_drvdata(pdev, max77686);
 
 	for (i = 0; i < MAX77686_REGULATORS; i++) {
-		config.dev = max77686->dev;
-		config.regmap = iodev->regmap;
-		config.driver_data = max77686;
 		config.init_data = pdata->regulators[i].initdata;
 
 		rdev[i] = regulator_register(&regulators[i], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
-			dev_err(max77686->dev,
+			dev_err(&pdev->dev,
 				"regulator init failed for %d\n", i);
 				rdev[i] = NULL;
 				goto err;
