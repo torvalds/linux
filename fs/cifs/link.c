@@ -181,7 +181,7 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 }
 
 static int
-CIFSCreateMFSymLink(const int xid, struct cifs_tcon *tcon,
+CIFSCreateMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 		    const char *fromName, const char *toName,
 		    struct cifs_sb_info *cifs_sb)
 {
@@ -238,7 +238,7 @@ CIFSCreateMFSymLink(const int xid, struct cifs_tcon *tcon,
 }
 
 static int
-CIFSQueryMFSymLink(const int xid, struct cifs_tcon *tcon,
+CIFSQueryMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 		   const unsigned char *searchName, char **symlinkinfo,
 		   const struct nls_table *nls_codepage, int remap)
 {
@@ -307,7 +307,7 @@ CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr)
 int
 CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 		   const unsigned char *path,
-		   struct cifs_sb_info *cifs_sb, int xid)
+		   struct cifs_sb_info *cifs_sb, unsigned int xid)
 {
 	int rc;
 	int oplock = 0;
@@ -390,7 +390,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	      struct dentry *direntry)
 {
 	int rc = -EACCES;
-	int xid;
+	unsigned int xid;
 	char *fromName = NULL;
 	char *toName = NULL;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -403,7 +403,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 		return PTR_ERR(tlink);
 	pTcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	fromName = build_path_from_dentry(old_file);
 	toName = build_path_from_dentry(direntry);
@@ -455,7 +455,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 cifs_hl_exit:
 	kfree(fromName);
 	kfree(toName);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -465,14 +465,14 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 {
 	struct inode *inode = direntry->d_inode;
 	int rc = -ENOMEM;
-	int xid;
+	unsigned int xid;
 	char *full_path = NULL;
 	char *target_path = NULL;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
@@ -529,7 +529,7 @@ out:
 		target_path = ERR_PTR(rc);
 	}
 
-	FreeXid(xid);
+	free_xid(xid);
 	if (tlink)
 		cifs_put_tlink(tlink);
 	nd_set_link(nd, target_path);
@@ -540,14 +540,14 @@ int
 cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 {
 	int rc = -EOPNOTSUPP;
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
@@ -594,7 +594,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 symlink_exit:
 	kfree(full_path);
 	cifs_put_tlink(tlink);
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 

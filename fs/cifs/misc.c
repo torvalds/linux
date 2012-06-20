@@ -40,7 +40,7 @@ extern mempool_t *cifs_req_poolp;
    since the cifs fs was mounted */
 
 unsigned int
-_GetXid(void)
+_get_xid(void)
 {
 	unsigned int xid;
 
@@ -58,7 +58,7 @@ _GetXid(void)
 }
 
 void
-_FreeXid(unsigned int xid)
+_free_xid(unsigned int xid)
 {
 	spin_lock(&GlobalMid_Lock);
 	/* if (GlobalTotalActiveXid == 0)

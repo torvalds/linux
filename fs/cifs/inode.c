@@ -289,7 +289,7 @@ cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 int cifs_get_file_info_unix(struct file *filp)
 {
 	int rc;
-	int xid;
+	unsigned int xid;
 	FILE_UNIX_BASIC_INFO find_data;
 	struct cifs_fattr fattr;
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -297,7 +297,7 @@ int cifs_get_file_info_unix(struct file *filp)
 	struct cifsFileInfo *cfile = filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 	rc = CIFSSMBUnixQFileInfo(xid, tcon, cfile->netfid, &find_data);
 	if (!rc) {
 		cifs_unix_basic_to_fattr(&fattr, &find_data, cifs_sb);
@@ -307,13 +307,13 @@ int cifs_get_file_info_unix(struct file *filp)
 	}
 
 	cifs_fattr_to_inode(inode, &fattr);
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 
 int cifs_get_inode_info_unix(struct inode **pinode,
 			     const unsigned char *full_path,
-			     struct super_block *sb, int xid)
+			     struct super_block *sb, unsigned int xid)
 {
 	int rc;
 	FILE_UNIX_BASIC_INFO find_data;
@@ -367,7 +367,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 static int
 cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
-	      struct cifs_sb_info *cifs_sb, int xid)
+	      struct cifs_sb_info *cifs_sb, unsigned int xid)
 {
 	int rc;
 	int oplock = 0;
@@ -466,7 +466,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
  * FIXME: Doesn't this clobber the type bit we got from cifs_sfu_type ?
  */
 static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
-			 struct cifs_sb_info *cifs_sb, int xid)
+			 struct cifs_sb_info *cifs_sb, unsigned int xid)
 {
 #ifdef CONFIG_CIFS_XATTR
 	ssize_t rc;
@@ -557,7 +557,7 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 int cifs_get_file_info(struct file *filp)
 {
 	int rc;
-	int xid;
+	unsigned int xid;
 	FILE_ALL_INFO find_data;
 	struct cifs_fattr fattr;
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -565,7 +565,7 @@ int cifs_get_file_info(struct file *filp)
 	struct cifsFileInfo *cfile = filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 	rc = CIFSSMBQFileInfo(xid, tcon, cfile->netfid, &find_data);
 	switch (rc) {
 	case 0:
@@ -596,13 +596,13 @@ int cifs_get_file_info(struct file *filp)
 	fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
 	cifs_fattr_to_inode(inode, &fattr);
 cgfi_exit:
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 
 int cifs_get_inode_info(struct inode **pinode,
 	const unsigned char *full_path, FILE_ALL_INFO *pfindData,
-	struct super_block *sb, int xid, const __u16 *pfid)
+	struct super_block *sb, unsigned int xid, const __u16 *pfid)
 {
 	int rc = 0, tmprc;
 	struct cifs_tcon *pTcon;
@@ -886,13 +886,13 @@ retry_iget5_locked:
 /* gets root inode */
 struct inode *cifs_root_iget(struct super_block *sb)
 {
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct inode *inode = NULL;
 	long rc;
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
-	xid = GetXid();
+	xid = get_xid();
 	if (tcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, "", sb, xid);
 	else
@@ -922,15 +922,15 @@ struct inode *cifs_root_iget(struct super_block *sb)
 	}
 
 out:
-	/* can not call macro FreeXid here since in a void func
+	/* can not call macro free_xid here since in a void func
 	 * TODO: This is no longer true
 	 */
-	_FreeXid(xid);
+	_free_xid(xid);
 	return inode;
 }
 
 static int
-cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
+cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
 		    char *full_path, __u32 dosattr)
 {
 	int rc;
@@ -1051,7 +1051,8 @@ out:
  * anything else.
  */
 static int
-cifs_rename_pending_delete(char *full_path, struct dentry *dentry, int xid)
+cifs_rename_pending_delete(char *full_path, struct dentry *dentry,
+			   unsigned int xid)
 {
 	int oplock = 0;
 	int rc;
@@ -1171,7 +1172,7 @@ undo_setattr:
 int cifs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int rc = 0;
-	int xid;
+	unsigned int xid;
 	char *full_path = NULL;
 	struct inode *inode = dentry->d_inode;
 	struct cifsInodeInfo *cifs_inode;
@@ -1189,7 +1190,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	/* Unlink can be called from rename so we can not take the
 	 * sb->s_vfs_rename_mutex here */
@@ -1265,7 +1266,7 @@ out_reval:
 unlink_out:
 	kfree(full_path);
 	kfree(attrs);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -1273,7 +1274,7 @@ unlink_out:
 int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 {
 	int rc = 0, tmprc;
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
@@ -1289,7 +1290,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 		return PTR_ERR(tlink);
 	pTcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -1446,7 +1447,7 @@ mkdir_out:
 	 */
 	CIFS_I(inode)->time = 0;
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -1454,7 +1455,7 @@ mkdir_out:
 int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 {
 	int rc = 0;
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
@@ -1463,7 +1464,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	cFYI(1, "cifs_rmdir, inode = 0x%p", inode);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -1506,13 +1507,14 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 rmdir_exit:
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 
 static int
-cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
-		struct dentry *to_dentry, const char *toPath)
+cifs_do_rename(unsigned int xid, struct dentry *from_dentry,
+	       const char *fromPath, struct dentry *to_dentry,
+	       const char *toPath)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(from_dentry->d_sb);
 	struct tcon_link *tlink;
@@ -1571,7 +1573,8 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 	struct cifs_tcon *tcon;
 	FILE_UNIX_BASIC_INFO *info_buf_source = NULL;
 	FILE_UNIX_BASIC_INFO *info_buf_target;
-	int xid, rc, tmprc;
+	unsigned int xid;
+	int rc, tmprc;
 
 	cifs_sb = CIFS_SB(source_dir->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
@@ -1579,7 +1582,7 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	/*
 	 * we already have the rename sem so we do not need to
@@ -1652,7 +1655,7 @@ cifs_rename_exit:
 	kfree(info_buf_source);
 	kfree(fromName);
 	kfree(toName);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -1727,7 +1730,7 @@ int cifs_revalidate_file_attr(struct file *filp)
 
 int cifs_revalidate_dentry_attr(struct dentry *dentry)
 {
-	int xid;
+	unsigned int xid;
 	int rc = 0;
 	struct inode *inode = dentry->d_inode;
 	struct super_block *sb = dentry->d_sb;
@@ -1739,7 +1742,7 @@ int cifs_revalidate_dentry_attr(struct dentry *dentry)
 	if (!cifs_inode_needs_reval(inode))
 		return rc;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	/* can not safely grab the rename sem here if rename calls revalidate
 	   since that would deadlock */
@@ -1761,7 +1764,7 @@ int cifs_revalidate_dentry_attr(struct dentry *dentry)
 
 out:
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 
@@ -1869,7 +1872,7 @@ static void cifs_setsize(struct inode *inode, loff_t offset)
 
 static int
 cifs_set_file_size(struct inode *inode, struct iattr *attrs,
-		   int xid, char *full_path)
+		   unsigned int xid, char *full_path)
 {
 	int rc;
 	struct cifsFileInfo *open_file;
@@ -1971,7 +1974,7 @@ static int
 cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 {
 	int rc;
-	int xid;
+	unsigned int xid;
 	char *full_path = NULL;
 	struct inode *inode = direntry->d_inode;
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
@@ -1984,7 +1987,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	cFYI(1, "setattr_unix on file %s attrs->ia_valid=0x%x",
 		 direntry->d_name.name, attrs->ia_valid);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
@@ -2104,14 +2107,14 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 out:
 	kfree(args);
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 
 static int
 cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 {
-	int xid;
+	unsigned int xid;
 	uid_t uid = NO_CHANGE_32;
 	gid_t gid = NO_CHANGE_32;
 	struct inode *inode = direntry->d_inode;
@@ -2122,7 +2125,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	__u32 dosattr = 0;
 	__u64 mode = NO_CHANGE_64;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	cFYI(1, "setattr on file %s attrs->iavalid 0x%x",
 		 direntry->d_name.name, attrs->ia_valid);
@@ -2132,14 +2135,14 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 	rc = inode_change_ok(inode, attrs);
 	if (rc < 0) {
-		FreeXid(xid);
+		free_xid(xid);
 		return rc;
 	}
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
+		free_xid(xid);
 		return rc;
 	}
 
@@ -2265,7 +2268,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 cifs_setattr_exit:
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 

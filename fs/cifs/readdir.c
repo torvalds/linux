@@ -193,7 +193,7 @@ cifs_std_info_to_fattr(struct cifs_fattr *fattr, FIND_FILE_STANDARD_INFO *info,
       we try to do FindFirst on (NTFS) directory symlinks */
 /*
 int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
-			     int xid)
+			     unsigned int xid)
 {
 	__u16 fid;
 	int len;
@@ -220,7 +220,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 }
  */
 
-static int initiate_cifs_search(const int xid, struct file *file)
+static int initiate_cifs_search(const unsigned int xid, struct file *file)
 {
 	__u16 search_flags;
 	int rc = 0;
@@ -507,7 +507,7 @@ static int cifs_save_resume_key(const char *current_entry,
    assume that they are located in the findfirst return buffer.*/
 /* We start counting in the buffer with entry 2 and increment for every
    entry (do not increment for . or .. entry) */
-static int find_cifs_entry(const int xid, struct cifs_tcon *pTcon,
+static int find_cifs_entry(const unsigned int xid, struct cifs_tcon *pTcon,
 	struct file *file, char **ppCurrentEntry, int *num_to_ret)
 {
 	__u16 search_flags;
@@ -721,7 +721,8 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 {
 	int rc = 0;
-	int xid, i;
+	unsigned int xid;
+	int i;
 	struct cifs_tcon *pTcon;
 	struct cifsFileInfo *cifsFile = NULL;
 	char *current_entry;
@@ -730,7 +731,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	char *end_of_smb;
 	unsigned int max_len;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	/*
 	 * Ensure FindFirst doesn't fail before doing filldir() for '.' and
@@ -768,7 +769,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 
 		if (file->private_data == NULL) {
 			rc = -EINVAL;
-			FreeXid(xid);
+			free_xid(xid);
 			return rc;
 		}
 		cifsFile = file->private_data;
@@ -840,6 +841,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	} /* end switch */
 
 rddir2_exit:
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }

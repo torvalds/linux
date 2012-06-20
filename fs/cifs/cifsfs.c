@@ -158,9 +158,9 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	int rc = -EOPNOTSUPP;
-	int xid;
+	unsigned int xid;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	buf->f_type = CIFS_MAGIC_NUMBER;
 
@@ -197,7 +197,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (rc)
 		rc = SMBOldQFSInfo(xid, tcon, buf);
 
-	FreeXid(xid);
+	free_xid(xid);
 	return 0;
 }
 

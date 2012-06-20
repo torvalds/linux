@@ -2267,9 +2267,9 @@ cifs_put_smb_ses(struct cifs_ses *ses)
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	if (ses->status == CifsGood && server->ops->logoff) {
-		xid = GetXid();
+		xid = get_xid();
 		server->ops->logoff(xid, ses);
-		_FreeXid(xid);
+		_free_xid(xid);
 	}
 	sesInfoFree(ses);
 	cifs_put_tcp_session(server);
@@ -2412,7 +2412,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	ses = cifs_find_smb_ses(server, volume_info);
 	if (ses) {
@@ -2424,7 +2424,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 			mutex_unlock(&ses->session_mutex);
 			/* problem -- put our ses reference */
 			cifs_put_smb_ses(ses);
-			FreeXid(xid);
+			free_xid(xid);
 			return ERR_PTR(rc);
 		}
 		if (ses->need_reconnect) {
@@ -2435,7 +2435,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 				mutex_unlock(&ses->session_mutex);
 				/* problem -- put our reference */
 				cifs_put_smb_ses(ses);
-				FreeXid(xid);
+				free_xid(xid);
 				return ERR_PTR(rc);
 			}
 		}
@@ -2443,7 +2443,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 
 		/* existing SMB ses has a server reference already */
 		cifs_put_tcp_session(server);
-		FreeXid(xid);
+		free_xid(xid);
 		return ses;
 	}
 
@@ -2502,12 +2502,12 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	list_add(&ses->smb_ses_list, &server->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	FreeXid(xid);
+	free_xid(xid);
 	return ses;
 
 get_ses_fail:
 	sesInfoFree(ses);
-	FreeXid(xid);
+	free_xid(xid);
 	return ERR_PTR(rc);
 }
 
@@ -2555,10 +2555,10 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 	list_del_init(&tcon->tcon_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	xid = GetXid();
+	xid = get_xid();
 	if (ses->server->ops->tree_disconnect)
 		ses->server->ops->tree_disconnect(xid, tcon);
-	_FreeXid(xid);
+	_free_xid(xid);
 
 	cifs_fscache_release_super_cookie(tcon);
 	tconInfoFree(tcon);
@@ -2613,10 +2613,10 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	 * BB Do we need to wrap session_mutex around this TCon call and Unix
 	 * SetFS as we do on SessSetup and reconnect?
 	 */
-	xid = GetXid();
+	xid = get_xid();
 	rc = ses->server->ops->tree_connect(xid, ses, volume_info->UNC, tcon,
 					    volume_info->local_nls);
-	FreeXid(xid);
+	free_xid(xid);
 	cFYI(1, "Tcon rc = %d", rc);
 	if (rc)
 		goto out_fail;
@@ -2764,7 +2764,7 @@ out:
 }
 
 int
-get_dfs_path(int xid, struct cifs_ses *ses, const char *old_path,
+get_dfs_path(unsigned int xid, struct cifs_ses *ses, const char *old_path,
 	     const struct nls_table *nls_codepage, unsigned int *num_referrals,
 	     struct dfs_info3_param **referrals, int remap)
 {
@@ -3067,7 +3067,7 @@ ip_connect(struct TCP_Server_Info *server)
 	return generic_ip_connect(server);
 }
 
-void reset_cifs_unix_caps(int xid, struct cifs_tcon *tcon,
+void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 			  struct cifs_sb_info *cifs_sb, struct smb_vol *vol_info)
 {
 	/* if we are reconnecting then should we check to see if
@@ -3399,7 +3399,7 @@ cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
 }
 
 static int
-is_path_accessible(int xid, struct cifs_tcon *tcon,
+is_path_accessible(unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifs_sb_info *cifs_sb, const char *full_path)
 {
 	int rc;
@@ -3485,7 +3485,7 @@ build_unc_path_to_root(const struct smb_vol *vol,
  * determine whether there were referrals.
  */
 static int
-expand_dfs_referral(int xid, struct cifs_ses *pSesInfo,
+expand_dfs_referral(unsigned int xid, struct cifs_ses *pSesInfo,
 		    struct smb_vol *volume_info, struct cifs_sb_info *cifs_sb,
 		    int check_prefix)
 {
@@ -3595,7 +3595,7 @@ int
 cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
 	int rc;
-	int xid;
+	unsigned int xid;
 	struct cifs_ses *pSesInfo;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *srvTcp;
@@ -3618,7 +3618,7 @@ try_mount_again:
 		else if (pSesInfo)
 			cifs_put_smb_ses(pSesInfo);
 
-		FreeXid(xid);
+		free_xid(xid);
 	}
 #endif
 	rc = 0;
@@ -3628,7 +3628,7 @@ try_mount_again:
 	full_path = NULL;
 	tlink = NULL;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	/* get a reference to a tcp session */
 	srvTcp = cifs_get_tcp_session(volume_info);
@@ -3781,7 +3781,7 @@ mount_fail_check:
 	}
 
 out:
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 
