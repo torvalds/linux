@@ -440,7 +440,11 @@ config SPIM1_RK29
 	bool "RK SPI1 master controller"
 	depends on SPIM_RK29
 	help
-	  enable SPI1 master controller for RK29 		
+	  enable SPI1 master controller for RK29 	
+
+config RK_SPIM_TEST
+	bool "RK SPIM test"
+	depends on (SPIM0_RK29 && SPIM1_RK29)
 
 config LCD_USE_SPIM_CONTROL
 	bool "Switch gpio to spim with spin lock"
