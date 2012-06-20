@@ -330,10 +330,12 @@ const struct file_operations oz_fops = {
 int oz_cdev_register(void)
 {
 	int err;
+	struct class *cl;
+	struct device *dev;
 	memset(&g_cdev, 0, sizeof(g_cdev));
 	err = alloc_chrdev_region(&g_cdev.devnum, 0, 1, "ozwpan");
 	if (err < 0)
-		return err;
+		goto out3;
 	oz_trace("Alloc dev number %d:%d\n", MAJOR(g_cdev.devnum),
 			MINOR(g_cdev.devnum));
 	cdev_init(&g_cdev.cdev, &oz_fops);
@@ -342,7 +344,27 @@ int oz_cdev_register(void)
 	spin_lock_init(&g_cdev.lock);
 	init_waitqueue_head(&g_cdev.rdq);
 	err = cdev_add(&g_cdev.cdev, g_cdev.devnum, 1);
+	if (err < 0) {
+		oz_trace("Failed to add cdev\n");
+		goto out2;
+	}
+	cl = class_create(THIS_MODULE, "ozmo_wpan");
+	if (IS_ERR(cl)) {
+		oz_trace("Failed to register ozmo_wpan class\n");
+		goto out1;
+	}
+	dev = device_create(cl, NULL, g_cdev.devnum, NULL, "ozwpan");
+	if (IS_ERR(dev)) {
+		oz_trace("Failed to create sysfs entry for cdev\n");
+		goto out1;
+	}
 	return 0;
+out1:
+	cdev_del(&g_cdev.cdev);
+out2:
+	unregister_chrdev_region(g_cdev.devnum, 1);
+out3:
+	return err;
 }
 /*------------------------------------------------------------------------------
  * Context: process
