@@ -1325,7 +1325,7 @@ __init int p4_pmu_init(void)
 	unsigned int low, high;
 
 	/* If we get stripped -- indexing fails */
-	BUILD_BUG_ON(ARCH_P4_MAX_CCCR > X86_PMC_MAX_GENERIC);
+	BUILD_BUG_ON(ARCH_P4_MAX_CCCR > INTEL_PMC_MAX_GENERIC);
 
 	rdmsr(MSR_IA32_MISC_ENABLE, low, high);
 	if (!(low & (1 << 7))) {
