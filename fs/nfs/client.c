@@ -266,6 +266,8 @@ static void pnfs_init_server(struct nfs_server *server)
 
 static void nfs4_destroy_server(struct nfs_server *server)
 {
+	nfs_server_return_all_delegations(server);
+	unset_pnfs_layoutdriver(server);
 	nfs4_purge_state_owners(server);
 }
 
@@ -1137,7 +1139,6 @@ void nfs_free_server(struct nfs_server *server)
 	dprintk("--> nfs_free_server()\n");
 
 	nfs_server_remove_lists(server);
-	unset_pnfs_layoutdriver(server);
 
 	if (server->destroy != NULL)
 		server->destroy(server);

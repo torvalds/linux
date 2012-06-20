@@ -417,9 +417,8 @@ static void nfs_mark_return_delegation(struct nfs_server *server,
  * @sb: sb to process
  *
  */
-void nfs_super_return_all_delegations(struct super_block *sb)
+void nfs_server_return_all_delegations(struct nfs_server *server)
 {
-	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs_delegation *delegation;
 
