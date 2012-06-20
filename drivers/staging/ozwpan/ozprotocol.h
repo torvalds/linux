@@ -89,6 +89,7 @@ struct oz_elt_connect_req {
 #define OZ_MODE_MASK		0xf
 #define OZ_F_ISOC_NO_ELTS	0x40
 #define OZ_F_ISOC_ANYTIME	0x80
+#define OZ_NO_ELTS_ANYTIME	0xc0
 
 /* Keep alive field.
  */
