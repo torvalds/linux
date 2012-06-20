@@ -1050,36 +1050,48 @@ static void drop_spte(struct kvm *kvm, u64 *sptep)
 		rmap_remove(kvm, sptep);
 }
 
+/* Return true if the spte is dropped. */
+static bool spte_write_protect(struct kvm *kvm, u64 *sptep, bool *flush)
+{
+	u64 spte = *sptep;
+
+	if (!is_writable_pte(spte))
+		return false;
+
+	rmap_printk("rmap_write_protect: spte %p %llx\n", sptep, *sptep);
+
+	*flush |= true;
+	if (is_large_pte(spte)) {
+		WARN_ON(page_header(__pa(sptep))->role.level ==
+		       PT_PAGE_TABLE_LEVEL);
+		drop_spte(kvm, sptep);
+		--kvm->stat.lpages;
+		return true;
+	}
+
+	spte = spte & ~PT_WRITABLE_MASK;
+	mmu_spte_update(sptep, spte);
+	return false;
+}
+
 static bool
 __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp, int level)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
-	bool write_protected = false;
+	bool flush = false;
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
 		BUG_ON(!(*sptep & PT_PRESENT_MASK));
-		rmap_printk("rmap_write_protect: spte %p %llx\n", sptep, *sptep);
-
-		if (!is_writable_pte(*sptep)) {
-			sptep = rmap_get_next(&iter);
+		if (spte_write_protect(kvm, sptep, &flush)) {
+			sptep = rmap_get_first(*rmapp, &iter);
 			continue;
 		}
 
-		if (level == PT_PAGE_TABLE_LEVEL) {
-			mmu_spte_update(sptep, *sptep & ~PT_WRITABLE_MASK);
-			sptep = rmap_get_next(&iter);
-		} else {
-			BUG_ON(!is_large_pte(*sptep));
-			drop_spte(kvm, sptep);
-			--kvm->stat.lpages;
-			sptep = rmap_get_first(*rmapp, &iter);
-		}
-
-		write_protected = true;
+		sptep = rmap_get_next(&iter);
 	}
 
-	return write_protected;
+	return flush;
 }
 
 /**
@@ -3886,6 +3898,7 @@ int kvm_mmu_setup(struct kvm_vcpu *vcpu)
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 {
 	struct kvm_mmu_page *sp;
+	bool flush = false;
 
 	list_for_each_entry(sp, &kvm->arch.active_mmu_pages, link) {
 		int i;
@@ -3900,16 +3913,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 			      !is_last_spte(pt[i], sp->role.level))
 				continue;
 
-			if (is_large_pte(pt[i])) {
-				drop_spte(kvm, &pt[i]);
-				--kvm->stat.lpages;
-				continue;
-			}
-
-			/* avoid RMW */
-			if (is_writable_pte(pt[i]))
-				mmu_spte_update(&pt[i],
-						pt[i] & ~PT_WRITABLE_MASK);
+			spte_write_protect(kvm, &pt[i], &flush);
 		}
 	}
 	kvm_flush_remote_tlbs(kvm);
