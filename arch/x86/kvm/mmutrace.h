@@ -243,6 +243,44 @@ TRACE_EVENT(
 	TP_printk("addr:%llx gfn %llx access %x", __entry->addr, __entry->gfn,
 		  __entry->access)
 );
+
+#define __spte_satisfied(__spte)				\
+	(__entry->retry && is_writable_pte(__entry->__spte))
+
+TRACE_EVENT(
+	fast_page_fault,
+	TP_PROTO(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code,
+		 u64 *sptep, u64 old_spte, bool retry),
+	TP_ARGS(vcpu, gva, error_code, sptep, old_spte, retry),
+
+	TP_STRUCT__entry(
+		__field(int, vcpu_id)
+		__field(gva_t, gva)
+		__field(u32, error_code)
+		__field(u64 *, sptep)
+		__field(u64, old_spte)
+		__field(u64, new_spte)
+		__field(bool, retry)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id = vcpu->vcpu_id;
+		__entry->gva = gva;
+		__entry->error_code = error_code;
+		__entry->sptep = sptep;
+		__entry->old_spte = old_spte;
+		__entry->new_spte = *sptep;
+		__entry->retry = retry;
+	),
+
+	TP_printk("vcpu %d gva %lx error_code %s sptep %p old %#llx"
+		  " new %llx spurious %d fixed %d", __entry->vcpu_id,
+		  __entry->gva, __print_flags(__entry->error_code, "|",
+		  kvm_mmu_trace_pferr_flags), __entry->sptep,
+		  __entry->old_spte, __entry->new_spte,
+		  __spte_satisfied(old_spte), __spte_satisfied(new_spte)
+	)
+);
 #endif /* _TRACE_KVMMMU_H */
 
 #undef TRACE_INCLUDE_PATH

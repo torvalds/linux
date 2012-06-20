@@ -2776,6 +2776,8 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
 	 */
 	ret = fast_pf_fix_direct_spte(vcpu, iterator.sptep, spte);
 exit:
+	trace_fast_page_fault(vcpu, gva, error_code, iterator.sptep,
+			      spte, ret);
 	walk_shadow_page_lockless_end(vcpu);
 
 	return ret;
