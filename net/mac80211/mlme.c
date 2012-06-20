@@ -1275,7 +1275,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	bss_info_changed |= BSS_CHANGED_BEACON_INT;
 	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
-		cbss->capability, bss->has_erp_value, bss->erp_value);
+		bss_conf->assoc_capability, bss->has_erp_value, bss->erp_value);
 
 	sdata->u.mgd.beacon_timeout = usecs_to_jiffies(ieee80211_tu_to_usec(
 		IEEE80211_BEACON_LOSS_COUNT * bss_conf->beacon_int));
