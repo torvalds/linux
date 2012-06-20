@@ -41,7 +41,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 #include <plat/regs-serial.h>
 
