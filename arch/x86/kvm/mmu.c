@@ -1050,7 +1050,33 @@ static void drop_spte(struct kvm *kvm, u64 *sptep)
 		rmap_remove(kvm, sptep);
 }
 
-/* Return true if the spte is dropped. */
+
+static bool __drop_large_spte(struct kvm *kvm, u64 *sptep)
+{
+	if (is_large_pte(*sptep)) {
+		WARN_ON(page_header(__pa(sptep))->role.level ==
+			PT_PAGE_TABLE_LEVEL);
+		drop_spte(kvm, sptep);
+		--kvm->stat.lpages;
+		return true;
+	}
+
+	return false;
+}
+
+static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
+{
+	if (__drop_large_spte(vcpu->kvm, sptep))
+		kvm_flush_remote_tlbs(vcpu->kvm);
+}
+
+/*
+ * Write-protect on the specified @sptep due to dirty page logging or
+ * protecting shadow page table. @flush indicates whether tlb need be
+ * flushed.
+ *
+ * Return true if the spte is dropped.
+ */
 static bool spte_write_protect(struct kvm *kvm, u64 *sptep, bool *flush)
 {
 	u64 spte = *sptep;
@@ -1061,13 +1087,9 @@ static bool spte_write_protect(struct kvm *kvm, u64 *sptep, bool *flush)
 	rmap_printk("rmap_write_protect: spte %p %llx\n", sptep, *sptep);
 
 	*flush |= true;
-	if (is_large_pte(spte)) {
-		WARN_ON(page_header(__pa(sptep))->role.level ==
-		       PT_PAGE_TABLE_LEVEL);
-		drop_spte(kvm, sptep);
-		--kvm->stat.lpages;
+
+	if (__drop_large_spte(kvm, sptep))
 		return true;
-	}
 
 	spte = spte & ~PT_WRITABLE_MASK;
 	mmu_spte_update(sptep, spte);
@@ -1876,15 +1898,6 @@ static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
 		| PT_PRESENT_MASK | PT_ACCESSED_MASK
 		| PT_WRITABLE_MASK | PT_USER_MASK;
 	mmu_spte_set(sptep, spte);
-}
-
-static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
-{
-	if (is_large_pte(*sptep)) {
-		drop_spte(vcpu->kvm, sptep);
-		--vcpu->kvm->stat.lpages;
-		kvm_flush_remote_tlbs(vcpu->kvm);
-	}
 }
 
 static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
