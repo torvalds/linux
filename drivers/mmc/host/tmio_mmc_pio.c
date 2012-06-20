@@ -951,6 +951,17 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	_host->sdcard_irq_mask = sd_ctrl_read32(_host, CTL_IRQ_MASK);
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
+
+	/* Unmask the IRQs we want to know about */
+	if (!_host->chan_rx)
+		irq_mask |= TMIO_MASK_READOP;
+	if (!_host->chan_tx)
+		irq_mask |= TMIO_MASK_WRITEOP;
+	if (!_host->native_hotplug)
+		irq_mask &= ~(TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT);
+
+	_host->sdcard_irq_mask &= ~irq_mask;
+
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
 		tmio_mmc_enable_sdio_irq(mmc, 0);
 
@@ -967,16 +978,6 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	mmc_add_host(mmc);
 
 	dev_pm_qos_expose_latency_limit(&pdev->dev, 100);
-
-	/* Unmask the IRQs we want to know about */
-	if (!_host->chan_rx)
-		irq_mask |= TMIO_MASK_READOP;
-	if (!_host->chan_tx)
-		irq_mask |= TMIO_MASK_WRITEOP;
-	if (!_host->native_hotplug)
-		irq_mask &= ~(TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT);
-
-	tmio_mmc_enable_mmc_irqs(_host, irq_mask);
 
 	if (pdata->flags & TMIO_MMC_USE_GPIO_CD) {
 		ret = mmc_gpio_request_cd(mmc, pdata->cd_gpio);
