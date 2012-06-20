@@ -12,22 +12,22 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 #include "dvb_usb_common.h"
-#include <linux/usb/input.h>
 
 int dvb_usbv2_disable_rc_polling;
 module_param_named(disable_rc_polling, dvb_usbv2_disable_rc_polling, int, 0644);
 MODULE_PARM_DESC(disable_rc_polling,
-		"disable remote control polling (default: 0).");
+		"disable remote control polling (default: 0)");
 static int dvb_usb_force_pid_filter_usage;
 module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage,
 		int, 0444);
-MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a" \
-		" PID filter, if any (default: 0).");
+MODULE_PARM_DESC(force_pid_filter_usage, "force all DVB USB devices to use a " \
+		"PID filter, if any (default: 0)");
 
 static int dvb_usbv2_download_firmware(struct dvb_usb_device *d, const char *name)
 {
 	int ret;
 	const struct firmware *fw;
+	pr_debug("%s:\n", __func__);
 
 	if (!d->props->download_firmware) {
 		ret = -EINVAL;
@@ -36,10 +36,10 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d, const char *nam
 
 	ret = request_firmware(&fw, name, &d->udev->dev);
 	if (ret < 0) {
-		pr_err("%s: did not find the firmware file. (%s) " \
+		pr_err("%s: Did not find the firmware file '%s'. " \
 				"Please see linux/Documentation/dvb/ for " \
-				"more details on firmware-problems. (%d)\n",
-				KBUILD_MODNAME, name, ret);
+				"more details on firmware-problems. Status " \
+				"%d\n", KBUILD_MODNAME, name, ret);
 		goto err;
 	}
 
@@ -47,9 +47,7 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d, const char *nam
 			name);
 
 	ret = d->props->download_firmware(d, fw);
-
 	release_firmware(fw);
-
 	if (ret < 0)
 		goto err;
 
@@ -62,7 +60,6 @@ err:
 static int dvb_usbv2_i2c_init(struct dvb_usb_device *d)
 {
 	int ret;
-
 	pr_debug("%s:\n", __func__);
 
 	if (!d->props->i2c_algo)
@@ -103,29 +100,27 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 			struct dvb_usb_device, rc_query_work.work);
 	int ret;
 
-	/* TODO: need a lock here.  We can simply skip checking for the remote
-	   control if we're busy. */
-
-	/* when the parameter has been set to 1 via sysfs while the
-	 * driver was running, or when bulk mode is enabled after IR init
+	/*
+	 * When the parameter has been set to 1 via sysfs while the
+	 * driver was running, or when bulk mode is enabled after IR init.
 	 */
 	if (dvb_usbv2_disable_rc_polling || d->rc.bulk_mode)
 		return;
 
 	ret = d->rc.query(d);
-	if (ret < 0)
-		pr_err("%s: error %d while querying for an remote control " \
-				"event\n", KBUILD_MODNAME, ret);
+	if (ret < 0) {
+		pr_err("%s: rc.query() failed=%d\n", KBUILD_MODNAME, ret);
+		return; /* stop polling */
+	}
 
 	schedule_delayed_work(&d->rc_query_work,
-			      msecs_to_jiffies(d->rc.interval));
+			msecs_to_jiffies(d->rc.interval));
 }
 
 static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 {
 	int ret;
 	struct rc_dev *dev;
-
 	pr_debug("%s:\n", __func__);
 
 	if (dvb_usbv2_disable_rc_polling || !d->props->get_rc_config)
@@ -142,7 +137,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	}
 
 	dev->dev.parent = &d->udev->dev;
-	dev->input_name = "IR-receiver inside an USB DVB receiver";
+	dev->input_name = d->name;
 	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
 	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
 	dev->input_phys = d->rc_phys;
@@ -153,13 +148,10 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	dev->allowed_protos = d->rc.allowed_protos;
 	dev->change_protocol = d->rc.change_protocol;
 	dev->priv = d;
-	/* select used keymap */
 	if (d->rc.map_name)
 		dev->map_name = d->rc.map_name;
-	else if (d->rc_map)
-		dev->map_name = d->rc_map;
 	else
-		dev->map_name = RC_MAP_EMPTY; /* keep rc enabled */
+		dev->map_name = d->rc_map;
 
 	ret = rc_register_device(dev);
 	if (ret < 0) {
@@ -235,9 +227,8 @@ int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 {
 	pr_debug("%s: adap=%d\n", __func__, adap->id);
-	usb_urb_exitv2(&adap->stream);
 
-	return 0;
+	return usb_urb_exitv2(&adap->stream);
 }
 
 static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
@@ -369,7 +360,7 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	if (ret < 0) {
 		pr_debug("%s: dvb_register_adapter() failed=%d\n", __func__,
 				ret);
-		goto err;
+		goto err_dvb_register_adapter;
 	}
 
 	adap->dvb_adap.priv = adap;
@@ -378,7 +369,7 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 		ret = d->props->read_mac_address(adap,
 				adap->dvb_adap.proposed_mac);
 		if (ret < 0)
-			goto err_dmx;
+			goto err_dvb_dmx_init;
 
 		pr_info("%s: MAC address: %pM\n", KBUILD_MODNAME,
 				adap->dvb_adap.proposed_mac);
@@ -387,8 +378,7 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	adap->demux.dmx.capabilities = DMX_TS_FILTERING | DMX_SECTION_FILTERING;
 	adap->demux.priv             = adap;
 	adap->demux.filternum        = 0;
-	if (adap->demux.filternum < adap->max_feed_count)
-		adap->demux.filternum = adap->max_feed_count;
+	adap->demux.filternum        = adap->max_feed_count;
 	adap->demux.feednum          = adap->demux.filternum;
 	adap->demux.start_feed       = dvb_usb_start_feed;
 	adap->demux.stop_feed        = dvb_usb_stop_feed;
@@ -396,7 +386,7 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	ret = dvb_dmx_init(&adap->demux);
 	if (ret < 0) {
 		pr_err("%s: dvb_dmx_init() failed=%d\n", KBUILD_MODNAME, ret);
-		goto err_dmx;
+		goto err_dvb_dmx_init;
 	}
 
 	adap->dmxdev.filternum       = adap->demux.filternum;
@@ -406,25 +396,25 @@ int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 	if (ret < 0) {
 		pr_err("%s: dvb_dmxdev_init() failed=%d\n", KBUILD_MODNAME,
 				ret);
-		goto err_dmx_dev;
+		goto err_dvb_dmxdev_init;
 	}
 
 	ret = dvb_net_init(&adap->dvb_adap, &adap->dvb_net, &adap->demux.dmx);
 	if (ret < 0) {
 		pr_err("%s: dvb_net_init() failed=%d\n", KBUILD_MODNAME, ret);
-		goto err_net_init;
+		goto err_dvb_net_init;
 	}
 
 	mutex_init(&adap->sync_mutex);
 
 	return 0;
-err_net_init:
+err_dvb_net_init:
 	dvb_dmxdev_release(&adap->dmxdev);
-err_dmx_dev:
+err_dvb_dmxdev_init:
 	dvb_dmx_release(&adap->demux);
-err_dmx:
+err_dvb_dmx_init:
 	dvb_unregister_adapter(&adap->dvb_adap);
-err:
+err_dvb_register_adapter:
 	adap->dvb_adap.priv = NULL;
 	return ret;
 }
@@ -468,7 +458,7 @@ err:
 	return ret;
 }
 
-static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
+static int dvb_usb_fe_init(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
@@ -560,10 +550,9 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 
 	for (i = 0; i < MAX_NO_OF_FE_PER_ADAP && adap->fe[i]; i++) {
 		adap->fe[i]->id = i;
-
 		/* re-assign sleep and wakeup functions */
 		adap->fe_init[i] = adap->fe[i]->ops.init;
-		adap->fe[i]->ops.init  = dvb_usb_fe_wakeup;
+		adap->fe[i]->ops.init = dvb_usb_fe_init;
 		adap->fe_sleep[i] = adap->fe[i]->ops.sleep;
 		adap->fe[i]->ops.sleep = dvb_usb_fe_sleep;
 
@@ -699,7 +688,6 @@ err:
 static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 {
 	int i;
-
 	pr_debug("%s:\n", __func__);
 
 	for (i = MAX_NO_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
@@ -727,7 +715,8 @@ static int dvb_usbv2_exit(struct dvb_usb_device *d)
 
 static int dvb_usbv2_init(struct dvb_usb_device *d)
 {
-	int ret = 0;
+	int ret;
+	pr_debug("%s:\n", __func__);
 
 	dvb_usbv2_device_power_ctrl(d, 1);
 
@@ -770,7 +759,6 @@ err:
  * is this routine. Due to that we delay actual operation using workqueue
  * and return always success here.
  */
-
 static void dvb_usbv2_init_work(struct work_struct *work)
 {
 	int ret;
@@ -778,7 +766,6 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 			container_of(work, struct dvb_usb_device, probe_work);
 
 	d->work_pid = current->pid;
-
 	pr_debug("%s: work_pid=%d\n", __func__, d->work_pid);
 
 	if (d->props->size_of_priv) {
@@ -817,7 +804,8 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 				 */
 				return;
 			} else {
-				/* Unexpected error. We must unregister driver
+				/*
+				 * Unexpected error. We must unregister driver
 				 * manually from the device, because device is
 				 * already register by returning from probe()
 				 * with success. usb_driver_release_interface()
@@ -844,7 +832,6 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 err_usb_driver_release_interface:
 	pr_info("%s: '%s' error while loading driver (%d)\n", KBUILD_MODNAME,
 			d->name, ret);
-	/* it finally calls disconnect() which frees mem */
 	usb_driver_release_interface(to_usb_driver(d->intf->dev.driver),
 			d->intf);
 	pr_debug("%s: failed=%d\n", __func__, ret);
@@ -909,8 +896,7 @@ EXPORT_SYMBOL(dvb_usbv2_probe);
 void dvb_usbv2_disconnect(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	const char *name;
-
+	const char *name = d->name;
 	pr_debug("%s: pid=%d work_pid=%d\n", __func__, current->pid,
 			d->work_pid);
 
@@ -918,10 +904,9 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 	if (d->work_pid != current->pid)
 		cancel_work_sync(&d->probe_work);
 
-	if (d->props->disconnect)
-		d->props->disconnect(d);
+	if (d->props->exit)
+		d->props->exit(d);
 
-	name = d->name;
 	dvb_usbv2_exit(d);
 
 	pr_info("%s: '%s' successfully deinitialized and disconnected\n",
@@ -933,7 +918,6 @@ int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	int i;
-
 	pr_debug("%s:\n", __func__);
 
 	/* stop remote controller poll */
@@ -955,7 +939,6 @@ int dvb_usbv2_resume(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	int i;
-
 	pr_debug("%s:\n", __func__);
 
 	/* start streaming */

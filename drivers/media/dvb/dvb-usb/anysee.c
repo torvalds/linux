@@ -1264,7 +1264,7 @@ static int anysee_init(struct dvb_usb_device *d)
 	return 0;
 }
 
-static void anysee_disconnect(struct dvb_usb_device *d)
+static void anysee_exit(struct dvb_usb_device *d)
 {
 	return anysee_ci_release(d);
 }
@@ -1287,7 +1287,7 @@ static struct dvb_usb_device_properties anysee_props = {
 	.get_rc_config    = anysee_get_rc_config,
 	.frontend_ctrl    = anysee_frontend_ctrl,
 	.streaming_ctrl   = anysee_streaming_ctrl,
-	.disconnect       = anysee_disconnect,
+	.exit             = anysee_exit,
 
 	.num_adapters = 1,
 	.adapter = {

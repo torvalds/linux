@@ -38,7 +38,7 @@ static void usb_urb_complete(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:        /* error */
-		pr_debug("%s: URB completition failed=%d\n", __func__,
+		pr_debug("%s: urb completition failed=%d\n", __func__,
 				urb->status);
 		break;
 	}
@@ -76,7 +76,7 @@ int usb_urb_killv2(struct usb_data_stream *stream)
 {
 	int i;
 	for (i = 0; i < stream->urbs_submitted; i++) {
-		pr_debug("%s: kill URB=%d\n", __func__, i);
+		pr_debug("%s: kill urb=%d\n", __func__, i);
 		/* stop the URB */
 		usb_kill_urb(stream->urb_list[i]);
 	}
@@ -96,10 +96,10 @@ int usb_urb_submitv2(struct usb_data_stream *stream,
 	}
 
 	for (i = 0; i < stream->urbs_initialized; i++) {
-		pr_debug("%s: submit URB=%d\n", __func__, i);
+		pr_debug("%s: submit urb=%d\n", __func__, i);
 		ret = usb_submit_urb(stream->urb_list[i], GFP_ATOMIC);
 		if (ret) {
-			pr_err("%s: could not submit URB no. %d - get them " \
+			pr_err("%s: could not submit urb no. %d - get them " \
 					"all back\n", KBUILD_MODNAME, i);
 			usb_urb_killv2(stream);
 			return ret;
@@ -115,9 +115,9 @@ int usb_urb_free_urbs(struct usb_data_stream *stream)
 
 	usb_urb_killv2(stream);
 
-	for (i = 0; i < stream->urbs_initialized; i++) {
-		if (stream->urb_list[i] != NULL) {
-			pr_debug("%s: free URB=%d\n", __func__, i);
+	for (i = stream->urbs_initialized - 1; i >= 0; i--) {
+		if (stream->urb_list[i]) {
+			pr_debug("%s: free urb=%d\n", __func__, i);
 			/* free the URBs */
 			usb_free_urb(stream->urb_list[i]);
 		}
@@ -133,7 +133,7 @@ static int usb_urb_alloc_bulk_urbs(struct usb_data_stream *stream)
 
 	/* allocate the URBs */
 	for (i = 0; i < stream->props.count; i++) {
-		pr_debug("%s: alloc URB=%d\n", __func__, i);
+		pr_debug("%s: alloc urb=%d\n", __func__, i);
 		stream->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!stream->urb_list[i]) {
 			pr_debug("%s: failed\n", __func__);
@@ -164,7 +164,7 @@ static int usb_urb_alloc_isoc_urbs(struct usb_data_stream *stream)
 	for (i = 0; i < stream->props.count; i++) {
 		struct urb *urb;
 		int frame_offset = 0;
-		pr_debug("%s: alloc URB=%d\n", __func__, i);
+		pr_debug("%s: alloc urb=%d\n", __func__, i);
 		stream->urb_list[i] = usb_alloc_urb(
 				stream->props.u.isoc.framesperurb, GFP_ATOMIC);
 		if (!stream->urb_list[i]) {
@@ -229,17 +229,17 @@ int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
 			__func__,  num * size);
 
 	for (stream->buf_num = 0; stream->buf_num < num; stream->buf_num++) {
-		pr_debug("%s: alloc buf=%d\n", __func__, stream->buf_num);
 		stream->buf_list[stream->buf_num] = usb_alloc_coherent(
 				stream->udev, size, GFP_ATOMIC,
 				&stream->dma_addr[stream->buf_num]);
-		if (stream->buf_list[stream->buf_num] == NULL) {
-			pr_debug("%s: failed\n", __func__);
+		if (!stream->buf_list[stream->buf_num]) {
+			pr_debug("%s: alloc buf=%d failed\n", __func__,
+					stream->buf_num);
 			usb_free_stream_buffers(stream);
 			return -ENOMEM;
 		}
 
-		pr_debug("%s: buf %d: %p (dma %llu)\n", __func__,
+		pr_debug("%s: alloc buf=%d %p (dma %llu)\n", __func__,
 				stream->buf_num,
 				stream->buf_list[stream->buf_num],
 				(long long)stream->dma_addr[stream->buf_num]);
@@ -255,7 +255,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 {
 	int buf_size;
 
-	if (props == NULL)
+	if (!props)
 		return 0;
 
 	/* check allocated buffers are large enough for the request */
@@ -293,7 +293,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 			return 0;
 	}
 
-	pr_debug("%s: re-alloc URBs\n", __func__);
+	pr_debug("%s: re-alloc urbs\n", __func__);
 
 	usb_urb_free_urbs(stream);
 	memcpy(&stream->props, props, sizeof(*props));
@@ -310,7 +310,7 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 {
 	int ret;
 
-	if (stream == NULL || props == NULL)
+	if (!stream || !props)
 		return -EINVAL;
 
 	memcpy(&stream->props, props, sizeof(*props));
@@ -318,7 +318,7 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 	usb_clear_halt(stream->udev, usb_rcvbulkpipe(stream->udev,
 			stream->props.endpoint));
 
-	if (stream->complete == NULL) {
+	if (!stream->complete) {
 		pr_err("%s: there is no data callback - this doesn't make " \
 				"sense\n", KBUILD_MODNAME);
 		return -EINVAL;
@@ -341,7 +341,7 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 
 		return usb_urb_alloc_isoc_urbs(stream);
 	default:
-		pr_err("%s: unknown URB-type for data transfer\n",
+		pr_err("%s: unknown urb-type for data transfer\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}
