@@ -339,7 +339,7 @@ int BeceemEEPROMBulkRead(struct bcm_mini_adapter *Adapter,
 			 * read function to make the access faster.
 			 * We read 4 Dwords of data
 			 */
-			if (0 == ReadBeceemEEPROMBulk(Adapter, uiOffset, &uiData[0], 4)) {
+			if (ReadBeceemEEPROMBulk(Adapter, uiOffset, &uiData[0], 4) == 0) {
 				memcpy(pcBuff + uiIndex, &uiData[0], MAX_RW_SIZE);
 				uiOffset += MAX_RW_SIZE;
 				uiBytesRemaining -= MAX_RW_SIZE;
@@ -349,7 +349,7 @@ int BeceemEEPROMBulkRead(struct bcm_mini_adapter *Adapter,
 				mdelay(3); /* sleep for a while before retry... */
 			}
 		} else if (uiBytesRemaining >= 4) {
-			if (0 == ReadBeceemEEPROM(Adapter, uiOffset, &uiData[0])) {
+			if (ReadBeceemEEPROM(Adapter, uiOffset, &uiData[0]) == 0) {
 				memcpy(pcBuff + uiIndex, &uiData[0], 4);
 				uiOffset += 4;
 				uiBytesRemaining -= 4;
@@ -362,7 +362,7 @@ int BeceemEEPROMBulkRead(struct bcm_mini_adapter *Adapter,
 			/* Handle the reads less than 4 bytes... */
 			PUCHAR pCharBuff = (PUCHAR)pBuffer;
 			pCharBuff += uiIndex;
-			if (0 == ReadBeceemEEPROM(Adapter, uiOffset, &uiData[0])) {
+			if (ReadBeceemEEPROM(Adapter, uiOffset, &uiData[0]) == 0) {
 				memcpy(pCharBuff, &uiData[0], uiBytesRemaining); /* copy only bytes requested. */
 				uiBytesRemaining = 0;
 			} else {
@@ -515,7 +515,7 @@ static unsigned int BcmGetEEPROMSize(struct bcm_mini_adapter *Adapter)
 		 * EEPROM may not be present or not programmed
 		 */
 		uiData = 0xBABEFACE;
-		if (0 == BeceemEEPROMBulkWrite(Adapter, (PUCHAR)&uiData, 0, 4, TRUE)) {
+		if (BeceemEEPROMBulkWrite(Adapter, (PUCHAR)&uiData, 0, 4, TRUE) == 0) {
 			uiData = 0;
 			for (uiIndex = 2; uiIndex <= 256; uiIndex *= 2) {
 				BeceemEEPROMBulkRead(Adapter, &uiData, uiIndex * 1024, 4);
