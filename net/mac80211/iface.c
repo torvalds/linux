@@ -808,7 +808,7 @@ static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 
 	hdr = (void *)((u8 *)skb->data + le16_to_cpu(rtap->it_len));
 
-	return ieee80211_select_queue_80211(local, skb, hdr);
+	return ieee80211_select_queue_80211(sdata, skb, hdr);
 }
 
 static const struct net_device_ops ieee80211_monitorif_ops = {

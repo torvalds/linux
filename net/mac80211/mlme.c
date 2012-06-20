@@ -1141,7 +1141,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	memset(&params, 0, sizeof(params));
 
-	local->wmm_acm = 0;
+	sdata->wmm_acm = 0;
 	for (; left >= 4; left -= 4, pos += 4) {
 		int aci = (pos[0] >> 5) & 0x03;
 		int acm = (pos[0] >> 4) & 0x01;
@@ -1152,21 +1152,21 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		case 1: /* AC_BK */
 			queue = 3;
 			if (acm)
-				local->wmm_acm |= BIT(1) | BIT(2); /* BK/- */
+				sdata->wmm_acm |= BIT(1) | BIT(2); /* BK/- */
 			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
 				uapsd = true;
 			break;
 		case 2: /* AC_VI */
 			queue = 1;
 			if (acm)
-				local->wmm_acm |= BIT(4) | BIT(5); /* CL/VI */
+				sdata->wmm_acm |= BIT(4) | BIT(5); /* CL/VI */
 			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
 				uapsd = true;
 			break;
 		case 3: /* AC_VO */
 			queue = 0;
 			if (acm)
-				local->wmm_acm |= BIT(6) | BIT(7); /* VO/NC */
+				sdata->wmm_acm |= BIT(6) | BIT(7); /* VO/NC */
 			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
 				uapsd = true;
 			break;
@@ -1174,7 +1174,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		default:
 			queue = 2;
 			if (acm)
-				local->wmm_acm |= BIT(0) | BIT(3); /* BE/EE */
+				sdata->wmm_acm |= BIT(0) | BIT(3); /* BE/EE */
 			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
 				uapsd = true;
 			break;

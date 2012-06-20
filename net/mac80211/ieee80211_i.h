@@ -680,6 +680,9 @@ struct ieee80211_sub_if_data {
 	/* TID bitmap for NoAck policy */
 	u16 noack_map;
 
+	/* bit field of ACM bits (BIT(802.1D tag)) */
+	u8 wmm_acm;
+
 	struct ieee80211_key __rcu *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
 	struct ieee80211_key __rcu *default_unicast_key;
 	struct ieee80211_key __rcu *default_multicast_key;
@@ -1025,7 +1028,6 @@ struct ieee80211_local {
 	int total_ps_buffered; /* total number of all buffered unicast and
 				* multicast packets for power saving stations
 				*/
-	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
 
 	bool pspolling;
 	bool offchannel_ps_enabled;

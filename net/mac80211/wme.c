@@ -52,11 +52,11 @@ static int wme_downgrade_ac(struct sk_buff *skb)
 	}
 }
 
-static u16 ieee80211_downgrade_queue(struct ieee80211_local *local,
+static u16 ieee80211_downgrade_queue(struct ieee80211_sub_if_data *sdata,
 				     struct sk_buff *skb)
 {
 	/* in case we are a client verify acm is not set for this ac */
-	while (unlikely(local->wmm_acm & BIT(skb->priority))) {
+	while (unlikely(sdata->wmm_acm & BIT(skb->priority))) {
 		if (wme_downgrade_ac(skb)) {
 			/*
 			 * This should not really happen. The AP has marked all
@@ -73,10 +73,11 @@ static u16 ieee80211_downgrade_queue(struct ieee80211_local *local,
 }
 
 /* Indicate which queue to use for this fully formed 802.11 frame */
-u16 ieee80211_select_queue_80211(struct ieee80211_local *local,
+u16 ieee80211_select_queue_80211(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb,
 				 struct ieee80211_hdr *hdr)
 {
+	struct ieee80211_local *local = sdata->local;
 	u8 *p;
 
 	if (local->hw.queues < IEEE80211_NUM_ACS)
@@ -94,7 +95,7 @@ u16 ieee80211_select_queue_80211(struct ieee80211_local *local,
 	p = ieee80211_get_qos_ctl(hdr);
 	skb->priority = *p & IEEE80211_QOS_CTL_TAG1D_MASK;
 
-	return ieee80211_downgrade_queue(local, skb);
+	return ieee80211_downgrade_queue(sdata, skb);
 }
 
 /* Indicate which queue to use. */
@@ -156,7 +157,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	 * data frame has */
 	skb->priority = cfg80211_classify8021d(skb);
 
-	return ieee80211_downgrade_queue(local, skb);
+	return ieee80211_downgrade_queue(sdata, skb);
 }
 
 void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
