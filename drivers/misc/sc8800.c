@@ -19,6 +19,7 @@
 #if 0
 #define sc8800_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
+
 //#define SC8800_PRINT_BUF
 #else
 #define sc8800_dbg(dev, format, arg...)
@@ -91,7 +92,7 @@ static DECLARE_RWSEM(sc8800_rsem);
 static DECLARE_RWSEM(sc8800_wsem);  
 struct sc8800_data *g_sc8800 = NULL;
 
-void *tmp_buf = NULL;
+
 static int bp_rts(struct sc8800_data *sc8800)
 {
 	return gpio_get_value(sc8800->slav_rts);
@@ -146,38 +147,21 @@ static void spi_in(struct sc8800_data *sc8800, char *tx_buf, unsigned len, int* 
 	struct spi_message message;
 	struct spi_transfer tran;
 
-	tmp_buf = kzalloc(len, GFP_KERNEL);
-	if(!tmp_buf){
-		*err = -ENOMEM;
-		return;
-	}
-
 	buf_swp(tx_buf, len);
-
-	tran.tx_buf = (void *)tx_buf;
-	tran.rx_buf = tmp_buf;
-	tran.len = len;
-	tran.speed_hz = 0;
-	tran.bits_per_word = 16;
-
-	spi_message_init(&message);
-	spi_message_add_tail(&tran, &message);
-	*err = spi_sync(sc8800->spi, &message);
-	sc8800_print_buf(sc8800, tx_buf, __func__, len);
-	kfree(tmp_buf);
+	spi_write(sc8800->spi, tx_buf, len);
 }
 
 static void spi_out(struct sc8800_data *sc8800, char *rx_buf, unsigned len, int* err)
 {
 	struct spi_message message;
 	struct spi_transfer tran;
+	void *tmp_buf = NULL;
 
-	tmp_buf = kzalloc(len, GFP_KERNEL);
+	tmp_buf = kzalloc(16, GFP_KERNEL);
 	if(!tmp_buf){
 		*err = -ENOMEM;
 		return;
 	}
-
 	memset(rx_buf, 0, len);
 	tran.tx_buf = tmp_buf;
 	tran.rx_buf = (void *)rx_buf;
@@ -188,10 +172,9 @@ static void spi_out(struct sc8800_data *sc8800, char *rx_buf, unsigned len, int*
 	spi_message_init(&message);
 	spi_message_add_tail(&tran, &message);
 	*err = spi_sync(sc8800->spi, &message);
-	sc8800_print_buf(sc8800, rx_buf, __func__, len);
-
 	buf_swp(rx_buf, len);
 	kfree(tmp_buf);
+	
 }
 
 static int ap_get_head(struct sc8800_data *sc8800, struct bp_head *packet)
@@ -200,7 +183,7 @@ static int ap_get_head(struct sc8800_data *sc8800, struct bp_head *packet)
 	char buf[BP_PACKET_SIZE];
 
 retry:
-	spi_out(sc8800, buf, BP_PACKET_SIZE, &err);
+	spi_out(sc8800, packet, BP_PACKET_SIZE, &err);
 
 	if(err < 0 && count > 0)
 	{
@@ -213,7 +196,7 @@ retry:
 	if(err < 0)
 		return err;
 
-	memcpy((char *)(packet), buf, BP_PACKET_SIZE);
+	//memcpy((char *)(packet), buf, BP_PACKET_SIZE);
 
 	sc8800_dbg(sc8800->dev, "%s tag = 0x%4x, type = 0x%4x, length = %x\n",
 			__func__, packet->tag, packet->type, packet->length);
