@@ -25,8 +25,6 @@ typedef unsigned short pinmux_flag_t;
 #define PINMUX_TYPE_INPUT_PULLDOWN  6
 
 #define PINMUX_FLAG_TYPE            (0x7)
-#define PINMUX_FLAG_WANT_PULLUP     (1 << 3)
-#define PINMUX_FLAG_WANT_PULLDOWN   (1 << 4)
 
 #define PINMUX_FLAG_DBIT_SHIFT      5
 #define PINMUX_FLAG_DBIT            (0x1f << PINMUX_FLAG_DBIT_SHIFT)
