@@ -502,10 +502,8 @@ static int snd_compr_pause(struct snd_compr_stream *stream)
 	if (stream->runtime->state != SNDRV_PCM_STATE_RUNNING)
 		return -EPERM;
 	retval = stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_PAUSE_PUSH);
-	if (!retval) {
+	if (!retval)
 		stream->runtime->state = SNDRV_PCM_STATE_PAUSED;
-		wake_up(&stream->runtime->sleep);
-	}
 	return retval;
 }
 
@@ -544,6 +542,10 @@ static int snd_compr_stop(struct snd_compr_stream *stream)
 	if (!retval) {
 		stream->runtime->state = SNDRV_PCM_STATE_SETUP;
 		wake_up(&stream->runtime->sleep);
+		stream->runtime->hw_pointer = 0;
+		stream->runtime->app_pointer = 0;
+		stream->runtime->total_bytes_available = 0;
+		stream->runtime->total_bytes_transferred = 0;
 	}
 	return retval;
 }

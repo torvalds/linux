@@ -89,9 +89,9 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 	data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
 	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, data, &ret);
 
-	/* redirect, configure ane enable io for interrupt signal */
+	/* redirect, configure and enable io for interrupt signal */
 	data = SDIO_SEPINT_MASK | SDIO_SEPINT_OE;
-	if (sdiodev->irq_flags | IRQF_TRIGGER_HIGH)
+	if (sdiodev->irq_flags & IRQF_TRIGGER_HIGH)
 		data |= SDIO_SEPINT_ACT_HI;
 	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, data, &ret);
 

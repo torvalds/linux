@@ -179,7 +179,8 @@ static int __add_prelim_ref(struct list_head *head, u64 root_id,
 
 static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 				struct ulist *parents, int level,
-				struct btrfs_key *key, u64 wanted_disk_byte,
+				struct btrfs_key *key, u64 time_seq,
+				u64 wanted_disk_byte,
 				const u64 *extent_item_pos)
 {
 	int ret;
@@ -212,7 +213,7 @@ add_parent:
 	 */
 	while (1) {
 		eie = NULL;
-		ret = btrfs_next_leaf(root, path);
+		ret = btrfs_next_old_leaf(root, path, time_seq);
 		if (ret < 0)
 			return ret;
 		if (ret)
@@ -294,18 +295,10 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	if (level == 0) {
-		if (ret == 1 && path->slots[0] >= btrfs_header_nritems(eb)) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret)
-				goto out;
-			eb = path->nodes[0];
-		}
-
+	if (level == 0)
 		btrfs_item_key_to_cpu(eb, &key, path->slots[0]);
-	}
 
-	ret = add_all_parents(root, path, parents, level, &key,
+	ret = add_all_parents(root, path, parents, level, &key, time_seq,
 				ref->wanted_disk_byte, extent_item_pos);
 out:
 	btrfs_free_path(path);
