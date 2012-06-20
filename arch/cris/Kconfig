@@ -137,11 +137,6 @@ config CRIS_MACH_ARTPEC3
 
 endchoice
 
-config ETRAX_VCS_SIM
-	bool "VCS Simulator"
-	help
-	  Setup hardware to be run in the VCS simulator.
-
 config ETRAX_ARCH_V10
        bool
        default y if ETRAX100LX || ETRAX100LX_V2
