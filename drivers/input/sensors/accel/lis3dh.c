@@ -71,9 +71,19 @@
 #define LIS3DH_RANGE			2000000
 
 /* LIS3DH */
-#define LIS3DH_PRECISION		12
+#define LIS3DH_PRECISION		16
 #define LIS3DH_BOUNDARY			(0x1 << (LIS3DH_PRECISION - 1))
 #define LIS3DH_GRAVITY_STEP		(LIS3DH_RANGE / LIS3DH_BOUNDARY)
+
+#define ODR1				0x10  /* 1Hz output data rate */
+#define ODR10				0x20  /* 10Hz output data rate */
+#define ODR25				0x30  /* 25Hz output data rate */
+#define ODR50				0x40  /* 50Hz output data rate */
+#define ODR100				0x50  /* 100Hz output data rate */
+#define ODR200				0x60  /* 200Hz output data rate */
+#define ODR400				0x70  /* 400Hz output data rate */
+#define ODR1250				0x90  /* 1250Hz output data rate */
+
 
 
 struct sensor_reg_data {
@@ -92,6 +102,8 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	int status = 0;
 		
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
+
+	sensor->ops->ctrl_data |= ODR100;	//100HZ,if 0 then power down
 	
 	//register setting according to chip datasheet		
 	if(!enable)

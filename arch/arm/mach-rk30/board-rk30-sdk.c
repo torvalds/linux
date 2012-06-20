@@ -710,12 +710,12 @@ static int lis3dh_init_platform_hw(void)
         return 0;
 }
 
-static struct gsensor_platform_data lis3dh_info = {
-        .model = 8452,
-        .swap_xy = 0,
-        .swap_xyz = 1,
+static struct sensor_platform_data lis3dh_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
         .init_platform_hw = lis3dh_init_platform_hw,
-        .orientation = {0, 0, 1, 0, 1, 0, 1, 0, 0},
+        .orientation = {0, 1, 0, 0, 0, 1, -1, 0, 0},
 };
 #endif
 #if defined (CONFIG_COMPASS_AK8975)
@@ -1301,7 +1301,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 #if defined (CONFIG_GS_LIS3DH)
 	{
-		.type	        = "lis3dh",
+		.type	        = "gs_lis3dh",
 		.addr	        = 0x19,   //0x19(SA0-->VCC), 0x18(SA0-->GND)
 		.flags	        = 0,
 		.irq	        = LIS3DH_INT_PIN,
