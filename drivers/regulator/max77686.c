@@ -217,7 +217,7 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 	struct max77686_data *max77686;
 	int i,  size;
 	int ret = 0;
-	struct regulator_config config;
+	struct regulator_config config = { };
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
