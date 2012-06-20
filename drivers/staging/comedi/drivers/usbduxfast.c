@@ -196,7 +196,7 @@ static struct usbduxfastsub_s usbduxfastsub[NUMUSBDUXFAST];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
-static struct comedi_driver driver_usbduxfast;	/* see below for initializer */
+static struct comedi_driver usbduxfast_driver;	/* see below for initializer */
 
 /*
  * bulk transfers to usbduxfast
@@ -1458,7 +1458,7 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 		goto out;
 	}
 
-	comedi_usb_auto_config(uinterf, &driver_usbduxfast);
+	comedi_usb_auto_config(uinterf, &usbduxfast_driver);
  out:
 	release_firmware(fw);
 }
@@ -1757,12 +1757,12 @@ static void usbduxfast_detach(struct comedi_device *dev)
 /*
  * main driver struct
  */
-static struct comedi_driver driver_usbduxfast = {
-	.driver_name = "usbduxfast",
-	.module = THIS_MODULE,
-	.attach = usbduxfast_attach,
-	.detach = usbduxfast_detach,
-	.attach_usb = usbduxfast_attach_usb,
+static struct comedi_driver usbduxfast_driver = {
+	.driver_name	= "usbduxfast",
+	.module		= THIS_MODULE,
+	.attach		= usbduxfast_attach,
+	.detach		= usbduxfast_detach,
+	.attach_usb	= usbduxfast_attach_usb,
 };
 
 /*
@@ -1777,43 +1777,16 @@ static const struct usb_device_id usbduxfastsub_table[] = {
 
 MODULE_DEVICE_TABLE(usb, usbduxfastsub_table);
 
-/*
- * The usbduxfastsub-driver
- */
-static struct usb_driver usbduxfastsub_driver = {
+static struct usb_driver usbduxfast_usb_driver = {
 #ifdef COMEDI_HAVE_USB_DRIVER_OWNER
-	.owner = THIS_MODULE,
+	.owner		= THIS_MODULE,
 #endif
-	.name = BOARDNAME,
-	.probe = usbduxfastsub_probe,
-	.disconnect = usbduxfastsub_disconnect,
-	.id_table = usbduxfastsub_table
+	.name		= BOARDNAME,
+	.probe		= usbduxfastsub_probe,
+	.disconnect	= usbduxfastsub_disconnect,
+	.id_table	= usbduxfastsub_table,
 };
-
-/*
- * Can't use the nice macro as I have also to initialise the USB subsystem:
- * registering the usb-system _and_ the comedi-driver
- */
-static int __init init_usbduxfast(void)
-{
-	printk(KERN_INFO
-	       KBUILD_MODNAME ": " DRIVER_VERSION ":" DRIVER_DESC "\n");
-	usb_register(&usbduxfastsub_driver);
-	comedi_driver_register(&driver_usbduxfast);
-	return 0;
-}
-
-/*
- * deregistering the comedi driver and the usb-subsystem
- */
-static void __exit exit_usbduxfast(void)
-{
-	comedi_driver_unregister(&driver_usbduxfast);
-	usb_deregister(&usbduxfastsub_driver);
-}
-
-module_init(init_usbduxfast);
-module_exit(exit_usbduxfast);
+module_comedi_usb_driver(usbduxfast_driver, usbduxfast_usb_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
