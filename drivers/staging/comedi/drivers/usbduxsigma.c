@@ -267,7 +267,7 @@ static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
-static struct comedi_driver driver_usbduxsigma;	/* see below for initializer */
+static struct comedi_driver usbduxsigma_driver;	/* see below for initializer */
 
 /*
  * Stops the data acquision
@@ -2331,7 +2331,7 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(uinterf, &driver_usbduxsigma);
+	comedi_usb_auto_config(uinterf, &usbduxsigma_driver);
 out:
 	release_firmware(fw);
 }
@@ -2828,12 +2828,12 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 }
 
 /* main driver struct */
-static struct comedi_driver driver_usbduxsigma = {
-	.driver_name = "usbduxsigma",
-	.module = THIS_MODULE,
-	.attach = usbduxsigma_attach,
-	.detach = usbduxsigma_detach,
-	.attach_usb = usbduxsigma_attach_usb,
+static struct comedi_driver usbduxsigma_driver = {
+	.driver_name	= "usbduxsigma",
+	.module		= THIS_MODULE,
+	.attach		= usbduxsigma_attach,
+	.detach		= usbduxsigma_detach,
+	.attach_usb	= usbduxsigma_attach_usb,
 };
 
 /* Table with the USB-devices */
@@ -2847,34 +2847,13 @@ static const struct usb_device_id usbduxsigma_table[] = {
 MODULE_DEVICE_TABLE(usb, usbduxsigma_table);
 
 /* The usbduxsub-driver */
-static struct usb_driver usbduxsigma_driver = {
-	.name = BOARDNAME,
-	.probe = usbduxsigma_probe,
-	.disconnect = usbduxsigma_disconnect,
-	.id_table = usbduxsigma_table,
+static struct usb_driver usbduxsigma_usb_driver = {
+	.name		= BOARDNAME,
+	.probe		= usbduxsigma_probe,
+	.disconnect	= usbduxsigma_disconnect,
+	.id_table	= usbduxsigma_table,
 };
-
-/* Can't use the nice macro as I have also to initialise the USB */
-/* subsystem: */
-/* registering the usb-system _and_ the comedi-driver */
-static int __init init_usbduxsigma(void)
-{
-	printk(KERN_INFO KBUILD_MODNAME ": "
-	       DRIVER_VERSION ":" DRIVER_DESC "\n");
-	usb_register(&usbduxsigma_driver);
-	comedi_driver_register(&driver_usbduxsigma);
-	return 0;
-}
-
-/* deregistering the comedi driver and the usb-subsystem */
-static void __exit exit_usbduxsigma(void)
-{
-	comedi_driver_unregister(&driver_usbduxsigma);
-	usb_deregister(&usbduxsigma_driver);
-}
-
-module_init(init_usbduxsigma);
-module_exit(exit_usbduxsigma);
+module_comedi_usb_driver(usbduxsigma_driver, usbduxsigma_usb_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
