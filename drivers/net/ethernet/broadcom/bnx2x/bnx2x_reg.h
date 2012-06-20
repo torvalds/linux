@@ -7160,6 +7160,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_REG_GPHY_EEE_1G		(0x1 << 2)
 #define MDIO_REG_GPHY_EEE_100		(0x1 << 1)
 #define MDIO_REG_GPHY_EEE_RESOLVED		0x803e
+#define MDIO_REG_GPHY_AUX_STATUS			0x19
 #define MDIO_REG_INTR_STATUS				0x1a
 #define MDIO_REG_INTR_MASK				0x1b
 #define MDIO_REG_INTR_MASK_LINK_STATUS			(0x1 << 1)
