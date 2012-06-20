@@ -752,6 +752,22 @@ fail:
 	mmc_request_done(mmc, mrq);
 }
 
+static int tmio_mmc_clk_update(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct tmio_mmc_data *pdata = host->pdata;
+	int ret;
+
+	if (!pdata->clk_enable)
+		return -ENOTSUPP;
+
+	ret = pdata->clk_enable(host->pdev, &mmc->f_max);
+	if (!ret)
+		mmc->f_min = mmc->f_max / 512;
+
+	return ret;
+}
+
 /* Set MMC clock / power.
  * Note: This controller uses a simple divider scheme therefore it cannot
  * run a MMC card at full speed (20MHz). The max clock is 24MHz on SD, but as
@@ -798,6 +814,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 */
 	if (ios->power_mode == MMC_POWER_ON && ios->clock) {
 		if (!host->power) {
+			tmio_mmc_clk_update(mmc);
 			pm_runtime_get_sync(dev);
 			host->power = true;
 		}
@@ -811,9 +828,12 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (host->set_pwr && ios->power_mode == MMC_POWER_OFF)
 			host->set_pwr(host->pdev, 0);
 		if (host->power) {
+			struct tmio_mmc_data *pdata = host->pdata;
 			tmio_mmc_clk_stop(host);
 			host->power = false;
 			pm_runtime_put(dev);
+			if (pdata->clk_disable)
+				pdata->clk_disable(host->pdev);
 		}
 	}
 
@@ -907,8 +927,6 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	mmc->ops = &tmio_mmc_ops;
 	mmc->caps = MMC_CAP_4_BIT_DATA | pdata->capabilities;
-	mmc->f_max = pdata->hclk;
-	mmc->f_min = mmc->f_max / 512;
 	mmc->max_segs = 32;
 	mmc->max_blk_size = 512;
 	mmc->max_blk_count = (PAGE_CACHE_SIZE / mmc->max_blk_size) *
@@ -929,6 +947,11 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	ret = pm_runtime_resume(&pdev->dev);
 	if (ret < 0)
 		goto pm_disable;
+
+	if (tmio_mmc_clk_update(mmc) < 0) {
+		mmc->f_max = pdata->hclk;
+		mmc->f_min = mmc->f_max / 512;
+	}
 
 	/*
 	 * There are 4 different scenarios for the card detection:
@@ -975,7 +998,13 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	/* See if we also get DMA */
 	tmio_mmc_request_dma(_host, pdata);
 
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (pdata->clk_disable)
+		pdata->clk_disable(pdev);
+	if (ret < 0) {
+		tmio_mmc_host_remove(_host);
+		return ret;
+	}
 
 	dev_pm_qos_expose_latency_limit(&pdev->dev, 100);
 
