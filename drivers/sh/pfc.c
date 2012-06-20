@@ -1,7 +1,8 @@
 /*
- * Pinmuxed GPIO support for SuperH.
+ * SuperH Pin Function Controller support.
  *
  * Copyright (C) 2008 Magnus Damm
+ * Copyright (C) 2009 - 2012 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -11,70 +12,74 @@
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/list.h>
+#include <linux/sh_pfc.h>
 #include <linux/module.h>
-#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/irq.h>
 #include <linux/bitops.h>
-#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 
-static void pfc_iounmap(struct pinmux_info *pip)
+static struct sh_pfc *sh_pfc __read_mostly;
+
+static inline bool sh_pfc_initialized(void)
+{
+	return !!sh_pfc;
+}
+
+static void pfc_iounmap(struct sh_pfc *pfc)
 {
 	int k;
 
-	for (k = 0; k < pip->num_resources; k++)
-		if (pip->window[k].virt)
-			iounmap(pip->window[k].virt);
+	for (k = 0; k < pfc->num_resources; k++)
+		if (pfc->window[k].virt)
+			iounmap(pfc->window[k].virt);
 
-	kfree(pip->window);
-	pip->window = NULL;
+	kfree(pfc->window);
+	pfc->window = NULL;
 }
 
-static int pfc_ioremap(struct pinmux_info *pip)
+static int pfc_ioremap(struct sh_pfc *pfc)
 {
 	struct resource *res;
 	int k;
 
-	if (!pip->num_resources)
+	if (!pfc->num_resources)
 		return 0;
 
-	pip->window = kzalloc(pip->num_resources * sizeof(*pip->window),
+	pfc->window = kzalloc(pfc->num_resources * sizeof(*pfc->window),
 			      GFP_NOWAIT);
-	if (!pip->window)
+	if (!pfc->window)
 		goto err1;
 
-	for (k = 0; k < pip->num_resources; k++) {
-		res = pip->resource + k;
+	for (k = 0; k < pfc->num_resources; k++) {
+		res = pfc->resource + k;
 		WARN_ON(resource_type(res) != IORESOURCE_MEM);
-		pip->window[k].phys = res->start;
-		pip->window[k].size = resource_size(res);
-		pip->window[k].virt = ioremap_nocache(res->start,
+		pfc->window[k].phys = res->start;
+		pfc->window[k].size = resource_size(res);
+		pfc->window[k].virt = ioremap_nocache(res->start,
 							 resource_size(res));
-		if (!pip->window[k].virt)
+		if (!pfc->window[k].virt)
 			goto err2;
 	}
 
 	return 0;
 
 err2:
-	pfc_iounmap(pip);
+	pfc_iounmap(pfc);
 err1:
 	return -1;
 }
 
-static void __iomem *pfc_phys_to_virt(struct pinmux_info *pip,
+static void __iomem *pfc_phys_to_virt(struct sh_pfc *pfc,
 				      unsigned long address)
 {
 	struct pfc_window *window;
 	int k;
 
 	/* scan through physical windows and convert address */
-	for (k = 0; k < pip->num_resources; k++) {
-		window = pip->window + k;
+	for (k = 0; k < pfc->num_resources; k++) {
+		window = pfc->window + k;
 
 		if (address < window->phys)
 			continue;
@@ -135,8 +140,7 @@ static void gpio_write_raw_reg(void __iomem *mapped_reg,
 	BUG();
 }
 
-static int gpio_read_bit(struct pinmux_data_reg *dr,
-			 unsigned long in_pos)
+int sh_pfc_read_bit(struct pinmux_data_reg *dr, unsigned long in_pos)
 {
 	unsigned long pos;
 
@@ -147,9 +151,10 @@ static int gpio_read_bit(struct pinmux_data_reg *dr,
 
 	return (gpio_read_raw_reg(dr->mapped_reg, dr->reg_width) >> pos) & 1;
 }
+EXPORT_SYMBOL_GPL(sh_pfc_read_bit);
 
-static void gpio_write_bit(struct pinmux_data_reg *dr,
-			   unsigned long in_pos, unsigned long value)
+void sh_pfc_write_bit(struct pinmux_data_reg *dr, unsigned long in_pos,
+		      unsigned long value)
 {
 	unsigned long pos;
 
@@ -166,8 +171,9 @@ static void gpio_write_bit(struct pinmux_data_reg *dr,
 
 	gpio_write_raw_reg(dr->mapped_reg, dr->reg_width, dr->reg_shadow);
 }
+EXPORT_SYMBOL_GPL(sh_pfc_write_bit);
 
-static void config_reg_helper(struct pinmux_info *gpioc,
+static void config_reg_helper(struct sh_pfc *pfc,
 			      struct pinmux_cfg_reg *crp,
 			      unsigned long in_pos,
 			      void __iomem **mapped_regp,
@@ -176,7 +182,7 @@ static void config_reg_helper(struct pinmux_info *gpioc,
 {
 	int k;
 
-	*mapped_regp = pfc_phys_to_virt(gpioc, crp->reg);
+	*mapped_regp = pfc_phys_to_virt(pfc, crp->reg);
 
 	if (crp->field_width) {
 		*maskp = (1 << crp->field_width) - 1;
@@ -189,14 +195,14 @@ static void config_reg_helper(struct pinmux_info *gpioc,
 	}
 }
 
-static int read_config_reg(struct pinmux_info *gpioc,
+static int read_config_reg(struct sh_pfc *pfc,
 			   struct pinmux_cfg_reg *crp,
 			   unsigned long field)
 {
 	void __iomem *mapped_reg;
 	unsigned long mask, pos;
 
-	config_reg_helper(gpioc, crp, field, &mapped_reg, &mask, &pos);
+	config_reg_helper(pfc, crp, field, &mapped_reg, &mask, &pos);
 
 	pr_debug("read_reg: addr = %lx, field = %ld, "
 		 "r_width = %ld, f_width = %ld\n",
@@ -205,14 +211,14 @@ static int read_config_reg(struct pinmux_info *gpioc,
 	return (gpio_read_raw_reg(mapped_reg, crp->reg_width) >> pos) & mask;
 }
 
-static void write_config_reg(struct pinmux_info *gpioc,
+static void write_config_reg(struct sh_pfc *pfc,
 			     struct pinmux_cfg_reg *crp,
 			     unsigned long field, unsigned long value)
 {
 	void __iomem *mapped_reg;
 	unsigned long mask, pos, data;
 
-	config_reg_helper(gpioc, crp, field, &mapped_reg, &mask, &pos);
+	config_reg_helper(pfc, crp, field, &mapped_reg, &mask, &pos);
 
 	pr_debug("write_reg addr = %lx, value = %ld, field = %ld, "
 		 "r_width = %ld, f_width = %ld\n",
@@ -225,30 +231,30 @@ static void write_config_reg(struct pinmux_info *gpioc,
 	data &= mask;
 	data |= value;
 
-	if (gpioc->unlock_reg)
-		gpio_write_raw_reg(pfc_phys_to_virt(gpioc, gpioc->unlock_reg),
+	if (pfc->unlock_reg)
+		gpio_write_raw_reg(pfc_phys_to_virt(pfc, pfc->unlock_reg),
 				   32, ~data);
 
 	gpio_write_raw_reg(mapped_reg, crp->reg_width, data);
 }
 
-static int setup_data_reg(struct pinmux_info *gpioc, unsigned gpio)
+static int setup_data_reg(struct sh_pfc *pfc, unsigned gpio)
 {
-	struct pinmux_gpio *gpiop = &gpioc->gpios[gpio];
+	struct pinmux_gpio *gpiop = &pfc->gpios[gpio];
 	struct pinmux_data_reg *data_reg;
 	int k, n;
 
-	if (!enum_in_range(gpiop->enum_id, &gpioc->data))
+	if (!enum_in_range(gpiop->enum_id, &pfc->data))
 		return -1;
 
 	k = 0;
 	while (1) {
-		data_reg = gpioc->data_regs + k;
+		data_reg = pfc->data_regs + k;
 
 		if (!data_reg->reg_width)
 			break;
 
-		data_reg->mapped_reg = pfc_phys_to_virt(gpioc, data_reg->reg);
+		data_reg->mapped_reg = pfc_phys_to_virt(pfc, data_reg->reg);
 
 		for (n = 0; n < data_reg->reg_width; n++) {
 			if (data_reg->enum_ids[n] == gpiop->enum_id) {
@@ -267,17 +273,17 @@ static int setup_data_reg(struct pinmux_info *gpioc, unsigned gpio)
 	return -1;
 }
 
-static void setup_data_regs(struct pinmux_info *gpioc)
+static void setup_data_regs(struct sh_pfc *pfc)
 {
 	struct pinmux_data_reg *drp;
 	int k;
 
-	for (k = gpioc->first_gpio; k <= gpioc->last_gpio; k++)
-		setup_data_reg(gpioc, k);
+	for (k = pfc->first_gpio; k <= pfc->last_gpio; k++)
+		setup_data_reg(pfc, k);
 
 	k = 0;
 	while (1) {
-		drp = gpioc->data_regs + k;
+		drp = pfc->data_regs + k;
 
 		if (!drp->reg_width)
 			break;
@@ -288,23 +294,24 @@ static void setup_data_regs(struct pinmux_info *gpioc)
 	}
 }
 
-static int get_data_reg(struct pinmux_info *gpioc, unsigned gpio,
+int sh_pfc_get_data_reg(struct sh_pfc *pfc, unsigned gpio,
 			struct pinmux_data_reg **drp, int *bitp)
 {
-	struct pinmux_gpio *gpiop = &gpioc->gpios[gpio];
+	struct pinmux_gpio *gpiop = &pfc->gpios[gpio];
 	int k, n;
 
-	if (!enum_in_range(gpiop->enum_id, &gpioc->data))
+	if (!enum_in_range(gpiop->enum_id, &pfc->data))
 		return -1;
 
 	k = (gpiop->flags & PINMUX_FLAG_DREG) >> PINMUX_FLAG_DREG_SHIFT;
 	n = (gpiop->flags & PINMUX_FLAG_DBIT) >> PINMUX_FLAG_DBIT_SHIFT;
-	*drp = gpioc->data_regs + k;
+	*drp = pfc->data_regs + k;
 	*bitp = n;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sh_pfc_get_data_reg);
 
-static int get_config_reg(struct pinmux_info *gpioc, pinmux_enum_t enum_id,
+static int get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 			  struct pinmux_cfg_reg **crp,
 			  int *fieldp, int *valuep,
 			  unsigned long **cntp)
@@ -315,7 +322,7 @@ static int get_config_reg(struct pinmux_info *gpioc, pinmux_enum_t enum_id,
 
 	k = 0;
 	while (1) {
-		config_reg = gpioc->cfg_regs + k;
+		config_reg = pfc->cfg_regs + k;
 
 		r_width = config_reg->reg_width;
 		f_width = config_reg->field_width;
@@ -350,15 +357,15 @@ static int get_config_reg(struct pinmux_info *gpioc, pinmux_enum_t enum_id,
 	return -1;
 }
 
-static int get_gpio_enum_id(struct pinmux_info *gpioc, unsigned gpio,
-			    int pos, pinmux_enum_t *enum_idp)
+int sh_pfc_gpio_to_enum(struct sh_pfc *pfc, unsigned gpio, int pos,
+			pinmux_enum_t *enum_idp)
 {
-	pinmux_enum_t enum_id = gpioc->gpios[gpio].enum_id;
-	pinmux_enum_t *data = gpioc->gpio_data;
+	pinmux_enum_t enum_id = pfc->gpios[gpio].enum_id;
+	pinmux_enum_t *data = pfc->gpio_data;
 	int k;
 
-	if (!enum_in_range(enum_id, &gpioc->data)) {
-		if (!enum_in_range(enum_id, &gpioc->mark)) {
+	if (!enum_in_range(enum_id, &pfc->data)) {
+		if (!enum_in_range(enum_id, &pfc->mark)) {
 			pr_err("non data/mark enum_id for gpio %d\n", gpio);
 			return -1;
 		}
@@ -369,7 +376,7 @@ static int get_gpio_enum_id(struct pinmux_info *gpioc, unsigned gpio,
 		return pos + 1;
 	}
 
-	for (k = 0; k < gpioc->gpio_data_size; k++) {
+	for (k = 0; k < pfc->gpio_data_size; k++) {
 		if (data[k] == enum_id) {
 			*enum_idp = data[k + 1];
 			return k + 1;
@@ -379,11 +386,10 @@ static int get_gpio_enum_id(struct pinmux_info *gpioc, unsigned gpio,
 	pr_err("cannot locate data/mark enum_id for gpio %d\n", gpio);
 	return -1;
 }
+EXPORT_SYMBOL_GPL(sh_pfc_gpio_to_enum);
 
-enum { GPIO_CFG_DRYRUN, GPIO_CFG_REQ, GPIO_CFG_FREE };
-
-static int pinmux_config_gpio(struct pinmux_info *gpioc, unsigned gpio,
-			      int pinmux_type, int cfg_mode)
+int sh_pfc_config_gpio(struct sh_pfc *pfc, unsigned gpio, int pinmux_type,
+		       int cfg_mode)
 {
 	struct pinmux_cfg_reg *cr = NULL;
 	pinmux_enum_t enum_id;
@@ -398,19 +404,19 @@ static int pinmux_config_gpio(struct pinmux_info *gpioc, unsigned gpio,
 		break;
 
 	case PINMUX_TYPE_OUTPUT:
-		range = &gpioc->output;
+		range = &pfc->output;
 		break;
 
 	case PINMUX_TYPE_INPUT:
-		range = &gpioc->input;
+		range = &pfc->input;
 		break;
 
 	case PINMUX_TYPE_INPUT_PULLUP:
-		range = &gpioc->input_pu;
+		range = &pfc->input_pu;
 		break;
 
 	case PINMUX_TYPE_INPUT_PULLDOWN:
-		range = &gpioc->input_pd;
+		range = &pfc->input_pd;
 		break;
 
 	default:
@@ -422,7 +428,7 @@ static int pinmux_config_gpio(struct pinmux_info *gpioc, unsigned gpio,
 	field = 0;
 	value = 0;
 	while (1) {
-		pos = get_gpio_enum_id(gpioc, gpio, pos, &enum_id);
+		pos = sh_pfc_gpio_to_enum(pfc, gpio, pos, &enum_id);
 		if (pos <= 0)
 			goto out_err;
 
@@ -430,7 +436,7 @@ static int pinmux_config_gpio(struct pinmux_info *gpioc, unsigned gpio,
 			break;
 
 		/* first check if this is a function enum */
-		in_range = enum_in_range(enum_id, &gpioc->function);
+		in_range = enum_in_range(enum_id, &pfc->function);
 		if (!in_range) {
 			/* not a function enum */
 			if (range) {
@@ -467,19 +473,19 @@ static int pinmux_config_gpio(struct pinmux_info *gpioc, unsigned gpio,
 		if (!in_range)
 			continue;
 
-		if (get_config_reg(gpioc, enum_id, &cr,
+		if (get_config_reg(pfc, enum_id, &cr,
 				   &field, &value, &cntp) != 0)
 			goto out_err;
 
 		switch (cfg_mode) {
 		case GPIO_CFG_DRYRUN:
 			if (!*cntp ||
-			    (read_config_reg(gpioc, cr, field) != value))
+			    (read_config_reg(pfc, cr, field) != value))
 				continue;
 			break;
 
 		case GPIO_CFG_REQ:
-			write_config_reg(gpioc, cr, field, value);
+			write_config_reg(pfc, cr, field, value);
 			*cntp = *cntp + 1;
 			break;
 
@@ -493,89 +499,18 @@ static int pinmux_config_gpio(struct pinmux_info *gpioc, unsigned gpio,
  out_err:
 	return -1;
 }
+EXPORT_SYMBOL_GPL(sh_pfc_config_gpio);
 
-static DEFINE_SPINLOCK(gpio_lock);
-
-static struct pinmux_info *chip_to_pinmux(struct gpio_chip *chip)
-{
-	return container_of(chip, struct pinmux_info, chip);
-}
-
-static int sh_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	struct pinmux_info *gpioc = chip_to_pinmux(chip);
-	struct pinmux_data_reg *dummy;
-	unsigned long flags;
-	int i, ret, pinmux_type;
-
-	ret = -EINVAL;
-
-	if (!gpioc)
-		goto err_out;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	if ((gpioc->gpios[offset].flags & PINMUX_FLAG_TYPE) != PINMUX_TYPE_NONE)
-		goto err_unlock;
-
-	/* setup pin function here if no data is associated with pin */
-
-	if (get_data_reg(gpioc, offset, &dummy, &i) != 0)
-		pinmux_type = PINMUX_TYPE_FUNCTION;
-	else
-		pinmux_type = PINMUX_TYPE_GPIO;
-
-	if (pinmux_type == PINMUX_TYPE_FUNCTION) {
-		if (pinmux_config_gpio(gpioc, offset,
-				       pinmux_type,
-				       GPIO_CFG_DRYRUN) != 0)
-			goto err_unlock;
-
-		if (pinmux_config_gpio(gpioc, offset,
-				       pinmux_type,
-				       GPIO_CFG_REQ) != 0)
-			BUG();
-	}
-
-	gpioc->gpios[offset].flags &= ~PINMUX_FLAG_TYPE;
-	gpioc->gpios[offset].flags |= pinmux_type;
-
-	ret = 0;
- err_unlock:
-	spin_unlock_irqrestore(&gpio_lock, flags);
- err_out:
-	return ret;
-}
-
-static void sh_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	struct pinmux_info *gpioc = chip_to_pinmux(chip);
-	unsigned long flags;
-	int pinmux_type;
-
-	if (!gpioc)
-		return;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	pinmux_type = gpioc->gpios[offset].flags & PINMUX_FLAG_TYPE;
-	pinmux_config_gpio(gpioc, offset, pinmux_type, GPIO_CFG_FREE);
-	gpioc->gpios[offset].flags &= ~PINMUX_FLAG_TYPE;
-	gpioc->gpios[offset].flags |= PINMUX_TYPE_NONE;
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-}
-
-static int pinmux_direction(struct pinmux_info *gpioc,
-			    unsigned gpio, int new_pinmux_type)
+int sh_pfc_set_direction(struct sh_pfc *pfc, unsigned gpio,
+			 int new_pinmux_type)
 {
 	int pinmux_type;
 	int ret = -EINVAL;
 
-	if (!gpioc)
+	if (!pfc)
 		goto err_out;
 
-	pinmux_type = gpioc->gpios[gpio].flags & PINMUX_FLAG_TYPE;
+	pinmux_type = pfc->gpios[gpio].flags & PINMUX_FLAG_TYPE;
 
 	switch (pinmux_type) {
 	case PINMUX_TYPE_GPIO:
@@ -584,156 +519,55 @@ static int pinmux_direction(struct pinmux_info *gpioc,
 	case PINMUX_TYPE_INPUT:
 	case PINMUX_TYPE_INPUT_PULLUP:
 	case PINMUX_TYPE_INPUT_PULLDOWN:
-		pinmux_config_gpio(gpioc, gpio, pinmux_type, GPIO_CFG_FREE);
+		sh_pfc_config_gpio(pfc, gpio, pinmux_type, GPIO_CFG_FREE);
 		break;
 	default:
 		goto err_out;
 	}
 
-	if (pinmux_config_gpio(gpioc, gpio,
+	if (sh_pfc_config_gpio(pfc, gpio,
 			       new_pinmux_type,
 			       GPIO_CFG_DRYRUN) != 0)
 		goto err_out;
 
-	if (pinmux_config_gpio(gpioc, gpio,
+	if (sh_pfc_config_gpio(pfc, gpio,
 			       new_pinmux_type,
 			       GPIO_CFG_REQ) != 0)
 		BUG();
 
-	gpioc->gpios[gpio].flags &= ~PINMUX_FLAG_TYPE;
-	gpioc->gpios[gpio].flags |= new_pinmux_type;
+	pfc->gpios[gpio].flags &= ~PINMUX_FLAG_TYPE;
+	pfc->gpios[gpio].flags |= new_pinmux_type;
 
 	ret = 0;
  err_out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(sh_pfc_set_direction);
 
-static int sh_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+int register_sh_pfc(struct sh_pfc *pfc)
 {
-	struct pinmux_info *gpioc = chip_to_pinmux(chip);
-	unsigned long flags;
+	int (*initroutine)(struct sh_pfc *) = NULL;
 	int ret;
 
-	spin_lock_irqsave(&gpio_lock, flags);
-	ret = pinmux_direction(gpioc, offset, PINMUX_TYPE_INPUT);
-	spin_unlock_irqrestore(&gpio_lock, flags);
+	if (sh_pfc)
+		return -EBUSY;
 
-	return ret;
-}
-
-static void sh_gpio_set_value(struct pinmux_info *gpioc,
-			     unsigned gpio, int value)
-{
-	struct pinmux_data_reg *dr = NULL;
-	int bit = 0;
-
-	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0)
-		BUG();
-	else
-		gpio_write_bit(dr, bit, value);
-}
-
-static int sh_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
-				    int value)
-{
-	struct pinmux_info *gpioc = chip_to_pinmux(chip);
-	unsigned long flags;
-	int ret;
-
-	sh_gpio_set_value(gpioc, offset, value);
-	spin_lock_irqsave(&gpio_lock, flags);
-	ret = pinmux_direction(gpioc, offset, PINMUX_TYPE_OUTPUT);
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	return ret;
-}
-
-static int sh_gpio_get_value(struct pinmux_info *gpioc, unsigned gpio)
-{
-	struct pinmux_data_reg *dr = NULL;
-	int bit = 0;
-
-	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0)
-		return -EINVAL;
-
-	return gpio_read_bit(dr, bit);
-}
-
-static int sh_gpio_get(struct gpio_chip *chip, unsigned offset)
-{
-	return sh_gpio_get_value(chip_to_pinmux(chip), offset);
-}
-
-static void sh_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
-{
-	sh_gpio_set_value(chip_to_pinmux(chip), offset, value);
-}
-
-static int sh_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct pinmux_info *gpioc = chip_to_pinmux(chip);
-	pinmux_enum_t enum_id;
-	pinmux_enum_t *enum_ids;
-	int i, k, pos;
-
-	pos = 0;
-	enum_id = 0;
-	while (1) {
-		pos = get_gpio_enum_id(gpioc, offset, pos, &enum_id);
-		if (pos <= 0 || !enum_id)
-			break;
-
-		for (i = 0; i < gpioc->gpio_irq_size; i++) {
-			enum_ids = gpioc->gpio_irq[i].enum_ids;
-			for (k = 0; enum_ids[k]; k++) {
-				if (enum_ids[k] == enum_id)
-					return gpioc->gpio_irq[i].irq;
-			}
-		}
-	}
-
-	return -ENOSYS;
-}
-
-int register_pinmux(struct pinmux_info *pip)
-{
-	struct gpio_chip *chip = &pip->chip;
-	int ret;
-
-	pr_info("%s handling gpio %d -> %d\n",
-		pip->name, pip->first_gpio, pip->last_gpio);
-
-	ret = pfc_ioremap(pip);
-	if (ret < 0)
+	ret = pfc_ioremap(pfc);
+	if (unlikely(ret < 0))
 		return ret;
 
-	setup_data_regs(pip);
+	spin_lock_init(&pfc->lock);
 
-	chip->request = sh_gpio_request;
-	chip->free = sh_gpio_free;
-	chip->direction_input = sh_gpio_direction_input;
-	chip->get = sh_gpio_get;
-	chip->direction_output = sh_gpio_direction_output;
-	chip->set = sh_gpio_set;
-	chip->to_irq = sh_gpio_to_irq;
+	setup_data_regs(pfc);
 
-	WARN_ON(pip->first_gpio != 0); /* needs testing */
+	sh_pfc = pfc;
+	pr_info("%s support registered\n", pfc->name);
 
-	chip->label = pip->name;
-	chip->owner = THIS_MODULE;
-	chip->base = pip->first_gpio;
-	chip->ngpio = (pip->last_gpio - pip->first_gpio) + 1;
+	initroutine = symbol_request(sh_pfc_register_gpiochip);
+	if (initroutine) {
+		(*initroutine)(pfc);
+		symbol_put_addr(initroutine);
+	}
 
-	ret = gpiochip_add(chip);
-	if (ret < 0)
-		pfc_iounmap(pip);
-
-	return ret;
-}
-
-int unregister_pinmux(struct pinmux_info *pip)
-{
-	pr_info("%s deregistering\n", pip->name);
-	pfc_iounmap(pip);
-	return gpiochip_remove(&pip->chip);
+	return 0;
 }
