@@ -852,8 +852,7 @@ static int __dcbnl_pg_setcfg(struct net_device *netdev, struct nlmsghdr *nlh,
 		}
 	}
 
-	return nla_put_u8(skb,
-			  (dir ? DCB_CMD_PGRX_SCFG : DCB_CMD_PGTX_SCFG), 0);
+	return nla_put_u8(skb, DCB_ATTR_PG_CFG, 0);
 }
 
 static int dcbnl_pgtx_setcfg(struct net_device *netdev, struct nlmsghdr *nlh,
