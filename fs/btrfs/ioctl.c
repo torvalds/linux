@@ -832,7 +832,8 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em)
 }
 
 static int should_defrag_range(struct inode *inode, u64 start, int thresh,
-			       u64 *last_len, u64 *skip, u64 *defrag_end)
+			       u64 *last_len, u64 *skip, u64 *defrag_end,
+			       int compress)
 {
 	struct extent_map *em;
 	int ret = 1;
@@ -863,7 +864,7 @@ static int should_defrag_range(struct inode *inode, u64 start, int thresh,
 	 * we hit a real extent, if it is big or the next extent is not a
 	 * real extent, don't bother defragging it
 	 */
-	if ((*last_len == 0 || *last_len >= thresh) &&
+	if (!compress && (*last_len == 0 || *last_len >= thresh) &&
 	    (em->len >= thresh || !next_mergeable))
 		ret = 0;
 out:
@@ -1145,7 +1146,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 		if (!should_defrag_range(inode, (u64)i << PAGE_CACHE_SHIFT,
 					 extent_thresh, &last_len, &skip,
-					 &defrag_end)) {
+					 &defrag_end, range->flags &
+					 BTRFS_DEFRAG_RANGE_COMPRESS)) {
 			unsigned long next;
 			/*
 			 * the should_defrag function tells us how much to skip
