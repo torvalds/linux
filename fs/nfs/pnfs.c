@@ -1222,7 +1222,7 @@ pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
 		nfs_pageio_init(pgio, inode, ld->pg_read_ops, compl_ops, server->rsize, 0);
 }
 
-bool
+void
 pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode,
 		       int ioflags,
 		       const struct nfs_pgio_completion_ops *compl_ops)
@@ -1231,10 +1231,9 @@ pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode,
 	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
 
 	if (ld == NULL)
-		return false;
-	nfs_pageio_init(pgio, inode, ld->pg_write_ops, compl_ops,
-			server->wsize, ioflags);
-	return true;
+		nfs_pageio_init_write(pgio, inode, ioflags, compl_ops);
+	else
+		nfs_pageio_init(pgio, inode, ld->pg_write_ops, compl_ops, server->wsize, ioflags);
 }
 
 bool
@@ -1271,7 +1270,7 @@ int pnfs_write_done_resend_to_mds(struct inode *inode,
 	LIST_HEAD(failed);
 
 	/* Resend all requests through the MDS */
-	nfs_pageio_init_write_mds(&pgio, inode, FLUSH_STABLE, compl_ops);
+	nfs_pageio_init_write(&pgio, inode, FLUSH_STABLE, compl_ops);
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 

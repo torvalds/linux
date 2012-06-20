@@ -336,8 +336,10 @@ static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc
 	struct nfs_pageio_descriptor pgio;
 	int err;
 
-	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc),
-			      &nfs_async_write_completion_ops);
+	NFS_PROTO(page->mapping->host)->write_pageio_init(&pgio,
+							  page->mapping->host,
+							  wb_priority(wbc),
+							  &nfs_async_write_completion_ops);
 	err = nfs_do_writepage(page, wbc, &pgio);
 	nfs_pageio_complete(&pgio);
 	if (err < 0)
@@ -380,8 +382,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
-	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc),
-			      &nfs_async_write_completion_ops);
+	NFS_PROTO(inode)->write_pageio_init(&pgio, inode, wb_priority(wbc), &nfs_async_write_completion_ops);
 	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
 	nfs_pageio_complete(&pgio);
 
@@ -1202,7 +1203,7 @@ static const struct nfs_pageio_ops nfs_pageio_write_ops = {
 	.pg_doio = nfs_generic_pg_writepages,
 };
 
-void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
+void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 			       struct inode *inode, int ioflags,
 			       const struct nfs_pgio_completion_ops *compl_ops)
 {
@@ -1217,13 +1218,6 @@ void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);
 
-void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
-			   struct inode *inode, int ioflags,
-			   const struct nfs_pgio_completion_ops *compl_ops)
-{
-	if (!pnfs_pageio_init_write(pgio, inode, ioflags, compl_ops))
-		nfs_pageio_init_write_mds(pgio, inode, ioflags, compl_ops);
-}
 
 void nfs_write_prepare(struct rpc_task *task, void *calldata)
 {

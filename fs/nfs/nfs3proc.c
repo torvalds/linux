@@ -925,6 +925,7 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.read_rpc_prepare = nfs3_proc_read_rpc_prepare,
 	.read_done	= nfs3_read_done,
 	.write_setup	= nfs3_proc_write_setup,
+	.write_pageio_init = nfs_pageio_init_write,
 	.write_rpc_prepare = nfs3_proc_write_rpc_prepare,
 	.write_done	= nfs3_write_done,
 	.commit_setup	= nfs3_proc_commit_setup,
