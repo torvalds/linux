@@ -58,7 +58,6 @@
 #include "hsmmc.h"
 #include "common-board-devices.h"
 
-#define OMAP3_EVM_TS_GPIO	175
 #define OMAP3_EVM_EHCI_VBUS	22
 #define OMAP3_EVM_EHCI_SELECT	61
 
