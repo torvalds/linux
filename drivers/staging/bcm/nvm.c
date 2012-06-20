@@ -1067,7 +1067,7 @@ static int BeceemFlashBulkWrite(struct bcm_mini_adapter *Adapter,
 	uiSectBoundary = uiSectAlignAddr + Adapter->uiSectorSize;
 
 	pTempBuff = kmalloc(Adapter->uiSectorSize, GFP_KERNEL);
-	if (NULL == pTempBuff)
+	if (!pTempBuff)
 		goto BeceemFlashBulkWrite_EXIT;
 	/*
 	 * check if the data to be written is overlapped across sectors
@@ -1250,7 +1250,7 @@ static int BeceemFlashBulkWriteStatus(struct bcm_mini_adapter *Adapter,
 	uiSectBoundary = uiSectAlignAddr + Adapter->uiSectorSize;
 
 	pTempBuff = kmalloc(Adapter->uiSectorSize, GFP_KERNEL);
-	if (NULL == pTempBuff)
+	if (!pTempBuff)
 		goto BeceemFlashBulkWriteStatus_EXIT;
 
 	/*
@@ -1377,7 +1377,7 @@ int PropagateCalParamsFromEEPROMToMemory(struct bcm_mini_adapter *Adapter)
 	unsigned int value;
 	int Status = 0;
 
-	if (pBuff == NULL)
+	if (!pBuff)
 		return -ENOMEM;
 
 	if (0 != BeceemEEPROMBulkRead(Adapter, &uiEepromSize, EEPROM_SIZE_OFFSET, 4)) {
@@ -2224,7 +2224,7 @@ static ULONG BcmReadFlashRDID(struct bcm_mini_adapter *Adapter)
 
 int BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 {
-	if (psAdapter == NULL) {
+	if (!psAdapter) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_PRINTK, 0, 0, "Adapter structure point is NULL");
 		return -EINVAL;
 	}
@@ -2235,14 +2235,14 @@ int BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 	}
 
 	psAdapter->psFlash2xCSInfo = (PFLASH2X_CS_INFO)kzalloc(sizeof(FLASH2X_CS_INFO), GFP_KERNEL);
-	if (psAdapter->psFlash2xCSInfo == NULL) {
+	if (!psAdapter->psFlash2xCSInfo) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_PRINTK, 0, 0, "Can't Allocate memory for Flash 2.x");
 		kfree(psAdapter->psFlashCSInfo);
 		return -ENOMEM;
 	}
 
 	psAdapter->psFlash2xVendorInfo = (PFLASH2X_VENDORSPECIFIC_INFO)kzalloc(sizeof(FLASH2X_VENDORSPECIFIC_INFO), GFP_KERNEL);
-	if (psAdapter->psFlash2xVendorInfo == NULL) {
+	if (!psAdapter->psFlash2xVendorInfo) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_PRINTK, 0, 0, "Can't Allocate Vendor Info Memory for Flash 2.x");
 		kfree(psAdapter->psFlashCSInfo);
 		kfree(psAdapter->psFlash2xCSInfo);
@@ -2254,7 +2254,7 @@ int BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 
 int BcmDeAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter)
 {
-	if (psAdapter == NULL) {
+	if (!psAdapter) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_PRINTK, 0, 0, "Adapter structure point is NULL");
 		return -EINVAL;
 	}
@@ -2856,7 +2856,7 @@ int BcmFlash2xBulkRead(struct bcm_mini_adapter *Adapter,
 	unsigned int uiAbsoluteOffset = 0;
 	unsigned int uiTemp = 0, value = 0;
 
-	if (Adapter == NULL) {
+	if (!Adapter) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Adapter structure is NULL");
 		return -EINVAL;
 	}
@@ -2918,7 +2918,7 @@ int BcmFlash2xBulkWrite(struct bcm_mini_adapter *Adapter,
 	unsigned int FlashSectValStartOffset = 0;
 	unsigned int uiTemp = 0, value = 0;
 
-	if (Adapter == NULL) {
+	if (!Adapter) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Adapter structure is NULL");
 		return -EINVAL;
 	}
@@ -3565,7 +3565,7 @@ int BcmCopyISO(struct bcm_mini_adapter *Adapter, FLASH2X_COPY_SECTION sCopySectS
 
 	Buff = kzalloc(Adapter->uiSectorSize, GFP_KERNEL);
 
-	if (Buff == NULL) {
+	if (!Buff) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed for section size");
 		return -ENOMEM;
 	}
@@ -4074,7 +4074,7 @@ int BcmCopySection(struct bcm_mini_adapter *Adapter,
 		BuffSize = numOfBytes;
 
 	pBuff = (PCHAR)kzalloc(BuffSize, GFP_KERNEL);
-	if (pBuff == NULL) {
+	if (!pBuff) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed.. ");
 		return -ENOMEM;
 	}
@@ -4154,7 +4154,7 @@ int SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, unsigned
 	/* If Header is present overwrite passed buffer with this */
 	if (bHasHeader && (Adapter->bHeaderChangeAllowed == FALSE)) {
 		pTempBuff = (PUCHAR)kzalloc(HeaderSizeToProtect, GFP_KERNEL);
-		if (pTempBuff == NULL) {
+		if (!pTempBuff) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed");
 			return -ENOMEM;
 		}
@@ -4563,7 +4563,7 @@ static int CorruptDSDSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL e
 	}
 
 	pBuff = (PUCHAR)kzalloc(MAX_RW_SIZE, GFP_KERNEL);
-	if (pBuff == NULL) {
+	if (!pBuff) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Can't allocate memorey");
 		return -ENOMEM;
 	}
@@ -4622,7 +4622,7 @@ static int CorruptISOSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL e
 	}
 
 	pBuff = (PUCHAR)kzalloc(MAX_RW_SIZE, GFP_KERNEL);
-	if (pBuff == NULL) {
+	if (!pBuff) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Can't allocate memorey");
 		return -ENOMEM;
 	}
