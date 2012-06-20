@@ -202,11 +202,18 @@ static int apply_microcode_amd(int cpu)
 	if (mc_amd == NULL)
 		return 0;
 
-	wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc_amd->hdr.data_code);
-	/* get patch id after patching */
 	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
-	/* check current patch id and patch's id for match */
+	/* need to apply patch? */
+	if (rev >= mc_amd->hdr.patch_id) {
+		c->microcode = rev;
+		return 0;
+	}
+
+	wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc_amd->hdr.data_code);
+
+	/* verify patch application was successful */
+	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 	if (rev != mc_amd->hdr.patch_id) {
 		pr_err("CPU%d: update failed for patch_level=0x%08x\n",
 		       cpu, mc_amd->hdr.patch_id);
