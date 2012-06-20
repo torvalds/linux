@@ -523,9 +523,9 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 		nfs_list_remove_request(req);
 		if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES) {
 			/* Note the rewrite will go through mds */
-			kref_get(&req->wb_kref);
 			nfs_mark_request_commit(req, NULL, &cinfo);
-		}
+		} else
+			nfs_release_request(req);
 		nfs_unlock_and_release_request(req);
 	}
 
@@ -716,12 +716,12 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 			if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES)
 				bit = NFS_IOHDR_NEED_RESCHED;
 			else if (dreq->flags == 0) {
-				memcpy(&dreq->verf, &req->wb_verf,
+				memcpy(&dreq->verf, hdr->verf,
 				       sizeof(dreq->verf));
 				bit = NFS_IOHDR_NEED_COMMIT;
 				dreq->flags = NFS_ODIRECT_DO_COMMIT;
 			} else if (dreq->flags == NFS_ODIRECT_DO_COMMIT) {
-				if (memcmp(&dreq->verf, &req->wb_verf, sizeof(dreq->verf))) {
+				if (memcmp(&dreq->verf, hdr->verf, sizeof(dreq->verf))) {
 					dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 					bit = NFS_IOHDR_NEED_RESCHED;
 				} else

@@ -1374,7 +1374,8 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 						sizeof(req->rq_snd_buf));
 		return bc_send(req);
 	} else {
-		/* Nothing to do to drop request */
+		/* drop request */
+		xprt_free_bc_request(req);
 		return 0;
 	}
 }

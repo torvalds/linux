@@ -7,6 +7,8 @@ config TILE_NET
 	depends on TILE
 	default y
 	select CRC32
+	select TILE_GXIO_MPIPE if TILEGX
+	select HIGH_RES_TIMERS if TILEGX
 	---help---
 	  This is a standard Linux network device driver for the
 	  on-chip Tilera Gigabit Ethernet and XAUI interfaces.

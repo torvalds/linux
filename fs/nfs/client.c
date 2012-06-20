@@ -544,8 +544,6 @@ nfs_found_client(const struct nfs_client_initdata *cl_init,
 
 	smp_rmb();
 
-	BUG_ON(clp->cl_cons_state != NFS_CS_READY);
-
 	dprintk("<-- %s found nfs_client %p for %s\n",
 		__func__, clp, cl_init->hostname ?: "");
 	return clp;
