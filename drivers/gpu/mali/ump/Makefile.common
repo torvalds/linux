@@ -13,8 +13,8 @@ SRC = $(UMP_FILE_PREFIX)common/ump_kernel_common.c \
 	$(UMP_FILE_PREFIX)common/ump_kernel_api.c \
 	$(UMP_FILE_PREFIX)common/ump_kernel_ref_drv.c
 
-# Get subversion revision number, fall back to 0000 if no svn info is available
-SVN_REV:=$(shell ((svnversion | grep -qv exported && echo -n 'Revision: ' && svnversion) || git svn info | sed -e 's/$$$$/M/' | grep '^Revision: ' || echo ${MALI_RELEASE_NAME}) 2>/dev/null | sed -e 's/^Revision: //')
+# set the SVN_REV to ${MALI_RELEASE_NAME} due to ARM using subversion
+SVN_REV := $(MALI_RELEASE_NAME)
 
 EXTRA_CFLAGS += -DSVN_REV=$(SVN_REV)
 EXTRA_CFLAGS += -DSVN_REV_STRING=\"$(SVN_REV)\"
