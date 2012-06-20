@@ -1113,7 +1113,7 @@ blissc			MACH_BLISSC		BLISSC			3491
 thales_adc		MACH_THALES_ADC		THALES_ADC		3492
 ubisys_p9d_evp		MACH_UBISYS_P9D_EVP	UBISYS_P9D_EVP		3493
 atdgp318		MACH_ATDGP318		ATDGP318		3494
-sun4i                   MACH_SUN4I              SUN4I                   3495
-sun5i                   MACH_SUN5I              SUN5I                   3496
-sun6i                   MACH_SUN6I              SUN6I                   3497
-sun3i                   MACH_SUN3I              SUN3I                   3498
+sun4i			MACH_SUN4I		SUN4I			4104
+sun5i			MACH_SUN5I		SUN5I			4138
+sun6i			MACH_SUN6I		SUN6I			4137
+sun3i			MACH_SUN3I		SUN3I			4244
