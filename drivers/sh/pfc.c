@@ -549,6 +549,11 @@ int register_sh_pfc(struct sh_pfc *pfc)
 	int (*initroutine)(struct sh_pfc *) = NULL;
 	int ret;
 
+	/*
+	 * Ensure that the type encoding fits
+	 */
+	BUILD_BUG_ON(PINMUX_FLAG_TYPE > ((1 << PINMUX_FLAG_DBIT_SHIFT) - 1));
+
 	if (sh_pfc)
 		return -EBUSY;
 

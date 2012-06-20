@@ -16,15 +16,18 @@
 typedef unsigned short pinmux_enum_t;
 typedef unsigned short pinmux_flag_t;
 
-#define PINMUX_TYPE_NONE            0
-#define PINMUX_TYPE_FUNCTION        1
-#define PINMUX_TYPE_GPIO            2
-#define PINMUX_TYPE_OUTPUT          3
-#define PINMUX_TYPE_INPUT           4
-#define PINMUX_TYPE_INPUT_PULLUP    5
-#define PINMUX_TYPE_INPUT_PULLDOWN  6
+enum {
+	PINMUX_TYPE_NONE,
 
-#define PINMUX_FLAG_TYPE            (0x7)
+	PINMUX_TYPE_FUNCTION,
+	PINMUX_TYPE_GPIO,
+	PINMUX_TYPE_OUTPUT,
+	PINMUX_TYPE_INPUT,
+	PINMUX_TYPE_INPUT_PULLUP,
+	PINMUX_TYPE_INPUT_PULLDOWN,
+
+	PINMUX_FLAG_TYPE,	/* must be last */
+};
 
 #define PINMUX_FLAG_DBIT_SHIFT      5
 #define PINMUX_FLAG_DBIT            (0x1f << PINMUX_FLAG_DBIT_SHIFT)
@@ -36,7 +39,9 @@ struct pinmux_gpio {
 	pinmux_flag_t flags;
 };
 
-#define PINMUX_GPIO(gpio, data_or_mark) [gpio] = { data_or_mark }
+#define PINMUX_GPIO(gpio, data_or_mark) \
+	[gpio] = { .enum_id = data_or_mark, .flags = PINMUX_TYPE_NONE }
+
 #define PINMUX_DATA(data_or_mark, ids...) data_or_mark, ids, 0
 
 struct pinmux_cfg_reg {
