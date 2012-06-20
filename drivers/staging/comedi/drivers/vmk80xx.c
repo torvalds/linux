@@ -232,7 +232,7 @@ static struct vmk80xx_usb vmb[VMK80XX_MAX_BOARDS];
 
 static DEFINE_MUTEX(glb_mutex);
 
-static struct comedi_driver driver_vmk80xx;	/* see below for initializer */
+static struct comedi_driver vmk80xx_driver;	/* see below for initializer */
 
 static void vmk80xx_tx_callback(struct urb *urb)
 {
@@ -1410,7 +1410,7 @@ static int vmk80xx_probe(struct usb_interface *intf,
 
 	mutex_unlock(&glb_mutex);
 
-	comedi_usb_auto_config(intf, &driver_vmk80xx);
+	comedi_usb_auto_config(intf, &vmk80xx_driver);
 
 	return 0;
 error:
@@ -1449,40 +1449,18 @@ static void vmk80xx_disconnect(struct usb_interface *intf)
 
 /* TODO: Add support for suspend, resume, pre_reset,
  * post_reset and flush */
-static struct usb_driver vmk80xx_driver = {
-	.name = "vmk80xx",
-	.probe = vmk80xx_probe,
-	.disconnect = vmk80xx_disconnect,
-	.id_table = vmk80xx_id_table
+static struct usb_driver vmk80xx_usb_driver = {
+	.name		= "vmk80xx",
+	.probe		= vmk80xx_probe,
+	.disconnect	= vmk80xx_disconnect,
+	.id_table	= vmk80xx_id_table
 };
 
-static struct comedi_driver driver_vmk80xx = {
-	.module = THIS_MODULE,
-	.driver_name = "vmk80xx",
-	.attach = vmk80xx_attach,
-	.detach = vmk80xx_detach,
-	.attach_usb = vmk80xx_attach_usb,
+static struct comedi_driver vmk80xx_driver = {
+	.module		= THIS_MODULE,
+	.driver_name	= "vmk80xx",
+	.attach		= vmk80xx_attach,
+	.detach		= vmk80xx_detach,
+	.attach_usb	= vmk80xx_attach_usb,
 };
-
-static int __init vmk80xx_init(void)
-{
-	int retval;
-
-	printk(KERN_INFO "vmk80xx: version 0.8.01 "
-	       "Manuel Gebele <forensixs@gmx.de>\n");
-
-	retval = comedi_driver_register(&driver_vmk80xx);
-	if (retval < 0)
-		return retval;
-
-	return usb_register(&vmk80xx_driver);
-}
-
-static void __exit vmk80xx_exit(void)
-{
-	comedi_driver_unregister(&driver_vmk80xx);
-	usb_deregister(&vmk80xx_driver);
-}
-
-module_init(vmk80xx_init);
-module_exit(vmk80xx_exit);
+module_comedi_usb_driver(vmk80xx_driver, vmk80xx_usb_driver);
