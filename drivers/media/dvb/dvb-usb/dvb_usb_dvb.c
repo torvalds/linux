@@ -49,58 +49,54 @@ int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 }
 
 /* does the complete input transfer handling */
-static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
+static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int count)
 {
 	struct dvb_usb_adapter *adap = dvbdmxfeed->demux->priv;
 	struct dvb_usb_device *d = adap_to_d(adap);
-	int newfeedcount, ret;
+	int ret;
+	pr_debug("%s: adap=%d active_fe=%d feed_type=%d setting pid [%s]: " \
+			"%04x (%04d) at index %d '%s'\n", __func__, adap->id,
+			adap->active_fe, dvbdmxfeed->type,
+			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
+			dvbdmxfeed->pid, dvbdmxfeed->index,
+			(count == 1) ? "on" : "off");
 
-	if (adap == NULL) {
-		ret = -ENODEV;
-		goto err;
-	}
+	if (adap->active_fe == -1)
+		return -EINVAL;
 
-	pr_debug("%s: adap=%d active_fe=%d\n", __func__, adap->id,
-			adap->active_fe);
+	adap->feed_count += count;
 
-	newfeedcount = adap->feedcount + (onoff ? 1 : -1);
-
-	/* stop feed before setting a new pid if there will be no pid anymore */
-	if (newfeedcount == 0) {
+	/* stop feeding if it is last pid */
+	if (adap->feed_count == 0) {
 		pr_debug("%s: stop feeding\n", __func__);
 		usb_urb_killv2(&adap->stream);
 
-		if (d->props->streaming_ctrl != NULL) {
+		if (d->props->streaming_ctrl) {
 			ret = d->props->streaming_ctrl(adap, 0);
 			if (ret < 0) {
-				pr_err("%s: error while stopping stream\n",
-						KBUILD_MODNAME);
+				pr_err("%s: streaming_ctrl() failed=%d\n",
+						KBUILD_MODNAME, ret);
 				goto err_mutex_unlock;
 			}
 		}
 		mutex_unlock(&adap->sync_mutex);
 	}
 
-	adap->feedcount = newfeedcount;
-
-	/* activate the pid on the device specific pid_filter */
-	pr_debug("%s: setting pid (%s): %5d %04x at index %d '%s'\n", __func__,
-			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
-			dvbdmxfeed->pid, dvbdmxfeed->index,
-			onoff ? "on" : "off");
+	/* activate the pid on the device pid filter */
 	if (adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 			adap->pid_filtering &&
-			adap->props->pid_filter != NULL)
-		adap->props->pid_filter(adap, dvbdmxfeed->index,
-				dvbdmxfeed->pid, onoff);
+			adap->props->pid_filter)
+		ret = adap->props->pid_filter(adap, dvbdmxfeed->index,
+				dvbdmxfeed->pid, (count == 1) ? 1 : 0);
+			if (ret < 0)
+				pr_err("%s: pid_filter() failed=%d\n",
+						KBUILD_MODNAME, ret);
 
-	/*
-	 * Start the feed if this was the first feed and there is still a feed
-	 * for reception.
-	 */
-	if (adap->feedcount == onoff && adap->feedcount > 0) {
+	/* start feeding if it is first pid */
+	if (adap->feed_count == 1 && count == 1) {
 		struct usb_data_stream_properties stream_props;
 		mutex_lock(&adap->sync_mutex);
+		pr_debug("%s: start feeding\n", __func__);
 
 		/* resolve input and output streaming paramters */
 		if (d->props->get_stream_config) {
@@ -128,54 +124,46 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			break;
 		}
 
-		pr_debug("%s: submitting all URBs\n", __func__);
 		usb_urb_submitv2(&adap->stream, &stream_props);
 
-		pr_debug("%s: controlling pid parser\n", __func__);
 		if (adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 				adap->props->caps &
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF &&
-				adap->props->pid_filter_ctrl != NULL) {
+				adap->props->pid_filter_ctrl) {
 			ret = adap->props->pid_filter_ctrl(adap,
 					adap->pid_filtering);
 			if (ret < 0) {
-				pr_err("%s: could not handle pid_parser\n",
-						KBUILD_MODNAME);
-				goto err_mutex_unlock;
-			}
-		}
-		pr_debug("%s: start feeding\n", __func__);
-		if (d->props->streaming_ctrl != NULL) {
-			ret = d->props->streaming_ctrl(adap, 1);
-			if (ret < 0) {
-				pr_err("%s: error while enabling fifo\n",
-						KBUILD_MODNAME);
+				pr_err("%s: pid_filter_ctrl() failed=%d\n",
+						KBUILD_MODNAME, ret);
 				goto err_mutex_unlock;
 			}
 		}
 
+		if (d->props->streaming_ctrl) {
+			ret = d->props->streaming_ctrl(adap, 1);
+			if (ret < 0) {
+				pr_err("%s: streaming_ctrl() failed=%d\n",
+						KBUILD_MODNAME, ret);
+				goto err_mutex_unlock;
+			}
+		}
 	}
 
 	return 0;
 err_mutex_unlock:
 	mutex_unlock(&adap->sync_mutex);
-err:
 	pr_debug("%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
 static int dvb_usb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	pr_debug("%s: start pid=%04x feedtype=%d\n", __func__, dvbdmxfeed->pid,
-			dvbdmxfeed->type);
 	return dvb_usb_ctrl_feed(dvbdmxfeed, 1);
 }
 
 static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	pr_debug("%s: stop pid=%04x feedtype=%d\n", __func__, dvbdmxfeed->pid,
-			dvbdmxfeed->type);
-	return dvb_usb_ctrl_feed(dvbdmxfeed, 0);
+	return dvb_usb_ctrl_feed(dvbdmxfeed, -1);
 }
 
 int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)

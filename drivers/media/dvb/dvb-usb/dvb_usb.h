@@ -300,7 +300,7 @@ struct dvb_usb_adapter {
 	u8  id;
 	u8 ts_type;
 	int pid_filtering;
-	int feedcount;
+	int feed_count;
 	int max_feed_count;
 
 	/* sync frontend and streaming as those are different tasks */
