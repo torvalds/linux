@@ -61,8 +61,11 @@ static void ab_port_leave(struct team *team, struct team_port *port)
 
 static int ab_active_port_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
-	if (ab_priv(team)->active_port)
-		ctx->data.u32_val = ab_priv(team)->active_port->dev->ifindex;
+	struct team_port *active_port;
+
+	active_port = rcu_access_pointer(ab_priv(team)->active_port);
+	if (active_port)
+		ctx->data.u32_val = active_port->dev->ifindex;
 	else
 		ctx->data.u32_val = 0;
 	return 0;
