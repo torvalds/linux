@@ -794,7 +794,7 @@ void oz_binding_add(char *net_dev)
 {
 	struct oz_binding *binding;
 
-	binding = kmalloc(sizeof(struct oz_binding), GFP_ATOMIC);
+	binding = kmalloc(sizeof(struct oz_binding), GFP_KERNEL);
 	if (binding) {
 		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
 		binding->ptype.func = oz_pkt_recv;
