@@ -790,6 +790,7 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.close_context	= nfs_close_context,
 	.have_delegation = nfs_have_delegation,
 	.return_delegation = nfs_return_delegation,
+	.alloc_client	= nfs_alloc_client,
 	.init_client	= nfs_init_client,
 	.free_client	= nfs_free_client,
 };

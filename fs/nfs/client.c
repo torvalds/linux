@@ -147,7 +147,7 @@ struct nfs_client_initdata {
  * Since these are allocated/deallocated very rarely, we don't
  * bother putting them in a slab cache...
  */
-static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
+struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 {
 	struct nfs_client *clp;
 	struct rpc_cred *cred;
@@ -177,18 +177,6 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_proto = cl_init->proto;
 	clp->cl_net = get_net(cl_init->net);
 
-#ifdef CONFIG_NFS_V4
-	err = nfs_get_cb_ident_idr(clp, cl_init->minorversion);
-	if (err)
-		goto error_cleanup;
-
-	spin_lock_init(&clp->cl_lock);
-	INIT_DELAYED_WORK(&clp->cl_renewd, nfs4_renew_state);
-	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS client");
-	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
-	clp->cl_minorversion = cl_init->minorversion;
-	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
-#endif
 	cred = rpc_lookup_machine_cred("*");
 	if (!IS_ERR(cred))
 		clp->cl_machine_cred = cred;
@@ -217,6 +205,30 @@ static void nfs4_shutdown_session(struct nfs_client *clp)
 {
 }
 #endif /* CONFIG_NFS_V4_1 */
+
+struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
+{
+	int err;
+	struct nfs_client *clp = nfs_alloc_client(cl_init);
+	if (IS_ERR(clp))
+		return clp;
+
+	err = nfs_get_cb_ident_idr(clp, cl_init->minorversion);
+	if (err)
+		goto error;
+
+	spin_lock_init(&clp->cl_lock);
+	INIT_DELAYED_WORK(&clp->cl_renewd, nfs4_renew_state);
+	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS client");
+	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
+	clp->cl_minorversion = cl_init->minorversion;
+	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
+	return clp;
+
+error:
+	kfree(clp);
+	return ERR_PTR(err);
+}
 
 /*
  * Destroy the NFS4 callback service
@@ -588,7 +600,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 
 		spin_unlock(&nn->nfs_client_lock);
 
-		new = nfs_alloc_client(cl_init);
+		new = cl_init->rpc_ops->alloc_client(cl_init);
 	} while (!IS_ERR(new));
 
 	dprintk("<-- nfs_get_client() Failed to find %s (%ld)\n",

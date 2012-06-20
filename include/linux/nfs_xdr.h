@@ -1353,6 +1353,7 @@ struct nfs_renamedata {
 struct nfs_access_entry;
 struct nfs_client;
 struct rpc_timeout;
+struct nfs_client_initdata;
 
 /*
  * RPC procedure vector for NFSv2/NFSv3 demuxing
@@ -1424,6 +1425,7 @@ struct nfs_rpc_ops {
 				struct iattr *iattr);
 	int (*have_delegation)(struct inode *, fmode_t);
 	int (*return_delegation)(struct inode *);
+	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);
 	struct nfs_client *
 		(*init_client) (struct nfs_client *, const struct rpc_timeout *,
 				const char *, rpc_authflavor_t);

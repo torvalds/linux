@@ -303,6 +303,8 @@ extern const u32 nfs4_fs_locations_bitmap[2];
 
 void nfs4_free_client(struct nfs_client *);
 
+struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *);
+
 /* nfs4renewd.c */
 extern void nfs4_schedule_state_renewal(struct nfs_client *);
 extern void nfs4_renewd_prepare_shutdown(struct nfs_server *);
