@@ -1671,6 +1671,52 @@ csum_err:
 }
 EXPORT_SYMBOL(tcp_v4_do_rcv);
 
+int tcp_v4_early_demux(struct sk_buff *skb)
+{
+	struct net *net = dev_net(skb->dev);
+	const struct iphdr *iph;
+	const struct tcphdr *th;
+	struct sock *sk;
+	int err;
+
+	err = -ENOENT;
+	if (skb->pkt_type != PACKET_HOST)
+		goto out_err;
+
+	if (!pskb_may_pull(skb, ip_hdrlen(skb) + sizeof(struct tcphdr)))
+		goto out_err;
+
+	iph = ip_hdr(skb);
+	th = (struct tcphdr *) ((char *)iph + ip_hdrlen(skb));
+
+	if (th->doff < sizeof(struct tcphdr) / 4)
+		goto out_err;
+
+	if (!pskb_may_pull(skb, ip_hdrlen(skb) + th->doff * 4))
+		goto out_err;
+
+	sk = __inet_lookup_established(net, &tcp_hashinfo,
+				       iph->saddr, th->source,
+				       iph->daddr, th->dest,
+				       skb->dev->ifindex);
+	if (sk) {
+		skb->sk = sk;
+		skb->destructor = sock_edemux;
+		if (sk->sk_state != TCP_TIME_WAIT) {
+			struct dst_entry *dst = sk->sk_rx_dst;
+			if (dst)
+				dst = dst_check(dst, 0);
+			if (dst) {
+				skb_dst_set_noref(skb, dst);
+				err = 0;
+			}
+		}
+	}
+
+out_err:
+	return err;
+}
+
 /*
  *	From tcp_input.c
  */

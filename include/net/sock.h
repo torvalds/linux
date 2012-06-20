@@ -319,6 +319,7 @@ struct sock {
 	unsigned long 		sk_flags;
 	struct dst_entry	*sk_dst_cache;
 	spinlock_t		sk_dst_lock;
+	struct dst_entry	*sk_rx_dst;
 	atomic_t		sk_wmem_alloc;
 	atomic_t		sk_omem_alloc;
 	int			sk_sndbuf;
@@ -1426,6 +1427,7 @@ extern struct sk_buff		*sock_rmalloc(struct sock *sk,
 					      gfp_t priority);
 extern void			sock_wfree(struct sk_buff *skb);
 extern void			sock_rfree(struct sk_buff *skb);
+extern void			sock_edemux(struct sk_buff *skb);
 
 extern int			sock_setsockopt(struct socket *sock, int level,
 						int op, char __user *optval,
