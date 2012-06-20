@@ -1156,7 +1156,7 @@ restart:
 	candp = NULL;
 	now = jiffies;
 
-	if (!rt_caching(dev_net(rt->dst.dev))) {
+	if (!rt_caching(dev_net(rt->dst.dev)) || (rt->dst.flags & DST_NOCACHE)) {
 		/*
 		 * If we're not caching, just tell the caller we
 		 * were successful and don't touch the route.  The
@@ -2581,6 +2581,9 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	}
 
 	rt_set_nexthop(rth, fl4, res, fi, type, 0);
+
+	if (fl4->flowi4_flags & FLOWI_FLAG_RT_NOCACHE)
+		rth->dst.flags |= DST_NOCACHE;
 
 	return rth;
 }

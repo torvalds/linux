@@ -251,7 +251,8 @@ extern int inet_csk_get_port(struct sock *sk, unsigned short snum);
 
 extern struct dst_entry* inet_csk_route_req(struct sock *sk,
 					    struct flowi4 *fl4,
-					    const struct request_sock *req);
+					    const struct request_sock *req,
+					    bool nocache);
 extern struct dst_entry* inet_csk_route_child_sock(struct sock *sk,
 						   struct sock *newsk,
 						   const struct request_sock *req);

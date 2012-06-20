@@ -504,7 +504,7 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 	struct dst_entry *dst;
 	struct flowi4 fl4;
 
-	dst = inet_csk_route_req(sk, &fl4, req);
+	dst = inet_csk_route_req(sk, &fl4, req, false);
 	if (dst == NULL)
 		goto out;
 
