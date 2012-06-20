@@ -174,7 +174,7 @@ struct platform_device sun4i_twi2_device = {
 	},
 };
 
-#ifdef CONFIG_DRM_MALI
+#if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 static struct platform_device sun4i_device_mali_drm = {
 	.name = "mali_drm",
 	.id   = -1,
@@ -190,7 +190,7 @@ static struct platform_device *sw_pdevs[] __initdata = {
 	&sun4i_twi0_device,
 	&sun4i_twi1_device,
 	&sun4i_twi2_device,
-#ifdef CONFIG_DRM_MALI
+#if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 	&sun4i_device_mali_drm,
 #endif
 
