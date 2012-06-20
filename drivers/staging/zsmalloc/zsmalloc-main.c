@@ -471,12 +471,6 @@ static struct page *find_get_zspage(struct size_class *class)
 }
 
 
-/*
- * If this becomes a separate module, register zs_init() with
- * module_init(), zs_exit with module_exit(), and remove zs_initialized
-*/
-static int zs_initialized;
-
 static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
 				void *pcpu)
 {
@@ -535,7 +529,7 @@ fail:
 
 struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
 {
-	int i, error, ovhd_size;
+	int i, ovhd_size;
 	struct zs_pool *pool;
 
 	if (!name)
@@ -562,27 +556,8 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
 
 	}
 
-	/*
-	 * If this becomes a separate module, register zs_init with
-	 * module_init, and remove this block
-	*/
-	if (!zs_initialized) {
-		error = zs_init();
-		if (error)
-			goto cleanup;
-		zs_initialized = 1;
-	}
-
 	pool->flags = flags;
 	pool->name = name;
-
-	error = 0; /* Success */
-
-cleanup:
-	if (error) {
-		zs_destroy_pool(pool);
-		pool = NULL;
-	}
 
 	return pool;
 }
@@ -799,3 +774,9 @@ u64 zs_get_total_size_bytes(struct zs_pool *pool)
 	return npages << PAGE_SHIFT;
 }
 EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
+
+module_init(zs_init);
+module_exit(zs_exit);
+
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
