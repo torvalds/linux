@@ -187,7 +187,8 @@ static int bnx2x_get_port_type(struct bnx2x *bp)
 	int port_type;
 	u32 phy_idx = bnx2x_get_cur_phy_idx(bp);
 	switch (bp->link_params.phy[phy_idx].media_type) {
-	case ETH_PHY_SFP_FIBER:
+	case ETH_PHY_SFPP_10G_FIBER:
+	case ETH_PHY_SFP_1G_FIBER:
 	case ETH_PHY_XFP_FIBER:
 	case ETH_PHY_KR:
 	case ETH_PHY_CX4:
@@ -220,6 +221,11 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		(bp->port.supported[cfg_idx ^ 1] &
 		 (SUPPORTED_TP | SUPPORTED_FIBRE));
 	cmd->advertising = bp->port.advertising[cfg_idx];
+	if (bp->link_params.phy[bnx2x_get_cur_phy_idx(bp)].media_type ==
+	    ETH_PHY_SFP_1G_FIBER) {
+		cmd->supported &= ~(SUPPORTED_10000baseT_Full);
+		cmd->advertising &= ~(ADVERTISED_10000baseT_Full);
+	}
 
 	if ((bp->state == BNX2X_STATE_OPEN) && (bp->link_vars.link_up)) {
 		if (!(bp->flags & MF_FUNC_DIS)) {
@@ -295,7 +301,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 advertising, cfg_idx, old_multi_phy_config, new_multi_phy_config;
-	u32 speed;
+	u32 speed, phy_idx;
 
 	if (IS_MF_SD(bp))
 		return 0;
@@ -550,9 +556,11 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				   "10G half not supported\n");
 				return -EINVAL;
 			}
-
+			phy_idx = bnx2x_get_cur_phy_idx(bp);
 			if (!(bp->port.supported[cfg_idx]
-			      & SUPPORTED_10000baseT_Full)) {
+			      & SUPPORTED_10000baseT_Full) ||
+			    (bp->link_params.phy[phy_idx].media_type ==
+			     ETH_PHY_SFP_1G_FIBER)) {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "10G full not supported\n");
 				return -EINVAL;

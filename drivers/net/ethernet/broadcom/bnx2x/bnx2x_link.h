@@ -168,14 +168,15 @@ struct bnx2x_phy {
 	u32 supported;
 
 	u32 media_type;
-#define	ETH_PHY_UNSPECIFIED 0x0
-#define	ETH_PHY_SFP_FIBER   0x1
-#define	ETH_PHY_XFP_FIBER   0x2
-#define	ETH_PHY_DA_TWINAX   0x3
-#define	ETH_PHY_BASE_T      0x4
-#define	ETH_PHY_KR          0xf0
-#define	ETH_PHY_CX4         0xf1
-#define	ETH_PHY_NOT_PRESENT 0xff
+#define	ETH_PHY_UNSPECIFIED	0x0
+#define	ETH_PHY_SFPP_10G_FIBER	0x1
+#define	ETH_PHY_XFP_FIBER		0x2
+#define	ETH_PHY_DA_TWINAX		0x3
+#define	ETH_PHY_BASE_T		0x4
+#define	ETH_PHY_SFP_1G_FIBER	0x5
+#define	ETH_PHY_KR		0xf0
+#define	ETH_PHY_CX4		0xf1
+#define	ETH_PHY_NOT_PRESENT	0xff
 
 	/* The address in which version is located*/
 	u32 ver_addr;

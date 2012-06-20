@@ -4373,6 +4373,23 @@ static void bnx2x_warpcore_config_runtime(struct bnx2x_phy *phy,
 	} /*params->rx_tx_asic_rst*/
 
 }
+static void bnx2x_warpcore_config_sfi(struct bnx2x_phy *phy,
+				      struct link_params *params)
+{
+	u16 lane = bnx2x_get_warpcore_lane(phy, params);
+	struct bnx2x *bp = params->bp;
+	bnx2x_warpcore_clear_regs(phy, params, lane);
+	if ((params->req_line_speed[LINK_CONFIG_IDX(INT_PHY)] ==
+	     SPEED_10000) &&
+	    (phy->media_type != ETH_PHY_SFP_1G_FIBER)) {
+		DP(NETIF_MSG_LINK, "Setting 10G SFI\n");
+		bnx2x_warpcore_set_10G_XFI(phy, params, 0);
+	} else {
+		DP(NETIF_MSG_LINK, "Setting 1G Fiber\n");
+		bnx2x_warpcore_set_sgmii_speed(phy, params, 1, 0);
+	}
+}
+
 static void bnx2x_warpcore_config_init(struct bnx2x_phy *phy,
 				       struct link_params *params,
 				       struct link_vars *vars)
@@ -4433,19 +4450,11 @@ static void bnx2x_warpcore_config_init(struct bnx2x_phy *phy,
 			break;
 
 		case PORT_HW_CFG_NET_SERDES_IF_SFI:
-
-			bnx2x_warpcore_clear_regs(phy, params, lane);
-			if (vars->line_speed == SPEED_10000) {
-				DP(NETIF_MSG_LINK, "Setting 10G SFI\n");
-				bnx2x_warpcore_set_10G_XFI(phy, params, 0);
-			} else if (vars->line_speed == SPEED_1000) {
-				DP(NETIF_MSG_LINK, "Setting 1G Fiber\n");
-				bnx2x_warpcore_set_sgmii_speed(
-						phy, params, 1, 0);
-			}
 			/* Issue Module detection */
 			if (bnx2x_is_sfp_module_plugged(phy, params))
 				bnx2x_sfp_module_detection(phy, params);
+
+			bnx2x_warpcore_config_sfi(phy, params);
 			break;
 
 		case PORT_HW_CFG_NET_SERDES_IF_DXGXS:
@@ -6354,7 +6363,9 @@ int bnx2x_test_link(struct link_params *params, struct link_vars *vars,
 		for (phy_index = EXT_PHY1; phy_index < params->num_phys;
 		      phy_index++) {
 			serdes_phy_type = ((params->phy[phy_index].media_type ==
-					    ETH_PHY_SFP_FIBER) ||
+					    ETH_PHY_SFPP_10G_FIBER) ||
+					   (params->phy[phy_index].media_type ==
+					    ETH_PHY_SFP_1G_FIBER) ||
 					   (params->phy[phy_index].media_type ==
 					    ETH_PHY_XFP_FIBER) ||
 					   (params->phy[phy_index].media_type ==
@@ -7891,7 +7902,7 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u32 sync_offset = 0, phy_idx, media_types;
-	u8 val, check_limiting_mode = 0;
+	u8 val[2], check_limiting_mode = 0;
 	*edc_mode = EDC_MODE_LIMITING;
 
 	phy->media_type = ETH_PHY_UNSPECIFIED;
@@ -7899,13 +7910,13 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 	if (bnx2x_read_sfp_module_eeprom(phy,
 					 params,
 					 SFP_EEPROM_CON_TYPE_ADDR,
-					 1,
-					 &val) != 0) {
+					 2,
+					 (u8 *)val) != 0) {
 		DP(NETIF_MSG_LINK, "Failed to read from SFP+ module EEPROM\n");
 		return -EINVAL;
 	}
 
-	switch (val) {
+	switch (val[0]) {
 	case SFP_EEPROM_CON_TYPE_VAL_COPPER:
 	{
 		u8 copper_module_type;
@@ -7943,13 +7954,29 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		break;
 	}
 	case SFP_EEPROM_CON_TYPE_VAL_LC:
-		phy->media_type = ETH_PHY_SFP_FIBER;
-		DP(NETIF_MSG_LINK, "Optic module detected\n");
 		check_limiting_mode = 1;
+		if ((val[1] & (SFP_EEPROM_COMP_CODE_SR_MASK |
+			       SFP_EEPROM_COMP_CODE_LR_MASK |
+			       SFP_EEPROM_COMP_CODE_LRM_MASK)) == 0) {
+			DP(NETIF_MSG_LINK, "1G Optic module detected\n");
+			phy->media_type = ETH_PHY_SFP_1G_FIBER;
+			phy->req_line_speed = SPEED_1000;
+		} else {
+			int idx, cfg_idx = 0;
+			DP(NETIF_MSG_LINK, "10G Optic module detected\n");
+			for (idx = INT_PHY; idx < MAX_PHYS; idx++) {
+				if (params->phy[idx].type == phy->type) {
+					cfg_idx = LINK_CONFIG_IDX(idx);
+					break;
+				}
+			}
+			phy->media_type = ETH_PHY_SFPP_10G_FIBER;
+			phy->req_line_speed = params->req_line_speed[cfg_idx];
+		}
 		break;
 	default:
 		DP(NETIF_MSG_LINK, "Unable to determine module type 0x%x !!!\n",
-			 val);
+			 val[0]);
 		return -EINVAL;
 	}
 	sync_offset = params->shmem_base +
@@ -8479,14 +8506,34 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 
 	/* Call the handling function in case module is detected */
 	if (gpio_val == 0) {
+		bnx2x_set_mdio_clk(bp, params->chip_id, params->port);
+		bnx2x_set_aer_mmd(params, phy);
+
 		bnx2x_power_sfp_module(params, phy, 1);
 		bnx2x_set_gpio_int(bp, gpio_num,
 				   MISC_REGISTERS_GPIO_INT_OUTPUT_CLR,
 				   gpio_port);
-		if (bnx2x_wait_for_sfp_module_initialized(phy, params) == 0)
+		if (bnx2x_wait_for_sfp_module_initialized(phy, params) == 0) {
 			bnx2x_sfp_module_detection(phy, params);
-		else
+			if (CHIP_IS_E3(bp)) {
+				u16 rx_tx_in_reset;
+				/* In case WC is out of reset, reconfigure the
+				 * link speed while taking into account 1G
+				 * module limitation.
+				 */
+				bnx2x_cl45_read(bp, phy,
+						MDIO_WC_DEVAD,
+						MDIO_WC_REG_DIGITAL5_MISC6,
+						&rx_tx_in_reset);
+				if (!rx_tx_in_reset) {
+					bnx2x_warpcore_reset_lane(bp, phy, 1);
+					bnx2x_warpcore_config_sfi(phy, params);
+					bnx2x_warpcore_reset_lane(bp, phy, 0);
+				}
+			}
+		} else {
 			DP(NETIF_MSG_LINK, "SFP+ module is not initialized\n");
+		}
 	} else {
 		u32 val = REG_RD(bp, params->shmem_base +
 				 offsetof(struct shmem_region, dev_info.
@@ -8938,6 +8985,63 @@ static void bnx2x_8727_hw_reset(struct bnx2x_phy *phy,
 		       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
 }
 
+static void bnx2x_8727_config_speed(struct bnx2x_phy *phy,
+				    struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	u16 tmp1, val;
+	/* Set option 1G speed */
+	if ((phy->req_line_speed == SPEED_1000) ||
+	    (phy->media_type == ETH_PHY_SFP_1G_FIBER)) {
+		DP(NETIF_MSG_LINK, "Setting 1G force\n");
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 0x40);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_REG_10G_CTRL2, 0xD);
+		bnx2x_cl45_read(bp, phy,
+				MDIO_PMA_DEVAD, MDIO_PMA_REG_10G_CTRL2, &tmp1);
+		DP(NETIF_MSG_LINK, "1.7 = 0x%x\n", tmp1);
+		/* Power down the XAUI until link is up in case of dual-media
+		 * and 1G
+		 */
+		if (DUAL_MEDIA(params)) {
+			bnx2x_cl45_read(bp, phy,
+					MDIO_PMA_DEVAD,
+					MDIO_PMA_REG_8727_PCS_GP, &val);
+			val |= (3<<10);
+			bnx2x_cl45_write(bp, phy,
+					 MDIO_PMA_DEVAD,
+					 MDIO_PMA_REG_8727_PCS_GP, val);
+		}
+	} else if ((phy->req_line_speed == SPEED_AUTO_NEG) &&
+		   ((phy->speed_cap_mask &
+		     PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) &&
+		   ((phy->speed_cap_mask &
+		      PORT_HW_CFG_SPEED_CAPABILITY_D0_10G) !=
+		   PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)) {
+
+		DP(NETIF_MSG_LINK, "Setting 1G clause37\n");
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL, 0);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_AN_DEVAD, MDIO_AN_REG_CL37_AN, 0x1300);
+	} else {
+		/* Since the 8727 has only single reset pin, need to set the 10G
+		 * registers although it is default
+		 */
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL,
+				 0x0020);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_AN_DEVAD, MDIO_AN_REG_CL37_AN, 0x0100);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 0x2040);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_REG_10G_CTRL2,
+				 0x0008);
+	}
+}
+
 static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 				  struct link_params *params,
 				  struct link_vars *vars)
@@ -9007,56 +9111,7 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXSTAT, &tmp1);
 
-	/* Set option 1G speed */
-	if (phy->req_line_speed == SPEED_1000) {
-		DP(NETIF_MSG_LINK, "Setting 1G force\n");
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 0x40);
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_10G_CTRL2, 0xD);
-		bnx2x_cl45_read(bp, phy,
-				MDIO_PMA_DEVAD, MDIO_PMA_REG_10G_CTRL2, &tmp1);
-		DP(NETIF_MSG_LINK, "1.7 = 0x%x\n", tmp1);
-		/* Power down the XAUI until link is up in case of dual-media
-		 * and 1G
-		 */
-		if (DUAL_MEDIA(params)) {
-			bnx2x_cl45_read(bp, phy,
-					MDIO_PMA_DEVAD,
-					MDIO_PMA_REG_8727_PCS_GP, &val);
-			val |= (3<<10);
-			bnx2x_cl45_write(bp, phy,
-					 MDIO_PMA_DEVAD,
-					 MDIO_PMA_REG_8727_PCS_GP, val);
-		}
-	} else if ((phy->req_line_speed == SPEED_AUTO_NEG) &&
-		   ((phy->speed_cap_mask &
-		     PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) &&
-		   ((phy->speed_cap_mask &
-		      PORT_HW_CFG_SPEED_CAPABILITY_D0_10G) !=
-		   PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)) {
-
-		DP(NETIF_MSG_LINK, "Setting 1G clause37\n");
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL, 0);
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_AN_DEVAD, MDIO_AN_REG_CL37_AN, 0x1300);
-	} else {
-		/* Since the 8727 has only single reset pin, need to set the 10G
-		 * registers although it is default
-		 */
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_AN_DEVAD, MDIO_AN_REG_8727_MISC_CTRL,
-				 0x0020);
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_AN_DEVAD, MDIO_AN_REG_CL37_AN, 0x0100);
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 0x2040);
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_10G_CTRL2,
-				 0x0008);
-	}
-
+	bnx2x_8727_config_speed(phy, params);
 	/* Set 2-wire transfer rate of SFP+ module EEPROM
 	 * to 100Khz since some DACs(direct attached cables) do
 	 * not work at 400Khz.
@@ -9183,6 +9238,9 @@ static void bnx2x_8727_handle_mod_abs(struct bnx2x_phy *phy,
 			bnx2x_sfp_module_detection(phy, params);
 		else
 			DP(NETIF_MSG_LINK, "SFP+ module is not initialized\n");
+
+		/* Reconfigure link speed based on module type limitations */
+		bnx2x_8727_config_speed(phy, params);
 	}
 
 	DP(NETIF_MSG_LINK, "8727 RX_ALARM_STATUS 0x%x\n",
@@ -11327,7 +11385,7 @@ static struct bnx2x_phy phy_8706 = {
 			   SUPPORTED_FIBRE |
 			   SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
-	.media_type	= ETH_PHY_SFP_FIBER,
+	.media_type	= ETH_PHY_SFPP_10G_FIBER,
 	.ver_addr	= 0,
 	.req_flow_ctrl	= 0,
 	.req_line_speed	= 0,
@@ -11666,7 +11724,7 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 					   SUPPORTED_FIBRE |
 					   SUPPORTED_Pause |
 					   SUPPORTED_Asym_Pause);
-			phy->media_type = ETH_PHY_SFP_FIBER;
+			phy->media_type = ETH_PHY_SFPP_10G_FIBER;
 			break;
 		case PORT_HW_CFG_NET_SERDES_IF_KR:
 			phy->media_type = ETH_PHY_KR;
