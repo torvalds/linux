@@ -1607,7 +1607,7 @@ static int patch_simple_hdmi(struct hda_codec *codec,
 	spec->num_cvts = 1;
 	spec->num_pins = 1;
 	spec->cvts[0].cvt_nid = cvt_nid;
-	spec->cvts[0].cvt_nid = pin_nid;
+	spec->pins[0].pin_nid = pin_nid;
 	spec->pcm_playback = simple_pcm_playback;
 
 	codec->patch_ops = simple_hdmi_patch_ops;
