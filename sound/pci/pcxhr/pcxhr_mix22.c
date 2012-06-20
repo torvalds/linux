@@ -53,6 +53,7 @@
 #define PCXHR_DSP_RESET_DSP	0x01
 #define PCXHR_DSP_RESET_MUTE	0x02
 #define PCXHR_DSP_RESET_CODEC	0x08
+#define PCXHR_DSP_RESET_SMPTE	0x10
 #define PCXHR_DSP_RESET_GPO_OFFSET	5
 #define PCXHR_DSP_RESET_GPO_MASK	0x60
 
@@ -527,6 +528,16 @@ int hr222_write_gpo(struct pcxhr_mgr *mgr, int value)
 	return 0;
 }
 
+int hr222_manage_timecode(struct pcxhr_mgr *mgr, int enable)
+{
+	if (enable)
+		mgr->dsp_reset |= PCXHR_DSP_RESET_SMPTE;
+	else
+		mgr->dsp_reset &= ~PCXHR_DSP_RESET_SMPTE;
+
+	PCXHR_OUTPB(mgr, PCXHR_DSP_RESET, mgr->dsp_reset);
+	return 0;
+}
 
 int hr222_update_analog_audio_level(struct snd_pcxhr *chip,
 				    int is_capture, int channel)

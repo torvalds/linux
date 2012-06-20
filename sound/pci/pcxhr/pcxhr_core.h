@@ -79,6 +79,8 @@ enum {
 	CMD_FORMAT_STREAM_IN,		/* cmd_len >= 4	stat_len = 0 */
 	CMD_STREAM_SAMPLE_COUNT,	/* cmd_len = 2	stat_len = (2 * nb_stream) */
 	CMD_AUDIO_LEVEL_ADJUST,		/* cmd_len = 3	stat_len = 0 */
+	CMD_GET_TIME_CODE,		/* cmd_len = 1  stat_len = 5 */
+	CMD_MANAGE_SIGNAL,		/* cmd_len = 1  stat_len = 0 */
 	CMD_LAST_INDEX
 };
 
@@ -116,7 +118,7 @@ int pcxhr_send_msg(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh);
 #define IO_NUM_REG_OUT_ANA_LEVEL	20
 #define IO_NUM_REG_IN_ANA_LEVEL		21
 
-
+#define REG_CONT_VALSMPTE		0x000800
 #define REG_CONT_UNMUTE_INPUTS		0x020000
 
 /* parameters used with register IO_NUM_REG_STATUS */
