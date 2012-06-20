@@ -141,7 +141,7 @@ static const char ab8500_version_str[][7] = {
 	[AB8500_VERSION_AB8540] = "AB8540",
 };
 
-static int ab8500_i2c_write(struct ab8500 *ab8500, u16 addr, u8 data)
+static int ab8500_prcmu_write(struct ab8500 *ab8500, u16 addr, u8 data)
 {
 	int ret;
 
@@ -151,7 +151,7 @@ static int ab8500_i2c_write(struct ab8500 *ab8500, u16 addr, u8 data)
 	return ret;
 }
 
-static int ab8500_i2c_write_masked(struct ab8500 *ab8500, u16 addr, u8 mask,
+static int ab8500_prcmu_write_masked(struct ab8500 *ab8500, u16 addr, u8 mask,
 	u8 data)
 {
 	int ret;
@@ -163,7 +163,7 @@ static int ab8500_i2c_write_masked(struct ab8500 *ab8500, u16 addr, u8 mask,
 	return ret;
 }
 
-static int ab8500_i2c_read(struct ab8500 *ab8500, u16 addr)
+static int ab8500_prcmu_read(struct ab8500 *ab8500, u16 addr)
 {
 	int ret;
 	u8 data;
@@ -1267,9 +1267,9 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 
 	ab8500->irq = resource->start;
 
-	ab8500->read = ab8500_i2c_read;
-	ab8500->write = ab8500_i2c_write;
-	ab8500->write_masked = ab8500_i2c_write_masked;
+	ab8500->read = ab8500_prcmu_read;
+	ab8500->write = ab8500_prcmu_write;
+	ab8500->write_masked = ab8500_prcmu_write_masked;
 
 	mutex_init(&ab8500->lock);
 	mutex_init(&ab8500->irq_lock);
