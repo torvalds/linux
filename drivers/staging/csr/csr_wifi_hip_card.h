@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -80,6 +80,15 @@ CsrResult CardWriteBulkData(card_t *card, card_signal_t *csptr, unifi_TrafficQue
  * CardClearFromHostDataSlot -
  */
 void CardClearFromHostDataSlot(card_t *card, const CsrInt16 aSlotNum);
+
+#ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL
+/*****************************************************************************
+ * CardClearFromHostDataSlotWithoutFreeingBulkData - Clear the data stot
+ * without freeing the bulk data
+ */
+
+void CardClearFromHostDataSlotWithoutFreeingBulkData(card_t *card, const CsrInt16 aSlotNum);
+#endif
 
 /*****************************************************************************
  * CardGetFreeFromHostDataSlots -

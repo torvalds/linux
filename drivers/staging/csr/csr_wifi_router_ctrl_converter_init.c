@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -50,9 +50,11 @@ static CsrMsgConvMsgEntry csrwifirouterctrl_conv_lut[] = {
     { CSR_WIFI_ROUTER_CTRL_CAPABILITIES_REQ, CsrWifiRouterCtrlCapabilitiesReqSizeof, CsrWifiRouterCtrlCapabilitiesReqSer, CsrWifiRouterCtrlCapabilitiesReqDes, CsrWifiRouterCtrlCapabilitiesReqSerFree },
     { CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_ENABLE_REQ, CsrWifiRouterCtrlBlockAckEnableReqSizeof, CsrWifiRouterCtrlBlockAckEnableReqSer, CsrWifiRouterCtrlBlockAckEnableReqDes, CsrWifiRouterCtrlBlockAckEnableReqSerFree },
     { CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_DISABLE_REQ, CsrWifiRouterCtrlBlockAckDisableReqSizeof, CsrWifiRouterCtrlBlockAckDisableReqSer, CsrWifiRouterCtrlBlockAckDisableReqDes, CsrWifiRouterCtrlBlockAckDisableReqSerFree },
-    { CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_REQ, CsrWifiRouterCtrlWapiMulticastReqSizeof, CsrWifiRouterCtrlWapiMulticastReqSer, CsrWifiRouterCtrlWapiMulticastReqDes, CsrWifiRouterCtrlWapiMulticastReqSerFree },
+    { CSR_WIFI_ROUTER_CTRL_WAPI_RX_PKT_REQ, CsrWifiRouterCtrlWapiRxPktReqSizeof, CsrWifiRouterCtrlWapiRxPktReqSer, CsrWifiRouterCtrlWapiRxPktReqDes, CsrWifiRouterCtrlWapiRxPktReqSerFree },
     { CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_FILTER_REQ, CsrWifiRouterCtrlWapiMulticastFilterReqSizeof, CsrWifiRouterCtrlWapiMulticastFilterReqSer, CsrWifiRouterCtrlWapiMulticastFilterReqDes, CsrWifiRouterCtrlWapiMulticastFilterReqSerFree },
     { CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_FILTER_REQ, CsrWifiRouterCtrlWapiUnicastFilterReqSizeof, CsrWifiRouterCtrlWapiUnicastFilterReqSer, CsrWifiRouterCtrlWapiUnicastFilterReqDes, CsrWifiRouterCtrlWapiUnicastFilterReqSerFree },
+    { CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_PKT_REQ, CsrWifiRouterCtrlWapiUnicastTxPktReqSizeof, CsrWifiRouterCtrlWapiUnicastTxPktReqSer, CsrWifiRouterCtrlWapiUnicastTxPktReqDes, CsrWifiRouterCtrlWapiUnicastTxPktReqSerFree },
+    { CSR_WIFI_ROUTER_CTRL_WAPI_FILTER_REQ, CsrWifiRouterCtrlWapiFilterReqSizeof, CsrWifiRouterCtrlWapiFilterReqSer, CsrWifiRouterCtrlWapiFilterReqDes, CsrWifiRouterCtrlWapiFilterReqSerFree },
     { CSR_WIFI_ROUTER_CTRL_HIP_IND, CsrWifiRouterCtrlHipIndSizeof, CsrWifiRouterCtrlHipIndSer, CsrWifiRouterCtrlHipIndDes, CsrWifiRouterCtrlHipIndSerFree },
     { CSR_WIFI_ROUTER_CTRL_MULTICAST_ADDRESS_IND, CsrWifiRouterCtrlMulticastAddressIndSizeof, CsrWifiRouterCtrlMulticastAddressIndSer, CsrWifiRouterCtrlMulticastAddressIndDes, CsrWifiRouterCtrlMulticastAddressIndSerFree },
     { CSR_WIFI_ROUTER_CTRL_PORT_CONFIGURE_CFM, CsrWifiRouterCtrlPortConfigureCfmSizeof, CsrWifiRouterCtrlPortConfigureCfmSer, CsrWifiRouterCtrlPortConfigureCfmDes, CsrWifiRouterCtrlPortConfigureCfmSerFree },
@@ -81,7 +83,9 @@ static CsrMsgConvMsgEntry csrwifirouterctrl_conv_lut[] = {
     { CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_DISABLE_CFM, CsrWifiRouterCtrlBlockAckDisableCfmSizeof, CsrWifiRouterCtrlBlockAckDisableCfmSer, CsrWifiRouterCtrlBlockAckDisableCfmDes, CsrWifiRouterCtrlBlockAckDisableCfmSerFree },
     { CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_ERROR_IND, CsrWifiRouterCtrlBlockAckErrorIndSizeof, CsrWifiRouterCtrlBlockAckErrorIndSer, CsrWifiRouterCtrlBlockAckErrorIndDes, CsrWifiRouterCtrlBlockAckErrorIndSerFree },
     { CSR_WIFI_ROUTER_CTRL_STA_INACTIVE_IND, CsrWifiRouterCtrlStaInactiveIndSizeof, CsrWifiRouterCtrlStaInactiveIndSer, CsrWifiRouterCtrlStaInactiveIndDes, CsrWifiRouterCtrlStaInactiveIndSerFree },
-    { CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_IND, CsrWifiRouterCtrlWapiMulticastIndSizeof, CsrWifiRouterCtrlWapiMulticastIndSer, CsrWifiRouterCtrlWapiMulticastIndDes, CsrWifiRouterCtrlWapiMulticastIndSerFree },
+    { CSR_WIFI_ROUTER_CTRL_WAPI_RX_MIC_CHECK_IND, CsrWifiRouterCtrlWapiRxMicCheckIndSizeof, CsrWifiRouterCtrlWapiRxMicCheckIndSer, CsrWifiRouterCtrlWapiRxMicCheckIndDes, CsrWifiRouterCtrlWapiRxMicCheckIndSerFree },
+    { CSR_WIFI_ROUTER_CTRL_MODE_SET_CFM, CsrWifiRouterCtrlModeSetCfmSizeof, CsrWifiRouterCtrlModeSetCfmSer, CsrWifiRouterCtrlModeSetCfmDes, CsrWifiRouterCtrlModeSetCfmSerFree },
+    { CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_ENCRYPT_IND, CsrWifiRouterCtrlWapiUnicastTxEncryptIndSizeof, CsrWifiRouterCtrlWapiUnicastTxEncryptIndSer, CsrWifiRouterCtrlWapiUnicastTxEncryptIndDes, CsrWifiRouterCtrlWapiUnicastTxEncryptIndSerFree },
 
     { 0, NULL, NULL, NULL, NULL },
 };
@@ -90,11 +94,11 @@ CsrMsgConvMsgEntry* CsrWifiRouterCtrlConverterLookup(CsrMsgConvMsgEntry *ce, Csr
 {
     if (msgType & CSR_PRIM_UPSTREAM)
     {
-        CsrUint16 index = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT;
-        if (index < (CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_COUNT + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT) &&
-            csrwifirouterctrl_conv_lut[index].msgType == msgType)
+        CsrUint16 idx = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT;
+        if (idx < (CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_COUNT + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT) &&
+            csrwifirouterctrl_conv_lut[idx].msgType == msgType)
         {
-            return &csrwifirouterctrl_conv_lut[index];
+            return &csrwifirouterctrl_conv_lut[idx];
         }
     }
     else

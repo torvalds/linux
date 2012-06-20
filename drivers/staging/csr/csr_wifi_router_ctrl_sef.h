@@ -47,8 +47,10 @@ extern "C" {
     extern void CsrWifiRouterCtrlBlockAckEnableReqHandler(void* drvpriv, CsrWifiFsmEvent* msg);
     extern void CsrWifiRouterCtrlBlockAckDisableReqHandler(void* drvpriv, CsrWifiFsmEvent* msg);
     extern void CsrWifiRouterCtrlWapiMulticastFilterReqHandler(void* drvpriv, CsrWifiFsmEvent* msg);
-    extern void CsrWifiRouterCtrlWapiMulticastReqHandler(void* drvpriv, CsrWifiFsmEvent* msg);
+    extern void CsrWifiRouterCtrlWapiRxPktReqHandler(void* drvpriv, CsrWifiFsmEvent* msg);
+    extern void CsrWifiRouterCtrlWapiUnicastTxPktReqHandler(void* drvpriv, CsrWifiFsmEvent* msg);
     extern void CsrWifiRouterCtrlWapiUnicastFilterReqHandler(void* drvpriv, CsrWifiFsmEvent* msg);
+    extern void CsrWifiRouterCtrlWapiFilterReqHandler(void* drvpriv, CsrWifiFsmEvent* msg);
 #ifdef __cplusplus
 }
 #endif

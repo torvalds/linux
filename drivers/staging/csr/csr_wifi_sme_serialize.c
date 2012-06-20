@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -1356,7 +1356,7 @@ CsrSize CsrWifiSmeSmeStaConfigSetReqSizeof(void *msg)
     bufferSize += 2; /* CsrUint16 primitive->interfaceTag */
     bufferSize += 1; /* CsrUint8 primitive->smeConfig.connectionQualityRssiChangeTrigger */
     bufferSize += 1; /* CsrUint8 primitive->smeConfig.connectionQualitySnrChangeTrigger */
-    bufferSize += 1; /* CsrUint8 primitive->smeConfig.wmmModeMask */
+    bufferSize += 1; /* CsrWifiSmeWmmModeMask primitive->smeConfig.wmmModeMask */
     bufferSize += 1; /* CsrWifiSmeRadioIF primitive->smeConfig.ifIndex */
     bufferSize += 1; /* CsrBool primitive->smeConfig.allowUnicastUseGroupCipher */
     bufferSize += 1; /* CsrBool primitive->smeConfig.enableOpportunisticKeyCaching */
@@ -1894,6 +1894,62 @@ void CsrWifiSmeWpsConfigurationReqSerFree(void *voidPrimitivePointer)
 {
     CsrWifiSmeWpsConfigurationReq *primitive = (CsrWifiSmeWpsConfigurationReq *) voidPrimitivePointer;
     CsrPmemFree(primitive->wpsConfig.secondaryDeviceType);
+    CsrPmemFree(primitive);
+}
+
+
+CsrSize CsrWifiSmeSetReqSizeof(void *msg)
+{
+    CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *) msg;
+    CsrSize bufferSize = 2;
+
+    /* Calculate the Size of the Serialised Data. Could be more efficient (Try 8) */
+    bufferSize += 4;                     /* CsrUint32 primitive->dataLength */
+    bufferSize += primitive->dataLength; /* CsrUint8 primitive->data */
+    return bufferSize;
+}
+
+
+CsrUint8* CsrWifiSmeSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg)
+{
+    CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *)msg;
+    *len = 0;
+    CsrUint16Ser(ptr, len, primitive->common.type);
+    CsrUint32Ser(ptr, len, (CsrUint32) primitive->dataLength);
+    if (primitive->dataLength)
+    {
+        CsrMemCpySer(ptr, len, (const void *) primitive->data, ((CsrUint16) (primitive->dataLength)));
+    }
+    return(ptr);
+}
+
+
+void* CsrWifiSmeSetReqDes(CsrUint8 *buffer, CsrSize length)
+{
+    CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeSetReq));
+    CsrSize offset;
+    offset = 0;
+
+    CsrUint16Des(&primitive->common.type, buffer, &offset);
+    CsrUint32Des((CsrUint32 *) &primitive->dataLength, buffer, &offset);
+    if (primitive->dataLength)
+    {
+        primitive->data = (CsrUint8 *)CsrPmemAlloc(primitive->dataLength);
+        CsrMemCpyDes(primitive->data, buffer, &offset, ((CsrUint16) (primitive->dataLength)));
+    }
+    else
+    {
+        primitive->data = NULL;
+    }
+
+    return primitive;
+}
+
+
+void CsrWifiSmeSetReqSerFree(void *voidPrimitivePointer)
+{
+    CsrWifiSmeSetReq *primitive = (CsrWifiSmeSetReq *) voidPrimitivePointer;
+    CsrPmemFree(primitive->data);
     CsrPmemFree(primitive);
 }
 
@@ -5085,7 +5141,7 @@ CsrSize CsrWifiSmeSmeStaConfigGetCfmSizeof(void *msg)
     bufferSize += 2; /* CsrResult primitive->status */
     bufferSize += 1; /* CsrUint8 primitive->smeConfig.connectionQualityRssiChangeTrigger */
     bufferSize += 1; /* CsrUint8 primitive->smeConfig.connectionQualitySnrChangeTrigger */
-    bufferSize += 1; /* CsrUint8 primitive->smeConfig.wmmModeMask */
+    bufferSize += 1; /* CsrWifiSmeWmmModeMask primitive->smeConfig.wmmModeMask */
     bufferSize += 1; /* CsrWifiSmeRadioIF primitive->smeConfig.ifIndex */
     bufferSize += 1; /* CsrBool primitive->smeConfig.allowUnicastUseGroupCipher */
     bufferSize += 1; /* CsrBool primitive->smeConfig.enableOpportunisticKeyCaching */

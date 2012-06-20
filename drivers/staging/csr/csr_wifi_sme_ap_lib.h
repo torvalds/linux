@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -63,6 +63,7 @@ void CsrWifiSmeApFreeDownstreamMessageContents(CsrUint16 eventClass, void *messa
 const CsrCharString* CsrWifiSmeApAccessTypeToString(CsrWifiSmeApAccessType value);
 const CsrCharString* CsrWifiSmeApAuthSupportToString(CsrWifiSmeApAuthSupport value);
 const CsrCharString* CsrWifiSmeApAuthTypeToString(CsrWifiSmeApAuthType value);
+const CsrCharString* CsrWifiSmeApDirectionToString(CsrWifiSmeApDirection value);
 const CsrCharString* CsrWifiSmeApPhySupportToString(CsrWifiSmeApPhySupport value);
 const CsrCharString* CsrWifiSmeApTypeToString(CsrWifiSmeApType value);
 
@@ -78,6 +79,134 @@ const CsrCharString* CsrWifiSmeApPrimTypeToString(CsrPrim msgType);
  *----------------------------------------------------------------------------*/
 extern const CsrCharString *CsrWifiSmeApUpstreamPrimNames[CSR_WIFI_SME_AP_PRIM_UPSTREAM_COUNT];
 extern const CsrCharString *CsrWifiSmeApDownstreamPrimNames[CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_COUNT];
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApActiveBaGetReqSend
+
+  DESCRIPTION
+    This primitive used to retrieve information related to the active block
+    ack sessions
+
+  PARAMETERS
+    queue        - Message Source Task Queue (Cfm's will be sent to this Queue)
+    interfaceTag -
+
+*******************************************************************************/
+#define CsrWifiSmeApActiveBaGetReqCreate(msg__, dst__, src__, interfaceTag__) \
+    msg__ = (CsrWifiSmeApActiveBaGetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeApActiveBaGetReq)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_AP_PRIM, CSR_WIFI_SME_AP_ACTIVE_BA_GET_REQ, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__);
+
+#define CsrWifiSmeApActiveBaGetReqSendTo(dst__, src__, interfaceTag__) \
+    { \
+        CsrWifiSmeApActiveBaGetReq *msg__; \
+        CsrWifiSmeApActiveBaGetReqCreate(msg__, dst__, src__, interfaceTag__); \
+        CsrMsgTransport(dst__, CSR_WIFI_SME_AP_PRIM, msg__); \
+    }
+
+#define CsrWifiSmeApActiveBaGetReqSend(src__, interfaceTag__) \
+    CsrWifiSmeApActiveBaGetReqSendTo(CSR_WIFI_SME_IFACEQUEUE, src__, interfaceTag__)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApActiveBaGetCfmSend
+
+  DESCRIPTION
+    This primitive carries the information related to the active ba sessions
+
+  PARAMETERS
+    queue            - Destination Task Queue
+    interfaceTag     -
+    status           - Reports the result of the request
+    activeBaCount    - Number of active block ack session
+    activeBaSessions - Points to a buffer containing an array of
+                       CsrWifiSmeApBaSession structures.
+
+*******************************************************************************/
+#define CsrWifiSmeApActiveBaGetCfmCreate(msg__, dst__, src__, interfaceTag__, status__, activeBaCount__, activeBaSessions__) \
+    msg__ = (CsrWifiSmeApActiveBaGetCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeApActiveBaGetCfm)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_AP_PRIM, CSR_WIFI_SME_AP_ACTIVE_BA_GET_CFM, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__); \
+    msg__->status = (status__); \
+    msg__->activeBaCount = (activeBaCount__); \
+    msg__->activeBaSessions = (activeBaSessions__);
+
+#define CsrWifiSmeApActiveBaGetCfmSendTo(dst__, src__, interfaceTag__, status__, activeBaCount__, activeBaSessions__) \
+    { \
+        CsrWifiSmeApActiveBaGetCfm *msg__; \
+        CsrWifiSmeApActiveBaGetCfmCreate(msg__, dst__, src__, interfaceTag__, status__, activeBaCount__, activeBaSessions__); \
+        CsrSchedMessagePut(dst__, CSR_WIFI_SME_AP_PRIM, msg__); \
+    }
+
+#define CsrWifiSmeApActiveBaGetCfmSend(dst__, interfaceTag__, status__, activeBaCount__, activeBaSessions__) \
+    CsrWifiSmeApActiveBaGetCfmSendTo(dst__, CSR_WIFI_SME_IFACEQUEUE, interfaceTag__, status__, activeBaCount__, activeBaSessions__)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApBaDeleteReqSend
+
+  DESCRIPTION
+    This primitive is used to delete an active block ack session
+
+  PARAMETERS
+    queue        - Message Source Task Queue (Cfm's will be sent to this Queue)
+    interfaceTag -
+    reason       -
+    baSession    - BA session to be deleted
+
+*******************************************************************************/
+#define CsrWifiSmeApBaDeleteReqCreate(msg__, dst__, src__, interfaceTag__, reason__, baSession__) \
+    msg__ = (CsrWifiSmeApBaDeleteReq *) CsrPmemAlloc(sizeof(CsrWifiSmeApBaDeleteReq)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_AP_PRIM, CSR_WIFI_SME_AP_BA_DELETE_REQ, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__); \
+    msg__->reason = (reason__); \
+    msg__->baSession = (baSession__);
+
+#define CsrWifiSmeApBaDeleteReqSendTo(dst__, src__, interfaceTag__, reason__, baSession__) \
+    { \
+        CsrWifiSmeApBaDeleteReq *msg__; \
+        CsrWifiSmeApBaDeleteReqCreate(msg__, dst__, src__, interfaceTag__, reason__, baSession__); \
+        CsrMsgTransport(dst__, CSR_WIFI_SME_AP_PRIM, msg__); \
+    }
+
+#define CsrWifiSmeApBaDeleteReqSend(src__, interfaceTag__, reason__, baSession__) \
+    CsrWifiSmeApBaDeleteReqSendTo(CSR_WIFI_SME_IFACEQUEUE, src__, interfaceTag__, reason__, baSession__)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApBaDeleteCfmSend
+
+  DESCRIPTION
+    This primitive confirms the BA is deleted
+
+  PARAMETERS
+    queue        - Destination Task Queue
+    interfaceTag -
+    status       - Reports the result of the request
+    baSession    - deleted BA session
+
+*******************************************************************************/
+#define CsrWifiSmeApBaDeleteCfmCreate(msg__, dst__, src__, interfaceTag__, status__, baSession__) \
+    msg__ = (CsrWifiSmeApBaDeleteCfm *) CsrPmemAlloc(sizeof(CsrWifiSmeApBaDeleteCfm)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_AP_PRIM, CSR_WIFI_SME_AP_BA_DELETE_CFM, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__); \
+    msg__->status = (status__); \
+    msg__->baSession = (baSession__);
+
+#define CsrWifiSmeApBaDeleteCfmSendTo(dst__, src__, interfaceTag__, status__, baSession__) \
+    { \
+        CsrWifiSmeApBaDeleteCfm *msg__; \
+        CsrWifiSmeApBaDeleteCfmCreate(msg__, dst__, src__, interfaceTag__, status__, baSession__); \
+        CsrSchedMessagePut(dst__, CSR_WIFI_SME_AP_PRIM, msg__); \
+    }
+
+#define CsrWifiSmeApBaDeleteCfmSend(dst__, interfaceTag__, status__, baSession__) \
+    CsrWifiSmeApBaDeleteCfmSendTo(dst__, CSR_WIFI_SME_IFACEQUEUE, interfaceTag__, status__, baSession__)
 
 /*******************************************************************************
 

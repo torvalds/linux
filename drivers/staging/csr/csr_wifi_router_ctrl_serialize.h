@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -105,10 +105,10 @@ extern CsrSize CsrWifiRouterCtrlTrafficConfigReqSizeof(void *msg);
 #define CsrWifiRouterCtrlWifiOffResSizeof CsrWifiEventCsrUint16Sizeof
 #define CsrWifiRouterCtrlWifiOffResSerFree CsrWifiRouterCtrlPfree
 
-#define CsrWifiRouterCtrlWifiOnReqSer CsrWifiEventCsrUint16Ser
-#define CsrWifiRouterCtrlWifiOnReqDes CsrWifiEventCsrUint16Des
-#define CsrWifiRouterCtrlWifiOnReqSizeof CsrWifiEventCsrUint16Sizeof
-#define CsrWifiRouterCtrlWifiOnReqSerFree CsrWifiRouterCtrlPfree
+extern CsrUint8* CsrWifiRouterCtrlWifiOnReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterCtrlWifiOnReqDes(CsrUint8 *buffer, CsrSize len);
+extern CsrSize CsrWifiRouterCtrlWifiOnReqSizeof(void *msg);
+extern void CsrWifiRouterCtrlWifiOnReqSerFree(void *msg);
 
 extern CsrUint8* CsrWifiRouterCtrlWifiOnResSer(CsrUint8 *ptr, CsrSize *len, void *msg);
 extern void* CsrWifiRouterCtrlWifiOnResDes(CsrUint8 *buffer, CsrSize len);
@@ -155,20 +155,30 @@ extern void* CsrWifiRouterCtrlBlockAckDisableReqDes(CsrUint8 *buffer, CsrSize le
 extern CsrSize CsrWifiRouterCtrlBlockAckDisableReqSizeof(void *msg);
 #define CsrWifiRouterCtrlBlockAckDisableReqSerFree CsrWifiRouterCtrlPfree
 
-extern CsrUint8* CsrWifiRouterCtrlWapiMulticastReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterCtrlWapiMulticastReqDes(CsrUint8 *buffer, CsrSize len);
-extern CsrSize CsrWifiRouterCtrlWapiMulticastReqSizeof(void *msg);
-extern void CsrWifiRouterCtrlWapiMulticastReqSerFree(void *msg);
+extern CsrUint8* CsrWifiRouterCtrlWapiRxPktReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterCtrlWapiRxPktReqDes(CsrUint8 *buffer, CsrSize len);
+extern CsrSize CsrWifiRouterCtrlWapiRxPktReqSizeof(void *msg);
+extern void CsrWifiRouterCtrlWapiRxPktReqSerFree(void *msg);
 
-#define CsrWifiRouterCtrlWapiMulticastFilterReqSer CsrWifiEventCsrUint8Ser
-#define CsrWifiRouterCtrlWapiMulticastFilterReqDes CsrWifiEventCsrUint8Des
-#define CsrWifiRouterCtrlWapiMulticastFilterReqSizeof CsrWifiEventCsrUint8Sizeof
+#define CsrWifiRouterCtrlWapiMulticastFilterReqSer CsrWifiEventCsrUint16CsrUint8Ser
+#define CsrWifiRouterCtrlWapiMulticastFilterReqDes CsrWifiEventCsrUint16CsrUint8Des
+#define CsrWifiRouterCtrlWapiMulticastFilterReqSizeof CsrWifiEventCsrUint16CsrUint8Sizeof
 #define CsrWifiRouterCtrlWapiMulticastFilterReqSerFree CsrWifiRouterCtrlPfree
 
-#define CsrWifiRouterCtrlWapiUnicastFilterReqSer CsrWifiEventCsrUint8Ser
-#define CsrWifiRouterCtrlWapiUnicastFilterReqDes CsrWifiEventCsrUint8Des
-#define CsrWifiRouterCtrlWapiUnicastFilterReqSizeof CsrWifiEventCsrUint8Sizeof
+#define CsrWifiRouterCtrlWapiUnicastFilterReqSer CsrWifiEventCsrUint16CsrUint8Ser
+#define CsrWifiRouterCtrlWapiUnicastFilterReqDes CsrWifiEventCsrUint16CsrUint8Des
+#define CsrWifiRouterCtrlWapiUnicastFilterReqSizeof CsrWifiEventCsrUint16CsrUint8Sizeof
 #define CsrWifiRouterCtrlWapiUnicastFilterReqSerFree CsrWifiRouterCtrlPfree
+
+extern CsrUint8* CsrWifiRouterCtrlWapiUnicastTxPktReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterCtrlWapiUnicastTxPktReqDes(CsrUint8 *buffer, CsrSize len);
+extern CsrSize CsrWifiRouterCtrlWapiUnicastTxPktReqSizeof(void *msg);
+extern void CsrWifiRouterCtrlWapiUnicastTxPktReqSerFree(void *msg);
+
+#define CsrWifiRouterCtrlWapiFilterReqSer CsrWifiEventCsrUint16CsrUint8Ser
+#define CsrWifiRouterCtrlWapiFilterReqDes CsrWifiEventCsrUint16CsrUint8Des
+#define CsrWifiRouterCtrlWapiFilterReqSizeof CsrWifiEventCsrUint16CsrUint8Sizeof
+#define CsrWifiRouterCtrlWapiFilterReqSerFree CsrWifiRouterCtrlPfree
 
 extern CsrUint8* CsrWifiRouterCtrlHipIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
 extern void* CsrWifiRouterCtrlHipIndDes(CsrUint8 *buffer, CsrSize len);
@@ -310,10 +320,20 @@ extern void* CsrWifiRouterCtrlStaInactiveIndDes(CsrUint8 *buffer, CsrSize len);
 extern CsrSize CsrWifiRouterCtrlStaInactiveIndSizeof(void *msg);
 #define CsrWifiRouterCtrlStaInactiveIndSerFree CsrWifiRouterCtrlPfree
 
-extern CsrUint8* CsrWifiRouterCtrlWapiMulticastIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
-extern void* CsrWifiRouterCtrlWapiMulticastIndDes(CsrUint8 *buffer, CsrSize len);
-extern CsrSize CsrWifiRouterCtrlWapiMulticastIndSizeof(void *msg);
-extern void CsrWifiRouterCtrlWapiMulticastIndSerFree(void *msg);
+extern CsrUint8* CsrWifiRouterCtrlWapiRxMicCheckIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterCtrlWapiRxMicCheckIndDes(CsrUint8 *buffer, CsrSize len);
+extern CsrSize CsrWifiRouterCtrlWapiRxMicCheckIndSizeof(void *msg);
+extern void CsrWifiRouterCtrlWapiRxMicCheckIndSerFree(void *msg);
+
+extern CsrUint8* CsrWifiRouterCtrlModeSetCfmSer(CsrUint8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterCtrlModeSetCfmDes(CsrUint8 *buffer, CsrSize len);
+extern CsrSize CsrWifiRouterCtrlModeSetCfmSizeof(void *msg);
+#define CsrWifiRouterCtrlModeSetCfmSerFree CsrWifiRouterCtrlPfree
+
+extern CsrUint8* CsrWifiRouterCtrlWapiUnicastTxEncryptIndSer(CsrUint8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiRouterCtrlWapiUnicastTxEncryptIndDes(CsrUint8 *buffer, CsrSize len);
+extern CsrSize CsrWifiRouterCtrlWapiUnicastTxEncryptIndSizeof(void *msg);
+extern void CsrWifiRouterCtrlWapiUnicastTxEncryptIndSerFree(void *msg);
 
 
 #ifdef __cplusplus

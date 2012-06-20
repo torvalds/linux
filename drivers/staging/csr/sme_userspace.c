@@ -101,7 +101,6 @@ uf_sme_init(unifi_priv_t *priv)
         INIT_LIST_HEAD(&interfacePriv->genericMgtFrames);
         INIT_LIST_HEAD(&interfacePriv->genericMulticastOrBroadCastMgtFrames);
         INIT_LIST_HEAD(&interfacePriv->genericMulticastOrBroadCastFrames);
-        INIT_LIST_HEAD(&interfacePriv->directedMaPktReq);
 
         for(j = 0; j < UNIFI_MAX_CONNECTIONS; j++) {
             interfacePriv->staInfo[j] = NULL;
@@ -139,7 +138,7 @@ uf_sme_deinit(unifi_priv_t *priv)
 
     /* Remove all the Peer database, before going down */
     for (i = 0; i < CSR_WIFI_NUM_INTERFACES; i++) {
-        spin_lock(&priv->ba_lock);
+        down(&priv->ba_mutex);
         for(ba_session_idx=0; ba_session_idx < MAX_SUPPORTED_BA_SESSIONS_RX; ba_session_idx++){
             ba_session_rx = priv->interfacePriv[i]->ba_session_rx[ba_session_idx];
             if(ba_session_rx) {
@@ -161,7 +160,7 @@ uf_sme_deinit(unifi_priv_t *priv)
             }
         }
 
-        spin_unlock(&priv->ba_lock);
+        up(&priv->ba_mutex);
         interfacePriv = priv->interfacePriv[i];
         if(interfacePriv){
             for(j = 0; j < UNIFI_MAX_CONNECTIONS; j++) {

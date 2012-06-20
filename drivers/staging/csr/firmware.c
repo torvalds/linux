@@ -296,7 +296,18 @@ uf_run_unifihelper(unifi_priv_t *priv)
 #endif
 } /* uf_run_unifihelper() */
 
+#ifdef CSR_WIFI_SPLIT_PATCH
+static CsrBool is_ap_mode(unifi_priv_t *priv)
+{
+    if (priv == NULL || priv->interfacePriv[0] == NULL)
+    {
+        return FALSE;
+    }
 
+    /* Test for mode requiring AP patch */
+    return(CSR_WIFI_HIP_IS_AP_FW(priv->interfacePriv[0]->interfaceMode));
+}
+#endif
 
 /*
  * ---------------------------------------------------------------------------
@@ -334,8 +345,13 @@ int uf_request_firmware_files(unifi_priv_t *priv, int is_fw)
     if (is_fw == UNIFI_FW_STA) {
         /* Free kernel buffer and reload */
         uf_release_firmware(priv, &priv->fw_sta);
+#ifdef CSR_WIFI_SPLIT_PATCH
         scnprintf(fw_name, UNIFI_MAX_FW_PATH_LEN, "unifi-sdio-%d/%s",
-                  postfix, "sta.xbv");
+                  postfix, (is_ap_mode(priv) ? "ap.xbv" : "staonly.xbv") );
+#else
+        scnprintf(fw_name, UNIFI_MAX_FW_PATH_LEN, "unifi-sdio-%d/%s",
+                  postfix, "sta.xbv" );
+#endif
         r = request_firmware(&fw_entry, fw_name, priv->unifi_device);
         if (r == 0) {
             priv->fw_sta.dl_data = fw_entry->data;

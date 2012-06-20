@@ -180,8 +180,9 @@ int unifi_putest_gp_read16(unifi_priv_t *priv, unsigned char *arg)
                     "unifi_putest_gp_read16: Failed to get the params\n");
         return -EFAULT;
     }
-
+    CsrSdioClaim(priv->sdio);
     csrResult = unifi_card_read16(priv->card, gp_r16_params.addr, &gp_r16_params.data);
+    CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv,
                     "unifi_putest_gp_read16: unifi_card_read16() GP=0x%x failed (csrResult=0x%x)\n", gp_r16_params.addr, csrResult);
@@ -240,8 +241,9 @@ int unifi_putest_gp_write16(unifi_priv_t *priv, unsigned char *arg)
     }
 
     unifi_trace(priv, UDBG2, "gp_w16: GP=0x%08x, data=0x%04x\n", gp_w16_params.addr, gp_w16_params.data);
-
+    CsrSdioClaim(priv->sdio);
     csrResult = unifi_card_write16(priv->card, gp_w16_params.addr, gp_w16_params.data);
+    CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv,
                     "unifi_putest_gp_write16: unifi_card_write16() GP=%x failed (csrResult=0x%x)\n", gp_w16_params.addr, csrResult);
@@ -265,7 +267,7 @@ int unifi_putest_set_sdio_clock(unifi_priv_t *priv, unsigned char *arg)
     unifi_trace(priv, UDBG2, "set sdio clock: %d KHz\n", sdio_clock_speed);
 
     CsrSdioClaim(priv->sdio);
-    csrResult = CsrSdioMaxBusClockFrequencySet(priv->sdio, sdio_clock_speed);
+    csrResult = CsrSdioMaxBusClockFrequencySet(priv->sdio, sdio_clock_speed * 1000);
     CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv,
@@ -304,7 +306,9 @@ int unifi_putest_start(unifi_priv_t *priv, unsigned char *arg)
 
     /* Application may have stopped the XAPs, but they are needed for reset */
     if (already_in_test) {
+        CsrSdioClaim(priv->sdio);
         csrResult = unifi_start_processors(priv->card);
+        CsrSdioRelease(priv->sdio);
         if (csrResult != CSR_RESULT_SUCCESS) {
             unifi_error(priv, "Failed to start XAPs. Hard reset required.\n");
         }
@@ -317,8 +321,9 @@ int unifi_putest_start(unifi_priv_t *priv, unsigned char *arg)
             unifi_error(priv, "CsrSdioPowerOn csrResult = %d\n", csrResult);
         }
     }
-
+    CsrSdioClaim(priv->sdio);
     csrResult = unifi_init(priv->card);
+    CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv,
                     "unifi_putest_start: failed to init UniFi\n");
@@ -335,7 +340,9 @@ int unifi_putest_stop(unifi_priv_t *priv, unsigned char *arg)
     CsrResult csrResult;
 
     /* Application may have stopped the XAPs, but they are needed for reset */
+    CsrSdioClaim(priv->sdio);
     csrResult = unifi_start_processors(priv->card);
+    CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv, "Failed to start XAPs. Hard reset required.\n");
     }
@@ -428,7 +435,9 @@ int unifi_putest_dl_fw(unifi_priv_t *priv, unsigned char *arg)
     }
 
     /* Application may have stopped the XAPs, but they are needed for reset */
+    CsrSdioClaim(priv->sdio);
     csrResult = unifi_start_processors(priv->card);
+    CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv, "Failed to start XAPs. Hard reset required.\n");
     }
@@ -436,7 +445,9 @@ int unifi_putest_dl_fw(unifi_priv_t *priv, unsigned char *arg)
     /* Download the f/w. On UF6xxx this will cause the f/w file to convert
      * into patch format and download via the ROM boot loader
      */
+    CsrSdioClaim(priv->sdio);
     csrResult = unifi_download(priv->card, 0x0c00);
+    CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv,
                     "unifi_putest_dl_fw: failed to download the f/w\n");
@@ -504,7 +515,9 @@ int unifi_putest_dl_fw_buff(unifi_priv_t *priv, unsigned char *arg)
     priv->fw_sta.dl_len = fw_length;
 
     /* Application may have stopped the XAPs, but they are needed for reset */
+    CsrSdioClaim(priv->sdio);
     csrResult = unifi_start_processors(priv->card);
+    CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv, "Failed to start XAPs. Hard reset required.\n");
     }
@@ -512,7 +525,9 @@ int unifi_putest_dl_fw_buff(unifi_priv_t *priv, unsigned char *arg)
     /* Download the f/w. On UF6xxx this will cause the f/w file to convert
      * into patch format and download via the ROM boot loader
      */
+    CsrSdioClaim(priv->sdio);
     csrResult = unifi_download(priv->card, 0x0c00);
+    CsrSdioRelease(priv->sdio);
     if (csrResult != CSR_RESULT_SUCCESS) {
         unifi_error(priv,
                     "unifi_putest_dl_fw_buff: failed to download the f/w\n");
@@ -581,7 +596,9 @@ int unifi_putest_coredump_prepare(unifi_priv_t *priv, unsigned char *arg)
             }
 
             /* Card software reset */
+            CsrSdioClaim(priv->sdio);
             r = unifi_card_hard_reset(priv->card);
+            CsrSdioRelease(priv->sdio);
             if (r != CSR_RESULT_SUCCESS) {
                 unifi_error(priv, "unifi_card_hard_reset() failed %d\n", r);
             }
@@ -599,7 +616,9 @@ int unifi_putest_coredump_prepare(unifi_priv_t *priv, unsigned char *arg)
     /* Stop the XAPs for coredump. The PUTEST_STOP must be called, e.g. at
      * Raw SDIO deinit, to resume them.
      */
+    CsrSdioClaim(priv->sdio);
     r = unifi_card_stop_processor(priv->card, UNIFI_PROC_BOTH);
+    CsrSdioRelease(priv->sdio);
     if (r != CSR_RESULT_SUCCESS) {
         unifi_error(priv, "Failed to stop processors\n");
     }
@@ -646,7 +665,9 @@ int unifi_putest_cmd52_block_read(unifi_priv_t *priv, unsigned char *arg)
         return -ENOMEM;
     }
 
+    CsrSdioClaim(priv->sdio);
     r = unifi_card_readn(priv->card, block_cmd52.addr, block_local_buffer, block_cmd52.length);
+    CsrSdioRelease(priv->sdio);
     if (r != CSR_RESULT_SUCCESS) {
         unifi_error(priv, "cmd52r_block: unifi_readn failed\n");
         return -EIO;

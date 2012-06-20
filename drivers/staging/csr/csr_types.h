@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <stdarg.h>
+#include <string.h>
 #endif
 
 #ifdef __cplusplus

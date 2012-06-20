@@ -221,6 +221,7 @@ void CsrUInt32ToHex(CsrUint32 number, CsrCharString *str)
 /*------------------------------------------------------------------*/
 /*  String */
 /*------------------------------------------------------------------*/
+#ifndef CSR_USE_STDC_LIB
 void *CsrMemCpy(void *dest, const void *src, CsrSize count)
 {
     return memcpy(dest, src, count);
@@ -257,7 +258,9 @@ void *CsrMemDup(const void *buf1, CsrSize count)
 
     return buf2;
 }
+#endif
 
+#ifndef CSR_USE_STDC_LIB
 CsrCharString *CsrStrCpy(CsrCharString *dest, const CsrCharString *src)
 {
     return strcpy(dest, src);
@@ -303,6 +306,7 @@ CsrCharString *CsrStrChr(const CsrCharString *string, CsrCharString c)
 {
     return strchr(string, c);
 }
+#endif
 
 CsrInt32 CsrVsnprintf(CsrCharString *string, CsrSize count, const CsrCharString *format, va_list args)
 {

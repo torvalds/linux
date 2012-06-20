@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -579,8 +579,8 @@ static CsrUint32 write_uint16(void *buf, const CsrUint32 offset, const CsrUint16
 
 static CsrUint32 write_uint32(void *buf, const CsrUint32 offset, const CsrUint32 val)
 {
-    write_uint16(buf, offset + 0, (CsrUint16)(val & 0xffff));
-    write_uint16(buf, offset + 2, (CsrUint16)(val >> 16));
+    (void)write_uint16(buf, offset + 0, (CsrUint16)(val & 0xffff));
+    (void)write_uint16(buf, offset + 2, (CsrUint16)(val >> 16));
     return sizeof(CsrUint32);
 }
 
@@ -1055,11 +1055,11 @@ void* xbv_to_patch(card_t *card, fwreadfn_t readfn,
     patch_offs += write_reset_ptdl(patch_buf, patch_offs, fwinfo, fw_id);
 
     /* Now the length is known, update the LIST.length */
-    write_uint32(patch_buf, list_len_offs,
-                 (patch_offs - ptdl_start_offs) + PTCH_LIST_SIZE);
+    (void)write_uint32(patch_buf, list_len_offs,
+                       (patch_offs - ptdl_start_offs) + PTCH_LIST_SIZE);
 
     /* Re write XBV headers just to fill in the correct file size */
-    write_xbv_header(patch_buf, 0, (patch_offs - payload_offs));
+    (void)write_xbv_header(patch_buf, 0, (patch_offs - payload_offs));
 
     unifi_trace(card->ospriv, UDBG1, "XBV:PTCH size %u, fw_id %u\n",
                 patch_offs, fw_id);

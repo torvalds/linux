@@ -29,8 +29,10 @@
         }                                                   \
     } while (0)
 
-/* Workaround for the wpa_supplicant hanging issue */
+/* Workaround for the wpa_supplicant hanging issue - disabled on Android */
+#ifndef ANDROID_BUILD
 #define CSR_WIFI_WEXT_HANG_WORKAROUND
+#endif
 
 #ifdef CSR_WIFI_WEXT_HANG_WORKAROUND
 # define UF_RTNL_LOCK()    rtnl_lock()

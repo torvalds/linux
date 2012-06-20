@@ -47,6 +47,12 @@ void unifi_suspend(void *ospriv)
     unifi_priv_t *priv = ospriv;
     int interfaceTag=0;
 
+    /* For powered suspend, tell the resume's wifi_on() not to reinit UniFi */
+    priv->wol_suspend = (enable_wol == UNIFI_WOL_OFF) ? FALSE : TRUE;
+
+    unifi_trace(priv, UDBG1, "unifi_suspend: wol_suspend %d, enable_wol %d",
+                priv->wol_suspend, enable_wol );
+
     /* Stop network traffic. */
     /* need to stop all the netdevices*/
     for( interfaceTag=0;interfaceTag<CSR_WIFI_NUM_INTERFACES;interfaceTag++)
@@ -54,11 +60,20 @@ void unifi_suspend(void *ospriv)
         netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
         if (interfacePriv->netdev_registered == 1)
         {
-            netif_carrier_off(priv->netdev[interfaceTag]);
+            if( priv->wol_suspend ) {
+                unifi_trace(priv, UDBG1, "unifi_suspend: Don't netif_carrier_off");
+            } else {
+                unifi_trace(priv, UDBG1, "unifi_suspend: netif_carrier_off");
+                netif_carrier_off(priv->netdev[interfaceTag]);
+            }
             UF_NETIF_TX_STOP_ALL_QUEUES(priv->netdev[interfaceTag]);
         }
     }
+
+    unifi_trace(priv, UDBG1, "unifi_suspend: suspend SME");
+
     sme_sys_suspend(priv);
+
 } /* unifi_suspend() */
 
 
@@ -76,11 +91,43 @@ void unifi_suspend(void *ospriv)
 void unifi_resume(void *ospriv)
 {
     unifi_priv_t *priv = ospriv;
+    int interfaceTag=0;
     int r;
+    int wol = priv->wol_suspend;
 
+    unifi_trace(priv, UDBG1, "unifi_resume: resume SME, enable_wol=%d", enable_wol);
+
+    /* The resume causes wifi-on which will re-enable the BH and reinstall the ISR */
     r = sme_sys_resume(priv);
     if (r) {
         unifi_error(priv, "Failed to resume UniFi\n");
+    }
+
+    /* Resume the network interfaces. For the cold resume case, this will
+     * happen upon reconnection.
+     */
+    if (wol) {
+        unifi_trace(priv, UDBG1, "unifi_resume: try to enable carrier");
+
+        /* need to start all the netdevices*/
+        for( interfaceTag=0;interfaceTag<CSR_WIFI_NUM_INTERFACES;interfaceTag++) {
+            netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
+
+            unifi_trace(priv, UDBG1, "unifi_resume: interfaceTag %d netdev_registered %d mode %d\n",
+                   interfaceTag, interfacePriv->netdev_registered, interfacePriv->interfaceMode);
+
+            if (interfacePriv->netdev_registered == 1)
+            {
+                netif_carrier_on(priv->netdev[interfaceTag]);
+                UF_NETIF_TX_START_ALL_QUEUES(priv->netdev[interfaceTag]);
+            }
+        }
+
+        /* Kick the BH thread (with reason=host) to poll for data that may have
+         * arrived during a powered suspend. This caters for the case where the SME
+         * doesn't interact with the chip (e.g install autonomous scans) during resume.
+         */
+        unifi_send_signal(priv->card, NULL, 0, NULL);
     }
 
 } /* unifi_resume() */

@@ -32,22 +32,23 @@
 static void _update_buffered_pkt_params_after_alignment(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
                                                         tx_buffered_packets_t* buffered_pkt)
 {
-
     struct sk_buff *skb ;
     CsrUint32 align_offset;
 
     if (priv == NULL || bulkdata == NULL || buffered_pkt == NULL){
         return;
     }
+
     skb = (struct sk_buff*)bulkdata->d[0].os_net_buf_ptr;
     align_offset = (CsrUint32)(long)(bulkdata->d[0].os_data_ptr) & (CSR_WIFI_ALIGN_BYTES-1);
     if(align_offset){
         skb_pull(skb,align_offset);
     }
-    buffered_pkt->bulkdata.os_data_ptr = skb->data;
-    buffered_pkt->bulkdata.data_length = skb->len;
 
-
+    buffered_pkt->bulkdata.os_data_ptr = bulkdata->d[0].os_data_ptr;
+    buffered_pkt->bulkdata.data_length = bulkdata->d[0].data_length;
+    buffered_pkt->bulkdata.os_net_buf_ptr = bulkdata->d[0].os_net_buf_ptr;
+    buffered_pkt->bulkdata.net_buf_length = bulkdata->d[0].net_buf_length;
 }
 #endif
 
@@ -122,7 +123,7 @@ unifi_frame_ma_packet_req(unifi_priv_t *priv, CSR_PRIORITY priority,
 #ifdef CSR_SUPPORT_SME
 
 #define TRANSMISSION_CONTROL_TRIGGER_MASK 0x0001
-#define TRANSMISSION_CONTROL_ESOP_MASK 0x0002
+#define TRANSMISSION_CONTROL_EOSP_MASK 0x0002
 
 static
 int frame_and_send_queued_pdu(unifi_priv_t* priv,tx_buffered_packets_t* buffered_pkt,
@@ -167,34 +168,27 @@ int frame_and_send_queued_pdu(unifi_priv_t* priv,tx_buffered_packets_t* buffered
             case IEEE802_11_FC_TYPE_QOS_DATA & IEEE80211_FC_SUBTYPE_MASK:
             case IEEE802_11_FC_TYPE_QOS_NULL & IEEE80211_FC_SUBTYPE_MASK:
                 /* If both are set then the Address4 exists (only for AP) */
-                if (fromDs && toDs)
-                {
+                if (fromDs && toDs) {
                     /* 6 is the size of Address4 field */
                     macHeaderLengthInBytes += (QOS_CONTROL_HEADER_SIZE + 6);
-                }
-                else
-                {
+                } else {
                     macHeaderLengthInBytes += QOS_CONTROL_HEADER_SIZE;
                 }
 
                 /* If order bit set then HT control field is the part of MAC header */
                 if (*fc & cpu_to_le16(IEEE80211_FC_ORDER_MASK)) {
                     macHeaderLengthInBytes += HT_CONTROL_HEADER_SIZE;
+                    qc = (CsrUint8*)(buffered_pkt->bulkdata.os_data_ptr + (macHeaderLengthInBytes-6));
+                } else {
+                    qc = (CsrUint8*)(buffered_pkt->bulkdata.os_data_ptr + (macHeaderLengthInBytes-2));
                 }
+                *qc = eosp ? *qc | (1 << 4) : *qc & (~(1 << 4));
                 break;
             default:
                 if (fromDs && toDs)
                     macHeaderLengthInBytes += 6;
-             break;
         }
 
-        if (*fc & cpu_to_le16(IEEE80211_FC_ORDER_MASK)) {
-            qc = (CsrUint8*)(buffered_pkt->bulkdata.os_data_ptr + (macHeaderLengthInBytes-6));
-        } else {
-            qc = (CsrUint8*)(buffered_pkt->bulkdata.os_data_ptr + (macHeaderLengthInBytes-2));
-        }
-
-        *qc = eosp ? *qc | (1 << 4) : *qc & (~(1 << 4));
     }
     result = ul_send_signal_unpacked(priv, &signal, &bulkdata);
     if(result){
@@ -254,7 +248,7 @@ void set_eosp_transmit_ctrl(unifi_priv_t *priv, struct list_head *txList)
     spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
     list_for_each_prev_safe(listHead, placeHolder, txList) {
         tx_q_item = list_entry(listHead, tx_buffered_packets_t, q);
-        tx_q_item->transmissionControl |= TRANSMISSION_CONTROL_ESOP_MASK;
+        tx_q_item->transmissionControl |= TRANSMISSION_CONTROL_EOSP_MASK;
         tx_q_item->transmissionControl = (tx_q_item->transmissionControl & ~(CSR_NO_CONFIRM_REQUIRED));
         unifi_trace(priv, UDBG1,
                 "set_eosp_transmit_ctrl Transmission Control = 0x%x hostTag = 0x%x \n",tx_q_item->transmissionControl,tx_q_item->hostTag);
@@ -275,6 +269,8 @@ void send_vif_availibility_rsp(unifi_priv_t *priv,CSR_VIF_IDENTIFIER vif,CSR_RES
     bulk_data_param_t *bulkdata = NULL;
     int r;
 
+    unifi_trace(priv, UDBG3, "send_vif_availibility_rsp : invoked with resultCode = %d \n", resultCode);
+
     memset(&signal,0,sizeof(CSR_SIGNAL));
     rsp = &signal.u.MaVifAvailabilityResponse;
     rsp->VirtualInterfaceIdentifier = vif;
@@ -287,6 +283,9 @@ void send_vif_availibility_rsp(unifi_priv_t *priv,CSR_VIF_IDENTIFIER vif,CSR_RES
     r = ul_send_signal_unpacked(priv, &signal, bulkdata);
     if(r) {
         unifi_error(priv,"Availibility response sending failed %x status %d\n",vif,r);
+    }
+    else {
+        unifi_trace(priv, UDBG3, "send_vif_availibility_rsp : status = %d \n", r);
     }
 }
 #endif
@@ -354,14 +353,14 @@ void verify_and_accomodate_tx_packet(unifi_priv_t *priv)
         list_for_each_safe(listHead, placeHolder, &interfacePriv->genericMulticastOrBroadCastFrames) {
             tx_q_item = list_entry(listHead, tx_buffered_packets_t, q);
             if(eospFramedeleted){
-                tx_q_item->transmissionControl |= TRANSMISSION_CONTROL_ESOP_MASK;
+                tx_q_item->transmissionControl |= TRANSMISSION_CONTROL_EOSP_MASK;
                 tx_q_item->transmissionControl = (tx_q_item->transmissionControl & ~(CSR_NO_CONFIRM_REQUIRED));
                 unifi_trace(priv, UDBG1,"updating eosp for next packet hostTag:= 0x%x ",tx_q_item->hostTag);
                 eospFramedeleted =0;
                 break;
             }
 
-            if(tx_q_item->transmissionControl & TRANSMISSION_CONTROL_ESOP_MASK ){
+            if(tx_q_item->transmissionControl & TRANSMISSION_CONTROL_EOSP_MASK ){
                eospFramedeleted = 1;
             }
             unifi_trace(priv,UDBG1, "freeing of multicast packets ToC = 0x%x hostTag = 0x%x \n",tx_q_item->transmissionControl,tx_q_item->hostTag);
@@ -445,66 +444,162 @@ CsrResult enque_tx_data_pdu(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
     unifi_trace(priv, UDBG5, "leaving enque_tx_data_pdu\n");
     return CSR_RESULT_SUCCESS;
 }
-static
-CsrResult enque_direceted_ma_pkt_cfm_data_pdu(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
-                            struct list_head *list, CSR_SIGNAL *signal,
-                            CsrBool requeueOnSamePos)
+
+#ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL
+CsrResult unifi_reque_ma_packet_request (void *ospriv, CsrUint32 host_tag,
+                                         CsrUint16 txStatus, bulk_data_desc_t *bulkDataDesc)
 {
+    CsrResult status = CSR_RESULT_SUCCESS;
+    unifi_priv_t *priv = (unifi_priv_t*)ospriv;
+    netInterface_priv_t *interfacePriv;
+    struct list_head *list = NULL;
+    CsrWifiRouterCtrlStaInfo_t *staRecord = NULL;
+    bulk_data_param_t bulkData;
+    CSR_SIGNAL signal;
+    CSR_PRIORITY priority = 0;
+    CsrUint16 interfaceTag = 0;
+    unifi_TrafficQueue priority_q;
+    CsrUint16 frameControl = 0, frameType = 0;
+    unsigned long lock_flags;
 
-    /* queue the tx data packets on to appropriate queue */
-    CSR_MA_PACKET_REQUEST *req = &signal->u.MaPacketRequest;
-    tx_buffered_packets_t *tx_q_item;
+    interfacePriv = priv->interfacePriv[interfaceTag];
 
-
-    unifi_trace(priv, UDBG5, "entering enque_tx_data_pdu\n");
-    if(!list  ) {
-       unifi_error(priv,"List is not specified\n");
-       return CSR_RESULT_FAILURE;
-    }
-    if(!requeueOnSamePos && !list->prev){
-       unifi_error(priv,"List prev is NULL so don't requeu it\n");
-       return CSR_RESULT_FAILURE;
-
-    }
-
-
-
-    tx_q_item = (tx_buffered_packets_t *)kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
-    if (tx_q_item == NULL) {
-        unifi_error(priv,
-                "Failed to allocate %d bytes for tx packet record\n",
-                sizeof(tx_buffered_packets_t));
-        func_exit();
+    /* If the current mode is not AP or P2PGO then just return failure
+     * to clear the hip slot
+     */
+    if(!((interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP) ||
+        (interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO))) {
         return CSR_RESULT_FAILURE;
     }
-    /* disable the preemption */
-    INIT_LIST_HEAD(&tx_q_item->q);
-    /* fill the tx_q structure members */
-    tx_q_item->bulkdata.os_data_ptr = bulkdata->d[0].os_data_ptr;
-    tx_q_item->bulkdata.data_length = bulkdata->d[0].data_length;
-    tx_q_item->bulkdata.os_net_buf_ptr = bulkdata->d[0].os_net_buf_ptr;
-    tx_q_item->bulkdata.net_buf_length = bulkdata->d[0].net_buf_length;
-    tx_q_item->interfaceTag = req->VirtualInterfaceIdentifier & 0xff;
-    tx_q_item->hostTag = req->HostTag;
-    tx_q_item->leSenderProcessId = signal->SignalPrimitiveHeader.SenderProcessId;
-    tx_q_item->transmissionControl = req->TransmissionControl;
-    tx_q_item->priority = req->Priority;
-    tx_q_item->rate = req->TransmitRate;
-    memcpy(tx_q_item->peerMacAddress.a, req->Ra.x, ETH_ALEN);
 
+    unifi_trace(priv, UDBG6, "unifi_reque_ma_packet_request: host_tag = 0x%x\n", host_tag);
 
-
-    if (requeueOnSamePos) {
-        list_add(&tx_q_item->q, list);
-    } else {
-        list_add_tail(&tx_q_item->q, list);
+    staRecord = CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv,
+                                                                    (((CsrUint8 *) bulkDataDesc->os_data_ptr) + 4),
+                                                                    interfaceTag);
+    if (NULL == staRecord) {
+        unifi_trace(priv, UDBG5, "unifi_reque_ma_packet_request: Invalid STA record \n");
+        return CSR_RESULT_FAILURE;
     }
 
-    /* Count of packet queued in driver */
-    priv->noOfPktQueuedInDriver++;
-    unifi_trace(priv, UDBG5, "leaving enque_tx_data_pdu\n");
-    return CSR_RESULT_SUCCESS;
+    /* Update TIM if MA-PACKET.cfm fails with status as Tx-retry-limit or No-BSS and then just return failure
+     * to clear the hip slot associated with the Packet
+     */
+    if (CSR_TX_RETRY_LIMIT == txStatus || CSR_TX_NO_BSS == txStatus) {
+        if (staRecord->timSet == CSR_WIFI_TIM_RESET || staRecord->timSet == CSR_WIFI_TIM_RESETTING)
+        {
+            unifi_trace(priv, UDBG2, "unifi_reque_ma_packet_request: CFM failed with Retry Limit or No BSS-->update TIM\n");
+            if (!staRecord->timRequestPendingFlag) {
+                update_tim(priv, staRecord->aid, 1, interfaceTag, staRecord->assignedHandle);
+            }
+            else {
+                /* Cache the TimSet value so that it will processed immidiatly after
+                 * completing the current setTim Request
+                 */
+                staRecord->updateTimReqQueued = 1;
+                unifi_trace(priv, UDBG6, "unifi_reque_ma_packet_request: One more UpdateTim Request(:%d)Queued for AID %x\n",
+                                         staRecord->updateTimReqQueued, staRecord->aid);
+            }
+        }
+        return CSR_RESULT_FAILURE;
+    }
+    else if ((CSR_TX_LIFETIME == txStatus) ||  (CSR_TX_BLOCK_ACK_TIMEOUT == txStatus) ||
+             (CSR_TX_FAIL_TRANSMISSION_VIF_INTERRUPTED == txStatus) ||
+             (CSR_TX_REJECTED_PEER_STATION_SLEEPING == txStatus)    ||
+             (CSR_TX_REJECTED_DTIM_STARTED == txStatus)) {
+        /* Extract the Frame control and the frame type */
+        frameControl = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(bulkDataDesc->os_data_ptr);
+        frameType =  ((frameControl & IEEE80211_FC_TYPE_MASK) >> FRAME_CONTROL_TYPE_FIELD_OFFSET);
+
+        /* Mgmt frames will not be re-queued for Tx
+         * so just return failure to clear the hip slot
+         */
+        if (IEEE802_11_FRAMETYPE_MANAGEMENT == frameType) {
+            return CSR_RESULT_FAILURE;
+        }
+        else if (IEEE802_11_FRAMETYPE_DATA == frameType) {
+            /* QOS NULL and DATA NULL frames will not be re-queued for Tx
+             * so just return failure to clear the hip slot
+             */
+            if ((((frameControl & IEEE80211_FC_SUBTYPE_MASK) >> FRAME_CONTROL_SUBTYPE_FIELD_OFFSET) == QOS_DATA_NULL) ||
+                (((frameControl & IEEE80211_FC_SUBTYPE_MASK) >> FRAME_CONTROL_SUBTYPE_FIELD_OFFSET)== DATA_NULL )) {
+                return CSR_RESULT_FAILURE;
+            }
+        }
+
+        /* Extract the Packet priority */
+        if (TRUE == staRecord->wmmOrQosEnabled) {
+            CsrUint16 qosControl = 0;
+            CsrUint8  dataFrameType = 0;
+
+            dataFrameType =((frameControl & IEEE80211_FC_SUBTYPE_MASK) >> 4);
+
+            if (dataFrameType == QOS_DATA) {
+                /* QoS control field is offset from frame control by 2 (frame control)
+                 * + 2 (duration/ID) + 2 (sequence control) + 3*ETH_ALEN or 4*ETH_ALEN
+                 */
+                if((frameControl & IEEE802_11_FC_TO_DS_MASK) && (frameControl & IEEE802_11_FC_FROM_DS_MASK)) {
+                    qosControl= CSR_GET_UINT16_FROM_LITTLE_ENDIAN(bulkDataDesc->os_data_ptr + 30);
+                }
+                else {
+                    qosControl = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(bulkDataDesc->os_data_ptr + 24);
+                }
+            }
+
+            priority = (CSR_PRIORITY)(qosControl & IEEE802_11_QC_TID_MASK);
+
+            if (priority < CSR_QOS_UP0 || priority > CSR_QOS_UP7) {
+                unifi_trace(priv, UDBG5, "unifi_reque_ma_packet_request: Invalid priority:%x \n", priority);
+                return CSR_RESULT_FAILURE;
+            }
+        }
+        else {
+            priority = CSR_CONTENTION;
+        }
+
+        /* Frame Bulk data to requeue it back to HAL Queues */
+        bulkData.d[0].os_data_ptr    = bulkDataDesc->os_data_ptr;
+        bulkData.d[0].data_length    = bulkDataDesc->data_length;
+        bulkData.d[0].os_net_buf_ptr = bulkDataDesc->os_net_buf_ptr;
+        bulkData.d[0].net_buf_length = bulkDataDesc->net_buf_length;
+
+        bulkData.d[1].os_data_ptr    = NULL;
+        bulkData.d[1].os_net_buf_ptr = NULL;
+        bulkData.d[1].data_length    = bulkData.d[1].net_buf_length = 0;
+
+        /* Initialize signal to zero */
+        memset(&signal, 0, sizeof(CSR_SIGNAL));
+
+        /* Frame MA Packet Req */
+        unifi_frame_ma_packet_req(priv, priority, 0, host_tag,
+                              interfaceTag, CSR_NO_CONFIRM_REQUIRED,
+                              priv->netdev_client->sender_id,
+                              staRecord->peerMacAddress.a, &signal);
+
+        /* Find the Q-Priority */
+        priority_q = unifi_frame_priority_to_queue(priority);
+        list = &staRecord->dataPdu[priority_q];
+
+        /* Place the Packet on to HAL Queue */
+        status = enque_tx_data_pdu(priv, &bulkData, list, &signal, TRUE);
+
+        /* Update the Per-station queued packet counter */
+        if (!status) {
+            spin_lock_irqsave(&priv->staRecord_lock, lock_flags);
+            staRecord->noOfPktQueued++;
+            spin_unlock_irqrestore(&priv->staRecord_lock, lock_flags);
+        }
+    }
+    else {
+        /* Packet will not be re-queued for any of the other MA Packet Tx failure
+         * reasons so just return failure to clear the hip slot
+         */
+        return CSR_RESULT_FAILURE;
+    }
+
+    return status;
 }
+#endif
 
 static void is_all_ac_deliver_enabled_and_moredata(CsrWifiRouterCtrlStaInfo_t *staRecord, CsrUint8 *allDeliveryEnabled, CsrUint8 *dataAvailable)
 {
@@ -601,12 +696,53 @@ void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, CsrUin
                     unifi_trace(priv, UDBG3, "receiver processID = %x, success: request & confirm states are not matching in TIM cfm: Debug status = %x, staRecord->timSet = %x, handle = %x\n",
                                  receiverProcessId, timSetStatus, staRecord->timSet, handle);
                 }
+
+                /* Reset TIM pending flag to send next TIM request */
+                staRecord->timRequestPendingFlag = FALSE;
+
+                /* Make sure that one more UpdateTim request is queued, if Queued its value
+                 * should be CSR_WIFI_TIM_SET or CSR_WIFI_TIM_RESET
+                 */
+                if (0xFF != staRecord->updateTimReqQueued)
+                {
+                    /* Process the UpdateTim Request which is queued while previous UpdateTim was in progress */
+                    if (staRecord->timSet != staRecord->updateTimReqQueued)
+                    {
+                       unifi_trace(priv, UDBG2, "uf_handle_tim_cfm : Processing Queued UpdateTimReq \n");
+
+                       update_tim(priv, staRecord->aid, staRecord->updateTimReqQueued, interfaceTag, handle);
+
+                       staRecord->updateTimReqQueued = 0xFF;
+                    }
+                }
             } else {
+
+                interfacePriv->bcTimSet = timSetValue;
                 /* fh_cmd_q can also be full at some point of time!,
                  * resetting count as queue is cleaned by firmware at this point
                  */
                 retryCount = 0;
                 unifi_trace(priv, UDBG3, "tim (%s) successfully for broadcast frame in firmware\n", (timSetValue)?"SET":"RESET");
+
+                /* Reset DTIM pending flag to send next DTIM request */
+                interfacePriv->bcTimSetReqPendingFlag = FALSE;
+
+                /* Make sure that one more UpdateDTim request is queued, if Queued its value
+                 * should be CSR_WIFI_TIM_SET or CSR_WIFI_TIM_RESET
+                 */
+                if (0xFF != interfacePriv->bcTimSetReqQueued)
+                {
+                    /* Process the UpdateTim Request which is queued while previous UpdateTim was in progress */
+                    if (interfacePriv->bcTimSet != interfacePriv->bcTimSetReqQueued)
+                    {
+                        unifi_trace(priv, UDBG2, "uf_handle_tim_cfm : Processing Queued UpdateDTimReq \n");
+
+                        update_tim(priv, 0, interfacePriv->bcTimSetReqQueued, interfaceTag, 0xFFFFFFFF);
+
+                        interfacePriv->bcTimSetReqQueued = 0xFF;
+                    }
+                }
+
             }
             break;
         case CSR_RC_INVALID_PARAMETERS:
@@ -684,6 +820,7 @@ void uf_handle_tim_cfm(unifi_priv_t *priv, CSR_MLME_SET_TIM_CONFIRM *cfm, CsrUin
         default:
             unifi_warning(priv, "tim update request failed resultcode = %x\n", cfm->ResultCode);
     }
+
     unifi_trace(priv, UDBG2, "leaving %s\n", __FUNCTION__);
 }
 
@@ -733,8 +870,14 @@ void update_tim(unifi_priv_t * priv, CsrUint16 aid, CsrUint8 setTim, CsrUint16 i
 
     unifi_trace(priv, UDBG5, "entering the update_tim routine\n");
 
+
     if (handle == 0xFFFFFFFF) {
         handle &= CSR_WIFI_BROADCAST_OR_MULTICAST_HANDLE;
+        if (setTim == interfacePriv->bcTimSet)
+        {
+            unifi_trace(priv, UDBG3, "update_tim, Drop:Hdl=%x, timval=%d, globalTim=%d\n", handle, setTim, interfacePriv->bcTimSet);
+            return;
+        }
     } else if ((handle != 0xFFFFFFFF) && (handle >= UNIFI_MAX_CONNECTIONS)) {
         unifi_warning(priv, "bad station Handle = %x\n", handle);
         return;
@@ -785,6 +928,25 @@ void update_tim(unifi_priv_t * priv, CsrUint16 aid, CsrUint8 setTim, CsrUint16 i
         if (staRecord) {
             staRecord->timSet = oldTimSetStatus ;
         }
+        else
+        {
+            /* MLME_SET_TIM.req sending failed here for AID0, so revert back our bcTimSet status */
+            interfacePriv->bcTimSet = !setTim;
+        }
+    }
+    else {
+        /* Update tim request pending flag and ensure no more TIM set requests are send
+           for the same station until TIM confirm is received */
+        if (staRecord) {
+            staRecord->timRequestPendingFlag = TRUE;
+        }
+        else
+        {
+            /* Update tim request (for AID 0) pending flag and ensure no more DTIM set requests are send
+             * for the same station until TIM confirm is received
+             */
+            interfacePriv->bcTimSetReqPendingFlag = TRUE;
+        }
     }
     unifi_trace(priv, UDBG5, "leaving the update_tim routine\n");
 }
@@ -804,12 +966,30 @@ void process_peer_active_transition(unifi_priv_t * priv,
 
     if(IS_DTIM_ACTIVE(interfacePriv->dtimActive,interfacePriv->multicastPduHostTag)) {
         /* giving more priority to multicast packets so delaying unicast packets*/
-        unifi_trace(priv,UDBG2," multicast transmission is going on so resume unicast transmission after DTIM over\n");
+        unifi_trace(priv,UDBG2, "Multicast transmission is going on so resume unicast transmission after DTIM over\n");
+
+        /* As station is active now, even though AP is not able to send frames to it
+         * because of DTIM, it needs to reset the TIM here
+         */
+        if (!staRecord->timRequestPendingFlag){
+            if((staRecord->timSet == CSR_WIFI_TIM_SET) || (staRecord->timSet == CSR_WIFI_TIM_SETTING)){
+                update_tim(priv, staRecord->aid, 0, interfaceTag, staRecord->assignedHandle);
+            }
+        }
+        else
+        {
+            /* Cache the TimSet value so that it will processed immidiatly after
+             * completing the current setTim Request
+             */
+            staRecord->updateTimReqQueued = 0;
+            unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", staRecord->updateTimReqQueued,
+                        staRecord->aid);
+        }
         return;
     }
     while((buffered_pkt=dequeue_tx_data_pdu(priv, &staRecord->mgtFrames))) {
         buffered_pkt->transmissionControl &=
-                     ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_ESOP_MASK);
+                     ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_EOSP_MASK);
         if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staRecord,0,FALSE)) == -ENOSPC) {
             unifi_trace(priv, UDBG2, "p_p_a_t:(ENOSPC) Mgt Frame queueing \n");
             /* Enqueue at the head of the queue */
@@ -828,11 +1008,22 @@ void process_peer_active_transition(unifi_priv_t * priv,
             kfree(buffered_pkt);
         }
     }
-    if (staRecord->txSuspend) {
-        if(staRecord->timSet == CSR_WIFI_TIM_SET) {
-            update_tim(priv,staRecord->aid,0,interfaceTag, staRecord->assignedHandle);
+    if (!staRecord->timRequestPendingFlag) {
+        if (staRecord->txSuspend) {
+            if(staRecord->timSet == CSR_WIFI_TIM_SET) {
+                update_tim(priv,staRecord->aid,0,interfaceTag, staRecord->assignedHandle);
+            }
+            return;
         }
-        return;
+    }
+    else
+    {
+        /* Cache the TimSet value so that it will processed immidiatly after
+         * completing the current setTim Request
+         */
+        staRecord->updateTimReqQueued = 0;
+        unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", staRecord->updateTimReqQueued,
+                    staRecord->aid);
     }
     for(i=3;i>=0;i--) {
         if(!spaceAvail[i])
@@ -840,7 +1031,7 @@ void process_peer_active_transition(unifi_priv_t * priv,
         unifi_trace(priv, UDBG6, "p_p_a_t:data pkt sending for AC %d \n",i);
         while((buffered_pkt=dequeue_tx_data_pdu(priv, &staRecord->dataPdu[i]))) {
            buffered_pkt->transmissionControl &=
-                      ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_ESOP_MASK);
+                      ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_EOSP_MASK);
            if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staRecord,0,FALSE)) == -ENOSPC) {
                /* Clear the trigger bit transmission control*/
                /* Enqueue at the head of the queue */
@@ -859,9 +1050,20 @@ void process_peer_active_transition(unifi_priv_t * priv,
            }
         }
     }
-    if((staRecord->timSet  == CSR_WIFI_TIM_SET) || (staRecord->timSet == CSR_WIFI_TIM_SETTING)){
-        unifi_trace(priv, UDBG3, "p_p_a_t:resetting tim .....\n");
-        update_tim(priv,staRecord->aid,0,interfaceTag, staRecord->assignedHandle);
+    if (!staRecord->timRequestPendingFlag){
+        if((staRecord->timSet  == CSR_WIFI_TIM_SET) || (staRecord->timSet  == CSR_WIFI_TIM_SETTING)) {
+            unifi_trace(priv, UDBG3, "p_p_a_t:resetting tim .....\n");
+            update_tim(priv,staRecord->aid,0,interfaceTag, staRecord->assignedHandle);
+        }
+    }
+    else
+    {
+        /* Cache the TimSet value so that it will processed immidiatly after
+         * completing the current setTim Request
+         */
+        staRecord->updateTimReqQueued = 0;
+        unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", staRecord->updateTimReqQueued,
+                    staRecord->aid);
     }
     unifi_trace(priv, UDBG5, "leaving process_peer_active_transition\n");
 }
@@ -873,14 +1075,6 @@ void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,CsrUint16 interfaceTag, con
     netInterface_priv_t *interfacePriv;
     CsrUint8 i;
     CsrWifiRouterCtrlStaInfo_t *staRecord = NULL;
-    struct list_head *listHeadMaPktreq,*listHeadStaQueue;
-    struct list_head *placeHolderMaPktreq,*placeHolderStaQueue;
-    unsigned long lock_flags;
-    unsigned long lock_flags1;
-    maPktReqList_t *maPktreq = NULL;
-    tx_buffered_packets_t *tx_q_item = NULL;
-    bulk_data_param_t bulkdata;
-    CsrBool entryFound = FALSE;
     interfacePriv = priv->interfacePriv[interfaceTag];
 
 
@@ -892,260 +1086,113 @@ void uf_process_ma_pkt_cfm_for_ap(unifi_priv_t *priv,CsrUint16 interfaceTag, con
          if(list_empty(&interfacePriv->genericMulticastOrBroadCastMgtFrames) &&
               list_empty(&interfacePriv->genericMulticastOrBroadCastFrames)) {
             unifi_trace(priv,UDBG1,"Resetting multicastTIM");
-            update_tim(priv,0,0,interfaceTag, 0xFFFFFFFF);
+            if (!interfacePriv->bcTimSetReqPendingFlag)
+            {
+                update_tim(priv,0,CSR_WIFI_TIM_RESET,interfaceTag, 0xFFFFFFFF);
+            }
+            else
+            {
+                /* Cache the DTimSet value so that it will processed immidiatly after
+                 * completing the current setDTim Request
+                 */
+                 interfacePriv->bcTimSetReqQueued = CSR_WIFI_TIM_RESET;
+                 unifi_trace(priv, UDBG2, "uf_process_ma_pkt_cfm_for_ap : One more UpdateDTim Request(%d) Queued \n",
+                             interfacePriv->bcTimSetReqQueued);
+            }
+
         }
         return;
     }
 
-    /* Check if a copy of the same frame (identified by host tag) is queued in driver */
-    spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
-    list_for_each_safe(listHeadMaPktreq, placeHolderMaPktreq, &interfacePriv->directedMaPktReq) {
-        maPktreq = list_entry(listHeadMaPktreq, maPktReqList_t, q);
-        if(maPktreq->hostTag == pkt_cfm->HostTag){
-            entryFound = TRUE;
-            break;
-        }
-    }
-    spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
+    /* Check if it is a Confirm for null data frame used
+     * for probing station activity
+     */
+    for(i =0; i < UNIFI_MAX_CONNECTIONS; i++) {
+        staRecord = (CsrWifiRouterCtrlStaInfo_t *) (interfacePriv->staInfo[i]);
+        if (staRecord && (staRecord->nullDataHostTag == pkt_cfm->HostTag)) {
 
-    if(entryFound){
+            unifi_trace(priv, UDBG1, "CFM for Inactive probe Null frame (tag = %x, status = %d)\n",
+                                    pkt_cfm->HostTag,
+                                    pkt_cfm->TransmissionStatus
+                                    );
+            staRecord->nullDataHostTag = INVALID_HOST_TAG;
 
-        /* Monitor the time difference between the MA-PACKET.req and MA-PACKET.cfm */
-        unsigned long timeout;
-        timeout = (long)jiffies - (long)maPktreq->jiffeTime;
+            if(pkt_cfm->TransmissionStatus == CSR_TX_RETRY_LIMIT){
+                CsrTime now;
+                CsrTime inactive_time;
 
-        /* convert into milliseconds */
-        timeout = jiffies_to_msecs(timeout);
-        unifi_trace(priv, UDBG3, "Jiffies Time: Host Tag(%x) --> Req(%u) Cfm(%u) Diff (in ms): %u\n",maPktreq->hostTag,maPktreq->jiffeTime, jiffies, timeout);
-
-        if( (timeout/1000) > 1)
-        {
-             unifi_trace(priv, UDBG1, "Confirm time > 2 Seconds: time = %u Status = %x\n", (timeout/1000), pkt_cfm->TransmissionStatus);
-        }
-
-       if( CSR_TX_LIFETIME == pkt_cfm->TransmissionStatus  ||
-           CSR_TX_BLOCK_ACK_TIMEOUT== pkt_cfm->TransmissionStatus ||
-           CSR_TX_FAIL_TRANSMISSION_VIF_INTERRUPTED== pkt_cfm->TransmissionStatus ||
-           CSR_TX_REJECTED_PEER_STATION_SLEEPING== pkt_cfm->TransmissionStatus ||
-           CSR_TX_REJECTED_DTIM_STARTED== pkt_cfm->TransmissionStatus ){
-
-         CsrWifiRouterCtrlStaInfo_t *staRecord = interfacePriv->staInfo[maPktreq->staHandler];
-         unifi_TrafficQueue priority_q;
-         struct list_head *list;
-         CsrResult result;
-         CSR_MA_PACKET_REQUEST *req = &maPktreq->signal.u.MaPacketRequest;
-         CsrUint16 ii=0;
-         CsrBool locationFound = FALSE;
-         CsrUint8 *sigbuffer;
-
-         sigbuffer = (CsrUint8*)&maPktreq->signal;
-         if(req->Priority == CSR_MANAGEMENT){
-             list = &staRecord->mgtFrames;
-             unifi_trace(priv,UDBG5,"mgmt list priority %d\n",req->Priority);
-         }
-         else{
-             priority_q= unifi_frame_priority_to_queue(req->Priority);
-             list = &staRecord->dataPdu[priority_q];
-             unifi_trace(priv,UDBG5,"data list priority %d\n",req->Priority);
-         }
-
-         spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
-         list_for_each_safe(listHeadStaQueue, placeHolderStaQueue, list){
-             tx_q_item = list_entry(listHeadStaQueue, tx_buffered_packets_t, q);
-           COMPARE_HOST_TAG_TO_ENQUEUE(tx_q_item->hostTag ,maPktreq->hostTag)
-
-
-         }
-         if(sigbuffer[SIZEOF_SIGNAL_HEADER + 1]){
-            skb_pull(maPktreq->skb,sigbuffer[SIZEOF_SIGNAL_HEADER + 1]);
-         }
-
-         /* enqueue the failed packet sta queue*/
-         bulkdata.d[0].os_net_buf_ptr= (unsigned char*)maPktreq->skb;
-         bulkdata.d[0].os_data_ptr = maPktreq->skb->data;
-         bulkdata.d[0].data_length = bulkdata.d[0].net_buf_length = maPktreq->skb->len;
-         bulkdata.d[1].os_data_ptr = NULL;
-         bulkdata.d[1].os_net_buf_ptr = NULL;
-         bulkdata.d[1].data_length = bulkdata.d[0].net_buf_length = 0;
-         unifi_trace(priv,UDBG4,"Cfm Fail for HosTag = %x with status %d so requeue it\n",maPktreq->hostTag,pkt_cfm->TransmissionStatus );
-         req->TransmissionControl = 0;
-
-         if(!locationFound){
-
-             if(list_empty(list)){
-                result = enque_direceted_ma_pkt_cfm_data_pdu(priv, &bulkdata, list,&maPktreq->signal,1);
-             }
-             else{
-                  unifi_trace(priv,UDBG4,"did not find location so add to end of list \n");
-                  result = enque_direceted_ma_pkt_cfm_data_pdu(priv, &bulkdata, list,&maPktreq->signal,0);
-             }
-
-
-         }
-
-         else {
-            if(ii > 1){
-                 unifi_trace(priv,UDBG4,"find the location in the middle of list \n");
-                 result = enque_direceted_ma_pkt_cfm_data_pdu(priv, &bulkdata, listHeadStaQueue,&maPktreq->signal,0);
-
-            }
-            else{
-                unifi_trace(priv,UDBG4," add at begining of list \n");
-                result = enque_direceted_ma_pkt_cfm_data_pdu(priv, &bulkdata, list,&maPktreq->signal,1);
-            }
-         }
-
-         spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-
-         /* Increment the counter */
-         spin_lock_irqsave(&priv->staRecord_lock,lock_flags1);
-         staRecord->noOfPktQueued++;
-         spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags1);
-
-
-
-
-         /* after enqueuing update the TIM */
-         if(CSR_RESULT_SUCCESS == result){
-             if(CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE == staRecord->currentPeerState) {
-                if(staRecord->timSet == CSR_WIFI_TIM_RESET || staRecord->timSet == CSR_WIFI_TIM_RESETTING) {
-                    if(!staRecord->wmmOrQosEnabled) {
-                        unifi_trace(priv, UDBG3, "uf_process_ma_pkt_cfm_for_ap :tim set due to unicast pkt & peer in powersave\n");
-                        update_tim(priv,staRecord->aid,1,interfaceTag, staRecord->assignedHandle);
-                    }
-                    else {
-                        /* Check for non delivery enable(i.e trigger enable), all delivery enable & legacy AC for TIM update in firmware */
-                        CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
-                        /* Check if all AC's are Delivery Enabled */
-                        is_all_ac_deliver_enabled_and_moredata(staRecord, &allDeliveryEnabled, &dataAvailable);
-                        if (uf_is_more_data_for_non_delivery_ac(staRecord) || (allDeliveryEnabled && dataAvailable)) {
-                            update_tim(priv,staRecord->aid,1,interfaceTag, staRecord->assignedHandle);
-                        }
-                    }
+                unifi_trace(priv, UDBG1, "Nulldata to probe STA ALIVE Failed with retry limit\n");
+                /* Recheck if there is some activity after null data is sent.
+                *
+                * If still there is no activity then send a disconnected indication
+                * to SME to delete the station record.
+                */
+                if (staRecord->activity_flag){
+                    return;
                 }
-             }
-         }
-         else{
-            dev_kfree_skb(maPktreq->skb);
-         }
-       }
-      else
-      {
-        CsrWifiRouterCtrlStaInfo_t *staRecord = interfacePriv->staInfo[maPktreq->staHandler];
-        if (CSR_TX_RETRY_LIMIT == pkt_cfm->TransmissionStatus ||
-            CSR_TX_NO_BSS == pkt_cfm->TransmissionStatus)
-        {
-            if (staRecord->timSet == CSR_WIFI_TIM_RESET || staRecord->timSet == CSR_WIFI_TIM_RESETTING)
-            {
-                unifi_trace(priv, UDBG2, "CFM failed with Retry Limit or No BSS --> update TIM\n");
-                update_tim(priv, staRecord->aid, 1, interfaceTag, staRecord->assignedHandle);
-            }
-        }
-        else if (CSR_TX_SUCCESSFUL == pkt_cfm->TransmissionStatus)
-        {
-            staRecord->activity_flag = TRUE;
-        }
-        unifi_trace(priv, UDBG5, "CFM for HosTag = %x Status = %d, Free SKB reference\n",
-                    maPktreq->hostTag,
-                    pkt_cfm->TransmissionStatus );
+                now = CsrTimeGet(NULL);
 
-        dev_kfree_skb(maPktreq->skb);
+                if (staRecord->lastActivity > now)
+                {
+                    /* simple timer wrap (for 1 wrap) */
+                    inactive_time = CsrTimeAdd((CsrTime)CsrTimeSub(CSR_SCHED_TIME_MAX, staRecord->lastActivity),
+                                               now);
+                }
+                else
+                {
+                    inactive_time = (CsrTime)CsrTimeSub(now, staRecord->lastActivity);
+                }
 
-      }
-      list_del(listHeadMaPktreq);
-      kfree(maPktreq);
+                if (inactive_time >= STA_INACTIVE_TIMEOUT_VAL)
+                {
+                    struct list_head send_cfm_list;
+                    CsrUint8 j;
 
-    }else{
-        /* Check if it is a Confirm for null data frame used
-         * for probing station activity
-         */
-        for(i =0; i < UNIFI_MAX_CONNECTIONS; i++) {
-            staRecord = (CsrWifiRouterCtrlStaInfo_t *) (interfacePriv->staInfo[i]);
-            if (staRecord && (staRecord->nullDataHostTag == pkt_cfm->HostTag)) {
+                    /* The SME/NME may be waiting for confirmation for requested frames to this station.
+                     * Though this is --VERY UNLIKELY-- in case of station in active mode. But still as a
+                     * a defensive check, it loops through buffered frames for this station and if confirmation
+                     * is requested, send auto confirmation with failure status. Also flush the frames so
+                     * that these are not processed again in PEER_DEL_REQ handler.
+                     */
+                    INIT_LIST_HEAD(&send_cfm_list);
 
-                unifi_trace(priv, UDBG1, "CFM for Inactive probe Null frame (tag = %x, status = %d)\n",
-                                        pkt_cfm->HostTag,
-                                        pkt_cfm->TransmissionStatus
-                                        );
-                staRecord->nullDataHostTag = INVALID_HOST_TAG;
+                    uf_prepare_send_cfm_list_for_queued_pkts(priv,
+                                                             &send_cfm_list,
+                                                             &(staRecord->mgtFrames));
 
-                if(pkt_cfm->TransmissionStatus == CSR_TX_RETRY_LIMIT){
-                    CsrTime now;
-                    CsrTime inactive_time;
+                    uf_flush_list(priv, &(staRecord->mgtFrames));
 
-                    unifi_trace(priv, UDBG1, "Nulldata to probe STA ALIVE Failed with retry limit\n");
-                    /* Recheck if there is some activity after null data is sent.
-                    *
-                    * If still there is no activity then send a disconnected indication
-                    * to SME to delete the station record.
-                    */
-                    if (staRecord->activity_flag){
-                        return;
-                    }
-                    now = CsrTimeGet(NULL);
-
-                    if (staRecord->lastActivity > now)
-                    {
-                        /* simple timer wrap (for 1 wrap) */
-                        inactive_time = CsrTimeAdd((CsrTime)CsrTimeSub(CSR_SCHED_TIME_MAX, staRecord->lastActivity),
-                                                   now);
-                    }
-                    else
-                    {
-                        inactive_time = (CsrTime)CsrTimeSub(now, staRecord->lastActivity);
-                    }
-
-                    if (inactive_time >= STA_INACTIVE_TIMEOUT_VAL)
-                    {
-                        struct list_head send_cfm_list;
-                        CsrUint8 j;
-
-                        /* The SME/NME may be waiting for confirmation for requested frames to this station.
-                         * Though this is --VERY UNLIKELY-- in case of station in active mode. But still as a
-                         * a defensive check, it loops through buffered frames for this station and if confirmation
-                         * is requested, send auto confirmation with failure status. Also flush the frames so
-                         * that these are not processed again in PEER_DEL_REQ handler.
-                         */
-                        INIT_LIST_HEAD(&send_cfm_list);
-
+                    for(j = 0; j < MAX_ACCESS_CATOGORY; j++){
                         uf_prepare_send_cfm_list_for_queued_pkts(priv,
                                                                  &send_cfm_list,
-                                                                 &(staRecord->mgtFrames));
+                                                                 &(staRecord->dataPdu[j]));
 
-                        uf_flush_list(priv, &(staRecord->mgtFrames));
-
-                        for(j = 0; j < MAX_ACCESS_CATOGORY; j++){
-                            uf_prepare_send_cfm_list_for_queued_pkts(priv,
-                                                                     &send_cfm_list,
-                                                                     &(staRecord->dataPdu[j]));
-
-                            uf_flush_list(priv,&(staRecord->dataPdu[j]));
-                        }
-
-                        send_auto_ma_packet_confirm(priv, staRecord->interfacePriv, &send_cfm_list);
-
-
-
-                        unifi_warning(priv, "uf_process_ma_pkt_cfm_for_ap: Router Disconnected IND Peer (%x-%x-%x-%x-%x-%x)\n",
-                                                 staRecord->peerMacAddress.a[0],
-                                                 staRecord->peerMacAddress.a[1],
-                                                 staRecord->peerMacAddress.a[2],
-                                                 staRecord->peerMacAddress.a[3],
-                                                 staRecord->peerMacAddress.a[4],
-                                                 staRecord->peerMacAddress.a[5]);
-
-                        CsrWifiRouterCtrlConnectedIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,
-                                                          0,
-                                                          staRecord->interfacePriv->InterfaceTag,
-                                                          staRecord->peerMacAddress,
-                                                          CSR_WIFI_ROUTER_CTRL_PEER_DISCONNECTED);
+                        uf_flush_list(priv,&(staRecord->dataPdu[j]));
                     }
 
+                    send_auto_ma_packet_confirm(priv, staRecord->interfacePriv, &send_cfm_list);
+
+
+
+                    unifi_warning(priv, "uf_process_ma_pkt_cfm_for_ap: Router Disconnected IND Peer (%x-%x-%x-%x-%x-%x)\n",
+                                             staRecord->peerMacAddress.a[0],
+                                             staRecord->peerMacAddress.a[1],
+                                             staRecord->peerMacAddress.a[2],
+                                             staRecord->peerMacAddress.a[3],
+                                             staRecord->peerMacAddress.a[4],
+                                             staRecord->peerMacAddress.a[5]);
+
+                    CsrWifiRouterCtrlConnectedIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,
+                                                      0,
+                                                      staRecord->interfacePriv->InterfaceTag,
+                                                      staRecord->peerMacAddress,
+                                                      CSR_WIFI_ROUTER_CTRL_PEER_DISCONNECTED);
                 }
-                else if (pkt_cfm->TransmissionStatus == CSR_TX_SUCCESSFUL)
-                {
-                     staRecord->activity_flag = TRUE;
-                }
+
+            }
+            else if (pkt_cfm->TransmissionStatus == CSR_TX_SUCCESSFUL)
+            {
+                 staRecord->activity_flag = TRUE;
             }
         }
     }
@@ -1336,16 +1383,16 @@ static int update_macheader(unifi_priv_t *priv, struct sk_buff *skb,
                 CsrResult csrResult;
                 unifi_trace(priv, UDBG5, "normal Data packet, NO QOS \n");
 
-                *priority = CSR_CONTENTION;
                 if (qosDestination) {
                     CsrUint8 qc = 0;
                     unifi_trace(priv, UDBG3, "destination is QOS station \n");
+
+                    /* Set Ma-Packet.req UP to UP0 */
+                    *priority = CSR_QOS_UP0;
+
                     /* prepare the qos control field */
-
                     qc |= CSR_QOS_UP0;
-
                     /* no Amsdu is in ap buffer so eosp is left 0 */
-
                     if (da[0] & 0x1) {
                         /* multicast/broadcast frames, no acknowledgement needed */
                         qc |= 1 << 5;
@@ -1763,9 +1810,6 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
                      */
 
                     list = &interfacePriv->genericMulticastOrBroadCastMgtFrames;
-                    spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
-                    interfacePriv->noOfbroadcastPktQueued++;
-                    spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
                     if((interfacePriv->interfaceMode != CSR_WIFI_ROUTER_CTRL_MODE_IBSS) &&
                             (list_empty(&interfacePriv->genericMulticastOrBroadCastMgtFrames))) {
                         setBcTim=TRUE;
@@ -1789,11 +1833,9 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
                         /* if multicast traffic is going on, buffet the unicast packets */
                         unifi_trace(priv, UDBG2, "Enqueued to staRecord->dataPdu[%d] queuePacketDozing=%d,\
                                 Buffering enabled = %d \n", priority_q,queuePacketDozing,isRouterBufferEnabled(priv,priority_q));
-                        signal.u.MaPacketRequest.TransmissionControl &= ~(CSR_NO_CONFIRM_REQUIRED);
                         list = &staRecord->dataPdu[priority_q];
                     } else {
                         unifi_trace(priv, UDBG5, "staRecord->dataPdu[%d] list is empty uf_process_ma_packet_req \n", priority_q);
-                        signal.u.MaPacketRequest.TransmissionControl &= ~(CSR_NO_CONFIRM_REQUIRED);
                         /* Pdu allowed to send to unifi */
                         result = ul_send_signal_unpacked(priv, &signal, bulkdata);
                         if(result == -ENOSPC) {
@@ -1816,9 +1858,6 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
                      * will be sent when we receive VIF AVAILABILITY from firmware as part of DTIM
                      */
                     list = &interfacePriv->genericMulticastOrBroadCastFrames;
-                    spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
-                    interfacePriv->noOfbroadcastPktQueued++;
-                    spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
                     if(list_empty(&interfacePriv->genericMulticastOrBroadCastFrames)) {
                         setBcTim = TRUE;
                     }
@@ -1838,10 +1877,30 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
             staRecord->noOfPktQueued++;
             spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
         }
+        else if ((pktType == CSR_WIFI_MULTICAST_PDU) && (!status))
+        {
+            /* If broadcast Tim is set && queuing is successfull, then only update TIM */
+            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+            interfacePriv->noOfbroadcastPktQueued++;
+            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+        }
     }
-    if(setBcTim) {
+    /* If broadcast Tim is set && queuing is successfull, then only update TIM */
+    if(setBcTim && !status) {
         unifi_trace(priv, UDBG3, "tim set due to broadcast pkt\n");
-        update_tim(priv,0,1,interfaceTag, handle);
+        if (!interfacePriv->bcTimSetReqPendingFlag)
+        {
+            update_tim(priv,0,CSR_WIFI_TIM_SET,interfaceTag, handle);
+        }
+        else
+        {
+            /* Cache the TimSet value so that it will processed immidiatly after
+            * completing the current setTim Request
+            */
+            interfacePriv->bcTimSetReqQueued = CSR_WIFI_TIM_SET;
+            unifi_trace(priv, UDBG2, "uf_process_ma_packet_req : One more UpdateDTim Request(:%d) Queued \n",
+                        interfacePriv->bcTimSetReqQueued);
+        }
     } else if(staRecord && staRecord->currentPeerState ==
                             CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE) {
         if(staRecord->timSet == CSR_WIFI_TIM_RESET || staRecord->timSet == CSR_WIFI_TIM_RESETTING) {
@@ -1850,15 +1909,38 @@ CsrResult uf_process_ma_packet_req(unifi_priv_t *priv,
                    !list_empty(&staRecord->dataPdu[3]) ||
                    !list_empty(&staRecord->dataPdu[UNIFI_TRAFFIC_Q_CONTENTION])) {
                     unifi_trace(priv, UDBG3, "tim set due to unicast pkt & peer in powersave\n");
-                    update_tim(priv,staRecord->aid,1,interfaceTag, handle);
+                    if (!staRecord->timRequestPendingFlag){
+                        update_tim(priv,staRecord->aid,1,interfaceTag, handle);
+                    }
+                    else
+                    {
+                        /* Cache the TimSet value so that it will processed immidiatly after
+                         * completing the current setTim Request
+                         */
+                        staRecord->updateTimReqQueued = 1;
+                        unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", staRecord->updateTimReqQueued,
+                                    staRecord->aid);
+                    }
                 }
             } else {
                 /* Check for non delivery enable(i.e trigger enable), all delivery enable & legacy AC for TIM update in firmware */
                 CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
                 /* Check if all AC's are Delivery Enabled */
                 is_all_ac_deliver_enabled_and_moredata(staRecord, &allDeliveryEnabled, &dataAvailable);
-                if (uf_is_more_data_for_non_delivery_ac(staRecord) || (allDeliveryEnabled && dataAvailable)) {
-                    update_tim(priv,staRecord->aid,1,interfaceTag, handle);
+                if (uf_is_more_data_for_non_delivery_ac(staRecord) || (allDeliveryEnabled && dataAvailable)
+                    || (!list_empty(&staRecord->mgtFrames))) {
+                    if (!staRecord->timRequestPendingFlag) {
+                        update_tim(priv,staRecord->aid,1,interfaceTag, handle);
+                    }
+                    else
+                    {
+                        /* Cache the TimSet value so that it will processed immidiatly after
+                         * completing the current setTim Request
+                         */
+                        staRecord->updateTimReqQueued = 1;
+                        unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", staRecord->updateTimReqQueued,
+                                    staRecord->aid);
+                    }
                 }
             }
         }
@@ -1945,7 +2027,7 @@ CsrUint8 send_multicast_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
     if(!isRouterBufferEnabled(priv,UNIFI_TRAFFIC_Q_VO)) {
         while((interfacePriv->dtimActive)&& (buffered_pkt=dequeue_tx_data_pdu(priv,&interfacePriv->genericMulticastOrBroadCastMgtFrames))) {
             buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK);
-            moreData = (buffered_pkt->transmissionControl & TRANSMISSION_CONTROL_ESOP_MASK)?FALSE:TRUE;
+            moreData = (buffered_pkt->transmissionControl & TRANSMISSION_CONTROL_EOSP_MASK)?FALSE:TRUE;
 
 
             unifi_trace(priv,UDBG2,"DTIM Occurred for interface:sending Mgt packet %d\n",interfaceTag);
@@ -1986,7 +2068,7 @@ CsrUint8 send_multicast_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
     if(!isRouterBufferEnabled(priv,UNIFI_TRAFFIC_Q_CONTENTION)) {
         while((interfacePriv->dtimActive)&& (buffered_pkt=dequeue_tx_data_pdu(priv,&interfacePriv->genericMulticastOrBroadCastFrames))) {
             buffered_pkt->transmissionControl |= TRANSMISSION_CONTROL_TRIGGER_MASK;
-            moreData = (buffered_pkt->transmissionControl & TRANSMISSION_CONTROL_ESOP_MASK)?FALSE:TRUE;
+            moreData = (buffered_pkt->transmissionControl & TRANSMISSION_CONTROL_EOSP_MASK)?FALSE:TRUE;
 
 
             if((r=frame_and_send_queued_pdu(priv,buffered_pkt,NULL,moreData,FALSE)) == -ENOSPC) {
@@ -2076,7 +2158,19 @@ void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,CsrUint8 *sigdata,
             if(interfacePriv->multicastPduHostTag == 0xffffffff) {
                 unifi_notice(priv,"ma_vif_availibility_ind recevied for multicast but queues are empty%d\n",interfaceTag);
                 /* This may be an extra request in very rare race conditions but it is fine as it would atleast remove the potential lock up */
-                update_tim(priv,0,0,interfaceTag, 0xFFFFFFFF);
+                if (!interfacePriv->bcTimSetReqPendingFlag)
+                {
+                    update_tim(priv,0,CSR_WIFI_TIM_RESET,interfaceTag, 0xFFFFFFFF);
+                }
+                else
+                {
+                    /* Cache the TimSet value so that it will processed immidiatly after
+                     * completing the current setTim Request
+                     */
+                    interfacePriv->bcTimSetReqQueued = CSR_WIFI_TIM_RESET;
+                    unifi_trace(priv, UDBG2, "uf_process_ma_vif_availibility_ind : One more UpdateDTim Request(%d) Queued \n",
+                                interfacePriv->bcTimSetReqQueued);
+                }
             }
             return;
         }
@@ -2105,59 +2199,62 @@ void uf_process_ma_vif_availibility_ind(unifi_priv_t *priv,CsrUint8 *sigdata,
 
 #define  GET_ACTIVE_INTERFACE_TAG(priv) 0
 
-
-void uf_continue_uapsd(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t * staInfo)
+static CsrBool uf_is_more_data_for_delivery_ac(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t *staRecord)
 {
-
     CsrInt8 i;
 
-    func_enter();
-
-    if(((staInfo->powersaveMode[UNIFI_TRAFFIC_Q_VO]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED)||
-         (staInfo->powersaveMode[UNIFI_TRAFFIC_Q_VO]==CSR_WIFI_AC_DELIVERY_ONLY_ENABLE))
-        &&(!list_empty(&staInfo->mgtFrames))){
-
-        unifi_trace(priv, UDBG5, "uf_continue_uapsd : U-APSD ACTIVE and sending buffered mgt frames\n");
-        uf_send_buffered_data_from_delivery_ac(priv, staInfo, UNIFI_TRAFFIC_Q_VO, &staInfo->mgtFrames);
-
-        /*This may happen because U-APSD was completed
-         with previous AC transfer*/
-
-        if(staInfo->uapsdActive == FALSE) {
-           return;
+    for(i=UNIFI_TRAFFIC_Q_VO; i >= UNIFI_TRAFFIC_Q_BK; i--)
+    {
+        if(((staRecord->powersaveMode[i]==CSR_WIFI_AC_DELIVERY_ONLY_ENABLE)
+             ||(staRecord->powersaveMode[i]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED))
+             &&(!list_empty(&staRecord->dataPdu[i]))) {
+            unifi_trace(priv,UDBG2,"uf_is_more_data_for_delivery_ac: Data Available AC = %d\n", i);
+            return TRUE;
         }
     }
 
-    for(i=3;i>=0;i--) {
-
-        if(((staInfo->powersaveMode[i]== CSR_WIFI_AC_DELIVERY_ONLY_ENABLE)
-             ||(staInfo->powersaveMode[i] == CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED))
-             &&(!list_empty(&staInfo->dataPdu[i]))) {
-            unifi_trace(priv, UDBG5, "uf_continue_uapsd : U-APSD ACTIVE and sending buffered  data frames\n");
-            uf_send_buffered_data_from_delivery_ac(priv, staInfo, i, &staInfo->dataPdu[i]);
-        }
-
-        /*This may happen because U-APSD was completed
-          with previous AC transfer*/
-        if (staInfo->uapsdActive == FALSE) {
-            return;
-        }
-    }
-
-    if (staInfo->uapsdActive && !uf_is_more_data_for_delivery_ac(priv, staInfo, TRUE)) {
-        /* If last packet not able to transfer due to ENOSPC & buffer management algorithm
-         * would have removed last packet. Then we wont update staInfo->UapsdActive = FALSE (suppose
-         * to update as we dont have packet to transfer at this USP) because above if loop fails as list is empty &
-         * update of UAPSD activity done in uf_send_buffered_data_from_delivery_ac().
-         * In this situation we send QOS null & mean time update UapsdActive to FALSE here
-         */
-        staInfo->uapsdActive = FALSE;
-        uf_send_qos_null(priv, GET_ACTIVE_INTERFACE_TAG(priv), staInfo->peerMacAddress.a, CSR_QOS_UP0 , staInfo);
-    }
-    func_exit();
+    unifi_trace(priv,UDBG2,"uf_is_more_data_for_delivery_ac: Data NOT Available \n");
+    return FALSE;
 }
 
+static CsrBool uf_is_more_data_for_usp_delivery(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t *staRecord, unifi_TrafficQueue queue)
+{
+    CsrInt8 i;
 
+    for(i = queue; i >= UNIFI_TRAFFIC_Q_BK; i--)
+    {
+        if(((staRecord->powersaveMode[i]==CSR_WIFI_AC_DELIVERY_ONLY_ENABLE)
+             ||(staRecord->powersaveMode[i]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED))
+             &&(!list_empty(&staRecord->dataPdu[i]))) {
+            unifi_trace(priv,UDBG2,"uf_is_more_data_for_usp_delivery: Data Available AC = %d\n", i);
+            return TRUE;
+        }
+    }
+
+    unifi_trace(priv,UDBG2,"uf_is_more_data_for_usp_delivery: Data NOT Available \n");
+    return FALSE;
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ *  uf_send_buffered_data_from_delivery_ac
+ *
+ *      This function takes care of
+ *      -> Parsing the delivery enabled queue & sending frame down to HIP
+ *      -> Setting EOSP=1 when USP to be terminated
+ *      -> Depending on MAX SP length services the USP
+ *
+ * NOTE:This function always called from uf_handle_uspframes_delivery(), Dont
+ *      call this function from any other location in code
+ *
+ *  Arguments:
+ *      priv        Pointer to device private context struct
+ *      vif         interface specific HIP vif instance
+ *      staInfo     peer for which UAPSD to be scheduled
+ *      queue       AC from which Data to be sent in USP
+ *      txList      access category for processing list
+ * ---------------------------------------------------------------------------
+ */
 void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv,
                                             CsrWifiRouterCtrlStaInfo_t * staInfo,
                                             CsrUint8 queue,
@@ -2170,117 +2267,94 @@ void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv,
     CsrBool eosp=FALSE;
     CsrInt8 r =0;
     CsrBool moreData = FALSE;
+    netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
 
-    CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
-    netInterface_priv_t *interfacePriv;
-    interfacePriv = priv->interfacePriv[interfaceTag];
-    func_enter();
+    unifi_trace(priv, UDBG2, "++uf_send_buffered_data_from_delivery_ac, active=%x\n", staInfo->uapsdActive);
 
-    /*Check U-APSD conditions if not met return from here*/
-    if((staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE)&&
-        (staInfo->uapsdActive == TRUE)&&
-        (!IS_DELIVERY_AND_TRIGGER_ENABLED(staInfo->powersaveMode[queue]))){
-
-        unifi_trace(priv,UDBG4,"uf_send_buffered_data_from_queue : U-APSD active. %d :Queue NOT delivery enbaled.return %\n",queue);
-
+    if (queue > UNIFI_TRAFFIC_Q_VO)
+    {
         return;
-     }
+    }
+    while((buffered_pkt=dequeue_tx_data_pdu(priv, txList))) {
+        if((IS_DTIM_ACTIVE(interfacePriv->dtimActive,interfacePriv->multicastPduHostTag))) {
+            unifi_trace(priv, UDBG2, "uf_send_buffered_data_from_delivery_ac: DTIM Active, suspend UAPSD, staId: 0x%x\n",
+                        staInfo->aid);
 
-    while(!isRouterBufferEnabled(priv,queue) &&
-                    ((buffered_pkt=dequeue_tx_data_pdu(priv, txList))!=NULL)){
-        if((IS_DTIM_ACTIVE(interfacePriv->dtimActive,interfacePriv->multicastPduHostTag))){
+            /* Once resume called, the U-APSD delivery operation will resume */
             spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
-            staInfo->uapsdSuspended = TRUE;
-            staInfo->uapsdActive = FALSE;
+            staInfo->uspSuspend = TRUE;
             spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
             /* re-queueing the packet as DTIM started */
             spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
             list_add(&buffered_pkt->q,txList);
             spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-            unifi_trace(priv, UDBG3, "%s: DTIM Active while UAPSD in progress for staId: 0x%x\n",__FUNCTION__,staInfo->aid);
             break;
         }
 
         buffered_pkt->transmissionControl &=
-                 ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_ESOP_MASK);
+                 ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
 
 
-        if((staInfo->wmmOrQosEnabled == TRUE)&&(staInfo->uapsdActive == TRUE)){
-
-            moreData = uf_is_more_data_for_delivery_ac(priv,staInfo,TRUE);
+        if((staInfo->wmmOrQosEnabled == TRUE)&&(staInfo->uapsdActive == TRUE)) {
 
              buffered_pkt->transmissionControl = TRANSMISSION_CONTROL_TRIGGER_MASK;
 
-            if(staInfo->noOfSpFramesSent == (staInfo->maxSpLength-1)){
-                moreData = FALSE;
-            }
+             /* Check All delivery enables Ac for more data, because caller of this
+              * function not aware about last packet
+              * (First check in moreData fetching helps in draining out Mgt frames Q)
+              */
+              moreData = (!list_empty(txList) || uf_is_more_data_for_usp_delivery(priv, staInfo, queue));
 
-            if(moreData == FALSE){
-                 eosp = TRUE;
-                 staInfo->uapsdActive = FALSE;
-                 staInfo->noOfSpFramesSent = FALSE;
-                 buffered_pkt->transmissionControl =
-                          (TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_ESOP_MASK);
+              if(staInfo->noOfSpFramesSent == (staInfo->maxSpLength - 1)) {
+                  moreData = FALSE;
+              }
 
-                /* Check if all AC's are Delivery Enabled */
-                is_all_ac_deliver_enabled_and_moredata(staInfo, &allDeliveryEnabled, &dataAvailable);
-                if ((allDeliveryEnabled && !dataAvailable)) {
-                    update_tim(priv,staInfo->aid,0,interfaceTag, staInfo->assignedHandle);
-                }
-                /* check the moer data for non delivery ac and update accordingly */
-                else if(uf_is_more_data_for_non_delivery_ac(staInfo) ) {
-                    update_tim(priv,staInfo->aid,1,interfaceTag, staInfo->assignedHandle);
-                }
-                else if(!uf_is_more_data_for_non_delivery_ac(staInfo) ){
-                     unifi_trace(priv, UDBG3, "more data = NULL, set tim to 0 in uf_send_buffered_data_from_delivery_ac\n");
-                     update_tim(priv,staInfo->aid,0,interfaceTag, staInfo->assignedHandle);
-                }
-
-             }
-        }
-        else
-        {
-          /*Non QoS and non U-APSD.*/
-            eosp = FALSE;
-            moreData = FALSE;
-            unifi_warning(priv,"uf_send_buffered_data_from_delivery_ac :non U-APSD !!! \n");
+              if(moreData == FALSE) {
+                  eosp = TRUE;
+                  buffered_pkt->transmissionControl =
+                      (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
+              }
+        } else {
+            /* Non QoS and non U-APSD */
+            unifi_warning(priv, "uf_send_buffered_data_from_delivery_ac: non U-APSD !!! \n");
         }
 
         unifi_trace(priv,UDBG2,"uf_send_buffered_data_from_delivery_ac : MoreData:%d, EOSP:%d\n",moreData,eosp);
 
         if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staInfo,moreData,eosp)) == -ENOSPC) {
-           /* Enqueue at the head of the queue */
-           spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
-           list_add(&buffered_pkt->q,txList);
-           spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-           priv->pausedStaHandle[queue]=(CsrUint8)(staInfo->assignedHandle);
-           unifi_notice (priv," U-APSD: PDU sending failed .. no space for queue %d \n",queue);
-           /*Break the loop for this queue.Try for next available Delivery enabled
-           Queue*/
-           break;
+
+            unifi_trace(priv, UDBG2, "uf_send_buffered_data_from_delivery_ac: UASPD suspended, ENOSPC in hipQ=%x\n", queue);
+
+            /* Once resume called, the U-APSD delivery operation will resume */
+            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+            staInfo->uspSuspend = TRUE;
+            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+
+            spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
+            list_add(&buffered_pkt->q,txList);
+            spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
+            priv->pausedStaHandle[queue]=(CsrUint8)(staInfo->assignedHandle);
+            break;
         } else {
             if(r){
                 /* the PDU failed where we can't do any thing so free the storage */
                 unifi_net_data_free(priv, &buffered_pkt->bulkdata);
             }
-
             kfree(buffered_pkt);
-            if(staInfo->uapsdActive == TRUE){
-                    spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
-                    staInfo->noOfSpFramesSent = staInfo->noOfSpFramesSent + 1;
-                    if(staInfo->noOfSpFramesSent == staInfo->maxSpLength){
-                        staInfo->uapsdActive = FALSE;
-                        staInfo->noOfSpFramesSent = FALSE;
-                        spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
-                        break;
-                    }
+            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+            staInfo->noOfSpFramesSent++;
+            if((!moreData) || (staInfo->noOfSpFramesSent == staInfo->maxSpLength)) {
+                unifi_trace(priv, UDBG2, "uf_send_buffered_data_from_delivery_ac: Terminating USP\n");
+                staInfo->uapsdActive = FALSE;
+                staInfo->uspSuspend = FALSE;
+                staInfo->noOfSpFramesSent = 0;
                 spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+                break;
             }
+            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
         }
     }
-
-   func_exit();
-
+    unifi_trace(priv, UDBG2, "--uf_send_buffered_data_from_delivery_ac, active=%x\n", staInfo->uapsdActive);
 }
 
 void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
@@ -2302,7 +2376,7 @@ void uf_send_buffered_data_from_ac(unifi_priv_t *priv,
                     ((buffered_pkt=dequeue_tx_data_pdu(priv, txList))!=NULL)){
 
         buffered_pkt->transmissionControl &=
-                 ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_ESOP_MASK);
+                 ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_EOSP_MASK);
 
         unifi_trace(priv,UDBG3,"uf_send_buffered_data_from_ac : MoreData:%d, EOSP:%d\n",moreData,eosp);
 
@@ -2352,7 +2426,19 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
             moreData = (!list_empty(&interfacePriv->genericMulticastOrBroadCastMgtFrames) ||
              !list_empty(&interfacePriv->genericMulticastOrBroadCastFrames));
             if(!moreData) {
-                update_tim(priv,0,0,interfaceTag, 0XFFFFFFFF);
+                if (!interfacePriv->bcTimSetReqPendingFlag)
+                {
+                    update_tim(priv,0,CSR_WIFI_TIM_RESET,interfaceTag, 0XFFFFFFFF);
+                }
+                else
+                {
+                    /* Cache the TimSet value so that it will processed immidiatly after
+                     * completing the current setTim Request
+                     */
+                    interfacePriv->bcTimSetReqQueued = CSR_WIFI_TIM_RESET;
+                    unifi_trace(priv, UDBG2, "uf_send_buffered_frames : One more UpdateDTim Request(%d) Queued \n",
+                                interfacePriv->bcTimSetReqQueued);
+                }
             }
         } else {
             moreData = (!list_empty(&interfacePriv->genericMulticastOrBroadCastMgtFrames) ||
@@ -2391,33 +2477,17 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
                     uf_send_buffered_data_from_ac(priv,staInfo, UNIFI_TRAFFIC_Q_VO, &staInfo->mgtFrames);
                 }
             }
-            else if((staInfo != NULL)&&(staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE)
-                               &&(staInfo->uapsdActive == TRUE)&&(IS_DELIVERY_AND_TRIGGER_ENABLED(staInfo->powersaveMode[UNIFI_TRAFFIC_Q_VO]))){
-
-
-                if(!list_empty(&staInfo->mgtFrames)){
-                    /*UNIFI_TRAFFIC_Q_VO is delivery enabled push the managment frames out*/
-                    uf_send_buffered_data_from_delivery_ac(priv, staInfo, UNIFI_TRAFFIC_Q_VO, &staInfo->mgtFrames);
-
-                }
-            }
 
             if(isRouterBufferEnabled(priv,queue)) {
                 unifi_notice(priv,"uf_send_buffered_frames : No space Left for queue = %d\n",queue);
                 break;
             }
         }
-
-
         /*push generic management frames out*/
-
-        if(!list_empty(&interfacePriv->genericMgtFrames)){
-
-        unifi_trace(priv,UDBG2,"uf_send_buffered_frames : trying generic mgt from queue=%d\n",queue);
-        uf_send_buffered_data_from_ac(priv,staInfo, UNIFI_TRAFFIC_Q_VO, &interfacePriv->genericMgtFrames);
-
+        if(!list_empty(&interfacePriv->genericMgtFrames)) {
+            unifi_trace(priv,UDBG2,"uf_send_buffered_frames : trying generic mgt from queue=%d\n",queue);
+            uf_send_buffered_data_from_ac(priv,staInfo, UNIFI_TRAFFIC_Q_VO, &interfacePriv->genericMgtFrames);
         }
-
     }
 
 
@@ -2431,14 +2501,14 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
         staInfo =  CsrWifiRouterCtrlGetStationRecordFromHandle(priv,startIndex,interfaceTag);
         if(!staInfo) {
             startIndex ++;
-            if(startIndex >= UNIFI_MAX_CONNECTIONS){
+            if(startIndex >= UNIFI_MAX_CONNECTIONS) {
                 startIndex = 0;
             }
             continue;
         } else if((staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE)
-                   &&(staInfo->uapsdActive == FALSE)){
+                   &&(staInfo->uapsdActive == FALSE)) {
             startIndex ++;
-            if(startIndex >= UNIFI_MAX_CONNECTIONS){
+            if(startIndex >= UNIFI_MAX_CONNECTIONS) {
                 startIndex = 0;
             }
             continue;
@@ -2448,23 +2518,15 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
 
 
         if((staInfo != NULL)&&(staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_ACTIVE)
-                           &&(staInfo->uapsdActive == FALSE)){
+                           &&(staInfo->uapsdActive == FALSE)) {
+           if(!list_empty(&staInfo->dataPdu[queue])) {
 
-           if(!list_empty(&staInfo->dataPdu[queue])){
-
-          /*Non-UAPSD case push the AC frames out*/
-            uf_send_buffered_data_from_ac(priv, staInfo, queue, (&staInfo->dataPdu[queue]));
+               /*Non-UAPSD case push the AC frames out*/
+               uf_send_buffered_data_from_ac(priv, staInfo, queue, (&staInfo->dataPdu[queue]));
            }
         }
-        else  if((staInfo != NULL)&&(staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE)
-                               &&(staInfo->uapsdActive == TRUE)&&(IS_DELIVERY_AND_TRIGGER_ENABLED(staInfo->powersaveMode[queue]))){
-            if(!list_empty(&staInfo->dataPdu[queue])){
-            uf_send_buffered_data_from_delivery_ac(priv, staInfo, queue, &staInfo->dataPdu[queue]);
-            }
-        }
-
         startIndex ++;
-        if(startIndex >= UNIFI_MAX_CONNECTIONS){
+        if(startIndex >= UNIFI_MAX_CONNECTIONS) {
            startIndex = 0;
         }
     }
@@ -2474,47 +2536,14 @@ void uf_send_buffered_frames(unifi_priv_t *priv,unifi_TrafficQueue q)
         priv->pausedStaHandle[queue] = 0;
     }
 
-   /*U-APSD might have stopped because of pause.So restart it if U-APSD
-   was active with any of the station*/
-    for(startIndex= 0; startIndex < UNIFI_MAX_CONNECTIONS;startIndex++) {
-        staInfo =  CsrWifiRouterCtrlGetStationRecordFromHandle(priv,startIndex,interfaceTag);
-        if(!staInfo ) {
-            continue;
-        } else if((staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE)
-                   &&(staInfo->uapsdActive == TRUE)) {
-
-            /*U-APSD Still active, it means trigger frame is received,so continue U-APSD by
-            sending data from remaining delivery enabled queues*/
-            uf_continue_uapsd(priv,staInfo);
-        }
-    }
+    /* U-APSD might have stopped because of ENOSPC in lib_hip (pause activity).
+     * So restart it if U-APSD was active with any of the station
+     */
+    unifi_trace(priv, UDBG4, "csrWifiHipSendBufferedFrames: UAPSD Resume Q=%x\n", queue);
+    resume_suspended_uapsd(priv, interfaceTag);
     func_exit();
 }
 
-CsrBool uf_is_more_data_for_delivery_ac(unifi_priv_t *priv,CsrWifiRouterCtrlStaInfo_t *staRecord,CsrBool mgtCheck)
-{
-    CsrUint8 i;
-
-    for(i=0;i<=3;i++)
-    {
-     if(((staRecord->powersaveMode[i]==CSR_WIFI_AC_DELIVERY_ONLY_ENABLE)
-            ||(staRecord->powersaveMode[i]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED))
-            &&(!list_empty(&staRecord->dataPdu[i]))){
-          unifi_trace(priv,UDBG2,"uf_is_more_data_for_delivery_ac: Data Available \n");
-         return TRUE;
-        }
-    }
-    if((mgtCheck == TRUE)&&(IS_DELIVERY_AND_TRIGGER_ENABLED(staRecord->powersaveMode[UNIFI_TRAFFIC_Q_VO]))
-        &&(!list_empty(&staRecord->mgtFrames))){
-
-        unifi_trace(priv,UDBG2,"uf_is_more_data_for_delivery_ac: Management Data Available \n");
-
-        return TRUE;
-    }
-
-    unifi_trace(priv,UDBG2,"uf_is_more_data_for_delivery_ac: Data NOT Available \n");
-    return FALSE;
-}
 
 CsrBool uf_is_more_data_for_non_delivery_ac(CsrWifiRouterCtrlStaInfo_t *staRecord)
 {
@@ -2584,101 +2613,148 @@ int uf_process_station_records_for_sending_data(unifi_priv_t *priv,CsrUint16 int
     return 0;
 }
 
+
+/*
+ * ---------------------------------------------------------------------------
+ *  uf_handle_uspframes_delivery
+ *
+ *      This function takes care of handling USP session for peer, when
+ *      -> trigger frame from peer
+ *      -> suspended USP to be processed (resumed)
+ *
+ *      NOTE: uf_send_buffered_data_from_delivery_ac() always called from this function, Dont
+ *      make a direct call to uf_send_buffered_data_from_delivery_ac() from any other part of
+ *      code
+ *
+ *  Arguments:
+ *      priv            Pointer to device private context struct
+ *      staInfo         peer for which UAPSD to be scheduled
+ *      interfaceTag    virtual interface tag
+ * ---------------------------------------------------------------------------
+ */
+static void uf_handle_uspframes_delivery(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo_t *staInfo, CsrUint16 interfaceTag)
+{
+
+    CsrInt8 i;
+    CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
+    netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
+    unsigned long lock_flags;
+
+    unifi_trace(priv, UDBG2, " ++ uf_handle_uspframes_delivery, uapsd active=%x, suspended?=%x\n",
+                staInfo->uapsdActive, staInfo->uspSuspend);
+
+    /* Check for Buffered frames according to priority order & deliver it
+     *  1. AC_VO delivery enable & Mgt frames available
+     *  2. Process remaining Ac's from order AC_VO to AC_BK
+     */
+
+    /* USP initiated by WMMPS enabled peer  & SET the status flag to TRUE */
+    if (!staInfo->uspSuspend && staInfo->uapsdActive)
+    {
+        unifi_notice(priv, "uf_handle_uspframes_delivery: U-APSD already active! STA=%x:%x:%x:%x:%x:%x\n",
+                staInfo->peerMacAddress.a[0], staInfo->peerMacAddress.a[1],
+                staInfo->peerMacAddress.a[2], staInfo->peerMacAddress.a[3],
+                staInfo->peerMacAddress.a[4], staInfo->peerMacAddress.a[5]);
+        return;
+    }
+
+    spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+    staInfo->uapsdActive = TRUE;
+    staInfo->uspSuspend = FALSE;
+    spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+
+    if(((staInfo->powersaveMode[UNIFI_TRAFFIC_Q_VO]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED)||
+        (staInfo->powersaveMode[UNIFI_TRAFFIC_Q_VO]==CSR_WIFI_AC_DELIVERY_ONLY_ENABLE))
+        && (!list_empty(&staInfo->mgtFrames))) {
+
+         /* Management queue has data &&  UNIFI_TRAFFIC_Q_VO is delivery enable */
+        unifi_trace(priv, UDBG4, "uf_handle_uspframes_delivery: Sending buffered management frames\n");
+        uf_send_buffered_data_from_delivery_ac(priv, staInfo, UNIFI_TRAFFIC_Q_VO, &staInfo->mgtFrames);
+    }
+
+    if (!uf_is_more_data_for_delivery_ac(priv, staInfo)) {
+        /* All delivery enable AC's are empty, so QNULL to be sent to terminate the USP
+         * NOTE: If we have sent Mgt frame also, we must send QNULL followed to terminate USP
+         */
+        if (!staInfo->uspSuspend) {
+            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+            staInfo->uapsdActive = FALSE;
+            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+
+            unifi_trace(priv, UDBG2, "uf_handle_uspframes_delivery: sending QNull for trigger\n");
+            uf_send_qos_null(priv, interfaceTag, staInfo->peerMacAddress.a, (CSR_PRIORITY) staInfo->triggerFramePriority, staInfo);
+            staInfo->triggerFramePriority = CSR_QOS_UP0;
+        } else {
+            unifi_trace(priv, UDBG2, "uf_handle_uspframes_delivery: MgtQ xfer suspended\n");
+        }
+    } else {
+        for(i = UNIFI_TRAFFIC_Q_VO; i >= UNIFI_TRAFFIC_Q_BK; i--) {
+            if(((staInfo->powersaveMode[i]==CSR_WIFI_AC_DELIVERY_ONLY_ENABLE)
+                ||(staInfo->powersaveMode[i]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED))
+                && (!list_empty(&staInfo->dataPdu[i]))) {
+                /* Deliver Data according to AC priority (from VO to BK) as part of USP */
+                unifi_trace(priv, UDBG4, "uf_handle_uspframes_delivery: Buffered data frames from Queue (%d) for USP\n", i);
+                uf_send_buffered_data_from_delivery_ac(priv, staInfo, i, &staInfo->dataPdu[i]);
+            }
+
+            if ((!staInfo->uapsdActive) ||
+                    (staInfo->uspSuspend && IS_DTIM_ACTIVE(interfacePriv->dtimActive,interfacePriv->multicastPduHostTag))) {
+                /* If DTIM active found on one AC, No need to parse the remaining AC's
+                 * as USP suspended. Break out of loop
+                 */
+                unifi_trace(priv, UDBG2, "uf_handle_uspframes_delivery: suspend=%x,  DTIM=%x, USP terminated=%s\n",
+                           staInfo->uspSuspend, IS_DTIM_ACTIVE(interfacePriv->dtimActive,interfacePriv->multicastPduHostTag),
+                           staInfo->uapsdActive?"NO":"YES");
+                break;
+            }
+        }
+    }
+
+    /* Depending on the USP status, update the TIM accordingly for delivery enabled AC only
+     * (since we are not manipulating any Non-delivery list(AC))
+     */
+    is_all_ac_deliver_enabled_and_moredata(staInfo, &allDeliveryEnabled, &dataAvailable);
+    if ((allDeliveryEnabled && !dataAvailable)) {
+        if ((staInfo->timSet != CSR_WIFI_TIM_RESET) || (staInfo->timSet != CSR_WIFI_TIM_RESETTING)) {
+            staInfo->updateTimReqQueued = (CsrUint8) CSR_WIFI_TIM_RESET;
+            unifi_trace(priv, UDBG4, " --uf_handle_uspframes_delivery, UAPSD timset\n");
+            if (!staInfo->timRequestPendingFlag) {
+                update_tim(priv, staInfo->aid, 0, interfaceTag, staInfo->assignedHandle);
+            }
+        }
+    }
+    unifi_trace(priv, UDBG2, " --uf_handle_uspframes_delivery, uapsd active=%x, suspend?=%x\n",
+                staInfo->uapsdActive, staInfo->uspSuspend);
+}
+
 void uf_process_wmm_deliver_ac_uapsd(unifi_priv_t * priv,
                                      CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
                                      CsrUint16 qosControl,
                                      CsrUint16 interfaceTag)
 {
-
     CSR_PRIORITY priority;
-    CsrInt8 i;
     unifi_TrafficQueue priority_q;
     unsigned long lock_flags;
 
-    func_enter();
+    unifi_trace(priv, UDBG2, "++uf_process_wmm_deliver_ac_uapsd: uapsdactive?=%x\n", srcStaInfo->uapsdActive);
+    /* If recceived Frames trigger Frame and Devlivery enabled AC has data
+     * then transmit from High priorty delivery enabled AC
+     */
+    priority = (CSR_PRIORITY)(qosControl & IEEE802_11_QC_TID_MASK);
+    priority_q = unifi_frame_priority_to_queue((CSR_PRIORITY) priority);
 
-    /* start the U-APSD operation only if it not active*/
-    if(srcStaInfo->uapsdActive == FALSE){
-        /*if recceived Frames trigger Frame and Devlivery enabled AC has data
-         then transmit from High priorty delivery enabled AC*/
-
-
-        priority = (CSR_PRIORITY)(qosControl & IEEE802_11_QC_TID_MASK);
-
-        priority_q = unifi_frame_priority_to_queue((CSR_PRIORITY) priority);
-
-      if((srcStaInfo->powersaveMode[priority_q]==CSR_WIFI_AC_TRIGGER_ONLY_ENABLED)
-          ||(srcStaInfo->powersaveMode[priority_q]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED)){
-
-          unifi_trace(priv, UDBG3, "uf_process_wmm_deliver_ac_uapsd starting U-APSD operations\n");
-
-          /*Received Frame is trigger frame*/
-        unifi_trace(priv, UDBG5, "uf_process_wmm_deliver_ac_uapsd : Received Frame is trigger frame %d\n",priority_q);
-
-        if(((srcStaInfo->powersaveMode[UNIFI_TRAFFIC_Q_VO]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED)||
-             (srcStaInfo->powersaveMode[UNIFI_TRAFFIC_Q_VO]==CSR_WIFI_AC_DELIVERY_ONLY_ENABLE))
-            &&(!list_empty(&srcStaInfo->mgtFrames))){
-
-            /*Trigger frame received and Data available in Delivery enabled AC
-            or in Management queue when UNIFI_TRAFFIC_Q_VO is delivery enabled*/
-            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
-            srcStaInfo->uapsdActive = TRUE;
-            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
-
-            unifi_trace(priv, UDBG5, "uf_process_wmm_deliver_ac_uapsd : U-APSD ACTIVE and sending buffered mgt frames\n");
-
-           /* uf_send_buffered_frames(priv, priority_q); */
-            uf_send_buffered_data_from_delivery_ac(priv, srcStaInfo, UNIFI_TRAFFIC_Q_VO, &srcStaInfo->mgtFrames);
-
-
-           /*This may happen because U-APSD was completed
-            with previous AC transfer*/
-
-           if(srcStaInfo->uapsdActive == FALSE){
-              return;
-           }
-
-         }
-
-
-        for(i=3;i>=0;i--){
-
-            if(((srcStaInfo->powersaveMode[i]==CSR_WIFI_AC_DELIVERY_ONLY_ENABLE)
-                ||(srcStaInfo->powersaveMode[i]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED))
-                &&(!list_empty(&srcStaInfo->dataPdu[i]))){
-
-
-                 /*Trigger frame received and Data available in Delivery enabled AC
-                 or in Management queue when UNIFI_TRAFFIC_Q_VO is delivery enabled*/
-                 spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
-                 srcStaInfo->uapsdActive = TRUE;
-                 spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
-
-                 unifi_trace(priv, UDBG5, "uf_process_wmm_deliver_ac_uapsd : U-APSD ACTIVE and sending buffered  data frames\n");
-
-                 uf_send_buffered_data_from_delivery_ac(priv, srcStaInfo, i, &srcStaInfo->dataPdu[i]);
-
-                 /*This may happen because U-APSD was completed
-                  with previous AC transfer*/
-
-                 if(srcStaInfo->uapsdActive == FALSE){
-                    return;
-                 }
-            }
-
-         }
-         if(srcStaInfo->uapsdActive == FALSE && !(uf_is_more_data_for_delivery_ac(priv,srcStaInfo,TRUE))){
-             unifi_trace(priv, UDBG3, "uf_process_wmm_deliver_ac_uapsd : No buffer frames so sending QOS Null in response of trigger frame\n");
-             uf_send_qos_null(priv,interfaceTag,srcStaInfo->peerMacAddress.a,priority,srcStaInfo);
-         }
-
-      }
-
-  }
-
-  func_exit();
-
+    if((srcStaInfo->powersaveMode[priority_q]==CSR_WIFI_AC_TRIGGER_ONLY_ENABLED)
+        ||(srcStaInfo->powersaveMode[priority_q]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED)) {
+        spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+        srcStaInfo->triggerFramePriority = priority;
+        spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+        unifi_trace(priv, UDBG2, "uf_process_wmm_deliver_ac_uapsd: trigger frame, Begin U-APSD, triggerQ=%x\n", priority_q);
+        uf_handle_uspframes_delivery(priv, srcStaInfo, interfaceTag);
+    }
+    unifi_trace(priv, UDBG2, "--uf_process_wmm_deliver_ac_uapsd: uapsdactive?=%x\n", srcStaInfo->uapsdActive);
 }
+
+
 void uf_send_qos_null(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo)
 {
     bulk_data_param_t bulkdata;
@@ -2686,7 +2762,7 @@ void uf_send_qos_null(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8
     struct sk_buff *skb, *newSkb = NULL;
     CsrWifiMacAddress peerAddress;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
-    CSR_TRANSMISSION_CONTROL transmissionControl = (TRANSMISSION_CONTROL_ESOP_MASK | TRANSMISSION_CONTROL_TRIGGER_MASK);
+    CSR_TRANSMISSION_CONTROL transmissionControl = (TRANSMISSION_CONTROL_EOSP_MASK | TRANSMISSION_CONTROL_TRIGGER_MASK);
     int r;
     CSR_SIGNAL signal;
     CsrUint32 priority_q;
@@ -2928,7 +3004,19 @@ CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo
                         !list_empty(&srcStaInfo->dataPdu[UNIFI_TRAFFIC_Q_CONTENTION]));
             if(moreData && (srcStaInfo->timSet == CSR_WIFI_TIM_RESET)) {
                 unifi_trace(priv, UDBG3, "This condition should not occur\n");
-                update_tim(priv,srcStaInfo->aid,1,interfaceTag, srcStaInfo->assignedHandle);
+                if (!srcStaInfo->timRequestPendingFlag){
+                    update_tim(priv,srcStaInfo->aid,1,interfaceTag, srcStaInfo->assignedHandle);
+                }
+                else
+                {
+                    /* Cache the TimSet value so that it will processed immidiatly after
+                     * completing the current setTim Request
+                     */
+                    srcStaInfo->updateTimReqQueued = 1;
+                    unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", srcStaInfo->updateTimReqQueued,
+                                srcStaInfo->aid);
+                }
+
             }
         } else {
             CsrUint8 allDeliveryEnabled = 0, dataAvailable = 0;
@@ -2939,7 +3027,18 @@ CsrBool uf_process_pm_bit_for_peer(unifi_priv_t * priv, CsrWifiRouterCtrlStaInfo
             moreData = (uf_is_more_data_for_non_delivery_ac(srcStaInfo) || (allDeliveryEnabled && dataAvailable));
 
             if(moreData && (srcStaInfo->timSet == CSR_WIFI_TIM_RESET)) {
-                update_tim(priv,srcStaInfo->aid,1,interfaceTag, srcStaInfo->assignedHandle);
+                if (!srcStaInfo->timRequestPendingFlag){
+                    update_tim(priv,srcStaInfo->aid,1,interfaceTag, srcStaInfo->assignedHandle);
+                }
+                else
+                {
+                    /* Cache the TimSet value so that it will processed immidiatly after
+                     * completing the current setTim Request
+                     */
+                    srcStaInfo->updateTimReqQueued = 1;
+                    unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", srcStaInfo->updateTimReqQueued,
+                                srcStaInfo->aid);
+                }
             }
         }
     }
@@ -2993,10 +3092,10 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
                         !list_empty(&staRecord->dataPdu[UNIFI_TRAFFIC_Q_VO]) ||
                         !list_empty(&staRecord->mgtFrames));
 
-            buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+            buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
             if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staRecord,moreData,FALSE)) == -ENOSPC) {
                 /* Clear the trigger bit transmission control*/
-                buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+                buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
                 /* Enqueue at the head of the queue */
                 spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                 list_add(&buffered_pkt->q, &staRecord->mgtFrames);
@@ -3016,10 +3115,10 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
             moreData = (!list_empty(&staRecord->dataPdu[UNIFI_TRAFFIC_Q_CONTENTION]) ||
                         !list_empty(&staRecord->dataPdu[UNIFI_TRAFFIC_Q_VO]));
 
-            buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+            buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
             if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staRecord,moreData,FALSE)) == -ENOSPC) {
                 /* Clear the trigger bit transmission control*/
-                buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+                buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
                 /* Enqueue at the head of the queue */
                 spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                 list_add(&buffered_pkt->q, &staRecord->dataPdu[UNIFI_TRAFFIC_Q_VO]);
@@ -3038,10 +3137,10 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
             buffered_pkt->transmissionControl |= TRANSMISSION_CONTROL_TRIGGER_MASK;
             moreData = !list_empty(&staRecord->dataPdu[UNIFI_TRAFFIC_Q_CONTENTION]);
 
-            buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+            buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
             if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staRecord,moreData,FALSE)) == -ENOSPC) {
                 /* Clear the trigger bit transmission control*/
-                buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+                buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
                 /* Enqueue at the head of the queue */
                 spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                 list_add(&buffered_pkt->q, &staRecord->dataPdu[UNIFI_TRAFFIC_Q_CONTENTION]);
@@ -3065,7 +3164,18 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
             !list_empty(&staRecord->mgtFrames));
         if(!moreData && (staRecord->timSet == CSR_WIFI_TIM_SET)) {
             unifi_trace(priv, UDBG3, "more data = NULL, set tim to 0 in uf_process_ps_poll\n");
-            update_tim(priv,staRecord->aid,0,interfaceTag, staRecord->assignedHandle);
+            if (!staRecord->timRequestPendingFlag){
+                update_tim(priv,staRecord->aid,0,interfaceTag, staRecord->assignedHandle);
+            }
+            else
+            {
+                /* Cache the TimSet value so that it will processed immidiatly after
+                 * completing the current setTim Request
+                 */
+                staRecord->updateTimReqQueued = 0;
+                unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", staRecord->updateTimReqQueued,
+                            staRecord->aid);
+            }
         }
     } else {
 
@@ -3074,9 +3184,9 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
 
         /*Send Data From Management Frames*/
         /* Priority orders for delivering the buffered packets are
-         * 1. UNIFI_TRAFFIC_Q_VO, if its non delivery enabled
-         * 2. management frames
-         * 3. Other access catagory frames which are non deliver enable
+         * 1. Deliver the Management frames if there
+         * 2. Other access catagory frames which are non deliver enable including UNIFI_TRAFFIC_Q_VO
+         * priority is from VO->BK
          */
 
         /* Check if all AC's are Delivery Enabled */
@@ -3088,42 +3198,18 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
             return;
         }
 
-        if ((!IS_DELIVERY_ENABLED(staRecord->powersaveMode[UNIFI_TRAFFIC_Q_VO])) &&
-                (!list_empty(&staRecord->dataPdu[UNIFI_TRAFFIC_Q_VO]) || !list_empty(&staRecord->mgtFrames))) {
-            /* UNIFI_TRAFFIC_Q_VO is non delivery enabled, & check for packets are there to send from this AC */
-            if((buffered_pkt=dequeue_tx_data_pdu(priv, &staRecord->dataPdu[UNIFI_TRAFFIC_Q_VO]))) {
-                moreData = uf_is_more_data_for_non_delivery_ac(staRecord);
-                buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
-
-                /* Last parameter is EOSP & its false always for PS-POLL processing */
-                if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staRecord,moreData,FALSE)) == -ENOSPC) {
-                    /* Clear the trigger bit transmission control*/
-                    buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
-                    /* Enqueue at the head of the queue */
-                    spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
-                    list_add(&buffered_pkt->q, &staRecord->dataPdu[UNIFI_TRAFFIC_Q_VO]);
-                    spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-                    priv->pausedStaHandle[0]=(CsrUint8)(staRecord->assignedHandle);
-                    unifi_trace(priv, UDBG1, "(ENOSPC) PS-POLL received : PDU sending failed \n");
-                } else {
-                    if(r){
-                        unifi_trace (priv, UDBG1, " HIP validation failure : PDU sending failed \n");
-                        /* the PDU failed where we can't do any thing so free the storage */
-                        unifi_net_data_free(priv, &buffered_pkt->bulkdata);
-                    }
-                    kfree(buffered_pkt);
-                }
-            } else if ((buffered_pkt=dequeue_tx_data_pdu(priv, &staRecord->mgtFrames))) {
+        if (!list_empty(&staRecord->mgtFrames)) {
+             if ((buffered_pkt=dequeue_tx_data_pdu(priv, &staRecord->mgtFrames))) {
                     /* We dont have packets in non delivery enabled UNIFI_TRAFFIC_Q_VO, So we are looking in management
                      * queue of the station record
                      */
                     moreData = uf_is_more_data_for_non_delivery_ac(staRecord);
-                    buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+                    buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
 
                     /* Last parameter is EOSP & its false always for PS-POLL processing */
                     if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staRecord,moreData,FALSE)) == -ENOSPC) {
                         /* Clear the trigger bit transmission control*/
-                        buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+                        buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
                         /* Enqueue at the head of the queue */
                         spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                         list_add(&buffered_pkt->q, &staRecord->mgtFrames);
@@ -3138,24 +3224,27 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
                         }
                         kfree(buffered_pkt);
                     }
+                } else {
+                    unifi_error(priv, "uf_process_ps_poll: Mgt frame list empty!! \n");
                 }
+
         } else {
             CsrInt8 i;
-            /* We dont have buffered packet in UNIFI_TRAFFIC_Q_VO & mangement frame queue (1 & 2 failed), So proceed with 3 condition
-             * UNIFI_TRAFFIC_Q_VO is taken care so start with i index = 2
+            /* We dont have buffered packet in mangement frame queue (1 failed), So proceed with condition 2
+             * UNIFI_TRAFFIC_Q_VO -> VI -> BE -> BK
              */
-            for(i= 2; i>=0; i--) {
+            for(i= 3; i>=0; i--) {
                 if (!IS_DELIVERY_ENABLED(staRecord->powersaveMode[i])) {
                     /* Send One packet, if queue is NULL then continue */
                     if((buffered_pkt=dequeue_tx_data_pdu(priv, &staRecord->dataPdu[i]))) {
                         moreData = uf_is_more_data_for_non_delivery_ac(staRecord);
 
-                        buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+                        buffered_pkt->transmissionControl |= (TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
 
                         /* Last parameter is EOSP & its false always for PS-POLL processing */
                         if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staRecord,moreData,FALSE)) == -ENOSPC) {
                             /* Clear the trigger bit transmission control*/
-                            buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_ESOP_MASK);
+                            buffered_pkt->transmissionControl &= ~(TRANSMISSION_CONTROL_TRIGGER_MASK | TRANSMISSION_CONTROL_EOSP_MASK);
                             /* Enqueue at the head of the queue */
                             spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
                             list_add(&buffered_pkt->q, &staRecord->dataPdu[i]);
@@ -3181,7 +3270,19 @@ void uf_process_ps_poll(unifi_priv_t *priv,CsrUint8* sa,CsrUint8* da,CsrUint8 pm
         moreData = (uf_is_more_data_for_non_delivery_ac(staRecord) || (allDeliveryEnabled && dataAvailable));
         if(!moreData && (staRecord->timSet == CSR_WIFI_TIM_SET)) {
             unifi_trace(priv, UDBG3, "more data = NULL, set tim to 0 in uf_process_ps_poll\n");
-            update_tim(priv,staRecord->aid,0,interfaceTag, staRecord->assignedHandle);
+            if (!staRecord->timRequestPendingFlag){
+                update_tim(priv,staRecord->aid,0,interfaceTag, staRecord->assignedHandle);
+            }
+            else
+            {
+                /* Cache the TimSet value so that it will processed immidiatly after
+                 * completing the current setTim Request
+                 */
+                staRecord->updateTimReqQueued = 0;
+                unifi_trace(priv, UDBG6, "update_tim : One more UpdateTim Request (Tim value:%d) Queued for AID %x\n", staRecord->updateTimReqQueued,
+                            staRecord->aid);
+            }
+
         }
     }
 
@@ -3297,31 +3398,7 @@ void uf_flush_list(unifi_priv_t * priv, struct list_head * list)
     }
     spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
 }
-void uf_flush_maPktlist(unifi_priv_t * priv, struct list_head * list)
-{
-    struct list_head *listHeadMaPktreq,*placeHolderMaPktreq;
-    maPktReqList_t *maPktreq;
-    unsigned long lock_flags;
 
-    unifi_trace(priv, UDBG5, "entering the uf_flush_maPktlist \n");
-
-    spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
-    /* go through list, delete & free memory */
-    list_for_each_safe(listHeadMaPktreq, placeHolderMaPktreq, list) {
-        maPktreq = list_entry(listHeadMaPktreq, maPktReqList_t, q);
-
-        if(!maPktreq) {
-            unifi_error(priv, "entry should exists, otherwise crashes (bug)\n");
-        }
-        /* free the allocated memory */
-        dev_kfree_skb(maPktreq->skb);
-        list_del(listHeadMaPktreq);
-        kfree(maPktreq);
-        maPktreq = NULL;
-
-    }
-    spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-}
 tx_buffered_packets_t *dequeue_tx_data_pdu(unifi_priv_t *priv, struct list_head *txList)
 {
     /* dequeue the tx data packets from the appropriate queue */
@@ -3521,7 +3598,7 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
    while(!isRouterBufferEnabled(priv,3) &&
                             ((buffered_pkt=dequeue_tx_data_pdu(priv,&interfacePriv->genericMgtFrames))!=NULL)) {
         buffered_pkt->transmissionControl &=
-                     ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_ESOP_MASK);
+                     ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_EOSP_MASK);
         if((r=frame_and_send_queued_pdu(priv,buffered_pkt,NULL,0,FALSE)) == -ENOSPC) {
             /* Enqueue at the head of the queue */
             spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
@@ -3547,7 +3624,7 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
         if (staInfo && (staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_ACTIVE)) {
           while((( TRUE == hipslotFree[3] ) && (buffered_pkt=dequeue_tx_data_pdu(priv, &staInfo->mgtFrames)))) {
               buffered_pkt->transmissionControl &=
-                           ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_ESOP_MASK);
+                           ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_EOSP_MASK);
               if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staInfo,0,FALSE)) == -ENOSPC) {
                   unifi_trace(priv, UDBG3, "(ENOSPC) in resume_unicast_buffered_frames:: hip slots are full for voice queue\n");
                   /* Enqueue at the head of the queue */
@@ -3573,7 +3650,7 @@ void resume_unicast_buffered_frames(unifi_priv_t *priv, CsrUint16 interfaceTag)
 
               while((buffered_pkt=dequeue_tx_data_pdu(priv, &staInfo->dataPdu[j]))) {
                  buffered_pkt->transmissionControl &=
-                            ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_ESOP_MASK);
+                            ~(TRANSMISSION_CONTROL_TRIGGER_MASK|TRANSMISSION_CONTROL_EOSP_MASK);
                  if((r=frame_and_send_queued_pdu(priv,buffered_pkt,staInfo,0,FALSE)) == -ENOSPC) {
                      /* Enqueue at the head of the queue */
                      spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
@@ -3615,7 +3692,7 @@ void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,CsrUint16 int
         spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
         list_for_each_safe(listHead, placeHolder, &interfacePriv->genericMulticastOrBroadCastFrames) {
             tx_q_item = list_entry(listHead, tx_buffered_packets_t, q);
-            tx_q_item->transmissionControl |= TRANSMISSION_CONTROL_ESOP_MASK;
+            tx_q_item->transmissionControl |= TRANSMISSION_CONTROL_EOSP_MASK;
             tx_q_item->transmissionControl = (tx_q_item->transmissionControl & ~(CSR_NO_CONFIRM_REQUIRED));
             unifi_trace(priv, UDBG1,"updating eosp for list Head hostTag:= 0x%x ",tx_q_item->hostTag);
             break;
@@ -3624,105 +3701,51 @@ void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,CsrUint16 int
     }
     func_exit();
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ *  resume_suspended_uapsd
+ *
+ *      This function takes care processing packets of Unscheduled Service Period,
+ *      which been suspended earlier due to DTIM/HIP ENOSPC scenarios
+ *
+ *  Arguments:
+ *      priv            Pointer to device private context struct
+ *      interfaceTag    For which resume should happen
+ * ---------------------------------------------------------------------------
+ */
 void resume_suspended_uapsd(unifi_priv_t* priv,CsrUint16 interfaceTag)
 {
 
    CsrUint8 startIndex;
    CsrWifiRouterCtrlStaInfo_t * staInfo = NULL;
-   unsigned long lock_flags;
-   /*U-APSD might have stopped because of multicast. So restart it if U-APSD
-   was active with any of the station*/
+    unsigned long lock_flags;
+
+    unifi_trace(priv, UDBG2, "++resume_suspended_uapsd: \n");
     for(startIndex= 0; startIndex < UNIFI_MAX_CONNECTIONS;startIndex++) {
         staInfo =  CsrWifiRouterCtrlGetStationRecordFromHandle(priv,startIndex,interfaceTag);
-        if(!staInfo ) {
+
+        if(!staInfo || !staInfo->wmmOrQosEnabled) {
             continue;
         } else if((staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_POWER_SAVE)
-                   &&(staInfo->uapsdSuspended == TRUE)) {
-
-            /*U-APSD Still active, it means trigger frame is received,so continue U-APSD by
-            sending data from remaining delivery enabled queues*/
-            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
-            staInfo->uapsdActive = TRUE;
-            staInfo->uapsdSuspended = FALSE;
-            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
-            uf_continue_uapsd(priv,staInfo);
+                   &&staInfo->uapsdActive && staInfo->uspSuspend) {
+            /* U-APSD Still active & previously suspended either ENOSPC of FH queues OR
+             * due to DTIM activity
+             */
+            uf_handle_uspframes_delivery(priv, staInfo, interfaceTag);
+        } else {
+            unifi_trace(priv, UDBG2, "resume_suspended_uapsd: PS state=%x, uapsdActive?=%x, suspend?=%x\n",
+                        staInfo->currentPeerState, staInfo->uapsdActive, staInfo->uspSuspend);
+            if (staInfo->currentPeerState == CSR_WIFI_ROUTER_CTRL_PEER_CONNECTED_ACTIVE)
+            {
+                spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+                staInfo->uapsdActive = FALSE;
+                staInfo->uspSuspend = FALSE;
+                spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+            }
         }
     }
-
-}
-void uf_store_directed_ma_packet_referenece(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
-                                            CSR_SIGNAL *sigptr, CsrUint32 alignOffset)
-{
-
-    maPktReqList_t *maPktreq = NULL;
-    CSR_MA_PACKET_REQUEST *req = &sigptr->u.MaPacketRequest;
-    CsrWifiRouterCtrlStaInfo_t *staRecord = NULL;
-    CsrUint16 frmCtrl,interfaceTag = 0;
-    const CsrUint8* macHdrLocation;
-    struct sk_buff *skb ;
-    unsigned long lock_flags;
-    netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
-    CsrUint8 *sigbuffer;
-    CsrUint8 frameType = 0;
-    func_enter();
-
-    if(bulkdata == NULL || (0 == bulkdata->d[0].data_length )){
-      unifi_trace (priv, UDBG3, "uf_store_directed_ma_packet_referenece:bulk data NULL \n");
-      func_exit();
-      return;
-    }
-    macHdrLocation = bulkdata->d[0].os_data_ptr;
-    skb = (struct sk_buff*)bulkdata->d[0].os_net_buf_ptr;
-    /* fectch the frame control value from mac header */
-    frmCtrl = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(macHdrLocation);
-
-    /* Processing done according to Frame/Packet type */
-    frameType =  ((frmCtrl & 0x000c) >> FRAME_CONTROL_TYPE_FIELD_OFFSET);
-
-    if( (((frmCtrl & 0xff) == IEEE802_11_FC_TYPE_QOS_NULL) ||
-        ((frmCtrl & 0xff) == IEEE802_11_FC_TYPE_NULL ) ) ||
-        ( IEEE802_11_FRAMETYPE_MANAGEMENT== frameType)){
-
-        /* if packet is NULL or Qos Null no need of retransmit so dont queue it*/
-        unifi_trace (priv, UDBG3, "uf_store_directed_ma_packet_referenece: NULL data Pkt or mgmt\n");
-        func_exit();
-        return;
-    }
-
-    /* fetch the station record for corresponding peer mac address */
-    if ((staRecord = CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv, req->Ra.x, interfaceTag))) {
-        maPktreq = (maPktReqList_t*)kmalloc(sizeof(maPktReqList_t),GFP_ATOMIC);
-        if(maPktreq == NULL){
-            unifi_error(priv,
-                "uf_store_directed_ma_packet_referenece :: Failed to allocate %d byter for maPktreq\n",
-                sizeof(maPktReqList_t));
-            func_exit();
-            return;
-        }
-    }
-
-    /* staRecord not present that means packet is multicast or generic mgmt so no need to queue it */
-    else{
-        unifi_trace (priv, UDBG3, "uf_store_directed_ma_packet_referenece: multicast pkt \n");
-        func_exit();
-        return ;
-    }
-
-    /* disbale preemption */
-    spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
-    INIT_LIST_HEAD(&maPktreq->q);
-    maPktreq->staHandler = staRecord->assignedHandle;
-    memcpy(&maPktreq->signal,sigptr,sizeof(CSR_SIGNAL_PRIMITIVE_HEADER) + sizeof(CSR_MA_PACKET_REQUEST));
-    sigbuffer = (CsrUint8*)&maPktreq->signal;
-    sigbuffer[SIZEOF_SIGNAL_HEADER + 1] = alignOffset;
-    maPktreq->skb = skb_get(skb);
-    maPktreq->hostTag = req->HostTag;
-    maPktreq->jiffeTime = jiffies;
-    list_add_tail(&maPktreq->q,&interfacePriv->directedMaPktReq);
-
-    spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
-    func_exit();
-
+    unifi_trace(priv, UDBG2, "--resume_suspended_uapsd:\n");
 }
 
 #endif

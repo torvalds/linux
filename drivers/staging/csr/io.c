@@ -407,6 +407,13 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
     INIT_WORK(&priv->rx_work_struct, rx_wq_handler);
 #endif
 
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+    if (log_hip_signals)
+    {
+        uf_register_hip_offline_debug(priv);
+    }
+#endif
+
     /* Initialise the SME related threads and parameters */
     r = uf_sme_init(priv);
     if (r) {
@@ -431,6 +438,12 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
     return priv;
 
 failed4:
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+if (log_hip_signals)
+{
+    uf_unregister_hip_offline_debug(priv);
+}
+#endif
 #ifdef CSR_WIFI_RX_PATH_SPLIT
     flush_workqueue(priv->rx_workqueue);
     destroy_workqueue(priv->rx_workqueue);
@@ -545,6 +558,13 @@ cleanup_unifi_sdio(unifi_priv_t *priv)
 
 #ifdef CSR_SME_USERSPACE
     priv->smepriv = NULL;
+#endif
+
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+    if (log_hip_signals)
+    {
+        uf_unregister_hip_offline_debug(priv);
+    }
 #endif
 
     /* Free any packets left in the Rx queues */

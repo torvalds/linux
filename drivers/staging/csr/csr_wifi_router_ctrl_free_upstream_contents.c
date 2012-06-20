@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -63,11 +63,18 @@ void CsrWifiRouterCtrlFreeUpstreamMessageContents(CsrUint16 eventClass, void *me
             p->versions.routerBuild = NULL;
             break;
         }
-        case CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_IND:
+        case CSR_WIFI_ROUTER_CTRL_WAPI_RX_MIC_CHECK_IND:
         {
-            CsrWifiRouterCtrlWapiMulticastInd *p = (CsrWifiRouterCtrlWapiMulticastInd *)message;
+            CsrWifiRouterCtrlWapiRxMicCheckInd *p = (CsrWifiRouterCtrlWapiRxMicCheckInd *)message;
             CsrPmemFree(p->signal);
             p->signal = NULL;
+            CsrPmemFree(p->data);
+            p->data = NULL;
+            break;
+        }
+        case CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_ENCRYPT_IND:
+        {
+            CsrWifiRouterCtrlWapiUnicastTxEncryptInd *p = (CsrWifiRouterCtrlWapiUnicastTxEncryptInd *)message;
             CsrPmemFree(p->data);
             p->data = NULL;
             break;

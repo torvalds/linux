@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -79,6 +79,7 @@ static CsrMsgConvMsgEntry csrwifisme_conv_lut[] = {
     { CSR_WIFI_SME_SME_COMMON_CONFIG_SET_REQ, CsrWifiSmeSmeCommonConfigSetReqSizeof, CsrWifiSmeSmeCommonConfigSetReqSer, CsrWifiSmeSmeCommonConfigSetReqDes, CsrWifiSmeSmeCommonConfigSetReqSerFree },
     { CSR_WIFI_SME_INTERFACE_CAPABILITY_GET_REQ, CsrWifiSmeInterfaceCapabilityGetReqSizeof, CsrWifiSmeInterfaceCapabilityGetReqSer, CsrWifiSmeInterfaceCapabilityGetReqDes, CsrWifiSmeInterfaceCapabilityGetReqSerFree },
     { CSR_WIFI_SME_WPS_CONFIGURATION_REQ, CsrWifiSmeWpsConfigurationReqSizeof, CsrWifiSmeWpsConfigurationReqSer, CsrWifiSmeWpsConfigurationReqDes, CsrWifiSmeWpsConfigurationReqSerFree },
+    { CSR_WIFI_SME_SET_REQ, CsrWifiSmeSetReqSizeof, CsrWifiSmeSetReqSer, CsrWifiSmeSetReqDes, CsrWifiSmeSetReqSerFree },
     { CSR_WIFI_SME_ACTIVATE_CFM, CsrWifiSmeActivateCfmSizeof, CsrWifiSmeActivateCfmSer, CsrWifiSmeActivateCfmDes, CsrWifiSmeActivateCfmSerFree },
     { CSR_WIFI_SME_ADHOC_CONFIG_GET_CFM, CsrWifiSmeAdhocConfigGetCfmSizeof, CsrWifiSmeAdhocConfigGetCfmSer, CsrWifiSmeAdhocConfigGetCfmDes, CsrWifiSmeAdhocConfigGetCfmSerFree },
     { CSR_WIFI_SME_ADHOC_CONFIG_SET_CFM, CsrWifiSmeAdhocConfigSetCfmSizeof, CsrWifiSmeAdhocConfigSetCfmSer, CsrWifiSmeAdhocConfigSetCfmDes, CsrWifiSmeAdhocConfigSetCfmSerFree },
@@ -159,11 +160,11 @@ CsrMsgConvMsgEntry* CsrWifiSmeConverterLookup(CsrMsgConvMsgEntry *ce, CsrUint16 
 {
     if (msgType & CSR_PRIM_UPSTREAM)
     {
-        CsrUint16 index = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_SME_PRIM_DOWNSTREAM_COUNT;
-        if (index < (CSR_WIFI_SME_PRIM_UPSTREAM_COUNT + CSR_WIFI_SME_PRIM_DOWNSTREAM_COUNT) &&
-            csrwifisme_conv_lut[index].msgType == msgType)
+        CsrUint16 idx = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_SME_PRIM_DOWNSTREAM_COUNT;
+        if (idx < (CSR_WIFI_SME_PRIM_UPSTREAM_COUNT + CSR_WIFI_SME_PRIM_DOWNSTREAM_COUNT) &&
+            csrwifisme_conv_lut[idx].msgType == msgType)
         {
-            return &csrwifisme_conv_lut[index];
+            return &csrwifisme_conv_lut[idx];
         }
     }
     else

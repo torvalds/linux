@@ -35,9 +35,11 @@ const CsrWifiRouterCtrlStateHandlerType CsrWifiRouterCtrlDownstreamStateHandlers
     /* 0x0015 */ CsrWifiRouterCtrlPeerDelReqHandler,
     /* 0x0016 */ CsrWifiRouterCtrlPeerUpdateReqHandler,
     /* 0x0017 */ CsrWifiRouterCtrlCapabilitiesReqHandler,
-    CsrWifiRouterCtrlBlockAckEnableReqHandler,        /* 0x0018 */
-    CsrWifiRouterCtrlBlockAckDisableReqHandler,       /* 0x0019 */
-    CsrWifiRouterCtrlWapiMulticastReqHandler,         /* 0x001A */
-    CsrWifiRouterCtrlWapiMulticastFilterReqHandler,   /* 0x001B */
-    CsrWifiRouterCtrlWapiUnicastFilterReqHandler,     /* 0x001C */
+    /* 0x0018 */ CsrWifiRouterCtrlBlockAckEnableReqHandler,
+    /* 0x0019 */ CsrWifiRouterCtrlBlockAckDisableReqHandler,
+    /* 0x001A */ CsrWifiRouterCtrlWapiRxPktReqHandler,
+    /* 0x001B */ CsrWifiRouterCtrlWapiMulticastFilterReqHandler,
+    /* 0x001C */ CsrWifiRouterCtrlWapiUnicastFilterReqHandler,
+    /* 0x001D */ CsrWifiRouterCtrlWapiUnicastTxPktReqHandler,
+    /* 0x001E */ CsrWifiRouterCtrlWapiFilterReqHandler,
 };

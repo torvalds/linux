@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -94,6 +94,23 @@ typedef CsrUint8 CsrWifiSmeApAuthType;
 #define CSR_WIFI_SME_AP_AUTH_TYPE_OPEN_SYSTEM   ((CsrWifiSmeApAuthType) 0x00)
 #define CSR_WIFI_SME_AP_AUTH_TYPE_PERSONAL      ((CsrWifiSmeApAuthType) 0x01)
 #define CSR_WIFI_SME_AP_AUTH_TYPE_WEP           ((CsrWifiSmeApAuthType) 0x02)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApDirection
+
+  DESCRIPTION
+    Definition of Direction
+
+ VALUES
+    CSR_WIFI_AP_DIRECTION_RECEIPIENT - Receipient
+    CSR_WIFI_AP_DIRECTION_ORIGINATOR - Originator
+
+*******************************************************************************/
+typedef CsrUint8 CsrWifiSmeApDirection;
+#define CSR_WIFI_AP_DIRECTION_RECEIPIENT   ((CsrWifiSmeApDirection) 0x00)
+#define CSR_WIFI_AP_DIRECTION_ORIGINATOR   ((CsrWifiSmeApDirection) 0x01)
 
 /*******************************************************************************
 
@@ -305,6 +322,28 @@ typedef struct
 /*******************************************************************************
 
   NAME
+    CsrWifiSmeApBaSession
+
+  DESCRIPTION
+
+  MEMBERS
+    peerMacAddress - Indicates MAC address of the peer station
+    tid            - Specifies the TID of the MSDUs for which this Block Ack has
+                     been set up. Range: 0-15
+    direction      - Specifies if the AP is the originator or the recipient of
+                     the data stream that uses the Block Ack.
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiMacAddress     peerMacAddress;
+    CsrUint8              tid;
+    CsrWifiSmeApDirection direction;
+} CsrWifiSmeApBaSession;
+
+/*******************************************************************************
+
+  NAME
     CsrWifiSmeApMacConfig
 
   DESCRIPTION
@@ -456,9 +495,11 @@ typedef struct
 #define CSR_WIFI_SME_AP_WMM_PARAM_UPDATE_REQ              ((CsrWifiSmeApPrim) (0x0004 + CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_LOWEST))
 #define CSR_WIFI_SME_AP_STA_DISCONNECT_REQ                ((CsrWifiSmeApPrim) (0x0005 + CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_LOWEST))
 #define CSR_WIFI_SME_AP_WPS_CONFIGURATION_REQ             ((CsrWifiSmeApPrim) (0x0006 + CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_LOWEST))
+#define CSR_WIFI_SME_AP_ACTIVE_BA_GET_REQ                 ((CsrWifiSmeApPrim) (0x0007 + CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_LOWEST))
+#define CSR_WIFI_SME_AP_BA_DELETE_REQ                     ((CsrWifiSmeApPrim) (0x0008 + CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_LOWEST))
 
 
-#define CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_HIGHEST           (0x0006 + CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_LOWEST)
+#define CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_HIGHEST           (0x0008 + CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_LOWEST)
 
 /* Upstream */
 #define CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST              (0x0000 + CSR_PRIM_UPSTREAM)
@@ -473,8 +514,10 @@ typedef struct
 #define CSR_WIFI_SME_AP_STA_DISCONNECT_CFM                ((CsrWifiSmeApPrim)(0x0007 + CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST))
 #define CSR_WIFI_SME_AP_WPS_CONFIGURATION_CFM             ((CsrWifiSmeApPrim)(0x0008 + CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST))
 #define CSR_WIFI_SME_AP_ERROR_IND                         ((CsrWifiSmeApPrim)(0x0009 + CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST))
+#define CSR_WIFI_SME_AP_ACTIVE_BA_GET_CFM                 ((CsrWifiSmeApPrim)(0x000A + CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST))
+#define CSR_WIFI_SME_AP_BA_DELETE_CFM                     ((CsrWifiSmeApPrim)(0x000B + CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST))
 
-#define CSR_WIFI_SME_AP_PRIM_UPSTREAM_HIGHEST             (0x0009 + CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST)
+#define CSR_WIFI_SME_AP_PRIM_UPSTREAM_HIGHEST             (0x000B + CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST)
 
 #define CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_COUNT             (CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_HIGHEST + 1 - CSR_WIFI_SME_AP_PRIM_DOWNSTREAM_LOWEST)
 #define CSR_WIFI_SME_AP_PRIM_UPSTREAM_COUNT               (CSR_WIFI_SME_AP_PRIM_UPSTREAM_HIGHEST   + 1 - CSR_WIFI_SME_AP_PRIM_UPSTREAM_LOWEST)
@@ -654,6 +697,49 @@ typedef struct
     CsrWifiFsmEvent     common;
     CsrWifiSmeWpsConfig wpsConfig;
 } CsrWifiSmeApWpsConfigurationReq;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApActiveBaGetReq
+
+  DESCRIPTION
+    This primitive used to retrieve information related to the active block
+    ack sessions
+
+  MEMBERS
+    common       - Common header for use with the CsrWifiFsm Module
+    interfaceTag -
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent common;
+    CsrUint16       interfaceTag;
+} CsrWifiSmeApActiveBaGetReq;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApBaDeleteReq
+
+  DESCRIPTION
+    This primitive is used to delete an active block ack session
+
+  MEMBERS
+    common       - Common header for use with the CsrWifiFsm Module
+    interfaceTag -
+    reason       -
+    baSession    - BA session to be deleted
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent           common;
+    CsrUint16                 interfaceTag;
+    CsrWifiSmeIEEE80211Reason reason;
+    CsrWifiSmeApBaSession     baSession;
+} CsrWifiSmeApBaDeleteReq;
 
 /*******************************************************************************
 
@@ -894,6 +980,55 @@ typedef struct
     CsrWifiSmeApType apType;
     CsrResult        status;
 } CsrWifiSmeApErrorInd;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApActiveBaGetCfm
+
+  DESCRIPTION
+    This primitive carries the information related to the active ba sessions
+
+  MEMBERS
+    common           - Common header for use with the CsrWifiFsm Module
+    interfaceTag     -
+    status           - Reports the result of the request
+    activeBaCount    - Number of active block ack session
+    activeBaSessions - Points to a buffer containing an array of
+                       CsrWifiSmeApBaSession structures.
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent        common;
+    CsrUint16              interfaceTag;
+    CsrResult              status;
+    CsrUint16              activeBaCount;
+    CsrWifiSmeApBaSession *activeBaSessions;
+} CsrWifiSmeApActiveBaGetCfm;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeApBaDeleteCfm
+
+  DESCRIPTION
+    This primitive confirms the BA is deleted
+
+  MEMBERS
+    common       - Common header for use with the CsrWifiFsm Module
+    interfaceTag -
+    status       - Reports the result of the request
+    baSession    - deleted BA session
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent       common;
+    CsrUint16             interfaceTag;
+    CsrResult             status;
+    CsrWifiSmeApBaSession baSession;
+} CsrWifiSmeApBaDeleteCfm;
 
 
 #ifdef __cplusplus

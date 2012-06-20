@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -170,6 +170,13 @@ void CsrWifiSmeFreeDownstreamMessageContents(CsrUint16 eventClass, void *message
             CsrWifiSmeWpsConfigurationReq *p = (CsrWifiSmeWpsConfigurationReq *)message;
             CsrPmemFree(p->wpsConfig.secondaryDeviceType);
             p->wpsConfig.secondaryDeviceType = NULL;
+            break;
+        }
+        case CSR_WIFI_SME_SET_REQ:
+        {
+            CsrWifiSmeSetReq *p = (CsrWifiSmeSetReq *)message;
+            CsrPmemFree(p->data);
+            p->data = NULL;
             break;
         }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -103,6 +103,17 @@ extern "C" {
 #include "csr_formatted_io.h"   /* from the synergy gsp folder */
 #include "csr_wifi_result.h"
 
+/* Utility MACROS. Note that UNIFI_MAC_ADDRESS_CMP returns TRUE on success */
+#define UNIFI_MAC_ADDRESS_COPY(dst, src) \
+    do { (dst)[0] = (src)[0]; (dst)[1] = (src)[1]; \
+         (dst)[2] = (src)[2]; (dst)[3] = (src)[3]; \
+         (dst)[4] = (src)[4]; (dst)[5] = (src)[5]; \
+    } while (0)
+
+#define UNIFI_MAC_ADDRESS_CMP(addr1, addr2) \
+    (((addr1)[0] == (addr2)[0]) && ((addr1)[1] == (addr2)[1]) && \
+     ((addr1)[2] == (addr2)[2]) && ((addr1)[3] == (addr2)[3]) && \
+     ((addr1)[4] == (addr2)[4]) && ((addr1)[5] == (addr2)[5]))
 
 /* Traffic queue ordered according to priority
  * EAPOL/Uncontrolled port Queue should be the last
@@ -635,7 +646,24 @@ void unifi_receive_event(void *ospriv,
                          CsrUint8 *sigdata, CsrUint32 siglen,
                          const bulk_data_param_t *bulkdata);
 
+#ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL
+/**
+ *
+ * Used to reque the failed ma packet request back to hal queues
+ *
+ * @param ospriv the OS layer context.
+ *
+ * @param host_tag host tag for the packet to requeue.
+ *
+ * @param bulkDataDesc pointer to the bulk data.
+ *
+ * @ingroup upperedge
+ */
+CsrResult unifi_reque_ma_packet_request(void *ospriv, CsrUint32 host_tag,
+                                        CsrUint16 status,
+                                        bulk_data_desc_t *bulkDataDesc);
 
+#endif
 typedef struct
 {
     CsrUint16 free_fh_sig_queue_slots[UNIFI_NO_OF_TX_QS];
@@ -836,6 +864,8 @@ const CsrCharString* lookup_bulkcmd_name(CsrUint16 id);
 /* Function to log HIP's global debug buffer */
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
 void unifi_debug_buf_dump(void);
+void unifi_debug_log_to_buf(const CsrCharString *fmt, ...);
+void unifi_debug_hex_to_buf(const CsrCharString *buff, CsrUint16 length);
 #endif
 
 /* Mini-coredump utility functions */

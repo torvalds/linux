@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -323,7 +323,7 @@ CsrResult unifi_init(card_t *card)
      * have requested a mini-coredump which needs to be captured now the
      * SDIO interface is alive.
      */
-    unifi_coredump_handle_request(card);
+    (void)unifi_coredump_handle_request(card);
 
     /*
      * Probe to see if the UniFi has ROM/flash to boot from. CSR6xxx should do.
@@ -1616,14 +1616,14 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     /* Reset any state carried forward from a previous life */
     card->fh_command_queue.q_rd_ptr = 0;
     card->fh_command_queue.q_wr_ptr = 0;
-    CsrSnprintf(card->fh_command_queue.name, UNIFI_QUEUE_NAME_MAX_LENGTH,
-                "fh_cmd_q");
+    (void)CsrSnprintf(card->fh_command_queue.name, UNIFI_QUEUE_NAME_MAX_LENGTH,
+                      "fh_cmd_q");
     for (i = 0; i < UNIFI_NO_OF_TX_QS; i++)
     {
         card->fh_traffic_queue[i].q_rd_ptr = 0;
         card->fh_traffic_queue[i].q_wr_ptr = 0;
-        CsrSnprintf(card->fh_traffic_queue[i].name,
-                    UNIFI_QUEUE_NAME_MAX_LENGTH, "fh_data_q%d", i);
+        (void)CsrSnprintf(card->fh_traffic_queue[i].name,
+                          UNIFI_QUEUE_NAME_MAX_LENGTH, "fh_data_q%d", i);
     }
 #ifndef CSR_WIFI_HIP_TA_DISABLE
     unifi_ta_sampling_init(card);
@@ -1634,7 +1634,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     /*
      * Allocate memory for the from-host and to-host signal buffers.
      */
-    card->fh_buffer.buf = CsrMemAlloc(UNIFI_FH_BUF_SIZE);
+    card->fh_buffer.buf = CsrMemAllocDma(UNIFI_FH_BUF_SIZE);
     if (card->fh_buffer.buf == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for F-H signals\n");
@@ -1645,7 +1645,7 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     card->fh_buffer.ptr = card->fh_buffer.buf;
     card->fh_buffer.count = 0;
 
-    card->th_buffer.buf = CsrMemAlloc(UNIFI_FH_BUF_SIZE);
+    card->th_buffer.buf = CsrMemAllocDma(UNIFI_FH_BUF_SIZE);
     if (card->th_buffer.buf == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate memory for T-H signals\n");
@@ -1691,6 +1691,12 @@ static CsrResult card_allocate_memory_resources(card_t *card)
         unifi_error(card->ospriv, "Failed to allocate memory for F-H slot host tag mapping array\n");
         func_exit_r(CSR_WIFI_HIP_RESULT_NO_MEMORY);
         return CSR_WIFI_HIP_RESULT_NO_MEMORY;
+    }
+
+    /* Initialise host tag entries for from-host bulk data slots */
+    for (i = 0; i < n; i++)
+    {
+        card->fh_slot_host_tag_record[i] = CSR_WIFI_HIP_RESERVED_HOST_TAG;
     }
 
 
@@ -1811,7 +1817,7 @@ static void card_free_memory_resources(card_t *card)
 
     if (card->fh_buffer.buf)
     {
-        CsrMemFree(card->fh_buffer.buf);
+        CsrMemFreeDma(card->fh_buffer.buf);
     }
     card->fh_buffer.ptr = card->fh_buffer.buf = NULL;
     card->fh_buffer.bufsize = 0;
@@ -1819,7 +1825,7 @@ static void card_free_memory_resources(card_t *card)
 
     if (card->th_buffer.buf)
     {
-        CsrMemFree(card->th_buffer.buf);
+        CsrMemFreeDma(card->th_buffer.buf);
     }
     card->th_buffer.ptr = card->th_buffer.buf = NULL;
     card->th_buffer.bufsize = 0;
@@ -1842,14 +1848,14 @@ static void card_init_soft_queues(card_t *card)
     /* Reset any state carried forward from a previous life */
     card->fh_command_queue.q_rd_ptr = 0;
     card->fh_command_queue.q_wr_ptr = 0;
-    CsrSnprintf(card->fh_command_queue.name, UNIFI_QUEUE_NAME_MAX_LENGTH,
-                "fh_cmd_q");
+    (void)CsrSnprintf(card->fh_command_queue.name, UNIFI_QUEUE_NAME_MAX_LENGTH,
+                      "fh_cmd_q");
     for (i = 0; i < UNIFI_NO_OF_TX_QS; i++)
     {
         card->fh_traffic_queue[i].q_rd_ptr = 0;
         card->fh_traffic_queue[i].q_wr_ptr = 0;
-        CsrSnprintf(card->fh_traffic_queue[i].name,
-                    UNIFI_QUEUE_NAME_MAX_LENGTH, "fh_data_q%d", i);
+        (void)CsrSnprintf(card->fh_traffic_queue[i].name,
+                          UNIFI_QUEUE_NAME_MAX_LENGTH, "fh_data_q%d", i);
     }
 #ifndef CSR_WIFI_HIP_TA_DISABLE
     unifi_ta_sampling_init(card);
@@ -2398,6 +2404,57 @@ void CardClearFromHostDataSlot(card_t *card, const CsrInt16 slot)
     func_exit();
 } /* CardClearFromHostDataSlot() */
 
+
+#ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL
+/*
+ * ---------------------------------------------------------------------------
+ *  CardClearFromHostDataSlotWithoutFreeingBulkData
+ *
+ *      Clear the given data slot with out freeing the bulk data.
+ *
+ *  Arguments:
+ *      card            Pointer to Card object
+ *      slot            Index of the signal slot to clear.
+ *
+ *  Returns:
+ *      None.
+ * ---------------------------------------------------------------------------
+ */
+void CardClearFromHostDataSlotWithoutFreeingBulkData(card_t *card, const CsrInt16 slot)
+{
+    CsrUint8 queue = card->from_host_data[slot].queue;
+
+    /* Initialise the from_host data slot so it can be re-used,
+     * Set length field in from_host_data array to 0.
+     */
+    UNIFI_INIT_BULK_DATA(&card->from_host_data[slot].bd);
+
+    queue = card->from_host_data[slot].queue;
+
+    if (queue < UNIFI_NO_OF_TX_QS)
+    {
+        if (card->dynamic_slot_data.from_host_used_slots[queue] == 0)
+        {
+            unifi_error(card->ospriv, "Goofed up used slots q = %d used slots = %d\n",
+                        queue,
+                        card->dynamic_slot_data.from_host_used_slots[queue]);
+        }
+        else
+        {
+            card->dynamic_slot_data.from_host_used_slots[queue]--;
+        }
+        card->dynamic_slot_data.packets_txed[queue]++;
+        card->dynamic_slot_data.total_packets_txed++;
+        if (card->dynamic_slot_data.total_packets_txed >=
+            card->dynamic_slot_data.packets_interval)
+        {
+            CardReassignDynamicReservation(card);
+        }
+    }
+} /* CardClearFromHostDataSlotWithoutFreeingBulkData() */
+
+
+#endif
 
 CsrUint16 CardGetDataSlotSize(card_t *card)
 {

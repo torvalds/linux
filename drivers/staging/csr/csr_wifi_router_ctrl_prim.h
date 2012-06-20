@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -616,12 +616,14 @@ typedef struct
 #define CSR_WIFI_ROUTER_CTRL_CAPABILITIES_REQ             ((CsrWifiRouterCtrlPrim) (0x0017 + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
 #define CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_ENABLE_REQ         ((CsrWifiRouterCtrlPrim) (0x0018 + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
 #define CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_DISABLE_REQ        ((CsrWifiRouterCtrlPrim) (0x0019 + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
-#define CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_REQ           ((CsrWifiRouterCtrlPrim) (0x001A + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
+#define CSR_WIFI_ROUTER_CTRL_WAPI_RX_PKT_REQ              ((CsrWifiRouterCtrlPrim) (0x001A + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
 #define CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_FILTER_REQ    ((CsrWifiRouterCtrlPrim) (0x001B + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
 #define CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_FILTER_REQ      ((CsrWifiRouterCtrlPrim) (0x001C + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
+#define CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_PKT_REQ      ((CsrWifiRouterCtrlPrim) (0x001D + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
+#define CSR_WIFI_ROUTER_CTRL_WAPI_FILTER_REQ              ((CsrWifiRouterCtrlPrim) (0x001E + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST))
 
 
-#define CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_HIGHEST           (0x001C + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST)
+#define CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_HIGHEST           (0x001E + CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST)
 
 /* Upstream */
 #define CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST              (0x0000 + CSR_PRIM_UPSTREAM)
@@ -654,9 +656,11 @@ typedef struct
 #define CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_DISABLE_CFM        ((CsrWifiRouterCtrlPrim)(0x0019 + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST))
 #define CSR_WIFI_ROUTER_CTRL_BLOCK_ACK_ERROR_IND          ((CsrWifiRouterCtrlPrim)(0x001A + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST))
 #define CSR_WIFI_ROUTER_CTRL_STA_INACTIVE_IND             ((CsrWifiRouterCtrlPrim)(0x001B + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST))
-#define CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_IND           ((CsrWifiRouterCtrlPrim)(0x001C + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST))
+#define CSR_WIFI_ROUTER_CTRL_WAPI_RX_MIC_CHECK_IND        ((CsrWifiRouterCtrlPrim)(0x001C + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST))
+#define CSR_WIFI_ROUTER_CTRL_MODE_SET_CFM                 ((CsrWifiRouterCtrlPrim)(0x001D + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST))
+#define CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_ENCRYPT_IND  ((CsrWifiRouterCtrlPrim)(0x001E + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST))
 
-#define CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_HIGHEST             (0x001C + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST)
+#define CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_HIGHEST             (0x001E + CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST)
 
 #define CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_COUNT             (CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_HIGHEST + 1 - CSR_WIFI_ROUTER_CTRL_PRIM_DOWNSTREAM_LOWEST)
 #define CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_COUNT               (CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_HIGHEST   + 1 - CSR_WIFI_ROUTER_CTRL_PRIM_UPSTREAM_LOWEST)
@@ -1032,12 +1036,16 @@ typedef struct
   MEMBERS
     common     - Common header for use with the CsrWifiFsm Module
     clientData -
+    dataLength - Number of bytes in the buffer pointed to by 'data'
+    data       - Pointer to the buffer containing 'dataLength' bytes
 
 *******************************************************************************/
 typedef struct
 {
     CsrWifiFsmEvent                common;
     CsrWifiRouterCtrlRequestorInfo clientData;
+    CsrUint32                      dataLength;
+    CsrUint8                      *data;
 } CsrWifiRouterCtrlWifiOnReq;
 
 /*******************************************************************************
@@ -1273,12 +1281,13 @@ typedef struct
 /*******************************************************************************
 
   NAME
-    CsrWifiRouterCtrlWapiMulticastReq
+    CsrWifiRouterCtrlWapiRxPktReq
 
   DESCRIPTION
 
   MEMBERS
     common       - Common header for use with the CsrWifiFsm Module
+    interfaceTag -
     signalLength -
     signal       -
     dataLength   -
@@ -1288,11 +1297,12 @@ typedef struct
 typedef struct
 {
     CsrWifiFsmEvent common;
+    CsrUint16       interfaceTag;
     CsrUint16       signalLength;
     CsrUint8       *signal;
     CsrUint16       dataLength;
     CsrUint8       *data;
-} CsrWifiRouterCtrlWapiMulticastReq;
+} CsrWifiRouterCtrlWapiRxPktReq;
 
 /*******************************************************************************
 
@@ -1302,13 +1312,15 @@ typedef struct
   DESCRIPTION
 
   MEMBERS
-    common - Common header for use with the CsrWifiFsm Module
-    status -
+    common       - Common header for use with the CsrWifiFsm Module
+    interfaceTag -
+    status       -
 
 *******************************************************************************/
 typedef struct
 {
     CsrWifiFsmEvent common;
+    CsrUint16       interfaceTag;
     CsrUint8        status;
 } CsrWifiRouterCtrlWapiMulticastFilterReq;
 
@@ -1320,15 +1332,59 @@ typedef struct
   DESCRIPTION
 
   MEMBERS
-    common - Common header for use with the CsrWifiFsm Module
-    status -
+    common       - Common header for use with the CsrWifiFsm Module
+    interfaceTag -
+    status       -
 
 *******************************************************************************/
 typedef struct
 {
     CsrWifiFsmEvent common;
+    CsrUint16       interfaceTag;
     CsrUint8        status;
 } CsrWifiRouterCtrlWapiUnicastFilterReq;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiRouterCtrlWapiUnicastTxPktReq
+
+  DESCRIPTION
+
+  MEMBERS
+    common       - Common header for use with the CsrWifiFsm Module
+    interfaceTag -
+    dataLength   -
+    data         -
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent common;
+    CsrUint16       interfaceTag;
+    CsrUint16       dataLength;
+    CsrUint8       *data;
+} CsrWifiRouterCtrlWapiUnicastTxPktReq;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiRouterCtrlWapiFilterReq
+
+  DESCRIPTION
+
+  MEMBERS
+    common          - Common header for use with the CsrWifiFsm Module
+    interfaceTag    -
+    isWapiConnected -
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent common;
+    CsrUint16       interfaceTag;
+    CsrBool         isWapiConnected;
+} CsrWifiRouterCtrlWapiFilterReq;
 
 /*******************************************************************************
 
@@ -1984,7 +2040,7 @@ typedef struct
 /*******************************************************************************
 
   NAME
-    CsrWifiRouterCtrlWapiMulticastInd
+    CsrWifiRouterCtrlWapiRxMicCheckInd
 
   DESCRIPTION
 
@@ -2007,7 +2063,55 @@ typedef struct
     CsrUint8                      *signal;
     CsrUint16                      dataLength;
     CsrUint8                      *data;
-} CsrWifiRouterCtrlWapiMulticastInd;
+} CsrWifiRouterCtrlWapiRxMicCheckInd;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiRouterCtrlModeSetCfm
+
+  DESCRIPTION
+
+  MEMBERS
+    common       - Common header for use with the CsrWifiFsm Module
+    clientData   -
+    interfaceTag -
+    mode         -
+    status       -
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent                common;
+    CsrWifiRouterCtrlRequestorInfo clientData;
+    CsrUint16                      interfaceTag;
+    CsrWifiRouterCtrlMode          mode;
+    CsrResult                      status;
+} CsrWifiRouterCtrlModeSetCfm;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiRouterCtrlWapiUnicastTxEncryptInd
+
+  DESCRIPTION
+
+  MEMBERS
+    common       - Common header for use with the CsrWifiFsm Module
+    clientData   -
+    interfaceTag -
+    dataLength   -
+    data         -
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent                common;
+    CsrWifiRouterCtrlRequestorInfo clientData;
+    CsrUint16                      interfaceTag;
+    CsrUint16                      dataLength;
+    CsrUint8                      *data;
+} CsrWifiRouterCtrlWapiUnicastTxEncryptInd;
 
 
 #ifdef __cplusplus

@@ -447,6 +447,7 @@ int unifi_cfg_power(unifi_priv_t *priv, unsigned char *arg)
 {
     unifi_cfg_power_t cfg_power;
     int rc;
+    int wol;
 
     if (get_user(cfg_power, (unifi_cfg_power_t*)(((unifi_cfg_command_t*)arg) + 1))) {
         unifi_error(priv, "UNIFI_CFG: Failed to get the argument\n");
@@ -455,15 +456,23 @@ int unifi_cfg_power(unifi_priv_t *priv, unsigned char *arg)
 
     switch (cfg_power) {
         case UNIFI_CFG_POWER_OFF:
+            priv->wol_suspend = (enable_wol == UNIFI_WOL_OFF) ? FALSE : TRUE;
             rc = sme_sys_suspend(priv);
             if (rc) {
                 return rc;
             }
             break;
         case UNIFI_CFG_POWER_ON:
+            wol = priv->wol_suspend;
             rc = sme_sys_resume(priv);
             if (rc) {
                 return rc;
+            }
+            if (wol) {
+                /* Kick the BH to ensure pending transfers are handled when
+                 * a suspend happened with card powered.
+                 */
+                unifi_send_signal(priv->card, NULL, 0, NULL);
             }
             break;
         default:
@@ -921,10 +930,19 @@ int
         supportedRates[i++]=0x8b;
         supportedRates[i++]=0x96;
     } else if(n) {
+        /* For some strange reasons WiFi stack needs both b and g rates*/
         supportedRates[i++]=0x02;
         supportedRates[i++]=0x04;
         supportedRates[i++]=0x0b;
         supportedRates[i++]=0x16;
+        supportedRates[i++]=0x0c;
+        supportedRates[i++]=0x12;
+        supportedRates[i++]=0x18;
+	supportedRates[i++]=0x24;
+        supportedRates[i++]=0x30;
+        supportedRates[i++]=0x48;
+        supportedRates[i++]=0x60;
+        supportedRates[i++]=0x6c;
     }
     if(g) {
         if(!b) {
@@ -1162,3 +1180,65 @@ uf_send_m4_ready_wq(struct work_struct *work)
 
 } /* uf_send_m4_ready_wq() */
 
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+/*
+ * ---------------------------------------------------------------------------
+ *  uf_send_pkt_to_encrypt
+ *
+ *      Deferred work queue function to send the WAPI data pkts to SME when unicast KeyId = 1
+ *      These are done in a deferred work queue for two reasons:
+ *       - the CsrWifiRouterCtrl...Send() functions are not safe for atomic context
+ *       - we want to load the main driver data path as lightly as possible
+ *
+ *  Arguments:
+ *      work    Pointer to work queue item.
+ *
+ *  Returns:
+ *      None.
+ * ---------------------------------------------------------------------------
+ */
+void uf_send_pkt_to_encrypt(struct work_struct *work)
+{
+    netInterface_priv_t *interfacePriv = container_of(work, netInterface_priv_t, send_pkt_to_encrypt);
+    CsrUint16 interfaceTag = interfacePriv->InterfaceTag;
+    unifi_priv_t *priv = interfacePriv->privPtr;
+
+    CsrUint32 pktBulkDataLength;
+    CsrUint8 *pktBulkData;
+    unsigned long flags;
+
+    if (interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_STA) {
+
+        func_enter();
+
+        pktBulkDataLength = interfacePriv->wapi_unicast_bulk_data.data_length;
+
+        if (pktBulkDataLength > 0) {
+		    pktBulkData = (CsrUint8 *)CsrPmemAlloc(pktBulkDataLength);
+		    CsrMemSet(pktBulkData, 0, pktBulkDataLength);
+	    } else {
+		    unifi_error(priv, "uf_send_pkt_to_encrypt() : invalid buffer\n");
+		    return;
+	    }
+
+        spin_lock_irqsave(&priv->wapi_lock, flags);
+        /* Copy over the MA PKT REQ bulk data */
+        CsrMemCpy(pktBulkData, (CsrUint8*)interfacePriv->wapi_unicast_bulk_data.os_data_ptr, pktBulkDataLength);
+        /* Free any bulk data buffers allocated for the WAPI Data pkt */
+        unifi_net_data_free(priv, &interfacePriv->wapi_unicast_bulk_data);
+        interfacePriv->wapi_unicast_bulk_data.net_buf_length = 0;
+        interfacePriv->wapi_unicast_bulk_data.data_length = 0;
+        interfacePriv->wapi_unicast_bulk_data.os_data_ptr = interfacePriv->wapi_unicast_bulk_data.os_net_buf_ptr = NULL;
+        spin_unlock_irqrestore(&priv->wapi_lock, flags);
+
+        CsrWifiRouterCtrlWapiUnicastTxEncryptIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, pktBulkDataLength, pktBulkData);
+        unifi_trace(priv, UDBG1, "WapiUnicastTxEncryptInd sent to SME\n");
+
+        CsrPmemFree(pktBulkData); /* Would have been copied over by the SME Handler */
+
+        func_exit();
+    } else {
+	    unifi_warning(priv, "uf_send_pkt_to_encrypt() is NOT applicable for interface mode - %d\n",interfacePriv->interfaceMode);
+    }
+}/* uf_send_pkt_to_encrypt() */
+#endif

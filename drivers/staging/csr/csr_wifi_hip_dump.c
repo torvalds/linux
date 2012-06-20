@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -293,7 +293,7 @@ done:
  *  Notes:
  * ---------------------------------------------------------------------------
  */
-static CsrInt32 get_value_from_coredump(const coredump_buffer       *dump,
+static CsrInt32 get_value_from_coredump(const coredump_buffer       *coreDump,
                                         const unifi_coredump_space_t space,
                                         const CsrUint16              offset_in_space)
 {
@@ -316,7 +316,7 @@ static CsrInt32 get_value_from_coredump(const coredump_buffer       *dump,
             {
                 /* Calculate the offset of data within the zone buffer */
                 offset_in_zone = offset_in_space - def->offset;
-                r = (CsrInt32) * (dump->zone[i] + offset_in_zone);
+                r = (CsrInt32) * (coreDump->zone[i] + offset_in_zone);
 
                 unifi_trace(NULL, UDBG6,
                             "sp %d, offs 0x%04x = 0x%04x (in z%d 0x%04x->0x%04x)\n",

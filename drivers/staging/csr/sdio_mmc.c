@@ -21,19 +21,28 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio.h>
+#include <linux/suspend.h>
 
 #include "unifi_priv.h"
 
+#ifdef ANDROID_BUILD
+struct wake_lock unifi_sdio_wake_lock; /* wakelock to prevent suspend while resuming */
+#endif
 
 static CsrSdioFunctionDriver *sdio_func_drv;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+#ifdef CONFIG_PM
+static int uf_sdio_mmc_power_event(struct notifier_block *this, unsigned long event, void *ptr);
+#endif
+
 /*
  * We need to keep track of the power on/off because we can not call
  * mmc_power_restore_host() when the card is already powered.
  * Even then, we need to patch the MMC driver to add a power_restore handler
- * in the mmc_sdio_ops structure. If the MMC driver is not patched,
- * mmc_power_save_host() and mmc_power_restore_host() are no-ops.
+ * in the mmc_sdio_ops structure. If the MMC driver before 2.6.37 is not patched,
+ * mmc_power_save_host() and mmc_power_restore_host() are no-ops in the kernel,
+ * returning immediately (at least on x86).
  */
 static int card_is_powered = 1;
 #endif /* 2.6.32 */
@@ -312,17 +321,28 @@ csr_sdio_enable_hs(struct mmc_card *card)
     int ret;
     u8 speed;
 
-    if (!(card->host->caps & MMC_CAP_SD_HIGHSPEED))
+    if (!(card->host->caps & MMC_CAP_SD_HIGHSPEED)) {
+        /* We've asked for HS clock rates, but controller doesn't
+         * claim to support it. We should limit the clock
+         * to 25MHz via module parameter.
+         */
+        printk(KERN_INFO "unifi: request HS but not MMC_CAP_SD_HIGHSPEED");
         return 0;
+    }
 
     if (!card->cccr.high_speed)
         return 0;
 
+#if 1
     ret = csr_io_rw_direct(card, 0, 0, SDIO_CCCR_SPEED, 0, &speed);
     if (ret)
         return ret;
 
     speed |= SDIO_SPEED_EHS;
+#else
+    /* Optimisation: Eliminate read by always assuming SHS and that reserved bits can be zero */
+    speed = SDIO_SPEED_EHS | SDIO_SPEED_SHS;
+#endif
 
     ret = csr_io_rw_direct(card, 1, 0, SDIO_CCCR_SPEED, speed, NULL);
     if (ret)
@@ -346,12 +366,16 @@ csr_sdio_disable_hs(struct mmc_card *card)
 
     if (!card->cccr.high_speed)
         return 0;
-
+#if 1
     ret = csr_io_rw_direct(card, 0, 0, SDIO_CCCR_SPEED, 0, &speed);
     if (ret)
         return ret;
 
     speed &= ~SDIO_SPEED_EHS;
+#else
+    /* Optimisation: Eliminate read by always assuming SHS and that reserved bits can be zero */
+    speed = SDIO_SPEED_SHS; /* clear SDIO_SPEED_EHS */
+#endif
 
     ret = csr_io_rw_direct(card, 1, 0, SDIO_CCCR_SPEED, speed, NULL);
     if (ret)
@@ -460,6 +484,7 @@ CsrSdioInterruptEnable(CsrSdioFunction *function)
 
     func_exit();
     if (err) {
+        printk(KERN_ERR "unifi: %s: error %d writing IENx\n", __FUNCTION__, err);
         return ConvertSdioToCsrSdioResult(err);
     }
 #endif
@@ -486,6 +511,7 @@ CsrSdioInterruptDisable(CsrSdioFunction *function)
 
     func_exit();
     if (err) {
+        printk(KERN_ERR "unifi: %s: error %d writing IENx\n", __FUNCTION__, err);
         return ConvertSdioToCsrSdioResult(err);
     }
 #endif
@@ -772,6 +798,7 @@ uf_glue_sdio_int_handler(struct sdio_func *func)
     if (!sdio_ctx) {
         return;
     }
+
 #ifndef CSR_CONFIG_MMC_INT_BYPASS_KSOFTIRQD
     /*
      * Normally, we are not allowed to do any SDIO commands here.
@@ -785,7 +812,7 @@ uf_glue_sdio_int_handler(struct sdio_func *func)
     r = csr_io_rw_direct(func->card, 1, 0, SDIO_CCCR_IENx, 0x00, NULL);
 #endif
     if (r) {
-        printk(KERN_ERR "UniFi MMC Int handler: Failed to disable interrupts\n");
+        printk(KERN_ERR "UniFi MMC Int handler: Failed to disable interrupts %d\n", r);
     }
 #endif
 
@@ -824,6 +851,8 @@ csr_sdio_linux_remove_irq(CsrSdioFunction *function)
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int r;
 
+    unifi_trace(NULL, UDBG1, "csr_sdio_linux_remove_irq\n");
+
     sdio_claim_host(func);
     r = sdio_release_irq(func);
     sdio_release_host(func);
@@ -853,6 +882,8 @@ csr_sdio_linux_install_irq(CsrSdioFunction *function)
     struct sdio_func *func = (struct sdio_func *)function->priv;
     int r;
 
+    unifi_trace(NULL, UDBG1, "csr_sdio_linux_install_irq\n");
+
     /* Register our interrupt handle */
     sdio_claim_host(func);
     r = sdio_claim_irq(func, uf_glue_sdio_int_handler);
@@ -866,7 +897,133 @@ csr_sdio_linux_install_irq(CsrSdioFunction *function)
     return r;
 } /* csr_sdio_linux_install_irq() */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+#ifdef CONFIG_PM
 
+/*
+ * Power Management notifier
+ */
+struct uf_sdio_mmc_pm_notifier
+{
+    struct list_head list;
+
+    CsrSdioFunction *sdio_ctx;
+    struct notifier_block pm_notifier;
+};
+
+/* PM notifier list head */
+static struct uf_sdio_mmc_pm_notifier uf_sdio_mmc_pm_notifiers = {
+    .sdio_ctx = NULL,
+};
+
+/*
+ * ---------------------------------------------------------------------------
+ * uf_sdio_mmc_register_pm_notifier
+ * uf_sdio_mmc_unregister_pm_notifier
+ *
+ *      Register/unregister for power management events. A list is used to
+ *      allow multiple card instances to be supported.
+ *
+ *  Arguments:
+ *      sdio_ctx - CSR SDIO context to associate PM notifier to
+ *
+ *  Returns:
+ *      Register function returns NULL on error
+ * ---------------------------------------------------------------------------
+ */
+static struct uf_sdio_mmc_pm_notifier *
+uf_sdio_mmc_register_pm_notifier(CsrSdioFunction *sdio_ctx)
+{
+    /* Allocate notifier context for this card instance */
+    struct uf_sdio_mmc_pm_notifier *notifier_ctx = kmalloc(sizeof(struct uf_sdio_mmc_pm_notifier), GFP_KERNEL);
+
+    if (notifier_ctx)
+    {
+        notifier_ctx->sdio_ctx = sdio_ctx;
+        notifier_ctx->pm_notifier.notifier_call = uf_sdio_mmc_power_event;
+
+        list_add(&notifier_ctx->list, &uf_sdio_mmc_pm_notifiers.list);
+
+        if (register_pm_notifier(&notifier_ctx->pm_notifier)) {
+            printk(KERN_ERR "unifi: register_pm_notifier failed\n");
+        }
+    }
+
+    return notifier_ctx;
+}
+
+static void
+uf_sdio_mmc_unregister_pm_notifier(CsrSdioFunction *sdio_ctx)
+{
+    struct uf_sdio_mmc_pm_notifier *notifier_ctx;
+    struct list_head *node, *q;
+
+    list_for_each_safe(node, q, &uf_sdio_mmc_pm_notifiers.list) {
+        notifier_ctx = list_entry(node, struct uf_sdio_mmc_pm_notifier, list);
+
+        /* If it matches, unregister and free the notifier context */
+        if (notifier_ctx && notifier_ctx->sdio_ctx == sdio_ctx)
+        {
+            if (unregister_pm_notifier(&notifier_ctx->pm_notifier)) {
+                printk(KERN_ERR "unifi: unregister_pm_notifier failed\n");
+            }
+
+            /* Remove from list */
+            notifier_ctx->sdio_ctx = NULL;
+            list_del(node);
+            kfree(notifier_ctx);
+        }
+    }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * uf_sdio_mmc_power_event
+ *
+ *      Handler for power management events.
+ *
+ *      We need to handle suspend/resume events while the userspace is unsuspended
+ *      to allow the SME to run its suspend/resume state machines.
+ *
+ *  Arguments:
+ *      event   event ID
+ *
+ *  Returns:
+ *      Status of the event handling
+ * ---------------------------------------------------------------------------
+ */
+static int
+uf_sdio_mmc_power_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+    struct uf_sdio_mmc_pm_notifier *notifier_ctx = container_of(this,
+                                                                struct uf_sdio_mmc_pm_notifier,
+                                                                pm_notifier);
+
+    /* Call the CSR SDIO function driver's suspend/resume method
+     * while the userspace is unsuspended.
+     */
+    switch (event) {
+        case PM_POST_HIBERNATION:
+        case PM_POST_SUSPEND:
+            printk(KERN_INFO "%s:%d resume\n", __FUNCTION__, __LINE__ );
+            if (sdio_func_drv && sdio_func_drv->resume) {
+                sdio_func_drv->resume(notifier_ctx->sdio_ctx);
+            }
+            break;
+
+        case PM_HIBERNATION_PREPARE:
+        case PM_SUSPEND_PREPARE:
+            printk(KERN_INFO "%s:%d suspend\n", __FUNCTION__, __LINE__ );
+            if (sdio_func_drv && sdio_func_drv->suspend) {
+                sdio_func_drv->suspend(notifier_ctx->sdio_ctx);
+            }
+            break;
+    }
+    return NOTIFY_DONE;
+}
+
+#endif /* CONFIG_PM */
+#endif /* 2.6.32 */
 
 /*
  * ---------------------------------------------------------------------------
@@ -925,12 +1082,25 @@ uf_glue_sdio_probe(struct sdio_func *func,
         sdio_ctx->features |= CSR_SDIO_FEATURE_BYTE_MODE;
     }
 
+    if (func->card->host->caps & MMC_CAP_SD_HIGHSPEED) {
+        unifi_trace(NULL, UDBG1, "MMC_CAP_SD_HIGHSPEED is available\n");
+    }
+
 #ifdef MMC_QUIRK_LENIENT_FN0
     func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
 #endif
 
     /* Pass context to the SDIO driver */
     sdio_set_drvdata(func, sdio_ctx);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+#ifdef CONFIG_PM
+    /* Register to get PM events */
+    if (uf_sdio_mmc_register_pm_notifier(sdio_ctx) == NULL) {
+        unifi_error(NULL, "%s: Failed to register for PM events\n", __FUNCTION__);
+    }
+#endif
+#endif
 
     /* Register this device with the SDIO function driver */
     /* Call the main UniFi driver inserted handler */
@@ -941,6 +1111,12 @@ uf_glue_sdio_probe(struct sdio_func *func,
 
     /* We have finished, so release the SDIO driver */
     sdio_release_host(func);
+
+#ifdef ANDROID_BUILD
+    /* Take the wakelock */
+    unifi_trace(NULL, UDBG1, "probe: take wake lock\n");
+    wake_lock(&unifi_sdio_wake_lock);
+#endif
 
     func_exit();
     return 0;
@@ -980,6 +1156,13 @@ uf_glue_sdio_remove(struct sdio_func *func)
         sdio_func_drv->removed(sdio_ctx);
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+#ifdef CONFIG_PM
+    /* Unregister for PM events */
+    uf_sdio_mmc_unregister_pm_notifier(sdio_ctx);
+#endif
+#endif
+
     kfree(sdio_ctx);
 
     func_exit();
@@ -1006,7 +1189,7 @@ MODULE_DEVICE_TABLE(sdio, unifi_ids);
  * ---------------------------------------------------------------------------
  *  uf_glue_sdio_suspend
  *
- *      Card suspend callback.
+ *      Card suspend callback. The userspace will already be suspended.
  *
  * Arguments:
  *      dev            The struct device owned by the MMC driver
@@ -1018,23 +1201,9 @@ MODULE_DEVICE_TABLE(sdio, unifi_ids);
 static int
 uf_glue_sdio_suspend(struct device *dev)
 {
-    struct sdio_func *func;
-    CsrSdioFunction *sdio_ctx;
-
     func_enter();
 
-    func = dev_to_sdio_func(dev);
-    WARN_ON(!func);
-
-    sdio_ctx = sdio_get_drvdata(func);
-    WARN_ON(!sdio_ctx);
-
-    unifi_trace(NULL, UDBG1, "System Suspend...\n");
-
-    /* Clean up the SDIO function driver */
-    if (sdio_func_drv && sdio_func_drv->suspend) {
-        sdio_func_drv->suspend(sdio_ctx);
-    }
+    unifi_trace(NULL, UDBG1, "uf_glue_sdio_suspend");
 
     func_exit();
     return 0;
@@ -1045,7 +1214,7 @@ uf_glue_sdio_suspend(struct device *dev)
  * ---------------------------------------------------------------------------
  *  uf_glue_sdio_resume
  *
- *      Card resume callback.
+ *      Card resume callback. The userspace will still be suspended.
  *
  * Arguments:
  *      dev            The struct device owned by the MMC driver
@@ -1057,23 +1226,14 @@ uf_glue_sdio_suspend(struct device *dev)
 static int
 uf_glue_sdio_resume(struct device *dev)
 {
-    struct sdio_func *func;
-    CsrSdioFunction *sdio_ctx;
-
     func_enter();
 
-    func = dev_to_sdio_func(dev);
-    WARN_ON(!func);
+    unifi_trace(NULL, UDBG1, "uf_glue_sdio_resume");
 
-    sdio_ctx = sdio_get_drvdata(func);
-    WARN_ON(!sdio_ctx);
-
-    unifi_trace(NULL, UDBG1, "System Resume...\n");
-
-    /* Clean up the SDIO function driver */
-    if (sdio_func_drv && sdio_func_drv->resume) {
-        sdio_func_drv->resume(sdio_ctx);
-    }
+#ifdef ANDROID_BUILD
+    unifi_trace(NULL, UDBG1, "resume: take wakelock\n");
+    wake_lock(&unifi_sdio_wake_lock);
+#endif
 
     func_exit();
     return 0;
@@ -1133,6 +1293,10 @@ CsrSdioFunctionDriverRegister(CsrSdioFunctionDriver *sdio_drv)
         return CSR_SDIO_RESULT_INVALID_VALUE;
     }
 
+#ifdef ANDROID_BUILD
+    wake_lock_init(&unifi_sdio_wake_lock, WAKE_LOCK_SUSPEND, "unifi_sdio_work");
+#endif
+
     /* Save the registered driver description */
     /*
      * FIXME:
@@ -1140,6 +1304,13 @@ CsrSdioFunctionDriverRegister(CsrSdioFunctionDriver *sdio_drv)
      * mmc only allows us to register for the whole device
      */
     sdio_func_drv = sdio_drv;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+#ifdef CONFIG_PM
+    /* Initialise PM notifier list */
+    INIT_LIST_HEAD(&uf_sdio_mmc_pm_notifiers.list);
+#endif
+#endif
 
     /* Register ourself with mmc_core */
     r = sdio_register_driver(&unifi_driver);
@@ -1157,6 +1328,10 @@ void
 CsrSdioFunctionDriverUnregister(CsrSdioFunctionDriver *sdio_drv)
 {
     printk(KERN_INFO "UniFi: unregister from MMC sdio\n");
+
+#ifdef ANDROID_BUILD
+    wake_lock_destroy(&unifi_sdio_wake_lock);
+#endif
     sdio_unregister_driver(&unifi_driver);
 
     sdio_func_drv = NULL;

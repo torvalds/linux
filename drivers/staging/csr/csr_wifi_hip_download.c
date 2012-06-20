@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -674,7 +674,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
         return CSR_WIFI_HIP_RESULT_INVALID_VALUE;
     }
 
-    buf = CsrMemAlloc(buf_size);
+    buf = CsrMemAllocDma(buf_size);
     if (buf == NULL)
     {
         unifi_error(card->ospriv, "Failed to allocate transfer buffer for firmware download\n");
@@ -720,7 +720,7 @@ static CsrResult send_ptdl_to_unifi(card_t *card, void *dlpriv,
         }
     }
 
-    CsrMemFree(buf);
+    CsrMemFreeDma(buf);
 
     if (r != CSR_RESULT_SUCCESS && r != CSR_WIFI_HIP_RESULT_NO_DEVICE)
     {

@@ -402,9 +402,14 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
 
     priv->sta_wmm_capabilities = 0;
 
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_SUPPORT_SME))
     priv->wapi_multicast_filter = 0;
     priv->wapi_unicast_filter = 0;
     priv->wapi_unicast_queued_pkt_filter = 0;
+#ifdef CSR_WIFI_SECURITY_WAPI_QOSCTRL_MIC_WORKAROUND
+    priv->isWapiConnection = FALSE;
+#endif
+#endif
 
     /* Enable all queues by default */
     interfacePriv->queueEnabled[0] = 1;
@@ -450,7 +455,15 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
     spin_lock_init(&priv->send_signal_lock);
 
     spin_lock_init(&priv->m4_lock);
-    spin_lock_init(&priv->ba_lock);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+    sema_init(&priv->ba_mutex, 1);
+#else
+    init_MUTEX(&priv->ba_mutex);
+#endif
+
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+    spin_lock_init(&priv->wapi_lock);
+#endif
 
 #ifdef CSR_SUPPORT_SME
     spin_lock_init(&priv->staRecord_lock);
@@ -472,6 +485,11 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
 
     /* Create m4 buffering work structure */
     INIT_WORK(&interfacePriv->send_m4_ready_task, uf_send_m4_ready_wq);
+
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+    /* Create work structure to buffer the WAPI data packets to be sent to SME for encryption */
+    INIT_WORK(&interfacePriv->send_pkt_to_encrypt, uf_send_pkt_to_encrypt);
+#endif
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
@@ -503,6 +521,11 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
         unifi_warning(priv, "Failed to register netdevice notifier : %d %p\n", rc, dev);
     }
 #endif /* CSR_SUPPORT_WEXT */
+
+#ifdef CSR_WIFI_SPLIT_PATCH
+    /* set it to some invalid value */
+    priv->pending_mode_set.common.destination = 0xaaaa;
+#endif
 
     return priv;
 } /* uf_alloc_netdevice() */
@@ -654,6 +677,19 @@ uf_free_netdevice(unifi_priv_t *priv)
         }
     }
     spin_unlock_irqrestore(&priv->m4_lock, flags);
+
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+    /* Free any bulkdata buffers allocated for M4 caching */
+    spin_lock_irqsave(&priv->wapi_lock, flags);
+    for (i = 0; i < CSR_WIFI_NUM_INTERFACES; i++) {
+        netInterface_priv_t *interfacePriv = priv->interfacePriv[i];
+        if (interfacePriv->wapi_unicast_bulk_data.data_length > 0) {
+            unifi_trace(priv, UDBG5, "uf_free_netdevice: free WAPI PKT bulk data %d\n", i);
+            unifi_net_data_free(priv, &interfacePriv->wapi_unicast_bulk_data);
+        }
+    }
+    spin_unlock_irqrestore(&priv->wapi_lock, flags);
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 #ifdef CONFIG_NET_SCHED
@@ -1556,7 +1592,7 @@ int prepare_and_add_macheader(unifi_priv_t *priv, struct sk_buff *skb, struct sk
     /* IF Qos Data or Qos Null Data then set QosControl field */
     if ((priority != CSR_CONTENTION) && (macHeaderLengthInBytes >= QOS_CONTROL_HEADER_SIZE)) {
 
-        if (priority >= 7) {
+        if (priority > 7) {
             unifi_trace(priv, UDBG1, "data packets priority is more than 7, priority = %x\n", priority);
             qc |= 7;
         } else {
@@ -1628,6 +1664,7 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
     CSR_TRANSMISSION_CONTROL transmissionControl = CSR_NO_CONFIRM_REQUIRED;
     CsrInt8 protection;
     netInterface_priv_t *interfacePriv = NULL;
+    CSR_RATE TransmitRate = (CSR_RATE)0;
 
     unifi_trace(priv, UDBG5, "entering send_ma_pkt_request\n");
 
@@ -1780,6 +1817,63 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
             return 0;
         }
 #endif
+    }/*EAPOL or WAI packet*/
+
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+    if ((CSR_WIFI_ROUTER_CTRL_MODE_STA == interfacePriv->interfaceMode) && \
+        (priv->wapi_unicast_filter) && \
+        (proto != ETH_P_PAE) && \
+        (proto != ETH_P_WAI) && \
+        (skb->len > 0))
+    {
+        CSR_SIGNAL signal;
+        CSR_MA_PACKET_REQUEST *req = &signal.u.MaPacketRequest;
+        netInterface_priv_t *netpriv = (netInterface_priv_t *)netdev_priv(priv->netdev[interfaceTag]);
+
+        unifi_trace(priv, UDBG4, "send_ma_pkt_request() - WAPI unicast data packet when USKID = 1 \n");
+
+        /* initialize signal to zero */
+        memset(&signal, 0, sizeof(CSR_SIGNAL));
+        /* Frame MA_PACKET request */
+        signal.SignalPrimitiveHeader.SignalId = CSR_MA_PACKET_REQUEST_ID;
+        signal.SignalPrimitiveHeader.ReceiverProcessId = 0;
+        signal.SignalPrimitiveHeader.SenderProcessId = priv->netdev_client->sender_id;
+
+        /* Fill the MA-PACKET.req */
+        req->TransmissionControl = 0;
+        req->Priority = priority;
+        unifi_trace(priv, UDBG3, "Tx Frame with Priority: %x\n", req->Priority);
+        req->TransmitRate = (CSR_RATE) 0; /* rate selected by firmware */
+        req->HostTag = 0xffffffff;        /* Ask for a new HostTag */
+        /* RA address matching with address 1 of Mac header */
+        memcpy(req->Ra.x, ((CsrUint8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
+
+        /* Store the M4-PACKET.req for later */
+        spin_lock(&priv->wapi_lock);
+        interfacePriv->wapi_unicast_ma_pkt_sig = signal;
+        interfacePriv->wapi_unicast_bulk_data.net_buf_length = bulkdata.d[0].net_buf_length;
+        interfacePriv->wapi_unicast_bulk_data.data_length = bulkdata.d[0].data_length;
+        interfacePriv->wapi_unicast_bulk_data.os_data_ptr = bulkdata.d[0].os_data_ptr;
+        interfacePriv->wapi_unicast_bulk_data.os_net_buf_ptr = bulkdata.d[0].os_net_buf_ptr;
+        spin_unlock(&priv->wapi_lock);
+
+        /* Signal the workqueue to call CsrWifiRouterCtrlWapiUnicastTxEncryptIndSend().
+         * It cannot be called directly from the tx path because it
+         * does a non-atomic kmalloc via the framework's CsrPmemAlloc().
+         */
+        queue_work(priv->unifi_workqueue, &netpriv->send_pkt_to_encrypt);
+
+        return 0;
+    }
+#endif
+
+    if(priv->cmanrTestMode)
+    {
+        TransmitRate = priv->cmanrTestModeTransmitRate;
+        unifi_trace(priv, UDBG2, "send_ma_pkt_request: cmanrTestModeTransmitRate = %d TransmitRate=%d\n",
+                    priv->cmanrTestModeTransmitRate,
+                    TransmitRate
+                   );
     }
 
     /* Send UniFi msg */
@@ -1789,7 +1883,7 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
                                  0xffffffff,  /* Ask for a new HostTag */
                                  interfaceTag,
                                  transmissionControl,
-                                 (CSR_RATE)0,
+                                 TransmitRate,
                                  priority,
                                  priv->netdev_client->sender_id,
                                  &bulkdata);
@@ -1900,8 +1994,22 @@ uf_net_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif /* CONFIG_NET_SCHED */
 
     if (result == NETDEV_TX_OK) {
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+    	/* Don't update the tx stats when the pkt is to be sent for sw encryption*/
+    	if (!((CSR_WIFI_ROUTER_CTRL_MODE_STA == interfacePriv->interfaceMode) &&
+              (priv->wapi_unicast_filter == 1)))
+        {
+            dev->trans_start = jiffies;
+            /* Should really count tx stats in the UNITDATA.status signal but
+             * that doesn't have the length.
+             */
+            interfacePriv->stats.tx_packets++;
+            /* count only the packet payload */
+            interfacePriv->stats.tx_bytes += skb->len;
 
-        dev->trans_start = jiffies;
+        }
+#else
+    	dev->trans_start = jiffies;
 
         /*
          * Should really count tx stats in the UNITDATA.status signal but
@@ -1910,7 +2018,7 @@ uf_net_xmit(struct sk_buff *skb, struct net_device *dev)
         interfacePriv->stats.tx_packets++;
         /* count only the packet payload */
         interfacePriv->stats.tx_bytes += skb->len;
-
+#endif
     } else if (result < 0) {
 
         /* Failed to send: fh queue was full, and the skb was discarded.
@@ -2117,6 +2225,13 @@ indicate_rx_skb(unifi_priv_t *priv, CsrUint16 ifTag, CsrUint8* dst_a, CsrUint8* 
         return;
     }
 
+
+    if(priv->cmanrTestMode)
+    {
+        const CSR_MA_PACKET_INDICATION *pkt_ind = &signal->u.MaPacketIndication;
+        priv->cmanrTestModeTransmitRate = pkt_ind->ReceivedRate;
+        unifi_trace(priv, UDBG2, "indicate_rx_skb: cmanrTestModeTransmitRate=%d\n", priv->cmanrTestModeTransmitRate);
+    }
 
     /* Pass SKB up the stack */
 #ifdef CSR_WIFI_USE_NETIF_RX
@@ -2780,36 +2895,17 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
             if((dataFrameType == QOS_DATA) || (dataFrameType == QOS_DATA_NULL)){
 
                 /*
-                  QoS control field is offset from frame control by 2 (frame control)
-                  + 2 (duration/ID) + 2 (sequence control) + 3*ETH_ALEN or 4*ETH_ALEN
-                */
+                 * QoS control field is offset from frame control by 2 (frame control)
+                 * + 2 (duration/ID) + 2 (sequence control) + 3*ETH_ALEN or 4*ETH_ALEN
+                 */
                 if((frameControl & IEEE802_11_FC_TO_DS_MASK) && (frameControl & IEEE802_11_FC_FROM_DS_MASK)){
                     qosControl= CSR_GET_UINT16_FROM_LITTLE_ENDIAN(pData->os_data_ptr + 30);
                 }
                 else{
                     qosControl = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(pData->os_data_ptr + 24);
                 }
-
-                if((IS_DTIM_ACTIVE(interfacePriv->dtimActive,interfacePriv->multicastPduHostTag))){
-                    CSR_PRIORITY priority;
-                    unifi_TrafficQueue priority_q;
-                    priority = (CSR_PRIORITY)(qosControl & IEEE802_11_QC_TID_MASK);
-                    priority_q = unifi_frame_priority_to_queue((CSR_PRIORITY) priority);
-                    if((srcStaInfo->powersaveMode[priority_q]==CSR_WIFI_AC_TRIGGER_ONLY_ENABLED)
-                               ||(srcStaInfo->powersaveMode[priority_q]==CSR_WIFI_AC_TRIGGER_AND_DELIVERY_ENABLED)){
-                        unsigned long lock_flags;
-                        spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
-                        srcStaInfo->uapsdSuspended = TRUE;
-                        spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
-                        unifi_trace(priv, UDBG3, "%s: qos Trigger Frame received while DTIM Active for staid: 0x%x\n",__FUNCTION__,srcStaInfo->aid);
-                    }
-                }
-                else{
-
-
-                    unifi_trace(priv, UDBG5, "%s: Check if U-APSD operations are triggered for qosControl: 0x%x\n",__FUNCTION__,qosControl);
-                    uf_process_wmm_deliver_ac_uapsd(priv,srcStaInfo,qosControl,interfaceTag);
-                }
+                unifi_trace(priv, UDBG5, "%s: Check if U-APSD operations are triggered for qosControl: 0x%x\n",__FUNCTION__,qosControl);
+                uf_process_wmm_deliver_ac_uapsd(priv,srcStaInfo,qosControl,interfaceTag);
             }
         }
     }
@@ -2829,7 +2925,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
             ba_addr = bssid;
         }
 
-        spin_lock(&priv->ba_lock);
+        down(&priv->ba_mutex);
         for (ba_session_idx=0; ba_session_idx < MAX_SUPPORTED_BA_SESSIONS_RX; ba_session_idx++){
             ba_session = interfacePriv->ba_session_rx[ba_session_idx];
             if (ba_session){
@@ -2842,14 +2938,14 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
                         frame_desc.active = TRUE;
                         unifi_trace(priv, UDBG6, "%s: calling process_ba_frame (session=%d)\n", __FUNCTION__, ba_session_idx);
                         process_ba_frame(priv, interfacePriv, ba_session, &frame_desc);
-                        spin_unlock(&priv->ba_lock);
+                        up(&priv->ba_mutex);
                         process_ba_complete(priv, interfacePriv);
                         break;
                 }
             }
         }
         if (ba_session_idx == MAX_SUPPORTED_BA_SESSIONS_RX){
-            spin_unlock(&priv->ba_lock);
+            up(&priv->ba_mutex);
             unifi_trace(priv, UDBG6, "%s: calling process_amsdu()", __FUNCTION__);
             process_amsdu(priv, signal, bulkdata);
         }
@@ -2865,7 +2961,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
      * And also this code here takes care that timeout check is made for all
      * the receive indications
      */
-    spin_lock(&priv->ba_lock);
+    down(&priv->ba_mutex);
     for (i=0; i < MAX_SUPPORTED_BA_SESSIONS_RX; i++){
         ba_session_rx_struct *ba_session;
         ba_session = interfacePriv->ba_session_rx[i];
@@ -2873,8 +2969,8 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
                 check_ba_frame_age_timeout(priv, interfacePriv, ba_session);
             }
     }
+    up(&priv->ba_mutex);
     process_ba_complete(priv, interfacePriv);
-    spin_unlock(&priv->ba_lock);
 
     func_exit();
 }
@@ -3879,7 +3975,7 @@ static void process_ma_packet_error_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, 
     }
     sn = pkt_err_ind->SequenceNumber;
 
-    spin_lock(&priv->ba_lock);
+    down(&priv->ba_mutex);
     /* To find the right ba_session loop through the BA sessions, compare MAC address and tID */
     for (ba_session_idx=0; ba_session_idx < MAX_SUPPORTED_BA_SESSIONS_RX; ba_session_idx++){
         ba_session = interfacePriv->ba_session_rx[ba_session_idx];
@@ -3894,7 +3990,7 @@ static void process_ma_packet_error_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, 
         }
     }
 
-    spin_unlock(&priv->ba_lock);
+    up(&priv->ba_mutex);
     process_ba_complete(priv, interfacePriv);
     func_exit();
 }

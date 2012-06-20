@@ -265,7 +265,9 @@ ul_log_config_ind(unifi_priv_t *priv, u8 *conf_param, int len)
         /* wifi_off_ind (error or exit) */
         CsrWifiRouterCtrlWifiOffIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, (CsrWifiRouterCtrlControlIndication)(*conf_param));
     }
-
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+    unifi_debug_buf_dump();
+#endif
 #else
     bulk_data_param_t bulkdata;
 
@@ -420,10 +422,6 @@ ul_send_signal_unpacked(unifi_priv_t *priv, CSR_SIGNAL *sigptr,
     CsrResult csrResult;
     unsigned long lock_flags;
     int r;
-#ifdef CSR_SUPPORT_SME
-    netInterface_priv_t *interfacePriv = priv->interfacePriv[0];
-    CsrUint32 alignOffset = 0;
-#endif
 
 
     csrResult = write_pack(sigptr, sigbuf, &packed_siglen);
@@ -431,12 +429,6 @@ ul_send_signal_unpacked(unifi_priv_t *priv, CSR_SIGNAL *sigptr,
         unifi_error(priv, "Malformed HIP signal in ul_send_signal_unpacked()\n");
         return CsrHipResultToStatus(csrResult);
     }
-#ifdef CSR_SUPPORT_SME
-    if (bulkdata != NULL){
-        alignOffset = (CsrUint32)(long)(bulkdata->d[0].os_data_ptr) & (CSR_WIFI_ALIGN_BYTES-1);
-
-    }
-#endif
     r = _align_bulk_data_buffers(priv, sigbuf, (bulk_data_param_t*)bulkdata);
     if (r) {
         return r;
@@ -449,17 +441,6 @@ ul_send_signal_unpacked(unifi_priv_t *priv, CSR_SIGNAL *sigptr,
         spin_unlock_irqrestore(&priv->send_signal_lock, lock_flags);
         return CsrHipResultToStatus(csrResult);
     }
-#ifdef CSR_SUPPORT_SME
-    if (sigptr->SignalPrimitiveHeader.SignalId == CSR_MA_PACKET_REQUEST_ID) {
-        if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
-           interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO) {
-
-            uf_store_directed_ma_packet_referenece(priv, bulkdata, sigptr,alignOffset);
-
-        }
-    }
-#endif
-
     spin_unlock_irqrestore(&priv->send_signal_lock, lock_flags);
 
     return 0;

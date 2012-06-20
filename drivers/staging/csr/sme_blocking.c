@@ -92,11 +92,15 @@ sme_init_request(unifi_priv_t *priv)
         return -EIO;
     }
 
+    unifi_trace(priv, UDBG5, "sme_init_request: wait sem\n");
+
     /* Grab the SME semaphore until the reply comes, or timeout */
     if (down_interruptible(&priv->sme_sem)) {
         unifi_error(priv, "sme_init_request: Failed to get SME semaphore\n");
         return -EIO;
     }
+    unifi_trace(priv, UDBG5, "sme_init_request: got sem: pending\n");
+
     priv->sme_reply.request_status = SME_REQUEST_PENDING;
 
     return 0;
@@ -118,8 +122,46 @@ uf_sme_complete_request(unifi_priv_t *priv, CsrResult reply_status, const char *
                     (func ? func : ""), priv->sme_reply.request_status);
         return;
     }
+    unifi_trace(priv, UDBG5,
+                "sme_complete_request: completed %s (s:%d)\n",
+                (func ? func : ""), priv->sme_reply.request_status);
+
     priv->sme_reply.request_status = SME_REQUEST_RECEIVED;
     priv->sme_reply.reply_status = reply_status;
+
+    wake_up_interruptible(&priv->sme_request_wq);
+
+    return;
+}
+
+
+void
+uf_sme_cancel_request(unifi_priv_t *priv, CsrResult reply_status)
+{
+    /* Check for a blocking SME request in progress, and cancel the wait.
+     * This should be used when the character device is closed.
+     */
+
+    if (priv == NULL) {
+        unifi_error(priv, "sme_cancel_request: Invalid priv\n");
+        return;
+    }
+
+    /* If no request is pending, nothing to wake up */
+    if (priv->sme_reply.request_status != SME_REQUEST_PENDING) {
+        unifi_trace(priv, UDBG5,
+                    "sme_cancel_request: no request was pending (s:%d)\n",
+                    priv->sme_reply.request_status);
+        /* Nothing to do */
+        return;
+    }
+    unifi_trace(priv, UDBG5,
+                "sme_cancel_request: request cancelled (s:%d)\n",
+                priv->sme_reply.request_status);
+
+    /* Wake up the wait with an error status */
+    priv->sme_reply.request_status = SME_REQUEST_CANCELLED;
+    priv->sme_reply.reply_status = reply_status; /* unimportant since the CANCELLED state will fail the ioctl */
 
     wake_up_interruptible(&priv->sme_request_wq);
 
@@ -133,16 +175,25 @@ _sme_wait_for_reply(unifi_priv_t *priv,
 {
     long r;
 
-    unifi_trace(priv, UDBG5, "sme_wait_for_reply: sleep\n");
+    unifi_trace(priv, UDBG5, "sme_wait_for_reply: %s sleep\n", func ? func : "");
     r = wait_event_interruptible_timeout(priv->sme_request_wq,
                                          (priv->sme_reply.request_status != SME_REQUEST_PENDING),
                                          msecs_to_jiffies(timeout));
-    unifi_trace(priv, UDBG5, "sme_wait_for_reply: awake\n");
+    unifi_trace(priv, UDBG5, "sme_wait_for_reply: %s awake (%d)\n", func ? func : "", r);
 
     if (r == -ERESTARTSYS) {
         /* The thread was killed */
+        unifi_info(priv, "ERESTARTSYS in _sme_wait_for_reply\n");
         up(&priv->sme_sem);
         return r;
+    }
+    if (priv->sme_reply.request_status == SME_REQUEST_CANCELLED) {
+        unifi_trace(priv, UDBG5, "Cancelled waiting for SME to reply (%s s:%d, t:%d, r:%d)\n",
+                    (func ? func : ""), priv->sme_reply.request_status, timeout, r);
+
+        /* Release the SME semaphore that was downed in sme_init_request() */
+        up(&priv->sme_sem);
+        return -EIO; /* fail the ioctl */
     }
     if ((r == 0) && (priv->sme_reply.request_status != SME_REQUEST_RECEIVED)) {
         unifi_notice(priv, "Timeout waiting for SME to reply (%s s:%d, t:%d)\n",
@@ -155,6 +206,9 @@ _sme_wait_for_reply(unifi_priv_t *priv,
 
         return -ETIMEDOUT;
     }
+
+    unifi_trace(priv, UDBG5, "sme_wait_for_reply: %s received (%d)\n",
+                func ? func : "", r);
 
     /* Release the SME semaphore that was downed in sme_init_request() */
     up(&priv->sme_sem);
@@ -1289,22 +1343,20 @@ int sme_sys_suspend(unifi_priv_t *priv)
         return -EIO;
     }
 
-    /* For powered suspend, tell the resume's wifi_on() not to reinit UniFi */
-    priv->wol_suspend = (enable_wol == UNIFI_WOL_OFF) ? FALSE : TRUE;
-
-    /* Suspend the SME, which will cause it to power down UniFi */
+    /* Suspend the SME, which MAY cause it to power down UniFi */
     CsrWifiRouterCtrlSuspendIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, 0, priv->wol_suspend);
     r = sme_wait_for_reply(priv, UNIFI_SME_SYS_LONG_TIMEOUT);
     if (r) {
         /* No reply - forcibly power down in case the request wasn't processed */
         unifi_notice(priv,
                      "suspend: SME did not reply %s, ",
-                     priv->ptest_mode ? "leave powered" : "power off UniFi anyway\n");
+                     (priv->ptest_mode | priv->wol_suspend) ? "leave powered" : "power off UniFi anyway\n");
 
         /* Leave power on for production test, though */
         if (!priv->ptest_mode) {
             /* Put UniFi to deep sleep, in case we can not power it off */
             CsrSdioClaim(priv->sdio);
+            unifi_trace(priv, UDBG1, "Force deep sleep");
             csrResult = unifi_force_low_power_mode(priv->card);
 
             /* For WOL, the UniFi must stay powered */
@@ -1319,13 +1371,40 @@ int sme_sys_suspend(unifi_priv_t *priv)
     if (priv->wol_suspend) {
         unifi_trace(priv, UDBG1, "UniFi left powered for WOL\n");
 
-        /* For PIO WOL, disable SDIO interrupt to enable PIO mode in the f/w */
-        if (enable_wol == UNIFI_WOL_PIO) {
-            unifi_trace(priv, UDBG1, "Remove IRQ to enable PIO WOL\n");
-            if (csr_sdio_linux_remove_irq(priv->sdio)) {
-                unifi_notice(priv, "WOL csr_sdio_linux_remove_irq failed\n");
-            }
+        /* Remove the IRQ, which also disables the card SDIO interrupt.
+         * Disabling the card SDIO interrupt enables the PIO WOL source.
+         * Removal of the of the handler ensures that in both SDIO and PIO cases
+         * the card interrupt only wakes the host. The card will be polled
+         * after resume to handle any pending data.
+         */
+        if (csr_sdio_linux_remove_irq(priv->sdio)) {
+            unifi_notice(priv, "WOL csr_sdio_linux_remove_irq failed\n");
         }
+
+        if (enable_wol == UNIFI_WOL_SDIO) {
+            /* Because csr_sdio_linux_remove_irq() disabled the card SDIO interrupt,
+             * it must be left enabled to wake-on-SDIO.
+             */
+            unifi_trace(priv, UDBG1, "Enable card SDIO interrupt for SDIO WOL\n");
+
+            CsrSdioClaim(priv->sdio);
+            csrResult = CsrSdioInterruptEnable(priv->sdio);
+            CsrSdioRelease(priv->sdio);
+
+            if (csrResult != CSR_RESULT_SUCCESS) {
+                unifi_error(priv, "WOL CsrSdioInterruptEnable failed %d\n", csrResult);
+            }
+        } else {
+            unifi_trace(priv, UDBG1, "Disabled card SDIO interrupt for PIO WOL\n");
+        }
+
+        /* Prevent the BH thread from running during the suspend.
+         * Upon resume, sme_sys_resume() will trigger a wifi-on, this will cause
+         * the BH thread to be re-enabled and reinstall the ISR.
+         */
+        priv->bh_thread.block_thread = 1;
+
+        unifi_trace(priv, UDBG1, "unifi_suspend: suspended BH");
     }
 
     /* Consider UniFi to be uninitialised */
@@ -1354,22 +1433,10 @@ int sme_sys_resume(unifi_priv_t *priv)
 
     CsrWifiRouterCtrlResumeIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, priv->wol_suspend);
 
-    if (priv->ptest_mode == 1) {
-        r = sme_wait_for_reply(priv, UNIFI_SME_SYS_LONG_TIMEOUT);
-        if (r) {
-            /* No reply - forcibly power down in case the request wasn't processed */
-            unifi_notice(priv,
-                    "resume: SME did not reply, return success anyway\n");
-        }
-    } else {
-
-        /*
-         * We are not going to wait for the reply because the SME might be in
-         * the userspace. In this case the event will reach it when the kernel
-         * resumes. So, release now the SME semaphore that was downed in
-         * sme_init_request().
-         */
-        up(&priv->sme_sem);
+    r = sme_wait_for_reply(priv, UNIFI_SME_SYS_LONG_TIMEOUT);
+    if (r) {
+        unifi_notice(priv,
+                "resume: SME did not reply, return success anyway\n");
     }
 
     return 0;

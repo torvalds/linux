@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -148,9 +148,9 @@ void unifi_debug_hex_to_buf(const CsrCharString *buff, CsrUint16 length)
     CsrCharString s[5];
     CsrUint16 i;
 
-    for (i = 0; i < length; i++)
+    for (i = 0; i < length; i = i + 2)
     {
-        CsrUInt16ToHex(0xff & buff[i], s);
+        CsrUInt16ToHex(*((CsrUint16 *)(buff + i)), s);
         unifi_debug_string_to_buf(s);
     }
 }
@@ -277,7 +277,7 @@ void unifi_sdio_interrupt_handler(card_t *card)
      * Then ask the OS layer to run the unifi_bh to give attention to the UniFi.
      */
     card->bh_reason_unifi = 1;
-    unifi_run_bh(card->ospriv);
+    (void)unifi_run_bh(card->ospriv);
 } /*  sdio_interrupt_handler() */
 
 
@@ -309,7 +309,7 @@ CsrResult unifi_configure_low_power_mode(card_t                       *card,
                 (low_power_mode == UNIFI_LOW_POWER_DISABLED)?"disabled" : "enabled",
                 (periodic_wake_mode == UNIFI_PERIODIC_WAKE_HOST_DISABLED)?"FALSE" : "TRUE");
 
-    unifi_run_bh(card->ospriv);
+    (void)unifi_run_bh(card->ospriv);
     return CSR_RESULT_SUCCESS;
 } /* unifi_configure_low_power_mode() */
 
@@ -614,10 +614,10 @@ exit:
                     (low_power_mode == UNIFI_LOW_POWER_DISABLED)?"disabled" : "enabled");
 
         /* Try to capture firmware panic codes */
-        unifi_capture_panic(card);
+        (void)unifi_capture_panic(card);
 
         /* Ask for a mini-coredump when the driver has reset UniFi */
-        unifi_coredump_request_at_next_reset(card, 1);
+        (void)unifi_coredump_request_at_next_reset(card, 1);
     }
 
     return r;
@@ -932,9 +932,13 @@ static CsrResult handle_host_protocol(card_t *card, CsrBool *processed_something
             return r;
         }
     }
+
+#ifdef CSR_WIFI_RX_PATH_SPLIT
 #ifdef CSR_WIFI_RX_PATH_SPLIT_DONT_USE_WQ
     unifi_rx_queue_flush(card->ospriv);
 #endif
+#endif
+
     /* See if we can re-enable transmission now */
     restart_packet_flow(card);
 
@@ -1324,7 +1328,6 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
                     if (status && (card->fh_slot_host_tag_record))
                     {
                         CsrUint16 num_fh_slots = card->config_data.num_fromhost_data_slots;
-                        CsrUint16 i = 0;
 
                         /* search through the list of slot records and match with host tag
                          * If a slot is not yet cleared then clear the slot from here
@@ -1333,12 +1336,27 @@ static CsrResult process_to_host_signals(card_t *card, CsrInt32 *processed)
                         {
                             if (card->fh_slot_host_tag_record[i] == host_tag)
                             {
+#ifdef CSR_WIFI_REQUEUE_PACKET_TO_HAL
+                                /* Invoke the HAL module function to requeue it back to HAL Queues */
+                                r = unifi_reque_ma_packet_request(card->ospriv, host_tag, status, &card->from_host_data[i].bd);
+                                card->fh_slot_host_tag_record[i] = CSR_WIFI_HIP_RESERVED_HOST_TAG;
+                                if (CSR_RESULT_SUCCESS != r)
+                                {
+                                    unifi_trace(card->ospriv, UDBG5, "process_to_host_signals: Failed to requeue Packet(hTag:%x) back to HAL \n", host_tag);
+                                    CardClearFromHostDataSlot(card, i);
+                                }
+                                else
+                                {
+                                    CardClearFromHostDataSlotWithoutFreeingBulkData(card, i);
+                                }
+
+#else
                                 unifi_trace(card->ospriv, UDBG4, "process_to_host_signals Clear slot=%x host tag=%x\n", i, host_tag);
                                 card->fh_slot_host_tag_record[i] = CSR_WIFI_HIP_RESERVED_HOST_TAG;
 
                                 /* Set length field in from_host_data array to 0 */
                                 CardClearFromHostDataSlot(card, i);
-
+#endif
                                 break;
                             }
                         }
@@ -1724,7 +1742,7 @@ static CsrResult process_bulk_data_command(card_t *card, const CsrUint8 *cmdptr,
 
     if (len != 0 && (dir == UNIFI_SDIO_WRITE) && (((CsrIntptr)bdslot->os_data_ptr + offset) & 3))
     {
-        host_bulk_data_slot = CsrMemAlloc(len);
+        host_bulk_data_slot = CsrMemAllocDma(len);
 
         if (!host_bulk_data_slot)
         {
@@ -1783,7 +1801,7 @@ static CsrResult process_bulk_data_command(card_t *card, const CsrUint8 *cmdptr,
         /* moving this check before we clear host data slot */
         if ((len != 0) && (dir == UNIFI_SDIO_WRITE) && (((CsrIntptr)bdslot->os_data_ptr + offset) & 3))
         {
-            CsrMemFree(host_bulk_data_slot);
+            CsrMemFreeDma(host_bulk_data_slot);
         }
 #endif
 

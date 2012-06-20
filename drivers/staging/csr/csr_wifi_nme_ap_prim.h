@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -248,7 +248,6 @@ typedef struct
     apCredentials  - Security credential configuration.
     maxConnections - Maximum number of stations/P2P clients allowed
     p2pGoParam     - P2P specific GO parameters.
-                     NOT USED FOR CURRENT RELEASE
     wpsEnabled     - Indicates whether WPS should be enabled or not
 
 *******************************************************************************/

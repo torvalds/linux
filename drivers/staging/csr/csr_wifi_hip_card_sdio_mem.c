@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -1565,7 +1565,7 @@ CsrResult unifi_bulk_rw(card_t *card, CsrUint32 handle, void *pdata,
          */
         if (card->chip_id <= SDIO_CARD_ID_UNIFI_2)
         {
-            unifi_set_host_state(card, UNIFI_HOST_STATE_AWAKE);
+            (void)unifi_set_host_state(card, UNIFI_HOST_STATE_AWAKE);
         }
 
         /* If csr_sdio_block_rw() failed in a non-retryable way, or retries exhausted

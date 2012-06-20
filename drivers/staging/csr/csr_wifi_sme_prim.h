@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -1434,7 +1434,7 @@ typedef CsrUint8 CsrWifiSmeWepCredentialType;
     CsrWifiSmeWmmMode
 
   DESCRIPTION
-    Defines bits for wmmModeMask: enable/disable WMM features.
+    Defines bits for CsrWifiSmeWmmModeMask: enable/disable WMM features.
 
  VALUES
     CSR_WIFI_SME_WMM_MODE_DISABLED   - Disables the WMM features.
@@ -2413,40 +2413,6 @@ typedef struct
 /*******************************************************************************
 
   NAME
-    CsrWifiSmeStaConfig
-
-  DESCRIPTION
-    Station configuration options in the SME
-
-  MEMBERS
-    connectionQualityRssiChangeTrigger - Sets the difference of RSSI
-                                         measurements which triggers reports
-                                         from the Firmware
-    connectionQualitySnrChangeTrigger  - Sets the difference of SNR measurements
-                                         which triggers reports from the
-                                         Firmware
-    wmmModeMask                        - Mask containing one or more values from
-                                         CsrWifiSmeWmmMode
-    ifIndex                            - Indicates the band of frequencies used
-    allowUnicastUseGroupCipher         - If TRUE, it allows to use groupwise
-                                         keys if no pairwise key is specified
-    enableOpportunisticKeyCaching      - If TRUE, enables the Opportunistic Key
-                                         Caching feature
-
-*******************************************************************************/
-typedef struct
-{
-    CsrUint8          connectionQualityRssiChangeTrigger;
-    CsrUint8          connectionQualitySnrChangeTrigger;
-    CsrUint8          wmmModeMask;
-    CsrWifiSmeRadioIF ifIndex;
-    CsrBool           allowUnicastUseGroupCipher;
-    CsrBool           enableOpportunisticKeyCaching;
-} CsrWifiSmeStaConfig;
-
-/*******************************************************************************
-
-  NAME
     CsrWifiSmeTsfTime
 
   DESCRIPTION
@@ -3200,6 +3166,40 @@ typedef struct
 /*******************************************************************************
 
   NAME
+    CsrWifiSmeStaConfig
+
+  DESCRIPTION
+    Station configuration options in the SME
+
+  MEMBERS
+    connectionQualityRssiChangeTrigger - Sets the difference of RSSI
+                                         measurements which triggers reports
+                                         from the Firmware
+    connectionQualitySnrChangeTrigger  - Sets the difference of SNR measurements
+                                         which triggers reports from the
+                                         Firmware
+    wmmModeMask                        - Mask containing one or more values from
+                                         CsrWifiSmeWmmMode
+    ifIndex                            - Indicates the band of frequencies used
+    allowUnicastUseGroupCipher         - If TRUE, it allows to use groupwise
+                                         keys if no pairwise key is specified
+    enableOpportunisticKeyCaching      - If TRUE, enables the Opportunistic Key
+                                         Caching feature
+
+*******************************************************************************/
+typedef struct
+{
+    CsrUint8              connectionQualityRssiChangeTrigger;
+    CsrUint8              connectionQualitySnrChangeTrigger;
+    CsrWifiSmeWmmModeMask wmmModeMask;
+    CsrWifiSmeRadioIF     ifIndex;
+    CsrBool               allowUnicastUseGroupCipher;
+    CsrBool               enableOpportunisticKeyCaching;
+} CsrWifiSmeStaConfig;
+
+/*******************************************************************************
+
+  NAME
     CsrWifiSmeWep128Keys
 
   DESCRIPTION
@@ -3393,9 +3393,10 @@ typedef struct
 #define CSR_WIFI_SME_SME_COMMON_CONFIG_SET_REQ            ((CsrWifiSmePrim) (0x0034 + CSR_WIFI_SME_PRIM_DOWNSTREAM_LOWEST))
 #define CSR_WIFI_SME_INTERFACE_CAPABILITY_GET_REQ         ((CsrWifiSmePrim) (0x0035 + CSR_WIFI_SME_PRIM_DOWNSTREAM_LOWEST))
 #define CSR_WIFI_SME_WPS_CONFIGURATION_REQ                ((CsrWifiSmePrim) (0x0036 + CSR_WIFI_SME_PRIM_DOWNSTREAM_LOWEST))
+#define CSR_WIFI_SME_SET_REQ                              ((CsrWifiSmePrim) (0x0037 + CSR_WIFI_SME_PRIM_DOWNSTREAM_LOWEST))
 
 
-#define CSR_WIFI_SME_PRIM_DOWNSTREAM_HIGHEST           (0x0036 + CSR_WIFI_SME_PRIM_DOWNSTREAM_LOWEST)
+#define CSR_WIFI_SME_PRIM_DOWNSTREAM_HIGHEST           (0x0037 + CSR_WIFI_SME_PRIM_DOWNSTREAM_LOWEST)
 
 /* Upstream */
 #define CSR_WIFI_SME_PRIM_UPSTREAM_LOWEST              (0x0000 + CSR_PRIM_UPSTREAM)
@@ -4808,6 +4809,30 @@ typedef struct
     CsrWifiFsmEvent     common;
     CsrWifiSmeWpsConfig wpsConfig;
 } CsrWifiSmeWpsConfigurationReq;
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeSetReq
+
+  DESCRIPTION
+    Used to pass custom data to the SME. Format is the same as 802.11 Info
+    Elements => | Id | Length | Data
+    1) Cmanr Test Mode "Id:0 Length:1 Data:0x00 = OFF 0x01 = ON" "0x00 0x01
+    (0x00|0x01)"
+
+  MEMBERS
+    common     - Common header for use with the CsrWifiFsm Module
+    dataLength - Number of bytes in the buffer pointed to by 'data'
+    data       - Pointer to the buffer containing 'dataLength' bytes
+
+*******************************************************************************/
+typedef struct
+{
+    CsrWifiFsmEvent common;
+    CsrUint32       dataLength;
+    CsrUint8       *data;
+} CsrWifiSmeSetReq;
 
 /*******************************************************************************
 

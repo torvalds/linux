@@ -99,7 +99,7 @@ typedef struct
 #define CSR_WIFI_RESULT_INVALID_INTERFACE_TAG     ((CsrResult) 0x000B)
 #define CSR_WIFI_RESULT_P2P_NOA_CONFIG_CONFLICT   ((CsrResult) 0x000C)
 
-#define CSR_WIFI_VERSION	"5.0.3.0"
+#define CSR_WIFI_VERSION	"5.1.0.0"
 
 #ifdef __cplusplus
 }

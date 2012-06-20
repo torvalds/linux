@@ -44,6 +44,10 @@
 
 #include <linux/fs.h>
 
+#ifdef ANDROID_BUILD
+#include <linux/wakelock.h>
+#endif
+
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_unifi_udi.h"
 #include "csr_wifi_router_lib.h"
@@ -61,6 +65,10 @@ typedef struct CsrWifiSmeApConfig CsrWifiSmeApConfig_t;
 #endif
 #ifdef CSR_SUPPORT_WEXT
 #include "unifi_wext.h"
+#endif
+
+#ifdef ANDROID_BUILD
+extern struct wake_lock unifi_sdio_wake_lock;
 #endif
 
 #include "unifi_clients.h"
@@ -98,18 +106,14 @@ typedef struct CsrWifiSmeApConfig CsrWifiSmeApConfig_t;
 #include "unifi_sme.h"
 #endif
 
-#undef  COMPARE_HOST_TAG_TO_ENQUEUE
-#define COMPARE_HOST_TAG_TO_ENQUEUE(tx_q_item_hosttag,maPktHostTag)        \
-      if(tx_q_item_hosttag > maPktHostTag){                                \
-        locationFound = TRUE;                                              \
-        ii++;                                                              \
-        break;                                                             \
-    }                                                                      \
-    ii++;                                                                  \
-
-
 /* The device major number to use when registering the udi driver */
 #define UNIFI_NAME      "unifi"
+/*
+ * MAX_UNIFI_DEVS defines the maximum number of UniFi devices that can be present.
+ * This number should be set to the number of SDIO slots supported by the SDIO
+ * host controller on the platform.
+ * Note: If MAX_UNIFI_DEVS value changes, fw_init[] needs to be corrected in drv.c
+ */
 #define MAX_UNIFI_DEVS  2
 
 /* 802.11 Mac header offsets */
@@ -156,6 +160,10 @@ typedef struct CsrWifiSmeApConfig CsrWifiSmeApConfig_t;
 #define IEEE802_11_QC_TID_MASK 0x0f
 #define IEEE802_11_QC_A_MSDU_PRESENT 0x80
 
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_QOSCTRL_MIC_WORKAROUND))
+#define IEEE802_11_QC_NON_TID_BITS_MASK 0xFFF0
+#endif
+
 #define CSR_WIFI_EAPOL_M4_HOST_TAG 0x50000000
 #define IEEE802_11_DATA_FRAME_MAC_HEADER_SIZE 36
 #define MAX_ACCESS_CATOGORY 4
@@ -185,6 +193,9 @@ typedef struct CsrWifiSmeApConfig CsrWifiSmeApConfig_t;
 #define     STA_INACTIVE_DETECTION_TIMER_INTERVAL              30               /* in seconds */
 #define     STA_INACTIVE_TIMEOUT_VAL                           120*1000*1000    /* 120 seconds */
 
+/* Test for modes requiring AP firmware patch */
+#define CSR_WIFI_HIP_IS_AP_FW(mode) ((((mode) == CSR_WIFI_ROUTER_CTRL_MODE_AP) || \
+                                      ((mode) == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO)) ? TRUE : FALSE)
 
 /* Defines used in beacon filtering in case of P2P */
 #define CSR_WIFI_P2P_WILDCARD_SSID_LENGTH        0x7
@@ -220,6 +231,9 @@ extern int sdio_block_size;
 extern int coredump_max;
 extern int run_bh_once;
 extern int bh_priority;
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+extern int log_hip_signals;
+#endif
 
 struct dlpriv {
     const unsigned char *dl_data;
@@ -331,7 +345,8 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
     CsrTime lastActivity;
 
     /* during m/c transmission sp suspended */
-    CsrBool uapsdSuspended;
+    CsrBool uspSuspend;
+    CSR_PRIORITY triggerFramePriority;
 #endif
     CsrWifiRouterCtrlPeerStatus currentPeerState;
     struct list_head dataPdu[MAX_ACCESS_CATOGORY];
@@ -349,6 +364,8 @@ typedef struct CsrWifiRouterCtrlStaInfo_t {
 #define CSR_WIFI_TIM_RESETTING   2
 #define CSR_WIFI_TIM_SETTING     3
 
+    CsrBool timRequestPendingFlag;
+    CsrUint8 updateTimReqQueued;
     CsrUint16 noOfPktQueued;
 }CsrWifiRouterCtrlStaInfo_t;
 
@@ -609,8 +626,14 @@ struct unifi_priv {
 
     /* Spinlock to protect M4 data */
     spinlock_t m4_lock;
-    /* Spinlock to protect BA RX data */
-    spinlock_t ba_lock;
+    /* Mutex to protect BA RX data */
+    struct semaphore ba_mutex;
+
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+    /* Spinlock to protect the WAPI data */
+    spinlock_t wapi_lock;
+#endif
+
 #ifndef ALLOW_Q_PAUSE
     /* Array to indicate if a particular Tx queue is paused, this may not be
      * required in a multiqueue implementation since we can directly stop kernel
@@ -630,10 +653,24 @@ struct unifi_priv {
     CsrUint32 rxUdpThroughput;
     CsrUint32 txUdpThroughput;
 
-
+#ifdef CSR_WIFI_SECURITY_WAPI_ENABLE
+    /*Set if multicast KeyID = 1*/
     CsrUint8 wapi_multicast_filter;
+    /*Set if unicast KeyID = 1*/
     CsrUint8 wapi_unicast_filter;
     CsrUint8 wapi_unicast_queued_pkt_filter;
+#ifdef CSR_WIFI_SECURITY_WAPI_QOSCTRL_MIC_WORKAROUND
+    CsrBool  isWapiConnection;
+#endif
+#endif
+
+#ifdef CSR_WIFI_SPLIT_PATCH
+    CsrWifiRouterCtrlModeSetReq pending_mode_set;
+#endif
+
+    CsrBool cmanrTestMode;
+    CSR_RATE cmanrTestModeTransmitRate;
+
 };
 
 typedef struct {
@@ -682,6 +719,9 @@ typedef struct netInterface_priv
     CsrUint8 ba_complete_index;
     CsrUint8 queueEnabled[UNIFI_NO_OF_TX_QS];
     struct work_struct send_m4_ready_task;
+#ifdef CSR_WIFI_SECURITY_WAPI_ENABLE
+    struct work_struct send_pkt_to_encrypt;
+#endif
     struct net_device_stats stats;
     CsrUint8 interfaceMode;
     CsrBool protect;
@@ -721,7 +761,6 @@ typedef struct netInterface_priv
     struct list_head genericMgtFrames;
     struct list_head genericMulticastOrBroadCastFrames;
     struct list_head genericMulticastOrBroadCastMgtFrames;
-    struct list_head directedMaPktReq;
 
     /* Timer for detecting station inactivity */
     struct timer_list sta_activity_check_timer;
@@ -740,6 +779,13 @@ typedef struct netInterface_priv
     /* Buffered M4 signal to take care of WPA race condition */
     CSR_SIGNAL m4_signal;
     bulk_data_desc_t m4_bulk_data;
+
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+    /* Buffered WAPI Unicast MA Packet Request for encryption in Sme */
+    CSR_SIGNAL wapi_unicast_ma_pkt_sig;
+    bulk_data_desc_t wapi_unicast_bulk_data;
+#endif
+
     /* This should be removed and m4_hostTag should be used for checking*/
     CsrBool m4_sent;
     CSR_CLIENT_TAG m4_hostTag;
@@ -747,16 +793,10 @@ typedef struct netInterface_priv
     CsrBool intraBssEnabled;
     CsrUint32 multicastPduHostTag; /* Used to set the tim after getting
        a confirm for it */
+    CsrBool bcTimSet;
+    CsrBool bcTimSetReqPendingFlag;
+    CsrBool bcTimSetReqQueued;
 } netInterface_priv_t;
-
-typedef struct maPktReqList{
-    struct list_head q;
-    struct sk_buff *skb;
-    CSR_SIGNAL signal;
-    CSR_CLIENT_TAG hostTag;
-    CsrUint32 staHandler;
-    unsigned long jiffeTime;
-}maPktReqList_t;
 
 #ifndef ALLOW_Q_PAUSE
 #define net_is_tx_q_paused(priv, q)   (priv->tx_q_paused_flag[q])
@@ -925,7 +965,6 @@ int uf_ap_process_data_pdu(unifi_priv_t *priv, struct sk_buff *skb,
                    bulk_data_param_t *bulkdata,
                    CsrUint8 macHeaderLengthInBytes);
 CsrBool uf_is_more_data_for_non_delivery_ac(CsrWifiRouterCtrlStaInfo_t *staRecord);
-CsrBool uf_is_more_data_for_delivery_ac(unifi_priv_t *priv,CsrWifiRouterCtrlStaInfo_t *staRecord,CsrBool mgtCheck);
 void uf_process_wmm_deliver_ac_uapsd (  unifi_priv_t * priv,
                                         CsrWifiRouterCtrlStaInfo_t * srcStaInfo,
                                         CsrUint16 qosControl,
@@ -937,7 +976,6 @@ void uf_send_buffered_data_from_delivery_ac(unifi_priv_t *priv, CsrWifiRouterCtr
 void uf_continue_uapsd(unifi_priv_t *priv, CsrWifiRouterCtrlStaInfo_t * staInfo);
 void uf_send_qos_null(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo);
 void uf_send_nulldata(unifi_priv_t * priv,CsrUint16 interfaceTag, const CsrUint8 *da,CSR_PRIORITY priority,CsrWifiRouterCtrlStaInfo_t * srcStaInfo);
-void uf_store_directed_ma_packet_referenece(unifi_priv_t *priv, bulk_data_param_t *bulkdata,CSR_SIGNAL *sigptr,CsrUint32 alignOffset);
 
 
 
@@ -956,7 +994,6 @@ void send_auto_ma_packet_confirm(unifi_priv_t *priv,
                                  netInterface_priv_t *interfacePriv,
                                  struct list_head *buffered_frames_list);
 void uf_flush_list(unifi_priv_t * priv, struct list_head * list);
-void uf_flush_maPktlist(unifi_priv_t * priv, struct list_head * list);
 tx_buffered_packets_t *dequeue_tx_data_pdu(unifi_priv_t *priv, struct list_head *txList);
 void resume_unicast_buffered_frames(unifi_priv_t *priv, CsrUint16 interfaceTag);
 void update_eosp_to_head_of_broadcast_list_head(unifi_priv_t *priv,CsrUint16 interfaceTag);
@@ -1072,6 +1109,11 @@ CsrUint16 uf_get_vif_identifier(CsrWifiRouterCtrlMode mode, CsrUint16 tag);
 void uf_process_rx_pending_queue(unifi_priv_t *priv, int queue,
                                  CsrWifiMacAddress source_address,
                                  int indicate, CsrUint16 interfaceTag);
+
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+int uf_register_hip_offline_debug(unifi_priv_t *priv);
+int uf_unregister_hip_offline_debug(unifi_priv_t *priv);
+#endif
 
 /*
  *      inet.c

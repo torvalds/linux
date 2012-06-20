@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -70,6 +70,13 @@ void CsrWifiRouterCtrlFreeDownstreamMessageContents(CsrUint16 eventClass, void *
             p->tclas = NULL;
             break;
         }
+        case CSR_WIFI_ROUTER_CTRL_WIFI_ON_REQ:
+        {
+            CsrWifiRouterCtrlWifiOnReq *p = (CsrWifiRouterCtrlWifiOnReq *)message;
+            CsrPmemFree(p->data);
+            p->data = NULL;
+            break;
+        }
         case CSR_WIFI_ROUTER_CTRL_WIFI_ON_RES:
         {
             CsrWifiRouterCtrlWifiOnRes *p = (CsrWifiRouterCtrlWifiOnRes *)message;
@@ -77,11 +84,18 @@ void CsrWifiRouterCtrlFreeDownstreamMessageContents(CsrUint16 eventClass, void *
             p->smeVersions.smeBuild = NULL;
             break;
         }
-        case CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_REQ:
+        case CSR_WIFI_ROUTER_CTRL_WAPI_RX_PKT_REQ:
         {
-            CsrWifiRouterCtrlWapiMulticastReq *p = (CsrWifiRouterCtrlWapiMulticastReq *)message;
+            CsrWifiRouterCtrlWapiRxPktReq *p = (CsrWifiRouterCtrlWapiRxPktReq *)message;
             CsrPmemFree(p->signal);
             p->signal = NULL;
+            CsrPmemFree(p->data);
+            p->data = NULL;
+            break;
+        }
+        case CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_PKT_REQ:
+        {
+            CsrWifiRouterCtrlWapiUnicastTxPktReq *p = (CsrWifiRouterCtrlWapiUnicastTxPktReq *)message;
             CsrPmemFree(p->data);
             p->data = NULL;
             break;

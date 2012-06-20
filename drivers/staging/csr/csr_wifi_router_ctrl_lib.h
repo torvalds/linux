@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -657,6 +657,39 @@ extern const CsrCharString *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER
 
 #define CsrWifiRouterCtrlModeSetReqSend(src__, interfaceTag__, clientData__, mode__, bssid__, protection__, intraBssDistEnabled__) \
     CsrWifiRouterCtrlModeSetReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, interfaceTag__, clientData__, mode__, bssid__, protection__, intraBssDistEnabled__)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiRouterCtrlModeSetCfmSend
+
+  DESCRIPTION
+
+  PARAMETERS
+    queue        - Destination Task Queue
+    clientData   -
+    interfaceTag -
+    mode         -
+    status       -
+
+*******************************************************************************/
+#define CsrWifiRouterCtrlModeSetCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, mode__, status__) \
+    msg__ = (CsrWifiRouterCtrlModeSetCfm *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlModeSetCfm)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_MODE_SET_CFM, dst__, src__); \
+    msg__->clientData = (clientData__); \
+    msg__->interfaceTag = (interfaceTag__); \
+    msg__->mode = (mode__); \
+    msg__->status = (status__);
+
+#define CsrWifiRouterCtrlModeSetCfmSendTo(dst__, src__, clientData__, interfaceTag__, mode__, status__) \
+    { \
+        CsrWifiRouterCtrlModeSetCfm *msg__; \
+        CsrWifiRouterCtrlModeSetCfmCreate(msg__, dst__, src__, clientData__, interfaceTag__, mode__, status__); \
+        CsrSchedMessagePut(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
+    }
+
+#define CsrWifiRouterCtrlModeSetCfmSend(dst__, clientData__, interfaceTag__, mode__, status__) \
+    CsrWifiRouterCtrlModeSetCfmSendTo(dst__, CSR_WIFI_ROUTER_IFACEQUEUE, clientData__, interfaceTag__, mode__, status__)
 
 /*******************************************************************************
 
@@ -1597,67 +1630,65 @@ extern const CsrCharString *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER
 /*******************************************************************************
 
   NAME
+    CsrWifiRouterCtrlWapiFilterReqSend
+
+  DESCRIPTION
+
+  PARAMETERS
+    queue           - Message Source Task Queue (Cfm's will be sent to this Queue)
+    interfaceTag    -
+    isWapiConnected -
+
+*******************************************************************************/
+#define CsrWifiRouterCtrlWapiFilterReqCreate(msg__, dst__, src__, interfaceTag__, isWapiConnected__) \
+    msg__ = (CsrWifiRouterCtrlWapiFilterReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiFilterReq)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_FILTER_REQ, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__); \
+    msg__->isWapiConnected = (isWapiConnected__);
+
+#define CsrWifiRouterCtrlWapiFilterReqSendTo(dst__, src__, interfaceTag__, isWapiConnected__) \
+    { \
+        CsrWifiRouterCtrlWapiFilterReq *msg__; \
+        CsrWifiRouterCtrlWapiFilterReqCreate(msg__, dst__, src__, interfaceTag__, isWapiConnected__); \
+        CsrMsgTransport(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
+    }
+
+#define CsrWifiRouterCtrlWapiFilterReqSend(src__, interfaceTag__, isWapiConnected__) \
+    CsrWifiRouterCtrlWapiFilterReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, interfaceTag__, isWapiConnected__)
+
+/*******************************************************************************
+
+  NAME
     CsrWifiRouterCtrlWapiMulticastFilterReqSend
 
   DESCRIPTION
 
   PARAMETERS
-    queue  - Message Source Task Queue (Cfm's will be sent to this Queue)
-    status -
+    queue        - Message Source Task Queue (Cfm's will be sent to this Queue)
+    interfaceTag -
+    status       -
 
 *******************************************************************************/
-#define CsrWifiRouterCtrlWapiMulticastFilterReqCreate(msg__, dst__, src__, status__) \
+#define CsrWifiRouterCtrlWapiMulticastFilterReqCreate(msg__, dst__, src__, interfaceTag__, status__) \
     msg__ = (CsrWifiRouterCtrlWapiMulticastFilterReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiMulticastFilterReq)); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_FILTER_REQ, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__);
 
-#define CsrWifiRouterCtrlWapiMulticastFilterReqSendTo(dst__, src__, status__) \
+#define CsrWifiRouterCtrlWapiMulticastFilterReqSendTo(dst__, src__, interfaceTag__, status__) \
     { \
         CsrWifiRouterCtrlWapiMulticastFilterReq *msg__; \
-        CsrWifiRouterCtrlWapiMulticastFilterReqCreate(msg__, dst__, src__, status__); \
+        CsrWifiRouterCtrlWapiMulticastFilterReqCreate(msg__, dst__, src__, interfaceTag__, status__); \
         CsrMsgTransport(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
     }
 
-#define CsrWifiRouterCtrlWapiMulticastFilterReqSend(src__, status__) \
-    CsrWifiRouterCtrlWapiMulticastFilterReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, status__)
+#define CsrWifiRouterCtrlWapiMulticastFilterReqSend(src__, interfaceTag__, status__) \
+    CsrWifiRouterCtrlWapiMulticastFilterReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, interfaceTag__, status__)
 
 /*******************************************************************************
 
   NAME
-    CsrWifiRouterCtrlWapiMulticastReqSend
-
-  DESCRIPTION
-
-  PARAMETERS
-    queue        - Message Source Task Queue (Cfm's will be sent to this Queue)
-    signalLength -
-    signal       -
-    dataLength   -
-    data         -
-
-*******************************************************************************/
-#define CsrWifiRouterCtrlWapiMulticastReqCreate(msg__, dst__, src__, signalLength__, signal__, dataLength__, data__) \
-    msg__ = (CsrWifiRouterCtrlWapiMulticastReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiMulticastReq)); \
-    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_REQ, dst__, src__); \
-    msg__->signalLength = (signalLength__); \
-    msg__->signal = (signal__); \
-    msg__->dataLength = (dataLength__); \
-    msg__->data = (data__);
-
-#define CsrWifiRouterCtrlWapiMulticastReqSendTo(dst__, src__, signalLength__, signal__, dataLength__, data__) \
-    { \
-        CsrWifiRouterCtrlWapiMulticastReq *msg__; \
-        CsrWifiRouterCtrlWapiMulticastReqCreate(msg__, dst__, src__, signalLength__, signal__, dataLength__, data__); \
-        CsrMsgTransport(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
-    }
-
-#define CsrWifiRouterCtrlWapiMulticastReqSend(src__, signalLength__, signal__, dataLength__, data__) \
-    CsrWifiRouterCtrlWapiMulticastReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, signalLength__, signal__, dataLength__, data__)
-
-/*******************************************************************************
-
-  NAME
-    CsrWifiRouterCtrlWapiMulticastIndSend
+    CsrWifiRouterCtrlWapiRxMicCheckIndSend
 
   DESCRIPTION
 
@@ -1671,9 +1702,9 @@ extern const CsrCharString *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER
     data         -
 
 *******************************************************************************/
-#define CsrWifiRouterCtrlWapiMulticastIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
-    msg__ = (CsrWifiRouterCtrlWapiMulticastInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiMulticastInd)); \
-    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_MULTICAST_IND, dst__, src__); \
+#define CsrWifiRouterCtrlWapiRxMicCheckIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
+    msg__ = (CsrWifiRouterCtrlWapiRxMicCheckInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiRxMicCheckInd)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_RX_MIC_CHECK_IND, dst__, src__); \
     msg__->clientData = (clientData__); \
     msg__->interfaceTag = (interfaceTag__); \
     msg__->signalLength = (signalLength__); \
@@ -1681,15 +1712,50 @@ extern const CsrCharString *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER
     msg__->dataLength = (dataLength__); \
     msg__->data = (data__);
 
-#define CsrWifiRouterCtrlWapiMulticastIndSendTo(dst__, src__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
+#define CsrWifiRouterCtrlWapiRxMicCheckIndSendTo(dst__, src__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
     { \
-        CsrWifiRouterCtrlWapiMulticastInd *msg__; \
-        CsrWifiRouterCtrlWapiMulticastIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__); \
+        CsrWifiRouterCtrlWapiRxMicCheckInd *msg__; \
+        CsrWifiRouterCtrlWapiRxMicCheckIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__); \
         CsrSchedMessagePut(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
     }
 
-#define CsrWifiRouterCtrlWapiMulticastIndSend(dst__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
-    CsrWifiRouterCtrlWapiMulticastIndSendTo(dst__, CSR_WIFI_ROUTER_IFACEQUEUE, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__)
+#define CsrWifiRouterCtrlWapiRxMicCheckIndSend(dst__, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
+    CsrWifiRouterCtrlWapiRxMicCheckIndSendTo(dst__, CSR_WIFI_ROUTER_IFACEQUEUE, clientData__, interfaceTag__, signalLength__, signal__, dataLength__, data__)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiRouterCtrlWapiRxPktReqSend
+
+  DESCRIPTION
+
+  PARAMETERS
+    queue        - Message Source Task Queue (Cfm's will be sent to this Queue)
+    interfaceTag -
+    signalLength -
+    signal       -
+    dataLength   -
+    data         -
+
+*******************************************************************************/
+#define CsrWifiRouterCtrlWapiRxPktReqCreate(msg__, dst__, src__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
+    msg__ = (CsrWifiRouterCtrlWapiRxPktReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiRxPktReq)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_RX_PKT_REQ, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__); \
+    msg__->signalLength = (signalLength__); \
+    msg__->signal = (signal__); \
+    msg__->dataLength = (dataLength__); \
+    msg__->data = (data__);
+
+#define CsrWifiRouterCtrlWapiRxPktReqSendTo(dst__, src__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
+    { \
+        CsrWifiRouterCtrlWapiRxPktReq *msg__; \
+        CsrWifiRouterCtrlWapiRxPktReqCreate(msg__, dst__, src__, interfaceTag__, signalLength__, signal__, dataLength__, data__); \
+        CsrMsgTransport(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
+    }
+
+#define CsrWifiRouterCtrlWapiRxPktReqSend(src__, interfaceTag__, signalLength__, signal__, dataLength__, data__) \
+    CsrWifiRouterCtrlWapiRxPktReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, interfaceTag__, signalLength__, signal__, dataLength__, data__)
 
 /*******************************************************************************
 
@@ -1699,24 +1765,90 @@ extern const CsrCharString *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER
   DESCRIPTION
 
   PARAMETERS
-    queue  - Message Source Task Queue (Cfm's will be sent to this Queue)
-    status -
+    queue        - Message Source Task Queue (Cfm's will be sent to this Queue)
+    interfaceTag -
+    status       -
 
 *******************************************************************************/
-#define CsrWifiRouterCtrlWapiUnicastFilterReqCreate(msg__, dst__, src__, status__) \
+#define CsrWifiRouterCtrlWapiUnicastFilterReqCreate(msg__, dst__, src__, interfaceTag__, status__) \
     msg__ = (CsrWifiRouterCtrlWapiUnicastFilterReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiUnicastFilterReq)); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_FILTER_REQ, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__); \
     msg__->status = (status__);
 
-#define CsrWifiRouterCtrlWapiUnicastFilterReqSendTo(dst__, src__, status__) \
+#define CsrWifiRouterCtrlWapiUnicastFilterReqSendTo(dst__, src__, interfaceTag__, status__) \
     { \
         CsrWifiRouterCtrlWapiUnicastFilterReq *msg__; \
-        CsrWifiRouterCtrlWapiUnicastFilterReqCreate(msg__, dst__, src__, status__); \
+        CsrWifiRouterCtrlWapiUnicastFilterReqCreate(msg__, dst__, src__, interfaceTag__, status__); \
         CsrMsgTransport(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
     }
 
-#define CsrWifiRouterCtrlWapiUnicastFilterReqSend(src__, status__) \
-    CsrWifiRouterCtrlWapiUnicastFilterReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, status__)
+#define CsrWifiRouterCtrlWapiUnicastFilterReqSend(src__, interfaceTag__, status__) \
+    CsrWifiRouterCtrlWapiUnicastFilterReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, interfaceTag__, status__)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiRouterCtrlWapiUnicastTxEncryptIndSend
+
+  DESCRIPTION
+
+  PARAMETERS
+    queue        - Destination Task Queue
+    clientData   -
+    interfaceTag -
+    dataLength   -
+    data         -
+
+*******************************************************************************/
+#define CsrWifiRouterCtrlWapiUnicastTxEncryptIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, dataLength__, data__) \
+    msg__ = (CsrWifiRouterCtrlWapiUnicastTxEncryptInd *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiUnicastTxEncryptInd)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_ENCRYPT_IND, dst__, src__); \
+    msg__->clientData = (clientData__); \
+    msg__->interfaceTag = (interfaceTag__); \
+    msg__->dataLength = (dataLength__); \
+    msg__->data = (data__);
+
+#define CsrWifiRouterCtrlWapiUnicastTxEncryptIndSendTo(dst__, src__, clientData__, interfaceTag__, dataLength__, data__) \
+    { \
+        CsrWifiRouterCtrlWapiUnicastTxEncryptInd *msg__; \
+        CsrWifiRouterCtrlWapiUnicastTxEncryptIndCreate(msg__, dst__, src__, clientData__, interfaceTag__, dataLength__, data__); \
+        CsrSchedMessagePut(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
+    }
+
+#define CsrWifiRouterCtrlWapiUnicastTxEncryptIndSend(dst__, clientData__, interfaceTag__, dataLength__, data__) \
+    CsrWifiRouterCtrlWapiUnicastTxEncryptIndSendTo(dst__, CSR_WIFI_ROUTER_IFACEQUEUE, clientData__, interfaceTag__, dataLength__, data__)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiRouterCtrlWapiUnicastTxPktReqSend
+
+  DESCRIPTION
+
+  PARAMETERS
+    queue        - Message Source Task Queue (Cfm's will be sent to this Queue)
+    interfaceTag -
+    dataLength   -
+    data         -
+
+*******************************************************************************/
+#define CsrWifiRouterCtrlWapiUnicastTxPktReqCreate(msg__, dst__, src__, interfaceTag__, dataLength__, data__) \
+    msg__ = (CsrWifiRouterCtrlWapiUnicastTxPktReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWapiUnicastTxPktReq)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WAPI_UNICAST_TX_PKT_REQ, dst__, src__); \
+    msg__->interfaceTag = (interfaceTag__); \
+    msg__->dataLength = (dataLength__); \
+    msg__->data = (data__);
+
+#define CsrWifiRouterCtrlWapiUnicastTxPktReqSendTo(dst__, src__, interfaceTag__, dataLength__, data__) \
+    { \
+        CsrWifiRouterCtrlWapiUnicastTxPktReq *msg__; \
+        CsrWifiRouterCtrlWapiUnicastTxPktReqCreate(msg__, dst__, src__, interfaceTag__, dataLength__, data__); \
+        CsrMsgTransport(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
+    }
+
+#define CsrWifiRouterCtrlWapiUnicastTxPktReqSend(src__, interfaceTag__, dataLength__, data__) \
+    CsrWifiRouterCtrlWapiUnicastTxPktReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, interfaceTag__, dataLength__, data__)
 
 /*******************************************************************************
 
@@ -1837,22 +1969,26 @@ extern const CsrCharString *CsrWifiRouterCtrlDownstreamPrimNames[CSR_WIFI_ROUTER
   PARAMETERS
     queue      - Message Source Task Queue (Cfm's will be sent to this Queue)
     clientData -
+    dataLength - Number of bytes in the buffer pointed to by 'data'
+    data       - Pointer to the buffer containing 'dataLength' bytes
 
 *******************************************************************************/
-#define CsrWifiRouterCtrlWifiOnReqCreate(msg__, dst__, src__, clientData__) \
+#define CsrWifiRouterCtrlWifiOnReqCreate(msg__, dst__, src__, clientData__, dataLength__, data__) \
     msg__ = (CsrWifiRouterCtrlWifiOnReq *) CsrPmemAlloc(sizeof(CsrWifiRouterCtrlWifiOnReq)); \
     CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_ROUTER_CTRL_PRIM, CSR_WIFI_ROUTER_CTRL_WIFI_ON_REQ, dst__, src__); \
-    msg__->clientData = (clientData__);
+    msg__->clientData = (clientData__); \
+    msg__->dataLength = (dataLength__); \
+    msg__->data = (data__);
 
-#define CsrWifiRouterCtrlWifiOnReqSendTo(dst__, src__, clientData__) \
+#define CsrWifiRouterCtrlWifiOnReqSendTo(dst__, src__, clientData__, dataLength__, data__) \
     { \
         CsrWifiRouterCtrlWifiOnReq *msg__; \
-        CsrWifiRouterCtrlWifiOnReqCreate(msg__, dst__, src__, clientData__); \
+        CsrWifiRouterCtrlWifiOnReqCreate(msg__, dst__, src__, clientData__, dataLength__, data__); \
         CsrMsgTransport(dst__, CSR_WIFI_ROUTER_CTRL_PRIM, msg__); \
     }
 
-#define CsrWifiRouterCtrlWifiOnReqSend(src__, clientData__) \
-    CsrWifiRouterCtrlWifiOnReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, clientData__)
+#define CsrWifiRouterCtrlWifiOnReqSend(src__, clientData__, dataLength__, data__) \
+    CsrWifiRouterCtrlWifiOnReqSendTo(CSR_WIFI_ROUTER_IFACEQUEUE, src__, clientData__, dataLength__, data__)
 
 /*******************************************************************************
 

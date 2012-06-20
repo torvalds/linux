@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -41,11 +41,11 @@ CsrMsgConvMsgEntry* CsrWifiRouterConverterLookup(CsrMsgConvMsgEntry *ce, CsrUint
 {
     if (msgType & CSR_PRIM_UPSTREAM)
     {
-        CsrUint16 index = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT;
-        if (index < (CSR_WIFI_ROUTER_PRIM_UPSTREAM_COUNT + CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT) &&
-            csrwifirouter_conv_lut[index].msgType == msgType)
+        CsrUint16 idx = (msgType & ~CSR_PRIM_UPSTREAM) + CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT;
+        if (idx < (CSR_WIFI_ROUTER_PRIM_UPSTREAM_COUNT + CSR_WIFI_ROUTER_PRIM_DOWNSTREAM_COUNT) &&
+            csrwifirouter_conv_lut[idx].msgType == msgType)
         {
-            return &csrwifirouter_conv_lut[index];
+            return &csrwifirouter_conv_lut[idx];
         }
     }
     else

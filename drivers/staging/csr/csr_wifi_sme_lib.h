@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -3441,6 +3441,39 @@ extern const CsrCharString *CsrWifiSmeDownstreamPrimNames[CSR_WIFI_SME_PRIM_DOWN
 
 #define CsrWifiSmeScanResultsGetCfmSend(dst__, status__, scanResultsCount__, scanResults__) \
     CsrWifiSmeScanResultsGetCfmSendTo(dst__, CSR_WIFI_SME_IFACEQUEUE, status__, scanResultsCount__, scanResults__)
+
+/*******************************************************************************
+
+  NAME
+    CsrWifiSmeSetReqSend
+
+  DESCRIPTION
+    Used to pass custom data to the SME. Format is the same as 802.11 Info
+    Elements => | Id | Length | Data
+    1) Cmanr Test Mode "Id:0 Length:1 Data:0x00 = OFF 0x01 = ON" "0x00 0x01
+    (0x00|0x01)"
+
+  PARAMETERS
+    queue      - Message Source Task Queue (Cfm's will be sent to this Queue)
+    dataLength - Number of bytes in the buffer pointed to by 'data'
+    data       - Pointer to the buffer containing 'dataLength' bytes
+
+*******************************************************************************/
+#define CsrWifiSmeSetReqCreate(msg__, dst__, src__, dataLength__, data__) \
+    msg__ = (CsrWifiSmeSetReq *) CsrPmemAlloc(sizeof(CsrWifiSmeSetReq)); \
+    CsrWifiFsmEventInit(&msg__->common, CSR_WIFI_SME_PRIM, CSR_WIFI_SME_SET_REQ, dst__, src__); \
+    msg__->dataLength = (dataLength__); \
+    msg__->data = (data__);
+
+#define CsrWifiSmeSetReqSendTo(dst__, src__, dataLength__, data__) \
+    { \
+        CsrWifiSmeSetReq *msg__; \
+        CsrWifiSmeSetReqCreate(msg__, dst__, src__, dataLength__, data__); \
+        CsrMsgTransport(dst__, CSR_WIFI_SME_PRIM, msg__); \
+    }
+
+#define CsrWifiSmeSetReqSend(src__, dataLength__, data__) \
+    CsrWifiSmeSetReqSendTo(CSR_WIFI_SME_LIB_DESTINATION_QUEUE, src__, dataLength__, data__)
 
 /*******************************************************************************
 

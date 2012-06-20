@@ -50,6 +50,7 @@ enum sme_request_status {
     SME_REQUEST_PENDING,
     SME_REQUEST_RECEIVED,
     SME_REQUEST_TIMEDOUT,
+    SME_REQUEST_CANCELLED,
 };
 
 /* Structure to hold a UDI logged signal */
@@ -123,6 +124,7 @@ void uf_ta_wq(struct work_struct *work);
 #endif
 
 void uf_sme_complete_request(unifi_priv_t *priv, CsrResult reply_status, const char *func);
+void uf_sme_cancel_request(unifi_priv_t *priv, CsrResult reply_status);
 
 
 /*
@@ -147,6 +149,13 @@ void uf_sme_config_wq(struct work_struct *work);
  * To send M4 read to send IND
  */
 void uf_send_m4_ready_wq(struct work_struct *work);
+
+#if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
+/*
+ * To send data pkt to Sme for encryption
+ */
+void uf_send_pkt_to_encrypt(struct work_struct *work);
+#endif
 
 int sme_mgt_power_config_set(unifi_priv_t *priv, CsrWifiSmePowerConfig *powerConfig);
 int sme_mgt_power_config_get(unifi_priv_t *priv, CsrWifiSmePowerConfig *powerConfig);

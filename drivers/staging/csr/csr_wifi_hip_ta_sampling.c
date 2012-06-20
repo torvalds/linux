@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -69,9 +69,9 @@ enum ta_frame_identity
 #define TA_EAPOL_TYPE_OFFSET        9
 #define TA_EAPOL_TYPE_START         0x01
 
-static const CsrUint8 snap_802_2[3]   = { 0xAA, 0xAA, 0x03 };
-static const CsrUint8 oui_rfc1042[3]  = { 0x00, 0x00, 0x00 };
-static const CsrUint8 oui_8021h[3]    = { 0x00, 0x00, 0xf8 };
+#define snap_802_2                  0xAAAA0300
+#define oui_rfc1042                 0x00000000
+#define oui_8021h                   0x0000f800
 static const CsrUint8 aironet_snap[5] = { 0x00, 0x40, 0x96, 0x00, 0x00 };
 
 
@@ -100,13 +100,17 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
     CsrUint16 proto;
     CsrUint16 source_port, dest_port;
     CsrWifiMacAddress srcAddress;
+    CsrUint32 snap_hdr, oui_hdr;
 
     if (data->data_length < TA_LLC_HEADER_SIZE)
     {
         return TA_FRAME_UNKNOWN;
     }
 
-    if (CsrMemCmp(data->os_data_ptr, snap_802_2, 3))
+    snap_hdr = (((CsrUint32)data->os_data_ptr[0]) << 24) |
+               (((CsrUint32)data->os_data_ptr[1]) << 16) |
+               (((CsrUint32)data->os_data_ptr[2]) << 8);
+    if (snap_hdr != snap_802_2)
     {
         return TA_FRAME_UNKNOWN;
     }
@@ -118,8 +122,10 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
          */
     }
 
-    if (!CsrMemCmp(data->os_data_ptr + 3, oui_rfc1042, 3) ||
-        !CsrMemCmp(data->os_data_ptr + 3, oui_8021h, 3))
+    oui_hdr = (((CsrUint32)data->os_data_ptr[3]) << 24) |
+              (((CsrUint32)data->os_data_ptr[4]) << 16) |
+              (((CsrUint32)data->os_data_ptr[5]) << 8);
+    if ((oui_hdr == oui_rfc1042) || (oui_hdr == oui_8021h))
     {
         proto = (data->os_data_ptr[TA_ETHERNET_TYPE_OFFSET] * 256) +
                 data->os_data_ptr[TA_ETHERNET_TYPE_OFFSET + 1];
@@ -177,7 +183,7 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
                                 /* The DHCP should have at least a message type (request, ack, nack, etc) */
                                 if (data->data_length > TA_DHCP_MESSAGE_TYPE_OFFSET + 6)
                                 {
-                                    CsrMemCpy(srcAddress.a, saddr, 6);
+                                    UNIFI_MAC_ADDRESS_COPY(srcAddress.a, saddr);
 
                                     if (direction == CSR_WIFI_ROUTER_CTRL_PROTOCOL_DIRECTION_TX)
                                     {
@@ -189,7 +195,7 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
                                     }
 
                                     /* DHCPACK is a special indication */
-                                    if (!CsrMemCmp(data->os_data_ptr + TA_BOOTP_CLIENT_MAC_ADDR_OFFSET, sta_macaddr, 6))
+                                    if (UNIFI_MAC_ADDRESS_CMP(data->os_data_ptr + TA_BOOTP_CLIENT_MAC_ADDR_OFFSET, sta_macaddr) == TRUE)
                                     {
                                         if (data->os_data_ptr[TA_DHCP_MESSAGE_TYPE_OFFSET] == TA_DHCP_MESSAGE_TYPE_ACK)
                                         {
@@ -224,7 +230,7 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
                 if ((TA_PROTO_TYPE_WAI == proto) || (direction != CSR_WIFI_ROUTER_CTRL_PROTOCOL_DIRECTION_TX) ||
                     (data->os_data_ptr[TA_EAPOL_TYPE_OFFSET] == TA_EAPOL_TYPE_START))
                 {
-                    CsrMemCpy(srcAddress.a, saddr, 6);
+                    UNIFI_MAC_ADDRESS_COPY(srcAddress.a, saddr);
                     unifi_ta_indicate_protocol(card->ospriv,
                                                CSR_WIFI_ROUTER_CTRL_TRAFFIC_PACKET_TYPE_EAPOL,
                                                direction, &srcAddress);
@@ -238,7 +244,7 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
         {
             if (proto == TA_PROTO_TYPE_ARP)
             {
-                CsrMemCpy(srcAddress.a, saddr, 6);
+                UNIFI_MAC_ADDRESS_COPY(srcAddress.a, saddr);
                 unifi_ta_indicate_protocol(card->ospriv,
                                            CSR_WIFI_ROUTER_CTRL_TRAFFIC_PACKET_TYPE_ARP,
                                            direction, &srcAddress);
@@ -253,7 +259,7 @@ static enum ta_frame_identity ta_detect_protocol(card_t *card, CsrWifiRouterCtrl
         /* detect Aironet frames */
         if (!CsrMemCmp(data->os_data_ptr + 3, aironet_snap, 5))
         {
-            CsrMemCpy(srcAddress.a, saddr, 6);
+            UNIFI_MAC_ADDRESS_COPY(srcAddress.a, saddr);
             unifi_ta_indicate_protocol(card->ospriv, CSR_WIFI_ROUTER_CTRL_TRAFFIC_PACKET_TYPE_AIRONET,
                                        direction, &srcAddress);
         }

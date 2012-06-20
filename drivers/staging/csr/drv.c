@@ -47,12 +47,7 @@
 int buswidth = 0;               /* 0 means use default, values 1,4 */
 int sdio_clock = 50000;         /* kHz */
 int unifi_debug = 0;
-/*
- * fw_init prevents f/w initialisation on error.
- * Unless necessary, avoid usage in the CSR_SME_EMB build because it prevents
- * UniFi initialisation after getting out of suspend and also leaves
- * UniFi powered when the module unloads.
- */
+/* fw_init prevents f/w initialisation on error. */
 int fw_init[MAX_UNIFI_DEVS] = {-1, -1};
 int use_5g = 0;
 int led_mask = 0;               /* 0x0c00 for dev-pc-1503c, dev-pc-1528a */
@@ -67,6 +62,12 @@ int sdio_byte_mode = 0;        /* 0 for block mode + padding, 1 for byte mode */
 int coredump_max = CSR_WIFI_HIP_NUM_COREDUMP_BUFFERS;
 int run_bh_once = -1;          /* Set for scheduled interrupt mode, -1 = default */
 int bh_priority = -1;
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+#define UNIFI_LOG_HIP_SIGNALS_FILTER_SIGNAL     (1 << 0)
+#define UNIFI_LOG_HIP_SIGNALS_FILTER_BULKDATA   (1 << 1)
+#define UNIFI_LOG_HIP_SIGNALS_FILTER_TIMESTAMP  (1 << 2)
+int log_hip_signals = 0;
+#endif
 
 MODULE_DESCRIPTION("CSR UniFi (SDIO)");
 
@@ -87,6 +88,9 @@ module_param(sdio_byte_mode, int, S_IRUGO|S_IWUSR);
 module_param(coredump_max, int, S_IRUGO|S_IWUSR);
 module_param(run_bh_once, int, S_IRUGO|S_IWUSR);
 module_param(bh_priority, int, S_IRUGO|S_IWUSR);
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+module_param(log_hip_signals, int, S_IRUGO|S_IWUSR);
+#endif
 
 MODULE_PARM_DESC(buswidth, "SDIO bus width (0=default), set 1 for 1-bit or 4 for 4-bit mode");
 MODULE_PARM_DESC(sdio_clock, "SDIO bus frequency in kHz, (default = 50 MHz)");
@@ -105,6 +109,10 @@ MODULE_PARM_DESC(sdio_byte_mode, "Set to 1 for byte mode SDIO");
 MODULE_PARM_DESC(coredump_max, "Number of chip mini-coredump buffers to allocate");
 MODULE_PARM_DESC(run_bh_once, "Run BH only when firmware interrupts");
 MODULE_PARM_DESC(bh_priority, "Modify the BH thread priority");
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+MODULE_PARM_DESC(log_hip_signals, "Set to 1 to enable HIP signal offline logging");
+#endif
+
 
 /* Callback for event logging to UDI clients */
 static void udi_log_event(ul_client_t *client,
@@ -193,6 +201,54 @@ trace_putest_cmdid(unifi_putest_command_t putest_cmd)
     }
  }
 
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+int uf_register_hip_offline_debug(unifi_priv_t *priv)
+{
+    ul_client_t *udi_cli;
+    int i;
+
+    udi_cli = ul_register_client(priv, CLI_USING_WIRE_FORMAT, udi_log_event);
+    if (udi_cli == NULL) {
+        /* Too many clients already using this device */
+        unifi_error(priv, "Too many UDI clients already open\n");
+        return -ENOSPC;
+    }
+    unifi_trace(priv, UDBG1, "Offline HIP client is registered\n");
+
+    down(&priv->udi_logging_mutex);
+    udi_cli->event_hook = udi_log_event;
+    unifi_set_udi_hook(priv->card, logging_handler);
+    /* Log all signals by default */
+    for (i = 0; i < SIG_FILTER_SIZE; i++) {
+        udi_cli->signal_filter[i] = 0xFFFF;
+    }
+    priv->logging_client = udi_cli;
+    up(&priv->udi_logging_mutex);
+
+    return 0;
+}
+
+int uf_unregister_hip_offline_debug(unifi_priv_t *priv)
+{
+    ul_client_t *udi_cli = priv->logging_client;
+    if (udi_cli == NULL)
+    {
+        unifi_error(priv, "Unknown HIP client unregister request\n");
+        return -ERANGE;
+    }
+
+    unifi_trace(priv, UDBG1, "Offline HIP client is unregistered\n");
+
+    down(&priv->udi_logging_mutex);
+    priv->logging_client = NULL;
+    udi_cli->event_hook = NULL;
+    up(&priv->udi_logging_mutex);
+
+    ul_deregister_client(udi_cli);
+
+    return 0;
+}
+#endif
 
 
 /*
@@ -312,7 +368,6 @@ unifi_open(struct inode *inode, struct file *file)
 } /* unifi_open() */
 
 
-
 static int
 unifi_release(struct inode *inode, struct file *filp)
 {
@@ -354,6 +409,15 @@ unifi_release(struct inode *inode, struct file *filp)
         }
 
         uf_sme_deinit(priv);
+
+       /* It is possible that a blocking SME request was made from another process
+        * which did not get read by the SME before the WifiOffReq.
+        * So check for a pending request which will go unanswered and cancel
+        * the wait for event. As only one blocking request can be in progress at
+        * a time, up to one event should be completed.
+        */
+       uf_sme_cancel_request(priv, 0);
+
 #endif /* CSR_SME_USERSPACE */
     } else {
 
@@ -979,6 +1043,14 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
             goto out;
         }
 
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+        if (log_hip_signals) {
+            unifi_error(priv, "omnicli cannot be used when log_hip_signals is used\n");
+            r = -EFAULT;
+            goto out;
+        }
+#endif
+
         down(&priv->udi_logging_mutex);
         if (int_param) {
             pcli->event_hook = udi_log_event;
@@ -1264,6 +1336,11 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
             unifi_info(priv, "UniFi ready\n");
 
+#ifdef ANDROID_BUILD
+            /* Release the wakelock */
+            unifi_trace(priv, UDBG1, "netdev_init: release wake lock\n");
+            wake_unlock(&unifi_sdio_wake_lock);
+#endif
 #ifdef CSR_NATIVE_SOFTMAC /* For softmac dev, force-enable the network interface rather than wait for a connected-ind */
             {
                 struct net_device *dev = priv->netdev[interfaceTag];
@@ -1720,6 +1797,40 @@ udi_log_event(ul_client_t *pcli,
         return;
     }
 
+#ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
+    /* When HIP offline signal logging is enabled, omnicli cannot run */
+    if (log_hip_signals)
+    {
+        /* Add timestamp */
+        if (log_hip_signals & UNIFI_LOG_HIP_SIGNALS_FILTER_TIMESTAMP)
+        {
+            int timestamp = jiffies_to_msecs(jiffies);
+            unifi_debug_log_to_buf("T:");
+            unifi_debug_log_to_buf("%04X%04X ", *(((CsrUint16*)&timestamp) + 1),
+                                   *(CsrUint16*)&timestamp);
+        }
+
+        /* Add signal */
+        unifi_debug_log_to_buf("S%s:%04X R:%04X D:%04X ",
+                               dir ? "T" : "F",
+                               *(CsrUint16*)signal,
+                               *(CsrUint16*)(signal + 2),
+                               *(CsrUint16*)(signal + 4));
+        unifi_debug_hex_to_buf(signal + 6, signal_len - 6);
+
+        /* Add bulk data (assume 1 bulk data per signal) */
+        if ((log_hip_signals & UNIFI_LOG_HIP_SIGNALS_FILTER_BULKDATA) &&
+            (bulkdata->d[0].data_length > 0))
+        {
+            unifi_debug_log_to_buf("\nD:");
+            unifi_debug_hex_to_buf(bulkdata->d[0].os_data_ptr, bulkdata->d[0].data_length);
+        }
+        unifi_debug_log_to_buf("\n");
+
+        return;
+    }
+#endif
+
 #ifdef CSR_NATIVE_LINUX
     uf_native_process_udi_signal(pcli, signal, signal_len, bulkdata, dir);
 #endif
@@ -1950,7 +2061,7 @@ int uf_create_device_nodes(unifi_priv_t *priv, int bus_id)
     priv->unifiudi_cdev.owner = THIS_MODULE;
 
     devno = MKDEV(MAJOR(unifi_first_devno),
-                  MINOR(unifi_first_devno) + (bus_id * MAX_UNIFI_DEVS) + 1);
+                  MINOR(unifi_first_devno) + (bus_id * 2) + 1);
     r = cdev_add(&priv->unifiudi_cdev, devno, 1);
     if (r) {
         device_destroy(unifi_class, priv->unifi_cdev.dev);
@@ -2081,7 +2192,9 @@ unifi_load(void)
 #endif
     printk("CSR native no WEXT support\n");
 #endif
-
+#ifdef CSR_WIFI_SPLIT_PATCH
+    printk("Split patch support\n");
+#endif
     printk("Kernel %d.%d.%d\n",
            ((LINUX_VERSION_CODE) >> 16) & 0xff,
            ((LINUX_VERSION_CODE) >> 8) & 0xff,

@@ -17,6 +17,7 @@
  */
 #include <linux/kmod.h>
 #include <linux/init.h>
+#include <linux/suspend.h>
 #include "csr_wifi_hip_unifi.h"
 #include "unifi_priv.h"
 
@@ -25,7 +26,16 @@
 /* The function driver context, i.e the UniFi Driver */
 static CsrSdioFunctionDriver *sdio_func_drv;
 
+#ifdef CONFIG_PM
+static int uf_sdio_emb_power_event(struct notifier_block *this, unsigned long event, void *ptr);
+#endif
 
+/* The Android wakelock is here for completeness. Typically the MMC driver is used
+ * instead of sdioemb, but sdioemb may be used for CSPI.
+ */
+#ifdef ANDROID_BUILD
+struct wake_lock unifi_sdio_wake_lock; /* wakelock to prevent suspend while resuming */
+#endif
 
 /* sdioemb driver uses POSIX error codes */
 static CsrResult
@@ -501,6 +511,131 @@ uf_glue_sdio_int_handler(struct sdioemb_dev *fdev)
     }
 }
 
+#ifdef CONFIG_PM
+
+/*
+ * Power Management notifier
+ */
+struct uf_sdio_emb_pm_notifier
+{
+    struct list_head list;
+
+    CsrSdioFunction *sdio_ctx;
+    struct notifier_block pm_notifier;
+};
+
+/* PM notifier list head */
+static struct uf_sdio_emb_pm_notifier uf_sdio_emb_pm_notifiers = {
+    .sdio_ctx = NULL,
+};
+
+/*
+ * ---------------------------------------------------------------------------
+ * uf_sdio_emb_register_pm_notifier
+ * uf_sdio_emb_unregister_pm_notifier
+ *
+ *      Register/unregister for power management events. A list is used to
+ *	allow multiple card instances to be supported.
+ *
+ *  Arguments:
+ *      sdio_ctx - CSR SDIO context to associate PM notifier to
+ *
+ *  Returns:
+ *      Register function returns NULL on error
+ * ---------------------------------------------------------------------------
+ */
+static struct uf_sdio_emb_pm_notifier *
+uf_sdio_emb_register_pm_notifier(CsrSdioFunction *sdio_ctx)
+{
+    /* Allocate notifier context for this card instance */
+    struct uf_sdio_emb_pm_notifier *notifier_ctx = kmalloc(sizeof(struct uf_sdio_emb_pm_notifier), GFP_KERNEL);
+
+    if (notifier_ctx)
+    {
+        notifier_ctx->sdio_ctx = sdio_ctx;
+        notifier_ctx->pm_notifier.notifier_call = uf_sdio_emb_power_event;
+
+        list_add(&notifier_ctx->list, &uf_sdio_emb_pm_notifiers.list);
+
+        if (register_pm_notifier(&notifier_ctx->pm_notifier)) {
+            printk(KERN_ERR "unifi: register_pm_notifier failed\n");
+        }
+    }
+
+    return notifier_ctx;
+}
+
+static void
+uf_sdio_emb_unregister_pm_notifier(CsrSdioFunction *sdio_ctx)
+{
+    struct uf_sdio_emb_pm_notifier *notifier_ctx;
+    struct list_head *node, *q;
+
+    list_for_each_safe(node, q, &uf_sdio_emb_pm_notifiers.list) {
+        notifier_ctx = list_entry(node, struct uf_sdio_emb_pm_notifier, list);
+
+        /* If it matches, unregister and free the notifier context */
+        if (notifier_ctx && notifier_ctx->sdio_ctx == sdio_ctx)
+        {
+            if (unregister_pm_notifier(&notifier_ctx->pm_notifier)) {
+                printk(KERN_ERR "unifi: unregister_pm_notifier failed\n");
+            }
+
+            /* Remove from list */
+            notifier_ctx->sdio_ctx = NULL;
+            list_del(node);
+            kfree(notifier_ctx);
+        }
+    }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * uf_sdio_emb_power_event
+ *
+ *      Handler for power management events.
+ *
+ *      We need to handle suspend/resume events while the userspace is unsuspended
+ *      to allow the SME to run its suspend/resume state machines.
+ *
+ *  Arguments:
+ *      event   event ID
+ *
+ *  Returns:
+ *      Status of the event handling
+ * ---------------------------------------------------------------------------
+ */
+static int
+uf_sdio_emb_power_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+    struct uf_sdio_emb_pm_notifier *notifier_ctx = container_of(this,
+                                                                struct uf_sdio_emb_pm_notifier,
+                                                                pm_notifier);
+
+    /* Call the CSR SDIO function driver's suspend/resume method
+     * while the userspace is unsuspended.
+     */
+    switch (event) {
+        case PM_POST_HIBERNATION:
+        case PM_POST_SUSPEND:
+            printk(KERN_INFO "%s:%d resume\n", __FUNCTION__, __LINE__ );
+            if (sdio_func_drv && sdio_func_drv->resume) {
+                sdio_func_drv->resume(notifier_ctx->sdio_ctx);
+            }
+            break;
+
+        case PM_HIBERNATION_PREPARE:
+        case PM_SUSPEND_PREPARE:
+            printk(KERN_INFO "%s:%d suspend\n", __FUNCTION__, __LINE__ );
+            if (sdio_func_drv && sdio_func_drv->suspend) {
+                sdio_func_drv->suspend(notifier_ctx->sdio_ctx);
+            }
+            break;
+    }
+    return NOTIFY_DONE;
+}
+
+#endif /* CONFIG_PM */
 
 /*
  * ---------------------------------------------------------------------------
@@ -550,14 +685,28 @@ uf_glue_sdio_probe(struct sdioemb_dev *fdev)
     unifi_trace(NULL, UDBG1, "Setting SDIO bus clock to %d kHz\n", sdio_clock);
     sdioemb_set_max_bus_freq(fdev, 1000 * sdio_clock);
 
+#ifdef CONFIG_PM
+    /* Register to get PM events */
+    if (uf_sdio_emb_register_pm_notifier(sdio_ctx) == NULL) {
+        unifi_error(NULL, "%s: Failed to register for PM events\n", __FUNCTION__);
+    }
+#endif
+
     /* Call the main UniFi driver inserted handler */
     if (sdio_func_drv && sdio_func_drv->inserted) {
         uf_add_os_device(fdev->slot_id, fdev->os_device);
         sdio_func_drv->inserted(sdio_ctx);
     }
 
+#ifdef ANDROID_BUILD
+    /* Take the wakelock */
+    unifi_trace(NULL, UDBG1, "emb probe: take wake lock\n");
+    wake_lock(&unifi_sdio_wake_lock);
+#endif
+
     return 0;
 } /* uf_glue_sdio_probe() */
+
 
 
 /*
@@ -585,6 +734,11 @@ uf_sdio_remove(struct sdioemb_dev *fdev)
         sdio_func_drv->removed(sdio_ctx);
     }
 
+#ifdef CONFIG_PM
+    /* Unregister for PM events */
+    uf_sdio_emb_unregister_pm_notifier(sdio_ctx);
+#endif
+
     kfree(sdio_ctx);
 
 } /* uf_sdio_remove */
@@ -606,14 +760,7 @@ uf_sdio_remove(struct sdioemb_dev *fdev)
 static void
 uf_glue_sdio_suspend(struct sdioemb_dev *fdev)
 {
-    CsrSdioFunction *sdio_ctx = fdev->drv_data;
-
-    unifi_trace(NULL, UDBG3, "Suspending...\n");
-
-    /* Pass event to UniFi Driver. */
-    if (sdio_func_drv && sdio_func_drv->suspend) {
-        sdio_func_drv->suspend(sdio_ctx);
-    }
+    unifi_info(NULL, "Suspending...\n");
 
 } /* uf_glue_sdio_suspend() */
 
@@ -634,14 +781,13 @@ uf_glue_sdio_suspend(struct sdioemb_dev *fdev)
 static void
 uf_glue_sdio_resume(struct sdioemb_dev *fdev)
 {
-    CsrSdioFunction *sdio_ctx = fdev->drv_data;
+    unifi_info(NULL, "Resuming...\n");
 
-    unifi_trace(NULL, UDBG3, "Resuming...\n");
+#ifdef ANDROID_BUILD
+    unifi_trace(NULL, UDBG1, "emb resume: take wakelock\n");
+    wake_lock(&unifi_sdio_wake_lock);
+#endif
 
-    /* Pass event to UniFi Driver. */
-    if (sdio_func_drv && sdio_func_drv->resume) {
-        sdio_func_drv->resume(sdio_ctx);
-    }
 } /* uf_glue_sdio_resume() */
 
 
@@ -708,6 +854,15 @@ CsrSdioFunctionDriverRegister(CsrSdioFunctionDriver *sdio_drv)
     /* Save the registered driver description */
     sdio_func_drv = sdio_drv;
 
+#ifdef CONFIG_PM
+    /* Initialise PM notifier list */
+    INIT_LIST_HEAD(&uf_sdio_emb_pm_notifiers.list);
+#endif
+
+#ifdef ANDROID_BUILD
+    wake_lock_init(&unifi_sdio_wake_lock, WAKE_LOCK_SUSPEND, "unifi_sdio_work");
+#endif
+
     /* Register ourself with sdioemb */
     r = sdioemb_driver_register(&unifi_sdioemb);
     if (r) {
@@ -723,6 +878,10 @@ void
 CsrSdioFunctionDriverUnregister(CsrSdioFunctionDriver *sdio_drv)
 {
     sdioemb_driver_unregister(&unifi_sdioemb);
+
+#ifdef ANDROID_BUILD
+    wake_lock_destroy(&unifi_sdio_wake_lock);
+#endif
 
     sdio_func_drv = NULL;
 

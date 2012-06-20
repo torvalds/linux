@@ -204,12 +204,10 @@ extern int unifi_debug;
             (_s)[DEBUG_BUFFER_SIZE - 1] = 0;            \
         }                                               \
     } while (0)
-#endif /* UNIFI_DEBUG */
 
 void
 unifi_error(void* ospriv, const char *fmt, ...)
 {
-#ifdef UNIFI_DEBUG
     unifi_priv_t *priv = (unifi_priv_t*) ospriv;
     char s[DEBUG_BUFFER_SIZE];
     va_list args;
@@ -230,13 +228,11 @@ unifi_error(void* ospriv, const char *fmt, ...)
     FORMAT_TRACE(s, len, args, fmt);
 
     printk("%s", s);
-#endif /* UNIFI_DEBUG */
 }
 
 void
 unifi_warning(void* ospriv, const char *fmt, ...)
 {
-#ifdef UNIFI_DEBUG
     unifi_priv_t *priv = (unifi_priv_t*) ospriv;
     char s[DEBUG_BUFFER_SIZE];
     va_list args;
@@ -259,14 +255,12 @@ unifi_warning(void* ospriv, const char *fmt, ...)
     FORMAT_TRACE(s, len, args, fmt);
 
     printk("%s", s);
-#endif /* UNIFI_DEBUG */
 }
 
 
 void
 unifi_notice(void* ospriv, const char *fmt, ...)
 {
-#ifdef UNIFI_DEBUG
     unifi_priv_t *priv = (unifi_priv_t*) ospriv;
     char s[DEBUG_BUFFER_SIZE];
     va_list args;
@@ -289,14 +283,12 @@ unifi_notice(void* ospriv, const char *fmt, ...)
     FORMAT_TRACE(s, len, args, fmt);
 
     printk("%s", s);
-#endif /* UNIFI_DEBUG */
 }
 
 
 void
 unifi_info(void* ospriv, const char *fmt, ...)
 {
-#ifdef UNIFI_DEBUG
     unifi_priv_t *priv = (unifi_priv_t*) ospriv;
     char s[DEBUG_BUFFER_SIZE];
     va_list args;
@@ -319,14 +311,12 @@ unifi_info(void* ospriv, const char *fmt, ...)
     FORMAT_TRACE(s, len, args, fmt);
 
     printk("%s", s);
-#endif /* UNIFI_DEBUG */
 }
 
 /* debugging */
 void
 unifi_trace(void* ospriv, int level, const char *fmt, ...)
 {
-#ifdef UNIFI_DEBUG
     unifi_priv_t *priv = (unifi_priv_t*) ospriv;
     char s[DEBUG_BUFFER_SIZE];
     va_list args;
@@ -351,8 +341,22 @@ unifi_trace(void* ospriv, int level, const char *fmt, ...)
 
         printk("%s", s);
     }
-#endif /* UNIFI_DEBUG */
 }
+
+#else
+
+void
+unifi_error_nop(void* ospriv, const char *fmt, ...)
+{
+}
+
+void
+unifi_trace_nop(void* ospriv, int level, const char *fmt, ...)
+{
+}
+
+#endif /* UNIFI_DEBUG */
+
 
 /*
  * ---------------------------------------------------------------------------

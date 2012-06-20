@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-            (c) Cambridge Silicon Radio Limited 2011
+            (c) Cambridge Silicon Radio Limited 2012
             All rights reserved and confidential information of CSR
 
             Refer to LICENSE.txt included with this source for details
@@ -299,6 +299,11 @@ extern CsrUint8* CsrWifiSmeWpsConfigurationReqSer(CsrUint8 *ptr, CsrSize *len, v
 extern void* CsrWifiSmeWpsConfigurationReqDes(CsrUint8 *buffer, CsrSize len);
 extern CsrSize CsrWifiSmeWpsConfigurationReqSizeof(void *msg);
 extern void CsrWifiSmeWpsConfigurationReqSerFree(void *msg);
+
+extern CsrUint8* CsrWifiSmeSetReqSer(CsrUint8 *ptr, CsrSize *len, void *msg);
+extern void* CsrWifiSmeSetReqDes(CsrUint8 *buffer, CsrSize len);
+extern CsrSize CsrWifiSmeSetReqSizeof(void *msg);
+extern void CsrWifiSmeSetReqSerFree(void *msg);
 
 #define CsrWifiSmeActivateCfmSer CsrWifiEventCsrUint16Ser
 #define CsrWifiSmeActivateCfmDes CsrWifiEventCsrUint16Des

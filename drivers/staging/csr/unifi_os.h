@@ -97,6 +97,13 @@ void dump16(void *mem, CsrUint16 len);
 void dump_str(void *mem, CsrUint16 len);
 #endif /* CSR_WIFI_HIP_DEBUG_OFFLINE */
 
+void unifi_error(void* ospriv, const char *fmt, ...);
+void unifi_warning(void* ospriv, const char *fmt, ...);
+void unifi_notice(void* ospriv, const char *fmt, ...);
+void unifi_info(void* ospriv, const char *fmt, ...);
+
+void unifi_trace(void* ospriv, int level, const char *fmt, ...);
+
 #else
 
 /* Stubs */
@@ -113,15 +120,16 @@ static inline void dump16(void *mem, CsrUint16 len) {}
 static inline void dump_str(void *mem, CsrUint16 len) {}
 #endif /* CSR_WIFI_HIP_DEBUG_OFFLINE */
 
+void unifi_error_nop(void* ospriv, const char *fmt, ...);
+void unifi_trace_nop(void* ospriv, int level, const char *fmt, ...);
+#define unifi_error if(1);else unifi_error_nop
+#define unifi_warning if(1);else unifi_error_nop
+#define unifi_notice if(1);else unifi_error_nop
+#define unifi_info if(1);else unifi_error_nop
+#define unifi_trace if(1);else unifi_trace_nop
+
 #endif /* UNIFI_DEBUG */
 
-
-void unifi_error(void* ospriv, const char *fmt, ...);
-void unifi_warning(void* ospriv, const char *fmt, ...);
-void unifi_notice(void* ospriv, const char *fmt, ...);
-void unifi_info(void* ospriv, const char *fmt, ...);
-
-void unifi_trace(void* ospriv, int level, const char *fmt, ...);
 
 /* Different levels of diagnostic detail... */
 #define UDBG0       0   /* always prints in debug build */
