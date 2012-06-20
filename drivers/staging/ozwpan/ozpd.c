@@ -420,6 +420,14 @@ void oz_set_more_bit(struct sk_buff *skb)
 	oz_hdr->control |= OZ_F_MORE_DATA;
 }
 /*------------------------------------------------------------------------------
+ * Context: softirq-serialized
+ */
+void oz_set_last_pkt_nb(struct oz_pd *pd, struct sk_buff *skb)
+{
+	struct oz_hdr *oz_hdr = (struct oz_hdr *)skb_network_header(skb);
+	oz_hdr->last_pkt_num = pd->trigger_pkt_num & OZ_LAST_PN_MASK;
+}
+/*------------------------------------------------------------------------------
  * Context: softirq
  */
 int oz_prepare_frame(struct oz_pd *pd, int empty)
@@ -537,6 +545,7 @@ static int oz_send_next_queued_frame(struct oz_pd *pd, int more_data)
 		spin_unlock(&pd->tx_frame_lock);
 		if (more_data)
 			oz_set_more_bit(skb);
+		oz_set_last_pkt_nb(pd, skb);
 		if ((int)atomic_read(&g_submitted_isoc) <
 							OZ_MAX_SUBMITTED_ISOC) {
 			if (dev_queue_xmit(skb) < 0) {
