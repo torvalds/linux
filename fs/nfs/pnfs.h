@@ -64,6 +64,7 @@ enum {
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
 	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
 	NFS_LAYOUT_INVALID,		/* layout is being destroyed */
+	NFS_LAYOUT_RETURNED,		/* layout has already been returned */
 };
 
 enum layoutdriver_policy_flags {
@@ -254,6 +255,24 @@ void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
 struct nfs4_deviceid_node *nfs4_insert_deviceid_node(struct nfs4_deviceid_node *);
 bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
+
+static inline void
+pnfs_mark_layout_returned(struct pnfs_layout_hdr *lo)
+{
+	set_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
+}
+
+static inline void
+pnfs_clear_layout_returned(struct pnfs_layout_hdr *lo)
+{
+	clear_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
+}
+
+static inline bool
+pnfs_test_layout_returned(struct pnfs_layout_hdr *lo)
+{
+	return test_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
+}
 
 static inline int lo_fail_bit(u32 iomode)
 {

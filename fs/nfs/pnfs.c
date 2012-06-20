@@ -662,11 +662,11 @@ _pnfs_return_layout(struct inode *ino)
 	nfs4_stateid stateid;
 	int status = 0;
 
-	dprintk("--> %s\n", __func__);
+	dprintk("NFS: %s for inode %lu\n", __func__, ino->i_ino);
 
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
-	if (!lo) {
+	if (!lo || pnfs_test_layout_returned(lo)) {
 		spin_unlock(&ino->i_lock);
 		dprintk("%s: no layout to return\n", __func__);
 		return status;
@@ -676,6 +676,7 @@ _pnfs_return_layout(struct inode *ino)
 	get_layout_hdr(lo);
 	mark_matching_lsegs_invalid(lo, &tmp_list, NULL);
 	lo->plh_block_lgets++;
+	pnfs_mark_layout_returned(lo);
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
 
@@ -686,6 +687,7 @@ _pnfs_return_layout(struct inode *ino)
 		status = -ENOMEM;
 		set_bit(NFS_LAYOUT_RW_FAILED, &lo->plh_flags);
 		set_bit(NFS_LAYOUT_RO_FAILED, &lo->plh_flags);
+		pnfs_clear_layout_returned(lo);
 		put_layout_hdr(lo);
 		goto out;
 	}
@@ -1075,6 +1077,10 @@ pnfs_update_layout(struct inode *ino,
 	get_layout_hdr(lo);
 	if (list_empty(&lo->plh_segs))
 		first = true;
+
+	/* Enable LAYOUTRETURNs */
+	pnfs_clear_layout_returned(lo);
+
 	spin_unlock(&ino->i_lock);
 	if (first) {
 		/* The lo must be on the clp list if there is any
