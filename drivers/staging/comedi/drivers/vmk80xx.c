@@ -64,36 +64,10 @@ Changelog:
 
 #include "../comedidev.h"
 
-#define BOARDNAME "vmk80xx"
-
-MODULE_AUTHOR("Manuel Gebele <forensixs@gmx.de>");
-MODULE_DESCRIPTION("Velleman USB Board Low-Level Driver");
-MODULE_SUPPORTED_DEVICE("K8055/K8061 aka VM110/VM140");
-MODULE_VERSION("0.8.01");
-MODULE_LICENSE("GPL");
-
 enum {
 	DEVICE_VMK8055,
 	DEVICE_VMK8061
 };
-
-static const struct usb_device_id vmk80xx_id_table[] = {
-	{USB_DEVICE(0x10cf, 0x5500), .driver_info = DEVICE_VMK8055},
-	{USB_DEVICE(0x10cf, 0x5501), .driver_info = DEVICE_VMK8055},
-	{USB_DEVICE(0x10cf, 0x5502), .driver_info = DEVICE_VMK8055},
-	{USB_DEVICE(0x10cf, 0x5503), .driver_info = DEVICE_VMK8055},
-	{USB_DEVICE(0x10cf, 0x8061), .driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8062), .driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8063), .driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8064), .driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8065), .driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8066), .driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8067), .driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8068), .driver_info = DEVICE_VMK8061},
-	{}			/* terminating entry */
-};
-
-MODULE_DEVICE_TABLE(usb, vmk80xx_id_table);
 
 #define VMK8055_DI_REG          0x00
 #define VMK8055_DO_REG          0x01
@@ -231,8 +205,6 @@ struct vmk80xx_usb {
 static struct vmk80xx_usb vmb[VMK80XX_MAX_BOARDS];
 
 static DEFINE_MUTEX(glb_mutex);
-
-static struct comedi_driver vmk80xx_driver;	/* see below for initializer */
 
 static void vmk80xx_tx_callback(struct urb *urb)
 {
@@ -1267,8 +1239,16 @@ static void vmk80xx_detach(struct comedi_device *dev)
 	}
 }
 
-static int vmk80xx_probe(struct usb_interface *intf,
-			 const struct usb_device_id *id)
+static struct comedi_driver vmk80xx_driver = {
+	.module		= THIS_MODULE,
+	.driver_name	= "vmk80xx",
+	.attach		= vmk80xx_attach,
+	.detach		= vmk80xx_detach,
+	.attach_usb	= vmk80xx_attach_usb,
+};
+
+static int vmk80xx_usb_probe(struct usb_interface *intf,
+			     const struct usb_device_id *id)
 {
 	int i;
 	struct vmk80xx_usb *dev;
@@ -1419,7 +1399,7 @@ error:
 	return -ENODEV;
 }
 
-static void vmk80xx_disconnect(struct usb_interface *intf)
+static void vmk80xx_usb_disconnect(struct usb_interface *intf)
 {
 	struct vmk80xx_usb *dev = usb_get_intfdata(intf);
 
@@ -1447,20 +1427,35 @@ static void vmk80xx_disconnect(struct usb_interface *intf)
 	mutex_unlock(&glb_mutex);
 }
 
+static const struct usb_device_id vmk80xx_usb_id_table[] = {
+	{ USB_DEVICE(0x10cf, 0x5500), .driver_info = DEVICE_VMK8055 },
+	{ USB_DEVICE(0x10cf, 0x5501), .driver_info = DEVICE_VMK8055 },
+	{ USB_DEVICE(0x10cf, 0x5502), .driver_info = DEVICE_VMK8055 },
+	{ USB_DEVICE(0x10cf, 0x5503), .driver_info = DEVICE_VMK8055 },
+	{ USB_DEVICE(0x10cf, 0x8061), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8062), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8063), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8064), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8065), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8066), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8067), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8068), .driver_info = DEVICE_VMK8061 },
+	{ }
+};
+MODULE_DEVICE_TABLE(usb, vmk80xx_usb_id_table);
+
 /* TODO: Add support for suspend, resume, pre_reset,
  * post_reset and flush */
 static struct usb_driver vmk80xx_usb_driver = {
 	.name		= "vmk80xx",
-	.probe		= vmk80xx_probe,
-	.disconnect	= vmk80xx_disconnect,
-	.id_table	= vmk80xx_id_table
-};
-
-static struct comedi_driver vmk80xx_driver = {
-	.module		= THIS_MODULE,
-	.driver_name	= "vmk80xx",
-	.attach		= vmk80xx_attach,
-	.detach		= vmk80xx_detach,
-	.attach_usb	= vmk80xx_attach_usb,
+	.probe		= vmk80xx_usb_probe,
+	.disconnect	= vmk80xx_usb_disconnect,
+	.id_table	= vmk80xx_usb_id_table,
 };
 module_comedi_usb_driver(vmk80xx_driver, vmk80xx_usb_driver);
+
+MODULE_AUTHOR("Manuel Gebele <forensixs@gmx.de>");
+MODULE_DESCRIPTION("Velleman USB Board Low-Level Driver");
+MODULE_SUPPORTED_DEVICE("K8055/K8061 aka VM110/VM140");
+MODULE_VERSION("0.8.01");
+MODULE_LICENSE("GPL");
