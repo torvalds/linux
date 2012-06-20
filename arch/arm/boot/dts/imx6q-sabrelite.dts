@@ -27,6 +27,8 @@
 				ecspi@02008000 { /* eCSPI1 */
 					fsl,spi-num-chipselects = <1>;
 					cs-gpios = <&gpio3 19 0>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_ecspi1_1>;
 					status = "okay";
 
 					flash: m25p80@0 {
@@ -50,6 +52,7 @@
 					pinctrl_gpio_hog: gpiohog {
 						fsl,pins = <
 							   144  0x80000000	/* MX6Q_PAD_EIM_D22__GPIO_3_22 */
+							   121  0x80000000	/* MX6Q_PAD_EIM_D19__GPIO_3_19 */
 							   >;
 					};
 				};

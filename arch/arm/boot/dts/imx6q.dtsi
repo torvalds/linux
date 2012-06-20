@@ -581,6 +581,14 @@
 							    1517 0x17059>;	/* MX6Q_PAD_SD4_DAT7__USDHC4_DAT7 */
 					};
 				};
+
+				ecspi1 {
+					pinctrl_ecspi1_1: ecspi1grp-1 {
+						fsl,pins = <101 0x100b1		/* MX6Q_PAD_EIM_D17__ECSPI1_MISO */
+							    109 0x100b1		/* MX6Q_PAD_EIM_D18__ECSPI1_MOSI */
+							    94  0x100b1>;	/* MX6Q_PAD_EIM_D16__ECSPI1_SCLK */
+					};
+				};
 			};
 
 			dcic@020e4000 { /* DCIC1 */
