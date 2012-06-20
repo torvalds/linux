@@ -2516,16 +2516,30 @@ static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
 					  u16 frame_type, bool reg)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (frame_type != (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ))
-		return;
+	switch (frame_type) {
+	case IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_AUTH:
+		if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+			struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 
-	if (reg)
-		local->probe_req_reg++;
-	else
-		local->probe_req_reg--;
+			if (reg)
+				ifibss->auth_frame_registrations++;
+			else
+				ifibss->auth_frame_registrations--;
+		}
+		break;
+	case IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ:
+		if (reg)
+			local->probe_req_reg++;
+		else
+			local->probe_req_reg--;
 
-	ieee80211_queue_work(&local->hw, &local->reconfig_filter);
+		ieee80211_queue_work(&local->hw, &local->reconfig_filter);
+		break;
+	default:
+		break;
+	}
 }
 
 static int ieee80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
