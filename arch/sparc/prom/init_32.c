@@ -31,9 +31,6 @@ struct linux_nodeops *prom_nodeops;
  * It gets passed the pointer to the PROM vector.
  */
 
-extern void prom_meminit(void);
-extern void prom_ranges_init(void);
-
 void __init prom_init(struct linux_romvec *rp)
 {
 	romvec = rp;
