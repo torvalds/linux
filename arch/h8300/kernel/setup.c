@@ -54,7 +54,7 @@ unsigned long memory_end;
 
 char __initdata command_line[COMMAND_LINE_SIZE];
 
-extern int _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
+extern int _stext, _etext, _sdata, _edata, __bss_start, __bss_stop, _end;
 extern int _ramstart, _ramend;
 extern char _target_name[];
 extern void h8300_gpio_init(void);
@@ -137,10 +137,10 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_DEBUG "KERNEL -> TEXT=0x%06x-0x%06x DATA=0x%06x-0x%06x "
 		"BSS=0x%06x-0x%06x\n", (int) &_stext, (int) &_etext,
 		(int) &_sdata, (int) &_edata,
-		(int) &_sbss, (int) &_ebss);
+		(int) &__bss_start, (int) &__bss_stop);
 	printk(KERN_DEBUG "KERNEL -> ROMFS=0x%06x-0x%06x MEM=0x%06x-0x%06x "
 		"STACK=0x%06x-0x%06x\n",
-	       (int) &_ebss, (int) memory_start,
+	       (int) &__bss_stop, (int) memory_start,
 		(int) memory_start, (int) memory_end,
 		(int) memory_end, (int) &_ramend);
 #endif
