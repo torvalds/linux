@@ -479,15 +479,24 @@ static void mmu_spte_set(u64 *sptep, u64 new_spte)
 
 /* Rules for using mmu_spte_update:
  * Update the state bits, it means the mapped pfn is not changged.
+ *
+ * Whenever we overwrite a writable spte with a read-only one we
+ * should flush remote TLBs. Otherwise rmap_write_protect
+ * will find a read-only spte, even though the writable spte
+ * might be cached on a CPU's TLB, the return value indicates this
+ * case.
  */
-static void mmu_spte_update(u64 *sptep, u64 new_spte)
+static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 {
 	u64 mask, old_spte = *sptep;
+	bool ret = false;
 
 	WARN_ON(!is_rmap_spte(new_spte));
 
-	if (!is_shadow_present_pte(old_spte))
-		return mmu_spte_set(sptep, new_spte);
+	if (!is_shadow_present_pte(old_spte)) {
+		mmu_spte_set(sptep, new_spte);
+		return ret;
+	}
 
 	new_spte |= old_spte & shadow_dirty_mask;
 
@@ -500,13 +509,18 @@ static void mmu_spte_update(u64 *sptep, u64 new_spte)
 	else
 		old_spte = __update_clear_spte_slow(sptep, new_spte);
 
+	if (is_writable_pte(old_spte) && !is_writable_pte(new_spte))
+		ret = true;
+
 	if (!shadow_accessed_mask)
-		return;
+		return ret;
 
 	if (spte_is_bit_cleared(old_spte, new_spte, shadow_accessed_mask))
 		kvm_set_pfn_accessed(spte_to_pfn(old_spte));
 	if (spte_is_bit_cleared(old_spte, new_spte, shadow_dirty_mask))
 		kvm_set_pfn_dirty(spte_to_pfn(old_spte));
+
+	return ret;
 }
 
 /*
@@ -2268,7 +2282,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		    gfn_t gfn, pfn_t pfn, bool speculative,
 		    bool can_unsync, bool host_writable)
 {
-	u64 spte, entry = *sptep;
+	u64 spte;
 	int ret = 0;
 
 	if (set_mmio_spte(sptep, gfn, pfn, pte_access))
@@ -2346,14 +2360,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		mark_page_dirty(vcpu->kvm, gfn);
 
 set_pte:
-	mmu_spte_update(sptep, spte);
-	/*
-	 * If we overwrite a writable spte with a read-only one we
-	 * should flush remote TLBs. Otherwise rmap_write_protect
-	 * will find a read-only spte, even though the writable spte
-	 * might be cached on a CPU's TLB.
-	 */
-	if (is_writable_pte(entry) && !is_writable_pte(*sptep))
+	if (mmu_spte_update(sptep, spte))
 		kvm_flush_remote_tlbs(vcpu->kvm);
 done:
 	return ret;
