@@ -30,9 +30,9 @@ struct oz_binding_info {
 #define OZ_IOCTL_GET_PD_LIST	_IOR(OZ_IOCTL_MAGIC, 0, struct oz_pd_list)
 #define OZ_IOCTL_SET_ACTIVE_PD	_IOW(OZ_IOCTL_MAGIC, 1, struct oz_mac_addr)
 #define OZ_IOCTL_GET_ACTIVE_PD	_IOR(OZ_IOCTL_MAGIC, 2, struct oz_mac_addr)
-#define OZ_IOCTL_ADD_BINDING	_IOW(OZ_IOCTL_MAGIC, 5, struct oz_binding_info)
-#define OZ_IOCTL_REMOVE_BINDING	_IOW(OZ_IOCTL_MAGIC, 8, struct oz_binding_info)
-#define OZ_IOCTL_MAX		9
+#define OZ_IOCTL_ADD_BINDING	_IOW(OZ_IOCTL_MAGIC, 3, struct oz_binding_info)
+#define OZ_IOCTL_REMOVE_BINDING	_IOW(OZ_IOCTL_MAGIC, 4, struct oz_binding_info)
+#define OZ_IOCTL_MAX		5
 
 
 #endif /* _OZAPPIF_H */
