@@ -8,6 +8,7 @@
  */
 #include "dvb_usb_common.h"
 
+#undef DVB_USB_XFER_DEBUG
 int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 	u16 rlen, int delay_ms)
 {
@@ -26,8 +27,10 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 	if (ret)
 		return ret;
 
+#ifdef DVB_USB_XFER_DEBUG
 	print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": >>> ", DUMP_PREFIX_NONE,
 			32, 1, wbuf, wlen, 0);
+#endif
 
 	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
 			d->props->generic_bulk_ctrl_endpoint), wbuf, wlen,
@@ -53,10 +56,10 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 		if (ret)
 			pr_err("%s: recv bulk message failed: %d\n",
 					KBUILD_MODNAME, ret);
-		else
-			print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": <<< ",
-					DUMP_PREFIX_NONE, 32, 1, rbuf, actlen,
-					0);
+#ifdef DVB_USB_XFER_DEBUG
+		print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": <<< ",
+				DUMP_PREFIX_NONE, 32, 1, rbuf, actlen, 0);
+#endif
 	}
 
 	mutex_unlock(&d->usb_mutex);
