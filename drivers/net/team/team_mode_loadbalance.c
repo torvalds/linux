@@ -96,8 +96,8 @@ static void lb_tx_hash_to_port_mapping_null_port(struct team *team,
 		struct lb_port_mapping *pm;
 
 		pm = &lb_priv->ex->tx_hash_to_port_mapping[i];
-		if (rcu_access_pointer(pm->port) == port) {
-			RCU_INIT_POINTER(pm->port, NULL);
+		if (pm->port == port) {
+			rcu_assign_pointer(pm->port, NULL);
 			team_option_inst_set_change(pm->opt_inst_info);
 			changed = true;
 		}
@@ -292,7 +292,7 @@ static int lb_bpf_func_set(struct team *team, struct team_gsetter_ctx *ctx)
 	if (lb_priv->ex->orig_fprog) {
 		/* Clear old filter data */
 		__fprog_destroy(lb_priv->ex->orig_fprog);
-		sk_unattached_filter_destroy(rcu_access_pointer(lb_priv->fp));
+		sk_unattached_filter_destroy(lb_priv->fp);
 	}
 
 	rcu_assign_pointer(lb_priv->fp, fp);
@@ -303,11 +303,9 @@ static int lb_bpf_func_set(struct team *team, struct team_gsetter_ctx *ctx)
 static int lb_tx_method_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
-	lb_select_tx_port_func_t *func;
 	char *name;
 
-	func = rcu_access_pointer(lb_priv->select_tx_port_func);
-	name = lb_select_tx_port_get_name(func);
+	name = lb_select_tx_port_get_name(lb_priv->select_tx_port_func);
 	BUG_ON(!name);
 	ctx->data.str_val = name;
 	return 0;
