@@ -178,7 +178,7 @@ static void release_pmc_hardware(void) {}
 
 static bool check_hw_exists(void)
 {
-	u64 val, val_new = 0;
+	u64 val, val_new = ~0;
 	int i, reg, ret = 0;
 
 	/*
@@ -211,8 +211,9 @@ static bool check_hw_exists(void)
 	 * that don't trap on the MSR access and always return 0s.
 	 */
 	val = 0xabcdUL;
-	ret = wrmsrl_safe(x86_pmu_event_addr(0), val);
-	ret |= rdmsrl_safe(x86_pmu_event_addr(0), &val_new);
+	reg = x86_pmu_event_addr(0);
+	ret = wrmsrl_safe(reg, val);
+	ret |= rdmsrl_safe(reg, &val_new);
 	if (ret || val != val_new)
 		goto msr_fail;
 
@@ -229,6 +230,7 @@ bios_fail:
 
 msr_fail:
 	printk(KERN_CONT "Broken PMU hardware detected, using software events only.\n");
+	printk(KERN_ERR "Failed to access perfctr msr (MSR %x is %Lx)\n", reg, val_new);
 
 	return false;
 }
