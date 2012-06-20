@@ -978,16 +978,10 @@ static int decode_readdirok(struct xdr_stream *xdr)
 	pglen = xdr->buf->page_len;
 	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
 	recvd = xdr->buf->len - hdrlen;
-	if (unlikely(pglen > recvd))
-		goto out_cheating;
-out:
+	if (pglen > recvd)
+		pglen = recvd;
 	xdr_read_pages(xdr, pglen);
 	return pglen;
-out_cheating:
-	dprintk("NFS: server cheating in readdir result: "
-		"pglen %u > recvd %u\n", pglen, recvd);
-	pglen = recvd;
-	goto out;
 }
 
 static int nfs2_xdr_dec_readdirres(struct rpc_rqst *req,
