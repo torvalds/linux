@@ -197,6 +197,7 @@ struct dvb_usb_device_properties {
 	unsigned int size_of_priv;
 	u8 generic_bulk_ctrl_endpoint;
 	u8 generic_bulk_ctrl_endpoint_response;
+	unsigned int generic_bulk_ctrl_delay;
 
 #define WARM                  0
 #define COLD                  1
@@ -371,8 +372,7 @@ extern int dvb_usbv2_suspend(struct usb_interface *, pm_message_t);
 extern int dvb_usbv2_resume(struct usb_interface *);
 
 /* the generic read/write method for device control */
-extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16,
-		int);
+extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16);
 extern int dvb_usbv2_generic_write(struct dvb_usb_device *, u8 *, u16);
 
 #endif

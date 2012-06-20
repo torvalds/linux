@@ -100,7 +100,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	if (req->cmd == DOWNLOAD_FIRMWARE || req->cmd == RECONNECT_USB)
 		rlen = 0;
 
-	ret = dvb_usbv2_generic_rw(d, buf, wlen, buf, rlen, 0);
+	ret = dvb_usbv2_generic_rw(d, buf, wlen, buf, rlen);
 	if (ret)
 		goto error;
 

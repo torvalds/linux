@@ -10,55 +10,50 @@
 
 #undef DVB_USB_XFER_DEBUG
 int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
-	u16 rlen, int delay_ms)
+		u16 rlen)
 {
-	int actlen, ret = -ENOMEM;
+	int ret, actual_length;
 
-	if (!d || wbuf == NULL || wlen == 0)
-		return -EINVAL;
-
-	if (d->props->generic_bulk_ctrl_endpoint == 0) {
-		pr_err("%s: endpoint for generic control not specified\n",
-				KBUILD_MODNAME);
+	if (!d || !wbuf || !wlen || !d->props->generic_bulk_ctrl_endpoint ||
+			!d->props->generic_bulk_ctrl_endpoint_response) {
+		pr_debug("%s: failed=%d\n", __func__, -EINVAL);
 		return -EINVAL;
 	}
 
 	ret = mutex_lock_interruptible(&d->usb_mutex);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 #ifdef DVB_USB_XFER_DEBUG
 	print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": >>> ", DUMP_PREFIX_NONE,
 			32, 1, wbuf, wlen, 0);
 #endif
-
 	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
 			d->props->generic_bulk_ctrl_endpoint), wbuf, wlen,
-			&actlen, 2000);
-
-	if (ret)
-		pr_err("%s: bulk message failed: %d (%d/%d)\n", KBUILD_MODNAME,
-				ret, wlen, actlen);
+			&actual_length, 2000);
+	if (ret < 0)
+		pr_err("%s: usb_bulk_msg() failed=%d\n", KBUILD_MODNAME, ret);
 	else
-		ret = actlen != wlen ? -1 : 0;
+		ret = actual_length != wlen ? -EIO : 0;
 
 	/* an answer is expected, and no error before */
 	if (!ret && rbuf && rlen) {
-		if (delay_ms)
-			msleep(delay_ms);
+		if (d->props->generic_bulk_ctrl_delay)
+			usleep_range(d->props->generic_bulk_ctrl_delay,
+					d->props->generic_bulk_ctrl_delay
+					+ 20000);
 
 		ret = usb_bulk_msg(d->udev, usb_rcvbulkpipe(d->udev,
-				d->props->generic_bulk_ctrl_endpoint_response ?
-				d->props->generic_bulk_ctrl_endpoint_response :
-				d->props->generic_bulk_ctrl_endpoint),
-				rbuf, rlen, &actlen, 2000);
-
+				d->props->generic_bulk_ctrl_endpoint_response),
+				rbuf, rlen, &actual_length, 2000);
 		if (ret)
-			pr_err("%s: recv bulk message failed: %d\n",
+			pr_err("%s: 2nd usb_bulk_msg() failed=%d\n",
 					KBUILD_MODNAME, ret);
+
 #ifdef DVB_USB_XFER_DEBUG
 		print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": <<< ",
-				DUMP_PREFIX_NONE, 32, 1, rbuf, actlen, 0);
+				DUMP_PREFIX_NONE, 32, 1, rbuf, actual_length,
+				0);
 #endif
 	}
 
@@ -69,6 +64,6 @@ EXPORT_SYMBOL(dvb_usbv2_generic_rw);
 
 int dvb_usbv2_generic_write(struct dvb_usb_device *d, u8 *buf, u16 len)
 {
-	return dvb_usbv2_generic_rw(d, buf, len, NULL, 0, 0);
+	return dvb_usbv2_generic_rw(d, buf, len, NULL, 0);
 }
 EXPORT_SYMBOL(dvb_usbv2_generic_write);

@@ -77,7 +77,7 @@ static int af9035_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 	if (req->cmd == CMD_FW_DL)
 		rlen = 0;
 
-	ret = dvb_usbv2_generic_rw(d, buf, wlen, buf, rlen, 0);
+	ret = dvb_usbv2_generic_rw(d, buf, wlen, buf, rlen);
 	if (ret)
 		goto err;
 

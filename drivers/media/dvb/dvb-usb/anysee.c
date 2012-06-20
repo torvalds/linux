@@ -69,7 +69,7 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
 
 	/* We need receive one message more after dvb_usb_generic_rw due
 	   to weird transaction flow, which is 1 x send + 2 x receive. */
-	ret = dvb_usbv2_generic_rw(d, buf, sizeof(buf), buf, sizeof(buf), 0);
+	ret = dvb_usbv2_generic_rw(d, buf, sizeof(buf), buf, sizeof(buf));
 	if (ret)
 		goto error_unlock;
 
