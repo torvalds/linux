@@ -407,6 +407,9 @@ static unsigned int exynos_dp_get_lane_link_training(
 	case 3:
 		reg = exynos_dp_get_lane3_link_training(dp);
 		break;
+	default:
+		WARN_ON(1);
+		return 0;
 	}
 
 	return reg;
