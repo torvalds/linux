@@ -1863,7 +1863,7 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 		else
 			misc |= PERF_RECORD_MISC_GUEST_KERNEL;
 	} else {
-		if (user_mode(regs))
+		if (!kernel_ip(regs->ip))
 			misc |= PERF_RECORD_MISC_USER;
 		else
 			misc |= PERF_RECORD_MISC_KERNEL;
