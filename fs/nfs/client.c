@@ -975,7 +975,6 @@ static void nfs_server_set_fsinfo(struct nfs_server *server,
 		server->wsize = NFS_MAX_FILE_IO_SIZE;
 	server->wpages = (server->wsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	server->pnfs_blksize = fsinfo->blksize;
-	set_pnfs_layoutdriver(server, mntfh, fsinfo->layouttype);
 
 	server->wtmult = nfs_block_bits(fsinfo->wtmult, NULL);
 
