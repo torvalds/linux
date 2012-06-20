@@ -972,6 +972,8 @@ static uint32_t __sramlocalfunc ddr_update_mr(void)
         pDDR_Reg->TPR3 = value | CL(cl) | CWL(cwl) | WR(tWR);
         pDDR_Reg->MR = DDR3_BL8 | DDR3_CL(cl) | DDR3_MR0_DLL_RESET | DDR3_MR0_WR(tWR_MR0)/*15 ns*/;
         delayus(1);
+        pDDR_Reg->MR = DDR3_BL8 | DDR3_CL(cl) | DDR3_MR0_WR(tWR_MR0)/*15 ns*/;
+        delayus(1);
         /*
          * DIC:Output Driver Impedance Control,0, RZQ(240)/6
          * Rtt_Nom:2 RZQ(240)/2
@@ -1099,6 +1101,9 @@ void __sramlocalfunc ddr_selfrefresh_enter(void)
     {
         delayus(1);
     }while(pDDR_Reg->DCR & (EXE));
+
+    pDDR_Reg->ZQCR[0] = (0x1<<28)|(0x1<<15) | (0x1<<10) | (0x1<<5) | 0x1;
+    
     pDDR_Reg->CCR |= ITMRST;   //ITM reset
     pSCU_Reg->CRU_SOFTRST_CON[0] |= (0x1F<<19);  //reset DLL
     delayus(1);
@@ -1126,6 +1131,9 @@ void __sramlocalfunc ddr_selfrefresh_exit(void)
     delayus(10); 
     pDDR_Reg->CCR &= ~ITMRST;   //ITM reset
     delayus(5); 
+
+    pDDR_Reg->ZQCR[0] = 0x10039d29;
+    
     pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x7<<27) | (0x1<<31)); //exit    
     delayus(10);
     ddr_update_mr();
@@ -1414,7 +1422,7 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
     uint32_t          bank = 0;
     uint32_t          n;
 
-    ddr_print("version 2.02 20111109 \n");
+    ddr_print("version 2.03 20120519 \n");
 
     mem_type = (pDDR_Reg->DCR & 0x3);
     ddr_type = dram_type;//DDR3_TYPE;//
