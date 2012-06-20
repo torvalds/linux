@@ -56,14 +56,9 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl);
 bool nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode, fmode_t flags);
 
 void nfs_mark_delegation_referenced(struct nfs_delegation *delegation);
-int nfs_have_delegation(struct inode *inode, fmode_t flags);
+int nfs4_have_delegation(struct inode *inode, fmode_t flags);
 
 #else
-static inline int nfs_have_delegation(struct inode *inode, fmode_t flags)
-{
-	return 0;
-}
-
 static inline int nfs_inode_return_delegation(struct inode *inode)
 {
 	nfs_wb_all(inode);
@@ -73,7 +68,7 @@ static inline int nfs_inode_return_delegation(struct inode *inode)
 
 static inline int nfs_have_delegated_attributes(struct inode *inode)
 {
-	return nfs_have_delegation(inode, FMODE_READ) &&
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ) &&
 		!(NFS_I(inode)->cache_validity & NFS_INO_REVAL_FORCED);
 }
 

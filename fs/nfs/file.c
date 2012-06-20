@@ -178,7 +178,7 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 	 * If we're holding a write delegation, then just start the i/o
 	 * but don't wait for completion (or send a commit).
 	 */
-	if (nfs_have_delegation(inode, FMODE_WRITE))
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
 		return filemap_fdatawrite(file->f_mapping);
 
 	/* Flush writes to the server and return any errors */
@@ -677,7 +677,7 @@ do_getlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	}
 	fl->fl_type = saved_type;
 
-	if (nfs_have_delegation(inode, FMODE_READ))
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
 		goto out_noconflict;
 
 	if (is_local)
@@ -772,7 +772,7 @@ do_setlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	 * This makes locking act as a cache coherency point.
 	 */
 	nfs_sync_mapping(filp->f_mapping);
-	if (!nfs_have_delegation(inode, FMODE_READ)) {
+	if (!NFS_PROTO(inode)->have_delegation(inode, FMODE_READ)) {
 		if (is_time_granular(&NFS_SERVER(inode)->time_delta))
 			__nfs_revalidate_inode(NFS_SERVER(inode), inode);
 		else

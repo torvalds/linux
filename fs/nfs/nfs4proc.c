@@ -294,7 +294,7 @@ static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struc
 		case 0:
 			return 0;
 		case -NFS4ERR_OPENMODE:
-			if (inode && nfs_have_delegation(inode, FMODE_READ)) {
+			if (inode && nfs4_have_delegation(inode, FMODE_READ)) {
 				nfs_inode_return_delegation(inode);
 				exception->retry = 1;
 				return 0;
@@ -3466,7 +3466,7 @@ bool nfs4_write_need_cache_consistency_data(const struct nfs_write_data *data)
 	/* Otherwise, request attributes if and only if we don't hold
 	 * a delegation
 	 */
-	return nfs_have_delegation(hdr->inode, FMODE_READ) == 0;
+	return nfs4_have_delegation(hdr->inode, FMODE_READ) == 0;
 }
 
 static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
@@ -6804,6 +6804,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.clear_acl_cache = nfs4_zap_acl_attr,
 	.close_context  = nfs4_close_context,
 	.open_context	= nfs4_atomic_open,
+	.have_delegation = nfs4_have_delegation,
 	.init_client	= nfs4_init_client,
 };
 
