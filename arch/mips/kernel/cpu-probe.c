@@ -190,6 +190,7 @@ void __init check_wait(void)
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
 	case CPU_JZRISC:
+	case CPU_LOONGSON1:
 	case CPU_XLR:
 	case CPU_XLP:
 		cpu_wait = r4k_wait;
@@ -328,6 +329,154 @@ static inline void cpu_probe_vmbits(struct cpuinfo_mips *c)
 	back_to_back_c0_hazard();
 	c->vmbits = fls64(read_c0_entryhi() & 0x3fffffffffffe000ULL);
 #endif
+}
+
+static char unknown_isa[] __cpuinitdata = KERN_ERR \
+	"Unsupported ISA type, c0.config0: %d.";
+
+static inline unsigned int decode_config0(struct cpuinfo_mips *c)
+{
+	unsigned int config0;
+	int isa;
+
+	config0 = read_c0_config();
+
+	if (((config0 & MIPS_CONF_MT) >> 7) == 1)
+		c->options |= MIPS_CPU_TLB;
+	isa = (config0 & MIPS_CONF_AT) >> 13;
+	switch (isa) {
+	case 0:
+		switch ((config0 & MIPS_CONF_AR) >> 10) {
+		case 0:
+			c->isa_level = MIPS_CPU_ISA_M32R1;
+			break;
+		case 1:
+			c->isa_level = MIPS_CPU_ISA_M32R2;
+			break;
+		default:
+			goto unknown;
+		}
+		break;
+	case 2:
+		switch ((config0 & MIPS_CONF_AR) >> 10) {
+		case 0:
+			c->isa_level = MIPS_CPU_ISA_M64R1;
+			break;
+		case 1:
+			c->isa_level = MIPS_CPU_ISA_M64R2;
+			break;
+		default:
+			goto unknown;
+		}
+		break;
+	default:
+		goto unknown;
+	}
+
+	return config0 & MIPS_CONF_M;
+
+unknown:
+	panic(unknown_isa, config0);
+}
+
+static inline unsigned int decode_config1(struct cpuinfo_mips *c)
+{
+	unsigned int config1;
+
+	config1 = read_c0_config1();
+
+	if (config1 & MIPS_CONF1_MD)
+		c->ases |= MIPS_ASE_MDMX;
+	if (config1 & MIPS_CONF1_WR)
+		c->options |= MIPS_CPU_WATCH;
+	if (config1 & MIPS_CONF1_CA)
+		c->ases |= MIPS_ASE_MIPS16;
+	if (config1 & MIPS_CONF1_EP)
+		c->options |= MIPS_CPU_EJTAG;
+	if (config1 & MIPS_CONF1_FP) {
+		c->options |= MIPS_CPU_FPU;
+		c->options |= MIPS_CPU_32FPR;
+	}
+	if (cpu_has_tlb)
+		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >> 25) + 1;
+
+	return config1 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_config2(struct cpuinfo_mips *c)
+{
+	unsigned int config2;
+
+	config2 = read_c0_config2();
+
+	if (config2 & MIPS_CONF2_SL)
+		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
+
+	return config2 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_config3(struct cpuinfo_mips *c)
+{
+	unsigned int config3;
+
+	config3 = read_c0_config3();
+
+	if (config3 & MIPS_CONF3_SM)
+		c->ases |= MIPS_ASE_SMARTMIPS;
+	if (config3 & MIPS_CONF3_DSP)
+		c->ases |= MIPS_ASE_DSP;
+	if (config3 & MIPS_CONF3_VINT)
+		c->options |= MIPS_CPU_VINT;
+	if (config3 & MIPS_CONF3_VEIC)
+		c->options |= MIPS_CPU_VEIC;
+	if (config3 & MIPS_CONF3_MT)
+		c->ases |= MIPS_ASE_MIPSMT;
+	if (config3 & MIPS_CONF3_ULRI)
+		c->options |= MIPS_CPU_ULRI;
+
+	return config3 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_config4(struct cpuinfo_mips *c)
+{
+	unsigned int config4;
+
+	config4 = read_c0_config4();
+
+	if ((config4 & MIPS_CONF4_MMUEXTDEF) == MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT
+	    && cpu_has_tlb)
+		c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
+
+	c->kscratch_mask = (config4 >> 16) & 0xff;
+
+	return config4 & MIPS_CONF_M;
+}
+
+static void __cpuinit decode_configs(struct cpuinfo_mips *c)
+{
+	int ok;
+
+	/* MIPS32 or MIPS64 compliant CPU.  */
+	c->options = MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE | MIPS_CPU_COUNTER |
+		     MIPS_CPU_DIVEC | MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
+
+	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
+
+	ok = decode_config0(c);			/* Read Config registers.  */
+	BUG_ON(!ok);				/* Arch spec violation!  */
+	if (ok)
+		ok = decode_config1(c);
+	if (ok)
+		ok = decode_config2(c);
+	if (ok)
+		ok = decode_config3(c);
+	if (ok)
+		ok = decode_config4(c);
+
+	mips_probe_watch_registers(c);
+
+	if (cpu_has_mips_r2)
+		c->core = read_c0_ebase() & 0x3ff;
 }
 
 #define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
@@ -638,155 +787,19 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_32FPR;
 		c->tlbsize = 64;
 		break;
-	}
-}
+	case PRID_IMP_LOONGSON1:
+		decode_configs(c);
 
-static char unknown_isa[] __cpuinitdata = KERN_ERR \
-	"Unsupported ISA type, c0.config0: %d.";
+		c->cputype = CPU_LOONGSON1;
 
-static inline unsigned int decode_config0(struct cpuinfo_mips *c)
-{
-	unsigned int config0;
-	int isa;
-
-	config0 = read_c0_config();
-
-	if (((config0 & MIPS_CONF_MT) >> 7) == 1)
-		c->options |= MIPS_CPU_TLB;
-	isa = (config0 & MIPS_CONF_AT) >> 13;
-	switch (isa) {
-	case 0:
-		switch ((config0 & MIPS_CONF_AR) >> 10) {
-		case 0:
-			c->isa_level = MIPS_CPU_ISA_M32R1;
+		switch (c->processor_id & PRID_REV_MASK) {
+		case PRID_REV_LOONGSON1B:
+			__cpu_name[cpu] = "Loongson 1B";
 			break;
-		case 1:
-			c->isa_level = MIPS_CPU_ISA_M32R2;
-			break;
-		default:
-			goto unknown;
 		}
+
 		break;
-	case 2:
-		switch ((config0 & MIPS_CONF_AR) >> 10) {
-		case 0:
-			c->isa_level = MIPS_CPU_ISA_M64R1;
-			break;
-		case 1:
-			c->isa_level = MIPS_CPU_ISA_M64R2;
-			break;
-		default:
-			goto unknown;
-		}
-		break;
-	default:
-		goto unknown;
 	}
-
-	return config0 & MIPS_CONF_M;
-
-unknown:
-	panic(unknown_isa, config0);
-}
-
-static inline unsigned int decode_config1(struct cpuinfo_mips *c)
-{
-	unsigned int config1;
-
-	config1 = read_c0_config1();
-
-	if (config1 & MIPS_CONF1_MD)
-		c->ases |= MIPS_ASE_MDMX;
-	if (config1 & MIPS_CONF1_WR)
-		c->options |= MIPS_CPU_WATCH;
-	if (config1 & MIPS_CONF1_CA)
-		c->ases |= MIPS_ASE_MIPS16;
-	if (config1 & MIPS_CONF1_EP)
-		c->options |= MIPS_CPU_EJTAG;
-	if (config1 & MIPS_CONF1_FP) {
-		c->options |= MIPS_CPU_FPU;
-		c->options |= MIPS_CPU_32FPR;
-	}
-	if (cpu_has_tlb)
-		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >> 25) + 1;
-
-	return config1 & MIPS_CONF_M;
-}
-
-static inline unsigned int decode_config2(struct cpuinfo_mips *c)
-{
-	unsigned int config2;
-
-	config2 = read_c0_config2();
-
-	if (config2 & MIPS_CONF2_SL)
-		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
-
-	return config2 & MIPS_CONF_M;
-}
-
-static inline unsigned int decode_config3(struct cpuinfo_mips *c)
-{
-	unsigned int config3;
-
-	config3 = read_c0_config3();
-
-	if (config3 & MIPS_CONF3_SM)
-		c->ases |= MIPS_ASE_SMARTMIPS;
-	if (config3 & MIPS_CONF3_DSP)
-		c->ases |= MIPS_ASE_DSP;
-	if (config3 & MIPS_CONF3_VINT)
-		c->options |= MIPS_CPU_VINT;
-	if (config3 & MIPS_CONF3_VEIC)
-		c->options |= MIPS_CPU_VEIC;
-	if (config3 & MIPS_CONF3_MT)
-		c->ases |= MIPS_ASE_MIPSMT;
-	if (config3 & MIPS_CONF3_ULRI)
-		c->options |= MIPS_CPU_ULRI;
-
-	return config3 & MIPS_CONF_M;
-}
-
-static inline unsigned int decode_config4(struct cpuinfo_mips *c)
-{
-	unsigned int config4;
-
-	config4 = read_c0_config4();
-
-	if ((config4 & MIPS_CONF4_MMUEXTDEF) == MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT
-	    && cpu_has_tlb)
-		c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
-
-	c->kscratch_mask = (config4 >> 16) & 0xff;
-
-	return config4 & MIPS_CONF_M;
-}
-
-static void __cpuinit decode_configs(struct cpuinfo_mips *c)
-{
-	int ok;
-
-	/* MIPS32 or MIPS64 compliant CPU.  */
-	c->options = MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE | MIPS_CPU_COUNTER |
-		     MIPS_CPU_DIVEC | MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
-
-	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
-
-	ok = decode_config0(c);			/* Read Config registers.  */
-	BUG_ON(!ok);				/* Arch spec violation!  */
-	if (ok)
-		ok = decode_config1(c);
-	if (ok)
-		ok = decode_config2(c);
-	if (ok)
-		ok = decode_config3(c);
-	if (ok)
-		ok = decode_config4(c);
-
-	mips_probe_watch_registers(c);
-
-	if (cpu_has_mips_r2)
-		c->core = read_c0_ebase() & 0x3ff;
 }
 
 static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
