@@ -785,11 +785,6 @@ static int lp872x_config(struct lp872x *lp)
 	struct lp872x_platform_data *pdata = lp->pdata;
 	int ret;
 
-	if (!pdata) {
-		dev_warn(lp->dev, "no platform data\n");
-		return 0;
-	}
-
 	if (!pdata->update_config)
 		return 0;
 
@@ -888,6 +883,11 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 		[LP8720] = LP8720_NUM_REGULATORS,
 		[LP8725] = LP8725_NUM_REGULATORS,
 	};
+
+	if (!pdata) {
+		dev_warn(&cl->dev, "no platform data\n");
+		return -EINVAL;
+	}
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp872x), GFP_KERNEL);
 	if (!lp)
