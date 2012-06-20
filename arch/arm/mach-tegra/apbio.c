@@ -15,6 +15,10 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <mach/iomap.h>
+#include <linux/of.h>
+
+#ifdef CONFIG_TEGRA_SYSTEM_DMA
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -22,7 +26,6 @@
 #include <linux/mutex.h>
 
 #include <mach/dma.h>
-#include <mach/iomap.h>
 
 #include "apbio.h"
 
@@ -32,6 +35,9 @@ static struct tegra_dma_channel *tegra_apb_dma;
 static u32 *tegra_apb_bb;
 static dma_addr_t tegra_apb_bb_phys;
 static DECLARE_COMPLETION(tegra_apb_wait);
+
+static u32 tegra_apb_readl_direct(unsigned long offset);
+static void tegra_apb_writel_direct(u32 value, unsigned long offset);
 
 bool tegra_apb_init(void)
 {
@@ -72,13 +78,13 @@ static void apb_dma_complete(struct tegra_dma_req *req)
 	complete(&tegra_apb_wait);
 }
 
-u32 tegra_apb_readl(unsigned long offset)
+static u32 tegra_apb_readl_using_dma(unsigned long offset)
 {
 	struct tegra_dma_req req;
 	int ret;
 
 	if (!tegra_apb_dma && !tegra_apb_init())
-		return readl(IO_TO_VIRT(offset));
+		return tegra_apb_readl_direct(offset);
 
 	mutex_lock(&tegra_apb_dma_lock);
 	req.complete = apb_dma_complete;
@@ -108,13 +114,13 @@ u32 tegra_apb_readl(unsigned long offset)
 	return *((u32 *)tegra_apb_bb);
 }
 
-void tegra_apb_writel(u32 value, unsigned long offset)
+static void tegra_apb_writel_using_dma(u32 value, unsigned long offset)
 {
 	struct tegra_dma_req req;
 	int ret;
 
 	if (!tegra_apb_dma && !tegra_apb_init()) {
-		writel(value, IO_TO_VIRT(offset));
+		tegra_apb_writel_direct(value, offset);
 		return;
 	}
 
@@ -142,4 +148,47 @@ void tegra_apb_writel(u32 value, unsigned long offset)
 		tegra_dma_dequeue_req(tegra_apb_dma, &req);
 
 	mutex_unlock(&tegra_apb_dma_lock);
+}
+#else
+#define tegra_apb_readl_using_dma tegra_apb_readl_direct
+#define tegra_apb_writel_using_dma tegra_apb_writel_direct
+#endif
+
+typedef u32 (*apbio_read_fptr)(unsigned long offset);
+typedef void (*apbio_write_fptr)(u32 value, unsigned long offset);
+
+static apbio_read_fptr apbio_read;
+static apbio_write_fptr apbio_write;
+
+static u32 tegra_apb_readl_direct(unsigned long offset)
+{
+	return readl(IO_TO_VIRT(offset));
+}
+
+static void tegra_apb_writel_direct(u32 value, unsigned long offset)
+{
+	writel(value, IO_TO_VIRT(offset));
+}
+
+void tegra_apb_io_init(void)
+{
+	/* Need to use dma only when it is Tegra20 based platform */
+	if (of_machine_is_compatible("nvidia,tegra20") ||
+			!of_have_populated_dt()) {
+		apbio_read = tegra_apb_readl_using_dma;
+		apbio_write = tegra_apb_writel_using_dma;
+	} else {
+		apbio_read = tegra_apb_readl_direct;
+		apbio_write = tegra_apb_writel_direct;
+	}
+}
+
+u32 tegra_apb_readl(unsigned long offset)
+{
+	return apbio_read(offset);
+}
+
+void tegra_apb_writel(u32 value, unsigned long offset)
+{
+	apbio_write(value, offset);
 }
