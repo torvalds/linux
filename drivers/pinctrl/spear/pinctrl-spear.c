@@ -2,7 +2,7 @@
  * Driver for the ST Microelectronics SPEAr pinmux
  *
  * Copyright (C) 2012 ST Microelectronics
- * Viresh Kumar <viresh.kumar@st.com>
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * Inspired from:
  * - U300 Pinctl drivers
