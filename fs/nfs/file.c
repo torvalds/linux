@@ -265,7 +265,7 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
  * fall back to doing a synchronous write.
  */
 static int
-nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+nfs_file_fsync_commit(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
@@ -277,9 +277,6 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 			dentry->d_parent->d_name.name, dentry->d_name.name,
 			datasync);
 
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	mutex_lock(&inode->i_mutex);
-
 	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
 	have_error = test_and_clear_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
 	status = nfs_commit_inode(inode, FLUSH_SYNC);
@@ -290,10 +287,20 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		ret = xchg(&ctx->error, 0);
 	if (!ret && status < 0)
 		ret = status;
-	if (!ret && !datasync)
-		/* application has asked for meta-data sync */
-		ret = pnfs_layoutcommit_inode(inode, true);
+	return ret;
+}
+
+static int
+nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+{
+	int ret;
+	struct inode *inode = file->f_path.dentry->d_inode;
+
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	mutex_lock(&inode->i_mutex);
+	ret = nfs_file_fsync_commit(file, start, end, datasync);
 	mutex_unlock(&inode->i_mutex);
+
 	return ret;
 }
 
@@ -956,6 +963,23 @@ out_drop:
 	goto out_put_ctx;
 }
 
+static int
+nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+{
+	int ret;
+	struct inode *inode = file->f_path.dentry->d_inode;
+
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	mutex_lock(&inode->i_mutex);
+	ret = nfs_file_fsync_commit(file, start, end, datasync);
+	if (!ret && !datasync)
+		/* application has asked for meta-data sync */
+		ret = pnfs_layoutcommit_inode(inode, true);
+	mutex_unlock(&inode->i_mutex);
+
+	return ret;
+}
+
 const struct file_operations nfs4_file_operations = {
 	.llseek		= nfs_file_llseek,
 	.read		= do_sync_read,
@@ -966,7 +990,7 @@ const struct file_operations nfs4_file_operations = {
 	.open		= nfs4_file_open,
 	.flush		= nfs_file_flush,
 	.release	= nfs_file_release,
-	.fsync		= nfs_file_fsync,
+	.fsync		= nfs4_file_fsync,
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
