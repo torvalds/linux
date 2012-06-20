@@ -105,7 +105,10 @@ s32 wldev_iovar_setbuf(
 		mutex_lock(buf_sync);
 	}
 	iovar_len = wldev_mkiovar(iovar_name, param, paramlen, buf, buflen);
-	ret = wldev_ioctl(dev, WLC_SET_VAR, buf, iovar_len, TRUE);
+	if (iovar_len > 0)
+		ret = wldev_ioctl(dev, WLC_SET_VAR, buf, iovar_len, TRUE);
+	else
+		ret = BCME_BUFTOOSHORT;
 	if (buf_sync)
 		mutex_unlock(buf_sync);
 	return ret;
@@ -220,7 +223,12 @@ s32 wldev_iovar_setbuf_bsscfg(
 		mutex_lock(buf_sync);
 	}
 	iovar_len = wldev_mkiovar_bsscfg(iovar_name, param, paramlen, buf, buflen, bsscfg_idx);
-	ret = wldev_ioctl(dev, WLC_SET_VAR, buf, iovar_len, TRUE);
+	if (iovar_len > 0)
+		ret = wldev_ioctl(dev, WLC_SET_VAR, buf, iovar_len, TRUE);
+	else {
+		ret = BCME_BUFTOOSHORT;
+	}
+
 	if (buf_sync) {
 		mutex_unlock(buf_sync);
 	}

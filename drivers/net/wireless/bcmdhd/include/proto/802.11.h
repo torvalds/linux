@@ -21,7 +21,7 @@
  *
  * Fundamental types and constants relating to 802.11
  *
- * $Id: 802.11.h 328824 2012-04-20 22:51:46Z $
+ * $Id: 802.11.h 329730 2012-04-26 17:27:25Z $
  */
 
 #ifndef _802_11_H_
@@ -2037,11 +2037,11 @@ typedef enum vht_op_chan_width {
 } vht_op_chan_width_t;
 
 
-#define VHT_MCS_MAP_GET_SS_IDX(numSpatialStreams) ((numSpatialStreams-1)*2)
-#define VHT_MCS_MAP_GET_MCS_PER_SS(numSpatialStreams, mcsMap) \
-			((mcsMap >> VHT_MCS_MAP_GET_SS_IDX(numSpatialStreams)) & 0x3)
-#define VHT_MCS_MAP_SET_MCS_PER_SS(numSpatialStreams, numMcs, mcsMap) \
-			(mcsMap |= ((numMcs & 0x3) << VHT_MCS_MAP_GET_SS_IDX(numSpatialStreams)))
+#define VHT_MCS_MAP_GET_SS_IDX(nss) (((nss)-1)*2)
+#define VHT_MCS_MAP_GET_MCS_PER_SS(nss, mcsMap) \
+	(((mcsMap) >> VHT_MCS_MAP_GET_SS_IDX(nss)) & 0x3)
+#define VHT_MCS_MAP_SET_MCS_PER_SS(nss, numMcs, mcsMap) \
+	((mcsMap) |= (((numMcs) & 0x3) << VHT_MCS_MAP_GET_SS_IDX(nss)))
 
 
 #define WPA_OUI			"\x00\x50\xF2"	

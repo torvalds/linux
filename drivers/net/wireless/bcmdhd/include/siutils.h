@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.h 321982 2012-03-19 06:58:08Z $
+ * $Id: siutils.h 330156 2012-04-28 02:15:51Z $
  */
 
 #ifndef	_siutils_h_
@@ -310,4 +310,6 @@ extern int si_pcie_configspace_get(si_t *sih, uint8 *buf, uint size);
 char *si_getnvramflvar(si_t *sih, const char *name);
 
 
+extern int si_set_sromctl(si_t *sih, uint32 value);
+extern uint32 si_get_sromctl(si_t *sih);
 #endif	

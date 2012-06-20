@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 329678 2012-04-26 08:51:32Z $
+ * $Id: dhd.h 338569 2012-06-13 14:16:58Z $
  */
 
 /****************
@@ -77,12 +77,15 @@ enum dhd_bus_state {
 #define HOSTAPD_MASK		0x0002
 #define WFD_MASK			0x0004
 #define SOFTAP_FW_MASK	0x0008
+#define	CONCURRENT_FW_MASK	(STA_MASK | WFD_MASK)
 #define P2P_GO_ENABLED		0x0010
 #define P2P_GC_ENABLED		0x0020
 #define CONCURENT_MASK		0x00F0
 
 /* max sequential rxcntl timeouts to set HANG event */
+#ifndef MAX_CNTL_TIMEOUT
 #define MAX_CNTL_TIMEOUT  2
+#endif
 
 #define DHD_SCAN_ACTIVE_TIME	 40 /* ms : Embedded default Active setting from DHD Driver */
 #define DHD_SCAN_PASSIVE_TIME	130 /* ms: Embedded default Passive setting from DHD Driver */
@@ -115,7 +118,15 @@ enum dhd_prealloc_index {
 	DHD_PREALLOC_PROT = 0,
 	DHD_PREALLOC_RXBUF,
 	DHD_PREALLOC_DATABUF,
+#if defined(STATIC_WL_PRIV_STRUCT)
+	DHD_PREALLOC_OSL_BUF,
+	DHD_PREALLOC_WIPHY_ESCAN0 = 5,
+#if defined(DUAL_ESCAN_RESULT_BUFFER)
+	DHD_PREALLOC_WIPHY_ESCAN1
+#endif
+#else
 	DHD_PREALLOC_OSL_BUF
+#endif /* STATIC_WL_PRIV_STRUCT */
 };
 
 typedef enum  {
@@ -253,6 +264,7 @@ typedef struct dhd_pub {
 	void* wlfc_state;
 #endif
 	bool	dongle_isolation;
+	bool	dongle_trap_occured;	/* flag for sending HANG event to upper layer */
 	int   hang_was_sent;
 	int   rxcnt_timeout;		/* counter rxcnt timeout to send HANG */
 	int   txcnt_timeout;		/* counter txcnt timeout to send HANG */
@@ -529,7 +541,7 @@ extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int  dhd_bus_start(dhd_pub_t *dhdp);
 extern int dhd_bus_membytes(dhd_pub_t *dhdp, bool set, uint32 address, uint8 *data, uint size);
 extern void dhd_print_buf(void *pbuf, int len, int bytes_per_line);
-extern bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf);
+extern bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf, int *retval);
 extern uint dhd_bus_chip_id(dhd_pub_t *dhdp);
 
 #if defined(KEEP_ALIVE)
@@ -595,7 +607,11 @@ extern uint dhd_radio_up;
 
 /* Initial idletime ticks (may be -1 for immediate idle, 0 for no idle) */
 extern int dhd_idletime;
+#ifdef DHD_USE_IDLECOUNT
+#define DHD_IDLETIME_TICKS 5
+#else
 #define DHD_IDLETIME_TICKS 1
+#endif /* DHD_USE_IDLECOUNT */
 
 /* SDIO Drive Strength */
 extern uint dhd_sdiod_drive_strength;
@@ -603,7 +619,11 @@ extern uint dhd_sdiod_drive_strength;
 /* Override to force tx queueing all the time */
 extern uint dhd_force_tx_queueing;
 /* Default KEEP_ALIVE Period is 55 sec to prevent AP from sending Keep Alive probe frame */
+#ifdef KEEP_ALIVE_PACKET_PERIOD_30_SEC
+#define KEEP_ALIVE_PERIOD 30000
+#else /* KEEP_ALIVE_PACKET_PERIOD_30_SEC */
 #define KEEP_ALIVE_PERIOD 55000
+#endif /* KEEP_ALIVE_PACKET_PERIOD_30_SEC */
 #define NULL_PKT_STR	"null_pkt"
 
 #ifdef SDTEST
@@ -627,6 +647,14 @@ extern char fw_path2[MOD_PARAM_PATHLEN];
 
 /* Flag to indicate if we should download firmware on driver load */
 extern uint dhd_download_fw_on_driverload;
+
+#if defined(WL_CFG80211) && defined(SUPPORT_DEEP_SLEEP)
+/* Flags to indicate if we distingish power off policy when
+ * user set the memu "Keep Wi-Fi on during sleep" to "Never"
+ */
+extern int sleep_never;
+int dhd_deepsleep(struct net_device *dev, int flag);
+#endif /* WL_CFG80211 && SUPPORT_DEEP_SLEEP */
 
 /* For supporting multiple interfaces */
 #define DHD_MAX_IFS	16

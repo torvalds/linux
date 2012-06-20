@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.c 328733 2012-04-20 14:49:55Z $
+ * $Id: siutils.c 330156 2012-04-28 02:15:51Z $
  */
 
 #include <bcm_cfg.h>
@@ -2353,4 +2353,46 @@ si_is_sprom_available(si_t *sih)
 	default:
 		return TRUE;
 	}
+}
+
+uint32 si_get_sromctl(si_t *sih)
+{
+	chipcregs_t *cc;
+	uint origidx;
+	uint32 sromctl;
+	osl_t *osh;
+
+	osh = si_osh(sih);
+	origidx = si_coreidx(sih);
+	cc = si_setcoreidx(sih, SI_CC_IDX);
+	ASSERT((uintptr)cc);
+
+	sromctl = R_REG(osh, &cc->sromcontrol);
+
+	/* return to the original core */
+	si_setcoreidx(sih, origidx);
+	return sromctl;
+}
+
+int si_set_sromctl(si_t *sih, uint32 value)
+{
+	chipcregs_t *cc;
+	uint origidx;
+	osl_t *osh;
+
+	osh = si_osh(sih);
+	origidx = si_coreidx(sih);
+	cc = si_setcoreidx(sih, SI_CC_IDX);
+	ASSERT((uintptr)cc);
+
+	/* get chipcommon rev */
+	if (si_corerev(sih) < 32)
+		return BCME_UNSUPPORTED;
+
+	W_REG(osh, &cc->sromcontrol, value);
+
+	/* return to the original core */
+	si_setcoreidx(sih, origidx);
+	return BCME_OK;
+
 }

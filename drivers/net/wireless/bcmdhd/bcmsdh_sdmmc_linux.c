@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc_linux.c 312783 2012-02-03 22:53:56Z $
+ * $Id: bcmsdh_sdmmc_linux.c 338567 2012-06-13 13:19:16Z $
  */
 
 #include <typedefs.h>
@@ -109,31 +109,36 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 {
 	int ret = 0;
 	static struct sdio_func sdio_func_0;
-	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
-	sd_trace(("sdio_bcmsdh: func->class=%x\n", func->class));
-	sd_trace(("sdio_vendor: 0x%04x\n", func->vendor));
-	sd_trace(("sdio_device: 0x%04x\n", func->device));
-	sd_trace(("Function#: 0x%04x\n", func->num));
 
-	if (func->num == 1) {
-		sdio_func_0.num = 0;
-		sdio_func_0.card = func->card;
-		gInstance->func[0] = &sdio_func_0;
-		if(func->device == 0x4) { /* 4318 */
-			gInstance->func[2] = NULL;
-			sd_trace(("NIC found, calling bcmsdh_probe...\n"));
+	if (func) {
+		sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
+		sd_trace(("sdio_bcmsdh: func->class=%x\n", func->class));
+		sd_trace(("sdio_vendor: 0x%04x\n", func->vendor));
+		sd_trace(("sdio_device: 0x%04x\n", func->device));
+		sd_trace(("Function#: 0x%04x\n", func->num));
+
+		if (func->num == 1) {
+			sdio_func_0.num = 0;
+			sdio_func_0.card = func->card;
+			gInstance->func[0] = &sdio_func_0;
+			if(func->device == 0x4) { /* 4318 */
+				gInstance->func[2] = NULL;
+				sd_trace(("NIC found, calling bcmsdh_probe...\n"));
+				ret = bcmsdh_probe(&func->dev);
+			}
+		}
+
+		gInstance->func[func->num] = func;
+
+		if (func->num == 2) {
+	#ifdef WL_CFG80211
+			wl_cfg80211_set_parent_dev(&func->dev);
+	#endif
+			sd_trace(("F2 found, calling bcmsdh_probe...\n"));
 			ret = bcmsdh_probe(&func->dev);
 		}
-	}
-
-	gInstance->func[func->num] = func;
-
-	if (func->num == 2) {
-#ifdef WL_CFG80211
-		wl_cfg80211_set_parent_dev(&func->dev);
-#endif
-		sd_trace(("F2 found, calling bcmsdh_probe...\n"));
-		ret = bcmsdh_probe(&func->dev);
+	} else {
+		ret = -ENODEV;
 	}
 
 	return ret;
@@ -141,20 +146,22 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 
 static void bcmsdh_sdmmc_remove(struct sdio_func *func)
 {
-	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
-	sd_info(("sdio_bcmsdh: func->class=%x\n", func->class));
-	sd_info(("sdio_vendor: 0x%04x\n", func->vendor));
-	sd_info(("sdio_device: 0x%04x\n", func->device));
-	sd_info(("Function#: 0x%04x\n", func->num));
+	if (func) {
+		sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
+		sd_info(("sdio_bcmsdh: func->class=%x\n", func->class));
+		sd_info(("sdio_vendor: 0x%04x\n", func->vendor));
+		sd_info(("sdio_device: 0x%04x\n", func->device));
+		sd_info(("Function#: 0x%04x\n", func->num));
 
-	if (func->num == 2) {
-		sd_trace(("F2 found, calling bcmsdh_remove...\n"));
-		bcmsdh_remove(&func->dev);
-	} else if (func->num == 1) {
-		sdio_claim_host(func);
-		sdio_disable_func(func);
-		sdio_release_host(func);
-		gInstance->func[1] = NULL;
+		if (func->num == 2) {
+			sd_trace(("F2 found, calling bcmsdh_remove...\n"));
+			bcmsdh_remove(&func->dev);
+		} else if (func->num == 1) {
+			sdio_claim_host(func);
+			sdio_disable_func(func);
+			sdio_release_host(func);
+			gInstance->func[1] = NULL;
+		}
 	}
 }
 
@@ -291,6 +298,9 @@ sdioh_sdmmc_osinit(sdioh_info_t *sd)
 {
 	struct sdos_info *sdos;
 
+	if (!sd)
+		return BCME_BADARG;
+
 	sdos = (struct sdos_info*)MALLOC(sd->osh, sizeof(struct sdos_info));
 	sd->sdos_info = (void*)sdos;
 	if (sdos == NULL)
@@ -317,6 +327,9 @@ sdioh_interrupt_set(sdioh_info_t *sd, bool enable)
 {
 	ulong flags;
 	struct sdos_info *sdos;
+
+	if (!sd)
+		return BCME_BADARG;
 
 	sd_trace(("%s: %s\n", __FUNCTION__, enable ? "Enabling" : "Disabling"));
 
