@@ -59,14 +59,6 @@ struct dnp_board {
 	int have_dio;
 };
 
-/* This structure is for data unique to the DNP driver --------------------- */
-struct dnp_private_data {
-
-};
-
-/* Shorthand macro for faster access to the private data ------------------- */
-#define devpriv ((dnp_private *)dev->private)
-
 /* ------------------------------------------------------------------------- */
 /* The insn_bits interface allows packed reading/writing of DIO channels.    */
 /* The comedi core can convert between insn_bits and insn_read/write, so you */
@@ -188,11 +180,6 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_INFO "comedi%d: dnp: ", dev->minor);
 
 	dev->board_name = board->name;
-
-	/* Allocate the private structure area. alloc_private() is a         */
-	/* convenient macro defined in comedidev.h.                          */
-	if (alloc_private(dev, sizeof(struct dnp_private_data)) < 0)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
