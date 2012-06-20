@@ -36,8 +36,6 @@
 #include <plat/devs.h>
 #include <plat/irqs.h>
 
-static u64 dma_dmamask = DMA_BIT_MASK(32);
-
 static u8 s5p6440_pdma_peri[] = {
 	DMACH_UART0_RX,
 	DMACH_UART0_TX,
