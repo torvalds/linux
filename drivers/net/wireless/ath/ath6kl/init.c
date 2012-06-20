@@ -42,6 +42,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.reserved_ram_size		= 6912,
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 8,
+		.flags				= 0,
 
 		/* hw2.0 needs override address hardcoded */
 		.app_start_override_addr	= 0x944C00,
@@ -67,6 +68,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 8,
 		.testscript_addr		= 0x57ef74,
+		.flags				= 0,
 
 		.fw = {
 			.dir		= AR6003_HW_2_1_1_FW_DIR,
@@ -91,6 +93,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x433900,
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 11,
+		.flags				= ATH6KL_HW_FLAG_64BIT_RATES,
 
 		.fw = {
 			.dir		= AR6004_HW_1_0_FW_DIR,
@@ -110,6 +113,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x43d400,
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
+		.flags				= ATH6KL_HW_FLAG_64BIT_RATES,
 
 		.fw = {
 			.dir		= AR6004_HW_1_1_FW_DIR,
@@ -129,6 +133,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x435c00,
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
+		.flags				= ATH6KL_HW_FLAG_64BIT_RATES,
 
 		.fw = {
 			.dir		= AR6004_HW_1_2_FW_DIR,
@@ -938,6 +943,14 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 		}
 
 		switch (ie_id) {
+		case ATH6KL_FW_IE_FW_VERSION:
+			strlcpy(ar->wiphy->fw_version, data,
+				sizeof(ar->wiphy->fw_version));
+
+			ath6kl_dbg(ATH6KL_DBG_BOOT,
+				   "found fw version %s\n",
+				    ar->wiphy->fw_version);
+			break;
 		case ATH6KL_FW_IE_OTP_IMAGE:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "found otp image ie (%zd B)\n",
 				   ie_len);
@@ -991,9 +1004,6 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 				   ar->hw.reserved_ram_size);
 			break;
 		case ATH6KL_FW_IE_CAPABILITIES:
-			if (ie_len < DIV_ROUND_UP(ATH6KL_FW_CAPABILITY_MAX, 8))
-				break;
-
 			ath6kl_dbg(ATH6KL_DBG_BOOT,
 				   "found firmware capabilities ie (%zd B)\n",
 				   ie_len);
@@ -1001,6 +1011,9 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 			for (i = 0; i < ATH6KL_FW_CAPABILITY_MAX; i++) {
 				index = i / 8;
 				bit = i % 8;
+
+				if (index == ie_len)
+					break;
 
 				if (data[index] & (1 << bit))
 					__set_bit(i, ar->fw_capabilities);
@@ -1392,6 +1405,12 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	    ar->version.target_ver == AR6003_HW_2_1_1_VERSION) {
 		ath6kl_err("temporary war to avoid sdio crc error\n");
 
+		param = 0x28;
+		address = GPIO_BASE_ADDRESS + GPIO_PIN9_ADDRESS;
+		status = ath6kl_bmi_reg_write(ar, address, param);
+		if (status)
+			return status;
+
 		param = 0x20;
 
 		address = GPIO_BASE_ADDRESS + GPIO_PIN10_ADDRESS;
@@ -1659,6 +1678,9 @@ void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
 		cfg80211_scan_done(vif->scan_req, true);
 		vif->scan_req = NULL;
 	}
+
+	/* need to clean up enhanced bmiss detection fw state */
+	ath6kl_cfg80211_sta_bmiss_enhance(vif, false);
 }
 
 void ath6kl_stop_txrx(struct ath6kl *ar)
