@@ -262,6 +262,9 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 	roc = list_first_entry(&local->roc_list, struct ieee80211_roc_work,
 			       list);
 
+	if (WARN_ON_ONCE(roc->started))
+		return;
+
 	if (local->ops->remain_on_channel) {
 		int ret, duration = roc->duration;
 
@@ -377,7 +380,8 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 
 		ieee80211_recalc_idle(local);
 
-		ieee80211_start_next_roc(local);
+		if (roc->started)
+			ieee80211_start_next_roc(local);
 	}
 
  out_unlock:
