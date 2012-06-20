@@ -1757,9 +1757,6 @@ static struct nfq_ct_hook ctnetlink_nfqueue_hook = {
 	.build_size	= ctnetlink_nfqueue_build_size,
 	.build		= ctnetlink_nfqueue_build,
 	.parse		= ctnetlink_nfqueue_parse,
-#ifdef CONFIG_NF_NAT_NEEDED
-	.seq_adjust	= nf_nat_tcp_seq_adjust,
-#endif
 };
 #endif /* CONFIG_NETFILTER_NETLINK_QUEUE_CT */
 

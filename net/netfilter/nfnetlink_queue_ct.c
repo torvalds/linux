@@ -86,12 +86,12 @@ nla_put_failure:
 void nfqnl_ct_seq_adjust(struct sk_buff *skb, struct nf_conn *ct,
 			 enum ip_conntrack_info ctinfo, int diff)
 {
-	struct nfq_ct_hook *nfq_ct;
+	struct nfq_ct_nat_hook *nfq_nat_ct;
 
-	nfq_ct = rcu_dereference(nfq_ct_hook);
-	if (nfq_ct == NULL)
+	nfq_nat_ct = rcu_dereference(nfq_ct_nat_hook);
+	if (nfq_nat_ct == NULL)
 		return;
 
 	if ((ct->status & IPS_NAT_MASK) && diff)
-		nfq_ct->seq_adjust(skb, ct, ctinfo, diff);
+		nfq_nat_ct->seq_adjust(skb, ct, ctinfo, diff);
 }
