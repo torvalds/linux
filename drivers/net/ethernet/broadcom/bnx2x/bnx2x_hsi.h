@@ -1150,6 +1150,7 @@ struct drv_port_mb {
 	u32 link_status;
 	/* Driver should update this field on any link change event */
 
+	#define LINK_STATUS_NONE				(0<<0)
 	#define LINK_STATUS_LINK_FLAG_MASK			0x00000001
 	#define LINK_STATUS_LINK_UP				0x00000001
 	#define LINK_STATUS_SPEED_AND_DUPLEX_MASK		0x0000001E
@@ -1207,6 +1208,7 @@ struct drv_port_mb {
 	#define LINK_STATUS_PFC_ENABLED				0x20000000
 
 	#define LINK_STATUS_PHYSICAL_LINK_FLAG			0x40000000
+	#define LINK_STATUS_SFP_TX_FAULT			0x80000000
 
 	u32 port_stx;
 

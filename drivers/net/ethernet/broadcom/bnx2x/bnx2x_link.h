@@ -307,6 +307,7 @@ struct link_vars {
 #define PHY_PHYSICAL_LINK_FLAG		(1<<2)
 #define PHY_HALF_OPEN_CONN_FLAG		(1<<3)
 #define PHY_OVER_CURRENT_FLAG		(1<<4)
+#define PHY_SFP_TX_FAULT_FLAG		(1<<5)
 
 	u8 mac_type;
 #define MAC_TYPE_NONE		0
