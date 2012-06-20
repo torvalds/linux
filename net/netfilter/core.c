@@ -265,7 +265,7 @@ void nf_conntrack_destroy(struct nf_conntrack *nfct)
 }
 EXPORT_SYMBOL(nf_conntrack_destroy);
 
-struct nfq_ct_hook *nfq_ct_hook;
+struct nfq_ct_hook __rcu *nfq_ct_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nfq_ct_hook);
 
 #endif /* CONFIG_NF_CONNTRACK */
