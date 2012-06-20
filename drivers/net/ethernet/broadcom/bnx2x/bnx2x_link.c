@@ -10178,17 +10178,19 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 		DP(NETIF_MSG_LINK, "Legacy speed status = 0x%x\n",
 		   legacy_status);
 		link_up = ((legacy_status & (1<<11)) == (1<<11));
-		if (link_up) {
-			legacy_speed = (legacy_status & (3<<9));
-			if (legacy_speed == (0<<9))
-				vars->line_speed = SPEED_10;
-			else if (legacy_speed == (1<<9))
-				vars->line_speed = SPEED_100;
-			else if (legacy_speed == (2<<9))
-				vars->line_speed = SPEED_1000;
-			else /* Should not happen */
-				vars->line_speed = 0;
+		legacy_speed = (legacy_status & (3<<9));
+		if (legacy_speed == (0<<9))
+			vars->line_speed = SPEED_10;
+		else if (legacy_speed == (1<<9))
+			vars->line_speed = SPEED_100;
+		else if (legacy_speed == (2<<9))
+			vars->line_speed = SPEED_1000;
+		else { /* Should not happen: Treat as link down */
+			vars->line_speed = 0;
+			link_up = 0;
+		}
 
+		if (link_up) {
 			if (legacy_status & (1<<8))
 				vars->duplex = DUPLEX_FULL;
 			else
