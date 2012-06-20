@@ -295,7 +295,7 @@ static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struc
 			return 0;
 		case -NFS4ERR_OPENMODE:
 			if (inode && nfs4_have_delegation(inode, FMODE_READ)) {
-				nfs_inode_return_delegation(inode);
+				nfs4_inode_return_delegation(inode);
 				exception->retry = 1;
 				return 0;
 			}
@@ -1065,7 +1065,7 @@ static void nfs4_return_incompatible_delegation(struct inode *inode, fmode_t fmo
 		return;
 	}
 	rcu_read_unlock();
-	nfs_inode_return_delegation(inode);
+	nfs4_inode_return_delegation(inode);
 }
 
 static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
@@ -3870,7 +3870,7 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t bufl
 	i = buf_to_pages_noslab(buf, buflen, arg.acl_pages, &arg.acl_pgbase);
 	if (i < 0)
 		return i;
-	nfs_inode_return_delegation(inode);
+	nfs4_inode_return_delegation(inode);
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 
 	/*
@@ -6805,6 +6805,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.close_context  = nfs4_close_context,
 	.open_context	= nfs4_atomic_open,
 	.have_delegation = nfs4_have_delegation,
+	.return_delegation = nfs4_inode_return_delegation,
 	.init_client	= nfs4_init_client,
 };
 

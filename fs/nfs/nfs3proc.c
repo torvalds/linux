@@ -882,6 +882,12 @@ static int nfs3_have_delegation(struct inode *inode, fmode_t flags)
 	return 0;
 }
 
+static int nfs3_return_delegation(struct inode *inode)
+{
+	nfs_wb_all(inode);
+	return 0;
+}
+
 const struct nfs_rpc_ops nfs_v3_clientops = {
 	.version	= 3,			/* protocol version */
 	.dentry_ops	= &nfs_dentry_operations,
@@ -927,5 +933,6 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.clear_acl_cache = nfs3_forget_cached_acls,
 	.close_context	= nfs_close_context,
 	.have_delegation = nfs3_have_delegation,
+	.return_delegation = nfs3_return_delegation,
 	.init_client	= nfs_init_client,
 };

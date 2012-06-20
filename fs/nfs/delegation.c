@@ -388,7 +388,7 @@ void nfs_inode_return_delegation_noreclaim(struct inode *inode)
  *
  * Returns zero on success, or a negative errno value.
  */
-int nfs_inode_return_delegation(struct inode *inode)
+int nfs4_inode_return_delegation(struct inode *inode)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_inode *nfsi = NFS_I(inode);

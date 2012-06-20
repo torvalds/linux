@@ -33,7 +33,7 @@ enum {
 
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
 void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
-int nfs_inode_return_delegation(struct inode *inode);
+int nfs4_inode_return_delegation(struct inode *inode);
 int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid);
 void nfs_inode_return_delegation_noreclaim(struct inode *inode);
 
@@ -58,12 +58,6 @@ bool nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode, fmode_
 void nfs_mark_delegation_referenced(struct nfs_delegation *delegation);
 int nfs4_have_delegation(struct inode *inode, fmode_t flags);
 
-#else
-static inline int nfs_inode_return_delegation(struct inode *inode)
-{
-	nfs_wb_all(inode);
-	return 0;
-}
 #endif
 
 static inline int nfs_have_delegated_attributes(struct inode *inode)

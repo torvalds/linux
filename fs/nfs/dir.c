@@ -1778,7 +1778,7 @@ static int nfs_safe_remove(struct dentry *dentry)
 	}
 
 	if (inode != NULL) {
-		nfs_inode_return_delegation(inode);
+		NFS_PROTO(inode)->return_delegation(inode);
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
 		/* The VFS may want to delete this inode */
 		if (error == 0)
@@ -1906,7 +1906,7 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 		old_dentry->d_parent->d_name.name, old_dentry->d_name.name,
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
-	nfs_inode_return_delegation(inode);
+	NFS_PROTO(inode)->return_delegation(inode);
 
 	d_drop(dentry);
 	error = NFS_PROTO(dir)->link(inode, dir, &dentry->d_name);
@@ -1990,9 +1990,9 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 	}
 
-	nfs_inode_return_delegation(old_inode);
+	NFS_PROTO(old_inode)->return_delegation(old_inode);
 	if (new_inode != NULL)
-		nfs_inode_return_delegation(new_inode);
+		NFS_PROTO(new_inode)->return_delegation(new_inode);
 
 	error = NFS_PROTO(old_dir)->rename(old_dir, &old_dentry->d_name,
 					   new_dir, &new_dentry->d_name);
