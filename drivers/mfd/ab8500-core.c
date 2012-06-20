@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -361,7 +362,7 @@ static void ab8500_irq_sync_unlock(struct irq_data *data)
 static void ab8500_irq_mask(struct irq_data *data)
 {
 	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
-	int offset = data->irq - ab8500->irq_base;
+	int offset = data->hwirq;
 	int index = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -371,7 +372,7 @@ static void ab8500_irq_mask(struct irq_data *data)
 static void ab8500_irq_unmask(struct irq_data *data)
 {
 	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
-	int offset = data->irq - ab8500->irq_base;
+	int offset = data->hwirq;
 	int index = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -510,38 +511,51 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int ab8500_irq_init(struct ab8500 *ab8500)
+/**
+ * ab8500_irq_get_virq(): Map an interrupt on a chip to a virtual IRQ
+ *
+ * @ab8500: ab8500_irq controller to operate on.
+ * @irq: index of the interrupt requested in the chip IRQs
+ *
+ * Useful for drivers to request their own IRQs.
+ */
+int ab8500_irq_get_virq(struct ab8500 *ab8500, int irq)
 {
-	int base = ab8500->irq_base;
-	int irq;
-	int num_irqs;
+	if (!ab8500)
+		return -EINVAL;
 
-	if (is_ab9540(ab8500))
-		num_irqs = AB9540_NR_IRQS;
-	else if (is_ab8505(ab8500))
-		num_irqs = AB8505_NR_IRQS;
-	else
-		num_irqs = AB8500_NR_IRQS;
+	return irq_create_mapping(ab8500->domain, irq);
+}
+EXPORT_SYMBOL_GPL(ab8500_irq_get_virq);
 
-	for (irq = base; irq < base + num_irqs; irq++) {
-		irq_set_chip_data(irq, ab8500);
-		irq_set_chip_and_handler(irq, &ab8500_irq_chip,
-					 handle_simple_irq);
-		irq_set_nested_thread(irq, 1);
+static int ab8500_irq_map(struct irq_domain *d, unsigned int virq,
+				irq_hw_number_t hwirq)
+{
+	struct ab8500 *ab8500 = d->host_data;
+
+	if (!ab8500)
+		return -EINVAL;
+
+	irq_set_chip_data(virq, ab8500);
+	irq_set_chip_and_handler(virq, &ab8500_irq_chip,
+				handle_simple_irq);
+	irq_set_nested_thread(virq, 1);
 #ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID);
+	set_irq_flags(virq, IRQF_VALID);
 #else
-		irq_set_noprobe(irq);
+	irq_set_noprobe(virq);
 #endif
-	}
 
 	return 0;
 }
 
-static void ab8500_irq_remove(struct ab8500 *ab8500)
+static struct irq_domain_ops ab8500_irq_ops = {
+        .map    = ab8500_irq_map,
+        .xlate  = irq_domain_xlate_twocell,
+};
+
+static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
 {
-	int base = ab8500->irq_base;
-	int irq;
 	int num_irqs;
 
 	if (is_ab9540(ab8500))
@@ -551,13 +565,22 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 	else
 		num_irqs = AB8500_NR_IRQS;
 
-	for (irq = base; irq < base + num_irqs; irq++) {
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, 0);
-#endif
-		irq_set_chip_and_handler(irq, NULL, NULL);
-		irq_set_chip_data(irq, NULL);
+	if (ab8500->irq_base) {
+		ab8500->domain = irq_domain_add_legacy(
+			NULL, num_irqs, ab8500->irq_base,
+			0, &ab8500_irq_ops, ab8500);
 	}
+	else {
+		ab8500->domain = irq_domain_add_linear(
+			np, num_irqs, &ab8500_irq_ops, ab8500);
+	}
+
+	if (!ab8500->domain) {
+		dev_err(ab8500->dev, "Failed to create irqdomain\n");
+		return -ENOSYS;
+	}
+
+	return 0;
 }
 
 int ab8500_suspend(struct ab8500 *ab8500)
@@ -1233,14 +1256,6 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 
 	if (plat)
 		ab8500->irq_base = plat->irq_base;
-	else if (np)
-		ret = of_property_read_u32(np, "stericsson,irq-base", &ab8500->irq_base);
-
-	if (!ab8500->irq_base) {
-		dev_info(&pdev->dev, "couldn't find irq-base\n");
-		ret = -EINVAL;
-		goto out_free_ab8500;
-	}
 
 	ab8500->dev = &pdev->dev;
 
@@ -1323,7 +1338,7 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 		AB8500_SWITCH_OFF_STATUS, &value);
 	if (ret < 0)
 		return ret;
-	dev_info(ab8500->dev, "switch off status: %#x", value);
+	dev_info(ab8500->dev, "switch off status: %#x\n", value);
 
 	if (plat && plat->init)
 		plat->init(ab8500);
@@ -1352,25 +1367,25 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 	for (i = 0; i < ab8500->mask_size; i++)
 		ab8500->mask[i] = ab8500->oldmask[i] = 0xff;
 
-	if (ab8500->irq_base) {
-		ret = ab8500_irq_init(ab8500);
-		if (ret)
-			goto out_freeoldmask;
+	ret = ab8500_irq_init(ab8500, np);
+	if (ret)
+		goto out_freeoldmask;
 
-		/*  Activate this feature only in ab9540 */
-		/*  till tests are done on ab8500 1p2 or later*/
-		if (is_ab9540(ab8500))
-			ret = request_threaded_irq(ab8500->irq, NULL,
+	/*  Activate this feature only in ab9540 */
+	/*  till tests are done on ab8500 1p2 or later*/
+	if (is_ab9540(ab8500)) {
+		ret = request_threaded_irq(ab8500->irq, NULL,
 					ab8500_hierarchical_irq,
 					IRQF_ONESHOT | IRQF_NO_SUSPEND,
 					"ab8500", ab8500);
-		else
-			ret = request_threaded_irq(ab8500->irq, NULL,
+	}
+	else {
+		ret = request_threaded_irq(ab8500->irq, NULL,
 					ab8500_irq,
 					IRQF_ONESHOT | IRQF_NO_SUSPEND,
 					"ab8500", ab8500);
 		if (ret)
-			goto out_removeirq;
+			goto out_freeoldmask;
 	}
 
 	if (!np) {
@@ -1417,15 +1432,11 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 					&ab8500_attr_group);
 	if (ret)
 		dev_err(ab8500->dev, "error creating sysfs entries\n");
-	else
-		return ret;
+
+	return ret;
 
 out_freeirq:
-	if (ab8500->irq_base)
-		free_irq(ab8500->irq, ab8500);
-out_removeirq:
-	if (ab8500->irq_base)
-		ab8500_irq_remove(ab8500);
+	free_irq(ab8500->irq, ab8500);
 out_freeoldmask:
 	kfree(ab8500->oldmask);
 out_freemask:
@@ -1444,11 +1455,10 @@ static int __devexit ab8500_remove(struct platform_device *pdev)
 		sysfs_remove_group(&ab8500->dev->kobj, &ab9540_attr_group);
 	else
 		sysfs_remove_group(&ab8500->dev->kobj, &ab8500_attr_group);
+
 	mfd_remove_devices(ab8500->dev);
-	if (ab8500->irq_base) {
-		free_irq(ab8500->irq, ab8500);
-		ab8500_irq_remove(ab8500);
-	}
+	free_irq(ab8500->irq, ab8500);
+
 	kfree(ab8500->oldmask);
 	kfree(ab8500->mask);
 	kfree(ab8500);

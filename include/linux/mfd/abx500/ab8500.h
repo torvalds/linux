@@ -9,6 +9,7 @@
 
 #include <linux/atomic.h>
 #include <linux/mutex.h>
+#include <linux/irqdomain.h>
 
 struct device;
 
@@ -227,6 +228,7 @@ enum ab8500_version {
  * @irq_lock: genirq bus lock
  * @transfer_ongoing: 0 if no transfer ongoing
  * @irq: irq line
+ * @irq_domain: irq domain
  * @version: chip version id (e.g. ab8500 or ab9540)
  * @chip_id: chip revision id
  * @write: register write
@@ -247,6 +249,7 @@ struct ab8500 {
 	atomic_t	transfer_ongoing;
 	int		irq_base;
 	int		irq;
+	struct irq_domain  *domain;
 	enum ab8500_version version;
 	u8		chip_id;
 
@@ -335,5 +338,7 @@ static inline int is_ab8500_2p0(struct ab8500 *ab)
 {
 	return (is_ab8500(ab) && (ab->chip_id == AB8500_CUT2P0));
 }
+
+int ab8500_irq_get_virq(struct ab8500 *ab8500, int irq);
 
 #endif /* MFD_AB8500_H */
