@@ -815,6 +815,8 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, u8 *data, int len)
 		skb_reset_network_header(skb);
 		skb->dev = dev;
 		skb->protocol = htons(OZ_ETHERTYPE);
+		/* For audio packet set priority to AC_VO */
+		skb->priority = 0x7;
 		size = sizeof(struct oz_hdr) + sizeof(struct oz_isoc_large);
 		oz_hdr = (struct oz_hdr *)skb_put(skb, size);
 	}
