@@ -329,8 +329,8 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
         /* yk@rk
          * ep0 -- tx fifo 0
          * ep1 -- tx fifo 1
-         * ep3 -- tx fifo 2
-         * ep5 -- tx fifo 3
+         * ep3 -- tx fifo 3
+         * ep5 -- tx fifo 2
          */
         if(ep->dwc_ep.num == 0)
 	        ep->dwc_ep.tx_fifo_num = 0;
@@ -338,6 +338,8 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
                 ep->dwc_ep.tx_fifo_num = 1;
         else if(ep->dwc_ep.num == 3)
                 ep->dwc_ep.tx_fifo_num = 3;
+        else if(ep->dwc_ep.num == 5)
+                ep->dwc_ep.tx_fifo_num = 2;
         else
     	    ep->dwc_ep.tx_fifo_num = (ep->dwc_ep.num>>1)+1 ; /* 1,3,5 */
 #endif
@@ -576,11 +578,9 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 	}
 	
 	ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
-	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
 	if (!_ep || (!ep->desc && ep->dwc_ep.num != 0)) 
 	{
 		DWC_WARN("%s, bad ep\n", __func__);
-				SPIN_UNLOCK_IRQRESTORE(&ep->pcd->lock, flags);
 		return -EINVAL;
 	}
 	pcd = ep->pcd;
@@ -588,7 +588,6 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 	{
 		DWC_DEBUGPL(DBG_PCDV, "gadget.speed=%d\n", pcd->gadget.speed);
 		DWC_WARN("%s, bogus device state\n", __func__);
-				SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
 		return -ESHUTDOWN;
 	}
 
@@ -625,6 +624,8 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 						: DMA_FROM_DEVICE);
 		req->mapped = 0;
 	}
+	SPIN_LOCK_IRQSAVE(&pcd->lock, flags);
+	
 	_req->status = -EINPROGRESS;
 	_req->actual = 0;
 

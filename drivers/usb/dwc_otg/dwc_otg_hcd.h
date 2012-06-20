@@ -379,6 +379,9 @@ typedef struct dwc_otg_hcd {
 	/* Tasket to do a reset */
 	struct tasklet_struct   *reset_tasklet;
 
+    struct timer_list 	connect_detect_timer;
+    struct delayed_work	host_enable_work;
+    
 	spinlock_t global_lock;
 
 #ifdef DEBUG
@@ -402,6 +405,7 @@ typedef struct dwc_otg_hcd {
 
     /** Flag to indicate whether host controller is enabled. */
     uint8_t host_enabled;
+    uint8_t host_setenable;
 
 } dwc_otg_hcd_t;
 

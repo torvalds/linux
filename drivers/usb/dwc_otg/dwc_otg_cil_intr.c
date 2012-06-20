@@ -193,6 +193,7 @@ int32_t dwc_otg_handle_otg_intr(dwc_otg_core_if_t *_core_if)
 				        dctl.d32 = dwc_read_reg32( &_core_if->dev_if->dev_global_regs->dctl );
 				        dctl.b.sftdiscon = 1;
 				        dwc_write_reg32( &_core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+				        dwc_modify_reg32( &global_regs->gahbcfg, 0, 1); // disable usb global int
                         DWC_PRINT("********session end intr,soft disconnect************************\n");
                 }
                 _core_if->otg_dev->pcd->vbus_status = 0;

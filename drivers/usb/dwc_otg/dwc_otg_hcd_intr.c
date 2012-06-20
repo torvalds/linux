@@ -1830,7 +1830,7 @@ static void handle_hc_chhltd_intr_dma(dwc_otg_hcd_t *_hcd,
 		handle_hc_ack_intr(_hcd, _hc, _hc_regs, _qtd);
 	} else if(hcint.b.datatglerr){
 	     DWC_PRINT("%s, DATA toggle error, Channel %d\n",__func__, _hc->hc_num);
-             save_data_toggle(_hc, _hc_regs, _qtd);    //hzb,设备的第一个USB数据包的data toggle不符合USB协议
+             save_data_toggle(_hc, _hc_regs, _qtd);
              halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_NO_HALT_STATUS);
 				clear_hc_int(_hc_regs,chhltd);
 	} else {

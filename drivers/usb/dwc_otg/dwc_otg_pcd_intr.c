@@ -1053,6 +1053,10 @@ static inline void do_gadget_setup( dwc_otg_pcd_t *_pcd,
 	{
 		SPIN_UNLOCK(&_pcd->lock);
 		ret = _pcd->driver->setup(&_pcd->gadget, _ctrl);
+		if(spin_is_locked(&_pcd->lock)){
+		    DWC_PRINT("%s warning: pcd->lock locked without unlock\n", __func__);
+		    SPIN_UNLOCK(&_pcd->lock);
+		}
 		SPIN_LOCK(&_pcd->lock);
 		if (ret < 0) 
 		{
@@ -2161,6 +2165,10 @@ do { \
 			
 			/* Get EP pointer */	   
 			ep = get_in_ep(_pcd, epnum);
+			if(ep == NULL){
+                DWC_PRINT("%s epnum %d epintr %x\n", __func__, epnum, ep_intr);
+                break;
+			}
 			dwc_ep = &ep->dwc_ep;
 
 			_diepctl = dwc_read_reg32(&dev_if->in_ep_regs[epnum]->diepctl);

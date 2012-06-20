@@ -69,6 +69,8 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
     	return 0;
     }
     hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
+    if((!dwc_otg_hcd->host_enabled)||(!hprt0.b.prtena))
+        return 0;
     DWC_PRINT("%s suspend, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
     if(hprt0.b.prtconnsts)  // usb device connected
     {
@@ -126,6 +128,8 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     	DWC_PRINT("%s, usb device mode\n", __func__);
     	return 0;
     }
+    if(!dwc_otg_hcd->host_enabled)
+        return 0;
     #ifndef CONFIG_DWC_REMOTE_WAKEUP
     clk_enable(core_if->otg_dev->phyclk);
     clk_enable(core_if->otg_dev->ahbclk);
@@ -145,6 +149,8 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
         
     hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
+    if(!hprt0.b.prtena)
+        return 0;
     DWC_PRINT("%s resume, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
     if(hprt0.b.prtconnsts)
     {
@@ -638,7 +644,81 @@ static struct tasklet_struct reset_tasklet = {
 	.func = reset_tasklet_func,
 	.data = 0,
 };
+#ifdef CONFIG_ARCH_RK30
+static void dwc_otg_hcd_enable(struct work_struct *work)
+{
+    dwc_otg_hcd_t *dwc_otg_hcd;
+    dwc_otg_core_if_t *_core_if;
 
+    dwc_otg_hcd = container_of(work, dwc_otg_hcd_t, host_enable_work.work);
+    _core_if = dwc_otg_hcd->core_if;
+    
+	if(dwc_otg_hcd->host_enabled == dwc_otg_hcd->host_setenable){
+//        DWC_PRINT("%s, enable flag %d\n", __func__, dwc_otg_hcd->host_setenable);
+	    return;
+	}
+	    
+	dwc_otg_hcd->host_enabled = dwc_otg_hcd->host_setenable;
+	if(dwc_otg_hcd->host_setenable == 0)    // enable -> disable
+	{
+	    DWC_PRINT("disable host controller\n");
+	    #if 1
+        if (_core_if->hcd_cb && _core_if->hcd_cb->disconnect) {
+                _core_if->hcd_cb->disconnect( _core_if->hcd_cb->p );
+        }
+        #endif
+        if (_core_if->hcd_cb && _core_if->hcd_cb->stop) {
+                _core_if->hcd_cb->stop( _core_if->hcd_cb->p );
+        }
+        if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
+                _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, 0);
+        }
+        udelay(3);
+//        clk_disable(otg_dev->phyclk);
+//        clk_disable(otg_dev->ahbclk);
+	}
+	else if(dwc_otg_hcd->host_setenable == 1)
+	{
+	    DWC_PRINT("enable host controller\n");
+//        clk_enable(otg_dev->phyclk);
+//        clk_enable(otg_dev->ahbclk);
+        if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
+                _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, 1);
+        }
+        mdelay(5);
+        if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
+                _core_if->hcd_cb->start( _core_if->hcd_cb->p );
+        }
+	}
+    
+}
+static void dwc_otg_hcd_connect_detect(unsigned long pdata)
+{
+    dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *)pdata;
+    dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
+    unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+//    DWC_PRINT("%s %p, grfstatus 0x%x\n", __func__, dwc_otg_hcd, usbgrf_status& (7<<22));
+    if(usbgrf_status & (7<<22)){
+    // usb device connected
+        dwc_otg_hcd->host_setenable = 1;
+    }
+    else{
+    // no device, suspend host
+        if((dwc_read_reg32(core_if->host_if->hprt0) & 1) == 0)
+            dwc_otg_hcd->host_setenable = 0;
+    
+    }
+    schedule_delayed_work(&dwc_otg_hcd->host_enable_work, jiffies);
+//    dwc_otg_hcd->connect_detect_timer.expires = jiffies + (HZ<<1); /* 1 s */
+    mod_timer(&dwc_otg_hcd->connect_detect_timer,jiffies + (HZ<<1)); 
+	local_irq_restore(flags);
+	return;
+}
+#endif
 /**
  * Initializes the HCD. This function allocates memory for and initializes the
  * static parts of the usb_hcd and dwc_otg_hcd structures. It also registers the
@@ -1113,7 +1193,7 @@ int __devinit host20_hcd_init(struct device *dev)
 	}
 	
         /* Initialize the Connection timeout timer. */
-        init_timer( &dwc_otg_hcd->conn_timer );
+        //init_timer( &dwc_otg_hcd->conn_timer );
 
 	/* Initialize reset tasklet. */
 	host20_reset_tasklet.data = (unsigned long) dwc_otg_hcd;
@@ -1151,7 +1231,14 @@ int __devinit host20_hcd_init(struct device *dev)
 		goto error3;
 	}
     
-        
+#ifdef CONFIG_ARCH_RK30        
+    dwc_otg_hcd->connect_detect_timer.function = dwc_otg_hcd_connect_detect;
+    dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
+    init_timer( &dwc_otg_hcd->connect_detect_timer);
+    mod_timer(&dwc_otg_hcd->connect_detect_timer, jiffies+(HZ<<3)); 
+    
+    INIT_DELAYED_WORK(&dwc_otg_hcd->host_enable_work, dwc_otg_hcd_enable);
+#endif        
 	return 0;
 
 	/* Error conditions */
@@ -1166,6 +1253,7 @@ int __devinit host20_hcd_init(struct device *dev)
 	return retval;
 }
 #endif
+
 
 /**
  * Removes the HCD.
