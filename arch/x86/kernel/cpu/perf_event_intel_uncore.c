@@ -1313,7 +1313,7 @@ static int __devinit uncore_pci_add(struct intel_uncore_type *type,
 	return 0;
 }
 
-static void __devexit uncore_pci_remove(struct pci_dev *pdev)
+static void uncore_pci_remove(struct pci_dev *pdev)
 {
 	struct intel_uncore_box *box = pci_get_drvdata(pdev);
 	struct intel_uncore_pmu *pmu = box->pmu;
