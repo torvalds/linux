@@ -7695,7 +7695,7 @@ static int bnx2x_8726_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	u16 val = 0;
 	u16 i;
-	if (byte_cnt > 16) {
+	if (byte_cnt > SFP_EEPROM_PAGE_SIZE) {
 		DP(NETIF_MSG_LINK,
 		   "Reading from eeprom is limited to 0xf\n");
 		return -EINVAL;
@@ -7764,7 +7764,8 @@ static int bnx2x_warpcore_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	u32 data_array[4];
 	u16 addr32;
 	struct bnx2x *bp = params->bp;
-	if (byte_cnt > 16) {
+
+	if (byte_cnt > SFP_EEPROM_PAGE_SIZE) {
 		DP(NETIF_MSG_LINK,
 		   "Reading from eeprom is limited to 16 bytes\n");
 		return -EINVAL;
@@ -7794,7 +7795,7 @@ static int bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	u16 val, i;
 
-	if (byte_cnt > 16) {
+	if (byte_cnt > SFP_EEPROM_PAGE_SIZE) {
 		DP(NETIF_MSG_LINK,
 		   "Reading from eeprom is limited to 0xf\n");
 		return -EINVAL;
@@ -7877,7 +7878,7 @@ int bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 				 struct link_params *params, u16 addr,
 				 u8 byte_cnt, u8 *o_buf)
 {
-	int rc = -EINVAL;
+	int rc = -EOPNOTSUPP;
 	switch (phy->type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 		rc = bnx2x_8726_read_sfp_module_eeprom(phy, params, addr,

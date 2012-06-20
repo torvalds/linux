@@ -1160,6 +1160,65 @@ static int bnx2x_get_eeprom(struct net_device *dev,
 	return rc;
 }
 
+static int bnx2x_get_module_eeprom(struct net_device *dev,
+				   struct ethtool_eeprom *ee,
+				   u8 *data)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int rc = 0, phy_idx;
+	u8 *user_data = data;
+	int remaining_len = ee->len, xfer_size;
+	unsigned int page_off = ee->offset;
+
+	if (!netif_running(dev)) {
+		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
+		   "cannot access eeprom when the interface is down\n");
+		return -EAGAIN;
+	}
+
+	phy_idx = bnx2x_get_cur_phy_idx(bp);
+	bnx2x_acquire_phy_lock(bp);
+	while (!rc && remaining_len > 0) {
+		xfer_size = (remaining_len > SFP_EEPROM_PAGE_SIZE) ?
+			SFP_EEPROM_PAGE_SIZE : remaining_len;
+		rc = bnx2x_read_sfp_module_eeprom(&bp->link_params.phy[phy_idx],
+						  &bp->link_params,
+						  page_off,
+						  xfer_size,
+						  user_data);
+		remaining_len -= xfer_size;
+		user_data += xfer_size;
+		page_off += xfer_size;
+	}
+
+	bnx2x_release_phy_lock(bp);
+	return rc;
+}
+
+static int bnx2x_get_module_info(struct net_device *dev,
+				 struct ethtool_modinfo *modinfo)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int phy_idx;
+	if (!netif_running(dev)) {
+		DP(BNX2X_MSG_ETHTOOL  | BNX2X_MSG_NVM,
+		   "cannot access eeprom when the interface is down\n");
+		return -EAGAIN;
+	}
+
+	phy_idx = bnx2x_get_cur_phy_idx(bp);
+	switch (bp->link_params.phy[phy_idx].media_type) {
+	case ETH_PHY_SFPP_10G_FIBER:
+	case ETH_PHY_SFP_1G_FIBER:
+	case ETH_PHY_DA_TWINAX:
+		modinfo->type = ETH_MODULE_SFF_8079;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int bnx2x_nvram_write_dword(struct bnx2x *bp, u32 offset, u32 val,
 				   u32 cmd_flags)
 {
@@ -2915,6 +2974,8 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.set_rxfh_indir		= bnx2x_set_rxfh_indir,
 	.get_channels		= bnx2x_get_channels,
 	.set_channels		= bnx2x_set_channels,
+	.get_module_info	= bnx2x_get_module_info,
+	.get_module_eeprom	= bnx2x_get_module_eeprom,
 	.get_eee		= bnx2x_get_eee,
 	.set_eee		= bnx2x_set_eee,
 };
