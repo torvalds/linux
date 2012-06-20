@@ -2948,11 +2948,13 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 static struct mfd_cell db8500_prcmu_devs[] = {
 	{
 		.name = "db8500-prcmu-regulators",
+		.of_compatible = "stericsson,db8500-prcmu-regulator",
 		.platform_data = &db8500_regulators,
 		.pdata_size = sizeof(db8500_regulators),
 	},
 	{
 		.name = "cpufreq-u8500",
+		.of_compatible = "stericsson,cpufreq-u8500",
 	},
 };
 
@@ -2990,13 +2992,11 @@ static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 	if (cpu_is_u8500v20_or_later())
 		prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
-	if (!np) {
-		err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
-				ARRAY_SIZE(db8500_prcmu_devs), NULL, 0);
-		if (err) {
-			pr_err("prcmu: Failed to add subdevices\n");
-			return err;
-		}
+	err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
+			ARRAY_SIZE(db8500_prcmu_devs), NULL, 0);
+	if (err) {
+		pr_err("prcmu: Failed to add subdevices\n");
+		return err;
 	}
 
 	pr_info("DB8500 PRCMU initialized\n");
