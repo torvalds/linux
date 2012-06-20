@@ -720,6 +720,12 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	switch (priv->scan_type) {
 	case IWL_SCAN_RADIO_RESET:
 		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
+		/*
+		 * Override quiet time as firmware checks that active
+		 * dwell is >= quiet; since we use passive scan it'll
+		 * not actually be used.
+		 */
+		scan->quiet_time = cpu_to_le16(IWL_RADIO_RESET_DWELL_TIME);
 		break;
 	case IWL_SCAN_NORMAL:
 		if (priv->scan_request->n_ssids) {
