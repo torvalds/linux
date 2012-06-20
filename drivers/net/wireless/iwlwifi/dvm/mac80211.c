@@ -164,7 +164,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	hw->max_tx_aggregation_subframes = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	 */
 
-	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
 
@@ -649,7 +649,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
 
-	if (!(priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE))
+	if (!(priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE))
 		return -EACCES;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -1036,8 +1036,18 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 
 	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-		err = -EBUSY;
-		goto out;
+		/* mac80211 should not scan while ROC or ROC while scanning */
+		if (WARN_ON_ONCE(priv->scan_type != IWL_SCAN_RADIO_RESET)) {
+			err = -EBUSY;
+			goto out;
+		}
+
+		iwl_scan_cancel_timeout(priv, 100);
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+			err = -EBUSY;
+			goto out;
+		}
 	}
 
 	priv->hw_roc_channel = channel;

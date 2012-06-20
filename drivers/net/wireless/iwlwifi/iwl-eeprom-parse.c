@@ -853,6 +853,9 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 					     EEPROM_RADIO_CONFIG);
 	data->sku = iwl_eeprom_query16(eeprom, eeprom_size,
 				       EEPROM_SKU_CAP);
+	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
+		data->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
+
 	data->eeprom_version = iwl_eeprom_query16(eeprom, eeprom_size,
 						  EEPROM_VERSION);
 

@@ -51,10 +51,12 @@
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
+#include "iwl-prph.h"
 
 #include "dev.h"
 #include "calib.h"
 #include "agn.h"
+
 
 /******************************************************************************
  *
@@ -1185,9 +1187,6 @@ static void iwl_set_hw_params(struct iwl_priv *priv)
 		priv->hw_params.use_rts_for_aggregation =
 			priv->cfg->ht_params->use_rts_for_aggregation;
 
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
-		priv->hw_params.sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
-
 	/* Device-specific setup */
 	priv->lib->set_hw_params(priv);
 }
@@ -1232,20 +1231,20 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
 	u16 radio_cfg;
 
-	priv->hw_params.sku = priv->eeprom_data->sku;
+	priv->eeprom_data->sku = priv->eeprom_data->sku;
 
-	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE &&
+	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE &&
 	    !priv->cfg->ht_params) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}
 
-	if (!priv->hw_params.sku) {
+	if (!priv->eeprom_data->sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->hw_params.sku);
+	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->eeprom_data->sku);
 
 	radio_cfg = priv->eeprom_data->radio_cfg;
 
@@ -1352,6 +1351,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		trans_cfg.queue_watchdog_timeout = IWL_WATCHDOG_DISABLED;
 	trans_cfg.command_names = iwl_dvm_cmd_strings;
 
+	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
+		priv->cfg->base_params->num_of_queues);
+
 	ucode_flags = fw->ucode_capa.flags;
 
 #ifndef CONFIG_IWLWIFI_P2P
@@ -1448,7 +1450,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	iwl_set_hw_params(priv);
 
-	if (!(priv->hw_params.sku & EEPROM_SKU_CAP_IPAN_ENABLE)) {
+	if (!(priv->eeprom_data->sku & EEPROM_SKU_CAP_IPAN_ENABLE)) {
 		IWL_DEBUG_INFO(priv, "Your EEPROM disabled PAN");
 		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 		/*
@@ -2073,7 +2075,16 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
-	priv->lib->nic_config(priv);
+	/* W/A : NIC is stuck in a reset state after Early PCIe power off
+	 * (PCIe power is lost before PERST# is asserted),
+	 * causing ME FW to lose ownership and not being able to obtain it back.
+	 */
+	iwl_set_bits_mask_prph(priv->trans, APMG_PS_CTRL_REG,
+			       APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
+			       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
+
+	if (priv->lib->nic_config)
+		priv->lib->nic_config(priv);
 }
 
 static void iwl_wimax_active(struct iwl_op_mode *op_mode)
