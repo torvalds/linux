@@ -3528,6 +3528,19 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
+
+	/*
+	 * On ValleyView, the GUnit needs to signal the GT
+	 * when flip and other events complete.  So enable
+	 * all the GUnit->GT interrupts here
+	 */
+	I915_WRITE(VLV_DPFLIPSTAT, PIPEB_LINE_COMPARE_INT_EN |
+		   PIPEB_HLINE_INT_EN | PIPEB_VBLANK_INT_EN |
+		   SPRITED_FLIPDONE_INT_EN | SPRITEC_FLIPDONE_INT_EN |
+		   PLANEB_FLIPDONE_INT_EN | PIPEA_LINE_COMPARE_INT_EN |
+		   PIPEA_HLINE_INT_EN | PIPEA_VBLANK_INT_EN |
+		   SPRITEB_FLIPDONE_INT_EN | SPRITEA_FLIPDONE_INT_EN |
+		   PLANEA_FLIPDONE_INT_EN);
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
