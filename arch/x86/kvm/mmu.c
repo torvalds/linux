@@ -1050,11 +1050,12 @@ static void drop_spte(struct kvm *kvm, u64 *sptep)
 		rmap_remove(kvm, sptep);
 }
 
-static int __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp, int level)
+static bool
+__rmap_write_protect(struct kvm *kvm, unsigned long *rmapp, int level)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
-	int write_protected = 0;
+	bool write_protected = false;
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
 		BUG_ON(!(*sptep & PT_PRESENT_MASK));
@@ -1075,7 +1076,7 @@ static int __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp, int level
 			sptep = rmap_get_first(*rmapp, &iter);
 		}
 
-		write_protected = 1;
+		write_protected = true;
 	}
 
 	return write_protected;
@@ -1106,12 +1107,12 @@ void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 	}
 }
 
-static int rmap_write_protect(struct kvm *kvm, u64 gfn)
+static bool rmap_write_protect(struct kvm *kvm, u64 gfn)
 {
 	struct kvm_memory_slot *slot;
 	unsigned long *rmapp;
 	int i;
-	int write_protected = 0;
+	bool write_protected = false;
 
 	slot = gfn_to_memslot(kvm, gfn);
 
@@ -1700,7 +1701,7 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 
 	kvm_mmu_pages_init(parent, &parents, &pages);
 	while (mmu_unsync_walk(parent, &pages)) {
-		int protected = 0;
+		bool protected = false;
 
 		for_each_sp(pages, sp, parents, i)
 			protected |= rmap_write_protect(vcpu->kvm, sp->gfn);
