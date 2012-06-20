@@ -20,8 +20,6 @@
 #include <linux/nfs_page.h>
 #include <linux/module.h>
 
-#include "pnfs.h"
-
 #include "nfs4_fs.h"
 #include "internal.h"
 #include "iostat.h"
@@ -108,7 +106,7 @@ int nfs_return_empty_page(struct page *page)
 	return 0;
 }
 
-void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
+void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 			      struct inode *inode,
 			      const struct nfs_pgio_completion_ops *compl_ops)
 {
@@ -122,14 +120,6 @@ void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 	pgio->pg_bsize = NFS_SERVER(pgio->pg_inode)->rsize;
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_read_mds);
-
-void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-			  struct inode *inode,
-			  const struct nfs_pgio_completion_ops *compl_ops)
-{
-	if (!pnfs_pageio_init_read(pgio, inode, compl_ops))
-		nfs_pageio_init_read_mds(pgio, inode, compl_ops);
-}
 
 int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 		       struct page *page)
@@ -149,7 +139,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_CACHE_SIZE)
 		zero_user_segment(page, len, PAGE_CACHE_SIZE);
 
-	nfs_pageio_init_read(&pgio, inode, &nfs_async_read_completion_ops);
+	NFS_PROTO(inode)->read_pageio_init(&pgio, inode, &nfs_async_read_completion_ops);
 	nfs_pageio_add_request(&pgio, new);
 	nfs_pageio_complete(&pgio);
 	NFS_I(inode)->read_io += pgio.pg_bytes_written;
@@ -652,7 +642,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	if (ret == 0)
 		goto read_complete; /* all pages were read */
 
-	nfs_pageio_init_read(&pgio, inode, &nfs_async_read_completion_ops);
+	NFS_PROTO(inode)->read_pageio_init(&pgio, inode, &nfs_async_read_completion_ops);
 
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
 

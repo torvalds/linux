@@ -306,7 +306,7 @@ extern int nfs_initiate_read(struct rpc_clnt *clnt,
 extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 extern int nfs_generic_pagein(struct nfs_pageio_descriptor *desc,
 			      struct nfs_pgio_header *hdr);
-extern void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
+extern void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 			struct inode *inode,
 			const struct nfs_pgio_completion_ops *compl_ops);
 extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
