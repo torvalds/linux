@@ -242,6 +242,12 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 	kfree(clp->cl_implid);
 }
 
+void nfs4_free_client(struct nfs_client *clp)
+{
+	nfs4_shutdown_client(clp);
+	nfs_free_client(clp);
+}
+
 /* idr_remove_all is not needed as all id's are removed by nfs_put_client */
 void nfs_cleanup_cb_ident_idr(struct net *net)
 {
@@ -272,10 +278,6 @@ static void nfs4_destroy_server(struct nfs_server *server)
 }
 
 #else
-static void nfs4_shutdown_client(struct nfs_client *clp)
-{
-}
-
 void nfs_cleanup_cb_ident_idr(struct net *net)
 {
 }
@@ -293,11 +295,9 @@ static void pnfs_init_server(struct nfs_server *server)
 /*
  * Destroy a shared client record
  */
-static void nfs_free_client(struct nfs_client *clp)
+void nfs_free_client(struct nfs_client *clp)
 {
 	dprintk("--> nfs_free_client(%u)\n", clp->rpc_ops->version);
-
-	nfs4_shutdown_client(clp);
 
 	nfs_fscache_release_client_cookie(clp);
 
@@ -335,7 +335,7 @@ void nfs_put_client(struct nfs_client *clp)
 
 		BUG_ON(!list_empty(&clp->cl_superblocks));
 
-		nfs_free_client(clp);
+		clp->rpc_ops->free_client(clp);
 	}
 }
 EXPORT_SYMBOL_GPL(nfs_put_client);
@@ -574,7 +574,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 		if (clp) {
 			spin_unlock(&nn->nfs_client_lock);
 			if (new)
-				nfs_free_client(new);
+				new->rpc_ops->free_client(new);
 			return nfs_found_client(cl_init, clp);
 		}
 		if (new) {

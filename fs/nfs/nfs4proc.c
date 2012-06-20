@@ -6807,6 +6807,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.have_delegation = nfs4_have_delegation,
 	.return_delegation = nfs4_inode_return_delegation,
 	.init_client	= nfs4_init_client,
+	.free_client	= nfs4_free_client,
 };
 
 static const struct xattr_handler nfs4_xattr_nfs4_acl_handler = {
