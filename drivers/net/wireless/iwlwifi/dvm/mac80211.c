@@ -1411,13 +1411,11 @@ static void iwlagn_mac_remove_interface(struct ieee80211_hw *hw,
 }
 
 static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				enum nl80211_iftype newtype, bool newp2p)
+				       struct ieee80211_vif *vif,
+				       enum nl80211_iftype newtype, bool newp2p)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
-	struct iwl_rxon_context *bss_ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	struct iwl_rxon_context *tmp;
+	struct iwl_rxon_context *ctx, *tmp;
 	enum nl80211_iftype newviftype = newtype;
 	u32 interface_modes;
 	int err;
@@ -1428,6 +1426,18 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	ctx = iwl_rxon_ctx_from_vif(vif);
+
+	/*
+	 * To simplify this code, only support changes on the
+	 * BSS context. The PAN context is usually reassigned
+	 * by creating/removing P2P interfaces anyway.
+	 */
+	if (ctx->ctxid != IWL_RXON_CTX_BSS) {
+		err = -EBUSY;
+		goto out;
+	}
+
 	if (!ctx->vif || !iwl_is_ready_rf(priv)) {
 		/*
 		 * Huh? But wait ... this can maybe happen when
@@ -1437,22 +1447,9 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
+	/* Check if the switch is supported in the same context */
 	interface_modes = ctx->interface_modes | ctx->exclusive_interface_modes;
-
 	if (!(interface_modes & BIT(newtype))) {
-		err = -EBUSY;
-		goto out;
-	}
-
-	/*
-	 * Refuse a change that should be done by moving from the PAN
-	 * context to the BSS context instead, if the BSS context is
-	 * available and can support the new interface type.
-	 */
-	if (ctx->ctxid == IWL_RXON_CTX_PAN && !bss_ctx->vif &&
-	    (bss_ctx->interface_modes & BIT(newtype) ||
-	     bss_ctx->exclusive_interface_modes & BIT(newtype))) {
-		BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 		err = -EBUSY;
 		goto out;
 	}
@@ -1462,7 +1459,7 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 			if (ctx == tmp)
 				continue;
 
-			if (!tmp->vif)
+			if (!tmp->is_active)
 				continue;
 
 			/*
