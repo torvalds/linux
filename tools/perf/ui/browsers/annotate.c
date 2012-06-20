@@ -814,7 +814,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 {
 	struct disasm_line *pos, *n;
 	struct annotation *notes;
-	const size_t size = symbol__size(sym);
+	size_t size;
 	struct map_symbol ms = {
 		.map = map,
 		.sym = sym,
@@ -833,6 +833,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	if (sym == NULL)
 		return -1;
+
+	size = symbol__size(sym);
 
 	if (map->dso->annotate_warned)
 		return -1;

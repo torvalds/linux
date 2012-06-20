@@ -64,63 +64,6 @@ static struct event_symbol event_symbols[] = {
 #define PERF_EVENT_TYPE(config)		__PERF_EVENT_FIELD(config, TYPE)
 #define PERF_EVENT_ID(config)		__PERF_EVENT_FIELD(config, EVENT)
 
-static const char *sw_event_names[PERF_COUNT_SW_MAX] = {
-	"cpu-clock",
-	"task-clock",
-	"page-faults",
-	"context-switches",
-	"CPU-migrations",
-	"minor-faults",
-	"major-faults",
-	"alignment-faults",
-	"emulation-faults",
-};
-
-#define MAX_ALIASES 8
-
-static const char *hw_cache[PERF_COUNT_HW_CACHE_MAX][MAX_ALIASES] = {
- { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
- { "L1-icache",	"l1-i",		"l1i",		"L1-instruction",	},
- { "LLC",	"L2",							},
- { "dTLB",	"d-tlb",	"Data-TLB",				},
- { "iTLB",	"i-tlb",	"Instruction-TLB",			},
- { "branch",	"branches",	"bpu",		"btb",		"bpc",	},
- { "node",								},
-};
-
-static const char *hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX][MAX_ALIASES] = {
- { "load",	"loads",	"read",					},
- { "store",	"stores",	"write",				},
- { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
-};
-
-static const char *hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
-				  [MAX_ALIASES] = {
- { "refs",	"Reference",	"ops",		"access",		},
- { "misses",	"miss",							},
-};
-
-#define C(x)		PERF_COUNT_HW_CACHE_##x
-#define CACHE_READ	(1 << C(OP_READ))
-#define CACHE_WRITE	(1 << C(OP_WRITE))
-#define CACHE_PREFETCH	(1 << C(OP_PREFETCH))
-#define COP(x)		(1 << x)
-
-/*
- * cache operartion stat
- * L1I : Read and prefetch only
- * ITLB and BPU : Read-only
- */
-static unsigned long hw_cache_stat[C(MAX)] = {
- [C(L1D)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
- [C(L1I)]	= (CACHE_READ | CACHE_PREFETCH),
- [C(LL)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
- [C(DTLB)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
- [C(ITLB)]	= (CACHE_READ),
- [C(BPU)]	= (CACHE_READ),
- [C(NODE)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
-};
-
 #define for_each_subsystem(sys_dir, sys_dirent, sys_next)	       \
 	while (!readdir_r(sys_dir, &sys_dirent, &sys_next) && sys_next)	       \
 	if (sys_dirent.d_type == DT_DIR &&				       \
@@ -220,48 +163,6 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	return NULL;
 }
 
-#define TP_PATH_LEN (MAX_EVENT_LENGTH * 2 + 1)
-static const char *tracepoint_id_to_name(u64 config)
-{
-	static char buf[TP_PATH_LEN];
-	struct tracepoint_path *path;
-
-	path = tracepoint_id_to_path(config);
-	if (path) {
-		snprintf(buf, TP_PATH_LEN, "%s:%s", path->system, path->name);
-		free(path->name);
-		free(path->system);
-		free(path);
-	} else
-		snprintf(buf, TP_PATH_LEN, "%s:%s", "unknown", "unknown");
-
-	return buf;
-}
-
-static int is_cache_op_valid(u8 cache_type, u8 cache_op)
-{
-	if (hw_cache_stat[cache_type] & COP(cache_op))
-		return 1;	/* valid */
-	else
-		return 0;	/* invalid */
-}
-
-static char *event_cache_name(u8 cache_type, u8 cache_op, u8 cache_result)
-{
-	static char name[50];
-
-	if (cache_result) {
-		sprintf(name, "%s-%s-%s", hw_cache[cache_type][0],
-			hw_cache_op[cache_op][0],
-			hw_cache_result[cache_result][0]);
-	} else {
-		sprintf(name, "%s-%s", hw_cache[cache_type][0],
-			hw_cache_op[cache_op][1]);
-	}
-
-	return name;
-}
-
 const char *event_type(int type)
 {
 	switch (type) {
@@ -276,76 +177,6 @@ const char *event_type(int type)
 
 	case PERF_TYPE_HW_CACHE:
 		return "hardware-cache";
-
-	default:
-		break;
-	}
-
-	return "unknown";
-}
-
-const char *event_name(struct perf_evsel *evsel)
-{
-	u64 config = evsel->attr.config;
-	int type = evsel->attr.type;
-
-	if (type == PERF_TYPE_RAW || type == PERF_TYPE_HARDWARE) {
-		/*
- 		 * XXX minimal fix, see comment on perf_evsen__name, this static buffer
- 		 * will go away together with event_name in the next devel cycle.
- 		 */
-		static char bf[128];
-		perf_evsel__name(evsel, bf, sizeof(bf));
-		return bf;
-	}
-
-	if (evsel->name)
-		return evsel->name;
-
-	return __event_name(type, config);
-}
-
-const char *__event_name(int type, u64 config)
-{
-	static char buf[32];
-
-	if (type == PERF_TYPE_RAW) {
-		sprintf(buf, "raw 0x%" PRIx64, config);
-		return buf;
-	}
-
-	switch (type) {
-	case PERF_TYPE_HARDWARE:
-		return __perf_evsel__hw_name(config);
-
-	case PERF_TYPE_HW_CACHE: {
-		u8 cache_type, cache_op, cache_result;
-
-		cache_type   = (config >>  0) & 0xff;
-		if (cache_type > PERF_COUNT_HW_CACHE_MAX)
-			return "unknown-ext-hardware-cache-type";
-
-		cache_op     = (config >>  8) & 0xff;
-		if (cache_op > PERF_COUNT_HW_CACHE_OP_MAX)
-			return "unknown-ext-hardware-cache-op";
-
-		cache_result = (config >> 16) & 0xff;
-		if (cache_result > PERF_COUNT_HW_CACHE_RESULT_MAX)
-			return "unknown-ext-hardware-cache-result";
-
-		if (!is_cache_op_valid(cache_type, cache_op))
-			return "invalid-cache";
-
-		return event_cache_name(cache_type, cache_op, cache_result);
-	}
-
-	case PERF_TYPE_SOFTWARE:
-		if (config < PERF_COUNT_SW_MAX && sw_event_names[config])
-			return sw_event_names[config];
-		return "unknown-software";
-
-	case PERF_TYPE_TRACEPOINT:
-		return tracepoint_id_to_name(config);
 
 	default:
 		break;
@@ -375,19 +206,20 @@ static int add_event(struct list_head **_list, int *idx,
 		return -ENOMEM;
 	}
 
-	evsel->name = strdup(name);
+	if (name)
+		evsel->name = strdup(name);
 	list_add_tail(&evsel->node, list);
 	*_list = list;
 	return 0;
 }
 
-static int parse_aliases(char *str, const char *names[][MAX_ALIASES], int size)
+static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
 {
 	int i, j;
 	int n, longest = -1;
 
 	for (i = 0; i < size; i++) {
-		for (j = 0; j < MAX_ALIASES && names[i][j]; j++) {
+		for (j = 0; j < PERF_EVSEL__MAX_ALIASES && names[i][j]; j++) {
 			n = strlen(names[i][j]);
 			if (n > longest && !strncasecmp(str, names[i][j], n))
 				longest = n;
@@ -412,7 +244,7 @@ int parse_events_add_cache(struct list_head **list, int *idx,
 	 * No fallback - if we cannot get a clear cache type
 	 * then bail out:
 	 */
-	cache_type = parse_aliases(type, hw_cache,
+	cache_type = parse_aliases(type, perf_evsel__hw_cache,
 				   PERF_COUNT_HW_CACHE_MAX);
 	if (cache_type == -1)
 		return -EINVAL;
@@ -425,18 +257,18 @@ int parse_events_add_cache(struct list_head **list, int *idx,
 		snprintf(name + n, MAX_NAME_LEN - n, "-%s\n", str);
 
 		if (cache_op == -1) {
-			cache_op = parse_aliases(str, hw_cache_op,
+			cache_op = parse_aliases(str, perf_evsel__hw_cache_op,
 						 PERF_COUNT_HW_CACHE_OP_MAX);
 			if (cache_op >= 0) {
-				if (!is_cache_op_valid(cache_type, cache_op))
+				if (!perf_evsel__is_cache_op_valid(cache_type, cache_op))
 					return -EINVAL;
 				continue;
 			}
 		}
 
 		if (cache_result == -1) {
-			cache_result = parse_aliases(str, hw_cache_result,
-						PERF_COUNT_HW_CACHE_RESULT_MAX);
+			cache_result = parse_aliases(str, perf_evsel__hw_cache_result,
+						     PERF_COUNT_HW_CACHE_RESULT_MAX);
 			if (cache_result >= 0)
 				continue;
 		}
@@ -668,8 +500,7 @@ int parse_events_add_numeric(struct list_head **list, int *idx,
 	    config_attr(&attr, head_config, 1))
 		return -EINVAL;
 
-	return add_event(list, idx, &attr,
-			 (char *) __event_name(type, config));
+	return add_event(list, idx, &attr, NULL);
 }
 
 static int parse_events__is_name_term(struct parse_events__term *term)
@@ -677,8 +508,7 @@ static int parse_events__is_name_term(struct parse_events__term *term)
 	return term->type_term == PARSE_EVENTS__TERM_TYPE_NAME;
 }
 
-static char *pmu_event_name(struct perf_event_attr *attr,
-			    struct list_head *head_terms)
+static char *pmu_event_name(struct list_head *head_terms)
 {
 	struct parse_events__term *term;
 
@@ -686,7 +516,7 @@ static char *pmu_event_name(struct perf_event_attr *attr,
 		if (parse_events__is_name_term(term))
 			return term->val.str;
 
-	return (char *) __event_name(PERF_TYPE_RAW, attr->config);
+	return NULL;
 }
 
 int parse_events_add_pmu(struct list_head **list, int *idx,
@@ -714,7 +544,7 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 		return -EINVAL;
 
 	return add_event(list, idx, &attr,
-			 pmu_event_name(&attr, head_config));
+			 pmu_event_name(head_config));
 }
 
 void parse_events_update_lists(struct list_head *list_event,
@@ -1010,16 +840,17 @@ void print_events_type(u8 type)
 int print_hwcache_events(const char *event_glob)
 {
 	unsigned int type, op, i, printed = 0;
+	char name[64];
 
 	for (type = 0; type < PERF_COUNT_HW_CACHE_MAX; type++) {
 		for (op = 0; op < PERF_COUNT_HW_CACHE_OP_MAX; op++) {
 			/* skip invalid cache type */
-			if (!is_cache_op_valid(type, op))
+			if (!perf_evsel__is_cache_op_valid(type, op))
 				continue;
 
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
-				char *name = event_cache_name(type, op, i);
-
+				__perf_evsel__hw_cache_type_op_res_name(type, op, i,
+									name, sizeof(name));
 				if (event_glob != NULL && !strglobmatch(name, event_glob))
 					continue;
 

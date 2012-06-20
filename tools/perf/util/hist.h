@@ -47,6 +47,7 @@ enum hist_column {
 	HISTC_SYMBOL_TO,
 	HISTC_DSO_FROM,
 	HISTC_DSO_TO,
+	HISTC_SRCLINE,
 	HISTC_NR_COLS, /* Last entry */
 };
 

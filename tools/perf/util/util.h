@@ -264,4 +264,6 @@ bool is_power_of_2(unsigned long n)
 
 size_t hex_width(u64 v);
 
+char *rtrim(char *s);
+
 #endif

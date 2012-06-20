@@ -1601,7 +1601,7 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool,
 
 	if (thread == NULL) {
 		pr_debug("problem processing %s event, skipping it.\n",
-			 evsel->name);
+			 perf_evsel__name(evsel));
 		return -1;
 	}
 

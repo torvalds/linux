@@ -137,10 +137,11 @@ static const char *output_field2str(enum perf_output_field field)
 
 #define PRINT_FIELD(x)  (output[attr->type].fields & PERF_OUTPUT_##x)
 
-static int perf_event_attr__check_stype(struct perf_event_attr *attr,
-				  u64 sample_type, const char *sample_msg,
-				  enum perf_output_field field)
+static int perf_evsel__check_stype(struct perf_evsel *evsel,
+				   u64 sample_type, const char *sample_msg,
+				   enum perf_output_field field)
 {
+	struct perf_event_attr *attr = &evsel->attr;
 	int type = attr->type;
 	const char *evname;
 
@@ -148,7 +149,7 @@ static int perf_event_attr__check_stype(struct perf_event_attr *attr,
 		return 0;
 
 	if (output[type].user_set) {
-		evname = __event_name(attr->type, attr->config);
+		evname = perf_evsel__name(evsel);
 		pr_err("Samples for '%s' event do not have %s attribute set. "
 		       "Cannot print '%s' field.\n",
 		       evname, sample_msg, output_field2str(field));
@@ -157,7 +158,7 @@ static int perf_event_attr__check_stype(struct perf_event_attr *attr,
 
 	/* user did not ask for it explicitly so remove from the default list */
 	output[type].fields &= ~field;
-	evname = __event_name(attr->type, attr->config);
+	evname = perf_evsel__name(evsel);
 	pr_debug("Samples for '%s' event do not have %s attribute set. "
 		 "Skipping '%s' field.\n",
 		 evname, sample_msg, output_field2str(field));
@@ -175,8 +176,8 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		return -EINVAL;
 
 	if (PRINT_FIELD(IP)) {
-		if (perf_event_attr__check_stype(attr, PERF_SAMPLE_IP, "IP",
-					   PERF_OUTPUT_IP))
+		if (perf_evsel__check_stype(evsel, PERF_SAMPLE_IP, "IP",
+					    PERF_OUTPUT_IP))
 			return -EINVAL;
 
 		if (!no_callchain &&
@@ -185,8 +186,8 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	}
 
 	if (PRINT_FIELD(ADDR) &&
-		perf_event_attr__check_stype(attr, PERF_SAMPLE_ADDR, "ADDR",
-				       PERF_OUTPUT_ADDR))
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_ADDR, "ADDR",
+					PERF_OUTPUT_ADDR))
 		return -EINVAL;
 
 	if (PRINT_FIELD(SYM) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR)) {
@@ -208,18 +209,18 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	}
 
 	if ((PRINT_FIELD(PID) || PRINT_FIELD(TID)) &&
-		perf_event_attr__check_stype(attr, PERF_SAMPLE_TID, "TID",
-				       PERF_OUTPUT_TID|PERF_OUTPUT_PID))
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID",
+					PERF_OUTPUT_TID|PERF_OUTPUT_PID))
 		return -EINVAL;
 
 	if (PRINT_FIELD(TIME) &&
-		perf_event_attr__check_stype(attr, PERF_SAMPLE_TIME, "TIME",
-				       PERF_OUTPUT_TIME))
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_TIME, "TIME",
+					PERF_OUTPUT_TIME))
 		return -EINVAL;
 
 	if (PRINT_FIELD(CPU) &&
-		perf_event_attr__check_stype(attr, PERF_SAMPLE_CPU, "CPU",
-				       PERF_OUTPUT_CPU))
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_CPU, "CPU",
+					PERF_OUTPUT_CPU))
 		return -EINVAL;
 
 	return 0;
@@ -258,9 +259,10 @@ static int perf_session__check_output_opt(struct perf_session *session)
 
 static void print_sample_start(struct perf_sample *sample,
 			       struct thread *thread,
-			       struct perf_event_attr *attr)
+			       struct perf_evsel *evsel)
 {
 	int type;
+	struct perf_event_attr *attr = &evsel->attr;
 	struct event_format *event;
 	const char *evname = NULL;
 	unsigned long secs;
@@ -305,7 +307,7 @@ static void print_sample_start(struct perf_sample *sample,
 			if (event)
 				evname = event->name;
 		} else
-			evname = __event_name(attr->type, attr->config);
+			evname = perf_evsel__name(evsel);
 
 		printf("%s: ", evname ? evname : "[unknown]");
 	}
@@ -387,7 +389,7 @@ static void print_sample_bts(union perf_event *event,
 			printf(" ");
 		else
 			printf("\n");
-		perf_event__print_ip(event, sample, machine, evsel,
+		perf_event__print_ip(event, sample, machine,
 				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
 				     PRINT_FIELD(SYMOFFSET));
 	}
@@ -412,7 +414,7 @@ static void process_event(union perf_event *event __unused,
 	if (output[attr->type].fields == 0)
 		return;
 
-	print_sample_start(sample, thread, attr);
+	print_sample_start(sample, thread, evsel);
 
 	if (is_bts_event(attr)) {
 		print_sample_bts(event, sample, evsel, machine, thread);
@@ -431,7 +433,7 @@ static void process_event(union perf_event *event __unused,
 			printf(" ");
 		else
 			printf("\n");
-		perf_event__print_ip(event, sample, machine, evsel,
+		perf_event__print_ip(event, sample, machine,
 				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
 				     PRINT_FIELD(SYMOFFSET));
 	}
