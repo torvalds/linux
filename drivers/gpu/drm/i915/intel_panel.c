@@ -56,7 +56,7 @@ intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 void
 intel_pch_panel_fitting(struct drm_device *dev,
 			int fitting_mode,
-			struct drm_display_mode *mode,
+			const struct drm_display_mode *mode,
 			struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;

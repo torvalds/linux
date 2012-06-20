@@ -657,6 +657,8 @@ typedef struct drm_i915_private {
 		/** PPGTT used for aliasing the PPGTT with the GTT */
 		struct i915_hw_ppgtt *aliasing_ppgtt;
 
+		u32 *l3_remap_info;
+
 		struct shrinker inactive_shrinker;
 
 		/**
@@ -817,6 +819,8 @@ typedef struct drm_i915_private {
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
+
+	struct work_struct parity_error_work;
 } drm_i915_private_t;
 
 /* Iterate over initialised rings */
@@ -1237,6 +1241,8 @@ int i915_gem_get_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
+int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_init_object(struct drm_gem_object *obj);
 int __must_check i915_gem_flush_ring(struct intel_ring_buffer *ring,
@@ -1315,6 +1321,7 @@ int __must_check i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
+void i915_gem_l3_remap(struct drm_device *dev);
 void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_init_ppgtt(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
@@ -1323,8 +1330,8 @@ int __must_check i915_gem_idle(struct drm_device *dev);
 int __must_check i915_add_request(struct intel_ring_buffer *ring,
 				  struct drm_file *file,
 				  struct drm_i915_gem_request *request);
-int __must_check i915_wait_request(struct intel_ring_buffer *ring,
-				   uint32_t seqno);
+int __must_check i915_wait_seqno(struct intel_ring_buffer *ring,
+				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,

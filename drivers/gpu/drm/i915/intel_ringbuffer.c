@@ -438,6 +438,9 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	if (INTEL_INFO(dev)->gen >= 6)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
+	if (IS_IVYBRIDGE(dev))
+		I915_WRITE_IMR(ring, ~GEN6_RENDER_L3_PARITY_ERROR);
+
 	return ret;
 }
 
@@ -825,7 +828,11 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
-		I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
+		if (IS_IVYBRIDGE(dev) && ring->id == RCS)
+			I915_WRITE_IMR(ring, ~(ring->irq_enable_mask |
+						GEN6_RENDER_L3_PARITY_ERROR));
+		else
+			I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
 		dev_priv->gt_irq_mask &= ~ring->irq_enable_mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 		POSTING_READ(GTIMR);
@@ -844,7 +851,10 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
-		I915_WRITE_IMR(ring, ~0);
+		if (IS_IVYBRIDGE(dev) && ring->id == RCS)
+			I915_WRITE_IMR(ring, ~GEN6_RENDER_L3_PARITY_ERROR);
+		else
+			I915_WRITE_IMR(ring, ~0);
 		dev_priv->gt_irq_mask |= ring->irq_enable_mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 		POSTING_READ(GTIMR);
@@ -1100,7 +1110,7 @@ static int intel_ring_wait_seqno(struct intel_ring_buffer *ring, u32 seqno)
 	was_interruptible = dev_priv->mm.interruptible;
 	dev_priv->mm.interruptible = false;
 
-	ret = i915_wait_request(ring, seqno);
+	ret = i915_wait_seqno(ring, seqno);
 
 	dev_priv->mm.interruptible = was_interruptible;
 	if (!ret)
