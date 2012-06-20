@@ -20,38 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-************************************************************************************************************************
-*                                                  NAND BSP for sun
-*                                 NAND hardware registers definition and BSP interfaces
-*
-*                             Copyright(C), 2006-2008, uLIVE
-*											       All Rights Reserved
-*
-* File Name : nfc.h
-*
-* Author : Gary.Wang
-*
-* Version : 1.1.0
-*
-* Date : 2008.03.25
-*
-* Description : This file provides some definition of NAND's hardware registers and BSP interfaces. 
-*             This file is very similar to file "nand.inc"; the two files should be modified at the 
-*             same time to keep coherence of information.
-* 
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* Gary.Wang      2008.03.25       1.1.0        build the file
-* penggang       2009.09.09       1.1.1        modify the file
-*
-************************************************************************************************************************
-*/
 #ifndef _NFC_H_
 #define _NFC_H_                   
 

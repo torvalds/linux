@@ -20,17 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*********************************************************************************
-*                                       NAND FLASH DRIVER
-*                                (c) Copyright 2008, SoftWinners Co,Ld.
-*                                       All Right Reserved
-*file : mapping.c
-*description : this file create a interface to mange map table:
-*history :
-*    v0.1  2008-04-09 Richard
-*            support all kinds of access way of block map and page map.
-**********************************************************************************/
-
 #include "../include/nand_logic.h"
 
 extern struct __NandDriverGlobal_t     NandDriverInfo;

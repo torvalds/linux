@@ -20,38 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-************************************************************************************************************************
-*                                                     suni define
-*                            suni CPU hardware registers, memory, interrupts, ... define
-*
-*                             Copyright(C), 2009-2010, uLive Microelectronic Co., Ltd.
-*											       All Rights Reserved
-*
-* File Name : sunii.h
-*
-* Author : kevin.z
-*
-* Version : 1.1.0
-*
-* Date : 2009-9-7 10:53
-*
-* Description : This file provides some defination of suni's hardware registers, memory, interrupt
-*             and so on. This file is very similar to file "sunii.inc"; the two files should be
-*             modified at the same time to keep coherence of information.
-*
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* kevin.z      2009-9-7 10:53    1.0.0        build the file
-*
-************************************************************************************************************************
-*/
-
 #ifndef  __SUNII_H_
 #define  __SUNII_H_
 

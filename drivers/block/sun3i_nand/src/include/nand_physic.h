@@ -20,37 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-************************************************************************************************************************
-*                                                      eNand
-*                                     Nand flash driver physical module define
-*
-*                             Copyright(C), 2006-2008, SoftWinners Microelectronic Co., Ltd.
-*											       All Rights Reserved
-*
-* File Name : nand_physic.h
-*
-* Author : Kevin.z
-*
-* Version : v0.1
-*
-* Date : 2008.03.25
-*
-* Description : This file define the function __s32erface and some data structure export for
-*               the physical module.
-*
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* Kevin.z         2008.03.25      0.1          build the file
-* penggang        2009.09.09      0.2          modify the file
-*
-************************************************************************************************************************
-*/
 #ifndef __NAND_PHYSIC_H__
 #define __NAND_PHYSIC_H__
 

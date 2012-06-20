@@ -20,21 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*********************************************************************************
-*                                   NAND FLASH DRIVER
-*                       (c) Copyright 2008, SoftWinners Co,Ld.
-*                                   All Right Reserved
-*file : merge.c
-*description : this file create a interface to make room for new data writing. three block type:
-*              data block - data was arrange must be  in page order;
-*              log block  -  data was arranged is not necessary in page order.
-*              free block - totally clear physical block.
-*              only log block can be programmed.so if log block  is used up, merge is necessary.
-*history :
-*    v0.1  2008-04-07 Richard
-*            support three methods to make free physic block or free physic page.
-**********************************************************************************/
-
 #include "../include/nand_logic.h"
 
 extern struct __NandDriverGlobal_t     NandDriverInfo;

@@ -20,35 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-************************************************************************************************************************
-*                                                      eNand
-*                                         Nand flash driver logic manage module
-*
-*                             Copyright(C), 2008-2009, SoftWinners Microelectronic Co., Ltd.
-*											       All Rights Reserved
-*
-* File Name : logic_cache.c
-*
-* Author : Richard.x
-*
-* Version : v0.1
-*
-* Date : 2008.03.29
-*
-* Description : This file descripe the cache read / cache write nand interface.
-*
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* Richard.x         2008.03.29      0.1          build the file
-*
-************************************************************************************************************************
-*/
 #include <linux/module.h>
 #include "../include/nand_logic.h"
 

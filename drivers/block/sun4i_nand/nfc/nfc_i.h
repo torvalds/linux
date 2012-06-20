@@ -20,20 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-*********************************************************************************************************
-*											        eBIOS
-*						                the Base Input Output Subrutines
-*									           dma controller sub system
-*
-*						        (c) Copyright 2006-2007, RICHARD,China
-*											All	Rights Reserved
-*
-* File    : nfc_i.h
-* By      : Richard.x
-* Version : V1.00
-*********************************************************************************************************
-*/
 #ifndef	_NFC_I_H_
 #define	_NFC_I_H_
 

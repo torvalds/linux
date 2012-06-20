@@ -20,36 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-************************************************************************************************************************
-*                                                      eNand
-*                                     Nand flash driver logic control module define
-*
-*                             Copyright(C), 2008-2009, SoftWinners Microelectronic Co., Ltd.
-*											       All Rights Reserved
-*
-* File Name : nand_logic.h
-*
-* Author : Kevin.z
-*
-* Version : v0.1
-*
-* Date : 2008.03.25
-*
-* Description : This file define the function interface and some data structure export
-*               for the logical control module.
-*
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* Kevin.z         2008.03.25      0.1          build the file
-*
-************************************************************************************************************************
-*/
 #ifndef __NAND_LOGIC_H__
 #define __NAND_LOGIC_H__
 

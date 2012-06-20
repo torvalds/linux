@@ -20,20 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-*********************************************************************************************************
-*											        eBIOS
-*						            the Easy Portable/Player Develop Kits
-*									           dma sub system
-*
-*						        (c) Copyright 2006-2008, David China
-*											All	Rights Reserved
-*
-* File    : dma_for_nand.c
-* By      : Richard
-* Version : V1.00
-*********************************************************************************************************
-*/
 //#include "nand_oal.h"
 #include "nand_private.h"
 #include <mach/dma.h>

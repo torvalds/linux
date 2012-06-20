@@ -20,28 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
- *================================================================================================
- *
- *                                            Aone project ---- tools
- *
- *                             Copyright(C), 2006-2008, Microelectronic Co., Ltd.
- *											       All Rights Reserved
- *
- * File Name :  MBR.h
- *
- * Author : javen
- *
- * Version : 1.0
- *
- * Date : 2008.12.02
- *
- * Description :
- *
- * History :
- *================================================================================================
-*/
-
 #ifndef    __MBR_H__
 #define    __MBR_H__
 

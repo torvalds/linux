@@ -20,37 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-************************************************************************************************************************
-*                                                      eNand
-*                                           Nand flash driver format module
-*
-*                             Copyright(C), 2008-2009, SoftWinners Microelectronic Co., Ltd.
-*                                                  All Rights Reserved
-*
-* File Name : nand_format.c
-*
-* Author : Kevin.z
-*
-* Version : v0.1
-*
-* Date : 2008.03.28
-*
-* Description : This file create the logical-physical mapping information on the nand flash.
-*               If the mapping information is exsist already, check and repair it;
-*               If there is none mapping information, create it.
-*
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* Kevin.z         2008.03.28      0.1          build the file
-*
-************************************************************************************************************************
-*/
 #include "../include/nand_format.h"
 #include "../include/nand_logic.h"
 

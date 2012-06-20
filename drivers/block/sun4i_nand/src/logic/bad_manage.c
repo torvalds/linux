@@ -20,36 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-************************************************************************************************************************
-*                                                      eNand
-*                                         Nand flash driver logic manage module
-*
-*                             Copyright(C), 2008-2009, SoftWinners Microelectronic Co., Ltd.
-*											       All Rights Reserved
-*
-* File Name : bad_manage.c
-*
-* Author : Kevin.z
-*
-* Version : v0.1
-*
-* Date : 2008.04.07
-*
-* Description : This file is the bad block processing module, process bad block in different
-*               cases of bad block produced.
-*
-* Others : None at present.
-*
-*
-* History :
-*
-*  <Author>        <time>       <version>      <description>
-*
-* Kevin.z         2008.04.07      0.1          build the file
-*
-************************************************************************************************************************
-*/
 #include "../include/nand_logic.h"
 
 extern struct __NandDriverGlobal_t     NandDriverInfo;

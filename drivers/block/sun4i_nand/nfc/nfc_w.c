@@ -20,17 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*********************************************************************************
-*                                           NAND FLASH DRIVER
-*								(c) Copyright 2008, SoftWinners Co,Ld.
-*                                          All Right Reserved
-*file : nfc_w.c
-*description : this file provides some physic functions for upper nand driver layer.
-*history :
-*	v0.1  2008-03-26 Richard
-*	        offer direct accsee method to nand flash control machine.
-*   v0.2  2009.09.09 penggang
-**********************************************************************************/
 #include "nfc_i.h"
 
 extern __u32 pagesize;

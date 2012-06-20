@@ -20,20 +20,6 @@
  * MA 02111-1307 USA
  */
 
-/*
-*********************************************************************************************************
-*											        eBIOS
-*						            the Easy Portable/Player Develop Kits
-*									           dma sub system
-*
-*						        (c) Copyright 2006-2008, David China
-*											All	Rights Reserved
-*
-* File    : clk_for_nand.c
-* By      : Richard
-* Version : V1.00
-*********************************************************************************************************
-*/
 #include "nand_private.h"
 
 extern struct __NandDriverGlobal_t NandDriverInfo;
