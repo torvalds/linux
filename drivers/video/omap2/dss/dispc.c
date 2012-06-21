@@ -2652,9 +2652,16 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 }
 
 static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
-		int hfp, int hbp, int vsw, int vfp, int vbp)
+		int hfp, int hbp, int vsw, int vfp, int vbp,
+		enum omap_dss_signal_level vsync_level,
+		enum omap_dss_signal_level hsync_level,
+		enum omap_dss_signal_edge data_pclk_edge,
+		enum omap_dss_signal_level de_level,
+		enum omap_dss_signal_edge sync_pclk_edge)
+
 {
-	u32 timing_h, timing_v;
+	u32 timing_h, timing_v, l;
+	bool onoff, rf, ipc;
 
 	if (cpu_is_omap24xx() || omap_rev() < OMAP3430_REV_ES3_0) {
 		timing_h = FLD_VAL(hsw-1, 5, 0) | FLD_VAL(hfp-1, 15, 8) |
@@ -2672,6 +2679,44 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 
 	dispc_write_reg(DISPC_TIMING_H(channel), timing_h);
 	dispc_write_reg(DISPC_TIMING_V(channel), timing_v);
+
+	switch (data_pclk_edge) {
+	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
+		ipc = false;
+		break;
+	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
+		ipc = true;
+		break;
+	case OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES:
+	default:
+		BUG();
+	}
+
+	switch (sync_pclk_edge) {
+	case OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES:
+		onoff = false;
+		rf = false;
+		break;
+	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
+		onoff = true;
+		rf = false;
+		break;
+	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
+		onoff = true;
+		rf = true;
+		break;
+	default:
+		BUG();
+	};
+
+	l = dispc_read_reg(DISPC_POL_FREQ(channel));
+	l |= FLD_VAL(onoff, 17, 17);
+	l |= FLD_VAL(rf, 16, 16);
+	l |= FLD_VAL(de_level, 15, 15);
+	l |= FLD_VAL(ipc, 14, 14);
+	l |= FLD_VAL(hsync_level, 13, 13);
+	l |= FLD_VAL(vsync_level, 12, 12);
+	dispc_write_reg(DISPC_POL_FREQ(channel), l);
 }
 
 /* change name to mode? */
@@ -2691,7 +2736,8 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 
 	if (dispc_mgr_is_lcd(channel)) {
 		_dispc_mgr_set_lcd_timings(channel, t.hsw, t.hfp, t.hbp, t.vsw,
-				t.vfp, t.vbp);
+				t.vfp, t.vbp, t.vsync_level, t.hsync_level,
+				t.data_pclk_edge, t.de_level, t.sync_pclk_edge);
 
 		xtot = t.x_res + t.hfp + t.hsw + t.hbp;
 		ytot = t.y_res + t.vfp + t.vsw + t.vbp;
@@ -2702,6 +2748,9 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 		DSSDBG("pck %u\n", timings->pixel_clock);
 		DSSDBG("hsw %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
 			t.hsw, t.hfp, t.hbp, t.vsw, t.vfp, t.vbp);
+		DSSDBG("vsync_level %d hsync_level %d data_pclk_edge %d de_level %d sync_pclk_edge %d\n",
+			t.vsync_level, t.hsync_level, t.data_pclk_edge,
+			t.de_level, t.sync_pclk_edge);
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
