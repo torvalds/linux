@@ -31,62 +31,62 @@
 			TPS65910_SLEEP_CONTROL_EXT_INPUT_EN3 |		\
 			TPS65911_SLEEP_CONTROL_EXT_INPUT_SLEEP)
 
-/* supported VIO voltages in millivolts */
-static const u16 VIO_VSEL_table[] = {
-	1500, 1800, 2500, 3300,
+/* supported VIO voltages in microvolts */
+static const unsigned int VIO_VSEL_table[] = {
+	1500000, 1800000, 2500000, 3300000,
 };
 
 /* VSEL tables for TPS65910 specific LDOs and dcdc's */
 
-/* supported VDD3 voltages in millivolts */
-static const u16 VDD3_VSEL_table[] = {
-	5000,
+/* supported VDD3 voltages in microvolts */
+static const unsigned int VDD3_VSEL_table[] = {
+	5000000,
 };
 
-/* supported VDIG1 voltages in millivolts */
-static const u16 VDIG1_VSEL_table[] = {
-	1200, 1500, 1800, 2700,
+/* supported VDIG1 voltages in microvolts */
+static const unsigned int VDIG1_VSEL_table[] = {
+	1200000, 1500000, 1800000, 2700000,
 };
 
-/* supported VDIG2 voltages in millivolts */
-static const u16 VDIG2_VSEL_table[] = {
-	1000, 1100, 1200, 1800,
+/* supported VDIG2 voltages in microvolts */
+static const unsigned int VDIG2_VSEL_table[] = {
+	1000000, 1100000, 1200000, 1800000,
 };
 
-/* supported VPLL voltages in millivolts */
-static const u16 VPLL_VSEL_table[] = {
-	1000, 1100, 1800, 2500,
+/* supported VPLL voltages in microvolts */
+static const unsigned int VPLL_VSEL_table[] = {
+	1000000, 1100000, 1800000, 2500000,
 };
 
-/* supported VDAC voltages in millivolts */
-static const u16 VDAC_VSEL_table[] = {
-	1800, 2600, 2800, 2850,
+/* supported VDAC voltages in microvolts */
+static const unsigned int VDAC_VSEL_table[] = {
+	1800000, 2600000, 2800000, 2850000,
 };
 
-/* supported VAUX1 voltages in millivolts */
-static const u16 VAUX1_VSEL_table[] = {
-	1800, 2500, 2800, 2850,
+/* supported VAUX1 voltages in microvolts */
+static const unsigned int VAUX1_VSEL_table[] = {
+	1800000, 2500000, 2800000, 2850000,
 };
 
-/* supported VAUX2 voltages in millivolts */
-static const u16 VAUX2_VSEL_table[] = {
-	1800, 2800, 2900, 3300,
+/* supported VAUX2 voltages in microvolts */
+static const unsigned int VAUX2_VSEL_table[] = {
+	1800000, 2800000, 2900000, 3300000,
 };
 
-/* supported VAUX33 voltages in millivolts */
-static const u16 VAUX33_VSEL_table[] = {
-	1800, 2000, 2800, 3300,
+/* supported VAUX33 voltages in microvolts */
+static const unsigned int VAUX33_VSEL_table[] = {
+	1800000, 2000000, 2800000, 3300000,
 };
 
-/* supported VMMC voltages in millivolts */
-static const u16 VMMC_VSEL_table[] = {
-	1800, 2800, 3000, 3300,
+/* supported VMMC voltages in microvolts */
+static const unsigned int VMMC_VSEL_table[] = {
+	1800000, 2800000, 3000000, 3300000,
 };
 
 struct tps_info {
 	const char *name;
 	u8 n_voltages;
-	const u16 *voltage_table;
+	const unsigned int *voltage_table;
 	int enable_time_us;
 };
 
@@ -559,7 +559,7 @@ static int tps65910_get_voltage_sel(struct regulator_dev *dev)
 
 static int tps65910_get_voltage_vdd3(struct regulator_dev *dev)
 {
-	return 5 * 1000 * 1000;
+	return dev->desc->volt_table[0];
 }
 
 static int tps65911_get_voltage_sel(struct regulator_dev *dev)
@@ -718,23 +718,6 @@ static int tps65910_list_voltage_dcdc(struct regulator_dev *dev,
 	return  volt * 100 * mult;
 }
 
-static int tps65910_list_voltage(struct regulator_dev *dev,
-					unsigned selector)
-{
-	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
-	int id = rdev_get_id(dev), voltage;
-
-	if (id < TPS65910_REG_VIO || id > TPS65910_REG_VMMC)
-		return -EINVAL;
-
-	if (selector >= pmic->info[id]->n_voltages)
-		return -EINVAL;
-	else
-		voltage = pmic->info[id]->voltage_table[selector] * 1000;
-
-	return voltage;
-}
-
 static int tps65911_list_voltage(struct regulator_dev *dev, unsigned selector)
 {
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
@@ -766,7 +749,7 @@ static int tps65911_list_voltage(struct regulator_dev *dev, unsigned selector)
 		step_mv = 100;
 		break;
 	case TPS65910_REG_VIO:
-		return pmic->info[id]->voltage_table[selector] * 1000;
+		return pmic->info[id]->voltage_table[selector];
 	default:
 		return -EINVAL;
 	}
@@ -796,7 +779,7 @@ static struct regulator_ops tps65910_ops_vdd3 = {
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65910_get_voltage_vdd3,
-	.list_voltage		= tps65910_list_voltage,
+	.list_voltage		= regulator_list_voltage_table,
 };
 
 static struct regulator_ops tps65910_ops = {
@@ -808,7 +791,7 @@ static struct regulator_ops tps65910_ops = {
 	.get_mode		= tps65910_get_mode,
 	.get_voltage_sel	= tps65910_get_voltage_sel,
 	.set_voltage_sel	= tps65910_set_voltage_sel,
-	.list_voltage		= tps65910_list_voltage,
+	.list_voltage		= regulator_list_voltage_table,
 };
 
 static struct regulator_ops tps65911_ops = {
@@ -1165,15 +1148,18 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		} else if (i == TPS65910_REG_VDD3) {
 			if (tps65910_chip_id(tps65910) == TPS65910) {
 				pmic->desc[i].ops = &tps65910_ops_vdd3;
+				pmic->desc[i].volt_table = info->voltage_table;
 			} else {
 				pmic->desc[i].ops = &tps65910_ops_dcdc;
 				pmic->desc[i].ramp_delay = 5000;
 			}
 		} else {
-			if (tps65910_chip_id(tps65910) == TPS65910)
+			if (tps65910_chip_id(tps65910) == TPS65910) {
 				pmic->desc[i].ops = &tps65910_ops;
-			else
+				pmic->desc[i].volt_table = info->voltage_table;
+			} else {
 				pmic->desc[i].ops = &tps65911_ops;
+			}
 		}
 
 		err = tps65910_set_ext_sleep_config(pmic, i,
