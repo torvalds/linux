@@ -261,13 +261,8 @@ static void ceph_sock_state_change(struct sock *sk)
 	case TCP_CLOSE_WAIT:
 		dout("%s TCP_CLOSE_WAIT\n", __func__);
 		con_sock_state_closing(con);
-		if (test_and_set_bit(SOCK_CLOSED, &con->flags) == 0) {
-			if (test_bit(CONNECTING, &con->state))
-				con->error_msg = "connection failed";
-			else
-				con->error_msg = "socket closed";
+		if (!test_and_set_bit(SOCK_CLOSED, &con->flags))
 			queue_con(con);
-		}
 		break;
 	case TCP_ESTABLISHED:
 		dout("%s TCP_ESTABLISHED\n", __func__);
@@ -2187,6 +2182,14 @@ static void con_work(struct work_struct *work)
 
 	mutex_lock(&con->mutex);
 restart:
+	if (test_and_clear_bit(SOCK_CLOSED, &con->flags)) {
+		if (test_bit(CONNECTING, &con->state))
+			con->error_msg = "connection failed";
+		else
+			con->error_msg = "socket closed";
+		goto fault;
+	}
+
 	if (test_and_clear_bit(BACKOFF, &con->flags)) {
 		dout("con_work %p backing off\n", con);
 		if (queue_delayed_work(ceph_msgr_wq, &con->work,
@@ -2215,9 +2218,6 @@ restart:
 		dout("con_work OPENING\n");
 		con_close_socket(con);
 	}
-
-	if (test_and_clear_bit(SOCK_CLOSED, &con->flags))
-		goto fault;
 
 	ret = try_read(con);
 	if (ret == -EAGAIN)
