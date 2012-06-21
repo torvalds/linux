@@ -415,6 +415,8 @@ static const struct bin_table bin_net_ipv4_table[] = {
 	{ CTL_INT,	NET_IPV4_IPFRAG_SECRET_INTERVAL,	"ipfrag_secret_interval" },
 	/* NET_IPV4_IPFRAG_MAX_DIST "ipfrag_max_dist" no longer used */
 
+	{ CTL_INT,	NET_IPV4_EARLY_DEMUX,			"ip_early_demux" },
+
 	{ CTL_INT,	2088 /* NET_IPQ_QMAX */,		"ip_queue_maxlen" },
 
 	/* NET_TCP_DEFAULT_WIN_SCALE unused */

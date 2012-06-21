@@ -313,6 +313,8 @@ drop:
 	return true;
 }
 
+int sysctl_ip_early_demux __read_mostly = 1;
+
 static int ip_rcv_finish(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
@@ -323,16 +325,18 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	 *	how the packet travels inside Linux networking.
 	 */
 	if (skb_dst(skb) == NULL) {
-		const struct net_protocol *ipprot;
-		int protocol = iph->protocol;
-		int err;
+		int err = -ENOENT;
 
-		rcu_read_lock();
-		ipprot = rcu_dereference(inet_protos[protocol]);
-		err = -ENOENT;
-		if (ipprot && ipprot->early_demux)
-			err = ipprot->early_demux(skb);
-		rcu_read_unlock();
+		if (sysctl_ip_early_demux) {
+			const struct net_protocol *ipprot;
+			int protocol = iph->protocol;
+
+			rcu_read_lock();
+			ipprot = rcu_dereference(inet_protos[protocol]);
+			if (ipprot && ipprot->early_demux)
+				err = ipprot->early_demux(skb);
+			rcu_read_unlock();
+		}
 
 		if (err) {
 			err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
