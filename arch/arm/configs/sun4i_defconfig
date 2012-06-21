@@ -277,7 +277,7 @@ CONFIG_ARCH_SUN4I=y
 CONFIG_SW_DEBUG_UART=0
 
 #
-# Allwinner A1x options
+# Allwinner A10 options
 #
 # CONFIG_TEGRA_FPGA is not set
 
@@ -963,6 +963,7 @@ CONFIG_I2C_BOARDINFO=y
 CONFIG_I2C_COMPAT=y
 CONFIG_I2C_CHARDEV=y
 CONFIG_I2C_HELPER_AUTO=y
+CONFIG_I2C_ALGOBIT=m
 
 #
 # I2C Hardware Bus support
@@ -1146,7 +1147,8 @@ CONFIG_PA_CONFIG=y
 #
 # Graphics support
 #
-# CONFIG_DRM is not set
+CONFIG_DRM=m
+CONFIG_DRM_MALI=m
 # CONFIG_ION is not set
 CONFIG_MALI=m
 # CONFIG_VGASTATE is not set
@@ -1175,6 +1177,7 @@ CONFIG_FB=y
 # Frame buffer hardware drivers
 #
 CONFIG_SUN4I_FB=m
+CONFIG_SUN4I_FB_UMP=y
 CONFIG_SUN4I_LCD=m
 CONFIG_SUN4I_HDMI=m
 # CONFIG_FB_ARMCLCD is not set
