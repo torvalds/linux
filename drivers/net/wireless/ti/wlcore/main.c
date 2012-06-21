@@ -1723,6 +1723,7 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 	struct wl12xx_vif *wlvif;
 	unsigned long flags;
 	bool run_irq_work = false, pending_recovery;
+	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 resume wow=%d",
 		     wl->wow_enabled);
@@ -1738,6 +1739,8 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 		run_irq_work = true;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
+	mutex_lock(&wl->mutex);
+
 	/* test the recovery flag before calling any SDIO functions */
 	pending_recovery = test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS,
 				    &wl->flags);
@@ -1747,13 +1750,15 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 			     "run postponed irq_work directly");
 
 		/* don't talk to the HW if recovery is pending */
-		if (!pending_recovery)
-			wlcore_irq(0, wl);
+		if (!pending_recovery) {
+			ret = wlcore_irq_locked(wl);
+			if (ret)
+				wl12xx_queue_recovery_work(wl);
+		}
 
 		wlcore_enable_interrupts(wl);
 	}
 
-	mutex_lock(&wl->mutex);
 	if (pending_recovery) {
 		wl1271_warning("queuing forgotten recovery on resume");
 		ieee80211_queue_work(wl->hw, &wl->recovery_work);
