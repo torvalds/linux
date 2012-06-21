@@ -6380,17 +6380,12 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_ring *tx_ring;
 
-	if (skb->len <= 0) {
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
-
 	/*
 	 * The minimum packet size for olinfo paylen is 17 so pad the skb
 	 * in order to meet this minimum size requirement.
 	 */
-	if (skb->len < 17) {
-		if (skb_padto(skb, 17))
+	if (unlikely(skb->len < 17)) {
+		if (skb_pad(skb, 17 - skb->len))
 			return NETDEV_TX_OK;
 		skb->len = 17;
 	}
