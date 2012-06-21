@@ -179,14 +179,6 @@ void __noreturn machine_real_restart(unsigned int type)
 	write_cr3(real_mode_header->trampoline_pgd);
 #endif
 
-	/*
-	 * Write 0x1234 to absolute memory location 0x472.  The BIOS reads
-	 * this on booting to tell it to "Bypass memory test (also warm
-	 * boot)".  This seems like a fairly standard thing that gets set by
-	 * REBOOT.COM programs, and the previous reset routine did this
-	 * too. */
-	*((unsigned short *)0x472) = reboot_mode;
-
 	/* Jump to the identity-mapped low memory code */
 #ifdef CONFIG_X86_32
 	asm volatile("jmpl *%0" : :
