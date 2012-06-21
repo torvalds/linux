@@ -341,11 +341,14 @@ int nf_ct_l4proto_register_sysctl(struct net *net,
 				kfree(pn->ctl_table);
 				pn->ctl_table = NULL;
 			}
-			goto out;
 		}
 	}
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 	if (l4proto->l3proto != AF_INET6 && pn->ctl_compat_table != NULL) {
+		if (err < 0) {
+			nf_ct_kfree_compat_sysctl_table(pn);
+			goto out;
+		}
 		err = nf_ct_register_sysctl(net,
 					    &pn->ctl_compat_header,
 					    "net/ipv4/netfilter",
@@ -358,8 +361,8 @@ int nf_ct_l4proto_register_sysctl(struct net *net,
 					&pn->ctl_table,
 					pn->users);
 	}
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 out:
+#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 	return err;
 }
