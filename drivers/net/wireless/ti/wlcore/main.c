@@ -770,14 +770,16 @@ size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen)
 	return len;
 }
 
+#define WLCORE_FW_LOG_END 0x2000000
+
 static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 {
 	u32 addr;
-	u32 first_addr;
+	u32 offset;
+	u32 end_of_log;
 	u8 *block;
 
 	if ((wl->quirks & WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED) ||
-	    (wl->conf.fwlog.mode != WL12XX_FWLOG_ON_DEMAND) ||
 	    (wl->conf.fwlog.mem_blocks == 0))
 		return;
 
@@ -791,19 +793,26 @@ static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 	 * Make sure the chip is awake and the logger isn't active.
 	 * Do not send a stop fwlog command if the fw is hanged.
 	 */
-	if (!wl1271_ps_elp_wakeup(wl) && !wl->watchdog_recovery)
-		wl12xx_cmd_stop_fwlog(wl);
-	else
+	if (wl1271_ps_elp_wakeup(wl))
 		goto out;
+	if (!wl->watchdog_recovery)
+		wl12xx_cmd_stop_fwlog(wl);
 
 	/* Read the first memory block address */
 	wl12xx_fw_status(wl, wl->fw_status_1, wl->fw_status_2);
-	first_addr = le32_to_cpu(wl->fw_status_2->log_start_addr);
-	if (!first_addr)
+	addr = le32_to_cpu(wl->fw_status_2->log_start_addr);
+	if (!addr)
 		goto out;
 
+	if (wl->conf.fwlog.mode == WL12XX_FWLOG_CONTINUOUS) {
+		offset = sizeof(addr) + sizeof(struct wl1271_rx_descriptor);
+		end_of_log = WLCORE_FW_LOG_END;
+	} else {
+		offset = sizeof(addr);
+		end_of_log = addr;
+	}
+
 	/* Traverse the memory blocks linked list */
-	addr = first_addr;
 	do {
 		memset(block, 0, WL12XX_HW_BLOCK_SIZE);
 		wl1271_read_hwaddr(wl, addr, block, WL12XX_HW_BLOCK_SIZE,
@@ -812,13 +821,14 @@ static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 		/*
 		 * Memory blocks are linked to one another. The first 4 bytes
 		 * of each memory block hold the hardware address of the next
-		 * one. The last memory block points to the first one.
+		 * one. The last memory block points to the first one in
+		 * on demand mode and is equal to 0x2000000 in continuous mode.
 		 */
 		addr = le32_to_cpup((__le32 *)block);
-		if (!wl12xx_copy_fwlog(wl, block + sizeof(addr),
-				       WL12XX_HW_BLOCK_SIZE - sizeof(addr)))
+		if (!wl12xx_copy_fwlog(wl, block + offset,
+				       WL12XX_HW_BLOCK_SIZE - offset))
 			break;
-	} while (addr && (addr != first_addr));
+	} while (addr && (addr != end_of_log));
 
 	wake_up_interruptible(&wl->fwlog_waitq);
 
@@ -1082,6 +1092,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	mutex_lock(&wl->mutex);
 	wl1271_power_off(wl);
 	wl->flags = 0;
+	wl->sleep_auth = WL1271_PSM_ILLEGAL;
 	wl->state = WL1271_STATE_OFF;
 	wl->plt = false;
 	wl->rx_counter = 0;
@@ -1740,6 +1751,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
 	wl->sched_scanning = false;
+	wl->sleep_auth = WL1271_PSM_ILLEGAL;
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
 	memset(wl->roc_map, 0, sizeof(wl->roc_map));
@@ -2146,6 +2158,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int i, ret;
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
@@ -2226,10 +2239,24 @@ deinit:
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
 
-	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
+	if (is_ap)
 		wl->ap_count--;
 	else
 		wl->sta_count--;
+
+	/* Last AP, have more stations. Configure according to STA. */
+	if (wl->ap_count == 0 && is_ap && wl->sta_count) {
+		u8 sta_auth = wl->conf.conn.sta_sleep_auth;
+		/* Configure for power according to debugfs */
+		if (sta_auth != WL1271_PSM_ILLEGAL)
+			wl1271_acx_sleep_auth(wl, sta_auth);
+		/* Configure for power always on */
+		else if (wl->quirks & WLCORE_QUIRK_NO_ELP)
+			wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
+		/* Configure for ELP power saving */
+		else
+			wl1271_acx_sleep_auth(wl, WL1271_PSM_ELP);
+	}
 
 	mutex_unlock(&wl->mutex);
 
@@ -2454,6 +2481,7 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		wlvif->channel_type = conf->channel_type;
 
 		if (is_ap) {
+			wl1271_set_band_rate(wl, wlvif);
 			ret = wl1271_init_ap_rates(wl, wlvif);
 			if (ret < 0)
 				wl1271_error("AP rate policy change failed %d",
@@ -4090,16 +4118,13 @@ out:
 static int wl1271_op_get_survey(struct ieee80211_hw *hw, int idx,
 				struct survey_info *survey)
 {
-	struct wl1271 *wl = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
 
 	if (idx != 0)
 		return -ENOENT;
 
 	survey->channel = conf->channel;
-	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = wl->noise;
-
+	survey->filled = 0;
 	return 0;
 }
 
@@ -4365,9 +4390,14 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 
 	case IEEE80211_AMPDU_RX_STOP:
 		if (!(*ba_bitmap & BIT(tid))) {
-			ret = -EINVAL;
-			wl1271_error("no active RX BA session on tid: %d",
+			/*
+			 * this happens on reconfig - so only output a debug
+			 * message for now, and don't fail the function.
+			 */
+			wl1271_debug(DEBUG_MAC80211,
+				     "no active RX BA session on tid: %d",
 				     tid);
+			ret = 0;
 			break;
 		}
 
@@ -4976,6 +5006,29 @@ static void wl1271_unregister_hw(struct wl1271 *wl)
 
 }
 
+static const struct ieee80211_iface_limit wlcore_iface_limits[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP) |
+			 BIT(NL80211_IFTYPE_P2P_GO) |
+			 BIT(NL80211_IFTYPE_P2P_CLIENT),
+	},
+};
+
+static const struct ieee80211_iface_combination
+wlcore_iface_combinations[] = {
+	{
+	  .num_different_channels = 1,
+	  .max_interfaces = 2,
+	  .limits = wlcore_iface_limits,
+	  .n_limits = ARRAY_SIZE(wlcore_iface_limits),
+	},
+};
+
 static int wl1271_init_ieee80211(struct wl1271 *wl)
 {
 	static const u32 cipher_suites[] = {
@@ -5069,6 +5122,11 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P;
 
+	/* allowed interface combinations */
+	wl->hw->wiphy->iface_combinations = wlcore_iface_combinations;
+	wl->hw->wiphy->n_iface_combinations =
+		ARRAY_SIZE(wlcore_iface_combinations);
+
 	SET_IEEE80211_DEV(wl->hw, wl->dev);
 
 	wl->hw->sta_data_size = sizeof(struct wl1271_station);
@@ -5140,6 +5198,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 	wl->channel_type = NL80211_CHAN_NO_HT;
 	wl->flags = 0;
 	wl->sg_enabled = true;
+	wl->sleep_auth = WL1271_PSM_ILLEGAL;
 	wl->hw_pg_ver = -1;
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;

@@ -103,6 +103,12 @@
 /* If set, the buffer was padded by the FW to be 4 bytes aligned */
 #define RX_BUF_PADDED_PAYLOAD        BIT(30)
 
+/*
+ * Account for the padding inserted by the FW in case of RX_ALIGNMENT
+ * or for fixing alignment in case the packet wasn't aligned.
+ */
+#define RX_BUF_ALIGN                 2
+
 /* Describes the alignment state of a Rx buffer */
 enum wl_rx_buf_align {
 	WLCORE_RX_BUF_ALIGNED,
