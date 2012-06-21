@@ -220,9 +220,6 @@ static uint8_t I2Cread(struct comedi_device *dev, uint8_t addr);
 static uint32_t I2Chandshake(struct comedi_device *dev, uint32_t val);
 static void SetDAC(struct comedi_device *dev, uint16_t chan, short dacdata);
 static void SendDAC(struct comedi_device *dev, uint32_t val);
-static void DEBItransfer(struct comedi_device *dev);
-static uint16_t DEBIread(struct comedi_device *dev, uint16_t addr);
-static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata);
 
 /*  COUNTER OBJECT ------------------------------------------------ */
 struct enc_private {
@@ -425,6 +422,76 @@ static const struct comedi_lrange s626_range_table = { 2, {
 							   RANGE(-10, 10),
 							   }
 };
+
+/*  Execute a DEBI transfer.  This must be called from within a */
+/*  critical section. */
+static void DEBItransfer(struct comedi_device *dev)
+{
+	/*  Initiate upload of shadow RAM to DEBI control register. */
+	MC_ENABLE(P_MC2, MC2_UPLD_DEBI);
+
+	/*  Wait for completion of upload from shadow RAM to DEBI control */
+	/*  register. */
+	while (!MC_TEST(P_MC2, MC2_UPLD_DEBI))
+		;
+
+	/*  Wait until DEBI transfer is done. */
+	while (RR7146(P_PSR) & PSR_DEBI_S)
+		;
+}
+
+/*  Initialize the DEBI interface for all transfers. */
+
+static uint16_t DEBIread(struct comedi_device *dev, uint16_t addr)
+{
+	uint16_t retval;
+
+	/*  Set up DEBI control register value in shadow RAM. */
+	WR7146(P_DEBICMD, DEBI_CMD_RDWORD | addr);
+
+	/*  Execute the DEBI transfer. */
+	DEBItransfer(dev);
+
+	/*  Fetch target register value. */
+	retval = (uint16_t) RR7146(P_DEBIAD);
+
+	/*  Return register value. */
+	return retval;
+}
+
+/*  Write a value to a gate array register. */
+static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata)
+{
+
+	/*  Set up DEBI control register value in shadow RAM. */
+	WR7146(P_DEBICMD, DEBI_CMD_WRWORD | addr);
+	WR7146(P_DEBIAD, wdata);
+
+	/*  Execute the DEBI transfer. */
+	DEBItransfer(dev);
+}
+
+/* Replace the specified bits in a gate array register.  Imports: mask
+ * specifies bits that are to be preserved, wdata is new value to be
+ * or'd with the masked original.
+ */
+static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
+			uint16_t wdata)
+{
+
+	/*  Copy target gate array register into P_DEBIAD register. */
+	WR7146(P_DEBICMD, DEBI_CMD_RDWORD | addr);
+	/* Set up DEBI control reg value in shadow RAM. */
+	DEBItransfer(dev);	/*  Execute the DEBI Read transfer. */
+
+	/*  Write back the modified image. */
+	WR7146(P_DEBICMD, DEBI_CMD_WRWORD | addr);
+	/* Set up DEBI control reg value in shadow  RAM. */
+
+	WR7146(P_DEBIAD, wdata | ((uint16_t) RR7146(P_DEBIAD) & mask));
+	/* Modify the register image. */
+	DEBItransfer(dev);	/*  Execute the DEBI Write transfer. */
+}
 
 static unsigned int s626_ai_reg_to_uint(int data)
 {
@@ -2121,76 +2188,6 @@ static void WriteMISC2(struct comedi_device *dev, uint16_t NewImage)
 	/*  MISC2 register. */
 	DEBIwrite(dev, LP_WRMISC2, NewImage);	/*  Write new image to MISC2. */
 	DEBIwrite(dev, LP_MISC1, MISC1_WDISABLE);	/*  Disable writes to MISC2. */
-}
-
-/*  Initialize the DEBI interface for all transfers. */
-
-static uint16_t DEBIread(struct comedi_device *dev, uint16_t addr)
-{
-	uint16_t retval;
-
-	/*  Set up DEBI control register value in shadow RAM. */
-	WR7146(P_DEBICMD, DEBI_CMD_RDWORD | addr);
-
-	/*  Execute the DEBI transfer. */
-	DEBItransfer(dev);
-
-	/*  Fetch target register value. */
-	retval = (uint16_t) RR7146(P_DEBIAD);
-
-	/*  Return register value. */
-	return retval;
-}
-
-/*  Execute a DEBI transfer.  This must be called from within a */
-/*  critical section. */
-static void DEBItransfer(struct comedi_device *dev)
-{
-	/*  Initiate upload of shadow RAM to DEBI control register. */
-	MC_ENABLE(P_MC2, MC2_UPLD_DEBI);
-
-	/*  Wait for completion of upload from shadow RAM to DEBI control */
-	/*  register. */
-	while (!MC_TEST(P_MC2, MC2_UPLD_DEBI))
-		;
-
-	/*  Wait until DEBI transfer is done. */
-	while (RR7146(P_PSR) & PSR_DEBI_S)
-		;
-}
-
-/*  Write a value to a gate array register. */
-static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata)
-{
-
-	/*  Set up DEBI control register value in shadow RAM. */
-	WR7146(P_DEBICMD, DEBI_CMD_WRWORD | addr);
-	WR7146(P_DEBIAD, wdata);
-
-	/*  Execute the DEBI transfer. */
-	DEBItransfer(dev);
-}
-
-/* Replace the specified bits in a gate array register.  Imports: mask
- * specifies bits that are to be preserved, wdata is new value to be
- * or'd with the masked original.
- */
-static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
-			uint16_t wdata)
-{
-
-	/*  Copy target gate array register into P_DEBIAD register. */
-	WR7146(P_DEBICMD, DEBI_CMD_RDWORD | addr);
-	/* Set up DEBI control reg value in shadow RAM. */
-	DEBItransfer(dev);	/*  Execute the DEBI Read transfer. */
-
-	/*  Write back the modified image. */
-	WR7146(P_DEBICMD, DEBI_CMD_WRWORD | addr);
-	/* Set up DEBI control reg value in shadow  RAM. */
-
-	WR7146(P_DEBIAD, wdata | ((uint16_t) RR7146(P_DEBIAD) & mask));
-	/* Modify the register image. */
-	DEBItransfer(dev);	/*  Execute the DEBI Write transfer. */
 }
 
 static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
