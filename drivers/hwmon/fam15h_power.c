@@ -67,7 +67,8 @@ static ssize_t show_power(struct device *dev,
 				  REG_TDP_LIMIT3, &val);
 
 	tdp_limit = val >> 16;
-	curr_pwr_watts = (tdp_limit + data->base_tdp) << running_avg_range;
+	curr_pwr_watts = ((u64)(tdp_limit +
+				data->base_tdp)) << running_avg_range;
 	curr_pwr_watts -= running_avg_capture;
 	curr_pwr_watts *= data->tdp_to_watts;
 
