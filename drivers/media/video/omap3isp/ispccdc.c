@@ -835,7 +835,7 @@ static void ccdc_config_vp(struct isp_ccdc_device *ccdc)
 	case 13:
 		fmtcfg_vp |= ISPCCDC_FMTCFG_VPIN_12_3;
 		break;
-	};
+	}
 
 	if (pipe->input)
 		div = DIV_ROUND_UP(l3_ick, pipe->max_rate);
@@ -991,7 +991,7 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 	case 12:
 		syn_mode |= ISPCCDC_SYN_MODE_DATSIZ_12;
 		break;
-	};
+	}
 
 	if (syncif->fldmode)
 		syn_mode |= ISPCCDC_SYN_MODE_FLDMODE;
