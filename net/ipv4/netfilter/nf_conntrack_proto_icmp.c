@@ -337,32 +337,55 @@ static struct ctl_table icmp_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
-static int icmp_init_net(struct net *net, u_int16_t proto)
+static int icmp_kmemdup_sysctl_table(struct nf_proto_net *pn,
+				     struct nf_icmp_net *in)
 {
-	struct nf_icmp_net *in = icmp_pernet(net);
-	struct nf_proto_net *pn = (struct nf_proto_net *)in;
-	in->timeout = nf_ct_icmp_timeout;
-
 #ifdef CONFIG_SYSCTL
 	pn->ctl_table = kmemdup(icmp_sysctl_table,
 				sizeof(icmp_sysctl_table),
 				GFP_KERNEL);
 	if (!pn->ctl_table)
 		return -ENOMEM;
+
 	pn->ctl_table[0].data = &in->timeout;
+#endif
+	return 0;
+}
+
+static int icmp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
+					    struct nf_icmp_net *in)
+{
+#ifdef CONFIG_SYSCTL
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
 	pn->ctl_compat_table = kmemdup(icmp_compat_sysctl_table,
 				       sizeof(icmp_compat_sysctl_table),
 				       GFP_KERNEL);
-	if (!pn->ctl_compat_table) {
-		kfree(pn->ctl_table);
-		pn->ctl_table = NULL;
+	if (!pn->ctl_compat_table)
 		return -ENOMEM;
-	}
+
 	pn->ctl_compat_table[0].data = &in->timeout;
 #endif
 #endif
 	return 0;
+}
+
+static int icmp_init_net(struct net *net, u_int16_t proto)
+{
+	int ret;
+	struct nf_icmp_net *in = icmp_pernet(net);
+	struct nf_proto_net *pn = &in->pn;
+
+	in->timeout = nf_ct_icmp_timeout;
+
+	ret = icmp_kmemdup_compat_sysctl_table(pn, in);
+	if (ret < 0)
+		return ret;
+
+	ret = icmp_kmemdup_sysctl_table(pn, in);
+	if (ret < 0)
+		nf_ct_kfree_compat_sysctl_table(pn);
+
+	return ret;
 }
 
 struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
