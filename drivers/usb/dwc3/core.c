@@ -335,8 +335,6 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 	}
 	dwc->revision = reg;
 
-	dwc3_core_soft_reset(dwc);
-
 	/* issue device SoftReset too */
 	timeout = jiffies + msecs_to_jiffies(500);
 	dwc3_writel(dwc->regs, DWC3_DCTL, DWC3_DCTL_CSFTRST);
@@ -353,6 +351,8 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 
 		cpu_relax();
 	} while (true);
+
+	dwc3_core_soft_reset(dwc);
 
 	dwc3_cache_hwparams(dwc);
 
