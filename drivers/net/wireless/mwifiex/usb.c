@@ -91,7 +91,6 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 			}
 			skb_copy_from_linear_data(skb, &tmp, sizeof(u32));
 			adapter->event_cause = le32_to_cpu(tmp);
-			skb_pull(skb, sizeof(u32));
 			dev_dbg(dev, "event_cause %#x\n", adapter->event_cause);
 
 			if (skb->len > MAX_EVENT_SIZE) {
@@ -99,8 +98,9 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 				return -1;
 			}
 
-			skb_copy_from_linear_data(skb, adapter->event_body,
-						  skb->len);
+			memcpy(adapter->event_body, skb->data +
+			       MWIFIEX_EVENT_HEADER_LEN, skb->len);
+
 			adapter->event_received = true;
 			adapter->event_skb = skb;
 			break;
