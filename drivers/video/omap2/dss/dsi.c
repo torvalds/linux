@@ -4360,8 +4360,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 		timings.x_res = dw;
 		timings.y_res = dh;
 
-		irq = dssdev->manager->id == OMAP_DSS_CHANNEL_LCD ?
-			DISPC_IRQ_FRAMEDONE : DISPC_IRQ_FRAMEDONE2;
+		irq = dispc_mgr_get_framedone_irq(dssdev->manager->id);
 
 		r = omap_dispc_register_isr(dsi_framedone_irq_callback,
 			(void *) dssdev, irq);
@@ -4393,8 +4392,7 @@ static void dsi_display_uninit_dispc(struct omap_dss_device *dssdev)
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
 		u32 irq;
 
-		irq = dssdev->manager->id == OMAP_DSS_CHANNEL_LCD ?
-			DISPC_IRQ_FRAMEDONE : DISPC_IRQ_FRAMEDONE2;
+		irq = dispc_mgr_get_framedone_irq(dssdev->manager->id);
 
 		omap_dispc_unregister_isr(dsi_framedone_irq_callback,
 			(void *) dssdev, irq);

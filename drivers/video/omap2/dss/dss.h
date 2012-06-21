@@ -152,6 +152,12 @@ struct dsi_clock_info {
 	u16 lp_clk_div;
 };
 
+struct reg_field {
+	u16 reg;
+	u8 high;
+	u8 low;
+};
+
 struct seq_file;
 struct platform_device;
 
