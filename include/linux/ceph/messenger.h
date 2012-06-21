@@ -244,8 +244,6 @@ extern void ceph_msg_revoke(struct ceph_msg *msg);
 extern void ceph_msg_revoke_incoming(struct ceph_msg *msg);
 
 extern void ceph_con_keepalive(struct ceph_connection *con);
-extern struct ceph_connection *ceph_con_get(struct ceph_connection *con);
-extern void ceph_con_put(struct ceph_connection *con);
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
