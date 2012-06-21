@@ -331,9 +331,7 @@ struct dvb_usb_adapter {
  * @usb_mutex: mutex for usb control messages
  * @i2c_mutex: mutex for i2c-transfers
  * @i2c_adap: device's i2c-adapter
- *
  * @rc_dev: rc device for the remote control
- * @input_dev: input device for the remote control (legacy mode)
  * @rc_query_work: work for polling remote
  * @priv: private data of the actual driver (allocate by dvb usb, size defined
  *  in size_of_priv of dvb_usb_properties).
@@ -361,7 +359,6 @@ struct dvb_usb_device {
 
 	/* remote control */
 	struct rc_dev *rc_dev;
-	struct input_dev *input_dev;
 	char rc_phys[64];
 	struct delayed_work rc_query_work;
 

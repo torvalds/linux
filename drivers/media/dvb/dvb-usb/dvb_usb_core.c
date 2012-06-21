@@ -159,7 +159,6 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 		goto err;
 	}
 
-	d->input_dev = NULL;
 	d->rc_dev = dev;
 
 	/* start polling if needed */
