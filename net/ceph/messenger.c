@@ -261,8 +261,8 @@ static void ceph_sock_state_change(struct sock *sk)
 	case TCP_CLOSE_WAIT:
 		dout("%s TCP_CLOSE_WAIT\n", __func__);
 		con_sock_state_closing(con);
-		if (!test_and_set_bit(SOCK_CLOSED, &con->flags))
-			queue_con(con);
+		set_bit(SOCK_CLOSED, &con->flags);
+		queue_con(con);
 		break;
 	case TCP_ESTABLISHED:
 		dout("%s TCP_ESTABLISHED\n", __func__);
