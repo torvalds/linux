@@ -283,7 +283,7 @@ static void udp_init_net_data(struct nf_udp_net *un)
 	}
 }
 
-static int udpv4_init_net(struct net *net)
+static int udpv4_init_net(struct net *net, u_int16_t proto)
 {
 	int ret;
 	struct nf_udp_net *un = udp_pernet(net);
@@ -307,7 +307,7 @@ static int udpv4_init_net(struct net *net)
 	return ret;
 }
 
-static int udpv6_init_net(struct net *net)
+static int udpv6_init_net(struct net *net, u_int16_t proto)
 {
 	struct nf_udp_net *un = udp_pernet(net);
 	struct nf_proto_net *pn = (struct nf_proto_net *)un;

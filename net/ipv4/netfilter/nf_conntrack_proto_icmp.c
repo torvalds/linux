@@ -337,7 +337,7 @@ static struct ctl_table icmp_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
-static int icmp_init_net(struct net *net)
+static int icmp_init_net(struct net *net, u_int16_t proto)
 {
 	struct nf_icmp_net *in = icmp_pernet(net);
 	struct nf_proto_net *pn = (struct nf_proto_net *)in;

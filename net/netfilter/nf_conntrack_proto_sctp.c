@@ -767,7 +767,7 @@ static int sctp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn)
 	return 0;
 }
 
-static int sctpv4_init_net(struct net *net)
+static int sctpv4_init_net(struct net *net, u_int16_t proto)
 {
 	int ret;
 	struct sctp_net *sn = sctp_pernet(net);
@@ -793,7 +793,7 @@ static int sctpv4_init_net(struct net *net)
 	return ret;
 }
 
-static int sctpv6_init_net(struct net *net)
+static int sctpv6_init_net(struct net *net, u_int16_t proto)
 {
 	struct sctp_net *sn = sctp_pernet(net);
 	struct nf_proto_net *pn = (struct nf_proto_net *)sn;

@@ -333,7 +333,7 @@ static struct ctl_table icmpv6_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static int icmpv6_init_net(struct net *net)
+static int icmpv6_init_net(struct net *net, u_int16_t proto)
 {
 	struct nf_icmp_net *in = icmpv6_pernet(net);
 	struct nf_proto_net *pn = (struct nf_proto_net *)in;

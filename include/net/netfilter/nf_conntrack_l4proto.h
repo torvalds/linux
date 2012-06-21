@@ -97,7 +97,7 @@ struct nf_conntrack_l4proto {
 #endif
 	int	*net_id;
 	/* Init l4proto pernet data */
-	int (*init_net)(struct net *net);
+	int (*init_net)(struct net *net, u_int16_t proto);
 
 	/* Protocol name */
 	const char *name;

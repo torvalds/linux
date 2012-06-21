@@ -348,7 +348,7 @@ gre_timeout_nla_policy[CTA_TIMEOUT_GRE_MAX+1] = {
 };
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 
-static int gre_init_net(struct net *net)
+static int gre_init_net(struct net *net, u_int16_t proto)
 {
 	struct netns_proto_gre *net_gre = gre_pernet(net);
 	int i;

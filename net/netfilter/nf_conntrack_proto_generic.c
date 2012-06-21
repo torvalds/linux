@@ -135,7 +135,7 @@ static struct ctl_table generic_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
-static int generic_init_net(struct net *net)
+static int generic_init_net(struct net *net, u_int16_t proto)
 {
 	struct nf_generic_net *gn = generic_pernet(net);
 	struct nf_proto_net *pn = (struct nf_proto_net *)gn;

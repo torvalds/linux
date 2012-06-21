@@ -815,7 +815,7 @@ static struct ctl_table dccp_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static int dccp_init_net(struct net *net)
+static int dccp_init_net(struct net *net, u_int16_t proto)
 {
 	struct dccp_net *dn = dccp_pernet(net);
 	struct nf_proto_net *pn = (struct nf_proto_net *)dn;

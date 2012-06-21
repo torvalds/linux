@@ -461,7 +461,7 @@ int nf_conntrack_l4proto_register(struct net *net,
 	int ret = 0;
 
 	if (l4proto->init_net) {
-		ret = l4proto->init_net(net);
+		ret = l4proto->init_net(net, l4proto->l3proto);
 		if (ret < 0)
 			return ret;
 	}
@@ -515,7 +515,8 @@ int nf_conntrack_proto_init(struct net *net)
 {
 	unsigned int i;
 	int err;
-	err = nf_conntrack_l4proto_generic.init_net(net);
+	err = nf_conntrack_l4proto_generic.init_net(net,
+					nf_conntrack_l4proto_generic.l3proto);
 	if (err < 0)
 		return err;
 	err = nf_ct_l4proto_register_sysctl(net,

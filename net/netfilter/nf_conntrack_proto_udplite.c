@@ -234,7 +234,7 @@ static struct ctl_table udplite_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static int udplite_init_net(struct net *net)
+static int udplite_init_net(struct net *net, u_int16_t proto)
 {
 	int i;
 	struct udplite_net *un = udplite_pernet(net);
