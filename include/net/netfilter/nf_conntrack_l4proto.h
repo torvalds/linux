@@ -124,6 +124,14 @@ extern int nf_conntrack_l4proto_register(struct net *net,
 extern void nf_conntrack_l4proto_unregister(struct net *net,
 					    struct nf_conntrack_l4proto *proto);
 
+static inline void nf_ct_kfree_compat_sysctl_table(struct nf_proto_net *pn)
+{
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
+	kfree(pn->ctl_compat_table);
+	pn->ctl_compat_table = NULL;
+#endif
+}
+
 /* Generic netlink helpers */
 extern int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 				      const struct nf_conntrack_tuple *tuple);

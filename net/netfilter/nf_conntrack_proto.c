@@ -361,8 +361,7 @@ int nf_ct_l4proto_register_sysctl(struct net *net,
 		if (err == 0)
 			goto out;
 
-		kfree(pn->ctl_compat_table);
-		pn->ctl_compat_table = NULL;
+		nf_ct_kfree_compat_sysctl_table(pn);
 		nf_ct_unregister_sysctl(&pn->ctl_table_header,
 					&pn->ctl_table,
 					&pn->users);
