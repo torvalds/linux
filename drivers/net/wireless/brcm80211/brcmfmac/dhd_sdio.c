@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/bcma/bcma.h>
 #include <linux/debugfs.h>
+#include <linux/vmalloc.h>
 #include <asm/unaligned.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
