@@ -512,7 +512,8 @@ int r600_blit_init(struct radeon_device *rdev)
 	rdev->r600_blit.primitives.draw_auto = draw_auto;
 	rdev->r600_blit.primitives.set_default_state = set_default_state;
 
-	rdev->r600_blit.ring_size_common = 40; /* shaders + def state */
+	rdev->r600_blit.ring_size_common = 8; /* sync semaphore */
+	rdev->r600_blit.ring_size_common += 40; /* shaders + def state */
 	rdev->r600_blit.ring_size_common += 5; /* done copy */
 	rdev->r600_blit.ring_size_common += 16; /* fence emit for done copy */
 
@@ -666,7 +667,8 @@ static unsigned r600_blit_create_rect(unsigned num_gpu_pages,
 
 
 int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
-			   struct radeon_sa_bo **vb)
+			   struct radeon_fence **fence, struct radeon_sa_bo **vb,
+			   struct radeon_semaphore **sem)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
@@ -689,13 +691,28 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
 		return r;
 	}
 
+	r = radeon_semaphore_create(rdev, sem);
+	if (r) {
+		radeon_sa_bo_free(rdev, vb, NULL);
+		return r;
+	}
+
 	/* calculate number of loops correctly */
 	ring_size = num_loops * dwords_per_loop;
 	ring_size += rdev->r600_blit.ring_size_common;
 	r = radeon_ring_lock(rdev, ring, ring_size);
 	if (r) {
 		radeon_sa_bo_free(rdev, vb, NULL);
+		radeon_semaphore_free(rdev, sem, NULL);
 		return r;
+	}
+
+	if (radeon_fence_need_sync(*fence, RADEON_RING_TYPE_GFX_INDEX)) {
+		radeon_semaphore_sync_rings(rdev, *sem, (*fence)->ring,
+					    RADEON_RING_TYPE_GFX_INDEX);
+		radeon_fence_note_sync(*fence, RADEON_RING_TYPE_GFX_INDEX);
+	} else {
+		radeon_semaphore_free(rdev, sem, NULL);
 	}
 
 	rdev->r600_blit.primitives.set_default_state(rdev);
@@ -703,20 +720,21 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
 	return 0;
 }
 
-void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence,
-			 struct radeon_sa_bo *vb)
+void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence **fence,
+			 struct radeon_sa_bo *vb, struct radeon_semaphore *sem)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
-	r = radeon_fence_emit(rdev, fence);
+	r = radeon_fence_emit(rdev, fence, RADEON_RING_TYPE_GFX_INDEX);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
 		return;
 	}
 
 	radeon_ring_unlock_commit(rdev, ring);
-	radeon_sa_bo_free(rdev, &vb, fence);
+	radeon_sa_bo_free(rdev, &vb, *fence);
+	radeon_semaphore_free(rdev, &sem, *fence);
 }
 
 void r600_kms_blit_copy(struct radeon_device *rdev,

@@ -567,43 +567,27 @@ void r100_hpd_init(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
+	unsigned enable = 0;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-		switch (radeon_connector->hpd.hpd) {
-		case RADEON_HPD_1:
-			rdev->irq.hpd[0] = true;
-			break;
-		case RADEON_HPD_2:
-			rdev->irq.hpd[1] = true;
-			break;
-		default:
-			break;
-		}
+		enable |= 1 << radeon_connector->hpd.hpd;
 		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 	}
-	if (rdev->irq.installed)
-		r100_irq_set(rdev);
+	radeon_irq_kms_enable_hpd(rdev, enable);
 }
 
 void r100_hpd_fini(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
+	unsigned disable = 0;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-		switch (radeon_connector->hpd.hpd) {
-		case RADEON_HPD_1:
-			rdev->irq.hpd[0] = false;
-			break;
-		case RADEON_HPD_2:
-			rdev->irq.hpd[1] = false;
-			break;
-		default:
-			break;
-		}
+		disable |= 1 << radeon_connector->hpd.hpd;
 	}
+	radeon_irq_kms_disable_hpd(rdev, disable);
 }
 
 /*
@@ -705,18 +689,18 @@ int r100_irq_set(struct radeon_device *rdev)
 		WREG32(R_000040_GEN_INT_CNTL, 0);
 		return -EINVAL;
 	}
-	if (rdev->irq.sw_int[RADEON_RING_TYPE_GFX_INDEX]) {
+	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
 		tmp |= RADEON_SW_INT_ENABLE;
 	}
 	if (rdev->irq.gui_idle) {
 		tmp |= RADEON_GUI_IDLE_MASK;
 	}
 	if (rdev->irq.crtc_vblank_int[0] ||
-	    rdev->irq.pflip[0]) {
+	    atomic_read(&rdev->irq.pflip[0])) {
 		tmp |= RADEON_CRTC_VBLANK_MASK;
 	}
 	if (rdev->irq.crtc_vblank_int[1] ||
-	    rdev->irq.pflip[1]) {
+	    atomic_read(&rdev->irq.pflip[1])) {
 		tmp |= RADEON_CRTC2_VBLANK_MASK;
 	}
 	if (rdev->irq.hpd[0]) {
@@ -782,7 +766,6 @@ int r100_irq_process(struct radeon_device *rdev)
 		/* gui idle interrupt */
 		if (status & RADEON_GUI_IDLE_STAT) {
 			rdev->irq.gui_idle_acked = true;
-			rdev->pm.gui_idle = true;
 			wake_up(&rdev->irq.idle_queue);
 		}
 		/* Vertical blank interrupts */
@@ -792,7 +775,7 @@ int r100_irq_process(struct radeon_device *rdev)
 				rdev->pm.vblank_sync = true;
 				wake_up(&rdev->irq.vblank_queue);
 			}
-			if (rdev->irq.pflip[0])
+			if (atomic_read(&rdev->irq.pflip[0]))
 				radeon_crtc_handle_flip(rdev, 0);
 		}
 		if (status & RADEON_CRTC2_VBLANK_STAT) {
@@ -801,7 +784,7 @@ int r100_irq_process(struct radeon_device *rdev)
 				rdev->pm.vblank_sync = true;
 				wake_up(&rdev->irq.vblank_queue);
 			}
-			if (rdev->irq.pflip[1])
+			if (atomic_read(&rdev->irq.pflip[1]))
 				radeon_crtc_handle_flip(rdev, 1);
 		}
 		if (status & RADEON_FP_DETECT_STAT) {
@@ -883,7 +866,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,
 		   unsigned num_gpu_pages,
-		   struct radeon_fence *fence)
+		   struct radeon_fence **fence)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t cur_pages;
@@ -947,7 +930,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 			  RADEON_WAIT_HOST_IDLECLEAN |
 			  RADEON_WAIT_DMA_GUI_IDLE);
 	if (fence) {
-		r = radeon_fence_emit(rdev, fence);
+		r = radeon_fence_emit(rdev, fence, RADEON_RING_TYPE_GFX_INDEX);
 	}
 	radeon_ring_unlock_commit(rdev, ring);
 	return r;

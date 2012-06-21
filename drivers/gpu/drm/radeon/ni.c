@@ -850,7 +850,7 @@ void cayman_fence_ring_emit(struct radeon_device *rdev,
 
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_ring *ring = &rdev->ring[ib->fence->ring];
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
 
 	/* set to DX10/11 mode */
 	radeon_ring_write(ring, PACKET3(PACKET3_MODE_CONTROL, 0));

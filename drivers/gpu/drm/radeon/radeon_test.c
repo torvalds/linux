@@ -106,13 +106,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 
 		radeon_bo_kunmap(gtt_obj[i]);
 
-		r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
-		if (r) {
-			DRM_ERROR("Failed to create GTT->VRAM fence %d\n", i);
-			goto out_cleanup;
-		}
-
-		r = radeon_copy(rdev, gtt_addr, vram_addr, size / RADEON_GPU_PAGE_SIZE, fence);
+		r = radeon_copy(rdev, gtt_addr, vram_addr, size / RADEON_GPU_PAGE_SIZE, &fence);
 		if (r) {
 			DRM_ERROR("Failed GTT->VRAM copy %d\n", i);
 			goto out_cleanup;
@@ -155,13 +149,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 
 		radeon_bo_kunmap(vram_obj);
 
-		r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
-		if (r) {
-			DRM_ERROR("Failed to create VRAM->GTT fence %d\n", i);
-			goto out_cleanup;
-		}
-
-		r = radeon_copy(rdev, vram_addr, gtt_addr, size / RADEON_GPU_PAGE_SIZE, fence);
+		r = radeon_copy(rdev, vram_addr, gtt_addr, size / RADEON_GPU_PAGE_SIZE, &fence);
 		if (r) {
 			DRM_ERROR("Failed VRAM->GTT copy %d\n", i);
 			goto out_cleanup;
@@ -245,17 +233,6 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 	int ridxB = radeon_ring_index(rdev, ringB);
 	int r;
 
-	r = radeon_fence_create(rdev, &fence1, ridxA);
-	if (r) {
-		DRM_ERROR("Failed to create sync fence 1\n");
-		goto out_cleanup;
-	}
-	r = radeon_fence_create(rdev, &fence2, ridxA);
-	if (r) {
-		DRM_ERROR("Failed to create sync fence 2\n");
-		goto out_cleanup;
-	}
-
 	r = radeon_semaphore_create(rdev, &semaphore);
 	if (r) {
 		DRM_ERROR("Failed to create semaphore\n");
@@ -268,9 +245,19 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 		goto out_cleanup;
 	}
 	radeon_semaphore_emit_wait(rdev, ridxA, semaphore);
-	radeon_fence_emit(rdev, fence1);
+	r = radeon_fence_emit(rdev, &fence1, ridxA);
+	if (r) {
+		DRM_ERROR("Failed to emit fence 1\n");
+		radeon_ring_unlock_undo(rdev, ringA);
+		goto out_cleanup;
+	}
 	radeon_semaphore_emit_wait(rdev, ridxA, semaphore);
-	radeon_fence_emit(rdev, fence2);
+	r = radeon_fence_emit(rdev, &fence2, ridxA);
+	if (r) {
+		DRM_ERROR("Failed to emit fence 2\n");
+		radeon_ring_unlock_undo(rdev, ringA);
+		goto out_cleanup;
+	}
 	radeon_ring_unlock_commit(rdev, ringA);
 
 	mdelay(1000);
@@ -316,8 +303,7 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 	}
 
 out_cleanup:
-	if (semaphore)
-		radeon_semaphore_free(rdev, semaphore, NULL);
+	radeon_semaphore_free(rdev, &semaphore, NULL);
 
 	if (fence1)
 		radeon_fence_unref(&fence1);
@@ -342,17 +328,6 @@ void radeon_test_ring_sync2(struct radeon_device *rdev,
 	bool sigA, sigB;
 	int i, r;
 
-	r = radeon_fence_create(rdev, &fenceA, ridxA);
-	if (r) {
-		DRM_ERROR("Failed to create sync fence 1\n");
-		goto out_cleanup;
-	}
-	r = radeon_fence_create(rdev, &fenceB, ridxB);
-	if (r) {
-		DRM_ERROR("Failed to create sync fence 2\n");
-		goto out_cleanup;
-	}
-
 	r = radeon_semaphore_create(rdev, &semaphore);
 	if (r) {
 		DRM_ERROR("Failed to create semaphore\n");
@@ -365,7 +340,12 @@ void radeon_test_ring_sync2(struct radeon_device *rdev,
 		goto out_cleanup;
 	}
 	radeon_semaphore_emit_wait(rdev, ridxA, semaphore);
-	radeon_fence_emit(rdev, fenceA);
+	r = radeon_fence_emit(rdev, &fenceA, ridxA);
+	if (r) {
+		DRM_ERROR("Failed to emit sync fence 1\n");
+		radeon_ring_unlock_undo(rdev, ringA);
+		goto out_cleanup;
+	}
 	radeon_ring_unlock_commit(rdev, ringA);
 
 	r = radeon_ring_lock(rdev, ringB, 64);
@@ -374,7 +354,12 @@ void radeon_test_ring_sync2(struct radeon_device *rdev,
 		goto out_cleanup;
 	}
 	radeon_semaphore_emit_wait(rdev, ridxB, semaphore);
-	radeon_fence_emit(rdev, fenceB);
+	r = radeon_fence_emit(rdev, &fenceB, ridxB);
+	if (r) {
+		DRM_ERROR("Failed to create sync fence 2\n");
+		radeon_ring_unlock_undo(rdev, ringB);
+		goto out_cleanup;
+	}
 	radeon_ring_unlock_commit(rdev, ringB);
 
 	mdelay(1000);
@@ -436,8 +421,7 @@ void radeon_test_ring_sync2(struct radeon_device *rdev,
 	}
 
 out_cleanup:
-	if (semaphore)
-		radeon_semaphore_free(rdev, semaphore, NULL);
+	radeon_semaphore_free(rdev, &semaphore, NULL);
 
 	if (fenceA)
 		radeon_fence_unref(&fenceA);

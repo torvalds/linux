@@ -42,40 +42,43 @@ int radeon_debugfs_sa_init(struct radeon_device *rdev);
 int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, unsigned size)
 {
-	int r;
+	int i, r;
 
 	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &ib->sa_bo, size, 256, true);
 	if (r) {
 		dev_err(rdev->dev, "failed to get a new IB (%d)\n", r);
 		return r;
 	}
-	r = radeon_fence_create(rdev, &ib->fence, ring);
+
+	r = radeon_semaphore_create(rdev, &ib->semaphore);
 	if (r) {
-		dev_err(rdev->dev, "failed to create fence for new IB (%d)\n", r);
-		radeon_sa_bo_free(rdev, &ib->sa_bo, NULL);
 		return r;
 	}
 
+	ib->ring = ring;
+	ib->fence = NULL;
 	ib->ptr = radeon_sa_bo_cpu_addr(ib->sa_bo);
 	ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
 	ib->vm_id = 0;
 	ib->is_const_ib = false;
-	ib->semaphore = NULL;
+	for (i = 0; i < RADEON_NUM_RINGS; ++i)
+		ib->sync_to[i] = NULL;
 
 	return 0;
 }
 
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	radeon_semaphore_free(rdev, ib->semaphore, ib->fence);
+	radeon_semaphore_free(rdev, &ib->semaphore, ib->fence);
 	radeon_sa_bo_free(rdev, &ib->sa_bo, ib->fence);
 	radeon_fence_unref(&ib->fence);
 }
 
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_ring *ring = &rdev->ring[ib->fence->ring];
-	int r = 0;
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	bool need_sync = false;
+	int i, r = 0;
 
 	if (!ib->length_dw || !ring->ready) {
 		/* TODO: Nothings in the ib we should report. */
@@ -84,13 +87,31 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 	}
 
 	/* 64 dwords should be enough for fence too */
-	r = radeon_ring_lock(rdev, ring, 64);
+	r = radeon_ring_lock(rdev, ring, 64 + RADEON_NUM_RINGS * 8);
 	if (r) {
 		dev_err(rdev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
-	radeon_ring_ib_execute(rdev, ib->fence->ring, ib);
-	radeon_fence_emit(rdev, ib->fence);
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		struct radeon_fence *fence = ib->sync_to[i];
+		if (radeon_fence_need_sync(fence, ib->ring)) {
+			need_sync = true;
+			radeon_semaphore_sync_rings(rdev, ib->semaphore,
+						    fence->ring, ib->ring);
+			radeon_fence_note_sync(fence, ib->ring);
+		}
+	}
+	/* immediately free semaphore when we don't need to sync */
+	if (!need_sync) {
+		radeon_semaphore_free(rdev, &ib->semaphore, NULL);
+	}
+	radeon_ring_ib_execute(rdev, ib->ring, ib);
+	r = radeon_fence_emit(rdev, &ib->fence, ib->ring);
+	if (r) {
+		dev_err(rdev->dev, "failed to emit fence for new IB (%d)\n", r);
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
+	}
 	radeon_ring_unlock_commit(rdev, ring);
 	return 0;
 }
