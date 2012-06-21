@@ -103,6 +103,7 @@ static void scan_delay_timer_fn(unsigned long data)
 				  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
 			adapter->scan_delay_cnt++;
 		}
+		queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
 	} else {
 		/*
 		 * Tx data queue is empty. Get scan command from scan_pending_q
