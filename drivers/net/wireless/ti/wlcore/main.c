@@ -1513,8 +1513,15 @@ static int wl1271_configure_wowlan(struct wl1271 *wl,
 	int i, ret;
 
 	if (!wow || wow->any || !wow->n_patterns) {
-		wl1271_acx_default_rx_filter_enable(wl, 0, FILTER_SIGNAL);
-		wl1271_rx_filter_clear_all(wl);
+		ret = wl1271_acx_default_rx_filter_enable(wl, 0,
+							  FILTER_SIGNAL);
+		if (ret)
+			goto out;
+
+		ret = wl1271_rx_filter_clear_all(wl);
+		if (ret)
+			goto out;
+
 		return 0;
 	}
 
@@ -1530,8 +1537,13 @@ static int wl1271_configure_wowlan(struct wl1271 *wl,
 		}
 	}
 
-	wl1271_acx_default_rx_filter_enable(wl, 0, FILTER_SIGNAL);
-	wl1271_rx_filter_clear_all(wl);
+	ret = wl1271_acx_default_rx_filter_enable(wl, 0, FILTER_SIGNAL);
+	if (ret)
+		goto out;
+
+	ret = wl1271_rx_filter_clear_all(wl);
+	if (ret)
+		goto out;
 
 	/* Translate WoWLAN patterns into filters */
 	for (i = 0; i < wow->n_patterns; i++) {
@@ -1573,7 +1585,10 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 	if (ret < 0)
 		goto out;
 
-	wl1271_configure_wowlan(wl, wow);
+	ret = wl1271_configure_wowlan(wl, wow);
+	if (ret < 0)
+		goto out_sleep;
+
 	ret = wl1271_acx_wake_up_conditions(wl, wlvif,
 				    wl->conf.conn.suspend_wake_up_event,
 				    wl->conf.conn.suspend_listen_interval);
@@ -1581,8 +1596,8 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 	if (ret < 0)
 		wl1271_error("suspend: set wake up conditions failed: %d", ret);
 
+out_sleep:
 	wl1271_ps_elp_sleep(wl);
-
 out:
 	return ret;
 

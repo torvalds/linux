@@ -318,14 +318,19 @@ int wl1271_rx_filter_enable(struct wl1271 *wl,
 	return 0;
 }
 
-void wl1271_rx_filter_clear_all(struct wl1271 *wl)
+int wl1271_rx_filter_clear_all(struct wl1271 *wl)
 {
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < WL1271_MAX_RX_FILTERS; i++) {
 		if (!wl->rx_filter_enabled[i])
 			continue;
-		wl1271_rx_filter_enable(wl, i, 0, NULL);
+		ret = wl1271_rx_filter_enable(wl, i, 0, NULL);
+		if (ret)
+			goto out;
 	}
+
+out:
+	return ret;
 }
 #endif /* CONFIG_PM */
