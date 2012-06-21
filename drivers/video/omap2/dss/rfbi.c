@@ -885,8 +885,7 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 		goto err1;
 	}
 
-	dispc_mgr_set_lcd_display_type(dssdev->manager->id,
-			OMAP_DSS_LCD_DISPLAY_TFT);
+	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
 
 	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_RFBI);
 	dispc_mgr_enable_stallmode(dssdev->manager->id, true);

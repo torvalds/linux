@@ -2490,26 +2490,9 @@ void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable)
 }
 
 
-void dispc_mgr_set_lcd_display_type(enum omap_channel channel,
-		enum omap_lcd_display_type type)
+void dispc_mgr_set_lcd_type_tft(enum omap_channel channel)
 {
-	int mode;
-
-	switch (type) {
-	case OMAP_DSS_LCD_DISPLAY_STN:
-		mode = 0;
-		break;
-
-	case OMAP_DSS_LCD_DISPLAY_TFT:
-		mode = 1;
-		break;
-
-	default:
-		BUG();
-		return;
-	}
-
-	mgr_fld_write(channel, DISPC_MGR_FLD_STNTFT, mode);
+	mgr_fld_write(channel, DISPC_MGR_FLD_STNTFT, 1);
 }
 
 void dispc_set_loadmode(enum omap_dss_load_mode mode)

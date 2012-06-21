@@ -4380,10 +4380,11 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 		dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
 	}
 
-		dispc_mgr_set_lcd_display_type(dssdev->manager->id,
-			OMAP_DSS_LCD_DISPLAY_TFT);
-		dispc_mgr_set_tft_data_lines(dssdev->manager->id,
-			dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt));
+	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
+
+	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
+		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt));
+
 	return 0;
 }
 

@@ -104,11 +104,6 @@ enum omap_color_mode {
 	OMAP_DSS_COLOR_XRGB16_1555	= 1 << 18, /* xRGB16 - 1555 */
 };
 
-enum omap_lcd_display_type {
-	OMAP_DSS_LCD_DISPLAY_STN,
-	OMAP_DSS_LCD_DISPLAY_TFT,
-};
-
 enum omap_dss_load_mode {
 	OMAP_DSS_LOAD_CLUT_AND_FRAME	= 0,
 	OMAP_DSS_LOAD_CLUT_ONLY		= 1,
