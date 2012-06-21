@@ -6705,18 +6705,18 @@ static int patch_alc662(struct hda_codec *codec)
 
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
+	alc_pick_fixup(codec, alc662_fixup_models,
+		       alc662_fixup_tbl, alc662_fixups);
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
+
 	if ((alc_get_coef0(codec) & (1 << 14)) &&
 	    codec->bus->pci->subsystem_vendor == 0x1025 &&
 	    spec->cdefine.platform_type == 1) {
 		if (alc_codec_rename(codec, "ALC272X") < 0)
 			goto error;
 	}
-
-	alc_pick_fixup(codec, alc662_fixup_models,
-		       alc662_fixup_tbl, alc662_fixups);
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
-
-	alc_auto_parse_customize_define(codec);
 
 	/* automatic parse from the BIOS config */
 	err = alc662_parse_auto_config(codec);
