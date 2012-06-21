@@ -1024,11 +1024,18 @@ __tree_mod_log_oldest_root(struct btrfs_fs_info *fs_info,
 		if (!looped && !tm)
 			return 0;
 		/*
-		 * we must have key remove operations in the log before the
-		 * replace operation.
+		 * if there are no tree operation for the oldest root, we simply
+		 * return it. this should only happen if that (old) root is at
+		 * level 0.
 		 */
-		BUG_ON(!tm);
+		if (!tm)
+			break;
 
+		/*
+		 * if there's an operation that's not a root replacement, we
+		 * found the oldest version of our root. normally, we'll find a
+		 * MOD_LOG_KEY_REMOVE_WHILE_FREEING operation here.
+		 */
 		if (tm->op != MOD_LOG_ROOT_REPLACE)
 			break;
 
@@ -1192,16 +1199,8 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 	}
 
 	tm = tree_mod_log_search(root->fs_info, logical, time_seq);
-	/*
-	 * there was an item in the log when __tree_mod_log_oldest_root
-	 * returned. this one must not go away, because the time_seq passed to
-	 * us must be blocking its removal.
-	 */
-	BUG_ON(!tm);
-
 	if (old_root)
-		eb = alloc_dummy_extent_buffer(tm->index << PAGE_CACHE_SHIFT,
-					       root->nodesize);
+		eb = alloc_dummy_extent_buffer(logical, root->nodesize);
 	else
 		eb = btrfs_clone_extent_buffer(root->node);
 	btrfs_tree_read_unlock(root->node);
@@ -1216,7 +1215,10 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		btrfs_set_header_level(eb, old_root->level);
 		btrfs_set_header_generation(eb, old_generation);
 	}
-	__tree_mod_log_rewind(eb, time_seq, tm);
+	if (tm)
+		__tree_mod_log_rewind(eb, time_seq, tm);
+	else
+		WARN_ON(btrfs_header_level(eb) != 0);
 	extent_buffer_get(eb);
 
 	return eb;
