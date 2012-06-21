@@ -455,7 +455,8 @@ int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 		pr_debug("%s: power control=%d\n", __func__, onoff);
 		if (d->props->power_ctrl) {
 			ret = d->props->power_ctrl(d, onoff);
-			goto err;
+			if (ret < 0)
+				goto err;
 		}
 	}
 
