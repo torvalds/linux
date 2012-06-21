@@ -462,6 +462,7 @@ void ceph_con_close(struct ceph_connection *con)
 	dout("con_close %p peer %s\n", con,
 	     ceph_pr_addr(&con->peer_addr.in_addr));
 	clear_bit(NEGOTIATING, &con->state);
+	clear_bit(CONNECTING, &con->state);
 	clear_bit(STANDBY, &con->state);  /* avoid connect_seq bump */
 	set_bit(CLOSED, &con->state);
 
@@ -2189,7 +2190,7 @@ static void con_work(struct work_struct *work)
 	mutex_lock(&con->mutex);
 restart:
 	if (test_and_clear_bit(SOCK_CLOSED, &con->flags)) {
-		if (test_bit(CONNECTING, &con->state))
+		if (test_and_clear_bit(CONNECTING, &con->state))
 			con->error_msg = "connection failed";
 		else
 			con->error_msg = "socket closed";
