@@ -233,36 +233,8 @@ struct enc_private {
 static void s626_timer_load(struct comedi_device *dev, struct enc_private *k,
 			    int tick);
 static uint32_t ReadLatch(struct comedi_device *dev, struct enc_private *k);
-static void ResetCapFlags_A(struct comedi_device *dev, struct enc_private *k);
-static void ResetCapFlags_B(struct comedi_device *dev, struct enc_private *k);
-static uint16_t GetMode_A(struct comedi_device *dev, struct enc_private *k);
-static uint16_t GetMode_B(struct comedi_device *dev, struct enc_private *k);
-static void SetMode_A(struct comedi_device *dev, struct enc_private *k,
-		      uint16_t Setup, uint16_t DisableIntSrc);
-static void SetMode_B(struct comedi_device *dev, struct enc_private *k,
-		      uint16_t Setup, uint16_t DisableIntSrc);
-static void SetEnable_A(struct comedi_device *dev, struct enc_private *k,
-			uint16_t enab);
-static void SetEnable_B(struct comedi_device *dev, struct enc_private *k,
-			uint16_t enab);
-static uint16_t GetEnable_A(struct comedi_device *dev, struct enc_private *k);
-static uint16_t GetEnable_B(struct comedi_device *dev, struct enc_private *k);
 static void SetLatchSource(struct comedi_device *dev, struct enc_private *k,
 			   uint16_t value);
-static void SetLoadTrig_A(struct comedi_device *dev, struct enc_private *k,
-			  uint16_t Trig);
-static void SetLoadTrig_B(struct comedi_device *dev, struct enc_private *k,
-			  uint16_t Trig);
-static uint16_t GetLoadTrig_A(struct comedi_device *dev, struct enc_private *k);
-static uint16_t GetLoadTrig_B(struct comedi_device *dev, struct enc_private *k);
-static void SetIntSrc_B(struct comedi_device *dev, struct enc_private *k,
-			uint16_t IntSource);
-static void SetIntSrc_A(struct comedi_device *dev, struct enc_private *k,
-			uint16_t IntSource);
-static uint16_t GetIntSrc_A(struct comedi_device *dev, struct enc_private *k);
-static uint16_t GetIntSrc_B(struct comedi_device *dev, struct enc_private *k);
-static void PulseIndex_A(struct comedi_device *dev, struct enc_private *k);
-static void PulseIndex_B(struct comedi_device *dev, struct enc_private *k);
 static void Preload(struct comedi_device *dev, struct enc_private *k,
 		    uint32_t value);
 
@@ -275,106 +247,6 @@ static void Preload(struct comedi_device *dev, struct enc_private *k,
 
 /*  Translation table to map IntSrc into equivalent RDMISC2 event flag  bits. */
 /* static const uint16_t EventBits[][4] = { EVBITS(0), EVBITS(1), EVBITS(2), EVBITS(3), EVBITS(4), EVBITS(5) }; */
-
-/* struct enc_private; */
-static struct enc_private enc_private_data[] = {
-	{
-	 .GetEnable = GetEnable_A,
-	 .GetIntSrc = GetIntSrc_A,
-	 .GetLoadTrig = GetLoadTrig_A,
-	 .GetMode = GetMode_A,
-	 .PulseIndex = PulseIndex_A,
-	 .SetEnable = SetEnable_A,
-	 .SetIntSrc = SetIntSrc_A,
-	 .SetLoadTrig = SetLoadTrig_A,
-	 .SetMode = SetMode_A,
-	 .ResetCapFlags = ResetCapFlags_A,
-	 .MyCRA = LP_CR0A,
-	 .MyCRB = LP_CR0B,
-	 .MyLatchLsw = LP_CNTR0ALSW,
-	 .MyEventBits = EVBITS(0),
-	 },
-	{
-	 .GetEnable = GetEnable_A,
-	 .GetIntSrc = GetIntSrc_A,
-	 .GetLoadTrig = GetLoadTrig_A,
-	 .GetMode = GetMode_A,
-	 .PulseIndex = PulseIndex_A,
-	 .SetEnable = SetEnable_A,
-	 .SetIntSrc = SetIntSrc_A,
-	 .SetLoadTrig = SetLoadTrig_A,
-	 .SetMode = SetMode_A,
-	 .ResetCapFlags = ResetCapFlags_A,
-	 .MyCRA = LP_CR1A,
-	 .MyCRB = LP_CR1B,
-	 .MyLatchLsw = LP_CNTR1ALSW,
-	 .MyEventBits = EVBITS(1),
-	 },
-	{
-	 .GetEnable = GetEnable_A,
-	 .GetIntSrc = GetIntSrc_A,
-	 .GetLoadTrig = GetLoadTrig_A,
-	 .GetMode = GetMode_A,
-	 .PulseIndex = PulseIndex_A,
-	 .SetEnable = SetEnable_A,
-	 .SetIntSrc = SetIntSrc_A,
-	 .SetLoadTrig = SetLoadTrig_A,
-	 .SetMode = SetMode_A,
-	 .ResetCapFlags = ResetCapFlags_A,
-	 .MyCRA = LP_CR2A,
-	 .MyCRB = LP_CR2B,
-	 .MyLatchLsw = LP_CNTR2ALSW,
-	 .MyEventBits = EVBITS(2),
-	 },
-	{
-	 .GetEnable = GetEnable_B,
-	 .GetIntSrc = GetIntSrc_B,
-	 .GetLoadTrig = GetLoadTrig_B,
-	 .GetMode = GetMode_B,
-	 .PulseIndex = PulseIndex_B,
-	 .SetEnable = SetEnable_B,
-	 .SetIntSrc = SetIntSrc_B,
-	 .SetLoadTrig = SetLoadTrig_B,
-	 .SetMode = SetMode_B,
-	 .ResetCapFlags = ResetCapFlags_B,
-	 .MyCRA = LP_CR0A,
-	 .MyCRB = LP_CR0B,
-	 .MyLatchLsw = LP_CNTR0BLSW,
-	 .MyEventBits = EVBITS(3),
-	 },
-	{
-	 .GetEnable = GetEnable_B,
-	 .GetIntSrc = GetIntSrc_B,
-	 .GetLoadTrig = GetLoadTrig_B,
-	 .GetMode = GetMode_B,
-	 .PulseIndex = PulseIndex_B,
-	 .SetEnable = SetEnable_B,
-	 .SetIntSrc = SetIntSrc_B,
-	 .SetLoadTrig = SetLoadTrig_B,
-	 .SetMode = SetMode_B,
-	 .ResetCapFlags = ResetCapFlags_B,
-	 .MyCRA = LP_CR1A,
-	 .MyCRB = LP_CR1B,
-	 .MyLatchLsw = LP_CNTR1BLSW,
-	 .MyEventBits = EVBITS(4),
-	 },
-	{
-	 .GetEnable = GetEnable_B,
-	 .GetIntSrc = GetIntSrc_B,
-	 .GetLoadTrig = GetLoadTrig_B,
-	 .GetMode = GetMode_B,
-	 .PulseIndex = PulseIndex_B,
-	 .SetEnable = SetEnable_B,
-	 .SetIntSrc = SetIntSrc_B,
-	 .SetLoadTrig = SetLoadTrig_B,
-	 .SetMode = SetMode_B,
-	 .ResetCapFlags = ResetCapFlags_B,
-	 .MyCRA = LP_CR2A,
-	 .MyCRB = LP_CR2B,
-	 .MyLatchLsw = LP_CNTR2BLSW,
-	 .MyEventBits = EVBITS(5),
-	 },
-};
 
 /*  enab/disable a function or test status bit(s) that are accessed */
 /*  through Main Control Registers 1 or 2. */
@@ -2680,6 +2552,100 @@ static void Preload(struct comedi_device *dev, struct enc_private *k,
 	DEBIwrite(dev, (uint16_t) (k->MyLatchLsw + 2),
 		  (uint16_t) (value >> 16));
 }
+
+static struct enc_private enc_private_data[] = {
+	{
+		.GetEnable	= GetEnable_A,
+		.GetIntSrc	= GetIntSrc_A,
+		.GetLoadTrig	= GetLoadTrig_A,
+		.GetMode	= GetMode_A,
+		.PulseIndex	= PulseIndex_A,
+		.SetEnable	= SetEnable_A,
+		.SetIntSrc	= SetIntSrc_A,
+		.SetLoadTrig	= SetLoadTrig_A,
+		.SetMode	= SetMode_A,
+		.ResetCapFlags	= ResetCapFlags_A,
+		.MyCRA		= LP_CR0A,
+		.MyCRB		= LP_CR0B,
+		.MyLatchLsw	= LP_CNTR0ALSW,
+		.MyEventBits	= EVBITS(0),
+	}, {
+		.GetEnable	= GetEnable_A,
+		.GetIntSrc	= GetIntSrc_A,
+		.GetLoadTrig	= GetLoadTrig_A,
+		.GetMode	= GetMode_A,
+		.PulseIndex	= PulseIndex_A,
+		.SetEnable	= SetEnable_A,
+		.SetIntSrc	= SetIntSrc_A,
+		.SetLoadTrig	= SetLoadTrig_A,
+		.SetMode	= SetMode_A,
+		.ResetCapFlags	= ResetCapFlags_A,
+		.MyCRA		= LP_CR1A,
+		.MyCRB		= LP_CR1B,
+		.MyLatchLsw	= LP_CNTR1ALSW,
+		.MyEventBits	= EVBITS(1),
+	}, {
+		.GetEnable	= GetEnable_A,
+		.GetIntSrc	= GetIntSrc_A,
+		.GetLoadTrig	= GetLoadTrig_A,
+		.GetMode	= GetMode_A,
+		.PulseIndex	= PulseIndex_A,
+		.SetEnable	= SetEnable_A,
+		.SetIntSrc	= SetIntSrc_A,
+		.SetLoadTrig	= SetLoadTrig_A,
+		.SetMode	= SetMode_A,
+		.ResetCapFlags	= ResetCapFlags_A,
+		.MyCRA		= LP_CR2A,
+		.MyCRB		= LP_CR2B,
+		.MyLatchLsw	= LP_CNTR2ALSW,
+		.MyEventBits	= EVBITS(2),
+	}, {
+		.GetEnable	= GetEnable_B,
+		.GetIntSrc	= GetIntSrc_B,
+		.GetLoadTrig	= GetLoadTrig_B,
+		.GetMode	= GetMode_B,
+		.PulseIndex	= PulseIndex_B,
+		.SetEnable	= SetEnable_B,
+		.SetIntSrc	= SetIntSrc_B,
+		.SetLoadTrig	= SetLoadTrig_B,
+		.SetMode	= SetMode_B,
+		.ResetCapFlags	= ResetCapFlags_B,
+		.MyCRA		= LP_CR0A,
+		.MyCRB		= LP_CR0B,
+		.MyLatchLsw	= LP_CNTR0BLSW,
+		.MyEventBits	= EVBITS(3),
+	}, {
+		.GetEnable	= GetEnable_B,
+		.GetIntSrc	= GetIntSrc_B,
+		.GetLoadTrig	= GetLoadTrig_B,
+		.GetMode	= GetMode_B,
+		.PulseIndex	= PulseIndex_B,
+		.SetEnable	= SetEnable_B,
+		.SetIntSrc	= SetIntSrc_B,
+		.SetLoadTrig	= SetLoadTrig_B,
+		.SetMode	= SetMode_B,
+		.ResetCapFlags	= ResetCapFlags_B,
+		.MyCRA		= LP_CR1A,
+		.MyCRB		= LP_CR1B,
+		.MyLatchLsw	= LP_CNTR1BLSW,
+		.MyEventBits	= EVBITS(4),
+	}, {
+		.GetEnable	= GetEnable_B,
+		.GetIntSrc	= GetIntSrc_B,
+		.GetLoadTrig	= GetLoadTrig_B,
+		.GetMode	= GetMode_B,
+		.PulseIndex	= PulseIndex_B,
+		.SetEnable	= SetEnable_B,
+		.SetIntSrc	= SetIntSrc_B,
+		.SetLoadTrig	= SetLoadTrig_B,
+		.SetMode	= SetMode_B,
+		.ResetCapFlags	= ResetCapFlags_B,
+		.MyCRA		= LP_CR2A,
+		.MyCRB		= LP_CR2B,
+		.MyLatchLsw	= LP_CNTR2BLSW,
+		.MyEventBits	= EVBITS(5),
+	},
+};
 
 static void CountersInit(struct comedi_device *dev)
 {
