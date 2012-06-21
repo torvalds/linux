@@ -29,7 +29,47 @@
  * the sender.
  */
 
-/* State values for ceph_connection->sock_state; NEW is assumed to be 0 */
+/*
+ * We track the state of the socket on a given connection using
+ * values defined below.  The transition to a new socket state is
+ * handled by a function which verifies we aren't coming from an
+ * unexpected state.
+ *
+ *      --------
+ *      | NEW* |  transient initial state
+ *      --------
+ *          | con_sock_state_init()
+ *          v
+ *      ----------
+ *      | CLOSED |  initialized, but no socket (and no
+ *      ----------  TCP connection)
+ *       ^      \
+ *       |       \ con_sock_state_connecting()
+ *       |        ----------------------
+ *       |                              \
+ *       + con_sock_state_closed()       \
+ *       |\                               \
+ *       | \                               \
+ *       |  -----------                     \
+ *       |  | CLOSING |  socket event;       \
+ *       |  -----------  await close          \
+ *       |       ^                            |
+ *       |       |                            |
+ *       |       + con_sock_state_closing()   |
+ *       |      / \                           |
+ *       |     /   ---------------            |
+ *       |    /                   \           v
+ *       |   /                    --------------
+ *       |  /    -----------------| CONNECTING |  socket created, TCP
+ *       |  |   /                 --------------  connect initiated
+ *       |  |   | con_sock_state_connected()
+ *       |  |   v
+ *      -------------
+ *      | CONNECTED |  TCP connection established
+ *      -------------
+ *
+ * State values for ceph_connection->sock_state; NEW is assumed to be 0.
+ */
 
 #define CON_SOCK_STATE_NEW		0	/* -> CLOSED */
 #define CON_SOCK_STATE_CLOSED		1	/* -> CONNECTING */
