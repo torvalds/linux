@@ -152,6 +152,7 @@
 #define CMD_INV_DEV_ENTRY       0x02
 #define CMD_INV_IOMMU_PAGES	0x03
 #define CMD_INV_IOTLB_PAGES	0x04
+#define CMD_INV_IRT		0x05
 #define CMD_COMPLETE_PPR	0x07
 #define CMD_INV_ALL		0x08
 
@@ -183,6 +184,8 @@
 #define DEV_ENTRY_LINT1_PASS    0xbf
 #define DEV_ENTRY_MODE_MASK	0x07
 #define DEV_ENTRY_MODE_SHIFT	0x09
+
+#define MAX_DEV_TABLE_ENTRIES	0xffff
 
 /* constants to configure the command buffer */
 #define CMD_BUFFER_SIZE    8192
