@@ -173,7 +173,7 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 	int cur_bb_spur, negative = 0, cck_spur_freq;
 	int i;
 	int range, max_spur_cnts, synth_freq;
-	u8 *spur_fbin_ptr = NULL;
+	u8 *spur_fbin_ptr = ar9003_get_spur_chan_ptr(ah, IS_CHAN_2GHZ(chan));
 
 	/*
 	 * Need to verify range +/- 10 MHz in control channel, otherwise spur
@@ -181,8 +181,6 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 	 */
 
 	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah)) {
-		spur_fbin_ptr = ar9003_get_spur_chan_ptr(ah,
-							 IS_CHAN_2GHZ(chan));
 		if (spur_fbin_ptr[0] == 0) /* No spur */
 			return;
 		max_spur_cnts = 5;
