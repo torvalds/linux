@@ -45,7 +45,7 @@ static ssize_t iio_trigger_read_name(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct iio_trigger *trig = dev_get_drvdata(dev);
+	struct iio_trigger *trig = to_iio_trigger(dev);
 	return sprintf(buf, "%s\n", trig->name);
 }
 
@@ -436,7 +436,6 @@ struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
 		trig->dev.type = &iio_trig_type;
 		trig->dev.bus = &iio_bus_type;
 		device_initialize(&trig->dev);
-		dev_set_drvdata(&trig->dev, (void *)trig);
 
 		mutex_init(&trig->pool_lock);
 		trig->subirq_base
