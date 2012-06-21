@@ -363,11 +363,10 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 		break;
 	}
 
-	if (chip->option.auto_delink_en && !chip->card_ready) {
+	if (chip->option.auto_delink_en && !chip->card_ready)
 		rts51x_auto_delink(chip);
-	} else {
+	else
 		chip->auto_delink_counter = 0;
-	}
 }
 
 void rts51x_add_cmd(struct rts51x_chip *chip,
