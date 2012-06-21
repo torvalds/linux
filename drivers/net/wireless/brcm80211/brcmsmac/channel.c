@@ -768,6 +768,11 @@ void brcms_c_regd_init(struct brcms_c_info *wlc)
 			band = wlc->bandstate[BAND_2G_INDEX];
 		else
 			band = wlc->bandstate[BAND_5G_INDEX];
+
+		/* skip if band not initialized */
+		if (band->pi == NULL)
+			continue;
+
 		wlc_phy_chanspec_band_validch(band->pi, band->bandtype,
 					      &sup_chan);
 
