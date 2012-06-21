@@ -1646,11 +1646,11 @@ S:	Maintained
 F:	drivers/gpio/gpio-bt8xx.c
 
 BTRFS FILE SYSTEM
-M:	Chris Mason <chris.mason@oracle.com>
+M:	Chris Mason <chris.mason@fusionio.com>
 L:	linux-btrfs@vger.kernel.org
 W:	http://btrfs.wiki.kernel.org/
 Q:	http://patchwork.kernel.org/project/linux-btrfs/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mason/btrfs-unstable.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mason/linux-btrfs.git
 S:	Maintained
 F:	Documentation/filesystems/btrfs.txt
 F:	fs/btrfs/
@@ -1800,6 +1800,9 @@ F:	include/linux/cfag12864b.h
 CFG80211 and NL80211
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 S:	Maintained
 F:	include/linux/nl80211.h
 F:	include/net/cfg80211.h
@@ -4349,7 +4352,8 @@ MAC80211
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 S:	Maintained
 F:	Documentation/networking/mac80211-injection.txt
 F:	include/net/mac80211.h
@@ -4360,7 +4364,8 @@ M:	Stefano Brivio <stefano.brivio@polimi.it>
 M:	Mattias Nissler <mattias.nissler@gmx.de>
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/en/developers/Documentation/mac80211/RateControl/PID
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 S:	Maintained
 F:	net/mac80211/rc80211_pid*
 
@@ -5711,6 +5716,9 @@ F:	include/linux/remoteproc.h
 RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 S:	Maintained
 F:	Documentation/rfkill.txt
 F:	net/rfkill/

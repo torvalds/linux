@@ -190,6 +190,19 @@ find_active_client(struct list_head *head)
 	return NULL;
 }
 
+int vga_switcheroo_get_client_state(struct pci_dev *pdev)
+{
+	struct vga_switcheroo_client *client;
+
+	client = find_client_from_pci(&vgasr_priv.clients, pdev);
+	if (!client)
+		return VGA_SWITCHEROO_NOT_FOUND;
+	if (!vgasr_priv.active)
+		return VGA_SWITCHEROO_INIT;
+	return client->pwr_state;
+}
+EXPORT_SYMBOL(vga_switcheroo_get_client_state);
+
 void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 {
 	struct vga_switcheroo_client *client;
@@ -291,8 +304,6 @@ static int vga_switchto_stage1(struct vga_switcheroo_client *new_client)
 		vga_switchon(new_client);
 
 	vga_set_default_device(new_client->pdev);
-	set_audio_state(new_client->id, VGA_SWITCHEROO_ON);
-
 	return 0;
 }
 
@@ -308,6 +319,8 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 
 	active->active = false;
 
+	set_audio_state(active->id, VGA_SWITCHEROO_OFF);
+
 	if (new_client->fb_info) {
 		struct fb_event event;
 		event.info = new_client->fb_info;
@@ -321,10 +334,10 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	if (new_client->ops->reprobe)
 		new_client->ops->reprobe(new_client->pdev);
 
-	set_audio_state(active->id, VGA_SWITCHEROO_OFF);
-
 	if (active->pwr_state == VGA_SWITCHEROO_ON)
 		vga_switchoff(active);
+
+	set_audio_state(new_client->id, VGA_SWITCHEROO_ON);
 
 	new_client->active = true;
 	return 0;
@@ -371,8 +384,9 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	/* pwr off the device not in use */
 	if (strncmp(usercmd, "OFF", 3) == 0) {
 		list_for_each_entry(client, &vgasr_priv.clients, list) {
-			if (client->active)
+			if (client->active || client_is_audio(client))
 				continue;
+			set_audio_state(client->id, VGA_SWITCHEROO_OFF);
 			if (client->pwr_state == VGA_SWITCHEROO_ON)
 				vga_switchoff(client);
 		}
@@ -381,10 +395,11 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	/* pwr on the device not in use */
 	if (strncmp(usercmd, "ON", 2) == 0) {
 		list_for_each_entry(client, &vgasr_priv.clients, list) {
-			if (client->active)
+			if (client->active || client_is_audio(client))
 				continue;
 			if (client->pwr_state == VGA_SWITCHEROO_OFF)
 				vga_switchon(client);
+			set_audio_state(client->id, VGA_SWITCHEROO_ON);
 		}
 		goto out;
 	}

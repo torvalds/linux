@@ -96,7 +96,7 @@ static int of_mdio_bus_match(struct device *dev, void *mdio_bus_np)
 }
 /**
  * of_mdio_find_bus - Given an mii_bus node, find the mii_bus.
- * @mdio_np: Pointer to the mii_bus.
+ * @mdio_bus_np: Pointer to the mii_bus.
  *
  * Returns a pointer to the mii_bus, or NULL if none found.
  *

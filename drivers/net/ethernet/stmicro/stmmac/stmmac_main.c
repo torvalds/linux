@@ -833,8 +833,9 @@ static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
 
 /**
  * stmmac_selec_desc_mode
- * @dev : device pointer
- * Description: select the Enhanced/Alternate or Normal descriptors */
+ * @priv : private structure
+ * Description: select the Enhanced/Alternate or Normal descriptors
+ */
 static void stmmac_selec_desc_mode(struct stmmac_priv *priv)
 {
 	if (priv->plat->enh_desc) {
@@ -1861,6 +1862,8 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 /**
  * stmmac_dvr_probe
  * @device: device pointer
+ * @plat_dat: platform data pointer
+ * @addr: iobase memory address
  * Description: this is the main probe function used to
  * call the alloc_etherdev, allocate the priv structure.
  */
@@ -2089,6 +2092,34 @@ int stmmac_restore(struct net_device *ndev)
 	return stmmac_open(ndev);
 }
 #endif /* CONFIG_PM */
+
+/* Driver can be configured w/ and w/ both PCI and Platf drivers
+ * depending on the configuration selected.
+ */
+static int __init stmmac_init(void)
+{
+	int err_plt = 0;
+	int err_pci = 0;
+
+	err_plt = stmmac_register_platform();
+	err_pci = stmmac_register_pci();
+
+	if ((err_pci) && (err_plt)) {
+		pr_err("stmmac: driver registration failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void __exit stmmac_exit(void)
+{
+	stmmac_unregister_platform();
+	stmmac_unregister_pci();
+}
+
+module_init(stmmac_init);
+module_exit(stmmac_exit);
 
 #ifndef MODULE
 static int __init stmmac_cmdline_opt(char *str)

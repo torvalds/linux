@@ -88,7 +88,7 @@ config LCD_PLATFORM
 
 config LCD_TOSA
 	tristate "Sharp SL-6000 LCD Driver"
-	depends on SPI && MACH_TOSA
+	depends on I2C && SPI && MACH_TOSA
 	help
 	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
 	  for its LCD.

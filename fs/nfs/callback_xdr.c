@@ -455,9 +455,9 @@ static __be32 decode_cb_sequence_args(struct svc_rqst *rqstp,
 	args->csa_nrclists = ntohl(*p++);
 	args->csa_rclists = NULL;
 	if (args->csa_nrclists) {
-		args->csa_rclists = kmalloc(args->csa_nrclists *
-					    sizeof(*args->csa_rclists),
-					    GFP_KERNEL);
+		args->csa_rclists = kmalloc_array(args->csa_nrclists,
+						  sizeof(*args->csa_rclists),
+						  GFP_KERNEL);
 		if (unlikely(args->csa_rclists == NULL))
 			goto out;
 
@@ -696,7 +696,7 @@ static __be32 encode_cb_sequence_res(struct svc_rqst *rqstp,
 				       const struct cb_sequenceres *res)
 {
 	__be32 *p;
-	unsigned status = res->csr_status;
+	__be32 status = res->csr_status;
 
 	if (unlikely(status != 0))
 		goto out;
