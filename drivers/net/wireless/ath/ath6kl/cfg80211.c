@@ -3211,7 +3211,7 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	u16 interval;
-	int ret;
+	int ret, rssi_thold;
 
 	if (ar->state != ATH6KL_STATE_ON)
 		return -EIO;
@@ -3242,6 +3242,23 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 						MATCHED_SSID_FILTER, 0);
 		if (ret < 0)
 			return ret;
+	}
+
+	if (test_bit(ATH6KL_FW_CAPABILITY_RSSI_SCAN_THOLD,
+		     ar->fw_capabilities)) {
+		if (request->rssi_thold <= NL80211_SCAN_RSSI_THOLD_OFF)
+			rssi_thold = 0;
+		else if (request->rssi_thold < -127)
+			rssi_thold = -127;
+		else
+			rssi_thold = request->rssi_thold;
+
+		ret = ath6kl_wmi_set_rssi_filter_cmd(ar->wmi, vif->fw_vif_idx,
+						     rssi_thold);
+		if (ret) {
+			ath6kl_err("failed to set RSSI threshold for scan\n");
+			return ret;
+		}
 	}
 
 	/* fw uses seconds, also make sure that it's >0 */

@@ -115,6 +115,9 @@ enum ath6kl_fw_capability {
 	 */
 	ATH6KL_FW_CAPABILITY_SCHED_SCAN_MATCH_LIST,
 
+	/* Firmware supports filtering BSS results by RSSI */
+	ATH6KL_FW_CAPABILITY_RSSI_SCAN_THOLD,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };
