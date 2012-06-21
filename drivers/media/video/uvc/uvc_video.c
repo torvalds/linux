@@ -1598,7 +1598,7 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 			psize = le16_to_cpu(ep->desc.wMaxPacketSize);
 			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
 			if (psize >= bandwidth && psize <= best_psize) {
-				altsetting = i;
+				altsetting = alts->desc.bAlternateSetting;
 				best_psize = psize;
 				best_ep = ep;
 			}
