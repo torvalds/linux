@@ -885,7 +885,7 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	};
 
 	if (!pdata) {
-		dev_warn(&cl->dev, "no platform data\n");
+		dev_err(&cl->dev, "no platform data\n");
 		return -EINVAL;
 	}
 
