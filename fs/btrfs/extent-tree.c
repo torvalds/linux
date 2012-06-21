@@ -3728,6 +3728,60 @@ commit:
 	return btrfs_commit_transaction(trans, root);
 }
 
+enum flush_state {
+	FLUSH_DELALLOC		=	1,
+	FLUSH_DELALLOC_WAIT	=	2,
+	FLUSH_DELAYED_ITEMS_NR	=	3,
+	FLUSH_DELAYED_ITEMS	=	4,
+	COMMIT_TRANS		=	5,
+};
+
+static int flush_space(struct btrfs_root *root,
+		       struct btrfs_space_info *space_info, u64 num_bytes,
+		       u64 orig_bytes, int state)
+{
+	struct btrfs_trans_handle *trans;
+	int nr;
+	int ret;
+
+	switch (state) {
+	case FLUSH_DELALLOC:
+	case FLUSH_DELALLOC_WAIT:
+		ret = shrink_delalloc(root, num_bytes,
+				      state == FLUSH_DELALLOC_WAIT);
+		if (ret > 0)
+			ret = 0;
+		break;
+	case FLUSH_DELAYED_ITEMS_NR:
+	case FLUSH_DELAYED_ITEMS:
+		if (state == FLUSH_DELAYED_ITEMS_NR) {
+			u64 bytes = btrfs_calc_trans_metadata_size(root, 1);
+
+			nr = (int)div64_u64(num_bytes, bytes);
+			if (!nr)
+				nr = 1;
+			nr *= 2;
+		} else {
+			nr = -1;
+		}
+		trans = btrfs_join_transaction(root);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			break;
+		}
+		ret = btrfs_run_delayed_items_nr(trans, root, nr);
+		btrfs_end_transaction(trans, root);
+		break;
+	case COMMIT_TRANS:
+		ret = may_commit_transaction(root, space_info, orig_bytes, 0);
+		break;
+	default:
+		ret = -ENOSPC;
+		break;
+	}
+
+	return ret;
+}
 /**
  * reserve_metadata_bytes - try to reserve bytes from the block_rsv's space
  * @root - the root we're allocating for
@@ -3749,11 +3803,10 @@ static int reserve_metadata_bytes(struct btrfs_root *root,
 	struct btrfs_space_info *space_info = block_rsv->space_info;
 	u64 used;
 	u64 num_bytes = orig_bytes;
-	int retries = 0;
+	int flush_state = FLUSH_DELALLOC;
 	int ret = 0;
-	bool committed = false;
 	bool flushing = false;
-	bool wait_ordered = false;
+	bool committed = false;
 
 again:
 	ret = 0;
@@ -3812,9 +3865,8 @@ again:
 		 * amount plus the amount of bytes that we need for this
 		 * reservation.
 		 */
-		wait_ordered = true;
 		num_bytes = used - space_info->total_bytes +
-			(orig_bytes * (retries + 1));
+			(orig_bytes * 2);
 	}
 
 	if (ret) {
@@ -3867,8 +3919,6 @@ again:
 			trace_btrfs_space_reservation(root->fs_info,
 				"space_info", space_info->flags, orig_bytes, 1);
 			ret = 0;
-		} else {
-			wait_ordered = true;
 		}
 	}
 
@@ -3887,36 +3937,13 @@ again:
 	if (!ret || !flush)
 		goto out;
 
-	/*
-	 * We do synchronous shrinking since we don't actually unreserve
-	 * metadata until after the IO is completed.
-	 */
-	ret = shrink_delalloc(root, num_bytes, wait_ordered);
-	if (ret < 0)
-		goto out;
-
-	ret = 0;
-
-	/*
-	 * So if we were overcommitted it's possible that somebody else flushed
-	 * out enough space and we simply didn't have enough space to reclaim,
-	 * so go back around and try again.
-	 */
-	if (retries < 2) {
-		wait_ordered = true;
-		retries++;
+	ret = flush_space(root, space_info, num_bytes, orig_bytes,
+			  flush_state);
+	flush_state++;
+	if (!ret)
 		goto again;
-	}
-
-	ret = -ENOSPC;
-	if (committed)
-		goto out;
-
-	ret = may_commit_transaction(root, space_info, orig_bytes, 0);
-	if (!ret) {
-		committed = true;
+	else if (flush_state <= COMMIT_TRANS)
 		goto again;
-	}
 
 out:
 	if (flushing) {
