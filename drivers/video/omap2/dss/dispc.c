@@ -2853,12 +2853,32 @@ unsigned long dispc_core_clk_rate(void)
 	return fclk / lcd;
 }
 
-void dispc_dump_clocks(struct seq_file *s)
+static void dispc_dump_clocks_channel(struct seq_file *s, enum omap_channel channel)
 {
 	int lcd, pcd;
+	enum omap_dss_clk_source lcd_clk_src;
+
+	seq_printf(s, "- %s -\n", mgr_desc[channel].name);
+
+	lcd_clk_src = dss_get_lcd_clk_source(channel);
+
+	seq_printf(s, "%s clk source = %s (%s)\n", mgr_desc[channel].name,
+		dss_get_generic_clk_source_name(lcd_clk_src),
+		dss_feat_get_clk_source_name(lcd_clk_src));
+
+	dispc_mgr_get_lcd_divisor(channel, &lcd, &pcd);
+
+	seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
+		dispc_mgr_lclk_rate(channel), lcd);
+	seq_printf(s, "pck\t\t%-16lupck div\t%u\n",
+		dispc_mgr_pclk_rate(channel), pcd);
+}
+
+void dispc_dump_clocks(struct seq_file *s)
+{
+	int lcd;
 	u32 l;
 	enum omap_dss_clk_source dispc_clk_src = dss_get_dispc_clk_source();
-	enum omap_dss_clk_source lcd_clk_src;
 
 	if (dispc_runtime_get())
 		return;
@@ -2879,36 +2899,13 @@ void dispc_dump_clocks(struct seq_file *s)
 		seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
 				(dispc_fclk_rate()/lcd), lcd);
 	}
-	seq_printf(s, "- LCD1 -\n");
 
-	lcd_clk_src = dss_get_lcd_clk_source(OMAP_DSS_CHANNEL_LCD);
+	dispc_dump_clocks_channel(s, OMAP_DSS_CHANNEL_LCD);
 
-	seq_printf(s, "lcd1_clk source = %s (%s)\n",
-		dss_get_generic_clk_source_name(lcd_clk_src),
-		dss_feat_get_clk_source_name(lcd_clk_src));
-
-	dispc_mgr_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD, &lcd, &pcd);
-
-	seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
-			dispc_mgr_lclk_rate(OMAP_DSS_CHANNEL_LCD), lcd);
-	seq_printf(s, "pck\t\t%-16lupck div\t%u\n",
-			dispc_mgr_pclk_rate(OMAP_DSS_CHANNEL_LCD), pcd);
-	if (dss_has_feature(FEAT_MGR_LCD2)) {
-		seq_printf(s, "- LCD2 -\n");
-
-		lcd_clk_src = dss_get_lcd_clk_source(OMAP_DSS_CHANNEL_LCD2);
-
-		seq_printf(s, "lcd2_clk source = %s (%s)\n",
-			dss_get_generic_clk_source_name(lcd_clk_src),
-			dss_feat_get_clk_source_name(lcd_clk_src));
-
-		dispc_mgr_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD2, &lcd, &pcd);
-
-		seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
-				dispc_mgr_lclk_rate(OMAP_DSS_CHANNEL_LCD2), lcd);
-		seq_printf(s, "pck\t\t%-16lupck div\t%u\n",
-				dispc_mgr_pclk_rate(OMAP_DSS_CHANNEL_LCD2), pcd);
-	}
+	if (dss_has_feature(FEAT_MGR_LCD2))
+		dispc_dump_clocks_channel(s, OMAP_DSS_CHANNEL_LCD2);
+	if (dss_has_feature(FEAT_MGR_LCD3))
+		dispc_dump_clocks_channel(s, OMAP_DSS_CHANNEL_LCD3);
 
 	dispc_runtime_put();
 }
@@ -2961,6 +2958,12 @@ void dispc_dump_irqs(struct seq_file *s)
 		PIS(ACBIAS_COUNT_STAT2);
 		PIS(SYNC_LOST2);
 	}
+	if (dss_has_feature(FEAT_MGR_LCD3)) {
+		PIS(FRAMEDONE3);
+		PIS(VSYNC3);
+		PIS(ACBIAS_COUNT_STAT3);
+		PIS(SYNC_LOST3);
+	}
 #undef PIS
 }
 #endif
@@ -2972,6 +2975,7 @@ static void dispc_dump_regs(struct seq_file *s)
 		[OMAP_DSS_CHANNEL_LCD]		= "LCD",
 		[OMAP_DSS_CHANNEL_DIGIT]	= "TV",
 		[OMAP_DSS_CHANNEL_LCD2]		= "LCD2",
+		[OMAP_DSS_CHANNEL_LCD3]		= "LCD3",
 	};
 	const char *ovl_names[] = {
 		[OMAP_DSS_GFX]		= "GFX",
@@ -3003,6 +3007,10 @@ static void dispc_dump_regs(struct seq_file *s)
 	if (dss_has_feature(FEAT_MGR_LCD2)) {
 		DUMPREG(DISPC_CONTROL2);
 		DUMPREG(DISPC_CONFIG2);
+	}
+	if (dss_has_feature(FEAT_MGR_LCD3)) {
+		DUMPREG(DISPC_CONTROL3);
+		DUMPREG(DISPC_CONFIG3);
 	}
 
 #undef DUMPREG
@@ -3386,6 +3394,8 @@ static void print_irq_status(u32 status)
 	PIS(SYNC_LOST_DIGIT);
 	if (dss_has_feature(FEAT_MGR_LCD2))
 		PIS(SYNC_LOST2);
+	if (dss_has_feature(FEAT_MGR_LCD3))
+		PIS(SYNC_LOST3);
 #undef PIS
 
 	printk("\n");
