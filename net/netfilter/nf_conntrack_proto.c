@@ -253,18 +253,23 @@ int nf_conntrack_l3proto_register(struct net *net,
 {
 	int ret = 0;
 
-	if (net == &init_net)
-		ret = nf_conntrack_l3proto_register_net(proto);
-
-	if (ret < 0)
-		return ret;
-
 	if (proto->init_net) {
 		ret = proto->init_net(net);
 		if (ret < 0)
 			return ret;
 	}
-	return nf_ct_l3proto_register_sysctl(net, proto);
+
+	ret = nf_ct_l3proto_register_sysctl(net, proto);
+	if (ret < 0)
+		return ret;
+
+	if (net == &init_net) {
+		ret = nf_conntrack_l3proto_register_net(proto);
+		if (ret < 0)
+			nf_ct_l3proto_unregister_sysctl(net, proto);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_register);
 
@@ -454,19 +459,24 @@ int nf_conntrack_l4proto_register(struct net *net,
 				  struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
-	if (net == &init_net)
-		ret = nf_conntrack_l4proto_register_net(l4proto);
 
-	if (ret < 0)
-		return ret;
-
-	if (l4proto->init_net)
+	if (l4proto->init_net) {
 		ret = l4proto->init_net(net);
+		if (ret < 0)
+			return ret;
+	}
 
+	ret = nf_ct_l4proto_register_sysctl(net, l4proto);
 	if (ret < 0)
 		return ret;
 
-	return nf_ct_l4proto_register_sysctl(net, l4proto);
+	if (net == &init_net) {
+		ret = nf_conntrack_l4proto_register_net(l4proto);
+		if (ret < 0)
+			nf_ct_l4proto_unregister_sysctl(net, l4proto);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_register);
 
