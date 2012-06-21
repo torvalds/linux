@@ -38,7 +38,6 @@ void put_transaction(struct btrfs_transaction *transaction)
 	if (atomic_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
 		WARN_ON(transaction->delayed_refs.root.rb_node);
-		WARN_ON(!list_empty(&transaction->delayed_refs.seq_head));
 		memset(transaction, 0, sizeof(*transaction));
 		kmem_cache_free(btrfs_transaction_cachep, transaction);
 	}
@@ -126,7 +125,6 @@ loop:
 	cur_trans->delayed_refs.num_heads = 0;
 	cur_trans->delayed_refs.flushing = 0;
 	cur_trans->delayed_refs.run_delayed_start = 0;
-	cur_trans->delayed_refs.seq = 1;
 
 	/*
 	 * although the tree mod log is per file system and not per transaction,
@@ -145,10 +143,8 @@ loop:
 	}
 	atomic_set(&fs_info->tree_mod_seq, 0);
 
-	init_waitqueue_head(&cur_trans->delayed_refs.seq_wait);
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
-	INIT_LIST_HEAD(&cur_trans->delayed_refs.seq_head);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);

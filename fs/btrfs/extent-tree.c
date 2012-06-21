@@ -2217,6 +2217,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_node *ref;
 	struct btrfs_delayed_ref_head *locked_ref = NULL;
 	struct btrfs_delayed_extent_op *extent_op;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	int count = 0;
 	int must_insert_reserved = 0;
@@ -2255,7 +2256,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		ref = select_delayed_ref(locked_ref);
 
 		if (ref && ref->seq &&
-		    btrfs_check_delayed_seq(delayed_refs, ref->seq)) {
+		    btrfs_check_delayed_seq(fs_info, delayed_refs, ref->seq)) {
 			/*
 			 * there are still refs with lower seq numbers in the
 			 * process of being added. Don't run this ref yet.
@@ -2337,7 +2338,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		}
 
 next:
-		do_chunk_alloc(trans, root->fs_info->extent_root,
+		do_chunk_alloc(trans, fs_info->extent_root,
 			       2 * 1024 * 1024,
 			       btrfs_get_alloc_profile(root, 0),
 			       CHUNK_ALLOC_NO_FORCE);
@@ -2347,18 +2348,19 @@ next:
 	return count;
 }
 
-static void wait_for_more_refs(struct btrfs_delayed_ref_root *delayed_refs,
+static void wait_for_more_refs(struct btrfs_fs_info *fs_info,
+			       struct btrfs_delayed_ref_root *delayed_refs,
 			       unsigned long num_refs,
 			       struct list_head *first_seq)
 {
 	spin_unlock(&delayed_refs->lock);
 	pr_debug("waiting for more refs (num %ld, first %p)\n",
 		 num_refs, first_seq);
-	wait_event(delayed_refs->seq_wait,
+	wait_event(fs_info->tree_mod_seq_wait,
 		   num_refs != delayed_refs->num_entries ||
-		   delayed_refs->seq_head.next != first_seq);
+		   fs_info->tree_mod_seq_list.next != first_seq);
 	pr_debug("done waiting for more refs (num %ld, first %p)\n",
-		 delayed_refs->num_entries, delayed_refs->seq_head.next);
+		 delayed_refs->num_entries, fs_info->tree_mod_seq_list.next);
 	spin_lock(&delayed_refs->lock);
 }
 
@@ -2403,6 +2405,7 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 again:
 	consider_waiting = 0;
 	spin_lock(&delayed_refs->lock);
+
 	if (count == 0) {
 		count = delayed_refs->num_entries * 2;
 		run_most = 1;
@@ -2437,7 +2440,7 @@ again:
 				num_refs = delayed_refs->num_entries;
 				first_seq = root->fs_info->tree_mod_seq_list.next;
 			} else {
-				wait_for_more_refs(delayed_refs,
+				wait_for_more_refs(root->fs_info, delayed_refs,
 						   num_refs, first_seq);
 				/*
 				 * after waiting, things have changed. we
@@ -5190,8 +5193,8 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	rb_erase(&head->node.rb_node, &delayed_refs->root);
 
 	delayed_refs->num_entries--;
-	if (waitqueue_active(&delayed_refs->seq_wait))
-		wake_up(&delayed_refs->seq_wait);
+	if (waitqueue_active(&root->fs_info->tree_mod_seq_wait))
+		wake_up(&root->fs_info->tree_mod_seq_wait);
 
 	/*
 	 * we don't take a ref on the node because we're removing it from the

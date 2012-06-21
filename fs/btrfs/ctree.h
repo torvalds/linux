@@ -1030,6 +1030,13 @@ struct btrfs_block_group_cache {
 	struct list_head cluster_list;
 };
 
+/* delayed seq elem */
+struct seq_list {
+	struct list_head list;
+	u64 seq;
+};
+
+/* fs_info */
 struct reloc_control;
 struct btrfs_device;
 struct btrfs_fs_devices;
@@ -1144,6 +1151,8 @@ struct btrfs_fs_info {
 	spinlock_t tree_mod_seq_lock;
 	atomic_t tree_mod_seq;
 	struct list_head tree_mod_seq_list;
+	struct seq_list tree_mod_seq_elem;
+	wait_queue_head_t tree_mod_seq_wait;
 
 	/* this protects tree_mod_log */
 	rwlock_t tree_mod_log_lock;
@@ -2798,6 +2807,16 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info);
 }
 
+/* tree mod log functions from ctree.c */
+u64 btrfs_get_tree_mod_seq(struct btrfs_fs_info *fs_info,
+			   struct seq_list *elem);
+void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
+			    struct seq_list *elem);
+static inline u64 btrfs_inc_tree_mod_seq(struct btrfs_fs_info *fs_info)
+{
+	return atomic_inc_return(&fs_info->tree_mod_seq);
+}
+
 /* root-item.c */
 int btrfs_find_root_ref(struct btrfs_root *tree_root,
 			struct btrfs_path *path,
@@ -3156,18 +3175,6 @@ int btrfs_reada_wait(void *handle);
 void btrfs_reada_detach(void *handle);
 int btree_readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 			 u64 start, int err);
-
-/* delayed seq elem */
-struct seq_list {
-	struct list_head list;
-	u64 seq;
-	u32 flags;
-};
-
-void btrfs_get_tree_mod_seq(struct btrfs_fs_info *fs_info,
-			    struct seq_list *elem);
-void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
-			    struct seq_list *elem);
 
 static inline int is_fstree(u64 rootid)
 {
