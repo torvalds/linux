@@ -455,6 +455,16 @@ xdr_shift_buf(struct xdr_buf *buf, size_t len)
 EXPORT_SYMBOL_GPL(xdr_shift_buf);
 
 /**
+ * xdr_stream_pos - Return the current offset from the start of the xdr_stream
+ * @xdr: pointer to struct xdr_stream
+ */
+unsigned int xdr_stream_pos(const struct xdr_stream *xdr)
+{
+	return (unsigned int)(XDR_QUADLEN(xdr->buf->len) - xdr->nwords) << 2;
+}
+EXPORT_SYMBOL_GPL(xdr_stream_pos);
+
+/**
  * xdr_init_encode - Initialize a struct xdr_stream for sending data.
  * @xdr: pointer to xdr_stream struct
  * @buf: pointer to XDR buffer in which to encode data
