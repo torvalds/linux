@@ -2476,6 +2476,35 @@ static void CountersInit(struct comedi_device *dev)
 	}
 }
 
+static struct pci_dev *s626_find_pci(struct comedi_device *dev,
+				     struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(s626_boards) && !pcidev; i++) {
+		do {
+			pcidev = pci_get_subsys(s626_boards[i].vendor_id,
+						s626_boards[i].device_id,
+						s626_boards[i].subvendor_id,
+						s626_boards[i].subdevice_id,
+						pcidev);
+
+			if ((bus || slot) && pcidev) {
+				/* matches requested bus/slot */
+				if (pcidev->bus->number == bus &&
+				    PCI_SLOT(pcidev->devfn) == slot)
+					break;
+			} else {
+				break;
+			}
+		} while (1);
+	}
+	return pcidev;
+}
+
 static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 /*   uint8_t	PollList; */
@@ -2489,36 +2518,17 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	resource_size_t resourceStart;
 	dma_addr_t appdma;
 	struct comedi_subdevice *s;
-	struct pci_dev *pdev = NULL;
 
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(s626_boards) && !pdev; i++) {
-		do {
-			pdev = pci_get_subsys(s626_boards[i].vendor_id,
-					      s626_boards[i].device_id,
-					      s626_boards[i].subvendor_id,
-					      s626_boards[i].subdevice_id,
-					      pdev);
-
-			if ((it->options[0] || it->options[1]) && pdev) {
-				/* matches requested bus/slot */
-				if (pdev->bus->number == it->options[0] &&
-				    PCI_SLOT(pdev->devfn) == it->options[1])
-					break;
-			} else
-				break;
-		} while (1);
-	}
-	devpriv->pdev = pdev;
-
-	if (pdev == NULL) {
+	devpriv->pdev = s626_find_pci(dev, it);
+	if (!devpriv->pdev) {
 		printk(KERN_ERR "s626_attach: Board not present!!!\n");
 		return -ENODEV;
 	}
 
-	result = comedi_pci_enable(pdev, "s626");
+	result = comedi_pci_enable(devpriv->pdev, "s626");
 	if (result < 0) {
 		printk(KERN_ERR "s626_attach: comedi_pci_enable fails\n");
 		return -ENODEV;
