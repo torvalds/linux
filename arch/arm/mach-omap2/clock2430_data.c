@@ -1858,11 +1858,6 @@ static struct omap_clk omap2430_clks[] = {
 	CLK(NULL,	"osc_ck",	&osc_ck,	CK_243X),
 	CLK(NULL,	"sys_ck",	&sys_ck,	CK_243X),
 	CLK(NULL,	"alt_ck",	&alt_ck,	CK_243X),
-	CLK("omap-mcbsp.1",	"pad_fck",	&mcbsp_clks,	CK_243X),
-	CLK("omap-mcbsp.2",	"pad_fck",	&mcbsp_clks,	CK_243X),
-	CLK("omap-mcbsp.3",	"pad_fck",	&mcbsp_clks,	CK_243X),
-	CLK("omap-mcbsp.4",	"pad_fck",	&mcbsp_clks,	CK_243X),
-	CLK("omap-mcbsp.5",	"pad_fck",	&mcbsp_clks,	CK_243X),
 	CLK(NULL,	"mcbsp_clks",	&mcbsp_clks,	CK_243X),
 	/* internal analog sources */
 	CLK(NULL,	"dpll_ck",	&dpll_ck,	CK_243X),
@@ -1871,11 +1866,6 @@ static struct omap_clk omap2430_clks[] = {
 	/* internal prcm root sources */
 	CLK(NULL,	"func_54m_ck",	&func_54m_ck,	CK_243X),
 	CLK(NULL,	"core_ck",	&core_ck,	CK_243X),
-	CLK("omap-mcbsp.1",	"prcm_fck",	&func_96m_ck,	CK_243X),
-	CLK("omap-mcbsp.2",	"prcm_fck",	&func_96m_ck,	CK_243X),
-	CLK("omap-mcbsp.3",	"prcm_fck",	&func_96m_ck,	CK_243X),
-	CLK("omap-mcbsp.4",	"prcm_fck",	&func_96m_ck,	CK_243X),
-	CLK("omap-mcbsp.5",	"prcm_fck",	&func_96m_ck,	CK_243X),
 	CLK(NULL,	"func_96m_ck",	&func_96m_ck,	CK_243X),
 	CLK(NULL,	"func_48m_ck",	&func_48m_ck,	CK_243X),
 	CLK(NULL,	"func_12m_ck",	&func_12m_ck,	CK_243X),

@@ -347,8 +347,6 @@ static struct clkdm_autodep clkdm_autodeps[] = {
 
 static struct clockdomain *clockdomains_omap3430_common[] __initdata = {
 	&wkup_common_clkdm,
-	&cm_common_clkdm,
-	&prm_common_clkdm,
 	&mpu_3xxx_clkdm,
 	&neon_clkdm,
 	&iva2_clkdm,
