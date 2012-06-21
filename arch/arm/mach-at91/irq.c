@@ -41,6 +41,8 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
+#include <mach/at91_aic.h>
+
 void __iomem *at91_aic_base;
 static struct irq_domain *at91_aic_domain;
 static struct device_node *at91_aic_np;
@@ -302,11 +304,11 @@ void __init at91_aic_init(unsigned int priority[NR_AIC_IRQS])
 	 */
 	for (i = 0; i < NR_AIC_IRQS; i++) {
 		/* Put hardware irq number in Source Vector Register: */
-		at91_aic_write(AT91_AIC_SVR(i), i);
+		at91_aic_write(AT91_AIC_SVR(i), NR_IRQS_LEGACY + i);
 		/* Active Low interrupt, with the specified priority */
 		at91_aic_write(AT91_AIC_SMR(i), AT91_AIC_SRCTYPE_LOW | priority[i]);
 
-		irq_set_chip_and_handler(i, &at91_aic_chip, handle_fasteoi_irq);
+		irq_set_chip_and_handler(NR_IRQS_LEGACY + i, &at91_aic_chip, handle_fasteoi_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 

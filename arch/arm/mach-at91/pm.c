@@ -25,6 +25,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
+#include <mach/at91_aic.h>
 #include <mach/at91_pmc.h>
 #include <mach/cpu.h>
 

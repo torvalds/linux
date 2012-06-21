@@ -22,18 +22,6 @@
 #define __ASM_ARCH_IRQS_H
 
 #include <linux/io.h>
-#include <mach/at91_aic.h>
-
-#define NR_AIC_IRQS 32
-
-
-/*
- * IRQ interrupt symbols are the AT91xxx_ID_* symbols
- * for IRQs handled directly through the AIC, or else the AT91_PIN_*
- * symbols in gpio.h for ones handled indirectly as GPIOs.
- * We make provision for 5 banks of GPIO.
- */
-#define	NR_IRQS		(NR_AIC_IRQS + (5 * 32))
 
 /* FIQ is AIC source 0. */
 #define FIQ_START AT91_ID_FIQ

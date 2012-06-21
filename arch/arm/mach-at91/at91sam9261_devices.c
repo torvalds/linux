@@ -45,8 +45,8 @@ static struct resource usbh_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_UHP,
-		.end	= AT91SAM9261_ID_UHP,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_UHP,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_UHP,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -98,8 +98,8 @@ static struct resource udc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_UDP,
-		.end	= AT91SAM9261_ID_UDP,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_UDP,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_UDP,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -148,8 +148,8 @@ static struct resource mmc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_MCI,
-		.end	= AT91SAM9261_ID_MCI,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_MCI,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_MCI,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -310,8 +310,8 @@ static struct resource twi_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_TWI,
-		.end	= AT91SAM9261_ID_TWI,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_TWI,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_TWI,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -354,8 +354,8 @@ static struct resource spi0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_SPI0,
-		.end	= AT91SAM9261_ID_SPI0,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_SPI0,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_SPI0,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -380,8 +380,8 @@ static struct resource spi1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_SPI1,
-		.end	= AT91SAM9261_ID_SPI1,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_SPI1,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_SPI1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -468,8 +468,8 @@ static struct resource lcdc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_LCDC,
-		.end	= AT91SAM9261_ID_LCDC,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_LCDC,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_LCDC,
 		.flags	= IORESOURCE_IRQ,
 	},
 #if defined(CONFIG_FB_INTSRAM)
@@ -566,18 +566,18 @@ static struct resource tcb_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_TC0,
-		.end	= AT91SAM9261_ID_TC0,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_TC0,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_TC0,
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start	= AT91SAM9261_ID_TC1,
-		.end	= AT91SAM9261_ID_TC1,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_TC1,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_TC1,
 		.flags	= IORESOURCE_IRQ,
 	},
 	[3] = {
-		.start	= AT91SAM9261_ID_TC2,
-		.end	= AT91SAM9261_ID_TC2,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_TC2,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_TC2,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -689,8 +689,8 @@ static struct resource ssc0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_SSC0,
-		.end	= AT91SAM9261_ID_SSC0,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_SSC0,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_SSC0,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -731,8 +731,8 @@ static struct resource ssc1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_SSC1,
-		.end	= AT91SAM9261_ID_SSC1,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_SSC1,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_SSC1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -773,8 +773,8 @@ static struct resource ssc2_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_SSC2,
-		.end	= AT91SAM9261_ID_SSC2,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_SSC2,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_SSC2,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -857,8 +857,8 @@ static struct resource dbgu_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_SYS,
-		.end	= AT91_ID_SYS,
+		.start	= NR_IRQS_LEGACY + AT91_ID_SYS,
+		.end	= NR_IRQS_LEGACY + AT91_ID_SYS,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -895,8 +895,8 @@ static struct resource uart0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_US0,
-		.end	= AT91SAM9261_ID_US0,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_US0,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_US0,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -938,8 +938,8 @@ static struct resource uart1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_US1,
-		.end	= AT91SAM9261_ID_US1,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_US1,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_US1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -981,8 +981,8 @@ static struct resource uart2_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91SAM9261_ID_US2,
-		.end	= AT91SAM9261_ID_US2,
+		.start	= NR_IRQS_LEGACY + AT91SAM9261_ID_US2,
+		.end	= NR_IRQS_LEGACY + AT91SAM9261_ID_US2,
 		.flags	= IORESOURCE_IRQ,
 	},
 };

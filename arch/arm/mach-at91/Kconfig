@@ -30,6 +30,7 @@ config SOC_AT91SAM9
 	bool
 	select CPU_ARM926T
 	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	select AT91_SAM9_TIME
 	select AT91_SAM9_SMC
 

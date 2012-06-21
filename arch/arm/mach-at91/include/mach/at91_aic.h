@@ -28,6 +28,9 @@ extern void __iomem *at91_aic_base;
 .extern at91_aic_base
 #endif
 
+/* Number of irq lines managed by AIC */
+#define NR_AIC_IRQS	32
+
 #define AT91_AIC_IRQ_MIN_PRIORITY	0
 #define AT91_AIC_IRQ_MAX_PRIORITY	7
 

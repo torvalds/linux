@@ -137,7 +137,7 @@ static struct irqaction at91sam926x_pit_irq = {
 	.name		= "at91_tick",
 	.flags		= IRQF_SHARED | IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= at91sam926x_pit_interrupt,
-	.irq		= AT91_ID_SYS,
+	.irq		= NR_IRQS_LEGACY + AT91_ID_SYS,
 };
 
 static void at91sam926x_pit_reset(void)
