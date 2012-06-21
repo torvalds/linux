@@ -256,9 +256,9 @@ static irqreturn_t sport_err_irq(int irq, void *dev_id)
 	struct device *dev = &sport->pdev->dev;
 
 	if (sport->tx_regs->spctl & SPORT_CTL_DERRPRI)
-		dev_dbg(dev, "sport error: TUVF\n");
+		dev_err(dev, "sport error: TUVF\n");
 	if (sport->rx_regs->spctl & SPORT_CTL_DERRPRI)
-		dev_dbg(dev, "sport error: ROVF\n");
+		dev_err(dev, "sport error: ROVF\n");
 
 	return IRQ_HANDLED;
 }
