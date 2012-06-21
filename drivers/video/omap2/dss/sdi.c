@@ -84,8 +84,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	dispc_mgr_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
 			dssdev->panel.acbi, dssdev->panel.acb);
 
-	r = dss_calc_clock_div(1, t->pixel_clock * 1000,
-			&dss_cinfo, &dispc_cinfo);
+	r = dss_calc_clock_div(t->pixel_clock * 1000, &dss_cinfo, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
 

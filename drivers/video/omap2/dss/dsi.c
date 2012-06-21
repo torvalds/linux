@@ -1316,7 +1316,7 @@ static int dsi_calc_clock_rates(struct platform_device *dsidev,
 	return 0;
 }
 
-int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
+int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev,
 		unsigned long req_pck, struct dsi_clock_info *dsi_cinfo,
 		struct dispc_clock_info *dispc_cinfo)
 {
@@ -1335,8 +1335,8 @@ int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
 			dsi->cache_cinfo.clkin == dss_sys_clk) {
 		DSSDBG("DSI clock info found from cache\n");
 		*dsi_cinfo = dsi->cache_cinfo;
-		dispc_find_clk_divs(is_tft, req_pck,
-			dsi_cinfo->dsi_pll_hsdiv_dispc_clk, dispc_cinfo);
+		dispc_find_clk_divs(req_pck, dsi_cinfo->dsi_pll_hsdiv_dispc_clk,
+			dispc_cinfo);
 		return 0;
 	}
 
@@ -1402,7 +1402,7 @@ retry:
 
 				match = 1;
 
-				dispc_find_clk_divs(is_tft, req_pck,
+				dispc_find_clk_divs(req_pck,
 						cur.dsi_pll_hsdiv_dispc_clk,
 						&cur_dispc);
 

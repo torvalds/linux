@@ -64,7 +64,7 @@ static bool dpi_use_dsi_pll(struct omap_dss_device *dssdev)
 		return false;
 }
 
-static int dpi_set_dsi_clk(struct omap_dss_device *dssdev, bool is_tft,
+static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 		unsigned long pck_req, unsigned long *fck, int *lck_div,
 		int *pck_div)
 {
@@ -72,8 +72,8 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev, bool is_tft,
 	struct dispc_clock_info dispc_cinfo;
 	int r;
 
-	r = dsi_pll_calc_clock_div_pck(dpi.dsidev, is_tft, pck_req,
-			&dsi_cinfo, &dispc_cinfo);
+	r = dsi_pll_calc_clock_div_pck(dpi.dsidev, pck_req, &dsi_cinfo,
+			&dispc_cinfo);
 	if (r)
 		return r;
 
@@ -96,7 +96,7 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev, bool is_tft,
 	return 0;
 }
 
-static int dpi_set_dispc_clk(struct omap_dss_device *dssdev, bool is_tft,
+static int dpi_set_dispc_clk(struct omap_dss_device *dssdev,
 		unsigned long pck_req, unsigned long *fck, int *lck_div,
 		int *pck_div)
 {
@@ -104,7 +104,7 @@ static int dpi_set_dispc_clk(struct omap_dss_device *dssdev, bool is_tft,
 	struct dispc_clock_info dispc_cinfo;
 	int r;
 
-	r = dss_calc_clock_div(is_tft, pck_req, &dss_cinfo, &dispc_cinfo);
+	r = dss_calc_clock_div(pck_req, &dss_cinfo, &dispc_cinfo);
 	if (r)
 		return r;
 
@@ -129,20 +129,17 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
 	unsigned long pck;
-	bool is_tft;
 	int r = 0;
 
 	dispc_mgr_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
 			dssdev->panel.acbi, dssdev->panel.acb);
 
-	is_tft = (dssdev->panel.config & OMAP_DSS_LCD_TFT) != 0;
-
 	if (dpi_use_dsi_pll(dssdev))
-		r = dpi_set_dsi_clk(dssdev, is_tft, t->pixel_clock * 1000,
-				&fck, &lck_div, &pck_div);
+		r = dpi_set_dsi_clk(dssdev, t->pixel_clock * 1000, &fck,
+				&lck_div, &pck_div);
 	else
-		r = dpi_set_dispc_clk(dssdev, is_tft, t->pixel_clock * 1000,
-				&fck, &lck_div, &pck_div);
+		r = dpi_set_dispc_clk(dssdev, t->pixel_clock * 1000, &fck,
+				&lck_div, &pck_div);
 	if (r)
 		return r;
 
@@ -292,7 +289,6 @@ EXPORT_SYMBOL(dpi_set_timings);
 int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
-	bool is_tft;
 	int r;
 	int lck_div, pck_div;
 	unsigned long fck;
@@ -305,11 +301,9 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 	if (timings->pixel_clock == 0)
 		return -EINVAL;
 
-	is_tft = (dssdev->panel.config & OMAP_DSS_LCD_TFT) != 0;
-
 	if (dpi_use_dsi_pll(dssdev)) {
 		struct dsi_clock_info dsi_cinfo;
-		r = dsi_pll_calc_clock_div_pck(dpi.dsidev, is_tft,
+		r = dsi_pll_calc_clock_div_pck(dpi.dsidev,
 				timings->pixel_clock * 1000,
 				&dsi_cinfo, &dispc_cinfo);
 
@@ -319,7 +313,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 		fck = dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
 	} else {
 		struct dss_clock_info dss_cinfo;
-		r = dss_calc_clock_div(is_tft, timings->pixel_clock * 1000,
+		r = dss_calc_clock_div(timings->pixel_clock * 1000,
 				&dss_cinfo, &dispc_cinfo);
 
 		if (r)
