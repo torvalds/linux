@@ -787,7 +787,7 @@ static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	int cp_ready = !!(res & AC_UNSOL_RES_CP_READY);
 
 	printk(KERN_INFO
-		"HDMI CP event: CODEC=%d PIN=%d SUBTAG=0x%x CP_STATE=%d CP_READY=%d\n",
+		"HDMI CP event: CODEC=%d TAG=%d SUBTAG=0x%x CP_STATE=%d CP_READY=%d\n",
 		codec->addr,
 		tag,
 		subtag,
