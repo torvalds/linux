@@ -1,16 +1,24 @@
 /*
- * DVB USB library - provides a generic interface for a DVB USB device driver.
+ * DVB USB framework
  *
- * dvb-usb-init.c
+ * Copyright (C) 2004-6 Patrick Boettcher <patrick.boettcher@desy.de>
+ * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
  *
- * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the
- *	Free Software Foundation, version 2.
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
  *
- * see Documentation/dvb/README.dvb-usb for more information
+ *    You should have received a copy of the GNU General Public License along
+ *    with this program; if not, write to the Free Software Foundation, Inc.,
+ *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+
 #include "dvb_usb_common.h"
 
 int dvb_usbv2_disable_rc_polling;
@@ -956,7 +964,8 @@ int dvb_usbv2_resume(struct usb_interface *intf)
 }
 EXPORT_SYMBOL(dvb_usbv2_resume);
 
-MODULE_VERSION("1.0");
+MODULE_VERSION("2.0");
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
-MODULE_DESCRIPTION("A library module containing commonly used USB and DVB function USB DVB devices");
+MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
+MODULE_DESCRIPTION("DVB USB common");
 MODULE_LICENSE("GPL");
