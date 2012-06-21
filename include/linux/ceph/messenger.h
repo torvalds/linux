@@ -135,7 +135,6 @@ struct ceph_msg_pos {
  */
 struct ceph_connection {
 	void *private;
-	atomic_t nref;
 
 	const struct ceph_connection_operations *ops;
 
