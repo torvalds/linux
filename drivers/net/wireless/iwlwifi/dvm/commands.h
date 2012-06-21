@@ -190,6 +190,44 @@ enum {
 	REPLY_MAX = 0xff
 };
 
+/*
+ * Minimum number of queues. MAX_NUM is defined in hw specific files.
+ * Set the minimum to accommodate
+ *  - 4 standard TX queues
+ *  - the command queue
+ *  - 4 PAN TX queues
+ *  - the PAN multicast queue, and
+ *  - the AUX (TX during scan dwell) queue.
+ */
+#define IWL_MIN_NUM_QUEUES	11
+
+/*
+ * Command queue depends on iPAN support.
+ */
+#define IWL_DEFAULT_CMD_QUEUE_NUM	4
+#define IWL_IPAN_CMD_QUEUE_NUM		9
+
+#define IWL_TX_FIFO_BK		0	/* shared */
+#define IWL_TX_FIFO_BE		1
+#define IWL_TX_FIFO_VI		2	/* shared */
+#define IWL_TX_FIFO_VO		3
+#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
+#define IWL_TX_FIFO_BE_IPAN	4
+#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
+#define IWL_TX_FIFO_VO_IPAN	5
+/* re-uses the VO FIFO, uCode will properly flush/schedule */
+#define IWL_TX_FIFO_AUX		5
+#define IWL_TX_FIFO_UNUSED	255
+
+#define IWLAGN_CMD_FIFO_NUM	7
+
+/*
+ * This queue number is required for proper operation
+ * because the ucode will stop/start the scheduler as
+ * required.
+ */
+#define IWL_IPAN_MCAST_QUEUE	8
+
 /******************************************************************************
  * (0)
  * Commonly used structures and definitions:
@@ -755,8 +793,6 @@ struct iwl_qosparam_cmd {
 #define IWLAGN_BROADCAST_ID	15
 #define	IWLAGN_STATION_COUNT	16
 
-#define	IWL_INVALID_STATION 	255
-#define IWL_MAX_TID_COUNT	8
 #define IWL_TID_NON_QOS IWL_MAX_TID_COUNT
 
 #define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2)

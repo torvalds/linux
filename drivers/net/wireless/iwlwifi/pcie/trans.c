@@ -1059,7 +1059,7 @@ static void iwl_tx_start(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 a;
-	int i, chan;
+	int chan;
 	u32 reg_val;
 
 	/* make sure all queue are not stopped/used */
@@ -1091,12 +1091,8 @@ static void iwl_tx_start(struct iwl_trans *trans)
 	 */
 	iwl_write_prph(trans, SCD_CHAINEXT_EN, 0);
 
-	for (i = 0; i < trans_pcie->n_q_to_fifo; i++) {
-		int fifo = trans_pcie->setup_q_to_fifo[i];
-
-		iwl_trans_pcie_txq_enable(trans, i, fifo, IWL_INVALID_STATION,
-					  IWL_TID_NON_QOS, SCD_FRAME_LIMIT, 0);
-	}
+	iwl_trans_ac_txq_enable(trans, trans_pcie->cmd_queue,
+				trans_pcie->cmd_fifo);
 
 	/* Activate all Tx DMA/FIFO channels */
 	iwl_trans_txq_set_sched(trans, IWL_MASK(0, 7));
@@ -1528,6 +1524,7 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	trans_pcie->cmd_queue = trans_cfg->cmd_queue;
+	trans_pcie->cmd_fifo = trans_cfg->cmd_fifo;
 	if (WARN_ON(trans_cfg->n_no_reclaim_cmds > MAX_NO_RECLAIM_CMDS))
 		trans_pcie->n_no_reclaim_cmds = 0;
 	else
@@ -1535,17 +1532,6 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	if (trans_pcie->n_no_reclaim_cmds)
 		memcpy(trans_pcie->no_reclaim_cmds, trans_cfg->no_reclaim_cmds,
 		       trans_pcie->n_no_reclaim_cmds * sizeof(u8));
-
-	trans_pcie->n_q_to_fifo = trans_cfg->n_queue_to_fifo;
-
-	if (WARN_ON(trans_pcie->n_q_to_fifo > IWL_MAX_HW_QUEUES))
-		trans_pcie->n_q_to_fifo = IWL_MAX_HW_QUEUES;
-
-	/* at least the command queue must be mapped */
-	WARN_ON(!trans_pcie->n_q_to_fifo);
-
-	memcpy(trans_pcie->setup_q_to_fifo, trans_cfg->queue_to_fifo,
-	       trans_pcie->n_q_to_fifo * sizeof(u8));
 
 	trans_pcie->rx_buf_size_8k = trans_cfg->rx_buf_size_8k;
 	if (trans_pcie->rx_buf_size_8k)

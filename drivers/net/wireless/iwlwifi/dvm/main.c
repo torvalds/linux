@@ -518,49 +518,6 @@ static void iwl_bg_tx_flush(struct work_struct *work)
  * queue/FIFO/AC mapping definitions
  */
 
-#define IWL_TX_FIFO_BK		0	/* shared */
-#define IWL_TX_FIFO_BE		1
-#define IWL_TX_FIFO_VI		2	/* shared */
-#define IWL_TX_FIFO_VO		3
-#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
-#define IWL_TX_FIFO_BE_IPAN	4
-#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
-#define IWL_TX_FIFO_VO_IPAN	5
-/* re-uses the VO FIFO, uCode will properly flush/schedule */
-#define IWL_TX_FIFO_AUX		5
-#define IWL_TX_FIFO_UNUSED	-1
-
-#define IWLAGN_CMD_FIFO_NUM	7
-
-/*
- * This queue number is required for proper operation
- * because the ucode will stop/start the scheduler as
- * required.
- */
-#define IWL_IPAN_MCAST_QUEUE	8
-
-static const u8 iwlagn_default_queue_to_tx_fifo[] = {
-	IWL_TX_FIFO_VO,
-	IWL_TX_FIFO_VI,
-	IWL_TX_FIFO_BE,
-	IWL_TX_FIFO_BK,
-	IWLAGN_CMD_FIFO_NUM,
-};
-
-static const u8 iwlagn_ipan_queue_to_tx_fifo[] = {
-	IWL_TX_FIFO_VO,
-	IWL_TX_FIFO_VI,
-	IWL_TX_FIFO_BE,
-	IWL_TX_FIFO_BK,
-	IWL_TX_FIFO_BK_IPAN,
-	IWL_TX_FIFO_BE_IPAN,
-	IWL_TX_FIFO_VI_IPAN,
-	IWL_TX_FIFO_VO_IPAN,
-	IWL_TX_FIFO_BE_IPAN,
-	IWLAGN_CMD_FIFO_NUM,
-	IWL_TX_FIFO_AUX,
-};
-
 static const u8 iwlagn_bss_ac_to_fifo[] = {
 	IWL_TX_FIFO_VO,
 	IWL_TX_FIFO_VI,
@@ -1350,6 +1307,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	else
 		trans_cfg.queue_watchdog_timeout = IWL_WATCHDOG_DISABLED;
 	trans_cfg.command_names = iwl_dvm_cmd_strings;
+	trans_cfg.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
 
 	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
 		priv->cfg->base_params->num_of_queues);
@@ -1363,15 +1321,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
 		trans_cfg.cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
-		trans_cfg.queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
-		trans_cfg.n_queue_to_fifo =
-			ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo);
 	} else {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
-		trans_cfg.queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
-		trans_cfg.n_queue_to_fifo =
-			ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo);
 	}
 
 	/* Configure transport layer */
@@ -1460,9 +1412,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
-		trans_cfg.queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
-		trans_cfg.n_queue_to_fifo =
-			ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo);
 
 		/* Configure transport layer again*/
 		iwl_trans_configure(priv->trans, &trans_cfg);
@@ -1479,9 +1428,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 			priv->queue_to_mac80211[i] = i;
 		atomic_set(&priv->queue_stop_count[i], 0);
 	}
-
-	WARN_ON(trans_cfg.queue_to_fifo[trans_cfg.cmd_queue] !=
-						IWLAGN_CMD_FIFO_NUM);
 
 	if (iwl_init_drv(priv))
 		goto out_free_eeprom;

@@ -269,10 +269,9 @@ struct iwl_trans_pcie {
 	wait_queue_head_t ucode_write_waitq;
 	unsigned long status;
 	u8 cmd_queue;
+	u8 cmd_fifo;
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
-	u8 setup_q_to_fifo[IWL_MAX_HW_QUEUES];
-	u8 n_q_to_fifo;
 
 	bool rx_buf_size_8k;
 	u32 rx_page_order;

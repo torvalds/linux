@@ -90,22 +90,6 @@
 
 #define IWL_NUM_SCAN_RATES         (2)
 
-/*
- * Minimum number of queues. MAX_NUM is defined in hw specific files.
- * Set the minimum to accommodate
- *  - 4 standard TX queues
- *  - the command queue
- *  - 4 PAN TX queues
- *  - the PAN multicast queue, and
- *  - the AUX (TX during scan dwell) queue.
- */
-#define IWL_MIN_NUM_QUEUES	11
-
-/*
- * Command queue depends on iPAN support.
- */
-#define IWL_DEFAULT_CMD_QUEUE_NUM	4
-#define IWL_IPAN_CMD_QUEUE_NUM		9
 
 #define IEEE80211_DATA_LEN              2304
 #define IEEE80211_4ADDR_LEN             30

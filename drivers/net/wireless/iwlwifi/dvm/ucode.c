@@ -226,12 +226,49 @@ int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 	return ret;
 }
 
+static const u8 iwlagn_default_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
+};
+
+static const u8 iwlagn_ipan_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
+	IWL_TX_FIFO_BK_IPAN,
+	IWL_TX_FIFO_BE_IPAN,
+	IWL_TX_FIFO_VI_IPAN,
+	IWL_TX_FIFO_VO_IPAN,
+	IWL_TX_FIFO_BE_IPAN,
+	IWL_TX_FIFO_UNUSED,
+	IWL_TX_FIFO_AUX,
+};
 
 static int iwl_alive_notify(struct iwl_priv *priv)
 {
+	const u8 *queue_to_txf;
+	u8 n_queues;
 	int ret;
+	int i;
 
 	iwl_trans_fw_alive(priv->trans);
+
+	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN &&
+	    priv->eeprom_data->sku & EEPROM_SKU_CAP_IPAN_ENABLE) {
+		n_queues = ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo);
+		queue_to_txf = iwlagn_ipan_queue_to_tx_fifo;
+	} else {
+		n_queues = ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo);
+		queue_to_txf = iwlagn_default_queue_to_tx_fifo;
+	}
+
+	for (i = 0; i < n_queues; i++)
+		if (queue_to_txf[i] != IWL_TX_FIFO_UNUSED)
+			iwl_trans_ac_txq_enable(priv->trans, i,
+						queue_to_txf[i]);
 
 	priv->passive_no_rx = false;
 	priv->transport_queue_stop = 0;
