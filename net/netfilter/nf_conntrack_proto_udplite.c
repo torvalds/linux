@@ -234,29 +234,38 @@ static struct ctl_table udplite_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
+static int udplite_kmemdup_sysctl_table(struct nf_proto_net *pn,
+					struct udplite_net *un)
+{
+#ifdef CONFIG_SYSCTL
+	if (pn->ctl_table)
+		return 0;
+
+	pn->ctl_table = kmemdup(udplite_sysctl_table,
+				sizeof(udplite_sysctl_table),
+				GFP_KERNEL);
+	if (!pn->ctl_table)
+		return -ENOMEM;
+
+	pn->ctl_table[0].data = &un->timeouts[UDPLITE_CT_UNREPLIED];
+	pn->ctl_table[1].data = &un->timeouts[UDPLITE_CT_REPLIED];
+#endif
+	return 0;
+}
+
 static int udplite_init_net(struct net *net, u_int16_t proto)
 {
-	int i;
 	struct udplite_net *un = udplite_pernet(net);
-	struct nf_proto_net *pn = (struct nf_proto_net *)un;
-#ifdef CONFIG_SYSCTL
-	if (!pn->ctl_table) {
-#else
-	if (!pn->users++) {
-#endif
+	struct nf_proto_net *pn = &un->pn;
+
+	if (!pn->users) {
+		int i;
+
 		for (i = 0 ; i < UDPLITE_CT_MAX; i++)
 			un->timeouts[i] = udplite_timeouts[i];
-#ifdef CONFIG_SYSCTL
-		pn->ctl_table = kmemdup(udplite_sysctl_table,
-					sizeof(udplite_sysctl_table),
-					GFP_KERNEL);
-		if (!pn->ctl_table)
-			return -ENOMEM;
-		pn->ctl_table[0].data = &un->timeouts[UDPLITE_CT_UNREPLIED];
-		pn->ctl_table[1].data = &un->timeouts[UDPLITE_CT_REPLIED];
-#endif
 	}
-	return 0;
+
+	return udplite_kmemdup_sysctl_table(pn, un);
 }
 
 static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
