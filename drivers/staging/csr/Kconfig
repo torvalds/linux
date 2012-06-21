@@ -1,6 +1,8 @@
 config CSR_WIFI
 	tristate "CSR wireless driver"
-	depends on PCI && MMC
+	depends on PCI && MMC && CFG80211_WEXT
+	select WIRELESS_EXT
+	select WEXT_PRIV
 	help
 	  Driver for the CSR wireless SDIO device.
 

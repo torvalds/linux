@@ -18,7 +18,7 @@
 #include "unifi_priv.h"
 #include "csr_wifi_hip_conversions.h"
 #ifdef CSR_SUPPORT_WEXT_AP
-#include "sme_csr/csr_wifi_sme_sef.h"
+#include "csr_wifi_sme_sef.h"
 #endif
 
 

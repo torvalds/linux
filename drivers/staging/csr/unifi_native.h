@@ -125,7 +125,7 @@ struct wext_config {
     int num_scan_info;
 
     /* Flag on whether non-802.1x packets are allowed out */
-    CsrWifiRouterPortAction block_controlled_port;
+/*    CsrWifiRouterPortAction block_controlled_port;*/
 
     /* Flag on whether we have completed an authenticate/associate process */
     unsigned int flag_associated        : 1;
