@@ -1348,7 +1348,7 @@ static void s626_detach(struct comedi_device *dev)
 /*
  * this functions build the RPS program for hardware driven acquistion
  */
-void ResetADC(struct comedi_device *dev, uint8_t * ppl)
+static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 {
 	register uint32_t *pRPS;
 	uint32_t JmpAdrs;
