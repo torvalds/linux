@@ -265,7 +265,7 @@ CONFIG_ARCH_SUN4I=y
 #
 
 #
-# Allwinner A1x options
+# Allwinner A10 options
 #
 # CONFIG_TEGRA_FPGA is not set
 
