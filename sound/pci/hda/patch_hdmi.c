@@ -1388,7 +1388,7 @@ static int simple_playback_build_pcms(struct hda_codec *codec)
 static void simple_hdmi_unsol_event(struct hda_codec *codec,
 				    unsigned int res)
 {
-	snd_hda_jack_get_action(codec, res >> AC_UNSOL_RES_TAG_SHIFT);
+	snd_hda_jack_set_dirty_all(codec);
 	snd_hda_jack_report_sync(codec);
 }
 
