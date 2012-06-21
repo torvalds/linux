@@ -1023,8 +1023,8 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 	}
 
 	if (fw->size != WL18XX_CONF_SIZE) {
-		wl1271_error("configuration binary file size is wrong, "
-			     "expected %d got %d", WL18XX_CONF_SIZE, fw->size);
+		wl1271_error("configuration binary file size is wrong, expected %zu got %zu",
+			     WL18XX_CONF_SIZE, fw->size);
 		ret = -EINVAL;
 		goto out;
 	}
