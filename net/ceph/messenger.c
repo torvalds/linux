@@ -501,30 +501,6 @@ bool ceph_con_opened(struct ceph_connection *con)
 }
 
 /*
- * generic get/put
- */
-struct ceph_connection *ceph_con_get(struct ceph_connection *con)
-{
-	int nref = __atomic_add_unless(&con->nref, 1, 0);
-
-	dout("con_get %p nref = %d -> %d\n", con, nref, nref + 1);
-
-	return nref ? con : NULL;
-}
-
-void ceph_con_put(struct ceph_connection *con)
-{
-	int nref = atomic_dec_return(&con->nref);
-
-	BUG_ON(nref < 0);
-	if (nref == 0) {
-		BUG_ON(con->sock);
-		kfree(con);
-	}
-	dout("con_put %p nref = %d -> %d\n", con, nref + 1, nref);
-}
-
-/*
  * initialize a new connection.
  */
 void ceph_con_init(struct ceph_connection *con, void *private,
@@ -535,7 +511,6 @@ void ceph_con_init(struct ceph_connection *con, void *private,
 	memset(con, 0, sizeof(*con));
 	con->private = private;
 	con->ops = ops;
-	atomic_set(&con->nref, 1);
 	con->msgr = msgr;
 
 	con_sock_state_init(con);
@@ -1951,8 +1926,7 @@ static int try_write(struct ceph_connection *con)
 {
 	int ret = 1;
 
-	dout("try_write start %p state %lu nref %d\n", con, con->state,
-	     atomic_read(&con->nref));
+	dout("try_write start %p state %lu\n", con, con->state);
 
 more:
 	dout("try_write out_kvec_bytes %d\n", con->out_kvec_bytes);
