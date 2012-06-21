@@ -1676,6 +1676,7 @@ int tcp_v4_early_demux(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph;
 	const struct tcphdr *th;
+	struct net_device *dev;
 	struct sock *sk;
 	int err;
 
@@ -1695,10 +1696,11 @@ int tcp_v4_early_demux(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, ip_hdrlen(skb) + th->doff * 4))
 		goto out_err;
 
+	dev = skb->dev;
 	sk = __inet_lookup_established(net, &tcp_hashinfo,
 				       iph->saddr, th->source,
 				       iph->daddr, th->dest,
-				       skb->dev->ifindex);
+				       dev->ifindex);
 	if (sk) {
 		skb->sk = sk;
 		skb->destructor = sock_edemux;
@@ -1707,8 +1709,12 @@ int tcp_v4_early_demux(struct sk_buff *skb)
 			if (dst)
 				dst = dst_check(dst, 0);
 			if (dst) {
-				skb_dst_set_noref(skb, dst);
-				err = 0;
+				struct rtable *rt = (struct rtable *) dst;
+
+				if (rt->rt_iif == dev->ifindex) {
+					skb_dst_set_noref(skb, dst);
+					err = 0;
+				}
 			}
 		}
 	}
