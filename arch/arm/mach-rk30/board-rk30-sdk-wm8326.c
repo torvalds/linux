@@ -99,6 +99,13 @@ static int wm831x_pre_init(struct wm831x *parm)
 //	printk("%s\n", __func__);
 	gpio_request(PMU_POWER_SLEEP, "NULL");
 	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
+
+	#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
+	#ifdef CONFIG_BATTERY_RK30_VOL3V8
+	wm831x_set_bits(parm,WM831X_SYSVDD_CONTROL ,0xc077,0xc035);	  //pvdd power on dect vbat voltage
+	printk("+++The vbat is too low+++\n");	
+	#endif
+	#endif
 	
 	ret = wm831x_reg_read(parm, WM831X_POWER_STATE) & 0xffff;
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret & 0xfff8) | 0x04);
@@ -146,24 +153,28 @@ static int wm831x_mask_interrupt(struct wm831x *Wm831x)
 #ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
 static int wm831x_low_power_detection(struct wm831x *wm831x)
 {
+	#ifdef CONFIG_BATTERY_RK30_VOL3V8
+	wm831x_reg_write(wm831x,WM831X_SYSTEM_INTERRUPTS_MASK,0xbe5c); 	
+	wm831x_set_bits(wm831x,WM831X_INTERRUPT_STATUS_1_MASK,0x8000,0x0000);	
+	wm831x_set_bits(wm831x,WM831X_SYSVDD_CONTROL ,0xc077,0x0035);		//set pvdd low voltage is 3.1v hi voltage is 3.3v 
+	#else
 	wm831x_reg_write(wm831x,WM831X_AUXADC_CONTROL,0x803f);     //open adc 
 	wm831x_reg_write(wm831x,WM831X_AUXADC_CONTROL,0xd03f);
 	wm831x_reg_write(wm831x,WM831X_AUXADC_SOURCE,0x0001);
 	
 	wm831x_reg_write(wm831x,WM831X_COMPARATOR_CONTROL,0x0001);
-	wm831x_reg_write(wm831x,WM831X_COMPARATOR_1,0x2910);   //set the low power is 3.4v
+	wm831x_reg_write(wm831x,WM831X_COMPARATOR_1,0x2844);   //set the low power is 3.1v
 	
 	wm831x_reg_write(wm831x,WM831X_INTERRUPT_STATUS_1_MASK,0x99ee);
 	wm831x_set_bits(wm831x,WM831X_SYSTEM_INTERRUPTS_MASK,0x0100,0x0000);
-	if (wm831x_reg_read(wm831x,WM831X_AUXADC_DATA)< 0x1900){
+	if (wm831x_reg_read(wm831x,WM831X_AUXADC_DATA)< 0x1844){
 		printk("The vbat is too low.\n");
 		wm831x_device_shutdown(wm831x);
 	}
-	return 0;
+	#endif
+	return 0;	
 }
 #endif
-
-
 int wm831x_post_init(struct wm831x *Wm831x)
 {
 	struct regulator *dcdc;
@@ -701,6 +712,21 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 						WM831X_GPN_FN_MASK,
 						0x0003);				
 			}	// set gpio2 sleep/wakeup
+			
+		if (i == 9) {
+				wm831x_set_bits(wm831x,
+						WM831X_GPIO1_CONTROL + i,
+						WM831X_GPN_PULL_MASK,
+						0x0000);      //disable pullup/down
+				wm831x_set_bits(wm831x,
+						WM831X_GPIO1_CONTROL + i,
+						WM831X_GPN_PWR_DOM_MASK,
+						0x0800); 
+				wm831x_set_bits(wm831x,
+						WM831X_GPIO1_CONTROL + i,
+						WM831X_GPN_ENA_MASK,
+						0x0000); 
+			}  //set gpio10 as adc input
 					
 		} else {
 			wm831x_set_bits(wm831x,

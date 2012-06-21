@@ -30,7 +30,6 @@
 
 #include <mach/board.h>
 
-
 /* Current settings - values are 2*2^(reg_val/4) microamps.  These are
  * exported since they are used by multiple drivers.
  */
@@ -1629,20 +1628,32 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		goto err;
 
 	switch (parent) {
-	#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
+	#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION	
+	#ifdef CONFIG_BATTERY_RK30_VOL3V8
+	if (wm831x->irq_base) {
+		ret = request_threaded_irq(wm831x->irq_base +
+					   WM831X_IRQ_PPM_SYSLO,
+					   NULL, wm831x_vbatlo_irq, IRQF_TRIGGER_RISING,
+					   "syslo", wm831x);
+			}
+		if (ret < 0)
+			dev_err(wm831x->dev, "syslo IRQ request failed: %d\n",
+				ret);
+	#else
 	case WM8326:
 		if (wm831x->irq_base) {
 		ret = request_threaded_irq(wm831x->irq_base +
 					   WM831X_IRQ_AUXADC_DCOMP1,
 					   NULL, wm831x_vbatlo_irq, IRQF_TRIGGER_RISING,
-					   "dcomp1", wm831x);
+					   "syslo", wm831x);
 			}
 		if (ret < 0)
-			dev_err(wm831x->dev, "dcomp1 IRQ request failed: %d\n",
+			dev_err(wm831x->dev, "syslo IRQ request failed: %d\n",
 				ret);
 		break;
 	#endif
-
+	#endif
+	
 	default:	
 	if (wm831x->irq_base) {
 		ret = request_threaded_irq(wm831x->irq_base +
