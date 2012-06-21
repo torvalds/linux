@@ -2779,7 +2779,7 @@ static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
 	vpptr = pdma->PhysicalBase;
 	if (vbptr) {
 		pci_free_consistent(devpriv->pdev, bsize, vbptr, vpptr);
-		pdma->LogicalBase = 0;
+		pdma->LogicalBase = NULL;
 		pdma->PhysicalBase = 0;
 
 		DEBUG("CloseDMAB(): Logical=%p, bsize=%d, Physical=0x%x\n",
