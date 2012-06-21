@@ -48,6 +48,7 @@ static struct i2c_board_info __initdata omap4_i2c1_board_info[] = {
 	},
 };
 
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 static int twl_set_voltage(void *data, int target_uV)
 {
 	struct voltagedomain *voltdm = (struct voltagedomain *)data;
@@ -59,6 +60,7 @@ static int twl_get_voltage(void *data)
 	struct voltagedomain *voltdm = (struct voltagedomain *)data;
 	return voltdm_get_voltage(voltdm);
 }
+#endif
 
 void __init omap_pmic_init(int bus, u32 clkrate,
 			   const char *pmic_type, int pmic_irq,
