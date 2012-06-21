@@ -95,7 +95,6 @@ static int tfp410_probe(struct omap_dss_device *dssdev)
 		return -ENOMEM;
 
 	dssdev->panel.timings = tfp410_default_timings;
-	dssdev->panel.config = OMAP_DSS_LCD_TFT;
 
 	ddata->dssdev = dssdev;
 	mutex_init(&ddata->lock);

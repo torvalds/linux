@@ -76,8 +76,8 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.acbi			= 0x0,
 		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IEO,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
+						OMAP_DSS_LCD_IEO,
 		.power_on_delay		= 50,
 		.power_off_delay	= 100,
 		.name			= "sharp_lq",
@@ -101,8 +101,7 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.acbi			= 0x0,
 		.acb			= 0x28,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 50,
 		.power_off_delay	= 100,
 		.name			= "sharp_ls",
@@ -126,9 +125,9 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.acbi			= 0x0,
 		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC |
-					OMAP_DSS_LCD_ONOFF,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
+						OMAP_DSS_LCD_IPC |
+						OMAP_DSS_LCD_ONOFF,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "toppoly_tdo35s",
@@ -152,8 +151,7 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.acbi			= 0x0,
 		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "samsung_lte430wq_f0c",
@@ -177,8 +175,7 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.acbi			= 0x0,
 		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "seiko_70wvw1tz3",
@@ -202,8 +199,8 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.acbi			= 0x0,
 		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IEO,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
+						OMAP_DSS_LCD_IEO,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "powertip_ph480272t",
@@ -227,8 +224,7 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.acbi			= 0x0,
 		.acb			= 0x28,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "innolux_at070tn83",
@@ -250,8 +246,7 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 2,
 			.vbp		= 7,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.name			= "nec_nl2432dr22-11b",
 	},
 
@@ -271,8 +266,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 1,
 			.vbp		= 1,
 		},
-		.config			= OMAP_DSS_LCD_TFT,
-
 		.name			= "h4",
 	},
 
@@ -292,8 +285,7 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 2,
 			.vbp		= 2,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 
 		.name			= "apollon",
 	},
@@ -313,8 +305,7 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 13,
 			.vbp		= 29,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.name			= "focaltech_etm070003dh6",
 	},
 
@@ -336,8 +327,8 @@ static struct panel_config generic_dpi_panels[] = {
 		},
 		.acbi			= 0x0,
 		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
+						OMAP_DSS_LCD_IPC,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "microtips_umsh_8173md",
@@ -359,8 +350,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 4,
 			.vbp		= 2,
 		},
-		.config			= OMAP_DSS_LCD_TFT,
-
 		.name			= "ortustech_com43h4m10xtc",
 	},
 
@@ -381,8 +370,8 @@ static struct panel_config generic_dpi_panels[] = {
 			.vbp		= 23,
 		},
 		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IEO,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
+						OMAP_DSS_LCD_IEO,
 
 		.name			= "innolux_at080tn52",
 	},
@@ -402,7 +391,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 26,
 			.vbp		= 1,
 		},
-		.config			= OMAP_DSS_LCD_TFT,
 		.name			= "mitsubishi_aa084sb01",
 	},
 	/* EDT ET0500G0DH6 */
@@ -420,7 +408,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 35,
 			.vbp		= 10,
 		},
-		.config			= OMAP_DSS_LCD_TFT,
 		.name			= "edt_et0500g0dh6",
 	},
 
@@ -440,8 +427,8 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 10,
 			.vbp		= 33,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
+						OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pd050vl1",
 	},
 
@@ -461,8 +448,8 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 10,
 			.vbp		= 33,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
+						OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pm070wl4",
 	},
 
@@ -482,8 +469,8 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 1,
 			.vbp		= 23,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
+						OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pd104slf",
 	},
 };

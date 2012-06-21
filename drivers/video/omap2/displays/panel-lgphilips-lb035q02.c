@@ -82,8 +82,7 @@ static int lb035q02_panel_probe(struct omap_dss_device *dssdev)
 	struct lb035q02_data *ld;
 	int r;
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-		OMAP_DSS_LCD_IHS;
+	dssdev->panel.config = OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS;
 	dssdev->panel.timings = lb035q02_timings;
 
 	ld = kzalloc(sizeof(*ld), GFP_KERNEL);

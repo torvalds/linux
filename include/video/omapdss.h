@@ -133,8 +133,6 @@ enum omap_panel_config {
 	OMAP_DSS_LCD_IEO		= 1<<3,
 	OMAP_DSS_LCD_RF			= 1<<4,
 	OMAP_DSS_LCD_ONOFF		= 1<<5,
-
-	OMAP_DSS_LCD_TFT		= 1<<20,
 };
 
 enum omap_dss_venc_type {

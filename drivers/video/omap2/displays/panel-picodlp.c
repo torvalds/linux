@@ -414,8 +414,8 @@ static int picodlp_panel_probe(struct omap_dss_device *dssdev)
 	struct i2c_client *picodlp_i2c_client;
 	int r = 0, picodlp_adapter_id;
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_ONOFF |
-				OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IVS;
+	dssdev->panel.config = OMAP_DSS_LCD_ONOFF | OMAP_DSS_LCD_IHS |
+				OMAP_DSS_LCD_IVS;
 	dssdev->panel.acb = 0x0;
 	dssdev->panel.timings = pico_ls_timings;
 

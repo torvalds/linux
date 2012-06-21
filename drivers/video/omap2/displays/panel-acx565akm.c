@@ -498,8 +498,8 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 	struct backlight_properties props;
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					OMAP_DSS_LCD_IHS;
+	dssdev->panel.config = OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS;
+
 	/* FIXME AC bias ? */
 	dssdev->panel.timings = acx_panel_timings;
 

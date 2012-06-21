@@ -327,10 +327,6 @@ bool dss_use_replication(struct omap_dss_device *dssdev,
 	if (mode != OMAP_DSS_COLOR_RGB12U && mode != OMAP_DSS_COLOR_RGB16)
 		return false;
 
-	if (dssdev->type == OMAP_DISPLAY_TYPE_DPI &&
-			(dssdev->panel.config & OMAP_DSS_LCD_TFT) == 0)
-		return false;
-
 	switch (dssdev->type) {
 	case OMAP_DISPLAY_TYPE_DPI:
 		bpp = dssdev->phy.dpi.data_lines;
