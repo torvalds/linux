@@ -57,14 +57,32 @@ static inline int __must_check wlcore_raw_write(struct wl1271 *wl, int addr,
 						void *buf, size_t len,
 						bool fixed)
 {
-	return wl->if_ops->write(wl->dev, addr, buf, len, fixed);
+	int ret;
+
+	if (test_bit(WL1271_FLAG_SDIO_FAILED, &wl->flags))
+		return -EIO;
+
+	ret = wl->if_ops->write(wl->dev, addr, buf, len, fixed);
+	if (ret)
+		set_bit(WL1271_FLAG_SDIO_FAILED, &wl->flags);
+
+	return ret;
 }
 
 static inline int __must_check wlcore_raw_read(struct wl1271 *wl, int addr,
 					       void *buf, size_t len,
 					       bool fixed)
 {
-	return wl->if_ops->read(wl->dev, addr, buf, len, fixed);
+	int ret;
+
+	if (test_bit(WL1271_FLAG_SDIO_FAILED, &wl->flags))
+		return -EIO;
+
+	ret = wl->if_ops->read(wl->dev, addr, buf, len, fixed);
+	if (ret)
+		set_bit(WL1271_FLAG_SDIO_FAILED, &wl->flags);
+
+	return ret;
 }
 
 static inline int __must_check wlcore_raw_read_data(struct wl1271 *wl, int reg,
