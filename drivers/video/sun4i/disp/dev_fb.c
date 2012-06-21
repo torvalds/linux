@@ -24,11 +24,15 @@
 #include <linux/module.h>
 #include "drv_disp_i.h"
 #include "dev_disp.h"
+
+#ifdef CONFIG_SUN4I_FB_UMP
 #include "ump_kernel_interface.h"
 
+static ump_dd_handle ump_wrapped_buffer;
+extern ump_dd_handle ump_dd_handle_create_from_phys_blocks(ump_dd_physical_block * blocks, unsigned long num_blocks);
+#endif
 
 extern fb_info_t g_fbi;
-
 
 #define FBHANDTOID(handle)  ((handle) - 100)
 #define FBIDTOHAND(ID)  ((ID) + 100)
@@ -751,14 +755,14 @@ __s32 var_to_disp_fb(__disp_fb_t *fb, struct fb_var_screeninfo *var, struct fb_f
 }
 
 
-ump_dd_handle ump_wrapped_buffer;
-extern ump_dd_handle ump_dd_handle_create_from_phys_blocks(ump_dd_physical_block * blocks, unsigned long num_blocks);
 static int Fb_open(struct fb_info *info, int user)
 {
+#ifdef CONFIG_SUN4I_FB_UMP
 	ump_dd_physical_block ump_memory_description;
 	ump_memory_description.addr = info->fix.smem_start;
 	ump_memory_description.size = info->fix.smem_len;
 	ump_wrapped_buffer = ump_dd_handle_create_from_phys_blocks( &ump_memory_description, 1);
+#endif
 	return 0;
 }
 static int Fb_release(struct fb_info *info, int user)
@@ -1028,9 +1032,10 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 	long ret = 0;
 	unsigned long layer_hdl = 0;
 
+#ifdef CONFIG_SUN4I_FB_UMP
 	u32 __user *psecureid = (u32 __user *) arg;
 	ump_secure_id secure_id;
-	extern ump_dd_handle ump_wrapped_buffer;
+#endif
 
 	switch (cmd)
 	{
@@ -1095,12 +1100,14 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
         break;
     }
 
+#ifdef CONFIG_SUN4I_FB_UMP
 	case GET_UMP_SECURE_ID:
 	{
 		secure_id = ump_dd_secure_id_get( ump_wrapped_buffer );
 		return put_user( (unsigned int)secure_id, psecureid );
 		break;
 	}
+#endif
 
    	default:
    	    //__inf("not supported fb io cmd:%x\n", cmd);

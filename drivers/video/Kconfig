@@ -290,6 +290,11 @@ config SUN4I_FB
         ---help---
         default m
 
+config SUN4I_FB_UMP
+	bool "Enable FB/UMP Integration"
+	depends on MALI=m && SUN4I_FB=m
+	default y
+
 config SUN4I_LCD
         tristate "LCD Driver Support(sun4i)"
         depends on ARCH_SUN4I
