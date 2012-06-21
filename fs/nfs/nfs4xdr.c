@@ -4920,9 +4920,8 @@ static int decode_putrootfh(struct xdr_stream *xdr)
 
 static int decode_read(struct xdr_stream *xdr, struct rpc_rqst *req, struct nfs_readres *res)
 {
-	struct kvec *iov = req->rq_rcv_buf.head;
 	__be32 *p;
-	uint32_t count, eof, recvd, hdrlen;
+	uint32_t count, eof, recvd;
 	int status;
 
 	status = decode_op_hdr(xdr, OP_READ);
@@ -4933,15 +4932,13 @@ static int decode_read(struct xdr_stream *xdr, struct rpc_rqst *req, struct nfs_
 		goto out_overflow;
 	eof = be32_to_cpup(p++);
 	count = be32_to_cpup(p);
-	hdrlen = (u8 *) xdr->p - (u8 *) iov->iov_base;
-	recvd = req->rq_rcv_buf.len - hdrlen;
+	recvd = xdr_read_pages(xdr, count);
 	if (count > recvd) {
 		dprintk("NFS: server cheating in read reply: "
 				"count %u > recvd %u\n", count, recvd);
 		count = recvd;
 		eof = 0;
 	}
-	xdr_read_pages(xdr, count);
 	res->eof = eof;
 	res->count = count;
 	return 0;
@@ -4952,10 +4949,6 @@ out_overflow:
 
 static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct nfs4_readdir_res *readdir)
 {
-	struct xdr_buf	*rcvbuf = &req->rq_rcv_buf;
-	struct kvec	*iov = rcvbuf->head;
-	size_t		hdrlen;
-	u32		recvd, pglen = rcvbuf->page_len;
 	int		status;
 	__be32		verf[2];
 
@@ -4967,22 +4960,12 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	memcpy(verf, readdir->verifier.data, sizeof(verf));
 	dprintk("%s: verifier = %08x:%08x\n",
 			__func__, verf[0], verf[1]);
-
-	hdrlen = (char *) xdr->p - (char *) iov->iov_base;
-	recvd = rcvbuf->len - hdrlen;
-	if (pglen > recvd)
-		pglen = recvd;
-	xdr_read_pages(xdr, pglen);
-
-
-	return pglen;
+	return xdr_read_pages(xdr, xdr->buf->page_len);
 }
 
 static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
-	struct kvec *iov = rcvbuf->head;
-	size_t hdrlen;
 	u32 len, recvd;
 	__be32 *p;
 	int status;
@@ -5000,14 +4983,12 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 		dprintk("nfs: server returned giant symlink!\n");
 		return -ENAMETOOLONG;
 	}
-	hdrlen = (char *) xdr->p - (char *) iov->iov_base;
-	recvd = req->rq_rcv_buf.len - hdrlen;
+	recvd = xdr_read_pages(xdr, len);
 	if (recvd < len) {
 		dprintk("NFS: server cheating in readlink reply: "
 				"count %u > recvd %u\n", len, recvd);
 		return -EIO;
 	}
-	xdr_read_pages(xdr, len);
 	/*
 	 * The XDR encode routine has set things up so that
 	 * the link text will be copied directly into the
@@ -5066,7 +5047,6 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 	__be32 *savep, *bm_p;
 	uint32_t attrlen,
 		 bitmap[3] = {0};
-	struct kvec *iov = req->rq_rcv_buf.head;
 	int status;
 	size_t page_len = xdr->buf->page_len;
 
@@ -5089,7 +5069,6 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 	if (unlikely(bitmap[0] & (FATTR4_WORD0_ACL - 1U)))
 		return -EIO;
 	if (likely(bitmap[0] & FATTR4_WORD0_ACL)) {
-		size_t hdrlen;
 
 		/* The bitmap (xdr len + bitmaps) and the attr xdr len words
 		 * are stored with the acl data to handle the problem of
@@ -5098,7 +5077,6 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 
 		/* We ignore &savep and don't do consistency checks on
 		 * the attr length.  Let userspace figure it out.... */
-		hdrlen = (u8 *)xdr->p - (u8 *)iov->iov_base;
 		attrlen += res->acl_data_offset;
 		if (attrlen > page_len) {
 			if (res->acl_flags & NFS4_ACL_LEN_REQUEST) {
@@ -5707,9 +5685,7 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 	__be32 *p;
 	int status;
 	u32 layout_count;
-	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
-	struct kvec *iov = rcvbuf->head;
-	u32 hdrlen, recvd;
+	u32 recvd;
 
 	status = decode_op_hdr(xdr, OP_LAYOUTGET);
 	if (status)
@@ -5746,16 +5722,13 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 		res->type,
 		res->layoutp->len);
 
-	hdrlen = (u8 *) xdr->p - (u8 *) iov->iov_base;
-	recvd = req->rq_rcv_buf.len - hdrlen;
+	recvd = xdr_read_pages(xdr, res->layoutp->len);
 	if (res->layoutp->len > recvd) {
 		dprintk("NFS: server cheating in layoutget reply: "
 				"layout len %u > recvd %u\n",
 				res->layoutp->len, recvd);
 		return -EINVAL;
 	}
-
-	xdr_read_pages(xdr, res->layoutp->len);
 
 	if (layout_count > 1) {
 		/* We only handle a length one array at the moment.  Any

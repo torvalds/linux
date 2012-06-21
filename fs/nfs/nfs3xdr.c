@@ -246,7 +246,6 @@ static void encode_nfspath3(struct xdr_stream *xdr, struct page **pages,
 static int decode_nfspath3(struct xdr_stream *xdr)
 {
 	u32 recvd, count;
-	size_t hdrlen;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
@@ -255,12 +254,9 @@ static int decode_nfspath3(struct xdr_stream *xdr)
 	count = be32_to_cpup(p);
 	if (unlikely(count >= xdr->buf->page_len || count > NFS3_MAXPATHLEN))
 		goto out_nametoolong;
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
+	recvd = xdr_read_pages(xdr, count);
 	if (unlikely(count > recvd))
 		goto out_cheating;
-
-	xdr_read_pages(xdr, count);
 	xdr_terminate_string(xdr->buf, count);
 	return 0;
 
@@ -1587,7 +1583,6 @@ static int decode_read3resok(struct xdr_stream *xdr,
 			     struct nfs_readres *result)
 {
 	u32 eof, count, ocount, recvd;
-	size_t hdrlen;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4 + 4 + 4);
@@ -1598,13 +1593,10 @@ static int decode_read3resok(struct xdr_stream *xdr,
 	ocount = be32_to_cpup(p++);
 	if (unlikely(ocount != count))
 		goto out_mismatch;
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
+	recvd = xdr_read_pages(xdr, count);
 	if (unlikely(count > recvd))
 		goto out_cheating;
-
 out:
-	xdr_read_pages(xdr, count);
 	result->eof = eof;
 	result->count = count;
 	return count;
@@ -2039,16 +2031,7 @@ out_truncated:
  */
 static int decode_dirlist3(struct xdr_stream *xdr)
 {
-	u32 recvd, pglen;
-	size_t hdrlen;
-
-	pglen = xdr->buf->page_len;
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
-	if (pglen > recvd)
-		pglen = recvd;
-	xdr_read_pages(xdr, pglen);
-	return pglen;
+	return xdr_read_pages(xdr, xdr->buf->page_len);
 }
 
 static int decode_readdir3resok(struct xdr_stream *xdr,
