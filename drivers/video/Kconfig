@@ -281,6 +281,11 @@ config LYCHEE_FB_SUN4I
         ---help---
         default m
 
+config LYCHEE_FB_UMP_SUN4I
+	bool "Enable FB/UMP Integration"
+	depends on MALI=m && LYCHEE_FB_SUN4I=m
+	default y
+
 config LYCHEE_LCD_SUN4I
         tristate "LCD Driver Support(sun4i)"
         depends on ARCH_SUN4I
