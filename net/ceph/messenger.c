@@ -392,10 +392,16 @@ static int con_close_socket(struct ceph_connection *con)
 	dout("con_close_socket on %p sock %p\n", con, con->sock);
 	if (!con->sock)
 		return 0;
-	set_bit(SOCK_CLOSED, &con->flags);
 	rc = con->sock->ops->shutdown(con->sock, SHUT_RDWR);
 	sock_release(con->sock);
 	con->sock = NULL;
+
+	/*
+	 * Forcibly clear the SOCK_CLOSE flag.  It gets set
+	 * independent of the connection mutex, and we could have
+	 * received a socket close event before we had the chance to
+	 * shut the socket down.
+	 */
 	clear_bit(SOCK_CLOSED, &con->flags);
 	con_sock_state_closed(con);
 	return rc;
