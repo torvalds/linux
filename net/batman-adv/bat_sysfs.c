@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -84,7 +82,8 @@ ssize_t show_##_name(struct kobject *kobj,				\
 }									\
 
 /* Use this, if you are going to turn a [name] in the soft-interface
- * (bat_priv) on or off */
+ * (bat_priv) on or off
+ */
 #define BAT_ATTR_SIF_BOOL(_name, _mode, _post_func)			\
 	static BAT_ATTR_SIF_STORE_BOOL(_name, _post_func)		\
 	static BAT_ATTR_SIF_SHOW_BOOL(_name)				\
@@ -110,7 +109,8 @@ ssize_t show_##_name(struct kobject *kobj,				\
 }									\
 
 /* Use this, if you are going to set [name] in the soft-interface
- * (bat_priv) to an unsigned integer value */
+ * (bat_priv) to an unsigned integer value
+ */
 #define BAT_ATTR_SIF_UINT(_name, _mode, _min, _max, _post_func)		\
 	static BAT_ATTR_SIF_STORE_UINT(_name, _min, _max, _post_func)	\
 	static BAT_ATTR_SIF_SHOW_UINT(_name)				\
@@ -122,9 +122,10 @@ ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
 		      char *buff, size_t count)				\
 {									\
 	struct net_device *net_dev = kobj_to_netdev(kobj);		\
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);	\
+	struct hard_iface *hard_iface;					\
 	ssize_t length;							\
 									\
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
 	if (!hard_iface)						\
 		return 0;						\
 									\
@@ -140,9 +141,10 @@ ssize_t show_##_name(struct kobject *kobj,				\
 		     struct attribute *attr, char *buff)		\
 {									\
 	struct net_device *net_dev = kobj_to_netdev(kobj);		\
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);	\
+	struct hard_iface *hard_iface;					\
 	ssize_t length;							\
 									\
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
 	if (!hard_iface)						\
 		return 0;						\
 									\
@@ -153,7 +155,8 @@ ssize_t show_##_name(struct kobject *kobj,				\
 }
 
 /* Use this, if you are going to set [name] in hard_iface to an
- * unsigned integer value*/
+ * unsigned integer value
+ */
 #define BAT_ATTR_HIF_UINT(_name, _mode, _min, _max, _post_func)		\
 	static BAT_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)	\
 	static BAT_ATTR_HIF_SHOW_UINT(_name)				\
@@ -326,7 +329,7 @@ static ssize_t show_bat_algo(struct kobject *kobj, struct attribute *attr,
 static void post_gw_deselect(struct net_device *net_dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	gw_deselect(bat_priv);
+	batadv_gw_deselect(bat_priv);
 }
 
 static ssize_t show_gw_mode(struct kobject *kobj, struct attribute *attr,
@@ -397,7 +400,7 @@ static ssize_t store_gw_mode(struct kobject *kobj, struct attribute *attr,
 	bat_info(net_dev, "Changing gw mode from: %s to: %s\n",
 		 curr_gw_mode_str, buff);
 
-	gw_deselect(bat_priv);
+	batadv_gw_deselect(bat_priv);
 	atomic_set(&bat_priv->gw_mode, (unsigned int)gw_mode_tmp);
 	return count;
 }
@@ -409,7 +412,7 @@ static ssize_t show_gw_bwidth(struct kobject *kobj, struct attribute *attr,
 	int down, up;
 	int gw_bandwidth = atomic_read(&bat_priv->gw_bandwidth);
 
-	gw_bandwidth_to_kbit(gw_bandwidth, &down, &up);
+	batadv_gw_bandwidth_to_kbit(gw_bandwidth, &down, &up);
 	return sprintf(buff, "%i%s/%i%s\n",
 		       (down > 2048 ? down / 1024 : down),
 		       (down > 2048 ? "MBit" : "KBit"),
@@ -425,7 +428,7 @@ static ssize_t store_gw_bwidth(struct kobject *kobj, struct attribute *attr,
 	if (buff[count - 1] == '\n')
 		buff[count - 1] = '\0';
 
-	return gw_bandwidth_set(net_dev, buff, count);
+	return batadv_gw_bandwidth_set(net_dev, buff, count);
 }
 
 BAT_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
@@ -433,7 +436,7 @@ BAT_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 #ifdef CONFIG_BATMAN_ADV_BLA
 BAT_ATTR_SIF_BOOL(bridge_loop_avoidance, S_IRUGO | S_IWUSR, NULL);
 #endif
-BAT_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, update_min_mtu);
+BAT_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, batadv_update_min_mtu);
 BAT_ATTR_SIF_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
 static BAT_ATTR(routing_algo, S_IRUGO, show_bat_algo, NULL);
@@ -469,7 +472,7 @@ static struct bat_attribute *mesh_attrs[] = {
 	NULL,
 };
 
-int sysfs_add_meshif(struct net_device *dev)
+int batadv_sysfs_add_meshif(struct net_device *dev)
 {
 	struct kobject *batif_kobject = &dev->dev.kobj;
 	struct bat_priv *bat_priv = netdev_priv(dev);
@@ -507,7 +510,7 @@ out:
 	return -ENOMEM;
 }
 
-void sysfs_del_meshif(struct net_device *dev)
+void batadv_sysfs_del_meshif(struct net_device *dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct bat_attribute **bat_attr;
@@ -523,7 +526,7 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 			       char *buff)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
+	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	ssize_t length;
 
 	if (!hard_iface)
@@ -541,7 +544,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 				char *buff, size_t count)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
+	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	int status_tmp = -1;
 	int ret = count;
 
@@ -576,15 +579,15 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	}
 
 	if (status_tmp == IF_NOT_IN_USE) {
-		hardif_disable_interface(hard_iface);
+		batadv_hardif_disable_interface(hard_iface);
 		goto unlock;
 	}
 
 	/* if the interface already is in use */
 	if (hard_iface->if_status != IF_NOT_IN_USE)
-		hardif_disable_interface(hard_iface);
+		batadv_hardif_disable_interface(hard_iface);
 
-	ret = hardif_enable_interface(hard_iface, buff);
+	ret = batadv_hardif_enable_interface(hard_iface, buff);
 
 unlock:
 	rtnl_unlock();
@@ -597,7 +600,7 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 				 char *buff)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
+	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	ssize_t length;
 
 	if (!hard_iface)
@@ -637,7 +640,7 @@ static struct bat_attribute *batman_attrs[] = {
 	NULL,
 };
 
-int sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
+int batadv_sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 {
 	struct kobject *hardif_kobject = &dev->dev.kobj;
 	struct bat_attribute **bat_attr;
@@ -671,14 +674,14 @@ out:
 	return -ENOMEM;
 }
 
-void sysfs_del_hardif(struct kobject **hardif_obj)
+void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 {
 	kobject_put(*hardif_obj);
 	*hardif_obj = NULL;
 }
 
-int throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
-		 enum uev_action action, const char *data)
+int batadv_throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
+			enum uev_action action, const char *data)
 {
 	int ret = -ENOMEM;
 	struct hard_iface *primary_if = NULL;

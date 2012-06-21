@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -61,12 +59,11 @@ static const struct ethtool_ops bat_ethtool_ops = {
 	.get_sset_count = batadv_get_sset_count,
 };
 
-int my_skb_head_push(struct sk_buff *skb, unsigned int len)
+int batadv_skb_head_push(struct sk_buff *skb, unsigned int len)
 {
 	int result;
 
-	/**
-	 * TODO: We must check if we can release all references to non-payload
+	/* TODO: We must check if we can release all references to non-payload
 	 * data using skb_header_release in our skbs to allow skb_cow_header to
 	 * work optimally. This means that those skbs are not allowed to read
 	 * or write any data which is before the current position of skb->data
@@ -109,9 +106,9 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 
 	/* only modify transtable if it has been initialized before */
 	if (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE) {
-		tt_local_remove(bat_priv, dev->dev_addr,
-				"mac address changed", false);
-		tt_local_add(dev, addr->sa_data, NULL_IFINDEX);
+		batadv_tt_local_remove(bat_priv, dev->dev_addr,
+				       "mac address changed", false);
+		batadv_tt_local_add(dev, addr->sa_data, NULL_IFINDEX);
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
@@ -122,7 +119,7 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 static int interface_change_mtu(struct net_device *dev, int new_mtu)
 {
 	/* check ranges */
-	if ((new_mtu < 68) || (new_mtu > hardif_min_mtu(dev)))
+	if ((new_mtu < 68) || (new_mtu > batadv_hardif_min_mtu(dev)))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
@@ -162,11 +159,11 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		goto dropped;
 	}
 
-	if (bla_tx(bat_priv, skb, vid))
+	if (batadv_bla_tx(bat_priv, skb, vid))
 		goto dropped;
 
 	/* Register the client MAC in the transtable */
-	tt_local_add(soft_iface, ethhdr->h_source, skb->skb_iif);
+	batadv_tt_local_add(soft_iface, ethhdr->h_source, skb->skb_iif);
 
 	/* don't accept stp packets. STP does not help in meshes.
 	 * better use the bridge loop avoidance ...
@@ -180,15 +177,17 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		switch (atomic_read(&bat_priv->gw_mode)) {
 		case GW_MODE_SERVER:
 			/* gateway servers should not send dhcp
-			 * requests into the mesh */
-			ret = gw_is_dhcp_target(skb, &header_len);
+			 * requests into the mesh
+			 */
+			ret = batadv_gw_is_dhcp_target(skb, &header_len);
 			if (ret)
 				goto dropped;
 			break;
 		case GW_MODE_CLIENT:
 			/* gateway clients should send dhcp requests
-			 * via unicast to their gateway */
-			ret = gw_is_dhcp_target(skb, &header_len);
+			 * via unicast to their gateway
+			 */
+			ret = batadv_gw_is_dhcp_target(skb, &header_len);
 			if (ret)
 				do_bcast = false;
 			break;
@@ -204,7 +203,7 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		if (!primary_if)
 			goto dropped;
 
-		if (my_skb_head_push(skb, sizeof(*bcast_packet)) < 0)
+		if (batadv_skb_head_push(skb, sizeof(*bcast_packet)) < 0)
 			goto dropped;
 
 		bcast_packet = (struct bcast_packet *)skb->data;
@@ -215,7 +214,8 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		bcast_packet->header.packet_type = BAT_BCAST;
 
 		/* hw address of first interface is the orig mac because only
-		 * this mac is known throughout the mesh */
+		 * this mac is known throughout the mesh
+		 */
 		memcpy(bcast_packet->orig,
 		       primary_if->net_dev->dev_addr, ETH_ALEN);
 
@@ -223,21 +223,22 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		bcast_packet->seqno =
 			htonl(atomic_inc_return(&bat_priv->bcast_seqno));
 
-		add_bcast_packet_to_list(bat_priv, skb, 1);
+		batadv_add_bcast_packet_to_list(bat_priv, skb, 1);
 
 		/* a copy is stored in the bcast list, therefore removing
-		 * the original skb. */
+		 * the original skb.
+		 */
 		kfree_skb(skb);
 
 	/* unicast packet */
 	} else {
 		if (atomic_read(&bat_priv->gw_mode) != GW_MODE_OFF) {
-			ret = gw_out_of_range(bat_priv, skb, ethhdr);
+			ret = batadv_gw_out_of_range(bat_priv, skb, ethhdr);
 			if (ret)
 				goto dropped;
 		}
 
-		ret = unicast_send_skb(skb, bat_priv);
+		ret = batadv_unicast_send_skb(skb, bat_priv);
 		if (ret != 0)
 			goto dropped_freed;
 	}
@@ -256,9 +257,9 @@ end:
 	return NETDEV_TX_OK;
 }
 
-void interface_rx(struct net_device *soft_iface,
-		  struct sk_buff *skb, struct hard_iface *recv_if,
-		  int hdr_size)
+void batadv_interface_rx(struct net_device *soft_iface,
+			 struct sk_buff *skb, struct hard_iface *recv_if,
+			 int hdr_size)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct ethhdr *ethhdr;
@@ -294,22 +295,23 @@ void interface_rx(struct net_device *soft_iface,
 
 	/* should not be necessary anymore as we use skb_pull_rcsum()
 	 * TODO: please verify this and remove this TODO
-	 * -- Dec 21st 2009, Simon Wunderlich */
+	 * -- Dec 21st 2009, Simon Wunderlich
+	 */
 
-/*	skb->ip_summed = CHECKSUM_UNNECESSARY;*/
+	/* skb->ip_summed = CHECKSUM_UNNECESSARY; */
 
 	bat_priv->stats.rx_packets++;
 	bat_priv->stats.rx_bytes += skb->len + ETH_HLEN;
 
 	soft_iface->last_rx = jiffies;
 
-	if (is_ap_isolated(bat_priv, ethhdr->h_source, ethhdr->h_dest))
+	if (batadv_is_ap_isolated(bat_priv, ethhdr->h_source, ethhdr->h_dest))
 		goto dropped;
 
 	/* Let the bridge loop avoidance check the packet. If will
 	 * not handle it, we can safely push it up.
 	 */
-	if (bla_rx(bat_priv, skb, vid))
+	if (batadv_bla_rx(bat_priv, skb, vid))
 		goto out;
 
 	netif_rx(skb);
@@ -341,8 +343,7 @@ static void interface_setup(struct net_device *dev)
 	dev->destructor = free_netdev;
 	dev->tx_queue_len = 0;
 
-	/**
-	 * can't call min_mtu, because the needed variables
+	/* can't call min_mtu, because the needed variables
 	 * have not been initialized yet
 	 */
 	dev->mtu = ETH_DATA_LEN;
@@ -357,7 +358,7 @@ static void interface_setup(struct net_device *dev)
 	memset(priv, 0, sizeof(*priv));
 }
 
-struct net_device *softif_create(const char *name)
+struct net_device *batadv_softif_create(const char *name)
 {
 	struct net_device *soft_iface;
 	struct bat_priv *bat_priv;
@@ -411,28 +412,28 @@ struct net_device *softif_create(const char *name)
 	if (!bat_priv->bat_counters)
 		goto unreg_soft_iface;
 
-	ret = bat_algo_select(bat_priv, bat_routing_algo);
+	ret = batadv_algo_select(bat_priv, batadv_routing_algo);
 	if (ret < 0)
 		goto free_bat_counters;
 
-	ret = sysfs_add_meshif(soft_iface);
+	ret = batadv_sysfs_add_meshif(soft_iface);
 	if (ret < 0)
 		goto free_bat_counters;
 
-	ret = debugfs_add_meshif(soft_iface);
+	ret = batadv_debugfs_add_meshif(soft_iface);
 	if (ret < 0)
 		goto unreg_sysfs;
 
-	ret = mesh_init(soft_iface);
+	ret = batadv_mesh_init(soft_iface);
 	if (ret < 0)
 		goto unreg_debugfs;
 
 	return soft_iface;
 
 unreg_debugfs:
-	debugfs_del_meshif(soft_iface);
+	batadv_debugfs_del_meshif(soft_iface);
 unreg_sysfs:
-	sysfs_del_meshif(soft_iface);
+	batadv_sysfs_del_meshif(soft_iface);
 free_bat_counters:
 	free_percpu(bat_priv->bat_counters);
 unreg_soft_iface:
@@ -445,15 +446,15 @@ out:
 	return NULL;
 }
 
-void softif_destroy(struct net_device *soft_iface)
+void batadv_softif_destroy(struct net_device *soft_iface)
 {
-	debugfs_del_meshif(soft_iface);
-	sysfs_del_meshif(soft_iface);
-	mesh_free(soft_iface);
+	batadv_debugfs_del_meshif(soft_iface);
+	batadv_sysfs_del_meshif(soft_iface);
+	batadv_mesh_free(soft_iface);
 	unregister_netdevice(soft_iface);
 }
 
-int softif_is_valid(const struct net_device *net_dev)
+int batadv_softif_is_valid(const struct net_device *net_dev)
 {
 	if (net_dev->netdev_ops->ndo_start_xmit == interface_tx)
 		return 1;

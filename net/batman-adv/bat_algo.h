@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,12 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_BAT_ALGO_H_
 #define _NET_BATMAN_ADV_BAT_ALGO_H_
 
-int bat_iv_init(void);
+int batadv_iv_init(void);
 
 #endif /* _NET_BATMAN_ADV_BAT_ALGO_H_ */

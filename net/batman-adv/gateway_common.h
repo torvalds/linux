@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_GATEWAY_COMMON_H_
@@ -32,7 +30,8 @@ enum gw_modes {
 #define GW_MODE_CLIENT_NAME	"client"
 #define GW_MODE_SERVER_NAME	"server"
 
-void gw_bandwidth_to_kbit(uint8_t gw_class, int *down, int *up);
-ssize_t gw_bandwidth_set(struct net_device *net_dev, char *buff, size_t count);
+void batadv_gw_bandwidth_to_kbit(uint8_t gw_class, int *down, int *up);
+ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
+				size_t count);
 
 #endif /* _NET_BATMAN_ADV_GATEWAY_COMMON_H_ */

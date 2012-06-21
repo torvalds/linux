@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_ICMP_SOCKET_H_
@@ -24,9 +22,9 @@
 
 #define ICMP_SOCKET "socket"
 
-void bat_socket_init(void);
-int bat_socket_setup(struct bat_priv *bat_priv);
-void bat_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
-			       size_t icmp_len);
+void batadv_socket_init(void);
+int batadv_socket_setup(struct bat_priv *bat_priv);
+void batadv_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
+				  size_t icmp_len);
 
 #endif /* _NET_BATMAN_ADV_ICMP_SOCKET_H_ */

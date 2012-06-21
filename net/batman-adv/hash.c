@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2006-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2012 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -34,7 +32,7 @@ static void hash_init(struct hashtable_t *hash)
 }
 
 /* free only the hashtable and the hash itself. */
-void hash_destroy(struct hashtable_t *hash)
+void batadv_hash_destroy(struct hashtable_t *hash)
 {
 	kfree(hash->list_locks);
 	kfree(hash->table);
@@ -42,7 +40,7 @@ void hash_destroy(struct hashtable_t *hash)
 }
 
 /* allocates and clears the hash */
-struct hashtable_t *hash_new(uint32_t size)
+struct hashtable_t *batadv_hash_new(uint32_t size)
 {
 	struct hashtable_t *hash;
 

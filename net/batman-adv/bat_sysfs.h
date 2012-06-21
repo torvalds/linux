@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,9 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
-
 
 #ifndef _NET_BATMAN_ADV_SYSFS_H_
 #define _NET_BATMAN_ADV_SYSFS_H_
@@ -34,11 +31,12 @@ struct bat_attribute {
 			 char *buf, size_t count);
 };
 
-int sysfs_add_meshif(struct net_device *dev);
-void sysfs_del_meshif(struct net_device *dev);
-int sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev);
-void sysfs_del_hardif(struct kobject **hardif_obj);
-int throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
-		 enum uev_action action, const char *data);
+int batadv_sysfs_add_meshif(struct net_device *dev);
+void batadv_sysfs_del_meshif(struct net_device *dev);
+int batadv_sysfs_add_hardif(struct kobject **hardif_obj,
+			    struct net_device *dev);
+void batadv_sysfs_del_hardif(struct kobject **hardif_obj);
+int batadv_throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
+			enum uev_action action, const char *data);
 
 #endif /* _NET_BATMAN_ADV_SYSFS_H_ */

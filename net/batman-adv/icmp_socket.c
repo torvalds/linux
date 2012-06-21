@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -34,7 +32,7 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 				  struct icmp_packet_rr *icmp_packet,
 				  size_t icmp_len);
 
-void bat_socket_init(void)
+void batadv_socket_init(void)
 {
 	memset(socket_client_hash, 0, sizeof(socket_client_hash));
 }
@@ -73,7 +71,7 @@ static int bat_socket_open(struct inode *inode, struct file *file)
 
 	file->private_data = socket_client;
 
-	inc_module_count();
+	batadv_inc_module_count();
 	return 0;
 }
 
@@ -98,7 +96,7 @@ static int bat_socket_release(struct inode *inode, struct file *file)
 	spin_unlock_bh(&socket_client->lock);
 
 	kfree(socket_client);
-	dec_module_count();
+	batadv_dec_module_count();
 
 	return 0;
 }
@@ -219,7 +217,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	if (!orig_node)
 		goto dst_unreach;
 
-	neigh_node = orig_node_get_router(orig_node);
+	neigh_node = batadv_orig_node_get_router(orig_node);
 	if (!neigh_node)
 		goto dst_unreach;
 
@@ -236,7 +234,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 		memcpy(icmp_packet->rr,
 		       neigh_node->if_incoming->net_dev->dev_addr, ETH_ALEN);
 
-	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	goto out;
 
 dst_unreach:
@@ -248,9 +246,9 @@ out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	return len;
 }
 
@@ -276,7 +274,7 @@ static const struct file_operations fops = {
 	.llseek = no_llseek,
 };
 
-int bat_socket_setup(struct bat_priv *bat_priv)
+int batadv_socket_setup(struct bat_priv *bat_priv)
 {
 	struct dentry *d;
 
@@ -312,7 +310,8 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 	spin_lock_bh(&socket_client->lock);
 
 	/* while waiting for the lock the socket_client could have been
-	 * deleted */
+	 * deleted
+	 */
 	if (!socket_client_hash[icmp_packet->uid]) {
 		spin_unlock_bh(&socket_client->lock);
 		kfree(socket_packet);
@@ -336,8 +335,8 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 	wake_up(&socket_client->queue_wait);
 }
 
-void bat_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
-			       size_t icmp_len)
+void batadv_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
+				  size_t icmp_len)
 {
 	struct socket_client *hash = socket_client_hash[icmp_packet->uid];
 

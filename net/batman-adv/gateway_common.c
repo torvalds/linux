@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -59,7 +57,7 @@ static void kbit_to_gw_bandwidth(int down, int up, long *gw_srv_class)
 }
 
 /* returns the up and downspeeds in kbit, calculated from the class */
-void gw_bandwidth_to_kbit(uint8_t gw_srv_class, int *down, int *up)
+void batadv_gw_bandwidth_to_kbit(uint8_t gw_srv_class, int *down, int *up)
 {
 	int sbit = (gw_srv_class & 0x80) >> 7;
 	int dpart = (gw_srv_class & 0x78) >> 3;
@@ -136,7 +134,8 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 	return true;
 }
 
-ssize_t gw_bandwidth_set(struct net_device *net_dev, char *buff, size_t count)
+ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
+				size_t count)
 {
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	long gw_bandwidth_tmp = 0;
@@ -155,17 +154,16 @@ ssize_t gw_bandwidth_set(struct net_device *net_dev, char *buff, size_t count)
 
 	kbit_to_gw_bandwidth(down, up, &gw_bandwidth_tmp);
 
-	/**
-	 * the gw bandwidth we guessed above might not match the given
+	/* the gw bandwidth we guessed above might not match the given
 	 * speeds, hence we need to calculate it back to show the number
 	 * that is going to be propagated
-	 **/
-	gw_bandwidth_to_kbit((uint8_t)gw_bandwidth_tmp, &down, &up);
+	 */
+	batadv_gw_bandwidth_to_kbit((uint8_t)gw_bandwidth_tmp, &down, &up);
 
 	if (atomic_read(&bat_priv->gw_bandwidth) == gw_bandwidth_tmp)
 		return count;
 
-	gw_deselect(bat_priv);
+	batadv_gw_deselect(bat_priv);
 	bat_info(net_dev,
 		 "Changing gateway bandwidth from: '%i' to: '%ld' (propagating: %d%s/%d%s)\n",
 		 atomic_read(&bat_priv->gw_bandwidth), gw_bandwidth_tmp,

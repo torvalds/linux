@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -32,9 +30,10 @@
 static void send_outstanding_bcast_packet(struct work_struct *work);
 
 /* send out an already prepared packet to the given address via the
- * specified batman interface */
-int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
-		    const uint8_t *dst_addr)
+ * specified batman interface
+ */
+int batadv_send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
+			   const uint8_t *dst_addr)
 {
 	struct ethhdr *ethhdr;
 
@@ -51,7 +50,7 @@ int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 	}
 
 	/* push to the ethernet header. */
-	if (my_skb_head_push(skb, ETH_HLEN) < 0)
+	if (batadv_skb_head_push(skb, ETH_HLEN) < 0)
 		goto send_skb_err;
 
 	skb_reset_mac_header(skb);
@@ -69,15 +68,15 @@ int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
-	 * (which is > 0). This will not be treated as an error. */
-
+	 * (which is > 0). This will not be treated as an error.
+	 */
 	return dev_queue_xmit(skb);
 send_skb_err:
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
 }
 
-void schedule_bat_ogm(struct hard_iface *hard_iface)
+void batadv_schedule_bat_ogm(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 
@@ -85,8 +84,7 @@ void schedule_bat_ogm(struct hard_iface *hard_iface)
 	    (hard_iface->if_status == IF_TO_BE_REMOVED))
 		return;
 
-	/**
-	 * the interface gets activated here to avoid race conditions between
+	/* the interface gets activated here to avoid race conditions between
 	 * the moment of activating the interface in
 	 * hardif_activate_interface() where the originator mac is set and
 	 * outdated packets (especially uninitialized mac addresses) in the
@@ -121,7 +119,7 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
 	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet->delayed_work,
 			  send_outstanding_bcast_packet);
-	queue_delayed_work(bat_event_workqueue, &forw_packet->delayed_work,
+	queue_delayed_work(batadv_event_workqueue, &forw_packet->delayed_work,
 			   send_time);
 }
 
@@ -132,9 +130,11 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
  * errors.
  *
  * The skb is not consumed, so the caller should make sure that the
- * skb is freed. */
-int add_bcast_packet_to_list(struct bat_priv *bat_priv,
-			     const struct sk_buff *skb, unsigned long delay)
+ * skb is freed.
+ */
+int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
+				    const struct sk_buff *skb,
+				    unsigned long delay)
 {
 	struct hard_iface *primary_if = NULL;
 	struct forw_packet *forw_packet;
@@ -204,14 +204,15 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 
 	/* rebroadcast packet */
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
 		/* send a copy of the saved skb */
 		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
-			send_skb_packet(skb1, hard_iface, broadcast_addr);
+			batadv_send_skb_packet(skb1, hard_iface,
+					       batadv_broadcast_addr);
 	}
 	rcu_read_unlock();
 
@@ -229,7 +230,7 @@ out:
 	atomic_inc(&bat_priv->bcast_queue_left);
 }
 
-void send_outstanding_bat_ogm_packet(struct work_struct *work)
+void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =
 		container_of(work, struct delayed_work, work);
@@ -247,13 +248,12 @@ void send_outstanding_bat_ogm_packet(struct work_struct *work)
 
 	bat_priv->bat_algo_ops->bat_ogm_emit(forw_packet);
 
-	/**
-	 * we have to have at least one packet in the queue
+	/* we have to have at least one packet in the queue
 	 * to determine the queues wake up time unless we are
 	 * shutting down
 	 */
 	if (forw_packet->own)
-		schedule_bat_ogm(forw_packet->if_incoming);
+		batadv_schedule_bat_ogm(forw_packet->if_incoming);
 
 out:
 	/* don't count own packet */
@@ -263,8 +263,8 @@ out:
 	forw_packet_free(forw_packet);
 }
 
-void purge_outstanding_packets(struct bat_priv *bat_priv,
-			       const struct hard_iface *hard_iface)
+void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
+				      const struct hard_iface *hard_iface)
 {
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
@@ -283,8 +283,7 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
 				  &bat_priv->forw_bcast_list, list) {
 
-		/**
-		 * if purge_outstanding_packets() was called with an argument
+		/* if purge_outstanding_packets() was called with an argument
 		 * we delete only packets belonging to the given interface
 		 */
 		if ((hard_iface) &&
@@ -293,8 +292,7 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 
 		spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
-		/**
-		 * send_outstanding_bcast_packet() will lock the list to
+		/* send_outstanding_bcast_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);
@@ -312,8 +310,7 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
 				  &bat_priv->forw_bat_list, list) {
 
-		/**
-		 * if purge_outstanding_packets() was called with an argument
+		/* if purge_outstanding_packets() was called with an argument
 		 * we delete only packets belonging to the given interface
 		 */
 		if ((hard_iface) &&
@@ -322,8 +319,7 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 
 		spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 
-		/**
-		 * send_outstanding_bat_packet() will lock the list to
+		/* send_outstanding_bat_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);

@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Andreas Langer
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_UNICAST_H_
@@ -27,12 +25,13 @@
 #define FRAG_TIMEOUT 10000	/* purge frag list entries after time in ms */
 #define FRAG_BUFFER_SIZE 6	/* number of list elements in buffer */
 
-int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-			struct sk_buff **new_skb);
-void frag_list_free(struct list_head *head);
-int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv);
-int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-		  struct hard_iface *hard_iface, const uint8_t dstaddr[]);
+int batadv_frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
+			       struct sk_buff **new_skb);
+void batadv_frag_list_free(struct list_head *head);
+int batadv_unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv);
+int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
+			 struct hard_iface *hard_iface,
+			 const uint8_t dstaddr[]);
 
 static inline int frag_can_reassemble(const struct sk_buff *skb, int mtu)
 {

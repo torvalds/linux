@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -76,7 +74,7 @@ static int fdebug_log(struct debug_log *debug_log, const char *fmt, ...)
 	return 0;
 }
 
-int debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
+int batadv_debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
 {
 	va_list args;
 	char tmp_log_buf[256];
@@ -94,13 +92,13 @@ static int log_open(struct inode *inode, struct file *file)
 {
 	nonseekable_open(inode, file);
 	file->private_data = inode->i_private;
-	inc_module_count();
+	batadv_inc_module_count();
 	return 0;
 }
 
 static int log_release(struct inode *inode, struct file *file)
 {
-	dec_module_count();
+	batadv_dec_module_count();
 	return 0;
 }
 
@@ -224,45 +222,46 @@ static void debug_log_cleanup(struct bat_priv *bat_priv)
 
 static int bat_algorithms_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, bat_algo_seq_print_text, NULL);
+	return single_open(file, batadv_algo_seq_print_text, NULL);
 }
 
 static int originators_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, orig_seq_print_text, net_dev);
+	return single_open(file, batadv_orig_seq_print_text, net_dev);
 }
 
 static int gateways_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, gw_client_seq_print_text, net_dev);
+	return single_open(file, batadv_gw_client_seq_print_text, net_dev);
 }
 
 static int transtable_global_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, tt_global_seq_print_text, net_dev);
+	return single_open(file, batadv_tt_global_seq_print_text, net_dev);
 }
 
 #ifdef CONFIG_BATMAN_ADV_BLA
 static int bla_claim_table_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, bla_claim_table_seq_print_text, net_dev);
+	return single_open(file, batadv_bla_claim_table_seq_print_text,
+			   net_dev);
 }
 #endif
 
 static int transtable_local_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, tt_local_seq_print_text, net_dev);
+	return single_open(file, batadv_tt_local_seq_print_text, net_dev);
 }
 
 static int vis_data_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, vis_seq_print_text, net_dev);
+	return single_open(file, batadv_vis_seq_print_text, net_dev);
 }
 
 struct bat_debuginfo {
@@ -304,7 +303,7 @@ static struct bat_debuginfo *mesh_debuginfos[] = {
 	NULL,
 };
 
-void debugfs_init(void)
+void batadv_debugfs_init(void)
 {
 	struct bat_debuginfo *bat_debug;
 	struct dentry *file;
@@ -327,7 +326,7 @@ out:
 	return;
 }
 
-void debugfs_destroy(void)
+void batadv_debugfs_destroy(void)
 {
 	if (bat_debugfs) {
 		debugfs_remove_recursive(bat_debugfs);
@@ -335,7 +334,7 @@ void debugfs_destroy(void)
 	}
 }
 
-int debugfs_add_meshif(struct net_device *dev)
+int batadv_debugfs_add_meshif(struct net_device *dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct bat_debuginfo **bat_debug;
@@ -348,7 +347,7 @@ int debugfs_add_meshif(struct net_device *dev)
 	if (!bat_priv->debug_dir)
 		goto out;
 
-	if (bat_socket_setup(bat_priv) < 0)
+	if (batadv_socket_setup(bat_priv) < 0)
 		goto rem_attr;
 
 	if (debug_log_setup(bat_priv) < 0)
@@ -378,7 +377,7 @@ out:
 #endif /* CONFIG_DEBUG_FS */
 }
 
-void debugfs_del_meshif(struct net_device *dev)
+void batadv_debugfs_del_meshif(struct net_device *dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
 

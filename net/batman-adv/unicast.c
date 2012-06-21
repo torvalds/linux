@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Andreas Langer
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -101,7 +99,7 @@ static int frag_create_buffer(struct list_head *head)
 	for (i = 0; i < FRAG_BUFFER_SIZE; i++) {
 		tfp = kmalloc(sizeof(*tfp), GFP_ATOMIC);
 		if (!tfp) {
-			frag_list_free(head);
+			batadv_frag_list_free(head);
 			return -ENOMEM;
 		}
 		tfp->skb = NULL;
@@ -151,7 +149,7 @@ mov_tail:
 	return NULL;
 }
 
-void frag_list_free(struct list_head *head)
+void batadv_frag_list_free(struct list_head *head)
 {
 	struct frag_packet_list_entry *pf, *tmp_pf;
 
@@ -172,8 +170,8 @@ void frag_list_free(struct list_head *head)
  * or the skb could be reassembled (skb_new will point to the new packet and
  * skb was freed)
  */
-int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-			struct sk_buff **new_skb)
+int batadv_frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
+			       struct sk_buff **new_skb)
 {
 	struct orig_node *orig_node;
 	struct frag_packet_list_entry *tmp_frag_entry;
@@ -212,12 +210,12 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 out:
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	return ret;
 }
 
-int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-		  struct hard_iface *hard_iface, const uint8_t dstaddr[])
+int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
+			 struct hard_iface *hard_iface, const uint8_t dstaddr[])
 {
 	struct unicast_packet tmp_uc, *unicast_packet;
 	struct hard_iface *primary_if;
@@ -242,8 +240,8 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	memcpy(&tmp_uc, unicast_packet, uc_hdr_len);
 	skb_split(skb, frag_skb, data_len / 2 + uc_hdr_len);
 
-	if (my_skb_head_push(skb, ucf_hdr_len - uc_hdr_len) < 0 ||
-	    my_skb_head_push(frag_skb, ucf_hdr_len) < 0)
+	if (batadv_skb_head_push(skb, ucf_hdr_len - uc_hdr_len) < 0 ||
+	    batadv_skb_head_push(frag_skb, ucf_hdr_len) < 0)
 		goto drop_frag;
 
 	frag1 = (struct unicast_frag_packet *)skb->data;
@@ -268,8 +266,8 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag1->seqno = htons(seqno - 1);
 	frag2->seqno = htons(seqno);
 
-	send_skb_packet(skb, hard_iface, dstaddr);
-	send_skb_packet(frag_skb, hard_iface, dstaddr);
+	batadv_send_skb_packet(skb, hard_iface, dstaddr);
+	batadv_send_skb_packet(frag_skb, hard_iface, dstaddr);
 	ret = NET_RX_SUCCESS;
 	goto out;
 
@@ -283,7 +281,7 @@ out:
 	return ret;
 }
 
-int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
+int batadv_unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct unicast_packet *unicast_packet;
@@ -294,28 +292,26 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
-		orig_node = gw_get_selected_orig(bat_priv);
+		orig_node = batadv_gw_get_selected_orig(bat_priv);
 		if (orig_node)
 			goto find_router;
 	}
 
 	/* check for tt host - increases orig_node refcount.
-	 * returns NULL in case of AP isolation */
-	orig_node = transtable_search(bat_priv, ethhdr->h_source,
-				      ethhdr->h_dest);
-
+	 * returns NULL in case of AP isolation
+	 */
+	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
+					     ethhdr->h_dest);
 find_router:
-	/**
-	 * find_router():
+	/* find_router():
 	 *  - if orig_node is NULL it returns NULL
 	 *  - increases neigh_nodes refcount if found.
 	 */
-	neigh_node = find_router(bat_priv, orig_node, NULL);
-
+	neigh_node = batadv_find_router(bat_priv, orig_node, NULL);
 	if (!neigh_node)
 		goto out;
 
-	if (my_skb_head_push(skb, sizeof(*unicast_packet)) < 0)
+	if (batadv_skb_head_push(skb, sizeof(*unicast_packet)) < 0)
 		goto out;
 
 	unicast_packet = (struct unicast_packet *)skb->data;
@@ -336,7 +332,7 @@ find_router:
 	 * try to reroute it because the ttvn contained in the header is less
 	 * than the current one
 	 */
-	if (tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
+	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
 	if (atomic_read(&bat_priv->fragmentation) &&
@@ -344,20 +340,21 @@ find_router:
 				neigh_node->if_incoming->net_dev->mtu) {
 		/* send frag skb decreases ttl */
 		unicast_packet->header.ttl++;
-		ret = frag_send_skb(skb, bat_priv,
-				    neigh_node->if_incoming, neigh_node->addr);
+		ret = batadv_frag_send_skb(skb, bat_priv,
+					   neigh_node->if_incoming,
+					   neigh_node->addr);
 		goto out;
 	}
 
-	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = 0;
 	goto out;
 
 out:
 	if (neigh_node)
-		neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref(neigh_node);
 	if (orig_node)
-		orig_node_free_ref(orig_node);
+		batadv_orig_node_free_ref(orig_node);
 	if (ret == 1)
 		kfree_skb(skb);
 	return ret;

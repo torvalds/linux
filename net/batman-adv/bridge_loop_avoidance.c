@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -16,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #include "main.h"
@@ -123,8 +121,7 @@ static void claim_free_ref(struct claim *claim)
 		call_rcu(&claim->rcu, claim_free_rcu);
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @data: search data (may be local/static data)
  *
  * looks for a claim in the hash, and returns it if found
@@ -162,8 +159,7 @@ static struct claim *claim_hash_find(struct bat_priv *bat_priv,
 	return claim_tmp;
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @addr: the address of the originator
  * @vid: the VLAN ID
  *
@@ -241,8 +237,7 @@ static void bla_del_backbone_claims(struct backbone_gw *backbone_gw)
 	backbone_gw->crc = BLA_CRC_INIT;
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @orig: the mac address to be announced within the claim
  * @vid: the VLAN ID
  * @claimtype: the type of the claim (CLAIM, UNCLAIM, ANNOUNCE, ...)
@@ -347,8 +342,7 @@ out:
 		hardif_free_ref(primary_if);
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @orig: the mac address of the originator
  * @vid: the VLAN ID
  *
@@ -397,9 +391,9 @@ static struct backbone_gw *bla_get_backbone_gw(struct bat_priv *bat_priv,
 	/* this is a gateway now, remove any tt entries */
 	orig_node = orig_hash_find(bat_priv, orig);
 	if (orig_node) {
-		tt_global_del_orig(bat_priv, orig_node,
-				   "became a backbone gateway");
-		orig_node_free_ref(orig_node);
+		batadv_tt_global_del_orig(bat_priv, orig_node,
+					  "became a backbone gateway");
+		batadv_orig_node_free_ref(orig_node);
 	}
 	return entry;
 }
@@ -422,8 +416,7 @@ static void bla_update_own_backbone_gw(struct bat_priv *bat_priv,
 	backbone_gw_free_ref(backbone_gw);
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @vid: the vid where the request came on
  *
  * Repeat all of our own claims, and finally send an ANNOUNCE frame
@@ -468,8 +461,7 @@ static void bla_answer_request(struct bat_priv *bat_priv,
 	backbone_gw_free_ref(backbone_gw);
 }
 
-/**
- * @backbone_gw: the backbone gateway from whom we are out of sync
+/* @backbone_gw: the backbone gateway from whom we are out of sync
  *
  * When the crc is wrong, ask the backbone gateway for a full table update.
  * After the request, it will repeat all of his own claims and finally
@@ -495,8 +487,7 @@ static void bla_send_request(struct backbone_gw *backbone_gw)
 	}
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @backbone_gw: our backbone gateway which should be announced
  *
  * This function sends an announcement. It is called from multiple
@@ -516,8 +507,7 @@ static void bla_send_announce(struct bat_priv *bat_priv,
 
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @mac: the mac address of the claim
  * @vid: the VLAN ID of the frame
  * @backbone_gw: the backbone gateway which claims it
@@ -731,8 +721,7 @@ static int handle_claim(struct bat_priv *bat_priv,
 	return 1;
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @hw_src: the Hardware source in the ARP Header
  * @hw_dst: the Hardware destination in the ARP Header
  * @ethhdr: pointer to the Ethernet header of the claim frame
@@ -804,14 +793,13 @@ static int check_claim_group(struct bat_priv *bat_priv,
 		bla_dst_own->group = bla_dst->group;
 	}
 
-	orig_node_free_ref(orig_node);
+	batadv_orig_node_free_ref(orig_node);
 
 	return 2;
 }
 
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
  *
  * Check if this is a claim frame, and process it accordingly.
@@ -860,7 +848,6 @@ static int bla_process_claim(struct bat_priv *bat_priv,
 	/* Check whether the ARP frame carries a valid
 	 * IP information
 	 */
-
 	if (arphdr->ar_hrd != htons(ARPHRD_ETHER))
 		return 0;
 	if (arphdr->ar_pro != htons(ETH_P_IP))
@@ -963,8 +950,7 @@ purge_now:
 	}
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the selected primary interface, may be NULL if now is set
  * @now: whether the whole hash shall be wiped now
  *
@@ -1011,17 +997,15 @@ purge_now:
 	}
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @primary_if: the new selected primary_if
  * @oldif: the old primary interface, may be NULL
  *
  * Update the backbone gateways when the own orig address changes.
- *
  */
-void bla_update_orig_address(struct bat_priv *bat_priv,
-			     struct hard_iface *primary_if,
-			     struct hard_iface *oldif)
+void batadv_bla_update_orig_address(struct bat_priv *bat_priv,
+				    struct hard_iface *primary_if,
+				    struct hard_iface *oldif)
 {
 	struct backbone_gw *backbone_gw;
 	struct hlist_node *node;
@@ -1070,7 +1054,7 @@ void bla_update_orig_address(struct bat_priv *bat_priv,
 static void bla_start_timer(struct bat_priv *bat_priv)
 {
 	INIT_DELAYED_WORK(&bat_priv->bla_work, bla_periodic_work);
-	queue_delayed_work(bat_event_workqueue, &bat_priv->bla_work,
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla_work,
 			   msecs_to_jiffies(BLA_PERIOD_LENGTH));
 }
 
@@ -1136,7 +1120,7 @@ static struct lock_class_key claim_hash_lock_class_key;
 static struct lock_class_key backbone_hash_lock_class_key;
 
 /* initialize all bla structures */
-int bla_init(struct bat_priv *bat_priv)
+int batadv_bla_init(struct bat_priv *bat_priv)
 {
 	int i;
 	uint8_t claim_dest[ETH_ALEN] = {0xff, 0x43, 0x05, 0x00, 0x00, 0x00};
@@ -1166,8 +1150,8 @@ int bla_init(struct bat_priv *bat_priv)
 	if (bat_priv->claim_hash)
 		return 0;
 
-	bat_priv->claim_hash = hash_new(128);
-	bat_priv->backbone_hash = hash_new(32);
+	bat_priv->claim_hash = batadv_hash_new(128);
+	bat_priv->backbone_hash = batadv_hash_new(32);
 
 	if (!bat_priv->claim_hash || !bat_priv->backbone_hash)
 		return -ENOMEM;
@@ -1183,8 +1167,7 @@ int bla_init(struct bat_priv *bat_priv)
 	return 0;
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @bcast_packet: originator mac address
  * @hdr_size: maximum length of the frame
  *
@@ -1196,12 +1179,10 @@ int bla_init(struct bat_priv *bat_priv)
  * with a good chance that it is the same packet. If it is furthermore
  * sent by another host, drop it. We allow equal packets from
  * the same host however as this might be intended.
- *
- **/
-
-int bla_check_bcast_duplist(struct bat_priv *bat_priv,
-			    struct bcast_packet *bcast_packet,
-			    int hdr_size)
+ */
+int batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
+				   struct bcast_packet *bcast_packet,
+				   int hdr_size)
 {
 	int i, length, curr;
 	uint8_t *content;
@@ -1250,17 +1231,14 @@ int bla_check_bcast_duplist(struct bat_priv *bat_priv,
 
 
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @orig: originator mac address
  *
  * check if the originator is a gateway for any VLAN ID.
  *
  * returns 1 if it is found, 0 otherwise
- *
  */
-
-int bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
+int batadv_bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
 {
 	struct hashtable_t *hash = bat_priv->backbone_hash;
 	struct hlist_head *head;
@@ -1291,18 +1269,16 @@ int bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
 }
 
 
-/**
- * @skb: the frame to be checked
+/* @skb: the frame to be checked
  * @orig_node: the orig_node of the frame
  * @hdr_size: maximum length of the frame
  *
  * bla_is_backbone_gw inspects the skb for the VLAN ID and returns 1
  * if the orig_node is also a gateway on the soft interface, otherwise it
  * returns 0.
- *
  */
-int bla_is_backbone_gw(struct sk_buff *skb,
-		       struct orig_node *orig_node, int hdr_size)
+int batadv_bla_is_backbone_gw(struct sk_buff *skb,
+			      struct orig_node *orig_node, int hdr_size)
 {
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
@@ -1328,7 +1304,6 @@ int bla_is_backbone_gw(struct sk_buff *skb,
 	}
 
 	/* see if this originator is a backbone gw for this VLAN */
-
 	backbone_gw = backbone_hash_find(orig_node->bat_priv,
 					 orig_node->orig, vid);
 	if (!backbone_gw)
@@ -1339,7 +1314,7 @@ int bla_is_backbone_gw(struct sk_buff *skb,
 }
 
 /* free all bla structures (for softinterface free or module unload) */
-void bla_free(struct bat_priv *bat_priv)
+void batadv_bla_free(struct bat_priv *bat_priv)
 {
 	struct hard_iface *primary_if;
 
@@ -1348,20 +1323,19 @@ void bla_free(struct bat_priv *bat_priv)
 
 	if (bat_priv->claim_hash) {
 		bla_purge_claims(bat_priv, primary_if, 1);
-		hash_destroy(bat_priv->claim_hash);
+		batadv_hash_destroy(bat_priv->claim_hash);
 		bat_priv->claim_hash = NULL;
 	}
 	if (bat_priv->backbone_hash) {
 		bla_purge_backbone_gw(bat_priv, 1);
-		hash_destroy(bat_priv->backbone_hash);
+		batadv_hash_destroy(bat_priv->backbone_hash);
 		bat_priv->backbone_hash = NULL;
 	}
 	if (primary_if)
 		hardif_free_ref(primary_if);
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
  * @vid: the VLAN ID of the frame
  *
@@ -1372,9 +1346,8 @@ void bla_free(struct bat_priv *bat_priv)
  * in these cases, the skb is further handled by this function and
  * returns 1, otherwise it returns 0 and the caller shall further
  * process the skb.
- *
  */
-int bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
+int batadv_bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
 {
 	struct ethhdr *ethhdr;
 	struct claim search_claim, *claim = NULL;
@@ -1449,8 +1422,7 @@ out:
 	return ret;
 }
 
-/**
- * @bat_priv: the bat priv with all the soft interface information
+/* @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
  * @vid: the VLAN ID of the frame
  *
@@ -1461,9 +1433,8 @@ out:
  * in these cases, the skb is further handled by this function and
  * returns 1, otherwise it returns 0 and the caller shall further
  * process the skb.
- *
  */
-int bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
+int batadv_bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
 {
 	struct ethhdr *ethhdr;
 	struct claim search_claim, *claim = NULL;
@@ -1537,7 +1508,7 @@ out:
 	return ret;
 }
 
-int bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
+int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
