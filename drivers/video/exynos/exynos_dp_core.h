@@ -85,10 +85,6 @@ void exynos_dp_set_link_bandwidth(struct exynos_dp_device *dp, u32 bwtype);
 void exynos_dp_get_link_bandwidth(struct exynos_dp_device *dp, u32 *bwtype);
 void exynos_dp_set_lane_count(struct exynos_dp_device *dp, u32 count);
 void exynos_dp_get_lane_count(struct exynos_dp_device *dp, u32 *count);
-void exynos_dp_set_link_bandwidth(struct exynos_dp_device *dp, u32 bwtype);
-void exynos_dp_get_link_bandwidth(struct exynos_dp_device *dp, u32 *bwtype);
-void exynos_dp_set_lane_count(struct exynos_dp_device *dp, u32 count);
-void exynos_dp_get_lane_count(struct exynos_dp_device *dp, u32 *count);
 void exynos_dp_enable_enhanced_mode(struct exynos_dp_device *dp, bool enable);
 void exynos_dp_set_training_pattern(struct exynos_dp_device *dp,
 				 enum pattern_set pattern);
