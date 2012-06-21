@@ -707,23 +707,10 @@ static struct ctl_table sctp_compat_sysctl_table[] = {
 #endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif
 
-static void sctp_init_net_data(struct sctp_net *sn)
-{
-	int i;
-#ifdef CONFIG_SYSCTL
-	if (!sn->pn.ctl_table) {
-#else
-	if (!sn->pn.users++) {
-#endif
-		for (i = 0; i < SCTP_CONNTRACK_MAX; i++)
-			sn->timeouts[i] = sctp_timeouts[i];
-	}
-}
-
-static int sctp_kmemdup_sysctl_table(struct nf_proto_net *pn)
+static int sctp_kmemdup_sysctl_table(struct nf_proto_net *pn,
+				     struct sctp_net *sn)
 {
 #ifdef CONFIG_SYSCTL
-	struct sctp_net *sn = (struct sctp_net *)pn;
 	if (pn->ctl_table)
 		return 0;
 
@@ -744,11 +731,11 @@ static int sctp_kmemdup_sysctl_table(struct nf_proto_net *pn)
 	return 0;
 }
 
-static int sctp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn)
+static int sctp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
+					    struct sctp_net *sn)
 {
 #ifdef CONFIG_SYSCTL
 #ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	struct sctp_net *sn = (struct sctp_net *)pn;
 	pn->ctl_compat_table = kmemdup(sctp_compat_sysctl_table,
 				       sizeof(sctp_compat_sysctl_table),
 				       GFP_KERNEL);
@@ -767,39 +754,31 @@ static int sctp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn)
 	return 0;
 }
 
-static int sctpv4_init_net(struct net *net, u_int16_t proto)
+static int sctp_init_net(struct net *net, u_int16_t proto)
 {
 	int ret;
 	struct sctp_net *sn = sctp_pernet(net);
-	struct nf_proto_net *pn = (struct nf_proto_net *)sn;
+	struct nf_proto_net *pn = &sn->pn;
 
-	sctp_init_net_data(sn);
+	if (!pn->users) {
+		int i;
 
-	ret = sctp_kmemdup_compat_sysctl_table(pn);
-	if (ret < 0)
-		return ret;
-
-	ret = sctp_kmemdup_sysctl_table(pn);
-
-#ifdef CONFIG_SYSCTL
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	if (ret < 0) {
-
-		kfree(pn->ctl_compat_table);
-		pn->ctl_compat_table = NULL;
+		for (i = 0; i < SCTP_CONNTRACK_MAX; i++)
+			sn->timeouts[i] = sctp_timeouts[i];
 	}
-#endif
-#endif
+
+	if (proto == AF_INET) {
+		ret = sctp_kmemdup_compat_sysctl_table(pn, sn);
+		if (ret < 0)
+			return ret;
+
+		ret = sctp_kmemdup_sysctl_table(pn, sn);
+		if (ret < 0)
+			nf_ct_kfree_compat_sysctl_table(pn);
+	} else
+		ret = sctp_kmemdup_sysctl_table(pn, sn);
+
 	return ret;
-}
-
-static int sctpv6_init_net(struct net *net, u_int16_t proto)
-{
-	struct sctp_net *sn = sctp_pernet(net);
-	struct nf_proto_net *pn = (struct nf_proto_net *)sn;
-
-	sctp_init_net_data(sn);
-	return sctp_kmemdup_sysctl_table(pn);
 }
 
 static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
@@ -833,7 +812,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.net_id			= &sctp_net_id,
-	.init_net		= sctpv4_init_net,
+	.init_net		= sctp_init_net,
 };
 
 static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
@@ -867,7 +846,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #endif
 	.net_id			= &sctp_net_id,
-	.init_net		= sctpv6_init_net,
+	.init_net		= sctp_init_net,
 };
 
 static int sctp_net_init(struct net *net)
