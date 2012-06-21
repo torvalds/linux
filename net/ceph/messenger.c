@@ -414,7 +414,7 @@ static void ceph_msg_remove(struct ceph_msg *msg)
 {
 	list_del_init(&msg->list_head);
 	BUG_ON(msg->con == NULL);
-	ceph_con_put(msg->con);
+	msg->con->ops->put(msg->con);
 	msg->con = NULL;
 
 	ceph_msg_put(msg);
@@ -440,7 +440,7 @@ static void reset_connection(struct ceph_connection *con)
 		con->in_msg->con = NULL;
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
-		ceph_con_put(con);
+		con->ops->put(con);
 	}
 
 	con->connect_seq = 0;
@@ -1919,7 +1919,7 @@ static void process_message(struct ceph_connection *con)
 	con->in_msg->con = NULL;
 	msg = con->in_msg;
 	con->in_msg = NULL;
-	ceph_con_put(con);
+	con->ops->put(con);
 
 	/* if first message, set peer_name */
 	if (con->peer_name.type == 0)
@@ -2281,7 +2281,7 @@ static void ceph_fault(struct ceph_connection *con)
 		con->in_msg->con = NULL;
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
-		ceph_con_put(con);
+		con->ops->put(con);
 	}
 
 	/* Requeue anything that hasn't been acked */
@@ -2400,7 +2400,7 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 	mutex_lock(&con->mutex);
 
 	BUG_ON(msg->con != NULL);
-	msg->con = ceph_con_get(con);
+	msg->con = con->ops->get(con);
 	BUG_ON(msg->con == NULL);
 
 	BUG_ON(!list_empty(&msg->list_head));
@@ -2436,7 +2436,7 @@ void ceph_msg_revoke(struct ceph_msg *msg)
 		dout("%s %p msg %p - was on queue\n", __func__, con, msg);
 		list_del_init(&msg->list_head);
 		BUG_ON(msg->con == NULL);
-		ceph_con_put(msg->con);
+		msg->con->ops->put(msg->con);
 		msg->con = NULL;
 		msg->hdr.seq = 0;
 
@@ -2646,7 +2646,7 @@ static bool ceph_con_in_msg_alloc(struct ceph_connection *con,
 		con->in_msg = con->ops->alloc_msg(con, hdr, &skip);
 		mutex_lock(&con->mutex);
 		if (con->in_msg) {
-			con->in_msg->con = ceph_con_get(con);
+			con->in_msg->con = con->ops->get(con);
 			BUG_ON(con->in_msg->con == NULL);
 		}
 		if (skip)
@@ -2662,7 +2662,7 @@ static bool ceph_con_in_msg_alloc(struct ceph_connection *con,
 			       type, front_len);
 			return false;
 		}
-		con->in_msg->con = ceph_con_get(con);
+		con->in_msg->con = con->ops->get(con);
 		BUG_ON(con->in_msg->con == NULL);
 		con->in_msg->page_alignment = le16_to_cpu(hdr->data_off);
 	}
