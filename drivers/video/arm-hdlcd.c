@@ -166,6 +166,11 @@ static int hdlcd_set_output_mode(int xres, int yres)
 	return set_dvi_mode(msgbuffer[0]);
 }
 
+
+/* prototype */
+static int hdlcd_pan_display(struct fb_var_screeninfo *var,
+	struct fb_info *info);
+
 #define WRITE_HDLCD_REG(reg, value)	writel((value), hdlcd->base + (reg))
 #define READ_HDLCD_REG(reg)		readl(hdlcd->base + (reg))
 
@@ -174,9 +179,22 @@ static int hdlcd_set_par(struct fb_info *info)
 	struct hdlcd_device *hdlcd = to_hdlcd_device(info);
 	int bytes_per_pixel = hdlcd->fb.var.bits_per_pixel / 8;
 	int polarities;
+	int old_yoffset;
 
-	if (!memcmp(&info->var, &cached_var_screeninfo, sizeof(struct fb_var_screeninfo)))
+	/* check for shortcuts */
+	old_yoffset = cached_var_screeninfo.yoffset;
+	cached_var_screeninfo.yoffset = info->var.yoffset;
+	if (!memcmp(&info->var, &cached_var_screeninfo,
+				sizeof(struct fb_var_screeninfo))) {
+		if(old_yoffset != info->var.yoffset) {
+			/* we only changed yoffset */
+			hdlcd_pan_display(&info->var, info);
+			memcpy(&cached_var_screeninfo, &info->var,
+				sizeof(struct fb_var_screeninfo));
+		}
+		/* or no change */
 		return 0;
+	}
 
 	hdlcd->fb.fix.line_length = hdlcd->fb.var.xres * bytes_per_pixel;
 
