@@ -22,7 +22,6 @@ generic-y += ioctl.h
 generic-y += ioctls.h
 generic-y += iomap.h
 generic-y += ipcbuf.h
-generic-y += ipc.h
 generic-y += irq_regs.h
 generic-y += kdebug.h
 generic-y += kmap_types.h
