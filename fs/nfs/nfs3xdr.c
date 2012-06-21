@@ -2341,7 +2341,7 @@ static inline int decode_getacl3resok(struct xdr_stream *xdr,
 	if (result->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT))
 		goto out;
 
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
+	hdrlen = xdr_stream_pos(xdr);
 
 	acl = NULL;
 	if (result->mask & NFS_ACL)
