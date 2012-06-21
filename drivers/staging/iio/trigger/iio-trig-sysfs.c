@@ -92,7 +92,7 @@ static struct device iio_sysfs_trig_dev = {
 static ssize_t iio_sysfs_trigger_poll(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_trigger *trig = dev_get_drvdata(dev);
+	struct iio_trigger *trig = to_iio_trigger(dev);
 	iio_trigger_poll_chained(trig, 0);
 
 	return count;

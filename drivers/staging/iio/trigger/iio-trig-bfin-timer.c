@@ -60,7 +60,7 @@ struct bfin_tmr_state {
 static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_trigger *trig = dev_get_drvdata(dev);
+	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct bfin_tmr_state *st = trig->private_data;
 	long val;
 	int ret;
@@ -97,7 +97,7 @@ static ssize_t iio_bfin_tmr_frequency_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	struct iio_trigger *trig = dev_get_drvdata(dev);
+	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct bfin_tmr_state *st = trig->private_data;
 
 	return sprintf(buf, "%lu\n",
