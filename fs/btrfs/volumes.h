@@ -126,6 +126,7 @@ struct btrfs_fs_devices {
 	u64 missing_devices;
 	u64 total_rw_bytes;
 	u64 num_can_discard;
+	u64 total_devices;
 	struct block_device *latest_bdev;
 
 	/* all of the devices in the FS, protected by a mutex
