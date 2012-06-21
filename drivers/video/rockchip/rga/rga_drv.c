@@ -796,6 +796,11 @@ static int rga_blit(rga_session *session, struct rga_req *req)
                 break;
             }
             num = 2;
+
+            if(NULL != req2)
+            {
+                kfree(req2);
+            }
         }
         else
         {
