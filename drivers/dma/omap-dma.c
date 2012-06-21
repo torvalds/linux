@@ -194,14 +194,73 @@ static void omap_dma_free_chan_resources(struct dma_chan *chan)
 	dev_info(c->vc.chan.device->dev, "freeing channel for %u\n", c->dma_sig);
 }
 
+static size_t omap_dma_sg_size(struct omap_sg *sg)
+{
+	return sg->en * sg->fn;
+}
+
+static size_t omap_dma_desc_size(struct omap_desc *d)
+{
+	unsigned i;
+	size_t size;
+
+	for (size = i = 0; i < d->sglen; i++)
+		size += omap_dma_sg_size(&d->sg[i]);
+
+	return size * es_bytes[d->es];
+}
+
+static size_t omap_dma_desc_size_pos(struct omap_desc *d, dma_addr_t addr)
+{
+	unsigned i;
+	size_t size, es_size = es_bytes[d->es];
+
+	for (size = i = 0; i < d->sglen; i++) {
+		size_t this_size = omap_dma_sg_size(&d->sg[i]) * es_size;
+
+		if (size)
+			size += this_size;
+		else if (addr >= d->sg[i].addr &&
+			 addr < d->sg[i].addr + this_size)
+			size += d->sg[i].addr + this_size - addr;
+	}
+	return size;
+}
+
 static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 	dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
-	/*
-	 * FIXME: do we need to return pending bytes?
-	 * We have no users of that info at the moment...
-	 */
-	return dma_cookie_status(chan, cookie, txstate);
+	struct omap_chan *c = to_omap_dma_chan(chan);
+	struct virt_dma_desc *vd;
+	enum dma_status ret;
+	unsigned long flags;
+
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret == DMA_SUCCESS || !txstate)
+		return ret;
+
+	spin_lock_irqsave(&c->vc.lock, flags);
+	vd = vchan_find_desc(&c->vc, cookie);
+	if (vd) {
+		txstate->residue = omap_dma_desc_size(to_omap_dma_desc(&vd->tx));
+	} else if (c->desc && c->desc->vd.tx.cookie == cookie) {
+		struct omap_desc *d = c->desc;
+		dma_addr_t pos;
+
+		if (d->dir == DMA_MEM_TO_DEV)
+			pos = omap_get_dma_src_pos(c->dma_ch);
+		else if (d->dir == DMA_DEV_TO_MEM)
+			pos = omap_get_dma_dst_pos(c->dma_ch);
+		else
+			pos = 0;
+
+		txstate->residue = omap_dma_desc_size_pos(d, pos);
+	} else {
+		txstate->residue = 0;
+	}
+	spin_unlock_irqrestore(&c->vc.lock, flags);
+
+	return ret;
 }
 
 static void omap_dma_issue_pending(struct dma_chan *chan)
