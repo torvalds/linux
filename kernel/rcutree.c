@@ -1151,7 +1151,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 		 * completed.
 		 */
 		if (*rdp->nxttail[RCU_WAIT_TAIL] == NULL) {
-			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+			raw_spin_unlock_irq(&rnp->lock);
 
 			/*
 			 * Propagate new ->completed value to rcu_node
@@ -1160,14 +1160,13 @@ static int __noreturn rcu_gp_kthread(void *arg)
 			 * to process their callbacks.
 			 */
 			rcu_for_each_node_breadth_first(rsp, rnp) {
-				/* irqs already disabled. */
-				raw_spin_lock(&rnp->lock);
+				raw_spin_lock_irq(&rnp->lock);
 				rnp->completed = rsp->gpnum;
-				/* irqs remain disabled. */
-				raw_spin_unlock(&rnp->lock);
+				raw_spin_unlock_irq(&rnp->lock);
+				cond_resched();
 			}
 			rnp = rcu_get_root(rsp);
-			raw_spin_lock(&rnp->lock); /* irqs already disabled. */
+			raw_spin_lock_irq(&rnp->lock);
 		}
 
 		rsp->completed = rsp->gpnum; /* Declare grace period done. */
