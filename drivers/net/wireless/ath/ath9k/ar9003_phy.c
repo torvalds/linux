@@ -979,16 +979,16 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 			      AR_PHY_MRC_CCK_ENABLE, is_on);
 		REG_RMW_FIELD(ah, AR_PHY_MRC_CCK_CTRL,
 			      AR_PHY_MRC_CCK_MUX_REG, is_on);
-		if (!is_on != aniState->mrcCCKOff) {
+		if (is_on != aniState->mrcCCK) {
 			ath_dbg(common, ANI, "** ch %d: MRC CCK: %s=>%s\n",
 				chan->channel,
-				!aniState->mrcCCKOff ? "on" : "off",
+				aniState->mrcCCK ? "on" : "off",
 				is_on ? "on" : "off");
 		if (is_on)
 			ah->stats.ast_ani_ccklow++;
 		else
 			ah->stats.ast_ani_cckhigh++;
-		aniState->mrcCCKOff = !is_on;
+		aniState->mrcCCK = is_on;
 		}
 	break;
 	}
@@ -1004,7 +1004,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		aniState->spurImmunityLevel,
 		aniState->ofdmWeakSigDetect ? "on" : "off",
 		aniState->firstepLevel,
-		!aniState->mrcCCKOff ? "on" : "off",
+		aniState->mrcCCK ? "on" : "off",
 		aniState->listenTime,
 		aniState->ofdmPhyErrCount,
 		aniState->cckPhyErrCount);
@@ -1114,7 +1114,7 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	aniState->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
 	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
 	aniState->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
-	aniState->mrcCCKOff = !ATH9K_ANI_ENABLE_MRC_CCK;
+	aniState->mrcCCK = true;
 }
 
 static void ar9003_hw_set_radar_params(struct ath_hw *ah,

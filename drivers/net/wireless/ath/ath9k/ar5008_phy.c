@@ -1234,7 +1234,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 		aniState->spurImmunityLevel,
 		aniState->ofdmWeakSigDetect ? "on" : "off",
 		aniState->firstepLevel,
-		!aniState->mrcCCKOff ? "on" : "off",
+		aniState->mrcCCK ? "on" : "off",
 		aniState->listenTime,
 		aniState->ofdmPhyErrCount,
 		aniState->cckPhyErrCount);
@@ -1322,7 +1322,7 @@ static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	aniState->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
 	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
 	aniState->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
-	aniState->mrcCCKOff = true; /* not available on pre AR9003 */
+	aniState->mrcCCK = false; /* not available on pre AR9003 */
 }
 
 static void ar5008_hw_set_nf_limits(struct ath_hw *ah)

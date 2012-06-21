@@ -62,8 +62,6 @@
 #define ATH9K_SIG_SPUR_IMM_SETTING_MIN    0
 #define ATH9K_SIG_SPUR_IMM_SETTING_MAX    22
 
-#define ATH9K_ANI_ENABLE_MRC_CCK          true
-
 /* values here are relative to the INI */
 
 enum ath9k_ani_cmd {
@@ -111,7 +109,7 @@ struct ar5416AniState {
 	u8 ofdmNoiseImmunityLevel;
 	u8 cckNoiseImmunityLevel;
 	bool ofdmsTurn;
-	u8 mrcCCKOff;
+	u8 mrcCCK;
 	u8 spurImmunityLevel;
 	u8 firstepLevel;
 	u8 ofdmWeakSigDetect;

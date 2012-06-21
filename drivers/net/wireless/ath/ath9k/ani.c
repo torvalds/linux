@@ -238,7 +238,7 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel)
 	if (!AR_SREV_9300_20_OR_LATER(ah) || AR_SREV_9485(ah))
 		return;
 
-	if (aniState->mrcCCKOff == entry_cck->mrc_cck_on)
+	if (aniState->mrcCCK != entry_cck->mrc_cck_on)
 		ath9k_hw_ani_control(ah,
 				     ATH9K_ANI_MRC_CCK,
 				     entry_cck->mrc_cck_on);
@@ -525,11 +525,7 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 		ani->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
 
-		if (AR_SREV_9300_20_OR_LATER(ah))
-			ani->mrcCCKOff =
-				!ATH9K_ANI_ENABLE_MRC_CCK;
-		else
-			ani->mrcCCKOff = true;
+		ani->mrcCCK = AR_SREV_9300_20_OR_LATER(ah) ? true : false;
 
 		ani->ofdmsTurn = true;
 
