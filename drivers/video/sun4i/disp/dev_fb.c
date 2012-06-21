@@ -26,7 +26,7 @@
 #include "dev_disp.h"
 
 #ifdef CONFIG_SUN4I_FB_UMP
-#include "ump_kernel_interface.h"
+#include <ump/ump_kernel_interface.h>
 
 static ump_dd_handle ump_wrapped_buffer;
 extern ump_dd_handle ump_dd_handle_create_from_phys_blocks(ump_dd_physical_block * blocks, unsigned long num_blocks);
