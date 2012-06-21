@@ -70,10 +70,6 @@
 #define FALSE   (0)
 #endif
 
-#if !defined(INLINE)
-#define INLINE static __inline
-#endif
-
 #include<linux/slab.h>
 
 #define S626_SIZE 0x0200
