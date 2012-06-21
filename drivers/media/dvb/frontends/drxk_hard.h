@@ -338,7 +338,10 @@ struct drxk_state {
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
 
+	/* Firmware */
 	const char *microcode_name;
+	struct completion fw_wait_load;
+	const struct firmware *fw;
 };
 
 #define NEVER_LOCK 0
