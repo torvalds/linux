@@ -599,6 +599,7 @@ static void nct6775_write_fan_div(struct w83627ehf_data *data, int nr)
 		reg = (w83627ehf_read_value(data, NCT6775_REG_FANDIV1) & 0x7)
 		    | ((data->fan_div[1] << 4) & 0x70);
 		w83627ehf_write_value(data, NCT6775_REG_FANDIV1, reg);
+		break;
 	case 2:
 		reg = (w83627ehf_read_value(data, NCT6775_REG_FANDIV2) & 0x70)
 		    | (data->fan_div[2] & 0x7);
