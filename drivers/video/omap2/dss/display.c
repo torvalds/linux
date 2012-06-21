@@ -116,7 +116,7 @@ static ssize_t display_timings_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	struct omap_video_timings t;
+	struct omap_video_timings t = dssdev->panel.timings;
 	int r, found;
 
 	if (!dssdev->driver->set_timings || !dssdev->driver->check_timings)
