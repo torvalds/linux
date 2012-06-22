@@ -62,10 +62,6 @@ struct dio700_board {
 	int device_id;		/*  device id for pcmcia board */
 	enum dio700_bustype bustype;	/*  PCMCIA */
 	int have_dio;		/*  have daqcard-700 dio */
-	/*  function pointers so we can use inb/outb or readb/writeb */
-	/*  as appropriate */
-	unsigned int (*read_byte) (unsigned int address);
-	void (*write_byte) (unsigned int byte, unsigned int address);
 };
 
 static const struct dio700_board dio700_boards[] = {
