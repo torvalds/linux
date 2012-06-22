@@ -5119,6 +5119,18 @@ again:
 
 		if (!path->skip_locking) {
 			ret = btrfs_try_tree_read_lock(next);
+			if (!ret && time_seq) {
+				/*
+				 * If we don't get the lock, we may be racing
+				 * with push_leaf_left, holding that lock while
+				 * itself waiting for the leaf we've currently
+				 * locked. To solve this situation, we give up
+				 * on our lock and cycle.
+				 */
+				btrfs_release_path(path);
+				cond_resched();
+				goto again;
+			}
 			if (!ret) {
 				btrfs_set_path_blocking(path);
 				btrfs_tree_read_lock(next);
