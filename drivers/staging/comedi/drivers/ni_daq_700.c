@@ -59,25 +59,17 @@ enum dio700_bustype { pcmcia_bustype };
 
 struct dio700_board {
 	const char *name;
-	int device_id;		/*  device id for pcmcia board */
 	enum dio700_bustype bustype;	/*  PCMCIA */
-	int have_dio;		/*  have daqcard-700 dio */
 };
 
 static const struct dio700_board dio700_boards[] = {
 	{
 	 .name = "daqcard-700",
-	  /*  0x10b is manufacturer id, 0x4743 is device id */
-	 .device_id = 0x4743,
 	 .bustype = pcmcia_bustype,
-	 .have_dio = 1,
 	 },
 	{
 	 .name = "ni_daq_700",
-	  /*  0x10b is manufacturer id, 0x4743 is device id */
-	 .device_id = 0x4743,
 	 .bustype = pcmcia_bustype,
-	 .have_dio = 1,
 	 },
 };
 
