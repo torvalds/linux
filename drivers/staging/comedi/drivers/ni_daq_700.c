@@ -226,16 +226,6 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 	dio700_release(link);
 }
 
-static int dio700_cs_suspend(struct pcmcia_device *link)
-{
-	return 0;
-}
-
-static int dio700_cs_resume(struct pcmcia_device *link)
-{
-	return 0;
-}
-
 static const struct pcmcia_device_id dio700_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x4743),
 	PCMCIA_DEVICE_NULL
@@ -247,8 +237,6 @@ static struct pcmcia_driver dio700_cs_driver = {
 	.owner		= THIS_MODULE,
 	.probe		= dio700_cs_attach,
 	.remove		= dio700_cs_detach,
-	.suspend	= dio700_cs_suspend,
-	.resume		= dio700_cs_resume,
 	.id_table	= dio700_cs_ids,
 };
 
