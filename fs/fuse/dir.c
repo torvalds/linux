@@ -369,9 +369,9 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
  * If the filesystem doesn't support this, then fall back to separate
  * 'mknod' + 'open' requests.
  */
-static struct file *fuse_create_open(struct inode *dir, struct dentry *entry,
-				     struct opendata *od, unsigned flags,
-				     umode_t mode, int *opened)
+static int fuse_create_open(struct inode *dir, struct dentry *entry,
+			    struct opendata *od, unsigned flags,
+			    umode_t mode, int *opened)
 {
 	int err;
 	struct inode *inode;
@@ -452,12 +452,14 @@ static struct file *fuse_create_open(struct inode *dir, struct dentry *entry,
 	fuse_invalidate_attr(dir);
 	file = finish_open(od, entry, generic_file_open, opened);
 	if (IS_ERR(file)) {
+		err = PTR_ERR(file);
 		fuse_sync_release(ff, flags);
 	} else {
 		file->private_data = fuse_file_get(ff);
 		fuse_finish_open(inode, file);
+		err = 0;
 	}
-	return file;
+	return err;
 
 out_free_ff:
 	fuse_file_free(ff);
@@ -466,23 +468,22 @@ out_put_request:
 out_put_forget_req:
 	kfree(forget);
 out_err:
-	return ERR_PTR(err);
+	return err;
 }
 
 static int fuse_mknod(struct inode *, struct dentry *, umode_t, dev_t);
-static struct file *fuse_atomic_open(struct inode *dir, struct dentry *entry,
-				     struct opendata *od, unsigned flags,
-				     umode_t mode, int *opened)
+static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
+			    struct opendata *od, unsigned flags,
+			    umode_t mode, int *opened)
 {
 	int err;
 	struct fuse_conn *fc = get_fuse_conn(dir);
-	struct file *file;
 	struct dentry *res = NULL;
 
 	if (d_unhashed(entry)) {
 		res = fuse_lookup(dir, entry, NULL);
 		if (IS_ERR(res))
-			return ERR_CAST(res);
+			return PTR_ERR(res);
 
 		if (res)
 			entry = res;
@@ -497,24 +498,22 @@ static struct file *fuse_atomic_open(struct inode *dir, struct dentry *entry,
 	if (fc->no_create)
 		goto mknod;
 
-	file = fuse_create_open(dir, entry, od, flags, mode, opened);
-	if (PTR_ERR(file) == -ENOSYS) {
+	err = fuse_create_open(dir, entry, od, flags, mode, opened);
+	if (err == -ENOSYS) {
 		fc->no_create = 1;
 		goto mknod;
 	}
 out_dput:
 	dput(res);
-	return file;
+	return err;
 
 mknod:
 	err = fuse_mknod(dir, entry, mode, 0);
-	if (err) {
-		file = ERR_PTR(err);
+	if (err)
 		goto out_dput;
-	}
 no_open:
 	finish_no_open(od, res);
-	return NULL;
+	return 1;
 }
 
 /*

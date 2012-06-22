@@ -111,9 +111,9 @@ const struct inode_operations nfs3_dir_inode_operations = {
 
 #ifdef CONFIG_NFS_V4
 
-static struct file *nfs_atomic_open(struct inode *, struct dentry *,
-				    struct opendata *, unsigned, umode_t,
-				    int *);
+static int nfs_atomic_open(struct inode *, struct dentry *,
+			   struct opendata *, unsigned, umode_t,
+			   int *);
 const struct inode_operations nfs4_dir_inode_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
@@ -1387,10 +1387,10 @@ static int do_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file *nfs_finish_open(struct nfs_open_context *ctx,
-				    struct dentry *dentry,
-				    struct opendata *od, unsigned open_flags,
-				    int *opened)
+static int nfs_finish_open(struct nfs_open_context *ctx,
+			   struct dentry *dentry,
+			   struct opendata *od, unsigned open_flags,
+			   int *opened)
 {
 	struct file *filp;
 	int err;
@@ -1403,30 +1403,31 @@ static struct file *nfs_finish_open(struct nfs_open_context *ctx,
 	/* If the open_intent is for execute, we have an extra check to make */
 	if (ctx->mode & FMODE_EXEC) {
 		err = nfs_may_open(dentry->d_inode, ctx->cred, open_flags);
-		if (err < 0) {
-			filp = ERR_PTR(err);
+		if (err < 0)
 			goto out;
-		}
 	}
 
 	filp = finish_open(od, dentry, do_open, opened);
-	if (!IS_ERR(filp))
-		nfs_file_set_open_context(filp, ctx);
+	if (IS_ERR(filp)) {
+		err = PTR_ERR(filp);
+		goto out;
+	}
+	nfs_file_set_open_context(filp, ctx);
+	err = 0;
 
 out:
 	put_nfs_open_context(ctx);
-	return filp;
+	return err;
 }
 
-static struct file *nfs_atomic_open(struct inode *dir, struct dentry *dentry,
-				    struct opendata *od, unsigned open_flags,
-				    umode_t mode, int *opened)
+static int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
+			    struct opendata *od, unsigned open_flags,
+			    umode_t mode, int *opened)
 {
 	struct nfs_open_context *ctx;
 	struct dentry *res;
 	struct iattr attr = { .ia_valid = ATTR_OPEN };
 	struct inode *inode;
-	struct file *filp;
 	int err;
 
 	/* Expect a negative dentry */
@@ -1437,21 +1438,19 @@ static struct file *nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	/* NFS only supports OPEN on regular files */
 	if ((open_flags & O_DIRECTORY)) {
-		err = -ENOENT;
 		if (!d_unhashed(dentry)) {
 			/*
 			 * Hashed negative dentry with O_DIRECTORY: dentry was
 			 * revalidated and is fine, no need to perform lookup
 			 * again
 			 */
-			goto out_err;
+			return -ENOENT;
 		}
 		goto no_open;
 	}
 
-	err = -ENAMETOOLONG;
 	if (dentry->d_name.len > NFS_SERVER(dir)->namelen)
-		goto out_err;
+		return -ENAMETOOLONG;
 
 	if (open_flags & O_CREAT) {
 		attr.ia_valid |= ATTR_MODE;
@@ -1465,7 +1464,7 @@ static struct file *nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	ctx = create_nfs_open_context(dentry, open_flags);
 	err = PTR_ERR(ctx);
 	if (IS_ERR(ctx))
-		goto out_err;
+		goto out;
 
 	nfs_block_sillyrename(dentry->d_parent);
 	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr);
@@ -1489,7 +1488,7 @@ static struct file *nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		default:
 			break;
 		}
-		goto out_err;
+		goto out;
 	}
 	res = d_add_unique(dentry, inode);
 	if (res != NULL)
@@ -1498,22 +1497,20 @@ static struct file *nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	nfs_unblock_sillyrename(dentry->d_parent);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 
-	filp = nfs_finish_open(ctx, dentry, od, open_flags, opened);
+	err = nfs_finish_open(ctx, dentry, od, open_flags, opened);
 
 	dput(res);
-	return filp;
-
-out_err:
-	return ERR_PTR(err);
+out:
+	return err;
 
 no_open:
 	res = nfs_lookup(dir, dentry, NULL);
 	err = PTR_ERR(res);
 	if (IS_ERR(res))
-		goto out_err;
+		goto out;
 
 	finish_no_open(od, res);
-	return NULL;
+	return 1;
 }
 
 static int nfs4_lookup_revalidate(struct dentry *dentry, struct nameidata *nd)

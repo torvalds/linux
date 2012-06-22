@@ -364,7 +364,7 @@ struct inode_operations {
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*removexattr) (struct dentry *, const char *);
 	void (*update_time)(struct inode *, struct timespec *, int);
-	struct file * (*atomic_open)(struct inode *, struct dentry *,
+	int (*atomic_open)(struct inode *, struct dentry *,
 				struct opendata *, unsigned open_flag,
 				umode_t create_mode, int *opened);
 };
@@ -482,8 +482,8 @@ otherwise noted.
   atomic_open: called on the last component of an open.  Using this optional
   	method the filesystem can look up, possibly create and open the file in
   	one atomic operation.  If it cannot perform this (e.g. the file type
-  	turned out to be wrong) it may signal this by returning NULL instead of
-  	an open struct file pointer.  This method is only called if the last
+  	turned out to be wrong) it may signal this by returning 1 instead of
+  	usual 0 or -ve .  This method is only called if the last
   	component is negative or needs lookup.  Cached positive dentries are
   	still handled by f_op->open().
 

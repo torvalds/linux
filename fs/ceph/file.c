@@ -213,9 +213,9 @@ out:
  * may_open() fails, the struct *file gets cleaned up (i.e.
  * ceph_release gets called).  So fear not!
  */
-struct file *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
-			      struct opendata *od, unsigned flags, umode_t mode,
-			      int *opened)
+int ceph_lookup_open(struct inode *dir, struct dentry *dentry,
+		     struct opendata *od, unsigned flags, umode_t mode,
+		     int *opened)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -230,7 +230,7 @@ struct file *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 	/* do the open */
 	req = prepare_open_request(dir->i_sb, flags, mode);
 	if (IS_ERR(req))
-		return ERR_CAST(req);
+		return PTR_ERR(req);
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	if (flags & O_CREAT) {
@@ -257,10 +257,10 @@ out:
 	dout("ceph_lookup_open result=%p\n", ret);
 
 	if (IS_ERR(ret))
-		return ERR_CAST(ret);
+		return PTR_ERR(ret);
 
 	dput(ret);
-	return err ? ERR_PTR(err) : file;
+	return err;
 }
 
 int ceph_release(struct inode *inode, struct file *file)

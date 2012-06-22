@@ -1694,9 +1694,9 @@ struct inode_operations {
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
 		      u64 len);
 	int (*update_time)(struct inode *, struct timespec *, int);
-	struct file * (*atomic_open)(struct inode *, struct dentry *,
-				     struct opendata *, unsigned open_flag,
-				     umode_t create_mode, int *opened);
+	int (*atomic_open)(struct inode *, struct dentry *,
+			   struct opendata *, unsigned open_flag,
+			   umode_t create_mode, int *opened);
 } ____cacheline_aligned;
 
 struct seq_file;

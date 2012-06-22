@@ -240,7 +240,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	return v9fs_vfs_mknod_dotl(dir, dentry, omode, 0);
 }
 
-static struct file *
+static int
 v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 			  struct opendata *od, unsigned flags, umode_t omode,
 			  int *opened)
@@ -262,7 +262,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	if (d_unhashed(dentry)) {
 		res = v9fs_vfs_lookup(dir, dentry, NULL);
 		if (IS_ERR(res))
-			return ERR_CAST(res);
+			return PTR_ERR(res);
 
 		if (res)
 			dentry = res;
@@ -271,7 +271,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	/* Only creates */
 	if (!(flags & O_CREAT) || dentry->d_inode) {
 		finish_no_open(od, res);
-		return NULL;
+		return 1;
 	}
 
 	v9ses = v9fs_inode2v9ses(dir);
@@ -284,7 +284,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
 		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
-		goto err_return;
+		goto out;
 	}
 
 	/* clone a fid to use for creation */
@@ -292,7 +292,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(ofid)) {
 		err = PTR_ERR(ofid);
 		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
-		goto err_return;
+		goto out;
 	}
 
 	gid = v9fs_get_fsgid_for_create(dir);
@@ -370,7 +370,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	*opened |= FILE_CREATED;
 out:
 	dput(res);
-	return filp;
+	return err;
 
 error:
 	if (fid)
@@ -379,8 +379,6 @@ err_clunk_old_fid:
 	if (ofid)
 		p9_client_clunk(ofid);
 	v9fs_set_create_acl(NULL, &dacl, &pacl);
-err_return:
-	filp = ERR_PTR(err);
 	goto out;
 }
 

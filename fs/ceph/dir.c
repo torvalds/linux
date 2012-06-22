@@ -634,21 +634,20 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	return dentry;
 }
 
-struct file *ceph_atomic_open(struct inode *dir, struct dentry *dentry,
-			      struct opendata *od, unsigned flags, umode_t mode,
-			      int *opened)
+int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
+		     struct opendata *od, unsigned flags, umode_t mode,
+		     int *opened)
 {
 	int err;
 	struct dentry *res = NULL;
-	struct file *filp;
 
 	if (!(flags & O_CREAT)) {
 		if (dentry->d_name.len > NAME_MAX)
-			return ERR_PTR(-ENAMETOOLONG);
+			return -ENAMETOOLONG;
 
 		err = ceph_init_dentry(dentry);
 		if (err < 0)
-			return ERR_PTR(err);
+			return err;
 
 		return ceph_lookup_open(dir, dentry, od, flags, mode, opened);
 	}
@@ -656,7 +655,7 @@ struct file *ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (d_unhashed(dentry)) {
 		res = ceph_lookup(dir, dentry, NULL);
 		if (IS_ERR(res))
-			return ERR_CAST(res);
+			return PTR_ERR(res);
 
 		if (res)
 			dentry = res;
@@ -665,14 +664,14 @@ struct file *ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	/* We don't deal with positive dentries here */
 	if (dentry->d_inode) {
 		finish_no_open(od, res);
-		return NULL;
+		return 1;
 	}
 
 	*opened |= FILE_CREATED;
-	filp = ceph_lookup_open(dir, dentry, od, flags, mode, opened);
+	err = ceph_lookup_open(dir, dentry, od, flags, mode, opened);
 	dput(res);
 
-	return filp;
+	return err;
 }
 
 /*
