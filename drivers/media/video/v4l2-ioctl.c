@@ -28,27 +28,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 
-#define dbgarg(cmd, fmt, arg...) \
-		do {							\
-		    if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {		\
-			printk(KERN_DEBUG "%s: ",  vfd->name);		\
-			v4l_printk_ioctl(cmd);				\
-			printk(" " fmt,  ## arg);			\
-		    }							\
-		} while (0)
-
-#define dbgarg2(fmt, arg...) \
-		do {							\
-		    if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)		\
-			printk(KERN_DEBUG "%s: " fmt, vfd->name, ## arg);\
-		} while (0)
-
-#define dbgarg3(fmt, arg...) \
-		do {							\
-		    if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)		\
-			printk(KERN_CONT "%s: " fmt, vfd->name, ## arg);\
-		} while (0)
-
 /* Zero out the end of the struct pointed to by p.  Everything after, but
  * not including, the specified field is cleared. */
 #define CLEAR_AFTER_FIELD(p, field) \
@@ -1956,9 +1935,12 @@ bool v4l2_is_known_ioctl(unsigned int cmd)
 
 /* Common ioctl debug function. This function can be used by
    external ioctl messages as well as internal V4L ioctl */
-void v4l_printk_ioctl(unsigned int cmd)
+void v4l_printk_ioctl(const char *prefix, unsigned int cmd)
 {
 	const char *dir, *type;
+
+	if (prefix)
+		printk(KERN_DEBUG "%s: ", prefix);
 
 	switch (_IOC_TYPE(cmd)) {
 	case 'd':
@@ -2003,8 +1985,8 @@ static long __video_do_ioctl(struct file *file,
 	long ret = -ENOTTY;
 
 	if (ops == NULL) {
-		printk(KERN_WARNING "videodev: \"%s\" has no ioctl_ops.\n",
-				vfd->name);
+		pr_warn("%s: has no ioctl_ops.\n",
+				video_device_node_name(vfd));
 		return ret;
 	}
 
@@ -2034,7 +2016,7 @@ static long __video_do_ioctl(struct file *file,
 
 	write_only = _IOC_DIR(cmd) == _IOC_WRITE;
 	if (write_only && debug > V4L2_DEBUG_IOCTL) {
-		v4l_print_ioctl(vfd->name, cmd);
+		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
 		pr_cont(": ");
 		info->debug(arg, write_only);
 	}
@@ -2062,7 +2044,7 @@ done:
 					video_device_node_name(vfd), ret);
 			return ret;
 		}
-		v4l_print_ioctl(vfd->name, cmd);
+		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
 		if (ret < 0)
 			pr_cont(": error %ld\n", ret);
 		else if (debug == V4L2_DEBUG_IOCTL)

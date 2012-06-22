@@ -295,28 +295,14 @@ struct v4l2_ioctl_ops {
 #define V4L2_DEBUG_IOCTL     0x01
 #define V4L2_DEBUG_IOCTL_ARG 0x02
 
-/* Use this macro for non-I2C drivers. Pass the driver name as the first arg. */
-#define v4l_print_ioctl(name, cmd)  		 \
-	do {  					 \
-		printk(KERN_DEBUG "%s: ", name); \
-		v4l_printk_ioctl(cmd);		 \
-	} while (0)
-
-/* Use this macro in I2C drivers where 'client' is the struct i2c_client
-   pointer */
-#define v4l_i2c_print_ioctl(client, cmd) 		   \
-	do {      					   \
-		v4l_client_printk(KERN_DEBUG, client, ""); \
-		v4l_printk_ioctl(cmd);			   \
-	} while (0)
-
 /*  Video standard functions  */
 extern const char *v4l2_norm_to_name(v4l2_std_id id);
 extern void v4l2_video_std_frame_period(int id, struct v4l2_fract *frameperiod);
 extern int v4l2_video_std_construct(struct v4l2_standard *vs,
 				    int id, const char *name);
-/* Prints the ioctl in a human-readable format */
-extern void v4l_printk_ioctl(unsigned int cmd);
+/* Prints the ioctl in a human-readable format. If prefix != NULL,
+   then do printk(KERN_DEBUG "%s: ", prefix) first. */
+extern void v4l_printk_ioctl(const char *prefix, unsigned int cmd);
 
 /* names for fancy debug output */
 extern const char *v4l2_field_names[];

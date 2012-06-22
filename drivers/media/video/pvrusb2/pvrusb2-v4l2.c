@@ -957,7 +957,7 @@ static long pvr2_v4l2_ioctl(struct file *file,
 	long ret = -EINVAL;
 
 	if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL)
-		v4l_print_ioctl(pvr2_hdw_get_driver_name(hdw), cmd);
+		v4l_printk_ioctl(pvr2_hdw_get_driver_name(hdw), cmd);
 
 	if (!pvr2_hdw_dev_ok(hdw)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -990,7 +990,7 @@ static long pvr2_v4l2_ioctl(struct file *file,
 				pvr2_trace(PVR2_TRACE_V4LIOCTL,
 					   "pvr2_v4l2_do_ioctl failure, ret=%ld"
 					   " command was:", ret);
-				v4l_print_ioctl(pvr2_hdw_get_driver_name(hdw),
+				v4l_printk_ioctl(pvr2_hdw_get_driver_name(hdw),
 						cmd);
 			}
 		}
