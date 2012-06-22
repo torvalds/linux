@@ -234,24 +234,12 @@ u8 nfc_llcp_get_sdp_ssap(struct nfc_llcp_local *local,
 
 		return LLCP_WKS_NUM_SAP + ssap;
 
-	} else if (sock->ssap != 0) {
-		if (sock->ssap < LLCP_WKS_NUM_SAP) {
-			if (!test_bit(sock->ssap, &local->local_wks)) {
-				set_bit(sock->ssap, &local->local_wks);
-				mutex_unlock(&local->sdp_lock);
+	} else if (sock->ssap != 0 && sock->ssap < LLCP_WKS_NUM_SAP) {
+		if (!test_bit(sock->ssap, &local->local_wks)) {
+			set_bit(sock->ssap, &local->local_wks);
+			mutex_unlock(&local->sdp_lock);
 
-				return sock->ssap;
-			}
-
-		} else if (sock->ssap < LLCP_SDP_NUM_SAP) {
-			if (!test_bit(sock->ssap - LLCP_WKS_NUM_SAP,
-				      &local->local_sdp)) {
-				set_bit(sock->ssap - LLCP_WKS_NUM_SAP,
-					&local->local_sdp);
-				mutex_unlock(&local->sdp_lock);
-
-				return sock->ssap;
-			}
+			return sock->ssap;
 		}
 	}
 
