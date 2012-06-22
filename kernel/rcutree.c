@@ -1028,95 +1028,159 @@ rcu_start_gp_per_cpu(struct rcu_state *rsp, struct rcu_node *rnp, struct rcu_dat
 }
 
 /*
+ * Initialize a new grace period.
+ */
+static int rcu_gp_init(struct rcu_state *rsp)
+{
+	struct rcu_data *rdp;
+	struct rcu_node *rnp = rcu_get_root(rsp);
+
+	raw_spin_lock_irq(&rnp->lock);
+	rsp->gp_flags = 0;
+
+	if (rcu_gp_in_progress(rsp)) {
+		/* Grace period already in progress, don't start another.  */
+		raw_spin_unlock_irq(&rnp->lock);
+		return 0;
+	}
+
+	if (rsp->fqs_active) {
+		/*
+		 * We need a grace period, but force_quiescent_state()
+		 * is running.  Tell it to start one on our behalf.
+		 */
+		rsp->fqs_need_gp = 1;
+		raw_spin_unlock_irq(&rnp->lock);
+		return 0;
+	}
+
+	/* Advance to a new grace period and initialize state. */
+	rsp->gpnum++;
+	trace_rcu_grace_period(rsp->name, rsp->gpnum, "start");
+	WARN_ON_ONCE(rsp->fqs_state == RCU_GP_INIT);
+	rsp->fqs_state = RCU_GP_INIT; /* Stop force_quiescent_state. */
+	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
+	record_gp_stall_check_time(rsp);
+	raw_spin_unlock_irq(&rnp->lock);
+
+	/* Exclude any concurrent CPU-hotplug operations. */
+	get_online_cpus();
+
+	/*
+	 * Set the quiescent-state-needed bits in all the rcu_node
+	 * structures for all currently online CPUs in breadth-first order,
+	 * starting from the root rcu_node structure, relying on the layout
+	 * of the tree within the rsp->node[] array.  Note that other CPUs
+	 * will access only the leaves of the hierarchy, thus seeing that no
+	 * grace period is in progress, at least until the corresponding
+	 * leaf node has been initialized.  In addition, we have excluded
+	 * CPU-hotplug operations.
+	 *
+	 * The grace period cannot complete until the initialization
+	 * process finishes, because this kthread handles both.
+	 */
+	rcu_for_each_node_breadth_first(rsp, rnp) {
+		raw_spin_lock_irq(&rnp->lock);
+		rdp = this_cpu_ptr(rsp->rda);
+		rcu_preempt_check_blocked_tasks(rnp);
+		rnp->qsmask = rnp->qsmaskinit;
+		rnp->gpnum = rsp->gpnum;
+		rnp->completed = rsp->completed;
+		if (rnp == rdp->mynode)
+			rcu_start_gp_per_cpu(rsp, rnp, rdp);
+		rcu_preempt_boost_start_gp(rnp);
+		trace_rcu_grace_period_init(rsp->name, rnp->gpnum,
+					    rnp->level, rnp->grplo,
+					    rnp->grphi, rnp->qsmask);
+		raw_spin_unlock_irq(&rnp->lock);
+		cond_resched();
+	}
+
+	rnp = rcu_get_root(rsp);
+	raw_spin_lock_irq(&rnp->lock);
+	/* force_quiescent_state() now OK. */
+	rsp->fqs_state = RCU_SIGNAL_INIT;
+	raw_spin_unlock_irq(&rnp->lock);
+	put_online_cpus();
+	return 1;
+}
+
+/*
+ * Clean up after the old grace period.
+ */
+static int rcu_gp_cleanup(struct rcu_state *rsp)
+{
+	unsigned long gp_duration;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp = rcu_get_root(rsp);
+
+	raw_spin_lock_irq(&rnp->lock);
+	gp_duration = jiffies - rsp->gp_start;
+	if (gp_duration > rsp->gp_max)
+		rsp->gp_max = gp_duration;
+
+	/*
+	 * We know the grace period is complete, but to everyone else
+	 * it appears to still be ongoing.  But it is also the case
+	 * that to everyone else it looks like there is nothing that
+	 * they can do to advance the grace period.  It is therefore
+	 * safe for us to drop the lock in order to mark the grace
+	 * period as completed in all of the rcu_node structures.
+	 *
+	 * But if this CPU needs another grace period, it will take
+	 * care of this while initializing the next grace period.
+	 * We use RCU_WAIT_TAIL instead of the usual RCU_DONE_TAIL
+	 * because the callbacks have not yet been advanced: Those
+	 * callbacks are waiting on the grace period that just now
+	 * completed.
+	 */
+	rdp = this_cpu_ptr(rsp->rda);
+	if (*rdp->nxttail[RCU_WAIT_TAIL] == NULL) {
+		raw_spin_unlock_irq(&rnp->lock);
+
+		/*
+		 * Propagate new ->completed value to rcu_node
+		 * structures so that other CPUs don't have to
+		 * wait until the start of the next grace period
+		 * to process their callbacks.
+		 */
+		rcu_for_each_node_breadth_first(rsp, rnp) {
+			raw_spin_lock_irq(&rnp->lock);
+			rnp->completed = rsp->gpnum;
+			raw_spin_unlock_irq(&rnp->lock);
+			cond_resched();
+		}
+		rnp = rcu_get_root(rsp);
+		raw_spin_lock_irq(&rnp->lock);
+	}
+
+	rsp->completed = rsp->gpnum; /* Declare grace period done. */
+	trace_rcu_grace_period(rsp->name, rsp->completed, "end");
+	rsp->fqs_state = RCU_GP_IDLE;
+	if (cpu_needs_another_gp(rsp, rdp))
+		rsp->gp_flags = 1;
+	raw_spin_unlock_irq(&rnp->lock);
+	return 1;
+}
+
+/*
  * Body of kthread that handles grace periods.
  */
 static int __noreturn rcu_gp_kthread(void *arg)
 {
-	unsigned long gp_duration;
-	struct rcu_data *rdp;
-	struct rcu_node *rnp;
 	struct rcu_state *rsp = arg;
+	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	for (;;) {
 
 		/* Handle grace-period start. */
-		rnp = rcu_get_root(rsp);
 		for (;;) {
 			wait_event_interruptible(rsp->gp_wq, rsp->gp_flags);
-			if (rsp->gp_flags)
+			if (rsp->gp_flags && rcu_gp_init(rsp))
 				break;
+			cond_resched();
 			flush_signals(current);
 		}
-		raw_spin_lock_irq(&rnp->lock);
-		rsp->gp_flags = 0;
-		rdp = this_cpu_ptr(rsp->rda);
-
-		if (rcu_gp_in_progress(rsp)) {
-			/*
-			 * A grace period is already in progress, so
-			 * don't start another one.
-			 */
-			raw_spin_unlock_irq(&rnp->lock);
-			cond_resched();
-			continue;
-		}
-
-		if (rsp->fqs_active) {
-			/*
-			 * We need a grace period, but force_quiescent_state()
-			 * is running.  Tell it to start one on our behalf.
-			 */
-			rsp->fqs_need_gp = 1;
-			raw_spin_unlock_irq(&rnp->lock);
-			cond_resched();
-			continue;
-		}
-
-		/* Advance to a new grace period and initialize state. */
-		rsp->gpnum++;
-		trace_rcu_grace_period(rsp->name, rsp->gpnum, "start");
-		WARN_ON_ONCE(rsp->fqs_state == RCU_GP_INIT);
-		rsp->fqs_state = RCU_GP_INIT; /* Stop force_quiescent_state. */
-		rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
-		record_gp_stall_check_time(rsp);
-		raw_spin_unlock_irq(&rnp->lock);
-
-		/* Exclude any concurrent CPU-hotplug operations. */
-		get_online_cpus();
-
-		/*
-		 * Set the quiescent-state-needed bits in all the rcu_node
-		 * structures for all currently online CPUs in breadth-first
-		 * order, starting from the root rcu_node structure.
-		 * This operation relies on the layout of the hierarchy
-		 * within the rsp->node[] array.  Note that other CPUs will
-		 * access only the leaves of the hierarchy, which still
-		 * indicate that no grace period is in progress, at least
-		 * until the corresponding leaf node has been initialized.
-		 * In addition, we have excluded CPU-hotplug operations.
-		 */
-		rcu_for_each_node_breadth_first(rsp, rnp) {
-			raw_spin_lock_irq(&rnp->lock);
-			rcu_preempt_check_blocked_tasks(rnp);
-			rnp->qsmask = rnp->qsmaskinit;
-			rnp->gpnum = rsp->gpnum;
-			rnp->completed = rsp->completed;
-			if (rnp == rdp->mynode)
-				rcu_start_gp_per_cpu(rsp, rnp, rdp);
-			rcu_preempt_boost_start_gp(rnp);
-			trace_rcu_grace_period_init(rsp->name, rnp->gpnum,
-						    rnp->level, rnp->grplo,
-						    rnp->grphi, rnp->qsmask);
-			raw_spin_unlock_irq(&rnp->lock);
-			cond_resched();
-		}
-
-		rnp = rcu_get_root(rsp);
-		raw_spin_lock_irq(&rnp->lock);
-		/* force_quiescent_state() now OK. */
-		rsp->fqs_state = RCU_SIGNAL_INIT;
-		raw_spin_unlock_irq(&rnp->lock);
-		put_online_cpus();
 
 		/* Handle grace-period end. */
 		rnp = rcu_get_root(rsp);
@@ -1125,56 +1189,12 @@ static int __noreturn rcu_gp_kthread(void *arg)
 						 !ACCESS_ONCE(rnp->qsmask) &&
 						 !rcu_preempt_blocked_readers_cgp(rnp));
 			if (!ACCESS_ONCE(rnp->qsmask) &&
-			    !rcu_preempt_blocked_readers_cgp(rnp))
+			    !rcu_preempt_blocked_readers_cgp(rnp) &&
+			    rcu_gp_cleanup(rsp))
 				break;
+			cond_resched();
 			flush_signals(current);
 		}
-
-		raw_spin_lock_irq(&rnp->lock);
-		gp_duration = jiffies - rsp->gp_start;
-		if (gp_duration > rsp->gp_max)
-			rsp->gp_max = gp_duration;
-
-		/*
-		 * We know the grace period is complete, but to everyone else
-		 * it appears to still be ongoing.  But it is also the case
-		 * that to everyone else it looks like there is nothing that
-		 * they can do to advance the grace period.  It is therefore
-		 * safe for us to drop the lock in order to mark the grace
-		 * period as completed in all of the rcu_node structures.
-		 *
-		 * But if this CPU needs another grace period, it will take
-		 * care of this while initializing the next grace period.
-		 * We use RCU_WAIT_TAIL instead of the usual RCU_DONE_TAIL
-		 * because the callbacks have not yet been advanced: Those
-		 * callbacks are waiting on the grace period that just now
-		 * completed.
-		 */
-		if (*rdp->nxttail[RCU_WAIT_TAIL] == NULL) {
-			raw_spin_unlock_irq(&rnp->lock);
-
-			/*
-			 * Propagate new ->completed value to rcu_node
-			 * structures so that other CPUs don't have to
-			 * wait until the start of the next grace period
-			 * to process their callbacks.
-			 */
-			rcu_for_each_node_breadth_first(rsp, rnp) {
-				raw_spin_lock_irq(&rnp->lock);
-				rnp->completed = rsp->gpnum;
-				raw_spin_unlock_irq(&rnp->lock);
-				cond_resched();
-			}
-			rnp = rcu_get_root(rsp);
-			raw_spin_lock_irq(&rnp->lock);
-		}
-
-		rsp->completed = rsp->gpnum; /* Declare grace period done. */
-		trace_rcu_grace_period(rsp->name, rsp->completed, "end");
-		rsp->fqs_state = RCU_GP_IDLE;
-		if (cpu_needs_another_gp(rsp, rdp))
-			rsp->gp_flags = 1;
-		raw_spin_unlock_irq(&rnp->lock);
 	}
 }
 
