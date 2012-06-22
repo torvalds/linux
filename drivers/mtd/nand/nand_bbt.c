@@ -71,12 +71,9 @@
 
 static int check_pattern_no_oob(uint8_t *buf, struct nand_bbt_descr *td)
 {
-	int ret;
-
-	ret = memcmp(buf, td->pattern, td->len);
-	if (!ret)
-		return ret;
-	return -1;
+	if (memcmp(buf, td->pattern, td->len))
+		return -1;
+	return 0;
 }
 
 /**
