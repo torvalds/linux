@@ -121,8 +121,10 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 					  GFP_KERNEL);
 
 	llcp_sock->ssap = nfc_llcp_get_sdp_ssap(local, llcp_sock);
-	if (llcp_sock->ssap == LLCP_MAX_SAP)
+	if (llcp_sock->ssap == LLCP_SAP_MAX) {
+		ret = -EADDRINUSE;
 		goto put_dev;
+	}
 
 	llcp_sock->reserved_ssap = llcp_sock->ssap;
 
