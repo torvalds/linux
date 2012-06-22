@@ -276,7 +276,7 @@ config DMA_SA11X0
 
 config MMP_TDMA
 	bool "MMP Two-Channel DMA support"
-	default ARCH_MMP
+	depends on ARCH_MMP
 	select DMA_ENGINE
 	help
 	  Support the MMP Two-Channel DMA engine.
