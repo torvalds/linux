@@ -1134,9 +1134,13 @@ void sas_task_abort(struct sas_task *task)
 
 	/* Escape for libsas internal commands */
 	if (!sc) {
-		if (!del_timer(&task->timer))
+		struct sas_task_slow *slow = task->slow_task;
+
+		if (!slow)
 			return;
-		task->timer.function(task->timer.data);
+		if (!del_timer(&slow->timer))
+			return;
+		slow->timer.function(slow->timer.data);
 		return;
 	}
 

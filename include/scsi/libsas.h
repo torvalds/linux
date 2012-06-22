@@ -613,10 +613,6 @@ struct sas_task {
 
 	enum   sas_protocol      task_proto;
 
-	/* Used by the discovery code. */
-	struct timer_list     timer;
-	struct completion     completion;
-
 	union {
 		struct sas_ata_task ata_task;
 		struct sas_smp_task smp_task;
@@ -633,8 +629,15 @@ struct sas_task {
 
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
+	struct sas_task_slow *slow_task;
+};
 
-	struct work_struct abort_work;
+struct sas_task_slow {
+	/* standard/extra infrastructure for slow path commands (SMP and
+	 * internal lldd commands
+	 */
+	struct timer_list     timer;
+	struct completion     completion;
 };
 
 #define SAS_TASK_STATE_PENDING      1
@@ -644,6 +647,7 @@ struct sas_task {
 #define SAS_TASK_AT_INITIATOR       16
 
 extern struct sas_task *sas_alloc_task(gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
