@@ -1708,15 +1708,15 @@ if(param->u.wpa_key.alg_name == WPA_ALG_NONE) {
    if(param->u.wpa_key.key_index ==0) {
      pDevice->bwextstep0 = TRUE;
     }
-   if((pDevice->bwextstep0 = TRUE)&&(param->u.wpa_key.key_index ==1)) {
+   if ((pDevice->bwextstep0 == TRUE) && (param->u.wpa_key.key_index == 1)) {
      pDevice->bwextstep0 = FALSE;
      pDevice->bwextstep1 = TRUE;
     }
-   if((pDevice->bwextstep1 = TRUE)&&(param->u.wpa_key.key_index ==2)) {
+   if ((pDevice->bwextstep1 == TRUE) && (param->u.wpa_key.key_index == 2)) {
      pDevice->bwextstep1 = FALSE;
      pDevice->bwextstep2 = TRUE;
 	}
-   if((pDevice->bwextstep2 = TRUE)&&(param->u.wpa_key.key_index ==3)) {
+   if ((pDevice->bwextstep2 == TRUE)&&(param->u.wpa_key.key_index == 3)) {
      pDevice->bwextstep2 = FALSE;
      pDevice->bwextstep3 = TRUE;
         }
