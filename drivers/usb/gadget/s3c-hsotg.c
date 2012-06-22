@@ -2963,9 +2963,6 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 		goto err;
 	}
 
-	s3c_hsotg_phy_enable(hsotg);
-
-	s3c_hsotg_core_init(hsotg);
 	hsotg->last_rst = jiffies;
 	dev_info(hsotg->dev, "bound driver %s\n", driver->driver.name);
 	return 0;
@@ -3028,10 +3025,40 @@ static int s3c_hsotg_gadget_getframe(struct usb_gadget *gadget)
 	return s3c_hsotg_read_frameno(to_hsotg(gadget));
 }
 
+/**
+ * s3c_hsotg_pullup - connect/disconnect the USB PHY
+ * @gadget: The usb gadget state
+ * @is_on: Current state of the USB PHY
+ *
+ * Connect/Disconnect the USB PHY pullup
+ */
+static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
+{
+	struct s3c_hsotg *hsotg = to_hsotg(gadget);
+	unsigned long flags = 0;
+
+	dev_dbg(hsotg->dev, "%s: is_in: %d\n", __func__, is_on);
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	if (is_on) {
+		s3c_hsotg_phy_enable(hsotg);
+		s3c_hsotg_core_init(hsotg);
+	} else {
+		s3c_hsotg_disconnect(hsotg);
+		s3c_hsotg_phy_disable(hsotg);
+	}
+
+	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return 0;
+}
+
 static struct usb_gadget_ops s3c_hsotg_gadget_ops = {
 	.get_frame	= s3c_hsotg_gadget_getframe,
 	.udc_start		= s3c_hsotg_udc_start,
 	.udc_stop		= s3c_hsotg_udc_stop,
+	.pullup                 = s3c_hsotg_pullup,
 };
 
 /**
