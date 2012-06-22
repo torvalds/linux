@@ -90,13 +90,6 @@ static const struct dio700_board dio700_boards[] = {
  */
 #define thisboard ((const struct dio700_board *)dev->board_ptr)
 
-struct dio700_private {
-
-	int data;		/* number of data points left to be taken */
-};
-
-#define devpriv ((struct dio700_private *)dev->private)
-
 #define _700_SIZE 8
 
 #define _700_DATA 0
@@ -226,10 +219,6 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	struct pcmcia_device *link;
 	int ret;
-
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct dio700_private)) < 0)
-		return -ENOMEM;
 
 	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
