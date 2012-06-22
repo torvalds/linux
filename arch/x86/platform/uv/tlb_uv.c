@@ -38,6 +38,7 @@ static int timeout_base_ns[] = {
 
 static int timeout_us;
 static int nobau;
+static int nobau_perm;
 static int baudisabled;
 static spinlock_t disable_lock;
 static cycles_t congested_cycles;
@@ -119,6 +120,40 @@ static int uv_base_pnode __read_mostly;
 static DEFINE_PER_CPU(struct ptc_stats, ptcstats);
 static DEFINE_PER_CPU(struct bau_control, bau_control);
 static DEFINE_PER_CPU(cpumask_var_t, uv_flush_tlb_mask);
+
+static void
+set_bau_on(void)
+{
+	int cpu;
+	struct bau_control *bcp;
+
+	if (nobau_perm) {
+		pr_info("BAU not initialized; cannot be turned on\n");
+		return;
+	}
+	nobau = 0;
+	for_each_present_cpu(cpu) {
+		bcp = &per_cpu(bau_control, cpu);
+		bcp->nobau = 0;
+	}
+	pr_info("BAU turned on\n");
+	return;
+}
+
+static void
+set_bau_off(void)
+{
+	int cpu;
+	struct bau_control *bcp;
+
+	nobau = 1;
+	for_each_present_cpu(cpu) {
+		bcp = &per_cpu(bau_control, cpu);
+		bcp->nobau = 1;
+	}
+	pr_info("BAU turned off\n");
+	return;
+}
 
 /*
  * Determine the first node on a uvhub. 'Nodes' are used for kernel
@@ -1079,12 +1114,12 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	struct ptc_stats *stat;
 	struct bau_control *bcp;
 
-	/* kernel was booted 'nobau' */
-	if (nobau)
-		return cpumask;
-
 	bcp = &per_cpu(bau_control, cpu);
 	stat = bcp->statp;
+	stat->s_enters++;
+
+	if (bcp->nobau)
+		return cpumask;
 
 	/* bau was disabled due to slow response */
 	if (bcp->baudisabled) {
@@ -1338,29 +1373,32 @@ static inline unsigned long long usec_2_cycles(unsigned long microsec)
 static int ptc_seq_show(struct seq_file *file, void *data)
 {
 	struct ptc_stats *stat;
+	struct bau_control *bcp;
 	int cpu;
 
 	cpu = *(loff_t *)data;
 	if (!cpu) {
 		seq_printf(file,
-			"# cpu sent stime self locals remotes ncpus localhub ");
+		"# cpu bauoff sent stime self locals remotes ncpus localhub ");
 		seq_printf(file,
 			"remotehub numuvhubs numuvhubs16 numuvhubs8 ");
 		seq_printf(file,
 		    "numuvhubs4 numuvhubs2 numuvhubs1 dto snacks retries rok ");
 		seq_printf(file,
-			"resetp resett giveup sto bz throt swack recv rtime ");
+			"resetp resett giveup sto bz throt enters swack recv rtime ");
 		seq_printf(file,
 			"all one mult none retry canc nocan reset rcan ");
 		seq_printf(file,
 			"disable enable wars warshw warwaits\n");
 	}
 	if (cpu < num_possible_cpus() && cpu_online(cpu)) {
-		stat = &per_cpu(ptcstats, cpu);
+		bcp = &per_cpu(bau_control, cpu);
+		stat = bcp->statp;
 		/* source side statistics */
 		seq_printf(file,
-			"cpu %d %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld ",
-			   cpu, stat->s_requestor, cycles_2_us(stat->s_time),
+			   "cpu %d %d %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld ",
+			   cpu, bcp->nobau, stat->s_requestor,
+			   cycles_2_us(stat->s_time),
 			   stat->s_ntargself, stat->s_ntarglocals,
 			   stat->s_ntargremotes, stat->s_ntargcpu,
 			   stat->s_ntarglocaluvhub, stat->s_ntargremoteuvhub,
@@ -1369,11 +1407,11 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 			   stat->s_ntarguvhub8, stat->s_ntarguvhub4,
 			   stat->s_ntarguvhub2, stat->s_ntarguvhub1,
 			   stat->s_dtimeout, stat->s_strongnacks);
-		seq_printf(file, "%ld %ld %ld %ld %ld %ld %ld %ld ",
+		seq_printf(file, "%ld %ld %ld %ld %ld %ld %ld %ld %ld ",
 			   stat->s_retry_messages, stat->s_retriesok,
 			   stat->s_resets_plug, stat->s_resets_timeout,
 			   stat->s_giveup, stat->s_stimeout,
-			   stat->s_busy, stat->s_throttles);
+			   stat->s_busy, stat->s_throttles, stat->s_enters);
 
 		/* destination side statistics */
 		seq_printf(file,
@@ -1437,6 +1475,14 @@ static ssize_t ptc_proc_write(struct file *file, const char __user *user,
 	if (copy_from_user(optstr, user, count))
 		return -EFAULT;
 	optstr[count - 1] = '\0';
+
+	if (!strcmp(optstr, "on")) {
+		set_bau_on();
+		return count;
+	} else if (!strcmp(optstr, "off")) {
+		set_bau_off();
+		return count;
+	}
 
 	if (strict_strtol(optstr, 10, &input_arg) < 0) {
 		printk(KERN_DEBUG "%s is invalid\n", optstr);
@@ -1836,6 +1882,8 @@ static void __init init_per_cpu_tunables(void)
 	for_each_present_cpu(cpu) {
 		bcp = &per_cpu(bau_control, cpu);
 		bcp->baudisabled		= 0;
+		if (nobau)
+			bcp->nobau		= 1;
 		bcp->statp			= &per_cpu(ptcstats, cpu);
 		/* time interval to catch a hardware stay-busy bug */
 		bcp->timeout_interval		= usec_2_cycles(2*timeout_us);
@@ -2069,9 +2117,6 @@ static int __init uv_bau_init(void)
 	if (!is_uv_system())
 		return 0;
 
-	if (nobau)
-		return 0;
-
 	for_each_possible_cpu(cur_cpu) {
 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);
 		zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cur_cpu));
@@ -2091,7 +2136,8 @@ static int __init uv_bau_init(void)
 	enable_timeouts();
 
 	if (init_per_cpu(nuvhubs, uv_base_pnode)) {
-		nobau = 1;
+		set_bau_off();
+		nobau_perm = 1;
 		return 0;
 	}
 

@@ -520,6 +520,7 @@ struct ptc_stats {
 	unsigned long	s_uv2_wars;		/* uv2 workaround, perm. busy */
 	unsigned long	s_uv2_wars_hw;		/* uv2 workaround, hiwater */
 	unsigned long	s_uv2_war_waits;	/* uv2 workaround, long waits */
+	unsigned long   s_enters;		/* entries to the driver */
 	/* destination statistics */
 	unsigned long	d_alltlb;		/* times all tlb's on this
 						   cpu were flushed */
@@ -586,6 +587,7 @@ struct bau_control {
 	int			timeout_tries;
 	int			ipi_attempts;
 	int			conseccompletes;
+	short			nobau;
 	int			baudisabled;
 	int			set_bau_off;
 	short			cpu;
