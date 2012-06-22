@@ -439,23 +439,11 @@ static struct pcmcia_driver dio700_cs_driver = {
 	.name = "ni_daq_700",
 };
 
-static int __init init_dio700_cs(void)
-{
-	pcmcia_register_driver(&dio700_cs_driver);
-	return 0;
-}
-
-static void __exit exit_dio700_cs(void)
-{
-	pr_debug("ni_daq_700: unloading\n");
-	pcmcia_unregister_driver(&dio700_cs_driver);
-}
-
 static int __init dio700_cs_init(void)
 {
 	int ret;
 
-	ret = init_dio700_cs();
+	ret = pcmcia_register_driver(&dio700_cs_driver);
 	if (ret < 0)
 		return ret;
 
@@ -465,7 +453,7 @@ module_init(dio700_cs_init);
 
 static void __exit dio700_cs_exit(void)
 {
-	exit_dio700_cs();
+	pcmcia_unregister_driver(&dio700_cs_driver);
 	comedi_driver_unregister(&driver_dio700);
 }
 module_exit(dio700_cs_exit);
