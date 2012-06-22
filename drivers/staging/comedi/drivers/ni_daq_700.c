@@ -55,21 +55,16 @@ static struct pcmcia_device *pcmcia_cur_dev;
 
 #define DIO700_SIZE 8		/*  size of io region used by board */
 
-enum dio700_bustype { pcmcia_bustype };
-
 struct dio700_board {
 	const char *name;
-	enum dio700_bustype bustype;	/*  PCMCIA */
 };
 
 static const struct dio700_board dio700_boards[] = {
 	{
 	 .name = "daqcard-700",
-	 .bustype = pcmcia_bustype,
 	 },
 	{
 	 .name = "ni_daq_700",
-	 .bustype = pcmcia_bustype,
 	 },
 };
 
@@ -200,22 +195,14 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcmcia_device *link;
 	int ret;
 
-	/*  get base address, irq etc. based on bustype */
-	switch (thisboard->bustype) {
-	case pcmcia_bustype:
-		link = pcmcia_cur_dev;	/* XXX hack */
-		if (!link)
-			return -EIO;
-		iobase = link->resource[0]->start;
+	link = pcmcia_cur_dev;	/* XXX hack */
+	if (!link)
+		return -EIO;
+	iobase = link->resource[0]->start;
 #ifdef incomplete
-		irq = link->irq;
+	irq = link->irq;
 #endif
-		break;
-	default:
-		printk(KERN_ERR "bug! couldn't determine board type\n");
-		return -EINVAL;
-		break;
-	}
+
 	printk(KERN_ERR "comedi%d: ni_daq_700: %s, io 0x%lx", dev->minor,
 	       thisboard->name, iobase);
 #ifdef incomplete
@@ -255,8 +242,6 @@ static void dio700_detach(struct comedi_device *dev)
 {
 	if (dev->subdevices)
 		subdev_700_cleanup(dev, dev->subdevices + 0);
-	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
-		release_region(dev->iobase, DIO700_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 };
