@@ -261,7 +261,7 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
 
 	memcpy(addr, sta->sta.addr, ETH_ALEN);
 
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
 	wiphy_debug(sdata->local->hw.wiphy,
 		    "Adding new IBSS station %pM (dev=%s)\n",
 		    addr, sdata->name);
