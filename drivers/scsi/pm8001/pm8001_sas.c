@@ -962,8 +962,9 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 	struct pm8001_device *pm8001_dev;
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_phy *phy;
+
 	if (!dev || !dev->lldd_dev)
-		return -1;
+		return -ENODEV;
 
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
