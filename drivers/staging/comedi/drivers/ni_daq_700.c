@@ -164,13 +164,6 @@ static struct comedi_driver driver_dio700 = {
 	.offset		= sizeof(struct dio700_board),
 };
 
-static void dio700_release(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "%s\n", __func__);
-
-	pcmcia_disable_device(link);
-}
-
 static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
@@ -180,50 +173,36 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	return pcmcia_request_io(p_dev);
 }
 
-static void dio700_config(struct pcmcia_device *link)
+static int dio700_cs_attach(struct pcmcia_device *link)
 {
 	int ret;
-
-	dev_dbg(&link->dev, "%s\n", __func__);
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
 		CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, dio700_pcmcia_config_loop, NULL);
-	if (ret) {
-		dev_warn(&link->dev, "no configuration found\n");
+	if (ret)
 		goto failed;
-	}
 
 	if (!link->irq)
 		goto failed;
 
 	ret = pcmcia_enable_device(link);
-	if (ret != 0)
+	if (ret)
 		goto failed;
 
-	return;
+	pcmcia_cur_dev = link;
+	return 0;
 
 failed:
-	dev_dbg(&link->dev, "%s failed\n", __func__);
-	dio700_release(link);
-
-}
-
-static int dio700_cs_attach(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "%s\n", __func__);
-
-	pcmcia_cur_dev = link;
-
-	dio700_config(link);
-
-	return 0;
+	pcmcia_disable_device(link);
+	return ret;
 }
 
 static void dio700_cs_detach(struct pcmcia_device *link)
 {
-	dio700_release(link);
+	pcmcia_disable_device(link);
+	pcmcia_cur_dev = NULL;
 }
 
 static const struct pcmcia_device_id dio700_cs_ids[] = {
