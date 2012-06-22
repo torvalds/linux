@@ -1013,6 +1013,17 @@ extern bool ata_link_offline(struct ata_link *link);
 #ifdef CONFIG_PM
 extern int ata_host_suspend(struct ata_host *host, pm_message_t mesg);
 extern void ata_host_resume(struct ata_host *host);
+extern int ata_sas_port_async_suspend(struct ata_port *ap, int *async);
+extern int ata_sas_port_async_resume(struct ata_port *ap, int *async);
+#else
+static inline int ata_sas_port_async_suspend(struct ata_port *ap, int *async)
+{
+	return 0;
+}
+static inline int ata_sas_port_async_resume(struct ata_port *ap, int *async)
+{
+	return 0;
+}
 #endif
 extern int ata_ratelimit(void);
 extern void ata_msleep(struct ata_port *ap, unsigned int msecs);
