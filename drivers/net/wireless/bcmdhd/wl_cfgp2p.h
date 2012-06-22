@@ -79,7 +79,6 @@ struct p2p_info {
 	wl_p2p_sched_t noa;
 	wl_p2p_ops_t ops;
 	wlc_ssid_t ssid;
-	spinlock_t timer_lock;
 };
 
 /* dongle status */

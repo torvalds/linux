@@ -188,8 +188,14 @@ osl_t *
 osl_attach(void *pdev, uint bustype, bool pkttag)
 {
 	osl_t *osh;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	gfp_t flags;
 
+	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	osh = kmalloc(sizeof(osl_t), flags);
+#else
 	osh = kmalloc(sizeof(osl_t), GFP_ATOMIC);
+#endif 
 	ASSERT(osh);
 
 	bzero(osh, sizeof(osl_t));
@@ -280,7 +286,7 @@ osl_detach(osl_t *osh)
 static struct sk_buff *osl_alloc_skb(unsigned int len)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
-	gfp_t flags = GFP_ATOMIC;
+	gfp_t flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
 
 	return __dev_alloc_skb(len, flags);
 #else
@@ -362,7 +368,14 @@ osl_ctfpool_replenish(osl_t *osh, uint thresh)
 int32
 osl_ctfpool_init(osl_t *osh, uint numobj, uint size)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	gfp_t flags;
+
+	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	osh->ctfpool = kmalloc(sizeof(ctfpool_t), flags);
+#else
 	osh->ctfpool = kmalloc(sizeof(ctfpool_t), GFP_ATOMIC);
+#endif 
 	ASSERT(osh->ctfpool);
 	bzero(osh->ctfpool, sizeof(ctfpool_t));
 
@@ -662,12 +675,10 @@ osl_pktget_static(osl_t *osh, uint len)
 
 		if (i != STATIC_PKT_MAX_NUM) {
 			bcm_static_skb->pkt_use[i] = 1;
-			up(&bcm_static_skb->osl_pkt_sem);
-
 			skb = bcm_static_skb->skb_4k[i];
 			skb->tail = skb->data + len;
 			skb->len = len;
-
+			up(&bcm_static_skb->osl_pkt_sem);
 			return skb;
 		}
 	}
@@ -682,11 +693,10 @@ osl_pktget_static(osl_t *osh, uint len)
 
 		if (i != STATIC_PKT_MAX_NUM) {
 			bcm_static_skb->pkt_use[i + STATIC_PKT_MAX_NUM] = 1;
-			up(&bcm_static_skb->osl_pkt_sem);
 			skb = bcm_static_skb->skb_8k[i];
 			skb->tail = skb->data + len;
 			skb->len = len;
-
+			up(&bcm_static_skb->osl_pkt_sem);
 			return skb;
 		}
 	}
@@ -694,12 +704,10 @@ osl_pktget_static(osl_t *osh, uint len)
 #if defined(ENHANCED_STATIC_BUF)
 	if (bcm_static_skb->pkt_use[STATIC_PKT_MAX_NUM * 2] == 0) {
 		bcm_static_skb->pkt_use[STATIC_PKT_MAX_NUM * 2] = 1;
-		up(&bcm_static_skb->osl_pkt_sem);
-
 		skb = bcm_static_skb->skb_16k;
 		skb->tail = skb->data + len;
 		skb->len = len;
-
+		up(&bcm_static_skb->osl_pkt_sem);
 		return skb;
 	}
 #endif
@@ -714,9 +722,14 @@ osl_pktfree_static(osl_t *osh, void *p, bool send)
 {
 	int i;
 
+	if (!bcm_static_skb) {
+		osl_pktfree(osh, p, send);
+		return;
+	}
+
+	down(&bcm_static_skb->osl_pkt_sem);
 	for (i = 0; i < STATIC_PKT_MAX_NUM; i++) {
 		if (p == bcm_static_skb->skb_4k[i]) {
-			down(&bcm_static_skb->osl_pkt_sem);
 			bcm_static_skb->pkt_use[i] = 0;
 			up(&bcm_static_skb->osl_pkt_sem);
 			return;
@@ -725,14 +738,15 @@ osl_pktfree_static(osl_t *osh, void *p, bool send)
 
 	for (i = 0; i < STATIC_PKT_MAX_NUM; i++) {
 		if (p == bcm_static_skb->skb_8k[i]) {
-			down(&bcm_static_skb->osl_pkt_sem);
 			bcm_static_skb->pkt_use[i + STATIC_PKT_MAX_NUM] = 0;
 			up(&bcm_static_skb->osl_pkt_sem);
 			return;
 		}
 	}
+	up(&bcm_static_skb->osl_pkt_sem);
 
-	return osl_pktfree(osh, p, send);
+	osl_pktfree(osh, p, send);
+	return;
 }
 #endif 
 
@@ -825,7 +839,9 @@ void *
 osl_malloc(osl_t *osh, uint size)
 {
 	void *addr;
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	gfp_t flags;
+#endif
 	
 	if (osh)
 		ASSERT(osh->magic == OS_HANDLE_MAGIC);
@@ -863,8 +879,12 @@ osl_malloc(osl_t *osh, uint size)
 	}
 original:
 #endif 
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	if ((addr = kmalloc(size, flags)) == NULL) {
+#else
 	if ((addr = kmalloc(size, GFP_ATOMIC)) == NULL) {
+#endif 
 		if (osh)
 			osh->failed++;
 		return (NULL);
@@ -1014,11 +1034,18 @@ osl_pktdup(osl_t *osh, void *skb)
 {
 	void * p;
 	unsigned long irqflags;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	gfp_t flags;
+#endif
 
-	
 	PKTCTFMAP(osh, skb);
 
-	if ((p = skb_clone((struct sk_buff *)skb, GFP_ATOMIC)) == NULL)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	if ((p = skb_clone((struct sk_buff *)skb, flags)) == NULL)
+#else
+	if ((p = skb_clone((struct sk_buff*)skb, GFP_ATOMIC)) == NULL)
+#endif 
 		return NULL;
 
 #ifdef CTFPOOL

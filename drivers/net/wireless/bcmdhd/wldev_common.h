@@ -92,7 +92,7 @@ extern int net_os_wake_lock_timeout(struct net_device *dev);
 extern int net_os_wake_lock_timeout_enable(struct net_device *dev, int val);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
 extern int net_os_set_suspend_disable(struct net_device *dev, int val);
-extern int net_os_set_suspend(struct net_device *dev, int val);
+extern int net_os_set_suspend(struct net_device *dev, int val, int force);
 extern int wl_iw_parse_ssid_list_tlv(char** list_str, wlc_ssid_t* ssid,
 	int max, int *bytes_left);
 

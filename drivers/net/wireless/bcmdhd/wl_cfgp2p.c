@@ -276,7 +276,6 @@ wl_cfgp2p_init_priv(struct wl_priv *wl)
 	wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE) = 0;
 	wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION) = NULL;
 	wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_CONNECTION) = 0;
-	spin_lock_init(&wl->p2p->timer_lock);
 	return BCME_OK;
 
 }
@@ -1325,9 +1324,7 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 	if (wl_get_p2p_status(wl, LISTEN_EXPIRED) == 0) {
 		wl_set_p2p_status(wl, LISTEN_EXPIRED);
 		if (timer_pending(&wl->p2p->listen_timer)) {
-			spin_lock_bh(&wl->p2p->timer_lock);
 			del_timer_sync(&wl->p2p->listen_timer);
-			spin_unlock_bh(&wl->p2p->timer_lock);
 		}
 
 		if (wl->afx_hdl->is_listen == TRUE &&

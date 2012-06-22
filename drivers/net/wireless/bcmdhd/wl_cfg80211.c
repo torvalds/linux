@@ -1618,10 +1618,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct cfg80211_scan_request *request,
 	struct wl_iscan_params *params = NULL;
 	s32 err = 0;
 
-	if (!request) {
-			err = -EINVAL;
-			goto done;
-	} else {
+	if (request != NULL) {
 		n_channels = request->n_channels;
 		n_ssids = request->n_ssids;
 		/* Allocate space for populating ssids in wl_iscan_params struct */
@@ -1640,8 +1637,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct cfg80211_scan_request *request,
 		goto done;
 	}
 
-	if (request != NULL)
-		wl_scan_prep(&params->params, request);
+	wl_scan_prep(&params->params, request);
 
 	params->version = htod32(ISCAN_REQ_VERSION);
 	params->action = htod16(action);
@@ -1691,6 +1687,7 @@ static s32 wl_do_iscan(struct wl_priv *wl, struct cfg80211_scan_request *request
 
 	return err;
 }
+
 static s32
 wl_get_valid_channels(struct net_device *ndev, u8 *valid_chan_list, s32 size)
 {
@@ -1709,6 +1706,7 @@ wl_get_valid_channels(struct net_device *ndev, u8 *valid_chan_list, s32 size)
 
 	return err;
 }
+
 static s32
 wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 	struct cfg80211_scan_request *request, uint16 action)
@@ -1729,7 +1727,7 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 	struct net_device *dev = NULL;
 	WL_DBG(("Enter \n"));
 
-	if (!request || !wl) {
+	if (!wl) {
 		err = -EINVAL;
 		goto exit;
 	}
@@ -1756,7 +1754,7 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 			goto exit;
 		}
 
-			wl_scan_prep(&params->params, request);
+		wl_scan_prep(&params->params, request);
 		params->version = htod32(ESCAN_REQ_VERSION);
 		params->action =  htod16(action);
 #if defined(DUAL_ESCAN_RESULT_BUFFER)
@@ -7008,7 +7006,7 @@ static s32 wl_escan_handler(struct wl_priv *wl,
 
 		if (!(wl_to_wiphy(wl)->interface_modes & BIT(NL80211_IFTYPE_ADHOC))) {
 			if (dtoh16(bi->capability) & DOT11_CAP_IBSS) {
-				WL_ERR(("Ignoring IBSS result\n"));
+				WL_DBG(("Ignoring IBSS result\n"));
 				goto exit;
 			}
 		}
