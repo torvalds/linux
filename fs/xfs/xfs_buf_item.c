@@ -240,15 +240,13 @@ xfs_buf_item_format(
 	       (bip->bli_flags & XFS_BLI_STALE));
 
 	/*
-	 * The size of the base structure is the size of the
-	 * declared structure plus the space for the extra words
-	 * of the bitmap.  We subtract one from the map size, because
-	 * the first element of the bitmap is accounted for in the
-	 * size of the base structure.
+	 * Base size is the actual size of the ondisk structure - it reflects
+	 * the actual size of the dirty bitmap rather than the size of the in
+	 * memory structure.
 	 */
-	base_size =
-		(uint)(sizeof(xfs_buf_log_format_t) +
-		       ((bip->bli_format.blf_map_size - 1) * sizeof(uint)));
+	base_size = offsetof(struct xfs_buf_log_format, blf_data_map) +
+			(bip->bli_format.blf_map_size *
+				sizeof(bip->bli_format.blf_data_map[0]));
 	vecp->i_addr = &bip->bli_format;
 	vecp->i_len = base_size;
 	vecp->i_type = XLOG_REG_TYPE_BFORMAT;

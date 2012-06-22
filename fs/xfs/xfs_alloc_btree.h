@@ -51,20 +51,6 @@ typedef struct xfs_alloc_rec_incore {
 typedef __be32 xfs_alloc_ptr_t;
 
 /*
- * Minimum and maximum blocksize and sectorsize.
- * The blocksize upper limit is pretty much arbitrary.
- * The sectorsize upper limit is due to sizeof(sb_sectsize).
- */
-#define XFS_MIN_BLOCKSIZE_LOG	9	/* i.e. 512 bytes */
-#define XFS_MAX_BLOCKSIZE_LOG	16	/* i.e. 65536 bytes */
-#define XFS_MIN_BLOCKSIZE	(1 << XFS_MIN_BLOCKSIZE_LOG)
-#define XFS_MAX_BLOCKSIZE	(1 << XFS_MAX_BLOCKSIZE_LOG)
-#define XFS_MIN_SECTORSIZE_LOG	9	/* i.e. 512 bytes */
-#define XFS_MAX_SECTORSIZE_LOG	15	/* i.e. 32768 bytes */
-#define XFS_MIN_SECTORSIZE	(1 << XFS_MIN_SECTORSIZE_LOG)
-#define XFS_MAX_SECTORSIZE	(1 << XFS_MAX_SECTORSIZE_LOG)
-
-/*
  * Block numbers in the AG:
  * SB is sector 0, AGF is sector 1, AGI is sector 2, AGFL is sector 3.
  */
