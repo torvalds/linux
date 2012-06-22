@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
+#include <linux/rcupdate.h>
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 
@@ -34,9 +35,12 @@ err:		*value = -1;
 		return -EINVAL;
 	}
 
+	rcu_read_lock();
 	addr = pci_dev_base(seg, bus, devfn);
-	if (!addr)
+	if (!addr) {
+		rcu_read_unlock();
 		goto err;
+	}
 
 	switch (len) {
 	case 1:
@@ -49,6 +53,7 @@ err:		*value = -1;
 		*value = mmio_config_readl(addr + reg);
 		break;
 	}
+	rcu_read_unlock();
 
 	return 0;
 }
@@ -62,9 +67,12 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095)))
 		return -EINVAL;
 
+	rcu_read_lock();
 	addr = pci_dev_base(seg, bus, devfn);
-	if (!addr)
+	if (!addr) {
+		rcu_read_unlock();
 		return -EINVAL;
+	}
 
 	switch (len) {
 	case 1:
@@ -77,6 +85,7 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 		mmio_config_writel(addr + reg, value);
 		break;
 	}
+	rcu_read_unlock();
 
 	return 0;
 }
