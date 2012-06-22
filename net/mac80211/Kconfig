@@ -107,6 +107,19 @@ config MAC80211_DEBUGFS
 
 	  Say N unless you know you need this.
 
+config MAC80211_MESSAGE_TRACING
+	bool "Trace all mac80211 debug messages"
+	depends on MAC80211
+	---help---
+	  Select this option to have mac80211 register the
+	  mac80211_msg trace subsystem with tracepoints to
+	  collect all debugging messages, independent of
+	  printing them into the kernel log.
+
+	  The overhead in this option is that all the messages
+	  need to be present in the binary and formatted at
+	  runtime for tracing.
+
 menuconfig MAC80211_DEBUG_MENU
 	bool "Select mac80211 debugging features"
 	depends on MAC80211
