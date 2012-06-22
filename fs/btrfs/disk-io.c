@@ -2466,8 +2466,8 @@ retry_root_backup:
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		ret = btrfs_cleanup_fs_roots(fs_info);
-		if (ret) {
-			}
+		if (ret)
+			goto fail_trans_kthread;
 
 		ret = btrfs_recover_relocation(tree_root);
 		if (ret < 0) {
