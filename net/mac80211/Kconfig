@@ -152,17 +152,6 @@ config MAC80211_HT_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_TKIP_DEBUG
-	bool "Verbose TKIP debugging"
-	depends on MAC80211_DEBUG_MENU
-	---help---
-	  Selecting this option causes mac80211 to print out
-	  very verbose TKIP debugging messages. It should not
-	  be selected on production systems as those messages
-	  are remotely triggerable.
-
-	  Do not select this option.
-
 config MAC80211_IBSS_DEBUG
 	bool "Verbose IBSS debugging"
 	depends on MAC80211_DEBUG_MENU
