@@ -460,14 +460,88 @@ struct sas_phy *sas_get_local_phy(struct domain_device *dev)
 }
 EXPORT_SYMBOL_GPL(sas_get_local_phy);
 
+static void sas_wait_eh(struct domain_device *dev)
+{
+	struct sas_ha_struct *ha = dev->port->ha;
+	DEFINE_WAIT(wait);
+
+	if (dev_is_sata(dev)) {
+		ata_port_wait_eh(dev->sata_dev.ap);
+		return;
+	}
+ retry:
+	spin_lock_irq(&ha->lock);
+
+	while (test_bit(SAS_DEV_EH_PENDING, &dev->state)) {
+		prepare_to_wait(&ha->eh_wait_q, &wait, TASK_UNINTERRUPTIBLE);
+		spin_unlock_irq(&ha->lock);
+		schedule();
+		spin_lock_irq(&ha->lock);
+	}
+	finish_wait(&ha->eh_wait_q, &wait);
+
+	spin_unlock_irq(&ha->lock);
+
+	/* make sure SCSI EH is complete */
+	if (scsi_host_in_recovery(ha->core.shost)) {
+		msleep(10);
+		goto retry;
+	}
+}
+EXPORT_SYMBOL(sas_wait_eh);
+
+static int sas_queue_reset(struct domain_device *dev, int reset_type, int lun, int wait)
+{
+	struct sas_ha_struct *ha = dev->port->ha;
+	int scheduled = 0, tries = 100;
+
+	/* ata: promote lun reset to bus reset */
+	if (dev_is_sata(dev)) {
+		sas_ata_schedule_reset(dev);
+		if (wait)
+			sas_ata_wait_eh(dev);
+		return SUCCESS;
+	}
+
+	while (!scheduled && tries--) {
+		spin_lock_irq(&ha->lock);
+		if (!test_bit(SAS_DEV_EH_PENDING, &dev->state) &&
+		    !test_bit(reset_type, &dev->state)) {
+			scheduled = 1;
+			ha->eh_active++;
+			list_add_tail(&dev->ssp_dev.eh_list_node, &ha->eh_dev_q);
+			set_bit(SAS_DEV_EH_PENDING, &dev->state);
+			set_bit(reset_type, &dev->state);
+			int_to_scsilun(lun, &dev->ssp_dev.reset_lun);
+			scsi_schedule_eh(ha->core.shost);
+		}
+		spin_unlock_irq(&ha->lock);
+
+		if (wait)
+			sas_wait_eh(dev);
+
+		if (scheduled)
+			return SUCCESS;
+	}
+
+	SAS_DPRINTK("%s reset of %s failed\n",
+		    reset_type == SAS_DEV_LU_RESET ? "LUN" : "Bus",
+		    dev_name(&dev->rphy->dev));
+
+	return FAILED;
+}
+
 /* Attempt to send a LUN reset message to a device */
 int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
 {
-	struct domain_device *dev = cmd_to_domain_dev(cmd);
-	struct sas_internal *i =
-		to_sas_internal(dev->port->ha->core.shost->transportt);
-	struct scsi_lun lun;
 	int res;
+	struct scsi_lun lun;
+	struct Scsi_Host *host = cmd->device->host;
+	struct domain_device *dev = cmd_to_domain_dev(cmd);
+	struct sas_internal *i = to_sas_internal(host->transportt);
+
+	if (current != host->ehandler)
+		return sas_queue_reset(dev, SAS_DEV_LU_RESET, cmd->device->lun, 0);
 
 	int_to_scsilun(cmd->device->lun, &lun);
 
@@ -486,7 +560,11 @@ int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 {
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
 	struct sas_phy *phy = sas_get_local_phy(dev);
+	struct Scsi_Host *host = cmd->device->host;
 	int res;
+
+	if (current != host->ehandler)
+		return sas_queue_reset(dev, SAS_DEV_RESET, 0, 0);
 
 	res = sas_phy_reset(phy, 1);
 	if (res)
@@ -667,6 +745,39 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	goto out;
 }
 
+static void sas_eh_handle_resets(struct Scsi_Host *shost)
+{
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_internal *i = to_sas_internal(shost->transportt);
+
+	/* handle directed resets to sas devices */
+	spin_lock_irq(&ha->lock);
+	while (!list_empty(&ha->eh_dev_q)) {
+		struct domain_device *dev;
+		struct ssp_device *ssp;
+
+		ssp = list_entry(ha->eh_dev_q.next, typeof(*ssp), eh_list_node);
+		list_del_init(&ssp->eh_list_node);
+		dev = container_of(ssp, typeof(*dev), ssp_dev);
+		kref_get(&dev->kref);
+		WARN_ONCE(dev_is_sata(dev), "ssp reset to ata device?\n");
+
+		spin_unlock_irq(&ha->lock);
+
+		if (test_and_clear_bit(SAS_DEV_LU_RESET, &dev->state))
+			i->dft->lldd_lu_reset(dev, ssp->reset_lun.scsi_lun);
+
+		if (test_and_clear_bit(SAS_DEV_RESET, &dev->state))
+			i->dft->lldd_I_T_nexus_reset(dev);
+
+		sas_put_device(dev);
+		spin_lock_irq(&ha->lock);
+		clear_bit(SAS_DEV_EH_PENDING, &dev->state);
+		ha->eh_active--;
+	}
+	spin_unlock_irq(&ha->lock);
+}
+
 
 void sas_scsi_recover_host(struct Scsi_Host *shost)
 {
@@ -708,6 +819,8 @@ retry:
 out:
 	if (ha->lldd_max_execute_num > 1)
 		wake_up_process(ha->core.queue_thread);
+
+	sas_eh_handle_resets(shost);
 
 	/* now link into libata eh --- if we have any ata devices */
 	sas_ata_strategy_handler(shost);

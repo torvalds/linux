@@ -116,7 +116,9 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	set_bit(SAS_HA_REGISTERED, &sas_ha->state);
 	spin_lock_init(&sas_ha->lock);
 	mutex_init(&sas_ha->drain_mutex);
+	init_waitqueue_head(&sas_ha->eh_wait_q);
 	INIT_LIST_HEAD(&sas_ha->defer_q);
+	INIT_LIST_HEAD(&sas_ha->eh_dev_q);
 
 	error = sas_register_phys(sas_ha);
 	if (error) {
