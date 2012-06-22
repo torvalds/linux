@@ -1274,7 +1274,7 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 	.pattern = mirror_pattern
 };
 
-static struct nand_bbt_descr bbt_main_no_bbt_descr = {
+static struct nand_bbt_descr bbt_main_no_oob_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
 		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP
 		| NAND_BBT_NO_OOB,
@@ -1284,7 +1284,7 @@ static struct nand_bbt_descr bbt_main_no_bbt_descr = {
 	.pattern = bbt_pattern
 };
 
-static struct nand_bbt_descr bbt_mirror_no_bbt_descr = {
+static struct nand_bbt_descr bbt_mirror_no_oob_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
 		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP
 		| NAND_BBT_NO_OOB,
@@ -1355,8 +1355,8 @@ int nand_default_bbt(struct mtd_info *mtd)
 		/* Use the default pattern descriptors */
 		if (!this->bbt_td) {
 			if (this->bbt_options & NAND_BBT_NO_OOB) {
-				this->bbt_td = &bbt_main_no_bbt_descr;
-				this->bbt_md = &bbt_mirror_no_bbt_descr;
+				this->bbt_td = &bbt_main_no_oob_descr;
+				this->bbt_md = &bbt_mirror_no_oob_descr;
 			} else {
 				this->bbt_td = &bbt_main_descr;
 				this->bbt_md = &bbt_mirror_descr;
