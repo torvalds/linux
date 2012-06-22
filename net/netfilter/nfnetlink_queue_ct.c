@@ -12,6 +12,7 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_queue.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nfnetlink_queue.h>
 
 struct nf_conn *nfqnl_ct_get(struct sk_buff *entskb, size_t *size,
 			     enum ip_conntrack_info *ctinfo)
