@@ -1072,11 +1072,6 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return vb2_streamoff(&dev->vb_vidq, i);
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
-{
-	return 0;
-}
-
 /* only one input in this sample driver */
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *inp)
@@ -1085,7 +1080,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
-	inp->std = V4L2_STD_525_60;
 	sprintf(inp->name, "Camera %u", inp->index);
 	return 0;
 }
@@ -1318,7 +1312,6 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
 	.vidioc_dqbuf         = vidioc_dqbuf,
-	.vidioc_s_std         = vidioc_s_std,
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
@@ -1334,9 +1327,6 @@ static struct video_device vivi_template = {
 	.fops           = &vivi_fops,
 	.ioctl_ops 	= &vivi_ioctl_ops,
 	.release	= video_device_release,
-
-	.tvnorms              = V4L2_STD_525_60,
-	.current_norm         = V4L2_STD_NTSC_M,
 };
 
 /* -----------------------------------------------------------------
