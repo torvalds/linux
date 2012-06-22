@@ -89,13 +89,12 @@ static int subdev_700_insn_config(struct comedi_device *dev,
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] = (s->io_bits & chan) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return 1;
+	return insn->n;
 }
 
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
