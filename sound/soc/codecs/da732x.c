@@ -1543,7 +1543,7 @@ static int da732x_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-struct snd_soc_codec_driver soc_codec_dev_da732x = {
+static struct snd_soc_codec_driver soc_codec_dev_da732x = {
 	.probe			= da732x_probe,
 	.remove			= da732x_remove,
 	.set_bias_level		= da732x_set_bias_level,
