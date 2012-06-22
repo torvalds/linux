@@ -59,11 +59,6 @@ struct dio700_board {
 	const char *name;
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct dio700_board *)dev->board_ptr)
-
 #define _700_SIZE 8
 
 #define _700_DATA 0
@@ -178,6 +173,7 @@ static void subdev_700_cleanup(struct comedi_device *dev,
 
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct dio700_board *thisboard = comedi_board(dev);
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
 #ifdef incomplete
