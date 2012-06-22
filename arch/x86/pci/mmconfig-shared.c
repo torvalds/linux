@@ -544,8 +544,6 @@ static void __init pci_mmcfg_reject_broken(int early)
 	}
 }
 
-static int __initdata known_bridge;
-
 static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 					struct acpi_mcfg_allocation *cfg)
 {
@@ -617,28 +615,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 
 static void __init __pci_mmcfg_init(int early)
 {
-	/* MMCONFIG disabled */
-	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
-		return;
-
-	/* MMCONFIG already enabled */
-	if (!early && !(pci_probe & PCI_PROBE_MASK & ~PCI_PROBE_MMCONF))
-		return;
-
-	/* for late to exit */
-	if (known_bridge)
-		return;
-
-	if (early) {
-		if (pci_mmcfg_check_hostbridge())
-			known_bridge = 1;
-	}
-
-	if (!known_bridge)
-		acpi_sfi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
-
 	pci_mmcfg_reject_broken(early);
-
 	if (list_empty(&pci_mmcfg_list))
 		return;
 
@@ -660,14 +637,33 @@ static void __init __pci_mmcfg_init(int early)
 	}
 }
 
+static int __initdata known_bridge;
+
 void __init pci_mmcfg_early_init(void)
 {
-	__pci_mmcfg_init(1);
+	if (pci_probe & PCI_PROBE_MMCONF) {
+		if (pci_mmcfg_check_hostbridge())
+			known_bridge = 1;
+		else
+			acpi_sfi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
+		__pci_mmcfg_init(1);
+	}
 }
 
 void __init pci_mmcfg_late_init(void)
 {
-	__pci_mmcfg_init(0);
+	/* MMCONFIG disabled */
+	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
+		return;
+
+	if (known_bridge)
+		return;
+
+	/* MMCONFIG hasn't been enabled yet, try again */
+	if (pci_probe & PCI_PROBE_MASK & ~PCI_PROBE_MMCONF) {
+		acpi_sfi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
+		__pci_mmcfg_init(0);
+	}
 }
 
 static int __init pci_mmcfg_late_insert_resources(void)
