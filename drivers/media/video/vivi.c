@@ -767,7 +767,13 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 	struct vivi_dev *dev = vb2_get_drv_priv(vq);
 	unsigned long size;
 
-	size = dev->width * dev->height * dev->pixelsize;
+	if (fmt)
+		size = fmt->fmt.pix.sizeimage;
+	else
+		size = dev->width * dev->height * dev->pixelsize;
+
+	if (size == 0)
+		return -EINVAL;
 
 	if (0 == *nbuffers)
 		*nbuffers = 32;
@@ -1180,6 +1186,8 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs       = vb2_ioctl_reqbufs,
+	.vidioc_create_bufs   = vb2_ioctl_create_bufs,
+	.vidioc_prepare_buf   = vb2_ioctl_prepare_buf,
 	.vidioc_querybuf      = vb2_ioctl_querybuf,
 	.vidioc_qbuf          = vb2_ioctl_qbuf,
 	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
