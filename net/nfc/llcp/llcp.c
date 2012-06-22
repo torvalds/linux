@@ -310,21 +310,6 @@ void nfc_llcp_put_ssap(struct nfc_llcp_local *local, u8 ssap)
 	mutex_unlock(&local->sdp_lock);
 }
 
-u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *general_bytes_len)
-{
-	struct nfc_llcp_local *local;
-
-	local = nfc_llcp_find_local(dev);
-	if (local == NULL) {
-		*general_bytes_len = 0;
-		return NULL;
-	}
-
-	*general_bytes_len = local->gb_len;
-
-	return local->gb;
-}
-
 static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 {
 	u8 *gb_cur, *version_tlv, version, version_length;
@@ -384,6 +369,23 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 	local->gb_len = gb_len;
 
 	return 0;
+}
+
+u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *general_bytes_len)
+{
+	struct nfc_llcp_local *local;
+
+	local = nfc_llcp_find_local(dev);
+	if (local == NULL) {
+		*general_bytes_len = 0;
+		return NULL;
+	}
+
+	nfc_llcp_build_gb(local);
+
+	*general_bytes_len = local->gb_len;
+
+	return local->gb;
 }
 
 int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len)
