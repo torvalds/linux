@@ -669,9 +669,9 @@ static int __create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create
 	/* Finally, allocate buffers and video memory */
 	ret = __vb2_queue_alloc(q, create->memory, num_buffers,
 				num_planes);
-	if (ret < 0) {
-		dprintk(1, "Memory allocation failed with error: %d\n", ret);
-		return ret;
+	if (ret == 0) {
+		dprintk(1, "Memory allocation failed\n");
+		return -ENOMEM;
 	}
 
 	allocated_buffers = ret;
@@ -702,7 +702,7 @@ static int __create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create
 
 	if (ret < 0) {
 		__vb2_queue_free(q, allocated_buffers);
-		return ret;
+		return -ENOMEM;
 	}
 
 	/*
@@ -726,6 +726,8 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	int ret = __verify_memory_type(q, create->memory, create->format.type);
 
 	create->index = q->num_buffers;
+	if (create->count == 0)
+		return ret != -EBUSY ? ret : 0;
 	return ret ? ret : __create_bufs(q, create);
 }
 EXPORT_SYMBOL_GPL(vb2_create_bufs);
