@@ -46,6 +46,29 @@ static ssize_t show_index(struct device *cd,
 	return sprintf(buf, "%i\n", vdev->index);
 }
 
+static ssize_t show_debug(struct device *cd,
+			 struct device_attribute *attr, char *buf)
+{
+	struct video_device *vdev = to_video_device(cd);
+
+	return sprintf(buf, "%i\n", vdev->debug);
+}
+
+static ssize_t set_debug(struct device *cd, struct device_attribute *attr,
+		   const char *buf, size_t len)
+{
+	struct video_device *vdev = to_video_device(cd);
+	int res = 0;
+	u16 value;
+
+	res = kstrtou16(buf, 0, &value);
+	if (res)
+		return res;
+
+	vdev->debug = value;
+	return len;
+}
+
 static ssize_t show_name(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
@@ -56,6 +79,7 @@ static ssize_t show_name(struct device *cd,
 
 static struct device_attribute video_device_attrs[] = {
 	__ATTR(name, S_IRUGO, show_name, NULL),
+	__ATTR(debug, 0644, show_debug, set_debug),
 	__ATTR(index, S_IRUGO, show_index, NULL),
 	__ATTR_NULL
 };
