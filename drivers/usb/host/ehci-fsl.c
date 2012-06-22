@@ -142,7 +142,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
 		struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-		ehci->transceiver = usb_get_transceiver();
+		ehci->transceiver = usb_get_phy();
 		dev_dbg(&pdev->dev, "hcd=0x%p  ehci=0x%p, transceiver=0x%p\n",
 			hcd, ehci, ehci->transceiver);
 
@@ -150,7 +150,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 			retval = otg_set_host(ehci->transceiver->otg,
 					      &ehci_to_hcd(ehci)->self);
 			if (retval) {
-				usb_put_transceiver(ehci->transceiver);
+				usb_put_phy(ehci->transceiver);
 				goto err4;
 			}
 		} else {
@@ -194,7 +194,7 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 
 	if (ehci->transceiver) {
 		otg_set_host(ehci->transceiver->otg, NULL);
-		usb_put_transceiver(ehci->transceiver);
+		usb_put_phy(ehci->transceiver);
 	}
 
 	usb_remove_hcd(hcd);

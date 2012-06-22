@@ -2180,7 +2180,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->mode == MV_USB_MODE_OTG)
-		udc->transceiver = usb_get_transceiver();
+		udc->transceiver = usb_get_phy();
 #endif
 
 	udc->clknum = pdata->clknum;

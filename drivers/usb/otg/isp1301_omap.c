@@ -1611,7 +1611,7 @@ isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	dev_dbg(&i2c->dev, "scheduled timer, %d min\n", TIMER_MINUTES);
 #endif
 
-	status = usb_set_transceiver(&isp->phy);
+	status = usb_add_phy(&isp->phy);
 	if (status < 0)
 		dev_err(&i2c->dev, "can't register transceiver, %d\n",
 			status);
@@ -1650,7 +1650,7 @@ subsys_initcall(isp_init);
 static void __exit isp_exit(void)
 {
 	if (the_transceiver)
-		usb_set_transceiver(NULL);
+		usb_add_phy(NULL);
 	i2c_del_driver(&isp1301_driver);
 }
 module_exit(isp_exit);

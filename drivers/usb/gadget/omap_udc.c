@@ -2865,7 +2865,7 @@ static int __init omap_udc_probe(struct platform_device *pdev)
 		 * use it.  Except for OTG, we don't _need_ to talk to one;
 		 * but not having one probably means no VBUS detection.
 		 */
-		xceiv = usb_get_transceiver();
+		xceiv = usb_get_phy();
 		if (xceiv)
 			type = xceiv->label;
 		else if (config->otg) {
@@ -3011,7 +3011,7 @@ cleanup1:
 
 cleanup0:
 	if (xceiv)
-		usb_put_transceiver(xceiv);
+		usb_put_phy(xceiv);
 
 	if (cpu_is_omap16xx() || cpu_is_omap24xx() || cpu_is_omap7xx()) {
 		clk_disable(hhc_clk);
@@ -3041,7 +3041,7 @@ static int __exit omap_udc_remove(struct platform_device *pdev)
 
 	pullup_disable(udc);
 	if (udc->transceiver) {
-		usb_put_transceiver(udc->transceiver);
+		usb_put_phy(udc->transceiver);
 		udc->transceiver = NULL;
 	}
 	omap_writew(0, UDC_SYSCON1);

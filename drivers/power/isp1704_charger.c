@@ -415,7 +415,7 @@ static int __devinit isp1704_charger_probe(struct platform_device *pdev)
 	if (!isp)
 		return -ENOMEM;
 
-	isp->phy = usb_get_transceiver();
+	isp->phy = usb_get_phy();
 	if (!isp->phy)
 		goto fail0;
 
@@ -475,7 +475,7 @@ fail2:
 	power_supply_unregister(&isp->psy);
 fail1:
 	isp1704_charger_set_power(isp, 0);
-	usb_put_transceiver(isp->phy);
+	usb_put_phy(isp->phy);
 fail0:
 	kfree(isp);
 
@@ -490,7 +490,7 @@ static int __devexit isp1704_charger_remove(struct platform_device *pdev)
 
 	usb_unregister_notifier(isp->phy, &isp->nb);
 	power_supply_unregister(&isp->psy);
-	usb_put_transceiver(isp->phy);
+	usb_put_phy(isp->phy);
 	isp1704_charger_set_power(isp, 0);
 	kfree(isp);
 

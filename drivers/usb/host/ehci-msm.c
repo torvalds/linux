@@ -145,7 +145,7 @@ static int ehci_msm_probe(struct platform_device *pdev)
 	 * powering up VBUS, mapping of registers address space and power
 	 * management.
 	 */
-	phy = usb_get_transceiver();
+	phy = usb_get_phy();
 	if (!phy) {
 		dev_err(&pdev->dev, "unable to find transceiver\n");
 		ret = -ENODEV;
@@ -169,7 +169,7 @@ static int ehci_msm_probe(struct platform_device *pdev)
 	return 0;
 
 put_transceiver:
-	usb_put_transceiver(phy);
+	usb_put_phy(phy);
 unmap:
 	iounmap(hcd->regs);
 put_hcd:
@@ -187,7 +187,7 @@ static int __devexit ehci_msm_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(&pdev->dev);
 
 	otg_set_host(phy->otg, NULL);
-	usb_put_transceiver(phy);
+	usb_put_phy(phy);
 
 	usb_put_hcd(hcd);
 

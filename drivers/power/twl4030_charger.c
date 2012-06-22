@@ -479,7 +479,7 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
 
-	bci->transceiver = usb_get_transceiver();
+	bci->transceiver = usb_get_phy();
 	if (bci->transceiver != NULL) {
 		bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
 		usb_register_notifier(bci->transceiver, &bci->usb_nb);
@@ -509,7 +509,7 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 fail_unmask_interrupts:
 	if (bci->transceiver != NULL) {
 		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
-		usb_put_transceiver(bci->transceiver);
+		usb_put_phy(bci->transceiver);
 	}
 	free_irq(bci->irq_bci, bci);
 fail_bci_irq:
@@ -540,7 +540,7 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 
 	if (bci->transceiver != NULL) {
 		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
-		usb_put_transceiver(bci->transceiver);
+		usb_put_phy(bci->transceiver);
 	}
 	free_irq(bci->irq_bci, bci);
 	free_irq(bci->irq_chg, bci);

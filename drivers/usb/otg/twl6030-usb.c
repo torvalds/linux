@@ -443,7 +443,7 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 		kfree(twl);
 		return err;
 	}
-	usb_set_transceiver(&twl->phy);
+	usb_add_phy(&twl->phy);
 
 	platform_set_drvdata(pdev, twl);
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))

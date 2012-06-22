@@ -2464,7 +2464,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 
 	udc->dev = &pdev->dev;
 	udc->mach = pdev->dev.platform_data;
-	udc->transceiver = usb_get_transceiver();
+	udc->transceiver = usb_get_phy();
 
 	gpio = udc->mach->gpio_pullup;
 	if (gpio_is_valid(gpio)) {
@@ -2543,7 +2543,7 @@ static int __exit pxa_udc_remove(struct platform_device *_dev)
 	if (gpio_is_valid(gpio))
 		gpio_free(gpio);
 
-	usb_put_transceiver(udc->transceiver);
+	usb_put_phy(udc->transceiver);
 
 	udc->transceiver = NULL;
 	platform_set_drvdata(_dev, NULL);

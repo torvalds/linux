@@ -364,7 +364,7 @@ static int am35x_musb_init(struct musb *musb)
 		return -ENODEV;
 
 	usb_nop_xceiv_register();
-	musb->xceiv = usb_get_transceiver();
+	musb->xceiv = usb_get_phy();
 	if (!musb->xceiv)
 		return -ENODEV;
 
@@ -406,7 +406,7 @@ static int am35x_musb_exit(struct musb *musb)
 	if (data->set_phy_power)
 		data->set_phy_power(0);
 
-	usb_put_transceiver(musb->xceiv);
+	usb_put_phy(musb->xceiv);
 	usb_nop_xceiv_unregister();
 
 	return 0;

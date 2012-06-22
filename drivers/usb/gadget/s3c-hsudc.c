@@ -1282,7 +1282,7 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->dev = dev;
 	hsudc->pd = pdev->dev.platform_data;
 
-	hsudc->transceiver = usb_get_transceiver();
+	hsudc->transceiver = usb_get_phy();
 
 	for (i = 0; i < ARRAY_SIZE(hsudc->supplies); i++)
 		hsudc->supplies[i].supply = s3c_hsudc_supply_names[i];
@@ -1386,7 +1386,7 @@ err_remap:
 	release_mem_region(res->start, resource_size(res));
 err_res:
 	if (hsudc->transceiver)
-		usb_put_transceiver(hsudc->transceiver);
+		usb_put_phy(hsudc->transceiver);
 
 	regulator_bulk_free(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 err_supplies:

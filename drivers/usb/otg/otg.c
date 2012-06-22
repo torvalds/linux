@@ -18,53 +18,53 @@
 static struct usb_phy *phy;
 
 /**
- * usb_get_transceiver - find the (single) USB transceiver
+ * usb_get_phy - find the (single) USB PHY
  *
- * Returns the transceiver driver, after getting a refcount to it; or
- * null if there is no such transceiver.  The caller is responsible for
- * calling usb_put_transceiver() to release that count.
+ * Returns the phy driver, after getting a refcount to it; or
+ * null if there is no such phy.  The caller is responsible for
+ * calling usb_put_phy() to release that count.
  *
  * For use by USB host and peripheral drivers.
  */
-struct usb_phy *usb_get_transceiver(void)
+struct usb_phy *usb_get_phy(void)
 {
 	if (phy)
 		get_device(phy->dev);
 	return phy;
 }
-EXPORT_SYMBOL(usb_get_transceiver);
+EXPORT_SYMBOL(usb_get_phy);
 
 /**
- * usb_put_transceiver - release the (single) USB transceiver
- * @x: the transceiver returned by usb_get_transceiver()
+ * usb_put_phy - release the (single) USB PHY
+ * @x: the phy returned by usb_get_phy()
  *
- * Releases a refcount the caller received from usb_get_transceiver().
+ * Releases a refcount the caller received from usb_get_phy().
  *
  * For use by USB host and peripheral drivers.
  */
-void usb_put_transceiver(struct usb_phy *x)
+void usb_put_phy(struct usb_phy *x)
 {
 	if (x)
 		put_device(x->dev);
 }
-EXPORT_SYMBOL(usb_put_transceiver);
+EXPORT_SYMBOL(usb_put_phy);
 
 /**
- * usb_set_transceiver - declare the (single) USB transceiver
- * @x: the USB transceiver to be used; or NULL
+ * usb_add_phy - declare the (single) USB PHY
+ * @x: the USB phy to be used; or NULL
  *
- * This call is exclusively for use by transceiver drivers, which
+ * This call is exclusively for use by phy drivers, which
  * coordinate the activities of drivers for host and peripheral
  * controllers, and in some cases for VBUS current regulation.
  */
-int usb_set_transceiver(struct usb_phy *x)
+int usb_add_phy(struct usb_phy *x)
 {
 	if (phy && x)
 		return -EBUSY;
 	phy = x;
 	return 0;
 }
-EXPORT_SYMBOL(usb_set_transceiver);
+EXPORT_SYMBOL(usb_add_phy);
 
 const char *otg_state_string(enum usb_otg_state state)
 {

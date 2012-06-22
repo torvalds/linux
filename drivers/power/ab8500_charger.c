@@ -2517,7 +2517,7 @@ static int __devexit ab8500_charger_remove(struct platform_device *pdev)
 		dev_err(di->dev, "%s mask and set failed\n", __func__);
 
 	usb_unregister_notifier(di->usb_phy, &di->nb);
-	usb_put_transceiver(di->usb_phy);
+	usb_put_phy(di->usb_phy);
 
 	/* Delete the work queue */
 	destroy_workqueue(di->charger_wq);
@@ -2688,7 +2688,7 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 		goto free_ac;
 	}
 
-	di->usb_phy = usb_get_transceiver();
+	di->usb_phy = usb_get_phy();
 	if (!di->usb_phy) {
 		dev_err(di->dev, "failed to get usb transceiver\n");
 		ret = -EINVAL;
@@ -2747,7 +2747,7 @@ free_irq:
 		free_irq(irq, di);
 	}
 put_usb_phy:
-	usb_put_transceiver(di->usb_phy);
+	usb_put_phy(di->usb_phy);
 free_usb:
 	power_supply_unregister(&di->usb_chg.psy);
 free_ac:
