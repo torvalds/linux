@@ -293,8 +293,7 @@ struct btrfs_device *btrfs_find_device_for_logical(struct btrfs_root *root,
 void btrfs_dev_stat_print_on_error(struct btrfs_device *device);
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
 int btrfs_get_dev_stats(struct btrfs_root *root,
-			struct btrfs_ioctl_get_dev_stats *stats,
-			int reset_after_read);
+			struct btrfs_ioctl_get_dev_stats *stats);
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);

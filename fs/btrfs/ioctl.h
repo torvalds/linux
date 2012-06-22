@@ -285,9 +285,13 @@ enum btrfs_dev_stat_values {
 	BTRFS_DEV_STAT_VALUES_MAX
 };
 
+/* Reset statistics after reading; needs SYS_ADMIN capability */
+#define	BTRFS_DEV_STATS_RESET		(1ULL << 0)
+
 struct btrfs_ioctl_get_dev_stats {
 	__u64 devid;				/* in */
 	__u64 nr_items;				/* in/out */
+	__u64 flags;				/* in/out */
 
 	/* out values: */
 	__u64 values[BTRFS_DEV_STAT_VALUES_MAX];
@@ -361,7 +365,5 @@ struct btrfs_ioctl_get_dev_stats {
 					struct btrfs_ioctl_ino_path_args)
 #define BTRFS_IOC_GET_DEV_STATS _IOWR(BTRFS_IOCTL_MAGIC, 52, \
 				      struct btrfs_ioctl_get_dev_stats)
-#define BTRFS_IOC_GET_AND_RESET_DEV_STATS _IOWR(BTRFS_IOCTL_MAGIC, 53, \
-					struct btrfs_ioctl_get_dev_stats)
 
 #endif

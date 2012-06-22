@@ -4890,8 +4890,7 @@ static void btrfs_dev_stat_print_on_load(struct btrfs_device *dev)
 }
 
 int btrfs_get_dev_stats(struct btrfs_root *root,
-			struct btrfs_ioctl_get_dev_stats *stats,
-			int reset_after_read)
+			struct btrfs_ioctl_get_dev_stats *stats)
 {
 	struct btrfs_device *dev;
 	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
@@ -4909,7 +4908,7 @@ int btrfs_get_dev_stats(struct btrfs_root *root,
 		printk(KERN_WARNING
 		       "btrfs: get dev_stats failed, not yet valid\n");
 		return -ENODEV;
-	} else if (reset_after_read) {
+	} else if (stats->flags & BTRFS_DEV_STATS_RESET) {
 		for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++) {
 			if (stats->nr_items > i)
 				stats->values[i] =
