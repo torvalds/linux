@@ -1094,11 +1094,7 @@ __tree_mod_log_rewind(struct extent_buffer *eb, u64 time_seq,
 						      tm->generation);
 			break;
 		case MOD_LOG_KEY_ADD:
-			if (tm->slot != n - 1) {
-				o_dst = btrfs_node_key_ptr_offset(tm->slot);
-				o_src = btrfs_node_key_ptr_offset(tm->slot + 1);
-				memmove_extent_buffer(eb, o_dst, o_src, p_size);
-			}
+			/* if a move operation is needed it's in the log */
 			n--;
 			break;
 		case MOD_LOG_MOVE_KEYS:
