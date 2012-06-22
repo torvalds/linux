@@ -770,7 +770,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 }
 
 /* See if this phy is part of a wide port */
-static int sas_ex_join_wide_port(struct domain_device *parent, int phy_id)
+static bool sas_ex_join_wide_port(struct domain_device *parent, int phy_id)
 {
 	struct ex_phy *phy = &parent->ex_dev.ex_phy[phy_id];
 	int i;
@@ -786,11 +786,11 @@ static int sas_ex_join_wide_port(struct domain_device *parent, int phy_id)
 			sas_port_add_phy(ephy->port, phy->phy);
 			phy->port = ephy->port;
 			phy->phy_state = PHY_DEVICE_DISCOVERED;
-			return 0;
+			return true;
 		}
 	}
 
-	return -ENODEV;
+	return false;
 }
 
 static struct domain_device *sas_ex_discover_expander(
@@ -928,8 +928,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 		return res;
 	}
 
-	res = sas_ex_join_wide_port(dev, phy_id);
-	if (!res) {
+	if (sas_ex_join_wide_port(dev, phy_id)) {
 		SAS_DPRINTK("Attaching ex phy%d to wide port %016llx\n",
 			    phy_id, SAS_ADDR(ex_phy->attached_sas_addr));
 		return res;
@@ -974,8 +973,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 			if (SAS_ADDR(ex->ex_phy[i].attached_sas_addr) ==
 			    SAS_ADDR(child->sas_addr)) {
 				ex->ex_phy[i].phy_state= PHY_DEVICE_DISCOVERED;
-				res = sas_ex_join_wide_port(dev, i);
-				if (!res)
+				if (sas_ex_join_wide_port(dev, i))
 					SAS_DPRINTK("Attaching ex phy%d to wide port %016llx\n",
 						    i, SAS_ADDR(ex->ex_phy[i].attached_sas_addr));
 
@@ -1838,32 +1836,20 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 {
 	struct ex_phy *ex_phy = &dev->ex_dev.ex_phy[phy_id];
 	struct domain_device *child;
-	bool found = false;
-	int res, i;
+	int res;
 
 	SAS_DPRINTK("ex %016llx phy%d new device attached\n",
 		    SAS_ADDR(dev->sas_addr), phy_id);
 	res = sas_ex_phy_discover(dev, phy_id);
 	if (res)
-		goto out;
-	/* to support the wide port inserted */
-	for (i = 0; i < dev->ex_dev.num_phys; i++) {
-		struct ex_phy *ex_phy_temp = &dev->ex_dev.ex_phy[i];
-		if (i == phy_id)
-			continue;
-		if (SAS_ADDR(ex_phy_temp->attached_sas_addr) ==
-		    SAS_ADDR(ex_phy->attached_sas_addr)) {
-			found = true;
-			break;
-		}
-	}
-	if (found) {
-		sas_ex_join_wide_port(dev, phy_id);
+		return res;
+
+	if (sas_ex_join_wide_port(dev, phy_id))
 		return 0;
-	}
+
 	res = sas_ex_discover_devices(dev, phy_id);
-	if (!res)
-		goto out;
+	if (res)
+		return res;
 	list_for_each_entry(child, &dev->ex_dev.children, siblings) {
 		if (SAS_ADDR(child->sas_addr) ==
 		    SAS_ADDR(ex_phy->attached_sas_addr)) {
@@ -1873,7 +1859,6 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 			break;
 		}
 	}
-out:
 	return res;
 }
 
