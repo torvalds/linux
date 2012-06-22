@@ -319,7 +319,7 @@ static int omap2430_musb_init(struct musb *musb)
 	 * up through ULPI.  TWL4030-family PMICs include one,
 	 * which needs a driver, drivers aren't always needed.
 	 */
-	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
+	musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 	if (!musb->xceiv) {
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
@@ -416,7 +416,6 @@ static int omap2430_musb_exit(struct musb *musb)
 	del_timer_sync(&musb_idle_timer);
 
 	omap2430_low_level_exit(musb);
-	usb_put_phy(musb->xceiv);
 
 	return 0;
 }
@@ -443,7 +442,7 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 	struct omap2430_glue		*glue;
 	int				ret = -ENOMEM;
 
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&pdev->dev, "failed to allocate glue context\n");
 		goto err0;
@@ -452,7 +451,7 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 	musb = platform_device_alloc("musb-hdrc", -1);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
+		goto err0;
 	}
 
 	musb->dev.parent		= &pdev->dev;
@@ -479,13 +478,13 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err2;
+		goto err1;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err2;
+		goto err1;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -493,16 +492,13 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err2;
+		goto err1;
 	}
 
 	return 0;
 
-err2:
-	platform_device_put(musb);
-
 err1:
-	kfree(glue);
+	platform_device_put(musb);
 
 err0:
 	return ret;
@@ -515,7 +511,6 @@ static int __devexit omap2430_remove(struct platform_device *pdev)
 	cancel_work_sync(&glue->omap_musb_mailbox_work);
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
-	kfree(glue);
 
 	return 0;
 }
