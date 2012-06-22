@@ -41,6 +41,8 @@
 struct omap2430_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	u8			xceiv_event;
+	struct work_struct	omap_musb_mailbox_work;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
@@ -226,22 +228,26 @@ static inline void omap2430_low_level_init(struct musb *musb)
 static int musb_otg_notifications(struct notifier_block *nb,
 		unsigned long event, void *unused)
 {
-	struct musb	*musb = container_of(nb, struct musb, nb);
+	struct musb		*musb = container_of(nb, struct musb, nb);
+	struct device		*dev = musb->controller;
+	struct omap2430_glue	*glue = dev_get_drvdata(dev->parent);
 
-	musb->xceiv_event = event;
-	schedule_work(&musb->otg_notifier_work);
+	glue->xceiv_event = event;
+	schedule_work(&glue->omap_musb_mailbox_work);
 
 	return NOTIFY_OK;
 }
 
-static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
+static void omap_musb_mailbox_work(struct work_struct *data_notifier_work)
 {
-	struct musb *musb = container_of(data_notifier_work, struct musb, otg_notifier_work);
+	struct omap2430_glue *glue = container_of(data_notifier_work,
+		struct omap2430_glue, omap_musb_mailbox_work);
+	struct musb *musb = glue_to_musb(glue);
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *pdata = dev->platform_data;
 	struct omap_musb_board_data *data = pdata->board_data;
 
-	switch (musb->xceiv_event) {
+	switch (glue->xceiv_event) {
 	case USB_EVENT_ID:
 		dev_dbg(musb->controller, "ID GND\n");
 
@@ -297,8 +303,6 @@ static int omap2430_musb_init(struct musb *musb)
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
 	}
-
-	INIT_WORK(&musb->otg_notifier_work, musb_otg_notifier_work);
 
 	status = pm_runtime_get_sync(dev);
 	if (status < 0) {
@@ -388,7 +392,6 @@ static void omap2430_musb_disable(struct musb *musb)
 static int omap2430_musb_exit(struct musb *musb)
 {
 	del_timer_sync(&musb_idle_timer);
-	cancel_work_sync(&musb->otg_notifier_work);
 
 	omap2430_low_level_exit(musb);
 	usb_put_phy(musb->xceiv);
@@ -441,6 +444,8 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, glue);
 
+	INIT_WORK(&glue->omap_musb_mailbox_work, omap_musb_mailbox_work);
+
 	ret = platform_device_add_resources(musb, pdev->resource,
 			pdev->num_resources);
 	if (ret) {
@@ -478,6 +483,7 @@ static int __devexit omap2430_remove(struct platform_device *pdev)
 {
 	struct omap2430_glue		*glue = platform_get_drvdata(pdev);
 
+	cancel_work_sync(&glue->omap_musb_mailbox_work);
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
 	kfree(glue);
