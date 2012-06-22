@@ -2845,26 +2845,44 @@ out:
 
 static int balance_kthread(void *data)
 {
-	struct btrfs_balance_control *bctl =
-			(struct btrfs_balance_control *)data;
-	struct btrfs_fs_info *fs_info = bctl->fs_info;
+	struct btrfs_fs_info *fs_info = data;
 	int ret = 0;
 
 	mutex_lock(&fs_info->volume_mutex);
 	mutex_lock(&fs_info->balance_mutex);
 
-	set_balance_control(bctl);
-
-	if (btrfs_test_opt(fs_info->tree_root, SKIP_BALANCE)) {
-		printk(KERN_INFO "btrfs: force skipping balance\n");
-	} else {
+	if (fs_info->balance_ctl) {
 		printk(KERN_INFO "btrfs: continuing balance\n");
-		ret = btrfs_balance(bctl, NULL);
+		ret = btrfs_balance(fs_info->balance_ctl, NULL);
 	}
 
 	mutex_unlock(&fs_info->balance_mutex);
 	mutex_unlock(&fs_info->volume_mutex);
+
 	return ret;
+}
+
+int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info)
+{
+	struct task_struct *tsk;
+
+	spin_lock(&fs_info->balance_lock);
+	if (!fs_info->balance_ctl) {
+		spin_unlock(&fs_info->balance_lock);
+		return 0;
+	}
+	spin_unlock(&fs_info->balance_lock);
+
+	if (btrfs_test_opt(fs_info->tree_root, SKIP_BALANCE)) {
+		printk(KERN_INFO "btrfs: force skipping balance\n");
+		return 0;
+	}
+
+	tsk = kthread_run(balance_kthread, fs_info, "btrfs-balance");
+	if (IS_ERR(tsk))
+		return PTR_ERR(tsk);
+
+	return 0;
 }
 
 int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
