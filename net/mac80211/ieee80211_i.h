@@ -30,6 +30,7 @@
 #include <net/mac80211.h>
 #include "key.h"
 #include "sta_info.h"
+#include "debug.h"
 
 struct ieee80211_local;
 

@@ -140,6 +140,26 @@ config MAC80211_VERBOSE_DEBUG
 
 	  Do not select this option.
 
+config MAC80211_MLME_DEBUG
+	bool "Verbose managed MLME output"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  debugging messages for the managed-mode MLME. It
+	  should not be selected on production systems as some
+	  of the messages are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_STA_DEBUG
+	bool "Verbose station debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  debugging messages for station addition/removal.
+
+	  Do not select this option.
+
 config MAC80211_HT_DEBUG
 	bool "Verbose HT debugging"
 	depends on MAC80211_DEBUG_MENU
@@ -163,7 +183,7 @@ config MAC80211_IBSS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_PS_DEBUG
+config MAC80211_PS_DEBUG
 	bool "Verbose powersave mode debugging"
 	depends on MAC80211_DEBUG_MENU
 	---help---
@@ -175,7 +195,7 @@ config MAC80211_VERBOSE_PS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MPL_DEBUG
+config MAC80211_MPL_DEBUG
 	bool "Verbose mesh peer link debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -188,7 +208,7 @@ config MAC80211_VERBOSE_MPL_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MPATH_DEBUG
+config MAC80211_MPATH_DEBUG
 	bool "Verbose mesh path debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -201,7 +221,7 @@ config MAC80211_VERBOSE_MPATH_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MHWMP_DEBUG
+config MAC80211_MHWMP_DEBUG
 	bool "Verbose mesh HWMP routing debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -214,7 +234,7 @@ config MAC80211_VERBOSE_MHWMP_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MESH_SYNC_DEBUG
+config MAC80211_MESH_SYNC_DEBUG
 	bool "Verbose mesh mesh synchronization debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -225,7 +245,7 @@ config MAC80211_VERBOSE_MESH_SYNC_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_TDLS_DEBUG
+config MAC80211_TDLS_DEBUG
 	bool "Verbose TDLS debugging"
 	depends on MAC80211_DEBUG_MENU
 	---help---

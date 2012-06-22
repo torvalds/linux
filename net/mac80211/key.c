@@ -139,7 +139,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	}
 
 	if (ret != -ENOSPC && ret != -EOPNOTSUPP)
-		wiphy_err(key->local->hw.wiphy,
+		sdata_err(sdata,
 			  "failed to set key (%d, %pM) to hardware (%d)\n",
 			  key->conf.keyidx,
 			  sta ? sta->sta.addr : bcast_addr, ret);
@@ -186,7 +186,7 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 			  sta ? &sta->sta : NULL, &key->conf);
 
 	if (ret)
-		wiphy_err(key->local->hw.wiphy,
+		sdata_err(sdata,
 			  "failed to remove key (%d, %pM) from hardware (%d)\n",
 			  key->conf.keyidx,
 			  sta ? sta->sta.addr : bcast_addr, ret);

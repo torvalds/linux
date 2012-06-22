@@ -13,13 +13,6 @@
 #include "wme.h"
 #include "mesh.h"
 
-#ifdef CONFIG_MAC80211_VERBOSE_MHWMP_DEBUG
-#define mhwmp_dbg(fmt, args...) \
-	pr_debug("Mesh HWMP (%s): " fmt "\n", sdata->name, ##args)
-#else
-#define mhwmp_dbg(fmt, args...)   do { (void)(0); } while (0)
-#endif
-
 #define TEST_FRAME_LEN	8192
 #define MAX_METRIC	0xffffffff
 #define ARITH_SHIFT	8
@@ -144,19 +137,19 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 
 	switch (action) {
 	case MPATH_PREQ:
-		mhwmp_dbg("sending PREQ to %pM", target);
+		mhwmp_dbg(sdata, "sending PREQ to %pM\n", target);
 		ie_len = 37;
 		pos = skb_put(skb, 2 + ie_len);
 		*pos++ = WLAN_EID_PREQ;
 		break;
 	case MPATH_PREP:
-		mhwmp_dbg("sending PREP to %pM", target);
+		mhwmp_dbg(sdata, "sending PREP to %pM\n", target);
 		ie_len = 31;
 		pos = skb_put(skb, 2 + ie_len);
 		*pos++ = WLAN_EID_PREP;
 		break;
 	case MPATH_RANN:
-		mhwmp_dbg("sending RANN from %pM", orig_addr);
+		mhwmp_dbg(sdata, "sending RANN from %pM\n", orig_addr);
 		ie_len = sizeof(struct ieee80211_rann_ie);
 		pos = skb_put(skb, 2 + ie_len);
 		*pos++ = WLAN_EID_RANN;
@@ -535,10 +528,10 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 	flags = PREQ_IE_FLAGS(preq_elem);
 	root_is_gate = !!(flags & RANN_FLAG_IS_GATE);
 
-	mhwmp_dbg("received PREQ from %pM", orig_addr);
+	mhwmp_dbg(sdata, "received PREQ from %pM\n", orig_addr);
 
 	if (ether_addr_equal(target_addr, sdata->vif.addr)) {
-		mhwmp_dbg("PREQ is for us");
+		mhwmp_dbg(sdata, "PREQ is for us\n");
 		forward = false;
 		reply = true;
 		metric = 0;
@@ -590,7 +583,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		lifetime = PREQ_IE_LIFETIME(preq_elem);
 		ttl = ifmsh->mshcfg.element_ttl;
 		if (ttl != 0) {
-			mhwmp_dbg("replying to the PREQ");
+			mhwmp_dbg(sdata, "replying to the PREQ\n");
 			mesh_path_sel_frame_tx(MPATH_PREP, 0, orig_addr,
 				cpu_to_le32(orig_sn), 0, target_addr,
 				cpu_to_le32(target_sn), mgmt->sa, 0, ttl,
@@ -611,7 +604,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 			ifmsh->mshstats.dropped_frames_ttl++;
 			return;
 		}
-		mhwmp_dbg("forwarding the PREQ from %pM", orig_addr);
+		mhwmp_dbg(sdata, "forwarding the PREQ from %pM\n", orig_addr);
 		--ttl;
 		preq_id = PREQ_IE_PREQ_ID(preq_elem);
 		hopcount = PREQ_IE_HOPCOUNT(preq_elem) + 1;
@@ -658,7 +651,8 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 	u8 next_hop[ETH_ALEN];
 	u32 target_sn, orig_sn, lifetime;
 
-	mhwmp_dbg("received PREP from %pM", PREP_IE_ORIG_ADDR(prep_elem));
+	mhwmp_dbg(sdata, "received PREP from %pM\n",
+		  PREP_IE_ORIG_ADDR(prep_elem));
 
 	orig_addr = PREP_IE_ORIG_ADDR(prep_elem);
 	if (ether_addr_equal(orig_addr, sdata->vif.addr))
@@ -784,8 +778,9 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	if (ether_addr_equal(orig_addr, sdata->vif.addr))
 		return;
 
-	mhwmp_dbg("received RANN from %pM via neighbour %pM (is_gate=%d)",
-			orig_addr, mgmt->sa, root_is_gate);
+	mhwmp_dbg(sdata,
+		  "received RANN from %pM via neighbour %pM (is_gate=%d)\n",
+		  orig_addr, mgmt->sa, root_is_gate);
 
 	rcu_read_lock();
 	sta = sta_info_get(sdata, mgmt->sa);
@@ -818,8 +813,9 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 				  root_path_confirmation_jiffies(sdata)) ||
 	     time_before(jiffies, mpath->last_preq_to_root))) &&
 	     !(mpath->flags & MESH_PATH_FIXED) && (ttl != 0)) {
-		mhwmp_dbg("%s time to refresh root mpath %pM", sdata->name,
-							       orig_addr);
+		mhwmp_dbg(sdata,
+			  "time to refresh root mpath %pM\n",
+			  orig_addr);
 		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 		mpath->last_preq_to_root = jiffies;
 	}
@@ -926,7 +922,7 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 
 	preq_node = kmalloc(sizeof(struct mesh_preq_queue), GFP_ATOMIC);
 	if (!preq_node) {
-		mhwmp_dbg("could not allocate PREQ node");
+		mhwmp_dbg(sdata, "could not allocate PREQ node\n");
 		return;
 	}
 
@@ -935,7 +931,7 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 		spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
 		kfree(preq_node);
 		if (printk_ratelimit())
-			mhwmp_dbg("PREQ node queue full");
+			mhwmp_dbg(sdata, "PREQ node queue full\n");
 		return;
 	}
 
@@ -1183,7 +1179,7 @@ void mesh_path_timer(unsigned long data)
 		if (!mpath->is_gate && mesh_gate_num(sdata) > 0) {
 			ret = mesh_path_send_to_gates(mpath);
 			if (ret)
-				mhwmp_dbg("no gate was reachable");
+				mhwmp_dbg(sdata, "no gate was reachable\n");
 		} else
 			mesh_path_flush_pending(mpath);
 	}
@@ -1221,7 +1217,7 @@ mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
 				0, cpu_to_le32(ifmsh->preq_id++), sdata);
 		break;
 	default:
-		mhwmp_dbg("Proactive mechanism not supported");
+		mhwmp_dbg(sdata, "Proactive mechanism not supported\n");
 		return;
 	}
 }

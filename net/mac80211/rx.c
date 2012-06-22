@@ -632,11 +632,8 @@ static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 					HT_RX_REORDER_BUF_TIMEOUT))
 				goto set_release_timer;
 
-#ifdef CONFIG_MAC80211_HT_DEBUG
-			if (net_ratelimit())
-				wiphy_debug(sdata->local->hw.wiphy,
-					    "release an RX reorder frame due to timeout on earlier frames\n");
-#endif
+			ht_dbg_ratelimited(sdata,
+					   "release an RX reorder frame due to timeout on earlier frames\n");
 			ieee80211_release_reorder_frame(sdata, tid_agg_rx, j);
 
 			/*
@@ -1136,24 +1133,18 @@ static void ap_sta_ps_start(struct sta_info *sta)
 	set_sta_flag(sta, WLAN_STA_PS_STA);
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_SLEEP, &sta->sta);
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	pr_debug("%s: STA %pM aid %d enters power save mode\n",
-		 sdata->name, sta->sta.addr, sta->sta.aid);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+	ps_dbg(sdata, "STA %pM aid %d enters power save mode\n",
+	       sta->sta.addr, sta->sta.aid);
 }
 
 static void ap_sta_ps_end(struct sta_info *sta)
 {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	pr_debug("%s: STA %pM aid %d exits power save mode\n",
-		 sta->sdata->name, sta->sta.addr, sta->sta.aid);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+	ps_dbg(sta->sdata, "STA %pM aid %d exits power save mode\n",
+	       sta->sta.addr, sta->sta.aid);
 
 	if (test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		pr_debug("%s: STA %pM aid %d driver-ps-blocked\n",
-			 sta->sdata->name, sta->sta.addr, sta->sta.aid);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+		ps_dbg(sta->sdata, "STA %pM aid %d driver-ps-blocked\n",
+		       sta->sta.addr, sta->sta.aid);
 		return;
 	}
 
@@ -1383,17 +1374,8 @@ ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
 	if (sdata->fragment_next >= IEEE80211_FRAGMENT_MAX)
 		sdata->fragment_next = 0;
 
-	if (!skb_queue_empty(&entry->skb_list)) {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		struct ieee80211_hdr *hdr =
-			(struct ieee80211_hdr *) entry->skb_list.next->data;
-		pr_debug("%s: RX reassembly removed oldest fragment entry (idx=%d age=%lu seq=%d last_frag=%d addr1=%pM addr2=%pM\n",
-			 sdata->name, idx,
-			 jiffies - entry->first_frag_time, entry->seq,
-			 entry->last_frag, hdr->addr1, hdr->addr2);
-#endif
+	if (!skb_queue_empty(&entry->skb_list))
 		__skb_queue_purge(&entry->skb_list);
-	}
 
 	__skb_queue_tail(&entry->skb_list, *skb); /* no need for locking */
 	*skb = NULL;
@@ -1751,7 +1733,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 			 */
 			xmit_skb = skb_copy(skb, GFP_ATOMIC);
 			if (!xmit_skb)
-				net_dbg_ratelimited("%s: failed to clone multicast frame\n",
+				net_info_ratelimited("%s: failed to clone multicast frame\n",
 						    dev->name);
 		} else {
 			dsta = sta_info_get(sdata, skb->data);
@@ -1955,7 +1937,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 	fwd_skb = skb_copy(skb, GFP_ATOMIC);
 	if (!fwd_skb) {
-		net_dbg_ratelimited("%s: failed to clone mesh frame\n",
+		net_info_ratelimited("%s: failed to clone mesh frame\n",
 				    sdata->name);
 		goto out;
 	}
