@@ -233,6 +233,60 @@ void omap44xx_prm_restore_irqen(u32 *saved_mask)
 				 OMAP4_PRM_IRQENABLE_MPU_2_OFFSET);
 }
 
+/**
+ * omap44xx_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
+ *
+ * Clear any previously-latched I/O wakeup events and ensure that the
+ * I/O wakeup gates are aligned with the current mux settings.  Works
+ * by asserting WUCLKIN, waiting for WUCLKOUT to be asserted, and then
+ * deasserting WUCLKIN and waiting for WUCLKOUT to be deasserted.
+ * No return value. XXX Are the final two steps necessary?
+ */
+void omap44xx_prm_reconfigure_io_chain(void)
+{
+	int i = 0;
+	u32 v;
+
+	v = omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+				    OMAP4_PRM_IO_PMCTRL_OFFSET);
+
+	/* Enable GLOBAL_WUEN */
+	if (!(v & OMAP4430_GLOBAL_WUEN_MASK))
+		omap4_prm_rmw_inst_reg_bits(OMAP4430_GLOBAL_WUEN_MASK,
+					    OMAP4430_GLOBAL_WUEN_MASK,
+					    OMAP4430_PRM_DEVICE_INST,
+					    OMAP4_PRM_IO_PMCTRL_OFFSET);
+
+	/* Trigger WUCLKIN enable */
+	omap4_prm_rmw_inst_reg_bits(OMAP4430_WUCLK_CTRL_MASK,
+				    OMAP4430_WUCLK_CTRL_MASK,
+				    OMAP4430_PRM_DEVICE_INST,
+				    OMAP4_PRM_IO_PMCTRL_OFFSET);
+	omap_test_timeout(
+		(((omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+					   OMAP4_PRM_IO_PMCTRL_OFFSET) &
+		   OMAP4430_WUCLK_STATUS_MASK) >>
+		  OMAP4430_WUCLK_STATUS_SHIFT) == 1),
+		MAX_IOPAD_LATCH_TIME, i);
+	if (i == MAX_IOPAD_LATCH_TIME)
+		pr_warn("PRM: I/O chain clock line assertion timed out\n");
+
+	/* Trigger WUCLKIN disable */
+	omap4_prm_rmw_inst_reg_bits(OMAP4430_WUCLK_CTRL_MASK, 0x0,
+				    OMAP4430_PRM_DEVICE_INST,
+				    OMAP4_PRM_IO_PMCTRL_OFFSET);
+	omap_test_timeout(
+		(((omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+					   OMAP4_PRM_IO_PMCTRL_OFFSET) &
+		   OMAP4430_WUCLK_STATUS_MASK) >>
+		  OMAP4430_WUCLK_STATUS_SHIFT) == 0),
+		MAX_IOPAD_LATCH_TIME, i);
+	if (i == MAX_IOPAD_LATCH_TIME)
+		pr_warn("PRM: I/O chain clock line deassertion timed out\n");
+
+	return;
+}
+
 static int __init omap4xxx_prcm_init(void)
 {
 	if (cpu_is_omap44xx())
