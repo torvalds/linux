@@ -45,7 +45,7 @@ void nfc_llcp_sock_unlink(struct llcp_sock_list *l, struct sock *sk)
 	write_unlock(&l->lock);
 }
 
-static void nfc_llcp_socket_release(struct nfc_llcp_local *local)
+static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 {
 	struct sock *sk;
 	struct hlist_node *node, *tmp;
@@ -78,6 +78,11 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local)
 
 				sock_orphan(accept_sk);
 			}
+
+			if (listen == true) {
+				release_sock(sk);
+				continue;
+			}
 		}
 
 		sk->sk_state = LLCP_CLOSED;
@@ -106,7 +111,7 @@ static void local_release(struct kref *ref)
 	local = container_of(ref, struct nfc_llcp_local, ref);
 
 	list_del(&local->list);
-	nfc_llcp_socket_release(local);
+	nfc_llcp_socket_release(local, false);
 	del_timer_sync(&local->link_timer);
 	skb_queue_purge(&local->tx_queue);
 	destroy_workqueue(local->tx_wq);
@@ -991,7 +996,7 @@ void nfc_llcp_mac_is_down(struct nfc_dev *dev)
 	nfc_llcp_clear_sdp(local);
 
 	/* Close and purge all existing sockets */
-	nfc_llcp_socket_release(local);
+	nfc_llcp_socket_release(local, true);
 }
 
 void nfc_llcp_mac_is_up(struct nfc_dev *dev, u32 target_idx,
