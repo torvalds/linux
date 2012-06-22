@@ -83,7 +83,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 			len += 2;
 		}
 	}
-	/* Store a timestampe at an 8 byte boundary */
+	/* Store the timestamp at an 8 byte aligned offset */
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((phys_addr_t)data + ALIGN(len, sizeof(s64)))
 			= iio_get_time_ns();
