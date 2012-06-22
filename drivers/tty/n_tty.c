@@ -1432,6 +1432,12 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	 */
 	if (tty->receive_room < TTY_THRESHOLD_THROTTLE)
 		tty_throttle(tty);
+
+        /* FIXME: there is a tiny race here if the receive room check runs
+           before the other work executes and empties the buffer (upping
+           the receiving room and unthrottling. We then throttle and get
+           stuck. This has been observed and traced down by Vincent Pillet/
+           We need to address this when we sort out out the rx path locking */
 }
 
 int is_ignored(int sig)
