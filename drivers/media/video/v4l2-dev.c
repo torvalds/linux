@@ -348,20 +348,14 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int ret = -ENODEV;
 
 	if (vdev->fops->unlocked_ioctl) {
-		bool locked = false;
+		struct mutex *lock = v4l2_ioctl_get_lock(vdev, cmd);
 
-		if (vdev->lock) {
-			/* always lock unless the cmd is marked as "don't use lock" */
-			locked = !v4l2_is_known_ioctl(cmd) ||
-				 !test_bit(_IOC_NR(cmd), vdev->disable_locking);
-
-			if (locked && mutex_lock_interruptible(vdev->lock))
-				return -ERESTARTSYS;
-		}
+		if (lock && mutex_lock_interruptible(lock))
+			return -ERESTARTSYS;
 		if (video_is_registered(vdev))
 			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
-		if (locked)
-			mutex_unlock(vdev->lock);
+		if (lock)
+			mutex_unlock(lock);
 	} else if (vdev->fops->ioctl) {
 		/* This code path is a replacement for the BKL. It is a major
 		 * hack but it will have to do for those drivers that are not

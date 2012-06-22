@@ -244,12 +244,23 @@ struct vb2_ops {
 	void (*buf_queue)(struct vb2_buffer *vb);
 };
 
+struct v4l2_fh;
+
 /**
  * struct vb2_queue - a videobuf queue
  *
  * @type:	queue type (see V4L2_BUF_TYPE_* in linux/videodev2.h
  * @io_modes:	supported io methods (see vb2_io_modes enum)
  * @io_flags:	additional io flags (see vb2_fileio_flags enum)
+ * @lock:	pointer to a mutex that protects the vb2_queue struct. The
+ *		driver can set this to a mutex to let the v4l2 core serialize
+ *		the queuing ioctls. If the driver wants to handle locking
+ *		itself, then this should be set to NULL. This lock is not used
+ *		by the videobuf2 core API.
+ * @owner:	The filehandle that 'owns' the buffers, i.e. the filehandle
+ *		that called reqbufs, create_buffers or started fileio.
+ *		This field is not used by the videobuf2 core API, but it allows
+ *		drivers to easily associate an owner filehandle with the queue.
  * @ops:	driver-specific callbacks
  * @mem_ops:	memory allocator specific callbacks
  * @drv_priv:	driver private data
@@ -273,6 +284,8 @@ struct vb2_queue {
 	enum v4l2_buf_type		type;
 	unsigned int			io_modes;
 	unsigned int			io_flags;
+	struct mutex			*lock;
+	struct v4l2_fh			*owner;
 
 	const struct vb2_ops		*ops;
 	const struct vb2_mem_ops	*mem_ops;
