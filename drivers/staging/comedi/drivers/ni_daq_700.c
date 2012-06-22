@@ -210,23 +210,9 @@ failed:
 
 }
 
-struct local_info_t {
-	struct pcmcia_device *link;
-	struct bus_operations *bus;
-};
-
 static int dio700_cs_attach(struct pcmcia_device *link)
 {
-	struct local_info_t *local;
-
 	dev_dbg(&link->dev, "%s\n", __func__);
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-	local->link = link;
-	link->priv = local;
 
 	pcmcia_cur_dev = link;
 
@@ -238,9 +224,6 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 static void dio700_cs_detach(struct pcmcia_device *link)
 {
 	dio700_release(link);
-
-	/* This points to the parent struct local_info_t struct */
-	kfree(link->priv);
 }
 
 static int dio700_cs_suspend(struct pcmcia_device *link)
