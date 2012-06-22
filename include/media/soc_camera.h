@@ -86,6 +86,8 @@ struct soc_camera_host_ops {
 	int (*cropcap)(struct soc_camera_device *, struct v4l2_cropcap *);
 	int (*get_crop)(struct soc_camera_device *, struct v4l2_crop *);
 	int (*set_crop)(struct soc_camera_device *, struct v4l2_crop *);
+	int (*get_selection)(struct soc_camera_device *, struct v4l2_selection *);
+	int (*set_selection)(struct soc_camera_device *, struct v4l2_selection *);
 	/*
 	 * The difference to .set_crop() is, that .set_livecrop is not allowed
 	 * to change the output sizes

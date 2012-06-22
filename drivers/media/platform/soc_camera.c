@@ -924,6 +924,65 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	return ret;
 }
 
+static int soc_camera_g_selection(struct file *file, void *fh,
+				  struct v4l2_selection *s)
+{
+	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
+	/* With a wrong type no need to try to fall back to cropping */
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (!ici->ops->get_selection)
+		return -ENOTTY;
+
+	return ici->ops->get_selection(icd, s);
+}
+
+static int soc_camera_s_selection(struct file *file, void *fh,
+				  struct v4l2_selection *s)
+{
+	struct soc_camera_device *icd = file->private_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	int ret;
+
+	/* In all these cases cropping emulation will not help */
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+	    (s->target != V4L2_SEL_TGT_COMPOSE_ACTIVE &&
+	     s->target != V4L2_SEL_TGT_CROP_ACTIVE))
+		return -EINVAL;
+
+	if (s->target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+		/* No output size change during a running capture! */
+		if (is_streaming(ici, icd) &&
+		    (icd->user_width != s->r.width ||
+		     icd->user_height != s->r.height))
+			return -EBUSY;
+
+		/*
+		 * Only one user is allowed to change the output format, touch
+		 * buffers, start / stop streaming, poll for data
+		 */
+		if (icd->streamer && icd->streamer != file)
+			return -EBUSY;
+	}
+
+	if (!ici->ops->set_selection)
+		return -ENOTTY;
+
+	ret = ici->ops->set_selection(icd, s);
+	if (!ret &&
+	    s->target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+		icd->user_width = s->r.width;
+		icd->user_height = s->r.height;
+		if (!icd->streamer)
+			icd->streamer = file;
+	}
+
+	return ret;
+}
+
 static int soc_camera_g_parm(struct file *file, void *fh,
 			     struct v4l2_streamparm *a)
 {
@@ -1407,6 +1466,8 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_cropcap		 = soc_camera_cropcap,
 	.vidioc_g_crop		 = soc_camera_g_crop,
 	.vidioc_s_crop		 = soc_camera_s_crop,
+	.vidioc_g_selection	 = soc_camera_g_selection,
+	.vidioc_s_selection	 = soc_camera_s_selection,
 	.vidioc_g_parm		 = soc_camera_g_parm,
 	.vidioc_s_parm		 = soc_camera_s_parm,
 	.vidioc_g_chip_ident     = soc_camera_g_chip_ident,
