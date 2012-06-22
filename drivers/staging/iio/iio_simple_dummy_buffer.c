@@ -75,9 +75,9 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		for (i = 0, j = 0;
 		     i < bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
-		     i++) {
+		     i++, j++) {
 			j = find_next_bit(buffer->scan_mask,
-					  indio_dev->masklength, j + 1);
+					  indio_dev->masklength, j);
 			/* random access read from the 'device' */
 			data[i] = fakedata[j];
 			len += 2;
