@@ -332,10 +332,28 @@ void omap3xxx_prm_reconfigure_io_chain(void)
 	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST);
 }
 
+/**
+ * omap3xxx_prm_enable_io_wakeup - enable wakeup events from I/O wakeup latches
+ *
+ * Activates the I/O wakeup event latches and allows events logged by
+ * those latches to signal a wakeup event to the PRCM.  For I/O
+ * wakeups to occur, WAKEUPENABLE bits must be set in the pad mux
+ * registers, and omap3xxx_prm_reconfigure_io_chain() must be called.
+ * No return value.
+ */
+static void __init omap3xxx_prm_enable_io_wakeup(void)
+{
+	if (omap3_has_io_wakeup())
+		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
+					   PM_WKEN);
+}
+
 static int __init omap3xxx_prcm_init(void)
 {
-	if (cpu_is_omap34xx())
+	if (cpu_is_omap34xx()) {
+		omap3xxx_prm_enable_io_wakeup();
 		return omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
+	}
 	return 0;
 }
 subsys_initcall(omap3xxx_prcm_init);
