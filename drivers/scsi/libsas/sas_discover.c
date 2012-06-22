@@ -24,6 +24,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/async.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_eh.h>
 #include "sas_internal.h"
@@ -180,16 +181,18 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 
-	if (i->dft->lldd_dev_found) {
-		res = i->dft->lldd_dev_found(dev);
-		if (res) {
-			printk("sas: driver on pcidev %s cannot handle "
-			       "device %llx, error:%d\n",
-			       dev_name(sas_ha->dev),
-			       SAS_ADDR(dev->sas_addr), res);
-		}
-		kref_get(&dev->kref);
+	if (!i->dft->lldd_dev_found)
+		return 0;
+
+	res = i->dft->lldd_dev_found(dev);
+	if (res) {
+		printk("sas: driver on pcidev %s cannot handle "
+		       "device %llx, error:%d\n",
+		       dev_name(sas_ha->dev),
+		       SAS_ADDR(dev->sas_addr), res);
 	}
+	set_bit(SAS_DEV_FOUND, &dev->state);
+	kref_get(&dev->kref);
 	return res;
 }
 
@@ -200,7 +203,10 @@ void sas_notify_lldd_dev_gone(struct domain_device *dev)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 
-	if (i->dft->lldd_dev_gone) {
+	if (!i->dft->lldd_dev_gone)
+		return;
+
+	if (test_and_clear_bit(SAS_DEV_FOUND, &dev->state)) {
 		i->dft->lldd_dev_gone(dev);
 		sas_put_device(dev);
 	}
@@ -232,6 +238,47 @@ static void sas_probe_devices(struct work_struct *work)
 		else
 			list_del_init(&dev->disco_list_node);
 	}
+}
+
+static void sas_suspend_devices(struct work_struct *work)
+{
+	struct asd_sas_phy *phy;
+	struct domain_device *dev;
+	struct sas_discovery_event *ev = to_sas_discovery_event(work);
+	struct asd_sas_port *port = ev->port;
+	struct Scsi_Host *shost = port->ha->core.shost;
+	struct sas_internal *si = to_sas_internal(shost->transportt);
+
+	clear_bit(DISCE_SUSPEND, &port->disc.pending);
+
+	sas_suspend_sata(port);
+
+	/* lldd is free to forget the domain_device across the
+	 * suspension, we force the issue here to keep the reference
+	 * counts aligned
+	 */
+	list_for_each_entry(dev, &port->dev_list, dev_list_node)
+		sas_notify_lldd_dev_gone(dev);
+
+	/* we are suspending, so we know events are disabled and
+	 * phy_list is not being mutated
+	 */
+	list_for_each_entry(phy, &port->phy_list, port_phy_el) {
+		if (si->dft->lldd_port_formed)
+			si->dft->lldd_port_deformed(phy);
+		phy->suspended = 1;
+		port->suspended = 1;
+	}
+}
+
+static void sas_resume_devices(struct work_struct *work)
+{
+	struct sas_discovery_event *ev = to_sas_discovery_event(work);
+	struct asd_sas_port *port = ev->port;
+
+	clear_bit(DISCE_RESUME, &port->disc.pending);
+
+	sas_resume_sata(port);
 }
 
 /**
@@ -530,6 +577,8 @@ void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port)
 		[DISCE_DISCOVER_DOMAIN] = sas_discover_domain,
 		[DISCE_REVALIDATE_DOMAIN] = sas_revalidate_domain,
 		[DISCE_PROBE] = sas_probe_devices,
+		[DISCE_SUSPEND] = sas_suspend_devices,
+		[DISCE_RESUME] = sas_resume_devices,
 		[DISCE_DESTRUCT] = sas_destruct_devices,
 	};
 
