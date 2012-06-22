@@ -251,7 +251,6 @@ static enum omap_musb_vbus_id_status
 {
 	int	status;
 	enum omap_musb_vbus_id_status linkstat = OMAP_MUSB_UNKNOWN;
-	struct usb_otg *otg = twl->phy.otg;
 
 	twl->vbus_supplied = false;
 
@@ -291,13 +290,6 @@ static enum omap_musb_vbus_id_status
 
 	spin_lock_irq(&twl->lock);
 	twl->linkstat = linkstat;
-	if (linkstat == OMAP_MUSB_ID_GROUND) {
-		otg->default_a = true;
-		twl->phy.state = OTG_STATE_A_IDLE;
-	} else {
-		otg->default_a = false;
-		twl->phy.state = OTG_STATE_B_IDLE;
-	}
 	spin_unlock_irq(&twl->lock);
 
 	return linkstat;

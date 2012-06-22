@@ -249,11 +249,14 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *pdata = dev->platform_data;
 	struct omap_musb_board_data *data = pdata->board_data;
+	struct usb_otg *otg = musb->xceiv->otg;
 
 	switch (glue->status) {
 	case OMAP_MUSB_ID_GROUND:
 		dev_dbg(dev, "ID GND\n");
 
+		otg->default_a = true;
+		musb->xceiv->state = OTG_STATE_A_IDLE;
 		musb->xceiv->last_event = USB_EVENT_ID;
 		if (!is_otg_enabled(musb) || musb->gadget_driver) {
 			pm_runtime_get_sync(dev);
@@ -265,6 +268,8 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 	case OMAP_MUSB_VBUS_VALID:
 		dev_dbg(dev, "VBUS Connect\n");
 
+		otg->default_a = false;
+		musb->xceiv->state = OTG_STATE_B_IDLE;
 		musb->xceiv->last_event = USB_EVENT_VBUS;
 		if (musb->gadget_driver)
 			pm_runtime_get_sync(dev);
