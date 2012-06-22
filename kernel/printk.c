@@ -1040,6 +1040,7 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 	/* Clear ring buffer */
 	case SYSLOG_ACTION_CLEAR:
 		syslog_print_all(NULL, 0, true);
+		break;
 	/* Disable logging to console */
 	case SYSLOG_ACTION_CONSOLE_OFF:
 		if (saved_console_loglevel == -1)
