@@ -356,7 +356,14 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
-	ret = regmap_add_irq_chip(palmas->regmap[1], palmas->irq,
+	/* Change IRQ into clear on read mode for efficiency */
+	slave = PALMAS_BASE_TO_SLAVE(PALMAS_INTERRUPT_BASE);
+	addr = PALMAS_BASE_TO_REG(PALMAS_INTERRUPT_BASE, PALMAS_INT_CTRL);
+	reg = PALMAS_INT_CTRL_INT_CLEAR;
+
+	regmap_write(palmas->regmap[slave], addr, reg);
+
+	ret = regmap_add_irq_chip(palmas->regmap[slave], palmas->irq,
 			IRQF_ONESHOT | IRQF_TRIGGER_LOW, -1, &palmas_irq_chip,
 			&palmas->irq_data);
 	if (ret < 0)
