@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 
 #include <linux/usb/otg.h>
 
@@ -33,6 +34,48 @@ static struct usb_phy *__usb_find_phy(struct list_head *list,
 
 	return ERR_PTR(-ENODEV);
 }
+
+static void devm_usb_phy_release(struct device *dev, void *res)
+{
+	struct usb_phy *phy = *(struct usb_phy **)res;
+
+	usb_put_phy(phy);
+}
+
+static int devm_usb_phy_match(struct device *dev, void *res, void *match_data)
+{
+	return res == match_data;
+}
+
+/**
+ * devm_usb_get_phy - find the USB PHY
+ * @dev - device that requests this phy
+ * @type - the type of the phy the controller requires
+ *
+ * Gets the phy using usb_get_phy(), and associates a device with it using
+ * devres. On driver detach, release function is invoked on the devres data,
+ * then, devres data is freed.
+ *
+ * For use by USB host and peripheral drivers.
+ */
+struct usb_phy *devm_usb_get_phy(struct device *dev, enum usb_phy_type type)
+{
+	struct usb_phy **ptr, *phy;
+
+	ptr = devres_alloc(devm_usb_phy_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	phy = usb_get_phy(type);
+	if (phy) {
+		*ptr = phy;
+		devres_add(dev, ptr);
+	} else
+		devres_free(ptr);
+
+	return phy;
+}
+EXPORT_SYMBOL(devm_usb_get_phy);
 
 /**
  * usb_get_phy - find the USB PHY
@@ -65,6 +108,25 @@ struct usb_phy *usb_get_phy(enum usb_phy_type type)
 	return phy;
 }
 EXPORT_SYMBOL(usb_get_phy);
+
+/**
+ * devm_usb_put_phy - release the USB PHY
+ * @dev - device that wants to release this phy
+ * @phy - the phy returned by devm_usb_get_phy()
+ *
+ * destroys the devres associated with this phy and invokes usb_put_phy
+ * to release the phy.
+ *
+ * For use by USB host and peripheral drivers.
+ */
+void devm_usb_put_phy(struct device *dev, struct usb_phy *phy)
+{
+	int r;
+
+	r = devres_destroy(dev, devm_usb_phy_release, devm_usb_phy_match, phy);
+	dev_WARN_ONCE(dev, r, "couldn't find PHY resource\n");
+}
+EXPORT_SYMBOL(devm_usb_put_phy);
 
 /**
  * usb_put_phy - release the USB PHY

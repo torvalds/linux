@@ -185,7 +185,10 @@ usb_phy_shutdown(struct usb_phy *x)
 /* for usb host and peripheral controller drivers */
 #ifdef CONFIG_USB_OTG_UTILS
 extern struct usb_phy *usb_get_phy(enum usb_phy_type type);
+extern struct usb_phy *devm_usb_get_phy(struct device *dev,
+	enum usb_phy_type type);
 extern void usb_put_phy(struct usb_phy *);
+extern void devm_usb_put_phy(struct device *dev, struct usb_phy *x);
 extern const char *otg_state_string(enum usb_otg_state state);
 #else
 static inline struct usb_phy *usb_get_phy(enum usb_phy_type type)
@@ -193,7 +196,17 @@ static inline struct usb_phy *usb_get_phy(enum usb_phy_type type)
 	return NULL;
 }
 
+static inline struct usb_phy *devm_usb_get_phy(struct device *dev,
+	enum usb_phy_type type)
+{
+	return NULL;
+}
+
 static inline void usb_put_phy(struct usb_phy *x)
+{
+}
+
+static inline void devm_usb_put_phy(struct device *dev, struct usb_phy *x)
 {
 }
 
