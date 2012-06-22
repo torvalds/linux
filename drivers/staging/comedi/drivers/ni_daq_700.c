@@ -306,49 +306,11 @@ static void dio700_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 };
 
-static void dio700_config(struct pcmcia_device *link);
-static void dio700_release(struct pcmcia_device *link);
-static int dio700_cs_suspend(struct pcmcia_device *p_dev);
-static int dio700_cs_resume(struct pcmcia_device *p_dev);
-
-static int dio700_cs_attach(struct pcmcia_device *);
-static void dio700_cs_detach(struct pcmcia_device *);
-
-struct local_info_t {
-	struct pcmcia_device *link;
-	int stop;
-	struct bus_operations *bus;
-};
-
-static int dio700_cs_attach(struct pcmcia_device *link)
+static void dio700_release(struct pcmcia_device *link)
 {
-	struct local_info_t *local;
+	dev_dbg(&link->dev, "dio700_release\n");
 
-	printk(KERN_INFO "ni_daq_700:  cs-attach\n");
-
-	dev_dbg(&link->dev, "dio700_cs_attach()\n");
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-	local->link = link;
-	link->priv = local;
-
-	pcmcia_cur_dev = link;
-
-	dio700_config(link);
-
-	return 0;
-}
-
-static void dio700_cs_detach(struct pcmcia_device *link)
-{
-	((struct local_info_t *)link->priv)->stop = 1;
-	dio700_release(link);
-
-	/* This points to the parent struct local_info_t struct */
-	kfree(link->priv);
+	pcmcia_disable_device(link);
 }
 
 static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
@@ -392,11 +354,41 @@ failed:
 
 }
 
-static void dio700_release(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "dio700_release\n");
+struct local_info_t {
+	struct pcmcia_device *link;
+	int stop;
+	struct bus_operations *bus;
+};
 
-	pcmcia_disable_device(link);
+static int dio700_cs_attach(struct pcmcia_device *link)
+{
+	struct local_info_t *local;
+
+	printk(KERN_INFO "ni_daq_700:  cs-attach\n");
+
+	dev_dbg(&link->dev, "dio700_cs_attach()\n");
+
+	/* Allocate space for private device-specific data */
+	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
+	local->link = link;
+	link->priv = local;
+
+	pcmcia_cur_dev = link;
+
+	dio700_config(link);
+
+	return 0;
+}
+
+static void dio700_cs_detach(struct pcmcia_device *link)
+{
+	((struct local_info_t *)link->priv)->stop = 1;
+	dio700_release(link);
+
+	/* This points to the parent struct local_info_t struct */
+	kfree(link->priv);
 }
 
 static int dio700_cs_suspend(struct pcmcia_device *link)
