@@ -305,11 +305,15 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (is_dummy || !wlvif)
 		rate_idx = 0;
 	else if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
-		/* if the packets are destined for AP (have a STA entry)
-		   send them with AP rate policies, otherwise use default
-		   basic rates */
+		/*
+		 * if the packets are destined for AP (have a STA entry)
+		 * send them with AP rate policies (EAPOLs are an exception),
+		 * otherwise use default basic rates
+		 */
 		if (control->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
 			rate_idx = wlvif->sta.p2p_rate_idx;
+		else if (skb->protocol == cpu_to_be16(ETH_P_PAE))
+			rate_idx = wlvif->sta.basic_rate_idx;
 		else if (control->control.sta)
 			rate_idx = wlvif->sta.ap_rate_idx;
 		else

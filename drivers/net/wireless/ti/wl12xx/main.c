@@ -246,6 +246,7 @@ static struct wlcore_conf wl12xx_conf = {
 		.forced_ps                   = false,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
+		.sta_sleep_auth              = WL1271_PSM_ILLEGAL,
 	},
 	.itrim = {
 		.enable = false,
@@ -1448,10 +1449,8 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl->hw_min_ht_rate = WL12XX_CONF_HW_RXTX_RATE_MCS0;
 	wl->fw_status_priv_len = 0;
 	wl->stats.fw_stats_len = sizeof(struct wl12xx_acx_statistics);
-	memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ], &wl12xx_ht_cap,
-	       sizeof(wl12xx_ht_cap));
-	memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ], &wl12xx_ht_cap,
-	       sizeof(wl12xx_ht_cap));
+	wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ, &wl12xx_ht_cap);
+	wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ, &wl12xx_ht_cap);
 	wl12xx_conf_init(wl);
 
 	if (!fref_param) {

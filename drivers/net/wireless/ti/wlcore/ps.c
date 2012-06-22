@@ -76,7 +76,7 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	struct wl12xx_vif *wlvif;
 	u32 timeout;
 
-	if (wl->quirks & WLCORE_QUIRK_NO_ELP)
+	if (wl->sleep_auth != WL1271_PSM_ELP)
 		return;
 
 	/* we shouldn't get consecutive sleep requests */

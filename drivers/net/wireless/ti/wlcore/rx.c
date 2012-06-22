@@ -127,7 +127,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	}
 
 	if (rx_align == WLCORE_RX_BUF_UNALIGNED)
-		reserved = NET_IP_ALIGN;
+		reserved = RX_BUF_ALIGN;
 
 	/* the data read starts with the descriptor */
 	desc = (struct wl1271_rx_descriptor *) data;
@@ -175,7 +175,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	 */
 	memcpy(buf, data + sizeof(*desc), pkt_data_len);
 	if (rx_align == WLCORE_RX_BUF_PADDED)
-		skb_pull(skb, NET_IP_ALIGN);
+		skb_pull(skb, RX_BUF_ALIGN);
 
 	*hlid = desc->hlid;
 

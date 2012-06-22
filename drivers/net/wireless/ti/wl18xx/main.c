@@ -43,10 +43,11 @@
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
-static char *ht_mode_param = "wide";
+static char *ht_mode_param = "default";
 static char *board_type_param = "hdk";
 static bool checksum_param = false;
 static bool enable_11a_param = true;
+static int num_rx_desc_param = -1;
 
 /* phy paramters */
 static int dc2dc_param = -1;
@@ -372,6 +373,7 @@ static struct wlcore_conf wl18xx_conf = {
 		.forced_ps                   = false,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
+		.sta_sleep_auth              = WL1271_PSM_ILLEGAL,
 	},
 	.itrim = {
 		.enable = false,
@@ -606,8 +608,8 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		wl->plt_fw_name = WL18XX_FW_NAME;
 		wl->quirks |= WLCORE_QUIRK_NO_ELP |
 			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
+			      WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_TX_PAD_LAST_FRAME;
-
 		break;
 	case CHIP_ID_185x_PG10:
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (185x PG10)",
@@ -1021,8 +1023,7 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 	}
 
 	if (fw->size != WL18XX_CONF_SIZE) {
-		wl1271_error("configuration binary file size is wrong, "
-			     "expected %ld got %zd",
+		wl1271_error("configuration binary file size is wrong, expected %zu got %zu",
 			     WL18XX_CONF_SIZE, fw->size);
 		ret = -EINVAL;
 		goto out;
@@ -1214,10 +1215,24 @@ static struct wlcore_ops wl18xx_ops = {
 	.pre_pkt_send	= wl18xx_pre_pkt_send,
 };
 
-/* HT cap appropriate for wide channels */
-static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap = {
+/* HT cap appropriate for wide channels in 2Ghz */
+static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap_2ghz = {
 	.cap = IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 |
 	       IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_DSSSCCK40,
+	.ht_supported = true,
+	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
+	.mcs = {
+		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		.rx_highest = cpu_to_le16(150),
+		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+		},
+};
+
+/* HT cap appropriate for wide channels in 5Ghz */
+static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap_5ghz = {
+	.cap = IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 |
+	       IEEE80211_HT_CAP_SUP_WIDTH_20_40,
 	.ht_supported = true,
 	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
@@ -1254,18 +1269,6 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 		},
 };
 
-static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_5ghz = {
-	.cap = IEEE80211_HT_CAP_SGI_20,
-	.ht_supported = true,
-	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
-	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
-	.mcs = {
-		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		.rx_highest = cpu_to_le16(72),
-		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
-		},
-};
-
 static int __devinit wl18xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -1286,7 +1289,7 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->ptable = wl18xx_ptable;
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = 32;
-	wl->num_rx_desc = 16;
+	wl->num_rx_desc = 32;
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL18XX_CONF_HW_RXTX_RATE_MCS0;
@@ -1294,32 +1297,8 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->stats.fw_stats_len = sizeof(struct wl18xx_acx_statistics);
 	wl->static_data_priv_len = sizeof(struct wl18xx_static_data_priv);
 
-	if (!strcmp(ht_mode_param, "wide")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_siso40_ht_cap,
-		       sizeof(wl18xx_siso40_ht_cap));
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_siso40_ht_cap,
-		       sizeof(wl18xx_siso40_ht_cap));
-	} else if (!strcmp(ht_mode_param, "mimo")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_mimo_ht_cap_2ghz,
-		       sizeof(wl18xx_mimo_ht_cap_2ghz));
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_mimo_ht_cap_5ghz,
-		       sizeof(wl18xx_mimo_ht_cap_5ghz));
-	} else if (!strcmp(ht_mode_param, "siso20")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_siso20_ht_cap,
-		       sizeof(wl18xx_siso20_ht_cap));
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_siso20_ht_cap,
-		       sizeof(wl18xx_siso20_ht_cap));
-	} else {
-		wl1271_error("invalid ht_mode '%s'", ht_mode_param);
-		ret = -EINVAL;
-		goto out_free;
-	}
+	if (num_rx_desc_param != -1)
+		wl->num_rx_desc = num_rx_desc_param;
 
 	ret = wl18xx_conf_init(wl, &pdev->dev);
 	if (ret < 0)
@@ -1366,6 +1345,37 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	if (dc2dc_param != -1)
 		priv->conf.phy.external_pa_dc2dc = dc2dc_param;
 
+	if (!strcmp(ht_mode_param, "default")) {
+		/*
+		 * Only support mimo with multiple antennas. Fall back to
+		 * siso20.
+		 */
+		if (priv->conf.phy.number_of_assembled_ant2_4 >= 2)
+			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+					  &wl18xx_mimo_ht_cap_2ghz);
+		else
+			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+					  &wl18xx_siso20_ht_cap);
+
+		/* 5Ghz is always wide */
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso40_ht_cap_5ghz);
+	} else if (!strcmp(ht_mode_param, "wide")) {
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+				  &wl18xx_siso40_ht_cap_2ghz);
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso40_ht_cap_5ghz);
+	} else if (!strcmp(ht_mode_param, "siso20")) {
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+				  &wl18xx_siso20_ht_cap);
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso20_ht_cap);
+	} else {
+		wl1271_error("invalid ht_mode '%s'", ht_mode_param);
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	if (!checksum_param) {
 		wl18xx_ops.set_rx_csum = NULL;
 		wl18xx_ops.init_vif = NULL;
@@ -1410,7 +1420,7 @@ static void __exit wl18xx_exit(void)
 module_exit(wl18xx_exit);
 
 module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
-MODULE_PARM_DESC(ht_mode, "Force HT mode: wide (default), mimo or siso20");
+MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or siso20");
 
 module_param_named(board_type, board_type_param, charp, S_IRUSR);
 MODULE_PARM_DESC(board_type, "Board type: fpga, hdk (default), evb, com8 or "
@@ -1457,6 +1467,11 @@ module_param_named(pwr_limit_reference_11_abg,
 		   pwr_limit_reference_11_abg_param, int, S_IRUSR);
 MODULE_PARM_DESC(pwr_limit_reference_11_abg, "Power limit reference: u8 "
 		 "(default is 0xc8)");
+
+module_param_named(num_rx_desc,
+		   num_rx_desc_param, int, S_IRUSR);
+MODULE_PARM_DESC(num_rx_desc_param,
+		 "Number of Rx descriptors: u8 (default is 32)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
