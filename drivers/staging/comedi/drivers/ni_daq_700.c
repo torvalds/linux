@@ -142,12 +142,12 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		dev->iobase);
 
 	return 0;
-};
+}
 
 static void dio700_detach(struct comedi_device *dev)
 {
 	/* nothing to cleanup */
-};
+}
 
 static const struct dio700_board dio700_boards[] = {
 	{
