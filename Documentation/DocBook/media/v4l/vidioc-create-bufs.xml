@@ -97,7 +97,13 @@ information.</para>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>count</structfield></entry>
-	    <entry>The number of buffers requested or granted.</entry>
+	    <entry>The number of buffers requested or granted. If count == 0, then
+	    <constant>VIDIOC_CREATE_BUFS</constant> will set <structfield>index</structfield>
+	    to the current number of created buffers, and it will check the validity of
+	    <structfield>memory</structfield> and <structfield>format.type</structfield>.
+	    If those are invalid -1 is returned and errno is set to &EINVAL;,
+	    otherwise <constant>VIDIOC_CREATE_BUFS</constant> returns 0. It will
+	    never set errno to &EBUSY; in this particular case.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
