@@ -102,20 +102,20 @@ static struct w1_bus_master omap_w1_master = {
 /* HDQ register I/O routines */
 static inline u8 hdq_reg_in(struct hdq_data *hdq_data, u32 offset)
 {
-	return __raw_readb(hdq_data->hdq_base + offset);
+	return __raw_readl(hdq_data->hdq_base + offset);
 }
 
 static inline void hdq_reg_out(struct hdq_data *hdq_data, u32 offset, u8 val)
 {
-	__raw_writeb(val, hdq_data->hdq_base + offset);
+	__raw_writel(val, hdq_data->hdq_base + offset);
 }
 
 static inline u8 hdq_reg_merge(struct hdq_data *hdq_data, u32 offset,
 			u8 val, u8 mask)
 {
-	u8 new_val = (__raw_readb(hdq_data->hdq_base + offset) & ~mask)
+	u8 new_val = (__raw_readl(hdq_data->hdq_base + offset) & ~mask)
 			| (val & mask);
-	__raw_writeb(new_val, hdq_data->hdq_base + offset);
+	__raw_writel(new_val, hdq_data->hdq_base + offset);
 
 	return new_val;
 }
