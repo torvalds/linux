@@ -95,7 +95,7 @@ static const struct pci_raw_ops pci_mmcfg = {
 	.write =	pci_mmcfg_write,
 };
 
-static void __iomem * __init mcfg_ioremap(struct pci_mmcfg_region *cfg)
+static void __iomem * __devinit mcfg_ioremap(struct pci_mmcfg_region *cfg)
 {
 	void __iomem *addr;
 	u64 start, size;
@@ -114,16 +114,14 @@ int __init pci_mmcfg_arch_init(void)
 {
 	struct pci_mmcfg_region *cfg;
 
-	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
-		cfg->virt = mcfg_ioremap(cfg);
-		if (!cfg->virt) {
-			printk(KERN_ERR PREFIX "can't map MMCONFIG at %pR\n",
-			       &cfg->res);
+	list_for_each_entry(cfg, &pci_mmcfg_list, list)
+		if (pci_mmcfg_arch_map(cfg)) {
 			pci_mmcfg_arch_free();
 			return 0;
 		}
-	}
+
 	raw_pci_ext_ops = &pci_mmcfg;
+
 	return 1;
 }
 
@@ -131,10 +129,26 @@ void __init pci_mmcfg_arch_free(void)
 {
 	struct pci_mmcfg_region *cfg;
 
-	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
-		if (cfg->virt) {
-			iounmap(cfg->virt + PCI_MMCFG_BUS_OFFSET(cfg->start_bus));
-			cfg->virt = NULL;
-		}
+	list_for_each_entry(cfg, &pci_mmcfg_list, list)
+		pci_mmcfg_arch_unmap(cfg);
+}
+
+int __devinit pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg)
+{
+	cfg->virt = mcfg_ioremap(cfg);
+	if (!cfg->virt) {
+		printk(KERN_ERR PREFIX "can't map MMCONFIG at %pR\n",
+		       &cfg->res);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void pci_mmcfg_arch_unmap(struct pci_mmcfg_region *cfg)
+{
+	if (cfg && cfg->virt) {
+		iounmap(cfg->virt + PCI_MMCFG_BUS_OFFSET(cfg->start_bus));
+		cfg->virt = NULL;
 	}
 }
