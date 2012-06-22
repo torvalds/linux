@@ -742,9 +742,9 @@ static int alua_activate(struct scsi_device *sdev,
 				stpg = 0;
 			break;
 		case TPGS_STATE_STANDBY:
+		case TPGS_STATE_UNAVAILABLE:
 			stpg = 1;
 			break;
-		case TPGS_STATE_UNAVAILABLE:
 		case TPGS_STATE_OFFLINE:
 			err = SCSI_DH_IO;
 			break;
