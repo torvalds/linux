@@ -176,7 +176,7 @@ TRACE_EVENT(iwlwifi_dev_ucode_wrap_event,
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM iwlwifi_msg
 
-#define MAX_MSG_LEN	100
+#define MAX_MSG_LEN	110
 
 DECLARE_EVENT_CLASS(iwlwifi_msg_event,
 	TP_PROTO(struct va_format *vaf),
