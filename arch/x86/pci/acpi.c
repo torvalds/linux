@@ -314,13 +314,6 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	}
 
 	info->res_num++;
-	if (addr.translation_offset)
-		dev_info(&info->bridge->dev, "host bridge window %pR "
-			 "(PCI address [%#llx-%#llx])\n",
-			 res, res->start - addr.translation_offset,
-			 res->end - addr.translation_offset);
-	else
-		dev_info(&info->bridge->dev, "host bridge window %pR\n", res);
 
 	return AE_OK;
 }
