@@ -1812,6 +1812,13 @@ void device_shutdown(void)
 	while (!list_empty(&devices_kset->list)) {
 		dev = list_entry(devices_kset->list.prev, struct device,
 				kobj.entry);
+
+		/*
+		 * hold reference count of device's parent to
+		 * prevent it from being freed because parent's
+		 * lock is to be held
+		 */
+		get_device(dev->parent);
 		get_device(dev);
 		/*
 		 * Make sure the device is off the kset list, in the
@@ -1819,6 +1826,11 @@ void device_shutdown(void)
 		 */
 		list_del_init(&dev->kobj.entry);
 		spin_unlock(&devices_kset->list_lock);
+
+		/* hold lock to avoid race with probe/release */
+		if (dev->parent)
+			device_lock(dev->parent);
+		device_lock(dev);
 
 		/* Don't allow any more runtime suspends */
 		pm_runtime_get_noresume(dev);
@@ -1831,7 +1843,13 @@ void device_shutdown(void)
 			dev_dbg(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
 		}
+
+		device_unlock(dev);
+		if (dev->parent)
+			device_unlock(dev->parent);
+
 		put_device(dev);
+		put_device(dev->parent);
 
 		spin_lock(&devices_kset->list_lock);
 	}
