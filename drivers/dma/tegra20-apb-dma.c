@@ -1093,7 +1093,7 @@ struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 		mem += len;
 	}
 	sg_req->last_sg = true;
-	dma_desc->txd.flags = DMA_CTRL_ACK;
+	dma_desc->txd.flags = 0;
 
 	/*
 	 * Make sure that mode should not be conflicting with currently
