@@ -59,15 +59,6 @@ struct dio700_board {
 	const char *name;
 };
 
-static const struct dio700_board dio700_boards[] = {
-	{
-	 .name = "daqcard-700",
-	 },
-	{
-	 .name = "ni_daq_700",
-	 },
-};
-
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -244,6 +235,14 @@ static void dio700_detach(struct comedi_device *dev)
 		subdev_700_cleanup(dev, dev->subdevices + 0);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
+};
+
+static const struct dio700_board dio700_boards[] = {
+	{
+		.name		= "daqcard-700",
+	}, {
+		.name		= "ni_daq_700",
+	},
 };
 
 static struct comedi_driver driver_dio700 = {
