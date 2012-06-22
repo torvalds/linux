@@ -396,15 +396,21 @@ static u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 {
 	struct iwl_rxon_context *ctx;
+	int limits[NUM_IWL_RXON_CTX] = {};
+	int n_active = 0;
+	u16 limit;
+
+	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 
 	/*
 	 * If we're associated, we clamp the dwell time 98%
-	 * of the smallest beacon interval (minus 2 * channel
-	 * tune time)
+	 * of the beacon interval (minus 2 * channel tune time)
+	 * If both contexts are active, we have to restrict to
+	 * 1/2 of the minimum of them, because they might be in
+	 * lock-step with the time inbetween only half of what
+	 * time we'd have in each of them.
 	 */
 	for_each_context(priv, ctx) {
-		u16 value;
-
 		switch (ctx->staging.dev_type) {
 		case RXON_DEV_TYPE_P2P:
 			/* no timing constraints */
@@ -424,14 +430,25 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 			break;
 		}
 
-		value = ctx->beacon_int;
-		if (!value)
-			value = IWL_PASSIVE_DWELL_BASE;
-		value = (value * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
-		dwell_time = min(value, dwell_time);
+		limits[n_active++] = ctx->beacon_int ?: IWL_PASSIVE_DWELL_BASE;
 	}
 
-	return dwell_time;
+	switch (n_active) {
+	case 0:
+		return dwell_time;
+	case 2:
+		limit = (limits[1] * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+		limit /= 2;
+		dwell_time = min(limit, dwell_time);
+		/* fall through to limit further */
+	case 1:
+		limit = (limits[0] * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+		limit /= n_active;
+		return min(limit, dwell_time);
+	default:
+		WARN_ON_ONCE(1);
+		return dwell_time;
+	}
 }
 
 static u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
