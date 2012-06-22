@@ -416,7 +416,7 @@ static int balanced_start(void)
 	INIT_DELAYED_WORK(&balanced_work, balanced_work_func);
 
 	up_delay = msecs_to_jiffies(100);
-	down_delay = msecs_to_jiffies(500);
+	down_delay = msecs_to_jiffies(2000);
 
 	table = cpufreq_frequency_get_table(0);
 	for (count = 0; table[count].frequency != CPUFREQ_TABLE_END; count++);
@@ -456,6 +456,10 @@ static void __exit exit_balanced(void)
 }
 
 MODULE_LICENSE("GPL");
+#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_BALANCED
+fs_initcall(init_balanced);
+#else
 module_init(init_balanced);
+#endif
 module_exit(exit_balanced);
 

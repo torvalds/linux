@@ -2,10 +2,37 @@ menu "CPUQUIET Framework"
 
 config CPUQUIET_FRAMEWORK
 	bool "Cpuquiet framework"
-	default n
 	help
 	  Cpuquiet implements pluggable policies for forcing cpu cores into a
 	  quiescent state. Appropriate policies will save power without hurting
 	  performance.
 
+
+if CPUQUIET_FRAMEWORK
+
+choice
+	prompt "Default CPUQuiet governor"
+	help
+	  This option sets which CPUQuiet governor shall be loaded at
+	  startup. If in doubt, select 'userspace'
+
+config CPUQUIET_DEFAULT_GOV_USERSPACE
+	bool "userspace"
+	select CPUQUIET_GOVERNOR_USERSPACE
+	help
+	  Use the CPUQuiet governor 'userspace' as default. This disables
+	  any automatic hotplugging of cpus and allows manual control
+	  over the number of cpus online in the system
+
+config CPUQUIET_DEFAULT_GOV_BALANCED
+	bool "balanced"
+	select CPUQUIET_GOVERNOR_BALANCED
+	depends on CPU_FREQ
+	help
+	  Use the CPUQuiet governor 'balanced' as default. This dynamically
+	  scales the number of cpus online in the system based on the cpu
+	  load
+endchoice
+
+endif
 endmenu
