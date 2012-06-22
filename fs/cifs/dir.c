@@ -378,7 +378,7 @@ out:
 
 int
 cifs_atomic_open(struct inode *inode, struct dentry *direntry,
-		 struct opendata *od, unsigned oflags, umode_t mode,
+		 struct file *file, unsigned oflags, umode_t mode,
 		 int *opened)
 {
 	int rc;
@@ -405,7 +405,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		if (IS_ERR(res))
 			return PTR_ERR(res);
 
-		finish_no_open(od, res);
+		finish_no_open(file, res);
 		return 1;
 	}
 
@@ -431,9 +431,8 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	if (rc)
 		goto out;
 
-	filp = finish_open(od, direntry, generic_file_open, opened);
-	if (IS_ERR(filp)) {
-		rc = PTR_ERR(filp);
+	rc = finish_open(file, direntry, generic_file_open, opened);
+	if (rc) {
 		CIFSSMBClose(xid, tcon, fileHandle);
 		goto out;
 	}

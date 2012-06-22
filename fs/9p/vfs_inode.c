@@ -858,12 +858,11 @@ error:
 
 static int
 v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
-		     struct opendata *od, unsigned flags, umode_t mode,
+		     struct file *file, unsigned flags, umode_t mode,
 		     int *opened)
 {
 	int err;
 	u32 perm;
-	struct file *filp;
 	struct v9fs_inode *v9inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid, *inode_fid;
@@ -880,7 +879,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	/* Only creates */
 	if (!(flags & O_CREAT) || dentry->d_inode) {
-		finish_no_open(od, res);
+		finish_no_open(file, res);
 		return 1;
 	}
 
@@ -918,16 +917,14 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		v9inode->writeback_fid = (void *) inode_fid;
 	}
 	mutex_unlock(&v9inode->v_mutex);
-	filp = finish_open(od, dentry, generic_file_open, opened);
-	if (IS_ERR(filp)) {
-		err = PTR_ERR(filp);
+	err = finish_open(file, dentry, generic_file_open, opened);
+	if (err)
 		goto error;
-	}
 
-	filp->private_data = fid;
+	file->private_data = fid;
 #ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cache)
-		v9fs_cache_inode_set_cookie(dentry->d_inode, filp);
+		v9fs_cache_inode_set_cookie(dentry->d_inode, file);
 #endif
 
 	*opened |= FILE_CREATED;

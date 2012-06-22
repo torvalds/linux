@@ -635,7 +635,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
-		     struct opendata *od, unsigned flags, umode_t mode,
+		     struct file *file, unsigned flags, umode_t mode,
 		     int *opened)
 {
 	int err;
@@ -649,7 +649,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		if (err < 0)
 			return err;
 
-		return ceph_lookup_open(dir, dentry, od, flags, mode, opened);
+		return ceph_lookup_open(dir, dentry, file, flags, mode, opened);
 	}
 
 	if (d_unhashed(dentry)) {
@@ -663,12 +663,12 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	/* We don't deal with positive dentries here */
 	if (dentry->d_inode) {
-		finish_no_open(od, res);
+		finish_no_open(file, res);
 		return 1;
 	}
 
 	*opened |= FILE_CREATED;
-	err = ceph_lookup_open(dir, dentry, od, flags, mode, opened);
+	err = ceph_lookup_open(dir, dentry, file, flags, mode, opened);
 	dput(res);
 
 	return err;

@@ -781,21 +781,23 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
  * If the open callback is set to NULL, then the standard f_op->open()
  * filesystem callback is substituted.
  */
-struct file *finish_open(struct opendata *od, struct dentry *dentry,
-			 int (*open)(struct inode *, struct file *),
-			 int *opened)
+int finish_open(struct file *file, struct dentry *dentry,
+		int (*open)(struct inode *, struct file *),
+		int *opened)
 {
 	struct file *res;
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 
-	mntget(od->filp->f_path.mnt);
+	mntget(file->f_path.mnt);
 	dget(dentry);
 
-	res = do_dentry_open(dentry, od->filp->f_path.mnt, od->filp, open, current_cred());
-	if (!IS_ERR(res))
+	res = do_dentry_open(dentry, file->f_path.mnt, file, open, current_cred());
+	if (!IS_ERR(res)) {
 		*opened |= FILE_OPENED;
+		return 0;
+	}
 
-	return res;
+	return PTR_ERR(res);
 }
 EXPORT_SYMBOL(finish_open);
 
@@ -808,9 +810,9 @@ EXPORT_SYMBOL(finish_open);
  * This can be used to set the result of a successful lookup in ->atomic_open().
  * The filesystem's atomic_open() method shall return NULL after calling this.
  */
-void finish_no_open(struct opendata *od, struct dentry *dentry)
+void finish_no_open(struct file *file, struct dentry *dentry)
 {
-	od->filp->f_path.dentry = dentry;
+	file->f_path.dentry = dentry;
 }
 EXPORT_SYMBOL(finish_no_open);
 
