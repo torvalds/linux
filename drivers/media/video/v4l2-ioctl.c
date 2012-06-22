@@ -855,6 +855,11 @@ static void v4l_print_newline(const void *arg, bool write_only)
 	pr_cont("\n");
 }
 
+static void v4l_print_default(const void *arg, bool write_only)
+{
+	pr_cont("driver-specific ioctl\n");
+}
+
 static int check_ext_ctrls(struct v4l2_ext_controls *c, int allow_priv)
 {
 	__u32 i;
@@ -1839,12 +1844,6 @@ struct v4l2_ioctl_info {
 	  sizeof(((struct v4l2_struct *)0)->field)) << 16)
 #define INFO_FL_CLEAR_MASK (_IOC_SIZEMASK << 16)
 
-#define IOCTL_INFO(_ioctl, _flags) [_IOC_NR(_ioctl)] = {	\
-	.ioctl = _ioctl,					\
-	.flags = _flags,					\
-	.name = #_ioctl,					\
-}
-
 #define IOCTL_INFO_STD(_ioctl, _vidioc, _debug, _flags)			\
 	[_IOC_NR(_ioctl)] = {						\
 		.ioctl = _ioctl,					\
@@ -2028,12 +2027,12 @@ static long __video_do_ioctl(struct file *file,
 	} else {
 		default_info.ioctl = cmd;
 		default_info.flags = 0;
-		default_info.debug = NULL;
+		default_info.debug = v4l_print_default;
 		info = &default_info;
 	}
 
 	write_only = _IOC_DIR(cmd) == _IOC_WRITE;
-	if (info->debug && write_only && vfd->debug > V4L2_DEBUG_IOCTL) {
+	if (write_only && vfd->debug > V4L2_DEBUG_IOCTL) {
 		v4l_print_ioctl(vfd->name, cmd);
 		pr_cont(": ");
 		info->debug(arg, write_only);
@@ -2044,21 +2043,15 @@ static long __video_do_ioctl(struct file *file,
 		const vidioc_op *vidioc = p + info->offset;
 
 		ret = (*vidioc)(file, fh, arg);
-		goto done;
 	} else if (info->flags & INFO_FL_FUNC) {
 		ret = info->func(ops, file, fh, arg);
-		goto done;
+	} else if (!ops->vidioc_default) {
+		ret = -ENOTTY;
+	} else {
+		ret = ops->vidioc_default(file, fh,
+			use_fh_prio ? v4l2_prio_check(vfd->prio, vfh->prio) >= 0 : 0,
+			cmd, arg);
 	}
-
-	switch (cmd) {
-	default:
-		if (!ops->vidioc_default)
-			break;
-		ret = ops->vidioc_default(file, fh, use_fh_prio ?
-				v4l2_prio_check(vfd->prio, vfh->prio) >= 0 : 0,
-				cmd, arg);
-		break;
-	} /* switch */
 
 done:
 	if (vfd->debug) {
@@ -2073,8 +2066,6 @@ done:
 			pr_cont(": error %ld\n", ret);
 		else if (vfd->debug == V4L2_DEBUG_IOCTL)
 			pr_cont("\n");
-		else if (!info->debug)
-			return ret;
 		else if (_IOC_DIR(cmd) == _IOC_NONE)
 			info->debug(arg, write_only);
 		else {
