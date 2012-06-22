@@ -2244,7 +2244,7 @@ int open_ctree(struct super_block *sb,
 	ret |= btrfs_start_workers(&fs_info->caching_workers);
 	ret |= btrfs_start_workers(&fs_info->readahead_workers);
 	if (ret) {
-		ret = -ENOMEM;
+		err = -ENOMEM;
 		goto fail_sb_buffer;
 	}
 
