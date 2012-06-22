@@ -425,7 +425,7 @@ static int da8xx_musb_init(struct musb *musb)
 		goto fail;
 
 	usb_nop_xceiv_register();
-	musb->xceiv = usb_get_phy();
+	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (!musb->xceiv)
 		goto fail;
 

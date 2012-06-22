@@ -479,7 +479,7 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
 
-	bci->transceiver = usb_get_phy();
+	bci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (bci->transceiver != NULL) {
 		bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
 		usb_register_notifier(bci->transceiver, &bci->usb_nb);

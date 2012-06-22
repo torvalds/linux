@@ -384,7 +384,7 @@ static int davinci_musb_init(struct musb *musb)
 	u32		revision;
 
 	usb_nop_xceiv_register();
-	musb->xceiv = usb_get_phy();
+	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (!musb->xceiv)
 		goto unregister;
 

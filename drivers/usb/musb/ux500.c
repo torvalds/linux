@@ -37,7 +37,7 @@ struct ux500_glue {
 
 static int ux500_musb_init(struct musb *musb)
 {
-	musb->xceiv = usb_get_phy();
+	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (!musb->xceiv) {
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;

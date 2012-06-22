@@ -253,7 +253,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	ehci_mv->mode = pdata->mode;
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
 #ifdef CONFIG_USB_OTG_UTILS
-		ehci_mv->otg = usb_get_phy();
+		ehci_mv->otg = usb_get_phy(USB_PHY_TYPE_USB2);
 		if (!ehci_mv->otg) {
 			dev_err(&pdev->dev,
 				"unable to find transceiver\n");

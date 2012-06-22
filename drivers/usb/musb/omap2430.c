@@ -292,7 +292,7 @@ static int omap2430_musb_init(struct musb *musb)
 	 * up through ULPI.  TWL4030-family PMICs include one,
 	 * which needs a driver, drivers aren't always needed.
 	 */
-	musb->xceiv = usb_get_phy();
+	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (!musb->xceiv) {
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;

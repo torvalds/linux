@@ -1282,7 +1282,7 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->dev = dev;
 	hsudc->pd = pdev->dev.platform_data;
 
-	hsudc->transceiver = usb_get_phy();
+	hsudc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
 	for (i = 0; i < ARRAY_SIZE(hsudc->supplies); i++)
 		hsudc->supplies[i].supply = s3c_hsudc_supply_names[i];

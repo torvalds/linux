@@ -749,7 +749,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->operating_mode == TEGRA_USB_OTG) {
-		tegra->transceiver = usb_get_phy();
+		tegra->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 		if (tegra->transceiver)
 			otg_set_host(tegra->transceiver->otg, &hcd->self);
 	}

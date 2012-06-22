@@ -2159,7 +2159,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
 
-	dev->transceiver = usb_get_phy();
+	dev->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
 	if (gpio_is_valid(dev->mach->gpio_pullup)) {
 		if ((retval = gpio_request(dev->mach->gpio_pullup,

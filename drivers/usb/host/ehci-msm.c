@@ -145,7 +145,7 @@ static int ehci_msm_probe(struct platform_device *pdev)
 	 * powering up VBUS, mapping of registers address space and power
 	 * management.
 	 */
-	phy = usb_get_phy();
+	phy = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (!phy) {
 		dev_err(&pdev->dev, "unable to find transceiver\n");
 		ret = -ENODEV;
