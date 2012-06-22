@@ -301,6 +301,37 @@ void omap3xxx_prm_restore_irqen(u32 *saved_mask)
 				OMAP3_PRM_IRQENABLE_MPU_OFFSET);
 }
 
+/**
+ * omap3xxx_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
+ *
+ * Clear any previously-latched I/O wakeup events and ensure that the
+ * I/O wakeup gates are aligned with the current mux settings.  Works
+ * by asserting WUCLKIN, waiting for WUCLKOUT to be asserted, and then
+ * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  No
+ * return value.
+ */
+void omap3xxx_prm_reconfigure_io_chain(void)
+{
+	int i = 0;
+
+	omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+				   PM_WKEN);
+
+	omap_test_timeout(omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST) &
+			  OMAP3430_ST_IO_CHAIN_MASK,
+			  MAX_IOPAD_LATCH_TIME, i);
+	if (i == MAX_IOPAD_LATCH_TIME)
+		pr_warn("PRM: I/O chain clock line assertion timed out\n");
+
+	omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+				     PM_WKEN);
+
+	omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK, WKUP_MOD,
+				   PM_WKST);
+
+	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST);
+}
+
 static int __init omap3xxx_prcm_init(void)
 {
 	if (cpu_is_omap34xx())
