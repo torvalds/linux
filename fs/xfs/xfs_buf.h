@@ -105,6 +105,9 @@ struct xfs_buf_map {
 	int			bm_len;	/* size of I/O */
 };
 
+#define DEFINE_SINGLE_BUF_MAP(map, blkno, numblk) \
+	struct xfs_buf_map (map) = { .bm_bn = (blkno), .bm_len = (numblk) };
+
 typedef struct xfs_buf {
 	/*
 	 * first cacheline holds all the fields needed for an uncontended cache
@@ -134,7 +137,9 @@ typedef struct xfs_buf {
 	struct xfs_trans	*b_transp;
 	struct page		**b_pages;	/* array of page pointers */
 	struct page		*b_page_array[XB_PAGES]; /* inline pages */
-	struct xfs_buf_map	b_map;		/* compound buffer map */
+	struct xfs_buf_map	*b_maps;	/* compound buffer map */
+	struct xfs_buf_map	b_map;		/* inline compound buffer map */
+	int			b_map_count;
 	int			b_io_length;	/* IO size in BBs */
 	atomic_t		b_pin_count;	/* pin count */
 	atomic_t		b_io_remaining;	/* #outstanding I/O requests */
@@ -149,11 +154,35 @@ typedef struct xfs_buf {
 
 
 /* Finding and Reading Buffers */
-struct xfs_buf *_xfs_buf_find(struct xfs_buftarg *target, xfs_daddr_t blkno,
-				size_t numblks, xfs_buf_flags_t flags,
-				struct xfs_buf *new_bp);
-#define xfs_incore(buftarg,blkno,len,lockit) \
-	_xfs_buf_find(buftarg, blkno ,len, lockit, NULL)
+struct xfs_buf *_xfs_buf_find(struct xfs_buftarg *target,
+			      struct xfs_buf_map *map, int nmaps,
+			      xfs_buf_flags_t flags, struct xfs_buf *new_bp);
+
+static inline struct xfs_buf *
+xfs_incore(
+	struct xfs_buftarg	*target,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
+	xfs_buf_flags_t		flags)
+{
+	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	return _xfs_buf_find(target, &map, 1, flags, NULL);
+}
+
+struct xfs_buf *_xfs_buf_alloc(struct xfs_buftarg *target,
+			       struct xfs_buf_map *map, int nmaps,
+			       xfs_buf_flags_t flags);
+
+static inline struct xfs_buf *
+xfs_buf_alloc(
+	struct xfs_buftarg	*target,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
+	xfs_buf_flags_t		flags)
+{
+	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	return _xfs_buf_alloc(target, &map, 1, flags);
+}
 
 struct xfs_buf *xfs_buf_get(struct xfs_buftarg *target, xfs_daddr_t blkno,
 				size_t numblks, xfs_buf_flags_t flags);
@@ -163,8 +192,6 @@ void xfs_buf_readahead(struct xfs_buftarg *target, xfs_daddr_t blkno,
 				size_t numblks);
 
 struct xfs_buf *xfs_buf_get_empty(struct xfs_buftarg *target, size_t numblks);
-struct xfs_buf *xfs_buf_alloc(struct xfs_buftarg *target, xfs_daddr_t blkno,
-				size_t numblks, xfs_buf_flags_t flags);
 void xfs_buf_set_empty(struct xfs_buf *bp, size_t numblks);
 int xfs_buf_associate_memory(struct xfs_buf *bp, void *mem, size_t length);
 
