@@ -137,8 +137,7 @@ int __devinit pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg)
 {
 	cfg->virt = mcfg_ioremap(cfg);
 	if (!cfg->virt) {
-		printk(KERN_ERR PREFIX "can't map MMCONFIG at %pR\n",
-		       &cfg->res);
+		pr_err(PREFIX "can't map MMCONFIG at %pR\n", &cfg->res);
 		return -ENOMEM;
 	}
 

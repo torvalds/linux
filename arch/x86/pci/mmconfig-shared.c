@@ -106,7 +106,7 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 		list_add_sorted(new);
 		mutex_unlock(&pci_mmcfg_lock);
 
-		printk(KERN_INFO PREFIX
+		pr_info(PREFIX
 		       "MMCONFIG for domain %04x [bus %02x-%02x] at %pR "
 		       "(base %#lx)\n",
 		       segment, start, end, &new->res, (unsigned long)addr);
@@ -362,8 +362,7 @@ static int __init pci_mmcfg_check_hostbridge(void)
 			name = pci_mmcfg_probes[i].probe();
 
 		if (name)
-			printk(KERN_INFO PREFIX "%s with MMCONFIG support\n",
-			       name);
+			pr_info(PREFIX "%s with MMCONFIG support\n", name);
 	}
 
 	/* some end_bus_number is crazy, fix it */
@@ -465,8 +464,7 @@ static int __ref is_mmconf_reserved(check_reserved_t is_reserved,
 		dev_info(dev, "MMCONFIG at %pR reserved in %s\n",
 			 &cfg->res, method);
 	else
-		printk(KERN_INFO PREFIX
-		       "MMCONFIG at %pR reserved in %s\n",
+		pr_info(PREFIX "MMCONFIG at %pR reserved in %s\n",
 		       &cfg->res, method);
 
 	if (old_size != size) {
@@ -485,7 +483,7 @@ static int __ref is_mmconf_reserved(check_reserved_t is_reserved,
 				"at %pR (base %#lx) (size reduced!)\n",
 				&cfg->res, (unsigned long) cfg->address);
 		else
-			printk(KERN_INFO PREFIX
+			pr_info(PREFIX
 				"MMCONFIG for %04x [bus%02x-%02x] "
 				"at %pR (base %#lx) (size reduced!)\n",
 				cfg->segment, cfg->start_bus, cfg->end_bus,
@@ -508,7 +506,7 @@ static int __ref pci_mmcfg_check_reserved(struct device *dev,
 				 "ACPI motherboard resources\n",
 				 &cfg->res);
 		else
-			printk(KERN_INFO FW_INFO PREFIX
+			pr_info(FW_INFO PREFIX
 			       "MMCONFIG at %pR not reserved in "
 			       "ACPI motherboard resources\n",
 			       &cfg->res);
@@ -537,7 +535,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		if (pci_mmcfg_check_reserved(NULL, cfg, early) == 0) {
-			printk(KERN_INFO PREFIX "not using MMCONFIG\n");
+			pr_info(PREFIX "not using MMCONFIG\n");
 			free_all_mmcfg();
 			return;
 		}
@@ -562,7 +560,7 @@ static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 			return 0;
 	}
 
-	printk(KERN_ERR PREFIX "MCFG region for %04x [bus %02x-%02x] at %#llx "
+	pr_err(PREFIX "MCFG region for %04x [bus %02x-%02x] at %#llx "
 	       "is above 4GB, ignored\n", cfg->pci_segment,
 	       cfg->start_bus_number, cfg->end_bus_number, cfg->address);
 	return -EINVAL;
@@ -589,7 +587,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 		i -= sizeof(struct acpi_mcfg_allocation);
 	};
 	if (entries == 0) {
-		printk(KERN_ERR PREFIX "MMCONFIG has no entries\n");
+		pr_err(PREFIX "MMCONFIG has no entries\n");
 		return -ENODEV;
 	}
 
@@ -603,8 +601,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 
 		if (pci_mmconfig_add(cfg->pci_segment, cfg->start_bus_number,
 				   cfg->end_bus_number, cfg->address) == NULL) {
-			printk(KERN_WARNING PREFIX
-			       "no memory for MCFG entries\n");
+			pr_warn(PREFIX "no memory for MCFG entries\n");
 			free_all_mmcfg();
 			return -ENOMEM;
 		}
