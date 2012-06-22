@@ -2193,18 +2193,17 @@ static int may_o_create(struct path *dir, struct dentry *dentry, umode_t mode)
 	return security_inode_create(dir->dentry->d_inode, dentry, mode);
 }
 
-static struct file *atomic_open(struct nameidata *nd, struct dentry *dentry,
-				struct path *path, struct file *file,
-				const struct open_flags *op,
-				bool *want_write, bool need_lookup,
-				int *opened)
+static int atomic_open(struct nameidata *nd, struct dentry *dentry,
+			struct path *path, struct file *file,
+			const struct open_flags *op,
+			bool *want_write, bool need_lookup,
+			int *opened)
 {
 	struct inode *dir =  nd->path.dentry->d_inode;
 	unsigned open_flag = open_to_namei_flags(op->open_flag);
 	umode_t mode;
 	int error;
 	int acc_mode;
-	struct file *filp = NULL;
 	int create_error = 0;
 	struct dentry *const DENTRY_NOT_SET = (void *) -1UL;
 
@@ -2212,7 +2211,7 @@ static struct file *atomic_open(struct nameidata *nd, struct dentry *dentry,
 
 	/* Don't create child dentry for a dead directory. */
 	if (unlikely(IS_DEADDIR(dir))) {
-		filp = ERR_PTR(-ENOENT);
+		error = -ENOENT;
 		goto out;
 	}
 
@@ -2276,7 +2275,6 @@ static struct file *atomic_open(struct nameidata *nd, struct dentry *dentry,
 	if (error < 0) {
 		if (create_error && error == -ENOENT)
 			error = create_error;
-		filp = ERR_PTR(error);
 		goto out;
 	}
 
@@ -2288,7 +2286,7 @@ static struct file *atomic_open(struct nameidata *nd, struct dentry *dentry,
 
 	if (error) {	/* returned 1, that is */
 		if (WARN_ON(file->f_path.dentry == DENTRY_NOT_SET)) {
-			filp = ERR_PTR(-EIO);
+			error = -EIO;
 			goto out;
 		}
 		if (file->f_path.dentry) {
@@ -2302,27 +2300,24 @@ static struct file *atomic_open(struct nameidata *nd, struct dentry *dentry,
 	 * We didn't have the inode before the open, so check open permission
 	 * here.
 	 */
-	filp = file;
-	error = may_open(&filp->f_path, acc_mode, open_flag);
-	if (error) {
-		fput(filp);
-		filp = ERR_PTR(error);
-	}
+	error = may_open(&file->f_path, acc_mode, open_flag);
+	if (error)
+		fput(file);
 
 out:
 	dput(dentry);
-	return filp;
+	return error;
 
 no_open:
 	if (need_lookup) {
 		dentry = lookup_real(dir, dentry, nd);
 		if (IS_ERR(dentry))
-			return ERR_CAST(dentry);
+			return PTR_ERR(dentry);
 
 		if (create_error) {
 			int open_flag = op->open_flag;
 
-			filp = ERR_PTR(create_error);
+			error = create_error;
 			if ((open_flag & O_EXCL)) {
 				if (!dentry->d_inode)
 					goto out;
@@ -2338,7 +2333,7 @@ no_open:
 looked_up:
 	path->dentry = dentry;
 	path->mnt = nd->path.mnt;
-	return NULL;
+	return 1;
 }
 
 /*
@@ -2349,10 +2344,10 @@ looked_up:
  * Returns open file or NULL on success, error otherwise.  NULL means no open
  * was performed, only lookup.
  */
-static struct file *lookup_open(struct nameidata *nd, struct path *path,
-				struct file *file,
-				const struct open_flags *op,
-				bool *want_write, int *opened)
+static int lookup_open(struct nameidata *nd, struct path *path,
+			struct file *file,
+			const struct open_flags *op,
+			bool *want_write, int *opened)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct inode *dir_inode = dir->d_inode;
@@ -2363,7 +2358,7 @@ static struct file *lookup_open(struct nameidata *nd, struct path *path,
 	*opened &= ~FILE_CREATED;
 	dentry = lookup_dcache(&nd->last, dir, nd, &need_lookup);
 	if (IS_ERR(dentry))
-		return ERR_CAST(dentry);
+		return PTR_ERR(dentry);
 
 	/* Cached positive dentry: will open in f_op->open */
 	if (!need_lookup && dentry->d_inode)
@@ -2379,7 +2374,7 @@ static struct file *lookup_open(struct nameidata *nd, struct path *path,
 
 		dentry = lookup_real(dir_inode, dentry, nd);
 		if (IS_ERR(dentry))
-			return ERR_CAST(dentry);
+			return PTR_ERR(dentry);
 	}
 
 	/* Negative dentry, just create the file */
@@ -2409,26 +2404,25 @@ static struct file *lookup_open(struct nameidata *nd, struct path *path,
 out_no_open:
 	path->dentry = dentry;
 	path->mnt = nd->path.mnt;
-	return NULL;
+	return 1;
 
 out_dput:
 	dput(dentry);
-	return ERR_PTR(error);
+	return error;
 }
 
 /*
  * Handle the last step of open()
  */
-static struct file *do_last(struct nameidata *nd, struct path *path,
-			    struct file *file, const struct open_flags *op,
-			    int *opened, const char *pathname)
+static int do_last(struct nameidata *nd, struct path *path,
+		   struct file *file, const struct open_flags *op,
+		   int *opened, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
 	int open_flag = op->open_flag;
 	bool will_truncate = (open_flag & O_TRUNC) != 0;
 	bool want_write = false;
 	int acc_mode = op->acc_mode;
-	struct file *filp;
 	struct inode *inode;
 	bool symlink_ok = false;
 	struct path save_parent = { .dentry = NULL, .mnt = NULL };
@@ -2443,22 +2437,22 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	case LAST_DOT:
 		error = handle_dots(nd, nd->last_type);
 		if (error)
-			return ERR_PTR(error);
+			return error;
 		/* fallthrough */
 	case LAST_ROOT:
 		error = complete_walk(nd);
 		if (error)
-			return ERR_PTR(error);
+			return error;
 		audit_inode(pathname, nd->path.dentry);
 		if (open_flag & O_CREAT) {
 			error = -EISDIR;
-			goto exit;
+			goto out;
 		}
 		goto finish_open;
 	case LAST_BIND:
 		error = complete_walk(nd);
 		if (error)
-			return ERR_PTR(error);
+			return error;
 		audit_inode(pathname, dir);
 		goto finish_open;
 	}
@@ -2474,7 +2468,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			goto finish_lookup;
 
 		if (error < 0)
-			goto exit;
+			goto out;
 
 		BUG_ON(nd->inode != dir->d_inode);
 	} else {
@@ -2486,29 +2480,29 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		 */
 		error = complete_walk(nd);
 		if (error)
-			return ERR_PTR(error);
+			return error;
 
 		audit_inode(pathname, dir);
 		error = -EISDIR;
 		/* trailing slashes? */
 		if (nd->last.name[nd->last.len])
-			goto exit;
+			goto out;
 	}
 
 retry_lookup:
 	mutex_lock(&dir->d_inode->i_mutex);
-	filp = lookup_open(nd, path, file, op, &want_write, opened);
+	error = lookup_open(nd, path, file, op, &want_write, opened);
 	mutex_unlock(&dir->d_inode->i_mutex);
 
-	if (filp) {
-		if (IS_ERR(filp))
+	if (error <= 0) {
+		if (error)
 			goto out;
 
 		if ((*opened & FILE_CREATED) ||
-		    !S_ISREG(filp->f_path.dentry->d_inode->i_mode))
+		    !S_ISREG(file->f_path.dentry->d_inode->i_mode))
 			will_truncate = false;
 
-		audit_inode(pathname, filp->f_path.dentry);
+		audit_inode(pathname, file->f_path.dentry);
 		goto opened;
 	}
 
@@ -2554,18 +2548,18 @@ finish_lookup:
 	error = -ENOENT;
 	if (!inode) {
 		path_to_nameidata(path, nd);
-		goto exit;
+		goto out;
 	}
 
 	if (should_follow_link(inode, !symlink_ok)) {
 		if (nd->flags & LOOKUP_RCU) {
 			if (unlikely(unlazy_walk(nd, path->dentry))) {
 				error = -ECHILD;
-				goto exit;
+				goto out;
 			}
 		}
 		BUG_ON(inode != path->dentry->d_inode);
-		return NULL;
+		return 1;
 	}
 
 	if ((nd->flags & LOOKUP_RCU) || nd->path.mnt != path->mnt) {
@@ -2581,14 +2575,14 @@ finish_lookup:
 	error = complete_walk(nd);
 	if (error) {
 		path_put(&save_parent);
-		return ERR_PTR(error);
+		return error;
 	}
 	error = -EISDIR;
 	if ((open_flag & O_CREAT) && S_ISDIR(nd->inode->i_mode))
-		goto exit;
+		goto out;
 	error = -ENOTDIR;
 	if ((nd->flags & LOOKUP_DIRECTORY) && !nd->inode->i_op->lookup)
-		goto exit;
+		goto out;
 	audit_inode(pathname, nd->path.dentry);
 finish_open:
 	if (!S_ISREG(nd->inode->i_mode))
@@ -2597,32 +2591,30 @@ finish_open:
 	if (will_truncate) {
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
-			goto exit;
+			goto out;
 		want_write = true;
 	}
 finish_open_created:
 	error = may_open(&nd->path, acc_mode, open_flag);
 	if (error)
-		goto exit;
+		goto out;
 	file->f_path.mnt = nd->path.mnt;
 	error = finish_open(file, nd->path.dentry, NULL, opened);
 	if (error) {
-		filp = ERR_PTR(error);
 		if (error == -EOPENSTALE)
 			goto stale_open;
 		goto out;
 	}
-	filp = file;
 opened:
-	error = open_check_o_direct(filp);
+	error = open_check_o_direct(file);
 	if (error)
 		goto exit_fput;
-	error = ima_file_check(filp, op->acc_mode);
+	error = ima_file_check(file, op->acc_mode);
 	if (error)
 		goto exit_fput;
 
 	if (will_truncate) {
-		error = handle_truncate(filp);
+		error = handle_truncate(file);
 		if (error)
 			goto exit_fput;
 	}
@@ -2631,16 +2623,14 @@ out:
 		mnt_drop_write(nd->path.mnt);
 	path_put(&save_parent);
 	terminate_walk(nd);
-	return filp;
+	return error;
 
 exit_dput:
 	path_put_conditional(path, nd);
-exit:
-	filp = ERR_PTR(error);
 	goto out;
 exit_fput:
-	fput(filp);
-	goto exit;
+	fput(file);
+	goto out;
 
 stale_open:
 	/* If no saved parent or already retried then can't retry */
@@ -2666,7 +2656,6 @@ static struct file *path_openat(int dfd, const char *pathname,
 {
 	struct file *base = NULL;
 	struct file *file;
-	struct file *res;
 	struct path path;
 	int opened = 0;
 	int error;
@@ -2679,29 +2668,29 @@ static struct file *path_openat(int dfd, const char *pathname,
 
 	error = path_init(dfd, pathname, flags | LOOKUP_PARENT, nd, &base);
 	if (unlikely(error))
-		goto out_filp;
+		goto out;
 
 	current->total_link_count = 0;
 	error = link_path_walk(pathname, nd);
 	if (unlikely(error))
-		goto out_filp;
+		goto out;
 
-	res = do_last(nd, &path, file, op, &opened, pathname);
-	while (unlikely(!res)) { /* trailing symlink */
+	error = do_last(nd, &path, file, op, &opened, pathname);
+	while (unlikely(error > 0)) { /* trailing symlink */
 		struct path link = path;
 		void *cookie;
 		if (!(nd->flags & LOOKUP_FOLLOW)) {
 			path_put_conditional(&path, nd);
 			path_put(&nd->path);
-			res = ERR_PTR(-ELOOP);
+			error = -ELOOP;
 			break;
 		}
 		nd->flags |= LOOKUP_PARENT;
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
 		error = follow_link(&link, nd, &cookie);
 		if (unlikely(error))
-			goto out_filp;
-		res = do_last(nd, &path, file, op, &opened, pathname);
+			break;
+		error = do_last(nd, &path, file, op, &opened, pathname);
 		put_link(nd, &link, cookie);
 	}
 out:
@@ -2709,19 +2698,20 @@ out:
 		path_put(&nd->root);
 	if (base)
 		fput(base);
-	if (!(opened & FILE_OPENED))
+	if (!(opened & FILE_OPENED)) {
+		BUG_ON(!error);
 		put_filp(file);
-	if (res == ERR_PTR(-EOPENSTALE)) {
-		if (flags & LOOKUP_RCU)
-			res = ERR_PTR(-ECHILD);
-		else
-			res = ERR_PTR(-ESTALE);
 	}
-	return res;
-
-out_filp:
-	res = ERR_PTR(error);
-	goto out;
+	if (unlikely(error)) {
+		if (error == -EOPENSTALE) {
+			if (flags & LOOKUP_RCU)
+				error = -ECHILD;
+			else
+				error = -ESTALE;
+		}
+		file = ERR_PTR(error);
+	}
+	return file;
 }
 
 struct file *do_filp_open(int dfd, const char *pathname,
