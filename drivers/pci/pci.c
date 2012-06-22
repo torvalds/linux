@@ -1311,7 +1311,7 @@ void pcim_pin_device(struct pci_dev *pdev)
  * is the default implementation. Architecture implementations can
  * override this.
  */
-void __attribute__ ((weak)) pcibios_disable_device (struct pci_dev *dev) {}
+void __weak pcibios_disable_device (struct pci_dev *dev) {}
 
 static void do_pci_disable_device(struct pci_dev *dev)
 {
@@ -1375,8 +1375,8 @@ pci_disable_device(struct pci_dev *dev)
  * Sets the PCIe reset state for the device. This is the default
  * implementation. Architecture implementations can override this.
  */
-int __attribute__ ((weak)) pcibios_set_pcie_reset_state(struct pci_dev *dev,
-							enum pcie_reset_state state)
+int __weak pcibios_set_pcie_reset_state(struct pci_dev *dev,
+					enum pcie_reset_state state)
 {
 	return -EINVAL;
 }
@@ -2063,7 +2063,7 @@ int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type type)
 		return -ENOTSUPP; /* no OBFF support at all */
 
 	/* Make sure the topology supports OBFF as well */
-	if (dev->bus) {
+	if (dev->bus->self) {
 		ret = pci_enable_obff(dev->bus->self, type);
 		if (ret)
 			return ret;
@@ -2166,7 +2166,7 @@ int pci_enable_ltr(struct pci_dev *dev)
 		return -EINVAL;
 
 	/* Enable upstream ports first */
-	if (dev->bus) {
+	if (dev->bus->self) {
 		ret = pci_enable_ltr(dev->bus->self);
 		if (ret)
 			return ret;
@@ -3419,8 +3419,7 @@ int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 
 	o = (cmd & PCI_X_CMD_MAX_READ) >> 2;
 	if (o != v) {
-		if (v > o && dev->bus &&
-		   (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_MMRBC))
+		if (v > o && (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_MMRBC))
 			return -EIO;
 
 		cmd &= ~PCI_X_CMD_MAX_READ;
@@ -3875,7 +3874,7 @@ static void __devinit pci_no_domains(void)
  * greater than 0xff). This is the default implementation. Architecture
  * implementations can override this.
  */
-int __attribute__ ((weak)) pci_ext_cfg_avail(struct pci_dev *dev)
+int __weak pci_ext_cfg_avail(struct pci_dev *dev)
 {
 	return 1;
 }

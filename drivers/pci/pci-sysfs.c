@@ -1112,7 +1112,7 @@ static struct bin_attribute pcie_config_attr = {
 	.write = pci_write_config,
 };
 
-int __attribute__ ((weak)) pcibios_add_platform_entries(struct pci_dev *dev)
+int __weak pcibios_add_platform_entries(struct pci_dev *dev)
 {
 	return 0;
 }
