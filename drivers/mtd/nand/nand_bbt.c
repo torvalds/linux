@@ -289,14 +289,24 @@ static int scan_read_raw_data(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 	return mtd_read(mtd, offs, len, &retlen, buf);
 }
 
-/* Scan read raw data from flash */
+/**
+ * scan_read_raw_oob - [GENERIC] Scan data+OOB region to buffer
+ * @mtd: MTD device structure
+ * @buf: temporary buffer
+ * @offs: offset at which to scan
+ * @len: length of data region to read
+ *
+ * Scan read data from data+OOB. May traverse multiple pages, interleaving
+ * page,OOB,page,OOB,... in buf. Completes transfer and returns the "strongest"
+ * ECC condition (error or bitflip). May quit on the first (non-ECC) error.
+ */
 static int scan_read_raw_oob(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 			 size_t len)
 {
 	struct mtd_oob_ops ops;
-	int res;
+	int res, ret = 0;
 
-	ops.mode = MTD_OPS_RAW;
+	ops.mode = MTD_OPS_PLACE_OOB;
 	ops.ooboffs = 0;
 	ops.ooblen = mtd->oobsize;
 
@@ -306,15 +316,18 @@ static int scan_read_raw_oob(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 		ops.oobbuf = buf + ops.len;
 
 		res = mtd_read_oob(mtd, offs, &ops);
-
-		if (res)
-			return res;
+		if (res) {
+			if (!mtd_is_bitflip_or_eccerr(res))
+				return res;
+			else if (mtd_is_eccerr(res) || !ret)
+				ret = res;
+		}
 
 		buf += mtd->oobsize + mtd->writesize;
 		len -= mtd->writesize;
 		offs += mtd->writesize;
 	}
-	return 0;
+	return ret;
 }
 
 static int scan_read_raw(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
