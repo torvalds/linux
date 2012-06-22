@@ -170,6 +170,7 @@ struct alc_spec {
 	hda_nid_t imux_pins[HDA_MAX_NUM_INPUTS];
 	unsigned int dyn_adc_idx[HDA_MAX_NUM_INPUTS];
 	int int_mic_idx, ext_mic_idx, dock_mic_idx; /* for auto-mic */
+	hda_nid_t inv_dmic_pin;
 
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
@@ -201,6 +202,8 @@ struct alc_spec {
 	unsigned int vol_in_capsrc:1; /* use capsrc volume (ADC has no vol) */
 	unsigned int parse_flags; /* passed to snd_hda_parse_pin_defcfg() */
 	unsigned int shared_mic_hp:1; /* HP/Mic-in sharing */
+	unsigned int inv_dmic_fixup:1; /* has inverted digital-mic workaround */
+	unsigned int inv_dmic_muted:1; /* R-ch of inv d-mic is muted? */
 
 	/* auto-mute control */
 	int automute_mode;
@@ -298,6 +301,7 @@ static inline hda_nid_t get_capsrc(struct alc_spec *spec, int idx)
 }
 
 static void call_update_outputs(struct hda_codec *codec);
+static void alc_inv_dmic_sync(struct hda_codec *codec, bool force);
 
 /* select the given imux item; either unmute exclusively or select the route */
 static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
@@ -368,6 +372,7 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 					  AC_VERB_SET_CONNECT_SEL,
 					  imux->items[idx].index);
 	}
+	alc_inv_dmic_sync(codec, true);
 	return 1;
 }
 
@@ -1556,14 +1561,14 @@ typedef int (*getput_call_t)(struct snd_kcontrol *kcontrol,
 
 static int alc_cap_getput_caller(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol,
-				 getput_call_t func, bool check_adc_switch)
+				 getput_call_t func, bool is_put)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
 	int i, err = 0;
 
 	mutex_lock(&codec->control_mutex);
-	if (check_adc_switch && spec->dyn_adc_switch) {
+	if (is_put && spec->dyn_adc_switch) {
 		for (i = 0; i < spec->num_adc_nids; i++) {
 			kcontrol->private_value =
 				HDA_COMPOSE_AMP_VAL(spec->adc_nids[i],
@@ -1584,6 +1589,8 @@ static int alc_cap_getput_caller(struct snd_kcontrol *kcontrol,
 						    3, 0, HDA_INPUT);
 		err = func(kcontrol, ucontrol);
 	}
+	if (err >= 0 && is_put)
+		alc_inv_dmic_sync(codec, false);
  error:
 	mutex_unlock(&codec->control_mutex);
 	return err;
@@ -1674,6 +1681,108 @@ DEFINE_CAPMIX(3);
 DEFINE_CAPMIX_NOSRC(1);
 DEFINE_CAPMIX_NOSRC(2);
 DEFINE_CAPMIX_NOSRC(3);
+
+/*
+ * Inverted digital-mic handling
+ *
+ * First off, it's a bit tricky.  The "Inverted Internal Mic Capture Switch"
+ * gives the additional mute only to the right channel of the digital mic
+ * capture stream.  This is a workaround for avoiding the almost silence
+ * by summing the stereo stream from some (known to be ForteMedia)
+ * digital mic unit.
+ *
+ * The logic is to call alc_inv_dmic_sync() after each action (possibly)
+ * modifying ADC amp.  When the mute flag is set, it mutes the R-channel
+ * without caching so that the cache can still keep the original value.
+ * The cached value is then restored when the flag is set off or any other
+ * than d-mic is used as the current input source.
+ */
+static void alc_inv_dmic_sync(struct hda_codec *codec, bool force)
+{
+	struct alc_spec *spec = codec->spec;
+	int i;
+
+	if (!spec->inv_dmic_fixup)
+		return;
+	if (!spec->inv_dmic_muted && !force)
+		return;
+	for (i = 0; i < spec->num_adc_nids; i++) {
+		int src = spec->dyn_adc_switch ? 0 : i;
+		bool dmic_fixup = false;
+		hda_nid_t nid;
+		int parm, dir, v;
+
+		if (spec->inv_dmic_muted &&
+		    spec->imux_pins[spec->cur_mux[src]] == spec->inv_dmic_pin)
+			dmic_fixup = true;
+		if (!dmic_fixup && !force)
+			continue;
+		if (spec->vol_in_capsrc) {
+			nid = spec->capsrc_nids[i];
+			parm = AC_AMP_SET_RIGHT | AC_AMP_SET_OUTPUT;
+			dir = HDA_OUTPUT;
+		} else {
+			nid = spec->adc_nids[i];
+			parm = AC_AMP_SET_RIGHT | AC_AMP_SET_INPUT;
+			dir = HDA_INPUT;
+		}
+		/* we care only right channel */
+		v = snd_hda_codec_amp_read(codec, nid, 1, dir, 0);
+		if (v & 0x80) /* if already muted, we don't need to touch */
+			continue;
+		if (dmic_fixup) /* add mute for d-mic */
+			v |= 0x80;
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    parm | v);
+	}
+}
+
+static int alc_inv_dmic_sw_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+
+	ucontrol->value.integer.value[0] = !spec->inv_dmic_muted;
+	return 0;
+}
+
+static int alc_inv_dmic_sw_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+	unsigned int val = !ucontrol->value.integer.value[0];
+
+	if (val == spec->inv_dmic_muted)
+		return 0;
+	spec->inv_dmic_muted = val;
+	alc_inv_dmic_sync(codec, true);
+	return 0;
+}
+
+static const struct snd_kcontrol_new alc_inv_dmic_sw = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = snd_ctl_boolean_mono_info,
+	.get = alc_inv_dmic_sw_get,
+	.put = alc_inv_dmic_sw_put,
+};
+
+static int alc_add_inv_dmic_mixer(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct alc_spec *spec = codec->spec;
+	struct snd_kcontrol_new *knew = alc_kcontrol_new(spec);
+	if (!knew)
+		return -ENOMEM;
+	*knew = alc_inv_dmic_sw;
+	knew->name = kstrdup("Inverted Internal Mic Capture Switch", GFP_KERNEL);
+	if (!knew->name)
+		return -ENOMEM;
+	spec->inv_dmic_fixup = 1;
+	spec->inv_dmic_muted = 0;
+	spec->inv_dmic_pin = nid;
+	return 0;
+}
 
 /*
  * virtual master controls
@@ -2316,6 +2425,7 @@ static int alc_resume(struct hda_codec *codec)
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
+	alc_inv_dmic_sync(codec, true);
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
@@ -6424,6 +6534,13 @@ static void alc272_fixup_mario(struct hda_codec *codec,
 		       "hda_codec: failed to override amp caps for NID 0x2\n");
 }
 
+static void alc662_fixup_inv_dmic(struct hda_codec *codec,
+				  const struct alc_fixup *fix, int action)
+{
+	if (action == ALC_FIXUP_ACT_PROBE)
+		alc_add_inv_dmic_mixer(codec, 0x12);
+}
+
 enum {
 	ALC662_FIXUP_ASPIRE,
 	ALC662_FIXUP_IDEAPAD,
@@ -6441,6 +6558,7 @@ enum {
 	ALC662_FIXUP_ASUS_MODE8,
 	ALC662_FIXUP_NO_JACK_DETECT,
 	ALC662_FIXUP_ZOTAC_Z68,
+	ALC662_FIXUP_INV_DMIC,
 };
 
 static const struct alc_fixup alc662_fixups[] = {
@@ -6597,12 +6715,17 @@ static const struct alc_fixup alc662_fixups[] = {
 			{ }
 		}
 	},
+	[ALC662_FIXUP_INV_DMIC] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc662_fixup_inv_dmic,
+	},
 };
 
 static const struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x9087, "ECS", ALC662_FIXUP_ASUS_MODE2),
 	SND_PCI_QUIRK(0x1025, 0x0308, "Acer Aspire 8942G", ALC662_FIXUP_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x031c, "Gateway NV79", ALC662_FIXUP_SKU_IGNORE),
+	SND_PCI_QUIRK(0x1025, 0x0349, "eMachines eM250", ALC662_FIXUP_INV_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
 	SND_PCI_QUIRK(0x103c, 0x1632, "HP RP5800", ALC662_FIXUP_HP_RP5800),
 	SND_PCI_QUIRK(0x1043, 0x8469, "ASUS mobo", ALC662_FIXUP_NO_JACK_DETECT),
