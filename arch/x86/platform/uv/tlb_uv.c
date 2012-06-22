@@ -1811,8 +1811,8 @@ static int calculate_destination_timeout(void)
 		index = (mmr_image >> BAU_URGENCY_7_SHIFT) & BAU_URGENCY_7_MASK;
 		mmr_image = uv_read_local_mmr(UVH_TRANSACTION_TIMEOUT);
 		mult2 = (mmr_image >> BAU_TRANS_SHIFT) & BAU_TRANS_MASK;
-		base = timeout_base_ns[index];
-		ts_ns = base * mult1 * mult2;
+		ts_ns = timeout_base_ns[index];
+		ts_ns *= (mult1 * mult2);
 		ret = ts_ns / 1000;
 	} else {
 		/* 4 bits  0/1 for 10/80us base, 3 bits of multiplier */
