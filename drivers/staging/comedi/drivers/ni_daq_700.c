@@ -212,7 +212,6 @@ failed:
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	int stop;
 	struct bus_operations *bus;
 };
 
@@ -238,7 +237,6 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 
 static void dio700_cs_detach(struct pcmcia_device *link)
 {
-	((struct local_info_t *)link->priv)->stop = 1;
 	dio700_release(link);
 
 	/* This points to the parent struct local_info_t struct */
@@ -247,18 +245,11 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 
 static int dio700_cs_suspend(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
-
-	/* Mark the device as stopped, to block IO until later */
-	local->stop = 1;
 	return 0;
 }
 
 static int dio700_cs_resume(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
-
-	local->stop = 0;
 	return 0;
 }
 
