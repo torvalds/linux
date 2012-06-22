@@ -38,7 +38,6 @@
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
-#include <plat/pd.h>
 #include <plat/fb.h>
 #include <plat/mfc.h>
 

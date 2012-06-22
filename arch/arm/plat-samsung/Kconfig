@@ -491,14 +491,6 @@ config S5P_SLEEP
 	  Internal config node to apply common S5P sleep management code.
 	  Can be selected by S5P and newer SoCs with similar sleep procedure.
 
-comment "Power Domain"
-
-config SAMSUNG_PD
-	bool "Samsung Power Domain"
-	depends on PM_RUNTIME
-	help
-	  Say Y here if you want to control Power Domain by Runtime PM.
-
 config DEBUG_S3C_UART
 	depends on PLAT_SAMSUNG
 	int
