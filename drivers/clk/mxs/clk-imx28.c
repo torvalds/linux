@@ -245,8 +245,8 @@ int __init mx28_clocks_init(void)
 	clks[pll2] = mxs_clk_pll("pll2", "ref_xtal", PLL2CTRL0, 23, 50000000);
 	clks[ref_cpu] = mxs_clk_ref("ref_cpu", "pll0", FRAC0, 0);
 	clks[ref_emi] = mxs_clk_ref("ref_emi", "pll0", FRAC0, 1);
-	clks[ref_io0] = mxs_clk_ref("ref_io0", "pll0", FRAC0, 2);
-	clks[ref_io1] = mxs_clk_ref("ref_io1", "pll0", FRAC0, 3);
+	clks[ref_io1] = mxs_clk_ref("ref_io1", "pll0", FRAC0, 2);
+	clks[ref_io0] = mxs_clk_ref("ref_io0", "pll0", FRAC0, 3);
 	clks[ref_pix] = mxs_clk_ref("ref_pix", "pll0", FRAC1, 0);
 	clks[ref_hsadc] = mxs_clk_ref("ref_hsadc", "pll0", FRAC1, 1);
 	clks[ref_gpmi] = mxs_clk_ref("ref_gpmi", "pll0", FRAC1, 2);
