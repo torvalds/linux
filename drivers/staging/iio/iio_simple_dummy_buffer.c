@@ -85,8 +85,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	}
 	/* Store a timestampe at an 8 byte boundary */
 	if (indio_dev->scan_timestamp)
-		*(s64 *)(((phys_addr_t)data + len
-				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
+		*(s64 *)((phys_addr_t)data + ALIGN(len, sizeof(s64)))
 			= iio_get_time_ns();
 	buffer->access->store_to(buffer, (u8 *)data, pf->timestamp);
 
