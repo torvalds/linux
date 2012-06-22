@@ -166,7 +166,7 @@ static struct comedi_driver driver_dio700 = {
 
 static void dio700_release(struct pcmcia_device *link)
 {
-	dev_dbg(&link->dev, "dio700_release\n");
+	dev_dbg(&link->dev, "%s\n", __func__);
 
 	pcmcia_disable_device(link);
 }
@@ -184,9 +184,7 @@ static void dio700_config(struct pcmcia_device *link)
 {
 	int ret;
 
-	printk(KERN_INFO "ni_daq_700:  cs-config\n");
-
-	dev_dbg(&link->dev, "dio700_config\n");
+	dev_dbg(&link->dev, "%s\n", __func__);
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
 		CONF_AUTO_SET_IO;
@@ -207,7 +205,7 @@ static void dio700_config(struct pcmcia_device *link)
 	return;
 
 failed:
-	printk(KERN_INFO "ni_daq_700 cs failed");
+	dev_dbg(&link->dev, "%s failed\n", __func__);
 	dio700_release(link);
 
 }
@@ -222,9 +220,7 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 {
 	struct local_info_t *local;
 
-	printk(KERN_INFO "ni_daq_700:  cs-attach\n");
-
-	dev_dbg(&link->dev, "dio700_cs_attach()\n");
+	dev_dbg(&link->dev, "%s\n", __func__);
 
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
