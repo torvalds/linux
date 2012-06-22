@@ -69,7 +69,6 @@ struct dio700_board {
 struct subdev_700_struct {
 	unsigned long cb_arg;
 	int (*cb_func) (int, int, int, unsigned long);
-	int have_irq;
 };
 
 #define CALLBACK_ARG	(((struct subdev_700_struct *)s->private)->cb_arg)
@@ -166,9 +165,7 @@ static void subdev_700_cleanup(struct comedi_device *dev,
 			       struct comedi_subdevice *s)
 {
 	if (s->private)
-		if (subdevpriv->have_irq)
-
-			kfree(s->private);
+		kfree(s->private);
 }
 
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
