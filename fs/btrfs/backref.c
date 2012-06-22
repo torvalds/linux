@@ -839,6 +839,7 @@ again:
 			}
 			ret = __add_delayed_refs(head, delayed_ref_seq,
 						 &prefs_delayed);
+			mutex_unlock(&head->mutex);
 			if (ret) {
 				spin_unlock(&delayed_refs->lock);
 				goto out;
@@ -932,8 +933,6 @@ again:
 	}
 
 out:
-	if (head)
-		mutex_unlock(&head->mutex);
 	btrfs_free_path(path);
 	while (!list_empty(&prefs)) {
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);
