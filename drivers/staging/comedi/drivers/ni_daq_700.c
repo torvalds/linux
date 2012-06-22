@@ -132,19 +132,6 @@ struct subdev_700_struct {
 
 static void do_config(struct comedi_device *dev, struct comedi_subdevice *s);
 
-void subdev_700_interrupt(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	short d;
-
-	d = CALLBACK_FUNC(0, _700_DATA, 0, CALLBACK_ARG);
-
-	comedi_buf_put(s->async, d);
-	s->async->events |= COMEDI_CB_EOS;
-
-	comedi_event(dev, s);
-}
-EXPORT_SYMBOL(subdev_700_interrupt);
-
 static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 {
 	/* port is always A for output and B for input (8255 emu) */
@@ -206,99 +193,10 @@ static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
 	return;
 }
 
-static int subdev_700_cmdtest(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_cmd *cmd)
-{
-	int err = 0;
-	unsigned int tmp;
-
-	/* step 1 */
-
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_FOLLOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
-
-	if (err)
-		return 1;
-
-	/* step 2 */
-
-	if (err)
-		return 2;
-
-	/* step 3 */
-
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-	if (cmd->scan_begin_arg != 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
-	if (cmd->convert_arg != 0) {
-		cmd->convert_arg = 0;
-		err++;
-	}
-	if (cmd->scan_end_arg != 1) {
-		cmd->scan_end_arg = 1;
-		err++;
-	}
-	if (cmd->stop_arg != 0) {
-		cmd->stop_arg = 0;
-		err++;
-	}
-
-	if (err)
-		return 3;
-
-	/* step 4 */
-
-	if (err)
-		return 4;
-
-	return 0;
-}
-
-static int subdev_700_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	/* FIXME */
-
-	return 0;
-}
-
-static int subdev_700_cancel(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
-{
-	/* FIXME */
-
-	return 0;
-}
-
-int subdev_700_init(struct comedi_device *dev, struct comedi_subdevice *s,
-		    int (*cb) (int, int, int, unsigned long), unsigned long arg)
+static int subdev_700_init(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   int (*cb) (int, int, int, unsigned long),
+			   unsigned long arg)
 {
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -325,36 +223,15 @@ int subdev_700_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
-EXPORT_SYMBOL(subdev_700_init);
 
-int subdev_700_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
-			int (*cb) (int, int, int, unsigned long),
-			unsigned long arg)
-{
-	int ret;
-
-	ret = subdev_700_init(dev, s, cb, arg);
-	if (ret < 0)
-		return ret;
-
-	s->do_cmdtest = subdev_700_cmdtest;
-	s->do_cmd = subdev_700_cmd;
-	s->cancel = subdev_700_cancel;
-
-	subdevpriv->have_irq = 1;
-
-	return 0;
-}
-EXPORT_SYMBOL(subdev_700_init_irq);
-
-void subdev_700_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
+static void subdev_700_cleanup(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
 {
 	if (s->private)
 		if (subdevpriv->have_irq)
 
 			kfree(s->private);
 }
-EXPORT_SYMBOL(subdev_700_cleanup);
 
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -556,7 +433,7 @@ MODULE_DESCRIPTION("Comedi driver for National Instruments "
 		   "PCMCIA DAQCard-700 DIO");
 MODULE_LICENSE("GPL");
 
-struct pcmcia_driver dio700_cs_driver = {
+static struct pcmcia_driver dio700_cs_driver = {
 	.probe = dio700_cs_attach,
 	.remove = dio700_cs_detach,
 	.suspend = dio700_cs_suspend,
