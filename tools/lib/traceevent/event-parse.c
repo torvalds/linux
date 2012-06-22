@@ -3589,6 +3589,16 @@ static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 	trace_seq_printf(s, fmt, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
 }
 
+static int is_printable_array(char *p, unsigned int len)
+{
+	unsigned int i;
+
+	for (i = 0; i < len && p[i]; i++)
+		if (!isprint(p[i]))
+		    return 0;
+	return 1;
+}
+
 static void print_event_fields(struct trace_seq *s, void *data, int size,
 			       struct event_format *event)
 {
@@ -3608,7 +3618,8 @@ static void print_event_fields(struct trace_seq *s, void *data, int size,
 				len = offset >> 16;
 				offset &= 0xffff;
 			}
-			if (field->flags & FIELD_IS_STRING) {
+			if (field->flags & FIELD_IS_STRING &&
+			    is_printable_array(data + offset, len)) {
 				trace_seq_printf(s, "%s", (char *)data + offset);
 			} else {
 				trace_seq_puts(s, "ARRAY[");
@@ -3619,6 +3630,7 @@ static void print_event_fields(struct trace_seq *s, void *data, int size,
 							 *((unsigned char *)data + offset + i));
 				}
 				trace_seq_putc(s, ']');
+				field->flags &= ~FIELD_IS_STRING;
 			}
 		} else {
 			val = pevent_read_number(event->pevent, data + field->offset,
