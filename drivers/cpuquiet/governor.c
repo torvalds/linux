@@ -28,7 +28,8 @@ struct cpuquiet_governor *cpuquiet_curr_governor;
 struct cpuquiet_governor *cpuquiet_get_first_governor(void)
 {
 	if (!list_empty(&cpuquiet_governors))
-		return list_entry(&cpuquiet_governors, struct cpuquiet_governor,
+		return list_entry(cpuquiet_governors.next,
+					struct cpuquiet_governor,
 					governor_list);
 	else
 		return NULL;
