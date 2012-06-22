@@ -61,8 +61,9 @@ static __init void list_add_sorted(struct pci_mmcfg_region *new)
 	list_add_tail(&new->list, &pci_mmcfg_list);
 }
 
-static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
-							int end, u64 addr)
+static __devinit struct pci_mmcfg_region *pci_mmconfig_alloc(int segment,
+							     int start,
+							     int end, u64 addr)
 {
 	struct pci_mmcfg_region *new;
 	struct resource *res;
@@ -79,8 +80,6 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 	new->start_bus = start;
 	new->end_bus = end;
 
-	list_add_sorted(new);
-
 	res = &new->res;
 	res->start = addr + PCI_MMCFG_BUS_OFFSET(start);
 	res->end = addr + PCI_MMCFG_BUS_OFFSET(end + 1) - 1;
@@ -92,6 +91,18 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 	printk(KERN_INFO PREFIX "MMCONFIG for domain %04x [bus %02x-%02x] at "
 	       "%pR (base %#lx)\n", segment, start, end, &new->res,
 	       (unsigned long) addr);
+
+	return new;
+}
+
+static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
+							int end, u64 addr)
+{
+	struct pci_mmcfg_region *new;
+
+	new = pci_mmconfig_alloc(segment, start, end, addr);
+	if (new)
+		list_add_sorted(new);
 
 	return new;
 }
