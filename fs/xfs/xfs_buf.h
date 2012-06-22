@@ -58,6 +58,7 @@ typedef enum {
 #define _XBF_PAGES	(1 << 20)/* backed by refcounted pages */
 #define _XBF_KMEM	(1 << 21)/* backed by heap memory */
 #define _XBF_DELWRI_Q	(1 << 22)/* buffer on a delwri queue */
+#define _XBF_COMPOUND	(1 << 23)/* compound buffer */
 
 typedef unsigned int xfs_buf_flags_t;
 
@@ -75,7 +76,8 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_UNMAPPED,		"UNMAPPED" },	/* ditto */\
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_KMEM,		"KMEM" }, \
-	{ _XBF_DELWRI_Q,	"DELWRI_Q" }
+	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
+	{ _XBF_COMPOUND,	"COMPOUND" }
 
 typedef struct xfs_buftarg {
 	dev_t			bt_dev;
@@ -98,6 +100,11 @@ typedef void (*xfs_buf_iodone_t)(struct xfs_buf *);
 
 #define XB_PAGES	2
 
+struct xfs_buf_map {
+	xfs_daddr_t		bm_bn;	/* block number for I/O */
+	int			bm_len;	/* size of I/O */
+};
+
 typedef struct xfs_buf {
 	/*
 	 * first cacheline holds all the fields needed for an uncontended cache
@@ -107,7 +114,7 @@ typedef struct xfs_buf {
 	 * fast-path on locking.
 	 */
 	struct rb_node		b_rbnode;	/* rbtree node */
-	xfs_daddr_t		b_bn;		/* block number for I/O */
+	xfs_daddr_t		b_bn;		/* block number of buffer */
 	int			b_length;	/* size of buffer in BBs */
 	atomic_t		b_hold;		/* reference count */
 	atomic_t		b_lru_ref;	/* lru reclaim ref count */
@@ -127,12 +134,14 @@ typedef struct xfs_buf {
 	struct xfs_trans	*b_transp;
 	struct page		**b_pages;	/* array of page pointers */
 	struct page		*b_page_array[XB_PAGES]; /* inline pages */
+	struct xfs_buf_map	b_map;		/* compound buffer map */
 	int			b_io_length;	/* IO size in BBs */
 	atomic_t		b_pin_count;	/* pin count */
 	atomic_t		b_io_remaining;	/* #outstanding I/O requests */
 	unsigned int		b_page_count;	/* size of page array */
 	unsigned int		b_offset;	/* page offset in first page */
 	unsigned short		b_error;	/* error code on I/O */
+
 #ifdef XFS_BUF_LOCK_TRACKING
 	int			b_last_holder;
 #endif
@@ -233,8 +242,18 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_UNWRITE(bp)	((bp)->b_flags &= ~XBF_WRITE)
 #define XFS_BUF_ISWRITE(bp)	((bp)->b_flags & XBF_WRITE)
 
-#define XFS_BUF_ADDR(bp)		((bp)->b_bn)
-#define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_bn = (xfs_daddr_t)(bno))
+/*
+ * These macros use the IO block map rather than b_bn. b_bn is now really
+ * just for the buffer cache index for cached buffers. As IO does not use b_bn
+ * anymore, uncached buffers do not use b_bn at all and hence must modify the IO
+ * map directly. Uncached buffers are not allowed to be discontiguous, so this
+ * is safe to do.
+ *
+ * In future, uncached buffers will pass the block number directly to the io
+ * request function and hence these macros will go away at that point.
+ */
+#define XFS_BUF_ADDR(bp)		((bp)->b_map.bm_bn)
+#define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_map.bm_bn = (xfs_daddr_t)(bno))
 
 static inline void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 {

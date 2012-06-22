@@ -202,6 +202,8 @@ xfs_buf_alloc(
 	bp->b_io_length = numblks;
 	bp->b_flags = flags;
 	bp->b_bn = blkno;
+	bp->b_map.bm_bn = blkno;
+	bp->b_map.bm_len = numblks;
 	atomic_set(&bp->b_pin_count, 0);
 	init_waitqueue_head(&bp->b_waiters);
 
@@ -327,8 +329,9 @@ xfs_buf_allocate_memory(
 	}
 
 use_alloc_page:
-	start = BBTOB(bp->b_bn) >> PAGE_SHIFT;
-	end = (BBTOB(bp->b_bn + bp->b_length) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	start = BBTOB(bp->b_map.bm_bn) >> PAGE_SHIFT;
+	end = (BBTOB(bp->b_map.bm_bn + bp->b_length) + PAGE_SIZE - 1)
+								>> PAGE_SHIFT;
 	page_count = end - start;
 	error = _xfs_buf_get_pages(bp, page_count, flags);
 	if (unlikely(error))
@@ -560,8 +563,6 @@ xfs_buf_get(
 	if (bp != new_bp)
 		xfs_buf_free(new_bp);
 
-	bp->b_io_length = bp->b_length;
-
 found:
 	if (!bp->b_addr) {
 		error = _xfs_buf_map_pages(bp, flags);
@@ -584,7 +585,7 @@ _xfs_buf_read(
 	xfs_buf_flags_t		flags)
 {
 	ASSERT(!(flags & XBF_WRITE));
-	ASSERT(bp->b_bn != XFS_BUF_DADDR_NULL);
+	ASSERT(bp->b_map.bm_bn != XFS_BUF_DADDR_NULL);
 
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
@@ -665,8 +666,8 @@ xfs_buf_read_uncached(
 		return NULL;
 
 	/* set up the buffer for a read IO */
-	XFS_BUF_SET_ADDR(bp, daddr);
-	XFS_BUF_READ(bp);
+	bp->b_map.bm_bn = daddr;
+	bp->b_flags |= XBF_READ;
 
 	xfsbdstrat(target->bt_mount, bp);
 	error = xfs_buf_iowait(bp);
@@ -695,6 +696,8 @@ xfs_buf_set_empty(
 	bp->b_length = numblks;
 	bp->b_io_length = numblks;
 	bp->b_bn = XFS_BUF_DADDR_NULL;
+	bp->b_map.bm_bn = XFS_BUF_DADDR_NULL;
+	bp->b_map.bm_len = bp->b_length;
 }
 
 static inline struct page *
@@ -1159,7 +1162,7 @@ _xfs_buf_ioapply(
 	struct bio		*bio;
 	int			offset = bp->b_offset;
 	int			size = BBTOB(bp->b_io_length);
-	sector_t		sector = bp->b_bn;
+	sector_t		sector = bp->b_map.bm_bn;
 
 	total_nr_pages = bp->b_page_count;
 	map_i = 0;
@@ -1564,7 +1567,7 @@ xfs_buf_cmp(
 	struct xfs_buf	*bp = container_of(b, struct xfs_buf, b_list);
 	xfs_daddr_t		diff;
 
-	diff = ap->b_bn - bp->b_bn;
+	diff = ap->b_map.bm_bn - bp->b_map.bm_bn;
 	if (diff < 0)
 		return -1;
 	if (diff > 0)
