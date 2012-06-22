@@ -2450,7 +2450,6 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	if (index < 0) {
 		dev_err(dev->class_dev,
 			"usbduxsigma: error: attach failed, dev not connected to the usb bus.\n");
-		up(&start_stop_sem);
 		ret = -ENODEV;
 	} else
 		ret = usbduxsigma_attach_common(dev, &usbduxsub[index],
