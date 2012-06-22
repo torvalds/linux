@@ -98,6 +98,8 @@ static inline u32 u16_field_get(u8 *preq_elem, int offset, bool ae)
 #define max_preq_retries(s) (s->u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries)
 #define disc_timeout_jiff(s) \
 	msecs_to_jiffies(sdata->u.mesh.mshcfg.min_discovery_timeout)
+#define root_path_confirmation_jiffies(s) \
+	msecs_to_jiffies(sdata->u.mesh.mshcfg.dot11MeshHWMPconfirmationInterval)
 
 enum mpath_frame_type {
 	MPATH_PREQ = 0,
@@ -303,7 +305,7 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 }
 
 void ieee80211s_update_metric(struct ieee80211_local *local,
-		struct sta_info *stainfo, struct sk_buff *skb)
+		struct sta_info *sta, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *txinfo = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -315,15 +317,14 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 	failed = !(txinfo->flags & IEEE80211_TX_STAT_ACK);
 
 	/* moving average, scaled to 100 */
-	stainfo->fail_avg = ((80 * stainfo->fail_avg + 5) / 100 + 20 * failed);
-	if (stainfo->fail_avg > 95)
-		mesh_plink_broken(stainfo);
+	sta->fail_avg = ((80 * sta->fail_avg + 5) / 100 + 20 * failed);
+	if (sta->fail_avg > 95)
+		mesh_plink_broken(sta);
 }
 
 static u32 airtime_link_metric_get(struct ieee80211_local *local,
 				   struct sta_info *sta)
 {
-	struct ieee80211_supported_band *sband;
 	struct rate_info rinfo;
 	/* This should be adjusted for each device */
 	int device_constant = 1 << ARITH_SHIFT;
@@ -332,8 +333,6 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	int rate, err;
 	u32 tx_time, estimated_retx;
 	u64 result;
-
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	if (sta->fail_avg >= 100)
 		return MAX_METRIC;
@@ -519,10 +518,11 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 	struct mesh_path *mpath = NULL;
 	u8 *target_addr, *orig_addr;
 	const u8 *da;
-	u8 target_flags, ttl;
-	u32 orig_sn, target_sn, lifetime;
+	u8 target_flags, ttl, flags;
+	u32 orig_sn, target_sn, lifetime, orig_metric;
 	bool reply = false;
 	bool forward = true;
+	bool root_is_gate;
 
 	/* Update target SN, if present */
 	target_addr = PREQ_IE_TARGET_ADDR(preq_elem);
@@ -530,6 +530,10 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 	target_sn = PREQ_IE_TARGET_SN(preq_elem);
 	orig_sn = PREQ_IE_ORIG_SN(preq_elem);
 	target_flags = PREQ_IE_TARGET_F(preq_elem);
+	orig_metric = metric;
+	/* Proactive PREQ gate announcements */
+	flags = PREQ_IE_FLAGS(preq_elem);
+	root_is_gate = !!(flags & RANN_FLAG_IS_GATE);
 
 	mhwmp_dbg("received PREQ from %pM", orig_addr);
 
@@ -544,6 +548,22 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 			target_sn = ++ifmsh->sn;
 			ifmsh->last_sn_update = jiffies;
 		}
+	} else if (is_broadcast_ether_addr(target_addr) &&
+		   (target_flags & IEEE80211_PREQ_TO_FLAG)) {
+		rcu_read_lock();
+		mpath = mesh_path_lookup(orig_addr, sdata);
+		if (mpath) {
+			if (flags & IEEE80211_PREQ_PROACTIVE_PREP_FLAG) {
+				reply = true;
+				target_addr = sdata->vif.addr;
+				target_sn = ++ifmsh->sn;
+				metric = 0;
+				ifmsh->last_sn_update = jiffies;
+			}
+			if (root_is_gate)
+				mesh_path_add_gate(mpath);
+		}
+		rcu_read_unlock();
 	} else {
 		rcu_read_lock();
 		mpath = mesh_path_lookup(target_addr, sdata);
@@ -576,13 +596,14 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				cpu_to_le32(target_sn), mgmt->sa, 0, ttl,
 				cpu_to_le32(lifetime), cpu_to_le32(metric),
 				0, sdata);
-		} else
+		} else {
 			ifmsh->mshstats.dropped_frames_ttl++;
+		}
 	}
 
 	if (forward && ifmsh->mshcfg.dot11MeshForwarding) {
 		u32 preq_id;
-		u8 hopcount, flags;
+		u8 hopcount;
 
 		ttl = PREQ_IE_TTL(preq_elem);
 		lifetime = PREQ_IE_LIFETIME(preq_elem);
@@ -592,11 +613,17 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		}
 		mhwmp_dbg("forwarding the PREQ from %pM", orig_addr);
 		--ttl;
-		flags = PREQ_IE_FLAGS(preq_elem);
 		preq_id = PREQ_IE_PREQ_ID(preq_elem);
 		hopcount = PREQ_IE_HOPCOUNT(preq_elem) + 1;
 		da = (mpath && mpath->is_root) ?
 			mpath->rann_snd_addr : broadcast_addr;
+
+		if (flags & IEEE80211_PREQ_PROACTIVE_PREP_FLAG) {
+			target_addr = PREQ_IE_TARGET_ADDR(preq_elem);
+			target_sn = PREQ_IE_TARGET_SN(preq_elem);
+			metric = orig_metric;
+		}
+
 		mesh_path_sel_frame_tx(MPATH_PREQ, flags, orig_addr,
 				cpu_to_le32(orig_sn), target_flags, target_addr,
 				cpu_to_le32(target_sn), da,
@@ -744,11 +771,6 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	bool root_is_gate;
 
 	ttl = rann->rann_ttl;
-	if (ttl <= 1) {
-		ifmsh->mshstats.dropped_frames_ttl++;
-		return;
-	}
-	ttl--;
 	flags = rann->rann_flags;
 	root_is_gate = !!(flags & RANN_FLAG_IS_GATE);
 	orig_addr = rann->rann_addr;
@@ -785,33 +807,48 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+	if (!(SN_LT(mpath->sn, orig_sn)) &&
+	    !(mpath->sn == orig_sn && metric < mpath->rann_metric)) {
+		rcu_read_unlock();
+		return;
+	}
+
 	if ((!(mpath->flags & (MESH_PATH_ACTIVE | MESH_PATH_RESOLVING)) ||
-	     time_after(jiffies, mpath->exp_time - 1*HZ)) &&
-	     !(mpath->flags & MESH_PATH_FIXED)) {
+	     (time_after(jiffies, mpath->last_preq_to_root +
+				  root_path_confirmation_jiffies(sdata)) ||
+	     time_before(jiffies, mpath->last_preq_to_root))) &&
+	     !(mpath->flags & MESH_PATH_FIXED) && (ttl != 0)) {
 		mhwmp_dbg("%s time to refresh root mpath %pM", sdata->name,
 							       orig_addr);
 		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
+		mpath->last_preq_to_root = jiffies;
 	}
 
-	if ((SN_LT(mpath->sn, orig_sn) || (mpath->sn == orig_sn &&
-	   metric < mpath->rann_metric)) && ifmsh->mshcfg.dot11MeshForwarding) {
+	mpath->sn = orig_sn;
+	mpath->rann_metric = metric + metric_txsta;
+	mpath->is_root = true;
+	/* Recording RANNs sender address to send individually
+	 * addressed PREQs destined for root mesh STA */
+	memcpy(mpath->rann_snd_addr, mgmt->sa, ETH_ALEN);
+
+	if (root_is_gate)
+		mesh_path_add_gate(mpath);
+
+	if (ttl <= 1) {
+		ifmsh->mshstats.dropped_frames_ttl++;
+		rcu_read_unlock();
+		return;
+	}
+	ttl--;
+
+	if (ifmsh->mshcfg.dot11MeshForwarding) {
 		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
 				       cpu_to_le32(orig_sn),
 				       0, NULL, 0, broadcast_addr,
 				       hopcount, ttl, cpu_to_le32(interval),
 				       cpu_to_le32(metric + metric_txsta),
 				       0, sdata);
-		mpath->sn = orig_sn;
-		mpath->rann_metric = metric + metric_txsta;
-		/* Recording RANNs sender address to send individually
-		 * addressed PREQs destined for root mesh STA */
-		memcpy(mpath->rann_snd_addr, mgmt->sa, ETH_ALEN);
 	}
-
-	mpath->is_root = true;
-
-	if (root_is_gate)
-		mesh_path_add_gate(mpath);
 
 	rcu_read_unlock();
 }
@@ -1157,13 +1194,34 @@ mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u32 interval = ifmsh->mshcfg.dot11MeshHWMPRannInterval;
-	u8 flags;
+	u8 flags, target_flags = 0;
 
 	flags = (ifmsh->mshcfg.dot11MeshGateAnnouncementProtocol)
 			? RANN_FLAG_IS_GATE : 0;
-	mesh_path_sel_frame_tx(MPATH_RANN, flags, sdata->vif.addr,
+
+	switch (ifmsh->mshcfg.dot11MeshHWMPRootMode) {
+	case IEEE80211_PROACTIVE_RANN:
+		mesh_path_sel_frame_tx(MPATH_RANN, flags, sdata->vif.addr,
 			       cpu_to_le32(++ifmsh->sn),
 			       0, NULL, 0, broadcast_addr,
-			       0, sdata->u.mesh.mshcfg.element_ttl,
+			       0, ifmsh->mshcfg.element_ttl,
 			       cpu_to_le32(interval), 0, 0, sdata);
+		break;
+	case IEEE80211_PROACTIVE_PREQ_WITH_PREP:
+		flags |= IEEE80211_PREQ_PROACTIVE_PREP_FLAG;
+	case IEEE80211_PROACTIVE_PREQ_NO_PREP:
+		interval = ifmsh->mshcfg.dot11MeshHWMPactivePathToRootTimeout;
+		target_flags |= IEEE80211_PREQ_TO_FLAG |
+				IEEE80211_PREQ_USN_FLAG;
+		mesh_path_sel_frame_tx(MPATH_PREQ, flags, sdata->vif.addr,
+				cpu_to_le32(++ifmsh->sn), target_flags,
+				(u8 *) broadcast_addr, 0, broadcast_addr,
+				0, ifmsh->mshcfg.element_ttl,
+				cpu_to_le32(interval),
+				0, cpu_to_le32(ifmsh->preq_id++), sdata);
+		break;
+	default:
+		mhwmp_dbg("Proactive mechanism not supported");
+		return;
+	}
 }
