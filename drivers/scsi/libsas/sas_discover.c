@@ -294,6 +294,8 @@ static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_d
 
 	spin_lock_irq(&port->dev_list_lock);
 	list_del_init(&dev->dev_list_node);
+	if (dev_is_sata(dev))
+		sas_ata_end_eh(dev->sata_dev.ap);
 	spin_unlock_irq(&port->dev_list_lock);
 
 	sas_put_device(dev);
@@ -488,9 +490,9 @@ static void sas_chain_event(int event, unsigned long *pending,
 	if (!test_and_set_bit(event, pending)) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&ha->state_lock, flags);
+		spin_lock_irqsave(&ha->lock, flags);
 		sas_chain_work(ha, sw);
-		spin_unlock_irqrestore(&ha->state_lock, flags);
+		spin_unlock_irqrestore(&ha->lock, flags);
 	}
 }
 

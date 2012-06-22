@@ -114,7 +114,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 		sas_ha->lldd_queue_size = 128; /* Sanity */
 
 	set_bit(SAS_HA_REGISTERED, &sas_ha->state);
-	spin_lock_init(&sas_ha->state_lock);
+	spin_lock_init(&sas_ha->lock);
 	mutex_init(&sas_ha->drain_mutex);
 	INIT_LIST_HEAD(&sas_ha->defer_q);
 
@@ -163,9 +163,9 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 	 * events to be queued, and flush any in-progress drainers
 	 */
 	mutex_lock(&sas_ha->drain_mutex);
-	spin_lock_irq(&sas_ha->state_lock);
+	spin_lock_irq(&sas_ha->lock);
 	clear_bit(SAS_HA_REGISTERED, &sas_ha->state);
-	spin_unlock_irq(&sas_ha->state_lock);
+	spin_unlock_irq(&sas_ha->lock);
 	__sas_drain_work(sas_ha);
 	mutex_unlock(&sas_ha->drain_mutex);
 
@@ -411,9 +411,9 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	d->reset_result = 0;
 	d->hard_reset = hard_reset;
 
-	spin_lock_irq(&ha->state_lock);
+	spin_lock_irq(&ha->lock);
 	sas_queue_work(ha, &d->reset_work);
-	spin_unlock_irq(&ha->state_lock);
+	spin_unlock_irq(&ha->lock);
 
 	rc = sas_drain_work(ha);
 	if (rc == 0)
@@ -438,9 +438,9 @@ static int queue_phy_enable(struct sas_phy *phy, int enable)
 	d->enable_result = 0;
 	d->enable = enable;
 
-	spin_lock_irq(&ha->state_lock);
+	spin_lock_irq(&ha->lock);
 	sas_queue_work(ha, &d->enable_work);
-	spin_unlock_irq(&ha->state_lock);
+	spin_unlock_irq(&ha->lock);
 
 	rc = sas_drain_work(ha);
 	if (rc == 0)

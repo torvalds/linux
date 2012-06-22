@@ -523,6 +523,31 @@ static void sas_ata_set_dmamode(struct ata_port *ap, struct ata_device *ata_dev)
 		i->dft->lldd_ata_set_dmamode(dev);
 }
 
+static void sas_ata_sched_eh(struct ata_port *ap)
+{
+	struct domain_device *dev = ap->private_data;
+	struct sas_ha_struct *ha = dev->port->ha;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ha->lock, flags);
+	if (!test_and_set_bit(SAS_DEV_EH_PENDING, &dev->state))
+		ha->eh_active++;
+	ata_std_sched_eh(ap);
+	spin_unlock_irqrestore(&ha->lock, flags);
+}
+
+void sas_ata_end_eh(struct ata_port *ap)
+{
+	struct domain_device *dev = ap->private_data;
+	struct sas_ha_struct *ha = dev->port->ha;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ha->lock, flags);
+	if (test_and_clear_bit(SAS_DEV_EH_PENDING, &dev->state))
+		ha->eh_active--;
+	spin_unlock_irqrestore(&ha->lock, flags);
+}
+
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= ata_std_prereset,
 	.hardreset		= sas_ata_hard_reset,
@@ -536,6 +561,8 @@ static struct ata_port_operations sas_sata_ops = {
 	.port_start		= ata_sas_port_start,
 	.port_stop		= ata_sas_port_stop,
 	.set_dmamode		= sas_ata_set_dmamode,
+	.sched_eh		= sas_ata_sched_eh,
+	.end_eh			= sas_ata_end_eh,
 };
 
 static struct ata_port_info sata_port_info = {
@@ -708,10 +735,6 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct ata_port *ap = dev->sata_dev.ap;
 	struct sas_ha_struct *ha = dev->port->ha;
 
-	/* hold a reference over eh since we may be racing with final
-	 * remove once all commands are completed
-	 */
-	kref_get(&dev->kref);
 	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
 	ata_scsi_port_error_handler(ha->core.shost, ap);
 	sas_put_device(dev);
@@ -742,6 +765,13 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 			if (!dev_is_sata(dev))
 				continue;
+
+			/* hold a reference over eh since we may be
+			 * racing with final remove once all commands
+			 * are completed
+			 */
+			kref_get(&dev->kref);
+
 			async_schedule_domain(async_sas_ata_eh, dev, &async);
 		}
 		spin_unlock(&port->dev_list_lock);

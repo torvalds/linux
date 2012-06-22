@@ -179,6 +179,7 @@ struct sata_device {
 enum {
 	SAS_DEV_GONE,
 	SAS_DEV_DESTROY,
+	SAS_DEV_EH_PENDING,
 };
 
 struct domain_device {
@@ -386,7 +387,8 @@ struct sas_ha_struct {
 	struct list_head  defer_q; /* work queued while draining */
 	struct mutex	  drain_mutex;
 	unsigned long	  state;
-	spinlock_t 	  state_lock;
+	spinlock_t	  lock;
+	int		  eh_active;
 
 	struct mutex disco_mutex;
 

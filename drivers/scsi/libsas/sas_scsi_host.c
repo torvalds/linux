@@ -667,16 +667,20 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	goto out;
 }
 
+
 void sas_scsi_recover_host(struct Scsi_Host *shost)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
-	unsigned long flags;
 	LIST_HEAD(eh_work_q);
+	int tries = 0;
+	bool retry;
 
-	spin_lock_irqsave(shost->host_lock, flags);
+retry:
+	tries++;
+	retry = true;
+	spin_lock_irq(shost->host_lock);
 	list_splice_init(&shost->eh_cmd_q, &eh_work_q);
-	shost->host_eh_scheduled = 0;
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_unlock_irq(shost->host_lock);
 
 	SAS_DPRINTK("Enter %s busy: %d failed: %d\n",
 		    __func__, shost->host_busy, shost->host_failed);
@@ -710,8 +714,19 @@ out:
 
 	scsi_eh_flush_done_q(&ha->eh_done_q);
 
-	SAS_DPRINTK("--- Exit %s: busy: %d failed: %d\n",
-		    __func__, shost->host_busy, shost->host_failed);
+	/* check if any new eh work was scheduled during the last run */
+	spin_lock_irq(&ha->lock);
+	if (ha->eh_active == 0) {
+		shost->host_eh_scheduled = 0;
+		retry = false;
+	}
+	spin_unlock_irq(&ha->lock);
+
+	if (retry)
+		goto retry;
+
+	SAS_DPRINTK("--- Exit %s: busy: %d failed: %d tries: %d\n",
+		    __func__, shost->host_busy, shost->host_failed, tries);
 }
 
 enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
