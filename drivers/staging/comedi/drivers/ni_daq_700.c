@@ -111,8 +111,6 @@ static struct comedi_driver driver_dio700 = {
 	.offset = sizeof(struct dio700_board),
 };
 
-/*	the real driver routines	*/
-
 #define _700_SIZE 8
 
 #define _700_DATA 0
@@ -342,7 +340,7 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 	dio700_config(link);
 
 	return 0;
-}				/* dio700_cs_attach */
+}
 
 static void dio700_cs_detach(struct pcmcia_device *link)
 {
@@ -392,14 +390,14 @@ failed:
 	printk(KERN_INFO "ni_daq_700 cs failed");
 	dio700_release(link);
 
-}				/* dio700_config */
+}
 
 static void dio700_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "dio700_release\n");
 
 	pcmcia_disable_device(link);
-}				/* dio700_release */
+}
 
 static int dio700_cs_suspend(struct pcmcia_device *link)
 {
@@ -408,7 +406,7 @@ static int dio700_cs_suspend(struct pcmcia_device *link)
 	/* Mark the device as stopped, to block IO until later */
 	local->stop = 1;
 	return 0;
-}				/* dio700_cs_suspend */
+}
 
 static int dio700_cs_resume(struct pcmcia_device *link)
 {
@@ -416,17 +414,12 @@ static int dio700_cs_resume(struct pcmcia_device *link)
 
 	local->stop = 0;
 	return 0;
-}				/* dio700_cs_resume */
-
-/*====================================================================*/
+}
 
 static const struct pcmcia_device_id dio700_cs_ids[] = {
-	/* N.B. These IDs should match those in dio700_boards */
-	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x4743),	/* daqcard-700 */
+	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x4743),
 	PCMCIA_DEVICE_NULL
 };
-
-
 MODULE_DEVICE_TABLE(pcmcia, dio700_cs_ids);
 
 static struct pcmcia_driver dio700_cs_driver = {
