@@ -102,6 +102,8 @@ typedef struct xfs_buf_log_item {
 	char			*bli_orig;	/* original buffer copy */
 	char			*bli_logged;	/* bytes logged (bitmap) */
 #endif
+	int			bli_format_count;	/* count of headers */
+	struct xfs_buf_log_format *bli_formats;	/* array of in-log header ptrs */
 	struct xfs_buf_log_format bli_format;	/* embedded in-log header */
 } xfs_buf_log_item_t;
 
