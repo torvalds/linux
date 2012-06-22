@@ -5918,6 +5918,14 @@ static void alc269_fixup_mic2_mute(struct hda_codec *codec,
 	}
 }
 
+static void alc269_fixup_inv_dmic(struct hda_codec *codec,
+				  const struct alc_fixup *fix, int action)
+{
+	if (action == ALC_FIXUP_ACT_PROBE)
+		alc_add_inv_dmic_mixer(codec, 0x12);
+}
+
+
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC275_FIXUP_SONY_VAIO_GPIO2,
@@ -5936,6 +5944,7 @@ enum {
 	ALC269VB_FIXUP_AMIC,
 	ALC269VB_FIXUP_DMIC,
 	ALC269_FIXUP_MIC2_MUTE_LED,
+	ALC269_FIXUP_INV_DMIC,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -6060,12 +6069,19 @@ static const struct alc_fixup alc269_fixups[] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc269_fixup_mic2_mute,
 	},
+	[ALC269_FIXUP_INV_DMIC] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc269_fixup_inv_dmic,
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x029b, "Acer 1810TZ", ALC269_FIXUP_INV_DMIC),
+	SND_PCI_QUIRK(0x1025, 0x0349, "Acer AOD260", ALC269_FIXUP_INV_DMIC),
 	SND_PCI_QUIRK(0x103c, 0x1586, "HP", ALC269_FIXUP_MIC2_MUTE_LED),
 	SND_PCI_QUIRK(0x1043, 0x1427, "Asus Zenbook UX31E", ALC269VB_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
+	SND_PCI_QUIRK(0x1043, 0x1b13, "Asus U41SV", ALC269_FIXUP_INV_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x16e3, "ASUS UX50", ALC269_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x831a, "ASUS P901", ALC269_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x834a, "ASUS S101", ALC269_FIXUP_STEREO_DMIC),
@@ -6534,12 +6550,7 @@ static void alc272_fixup_mario(struct hda_codec *codec,
 		       "hda_codec: failed to override amp caps for NID 0x2\n");
 }
 
-static void alc662_fixup_inv_dmic(struct hda_codec *codec,
-				  const struct alc_fixup *fix, int action)
-{
-	if (action == ALC_FIXUP_ACT_PROBE)
-		alc_add_inv_dmic_mixer(codec, 0x12);
-}
+#define alc662_fixup_inv_dmic alc269_fixup_inv_dmic
 
 enum {
 	ALC662_FIXUP_ASPIRE,
