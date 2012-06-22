@@ -42,42 +42,37 @@ static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
-		*tx = tc << 2;
-		*rx = tc << 3;
+		/* TxQs/TC: 4	RxQs/TC: 8 */
+		*tx = tc << 2; /* 0, 4,  8, 12, 16, 20, 24, 28 */
+		*rx = tc << 3; /* 0, 8, 16, 24, 32, 40, 48, 56 */
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
 		if (num_tcs > 4) {
-			if (tc < 3) {
-				*tx = tc << 5;
-				*rx = tc << 4;
-			} else if (tc <  5) {
-				*tx = ((tc + 2) << 4);
-				*rx = tc << 4;
-			} else if (tc < num_tcs) {
-				*tx = ((tc + 8) << 3);
-				*rx = tc << 4;
-			}
+			/*
+			 * TCs    : TC0/1 TC2/3 TC4-7
+			 * TxQs/TC:    32    16     8
+			 * RxQs/TC:    16    16    16
+			 */
+			*rx = tc << 4;
+			if (tc < 3)
+				*tx = tc << 5;		/*   0,  32,  64 */
+			else if (tc < 5)
+				*tx = (tc + 2) << 4;	/*  80,  96 */
+			else
+				*tx = (tc + 8) << 3;	/* 104, 112, 120 */
 		} else {
-			*rx =  tc << 5;
-			switch (tc) {
-			case 0:
-				*tx =  0;
-				break;
-			case 1:
-				*tx = 64;
-				break;
-			case 2:
-				*tx = 96;
-				break;
-			case 3:
-				*tx = 112;
-				break;
-			default:
-				break;
-			}
+			/*
+			 * TCs    : TC0 TC1 TC2/3
+			 * TxQs/TC:  64  32    16
+			 * RxQs/TC:  32  32    32
+			 */
+			*rx = tc << 5;
+			if (tc < 2)
+				*tx = tc << 6;		/*  0,  64 */
+			else
+				*tx = (tc + 4) << 4;	/* 96, 112 */
 		}
-		break;
 	default:
 		break;
 	}
@@ -90,25 +85,26 @@ static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
  * Cache the descriptor ring offsets for DCB to the assigned rings.
  *
  **/
-static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
+static bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 {
 	struct net_device *dev = adapter->netdev;
-	int i, j, k;
+	unsigned int tx_idx, rx_idx;
+	int tc, offset, rss_i, i;
 	u8 num_tcs = netdev_get_num_tc(dev);
 
-	if (!num_tcs)
+	/* verify we have DCB queueing enabled before proceeding */
+	if (num_tcs <= 1)
 		return false;
 
-	for (i = 0, k = 0; i < num_tcs; i++) {
-		unsigned int tx_s, rx_s;
-		u16 count = dev->tc_to_txq[i].count;
+	rss_i = adapter->ring_feature[RING_F_RSS].indices;
 
-		ixgbe_get_first_reg_idx(adapter, i, &tx_s, &rx_s);
-		for (j = 0; j < count; j++, k++) {
-			adapter->tx_ring[k]->reg_idx = tx_s + j;
-			adapter->rx_ring[k]->reg_idx = rx_s + j;
-			adapter->tx_ring[k]->dcb_tc = i;
-			adapter->rx_ring[k]->dcb_tc = i;
+	for (tc = 0, offset = 0; tc < num_tcs; tc++, offset += rss_i) {
+		ixgbe_get_first_reg_idx(adapter, tc, &tx_idx, &rx_idx);
+		for (i = 0; i < rss_i; i++, tx_idx++, rx_idx++) {
+			adapter->tx_ring[offset + i]->reg_idx = tx_idx;
+			adapter->rx_ring[offset + i]->reg_idx = rx_idx;
+			adapter->tx_ring[offset + i]->dcb_tc = tc;
+			adapter->rx_ring[offset + i]->dcb_tc = tc;
 		}
 	}
 

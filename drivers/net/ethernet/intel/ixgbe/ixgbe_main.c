@@ -3608,20 +3608,16 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 	/* Enable RSS Hash per TC */
 	if (hw->mac.type != ixgbe_mac_82598EB) {
-		int i;
-		u32 reg = 0;
-		u8 msb = 0;
-		u8 rss_i = adapter->netdev->tc_to_txq[0].count - 1;
+		u32 msb = 0;
+		u16 rss_i = adapter->ring_feature[RING_F_RSS].indices - 1;
 
 		while (rss_i) {
 			msb++;
 			rss_i >>= 1;
 		}
 
-		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-			reg |= msb << IXGBE_RQTC_SHIFT_TC(i);
-
-		IXGBE_WRITE_REG(hw, IXGBE_RQTC, reg);
+		/* write msb to all 8 TCs in one write */
+		IXGBE_WRITE_REG(hw, IXGBE_RQTC, msb * 0x11111111);
 	}
 }
 #endif
