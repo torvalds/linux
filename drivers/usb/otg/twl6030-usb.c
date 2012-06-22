@@ -26,10 +26,10 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/musb-omap.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
-#include <linux/notifier.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 
@@ -100,7 +100,7 @@ struct twl6030_usb {
 
 	int			irq1;
 	int			irq2;
-	u8			linkstat;
+	enum omap_musb_vbus_id_status linkstat;
 	u8			asleep;
 	bool			irq_enabled;
 	bool			vbus_enable;
@@ -147,7 +147,7 @@ static int twl6030_phy_init(struct usb_phy *x)
 	dev  = twl->dev;
 	pdata = dev->platform_data;
 
-	if (twl->linkstat == USB_EVENT_ID)
+	if (twl->linkstat == OMAP_MUSB_ID_GROUND)
 		pdata->phy_power(twl->dev, 1, 1);
 	else
 		pdata->phy_power(twl->dev, 0, 1);
@@ -235,13 +235,13 @@ static ssize_t twl6030_usb_vbus_show(struct device *dev,
 	spin_lock_irqsave(&twl->lock, flags);
 
 	switch (twl->linkstat) {
-	case USB_EVENT_VBUS:
+	case OMAP_MUSB_VBUS_VALID:
 	       ret = snprintf(buf, PAGE_SIZE, "vbus\n");
 	       break;
-	case USB_EVENT_ID:
+	case OMAP_MUSB_ID_GROUND:
 	       ret = snprintf(buf, PAGE_SIZE, "id\n");
 	       break;
-	case USB_EVENT_NONE:
+	case OMAP_MUSB_VBUS_OFF:
 	       ret = snprintf(buf, PAGE_SIZE, "none\n");
 	       break;
 	default:
@@ -257,7 +257,7 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
 	struct usb_otg *otg = twl->phy.otg;
-	int status;
+	enum omap_musb_vbus_id_status status = OMAP_MUSB_UNKNOWN;
 	u8 vbus_state, hw_state;
 
 	hw_state = twl6030_readb(twl, TWL6030_MODULE_ID0, STS_HW_CONDITIONS);
@@ -268,22 +268,20 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 		if (vbus_state & VBUS_DET) {
 			regulator_enable(twl->usb3v3);
 			twl->asleep = 1;
-			status = USB_EVENT_VBUS;
+			status = OMAP_MUSB_VBUS_VALID;
 			otg->default_a = false;
 			twl->phy.state = OTG_STATE_B_IDLE;
 			twl->linkstat = status;
-			twl->phy.last_event = status;
-			atomic_notifier_call_chain(&twl->phy.notifier,
-						status, otg->gadget);
+			omap_musb_mailbox(status);
 		} else {
-			status = USB_EVENT_NONE;
-			twl->linkstat = status;
-			twl->phy.last_event = status;
-			atomic_notifier_call_chain(&twl->phy.notifier,
-						status, otg->gadget);
-			if (twl->asleep) {
-				regulator_disable(twl->usb3v3);
-				twl->asleep = 0;
+			if (twl->linkstat != OMAP_MUSB_UNKNOWN) {
+				status = OMAP_MUSB_VBUS_OFF;
+				twl->linkstat = status;
+				omap_musb_mailbox(status);
+				if (twl->asleep) {
+					regulator_disable(twl->usb3v3);
+					twl->asleep = 0;
+				}
 			}
 		}
 	}
@@ -296,7 +294,7 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
 	struct usb_otg *otg = twl->phy.otg;
-	int status = USB_EVENT_NONE;
+	enum omap_musb_vbus_id_status status = OMAP_MUSB_UNKNOWN;
 	u8 hw_state;
 
 	hw_state = twl6030_readb(twl, TWL6030_MODULE_ID0, STS_HW_CONDITIONS);
@@ -308,13 +306,11 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		twl6030_writeb(twl, TWL_MODULE_USB, USB_ID_INT_EN_HI_CLR, 0x1);
 		twl6030_writeb(twl, TWL_MODULE_USB, USB_ID_INT_EN_HI_SET,
 								0x10);
-		status = USB_EVENT_ID;
+		status = OMAP_MUSB_ID_GROUND;
 		otg->default_a = true;
 		twl->phy.state = OTG_STATE_A_IDLE;
 		twl->linkstat = status;
-		twl->phy.last_event = status;
-		atomic_notifier_call_chain(&twl->phy.notifier, status,
-							otg->gadget);
+		omap_musb_mailbox(status);
 	} else  {
 		twl6030_writeb(twl, TWL_MODULE_USB, USB_ID_INT_EN_HI_CLR,
 								0x10);
@@ -419,6 +415,7 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	twl->irq1		= platform_get_irq(pdev, 0);
 	twl->irq2		= platform_get_irq(pdev, 1);
 	twl->features		= pdata->features;
+	twl->linkstat		= OMAP_MUSB_UNKNOWN;
 
 	twl->phy.dev		= twl->dev;
 	twl->phy.label		= "twl6030";
@@ -448,8 +445,6 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, twl);
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))
 		dev_warn(&pdev->dev, "could not create sysfs file\n");
-
-	ATOMIC_INIT_NOTIFIER_HEAD(&twl->phy.notifier);
 
 	INIT_WORK(&twl->set_vbus_work, otg_set_vbus_work);
 

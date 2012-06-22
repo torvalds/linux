@@ -34,6 +34,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
+#include <linux/usb/musb-omap.h>
 
 #include "musb_core.h"
 #include "omap2430.h"
@@ -41,10 +42,12 @@
 struct omap2430_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
-	u8			xceiv_event;
+	enum omap_musb_vbus_id_status status;
 	struct work_struct	omap_musb_mailbox_work;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
+
+struct omap2430_glue		*_glue;
 
 static struct timer_list musb_idle_timer;
 
@@ -225,54 +228,58 @@ static inline void omap2430_low_level_init(struct musb *musb)
 	musb_writel(musb->mregs, OTG_FORCESTDBY, l);
 }
 
-static int musb_otg_notifications(struct notifier_block *nb,
-		unsigned long event, void *unused)
+void omap_musb_mailbox(enum omap_musb_vbus_id_status status)
 {
-	struct musb		*musb = container_of(nb, struct musb, nb);
-	struct device		*dev = musb->controller;
-	struct omap2430_glue	*glue = dev_get_drvdata(dev->parent);
+	struct omap2430_glue	*glue = _glue;
+	struct musb		*musb = glue_to_musb(glue);
 
-	glue->xceiv_event = event;
+	glue->status = status;
+	if (!musb) {
+		dev_err(glue->dev, "musb core is not yet ready\n");
+		return;
+	}
+
 	schedule_work(&glue->omap_musb_mailbox_work);
-
-	return NOTIFY_OK;
 }
+EXPORT_SYMBOL_GPL(omap_musb_mailbox);
 
-static void omap_musb_mailbox_work(struct work_struct *data_notifier_work)
+static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 {
-	struct omap2430_glue *glue = container_of(data_notifier_work,
-		struct omap2430_glue, omap_musb_mailbox_work);
 	struct musb *musb = glue_to_musb(glue);
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *pdata = dev->platform_data;
 	struct omap_musb_board_data *data = pdata->board_data;
 
-	switch (glue->xceiv_event) {
-	case USB_EVENT_ID:
-		dev_dbg(musb->controller, "ID GND\n");
+	switch (glue->status) {
+	case OMAP_MUSB_ID_GROUND:
+		dev_dbg(dev, "ID GND\n");
 
+		musb->xceiv->last_event = USB_EVENT_ID;
 		if (!is_otg_enabled(musb) || musb->gadget_driver) {
-			pm_runtime_get_sync(musb->controller);
+			pm_runtime_get_sync(dev);
 			usb_phy_init(musb->xceiv);
 			omap2430_musb_set_vbus(musb, 1);
 		}
 		break;
 
-	case USB_EVENT_VBUS:
-		dev_dbg(musb->controller, "VBUS Connect\n");
+	case OMAP_MUSB_VBUS_VALID:
+		dev_dbg(dev, "VBUS Connect\n");
 
+		musb->xceiv->last_event = USB_EVENT_VBUS;
 		if (musb->gadget_driver)
-			pm_runtime_get_sync(musb->controller);
+			pm_runtime_get_sync(dev);
 		usb_phy_init(musb->xceiv);
 		break;
 
-	case USB_EVENT_NONE:
-		dev_dbg(musb->controller, "VBUS Disconnect\n");
+	case OMAP_MUSB_ID_FLOAT:
+	case OMAP_MUSB_VBUS_OFF:
+		dev_dbg(dev, "VBUS Disconnect\n");
 
+		musb->xceiv->last_event = USB_EVENT_NONE;
 		if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
 			if (musb->gadget_driver) {
-				pm_runtime_mark_last_busy(musb->controller);
-				pm_runtime_put_autosuspend(musb->controller);
+				pm_runtime_mark_last_busy(dev);
+				pm_runtime_put_autosuspend(dev);
 			}
 
 		if (data->interface_type == MUSB_INTERFACE_UTMI) {
@@ -282,8 +289,16 @@ static void omap_musb_mailbox_work(struct work_struct *data_notifier_work)
 		usb_phy_shutdown(musb->xceiv);
 		break;
 	default:
-		dev_dbg(musb->controller, "ID float\n");
+		dev_dbg(dev, "ID float\n");
 	}
+}
+
+
+static void omap_musb_mailbox_work(struct work_struct *mailbox_work)
+{
+	struct omap2430_glue *glue = container_of(mailbox_work,
+				struct omap2430_glue, omap_musb_mailbox_work);
+	omap_musb_set_mailbox(glue);
 }
 
 static int omap2430_musb_init(struct musb *musb)
@@ -291,6 +306,7 @@ static int omap2430_musb_init(struct musb *musb)
 	u32 l;
 	int status = 0;
 	struct device *dev = musb->controller;
+	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
 	struct omap_musb_board_data *data = plat->board_data;
 
@@ -330,13 +346,10 @@ static int omap2430_musb_init(struct musb *musb)
 			musb_readl(musb->mregs, OTG_INTERFSEL),
 			musb_readl(musb->mregs, OTG_SIMENABLE));
 
-	musb->nb.notifier_call = musb_otg_notifications;
-	status = usb_register_notifier(musb->xceiv, &musb->nb);
-
-	if (status)
-		dev_dbg(musb->controller, "notification register failed\n");
-
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
+
+	if (glue->status != OMAP_MUSB_UNKNOWN)
+		omap_musb_set_mailbox(glue);
 
 	pm_runtime_put_noidle(musb->controller);
 	return 0;
@@ -350,12 +363,13 @@ static void omap2430_musb_enable(struct musb *musb)
 	u8		devctl;
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct device *dev = musb->controller;
+	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 	struct musb_hdrc_platform_data *pdata = dev->platform_data;
 	struct omap_musb_board_data *data = pdata->board_data;
 
-	switch (musb->xceiv->last_event) {
+	switch (glue->status) {
 
-	case USB_EVENT_ID:
+	case OMAP_MUSB_ID_GROUND:
 		usb_phy_init(musb->xceiv);
 		if (data->interface_type != MUSB_INTERFACE_UTMI)
 			break;
@@ -374,7 +388,7 @@ static void omap2430_musb_enable(struct musb *musb)
 		}
 		break;
 
-	case USB_EVENT_VBUS:
+	case OMAP_MUSB_VBUS_VALID:
 		usb_phy_init(musb->xceiv);
 		break;
 
@@ -385,7 +399,10 @@ static void omap2430_musb_enable(struct musb *musb)
 
 static void omap2430_musb_disable(struct musb *musb)
 {
-	if (musb->xceiv->last_event)
+	struct device *dev = musb->controller;
+	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
+
+	if (glue->status != OMAP_MUSB_UNKNOWN)
 		usb_phy_shutdown(musb->xceiv);
 }
 
@@ -439,10 +456,17 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
+	glue->status			= OMAP_MUSB_UNKNOWN;
 
 	pdata->platform_ops		= &omap2430_ops;
 
 	platform_set_drvdata(pdev, glue);
+
+	/*
+	 * REVISIT if we ever have two instances of the wrapper, we will be
+	 * in big trouble
+	 */
+	_glue	= glue;
 
 	INIT_WORK(&glue->omap_musb_mailbox_work, omap_musb_mailbox_work);
 
@@ -552,7 +576,7 @@ static int __init omap2430_init(void)
 {
 	return platform_driver_register(&omap2430_driver);
 }
-module_init(omap2430_init);
+subsys_initcall(omap2430_init);
 
 static void __exit omap2430_exit(void)
 {
