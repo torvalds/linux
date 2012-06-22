@@ -430,13 +430,13 @@ static const struct pcmcia_device_id dio700_cs_ids[] = {
 MODULE_DEVICE_TABLE(pcmcia, dio700_cs_ids);
 
 static struct pcmcia_driver dio700_cs_driver = {
-	.probe = dio700_cs_attach,
-	.remove = dio700_cs_detach,
-	.suspend = dio700_cs_suspend,
-	.resume = dio700_cs_resume,
-	.id_table = dio700_cs_ids,
-	.owner = THIS_MODULE,
-	.name = "ni_daq_700",
+	.name		= "ni_daq_700",
+	.owner		= THIS_MODULE,
+	.probe		= dio700_cs_attach,
+	.remove		= dio700_cs_detach,
+	.suspend	= dio700_cs_suspend,
+	.resume		= dio700_cs_resume,
+	.id_table	= dio700_cs_ids,
 };
 
 static int __init dio700_cs_init(void)
