@@ -2276,15 +2276,15 @@ err:
 int snd_soc_dapm_add_routes(struct snd_soc_dapm_context *dapm,
 			    const struct snd_soc_dapm_route *route, int num)
 {
-	int i, ret = 0;
+	int i, r, ret = 0;
 
 	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_INIT);
 	for (i = 0; i < num; i++) {
-		ret = snd_soc_dapm_add_route(dapm, route);
-		if (ret < 0) {
+		r = snd_soc_dapm_add_route(dapm, route);
+		if (r < 0) {
 			dev_err(dapm->dev, "Failed to add route %s->%s\n",
 				route->source, route->sink);
-			break;
+			ret = r;
 		}
 		route++;
 	}
