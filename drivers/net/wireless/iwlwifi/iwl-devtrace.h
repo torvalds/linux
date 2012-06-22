@@ -189,7 +189,7 @@ DECLARE_EVENT_CLASS(iwlwifi_msg_event,
 				       MAX_MSG_LEN, vaf->fmt,
 				       *vaf->va) >= MAX_MSG_LEN);
 	),
-	TP_printk("%s", (char *)__get_dynamic_array(msg))
+	TP_printk("%s", __get_str(msg))
 );
 
 DEFINE_EVENT(iwlwifi_msg_event, iwlwifi_err,
