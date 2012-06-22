@@ -133,20 +133,6 @@ typedef struct xfs_da_args {
 	{ XFS_DA_OP_CILOOKUP,	"CILOOKUP" }
 
 /*
- * Structure to describe buffer(s) for a block.
- * This is needed in the directory version 2 format case, when
- * multiple non-contiguous fsblocks might be needed to cover one
- * logical directory block.
- * If the buffer count is 1 then the data pointer points to the
- * same place as the b_addr field for the buffer, else to kmem_alloced memory.
- */
-typedef struct xfs_dabuf {
-	short		bbcount;	/* how large is data in bbs */
-	void		*data;		/* pointer for buffers' data */
-	struct xfs_buf	*bp;		/* actually nbuf of these */
-} xfs_dabuf_t;
-
-/*
  * Storage for holding state during Btree searches and split/join ops.
  *
  * Only need space for 5 intermediate nodes.  With a minimum of 62-way
@@ -154,7 +140,7 @@ typedef struct xfs_dabuf {
  * which is slightly more than enough.
  */
 typedef struct xfs_da_state_blk {
-	xfs_dabuf_t	*bp;		/* buffer containing block */
+	struct xfs_buf	*bp;		/* buffer containing block */
 	xfs_dablk_t	blkno;		/* filesystem blkno of buffer */
 	xfs_daddr_t	disk_blkno;	/* on-disk blkno (in BBs) of buffer */
 	int		index;		/* relevant index into block */
@@ -207,7 +193,7 @@ struct xfs_nameops {
  * Routines used for growing the Btree.
  */
 int	xfs_da_node_create(xfs_da_args_t *args, xfs_dablk_t blkno, int level,
-					 xfs_dabuf_t **bpp, int whichfork);
+					 struct xfs_buf **bpp, int whichfork);
 int	xfs_da_split(xfs_da_state_t *state);
 
 /*
@@ -237,14 +223,14 @@ int	xfs_da_grow_inode_int(struct xfs_da_args *args, xfs_fileoff_t *bno,
 			      int count);
 int	xfs_da_get_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 			      xfs_dablk_t bno, xfs_daddr_t mappedbno,
-			      xfs_dabuf_t **bp, int whichfork);
+			      struct xfs_buf **bp, int whichfork);
 int	xfs_da_read_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 			       xfs_dablk_t bno, xfs_daddr_t mappedbno,
-			       xfs_dabuf_t **bpp, int whichfork);
+			       struct xfs_buf **bpp, int whichfork);
 xfs_daddr_t	xfs_da_reada_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 			xfs_dablk_t bno, int whichfork);
 int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
-					  xfs_dabuf_t *dead_buf);
+					  struct xfs_buf *dead_buf);
 
 uint xfs_da_hashname(const __uint8_t *name_string, int name_length);
 enum xfs_dacmp xfs_da_compname(struct xfs_da_args *args,
@@ -254,15 +240,7 @@ enum xfs_dacmp xfs_da_compname(struct xfs_da_args *args,
 xfs_da_state_t *xfs_da_state_alloc(void);
 void xfs_da_state_free(xfs_da_state_t *state);
 
-void xfs_da_buf_done(xfs_dabuf_t *dabuf);
-void xfs_da_log_buf(struct xfs_trans *tp, xfs_dabuf_t *dabuf, uint first,
-			   uint last);
-void xfs_da_brelse(struct xfs_trans *tp, xfs_dabuf_t *dabuf);
-void xfs_da_binval(struct xfs_trans *tp, xfs_dabuf_t *dabuf);
-xfs_daddr_t xfs_da_blkno(xfs_dabuf_t *dabuf);
-
 extern struct kmem_zone *xfs_da_state_zone;
-extern struct kmem_zone *xfs_dabuf_zone;
 extern const struct xfs_nameops xfs_default_nameops;
 
 #endif	/* __XFS_DA_BTREE_H__ */

@@ -42,8 +42,8 @@ xfs_dir2_data_freefind(xfs_dir2_data_hdr_t *hdr, xfs_dir2_data_unused_t *dup);
  */
 void
 xfs_dir2_data_check(
-	xfs_inode_t		*dp,		/* incore inode pointer */
-	xfs_dabuf_t		*bp)		/* data block's buffer */
+	struct xfs_inode	*dp,		/* incore inode pointer */
+	struct xfs_buf		*bp)		/* data block's buffer */
 {
 	xfs_dir2_dataptr_t	addr;		/* addr for leaf lookup */
 	xfs_dir2_data_free_t	*bf;		/* bestfree table */
@@ -65,7 +65,7 @@ xfs_dir2_data_check(
 	struct xfs_name		name;
 
 	mp = dp->i_mount;
-	hdr = bp->data;
+	hdr = bp->b_addr;
 	bf = hdr->bestfree;
 	p = (char *)(hdr + 1);
 
@@ -389,9 +389,9 @@ int						/* error */
 xfs_dir2_data_init(
 	xfs_da_args_t		*args,		/* directory operation args */
 	xfs_dir2_db_t		blkno,		/* logical dir block number */
-	xfs_dabuf_t		**bpp)		/* output block buffer */
+	struct xfs_buf		**bpp)		/* output block buffer */
 {
-	xfs_dabuf_t		*bp;		/* block buffer */
+	struct xfs_buf		*bp;		/* block buffer */
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry pointer */
@@ -417,7 +417,7 @@ xfs_dir2_data_init(
 	/*
 	 * Initialize the header.
 	 */
-	hdr = bp->data;
+	hdr = bp->b_addr;
 	hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 	hdr->bestfree[0].offset = cpu_to_be16(sizeof(*hdr));
 	for (i = 1; i < XFS_DIR2_DATA_FD_COUNT; i++) {
@@ -449,16 +449,16 @@ xfs_dir2_data_init(
  */
 void
 xfs_dir2_data_log_entry(
-	xfs_trans_t		*tp,		/* transaction pointer */
-	xfs_dabuf_t		*bp,		/* block buffer */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
 	xfs_dir2_data_entry_t	*dep)		/* data entry pointer */
 {
-	xfs_dir2_data_hdr_t	*hdr = bp->data;
+	xfs_dir2_data_hdr_t	*hdr = bp->b_addr;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC));
 
-	xfs_da_log_buf(tp, bp, (uint)((char *)dep - (char *)hdr),
+	xfs_trans_log_buf(tp, bp, (uint)((char *)dep - (char *)hdr),
 		(uint)((char *)(xfs_dir2_data_entry_tag_p(dep) + 1) -
 		       (char *)hdr - 1));
 }
@@ -468,15 +468,15 @@ xfs_dir2_data_log_entry(
  */
 void
 xfs_dir2_data_log_header(
-	xfs_trans_t		*tp,		/* transaction pointer */
-	xfs_dabuf_t		*bp)		/* block buffer */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp)
 {
-	xfs_dir2_data_hdr_t	*hdr = bp->data;
+	xfs_dir2_data_hdr_t	*hdr = bp->b_addr;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC));
 
-	xfs_da_log_buf(tp, bp, 0, sizeof(*hdr) - 1);
+	xfs_trans_log_buf(tp, bp, 0, sizeof(*hdr) - 1);
 }
 
 /*
@@ -484,11 +484,11 @@ xfs_dir2_data_log_header(
  */
 void
 xfs_dir2_data_log_unused(
-	xfs_trans_t		*tp,		/* transaction pointer */
-	xfs_dabuf_t		*bp,		/* block buffer */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
 	xfs_dir2_data_unused_t	*dup)		/* data unused pointer */
 {
-	xfs_dir2_data_hdr_t	*hdr = bp->data;
+	xfs_dir2_data_hdr_t	*hdr = bp->b_addr;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC));
@@ -496,13 +496,13 @@ xfs_dir2_data_log_unused(
 	/*
 	 * Log the first part of the unused entry.
 	 */
-	xfs_da_log_buf(tp, bp, (uint)((char *)dup - (char *)hdr),
+	xfs_trans_log_buf(tp, bp, (uint)((char *)dup - (char *)hdr),
 		(uint)((char *)&dup->length + sizeof(dup->length) -
 		       1 - (char *)hdr));
 	/*
 	 * Log the end (tag) of the unused entry.
 	 */
-	xfs_da_log_buf(tp, bp,
+	xfs_trans_log_buf(tp, bp,
 		(uint)((char *)xfs_dir2_data_unused_tag_p(dup) - (char *)hdr),
 		(uint)((char *)xfs_dir2_data_unused_tag_p(dup) - (char *)hdr +
 		       sizeof(xfs_dir2_data_off_t) - 1));
@@ -514,8 +514,8 @@ xfs_dir2_data_log_unused(
  */
 void
 xfs_dir2_data_make_free(
-	xfs_trans_t		*tp,		/* transaction pointer */
-	xfs_dabuf_t		*bp,		/* block buffer */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
 	xfs_dir2_data_aoff_t	offset,		/* starting byte offset */
 	xfs_dir2_data_aoff_t	len,		/* length in bytes */
 	int			*needlogp,	/* out: log header */
@@ -531,7 +531,7 @@ xfs_dir2_data_make_free(
 	xfs_dir2_data_unused_t	*prevdup;	/* unused entry before us */
 
 	mp = tp->t_mountp;
-	hdr = bp->data;
+	hdr = bp->b_addr;
 
 	/*
 	 * Figure out where the end of the data area is.
@@ -696,8 +696,8 @@ xfs_dir2_data_make_free(
  */
 void
 xfs_dir2_data_use_free(
-	xfs_trans_t		*tp,		/* transaction pointer */
-	xfs_dabuf_t		*bp,		/* data block buffer */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
 	xfs_dir2_data_unused_t	*dup,		/* unused entry */
 	xfs_dir2_data_aoff_t	offset,		/* starting offset to use */
 	xfs_dir2_data_aoff_t	len,		/* length to use */
@@ -713,7 +713,7 @@ xfs_dir2_data_use_free(
 	xfs_dir2_data_unused_t	*newdup2;	/* another new unused entry */
 	int			oldlen;		/* old unused entry's length */
 
-	hdr = bp->data;
+	hdr = bp->b_addr;
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC));
 	ASSERT(be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG);
