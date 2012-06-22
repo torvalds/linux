@@ -46,12 +46,6 @@ void sas_init_dev(struct domain_device *dev)
 		INIT_LIST_HEAD(&dev->ex_dev.children);
 		mutex_init(&dev->ex_dev.cmd_mutex);
 		break;
-	case SATA_DEV:
-	case SATA_PM:
-	case SATA_PM_PORT:
-	case SATA_PENDING:
-		INIT_LIST_HEAD(&dev->sata_dev.children);
-		break;
 	default:
 		break;
 	}
