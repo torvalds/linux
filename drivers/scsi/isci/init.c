@@ -481,7 +481,6 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 						orom->hdr.version)) {
 			dev_warn(&pdev->dev,
 				 "[%d]: invalid oem parameters detected, falling back to firmware\n", i);
-			devm_kfree(&pdev->dev, orom);
 			orom = NULL;
 			break;
 		}
