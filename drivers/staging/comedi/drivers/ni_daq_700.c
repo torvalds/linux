@@ -102,26 +102,6 @@ static int subdev_700_insn_config(struct comedi_device *dev,
 	return 1;
 }
 
-static int subdev_700_init(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   int (*cb) (int, int, int, unsigned long),
-			   unsigned long arg)
-{
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 16;
-	s->range_table = &range_digital;
-	s->maxdata = 1;
-
-	s->insn_bits = subdev_700_insn;
-	s->insn_config = subdev_700_insn_config;
-
-	s->state = 0;
-	s->io_bits = 0x00ff;
-
-	return 0;
-}
-
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dio700_board *thisboard = comedi_board(dev);
@@ -171,7 +151,16 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* DAQCard-700 dio */
 	s = dev->subdevices + 0;
-	subdev_700_init(dev, s, NULL, dev->iobase);
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->range_table	= &range_digital;
+	s->maxdata	= 1;
+	s->insn_bits	= subdev_700_insn;
+	s->insn_config	= subdev_700_insn_config;
+
+	s->state	= 0;
+	s->io_bits	= 0x00ff;
 
 	return 0;
 };
