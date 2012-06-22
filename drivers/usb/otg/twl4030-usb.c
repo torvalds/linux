@@ -591,15 +591,13 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	twl = kzalloc(sizeof *twl, GFP_KERNEL);
+	twl = devm_kzalloc(&pdev->dev, sizeof *twl, GFP_KERNEL);
 	if (!twl)
 		return -ENOMEM;
 
-	otg = kzalloc(sizeof *otg, GFP_KERNEL);
-	if (!otg) {
-		kfree(twl);
+	otg = devm_kzalloc(&pdev->dev, sizeof *otg, GFP_KERNEL);
+	if (!otg)
 		return -ENOMEM;
-	}
 
 	twl->dev		= &pdev->dev;
 	twl->irq		= platform_get_irq(pdev, 0);
@@ -623,8 +621,6 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	err = twl4030_usb_ldo_init(twl);
 	if (err) {
 		dev_err(&pdev->dev, "ldo init failed\n");
-		kfree(otg);
-		kfree(twl);
 		return err;
 	}
 	usb_add_phy(&twl->phy, USB_PHY_TYPE_USB2);
@@ -648,8 +644,6 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	if (status < 0) {
 		dev_dbg(&pdev->dev, "can't get IRQ %d, err %d\n",
 			twl->irq, status);
-		kfree(otg);
-		kfree(twl);
 		return status;
 	}
 
@@ -692,9 +686,6 @@ static int __exit twl4030_usb_remove(struct platform_device *pdev)
 	regulator_put(twl->usb1v5);
 	regulator_put(twl->usb1v8);
 	regulator_put(twl->usb3v1);
-
-	kfree(twl->phy.otg);
-	kfree(twl);
 
 	return 0;
 }
