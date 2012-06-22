@@ -1036,7 +1036,7 @@ static struct snd_soc_dai_ops isabelle_ul_dai_ops = {
 };
 
 /* ISABELLE dai structure */
-struct snd_soc_dai_driver isabelle_dai[] = {
+static struct snd_soc_dai_driver isabelle_dai[] = {
 	{
 		.name = "isabelle-dl1",
 		.playback = {
