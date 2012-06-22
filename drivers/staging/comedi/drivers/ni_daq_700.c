@@ -53,15 +53,9 @@ IRQ is assigned but not used.
 
 static struct pcmcia_device *pcmcia_cur_dev;
 
-#define DIO700_SIZE 8		/*  size of io region used by board */
-
 struct dio700_board {
 	const char *name;
 };
-
-#define _700_SIZE 8
-
-#define _700_DATA 0
 
 #define DIO_W		0x04
 #define DIO_R		0x05
