@@ -55,10 +55,6 @@ static struct pcmcia_device *pcmcia_cur_dev;
 
 #define DIO700_SIZE 8		/*  size of io region used by board */
 
-static int dio700_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static void dio700_detach(struct comedi_device *dev);
-
 enum dio700_bustype { pcmcia_bustype };
 
 struct dio700_board {
@@ -100,16 +96,6 @@ struct dio700_private {
 };
 
 #define devpriv ((struct dio700_private *)dev->private)
-
-static struct comedi_driver driver_dio700 = {
-	.driver_name = "ni_daq_700",
-	.module = THIS_MODULE,
-	.attach = dio700_attach,
-	.detach = dio700_detach,
-	.num_names = ARRAY_SIZE(dio700_boards),
-	.board_name = &dio700_boards[0].name,
-	.offset = sizeof(struct dio700_board),
-};
 
 #define _700_SIZE 8
 
@@ -304,6 +290,16 @@ static void dio700_detach(struct comedi_device *dev)
 		release_region(dev->iobase, DIO700_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
+};
+
+static struct comedi_driver driver_dio700 = {
+	.driver_name	= "ni_daq_700",
+	.module		= THIS_MODULE,
+	.attach		= dio700_attach,
+	.detach		= dio700_detach,
+	.board_name	= &dio700_boards[0].name,
+	.num_names	= ARRAY_SIZE(dio700_boards),
+	.offset		= sizeof(struct dio700_board),
 };
 
 static void dio700_release(struct pcmcia_device *link)
