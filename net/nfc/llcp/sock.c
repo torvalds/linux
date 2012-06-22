@@ -124,6 +124,8 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	if (llcp_sock->ssap == LLCP_MAX_SAP)
 		goto put_dev;
 
+	llcp_sock->reserved_ssap = llcp_sock->ssap;
+
 	nfc_llcp_sock_link(&local->sockets, sk);
 
 	pr_debug("Socket bound to SAP %d\n", llcp_sock->ssap);
@@ -409,7 +411,8 @@ static int llcp_sock_release(struct socket *sock)
 		}
 	}
 
-	nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
+	if (llcp_sock->reserved_ssap < LLCP_SAP_MAX)
+		nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
 
 	release_sock(sk);
 
@@ -489,6 +492,9 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 		ret = -ENOMEM;
 		goto put_dev;
 	}
+
+	llcp_sock->reserved_ssap = llcp_sock->ssap;
+
 	if (addr->service_name_len == 0)
 		llcp_sock->dsap = addr->dsap;
 	else
@@ -690,6 +696,7 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 	llcp_sock->send_n = llcp_sock->send_ack_n = 0;
 	llcp_sock->recv_n = llcp_sock->recv_ack_n = 0;
 	llcp_sock->remote_ready = 1;
+	llcp_sock->reserved_ssap = LLCP_SAP_MAX;
 	skb_queue_head_init(&llcp_sock->tx_queue);
 	skb_queue_head_init(&llcp_sock->tx_pending_queue);
 	skb_queue_head_init(&llcp_sock->tx_backlog_queue);

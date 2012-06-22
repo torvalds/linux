@@ -113,6 +113,9 @@ struct nfc_llcp_sock {
 	/* Is the remote peer ready to receive */
 	u8 remote_ready;
 
+	/* Reserved source SAP */
+	u8 reserved_ssap;
+
 	struct sk_buff_head tx_queue;
 	struct sk_buff_head tx_pending_queue;
 	struct sk_buff_head tx_backlog_queue;
