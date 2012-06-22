@@ -104,21 +104,18 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dio700_board *thisboard = comedi_board(dev);
 	struct comedi_subdevice *s;
-	unsigned long iobase = 0;
 	struct pcmcia_device *link;
 	int ret;
 
 	link = pcmcia_cur_dev;	/* XXX hack */
 	if (!link)
 		return -EIO;
-	iobase = link->resource[0]->start;
 
-	if (iobase == 0) {
+	dev->iobase = link->resource[0]->start;
+	if (!dev->iobase) {
 		dev_err(dev->class_dev, "io base address is zero!\n");
 		return -EINVAL;
 	}
-
-	dev->iobase = iobase;
 
 	dev->board_name = thisboard->name;
 
