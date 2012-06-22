@@ -235,6 +235,7 @@ static int __exit acm_ms_unbind(struct usb_composite_dev *cdev)
 static struct usb_composite_driver acm_ms_driver = {
 	.name		= "g_acm_ms",
 	.dev		= &device_desc,
+	.max_speed	= USB_SPEED_SUPER,
 	.strings	= dev_strings,
 	.unbind		= __exit_p(acm_ms_unbind),
 };
