@@ -929,7 +929,7 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_slave_sg(
 	for_each_sg(sgl, sg, sg_len, i) {
 		u32 len, mem;
 
-		mem = sg_phys(sg);
+		mem = sg_dma_address(sg);
 		len = sg_dma_len(sg);
 
 		if ((len & 3) || (mem & 3) ||
