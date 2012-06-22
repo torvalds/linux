@@ -113,11 +113,8 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	iobase = link->resource[0]->start;
 
-	printk(KERN_ERR "comedi%d: ni_daq_700: %s, io 0x%lx\n", dev->minor,
-	       thisboard->name, iobase);
-
 	if (iobase == 0) {
-		printk(KERN_ERR "io base address is zero!\n");
+		dev_err(dev->class_dev, "io base address is zero!\n");
 		return -EINVAL;
 	}
 
@@ -141,6 +138,11 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s->state	= 0;
 	s->io_bits	= 0x00ff;
+
+	dev_info(dev->class_dev, "%s: %s, io 0x%lx\n",
+		dev->driver->driver_name,
+		dev->board_name,
+		dev->iobase);
 
 	return 0;
 };
