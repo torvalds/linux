@@ -141,14 +141,10 @@ typedef struct xfs_da_args {
  * same place as the b_addr field for the buffer, else to kmem_alloced memory.
  */
 typedef struct xfs_dabuf {
-	int		nbuf;		/* number of buffer pointers present */
-	short		dirty;		/* data needs to be copied back */
 	short		bbcount;	/* how large is data in bbs */
 	void		*data;		/* pointer for buffers' data */
-	struct xfs_buf	*bps[1];	/* actually nbuf of these */
+	struct xfs_buf	*bp;		/* actually nbuf of these */
 } xfs_dabuf_t;
-#define	XFS_DA_BUF_SIZE(n)	\
-	(sizeof(xfs_dabuf_t) + sizeof(struct xfs_buf *) * ((n) - 1))
 
 /*
  * Storage for holding state during Btree searches and split/join ops.
