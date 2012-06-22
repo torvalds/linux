@@ -1205,6 +1205,7 @@ static void scu_link_layer_start_oob(struct isci_phy *iphy)
 	/** Reset OOB sequence - start */
 	val = readl(&ll->phy_configuration);
 	val &= ~(SCU_SAS_PCFG_GEN_BIT(OOB_RESET) |
+		 SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE) |
 		 SCU_SAS_PCFG_GEN_BIT(HARD_RESET));
 	writel(val, &ll->phy_configuration);
 	readl(&ll->phy_configuration); /* flush */
@@ -1236,6 +1237,7 @@ static void scu_link_layer_tx_hard_reset(
 	 * to the starting state. */
 	phy_configuration_value =
 		readl(&iphy->link_layer_registers->phy_configuration);
+	phy_configuration_value &= ~(SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE));
 	phy_configuration_value |=
 		(SCU_SAS_PCFG_GEN_BIT(HARD_RESET) |
 		 SCU_SAS_PCFG_GEN_BIT(OOB_RESET));
