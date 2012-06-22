@@ -107,8 +107,6 @@ struct subdev_700_struct {
 #define CALLBACK_FUNC	(((struct subdev_700_struct *)s->private)->cb_func)
 #define subdevpriv	((struct subdev_700_struct *)s->private)
 
-static void do_config(struct comedi_device *dev, struct comedi_subdevice *s);
-
 static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 {
 	/* port is always A for output and B for input (8255 emu) */
@@ -165,11 +163,6 @@ static int subdev_700_insn_config(struct comedi_device *dev,
 	return 1;
 }
 
-static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
-{				/* use powerup defaults */
-	return;
-}
-
 static int subdev_700_init(struct comedi_device *dev,
 			   struct comedi_subdevice *s,
 			   int (*cb) (int, int, int, unsigned long),
@@ -196,7 +189,6 @@ static int subdev_700_init(struct comedi_device *dev,
 
 	s->state = 0;
 	s->io_bits = 0x00ff;
-	do_config(dev, s);
 
 	return 0;
 }
