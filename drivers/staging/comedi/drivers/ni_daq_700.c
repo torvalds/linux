@@ -66,28 +66,6 @@ struct dio700_board {
 #define DIO_W		0x04
 #define DIO_R		0x05
 
-struct subdev_700_struct {
-	unsigned long cb_arg;
-	int (*cb_func) (int, int, int, unsigned long);
-};
-
-#define CALLBACK_ARG	(((struct subdev_700_struct *)s->private)->cb_arg)
-#define CALLBACK_FUNC	(((struct subdev_700_struct *)s->private)->cb_func)
-#define subdevpriv	((struct subdev_700_struct *)s->private)
-
-static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
-{
-	/* port is always A for output and B for input (8255 emu) */
-	unsigned long iobase = arg;
-
-	if (dir) {
-		outb(data, iobase + DIO_W);
-		return 0;
-	} else {
-		return inb(iobase + DIO_R);
-	}
-}
-
 static int subdev_700_insn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
@@ -97,12 +75,11 @@ static int subdev_700_insn(struct comedi_device *dev,
 		s->state |= (data[0] & data[1]);
 
 		if (data[0] & 0xff)
-			CALLBACK_FUNC(1, _700_DATA, s->state & 0xff,
-				      CALLBACK_ARG);
+			outb(s->state & 0xff, dev->iobase + DIO_W);
 	}
 
 	data[1] = s->state & 0xff;
-	data[1] |= CALLBACK_FUNC(0, _700_DATA, 0, CALLBACK_ARG) << 8;
+	data[1] |= inb(dev->iobase + DIO_R);
 
 	return insn->n;
 }
@@ -142,16 +119,6 @@ static int subdev_700_init(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->maxdata = 1;
 
-	s->private = kmalloc(sizeof(struct subdev_700_struct), GFP_KERNEL);
-	if (!s->private)
-		return -ENOMEM;
-
-	CALLBACK_ARG = arg;
-	if (cb == NULL)
-		CALLBACK_FUNC = subdev_700_cb;
-	 else
-		CALLBACK_FUNC = cb;
-
 	s->insn_bits = subdev_700_insn;
 	s->insn_config = subdev_700_insn_config;
 
@@ -159,13 +126,6 @@ static int subdev_700_init(struct comedi_device *dev,
 	s->io_bits = 0x00ff;
 
 	return 0;
-}
-
-static void subdev_700_cleanup(struct comedi_device *dev,
-			       struct comedi_subdevice *s)
-{
-	if (s->private)
-		kfree(s->private);
 }
 
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -224,8 +184,6 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dio700_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_700_cleanup(dev, dev->subdevices + 0);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 };
