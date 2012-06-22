@@ -443,11 +443,17 @@ static int __init dio700_cs_init(void)
 {
 	int ret;
 
-	ret = pcmcia_register_driver(&dio700_cs_driver);
+	ret = comedi_driver_register(&driver_dio700);
 	if (ret < 0)
 		return ret;
 
-	return comedi_driver_register(&driver_dio700);
+	ret = pcmcia_register_driver(&dio700_cs_driver);
+	if (ret < 0) {
+		comedi_driver_unregister(&driver_dio700);
+		return ret;
+	}
+
+	return 0;
 }
 module_init(dio700_cs_init);
 
