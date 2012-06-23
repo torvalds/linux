@@ -101,12 +101,48 @@ static int pcie_port_resume_noirq(struct device *dev)
 }
 
 #ifdef CONFIG_PM_RUNTIME
-static int pcie_port_runtime_pm(struct device *dev)
+struct d3cold_info {
+	bool no_d3cold;
+	unsigned int d3cold_delay;
+};
+
+static int pci_dev_d3cold_info(struct pci_dev *pdev, void *data)
+{
+	struct d3cold_info *info = data;
+
+	info->d3cold_delay = max_t(unsigned int, pdev->d3cold_delay,
+				   info->d3cold_delay);
+	if (pdev->no_d3cold)
+		info->no_d3cold = true;
+	return 0;
+}
+
+static int pcie_port_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct d3cold_info d3cold_info = {
+		.no_d3cold	= false,
+		.d3cold_delay	= PCI_PM_D3_WAIT,
+	};
+
+	/*
+	 * If any subordinate device disable D3cold, we should not put
+	 * the port into D3cold.  The D3cold delay of port should be
+	 * the max of that of all subordinate devices.
+	 */
+	pci_walk_bus(pdev->subordinate, pci_dev_d3cold_info, &d3cold_info);
+	pdev->no_d3cold = d3cold_info.no_d3cold;
+	pdev->d3cold_delay = d3cold_info.d3cold_delay;
+	return 0;
+}
+
+static int pcie_port_runtime_resume(struct device *dev)
 {
 	return 0;
 }
 #else
-#define pcie_port_runtime_pm	NULL
+#define pcie_port_runtime_suspend	NULL
+#define pcie_port_runtime_resume	NULL
 #endif
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
@@ -117,8 +153,8 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.poweroff	= pcie_port_device_suspend,
 	.restore	= pcie_port_device_resume,
 	.resume_noirq	= pcie_port_resume_noirq,
-	.runtime_suspend = pcie_port_runtime_pm,
-	.runtime_resume = pcie_port_runtime_pm,
+	.runtime_suspend = pcie_port_runtime_suspend,
+	.runtime_resume = pcie_port_runtime_resume,
 };
 
 #define PCIE_PORTDRV_PM_OPS	(&pcie_portdrv_pm_ops)
