@@ -82,3 +82,41 @@ static inline int sg_count(struct scatterlist *sg_list, int nbytes)
 
 	return sg_nents;
 }
+
+/* Copy from len bytes of sg to dest, starting from beginning */
+static inline void sg_copy(u8 *dest, struct scatterlist *sg, unsigned int len)
+{
+	struct scatterlist *current_sg = sg;
+	int cpy_index = 0, next_cpy_index = current_sg->length;
+
+	while (next_cpy_index < len) {
+		memcpy(dest + cpy_index, (u8 *) sg_virt(current_sg),
+		       current_sg->length);
+		current_sg = scatterwalk_sg_next(current_sg);
+		cpy_index = next_cpy_index;
+		next_cpy_index += current_sg->length;
+	}
+	if (cpy_index < len)
+		memcpy(dest + cpy_index, (u8 *) sg_virt(current_sg),
+		       len - cpy_index);
+}
+
+/* Copy sg data, from to_skip to end, to dest */
+static inline void sg_copy_part(u8 *dest, struct scatterlist *sg,
+				      int to_skip, unsigned int end)
+{
+	struct scatterlist *current_sg = sg;
+	int sg_index, cpy_index;
+
+	sg_index = current_sg->length;
+	while (sg_index <= to_skip) {
+		current_sg = scatterwalk_sg_next(current_sg);
+		sg_index += current_sg->length;
+	}
+	cpy_index = sg_index - to_skip;
+	memcpy(dest, (u8 *) sg_virt(current_sg) +
+	       current_sg->length - cpy_index, cpy_index);
+	current_sg = scatterwalk_sg_next(current_sg);
+	if (end - sg_index)
+		sg_copy(dest + cpy_index, current_sg, end - sg_index);
+}

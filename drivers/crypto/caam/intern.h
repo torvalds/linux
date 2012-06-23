@@ -88,6 +88,8 @@ struct caam_drv_private {
 	atomic_t tfm_count ____cacheline_aligned;
 	/* list of registered crypto algorithms (mk generic context handle?) */
 	struct list_head alg_list;
+	/* list of registered hash algorithms (mk generic context handle?) */
+	struct list_head hash_list;
 
 	/*
 	 * debugfs entries for developer view into driver/device
