@@ -296,7 +296,7 @@ static void acc_complete_set_string(struct usb_ep *ep, struct usb_request *req)
 	}
 }
 
-static int __init create_bulk_endpoints(struct acc_dev *dev,
+static int create_bulk_endpoints(struct acc_dev *dev,
 				struct usb_endpoint_descriptor *in_desc,
 				struct usb_endpoint_descriptor *out_desc)
 {
