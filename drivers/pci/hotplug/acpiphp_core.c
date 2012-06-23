@@ -47,8 +47,7 @@
 /* name size which is used for entries in pcihpfs */
 #define SLOT_NAME_SIZE  21              /* {_SUN} */
 
-static bool debug;
-int acpiphp_debug;
+bool acpiphp_debug;
 
 /* local variables */
 static int num_slots;
@@ -62,7 +61,7 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
-module_param(debug, bool, 0644);
+module_param_named(debug, acpiphp_debug, bool, 0644);
 
 /* export the attention callback registration methods */
 EXPORT_SYMBOL_GPL(acpiphp_register_attention);
@@ -378,8 +377,6 @@ static int __init acpiphp_init(void)
 
 	if (acpi_pci_disabled)
 		return 0;
-
-	acpiphp_debug = debug;
 
 	/* read all the ACPI info from the system */
 	return init_acpi();
