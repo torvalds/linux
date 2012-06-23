@@ -97,7 +97,7 @@ config MTD_M25P80
 	  doesn't support the JEDEC ID instruction.
 
 config M25PXX_USE_FAST_READ
-	bool "Use FAST_READ OPCode allowing SPI CLK <= 50MHz"
+	bool "Use FAST_READ OPCode allowing SPI CLK >= 50MHz"
 	depends on MTD_M25P80
 	default y
 	help
