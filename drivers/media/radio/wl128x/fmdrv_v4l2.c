@@ -56,23 +56,29 @@ static ssize_t fm_v4l2_fops_read(struct file *file, char __user * buf,
 		return -EIO;
 	}
 
-	/* Turn on RDS mode , if it is disabled */
+	if (mutex_lock_interruptible(&fmdev->mutex))
+		return -ERESTARTSYS;
+
+	/* Turn on RDS mode if it is disabled */
 	ret = fm_rx_get_rds_mode(fmdev, &rds_mode);
 	if (ret < 0) {
 		fmerr("Unable to read current rds mode\n");
-		return ret;
+		goto read_unlock;
 	}
 
 	if (rds_mode == FM_RDS_DISABLE) {
 		ret = fmc_set_rds_mode(fmdev, FM_RDS_ENABLE);
 		if (ret < 0) {
 			fmerr("Failed to enable rds mode\n");
-			return ret;
+			goto read_unlock;
 		}
 	}
 
 	/* Copy RDS data from internal buffer to user buffer */
-	return fmc_transfer_rds_from_internal_buff(fmdev, file, buf, count);
+	ret = fmc_transfer_rds_from_internal_buff(fmdev, file, buf, count);
+read_unlock:
+	mutex_unlock(&fmdev->mutex);
+	return ret;
 }
 
 /* Write TX RDS data */
@@ -91,8 +97,11 @@ static ssize_t fm_v4l2_fops_write(struct file *file, const char __user * buf,
 		return -EFAULT;
 
 	fmdev = video_drvdata(file);
+	if (mutex_lock_interruptible(&fmdev->mutex))
+		return -ERESTARTSYS;
 	fm_tx_set_radio_text(fmdev, rds.text, rds.text_type);
 	fm_tx_set_af(fmdev, rds.af_freq);
+	mutex_unlock(&fmdev->mutex);
 
 	return sizeof(rds);
 }
@@ -103,7 +112,9 @@ static u32 fm_v4l2_fops_poll(struct file *file, struct poll_table_struct *pts)
 	struct fmdev *fmdev;
 
 	fmdev = video_drvdata(file);
+	mutex_lock(&fmdev->mutex);
 	ret = fmc_is_rds_data_available(fmdev, file, pts);
+	mutex_unlock(&fmdev->mutex);
 	if (ret < 0)
 		return POLLIN | POLLRDNORM;
 
@@ -127,10 +138,12 @@ static int fm_v4l2_fops_open(struct file *file)
 
 	fmdev = video_drvdata(file);
 
+	if (mutex_lock_interruptible(&fmdev->mutex))
+		return -ERESTARTSYS;
 	ret = fmc_prepare(fmdev);
 	if (ret < 0) {
 		fmerr("Unable to prepare FM CORE\n");
-		return ret;
+		goto open_unlock;
 	}
 
 	fmdbg("Load FM RX firmware..\n");
@@ -138,10 +151,12 @@ static int fm_v4l2_fops_open(struct file *file)
 	ret = fmc_set_mode(fmdev, FM_MODE_RX);
 	if (ret < 0) {
 		fmerr("Unable to load FM RX firmware\n");
-		return ret;
+		goto open_unlock;
 	}
 	radio_disconnected = 1;
 
+open_unlock:
+	mutex_unlock(&fmdev->mutex);
 	return ret;
 }
 
@@ -156,19 +171,22 @@ static int fm_v4l2_fops_release(struct file *file)
 		return 0;
 	}
 
+	mutex_lock(&fmdev->mutex);
 	ret = fmc_set_mode(fmdev, FM_MODE_OFF);
 	if (ret < 0) {
 		fmerr("Unable to turn off the chip\n");
-		return ret;
+		goto release_unlock;
 	}
 
 	ret = fmc_release(fmdev);
 	if (ret < 0) {
 		fmerr("FM CORE release failed\n");
-		return ret;
+		goto release_unlock;
 	}
 	radio_disconnected = 0;
 
+release_unlock:
+	mutex_unlock(&fmdev->mutex);
 	return ret;
 }
 
@@ -520,10 +538,6 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 	video_set_drvdata(gradio_dev, fmdev);
 
 	gradio_dev->lock = &fmdev->mutex;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &gradio_dev->flags);
 
 	/* Register with V4L2 subsystem as RADIO device */
 	if (video_register_device(gradio_dev, VFL_TYPE_RADIO, radio_nr)) {
