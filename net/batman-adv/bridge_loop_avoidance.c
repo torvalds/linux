@@ -281,7 +281,7 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 			 NULL,
 			 /* Ethernet SRC/HW SRC:  originator mac */
 			 primary_if->net_dev->dev_addr,
-			 /* HW DST: FF:43:05:XX:00:00
+			 /* HW DST: FF:43:05:XX:YY:YY
 			  * with XX   = claim type
 			  * and YY:YY = group id
 			  */
@@ -323,7 +323,8 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 		break;
 	case BATADV_CLAIM_TYPE_REQUEST:
 		/* request frame
-		 * set HW SRC to the special mac containg the crc
+		 * set HW SRC and header destination to the receiving backbone
+		 * gws mac
 		 */
 		memcpy(hw_src, mac, ETH_ALEN);
 		memcpy(ethhdr->h_dest, mac, ETH_ALEN);
