@@ -2,7 +2,7 @@
  * CAAM/SEC 4.x transport/backend driver
  * JobR backend functionality
  *
- * Copyright 2008-2011 Freescale Semiconductor, Inc.
+ * Copyright 2008-2012 Freescale Semiconductor, Inc.
  */
 
 #include "compat.h"
@@ -58,9 +58,8 @@ static void caam_jr_dequeue(unsigned long devarg)
 	void (*usercall)(struct device *dev, u32 *desc, u32 status, void *arg);
 	u32 *userdesc, userstatus;
 	void *userarg;
-	unsigned long flags;
 
-	spin_lock_irqsave(&jrp->outlock, flags);
+	spin_lock_bh(&jrp->outlock);
 
 	head = ACCESS_ONCE(jrp->head);
 	sw_idx = tail = jrp->tail;
@@ -118,18 +117,18 @@ static void caam_jr_dequeue(unsigned long devarg)
 		/* set done */
 		wr_reg32(&jrp->rregs->outring_rmvd, 1);
 
-		spin_unlock_irqrestore(&jrp->outlock, flags);
+		spin_unlock_bh(&jrp->outlock);
 
 		/* Finally, execute user's callback */
 		usercall(dev, userdesc, userstatus, userarg);
 
-		spin_lock_irqsave(&jrp->outlock, flags);
+		spin_lock_bh(&jrp->outlock);
 
 		head = ACCESS_ONCE(jrp->head);
 		sw_idx = tail = jrp->tail;
 	}
 
-	spin_unlock_irqrestore(&jrp->outlock, flags);
+	spin_unlock_bh(&jrp->outlock);
 
 	/* reenable / unmask IRQs */
 	clrbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
@@ -148,23 +147,22 @@ int caam_jr_register(struct device *ctrldev, struct device **rdev)
 {
 	struct caam_drv_private *ctrlpriv = dev_get_drvdata(ctrldev);
 	struct caam_drv_private_jr *jrpriv = NULL;
-	unsigned long flags;
 	int ring;
 
 	/* Lock, if free ring - assign, unlock */
-	spin_lock_irqsave(&ctrlpriv->jr_alloc_lock, flags);
+	spin_lock(&ctrlpriv->jr_alloc_lock);
 	for (ring = 0; ring < ctrlpriv->total_jobrs; ring++) {
 		jrpriv = dev_get_drvdata(ctrlpriv->jrdev[ring]);
 		if (jrpriv->assign == JOBR_UNASSIGNED) {
 			jrpriv->assign = JOBR_ASSIGNED;
 			*rdev = ctrlpriv->jrdev[ring];
-			spin_unlock_irqrestore(&ctrlpriv->jr_alloc_lock, flags);
+			spin_unlock(&ctrlpriv->jr_alloc_lock);
 			return ring;
 		}
 	}
 
 	/* If assigned, write dev where caller needs it */
-	spin_unlock_irqrestore(&ctrlpriv->jr_alloc_lock, flags);
+	spin_unlock(&ctrlpriv->jr_alloc_lock);
 	*rdev = NULL;
 
 	return -ENODEV;
@@ -182,7 +180,6 @@ int caam_jr_deregister(struct device *rdev)
 {
 	struct caam_drv_private_jr *jrpriv = dev_get_drvdata(rdev);
 	struct caam_drv_private *ctrlpriv;
-	unsigned long flags;
 
 	/* Get the owning controller's private space */
 	ctrlpriv = dev_get_drvdata(jrpriv->parentdev);
@@ -195,9 +192,9 @@ int caam_jr_deregister(struct device *rdev)
 		return -EBUSY;
 
 	/* Release ring */
-	spin_lock_irqsave(&ctrlpriv->jr_alloc_lock, flags);
+	spin_lock(&ctrlpriv->jr_alloc_lock);
 	jrpriv->assign = JOBR_UNASSIGNED;
-	spin_unlock_irqrestore(&ctrlpriv->jr_alloc_lock, flags);
+	spin_unlock(&ctrlpriv->jr_alloc_lock);
 
 	return 0;
 }
@@ -238,7 +235,6 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 {
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
 	struct caam_jrentry_info *head_entry;
-	unsigned long flags;
 	int head, tail, desc_size;
 	dma_addr_t desc_dma;
 
@@ -249,14 +245,14 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 		return -EIO;
 	}
 
-	spin_lock_irqsave(&jrp->inplock, flags);
+	spin_lock(&jrp->inplock);
 
 	head = jrp->head;
 	tail = ACCESS_ONCE(jrp->tail);
 
 	if (!rd_reg32(&jrp->rregs->inpring_avail) ||
 	    CIRC_SPACE(head, tail, JOBR_DEPTH) <= 0) {
-		spin_unlock_irqrestore(&jrp->inplock, flags);
+		spin_unlock(&jrp->inplock);
 		dma_unmap_single(dev, desc_dma, desc_size, DMA_TO_DEVICE);
 		return -EBUSY;
 	}
@@ -280,7 +276,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 
 	wr_reg32(&jrp->rregs->inpring_jobadd, 1);
 
-	spin_unlock_irqrestore(&jrp->inplock, flags);
+	spin_unlock(&jrp->inplock);
 
 	return 0;
 }
