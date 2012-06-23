@@ -145,6 +145,11 @@ struct batadv_bcast_duplist_entry {
 #endif
 
 enum batadv_counters {
+	BATADV_CNT_TX,
+	BATADV_CNT_TX_BYTES,
+	BATADV_CNT_TX_DROPPED,
+	BATADV_CNT_RX,
+	BATADV_CNT_RX_BYTES,
 	BATADV_CNT_FORWARD,
 	BATADV_CNT_FORWARD_BYTES,
 	BATADV_CNT_MGMT_TX,

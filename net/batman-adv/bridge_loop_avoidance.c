@@ -340,8 +340,9 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 
 	skb_reset_mac_header(skb);
 	skb->protocol = eth_type_trans(skb, soft_iface);
-	bat_priv->stats.rx_packets++;
-	bat_priv->stats.rx_bytes += skb->len + ETH_HLEN;
+	batadv_inc_counter(bat_priv, BATADV_CNT_RX);
+	batadv_add_counter(bat_priv, BATADV_CNT_RX_BYTES,
+			   skb->len + ETH_HLEN);
 	soft_iface->last_rx = jiffies;
 
 	netif_rx(skb);
