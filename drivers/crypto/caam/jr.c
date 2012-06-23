@@ -94,7 +94,8 @@ static void caam_jr_dequeue(unsigned long devarg)
 		userdesc = jrp->entinfo[sw_idx].desc_addr_virt;
 		userstatus = jrp->outring[hw_idx].jrstatus;
 
-		smp_mb();
+		/* set done */
+		wr_reg32(&jrp->rregs->outring_rmvd, 1);
 
 		jrp->out_ring_read_index = (jrp->out_ring_read_index + 1) &
 					   (JOBR_DEPTH - 1);
@@ -113,9 +114,6 @@ static void caam_jr_dequeue(unsigned long devarg)
 
 			jrp->tail = tail;
 		}
-
-		/* set done */
-		wr_reg32(&jrp->rregs->outring_rmvd, 1);
 
 		spin_unlock_bh(&jrp->outlock);
 
@@ -264,8 +262,6 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	jrp->inp_ring_write_index = (jrp->inp_ring_write_index + 1) &
 				    (JOBR_DEPTH - 1);
 	jrp->head = (head + 1) & (JOBR_DEPTH - 1);
-
-	wmb();
 
 	wr_reg32(&jrp->rregs->inpring_jobadd, 1);
 
