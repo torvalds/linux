@@ -688,7 +688,7 @@ static int max8997_set_voltage_buck(struct regulator_dev *rdev,
 		}
 
 		new_val++;
-	} while (desc->min + desc->step + new_val <= desc->max);
+	} while (desc->min + desc->step * new_val <= desc->max);
 
 	new_idx = tmp_idx;
 	new_val = tmp_val;

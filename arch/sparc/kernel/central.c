@@ -268,4 +268,4 @@ static int __init sunfire_init(void)
 	return 0;
 }
 
-subsys_initcall(sunfire_init);
+fs_initcall(sunfire_init);
