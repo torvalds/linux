@@ -8,6 +8,16 @@
 #ifndef DESC_H
 #define DESC_H
 
+struct link_tbl_entry {
+	u64 ptr;
+#define LINK_TBL_LEN_FIN 0x40000000
+#define LINK_TBL_LEN_EXT 0x80000000
+	u32 len;
+	u8 reserved;
+	u8 buf_pool_id;
+	u16 offset;
+};
+
 /* Max size of any CAAM descriptor in 32-bit words, inclusive of header */
 #define MAX_CAAM_DESCSIZE	64
 
