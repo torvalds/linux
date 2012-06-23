@@ -23,9 +23,6 @@
 #include <media/saa7146.h>
 #include <linux/module.h>
 
-LIST_HEAD(saa7146_devices);
-DEFINE_MUTEX(saa7146_devices_lock);
-
 static int saa7146_num;
 
 unsigned int saa7146_debug;
@@ -482,8 +479,6 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	   set it explicitly. */
 	pci_set_drvdata(pci, &dev->v4l2_dev);
 
-	INIT_LIST_HEAD(&dev->item);
-	list_add_tail(&dev->item,&saa7146_devices);
 	saa7146_num++;
 
 	err = 0;
@@ -545,7 +540,6 @@ static void saa7146_remove_one(struct pci_dev *pdev)
 
 	iounmap(dev->mem);
 	pci_release_region(pdev, 0);
-	list_del(&dev->item);
 	pci_disable_device(pdev);
 	kfree(dev);
 
@@ -592,8 +586,6 @@ EXPORT_SYMBOL_GPL(saa7146_setgpio);
 EXPORT_SYMBOL_GPL(saa7146_i2c_adapter_prepare);
 
 EXPORT_SYMBOL_GPL(saa7146_debug);
-EXPORT_SYMBOL_GPL(saa7146_devices);
-EXPORT_SYMBOL_GPL(saa7146_devices_lock);
 
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
 MODULE_DESCRIPTION("driver for generic saa7146-based hardware");

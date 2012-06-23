@@ -201,7 +201,7 @@ static int fops_open(struct file *file)
 
 	DEB_EE("file:%p, dev:%s\n", file, video_device_node_name(vdev));
 
-	if (mutex_lock_interruptible(&saa7146_devices_lock))
+	if (mutex_lock_interruptible(vdev->lock))
 		return -ERESTARTSYS;
 
 	DEB_D("using: %p\n", dev);
@@ -253,7 +253,7 @@ out:
 		kfree(fh);
 		file->private_data = NULL;
 	}
-	mutex_unlock(&saa7146_devices_lock);
+	mutex_unlock(vdev->lock);
 	return result;
 }
 
@@ -265,7 +265,7 @@ static int fops_release(struct file *file)
 
 	DEB_EE("file:%p\n", file);
 
-	if (mutex_lock_interruptible(&saa7146_devices_lock))
+	if (mutex_lock_interruptible(vdev->lock))
 		return -ERESTARTSYS;
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
@@ -283,7 +283,7 @@ static int fops_release(struct file *file)
 	file->private_data = NULL;
 	kfree(fh);
 
-	mutex_unlock(&saa7146_devices_lock);
+	mutex_unlock(vdev->lock);
 
 	return 0;
 }
@@ -293,6 +293,7 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
 	struct videobuf_queue *q;
+	int res;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER: {
@@ -314,10 +315,14 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 		return 0;
 	}
 
-	return videobuf_mmap_mapper(q,vma);
+	if (mutex_lock_interruptible(vdev->lock))
+		return -ERESTARTSYS;
+	res = videobuf_mmap_mapper(q, vma);
+	mutex_unlock(vdev->lock);
+	return res;
 }
 
-static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
+static unsigned int __fops_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
@@ -356,10 +361,22 @@ static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
 	return res;
 }
 
+static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
+{
+	struct video_device *vdev = video_devdata(file);
+	unsigned int res;
+
+	mutex_lock(vdev->lock);
+	res = __fops_poll(file, wait);
+	mutex_unlock(vdev->lock);
+	return res;
+}
+
 static ssize_t fops_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
+	int ret;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -373,8 +390,13 @@ static ssize_t fops_read(struct file *file, char __user *data, size_t count, lof
 		DEB_EE("V4L2_BUF_TYPE_VBI_CAPTURE: file:%p, data:%p, count:%lu\n",
 		       file, data, (unsigned long)count);
 */
-		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
-			return saa7146_vbi_uops.read(file,data,count,ppos);
+		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE) {
+			if (mutex_lock_interruptible(vdev->lock))
+				return -ERESTARTSYS;
+			ret = saa7146_vbi_uops.read(file, data, count, ppos);
+			mutex_unlock(vdev->lock);
+			return ret;
+		}
 		return -EINVAL;
 	default:
 		BUG();
@@ -386,15 +408,20 @@ static ssize_t fops_write(struct file *file, const char __user *data, size_t cou
 {
 	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
+	int ret;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
 		return -EINVAL;
 	case VFL_TYPE_VBI:
-		if (fh->dev->ext_vv_data->vbi_fops.write)
-			return fh->dev->ext_vv_data->vbi_fops.write(file, data, count, ppos);
-		else
-			return -EINVAL;
+		if (fh->dev->ext_vv_data->vbi_fops.write) {
+			if (mutex_lock_interruptible(vdev->lock))
+				return -ERESTARTSYS;
+			ret = fh->dev->ext_vv_data->vbi_fops.write(file, data, count, ppos);
+			mutex_unlock(vdev->lock);
+			return ret;
+		}
+		return -EINVAL;
 	default:
 		BUG();
 		return -EINVAL;
@@ -584,10 +611,6 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	else
 		vfd->ioctl_ops = &dev->ext_vv_data->vbi_ops;
 	vfd->release = video_device_release;
-	/* Locking in file operations other than ioctl should be done by
-	   the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &dev->v4l2_lock;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->tvnorms = 0;
