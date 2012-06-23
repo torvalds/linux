@@ -5,23 +5,23 @@
  *
  */
 
-struct link_tbl_entry;
+struct sec4_sg_entry;
 
 /*
  * convert single dma address to h/w link table format
  */
-static inline void sg_to_link_tbl_one(struct link_tbl_entry *link_tbl_ptr,
+static inline void dma_to_sec4_sg_one(struct sec4_sg_entry *sec4_sg_ptr,
 				      dma_addr_t dma, u32 len, u32 offset)
 {
-	link_tbl_ptr->ptr = dma;
-	link_tbl_ptr->len = len;
-	link_tbl_ptr->reserved = 0;
-	link_tbl_ptr->buf_pool_id = 0;
-	link_tbl_ptr->offset = offset;
+	sec4_sg_ptr->ptr = dma;
+	sec4_sg_ptr->len = len;
+	sec4_sg_ptr->reserved = 0;
+	sec4_sg_ptr->buf_pool_id = 0;
+	sec4_sg_ptr->offset = offset;
 #ifdef DEBUG
-	print_hex_dump(KERN_ERR, "link_tbl_ptr@: ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, link_tbl_ptr,
-		       sizeof(struct link_tbl_entry), 1);
+	print_hex_dump(KERN_ERR, "sec4_sg_ptr@: ",
+		       DUMP_PREFIX_ADDRESS, 16, 4, sec4_sg_ptr,
+		       sizeof(struct sec4_sg_entry), 1);
 #endif
 }
 
@@ -29,30 +29,30 @@ static inline void sg_to_link_tbl_one(struct link_tbl_entry *link_tbl_ptr,
  * convert scatterlist to h/w link table format
  * but does not have final bit; instead, returns last entry
  */
-static inline struct link_tbl_entry *
-sg_to_link_tbl(struct scatterlist *sg, int sg_count,
-	       struct link_tbl_entry *link_tbl_ptr, u32 offset)
+static inline struct sec4_sg_entry *
+sg_to_sec4_sg(struct scatterlist *sg, int sg_count,
+	      struct sec4_sg_entry *sec4_sg_ptr, u32 offset)
 {
 	while (sg_count) {
-		sg_to_link_tbl_one(link_tbl_ptr, sg_dma_address(sg),
+		dma_to_sec4_sg_one(sec4_sg_ptr, sg_dma_address(sg),
 				   sg_dma_len(sg), offset);
-		link_tbl_ptr++;
+		sec4_sg_ptr++;
 		sg = sg_next(sg);
 		sg_count--;
 	}
-	return link_tbl_ptr - 1;
+	return sec4_sg_ptr - 1;
 }
 
 /*
  * convert scatterlist to h/w link table format
  * scatterlist must have been previously dma mapped
  */
-static inline void sg_to_link_tbl_last(struct scatterlist *sg, int sg_count,
-				       struct link_tbl_entry *link_tbl_ptr,
-				       u32 offset)
+static inline void sg_to_sec4_sg_last(struct scatterlist *sg, int sg_count,
+				      struct sec4_sg_entry *sec4_sg_ptr,
+				      u32 offset)
 {
-	link_tbl_ptr = sg_to_link_tbl(sg, sg_count, link_tbl_ptr, offset);
-	link_tbl_ptr->len |= LINK_TBL_LEN_FIN;
+	sec4_sg_ptr = sg_to_sec4_sg(sg, sg_count, sec4_sg_ptr, offset);
+	sec4_sg_ptr->len |= SEC4_SG_LEN_FIN;
 }
 
 /* count number of elements in scatterlist */

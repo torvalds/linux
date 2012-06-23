@@ -8,10 +8,10 @@
 #ifndef DESC_H
 #define DESC_H
 
-struct link_tbl_entry {
+struct sec4_sg_entry {
 	u64 ptr;
-#define LINK_TBL_LEN_FIN 0x40000000
-#define LINK_TBL_LEN_EXT 0x80000000
+#define SEC4_SG_LEN_FIN 0x40000000
+#define SEC4_SG_LEN_EXT 0x80000000
 	u32 len;
 	u8 reserved;
 	u8 buf_pool_id;

@@ -51,7 +51,7 @@
 #include "desc_constr.h"
 #include "jr.h"
 #include "error.h"
-#include "sg_link_tbl.h"
+#include "sg_sw_sec4.h"
 #include "key_gen.h"
 
 /*
@@ -658,8 +658,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
  * @dst_nents: number of segments in output scatterlist
  * @iv_dma: dma address of iv for checking continuity and link table
  * @desc: h/w descriptor (variable length; must not exceed MAX_CAAM_DESCSIZE)
- * @link_tbl_bytes: length of dma mapped link_tbl space
- * @link_tbl_dma: bus physical mapped address of h/w link table
+ * @sec4_sg_bytes: length of dma mapped sec4_sg space
+ * @sec4_sg_dma: bus physical mapped address of h/w link table
  * @hw_desc: the h/w job descriptor followed by any referenced link tables
  */
 struct aead_edesc {
@@ -667,9 +667,9 @@ struct aead_edesc {
 	int src_nents;
 	int dst_nents;
 	dma_addr_t iv_dma;
-	int link_tbl_bytes;
-	dma_addr_t link_tbl_dma;
-	struct link_tbl_entry *link_tbl;
+	int sec4_sg_bytes;
+	dma_addr_t sec4_sg_dma;
+	struct sec4_sg_entry *sec4_sg;
 	u32 hw_desc[0];
 };
 
@@ -679,24 +679,24 @@ struct aead_edesc {
  * @dst_nents: number of segments in output scatterlist
  * @iv_dma: dma address of iv for checking continuity and link table
  * @desc: h/w descriptor (variable length; must not exceed MAX_CAAM_DESCSIZE)
- * @link_tbl_bytes: length of dma mapped link_tbl space
- * @link_tbl_dma: bus physical mapped address of h/w link table
+ * @sec4_sg_bytes: length of dma mapped sec4_sg space
+ * @sec4_sg_dma: bus physical mapped address of h/w link table
  * @hw_desc: the h/w job descriptor followed by any referenced link tables
  */
 struct ablkcipher_edesc {
 	int src_nents;
 	int dst_nents;
 	dma_addr_t iv_dma;
-	int link_tbl_bytes;
-	dma_addr_t link_tbl_dma;
-	struct link_tbl_entry *link_tbl;
+	int sec4_sg_bytes;
+	dma_addr_t sec4_sg_dma;
+	struct sec4_sg_entry *sec4_sg;
 	u32 hw_desc[0];
 };
 
 static void caam_unmap(struct device *dev, struct scatterlist *src,
 		       struct scatterlist *dst, int src_nents, int dst_nents,
-		       dma_addr_t iv_dma, int ivsize, dma_addr_t link_tbl_dma,
-		       int link_tbl_bytes)
+		       dma_addr_t iv_dma, int ivsize, dma_addr_t sec4_sg_dma,
+		       int sec4_sg_bytes)
 {
 	if (unlikely(dst != src)) {
 		dma_unmap_sg(dev, src, src_nents, DMA_TO_DEVICE);
@@ -707,8 +707,8 @@ static void caam_unmap(struct device *dev, struct scatterlist *src,
 
 	if (iv_dma)
 		dma_unmap_single(dev, iv_dma, ivsize, DMA_TO_DEVICE);
-	if (link_tbl_bytes)
-		dma_unmap_single(dev, link_tbl_dma, link_tbl_bytes,
+	if (sec4_sg_bytes)
+		dma_unmap_single(dev, sec4_sg_dma, sec4_sg_bytes,
 				 DMA_TO_DEVICE);
 }
 
@@ -723,8 +723,8 @@ static void aead_unmap(struct device *dev,
 
 	caam_unmap(dev, req->src, req->dst,
 		   edesc->src_nents, edesc->dst_nents,
-		   edesc->iv_dma, ivsize, edesc->link_tbl_dma,
-		   edesc->link_tbl_bytes);
+		   edesc->iv_dma, ivsize, edesc->sec4_sg_dma,
+		   edesc->sec4_sg_bytes);
 }
 
 static void ablkcipher_unmap(struct device *dev,
@@ -736,8 +736,8 @@ static void ablkcipher_unmap(struct device *dev,
 
 	caam_unmap(dev, req->src, req->dst,
 		   edesc->src_nents, edesc->dst_nents,
-		   edesc->iv_dma, ivsize, edesc->link_tbl_dma,
-		   edesc->link_tbl_bytes);
+		   edesc->iv_dma, ivsize, edesc->sec4_sg_dma,
+		   edesc->sec4_sg_bytes);
 }
 
 static void aead_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
@@ -828,7 +828,7 @@ static void aead_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		       sizeof(struct iphdr) + req->assoclen +
 		       ((req->cryptlen > 1500) ? 1500 : req->cryptlen) +
 		       ctx->authsize + 36, 1);
-	if (!err && edesc->link_tbl_bytes) {
+	if (!err && edesc->sec4_sg_bytes) {
 		struct scatterlist *sg = sg_last(req->src, edesc->src_nents);
 		print_hex_dump(KERN_ERR, "sglastout@"xstr(__LINE__)": ",
 			       DUMP_PREFIX_ADDRESS, 16, 4, sg_virt(sg),
@@ -927,7 +927,7 @@ static void init_aead_job(u32 *sh_desc, dma_addr_t ptr,
 	u32 *desc = edesc->hw_desc;
 	u32 out_options = 0, in_options;
 	dma_addr_t dst_dma, src_dma;
-	int len, link_tbl_index = 0;
+	int len, sec4_sg_index = 0;
 
 #ifdef DEBUG
 	debug("assoclen %d cryptlen %d authsize %d\n",
@@ -953,9 +953,9 @@ static void init_aead_job(u32 *sh_desc, dma_addr_t ptr,
 		src_dma = sg_dma_address(req->assoc);
 		in_options = 0;
 	} else {
-		src_dma = edesc->link_tbl_dma;
-		link_tbl_index += (edesc->assoc_nents ? : 1) + 1 +
-				  (edesc->src_nents ? : 1);
+		src_dma = edesc->sec4_sg_dma;
+		sec4_sg_index += (edesc->assoc_nents ? : 1) + 1 +
+				 (edesc->src_nents ? : 1);
 		in_options = LDST_SGF;
 	}
 	if (encrypt)
@@ -969,7 +969,7 @@ static void init_aead_job(u32 *sh_desc, dma_addr_t ptr,
 		if (all_contig) {
 			dst_dma = sg_dma_address(req->src);
 		} else {
-			dst_dma = src_dma + sizeof(struct link_tbl_entry) *
+			dst_dma = src_dma + sizeof(struct sec4_sg_entry) *
 				  ((edesc->assoc_nents ? : 1) + 1);
 			out_options = LDST_SGF;
 		}
@@ -977,9 +977,9 @@ static void init_aead_job(u32 *sh_desc, dma_addr_t ptr,
 		if (!edesc->dst_nents) {
 			dst_dma = sg_dma_address(req->dst);
 		} else {
-			dst_dma = edesc->link_tbl_dma +
-				  link_tbl_index *
-				  sizeof(struct link_tbl_entry);
+			dst_dma = edesc->sec4_sg_dma +
+				  sec4_sg_index *
+				  sizeof(struct sec4_sg_entry);
 			out_options = LDST_SGF;
 		}
 	}
@@ -1005,7 +1005,7 @@ static void init_aead_giv_job(u32 *sh_desc, dma_addr_t ptr,
 	u32 *desc = edesc->hw_desc;
 	u32 out_options = 0, in_options;
 	dma_addr_t dst_dma, src_dma;
-	int len, link_tbl_index = 0;
+	int len, sec4_sg_index = 0;
 
 #ifdef DEBUG
 	debug("assoclen %d cryptlen %d authsize %d\n",
@@ -1030,8 +1030,8 @@ static void init_aead_giv_job(u32 *sh_desc, dma_addr_t ptr,
 		src_dma = sg_dma_address(req->assoc);
 		in_options = 0;
 	} else {
-		src_dma = edesc->link_tbl_dma;
-		link_tbl_index += edesc->assoc_nents + 1 + edesc->src_nents;
+		src_dma = edesc->sec4_sg_dma;
+		sec4_sg_index += edesc->assoc_nents + 1 + edesc->src_nents;
 		in_options = LDST_SGF;
 	}
 	append_seq_in_ptr(desc, src_dma, req->assoclen + ivsize +
@@ -1041,13 +1041,13 @@ static void init_aead_giv_job(u32 *sh_desc, dma_addr_t ptr,
 		dst_dma = edesc->iv_dma;
 	} else {
 		if (likely(req->src == req->dst)) {
-			dst_dma = src_dma + sizeof(struct link_tbl_entry) *
+			dst_dma = src_dma + sizeof(struct sec4_sg_entry) *
 				  edesc->assoc_nents;
 			out_options = LDST_SGF;
 		} else {
-			dst_dma = edesc->link_tbl_dma +
-				  link_tbl_index *
-				  sizeof(struct link_tbl_entry);
+			dst_dma = edesc->sec4_sg_dma +
+				  sec4_sg_index *
+				  sizeof(struct sec4_sg_entry);
 			out_options = LDST_SGF;
 		}
 	}
@@ -1068,7 +1068,7 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
 	u32 *desc = edesc->hw_desc;
 	u32 out_options = 0, in_options;
 	dma_addr_t dst_dma, src_dma;
-	int len, link_tbl_index = 0;
+	int len, sec4_sg_index = 0;
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "presciv@"xstr(__LINE__)": ",
@@ -1086,8 +1086,8 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
 		src_dma = edesc->iv_dma;
 		in_options = 0;
 	} else {
-		src_dma = edesc->link_tbl_dma;
-		link_tbl_index += (iv_contig ? 0 : 1) + edesc->src_nents;
+		src_dma = edesc->sec4_sg_dma;
+		sec4_sg_index += (iv_contig ? 0 : 1) + edesc->src_nents;
 		in_options = LDST_SGF;
 	}
 	append_seq_in_ptr(desc, src_dma, req->nbytes + ivsize, in_options);
@@ -1096,16 +1096,16 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
 		if (!edesc->src_nents && iv_contig) {
 			dst_dma = sg_dma_address(req->src);
 		} else {
-			dst_dma = edesc->link_tbl_dma +
-				sizeof(struct link_tbl_entry);
+			dst_dma = edesc->sec4_sg_dma +
+				sizeof(struct sec4_sg_entry);
 			out_options = LDST_SGF;
 		}
 	} else {
 		if (!edesc->dst_nents) {
 			dst_dma = sg_dma_address(req->dst);
 		} else {
-			dst_dma = edesc->link_tbl_dma +
-				link_tbl_index * sizeof(struct link_tbl_entry);
+			dst_dma = edesc->sec4_sg_dma +
+				sec4_sg_index * sizeof(struct sec4_sg_entry);
 			out_options = LDST_SGF;
 		}
 	}
@@ -1129,7 +1129,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	int sgc;
 	bool all_contig = true;
 	int ivsize = crypto_aead_ivsize(aead);
-	int link_tbl_index, link_tbl_len = 0, link_tbl_bytes;
+	int sec4_sg_index, sec4_sg_len = 0, sec4_sg_bytes;
 
 	assoc_nents = sg_count(req->assoc, req->assoclen);
 	src_nents = sg_count(req->src, req->cryptlen);
@@ -1157,15 +1157,15 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		all_contig = false;
 		assoc_nents = assoc_nents ? : 1;
 		src_nents = src_nents ? : 1;
-		link_tbl_len = assoc_nents + 1 + src_nents;
+		sec4_sg_len = assoc_nents + 1 + src_nents;
 	}
-	link_tbl_len += dst_nents;
+	sec4_sg_len += dst_nents;
 
-	link_tbl_bytes = link_tbl_len * sizeof(struct link_tbl_entry);
+	sec4_sg_bytes = sec4_sg_len * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
 	edesc = kmalloc(sizeof(struct aead_edesc) + desc_bytes +
-			link_tbl_bytes, GFP_DMA | flags);
+			sec4_sg_bytes, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1175,32 +1175,32 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
 	edesc->iv_dma = iv_dma;
-	edesc->link_tbl_bytes = link_tbl_bytes;
-	edesc->link_tbl = (void *)edesc + sizeof(struct aead_edesc) +
-			  desc_bytes;
-	edesc->link_tbl_dma = dma_map_single(jrdev, edesc->link_tbl,
-					     link_tbl_bytes, DMA_TO_DEVICE);
+	edesc->sec4_sg_bytes = sec4_sg_bytes;
+	edesc->sec4_sg = (void *)edesc + sizeof(struct aead_edesc) +
+			 desc_bytes;
+	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
+					    sec4_sg_bytes, DMA_TO_DEVICE);
 	*all_contig_ptr = all_contig;
 
-	link_tbl_index = 0;
+	sec4_sg_index = 0;
 	if (!all_contig) {
-		sg_to_link_tbl(req->assoc,
-			       (assoc_nents ? : 1),
-			       edesc->link_tbl +
-			       link_tbl_index, 0);
-		link_tbl_index += assoc_nents ? : 1;
-		sg_to_link_tbl_one(edesc->link_tbl + link_tbl_index,
+		sg_to_sec4_sg(req->assoc,
+			      (assoc_nents ? : 1),
+			      edesc->sec4_sg +
+			      sec4_sg_index, 0);
+		sec4_sg_index += assoc_nents ? : 1;
+		dma_to_sec4_sg_one(edesc->sec4_sg + sec4_sg_index,
 				   iv_dma, ivsize, 0);
-		link_tbl_index += 1;
-		sg_to_link_tbl_last(req->src,
-				    (src_nents ? : 1),
-				    edesc->link_tbl +
-				    link_tbl_index, 0);
-		link_tbl_index += src_nents ? : 1;
+		sec4_sg_index += 1;
+		sg_to_sec4_sg_last(req->src,
+				   (src_nents ? : 1),
+				   edesc->sec4_sg +
+				   sec4_sg_index, 0);
+		sec4_sg_index += src_nents ? : 1;
 	}
 	if (dst_nents) {
-		sg_to_link_tbl_last(req->dst, dst_nents,
-				    edesc->link_tbl + link_tbl_index, 0);
+		sg_to_sec4_sg_last(req->dst, dst_nents,
+				   edesc->sec4_sg + sec4_sg_index, 0);
 	}
 
 	return edesc;
@@ -1307,7 +1307,7 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 	int sgc;
 	u32 contig = GIV_SRC_CONTIG | GIV_DST_CONTIG;
 	int ivsize = crypto_aead_ivsize(aead);
-	int link_tbl_index, link_tbl_len = 0, link_tbl_bytes;
+	int sec4_sg_index, sec4_sg_len = 0, sec4_sg_bytes;
 
 	assoc_nents = sg_count(req->assoc, req->assoclen);
 	src_nents = sg_count(req->src, req->cryptlen);
@@ -1336,22 +1336,22 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 		contig &= ~GIV_DST_CONTIG;
 		if (unlikely(req->src != req->dst)) {
 			dst_nents = dst_nents ? : 1;
-			link_tbl_len += 1;
+			sec4_sg_len += 1;
 		}
 	if (!(contig & GIV_SRC_CONTIG)) {
 		assoc_nents = assoc_nents ? : 1;
 		src_nents = src_nents ? : 1;
-		link_tbl_len += assoc_nents + 1 + src_nents;
+		sec4_sg_len += assoc_nents + 1 + src_nents;
 		if (likely(req->src == req->dst))
 			contig &= ~GIV_DST_CONTIG;
 	}
-	link_tbl_len += dst_nents;
+	sec4_sg_len += dst_nents;
 
-	link_tbl_bytes = link_tbl_len * sizeof(struct link_tbl_entry);
+	sec4_sg_bytes = sec4_sg_len * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
 	edesc = kmalloc(sizeof(struct aead_edesc) + desc_bytes +
-			link_tbl_bytes, GFP_DMA | flags);
+			sec4_sg_bytes, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1361,33 +1361,33 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
 	edesc->iv_dma = iv_dma;
-	edesc->link_tbl_bytes = link_tbl_bytes;
-	edesc->link_tbl = (void *)edesc + sizeof(struct aead_edesc) +
-			  desc_bytes;
-	edesc->link_tbl_dma = dma_map_single(jrdev, edesc->link_tbl,
-					     link_tbl_bytes, DMA_TO_DEVICE);
+	edesc->sec4_sg_bytes = sec4_sg_bytes;
+	edesc->sec4_sg = (void *)edesc + sizeof(struct aead_edesc) +
+			 desc_bytes;
+	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
+					    sec4_sg_bytes, DMA_TO_DEVICE);
 	*contig_ptr = contig;
 
-	link_tbl_index = 0;
+	sec4_sg_index = 0;
 	if (!(contig & GIV_SRC_CONTIG)) {
-		sg_to_link_tbl(req->assoc, assoc_nents,
-			       edesc->link_tbl +
-			       link_tbl_index, 0);
-		link_tbl_index += assoc_nents;
-		sg_to_link_tbl_one(edesc->link_tbl + link_tbl_index,
+		sg_to_sec4_sg(req->assoc, assoc_nents,
+			      edesc->sec4_sg +
+			      sec4_sg_index, 0);
+		sec4_sg_index += assoc_nents;
+		dma_to_sec4_sg_one(edesc->sec4_sg + sec4_sg_index,
 				   iv_dma, ivsize, 0);
-		link_tbl_index += 1;
-		sg_to_link_tbl_last(req->src, src_nents,
-				    edesc->link_tbl +
-				    link_tbl_index, 0);
-		link_tbl_index += src_nents;
+		sec4_sg_index += 1;
+		sg_to_sec4_sg_last(req->src, src_nents,
+				   edesc->sec4_sg +
+				   sec4_sg_index, 0);
+		sec4_sg_index += src_nents;
 	}
 	if (unlikely(req->src != req->dst && !(contig & GIV_DST_CONTIG))) {
-		sg_to_link_tbl_one(edesc->link_tbl + link_tbl_index,
+		dma_to_sec4_sg_one(edesc->sec4_sg + sec4_sg_index,
 				   iv_dma, ivsize, 0);
-		link_tbl_index += 1;
-		sg_to_link_tbl_last(req->dst, dst_nents,
-				    edesc->link_tbl + link_tbl_index, 0);
+		sec4_sg_index += 1;
+		sg_to_sec4_sg_last(req->dst, dst_nents,
+				   edesc->sec4_sg + sec4_sg_index, 0);
 	}
 
 	return edesc;
@@ -1453,13 +1453,13 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 					  CRYPTO_TFM_REQ_MAY_SLEEP)) ?
 		       GFP_KERNEL : GFP_ATOMIC;
-	int src_nents, dst_nents = 0, link_tbl_bytes;
+	int src_nents, dst_nents = 0, sec4_sg_bytes;
 	struct ablkcipher_edesc *edesc;
 	dma_addr_t iv_dma = 0;
 	bool iv_contig = false;
 	int sgc;
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
-	int link_tbl_index;
+	int sec4_sg_index;
 
 	src_nents = sg_count(req->src, req->nbytes);
 
@@ -1485,12 +1485,12 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 		iv_contig = true;
 	else
 		src_nents = src_nents ? : 1;
-	link_tbl_bytes = ((iv_contig ? 0 : 1) + src_nents + dst_nents) *
-			 sizeof(struct link_tbl_entry);
+	sec4_sg_bytes = ((iv_contig ? 0 : 1) + src_nents + dst_nents) *
+			sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
 	edesc = kmalloc(sizeof(struct ablkcipher_edesc) + desc_bytes +
-			link_tbl_bytes, GFP_DMA | flags);
+			sec4_sg_bytes, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		return ERR_PTR(-ENOMEM);
@@ -1498,31 +1498,31 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
-	edesc->link_tbl_bytes = link_tbl_bytes;
-	edesc->link_tbl = (void *)edesc + sizeof(struct ablkcipher_edesc) +
-			  desc_bytes;
+	edesc->sec4_sg_bytes = sec4_sg_bytes;
+	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
+			 desc_bytes;
 
-	link_tbl_index = 0;
+	sec4_sg_index = 0;
 	if (!iv_contig) {
-		sg_to_link_tbl_one(edesc->link_tbl, iv_dma, ivsize, 0);
-		sg_to_link_tbl_last(req->src, src_nents,
-				    edesc->link_tbl + 1, 0);
-		link_tbl_index += 1 + src_nents;
+		dma_to_sec4_sg_one(edesc->sec4_sg, iv_dma, ivsize, 0);
+		sg_to_sec4_sg_last(req->src, src_nents,
+				   edesc->sec4_sg + 1, 0);
+		sec4_sg_index += 1 + src_nents;
 	}
 
 	if (unlikely(dst_nents)) {
-		sg_to_link_tbl_last(req->dst, dst_nents,
-			edesc->link_tbl + link_tbl_index, 0);
+		sg_to_sec4_sg_last(req->dst, dst_nents,
+			edesc->sec4_sg + sec4_sg_index, 0);
 	}
 
-	edesc->link_tbl_dma = dma_map_single(jrdev, edesc->link_tbl,
-					     link_tbl_bytes, DMA_TO_DEVICE);
+	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
+					    sec4_sg_bytes, DMA_TO_DEVICE);
 	edesc->iv_dma = iv_dma;
 
 #ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ablkcipher link_tbl@"xstr(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->link_tbl,
-		       link_tbl_bytes, 1);
+	print_hex_dump(KERN_ERR, "ablkcipher sec4_sg@"xstr(__LINE__)": ",
+		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->sec4_sg,
+		       sec4_sg_bytes, 1);
 #endif
 
 	*iv_contig_out = iv_contig;
