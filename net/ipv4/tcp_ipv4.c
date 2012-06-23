@@ -1701,7 +1701,7 @@ int tcp_v4_early_demux(struct sk_buff *skb)
 	dev = skb->dev;
 	sk = __inet_lookup_established(net, &tcp_hashinfo,
 				       iph->saddr, th->source,
-				       iph->daddr, th->dest,
+				       iph->daddr, ntohs(th->dest),
 				       dev->ifindex);
 	if (sk) {
 		skb->sk = sk;
