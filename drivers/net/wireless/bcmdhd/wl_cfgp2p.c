@@ -1229,6 +1229,7 @@ wl_cfgp2p_listen_expired(unsigned long data)
 	struct wl_priv *wl = (struct wl_priv *) data;
 
 	CFGP2P_DBG((" Enter\n"));
+	memset(&msg, 0, sizeof(wl_event_msg_t));
 	msg.event_type =  hton32(WLC_E_P2P_DISC_LISTEN_COMPLETE);
 	wl_cfg80211_event(wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_DEVICE), &msg, NULL);
 }
@@ -1401,13 +1402,12 @@ wl_cfgp2p_tx_action_frame(struct wl_priv *wl, struct net_device *dev,
 		wl->ioctl_buf, WLC_IOCTL_MAXLEN, bssidx, &wl->ioctl_buf_sync);
 
 	if (ret < 0) {
-
 		CFGP2P_ERR((" sending action frame is failed\n"));
 		goto exit;
 	}
 	timeout = wait_event_interruptible_timeout(wl->netif_change_event,
-	(wl_get_p2p_status(wl, ACTION_TX_COMPLETED) || wl_get_p2p_status(wl, ACTION_TX_NOACK)),
-	msecs_to_jiffies(MAX_WAIT_TIME));
+		(wl_get_p2p_status(wl, ACTION_TX_COMPLETED) || wl_get_p2p_status(wl, ACTION_TX_NOACK)),
+		msecs_to_jiffies(MAX_WAIT_TIME));
 
 	if (timeout > 0 && wl_get_p2p_status(wl, ACTION_TX_COMPLETED)) {
 		CFGP2P_INFO(("tx action frame operation is completed\n"));

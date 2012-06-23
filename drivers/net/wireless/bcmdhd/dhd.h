@@ -431,6 +431,7 @@ extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_eventq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_eventq(dhd_pub_t * pub);
 extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
+extern int net_os_send_hang_message(struct net_device *dev);
 
 #ifdef PNO_SUPPORT
 extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
