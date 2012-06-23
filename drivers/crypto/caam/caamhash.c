@@ -1485,6 +1485,8 @@ static int ahash_import(struct ahash_request *req, const void *in)
 struct caam_hash_template {
 	char name[CRYPTO_MAX_ALG_NAME];
 	char driver_name[CRYPTO_MAX_ALG_NAME];
+	char hmac_name[CRYPTO_MAX_ALG_NAME];
+	char hmac_driver_name[CRYPTO_MAX_ALG_NAME];
 	unsigned int blocksize;
 	struct ahash_alg template_ahash;
 	u32 alg_type;
@@ -1494,8 +1496,10 @@ struct caam_hash_template {
 /* ahash descriptors */
 static struct caam_hash_template driver_hash[] = {
 	{
-		.name = "hmac(sha1)",
-		.driver_name = "hmac-sha1-caam",
+		.name = "sha1",
+		.driver_name = "sha1-caam",
+		.hmac_name = "hmac(sha1)",
+		.hmac_driver_name = "hmac-sha1-caam",
 		.blocksize = SHA1_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ahash_init,
@@ -1513,8 +1517,10 @@ static struct caam_hash_template driver_hash[] = {
 		.alg_type = OP_ALG_ALGSEL_SHA1,
 		.alg_op = OP_ALG_ALGSEL_SHA1 | OP_ALG_AAI_HMAC,
 	}, {
-		.name = "hmac(sha224)",
-		.driver_name = "hmac-sha224-caam",
+		.name = "sha224",
+		.driver_name = "sha224-caam",
+		.hmac_name = "hmac(sha224)",
+		.hmac_driver_name = "hmac-sha224-caam",
 		.blocksize = SHA224_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ahash_init,
@@ -1532,8 +1538,10 @@ static struct caam_hash_template driver_hash[] = {
 		.alg_type = OP_ALG_ALGSEL_SHA224,
 		.alg_op = OP_ALG_ALGSEL_SHA224 | OP_ALG_AAI_HMAC,
 	}, {
-		.name = "hmac(sha256)",
-		.driver_name = "hmac-sha256-caam",
+		.name = "sha256",
+		.driver_name = "sha256-caam",
+		.hmac_name = "hmac(sha256)",
+		.hmac_driver_name = "hmac-sha256-caam",
 		.blocksize = SHA256_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ahash_init,
@@ -1551,8 +1559,10 @@ static struct caam_hash_template driver_hash[] = {
 		.alg_type = OP_ALG_ALGSEL_SHA256,
 		.alg_op = OP_ALG_ALGSEL_SHA256 | OP_ALG_AAI_HMAC,
 	}, {
-		.name = "hmac(sha384)",
-		.driver_name = "hmac-sha384-caam",
+		.name = "sha384",
+		.driver_name = "sha384-caam",
+		.hmac_name = "hmac(sha384)",
+		.hmac_driver_name = "hmac-sha384-caam",
 		.blocksize = SHA384_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ahash_init,
@@ -1570,8 +1580,10 @@ static struct caam_hash_template driver_hash[] = {
 		.alg_type = OP_ALG_ALGSEL_SHA384,
 		.alg_op = OP_ALG_ALGSEL_SHA384 | OP_ALG_AAI_HMAC,
 	}, {
-		.name = "hmac(sha512)",
-		.driver_name = "hmac-sha512-caam",
+		.name = "sha512",
+		.driver_name = "sha512-caam",
+		.hmac_name = "hmac(sha512)",
+		.hmac_driver_name = "hmac-sha512-caam",
 		.blocksize = SHA512_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ahash_init,
@@ -1589,8 +1601,10 @@ static struct caam_hash_template driver_hash[] = {
 		.alg_type = OP_ALG_ALGSEL_SHA512,
 		.alg_op = OP_ALG_ALGSEL_SHA512 | OP_ALG_AAI_HMAC,
 	}, {
-		.name = "hmac(md5)",
-		.driver_name = "hmac-md5-caam",
+		.name = "md5",
+		.driver_name = "md5-caam",
+		.hmac_name = "hmac(md5)",
+		.hmac_driver_name = "hmac-md5-caam",
 		.blocksize = MD5_BLOCK_WORDS * 4,
 		.template_ahash = {
 			.init = ahash_init,
@@ -1721,7 +1735,8 @@ static void __exit caam_algapi_hash_exit(void)
 }
 
 static struct caam_hash_alg *
-caam_hash_alloc(struct device *ctrldev, struct caam_hash_template *template)
+caam_hash_alloc(struct device *ctrldev, struct caam_hash_template *template,
+		bool keyed)
 {
 	struct caam_hash_alg *t_alg;
 	struct ahash_alg *halg;
@@ -1737,9 +1752,17 @@ caam_hash_alloc(struct device *ctrldev, struct caam_hash_template *template)
 	halg = &t_alg->ahash_alg;
 	alg = &halg->halg.base;
 
-	snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s", template->name);
-	snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-		 template->driver_name);
+	if (keyed) {
+		snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s",
+			 template->hmac_name);
+		snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
+			 template->hmac_driver_name);
+	} else {
+		snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s",
+			 template->name);
+		snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
+			 template->driver_name);
+	}
 	alg->cra_module = THIS_MODULE;
 	alg->cra_init = caam_hash_cra_init;
 	alg->cra_exit = caam_hash_cra_exit;
@@ -1786,7 +1809,25 @@ static int __init caam_algapi_hash_init(void)
 		/* TODO: check if h/w supports alg */
 		struct caam_hash_alg *t_alg;
 
-		t_alg = caam_hash_alloc(ctrldev, &driver_hash[i]);
+		/* register hmac version */
+		t_alg = caam_hash_alloc(ctrldev, &driver_hash[i], true);
+		if (IS_ERR(t_alg)) {
+			err = PTR_ERR(t_alg);
+			dev_warn(ctrldev, "%s alg allocation failed\n",
+				 driver_hash[i].driver_name);
+			continue;
+		}
+
+		err = crypto_register_ahash(&t_alg->ahash_alg);
+		if (err) {
+			dev_warn(ctrldev, "%s alg registration failed\n",
+				t_alg->ahash_alg.halg.base.cra_driver_name);
+			kfree(t_alg);
+		} else
+			list_add_tail(&t_alg->entry, &priv->hash_list);
+
+		/* register unkeyed version */
+		t_alg = caam_hash_alloc(ctrldev, &driver_hash[i], false);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
 			dev_warn(ctrldev, "%s alg allocation failed\n",
