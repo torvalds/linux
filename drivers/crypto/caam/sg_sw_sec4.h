@@ -37,7 +37,7 @@ sg_to_sec4_sg(struct scatterlist *sg, int sg_count,
 		dma_to_sec4_sg_one(sec4_sg_ptr, sg_dma_address(sg),
 				   sg_dma_len(sg), offset);
 		sec4_sg_ptr++;
-		sg = sg_next(sg);
+		sg = scatterwalk_sg_next(sg);
 		sg_count--;
 	}
 	return sec4_sg_ptr - 1;
@@ -56,7 +56,8 @@ static inline void sg_to_sec4_sg_last(struct scatterlist *sg, int sg_count,
 }
 
 /* count number of elements in scatterlist */
-static inline int __sg_count(struct scatterlist *sg_list, int nbytes)
+static inline int __sg_count(struct scatterlist *sg_list, int nbytes,
+			     bool *chained)
 {
 	struct scatterlist *sg = sg_list;
 	int sg_nents = 0;
@@ -65,7 +66,7 @@ static inline int __sg_count(struct scatterlist *sg_list, int nbytes)
 		sg_nents++;
 		nbytes -= sg->length;
 		if (!sg_is_last(sg) && (sg + 1)->length == 0)
-			BUG(); /* Not support chaining */
+			*chained = true;
 		sg = scatterwalk_sg_next(sg);
 	}
 
@@ -73,14 +74,47 @@ static inline int __sg_count(struct scatterlist *sg_list, int nbytes)
 }
 
 /* derive number of elements in scatterlist, but return 0 for 1 */
-static inline int sg_count(struct scatterlist *sg_list, int nbytes)
+static inline int sg_count(struct scatterlist *sg_list, int nbytes,
+			     bool *chained)
 {
-	int sg_nents = __sg_count(sg_list, nbytes);
+	int sg_nents = __sg_count(sg_list, nbytes, chained);
 
 	if (likely(sg_nents == 1))
 		return 0;
 
 	return sg_nents;
+}
+
+static int dma_map_sg_chained(struct device *dev, struct scatterlist *sg,
+			      unsigned int nents, enum dma_data_direction dir,
+			      bool chained)
+{
+	if (unlikely(chained)) {
+		int i;
+		for (i = 0; i < nents; i++) {
+			dma_map_sg(dev, sg, 1, dir);
+			sg = scatterwalk_sg_next(sg);
+		}
+	} else {
+		dma_map_sg(dev, sg, nents, dir);
+	}
+	return nents;
+}
+
+static int dma_unmap_sg_chained(struct device *dev, struct scatterlist *sg,
+				unsigned int nents, enum dma_data_direction dir,
+				bool chained)
+{
+	if (unlikely(chained)) {
+		int i;
+		for (i = 0; i < nents; i++) {
+			dma_unmap_sg(dev, sg, 1, dir);
+			sg = scatterwalk_sg_next(sg);
+		}
+	} else {
+		dma_unmap_sg(dev, sg, nents, dir);
+	}
+	return nents;
 }
 
 /* Copy from len bytes of sg to dest, starting from beginning */
