@@ -89,8 +89,6 @@ struct acpiphp_bridge {
 
 	/* PCI-to-PCI bridge device */
 	struct pci_dev *pci_dev;
-
-	spinlock_t res_lock;
 };
 
 
