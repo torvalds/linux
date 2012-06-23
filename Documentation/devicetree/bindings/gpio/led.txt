@@ -55,4 +55,4 @@ run-control {
 		gpios = <&mpc8572 7 0>;
 		default-state = "on";
 	};
-}
+};
