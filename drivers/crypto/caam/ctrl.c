@@ -82,13 +82,18 @@ static int caam_probe(struct platform_device *pdev)
 
 	/*
 	 * Enable DECO watchdogs and, if this is a PHYS_ADDR_T_64BIT kernel,
-	 * 36-bit pointers in master configuration register
+	 * long pointers in master configuration register
 	 */
 	setbits32(&topregs->ctrl.mcr, MCFGR_WDENABLE |
 		  (sizeof(dma_addr_t) == sizeof(u64) ? MCFGR_LONG_PTR : 0));
 
 	if (sizeof(dma_addr_t) == sizeof(u64))
-		dma_set_mask(dev, DMA_BIT_MASK(36));
+		if (of_device_is_compatible(nprop, "fsl,sec-v5.0"))
+			dma_set_mask(dev, DMA_BIT_MASK(40));
+		else
+			dma_set_mask(dev, DMA_BIT_MASK(36));
+	else
+		dma_set_mask(dev, DMA_BIT_MASK(32));
 
 	/*
 	 * Detect and enable JobRs

@@ -503,6 +503,14 @@ int caam_jr_probe(struct platform_device *pdev, struct device_node *np,
 	dev_set_drvdata(jrdev, jrpriv);
 	ctrlpriv->jrdev[ring] = jrdev;
 
+	if (sizeof(dma_addr_t) == sizeof(u64))
+		if (of_device_is_compatible(np, "fsl,sec-v5.0-job-ring"))
+			dma_set_mask(jrdev, DMA_BIT_MASK(40));
+		else
+			dma_set_mask(jrdev, DMA_BIT_MASK(36));
+	else
+		dma_set_mask(jrdev, DMA_BIT_MASK(32));
+
 	/* Identify the interrupt */
 	jrpriv->irq = of_irq_to_resource(np, 0, NULL);
 
