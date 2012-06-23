@@ -51,7 +51,7 @@ static inline void *sh_desc_pdb(u32 *desc)
 
 static inline void init_desc(u32 *desc, u32 options)
 {
-	*desc = options | HDR_ONE | 1;
+	*desc = (options | HDR_ONE) + 1;
 }
 
 static inline void init_sh_desc(u32 *desc, u32 options)
@@ -62,7 +62,7 @@ static inline void init_sh_desc(u32 *desc, u32 options)
 
 static inline void init_sh_desc_pdb(u32 *desc, u32 options, size_t pdb_bytes)
 {
-	u32 pdb_len = pdb_bytes / CAAM_CMD_SZ + 1;
+	u32 pdb_len = (pdb_bytes + CAAM_CMD_SZ - 1) / CAAM_CMD_SZ;
 
 	init_sh_desc(desc, (((pdb_len + 1) << HDR_START_IDX_SHIFT) + pdb_len) |
 		     options);
