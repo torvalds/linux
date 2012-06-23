@@ -177,7 +177,7 @@ struct iwl_base_params {
 struct iwl_bt_params {
 	bool advanced_bt_coexist;
 	u8 bt_init_traffic_load;
-	u8 bt_prio_boost;
+	u32 bt_prio_boost;
 	u16 agg_time_limit;
 	bool bt_sco_disable;
 	bool bt_session_2;
