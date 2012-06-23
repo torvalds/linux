@@ -143,11 +143,11 @@ static inline void aead_append_ld_iv(u32 *desc, int ivsize)
  */
 static inline void ablkcipher_append_src_dst(u32 *desc)
 {
-	append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ); \
-	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ); \
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | \
-			     KEY_VLF | FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1); \
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | KEY_VLF); \
+	append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
+	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
+	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 |
+			     KEY_VLF | FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1);
+	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | KEY_VLF);
 }
 
 /*
