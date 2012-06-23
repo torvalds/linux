@@ -59,15 +59,15 @@ static void caam_jr_dequeue(unsigned long devarg)
 	u32 *userdesc, userstatus;
 	void *userarg;
 
-	spin_lock_bh(&jrp->outlock);
+	while (rd_reg32(&jrp->rregs->outring_used)) {
 
-	head = ACCESS_ONCE(jrp->head);
-	sw_idx = tail = jrp->tail;
+		head = ACCESS_ONCE(jrp->head);
 
-	while (CIRC_CNT(head, tail, JOBR_DEPTH) >= 1 &&
-	       rd_reg32(&jrp->rregs->outring_used)) {
+		spin_lock_bh(&jrp->outlock);
 
+		sw_idx = tail = jrp->tail;
 		hw_idx = jrp->out_ring_read_index;
+
 		for (i = 0; CIRC_CNT(head, tail + i, JOBR_DEPTH) >= 1; i++) {
 			sw_idx = (tail + i) & (JOBR_DEPTH - 1);
 
@@ -121,14 +121,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 
 		/* Finally, execute user's callback */
 		usercall(dev, userdesc, userstatus, userarg);
-
-		spin_lock_bh(&jrp->outlock);
-
-		head = ACCESS_ONCE(jrp->head);
-		sw_idx = tail = jrp->tail;
 	}
-
-	spin_unlock_bh(&jrp->outlock);
 
 	/* reenable / unmask IRQs */
 	clrbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
