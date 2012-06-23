@@ -2228,7 +2228,7 @@ static int caam_cra_init(struct crypto_tfm *tfm)
 	 * distribute tfms across job rings to ensure in-order
 	 * crypto request processing per tfm
 	 */
-	ctx->jrdev = priv->algapi_jr[(tgt_jr / 2) % priv->num_jrs_for_algapi];
+	ctx->jrdev = priv->jrdev[(tgt_jr / 2) % priv->total_jobrs];
 
 	/* copy descriptor header template value */
 	ctx->class1_alg_type = OP_TYPE_CLASS1_ALG | caam_alg->class1_alg_type;
@@ -2265,7 +2265,6 @@ static void __exit caam_algapi_exit(void)
 	struct device *ctrldev;
 	struct caam_drv_private *priv;
 	struct caam_crypto_alg *t_alg, *n;
-	int i, err;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
 	if (!dev_node) {
@@ -2290,13 +2289,6 @@ static void __exit caam_algapi_exit(void)
 		list_del(&t_alg->entry);
 		kfree(t_alg);
 	}
-
-	for (i = 0; i < priv->total_jobrs; i++) {
-		err = caam_jr_deregister(priv->algapi_jr[i]);
-		if (err < 0)
-			break;
-	}
-	kfree(priv->algapi_jr);
 }
 
 static struct caam_crypto_alg *caam_alg_alloc(struct device *ctrldev,
@@ -2349,7 +2341,7 @@ static int __init caam_algapi_init(void)
 {
 	struct device_node *dev_node;
 	struct platform_device *pdev;
-	struct device *ctrldev, **jrdev;
+	struct device *ctrldev;
 	struct caam_drv_private *priv;
 	int i = 0, err = 0;
 
@@ -2370,24 +2362,6 @@ static int __init caam_algapi_init(void)
 
 	INIT_LIST_HEAD(&priv->alg_list);
 
-	jrdev = kmalloc(sizeof(*jrdev) * priv->total_jobrs, GFP_KERNEL);
-	if (!jrdev)
-		return -ENOMEM;
-
-	for (i = 0; i < priv->total_jobrs; i++) {
-		err = caam_jr_register(ctrldev, &jrdev[i]);
-		if (err < 0)
-			break;
-	}
-	if (err < 0 && i == 0) {
-		dev_err(ctrldev, "algapi error in job ring registration: %d\n",
-			err);
-		kfree(jrdev);
-		return err;
-	}
-
-	priv->num_jrs_for_algapi = i;
-	priv->algapi_jr = jrdev;
 	atomic_set(&priv->tfm_count, -1);
 
 	/* register crypto algorithms the device supports */

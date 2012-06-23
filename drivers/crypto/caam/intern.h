@@ -86,8 +86,6 @@ struct caam_drv_private {
 
 	/* which jr allocated to scatterlist crypto */
 	atomic_t tfm_count ____cacheline_aligned;
-	int num_jrs_for_algapi;
-	struct device **algapi_jr;
 	/* list of registered crypto algorithms (mk generic context handle?) */
 	struct list_head alg_list;
 
