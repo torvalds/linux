@@ -32,9 +32,12 @@ config CRYPTO_DEV_FSL_CAAM_RINGSIZE
 config CRYPTO_DEV_FSL_CAAM_INTC
 	bool "Job Ring interrupt coalescing"
 	depends on CRYPTO_DEV_FSL_CAAM
-	default y
+	default n
 	help
 	  Enable the Job Ring's interrupt coalescing feature.
+
+	  Note: the driver already provides adequate
+	  interrupt coalescing in software.
 
 config CRYPTO_DEV_FSL_CAAM_INTC_COUNT_THLD
 	int "Job Ring interrupt coalescing count threshold"
