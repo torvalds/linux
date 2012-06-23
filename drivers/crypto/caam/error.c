@@ -39,18 +39,20 @@ static void report_ccb_status(u32 status, char *outstr)
 	char *cha_id_list[] = {
 		"",
 		"AES",
-		"DES, 3DES",
+		"DES",
 		"ARC4",
-		"MD5, SHA-1, SH-224, SHA-256, SHA-384, SHA-512",
+		"MDHA",
 		"RNG",
 		"SNOW f8",
-		"Kasumi f8, f9",
-		"All Public Key Algorithms",
-		"CRC",
+		"Kasumi f8/9",
+		"PKHA",
+		"CRCA",
 		"SNOW f9",
+		"ZUCE",
+		"ZUCA",
 	};
 	char *err_id_list[] = {
-		"None. No error.",
+		"No error.",
 		"Mode error.",
 		"Data size error.",
 		"Key size error.",
@@ -67,6 +69,20 @@ static void report_ccb_status(u32 status, char *outstr)
 		"Invalid CHA combination was selected",
 		"Invalid CHA selected.",
 	};
+	char *rng_err_id_list[] = {
+		"",
+		"",
+		"",
+		"Instantiate",
+		"Not instantiated",
+		"Test instantiate",
+		"Prediction resistance",
+		"",
+		"Prediction resistance and test request",
+		"Uninstantiate",
+		"",
+		"Secure key generation",
+	};
 	u8 cha_id = (status & JRSTA_CCBERR_CHAID_MASK) >>
 		    JRSTA_CCBERR_CHAID_SHIFT;
 	u8 err_id = status & JRSTA_CCBERR_ERRID_MASK;
@@ -81,7 +97,13 @@ static void report_ccb_status(u32 status, char *outstr)
 			   cha_id, sizeof("ff"));
 	}
 
-	if (err_id < ARRAY_SIZE(err_id_list)) {
+	if ((cha_id << JRSTA_CCBERR_CHAID_SHIFT) == JRSTA_CCBERR_CHAID_RNG &&
+	    err_id < ARRAY_SIZE(rng_err_id_list) &&
+	    strlen(rng_err_id_list[err_id])) {
+		/* RNG-only error */
+		SPRINTFCAT(outstr, "%s", rng_err_id_list[err_id],
+			   strlen(rng_err_id_list[err_id]));
+	} else if (err_id < ARRAY_SIZE(err_id_list)) {
 		SPRINTFCAT(outstr, "%s", err_id_list[err_id],
 			   strlen(err_id_list[err_id]));
 	} else {
@@ -101,10 +123,10 @@ static void report_deco_status(u32 status, char *outstr)
 		u8 value;
 		char *error_text;
 	} desc_error_list[] = {
-		{ 0x00, "None. No error." },
+		{ 0x00, "No error." },
 		{ 0x01, "SGT Length Error. The descriptor is trying to read "
 			"more data than is contained in the SGT table." },
-		{ 0x02, "Reserved." },
+		{ 0x02, "SGT Null Entry Error." },
 		{ 0x03, "Job Ring Control Error. There is a bad value in the "
 			"Job Ring Control register." },
 		{ 0x04, "Invalid Descriptor Command. The Descriptor Command "
@@ -116,7 +138,7 @@ static void report_deco_status(u32 status, char *outstr)
 		{ 0x09, "Invalid OPERATION Command" },
 		{ 0x0A, "Invalid FIFO LOAD Command" },
 		{ 0x0B, "Invalid FIFO STORE Command" },
-		{ 0x0C, "Invalid MOVE Command" },
+		{ 0x0C, "Invalid MOVE/MOVE_LEN Command" },
 		{ 0x0D, "Invalid JUMP Command. A nonlocal JUMP Command is "
 			"invalid because the target is not a Job Header "
 			"Command, or the jump is from a Trusted Descriptor to "
@@ -166,6 +188,8 @@ static void report_deco_status(u32 status, char *outstr)
 			"(input frame; block ciphers) and IPsec decap (output "
 			"frame, when doing the next header byte update) and "
 			"DCRC (output frame)." },
+		{ 0x23, "Read Input Frame error" },
+		{ 0x24, "JDKEK, TDKEK or TDSK not loaded error" },
 		{ 0x80, "DNR (do not run) error" },
 		{ 0x81, "undefined protocol command" },
 		{ 0x82, "invalid setting in PDB" },
