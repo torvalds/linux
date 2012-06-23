@@ -265,9 +265,8 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 static inline uint64_t batadv_sum_counter(struct batadv_priv *bat_priv,
 					  size_t idx)
 {
-	uint64_t *counters;
+	uint64_t *counters, sum = 0;
 	int cpu;
-	int sum = 0;
 
 	for_each_possible_cpu(cpu) {
 		counters = per_cpu_ptr(bat_priv->bat_counters, cpu);
