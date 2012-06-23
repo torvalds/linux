@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/init.h>
 #include <linux/pcieport_if.h>
 #include <linux/aer.h>
@@ -99,6 +100,15 @@ static int pcie_port_resume_noirq(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int pcie_port_runtime_pm(struct device *dev)
+{
+	return 0;
+}
+#else
+#define pcie_port_runtime_pm	NULL
+#endif
+
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
 	.resume		= pcie_port_device_resume,
@@ -107,6 +117,8 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.poweroff	= pcie_port_device_suspend,
 	.restore	= pcie_port_device_resume,
 	.resume_noirq	= pcie_port_resume_noirq,
+	.runtime_suspend = pcie_port_runtime_pm,
+	.runtime_resume = pcie_port_runtime_pm,
 };
 
 #define PCIE_PORTDRV_PM_OPS	(&pcie_portdrv_pm_ops)
@@ -115,6 +127,14 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 
 #define PCIE_PORTDRV_PM_OPS	NULL
 #endif /* !PM */
+
+/*
+ * PCIe port runtime suspend is broken for some chipsets, so use a
+ * black list to disable runtime PM for these chipsets.
+ */
+static const struct pci_device_id port_runtime_pm_black_list[] = {
+	{ /* end: all zeroes */ }
+};
 
 /*
  * pcie_portdrv_probe - Probe PCI-Express port devices
@@ -144,12 +164,16 @@ static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
 		return status;
 
 	pci_save_state(dev);
+	if (!pci_match_id(port_runtime_pm_black_list, dev))
+		pm_runtime_put_noidle(&dev->dev);
 
 	return 0;
 }
 
 static void pcie_portdrv_remove(struct pci_dev *dev)
 {
+	if (!pci_match_id(port_runtime_pm_black_list, dev))
+		pm_runtime_get_noresume(&dev->dev);
 	pcie_port_device_remove(dev);
 	pci_disable_device(dev);
 }

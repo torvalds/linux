@@ -1518,6 +1518,16 @@ static void pci_pme_list_scan(struct work_struct *work)
 	if (!list_empty(&pci_pme_list)) {
 		list_for_each_entry_safe(pme_dev, n, &pci_pme_list, list) {
 			if (pme_dev->dev->pme_poll) {
+				struct pci_dev *bridge;
+
+				bridge = pme_dev->dev->bus->self;
+				/*
+				 * If bridge is in low power state, the
+				 * configuration space of subordinate devices
+				 * may be not accessible
+				 */
+				if (bridge && bridge->current_state != PCI_D0)
+					continue;
 				pci_pme_wakeup(pme_dev->dev, NULL);
 			} else {
 				list_del(&pme_dev->list);
