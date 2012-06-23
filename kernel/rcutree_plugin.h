@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(rcu_batches_completed);
  */
 void rcu_force_quiescent_state(void)
 {
-	force_quiescent_state(&rcu_preempt_state, 0);
+	force_quiescent_state(&rcu_preempt_state);
 }
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
@@ -2076,16 +2076,16 @@ static void rcu_prepare_for_idle(int cpu)
 #ifdef CONFIG_TREE_PREEMPT_RCU
 	if (per_cpu(rcu_preempt_data, cpu).nxtlist) {
 		rcu_preempt_qs(cpu);
-		force_quiescent_state(&rcu_preempt_state, 0);
+		force_quiescent_state(&rcu_preempt_state);
 	}
 #endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
 	if (per_cpu(rcu_sched_data, cpu).nxtlist) {
 		rcu_sched_qs(cpu);
-		force_quiescent_state(&rcu_sched_state, 0);
+		force_quiescent_state(&rcu_sched_state);
 	}
 	if (per_cpu(rcu_bh_data, cpu).nxtlist) {
 		rcu_bh_qs(cpu);
-		force_quiescent_state(&rcu_bh_state, 0);
+		force_quiescent_state(&rcu_bh_state);
 	}
 
 	/*
