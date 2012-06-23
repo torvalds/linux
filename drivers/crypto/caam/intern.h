@@ -43,7 +43,7 @@ struct caam_drv_private_jr {
 	struct device *parentdev;	/* points back to controller dev */
 	int ridx;
 	struct caam_job_ring __iomem *rregs;	/* JobR's register space */
-	struct tasklet_struct irqtask[NR_CPUS];
+	struct tasklet_struct irqtask;
 	int irq;			/* One per queue */
 	int assign;			/* busy/free */
 

@@ -43,7 +43,7 @@ static irqreturn_t caam_jr_interrupt(int irq, void *st_dev)
 	wr_reg32(&jrp->rregs->jrintstatus, irqstate);
 
 	preempt_disable();
-	tasklet_schedule(&jrp->irqtask[smp_processor_id()]);
+	tasklet_schedule(&jrp->irqtask);
 	preempt_enable();
 
 	return IRQ_HANDLED;
@@ -322,11 +322,9 @@ static int caam_jr_init(struct device *dev)
 
 	jrp = dev_get_drvdata(dev);
 
-	/* Connect job ring interrupt handler. */
-	for_each_possible_cpu(i)
-		tasklet_init(&jrp->irqtask[i], caam_jr_dequeue,
-			     (unsigned long)dev);
+	tasklet_init(&jrp->irqtask, caam_jr_dequeue, (unsigned long)dev);
 
+	/* Connect job ring interrupt handler. */
 	error = request_irq(jrp->irq, caam_jr_interrupt, IRQF_SHARED,
 			    "caam-jobr", dev);
 	if (error) {
@@ -416,12 +414,11 @@ int caam_jr_shutdown(struct device *dev)
 {
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
 	dma_addr_t inpbusaddr, outbusaddr;
-	int ret, i;
+	int ret;
 
 	ret = caam_reset_hw_jr(dev);
 
-	for_each_possible_cpu(i)
-		tasklet_kill(&jrp->irqtask[i]);
+	tasklet_kill(&jrp->irqtask);
 
 	/* Release interrupt */
 	free_irq(jrp->irq, dev);
