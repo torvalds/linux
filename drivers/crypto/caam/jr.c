@@ -376,7 +376,7 @@ static int caam_jr_init(struct device *dev)
 
 	/* Setup rings */
 	inpbusaddr = dma_map_single(dev, jrp->inpring,
-				    sizeof(u32 *) * JOBR_DEPTH,
+				    sizeof(dma_addr_t) * JOBR_DEPTH,
 				    DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, inpbusaddr)) {
 		dev_err(dev, "caam_jr_init(): can't map input ring\n");
@@ -391,9 +391,9 @@ static int caam_jr_init(struct device *dev)
 				    DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, outbusaddr)) {
 		dev_err(dev, "caam_jr_init(): can't map output ring\n");
-			dma_unmap_single(dev, inpbusaddr,
-					 sizeof(u32 *) * JOBR_DEPTH,
-					 DMA_BIDIRECTIONAL);
+		dma_unmap_single(dev, inpbusaddr,
+				 sizeof(dma_addr_t) * JOBR_DEPTH,
+				 DMA_BIDIRECTIONAL);
 		kfree(jrp->inpring);
 		kfree(jrp->outring);
 		kfree(jrp->entinfo);
@@ -447,7 +447,7 @@ int caam_jr_shutdown(struct device *dev)
 	dma_unmap_single(dev, outbusaddr,
 			 sizeof(struct jr_outentry) * JOBR_DEPTH,
 			 DMA_BIDIRECTIONAL);
-	dma_unmap_single(dev, inpbusaddr, sizeof(u32 *) * JOBR_DEPTH,
+	dma_unmap_single(dev, inpbusaddr, sizeof(dma_addr_t) * JOBR_DEPTH,
 			 DMA_BIDIRECTIONAL);
 	kfree(jrp->outring);
 	kfree(jrp->inpring);
