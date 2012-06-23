@@ -92,8 +92,8 @@ enum batadv_tt_client_flags {
 
 /* claim frame types for the bridge loop avoidance */
 enum batadv_bla_claimframe {
-	BATADV_CLAIM_TYPE_ADD		= 0x00,
-	BATADV_CLAIM_TYPE_DEL		= 0x01,
+	BATADV_CLAIM_TYPE_CLAIM		= 0x00,
+	BATADV_CLAIM_TYPE_UNCLAIM	= 0x01,
 	BATADV_CLAIM_TYPE_ANNOUNCE	= 0x02,
 	BATADV_CLAIM_TYPE_REQUEST	= 0x03,
 };
