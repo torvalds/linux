@@ -1971,6 +1971,8 @@ static void rcu_idle_count_callbacks_posted(void)
 #define RCU_IDLE_GP_DELAY 4		/* Roughly one grace period. */
 #define RCU_IDLE_LAZY_GP_DELAY (6 * HZ)	/* Roughly six seconds. */
 
+extern int tick_nohz_enabled;
+
 /*
  * Does the specified flavor of RCU have non-lazy callbacks pending on
  * the specified CPU?  Both RCU flavor and CPU are specified by the
@@ -2112,6 +2114,7 @@ static void rcu_cleanup_after_idle(int cpu)
 
 	del_timer(&rdtp->idle_gp_timer);
 	trace_rcu_prep_idle("Cleanup after idle");
+	rdtp->tick_nohz_enabled_snap = ACCESS_ONCE(tick_nohz_enabled);
 }
 
 /*
@@ -2137,6 +2140,18 @@ static void rcu_prepare_for_idle(int cpu)
 {
 	struct timer_list *tp;
 	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
+	int tne;
+
+	/* Handle nohz enablement switches conservatively. */
+	tne = ACCESS_ONCE(tick_nohz_enabled);
+	if (tne != rdtp->tick_nohz_enabled_snap) {
+		if (rcu_cpu_has_callbacks(cpu))
+			invoke_rcu_core(); /* force nohz to see update. */
+		rdtp->tick_nohz_enabled_snap = tne;
+		return;
+	}
+	if (!tne)
+		return;
 
 	/*
 	 * If this is an idle re-entry, for example, due to use of
