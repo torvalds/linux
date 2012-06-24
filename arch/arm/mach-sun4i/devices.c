@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/ram_console.h>
 #include <linux/serial_8250.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -37,6 +38,7 @@
 #include <asm/setup.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
+#include <mach/ramconsole.h>
 
 /* uart */
 static struct plat_serial8250_port debug_uart_platform_data[] = {
@@ -179,6 +181,30 @@ static struct platform_device sun4i_device_mali_drm = {
 };
 #endif
 
+/* ram console */
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+
+static struct resource sun4i_ramconsole_resources[] = {
+	{
+		.flags  = IORESOURCE_MEM,
+		.start  = SUN4I_RAMCONSOLE_START,
+		.end    = SUN4I_RAMCONSOLE_START + SUN4I_RAMCONSOLE_SIZE - 1,
+	},
+};
+
+static struct ram_console_platform_data sun4i_ramconsole_pdata;
+
+static struct platform_device sun4i_ramconsole = {
+	.name           = "ram_console",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(sun4i_ramconsole_resources),
+	.resource       = sun4i_ramconsole_resources,
+	.dev            = {
+		.platform_data = &sun4i_ramconsole_pdata,
+	},
+};
+#endif
+
 static struct platform_device *sw_pdevs[] __initdata = {
 	&debug_uart,
 	&sw_pdev_dmac,
@@ -189,7 +215,9 @@ static struct platform_device *sw_pdevs[] __initdata = {
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
 	&sun4i_device_mali_drm,
 #endif
-
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	&sun4i_ramconsole,
+#endif
 };
 
 void __init sw_pdev_init(void)

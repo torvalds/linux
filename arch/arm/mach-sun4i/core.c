@@ -56,6 +56,7 @@
 #include <mach/system.h>
 #include <mach/timex.h>
 #include <mach/sys_config.h>
+#include <mach/ramconsole.h>
 
 /**
  * Machine Implementations
@@ -236,6 +237,22 @@ static void __init reserve_ve(void)
 static void __init reserve_ve(void) {}
 #endif
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+/* The RAMCONSOLE block is used by the Android RAM Console
+ *
+ * See drivers/staging/android/ram_console.c
+ */
+
+static void __init reserve_ramconsole(void)
+{
+	memblock_remove(SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
+	pr_info("\tRAMCONSOLE : 0x%08x, 0x%08x\n",
+		(unsigned int)SUN4I_RAMCONSOLE_START, (unsigned int)SUN4I_RAMCONSOLE_SIZE);
+}
+#else
+static void __init reserve_ramconsole(void) {}
+#endif
+
 static void reserve_sys(void)
 {
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
@@ -251,6 +268,7 @@ static void __init sw_core_reserve(void)
 	reserve_fb();
 	reserve_g2d();
 	reserve_ve();
+	reserve_ramconsole();
 }
 
 void sw_irq_ack(struct irq_data *irqd)
