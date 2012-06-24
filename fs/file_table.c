@@ -23,6 +23,8 @@
 #include <linux/lglock.h>
 #include <linux/percpu_counter.h>
 #include <linux/percpu.h>
+#include <linux/hardirq.h>
+#include <linux/task_work.h>
 #include <linux/ima.h>
 
 #include <linux/atomic.h>
@@ -251,7 +253,6 @@ static void __fput(struct file *file)
 	}
 	fops_put(file->f_op);
 	put_pid(file->f_owner.pid);
-	file_sb_list_del(file);
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		i_readcount_dec(inode);
 	if (file->f_mode & FMODE_WRITE)
@@ -263,10 +264,77 @@ static void __fput(struct file *file)
 	mntput(mnt);
 }
 
+static DEFINE_SPINLOCK(delayed_fput_lock);
+static LIST_HEAD(delayed_fput_list);
+static void delayed_fput(struct work_struct *unused)
+{
+	LIST_HEAD(head);
+	spin_lock_irq(&delayed_fput_lock);
+	list_splice_init(&delayed_fput_list, &head);
+	spin_unlock_irq(&delayed_fput_lock);
+	while (!list_empty(&head)) {
+		struct file *f = list_first_entry(&head, struct file, f_u.fu_list);
+		list_del_init(&f->f_u.fu_list);
+		__fput(f);
+	}
+}
+
+static void ____fput(struct callback_head *work)
+{
+	__fput(container_of(work, struct file, f_u.fu_rcuhead));
+}
+
+/*
+ * If kernel thread really needs to have the final fput() it has done
+ * to complete, call this.  The only user right now is the boot - we
+ * *do* need to make sure our writes to binaries on initramfs has
+ * not left us with opened struct file waiting for __fput() - execve()
+ * won't work without that.  Please, don't add more callers without
+ * very good reasons; in particular, never call that with locks
+ * held and never call that from a thread that might need to do
+ * some work on any kind of umount.
+ */
+void flush_delayed_fput(void)
+{
+	delayed_fput(NULL);
+}
+
+static DECLARE_WORK(delayed_fput_work, delayed_fput);
+
 void fput(struct file *file)
 {
-	if (atomic_long_dec_and_test(&file->f_count))
+	if (atomic_long_dec_and_test(&file->f_count)) {
+		struct task_struct *task = current;
+		file_sb_list_del(file);
+		if (unlikely(in_interrupt() || task->flags & PF_KTHREAD)) {
+			unsigned long flags;
+			spin_lock_irqsave(&delayed_fput_lock, flags);
+			list_add(&file->f_u.fu_list, &delayed_fput_list);
+			schedule_work(&delayed_fput_work);
+			spin_unlock_irqrestore(&delayed_fput_lock, flags);
+			return;
+		}
+		init_task_work(&file->f_u.fu_rcuhead, ____fput);
+		task_work_add(task, &file->f_u.fu_rcuhead, true);
+	}
+}
+
+/*
+ * synchronous analog of fput(); for kernel threads that might be needed
+ * in some umount() (and thus can't use flush_delayed_fput() without
+ * risking deadlocks), need to wait for completion of __fput() and know
+ * for this specific struct file it won't involve anything that would
+ * need them.  Use only if you really need it - at the very least,
+ * don't blindly convert fput() by kernel thread to that.
+ */
+void __fput_sync(struct file *file)
+{
+	if (atomic_long_dec_and_test(&file->f_count)) {
+		struct task_struct *task = current;
+		file_sb_list_del(file);
+		BUG_ON(!(task->flags & PF_KTHREAD));
 		__fput(file);
+	}
 }
 
 EXPORT_SYMBOL(fput);
