@@ -107,6 +107,16 @@ static inline void apic_clear_vector(int vec, void *bitmap)
 	clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
 }
 
+static inline int __apic_test_and_set_vector(int vec, void *bitmap)
+{
+	return __test_and_set_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
+}
+
+static inline int __apic_test_and_clear_vector(int vec, void *bitmap)
+{
+	return __test_and_clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
+}
+
 static inline int apic_hw_enabled(struct kvm_lapic *apic)
 {
 	return (apic)->vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE;
@@ -210,6 +220,16 @@ static int find_highest_vector(void *bitmap)
 		return fls(word[word_offset << 2]) - 1 + (word_offset << 5);
 }
 
+static u8 count_vectors(void *bitmap)
+{
+	u32 *word = bitmap;
+	int word_offset;
+	u8 count = 0;
+	for (word_offset = 0; word_offset < MAX_APIC_VECTOR >> 5; ++word_offset)
+		count += hweight32(word[word_offset << 2]);
+	return count;
+}
+
 static inline int apic_test_and_set_irr(int vec, struct kvm_lapic *apic)
 {
 	apic->irr_pending = true;
@@ -240,6 +260,27 @@ static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
 	apic_clear_vector(vec, apic->regs + APIC_IRR);
 	if (apic_search_irr(apic) != -1)
 		apic->irr_pending = true;
+}
+
+static inline void apic_set_isr(int vec, struct kvm_lapic *apic)
+{
+	if (!__apic_test_and_set_vector(vec, apic->regs + APIC_ISR))
+		++apic->isr_count;
+	BUG_ON(apic->isr_count > MAX_APIC_VECTOR);
+	/*
+	 * ISR (in service register) bit is set when injecting an interrupt.
+	 * The highest vector is injected. Thus the latest bit set matches
+	 * the highest bit in ISR.
+	 */
+	apic->highest_isr_cache = vec;
+}
+
+static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
+{
+	if (__apic_test_and_clear_vector(vec, apic->regs + APIC_ISR))
+		--apic->isr_count;
+	BUG_ON(apic->isr_count < 0);
+	apic->highest_isr_cache = -1;
 }
 
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
@@ -273,6 +314,10 @@ int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq)
 static inline int apic_find_highest_isr(struct kvm_lapic *apic)
 {
 	int result;
+	if (!apic->isr_count)
+		return -1;
+	if (likely(apic->highest_isr_cache != -1))
+		return apic->highest_isr_cache;
 
 	result = find_highest_vector(apic->regs + APIC_ISR);
 	ASSERT(result == -1 || result >= 16);
@@ -492,7 +537,7 @@ static void apic_set_eoi(struct kvm_lapic *apic)
 	if (vector == -1)
 		return;
 
-	apic_clear_vector(vector, apic->regs + APIC_ISR);
+	apic_clear_isr(vector, apic);
 	apic_update_ppr(apic);
 
 	if (!(apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI) &&
@@ -1081,6 +1126,8 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 		apic_set_reg(apic, APIC_TMR + 0x10 * i, 0);
 	}
 	apic->irr_pending = false;
+	apic->isr_count = 0;
+	apic->highest_isr_cache = -1;
 	update_divide_count(apic);
 	atomic_set(&apic->lapic_timer.pending, 0);
 	if (kvm_vcpu_is_bsp(vcpu))
@@ -1248,7 +1295,7 @@ int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
 	if (vector == -1)
 		return -1;
 
-	apic_set_vector(vector, apic->regs + APIC_ISR);
+	apic_set_isr(vector, apic);
 	apic_update_ppr(apic);
 	apic_clear_irr(vector, apic);
 	return vector;
@@ -1267,6 +1314,8 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
 	update_divide_count(apic);
 	start_apic_timer(apic);
 	apic->irr_pending = true;
+	apic->isr_count = count_vectors(apic->regs + APIC_ISR);
+	apic->highest_isr_cache = -1;
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 

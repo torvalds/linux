@@ -13,6 +13,10 @@ struct kvm_lapic {
 	u32 divide_count;
 	struct kvm_vcpu *vcpu;
 	bool irr_pending;
+	/* Number of bits set in ISR. */
+	s16 isr_count;
+	/* The highest vector set in ISR; if -1 - invalid, must scan ISR. */
+	int highest_isr_cache;
 	/**
 	 * APIC register page.  The layout matches the register layout seen by
 	 * the guest 1:1, because it is accessed by the vmx microcode.
