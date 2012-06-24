@@ -234,23 +234,9 @@ __s32 Hdmi_set_pll(__u32 pll, __u32 clk)
 
 int Hdmi_run_thread(void *parg)
 {
-	while (1)
-	{
-		//if(ghdmi.bopen == 0)
-		//{
-		//	down(run_sem);
-		//}
-
+	while (1) {
 		Hdmi_hal_main_task();
-
-		if(ghdmi.bopen)
-		{
-			hdmi_delay_ms(200);
-		}
-		else
-		{
-			hdmi_delay_ms(200);
-		}
+		hdmi_delay_ms(2000);
 	}
 
 	return 0;
