@@ -2349,8 +2349,9 @@ int intel_enable_rc6(const struct drm_device *dev)
 	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 }
 
-static void gen6_enable_rps(struct drm_i915_private *dev_priv)
+static void gen6_enable_rps(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
 	u32 rp_state_cap;
 	u32 gt_perf_status;
@@ -2359,6 +2360,8 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	int rc6_mode;
 	int i;
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	/* Here begins a magic sequence of register writes to enable
 	 * auto-downclocking.
 	 *
@@ -2366,7 +2369,6 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	 * userspace...
 	 */
 	I915_WRITE(GEN6_RC_STATE, 0);
-	mutex_lock(&dev_priv->dev->struct_mutex);
 
 	/* Clear the DBG now so we don't confuse earlier errors */
 	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
@@ -2491,14 +2493,16 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 
 	gen6_gt_force_wake_put(dev_priv);
-	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
-static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
+static void gen6_update_ring_freq(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int min_freq = 15;
 	int gpu_freq, ia_freq, max_ia_freq;
 	int scaling_factor = 180;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	max_ia_freq = cpufreq_quick_get_max(0);
 	/*
@@ -2510,8 +2514,6 @@ static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 
 	/* Convert from kHz to MHz */
 	max_ia_freq /= 1000;
-
-	mutex_lock(&dev_priv->dev->struct_mutex);
 
 	/*
 	 * For each potential GPU frequency, load a ring frequency we'd like
@@ -2543,8 +2545,6 @@ static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 			continue;
 		}
 	}
-
-	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
 static void ironlake_teardown_rc6(struct drm_device *dev)
@@ -2615,12 +2615,11 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	if (!intel_enable_rc6(dev))
 		return;
 
-	mutex_lock(&dev->struct_mutex);
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	ret = ironlake_setup_rc6(dev);
-	if (ret) {
-		mutex_unlock(&dev->struct_mutex);
+	if (ret)
 		return;
-	}
 
 	/*
 	 * GPU can automatically power down the render unit if given a page
@@ -2629,7 +2628,6 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	ret = intel_ring_begin(ring, 6);
 	if (ret) {
 		ironlake_teardown_rc6(dev);
-		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
 
@@ -2654,13 +2652,11 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	if (ret) {
 		DRM_ERROR("failed to enable ironlake power power savings\n");
 		ironlake_teardown_rc6(dev);
-		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
 
 	I915_WRITE(PWRCTXA, dev_priv->pwrctx->gtt_offset | PWRCTX_EN);
 	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
-	mutex_unlock(&dev->struct_mutex);
 }
 
 static unsigned long intel_pxfreq(u32 vidfreq)
@@ -3237,8 +3233,6 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 
 void intel_enable_gt_powersave(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
 		ironlake_enable_rc6(dev);
@@ -3246,8 +3240,8 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 	}
 
 	if ((IS_GEN6(dev) || IS_GEN7(dev)) && !IS_VALLEYVIEW(dev)) {
-		gen6_enable_rps(dev_priv);
-		gen6_update_ring_freq(dev_priv);
+		gen6_enable_rps(dev);
+		gen6_update_ring_freq(dev);
 	}
 }
 

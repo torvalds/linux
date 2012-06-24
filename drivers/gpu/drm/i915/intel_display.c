@@ -7174,7 +7174,9 @@ void intel_modeset_init_hw(struct drm_device *dev)
 {
 	intel_init_clock_gating(dev);
 
+	mutex_lock(&dev->struct_mutex);
 	intel_enable_gt_powersave(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (IS_IVYBRIDGE(dev))
 		ivb_pch_pwm_override(dev);
