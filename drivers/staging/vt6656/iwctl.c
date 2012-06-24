@@ -235,7 +235,8 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 			current_ev = iwe_stream_add_event(info,current_ev,end_buf, &iwe, IW_EV_FREQ_LEN);
 			{
 				int f = (int)pBSS->uChannel - 1;
-				if (f < 0)f = 0;
+				if (f < 0)
+					f = 0;
 				iwe.u.freq.m = frequency_list[f] * 100000;
 				iwe.u.freq.e = 1;
 			}
