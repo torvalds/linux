@@ -1414,7 +1414,7 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	if (!ap)
 		return;
 
-	ap->ranges[0].base = dev_priv->dev->agp->base;
+	ap->ranges[0].base = dev_priv->mm.gtt->gma_bus_addr;
 	ap->ranges[0].size =
 		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 	primary =
