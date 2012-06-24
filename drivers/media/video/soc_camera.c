@@ -507,9 +507,12 @@ static int soc_camera_open(struct file *file)
 
 	ici = to_soc_camera_host(icd->parent);
 
+	if (mutex_lock_interruptible(&icd->video_lock))
+		return -ERESTARTSYS;
 	if (!try_module_get(ici->ops->owner)) {
 		dev_err(icd->pdev, "Couldn't lock capture bus driver.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto emodule;
 	}
 
 	icd->use_count++;
@@ -570,6 +573,7 @@ static int soc_camera_open(struct file *file)
 		}
 		v4l2_ctrl_handler_setup(&icd->ctrl_handler);
 	}
+	mutex_unlock(&icd->video_lock);
 
 	file->private_data = icd;
 	dev_dbg(icd->pdev, "camera device open\n");
@@ -590,6 +594,8 @@ epower:
 eiciadd:
 	icd->use_count--;
 	module_put(ici->ops->owner);
+emodule:
+	mutex_unlock(&icd->video_lock);
 
 	return ret;
 }
@@ -599,6 +605,7 @@ static int soc_camera_close(struct file *file)
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 
+	mutex_lock(&icd->video_lock);
 	icd->use_count--;
 	if (!icd->use_count) {
 		struct soc_camera_link *icl = to_soc_camera_link(icd);
@@ -615,6 +622,7 @@ static int soc_camera_close(struct file *file)
 
 	if (icd->streamer == file)
 		icd->streamer = NULL;
+	mutex_unlock(&icd->video_lock);
 
 	module_put(ici->ops->owner);
 
@@ -645,10 +653,13 @@ static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
 	if (icd->streamer != file)
 		return -EBUSY;
 
+	if (mutex_lock_interruptible(&icd->video_lock))
+		return -ERESTARTSYS;
 	if (ici->ops->init_videobuf)
 		err = videobuf_mmap_mapper(&icd->vb_vidq, vma);
 	else
 		err = vb2_mmap(&icd->vb2_vidq, vma);
+	mutex_unlock(&icd->video_lock);
 
 	dev_dbg(icd->pdev, "vma start=0x%08lx, size=%ld, ret=%d\n",
 		(unsigned long)vma->vm_start,
@@ -662,16 +673,18 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	unsigned res = POLLERR;
 
 	if (icd->streamer != file)
-		return -EBUSY;
-
-	if (ici->ops->init_videobuf && list_empty(&icd->vb_vidq.stream)) {
-		dev_err(icd->pdev, "Trying to poll with no queued buffers!\n");
 		return POLLERR;
-	}
 
-	return ici->ops->poll(file, pt);
+	mutex_lock(&icd->video_lock);
+	if (ici->ops->init_videobuf && list_empty(&icd->vb_vidq.stream))
+		dev_err(icd->pdev, "Trying to poll with no queued buffers!\n");
+	else
+		res = ici->ops->poll(file, pt);
+	mutex_unlock(&icd->video_lock);
+	return res;
 }
 
 void soc_camera_lock(struct vb2_queue *vq)
@@ -1432,10 +1445,6 @@ static int video_dev_create(struct soc_camera_device *icd)
 	vdev->tvnorms		= V4L2_STD_UNKNOWN;
 	vdev->ctrl_handler	= &icd->ctrl_handler;
 	vdev->lock		= &icd->video_lock;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags);
 
 	icd->vdev = vdev;
 
