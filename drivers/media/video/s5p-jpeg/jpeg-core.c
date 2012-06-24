@@ -292,6 +292,11 @@ static int s5p_jpeg_open(struct file *file)
 	if (!ctx)
 		return -ENOMEM;
 
+	if (mutex_lock_interruptible(&jpeg->lock)) {
+		ret = -ERESTARTSYS;
+		goto free;
+	}
+
 	v4l2_fh_init(&ctx->fh, vfd);
 	/* Use separate control handler per file handle */
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
@@ -319,20 +324,26 @@ static int s5p_jpeg_open(struct file *file)
 
 	ctx->out_q.fmt = out_fmt;
 	ctx->cap_q.fmt = s5p_jpeg_find_format(ctx->mode, V4L2_PIX_FMT_YUYV);
+	mutex_unlock(&jpeg->lock);
 	return 0;
 
 error:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
+	mutex_unlock(&jpeg->lock);
+free:
 	kfree(ctx);
 	return ret;
 }
 
 static int s5p_jpeg_release(struct file *file)
 {
+	struct s5p_jpeg *jpeg = video_drvdata(file);
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
 
+	mutex_lock(&jpeg->lock);
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
+	mutex_unlock(&jpeg->lock);
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
@@ -344,16 +355,27 @@ static int s5p_jpeg_release(struct file *file)
 static unsigned int s5p_jpeg_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
+	struct s5p_jpeg *jpeg = video_drvdata(file);
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
+	unsigned int res;
 
-	return v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
+	mutex_lock(&jpeg->lock);
+	res = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
+	mutex_unlock(&jpeg->lock);
+	return res;
 }
 
 static int s5p_jpeg_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct s5p_jpeg *jpeg = video_drvdata(file);
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
+	int ret;
 
-	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
+	if (mutex_lock_interruptible(&jpeg->lock))
+		return -ERESTARTSYS;
+	ret = v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
+	mutex_unlock(&jpeg->lock);
+	return ret;
 }
 
 static const struct v4l2_file_operations s5p_jpeg_fops = {
@@ -1372,10 +1394,6 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	jpeg->vfd_encoder->release	= video_device_release;
 	jpeg->vfd_encoder->lock		= &jpeg->lock;
 	jpeg->vfd_encoder->v4l2_dev	= &jpeg->v4l2_dev;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &jpeg->vfd_encoder->flags);
 
 	ret = video_register_device(jpeg->vfd_encoder, VFL_TYPE_GRABBER, -1);
 	if (ret) {
@@ -1403,10 +1421,6 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	jpeg->vfd_decoder->release	= video_device_release;
 	jpeg->vfd_decoder->lock		= &jpeg->lock;
 	jpeg->vfd_decoder->v4l2_dev	= &jpeg->v4l2_dev;
-	/* Locking in file operations other than ioctl should be done by the driver,
-	   not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &jpeg->vfd_decoder->flags);
 
 	ret = video_register_device(jpeg->vfd_decoder, VFL_TYPE_GRABBER, -1);
 	if (ret) {
