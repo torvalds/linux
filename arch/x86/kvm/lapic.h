@@ -13,6 +13,11 @@ struct kvm_lapic {
 	u32 divide_count;
 	struct kvm_vcpu *vcpu;
 	bool irr_pending;
+	/**
+	 * APIC register page.  The layout matches the register layout seen by
+	 * the guest 1:1, because it is accessed by the vmx microcode.
+	 * Note: Only one register, the TPR, is used by the microcode.
+	 */
 	void *regs;
 	gpa_t vapic_addr;
 	struct page *vapic_page;
