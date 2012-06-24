@@ -141,7 +141,7 @@ int iwctl_siwmlme(struct net_device *dev, struct iw_request_info *info,
 		struct iw_point *wrq, char *extra);
 #endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 
-extern const struct iw_handler_def	iwctl_handler_def;
-extern const struct iw_priv_args	iwctl_private_args;
+extern const struct iw_handler_def iwctl_handler_def;
+extern const struct iw_priv_args iwctl_private_args;
 
 #endif /* __IWCTL_H__ */
