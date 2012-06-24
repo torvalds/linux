@@ -1224,6 +1224,7 @@ static int sh_vou_release(struct file *file)
 
 static int sh_vou_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct sh_vou_device *vou_dev = video_get_drvdata(vdev);
 	struct sh_vou_file *vou_file = file->private_data;
 	int ret;
@@ -1239,6 +1240,7 @@ static int sh_vou_mmap(struct file *file, struct vm_area_struct *vma)
 
 static unsigned int sh_vou_poll(struct file *file, poll_table *wait)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct sh_vou_device *vou_dev = video_get_drvdata(vdev);
 	struct sh_vou_file *vou_file = file->private_data;
 	unsigned int res;
