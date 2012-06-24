@@ -2154,7 +2154,7 @@ static inline void sk_change_net(struct sock *sk, struct net *net)
 
 static inline struct sock *skb_steal_sock(struct sk_buff *skb)
 {
-	if (unlikely(skb->sk)) {
+	if (skb->sk) {
 		struct sock *sk = skb->sk;
 
 		skb->destructor = NULL;
