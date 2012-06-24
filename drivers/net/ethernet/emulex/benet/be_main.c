@@ -1059,7 +1059,8 @@ static int be_find_vfs(struct be_adapter *adapter, int vf_state)
 	dev = pci_get_device(pdev->vendor, PCI_ANY_ID, NULL);
 	while (dev) {
 		vf_fn = (pdev->devfn + offset + stride * vfs) & 0xFFFF;
-		if (dev->is_virtfn && dev->devfn == vf_fn) {
+		if (dev->is_virtfn && dev->devfn == vf_fn &&
+			dev->bus->number == pdev->bus->number) {
 			vfs++;
 			if (dev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
 				assigned_vfs++;
