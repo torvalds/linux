@@ -558,6 +558,7 @@ static inline void wrb_fill(struct be_eth_wrb *wrb, u64 addr, int len)
 	wrb->frag_pa_hi = upper_32_bits(addr);
 	wrb->frag_pa_lo = addr & 0xFFFFFFFF;
 	wrb->frag_len = len & ETH_WRB_FRAG_LEN_MASK;
+	wrb->rsvd0 = 0;
 }
 
 static inline u16 be_get_tx_vlan_tag(struct be_adapter *adapter,
