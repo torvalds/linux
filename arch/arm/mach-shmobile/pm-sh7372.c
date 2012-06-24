@@ -290,12 +290,7 @@ struct sh7372_pm_domain sh7372_a3sg = {
 	.genpd.name = "A3SG",
 	.bit_shift = 13,
 };
-
-#else /* !CONFIG_PM */
-
-static inline void sh7372_a3sp_init(void) {}
-
-#endif /* !CONFIG_PM */
+#endif /* CONFIG_PM */
 
 #if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
 static int sh7372_do_idle_core_standby(unsigned long unused)
