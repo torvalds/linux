@@ -236,21 +236,8 @@ int Hdmi_run_thread(void *parg)
 {
 	while (1)
 	{
-		//if(ghdmi.bopen == 0)
-		//{
-		//	down(run_sem);
-		//}
-		
 		Hdmi_hal_main_task();
-
-		if(ghdmi.bopen)
-		{		    
-			hdmi_delay_ms(200);
-		}
-		else
-		{
-			hdmi_delay_ms(200);   
-		}
+		hdmi_delay_ms(2000);
 	}
 
 	return 0;
