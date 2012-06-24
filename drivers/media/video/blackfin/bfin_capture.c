@@ -235,8 +235,13 @@ static int bcap_release(struct file *file)
 static int bcap_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
+	int ret;
 
-	return vb2_mmap(&bcap_dev->buffer_queue, vma);
+	if (mutex_lock_interruptible(&bcap_dev->mutex))
+		return -ERESTARTSYS;
+	ret = vb2_mmap(&bcap_dev->buffer_queue, vma);
+	mutex_unlock(&bcap_dev->mutex);
+	return ret;
 }
 
 #ifndef CONFIG_MMU
@@ -259,8 +264,12 @@ static unsigned long bcap_get_unmapped_area(struct file *file,
 static unsigned int bcap_poll(struct file *file, poll_table *wait)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
+	unsigned int res;
 
-	return vb2_poll(&bcap_dev->buffer_queue, file, wait);
+	mutex_lock(&bcap_dev->mutex);
+	res = vb2_poll(&bcap_dev->buffer_queue, file, wait);
+	mutex_unlock(&bcap_dev->mutex);
+	return res;
 }
 
 static int bcap_queue_setup(struct vb2_queue *vq,
@@ -942,10 +951,6 @@ static int __devinit bcap_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&bcap_dev->dma_queue);
 
 	vfd->lock = &bcap_dev->mutex;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 
 	/* register video device */
 	ret = video_register_device(bcap_dev->video_dev, VFL_TYPE_GRABBER, -1);
