@@ -415,12 +415,7 @@ static struct platform_driver nvec_power_driver = {
 		   }
 };
 
-static int __init nvec_power_init(void)
-{
-	return platform_driver_register(&nvec_power_driver);
-}
-
-module_init(nvec_power_init);
+module_platform_driver(nvec_power_driver);
 
 MODULE_AUTHOR("Ilya Petrov <ilya.muromec@gmail.com>");
 MODULE_LICENSE("GPL");

@@ -158,12 +158,7 @@ static struct platform_driver nvec_mouse_driver = {
 	},
 };
 
-static int __init nvec_mouse_init(void)
-{
-	return platform_driver_register(&nvec_mouse_driver);
-}
-
-module_init(nvec_mouse_init);
+module_platform_driver(nvec_mouse_driver);
 
 MODULE_DESCRIPTION("NVEC mouse driver");
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");

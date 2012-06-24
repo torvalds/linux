@@ -167,12 +167,7 @@ static struct platform_driver nvec_kbd_driver = {
 	},
 };
 
-static int __init nvec_kbd_init(void)
-{
-	return platform_driver_register(&nvec_kbd_driver);
-}
-
-module_init(nvec_kbd_init);
+module_platform_driver(nvec_kbd_driver);
 
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");
 MODULE_DESCRIPTION("NVEC keyboard driver");

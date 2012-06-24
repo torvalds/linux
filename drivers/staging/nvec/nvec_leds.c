@@ -90,19 +90,7 @@ static struct platform_driver nvec_led_driver = {
 	},
 };
 
-static int __init nvec_led_init(void)
-{
-	return platform_driver_register(&nvec_led_driver);
-}
-
-module_init(nvec_led_init);
-
-static void __exit nvec_led_exit(void)
-{
-	platform_driver_unregister(&nvec_led_driver);
-}
-
-module_exit(nvec_led_exit);
+module_platform_driver(nvec_led_driver);
 
 MODULE_AUTHOR("Ilya Petrov <ilya.muromec@gmail.com>");
 MODULE_DESCRIPTION("Tegra NVEC LED driver");
