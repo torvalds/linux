@@ -96,7 +96,11 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
-	struct serio *ser_dev = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	struct serio *ser_dev;
+
+	ser_dev = devm_kzalloc(&pdev->dev, sizeof(struct serio), GFP_KERNEL);
+	if (ser_dev == NULL)
+		return -ENOMEM;
 
 	ser_dev->id.type = SERIO_PS_PSTHRU;
 	ser_dev->write = ps2_sendcommand;
