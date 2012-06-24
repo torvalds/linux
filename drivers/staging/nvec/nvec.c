@@ -127,12 +127,14 @@ EXPORT_SYMBOL_GPL(nvec_register_notifier);
 static int nvec_status_notifier(struct notifier_block *nb,
 				unsigned long event_type, void *data)
 {
+	struct nvec_chip *nvec = container_of(nb, struct nvec_chip,
+						nvec_status_notifier);
 	unsigned char *msg = (unsigned char *)data;
 
 	if (event_type != NVEC_CNTL)
 		return NOTIFY_DONE;
 
-	printk(KERN_WARNING "unhandled msg type %ld\n", event_type);
+	dev_warn(nvec->dev, "unhandled msg type %ld\n", event_type);
 	print_hex_dump(KERN_WARNING, "payload: ", DUMP_PREFIX_NONE, 16, 1,
 		msg, msg[1] + 2, true);
 
