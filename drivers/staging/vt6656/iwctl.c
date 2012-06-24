@@ -1321,7 +1321,7 @@ int iwctl_giwsens(struct net_device *dev, struct iw_request_info *info,
 	}
 	else {
 		wrq->value = 0;
-	};
+	}
 	wrq->disabled = (wrq->value == 0);
 	wrq->fixed = 1;
 	return 0;
