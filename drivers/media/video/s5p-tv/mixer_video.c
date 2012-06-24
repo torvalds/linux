@@ -750,18 +750,20 @@ static int mxr_video_open(struct file *file)
 	int ret = 0;
 
 	mxr_dbg(mdev, "%s:%d\n", __func__, __LINE__);
+	if (mutex_lock_interruptible(&layer->mutex))
+		return -ERESTARTSYS;
 	/* assure device probe is finished */
 	wait_for_device_probe();
 	/* creating context for file descriptor */
 	ret = v4l2_fh_open(file);
 	if (ret) {
 		mxr_err(mdev, "v4l2_fh_open failed\n");
-		return ret;
+		goto unlock;
 	}
 
 	/* leaving if layer is already initialized */
 	if (!v4l2_fh_is_singular_file(file))
-		return 0;
+		goto unlock;
 
 	/* FIXME: should power be enabled on open? */
 	ret = mxr_power_get(mdev);
@@ -779,6 +781,7 @@ static int mxr_video_open(struct file *file)
 	layer->fmt = layer->fmt_array[0];
 	/* setup default geometry */
 	mxr_layer_default_geo(layer);
+	mutex_unlock(&layer->mutex);
 
 	return 0;
 
@@ -788,6 +791,9 @@ fail_power:
 fail_fh_open:
 	v4l2_fh_release(file);
 
+unlock:
+	mutex_unlock(&layer->mutex);
+
 	return ret;
 }
 
@@ -795,19 +801,28 @@ static unsigned int
 mxr_video_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct mxr_layer *layer = video_drvdata(file);
+	unsigned int res;
 
 	mxr_dbg(layer->mdev, "%s:%d\n", __func__, __LINE__);
 
-	return vb2_poll(&layer->vb_queue, file, wait);
+	mutex_lock(&layer->mutex);
+	res = vb2_poll(&layer->vb_queue, file, wait);
+	mutex_unlock(&layer->mutex);
+	return res;
 }
 
 static int mxr_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct mxr_layer *layer = video_drvdata(file);
+	int ret;
 
 	mxr_dbg(layer->mdev, "%s:%d\n", __func__, __LINE__);
 
-	return vb2_mmap(&layer->vb_queue, vma);
+	if (mutex_lock_interruptible(&layer->mutex))
+		return -ERESTARTSYS;
+	ret = vb2_mmap(&layer->vb_queue, vma);
+	mutex_unlock(&layer->mutex);
+	return ret;
 }
 
 static int mxr_video_release(struct file *file)
@@ -815,11 +830,13 @@ static int mxr_video_release(struct file *file)
 	struct mxr_layer *layer = video_drvdata(file);
 
 	mxr_dbg(layer->mdev, "%s:%d\n", __func__, __LINE__);
+	mutex_lock(&layer->mutex);
 	if (v4l2_fh_is_singular_file(file)) {
 		vb2_queue_release(&layer->vb_queue);
 		mxr_power_put(layer->mdev);
 	}
 	v4l2_fh_release(file);
+	mutex_unlock(&layer->mutex);
 	return 0;
 }
 
@@ -1069,10 +1086,6 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 	set_bit(V4L2_FL_USE_FH_PRIO, &layer->vfd.flags);
 
 	video_set_drvdata(&layer->vfd, layer);
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &layer->vfd.flags);
 	layer->vfd.lock = &layer->mutex;
 	layer->vfd.v4l2_dev = &mdev->v4l2_dev;
 
