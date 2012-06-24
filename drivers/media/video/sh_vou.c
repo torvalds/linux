@@ -1171,6 +1171,8 @@ static int sh_vou_open(struct file *file)
 
 	file->private_data = vou_file;
 
+	if (mutex_lock_interruptible(&vou_dev->fop_lock))
+		return -ERESTARTSYS;
 	if (atomic_inc_return(&vou_dev->use_count) == 1) {
 		int ret;
 		/* First open */
@@ -1181,6 +1183,7 @@ static int sh_vou_open(struct file *file)
 			atomic_dec(&vou_dev->use_count);
 			pm_runtime_put(vdev->v4l2_dev->dev);
 			vou_dev->status = SH_VOU_IDLE;
+			mutex_unlock(&vou_dev->fop_lock);
 			return ret;
 		}
 	}
@@ -1191,6 +1194,7 @@ static int sh_vou_open(struct file *file)
 				       V4L2_FIELD_NONE,
 				       sizeof(struct videobuf_buffer), vdev,
 				       &vou_dev->fop_lock);
+	mutex_unlock(&vou_dev->fop_lock);
 
 	return 0;
 }
@@ -1204,10 +1208,12 @@ static int sh_vou_release(struct file *file)
 	dev_dbg(vou_file->vbq.dev, "%s()\n", __func__);
 
 	if (!atomic_dec_return(&vou_dev->use_count)) {
+		mutex_lock(&vou_dev->fop_lock);
 		/* Last close */
 		vou_dev->status = SH_VOU_IDLE;
 		sh_vou_reg_a_set(vou_dev, VOUER, 0, 0x101);
 		pm_runtime_put(vdev->v4l2_dev->dev);
+		mutex_unlock(&vou_dev->fop_lock);
 	}
 
 	file->private_data = NULL;
@@ -1218,20 +1224,31 @@ static int sh_vou_release(struct file *file)
 
 static int sh_vou_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct sh_vou_device *vou_dev = video_get_drvdata(vdev);
 	struct sh_vou_file *vou_file = file->private_data;
+	int ret;
 
 	dev_dbg(vou_file->vbq.dev, "%s()\n", __func__);
 
-	return videobuf_mmap_mapper(&vou_file->vbq, vma);
+	if (mutex_lock_interruptible(&vou_dev->fop_lock))
+		return -ERESTARTSYS;
+	ret = videobuf_mmap_mapper(&vou_file->vbq, vma);
+	mutex_unlock(&vou_dev->fop_lock);
+	return ret;
 }
 
 static unsigned int sh_vou_poll(struct file *file, poll_table *wait)
 {
+	struct sh_vou_device *vou_dev = video_get_drvdata(vdev);
 	struct sh_vou_file *vou_file = file->private_data;
+	unsigned int res;
 
 	dev_dbg(vou_file->vbq.dev, "%s()\n", __func__);
 
-	return videobuf_poll_stream(file, &vou_file->vbq, wait);
+	mutex_lock(&vou_dev->fop_lock);
+	res = videobuf_poll_stream(file, &vou_file->vbq, wait);
+	mutex_unlock(&vou_dev->fop_lock);
+	return res;
 }
 
 static int sh_vou_g_chip_ident(struct file *file, void *fh,
@@ -1390,10 +1407,6 @@ static int __devinit sh_vou_probe(struct platform_device *pdev)
 	vdev->v4l2_dev = &vou_dev->v4l2_dev;
 	vdev->release = video_device_release;
 	vdev->lock = &vou_dev->fop_lock;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags);
 
 	vou_dev->vdev = vdev;
 	video_set_drvdata(vdev, vou_dev);
