@@ -61,6 +61,7 @@ struct ocrdma_dev_attr {
 	u32 max_inline_data;
 	int max_send_sge;
 	int max_recv_sge;
+	int max_srq_sge;
 	int max_mr;
 	u64 max_mr_size;
 	u32 max_num_mr_pbl;
