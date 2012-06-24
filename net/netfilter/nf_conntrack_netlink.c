@@ -478,7 +478,6 @@ nla_put_failure:
 	return -1;
 }
 
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
 static inline size_t
 ctnetlink_proto_size(const struct nf_conn *ct)
 {
@@ -565,6 +564,7 @@ ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       ;
 }
 
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 static int
 ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 {
@@ -1757,9 +1757,6 @@ static struct nfq_ct_hook ctnetlink_nfqueue_hook = {
 	.build_size	= ctnetlink_nfqueue_build_size,
 	.build		= ctnetlink_nfqueue_build,
 	.parse		= ctnetlink_nfqueue_parse,
-#ifdef CONFIG_NF_NAT_NEEDED
-	.seq_adjust	= nf_nat_tcp_seq_adjust,
-#endif
 };
 #endif /* CONFIG_NETFILTER_NETLINK_QUEUE_CT */
 
