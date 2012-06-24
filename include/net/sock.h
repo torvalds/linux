@@ -198,6 +198,7 @@ struct cg_proto;
   *	@sk_lock:	synchronizer
   *	@sk_rcvbuf: size of receive buffer in bytes
   *	@sk_wq: sock wait queue and async head
+  *	@sk_rx_dst: receive input route used by early tcp demux
   *	@sk_dst_cache: destination cache
   *	@sk_dst_lock: destination cache lock
   *	@sk_policy: flow policy
@@ -317,9 +318,9 @@ struct sock {
 	struct xfrm_policy	*sk_policy[2];
 #endif
 	unsigned long 		sk_flags;
+	struct dst_entry	*sk_rx_dst;
 	struct dst_entry	*sk_dst_cache;
 	spinlock_t		sk_dst_lock;
-	struct dst_entry	*sk_rx_dst;
 	atomic_t		sk_wmem_alloc;
 	atomic_t		sk_omem_alloc;
 	int			sk_sndbuf;
