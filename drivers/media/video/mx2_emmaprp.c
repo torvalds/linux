@@ -795,11 +795,17 @@ static int emmaprp_open(struct file *file)
 	file->private_data = ctx;
 	ctx->dev = pcdev;
 
+	if (mutex_lock_interruptible(&pcdev->dev_mutex)) {
+		kfree(ctx);
+		return -ERESTARTSYS;
+	}
+
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(pcdev->m2m_dev, ctx, &queue_init);
 
 	if (IS_ERR(ctx->m2m_ctx)) {
 		int ret = PTR_ERR(ctx->m2m_ctx);
 
+		mutex_unlock(&pcdev->dev_mutex);
 		kfree(ctx);
 		return ret;
 	}
@@ -808,6 +814,7 @@ static int emmaprp_open(struct file *file)
 	clk_prepare_enable(pcdev->clk_emma_ahb);
 	ctx->q_data[V4L2_M2M_SRC].fmt = &formats[1];
 	ctx->q_data[V4L2_M2M_DST].fmt = &formats[0];
+	mutex_unlock(&pcdev->dev_mutex);
 
 	dprintk(pcdev, "Created instance %p, m2m_ctx: %p\n", ctx, ctx->m2m_ctx);
 
@@ -821,9 +828,11 @@ static int emmaprp_release(struct file *file)
 
 	dprintk(pcdev, "Releasing instance %p\n", ctx);
 
+	mutex_lock(&pcdev->dev_mutex);
 	clk_disable_unprepare(pcdev->clk_emma_ahb);
 	clk_disable_unprepare(pcdev->clk_emma_ipg);
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
+	mutex_unlock(&pcdev->dev_mutex);
 	kfree(ctx);
 
 	return 0;
@@ -832,16 +841,27 @@ static int emmaprp_release(struct file *file)
 static unsigned int emmaprp_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
+	struct emmaprp_dev *pcdev = video_drvdata(file);
 	struct emmaprp_ctx *ctx = file->private_data;
+	unsigned int res;
 
-	return v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
+	mutex_lock(&pcdev->dev_mutex);
+	res = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
+	mutex_unlock(&pcdev->dev_mutex);
+	return res;
 }
 
 static int emmaprp_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct emmaprp_dev *pcdev = video_drvdata(file);
 	struct emmaprp_ctx *ctx = file->private_data;
+	int ret;
 
-	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
+	if (mutex_lock_interruptible(&pcdev->dev_mutex))
+		return -ERESTARTSYS;
+	ret = v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
+	mutex_unlock(&pcdev->dev_mutex);
+	return ret;
 }
 
 static const struct v4l2_file_operations emmaprp_fops = {
@@ -916,10 +936,6 @@ static int emmaprp_probe(struct platform_device *pdev)
 	}
 
 	*vfd = emmaprp_videodev;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &pcdev->dev_mutex;
 
 	video_set_drvdata(vfd, pcdev);
