@@ -37,8 +37,6 @@
 #include <asm/page.h>
 #include <asm/hvcall.h>
 
-static struct bus_type vio_bus_type;
-
 static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = "vio",
 	.type = "",
@@ -1580,7 +1578,7 @@ static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static struct bus_type vio_bus_type = {
+struct bus_type vio_bus_type = {
 	.name = "vio",
 	.dev_attrs = vio_dev_attrs,
 	.uevent = vio_hotplug,
