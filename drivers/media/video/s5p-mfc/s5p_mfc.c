@@ -645,6 +645,8 @@ static int s5p_mfc_open(struct file *file)
 	int ret = 0;
 
 	mfc_debug_enter();
+	if (mutex_lock_interruptible(&dev->mfc_mutex))
+		return -ERESTARTSYS;
 	dev->num_inst++;	/* It is guarded by mfc_mutex in vfd */
 	/* Allocate memory for context */
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
@@ -765,6 +767,7 @@ static int s5p_mfc_open(struct file *file)
 		goto err_queue_init;
 	}
 	init_waitqueue_head(&ctx->queue);
+	mutex_unlock(&dev->mfc_mutex);
 	mfc_debug_leave();
 	return ret;
 	/* Deinit when failure occured */
@@ -790,6 +793,7 @@ err_no_ctx:
 	kfree(ctx);
 err_alloc:
 	dev->num_inst--;
+	mutex_unlock(&dev->mfc_mutex);
 	mfc_debug_leave();
 	return ret;
 }
@@ -802,6 +806,7 @@ static int s5p_mfc_release(struct file *file)
 	unsigned long flags;
 
 	mfc_debug_enter();
+	mutex_lock(&dev->mfc_mutex);
 	s5p_mfc_clock_on();
 	vb2_queue_release(&ctx->vq_src);
 	vb2_queue_release(&ctx->vq_dst);
@@ -855,6 +860,7 @@ static int s5p_mfc_release(struct file *file)
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 	mfc_debug_leave();
+	mutex_unlock(&dev->mfc_mutex);
 	return 0;
 }
 
@@ -869,6 +875,7 @@ static unsigned int s5p_mfc_poll(struct file *file,
 	unsigned int rc = 0;
 	unsigned long flags;
 
+	mutex_lock(&dev->mfc_mutex);
 	src_q = &ctx->vq_src;
 	dst_q = &ctx->vq_dst;
 	/*
@@ -902,6 +909,7 @@ static unsigned int s5p_mfc_poll(struct file *file,
 		rc |= POLLIN | POLLRDNORM;
 	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 end:
+	mutex_unlock(&dev->mfc_mutex);
 	return rc;
 }
 
@@ -909,8 +917,12 @@ end:
 static int s5p_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
+	struct s5p_mfc_dev *dev = ctx->dev;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	int ret;
+
+	if (mutex_lock_interruptible(&dev->mfc_mutex))
+		return -ERESTARTSYS;
 	if (offset < DST_QUEUE_OFF_BASE) {
 		mfc_debug(2, "mmaping source\n");
 		ret = vb2_mmap(&ctx->vq_src, vma);
@@ -919,6 +931,7 @@ static int s5p_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 		vma->vm_pgoff -= (DST_QUEUE_OFF_BASE >> PAGE_SHIFT);
 		ret = vb2_mmap(&ctx->vq_dst, vma);
 	}
+	mutex_unlock(&dev->mfc_mutex);
 	return ret;
 }
 
@@ -1034,10 +1047,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->ioctl_ops	= get_dec_v4l2_ioctl_ops();
 	vfd->release	= video_device_release,
 	vfd->lock	= &dev->mfc_mutex;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_DEC_NAME);
 	dev->vfd_dec	= vfd;
@@ -1062,8 +1071,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->ioctl_ops	= get_enc_v4l2_ioctl_ops();
 	vfd->release	= video_device_release,
 	vfd->lock	= &dev->mfc_mutex;
-	/* This should not be necessary */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_ENC_NAME);
 	dev->vfd_enc	= vfd;
