@@ -223,3 +223,36 @@ MSR_KVM_STEAL_TIME: 0x4b564d03
 		steal: the amount of time in which this vCPU did not run, in
 		nanoseconds. Time during which the vcpu is idle, will not be
 		reported as steal time.
+
+MSR_KVM_EOI_EN: 0x4b564d04
+	data: Bit 0 is 1 when PV end of interrupt is enabled on the vcpu; 0
+	when disabled.  Bit 1 is reserved and must be zero.  When PV end of
+	interrupt is enabled (bit 0 set), bits 63-2 hold a 4-byte aligned
+	physical address of a 4 byte memory area which must be in guest RAM and
+	must be zeroed.
+
+	The first, least significant bit of 4 byte memory location will be
+	written to by the hypervisor, typically at the time of interrupt
+	injection.  Value of 1 means that guest can skip writing EOI to the apic
+	(using MSR or MMIO write); instead, it is sufficient to signal
+	EOI by clearing the bit in guest memory - this location will
+	later be polled by the hypervisor.
+	Value of 0 means that the EOI write is required.
+
+	It is always safe for the guest to ignore the optimization and perform
+	the APIC EOI write anyway.
+
+	Hypervisor is guaranteed to only modify this least
+	significant bit while in the current VCPU context, this means that
+	guest does not need to use either lock prefix or memory ordering
+	primitives to synchronise with the hypervisor.
+
+	However, hypervisor can set and clear this memory bit at any time:
+	therefore to make sure hypervisor does not interrupt the
+	guest and clear the least significant bit in the memory area
+	in the window between guest testing it to detect
+	whether it can skip EOI apic write and between guest
+	clearing it to signal EOI to the hypervisor,
+	guest must both read the least significant bit in the memory area and
+	clear it using a single CPU instruction, such as test and clear, or
+	compare and exchange.
