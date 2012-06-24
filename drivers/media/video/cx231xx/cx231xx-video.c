@@ -2168,6 +2168,10 @@ static int cx231xx_v4l2_open(struct file *filp)
 		cx231xx_errdev("cx231xx-video.c: Out of memory?!\n");
 		return -ENOMEM;
 	}
+	if (mutex_lock_interruptible(&dev->lock)) {
+		kfree(fh);
+		return -ERESTARTSYS;
+	}
 	fh->dev = dev;
 	fh->radio = radio;
 	fh->type = fh_type;
@@ -2226,6 +2230,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 					    sizeof(struct cx231xx_buffer),
 					    fh, &dev->lock);
 	}
+	mutex_unlock(&dev->lock);
 
 	return errCode;
 }
@@ -2272,11 +2277,11 @@ void cx231xx_release_analog_resources(struct cx231xx *dev)
 }
 
 /*
- * cx231xx_v4l2_close()
+ * cx231xx_close()
  * stops streaming and deallocates all resources allocated by the v4l2
  * calls and ioctls
  */
-static int cx231xx_v4l2_close(struct file *filp)
+static int cx231xx_close(struct file *filp)
 {
 	struct cx231xx_fh *fh = filp->private_data;
 	struct cx231xx *dev = fh->dev;
@@ -2355,6 +2360,18 @@ static int cx231xx_v4l2_close(struct file *filp)
 	return 0;
 }
 
+static int cx231xx_v4l2_close(struct file *filp)
+{
+	struct cx231xx_fh *fh = filp->private_data;
+	struct cx231xx *dev = fh->dev;
+	int rc;
+
+	mutex_lock(&dev->lock);
+	rc = cx231xx_close(filp);
+	mutex_unlock(&dev->lock);
+	return rc;
+}
+
 /*
  * cx231xx_v4l2_read()
  * will allocate buffers when called for the first time
@@ -2378,8 +2395,12 @@ cx231xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
 		if (unlikely(rc < 0))
 			return rc;
 
-		return videobuf_read_stream(&fh->vb_vidq, buf, count, pos, 0,
+		if (mutex_lock_interruptible(&dev->lock))
+			return -ERESTARTSYS;
+		rc = videobuf_read_stream(&fh->vb_vidq, buf, count, pos, 0,
 					    filp->f_flags & O_NONBLOCK);
+		mutex_unlock(&dev->lock);
+		return rc;
 	}
 	return 0;
 }
@@ -2404,10 +2425,15 @@ static unsigned int cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 		return POLLERR;
 
 	if ((V4L2_BUF_TYPE_VIDEO_CAPTURE == fh->type) ||
-	    (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type))
-		return videobuf_poll_stream(filp, &fh->vb_vidq, wait);
-	else
-		return POLLERR;
+	    (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type)) {
+		unsigned int res;
+
+		mutex_lock(&dev->lock);
+		res = videobuf_poll_stream(filp, &fh->vb_vidq, wait);
+		mutex_unlock(&dev->lock);
+		return res;
+	}
+	return POLLERR;
 }
 
 /*
@@ -2428,7 +2454,10 @@ static int cx231xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (unlikely(rc < 0))
 		return rc;
 
+	if (mutex_lock_interruptible(&dev->lock))
+		return -ERESTARTSYS;
 	rc = videobuf_mmap_mapper(&fh->vb_vidq, vma);
+	mutex_unlock(&dev->lock);
 
 	cx231xx_videodbg("vma start=0x%08lx, size=%ld, ret=%d\n",
 			 (unsigned long)vma->vm_start,
@@ -2545,10 +2574,6 @@ static struct video_device *cx231xx_vdev_init(struct cx231xx *dev,
 	vfd->release = video_device_release;
 	vfd->debug = video_debug;
 	vfd->lock = &dev->lock;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);
 
