@@ -47,9 +47,9 @@
 #include <net/iw_handler.h>
 
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-#define SUPPORTED_WIRELESS_EXT                  18
+#define SUPPORTED_WIRELESS_EXT 18
 #else
-#define SUPPORTED_WIRELESS_EXT                  17
+#define SUPPORTED_WIRELESS_EXT 17
 #endif
 
 static const long frequency_list[] = {
