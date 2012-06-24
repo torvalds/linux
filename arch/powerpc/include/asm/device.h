@@ -34,6 +34,9 @@ struct dev_archdata {
 #ifdef CONFIG_EEH
 	struct eeh_dev		*edev;
 #endif
+#ifdef CONFIG_FAIL_IOMMU
+	int fail_iommu;
+#endif
 };
 
 struct pdev_archdata {

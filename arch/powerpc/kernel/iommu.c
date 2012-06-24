@@ -34,6 +34,8 @@
 #include <linux/iommu-helper.h>
 #include <linux/crash_dump.h>
 #include <linux/hash.h>
+#include <linux/fault-inject.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -41,6 +43,7 @@
 #include <asm/machdep.h>
 #include <asm/kdump.h>
 #include <asm/fadump.h>
+#include <asm/vio.h>
 
 #define DBG(...)
 
@@ -79,6 +82,94 @@ static int __init setup_iommu_pool_hash(void)
 }
 subsys_initcall(setup_iommu_pool_hash);
 
+#ifdef CONFIG_FAIL_IOMMU
+
+static DECLARE_FAULT_ATTR(fail_iommu);
+
+static int __init setup_fail_iommu(char *str)
+{
+	return setup_fault_attr(&fail_iommu, str);
+}
+__setup("fail_iommu=", setup_fail_iommu);
+
+static bool should_fail_iommu(struct device *dev)
+{
+	return dev->archdata.fail_iommu && should_fail(&fail_iommu, 1);
+}
+
+static int __init fail_iommu_debugfs(void)
+{
+	struct dentry *dir = fault_create_debugfs_attr("fail_iommu",
+						       NULL, &fail_iommu);
+
+	return IS_ERR(dir) ? PTR_ERR(dir) : 0;
+}
+late_initcall(fail_iommu_debugfs);
+
+static ssize_t fail_iommu_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", dev->archdata.fail_iommu);
+}
+
+static ssize_t fail_iommu_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	int i;
+
+	if (count > 0 && sscanf(buf, "%d", &i) > 0)
+		dev->archdata.fail_iommu = (i == 0) ? 0 : 1;
+
+	return count;
+}
+
+static DEVICE_ATTR(fail_iommu, S_IRUGO|S_IWUSR, fail_iommu_show,
+		   fail_iommu_store);
+
+static int fail_iommu_bus_notify(struct notifier_block *nb,
+				 unsigned long action, void *data)
+{
+	struct device *dev = data;
+
+	if (action == BUS_NOTIFY_ADD_DEVICE) {
+		if (device_create_file(dev, &dev_attr_fail_iommu))
+			pr_warn("Unable to create IOMMU fault injection sysfs "
+				"entries\n");
+	} else if (action == BUS_NOTIFY_DEL_DEVICE) {
+		device_remove_file(dev, &dev_attr_fail_iommu);
+	}
+
+	return 0;
+}
+
+static struct notifier_block fail_iommu_bus_notifier = {
+	.notifier_call = fail_iommu_bus_notify
+};
+
+static int __init fail_iommu_setup(void)
+{
+#ifdef CONFIG_PCI
+	bus_register_notifier(&pci_bus_type, &fail_iommu_bus_notifier);
+#endif
+#ifdef CONFIG_IBMVIO
+	bus_register_notifier(&vio_bus_type, &fail_iommu_bus_notifier);
+#endif
+
+	return 0;
+}
+/*
+ * Must execute after PCI and VIO subsystem have initialised but before
+ * devices are probed.
+ */
+arch_initcall(fail_iommu_setup);
+#else
+static inline bool should_fail_iommu(struct device *dev)
+{
+	return false;
+}
+#endif
+
 static unsigned long iommu_range_alloc(struct device *dev,
 				       struct iommu_table *tbl,
                                        unsigned long npages,
@@ -106,6 +197,9 @@ static unsigned long iommu_range_alloc(struct device *dev,
 			WARN_ON(1);
 		return DMA_ERROR_CODE;
 	}
+
+	if (should_fail_iommu(dev))
+		return DMA_ERROR_CODE;
 
 	/*
 	 * We don't need to disable preemption here because any CPU can
