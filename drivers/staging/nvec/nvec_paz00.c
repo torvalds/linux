@@ -1,5 +1,5 @@
 /*
- * nvec_leds: LED driver for a NVIDIA compliant embedded controller
+ * nvec_paz00: OEM specific driver for Compal PAZ00 based devices
  *
  * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.launchpad.net>
  *
@@ -43,7 +43,7 @@ static void nvec_led_brightness_set(struct led_classdev *led_cdev,
 
 }
 
-static int __devinit nvec_led_probe(struct platform_device *pdev)
+static int __devinit nvec_paz00_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct nvec_led *led;
@@ -56,7 +56,7 @@ static int __devinit nvec_led_probe(struct platform_device *pdev)
 	led->cdev.max_brightness = NVEC_LED_MAX;
 
 	led->cdev.brightness_set = nvec_led_brightness_set;
-	led->cdev.name = "nvec-led";
+	led->cdev.name = "paz00-led";
 	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
 	led->nvec = nvec;
 
@@ -72,7 +72,7 @@ static int __devinit nvec_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit nvec_led_remove(struct platform_device *pdev)
+static int __devexit nvec_paz00_remove(struct platform_device *pdev)
 {
 	struct nvec_led *led = platform_get_drvdata(pdev);
 
@@ -81,18 +81,18 @@ static int __devexit nvec_led_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver nvec_led_driver = {
-	.probe  = nvec_led_probe,
-	.remove = __devexit_p(nvec_led_remove),
+static struct platform_driver nvec_paz00_driver = {
+	.probe  = nvec_paz00_probe,
+	.remove = __devexit_p(nvec_paz00_remove),
 	.driver = {
-		   .name  = "nvec-leds",
-		   .owner = THIS_MODULE,
+		.name  = "nvec-paz00",
+		.owner = THIS_MODULE,
 	},
 };
 
-module_platform_driver(nvec_led_driver);
+module_platform_driver(nvec_paz00_driver);
 
 MODULE_AUTHOR("Ilya Petrov <ilya.muromec@gmail.com>");
-MODULE_DESCRIPTION("Tegra NVEC LED driver");
+MODULE_DESCRIPTION("Tegra NVEC PAZ00 driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:nvec-leds");
+MODULE_ALIAS("platform:nvec-paz00");
