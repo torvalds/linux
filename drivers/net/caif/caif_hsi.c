@@ -1178,6 +1178,7 @@ int cfhsi_probe(struct platform_device *pdev)
 		dev_err(&ndev->dev, "%s: Registration error: %d.\n",
 			__func__, res);
 		free_netdev(ndev);
+		return -ENODEV;
 	}
 	/* Add CAIF HSI device to list. */
 	spin_lock(&cfhsi_list_lock);
