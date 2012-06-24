@@ -748,50 +748,47 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 		//so here need not associate??
 		if(pDevice->bWPASuppWextEnabled == TRUE)  {
 			/*******search if  in hidden ssid mode ****/
-			{
-				PKnownBSS pCurr = NULL;
-				BYTE abyTmpDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-				unsigned ii;
-				unsigned uSameBssidNum = 0;
+			PKnownBSS pCurr = NULL;
+			BYTE abyTmpDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
+			unsigned ii;
+			unsigned uSameBssidNum = 0;
 
-				memcpy(abyTmpDesireSSID,pMgmt->abyDesireSSID,sizeof(abyTmpDesireSSID));
-				pCurr = BSSpSearchBSSList(pDevice,
-							NULL,
-							abyTmpDesireSSID,
-							pDevice->eConfigPHYMode
-					);
+			memcpy(abyTmpDesireSSID,pMgmt->abyDesireSSID,sizeof(abyTmpDesireSSID));
+			pCurr = BSSpSearchBSSList(pDevice, NULL,
+						abyTmpDesireSSID,
+						pDevice->eConfigPHYMode
+				);
 
-				if (pCurr == NULL){
-					PRINT_K("SIOCSIWESSID:hidden ssid site survey before associate.......\n");
+			if (pCurr == NULL){
+				PRINT_K("SIOCSIWESSID:hidden ssid site survey before associate.......\n");
+				vResetCommandTimer((void *) pDevice);
+				pMgmt->eScanType = WMAC_SCAN_ACTIVE;
+				bScheduleCommand((void *) pDevice,
+						WLAN_CMD_BSSID_SCAN,
+						pMgmt->abyDesireSSID);
+				bScheduleCommand((void *) pDevice,
+						WLAN_CMD_SSID,
+						pMgmt->abyDesireSSID);
+			}
+			else {  //mike:to find out if that desired SSID is a hidden-ssid AP ,
+				//         by means of judging if there are two same BSSID exist in list ?
+				for (ii = 0; ii < MAX_BSS_NUM; ii++) {
+					if (pMgmt->sBSSList[ii].bActive &&
+						!compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID,
+								pCurr->abyBSSID)) {
+						uSameBssidNum++;
+					}
+				}
+				if(uSameBssidNum >= 2) {  //hit: desired AP is in hidden ssid mode!!!
+					PRINT_K("SIOCSIWESSID:hidden ssid directly associate.......\n");
 					vResetCommandTimer((void *) pDevice);
-					pMgmt->eScanType = WMAC_SCAN_ACTIVE;
+					pMgmt->eScanType = WMAC_SCAN_PASSIVE;          //this scan type,you'll submit scan result!
 					bScheduleCommand((void *) pDevice,
 							WLAN_CMD_BSSID_SCAN,
 							pMgmt->abyDesireSSID);
 					bScheduleCommand((void *) pDevice,
 							WLAN_CMD_SSID,
 							pMgmt->abyDesireSSID);
-				}
-				else {  //mike:to find out if that desired SSID is a hidden-ssid AP ,
-					//         by means of judging if there are two same BSSID exist in list ?
-					for (ii = 0; ii < MAX_BSS_NUM; ii++) {
-						if (pMgmt->sBSSList[ii].bActive &&
-							!compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID,
-									pCurr->abyBSSID)) {
-							uSameBssidNum++;
-						}
-					}
-					if(uSameBssidNum >= 2) {  //hit: desired AP is in hidden ssid mode!!!
-						PRINT_K("SIOCSIWESSID:hidden ssid directly associate.......\n");
-						vResetCommandTimer((void *) pDevice);
-						pMgmt->eScanType = WMAC_SCAN_PASSIVE;          //this scan type,you'll submit scan result!
-						bScheduleCommand((void *) pDevice,
-								WLAN_CMD_BSSID_SCAN,
-								pMgmt->abyDesireSSID);
-						bScheduleCommand((void *) pDevice,
-								WLAN_CMD_SSID,
-								pMgmt->abyDesireSSID);
-					}
 				}
 			}
 			return 0;
