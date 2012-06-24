@@ -1376,10 +1376,15 @@ static int vpbe_display_mmap(struct file *filep, struct vm_area_struct *vma)
 	struct vpbe_fh *fh = filep->private_data;
 	struct vpbe_layer *layer = fh->layer;
 	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_display_mmap\n");
 
-	return videobuf_mmap_mapper(&layer->buffer_queue, vma);
+	if (mutex_lock_interruptible(&layer->opslock))
+		return -ERESTARTSYS;
+	ret = videobuf_mmap_mapper(&layer->buffer_queue, vma);
+	mutex_unlock(&layer->opslock);
+	return ret;
 }
 
 /* vpbe_display_poll(): It is used for select/poll system call
@@ -1392,8 +1397,11 @@ static unsigned int vpbe_display_poll(struct file *filep, poll_table *wait)
 	unsigned int err = 0;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_display_poll\n");
-	if (layer->started)
+	if (layer->started) {
+		mutex_lock(&layer->opslock);
 		err = videobuf_poll_stream(filep, &layer->buffer_queue, wait);
+		mutex_unlock(&layer->opslock);
+	}
 	return err;
 }
 
@@ -1428,10 +1436,12 @@ static int vpbe_display_open(struct file *file)
 	fh->disp_dev = disp_dev;
 
 	if (!layer->usrs) {
-
+		if (mutex_lock_interruptible(&layer->opslock))
+			return -ERESTARTSYS;
 		/* First claim the layer for this device */
 		err = osd_device->ops.request_layer(osd_device,
 						layer->layer_info.id);
+		mutex_unlock(&layer->opslock);
 		if (err < 0) {
 			/* Couldn't get layer */
 			v4l2_err(&vpbe_dev->v4l2_dev,
@@ -1469,6 +1479,7 @@ static int vpbe_display_release(struct file *file)
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_display_release\n");
 
+	mutex_lock(&layer->opslock);
 	/* if this instance is doing IO */
 	if (fh->io_allowed) {
 		/* Reset io_usrs member of layer object */
@@ -1503,6 +1514,7 @@ static int vpbe_display_release(struct file *file)
 	/* Close the priority */
 	v4l2_prio_close(&layer->prio, fh->prio);
 	file->private_data = NULL;
+	mutex_unlock(&layer->opslock);
 
 	/* Free memory allocated to file handle object */
 	kfree(fh);
@@ -1620,10 +1632,6 @@ static __devinit int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 	vbd->ioctl_ops	= &vpbe_ioctl_ops;
 	vbd->minor	= -1;
 	vbd->v4l2_dev   = &disp_dev->vpbe_dev->v4l2_dev;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vbd->flags);
 	vbd->lock	= &vpbe_display_layer->opslock;
 
 	if (disp_dev->vpbe_dev->current_timings.timings_type &
