@@ -7172,20 +7172,9 @@ static void ivb_pch_pwm_override(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	intel_init_clock_gating(dev);
 
-	if (IS_IRONLAKE_M(dev)) {
-		ironlake_enable_drps(dev);
-		ironlake_enable_rc6(dev);
-		intel_init_emon(dev);
-	}
-
-	if ((IS_GEN6(dev) || IS_GEN7(dev)) && !IS_VALLEYVIEW(dev)) {
-		gen6_enable_rps(dev_priv);
-		gen6_update_ring_freq(dev_priv);
-	}
+	intel_enable_gt_powersave(dev);
 
 	if (IS_IVYBRIDGE(dev))
 		ivb_pch_pwm_override(dev);
@@ -7277,13 +7266,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_disable_fbc(dev);
 
-	if (IS_IRONLAKE_M(dev))
-		ironlake_disable_drps(dev);
-	if ((IS_GEN6(dev) || IS_GEN7(dev)) && !IS_VALLEYVIEW(dev))
-		gen6_disable_rps(dev);
-
-	if (IS_IRONLAKE_M(dev))
-		ironlake_disable_rc6(dev);
+	intel_disable_gt_powersave(dev);
 
 	if (IS_VALLEYVIEW(dev))
 		vlv_init_dpio(dev);

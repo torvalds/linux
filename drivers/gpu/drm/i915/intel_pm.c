@@ -2184,7 +2184,7 @@ bool ironlake_set_drps(struct drm_device *dev, u8 val)
 	return true;
 }
 
-void ironlake_enable_drps(struct drm_device *dev)
+static void ironlake_enable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 rgvmodectl = I915_READ(MEMMODECTL);
@@ -2248,7 +2248,7 @@ void ironlake_enable_drps(struct drm_device *dev)
 	getrawmonotonic(&dev_priv->last_time2);
 }
 
-void ironlake_disable_drps(struct drm_device *dev)
+static void ironlake_disable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u16 rgvswctl = I915_READ16(MEMSWCTL);
@@ -2301,7 +2301,7 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	dev_priv->cur_delay = val;
 }
 
-void gen6_disable_rps(struct drm_device *dev)
+static void gen6_disable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -2349,7 +2349,7 @@ int intel_enable_rc6(const struct drm_device *dev)
 	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 }
 
-void gen6_enable_rps(struct drm_i915_private *dev_priv)
+static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
 	struct intel_ring_buffer *ring;
 	u32 rp_state_cap;
@@ -2494,7 +2494,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
-void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
+static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 {
 	int min_freq = 15;
 	int gpu_freq, ia_freq, max_ia_freq;
@@ -3156,8 +3156,7 @@ void intel_gpu_ips_teardown(void)
 	i915_mch_dev = NULL;
 	spin_unlock(&mchdev_lock);
 }
-
-void intel_init_emon(struct drm_device *dev)
+static void intel_init_emon(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 lcfuse;
@@ -3226,6 +3225,30 @@ void intel_init_emon(struct drm_device *dev)
 	lcfuse = I915_READ(LCFUSE02);
 
 	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
+}
+
+void intel_disable_gt_powersave(struct drm_device *dev)
+{
+	if (IS_IRONLAKE_M(dev))
+		ironlake_disable_drps(dev);
+	if (INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
+		gen6_disable_rps(dev);
+}
+
+void intel_enable_gt_powersave(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_IRONLAKE_M(dev)) {
+		ironlake_enable_drps(dev);
+		ironlake_enable_rc6(dev);
+		intel_init_emon(dev);
+	}
+
+	if ((IS_GEN6(dev) || IS_GEN7(dev)) && !IS_VALLEYVIEW(dev)) {
+		gen6_enable_rps(dev_priv);
+		gen6_update_ring_freq(dev_priv);
+	}
 }
 
 static void ironlake_init_clock_gating(struct drm_device *dev)
