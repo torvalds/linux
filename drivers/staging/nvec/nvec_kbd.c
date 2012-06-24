@@ -159,8 +159,17 @@ fail:
 	return err;
 }
 
+static int __devexit nvec_kbd_remove(struct platform_device *pdev)
+{
+	input_unregister_device(keys_dev.input);
+	input_free_device(keys_dev.input);
+
+	return 0;
+}
+
 static struct platform_driver nvec_kbd_driver = {
 	.probe  = nvec_kbd_probe,
+	.remove = __devexit_p(nvec_kbd_remove),
 	.driver = {
 		.name = "nvec-kbd",
 		.owner = THIS_MODULE,

@@ -123,6 +123,13 @@ static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __devexit nvec_mouse_remove(struct platform_device *pdev)
+{
+	serio_unregister_port(ps2_dev.ser_dev);
+
+	return 0;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int nvec_mouse_suspend(struct device *dev)
 {
@@ -157,6 +164,7 @@ static const SIMPLE_DEV_PM_OPS(nvec_mouse_pm_ops, nvec_mouse_suspend,
 
 static struct platform_driver nvec_mouse_driver = {
 	.probe  = nvec_mouse_probe,
+	.remove = __devexit_p(nvec_mouse_remove),
 	.driver = {
 		.name = "nvec-mouse",
 		.owner = THIS_MODULE,
