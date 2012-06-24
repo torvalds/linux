@@ -1497,12 +1497,18 @@ static int __init vio_bus_init(void)
 	if (firmware_has_feature(FW_FEATURE_CMO))
 		vio_cmo_bus_init();
 
+	return 0;
+}
+postcore_initcall(vio_bus_init);
+
+static int __init vio_device_init(void)
+{
 	vio_bus_scan_register_devices("vdevice");
 	vio_bus_scan_register_devices("ibm,platform-facilities");
 
 	return 0;
 }
-__initcall(vio_bus_init);
+device_initcall(vio_device_init);
 
 static ssize_t name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
