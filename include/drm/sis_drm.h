@@ -51,17 +51,17 @@
 
 typedef struct {
 	int context;
-	unsigned int offset;
-	unsigned int size;
+	unsigned long offset;
+	unsigned long size;
 	unsigned long free;
 } drm_sis_mem_t;
 
 typedef struct {
-	unsigned int offset, size;
+	unsigned long offset, size;
 } drm_sis_agp_t;
 
 typedef struct {
-	unsigned int offset, size;
+	unsigned long offset, size;
 } drm_sis_fb_t;
 
 struct sis_file_private {
