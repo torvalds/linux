@@ -505,14 +505,17 @@ ssize_t ivtv_v4l2_read(struct file * filp, char __user *buf, size_t count, loff_
 	struct ivtv_open_id *id = fh2id(filp->private_data);
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
-	int rc;
+	ssize_t rc;
 
 	IVTV_DEBUG_HI_FILE("read %zd bytes from %s\n", count, s->name);
 
+	if (mutex_lock_interruptible(&itv->serialize_lock))
+		return -ERESTARTSYS;
 	rc = ivtv_start_capture(id);
-	if (rc)
-		return rc;
-	return ivtv_read_pos(s, buf, count, pos, filp->f_flags & O_NONBLOCK);
+	if (!rc)
+		rc = ivtv_read_pos(s, buf, count, pos, filp->f_flags & O_NONBLOCK);
+	mutex_unlock(&itv->serialize_lock);
+	return rc;
 }
 
 int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
@@ -540,7 +543,7 @@ int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
 	return 0;
 }
 
-ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t count, loff_t *pos)
+static ssize_t ivtv_write(struct file *filp, const char __user *user_buf, size_t count, loff_t *pos)
 {
 	struct ivtv_open_id *id = fh2id(filp->private_data);
 	struct ivtv *itv = id->itv;
@@ -712,6 +715,19 @@ retry:
 	return bytes_written;
 }
 
+ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t count, loff_t *pos)
+{
+	struct ivtv_open_id *id = fh2id(filp->private_data);
+	struct ivtv *itv = id->itv;
+	ssize_t res;
+
+	if (mutex_lock_interruptible(&itv->serialize_lock))
+		return -ERESTARTSYS;
+	res = ivtv_write(filp, user_buf, count, pos);
+	mutex_unlock(&itv->serialize_lock);
+	return res;
+}
+
 unsigned int ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 {
 	struct ivtv_open_id *id = fh2id(filp->private_data);
@@ -760,7 +776,9 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 			(req_events & (POLLIN | POLLRDNORM))) {
 		int rc;
 
+		mutex_lock(&itv->serialize_lock);
 		rc = ivtv_start_capture(id);
+		mutex_unlock(&itv->serialize_lock);
 		if (rc) {
 			IVTV_DEBUG_INFO("Could not start capture for %s (%d)\n",
 					s->name, rc);
@@ -863,6 +881,8 @@ int ivtv_v4l2_close(struct file *filp)
 
 	IVTV_DEBUG_FILE("close %s\n", s->name);
 
+	mutex_lock(&itv->serialize_lock);
+
 	/* Stop radio */
 	if (id->type == IVTV_ENC_STREAM_TYPE_RAD &&
 			v4l2_fh_is_singular_file(filp)) {
@@ -892,10 +912,8 @@ int ivtv_v4l2_close(struct file *filp)
 	v4l2_fh_exit(fh);
 
 	/* Easy case first: this stream was never claimed by us */
-	if (s->fh != &id->fh) {
-		kfree(id);
-		return 0;
-	}
+	if (s->fh != &id->fh)
+		goto close_done;
 
 	/* 'Unclaim' this stream */
 
@@ -913,11 +931,13 @@ int ivtv_v4l2_close(struct file *filp)
 	} else {
 		ivtv_stop_capture(id, 0);
 	}
+close_done:
 	kfree(id);
+	mutex_unlock(&itv->serialize_lock);
 	return 0;
 }
 
-int ivtv_v4l2_open(struct file *filp)
+static int ivtv_open(struct file *filp)
 {
 	struct video_device *vdev = video_devdata(filp);
 	struct ivtv_stream *s = video_get_drvdata(vdev);
@@ -1018,6 +1038,18 @@ int ivtv_v4l2_open(struct file *filp)
 		itv->yuv_info.stream_size = 0;
 	}
 	return 0;
+}
+
+int ivtv_v4l2_open(struct file *filp)
+{
+	struct video_device *vdev = video_devdata(filp);
+	int res;
+
+	if (mutex_lock_interruptible(vdev->lock))
+		return -ERESTARTSYS;
+	res = ivtv_open(filp);
+	mutex_unlock(vdev->lock);
+	return res;
 }
 
 void ivtv_mute(struct ivtv *itv)
