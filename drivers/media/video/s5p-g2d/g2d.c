@@ -248,9 +248,14 @@ static int g2d_open(struct file *file)
 	ctx->in		= def_frame;
 	ctx->out	= def_frame;
 
+	if (mutex_lock_interruptible(&dev->mutex)) {
+		kfree(ctx);
+		return -ERESTARTSYS;
+	}
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx, &queue_init);
 	if (IS_ERR(ctx->m2m_ctx)) {
 		ret = PTR_ERR(ctx->m2m_ctx);
+		mutex_unlock(&dev->mutex);
 		kfree(ctx);
 		return ret;
 	}
@@ -264,6 +269,7 @@ static int g2d_open(struct file *file)
 	v4l2_ctrl_handler_setup(&ctx->ctrl_handler);
 
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
+	mutex_unlock(&dev->mutex);
 
 	v4l2_info(&dev->v4l2_dev, "instance opened\n");
 	return 0;
@@ -406,13 +412,26 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 static unsigned int g2d_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct g2d_ctx *ctx = fh2ctx(file->private_data);
-	return v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
+	struct g2d_dev *dev = ctx->dev;
+	unsigned int res;
+
+	mutex_lock(&dev->mutex);
+	res = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
+	mutex_unlock(&dev->mutex);
+	return res;
 }
 
 static int g2d_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct g2d_ctx *ctx = fh2ctx(file->private_data);
-	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
+	struct g2d_dev *dev = ctx->dev;
+	int ret;
+
+	if (mutex_lock_interruptible(&dev->mutex))
+		return -ERESTARTSYS;
+	ret = v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
+	mutex_unlock(&dev->mutex);
+	return ret;
 }
 
 static int vidioc_reqbufs(struct file *file, void *priv,
@@ -753,10 +772,6 @@ static int g2d_probe(struct platform_device *pdev)
 		goto unreg_v4l2_dev;
 	}
 	*vfd = g2d_videodev;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &dev->mutex;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
