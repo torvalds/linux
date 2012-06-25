@@ -623,48 +623,16 @@ static int das16cs_timer_insn_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
-static void das16cs_pcmcia_config(struct pcmcia_device *link);
-static void das16cs_pcmcia_release(struct pcmcia_device *link);
-static int das16cs_pcmcia_suspend(struct pcmcia_device *p_dev);
-static int das16cs_pcmcia_resume(struct pcmcia_device *p_dev);
-
-static int das16cs_pcmcia_attach(struct pcmcia_device *);
-static void das16cs_pcmcia_detach(struct pcmcia_device *);
-
 struct local_info_t {
 	struct pcmcia_device *link;
 	int stop;
 	struct bus_operations *bus;
 };
 
-static int das16cs_pcmcia_attach(struct pcmcia_device *link)
+static void das16cs_pcmcia_release(struct pcmcia_device *link)
 {
-	struct local_info_t *local;
-
-	dev_dbg(&link->dev, "das16cs_pcmcia_attach()\n");
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-	local->link = link;
-	link->priv = local;
-
-	cur_dev = link;
-
-	das16cs_pcmcia_config(link);
-
-	return 0;
-}
-
-static void das16cs_pcmcia_detach(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "das16cs_pcmcia_detach\n");
-
-	((struct local_info_t *)link->priv)->stop = 1;
-	das16cs_pcmcia_release(link);
-	/* This points to the parent struct local_info_t struct */
-	kfree(link->priv);
+	dev_dbg(&link->dev, "das16cs_pcmcia_release\n");
+	pcmcia_disable_device(link);
 }
 
 static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
@@ -704,10 +672,34 @@ failed:
 	das16cs_pcmcia_release(link);
 }
 
-static void das16cs_pcmcia_release(struct pcmcia_device *link)
+static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
-	dev_dbg(&link->dev, "das16cs_pcmcia_release\n");
-	pcmcia_disable_device(link);
+	struct local_info_t *local;
+
+	dev_dbg(&link->dev, "das16cs_pcmcia_attach()\n");
+
+	/* Allocate space for private device-specific data */
+	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
+	local->link = link;
+	link->priv = local;
+
+	cur_dev = link;
+
+	das16cs_pcmcia_config(link);
+
+	return 0;
+}
+
+static void das16cs_pcmcia_detach(struct pcmcia_device *link)
+{
+	dev_dbg(&link->dev, "das16cs_pcmcia_detach\n");
+
+	((struct local_info_t *)link->priv)->stop = 1;
+	das16cs_pcmcia_release(link);
+	/* This points to the parent struct local_info_t struct */
+	kfree(link->priv);
 }
 
 static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
