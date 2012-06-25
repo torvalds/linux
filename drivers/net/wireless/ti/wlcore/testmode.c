@@ -40,7 +40,7 @@ enum wl1271_tm_commands {
 	WL1271_TM_CMD_CONFIGURE,
 	WL1271_TM_CMD_NVS_PUSH,		/* Not in use. Keep to not break ABI */
 	WL1271_TM_CMD_SET_PLT_MODE,
-	WL1271_TM_CMD_RECOVER,
+	WL1271_TM_CMD_RECOVER,		/* Not in use. Keep to not break ABI */
 	WL1271_TM_CMD_GET_MAC,
 
 	__WL1271_TM_CMD_AFTER_LAST
@@ -272,15 +272,6 @@ static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 	return ret;
 }
 
-static int wl1271_tm_cmd_recover(struct wl1271 *wl, struct nlattr *tb[])
-{
-	wl1271_debug(DEBUG_TESTMODE, "testmode cmd recover");
-
-	wl12xx_queue_recovery_work(wl);
-
-	return 0;
-}
-
 static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 {
 	struct sk_buff *skb;
@@ -350,8 +341,6 @@ int wl1271_tm_cmd(struct ieee80211_hw *hw, void *data, int len)
 		return wl1271_tm_cmd_configure(wl, tb);
 	case WL1271_TM_CMD_SET_PLT_MODE:
 		return wl1271_tm_cmd_set_plt_mode(wl, tb);
-	case WL1271_TM_CMD_RECOVER:
-		return wl1271_tm_cmd_recover(wl, tb);
 	case WL1271_TM_CMD_GET_MAC:
 		return wl12xx_tm_cmd_get_mac(wl, tb);
 	default:
