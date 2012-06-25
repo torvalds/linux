@@ -13,6 +13,10 @@ menuconfig IOMMU_SUPPORT
 
 if IOMMU_SUPPORT
 
+config OF_IOMMU
+       def_bool y
+       depends on OF
+
 # MSM IOMMU support
 config MSM_IOMMU
 	bool "MSM IOMMU Support"
