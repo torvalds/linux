@@ -167,7 +167,10 @@ struct mei_io_list {
 	struct mei_cl_cb mei_cb;
 };
 
-/* MEI private device struct */
+/**
+ * struct mei_deive -  MEI private device struct
+ * @hbuf_depth - depth of host(write) buffer
+ */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
 	/*
@@ -205,6 +208,7 @@ struct mei_device {
 	 */
 	u32 host_hw_state;
 	u32 me_hw_state;
+	u8  hbuf_depth;
 	/*
 	 * waiting queue for receive message from FW
 	 */

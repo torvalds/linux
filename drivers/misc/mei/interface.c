@@ -103,15 +103,14 @@ int mei_host_buffer_is_empty(struct mei_device *dev)
  */
 int mei_count_empty_write_slots(struct mei_device *dev)
 {
-	unsigned char buffer_depth, filled_slots, empty_slots;
+	unsigned char filled_slots, empty_slots;
 
 	dev->host_hw_state = mei_hcsr_read(dev);
-	buffer_depth = (unsigned char) ((dev->host_hw_state & H_CBD) >> 24);
 	filled_slots = _host_get_filled_slots(dev);
-	empty_slots = buffer_depth - filled_slots;
+	empty_slots = dev->hbuf_depth - filled_slots;
 
 	/* check for overflow */
-	if (filled_slots > buffer_depth)
+	if (filled_slots > dev->hbuf_depth)
 		return -EOVERFLOW;
 
 	return empty_slots;

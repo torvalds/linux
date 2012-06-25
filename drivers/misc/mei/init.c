@@ -162,6 +162,9 @@ int mei_hw_init(struct mei_device *dev)
 	if ((dev->host_hw_state & H_IS) == H_IS)
 		mei_reg_write(dev, H_CSR, dev->host_hw_state);
 
+	/* Doesn't change in runtime */
+	dev->hbuf_depth = (dev->host_hw_state & H_CBD) >> 24;
+
 	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 

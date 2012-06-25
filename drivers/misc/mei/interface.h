@@ -49,6 +49,12 @@ int mei_count_empty_write_slots(struct mei_device *dev);
 
 int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl);
 
+static inline size_t mei_hbuf_max_data(const struct mei_device *dev)
+{
+	return dev->hbuf_depth * sizeof(u32) - sizeof(struct mei_msg_hdr);
+}
+
+
 int mei_wd_send(struct mei_device *dev);
 int mei_wd_stop(struct mei_device *dev, bool preserve);
 int mei_wd_host_init(struct mei_device *dev);

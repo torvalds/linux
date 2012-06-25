@@ -481,12 +481,8 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
 	if (ret && dev->mei_host_buffer_is_empty) {
 		ret = 0;
 		dev->mei_host_buffer_is_empty = false;
-		if (cb->request_buffer.size >
-			(((dev->host_hw_state & H_CBD) >> 24) * sizeof(u32))
-				-sizeof(struct mei_msg_hdr)) {
-			mei_hdr.length =
-			    (((dev->host_hw_state & H_CBD) >> 24) *
-			    sizeof(u32)) - sizeof(struct mei_msg_hdr);
+		if (cb->request_buffer.size > mei_hbuf_max_data(dev)) {
+			mei_hdr.length = mei_hbuf_max_data(dev);
 			mei_hdr.msg_complete = 0;
 		} else {
 			mei_hdr.length = cb->request_buffer.size;

@@ -951,7 +951,7 @@ static int _mei_irq_thread_cmpl(struct mei_device *dev,	s32 *slots,
 			list_move_tail(&cb_pos->cb_list,
 				&dev->write_waiting_list.mei_cb.cb_list);
 		}
-	} else if (*slots == ((dev->host_hw_state & H_CBD) >> 24)) {
+	} else if (*slots == dev->hbuf_depth) {
 		/* buffer is still empty */
 		mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
 		mei_hdr->host_addr = cl->host_client_id;
@@ -1046,8 +1046,8 @@ static int _mei_irq_thread_cmpl_iamthif(struct mei_device *dev, s32 *slots,
 				&dev->write_waiting_list.mei_cb.cb_list);
 
 		}
-	} else if (*slots == ((dev->host_hw_state & H_CBD) >> 24)) {
-			/* buffer is still empty */
+	} else if (*slots == dev->hbuf_depth) {
+		/* buffer is still empty */
 		mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
 		mei_hdr->host_addr = cl->host_client_id;
 		mei_hdr->me_addr = cl->me_client_id;
