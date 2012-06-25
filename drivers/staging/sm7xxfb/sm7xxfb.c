@@ -351,7 +351,7 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 	case FB_VISUAL_DIRECTCOLOR:
 	case FB_VISUAL_TRUECOLOR:
 		/*
-		 * 16/32 bit true-colour, use pseuo-palette for 16 base color
+		 * 16/32 bit true-colour, use pseudo-palette for 16 base color
 		 */
 		if (regno < 16) {
 			if (sfb->fb.var.bits_per_pixel == 16) {
@@ -996,7 +996,7 @@ static int smtcfb_pci_suspend(struct device *device)
 
 	sfb = pci_get_drvdata(pdev);
 
-	/* set the hw in sleep mode use externel clock and self memory refresh
+	/* set the hw in sleep mode use external clock and self memory refresh
 	 * so that we can turn off internal PLLs later on
 	 */
 	smtc_seqw(0x20, (smtc_seqr(0x20) | 0xc0));
