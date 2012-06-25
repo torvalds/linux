@@ -718,7 +718,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 
 	hw->queues = 4;
 	hw->channel_change_time = 5000;
-	hw->max_listen_interval = 10;
+	hw->max_listen_interval = 1;
 
 	hw->vif_data_size = sizeof(struct ath9k_htc_vif);
 	hw->sta_data_size = sizeof(struct ath9k_htc_sta);
