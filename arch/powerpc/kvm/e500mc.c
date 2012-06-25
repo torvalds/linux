@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2010,2012 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Varun Sethi, <varun.sethi@freescale.com>
  *
@@ -183,6 +183,9 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.shadow_epcr = SPRN_EPCR_DSIGS | SPRN_EPCR_DGTMI | \
 				 SPRN_EPCR_DUVD;
+#ifdef CONFIG_64BIT
+	vcpu->arch.shadow_epcr |= SPRN_EPCR_ICM;
+#endif
 	vcpu->arch.shadow_msrp = MSRP_UCLEP | MSRP_DEP | MSRP_PMMP;
 	vcpu->arch.eplc = EPC_EGS | (vcpu->kvm->arch.lpid << EPC_ELPID_SHIFT);
 	vcpu->arch.epsc = vcpu->arch.eplc;
