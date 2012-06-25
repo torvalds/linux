@@ -770,14 +770,14 @@ static const struct pcmcia_device_id das16cs_id_table[] = {
 
 MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
 
-struct pcmcia_driver das16cs_driver = {
-	.probe = das16cs_pcmcia_attach,
-	.remove = das16cs_pcmcia_detach,
-	.suspend = das16cs_pcmcia_suspend,
-	.resume = das16cs_pcmcia_resume,
-	.id_table = das16cs_id_table,
-	.owner = THIS_MODULE,
-	.name = "cb_das16_cs",
+static struct pcmcia_driver das16cs_driver = {
+	.name		= "cb_das16_cs",
+	.owner		= THIS_MODULE,
+	.probe		= das16cs_pcmcia_attach,
+	.remove		= das16cs_pcmcia_detach,
+	.suspend	= das16cs_pcmcia_suspend,
+	.resume		= das16cs_pcmcia_resume,
+	.id_table	= das16cs_id_table,
 };
 
 static int __init das16cs_init(void)
