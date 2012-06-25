@@ -57,7 +57,8 @@ void kvmppc_e500_tlbil_one(struct kvmppc_vcpu_e500 *vcpu_e500,
 			   struct kvm_book3e_206_tlb_entry *gtlbe)
 {
 	unsigned int tid, ts;
-	u32 val, eaddr, lpid;
+	gva_t eaddr;
+	u32 val, lpid;
 	unsigned long flags;
 
 	ts = get_tlb_ts(gtlbe);
