@@ -508,11 +508,17 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		if (hcd->speed != HCD_USB3)
 			goto error;
 
+		/* Set the U1 and U2 exit latencies. */
 		memcpy(buf, &usb_bos_descriptor,
 				USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE);
 		temp = xhci_readl(xhci, &xhci->cap_regs->hcs_params3);
 		buf[12] = HCS_U1_LATENCY(temp);
 		put_unaligned_le16(HCS_U2_LATENCY(temp), &buf[13]);
+
+		/* Indicate whether the host has LTM support. */
+		temp = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
+		if (HCC_LTC(temp))
+			buf[8] |= USB_LTM_SUPPORT;
 
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE;
