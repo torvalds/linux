@@ -902,8 +902,8 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 	struct smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	int i, asids, err = 0;
-	dma_addr_t base;
-	size_t bytes, size;
+	dma_addr_t uninitialized_var(base);
+	size_t bytes, uninitialized_var(size);
 
 	if (smmu_handle)
 		return -EIO;
