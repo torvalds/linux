@@ -47,6 +47,39 @@ static void ata_acpi_clear_gtf(struct ata_device *dev)
 	dev->gtf_cache = NULL;
 }
 
+static acpi_handle ap_acpi_handle(struct ata_port *ap)
+{
+	if (ap->flags & ATA_FLAG_ACPI_SATA)
+		return NULL;
+
+	/*
+	 * If acpi bind operation has already happened, we can get the handle
+	 * for the port by checking the corresponding scsi_host device's
+	 * firmware node, otherwise we will need to find out the handle from
+	 * its parent's acpi node.
+	 */
+	if (ap->scsi_host)
+		return DEVICE_ACPI_HANDLE(&ap->scsi_host->shost_gendev);
+	else
+		return acpi_get_child(DEVICE_ACPI_HANDLE(ap->host->dev),
+				ap->port_no);
+}
+
+static acpi_handle dev_acpi_handle(struct ata_device *dev)
+{
+	acpi_integer adr;
+	struct ata_port *ap = dev->link->ap;
+
+	if (ap->flags & ATA_FLAG_ACPI_SATA) {
+		if (!sata_pmp_attached(ap))
+			adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
+		else
+			adr = SATA_ADR(ap->port_no, dev->link->pmp);
+		return acpi_get_child(DEVICE_ACPI_HANDLE(ap->host->dev), adr);
+	} else
+		return acpi_get_child(ap_acpi_handle(ap), dev->devno);
+}
+
 /**
  * ata_acpi_associate_sata_port - associate SATA port with ACPI objects
  * @ap: target SATA port
@@ -1017,4 +1050,108 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 void ata_acpi_on_disable(struct ata_device *dev)
 {
 	ata_acpi_clear_gtf(dev);
+}
+
+static int compat_pci_ata(struct ata_port *ap)
+{
+	struct device *dev = ap->tdev.parent;
+	struct pci_dev *pdev;
+
+	if (!is_pci_dev(dev))
+		return 0;
+
+	pdev = to_pci_dev(dev);
+
+	if ((pdev->class >> 8) != PCI_CLASS_STORAGE_SATA &&
+	    (pdev->class >> 8) != PCI_CLASS_STORAGE_IDE)
+		return 0;
+
+	return 1;
+}
+
+static int ata_acpi_bind_host(struct ata_port *ap, acpi_handle *handle)
+{
+	if (ap->flags & ATA_FLAG_ACPI_SATA)
+		return -ENODEV;
+
+	*handle = acpi_get_child(DEVICE_ACPI_HANDLE(ap->tdev.parent),
+			ap->port_no);
+
+	if (!*handle)
+		return -ENODEV;
+
+	return 0;
+}
+
+static int ata_acpi_bind_device(struct ata_port *ap, struct scsi_device *sdev,
+				acpi_handle *handle)
+{
+	struct ata_device *ata_dev;
+
+	if (ap->flags & ATA_FLAG_ACPI_SATA)
+		ata_dev = &ap->link.device[sdev->channel];
+	else
+		ata_dev = &ap->link.device[sdev->id];
+
+	*handle = dev_acpi_handle(ata_dev);
+
+	if (!*handle)
+		return -ENODEV;
+
+	return 0;
+}
+
+static int is_ata_port(const struct device *dev)
+{
+	return dev->type == &ata_port_type;
+}
+
+static struct ata_port *dev_to_ata_port(struct device *dev)
+{
+	while (!is_ata_port(dev)) {
+		if (!dev->parent)
+			return NULL;
+		dev = dev->parent;
+	}
+	return to_ata_port(dev);
+}
+
+static int ata_acpi_find_device(struct device *dev, acpi_handle *handle)
+{
+	struct ata_port *ap = dev_to_ata_port(dev);
+
+	if (!ap)
+		return -ENODEV;
+
+	if (!compat_pci_ata(ap))
+		return -ENODEV;
+
+	if (scsi_is_host_device(dev))
+		return ata_acpi_bind_host(ap, handle);
+	else if (scsi_is_sdev_device(dev)) {
+		struct scsi_device *sdev = to_scsi_device(dev);
+
+		return ata_acpi_bind_device(ap, sdev, handle);
+	} else
+		return -ENODEV;
+}
+
+static int ata_acpi_find_dummy(struct device *dev, acpi_handle *handle)
+{
+	return -ENODEV;
+}
+
+static struct acpi_bus_type ata_acpi_bus = {
+	.find_bridge = ata_acpi_find_dummy,
+	.find_device = ata_acpi_find_device,
+};
+
+int ata_acpi_register(void)
+{
+	return scsi_register_acpi_bus_type(&ata_acpi_bus);
+}
+
+void ata_acpi_unregister(void)
+{
+	scsi_unregister_acpi_bus_type(&ata_acpi_bus);
 }

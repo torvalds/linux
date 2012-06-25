@@ -5288,8 +5288,6 @@ static int ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
 	return rc;
 }
 
-#define to_ata_port(d) container_of(d, struct ata_port, tdev)
-
 static int ata_port_suspend_common(struct device *dev, pm_message_t mesg)
 {
 	struct ata_port *ap = to_ata_port(dev);
@@ -6513,6 +6511,8 @@ static int __init ata_init(void)
 
 	ata_parse_force_param();
 
+	ata_acpi_register();
+
 	rc = ata_sff_init();
 	if (rc) {
 		kfree(ata_force_tbl);
@@ -6539,6 +6539,7 @@ static void __exit ata_exit(void)
 	ata_release_transport(ata_scsi_transport_template);
 	libata_transport_exit();
 	ata_sff_exit();
+	ata_acpi_unregister();
 	kfree(ata_force_tbl);
 }
 
