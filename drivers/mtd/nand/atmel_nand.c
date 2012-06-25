@@ -527,6 +527,66 @@ static int __devinit atmel_of_init_port(struct atmel_nand_host *host,
 }
 #endif
 
+static int __init atmel_hw_nand_init_params(struct platform_device *pdev,
+					 struct atmel_nand_host *host)
+{
+	struct mtd_info *mtd = &host->mtd;
+	struct nand_chip *nand_chip = &host->nand_chip;
+	struct resource		*regs;
+
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!regs) {
+		dev_err(host->dev,
+			"Can't get I/O resource regs, use software ECC\n");
+		nand_chip->ecc.mode = NAND_ECC_SOFT;
+		return 0;
+	}
+
+	host->ecc = ioremap(regs->start, resource_size(regs));
+	if (host->ecc == NULL) {
+		dev_err(host->dev, "ioremap failed\n");
+		return -EIO;
+	}
+
+	/* ECC is calculated for the whole page (1 step) */
+	nand_chip->ecc.size = mtd->writesize;
+
+	/* set ECC page size and oob layout */
+	switch (mtd->writesize) {
+	case 512:
+		nand_chip->ecc.layout = &atmel_oobinfo_small;
+		ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_528);
+		break;
+	case 1024:
+		nand_chip->ecc.layout = &atmel_oobinfo_large;
+		ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_1056);
+		break;
+	case 2048:
+		nand_chip->ecc.layout = &atmel_oobinfo_large;
+		ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_2112);
+		break;
+	case 4096:
+		nand_chip->ecc.layout = &atmel_oobinfo_large;
+		ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_4224);
+		break;
+	default:
+		/* page size not handled by HW ECC */
+		/* switching back to soft ECC */
+		nand_chip->ecc.mode = NAND_ECC_SOFT;
+		return 0;
+	}
+
+	/* set up for HW ECC */
+	nand_chip->ecc.calculate = atmel_nand_calculate;
+	nand_chip->ecc.correct = atmel_nand_correct;
+	nand_chip->ecc.hwctl = atmel_nand_hwctl;
+	nand_chip->ecc.read_page = atmel_nand_read_page;
+	nand_chip->ecc.bytes = 4;
+	nand_chip->ecc.strength = 1;
+
+	return 0;
+}
+
 /*
  * Probe for the NAND device.
  */
@@ -535,7 +595,6 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	struct atmel_nand_host *host;
 	struct mtd_info *mtd;
 	struct nand_chip *nand_chip;
-	struct resource *regs;
 	struct resource *mem;
 	struct mtd_part_parser_data ppdata = {};
 	int res;
@@ -587,29 +646,6 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		nand_chip->dev_ready = atmel_nand_device_ready;
 
 	nand_chip->ecc.mode = host->board.ecc_mode;
-
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!regs && nand_chip->ecc.mode == NAND_ECC_HW) {
-		printk(KERN_ERR "atmel_nand: can't get I/O resource "
-				"regs\nFalling back on software ECC\n");
-		nand_chip->ecc.mode = NAND_ECC_SOFT;
-	}
-
-	if (nand_chip->ecc.mode == NAND_ECC_HW) {
-		host->ecc = ioremap(regs->start, resource_size(regs));
-		if (host->ecc == NULL) {
-			printk(KERN_ERR "atmel_nand: ioremap failed\n");
-			res = -EIO;
-			goto err_ecc_ioremap;
-		}
-		nand_chip->ecc.calculate = atmel_nand_calculate;
-		nand_chip->ecc.correct = atmel_nand_correct;
-		nand_chip->ecc.hwctl = atmel_nand_hwctl;
-		nand_chip->ecc.read_page = atmel_nand_read_page;
-		nand_chip->ecc.bytes = 4;
-		nand_chip->ecc.strength = 1;
-	}
-
 	nand_chip->chip_delay = 20;		/* 20us command delay time */
 
 	if (host->board.bus_width_16)	/* 16-bit bus width */
@@ -661,40 +697,9 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	if (nand_chip->ecc.mode == NAND_ECC_HW) {
-		/* ECC is calculated for the whole page (1 step) */
-		nand_chip->ecc.size = mtd->writesize;
-
-		/* set ECC page size and oob layout */
-		switch (mtd->writesize) {
-		case 512:
-			nand_chip->ecc.layout = &atmel_oobinfo_small;
-			ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_528);
-			break;
-		case 1024:
-			nand_chip->ecc.layout = &atmel_oobinfo_large;
-			ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_1056);
-			break;
-		case 2048:
-			nand_chip->ecc.layout = &atmel_oobinfo_large;
-			ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_2112);
-			break;
-		case 4096:
-			nand_chip->ecc.layout = &atmel_oobinfo_large;
-			ecc_writel(host->ecc, MR, ATMEL_ECC_PAGESIZE_4224);
-			break;
-		default:
-			/* page size not handled by HW ECC */
-			/* switching back to soft ECC */
-			nand_chip->ecc.mode = NAND_ECC_SOFT;
-			nand_chip->ecc.calculate = NULL;
-			nand_chip->ecc.correct = NULL;
-			nand_chip->ecc.hwctl = NULL;
-			nand_chip->ecc.read_page = NULL;
-			nand_chip->ecc.postpad = 0;
-			nand_chip->ecc.prepad = 0;
-			nand_chip->ecc.bytes = 0;
-			break;
-		}
+		res = atmel_hw_nand_init_params(pdev, host);
+		if (res != 0)
+			goto err_hw_ecc;
 	}
 
 	/* second phase scan */
@@ -711,15 +716,15 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		return res;
 
 err_scan_tail:
+	if (host->ecc)
+		iounmap(host->ecc);
+err_hw_ecc:
 err_scan_ident:
 err_no_card:
 	atmel_nand_disable(host);
 	platform_set_drvdata(pdev, NULL);
 	if (host->dma_chan)
 		dma_release_channel(host->dma_chan);
-	if (host->ecc)
-		iounmap(host->ecc);
-err_ecc_ioremap:
 	iounmap(host->io_base);
 err_nand_ioremap:
 	kfree(host);
