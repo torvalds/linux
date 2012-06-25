@@ -57,9 +57,9 @@
 
 
 .Ldo_err4:
-	ld	r16,STK_REG(r16)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r14,STK_REG(r14)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r14,STK_REG(R14)(r1)
 .Ldo_err3:
 	bl	.exit_vmx_usercopy
 	ld	r0,STACKFRAMESIZE+16(r1)
@@ -68,15 +68,15 @@
 #endif /* CONFIG_ALTIVEC */
 
 .Ldo_err2:
-	ld	r22,STK_REG(r22)(r1)
-	ld	r21,STK_REG(r21)(r1)
-	ld	r20,STK_REG(r20)(r1)
-	ld	r19,STK_REG(r19)(r1)
-	ld	r18,STK_REG(r18)(r1)
-	ld	r17,STK_REG(r17)(r1)
-	ld	r16,STK_REG(r16)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r14,STK_REG(r14)(r1)
+	ld	r22,STK_REG(R22)(r1)
+	ld	r21,STK_REG(R21)(r1)
+	ld	r20,STK_REG(R20)(r1)
+	ld	r19,STK_REG(R19)(r1)
+	ld	r18,STK_REG(R18)(r1)
+	ld	r17,STK_REG(R17)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r14,STK_REG(R14)(r1)
 .Lexit:
 	addi	r1,r1,STACKFRAMESIZE
 .Ldo_err1:
@@ -137,15 +137,15 @@ err1;	stw	r0,0(r3)
 
 	mflr	r0
 	stdu	r1,-STACKFRAMESIZE(r1)
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
-	std	r17,STK_REG(r17)(r1)
-	std	r18,STK_REG(r18)(r1)
-	std	r19,STK_REG(r19)(r1)
-	std	r20,STK_REG(r20)(r1)
-	std	r21,STK_REG(r21)(r1)
-	std	r22,STK_REG(r22)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
+	std	r17,STK_REG(R17)(r1)
+	std	r18,STK_REG(R18)(r1)
+	std	r19,STK_REG(R19)(r1)
+	std	r20,STK_REG(R20)(r1)
+	std	r21,STK_REG(R21)(r1)
+	std	r22,STK_REG(R22)(r1)
 	std	r0,STACKFRAMESIZE+16(r1)
 
 	srdi	r6,r5,7
@@ -192,15 +192,15 @@ err2;	std	r21,120(r3)
 
 	clrldi	r5,r5,(64-7)
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
-	ld	r17,STK_REG(r17)(r1)
-	ld	r18,STK_REG(r18)(r1)
-	ld	r19,STK_REG(r19)(r1)
-	ld	r20,STK_REG(r20)(r1)
-	ld	r21,STK_REG(r21)(r1)
-	ld	r22,STK_REG(r22)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	ld	r17,STK_REG(R17)(r1)
+	ld	r18,STK_REG(R18)(r1)
+	ld	r19,STK_REG(R19)(r1)
+	ld	r20,STK_REG(R20)(r1)
+	ld	r21,STK_REG(R21)(r1)
+	ld	r22,STK_REG(R22)(r1)
 	addi	r1,r1,STACKFRAMESIZE
 
 	/* Up to 127B to go */
@@ -440,9 +440,9 @@ err3;	stvx	vr0,r3,r11
 7:	sub	r5,r5,r6
 	srdi	r6,r5,7
 
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
 
 	li	r12,64
 	li	r14,80
@@ -477,9 +477,9 @@ err4;	stvx	vr0,r3,r16
 	addi	r3,r3,128
 	bdnz	8b
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
 
 	/* Up to 127B to go */
 	clrldi	r5,r5,(64-7)
@@ -625,9 +625,9 @@ err3;	stvx	vr11,r3,r11
 7:	sub	r5,r5,r6
 	srdi	r6,r5,7
 
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
 
 	li	r12,64
 	li	r14,80
@@ -670,9 +670,9 @@ err4;	stvx	vr15,r3,r16
 	addi	r3,r3,128
 	bdnz	8b
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
 
 	/* Up to 127B to go */
 	clrldi	r5,r5,(64-7)

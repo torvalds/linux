@@ -313,7 +313,7 @@ BEGIN_MMU_FTR_SECTION
 	mtspr	SPRN_MAS1,r4
 	tlbwe
 MMU_FTR_SECTION_ELSE
-	PPC_TLBILX_VA(0,r3)
+	PPC_TLBILX_VA(R0,R3)
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 	msync
 	isync
@@ -364,7 +364,7 @@ _GLOBAL(_tlbil_va)
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
 1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
-	PPC_TLBILX_VA(0,r3)
+	PPC_TLBILX_VA(R0,R3)
 	msync
 	isync
 	wrtee	r10
@@ -379,7 +379,7 @@ _GLOBAL(_tlbivax_bcast)
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
 1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
-	PPC_TLBIVAX(0,r3)
+	PPC_TLBIVAX(R0,R3)
 	eieio
 	tlbsync
 	sync

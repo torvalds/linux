@@ -314,7 +314,7 @@ _GLOBAL(real_205_readb)
 	mtmsrd	r0
 	sync
 	isync
-	LBZCIX(r3,0,r3)
+	LBZCIX(R3,0,R3)
 	isync
 	mtmsrd	r7
 	sync
@@ -329,7 +329,7 @@ _GLOBAL(real_205_writeb)
 	mtmsrd	r0
 	sync
 	isync
-	STBCIX(r3,0,r4)
+	STBCIX(R3,0,R4)
 	isync
 	mtmsrd	r7
 	sync

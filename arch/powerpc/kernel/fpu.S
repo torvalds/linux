@@ -106,7 +106,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
 	lfd	fr0,THREAD_FPSCR(r5)
 	MTFSF_L(fr0)
-	REST_32FPVSRS(0, r4, r5)
+	REST_32FPVSRS(0, R4, R5)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	fromreal(r4)
@@ -140,7 +140,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	addi	r3,r3,THREAD	        /* want THREAD of task */
 	PPC_LL	r5,PT_REGS(r3)
 	PPC_LCMPI	0,r5,0
-	SAVE_32FPVSRS(0, r4 ,r3)
+	SAVE_32FPVSRS(0, R4 ,R3)
 	mffs	fr0
 	stfd	fr0,THREAD_FPSCR(r3)
 	beq	1f

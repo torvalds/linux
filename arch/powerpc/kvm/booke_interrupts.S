@@ -37,7 +37,7 @@
 #define HOST_CR         16
 #define HOST_NV_GPRS    20
 #define HOST_NV_GPR(n)  (HOST_NV_GPRS + ((n - 14) * 4))
-#define HOST_MIN_STACK_SIZE (HOST_NV_GPR(31) + 4)
+#define HOST_MIN_STACK_SIZE (HOST_NV_GPR(R31) + 4)
 #define HOST_STACK_SIZE (((HOST_MIN_STACK_SIZE + 15) / 16) * 16) /* Align. */
 #define HOST_STACK_LR   (HOST_STACK_SIZE + 4) /* In caller stack frame. */
 
@@ -58,8 +58,8 @@ _GLOBAL(kvmppc_handler_\ivor_nr)
 	/* Get pointer to vcpu and record exit number. */
 	mtspr	SPRN_SPRG_WSCRATCH0, r4
 	mfspr	r4, SPRN_SPRG_RVCPU
-	stw	r5, VCPU_GPR(r5)(r4)
-	stw	r6, VCPU_GPR(r6)(r4)
+	stw	r5, VCPU_GPR(R5)(r4)
+	stw	r6, VCPU_GPR(R6)(r4)
 	mfctr	r5
 	lis	r6, kvmppc_resume_host@h
 	stw	r5, VCPU_CTR(r4)
@@ -100,12 +100,12 @@ _GLOBAL(kvmppc_handler_len)
  *  r5: KVM exit number
  */
 _GLOBAL(kvmppc_resume_host)
-	stw	r3, VCPU_GPR(r3)(r4)
+	stw	r3, VCPU_GPR(R3)(r4)
 	mfcr	r3
 	stw	r3, VCPU_CR(r4)
-	stw	r7, VCPU_GPR(r7)(r4)
-	stw	r8, VCPU_GPR(r8)(r4)
-	stw	r9, VCPU_GPR(r9)(r4)
+	stw	r7, VCPU_GPR(R7)(r4)
+	stw	r8, VCPU_GPR(R8)(r4)
+	stw	r9, VCPU_GPR(R9)(r4)
 
 	li	r6, 1
 	slw	r6, r6, r5
@@ -135,23 +135,23 @@ _GLOBAL(kvmppc_resume_host)
 	isync
 	stw	r9, VCPU_LAST_INST(r4)
 
-	stw	r15, VCPU_GPR(r15)(r4)
-	stw	r16, VCPU_GPR(r16)(r4)
-	stw	r17, VCPU_GPR(r17)(r4)
-	stw	r18, VCPU_GPR(r18)(r4)
-	stw	r19, VCPU_GPR(r19)(r4)
-	stw	r20, VCPU_GPR(r20)(r4)
-	stw	r21, VCPU_GPR(r21)(r4)
-	stw	r22, VCPU_GPR(r22)(r4)
-	stw	r23, VCPU_GPR(r23)(r4)
-	stw	r24, VCPU_GPR(r24)(r4)
-	stw	r25, VCPU_GPR(r25)(r4)
-	stw	r26, VCPU_GPR(r26)(r4)
-	stw	r27, VCPU_GPR(r27)(r4)
-	stw	r28, VCPU_GPR(r28)(r4)
-	stw	r29, VCPU_GPR(r29)(r4)
-	stw	r30, VCPU_GPR(r30)(r4)
-	stw	r31, VCPU_GPR(r31)(r4)
+	stw	r15, VCPU_GPR(R15)(r4)
+	stw	r16, VCPU_GPR(R16)(r4)
+	stw	r17, VCPU_GPR(R17)(r4)
+	stw	r18, VCPU_GPR(R18)(r4)
+	stw	r19, VCPU_GPR(R19)(r4)
+	stw	r20, VCPU_GPR(R20)(r4)
+	stw	r21, VCPU_GPR(R21)(r4)
+	stw	r22, VCPU_GPR(R22)(r4)
+	stw	r23, VCPU_GPR(R23)(r4)
+	stw	r24, VCPU_GPR(R24)(r4)
+	stw	r25, VCPU_GPR(R25)(r4)
+	stw	r26, VCPU_GPR(R26)(r4)
+	stw	r27, VCPU_GPR(R27)(r4)
+	stw	r28, VCPU_GPR(R28)(r4)
+	stw	r29, VCPU_GPR(R29)(r4)
+	stw	r30, VCPU_GPR(R30)(r4)
+	stw	r31, VCPU_GPR(R31)(r4)
 ..skip_inst_copy:
 
 	/* Also grab DEAR and ESR before the host can clobber them. */
@@ -169,20 +169,20 @@ _GLOBAL(kvmppc_resume_host)
 ..skip_esr:
 
 	/* Save remaining volatile guest register state to vcpu. */
-	stw	r0, VCPU_GPR(r0)(r4)
-	stw	r1, VCPU_GPR(r1)(r4)
-	stw	r2, VCPU_GPR(r2)(r4)
-	stw	r10, VCPU_GPR(r10)(r4)
-	stw	r11, VCPU_GPR(r11)(r4)
-	stw	r12, VCPU_GPR(r12)(r4)
-	stw	r13, VCPU_GPR(r13)(r4)
-	stw	r14, VCPU_GPR(r14)(r4) /* We need a NV GPR below. */
+	stw	r0, VCPU_GPR(R0)(r4)
+	stw	r1, VCPU_GPR(R1)(r4)
+	stw	r2, VCPU_GPR(R2)(r4)
+	stw	r10, VCPU_GPR(R10)(r4)
+	stw	r11, VCPU_GPR(R11)(r4)
+	stw	r12, VCPU_GPR(R12)(r4)
+	stw	r13, VCPU_GPR(R13)(r4)
+	stw	r14, VCPU_GPR(R14)(r4) /* We need a NV GPR below. */
 	mflr	r3
 	stw	r3, VCPU_LR(r4)
 	mfxer	r3
 	stw	r3, VCPU_XER(r4)
 	mfspr	r3, SPRN_SPRG_RSCRATCH0
-	stw	r3, VCPU_GPR(r4)(r4)
+	stw	r3, VCPU_GPR(R4)(r4)
 	mfspr	r3, SPRN_SRR0
 	stw	r3, VCPU_PC(r4)
 
@@ -214,28 +214,28 @@ _GLOBAL(kvmppc_resume_host)
 
 	/* Restore vcpu pointer and the nonvolatiles we used. */
 	mr	r4, r14
-	lwz	r14, VCPU_GPR(r14)(r4)
+	lwz	r14, VCPU_GPR(R14)(r4)
 
 	/* Sometimes instruction emulation must restore complete GPR state. */
 	andi.	r5, r3, RESUME_FLAG_NV
 	beq	..skip_nv_load
-	lwz	r15, VCPU_GPR(r15)(r4)
-	lwz	r16, VCPU_GPR(r16)(r4)
-	lwz	r17, VCPU_GPR(r17)(r4)
-	lwz	r18, VCPU_GPR(r18)(r4)
-	lwz	r19, VCPU_GPR(r19)(r4)
-	lwz	r20, VCPU_GPR(r20)(r4)
-	lwz	r21, VCPU_GPR(r21)(r4)
-	lwz	r22, VCPU_GPR(r22)(r4)
-	lwz	r23, VCPU_GPR(r23)(r4)
-	lwz	r24, VCPU_GPR(r24)(r4)
-	lwz	r25, VCPU_GPR(r25)(r4)
-	lwz	r26, VCPU_GPR(r26)(r4)
-	lwz	r27, VCPU_GPR(r27)(r4)
-	lwz	r28, VCPU_GPR(r28)(r4)
-	lwz	r29, VCPU_GPR(r29)(r4)
-	lwz	r30, VCPU_GPR(r30)(r4)
-	lwz	r31, VCPU_GPR(r31)(r4)
+	lwz	r15, VCPU_GPR(R15)(r4)
+	lwz	r16, VCPU_GPR(R16)(r4)
+	lwz	r17, VCPU_GPR(R17)(r4)
+	lwz	r18, VCPU_GPR(R18)(r4)
+	lwz	r19, VCPU_GPR(R19)(r4)
+	lwz	r20, VCPU_GPR(R20)(r4)
+	lwz	r21, VCPU_GPR(R21)(r4)
+	lwz	r22, VCPU_GPR(R22)(r4)
+	lwz	r23, VCPU_GPR(R23)(r4)
+	lwz	r24, VCPU_GPR(R24)(r4)
+	lwz	r25, VCPU_GPR(R25)(r4)
+	lwz	r26, VCPU_GPR(R26)(r4)
+	lwz	r27, VCPU_GPR(R27)(r4)
+	lwz	r28, VCPU_GPR(R28)(r4)
+	lwz	r29, VCPU_GPR(R29)(r4)
+	lwz	r30, VCPU_GPR(R30)(r4)
+	lwz	r31, VCPU_GPR(R31)(r4)
 ..skip_nv_load:
 
 	/* Should we return to the guest? */
@@ -257,43 +257,43 @@ heavyweight_exit:
 
 	/* We already saved guest volatile register state; now save the
 	 * non-volatiles. */
-	stw	r15, VCPU_GPR(r15)(r4)
-	stw	r16, VCPU_GPR(r16)(r4)
-	stw	r17, VCPU_GPR(r17)(r4)
-	stw	r18, VCPU_GPR(r18)(r4)
-	stw	r19, VCPU_GPR(r19)(r4)
-	stw	r20, VCPU_GPR(r20)(r4)
-	stw	r21, VCPU_GPR(r21)(r4)
-	stw	r22, VCPU_GPR(r22)(r4)
-	stw	r23, VCPU_GPR(r23)(r4)
-	stw	r24, VCPU_GPR(r24)(r4)
-	stw	r25, VCPU_GPR(r25)(r4)
-	stw	r26, VCPU_GPR(r26)(r4)
-	stw	r27, VCPU_GPR(r27)(r4)
-	stw	r28, VCPU_GPR(r28)(r4)
-	stw	r29, VCPU_GPR(r29)(r4)
-	stw	r30, VCPU_GPR(r30)(r4)
-	stw	r31, VCPU_GPR(r31)(r4)
+	stw	r15, VCPU_GPR(R15)(r4)
+	stw	r16, VCPU_GPR(R16)(r4)
+	stw	r17, VCPU_GPR(R17)(r4)
+	stw	r18, VCPU_GPR(R18)(r4)
+	stw	r19, VCPU_GPR(R19)(r4)
+	stw	r20, VCPU_GPR(R20)(r4)
+	stw	r21, VCPU_GPR(R21)(r4)
+	stw	r22, VCPU_GPR(R22)(r4)
+	stw	r23, VCPU_GPR(R23)(r4)
+	stw	r24, VCPU_GPR(R24)(r4)
+	stw	r25, VCPU_GPR(R25)(r4)
+	stw	r26, VCPU_GPR(R26)(r4)
+	stw	r27, VCPU_GPR(R27)(r4)
+	stw	r28, VCPU_GPR(R28)(r4)
+	stw	r29, VCPU_GPR(R29)(r4)
+	stw	r30, VCPU_GPR(R30)(r4)
+	stw	r31, VCPU_GPR(R31)(r4)
 
 	/* Load host non-volatile register state from host stack. */
-	lwz	r14, HOST_NV_GPR(r14)(r1)
-	lwz	r15, HOST_NV_GPR(r15)(r1)
-	lwz	r16, HOST_NV_GPR(r16)(r1)
-	lwz	r17, HOST_NV_GPR(r17)(r1)
-	lwz	r18, HOST_NV_GPR(r18)(r1)
-	lwz	r19, HOST_NV_GPR(r19)(r1)
-	lwz	r20, HOST_NV_GPR(r20)(r1)
-	lwz	r21, HOST_NV_GPR(r21)(r1)
-	lwz	r22, HOST_NV_GPR(r22)(r1)
-	lwz	r23, HOST_NV_GPR(r23)(r1)
-	lwz	r24, HOST_NV_GPR(r24)(r1)
-	lwz	r25, HOST_NV_GPR(r25)(r1)
-	lwz	r26, HOST_NV_GPR(r26)(r1)
-	lwz	r27, HOST_NV_GPR(r27)(r1)
-	lwz	r28, HOST_NV_GPR(r28)(r1)
-	lwz	r29, HOST_NV_GPR(r29)(r1)
-	lwz	r30, HOST_NV_GPR(r30)(r1)
-	lwz	r31, HOST_NV_GPR(r31)(r1)
+	lwz	r14, HOST_NV_GPR(R14)(r1)
+	lwz	r15, HOST_NV_GPR(R15)(r1)
+	lwz	r16, HOST_NV_GPR(R16)(r1)
+	lwz	r17, HOST_NV_GPR(R17)(r1)
+	lwz	r18, HOST_NV_GPR(R18)(r1)
+	lwz	r19, HOST_NV_GPR(R19)(r1)
+	lwz	r20, HOST_NV_GPR(R20)(r1)
+	lwz	r21, HOST_NV_GPR(R21)(r1)
+	lwz	r22, HOST_NV_GPR(R22)(r1)
+	lwz	r23, HOST_NV_GPR(R23)(r1)
+	lwz	r24, HOST_NV_GPR(R24)(r1)
+	lwz	r25, HOST_NV_GPR(R25)(r1)
+	lwz	r26, HOST_NV_GPR(R26)(r1)
+	lwz	r27, HOST_NV_GPR(R27)(r1)
+	lwz	r28, HOST_NV_GPR(R28)(r1)
+	lwz	r29, HOST_NV_GPR(R29)(r1)
+	lwz	r30, HOST_NV_GPR(R30)(r1)
+	lwz	r31, HOST_NV_GPR(R31)(r1)
 
 	/* Return to kvm_vcpu_run(). */
 	lwz	r4, HOST_STACK_LR(r1)
@@ -321,44 +321,44 @@ _GLOBAL(__kvmppc_vcpu_run)
 	stw	r5, HOST_CR(r1)
 
 	/* Save host non-volatile register state to stack. */
-	stw	r14, HOST_NV_GPR(r14)(r1)
-	stw	r15, HOST_NV_GPR(r15)(r1)
-	stw	r16, HOST_NV_GPR(r16)(r1)
-	stw	r17, HOST_NV_GPR(r17)(r1)
-	stw	r18, HOST_NV_GPR(r18)(r1)
-	stw	r19, HOST_NV_GPR(r19)(r1)
-	stw	r20, HOST_NV_GPR(r20)(r1)
-	stw	r21, HOST_NV_GPR(r21)(r1)
-	stw	r22, HOST_NV_GPR(r22)(r1)
-	stw	r23, HOST_NV_GPR(r23)(r1)
-	stw	r24, HOST_NV_GPR(r24)(r1)
-	stw	r25, HOST_NV_GPR(r25)(r1)
-	stw	r26, HOST_NV_GPR(r26)(r1)
-	stw	r27, HOST_NV_GPR(r27)(r1)
-	stw	r28, HOST_NV_GPR(r28)(r1)
-	stw	r29, HOST_NV_GPR(r29)(r1)
-	stw	r30, HOST_NV_GPR(r30)(r1)
-	stw	r31, HOST_NV_GPR(r31)(r1)
+	stw	r14, HOST_NV_GPR(R14)(r1)
+	stw	r15, HOST_NV_GPR(R15)(r1)
+	stw	r16, HOST_NV_GPR(R16)(r1)
+	stw	r17, HOST_NV_GPR(R17)(r1)
+	stw	r18, HOST_NV_GPR(R18)(r1)
+	stw	r19, HOST_NV_GPR(R19)(r1)
+	stw	r20, HOST_NV_GPR(R20)(r1)
+	stw	r21, HOST_NV_GPR(R21)(r1)
+	stw	r22, HOST_NV_GPR(R22)(r1)
+	stw	r23, HOST_NV_GPR(R23)(r1)
+	stw	r24, HOST_NV_GPR(R24)(r1)
+	stw	r25, HOST_NV_GPR(R25)(r1)
+	stw	r26, HOST_NV_GPR(R26)(r1)
+	stw	r27, HOST_NV_GPR(R27)(r1)
+	stw	r28, HOST_NV_GPR(R28)(r1)
+	stw	r29, HOST_NV_GPR(R29)(r1)
+	stw	r30, HOST_NV_GPR(R30)(r1)
+	stw	r31, HOST_NV_GPR(R31)(r1)
 
 	/* Load guest non-volatiles. */
-	lwz	r14, VCPU_GPR(r14)(r4)
-	lwz	r15, VCPU_GPR(r15)(r4)
-	lwz	r16, VCPU_GPR(r16)(r4)
-	lwz	r17, VCPU_GPR(r17)(r4)
-	lwz	r18, VCPU_GPR(r18)(r4)
-	lwz	r19, VCPU_GPR(r19)(r4)
-	lwz	r20, VCPU_GPR(r20)(r4)
-	lwz	r21, VCPU_GPR(r21)(r4)
-	lwz	r22, VCPU_GPR(r22)(r4)
-	lwz	r23, VCPU_GPR(r23)(r4)
-	lwz	r24, VCPU_GPR(r24)(r4)
-	lwz	r25, VCPU_GPR(r25)(r4)
-	lwz	r26, VCPU_GPR(r26)(r4)
-	lwz	r27, VCPU_GPR(r27)(r4)
-	lwz	r28, VCPU_GPR(r28)(r4)
-	lwz	r29, VCPU_GPR(r29)(r4)
-	lwz	r30, VCPU_GPR(r30)(r4)
-	lwz	r31, VCPU_GPR(r31)(r4)
+	lwz	r14, VCPU_GPR(R14)(r4)
+	lwz	r15, VCPU_GPR(R15)(r4)
+	lwz	r16, VCPU_GPR(R16)(r4)
+	lwz	r17, VCPU_GPR(R17)(r4)
+	lwz	r18, VCPU_GPR(R18)(r4)
+	lwz	r19, VCPU_GPR(R19)(r4)
+	lwz	r20, VCPU_GPR(R20)(r4)
+	lwz	r21, VCPU_GPR(R21)(r4)
+	lwz	r22, VCPU_GPR(R22)(r4)
+	lwz	r23, VCPU_GPR(R23)(r4)
+	lwz	r24, VCPU_GPR(R24)(r4)
+	lwz	r25, VCPU_GPR(R25)(r4)
+	lwz	r26, VCPU_GPR(R26)(r4)
+	lwz	r27, VCPU_GPR(R27)(r4)
+	lwz	r28, VCPU_GPR(R28)(r4)
+	lwz	r29, VCPU_GPR(R29)(r4)
+	lwz	r30, VCPU_GPR(R30)(r4)
+	lwz	r31, VCPU_GPR(R31)(r4)
 
 #ifdef CONFIG_SPE
 	/* save host SPEFSCR and load guest SPEFSCR */
@@ -386,13 +386,13 @@ lightweight_exit:
 #endif
 
 	/* Load some guest volatiles. */
-	lwz	r0, VCPU_GPR(r0)(r4)
-	lwz	r2, VCPU_GPR(r2)(r4)
-	lwz	r9, VCPU_GPR(r9)(r4)
-	lwz	r10, VCPU_GPR(r10)(r4)
-	lwz	r11, VCPU_GPR(r11)(r4)
-	lwz	r12, VCPU_GPR(r12)(r4)
-	lwz	r13, VCPU_GPR(r13)(r4)
+	lwz	r0, VCPU_GPR(R0)(r4)
+	lwz	r2, VCPU_GPR(R2)(r4)
+	lwz	r9, VCPU_GPR(R9)(r4)
+	lwz	r10, VCPU_GPR(R10)(r4)
+	lwz	r11, VCPU_GPR(R11)(r4)
+	lwz	r12, VCPU_GPR(R12)(r4)
+	lwz	r13, VCPU_GPR(R13)(r4)
 	lwz	r3, VCPU_LR(r4)
 	mtlr	r3
 	lwz	r3, VCPU_XER(r4)
@@ -411,7 +411,7 @@ lightweight_exit:
 
 	/* Can't switch the stack pointer until after IVPR is switched,
 	 * because host interrupt handlers would get confused. */
-	lwz	r1, VCPU_GPR(r1)(r4)
+	lwz	r1, VCPU_GPR(R1)(r4)
 
 	/*
 	 * Host interrupt handlers may have clobbered these
@@ -449,10 +449,10 @@ lightweight_exit:
 	mtcr	r5
 	mtsrr0	r6
 	mtsrr1	r7
-	lwz	r5, VCPU_GPR(r5)(r4)
-	lwz	r6, VCPU_GPR(r6)(r4)
-	lwz	r7, VCPU_GPR(r7)(r4)
-	lwz	r8, VCPU_GPR(r8)(r4)
+	lwz	r5, VCPU_GPR(R5)(r4)
+	lwz	r6, VCPU_GPR(R6)(r4)
+	lwz	r7, VCPU_GPR(R7)(r4)
+	lwz	r8, VCPU_GPR(R8)(r4)
 
 	/* Clear any debug events which occurred since we disabled MSR[DE].
 	 * XXX This gives us a 3-instruction window in which a breakpoint
@@ -461,8 +461,8 @@ lightweight_exit:
 	ori	r3, r3, 0xffff
 	mtspr	SPRN_DBSR, r3
 
-	lwz	r3, VCPU_GPR(r3)(r4)
-	lwz	r4, VCPU_GPR(r4)(r4)
+	lwz	r3, VCPU_GPR(R3)(r4)
+	lwz	r4, VCPU_GPR(R4)(r4)
 	rfi
 
 #ifdef CONFIG_SPE

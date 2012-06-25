@@ -113,13 +113,13 @@ _GLOBAL(copypage_power7)
 #endif
 
 .Lnonvmx_copy:
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
-	std	r17,STK_REG(r17)(r1)
-	std	r18,STK_REG(r18)(r1)
-	std	r19,STK_REG(r19)(r1)
-	std	r20,STK_REG(r20)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
+	std	r17,STK_REG(R17)(r1)
+	std	r18,STK_REG(R18)(r1)
+	std	r19,STK_REG(R19)(r1)
+	std	r20,STK_REG(R20)(r1)
 
 1:	ld	r0,0(r4)
 	ld	r5,8(r4)
@@ -157,12 +157,12 @@ _GLOBAL(copypage_power7)
 	addi	r3,r3,128
 	bdnz	1b
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
-	ld	r17,STK_REG(r17)(r1)
-	ld	r18,STK_REG(r18)(r1)
-	ld	r19,STK_REG(r19)(r1)
-	ld	r20,STK_REG(r20)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	ld	r17,STK_REG(R17)(r1)
+	ld	r18,STK_REG(R18)(r1)
+	ld	r19,STK_REG(R19)(r1)
+	ld	r20,STK_REG(R20)(r1)
 	addi	r1,r1,STACKFRAMESIZE
 	blr
