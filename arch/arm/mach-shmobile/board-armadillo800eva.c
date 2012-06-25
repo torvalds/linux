@@ -297,6 +297,8 @@ static struct usbhsf_private usbhsf_private = {
 		.driver_param = {
 			.buswait_bwait		= 5,
 			.detection_delay	= 5,
+			.d0_rx_id	= SHDMA_SLAVE_USBHS_RX,
+			.d1_tx_id	= SHDMA_SLAVE_USBHS_TX,
 		},
 	}
 };
