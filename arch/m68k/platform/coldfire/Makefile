@@ -33,6 +33,7 @@ obj-$(CONFIG_M5441x)	+= m5441x.o pit.o intc-simr.o reset.o
 obj-$(CONFIG_NETtel)	+= nettel.o
 obj-$(CONFIG_CLEOPATRA)	+= nettel.o
 obj-$(CONFIG_FIREBEE)	+= firebee.o
+obj-$(CONFIG_MCF8390)	+= mcf8390.o
 
 obj-y			+= gpio.o
 extra-y := head.o
