@@ -85,7 +85,6 @@ static const struct das16cs_board das16cs_boards[] = {
 };
 
 #define n_boards ARRAY_SIZE(das16cs_boards)
-#define thisboard ((const struct das16cs_board *)dev->board_ptr)
 
 struct das16cs_private {
 	struct pcmcia_device *link;
@@ -94,7 +93,6 @@ struct das16cs_private {
 	unsigned short status1;
 	unsigned short status2;
 };
-#define devpriv ((struct das16cs_private *)dev->private)
 
 static struct pcmcia_device *cur_dev;
 
@@ -120,6 +118,7 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das16cs_private *devpriv = dev->private;
 	int i;
 	int to;
 	int aref;
@@ -328,6 +327,7 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das16cs_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned short status1;
@@ -375,6 +375,7 @@ static int das16cs_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das16cs_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -411,6 +412,7 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct das16cs_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	int bits;
 
@@ -478,6 +480,7 @@ static const struct das16cs_board *das16cs_probe(struct comedi_device *dev,
 static int das16cs_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct das16cs_board *thisboard;
 	struct pcmcia_device *link;
 	struct comedi_subdevice *s;
 	int ret;
@@ -509,6 +512,7 @@ static int das16cs_attach(struct comedi_device *dev,
 	dev->board_ptr = das16cs_probe(dev, link);
 	if (!dev->board_ptr)
 		return -EIO;
+	thisboard = comedi_board(dev);
 
 	dev->board_name = thisboard->name;
 
