@@ -1366,7 +1366,7 @@ static int tegra_dma_runtime_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tegra_dma *tdma = platform_get_drvdata(pdev);
 
-	clk_disable(tdma->dma_clk);
+	clk_disable_unprepare(tdma->dma_clk);
 	return 0;
 }
 
@@ -1376,7 +1376,7 @@ static int tegra_dma_runtime_resume(struct device *dev)
 	struct tegra_dma *tdma = platform_get_drvdata(pdev);
 	int ret;
 
-	ret = clk_enable(tdma->dma_clk);
+	ret = clk_prepare_enable(tdma->dma_clk);
 	if (ret < 0) {
 		dev_err(dev, "clk_enable failed: %d\n", ret);
 		return ret;
