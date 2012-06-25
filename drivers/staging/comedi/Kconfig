@@ -1007,7 +1007,7 @@ config COMEDI_NI_65XX
 
 config COMEDI_NI_660X
 	tristate "NI 660x counter/timer PCI card support"
-	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
+	depends on COMEDI_NI_TIOCMD && COMEDI_NI_COMMON
 	---help---
 	  Enable support for National Instruments PCI-6601 (ni_660x), PCI-6602,
 	  PXI-6602 and PXI-6608.
@@ -1040,7 +1040,7 @@ config COMEDI_NI_PCIDIO
 
 config COMEDI_NI_PCIMIO
 	tristate "NI PCI-MIO-E series and M series support"
-	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
+	depends on COMEDI_NI_TIOCMD && COMEDI_NI_COMMON
 	select COMEDI_8255
 	select COMEDI_FC
 	---help---
@@ -1256,15 +1256,26 @@ config COMEDI_MITE
 
 config COMEDI_NI_TIO
 	tristate "NI general purpose counter support"
-	depends on COMEDI_MITE
 	---help---
 	  Enable support for National Instruments general purpose counters.
 	  This module is not used directly by end-users. Rather, it
 	  is used by other drivers (for example ni_660x and ni_pcimio)
 	  to provide support for NI's general purpose counters.
 
-	  To compile this driver as a modules, choose M here: two modules will
-	  be build: ni_tio and ni_tiocmd.
+	  To compile this driver as a module, choose M here: the module will
+	  be called ni_tio.
+
+config COMEDI_NI_TIOCMD
+	tristate "NI streaming acquisition for general purpose counters"
+	depends on COMEDI_NI_TIO && COMEDI_MITE
+	---help---
+	  Enable streaming acquisition command support for National Instruments
+	  general purpose counters.  This module is not used directly by
+	  end-users.  It is used by some NI PCI card drivers (ni_660x and
+	  ni_pcimio).
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called ni_tiocmd.
 
 config COMEDI_NI_LABPC
 	tristate "NI Lab-PC and compatibles ISA and PCI support"
