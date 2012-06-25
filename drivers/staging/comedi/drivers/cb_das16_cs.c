@@ -96,16 +96,6 @@ struct das16cs_private {
 };
 #define devpriv ((struct das16cs_private *)dev->private)
 
-static int das16cs_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static void das16cs_detach(struct comedi_device *dev);
-static struct comedi_driver driver_das16cs = {
-	.driver_name = "cb_das16_cs",
-	.module = THIS_MODULE,
-	.attach = das16cs_attach,
-	.detach = das16cs_detach,
-};
-
 static struct pcmcia_device *cur_dev;
 
 static const struct comedi_lrange das16cs_ai_range = { 4, {
@@ -622,6 +612,13 @@ static int das16cs_timer_insn_config(struct comedi_device *dev,
 {
 	return -EINVAL;
 }
+
+static struct comedi_driver driver_das16cs = {
+	.driver_name	= "cb_das16_cs",
+	.module		= THIS_MODULE,
+	.attach		= das16cs_attach,
+	.detach		= das16cs_detach,
+};
 
 static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
