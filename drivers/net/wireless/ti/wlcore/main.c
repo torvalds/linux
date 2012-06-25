@@ -4637,6 +4637,13 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
+static void wlcore_op_flush(struct ieee80211_hw *hw, bool drop)
+{
+	struct wl1271 *wl = hw->priv;
+
+	wl1271_tx_flush(wl);
+}
+
 static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
@@ -4827,6 +4834,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.tx_frames_pending = wl1271_tx_frames_pending,
 	.set_bitrate_mask = wl12xx_set_bitrate_mask,
 	.channel_switch = wl12xx_op_channel_switch,
+	.flush = wlcore_op_flush,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
