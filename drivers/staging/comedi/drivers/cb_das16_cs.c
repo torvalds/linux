@@ -625,7 +625,6 @@ static int das16cs_timer_insn_config(struct comedi_device *dev,
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	int stop;
 	struct bus_operations *bus;
 };
 
@@ -674,7 +673,6 @@ failed:
 
 static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 {
-	((struct local_info_t *)link->priv)->stop = 1;
 	pcmcia_disable_device(link);
 	/* This points to the parent struct local_info_t struct */
 	kfree(link->priv);
@@ -683,19 +681,11 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 
 static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
-
-	/* Mark the device as stopped, to block IO until later */
-	local->stop = 1;
-
 	return 0;
 }
 
 static int das16cs_pcmcia_resume(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
-
-	local->stop = 0;
 	return 0;
 }
 
