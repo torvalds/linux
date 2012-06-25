@@ -258,7 +258,7 @@ fail:
 	return rc;
 }
 
-int pstore_fill_super(struct super_block *sb, void *data, int silent)
+static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 

@@ -354,17 +354,21 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 		    (get_endpoint(alts, 1)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
 		     get_endpoint(alts, 1)->bSynchAddress != 0 &&
 		     !implicit_fb)) {
-			snd_printk(KERN_ERR "%d:%d:%d : invalid synch pipe\n",
-				   dev->devnum, fmt->iface, fmt->altsetting);
+			snd_printk(KERN_ERR "%d:%d:%d : invalid sync pipe. bmAttributes %02x, bLength %d, bSynchAddress %02x\n",
+				   dev->devnum, fmt->iface, fmt->altsetting,
+				   get_endpoint(alts, 1)->bmAttributes,
+				   get_endpoint(alts, 1)->bLength,
+				   get_endpoint(alts, 1)->bSynchAddress);
 			return -EINVAL;
 		}
 		ep = get_endpoint(alts, 1)->bEndpointAddress;
-		if (get_endpoint(alts, 0)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
+		if (!implicit_fb &&
+		    get_endpoint(alts, 0)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
 		    (( is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress | USB_DIR_IN)) ||
-		     (!is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress & ~USB_DIR_IN)) ||
-		     ( is_playback && !implicit_fb))) {
-			snd_printk(KERN_ERR "%d:%d:%d : invalid synch pipe\n",
-				   dev->devnum, fmt->iface, fmt->altsetting);
+		     (!is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress & ~USB_DIR_IN)))) {
+			snd_printk(KERN_ERR "%d:%d:%d : invalid sync pipe. is_playback %d, ep %02x, bSynchAddress %02x\n",
+				   dev->devnum, fmt->iface, fmt->altsetting,
+				   is_playback, ep, get_endpoint(alts, 0)->bSynchAddress);
 			return -EINVAL;
 		}
 
@@ -1147,7 +1151,8 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 	return -EINVAL;
 }
 
-int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream, int cmd)
+static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream,
+					     int cmd)
 {
 	int err;
 	struct snd_usb_substream *subs = substream->runtime->private_data;

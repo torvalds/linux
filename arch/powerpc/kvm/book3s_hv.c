@@ -268,24 +268,45 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 	return err;
 }
 
-static void kvmppc_update_vpa(struct kvm *kvm, struct kvmppc_vpa *vpap)
+static void kvmppc_update_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *vpap)
 {
+	struct kvm *kvm = vcpu->kvm;
 	void *va;
 	unsigned long nb;
+	unsigned long gpa;
+
+	/*
+	 * We need to pin the page pointed to by vpap->next_gpa,
+	 * but we can't call kvmppc_pin_guest_page under the lock
+	 * as it does get_user_pages() and down_read().  So we
+	 * have to drop the lock, pin the page, then get the lock
+	 * again and check that a new area didn't get registered
+	 * in the meantime.
+	 */
+	for (;;) {
+		gpa = vpap->next_gpa;
+		spin_unlock(&vcpu->arch.vpa_update_lock);
+		va = NULL;
+		nb = 0;
+		if (gpa)
+			va = kvmppc_pin_guest_page(kvm, vpap->next_gpa, &nb);
+		spin_lock(&vcpu->arch.vpa_update_lock);
+		if (gpa == vpap->next_gpa)
+			break;
+		/* sigh... unpin that one and try again */
+		if (va)
+			kvmppc_unpin_guest_page(kvm, va);
+	}
 
 	vpap->update_pending = 0;
-	va = NULL;
-	if (vpap->next_gpa) {
-		va = kvmppc_pin_guest_page(kvm, vpap->next_gpa, &nb);
-		if (nb < vpap->len) {
-			/*
-			 * If it's now too short, it must be that userspace
-			 * has changed the mappings underlying guest memory,
-			 * so unregister the region.
-			 */
-			kvmppc_unpin_guest_page(kvm, va);
-			va = NULL;
-		}
+	if (va && nb < vpap->len) {
+		/*
+		 * If it's now too short, it must be that userspace
+		 * has changed the mappings underlying guest memory,
+		 * so unregister the region.
+		 */
+		kvmppc_unpin_guest_page(kvm, va);
+		va = NULL;
 	}
 	if (vpap->pinned_addr)
 		kvmppc_unpin_guest_page(kvm, vpap->pinned_addr);
@@ -296,20 +317,18 @@ static void kvmppc_update_vpa(struct kvm *kvm, struct kvmppc_vpa *vpap)
 
 static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
 {
-	struct kvm *kvm = vcpu->kvm;
-
 	spin_lock(&vcpu->arch.vpa_update_lock);
 	if (vcpu->arch.vpa.update_pending) {
-		kvmppc_update_vpa(kvm, &vcpu->arch.vpa);
+		kvmppc_update_vpa(vcpu, &vcpu->arch.vpa);
 		init_vpa(vcpu, vcpu->arch.vpa.pinned_addr);
 	}
 	if (vcpu->arch.dtl.update_pending) {
-		kvmppc_update_vpa(kvm, &vcpu->arch.dtl);
+		kvmppc_update_vpa(vcpu, &vcpu->arch.dtl);
 		vcpu->arch.dtl_ptr = vcpu->arch.dtl.pinned_addr;
 		vcpu->arch.dtl_index = 0;
 	}
 	if (vcpu->arch.slb_shadow.update_pending)
-		kvmppc_update_vpa(kvm, &vcpu->arch.slb_shadow);
+		kvmppc_update_vpa(vcpu, &vcpu->arch.slb_shadow);
 	spin_unlock(&vcpu->arch.vpa_update_lock);
 }
 
@@ -800,12 +819,39 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	struct kvm_vcpu *vcpu, *vcpu0, *vnext;
 	long ret;
 	u64 now;
-	int ptid, i;
+	int ptid, i, need_vpa_update;
 
 	/* don't start if any threads have a signal pending */
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
+	need_vpa_update = 0;
+	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 		if (signal_pending(vcpu->arch.run_task))
 			return 0;
+		need_vpa_update |= vcpu->arch.vpa.update_pending |
+			vcpu->arch.slb_shadow.update_pending |
+			vcpu->arch.dtl.update_pending;
+	}
+
+	/*
+	 * Initialize *vc, in particular vc->vcore_state, so we can
+	 * drop the vcore lock if necessary.
+	 */
+	vc->n_woken = 0;
+	vc->nap_count = 0;
+	vc->entry_exit_count = 0;
+	vc->vcore_state = VCORE_RUNNING;
+	vc->in_guest = 0;
+	vc->napping_threads = 0;
+
+	/*
+	 * Updating any of the vpas requires calling kvmppc_pin_guest_page,
+	 * which can't be called with any spinlocks held.
+	 */
+	if (need_vpa_update) {
+		spin_unlock(&vc->lock);
+		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
+			kvmppc_update_vpas(vcpu);
+		spin_lock(&vc->lock);
+	}
 
 	/*
 	 * Make sure we are running on thread 0, and that
@@ -838,20 +884,10 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 		if (vcpu->arch.ceded)
 			vcpu->arch.ptid = ptid++;
 
-	vc->n_woken = 0;
-	vc->nap_count = 0;
-	vc->entry_exit_count = 0;
-	vc->vcore_state = VCORE_RUNNING;
 	vc->stolen_tb += mftb() - vc->preempt_tb;
-	vc->in_guest = 0;
 	vc->pcpu = smp_processor_id();
-	vc->napping_threads = 0;
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 		kvmppc_start_thread(vcpu);
-		if (vcpu->arch.vpa.update_pending ||
-		    vcpu->arch.slb_shadow.update_pending ||
-		    vcpu->arch.dtl.update_pending)
-			kvmppc_update_vpas(vcpu);
 		kvmppc_create_dtl_entry(vcpu, vc);
 	}
 	/* Grab any remaining hw threads so they can't go into the kernel */

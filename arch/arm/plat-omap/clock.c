@@ -461,6 +461,7 @@ static int clk_dbg_show_summary(struct seq_file *s, void *unused)
 	struct clk *c;
 	struct clk *pa;
 
+	mutex_lock(&clocks_mutex);
 	seq_printf(s, "%-30s %-30s %-10s %s\n",
 		"clock-name", "parent-name", "rate", "use-count");
 
@@ -469,6 +470,7 @@ static int clk_dbg_show_summary(struct seq_file *s, void *unused)
 		seq_printf(s, "%-30s %-30s %-10lu %d\n",
 			c->name, pa ? pa->name : "none", c->rate, c->usecount);
 	}
+	mutex_unlock(&clocks_mutex);
 
 	return 0;
 }
