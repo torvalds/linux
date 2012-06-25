@@ -898,7 +898,7 @@ static void docg4_erase_block(struct mtd_info *mtd, int page)
 	write_nop(docptr);
 }
 
-static void write_page(struct mtd_info *mtd, struct nand_chip *nand,
+static int write_page(struct mtd_info *mtd, struct nand_chip *nand,
 		       const uint8_t *buf, bool use_ecc)
 {
 	struct docg4_priv *doc = nand->priv;
@@ -950,15 +950,17 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *nand,
 	write_nop(docptr);
 	writew(0, docptr + DOC_DATAEND);
 	write_nop(docptr);
+
+	return 0;
 }
 
-static void docg4_write_page_raw(struct mtd_info *mtd, struct nand_chip *nand,
+static int docg4_write_page_raw(struct mtd_info *mtd, struct nand_chip *nand,
 				 const uint8_t *buf, int oob_required)
 {
 	return write_page(mtd, nand, buf, false);
 }
 
-static void docg4_write_page(struct mtd_info *mtd, struct nand_chip *nand,
+static int docg4_write_page(struct mtd_info *mtd, struct nand_chip *nand,
 			     const uint8_t *buf, int oob_required)
 {
 	return write_page(mtd, nand, buf, true);
