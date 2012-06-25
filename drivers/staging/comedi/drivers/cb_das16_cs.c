@@ -679,16 +679,6 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 	cur_dev = NULL;
 }
 
-static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
-{
-	return 0;
-}
-
-static int das16cs_pcmcia_resume(struct pcmcia_device *link)
-{
-	return 0;
-}
-
 static const struct pcmcia_device_id das16cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x0039),
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x4009),
@@ -701,8 +691,6 @@ static struct pcmcia_driver das16cs_driver = {
 	.owner		= THIS_MODULE,
 	.probe		= das16cs_pcmcia_attach,
 	.remove		= das16cs_pcmcia_detach,
-	.suspend	= das16cs_pcmcia_suspend,
-	.resume		= das16cs_pcmcia_resume,
 	.id_table	= das16cs_id_table,
 };
 
