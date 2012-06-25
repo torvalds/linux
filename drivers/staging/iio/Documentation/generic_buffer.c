@@ -72,8 +72,7 @@ void print2byte(int input, struct iio_channel_info *info)
 		val &= (1 << info->bits_used) - 1;
 		val = (int16_t)(val << (16 - info->bits_used)) >>
 			(16 - info->bits_used);
-		printf("%05f  ", val,
-		       (float)(val + info->offset)*info->scale);
+		printf("%05f ", ((float)val + info->offset)*info->scale);
 	} else {
 		uint16_t val = input;
 		val &= (1 << info->bits_used) - 1;
