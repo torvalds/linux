@@ -115,7 +115,7 @@ static bool cfhsi_can_send_aggregate(struct cfhsi *cfhsi)
 {
 	int i;
 
-	if (cfhsi->aggregation_timeout < 0)
+	if (cfhsi->aggregation_timeout == 0)
 		return true;
 
 	for (i = 0; i < CFHSI_PRIO_BEBK; ++i) {
