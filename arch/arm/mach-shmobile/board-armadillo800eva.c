@@ -768,12 +768,14 @@ static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
 static struct sh_fsi_platform_info fsi_info = {
 	/* FSI-WM8978 */
 	.port_a = {
+		.tx_id = SHDMA_SLAVE_FSIA_TX,
 	},
 	/* FSI-HDMI */
 	.port_b = {
 		.flags		= SH_FSI_FMT_SPDIF |
 				  SH_FSI_ENABLE_STREAM_MODE,
 		.set_rate	= fsi_hdmi_set_rate,
+		.tx_id		= SHDMA_SLAVE_FSIB_TX,
 	}
 };
 
