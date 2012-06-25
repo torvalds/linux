@@ -170,7 +170,26 @@ struct cfhsi {
 
 	unsigned long bits;
 };
-
 extern struct platform_driver cfhsi_driver;
+
+/**
+ * enum ifla_caif_hsi - CAIF HSI NetlinkRT parameters.
+ * @IFLA_CAIF_HSI_INACTIVITY_TOUT: Inactivity timeout before
+ *			taking the HSI wakeline down, in milliseconds.
+ * When using RT Netlink to create, destroy or configure a CAIF HSI interface,
+ * enum ifla_caif_hsi is used to specify the configuration attributes.
+ */
+enum ifla_caif_hsi {
+	__IFLA_CAIF_HSI_UNSPEC,
+	__IFLA_CAIF_HSI_INACTIVITY_TOUT,
+	__IFLA_CAIF_HSI_AGGREGATION_TOUT,
+	__IFLA_CAIF_HSI_HEAD_ALIGN,
+	__IFLA_CAIF_HSI_TAIL_ALIGN,
+	__IFLA_CAIF_HSI_QHIGH_WATERMARK,
+	__IFLA_CAIF_HSI_QLOW_WATERMARK,
+	__IFLA_CAIF_HSI_MAX
+};
+
+extern struct platform_device *cfhsi_get_device(void);
 
 #endif		/* CAIF_HSI_H_ */

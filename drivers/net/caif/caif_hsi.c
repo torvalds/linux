@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/if_arp.h>
 #include <linux/timer.h>
-#include <linux/rtnetlink.h>
+#include <net/rtnetlink.h>
 #include <linux/pkt_sched.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/caif_hsi.h>
@@ -79,7 +79,6 @@ MODULE_PARM_DESC(hsi_low_threshold, "HSI high threshold (FLOW ON).");
 #define HIGH_WATER_MARK  hsi_high_threshold
 
 static LIST_HEAD(cfhsi_list);
-static spinlock_t cfhsi_list_lock;
 
 static void cfhsi_inactivity_tout(unsigned long arg)
 {
@@ -1148,42 +1147,6 @@ static void cfhsi_setup(struct net_device *dev)
 	cfhsi->ndev = dev;
 }
 
-int cfhsi_probe(struct platform_device *pdev)
-{
-	struct cfhsi *cfhsi = NULL;
-	struct net_device *ndev;
-
-	int res;
-
-	ndev = alloc_netdev(sizeof(struct cfhsi), "cfhsi%d", cfhsi_setup);
-	if (!ndev)
-		return -ENODEV;
-
-	cfhsi = netdev_priv(ndev);
-	cfhsi->ndev = ndev;
-	cfhsi->pdev = pdev;
-
-	/* Assign the HSI device. */
-	cfhsi->dev = pdev->dev.platform_data;
-
-	/* Assign the driver to this HSI device. */
-	cfhsi->dev->drv = &cfhsi->drv;
-
-	/* Register network device. */
-	res = register_netdev(ndev);
-	if (res) {
-		dev_err(&ndev->dev, "%s: Registration error: %d.\n",
-			__func__, res);
-		free_netdev(ndev);
-	}
-	/* Add CAIF HSI device to list. */
-	spin_lock(&cfhsi_list_lock);
-	list_add_tail(&cfhsi->list, &cfhsi_list);
-	spin_unlock(&cfhsi_list_lock);
-
-	return res;
-}
-
 static int cfhsi_open(struct net_device *ndev)
 {
 	struct cfhsi *cfhsi = netdev_priv(ndev);
@@ -1364,85 +1327,170 @@ static int cfhsi_close(struct net_device *ndev)
 	return 0;
 }
 
+static void cfhsi_uninit(struct net_device *dev)
+{
+	struct cfhsi *cfhsi = netdev_priv(dev);
+	ASSERT_RTNL();
+	symbol_put(cfhsi_get_device);
+	list_del(&cfhsi->list);
+}
+
 static const struct net_device_ops cfhsi_ops = {
+	.ndo_uninit = cfhsi_uninit,
 	.ndo_open = cfhsi_open,
 	.ndo_stop = cfhsi_close,
 	.ndo_start_xmit = cfhsi_xmit
 };
 
-int cfhsi_remove(struct platform_device *pdev)
+static void cfhsi_netlink_parms(struct nlattr *data[], struct cfhsi *cfhsi)
 {
-	struct list_head *list_node;
-	struct list_head *n;
-	struct cfhsi *cfhsi = NULL;
-	struct cfhsi_dev *dev;
+	int i;
 
-	dev = (struct cfhsi_dev *)pdev->dev.platform_data;
-	spin_lock(&cfhsi_list_lock);
-	list_for_each_safe(list_node, n, &cfhsi_list) {
-		cfhsi = list_entry(list_node, struct cfhsi, list);
-		/* Find the corresponding device. */
-		if (cfhsi->dev == dev) {
-			/* Remove from list. */
-			list_del(list_node);
-			spin_unlock(&cfhsi_list_lock);
-			return 0;
-		}
+	if (!data) {
+		pr_debug("no params data found\n");
+		return;
 	}
-	spin_unlock(&cfhsi_list_lock);
+
+	i = __IFLA_CAIF_HSI_INACTIVITY_TOUT;
+	if (data[i])
+		inactivity_timeout = nla_get_u32(data[i]);
+
+	i = __IFLA_CAIF_HSI_AGGREGATION_TOUT;
+	if (data[i])
+		aggregation_timeout = nla_get_u32(data[i]);
+
+	i = __IFLA_CAIF_HSI_HEAD_ALIGN;
+	if (data[i])
+		hsi_head_align = nla_get_u32(data[i]);
+
+	i = __IFLA_CAIF_HSI_TAIL_ALIGN;
+	if (data[i])
+		hsi_tail_align = nla_get_u32(data[i]);
+
+	i = __IFLA_CAIF_HSI_QHIGH_WATERMARK;
+	if (data[i])
+		hsi_high_threshold = nla_get_u32(data[i]);
+}
+
+static int caif_hsi_changelink(struct net_device *dev, struct nlattr *tb[],
+				struct nlattr *data[])
+{
+	cfhsi_netlink_parms(data, netdev_priv(dev));
+	netdev_state_change(dev);
+	return 0;
+}
+
+static const struct nla_policy caif_hsi_policy[__IFLA_CAIF_HSI_MAX + 1] = {
+	[__IFLA_CAIF_HSI_INACTIVITY_TOUT] = { .type = NLA_U32, .len = 4 },
+	[__IFLA_CAIF_HSI_AGGREGATION_TOUT] = { .type = NLA_U32, .len = 4 },
+	[__IFLA_CAIF_HSI_HEAD_ALIGN] = { .type = NLA_U32, .len = 4 },
+	[__IFLA_CAIF_HSI_TAIL_ALIGN] = { .type = NLA_U32, .len = 4 },
+	[__IFLA_CAIF_HSI_QHIGH_WATERMARK] = { .type = NLA_U32, .len = 4 },
+	[__IFLA_CAIF_HSI_QLOW_WATERMARK] = { .type = NLA_U32, .len = 4 },
+};
+
+static size_t caif_hsi_get_size(const struct net_device *dev)
+{
+	int i;
+	size_t s = 0;
+	for (i = __IFLA_CAIF_HSI_UNSPEC + 1; i < __IFLA_CAIF_HSI_MAX; i++)
+		s += nla_total_size(caif_hsi_policy[i].len);
+	return s;
+}
+
+static int caif_hsi_fill_info(struct sk_buff *skb, const struct net_device *dev)
+{
+	if (nla_put_u32(skb, __IFLA_CAIF_HSI_INACTIVITY_TOUT,
+			inactivity_timeout) ||
+	    nla_put_u32(skb, __IFLA_CAIF_HSI_AGGREGATION_TOUT,
+			aggregation_timeout) ||
+	    nla_put_u32(skb, __IFLA_CAIF_HSI_HEAD_ALIGN, hsi_head_align) ||
+	    nla_put_u32(skb, __IFLA_CAIF_HSI_TAIL_ALIGN, hsi_tail_align) ||
+	    nla_put_u32(skb, __IFLA_CAIF_HSI_QHIGH_WATERMARK,
+			hsi_high_threshold) ||
+	    nla_put_u32(skb, __IFLA_CAIF_HSI_QLOW_WATERMARK,
+			hsi_low_threshold))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int caif_hsi_newlink(struct net *src_net, struct net_device *dev,
+			  struct nlattr *tb[], struct nlattr *data[])
+{
+	struct cfhsi *cfhsi = NULL;
+	struct platform_device *(*get_dev)(void);
+
+	ASSERT_RTNL();
+
+	cfhsi = netdev_priv(dev);
+	cfhsi_netlink_parms(data, cfhsi);
+	dev_net_set(cfhsi->ndev, src_net);
+
+	get_dev = symbol_get(cfhsi_get_device);
+	if (!get_dev) {
+		pr_err("%s: failed to get the cfhsi device symbol\n", __func__);
+		return -ENODEV;
+	}
+
+	/* Assign the HSI device. */
+	cfhsi->pdev = (*get_dev)();
+	if (!cfhsi->pdev) {
+		pr_err("%s: failed to get the cfhsi device\n", __func__);
+		goto err;
+	}
+
+	/* Assign the HSI device. */
+	cfhsi->dev = cfhsi->pdev->dev.platform_data;
+
+	/* Assign the driver to this HSI device. */
+	cfhsi->dev->drv = &cfhsi->drv;
+
+	if (register_netdevice(dev)) {
+		pr_warn("%s: device rtml registration failed\n", __func__);
+		goto err;
+
+	}
+	/* Add CAIF HSI device to list. */
+	list_add_tail(&cfhsi->list, &cfhsi_list);
+
+	return 0;
+err:
+	symbol_put(cfhsi_get_device);
 	return -ENODEV;
 }
 
-struct platform_driver cfhsi_plat_drv = {
-	.probe = cfhsi_probe,
-	.remove = cfhsi_remove,
-	.driver = {
-		   .name = "cfhsi",
-		   .owner = THIS_MODULE,
-		   },
+static struct rtnl_link_ops caif_hsi_link_ops __read_mostly = {
+	.kind		= "cfhsi",
+	.priv_size	= sizeof(struct cfhsi),
+	.setup		= cfhsi_setup,
+	.maxtype	= __IFLA_CAIF_HSI_MAX,
+	.policy	= caif_hsi_policy,
+	.newlink	= caif_hsi_newlink,
+	.changelink	= caif_hsi_changelink,
+	.get_size	= caif_hsi_get_size,
+	.fill_info	= caif_hsi_fill_info,
 };
 
 static void __exit cfhsi_exit_module(void)
 {
 	struct list_head *list_node;
 	struct list_head *n;
-	struct cfhsi *cfhsi = NULL;
+	struct cfhsi *cfhsi;
 
-	spin_lock(&cfhsi_list_lock);
+	rtnl_link_unregister(&caif_hsi_link_ops);
+
+	rtnl_lock();
 	list_for_each_safe(list_node, n, &cfhsi_list) {
 		cfhsi = list_entry(list_node, struct cfhsi, list);
-
-		/* Remove from list. */
-		list_del(list_node);
-		spin_unlock(&cfhsi_list_lock);
-
-		unregister_netdevice(cfhsi->ndev);
-
-		spin_lock(&cfhsi_list_lock);
+		unregister_netdev(cfhsi->ndev);
 	}
-	spin_unlock(&cfhsi_list_lock);
-
-	/* Unregister platform driver. */
-	platform_driver_unregister(&cfhsi_plat_drv);
+	rtnl_unlock();
 }
 
 static int __init cfhsi_init_module(void)
 {
-	int result;
-
-	/* Initialize spin lock. */
-	spin_lock_init(&cfhsi_list_lock);
-
-	/* Register platform driver. */
-	result = platform_driver_register(&cfhsi_plat_drv);
-	if (result) {
-		printk(KERN_ERR "Could not register platform HSI driver: %d.\n",
-			result);
-		goto err_dev_register;
-	}
-
- err_dev_register:
-	return result;
+	return rtnl_link_register(&caif_hsi_link_ops);
 }
 
 module_init(cfhsi_init_module);
