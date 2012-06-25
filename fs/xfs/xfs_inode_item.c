@@ -505,6 +505,14 @@ xfs_inode_item_push(
 	}
 
 	/*
+	 * Stale inode items should force out the iclog.
+	 */
+	if (ip->i_flags & XFS_ISTALE) {
+		rval = XFS_ITEM_PINNED;
+		goto out_unlock;
+	}
+
+	/*
 	 * Someone else is already flushing the inode.  Nothing we can do
 	 * here but wait for the flush to finish and remove the item from
 	 * the AIL.
@@ -512,15 +520,6 @@ xfs_inode_item_push(
 	if (!xfs_iflock_nowait(ip)) {
 		rval = XFS_ITEM_FLUSHING;
 		goto out_unlock;
-	}
-
-	/*
-	 * Stale inode items should force out the iclog.
-	 */
-	if (ip->i_flags & XFS_ISTALE) {
-		xfs_ifunlock(ip);
-		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-		return XFS_ITEM_PINNED;
 	}
 
 	ASSERT(iip->ili_fields != 0 || XFS_FORCED_SHUTDOWN(ip->i_mount));

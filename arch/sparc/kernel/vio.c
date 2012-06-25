@@ -443,7 +443,7 @@ static int __init vio_init(void)
 	root_vdev = vio_create_one(hp, root, NULL);
 	err = -ENODEV;
 	if (!root_vdev) {
-		printk(KERN_ERR "VIO: Coult not create root device.\n");
+		printk(KERN_ERR "VIO: Could not create root device.\n");
 		goto out_release;
 	}
 

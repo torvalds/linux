@@ -208,7 +208,8 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	 */
 	ret = omap_gem_get_paddr(fbdev->bo, &paddr, true);
 	if (ret) {
-		dev_err(dev->dev, "could not map (paddr)!\n");
+		dev_err(dev->dev,
+			"could not map (paddr)!  Skipping framebuffer alloc\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -388,8 +389,11 @@ void omap_fbdev_free(struct drm_device *dev)
 
 	fbi = helper->fbdev;
 
-	unregister_framebuffer(fbi);
-	framebuffer_release(fbi);
+	/* only cleanup framebuffer if it is present */
+	if (fbi) {
+		unregister_framebuffer(fbi);
+		framebuffer_release(fbi);
+	}
 
 	drm_fb_helper_fini(helper);
 

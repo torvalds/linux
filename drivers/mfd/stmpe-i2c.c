@@ -6,7 +6,7 @@
  *
  * License Terms: GNU General Public License, version 2
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
- * Author: Viresh Kumar <viresh.kumar@st.com> for ST Microelectronics
+ * Author: Viresh Kumar <viresh.linux@gmail.com> for ST Microelectronics
  */
 
 #include <linux/i2c.h>
