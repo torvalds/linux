@@ -801,8 +801,8 @@ static int drbd_check_al_size(struct drbd_conf *mdev)
 static void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_bio_size)
 {
 	struct request_queue * const q = mdev->rq_queue;
-	int max_hw_sectors = max_bio_size >> 9;
-	int max_segments = 0;
+	unsigned int max_hw_sectors = max_bio_size >> 9;
+	unsigned int max_segments = 0;
 
 	if (get_ldev_if_state(mdev, D_ATTACHING)) {
 		struct request_queue * const b = mdev->ldev->backing_bdev->bd_disk->queue;
@@ -835,7 +835,7 @@ static void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_bio_
 
 void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 {
-	int now, new, local, peer;
+	unsigned int now, new, local, peer;
 
 	now = queue_max_hw_sectors(mdev->rq_queue) << 9;
 	local = mdev->local_max_bio_size; /* Eventually last known value, from volatile memory */
@@ -846,13 +846,14 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 		mdev->local_max_bio_size = local;
 		put_ldev(mdev);
 	}
+	local = min(local, DRBD_MAX_BIO_SIZE);
 
 	/* We may ignore peer limits if the peer is modern enough.
 	   Because new from 8.3.8 onwards the peer can use multiple
 	   BIOs for a single peer_request */
 	if (mdev->state.conn >= C_CONNECTED) {
 		if (mdev->agreed_pro_version < 94) {
-			peer = min_t(int, mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+			peer = min(mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
 			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
 		} else if (mdev->agreed_pro_version == 94)
 			peer = DRBD_MAX_SIZE_H80_PACKET;
@@ -860,10 +861,10 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 			peer = DRBD_MAX_BIO_SIZE;
 	}
 
-	new = min_t(int, local, peer);
+	new = min(local, peer);
 
 	if (mdev->state.role == R_PRIMARY && new < now)
-		dev_err(DEV, "ASSERT FAILED new < now; (%d < %d)\n", new, now);
+		dev_err(DEV, "ASSERT FAILED new < now; (%u < %u)\n", new, now);
 
 	if (new != now)
 		dev_info(DEV, "max BIO size = %u\n", new);

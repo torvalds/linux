@@ -2209,7 +2209,8 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 {
 	struct p_sizes p;
 	sector_t d_size, u_size;
-	int q_order_type, max_bio_size;
+	int q_order_type;
+	unsigned int max_bio_size;
 	int ok;
 
 	if (get_ldev_if_state(mdev, D_NEGOTIATING)) {
@@ -2218,7 +2219,7 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 		u_size = mdev->ldev->dc.disk_size;
 		q_order_type = drbd_queue_order_type(mdev);
 		max_bio_size = queue_max_hw_sectors(mdev->ldev->backing_bdev->bd_disk->queue) << 9;
-		max_bio_size = min_t(int, max_bio_size, DRBD_MAX_BIO_SIZE);
+		max_bio_size = min(max_bio_size, DRBD_MAX_BIO_SIZE);
 		put_ldev(mdev);
 	} else {
 		d_size = 0;
@@ -2229,7 +2230,7 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 
 	/* Never allow old drbd (up to 8.3.7) to see more than 32KiB */
 	if (mdev->agreed_pro_version <= 94)
-		max_bio_size = min_t(int, max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+		max_bio_size = min(max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
 
 	p.d_size = cpu_to_be64(d_size);
 	p.u_size = cpu_to_be64(u_size);
@@ -3981,9 +3982,9 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 
 	spin_lock_irq(&mdev->req_lock);
 	if (mdev->state.conn < C_CONNECTED) {
-		int peer;
+		unsigned int peer;
 		peer = be32_to_cpu(buffer->la_peer_max_bio_size);
-		peer = max_t(int, peer, DRBD_MAX_BIO_SIZE_SAFE);
+		peer = max(peer, DRBD_MAX_BIO_SIZE_SAFE);
 		mdev->peer_max_bio_size = peer;
 	}
 	spin_unlock_irq(&mdev->req_lock);
