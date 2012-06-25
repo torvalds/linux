@@ -386,23 +386,23 @@ xfs_sync_worker(
 	 * We shouldn't write/force the log if we are in the mount/unmount
 	 * process or on a read only filesystem. The workqueue still needs to be
 	 * active in both cases, however, because it is used for inode reclaim
-	 * during these times.  Use the s_umount semaphore to provide exclusion
-	 * with unmount.
+	 * during these times.  Use the MS_ACTIVE flag to avoid doing anything
+	 * during mount.  Doing work during unmount is avoided by calling
+	 * cancel_delayed_work_sync on this work queue before tearing down
+	 * the ail and the log in xfs_log_unmount.
 	 */
-	if (down_read_trylock(&mp->m_super->s_umount)) {
-		if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
-			/* dgc: errors ignored here */
-			if (mp->m_super->s_frozen == SB_UNFROZEN &&
-			    xfs_log_need_covered(mp))
-				error = xfs_fs_log_dummy(mp);
-			else
-				xfs_log_force(mp, 0);
+	if (!(mp->m_super->s_flags & MS_ACTIVE) &&
+	    !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		/* dgc: errors ignored here */
+		if (mp->m_super->s_frozen == SB_UNFROZEN &&
+		    xfs_log_need_covered(mp))
+			error = xfs_fs_log_dummy(mp);
+		else
+			xfs_log_force(mp, 0);
 
-			/* start pushing all the metadata that is currently
-			 * dirty */
-			xfs_ail_push_all(mp->m_ail);
-		}
-		up_read(&mp->m_super->s_umount);
+		/* start pushing all the metadata that is currently
+		 * dirty */
+		xfs_ail_push_all(mp->m_ail);
 	}
 
 	/* queue us up again */
