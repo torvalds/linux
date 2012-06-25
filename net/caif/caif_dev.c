@@ -128,6 +128,11 @@ void caif_flow_cb(struct sk_buff *skb)
 
 	rcu_read_lock();
 	caifd = caif_get(skb->dev);
+
+	WARN_ON(caifd == NULL);
+	if (caifd == NULL)
+		return;
+
 	caifd_hold(caifd);
 	rcu_read_unlock();
 
