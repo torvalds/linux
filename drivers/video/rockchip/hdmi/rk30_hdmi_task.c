@@ -86,7 +86,7 @@ void hdmi_sys_remove(void)
 	#ifdef CONFIG_SWITCH
 	switch_set_state(&(hdmi->switch_hdmi), 0);
 	#endif
-	#if CONFIG_HDMI_RK30_CTL_CODEC
+	#ifdef CONFIG_HDMI_RK30_CTL_CODEC
 	codec_set_spk(1);
 	#endif
 }
@@ -184,7 +184,6 @@ void hdmi_work(struct work_struct *work)
 	if(hotplug != hdmi->hotplug)
 	{
 		if(hotplug  == HDMI_HPD_ACTIVED){
-			hdmi->hotplug  = hotplug;
 			hdmi->state = READ_PARSE_EDID;
 		}
 		else if(hdmi->hotplug == HDMI_HPD_ACTIVED) {
@@ -207,6 +206,7 @@ void hdmi_work(struct work_struct *work)
 			hdmi->state = HDMI_SLEEP;
 			rk30_hdmi_removed();
 		}
+		hdmi->hotplug  = hotplug;
 	}
 	else if(hotplug == HDMI_HPD_REMOVED)
 		hdmi_sys_sleep();
@@ -245,12 +245,17 @@ void hdmi_work(struct work_struct *work)
 				video.input_mode = VIDEO_INPUT_RGB_YCBCR_444;
 				video.input_color = VIDEO_INPUT_COLOR_RGB;//VIDEO_INPUT_COLOR_YCBCR
 				video.output_mode = hdmi->edid.sink_hdmi;
+				
 				if(hdmi->edid.ycbcr444)
 					video.output_color = VIDEO_OUTPUT_YCBCR444;
 				else if(hdmi->edid.ycbcr422)
 					video.output_color = VIDEO_OUTPUT_YCBCR422;
 				else
 					video.output_color = VIDEO_OUTPUT_RGB444;
+				// For DVI, output RGB
+				if(hdmi->edid.sink_hdmi == 0)
+					video.output_color = VIDEO_OUTPUT_RGB444;
+				
 				rc = rk30_hdmi_config_video(&video);
 				if(rc == HDMI_ERROR_SUCESS)
 				{

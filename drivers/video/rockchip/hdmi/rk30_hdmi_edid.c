@@ -218,7 +218,7 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf, struct hdmi_edid *
 	pedid->ycbcr444 = (buf[3] >> 5) & 0x01;
 	pedid->ycbcr422 = (buf[3] >> 4) & 0x01;
 	native_dtd_num = buf[3] & 0x0F;
-	hdmi_edid_debug("[EDID-CEA] ddc_offset %d underscan_support %d baseaudio_support %d yuv_support %d native_dtd_num %d\n", ddc_offset, underscan_support, baseaudio_support, yuv_support, native_dtd_num);
+//	hdmi_edid_debug("[EDID-CEA] ddc_offset %d underscan_support %d baseaudio_support %d yuv_support %d native_dtd_num %d\n", ddc_offset, underscan_support, baseaudio_support, yuv_support, native_dtd_num);
 	// Parse data block
 	while(cur_offset < ddc_offset)
 	{

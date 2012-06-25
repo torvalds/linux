@@ -114,10 +114,10 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 			ret = 0;
 			
 			hdmi_dbg(hdmi->dev, "[%s] edid read sucess\n", __FUNCTION__);
-#if 0
+#ifdef HDMI_DEBUG
 			for(value = 0; value < 128; value++) {
 				printk("%02x ,", buff[value]);
-				if( (value + 1) % 8 == 0)
+				if( (value + 1) % 16 == 0)
 					printk("\n");
 			}
 #endif
@@ -376,10 +376,15 @@ int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara)
 		return -ENOENT;
 	}
 	hdmi->tmdsclk = mode->pixclock;
-	value = v_EXT_VIDEO_ENABLE(1) | v_INTERLACE(mode->vmode);
+
+	if( (vpara->vic == HDMI_720x480p_60Hz_4_3) || (vpara->vic == HDMI_720x480p_60Hz_16_9) )
+		value = v_VSYNC_OFFSET(6);
+	else
+		value = v_VSYNC_OFFSET(0);
+	value |= v_EXT_VIDEO_ENABLE(1) | v_INTERLACE(mode->vmode);
 	if(mode->sync & FB_SYNC_HOR_HIGH_ACT)
 		value |= v_HSYNC_POLARITY(1);
-	if(mode->sync | FB_SYNC_VERT_HIGH_ACT)
+	if(mode->sync & FB_SYNC_VERT_HIGH_ACT)
 		value |= v_VSYNC_POLARITY(1);
 	HDMIWrReg(EXT_VIDEO_PARA, value);
 	value = mode->left_margin + mode->xres + mode->right_margin + mode->hsync_len;
@@ -405,7 +410,11 @@ int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara)
 	value = mode->upper_margin + mode->vsync_len + mode->lower_margin;
 	HDMIWrReg(EXT_VIDEO_PARA_VBLANK_L, value & 0xFF);
 	
-	value = mode->upper_margin + mode->vsync_len;
+	if(vpara->vic == HDMI_720x480p_60Hz_4_3 || vpara->vic == HDMI_720x480p_60Hz_16_9)
+		value = 42;
+	else
+		value = mode->upper_margin + mode->vsync_len;
+
 	HDMIWrReg(EXT_VIDEO_PARA_VDELAY, value & 0xFF);
 	
 	value = mode->vsync_len;
@@ -494,28 +503,28 @@ int rk30_hdmi_config_audio(struct hdmi_audio *audio)
 			hdmi_err(hdmi->dev, "[%s] not support such sample rate %d\n", __FUNCTION__, audio->rate);
 			return -ENOENT;
 	}
-	switch(audio->word_length)
-	{
-		case HDMI_AUDIO_WORD_LENGTH_16bit:
-			word_length = 0x02;
-			break;
-		case HDMI_AUDIO_WORD_LENGTH_20bit:
-			word_length = 0x0a;
-			break;
-		case HDMI_AUDIO_WORD_LENGTH_24bit:
-			word_length = 0x0b;
-			break;
-		default:
-			hdmi_err(hdmi->dev, "[%s] not support such word length %d\n", __FUNCTION__, audio->word_length);
-			return -ENOENT;
-	}
+//	switch(audio->word_length)
+//	{
+//		case HDMI_AUDIO_WORD_LENGTH_16bit:
+//			word_length = 0x02;
+//			break;
+//		case HDMI_AUDIO_WORD_LENGTH_20bit:
+//			word_length = 0x0a;
+//			break;
+//		case HDMI_AUDIO_WORD_LENGTH_24bit:
+//			word_length = 0x0b;
+//			break;
+//		default:
+//			hdmi_err(hdmi->dev, "[%s] not support such word length %d\n", __FUNCTION__, audio->word_length);
+//			return -ENOENT;
+//	}
 	//set_audio_if I2S
 	HDMIWrReg(AUDIO_CTRL1, 0x00); //internal CTS, disable down sample, i2s input, disable MCLK
 	HDMIWrReg(AUDIO_CTRL2, 0x40); 
 	HDMIWrReg(I2S_AUDIO_CTRL, v_I2S_MODE(I2S_MODE_STANDARD) | v_I2S_CHANNEL(channel) );	
 	HDMIWrReg(I2S_INPUT_SWAP, 0x00); //no swap
 	HDMIMskReg(value, AV_CTRL1, m_AUDIO_SAMPLE_RATE, v_AUDIO_SAMPLE_RATE(rate))	
-	HDMIWrReg(SRC_NUM_AUDIO_LEN, word_length);
+//	HDMIWrReg(SRC_NUM_AUDIO_LEN, word_length);
 		
     //Set N value 6144, fs=48kHz
     HDMIWrReg(N_1, N & 0xFF);

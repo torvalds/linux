@@ -48,7 +48,7 @@ static int hdmi_set_enable(struct rk_display_device *device, int enable)
 static int hdmi_get_status(struct rk_display_device *device)
 {
 	struct hdmi *hdmi = device->priv_data;
-	if(hdmi->hotplug > HDMI_HPD_REMOVED)
+	if(hdmi->hotplug == HDMI_HPD_ACTIVED)
 		return 1;
 	else
 		return 0;
