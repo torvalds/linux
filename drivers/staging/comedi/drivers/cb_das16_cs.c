@@ -629,8 +629,6 @@ static int das16cs_timer_insn_config(struct comedi_device *dev,
 
 ======================================================================*/
 
-#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
-
 static void das16cs_pcmcia_config(struct pcmcia_device *link);
 static void das16cs_pcmcia_release(struct pcmcia_device *link);
 static int das16cs_pcmcia_suspend(struct pcmcia_device *p_dev);
@@ -813,18 +811,3 @@ void __exit cleanup_module(void)
 	exit_das16cs_pcmcia_cs();
 	comedi_driver_unregister(&driver_das16cs);
 }
-
-#else
-static int __init driver_das16cs_init_module(void)
-{
-	return comedi_driver_register(&driver_das16cs);
-}
-
-static void __exit driver_das16cs_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_das16cs);
-}
-
-module_init(driver_das16cs_init_module);
-module_exit(driver_das16cs_cleanup_module);
-#endif /* CONFIG_PCMCIA */
