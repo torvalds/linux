@@ -680,12 +680,11 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 			if (desc_pld_len < 0)
 				goto out_of_sync;
 
-			if (desc_pld_len > 0)
+			if (desc_pld_len > 0) {
 				rx_len = desc_pld_len;
-
-			if (desc_pld_len > 0 &&
-					(piggy_desc->header & CFHSI_PIGGY_DESC))
-				rx_len += CFHSI_DESC_SZ;
+				if (piggy_desc->header & CFHSI_PIGGY_DESC)
+					rx_len += CFHSI_DESC_SZ;
+			}
 
 			/*
 			 * Copy needed information from the piggy-backed
@@ -695,8 +694,6 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 					CFHSI_DESC_SHORT_SZ);
 			/* Mark no embedded frame here */
 			piggy_desc->offset = 0;
-			if (desc_pld_len == -EPROTO)
-				goto out_of_sync;
 		}
 	}
 
