@@ -545,9 +545,6 @@ struct ata_host {
 	struct mutex		eh_mutex;
 	struct task_struct	*eh_owner;
 
-#ifdef CONFIG_ATA_ACPI
-	acpi_handle		acpi_handle;
-#endif
 	struct ata_port		*simplex_claimed;	/* channel owning the DMA */
 	struct ata_port		*ports[0];
 };
@@ -615,7 +612,6 @@ struct ata_device {
 	struct scsi_device	*sdev;		/* attached SCSI device */
 	void			*private_data;
 #ifdef CONFIG_ATA_ACPI
-	acpi_handle		acpi_handle;
 	union acpi_object	*gtf_cache;
 	unsigned int		gtf_filter;
 #endif
@@ -797,7 +793,6 @@ struct ata_port {
 	void			*private_data;
 
 #ifdef CONFIG_ATA_ACPI
-	acpi_handle		acpi_handle;
 	struct ata_acpi_gtm	__acpi_init_gtm; /* use ata_acpi_init_gtm() */
 #endif
 	/* owned by EH */
@@ -1114,6 +1109,8 @@ int ata_acpi_stm(struct ata_port *ap, const struct ata_acpi_gtm *stm);
 int ata_acpi_gtm(struct ata_port *ap, struct ata_acpi_gtm *stm);
 unsigned long ata_acpi_gtm_xfermask(struct ata_device *dev,
 				    const struct ata_acpi_gtm *gtm);
+acpi_handle ata_ap_acpi_handle(struct ata_port *ap);
+acpi_handle ata_dev_acpi_handle(struct ata_device *dev);
 int ata_acpi_cbl_80wire(struct ata_port *ap, const struct ata_acpi_gtm *gtm);
 #else
 static inline const struct ata_acpi_gtm *ata_acpi_init_gtm(struct ata_port *ap)
