@@ -231,7 +231,7 @@
 #define PPC_RFDI		stringify_in_c(.long PPC_INST_RFDI)
 #define PPC_RFMCI		stringify_in_c(.long PPC_INST_RFMCI)
 #define PPC_TLBILX(t, a, b)	stringify_in_c(.long PPC_INST_TLBILX | \
-					__PPC_T_TLB(t) | __PPC_RA(a) | __PPC_RB(b))
+					__PPC_T_TLB(t) | __PPC_RA0(a) | __PPC_RB(b))
 #define PPC_TLBILX_ALL(a, b)	PPC_TLBILX(0, a, b)
 #define PPC_TLBILX_PID(a, b)	PPC_TLBILX(1, a, b)
 #define PPC_TLBILX_VA(a, b)	PPC_TLBILX(3, a, b)
@@ -240,23 +240,23 @@
 #define PPC_TLBIE(lp,a) 	stringify_in_c(.long PPC_INST_TLBIE | \
 					       ___PPC_RB(a) | ___PPC_RS(lp))
 #define PPC_TLBSRX_DOT(a,b)	stringify_in_c(.long PPC_INST_TLBSRX_DOT | \
-					__PPC_RA(a) | __PPC_RB(b))
+					__PPC_RA0(a) | __PPC_RB(b))
 #define PPC_TLBIVAX(a,b)	stringify_in_c(.long PPC_INST_TLBIVAX | \
-					__PPC_RA(a) | __PPC_RB(b))
+					__PPC_RA0(a) | __PPC_RB(b))
 
 #define PPC_ERATWE(s, a, w)	stringify_in_c(.long PPC_INST_ERATWE | \
 					__PPC_RS(s) | __PPC_RA(a) | __PPC_WS(w))
 #define PPC_ERATRE(s, a, w)	stringify_in_c(.long PPC_INST_ERATRE | \
 					__PPC_RS(s) | __PPC_RA(a) | __PPC_WS(w))
 #define PPC_ERATILX(t, a, b)	stringify_in_c(.long PPC_INST_ERATILX | \
-					__PPC_T_TLB(t) | __PPC_RA(a) | \
+					__PPC_T_TLB(t) | __PPC_RA0(a) | \
 					__PPC_RB(b))
 #define PPC_ERATIVAX(s, a, b)	stringify_in_c(.long PPC_INST_ERATIVAX | \
-					__PPC_RS(s) | __PPC_RA(a) | __PPC_RB(b))
+					__PPC_RS(s) | __PPC_RA0(a) | __PPC_RB(b))
 #define PPC_ERATSX(t, a, w)	stringify_in_c(.long PPC_INST_ERATSX | \
-					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
+					__PPC_RS(t) | __PPC_RA0(a) | __PPC_RB(b))
 #define PPC_ERATSX_DOT(t, a, w)	stringify_in_c(.long PPC_INST_ERATSX_DOT | \
-					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
+					__PPC_RS(t) | __PPC_RA0(a) | __PPC_RB(b))
 #define PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE | \
 					__PPC_RT(t) | __PPC_RB(b))
 /* PASemi instructions */

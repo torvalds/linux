@@ -112,7 +112,7 @@ _icswx_skip_guest:
 	 * a bolted entry though it will be in LRU and so will go away eventually
 	 * but let's not bother for now
 	 */
-	PPC_ERATILX(0,R0,R0)
+	PPC_ERATILX(0,0,R0)
 1:
 	blr
 
