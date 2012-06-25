@@ -37,7 +37,6 @@
 
 #define LONGBYTES		(BITS_PER_LONG / 8)
 
-#define VCPU_GPR(n)     	(VCPU_GPRS + (n * LONGBYTES))
 #define VCPU_GUEST_SPRG(n)	(VCPU_GUEST_SPRGS + (n * LONGBYTES))
 
 /* The host stack layout: */

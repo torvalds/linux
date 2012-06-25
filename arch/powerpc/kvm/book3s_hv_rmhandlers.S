@@ -72,9 +72,6 @@ _GLOBAL(kvmppc_hv_entry_trampoline)
 	mtsrr1	r6
 	RFI
 
-#define ULONG_SIZE 		8
-#define VCPU_GPR(n)		(VCPU_GPRS + (n * ULONG_SIZE))
-
 /******************************************************************************
  *                                                                            *
  *                               Entry code                                   *

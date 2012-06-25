@@ -178,6 +178,13 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define HMT_HIGH	or	3,3,3
 #define HMT_EXTRA_HIGH	or	7,7,7		# power7 only
 
+#ifdef CONFIG_PPC64
+#define ULONG_SIZE 	8
+#else
+#define ULONG_SIZE	4
+#endif
+#define VCPU_GPR(n)	(VCPU_GPRS + (n * ULONG_SIZE))
+
 #ifdef __KERNEL__
 #ifdef CONFIG_PPC64
 

@@ -25,19 +25,11 @@
 #include <asm/exception-64s.h>
 
 #if defined(CONFIG_PPC_BOOK3S_64)
-
-#define ULONG_SIZE 		8
 #define FUNC(name) 		GLUE(.,name)
-
 #elif defined(CONFIG_PPC_BOOK3S_32)
-
-#define ULONG_SIZE              4
 #define FUNC(name)		name
-
 #endif /* CONFIG_PPC_BOOK3S_XX */
 
-
-#define VCPU_GPR(n)		(VCPU_GPRS + (n * ULONG_SIZE))
 #define VCPU_LOAD_NVGPRS(vcpu) \
 	PPC_LL	r14, VCPU_GPR(R14)(vcpu); \
 	PPC_LL	r15, VCPU_GPR(R15)(vcpu); \

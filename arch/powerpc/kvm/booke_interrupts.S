@@ -25,8 +25,6 @@
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
 
-#define VCPU_GPR(n)     (VCPU_GPRS + (n * 4))
-
 /* The host stack layout: */
 #define HOST_R1         0 /* Implied by stwu. */
 #define HOST_CALLEE_LR  4
