@@ -314,6 +314,8 @@ out_err:
 	dprintk("NFS: Couldn't create callback socket or server thread; "
 		"err = %d\n", ret);
 	cb_info->users--;
+	if (serv)
+		svc_shutdown_net(serv, net);
 	goto out;
 }
 
@@ -328,6 +330,7 @@ void nfs_callback_down(int minorversion)
 	cb_info->users--;
 	if (cb_info->users == 0 && cb_info->task != NULL) {
 		kthread_stop(cb_info->task);
+		svc_shutdown_net(cb_info->serv, current->nsproxy->net_ns);
 		svc_exit_thread(cb_info->rqst);
 		cb_info->serv = NULL;
 		cb_info->rqst = NULL;
