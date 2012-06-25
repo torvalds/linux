@@ -16,6 +16,7 @@
 #include <linux/libata.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <scsi/scsi_device.h>
 #include "libata.h"
 
@@ -853,6 +854,7 @@ void ata_acpi_set_state(struct ata_port *ap, pm_message_t state)
 {
 	struct ata_device *dev;
 	acpi_handle handle;
+	int acpi_state;
 
 	/* channel first and then drives for power on and vica versa
 	   for power off */
@@ -862,10 +864,23 @@ void ata_acpi_set_state(struct ata_port *ap, pm_message_t state)
 
 	ata_for_each_dev(dev, &ap->link, ENABLED) {
 		handle = ata_dev_acpi_handle(dev);
-		if (handle)
-			acpi_bus_set_power(handle,
-				state.event == PM_EVENT_ON ?
-					ACPI_STATE_D0 : ACPI_STATE_D3);
+		if (!handle)
+			continue;
+
+		if (state.event != PM_EVENT_ON) {
+			acpi_state = acpi_pm_device_sleep_state(
+				&dev->sdev->sdev_gendev, NULL);
+			if (acpi_state > 0)
+				acpi_bus_set_power(handle, acpi_state);
+			/* TBD: need to check if it's runtime pm request */
+			acpi_pm_device_run_wake(
+				&dev->sdev->sdev_gendev, true);
+		} else {
+			/* Ditto */
+			acpi_pm_device_run_wake(
+				&dev->sdev->sdev_gendev, false);
+			acpi_bus_set_power(handle, ACPI_STATE_D0);
+		}
 	}
 
 	handle = ata_ap_acpi_handle(ap);
@@ -963,6 +978,61 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 void ata_acpi_on_disable(struct ata_device *dev)
 {
 	ata_acpi_clear_gtf(dev);
+}
+
+static void ata_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
+{
+	struct ata_device *ata_dev = context;
+
+	if (event == ACPI_NOTIFY_DEVICE_WAKE && ata_dev &&
+			pm_runtime_suspended(&ata_dev->sdev->sdev_gendev))
+		scsi_autopm_get_device(ata_dev->sdev);
+}
+
+static void ata_acpi_add_pm_notifier(struct ata_device *dev)
+{
+	struct acpi_device *acpi_dev;
+	acpi_handle handle;
+	acpi_status status;
+
+	handle = ata_dev_acpi_handle(dev);
+	if (!handle)
+		return;
+
+	status = acpi_bus_get_device(handle, &acpi_dev);
+	if (ACPI_SUCCESS(status)) {
+		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+			ata_acpi_wake_dev, dev);
+		device_set_run_wake(&dev->sdev->sdev_gendev, true);
+	}
+}
+
+static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
+{
+	struct acpi_device *acpi_dev;
+	acpi_handle handle;
+	acpi_status status;
+
+	handle = ata_dev_acpi_handle(dev);
+	if (!handle)
+		return;
+
+	status = acpi_bus_get_device(handle, &acpi_dev);
+	if (ACPI_SUCCESS(status)) {
+		device_set_run_wake(&dev->sdev->sdev_gendev, false);
+		acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+			ata_acpi_wake_dev);
+	}
+}
+
+void ata_acpi_bind(struct ata_device *dev)
+{
+	ata_acpi_add_pm_notifier(dev);
+}
+
+void ata_acpi_unbind(struct ata_device *dev)
+{
+	ata_acpi_remove_pm_notifier(dev);
 }
 
 static int compat_pci_ata(struct ata_port *ap)

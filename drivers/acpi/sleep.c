@@ -795,6 +795,7 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p)
 		*d_min_p = d_min;
 	return d_max;
 }
+EXPORT_SYMBOL(acpi_pm_device_sleep_state);
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
@@ -831,6 +832,7 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 
 	return 0;
 }
+EXPORT_SYMBOL(acpi_pm_device_run_wake);
 
 /**
  *	acpi_pm_device_sleep_wake - enable or disable the system wake-up
