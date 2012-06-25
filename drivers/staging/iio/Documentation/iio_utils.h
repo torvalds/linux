@@ -157,7 +157,8 @@ inline int iioutils_get_type(unsigned *is_signed,
 				     &padint, shift);
 			if (ret < 0) {
 				printf("failed to pass scan type description\n");
-				return ret;
+				ret = -errno;
+				goto error_close_sysfsfp;
 			}
 			*be = (endianchar == 'b');
 			*bytes = padint / 8;
@@ -173,7 +174,11 @@ inline int iioutils_get_type(unsigned *is_signed,
 			free(filename);
 
 			filename = 0;
+			sysfsfp = 0;
 		}
+error_close_sysfsfp:
+	if (sysfsfp)
+		fclose(sysfsfp);
 error_free_filename:
 	if (filename)
 		free(filename);
