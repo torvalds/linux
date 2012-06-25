@@ -637,7 +637,10 @@ cifs_do_mount(struct file_system_type *fs_type,
 	mnt_data.cifs_sb = cifs_sb;
 	mnt_data.flags = flags;
 
-	sb = sget(fs_type, cifs_match_super, cifs_set_super, &mnt_data);
+	/* BB should we make this contingent on mount parm? */
+	flags |= MS_NODIRATIME | MS_NOATIME;
+
+	sb = sget(fs_type, cifs_match_super, cifs_set_super, flags, &mnt_data);
 	if (IS_ERR(sb)) {
 		root = ERR_CAST(sb);
 		cifs_umount(cifs_sb);
@@ -648,10 +651,6 @@ cifs_do_mount(struct file_system_type *fs_type,
 		cFYI(1, "Use existing superblock");
 		cifs_umount(cifs_sb);
 	} else {
-		sb->s_flags = flags;
-		/* BB should we make this contingent on mount parm? */
-		sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
-
 		rc = cifs_read_super(sb);
 		if (rc) {
 			root = ERR_PTR(rc);
