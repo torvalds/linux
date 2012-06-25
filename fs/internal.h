@@ -42,6 +42,11 @@ static inline int __sync_blockdev(struct block_device *bdev, int wait)
 extern void __init chrdev_init(void);
 
 /*
+ * namei.c
+ */
+extern int __inode_permission(struct inode *, int);
+
+/*
  * namespace.c
  */
 extern int copy_mount_options(const void __user *, unsigned long *);
