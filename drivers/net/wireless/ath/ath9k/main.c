@@ -19,7 +19,7 @@
 #include "ath9k.h"
 #include "btcoex.h"
 
-static u8 parse_mpdudensity(u8 mpdudensity)
+u8 ath9k_parse_mpdudensity(u8 mpdudensity)
 {
 	/*
 	 * 802.11n D2.0 defined values for "Minimum MPDU Start Spacing":
@@ -320,6 +320,7 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 			    struct ieee80211_vif *vif)
 {
 	struct ath_node *an;
+	u8 density;
 	an = (struct ath_node *)sta->drv_priv;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
@@ -334,7 +335,8 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 		ath_tx_node_init(sc, an);
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 				     sta->ht_cap.ampdu_factor);
-		an->mpdudensity = parse_mpdudensity(sta->ht_cap.ampdu_density);
+		density = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
+		an->mpdudensity = density;
 	}
 }
 
