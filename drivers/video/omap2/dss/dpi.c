@@ -131,8 +131,6 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	unsigned long pck;
 	int r = 0;
 
-	dispc_mgr_set_pol_freq(dssdev->manager->id, dssdev->panel.config);
-
 	if (dpi_use_dsi_pll(dssdev))
 		r = dpi_set_dsi_clk(dssdev, t->pixel_clock * 1000, &fck,
 				&lck_div, &pck_div);
