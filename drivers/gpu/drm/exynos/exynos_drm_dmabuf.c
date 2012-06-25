@@ -86,6 +86,10 @@ static struct sg_table *
 	npages = buf->size / buf->page_size;
 
 	sgt = exynos_pages_to_sg(buf->pages, npages, buf->page_size);
+	if (!sgt) {
+		DRM_DEBUG_PRIME("exynos_pages_to_sg returned NULL!\n");
+		goto err_unlock;
+	}
 	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir);
 
 	DRM_DEBUG_PRIME("npages = %d buffer size = 0x%lx page_size = 0x%lx\n",
