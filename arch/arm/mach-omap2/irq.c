@@ -261,7 +261,7 @@ int __init omap_intc_of_init(struct device_node *node,
 			     struct device_node *parent)
 {
 	struct resource res;
-	u32 nr_irqs = 96;
+	u32 nr_irq = 96;
 
 	if (WARN_ON(!node))
 		return -ENODEV;
@@ -271,10 +271,10 @@ int __init omap_intc_of_init(struct device_node *node,
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(node, "ti,intc-size", &nr_irqs))
-		pr_warn("unable to get intc-size, default to %d\n", nr_irqs);
+	if (of_property_read_u32(node, "ti,intc-size", &nr_irq))
+		pr_warn("unable to get intc-size, default to %d\n", nr_irq);
 
-	omap_init_irq(res.start, nr_irqs, of_node_get(node));
+	omap_init_irq(res.start, nr_irq, of_node_get(node));
 
 	return 0;
 }

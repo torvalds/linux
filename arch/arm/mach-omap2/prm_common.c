@@ -85,7 +85,7 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 	unsigned long priority_pending[OMAP_PRCM_MAX_NR_PENDING_REG];
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int virtirq;
-	int nr_irqs = prcm_irq_setup->nr_regs * 32;
+	int nr_irq = prcm_irq_setup->nr_regs * 32;
 
 	/*
 	 * If we are suspended, mask all interrupts from PRCM level,
@@ -110,7 +110,7 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 		prcm_irq_setup->read_pending_irqs(pending);
 
 		/* No bit set, then all IRQs are handled */
-		if (find_first_bit(pending, nr_irqs) >= nr_irqs)
+		if (find_first_bit(pending, nr_irq) >= nr_irq)
 			break;
 
 		omap_prcm_events_filter_priority(pending, priority_pending);
@@ -121,11 +121,11 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 		 */
 
 		/* Serve priority events first */
-		for_each_set_bit(virtirq, priority_pending, nr_irqs)
+		for_each_set_bit(virtirq, priority_pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 
 		/* Serve normal events next */
-		for_each_set_bit(virtirq, pending, nr_irqs)
+		for_each_set_bit(virtirq, pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 	}
 	if (chip->irq_ack)
