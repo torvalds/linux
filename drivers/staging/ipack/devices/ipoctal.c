@@ -299,7 +299,7 @@ static int ipoctal_irq_handler(void *arg)
 				ipoctal->nb_bytes[channel] = 0;
 				continue;
 			}
-			spin_lock(&ipoctal->lock[channel]);
+
 			value = ipoctal->tty_port[channel].xmit_buf[*pointer_write];
 			ipoctal_write_io_reg(ipoctal,
 					     &ipoctal->chan_regs[channel].u.w.thr,
@@ -309,7 +309,6 @@ static int ipoctal_irq_handler(void *arg)
 			(*pointer_write)++;
 			*pointer_write = *pointer_write % PAGE_SIZE;
 			ipoctal->nb_bytes[channel]--;
-			spin_unlock(&ipoctal->lock[channel]);
 
 			if ((ipoctal->nb_bytes[channel] == 0) &&
 			    (waitqueue_active(&ipoctal->queue[channel]))) {
