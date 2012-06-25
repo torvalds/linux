@@ -1612,6 +1612,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 		rdp->n_force_qs_snap = rsp->n_force_qs;
 	} else if (rdp->qlen < rdp->qlen_last_fqs_check - qhimark)
 		rdp->qlen_last_fqs_check = rdp->qlen;
+	WARN_ON_ONCE((rdp->nxtlist == NULL) != (rdp->qlen == 0));
 
 	local_irq_restore(flags);
 
