@@ -203,32 +203,6 @@
  * amixer set "HPOUTR Mixer DACH" on
  */
 
-/*
- * FIXME !!
- *
- * gpio_no_direction
- * gpio_pull_down
- * are quick_hack.
- *
- * current gpio frame work doesn't have
- * the method to control only pull up/down/free.
- * this function should be replaced by correct gpio function
- */
-static void __init gpio_no_direction(u32 addr)
-{
-	__raw_writeb(0x00, addr);
-}
-
-static void __init gpio_pull_down(u32 addr)
-{
-	u8 data = __raw_readb(addr);
-
-	data &= 0x0F;
-	data |= 0xA0;
-
-	__raw_writeb(data, addr);
-}
-
 /* MTD */
 static struct mtd_partition nor_flash_partitions[] = {
 	{
@@ -1458,11 +1432,11 @@ static void __init mackerel_init(void)
 
 	/* USBHS0 */
 	gpio_request(GPIO_FN_VBUS0_0, NULL);
-	gpio_pull_down(GPIO_PORT168CR); /* VBUS0_0 pull down */
+	gpio_request_pulldown(GPIO_PORT168CR); /* VBUS0_0 pull down */
 
 	/* USBHS1 */
 	gpio_request(GPIO_FN_VBUS0_1, NULL);
-	gpio_pull_down(GPIO_PORT167CR); /* VBUS0_1 pull down */
+	gpio_request_pulldown(GPIO_PORT167CR); /* VBUS0_1 pull down */
 	gpio_request(GPIO_FN_IDIN_1_113, NULL);
 
 	/* enable FSI2 port A (ak4643) */
@@ -1475,8 +1449,8 @@ static void __init mackerel_init(void)
 
 	gpio_request(GPIO_PORT9,  NULL);
 	gpio_request(GPIO_PORT10, NULL);
-	gpio_no_direction(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
-	gpio_no_direction(GPIO_PORT10CR); /* FSIAOLR needs no direction */
+	gpio_direction_none(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
+	gpio_direction_none(GPIO_PORT10CR); /* FSIAOLR needs no direction */
 
 	intc_set_priority(IRQ_FSI, 3); /* irq priority FSI(3) > SMSC911X(2) */
 
