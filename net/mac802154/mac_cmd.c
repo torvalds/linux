@@ -43,3 +43,7 @@ struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
 struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced = {
 	.get_phy = mac802154_get_phy,
 };
+
+struct ieee802154_mlme_ops mac802154_mlme_wpan = {
+	.get_phy = mac802154_get_phy,
+};

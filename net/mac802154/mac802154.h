@@ -93,12 +93,16 @@ struct mac802154_sub_if_data {
 #define MAC802154_CHAN_NONE		(~(u8)0) /* No channel is assigned */
 
 extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
+extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
 int mac802154_slave_open(struct net_device *dev);
 int mac802154_slave_close(struct net_device *dev);
 
 void mac802154_monitors_rx(struct mac802154_priv *priv, struct sk_buff *skb);
 void mac802154_monitor_setup(struct net_device *dev);
+
+void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb);
+void mac802154_wpan_setup(struct net_device *dev);
 
 netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 			 u8 page, u8 chan);
