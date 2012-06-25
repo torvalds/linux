@@ -38,7 +38,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <asm/system.h>
+#include <asm/system_info.h>
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
 
