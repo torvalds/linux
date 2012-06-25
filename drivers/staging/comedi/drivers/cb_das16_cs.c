@@ -623,11 +623,6 @@ static int das16cs_timer_insn_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
-struct local_info_t {
-	struct pcmcia_device *link;
-	struct bus_operations *bus;
-};
-
 static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
@@ -639,15 +634,7 @@ static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
-	struct local_info_t *local;
 	int ret;
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-	local->link = link;
-	link->priv = local;
 
 	/* Do we need to allocate an interrupt? */
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
@@ -674,8 +661,6 @@ failed:
 static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 {
 	pcmcia_disable_device(link);
-	/* This points to the parent struct local_info_t struct */
-	kfree(link->priv);
 	cur_dev = NULL;
 }
 
