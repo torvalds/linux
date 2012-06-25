@@ -80,8 +80,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	/* 15.5.9.1.2 */
 	dssdev->panel.config |= OMAP_DSS_LCD_RF | OMAP_DSS_LCD_ONOFF;
 
-	dispc_mgr_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
-			dssdev->panel.acbi, dssdev->panel.acb);
+	dispc_mgr_set_pol_freq(dssdev->manager->id, dssdev->panel.config);
 
 	r = dss_calc_clock_div(t->pixel_clock * 1000, &dss_cinfo, &dispc_cinfo);
 	if (r)

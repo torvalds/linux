@@ -416,7 +416,6 @@ static int picodlp_panel_probe(struct omap_dss_device *dssdev)
 
 	dssdev->panel.config = OMAP_DSS_LCD_ONOFF | OMAP_DSS_LCD_IHS |
 				OMAP_DSS_LCD_IVS;
-	dssdev->panel.acb = 0x0;
 	dssdev->panel.timings = pico_ls_timings;
 
 	picod =  kzalloc(sizeof(struct picodlp_data), GFP_KERNEL);

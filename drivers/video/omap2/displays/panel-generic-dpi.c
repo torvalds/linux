@@ -40,10 +40,6 @@
 struct panel_config {
 	struct omap_video_timings timings;
 
-	int acbi;	/* ac-bias pin transitions per interrupt */
-	/* Unit: line clocks */
-	int acb;	/* ac-bias pin frequency */
-
 	enum omap_panel_config config;
 
 	int power_on_delay;
@@ -74,8 +70,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 3,
 			.vbp		= 2,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
 						OMAP_DSS_LCD_IEO,
 		.power_on_delay		= 50,
@@ -99,8 +93,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 1,
 			.vbp		= 1,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x28,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 50,
 		.power_off_delay	= 100,
@@ -123,8 +115,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 2,
 			.vbp		= 2,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
 						OMAP_DSS_LCD_IPC |
 						OMAP_DSS_LCD_ONOFF,
@@ -149,8 +139,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 10,
 			.vbp		= 12 - 10,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
@@ -173,8 +161,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 4,
 			.vbp		= 11,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
@@ -197,8 +183,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 2,
 			.vbp		= 2,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
 						OMAP_DSS_LCD_IEO,
 		.power_on_delay		= 0,
@@ -222,8 +206,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 12,
 			.vbp		= 25,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x28,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
@@ -325,8 +307,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 1,
 			.vbp		= 1,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
 						OMAP_DSS_LCD_IPC,
 		.power_on_delay		= 0,
@@ -369,7 +349,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 12,
 			.vbp		= 23,
 		},
-		.acb			= 0x0,
 		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
 						OMAP_DSS_LCD_IEO,
 
@@ -562,8 +541,6 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 
 	dssdev->panel.config = panel_config->config;
 	dssdev->panel.timings = panel_config->timings;
-	dssdev->panel.acb = panel_config->acb;
-	dssdev->panel.acbi = panel_config->acbi;
 
 	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)

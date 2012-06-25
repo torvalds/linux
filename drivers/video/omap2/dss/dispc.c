@@ -3117,13 +3117,12 @@ static void dispc_dump_regs(struct seq_file *s)
 }
 
 static void _dispc_mgr_set_pol_freq(enum omap_channel channel, bool onoff,
-		bool rf, bool ieo, bool ipc, bool ihs, bool ivs, u8 acbi,
-		u8 acb)
+		bool rf, bool ieo, bool ipc, bool ihs, bool ivs)
 {
 	u32 l = 0;
 
-	DSSDBG("onoff %d rf %d ieo %d ipc %d ihs %d ivs %d acbi %d acb %d\n",
-			onoff, rf, ieo, ipc, ihs, ivs, acbi, acb);
+	DSSDBG("onoff %d rf %d ieo %d ipc %d ihs %d ivs %d\n",
+			onoff, rf, ieo, ipc, ihs, ivs);
 
 	l |= FLD_VAL(onoff, 17, 17);
 	l |= FLD_VAL(rf, 16, 16);
@@ -3131,22 +3130,19 @@ static void _dispc_mgr_set_pol_freq(enum omap_channel channel, bool onoff,
 	l |= FLD_VAL(ipc, 14, 14);
 	l |= FLD_VAL(ihs, 13, 13);
 	l |= FLD_VAL(ivs, 12, 12);
-	l |= FLD_VAL(acbi, 11, 8);
-	l |= FLD_VAL(acb, 7, 0);
 
 	dispc_write_reg(DISPC_POL_FREQ(channel), l);
 }
 
 void dispc_mgr_set_pol_freq(enum omap_channel channel,
-		enum omap_panel_config config, u8 acbi, u8 acb)
+		enum omap_panel_config config)
 {
 	_dispc_mgr_set_pol_freq(channel, (config & OMAP_DSS_LCD_ONOFF) != 0,
 			(config & OMAP_DSS_LCD_RF) != 0,
 			(config & OMAP_DSS_LCD_IEO) != 0,
 			(config & OMAP_DSS_LCD_IPC) != 0,
 			(config & OMAP_DSS_LCD_IHS) != 0,
-			(config & OMAP_DSS_LCD_IVS) != 0,
-			acbi, acb);
+			(config & OMAP_DSS_LCD_IVS) != 0);
 }
 
 /* with fck as input clock rate, find dispc dividers that produce req_pck */
