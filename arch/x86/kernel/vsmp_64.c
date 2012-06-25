@@ -208,10 +208,9 @@ static int apicid_phys_pkg_id(int initial_apic_id, int index_msb)
  * In vSMP, all cpus should be capable of handling interrupts, regardless of
  * the APIC used.
  */
-static bool fill_vector_allocation_domain(int cpu, struct cpumask *retmask)
+static void fill_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	cpumask_setall(retmask);
-	return false;
 }
 
 static void vsmp_apic_post_init(void)
