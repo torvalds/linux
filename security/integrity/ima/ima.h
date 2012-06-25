@@ -61,10 +61,19 @@ struct ima_queue_entry {
 };
 extern struct list_head ima_measurements;	/* list of all measurements */
 
+#ifdef CONFIG_IMA_AUDIT
 /* declarations */
 void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int info);
+#else
+static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
+				       const unsigned char *fname,
+				       const char *op, const char *cause,
+				       int result, int info)
+{
+}
+#endif
 
 /* Internal IMA function definitions */
 int ima_init(void);
