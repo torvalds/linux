@@ -2437,6 +2437,7 @@ start_ieee80211:
 	err = ieee80211_register_hw(wl->hw);
 	if (err)
 		goto err_one_core_detach;
+	wl->hw_registred = true;
 	b43_leds_register(wl->current_dev);
 	goto out;
 
@@ -3766,7 +3767,7 @@ static int b43_switch_band(struct b43_wl *wl, struct ieee80211_channel *chan)
 	if (prev_status >= B43_STAT_STARTED) {
 		err = b43_wireless_core_start(up_dev);
 		if (err) {
-			b43err(wl, "Fatal: Coult not start device for "
+			b43err(wl, "Fatal: Could not start device for "
 			       "selected %s-GHz band\n",
 			       band_to_string(chan->band));
 			b43_wireless_core_exit(up_dev);
@@ -5299,6 +5300,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 
 	hw->queues = modparam_qos ? B43_QOS_QUEUE_NUM : 1;
 	wl->mac80211_initially_registered_queues = hw->queues;
+	wl->hw_registred = false;
 	hw->max_rates = 2;
 	SET_IEEE80211_DEV(hw, dev->dev);
 	if (is_valid_ether_addr(sprom->et1mac))
@@ -5370,12 +5372,15 @@ static void b43_bcma_remove(struct bcma_device *core)
 	 * as the ieee80211 unreg will destroy the workqueue. */
 	cancel_work_sync(&wldev->restart_work);
 
-	/* Restore the queues count before unregistering, because firmware detect
-	 * might have modified it. Restoring is important, so the networking
-	 * stack can properly free resources. */
-	wl->hw->queues = wl->mac80211_initially_registered_queues;
-	b43_leds_stop(wldev);
-	ieee80211_unregister_hw(wl->hw);
+	B43_WARN_ON(!wl);
+	if (wl->current_dev == wldev && wl->hw_registred) {
+		/* Restore the queues count before unregistering, because firmware detect
+		 * might have modified it. Restoring is important, so the networking
+		 * stack can properly free resources. */
+		wl->hw->queues = wl->mac80211_initially_registered_queues;
+		b43_leds_stop(wldev);
+		ieee80211_unregister_hw(wl->hw);
+	}
 
 	b43_one_core_detach(wldev->dev);
 
@@ -5446,7 +5451,7 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 	cancel_work_sync(&wldev->restart_work);
 
 	B43_WARN_ON(!wl);
-	if (wl->current_dev == wldev) {
+	if (wl->current_dev == wldev && wl->hw_registred) {
 		/* Restore the queues count before unregistering, because firmware detect
 		 * might have modified it. Restoring is important, so the networking
 		 * stack can properly free resources. */

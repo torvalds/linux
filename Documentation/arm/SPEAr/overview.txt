@@ -60,4 +60,4 @@ Introduction
   Document Author
   ---------------
 
-  Viresh Kumar <viresh.kumar@st.com>, (c) 2010-2012 ST Microelectronics
+  Viresh Kumar <viresh.linux@gmail.com>, (c) 2010-2012 ST Microelectronics

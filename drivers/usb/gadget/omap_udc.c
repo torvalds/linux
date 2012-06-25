@@ -153,7 +153,7 @@ static int omap_ep_enable(struct usb_ep *_ep,
 	u16		maxp;
 
 	/* catch various bogus parameters */
-	if (!_ep || !desc || ep->ep.desc
+	if (!_ep || !desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
 			|| ep->maxpacket < usb_endpoint_maxp(desc)) {

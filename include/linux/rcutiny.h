@@ -87,8 +87,9 @@ static inline void kfree_call_rcu(struct rcu_head *head,
 
 #ifdef CONFIG_TINY_RCU
 
-static inline int rcu_needs_cpu(int cpu)
+static inline int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
 {
+	*delta_jiffies = ULONG_MAX;
 	return 0;
 }
 
@@ -96,8 +97,9 @@ static inline int rcu_needs_cpu(int cpu)
 
 int rcu_preempt_needs_cpu(void);
 
-static inline int rcu_needs_cpu(int cpu)
+static inline int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
 {
+	*delta_jiffies = ULONG_MAX;
 	return rcu_preempt_needs_cpu();
 }
 

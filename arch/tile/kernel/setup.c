@@ -29,6 +29,7 @@
 #include <linux/smp.h>
 #include <linux/timex.h>
 #include <linux/hugetlb.h>
+#include <linux/start_kernel.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>

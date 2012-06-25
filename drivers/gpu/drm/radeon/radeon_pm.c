@@ -801,9 +801,13 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 		int i;
 
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-			not_processed += radeon_fence_count_emitted(rdev, i);
-			if (not_processed >= 3)
-				break;
+			struct radeon_ring *ring = &rdev->ring[i];
+
+			if (ring->ready) {
+				not_processed += radeon_fence_count_emitted(rdev, i);
+				if (not_processed >= 3)
+					break;
+			}
 		}
 
 		if (not_processed >= 3) { /* should upclock */
