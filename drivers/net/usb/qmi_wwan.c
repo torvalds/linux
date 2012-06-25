@@ -129,7 +129,6 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct usb_interface_descriptor *desc = &intf->cur_altsetting->desc;
 	struct usb_cdc_union_desc *cdc_union = NULL;
 	struct usb_cdc_ether_desc *cdc_ether = NULL;
-	u32 required = 1 << USB_CDC_HEADER_TYPE | 1 << USB_CDC_UNION_TYPE;
 	u32 found = 0;
 	struct usb_driver *driver = driver_of(intf);
 	struct qmi_wwan_state *info = (void *)&dev->data;
@@ -197,7 +196,8 @@ next_desc:
 	}
 
 	/* did we find all the required ones? */
-	if ((found & required) != required) {
+	if (!(found & (1 << USB_CDC_HEADER_TYPE)) ||
+	    !(found & (1 << USB_CDC_UNION_TYPE))) {
 		dev_err(&intf->dev, "CDC functional descriptors missing\n");
 		goto err;
 	}
