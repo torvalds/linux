@@ -140,6 +140,8 @@
 #define PPC_INST_NEG			0x7c0000d0
 #define PPC_INST_BRANCH			0x48000000
 #define PPC_INST_BRANCH_COND		0x40800000
+#define PPC_INST_LBZCIX			0x7c0006aa
+#define PPC_INST_STBCIX			0x7c0007aa
 
 /* macros to insert fields into opcodes */
 #define __PPC_RA(a)	(((a) & 0x1f) << 16)
@@ -219,6 +221,11 @@
 					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
 #define PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE | \
 					__PPC_RT(t) | __PPC_RB(b))
+/* PASemi instructions */
+#define LBZCIX(t,a,b)		stringify_in_c(.long PPC_INST_LBZCIX | \
+				       __PPC_RT(t) | __PPC_RA(a) | __PPC_RB(b))
+#define STBCIX(s,a,b)		stringify_in_c(.long PPC_INST_STBCIX | \
+				       __PPC_RS(s) | __PPC_RA(a) | __PPC_RB(b))
 
 /*
  * Define what the VSX XX1 form instructions will look like, then add
