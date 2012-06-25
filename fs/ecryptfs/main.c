@@ -681,11 +681,6 @@ static struct ecryptfs_cache_info {
 		.name = "ecryptfs_key_tfm_cache",
 		.size = sizeof(struct ecryptfs_key_tfm),
 	},
-	{
-		.cache = &ecryptfs_open_req_cache,
-		.name = "ecryptfs_open_req_cache",
-		.size = sizeof(struct ecryptfs_open_req),
-	},
 };
 
 static void ecryptfs_free_kmem_caches(void)
