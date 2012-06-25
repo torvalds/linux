@@ -390,6 +390,9 @@ struct wl1271 {
 
 	/* sleep auth value currently configured to FW */
 	int sleep_auth;
+
+	/* the minimum FW version required for the driver to work */
+	unsigned int min_fw_ver[NUM_FW_VER];
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
@@ -406,6 +409,18 @@ wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
 		  struct ieee80211_sta_ht_cap *ht_cap)
 {
 	memcpy(&wl->ht_cap[band], ht_cap, sizeof(*ht_cap));
+}
+
+static inline void
+wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
+		      unsigned int iftype, unsigned int major,
+		      unsigned int subtype, unsigned int minor)
+{
+	wl->min_fw_ver[FW_VER_CHIP] = chip;
+	wl->min_fw_ver[FW_VER_IF_TYPE] = iftype;
+	wl->min_fw_ver[FW_VER_MAJOR] = major;
+	wl->min_fw_ver[FW_VER_SUBTYPE] = subtype;
+	wl->min_fw_ver[FW_VER_MINOR] = minor;
 }
 
 /* Firmware image load chunk size */

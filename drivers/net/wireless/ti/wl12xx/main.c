@@ -646,6 +646,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		/* read data preparation is only needed by wl127x */
 		wl->ops->prepare_read = wl127x_prepare_read;
 
+		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER, WL127X_IFTYPE_VER,
+				      WL127X_MAJOR_VER, WL127X_SUBTYPE_VER,
+				      WL127X_MINOR_VER);
 		break;
 
 	case CHIP_ID_1271_PG20:
@@ -663,6 +666,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		/* read data preparation is only needed by wl127x */
 		wl->ops->prepare_read = wl127x_prepare_read;
 
+		wlcore_set_min_fw_ver(wl, WL127X_CHIP_VER, WL127X_IFTYPE_VER,
+				      WL127X_MAJOR_VER, WL127X_SUBTYPE_VER,
+				      WL127X_MINOR_VER);
 		break;
 
 	case CHIP_ID_1283_PG20:
@@ -676,6 +682,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl->quirks |= WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_TKIP_HEADER_SPACE;
 
+		wlcore_set_min_fw_ver(wl, WL128X_CHIP_VER, WL128X_IFTYPE_VER,
+				      WL128X_MAJOR_VER, WL128X_SUBTYPE_VER,
+				      WL128X_MINOR_VER);
 		break;
 	case CHIP_ID_1283_PG10:
 	default:
