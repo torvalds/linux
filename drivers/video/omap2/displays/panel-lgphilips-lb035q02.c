@@ -40,6 +40,12 @@ static struct omap_video_timings lb035q02_timings = {
 	.vsw		= 2,
 	.vfp		= 4,
 	.vbp		= 18,
+
+	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 };
 
 static int lb035q02_panel_power_on(struct omap_dss_device *dssdev)

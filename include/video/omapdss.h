@@ -130,6 +130,17 @@ enum omap_panel_config {
 	OMAP_DSS_LCD_ONOFF		= 1<<5,
 };
 
+enum omap_dss_signal_level {
+	OMAPDSS_SIG_ACTIVE_HIGH	= 0,
+	OMAPDSS_SIG_ACTIVE_LOW	= 1,
+};
+
+enum omap_dss_signal_edge {
+	OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+	OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+};
+
 enum omap_dss_venc_type {
 	OMAP_DSS_VENC_TYPE_COMPOSITE,
 	OMAP_DSS_VENC_TYPE_SVIDEO,
@@ -337,6 +348,17 @@ struct omap_video_timings {
 	u16 vfp;	/* Vertical front porch */
 	/* Unit: line clocks */
 	u16 vbp;	/* Vertical back porch */
+
+	/* Vsync logic level */
+	enum omap_dss_signal_level vsync_level;
+	/* Hsync logic level */
+	enum omap_dss_signal_level hsync_level;
+	/* Pixel clock edge to drive LCD data */
+	enum omap_dss_signal_edge data_pclk_edge;
+	/* Data enable logic level */
+	enum omap_dss_signal_level de_level;
+	/* Pixel clock edges to drive HSYNC and VSYNC signals */
+	enum omap_dss_signal_edge sync_pclk_edge;
 };
 
 #ifdef CONFIG_OMAP2_DSS_VENC

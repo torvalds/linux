@@ -69,6 +69,12 @@ static struct omap_video_timings pico_ls_timings = {
 	.vsw		= 2,
 	.vfp		= 3,
 	.vbp		= 14,
+
+	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 };
 
 static inline struct picodlp_panel_data
