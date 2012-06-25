@@ -324,6 +324,12 @@ int lockd_up(struct net *net)
 		goto out;
 	}
 
+	error = svc_bind(serv, net);
+	if (error < 0) {
+		printk(KERN_WARNING "lockd_up: bind service failed\n");
+		goto destroy_and_out;
+	}
+
 	error = make_socks(serv, net);
 	if (error < 0)
 		goto destroy_and_out;
