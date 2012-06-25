@@ -295,14 +295,14 @@ n:
  */
 #ifdef __powerpc64__
 #define LOAD_REG_IMMEDIATE(reg,expr)		\
-	lis     (reg),(expr)@highest;		\
-	ori     (reg),(reg),(expr)@higher;	\
-	rldicr  (reg),(reg),32,31;		\
-	oris    (reg),(reg),(expr)@h;		\
-	ori     (reg),(reg),(expr)@l;
+	lis     reg,(expr)@highest;		\
+	ori     reg,reg,(expr)@higher;	\
+	rldicr  reg,reg,32,31;		\
+	oris    reg,reg,(expr)@h;		\
+	ori     reg,reg,(expr)@l;
 
 #define LOAD_REG_ADDR(reg,name)			\
-	ld	(reg),name@got(r2)
+	ld	reg,name@got(r2)
 
 #define LOAD_REG_ADDRBASE(reg,name)	LOAD_REG_ADDR(reg,name)
 #define ADDROFF(name)			0
@@ -313,12 +313,12 @@ n:
 #else /* 32-bit */
 
 #define LOAD_REG_IMMEDIATE(reg,expr)		\
-	lis	(reg),(expr)@ha;		\
-	addi	(reg),(reg),(expr)@l;
+	lis	reg,(expr)@ha;		\
+	addi	reg,reg,(expr)@l;
 
 #define LOAD_REG_ADDR(reg,name)		LOAD_REG_IMMEDIATE(reg, name)
 
-#define LOAD_REG_ADDRBASE(reg, name)	lis	(reg),name@ha
+#define LOAD_REG_ADDRBASE(reg, name)	lis	reg,name@ha
 #define ADDROFF(name)			name@l
 
 /* offsets for stack frame layout */
