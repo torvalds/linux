@@ -193,8 +193,8 @@ config RADIO_CADET
 
 config RADIO_LM7000
 	tristate
-	depends on RADIO_RTRACK || RADIO_SF16FMI
-	default RADIO_RTRACK || RADIO_SF16FMI
+	depends on RADIO_RTRACK
+	default RADIO_RTRACK
 
 config RADIO_RTRACK
 	tristate "AIMSlab RadioTrack (aka RadioReveal) support"
@@ -328,7 +328,6 @@ config RADIO_MIROPCM20
 config RADIO_SF16FMI
 	tristate "SF16-FMI/SF16-FMP/SF16-FMD Radio"
 	depends on ISA && VIDEO_V4L2
-	select RADIO_LM7000
 	---help---
 	  Choose Y here if you have one of these FM radio cards.
 
