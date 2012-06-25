@@ -29,6 +29,7 @@
 #include <string.h>
 #include <poll.h>
 #include <endian.h>
+#include <inttypes.h>
 #include "iio_utils.h"
 
 /**
@@ -111,7 +112,7 @@ void process_scan(char *data,
 				/* special case for timestamp */
 				if (channels[k].scale == 1.0f &&
 				    channels[k].offset == 0.0f)
-					printf(" %lld", val);
+					printf("%" PRId64 " ", val);
 				else
 					printf("%05f ", ((float)val +
 							 channels[k].offset)*
