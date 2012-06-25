@@ -46,7 +46,6 @@ struct ipoctal {
 	struct scc2698_channel		*chan_regs;
 	struct scc2698_block		*block_regs;
 	struct ipoctal_stats		chan_stats[NR_CHANNELS];
-	char				*buffer[NR_CHANNELS];
 	unsigned int			nb_bytes[NR_CHANNELS];
 	unsigned int			count_wr[NR_CHANNELS];
 	wait_queue_head_t		queue[NR_CHANNELS];
@@ -305,7 +304,7 @@ static int ipoctal_irq_handler(void *arg)
 				continue;
 			}
 			spin_lock(&ipoctal->lock[channel]);
-			value = ipoctal->buffer[channel][*pointer_write];
+			value = ipoctal->tty_port[channel].xmit_buf[*pointer_write];
 			ipoctal_write_io_reg(ipoctal,
 					     &ipoctal->chan_regs[channel].u.w.thr,
 					     value);
