@@ -255,12 +255,17 @@ int cgroup_lock_is_held(void)
 
 EXPORT_SYMBOL_GPL(cgroup_lock_is_held);
 
+static int css_unbias_refcnt(int refcnt)
+{
+	return refcnt >= 0 ? refcnt : refcnt - CSS_DEACT_BIAS;
+}
+
 /* the current nr of refs, always >= 0 whether @css is deactivated or not */
 static int css_refcnt(struct cgroup_subsys_state *css)
 {
 	int v = atomic_read(&css->refcnt);
 
-	return v >= 0 ? v : v - CSS_DEACT_BIAS;
+	return css_unbias_refcnt(v);
 }
 
 /* convenient tests for these bits */
@@ -4982,10 +4987,12 @@ EXPORT_SYMBOL_GPL(__css_tryget);
 void __css_put(struct cgroup_subsys_state *css)
 {
 	struct cgroup *cgrp = css->cgroup;
+	int v;
 
 	rcu_read_lock();
-	atomic_dec(&css->refcnt);
-	switch (css_refcnt(css)) {
+	v = css_unbias_refcnt(atomic_dec_return(&css->refcnt));
+
+	switch (v) {
 	case 1:
 		if (notify_on_release(cgrp)) {
 			set_bit(CGRP_RELEASABLE, &cgrp->flags);

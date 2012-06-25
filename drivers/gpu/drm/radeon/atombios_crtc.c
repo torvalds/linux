@@ -1149,7 +1149,9 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	if (tiling_flags & RADEON_TILING_MACRO) {
-		if (rdev->family >= CHIP_CAYMAN)
+		if (rdev->family >= CHIP_TAHITI)
+			tmp = rdev->config.si.tile_config;
+		else if (rdev->family >= CHIP_CAYMAN)
 			tmp = rdev->config.cayman.tile_config;
 		else
 			tmp = rdev->config.evergreen.tile_config;
@@ -1176,6 +1178,12 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= EVERGREEN_GRPH_MACRO_TILE_ASPECT(mtaspect);
 	} else if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
+
+	if ((rdev->family == CHIP_TAHITI) ||
+	    (rdev->family == CHIP_PITCAIRN))
+		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P8_32x32_8x16);
+	else if (rdev->family == CHIP_VERDE)
+		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P4_8x16);
 
 	switch (radeon_crtc->crtc_id) {
 	case 0:

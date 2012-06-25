@@ -169,11 +169,17 @@ struct dma_buf *radeon_gem_prime_export(struct drm_device *dev,
 	struct radeon_bo *bo = gem_to_radeon_bo(obj);
 	int ret = 0;
 
-	/* pin buffer into GTT */
-	ret = radeon_bo_pin(bo, RADEON_GEM_DOMAIN_GTT, NULL);
-	if (ret)
+	ret = radeon_bo_reserve(bo, false);
+	if (unlikely(ret != 0))
 		return ERR_PTR(ret);
 
+	/* pin buffer into GTT */
+	ret = radeon_bo_pin(bo, RADEON_GEM_DOMAIN_GTT, NULL);
+	if (ret) {
+		radeon_bo_unreserve(bo);
+		return ERR_PTR(ret);
+	}
+	radeon_bo_unreserve(bo);
 	return dma_buf_export(bo, &radeon_dmabuf_ops, obj->size, flags);
 }
 

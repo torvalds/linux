@@ -140,4 +140,18 @@
 #define atmci_writel(port,reg,value)			\
 	__raw_writel((value), (port)->regs + reg)
 
+/*
+ * Fix sconfig's burst size according to atmel MCI. We need to convert them as:
+ * 1 -> 0, 4 -> 1, 8 -> 2, 16 -> 3.
+ *
+ * This can be done by finding most significant bit set.
+ */
+static inline unsigned int atmci_convert_chksize(unsigned int maxburst)
+{
+	if (maxburst > 1)
+		return fls(maxburst) - 2;
+	else
+		return 0;
+}
+
 #endif /* __DRIVERS_MMC_ATMEL_MCI_H__ */

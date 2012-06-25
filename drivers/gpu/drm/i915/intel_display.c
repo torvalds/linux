@@ -6558,7 +6558,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(HDMIC) & PORT_DETECTED)
 			intel_hdmi_init(dev, HDMIC);
 
-		if (I915_READ(HDMID) & PORT_DETECTED)
+		if (!dpd_is_edp && I915_READ(HDMID) & PORT_DETECTED)
 			intel_hdmi_init(dev, HDMID);
 
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
