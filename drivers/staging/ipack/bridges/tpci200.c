@@ -302,12 +302,9 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 {
 	struct tpci200_board *tpci200 = (struct tpci200_board *) dev_id;
 	int i;
-	unsigned long flags;
 	unsigned short status_reg, reg_value;
 	unsigned short unhandled_ints = 0;
 	irqreturn_t ret = IRQ_NONE;
-
-	spin_lock_irqsave(&tpci200->info->access_lock, flags);
 
 	/* Read status register */
 	status_reg = readw(tpci200->info->interface_regs +
@@ -351,7 +348,6 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 		}
 	}
 
-	spin_unlock_irqrestore(&tpci200->info->access_lock, flags);
 	return ret;
 }
 
@@ -414,7 +410,6 @@ static int tpci200_register(struct tpci200_board *tpci200)
 					   TPCI200_MEM8_SPACE_BAR),
 			TPCI200_MEM8_SIZE);
 
-	spin_lock_init(&tpci200->info->access_lock);
 	ioidint_base = pci_resource_start(tpci200->info->pdev,
 					  TPCI200_IO_ID_INT_SPACES_BAR);
 	mem_base = pci_resource_start(tpci200->info->pdev,
