@@ -859,6 +859,33 @@ static void rfbi_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
+static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
+{
+	struct dss_lcd_mgr_config mgr_config;
+
+	mgr_config.io_pad_mode = DSS_IO_PAD_MODE_RFBI;
+
+	mgr_config.stallmode = true;
+	/* Do we need fifohandcheck for RFBI? */
+	mgr_config.fifohandcheck = false;
+
+	mgr_config.video_port_width = dssdev->ctrl.pixel_size;
+	mgr_config.lcden_sig_polarity = 0;
+
+	dispc_mgr_set_io_pad_mode(mgr_config.io_pad_mode);
+
+	dispc_mgr_enable_stallmode(dssdev->manager->id, mgr_config.stallmode);
+	dispc_mgr_enable_fifohandcheck(dssdev->manager->id,
+			mgr_config.fifohandcheck);
+
+	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
+			mgr_config.video_port_width);
+
+	dispc_lcd_enable_signal_polarity(mgr_config.lcden_sig_polarity);
+
+	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
+}
+
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r;
@@ -885,12 +912,7 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 		goto err1;
 	}
 
-	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
-
-	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_RFBI);
-	dispc_mgr_enable_stallmode(dssdev->manager->id, true);
-
-	dispc_mgr_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
+	rfbi_config_lcd_manager(dssdev);
 
 	rfbi_configure(dssdev->phy.rfbi.channel,
 			       dssdev->ctrl.pixel_size,
