@@ -332,7 +332,7 @@ _GLOBAL(do_lxvd2x)
 	beq	cr7,1f
 	STXVD2X(0,R1,R8)
 1:	li	r9,-EFAULT
-2:	LXVD2X(0,0,R4)
+2:	LXVD2X(0,R0,R4)
 	li	r9,0
 3:	beq	cr7,4f
 	bl	put_vsr
@@ -361,7 +361,7 @@ _GLOBAL(do_stxvd2x)
 	STXVD2X(0,R1,R8)
 	bl	get_vsr
 1:	li	r9,-EFAULT
-2:	STXVD2X(0,0,R4)
+2:	STXVD2X(0,R0,R4)
 	li	r9,0
 3:	beq	cr7,4f
 	LXVD2X(0,R1,R8)
