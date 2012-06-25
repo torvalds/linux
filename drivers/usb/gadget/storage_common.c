@@ -878,7 +878,6 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	if (count > 0 && buf[count-1] == '\n')
 		((char *) buf)[count-1] = 0;		/* Ugh! */
 
-
 	/* Load new medium */
 	down_write(filesem);
 	if (count > 0 && buf[0]) {
