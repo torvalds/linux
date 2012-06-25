@@ -1138,21 +1138,6 @@ static void __init fsi_init_pm_clock(void)
 	clk_put(fsia_ick);
 }
 
-/*
- * FIXME !!
- *
- * gpio_no_direction
- * are quick_hack.
- *
- * current gpio frame work doesn't have
- * the method to control only pull up/down/free.
- * this function should be replaced by correct gpio function
- */
-static void __init gpio_no_direction(u32 addr)
-{
-	__raw_writeb(0x00, addr);
-}
-
 /* TouchScreen */
 #ifdef CONFIG_AP4EVB_QHD
 # define GPIO_TSC_IRQ	GPIO_FN_IRQ28_123
@@ -1302,8 +1287,8 @@ static void __init ap4evb_init(void)
 
 	gpio_request(GPIO_PORT9, NULL);
 	gpio_request(GPIO_PORT10, NULL);
-	gpio_no_direction(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
-	gpio_no_direction(GPIO_PORT10CR); /* FSIAOLR needs no direction */
+	gpio_direction_none(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
+	gpio_direction_none(GPIO_PORT10CR); /* FSIAOLR needs no direction */
 
 	/* card detect pin for MMC slot (CN7) */
 	gpio_request(GPIO_PORT41, NULL);
