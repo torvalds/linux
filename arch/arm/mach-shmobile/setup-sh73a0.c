@@ -30,6 +30,7 @@
 #include <linux/sh_dma.h>
 #include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
+#include <mach/dma-register.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/sh73a0.h>
@@ -415,32 +416,6 @@ static struct platform_device i2c4_device = {
 	.num_resources	= ARRAY_SIZE(i2c4_resources),
 };
 
-/* Transmit sizes and respective CHCR register values */
-enum {
-	XMIT_SZ_8BIT		= 0,
-	XMIT_SZ_16BIT		= 1,
-	XMIT_SZ_32BIT		= 2,
-	XMIT_SZ_64BIT		= 7,
-	XMIT_SZ_128BIT		= 3,
-	XMIT_SZ_256BIT		= 4,
-	XMIT_SZ_512BIT		= 5,
-};
-
-/* log2(size / 8) - used to calculate number of transfers */
-#define TS_SHIFT {			\
-	[XMIT_SZ_8BIT]		= 0,	\
-	[XMIT_SZ_16BIT]		= 1,	\
-	[XMIT_SZ_32BIT]		= 2,	\
-	[XMIT_SZ_64BIT]		= 3,	\
-	[XMIT_SZ_128BIT]	= 4,	\
-	[XMIT_SZ_256BIT]	= 5,	\
-	[XMIT_SZ_512BIT]	= 6,	\
-}
-
-#define TS_INDEX2VAL(i) ((((i) & 3) << 3) | (((i) & 0xc) << (20 - 2)))
-#define CHCR_TX(xmit_sz) (DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL((xmit_sz)))
-#define CHCR_RX(xmit_sz) (DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL((xmit_sz)))
-
 static const struct sh_dmae_slave_config sh73a0_dmae_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_SCIF0_TX,
@@ -604,19 +579,17 @@ static const struct sh_dmae_channel sh73a0_dmae_channels[] = {
 	DMAE_CHANNEL(0x8980),
 };
 
-static const unsigned int ts_shift[] = TS_SHIFT;
-
 static struct sh_dmae_pdata sh73a0_dmae_platform_data = {
 	.slave          = sh73a0_dmae_slaves,
 	.slave_num      = ARRAY_SIZE(sh73a0_dmae_slaves),
 	.channel        = sh73a0_dmae_channels,
 	.channel_num    = ARRAY_SIZE(sh73a0_dmae_channels),
-	.ts_low_shift   = 3,
-	.ts_low_mask    = 0x18,
-	.ts_high_shift  = (20 - 2),     /* 2 bits for shifted low TS */
-	.ts_high_mask   = 0x00300000,
-	.ts_shift       = ts_shift,
-	.ts_shift_num   = ARRAY_SIZE(ts_shift),
+	.ts_low_shift   = TS_LOW_SHIFT,
+	.ts_low_mask    = TS_LOW_BIT << TS_LOW_SHIFT,
+	.ts_high_shift  = TS_HI_SHIFT,
+	.ts_high_mask   = TS_HI_BIT << TS_HI_SHIFT,
+	.ts_shift       = dma_ts_shift,
+	.ts_shift_num   = ARRAY_SIZE(dma_ts_shift),
 	.dmaor_init     = DMAOR_DME,
 };
 
@@ -713,12 +686,12 @@ static struct sh_dmae_pdata sh73a0_mpdma_platform_data = {
 	.slave_num	= ARRAY_SIZE(sh73a0_mpdma_slaves),
 	.channel	= sh73a0_mpdma_channels,
 	.channel_num	= ARRAY_SIZE(sh73a0_mpdma_channels),
-	.ts_low_shift	= 3,
-	.ts_low_mask	= 0x18,
-	.ts_high_shift	= (20 - 2),     /* 2 bits for shifted low TS */
-	.ts_high_mask	= 0x00300000,
-	.ts_shift	= ts_shift,
-	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.ts_low_shift	= TS_LOW_SHIFT,
+	.ts_low_mask	= TS_LOW_BIT << TS_LOW_SHIFT,
+	.ts_high_shift	= TS_HI_SHIFT,
+	.ts_high_mask	= TS_HI_BIT << TS_HI_SHIFT,
+	.ts_shift	= dma_ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_ts_shift),
 	.dmaor_init	= DMAOR_DME,
 	.chclr_present	= 1,
 };
