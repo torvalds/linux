@@ -7,7 +7,6 @@
  * the Free Software Foundation.
  */
 
-/* Made up value to limit allocation sizes */
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -15,6 +14,7 @@
 #include <stdint.h>
 #include <dirent.h>
 
+/* Made up value to limit allocation sizes */
 #define IIO_MAX_NAME_LENGTH 30
 
 #define FORMAT_SCAN_ELEMENTS_DIR "%s/scan_elements"
