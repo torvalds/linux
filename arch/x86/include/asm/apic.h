@@ -306,7 +306,8 @@ struct apic {
 	unsigned long (*check_apicid_used)(physid_mask_t *map, int apicid);
 	unsigned long (*check_apicid_present)(int apicid);
 
-	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask);
+	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask,
+					 const struct cpumask *mask);
 	void (*init_apic_ldr)(void);
 
 	void (*ioapic_phys_id_map)(physid_mask_t *phys_map, physid_mask_t *retmap);
@@ -615,7 +616,8 @@ default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 			       unsigned int *apicid);
 
 static inline void
-flat_vector_allocation_domain(int cpu, struct cpumask *retmask)
+flat_vector_allocation_domain(int cpu, struct cpumask *retmask,
+			      const struct cpumask *mask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -630,7 +632,8 @@ flat_vector_allocation_domain(int cpu, struct cpumask *retmask)
 }
 
 static inline void
-default_vector_allocation_domain(int cpu, struct cpumask *retmask)
+default_vector_allocation_domain(int cpu, struct cpumask *retmask,
+				 const struct cpumask *mask)
 {
 	cpumask_copy(retmask, cpumask_of(cpu));
 }
