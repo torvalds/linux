@@ -49,6 +49,34 @@
 		NETIF_MSG_RX_ERR| \
 		NETIF_MSG_TX_ERR)
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7734) || \
+	defined(CONFIG_CPU_SUBTYPE_SH7763) || \
+	defined(CONFIG_ARCH_R8A7740)
+static void sh_eth_select_mii(struct net_device *ndev)
+{
+	u32 value = 0x0;
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+
+	switch (mdp->phy_interface) {
+	case PHY_INTERFACE_MODE_GMII:
+		value = 0x2;
+		break;
+	case PHY_INTERFACE_MODE_MII:
+		value = 0x1;
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		value = 0x0;
+		break;
+	default:
+		pr_warn("PHY interface mode was not setup. Set to MII.\n");
+		value = 0x1;
+		break;
+	}
+
+	sh_eth_write(ndev, value, RMII_MII);
+}
+#endif
+
 /* There is CPU dependent code */
 #if defined(CONFIG_CPU_SUBTYPE_SH7724)
 #define SH_ETH_RESET_DEFAULT	1
@@ -283,6 +311,7 @@ static struct sh_eth_cpu_data *sh_eth_get_cpu_data(struct sh_eth_private *mdp)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7734) || defined(CONFIG_CPU_SUBTYPE_SH7763)
 #define SH_ETH_HAS_TSU	1
 static void sh_eth_reset_hw_crc(struct net_device *ndev);
+
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -290,35 +319,6 @@ static void sh_eth_chip_reset(struct net_device *ndev)
 	/* reset device */
 	sh_eth_tsu_write(mdp, ARSTR_ARSTR, ARSTR);
 	mdelay(1);
-}
-
-static void sh_eth_reset(struct net_device *ndev)
-{
-	int cnt = 100;
-
-	sh_eth_write(ndev, EDSR_ENALL, EDSR);
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER, EDMR);
-	while (cnt > 0) {
-		if (!(sh_eth_read(ndev, EDMR) & 0x3))
-			break;
-		mdelay(1);
-		cnt--;
-	}
-	if (cnt == 0)
-		printk(KERN_ERR "Device reset fail\n");
-
-	/* Table Init */
-	sh_eth_write(ndev, 0x0, TDLAR);
-	sh_eth_write(ndev, 0x0, TDFAR);
-	sh_eth_write(ndev, 0x0, TDFXR);
-	sh_eth_write(ndev, 0x0, TDFFR);
-	sh_eth_write(ndev, 0x0, RDLAR);
-	sh_eth_write(ndev, 0x0, RDFAR);
-	sh_eth_write(ndev, 0x0, RDFXR);
-	sh_eth_write(ndev, 0x0, RDFFR);
-
-	/* Reset HW CRC register */
-	sh_eth_reset_hw_crc(ndev);
 }
 
 static void sh_eth_set_duplex(struct net_device *ndev)
@@ -377,8 +377,42 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tsu		= 1,
 #if defined(CONFIG_CPU_SUBTYPE_SH7734)
 	.hw_crc     = 1,
+	.select_mii = 1,
 #endif
 };
+
+static void sh_eth_reset(struct net_device *ndev)
+{
+	int cnt = 100;
+
+	sh_eth_write(ndev, EDSR_ENALL, EDSR);
+	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER, EDMR);
+	while (cnt > 0) {
+		if (!(sh_eth_read(ndev, EDMR) & 0x3))
+			break;
+		mdelay(1);
+		cnt--;
+	}
+	if (cnt == 0)
+		printk(KERN_ERR "Device reset fail\n");
+
+	/* Table Init */
+	sh_eth_write(ndev, 0x0, TDLAR);
+	sh_eth_write(ndev, 0x0, TDFAR);
+	sh_eth_write(ndev, 0x0, TDFXR);
+	sh_eth_write(ndev, 0x0, TDFFR);
+	sh_eth_write(ndev, 0x0, RDLAR);
+	sh_eth_write(ndev, 0x0, RDFAR);
+	sh_eth_write(ndev, 0x0, RDFXR);
+	sh_eth_write(ndev, 0x0, RDFFR);
+
+	/* Reset HW CRC register */
+	sh_eth_reset_hw_crc(ndev);
+
+	/* Select MII mode */
+	if (sh_eth_my_cpu_data.select_mii)
+		sh_eth_select_mii(ndev);
+}
 
 static void sh_eth_reset_hw_crc(struct net_device *ndev)
 {
@@ -391,25 +425,12 @@ static void sh_eth_reset_hw_crc(struct net_device *ndev)
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	unsigned long mii;
 
 	/* reset device */
 	sh_eth_tsu_write(mdp, ARSTR_ARSTR, ARSTR);
 	mdelay(1);
 
-	switch (mdp->phy_interface) {
-	case PHY_INTERFACE_MODE_GMII:
-		mii = 2;
-		break;
-	case PHY_INTERFACE_MODE_MII:
-		mii = 1;
-		break;
-	case PHY_INTERFACE_MODE_RMII:
-	default:
-		mii = 0;
-		break;
-	}
-	sh_eth_write(ndev, mii, RMII_MII);
+	sh_eth_select_mii(ndev);
 }
 
 static void sh_eth_reset(struct net_device *ndev)
@@ -492,6 +513,7 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.tsu		= 1,
+	.select_mii	= 1,
 };
 
 #elif defined(CONFIG_CPU_SUBTYPE_SH7619)

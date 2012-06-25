@@ -757,6 +757,7 @@ struct sh_eth_cpu_data {
 	unsigned no_trimd:1;		/* E-DMAC DO NOT have TRIMD */
 	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
 	unsigned hw_crc:1;	/* E-DMAC have CSMR */
+	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
 };
 
 struct sh_eth_private {
