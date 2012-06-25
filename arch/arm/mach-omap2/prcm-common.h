@@ -410,6 +410,14 @@
  */
 #define MAX_MODULE_HARDRESET_WAIT		10000
 
+/*
+ * Maximum time(us) it takes to output the signal WUCLKOUT of the last
+ * pad of the I/O ring after asserting WUCLKIN high.  Tero measured
+ * the actual time at 7 to 8 microseconds on OMAP3 and 2 to 4
+ * microseconds on OMAP4, so this timeout may be too high.
+ */
+#define MAX_IOPAD_LATCH_TIME			100
+
 # ifndef __ASSEMBLER__
 extern void __iomem *prm_base;
 extern void __iomem *cm_base;
