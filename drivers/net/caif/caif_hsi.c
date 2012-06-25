@@ -32,50 +32,38 @@ MODULE_DESCRIPTION("CAIF HSI driver");
 #define PAD_POW2(x, pow) ((((x)&((pow)-1)) == 0) ? 0 :\
 				(((pow)-((x)&((pow)-1)))))
 
-static int inactivity_timeout = 1000;
-module_param(inactivity_timeout, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(inactivity_timeout, "Inactivity timeout on HSI, ms.");
+static const struct cfhsi_config  hsi_default_config = {
 
-static int aggregation_timeout = 1;
-module_param(aggregation_timeout, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(aggregation_timeout, "Aggregation timeout on HSI, ms.");
+	/* Inactivity timeout on HSI, ms */
+	.inactivity_timeout = HZ,
 
-/*
- * HSI padding options.
- * Warning: must be a base of 2 (& operation used) and can not be zero !
- */
-static int hsi_head_align = 4;
-module_param(hsi_head_align, int, S_IRUGO);
-MODULE_PARM_DESC(hsi_head_align, "HSI head alignment.");
+	/* Aggregation timeout (ms) of zero means no aggregation is done*/
+	.aggregation_timeout = 1,
 
-static int hsi_tail_align = 4;
-module_param(hsi_tail_align, int, S_IRUGO);
-MODULE_PARM_DESC(hsi_tail_align, "HSI tail alignment.");
+	/*
+	 * HSI link layer flow-control thresholds.
+	 * Threshold values for the HSI packet queue. Flow-control will be
+	 * asserted when the number of packets exceeds q_high_mark. It will
+	 * not be de-asserted before the number of packets drops below
+	 * q_low_mark.
+	 * Warning: A high threshold value might increase throughput but it
+	 * will at the same time prevent channel prioritization and increase
+	 * the risk of flooding the modem. The high threshold should be above
+	 * the low.
+	 */
+	.q_high_mark = 100,
+	.q_low_mark = 50,
 
-/*
- * HSI link layer flowcontrol thresholds.
- * Warning: A high threshold value migth increase throughput but it will at
- * the same time prevent channel prioritization and increase the risk of
- * flooding the modem. The high threshold should be above the low.
- */
-static int hsi_high_threshold = 100;
-module_param(hsi_high_threshold, int, S_IRUGO);
-MODULE_PARM_DESC(hsi_high_threshold, "HSI high threshold (FLOW OFF).");
-
-static int hsi_low_threshold = 50;
-module_param(hsi_low_threshold, int, S_IRUGO);
-MODULE_PARM_DESC(hsi_low_threshold, "HSI high threshold (FLOW ON).");
+	/*
+	 * HSI padding options.
+	 * Warning: must be a base of 2 (& operation used) and can not be zero !
+	 */
+	.head_align = 4,
+	.tail_align = 4,
+};
 
 #define ON 1
 #define OFF 0
-
-/*
- * Threshold values for the HSI packet queue. Flowcontrol will be asserted
- * when the number of packets exceeds HIGH_WATER_MARK. It will not be
- * de-asserted before the number of packets drops below LOW_WATER_MARK.
- */
-#define LOW_WATER_MARK   hsi_low_threshold
-#define HIGH_WATER_MARK  hsi_high_threshold
 
 static LIST_HEAD(cfhsi_list);
 
@@ -99,8 +87,8 @@ static void cfhsi_update_aggregation_stats(struct cfhsi *cfhsi,
 	int hpad, tpad, len;
 
 	info = (struct caif_payload_info *)&skb->cb;
-	hpad = 1 + PAD_POW2((info->hdr_len + 1), hsi_head_align);
-	tpad = PAD_POW2((skb->len + hpad), hsi_tail_align);
+	hpad = 1 + PAD_POW2((info->hdr_len + 1), cfhsi->cfg.head_align);
+	tpad = PAD_POW2((skb->len + hpad), cfhsi->cfg.tail_align);
 	len = skb->len + hpad + tpad;
 
 	if (direction > 0)
@@ -113,7 +101,7 @@ static bool cfhsi_can_send_aggregate(struct cfhsi *cfhsi)
 {
 	int i;
 
-	if (cfhsi->aggregation_timeout == 0)
+	if (cfhsi->cfg.aggregation_timeout == 0)
 		return true;
 
 	for (i = 0; i < CFHSI_PRIO_BEBK; ++i) {
@@ -169,7 +157,7 @@ static void cfhsi_abort_tx(struct cfhsi *cfhsi)
 	cfhsi->tx_state = CFHSI_TX_STATE_IDLE;
 	if (!test_bit(CFHSI_SHUTDOWN, &cfhsi->bits))
 		mod_timer(&cfhsi->inactivity_timer,
-			jiffies + cfhsi->inactivity_timeout);
+			jiffies + cfhsi->cfg.inactivity_timeout);
 	spin_unlock_bh(&cfhsi->lock);
 }
 
@@ -250,8 +238,8 @@ static int cfhsi_tx_frm(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		/* Calculate needed head alignment and tail alignment. */
 		info = (struct caif_payload_info *)&skb->cb;
 
-		hpad = 1 + PAD_POW2((info->hdr_len + 1), hsi_head_align);
-		tpad = PAD_POW2((skb->len + hpad), hsi_tail_align);
+		hpad = 1 + PAD_POW2((info->hdr_len + 1), cfhsi->cfg.head_align);
+		tpad = PAD_POW2((skb->len + hpad), cfhsi->cfg.tail_align);
 
 		/* Check if frame still fits with added alignment. */
 		if ((skb->len + hpad + tpad) <= CFHSI_MAX_EMB_FRM_SZ) {
@@ -292,8 +280,8 @@ static int cfhsi_tx_frm(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		/* Calculate needed head alignment and tail alignment. */
 		info = (struct caif_payload_info *)&skb->cb;
 
-		hpad = 1 + PAD_POW2((info->hdr_len + 1), hsi_head_align);
-		tpad = PAD_POW2((skb->len + hpad), hsi_tail_align);
+		hpad = 1 + PAD_POW2((info->hdr_len + 1), cfhsi->cfg.head_align);
+		tpad = PAD_POW2((skb->len + hpad), cfhsi->cfg.tail_align);
 
 		/* Fill in CAIF frame length in descriptor. */
 		desc->cffrm_len[nfrms] = hpad + skb->len + tpad;
@@ -364,7 +352,7 @@ static void cfhsi_start_tx(struct cfhsi *cfhsi)
 			cfhsi->tx_state = CFHSI_TX_STATE_IDLE;
 			/* Start inactivity timer. */
 			mod_timer(&cfhsi->inactivity_timer,
-				jiffies + cfhsi->inactivity_timeout);
+				jiffies + cfhsi->cfg.inactivity_timeout);
 			spin_unlock_bh(&cfhsi->lock);
 			break;
 		}
@@ -390,7 +378,7 @@ static void cfhsi_tx_done(struct cfhsi *cfhsi)
 	 */
 	spin_lock_bh(&cfhsi->lock);
 	if (cfhsi->flow_off_sent &&
-			cfhsi_tx_queue_len(cfhsi) <= cfhsi->q_low_mark &&
+			cfhsi_tx_queue_len(cfhsi) <= cfhsi->cfg.q_low_mark &&
 			cfhsi->cfdev.flowctrl) {
 
 		cfhsi->flow_off_sent = 0;
@@ -402,7 +390,7 @@ static void cfhsi_tx_done(struct cfhsi *cfhsi)
 		cfhsi_start_tx(cfhsi);
 	} else {
 		mod_timer(&cfhsi->aggregation_timer,
-			jiffies + cfhsi->aggregation_timeout);
+			jiffies + cfhsi->cfg.aggregation_timeout);
 		spin_unlock_bh(&cfhsi->lock);
 	}
 
@@ -645,7 +633,7 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 	/* Update inactivity timer if pending. */
 	spin_lock_bh(&cfhsi->lock);
 	mod_timer_pending(&cfhsi->inactivity_timer,
-			jiffies + cfhsi->inactivity_timeout);
+			jiffies + cfhsi->cfg.inactivity_timeout);
 	spin_unlock_bh(&cfhsi->lock);
 
 	if (cfhsi->rx_state.state == CFHSI_RX_STATE_DESC) {
@@ -880,7 +868,7 @@ wake_ack:
 			__func__);
 		/* Start inactivity timer. */
 		mod_timer(&cfhsi->inactivity_timer,
-				jiffies + cfhsi->inactivity_timeout);
+				jiffies + cfhsi->cfg.inactivity_timeout);
 		spin_unlock_bh(&cfhsi->lock);
 		return;
 	}
@@ -1071,7 +1059,7 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Send flow off if number of packets is above high water mark. */
 	if (!cfhsi->flow_off_sent &&
-		cfhsi_tx_queue_len(cfhsi) > cfhsi->q_high_mark &&
+		cfhsi_tx_queue_len(cfhsi) > cfhsi->cfg.q_high_mark &&
 		cfhsi->cfdev.flowctrl) {
 		cfhsi->flow_off_sent = 1;
 		cfhsi->cfdev.flowctrl(cfhsi->ndev, OFF);
@@ -1143,6 +1131,7 @@ static void cfhsi_setup(struct net_device *dev)
 	cfhsi->cfdev.use_stx = false;
 	cfhsi->cfdev.use_fcs = false;
 	cfhsi->ndev = dev;
+	cfhsi->cfg = hsi_default_config;
 }
 
 static int cfhsi_open(struct net_device *ndev)
@@ -1158,9 +1147,6 @@ static int cfhsi_open(struct net_device *ndev)
 
 	/* Set flow info */
 	cfhsi->flow_off_sent = 0;
-	cfhsi->q_low_mark = LOW_WATER_MARK;
-	cfhsi->q_high_mark = HIGH_WATER_MARK;
-
 
 	/*
 	 * Allocate a TX buffer with the size of a HSI packet descriptors
@@ -1188,20 +1174,8 @@ static int cfhsi_open(struct net_device *ndev)
 		goto err_alloc_rx_flip;
 	}
 
-	/* Pre-calculate inactivity timeout. */
-	if (inactivity_timeout != -1) {
-		cfhsi->inactivity_timeout =
-				inactivity_timeout * HZ / 1000;
-		if (!cfhsi->inactivity_timeout)
-			cfhsi->inactivity_timeout = 1;
-		else if (cfhsi->inactivity_timeout > NEXT_TIMER_MAX_DELTA)
-			cfhsi->inactivity_timeout = NEXT_TIMER_MAX_DELTA;
-	} else {
-		cfhsi->inactivity_timeout = NEXT_TIMER_MAX_DELTA;
-	}
-
 	/* Initialize aggregation timeout */
-	cfhsi->aggregation_timeout = aggregation_timeout;
+	cfhsi->cfg.aggregation_timeout = hsi_default_config.aggregation_timeout;
 
 	/* Initialize recieve vaiables. */
 	cfhsi->rx_ptr = cfhsi->rx_buf;
@@ -1350,24 +1324,39 @@ static void cfhsi_netlink_parms(struct nlattr *data[], struct cfhsi *cfhsi)
 	}
 
 	i = __IFLA_CAIF_HSI_INACTIVITY_TOUT;
-	if (data[i])
-		inactivity_timeout = nla_get_u32(data[i]);
+	/*
+	 * Inactivity timeout in millisecs. Lowest possible value is 1,
+	 * and highest possible is NEXT_TIMER_MAX_DELTA.
+	 */
+	if (data[i]) {
+		u32 inactivity_timeout = nla_get_u32(data[i]);
+		/* Pre-calculate inactivity timeout. */
+		cfhsi->cfg.inactivity_timeout =	inactivity_timeout * HZ / 1000;
+		if (cfhsi->cfg.inactivity_timeout == 0)
+			cfhsi->cfg.inactivity_timeout = 1;
+		else if (cfhsi->cfg.inactivity_timeout > NEXT_TIMER_MAX_DELTA)
+			cfhsi->cfg.inactivity_timeout = NEXT_TIMER_MAX_DELTA;
+	}
 
 	i = __IFLA_CAIF_HSI_AGGREGATION_TOUT;
 	if (data[i])
-		aggregation_timeout = nla_get_u32(data[i]);
+		cfhsi->cfg.aggregation_timeout = nla_get_u32(data[i]);
 
 	i = __IFLA_CAIF_HSI_HEAD_ALIGN;
 	if (data[i])
-		hsi_head_align = nla_get_u32(data[i]);
+		cfhsi->cfg.head_align = nla_get_u32(data[i]);
 
 	i = __IFLA_CAIF_HSI_TAIL_ALIGN;
 	if (data[i])
-		hsi_tail_align = nla_get_u32(data[i]);
+		cfhsi->cfg.tail_align = nla_get_u32(data[i]);
 
 	i = __IFLA_CAIF_HSI_QHIGH_WATERMARK;
 	if (data[i])
-		hsi_high_threshold = nla_get_u32(data[i]);
+		cfhsi->cfg.q_high_mark = nla_get_u32(data[i]);
+
+	i = __IFLA_CAIF_HSI_QLOW_WATERMARK;
+	if (data[i])
+		cfhsi->cfg.q_low_mark = nla_get_u32(data[i]);
 }
 
 static int caif_hsi_changelink(struct net_device *dev, struct nlattr *tb[],
@@ -1398,16 +1387,20 @@ static size_t caif_hsi_get_size(const struct net_device *dev)
 
 static int caif_hsi_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
+	struct cfhsi *cfhsi = netdev_priv(dev);
+
 	if (nla_put_u32(skb, __IFLA_CAIF_HSI_INACTIVITY_TOUT,
-			inactivity_timeout) ||
+			cfhsi->cfg.inactivity_timeout) ||
 	    nla_put_u32(skb, __IFLA_CAIF_HSI_AGGREGATION_TOUT,
-			aggregation_timeout) ||
-	    nla_put_u32(skb, __IFLA_CAIF_HSI_HEAD_ALIGN, hsi_head_align) ||
-	    nla_put_u32(skb, __IFLA_CAIF_HSI_TAIL_ALIGN, hsi_tail_align) ||
+			cfhsi->cfg.aggregation_timeout) ||
+	    nla_put_u32(skb, __IFLA_CAIF_HSI_HEAD_ALIGN,
+			cfhsi->cfg.head_align) ||
+	    nla_put_u32(skb, __IFLA_CAIF_HSI_TAIL_ALIGN,
+			cfhsi->cfg.tail_align) ||
 	    nla_put_u32(skb, __IFLA_CAIF_HSI_QHIGH_WATERMARK,
-			hsi_high_threshold) ||
+			cfhsi->cfg.q_high_mark) ||
 	    nla_put_u32(skb, __IFLA_CAIF_HSI_QLOW_WATERMARK,
-			hsi_low_threshold))
+			cfhsi->cfg.q_low_mark))
 		return -EMSGSIZE;
 
 	return 0;

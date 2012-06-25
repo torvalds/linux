@@ -132,6 +132,15 @@ enum {
 	CFHSI_PRIO_LAST,
 };
 
+struct cfhsi_config {
+	u32 inactivity_timeout;
+	u32 aggregation_timeout;
+	u32 head_align;
+	u32 tail_align;
+	u32 q_high_mark;
+	u32 q_low_mark;
+};
+
 /* Structure implemented by CAIF HSI drivers. */
 struct cfhsi {
 	struct caif_dev_common cfdev;
@@ -142,7 +151,7 @@ struct cfhsi {
 	struct cfhsi_ops *ops;
 	int tx_state;
 	struct cfhsi_rx_state rx_state;
-	unsigned long inactivity_timeout;
+	struct cfhsi_config cfg;
 	int rx_len;
 	u8 *rx_ptr;
 	u8 *tx_buf;
@@ -150,8 +159,6 @@ struct cfhsi {
 	u8 *rx_flip_buf;
 	spinlock_t lock;
 	int flow_off_sent;
-	u32 q_low_mark;
-	u32 q_high_mark;
 	struct list_head list;
 	struct work_struct wake_up_work;
 	struct work_struct wake_down_work;
@@ -164,7 +171,6 @@ struct cfhsi {
 	struct timer_list rx_slowpath_timer;
 
 	/* TX aggregation */
-	unsigned long aggregation_timeout;
 	int aggregation_len;
 	struct timer_list aggregation_timer;
 
