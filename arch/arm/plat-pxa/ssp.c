@@ -193,6 +193,7 @@ static const struct platform_device_id ssp_id_table[] = {
 	{ "pxa25x-nssp",	PXA25x_NSSP },
 	{ "pxa27x-ssp",		PXA27x_SSP },
 	{ "pxa168-ssp",		PXA168_SSP },
+	{ "pxa910-ssp",		PXA910_SSP },
 	{ },
 };
 

@@ -635,7 +635,6 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	int r = 0, idx;
 	struct kvm_assigned_dev_kernel *match;
 	struct pci_dev *dev;
-	u8 header_type;
 
 	if (!(assigned_dev->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU))
 		return -EINVAL;
@@ -668,8 +667,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	}
 
 	/* Don't allow bridges to be assigned */
-	pci_read_config_byte(dev, PCI_HEADER_TYPE, &header_type);
-	if ((header_type & PCI_HEADER_TYPE) != PCI_HEADER_TYPE_NORMAL) {
+	if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL) {
 		r = -EPERM;
 		goto out_put;
 	}
