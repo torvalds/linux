@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <dirent.h>
+#include <errno.h>
 
 /* Made up value to limit allocation sizes */
 #define IIO_MAX_NAME_LENGTH 30

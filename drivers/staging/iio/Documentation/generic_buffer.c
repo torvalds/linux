@@ -18,6 +18,8 @@
  *
  */
 
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -29,6 +31,7 @@
 #include <string.h>
 #include <poll.h>
 #include <endian.h>
+#include <getopt.h>
 #include <inttypes.h>
 #include "iio_utils.h"
 
