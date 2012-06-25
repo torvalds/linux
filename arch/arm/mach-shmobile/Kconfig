@@ -106,6 +106,7 @@ config MACH_ARMADILLO800EVA
 	depends on ARCH_R8A7740
 	select ARCH_REQUIRE_GPIOLIB
 	select USE_OF
+	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 
 config MACH_MARZEN
 	bool "MARZEN board"
