@@ -112,5 +112,6 @@ void mac802154_dev_set_short_addr(struct net_device *dev, u16 val);
 void mac802154_dev_set_ieee_addr(struct net_device *dev);
 u16 mac802154_dev_get_pan_id(const struct net_device *dev);
 void mac802154_dev_set_pan_id(struct net_device *dev, u16 val);
+void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);
 
 #endif /* MAC802154_H */
