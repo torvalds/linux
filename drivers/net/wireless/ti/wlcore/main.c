@@ -5520,12 +5520,12 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 	ret = wl12xx_get_hw_info(wl);
 	if (ret < 0) {
 		wl1271_error("couldn't get hw info");
-		goto out;
+		goto out_irq;
 	}
 
 	ret = wl->ops->identify_chip(wl);
 	if (ret < 0)
-		goto out;
+		goto out_irq;
 
 	ret = wl1271_init_ieee80211(wl);
 	if (ret)
@@ -5539,7 +5539,7 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 	ret = device_create_file(wl->dev, &dev_attr_bt_coex_state);
 	if (ret < 0) {
 		wl1271_error("failed to create sysfs file bt_coex_state");
-		goto out_irq;
+		goto out_unreg;
 	}
 
 	/* Create sysfs file to get HW PG version */
@@ -5563,6 +5563,9 @@ out_hw_pg_ver:
 
 out_bt_coex_state:
 	device_remove_file(wl->dev, &dev_attr_bt_coex_state);
+
+out_unreg:
+	wl1271_unregister_hw(wl);
 
 out_irq:
 	free_irq(wl->irq, wl);
