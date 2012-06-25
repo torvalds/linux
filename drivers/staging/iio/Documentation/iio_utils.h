@@ -524,6 +524,7 @@ inline int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 			goto error_free;
 		}
 		fscanf(sysfsfp, "%d", &test);
+		fclose(sysfsfp);
 		if (test != val) {
 			printf("Possible failure in int write %d to %s%s\n",
 				val,
@@ -573,6 +574,7 @@ int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
 			goto error_free;
 		}
 		fscanf(sysfsfp, "%s", temp);
+		fclose(sysfsfp);
 		if (strcmp(temp, val) != 0) {
 			printf("Possible failure in string write of %s "
 				"Should be %s "
