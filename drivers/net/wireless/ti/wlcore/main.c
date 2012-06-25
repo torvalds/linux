@@ -926,7 +926,6 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	if (no_recovery) {
 		wl1271_info("No recovery (chosen on module load). Fw will remain stuck.");
-		clear_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
 		goto out_unlock;
 	}
 
@@ -970,7 +969,8 @@ static void wl1271_recovery_work(struct work_struct *work)
 	wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_FW_RESTART);
 	return;
 out_unlock:
-        wl->watchdog_recovery = false;
+	wl->watchdog_recovery = false;
+	clear_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
 	mutex_unlock(&wl->mutex);
 }
 
