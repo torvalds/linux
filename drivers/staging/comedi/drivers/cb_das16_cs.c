@@ -769,9 +769,6 @@ static const struct pcmcia_device_id das16cs_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
-MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
-MODULE_DESCRIPTION("Comedi driver for Computer Boards PC-CARD DAS16/16");
-MODULE_LICENSE("GPL");
 
 struct pcmcia_driver das16cs_driver = {
 	.probe = das16cs_pcmcia_attach,
@@ -811,3 +808,7 @@ void __exit cleanup_module(void)
 	exit_das16cs_pcmcia_cs();
 	comedi_driver_unregister(&driver_das16cs);
 }
+
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
+MODULE_DESCRIPTION("Comedi driver for Computer Boards PC-CARD DAS16/16");
+MODULE_LICENSE("GPL");
