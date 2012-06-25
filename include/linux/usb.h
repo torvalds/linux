@@ -633,6 +633,9 @@ extern void usb_enable_lpm(struct usb_device *udev);
 extern int usb_unlocked_disable_lpm(struct usb_device *udev);
 extern void usb_unlocked_enable_lpm(struct usb_device *udev);
 
+extern int usb_disable_ltm(struct usb_device *udev);
+extern void usb_enable_ltm(struct usb_device *udev);
+
 /*-------------------------------------------------------------------------*/
 
 /* for drivers using iso endpoints */
