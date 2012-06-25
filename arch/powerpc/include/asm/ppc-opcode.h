@@ -144,6 +144,10 @@
 #define PPC_INST_STBCIX			0x7c0007aa
 
 /* macros to insert fields into opcodes */
+#define ___PPC_RA(a)	(((a) & 0x1f) << 16)
+#define ___PPC_RB(b)	(((b) & 0x1f) << 11)
+#define ___PPC_RS(s)	(((s) & 0x1f) << 21)
+#define ___PPC_RT(t)	___PPC_RS(t)
 #define __PPC_RA(a)	(((a) & 0x1f) << 16)
 #define __PPC_RB(b)	(((b) & 0x1f) << 11)
 #define __PPC_RS(s)	(((s) & 0x1f) << 21)
