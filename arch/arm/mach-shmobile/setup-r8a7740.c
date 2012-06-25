@@ -501,6 +501,92 @@ static struct platform_device dma2_device = {
 	},
 };
 
+/* USB-DMAC */
+/* Transmit sizes and respective CHCR register values */
+enum {
+	USBTS_XMIT_SZ_8BYTE		= 0,
+	USBTS_XMIT_SZ_16BYTE		= 1,
+	USBTS_XMIT_SZ_32BYTE		= 2,
+};
+
+/* log2(size / 8) - used to calculate number of transfers */
+static const unsigned int dma_usbts_shift[] = {
+	[USBTS_XMIT_SZ_8BYTE]	= 3,
+	[USBTS_XMIT_SZ_16BYTE]	= 4,
+	[USBTS_XMIT_SZ_32BYTE]	= 5,
+};
+
+static const struct sh_dmae_channel r8a7740_usb_dma_channels[] = {
+	{
+		.offset = 0,
+	}, {
+		.offset = 0x20,
+	},
+};
+
+#define USBTS_INDEX2VAL(i) (((i) & 3) << 6)
+
+static const struct sh_dmae_slave_config r8a7740_usb_dma_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_USBHS_TX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_8BYTE),
+	}, {
+		.slave_id	= SHDMA_SLAVE_USBHS_RX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_8BYTE),
+	},
+};
+
+static struct sh_dmae_pdata usb_dma_platform_data = {
+	.slave		= r8a7740_usb_dma_slaves,
+	.slave_num	= ARRAY_SIZE(r8a7740_usb_dma_slaves),
+	.channel	= r8a7740_usb_dma_channels,
+	.channel_num	= ARRAY_SIZE(r8a7740_usb_dma_channels),
+	.ts_low_shift	= 6,
+	.ts_low_mask	= 0xc0,
+	.ts_high_shift	= 0,
+	.ts_high_mask	= 0,
+	.ts_shift	= dma_usbts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_usbts_shift),
+	.dmaor_init	= DMAOR_DME,
+	.chcr_offset	= 0x14,
+	.chcr_ie_bit	= 1 << 5,
+	.dmaor_is_32bit	= 1,
+	.needs_tend_set	= 1,
+	.no_dmars	= 1,
+	.slave_only	= 1,
+};
+
+static struct resource r8a7740_usb_dma_resources[] = {
+	{
+		/* Channel registers and DMAOR */
+		.start	= 0xe68a0020,
+		.end	= 0xe68a0064 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* VCR/SWR/DMICR */
+		.start	= 0xe68a0000,
+		.end	= 0xe68a0014 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* IRQ for channels */
+		.start	= evt2irq(0x0a00),
+		.end	= evt2irq(0x0a00),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb_dma_device = {
+	.name		= "sh-dma-engine",
+	.id		= 3,
+	.resource	= r8a7740_usb_dma_resources,
+	.num_resources	= ARRAY_SIZE(r8a7740_usb_dma_resources),
+	.dev		= {
+		.platform_data	= &usb_dma_platform_data,
+	},
+};
+
 /* I2C */
 static struct resource i2c0_resources[] = {
 	[0] = {
@@ -550,6 +636,7 @@ static struct platform_device *r8a7740_late_devices[] __initdata = {
 	&dma0_device,
 	&dma1_device,
 	&dma2_device,
+	&usb_dma_device,
 };
 
 /*
