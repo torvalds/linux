@@ -1,0 +1,17 @@
+Freescale i.MX PWM controller
+
+Required properties:
+- compatible: should be "fsl,<soc>-pwm"
+- reg: physical base address and length of the controller's registers
+- #pwm-cells: should be 2.  The first cell specifies the per-chip index
+  of the PWM to use and the second cell is the duty cycle in nanoseconds.
+- interrupts: The interrupt for the pwm controller
+
+Example:
+
+pwm1: pwm@53fb4000 {
+	#pwm-cells = <2>;
+	compatible = "fsl,imx53-pwm", "fsl,imx27-pwm";
+	reg = <0x53fb4000 0x4000>;
+	interrupts = <61>;
+};
