@@ -280,7 +280,7 @@ inline int build_channel_array(const char *device_dir,
 {
 	DIR *dp;
 	FILE *sysfsfp;
-	int count, temp, i;
+	int count, i;
 	struct iio_channel_info *current;
 	int ret;
 	const struct dirent *ent;

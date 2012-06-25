@@ -131,8 +131,6 @@ int main(int argc, char **argv)
 
 
 	int ret, c, i, j, toread;
-
-	FILE *fp_ev;
 	int fp;
 
 	int num_channels;
