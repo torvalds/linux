@@ -19,6 +19,13 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+    PCMCIA support code for the is adapted from the dummy_cs.c driver
+    of the Linux PCMCIA Card Services package.
+
+    The initial developer of the original code is David A. Hinds
+    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
 */
 /*
 Driver: cb_das16_cs
@@ -616,57 +623,19 @@ static int das16cs_timer_insn_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
-/* PCMCIA stuff */
-
-/*======================================================================
-
-    The following pcmcia code for the pcm-das08 is adapted from the
-    dummy_cs.c driver of the Linux PCMCIA Card Services package.
-
-    The initial developer of the original code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-
-======================================================================*/
-
 static void das16cs_pcmcia_config(struct pcmcia_device *link);
 static void das16cs_pcmcia_release(struct pcmcia_device *link);
 static int das16cs_pcmcia_suspend(struct pcmcia_device *p_dev);
 static int das16cs_pcmcia_resume(struct pcmcia_device *p_dev);
 
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static int das16cs_pcmcia_attach(struct pcmcia_device *);
 static void das16cs_pcmcia_detach(struct pcmcia_device *);
-
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
 
 struct local_info_t {
 	struct pcmcia_device *link;
 	int stop;
 	struct bus_operations *bus;
 };
-
-/*======================================================================
-
-    das16cs_pcmcia_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
@@ -686,7 +655,7 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 	das16cs_pcmcia_config(link);
 
 	return 0;
-}				/* das16cs_pcmcia_attach */
+}
 
 static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 {
@@ -696,8 +665,7 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 	das16cs_pcmcia_release(link);
 	/* This points to the parent struct local_info_t struct */
 	kfree(link->priv);
-}				/* das16cs_pcmcia_detach */
-
+}
 
 static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
@@ -734,13 +702,13 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 
 failed:
 	das16cs_pcmcia_release(link);
-}				/* das16cs_pcmcia_config */
+}
 
 static void das16cs_pcmcia_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "das16cs_pcmcia_release\n");
 	pcmcia_disable_device(link);
-}				/* das16cs_pcmcia_release */
+}
 
 static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
 {
@@ -750,7 +718,7 @@ static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
 	local->stop = 1;
 
 	return 0;
-}				/* das16cs_pcmcia_suspend */
+}
 
 static int das16cs_pcmcia_resume(struct pcmcia_device *link)
 {
@@ -758,16 +726,13 @@ static int das16cs_pcmcia_resume(struct pcmcia_device *link)
 
 	local->stop = 0;
 	return 0;
-}				/* das16cs_pcmcia_resume */
-
-/*====================================================================*/
+}
 
 static const struct pcmcia_device_id das16cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x0039),
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x4009),
 	PCMCIA_DEVICE_NULL
 };
-
 MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
 
 static struct pcmcia_driver das16cs_driver = {
