@@ -470,6 +470,7 @@ static struct platform_device gpio_keys_device = {
 /* FSI-AK4648 */
 static struct sh_fsi_platform_info fsi_info = {
 	.port_a = {
+		.tx_id = SHDMA_SLAVE_FSI2A_TX,
 	},
 };
 
