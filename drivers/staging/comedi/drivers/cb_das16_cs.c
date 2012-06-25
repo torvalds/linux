@@ -784,11 +784,17 @@ static int __init das16cs_init(void)
 {
 	int ret;
 
-	ret = pcmcia_register_driver(&das16cs_driver);
+	ret = comedi_driver_register(&driver_das16cs);
 	if (ret < 0)
 		return ret;
 
-	return comedi_driver_register(&driver_das16cs);
+	ret = pcmcia_register_driver(&das16cs_driver);
+	if (ret < 0) {
+		comedi_driver_unregister(&driver_das16cs);
+		return ret;
+	}
+
+	return 0;
 }
 module_init(das16cs_init);
 
