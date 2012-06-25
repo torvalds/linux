@@ -258,7 +258,8 @@ static int __init init_ima(void)
 	int error;
 
 	error = ima_init();
-	ima_initialized = 1;
+	if (!error)
+		ima_initialized = 1;
 	return error;
 }
 
