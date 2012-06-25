@@ -93,25 +93,25 @@ struct cfhsi_desc {
 #endif
 
 /* Structure implemented by the CAIF HSI driver. */
-struct cfhsi_drv {
-	void (*tx_done_cb) (struct cfhsi_drv *drv);
-	void (*rx_done_cb) (struct cfhsi_drv *drv);
-	void (*wake_up_cb) (struct cfhsi_drv *drv);
-	void (*wake_down_cb) (struct cfhsi_drv *drv);
+struct cfhsi_cb_ops {
+	void (*tx_done_cb) (struct cfhsi_cb_ops *drv);
+	void (*rx_done_cb) (struct cfhsi_cb_ops *drv);
+	void (*wake_up_cb) (struct cfhsi_cb_ops *drv);
+	void (*wake_down_cb) (struct cfhsi_cb_ops *drv);
 };
 
 /* Structure implemented by HSI device. */
-struct cfhsi_dev {
-	int (*cfhsi_up) (struct cfhsi_dev *dev);
-	int (*cfhsi_down) (struct cfhsi_dev *dev);
-	int (*cfhsi_tx) (u8 *ptr, int len, struct cfhsi_dev *dev);
-	int (*cfhsi_rx) (u8 *ptr, int len, struct cfhsi_dev *dev);
-	int (*cfhsi_wake_up) (struct cfhsi_dev *dev);
-	int (*cfhsi_wake_down) (struct cfhsi_dev *dev);
-	int (*cfhsi_get_peer_wake) (struct cfhsi_dev *dev, bool *status);
-	int (*cfhsi_fifo_occupancy)(struct cfhsi_dev *dev, size_t *occupancy);
-	int (*cfhsi_rx_cancel)(struct cfhsi_dev *dev);
-	struct cfhsi_drv *drv;
+struct cfhsi_ops {
+	int (*cfhsi_up) (struct cfhsi_ops *dev);
+	int (*cfhsi_down) (struct cfhsi_ops *dev);
+	int (*cfhsi_tx) (u8 *ptr, int len, struct cfhsi_ops *dev);
+	int (*cfhsi_rx) (u8 *ptr, int len, struct cfhsi_ops *dev);
+	int (*cfhsi_wake_up) (struct cfhsi_ops *dev);
+	int (*cfhsi_wake_down) (struct cfhsi_ops *dev);
+	int (*cfhsi_get_peer_wake) (struct cfhsi_ops *dev, bool *status);
+	int (*cfhsi_fifo_occupancy) (struct cfhsi_ops *dev, size_t *occupancy);
+	int (*cfhsi_rx_cancel)(struct cfhsi_ops *dev);
+	struct cfhsi_cb_ops *cb_ops;
 };
 
 /* Structure holds status of received CAIF frames processing */
@@ -138,8 +138,8 @@ struct cfhsi {
 	struct net_device *ndev;
 	struct platform_device *pdev;
 	struct sk_buff_head qhead[CFHSI_PRIO_LAST];
-	struct cfhsi_drv drv;
-	struct cfhsi_dev *dev;
+	struct cfhsi_cb_ops cb_ops;
+	struct cfhsi_ops *ops;
 	int tx_state;
 	struct cfhsi_rx_state rx_state;
 	unsigned long inactivity_timeout;
@@ -190,6 +190,6 @@ enum ifla_caif_hsi {
 	__IFLA_CAIF_HSI_MAX
 };
 
-extern struct platform_device *cfhsi_get_device(void);
+extern struct cfhsi_ops *cfhsi_get_ops(void);
 
 #endif		/* CAIF_HSI_H_ */

@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/platform_device.h>
 #include <linux/netdevice.h>
 #include <linux/string.h>
 #include <linux/list.h>
@@ -184,7 +183,7 @@ static int cfhsi_flush_fifo(struct cfhsi *cfhsi)
 		__func__);
 
 	do {
-		ret = cfhsi->dev->cfhsi_fifo_occupancy(cfhsi->dev,
+		ret = cfhsi->ops->cfhsi_fifo_occupancy(cfhsi->ops,
 				&fifo_occupancy);
 		if (ret) {
 			netdev_warn(cfhsi->ndev,
@@ -197,8 +196,8 @@ static int cfhsi_flush_fifo(struct cfhsi *cfhsi)
 
 		fifo_occupancy = min(sizeof(buffer), fifo_occupancy);
 		set_bit(CFHSI_FLUSH_FIFO, &cfhsi->bits);
-		ret = cfhsi->dev->cfhsi_rx(buffer, fifo_occupancy,
-				cfhsi->dev);
+		ret = cfhsi->ops->cfhsi_rx(buffer, fifo_occupancy,
+				cfhsi->ops);
 		if (ret) {
 			clear_bit(CFHSI_FLUSH_FIFO, &cfhsi->bits);
 			netdev_warn(cfhsi->ndev,
@@ -371,7 +370,7 @@ static void cfhsi_start_tx(struct cfhsi *cfhsi)
 		}
 
 		/* Set up new transfer. */
-		res = cfhsi->dev->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->dev);
+		res = cfhsi->ops->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->ops);
 		if (WARN_ON(res < 0))
 			netdev_err(cfhsi->ndev, "%s: TX error %d.\n",
 				__func__, res);
@@ -410,11 +409,11 @@ static void cfhsi_tx_done(struct cfhsi *cfhsi)
 	return;
 }
 
-static void cfhsi_tx_done_cb(struct cfhsi_drv *drv)
+static void cfhsi_tx_done_cb(struct cfhsi_cb_ops *cb_ops)
 {
 	struct cfhsi *cfhsi;
 
-	cfhsi = container_of(drv, struct cfhsi, drv);
+	cfhsi = container_of(cb_ops, struct cfhsi, cb_ops);
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
 
@@ -476,8 +475,8 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		skb->dev = cfhsi->ndev;
 
 		/*
-		 * We are called from a arch specific platform device.
-		 * Unfortunately we don't know what context we're
+		 * We are in a callback handler and
+		 * unfortunately we don't know what context we're
 		 * running in.
 		 */
 		if (in_interrupt())
@@ -607,7 +606,7 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		skb->dev = cfhsi->ndev;
 
 		/*
-		 * We're called from a platform device,
+		 * We're called in callback from HSI
 		 * and don't know the context we're running in.
 		 */
 		if (in_interrupt())
@@ -711,8 +710,8 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 		netdev_dbg(cfhsi->ndev, "%s: Start RX.\n",
 				__func__);
 
-		res = cfhsi->dev->cfhsi_rx(rx_ptr, rx_len,
-				cfhsi->dev);
+		res = cfhsi->ops->cfhsi_rx(rx_ptr, rx_len,
+				cfhsi->ops);
 		if (WARN_ON(res < 0)) {
 			netdev_err(cfhsi->ndev, "%s: RX error %d.\n",
 				__func__, res);
@@ -765,11 +764,11 @@ static void cfhsi_rx_slowpath(unsigned long arg)
 	cfhsi_rx_done(cfhsi);
 }
 
-static void cfhsi_rx_done_cb(struct cfhsi_drv *drv)
+static void cfhsi_rx_done_cb(struct cfhsi_cb_ops *cb_ops)
 {
 	struct cfhsi *cfhsi;
 
-	cfhsi = container_of(drv, struct cfhsi, drv);
+	cfhsi = container_of(cb_ops, struct cfhsi, cb_ops);
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
 
@@ -803,7 +802,7 @@ static void cfhsi_wake_up(struct work_struct *work)
 	}
 
 	/* Activate wake line. */
-	cfhsi->dev->cfhsi_wake_up(cfhsi->dev);
+	cfhsi->ops->cfhsi_wake_up(cfhsi->ops);
 
 	netdev_dbg(cfhsi->ndev, "%s: Start waiting.\n",
 		__func__);
@@ -819,7 +818,7 @@ static void cfhsi_wake_up(struct work_struct *work)
 			__func__, ret);
 
 		clear_bit(CFHSI_WAKE_UP, &cfhsi->bits);
-		cfhsi->dev->cfhsi_wake_down(cfhsi->dev);
+		cfhsi->ops->cfhsi_wake_down(cfhsi->ops);
 		return;
 	} else if (!ret) {
 		bool ca_wake = false;
@@ -830,14 +829,14 @@ static void cfhsi_wake_up(struct work_struct *work)
 			__func__);
 
 		/* Check FIFO to check if modem has sent something. */
-		WARN_ON(cfhsi->dev->cfhsi_fifo_occupancy(cfhsi->dev,
+		WARN_ON(cfhsi->ops->cfhsi_fifo_occupancy(cfhsi->ops,
 					&fifo_occupancy));
 
 		netdev_dbg(cfhsi->ndev, "%s: Bytes in FIFO: %u.\n",
 				__func__, (unsigned) fifo_occupancy);
 
 		/* Check if we misssed the interrupt. */
-		WARN_ON(cfhsi->dev->cfhsi_get_peer_wake(cfhsi->dev,
+		WARN_ON(cfhsi->ops->cfhsi_get_peer_wake(cfhsi->ops,
 							&ca_wake));
 
 		if (ca_wake) {
@@ -852,7 +851,7 @@ static void cfhsi_wake_up(struct work_struct *work)
 		}
 
 		clear_bit(CFHSI_WAKE_UP, &cfhsi->bits);
-		cfhsi->dev->cfhsi_wake_down(cfhsi->dev);
+		cfhsi->ops->cfhsi_wake_down(cfhsi->ops);
 		return;
 	}
 wake_ack:
@@ -865,7 +864,7 @@ wake_ack:
 
 	/* Resume read operation. */
 	netdev_dbg(cfhsi->ndev, "%s: Start RX.\n", __func__);
-	res = cfhsi->dev->cfhsi_rx(cfhsi->rx_ptr, cfhsi->rx_len, cfhsi->dev);
+	res = cfhsi->ops->cfhsi_rx(cfhsi->rx_ptr, cfhsi->rx_len, cfhsi->ops);
 
 	if (WARN_ON(res < 0))
 		netdev_err(cfhsi->ndev, "%s: RX err %d.\n", __func__, res);
@@ -896,7 +895,7 @@ wake_ack:
 
 	if (likely(len > 0)) {
 		/* Set up new transfer. */
-		res = cfhsi->dev->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->dev);
+		res = cfhsi->ops->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->ops);
 		if (WARN_ON(res < 0)) {
 			netdev_err(cfhsi->ndev, "%s: TX error %d.\n",
 				__func__, res);
@@ -923,7 +922,7 @@ static void cfhsi_wake_down(struct work_struct *work)
 		return;
 
 	/* Deactivate wake line. */
-	cfhsi->dev->cfhsi_wake_down(cfhsi->dev);
+	cfhsi->ops->cfhsi_wake_down(cfhsi->ops);
 
 	/* Wait for acknowledge. */
 	ret = CFHSI_WAKE_TOUT;
@@ -942,7 +941,7 @@ static void cfhsi_wake_down(struct work_struct *work)
 		netdev_err(cfhsi->ndev, "%s: Timeout.\n", __func__);
 
 		/* Check if we misssed the interrupt. */
-		WARN_ON(cfhsi->dev->cfhsi_get_peer_wake(cfhsi->dev,
+		WARN_ON(cfhsi->ops->cfhsi_get_peer_wake(cfhsi->ops,
 							&ca_wake));
 		if (!ca_wake)
 			netdev_err(cfhsi->ndev, "%s: CA Wake missed !.\n",
@@ -951,7 +950,7 @@ static void cfhsi_wake_down(struct work_struct *work)
 
 	/* Check FIFO occupancy. */
 	while (retry) {
-		WARN_ON(cfhsi->dev->cfhsi_fifo_occupancy(cfhsi->dev,
+		WARN_ON(cfhsi->ops->cfhsi_fifo_occupancy(cfhsi->ops,
 							&fifo_occupancy));
 
 		if (!fifo_occupancy)
@@ -969,8 +968,7 @@ static void cfhsi_wake_down(struct work_struct *work)
 	clear_bit(CFHSI_AWAKE, &cfhsi->bits);
 
 	/* Cancel pending RX requests. */
-	cfhsi->dev->cfhsi_rx_cancel(cfhsi->dev);
-
+	cfhsi->ops->cfhsi_rx_cancel(cfhsi->ops);
 }
 
 static void cfhsi_out_of_sync(struct work_struct *work)
@@ -984,11 +982,11 @@ static void cfhsi_out_of_sync(struct work_struct *work)
 	rtnl_unlock();
 }
 
-static void cfhsi_wake_up_cb(struct cfhsi_drv *drv)
+static void cfhsi_wake_up_cb(struct cfhsi_cb_ops *cb_ops)
 {
 	struct cfhsi *cfhsi = NULL;
 
-	cfhsi = container_of(drv, struct cfhsi, drv);
+	cfhsi = container_of(cb_ops, struct cfhsi, cb_ops);
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
 
@@ -1003,11 +1001,11 @@ static void cfhsi_wake_up_cb(struct cfhsi_drv *drv)
 		queue_work(cfhsi->wq, &cfhsi->wake_up_work);
 }
 
-static void cfhsi_wake_down_cb(struct cfhsi_drv *drv)
+static void cfhsi_wake_down_cb(struct cfhsi_cb_ops *cb_ops)
 {
 	struct cfhsi *cfhsi = NULL;
 
-	cfhsi = container_of(drv, struct cfhsi, drv);
+	cfhsi = container_of(cb_ops, struct cfhsi, cb_ops);
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
 
@@ -1110,7 +1108,7 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 		WARN_ON(!len);
 
 		/* Set up new transfer. */
-		res = cfhsi->dev->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->dev);
+		res = cfhsi->ops->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->ops);
 		if (WARN_ON(res < 0)) {
 			netdev_err(cfhsi->ndev, "%s: TX error %d.\n",
 				__func__, res);
@@ -1125,19 +1123,19 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static const struct net_device_ops cfhsi_ops;
+static const struct net_device_ops cfhsi_netdevops;
 
 static void cfhsi_setup(struct net_device *dev)
 {
 	int i;
 	struct cfhsi *cfhsi = netdev_priv(dev);
 	dev->features = 0;
-	dev->netdev_ops = &cfhsi_ops;
 	dev->type = ARPHRD_CAIF;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu = CFHSI_MAX_CAIF_FRAME_SZ;
 	dev->tx_queue_len = 0;
 	dev->destructor = free_netdev;
+	dev->netdev_ops = &cfhsi_netdevops;
 	for (i = 0; i < CFHSI_PRIO_LAST; ++i)
 		skb_queue_head_init(&cfhsi->qhead[i]);
 	cfhsi->cfdev.link_select = CAIF_LINK_HIGH_BANDW;
@@ -1213,10 +1211,10 @@ static int cfhsi_open(struct net_device *ndev)
 	spin_lock_init(&cfhsi->lock);
 
 	/* Set up the driver. */
-	cfhsi->drv.tx_done_cb = cfhsi_tx_done_cb;
-	cfhsi->drv.rx_done_cb = cfhsi_rx_done_cb;
-	cfhsi->drv.wake_up_cb = cfhsi_wake_up_cb;
-	cfhsi->drv.wake_down_cb = cfhsi_wake_down_cb;
+	cfhsi->cb_ops.tx_done_cb = cfhsi_tx_done_cb;
+	cfhsi->cb_ops.rx_done_cb = cfhsi_rx_done_cb;
+	cfhsi->cb_ops.wake_up_cb = cfhsi_wake_up_cb;
+	cfhsi->cb_ops.wake_down_cb = cfhsi_wake_down_cb;
 
 	/* Initialize the work queues. */
 	INIT_WORK(&cfhsi->wake_up_work, cfhsi_wake_up);
@@ -1230,7 +1228,7 @@ static int cfhsi_open(struct net_device *ndev)
 	clear_bit(CFHSI_AWAKE, &cfhsi->bits);
 
 	/* Create work thread. */
-	cfhsi->wq = create_singlethread_workqueue(cfhsi->pdev->name);
+	cfhsi->wq = create_singlethread_workqueue(cfhsi->ndev->name);
 	if (!cfhsi->wq) {
 		netdev_err(cfhsi->ndev, "%s: Failed to create work queue.\n",
 			__func__);
@@ -1257,7 +1255,7 @@ static int cfhsi_open(struct net_device *ndev)
 	cfhsi->aggregation_timer.function = cfhsi_aggregation_tout;
 
 	/* Activate HSI interface. */
-	res = cfhsi->dev->cfhsi_up(cfhsi->dev);
+	res = cfhsi->ops->cfhsi_up(cfhsi->ops);
 	if (res) {
 		netdev_err(cfhsi->ndev,
 			"%s: can't activate HSI interface: %d.\n",
@@ -1275,7 +1273,7 @@ static int cfhsi_open(struct net_device *ndev)
 	return res;
 
  err_net_reg:
-	cfhsi->dev->cfhsi_down(cfhsi->dev);
+	cfhsi->ops->cfhsi_down(cfhsi->ops);
  err_activate:
 	destroy_workqueue(cfhsi->wq);
  err_create_wq:
@@ -1305,7 +1303,7 @@ static int cfhsi_close(struct net_device *ndev)
 	del_timer_sync(&cfhsi->aggregation_timer);
 
 	/* Cancel pending RX request (if any) */
-	cfhsi->dev->cfhsi_rx_cancel(cfhsi->dev);
+	cfhsi->ops->cfhsi_rx_cancel(cfhsi->ops);
 
 	/* Destroy workqueue */
 	destroy_workqueue(cfhsi->wq);
@@ -1318,7 +1316,7 @@ static int cfhsi_close(struct net_device *ndev)
 	cfhsi_abort_tx(cfhsi);
 
 	/* Deactivate interface */
-	cfhsi->dev->cfhsi_down(cfhsi->dev);
+	cfhsi->ops->cfhsi_down(cfhsi->ops);
 
 	/* Free buffers. */
 	kfree(tx_buf);
@@ -1335,7 +1333,7 @@ static void cfhsi_uninit(struct net_device *dev)
 	list_del(&cfhsi->list);
 }
 
-static const struct net_device_ops cfhsi_ops = {
+static const struct net_device_ops cfhsi_netdevops = {
 	.ndo_uninit = cfhsi_uninit,
 	.ndo_open = cfhsi_open,
 	.ndo_stop = cfhsi_close,
@@ -1419,7 +1417,7 @@ static int caif_hsi_newlink(struct net *src_net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
 	struct cfhsi *cfhsi = NULL;
-	struct platform_device *(*get_dev)(void);
+	struct cfhsi_ops *(*get_ops)(void);
 
 	ASSERT_RTNL();
 
@@ -1427,36 +1425,31 @@ static int caif_hsi_newlink(struct net *src_net, struct net_device *dev,
 	cfhsi_netlink_parms(data, cfhsi);
 	dev_net_set(cfhsi->ndev, src_net);
 
-	get_dev = symbol_get(cfhsi_get_device);
-	if (!get_dev) {
-		pr_err("%s: failed to get the cfhsi device symbol\n", __func__);
+	get_ops = symbol_get(cfhsi_get_ops);
+	if (!get_ops) {
+		pr_err("%s: failed to get the cfhsi_ops\n", __func__);
 		return -ENODEV;
 	}
 
 	/* Assign the HSI device. */
-	cfhsi->pdev = (*get_dev)();
-	if (!cfhsi->pdev) {
-		pr_err("%s: failed to get the cfhsi device\n", __func__);
+	cfhsi->ops = (*get_ops)();
+	if (!cfhsi->ops) {
+		pr_err("%s: failed to get the cfhsi_ops\n", __func__);
 		goto err;
 	}
 
-	/* Assign the HSI device. */
-	cfhsi->dev = cfhsi->pdev->dev.platform_data;
-
 	/* Assign the driver to this HSI device. */
-	cfhsi->dev->drv = &cfhsi->drv;
-
+	cfhsi->ops->cb_ops = &cfhsi->cb_ops;
 	if (register_netdevice(dev)) {
-		pr_warn("%s: device rtml registration failed\n", __func__);
+		pr_warn("%s: caif_hsi device registration failed\n", __func__);
 		goto err;
-
 	}
 	/* Add CAIF HSI device to list. */
 	list_add_tail(&cfhsi->list, &cfhsi_list);
 
 	return 0;
 err:
-	symbol_put(cfhsi_get_device);
+	symbol_put(cfhsi_get_ops);
 	return -ENODEV;
 }
 
