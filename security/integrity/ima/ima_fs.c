@@ -375,13 +375,3 @@ out:
 	securityfs_remove(ima_policy);
 	return -1;
 }
-
-void __exit ima_fs_cleanup(void)
-{
-	securityfs_remove(violations);
-	securityfs_remove(runtime_measurements_count);
-	securityfs_remove(ascii_runtime_measurements);
-	securityfs_remove(binary_runtime_measurements);
-	securityfs_remove(ima_dir);
-	securityfs_remove(ima_policy);
-}

@@ -262,11 +262,6 @@ static int __init init_ima(void)
 	return error;
 }
 
-static void __exit cleanup_ima(void)
-{
-	ima_cleanup();
-}
-
 late_initcall(init_ima);	/* Start IMA after the TPM is available */
 
 MODULE_DESCRIPTION("Integrity Measurement Architecture");
