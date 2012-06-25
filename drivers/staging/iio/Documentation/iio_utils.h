@@ -27,7 +27,7 @@ const char *iio_dir = "/sys/bus/iio/devices/";
  * @full_name: the full channel name
  * @generic_name: the output generic channel name
  **/
-static int iioutils_break_up_name(const char *full_name,
+inline int iioutils_break_up_name(const char *full_name,
 				  char **generic_name)
 {
 	char *current;
