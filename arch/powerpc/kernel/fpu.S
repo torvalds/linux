@@ -26,7 +26,7 @@
 #include <asm/ptrace.h>
 
 #ifdef CONFIG_VSX
-#define REST_32FPVSRS(n,c,base)						\
+#define __REST_32FPVSRS(n,c,base)					\
 BEGIN_FTR_SECTION							\
 	b	2f;							\
 END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
@@ -35,7 +35,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
 2:	REST_32VSRS(n,c,base);						\
 3:
 
-#define SAVE_32FPVSRS(n,c,base)						\
+#define __SAVE_32FPVSRS(n,c,base)					\
 BEGIN_FTR_SECTION							\
 	b	2f;							\
 END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
@@ -44,9 +44,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
 2:	SAVE_32VSRS(n,c,base);						\
 3:
 #else
-#define REST_32FPVSRS(n,b,base)	REST_32FPRS(n, base)
-#define SAVE_32FPVSRS(n,b,base)	SAVE_32FPRS(n, base)
+#define __REST_32FPVSRS(n,b,base)	REST_32FPRS(n, base)
+#define __SAVE_32FPVSRS(n,b,base)	SAVE_32FPRS(n, base)
 #endif
+#define REST_32FPVSRS(n,c,base) __REST_32FPVSRS(n,__REG_##c,__REG_##base)
+#define SAVE_32FPVSRS(n,c,base) __SAVE_32FPVSRS(n,__REG_##c,__REG_##base)
 
 /*
  * This task wants to use the FPU now.
@@ -79,7 +81,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	beq	1f
 	toreal(r4)
 	addi	r4,r4,THREAD		/* want last_task_used_math->thread */
-	SAVE_32FPVSRS(0, r5, r4)
+	SAVE_32FPVSRS(0, R5, R4)
 	mffs	fr0
 	stfd	fr0,THREAD_FPSCR(r4)
 	PPC_LL	r5,PT_REGS(r4)

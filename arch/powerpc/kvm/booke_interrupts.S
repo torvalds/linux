@@ -34,7 +34,8 @@
 #define HOST_R2         12
 #define HOST_CR         16
 #define HOST_NV_GPRS    20
-#define HOST_NV_GPR(n)  (HOST_NV_GPRS + ((n - 14) * 4))
+#define __HOST_NV_GPR(n)  (HOST_NV_GPRS + ((n - 14) * 4))
+#define HOST_NV_GPR(n)  __HOST_NV_GPR(__REG_##n)
 #define HOST_MIN_STACK_SIZE (HOST_NV_GPR(R31) + 4)
 #define HOST_STACK_SIZE (((HOST_MIN_STACK_SIZE + 15) / 16) * 16) /* Align. */
 #define HOST_STACK_LR   (HOST_STACK_SIZE + 4) /* In caller stack frame. */
