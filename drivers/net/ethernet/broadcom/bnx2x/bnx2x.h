@@ -614,6 +614,22 @@ struct bnx2x_fastpath {
 #define TX_BD(x)		((x) & MAX_TX_BD)
 #define TX_BD_POFF(x)		((x) & MAX_TX_DESC_CNT)
 
+/* number of NEXT_PAGE descriptors may be required during placement */
+#define NEXT_CNT_PER_TX_PKT(bds)	\
+				(((bds) + MAX_TX_DESC_CNT - 1) / \
+				 MAX_TX_DESC_CNT * NEXT_PAGE_TX_DESC_CNT)
+/* max BDs per tx packet w/o next_pages:
+ * START_BD		- describes packed
+ * START_BD(splitted)	- includes unpaged data segment for GSO
+ * PARSING_BD		- for TSO and CSUM data
+ * Frag BDs		- decribes pages for frags
+ */
+#define BDS_PER_TX_PKT		3
+#define MAX_BDS_PER_TX_PKT	(MAX_SKB_FRAGS + BDS_PER_TX_PKT)
+/* max BDs per tx packet including next pages */
+#define MAX_DESC_PER_TX_PKT	(MAX_BDS_PER_TX_PKT + \
+				 NEXT_CNT_PER_TX_PKT(MAX_BDS_PER_TX_PKT))
+
 /* The RX BD ring is special, each bd is 8 bytes but the last one is 16 */
 #define NUM_RX_RINGS		8
 #define RX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_bd))
