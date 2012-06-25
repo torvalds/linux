@@ -612,20 +612,11 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 			      WLCORE_QUIRK_TX_PAD_LAST_FRAME;
 		break;
 	case CHIP_ID_185x_PG10:
-		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (185x PG10)",
-			     wl->chip.id);
-		wl->sr_fw_name = WL18XX_FW_NAME;
-		/* wl18xx uses the same firmware for PLT */
-		wl->plt_fw_name = WL18XX_FW_NAME;
-		wl->quirks |= WLCORE_QUIRK_NO_ELP |
-			WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED |
-			WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
-			WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
+		wl1271_warning("chip id 0x%x (185x PG10) is deprecated",
+			       wl->chip.id);
+		ret = -ENODEV;
+		goto out;
 
-		/* PG 1.0 has some problems with MCS_13, so disable it */
-		wl->ht_cap[IEEE80211_BAND_2GHZ].mcs.rx_mask[1] &= ~BIT(5);
-
-		break;
 	default:
 		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
 		ret = -ENODEV;
@@ -776,21 +767,14 @@ out:
 static int wl18xx_set_mac_and_phy(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
-	size_t len;
 	int ret;
-
-	/* the parameters struct is smaller for PG1 */
-	if (wl->chip.id == CHIP_ID_185x_PG10)
-		len = offsetof(struct wl18xx_mac_and_phy_params, psat) + 1;
-	else
-		len = sizeof(struct wl18xx_mac_and_phy_params);
 
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
 	if (ret < 0)
 		goto out;
 
 	ret = wlcore_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&priv->conf.phy,
-			   len, false);
+			   sizeof(struct wl18xx_mac_and_phy_params), false);
 
 out:
 	return ret;
@@ -801,13 +785,8 @@ static int wl18xx_enable_interrupts(struct wl1271 *wl)
 	u32 event_mask, intr_mask;
 	int ret;
 
-	if (wl->chip.id == CHIP_ID_185x_PG10) {
-		event_mask = WL18XX_ACX_EVENTS_VECTOR_PG1;
-		intr_mask = WL18XX_INTR_MASK_PG1;
-	} else {
-		event_mask = WL18XX_ACX_EVENTS_VECTOR_PG2;
-		intr_mask = WL18XX_INTR_MASK_PG2;
-	}
+	event_mask = WL18XX_ACX_EVENTS_VECTOR;
+	intr_mask = WL18XX_INTR_MASK;
 
 	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK, event_mask);
 	if (ret < 0)
@@ -1048,16 +1027,6 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 		return CONF_TX_RATE_USE_WIDE_CHAN;
 	} else if (!strcmp(ht_mode_param, "mimo")) {
 		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
-
-		/*
-		 * PG 1.0 has some problems with MCS_13, so disable it
-		 *
-		 * TODO: instead of hacking this in here, we should
-		 * make it more general and change a bit in the
-		 * wlvif->rate_set instead.
-		 */
-		if (wl->chip.id == CHIP_ID_185x_PG10)
-			return CONF_TX_MIMO_RATES & ~CONF_HW_BIT_RATE_MCS_13;
 
 		return CONF_TX_MIMO_RATES;
 	} else {
