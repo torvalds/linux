@@ -10,7 +10,7 @@
  */
 #include <mach/mx28.h>
 #include <mach/devices-common.h>
-#include <mach/mxsfb.h>
+#include <linux/mxsfb.h>
 #include <linux/amba/bus.h>
 
 static inline int mx28_add_duart(void)

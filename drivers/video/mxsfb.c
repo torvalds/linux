@@ -46,7 +46,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
-#include <mach/mxsfb.h>
+#include <linux/mxsfb.h>
 
 #define REG_SET	4
 #define REG_CLR	8
