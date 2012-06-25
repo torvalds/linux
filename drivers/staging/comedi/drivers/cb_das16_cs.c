@@ -84,8 +84,6 @@ static const struct das16cs_board das16cs_boards[] = {
 	 },
 };
 
-#define n_boards ARRAY_SIZE(das16cs_boards)
-
 struct das16cs_private {
 	struct pcmcia_device *link;
 
@@ -467,7 +465,7 @@ static const struct das16cs_board *das16cs_probe(struct comedi_device *dev,
 {
 	int i;
 
-	for (i = 0; i < n_boards; i++) {
+	for (i = 0; i < ARRAY_SIZE(das16cs_boards); i++) {
 		if (das16cs_boards[i].device_id == link->card_id)
 			return das16cs_boards + i;
 	}
