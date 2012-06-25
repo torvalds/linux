@@ -323,22 +323,21 @@ static int spufs_context_open(struct dentry *dentry, struct vfsmount *mnt)
 	struct file *filp;
 
 	ret = get_unused_fd();
-	if (ret < 0) {
-		dput(dentry);
-		mntput(mnt);
-		goto out;
-	}
+	if (ret < 0)
+		return ret;
 
-	filp = dentry_open(dentry, mnt, O_RDONLY, current_cred());
+	/*
+	 * get references for dget and mntget, will be released
+	 * in error path of *_open().
+	 */
+	filp = dentry_open(dget(dentry), mntget(mnt), O_RDONLY, current_cred());
 	if (IS_ERR(filp)) {
 		put_unused_fd(ret);
-		ret = PTR_ERR(filp);
-		goto out;
+		return PTR_ERR(filp);
 	}
 
 	filp->f_op = &spufs_context_fops;
 	fd_install(ret, filp);
-out:
 	return ret;
 }
 
@@ -495,11 +494,7 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 			put_spu_context(neighbor);
 	}
 
-	/*
-	 * get references for dget and mntget, will be released
-	 * in error path of *_open().
-	 */
-	ret = spufs_context_open(dget(dentry), mntget(mnt));
+	ret = spufs_context_open(dentry, mnt);
 	if (ret < 0) {
 		WARN_ON(spufs_rmdir(inode, dentry));
 		if (affinity)
@@ -562,22 +557,21 @@ static int spufs_gang_open(struct dentry *dentry, struct vfsmount *mnt)
 	struct file *filp;
 
 	ret = get_unused_fd();
-	if (ret < 0) {
-		dput(dentry);
-		mntput(mnt);
-		goto out;
-	}
+	if (ret < 0)
+		return ret;
 
-	filp = dentry_open(dentry, mnt, O_RDONLY, current_cred());
+	/*
+	 * get references for dget and mntget, will be released
+	 * in error path of *_open().
+	 */
+	filp = dentry_open(dget(dentry), mntget(mnt), O_RDONLY, current_cred());
 	if (IS_ERR(filp)) {
 		put_unused_fd(ret);
-		ret = PTR_ERR(filp);
-		goto out;
+		return PTR_ERR(filp);
 	}
 
 	filp->f_op = &simple_dir_operations;
 	fd_install(ret, filp);
-out:
 	return ret;
 }
 
@@ -591,11 +585,7 @@ static int spufs_create_gang(struct inode *inode,
 	if (ret)
 		goto out;
 
-	/*
-	 * get references for dget and mntget, will be released
-	 * in error path of *_open().
-	 */
-	ret = spufs_gang_open(dget(dentry), mntget(mnt));
+	ret = spufs_gang_open(dentry, mnt);
 	if (ret < 0) {
 		int err = simple_rmdir(inode, dentry);
 		WARN_ON(err);
