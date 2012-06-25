@@ -48,6 +48,39 @@
 #define	__REG_R30	30
 #define	__REG_R31	31
 
+#define	__REGA0_0	0
+#define	__REGA0_R1	1
+#define	__REGA0_R2	2
+#define	__REGA0_R3	3
+#define	__REGA0_R4	4
+#define	__REGA0_R5	5
+#define	__REGA0_R6	6
+#define	__REGA0_R7	7
+#define	__REGA0_R8	8
+#define	__REGA0_R9	9
+#define	__REGA0_R10	10
+#define	__REGA0_R11	11
+#define	__REGA0_R12	12
+#define	__REGA0_R13	13
+#define	__REGA0_R14	14
+#define	__REGA0_R15	15
+#define	__REGA0_R16	16
+#define	__REGA0_R17	17
+#define	__REGA0_R18	18
+#define	__REGA0_R19	19
+#define	__REGA0_R20	20
+#define	__REGA0_R21	21
+#define	__REGA0_R22	22
+#define	__REGA0_R23	23
+#define	__REGA0_R24	24
+#define	__REGA0_R25	25
+#define	__REGA0_R26	26
+#define	__REGA0_R27	27
+#define	__REGA0_R28	28
+#define	__REGA0_R29	29
+#define	__REGA0_R30	30
+#define	__REGA0_R31	31
+
 /* sorted alphabetically */
 #define PPC_INST_DCBA			0x7c0005ec
 #define PPC_INST_DCBA_MASK		0xfc0007fe
@@ -149,6 +182,7 @@
 #define ___PPC_RS(s)	(((s) & 0x1f) << 21)
 #define ___PPC_RT(t)	___PPC_RS(t)
 #define __PPC_RA(a)	___PPC_RA(__REG_##a)
+#define __PPC_RA0(a)	___PPC_RA(__REGA0_##a)
 #define __PPC_RB(b)	___PPC_RB(__REG_##b)
 #define __PPC_RS(s)	___PPC_RS(__REG_##s)
 #define __PPC_RT(t)	___PPC_RT(__REG_##t)
