@@ -629,12 +629,6 @@ struct local_info_t {
 	struct bus_operations *bus;
 };
 
-static void das16cs_pcmcia_release(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "das16cs_pcmcia_release\n");
-	pcmcia_disable_device(link);
-}
-
 static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
@@ -644,39 +638,10 @@ static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	return pcmcia_request_io(p_dev);
 }
 
-static void das16cs_pcmcia_config(struct pcmcia_device *link)
-{
-	int ret;
-
-	dev_dbg(&link->dev, "das16cs_pcmcia_config\n");
-
-	/* Do we need to allocate an interrupt? */
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
-	if (ret) {
-		dev_warn(&link->dev, "no configuration found\n");
-		goto failed;
-	}
-
-	if (!link->irq)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	return;
-
-failed:
-	das16cs_pcmcia_release(link);
-}
-
 static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
 	struct local_info_t *local;
-
-	dev_dbg(&link->dev, "das16cs_pcmcia_attach()\n");
+	int ret;
 
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
@@ -685,21 +650,35 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
+	/* Do we need to allocate an interrupt? */
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+
+	ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
+	if (ret)
+		goto failed;
+
+	if (!link->irq)
+		goto failed;
+
+	ret = pcmcia_enable_device(link);
+	if (ret)
+		goto failed;
+
 	cur_dev = link;
-
-	das16cs_pcmcia_config(link);
-
 	return 0;
+
+failed:
+	pcmcia_disable_device(link);
+	return ret;
 }
 
 static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 {
-	dev_dbg(&link->dev, "das16cs_pcmcia_detach\n");
-
 	((struct local_info_t *)link->priv)->stop = 1;
-	das16cs_pcmcia_release(link);
+	pcmcia_disable_device(link);
 	/* This points to the parent struct local_info_t struct */
 	kfree(link->priv);
+	cur_dev = NULL;
 }
 
 static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
