@@ -673,7 +673,9 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 			pmic->desc[id].ops = &palmas_ops_smps10;
 			pmic->desc[id].vsel_reg = PALMAS_SMPS10_CTRL;
 			pmic->desc[id].vsel_mask = SMPS10_VSEL;
-			pmic->desc[id].enable_reg = PALMAS_SMPS10_STATUS;
+			pmic->desc[id].enable_reg =
+					PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
+							PALMAS_SMPS10_STATUS);
 			pmic->desc[id].enable_mask = SMPS10_BOOST_EN;
 		}
 
@@ -739,7 +741,8 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 
 		pmic->desc[id].type = REGULATOR_VOLTAGE;
 		pmic->desc[id].owner = THIS_MODULE;
-		pmic->desc[id].enable_reg = palmas_regs_info[id].ctrl_addr;
+		pmic->desc[id].enable_reg = PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
+						palmas_regs_info[id].ctrl_addr);
 		pmic->desc[id].enable_mask = PALMAS_LDO1_CTRL_MODE_ACTIVE;
 
 		if (pdata && pdata->reg_data)
