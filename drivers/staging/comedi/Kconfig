@@ -444,7 +444,6 @@ config COMEDI_ADQ12B
 
 config COMEDI_NI_AT_A2150
 	tristate "NI AT-A2150 ISA card support"
-	depends on COMEDI_NI_COMMON
 	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for National Instruments AT-A2150 cards
@@ -454,7 +453,6 @@ config COMEDI_NI_AT_A2150
 
 config COMEDI_NI_AT_AO
 	tristate "NI AT-AO-6/10 EISA card support"
-	depends on COMEDI_NI_COMMON
 	---help---
 	  Enable support for National Instruments AT-AO-6/10 cards
 
@@ -463,8 +461,9 @@ config COMEDI_NI_AT_AO
 
 config COMEDI_NI_ATMIO
 	tristate "NI AT-MIO E series ISA-PNP card support"
-	depends on ISAPNP && COMEDI_NI_TIO && COMEDI_NI_COMMON
+	depends on ISAPNP
 	select COMEDI_8255
+	select COMEDI_NI_TIO
 	---help---
 	  Enable support for National Instruments AT-MIO E series cards
 	  National Instruments AT-MIO-16E-1 (ni_atmio),
@@ -476,7 +475,7 @@ config COMEDI_NI_ATMIO
 
 config COMEDI_NI_ATMIO16D
 	tristate "NI AT-MIO16/AT-MIO16D series ISA-PNP card support"
-	depends on ISAPNP && COMEDI_NI_COMMON
+	depends on ISAPNP
 	select COMEDI_8255
 	---help---
 	  Enable support for National Instruments AT-MIO16/AT-MIO16D cards.
@@ -985,7 +984,7 @@ config COMEDI_ME_DAQ
 
 config COMEDI_NI_6527
 	tristate "NI 6527 support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	---help---
 	  Enable support for the National Instruments 6527 PCI card
 
@@ -994,7 +993,7 @@ config COMEDI_NI_6527
 
 config COMEDI_NI_65XX
 	tristate "NI 65xx static dio PCI card support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments 65xx static dio boards.
 	  Supported devices: National Instruments PCI-6509 (ni_65xx),
@@ -1007,7 +1006,7 @@ config COMEDI_NI_65XX
 
 config COMEDI_NI_660X
 	tristate "NI 660x counter/timer PCI card support"
-	depends on COMEDI_NI_TIOCMD && COMEDI_NI_COMMON
+	select COMEDI_NI_TIOCMD
 	---help---
 	  Enable support for National Instruments PCI-6601 (ni_660x), PCI-6602,
 	  PXI-6602 and PXI-6608.
@@ -1017,7 +1016,7 @@ config COMEDI_NI_660X
 
 config COMEDI_NI_670X
 	tristate "NI 670x PCI card support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments PCI-6703 and PCI-6704
 
@@ -1026,7 +1025,7 @@ config COMEDI_NI_670X
 
 config COMEDI_NI_LABPC
 	tristate "NI Lab-PC and compatibles ISA and PCI support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	select COMEDI_8255
 	select COMEDI_FC
 	depends on VIRT_TO_BUS
@@ -1041,7 +1040,7 @@ config COMEDI_NI_LABPC
 
 config COMEDI_NI_PCIDIO
 	tristate "NI PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503 support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	select COMEDI_8255
 	---help---
 	  Enable support for National Instruments PCI-DIO-32HS, PXI-6533,
@@ -1055,7 +1054,7 @@ config COMEDI_NI_PCIDIO
 
 config COMEDI_NI_PCIMIO
 	tristate "NI PCI-MIO-E series and M series support"
-	depends on COMEDI_NI_TIOCMD && COMEDI_NI_COMMON
+	select COMEDI_NI_TIOCMD
 	select COMEDI_8255
 	select COMEDI_FC
 	---help---
@@ -1141,7 +1140,6 @@ config COMEDI_DAS08_CS
 
 config COMEDI_NI_DAQ_700_CS
 	tristate "NI DAQCard-700 PCMCIA support"
-	depends on COMEDI_NI_COMMON
 	---help---
 	  Enable support for the National Instruments PCMCIA DAQCard-700 DIO
 
@@ -1150,7 +1148,6 @@ config COMEDI_NI_DAQ_700_CS
 
 config COMEDI_NI_DAQ_DIO24_CS
 	tristate "NI DAQ-Card DIO-24 PCMCIA support"
-	depends on COMEDI_NI_COMMON
 	select COMEDI_8255
 	---help---
 	  Enable support for the National Instruments PCMCIA DAQ-Card DIO-24
@@ -1169,7 +1166,7 @@ config COMEDI_NI_LABPC_CS
 
 config COMEDI_NI_MIO_CS
 	tristate "NI DAQCard E series PCMCIA support"
-	depends on COMEDI_NI_TIO && COMEDI_NI_COMMON
+	select COMEDI_NI_TIO
 	select COMEDI_8255
 	select COMEDI_FC
 	---help---
@@ -1248,51 +1245,17 @@ config COMEDI_VMK80XX
 
 endif # COMEDI_USB_DRIVERS
 
-menuconfig COMEDI_NI_COMMON
-	tristate "Comedi National Instruments card support"
-	---help---
-	  Enable comedi support for National Instruments cards.
-	  Modules in this section are used by many comedi NI drivers.
-
-	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about National Instruments cards.
-
-if COMEDI_NI_COMMON
-
 config COMEDI_MITE
-	tristate "NI Mite PCI interface chip support"
+	tristate
 	depends on PCI
-	---help---
-	  Enable support for National Instruments Mite PCI interface chip
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called mite.
 
 config COMEDI_NI_TIO
-	tristate "NI general purpose counter support"
-	---help---
-	  Enable support for National Instruments general purpose counters.
-	  This module is not used directly by end-users. Rather, it
-	  is used by other drivers (for example ni_660x and ni_pcimio)
-	  to provide support for NI's general purpose counters.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called ni_tio.
+	tristate
 
 config COMEDI_NI_TIOCMD
-	tristate "NI streaming acquisition for general purpose counters"
-	depends on COMEDI_NI_TIO && COMEDI_MITE
-	---help---
-	  Enable streaming acquisition command support for National Instruments
-	  general purpose counters.  This module is not used directly by
-	  end-users.  It is used by some NI PCI card drivers (ni_660x and
-	  ni_pcimio).
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called ni_tiocmd.
-
-endif # COMEDI_NI_COMMON
+	tristate
+	select COMEDI_NI_TIO
+	select COMEDI_MITE
 
 config COMEDI_8255
 	tristate "Generic 8255 support"
