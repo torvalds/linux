@@ -207,7 +207,6 @@ error_0:
 static void nfs4_shutdown_session(struct nfs_client *clp)
 {
 	if (nfs4_has_session(clp)) {
-		nfs4_deviceid_purge_client(clp);
 		nfs4_destroy_session(clp->cl_session);
 		nfs4_destroy_clientid(clp);
 	}
@@ -543,8 +542,6 @@ nfs_found_client(const struct nfs_client_initdata *cl_init,
 	}
 
 	smp_rmb();
-
-	BUG_ON(clp->cl_cons_state != NFS_CS_READY);
 
 	dprintk("<-- %s found nfs_client %p for %s\n",
 		__func__, clp, cl_init->hostname ?: "");

@@ -26,6 +26,7 @@
 #include "backref.h"
 #include "extent_io.h"
 #include "check-integrity.h"
+#include "rcu-string.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -320,10 +321,10 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root, void *ctx)
 	 * hold all of the paths here
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
-		printk(KERN_WARNING "btrfs: %s at logical %llu on dev "
+		printk_in_rcu(KERN_WARNING "btrfs: %s at logical %llu on dev "
 			"%s, sector %llu, root %llu, inode %llu, offset %llu, "
 			"length %llu, links %u (path: %s)\n", swarn->errstr,
-			swarn->logical, swarn->dev->name,
+			swarn->logical, rcu_str_deref(swarn->dev->name),
 			(unsigned long long)swarn->sector, root, inum, offset,
 			min(isize - offset, (u64)PAGE_SIZE), nlink,
 			(char *)(unsigned long)ipath->fspath->val[i]);
@@ -332,10 +333,10 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root, void *ctx)
 	return 0;
 
 err:
-	printk(KERN_WARNING "btrfs: %s at logical %llu on dev "
+	printk_in_rcu(KERN_WARNING "btrfs: %s at logical %llu on dev "
 		"%s, sector %llu, root %llu, inode %llu, offset %llu: path "
 		"resolving failed with ret=%d\n", swarn->errstr,
-		swarn->logical, swarn->dev->name,
+		swarn->logical, rcu_str_deref(swarn->dev->name),
 		(unsigned long long)swarn->sector, root, inum, offset, ret);
 
 	free_ipath(ipath);
@@ -390,10 +391,11 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 		do {
 			ret = tree_backref_for_extent(&ptr, eb, ei, item_size,
 							&ref_root, &ref_level);
-			printk(KERN_WARNING
+			printk_in_rcu(KERN_WARNING
 				"btrfs: %s at logical %llu on dev %s, "
 				"sector %llu: metadata %s (level %d) in tree "
-				"%llu\n", errstr, swarn.logical, dev->name,
+				"%llu\n", errstr, swarn.logical,
+				rcu_str_deref(dev->name),
 				(unsigned long long)swarn.sector,
 				ref_level ? "node" : "leaf",
 				ret < 0 ? -1 : ref_level,
@@ -580,9 +582,11 @@ out:
 		spin_lock(&sdev->stat_lock);
 		++sdev->stat.uncorrectable_errors;
 		spin_unlock(&sdev->stat_lock);
-		printk_ratelimited(KERN_ERR
+
+		printk_ratelimited_in_rcu(KERN_ERR
 			"btrfs: unable to fixup (nodatasum) error at logical %llu on dev %s\n",
-			(unsigned long long)fixup->logical, sdev->dev->name);
+			(unsigned long long)fixup->logical,
+			rcu_str_deref(sdev->dev->name));
 	}
 
 	btrfs_free_path(path);
@@ -936,18 +940,20 @@ corrected_error:
 			spin_lock(&sdev->stat_lock);
 			sdev->stat.corrected_errors++;
 			spin_unlock(&sdev->stat_lock);
-			printk_ratelimited(KERN_ERR
+			printk_ratelimited_in_rcu(KERN_ERR
 				"btrfs: fixed up error at logical %llu on dev %s\n",
-				(unsigned long long)logical, sdev->dev->name);
+				(unsigned long long)logical,
+				rcu_str_deref(sdev->dev->name));
 		}
 	} else {
 did_not_correct_error:
 		spin_lock(&sdev->stat_lock);
 		sdev->stat.uncorrectable_errors++;
 		spin_unlock(&sdev->stat_lock);
-		printk_ratelimited(KERN_ERR
+		printk_ratelimited_in_rcu(KERN_ERR
 			"btrfs: unable to fixup (regular) error at logical %llu on dev %s\n",
-			(unsigned long long)logical, sdev->dev->name);
+			(unsigned long long)logical,
+			rcu_str_deref(sdev->dev->name));
 	}
 
 out:

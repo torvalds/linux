@@ -90,11 +90,9 @@ unsigned int scsi_logging_level;
 EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
-#if IS_ENABLED(CONFIG_PM) || IS_ENABLED(CONFIG_BLK_DEV_SD)
-/* sd and scsi_pm need to coordinate flushing async actions */
+/* sd, scsi core and power management need to coordinate flushing async actions */
 LIST_HEAD(scsi_sd_probe_domain);
 EXPORT_SYMBOL(scsi_sd_probe_domain);
-#endif
 
 /* NB: These are exposed through /proc/scsi/scsi and form part of the ABI.
  * You may not alter any existing entry (although adding new ones is

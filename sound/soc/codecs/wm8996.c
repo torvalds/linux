@@ -2659,8 +2659,6 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 		}
 	}
 
-	regcache_cache_only(codec->control_data, true);
-
 	/* Apply platform data settings */
 	snd_soc_update_bits(codec, WM8996_LINE_INPUT_CONTROL,
 			    WM8996_INL_MODE_MASK | WM8996_INR_MODE_MASK,
@@ -2873,7 +2871,6 @@ static int wm8996_remove(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
 		regulator_unregister_notifier(wm8996->supplies[i].consumer,
 					      &wm8996->disable_nb[i]);
-	regulator_bulk_free(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 
 	return 0;
 }
@@ -3028,13 +3025,14 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 	dev_info(&i2c->dev, "revision %c\n",
 		 (reg & WM8996_CHIP_REV_MASK) + 'A');
 
-	regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
-
 	ret = wm8996_reset(wm8996);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to issue reset\n");
 		goto err_regmap;
 	}
+
+	regcache_cache_only(wm8996->regmap, true);
+	regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 
 	wm8996_init_gpio(wm8996);
 
