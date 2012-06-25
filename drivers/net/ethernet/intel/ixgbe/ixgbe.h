@@ -189,7 +189,7 @@ enum ixgbe_ring_state_t {
 	__IXGBE_HANG_CHECK_ARMED,
 	__IXGBE_RX_RSC_ENABLED,
 	__IXGBE_RX_CSUM_UDP_ZERO_ERR,
-	__IXGBE_RX_FCOE_BUFSZ,
+	__IXGBE_RX_FCOE,
 };
 
 #define check_for_tx_hang(ring) \
@@ -283,7 +283,7 @@ struct ixgbe_ring_feature {
 #if defined(IXGBE_FCOE) && (PAGE_SIZE < 8192)
 static inline unsigned int ixgbe_rx_pg_order(struct ixgbe_ring *ring)
 {
-	return test_bit(__IXGBE_RX_FCOE_BUFSZ, &ring->state) ? 1 : 0;
+	return test_bit(__IXGBE_RX_FCOE, &ring->state) ? 1 : 0;
 }
 #else
 #define ixgbe_rx_pg_order(_ring) 0
