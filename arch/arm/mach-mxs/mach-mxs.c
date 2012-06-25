@@ -16,11 +16,56 @@
 #include <linux/init.h>
 #include <linux/init.h>
 #include <linux/irqdomain.h>
+#include <linux/mxsfb.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
+
+static struct fb_videomode mx23evk_video_modes[] = {
+	{
+		.name		= "Samsung-LMS430HF02",
+		.refresh	= 60,
+		.xres		= 480,
+		.yres		= 272,
+		.pixclock	= 108096, /* picosecond (9.2 MHz) */
+		.left_margin	= 15,
+		.right_margin	= 8,
+		.upper_margin	= 12,
+		.lower_margin	= 4,
+		.hsync_len	= 1,
+		.vsync_len	= 1,
+		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT |
+				  FB_SYNC_DOTCLK_FAILING_ACT,
+	},
+};
+
+static struct fb_videomode mx28evk_video_modes[] = {
+	{
+		.name		= "Seiko-43WVF1G",
+		.refresh	= 60,
+		.xres		= 800,
+		.yres		= 480,
+		.pixclock	= 29851, /* picosecond (33.5 MHz) */
+		.left_margin	= 89,
+		.right_margin	= 164,
+		.upper_margin	= 23,
+		.lower_margin	= 10,
+		.hsync_len	= 10,
+		.vsync_len	= 10,
+		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT |
+				  FB_SYNC_DOTCLK_FAILING_ACT,
+	},
+};
+
+static struct mxsfb_platform_data mxsfb_pdata __initdata;
+
+static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("fsl,imx23-lcdif", 0x80030000, NULL, &mxsfb_pdata),
+	OF_DEV_AUXDATA("fsl,imx28-lcdif", 0x80030000, NULL, &mxsfb_pdata),
+	{ /* sentinel */ }
+};
 
 static int __init mxs_icoll_add_irq_domain(struct device_node *np,
 				struct device_node *interrupt_parent)
@@ -133,6 +178,14 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 	}
 }
 
+static void __init imx23_evk_init(void)
+{
+	mxsfb_pdata.mode_list = mx23evk_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(mx23evk_video_modes);
+	mxsfb_pdata.default_bpp = 32;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+}
+
 static void __init imx28_evk_init(void)
 {
 	struct clk *clk;
@@ -143,15 +196,22 @@ static void __init imx28_evk_init(void)
 		clk_prepare_enable(clk);
 
 	update_fec_mac_prop(OUI_FSL);
+
+	mxsfb_pdata.mode_list = mx28evk_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(mx28evk_video_modes);
+	mxsfb_pdata.default_bpp = 32;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
 }
 
 static void __init mxs_machine_init(void)
 {
 	if (of_machine_is_compatible("fsl,imx28-evk"))
 		imx28_evk_init();
+	else if (of_machine_is_compatible("fsl,imx23-evk"))
+		imx23_evk_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
-				NULL, NULL);
+			     mxs_auxdata_lookup, NULL);
 }
 
 static const char *imx23_dt_compat[] __initdata = {
