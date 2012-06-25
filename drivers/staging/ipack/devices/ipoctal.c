@@ -13,16 +13,12 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/interrupt.h>
-#include <linux/fs.h>
-#include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include "../ipack.h"
 #include "ipoctal.h"
