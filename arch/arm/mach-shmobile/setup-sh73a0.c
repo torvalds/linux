@@ -651,6 +651,116 @@ static struct platform_device dma0_device = {
 	},
 };
 
+/* MPDMAC */
+static const struct sh_dmae_slave_config sh73a0_mpdma_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_FSI2A_RX,
+		.addr		= 0xec230020,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd6, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2A_TX,
+		.addr		= 0xec230024,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd5, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2C_RX,
+		.addr		= 0xec230060,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xda, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2C_TX,
+		.addr		= 0xec230064,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd9, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2B_RX,
+		.addr		= 0xec240020,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x8e, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2B_TX,
+		.addr		= 0xec240024,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x8d, /* CHECK ME */
+	}, {
+		.slave_id	= SHDMA_SLAVE_FSI2D_RX,
+		.addr		=  0xec240060,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x9a, /* CHECK ME */
+	},
+};
+
+#define MPDMA_CHANNEL(a, b, c)			\
+{						\
+	.offset		= a,			\
+	.dmars		= b,			\
+	.dmars_bit	= c,			\
+	.chclr_offset	= (0x220 - 0x20) + a	\
+}
+
+static const struct sh_dmae_channel sh73a0_mpdma_channels[] = {
+	MPDMA_CHANNEL(0x00, 0, 0),
+	MPDMA_CHANNEL(0x10, 0, 8),
+	MPDMA_CHANNEL(0x20, 4, 0),
+	MPDMA_CHANNEL(0x30, 4, 8),
+	MPDMA_CHANNEL(0x50, 8, 0),
+	MPDMA_CHANNEL(0x70, 8, 8),
+};
+
+static struct sh_dmae_pdata sh73a0_mpdma_platform_data = {
+	.slave		= sh73a0_mpdma_slaves,
+	.slave_num	= ARRAY_SIZE(sh73a0_mpdma_slaves),
+	.channel	= sh73a0_mpdma_channels,
+	.channel_num	= ARRAY_SIZE(sh73a0_mpdma_channels),
+	.ts_low_shift	= 3,
+	.ts_low_mask	= 0x18,
+	.ts_high_shift	= (20 - 2),     /* 2 bits for shifted low TS */
+	.ts_high_mask	= 0x00300000,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_DME,
+	.chclr_present	= 1,
+};
+
+/* Resource order important! */
+static struct resource sh73a0_mpdma_resources[] = {
+	{
+		/* Channel registers and DMAOR */
+		.start	= 0xec618020,
+		.end	= 0xec61828f,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMARSx */
+		.start	= 0xec619000,
+		.end	= 0xec61900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "error_irq",
+		.start	= gic_spi(181),
+		.end	= gic_spi(181),
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 0-5 */
+		.start	= gic_spi(175),
+		.end	= gic_spi(180),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mpdma0_device = {
+	.name		= "sh-dma-engine",
+	.id		= 1,
+	.resource	= sh73a0_mpdma_resources,
+	.num_resources	= ARRAY_SIZE(sh73a0_mpdma_resources),
+	.dev		= {
+		.platform_data	= &sh73a0_mpdma_platform_data,
+	},
+};
+
 static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -673,6 +783,7 @@ static struct platform_device *sh73a0_late_devices[] __initdata = {
 	&i2c3_device,
 	&i2c4_device,
 	&dma0_device,
+	&mpdma0_device,
 };
 
 #define SRCR2          0xe61580b0
