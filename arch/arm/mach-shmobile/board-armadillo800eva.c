@@ -122,20 +122,6 @@
  */
 
 /*
- * FIXME !!
- *
- * gpio_no_direction
- *
- * current gpio frame work doesn't have
- * the method to control only pull up/down/free.
- * this function should be replaced by correct gpio function
- */
-static void __init gpio_no_direction(u32 addr)
-{
-	__raw_writeb(0x00, addr);
-}
-
-/*
  * USB function
  *
  * When you use USB Function,
@@ -1087,8 +1073,8 @@ static void __init eva_init(void)
 
 	gpio_request(GPIO_PORT7, NULL);
 	gpio_request(GPIO_PORT8, NULL);
-	gpio_no_direction(GPIO_PORT7CR); /* FSIAOBT needs no direction */
-	gpio_no_direction(GPIO_PORT8CR); /* FSIAOLR needs no direction */
+	gpio_direction_none(GPIO_PORT7CR); /* FSIAOBT needs no direction */
+	gpio_direction_none(GPIO_PORT8CR); /* FSIAOLR needs no direction */
 
 	/* FSI-HDMI */
 	gpio_request(GPIO_FN_FSIBCK,		NULL);
