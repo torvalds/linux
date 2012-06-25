@@ -111,7 +111,13 @@ struct ehci_regs {
 	/* ASYNCLISTADDR: offset 0x18 */
 	u32		async_next;	/* address of next async queue head */
 
-	u32		reserved[9];
+	u32		reserved1[2];
+
+	/* TXFILLTUNING: offset 0x24 */
+	u32		txfill_tuning;	/* TX FIFO Tuning register */
+#define TXFIFO_DEFAULT	(8<<16)		/* FIFO burst threshold 8 */
+
+	u32		reserved2[6];
 
 	/* CONFIGFLAG: offset 0x40 */
 	u32		configured_flag;
@@ -155,26 +161,34 @@ struct ehci_regs {
 #define PORT_CSC	(1<<1)		/* connect status change */
 #define PORT_CONNECT	(1<<0)		/* device connected */
 #define PORT_RWC_BITS   (PORT_CSC | PORT_PEC | PORT_OCC)
-};
 
-#define USBMODE		0x68		/* USB Device mode */
+	u32		reserved3[9];
+
+	/* USBMODE: offset 0x68 */
+	u32		usbmode;	/* USB Device mode */
 #define USBMODE_SDIS	(1<<3)		/* Stream disable */
 #define USBMODE_BE	(1<<2)		/* BE/LE endianness select */
 #define USBMODE_CM_HC	(3<<0)		/* host controller mode */
 #define USBMODE_CM_IDLE	(0<<0)		/* idle state */
 
+	u32		reserved4[7];
+
 /* Moorestown has some non-standard registers, partially due to the fact that
  * its EHCI controller has both TT and LPM support. HOSTPCx are extensions to
  * PORTSCx
  */
-#define HOSTPC0		0x84		/* HOSTPC extension */
+	/* HOSTPC: offset 0x84 */
+	u32		hostpc[0];	/* HOSTPC extension */
 #define HOSTPC_PHCD	(1<<22)		/* Phy clock disable */
 #define HOSTPC_PSPD	(3<<25)		/* Port speed detection */
-#define USBMODE_EX	0xc8		/* USB Device mode extension */
+
+	u32		reserved5[17];
+
+	/* USBMODE_EX: offset 0xc8 */
+	u32		usbmode_ex;	/* USB Device mode extension */
 #define USBMODE_EX_VBPS	(1<<5)		/* VBus Power Select On */
 #define USBMODE_EX_HC	(3<<0)		/* host controller mode */
-#define TXFILLTUNING	0x24		/* TX FIFO Tuning register */
-#define TXFIFO_DEFAULT	(8<<16)		/* FIFO burst threshold 8 */
+};
 
 /* Appendix C, Debug port ... intended for use with special "debug devices"
  * that can help if there's no serial console.  (nonstandard enumeration.)

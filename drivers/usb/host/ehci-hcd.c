@@ -203,11 +203,9 @@ static int handshake (struct ehci_hcd *ehci, void __iomem *ptr,
 /* check TDI/ARC silicon is in host mode */
 static int tdi_in_host_mode (struct ehci_hcd *ehci)
 {
-	u32 __iomem	*reg_ptr;
 	u32		tmp;
 
-	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + USBMODE);
-	tmp = ehci_readl(ehci, reg_ptr);
+	tmp = ehci_readl(ehci, &ehci->regs->usbmode);
 	return (tmp & 3) == USBMODE_CM_HC;
 }
 
@@ -303,11 +301,9 @@ static int handshake_on_error_set_halt(struct ehci_hcd *ehci, void __iomem *ptr,
 /* put TDI/ARC silicon into EHCI mode */
 static void tdi_reset (struct ehci_hcd *ehci)
 {
-	u32 __iomem	*reg_ptr;
 	u32		tmp;
 
-	reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + USBMODE);
-	tmp = ehci_readl(ehci, reg_ptr);
+	tmp = ehci_readl(ehci, &ehci->regs->usbmode);
 	tmp |= USBMODE_CM_HC;
 	/* The default byte access to MMR space is LE after
 	 * controller reset. Set the required endian mode
@@ -315,7 +311,7 @@ static void tdi_reset (struct ehci_hcd *ehci)
 	 */
 	if (ehci_big_endian_mmio(ehci))
 		tmp |= USBMODE_BE;
-	ehci_writel(ehci, tmp, reg_ptr);
+	ehci_writel(ehci, tmp, &ehci->regs->usbmode);
 }
 
 /* reset a non-running (STS_HALT == 1) controller */
@@ -339,9 +335,8 @@ static int ehci_reset (struct ehci_hcd *ehci)
 
 	if (ehci->has_hostpc) {
 		ehci_writel(ehci, USBMODE_EX_HC | USBMODE_EX_VBPS,
-			(u32 __iomem *)(((u8 *)ehci->regs) + USBMODE_EX));
-		ehci_writel(ehci, TXFIFO_DEFAULT,
-			(u32 __iomem *)(((u8 *)ehci->regs) + TXFILLTUNING));
+				&ehci->regs->usbmode_ex);
+		ehci_writel(ehci, TXFIFO_DEFAULT, &ehci->regs->txfill_tuning);
 	}
 	if (retval)
 		return retval;
