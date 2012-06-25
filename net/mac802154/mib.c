@@ -91,3 +91,34 @@ void mac802154_dev_set_ieee_addr(struct net_device *dev)
 		set_hw_addr_filt(dev, IEEE802515_AFILT_IEEEADDR_CHANGED);
 	}
 }
+
+u16 mac802154_dev_get_pan_id(const struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	u16 ret;
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	spin_lock_bh(&priv->mib_lock);
+	ret = priv->pan_id;
+	spin_unlock_bh(&priv->mib_lock);
+
+	return ret;
+}
+
+void mac802154_dev_set_pan_id(struct net_device *dev, u16 val)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	spin_lock_bh(&priv->mib_lock);
+	priv->pan_id = val;
+	spin_unlock_bh(&priv->mib_lock);
+
+	if ((priv->hw->ops->set_hw_addr_filt) &&
+	    (priv->hw->hw.hw_filt.pan_id != priv->pan_id)) {
+		priv->hw->hw.hw_filt.pan_id = priv->pan_id;
+		set_hw_addr_filt(dev, IEEE802515_AFILT_PANID_CHANGED);
+	}
+}
