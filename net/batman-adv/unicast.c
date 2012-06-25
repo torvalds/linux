@@ -181,7 +181,7 @@ int batadv_frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 	*new_skb = NULL;
 
-	orig_node = orig_hash_find(bat_priv, unicast_packet->orig);
+	orig_node = batadv_orig_hash_find(bat_priv, unicast_packet->orig);
 	if (!orig_node)
 		goto out;
 
@@ -227,7 +227,7 @@ int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	int large_tail = 0, ret = NET_RX_DROP;
 	uint16_t seqno;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto dropped;
 
@@ -277,7 +277,7 @@ dropped:
 	kfree_skb(skb);
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return ret;
 }
 

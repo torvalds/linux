@@ -41,7 +41,7 @@ int batadv_orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num);
 /* hashfunction to choose an entry in a hash table of given size
  * hash algorithm from http://en.wikipedia.org/wiki/Hash_table
  */
-static inline uint32_t choose_orig(const void *data, uint32_t size)
+static inline uint32_t batadv_choose_orig(const void *data, uint32_t size)
 {
 	const unsigned char *key = data;
 	uint32_t hash = 0;
@@ -60,8 +60,8 @@ static inline uint32_t choose_orig(const void *data, uint32_t size)
 	return hash % size;
 }
 
-static inline struct orig_node *orig_hash_find(struct bat_priv *bat_priv,
-					       const void *data)
+static inline struct orig_node *batadv_orig_hash_find(struct bat_priv *bat_priv,
+						      const void *data)
 {
 	struct hashtable_t *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
@@ -72,12 +72,12 @@ static inline struct orig_node *orig_hash_find(struct bat_priv *bat_priv,
 	if (!hash)
 		return NULL;
 
-	index = choose_orig(data, hash->size);
+	index = batadv_choose_orig(data, hash->size);
 	head = &hash->table[index];
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
-		if (!compare_eth(orig_node, data))
+		if (!batadv_compare_eth(orig_node, data))
 			continue;
 
 		if (!atomic_inc_not_zero(&orig_node->refcount))

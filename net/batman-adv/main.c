@@ -180,7 +180,7 @@ int batadv_is_my_mac(const uint8_t *addr)
 		if (hard_iface->if_status != IF_ACTIVE)
 			continue;
 
-		if (compare_eth(hard_iface->net_dev->dev_addr, addr)) {
+		if (batadv_compare_eth(hard_iface->net_dev->dev_addr, addr)) {
 			rcu_read_unlock();
 			return 1;
 		}
@@ -238,9 +238,9 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
 
 	if (batman_ogm_packet->header.version != COMPAT_VERSION) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: incompatible batman version (%i)\n",
-			batman_ogm_packet->header.version);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: incompatible batman version (%i)\n",
+			   batman_ogm_packet->header.version);
 		goto err_free;
 	}
 

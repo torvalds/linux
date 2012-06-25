@@ -42,14 +42,15 @@ void batadv_update_min_mtu(struct net_device *soft_iface);
 void batadv_hardif_free_rcu(struct rcu_head *rcu);
 bool batadv_is_wifi_iface(int ifindex);
 
-static inline void hardif_free_ref(struct hard_iface *hard_iface)
+static inline void
+batadv_hardif_free_ref(struct hard_iface *hard_iface)
 {
 	if (atomic_dec_and_test(&hard_iface->refcount))
 		call_rcu(&hard_iface->rcu, batadv_hardif_free_rcu);
 }
 
-static inline struct hard_iface *primary_if_get_selected(
-						struct bat_priv *bat_priv)
+static inline struct hard_iface *
+batadv_primary_if_get_selected(struct bat_priv *bat_priv)
 {
 	struct hard_iface *hard_iface;
 

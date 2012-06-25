@@ -23,8 +23,8 @@
 /* returns true if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno
  */
-static inline int bat_test_bit(const unsigned long *seq_bits,
-			       uint32_t last_seqno, uint32_t curr_seqno)
+static inline int batadv_test_bit(const unsigned long *seq_bits,
+				  uint32_t last_seqno, uint32_t curr_seqno)
 {
 	int32_t diff;
 
@@ -36,7 +36,7 @@ static inline int bat_test_bit(const unsigned long *seq_bits,
 }
 
 /* turn corresponding bit on, so we can remember that we got the packet */
-static inline void bat_set_bit(unsigned long *seq_bits, int32_t n)
+static inline void batadv_set_bit(unsigned long *seq_bits, int32_t n)
 {
 	/* if too old, just drop it */
 	if (n < 0 || n >= TQ_LOCAL_WINDOW_SIZE)

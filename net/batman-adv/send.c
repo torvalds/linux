@@ -27,7 +27,7 @@
 #include "gateway_common.h"
 #include "originator.h"
 
-static void send_outstanding_bcast_packet(struct work_struct *work);
+static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
 /* send out an already prepared packet to the given address via the
  * specified batman interface
@@ -96,18 +96,18 @@ void batadv_schedule_bat_ogm(struct hard_iface *hard_iface)
 	bat_priv->bat_algo_ops->bat_ogm_schedule(hard_iface);
 }
 
-static void forw_packet_free(struct forw_packet *forw_packet)
+static void batadv_forw_packet_free(struct forw_packet *forw_packet)
 {
 	if (forw_packet->skb)
 		kfree_skb(forw_packet->skb);
 	if (forw_packet->if_incoming)
-		hardif_free_ref(forw_packet->if_incoming);
+		batadv_hardif_free_ref(forw_packet->if_incoming);
 	kfree(forw_packet);
 }
 
-static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
-				      struct forw_packet *forw_packet,
-				      unsigned long send_time)
+static void _batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
+					     struct forw_packet *forw_packet,
+					     unsigned long send_time)
 {
 	INIT_HLIST_NODE(&forw_packet->list);
 
@@ -118,7 +118,7 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
 
 	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet->delayed_work,
-			  send_outstanding_bcast_packet);
+			  batadv_send_outstanding_bcast_packet);
 	queue_delayed_work(batadv_event_workqueue, &forw_packet->delayed_work,
 			   send_time);
 }
@@ -142,11 +142,11 @@ int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 	struct sk_buff *newskb;
 
 	if (!atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
-		bat_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
+		batadv_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
 		goto out;
 	}
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out_and_inc;
 
@@ -171,7 +171,7 @@ int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
 
-	_add_bcast_packet_to_list(bat_priv, forw_packet, delay);
+	_batadv_add_bcast_packet_to_list(bat_priv, forw_packet, delay);
 	return NETDEV_TX_OK;
 
 packet_free:
@@ -180,11 +180,11 @@ out_and_inc:
 	atomic_inc(&bat_priv->bcast_queue_left);
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return NETDEV_TX_BUSY;
 }
 
-static void send_outstanding_bcast_packet(struct work_struct *work)
+static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 {
 	struct hard_iface *hard_iface;
 	struct delayed_work *delayed_work =
@@ -220,13 +220,13 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 
 	/* if we still have some more bcasts to send */
 	if (forw_packet->num_packets < 3) {
-		_add_bcast_packet_to_list(bat_priv, forw_packet,
-					  msecs_to_jiffies(5));
+		_batadv_add_bcast_packet_to_list(bat_priv, forw_packet,
+						 msecs_to_jiffies(5));
 		return;
 	}
 
 out:
-	forw_packet_free(forw_packet);
+	batadv_forw_packet_free(forw_packet);
 	atomic_inc(&bat_priv->bcast_queue_left);
 }
 
@@ -260,7 +260,7 @@ out:
 	if (!forw_packet->own)
 		atomic_inc(&bat_priv->batman_queue_left);
 
-	forw_packet_free(forw_packet);
+	batadv_forw_packet_free(forw_packet);
 }
 
 void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
@@ -271,12 +271,12 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 	bool pending;
 
 	if (hard_iface)
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"purge_outstanding_packets(): %s\n",
-			hard_iface->net_dev->name);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "purge_outstanding_packets(): %s\n",
+			   hard_iface->net_dev->name);
 	else
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"purge_outstanding_packets()\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "purge_outstanding_packets()\n");
 
 	/* free bcast list */
 	spin_lock_bh(&bat_priv->forw_bcast_list_lock);
@@ -292,7 +292,7 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 
 		spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
-		/* send_outstanding_bcast_packet() will lock the list to
+		/* batadv_send_outstanding_bcast_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);
@@ -300,7 +300,7 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 
 		if (pending) {
 			hlist_del(&forw_packet->list);
-			forw_packet_free(forw_packet);
+			batadv_forw_packet_free(forw_packet);
 		}
 	}
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
@@ -327,7 +327,7 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 
 		if (pending) {
 			hlist_del(&forw_packet->list);
-			forw_packet_free(forw_packet);
+			batadv_forw_packet_free(forw_packet);
 		}
 	}
 	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
