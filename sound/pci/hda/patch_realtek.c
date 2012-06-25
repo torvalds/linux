@@ -6494,12 +6494,6 @@ static const struct snd_pci_quirk alc861vd_fixup_tbl[] = {
 	{}
 };
 
-static const struct hda_verb alc660vd_eapd_verbs[] = {
-	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
-	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
-	{ }
-};
-
 /*
  */
 static int patch_alc861vd(struct hda_codec *codec)
@@ -6520,11 +6514,6 @@ static int patch_alc861vd(struct hda_codec *codec)
 	err = alc861vd_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	if (codec->vendor_id == 0x10ec0660) {
-		/* always turn on EAPD */
-		snd_hda_gen_add_verbs(&spec->gen, alc660vd_eapd_verbs);
-	}
 
 	if (!spec->no_analog) {
 		err = snd_hda_attach_beep_device(codec, 0x23);
