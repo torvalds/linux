@@ -1204,9 +1204,11 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	en_warn(priv, "Using %d RX rings\n", prof->rx_ring_num);
 
 	/* Configure port */
+	mlx4_en_calc_rx_buf(dev);
 	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
-				    MLX4_EN_MIN_MTU,
-				    0, 0, 0, 0);
+				    priv->rx_skb_size + ETH_FCS_LEN,
+				    prof->tx_pause, prof->tx_ppp,
+				    prof->rx_pause, prof->rx_ppp);
 	if (err) {
 		en_err(priv, "Failed setting port general configurations "
 		       "for port %d, with error %d\n", priv->port, err);
