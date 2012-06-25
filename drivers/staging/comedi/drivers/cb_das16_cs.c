@@ -792,7 +792,7 @@ static void __exit exit_das16cs_pcmcia_cs(void)
 	pcmcia_unregister_driver(&das16cs_driver);
 }
 
-int __init init_module(void)
+static int __init das16cs_init(void)
 {
 	int ret;
 
@@ -802,12 +802,14 @@ int __init init_module(void)
 
 	return comedi_driver_register(&driver_das16cs);
 }
+module_init(das16cs_init);
 
-void __exit cleanup_module(void)
+static void __exit das16cs_exit(void)
 {
 	exit_das16cs_pcmcia_cs();
 	comedi_driver_unregister(&driver_das16cs);
 }
+module_exit(das16cs_exit);
 
 MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi driver for Computer Boards PC-CARD DAS16/16");
