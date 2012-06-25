@@ -19,6 +19,7 @@ config IEEE802154_FAKEHARD
 
           This driver can also be built as a module. To do so say M here.
 	  The module will be called 'fakehard'.
+
 config IEEE802154_FAKELB
 	depends on IEEE802154_DRIVERS && MAC802154
 	tristate "IEEE 802.15.4 loopback driver"
@@ -28,3 +29,8 @@ config IEEE802154_FAKELB
 
 	  This driver can also be built as a module. To do so say M here.
 	  The module will be called 'fakelb'.
+
+config IEEE802154_AT86RF230
+        depends on IEEE802154_DRIVERS && MAC802154
+        tristate "AT86RF230/231 transceiver driver"
+        depends on SPI
