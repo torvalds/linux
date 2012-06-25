@@ -796,6 +796,18 @@ int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 	switch (op) {
 	case ADD:
 		ret = iwlagn_mac_sta_add(hw, vif, sta);
+		if (ret)
+			break;
+		/*
+		 * Clear the in-progress flag, the AP station entry was added
+		 * but we'll initialize LQ only when we've associated (which
+		 * would also clear the in-progress flag). This is necessary
+		 * in case we never initialize LQ because association fails.
+		 */
+		spin_lock_bh(&priv->sta_lock);
+		priv->stations[iwl_sta_id(sta)].used &=
+			~IWL_STA_UCODE_INPROGRESS;
+		spin_unlock_bh(&priv->sta_lock);
 		break;
 	case REMOVE:
 		ret = iwlagn_mac_sta_remove(hw, vif, sta);
