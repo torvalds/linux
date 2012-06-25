@@ -231,8 +231,6 @@ void dss_init_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
 void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
-bool dss_use_replication(struct omap_dss_device *dssdev,
-		enum omap_color_mode mode);
 
 /* manager */
 int dss_init_overlay_managers(struct platform_device *pdev);
@@ -265,6 +263,8 @@ int dss_ovl_simple_check(struct omap_overlay *ovl,
 		const struct omap_overlay_info *info);
 int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 		const struct omap_video_timings *mgr_timings);
+bool dss_ovl_use_replication(struct dss_lcd_mgr_config config,
+		enum omap_color_mode mode);
 
 /* DSS */
 int dss_init_platform_driver(void) __init;

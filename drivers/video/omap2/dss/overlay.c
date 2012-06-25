@@ -687,3 +687,16 @@ int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 
 	return 0;
 }
+
+/*
+ * Checks if replication logic should be used. Only use when overlay is in
+ * RGB12U or RGB16 mode, and video port width interface is 18bpp or 24bpp
+ */
+bool dss_ovl_use_replication(struct dss_lcd_mgr_config config,
+		enum omap_color_mode mode)
+{
+	if (mode != OMAP_DSS_COLOR_RGB12U && mode != OMAP_DSS_COLOR_RGB16)
+		return false;
+
+	return config.video_port_width > 16;
+}
