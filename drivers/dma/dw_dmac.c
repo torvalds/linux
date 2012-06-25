@@ -1626,4 +1626,4 @@ module_exit(dw_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller driver");
 MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
-MODULE_AUTHOR("Viresh Kumar <viresh.kumar@st.com>");
+MODULE_AUTHOR("Viresh Kumar <viresh.linux@gmail.com>");

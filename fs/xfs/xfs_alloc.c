@@ -1080,6 +1080,7 @@ restart:
 			goto restart;
 		}
 
+		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
 		trace_xfs_alloc_size_neither(args);
 		args->agbno = NULLAGBLOCK;
 		return 0;
@@ -2441,7 +2442,7 @@ xfs_alloc_vextent(
 	DECLARE_COMPLETION_ONSTACK(done);
 
 	args->done = &done;
-	INIT_WORK(&args->work, xfs_alloc_vextent_worker);
+	INIT_WORK_ONSTACK(&args->work, xfs_alloc_vextent_worker);
 	queue_work(xfs_alloc_wq, &args->work);
 	wait_for_completion(&done);
 	return args->result;

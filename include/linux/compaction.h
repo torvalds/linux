@@ -1,8 +1,6 @@
 #ifndef _LINUX_COMPACTION_H
 #define _LINUX_COMPACTION_H
 
-#include <linux/node.h>
-
 /* Return values for compact_zone() and try_to_compact_pages() */
 /* compaction didn't start as it was not possible or direct reclaim was more suitable */
 #define COMPACT_SKIPPED		0
@@ -12,23 +10,6 @@
 #define COMPACT_PARTIAL		2
 /* The full zone was compacted */
 #define COMPACT_COMPLETE	3
-
-/*
- * compaction supports three modes
- *
- * COMPACT_ASYNC_MOVABLE uses asynchronous migration and only scans
- *    MIGRATE_MOVABLE pageblocks as migration sources and targets.
- * COMPACT_ASYNC_UNMOVABLE uses asynchronous migration and only scans
- *    MIGRATE_MOVABLE pageblocks as migration sources.
- *    MIGRATE_UNMOVABLE pageblocks are scanned as potential migration
- *    targets and convers them to MIGRATE_MOVABLE if possible
- * COMPACT_SYNC uses synchronous migration and scans all pageblocks
- */
-enum compact_mode {
-	COMPACT_ASYNC_MOVABLE,
-	COMPACT_ASYNC_UNMOVABLE,
-	COMPACT_SYNC,
-};
 
 #ifdef CONFIG_COMPACTION
 extern int sysctl_compact_memory;

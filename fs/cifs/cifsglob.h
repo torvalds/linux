@@ -174,6 +174,7 @@ struct smb_version_operations {
 	void (*add_credits)(struct TCP_Server_Info *, const unsigned int);
 	void (*set_credits)(struct TCP_Server_Info *, const int);
 	int * (*get_credits_field)(struct TCP_Server_Info *);
+	__u64 (*get_next_mid)(struct TCP_Server_Info *);
 	/* data offset from read response message */
 	unsigned int (*read_data_offset)(char *);
 	/* data length from read response message */
@@ -397,6 +398,12 @@ static inline void
 set_credits(struct TCP_Server_Info *server, const int val)
 {
 	server->ops->set_credits(server, val);
+}
+
+static inline __u64
+get_next_mid(struct TCP_Server_Info *server)
+{
+	return server->ops->get_next_mid(server);
 }
 
 /*

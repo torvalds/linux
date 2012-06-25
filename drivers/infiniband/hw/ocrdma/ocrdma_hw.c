@@ -732,7 +732,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 		break;
 	case OCRDMA_SRQ_LIMIT_EVENT:
 		ib_evt.element.srq = &qp->srq->ibsrq;
-		ib_evt.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		ib_evt.event = IB_EVENT_SRQ_LIMIT_REACHED;
 		srq_event = 1;
 		qp_event = 0;
 		break;
@@ -990,8 +990,6 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 			      struct ocrdma_dev_attr *attr,
 			      struct ocrdma_mbx_query_config *rsp)
 {
-	int max_q_mem;
-
 	attr->max_pd =
 	    (rsp->max_pd_ca_ack_delay & OCRDMA_MBX_QUERY_CFG_MAX_PD_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_PD_SHIFT;
@@ -1004,6 +1002,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_recv_sge = (rsp->max_write_send_sge &
 			      OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_SHIFT;
+	attr->max_srq_sge = (rsp->max_srq_rqe_sge &
+			      OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_MASK) >>
+	    OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_OFFSET;
 	attr->max_ord_per_qp = (rsp->max_ird_ord_per_qp &
 				OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_SHIFT;
@@ -1037,18 +1038,15 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_inline_data =
 	    attr->wqe_size - (sizeof(struct ocrdma_hdr_wqe) +
 			      sizeof(struct ocrdma_sge));
-	max_q_mem = OCRDMA_Q_PAGE_BASE_SIZE << (OCRDMA_MAX_Q_PAGE_SIZE_CNT - 1);
-	/* hw can queue one less then the configured size,
-	 * so publish less by one to stack.
-	 */
 	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		dev->attr.max_wqe = max_q_mem / dev->attr.wqe_size;
 		attr->ird = 1;
 		attr->ird_page_size = OCRDMA_MIN_Q_PAGE_SIZE;
 		attr->num_ird_pages = MAX_OCRDMA_IRD_PAGES;
-	} else
-		dev->attr.max_wqe = (max_q_mem / dev->attr.wqe_size) - 1;
-	dev->attr.max_rqe = (max_q_mem / dev->attr.rqe_size) - 1;
+	}
+	dev->attr.max_wqe = rsp->max_wqes_rqes_per_q >>
+		 OCRDMA_MBX_QUERY_CFG_MAX_WQES_PER_WQ_OFFSET;
+	dev->attr.max_rqe = rsp->max_wqes_rqes_per_q &
+		OCRDMA_MBX_QUERY_CFG_MAX_RQES_PER_RQ_MASK;
 }
 
 static int ocrdma_check_fw_config(struct ocrdma_dev *dev,
@@ -1990,19 +1988,12 @@ static void ocrdma_get_create_qp_rsp(struct ocrdma_create_qp_rsp *rsp,
 	max_wqe_allocated = 1 << max_wqe_allocated;
 	max_rqe_allocated = 1 << ((u16)rsp->max_wqe_rqe);
 
-	if (qp->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		qp->sq.free_delta = 0;
-		qp->rq.free_delta = 1;
-	} else
-		qp->sq.free_delta = 1;
-
 	qp->sq.max_cnt = max_wqe_allocated;
 	qp->sq.max_wqe_idx = max_wqe_allocated - 1;
 
 	if (!attrs->srq) {
 		qp->rq.max_cnt = max_rqe_allocated;
 		qp->rq.max_wqe_idx = max_rqe_allocated - 1;
-		qp->rq.free_delta = 1;
 	}
 }
 
