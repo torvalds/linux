@@ -1105,6 +1105,14 @@ config COMEDI_SSV_DNP
 	  To compile this driver as a module, choose M here: the module will be
 	  called ssv_dnp.
 
+config COMEDI_MITE
+	tristate
+
+config COMEDI_NI_TIOCMD
+	tristate
+	select COMEDI_NI_TIO
+	select COMEDI_MITE
+
 endif # COMEDI_PCI_DRIVERS
 
 menuconfig COMEDI_PCMCIA_DRIVERS
@@ -1245,18 +1253,6 @@ config COMEDI_VMK80XX
 
 endif # COMEDI_USB_DRIVERS
 
-config COMEDI_MITE
-	tristate
-	depends on PCI
-
-config COMEDI_NI_TIO
-	tristate
-
-config COMEDI_NI_TIOCMD
-	tristate
-	select COMEDI_NI_TIO
-	select COMEDI_MITE
-
 config COMEDI_8255
 	tristate "Generic 8255 support"
 	---help---
@@ -1289,5 +1285,8 @@ config COMEDI_AMPLC_PC263
 config COMEDI_DAS08
 	tristate
 	select COMEDI_8255
+
+config COMEDI_NI_TIO
+	tristate
 
 endif # COMEDI
