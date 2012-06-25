@@ -165,14 +165,14 @@
 #define I217_EEE_100_SUPPORTED  (1 << 1)	/* 100BaseTx EEE supported */
 
 /* Intel Rapid Start Technology Support */
-#define I217_PROXY_CTRL                 PHY_REG(BM_WUC_PAGE, 70)
+#define I217_PROXY_CTRL                 BM_PHY_REG(BM_WUC_PAGE, 70)
 #define I217_PROXY_CTRL_AUTO_DISABLE    0x0080
 #define I217_SxCTRL                     PHY_REG(BM_PORT_CTRL_PAGE, 28)
-#define I217_SxCTRL_MASK                0x1000
+#define I217_SxCTRL_ENABLE_LPI_RESET    0x1000
 #define I217_CGFREG                     PHY_REG(772, 29)
-#define I217_CGFREG_MASK                0x0002
+#define I217_CGFREG_ENABLE_MTA_RESET    0x0002
 #define I217_MEMPWR                     PHY_REG(772, 26)
-#define I217_MEMPWR_MASK                0x0010
+#define I217_MEMPWR_DISABLE_SMB_RELEASE 0x0010
 
 /* Strapping Option Register - RO */
 #define E1000_STRAP                     0x0000C
@@ -4089,12 +4089,12 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 			 * power good.
 			 */
 			e1e_rphy_locked(hw, I217_SxCTRL, &phy_reg);
-			phy_reg |= I217_SxCTRL_MASK;
+			phy_reg |= I217_SxCTRL_ENABLE_LPI_RESET;
 			e1e_wphy_locked(hw, I217_SxCTRL, phy_reg);
 
 			/* Disable the SMB release on LCD reset. */
 			e1e_rphy_locked(hw, I217_MEMPWR, &phy_reg);
-			phy_reg &= ~I217_MEMPWR;
+			phy_reg &= ~I217_MEMPWR_DISABLE_SMB_RELEASE;
 			e1e_wphy_locked(hw, I217_MEMPWR, phy_reg);
 		}
 
@@ -4103,7 +4103,7 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 		 * Support
 		 */
 		e1e_rphy_locked(hw, I217_CGFREG, &phy_reg);
-		phy_reg |= I217_CGFREG_MASK;
+		phy_reg |= I217_CGFREG_ENABLE_MTA_RESET;
 		e1e_wphy_locked(hw, I217_CGFREG, phy_reg);
 
 release:
@@ -4176,7 +4176,7 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 			ret_val = e1e_rphy_locked(hw, I217_MEMPWR, &phy_reg);
 			if (ret_val)
 				goto release;
-			phy_reg |= I217_MEMPWR_MASK;
+			phy_reg |= I217_MEMPWR_DISABLE_SMB_RELEASE;
 			e1e_wphy_locked(hw, I217_MEMPWR, phy_reg);
 
 			/* Disable Proxy */
@@ -4186,7 +4186,7 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 		ret_val = e1e_rphy_locked(hw, I217_CGFREG, &phy_reg);
 		if (ret_val)
 			goto release;
-		phy_reg &= ~I217_CGFREG_MASK;
+		phy_reg &= ~I217_CGFREG_ENABLE_MTA_RESET;
 		e1e_wphy_locked(hw, I217_CGFREG, phy_reg);
 release:
 		if (ret_val)

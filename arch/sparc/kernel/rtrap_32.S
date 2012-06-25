@@ -231,11 +231,14 @@ srmmu_rett_stackchk:
 	cmp	%g1, %fp
 	bleu	ret_trap_user_stack_is_bolixed
 	 mov	AC_M_SFSR, %g1
-	lda	[%g1] ASI_M_MMUREGS, %g0
+LEON_PI(lda	[%g1] ASI_LEON_MMUREGS, %g0)
+SUN_PI_(lda	[%g1] ASI_M_MMUREGS, %g0)
 
-	lda	[%g0] ASI_M_MMUREGS, %g1
+LEON_PI(lda	[%g0] ASI_LEON_MMUREGS, %g1)
+SUN_PI_(lda	[%g0] ASI_M_MMUREGS, %g1)
 	or	%g1, 0x2, %g1
-	sta	%g1, [%g0] ASI_M_MMUREGS
+LEON_PI(sta	%g1, [%g0] ASI_LEON_MMUREGS)
+SUN_PI_(sta	%g1, [%g0] ASI_M_MMUREGS)
 
 	restore	%g0, %g0, %g0
 
@@ -244,13 +247,16 @@ srmmu_rett_stackchk:
 	save	%g0, %g0, %g0
 
 	andn	%g1, 0x2, %g1
-	sta	%g1, [%g0] ASI_M_MMUREGS
+LEON_PI(sta	%g1, [%g0] ASI_LEON_MMUREGS)
+SUN_PI_(sta	%g1, [%g0] ASI_M_MMUREGS)
 
 	mov	AC_M_SFAR, %g2
-	lda	[%g2] ASI_M_MMUREGS, %g2
+LEON_PI(lda	[%g2] ASI_LEON_MMUREGS, %g2)
+SUN_PI_(lda	[%g2] ASI_M_MMUREGS, %g2)
 
 	mov	AC_M_SFSR, %g1
-	lda	[%g1] ASI_M_MMUREGS, %g1
+LEON_PI(lda	[%g1] ASI_LEON_MMUREGS, %g1)
+SUN_PI_(lda	[%g1] ASI_M_MMUREGS, %g1)
 	andcc	%g1, 0x2, %g0
 	be	ret_trap_userwins_ok
 	 nop

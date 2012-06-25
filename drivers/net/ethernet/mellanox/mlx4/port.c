@@ -697,10 +697,10 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 	if (slave != dev->caps.function)
 		memset(inbox->buf, 0, 256);
 	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
-		*(u8 *) inbox->buf	   = !!reset_qkey_viols << 6;
+		*(u8 *) inbox->buf	   |= !!reset_qkey_viols << 6;
 		((__be32 *) inbox->buf)[2] = agg_cap_mask;
 	} else {
-		((u8 *) inbox->buf)[3]     = !!reset_qkey_viols;
+		((u8 *) inbox->buf)[3]     |= !!reset_qkey_viols;
 		((__be32 *) inbox->buf)[1] = agg_cap_mask;
 	}
 

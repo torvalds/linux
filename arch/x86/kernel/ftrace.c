@@ -100,7 +100,7 @@ static const unsigned char *ftrace_nop_replace(void)
 }
 
 static int
-ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
+ftrace_modify_code_direct(unsigned long ip, unsigned const char *old_code,
 		   unsigned const char *new_code)
 {
 	unsigned char replaced[MCOUNT_INSN_SIZE];
@@ -141,7 +141,20 @@ int ftrace_make_nop(struct module *mod,
 	old = ftrace_call_replace(ip, addr);
 	new = ftrace_nop_replace();
 
-	return ftrace_modify_code(rec->ip, old, new);
+	/*
+	 * On boot up, and when modules are loaded, the MCOUNT_ADDR
+	 * is converted to a nop, and will never become MCOUNT_ADDR
+	 * again. This code is either running before SMP (on boot up)
+	 * or before the code will ever be executed (module load).
+	 * We do not want to use the breakpoint version in this case,
+	 * just modify the code directly.
+	 */
+	if (addr == MCOUNT_ADDR)
+		return ftrace_modify_code_direct(rec->ip, old, new);
+
+	/* Normal cases use add_brk_on_nop */
+	WARN_ONCE(1, "invalid use of ftrace_make_nop");
+	return -EINVAL;
 }
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
@@ -152,8 +165,46 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	old = ftrace_nop_replace();
 	new = ftrace_call_replace(ip, addr);
 
-	return ftrace_modify_code(rec->ip, old, new);
+	/* Should only be called when module is loaded */
+	return ftrace_modify_code_direct(rec->ip, old, new);
 }
+
+/*
+ * The modifying_ftrace_code is used to tell the breakpoint
+ * handler to call ftrace_int3_handler(). If it fails to
+ * call this handler for a breakpoint added by ftrace, then
+ * the kernel may crash.
+ *
+ * As atomic_writes on x86 do not need a barrier, we do not
+ * need to add smp_mb()s for this to work. It is also considered
+ * that we can not read the modifying_ftrace_code before
+ * executing the breakpoint. That would be quite remarkable if
+ * it could do that. Here's the flow that is required:
+ *
+ *   CPU-0                          CPU-1
+ *
+ * atomic_inc(mfc);
+ * write int3s
+ *				<trap-int3> // implicit (r)mb
+ *				if (atomic_read(mfc))
+ *					call ftrace_int3_handler()
+ *
+ * Then when we are finished:
+ *
+ * atomic_dec(mfc);
+ *
+ * If we hit a breakpoint that was not set by ftrace, it does not
+ * matter if ftrace_int3_handler() is called or not. It will
+ * simply be ignored. But it is crucial that a ftrace nop/caller
+ * breakpoint is handled. No other user should ever place a
+ * breakpoint on an ftrace nop/caller location. It must only
+ * be done by this code.
+ */
+atomic_t modifying_ftrace_code __read_mostly;
+
+static int
+ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
+		   unsigned const char *new_code);
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
@@ -163,12 +214,16 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 
 	memcpy(old, &ftrace_call, MCOUNT_INSN_SIZE);
 	new = ftrace_call_replace(ip, (unsigned long)func);
+
+	/* See comment above by declaration of modifying_ftrace_code */
+	atomic_inc(&modifying_ftrace_code);
+
 	ret = ftrace_modify_code(ip, old, new);
+
+	atomic_dec(&modifying_ftrace_code);
 
 	return ret;
 }
-
-int modifying_ftrace_code __read_mostly;
 
 /*
  * A breakpoint was added to the code address we are about to
@@ -489,13 +544,46 @@ void ftrace_replace_code(int enable)
 	}
 }
 
+static int
+ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
+		   unsigned const char *new_code)
+{
+	int ret;
+
+	ret = add_break(ip, old_code);
+	if (ret)
+		goto out;
+
+	run_sync();
+
+	ret = add_update_code(ip, new_code);
+	if (ret)
+		goto fail_update;
+
+	run_sync();
+
+	ret = ftrace_write(ip, new_code, 1);
+	if (ret) {
+		ret = -EPERM;
+		goto out;
+	}
+	run_sync();
+ out:
+	return ret;
+
+ fail_update:
+	probe_kernel_write((void *)ip, &old_code[0], 1);
+	goto out;
+}
+
 void arch_ftrace_update_code(int command)
 {
-	modifying_ftrace_code++;
+	/* See comment above by declaration of modifying_ftrace_code */
+	atomic_inc(&modifying_ftrace_code);
 
 	ftrace_modify_all_code(command);
 
-	modifying_ftrace_code--;
+	atomic_dec(&modifying_ftrace_code);
 }
 
 int __init ftrace_dyn_arch_init(void *data)

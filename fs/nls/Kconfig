@@ -30,7 +30,7 @@ config NLS_DEFAULT
 	  cp949, cp950, cp1251, cp1255, euc-jp, euc-kr, gb2312, iso8859-1,
 	  iso8859-2, iso8859-3, iso8859-4, iso8859-5, iso8859-6, iso8859-7,
 	  iso8859-8, iso8859-9, iso8859-13, iso8859-14, iso8859-15,
-	  koi8-r, koi8-ru, koi8-u, sjis, tis-620, utf8.
+	  koi8-r, koi8-ru, koi8-u, sjis, tis-620, macroman, utf8.
 	  If you specify a wrong value, it will use the built-in NLS;
 	  compatible with iso8859-1.
 
@@ -451,6 +451,161 @@ config NLS_KOI8_U
 	  correctly on the screen, you need to include the appropriate
 	  input/output character sets. Say Y here for the preferred Ukrainian
 	  (koi8-u) and Belarusian (koi8-ru) character sets.
+
+config NLS_MAC_ROMAN
+	tristate "Codepage macroman"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  much of Europe -- United Kingdom, Germany, Spain, Italy, and [add
+	  more countries here].
+
+	  If unsure, say Y.
+
+config NLS_MAC_CELTIC
+	tristate "Codepage macceltic"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Celtic.
+
+	  If unsure, say Y.
+
+config NLS_MAC_CENTEURO
+	tristate "Codepage maccenteuro"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Central Europe.
+
+	  If unsure, say Y.
+
+config NLS_MAC_CROATIAN
+	tristate "Codepage maccroatian"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Croatian.
+
+	  If unsure, say Y.
+
+config NLS_MAC_CYRILLIC
+	tristate "Codepage maccyrillic"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Cyrillic.
+
+	  If unsure, say Y.
+
+config NLS_MAC_GAELIC
+	tristate "Codepage macgaelic"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Gaelic.
+
+	  If unsure, say Y.
+
+config NLS_MAC_GREEK
+	tristate "Codepage macgreek"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Greek.
+
+	  If unsure, say Y.
+
+config NLS_MAC_ICELAND
+	tristate "Codepage maciceland"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Iceland.
+
+	  If unsure, say Y.
+
+config NLS_MAC_INUIT
+	tristate "Codepage macinuit"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Inuit.
+
+	  If unsure, say Y.
+
+config NLS_MAC_ROMANIAN
+	tristate "Codepage macromanian"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Romanian.
+
+	  If unsure, say Y.
+
+config NLS_MAC_TURKISH
+	tristate "Codepage macturkish"
+	---help---
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Turkish.
+
+	  If unsure, say Y.
 
 config NLS_UTF8
 	tristate "NLS UTF-8"

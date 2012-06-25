@@ -5,7 +5,7 @@
  *
  * (C) 2009 - Peter Feuerer     peter (a) piie.net
  *                              http://piie.net
- *     2009 Borislav Petkov <petkovbb@gmail.com>
+ *     2009 Borislav Petkov	bp (a) alien8.de
  *
  * Inspired by and many thanks to:
  *  o acerfand   - Rachel Greenham

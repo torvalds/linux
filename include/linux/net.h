@@ -313,5 +313,8 @@ extern int kernel_sock_shutdown(struct socket *sock,
 	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto) \
 		     "-type-" __stringify(type))
 
+#define MODULE_ALIAS_NET_PF_PROTO_NAME(pf, proto, name) \
+	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto) \
+		     name)
 #endif /* __KERNEL__ */
 #endif	/* _LINUX_NET_H */

@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
@@ -672,7 +673,7 @@ static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 	 * wakeup is anyhow controlled by the RIMSC and FIMSC registers.
 	 */
 	if (nmk_chip->sleepmode && on) {
-		__nmk_gpio_set_slpm(nmk_chip, gpio % nmk_chip->chip.base,
+		__nmk_gpio_set_slpm(nmk_chip, gpio % NMK_GPIO_PER_CHIP,
 				    NMK_GPIO_SLPM_WAKEUP_ENABLE);
 	}
 
@@ -1245,6 +1246,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 		ret = PTR_ERR(clk);
 		goto out_unmap;
 	}
+	clk_prepare(clk);
 
 	nmk_chip = kzalloc(sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
@@ -1436,7 +1438,27 @@ static int nmk_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
 
 	dev_dbg(npct->dev, "enable group %s, %u pins\n", g->name, g->npins);
 
-	/* Handle this special glitch on altfunction C */
+	/*
+	 * If we're setting altfunc C by setting both AFSLA and AFSLB to 1,
+	 * we may pass through an undesired state. In this case we take
+	 * some extra care.
+	 *
+	 * Safe sequence used to switch IOs between GPIO and Alternate-C mode:
+	 *  - Save SLPM registers (since we have a shadow register in the
+	 *    nmk_chip we're using that as backup)
+	 *  - Set SLPM=0 for the IOs you want to switch and others to 1
+	 *  - Configure the GPIO registers for the IOs that are being switched
+	 *  - Set IOFORCE=1
+	 *  - Modify the AFLSA/B registers for the IOs that are being switched
+	 *  - Set IOFORCE=0
+	 *  - Restore SLPM registers
+	 *  - Any spurious wake up event during switch sequence to be ignored
+	 *    and cleared
+	 *
+	 * We REALLY need to save ALL slpm registers, because the external
+	 * IOFORCE will switch *all* ports to their sleepmode setting to as
+	 * to avoid glitches. (Not just one port!)
+	 */
 	glitch = (g->altsetting == NMK_GPIO_ALT_C);
 
 	if (glitch) {
@@ -1688,18 +1710,34 @@ static struct pinctrl_desc nmk_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static const struct of_device_id nmk_pinctrl_match[] = {
+	{
+		.compatible = "stericsson,nmk_pinctrl",
+		.data = (void *)PINCTRL_NMK_DB8500,
+	},
+	{},
+};
+
 static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
+	struct device_node *np = pdev->dev.of_node;
 	struct nmk_pinctrl *npct;
+	unsigned int version = 0;
 	int i;
 
 	npct = devm_kzalloc(&pdev->dev, sizeof(*npct), GFP_KERNEL);
 	if (!npct)
 		return -ENOMEM;
 
+	if (platid)
+		version = platid->driver_data;
+	else if (np)
+		version = (unsigned int)
+			of_match_device(nmk_pinctrl_match, &pdev->dev)->data;
+
 	/* Poke in other ASIC variants here */
-	if (platid->driver_data == PINCTRL_NMK_DB8500)
+	if (version == PINCTRL_NMK_DB8500)
 		nmk_pinctrl_db8500_init(&npct->soc);
 
 	/*
@@ -1758,6 +1796,7 @@ static struct platform_driver nmk_pinctrl_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "pinctrl-nomadik",
+		.of_match_table = nmk_pinctrl_match,
 	},
 	.probe = nmk_pinctrl_probe,
 	.id_table = nmk_pinctrl_id,

@@ -962,7 +962,9 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (err)
 		goto out;
 
-	file_update_time(file);
+	err = file_update_time(file);
+	if (err)
+		goto out;
 
 	if (file->f_flags & O_DIRECT) {
 		written = generic_file_direct_write(iocb, iov, &nr_segs,
@@ -2171,6 +2173,44 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	return ret;
 }
 
+long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
+			    loff_t length)
+{
+	struct fuse_file *ff = file->private_data;
+	struct fuse_conn *fc = ff->fc;
+	struct fuse_req *req;
+	struct fuse_fallocate_in inarg = {
+		.fh = ff->fh,
+		.offset = offset,
+		.length = length,
+		.mode = mode
+	};
+	int err;
+
+	if (fc->no_fallocate)
+		return -EOPNOTSUPP;
+
+	req = fuse_get_req(fc);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	req->in.h.opcode = FUSE_FALLOCATE;
+	req->in.h.nodeid = ff->nodeid;
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	fuse_request_send(fc, req);
+	err = req->out.h.error;
+	if (err == -ENOSYS) {
+		fc->no_fallocate = 1;
+		err = -EOPNOTSUPP;
+	}
+	fuse_put_request(fc, req);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(fuse_file_fallocate);
+
 static const struct file_operations fuse_file_operations = {
 	.llseek		= fuse_file_llseek,
 	.read		= do_sync_read,
@@ -2188,6 +2228,7 @@ static const struct file_operations fuse_file_operations = {
 	.unlocked_ioctl	= fuse_file_ioctl,
 	.compat_ioctl	= fuse_file_compat_ioctl,
 	.poll		= fuse_file_poll,
+	.fallocate	= fuse_file_fallocate,
 };
 
 static const struct file_operations fuse_direct_io_file_operations = {
@@ -2204,6 +2245,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.unlocked_ioctl	= fuse_file_ioctl,
 	.compat_ioctl	= fuse_file_compat_ioctl,
 	.poll		= fuse_file_poll,
+	.fallocate	= fuse_file_fallocate,
 	/* no splice_read */
 };
 

@@ -426,7 +426,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 
 			mlx4_dbg(dev, "FLR event for slave: %d\n", flr_slave);
 
-			if (flr_slave > dev->num_slaves) {
+			if (flr_slave >= dev->num_slaves) {
 				mlx4_warn(dev,
 					  "Got FLR for unknown function: %d\n",
 					  flr_slave);

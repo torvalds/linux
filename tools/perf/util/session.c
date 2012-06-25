@@ -288,7 +288,8 @@ struct branch_info *machine__resolve_bstack(struct machine *self,
 	return bi;
 }
 
-int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
+int machine__resolve_callchain(struct machine *self,
+			       struct perf_evsel *evsel __used,
 			       struct thread *thread,
 			       struct ip_callchain *chain,
 			       struct symbol **parent)
@@ -297,7 +298,12 @@ int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
 	unsigned int i;
 	int err;
 
-	callchain_cursor_reset(&evsel->hists.callchain_cursor);
+	callchain_cursor_reset(&callchain_cursor);
+
+	if (chain->nr > PERF_MAX_STACK_DEPTH) {
+		pr_warning("corrupted callchain. skipping...\n");
+		return 0;
+	}
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip;
@@ -317,7 +323,14 @@ int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
 			case PERF_CONTEXT_USER:
 				cpumode = PERF_RECORD_MISC_USER;	break;
 			default:
-				break;
+				pr_debug("invalid callchain context: "
+					 "%"PRId64"\n", (s64) ip);
+				/*
+				 * It seems the callchain is corrupted.
+				 * Discard all.
+				 */
+				callchain_cursor_reset(&callchain_cursor);
+				return 0;
 			}
 			continue;
 		}
@@ -333,7 +346,7 @@ int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
 				break;
 		}
 
-		err = callchain_cursor_append(&evsel->hists.callchain_cursor,
+		err = callchain_cursor_append(&callchain_cursor,
 					      ip, al.map, al.sym);
 		if (err)
 			return err;
@@ -429,6 +442,16 @@ static void perf_tool__fill_defaults(struct perf_tool *tool)
 			tool->finished_round = process_finished_round_stub;
 	}
 }
+ 
+void mem_bswap_32(void *src, int byte_size)
+{
+	u32 *m = src;
+	while (byte_size > 0) {
+		*m = bswap_32(*m);
+		byte_size -= sizeof(u32);
+		++m;
+	}
+}
 
 void mem_bswap_64(void *src, int byte_size)
 {
@@ -441,37 +464,65 @@ void mem_bswap_64(void *src, int byte_size)
 	}
 }
 
-static void perf_event__all64_swap(union perf_event *event)
+static void swap_sample_id_all(union perf_event *event, void *data)
+{
+	void *end = (void *) event + event->header.size;
+	int size = end - data;
+
+	BUG_ON(size % sizeof(u64));
+	mem_bswap_64(data, size);
+}
+
+static void perf_event__all64_swap(union perf_event *event,
+				   bool sample_id_all __used)
 {
 	struct perf_event_header *hdr = &event->header;
 	mem_bswap_64(hdr + 1, event->header.size - sizeof(*hdr));
 }
 
-static void perf_event__comm_swap(union perf_event *event)
+static void perf_event__comm_swap(union perf_event *event, bool sample_id_all)
 {
 	event->comm.pid = bswap_32(event->comm.pid);
 	event->comm.tid = bswap_32(event->comm.tid);
+
+	if (sample_id_all) {
+		void *data = &event->comm.comm;
+
+		data += ALIGN(strlen(data) + 1, sizeof(u64));
+		swap_sample_id_all(event, data);
+	}
 }
 
-static void perf_event__mmap_swap(union perf_event *event)
+static void perf_event__mmap_swap(union perf_event *event,
+				  bool sample_id_all)
 {
 	event->mmap.pid	  = bswap_32(event->mmap.pid);
 	event->mmap.tid	  = bswap_32(event->mmap.tid);
 	event->mmap.start = bswap_64(event->mmap.start);
 	event->mmap.len	  = bswap_64(event->mmap.len);
 	event->mmap.pgoff = bswap_64(event->mmap.pgoff);
+
+	if (sample_id_all) {
+		void *data = &event->mmap.filename;
+
+		data += ALIGN(strlen(data) + 1, sizeof(u64));
+		swap_sample_id_all(event, data);
+	}
 }
 
-static void perf_event__task_swap(union perf_event *event)
+static void perf_event__task_swap(union perf_event *event, bool sample_id_all)
 {
 	event->fork.pid	 = bswap_32(event->fork.pid);
 	event->fork.tid	 = bswap_32(event->fork.tid);
 	event->fork.ppid = bswap_32(event->fork.ppid);
 	event->fork.ptid = bswap_32(event->fork.ptid);
 	event->fork.time = bswap_64(event->fork.time);
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->fork + 1);
 }
 
-static void perf_event__read_swap(union perf_event *event)
+static void perf_event__read_swap(union perf_event *event, bool sample_id_all)
 {
 	event->read.pid		 = bswap_32(event->read.pid);
 	event->read.tid		 = bswap_32(event->read.tid);
@@ -479,6 +530,9 @@ static void perf_event__read_swap(union perf_event *event)
 	event->read.time_enabled = bswap_64(event->read.time_enabled);
 	event->read.time_running = bswap_64(event->read.time_running);
 	event->read.id		 = bswap_64(event->read.id);
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->read + 1);
 }
 
 static u8 revbyte(u8 b)
@@ -530,7 +584,8 @@ void perf_event__attr_swap(struct perf_event_attr *attr)
 	swap_bitfield((u8 *) (&attr->read_format + 1), sizeof(u64));
 }
 
-static void perf_event__hdr_attr_swap(union perf_event *event)
+static void perf_event__hdr_attr_swap(union perf_event *event,
+				      bool sample_id_all __used)
 {
 	size_t size;
 
@@ -541,18 +596,21 @@ static void perf_event__hdr_attr_swap(union perf_event *event)
 	mem_bswap_64(event->attr.id, size);
 }
 
-static void perf_event__event_type_swap(union perf_event *event)
+static void perf_event__event_type_swap(union perf_event *event,
+					bool sample_id_all __used)
 {
 	event->event_type.event_type.event_id =
 		bswap_64(event->event_type.event_type.event_id);
 }
 
-static void perf_event__tracing_data_swap(union perf_event *event)
+static void perf_event__tracing_data_swap(union perf_event *event,
+					  bool sample_id_all __used)
 {
 	event->tracing_data.size = bswap_32(event->tracing_data.size);
 }
 
-typedef void (*perf_event__swap_op)(union perf_event *event);
+typedef void (*perf_event__swap_op)(union perf_event *event,
+				    bool sample_id_all);
 
 static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_MMAP]		  = perf_event__mmap_swap,
@@ -986,6 +1044,15 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 	}
 }
 
+static void event_swap(union perf_event *event, bool sample_id_all)
+{
+	perf_event__swap_op swap;
+
+	swap = perf_event__swap_ops[event->header.type];
+	if (swap)
+		swap(event, sample_id_all);
+}
+
 static int perf_session__process_event(struct perf_session *session,
 				       union perf_event *event,
 				       struct perf_tool *tool,
@@ -994,9 +1061,8 @@ static int perf_session__process_event(struct perf_session *session,
 	struct perf_sample sample;
 	int ret;
 
-	if (session->header.needs_swap &&
-	    perf_event__swap_ops[event->header.type])
-		perf_event__swap_ops[event->header.type](event);
+	if (session->header.needs_swap)
+		event_swap(event, session->sample_id_all);
 
 	if (event->header.type >= PERF_RECORD_HEADER_MAX)
 		return -EINVAL;
@@ -1428,7 +1494,6 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 			  int print_sym, int print_dso, int print_symoffset)
 {
 	struct addr_location al;
-	struct callchain_cursor *cursor = &evsel->hists.callchain_cursor;
 	struct callchain_cursor_node *node;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample,
@@ -1446,10 +1511,10 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 				error("Failed to resolve callchain. Skipping\n");
 			return;
 		}
-		callchain_cursor_commit(cursor);
+		callchain_cursor_commit(&callchain_cursor);
 
 		while (1) {
-			node = callchain_cursor_current(cursor);
+			node = callchain_cursor_current(&callchain_cursor);
 			if (!node)
 				break;
 
@@ -1460,12 +1525,12 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 			}
 			if (print_dso) {
 				printf(" (");
-				map__fprintf_dsoname(al.map, stdout);
+				map__fprintf_dsoname(node->map, stdout);
 				printf(")");
 			}
 			printf("\n");
 
-			callchain_cursor_advance(cursor);
+			callchain_cursor_advance(&callchain_cursor);
 		}
 
 	} else {

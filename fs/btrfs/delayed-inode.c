@@ -669,8 +669,8 @@ static int btrfs_delayed_inode_reserve_metadata(
 		return ret;
 	} else if (src_rsv == &root->fs_info->delalloc_block_rsv) {
 		spin_lock(&BTRFS_I(inode)->lock);
-		if (BTRFS_I(inode)->delalloc_meta_reserved) {
-			BTRFS_I(inode)->delalloc_meta_reserved = 0;
+		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
+				       &BTRFS_I(inode)->runtime_flags)) {
 			spin_unlock(&BTRFS_I(inode)->lock);
 			release = true;
 			goto migrate;
@@ -1706,7 +1706,7 @@ static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_inode_nbytes(inode_item, inode_get_bytes(inode));
 	btrfs_set_stack_inode_generation(inode_item,
 					 BTRFS_I(inode)->generation);
-	btrfs_set_stack_inode_sequence(inode_item, BTRFS_I(inode)->sequence);
+	btrfs_set_stack_inode_sequence(inode_item, inode->i_version);
 	btrfs_set_stack_inode_transid(inode_item, trans->transid);
 	btrfs_set_stack_inode_rdev(inode_item, inode->i_rdev);
 	btrfs_set_stack_inode_flags(inode_item, BTRFS_I(inode)->flags);
@@ -1754,7 +1754,7 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev)
 	set_nlink(inode, btrfs_stack_inode_nlink(inode_item));
 	inode_set_bytes(inode, btrfs_stack_inode_nbytes(inode_item));
 	BTRFS_I(inode)->generation = btrfs_stack_inode_generation(inode_item);
-	BTRFS_I(inode)->sequence = btrfs_stack_inode_sequence(inode_item);
+	inode->i_version = btrfs_stack_inode_sequence(inode_item);
 	inode->i_rdev = 0;
 	*rdev = btrfs_stack_inode_rdev(inode_item);
 	BTRFS_I(inode)->flags = btrfs_stack_inode_flags(inode_item);
@@ -1879,3 +1879,21 @@ void btrfs_kill_all_delayed_nodes(struct btrfs_root *root)
 		}
 	}
 }
+
+void btrfs_destroy_delayed_inodes(struct btrfs_root *root)
+{
+	struct btrfs_delayed_root *delayed_root;
+	struct btrfs_delayed_node *curr_node, *prev_node;
+
+	delayed_root = btrfs_get_delayed_root(root);
+
+	curr_node = btrfs_first_delayed_node(delayed_root);
+	while (curr_node) {
+		__btrfs_kill_delayed_node(curr_node);
+
+		prev_node = curr_node;
+		curr_node = btrfs_next_delayed_node(curr_node);
+		btrfs_release_delayed_node(prev_node);
+	}
+}
+

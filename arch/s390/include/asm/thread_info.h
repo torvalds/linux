@@ -9,15 +9,13 @@
 #ifndef _ASM_THREAD_INFO_H
 #define _ASM_THREAD_INFO_H
 
-#ifdef __KERNEL__
-
 /*
  * Size of kernel stack for each process
  */
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 #define THREAD_ORDER 1
 #define ASYNC_ORDER  1
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 #ifndef __SMALL_STACK
 #define THREAD_ORDER 2
 #define ASYNC_ORDER  2
@@ -25,7 +23,7 @@
 #define THREAD_ORDER 1
 #define ASYNC_ORDER  1
 #endif
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 
 #define THREAD_SIZE (PAGE_SIZE << THREAD_ORDER)
 #define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
@@ -122,8 +120,6 @@ static inline struct thread_info *current_thread_info(void)
 #else
 #define is_32bit_task()		(1)
 #endif
-
-#endif /* __KERNEL__ */
 
 #define PREEMPT_ACTIVE		0x4000000
 

@@ -153,7 +153,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 
 	/* Don't calculate ACKs for QoS Frames with NoAck Policy set */
 	if (ieee80211_is_data_qos(hdr->frame_control) &&
-	    *(ieee80211_get_qos_ctl(hdr)) | IEEE80211_QOS_CTL_ACK_POLICY_NOACK)
+	    *(ieee80211_get_qos_ctl(hdr)) & IEEE80211_QOS_CTL_ACK_POLICY_NOACK)
 		dur = 0;
 	else
 		/* Time needed to transmit ACK
@@ -1737,7 +1737,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	__le16 fc;
 	struct ieee80211_hdr hdr;
 	struct ieee80211s_hdr mesh_hdr __maybe_unused;
-	struct mesh_path __maybe_unused *mppath = NULL;
+	struct mesh_path __maybe_unused *mppath = NULL, *mpath = NULL;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
@@ -1803,8 +1803,11 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			goto fail;
 		}
 		rcu_read_lock();
-		if (!is_multicast_ether_addr(skb->data))
-			mppath = mpp_path_lookup(skb->data, sdata);
+		if (!is_multicast_ether_addr(skb->data)) {
+			mpath = mesh_path_lookup(skb->data, sdata);
+			if (!mpath)
+				mppath = mpp_path_lookup(skb->data, sdata);
+		}
 
 		/*
 		 * Use address extension if it is a packet from

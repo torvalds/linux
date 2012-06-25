@@ -919,7 +919,7 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 	if (!access_ok(VERIFY_READ, mcp, sizeof(*mcp)))
 		return -EFAULT;
 #endif
-	restore_sigmask(&set);
+	set_current_blocked(&set);
 	if (restore_user_regs(regs, mcp, sig))
 		return -EFAULT;
 
@@ -1273,7 +1273,7 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	set.sig[0] = sigctx.oldmask;
 	set.sig[1] = sigctx._unused[3];
 #endif
-	restore_sigmask(&set);
+	set_current_blocked(&set);
 
 	sr = (struct mcontext __user *)from_user_ptr(sigctx.regs);
 	addr = sr;

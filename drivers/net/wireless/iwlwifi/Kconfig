@@ -137,11 +137,3 @@ config IWLWIFI_EXPERIMENTAL_MFP
 	  even if the microcode doesn't advertise it.
 
 	  Say Y only if you want to experiment with MFP.
-
-config IWLWIFI_UCODE16
-	bool "support uCode 16.0"
-	depends on IWLWIFI
-	help
-	  This option enables support for uCode version 16.0.
-
-	  Say Y if you want to use 16.0 microcode.

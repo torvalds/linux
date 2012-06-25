@@ -241,9 +241,6 @@ int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler)
 	unsigned int cpu_irq;
 	int err;
 
-#if defined CONFIG_SMP && !defined CONFIG_SPARC_LEON
-	struct tt_entry *trap_table;
-#endif
 
 	err = request_irq(irq, irq_handler, 0, "floppy", NULL);
 	if (err)
@@ -264,13 +261,18 @@ int sparc_floppy_request_irq(unsigned int irq, irq_handler_t irq_handler)
 	table[SP_TRAP_IRQ1+(cpu_irq-1)].inst_four = SPARC_NOP;
 
 	INSTANTIATE(sparc_ttable)
-#if defined CONFIG_SMP && !defined CONFIG_SPARC_LEON
-	trap_table = &trapbase_cpu1;
-	INSTANTIATE(trap_table)
-	trap_table = &trapbase_cpu2;
-	INSTANTIATE(trap_table)
-	trap_table = &trapbase_cpu3;
-	INSTANTIATE(trap_table)
+
+#if defined CONFIG_SMP
+	if (sparc_cpu_model != sparc_leon) {
+		struct tt_entry *trap_table;
+
+		trap_table = &trapbase_cpu1;
+		INSTANTIATE(trap_table)
+		trap_table = &trapbase_cpu2;
+		INSTANTIATE(trap_table)
+		trap_table = &trapbase_cpu3;
+		INSTANTIATE(trap_table)
+	}
 #endif
 #undef INSTANTIATE
 	/*

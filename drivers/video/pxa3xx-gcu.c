@@ -316,11 +316,8 @@ pxa3xx_gcu_wait_idle(struct pxa3xx_gcu_priv *priv)
 		ret = wait_event_interruptible_timeout(priv->wait_idle,
 					!priv->shared->hw_running, HZ*4);
 
-		if (ret < 0)
+		if (ret != 0)
 			break;
-
-		if (ret > 0)
-			continue;
 
 		if (gc_readl(priv, REG_GCRBEXHR) == rbexhr &&
 		    priv->shared->num_interrupts == num) {

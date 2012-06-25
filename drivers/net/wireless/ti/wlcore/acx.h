@@ -1330,9 +1330,11 @@ int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
 int wl1271_acx_fm_coex(struct wl1271 *wl);
 int wl12xx_acx_set_rate_mgmt_params(struct wl1271 *wl);
 int wl12xx_acx_config_hangover(struct wl1271 *wl);
+
+#ifdef CONFIG_PM
 int wl1271_acx_default_rx_filter_enable(struct wl1271 *wl, bool enable,
 					enum rx_filter_action action);
 int wl1271_acx_set_rx_filter(struct wl1271 *wl, u8 index, bool enable,
 			     struct wl12xx_rx_filter *filter);
-
+#endif /* CONFIG_PM */
 #endif /* __WL1271_ACX_H__ */

@@ -18,6 +18,7 @@ config PARISC
 	select IRQ_PER_CPU
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_STRNCPY_FROM_USER
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used

@@ -126,8 +126,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 		goto fail_create_hcd;
 	}
 
-	if (pdev->dev.platform_data != NULL)
-		pdata = pdev->dev.platform_data;
+	pdata = pdev->dev.platform_data;
 
 	/* initialize hcd */
 	hcd = usb_create_hcd(&ehci_sh_hc_driver, &pdev->dev,

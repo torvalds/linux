@@ -772,7 +772,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 						~IWL_STA_DRIVER_ACTIVE;
 				priv->stations[i].used &=
 						~IWL_STA_UCODE_INPROGRESS;
-				spin_unlock_bh(&priv->sta_lock);
+				continue;
 			}
 			/*
 			 * Rate scaling has already been initialized, send
@@ -1267,7 +1267,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	sta_cmd.key.key_flags = key_flags;
-	sta_cmd.key.key_offset = WEP_INVALID_OFFSET;
+	sta_cmd.key.key_offset = keyconf->hw_key_idx;
 	sta_cmd.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	sta_cmd.mode = STA_CONTROL_MODIFY_MSK;
 

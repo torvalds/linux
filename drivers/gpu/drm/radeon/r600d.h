@@ -219,6 +219,8 @@
 #define		BACKEND_MAP(x)					((x) << 16)
 
 #define GB_TILING_CONFIG				0x98F0
+#define     PIPE_TILING__SHIFT              1
+#define     PIPE_TILING__MASK               0x0000000e
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
@@ -483,6 +485,7 @@
 #define		TC_L2_SIZE(x)					((x)<<5)
 #define		L2_DISABLE_LATE_HIT				(1<<9)
 
+#define	VC_ENHANCE					0x9714
 
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x)<<0)
@@ -1161,6 +1164,7 @@
 #define	PACKET3_SET_CTL_CONST				0x6F
 #define		PACKET3_SET_CTL_CONST_OFFSET			0x0003cff0
 #define		PACKET3_SET_CTL_CONST_END			0x0003e200
+#define	PACKET3_STRMOUT_BASE_UPDATE			0x72 /* r7xx */
 #define	PACKET3_SURFACE_BASE_UPDATE			0x73
 
 

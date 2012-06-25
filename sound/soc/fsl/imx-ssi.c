@@ -543,7 +543,7 @@ static int imx_ssi_probe(struct platform_device *pdev)
 			ret);
 		goto failed_clk;
 	}
-	clk_enable(ssi->clk);
+	clk_prepare_enable(ssi->clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -641,7 +641,7 @@ failed_ac97:
 failed_ioremap:
 	release_mem_region(res->start, resource_size(res));
 failed_get_resource:
-	clk_disable(ssi->clk);
+	clk_disable_unprepare(ssi->clk);
 	clk_put(ssi->clk);
 failed_clk:
 	kfree(ssi);
@@ -664,7 +664,7 @@ static int __devexit imx_ssi_remove(struct platform_device *pdev)
 
 	iounmap(ssi->base);
 	release_mem_region(res->start, resource_size(res));
-	clk_disable(ssi->clk);
+	clk_disable_unprepare(ssi->clk);
 	clk_put(ssi->clk);
 	kfree(ssi);
 

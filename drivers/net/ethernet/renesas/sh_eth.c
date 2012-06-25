@@ -1101,8 +1101,12 @@ static int sh_eth_rx(struct net_device *ndev)
 
 	/* Restart Rx engine if stopped. */
 	/* If we don't need to check status, don't. -KDU */
-	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R))
+	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
+		/* fix the values for the next receiving */
+		mdp->cur_rx = mdp->dirty_rx = (sh_eth_read(ndev, RDFAR) -
+					       sh_eth_read(ndev, RDLAR)) >> 4;
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
+	}
 
 	return 0;
 }
@@ -1199,8 +1203,6 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 		/* Receive Descriptor Empty int */
 		ndev->stats.rx_over_errors++;
 
-		if (sh_eth_read(ndev, EDRRR) ^ EDRRR_R)
-			sh_eth_write(ndev, EDRRR_R, EDRRR);
 		if (netif_msg_rx_err(mdp))
 			dev_err(&ndev->dev, "Receive Descriptor Empty\n");
 	}

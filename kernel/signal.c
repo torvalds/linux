@@ -1656,19 +1656,18 @@ bool do_notify_parent(struct task_struct *tsk, int sig)
 	info.si_signo = sig;
 	info.si_errno = 0;
 	/*
-	 * we are under tasklist_lock here so our parent is tied to
-	 * us and cannot exit and release its namespace.
+	 * We are under tasklist_lock here so our parent is tied to
+	 * us and cannot change.
 	 *
-	 * the only it can is to switch its nsproxy with sys_unshare,
-	 * bu uncharing pid namespaces is not allowed, so we'll always
-	 * see relevant namespace
+	 * task_active_pid_ns will always return the same pid namespace
+	 * until a task passes through release_task.
 	 *
 	 * write_lock() currently calls preempt_disable() which is the
 	 * same as rcu_read_lock(), but according to Oleg, this is not
 	 * correct to rely on this
 	 */
 	rcu_read_lock();
-	info.si_pid = task_pid_nr_ns(tsk, tsk->parent->nsproxy->pid_ns);
+	info.si_pid = task_pid_nr_ns(tsk, task_active_pid_ns(tsk->parent));
 	info.si_uid = from_kuid_munged(task_cred_xxx(tsk->parent, user_ns),
 				       task_uid(tsk));
 	rcu_read_unlock();
@@ -2369,24 +2368,34 @@ relock:
 }
 
 /**
- * block_sigmask - add @ka's signal mask to current->blocked
- * @ka: action for @signr
- * @signr: signal that has been successfully delivered
+ * signal_delivered - 
+ * @sig:		number of signal being delivered
+ * @info:		siginfo_t of signal being delivered
+ * @ka:			sigaction setting that chose the handler
+ * @regs:		user register state
+ * @stepping:		nonzero if debugger single-step or block-step in use
  *
  * This function should be called when a signal has succesfully been
- * delivered. It adds the mask of signals for @ka to current->blocked
- * so that they are blocked during the execution of the signal
- * handler. In addition, @signr will be blocked unless %SA_NODEFER is
- * set in @ka->sa.sa_flags.
+ * delivered. It updates the blocked signals accordingly (@ka->sa.sa_mask
+ * is always blocked, and the signal itself is blocked unless %SA_NODEFER
+ * is set in @ka->sa.sa_flags.  Tracing is notified.
  */
-void block_sigmask(struct k_sigaction *ka, int signr)
+void signal_delivered(int sig, siginfo_t *info, struct k_sigaction *ka,
+			struct pt_regs *regs, int stepping)
 {
 	sigset_t blocked;
 
+	/* A signal was successfully delivered, and the
+	   saved sigmask was stored on the signal frame,
+	   and will be restored by sigreturn.  So we can
+	   simply clear the restore sigmask flag.  */
+	clear_restore_sigmask();
+
 	sigorsets(&blocked, &current->blocked, &ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&blocked, signr);
+		sigaddset(&blocked, sig);
 	set_current_blocked(&blocked);
+	tracehook_signal_handler(sig, info, ka, regs, stepping);
 }
 
 /*
@@ -2519,7 +2528,16 @@ static void __set_task_blocked(struct task_struct *tsk, const sigset_t *newset)
  * It is wrong to change ->blocked directly, this helper should be used
  * to ensure the process can't miss a shared signal we are going to block.
  */
-void set_current_blocked(const sigset_t *newset)
+void set_current_blocked(sigset_t *newset)
+{
+	struct task_struct *tsk = current;
+	sigdelsetmask(newset, sigmask(SIGKILL) | sigmask(SIGSTOP));
+	spin_lock_irq(&tsk->sighand->siglock);
+	__set_task_blocked(tsk, newset);
+	spin_unlock_irq(&tsk->sighand->siglock);
+}
+
+void __set_current_blocked(const sigset_t *newset)
 {
 	struct task_struct *tsk = current;
 
@@ -2559,7 +2577,7 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 		return -EINVAL;
 	}
 
-	set_current_blocked(&newset);
+	__set_current_blocked(&newset);
 	return 0;
 }
 
@@ -3133,7 +3151,7 @@ SYSCALL_DEFINE3(sigprocmask, int, how, old_sigset_t __user *, nset,
 			return -EINVAL;
 		}
 
-		set_current_blocked(&new_blocked);
+		__set_current_blocked(&new_blocked);
 	}
 
 	if (oset) {
@@ -3197,7 +3215,6 @@ SYSCALL_DEFINE1(ssetmask, int, newmask)
 	int old = current->blocked.sig[0];
 	sigset_t newset;
 
-	siginitset(&newset, newmask & ~(sigmask(SIGKILL) | sigmask(SIGSTOP)));
 	set_current_blocked(&newset);
 
 	return old;
@@ -3236,11 +3253,8 @@ SYSCALL_DEFINE0(pause)
 
 #endif
 
-#ifdef HAVE_SET_RESTORE_SIGMASK
 int sigsuspend(sigset_t *set)
 {
-	sigdelsetmask(set, sigmask(SIGKILL)|sigmask(SIGSTOP));
-
 	current->saved_sigmask = current->blocked;
 	set_current_blocked(set);
 
@@ -3249,7 +3263,6 @@ int sigsuspend(sigset_t *set)
 	set_restore_sigmask();
 	return -ERESTARTNOHAND;
 }
-#endif
 
 #ifdef __ARCH_WANT_SYS_RT_SIGSUSPEND
 /**

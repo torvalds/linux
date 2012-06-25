@@ -598,6 +598,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 
 	/* now allocate needed pages.  If we get a failure, sleep briefly */
 	pages = (serv->sv_max_mesg + PAGE_SIZE) / PAGE_SIZE;
+	BUG_ON(pages >= RPCSVC_MAXPAGES);
 	for (i = 0; i < pages ; i++)
 		while (rqstp->rq_pages[i] == NULL) {
 			struct page *p = alloc_page(GFP_KERNEL);
@@ -612,7 +613,6 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 			rqstp->rq_pages[i] = p;
 		}
 	rqstp->rq_pages[i++] = NULL; /* this might be seen in nfs_read_actor */
-	BUG_ON(pages >= RPCSVC_MAXPAGES);
 
 	/* Make arg->head point to first page and arg->pages point to rest */
 	arg = &rqstp->rq_arg;
@@ -973,7 +973,7 @@ void svc_close_net(struct svc_serv *serv, struct net *net)
 	svc_clear_pools(serv, net);
 	/*
 	 * At this point the sp_sockets lists will stay empty, since
-	 * svc_enqueue will not add new entries without taking the
+	 * svc_xprt_enqueue will not add new entries without taking the
 	 * sp_lock and checking XPT_BUSY.
 	 */
 	svc_clear_list(&serv->sv_tempsocks, net);

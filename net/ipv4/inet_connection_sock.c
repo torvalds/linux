@@ -377,7 +377,8 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 
 	flowi4_init_output(fl4, sk->sk_bound_dev_if, sk->sk_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
-			   sk->sk_protocol, inet_sk_flowi_flags(sk),
+			   sk->sk_protocol,
+			   inet_sk_flowi_flags(sk) & ~FLOWI_FLAG_PRECOW_METRICS,
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->rmt_addr,
 			   ireq->loc_addr, ireq->rmt_port, inet_sk(sk)->inet_sport);
 	security_req_classify_flow(req, flowi4_to_flowi(fl4));

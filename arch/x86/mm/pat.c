@@ -158,31 +158,47 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 	return req_type;
 }
 
+struct pagerange_state {
+	unsigned long		cur_pfn;
+	int			ram;
+	int			not_ram;
+};
+
+static int
+pagerange_is_ram_callback(unsigned long initial_pfn, unsigned long total_nr_pages, void *arg)
+{
+	struct pagerange_state *state = arg;
+
+	state->not_ram	|= initial_pfn > state->cur_pfn;
+	state->ram	|= total_nr_pages > 0;
+	state->cur_pfn	 = initial_pfn + total_nr_pages;
+
+	return state->ram && state->not_ram;
+}
+
 static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
 {
-	int ram_page = 0, not_rampage = 0;
-	unsigned long page_nr;
+	int ret = 0;
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long end_pfn = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	struct pagerange_state state = {start_pfn, 0, 0};
 
-	for (page_nr = (start >> PAGE_SHIFT); page_nr < (end >> PAGE_SHIFT);
-	     ++page_nr) {
-		/*
-		 * For legacy reasons, physical address range in the legacy ISA
-		 * region is tracked as non-RAM. This will allow users of
-		 * /dev/mem to map portions of legacy ISA region, even when
-		 * some of those portions are listed(or not even listed) with
-		 * different e820 types(RAM/reserved/..)
-		 */
-		if (page_nr >= (ISA_END_ADDRESS >> PAGE_SHIFT) &&
-		    page_is_ram(page_nr))
-			ram_page = 1;
-		else
-			not_rampage = 1;
+	/*
+	 * For legacy reasons, physical address range in the legacy ISA
+	 * region is tracked as non-RAM. This will allow users of
+	 * /dev/mem to map portions of legacy ISA region, even when
+	 * some of those portions are listed(or not even listed) with
+	 * different e820 types(RAM/reserved/..)
+	 */
+	if (start_pfn < ISA_END_ADDRESS >> PAGE_SHIFT)
+		start_pfn = ISA_END_ADDRESS >> PAGE_SHIFT;
 
-		if (ram_page == not_rampage)
-			return -1;
+	if (start_pfn < end_pfn) {
+		ret = walk_system_ram_range(start_pfn, end_pfn - start_pfn,
+				&state, pagerange_is_ram_callback);
 	}
 
-	return ram_page;
+	return (ret > 0) ? -1 : (state.ram ? 1 : 0);
 }
 
 /*

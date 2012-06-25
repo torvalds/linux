@@ -48,15 +48,13 @@
 
 #include "kernel.h"
 
-#ifdef CONFIG_SPARC_LEON
-
 #include "irq.h"
 
 extern ctxd_t *srmmu_ctx_table_phys;
 static int smp_processors_ready;
 extern volatile unsigned long cpu_callin_map[NR_CPUS];
 extern cpumask_t smp_commenced_mask;
-void __init leon_configure_cache_smp(void);
+void __cpuinit leon_configure_cache_smp(void);
 static void leon_ipi_init(void);
 
 /* IRQ number of LEON IPIs */
@@ -123,7 +121,7 @@ void __cpuinit leon_callin(void)
 
 extern struct linux_prom_registers smp_penguin_ctable;
 
-void __init leon_configure_cache_smp(void)
+void __cpuinit leon_configure_cache_smp(void)
 {
 	unsigned long cfg = sparc_leon3_get_dcachecfg();
 	int me = smp_processor_id();
@@ -507,5 +505,3 @@ void __init leon_init_smp(void)
 
 	sparc32_ipi_ops = &leon_ipi_ops;
 }
-
-#endif /* CONFIG_SPARC_LEON */

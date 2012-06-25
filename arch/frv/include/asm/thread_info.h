@@ -94,8 +94,8 @@ register struct thread_info *__current_thread_info asm("gr15");
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SINGLESTEP		4	/* restore singlestep on return to user mode */
 #define TIF_RESTORE_SIGMASK	5	/* restore signal mask in do_signal() */
-#define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling TIF_NEED_RESCHED */
-#define TIF_MEMDIE		17	/* is terminating due to OOM killer */
+#define TIF_POLLING_NRFLAG	6	/* true if poll_idle() is polling TIF_NEED_RESCHED */
+#define TIF_MEMDIE		7	/* is terminating due to OOM killer */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
@@ -105,8 +105,16 @@ register struct thread_info *__current_thread_info asm("gr15");
 #define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
 
-#define _TIF_WORK_MASK		0x0000FFFE	/* work to do on interrupt/exception return */
-#define _TIF_ALLWORK_MASK	0x0000FFFF	/* work to do on any return to u-space */
+/* work to do on interrupt/exception return */
+#define _TIF_WORK_MASK		\
+	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_SINGLESTEP)
+
+/* work to do on any return to u-space */
+#define _TIF_ALLWORK_MASK	(_TIF_WORK_MASK | _TIF_SYSCALL_TRACE)
+
+#if _TIF_ALLWORK_MASK >= 0x2000
+#error "_TIF_ALLWORK_MASK won't fit in an ANDI now (see entry.S)"
+#endif
 
 /*
  * Thread-synchronous status.

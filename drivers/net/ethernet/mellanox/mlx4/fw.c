@@ -412,7 +412,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	outbox = mailbox->buf;
 
 	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_DEV_CAP,
-			   MLX4_CMD_TIME_CLASS_A, !mlx4_is_slave(dev));
+			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 	if (err)
 		goto out;
 
@@ -590,8 +590,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
 			err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 0, MLX4_CMD_QUERY_PORT,
-					   MLX4_CMD_TIME_CLASS_B,
-					   !mlx4_is_slave(dev));
+					   MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 			if (err)
 				goto out;
 
@@ -667,6 +666,28 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
+}
+
+int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
+			       struct mlx4_vhcr *vhcr,
+			       struct mlx4_cmd_mailbox *inbox,
+			       struct mlx4_cmd_mailbox *outbox,
+			       struct mlx4_cmd_info *cmd)
+{
+	int	err = 0;
+	u8	field;
+
+	err = mlx4_cmd_box(dev, 0, outbox->dma, 0, 0, MLX4_CMD_QUERY_DEV_CAP,
+			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+	if (err)
+		return err;
+
+	/* For guests, report Blueflame disabled */
+	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_BF_OFFSET);
+	field &= 0x7f;
+	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_BF_OFFSET);
+
+	return 0;
 }
 
 int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
@@ -860,6 +881,9 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 		((fw_ver & 0xffff0000ull) >> 16) |
 		((fw_ver & 0x0000ffffull) << 16);
 
+	if (mlx4_is_slave(dev))
+		goto out;
+
 	MLX4_GET(lg, outbox, QUERY_FW_PPF_ID);
 	dev->caps.function = lg;
 
@@ -925,6 +949,27 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
+}
+
+int mlx4_QUERY_FW_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd)
+{
+	u8 *outbuf;
+	int err;
+
+	outbuf = outbox->buf;
+	err = mlx4_cmd_box(dev, 0, outbox->dma, 0, 0, MLX4_CMD_QUERY_FW,
+			    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+	if (err)
+		return err;
+
+	/* for slaves, zero out everything except FW version */
+	outbuf[0] = outbuf[1] = 0;
+	memset(&outbuf[8], 0, QUERY_FW_OUT_SIZE - 8);
+	return 0;
 }
 
 static void get_board_id(void *vsd, char *board_id)

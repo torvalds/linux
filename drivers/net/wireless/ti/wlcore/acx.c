@@ -1715,6 +1715,7 @@ out:
 
 }
 
+#ifdef CONFIG_PM
 /* Set the global behaviour of RX filters - On/Off + default action */
 int wl1271_acx_default_rx_filter_enable(struct wl1271 *wl, bool enable,
 					enum rx_filter_action action)
@@ -1794,3 +1795,4 @@ out:
 	kfree(acx);
 	return ret;
 }
+#endif /* CONFIG_PM */

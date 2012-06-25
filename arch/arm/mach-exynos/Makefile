@@ -22,7 +22,7 @@ obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM_GENERIC_DOMAINS) += pm_domains.o
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 
-obj-$(CONFIG_ARCH_EXYNOS4)	+= pmu.o
+obj-$(CONFIG_ARCH_EXYNOS)	+= pmu.o
 
 obj-$(CONFIG_SMP)		+= platsmp.o headsmp.o
 

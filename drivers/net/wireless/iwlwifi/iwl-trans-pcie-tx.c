@@ -204,33 +204,39 @@ static void iwlagn_unmap_tfd(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
 	for (i = 1; i < num_tbs; i++)
 		dma_unmap_single(trans->dev, iwl_tfd_tb_get_addr(tfd, i),
 				iwl_tfd_tb_get_len(tfd, i), dma_dir);
+
+	tfd->num_tbs = 0;
 }
 
 /**
  * iwlagn_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
  * @trans - transport private data
  * @txq - tx queue
- * @index - the index of the TFD to be freed
- *@dma_dir - the direction of the DMA mapping
+ * @dma_dir - the direction of the DMA mapping
  *
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
 void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
-	int index, enum dma_data_direction dma_dir)
+			 enum dma_data_direction dma_dir)
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
 
+	/* rd_ptr is bounded by n_bd and idx is bounded by n_window */
+	int rd_ptr = txq->q.read_ptr;
+	int idx = get_cmd_index(&txq->q, rd_ptr);
+
 	lockdep_assert_held(&txq->lock);
 
-	iwlagn_unmap_tfd(trans, &txq->entries[index].meta,
-			 &tfd_tmp[index], dma_dir);
+	/* We have only q->n_window txq->entries, but we use q->n_bd tfds */
+	iwlagn_unmap_tfd(trans, &txq->entries[idx].meta,
+			 &tfd_tmp[rd_ptr], dma_dir);
 
 	/* free SKB */
 	if (txq->entries) {
 		struct sk_buff *skb;
 
-		skb = txq->entries[index].skb;
+		skb = txq->entries[idx].skb;
 
 		/* Can be called from irqs-disabled context
 		 * If skb is not NULL, it means that the whole queue is being
@@ -238,7 +244,7 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 		 */
 		if (skb) {
 			iwl_op_mode_free_skb(trans->op_mode, skb);
-			txq->entries[index].skb = NULL;
+			txq->entries[idx].skb = NULL;
 		}
 	}
 }
@@ -973,7 +979,7 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 
 		iwlagn_txq_inval_byte_cnt_tbl(trans, txq);
 
-		iwlagn_txq_free_tfd(trans, txq, txq->q.read_ptr, DMA_TO_DEVICE);
+		iwlagn_txq_free_tfd(trans, txq, DMA_TO_DEVICE);
 		freed++;
 	}
 

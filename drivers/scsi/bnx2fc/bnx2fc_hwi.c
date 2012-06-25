@@ -167,6 +167,7 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 {
 	struct fc_lport *lport = port->lport;
 	struct bnx2fc_interface *interface = port->priv;
+	struct fcoe_ctlr *ctlr = bnx2fc_to_ctlr(interface);
 	struct bnx2fc_hba *hba = interface->hba;
 	struct kwqe *kwqe_arr[4];
 	struct fcoe_kwqe_conn_offload1 ofld_req1;
@@ -314,13 +315,13 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
 	ofld_req4.src_mac_addr_mid[1] =  port->data_src_addr[2];
 	ofld_req4.src_mac_addr_hi[0] =  port->data_src_addr[1];
 	ofld_req4.src_mac_addr_hi[1] =  port->data_src_addr[0];
-	ofld_req4.dst_mac_addr_lo[0] =  interface->ctlr.dest_addr[5];
+	ofld_req4.dst_mac_addr_lo[0] =  ctlr->dest_addr[5];
 							/* fcf mac */
-	ofld_req4.dst_mac_addr_lo[1] =  interface->ctlr.dest_addr[4];
-	ofld_req4.dst_mac_addr_mid[0] =  interface->ctlr.dest_addr[3];
-	ofld_req4.dst_mac_addr_mid[1] =  interface->ctlr.dest_addr[2];
-	ofld_req4.dst_mac_addr_hi[0] =  interface->ctlr.dest_addr[1];
-	ofld_req4.dst_mac_addr_hi[1] =  interface->ctlr.dest_addr[0];
+	ofld_req4.dst_mac_addr_lo[1] = ctlr->dest_addr[4];
+	ofld_req4.dst_mac_addr_mid[0] = ctlr->dest_addr[3];
+	ofld_req4.dst_mac_addr_mid[1] = ctlr->dest_addr[2];
+	ofld_req4.dst_mac_addr_hi[0] = ctlr->dest_addr[1];
+	ofld_req4.dst_mac_addr_hi[1] = ctlr->dest_addr[0];
 
 	ofld_req4.lcq_addr_lo = (u32) tgt->lcq_dma;
 	ofld_req4.lcq_addr_hi = (u32)((u64) tgt->lcq_dma >> 32);
@@ -351,6 +352,7 @@ static int bnx2fc_send_session_enable_req(struct fcoe_port *port,
 {
 	struct kwqe *kwqe_arr[2];
 	struct bnx2fc_interface *interface = port->priv;
+	struct fcoe_ctlr *ctlr = bnx2fc_to_ctlr(interface);
 	struct bnx2fc_hba *hba = interface->hba;
 	struct fcoe_kwqe_conn_enable_disable enbl_req;
 	struct fc_lport *lport = port->lport;
@@ -374,12 +376,12 @@ static int bnx2fc_send_session_enable_req(struct fcoe_port *port,
 	enbl_req.src_mac_addr_hi[1] =  port->data_src_addr[0];
 	memcpy(tgt->src_addr, port->data_src_addr, ETH_ALEN);
 
-	enbl_req.dst_mac_addr_lo[0] =  interface->ctlr.dest_addr[5];
-	enbl_req.dst_mac_addr_lo[1] =  interface->ctlr.dest_addr[4];
-	enbl_req.dst_mac_addr_mid[0] =  interface->ctlr.dest_addr[3];
-	enbl_req.dst_mac_addr_mid[1] =  interface->ctlr.dest_addr[2];
-	enbl_req.dst_mac_addr_hi[0] =  interface->ctlr.dest_addr[1];
-	enbl_req.dst_mac_addr_hi[1] =  interface->ctlr.dest_addr[0];
+	enbl_req.dst_mac_addr_lo[0] =  ctlr->dest_addr[5];
+	enbl_req.dst_mac_addr_lo[1] =  ctlr->dest_addr[4];
+	enbl_req.dst_mac_addr_mid[0] = ctlr->dest_addr[3];
+	enbl_req.dst_mac_addr_mid[1] = ctlr->dest_addr[2];
+	enbl_req.dst_mac_addr_hi[0] = ctlr->dest_addr[1];
+	enbl_req.dst_mac_addr_hi[1] = ctlr->dest_addr[0];
 
 	port_id = fc_host_port_id(lport->host);
 	if (port_id != tgt->sid) {
@@ -419,6 +421,7 @@ int bnx2fc_send_session_disable_req(struct fcoe_port *port,
 				    struct bnx2fc_rport *tgt)
 {
 	struct bnx2fc_interface *interface = port->priv;
+	struct fcoe_ctlr *ctlr = bnx2fc_to_ctlr(interface);
 	struct bnx2fc_hba *hba = interface->hba;
 	struct fcoe_kwqe_conn_enable_disable disable_req;
 	struct kwqe *kwqe_arr[2];
@@ -440,12 +443,12 @@ int bnx2fc_send_session_disable_req(struct fcoe_port *port,
 	disable_req.src_mac_addr_hi[0] =  tgt->src_addr[1];
 	disable_req.src_mac_addr_hi[1] =  tgt->src_addr[0];
 
-	disable_req.dst_mac_addr_lo[0] =  interface->ctlr.dest_addr[5];
-	disable_req.dst_mac_addr_lo[1] =  interface->ctlr.dest_addr[4];
-	disable_req.dst_mac_addr_mid[0] =  interface->ctlr.dest_addr[3];
-	disable_req.dst_mac_addr_mid[1] =  interface->ctlr.dest_addr[2];
-	disable_req.dst_mac_addr_hi[0] =  interface->ctlr.dest_addr[1];
-	disable_req.dst_mac_addr_hi[1] =  interface->ctlr.dest_addr[0];
+	disable_req.dst_mac_addr_lo[0] =  ctlr->dest_addr[5];
+	disable_req.dst_mac_addr_lo[1] =  ctlr->dest_addr[4];
+	disable_req.dst_mac_addr_mid[0] = ctlr->dest_addr[3];
+	disable_req.dst_mac_addr_mid[1] = ctlr->dest_addr[2];
+	disable_req.dst_mac_addr_hi[0] = ctlr->dest_addr[1];
+	disable_req.dst_mac_addr_hi[1] = ctlr->dest_addr[0];
 
 	port_id = tgt->sid;
 	disable_req.s_id[0] = (port_id & 0x000000FF);

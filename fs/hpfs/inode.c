@@ -110,7 +110,7 @@ void hpfs_read_inode(struct inode *i)
 			}
 		}
 	}
-	if (fnode->dirflag) {
+	if (fnode_is_dir(fnode)) {
 		int n_dnodes, n_subdirs;
 		i->i_mode |= S_IFDIR;
 		i->i_op = &hpfs_dir_iops;

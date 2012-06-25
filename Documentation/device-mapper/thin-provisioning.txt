@@ -287,6 +287,17 @@ iii) Messages
 	the current transaction id is when you change it with this
 	compare-and-swap message.
 
+    reserve_metadata_snap
+
+        Reserve a copy of the data mapping btree for use by userland.
+        This allows userland to inspect the mappings as they were when
+        this message was executed.  Use the pool's status command to
+        get the root block associated with the metadata snapshot.
+
+    release_metadata_snap
+
+        Release a previously reserved copy of the data mapping btree.
+
 'thin' target
 -------------
 

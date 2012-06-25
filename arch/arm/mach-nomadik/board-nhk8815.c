@@ -111,7 +111,7 @@ static struct nomadik_nand_platform_data nhk8815_nand_data = {
 	.parts		= nhk8815_partitions,
 	.nparts		= ARRAY_SIZE(nhk8815_partitions),
 	.options	= NAND_COPYBACK | NAND_CACHEPRG | NAND_NO_PADDING \
-			| NAND_NO_READRDY | NAND_NO_AUTOINCR,
+			| NAND_NO_READRDY,
 	.init		= nhk8815_nand_init,
 };
 

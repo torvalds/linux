@@ -418,8 +418,10 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 
 	/* Write all dirty data */
-	if (S_ISREG(inode->i_mode))
+	if (S_ISREG(inode->i_mode)) {
+		nfs_inode_dio_wait(inode);
 		nfs_wb_all(inode);
+	}
 
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
@@ -503,6 +505,7 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 
 	/* Flush out writes to the server in order to update c/mtime.  */
 	if (S_ISREG(inode->i_mode)) {
+		nfs_inode_dio_wait(inode);
 		err = filemap_write_and_wait(inode->i_mapping);
 		if (err)
 			goto out;
@@ -1527,7 +1530,6 @@ static inline void nfs4_init_once(struct nfs_inode *nfsi)
 	nfsi->delegation_state = 0;
 	init_rwsem(&nfsi->rwsem);
 	nfsi->layout = NULL;
-	atomic_set(&nfsi->commit_info.rpcs_out, 0);
 #endif
 }
 
@@ -1542,6 +1544,7 @@ static void init_once(void *foo)
 	INIT_LIST_HEAD(&nfsi->commit_info.list);
 	nfsi->npages = 0;
 	nfsi->commit_info.ncommit = 0;
+	atomic_set(&nfsi->commit_info.rpcs_out, 0);
 	atomic_set(&nfsi->silly_count, 1);
 	INIT_HLIST_HEAD(&nfsi->silly_list);
 	init_waitqueue_head(&nfsi->waitqueue);

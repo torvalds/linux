@@ -62,6 +62,8 @@ config SOC_EXYNOS5250
 	default y
 	depends on ARCH_EXYNOS5
 	select SAMSUNG_DMADEV
+	select S5P_PM if PM
+	select S5P_SLEEP if PM
 	help
 	  Enable EXYNOS5250 SoC support
 

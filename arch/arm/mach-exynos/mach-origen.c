@@ -604,24 +604,28 @@ static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
 };
 #else
 static struct s3c_fb_pd_win origen_fb_win0 = {
-	.win_mode = {
-		.left_margin	= 64,
-		.right_margin	= 16,
-		.upper_margin	= 64,
-		.lower_margin	= 16,
-		.hsync_len	= 48,
-		.vsync_len	= 3,
-		.xres		= 1024,
-		.yres		= 600,
-	},
+	.xres			= 1024,
+	.yres			= 600,
 	.max_bpp		= 32,
 	.default_bpp		= 24,
 	.virtual_x		= 1024,
 	.virtual_y		= 2 * 600,
 };
 
+static struct fb_videomode origen_lcd_timing = {
+	.left_margin	= 64,
+	.right_margin	= 16,
+	.upper_margin	= 64,
+	.lower_margin	= 16,
+	.hsync_len	= 48,
+	.vsync_len	= 3,
+	.xres		= 1024,
+	.yres		= 600,
+};
+
 static struct s3c_fb_platdata origen_lcd_pdata __initdata = {
 	.win[0]		= &origen_fb_win0,
+	.vtiming	= &origen_lcd_timing,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC |
 				VIDCON1_INV_VCLK,

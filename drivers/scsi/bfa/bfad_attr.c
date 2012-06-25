@@ -426,6 +426,23 @@ bfad_im_vport_create(struct fc_vport *fc_vport, bool disable)
 		vshost = vport->drv_port.im_port->shost;
 		fc_host_node_name(vshost) = wwn_to_u64((u8 *)&port_cfg.nwwn);
 		fc_host_port_name(vshost) = wwn_to_u64((u8 *)&port_cfg.pwwn);
+		fc_host_supported_classes(vshost) = FC_COS_CLASS3;
+
+		memset(fc_host_supported_fc4s(vshost), 0,
+			sizeof(fc_host_supported_fc4s(vshost)));
+
+		/* For FCP type 0x08 */
+		if (supported_fc4s & BFA_LPORT_ROLE_FCP_IM)
+			fc_host_supported_fc4s(vshost)[2] = 1;
+
+		/* For fibre channel services type 0x20 */
+		fc_host_supported_fc4s(vshost)[7] = 1;
+
+		fc_host_supported_speeds(vshost) =
+				bfad_im_supported_speeds(&bfad->bfa);
+		fc_host_maxframe_size(vshost) =
+				bfa_fcport_get_maxfrsize(&bfad->bfa);
+
 		fc_vport->dd_data = vport;
 		vport->drv_port.im_port->fc_vport = fc_vport;
 	} else if (rc == BFA_STATUS_INVALID_WWN)

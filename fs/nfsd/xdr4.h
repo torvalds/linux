@@ -60,7 +60,7 @@ struct nfsd4_compound_state {
 	__be32			*datap;
 	size_t			iovlen;
 	u32			minorversion;
-	u32			status;
+	__be32			status;
 	stateid_t	current_stateid;
 	stateid_t	save_stateid;
 	/* to indicate current and saved state id presents */
@@ -364,7 +364,7 @@ struct nfsd4_test_stateid_id {
 };
 
 struct nfsd4_test_stateid {
-	__be32		ts_num_ids;
+	u32		ts_num_ids;
 	struct list_head ts_stateid_list;
 };
 
@@ -549,7 +549,7 @@ int nfs4svc_decode_compoundargs(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundargs *);
 int nfs4svc_encode_compoundres(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundres *);
-int nfsd4_check_resp_size(struct nfsd4_compoundres *, u32);
+__be32 nfsd4_check_resp_size(struct nfsd4_compoundres *, u32);
 void nfsd4_encode_operation(struct nfsd4_compoundres *, struct nfsd4_op *);
 void nfsd4_encode_replay(struct nfsd4_compoundres *resp, struct nfsd4_op *op);
 __be32 nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,

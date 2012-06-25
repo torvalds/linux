@@ -52,8 +52,6 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
 
 	while (pages) {
 		page = page_read(mapping, index);
-		if (!page)
-			return -ENOMEM;
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
@@ -112,8 +110,6 @@ static int block2mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 		len = len - cpylen;
 
 		page = page_read(dev->blkdev->bd_inode->i_mapping, index);
-		if (!page)
-			return -ENOMEM;
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
@@ -148,8 +144,6 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 		len = len - cpylen;
 
 		page = page_read(mapping, index);
-		if (!page)
-			return -ENOMEM;
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
@@ -271,7 +265,6 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 	dev->mtd.flags = MTD_CAP_RAM;
 	dev->mtd._erase = block2mtd_erase;
 	dev->mtd._write = block2mtd_write;
-	dev->mtd._writev = mtd_writev;
 	dev->mtd._sync = block2mtd_sync;
 	dev->mtd._read = block2mtd_read;
 	dev->mtd.priv = dev;

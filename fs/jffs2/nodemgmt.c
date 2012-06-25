@@ -18,6 +18,37 @@
 #include "nodelist.h"
 #include "debug.h"
 
+/*
+ * Check whether the user is allowed to write.
+ */
+static int jffs2_rp_can_write(struct jffs2_sb_info *c)
+{
+	uint32_t avail;
+	struct jffs2_mount_opts *opts = &c->mount_opts;
+
+	avail = c->dirty_size + c->free_size + c->unchecked_size +
+		c->erasing_size - c->resv_blocks_write * c->sector_size
+		- c->nospc_dirty_size;
+
+	if (avail < 2 * opts->rp_size)
+		jffs2_dbg(1, "rpsize %u, dirty_size %u, free_size %u, "
+			  "erasing_size %u, unchecked_size %u, "
+			  "nr_erasing_blocks %u, avail %u, resrv %u\n",
+			  opts->rp_size, c->dirty_size, c->free_size,
+			  c->erasing_size, c->unchecked_size,
+			  c->nr_erasing_blocks, avail, c->nospc_dirty_size);
+
+	if (avail > opts->rp_size)
+		return 1;
+
+	/* Always allow root */
+	if (capable(CAP_SYS_RESOURCE))
+		return 1;
+
+	jffs2_dbg(1, "forbid writing\n");
+	return 0;
+}
+
 /**
  *	jffs2_reserve_space - request physical space to write nodes to flash
  *	@c: superblock info
@@ -54,6 +85,15 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 	jffs2_dbg(1, "%s(): alloc sem got\n", __func__);
 
 	spin_lock(&c->erase_completion_lock);
+
+	/*
+	 * Check if the free space is greater then size of the reserved pool.
+	 * If not, only allow root to proceed with writing.
+	 */
+	if (prio != ALLOC_DELETION && !jffs2_rp_can_write(c)) {
+		ret = -ENOSPC;
+		goto out;
+	}
 
 	/* this needs a little more thought (true <tglx> :)) */
 	while(ret == -EAGAIN) {
@@ -158,6 +198,8 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			jffs2_dbg(1, "%s(): ret is %d\n", __func__, ret);
 		}
 	}
+
+out:
 	spin_unlock(&c->erase_completion_lock);
 	if (!ret)
 		ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, 1);

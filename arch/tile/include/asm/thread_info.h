@@ -91,11 +91,6 @@ extern void smp_nap(void);
 /* Enable interrupts racelessly and nap forever: helper for cpu_idle(). */
 extern void _cpu_idle(void);
 
-/* Switch boot idle thread to a freshly-allocated stack and free old stack. */
-extern void cpu_idle_on_new_stack(struct thread_info *old_ti,
-				  unsigned long new_sp,
-				  unsigned long new_ss10);
-
 #else /* __ASSEMBLY__ */
 
 /*
@@ -166,7 +161,23 @@ static inline void set_restore_sigmask(void)
 {
 	struct thread_info *ti = current_thread_info();
 	ti->status |= TS_RESTORE_SIGMASK;
-	set_bit(TIF_SIGPENDING, &ti->flags);
+	WARN_ON(!test_bit(TIF_SIGPENDING, &ti->flags));
+}
+static inline void clear_restore_sigmask(void)
+{
+	current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+}
+static inline bool test_restore_sigmask(void)
+{
+	return current_thread_info()->status & TS_RESTORE_SIGMASK;
+}
+static inline bool test_and_clear_restore_sigmask(void)
+{
+	struct thread_info *ti = current_thread_info();
+	if (!(ti->status & TS_RESTORE_SIGMASK))
+		return false;
+	ti->status &= ~TS_RESTORE_SIGMASK;
+	return true;
 }
 #endif	/* !__ASSEMBLY__ */
 

@@ -24,8 +24,11 @@ static int scsi_dev_type_suspend(struct device *dev, pm_message_t msg)
 	err = scsi_device_quiesce(to_scsi_device(dev));
 	if (err == 0) {
 		drv = dev->driver;
-		if (drv && drv->suspend)
+		if (drv && drv->suspend) {
 			err = drv->suspend(dev, msg);
+			if (err)
+				scsi_device_resume(to_scsi_device(dev));
+		}
 	}
 	dev_dbg(dev, "scsi suspend: %d\n", err);
 	return err;

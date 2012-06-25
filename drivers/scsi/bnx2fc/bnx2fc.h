@@ -62,7 +62,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.10"
+#define BNX2FC_VERSION		"1.0.11"
 
 #define PFX			"bnx2fc: "
 
@@ -228,13 +228,16 @@ struct bnx2fc_interface {
 	struct packet_type fip_packet_type;
 	struct workqueue_struct *timer_work_queue;
 	struct kref kref;
-	struct fcoe_ctlr ctlr;
 	u8 vlan_enabled;
 	int vlan_id;
 	bool enabled;
 };
 
-#define bnx2fc_from_ctlr(fip) container_of(fip, struct bnx2fc_interface, ctlr)
+#define bnx2fc_from_ctlr(x)			\
+	((struct bnx2fc_interface *)((x) + 1))
+
+#define bnx2fc_to_ctlr(x)					\
+	((struct fcoe_ctlr *)(((struct fcoe_ctlr *)(x)) - 1))
 
 struct bnx2fc_lport {
 	struct list_head list;

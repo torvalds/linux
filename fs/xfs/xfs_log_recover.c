@@ -1471,8 +1471,8 @@ xlog_recover_add_item(
 
 STATIC int
 xlog_recover_add_to_cont_trans(
-	struct log		*log,
-	xlog_recover_t		*trans,
+	struct xlog		*log,
+	struct xlog_recover	*trans,
 	xfs_caddr_t		dp,
 	int			len)
 {
@@ -1517,8 +1517,8 @@ xlog_recover_add_to_cont_trans(
  */
 STATIC int
 xlog_recover_add_to_trans(
-	struct log		*log,
-	xlog_recover_t		*trans,
+	struct xlog		*log,
+	struct xlog_recover	*trans,
 	xfs_caddr_t		dp,
 	int			len)
 {
@@ -1588,8 +1588,8 @@ xlog_recover_add_to_trans(
  */
 STATIC int
 xlog_recover_reorder_trans(
-	struct log		*log,
-	xlog_recover_t		*trans,
+	struct xlog		*log,
+	struct xlog_recover	*trans,
 	int			pass)
 {
 	xlog_recover_item_t	*item, *n;
@@ -1642,8 +1642,8 @@ xlog_recover_reorder_trans(
  */
 STATIC int
 xlog_recover_buffer_pass1(
-	struct log		*log,
-	xlog_recover_item_t	*item)
+	struct xlog			*log,
+	struct xlog_recover_item	*item)
 {
 	xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
 	struct list_head	*bucket;
@@ -1696,7 +1696,7 @@ xlog_recover_buffer_pass1(
  */
 STATIC int
 xlog_check_buffer_cancelled(
-	struct log		*log,
+	struct xlog		*log,
 	xfs_daddr_t		blkno,
 	uint			len,
 	ushort			flags)
@@ -2689,9 +2689,9 @@ xlog_recover_free_trans(
 
 STATIC int
 xlog_recover_commit_pass1(
-	struct log		*log,
-	struct xlog_recover	*trans,
-	xlog_recover_item_t	*item)
+	struct xlog			*log,
+	struct xlog_recover		*trans,
+	struct xlog_recover_item	*item)
 {
 	trace_xfs_log_recover_item_recover(log, trans, item, XLOG_RECOVER_PASS1);
 
@@ -2716,10 +2716,10 @@ xlog_recover_commit_pass1(
 
 STATIC int
 xlog_recover_commit_pass2(
-	struct log		*log,
-	struct xlog_recover	*trans,
-	struct list_head	*buffer_list,
-	xlog_recover_item_t	*item)
+	struct xlog			*log,
+	struct xlog_recover		*trans,
+	struct list_head		*buffer_list,
+	struct xlog_recover_item	*item)
 {
 	trace_xfs_log_recover_item_recover(log, trans, item, XLOG_RECOVER_PASS2);
 
@@ -2753,7 +2753,7 @@ xlog_recover_commit_pass2(
  */
 STATIC int
 xlog_recover_commit_trans(
-	struct log		*log,
+	struct xlog		*log,
 	struct xlog_recover	*trans,
 	int			pass)
 {
@@ -2793,8 +2793,8 @@ out:
 
 STATIC int
 xlog_recover_unmount_trans(
-	struct log		*log,
-	xlog_recover_t		*trans)
+	struct xlog		*log,
+	struct xlog_recover	*trans)
 {
 	/* Do nothing now */
 	xfs_warn(log->l_mp, "%s: Unmount LR", __func__);

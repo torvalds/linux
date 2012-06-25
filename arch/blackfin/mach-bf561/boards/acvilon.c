@@ -248,8 +248,6 @@ static struct platform_device bfin_uart0_device = {
 
 #if defined(CONFIG_MTD_NAND_PLATFORM) || defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
 
-const char *part_probes[] = { "cmdlinepart", NULL };
-
 static struct mtd_partition bfin_plat_nand_partitions[] = {
 	{
 	 .name = "params(nand)",
@@ -289,7 +287,6 @@ static struct platform_nand_data bfin_plat_nand_data = {
 	.chip = {
 		 .nr_chips = 1,
 		 .chip_delay = 30,
-		 .part_probe_types = part_probes,
 		 .partitions = bfin_plat_nand_partitions,
 		 .nr_partitions = ARRAY_SIZE(bfin_plat_nand_partitions),
 		 },

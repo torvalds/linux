@@ -54,7 +54,7 @@ struct drm_mode_object {
 	struct drm_object_properties *properties;
 };
 
-#define DRM_OBJECT_MAX_PROPERTY 16
+#define DRM_OBJECT_MAX_PROPERTY 24
 struct drm_object_properties {
 	int count;
 	uint32_t ids[DRM_OBJECT_MAX_PROPERTY];

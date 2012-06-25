@@ -5889,11 +5889,7 @@ static void rtl_slow_event_work(struct rtl8169_private *tp)
 	if (status & LinkChg)
 		__rtl8169_check_link_status(dev, tp, tp->mmio_addr, true);
 
-	napi_disable(&tp->napi);
-	rtl_irq_disable(tp);
-
-	napi_enable(&tp->napi);
-	napi_schedule(&tp->napi);
+	rtl_irq_enable_all(tp);
 }
 
 static void rtl_task(struct work_struct *work)
@@ -6345,6 +6341,8 @@ static void __devexit rtl_remove_one(struct pci_dev *pdev)
 
 	cancel_work_sync(&tp->wk.work);
 
+	netif_napi_del(&tp->napi);
+
 	unregister_netdev(dev);
 
 	rtl_release_firmware(tp);
@@ -6668,6 +6666,7 @@ out:
 	return rc;
 
 err_out_msi_4:
+	netif_napi_del(&tp->napi);
 	rtl_disable_msi(pdev, tp);
 	iounmap(ioaddr);
 err_out_free_res_3:

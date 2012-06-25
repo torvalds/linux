@@ -3113,7 +3113,7 @@ static struct uart_8250_port *serial8250_find_match_or_unused(struct uart_port *
 
 /**
  *	serial8250_register_8250_port - register a serial port
- *	@port: serial port template
+ *	@up: serial port template
  *
  *	Configure the serial port specified by the request. If the
  *	port exists and is in use, it is hung up and unregistered

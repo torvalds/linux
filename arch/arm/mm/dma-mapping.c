@@ -228,7 +228,7 @@ static pte_t **consistent_pte;
 
 #define DEFAULT_CONSISTENT_DMA_SIZE SZ_2M
 
-unsigned long consistent_base = CONSISTENT_END - DEFAULT_CONSISTENT_DMA_SIZE;
+static unsigned long consistent_base = CONSISTENT_END - DEFAULT_CONSISTENT_DMA_SIZE;
 
 void __init init_consistent_dma_size(unsigned long size)
 {
@@ -268,10 +268,8 @@ static int __init consistent_init(void)
 	unsigned long base = consistent_base;
 	unsigned long num_ptes = (CONSISTENT_END - base) >> PMD_SHIFT;
 
-#ifndef CONFIG_ARM_DMA_USE_IOMMU
-	if (cpu_architecture() >= CPU_ARCH_ARMv6)
+	if (IS_ENABLED(CONFIG_CMA) && !IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU))
 		return 0;
-#endif
 
 	consistent_pte = kmalloc(num_ptes * sizeof(pte_t), GFP_KERNEL);
 	if (!consistent_pte) {
@@ -323,7 +321,7 @@ static struct arm_vmregion_head coherent_head = {
 	.vm_list	= LIST_HEAD_INIT(coherent_head.vm_list),
 };
 
-size_t coherent_pool_size = DEFAULT_CONSISTENT_DMA_SIZE / 8;
+static size_t coherent_pool_size = DEFAULT_CONSISTENT_DMA_SIZE / 8;
 
 static int __init early_coherent_pool(char *p)
 {
@@ -342,7 +340,7 @@ static int __init coherent_init(void)
 	struct page *page;
 	void *ptr;
 
-	if (cpu_architecture() < CPU_ARCH_ARMv6)
+	if (!IS_ENABLED(CONFIG_CMA))
 		return 0;
 
 	ptr = __alloc_from_contiguous(NULL, size, prot, &page);
@@ -704,7 +702,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 
 	if (arch_is_coherent() || nommu())
 		addr = __alloc_simple_buffer(dev, size, gfp, &page);
-	else if (cpu_architecture() < CPU_ARCH_ARMv6)
+	else if (!IS_ENABLED(CONFIG_CMA))
 		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
 	else if (gfp & GFP_ATOMIC)
 		addr = __alloc_from_pool(dev, size, &page, caller);
@@ -773,7 +771,7 @@ void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
 
 	if (arch_is_coherent() || nommu()) {
 		__dma_free_buffer(page, size);
-	} else if (cpu_architecture() < CPU_ARCH_ARMv6) {
+	} else if (!IS_ENABLED(CONFIG_CMA)) {
 		__dma_free_remap(cpu_addr, size);
 		__dma_free_buffer(page, size);
 	} else {

@@ -105,8 +105,6 @@ static int ts72xx_nand_device_ready(struct mtd_info *mtd)
 	return !!(__raw_readb(addr) & 0x20);
 }
 
-static const char *ts72xx_nand_part_probes[] = { "cmdlinepart", NULL };
-
 #define TS72XX_BOOTROM_PART_SIZE	(SZ_16K)
 #define TS72XX_REDBOOT_PART_SIZE	(SZ_2M + SZ_1M)
 
@@ -134,7 +132,6 @@ static struct platform_nand_data ts72xx_nand_data = {
 		.nr_chips	= 1,
 		.chip_offset	= 0,
 		.chip_delay	= 15,
-		.part_probe_types = ts72xx_nand_part_probes,
 		.partitions	= ts72xx_nand_parts,
 		.nr_partitions	= ARRAY_SIZE(ts72xx_nand_parts),
 	},

@@ -235,6 +235,7 @@ void ioc_clear_queue(struct request_queue *q)
 int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
 {
 	struct io_context *ioc;
+	int ret;
 
 	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags | __GFP_ZERO,
 				    node);
@@ -262,9 +263,12 @@ int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
 		task->io_context = ioc;
 	else
 		kmem_cache_free(iocontext_cachep, ioc);
+
+	ret = task->io_context ? 0 : -EBUSY;
+
 	task_unlock(task);
 
-	return 0;
+	return ret;
 }
 
 /**
