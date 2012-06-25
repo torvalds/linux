@@ -572,8 +572,6 @@ bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
 
 void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv);
 void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);
-void ath9k_htc_radio_enable(struct ieee80211_hw *hw);
-void ath9k_htc_radio_disable(struct ieee80211_hw *hw);
 
 #ifdef CONFIG_MAC80211_LEDS
 void ath9k_init_leds(struct ath9k_htc_priv *priv);

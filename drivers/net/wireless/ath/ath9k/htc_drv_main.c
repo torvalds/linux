@@ -75,14 +75,19 @@ unlock:
 
 void ath9k_htc_ps_restore(struct ath9k_htc_priv *priv)
 {
+	bool reset;
+
 	mutex_lock(&priv->htc_pm_lock);
 	if (--priv->ps_usecount != 0)
 		goto unlock;
 
-	if (priv->ps_idle)
+	if (priv->ps_idle) {
+		ath9k_hw_setrxabort(priv->ah, true);
+		ath9k_hw_stopdmarecv(priv->ah, &reset);
 		ath9k_hw_setpower(priv->ah, ATH9K_PM_FULL_SLEEP);
-	else if (priv->ps_enabled)
+	} else if (priv->ps_enabled) {
 		ath9k_hw_setpower(priv->ah, ATH9K_PM_NETWORK_SLEEP);
+	}
 
 unlock:
 	mutex_unlock(&priv->htc_pm_lock);
@@ -1178,24 +1183,20 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ieee80211_conf *conf = &hw->conf;
+	bool chip_reset = false;
+	int ret = 0;
 
 	mutex_lock(&priv->mutex);
+	ath9k_htc_ps_wakeup(priv);
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
-		bool enable_radio = false;
-		bool idle = !!(conf->flags & IEEE80211_CONF_IDLE);
-
 		mutex_lock(&priv->htc_pm_lock);
-		if (!idle && priv->ps_idle)
-			enable_radio = true;
-		priv->ps_idle = idle;
-		mutex_unlock(&priv->htc_pm_lock);
 
-		if (enable_radio) {
-			ath_dbg(common, CONFIG, "not-idle: enabling radio\n");
-			ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
-			ath9k_htc_radio_enable(hw);
-		}
+		priv->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
+		if (priv->ps_idle)
+			chip_reset = true;
+
+		mutex_unlock(&priv->htc_pm_lock);
 	}
 
 	/*
@@ -1210,7 +1211,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 			ath9k_htc_remove_monitor_interface(priv);
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || chip_reset) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos = curchan->hw_value;
 
@@ -1223,8 +1224,8 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (ath9k_htc_set_channel(priv, hw, &priv->ah->channels[pos]) < 0) {
 			ath_err(common, "Unable to set channel\n");
-			mutex_unlock(&priv->mutex);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 
 	}
@@ -1246,21 +1247,10 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 				       priv->txpowlimit, &priv->curtxpow);
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
-		mutex_lock(&priv->htc_pm_lock);
-		if (!priv->ps_idle) {
-			mutex_unlock(&priv->htc_pm_lock);
-			goto out;
-		}
-		mutex_unlock(&priv->htc_pm_lock);
-
-		ath_dbg(common, CONFIG, "idle: disabling radio\n");
-		ath9k_htc_radio_disable(hw);
-	}
-
 out:
+	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
-	return 0;
+	return ret;
 }
 
 #define SUPPORTED_FILTERS			\
