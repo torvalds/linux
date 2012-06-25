@@ -530,10 +530,10 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 	struct omap_overlay_manager *lcd2_mgr = NULL;
 	struct omap_overlay_manager *mgr = NULL;
 
-	lcd_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_LCD);
-	tv_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_TV);
+	lcd_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_LCD);
+	tv_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_DIGIT);
 	if (dss_has_feature(FEAT_MGR_LCD2))
-		lcd2_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_LCD2);
+		lcd2_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_LCD2);
 
 	if (dssdev->channel == OMAP_DSS_CHANNEL_LCD2) {
 		if (!lcd2_mgr->device || force) {

@@ -167,13 +167,6 @@ enum omap_dss_audio_state {
 	OMAP_DSS_AUDIO_PLAYING,
 };
 
-/* XXX perhaps this should be removed */
-enum omap_dss_overlay_managers {
-	OMAP_DSS_OVL_MGR_LCD,
-	OMAP_DSS_OVL_MGR_TV,
-	OMAP_DSS_OVL_MGR_LCD2,
-};
-
 enum omap_dss_rotation_type {
 	OMAP_DSS_ROT_DMA	= 1 << 0,
 	OMAP_DSS_ROT_VRFB	= 1 << 1,
