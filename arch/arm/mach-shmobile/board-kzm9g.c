@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/smsc911x.h>
 #include <linux/usb/r8a66597.h>
+#include <linux/usb/renesas_usbhs.h>
 #include <linux/videodev2.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
@@ -120,6 +121,151 @@ static struct platform_device usb_host_device = {
 	},
 	.num_resources	= ARRAY_SIZE(usb_resources),
 	.resource	= usb_resources,
+};
+
+/* USB Func CN17 */
+struct usbhs_private {
+	unsigned int phy;
+	unsigned int cr2;
+	struct renesas_usbhs_platform_info info;
+};
+
+#define IRQ15			intcs_evt2irq(0x03e0)
+#define USB_PHY_MODE		(1 << 4)
+#define USB_PHY_INT_EN		((1 << 3) | (1 << 2))
+#define USB_PHY_ON		(1 << 1)
+#define USB_PHY_OFF		(1 << 0)
+#define USB_PHY_INT_CLR		(USB_PHY_ON | USB_PHY_OFF)
+
+#define usbhs_get_priv(pdev) \
+	container_of(renesas_usbhs_get_info(pdev), struct usbhs_private, info)
+
+static int usbhs_get_vbus(struct platform_device *pdev)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+
+	return !((1 << 7) & __raw_readw(priv->cr2));
+}
+
+static void usbhs_phy_reset(struct platform_device *pdev)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+
+	/* init phy */
+	__raw_writew(0x8a0a, priv->cr2);
+}
+
+static int usbhs_get_id(struct platform_device *pdev)
+{
+	return USBHS_GADGET;
+}
+
+static irqreturn_t usbhs_interrupt(int irq, void *data)
+{
+	struct platform_device *pdev = data;
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+
+	renesas_usbhs_call_notify_hotplug(pdev);
+
+	/* clear status */
+	__raw_writew(__raw_readw(priv->phy) | USB_PHY_INT_CLR, priv->phy);
+
+	return IRQ_HANDLED;
+}
+
+static int usbhs_hardware_init(struct platform_device *pdev)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+	int ret;
+
+	/* clear interrupt status */
+	__raw_writew(USB_PHY_MODE | USB_PHY_INT_CLR, priv->phy);
+
+	ret = request_irq(IRQ15, usbhs_interrupt, IRQF_TRIGGER_HIGH,
+			  dev_name(&pdev->dev), pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "request_irq err\n");
+		return ret;
+	}
+
+	/* enable USB phy interrupt */
+	__raw_writew(USB_PHY_MODE | USB_PHY_INT_EN, priv->phy);
+
+	return 0;
+}
+
+static void usbhs_hardware_exit(struct platform_device *pdev)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+
+	/* clear interrupt status */
+	__raw_writew(USB_PHY_MODE | USB_PHY_INT_CLR, priv->phy);
+
+	free_irq(IRQ15, pdev);
+}
+
+static u32 usbhs_pipe_cfg[] = {
+	USB_ENDPOINT_XFER_CONTROL,
+	USB_ENDPOINT_XFER_ISOC,
+	USB_ENDPOINT_XFER_ISOC,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+};
+
+static struct usbhs_private usbhs_private = {
+	.phy	= 0xe60781e0,		/* USBPHYINT */
+	.cr2	= 0xe605810c,		/* USBCR2 */
+	.info = {
+		.platform_callback = {
+			.hardware_init	= usbhs_hardware_init,
+			.hardware_exit	= usbhs_hardware_exit,
+			.get_id		= usbhs_get_id,
+			.phy_reset	= usbhs_phy_reset,
+			.get_vbus	= usbhs_get_vbus,
+		},
+		.driver_param = {
+			.buswait_bwait	= 4,
+			.has_otg	= 1,
+			.pipe_type	= usbhs_pipe_cfg,
+			.pipe_size	= ARRAY_SIZE(usbhs_pipe_cfg),
+		},
+	},
+};
+
+static struct resource usbhs_resources[] = {
+	[0] = {
+		.start	= 0xE6890000,
+		.end	= 0xE68900e6 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(62),
+		.end	= gic_spi(62),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usbhs_device = {
+	.name	= "renesas_usbhs",
+	.id	= -1,
+	.dev = {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &usbhs_private.info,
+	},
+	.num_resources	= ARRAY_SIZE(usbhs_resources),
+	.resource	= usbhs_resources,
 };
 
 /* LCDC */
@@ -361,6 +507,7 @@ static struct i2c_board_info i2c3_devices[] = {
 static struct platform_device *kzm_devices[] __initdata = {
 	&smsc_device,
 	&usb_host_device,
+	&usbhs_device,
 	&lcdc_device,
 	&mmc_device,
 	&sdhi0_device,
@@ -511,6 +658,9 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_FSIAIBT,	NULL);
 	gpio_request(GPIO_FN_FSIAISLD,	NULL);
 	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
+
+	/* enable USB */
+	gpio_request(GPIO_FN_VBUS_0,	NULL);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
