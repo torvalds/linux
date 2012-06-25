@@ -108,10 +108,6 @@ static irqreturn_t das16cs_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
- * "instructions" read/write data in "one-shot" or "software-triggered"
- * mode.
- */
 static int das16cs_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -167,13 +163,6 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 {
 	int err = 0;
 	int tmp;
-
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
-	 * the command passes. */
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -367,8 +356,6 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 	return i;
 }
 
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
 static int das16cs_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -383,11 +370,6 @@ static int das16cs_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
 static int das16cs_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -399,8 +381,6 @@ static int das16cs_dio_insn_bits(struct comedi_device *dev,
 		outw(s->state, dev->iobase + 16);
 	}
 
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
 	data[1] = inw(dev->iobase + 16);
 
 	return insn->n;
