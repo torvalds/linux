@@ -316,10 +316,21 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 	}
 
 	/* wait for vm use to end */
-	if (vm->fence) {
-		radeon_fence_wait(vm->fence, false);
-		radeon_fence_unref(&vm->fence);
+	while (vm->fence) {
+		int r;
+		r = radeon_fence_wait(vm->fence, false);
+		if (r)
+			DRM_ERROR("error while waiting for fence: %d\n", r);
+		if (r == -EDEADLK) {
+			mutex_unlock(&rdev->vm_manager.lock);
+			r = radeon_gpu_reset(rdev);
+			mutex_lock(&rdev->vm_manager.lock);
+			if (!r)
+				continue;
+		}
+		break;
 	}
+	radeon_fence_unref(&vm->fence);
 
 	/* hw unbind */
 	rdev->vm_manager.funcs->unbind(rdev, vm);
