@@ -22,7 +22,13 @@
  * 02110-1301 USA
  */
 
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
+
 #include <plat/omap_hwmod.h>
+#include <plat/omap_device.h>
 #include <plat/hdq1w.h>
 
 #include "common.h"
@@ -70,3 +76,23 @@ int omap_hdq1w_reset(struct omap_hwmod *oh)
 
 	return 0;
 }
+
+static int __init omap_init_hdq(void)
+{
+	int id = -1;
+	struct platform_device *pdev;
+	struct omap_hwmod *oh;
+	char *oh_name = "hdq1w";
+	char *devname = "omap_hdq";
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh)
+		return 0;
+
+	pdev = omap_device_build(devname, id, oh, NULL, 0, NULL, 0, 0);
+	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
+	     devname, oh->name);
+
+	return 0;
+}
+arch_initcall(omap_init_hdq);
