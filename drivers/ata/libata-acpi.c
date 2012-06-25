@@ -1000,7 +1000,10 @@ static void ata_acpi_add_pm_notifier(struct ata_device *dev)
 		return;
 
 	status = acpi_bus_get_device(handle, &acpi_dev);
-	if (ACPI_SUCCESS(status)) {
+	if (ACPI_FAILURE(status))
+		return;
+
+	if (dev->sdev->can_power_off) {
 		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 			ata_acpi_wake_dev, dev);
 		device_set_run_wake(&dev->sdev->sdev_gendev, true);
@@ -1018,7 +1021,10 @@ static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
 		return;
 
 	status = acpi_bus_get_device(handle, &acpi_dev);
-	if (ACPI_SUCCESS(status)) {
+	if (ACPI_FAILURE(status))
+		return;
+
+	if (dev->sdev->can_power_off) {
 		device_set_run_wake(&dev->sdev->sdev_gendev, false);
 		acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 			ata_acpi_wake_dev);
@@ -1102,6 +1108,9 @@ static int ata_acpi_bind_device(struct ata_port *ap, struct scsi_device *sdev,
 				acpi_handle *handle)
 {
 	struct ata_device *ata_dev;
+	acpi_status status;
+	struct acpi_device *acpi_dev;
+	struct acpi_device_power_state *states;
 
 	if (ap->flags & ATA_FLAG_ACPI_SATA)
 		ata_dev = &ap->link.device[sdev->channel];
@@ -1112,6 +1121,21 @@ static int ata_acpi_bind_device(struct ata_port *ap, struct scsi_device *sdev,
 
 	if (!*handle)
 		return -ENODEV;
+
+	status = acpi_bus_get_device(*handle, &acpi_dev);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	/*
+	 * If firmware has _PS3 or _PR3 for this device,
+	 * and this ata ODD device support device attention,
+	 * it means this device can be powered off
+	 */
+	states = acpi_dev->power.states;
+	if ((states[ACPI_STATE_D3_HOT].flags.valid ||
+			states[ACPI_STATE_D3_COLD].flags.explicit_set) &&
+			ata_dev->flags & ATA_DFLAG_DA)
+		sdev->can_power_off = 1;
 
 	return 0;
 }
