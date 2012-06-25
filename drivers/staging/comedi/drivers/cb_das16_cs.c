@@ -425,21 +425,6 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das16cs_timer_insn_read(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
-{
-	return -EINVAL;
-}
-
-static int das16cs_timer_insn_config(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
-{
-	return -EINVAL;
-}
-
 static const struct das16cs_board *das16cs_probe(struct comedi_device *dev,
 						 struct pcmcia_device *link)
 {
@@ -497,7 +482,7 @@ static int das16cs_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct das16cs_private)) < 0)
 		return -ENOMEM;
 
-	ret = comedi_alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
@@ -539,21 +524,6 @@ static int das16cs_attach(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-
-	s = dev->subdevices + 3;
-	/* timer subdevice */
-	if (0) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 1;
-		s->maxdata = 0xff;
-		s->range_table = &range_unknown;
-		s->insn_read = das16cs_timer_insn_read;
-		s->insn_config = das16cs_timer_insn_config;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
 
 	return 1;
 }
