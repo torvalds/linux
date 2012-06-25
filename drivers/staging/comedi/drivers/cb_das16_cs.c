@@ -780,23 +780,11 @@ struct pcmcia_driver das16cs_driver = {
 	.name = "cb_das16_cs",
 };
 
-static int __init init_das16cs_pcmcia_cs(void)
-{
-	pcmcia_register_driver(&das16cs_driver);
-	return 0;
-}
-
-static void __exit exit_das16cs_pcmcia_cs(void)
-{
-	pr_debug("das16cs_pcmcia_cs: unloading\n");
-	pcmcia_unregister_driver(&das16cs_driver);
-}
-
 static int __init das16cs_init(void)
 {
 	int ret;
 
-	ret = init_das16cs_pcmcia_cs();
+	ret = pcmcia_register_driver(&das16cs_driver);
 	if (ret < 0)
 		return ret;
 
@@ -806,7 +794,7 @@ module_init(das16cs_init);
 
 static void __exit das16cs_exit(void)
 {
-	exit_das16cs_pcmcia_cs();
+	pcmcia_unregister_driver(&das16cs_driver);
 	comedi_driver_unregister(&driver_das16cs);
 }
 module_exit(das16cs_exit);
