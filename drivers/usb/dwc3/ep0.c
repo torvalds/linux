@@ -744,6 +744,7 @@ static void dwc3_ep0_complete_status(struct dwc3 *dwc,
 			dev_dbg(dwc->dev, "Invalid Test #%d\n",
 					dwc->test_mode_nr);
 			dwc3_ep0_stall_and_restart(dwc);
+			return;
 		}
 	}
 
