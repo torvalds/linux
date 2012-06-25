@@ -250,7 +250,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	u8 cmd_rsp;
 	int ret;
 
-	if (priv->op_flags & OP_INVALID)
+	if (test_bit(OP_INVALID, &priv->op_flags))
 		return -EIO;
 
 	fastcc = !!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL);
@@ -304,7 +304,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	htc_start(priv->htc);
 
-	if (!(priv->op_flags & OP_SCANNING) &&
+	if (!test_bit(OP_SCANNING, &priv->op_flags) &&
 	    !(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
 		ath9k_htc_vif_reconfig(priv);
 
@@ -750,7 +750,7 @@ void ath9k_htc_start_ani(struct ath9k_htc_priv *priv)
 	common->ani.shortcal_timer = timestamp;
 	common->ani.checkani_timer = timestamp;
 
-	priv->op_flags |= OP_ANI_RUNNING;
+	set_bit(OP_ANI_RUNNING, &priv->op_flags);
 
 	ieee80211_queue_delayed_work(common->hw, &priv->ani_work,
 				     msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
@@ -759,7 +759,7 @@ void ath9k_htc_start_ani(struct ath9k_htc_priv *priv)
 void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv)
 {
 	cancel_delayed_work_sync(&priv->ani_work);
-	priv->op_flags &= ~OP_ANI_RUNNING;
+	clear_bit(OP_ANI_RUNNING, &priv->op_flags);
 }
 
 void ath9k_htc_ani_work(struct work_struct *work)
@@ -944,7 +944,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 		ath_dbg(common, CONFIG,
 			"Failed to update capability in target\n");
 
-	priv->op_flags &= ~OP_INVALID;
+	clear_bit(OP_INVALID, &priv->op_flags);
 	htc_start(priv->htc);
 
 	spin_lock_bh(&priv->tx.tx_lock);
@@ -973,7 +973,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->op_flags & OP_INVALID) {
+	if (test_bit(OP_INVALID, &priv->op_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&priv->mutex);
 		return;
@@ -1015,7 +1015,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	ath9k_htc_ps_restore(priv);
 	ath9k_htc_setpower(priv, ATH9K_PM_FULL_SLEEP);
 
-	priv->op_flags |= OP_INVALID;
+	set_bit(OP_INVALID, &priv->op_flags);
 
 	ath_dbg(common, CONFIG, "Driver halt\n");
 	mutex_unlock(&priv->mutex);
@@ -1105,7 +1105,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 	ath9k_htc_set_opmode(priv);
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
-	    !(priv->op_flags & OP_ANI_RUNNING)) {
+	    !test_bit(OP_ANI_RUNNING, &priv->op_flags)) {
 		ath9k_hw_set_tsfadjust(priv->ah, 1);
 		ath9k_htc_start_ani(priv);
 	}
@@ -1285,7 +1285,7 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 
-	if (priv->op_flags & OP_INVALID) {
+	if (test_bit(OP_INVALID, &priv->op_flags)) {
 		ath_dbg(ath9k_hw_common(priv->ah), ANY,
 			"Unable to configure filter on invalid state\n");
 		mutex_unlock(&priv->mutex);
@@ -1517,7 +1517,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		ath_dbg(common, CONFIG, "Beacon enabled for BSS: %pM\n",
 			bss_conf->bssid);
 		ath9k_htc_set_tsfadjust(priv, vif);
-		priv->op_flags |= OP_ENABLE_BEACON;
+		set_bit(OP_ENABLE_BEACON, &priv->op_flags);
 		ath9k_htc_beacon_config(priv, vif);
 	}
 
@@ -1530,7 +1530,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 			ath_dbg(common, CONFIG,
 				"Beacon disabled for BSS: %pM\n",
 				bss_conf->bssid);
-			priv->op_flags &= ~OP_ENABLE_BEACON;
+			clear_bit(OP_ENABLE_BEACON, &priv->op_flags);
 			ath9k_htc_beacon_config(priv, vif);
 		}
 	}
@@ -1543,7 +1543,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		    (priv->nvifs == 1) &&
 		    (priv->num_ap_vif == 1) &&
 		    (vif->type == NL80211_IFTYPE_AP)) {
-			priv->op_flags |= OP_TSF_RESET;
+			set_bit(OP_TSF_RESET, &priv->op_flags);
 		}
 		ath_dbg(common, CONFIG,
 			"Beacon interval changed for BSS: %pM\n",
@@ -1655,7 +1655,7 @@ static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->mutex);
 	spin_lock_bh(&priv->beacon_lock);
-	priv->op_flags |= OP_SCANNING;
+	set_bit(OP_SCANNING, &priv->op_flags);
 	spin_unlock_bh(&priv->beacon_lock);
 	cancel_work_sync(&priv->ps_work);
 	ath9k_htc_stop_ani(priv);
@@ -1668,7 +1668,7 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->mutex);
 	spin_lock_bh(&priv->beacon_lock);
-	priv->op_flags &= ~OP_SCANNING;
+	clear_bit(OP_SCANNING, &priv->op_flags);
 	spin_unlock_bh(&priv->beacon_lock);
 	ath9k_htc_ps_wakeup(priv);
 	ath9k_htc_vif_reconfig(priv);

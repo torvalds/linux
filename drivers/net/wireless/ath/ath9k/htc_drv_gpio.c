@@ -37,17 +37,18 @@ static void ath_detect_bt_priority(struct ath9k_htc_priv *priv)
 
 	if (time_after(jiffies, btcoex->bt_priority_time +
 			msecs_to_jiffies(ATH_BT_PRIORITY_TIME_THRESHOLD))) {
-		priv->op_flags &= ~(OP_BT_PRIORITY_DETECTED | OP_BT_SCAN);
+		clear_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags);
+		clear_bit(OP_BT_SCAN, &priv->op_flags);
 		/* Detect if colocated bt started scanning */
 		if (btcoex->bt_priority_cnt >= ATH_BT_CNT_SCAN_THRESHOLD) {
 			ath_dbg(ath9k_hw_common(ah), BTCOEX,
 				"BT scan detected\n");
-			priv->op_flags |= (OP_BT_SCAN |
-					 OP_BT_PRIORITY_DETECTED);
+			set_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags);
+			set_bit(OP_BT_SCAN, &priv->op_flags);
 		} else if (btcoex->bt_priority_cnt >= ATH_BT_CNT_THRESHOLD) {
 			ath_dbg(ath9k_hw_common(ah), BTCOEX,
 				"BT priority traffic detected\n");
-			priv->op_flags |= OP_BT_PRIORITY_DETECTED;
+			set_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags);
 		}
 
 		btcoex->bt_priority_cnt = 0;
@@ -67,26 +68,23 @@ static void ath_btcoex_period_work(struct work_struct *work)
 	struct ath_btcoex *btcoex = &priv->btcoex;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	u32 timer_period;
-	bool is_btscan;
 	int ret;
 
 	ath_detect_bt_priority(priv);
 
-	is_btscan = !!(priv->op_flags & OP_BT_SCAN);
-
 	ret = ath9k_htc_update_cap_target(priv,
-				  !!(priv->op_flags & OP_BT_PRIORITY_DETECTED));
+			  test_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags));
 	if (ret) {
 		ath_err(common, "Unable to set BTCOEX parameters\n");
 		return;
 	}
 
-	ath9k_hw_btcoex_bt_stomp(priv->ah, is_btscan ? ATH_BTCOEX_STOMP_ALL :
-			btcoex->bt_stomp_type);
+	ath9k_hw_btcoex_bt_stomp(priv->ah, test_bit(OP_BT_SCAN, &priv->op_flags) ?
+				 ATH_BTCOEX_STOMP_ALL : btcoex->bt_stomp_type);
 
 	ath9k_hw_btcoex_enable(priv->ah);
-	timer_period = is_btscan ? btcoex->btscan_no_stomp :
-		btcoex->btcoex_no_stomp;
+	timer_period = test_bit(OP_BT_SCAN, &priv->op_flags) ?
+		btcoex->btscan_no_stomp : btcoex->btcoex_no_stomp;
 	ieee80211_queue_delayed_work(priv->hw, &priv->duty_cycle_work,
 				     msecs_to_jiffies(timer_period));
 	ieee80211_queue_delayed_work(priv->hw, &priv->coex_period_work,
@@ -104,14 +102,15 @@ static void ath_btcoex_duty_cycle_work(struct work_struct *work)
 	struct ath_hw *ah = priv->ah;
 	struct ath_btcoex *btcoex = &priv->btcoex;
 	struct ath_common *common = ath9k_hw_common(ah);
-	bool is_btscan = priv->op_flags & OP_BT_SCAN;
 
 	ath_dbg(common, BTCOEX, "time slice work for bt and wlan\n");
 
-	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW || is_btscan)
+	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW ||
+	    test_bit(OP_BT_SCAN, &priv->op_flags))
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
 	else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_LOW);
+
 	ath9k_hw_btcoex_enable(priv->ah);
 }
 
@@ -141,7 +140,8 @@ static void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
 
 	btcoex->bt_priority_cnt = 0;
 	btcoex->bt_priority_time = jiffies;
-	priv->op_flags &= ~(OP_BT_PRIORITY_DETECTED | OP_BT_SCAN);
+	clear_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags);
+	clear_bit(OP_BT_SCAN, &priv->op_flags);
 	ieee80211_queue_delayed_work(priv->hw, &priv->coex_period_work, 0);
 }
 

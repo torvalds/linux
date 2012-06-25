@@ -453,7 +453,6 @@ struct ath9k_htc_priv {
 	u8 num_sta_assoc_vif;
 	u8 num_ap_vif;
 
-	u16 op_flags;
 	u16 curtxpow;
 	u16 txpowlimit;
 	u16 nvifs;
@@ -461,6 +460,7 @@ struct ath9k_htc_priv {
 	bool rearm_ani;
 	bool reconfig_beacon;
 	unsigned int rxfilter;
+	unsigned long op_flags;
 
 	struct ath9k_hw_cal_data caldata;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
