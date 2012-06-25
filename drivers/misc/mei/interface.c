@@ -58,15 +58,17 @@ void mei_disable_interrupts(struct mei_device *dev)
 }
 
 /**
- * _host_get_filled_slots - gets number of device filled buffer slots
+ * mei_hbuf_filled_slots - gets number of device filled buffer slots
  *
  * @device: the device structure
  *
  * returns number of filled slots
  */
-static unsigned char _host_get_filled_slots(const struct mei_device *dev)
+static unsigned char mei_hbuf_filled_slots(struct mei_device *dev)
 {
 	char read_ptr, write_ptr;
+
+	dev->host_hw_state = mei_hcsr_read(dev);
 
 	read_ptr = (char) ((dev->host_hw_state & H_CBRP) >> 8);
 	write_ptr = (char) ((dev->host_hw_state & H_CBWP) >> 16);
@@ -75,38 +77,29 @@ static unsigned char _host_get_filled_slots(const struct mei_device *dev)
 }
 
 /**
- * mei_host_buffer_is_empty - checks if host buffer is empty.
+ * mei_hbuf_is_empty - checks if host buffer is empty.
  *
  * @dev: the device structure
  *
- * returns 1 if empty, 0 - otherwise.
+ * returns true if empty, false - otherwise.
  */
-int mei_host_buffer_is_empty(struct mei_device *dev)
+bool mei_hbuf_is_empty(struct mei_device *dev)
 {
-	unsigned char filled_slots;
-
-	dev->host_hw_state = mei_hcsr_read(dev);
-	filled_slots = _host_get_filled_slots(dev);
-
-	if (filled_slots == 0)
-		return 1;
-
-	return 0;
+	return mei_hbuf_filled_slots(dev) == 0;
 }
 
 /**
- * mei_count_empty_write_slots - counts write empty slots.
+ * mei_hbuf_empty_slots - counts write empty slots.
  *
  * @dev: the device structure
  *
  * returns -1(ESLOTS_OVERFLOW) if overflow, otherwise empty slots count
  */
-int mei_count_empty_write_slots(struct mei_device *dev)
+int mei_hbuf_empty_slots(struct mei_device *dev)
 {
 	unsigned char filled_slots, empty_slots;
 
-	dev->host_hw_state = mei_hcsr_read(dev);
-	filled_slots = _host_get_filled_slots(dev);
+	filled_slots = mei_hbuf_filled_slots(dev);
 	empty_slots = dev->hbuf_depth - filled_slots;
 
 	/* check for overflow */
@@ -139,7 +132,7 @@ int mei_write_message(struct mei_device *dev, struct mei_msg_hdr *header,
 			"mei_write_message header=%08x.\n",
 			*((u32 *) header));
 
-	empty_slots = mei_count_empty_write_slots(dev);
+	empty_slots = mei_hbuf_empty_slots(dev);
 	dev_dbg(&dev->pdev->dev, "empty slots = %hu.\n", empty_slots);
 
 	dw_cnt = (length + sizeof(*header) + 3) / 4;

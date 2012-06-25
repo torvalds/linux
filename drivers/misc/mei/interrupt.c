@@ -280,7 +280,7 @@ static int _mei_irq_thread_iamthif_read(struct mei_device *dev, s32 *slots)
 	dev->iamthif_msg_buf_index = 0;
 	dev->iamthif_msg_buf_size = 0;
 	dev->iamthif_stall_timer = IAMTHIF_STALL_TIMER;
-	dev->mei_host_buffer_is_empty = mei_host_buffer_is_empty(dev);
+	dev->mei_host_buffer_is_empty = mei_hbuf_is_empty(dev);
 	return 0;
 }
 
@@ -1199,11 +1199,11 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 	struct mei_io_list *list;
 	int ret;
 
-	if (!mei_host_buffer_is_empty(dev)) {
+	if (!mei_hbuf_is_empty(dev)) {
 		dev_dbg(&dev->pdev->dev, "host buffer is not empty.\n");
 		return 0;
 	}
-	*slots = mei_count_empty_write_slots(dev);
+	*slots = mei_hbuf_empty_slots(dev);
 	if (*slots <= 0)
 		return -EMSGSIZE;
 
@@ -1558,7 +1558,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 end:
 	dev_dbg(&dev->pdev->dev, "end of bottom half function.\n");
 	dev->host_hw_state = mei_hcsr_read(dev);
-	dev->mei_host_buffer_is_empty = mei_host_buffer_is_empty(dev);
+	dev->mei_host_buffer_is_empty = mei_hbuf_is_empty(dev);
 
 	bus_message_received = false;
 	if (dev->recvd_msg && waitqueue_active(&dev->wait_recvd_msg)) {
