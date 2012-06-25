@@ -2187,7 +2187,7 @@ bool batadv_is_ap_isolated(struct bat_priv *bat_priv, uint8_t *src,
 	if (!tt_global_entry)
 		goto out;
 
-	if (_batadv_is_ap_isolated(tt_local_entry, tt_global_entry))
+	if (!_batadv_is_ap_isolated(tt_local_entry, tt_global_entry))
 		goto out;
 
 	ret = true;
