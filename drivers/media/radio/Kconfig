@@ -191,9 +191,6 @@ config RADIO_CADET
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-cadet.
 
-config RADIO_LM7000
-	tristate
-
 config RADIO_RTRACK
 	tristate "AIMSlab RadioTrack (aka RadioReveal) support"
 	depends on ISA && VIDEO_V4L2
