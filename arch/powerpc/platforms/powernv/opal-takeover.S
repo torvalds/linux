@@ -14,8 +14,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/opal.h>
 
-#define STK_PARAM(i)	(48 + ((i)-3)*8)
-
 #define H_HAL_TAKEOVER			0x5124
 #define H_HAL_TAKEOVER_QUERY_MAGIC	-1
 

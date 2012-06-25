@@ -19,9 +19,6 @@
  */
 #include <asm/ppc_asm.h>
 
-#define STACKFRAMESIZE	256
-#define STK_REG(i)	(112 + ((i)-14)*8)
-
 	.macro err1
 100:
 	.section __ex_table,"a"

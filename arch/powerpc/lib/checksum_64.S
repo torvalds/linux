@@ -65,9 +65,6 @@ _GLOBAL(csum_tcpudp_magic)
 	srwi	r3,r3,16
 	blr
 
-#define STACKFRAMESIZE 256
-#define STK_REG(i)	(112 + ((i)-14)*8)
-
 /*
  * Computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit).

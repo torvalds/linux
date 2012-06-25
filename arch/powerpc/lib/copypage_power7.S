@@ -20,9 +20,6 @@
 #include <asm/page.h>
 #include <asm/ppc_asm.h>
 
-#define STACKFRAMESIZE	256
-#define STK_REG(i)	(112 + ((i)-14)*8)
-
 _GLOBAL(copypage_power7)
 	/*
 	 * We prefetch both the source and destination using enhanced touch

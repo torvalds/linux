@@ -22,8 +22,6 @@
 
 #include <asm/ppc_asm.h>
 
-#define	STK_PARM(i)	(48 + ((i)-3)*8)
-
 /* Not implemented on Beat, now */
 #define	HCALL_INST_PRECALL
 #define	HCALL_INST_POSTCALL
@@ -74,7 +72,7 @@ _GLOBAL(beat_hcall_norets8)
 	mr	r6,r7
 	mr	r7,r8
 	mr	r8,r9
-	ld	r10,STK_PARM(R10)(r1)
+	ld	r10,STK_PARAM(R10)(r1)
 
 	HVSC				/* invoke the hypervisor */
 
@@ -94,7 +92,7 @@ _GLOBAL(beat_hcall1)
 
 	HCALL_INST_PRECALL
 
-	std	r4,STK_PARM(R4)(r1)	/* save ret buffer */
+	std	r4,STK_PARAM(R4)(r1)	/* save ret buffer */
 
 	mr	r11,r3
 	mr	r3,r5
@@ -108,7 +106,7 @@ _GLOBAL(beat_hcall1)
 
 	HCALL_INST_POSTCALL
 
-	ld	r12,STK_PARM(R4)(r1)
+	ld	r12,STK_PARAM(R4)(r1)
 	std	r4,  0(r12)
 
 	lwz	r0,8(r1)
@@ -125,7 +123,7 @@ _GLOBAL(beat_hcall2)
 
 	HCALL_INST_PRECALL
 
-	std	r4,STK_PARM(R4)(r1)	/* save ret buffer */
+	std	r4,STK_PARAM(R4)(r1)	/* save ret buffer */
 
 	mr	r11,r3
 	mr	r3,r5
@@ -139,7 +137,7 @@ _GLOBAL(beat_hcall2)
 
 	HCALL_INST_POSTCALL
 
-	ld	r12,STK_PARM(R4)(r1)
+	ld	r12,STK_PARAM(R4)(r1)
 	std	r4,  0(r12)
 	std	r5,  8(r12)
 
@@ -157,7 +155,7 @@ _GLOBAL(beat_hcall3)
 
 	HCALL_INST_PRECALL
 
-	std	r4,STK_PARM(R4)(r1)	/* save ret buffer */
+	std	r4,STK_PARAM(R4)(r1)	/* save ret buffer */
 
 	mr	r11,r3
 	mr	r3,r5
@@ -171,7 +169,7 @@ _GLOBAL(beat_hcall3)
 
 	HCALL_INST_POSTCALL
 
-	ld	r12,STK_PARM(R4)(r1)
+	ld	r12,STK_PARAM(R4)(r1)
 	std	r4,  0(r12)
 	std	r5,  8(r12)
 	std	r6, 16(r12)
@@ -190,7 +188,7 @@ _GLOBAL(beat_hcall4)
 
 	HCALL_INST_PRECALL
 
-	std	r4,STK_PARM(R4)(r1)	/* save ret buffer */
+	std	r4,STK_PARAM(R4)(r1)	/* save ret buffer */
 
 	mr	r11,r3
 	mr	r3,r5
@@ -204,7 +202,7 @@ _GLOBAL(beat_hcall4)
 
 	HCALL_INST_POSTCALL
 
-	ld	r12,STK_PARM(R4)(r1)
+	ld	r12,STK_PARAM(R4)(r1)
 	std	r4,  0(r12)
 	std	r5,  8(r12)
 	std	r6, 16(r12)
@@ -224,7 +222,7 @@ _GLOBAL(beat_hcall5)
 
 	HCALL_INST_PRECALL
 
-	std	r4,STK_PARM(R4)(r1)	/* save ret buffer */
+	std	r4,STK_PARAM(R4)(r1)	/* save ret buffer */
 
 	mr	r11,r3
 	mr	r3,r5
@@ -238,7 +236,7 @@ _GLOBAL(beat_hcall5)
 
 	HCALL_INST_POSTCALL
 
-	ld	r12,STK_PARM(R4)(r1)
+	ld	r12,STK_PARAM(R4)(r1)
 	std	r4,  0(r12)
 	std	r5,  8(r12)
 	std	r6, 16(r12)
@@ -259,7 +257,7 @@ _GLOBAL(beat_hcall6)
 
 	HCALL_INST_PRECALL
 
-	std	r4,STK_PARM(R4)(r1)	/* save ret buffer */
+	std	r4,STK_PARAM(R4)(r1)	/* save ret buffer */
 
 	mr	r11,r3
 	mr	r3,r5
@@ -273,7 +271,7 @@ _GLOBAL(beat_hcall6)
 
 	HCALL_INST_POSTCALL
 
-	ld	r12,STK_PARM(R4)(r1)
+	ld	r12,STK_PARAM(R4)(r1)
 	std	r4,  0(r12)
 	std	r5,  8(r12)
 	std	r6, 16(r12)

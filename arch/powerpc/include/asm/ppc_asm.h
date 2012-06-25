@@ -181,6 +181,11 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #ifdef __KERNEL__
 #ifdef CONFIG_PPC64
 
+#define STACKFRAMESIZE 256
+#define STK_REG(i)     (112 + ((i)-14)*8)
+
+#define STK_PARAM(i)	(48 + ((i)-3)*8)
+
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
 
