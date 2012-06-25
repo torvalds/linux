@@ -246,8 +246,8 @@ static int cfhsi_tx_frm(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	/* Check if we can embed a CAIF frame. */
 	if (skb->len < CFHSI_MAX_EMB_FRM_SZ) {
 		struct caif_payload_info *info;
-		int hpad = 0;
-		int tpad = 0;
+		int hpad;
+		int tpad;
 
 		/* Calculate needed head alignment and tail alignment. */
 		info = (struct caif_payload_info *)&skb->cb;
@@ -282,8 +282,8 @@ static int cfhsi_tx_frm(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	pfrm = desc->emb_frm + CFHSI_MAX_EMB_FRM_SZ;
 	while (nfrms < CFHSI_MAX_PKTS) {
 		struct caif_payload_info *info;
-		int hpad = 0;
-		int tpad = 0;
+		int hpad;
+		int tpad;
 
 		if (!skb)
 			skb = cfhsi_dequeue(cfhsi);
@@ -573,7 +573,7 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		struct sk_buff *skb;
 		u8 *dst = NULL;
 		u8 *pcffrm = NULL;
-		int len = 0;
+		int len;
 
 		/* CAIF frame starts after head padding. */
 		pcffrm = pfrm + *pfrm + 1;
