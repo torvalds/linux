@@ -537,25 +537,6 @@ static int chown_common(struct path *path, uid_t user, gid_t group)
 	return error;
 }
 
-SYSCALL_DEFINE3(chown, const char __user *, filename, uid_t, user, gid_t, group)
-{
-	struct path path;
-	int error;
-
-	error = user_path(filename, &path);
-	if (error)
-		goto out;
-	error = mnt_want_write(path.mnt);
-	if (error)
-		goto out_release;
-	error = chown_common(&path, user, group);
-	mnt_drop_write(path.mnt);
-out_release:
-	path_put(&path);
-out:
-	return error;
-}
-
 SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
 		gid_t, group, int, flag)
 {
@@ -583,23 +564,15 @@ out:
 	return error;
 }
 
+SYSCALL_DEFINE3(chown, const char __user *, filename, uid_t, user, gid_t, group)
+{
+	return sys_fchownat(AT_FDCWD, filename, user, group, 0);
+}
+
 SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group)
 {
-	struct path path;
-	int error;
-
-	error = user_lpath(filename, &path);
-	if (error)
-		goto out;
-	error = mnt_want_write(path.mnt);
-	if (error)
-		goto out_release;
-	error = chown_common(&path, user, group);
-	mnt_drop_write(path.mnt);
-out_release:
-	path_put(&path);
-out:
-	return error;
+	return sys_fchownat(AT_FDCWD, filename, user, group,
+			    AT_SYMLINK_NOFOLLOW);
 }
 
 SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
