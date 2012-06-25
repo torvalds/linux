@@ -126,7 +126,7 @@ static int lg216x_write_regs(struct lg216x_state *state,
 
 	lg_reg("writing %d registers...\n", len);
 
-	for (i = 0; i < len - 1; i++) {
+	for (i = 0; i < len; i++) {
 		ret = lg216x_write_reg(state, regs[i].reg, regs[i].val);
 		if (lg_fail(ret))
 			return ret;

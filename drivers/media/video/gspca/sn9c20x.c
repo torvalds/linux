@@ -1761,7 +1761,6 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_SATURATION, 0, 255, 1, 127);
 	sd->hue = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_HUE, -180, 180, 1, 0);
-	v4l2_ctrl_cluster(4, &sd->brightness);
 
 	sd->gamma = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_GAMMA, 0, 255, 1, 0x10);
@@ -1770,7 +1769,6 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_BLUE_BALANCE, 0, 127, 1, 0x28);
 	sd->red = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_RED_BALANCE, 0, 127, 1, 0x28);
-	v4l2_ctrl_cluster(2, &sd->blue);
 
 	if (sd->sensor != SENSOR_OV9655 && sd->sensor != SENSOR_SOI968 &&
 	    sd->sensor != SENSOR_OV7670 && sd->sensor != SENSOR_MT9M001 &&
@@ -1779,7 +1777,6 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_HFLIP, 0, 1, 1, 0);
 		sd->vflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_VFLIP, 0, 1, 1, 0);
-		v4l2_ctrl_cluster(2, &sd->hflip);
 	}
 
 	if (sd->sensor != SENSOR_SOI968 && sd->sensor != SENSOR_MT9VPRB &&
@@ -1794,6 +1791,20 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_GAIN, 0, 28, 1, 0);
 		sd->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	}
+
+	sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_JPEG_COMPRESSION_QUALITY, 50, 90, 1, 80);
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+
+	v4l2_ctrl_cluster(4, &sd->brightness);
+	v4l2_ctrl_cluster(2, &sd->blue);
+	if (sd->hflip)
+		v4l2_ctrl_cluster(2, &sd->hflip);
+	if (sd->autogain) {
 		if (sd->sensor == SENSOR_SOI968)
 			/* this sensor doesn't have the exposure control and
 			   autogain is clustered with gain instead. This works
@@ -1802,13 +1813,6 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 		else
 			/* Otherwise autogain is clustered with exposure. */
 			v4l2_ctrl_auto_cluster(2, &sd->autogain, 0, false);
-	}
-
-	sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
-			V4L2_CID_JPEG_COMPRESSION_QUALITY, 50, 90, 1, 80);
-	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
-		return hdl->error;
 	}
 	return 0;
 }
