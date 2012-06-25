@@ -930,10 +930,12 @@ int i915_reset(struct drm_device *dev)
 	return 0;
 }
 
-
 static int __devinit
 i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct intel_device_info *intel_info =
+		(struct intel_device_info *) ent->driver_data;
+
 	/* Only bind to function 0 of the device. Early generations
 	 * used function 1 as a placeholder for multi-head. This causes
 	 * us confusion instead, especially on the systems where both
@@ -941,6 +943,18 @@ i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
+
+	/* We've managed to ship a kms-enabled ddx that shipped with an XvMC
+	 * implementation for gen3 (and only gen3) that used legacy drm maps
+	 * (gasp!) to share buffers between X and the client. Hence we need to
+	 * keep around the fake agp stuff for gen3, even when kms is enabled. */
+	if (intel_info->gen != 3) {
+		driver.driver_features &=
+			~(DRIVER_USE_AGP | DRIVER_REQUIRE_AGP);
+	} else if (!intel_agp_enabled) {
+		DRM_ERROR("drm/i915 can't work without intel_agp module!\n");
+		return -ENODEV;
+	}
 
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
@@ -1102,11 +1116,6 @@ static struct pci_driver i915_pci_driver = {
 
 static int __init i915_init(void)
 {
-	if (!intel_agp_enabled) {
-		DRM_ERROR("drm/i915 can't work without intel_agp module!\n");
-		return -ENODEV;
-	}
-
 	driver.num_ioctls = i915_max_ioctl;
 
 	/*
