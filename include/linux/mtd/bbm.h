@@ -108,7 +108,10 @@ struct nand_bbt_descr {
  * OOB area. This option is passed to the default bad block table function.
  */
 #define NAND_BBT_USE_FLASH	0x00020000
-/* Do not store flash based bad block table in OOB area; store it in-band */
+/*
+ * Do not store flash based bad block table marker in the OOB area; store it
+ * in-band.
+ */
 #define NAND_BBT_NO_OOB		0x00040000
 /*
  * Do not write new bad block markers to OOB; useful, e.g., when ECC covers
