@@ -341,17 +341,14 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 		else
 			status1 |= 0x0008;
 
-/*		printk("0x%04x\n",status1);*/
 		outw(status1, dev->iobase + DAS16CS_MISC1);
 		udelay(1);
 
 		for (bit = 15; bit >= 0; bit--) {
 			int b = (d >> bit) & 0x1;
 			b <<= 1;
-/*			printk("0x%04x\n",status1 | b | 0x0000);*/
 			outw(status1 | b | 0x0000, dev->iobase + DAS16CS_MISC1);
 			udelay(1);
-/*			printk("0x%04x\n",status1 | b | 0x0004);*/
 			outw(status1 | b | 0x0004, dev->iobase + DAS16CS_MISC1);
 			udelay(1);
 		}
