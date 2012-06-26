@@ -1506,3 +1506,5 @@ MODULE_DESCRIPTION("Xceive xc2028/xc3028 tuner driver");
 MODULE_AUTHOR("Michel Ludwig <michel.ludwig@gmail.com>");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(XC2028_DEFAULT_FIRMWARE);
+MODULE_FIRMWARE(XC3028L_DEFAULT_FIRMWARE);
