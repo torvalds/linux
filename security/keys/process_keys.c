@@ -837,9 +837,10 @@ error:
 void key_change_session_keyring(struct task_work *twork)
 {
 	const struct cred *old = current_cred();
-	struct cred *new = twork->data;
+	struct kludge *p = container_of(twork, struct kludge, twork);
+	struct cred *new = p->cred;
 
-	kfree(twork);
+	kfree(p);
 	if (unlikely(current->flags & PF_EXITING)) {
 		put_cred(new);
 		return;

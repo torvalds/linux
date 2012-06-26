@@ -148,6 +148,10 @@ extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
 #define KEY_LOOKUP_PARTIAL	0x02
 #define KEY_LOOKUP_FOR_UNLINK	0x04
 
+struct kludge {	/* this will die off very soon */
+	struct task_work twork;
+	struct cred *cred;
+};
 extern long join_session_keyring(const char *name);
 extern void key_change_session_keyring(struct task_work *twork);
 

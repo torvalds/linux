@@ -1456,7 +1456,8 @@ long keyctl_session_to_parent(void)
 {
 	struct task_struct *me, *parent;
 	const struct cred *mycred, *pcred;
-	struct task_work *newwork, *oldwork;
+	struct kludge *newwork;
+	struct task_work *oldwork;
 	key_ref_t keyring_r;
 	struct cred *cred;
 	int ret;
@@ -1466,7 +1467,7 @@ long keyctl_session_to_parent(void)
 		return PTR_ERR(keyring_r);
 
 	ret = -ENOMEM;
-	newwork = kmalloc(sizeof(struct task_work), GFP_KERNEL);
+	newwork = kmalloc(sizeof(struct kludge), GFP_KERNEL);
 	if (!newwork)
 		goto error_keyring;
 
@@ -1478,7 +1479,8 @@ long keyctl_session_to_parent(void)
 		goto error_newwork;
 
 	cred->tgcred->session_keyring = key_ref_to_ptr(keyring_r);
-	init_task_work(newwork, key_change_session_keyring, cred);
+	init_task_work(&newwork->twork, key_change_session_keyring);
+	newwork->cred = cred;
 
 	me = current;
 	rcu_read_lock();
@@ -1527,18 +1529,18 @@ long keyctl_session_to_parent(void)
 
 	/* the replacement session keyring is applied just prior to userspace
 	 * restarting */
-	ret = task_work_add(parent, newwork, true);
+	ret = task_work_add(parent, &newwork->twork, true);
 	if (!ret)
 		newwork = NULL;
 unlock:
 	write_unlock_irq(&tasklist_lock);
 	rcu_read_unlock();
 	if (oldwork) {
-		put_cred(oldwork->data);
+		put_cred(container_of(oldwork, struct kludge, twork)->cred);
 		kfree(oldwork);
 	}
 	if (newwork) {
-		put_cred(newwork->data);
+		put_cred(newwork->cred);
 		kfree(newwork);
 	}
 	return ret;

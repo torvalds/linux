@@ -10,14 +10,12 @@ typedef void (*task_work_func_t)(struct task_work *);
 struct task_work {
 	struct hlist_node hlist;
 	task_work_func_t func;
-	void *data;
 };
 
 static inline void
-init_task_work(struct task_work *twork, task_work_func_t func, void *data)
+init_task_work(struct task_work *twork, task_work_func_t func)
 {
 	twork->func = func;
-	twork->data = data;
 }
 
 int task_work_add(struct task_struct *task, struct task_work *twork, bool);
