@@ -3961,7 +3961,10 @@ static struct btrfs_block_rsv *get_block_rsv(
 {
 	struct btrfs_block_rsv *block_rsv = NULL;
 
-	if (root->ref_cows || root == root->fs_info->csum_root)
+	if (root->ref_cows)
+		block_rsv = trans->block_rsv;
+
+	if (root == root->fs_info->csum_root && trans->adding_csums)
 		block_rsv = trans->block_rsv;
 
 	if (!block_rsv)
@@ -4313,6 +4316,9 @@ static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root)
 {
+	if (!trans->block_rsv)
+		return;
+
 	if (!trans->bytes_reserved)
 		return;
 

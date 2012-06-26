@@ -57,6 +57,7 @@ struct btrfs_trans_handle {
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_rsv *orig_rsv;
 	int aborted;
+	int adding_csums;
 };
 
 struct btrfs_pending_snapshot {
