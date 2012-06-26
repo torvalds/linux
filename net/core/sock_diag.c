@@ -4,7 +4,6 @@
 #include <net/netlink.h>
 #include <net/net_namespace.h>
 #include <linux/module.h>
-#include <linux/rtnetlink.h>
 #include <net/sock.h>
 
 #include <linux/inet_diag.h>
@@ -35,9 +34,7 @@ EXPORT_SYMBOL_GPL(sock_diag_save_cookie);
 
 int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 {
-	__u32 *mem;
-
-	mem = RTA_DATA(__RTA_PUT(skb, attrtype, SK_MEMINFO_VARS * sizeof(__u32)));
+	u32 mem[SK_MEMINFO_VARS];
 
 	mem[SK_MEMINFO_RMEM_ALLOC] = sk_rmem_alloc_get(sk);
 	mem[SK_MEMINFO_RCVBUF] = sk->sk_rcvbuf;
@@ -48,10 +45,7 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 	mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
 	mem[SK_MEMINFO_BACKLOG] = sk->sk_backlog.len;
 
-	return 0;
-
-rtattr_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, attrtype, sizeof(mem), &mem);
 }
 EXPORT_SYMBOL_GPL(sock_diag_put_meminfo);
 
@@ -121,7 +115,7 @@ static inline void sock_diag_unlock_handler(const struct sock_diag_handler *h)
 static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err;
-	struct sock_diag_req *req = NLMSG_DATA(nlh);
+	struct sock_diag_req *req = nlmsg_data(nlh);
 	const struct sock_diag_handler *hndl;
 
 	if (nlmsg_len(nlh) < sizeof(*req))
