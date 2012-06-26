@@ -17,12 +17,13 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ASM_ARM_OMAP_SMARTREFLEX_H
-#define __ASM_ARM_OMAP_SMARTREFLEX_H
+#ifndef __POWER_SMARTREFLEX_H
+#define __POWER_SMARTREFLEX_H
 
+#include <linux/types.h>
 #include <linux/platform_device.h>
-
-#include "voltage.h"
+#include <linux/delay.h>
+#include <plat/voltage.h>
 
 /*
  * Different Smartreflex IPs version. The v1 is the 65nm version used in
@@ -142,6 +143,51 @@
 #define OMAP3430_SR_ERRWEIGHT		0x04
 #define OMAP3430_SR_ERRMAXLIMIT		0x02
 
+struct omap_sr {
+	char				*name;
+	struct list_head		node;
+	struct platform_device		*pdev;
+	struct omap_sr_nvalue_table	*nvalue_table;
+	struct voltagedomain		*voltdm;
+	struct dentry			*dbg_dir;
+	unsigned int			irq;
+	int				srid;
+	int				ip_type;
+	int				nvalue_count;
+	bool				autocomp_active;
+	u32				clk_length;
+	u32				err_weight;
+	u32				err_minlimit;
+	u32				err_maxlimit;
+	u32				accum_data;
+	u32				senn_avgweight;
+	u32				senp_avgweight;
+	u32				senp_mod;
+	u32				senn_mod;
+	void __iomem			*base;
+};
+
+/**
+ * test_cond_timeout - busy-loop, testing a condition
+ * @cond: condition to test until it evaluates to true
+ * @timeout: maximum number of microseconds in the timeout
+ * @index: loop index (integer)
+ *
+ * Loop waiting for @cond to become true or until at least @timeout
+ * microseconds have passed.  To use, define some integer @index in the
+ * calling code.  After running, if @index == @timeout, then the loop has
+ * timed out.
+ *
+ * Copied from omap_test_timeout */
+#define sr_test_cond_timeout(cond, timeout, index)		\
+({								\
+	for (index = 0; index < timeout; index++) {		\
+		if (cond)					\
+			break;					\
+		udelay(1);					\
+	}							\
+})
+
 /**
  * struct omap_sr_pmic_data - Strucutre to be populated by pmic code to pass
  *				pmic specific info to smartreflex driver
@@ -161,7 +207,7 @@ struct omap_smartreflex_dev_attr {
 	const char      *sensor_voltdm_name;
 };
 
-#ifdef CONFIG_OMAP_SMARTREFLEX
+#ifdef CONFIG_POWER_AVS_OMAP
 /*
  * The smart reflex driver supports CLASS1 CLASS2 and CLASS3 SR.
  * The smartreflex class driver should pass the class type.
@@ -186,10 +232,10 @@ struct omap_smartreflex_dev_attr {
  *			based decisions.
  */
 struct omap_sr_class_data {
-	int (*enable)(struct voltagedomain *voltdm);
-	int (*disable)(struct voltagedomain *voltdm, int is_volt_reset);
-	int (*configure)(struct voltagedomain *voltdm);
-	int (*notify)(struct voltagedomain *voltdm, u32 status);
+	int (*enable)(struct omap_sr *sr);
+	int (*disable)(struct omap_sr *sr, int is_volt_reset);
+	int (*configure)(struct omap_sr *sr);
+	int (*notify)(struct omap_sr *sr, u32 status);
 	u8 notify_flags;
 	u8 class_type;
 };
@@ -197,17 +243,22 @@ struct omap_sr_class_data {
 /**
  * struct omap_sr_nvalue_table	- Smartreflex n-target value info
  *
- * @efuse_offs:	The offset of the efuse where n-target values are stored.
- * @nvalue:	The n-target value.
+ * @efuse_offs:	  The offset of the efuse where n-target values are stored.
+ * @nvalue:	  The n-target value.
+ * @errminlimit:  The value of the ERRMINLIMIT bitfield for this n-target
+ * @volt_nominal: microvolts DC that the VDD is initially programmed to
  */
 struct omap_sr_nvalue_table {
 	u32 efuse_offs;
 	u32 nvalue;
+	u32 errminlimit;
+	unsigned long volt_nominal;
 };
 
 /**
  * struct omap_sr_data - Smartreflex platform data.
  *
+ * @name:		instance name
  * @ip_type:		Smartreflex IP type.
  * @senp_mod:		SENPENABLE value for the sr
  * @senn_mod:		SENNENABLE value for sr
@@ -219,6 +270,7 @@ struct omap_sr_nvalue_table {
  * @voltdm:		Pointer to the voltage domain associated with the SR
  */
 struct omap_sr_data {
+	const char			*name;
 	int				ip_type;
 	u32				senp_mod;
 	u32				senn_mod;

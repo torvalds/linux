@@ -3,7 +3,7 @@
  *
  * Author: Thara Gopinath	<thara@ti.com>
  *
- * Copyright (C) 2010 Texas Instruments, Inc.
+ * Copyright (C) 2012 Texas Instruments, Inc.
  * Thara Gopinath <thara@ti.com>
  *
  * Copyright (C) 2008 Nokia Corporation
@@ -25,38 +25,11 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-
-#include "common.h"
-
-#include "pm.h"
-#include "smartreflex.h"
+#include <linux/power/smartreflex.h>
 
 #define SMARTREFLEX_NAME_LEN	16
 #define NVALUE_NAME_LEN		40
 #define SR_DISABLE_TIMEOUT	200
-
-struct omap_sr {
-	struct list_head		node;
-	struct platform_device		*pdev;
-	struct omap_sr_nvalue_table	*nvalue_table;
-	struct voltagedomain		*voltdm;
-	struct dentry			*dbg_dir;
-	unsigned int			irq;
-	int				srid;
-	int				ip_type;
-	int				nvalue_count;
-	bool				autocomp_active;
-	u32				clk_length;
-	u32				err_weight;
-	u32				err_minlimit;
-	u32				err_maxlimit;
-	u32				accum_data;
-	u32				senn_avgweight;
-	u32				senp_avgweight;
-	u32				senp_mod;
-	u32				senn_mod;
-	void __iomem			*base;
-};
 
 /* sr_list contains all the instances of smartreflex module */
 static LIST_HEAD(sr_list);
@@ -148,7 +121,7 @@ static irqreturn_t sr_interrupt(int irq, void *data)
 	}
 
 	if (sr_class->notify)
-		sr_class->notify(sr_info->voltdm, status);
+		sr_class->notify(sr_info, status);
 
 	return IRQ_HANDLED;
 }
@@ -207,7 +180,7 @@ static void sr_set_regfields(struct omap_sr *sr)
 		sr->err_weight = OMAP3430_SR_ERRWEIGHT;
 		sr->err_maxlimit = OMAP3430_SR_ERRMAXLIMIT;
 		sr->accum_data = OMAP3430_SR_ACCUMDATA;
-		if (!(strcmp(sr->voltdm->name, "mpu"))) {
+		if (!(strcmp(sr->name, "smartreflex_mpu_iva"))) {
 			sr->senn_avgweight = OMAP3430_SR1_SENNAVGWEIGHT;
 			sr->senp_avgweight = OMAP3430_SR1_SENPAVGWEIGHT;
 		} else {
@@ -226,7 +199,7 @@ static void sr_start_vddautocomp(struct omap_sr *sr)
 		return;
 	}
 
-	if (!sr_class->enable(sr->voltdm))
+	if (!sr_class->enable(sr))
 		sr->autocomp_active = true;
 }
 
@@ -240,7 +213,7 @@ static void sr_stop_vddautocomp(struct omap_sr *sr)
 	}
 
 	if (sr->autocomp_active) {
-		sr_class->disable(sr->voltdm, 1);
+		sr_class->disable(sr, 1);
 		sr->autocomp_active = false;
 	}
 }
@@ -258,19 +231,13 @@ static void sr_stop_vddautocomp(struct omap_sr *sr)
  */
 static int sr_late_init(struct omap_sr *sr_info)
 {
-	char *name;
 	struct omap_sr_data *pdata = sr_info->pdev->dev.platform_data;
 	struct resource *mem;
 	int ret = 0;
 
 	if (sr_class->notify && sr_class->notify_flags && sr_info->irq) {
-		name = kasprintf(GFP_KERNEL, "sr_%s", sr_info->voltdm->name);
-		if (name == NULL) {
-			ret = -ENOMEM;
-			goto error;
-		}
 		ret = request_irq(sr_info->irq, sr_interrupt,
-				0, name, sr_info);
+				  0, sr_info->name, sr_info);
 		if (ret)
 			goto error;
 		disable_irq(sr_info->irq);
@@ -289,7 +256,6 @@ error:
 	dev_err(&sr_info->pdev->dev, "%s: ERROR in registering"
 		"interrupt handler. Smartreflex will"
 		"not function as desired\n", __func__);
-	kfree(name);
 	kfree(sr_info);
 
 	return ret;
@@ -320,9 +286,9 @@ static void sr_v1_disable(struct omap_sr *sr)
 	 * Wait for SR to be disabled.
 	 * wait until ERRCONFIG.MCUDISACKINTST = 1. Typical latency is 1us.
 	 */
-	omap_test_timeout((sr_read_reg(sr, ERRCONFIG_V1) &
-			ERRCONFIG_MCUDISACKINTST), SR_DISABLE_TIMEOUT,
-			timeout);
+	sr_test_cond_timeout((sr_read_reg(sr, ERRCONFIG_V1) &
+			     ERRCONFIG_MCUDISACKINTST), SR_DISABLE_TIMEOUT,
+			     timeout);
 
 	if (timeout >= SR_DISABLE_TIMEOUT)
 		dev_warn(&sr->pdev->dev, "%s: Smartreflex disable timedout\n",
@@ -365,9 +331,9 @@ static void sr_v2_disable(struct omap_sr *sr)
 	 * Wait for SR to be disabled.
 	 * wait until IRQSTATUS.MCUDISACKINTST = 1. Typical latency is 1us.
 	 */
-	omap_test_timeout((sr_read_reg(sr, IRQSTATUS) &
-			IRQSTATUS_MCUDISABLEACKINT), SR_DISABLE_TIMEOUT,
-			timeout);
+	sr_test_cond_timeout((sr_read_reg(sr, IRQSTATUS) &
+			     IRQSTATUS_MCUDISABLEACKINT), SR_DISABLE_TIMEOUT,
+			     timeout);
 
 	if (timeout >= SR_DISABLE_TIMEOUT)
 		dev_warn(&sr->pdev->dev, "%s: Smartreflex disable timedout\n",
@@ -378,22 +344,23 @@ static void sr_v2_disable(struct omap_sr *sr)
 	sr_write_reg(sr, IRQSTATUS, IRQSTATUS_MCUDISABLEACKINT);
 }
 
-static u32 sr_retrieve_nvalue(struct omap_sr *sr, u32 efuse_offs)
+static struct omap_sr_nvalue_table *sr_retrieve_nvalue_row(
+				struct omap_sr *sr, u32 efuse_offs)
 {
 	int i;
 
 	if (!sr->nvalue_table) {
 		dev_warn(&sr->pdev->dev, "%s: Missing ntarget value table\n",
 			__func__);
-		return 0;
+		return NULL;
 	}
 
 	for (i = 0; i < sr->nvalue_count; i++) {
 		if (sr->nvalue_table[i].efuse_offs == efuse_offs)
-			return sr->nvalue_table[i].nvalue;
+			return &sr->nvalue_table[i];
 	}
 
-	return 0;
+	return NULL;
 }
 
 /* Public Functions */
@@ -419,8 +386,7 @@ int sr_configure_errgen(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, voltdm->name);
+		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
 		return PTR_ERR(sr);
 	}
 
@@ -487,8 +453,7 @@ int sr_disable_errgen(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, voltdm->name);
+		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
 		return PTR_ERR(sr);
 	}
 
@@ -538,8 +503,7 @@ int sr_configure_minmax(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, voltdm->name);
+		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
 		return PTR_ERR(sr);
 	}
 
@@ -620,12 +584,11 @@ int sr_enable(struct voltagedomain *voltdm, unsigned long volt)
 {
 	struct omap_volt_data *volt_data;
 	struct omap_sr *sr = _sr_lookup(voltdm);
-	u32 nvalue_reciprocal;
+	struct omap_sr_nvalue_table *nvalue_row;
 	int ret;
 
 	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, voltdm->name);
+		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
 		return PTR_ERR(sr);
 	}
 
@@ -637,16 +600,16 @@ int sr_enable(struct voltagedomain *voltdm, unsigned long volt)
 		return PTR_ERR(volt_data);
 	}
 
-	nvalue_reciprocal = sr_retrieve_nvalue(sr, volt_data->sr_efuse_offs);
+	nvalue_row = sr_retrieve_nvalue_row(sr, volt_data->sr_efuse_offs);
 
-	if (!nvalue_reciprocal) {
-		dev_warn(&sr->pdev->dev, "%s: NVALUE = 0 at voltage %ld\n",
-			__func__, volt);
+	if (!nvalue_row) {
+		dev_warn(&sr->pdev->dev, "%s: failure getting SR data for this voltage %ld\n",
+			 __func__, volt);
 		return -ENODATA;
 	}
 
 	/* errminlimit is opp dependent and hence linked to voltage */
-	sr->err_minlimit = volt_data->sr_errminlimit;
+	sr->err_minlimit = nvalue_row->errminlimit;
 
 	pm_runtime_get_sync(&sr->pdev->dev);
 
@@ -655,11 +618,11 @@ int sr_enable(struct voltagedomain *voltdm, unsigned long volt)
 		return 0;
 
 	/* Configure SR */
-	ret = sr_class->configure(voltdm);
+	ret = sr_class->configure(sr);
 	if (ret)
 		return ret;
 
-	sr_write_reg(sr, NVALUERECIPROCAL, nvalue_reciprocal);
+	sr_write_reg(sr, NVALUERECIPROCAL, nvalue_row->nvalue);
 
 	/* SRCONFIG - enable SR */
 	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SRENABLE, SRCONFIG_SRENABLE);
@@ -678,8 +641,7 @@ void sr_disable(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, voltdm->name);
+		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
 		return;
 	}
 
@@ -759,8 +721,7 @@ void omap_sr_enable(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, voltdm->name);
+		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
 		return;
 	}
 
@@ -773,7 +734,7 @@ void omap_sr_enable(struct voltagedomain *voltdm)
 		return;
 	}
 
-	sr_class->enable(voltdm);
+	sr_class->enable(sr);
 }
 
 /**
@@ -792,8 +753,7 @@ void omap_sr_disable(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, voltdm->name);
+		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
 		return;
 	}
 
@@ -806,7 +766,7 @@ void omap_sr_disable(struct voltagedomain *voltdm)
 		return;
 	}
 
-	sr_class->disable(voltdm, 0);
+	sr_class->disable(sr, 0);
 }
 
 /**
@@ -825,8 +785,7 @@ void omap_sr_disable_reset_volt(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, voltdm->name);
+		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
 		return;
 	}
 
@@ -839,7 +798,7 @@ void omap_sr_disable_reset_volt(struct voltagedomain *voltdm)
 		return;
 	}
 
-	sr_class->disable(voltdm, 1);
+	sr_class->disable(sr, 1);
 }
 
 /**
@@ -911,9 +870,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
 	struct resource *mem, *irq;
 	struct dentry *nvalue_dir;
-	struct omap_volt_data *volt_data;
 	int i, ret = 0;
-	char *name;
 
 	sr_info = kzalloc(sizeof(struct omap_sr), GFP_KERNEL);
 	if (!sr_info) {
@@ -949,6 +906,14 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_irq_safe(&pdev->dev);
+
+	sr_info->name = kasprintf(GFP_KERNEL, "%s", pdata->name);
+	if (!sr_info->name) {
+		dev_err(&pdev->dev, "%s: Unable to alloc SR instance name\n",
+			__func__);
+		ret = -ENOMEM;
+		goto err_release_region;
+	}
 
 	sr_info->pdev = pdev;
 	sr_info->srid = pdev->id;
@@ -997,20 +962,12 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		}
 	}
 
-	name = kasprintf(GFP_KERNEL, "sr_%s", sr_info->voltdm->name);
-	if (!name) {
-		dev_err(&pdev->dev, "%s: Unable to alloc debugfs name\n",
-			__func__);
-		ret = -ENOMEM;
-		goto err_iounmap;
-	}
-	sr_info->dbg_dir = debugfs_create_dir(name, sr_dbg_dir);
-	kfree(name);
+	sr_info->dbg_dir = debugfs_create_dir(sr_info->name, sr_dbg_dir);
 	if (IS_ERR_OR_NULL(sr_info->dbg_dir)) {
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory\n",
 			__func__);
 		ret = PTR_ERR(sr_info->dbg_dir);
-		goto err_iounmap;
+		goto err_free_name;
 	}
 
 	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR,
@@ -1019,8 +976,6 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 			&sr_info->err_weight);
 	(void) debugfs_create_x32("errmaxlimit", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_maxlimit);
-	(void) debugfs_create_x32("errminlimit", S_IRUGO, sr_info->dbg_dir,
-			&sr_info->err_minlimit);
 
 	nvalue_dir = debugfs_create_dir("nvalue", sr_info->dbg_dir);
 	if (IS_ERR_OR_NULL(nvalue_dir)) {
@@ -1030,12 +985,10 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		goto err_debugfs;
 	}
 
-	omap_voltage_get_volttable(sr_info->voltdm, &volt_data);
-	if (!volt_data) {
-		dev_warn(&pdev->dev, "%s: No Voltage table for the"
-			" corresponding vdd vdd_%s. Cannot create debugfs"
-			"entries for n-values\n",
-			__func__, sr_info->voltdm->name);
+	if (sr_info->nvalue_count == 0 || !sr_info->nvalue_table) {
+		dev_warn(&pdev->dev, "%s: %s: No Voltage table for the corresponding vdd. Cannot create debugfs entries for n-values\n",
+			 __func__, sr_info->name);
+
 		ret = -ENODATA;
 		goto err_debugfs;
 	}
@@ -1043,16 +996,23 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	for (i = 0; i < sr_info->nvalue_count; i++) {
 		char name[NVALUE_NAME_LEN + 1];
 
-		snprintf(name, sizeof(name), "volt_%d",
-			 volt_data[i].volt_nominal);
+		snprintf(name, sizeof(name), "volt_%lu",
+				sr_info->nvalue_table[i].volt_nominal);
 		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].nvalue));
+		snprintf(name, sizeof(name), "errminlimit_%lu",
+			 sr_info->nvalue_table[i].volt_nominal);
+		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
+				&(sr_info->nvalue_table[i].errminlimit));
+
 	}
 
 	return ret;
 
 err_debugfs:
 	debugfs_remove_recursive(sr_info->dbg_dir);
+err_free_name:
+	kfree(sr_info->name);
 err_iounmap:
 	list_del(&sr_info->node);
 	iounmap(sr_info->base);
@@ -1089,6 +1049,7 @@ static int __devexit omap_sr_remove(struct platform_device *pdev)
 
 	list_del(&sr_info->node);
 	iounmap(sr_info->base);
+	kfree(sr_info->name);
 	kfree(sr_info);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
