@@ -2040,7 +2040,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 {
 	int ret;
 	int delay = 0;
-	int best_val;
+	int best_val = 0;
 	unsigned int selector;
 	int old_selector = -1;
 
@@ -2064,6 +2064,15 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	if (rdev->desc->ops->set_voltage) {
 		ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV,
 						   &selector);
+
+		if (ret >= 0) {
+			if (rdev->desc->ops->list_voltage)
+				best_val = rdev->desc->ops->list_voltage(rdev,
+									 selector);
+			else
+				best_val = _regulator_get_voltage(rdev);
+		}
+
 	} else if (rdev->desc->ops->set_voltage_sel) {
 		if (rdev->desc->ops->map_voltage) {
 			ret = rdev->desc->ops->map_voltage(rdev, min_uV,
@@ -2079,17 +2088,18 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 		}
 
 		if (ret >= 0) {
-			selector = ret;
-			ret = rdev->desc->ops->set_voltage_sel(rdev, ret);
+			best_val = rdev->desc->ops->list_voltage(rdev, ret);
+			if (min_uV <= best_val && max_uV >= best_val) {
+				selector = ret;
+				ret = rdev->desc->ops->set_voltage_sel(rdev,
+								       ret);
+			} else {
+				ret = -EINVAL;
+			}
 		}
 	} else {
 		ret = -EINVAL;
 	}
-
-	if (rdev->desc->ops->list_voltage)
-		best_val = rdev->desc->ops->list_voltage(rdev, selector);
-	else
-		best_val = _regulator_get_voltage(rdev);
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
 	if (ret == 0 && _regulator_is_enabled(rdev) && old_selector >= 0 &&
