@@ -764,6 +764,7 @@ unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	struct kvec *iov;
 	ssize_t shift;
 	unsigned int nwords = XDR_QUADLEN(len);
+	unsigned int cur = xdr_stream_pos(xdr);
 	unsigned int end;
 	int padding;
 
@@ -775,9 +776,8 @@ unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	}
 	/* Realign pages to current pointer position */
 	iov  = buf->head;
-	shift = iov->iov_len + (char *)iov->iov_base - (char *)xdr->p;
-	if (shift > 0)
-		xdr_shrink_bufhead(buf, shift);
+	if (iov->iov_len > cur)
+		xdr_shrink_bufhead(buf, iov->iov_len - cur);
 
 	/* Truncate page data and move it into the tail */
 	if (buf->page_len > len)
