@@ -4,7 +4,7 @@
  * (C) 2001 by Jay Schulist <jschlst@samba.org>
  * (C) 2002-2006 by Harald Welte <laforge@gnumonks.org>
  * (C) 2003 by Patrick Mchardy <kaber@trash.net>
- * (C) 2005-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2005-2012 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * Initial connection tracking via netlink development funded and
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
@@ -1627,6 +1627,155 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	return err;
 }
 
+static int
+ctnetlink_ct_stat_cpu_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
+				__u16 cpu, const struct ip_conntrack_stat *st)
+{
+	struct nlmsghdr *nlh;
+	struct nfgenmsg *nfmsg;
+	unsigned int flags = pid ? NLM_F_MULTI : 0, event;
+
+	event = (NFNL_SUBSYS_CTNETLINK << 8 | IPCTNL_MSG_CT_GET_STATS_CPU);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*nfmsg), flags);
+	if (nlh == NULL)
+		goto nlmsg_failure;
+
+	nfmsg = nlmsg_data(nlh);
+	nfmsg->nfgen_family = AF_UNSPEC;
+	nfmsg->version      = NFNETLINK_V0;
+	nfmsg->res_id	    = htons(cpu);
+
+	if (nla_put_be32(skb, CTA_STATS_SEARCHED, htonl(st->searched)) ||
+	    nla_put_be32(skb, CTA_STATS_FOUND, htonl(st->found)) ||
+	    nla_put_be32(skb, CTA_STATS_NEW, htonl(st->new)) ||
+	    nla_put_be32(skb, CTA_STATS_INVALID, htonl(st->invalid)) ||
+	    nla_put_be32(skb, CTA_STATS_IGNORE, htonl(st->ignore)) ||
+	    nla_put_be32(skb, CTA_STATS_DELETE, htonl(st->delete)) ||
+	    nla_put_be32(skb, CTA_STATS_DELETE_LIST, htonl(st->delete_list)) ||
+	    nla_put_be32(skb, CTA_STATS_INSERT, htonl(st->insert)) ||
+	    nla_put_be32(skb, CTA_STATS_INSERT_FAILED,
+				htonl(st->insert_failed)) ||
+	    nla_put_be32(skb, CTA_STATS_DROP, htonl(st->drop)) ||
+	    nla_put_be32(skb, CTA_STATS_EARLY_DROP, htonl(st->early_drop)) ||
+	    nla_put_be32(skb, CTA_STATS_ERROR, htonl(st->error)) ||
+	    nla_put_be32(skb, CTA_STATS_SEARCH_RESTART,
+				htonl(st->search_restart)))
+		goto nla_put_failure;
+
+	nlmsg_end(skb, nlh);
+	return skb->len;
+
+nla_put_failure:
+nlmsg_failure:
+	nlmsg_cancel(skb, nlh);
+	return -1;
+}
+
+static int
+ctnetlink_ct_stat_cpu_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int cpu;
+	struct net *net = sock_net(skb->sk);
+
+	if (cb->args[0] == nr_cpu_ids)
+		return 0;
+
+	for (cpu = cb->args[0]; cpu < nr_cpu_ids; cpu++) {
+		const struct ip_conntrack_stat *st;
+
+		if (!cpu_possible(cpu))
+			continue;
+
+		st = per_cpu_ptr(net->ct.stat, cpu);
+		if (ctnetlink_ct_stat_cpu_fill_info(skb,
+						    NETLINK_CB(cb->skb).pid,
+						    cb->nlh->nlmsg_seq,
+						    cpu, st) < 0)
+				break;
+	}
+	cb->args[0] = cpu;
+
+	return skb->len;
+}
+
+static int
+ctnetlink_stat_ct_cpu(struct sock *ctnl, struct sk_buff *skb,
+		      const struct nlmsghdr *nlh,
+		      const struct nlattr * const cda[])
+{
+	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+		struct netlink_dump_control c = {
+			.dump = ctnetlink_ct_stat_cpu_dump,
+		};
+		return netlink_dump_start(ctnl, skb, nlh, &c);
+	}
+
+	return 0;
+}
+
+static int
+ctnetlink_stat_ct_fill_info(struct sk_buff *skb, u32 pid, u32 seq, u32 type,
+			    struct net *net)
+{
+	struct nlmsghdr *nlh;
+	struct nfgenmsg *nfmsg;
+	unsigned int flags = pid ? NLM_F_MULTI : 0, event;
+	unsigned int nr_conntracks = atomic_read(&net->ct.count);
+
+	event = (NFNL_SUBSYS_CTNETLINK << 8 | IPCTNL_MSG_CT_GET_STATS);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*nfmsg), flags);
+	if (nlh == NULL)
+		goto nlmsg_failure;
+
+	nfmsg = nlmsg_data(nlh);
+	nfmsg->nfgen_family = AF_UNSPEC;
+	nfmsg->version      = NFNETLINK_V0;
+	nfmsg->res_id	    = 0;
+
+	if (nla_put_be32(skb, CTA_STATS_GLOBAL_ENTRIES, htonl(nr_conntracks)))
+		goto nla_put_failure;
+
+	nlmsg_end(skb, nlh);
+	return skb->len;
+
+nla_put_failure:
+nlmsg_failure:
+	nlmsg_cancel(skb, nlh);
+	return -1;
+}
+
+static int
+ctnetlink_stat_ct(struct sock *ctnl, struct sk_buff *skb,
+		  const struct nlmsghdr *nlh,
+		  const struct nlattr * const cda[])
+{
+	struct sk_buff *skb2;
+	int err;
+
+	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (skb2 == NULL)
+		return -ENOMEM;
+
+	err = ctnetlink_stat_ct_fill_info(skb2, NETLINK_CB(skb).pid,
+					  nlh->nlmsg_seq,
+					  NFNL_MSG_TYPE(nlh->nlmsg_type),
+					  sock_net(skb->sk));
+	if (err <= 0)
+		goto free;
+
+	err = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
+	if (err < 0)
+		goto out;
+
+	return 0;
+
+free:
+	kfree_skb(skb2);
+out:
+	/* this avoids a loop in nfnetlink. */
+	return err == -EAGAIN ? -ENOBUFS : err;
+}
+
 #ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
 static size_t
 ctnetlink_nfqueue_build_size(const struct nf_conn *ct)
@@ -2440,6 +2589,79 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 	return err;
 }
 
+static int
+ctnetlink_exp_stat_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int cpu,
+			     const struct ip_conntrack_stat *st)
+{
+	struct nlmsghdr *nlh;
+	struct nfgenmsg *nfmsg;
+	unsigned int flags = pid ? NLM_F_MULTI : 0, event;
+
+	event = (NFNL_SUBSYS_CTNETLINK << 8 | IPCTNL_MSG_EXP_GET_STATS_CPU);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*nfmsg), flags);
+	if (nlh == NULL)
+		goto nlmsg_failure;
+
+	nfmsg = nlmsg_data(nlh);
+	nfmsg->nfgen_family = AF_UNSPEC;
+	nfmsg->version      = NFNETLINK_V0;
+	nfmsg->res_id	    = htons(cpu);
+
+	if (nla_put_be32(skb, CTA_STATS_EXP_NEW, htonl(st->expect_new)) ||
+	    nla_put_be32(skb, CTA_STATS_EXP_CREATE, htonl(st->expect_create)) ||
+	    nla_put_be32(skb, CTA_STATS_EXP_DELETE, htonl(st->expect_delete)))
+		goto nla_put_failure;
+
+	nlmsg_end(skb, nlh);
+	return skb->len;
+
+nla_put_failure:
+nlmsg_failure:
+	nlmsg_cancel(skb, nlh);
+	return -1;
+}
+
+static int
+ctnetlink_exp_stat_cpu_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int cpu;
+	struct net *net = sock_net(skb->sk);
+
+	if (cb->args[0] == nr_cpu_ids)
+		return 0;
+
+	for (cpu = cb->args[0]; cpu < nr_cpu_ids; cpu++) {
+		const struct ip_conntrack_stat *st;
+
+		if (!cpu_possible(cpu))
+			continue;
+
+		st = per_cpu_ptr(net->ct.stat, cpu);
+		if (ctnetlink_exp_stat_fill_info(skb, NETLINK_CB(cb->skb).pid,
+						 cb->nlh->nlmsg_seq,
+						 cpu, st) < 0)
+			break;
+	}
+	cb->args[0] = cpu;
+
+	return skb->len;
+}
+
+static int
+ctnetlink_stat_exp_cpu(struct sock *ctnl, struct sk_buff *skb,
+		       const struct nlmsghdr *nlh,
+		       const struct nlattr * const cda[])
+{
+	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+		struct netlink_dump_control c = {
+			.dump = ctnetlink_exp_stat_cpu_dump,
+		};
+		return netlink_dump_start(ctnl, skb, nlh, &c);
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 static struct nf_ct_event_notifier ctnl_notifier = {
 	.fcn = ctnetlink_conntrack_event,
@@ -2463,6 +2685,8 @@ static const struct nfnl_callback ctnl_cb[IPCTNL_MSG_MAX] = {
 	[IPCTNL_MSG_CT_GET_CTRZERO] 	= { .call = ctnetlink_get_conntrack,
 					    .attr_count = CTA_MAX,
 					    .policy = ct_nla_policy },
+	[IPCTNL_MSG_CT_GET_STATS_CPU]	= { .call = ctnetlink_stat_ct_cpu },
+	[IPCTNL_MSG_CT_GET_STATS]	= { .call = ctnetlink_stat_ct },
 };
 
 static const struct nfnl_callback ctnl_exp_cb[IPCTNL_MSG_EXP_MAX] = {
@@ -2475,6 +2699,7 @@ static const struct nfnl_callback ctnl_exp_cb[IPCTNL_MSG_EXP_MAX] = {
 	[IPCTNL_MSG_EXP_DELETE]		= { .call = ctnetlink_del_expect,
 					    .attr_count = CTA_EXPECT_MAX,
 					    .policy = exp_nla_policy },
+	[IPCTNL_MSG_EXP_GET_STATS_CPU]	= { .call = ctnetlink_stat_exp_cpu },
 };
 
 static const struct nfnetlink_subsystem ctnl_subsys = {
