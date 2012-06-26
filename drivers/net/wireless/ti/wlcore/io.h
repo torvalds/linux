@@ -47,6 +47,7 @@ struct wl1271;
 void wlcore_disable_interrupts(struct wl1271 *wl);
 void wlcore_disable_interrupts_nosync(struct wl1271 *wl);
 void wlcore_enable_interrupts(struct wl1271 *wl);
+void wlcore_synchronize_interrupts(struct wl1271 *wl);
 
 void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
