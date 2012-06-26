@@ -83,8 +83,6 @@ static const struct das16cs_board das16cs_boards[] = {
 };
 
 struct das16cs_private {
-	struct pcmcia_device *link;
-
 	unsigned int ao_readback[2];
 	unsigned short status1;
 	unsigned short status2;
