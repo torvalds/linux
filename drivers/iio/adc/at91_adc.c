@@ -349,9 +349,11 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 						       st->done,
 						       msecs_to_jiffies(1000));
 		if (ret == 0)
-			return -ETIMEDOUT;
-		else if (ret < 0)
+			ret = -ETIMEDOUT;
+		if (ret < 0) {
+			mutex_unlock(&st->lock);
 			return ret;
+		}
 
 		*val = st->last_value;
 
