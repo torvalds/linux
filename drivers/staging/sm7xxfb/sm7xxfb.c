@@ -697,6 +697,14 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
 }
 
 /*
+ * free struct smtcfb_info
+ */
+static void smtc_free_fb_info(struct smtcfb_info *sfb)
+{
+	kfree(sfb);
+}
+
+/*
  * Unmap in the memory mapped IO registers
  */
 
@@ -753,14 +761,6 @@ static inline void sm7xx_init_hw(void)
 {
 	outb_p(0x18, 0x3c4);
 	outb_p(0x11, 0x3c5);
-}
-
-static void smtc_free_fb_info(struct smtcfb_info *sfb)
-{
-	if (sfb) {
-		fb_alloc_cmap(&sfb->fb.cmap, 0, 0);
-		kfree(sfb);
-	}
 }
 
 /*
