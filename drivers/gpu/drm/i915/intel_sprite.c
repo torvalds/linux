@@ -85,7 +85,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		break;
 	default:
 		DRM_DEBUG_DRIVER("bad pixel format, assuming RGBX888\n");
-		sprctl |= DVS_FORMAT_RGBX888;
+		sprctl |= SPRITE_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	}
