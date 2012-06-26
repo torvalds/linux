@@ -508,24 +508,29 @@ static void team_set_no_mode(struct team *team)
 	team->mode = &__team_no_mode;
 }
 
-static void team_adjust_ops(struct team *team)
+static void __team_adjust_ops(struct team *team, int en_port_count)
 {
 	/*
 	 * To avoid checks in rx/tx skb paths, ensure here that non-null and
 	 * correct ops are always set.
 	 */
 
-	if (list_empty(&team->port_list) ||
-	    !team_is_mode_set(team) || !team->mode->ops->transmit)
+	if (!en_port_count || !team_is_mode_set(team) ||
+	    !team->mode->ops->transmit)
 		team->ops.transmit = team_dummy_transmit;
 	else
 		team->ops.transmit = team->mode->ops->transmit;
 
-	if (list_empty(&team->port_list) ||
-	    !team_is_mode_set(team) || !team->mode->ops->receive)
+	if (!en_port_count || !team_is_mode_set(team) ||
+	    !team->mode->ops->receive)
 		team->ops.receive = team_dummy_receive;
 	else
 		team->ops.receive = team->mode->ops->receive;
+}
+
+static void team_adjust_ops(struct team *team)
+{
+	__team_adjust_ops(team, team->en_port_count);
 }
 
 /*
@@ -687,6 +692,7 @@ static void team_port_enable(struct team *team,
 	port->index = team->en_port_count++;
 	hlist_add_head_rcu(&port->hlist,
 			   team_port_index_hash(team, port->index));
+	team_adjust_ops(team);
 	if (team->ops.port_enabled)
 		team->ops.port_enabled(team, port);
 }
@@ -708,16 +714,20 @@ static void __reconstruct_port_hlist(struct team *team, int rm_index)
 static void team_port_disable(struct team *team,
 			      struct team_port *port)
 {
-	int rm_index = port->index;
-
 	if (!team_port_enabled(port))
 		return;
 	if (team->ops.port_disabled)
 		team->ops.port_disabled(team, port);
 	hlist_del_rcu(&port->hlist);
-	__reconstruct_port_hlist(team, rm_index);
-	team->en_port_count--;
+	__reconstruct_port_hlist(team, port->index);
 	port->index = -1;
+	__team_adjust_ops(team, team->en_port_count - 1);
+	/*
+	 * Wait until readers see adjusted ops. This ensures that
+	 * readers never see team->en_port_count == 0
+	 */
+	synchronize_rcu();
+	team->en_port_count--;
 }
 
 #define TEAM_VLAN_FEATURES (NETIF_F_ALL_CSUM | NETIF_F_SG | \
@@ -874,7 +884,6 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 	port->index = -1;
 	team_port_enable(team, port);
 	list_add_tail_rcu(&port->list, &team->port_list);
-	team_adjust_ops(team);
 	__team_compute_features(team);
 	__team_port_change_check(port, !!netif_carrier_ok(port_dev));
 	__team_options_change_check(team);
@@ -928,7 +937,6 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	__team_port_change_check(port, false);
 	team_port_disable(team, port);
 	list_del_rcu(&port->list);
-	team_adjust_ops(team);
 	netdev_rx_handler_unregister(port_dev);
 	netdev_set_master(port_dev, NULL);
 	vlan_vids_del_by_dev(port_dev, dev);
