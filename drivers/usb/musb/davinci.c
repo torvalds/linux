@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
@@ -385,7 +386,7 @@ static int davinci_musb_init(struct musb *musb)
 
 	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (!musb->xceiv)
+	if (IS_ERR_OR_NULL(musb->xceiv))
 		goto unregister;
 
 	musb->mregs += DAVINCI_BASE_OFFSET;

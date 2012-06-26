@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/prefetch.h>
 #include <linux/usb.h>
@@ -1079,7 +1080,7 @@ static int tusb_musb_init(struct musb *musb)
 
 	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (!musb->xceiv)
+	if (IS_ERR_OR_NULL(musb->xceiv))
 		return -ENODEV;
 
 	pdev = to_platform_device(musb->controller);

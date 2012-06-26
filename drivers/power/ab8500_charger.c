@@ -2689,7 +2689,7 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 	}
 
 	di->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (!di->usb_phy) {
+	if (IS_ERR_OR_NULL(di->usb_phy)) {
 		dev_err(di->dev, "failed to get usb transceiver\n");
 		ret = -EINVAL;
 		goto free_usb;

@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/list.h>
@@ -1573,7 +1574,7 @@ static int should_enable_udc(struct pxa_udc *udc)
 	int put_on;
 
 	put_on = ((udc->pullup_on) && (udc->driver));
-	put_on &= ((udc->vbus_sensed) || (!udc->transceiver));
+	put_on &= ((udc->vbus_sensed) || (IS_ERR_OR_NULL(udc->transceiver)));
 	return put_on;
 }
 
@@ -1594,7 +1595,7 @@ static int should_disable_udc(struct pxa_udc *udc)
 	int put_off;
 
 	put_off = ((!udc->pullup_on) || (!udc->driver));
-	put_off |= ((!udc->vbus_sensed) && (udc->transceiver));
+	put_off |= ((!udc->vbus_sensed) && (!IS_ERR_OR_NULL(udc->transceiver)));
 	return put_off;
 }
 
@@ -1665,7 +1666,7 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	struct pxa_udc *udc;
 
 	udc = to_gadget_udc(_gadget);
-	if (udc->transceiver)
+	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
@@ -1834,7 +1835,7 @@ static int pxa27x_udc_start(struct usb_gadget_driver *driver,
 	dev_dbg(udc->dev, "registered gadget driver '%s'\n",
 		driver->driver.name);
 
-	if (udc->transceiver) {
+	if (!IS_ERR_OR_NULL(udc->transceiver)) {
 		retval = otg_set_peripheral(udc->transceiver->otg,
 						&udc->gadget);
 		if (retval) {
@@ -1908,7 +1909,7 @@ static int pxa27x_udc_stop(struct usb_gadget_driver *driver)
 	dev_info(udc->dev, "unregistered gadget driver '%s'\n",
 		 driver->driver.name);
 
-	if (udc->transceiver)
+	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return otg_set_peripheral(udc->transceiver->otg, NULL);
 	return 0;
 }

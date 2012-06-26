@@ -320,7 +320,7 @@ static int omap2430_musb_init(struct musb *musb)
 	 * which needs a driver, drivers aren't always needed.
 	 */
 	musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (!musb->xceiv) {
+	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
 	}

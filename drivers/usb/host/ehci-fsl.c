@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
 
@@ -146,7 +147,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 		dev_dbg(&pdev->dev, "hcd=0x%p  ehci=0x%p, transceiver=0x%p\n",
 			hcd, ehci, ehci->transceiver);
 
-		if (ehci->transceiver) {
+		if (!IS_ERR_OR_NULL(ehci->transceiver)) {
 			retval = otg_set_host(ehci->transceiver->otg,
 					      &ehci_to_hcd(ehci)->self);
 			if (retval) {
@@ -192,7 +193,7 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-	if (ehci->transceiver) {
+	if (!IS_ERR_OR_NULL(ehci->transceiver)) {
 		otg_set_host(ehci->transceiver->otg, NULL);
 		usb_put_phy(ehci->transceiver);
 	}

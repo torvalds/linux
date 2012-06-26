@@ -67,7 +67,7 @@ struct usb_phy *devm_usb_get_phy(struct device *dev, enum usb_phy_type type)
 		return NULL;
 
 	phy = usb_get_phy(type);
-	if (phy) {
+	if (!IS_ERR(phy)) {
 		*ptr = phy;
 		devres_add(dev, ptr);
 	} else
@@ -82,7 +82,7 @@ EXPORT_SYMBOL(devm_usb_get_phy);
  * @type - the type of the phy the controller requires
  *
  * Returns the phy driver, after getting a refcount to it; or
- * null if there is no such phy.  The caller is responsible for
+ * -ENODEV if there is no such phy.  The caller is responsible for
  * calling usb_put_phy() to release that count.
  *
  * For use by USB host and peripheral drivers.

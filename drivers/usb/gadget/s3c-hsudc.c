@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
@@ -1165,7 +1166,7 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 	}
 
 	/* connect to bus through transceiver */
-	if (hsudc->transceiver) {
+	if (!IS_ERR_OR_NULL(hsudc->transceiver)) {
 		ret = otg_set_peripheral(hsudc->transceiver->otg,
 					&hsudc->gadget);
 		if (ret) {
@@ -1220,7 +1221,7 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	s3c_hsudc_stop_activity(hsudc);
 	spin_unlock_irqrestore(&hsudc->lock, flags);
 
-	if (hsudc->transceiver)
+	if (!IS_ERR_OR_NULL(hsudc->transceiver))
 		(void) otg_set_peripheral(hsudc->transceiver->otg, NULL);
 
 	disable_irq(hsudc->irq);
@@ -1249,7 +1250,7 @@ static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 	if (!hsudc)
 		return -ENODEV;
 
-	if (hsudc->transceiver)
+	if (!IS_ERR_OR_NULL(hsudc->transceiver))
 		return usb_phy_set_power(hsudc->transceiver, mA);
 
 	return -EOPNOTSUPP;
@@ -1385,7 +1386,7 @@ err_irq:
 err_remap:
 	release_mem_region(res->start, resource_size(res));
 err_res:
-	if (hsudc->transceiver)
+	if (!IS_ERR_OR_NULL(hsudc->transceiver))
 		usb_put_phy(hsudc->transceiver);
 
 	regulator_bulk_free(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);

@@ -17,6 +17,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/tegra_usb.h>
 #include <linux/irq.h>
@@ -750,7 +751,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->operating_mode == TEGRA_USB_OTG) {
 		tegra->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
-		if (tegra->transceiver)
+		if (!IS_ERR_OR_NULL(tegra->transceiver))
 			otg_set_host(tegra->transceiver->otg, &hcd->self);
 	}
 #endif
@@ -773,7 +774,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 fail:
 #ifdef CONFIG_USB_OTG_UTILS
-	if (tegra->transceiver) {
+	if (!IS_ERR_OR_NULL(tegra->transceiver)) {
 		otg_set_host(tegra->transceiver->otg, NULL);
 		usb_put_phy(tegra->transceiver);
 	}
@@ -808,7 +809,7 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(&pdev->dev);
 
 #ifdef CONFIG_USB_OTG_UTILS
-	if (tegra->transceiver) {
+	if (!IS_ERR_OR_NULL(tegra->transceiver)) {
 		otg_set_host(tegra->transceiver->otg, NULL);
 		usb_put_phy(tegra->transceiver);
 	}

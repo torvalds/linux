@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -426,7 +427,7 @@ static int da8xx_musb_init(struct musb *musb)
 
 	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (!musb->xceiv)
+	if (IS_ERR_OR_NULL(musb->xceiv))
 		goto fail;
 
 	if (is_host_enabled(musb))

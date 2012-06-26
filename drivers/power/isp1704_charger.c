@@ -416,7 +416,7 @@ static int __devinit isp1704_charger_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	isp->phy = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (!isp->phy)
+	if (IS_ERR_OR_NULL(isp->phy))
 		goto fail0;
 
 	isp->dev = &pdev->dev;
