@@ -64,6 +64,7 @@ struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 		       &tegra_ehci2_pdata),
 	OF_DEV_AUXDATA("nvidia,tegra20-ehci", TEGRA_USB3_BASE, "tegra-ehci.2",
 		       &tegra_ehci3_pdata),
+	OF_DEV_AUXDATA("nvidia,tegra20-apbdma", 0x6000a000, "tegra-apbdma", NULL),
 	{}
 };
 
