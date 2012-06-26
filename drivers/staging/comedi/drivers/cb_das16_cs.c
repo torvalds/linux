@@ -454,6 +454,13 @@ static int das16cs_attach(struct comedi_device *dev,
 	if (!link)
 		return -EIO;
 
+	dev->board_ptr = das16cs_probe(dev, link);
+	if (!dev->board_ptr)
+		return -EIO;
+	thisboard = comedi_board(dev);
+
+	dev->board_name = thisboard->name;
+
 	dev->iobase = link->resource[0]->start;
 	dev_dbg(dev->class_dev, "I/O base=0x%04lx\n", dev->iobase);
 
@@ -461,22 +468,13 @@ static int das16cs_attach(struct comedi_device *dev,
 	for (i = 0; i < 48; i += 2)
 		dev_dbg(dev->class_dev, "%04x\n", inw(dev->iobase + i));
 
-
 	ret = request_irq(link->irq, das16cs_interrupt,
 			  IRQF_SHARED, "cb_das16_cs", dev);
 	if (ret < 0)
 		return ret;
-
 	dev->irq = link->irq;
 
 	dev_dbg(dev->class_dev, "irq=%u\n", dev->irq);
-
-	dev->board_ptr = das16cs_probe(dev, link);
-	if (!dev->board_ptr)
-		return -EIO;
-	thisboard = comedi_board(dev);
-
-	dev->board_name = thisboard->name;
 
 	if (alloc_private(dev, sizeof(struct das16cs_private)) < 0)
 		return -ENOMEM;
