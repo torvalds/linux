@@ -771,7 +771,7 @@ lowpan_process_data(struct sk_buff *skb)
 			kfree(frame);
 
 			if (lowpan_fetch_skb_u8(skb, &iphc0))
-				goto unlock_and_drop;
+				goto drop;
 
 			break;
 		}
