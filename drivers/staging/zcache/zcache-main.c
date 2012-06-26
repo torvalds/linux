@@ -36,9 +36,6 @@
 
 #include "../zsmalloc/zsmalloc.h"
 
-#if (!defined(CONFIG_CLEANCACHE) && !defined(CONFIG_FRONTSWAP))
-#error "zcache is useless without CONFIG_CLEANCACHE or CONFIG_FRONTSWAP"
-#endif
 #ifdef CONFIG_CLEANCACHE
 #include <linux/cleancache.h>
 #endif
@@ -2028,7 +2025,7 @@ static int __init zcache_init(void)
 		goto out;
 	}
 #endif /* CONFIG_SYSFS */
-#if defined(CONFIG_CLEANCACHE) || defined(CONFIG_FRONTSWAP)
+
 	if (zcache_enabled) {
 		unsigned int cpu;
 
@@ -2059,7 +2056,7 @@ static int __init zcache_init(void)
 		pr_err("zcache: can't create client\n");
 		goto out;
 	}
-#endif
+
 #ifdef CONFIG_CLEANCACHE
 	if (zcache_enabled && use_cleancache) {
 		struct cleancache_ops old_ops;
