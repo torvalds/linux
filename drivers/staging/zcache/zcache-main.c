@@ -109,6 +109,8 @@ static inline int zcache_comp_op(enum comp_op op,
 	case ZCACHE_COMPOP_DECOMPRESS:
 		ret = crypto_comp_decompress(tfm, src, slen, dst, dlen);
 		break;
+	default:
+		ret = -EINVAL;
 	}
 	put_cpu();
 	return ret;
