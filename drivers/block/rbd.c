@@ -1020,9 +1020,8 @@ static void rbd_simple_req_cb(struct ceph_osd_request *req, struct ceph_msg *msg
 static int rbd_req_sync_op(struct rbd_device *rbd_dev,
 			   struct ceph_snap_context *snapc,
 			   u64 snapid,
-			   int opcode,
 			   int flags,
-			   struct ceph_osd_req_op *orig_ops,
+			   struct ceph_osd_req_op *ops,
 			   const char *object_name,
 			   u64 ofs, u64 len,
 			   char *buf,
@@ -1032,27 +1031,13 @@ static int rbd_req_sync_op(struct rbd_device *rbd_dev,
 	int ret;
 	struct page **pages;
 	int num_pages;
-	struct ceph_osd_req_op *ops = orig_ops;
-	u32 payload_len;
+
+	BUG_ON(ops == NULL);
 
 	num_pages = calc_pages_for(ofs , len);
 	pages = ceph_alloc_page_vector(num_pages, GFP_KERNEL);
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
-
-	if (!orig_ops) {
-		payload_len = (flags & CEPH_OSD_FLAG_WRITE ? len : 0);
-		ret = -ENOMEM;
-		ops = rbd_create_rw_ops(1, opcode, payload_len);
-		if (!ops)
-			goto done;
-
-		if ((flags & CEPH_OSD_FLAG_WRITE) && buf) {
-			ret = ceph_copy_to_page_vector(pages, buf, ofs, len);
-			if (ret < 0)
-				goto done_ops;
-		}
-	}
 
 	ret = rbd_do_request(NULL, rbd_dev, snapc, snapid,
 			  object_name, ofs, len, NULL,
@@ -1063,14 +1048,11 @@ static int rbd_req_sync_op(struct rbd_device *rbd_dev,
 			  NULL,
 			  linger_req, ver);
 	if (ret < 0)
-		goto done_ops;
+		goto done;
 
 	if ((flags & CEPH_OSD_FLAG_READ) && buf)
 		ret = ceph_copy_from_page_vector(pages, buf, ofs, ret);
 
-done_ops:
-	if (!orig_ops)
-		rbd_destroy_ops(ops);
 done:
 	ceph_release_page_vector(pages, num_pages);
 	return ret;
@@ -1177,12 +1159,20 @@ static int rbd_req_sync_read(struct rbd_device *rbd_dev,
 			  char *buf,
 			  u64 *ver)
 {
-	return rbd_req_sync_op(rbd_dev, NULL,
+	struct ceph_osd_req_op *ops;
+	int ret;
+
+	ops = rbd_create_rw_ops(1, CEPH_OSD_OP_READ, 0);
+	if (!ops)
+		return -ENOMEM;
+
+	ret = rbd_req_sync_op(rbd_dev, NULL,
 			       snapid,
-			       CEPH_OSD_OP_READ,
 			       CEPH_OSD_FLAG_READ,
-			       NULL,
-			       object_name, ofs, len, buf, NULL, ver);
+			       ops, object_name, ofs, len, buf, NULL, ver);
+	rbd_destroy_ops(ops);
+
+	return ret;
 }
 
 /*
@@ -1262,7 +1252,6 @@ static int rbd_req_sync_watch(struct rbd_device *rbd_dev)
 
 	ret = rbd_req_sync_op(rbd_dev, NULL,
 			      CEPH_NOSNAP,
-			      0,
 			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			      ops,
 			      rbd_dev->header_name,
@@ -1301,7 +1290,6 @@ static int rbd_req_sync_unwatch(struct rbd_device *rbd_dev)
 
 	ret = rbd_req_sync_op(rbd_dev, NULL,
 			      CEPH_NOSNAP,
-			      0,
 			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			      ops,
 			      rbd_dev->header_name,
@@ -1360,7 +1348,6 @@ static int rbd_req_sync_notify(struct rbd_device *rbd_dev)
 
 	ret = rbd_req_sync_op(rbd_dev, NULL,
 			       CEPH_NOSNAP,
-			       0,
 			       CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			       ops,
 			       rbd_dev->header_name,
@@ -1411,7 +1398,6 @@ static int rbd_req_sync_exec(struct rbd_device *rbd_dev,
 
 	ret = rbd_req_sync_op(rbd_dev, NULL,
 			       CEPH_NOSNAP,
-			       0,
 			       CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			       ops,
 			       object_name, 0, 0, NULL, NULL, ver);
