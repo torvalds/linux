@@ -117,11 +117,11 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	int i;
 	int to;
 
-	outw(chan, dev->iobase + 2);
+	outw(chan, dev->iobase + DAS16CS_DIO_MUX);
 
 	devpriv->status1 &= ~0xf320;
 	devpriv->status1 |= (aref == AREF_DIFF) ? 0 : 0x0020;
-	outw(devpriv->status1, dev->iobase + 4);
+	outw(devpriv->status1, dev->iobase + DAS16CS_MISC1);
 
 	devpriv->status2 &= ~0xff00;
 	switch (range) {
@@ -140,21 +140,21 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	default:
 		return -EINVAL;
 	}
-	outw(devpriv->status2, dev->iobase + 6);
+	outw(devpriv->status2, dev->iobase + DAS16CS_MISC2);
 
 	for (i = 0; i < insn->n; i++) {
-		outw(0, dev->iobase);
+		outw(0, dev->iobase + DAS16CS_ADC_DATA);
 
 #define TIMEOUT 1000
 		for (to = 0; to < TIMEOUT; to++) {
-			if (inw(dev->iobase + 4) & 0x0080)
+			if (inw(dev->iobase + DAS16CS_MISC1) & 0x0080)
 				break;
 		}
 		if (to == TIMEOUT) {
 			dev_dbg(dev->class_dev, "cb_das16_cs: ai timeout\n");
 			return -ETIME;
 		}
-		data[i] = inw(dev->iobase + 0);
+		data[i] = inw(dev->iobase + DAS16CS_ADC_DATA);
 	}
 
 	return i;
@@ -333,7 +333,7 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 		devpriv->ao_readback[chan] = data[i];
 		d = data[i];
 
-		outw(devpriv->status1, dev->iobase + 4);
+		outw(devpriv->status1, dev->iobase + DAS16CS_MISC1);
 		udelay(1);
 
 		status1 = devpriv->status1 & ~0xf;
@@ -343,22 +343,22 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 			status1 |= 0x0008;
 
 /*		printk("0x%04x\n",status1);*/
-		outw(status1, dev->iobase + 4);
+		outw(status1, dev->iobase + DAS16CS_MISC1);
 		udelay(1);
 
 		for (bit = 15; bit >= 0; bit--) {
 			int b = (d >> bit) & 0x1;
 			b <<= 1;
 /*			printk("0x%04x\n",status1 | b | 0x0000);*/
-			outw(status1 | b | 0x0000, dev->iobase + 4);
+			outw(status1 | b | 0x0000, dev->iobase + DAS16CS_MISC1);
 			udelay(1);
 /*			printk("0x%04x\n",status1 | b | 0x0004);*/
-			outw(status1 | b | 0x0004, dev->iobase + 4);
+			outw(status1 | b | 0x0004, dev->iobase + DAS16CS_MISC1);
 			udelay(1);
 		}
 /*		make high both DAC0CS and DAC1CS to load
 		new data and update analog output*/
-		outw(status1 | 0x9, dev->iobase + 4);
+		outw(status1 | 0x9, dev->iobase + DAS16CS_MISC1);
 	}
 
 	return i;
@@ -386,10 +386,10 @@ static int das16cs_dio_insn_bits(struct comedi_device *dev,
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
 
-		outw(s->state, dev->iobase + 16);
+		outw(s->state, dev->iobase + DAS16CS_DIO);
 	}
 
-	data[1] = inw(dev->iobase + 16);
+	data[1] = inw(dev->iobase + DAS16CS_DIO);
 
 	return insn->n;
 }
@@ -428,7 +428,7 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 	devpriv->status2 |= (s->io_bits & 0xf0) ? 0x0080 : 0;
 	devpriv->status2 |= (s->io_bits & 0x0f) ? 0x0040 : 0;
 
-	outw(devpriv->status2, dev->iobase + 6);
+	outw(devpriv->status2, dev->iobase + DAS16CS_MISC2);
 
 	return insn->n;
 }
