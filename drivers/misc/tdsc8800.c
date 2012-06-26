@@ -65,6 +65,7 @@ static int tdsc8800_open(struct inode *inode, struct file *file)
 static int tdsc8800_release(struct inode *inode, struct file *file)
 {
 	MODEMDBG("tdsc8800_release\n");
+	modem_poweron_off(0);
 
 	return 0;
 }
@@ -124,7 +125,7 @@ static int tdsc8800_probe(struct platform_device *pdev)
 	
         gpio_direction_output(pdata->bp_power, GPIO_LOW);
 
-	gpio_set_value(pdata->bp_power, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
+	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
 	result = misc_register(&tdsc8800_misc);
 	if(result)
 	{
