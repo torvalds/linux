@@ -475,39 +475,39 @@ static int das16cs_attach(struct comedi_device *dev,
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = 16;
-	s->maxdata = 0xffff;
-	s->range_table = &das16cs_ai_range;
-	s->len_chanlist = 16;
-	s->insn_read = das16cs_ai_rinsn;
-	s->do_cmd = das16cs_ai_cmd;
-	s->do_cmdtest = das16cs_ai_cmdtest;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->n_chan	= 16;
+	s->maxdata	= 0xffff;
+	s->range_table	= &das16cs_ai_range;
+	s->len_chanlist	= 16;
+	s->insn_read	= das16cs_ai_rinsn;
+	s->do_cmd	= das16cs_ai_cmd;
+	s->do_cmdtest	= das16cs_ai_cmdtest;
 
 	s = dev->subdevices + 1;
 	/* analog output subdevice */
 	if (thisboard->n_ao_chans) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = thisboard->n_ao_chans;
-		s->maxdata = 0xffff;
-		s->range_table = &range_bipolar10;
-		s->insn_write = &das16cs_ao_winsn;
-		s->insn_read = &das16cs_ao_rinsn;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= thisboard->n_ao_chans;
+		s->maxdata	= 0xffff;
+		s->range_table	= &range_bipolar10;
+		s->insn_write	= &das16cs_ao_winsn;
+		s->insn_read	= &das16cs_ao_rinsn;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = das16cs_dio_insn_bits;
-	s->insn_config = das16cs_dio_insn_config;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= das16cs_dio_insn_bits;
+	s->insn_config	= das16cs_dio_insn_config;
 
 	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx, irq=%u\n",
 		dev->driver->driver_name, dev->board_name,
