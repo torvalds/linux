@@ -303,13 +303,13 @@ static int ec168_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 			&ec168_mxl5003s_config) == NULL ? -ENODEV : 0;
 }
 
-static int ec168_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int ec168_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 {
 	struct ec168_req req = {STREAMING_CTRL, 0x7f01, 0x0202, 0, NULL};
 	pr_debug("%s: onoff=%d\n", __func__, onoff);
 	if (onoff)
 		req.index = 0x0102;
-	return ec168_ctrl_msg(adap_to_d(adap), &req);
+	return ec168_ctrl_msg(fe_to_d(fe), &req);
 }
 
 /* DVB USB Driver stuff */

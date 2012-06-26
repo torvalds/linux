@@ -187,11 +187,11 @@ static int anysee_get_hw_info(struct dvb_usb_device *d, u8 *id)
 	return anysee_ctrl_msg(d, buf, sizeof(buf), id, 3);
 }
 
-static int anysee_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int anysee_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 {
 	u8 buf[] = {CMD_STREAMING_CTRL, (u8)onoff, 0x00};
 	deb_info("%s: onoff:%02x\n", __func__, onoff);
-	return anysee_ctrl_msg(adap_to_d(adap), buf, sizeof(buf), NULL, 0);
+	return anysee_ctrl_msg(fe_to_d(fe), buf, sizeof(buf), NULL, 0);
 }
 
 static int anysee_led_ctrl(struct dvb_usb_device *d, u8 mode, u8 interval)

@@ -262,7 +262,8 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 		usb_urb_killv2(&adap->stream);
 
 		if (d->props->streaming_ctrl) {
-			ret = d->props->streaming_ctrl(adap, 0);
+			ret = d->props->streaming_ctrl(
+					adap->fe[adap->active_fe], 0);
 			if (ret < 0) {
 				pr_err("%s: streaming_ctrl() failed=%d\n",
 						KBUILD_MODNAME, ret);
@@ -330,7 +331,8 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 		}
 
 		if (d->props->streaming_ctrl) {
-			ret = d->props->streaming_ctrl(adap, 1);
+			ret = d->props->streaming_ctrl(
+					adap->fe[adap->active_fe], 1);
 			if (ret < 0) {
 				pr_err("%s: streaming_ctrl() failed=%d\n",
 						KBUILD_MODNAME, ret);
