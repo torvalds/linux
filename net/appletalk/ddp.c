@@ -1208,9 +1208,7 @@ static int atalk_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (addr->sat_addr.s_node == ATADDR_BCAST &&
 	    !sock_flag(sk, SOCK_BROADCAST)) {
 #if 1
-		printk(KERN_WARNING "%s is broken and did not set "
-				    "SO_BROADCAST. It will break when 2.2 is "
-				    "released.\n",
+		pr_warn("atalk_connect: %s is broken and did not set SO_BROADCAST.\n",
 			current->comm);
 #else
 		return -EACCES;

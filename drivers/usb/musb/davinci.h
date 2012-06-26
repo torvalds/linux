@@ -15,7 +15,7 @@
  */
 
 /* Integrated highspeed/otg PHY */
-#define USBPHY_CTL_PADDR	(DAVINCI_SYSTEM_MODULE_BASE + 0x34)
+#define USBPHY_CTL_PADDR	0x01c40034
 #define USBPHY_DATAPOL		BIT(11)	/* (dm355) switch D+/D- */
 #define USBPHY_PHYCLKGD		BIT(8)
 #define USBPHY_SESNDEN		BIT(7)	/* v(sess_end) comparator */
@@ -27,7 +27,7 @@
 #define USBPHY_OTGPDWN		BIT(1)
 #define USBPHY_PHYPDWN		BIT(0)
 
-#define DM355_DEEPSLEEP_PADDR	(DAVINCI_SYSTEM_MODULE_BASE + 0x48)
+#define DM355_DEEPSLEEP_PADDR	0x01c40048
 #define DRVVBUS_FORCE		BIT(2)
 #define DRVVBUS_OVERRIDE	BIT(1)
 

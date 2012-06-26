@@ -57,6 +57,11 @@ unsigned int nfs_idmap_cache_timeout = 600;
 static const struct cred *id_resolver_cache;
 static struct key_type key_type_id_resolver_legacy;
 
+struct idmap {
+	struct rpc_pipe		*idmap_pipe;
+	struct key_construction	*idmap_key_cons;
+	struct mutex		idmap_mutex;
+};
 
 /**
  * nfs_fattr_init_names - initialise the nfs_fattr owner_name/group_name fields
@@ -310,9 +315,11 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 					    name, namelen, type, data,
 					    data_size, NULL);
 	if (ret < 0) {
+		mutex_lock(&idmap->idmap_mutex);
 		ret = nfs_idmap_request_key(&key_type_id_resolver_legacy,
 					    name, namelen, type, data,
 					    data_size, idmap);
+		mutex_unlock(&idmap->idmap_mutex);
 	}
 	return ret;
 }
@@ -353,11 +360,6 @@ static int nfs_idmap_lookup_id(const char *name, size_t namelen, const char *typ
 
 /* idmap classic begins here */
 module_param(nfs_idmap_cache_timeout, int, 0644);
-
-struct idmap {
-	struct rpc_pipe		*idmap_pipe;
-	struct key_construction	*idmap_key_cons;
-};
 
 enum {
 	Opt_find_uid, Opt_find_gid, Opt_find_user, Opt_find_group, Opt_find_err
@@ -469,6 +471,7 @@ nfs_idmap_new(struct nfs_client *clp)
 		return error;
 	}
 	idmap->idmap_pipe = pipe;
+	mutex_init(&idmap->idmap_mutex);
 
 	clp->cl_idmap = idmap;
 	return 0;

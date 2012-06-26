@@ -26,11 +26,7 @@
 
 #include <asm/bootparam.h>
 #include <asm/page.h>
-
-/* References to section boundaries */
-
-extern char _ftext, _etext, _fdata, _edata, _rodata_end;
-extern char __init_begin, __init_end;
+#include <asm/sections.h>
 
 /*
  * mem_reserve(start, end, must_exist)
@@ -197,9 +193,9 @@ void __init mem_init(void)
 			reservedpages++;
 	}
 
-	codesize =  (unsigned long) &_etext - (unsigned long) &_ftext;
-	datasize =  (unsigned long) &_edata - (unsigned long) &_fdata;
-	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
+	codesize =  (unsigned long) _etext - (unsigned long) _stext;
+	datasize =  (unsigned long) _edata - (unsigned long) _sdata;
+	initsize =  (unsigned long) __init_end - (unsigned long) __init_begin;
 
 	printk("Memory: %luk/%luk available (%ldk kernel code, %ldk reserved, "
 	       "%ldk data, %ldk init %ldk highmem)\n",
@@ -237,7 +233,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 void free_initmem(void)
 {
-	free_reserved_mem(&__init_begin, &__init_end);
-	printk("Freeing unused kernel memory: %dk freed\n",
-	       (&__init_end - &__init_begin) >> 10);
+	free_reserved_mem(__init_begin, __init_end);
+	printk("Freeing unused kernel memory: %zuk freed\n",
+	       (__init_end - __init_begin) >> 10);
 }

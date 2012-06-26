@@ -31,6 +31,9 @@ struct bug_entry {
 
 #endif	/* CONFIG_GENERIC_BUG */
 
+#ifndef __ASSEMBLY__
+#include <linux/kernel.h>
+
 /*
  * Don't use BUG() or BUG_ON() unless there's really no way out; one
  * example might be detecting data structure corruption in the middle
@@ -60,7 +63,6 @@ struct bug_entry {
  * to provide better diagnostics.
  */
 #ifndef __WARN_TAINT
-#ifndef __ASSEMBLY__
 extern __printf(3, 4)
 void warn_slowpath_fmt(const char *file, const int line,
 		       const char *fmt, ...);
@@ -69,7 +71,6 @@ void warn_slowpath_fmt_taint(const char *file, const int line, unsigned taint,
 			     const char *fmt, ...);
 extern void warn_slowpath_null(const char *file, const int line);
 #define WANT_WARN_ON_SLOWPATH
-#endif
 #define __WARN()		warn_slowpath_null(__FILE__, __LINE__)
 #define __WARN_printf(arg...)	warn_slowpath_fmt(__FILE__, __LINE__, arg)
 #define __WARN_printf_taint(taint, arg...)				\
@@ -201,5 +202,7 @@ extern void warn_slowpath_null(const char *file, const int line);
  */
 # define WARN_ON_SMP(x)			({0;})
 #endif
+
+#endif /* __ASSEMBLY__ */
 
 #endif
