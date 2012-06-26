@@ -386,10 +386,9 @@ static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->n_rp_report_qs,
 		   rdp->n_rp_cb_ready,
 		   rdp->n_rp_cpu_needs_gp);
-	seq_printf(m, "gpc=%ld gps=%ld nf=%ld nn=%ld\n",
+	seq_printf(m, "gpc=%ld gps=%ld nn=%ld\n",
 		   rdp->n_rp_gp_completed,
 		   rdp->n_rp_gp_started,
-		   rdp->n_rp_need_fqs,
 		   rdp->n_rp_need_nothing);
 }
 

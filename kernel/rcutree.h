@@ -312,7 +312,6 @@ struct rcu_data {
 	unsigned long n_rp_cpu_needs_gp;
 	unsigned long n_rp_gp_completed;
 	unsigned long n_rp_gp_started;
-	unsigned long n_rp_need_fqs;
 	unsigned long n_rp_need_nothing;
 
 	/* 6) _rcu_barrier() and OOM callbacks. */
