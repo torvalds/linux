@@ -116,6 +116,26 @@ static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
 		*addrp = mfspr(SPRN_SDAR);
 }
 
+static bool mmcra_sihv(unsigned long mmcra)
+{
+	unsigned long sihv = MMCRA_SIHV;
+
+	if (ppmu->flags & PPMU_ALT_SIPR)
+		sihv = POWER6_MMCRA_SIHV;
+
+	return !!(mmcra & sihv);
+}
+
+static bool mmcra_sipr(unsigned long mmcra)
+{
+	unsigned long sipr = MMCRA_SIPR;
+
+	if (ppmu->flags & PPMU_ALT_SIPR)
+		sipr = POWER6_MMCRA_SIPR;
+
+	return !!(mmcra & sipr);
+}
+
 static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 {
 	if (regs->msr & MSR_PR)
@@ -128,8 +148,6 @@ static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
 	unsigned long mmcra = regs->dsisr;
-	unsigned long sihv = MMCRA_SIHV;
-	unsigned long sipr = MMCRA_SIPR;
 
 	/* Not a PMU interrupt: Make up flags from regs->msr */
 	if (TRAP(regs) != 0xf00)
@@ -156,15 +174,10 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 		return PERF_RECORD_MISC_USER;
 	}
 
-	if (ppmu->flags & PPMU_ALT_SIPR) {
-		sihv = POWER6_MMCRA_SIHV;
-		sipr = POWER6_MMCRA_SIPR;
-	}
-
 	/* PR has priority over HV, so order below is important */
-	if (mmcra & sipr)
+	if (mmcra_sipr(mmcra))
 		return PERF_RECORD_MISC_USER;
-	if ((mmcra & sihv) && (freeze_events_kernel != MMCR0_FCHV))
+	if (mmcra_sihv(mmcra) && (freeze_events_kernel != MMCR0_FCHV))
 		return PERF_RECORD_MISC_HYPERVISOR;
 	return PERF_RECORD_MISC_KERNEL;
 }
