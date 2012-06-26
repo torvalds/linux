@@ -65,22 +65,21 @@ struct das16cs_board {
 	int device_id;
 	int n_ao_chans;
 };
+
 static const struct das16cs_board das16cs_boards[] = {
 	{
-	 .device_id = 0x0000,	/* unknown */
-	 .name = "PC-CARD DAS16/16",
-	 .n_ao_chans = 0,
-	 },
-	{
-	 .device_id = 0x0039,
-	 .name = "PC-CARD DAS16/16-AO",
-	 .n_ao_chans = 2,
-	 },
-	{
-	 .device_id = 0x4009,
-	 .name = "PCM-DAS16s/16",
-	 .n_ao_chans = 0,
-	 },
+		.name		= "PC-CARD DAS16/16-AO",
+		.device_id	= 0x0039,
+		.n_ao_chans	= 2,
+	}, {
+		.name		= "PCM-DAS16s/16",
+		.device_id	= 0x4009,
+		.n_ao_chans	= 0,
+	}, {
+		.name		= "PC-CARD DAS16/16",
+		.device_id	= 0x0000,	/* unknown */
+		.n_ao_chans	= 0,
+	},
 };
 
 struct das16cs_private {
