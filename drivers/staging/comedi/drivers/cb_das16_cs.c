@@ -42,7 +42,6 @@ Status: experimental
 #include <linux/slab.h>
 #include "../comedidev.h"
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
