@@ -946,8 +946,9 @@ static struct tmem_pool *zcache_get_pool_by_id(uint16_t cli_id, uint16_t poolid)
 		cli = &zcache_clients[cli_id];
 		if (cli == NULL)
 			goto out;
-		atomic_inc(&cli->refcount);
 	}
+
+	atomic_inc(&cli->refcount);
 	pool = idr_find(&cli->tmem_pools, poolid);
 	if (pool != NULL)
 		atomic_inc(&pool->refcount);
