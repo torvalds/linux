@@ -416,9 +416,14 @@ void blk_drain_queue(struct request_queue *q, bool drain_all)
 	 * left with hung waiters. We need to wake up those waiters.
 	 */
 	if (q->request_fn) {
+		struct request_list *rl;
+
 		spin_lock_irq(q->queue_lock);
-		for (i = 0; i < ARRAY_SIZE(q->rq.wait); i++)
-			wake_up_all(&q->rq.wait[i]);
+
+		blk_queue_for_each_rl(rl, q)
+			for (i = 0; i < ARRAY_SIZE(rl->wait); i++)
+				wake_up_all(&rl->wait[i]);
+
 		spin_unlock_irq(q->queue_lock);
 	}
 }
@@ -685,7 +690,7 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	if (!q)
 		return NULL;
 
-	if (blk_init_rl(&q->rq, q, GFP_KERNEL))
+	if (blk_init_rl(&q->root_rl, q, GFP_KERNEL))
 		return NULL;
 
 	q->request_fn		= rfn;
@@ -776,7 +781,12 @@ static void __freed_request(struct request_list *rl, int sync)
 {
 	struct request_queue *q = rl->q;
 
-	if (rl->count[sync] < queue_congestion_off_threshold(q))
+	/*
+	 * bdi isn't aware of blkcg yet.  As all async IOs end up root
+	 * blkcg anyway, just use root blkcg state.
+	 */
+	if (rl == &q->root_rl &&
+	    rl->count[sync] < queue_congestion_off_threshold(q))
 		blk_clear_queue_congested(q, sync);
 
 	if (rl->count[sync] + 1 <= q->nr_requests) {
@@ -897,7 +907,12 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
 				}
 			}
 		}
-		blk_set_queue_congested(q, is_sync);
+		/*
+		 * bdi isn't aware of blkcg yet.  As all async IOs end up
+		 * root blkcg anyway, just use root blkcg state.
+		 */
+		if (rl == &q->root_rl)
+			blk_set_queue_congested(q, is_sync);
 	}
 
 	/*
@@ -939,6 +954,7 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
 		goto fail_alloc;
 
 	blk_rq_init(q, rq);
+	blk_rq_set_rl(rq, rl);
 	rq->cmd_flags = rw_flags | REQ_ALLOCED;
 
 	/* init elvpriv */
@@ -1032,15 +1048,19 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 {
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
 	DEFINE_WAIT(wait);
-	struct request_list *rl = &q->rq;
+	struct request_list *rl;
 	struct request *rq;
+
+	rl = blk_get_rl(q, bio);	/* transferred to @rq on success */
 retry:
-	rq = __get_request(&q->rq, rw_flags, bio, gfp_mask);
+	rq = __get_request(rl, rw_flags, bio, gfp_mask);
 	if (rq)
 		return rq;
 
-	if (!(gfp_mask & __GFP_WAIT) || unlikely(blk_queue_dead(q)))
+	if (!(gfp_mask & __GFP_WAIT) || unlikely(blk_queue_dead(q))) {
+		blk_put_rl(rl);
 		return NULL;
+	}
 
 	/* wait on @rl and retry */
 	prepare_to_wait_exclusive(&rl->wait[is_sync], &wait,
@@ -1231,12 +1251,14 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 	 */
 	if (req->cmd_flags & REQ_ALLOCED) {
 		unsigned int flags = req->cmd_flags;
+		struct request_list *rl = blk_rq_rl(req);
 
 		BUG_ON(!list_empty(&req->queuelist));
 		BUG_ON(!hlist_unhashed(&req->hash));
 
-		blk_free_request(&q->rq, req);
-		freed_request(&q->rq, flags);
+		blk_free_request(rl, req);
+		freed_request(rl, flags);
+		blk_put_rl(rl);
 	}
 }
 EXPORT_SYMBOL_GPL(__blk_put_request);

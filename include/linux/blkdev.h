@@ -51,7 +51,9 @@ typedef void (rq_end_io_fn)(struct request *, int);
 
 struct request_list {
 	struct request_queue	*q;	/* the queue this rl belongs to */
-
+#ifdef CONFIG_BLK_CGROUP
+	struct blkcg_gq		*blkg;	/* blkg this request pool belongs to */
+#endif
 	/*
 	 * count[], starved[], and wait[] are indexed by
 	 * BLK_RW_SYNC/BLK_RW_ASYNC
@@ -143,6 +145,7 @@ struct request {
 	struct hd_struct *part;
 	unsigned long start_time;
 #ifdef CONFIG_BLK_CGROUP
+	struct request_list *rl;		/* rl this rq is alloced from */
 	unsigned long long start_time_ns;
 	unsigned long long io_start_time_ns;    /* when passed to hardware */
 #endif
@@ -291,9 +294,12 @@ struct request_queue {
 	int			nr_rqs_elvpriv;	/* # allocated rqs w/ elvpriv */
 
 	/*
-	 * the queue request freelist, one for reads and one for writes
+	 * If blkcg is not used, @q->root_rl serves all requests.  If blkcg
+	 * is used, root blkg allocates from @q->root_rl and all other
+	 * blkgs from their own blkg->rl.  Which one to use should be
+	 * determined using bio_request_list().
 	 */
-	struct request_list	rq;
+	struct request_list	root_rl;
 
 	request_fn_proc		*request_fn;
 	make_request_fn		*make_request_fn;

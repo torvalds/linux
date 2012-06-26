@@ -63,6 +63,7 @@ static void blkg_free(struct blkcg_gq *blkg)
 		kfree(pd);
 	}
 
+	blk_exit_rl(&blkg->rl);
 	kfree(blkg);
 }
 
@@ -90,6 +91,13 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	blkg->blkcg = blkcg;
 	blkg->refcnt = 1;
 
+	/* root blkg uses @q->root_rl, init rl only for !root blkgs */
+	if (blkcg != &blkcg_root) {
+		if (blk_init_rl(&blkg->rl, q, gfp_mask))
+			goto err_free;
+		blkg->rl.blkg = blkg;
+	}
+
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkcg_policy *pol = blkcg_policy[i];
 		struct blkg_policy_data *pd;
@@ -99,10 +107,8 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 
 		/* alloc per-policy data and attach it to blkg */
 		pd = kzalloc_node(pol->pd_size, gfp_mask, q->node);
-		if (!pd) {
-			blkg_free(blkg);
-			return NULL;
-		}
+		if (!pd)
+			goto err_free;
 
 		blkg->pd[i] = pd;
 		pd->blkg = blkg;
@@ -113,6 +119,10 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	}
 
 	return blkg;
+
+err_free:
+	blkg_free(blkg);
+	return NULL;
 }
 
 static struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
@@ -299,6 +309,38 @@ void __blkg_release(struct blkcg_gq *blkg)
 	call_rcu(&blkg->rcu_head, blkg_rcu_free);
 }
 EXPORT_SYMBOL_GPL(__blkg_release);
+
+/*
+ * The next function used by blk_queue_for_each_rl().  It's a bit tricky
+ * because the root blkg uses @q->root_rl instead of its own rl.
+ */
+struct request_list *__blk_queue_next_rl(struct request_list *rl,
+					 struct request_queue *q)
+{
+	struct list_head *ent;
+	struct blkcg_gq *blkg;
+
+	/*
+	 * Determine the current blkg list_head.  The first entry is
+	 * root_rl which is off @q->blkg_list and mapped to the head.
+	 */
+	if (rl == &q->root_rl) {
+		ent = &q->blkg_list;
+	} else {
+		blkg = container_of(rl, struct blkcg_gq, rl);
+		ent = &blkg->q_node;
+	}
+
+	/* walk to the next list_head, skip root blkcg */
+	ent = ent->next;
+	if (ent == &q->root_blkg->q_node)
+		ent = ent->next;
+	if (ent == &q->blkg_list)
+		return NULL;
+
+	blkg = container_of(ent, struct blkcg_gq, q_node);
+	return &blkg->rl;
+}
 
 static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
 			     u64 val)
@@ -750,6 +792,7 @@ int blkcg_activate_policy(struct request_queue *q,
 		goto out_unlock;
 	}
 	q->root_blkg = blkg;
+	q->root_rl.blkg = blkg;
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node)
 		cnt++;
