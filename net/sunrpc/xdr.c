@@ -747,25 +747,12 @@ __be32 * xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
 }
 EXPORT_SYMBOL_GPL(xdr_inline_decode);
 
-/**
- * xdr_read_pages - Ensure page-based XDR data to decode is aligned at current pointer position
- * @xdr: pointer to xdr_stream struct
- * @len: number of bytes of page data
- *
- * Moves data beyond the current pointer position from the XDR head[] buffer
- * into the page list. Any data that lies beyond current position + "len"
- * bytes is moved into the XDR tail[].
- *
- * Returns the number of XDR encoded bytes now contained in the pages
- */
-unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
+static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
 {
 	struct xdr_buf *buf = xdr->buf;
 	struct kvec *iov;
 	unsigned int nwords = XDR_QUADLEN(len);
 	unsigned int cur = xdr_stream_pos(xdr);
-	unsigned int end;
-	unsigned int padding;
 
 	if (xdr->nwords == 0)
 		return 0;
@@ -782,7 +769,32 @@ unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	if (buf->page_len > len)
 		xdr_shrink_pagelen(buf, buf->page_len - len);
 	xdr->nwords = XDR_QUADLEN(buf->len - cur);
+	return len;
+}
 
+/**
+ * xdr_read_pages - Ensure page-based XDR data to decode is aligned at current pointer position
+ * @xdr: pointer to xdr_stream struct
+ * @len: number of bytes of page data
+ *
+ * Moves data beyond the current pointer position from the XDR head[] buffer
+ * into the page list. Any data that lies beyond current position + "len"
+ * bytes is moved into the XDR tail[].
+ *
+ * Returns the number of XDR encoded bytes now contained in the pages
+ */
+unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
+{
+	struct xdr_buf *buf = xdr->buf;
+	struct kvec *iov;
+	unsigned int nwords;
+	unsigned int end;
+	unsigned int padding;
+
+	len = xdr_align_pages(xdr, len);
+	if (len == 0)
+		return 0;
+	nwords = XDR_QUADLEN(len);
 	padding = (nwords << 2) - len;
 	xdr->iov = iov = buf->tail;
 	/* Compute remaining message length.  */
