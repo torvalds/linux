@@ -56,6 +56,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	sprctl &= ~SPRITE_PIXFORMAT_MASK;
 	sprctl &= ~SPRITE_RGB_ORDER_RGBX;
 	sprctl &= ~SPRITE_YUV_BYTE_ORDER_MASK;
+	sprctl &= ~SPRITE_TILED;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
