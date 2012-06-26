@@ -101,19 +101,19 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 	if (!skb)
 		return -ENOMEM;
 
-	nlh = NLMSG_PUT(skb, 0, msg->seq, NLMSG_DONE, size - sizeof(*nlh));
+	nlh = nlmsg_put(skb, 0, msg->seq, NLMSG_DONE, size - sizeof(*nlh), 0);
+	if (!nlh) {
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
 
-	data = NLMSG_DATA(nlh);
+	data = nlmsg_data(nlh);
 
 	memcpy(data, msg, sizeof(*data) + msg->len);
 
 	NETLINK_CB(skb).dst_group = group;
 
 	return netlink_broadcast(dev->nls, skb, 0, group, gfp_mask);
-
-nlmsg_failure:
-	kfree_skb(skb);
-	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(cn_netlink_send);
 
