@@ -1598,7 +1598,7 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 	else
 		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->addr.bdaddr);
 
-	if (!conn) {
+	if (!conn || conn->state == BT_OPEN || conn->state == BT_CLOSED) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_DISCONNECT,
 				 MGMT_STATUS_NOT_CONNECTED);
 		goto failed;
