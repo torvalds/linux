@@ -1600,7 +1600,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
-char *bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF] = {
+static char *bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF] = {
 	"register_test (offline)    ",
 	"memory_test (offline)      ",
 	"int_loopback_test (offline)",
