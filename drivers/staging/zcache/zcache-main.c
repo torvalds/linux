@@ -605,11 +605,9 @@ static void __init zbud_init(void)
 	int i;
 
 	INIT_LIST_HEAD(&zbud_buddied_list);
-	zcache_zbud_buddied_count = 0;
-	for (i = 0; i < NCHUNKS; i++) {
+
+	for (i = 0; i < NCHUNKS; i++)
 		INIT_LIST_HEAD(&zbud_unbuddied[i].list);
-		zbud_unbuddied[i].count = 0;
-	}
 }
 
 #ifdef CONFIG_SYSFS
