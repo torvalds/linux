@@ -1515,56 +1515,68 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	struct dn_route *rt = (struct dn_route *)skb_dst(skb);
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb_tail_pointer(skb);
 	long expires;
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*r), flags);
 	if (!nlh)
-		goto out_nlmsg_trim;
+		return -EMSGSIZE;
+
 	r = nlmsg_data(nlh);
 	r->rtm_family = AF_DECnet;
 	r->rtm_dst_len = 16;
 	r->rtm_src_len = 0;
 	r->rtm_tos = 0;
 	r->rtm_table = RT_TABLE_MAIN;
-	RTA_PUT_U32(skb, RTA_TABLE, RT_TABLE_MAIN);
 	r->rtm_type = rt->rt_type;
 	r->rtm_flags = (rt->rt_flags & ~0xFFFF) | RTM_F_CLONED;
 	r->rtm_scope = RT_SCOPE_UNIVERSE;
 	r->rtm_protocol = RTPROT_UNSPEC;
+
 	if (rt->rt_flags & RTCF_NOTIFY)
 		r->rtm_flags |= RTM_F_NOTIFY;
-	RTA_PUT(skb, RTA_DST, 2, &rt->rt_daddr);
+
+	if (nla_put_u32(skb, RTA_TABLE, RT_TABLE_MAIN) < 0 ||
+	    nla_put_le16(skb, RTA_DST, rt->rt_daddr) < 0)
+		goto errout;
+
 	if (rt->fld.saddr) {
 		r->rtm_src_len = 16;
-		RTA_PUT(skb, RTA_SRC, 2, &rt->fld.saddr);
+		if (nla_put_le16(skb, RTA_SRC, rt->fld.saddr) < 0)
+			goto errout;
 	}
-	if (rt->dst.dev)
-		RTA_PUT(skb, RTA_OIF, sizeof(int), &rt->dst.dev->ifindex);
+	if (rt->dst.dev &&
+	    nla_put_u32(skb, RTA_OIF, rt->dst.dev->ifindex) < 0)
+		goto errout;
+
 	/*
 	 * Note to self - change this if input routes reverse direction when
 	 * they deal only with inputs and not with replies like they do
 	 * currently.
 	 */
-	RTA_PUT(skb, RTA_PREFSRC, 2, &rt->rt_local_src);
-	if (rt->rt_daddr != rt->rt_gateway)
-		RTA_PUT(skb, RTA_GATEWAY, 2, &rt->rt_gateway);
+	if (nla_put_le16(skb, RTA_PREFSRC, rt->rt_local_src) < 0)
+		goto errout;
+
+	if (rt->rt_daddr != rt->rt_gateway &&
+	    nla_put_le16(skb, RTA_GATEWAY, rt->rt_gateway) < 0)
+		goto errout;
+
 	if (rtnetlink_put_metrics(skb, dst_metrics_ptr(&rt->dst)) < 0)
-		goto rtattr_failure;
+		goto errout;
+
 	expires = rt->dst.expires ? rt->dst.expires - jiffies : 0;
 	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, 0, 0, expires,
 			       rt->dst.error) < 0)
-		goto rtattr_failure;
-	if (dn_is_input_route(rt))
-		RTA_PUT(skb, RTA_IIF, sizeof(int), &rt->fld.flowidn_iif);
+		goto errout;
 
-	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
-	return skb->len;
+	if (dn_is_input_route(rt) &&
+	    nla_put_u32(skb, RTA_IIF, rt->fld.flowidn_iif) < 0)
+		goto errout;
 
-out_nlmsg_trim:
-rtattr_failure:
-	nlmsg_trim(skb, b);
-	return -1;
+	return nlmsg_end(skb, nlh);
+
+errout:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 /*
@@ -1587,7 +1599,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	memset(&fld, 0, sizeof(fld));
 	fld.flowidn_proto = DNPROTO_NSP;
 
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (skb == NULL)
 		return -ENOBUFS;
 	skb_reset_mac_header(skb);
@@ -1665,13 +1677,16 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct dn_route *rt;
 	int h, s_h;
 	int idx, s_idx;
+	struct rtmsg *rtm;
 
 	if (!net_eq(net, &init_net))
 		return 0;
 
-	if (NLMSG_PAYLOAD(cb->nlh, 0) < sizeof(struct rtmsg))
+	if (nlmsg_len(cb->nlh) < sizeof(struct rtmsg))
 		return -EINVAL;
-	if (!(((struct rtmsg *)nlmsg_data(cb->nlh))->rtm_flags&RTM_F_CLONED))
+
+	rtm = nlmsg_data(cb->nlh);
+	if (!(rtm->rtm_flags & RTM_F_CLONED))
 		return 0;
 
 	s_h = cb->args[0];
