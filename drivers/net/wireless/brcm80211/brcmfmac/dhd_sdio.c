@@ -4169,6 +4169,9 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
 	struct brcmf_sdio *bus;
+	struct brcmf_bus_dcmd *dlst;
+	u32 dngl_txglom;
+	u8 idx;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4253,6 +4256,18 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 
 	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
+
+	/* sdio bus core specific dcmd */
+	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
+	dlst = kzalloc(sizeof(struct brcmf_bus_dcmd), GFP_KERNEL);
+	if (bus->ci->c_inf[idx].rev < 12 && dlst) {
+		/* for sdio core rev < 12, disable txgloming */
+		dngl_txglom = 0;
+		dlst->name = "bus:txglom";
+		dlst->param = (char *)&dngl_txglom;
+		dlst->param_len = sizeof(u32);
+		list_add(&dlst->list, &bus->sdiodev->bus_if->dcmd_list);
+	}
 
 	/* if firmware path present try to download and bring up bus */
 	ret = brcmf_bus_start(bus->sdiodev->dev);

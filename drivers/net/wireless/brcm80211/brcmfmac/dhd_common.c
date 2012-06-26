@@ -801,7 +801,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 				 "event_msgs" + '\0' + bitvec  */
 	char buf[128], *ptr;
 	u32 dongle_align = drvr->bus_if->align;
-	u32 glom = 0;
 	u32 roaming = 1;
 	uint bcn_timeout = 3;
 	int scan_assoc_time = 40;
@@ -832,11 +831,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	/* Match Host and Dongle rx alignment */
 	brcmf_c_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
 		    sizeof(iovbuf));
-	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
-				  sizeof(iovbuf));
-
-	/* disable glom option per default */
-	brcmf_c_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
