@@ -3654,14 +3654,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
 S:	Supported
 F:	drivers/net/wireless/iwlwifi/
 
-INTEL WIRELESS MULTICOMM 3200 WIFI (iwmc3200wifi)
-M:	Samuel Ortiz <samuel.ortiz@intel.com>
-M:	Intel Linux Wireless <ilw@linux.intel.com>
-L:	linux-wireless@vger.kernel.org
-S:	Supported
-W:	http://wireless.kernel.org/en/users/Drivers/iwmc3200wifi
-F:	drivers/net/wireless/iwmc3200wifi/
-
 INTEL MANAGEMENT ENGINE (mei)
 M:	Tomas Winkler <tomas.winkler@intel.com>
 L:	linux-kernel@vger.kernel.org
