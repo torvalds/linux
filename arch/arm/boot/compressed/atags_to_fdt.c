@@ -1,6 +1,12 @@
 #include <asm/setup.h>
 #include <libfdt.h>
 
+#if defined(CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND)
+#define do_extend_cmdline 1
+#else
+#define do_extend_cmdline 0
+#endif
+
 static int node_offset(void *fdt, const char *node_path)
 {
 	int offset = fdt_path_offset(fdt, node_path);
@@ -34,6 +40,48 @@ static int setprop_cell(void *fdt, const char *node_path,
 	if (offset < 0)
 		return offset;
 	return fdt_setprop_cell(fdt, offset, property, val);
+}
+
+static const void *getprop(const void *fdt, const char *node_path,
+			   const char *property, int *len)
+{
+	int offset = fdt_path_offset(fdt, node_path);
+
+	if (offset == -FDT_ERR_NOTFOUND)
+		return NULL;
+
+	return fdt_getprop(fdt, offset, property, len);
+}
+
+static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
+{
+	char cmdline[COMMAND_LINE_SIZE];
+	const char *fdt_bootargs;
+	char *ptr = cmdline;
+	int len = 0;
+
+	/* copy the fdt command line into the buffer */
+	fdt_bootargs = getprop(fdt, "/chosen", "bootargs", &len);
+	if (fdt_bootargs)
+		if (len < COMMAND_LINE_SIZE) {
+			memcpy(ptr, fdt_bootargs, len);
+			/* len is the length of the string
+			 * including the NULL terminator */
+			ptr += len - 1;
+		}
+
+	/* and append the ATAG_CMDLINE */
+	if (fdt_cmdline) {
+		len = strlen(fdt_cmdline);
+		if (ptr - cmdline + len + 2 < COMMAND_LINE_SIZE) {
+			*ptr++ = ' ';
+			memcpy(ptr, fdt_cmdline, len);
+			ptr += len;
+		}
+	}
+	*ptr = '\0';
+
+	setprop_string(fdt, "/chosen", "bootargs", cmdline);
 }
 
 /*
@@ -72,8 +120,18 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 
 	for_each_tag(atag, atag_list) {
 		if (atag->hdr.tag == ATAG_CMDLINE) {
-			setprop_string(fdt, "/chosen", "bootargs",
-					atag->u.cmdline.cmdline);
+			/* Append the ATAGS command line to the device tree
+			 * command line.
+			 * NB: This means that if the same parameter is set in
+			 * the device tree and in the tags, the one from the
+			 * tags will be chosen.
+			 */
+			if (do_extend_cmdline)
+				merge_fdt_bootargs(fdt,
+						   atag->u.cmdline.cmdline);
+			else
+				setprop_string(fdt, "/chosen", "bootargs",
+					       atag->u.cmdline.cmdline);
 		} else if (atag->hdr.tag == ATAG_MEM) {
 			if (memcount >= sizeof(mem_reg_property)/4)
 				continue;

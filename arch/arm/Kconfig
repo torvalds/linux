@@ -1960,6 +1960,25 @@ config ARM_ATAG_DTB_COMPAT
 	  bootloaders, this option allows zImage to extract the information
 	  from the ATAG list and store it at run time into the appended DTB.
 
+choice
+	prompt "Kernel command line type" if ARM_ATAG_DTB_COMPAT
+	default ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER
+
+config ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER
+	bool "Use bootloader kernel arguments if available"
+	help
+	  Uses the command-line options passed by the boot loader instead of
+	  the device tree bootargs property. If the boot loader doesn't provide
+	  any, the device tree bootargs property will be used.
+
+config ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND
+	bool "Extend with bootloader kernel arguments"
+	help
+	  The command-line arguments provided by the boot loader will be
+	  appended to the the device tree bootargs property.
+
+endchoice
+
 config CMDLINE
 	string "Default kernel command string"
 	default ""
