@@ -426,7 +426,7 @@ config DVB_USB_IT913X
 
 config DVB_USB_MXL111SF
 	tristate "MxL111SF DTV USB2.0 support"
-	depends on DVB_USB
+	depends on DVB_USB_V2
 	select DVB_LGDT3305 if !DVB_FE_CUSTOMISE
 	select DVB_LG2160 if !DVB_FE_CUSTOMISE
 	select VIDEO_TVEEPROM

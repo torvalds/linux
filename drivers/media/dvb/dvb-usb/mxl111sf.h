@@ -15,7 +15,7 @@
 #undef DVB_USB_LOG_PREFIX
 #endif
 #define DVB_USB_LOG_PREFIX "mxl111sf"
-#include "dvb-usb.h"
+#include "dvb_usb.h"
 #include <media/tveeprom.h>
 
 #define MXL_EP1_REG_READ     1
@@ -37,6 +37,15 @@ enum mxl111sf_current_mode {
 enum mxl111sf_gpio_port_expander {
 	mxl111sf_gpio_hw,
 	mxl111sf_PCA9534,
+};
+
+struct mxl111sf_adap_state {
+	int alt_mode;
+	int gpio_mode;
+	int device_mode;
+	int ep6_clockphase;
+	int (*fe_init)(struct dvb_frontend *);
+	int (*fe_sleep)(struct dvb_frontend *);
 };
 
 struct mxl111sf_state {
@@ -74,15 +83,8 @@ struct mxl111sf_state {
 	struct tveeprom tv;
 
 	struct mutex fe_lock;
-};
-
-struct mxl111sf_adap_state {
-	int alt_mode;
-	int gpio_mode;
-	int device_mode;
-	int ep6_clockphase;
-	int (*fe_init)(struct dvb_frontend *);
-	int (*fe_sleep)(struct dvb_frontend *);
+	u8 num_frontends;
+	struct mxl111sf_adap_state adap_state[3];
 };
 
 int mxl111sf_read_reg(struct mxl111sf_state *state, u8 addr, u8 *data);

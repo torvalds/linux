@@ -31,6 +31,8 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 	if (mxl111sf_tuner_debug) \
 		mxl_printk(KERN_DEBUG, fmt, ##arg)
 
+#define err pr_err
+
 /* ------------------------------------------------------------------------ */
 
 struct mxl111sf_tuner_state {

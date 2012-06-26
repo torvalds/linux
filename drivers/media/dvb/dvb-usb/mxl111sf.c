@@ -52,9 +52,11 @@ MODULE_PARM_DESC(rfswitch, "force rf switch position (0=auto, 1=ext, 2=int).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define deb_info(args...)   dprintk(dvb_usb_mxl111sf_debug, 0x13, args)
-#define deb_reg(args...)    dprintk(dvb_usb_mxl111sf_debug, 0x08, args)
-#define deb_adv(args...)    dprintk(dvb_usb_mxl111sf_debug, MXL_ADV_DBG, args)
+#define deb_info pr_debug
+#define deb_reg pr_debug
+#define deb_adv pr_debug
+#define err pr_err
+#define info pr_info
 
 int mxl111sf_ctrl_msg(struct dvb_usb_device *d,
 		      u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
@@ -70,8 +72,8 @@ int mxl111sf_ctrl_msg(struct dvb_usb_device *d,
 	sndbuf[0] = cmd;
 	memcpy(&sndbuf[1], wbuf, wlen);
 
-	ret = (wo) ? dvb_usb_generic_write(d, sndbuf, 1+wlen) :
-		dvb_usb_generic_rw(d, sndbuf, 1+wlen, rbuf, rlen, 0);
+	ret = (wo) ? dvb_usbv2_generic_write(d, sndbuf, 1+wlen) :
+		dvb_usbv2_generic_rw(d, sndbuf, 1+wlen, rbuf, rlen);
 	mxl_fail(ret);
 
 	return ret;
@@ -246,21 +248,20 @@ fail:
 })
 
 /* ------------------------------------------------------------------------ */
-
+#if 0
 static int mxl111sf_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	/* power control depends on which adapter is being woken:
 	 * save this for init, instead, via mxl111sf_adap_fe_init */
 	return 0;
 }
+#endif
 
 static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 {
-	struct dvb_usb_adapter *adap = fe->dvb->priv;
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe->id].priv;
-
+	struct dvb_usb_device *d = fe_to_d(fe);
+	struct mxl111sf_state *state = fe_to_priv(fe);
+	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int err;
 
 	/* exit if we didnt initialize the driver yet */
@@ -275,7 +276,7 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 
 	state->alt_mode = adap_state->alt_mode;
 
-	if (usb_set_interface(adap->dev->udev, 0, state->alt_mode) < 0)
+	if (usb_set_interface(d->udev, 0, state->alt_mode) < 0)
 		err("set interface failed");
 
 	err = mxl1x1sf_soft_reset(state);
@@ -315,10 +316,8 @@ fail:
 
 static int mxl111sf_adap_fe_sleep(struct dvb_frontend *fe)
 {
-	struct dvb_usb_adapter *adap = fe->dvb->priv;
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe->id].priv;
+	struct mxl111sf_state *state = fe_to_priv(fe);
+	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int err;
 
 	/* exit if we didnt initialize the driver yet */
@@ -339,11 +338,10 @@ fail:
 }
 
 
-static int mxl111sf_ep6_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int mxl111sf_ep6_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[adap->active_fe].priv;
+	struct mxl111sf_state *state = fe_to_priv(fe);
+	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int ret = 0;
 
 	deb_info("%s(%d)\n", __func__, onoff);
@@ -365,10 +363,9 @@ static int mxl111sf_ep6_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return ret;
 }
 
-static int mxl111sf_ep5_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int mxl111sf_ep5_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
+	struct mxl111sf_state *state = fe_to_priv(fe);
 	int ret = 0;
 
 	deb_info("%s(%d)\n", __func__, onoff);
@@ -392,10 +389,9 @@ static int mxl111sf_ep5_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return ret;
 }
 
-static int mxl111sf_ep4_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int mxl111sf_ep4_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
+	struct mxl111sf_state *state = fe_to_priv(fe);
 	int ret = 0;
 
 	deb_info("%s(%d)\n", __func__, onoff);
@@ -421,12 +417,11 @@ static struct lgdt3305_config hauppauge_lgdt3305_config = {
 	.vsb_if_khz         = 6000,
 };
 
-static int mxl111sf_lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
+static int mxl111sf_lgdt3305_frontend_attach(struct dvb_usb_adapter *adap, u8 fe_id)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	int fe_id = adap->num_frontends_initialized;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe_id].priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct mxl111sf_state *state = d_to_priv(d);
+	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe_id];
 	int ret;
 
 	deb_adv("%s()\n", __func__);
@@ -436,7 +431,7 @@ static int mxl111sf_lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
 	adap_state->alt_mode = (dvb_usb_mxl111sf_isoc) ? 2 : 1;
 	state->alt_mode = adap_state->alt_mode;
 
-	if (usb_set_interface(adap->dev->udev, 0, state->alt_mode) < 0)
+	if (usb_set_interface(d->udev, 0, state->alt_mode) < 0)
 		err("set interface failed");
 
 	state->gpio_mode = MXL111SF_GPIO_MOD_ATSC;
@@ -469,14 +464,15 @@ static int mxl111sf_lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
 	if (mxl_fail(ret))
 		goto fail;
 
-	adap->fe_adap[fe_id].fe = dvb_attach(lgdt3305_attach,
+	adap->fe[fe_id] = dvb_attach(lgdt3305_attach,
 				 &hauppauge_lgdt3305_config,
-				 &adap->dev->i2c_adap);
-	if (adap->fe_adap[fe_id].fe) {
-		adap_state->fe_init = adap->fe_adap[fe_id].fe->ops.init;
-		adap->fe_adap[fe_id].fe->ops.init = mxl111sf_adap_fe_init;
-		adap_state->fe_sleep = adap->fe_adap[fe_id].fe->ops.sleep;
-		adap->fe_adap[fe_id].fe->ops.sleep = mxl111sf_adap_fe_sleep;
+				 &d->i2c_adap);
+	if (adap->fe[fe_id]) {
+		state->num_frontends++;
+		adap_state->fe_init = adap->fe[fe_id]->ops.init;
+		adap->fe[fe_id]->ops.init = mxl111sf_adap_fe_init;
+		adap_state->fe_sleep = adap->fe[fe_id]->ops.sleep;
+		adap->fe[fe_id]->ops.sleep = mxl111sf_adap_fe_sleep;
 		return 0;
 	}
 	ret = -EIO;
@@ -492,12 +488,11 @@ static struct lg2160_config hauppauge_lg2160_config = {
 	.if_khz             = 6000,
 };
 
-static int mxl111sf_lg2160_frontend_attach(struct dvb_usb_adapter *adap)
+static int mxl111sf_lg2160_frontend_attach(struct dvb_usb_adapter *adap, u8 fe_id)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	int fe_id = adap->num_frontends_initialized;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe_id].priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct mxl111sf_state *state = d_to_priv(d);
+	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe_id];
 	int ret;
 
 	deb_adv("%s()\n", __func__);
@@ -507,7 +502,7 @@ static int mxl111sf_lg2160_frontend_attach(struct dvb_usb_adapter *adap)
 	adap_state->alt_mode = (dvb_usb_mxl111sf_isoc) ? 2 : 1;
 	state->alt_mode = adap_state->alt_mode;
 
-	if (usb_set_interface(adap->dev->udev, 0, state->alt_mode) < 0)
+	if (usb_set_interface(d->udev, 0, state->alt_mode) < 0)
 		err("set interface failed");
 
 	state->gpio_mode = MXL111SF_GPIO_MOD_MH;
@@ -544,14 +539,15 @@ static int mxl111sf_lg2160_frontend_attach(struct dvb_usb_adapter *adap)
 	if (mxl_fail(ret))
 		goto fail;
 
-	adap->fe_adap[fe_id].fe = dvb_attach(lg2160_attach,
+	adap->fe[fe_id] = dvb_attach(lg2160_attach,
 			      &hauppauge_lg2160_config,
-			      &adap->dev->i2c_adap);
-	if (adap->fe_adap[fe_id].fe) {
-		adap_state->fe_init = adap->fe_adap[fe_id].fe->ops.init;
-		adap->fe_adap[fe_id].fe->ops.init = mxl111sf_adap_fe_init;
-		adap_state->fe_sleep = adap->fe_adap[fe_id].fe->ops.sleep;
-		adap->fe_adap[fe_id].fe->ops.sleep = mxl111sf_adap_fe_sleep;
+			      &d->i2c_adap);
+	if (adap->fe[fe_id]) {
+		state->num_frontends++;
+		adap_state->fe_init = adap->fe[fe_id]->ops.init;
+		adap->fe[fe_id]->ops.init = mxl111sf_adap_fe_init;
+		adap_state->fe_sleep = adap->fe[fe_id]->ops.sleep;
+		adap->fe[fe_id]->ops.sleep = mxl111sf_adap_fe_sleep;
 		return 0;
 	}
 	ret = -EIO;
@@ -577,12 +573,11 @@ static struct lg2160_config hauppauge_lg2161_1040_config = {
 	.output_if          = 4, /* LG2161_OIF_SPI_MAS */
 };
 
-static int mxl111sf_lg2161_frontend_attach(struct dvb_usb_adapter *adap)
+static int mxl111sf_lg2161_frontend_attach(struct dvb_usb_adapter *adap, u8 fe_id)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	int fe_id = adap->num_frontends_initialized;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe_id].priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct mxl111sf_state *state = d_to_priv(d);
+	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe_id];
 	int ret;
 
 	deb_adv("%s()\n", __func__);
@@ -592,7 +587,7 @@ static int mxl111sf_lg2161_frontend_attach(struct dvb_usb_adapter *adap)
 	adap_state->alt_mode = (dvb_usb_mxl111sf_isoc) ? 2 : 1;
 	state->alt_mode = adap_state->alt_mode;
 
-	if (usb_set_interface(adap->dev->udev, 0, state->alt_mode) < 0)
+	if (usb_set_interface(d->udev, 0, state->alt_mode) < 0)
 		err("set interface failed");
 
 	state->gpio_mode = MXL111SF_GPIO_MOD_MH;
@@ -629,16 +624,17 @@ static int mxl111sf_lg2161_frontend_attach(struct dvb_usb_adapter *adap)
 	if (mxl_fail(ret))
 		goto fail;
 
-	adap->fe_adap[fe_id].fe = dvb_attach(lg2160_attach,
+	adap->fe[fe_id] = dvb_attach(lg2160_attach,
 			      (MXL111SF_V8_200 == state->chip_rev) ?
 			      &hauppauge_lg2161_1040_config :
 			      &hauppauge_lg2161_1019_config,
-			      &adap->dev->i2c_adap);
-	if (adap->fe_adap[fe_id].fe) {
-		adap_state->fe_init = adap->fe_adap[fe_id].fe->ops.init;
-		adap->fe_adap[fe_id].fe->ops.init = mxl111sf_adap_fe_init;
-		adap_state->fe_sleep = adap->fe_adap[fe_id].fe->ops.sleep;
-		adap->fe_adap[fe_id].fe->ops.sleep = mxl111sf_adap_fe_sleep;
+			      &d->i2c_adap);
+	if (adap->fe[fe_id]) {
+		state->num_frontends++;
+		adap_state->fe_init = adap->fe[fe_id]->ops.init;
+		adap->fe[fe_id]->ops.init = mxl111sf_adap_fe_init;
+		adap_state->fe_sleep = adap->fe[fe_id]->ops.sleep;
+		adap->fe[fe_id]->ops.sleep = mxl111sf_adap_fe_sleep;
 		return 0;
 	}
 	ret = -EIO;
@@ -664,12 +660,11 @@ static struct lg2160_config hauppauge_lg2161_1040_ep6_config = {
 	.output_if          = 7, /* LG2161_OIF_SERIAL_TS */
 };
 
-static int mxl111sf_lg2161_ep6_frontend_attach(struct dvb_usb_adapter *adap)
+static int mxl111sf_lg2161_ep6_frontend_attach(struct dvb_usb_adapter *adap, u8 fe_id)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	int fe_id = adap->num_frontends_initialized;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe_id].priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct mxl111sf_state *state = d_to_priv(d);
+	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe_id];
 	int ret;
 
 	deb_adv("%s()\n", __func__);
@@ -679,7 +674,7 @@ static int mxl111sf_lg2161_ep6_frontend_attach(struct dvb_usb_adapter *adap)
 	adap_state->alt_mode = (dvb_usb_mxl111sf_isoc) ? 2 : 1;
 	state->alt_mode = adap_state->alt_mode;
 
-	if (usb_set_interface(adap->dev->udev, 0, state->alt_mode) < 0)
+	if (usb_set_interface(d->udev, 0, state->alt_mode) < 0)
 		err("set interface failed");
 
 	state->gpio_mode = MXL111SF_GPIO_MOD_MH;
@@ -716,16 +711,17 @@ static int mxl111sf_lg2161_ep6_frontend_attach(struct dvb_usb_adapter *adap)
 	if (mxl_fail(ret))
 		goto fail;
 
-	adap->fe_adap[fe_id].fe = dvb_attach(lg2160_attach,
+	adap->fe[fe_id] = dvb_attach(lg2160_attach,
 			      (MXL111SF_V8_200 == state->chip_rev) ?
 			      &hauppauge_lg2161_1040_ep6_config :
 			      &hauppauge_lg2161_1019_ep6_config,
-			      &adap->dev->i2c_adap);
-	if (adap->fe_adap[fe_id].fe) {
-		adap_state->fe_init = adap->fe_adap[fe_id].fe->ops.init;
-		adap->fe_adap[fe_id].fe->ops.init = mxl111sf_adap_fe_init;
-		adap_state->fe_sleep = adap->fe_adap[fe_id].fe->ops.sleep;
-		adap->fe_adap[fe_id].fe->ops.sleep = mxl111sf_adap_fe_sleep;
+			      &d->i2c_adap);
+	if (adap->fe[fe_id]) {
+		state->num_frontends++;
+		adap_state->fe_init = adap->fe[fe_id]->ops.init;
+		adap->fe[fe_id]->ops.init = mxl111sf_adap_fe_init;
+		adap_state->fe_sleep = adap->fe[fe_id]->ops.sleep;
+		adap->fe[fe_id]->ops.sleep = mxl111sf_adap_fe_sleep;
 		return 0;
 	}
 	ret = -EIO;
@@ -739,12 +735,11 @@ static struct mxl111sf_demod_config mxl_demod_config = {
 	.program_regs    = mxl111sf_ctrl_program_regs,
 };
 
-static int mxl111sf_attach_demod(struct dvb_usb_adapter *adap)
+static int mxl111sf_attach_demod(struct dvb_usb_adapter *adap, u8 fe_id)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	int fe_id = adap->num_frontends_initialized;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe_id].priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct mxl111sf_state *state = d_to_priv(d);
+	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe_id];
 	int ret;
 
 	deb_adv("%s()\n", __func__);
@@ -754,7 +749,7 @@ static int mxl111sf_attach_demod(struct dvb_usb_adapter *adap)
 	adap_state->alt_mode = (dvb_usb_mxl111sf_isoc) ? 1 : 2;
 	state->alt_mode = adap_state->alt_mode;
 
-	if (usb_set_interface(adap->dev->udev, 0, state->alt_mode) < 0)
+	if (usb_set_interface(d->udev, 0, state->alt_mode) < 0)
 		err("set interface failed");
 
 	state->gpio_mode = MXL111SF_GPIO_MOD_DVBT;
@@ -783,13 +778,14 @@ static int mxl111sf_attach_demod(struct dvb_usb_adapter *adap)
 	/* dont care if this fails */
 	mxl111sf_init_port_expander(state);
 
-	adap->fe_adap[fe_id].fe = dvb_attach(mxl111sf_demod_attach, state,
+	adap->fe[fe_id] = dvb_attach(mxl111sf_demod_attach, state,
 			      &mxl_demod_config);
-	if (adap->fe_adap[fe_id].fe) {
-		adap_state->fe_init = adap->fe_adap[fe_id].fe->ops.init;
-		adap->fe_adap[fe_id].fe->ops.init = mxl111sf_adap_fe_init;
-		adap_state->fe_sleep = adap->fe_adap[fe_id].fe->ops.sleep;
-		adap->fe_adap[fe_id].fe->ops.sleep = mxl111sf_adap_fe_sleep;
+	if (adap->fe[fe_id]) {
+		state->num_frontends++;
+		adap_state->fe_init = adap->fe[fe_id]->ops.init;
+		adap->fe[fe_id]->ops.init = mxl111sf_adap_fe_init;
+		adap_state->fe_sleep = adap->fe[fe_id]->ops.sleep;
+		adap->fe[fe_id]->ops.sleep = mxl111sf_adap_fe_sleep;
 		return 0;
 	}
 	ret = -EIO;
@@ -816,10 +812,7 @@ static inline int mxl111sf_set_ant_path(struct mxl111sf_state *state,
 
 static int mxl111sf_ant_hunt(struct dvb_frontend *fe)
 {
-	struct dvb_usb_adapter *adap = fe->dvb->priv;
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-
+	struct mxl111sf_state *state = fe_to_priv(fe);
 	int antctrl = dvb_usb_mxl111sf_rfswitch;
 
 	u16 rxPwrA, rxPwr0, rxPwr1, rxPwr2;
@@ -872,18 +865,18 @@ static struct mxl111sf_tuner_config mxl_tuner_config = {
 
 static int mxl111sf_attach_tuner(struct dvb_usb_adapter *adap)
 {
-	struct dvb_usb_device *d = adap->dev;
-	struct mxl111sf_state *state = d->priv;
-	int fe_id = adap->num_frontends_initialized;
+	struct mxl111sf_state *state = adap_to_priv(adap);
+	int i;
 
 	deb_adv("%s()\n", __func__);
 
-	if (NULL != dvb_attach(mxl111sf_tuner_attach,
-			       adap->fe_adap[fe_id].fe, state,
-			       &mxl_tuner_config))
-		return 0;
+	for (i = 0; i < state->num_frontends; i++) {
+		if (dvb_attach(mxl111sf_tuner_attach, adap->fe[i], state,
+				&mxl_tuner_config) == NULL)
+			return -EIO;
+	}
 
-	return -EIO;
+	return 0;
 }
 
 static int mxl111sf_fe_ioctl_override(struct dvb_frontend *fe,
@@ -926,902 +919,537 @@ struct i2c_algorithm mxl111sf_i2c_algo = {
 #endif
 };
 
-static struct dvb_usb_device_properties mxl111sf_dvbt_bulk_properties;
-static struct dvb_usb_device_properties mxl111sf_dvbt_isoc_properties;
-static struct dvb_usb_device_properties mxl111sf_atsc_bulk_properties;
-static struct dvb_usb_device_properties mxl111sf_atsc_isoc_properties;
-static struct dvb_usb_device_properties mxl111sf_atsc_mh_bulk_properties;
-static struct dvb_usb_device_properties mxl111sf_atsc_mh_isoc_properties;
-static struct dvb_usb_device_properties mxl111sf_mh_bulk_properties;
-static struct dvb_usb_device_properties mxl111sf_mh_isoc_properties;
-static struct dvb_usb_device_properties mxl111sf_mercury_spi_bulk_properties;
-static struct dvb_usb_device_properties mxl111sf_mercury_spi_isoc_properties;
-static struct dvb_usb_device_properties mxl111sf_mercury_tp_bulk_properties;
-static struct dvb_usb_device_properties mxl111sf_mercury_tp_isoc_properties;
-static struct dvb_usb_device_properties mxl111sf_mercury_mh_spi_bulk_properties;
-static struct dvb_usb_device_properties mxl111sf_mercury_mh_spi_isoc_properties;
-static struct dvb_usb_device_properties mxl111sf_mercury_mh_tp_bulk_properties;
-static struct dvb_usb_device_properties mxl111sf_mercury_mh_tp_isoc_properties;
-
-static int mxl111sf_probe(struct usb_interface *intf,
-			  const struct usb_device_id *id)
+static int mxl111sf_init(struct dvb_usb_device *d)
 {
-	struct dvb_usb_device *d = NULL;
+	struct mxl111sf_state *state = d_to_priv(d);
+	int ret;
+	static u8 eeprom[256];
+	struct i2c_client c;
 
-	deb_adv("%s()\n", __func__);
+	ret = get_chip_info(state);
+	if (mxl_fail(ret))
+		err("failed to get chip info during probe");
 
-	if (((dvb_usb_mxl111sf_isoc) &&
-	     (0 == dvb_usb_device_init(intf,
-				       &mxl111sf_dvbt_isoc_properties,
-				       THIS_MODULE, &d, adapter_nr) ||
-	      0 == dvb_usb_device_init(intf,
-				       &mxl111sf_atsc_isoc_properties,
-				       THIS_MODULE, &d, adapter_nr) ||
-	      0 == dvb_usb_device_init(intf,
-				       &mxl111sf_atsc_mh_isoc_properties,
-				       THIS_MODULE, &d, adapter_nr) ||
-	      0 == dvb_usb_device_init(intf,
-				       &mxl111sf_mh_isoc_properties,
-				       THIS_MODULE, &d, adapter_nr) ||
-	      ((dvb_usb_mxl111sf_spi) &&
-	       (0 == dvb_usb_device_init(intf,
-					 &mxl111sf_mercury_spi_isoc_properties,
-					 THIS_MODULE, &d, adapter_nr) ||
-		0 == dvb_usb_device_init(intf,
-					 &mxl111sf_mercury_mh_spi_isoc_properties,
-					 THIS_MODULE, &d, adapter_nr))) ||
-	      0 == dvb_usb_device_init(intf,
-				       &mxl111sf_mercury_tp_isoc_properties,
-				       THIS_MODULE, &d, adapter_nr) ||
-	      0 == dvb_usb_device_init(intf,
-				       &mxl111sf_mercury_mh_tp_isoc_properties,
-				       THIS_MODULE, &d, adapter_nr))) ||
-	    0 == dvb_usb_device_init(intf,
-				     &mxl111sf_dvbt_bulk_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
-	    0 == dvb_usb_device_init(intf,
-				     &mxl111sf_atsc_bulk_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
-	    0 == dvb_usb_device_init(intf,
-				     &mxl111sf_atsc_mh_bulk_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
-	    0 == dvb_usb_device_init(intf,
-				     &mxl111sf_mh_bulk_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
-	    ((dvb_usb_mxl111sf_spi) &&
-	     (0 == dvb_usb_device_init(intf,
-				       &mxl111sf_mercury_spi_bulk_properties,
-				       THIS_MODULE, &d, adapter_nr) ||
-	      0 == dvb_usb_device_init(intf,
-				       &mxl111sf_mercury_mh_spi_bulk_properties,
-				       THIS_MODULE, &d, adapter_nr))) ||
-	    0 == dvb_usb_device_init(intf,
-				     &mxl111sf_mercury_tp_bulk_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
-	    0 == dvb_usb_device_init(intf,
-				     &mxl111sf_mercury_mh_tp_bulk_properties,
-				     THIS_MODULE, &d, adapter_nr) || 0) {
+	mutex_init(&state->fe_lock);
 
-		struct mxl111sf_state *state = d->priv;
-		static u8 eeprom[256];
-		struct i2c_client c;
-		int ret;
+	if (state->chip_rev > MXL111SF_V6)
+		mxl111sf_config_pin_mux_modes(state, PIN_MUX_TS_SPI_IN_MODE_1);
 
-		ret = get_chip_info(state);
-		if (mxl_fail(ret))
-			err("failed to get chip info during probe");
+	c.adapter = &d->i2c_adap;
+	c.addr = 0xa0 >> 1;
 
-		mutex_init(&state->fe_lock);
-
-		if (state->chip_rev > MXL111SF_V6)
-			mxl111sf_config_pin_mux_modes(state,
-						      PIN_MUX_TS_SPI_IN_MODE_1);
-
-		c.adapter = &d->i2c_adap;
-		c.addr = 0xa0 >> 1;
-
-		ret = tveeprom_read(&c, eeprom, sizeof(eeprom));
-		if (mxl_fail(ret))
-			return 0;
-		tveeprom_hauppauge_analog(&c, &state->tv,
-					  (0x84 == eeprom[0xa0]) ?
-					  eeprom + 0xa0 : eeprom + 0x80);
-#if 0
-		switch (state->tv.model) {
-		case 117001:
-		case 126001:
-		case 138001:
-			break;
-		default:
-			printk(KERN_WARNING "%s: warning: "
-			       "unknown hauppauge model #%d\n",
-			       __func__, state->tv.model);
-		}
-#endif
+	ret = tveeprom_read(&c, eeprom, sizeof(eeprom));
+	if (mxl_fail(ret))
 		return 0;
+	tveeprom_hauppauge_analog(&c, &state->tv, (0x84 == eeprom[0xa0]) ?
+			eeprom + 0xa0 : eeprom + 0x80);
+#if 0
+	switch (state->tv.model) {
+	case 117001:
+	case 126001:
+	case 138001:
+		break;
+	default:
+		printk(KERN_WARNING "%s: warning: "
+		       "unknown hauppauge model #%d\n",
+		       __func__, state->tv.model);
 	}
-	err("Your device is not yet supported by this driver. "
-	    "See kernellabs.com for more info");
-	return -EINVAL;
+#endif
+	return 0;
 }
 
-static struct usb_device_id mxl111sf_table[] = {
-/* 0 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc600) }, /* ATSC+ IR     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc601) }, /* ATSC         */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc602) }, /*     +        */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc603) }, /* ATSC+        */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc604) }, /* DVBT         */
-/* 5 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc609) }, /* ATSC  IR     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc60a) }, /*     + IR     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc60b) }, /* ATSC+ IR     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc60c) }, /* DVBT  IR     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc653) }, /* ATSC+        */
-/*10 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc65b) }, /* ATSC+ IR     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb700) }, /* ATSC+ sw     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb701) }, /* ATSC  sw     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb702) }, /*     + sw     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb703) }, /* ATSC+ sw     */
-/*15 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb704) }, /* DVBT  sw     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb753) }, /* ATSC+ sw     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb763) }, /* ATSC+ no     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb764) }, /* DVBT  no     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd853) }, /* ATSC+ sw     */
-/*20 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd854) }, /* DVBT  sw     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd863) }, /* ATSC+ no     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd864) }, /* DVBT  no     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8d3) }, /* ATSC+ sw     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8d4) }, /* DVBT  sw     */
-/*25 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8e3) }, /* ATSC+ no     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8e4) }, /* DVBT  no     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8ff) }, /* ATSC+        */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc612) }, /*     +        */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc613) }, /* ATSC+        */
-/*30 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc61a) }, /*     + IR     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xc61b) }, /* ATSC+ IR     */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb757) }, /* ATSC+DVBT sw */
-	{ USB_DEVICE(USB_VID_HAUPPAUGE, 0xb767) }, /* ATSC+DVBT no */
-	{}		/* Terminating entry */
-};
-MODULE_DEVICE_TABLE(usb, mxl111sf_table);
+static int mxl111sf_frontend_attach_dvbt(struct dvb_usb_adapter *adap)
+{
+	return mxl111sf_attach_demod(adap, 0);
+}
 
+static int mxl111sf_frontend_attach_atsc(struct dvb_usb_adapter *adap)
+{
+	return mxl111sf_lgdt3305_frontend_attach(adap, 0);
+}
 
-#define MXL111SF_EP4_BULK_STREAMING_CONFIG		\
-	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
-	.streaming_ctrl = mxl111sf_ep4_streaming_ctrl,	\
-	.stream = {					\
-		.type = USB_BULK,			\
-		.count = 5,				\
-		.endpoint = 0x04,			\
-		.u = {					\
-			.bulk = {			\
-				.buffersize = 8192,	\
-			}				\
-		}					\
-	}
+static int mxl111sf_frontend_attach_mh(struct dvb_usb_adapter *adap)
+{
+	return mxl111sf_lg2160_frontend_attach(adap, 0);
+}
 
-/* FIXME: works for v6 but not v8 silicon */
-#define MXL111SF_EP4_ISOC_STREAMING_CONFIG		\
-	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
-	.streaming_ctrl = mxl111sf_ep4_streaming_ctrl,	\
-	.stream = {					\
-		.type = USB_ISOC,			\
-		.count = 5,				\
-		.endpoint = 0x04,			\
-		.u = {					\
-			.isoc = {			\
-				.framesperurb = 96,	\
-				/* FIXME: v6 SILICON: */	\
-				.framesize = 564,	\
-				.interval = 1,		\
-			}				\
-		}					\
-	}
+static int mxl111sf_frontend_attach_atsc_mh(struct dvb_usb_adapter *adap)
+{
+	int ret;
+	deb_info("%s\n", __func__);
 
-#define MXL111SF_EP5_BULK_STREAMING_CONFIG		\
-	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
-	.streaming_ctrl = mxl111sf_ep5_streaming_ctrl,	\
-	.stream = {					\
-		.type = USB_BULK,			\
-		.count = 5,				\
-		.endpoint = 0x05,			\
-		.u = {					\
-			.bulk = {			\
-				.buffersize = 8192,	\
-			}				\
-		}					\
-	}
+	ret = mxl111sf_lgdt3305_frontend_attach(adap, 0);
+	if (ret < 0)
+		return ret;
 
-#define MXL111SF_EP5_ISOC_STREAMING_CONFIG		\
-	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
-	.streaming_ctrl = mxl111sf_ep5_streaming_ctrl,	\
-	.stream = {					\
-		.type = USB_ISOC,			\
-		.count = 5,				\
-		.endpoint = 0x05,			\
-		.u = {					\
-			.isoc = {			\
-				.framesperurb = 96,	\
-				.framesize = 200,	\
-				.interval = 1,		\
-			}				\
-		}					\
-	}
+	ret = mxl111sf_attach_demod(adap, 1);
+	if (ret < 0)
+		return ret;
 
-#define MXL111SF_EP6_BULK_STREAMING_CONFIG		\
-	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
-	.streaming_ctrl = mxl111sf_ep6_streaming_ctrl,	\
-	.stream = {					\
-		.type = USB_BULK,			\
-		.count = 5,				\
-		.endpoint = 0x06,			\
-		.u = {					\
-			.bulk = {			\
-				.buffersize = 8192,	\
-			}				\
-		}					\
-	}
+	ret = mxl111sf_lg2160_frontend_attach(adap, 2);
+	if (ret < 0)
+		return ret;
 
-/* FIXME */
-#define MXL111SF_EP6_ISOC_STREAMING_CONFIG		\
-	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
-	.streaming_ctrl = mxl111sf_ep6_streaming_ctrl,	\
-	.stream = {					\
-		.type = USB_ISOC,			\
-		.count = 5,				\
-		.endpoint = 0x06,			\
-		.u = {					\
-			.isoc = {			\
-				.framesperurb = 24,	\
-				.framesize = 3072,	\
-				.interval = 1,		\
-			}				\
-		}					\
-	}
+	return ret;
+}
 
-#define MXL111SF_DEFAULT_DEVICE_PROPERTIES			\
-	.caps = DVB_USB_IS_AN_I2C_ADAPTER,			\
-	.usb_ctrl = DEVICE_SPECIFIC,				\
-	/* use usb alt setting 1 for EP4 ISOC transfer (dvb-t),	\
-				     EP6 BULK transfer (atsc/qam), \
-	   use usb alt setting 2 for EP4 BULK transfer (dvb-t),	\
-				     EP6 ISOC transfer (atsc/qam), \
-	*/							\
-	.power_ctrl       = mxl111sf_power_ctrl,		\
-	.i2c_algo         = &mxl111sf_i2c_algo,			\
-	.generic_bulk_ctrl_endpoint          = MXL_EP2_REG_WRITE, \
-	.generic_bulk_ctrl_endpoint_response = MXL_EP1_REG_READ, \
-	.size_of_priv     = sizeof(struct mxl111sf_state)
+static int mxl111sf_frontend_attach_mercury(struct dvb_usb_adapter *adap)
+{
+	int ret;
+	deb_info("%s\n", __func__);
 
-static struct dvb_usb_device_properties mxl111sf_dvbt_bulk_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
+	ret = mxl111sf_lgdt3305_frontend_attach(adap, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = mxl111sf_attach_demod(adap, 1);
+	if (ret < 0)
+		return ret;
+
+	ret = mxl111sf_lg2161_ep6_frontend_attach(adap, 2);
+	if (ret < 0)
+		return ret;
+
+	return ret;
+}
+
+static int mxl111sf_frontend_attach_mercury_mh(struct dvb_usb_adapter *adap)
+{
+	int ret;
+	deb_info("%s\n", __func__);
+
+	ret = mxl111sf_attach_demod(adap, 0);
+	if (ret < 0)
+		return ret;
+
+	if (dvb_usb_mxl111sf_spi)
+		ret = mxl111sf_lg2161_frontend_attach(adap, 1);
+	else
+		ret = mxl111sf_lg2161_ep6_frontend_attach(adap, 1);
+
+	return ret;
+}
+
+static void mxl111sf_stream_config_bulk(struct usb_data_stream_properties *stream, u8 endpoint)
+{
+	deb_info("%s: endpoint=%d size=8192\n", __func__, endpoint);
+	stream->type = USB_BULK;
+	stream->count = 5;
+	stream->endpoint = endpoint;
+	stream->u.bulk.buffersize = 8192;
+}
+
+static void mxl111sf_stream_config_isoc(struct usb_data_stream_properties *stream,
+		u8 endpoint, int framesperurb, int framesize)
+{
+	deb_info("%s: endpoint=%d size=%d\n", __func__, endpoint,
+			framesperurb * framesize);
+	stream->type = USB_ISOC;
+	stream->count = 5;
+	stream->endpoint = endpoint;
+	stream->u.isoc.framesperurb = framesperurb;
+	stream->u.isoc.framesize = framesize;
+	stream->u.isoc.interval = 1;
+}
+
+/* DVB USB Driver stuff */
+
+/* dvbt       mxl111sf
+ * bulk       EP4/BULK/5/8192
+ * isoc       EP4/ISOC/5/96/564
+ */
+static int mxl111sf_get_stream_config_dvbt(struct dvb_frontend *fe,
+		u8 *ts_type, struct usb_data_stream_properties *stream)
+{
+	deb_info("%s: fe=%d\n", __func__, fe->id);
+
+	*ts_type = DVB_USB_FE_TS_TYPE_188;
+	if (dvb_usb_mxl111sf_isoc)
+		mxl111sf_stream_config_isoc(stream, 4, 96, 564);
+	else
+		mxl111sf_stream_config_bulk(stream, 4);
+	return 0;
+}
+
+static struct dvb_usb_device_properties mxl111sf_props_dvbt = {
+	.driver_name = KBUILD_MODNAME,
+	.owner = THIS_MODULE,
+	.adapter_nr = adapter_nr,
+	.size_of_priv = sizeof(struct mxl111sf_state),
+
+	.generic_bulk_ctrl_endpoint = 0x02,
+	.generic_bulk_ctrl_endpoint_response = 0x81,
+
+	.i2c_algo          = &mxl111sf_i2c_algo,
+	.frontend_attach   = mxl111sf_frontend_attach_dvbt,
+	.tuner_attach      = mxl111sf_attach_tuner,
+	.init              = mxl111sf_init,
+	.streaming_ctrl    = mxl111sf_ep4_streaming_ctrl,
+	.get_stream_config = mxl111sf_get_stream_config_dvbt,
+	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 1,
-		.fe = {{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_BULK_STREAMING_CONFIG,
-		} },
-		},
-	},
-	.num_device_descs = 3,
-	.devices = {
-		{   "Hauppauge 126xxx DVBT (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[4], &mxl111sf_table[8],
-			  NULL },
-		},
-		{   "Hauppauge 117xxx DVBT (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[15], &mxl111sf_table[18],
-			  NULL },
-		},
-		{   "Hauppauge 138xxx DVBT (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[20], &mxl111sf_table[22],
-			  &mxl111sf_table[24], &mxl111sf_table[26],
-			  NULL },
-		},
+			.stream = DVB_USB_STREAM_ISOC(6, 5, 24, 3072, 1),
+		}
 	}
 };
 
-static struct dvb_usb_device_properties mxl111sf_dvbt_isoc_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
+/* atsc       lgdt3305
+ * bulk       EP6/BULK/5/8192
+ * isoc       EP6/ISOC/5/24/3072
+ */
+static int mxl111sf_get_stream_config_atsc(struct dvb_frontend *fe,
+		u8 *ts_type, struct usb_data_stream_properties *stream)
+{
+	deb_info("%s: fe=%d\n", __func__, fe->id);
+
+	*ts_type = DVB_USB_FE_TS_TYPE_188;
+	if (dvb_usb_mxl111sf_isoc)
+		mxl111sf_stream_config_isoc(stream, 6, 24, 3072);
+	else
+		mxl111sf_stream_config_bulk(stream, 6);
+	return 0;
+}
+
+static struct dvb_usb_device_properties mxl111sf_props_atsc = {
+	.driver_name = KBUILD_MODNAME,
+	.owner = THIS_MODULE,
+	.adapter_nr = adapter_nr,
+	.size_of_priv = sizeof(struct mxl111sf_state),
+
+	.generic_bulk_ctrl_endpoint = 0x02,
+	.generic_bulk_ctrl_endpoint_response = 0x81,
+
+	.i2c_algo          = &mxl111sf_i2c_algo,
+	.frontend_attach   = mxl111sf_frontend_attach_atsc,
+	.tuner_attach      = mxl111sf_attach_tuner,
+	.init              = mxl111sf_init,
+	.streaming_ctrl    = mxl111sf_ep6_streaming_ctrl,
+	.get_stream_config = mxl111sf_get_stream_config_atsc,
+	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 1,
-		.fe = {{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_ISOC_STREAMING_CONFIG,
-		} },
-		},
-	},
-	.num_device_descs = 3,
-	.devices = {
-		{   "Hauppauge 126xxx DVBT (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[4], &mxl111sf_table[8],
-			  NULL },
-		},
-		{   "Hauppauge 117xxx DVBT (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[15], &mxl111sf_table[18],
-			  NULL },
-		},
-		{   "Hauppauge 138xxx DVBT (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[20], &mxl111sf_table[22],
-			  &mxl111sf_table[24], &mxl111sf_table[26],
-			  NULL },
-		},
+			.stream = DVB_USB_STREAM_ISOC(6, 5, 24, 3072, 1),
+		}
 	}
 };
 
-static struct dvb_usb_device_properties mxl111sf_atsc_bulk_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
+/* mh         lg2160
+ * bulk       EP5/BULK/5/8192/RAW
+ * isoc       EP5/ISOC/5/96/200/RAW
+ */
+static int mxl111sf_get_stream_config_mh(struct dvb_frontend *fe,
+		u8 *ts_type, struct usb_data_stream_properties *stream)
+{
+	deb_info("%s: fe=%d\n", __func__, fe->id);
+
+	*ts_type = DVB_USB_FE_TS_TYPE_RAW;
+	if (dvb_usb_mxl111sf_isoc)
+		mxl111sf_stream_config_isoc(stream, 5, 96, 200);
+	else
+		mxl111sf_stream_config_bulk(stream, 5);
+	return 0;
+}
+
+static struct dvb_usb_device_properties mxl111sf_props_mh = {
+	.driver_name = KBUILD_MODNAME,
+	.owner = THIS_MODULE,
+	.adapter_nr = adapter_nr,
+	.size_of_priv = sizeof(struct mxl111sf_state),
+
+	.generic_bulk_ctrl_endpoint = 0x02,
+	.generic_bulk_ctrl_endpoint_response = 0x81,
+
+	.i2c_algo          = &mxl111sf_i2c_algo,
+	.frontend_attach   = mxl111sf_frontend_attach_mh,
+	.tuner_attach      = mxl111sf_attach_tuner,
+	.init              = mxl111sf_init,
+	.streaming_ctrl    = mxl111sf_ep5_streaming_ctrl,
+	.get_stream_config = mxl111sf_get_stream_config_mh,
+	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 1,
-		.fe = {{
-			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_BULK_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "Hauppauge 126xxx ATSC (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[1], &mxl111sf_table[5],
-			  NULL },
-		},
-		{   "Hauppauge 117xxx ATSC (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[12],
-			  NULL },
-		},
+			.stream = DVB_USB_STREAM_ISOC(6, 5, 24, 3072, 1),
+		}
 	}
 };
 
-static struct dvb_usb_device_properties mxl111sf_atsc_isoc_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
+/* atsc mh    lgdt3305           mxl111sf          lg2160
+ * bulk       EP6/BULK/5/8192    EP4/BULK/5/8192   EP5/BULK/5/8192/RAW
+ * isoc       EP6/ISOC/5/24/3072 EP4/ISOC/5/96/564 EP5/ISOC/5/96/200/RAW
+ */
+static int mxl111sf_get_stream_config_atsc_mh(struct dvb_frontend *fe,
+		u8 *ts_type, struct usb_data_stream_properties *stream)
+{
+	deb_info("%s: fe=%d\n", __func__, fe->id);
+
+	if (fe->id == 0) {
+		*ts_type = DVB_USB_FE_TS_TYPE_188;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 6, 24, 3072);
+		else
+			mxl111sf_stream_config_bulk(stream, 6);
+	} else if (fe->id == 1) {
+		*ts_type = DVB_USB_FE_TS_TYPE_188;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 4, 96, 564);
+		else
+			mxl111sf_stream_config_bulk(stream, 4);
+	} else if (fe->id == 2) {
+		*ts_type = DVB_USB_FE_TS_TYPE_RAW;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 5, 96, 200);
+		else
+			mxl111sf_stream_config_bulk(stream, 5);
+	}
+	return 0;
+}
+
+static int mxl111sf_streaming_ctrl_atsc_mh(struct dvb_frontend *fe, int onoff)
+{
+	deb_info("%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+
+	if (fe->id == 0)
+		return mxl111sf_ep6_streaming_ctrl(fe, onoff);
+	else if (fe->id == 1)
+		return mxl111sf_ep4_streaming_ctrl(fe, onoff);
+	else if (fe->id == 2)
+		return mxl111sf_ep5_streaming_ctrl(fe, onoff);
+	return 0;
+}
+
+static struct dvb_usb_device_properties mxl111sf_props_atsc_mh = {
+	.driver_name = KBUILD_MODNAME,
+	.owner = THIS_MODULE,
+	.adapter_nr = adapter_nr,
+	.size_of_priv = sizeof(struct mxl111sf_state),
+
+	.generic_bulk_ctrl_endpoint = 0x02,
+	.generic_bulk_ctrl_endpoint_response = 0x81,
+
+	.i2c_algo          = &mxl111sf_i2c_algo,
+	.frontend_attach   = mxl111sf_frontend_attach_atsc_mh,
+	.tuner_attach      = mxl111sf_attach_tuner,
+	.init              = mxl111sf_init,
+	.streaming_ctrl    = mxl111sf_streaming_ctrl_atsc_mh,
+	.get_stream_config = mxl111sf_get_stream_config_atsc_mh,
+	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 1,
-		.fe = {{
-			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_ISOC_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "Hauppauge 126xxx ATSC (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[1], &mxl111sf_table[5],
-			  NULL },
-		},
-		{   "Hauppauge 117xxx ATSC (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[12],
-			  NULL },
-		},
+			.stream = DVB_USB_STREAM_ISOC(6, 5, 24, 3072, 1),
+		}
 	}
 };
 
-static struct dvb_usb_device_properties mxl111sf_mh_bulk_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
+/* mercury    lgdt3305           mxl111sf          lg2161
+ * tp bulk    EP6/BULK/5/8192    EP4/BULK/5/8192   EP6/BULK/5/8192/RAW
+ * tp isoc    EP6/ISOC/5/24/3072 EP4/ISOC/5/96/564 EP6/ISOC/5/24/3072/RAW
+ * spi bulk   EP6/BULK/5/8192    EP4/BULK/5/8192   EP5/BULK/5/8192/RAW
+ * spi isoc   EP6/ISOC/5/24/3072 EP4/ISOC/5/96/564 EP5/ISOC/5/96/200/RAW
+ */
+static int mxl111sf_get_stream_config_mercury(struct dvb_frontend *fe,
+		u8 *ts_type, struct usb_data_stream_properties *stream)
+{
+	deb_info("%s: fe=%d\n", __func__, fe->id);
+
+	if (fe->id == 0) {
+		*ts_type = DVB_USB_FE_TS_TYPE_188;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 6, 24, 3072);
+		else
+			mxl111sf_stream_config_bulk(stream, 6);
+	} else if (fe->id == 1) {
+		*ts_type = DVB_USB_FE_TS_TYPE_188;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 4, 96, 564);
+		else
+			mxl111sf_stream_config_bulk(stream, 4);
+	} else if (fe->id == 2 && dvb_usb_mxl111sf_spi) {
+		*ts_type = DVB_USB_FE_TS_TYPE_RAW;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 5, 96, 200);
+		else
+			mxl111sf_stream_config_bulk(stream, 5);
+	} else if (fe->id == 2 && !dvb_usb_mxl111sf_spi) {
+		*ts_type = DVB_USB_FE_TS_TYPE_RAW;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 6, 24, 3072);
+		else
+			mxl111sf_stream_config_bulk(stream, 6);
+	}
+	return 0;
+}
+
+static int mxl111sf_streaming_ctrl_mercury(struct dvb_frontend *fe, int onoff)
+{
+	deb_info("%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+
+	if (fe->id == 0)
+		return mxl111sf_ep6_streaming_ctrl(fe, onoff);
+	else if (fe->id == 1)
+		return mxl111sf_ep4_streaming_ctrl(fe, onoff);
+	else if (fe->id == 2 && dvb_usb_mxl111sf_spi)
+		return mxl111sf_ep5_streaming_ctrl(fe, onoff);
+	else if (fe->id == 2 && !dvb_usb_mxl111sf_spi)
+		return mxl111sf_ep6_streaming_ctrl(fe, onoff);
+	return 0;
+}
+
+static struct dvb_usb_device_properties mxl111sf_props_mercury = {
+	.driver_name = KBUILD_MODNAME,
+	.owner = THIS_MODULE,
+	.adapter_nr = adapter_nr,
+	.size_of_priv = sizeof(struct mxl111sf_state),
+
+	.generic_bulk_ctrl_endpoint = 0x02,
+	.generic_bulk_ctrl_endpoint_response = 0x81,
+
+	.i2c_algo          = &mxl111sf_i2c_algo,
+	.frontend_attach   = mxl111sf_frontend_attach_mercury,
+	.tuner_attach      = mxl111sf_attach_tuner,
+	.init              = mxl111sf_init,
+	.streaming_ctrl    = mxl111sf_streaming_ctrl_mercury,
+	.get_stream_config = mxl111sf_get_stream_config_mercury,
+	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 1,
-		.fe = {{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2160_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP5_BULK_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "HCW 126xxx (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[2], &mxl111sf_table[6],
-			  NULL },
-		},
-		{   "HCW 117xxx (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[13],
-			  NULL },
-		},
+			.stream = DVB_USB_STREAM_ISOC(6, 5, 24, 3072, 1),
+		}
 	}
 };
 
-static struct dvb_usb_device_properties mxl111sf_mh_isoc_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
+/* mercury mh mxl111sf          lg2161
+ * tp bulk    EP4/BULK/5/8192   EP6/BULK/5/8192/RAW
+ * tp isoc    EP4/ISOC/5/96/564 EP6/ISOC/5/24/3072/RAW
+ * spi bulk   EP4/BULK/5/8192   EP5/BULK/5/8192/RAW
+ * spi isoc   EP4/ISOC/5/96/564 EP5/ISOC/5/96/200/RAW
+ */
+static int mxl111sf_get_stream_config_mercury_mh(struct dvb_frontend *fe,
+		u8 *ts_type, struct usb_data_stream_properties *stream)
+{
+	deb_info("%s: fe=%d\n", __func__, fe->id);
+
+	if (fe->id == 0) {
+		*ts_type = DVB_USB_FE_TS_TYPE_188;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 4, 96, 564);
+		else
+			mxl111sf_stream_config_bulk(stream, 4);
+	} else if (fe->id == 1 && dvb_usb_mxl111sf_spi) {
+		*ts_type = DVB_USB_FE_TS_TYPE_RAW;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 5, 96, 200);
+		else
+			mxl111sf_stream_config_bulk(stream, 5);
+	} else if (fe->id == 1 && !dvb_usb_mxl111sf_spi) {
+		*ts_type = DVB_USB_FE_TS_TYPE_RAW;
+		if (dvb_usb_mxl111sf_isoc)
+			mxl111sf_stream_config_isoc(stream, 6, 24, 3072);
+		else
+			mxl111sf_stream_config_bulk(stream, 6);
+	}
+	return 0;
+}
+
+static int mxl111sf_streaming_ctrl_mercury_mh(struct dvb_frontend *fe, int onoff)
+{
+	deb_info("%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+
+	if (fe->id == 0)
+		return mxl111sf_ep4_streaming_ctrl(fe, onoff);
+	else if (fe->id == 1  && dvb_usb_mxl111sf_spi)
+		return mxl111sf_ep5_streaming_ctrl(fe, onoff);
+	else if (fe->id == 1 && !dvb_usb_mxl111sf_spi)
+		return mxl111sf_ep6_streaming_ctrl(fe, onoff);
+	return 0;
+}
+
+static struct dvb_usb_device_properties mxl111sf_props_mercury_mh = {
+	.driver_name = KBUILD_MODNAME,
+	.owner = THIS_MODULE,
+	.adapter_nr = adapter_nr,
+	.size_of_priv = sizeof(struct mxl111sf_state),
+
+	.generic_bulk_ctrl_endpoint = 0x02,
+	.generic_bulk_ctrl_endpoint_response = 0x81,
+
+	.i2c_algo          = &mxl111sf_i2c_algo,
+	.frontend_attach   = mxl111sf_frontend_attach_mercury_mh,
+	.tuner_attach      = mxl111sf_attach_tuner,
+	.init              = mxl111sf_init,
+	.streaming_ctrl    = mxl111sf_streaming_ctrl_mercury_mh,
+	.get_stream_config = mxl111sf_get_stream_config_mercury_mh,
+	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 1,
-		.fe = {{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2160_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP5_ISOC_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "HCW 126xxx (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[2], &mxl111sf_table[6],
-			  NULL },
-		},
-		{   "HCW 117xxx (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[13],
-			  NULL },
-		},
+			.stream = DVB_USB_STREAM_ISOC(6, 5, 24, 3072, 1),
+		}
 	}
 };
 
-static struct dvb_usb_device_properties mxl111sf_atsc_mh_bulk_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
+static const struct usb_device_id mxl111sf_id_table[] = {
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc600, &mxl111sf_props_atsc_mh, "Hauppauge 126xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc601, &mxl111sf_props_atsc, "Hauppauge 126xxx ATSC", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc602, &mxl111sf_props_mh, "HCW 126xxx", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc603, &mxl111sf_props_atsc_mh, "Hauppauge 126xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc604, &mxl111sf_props_dvbt, "Hauppauge 126xxx DVBT", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc609, &mxl111sf_props_atsc, "Hauppauge 126xxx ATSC", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc60a, &mxl111sf_props_mh, "HCW 126xxx", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc60b, &mxl111sf_props_atsc_mh, "Hauppauge 126xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc60c, &mxl111sf_props_dvbt, "Hauppauge 126xxx DVBT", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc653, &mxl111sf_props_atsc_mh, "Hauppauge 126xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc65b, &mxl111sf_props_atsc_mh, "Hauppauge 126xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb700, &mxl111sf_props_atsc_mh, "Hauppauge 117xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb701, &mxl111sf_props_atsc, "Hauppauge 126xxx ATSC", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb702, &mxl111sf_props_mh, "HCW 117xxx", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb703, &mxl111sf_props_atsc_mh, "Hauppauge 117xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb704, &mxl111sf_props_dvbt, "Hauppauge 117xxx DVBT", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb753, &mxl111sf_props_atsc_mh, "Hauppauge 117xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb763, &mxl111sf_props_atsc_mh, "Hauppauge 117xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb764, &mxl111sf_props_dvbt, "Hauppauge 117xxx DVBT", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd853, &mxl111sf_props_mercury, "Hauppauge Mercury", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd854, &mxl111sf_props_dvbt, "Hauppauge 138xxx DVBT", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd863, &mxl111sf_props_mercury, "Hauppauge Mercury", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd864, &mxl111sf_props_dvbt, "Hauppauge 138xxx DVBT", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8d3, &mxl111sf_props_mercury, "Hauppauge Mercury", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8d4, &mxl111sf_props_dvbt, "Hauppauge 138xxx DVBT", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8e3, &mxl111sf_props_mercury, "Hauppauge Mercury", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8e4, &mxl111sf_props_dvbt, "Hauppauge 138xxx DVBT", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xd8ff, &mxl111sf_props_mercury, "Hauppauge Mercury", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc612, &mxl111sf_props_mercury_mh, "Hauppauge 126xxx", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc613, &mxl111sf_props_mercury, "Hauppauge WinTV-Aero-M", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc61a, &mxl111sf_props_mercury_mh, "Hauppauge 126xxx", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xc61b, &mxl111sf_props_mercury, "Hauppauge WinTV-Aero-M", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb757, &mxl111sf_props_atsc_mh, "Hauppauge 117xxx ATSC+", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xb767, &mxl111sf_props_atsc_mh, "Hauppauge 117xxx ATSC+", NULL) },
+	{ }
+};
+MODULE_DEVICE_TABLE(usb, mxl111sf_id_table);
 
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 3,
-		.fe = {{
-			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_BULK_STREAMING_CONFIG,
-		},
-		{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_BULK_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2160_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP5_BULK_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "Hauppauge 126xxx ATSC+ (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[0], &mxl111sf_table[3],
-			  &mxl111sf_table[7], &mxl111sf_table[9],
-			  &mxl111sf_table[10], NULL },
-		},
-		{   "Hauppauge 117xxx ATSC+ (bulk)",
-			{ NULL },
-			{ &mxl111sf_table[11], &mxl111sf_table[14],
-			  &mxl111sf_table[16], &mxl111sf_table[17],
-			  &mxl111sf_table[32], &mxl111sf_table[33],
-			  NULL },
-		},
-	}
+static struct usb_driver mxl111sf_usb_driver = {
+	.name = KBUILD_MODNAME,
+	.id_table = mxl111sf_id_table,
+	.probe = dvb_usbv2_probe,
+	.disconnect = dvb_usbv2_disconnect,
+	.suspend = dvb_usbv2_suspend,
+	.resume = dvb_usbv2_resume,
+	.no_dynamic_id = 1,
+	.soft_unbind = 1,
 };
 
-static struct dvb_usb_device_properties mxl111sf_atsc_mh_isoc_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 3,
-		.fe = {{
-			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_ISOC_STREAMING_CONFIG,
-		},
-		{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_ISOC_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2160_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP5_ISOC_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "Hauppauge 126xxx ATSC+ (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[0], &mxl111sf_table[3],
-			  &mxl111sf_table[7], &mxl111sf_table[9],
-			  &mxl111sf_table[10], NULL },
-		},
-		{   "Hauppauge 117xxx ATSC+ (isoc)",
-			{ NULL },
-			{ &mxl111sf_table[11], &mxl111sf_table[14],
-			  &mxl111sf_table[16], &mxl111sf_table[17],
-			  &mxl111sf_table[32], &mxl111sf_table[33],
-			  NULL },
-		},
-	}
-};
-
-static struct dvb_usb_device_properties mxl111sf_mercury_spi_bulk_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 3,
-		.fe = {{
-			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_BULK_STREAMING_CONFIG,
-		},
-		{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_BULK_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2161_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP5_BULK_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "Hauppauge Mercury (spi-bulk)",
-			{ NULL },
-			{ &mxl111sf_table[19], &mxl111sf_table[21],
-			  &mxl111sf_table[23], &mxl111sf_table[25],
-			  NULL },
-		},
-		{   "Hauppauge WinTV-Aero-M (spi-bulk)",
-			{ NULL },
-			{ &mxl111sf_table[29], &mxl111sf_table[31],
-			  NULL },
-		},
-	}
-};
-
-static struct dvb_usb_device_properties mxl111sf_mercury_spi_isoc_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 3,
-		.fe = {{
-			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_ISOC_STREAMING_CONFIG,
-		},
-		{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_ISOC_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2161_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP5_ISOC_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "Hauppauge Mercury (spi-isoc)",
-			{ NULL },
-			{ &mxl111sf_table[19], &mxl111sf_table[21],
-			  &mxl111sf_table[23], &mxl111sf_table[25],
-			  NULL },
-		},
-		{   "Hauppauge WinTV-Aero-M (spi-isoc)",
-			{ NULL },
-			{ &mxl111sf_table[29], &mxl111sf_table[31],
-			  NULL },
-		},
-	}
-};
-
-static struct dvb_usb_device_properties mxl111sf_mercury_tp_bulk_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 3,
-		.fe = {{
-			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_BULK_STREAMING_CONFIG,
-		},
-		{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_BULK_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2161_ep6_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_BULK_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "Hauppauge Mercury (tp-bulk)",
-			{ NULL },
-			{ &mxl111sf_table[19], &mxl111sf_table[21],
-			  &mxl111sf_table[23], &mxl111sf_table[25],
-			  &mxl111sf_table[27], NULL },
-		},
-		{   "Hauppauge WinTV-Aero-M",
-			{ NULL },
-			{ &mxl111sf_table[29], &mxl111sf_table[31],
-			  NULL },
-		},
-	}
-};
-
-static struct dvb_usb_device_properties mxl111sf_mercury_tp_isoc_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 3,
-		.fe = {{
-			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_ISOC_STREAMING_CONFIG,
-		},
-		{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_ISOC_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2161_ep6_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_ISOC_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 2,
-	.devices = {
-		{   "Hauppauge Mercury (tp-isoc)",
-			{ NULL },
-			{ &mxl111sf_table[19], &mxl111sf_table[21],
-			  &mxl111sf_table[23], &mxl111sf_table[25],
-			  &mxl111sf_table[27], NULL },
-		},
-		{   "Hauppauge WinTV-Aero-M (tp-isoc)",
-			{ NULL },
-			{ &mxl111sf_table[29], &mxl111sf_table[31],
-			  NULL },
-		},
-	}
-};
-
-static
-struct dvb_usb_device_properties mxl111sf_mercury_mh_tp_bulk_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 2,
-		.fe = {{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_BULK_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2161_ep6_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_BULK_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 1,
-	.devices = {
-		{   "Hauppauge 126xxx (tp-bulk)",
-			{ NULL },
-			{ &mxl111sf_table[28], &mxl111sf_table[30],
-			  NULL },
-		},
-	}
-};
-
-static
-struct dvb_usb_device_properties mxl111sf_mercury_mh_tp_isoc_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 2,
-		.fe = {{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_ISOC_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2161_ep6_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP6_ISOC_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 1,
-	.devices = {
-		{   "Hauppauge 126xxx (tp-isoc)",
-			{ NULL },
-			{ &mxl111sf_table[28], &mxl111sf_table[30],
-			  NULL },
-		},
-	}
-};
-
-static
-struct dvb_usb_device_properties mxl111sf_mercury_mh_spi_bulk_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 2,
-		.fe = {{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_BULK_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2161_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP5_BULK_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 1,
-	.devices = {
-		{   "Hauppauge 126xxx (spi-bulk)",
-			{ NULL },
-			{ &mxl111sf_table[28], &mxl111sf_table[30],
-			  NULL },
-		},
-	}
-};
-
-static
-struct dvb_usb_device_properties mxl111sf_mercury_mh_spi_isoc_properties = {
-	MXL111SF_DEFAULT_DEVICE_PROPERTIES,
-
-	.num_adapters = 1,
-	.adapter = {
-		{
-		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
-		.num_frontends = 2,
-		.fe = {{
-			.frontend_attach  = mxl111sf_attach_demod,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP4_ISOC_STREAMING_CONFIG,
-		},
-		{
-			.caps = DVB_USB_ADAP_RECEIVES_RAW_PAYLOAD,
-
-			.frontend_attach  = mxl111sf_lg2161_frontend_attach,
-			.tuner_attach     = mxl111sf_attach_tuner,
-
-			MXL111SF_EP5_ISOC_STREAMING_CONFIG,
-		}},
-		},
-	},
-	.num_device_descs = 1,
-	.devices = {
-		{   "Hauppauge 126xxx (spi-isoc)",
-			{ NULL },
-			{ &mxl111sf_table[28], &mxl111sf_table[30],
-			  NULL },
-		},
-	}
-};
-
-static struct usb_driver mxl111sf_driver = {
-	.name		= "dvb_usb_mxl111sf",
-	.probe		= mxl111sf_probe,
-	.disconnect     = dvb_usb_device_exit,
-	.id_table	= mxl111sf_table,
-};
-
-module_usb_driver(mxl111sf_driver);
+module_usb_driver(mxl111sf_usb_driver);
 
 MODULE_AUTHOR("Michael Krufky <mkrufky@kernellabs.com>");
 MODULE_DESCRIPTION("Driver for MaxLinear MxL111SF");
