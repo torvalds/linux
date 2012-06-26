@@ -41,9 +41,9 @@ struct wlcore_ops {
 	int (*identify_fw)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
 	int (*plt_init)(struct wl1271 *wl);
-	void (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
-			    void *buf, size_t len);
-	void (*ack_event)(struct wl1271 *wl);
+	int (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
+			   void *buf, size_t len);
+	int (*ack_event)(struct wl1271 *wl);
 	u32 (*calc_tx_blocks)(struct wl1271 *wl, u32 len, u32 spare_blks);
 	void (*set_tx_desc_blocks)(struct wl1271 *wl,
 				   struct wl1271_tx_hw_descr *desc,
@@ -53,17 +53,17 @@ struct wlcore_ops {
 				     struct sk_buff *skb);
 	enum wl_rx_buf_align (*get_rx_buf_align)(struct wl1271 *wl,
 						 u32 rx_desc);
-	void (*prepare_read)(struct wl1271 *wl, u32 rx_desc, u32 len);
+	int (*prepare_read)(struct wl1271 *wl, u32 rx_desc, u32 len);
 	u32 (*get_rx_packet_len)(struct wl1271 *wl, void *rx_data,
 				 u32 data_len);
-	void (*tx_delayed_compl)(struct wl1271 *wl);
+	int (*tx_delayed_compl)(struct wl1271 *wl);
 	void (*tx_immediate_compl)(struct wl1271 *wl);
 	int (*hw_init)(struct wl1271 *wl);
 	int (*init_vif)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 	u32 (*sta_get_ap_rate_mask)(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif);
-	s8 (*get_pg_ver)(struct wl1271 *wl);
-	void (*get_mac)(struct wl1271 *wl);
+	int (*get_pg_ver)(struct wl1271 *wl, s8 *ver);
+	int (*get_mac)(struct wl1271 *wl);
 	void (*set_tx_desc_csum)(struct wl1271 *wl,
 				 struct wl1271_tx_hw_descr *desc,
 				 struct sk_buff *skb);
