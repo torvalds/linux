@@ -762,11 +762,10 @@ unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 {
 	struct xdr_buf *buf = xdr->buf;
 	struct kvec *iov;
-	ssize_t shift;
 	unsigned int nwords = XDR_QUADLEN(len);
 	unsigned int cur = xdr_stream_pos(xdr);
 	unsigned int end;
-	int padding;
+	unsigned int padding;
 
 	if (xdr->nwords == 0)
 		return 0;
@@ -782,15 +781,15 @@ unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	/* Truncate page data and move it into the tail */
 	if (buf->page_len > len)
 		xdr_shrink_pagelen(buf, buf->page_len - len);
+	xdr->nwords = XDR_QUADLEN(buf->len - cur);
+
 	padding = (nwords << 2) - len;
 	xdr->iov = iov = buf->tail;
 	/* Compute remaining message length.  */
-	end = iov->iov_len;
-	shift = buf->buflen - buf->len;
-	if (end > shift + padding)
-		end -= shift;
-	else
-		end = padding;
+	end = ((xdr->nwords - nwords) << 2) + padding;
+	if (end > iov->iov_len)
+		end = iov->iov_len;
+
 	/*
 	 * Position current pointer at beginning of tail, and
 	 * set remaining message length.
