@@ -691,6 +691,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 		break;
 
 	default:
+		kfree(intel_plane);
 		return -ENODEV;
 	}
 
@@ -705,4 +706,3 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 
 	return ret;
 }
-
