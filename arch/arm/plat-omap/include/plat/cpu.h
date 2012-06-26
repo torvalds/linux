@@ -239,8 +239,6 @@ IS_AM_SUBCLASS(335x, 0x335)
  * Macros to detect individual cpu types.
  * These are only rarely needed.
  * cpu_is_omap310():	True for OMAP310
- * cpu_is_omap730():	True for OMAP730
- * cpu_is_omap850():	True for OMAP850
  * cpu_is_omap1510():	True for OMAP1510
  * cpu_is_omap1610():	True for OMAP1610
  * cpu_is_omap1611():	True for OMAP1611
@@ -264,8 +262,6 @@ static inline int is_omap ##type (void)			\
 }
 
 IS_OMAP_TYPE(310, 0x0310)
-IS_OMAP_TYPE(730, 0x0730)
-IS_OMAP_TYPE(850, 0x0850)
 IS_OMAP_TYPE(1510, 0x1510)
 IS_OMAP_TYPE(1610, 0x1610)
 IS_OMAP_TYPE(1611, 0x1611)
@@ -281,8 +277,6 @@ IS_OMAP_TYPE(3505, 0x3517)
 IS_OMAP_TYPE(3517, 0x3517)
 
 #define cpu_is_omap310()		0
-#define cpu_is_omap730()		0
-#define cpu_is_omap850()		0
 #define cpu_is_omap1510()		0
 #define cpu_is_omap1610()		0
 #define cpu_is_omap5912()		0
@@ -304,18 +298,8 @@ IS_OMAP_TYPE(3517, 0x3517)
 
 /*
  * Whether we have MULTI_OMAP1 or not, we still need to distinguish
- * between 730 vs 850, 310 vs. 1510 and 1611B/5912 vs. 1710.
+ * between 310 vs. 1510 and 1611B/5912 vs. 1710.
  */
-
-#if defined(CONFIG_ARCH_OMAP730)
-# undef  cpu_is_omap730
-# define cpu_is_omap730()		is_omap730()
-#endif
-
-#if defined(CONFIG_ARCH_OMAP850)
-# undef  cpu_is_omap850
-# define cpu_is_omap850()		is_omap850()
-#endif
 
 #if defined(CONFIG_ARCH_OMAP15XX)
 # undef  cpu_is_omap310
