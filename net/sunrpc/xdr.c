@@ -773,6 +773,7 @@ void xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	 */
 	xdr->p = (__be32 *)((char *)iov->iov_base + padding);
 	xdr->end = (__be32 *)((char *)iov->iov_base + end);
+	xdr->page_ptr = NULL;
 }
 EXPORT_SYMBOL_GPL(xdr_read_pages);
 
