@@ -2953,6 +2953,7 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 	driver->driver.bus = NULL;
 	hsotg->driver = driver;
 	hsotg->gadget.dev.driver = &driver->driver;
+	hsotg->gadget.dev.of_node = hsotg->dev->of_node;
 	hsotg->gadget.dev.dma_mask = hsotg->dev->dma_mask;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
