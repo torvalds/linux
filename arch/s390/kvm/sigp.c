@@ -268,12 +268,12 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 		if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
 		    & CPUSTAT_RUNNING) {
 			/* running */
-			rc = 1;
+			rc = 0;
 		} else {
 			/* not running */
 			*reg &= 0xffffffff00000000UL;
 			*reg |= SIGP_STATUS_NOT_RUNNING;
-			rc = 0;
+			rc = 1;
 		}
 	}
 	spin_unlock(&fi->lock);
