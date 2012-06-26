@@ -261,9 +261,6 @@ struct omap_dss_dsi_videomode_data {
 	int hfp_blanking_mode;
 
 	/* Video port sync events */
-	int vp_de_pol;
-	int vp_hsync_pol;
-	int vp_vsync_pol;
 	bool vp_vsync_end;
 	bool vp_hsync_end;
 

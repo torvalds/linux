@@ -3631,17 +3631,14 @@ static void dsi_config_vp_num_line_buffers(struct omap_dss_device *dssdev)
 static void dsi_config_vp_sync_events(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int de_pol = dssdev->panel.dsi_vm_data.vp_de_pol;
-	int hsync_pol = dssdev->panel.dsi_vm_data.vp_hsync_pol;
-	int vsync_pol = dssdev->panel.dsi_vm_data.vp_vsync_pol;
 	bool vsync_end = dssdev->panel.dsi_vm_data.vp_vsync_end;
 	bool hsync_end = dssdev->panel.dsi_vm_data.vp_hsync_end;
 	u32 r;
 
 	r = dsi_read_reg(dsidev, DSI_CTRL);
-	r = FLD_MOD(r, de_pol, 9, 9);		/* VP_DE_POL */
-	r = FLD_MOD(r, hsync_pol, 10, 10);	/* VP_HSYNC_POL */
-	r = FLD_MOD(r, vsync_pol, 11, 11);	/* VP_VSYNC_POL */
+	r = FLD_MOD(r, 1, 9, 9);		/* VP_DE_POL */
+	r = FLD_MOD(r, 1, 10, 10);		/* VP_HSYNC_POL */
+	r = FLD_MOD(r, 1, 11, 11);		/* VP_VSYNC_POL */
 	r = FLD_MOD(r, 1, 15, 15);		/* VP_VSYNC_START */
 	r = FLD_MOD(r, vsync_end, 16, 16);	/* VP_VSYNC_END */
 	r = FLD_MOD(r, 1, 17, 17);		/* VP_HSYNC_START */
@@ -4343,22 +4340,22 @@ EXPORT_SYMBOL(omap_dsi_update);
 static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 {
 	int r;
+	struct omap_video_timings timings;
 
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
 		u16 dw, dh;
 		u32 irq;
-		struct omap_video_timings timings = {
-			.hsw		= 1,
-			.hfp		= 1,
-			.hbp		= 1,
-			.vsw		= 1,
-			.vfp		= 0,
-			.vbp		= 0,
-		};
 
 		dssdev->driver->get_resolution(dssdev, &dw, &dh);
+
 		timings.x_res = dw;
 		timings.y_res = dh;
+		timings.hsw = 1;
+		timings.hfp = 1;
+		timings.hbp = 1;
+		timings.vsw = 1;
+		timings.vfp = 0;
+		timings.vbp = 0;
 
 		irq = dispc_mgr_get_framedone_irq(dssdev->manager->id);
 
@@ -4371,14 +4368,25 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 
 		dispc_mgr_enable_stallmode(dssdev->manager->id, true);
 		dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 1);
-
-		dss_mgr_set_timings(dssdev->manager, &timings);
 	} else {
+		timings = dssdev->panel.timings;
+
 		dispc_mgr_enable_stallmode(dssdev->manager->id, false);
 		dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 0);
-
-		dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
 	}
+
+	/*
+	 * override interlace, logic level and edge related parameters in
+	 * omap_video_timings with default values
+	 */
+	timings.interlace = false;
+	timings.hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings.vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
+
+	dss_mgr_set_timings(dssdev->manager, &timings);
 
 	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
 
