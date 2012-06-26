@@ -437,6 +437,20 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 
 	return ret;
 }
+int clk_set_parent_force(struct clk *clk, struct clk *parent)
+{
+	int ret = -EINVAL;
+
+	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
+		return ret;
+
+	if (clk->set_parent==NULL||clk->parents == NULL)
+		return ret;
+	LOCK();
+		ret = clk_set_parent_nolock(clk, parent);	
+	UNLOCK();
+	return ret;
+}
 
 #ifdef RK30_CLK_OFFBOARD_TEST
 EXPORT_SYMBOL(rk30_clk_set_parent);

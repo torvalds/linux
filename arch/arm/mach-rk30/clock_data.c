@@ -3198,15 +3198,24 @@ static void periph_clk_set_init(void)
 		aclk_p = aclk_p>>3;// 0 
 		hclk_p = aclk_p>>1;
 		pclk_p = aclk_p>>2;
-	default:
-		ppll_rate = 297 * MHZ;
+
 	case 297 * MHZ:
 		aclk_p = ppll_rate>>1;
 		hclk_p = aclk_p>>0;
 		pclk_p = aclk_p>>1;
 		break;
+
+	case 300 * MHZ:
+		aclk_p = ppll_rate>>1;
+		hclk_p = aclk_p>>0;
+		pclk_p = aclk_p>>1;
+		break;	
+	default:
+		aclk_p = 150 * MHZ;
+		hclk_p = 150 * MHZ;
+		pclk_p = 75 * MHZ;
+		break;	
 	}
-	
 	clk_set_parent_nolock(&aclk_periph, &general_pll_clk);
 	clk_set_rate_nolock(&aclk_periph, aclk_p);
 	clk_set_rate_nolock(&hclk_periph, hclk_p);

@@ -61,6 +61,10 @@ static unsigned int suspend_freq = 816 * 1000;
 
 static struct workqueue_struct *freq_wq;
 static struct clk *cpu_clk;
+static struct clk *cpu_pll;
+static struct clk *cpu_gpll;
+
+
 static DEFINE_MUTEX(cpufreq_mutex);
 
 static struct clk *gpu_clk;
@@ -234,6 +238,10 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 		}
 		
 		cpu_clk = clk_get(NULL, "cpu");
+		
+		cpu_pll = clk_get(NULL, "arm_pll");
+		
+		cpu_gpll = clk_get(NULL, "arm_gpll");
 		if (IS_ERR(cpu_clk))
 			return PTR_ERR(cpu_clk);
 
@@ -392,7 +400,7 @@ static void ff_scale_votlage(char *name, int volt)
 	}
 
 }
-
+int clk_set_parent_force(struct clk *clk, struct clk *parent);
 static void ff_early_suspend_func(struct early_suspend *h)
 {
 	char buf[32];
@@ -415,7 +423,17 @@ static void ff_early_suspend_func(struct early_suspend *h)
 		FF_ERROR("set speed to 252MHz error\n");
 		return ;
 	}
-
+	
+	if (!IS_ERR(cpu_pll)&&!IS_ERR(cpu_gpll)&&!IS_ERR(cpu_clk))
+	{
+		clk_set_parent_force(cpu_clk,cpu_gpll);
+		clk_set_rate(cpu_clk,300*1000*1000);
+		
+		clk_disable_dvfs(cpu_clk);
+	}	
+	if (!IS_ERR(gpu_clk))
+		dvfs_clk_enable_limit(gpu_clk,75*1000*1000,133*1000*1000);
+	
 	//ff_scale_votlage("vdd_cpu", 1000000);
 	//ff_scale_votlage("vdd_core", 1000000);
 	cpu_down(1);
@@ -426,6 +444,15 @@ static void ff_early_resume_func(struct early_suspend *h)
 	char buf[32];
 	FF_DEBUG("enter %s\n", __func__);
 
+	if (!IS_ERR(cpu_pll)&&!IS_ERR(cpu_gpll)&&!IS_ERR(cpu_clk))
+	{
+		clk_set_parent_force(cpu_clk,cpu_pll);
+		clk_set_rate(cpu_clk,300*1000*1000);
+		clk_enable_dvfs(cpu_clk);
+	}	
+	
+	if (!IS_ERR(gpu_clk))
+		dvfs_clk_disable_limit(gpu_clk);
 	cpu_up(1);
 	if (ff_read(FILE_GOV_MODE, buf) != 0) {
 		FF_ERROR("read current governor error\n");
@@ -654,7 +681,6 @@ static int __init rk30_cpufreq_init(void)
 {
 	register_pm_notifier(&rk30_cpufreq_pm_notifier);
 	register_reboot_notifier(&rk30_cpufreq_reboot_notifier);
-
 	return cpufreq_register_driver(&rk30_cpufreq_driver);
 }
 
