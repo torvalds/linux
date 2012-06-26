@@ -513,17 +513,13 @@ static int das16cs_attach(struct comedi_device *dev,
 
 	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
-	if (1) {
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 8;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = das16cs_dio_insn_bits;
-		s->insn_config = das16cs_dio_insn_config;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 8;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = das16cs_dio_insn_bits;
+	s->insn_config = das16cs_dio_insn_config;
 
 	return 1;
 }
