@@ -60,7 +60,6 @@ struct team_port {
 		unsigned int mtu;
 	} orig;
 
-	struct rcu_head rcu;
 	long mode_priv[0];
 };
 
