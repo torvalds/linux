@@ -44,32 +44,8 @@
 #include <asm/vdso.h>
 #include <asm/debug.h>
 #include <asm/os_info.h>
+#include <asm/sigp.h>
 #include "entry.h"
-
-enum {
-	sigp_sense = 1,
-	sigp_external_call = 2,
-	sigp_emergency_signal = 3,
-	sigp_start = 4,
-	sigp_stop = 5,
-	sigp_restart = 6,
-	sigp_stop_and_store_status = 9,
-	sigp_initial_cpu_reset = 11,
-	sigp_cpu_reset = 12,
-	sigp_set_prefix = 13,
-	sigp_store_status_at_address = 14,
-	sigp_store_extended_status_at_address = 15,
-	sigp_set_architecture = 18,
-	sigp_conditional_emergency_signal = 19,
-	sigp_sense_running = 21,
-};
-
-enum {
-	sigp_order_code_accepted = 0,
-	sigp_status_stored = 1,
-	sigp_busy = 2,
-	sigp_not_operational = 3,
-};
 
 enum {
 	ec_schedule = 0,
@@ -124,7 +100,7 @@ static inline int __pcpu_sigp_relax(u16 addr, u8 order, u32 parm, u32 *status)
 
 	while (1) {
 		cc = __pcpu_sigp(addr, order, parm, status);
-		if (cc != sigp_busy)
+		if (cc != SIGP_CC_BUSY)
 			return cc;
 		cpu_relax();
 	}
@@ -136,7 +112,7 @@ static int pcpu_sigp_retry(struct pcpu *pcpu, u8 order, u32 parm)
 
 	for (retry = 0; ; retry++) {
 		cc = __pcpu_sigp(pcpu->address, order, parm, &pcpu->status);
-		if (cc != sigp_busy)
+		if (cc != SIGP_CC_BUSY)
 			break;
 		if (retry >= 3)
 			udelay(10);
@@ -146,8 +122,8 @@ static int pcpu_sigp_retry(struct pcpu *pcpu, u8 order, u32 parm)
 
 static inline int pcpu_stopped(struct pcpu *pcpu)
 {
-	if (__pcpu_sigp(pcpu->address, sigp_sense,
-			0, &pcpu->status) != sigp_status_stored)
+	if (__pcpu_sigp(pcpu->address, SIGP_SENSE,
+			0, &pcpu->status) != SIGP_CC_STATUS_STORED)
 		return 0;
 	/* Check for stopped and check stop state */
 	return !!(pcpu->status & 0x50);
@@ -155,8 +131,8 @@ static inline int pcpu_stopped(struct pcpu *pcpu)
 
 static inline int pcpu_running(struct pcpu *pcpu)
 {
-	if (__pcpu_sigp(pcpu->address, sigp_sense_running,
-			0, &pcpu->status) != sigp_status_stored)
+	if (__pcpu_sigp(pcpu->address, SIGP_SENSE_RUNNING,
+			0, &pcpu->status) != SIGP_CC_STATUS_STORED)
 		return 1;
 	/* Status stored condition code is equivalent to cpu not running. */
 	return 0;
@@ -181,7 +157,7 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 
 	set_bit(ec_bit, &pcpu->ec_mask);
 	order = pcpu_running(pcpu) ?
-		sigp_external_call : sigp_emergency_signal;
+		SIGP_EXTERNAL_CALL : SIGP_EMERGENCY_SIGNAL;
 	pcpu_sigp_retry(pcpu, order, 0);
 }
 
@@ -214,7 +190,7 @@ static int __cpuinit pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 		goto out;
 #endif
 	lowcore_ptr[cpu] = lc;
-	pcpu_sigp_retry(pcpu, sigp_set_prefix, (u32)(unsigned long) lc);
+	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, (u32)(unsigned long) lc);
 	return 0;
 out:
 	if (pcpu != &pcpu_devices[0]) {
@@ -229,7 +205,7 @@ out:
 
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
-	pcpu_sigp_retry(pcpu, sigp_set_prefix, 0);
+	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, 0);
 	lowcore_ptr[pcpu - pcpu_devices] = NULL;
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
@@ -288,7 +264,7 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 	lc->restart_fn = (unsigned long) func;
 	lc->restart_data = (unsigned long) data;
 	lc->restart_source = -1UL;
-	pcpu_sigp_retry(pcpu, sigp_restart, 0);
+	pcpu_sigp_retry(pcpu, SIGP_RESTART, 0);
 }
 
 /*
@@ -309,7 +285,7 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 	if (pcpu->address == restart.source)
 		func(data);	/* should not return */
 	/* Stop target cpu (if func returns this stops the current cpu). */
-	pcpu_sigp_retry(pcpu, sigp_stop, 0);
+	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
 	memcpy_absolute(&lc->restart_stack, &restart, sizeof(restart));
 	asm volatile(
@@ -388,8 +364,8 @@ void smp_emergency_stop(cpumask_t *cpumask)
 	for_each_cpu(cpu, cpumask) {
 		struct pcpu *pcpu = pcpu_devices + cpu;
 		set_bit(ec_stop_cpu, &pcpu->ec_mask);
-		while (__pcpu_sigp(pcpu->address, sigp_emergency_signal,
-				   0, NULL) == sigp_busy &&
+		while (__pcpu_sigp(pcpu->address, SIGP_EMERGENCY_SIGNAL,
+				   0, NULL) == SIGP_CC_BUSY &&
 		       get_clock() < end)
 			cpu_relax();
 	}
@@ -425,7 +401,7 @@ void smp_send_stop(void)
 	/* stop all processors */
 	for_each_cpu(cpu, &cpumask) {
 		struct pcpu *pcpu = pcpu_devices + cpu;
-		pcpu_sigp_retry(pcpu, sigp_stop, 0);
+		pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 		while (!pcpu_stopped(pcpu))
 			cpu_relax();
 	}
@@ -436,7 +412,7 @@ void smp_send_stop(void)
  */
 void smp_stop_cpu(void)
 {
-	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), sigp_stop, 0);
+	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
 
@@ -590,7 +566,7 @@ static void __init smp_get_save_area(int cpu, u16 address)
 	}
 #endif
 	/* Get the registers of a non-boot cpu. */
-	__pcpu_sigp_relax(address, sigp_stop_and_store_status, 0, NULL);
+	__pcpu_sigp_relax(address, SIGP_STOP_AND_STORE_STATUS, 0, NULL);
 	memcpy_real(save_area, lc + SAVE_AREA_BASE, sizeof(*save_area));
 }
 
@@ -599,8 +575,8 @@ int smp_store_status(int cpu)
 	struct pcpu *pcpu;
 
 	pcpu = pcpu_devices + cpu;
-	if (__pcpu_sigp_relax(pcpu->address, sigp_stop_and_store_status,
-			      0, NULL) != sigp_order_code_accepted)
+	if (__pcpu_sigp_relax(pcpu->address, SIGP_STOP_AND_STORE_STATUS,
+			      0, NULL) != SIGP_CC_ORDER_CODE_ACCEPTED)
 		return -EIO;
 	return 0;
 }
@@ -621,8 +597,8 @@ static struct sclp_cpu_info *smp_get_cpu_info(void)
 	if (info && (use_sigp_detection || sclp_get_cpu_info(info))) {
 		use_sigp_detection = 1;
 		for (address = 0; address <= MAX_CPU_ADDRESS; address++) {
-			if (__pcpu_sigp_relax(address, sigp_sense, 0, NULL) ==
-			    sigp_not_operational)
+			if (__pcpu_sigp_relax(address, SIGP_SENSE, 0, NULL) ==
+			    SIGP_CC_NOT_OPERATIONAL)
 				continue;
 			info->cpu[info->configured].address = address;
 			info->configured++;
@@ -734,8 +710,8 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	pcpu = pcpu_devices + cpu;
 	if (pcpu->state != CPU_STATE_CONFIGURED)
 		return -EIO;
-	if (pcpu_sigp_retry(pcpu, sigp_initial_cpu_reset, 0) !=
-	    sigp_order_code_accepted)
+	if (pcpu_sigp_retry(pcpu, SIGP_INITIAL_CPU_RESET, 0) !=
+	    SIGP_CC_ORDER_CODE_ACCEPTED)
 		return -EIO;
 
 	rc = pcpu_alloc_lowcore(pcpu, cpu);
@@ -795,7 +771,7 @@ void __cpu_die(unsigned int cpu)
 void __noreturn cpu_die(void)
 {
 	idle_task_exit();
-	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), sigp_stop, 0);
+	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
 
