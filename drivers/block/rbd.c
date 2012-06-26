@@ -1437,23 +1437,33 @@ fail:
 }
 
 /*
- * Request sync osd read
+ * Synchronous osd object method call
  */
 static int rbd_req_sync_exec(struct rbd_device *rbd_dev,
 			     const char *object_name,
 			     const char *class_name,
 			     const char *method_name,
-			     const char *data,
-			     int len,
+			     const char *outbound,
+			     size_t outbound_size,
+			     int flags,
 			     u64 *ver)
 {
 	struct ceph_osd_req_op *ops;
 	int class_name_len = strlen(class_name);
 	int method_name_len = strlen(method_name);
+	int payload_size;
 	int ret;
 
-	ops = rbd_create_rw_ops(1, CEPH_OSD_OP_CALL,
-				    class_name_len + method_name_len + len);
+	/*
+	 * Any input parameters required by the method we're calling
+	 * will be sent along with the class and method names as
+	 * part of the message payload.  That data and its size are
+	 * supplied via the indata and indata_len fields (named from
+	 * the perspective of the server side) in the OSD request
+	 * operation.
+	 */
+	payload_size = class_name_len + method_name_len + outbound_size;
+	ops = rbd_create_rw_ops(1, CEPH_OSD_OP_CALL, payload_size);
 	if (!ops)
 		return -ENOMEM;
 
@@ -1462,13 +1472,12 @@ static int rbd_req_sync_exec(struct rbd_device *rbd_dev,
 	ops[0].cls.method_name = method_name;
 	ops[0].cls.method_len = (__u8) method_name_len;
 	ops[0].cls.argc = 0;
-	ops[0].cls.indata = data;
-	ops[0].cls.indata_len = len;
+	ops[0].cls.indata = outbound;
+	ops[0].cls.indata_len = outbound_size;
 
 	ret = rbd_req_sync_op(rbd_dev, NULL,
 			       CEPH_NOSNAP,
-			       CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			       ops,
+			       flags, ops,
 			       object_name, 0, 0, NULL, NULL, ver);
 
 	rbd_destroy_ops(ops);
@@ -1780,7 +1789,9 @@ static int rbd_header_add_snap(struct rbd_device *rbd_dev,
 
 	ret = rbd_req_sync_exec(rbd_dev, rbd_dev->header_name,
 				"rbd", "snap_add",
-				data, p - data, NULL);
+				data, (size_t) (p - data),
+				CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
+				NULL);
 
 	kfree(data);
 
