@@ -175,12 +175,6 @@ config SBC8548
 	help
 	  This option enables support for the Wind River SBC8548 board
 
-config SBC8560
-	bool "Wind River SBC8560"
-	select DEFAULT_UIMAGE
-	help
-	  This option enables support for the Wind River SBC8560 board
-
 config GE_IMP3A
 	bool "GE Intelligent Platforms IMP3A"
 	select DEFAULT_UIMAGE
