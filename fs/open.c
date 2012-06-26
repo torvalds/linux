@@ -766,11 +766,7 @@ int finish_no_open(struct file *file, struct dentry *dentry)
 }
 EXPORT_SYMBOL(finish_no_open);
 
-/*
- * dentry_open() will have done dput(dentry) and mntput(mnt) if it returns an
- * error.
- */
-struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
+struct file *dentry_open(const struct path *path, int flags,
 			 const struct cred *cred)
 {
 	int error;
@@ -779,19 +775,16 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
 	validate_creds(cred);
 
 	/* We must always pass in a valid mount pointer. */
-	BUG_ON(!mnt);
+	BUG_ON(!path->mnt);
 
 	error = -ENFILE;
 	f = get_empty_filp();
-	if (f == NULL) {
-		dput(dentry);
-		mntput(mnt);
+	if (f == NULL)
 		return ERR_PTR(error);
-	}
 
 	f->f_flags = flags;
-	f->f_path.mnt = mnt;
-	f->f_path.dentry = dentry;
+	f->f_path = *path;
+	path_get(&f->f_path);
 	error = do_dentry_open(f, NULL, cred);
 	if (!error) {
 		error = open_check_o_direct(f);
