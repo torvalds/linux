@@ -513,7 +513,7 @@ static int das16cs_attach(struct comedi_device *dev,
 		dev->driver->driver_name, dev->board_name,
 		dev->iobase, dev->irq);
 
-	return 1;
+	return 0;
 }
 
 static void das16cs_detach(struct comedi_device *dev)
