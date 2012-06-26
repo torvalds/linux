@@ -34,6 +34,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c/tsc2007.h>
 #include <linux/io.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/sh_intc.h>
 #include <linux/sh_clk.h>
@@ -158,6 +160,27 @@
  * CN7 : 1.8v
  * CN12: 3.3v
  */
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply fixed1v8_power_consumers[] =
+{
+	/* J22 default position: 1.8V */
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vmmc", "sh_mmcif.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mmcif.0"),
+};
+
+static struct regulator_consumer_supply fixed3v3_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+};
+
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 /* MTD */
 static struct mtd_partition nor_flash_partitions[] = {
@@ -1208,6 +1231,12 @@ static void __init ap4evb_init(void)
 {
 	u32 srcr4;
 	struct clk *clk;
+
+	regulator_register_always_on(0, "fixed-1.8V", fixed1v8_power_consumers,
+				     ARRAY_SIZE(fixed1v8_power_consumers), 1800000);
+	regulator_register_always_on(1, "fixed-3.3V", fixed3v3_power_consumers,
+				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
+	regulator_register_fixed(2, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	/* External clock source */
 	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
