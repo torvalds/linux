@@ -326,6 +326,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	 */
 	if (skb_dst(skb) == NULL) {
 		int err = -ENOENT;
+		bool nocache = false;
 
 		if (sysctl_ip_early_demux) {
 			const struct net_protocol *ipprot;
@@ -334,13 +335,13 @@ static int ip_rcv_finish(struct sk_buff *skb)
 			rcu_read_lock();
 			ipprot = rcu_dereference(inet_protos[protocol]);
 			if (ipprot && ipprot->early_demux)
-				err = ipprot->early_demux(skb);
+				err = ipprot->early_demux(skb, &nocache);
 			rcu_read_unlock();
 		}
 
 		if (err) {
 			err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
-						   iph->tos, skb->dev);
+						   iph->tos, skb->dev, nocache);
 			if (unlikely(err)) {
 				if (err == -EXDEV)
 					NET_INC_STATS_BH(dev_net(skb->dev),
