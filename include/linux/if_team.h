@@ -64,6 +64,8 @@ struct team_port {
 	long mode_priv[0];
 };
 
+extern bool team_port_enabled(struct team_port *port);
+
 struct team_mode_ops {
 	int (*init)(struct team *team);
 	void (*exit)(struct team *team);

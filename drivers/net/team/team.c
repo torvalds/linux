@@ -614,8 +614,6 @@ static int team_change_mode(struct team *team, const char *kind)
  * Rx path frame handler
  ************************/
 
-static bool team_port_enabled(struct team_port *port);
-
 /* note: already called with rcu_read_lock */
 static rx_handler_result_t team_handle_frame(struct sk_buff **pskb)
 {
@@ -673,10 +671,11 @@ static bool team_port_find(const struct team *team,
 	return false;
 }
 
-static bool team_port_enabled(struct team_port *port)
+bool team_port_enabled(struct team_port *port)
 {
 	return port->index != -1;
 }
+EXPORT_SYMBOL(team_port_enabled);
 
 /*
  * Enable/disable port by adding to enabled port hashlist and setting
