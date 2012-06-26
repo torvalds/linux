@@ -111,16 +111,11 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct das16cs_private *devpriv = dev->private;
+	int chan = CR_CHAN(insn->chanspec);
+	int range = CR_RANGE(insn->chanspec);
+	int aref = CR_AREF(insn->chanspec);
 	int i;
 	int to;
-	int aref;
-	int range;
-	int chan;
-	static int range_bits[] = { 0x800, 0x000, 0x100, 0x200 };
-
-	chan = CR_CHAN(insn->chanspec);
-	aref = CR_AREF(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
 
 	outw(chan, dev->iobase + 2);
 
@@ -129,7 +124,22 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	outw(devpriv->status1, dev->iobase + 4);
 
 	devpriv->status2 &= ~0xff00;
-	devpriv->status2 |= range_bits[range];
+	switch (range) {
+	case 0:
+		devpriv->status2 |= 0x800;
+		break;
+	case 1:
+		devpriv->status2 |= 0x000;
+		break;
+	case 2:
+		devpriv->status2 |= 0x100;
+		break;
+	case 3:
+		devpriv->status2 |= 0x200;
+		break;
+	default:
+		return -EINVAL;
+	}
 	outw(devpriv->status2, dev->iobase + 6);
 
 	for (i = 0; i < insn->n; i++) {
@@ -144,7 +154,7 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 			dev_dbg(dev->class_dev, "cb_das16_cs: ai timeout\n");
 			return -ETIME;
 		}
-		data[i] = (unsigned short)inw(dev->iobase + 0);
+		data[i] = inw(dev->iobase + 0);
 	}
 
 	return i;
