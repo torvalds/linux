@@ -446,8 +446,6 @@ static int das16cs_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev_dbg(dev->class_dev, "cb_das16_cs: attach\n");
-
 	link = cur_dev;		/* XXX hack */
 	if (!link)
 		return -EIO;
@@ -460,15 +458,12 @@ static int das16cs_attach(struct comedi_device *dev,
 	dev->board_name = thisboard->name;
 
 	dev->iobase = link->resource[0]->start;
-	dev_dbg(dev->class_dev, "I/O base=0x%04lx\n", dev->iobase);
 
 	ret = request_irq(link->irq, das16cs_interrupt,
 			  IRQF_SHARED, "cb_das16_cs", dev);
 	if (ret < 0)
 		return ret;
 	dev->irq = link->irq;
-
-	dev_dbg(dev->class_dev, "irq=%u\n", dev->irq);
 
 	if (alloc_private(dev, sizeof(struct das16cs_private)) < 0)
 		return -ENOMEM;
@@ -513,6 +508,10 @@ static int das16cs_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = das16cs_dio_insn_bits;
 	s->insn_config = das16cs_dio_insn_config;
+
+	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx, irq=%u\n",
+		dev->driver->driver_name, dev->board_name,
+		dev->iobase, dev->irq);
 
 	return 1;
 }
