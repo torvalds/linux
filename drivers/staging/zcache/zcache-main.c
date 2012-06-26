@@ -1031,45 +1031,43 @@ static int zcache_do_preload(struct tmem_pool *pool)
 		goto out;
 	if (unlikely(zcache_obj_cache == NULL))
 		goto out;
-	preempt_disable();
+
+	/* IRQ has already been disabled. */
 	kp = &__get_cpu_var(zcache_preloads);
 	while (kp->nr < ARRAY_SIZE(kp->objnodes)) {
-		preempt_enable_no_resched();
 		objnode = kmem_cache_alloc(zcache_objnode_cache,
 				ZCACHE_GFP_MASK);
 		if (unlikely(objnode == NULL)) {
 			zcache_failed_alloc++;
 			goto out;
 		}
-		preempt_disable();
-		kp = &__get_cpu_var(zcache_preloads);
-		if (kp->nr < ARRAY_SIZE(kp->objnodes))
-			kp->objnodes[kp->nr++] = objnode;
-		else
-			kmem_cache_free(zcache_objnode_cache, objnode);
+
+		kp->objnodes[kp->nr++] = objnode;
 	}
-	preempt_enable_no_resched();
+
 	obj = kmem_cache_alloc(zcache_obj_cache, ZCACHE_GFP_MASK);
 	if (unlikely(obj == NULL)) {
 		zcache_failed_alloc++;
 		goto out;
 	}
+
 	page = (void *)__get_free_page(ZCACHE_GFP_MASK);
 	if (unlikely(page == NULL)) {
 		zcache_failed_get_free_pages++;
 		kmem_cache_free(zcache_obj_cache, obj);
 		goto out;
 	}
-	preempt_disable();
-	kp = &__get_cpu_var(zcache_preloads);
+
 	if (kp->obj == NULL)
 		kp->obj = obj;
 	else
 		kmem_cache_free(zcache_obj_cache, obj);
+
 	if (kp->page == NULL)
 		kp->page = page;
 	else
 		free_page((unsigned long)page);
+
 	ret = 0;
 out:
 	return ret;
@@ -1580,7 +1578,6 @@ static int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 				zcache_failed_pers_puts++;
 		}
 		zcache_put_pool(pool);
-		preempt_enable_no_resched();
 	} else {
 		zcache_put_to_flush++;
 		if (atomic_read(&pool->obj_count) > 0)
