@@ -136,8 +136,6 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	case 3:
 		devpriv->status2 |= 0x200;
 		break;
-	default:
-		return -EINVAL;
 	}
 	outw(devpriv->status2, dev->iobase + DAS16CS_MISC2);
 
