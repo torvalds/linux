@@ -207,6 +207,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	address = address & 0x7fffe000u;
 	if (copy_from_guest_absolute(vcpu, &tmp, address, 1) ||
 	   copy_from_guest_absolute(vcpu, &tmp, address + PAGE_SIZE, 1)) {
+		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INVALID_PARAMETER;
 		return 1; /* invalid parameter */
 	}
@@ -220,8 +221,9 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 		li = fi->local_int[cpu_addr];
 
 	if (li == NULL) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INCORRECT_STATE;
 		rc = 1; /* incorrect state */
-		*reg &= SIGP_STATUS_INCORRECT_STATE;
 		kfree(inti);
 		goto out_fi;
 	}
@@ -229,8 +231,9 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	spin_lock_bh(&li->lock);
 	/* cpu must be in stopped state */
 	if (!(atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INCORRECT_STATE;
 		rc = 1; /* incorrect state */
-		*reg &= SIGP_STATUS_INCORRECT_STATE;
 		kfree(inti);
 		goto out_li;
 	}
