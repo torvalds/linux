@@ -941,7 +941,6 @@ static int sh_eth_dev_init(struct net_device *ndev)
 {
 	int ret = 0;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	u_int32_t rx_int_var, tx_int_var;
 	u32 val;
 
 	/* Soft Reset */
@@ -971,9 +970,7 @@ static int sh_eth_dev_init(struct net_device *ndev)
 	/* Frame recv control */
 	sh_eth_write(ndev, mdp->cd->rmcr_value, RMCR);
 
-	rx_int_var = mdp->rx_int_var = DESC_I_RINT8 | DESC_I_RINT5;
-	tx_int_var = mdp->tx_int_var = DESC_I_TINT2;
-	sh_eth_write(ndev, rx_int_var | tx_int_var, TRSCER);
+	sh_eth_write(ndev, DESC_I_RINT8 | DESC_I_RINT5 | DESC_I_TINT2, TRSCER);
 
 	if (mdp->cd->bculr)
 		sh_eth_write(ndev, 0x800, BCULR);	/* Burst sycle set */
@@ -2336,8 +2333,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	/* debug message level */
 	mdp->msg_enable = SH_ETH_DEF_MSG_ENABLE;
-	mdp->post_rx = POST_RX >> (devno << 1);
-	mdp->post_fw = POST_FW >> (devno << 1);
 
 	/* read and set MAC address */
 	read_mac_address(ndev, pd->mac_addr);
