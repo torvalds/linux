@@ -147,6 +147,14 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.channel = AD5446_CHANNEL(14, 16, 0),
 		.write = ad5446_write,
 	},
+	[ID_AD5450] = {
+		.channel = AD5446_CHANNEL(8, 16, 6),
+		.write = ad5446_write,
+	},
+	[ID_AD5451] = {
+		.channel = AD5446_CHANNEL(10, 16, 4),
+		.write = ad5446_write,
+	},
 	[ID_AD5541A] = {
 		.channel = AD5446_CHANNEL(16, 16, 0),
 		.write = ad5446_write,
@@ -346,6 +354,10 @@ static int ad5446_remove(struct spi_device *spi)
 static const struct spi_device_id ad5446_id[] = {
 	{"ad5444", ID_AD5444},
 	{"ad5446", ID_AD5446},
+	{"ad5450", ID_AD5450},
+	{"ad5451", ID_AD5451},
+	{"ad5452", ID_AD5444}, /* ad5452 is compatible to the ad5444 */
+	{"ad5453", ID_AD5446}, /* ad5453 is compatible to the ad5446 */
 	{"ad5512a", ID_AD5512A},
 	{"ad5541a", ID_AD5541A},
 	{"ad5542a", ID_AD5541A}, /* ad5541a and ad5542a are compatible */
