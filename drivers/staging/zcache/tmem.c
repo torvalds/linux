@@ -72,31 +72,47 @@ void tmem_register_pamops(struct tmem_pamops *m)
  * the hashbucket lock must be held.
  */
 
-/* searches for object==oid in pool, returns locked object if found */
-static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
-					struct tmem_oid *oidp)
+static struct tmem_obj
+*__tmem_obj_find(struct tmem_hashbucket*hb, struct tmem_oid *oidp,
+		 struct rb_node **parent, struct rb_node ***link)
 {
-	struct rb_node *rbnode;
-	struct tmem_obj *obj;
+	struct rb_node *_parent = NULL, **rbnode;
+	struct tmem_obj *obj = NULL;
 
-	rbnode = hb->obj_rb_root.rb_node;
-	while (rbnode) {
-		BUG_ON(RB_EMPTY_NODE(rbnode));
-		obj = rb_entry(rbnode, struct tmem_obj, rb_tree_node);
+	rbnode = &hb->obj_rb_root.rb_node;
+	while (*rbnode) {
+		BUG_ON(RB_EMPTY_NODE(*rbnode));
+		_parent = *rbnode;
+		obj = rb_entry(*rbnode, struct tmem_obj,
+			       rb_tree_node);
 		switch (tmem_oid_compare(oidp, &obj->oid)) {
 		case 0: /* equal */
 			goto out;
 		case -1:
-			rbnode = rbnode->rb_left;
+			rbnode = &(*rbnode)->rb_left;
 			break;
 		case 1:
-			rbnode = rbnode->rb_right;
+			rbnode = &(*rbnode)->rb_right;
 			break;
 		}
 	}
+
+	if (parent)
+		*parent = _parent;
+	if (link)
+		*link = rbnode;
+
 	obj = NULL;
 out:
 	return obj;
+}
+
+
+/* searches for object==oid in pool, returns locked object if found */
+static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
+					struct tmem_oid *oidp)
+{
+	return __tmem_obj_find(hb, oidp, NULL, NULL);
 }
 
 static void tmem_pampd_destroy_all_in_obj(struct tmem_obj *);
@@ -131,8 +147,7 @@ static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
 					struct tmem_oid *oidp)
 {
 	struct rb_root *root = &hb->obj_rb_root;
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
-	struct tmem_obj *this;
+	struct rb_node **new = NULL, *parent = NULL;
 
 	BUG_ON(pool == NULL);
 	atomic_inc(&pool->obj_count);
@@ -144,22 +159,10 @@ static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
 	obj->pampd_count = 0;
 	(*tmem_pamops.new_obj)(obj);
 	SET_SENTINEL(obj, OBJ);
-	while (*new) {
-		BUG_ON(RB_EMPTY_NODE(*new));
-		this = rb_entry(*new, struct tmem_obj, rb_tree_node);
-		parent = *new;
-		switch (tmem_oid_compare(oidp, &this->oid)) {
-		case 0:
-			BUG(); /* already present; should never happen! */
-			break;
-		case -1:
-			new = &(*new)->rb_left;
-			break;
-		case 1:
-			new = &(*new)->rb_right;
-			break;
-		}
-	}
+
+	if (__tmem_obj_find(hb, oidp, &parent, &new))
+		BUG();
+
 	rb_link_node(&obj->rb_tree_node, parent, new);
 	rb_insert_color(&obj->rb_tree_node, root);
 }
