@@ -421,17 +421,25 @@ static void wait_pending_extra_info_updates(void)
 int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
-	struct mgr_priv_data *mp;
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	u32 irq;
+	unsigned long flags;
 	int r;
 	int i;
-	struct omap_dss_device *dssdev = mgr->device;
 
-	if (!dssdev || dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		return 0;
+	spin_lock_irqsave(&data_lock, flags);
 
-	if (mgr_manual_update(mgr))
+	if (mgr_manual_update(mgr)) {
+		spin_unlock_irqrestore(&data_lock, flags);
 		return 0;
+	}
+
+	if (!mp->enabled) {
+		spin_unlock_irqrestore(&data_lock, flags);
+		return 0;
+	}
+
+	spin_unlock_irqrestore(&data_lock, flags);
 
 	r = dispc_runtime_get();
 	if (r)
@@ -439,10 +447,8 @@ int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 
 	irq = dispc_mgr_get_vsync_irq(mgr->id);
 
-	mp = get_mgr_priv(mgr);
 	i = 0;
 	while (1) {
-		unsigned long flags;
 		bool shadow_dirty, dirty;
 
 		spin_lock_irqsave(&data_lock, flags);
@@ -486,21 +492,30 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
 	struct ovl_priv_data *op;
-	struct omap_dss_device *dssdev;
+	struct mgr_priv_data *mp;
 	u32 irq;
+	unsigned long flags;
 	int r;
 	int i;
 
 	if (!ovl->manager)
 		return 0;
 
-	dssdev = ovl->manager->device;
+	mp = get_mgr_priv(ovl->manager);
 
-	if (!dssdev || dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		return 0;
+	spin_lock_irqsave(&data_lock, flags);
 
-	if (ovl_manual_update(ovl))
+	if (ovl_manual_update(ovl)) {
+		spin_unlock_irqrestore(&data_lock, flags);
 		return 0;
+	}
+
+	if (!mp->enabled) {
+		spin_unlock_irqrestore(&data_lock, flags);
+		return 0;
+	}
+
+	spin_unlock_irqrestore(&data_lock, flags);
 
 	r = dispc_runtime_get();
 	if (r)
@@ -511,7 +526,6 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 	op = get_ovl_priv(ovl);
 	i = 0;
 	while (1) {
-		unsigned long flags;
 		bool shadow_dirty, dirty;
 
 		spin_lock_irqsave(&data_lock, flags);
