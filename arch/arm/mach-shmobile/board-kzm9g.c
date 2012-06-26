@@ -30,6 +30,8 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/renesas_usbhs.h>
@@ -56,6 +58,12 @@
 #define GPIO_PCF8575_PORT14	(GPIO_NR + 12)
 #define GPIO_PCF8575_PORT15	(GPIO_NR + 13)
 #define GPIO_PCF8575_PORT16	(GPIO_NR + 14)
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 /*
  * FSI-AK4648
@@ -322,6 +330,13 @@ static struct platform_device lcdc_device = {
 	},
 };
 
+/* Fixed 1.8V regulator to be used by MMCIF */
+static struct regulator_consumer_supply fixed1v8_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mmcif.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mmcif.0"),
+};
+
 /* MMCIF */
 static struct resource sh_mmcif_resources[] = {
 	[0] = {
@@ -356,6 +371,13 @@ static struct platform_device mmc_device = {
 	},
 	.num_resources	= ARRAY_SIZE(sh_mmcif_resources),
 	.resource	= sh_mmcif_resources,
+};
+
+/* Fixed 2.8V regulators to be used by SDHI0 */
+static struct regulator_consumer_supply fixed2v8_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
 };
 
 /* SDHI */
@@ -619,6 +641,12 @@ device_initcall(as3711_enable_lcdc_backlight);
 
 static void __init kzm_init(void)
 {
+	regulator_register_always_on(0, "fixed-1.8V", fixed1v8_power_consumers,
+				     ARRAY_SIZE(fixed1v8_power_consumers), 1800000);
+	regulator_register_always_on(1, "fixed-2.8V", fixed2v8_power_consumers,
+				     ARRAY_SIZE(fixed2v8_power_consumers), 2800000);
+	regulator_register_fixed(2, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	sh73a0_pinmux_init();
 
 	/* enable SCIFA4 */
