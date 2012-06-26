@@ -600,7 +600,7 @@ out:
 	return;
 }
 
-static void zbud_init(void)
+static void __init zbud_init(void)
 {
 	int i;
 
@@ -1985,7 +1985,7 @@ static int __init enable_zcache_compressor(char *s)
 __setup("zcache=", enable_zcache_compressor);
 
 
-static int zcache_comp_init(void)
+static int __init zcache_comp_init(void)
 {
 	int ret = 0;
 
