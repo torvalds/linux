@@ -26,6 +26,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/io.h>
 #include <linux/input.h>
@@ -196,6 +198,15 @@ static struct platform_device keysc_device = {
 	},
 };
 
+/* Fixed 3.3V regulator to be used by SDHI0 and SDHI1 */
+static struct regulator_consumer_supply fixed3v3_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.1"),
+};
+
 /* SDHI */
 static struct sh_mobile_sdhi_info sdhi0_info = {
 	.tmio_caps	= MMC_CAP_SDIO_IRQ,
@@ -273,6 +284,9 @@ static struct platform_device *g4evm_devices[] __initdata = {
 
 static void __init g4evm_init(void)
 {
+	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
+				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
+
 	sh7377_pinmux_init();
 
 	/* Lit DS14 LED */
