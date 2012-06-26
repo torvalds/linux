@@ -788,6 +788,7 @@ static void sh_eth_ring_free(struct net_device *ndev)
 		}
 	}
 	kfree(mdp->rx_skbuff);
+	mdp->rx_skbuff = NULL;
 
 	/* Free Tx skb ringbuffer */
 	if (mdp->tx_skbuff) {
@@ -797,6 +798,7 @@ static void sh_eth_ring_free(struct net_device *ndev)
 		}
 	}
 	kfree(mdp->tx_skbuff);
+	mdp->tx_skbuff = NULL;
 }
 
 /* format skb and descriptor buffer */
@@ -933,8 +935,29 @@ desc_ring_free:
 skb_ring_free:
 	/* Free Rx and Tx skb ring buffer */
 	sh_eth_ring_free(ndev);
+	mdp->tx_ring = NULL;
+	mdp->rx_ring = NULL;
 
 	return ret;
+}
+
+static void sh_eth_free_dma_buffer(struct sh_eth_private *mdp)
+{
+	int ringsize;
+
+	if (mdp->rx_ring) {
+		ringsize = sizeof(struct sh_eth_rxdesc) * RX_RING_SIZE;
+		dma_free_coherent(NULL, ringsize, mdp->rx_ring,
+				  mdp->rx_desc_dma);
+		mdp->rx_ring = NULL;
+	}
+
+	if (mdp->tx_ring) {
+		ringsize = sizeof(struct sh_eth_txdesc) * TX_RING_SIZE;
+		dma_free_coherent(NULL, ringsize, mdp->tx_ring,
+				  mdp->tx_desc_dma);
+		mdp->tx_ring = NULL;
+	}
 }
 
 static int sh_eth_dev_init(struct net_device *ndev)
@@ -1677,7 +1700,6 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 static int sh_eth_close(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ringsize;
 
 	netif_stop_queue(ndev);
 
@@ -1700,12 +1722,7 @@ static int sh_eth_close(struct net_device *ndev)
 	sh_eth_ring_free(ndev);
 
 	/* free DMA buffer */
-	ringsize = sizeof(struct sh_eth_rxdesc) * RX_RING_SIZE;
-	dma_free_coherent(NULL, ringsize, mdp->rx_ring, mdp->rx_desc_dma);
-
-	/* free DMA buffer */
-	ringsize = sizeof(struct sh_eth_txdesc) * TX_RING_SIZE;
-	dma_free_coherent(NULL, ringsize, mdp->tx_ring, mdp->tx_desc_dma);
+	sh_eth_free_dma_buffer(mdp);
 
 	pm_runtime_put_sync(&mdp->pdev->dev);
 
