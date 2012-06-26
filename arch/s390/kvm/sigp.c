@@ -32,12 +32,16 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	if (fi->local_int[cpu_addr] == NULL)
 		rc = SIGP_CC_NOT_OPERATIONAL;
 	else if (!(atomic_read(fi->local_int[cpu_addr]->cpuflags)
-		  & CPUSTAT_STOPPED)) {
+		   & (CPUSTAT_ECALL_PEND | CPUSTAT_STOPPED)))
+		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
+	else {
 		*reg &= 0xffffffff00000000UL;
-		rc = SIGP_CC_STATUS_STORED;
-	} else {
-		*reg &= 0xffffffff00000000UL;
-		*reg |= SIGP_STATUS_STOPPED;
+		if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
+		    & CPUSTAT_ECALL_PEND)
+			*reg |= SIGP_STATUS_EXT_CALL_PENDING;
+		if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
+		    & CPUSTAT_STOPPED)
+			*reg |= SIGP_STATUS_STOPPED;
 		rc = SIGP_CC_STATUS_STORED;
 	}
 	spin_unlock(&fi->lock);
