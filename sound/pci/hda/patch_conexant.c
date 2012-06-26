@@ -445,8 +445,10 @@ static int conexant_init(struct hda_codec *codec)
 
 static void conexant_free(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
+	snd_hda_gen_free(&spec->gen);
 	snd_hda_detach_beep_device(codec);
-	kfree(codec->spec);
+	kfree(spec);
 }
 
 static const struct snd_kcontrol_new cxt_capture_mixers[] = {
@@ -4498,6 +4500,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+	snd_hda_gen_init(&spec->gen);
 
 	switch (codec->vendor_id) {
 	case 0x14f15045:

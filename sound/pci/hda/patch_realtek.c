@@ -2289,6 +2289,7 @@ static void alc_free(struct hda_codec *codec)
 	alc_shutup(codec);
 	alc_free_kctls(codec);
 	alc_free_bind_ctls(codec);
+	snd_hda_gen_free(&spec->gen);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
@@ -4253,6 +4254,7 @@ static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 		return -ENOMEM;
 	codec->spec = spec;
 	spec->mixer_nid = mixer_nid;
+	snd_hda_gen_init(&spec->gen);
 
 	err = alc_codec_rename_from_preset(codec);
 	if (err < 0) {
