@@ -352,8 +352,10 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	bool is_dummy;
 	bool is_gem = false;
 
-	if (!skb)
+	if (!skb) {
+		wl1271_error("discarding null skb");
 		return -EINVAL;
+	}
 
 	info = IEEE80211_SKB_CB(skb);
 
@@ -662,6 +664,16 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
 	}
 }
 
+/*
+ * Returns failure values only in case of failed bus ops within this function.
+ * wl1271_prepare_tx_frame retvals won't be returned in order to avoid
+ * triggering recovery by higher layers when not necessary.
+ * In case a FW command fails within wl1271_prepare_tx_frame fails a recovery
+ * will be queued in wl1271_cmd_send. -EAGAIN/-EBUSY from prepare_tx_frame
+ * can occur and are legitimate so don't propagate. -EINVAL will emit a WARNING
+ * within prepare_tx_frame code but there's nothing we should do about those
+ * as well.
+ */
 int wlcore_tx_work_locked(struct wl1271 *wl)
 {
 	struct wl12xx_vif *wlvif;
@@ -671,9 +683,10 @@ int wlcore_tx_work_locked(struct wl1271 *wl)
 	bool sent_packets = false;
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	int ret = 0;
+	int bus_ret = 0;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
-		return -EIO;
+		return 0;
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -694,9 +707,9 @@ int wlcore_tx_work_locked(struct wl1271 *wl)
 
 			buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset,
 							    last_len);
-			ret = wlcore_write_data(wl, REG_SLV_MEM_DATA,
-						wl->aggr_buf, buf_offset, true);
-			if (ret < 0)
+			bus_ret = wlcore_write_data(wl, REG_SLV_MEM_DATA,
+					     wl->aggr_buf, buf_offset, true);
+			if (bus_ret < 0)
 				goto out;
 
 			sent_packets = true;
@@ -734,9 +747,9 @@ int wlcore_tx_work_locked(struct wl1271 *wl)
 out_ack:
 	if (buf_offset) {
 		buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset, last_len);
-		ret = wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-					buf_offset, true);
-		if (ret < 0)
+		bus_ret = wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
+					     buf_offset, true);
+		if (bus_ret < 0)
 			goto out;
 
 		sent_packets = true;
@@ -747,9 +760,9 @@ out_ack:
 		 * required for older hardware revisions
 		 */
 		if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION) {
-			ret = wlcore_write32(wl, WL12XX_HOST_WR_ACCESS,
+			bus_ret = wlcore_write32(wl, WL12XX_HOST_WR_ACCESS,
 					     wl->tx_packets_count);
-			if (ret < 0)
+			if (bus_ret < 0)
 				goto out;
 		}
 
@@ -758,7 +771,7 @@ out_ack:
 	wl12xx_rearm_rx_streaming(wl, active_hlids);
 
 out:
-	return ret;
+	return bus_ret;
 }
 
 void wl1271_tx_work(struct work_struct *work)
