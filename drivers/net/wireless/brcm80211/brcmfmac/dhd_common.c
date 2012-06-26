@@ -807,6 +807,8 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;
 	int i;
+	struct brcmf_bus_dcmd *cmdlst;
+	struct list_head *cur, *q;
 
 	mutex_lock(&drvr->proto_block);
 
@@ -872,6 +874,20 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 		brcmf_c_pktfilter_offload_set(drvr, drvr->pktfilter[i]);
 		brcmf_c_pktfilter_offload_enable(drvr, drvr->pktfilter[i],
 						 0, true);
+	}
+
+	/* set bus specific command if there is any */
+	list_for_each_safe(cur, q, &drvr->bus_if->dcmd_list) {
+		cmdlst = list_entry(cur, struct brcmf_bus_dcmd, list);
+		if (cmdlst->name && cmdlst->param && cmdlst->param_len) {
+			brcmf_c_mkiovar(cmdlst->name, cmdlst->param,
+					cmdlst->param_len, iovbuf,
+					sizeof(iovbuf));
+			brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR,
+						 iovbuf, sizeof(iovbuf));
+		}
+		list_del(cur);
+		kfree(cmdlst);
 	}
 
 	mutex_unlock(&drvr->proto_block);
