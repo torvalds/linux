@@ -342,13 +342,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 			err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
 						   iph->tos, skb->dev);
 			if (unlikely(err)) {
-				if (err == -EHOSTUNREACH)
-					IP_INC_STATS_BH(dev_net(skb->dev),
-							IPSTATS_MIB_INADDRERRORS);
-				else if (err == -ENETUNREACH)
-					IP_INC_STATS_BH(dev_net(skb->dev),
-							IPSTATS_MIB_INNOROUTES);
-				else if (err == -EXDEV)
+				if (err == -EXDEV)
 					NET_INC_STATS_BH(dev_net(skb->dev),
 							 LINUX_MIB_IPRPFILTER);
 				goto drop;
