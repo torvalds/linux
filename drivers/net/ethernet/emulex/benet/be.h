@@ -573,6 +573,11 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 	return val;
 }
 
+static inline bool is_ipv4_pkt(struct sk_buff *skb)
+{
+	return skb->protocol == ntohs(ETH_P_IP) && ip_hdr(skb)->version == 4;
+}
+
 static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
 {
 	u32 addr;
