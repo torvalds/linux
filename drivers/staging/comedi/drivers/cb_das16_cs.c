@@ -352,8 +352,10 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 			outw(status1 | b | 0x0004, dev->iobase + DAS16CS_MISC1);
 			udelay(1);
 		}
-/*		make high both DAC0CS and DAC1CS to load
-		new data and update analog output*/
+		/*
+		 * Make both DAC0CS and DAC1CS high to load
+		 * the new data and update analog the output
+		 */
 		outw(status1 | 0x9, dev->iobase + DAS16CS_MISC1);
 	}
 
