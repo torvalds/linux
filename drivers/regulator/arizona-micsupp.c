@@ -57,7 +57,7 @@ static int arizona_micsupp_map_voltage(struct regulator_dev *rdev,
 	if (min_uV < 1700000)
 		min_uV = 1700000;
 
-	if (min_uV >= 3300000)
+	if (min_uV > 3200000)
 		selector = ARIZONA_MICSUPP_MAX_SELECTOR;
 	else
 		selector = DIV_ROUND_UP(min_uV - 1700000, 50000);
