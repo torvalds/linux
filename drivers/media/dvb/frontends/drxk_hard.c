@@ -3004,7 +3004,7 @@ static int ADCSynchronization(struct drxk_state *state)
 		status = read16(state, IQM_AF_CLKNEG__A, &clkNeg);
 		if (status < 0)
 			goto error;
-		if ((clkNeg | IQM_AF_CLKNEG_CLKNEGDATA__M) ==
+		if ((clkNeg & IQM_AF_CLKNEG_CLKNEGDATA__M) ==
 			IQM_AF_CLKNEG_CLKNEGDATA_CLK_ADC_DATA_POS) {
 			clkNeg &= (~(IQM_AF_CLKNEG_CLKNEGDATA__M));
 			clkNeg |=
