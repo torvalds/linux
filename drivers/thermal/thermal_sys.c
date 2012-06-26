@@ -41,12 +41,19 @@ MODULE_AUTHOR("Zhang Rui");
 MODULE_DESCRIPTION("Generic thermal management sysfs support");
 MODULE_LICENSE("GPL");
 
+/*
+ * This structure is used to describe the behavior of
+ * a certain cooling device on a certain trip point
+ * in a certain thermal zone
+ */
 struct thermal_cooling_device_instance {
 	int id;
 	char name[THERMAL_NAME_LENGTH];
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *cdev;
 	int trip;
+	unsigned long upper;	/* Highest cooling state for this trip point */
+	unsigned long lower;	/* Lowest cooling state for this trip point */
 	char attr_name[THERMAL_NAME_LENGTH];
 	struct device_attribute attr;
 	struct list_head node;
@@ -800,6 +807,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	struct thermal_cooling_device_instance *pos;
 	struct thermal_zone_device *pos1;
 	struct thermal_cooling_device *pos2;
+	unsigned long max_state;
 	int result;
 
 	if (trip >= tz->trips || (trip < 0 && trip != THERMAL_TRIPS_NONE))
@@ -824,6 +832,11 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	dev->tz = tz;
 	dev->cdev = cdev;
 	dev->trip = trip;
+
+	cdev->ops->get_max_state(cdev, &max_state);
+	dev->upper = max_state;
+	dev->lower = 0;
+
 	result = get_idr(&tz->idr, &tz->lock, &dev->id);
 	if (result)
 		goto free_mem;
@@ -1103,11 +1116,15 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 				cdev->ops->get_max_state(cdev, &max_state);
 
 				if (temp >= trip_temp)
-					cur_state = cur_state < max_state ?
-						(cur_state + 1) : max_state;
+					cur_state =
+						cur_state < instance->upper ?
+						(cur_state + 1) :
+						instance->upper;
 				else
-					cur_state = cur_state > 0 ?
-						(cur_state - 1) : 0;
+					cur_state =
+						cur_state > instance->lower ?
+						(cur_state - 1) :
+						instance->lower;
 
 				cdev->ops->set_cur_state(cdev, cur_state);
 			}
