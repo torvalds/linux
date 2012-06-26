@@ -105,6 +105,7 @@
 #define AB8500_RTC_BACKUP_CHG_REG	0x0C
 #define AB8500_RTC_CC_CONF_REG		0x01
 #define AB8500_RTC_CTRL_REG		0x0B
+#define AB8500_RTC_CTRL1_REG		0x11
 
 /*
  * OTP register offsets
@@ -179,10 +180,25 @@
 #define BUP_ICH_SEL_300UA		0x08
 #define BUP_ICH_SEL_700UA		0x0C
 
-#define BUP_VCH_SEL_2P5V		0x00
-#define BUP_VCH_SEL_2P6V		0x01
-#define BUP_VCH_SEL_2P8V		0x02
-#define BUP_VCH_SEL_3P1V		0x03
+enum bup_vch_sel {
+	BUP_VCH_SEL_2P5V,
+	BUP_VCH_SEL_2P6V,
+	BUP_VCH_SEL_2P8V,
+	BUP_VCH_SEL_3P1V,
+	/*
+	 * Note that the following 5 values 2.7v, 2.9v, 3.0v, 3.2v, 3.3v
+	 * are only available on ab8540. You can't choose these 5
+	 * voltage on ab8500/ab8505/ab9540.
+	 */
+	BUP_VCH_SEL_2P7V,
+	BUP_VCH_SEL_2P9V,
+	BUP_VCH_SEL_3P0V,
+	BUP_VCH_SEL_3P2V,
+	BUP_VCH_SEL_3P3V,
+};
+
+#define BUP_VCH_RANGE		0x02
+#define VBUP33_VRTCN		0x01
 
 /* Battery OVV constants */
 #define BATT_OVV_ENA			0x02
