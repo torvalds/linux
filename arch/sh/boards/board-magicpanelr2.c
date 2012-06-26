@@ -14,6 +14,8 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -23,6 +25,12 @@
 #include <mach/magicpanelr2.h>
 #include <asm/heartbeat.h>
 #include <cpu/sh7720.h>
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 #define LAN9115_READY	(__raw_readl(0xA8000084UL) & 0x00000001UL)
 
@@ -348,6 +356,8 @@ static struct platform_device *mpr2_devices[] __initdata = {
 
 static int __init mpr2_devices_setup(void)
 {
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	return platform_add_devices(mpr2_devices, ARRAY_SIZE(mpr2_devices));
 }
 device_initcall(mpr2_devices_setup);
