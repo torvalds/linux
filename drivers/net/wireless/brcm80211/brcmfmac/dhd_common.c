@@ -800,7 +800,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	char iovbuf[BRCMF_EVENTING_MASK_LEN + 12];	/*  Room for
 				 "event_msgs" + '\0' + bitvec  */
 	char buf[128], *ptr;
-	u32 dongle_align = drvr->bus_if->align;
 	u32 roaming = 1;
 	uint bcn_timeout = 3;
 	int scan_assoc_time = 40;
@@ -827,12 +826,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	strsep(&ptr, "\n");
 	/* Print fw version info */
 	brcmf_dbg(ERROR, "Firmware version = %s\n", buf);
-
-	/* Match Host and Dongle rx alignment */
-	brcmf_c_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
-		    sizeof(iovbuf));
-	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
-				  sizeof(iovbuf));
 
 	/* Setup timeout if Beacons are lost and roam is off to report
 		 link down */

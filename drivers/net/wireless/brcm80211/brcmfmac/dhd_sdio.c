@@ -4171,6 +4171,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	struct brcmf_sdio *bus;
 	struct brcmf_bus_dcmd *dlst;
 	u32 dngl_txglom;
+	u32 dngl_txglomalign;
 	u8 idx;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -4260,12 +4261,20 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	/* sdio bus core specific dcmd */
 	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
 	dlst = kzalloc(sizeof(struct brcmf_bus_dcmd), GFP_KERNEL);
-	if (bus->ci->c_inf[idx].rev < 12 && dlst) {
-		/* for sdio core rev < 12, disable txgloming */
-		dngl_txglom = 0;
-		dlst->name = "bus:txglom";
-		dlst->param = (char *)&dngl_txglom;
-		dlst->param_len = sizeof(u32);
+	if (dlst) {
+		if (bus->ci->c_inf[idx].rev < 12) {
+			/* for sdio core rev < 12, disable txgloming */
+			dngl_txglom = 0;
+			dlst->name = "bus:txglom";
+			dlst->param = (char *)&dngl_txglom;
+			dlst->param_len = sizeof(u32);
+		} else {
+			/* otherwise, set txglomalign */
+			dngl_txglomalign = bus->sdiodev->bus_if->align;
+			dlst->name = "bus:txglomalign";
+			dlst->param = (char *)&dngl_txglomalign;
+			dlst->param_len = sizeof(u32);
+		}
 		list_add(&dlst->list, &bus->sdiodev->bus_if->dcmd_list);
 	}
 
