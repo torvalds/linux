@@ -1247,7 +1247,6 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 {
 	struct fileEntry *fe;
 	struct extendedFileEntry *efe;
-	int offset;
 	struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	unsigned int link_count;
@@ -1359,7 +1358,6 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		iinfo->i_lenEAttr = le32_to_cpu(fe->lengthExtendedAttr);
 		iinfo->i_lenAlloc = le32_to_cpu(fe->lengthAllocDescs);
 		iinfo->i_checkpoint = le32_to_cpu(fe->checkpoint);
-		offset = sizeof(struct fileEntry) + iinfo->i_lenEAttr;
 	} else {
 		inode->i_blocks = le64_to_cpu(efe->logicalBlocksRecorded) <<
 		    (inode->i_sb->s_blocksize_bits - 9);
@@ -1381,8 +1379,6 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		iinfo->i_lenEAttr = le32_to_cpu(efe->lengthExtendedAttr);
 		iinfo->i_lenAlloc = le32_to_cpu(efe->lengthAllocDescs);
 		iinfo->i_checkpoint = le32_to_cpu(efe->checkpoint);
-		offset = sizeof(struct extendedFileEntry) +
-							iinfo->i_lenEAttr;
 	}
 
 	switch (fe->icbTag.fileType) {
