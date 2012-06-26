@@ -788,22 +788,24 @@ err_out:
 /*
  * helpers for osd request op vectors.
  */
-static int rbd_create_rw_ops(struct ceph_osd_req_op **ops,
-			    int num_ops,
-			    int opcode,
-			    u32 payload_len)
+static struct ceph_osd_req_op *rbd_create_rw_ops(int num_ops,
+					int opcode, u32 payload_len)
 {
-	*ops = kzalloc(sizeof(struct ceph_osd_req_op) * (num_ops + 1),
-		       GFP_NOIO);
-	if (!*ops)
-		return -ENOMEM;
-	(*ops)[0].op = opcode;
+	struct ceph_osd_req_op *ops;
+
+	ops = kzalloc(sizeof (*ops) * (num_ops + 1), GFP_NOIO);
+	if (!ops)
+		return NULL;
+
+	ops[0].op = opcode;
+
 	/*
 	 * op extent offset and length will be set later on
 	 * in calc_raw_layout()
 	 */
-	(*ops)[0].payload_len = payload_len;
-	return 0;
+	ops[0].payload_len = payload_len;
+
+	return ops;
 }
 
 static void rbd_destroy_ops(struct ceph_osd_req_op *ops)
@@ -1040,8 +1042,9 @@ static int rbd_req_sync_op(struct rbd_device *rbd_dev,
 
 	if (!orig_ops) {
 		payload_len = (flags & CEPH_OSD_FLAG_WRITE ? len : 0);
-		ret = rbd_create_rw_ops(&ops, 1, opcode, payload_len);
-		if (ret < 0)
+		ret = -ENOMEM;
+		ops = rbd_create_rw_ops(1, opcode, payload_len);
+		if (!ops)
 			goto done;
 
 		if ((flags & CEPH_OSD_FLAG_WRITE) && buf) {
@@ -1104,8 +1107,9 @@ static int rbd_do_op(struct request *rq,
 
 	payload_len = (flags & CEPH_OSD_FLAG_WRITE ? seg_len : 0);
 
-	ret = rbd_create_rw_ops(&ops, 1, opcode, payload_len);
-	if (ret < 0)
+	ret = -ENOMEM;
+	ops = rbd_create_rw_ops(1, opcode, payload_len);
+	if (!ops)
 		goto done;
 
 	/* we've taken care of segment sizes earlier when we
@@ -1191,9 +1195,9 @@ static int rbd_req_sync_notify_ack(struct rbd_device *rbd_dev,
 	struct ceph_osd_req_op *ops;
 	int ret;
 
-	ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_NOTIFY_ACK, 0);
-	if (ret < 0)
-		return ret;
+	ops = rbd_create_rw_ops(1, CEPH_OSD_OP_NOTIFY_ACK, 0);
+	if (!ops)
+		return -ENOMEM;
 
 	ops[0].watch.ver = cpu_to_le64(ver);
 	ops[0].watch.cookie = notify_id;
@@ -1241,10 +1245,11 @@ static int rbd_req_sync_watch(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_req_op *ops;
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	int ret;
 
-	int ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_WATCH, 0);
-	if (ret < 0)
-		return ret;
+	ops = rbd_create_rw_ops(1, CEPH_OSD_OP_WATCH, 0);
+	if (!ops)
+		return -ENOMEM;
 
 	ret = ceph_osdc_create_event(osdc, rbd_watch_cb, 0,
 				     (void *)rbd_dev, &rbd_dev->watch_event);
@@ -1284,10 +1289,11 @@ fail:
 static int rbd_req_sync_unwatch(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_req_op *ops;
+	int ret;
 
-	int ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_WATCH, 0);
-	if (ret < 0)
-		return ret;
+	ops = rbd_create_rw_ops(1, CEPH_OSD_OP_WATCH, 0);
+	if (!ops)
+		return -ENOMEM;
 
 	ops[0].watch.ver = 0;
 	ops[0].watch.cookie = cpu_to_le64(rbd_dev->watch_event->cookie);
@@ -1335,9 +1341,9 @@ static int rbd_req_sync_notify(struct rbd_device *rbd_dev)
 	int payload_len = sizeof(u32) + sizeof(u32);
 	int ret;
 
-	ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_NOTIFY, payload_len);
-	if (ret < 0)
-		return ret;
+	ops = rbd_create_rw_ops(1, CEPH_OSD_OP_NOTIFY, payload_len);
+	if (!ops)
+		return -ENOMEM;
 
 	info.rbd_dev = rbd_dev;
 
@@ -1388,10 +1394,12 @@ static int rbd_req_sync_exec(struct rbd_device *rbd_dev,
 	struct ceph_osd_req_op *ops;
 	int class_name_len = strlen(class_name);
 	int method_name_len = strlen(method_name);
-	int ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_CALL,
+	int ret;
+
+	ops = rbd_create_rw_ops(1, CEPH_OSD_OP_CALL,
 				    class_name_len + method_name_len + len);
-	if (ret < 0)
-		return ret;
+	if (!ops)
+		return -ENOMEM;
 
 	ops[0].cls.class_name = class_name;
 	ops[0].cls.class_len = (__u8) class_name_len;
