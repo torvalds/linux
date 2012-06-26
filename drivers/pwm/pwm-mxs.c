@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
@@ -130,6 +131,7 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct mxs_pwm_chip *mxs;
 	struct resource *res;
+	struct pinctrl *pinctrl;
 	int ret;
 
 	mxs = devm_kzalloc(&pdev->dev, sizeof(*mxs), GFP_KERNEL);
@@ -140,6 +142,10 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 	mxs->base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!mxs->base)
 		return -EADDRNOTAVAIL;
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl))
+		return PTR_ERR(pinctrl);
 
 	mxs->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mxs->clk))
