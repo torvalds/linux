@@ -73,7 +73,10 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
 	return 0;
 }
-static inline void perf_read_regs(struct pt_regs *regs) { }
+static inline void perf_read_regs(struct pt_regs *regs)
+{
+	regs->result = 0;
+}
 static inline int perf_intr_is_nmi(struct pt_regs *regs)
 {
 	return 0;
@@ -148,17 +151,9 @@ static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
 	unsigned long mmcra = regs->dsisr;
+	unsigned long use_siar = regs->result;
 
-	/* Not a PMU interrupt: Make up flags from regs->msr */
-	if (TRAP(regs) != 0xf00)
-		return perf_flags_from_msr(regs);
-
-	/*
-	 * If we don't support continuous sampling and this
-	 * is not a marked event, same deal
-	 */
-	if ((ppmu->flags & PPMU_NO_CONT_SAMPLING) &&
-	    !(mmcra & MMCRA_SAMPLE_ENABLE))
+	if (!use_siar)
 		return perf_flags_from_msr(regs);
 
 	/*
@@ -185,10 +180,24 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 /*
  * Overload regs->dsisr to store MMCRA so we only need to read it once
  * on each interrupt.
+ * Overload regs->result to specify whether we should use the MSR (result
+ * is zero) or the SIAR (result is non zero).
  */
 static inline void perf_read_regs(struct pt_regs *regs)
 {
-	regs->dsisr = mfspr(SPRN_MMCRA);
+	unsigned long mmcra = mfspr(SPRN_MMCRA);
+	int marked = mmcra & MMCRA_SAMPLE_ENABLE;
+	int use_siar;
+
+	if (TRAP(regs) != 0xf00)
+		use_siar = 0;
+	else if ((ppmu->flags & PPMU_NO_CONT_SAMPLING) && !marked)
+		use_siar = 0;
+	else
+		use_siar = 1;
+
+	regs->dsisr = mmcra;
+	regs->result = use_siar;
 }
 
 /*
@@ -1342,18 +1351,12 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
  */
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
-	unsigned long mmcra = regs->dsisr;
+	unsigned long use_siar = regs->result;
 
-	/* Not a PMU interrupt */
-	if (TRAP(regs) != 0xf00)
+	if (use_siar)
+		return mfspr(SPRN_SIAR) + perf_ip_adjust(regs);
+	else
 		return regs->nip;
-
-	/* Processor doesn't support sampling non marked events */
-	if ((ppmu->flags & PPMU_NO_CONT_SAMPLING) &&
-	    !(mmcra & MMCRA_SAMPLE_ENABLE))
-		return regs->nip;
-
-	return mfspr(SPRN_SIAR) + perf_ip_adjust(regs);
 }
 
 static bool pmc_overflow(unsigned long val)
