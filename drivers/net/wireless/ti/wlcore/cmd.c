@@ -124,7 +124,6 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	return 0;
 
 fail:
-	WARN_ON(1);
 	wl12xx_queue_recovery_work(wl);
 	return ret;
 }
