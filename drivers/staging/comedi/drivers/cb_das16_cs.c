@@ -509,6 +509,8 @@ static int das16cs_attach(struct comedi_device *dev,
 		s->range_table = &range_bipolar10;
 		s->insn_write = &das16cs_ao_winsn;
 		s->insn_read = &das16cs_ao_rinsn;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	s = dev->subdevices + 2;
