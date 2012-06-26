@@ -42,6 +42,7 @@ struct oz_serial_ctx {
 /*------------------------------------------------------------------------------
  */
 static struct oz_cdev g_cdev;
+struct class *g_oz_class;
 /*------------------------------------------------------------------------------
  * Context: process and softirq
  */
@@ -330,7 +331,6 @@ const struct file_operations oz_fops = {
 int oz_cdev_register(void)
 {
 	int err;
-	struct class *cl;
 	struct device *dev;
 	memset(&g_cdev, 0, sizeof(g_cdev));
 	err = alloc_chrdev_region(&g_cdev.devnum, 0, 1, "ozwpan");
@@ -348,12 +348,12 @@ int oz_cdev_register(void)
 		oz_trace("Failed to add cdev\n");
 		goto out2;
 	}
-	cl = class_create(THIS_MODULE, "ozmo_wpan");
-	if (IS_ERR(cl)) {
+	g_oz_class = class_create(THIS_MODULE, "ozmo_wpan");
+	if (IS_ERR(g_oz_class)) {
 		oz_trace("Failed to register ozmo_wpan class\n");
 		goto out1;
 	}
-	dev = device_create(cl, NULL, g_cdev.devnum, NULL, "ozwpan");
+	dev = device_create(g_oz_class, NULL, g_cdev.devnum, NULL, "ozwpan");
 	if (IS_ERR(dev)) {
 		oz_trace("Failed to create sysfs entry for cdev\n");
 		goto out1;
@@ -373,6 +373,10 @@ int oz_cdev_deregister(void)
 {
 	cdev_del(&g_cdev.cdev);
 	unregister_chrdev_region(g_cdev.devnum, 1);
+	if (g_oz_class) {
+		device_destroy(g_oz_class, g_cdev.devnum);
+		class_destroy(g_oz_class);
+	}
 	return 0;
 }
 /*------------------------------------------------------------------------------
