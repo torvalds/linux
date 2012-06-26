@@ -1633,6 +1633,8 @@ enum ieee80211_sa_query_action {
 #define WLAN_OUI_TYPE_WFA_P2P		9
 #define WLAN_OUI_MICROSOFT		0x0050f2
 #define WLAN_OUI_TYPE_MICROSOFT_WPA	1
+#define WLAN_OUI_TYPE_MICROSOFT_WMM	2
+#define WLAN_OUI_TYPE_MICROSOFT_WPS	4
 
 /*
  * WMM/802.11e Tspec Element

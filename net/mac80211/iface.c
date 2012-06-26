@@ -57,9 +57,6 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	pr_debug("%s: setting MTU %d\n", dev->name, new_mtu);
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 	dev->mtu = new_mtu;
 	return 0;
 }
@@ -100,15 +97,12 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sub_if_data *nsdata;
-	struct net_device *dev = sdata->dev;
 
 	ASSERT_RTNL();
 
 	/* we hold the RTNL here so can safely walk the list */
 	list_for_each_entry(nsdata, &local->interfaces, list) {
-		struct net_device *ndev = nsdata->dev;
-
-		if (ndev != dev && ieee80211_sdata_running(nsdata)) {
+		if (nsdata != sdata && ieee80211_sdata_running(nsdata)) {
 			/*
 			 * Allow only a single IBSS interface to be up at any
 			 * time. This is restricted because beacon distribution
@@ -127,7 +121,8 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			 * The remaining checks are only performed for interfaces
 			 * with the same MAC address.
 			 */
-			if (!ether_addr_equal(dev->dev_addr, ndev->dev_addr))
+			if (!ether_addr_equal(sdata->vif.addr,
+					      nsdata->vif.addr))
 				continue;
 
 			/*
@@ -1223,7 +1218,7 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 
 		if (__ffs64(mask) + hweight64(mask) != fls64(mask)) {
 			/* not a contiguous mask ... not handled now! */
-			pr_debug("not contiguous\n");
+			pr_info("not contiguous\n");
 			break;
 		}
 
@@ -1414,10 +1409,6 @@ static u32 ieee80211_idle_off(struct ieee80211_local *local,
 	if (!(local->hw.conf.flags & IEEE80211_CONF_IDLE))
 		return 0;
 
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	wiphy_debug(local->hw.wiphy, "device no longer idle - %s\n", reason);
-#endif
-
 	local->hw.conf.flags &= ~IEEE80211_CONF_IDLE;
 	return IEEE80211_CONF_CHANGE_IDLE;
 }
@@ -1426,10 +1417,6 @@ static u32 ieee80211_idle_on(struct ieee80211_local *local)
 {
 	if (local->hw.conf.flags & IEEE80211_CONF_IDLE)
 		return 0;
-
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	wiphy_debug(local->hw.wiphy, "device now idle\n");
-#endif
 
 	drv_flush(local, false);
 
