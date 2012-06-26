@@ -747,11 +747,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	return 0;
 }
 
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
-
 /* Platform support for /proc/bus/pci/X/Y mmap()s. */
 
 /* If the user uses a host-bridge as the PCI device, he may use
