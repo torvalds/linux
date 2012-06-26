@@ -870,34 +870,22 @@ static void rt_check_expire(void)
 		while ((rth = rcu_dereference_protected(*rthp,
 					lockdep_is_held(rt_hash_lock_addr(i)))) != NULL) {
 			prefetch(rth->dst.rt_next);
-			if (rt_is_expired(rth)) {
+			if (rt_is_expired(rth) ||
+			    rt_may_expire(rth, tmo, ip_rt_gc_timeout)) {
 				*rthp = rth->dst.rt_next;
 				rt_free(rth);
 				continue;
 			}
-			if (rth->dst.expires) {
-				/* Entry is expired even if it is in use */
-				if (time_before_eq(jiffies, rth->dst.expires)) {
-nofree:
-					tmo >>= 1;
-					rthp = &rth->dst.rt_next;
-					/*
-					 * We only count entries on
-					 * a chain with equal hash inputs once
-					 * so that entries for different QOS
-					 * levels, and other non-hash input
-					 * attributes don't unfairly skew
-					 * the length computation
-					 */
-					length += has_noalias(rt_hash_table[i].chain, rth);
-					continue;
-				}
-			} else if (!rt_may_expire(rth, tmo, ip_rt_gc_timeout))
-				goto nofree;
 
-			/* Cleanup aged off entries. */
-			*rthp = rth->dst.rt_next;
-			rt_free(rth);
+			/* We only count entries on a chain with equal
+			 * hash inputs once so that entries for
+			 * different QOS levels, and other non-hash
+			 * input attributes don't unfairly skew the
+			 * length computation
+			 */
+			tmo >>= 1;
+			rthp = &rth->dst.rt_next;
+			length += has_noalias(rt_hash_table[i].chain, rth);
 		}
 		spin_unlock_bh(rt_hash_lock_addr(i));
 		sum += length;
