@@ -27,6 +27,10 @@
 #define TX_TIMEOUT	(5*HZ)
 #define TX_RING_SIZE	64	/* Tx ring size */
 #define RX_RING_SIZE	64	/* Rx ring size */
+#define TX_RING_MIN	64
+#define RX_RING_MIN	64
+#define TX_RING_MAX	1024
+#define RX_RING_MAX	1024
 #define ETHERSMALL		60
 #define PKT_BUF_SZ		1538
 #define SH_ETH_TSU_TIMEOUT_MS	500
@@ -701,6 +705,8 @@ struct sh_eth_private {
 	const u16 *reg_offset;
 	void __iomem *addr;
 	void __iomem *tsu_addr;
+	u32 num_rx_ring;
+	u32 num_tx_ring;
 	dma_addr_t rx_desc_dma;
 	dma_addr_t tx_desc_dma;
 	struct sh_eth_rxdesc *rx_ring;
