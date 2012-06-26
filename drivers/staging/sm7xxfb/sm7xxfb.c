@@ -53,7 +53,7 @@ struct smtcfb_info {
 	u_int width;
 	u_int height;
 	u_int hz;
-	u_long BaseAddressInVRAM;
+
 	u8 chipRevID;
 };
 
@@ -220,17 +220,9 @@ static void sm712_set_timing(struct smtcfb_info *sfb)
 static void sm712_setpalette(int regno, unsigned red, unsigned green,
 			     unsigned blue, struct fb_info *info)
 {
-	struct smtcfb_info *sfb = info->par;
+	/* set bit 5:4 = 01 (write LCD RAM only) */
+	smtc_seqw(0x66, (smtc_seqr(0x66) & 0xC3) | 0x10);
 
-	if (sfb->BaseAddressInVRAM)
-		/*
-		 * second display palette for dual head. Enable CRT RAM, 6-bit
-		 * RAM
-		 */
-		smtc_seqw(0x66, (smtc_seqr(0x66) & 0xC3) | 0x20);
-	else
-		/* primary display palette. Enable LCD RAM only, 6-bit RAM */
-		smtc_seqw(0x66, (smtc_seqr(0x66) & 0xC3) | 0x10);
 	smtc_mmiowb(regno, dac_reg);
 	smtc_mmiowb(red >> 10, dac_val);
 	smtc_mmiowb(green >> 10, dac_val);
@@ -932,8 +924,6 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		goto failed;
 
 	smtcfb_setmode(sfb);
-	/* Primary display starting from 0 position */
-	sfb->BaseAddressInVRAM = 0;
 
 	err = register_framebuffer(&sfb->fb);
 	if (err < 0)
