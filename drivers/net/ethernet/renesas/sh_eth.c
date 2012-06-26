@@ -1339,14 +1339,6 @@ other_irq:
 	return ret;
 }
 
-static void sh_eth_timer(unsigned long data)
-{
-	struct net_device *ndev = (struct net_device *)data;
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	mod_timer(&mdp->timer, jiffies + (10 * HZ));
-}
-
 /* PHY state control function */
 static void sh_eth_adjust_link(struct net_device *ndev)
 {
@@ -1594,11 +1586,6 @@ static int sh_eth_open(struct net_device *ndev)
 	if (ret)
 		goto out_free_irq;
 
-	/* Set the timer to check for link beat. */
-	init_timer(&mdp->timer);
-	mdp->timer.expires = (jiffies + (24 * HZ)) / 10;/* 2.4 sec. */
-	setup_timer(&mdp->timer, sh_eth_timer, (unsigned long)ndev);
-
 	return ret;
 
 out_free_irq:
@@ -1623,9 +1610,6 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 	/* tx_errors count up */
 	ndev->stats.tx_errors++;
 
-	/* timer off */
-	del_timer_sync(&mdp->timer);
-
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		rxdesc = &mdp->rx_ring[i];
@@ -1643,10 +1627,6 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 
 	/* device init */
 	sh_eth_dev_init(ndev);
-
-	/* timer on */
-	mdp->timer.expires = (jiffies + (24 * HZ)) / 10;/* 2.4 sec. */
-	add_timer(&mdp->timer);
 }
 
 /* Packet transmit function */
@@ -1718,8 +1698,6 @@ static int sh_eth_close(struct net_device *ndev)
 	}
 
 	free_irq(ndev->irq, ndev);
-
-	del_timer_sync(&mdp->timer);
 
 	/* Free all the skbuffs in the Rx queue. */
 	sh_eth_ring_free(ndev);
