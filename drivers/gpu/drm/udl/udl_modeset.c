@@ -45,12 +45,25 @@ static char *udl_vidreg_unlock(char *buf)
  *  0x01 H and V sync off (screen blank but powered)
  *  0x07 DPMS powerdown (requires modeset to come back)
  */
-static char *udl_enable_hvsync(char *buf, bool enable)
+static char *udl_set_blank(char *buf, int dpms_mode)
 {
-	if (enable)
-		return udl_set_register(buf, 0x1F, 0x00);
-	else
-		return udl_set_register(buf, 0x1F, 0x07);
+	u8 reg;
+	switch (dpms_mode) {
+	case DRM_MODE_DPMS_OFF:
+		reg = 0x07;
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+		reg = 0x05;
+		break;
+	case DRM_MODE_DPMS_SUSPEND:
+		reg = 0x01;
+		break;
+	case DRM_MODE_DPMS_ON:
+		reg = 0x00;
+		break;
+	}
+
+	return udl_set_register(buf, 0x1f, reg);
 }
 
 static char *udl_set_color_depth(char *buf, u8 selection)
@@ -199,6 +212,20 @@ static char *udl_set_vid_cmds(char *wrptr, struct drm_display_mode *mode)
 	return wrptr;
 }
 
+static char *udl_dummy_render(char *wrptr)
+{
+	*wrptr++ = 0xAF;
+	*wrptr++ = 0x6A; /* copy */
+	*wrptr++ = 0x00; /* from addr */
+	*wrptr++ = 0x00;
+	*wrptr++ = 0x00;
+	*wrptr++ = 0x01; /* one pixel */
+	*wrptr++ = 0x00; /* to address */
+	*wrptr++ = 0x00;
+	*wrptr++ = 0x00;
+	return wrptr;
+}
+
 static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -235,9 +262,10 @@ static void udl_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		buf = (char *)urb->transfer_buffer;
 		buf = udl_vidreg_lock(buf);
-		buf = udl_enable_hvsync(buf, false);
+		buf = udl_set_blank(buf, mode);
 		buf = udl_vidreg_unlock(buf);
 
+		buf = udl_dummy_render(buf);
 		retval = udl_submit_urb(dev, urb, buf - (char *)
 					urb->transfer_buffer);
 	} else {
@@ -306,8 +334,10 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 	wrptr = udl_set_base8bpp(wrptr, 2 * mode->vdisplay * mode->hdisplay);
 
 	wrptr = udl_set_vid_cmds(wrptr, adjusted_mode);
-	wrptr = udl_enable_hvsync(wrptr, true);
+	wrptr = udl_set_blank(wrptr, DRM_MODE_DPMS_ON);
 	wrptr = udl_vidreg_unlock(wrptr);
+
+	wrptr = udl_dummy_render(wrptr);
 
 	ufb->active_16 = true;
 	if (old_fb) {
