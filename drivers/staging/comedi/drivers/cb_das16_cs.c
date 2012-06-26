@@ -19,8 +19,8 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-    PCMCIA support code for the is adapted from the dummy_cs.c driver
-    of the Linux PCMCIA Card Services package.
+    PCMCIA support code for this driver is adapted from the dummy_cs.c
+    driver of the Linux PCMCIA Card Services package.
 
     The initial developer of the original code is David A. Hinds
     <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
