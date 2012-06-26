@@ -186,7 +186,7 @@ static int __devexit mxs_pwm_remove(struct platform_device *pdev)
 }
 
 static struct of_device_id mxs_pwm_dt_ids[] = {
-	{ .compatible = "fsl,mxs-pwm", },
+	{ .compatible = "fsl,imx23-pwm", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxs_pwm_dt_ids);
