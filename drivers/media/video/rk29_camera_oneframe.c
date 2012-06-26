@@ -156,8 +156,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 *         note: this version provided as patch camera_patch_v1.1
 *v0.x.b : fix sensor autofocus thread may in running when reinit sensor if sensor haven't stream on in first init;
 *v0.x.c : fix work queue havn't been finished after close device;
+*v0.x.d : fix error when calculate crop left-top point coordinate;
 */
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xc)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xd)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -1343,21 +1344,21 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
             int ratio;
             if (usr_w > usr_h) {
                 if (mf.width > usr_w) {
-                    ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
+                    ratio = MIN((mf.width*10/usr_w),(mf.height*10/usr_h))-1;
                     rect.width = usr_w*ratio/10;
                     rect.height = usr_h*ratio/10;                    
                 } else {
-                    ratio = (usr_w*10/mf.width)>(usr_h*10/mf.height)?(usr_w*10/mf.width):(usr_h*10/mf.height);
+                    ratio = MAX((usr_w*10/mf.width),(usr_h*10/mf.height))+1;
                     rect.width = usr_w*10/ratio;
                     rect.height = usr_h*10/ratio;
                 }                
             } else {
                 if (mf.height > usr_h) {
-                    ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
+                    ratio = MIN((mf.width*10/usr_w),(mf.height*10/usr_h))-1;
                     rect.width = usr_w*ratio/10;
                     rect.height = usr_h*ratio/10;                     
                 } else {
-                    ratio = (usr_w*10/mf.width)>(usr_h*10/mf.height)?(usr_w*10/mf.width):(usr_h*10/mf.height);
+                    ratio = MAX((usr_w*10/mf.width),(usr_h*10/mf.height))+1;
                     rect.width = usr_w*10/ratio;
                     rect.height = usr_h*10/ratio;
                 }
