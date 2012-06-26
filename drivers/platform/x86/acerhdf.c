@@ -329,7 +329,8 @@ static int acerhdf_bind(struct thermal_zone_device *thermal,
 	if (cdev != cl_dev)
 		return 0;
 
-	if (thermal_zone_bind_cooling_device(thermal, 0, cdev)) {
+	if (thermal_zone_bind_cooling_device(thermal, 0, cdev,
+			THERMAL_NO_LIMIT, THERMAL_NO_LIMIT)) {
 		pr_err("error binding cooling dev\n");
 		return -EINVAL;
 	}

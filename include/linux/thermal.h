@@ -75,6 +75,8 @@ struct thermal_cooling_device_ops {
 	int (*set_cur_state) (struct thermal_cooling_device *, unsigned long);
 };
 
+#define THERMAL_NO_LIMIT -1UL /* no upper/lower limit requirement */
+
 #define THERMAL_TRIPS_NONE -1
 #define THERMAL_MAX_TRIPS 12
 #define THERMAL_NAME_LENGTH 20
@@ -157,7 +159,8 @@ struct thermal_zone_device *thermal_zone_device_register(const char *, int, int,
 void thermal_zone_device_unregister(struct thermal_zone_device *);
 
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
-				     struct thermal_cooling_device *);
+				     struct thermal_cooling_device *,
+				     unsigned long, unsigned long);
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
 				       struct thermal_cooling_device *);
 void thermal_zone_device_update(struct thermal_zone_device *);

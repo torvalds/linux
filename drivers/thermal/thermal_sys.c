@@ -315,8 +315,9 @@ passive_store(struct device *dev, struct device_attribute *attr,
 			if (!strncmp("Processor", cdev->type,
 				     sizeof("Processor")))
 				thermal_zone_bind_cooling_device(tz,
-								 THERMAL_TRIPS_NONE,
-								 cdev);
+						THERMAL_TRIPS_NONE, cdev,
+						THERMAL_NO_LIMIT,
+						THERMAL_NO_LIMIT);
 		}
 		mutex_unlock(&thermal_list_lock);
 		if (!tz->passive_delay)
@@ -801,7 +802,8 @@ static void thermal_zone_device_check(struct work_struct *work)
  */
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 				     int trip,
-				     struct thermal_cooling_device *cdev)
+				     struct thermal_cooling_device *cdev,
+				     unsigned long upper, unsigned long lower)
 {
 	struct thermal_cooling_device_instance *dev;
 	struct thermal_cooling_device_instance *pos;
@@ -825,6 +827,15 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	if (tz != pos1 || cdev != pos2)
 		return -EINVAL;
 
+	cdev->ops->get_max_state(cdev, &max_state);
+
+	/* lower default 0, upper default max_state */
+	lower = lower == THERMAL_NO_LIMIT ? 0 : lower;
+	upper = upper == THERMAL_NO_LIMIT ? max_state : upper;
+
+	if (lower > upper || upper > max_state)
+		return -EINVAL;
+
 	dev =
 	    kzalloc(sizeof(struct thermal_cooling_device_instance), GFP_KERNEL);
 	if (!dev)
@@ -832,10 +843,8 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	dev->tz = tz;
 	dev->cdev = cdev;
 	dev->trip = trip;
-
-	cdev->ops->get_max_state(cdev, &max_state);
-	dev->upper = max_state;
-	dev->lower = 0;
+	dev->upper = upper;
+	dev->lower = lower;
 
 	result = get_idr(&tz->idr, &tz->lock, &dev->id);
 	if (result)
