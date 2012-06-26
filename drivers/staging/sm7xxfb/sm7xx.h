@@ -14,7 +14,6 @@
  */
 
 #define NR_PALETTE        256
-#define NR_RGB            2
 
 #define FB_ACCEL_SMI_LYNX 88
 

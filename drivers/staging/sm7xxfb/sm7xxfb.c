@@ -42,10 +42,6 @@ struct screen_info smtc_screen_info;
 struct smtcfb_info {
 	struct fb_info fb;
 	struct pci_dev *pdev;
-	struct {
-		u8 red, green, blue;
-	} palette[NR_RGB];
-	u_int palette_size;
 
 	u16 chipID;
 	unsigned char __iomem *m_pMMIO;
