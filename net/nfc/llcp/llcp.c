@@ -958,6 +958,45 @@ static void nfc_llcp_recv_cc(struct nfc_llcp_local *local, struct sk_buff *skb)
 	nfc_llcp_sock_put(llcp_sock);
 }
 
+static void nfc_llcp_recv_dm(struct nfc_llcp_local *local, struct sk_buff *skb)
+{
+	struct nfc_llcp_sock *llcp_sock;
+	struct sock *sk;
+	u8 dsap, ssap, reason;
+
+	dsap = nfc_llcp_dsap(skb);
+	ssap = nfc_llcp_ssap(skb);
+	reason = skb->data[2];
+
+	pr_debug("%d %d reason %d\n", ssap, dsap, reason);
+
+	switch (reason) {
+	case LLCP_DM_NOBOUND:
+	case LLCP_DM_REJ:
+		llcp_sock = nfc_llcp_connecting_sock_get(local, dsap);
+		break;
+
+	default:
+		llcp_sock = nfc_llcp_sock_get(local, dsap, ssap);
+		break;
+	}
+
+	if (llcp_sock == NULL) {
+		pr_err("Invalid DM\n");
+		return;
+	}
+
+	sk = &llcp_sock->sk;
+
+	sk->sk_err = ENXIO;
+	sk->sk_state = LLCP_CLOSED;
+	sk->sk_state_change(sk);
+
+	nfc_llcp_sock_put(llcp_sock);
+
+	return;
+}
+
 static void nfc_llcp_rx_work(struct work_struct *work)
 {
 	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
@@ -999,6 +1038,11 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	case LLCP_PDU_CC:
 		pr_debug("CC\n");
 		nfc_llcp_recv_cc(local, skb);
+		break;
+
+	case LLCP_PDU_DM:
+		pr_debug("DM\n");
+		nfc_llcp_recv_dm(local, skb);
 		break;
 
 	case LLCP_PDU_I:
