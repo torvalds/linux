@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 #
 # Generate the x86_cap_flags[] array from include/asm-x86/cpufeature.h
 #
@@ -29,7 +29,7 @@ while (defined($line = <IN>)) {
 			print STDERR "$in: duplicate feature name: $feature\n";
 			$err++;
 		}
-		printf OUT "\t%-32s = \"%s\",%s\n", "[$macro]", $feature;
+		printf OUT "\t%-32s = \"%s\",\n", "[$macro]", $feature;
 	}
 }
 print OUT "};\n";
