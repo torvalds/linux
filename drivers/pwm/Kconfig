@@ -30,6 +30,7 @@ config PWM_IMX
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
 	depends on ARCH_MXS && OF
+	select STMP_DEVICE
 	help
 	  Generic PWM framework driver for Freescale MXS.
 

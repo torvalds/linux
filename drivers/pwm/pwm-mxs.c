@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
-#include <mach/common.h>
+#include <linux/stmp_device.h>
 
 #define SET	0x4
 #define CLR	0x8
@@ -163,7 +163,7 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 	mxs->dev = &pdev->dev;
 	platform_set_drvdata(pdev, mxs);
 
-	mxs_reset_block(mxs->base);
+	stmp_reset_block(mxs->base);
 
 	return 0;
 
