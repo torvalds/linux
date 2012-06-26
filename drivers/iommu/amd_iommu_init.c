@@ -34,6 +34,7 @@
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
 #include <asm/io_apic.h>
+#include <asm/irq_remapping.h>
 
 #include "amd_iommu_proto.h"
 #include "amd_iommu_types.h"
@@ -1897,7 +1898,48 @@ static int __init iommu_go_to_state(enum iommu_init_state state)
 	return ret;
 }
 
+#ifdef CONFIG_IRQ_REMAP
+int __init amd_iommu_prepare(void)
+{
+	return iommu_go_to_state(IOMMU_ACPI_FINISHED);
+}
 
+int __init amd_iommu_supported(void)
+{
+	return amd_iommu_irq_remap ? 1 : 0;
+}
+
+int __init amd_iommu_enable(void)
+{
+	int ret;
+
+	ret = iommu_go_to_state(IOMMU_ENABLED);
+	if (ret)
+		return ret;
+
+	irq_remapping_enabled = 1;
+
+	return 0;
+}
+
+void amd_iommu_disable(void)
+{
+	amd_iommu_suspend();
+}
+
+int amd_iommu_reenable(int mode)
+{
+	amd_iommu_resume();
+
+	return 0;
+}
+
+int __init amd_iommu_enable_faulting(void)
+{
+	/* We enable MSI later when PCI is initialized */
+	return 0;
+}
+#endif
 
 /*
  * This is the core init function for AMD IOMMU hardware in the system.

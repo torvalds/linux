@@ -45,6 +45,7 @@
 
 #include "amd_iommu_proto.h"
 #include "amd_iommu_types.h"
+#include "irq_remapping.h"
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 
@@ -4226,4 +4227,19 @@ static int setup_hpet_msi(unsigned int irq, unsigned int id)
 	return 0;
 }
 
+struct irq_remap_ops amd_iommu_irq_ops = {
+	.supported		= amd_iommu_supported,
+	.prepare		= amd_iommu_prepare,
+	.enable			= amd_iommu_enable,
+	.disable		= amd_iommu_disable,
+	.reenable		= amd_iommu_reenable,
+	.enable_faulting	= amd_iommu_enable_faulting,
+	.setup_ioapic_entry	= setup_ioapic_entry,
+	.set_affinity		= set_affinity,
+	.free_irq		= free_irq,
+	.compose_msi_msg	= compose_msi_msg,
+	.msi_alloc_irq		= msi_alloc_irq,
+	.msi_setup_irq		= msi_setup_irq,
+	.setup_hpet_msi		= setup_hpet_msi,
+};
 #endif
