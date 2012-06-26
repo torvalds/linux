@@ -74,6 +74,8 @@
 #define FW_FILE_NAME_E1H	"bnx2x/bnx2x-e1h-" FW_FILE_VERSION ".fw"
 #define FW_FILE_NAME_E2		"bnx2x/bnx2x-e2-" FW_FILE_VERSION ".fw"
 
+#define MAC_LEADING_ZERO_CNT (ALIGN(ETH_ALEN, sizeof(u32)) - ETH_ALEN)
+
 /* Time in jiffies before concluding the transmitter is hung */
 #define TX_TIMEOUT		(5*HZ)
 
@@ -3060,7 +3062,8 @@ static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
 	struct fcoe_stats_info *fcoe_stat =
 		&bp->slowpath->drv_info_to_mcp.fcoe_stat;
 
-	memcpy(fcoe_stat->mac_local, bp->fip_mac, ETH_ALEN);
+	memcpy(fcoe_stat->mac_local + MAC_LEADING_ZERO_CNT,
+	       bp->fip_mac, ETH_ALEN);
 
 	fcoe_stat->qos_priority =
 		app->traffic_type_priority[LLFC_TRAFFIC_TYPE_FCOE];
@@ -3151,7 +3154,8 @@ static void bnx2x_drv_info_iscsi_stat(struct bnx2x *bp)
 	struct iscsi_stats_info *iscsi_stat =
 		&bp->slowpath->drv_info_to_mcp.iscsi_stat;
 
-	memcpy(iscsi_stat->mac_local, bp->cnic_eth_dev.iscsi_mac, ETH_ALEN);
+	memcpy(iscsi_stat->mac_local + MAC_LEADING_ZERO_CNT,
+	       bp->cnic_eth_dev.iscsi_mac, ETH_ALEN);
 
 	iscsi_stat->qos_priority =
 		app->traffic_type_priority[LLFC_TRAFFIC_TYPE_ISCSI];
@@ -9732,6 +9736,9 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	bp->flags |= (val >= REQ_BC_VER_4_PFC_STATS_SUPPORTED) ?
 			BC_SUPPORTS_PFC_STATS : 0;
 
+	bp->flags |= (val >= REQ_BC_VER_4_FCOE_FEATURES) ?
+			BC_SUPPORTS_FCOE_FEATURES : 0;
+
 	bp->flags |= (val >= REQ_BC_VER_4_DCBX_ADMIN_MSG_NON_PMF) ?
 			BC_SUPPORTS_DCBX_MSG_NON_PMF : 0;
 	boot_mode = SHMEM_RD(bp,
@@ -12548,21 +12555,45 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 		break;
 	}
 	case DRV_CTL_ULP_REGISTER_CMD: {
-		int ulp_type = ctl->data.ulp_type;
+		int ulp_type = ctl->data.register_data.ulp_type;
 
 		if (CHIP_IS_E3(bp)) {
 			int idx = BP_FW_MB_IDX(bp);
-			u32 cap;
+			u32 cap = SHMEM2_RD(bp, drv_capabilities_flag[idx]);
+			int path = BP_PATH(bp);
+			int port = BP_PORT(bp);
+			int i;
+			u32 scratch_offset;
+			u32 *host_addr;
 
-			cap = SHMEM2_RD(bp, drv_capabilities_flag[idx]);
+			/* first write capability to shmem2 */
 			if (ulp_type == CNIC_ULP_ISCSI)
 				cap |= DRV_FLAGS_CAPABILITIES_LOADED_ISCSI;
 			else if (ulp_type == CNIC_ULP_FCOE)
 				cap |= DRV_FLAGS_CAPABILITIES_LOADED_FCOE;
 			SHMEM2_WR(bp, drv_capabilities_flag[idx], cap);
+
+			if ((ulp_type != CNIC_ULP_FCOE) ||
+			    (!SHMEM2_HAS(bp, ncsi_oem_data_addr)) ||
+			    (!(bp->flags &  BC_SUPPORTS_FCOE_FEATURES)))
+				break;
+
+			/* if reached here - should write fcoe capabilities */
+			scratch_offset = SHMEM2_RD(bp, ncsi_oem_data_addr);
+			if (!scratch_offset)
+				break;
+			scratch_offset += offsetof(struct glob_ncsi_oem_data,
+						   fcoe_features[path][port]);
+			host_addr = (u32 *) &(ctl->data.register_data.
+					      fcoe_features);
+			for (i = 0; i < sizeof(struct fcoe_capabilities);
+			     i += 4)
+				REG_WR(bp, scratch_offset + i,
+				       *(host_addr + i/4));
 		}
 		break;
 	}
+
 	case DRV_CTL_ULP_UNREGISTER_CMD: {
 		int ulp_type = ctl->data.ulp_type;
 

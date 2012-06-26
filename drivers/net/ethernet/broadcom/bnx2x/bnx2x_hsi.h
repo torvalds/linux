@@ -10,6 +10,7 @@
 #define BNX2X_HSI_H
 
 #include "bnx2x_fw_defs.h"
+#include "bnx2x_mfw_req.h"
 
 #define FW_ENCODE_32BIT_PATTERN         0x1e1e1e1e
 
@@ -32,12 +33,6 @@ struct license_key {
 
 	u32 reserved_b[4];
 };
-
-
-#define PORT_0			0
-#define PORT_1			1
-#define PORT_MAX		2
-#define NVM_PATH_MAX		2
 
 /****************************************************************************
  * Shared HW configuration                                                  *
@@ -1252,6 +1247,7 @@ struct drv_func_mb {
 	#define REQ_BC_VER_4_VRFY_AFEX_SUPPORTED        0x00070002
 	#define REQ_BC_VER_4_SFP_TX_DISABLE_SUPPORTED   0x00070014
 	#define REQ_BC_VER_4_PFC_STATS_SUPPORTED        0x00070201
+	#define REQ_BC_VER_4_FCOE_FEATURES              0x00070209
 
 	#define DRV_MSG_CODE_DCBX_ADMIN_PMF_MSG         0xb0000000
 	#define DRV_MSG_CODE_DCBX_PMF_DRV_OK            0xb2000000
@@ -2700,118 +2696,6 @@ struct host_func_stats {
 /* VIC definitions */
 #define VICSTATST_UIF_INDEX 2
 
-/* current drv_info version */
-#define DRV_INFO_CUR_VER 1
-
-/* drv_info op codes supported */
-enum drv_info_opcode {
-	ETH_STATS_OPCODE,
-	FCOE_STATS_OPCODE,
-	ISCSI_STATS_OPCODE
-};
-
-#define ETH_STAT_INFO_VERSION_LEN	12
-/*  Per PCI Function Ethernet Statistics required from the driver */
-struct eth_stats_info {
-	/* Function's Driver Version. padded to 12 */
-	u8 version[ETH_STAT_INFO_VERSION_LEN];
-	/* Locally Admin Addr. BigEndian EIU48. Actual size is 6 bytes */
-	u8 mac_local[8];
-	u8 mac_add1[8];		/* Additional Programmed MAC Addr 1. */
-	u8 mac_add2[8];		/* Additional Programmed MAC Addr 2. */
-	u32 mtu_size;		/* MTU Size. Note   : Negotiated MTU */
-	u32 feature_flags;	/* Feature_Flags. */
-#define FEATURE_ETH_CHKSUM_OFFLOAD_MASK		0x01
-#define FEATURE_ETH_LSO_MASK			0x02
-#define FEATURE_ETH_BOOTMODE_MASK		0x1C
-#define FEATURE_ETH_BOOTMODE_SHIFT		2
-#define FEATURE_ETH_BOOTMODE_NONE		(0x0 << 2)
-#define FEATURE_ETH_BOOTMODE_PXE		(0x1 << 2)
-#define FEATURE_ETH_BOOTMODE_ISCSI		(0x2 << 2)
-#define FEATURE_ETH_BOOTMODE_FCOE		(0x3 << 2)
-#define FEATURE_ETH_TOE_MASK			0x20
-	u32 lso_max_size;	/* LSO MaxOffloadSize. */
-	u32 lso_min_seg_cnt;	/* LSO MinSegmentCount. */
-	/* Num Offloaded Connections TCP_IPv4. */
-	u32 ipv4_ofld_cnt;
-	/* Num Offloaded Connections TCP_IPv6. */
-	u32 ipv6_ofld_cnt;
-	u32 promiscuous_mode;	/* Promiscuous Mode. non-zero true */
-	u32 txq_size;		/* TX Descriptors Queue Size */
-	u32 rxq_size;		/* RX Descriptors Queue Size */
-	/* TX Descriptor Queue Avg Depth. % Avg Queue Depth since last poll */
-	u32 txq_avg_depth;
-	/* RX Descriptors Queue Avg Depth. % Avg Queue Depth since last poll */
-	u32 rxq_avg_depth;
-	/* IOV_Offload. 0=none; 1=MultiQueue, 2=VEB 3= VEPA*/
-	u32 iov_offload;
-	/* Number of NetQueue/VMQ Config'd. */
-	u32 netq_cnt;
-	u32 vf_cnt;		/* Num VF assigned to this PF. */
-};
-
-/*  Per PCI Function FCOE Statistics required from the driver */
-struct fcoe_stats_info {
-	u8 version[12];		/* Function's Driver Version. */
-	u8 mac_local[8];	/* Locally Admin Addr. */
-	u8 mac_add1[8];		/* Additional Programmed MAC Addr 1. */
-	u8 mac_add2[8];		/* Additional Programmed MAC Addr 2. */
-	/* QoS Priority (per 802.1p). 0-7255 */
-	u32 qos_priority;
-	u32 txq_size;		/* FCoE TX Descriptors Queue Size. */
-	u32 rxq_size;		/* FCoE RX Descriptors Queue Size. */
-	/* FCoE TX Descriptor Queue Avg Depth. */
-	u32 txq_avg_depth;
-	/* FCoE RX Descriptors Queue Avg Depth. */
-	u32 rxq_avg_depth;
-	u32 rx_frames_lo;	/* FCoE RX Frames received. */
-	u32 rx_frames_hi;	/* FCoE RX Frames received. */
-	u32 rx_bytes_lo;	/* FCoE RX Bytes received. */
-	u32 rx_bytes_hi;	/* FCoE RX Bytes received. */
-	u32 tx_frames_lo;	/* FCoE TX Frames sent. */
-	u32 tx_frames_hi;	/* FCoE TX Frames sent. */
-	u32 tx_bytes_lo;	/* FCoE TX Bytes sent. */
-	u32 tx_bytes_hi;	/* FCoE TX Bytes sent. */
-};
-
-/* Per PCI  Function iSCSI Statistics required from the driver*/
-struct iscsi_stats_info {
-	u8 version[12];		/* Function's Driver Version. */
-	u8 mac_local[8];	/* Locally Admin iSCSI MAC Addr. */
-	u8 mac_add1[8];		/* Additional Programmed MAC Addr 1. */
-	/* QoS Priority (per 802.1p). 0-7255 */
-	u32 qos_priority;
-	u8 initiator_name[64];	/* iSCSI Boot Initiator Node name. */
-	u8 ww_port_name[64];	/* iSCSI World wide port name */
-	u8 boot_target_name[64];/* iSCSI Boot Target Name. */
-	u8 boot_target_ip[16];	/* iSCSI Boot Target IP. */
-	u32 boot_target_portal;	/* iSCSI Boot Target Portal. */
-	u8 boot_init_ip[16];	/* iSCSI Boot Initiator IP Address. */
-	u32 max_frame_size;	/* Max Frame Size. bytes */
-	u32 txq_size;		/* PDU TX Descriptors Queue Size. */
-	u32 rxq_size;		/* PDU RX Descriptors Queue Size. */
-	u32 txq_avg_depth;	/* PDU TX Descriptor Queue Avg Depth. */
-	u32 rxq_avg_depth;	/* PDU RX Descriptors Queue Avg Depth. */
-	u32 rx_pdus_lo;		/* iSCSI PDUs received. */
-	u32 rx_pdus_hi;		/* iSCSI PDUs received. */
-	u32 rx_bytes_lo;	/* iSCSI RX Bytes received. */
-	u32 rx_bytes_hi;	/* iSCSI RX Bytes received. */
-	u32 tx_pdus_lo;		/* iSCSI PDUs sent. */
-	u32 tx_pdus_hi;		/* iSCSI PDUs sent. */
-	u32 tx_bytes_lo;	/* iSCSI PDU TX Bytes sent. */
-	u32 tx_bytes_hi;	/* iSCSI PDU TX Bytes sent. */
-	u32 pcp_prior_map_tbl;	/* C-PCP to S-PCP Priority MapTable.
-				 * 9 nibbles, the position of each nibble
-				 * represents the C-PCP value, the value
-				 * of the nibble = S-PCP value.
-				 */
-};
-
-union drv_info_to_mcp {
-	struct eth_stats_info	ether_stat;
-	struct fcoe_stats_info	fcoe_stat;
-	struct iscsi_stats_info	iscsi_stat;
-};
 
 /* stats collected for afex.
  * NOTE: structure is exactly as expected to be received by the switch.

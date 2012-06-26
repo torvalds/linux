@@ -256,11 +256,16 @@ static void cnic_ulp_ctl(struct cnic_dev *dev, int ulp_type, bool reg)
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_eth_dev *ethdev = cp->ethdev;
 	struct drv_ctl_info info;
+	struct fcoe_capabilities *fcoe_cap =
+		&info.data.register_data.fcoe_features;
 
-	if (reg)
+	if (reg) {
 		info.cmd = DRV_CTL_ULP_REGISTER_CMD;
-	else
+		if (ulp_type == CNIC_ULP_FCOE && dev->fcoe_cap)
+			memcpy(fcoe_cap, dev->fcoe_cap, sizeof(*fcoe_cap));
+	} else {
 		info.cmd = DRV_CTL_ULP_UNREGISTER_CMD;
+	}
 
 	info.data.ulp_type = ulp_type;
 	ethdev->drv_ctl(dev->netdev, &info);
@@ -611,6 +616,8 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 
 	if (ulp_type == CNIC_ULP_ISCSI)
 		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
+	else if (ulp_type == CNIC_ULP_FCOE)
+		dev->fcoe_cap = NULL;
 
 	synchronize_rcu();
 
