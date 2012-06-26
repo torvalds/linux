@@ -2833,7 +2833,7 @@ err:
 	inode_inc_iversion(inode);
 	inode_inc_iversion(dir);
 	inode->i_ctime = dir->i_mtime = dir->i_ctime = CURRENT_TIME;
-	btrfs_update_inode(trans, root, dir);
+	ret = btrfs_update_inode(trans, root, dir);
 out:
 	return ret;
 }
