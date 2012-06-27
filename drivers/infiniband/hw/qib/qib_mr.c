@@ -527,3 +527,10 @@ int qib_dealloc_fmr(struct ib_fmr *ibfmr)
 out:
 	return ret;
 }
+
+void mr_rcu_callback(struct rcu_head *list)
+{
+	struct qib_mregion *mr = container_of(list, struct qib_mregion, list);
+
+	complete(&mr->comp);
+}

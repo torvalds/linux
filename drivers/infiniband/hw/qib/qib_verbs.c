@@ -2066,7 +2066,9 @@ int qib_register_ib_device(struct qib_devdata *dd)
 		ret = -ENOMEM;
 		goto err_lk;
 	}
-	memset(dev->lk_table.table, 0, lk_tab_size);
+	RCU_INIT_POINTER(dev->dma_mr, NULL);
+	for (i = 0; i < dev->lk_table.max; i++)
+		RCU_INIT_POINTER(dev->lk_table.table[i], NULL);
 	INIT_LIST_HEAD(&dev->pending_mmaps);
 	spin_lock_init(&dev->pending_lock);
 	dev->mmap_offset = PAGE_SIZE;

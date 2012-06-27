@@ -303,8 +303,9 @@ struct qib_mregion {
 	u32 max_segs;           /* number of qib_segs in all the arrays */
 	u32 mapsz;              /* size of the map array */
 	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
-	u8  lkey_published;	/* in global table */
+	u8  lkey_published;     /* in global table */
 	struct completion comp; /* complete when refcount goes to zero */
+	struct rcu_head list;
 	atomic_t refcount;
 	struct qib_segarray *map[0];    /* the segments */
 };
@@ -1022,10 +1023,12 @@ static inline void qib_get_mr(struct qib_mregion *mr)
 	atomic_inc(&mr->refcount);
 }
 
+void mr_rcu_callback(struct rcu_head *list);
+
 static inline void qib_put_mr(struct qib_mregion *mr)
 {
 	if (unlikely(atomic_dec_and_test(&mr->refcount)))
-		complete(&mr->comp);
+		call_rcu(&mr->list, mr_rcu_callback);
 }
 
 static inline void qib_put_ss(struct qib_sge_state *ss)
