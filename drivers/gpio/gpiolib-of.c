@@ -62,7 +62,10 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 int of_get_named_gpio_flags(struct device_node *np, const char *propname,
                            int index, enum of_gpio_flags *flags)
 {
-	struct gg_data gg_data = { .flags = flags, .out_gpio = -ENODEV };
+	/* Return -EPROBE_DEFER to support probe() functions to be called
+	 * later when the GPIO actually becomes available
+	 */
+	struct gg_data gg_data = { .flags = flags, .out_gpio = -EPROBE_DEFER };
 	int ret;
 
 	/* .of_xlate might decide to not fill in the flags, so clear it. */
