@@ -357,16 +357,16 @@ struct cb_pcidas_private {
 	/*  divisors of master clock for analog input pacing */
 	unsigned int divisor1;
 	unsigned int divisor2;
-	volatile unsigned int count;	/*  number of analog input samples remaining */
-	volatile unsigned int adc_fifo_bits;	/*  bits to write to interrupt/adcfifo register */
-	volatile unsigned int s5933_intcsr_bits;	/*  bits to write to amcc s5933 interrupt control/status register */
-	volatile unsigned int ao_control_bits;	/*  bits to write to ao control and status register */
+	unsigned int count;	/*  number of analog input samples remaining */
+	unsigned int adc_fifo_bits;	/*  bits to write to interrupt/adcfifo register */
+	unsigned int s5933_intcsr_bits;	/*  bits to write to amcc s5933 interrupt control/status register */
+	unsigned int ao_control_bits;	/*  bits to write to ao control and status register */
 	short ai_buffer[AI_BUFFER_SIZE];
 	short ao_buffer[AO_BUFFER_SIZE];
 	/*  divisors of master clock for analog output pacing */
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
-	volatile unsigned int ao_count;	/*  number of analog output samples remaining */
+	unsigned int ao_count;	/*  number of analog output samples remaining */
 	int ao_value[2];	/*  remember what the analog outputs are set to, to allow readback */
 	unsigned int caldac_value[NUM_CHANNELS_8800];	/*  for readback of caldac */
 	unsigned int trimpot_value[NUM_CHANNELS_8402];	/*  for readback of trimpot */
