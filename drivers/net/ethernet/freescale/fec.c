@@ -1513,7 +1513,8 @@ static void __devinit fec_reset_phy(struct platform_device *pdev)
 		return;
 
 	phy_reset = of_get_named_gpio(np, "phy-reset-gpios", 0);
-	err = gpio_request_one(phy_reset, GPIOF_OUT_INIT_LOW, "phy-reset");
+	err = devm_gpio_request_one(&pdev->dev, phy_reset,
+				    GPIOF_OUT_INIT_LOW, "phy-reset");
 	if (err) {
 		pr_debug("FEC: failed to get gpio phy-reset: %d\n", err);
 		return;
