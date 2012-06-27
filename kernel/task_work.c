@@ -3,7 +3,7 @@
 #include <linux/tracehook.h>
 
 int
-task_work_add(struct task_struct *task, struct task_work *twork, bool notify)
+task_work_add(struct task_struct *task, struct callback_head *twork, bool notify)
 {
 	unsigned long flags;
 	int err = -ESRCH;
@@ -19,8 +19,8 @@ task_work_add(struct task_struct *task, struct task_work *twork, bool notify)
 	 */
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
 	if (likely(!(task->flags & PF_EXITING))) {
-		struct task_work *last = task->task_works;
-		struct task_work *first = last ? last->next : twork;
+		struct callback_head *last = task->task_works;
+		struct callback_head *first = last ? last->next : twork;
 		twork->next = first;
 		if (last)
 			last->next = twork;
@@ -35,16 +35,16 @@ task_work_add(struct task_struct *task, struct task_work *twork, bool notify)
 	return err;
 }
 
-struct task_work *
+struct callback_head *
 task_work_cancel(struct task_struct *task, task_work_func_t func)
 {
 	unsigned long flags;
-	struct task_work *last, *res = NULL;
+	struct callback_head *last, *res = NULL;
 
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
 	last = task->task_works;
 	if (last) {
-		struct task_work *q = last, *p = q->next;
+		struct callback_head *q = last, *p = q->next;
 		while (1) {
 			if (p->func == func) {
 				q->next = p->next;
@@ -66,7 +66,7 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
 void task_work_run(void)
 {
 	struct task_struct *task = current;
-	struct task_work *p, *q;
+	struct callback_head *p, *q;
 
 	raw_spin_lock_irq(&task->pi_lock);
 	p = task->task_works;

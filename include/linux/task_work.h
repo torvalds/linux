@@ -4,22 +4,16 @@
 #include <linux/list.h>
 #include <linux/sched.h>
 
-struct task_work;
-typedef void (*task_work_func_t)(struct task_work *);
-
-struct task_work {
-	struct task_work *next;
-	task_work_func_t func;
-};
+typedef void (*task_work_func_t)(struct callback_head *);
 
 static inline void
-init_task_work(struct task_work *twork, task_work_func_t func)
+init_task_work(struct callback_head *twork, task_work_func_t func)
 {
 	twork->func = func;
 }
 
-int task_work_add(struct task_struct *task, struct task_work *twork, bool);
-struct task_work *task_work_cancel(struct task_struct *, task_work_func_t);
+int task_work_add(struct task_struct *task, struct callback_head *twork, bool);
+struct callback_head *task_work_cancel(struct task_struct *, task_work_func_t);
 void task_work_run(void);
 
 static inline void exit_task_work(struct task_struct *task)
