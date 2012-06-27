@@ -1608,14 +1608,45 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+static struct pci_dev *cb_pcidas_find_pci_device(struct comedi_device *dev,
+						 struct comedi_devconfig *it)
+{
+	const struct cb_pcidas_board *thisboard;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
+
+	for_each_pci_dev(pcidev) {
+		/*  is it not a computer boards card? */
+		if (pcidev->vendor != PCI_VENDOR_ID_CB)
+			continue;
+		/*  loop through cards supported by this driver */
+		for (i = 0; i < ARRAY_SIZE(cb_pcidas_boards); i++) {
+			thisboard = &cb_pcidas_boards[i];
+			if (thisboard->device_id != pcidev->device)
+				continue;
+			/*  was a particular bus/slot requested? */
+			if (bus || slot) {
+				/*  are we on the wrong bus/slot? */
+				if (pcidev->bus->number != bus ||
+				    PCI_SLOT(pcidev->devfn) != slot) {
+					continue;
+				}
+			}
+			dev->board_ptr = thisboard;
+			return pcidev;
+		}
+	}
+	return NULL;
+}
+
 static int cb_pcidas_attach(struct comedi_device *dev,
 			    struct comedi_devconfig *it)
 {
 	const struct cb_pcidas_board *thisboard;
 	struct cb_pcidas_private *devpriv;
 	struct comedi_subdevice *s;
-	struct pci_dev *pcidev = NULL;
-	int index;
 	int i;
 	int ret;
 
@@ -1626,46 +1657,21 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	devpriv = dev->private;
 
-/*
- * Probe the device to determine what device in the series it is.
- */
-
-	for_each_pci_dev(pcidev) {
-		/*  is it not a computer boards card? */
-		if (pcidev->vendor != PCI_VENDOR_ID_CB)
-			continue;
-		/*  loop through cards supported by this driver */
-		for (index = 0; index < ARRAY_SIZE(cb_pcidas_boards); index++) {
-			if (cb_pcidas_boards[index].device_id != pcidev->device)
-				continue;
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			devpriv->pci_dev = pcidev;
-			dev->board_ptr = cb_pcidas_boards + index;
-			goto found;
-		}
+	devpriv->pci_dev = cb_pcidas_find_pci_device(dev, it);
+	if (!devpriv->pci_dev) {
+		dev_err(dev->class_dev, "No supported card found\n");
+		return -EIO;
 	}
 
-	dev_err(dev->class_dev,
-		"No supported ComputerBoards/MeasurementComputing card found on requested position\n");
-	return -EIO;
-
-found:
 	thisboard = comedi_board(dev);
 	dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
-		cb_pcidas_boards[index].name, pcidev->bus->number,
-		PCI_SLOT(pcidev->devfn));
+		thisboard->name, devpriv->pci_dev->bus->number,
+		PCI_SLOT(devpriv->pci_dev->devfn));
 
 	/*
 	 * Enable PCI device and reserve I/O ports.
 	 */
-	if (comedi_pci_enable(pcidev, "cb_pcidas")) {
+	if (comedi_pci_enable(devpriv->pci_dev, "cb_pcidas")) {
 		dev_err(dev->class_dev,
 			"Failed to enable PCI device and request regions\n");
 		return -EIO;
