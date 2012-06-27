@@ -97,19 +97,6 @@ config SND_HDA_CODEC_REALTEK
 	  snd-hda-codec-realtek.
 	  This module is automatically loaded at probing.
 
-config SND_HDA_ENABLE_REALTEK_QUIRKS
-	bool "Build static quirks for Realtek codecs"
-	depends on SND_HDA_CODEC_REALTEK
-	default y
-	help
-	  Say Y here to build the static quirks codes for Realtek codecs.
-	  If you need the "model" preset that the default BIOS auto-parser
-	  can't handle, turn this option on.
-
-	  If your device works with model=auto option, basically you don't
-	  need the quirk code.  By turning this off, you can reduce the
-	  module size quite a lot.
-
 config SND_HDA_CODEC_ANALOG
 	bool "Build Analog Device HD-audio codec support"
 	default y
