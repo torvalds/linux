@@ -178,60 +178,43 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 /* return 1; */
 /* } */
 
-static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
+static struct pci_dev *pci6208_find_device(struct comedi_device *dev,
+					   struct comedi_devconfig *it)
 {
-	struct pci6208_private *devpriv = dev->private;
+	const struct pci6208_board *thisboard;
 	struct pci_dev *pci_dev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 	int i;
 
 	for_each_pci_dev(pci_dev) {
-		if (pci_dev->vendor == PCI_VENDOR_ID_ADLINK) {
-			for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
-				if (pci6208_boards[i].dev_id ==
-					pci_dev->device) {
-					/*
-					 * was a particular bus/slot requested?
-					*/
-					if ((bus != 0) || (slot != 0)) {
-						/*
-						 * are we on the
-						 * wrong bus/slot?
-						*/
-						if (pci_dev->bus->number
-						    != bus ||
-						    PCI_SLOT(pci_dev->devfn)
-						    != slot) {
-							continue;
-						}
-					}
-					dev->board_ptr = pci6208_boards + i;
-					goto found;
-				}
+		if (pci_dev->vendor != PCI_VENDOR_ID_ADLINK)
+			continue;
+		for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
+			thisboard = &pci6208_boards[i];
+			if (thisboard->dev_id != pci_dev->device)
+				continue;
+			/* was a particular bus/slot requested? */
+			if (bus || slot) {
+				/* are we on the wrong bus/slot? */
+				if (pci_dev->bus->number != bus ||
+				    PCI_SLOT(pci_dev->devfn) != slot)
+					continue;
 			}
+			dev_dbg(dev->class_dev,
+				"Found %s on bus %d, slot, %d, irq=%d\n",
+				thisboard->name,
+				pci_dev->bus->number,
+				PCI_SLOT(pci_dev->devfn),
+				pci_dev->irq);
+			dev->board_ptr = thisboard;
+			return pci_dev;
 		}
 	}
-
-	printk(KERN_ERR "comedi%d: no supported board found! "
-			"(req. bus/slot : %d/%d)\n",
-			dev->minor, bus, slot);
-	return -EIO;
-
-found:
-	printk("comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n",
-	       dev->minor,
-	       pci6208_boards[i].name,
-	       pci_dev->bus->number,
-	       PCI_SLOT(pci_dev->devfn),
-	       PCI_FUNC(pci_dev->devfn), pci_dev->irq);
-
-	/*  TODO: Warn about non-tested boards. */
-	/* switch(board->device_id) */
-	/* { */
-	/* }; */
-
-	devpriv->pci_dev = pci_dev;
-
-	return 0;
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
 static int
@@ -289,9 +272,9 @@ static int pci6208_attach(struct comedi_device *dev,
 		return retval;
 	devpriv = dev->private;
 
-	retval = pci6208_find_device(dev, it->options[0], it->options[1]);
-	if (retval < 0)
-		return retval;
+	devpriv->pci_dev = pci6208_find_device(dev, it);
+	if (!devpriv->pci_dev)
+		return -EIO;
 	thisboard = comedi_board(dev);
 
 	retval = pci6208_pci_setup(devpriv->pci_dev, &io_base, dev->minor);
