@@ -299,8 +299,10 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
 
-	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*rtm), flags);
-	rtm = NLMSG_DATA(nlh);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*rtm), flags);
+	if (!nlh)
+		goto out_nlmsg_trim;
+	rtm = nlmsg_data(nlh);
 	rtm->rtm_family = AF_DECnet;
 	rtm->rtm_dst_len = dst_len;
 	rtm->rtm_src_len = 0;
@@ -348,8 +350,7 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
-
-nlmsg_failure:
+out_nlmsg_trim:
 rtattr_failure:
 	nlmsg_trim(skb, b);
 	return -EMSGSIZE;
@@ -476,7 +477,7 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		return 0;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
-		((struct rtmsg *)NLMSG_DATA(cb->nlh))->rtm_flags&RTM_F_CLONED)
+		((struct rtmsg *)nlmsg_data(cb->nlh))->rtm_flags&RTM_F_CLONED)
 			return dn_cache_dump(skb, cb);
 
 	s_h = cb->args[0];
