@@ -40,8 +40,8 @@ struct screen_info smtc_screen_info;
 * Private structure
 */
 struct smtcfb_info {
-	struct fb_info fb;
 	struct pci_dev *pdev;
+	struct fb_info fb;
 	u16 chip_id;
 	u8  chip_rev_id;
 
@@ -328,8 +328,10 @@ static int smtc_blank(int blank_mode, struct fb_info *info)
 static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 			  unsigned blue, unsigned trans, struct fb_info *info)
 {
-	struct smtcfb_info *sfb = (struct smtcfb_info *)info;
+	struct smtcfb_info *sfb;
 	u32 val;
+
+	sfb = info->par;
 
 	if (regno > 255)
 		return 1;
@@ -623,9 +625,7 @@ static int smtc_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static int smtc_set_par(struct fb_info *info)
 {
-	struct smtcfb_info *sfb = (struct smtcfb_info *)info;
-
-	smtcfb_setmode(sfb);
+	smtcfb_setmode(info->par);
 
 	return 0;
 }
