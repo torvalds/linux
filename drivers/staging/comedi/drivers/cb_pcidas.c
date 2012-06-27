@@ -447,9 +447,6 @@ struct cb_pcidas_private {
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
 
-static int trimpot_7376_write(struct comedi_device *dev, uint8_t value);
-static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
-			      uint8_t value);
 static int nvram_read(struct comedi_device *dev, unsigned int address,
 		      uint8_t *data);
 
@@ -737,6 +734,50 @@ static int dac08_read_insn(struct comedi_device *dev,
 	data[0] = devpriv->dac08_value;
 
 	return 1;
+}
+
+static int trimpot_7376_write(struct comedi_device *dev, uint8_t value)
+{
+	static const int bitstream_length = 7;
+	unsigned int bitstream = value & 0x7f;
+	unsigned int register_bits;
+	static const int ad7376_udelay = 1;
+
+	register_bits = cal_enable_bits(dev) | SELECT_TRIMPOT_BIT;
+	udelay(ad7376_udelay);
+	outw(register_bits, devpriv->control_status + CALIBRATION_REG);
+
+	write_calibration_bitstream(dev, register_bits, bitstream,
+				    bitstream_length);
+
+	udelay(ad7376_udelay);
+	outw(cal_enable_bits(dev), devpriv->control_status + CALIBRATION_REG);
+
+	return 0;
+}
+
+/* For 1602/16 only
+ * ch 0 : adc gain
+ * ch 1 : adc postgain offset */
+static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
+			      uint8_t value)
+{
+	static const int bitstream_length = 10;
+	unsigned int bitstream = ((channel & 0x3) << 8) | (value & 0xff);
+	unsigned int register_bits;
+	static const int ad8402_udelay = 1;
+
+	register_bits = cal_enable_bits(dev) | SELECT_TRIMPOT_BIT;
+	udelay(ad8402_udelay);
+	outw(register_bits, devpriv->control_status + CALIBRATION_REG);
+
+	write_calibration_bitstream(dev, register_bits, bitstream,
+				    bitstream_length);
+
+	udelay(ad8402_udelay);
+	outw(cal_enable_bits(dev), devpriv->control_status + CALIBRATION_REG);
+
+	return 0;
 }
 
 static int cb_pcidas_trimpot_write(struct comedi_device *dev,
@@ -1500,50 +1541,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
-}
-
-static int trimpot_7376_write(struct comedi_device *dev, uint8_t value)
-{
-	static const int bitstream_length = 7;
-	unsigned int bitstream = value & 0x7f;
-	unsigned int register_bits;
-	static const int ad7376_udelay = 1;
-
-	register_bits = cal_enable_bits(dev) | SELECT_TRIMPOT_BIT;
-	udelay(ad7376_udelay);
-	outw(register_bits, devpriv->control_status + CALIBRATION_REG);
-
-	write_calibration_bitstream(dev, register_bits, bitstream,
-				    bitstream_length);
-
-	udelay(ad7376_udelay);
-	outw(cal_enable_bits(dev), devpriv->control_status + CALIBRATION_REG);
-
-	return 0;
-}
-
-/* For 1602/16 only
- * ch 0 : adc gain
- * ch 1 : adc postgain offset */
-static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
-			      uint8_t value)
-{
-	static const int bitstream_length = 10;
-	unsigned int bitstream = ((channel & 0x3) << 8) | (value & 0xff);
-	unsigned int register_bits;
-	static const int ad8402_udelay = 1;
-
-	register_bits = cal_enable_bits(dev) | SELECT_TRIMPOT_BIT;
-	udelay(ad8402_udelay);
-	outw(register_bits, devpriv->control_status + CALIBRATION_REG);
-
-	write_calibration_bitstream(dev, register_bits, bitstream,
-				    bitstream_length);
-
-	udelay(ad8402_udelay);
-	outw(cal_enable_bits(dev), devpriv->control_status + CALIBRATION_REG);
-
-	return 0;
 }
 
 static int wait_for_nvram_ready(unsigned long s5933_base_addr)
