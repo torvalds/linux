@@ -114,7 +114,6 @@ struct ar5416AniState {
 	u8 firstepLevel;
 	u8 ofdmWeakSigDetect;
 	u8 cckWeakSigThreshold;
-	bool update_ani;
 	u32 listenTime;
 	int32_t rssiThrLow;
 	int32_t rssiThrHigh;
