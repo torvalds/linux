@@ -30,6 +30,7 @@
 
 #include <asm/unaligned.h>
 #include <asm/hardware/pl330.h>
+#include <mach/sram.h>
 
 /* Register and Bit field Definitions */
 #define DS		0x0
@@ -220,7 +221,7 @@
  * For typical scenario, at 1word/burst, 10MB and 20MB xfers per req
  * should be enough for P<->M and M<->M respectively.
  */
-#define MCODE_BUFF_PER_REQ	256
+#define MCODE_BUFF_PER_REQ	128
 
 /*
  * Mark a _pl330_req as free.
@@ -1001,7 +1002,7 @@ static inline int _ldst_devtomem(unsigned dry_run, u8 buf[],
 		off += _emit_WFP(dry_run, &buf[off], BURST, pxs->r->peri);
 		off += _emit_LDP(dry_run, &buf[off], BURST, pxs->r->peri);
 		off += _emit_ST(dry_run, &buf[off], ALWAYS);
-		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);    //for sdmmc sdio
 	}
 
 	return off;
@@ -1016,7 +1017,7 @@ static inline int _ldst_memtodev(unsigned dry_run, u8 buf[],
 		off += _emit_WFP(dry_run, &buf[off], BURST, pxs->r->peri);
 		off += _emit_LD(dry_run, &buf[off], ALWAYS);
 		off += _emit_STP(dry_run, &buf[off], BURST, pxs->r->peri);
-		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);     //for sdmmc sdio
 	}
 
 	return off;
@@ -1630,6 +1631,10 @@ static inline int _alloc_event(struct pl330_thread *thrd)
 
 	return -1;
 }
+//hhb@rock-chips.com
+#ifdef CONFIG_RK_SRAM_DMA
+static __attribute__((aligned(4))) __sramdata char i2s_mcode_buff[2][MCODE_BUFF_PER_REQ*2];
+#endif
 
 /* Upon success, returns IdentityToken for the
  * allocated channel, NULL otherwise.
@@ -1669,7 +1674,29 @@ void *pl330_request_channel(const struct pl330_info *pi)
 		}
 		thrd = NULL;
 	}
+#ifdef CONFIG_RK_SRAM_DMA
+	switch(id) {
+		case 4:   	//DMACH_I2S0_8CH_TX
+		case 6:		//DMACH_I2S1_2CH_TX
+		case 9:		//DMACH_I2S2_2CH_TX
+			thrd->req[0].mc_bus = (u32)(RK30_IMEM_PHYS + ((void *)i2s_mcode_buff[0] - RK30_IMEM_BASE));
+			thrd->req[0].mc_cpu = (RK30_IMEM_NONCACHED + ((void *)i2s_mcode_buff[0] - RK30_IMEM_BASE));
+			thrd->req[1].mc_bus = thrd->req[0].mc_bus + MCODE_BUFF_PER_REQ;
+			thrd->req[1].mc_cpu = thrd->req[0].mc_cpu + MCODE_BUFF_PER_REQ;
+			break;
+		case 5:   	//DMACH_I2S0_8CH_RX
+		case 7:		//DMACH_I2S1_2CH_RX
+		case 10:	//DMACH_I2S2_2CH_RX
+			thrd->req[0].mc_bus = (u32)(RK30_IMEM_PHYS + ((void *)i2s_mcode_buff[1] - RK30_IMEM_BASE));
+			thrd->req[0].mc_cpu = (RK30_IMEM_NONCACHED + ((void *)i2s_mcode_buff[1] - RK30_IMEM_BASE));
+			thrd->req[1].mc_bus = thrd->req[0].mc_bus + MCODE_BUFF_PER_REQ;
+			thrd->req[1].mc_cpu = thrd->req[0].mc_cpu + MCODE_BUFF_PER_REQ;
+			break;
+		default:
+			break;
 
+	}
+#endif
 	spin_unlock_irqrestore(&pl330->lock, flags);
 
 	return thrd;
