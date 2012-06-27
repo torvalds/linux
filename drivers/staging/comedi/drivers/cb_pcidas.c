@@ -439,38 +439,28 @@ static int cb_pcidas_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int ai_config_calibration_source(struct comedi_device *dev,
-					unsigned int *data)
-{
-	struct cb_pcidas_private *devpriv = dev->private;
-	static const int num_calibration_sources = 8;
-	unsigned int source = data[1];
-
-	if (source >= num_calibration_sources) {
-		dev_err(dev->class_dev, "invalid calibration source: %i\n",
-			source);
-		return -EINVAL;
-	}
-
-	devpriv->calibration_source = source;
-
-	return 2;
-}
-
 static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct cb_pcidas_private *devpriv = dev->private;
 	int id = data[0];
+	unsigned int source = data[1];
 
 	switch (id) {
 	case INSN_CONFIG_ALT_SOURCE:
-		return ai_config_calibration_source(dev, data);
+		if (source >= 8) {
+			dev_err(dev->class_dev,
+				"invalid calibration source: %i\n",
+				source);
+			return -EINVAL;
+		}
+		devpriv->calibration_source = source;
 		break;
 	default:
 		return -EINVAL;
 		break;
 	}
-	return -EINVAL;
+	return insn->n;
 }
 
 /* analog output insn for pcidas-1000 and 1200 series */
