@@ -225,28 +225,6 @@ static struct pci_dev *pci6208_find_device(struct comedi_device *dev,
 	return NULL;
 }
 
-static int
-pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
-		  int dev_minor)
-{
-	unsigned long io_base;
-
-	/*  Enable PCI device and request regions */
-	if (comedi_pci_enable(pci_dev, "adl_pci6208") < 0) {
-		printk(KERN_ERR "comedi%d: Failed to enable PCI device "
-			"and request regions\n",
-			dev_minor);
-		return -EIO;
-	}
-
-	/*  Read PCI6208 register base address [PCI_BASE_ADDRESS #2]. */
-	io_base = pci_resource_start(pci_dev, 2);
-
-	*io_base_ptr = io_base;
-
-	return 0;
-}
-
 static int pci6208_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
@@ -254,7 +232,6 @@ static int pci6208_attach(struct comedi_device *dev,
 	struct pci6208_private *devpriv;
 	struct comedi_subdevice *s;
 	int retval;
-	unsigned long io_base;
 
 	printk(KERN_INFO "comedi%d: pci6208: ", dev->minor);
 
@@ -268,11 +245,14 @@ static int pci6208_attach(struct comedi_device *dev,
 		return -EIO;
 	thisboard = comedi_board(dev);
 
-	retval = pci6208_pci_setup(devpriv->pci_dev, &io_base, dev->minor);
-	if (retval < 0)
-		return retval;
+	if (comedi_pci_enable(devpriv->pci_dev, "adl_pci6208") < 0) {
+		dev_err(dev->class_dev,
+			"Failed to enable PCI device and request regions\n");
+		return -EIO;
+	}
 
-	dev->iobase = io_base;
+	dev->iobase = pci_resource_start(devpriv->pci_dev, 2);
+
 	dev->board_name = thisboard->name;
 
 	retval = comedi_alloc_subdevices(dev, 2);
