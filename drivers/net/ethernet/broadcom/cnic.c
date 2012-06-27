@@ -291,6 +291,9 @@ static int cnic_get_l5_cid(struct cnic_local *cp, u32 cid, u32 *l5_cid)
 {
 	u32 i;
 
+	if (!cp->ctx_tbl)
+		return -EINVAL;
+
 	for (i = 0; i < cp->max_cid_space; i++) {
 		if (cp->ctx_tbl[i].cid == cid) {
 			*l5_cid = i;
@@ -3220,6 +3223,9 @@ static int cnic_ctl(void *data, struct cnic_ctl_info *info)
 		u32 l5_cid;
 		struct cnic_local *cp = dev->cnic_priv;
 
+		if (!test_bit(CNIC_F_CNIC_UP, &dev->flags))
+			break;
+
 		if (cnic_get_l5_cid(cp, cid, &l5_cid) == 0) {
 			struct cnic_context *ctx = &cp->ctx_tbl[l5_cid];
 
@@ -4252,8 +4258,6 @@ static int cnic_cm_shutdown(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 	int i;
-
-	cp->stop_cm(dev);
 
 	if (!cp->csk_tbl)
 		return 0;
@@ -5290,6 +5294,7 @@ static void cnic_stop_hw(struct cnic_dev *dev)
 			i++;
 		}
 		cnic_shutdown_rings(dev);
+		cp->stop_cm(dev);
 		clear_bit(CNIC_F_CNIC_UP, &dev->flags);
 		RCU_INIT_POINTER(cp->ulp_ops[CNIC_ULP_L4], NULL);
 		synchronize_rcu();
