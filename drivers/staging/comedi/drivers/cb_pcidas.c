@@ -498,32 +498,29 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 				   struct comedi_insn *insn, unsigned int *data)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	int channel;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned long flags;
 
-	/*  clear dac fifo */
+	/* clear dac fifo */
 	outw(0, devpriv->ao_registers + DACFIFOCLR);
 
-	/*  set channel and range */
-	channel = CR_CHAN(insn->chanspec);
+	/* set channel and range */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->ao_control_bits &=
-	    ~DAC_CHAN_EN(0) & ~DAC_CHAN_EN(1) & ~DAC_RANGE_MASK(channel) &
-	    ~DAC_PACER_MASK;
-	devpriv->ao_control_bits |=
-	    DACEN | DAC_RANGE(channel,
-			      CR_RANGE(insn->
-				       chanspec)) | DAC_CHAN_EN(channel) |
-	    DAC_START;
+	devpriv->ao_control_bits &= (~DAC_CHAN_EN(0) & ~DAC_CHAN_EN(1) &
+				     ~DAC_RANGE_MASK(chan) & ~DAC_PACER_MASK);
+	devpriv->ao_control_bits |= (DACEN | DAC_RANGE(chan, range) |
+				     DAC_CHAN_EN(chan) | DAC_START);
 	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/*  remember value for readback */
-	devpriv->ao_value[channel] = data[0];
-	/*  send data */
+	/* remember value for readback */
+	devpriv->ao_value[chan] = data[0];
+
+	/* send data */
 	outw(data[0], devpriv->ao_registers + DACDATA);
 
-	return 1;
+	return insn->n;
 }
 
 static int cb_pcidas_ao_readback_insn(struct comedi_device *dev,
