@@ -238,6 +238,7 @@ struct exynos_drm_private {
 	 */
 	struct drm_crtc *crtc[MAX_CRTC];
 	struct drm_property *plane_zpos_property;
+	struct drm_property *crtc_mode_property;
 };
 
 /*
