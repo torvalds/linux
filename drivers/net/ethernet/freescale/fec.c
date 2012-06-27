@@ -1593,8 +1593,6 @@ fec_probe(struct platform_device *pdev)
 		fep->phy_interface = ret;
 	}
 
-	fec_reset_phy(pdev);
-
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0) {
@@ -1633,6 +1631,8 @@ fec_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(fep->clk_ahb);
 	clk_prepare_enable(fep->clk_ipg);
+
+	fec_reset_phy(pdev);
 
 	ret = fec_enet_init(ndev);
 	if (ret)
