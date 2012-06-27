@@ -251,26 +251,26 @@ static int pci6208_attach(struct comedi_device *dev,
 
 	s = dev->subdevices + 0;
 	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;	/* anything else to add here?? */
-	s->n_chan = thisboard->ao_chans;
-	s->maxdata = 0xffff;	/* 16-bit DAC */
-	s->range_table = &range_bipolar10;	/* this needs to be checked. */
-	s->insn_write = pci6208_ao_winsn;
-	s->insn_read = pci6208_ao_rinsn;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= thisboard->ao_chans;
+	s->maxdata	= 0xffff;
+	s->range_table	= &range_bipolar10;
+	s->insn_write	= pci6208_ao_winsn;
+	s->insn_read	= pci6208_ao_rinsn;
 
 	s = dev->subdevices + 1;
 	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = pci6208_dio_insn_bits;
-	s->insn_config = pci6208_dio_insn_config;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pci6208_dio_insn_bits;
+	s->insn_config	= pci6208_dio_insn_config;
 
-	s->io_bits = 0x0f;
-	s->state = inw(dev->iobase + PCI6208_DIO);
+	s->io_bits	= 0x0f;
+	s->state	= inw(dev->iobase + PCI6208_DIO);
 
 	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx\n",
 		dev->driver->driver_name, dev->board_name, dev->iobase);
