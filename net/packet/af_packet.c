@@ -531,6 +531,7 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 	unsigned int mbits = 0, msec = 0, div = 0, tmo = 0;
 	struct ethtool_cmd ecmd;
 	int err;
+	u32 speed;
 
 	rtnl_lock();
 	dev = __dev_get_by_index(sock_net(&po->sk), po->ifindex);
@@ -539,25 +540,18 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 		return DEFAULT_PRB_RETIRE_TOV;
 	}
 	err = __ethtool_get_settings(dev, &ecmd);
+	speed = ethtool_cmd_speed(&ecmd);
 	rtnl_unlock();
 	if (!err) {
-		switch (ecmd.speed) {
-		case SPEED_10000:
-			msec = 1;
-			div = 10000/1000;
-			break;
-		case SPEED_1000:
-			msec = 1;
-			div = 1000/1000;
-			break;
 		/*
 		 * If the link speed is so slow you don't really
 		 * need to worry about perf anyways
 		 */
-		case SPEED_100:
-		case SPEED_10:
-		default:
+		if (speed < SPEED_1000 || speed == SPEED_UNKNOWN) {
 			return DEFAULT_PRB_RETIRE_TOV;
+		} else {
+			msec = 1;
+			div = speed / 1000;
 		}
 	}
 
