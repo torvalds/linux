@@ -28,7 +28,8 @@
 */
 /*
 Driver: cb_pcidas
-Description: MeasurementComputing PCI-DAS series with the AMCC S5933 PCI controller
+Description: MeasurementComputing PCI-DAS series
+  with the AMCC S5933 PCI controller
 Author: Ivan Martinez <imr@oersted.dtu.dk>,
   Frank Mori Hess <fmhess@users.sourceforge.net>
 Updated: 2003-3-11
@@ -243,7 +244,7 @@ struct cb_pcidas_board {
 	int ai_speed;		/*  fastest conversion period in ns */
 	int ao_nchan;		/*  number of analog out channels */
 	int has_ao_fifo;	/*  analog output has fifo */
-	int ao_scan_speed;	/*  analog output speed for 1602 series (for a scan, not conversion) */
+	int ao_scan_speed;	/*  analog output scan speed for 1602 series */
 	int fifo_size;		/*  number of samples fifo can hold */
 	const struct comedi_lrange *ranges;
 	enum trimpot_model trimpot;
@@ -525,8 +526,6 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev,
 	return 1;
 }
 
-/* analog output readback insn */
-/* XXX loses track of analog output value back after an analog ouput command is executed */
 static int cb_pcidas_ao_readback_insn(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
