@@ -337,6 +337,7 @@ int clk_enable_dvfs(struct clk *clk)
 			if (!IS_ERR(regulator)) {
 				// DVFS_DBG("dvfs_regulator_get(%s)\n",dvfs_clk->vd->regulator_name);
 				dvfs_clk->vd->regulator = regulator;
+				dvfs_clk->vd->cur_volt = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
 			} else {
 				dvfs_clk->vd->regulator = NULL;
 				dvfs_clk->enable_dvfs = 0;
