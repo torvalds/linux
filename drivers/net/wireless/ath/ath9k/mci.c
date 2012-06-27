@@ -348,7 +348,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 
 		seq_num = *((u32 *)(rx_payload + 12));
 		ath_dbg(common, MCI,
-			"BT_Status_Update: is_link=%d, linkId=%d, state=%d, SEQ=%d\n",
+			"BT_Status_Update: is_link=%d, linkId=%d, state=%d, SEQ=%u\n",
 			profile_status.is_link, profile_status.conn_handle,
 			profile_status.is_critical, seq_num);
 
