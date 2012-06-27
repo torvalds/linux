@@ -224,7 +224,7 @@ extern void line6_start_timer(struct timer_list *timer, unsigned int msecs,
 			      void (*function) (unsigned long),
 			      unsigned long data);
 extern int line6_transmit_parameter(struct usb_line6 *line6, int param,
-				    int value);
+				    u8 value);
 extern int line6_version_request_async(struct usb_line6 *line6);
 extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 			    size_t datalen);
