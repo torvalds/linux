@@ -3895,7 +3895,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 #ifdef CONFIG_HAS_WAKELOCK
 		dhd->wakelock_counter = 0;
 		dhd->wakelock_rx_timeout_enable = 0;
-		dhd->wakelock_ctrl_timeout_enable = 0; 
+		dhd->wakelock_ctrl_timeout_enable = 0;
 		wake_lock_destroy(&dhd->wl_wifi);
 		wake_lock_destroy(&dhd->wl_rxwake);
 		wake_lock_destroy(&dhd->wl_ctrlwake);
@@ -3998,7 +3998,7 @@ dhd_module_init(void)
 			break;
 		}
 		DHD_ERROR(("\nfailed to power up wifi chip, retry again (%d left) **\n\n",
-			retry+1));
+			retry));
 		dhd_bus_unreg_sdio_notify();
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
 		wl_android_wifictrl_func_del();
