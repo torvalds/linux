@@ -48,17 +48,17 @@
  *       |        ----------------------
  *       |                              \
  *       + con_sock_state_closed()       \
- *       |\                               \
- *       | \                               \
- *       |  -----------                     \
- *       |  | CLOSING |  socket event;       \
- *       |  -----------  await close          \
- *       |       ^                            |
- *       |       |                            |
- *       |       + con_sock_state_closing()   |
- *       |      / \                           |
- *       |     /   ---------------            |
- *       |    /                   \           v
+ *       |+---------------------------    \
+ *       | \                          \    \
+ *       |  -----------                \    \
+ *       |  | CLOSING |  socket event;  \    \
+ *       |  -----------  await close     \    \
+ *       |       ^                        \   |
+ *       |       |                         \  |
+ *       |       + con_sock_state_closing() \ |
+ *       |      / \                         | |
+ *       |     /   ---------------          | |
+ *       |    /                   \         v v
  *       |   /                    --------------
  *       |  /    -----------------| CONNECTING |  socket created, TCP
  *       |  |   /                 --------------  connect initiated
@@ -241,7 +241,8 @@ static void con_sock_state_closed(struct ceph_connection *con)
 
 	old_state = atomic_xchg(&con->sock_state, CON_SOCK_STATE_CLOSED);
 	if (WARN_ON(old_state != CON_SOCK_STATE_CONNECTED &&
-			old_state != CON_SOCK_STATE_CLOSING))
+		    old_state != CON_SOCK_STATE_CLOSING &&
+		    old_state != CON_SOCK_STATE_CONNECTING))
 		printk("%s: unexpected old state %d\n", __func__, old_state);
 }
 
