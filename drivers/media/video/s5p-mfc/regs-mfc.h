@@ -164,9 +164,14 @@
 								decoded pic */
 #define S5P_FIMV_SI_DISPLAY_Y_ADR	0x2010 /* luma addr of displayed pic */
 #define S5P_FIMV_SI_DISPLAY_C_ADR	0x2014 /* chroma addrof displayed pic */
+
 #define S5P_FIMV_SI_CONSUMED_BYTES	0x2018 /* Consumed number of bytes to
 							decode a frame */
 #define S5P_FIMV_SI_DISPLAY_STATUS	0x201c /* status of decoded picture */
+
+#define S5P_FIMV_SI_DECODE_Y_ADR	0x2024 /* luma addr of decoded pic */
+#define S5P_FIMV_SI_DECODE_C_ADR	0x2028 /* chroma addrof decoded pic */
+#define S5P_FIMV_SI_DECODE_STATUS	0x202c /* status of decoded picture */
 
 #define S5P_FIMV_SI_CH0_SB_ST_ADR	0x2044 /* start addr of stream buf */
 #define S5P_FIMV_SI_CH0_SB_FRM_SIZE	0x2048 /* size of stream buf */

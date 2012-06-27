@@ -44,6 +44,7 @@ struct snd_tea575x_ops {
 
 struct snd_tea575x {
 	struct v4l2_device *v4l2_dev;
+	struct v4l2_file_operations fops;
 	struct video_device vd;		/* video device */
 	int radio_nr;			/* radio_nr */
 	bool tea5759;			/* 5759 chip is present */
@@ -62,7 +63,7 @@ struct snd_tea575x {
 	int (*ext_init)(struct snd_tea575x *tea);
 };
 
-int snd_tea575x_init(struct snd_tea575x *tea);
+int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner);
 void snd_tea575x_exit(struct snd_tea575x *tea);
 
 #endif /* __SOUND_TEA575X_TUNER_H */

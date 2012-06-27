@@ -434,6 +434,7 @@ static int epu_dma_done_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 {
 	u32 handle, mdl_ack_offset, mdl_ack_count;
 	struct cx18_mailbox *mb;
+	int i;
 
 	mb = &order->mb;
 	handle = mb->args[0];
@@ -447,8 +448,9 @@ static int epu_dma_done_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 		return -1;
 	}
 
-	cx18_memcpy_fromio(cx, order->mdl_ack, cx->enc_mem + mdl_ack_offset,
-			   sizeof(struct cx18_mdl_ack) * mdl_ack_count);
+	for (i = 0; i < sizeof(struct cx18_mdl_ack) * mdl_ack_count; i += sizeof(u32))
+		((u32 *)order->mdl_ack)[i / sizeof(u32)] =
+			cx18_readl(cx, cx->enc_mem + mdl_ack_offset + i);
 
 	if ((order->flags & CX18_F_EWO_MB_STALE) == 0)
 		mb_ack_irq(cx, order);
@@ -538,6 +540,7 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 	struct cx18_mailbox *order_mb;
 	struct cx18_in_work_order *order;
 	int submit;
+	int i;
 
 	switch (rpu) {
 	case CPU:
@@ -562,10 +565,12 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 	order_mb = &order->mb;
 
 	/* mb->cmd and mb->args[0] through mb->args[2] */
-	cx18_memcpy_fromio(cx, &order_mb->cmd, &mb->cmd, 4 * sizeof(u32));
+	for (i = 0; i < 4; i++)
+		(&order_mb->cmd)[i] = cx18_readl(cx, &mb->cmd + i);
+
 	/* mb->request and mb->ack.  N.B. we want to read mb->ack last */
-	cx18_memcpy_fromio(cx, &order_mb->request, &mb->request,
-			   2 * sizeof(u32));
+	for (i = 0; i < 2; i++)
+		(&order_mb->request)[i] = cx18_readl(cx, &mb->request + i);
 
 	if (order_mb->request == order_mb->ack) {
 		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our "

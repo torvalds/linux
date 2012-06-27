@@ -838,10 +838,10 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 	}
 
 	CX18_DEBUG_INFO("cx%d (rev %d) at %02x:%02x.%x, "
-		   "irq: %d, latency: %d, memory: 0x%lx\n",
+		   "irq: %d, latency: %d, memory: 0x%llx\n",
 		   cx->pci_dev->device, cx->card_rev, pci_dev->bus->number,
 		   PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn),
-		   cx->pci_dev->irq, pci_latency, (unsigned long)cx->base_addr);
+		   cx->pci_dev->irq, pci_latency, (u64)cx->base_addr);
 
 	return 0;
 }
@@ -938,7 +938,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	if (retval)
 		goto err;
 
-	CX18_DEBUG_INFO("base addr: 0x%08x\n", cx->base_addr);
+	CX18_DEBUG_INFO("base addr: 0x%llx\n", (u64)cx->base_addr);
 
 	/* PCI Device Setup */
 	retval = cx18_setup_pci(cx, pci_dev, pci_id);
@@ -946,8 +946,8 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		goto free_workqueues;
 
 	/* map io memory */
-	CX18_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
-		   cx->base_addr + CX18_MEM_OFFSET, CX18_MEM_SIZE);
+	CX18_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
+		   (u64)cx->base_addr + CX18_MEM_OFFSET, CX18_MEM_SIZE);
 	cx->enc_mem = ioremap_nocache(cx->base_addr + CX18_MEM_OFFSET,
 				       CX18_MEM_SIZE);
 	if (!cx->enc_mem) {
