@@ -41,6 +41,7 @@
 struct twl6030_pwr_button {
 	struct input_dev *input_dev;
 	struct device		*dev;
+	struct mutex		irq_lock;
 	int report_key;
 };
 
@@ -79,27 +80,35 @@ static irqreturn_t powerbutton_irq(int irq, void *_pwr)
 	int hw_state;
 	int pwr_val;
 	static int prev_hw_state = 0xFFFF;
-	static int push_release_flag;
-
+	static int push_release_flag = 0 ;
+	
+	mutex_lock(& pwr ->irq_lock);
 	hw_state = twl6030_readb(pwr, TWL6030_MODULE_ID0, STS_HW_CONDITIONS);
 	pwr_val = !(hw_state & PWR_PWRON_IRQ);
+
 	if ((prev_hw_state != pwr_val) && (prev_hw_state != 0xFFFF)) {
 		push_release_flag = 0;
 		input_report_key(pwr->input_dev, pwr->report_key, pwr_val);
 		input_sync(pwr->input_dev);
 	} else if (!push_release_flag) {
 		push_release_flag = 1;
-		input_report_key(pwr->input_dev, pwr->report_key, pwr_val);
-		input_sync(pwr->input_dev);
+		if(prev_hw_state != 0xFFFF){
+			input_report_key(pwr->input_dev, pwr->report_key, !pwr_val);
+			input_sync(pwr->input_dev);
 
-	//	msleep(20);
-
-	//	input_report_key(pwr->input_dev, pwr->report_key, !pwr_val);
-	//	input_sync(pwr->input_dev);
+			msleep(20);
+			input_report_key(pwr->input_dev, pwr->report_key, pwr_val);
+			input_sync(pwr->input_dev);
+		}
+		else	{
+			input_report_key(pwr->input_dev, pwr->report_key, pwr_val);
+			input_sync(pwr->input_dev);
+		}
 	} else
 		push_release_flag = 0;
 
 	prev_hw_state = pwr_val;
+	mutex_unlock(& pwr ->irq_lock);
 
 	return IRQ_HANDLED;
 }
@@ -145,6 +154,7 @@ static int __devinit twl6030_pwrbutton_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Can't register power button: %d\n", err);
 		goto free_irq;
 	}
+	mutex_init(&pwr_button->irq_lock);
 
 	twl6030_interrupt_unmask(0x01, REG_INT_MSK_LINE_A);
 	twl6030_interrupt_unmask(0x01, REG_INT_MSK_STS_A);
