@@ -1567,7 +1567,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 		return -EIO;
 	thisboard = comedi_board(dev);
 
-	if (comedi_pci_enable(devpriv->pci_dev, "cb_pcidas")) {
+	if (comedi_pci_enable(devpriv->pci_dev, dev->driver->driver_name)) {
 		dev_err(dev->class_dev,
 			"Failed to enable PCI device and request regions\n");
 		return -EIO;
@@ -1585,7 +1585,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
 	if (request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt,
-			IRQF_SHARED, "cb_pcidas", dev)) {
+			IRQF_SHARED, dev->driver->driver_name, dev)) {
 		dev_dbg(dev->class_dev, "unable to allocate irq %d\n",
 			devpriv->pci_dev->irq);
 		return -EINVAL;
