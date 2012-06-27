@@ -277,7 +277,7 @@ struct ibm_struct {
 	int (*write) (char *);
 	void (*exit) (void);
 	void (*resume) (void);
-	void (*suspend) (pm_message_t state);
+	void (*suspend) (void);
 	void (*shutdown) (void);
 
 	struct list_head all_drivers;
@@ -931,7 +931,7 @@ static int tpacpi_suspend_handler(struct platform_device *pdev,
 				 &tpacpi_all_drivers,
 				 all_drivers) {
 		if (ibm->suspend)
-			(ibm->suspend)(state);
+			(ibm->suspend)();
 	}
 
 	return 0;
@@ -3758,7 +3758,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 	}
 }
 
-static void hotkey_suspend(pm_message_t state)
+static void hotkey_suspend(void)
 {
 	/* Do these on suspend, we get the events on early resume! */
 	hotkey_wakeup_reason = TP_ACPI_WAKEUP_NONE;
@@ -6329,7 +6329,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	return 0;
 }
 
-static void brightness_suspend(pm_message_t state)
+static void brightness_suspend(void)
 {
 	tpacpi_brightness_checkpoint_nvram();
 }
@@ -6748,7 +6748,7 @@ static struct snd_kcontrol_new volume_alsa_control_mute __devinitdata = {
 	.get = volume_alsa_mute_get,
 };
 
-static void volume_suspend(pm_message_t state)
+static void volume_suspend(void)
 {
 	tpacpi_volume_checkpoint_nvram();
 }
@@ -8107,7 +8107,7 @@ static void fan_exit(void)
 	flush_workqueue(tpacpi_wq);
 }
 
-static void fan_suspend(pm_message_t state)
+static void fan_suspend(void)
 {
 	int rc;
 
