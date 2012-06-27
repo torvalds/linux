@@ -94,6 +94,7 @@ struct thermal_cooling_device {
 	struct device device;
 	void *devdata;
 	const struct thermal_cooling_device_ops *ops;
+	struct list_head thermal_instances;
 	struct list_head node;
 };
 

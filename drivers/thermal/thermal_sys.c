@@ -57,6 +57,7 @@ struct thermal_instance {
 	char attr_name[THERMAL_NAME_LENGTH];
 	struct device_attribute attr;
 	struct list_head tz_node; /* node in tz->thermal_instances */
+	struct list_head cdev_node; /* node in cdev->thermal_instances */
 };
 
 static DEFINE_IDR(thermal_tz_idr);
@@ -878,8 +879,10 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 		result = -EEXIST;
 		break;
 	}
-	if (!result)
+	if (!result) {
 		list_add_tail(&dev->tz_node, &tz->thermal_instances);
+		list_add_tail(&dev->cdev_node, &cdev->thermal_instances);
+	}
 	mutex_unlock(&tz->lock);
 
 	if (!result)
@@ -915,6 +918,7 @@ int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 	list_for_each_entry_safe(pos, next, &tz->thermal_instances, tz_node) {
 		if (pos->tz == tz && pos->trip == trip && pos->cdev == cdev) {
 			list_del(&pos->tz_node);
+			list_del(&pos->cdev_node);
 			mutex_unlock(&tz->lock);
 			goto unbind;
 		}
@@ -984,6 +988,7 @@ thermal_cooling_device_register(char *type, void *devdata,
 	}
 
 	strcpy(cdev->type, type);
+	INIT_LIST_HEAD(&cdev->thermal_instances);
 	cdev->ops = ops;
 	cdev->device.class = &thermal_class;
 	cdev->devdata = devdata;
