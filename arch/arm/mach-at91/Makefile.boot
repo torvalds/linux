@@ -16,6 +16,7 @@ endif
 # Keep dtb files sorted alphabetically for each SoC
 # sam9260
 dtb-$(CONFIG_MACH_AT91SAM_DT) += ethernut5.dtb
+dtb-$(CONFIG_MACH_AT91SAM_DT) += evk-pro3.dtb
 dtb-$(CONFIG_MACH_AT91SAM_DT) += tny_a9260.dtb
 dtb-$(CONFIG_MACH_AT91SAM_DT) += usb_a9260.dtb
 # sam9263
