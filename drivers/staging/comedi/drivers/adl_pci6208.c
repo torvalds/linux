@@ -82,21 +82,24 @@ static int pci6208_ao_winsn(struct comedi_device *dev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci6208_private *devpriv = dev->private;
-	int i = 0, Data_Read;
-	unsigned short chan = CR_CHAN(insn->chanspec);
+	int chan = CR_CHAN(insn->chanspec);
 	unsigned long invert = 1 << (16 - 1);
-	unsigned long out_value;
+	unsigned long value = 0;
+	unsigned short status;
+	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		out_value = data[i] ^ invert;
-		do {
-			Data_Read = (inw(dev->iobase) & 1);
-		} while (Data_Read);
-		outw(out_value, dev->iobase + (0x02 * chan));
-		devpriv->ao_readback[chan] = out_value;
-	}
+		value = data[i] ^ invert;
 
-	return i;
+		do {
+			status = inw(dev->iobase + PCI6208_AO_STATUS);
+		} while (status & PCI6208_AO_STATUS_DATA_SEND);
+
+		outw(value, dev->iobase + PCI6208_AO_CONTROL(chan));
+	}
+	devpriv->ao_readback[chan] = value;
+
+	return insn->n;
 }
 
 static int pci6208_ao_rinsn(struct comedi_device *dev,
