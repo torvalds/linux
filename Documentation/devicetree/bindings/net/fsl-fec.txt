@@ -7,10 +7,10 @@ Required properties:
 - phy-mode : String, operation mode of the PHY interface.
   Supported values are: "mii", "gmii", "sgmii", "tbi", "rmii",
   "rgmii", "rgmii-id", "rgmii-rxid", "rgmii-txid", "rtbi", "smii".
-- phy-reset-gpios : Should specify the gpio for phy reset
 
 Optional properties:
 - local-mac-address : 6 bytes, mac address
+- phy-reset-gpios : Should specify the gpio for phy reset
 
 Example:
 
