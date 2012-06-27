@@ -41,8 +41,7 @@
 #include "usbpipe.h"
 
 /*---------------------  Static Definitions -------------------------*/
-/* static int msglevel = MSG_LEVEL_DEBUG; */
-static int msglevel = MSG_LEVEL_INFO;
+static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
 
 /*---------------------  Static Classes  ----------------------------*/
 
