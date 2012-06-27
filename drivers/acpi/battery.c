@@ -1044,16 +1044,23 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 }
 
 /* this is needed to learn about changes made in suspended state */
-static int acpi_battery_resume(struct acpi_device *device)
+static int acpi_battery_resume(struct device *dev)
 {
 	struct acpi_battery *battery;
-	if (!device)
+
+	if (!dev)
 		return -EINVAL;
-	battery = acpi_driver_data(device);
+
+	battery = acpi_driver_data(to_acpi_device(dev));
+	if (!battery)
+		return -EINVAL;
+
 	battery->update_time = 0;
 	acpi_battery_update(battery);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(acpi_battery_pm, NULL, acpi_battery_resume);
 
 static struct acpi_driver acpi_battery_driver = {
 	.name = "battery",
@@ -1062,10 +1069,10 @@ static struct acpi_driver acpi_battery_driver = {
 	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {
 		.add = acpi_battery_add,
-		.resume = acpi_battery_resume,
 		.remove = acpi_battery_remove,
 		.notify = acpi_battery_notify,
 		},
+	.drv.pm = &acpi_battery_pm,
 };
 
 static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
