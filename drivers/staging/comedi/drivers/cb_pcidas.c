@@ -1063,7 +1063,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	else if (cmd->start_src == TRIG_EXT) {
 		bits |= EXT_TRIGGER | TGEN | XTRCL;
 		if (thisboard->is_1602) {
-		    	if (cmd->start_arg & CR_INVERT)
+			if (cmd->start_arg & CR_INVERT)
 				bits |= TGPOL;
 			if (cmd->start_arg & CR_EDGE)
 				bits |= TGSEL;
