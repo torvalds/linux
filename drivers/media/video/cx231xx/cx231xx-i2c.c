@@ -500,7 +500,6 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	BUG_ON(!dev->cx231xx_send_usb_command);
 
 	memcpy(&bus->i2c_adap, &cx231xx_adap_template, sizeof(bus->i2c_adap));
-	memcpy(&bus->i2c_algo, &cx231xx_algo, sizeof(bus->i2c_algo));
 	memcpy(&bus->i2c_client, &cx231xx_client_template,
 	       sizeof(bus->i2c_client));
 
@@ -508,7 +507,6 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 
 	strlcpy(bus->i2c_adap.name, bus->dev->name, sizeof(bus->i2c_adap.name));
 
-	bus->i2c_algo.data = bus;
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&bus->i2c_adap);
