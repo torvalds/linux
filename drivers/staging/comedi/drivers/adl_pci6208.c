@@ -71,7 +71,6 @@ static const struct pci6208_board pci6208_boards[] = {
 };
 
 struct pci6208_private {
-	int data;
 	struct pci_dev *pci_dev;
 	unsigned int ao_readback[2];
 };
