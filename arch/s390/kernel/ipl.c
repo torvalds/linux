@@ -1528,7 +1528,7 @@ static struct shutdown_action __refdata dump_action = {
 
 static void dump_reipl_run(struct shutdown_trigger *trigger)
 {
-	unsigned long ipib = (unsigned long) &reipl_block_actual;
+	unsigned long ipib = (unsigned long) reipl_block_actual;
 	unsigned int csum;
 
 	csum = csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
