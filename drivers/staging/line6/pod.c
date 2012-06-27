@@ -434,11 +434,11 @@ void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
 static int pod_resolve(const char *buf, short block0, short block1,
 		       unsigned char *location)
 {
-	unsigned long value;
+	u8 value;
 	short block;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou8(buf, 10, &value);
 	if (ret)
 		return ret;
 
