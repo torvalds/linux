@@ -29,11 +29,12 @@
 #include "drmP.h"
 #include "drm_crtc_helper.h"
 
-#include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
+#include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_gem.h"
+#include "exynos_drm_plane.h"
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc,\
 				drm_crtc)
@@ -42,8 +43,7 @@
  * Exynos specific crtc structure.
  *
  * @drm_crtc: crtc object.
- * @overlay: contain information common to display controller and hdmi and
- *	contents of this overlay object would be copied to sub driver size.
+ * @drm_plane: pointer of private plane object for this crtc
  * @pipe: a crtc index created at load() with a new crtc object creation
  *	and the crtc object would be set to private->crtc array
  *	to get a crtc object corresponding to this pipe from private->crtc
@@ -55,7 +55,7 @@
  */
 struct exynos_drm_crtc {
 	struct drm_crtc			drm_crtc;
-	struct exynos_drm_overlay	overlay;
+	struct drm_plane		*plane;
 	unsigned int			pipe;
 	unsigned int			dpms;
 };
@@ -63,7 +63,8 @@ struct exynos_drm_crtc {
 static void exynos_drm_crtc_apply(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct exynos_drm_overlay *overlay = &exynos_crtc->overlay;
+	struct exynos_drm_overlay *overlay =
+		get_exynos_drm_overlay(exynos_crtc->plane);
 
 	exynos_drm_fn_encoder(crtc, overlay,
 			exynos_drm_encoder_crtc_mode_set);
@@ -141,7 +142,7 @@ static int exynos_drm_crtc_update(struct drm_crtc *crtc)
 		return -EINVAL;
 
 	exynos_crtc = to_exynos_crtc(crtc);
-	overlay = &exynos_crtc->overlay;
+	overlay = get_exynos_drm_overlay(exynos_crtc->plane);
 
 	memset(&pos, 0, sizeof(struct exynos_drm_crtc_pos));
 
@@ -250,7 +251,8 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			  struct drm_framebuffer *old_fb)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct exynos_drm_overlay *overlay = &exynos_crtc->overlay;
+	struct exynos_drm_overlay *overlay =
+		get_exynos_drm_overlay(exynos_crtc->plane);
 	int pipe = exynos_crtc->pipe;
 	int ret;
 
@@ -378,14 +380,6 @@ static struct drm_crtc_funcs exynos_crtc_funcs = {
 	.destroy	= exynos_drm_crtc_destroy,
 };
 
-struct exynos_drm_overlay *get_exynos_drm_overlay(struct drm_device *dev,
-		struct drm_crtc *crtc)
-{
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-	return &exynos_crtc->overlay;
-}
-
 int exynos_drm_crtc_create(struct drm_device *dev, unsigned int nr)
 {
 	struct exynos_drm_crtc *exynos_crtc;
@@ -402,7 +396,12 @@ int exynos_drm_crtc_create(struct drm_device *dev, unsigned int nr)
 
 	exynos_crtc->pipe = nr;
 	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;
-	exynos_crtc->overlay.zpos = DEFAULT_ZPOS;
+	exynos_crtc->plane = exynos_plane_init(dev, 1 << nr, true);
+	if (!exynos_crtc->plane) {
+		kfree(exynos_crtc);
+		return -ENOMEM;
+	}
+
 	crtc = &exynos_crtc->drm_crtc;
 
 	private->crtc[nr] = crtc;

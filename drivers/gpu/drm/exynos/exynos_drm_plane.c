@@ -12,8 +12,8 @@
 #include "drmP.h"
 
 #include "exynos_drm.h"
-#include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
+#include "exynos_drm_crtc.h"
 #include "exynos_drm_encoder.h"
 
 #define to_exynos_plane(x)	container_of(x, struct exynos_plane, base)
@@ -108,23 +108,30 @@ static struct drm_plane_funcs exynos_plane_funcs = {
 	.destroy	= exynos_plane_destroy,
 };
 
-int exynos_plane_init(struct drm_device *dev, unsigned int nr)
+struct drm_plane *exynos_plane_init(struct drm_device *dev,
+				    unsigned int possible_crtcs, bool priv)
 {
 	struct exynos_plane *exynos_plane;
-	uint32_t possible_crtcs;
+	int err;
 
 	exynos_plane = kzalloc(sizeof(struct exynos_plane), GFP_KERNEL);
-	if (!exynos_plane)
-		return -ENOMEM;
-
-	/* all CRTCs are available */
-	possible_crtcs = (1 << MAX_CRTC) - 1;
+	if (!exynos_plane) {
+		DRM_ERROR("failed to allocate plane\n");
+		return NULL;
+	}
 
 	exynos_plane->overlay.zpos = DEFAULT_ZPOS;
 
-	return drm_plane_init(dev, &exynos_plane->base, possible_crtcs,
+	err = drm_plane_init(dev, &exynos_plane->base, possible_crtcs,
 			      &exynos_plane_funcs, formats, ARRAY_SIZE(formats),
-			      false);
+			      priv);
+	if (err) {
+		DRM_ERROR("failed to initialize plane\n");
+		kfree(exynos_plane);
+		return NULL;
+	}
+
+	return &exynos_plane->base;
 }
 
 int exynos_plane_set_zpos_ioctl(struct drm_device *dev, void *data,
@@ -167,4 +174,11 @@ int exynos_plane_set_zpos_ioctl(struct drm_device *dev, void *data,
 out:
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
+}
+
+struct exynos_drm_overlay *get_exynos_drm_overlay(struct drm_plane *plane)
+{
+	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
+
+	return &exynos_plane->overlay;
 }

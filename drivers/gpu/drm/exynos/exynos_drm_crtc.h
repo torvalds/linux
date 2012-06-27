@@ -29,8 +29,6 @@
 #ifndef _EXYNOS_DRM_CRTC_H_
 #define _EXYNOS_DRM_CRTC_H_
 
-struct exynos_drm_overlay *get_exynos_drm_overlay(struct drm_device *dev,
-		struct drm_crtc *crtc);
 int exynos_drm_crtc_create(struct drm_device *dev, unsigned int nr);
 int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int crtc);
 void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int crtc);
