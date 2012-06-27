@@ -1761,6 +1761,11 @@ extern int drm_get_pci_dev(struct pci_dev *pdev,
 			   const struct pci_device_id *ent,
 			   struct drm_driver *driver);
 
+#define DRM_PCIE_SPEED_25 1
+#define DRM_PCIE_SPEED_50 2
+#define DRM_PCIE_SPEED_80 4
+
+extern int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *speed_mask);
 
 /* platform section */
 extern int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device);
