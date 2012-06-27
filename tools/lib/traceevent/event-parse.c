@@ -3214,6 +3214,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 {
 	struct pevent *pevent = event->pevent;
 	struct print_flag_sym *flag;
+	struct format_field *field;
 	unsigned long long val, fval;
 	unsigned long addr;
 	char *str;
@@ -3228,27 +3229,29 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		print_str_to_seq(s, format, len_arg, arg->atom.atom);
 		return;
 	case PRINT_FIELD:
-		if (!arg->field.field) {
-			arg->field.field = pevent_find_any_field(event, arg->field.name);
-			if (!arg->field.field)
+		field = arg->field.field;
+		if (!field) {
+			field = pevent_find_any_field(event, arg->field.name);
+			if (!field)
 				die("field %s not found", arg->field.name);
+			arg->field.field = field;
 		}
 		/* Zero sized fields, mean the rest of the data */
-		len = arg->field.field->size ? : size - arg->field.field->offset;
+		len = field->size ? : size - field->offset;
 
 		/*
 		 * Some events pass in pointers. If this is not an array
 		 * and the size is the same as long_size, assume that it
 		 * is a pointer.
 		 */
-		if (!(arg->field.field->flags & FIELD_IS_ARRAY) &&
-		    arg->field.field->size == pevent->long_size) {
-			addr = *(unsigned long *)(data + arg->field.field->offset);
+		if (!(field->flags & FIELD_IS_ARRAY) &&
+		    field->size == pevent->long_size) {
+			addr = *(unsigned long *)(data + field->offset);
 			trace_seq_printf(s, "%lx", addr);
 			break;
 		}
 		str = malloc_or_die(len + 1);
-		memcpy(str, data + arg->field.field->offset, len);
+		memcpy(str, data + field->offset, len);
 		str[len] = 0;
 		print_str_to_seq(s, format, len_arg, str);
 		free(str);
