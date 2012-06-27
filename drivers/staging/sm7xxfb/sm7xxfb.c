@@ -42,8 +42,9 @@ struct screen_info smtc_screen_info;
 struct smtcfb_info {
 	struct fb_info fb;
 	struct pci_dev *pdev;
+	u16 chip_id;
+	u8  chip_rev_id;
 
-	u16 chipID;
 	unsigned char __iomem *m_pMMIO;
 	char __iomem *m_pLFB;
 	char *m_pDPR;
@@ -53,8 +54,6 @@ struct smtcfb_info {
 	u_int width;
 	u_int height;
 	u_int hz;
-
-	u8 chipRevID;
 };
 
 struct vesa_mode_table	{
@@ -231,7 +230,7 @@ static void sm712_setpalette(int regno, unsigned red, unsigned green,
 
 static void smtc_set_timing(struct smtcfb_info *sfb)
 {
-	switch (sfb->chipID) {
+	switch (sfb->chip_id) {
 	case 0x710:
 	case 0x712:
 	case 0x720:
@@ -812,8 +811,8 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	if (!sfb)
 		goto failed_free;
 
-	sfb->chipID = ent->device;
-	sprintf(name, "sm%Xfb", sfb->chipID);
+	sfb->chip_id = ent->device;
+	sprintf(name, "sm%Xfb", sfb->chip_id);
 
 	pci_set_drvdata(pdev, sfb);
 
@@ -837,9 +836,9 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 #endif
 	/* Map address and memory detection */
 	pFramebufferPhysical = pci_resource_start(pdev, 0);
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &sfb->chipRevID);
+	pci_read_config_byte(pdev, PCI_REVISION_ID, &sfb->chip_rev_id);
 
-	switch (sfb->chipID) {
+	switch (sfb->chip_id) {
 	case 0x710:
 	case 0x712:
 		sfb->fb.fix.mmio_start = pFramebufferPhysical + 0x00400000;
@@ -925,7 +924,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev,
 		 "Silicon Motion SM%X Rev%X primary display mode %dx%d-%d Init Complete.",
-		 sfb->chipID, sfb->chipRevID, sfb->fb.var.xres,
+		 sfb->chip_id, sfb->chip_rev_id, sfb->fb.var.xres,
 		 sfb->fb.var.yres, sfb->fb.var.bits_per_pixel);
 
 	return 0;
@@ -1001,7 +1000,7 @@ static int smtcfb_pci_resume(struct device *device)
 
 	/* reinit hardware */
 	sm7xx_init_hw();
-	switch (sfb->chipID) {
+	switch (sfb->chip_id) {
 	case 0x710:
 	case 0x712:
 		/* set MCLK = 14.31818 *  (0x16 / 0x2) */
