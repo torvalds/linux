@@ -550,13 +550,13 @@ static int alloc_pdir(struct smmu_as *as)
 		return 0;
 
 	as->pte_count = devm_kzalloc(smmu->dev,
-		     sizeof(as->pte_count[0]) * SMMU_PDIR_COUNT, GFP_KERNEL);
+		     sizeof(as->pte_count[0]) * SMMU_PDIR_COUNT, GFP_ATOMIC);
 	if (!as->pte_count) {
 		dev_err(smmu->dev,
 			"failed to allocate smmu_device PTE cunters\n");
 		return -ENOMEM;
 	}
-	as->pdir_page = alloc_page(GFP_KERNEL | __GFP_DMA);
+	as->pdir_page = alloc_page(GFP_ATOMIC | __GFP_DMA);
 	if (!as->pdir_page) {
 		dev_err(smmu->dev,
 			"failed to allocate smmu_device page directory\n");
