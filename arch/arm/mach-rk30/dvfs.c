@@ -64,6 +64,35 @@ static void dump_dbg_map(void);
 #define PD_ON	1
 #define PD_OFF	0
 
+int dvfs_regulator_set_voltage_readback(struct regulator *regulator, int min_uV, int max_uV)
+{
+	int ret = 0, read_back = 0;
+	int retry = 3;
+	ret = dvfs_regulator_set_voltage(regulator, max_uV, max_uV);
+	if (ret < 0) {
+		while (ret != 0 && retry > 0) {
+			DVFS_ERR("%s retrying...left %d times! regu=%p, volt=%d\n", __func__, retry, regulator, max_uV);
+			mdelay(1);
+			ret = dvfs_regulator_set_voltage(regulator, max_uV, max_uV);
+			if (ret == 0)
+				return ret;
+			retry--;
+		}
+		DVFS_ERR("%s now read back to check voltage\n", __func__);
+
+		/* read back to judge if it is already effect */
+		mdelay(2);
+		read_back = dvfs_regulator_get_voltage(regulator); 
+		if (read_back == max_uV) {
+			DVFS_ERR("%s set ERROR but already effected, volt=%d\n", __func__, read_back);
+			ret = 0;
+		} else {
+			DVFS_ERR("%s set ERROR AND NOT effected, volt=%d\n", __func__, read_back);
+		}
+	}
+	return ret;
+}
+
 struct regulator* dvfs_get_regulator(char *regulator_name)
 {
 	struct vd_node *vd;
@@ -609,7 +638,7 @@ static int dvfs_set_depend_pre(struct clk_node *dvfs_clk, unsigned long rate_old
 		depend->req_volt = clk_fv.index;
 		volt = dvfs_vd_get_newvolt_bypd(depend->dep_vd);
 		DVFS_LOG("%s setting voltage = %d\n", __func__, volt);
-		ret = dvfs_regulator_set_voltage(depend->dep_vd->regulator, volt, volt);
+		ret = dvfs_regulator_set_voltage_readback(depend->dep_vd->regulator, volt, volt);
 		if (0 != ret) {
 			DVFS_ERR("%s set voltage = %d ERROR, ret = %d\n", __func__, volt, ret);
 			return -1;
@@ -666,7 +695,7 @@ static int dvfs_set_depend_post(struct clk_node *dvfs_clk, unsigned long rate_ol
 		depend->req_volt = clk_fv.index;
 		volt = dvfs_vd_get_newvolt_bypd(depend->dep_vd);
 		DVFS_LOG("%s setting voltage = %d\n", __func__, volt);
-		ret = dvfs_regulator_set_voltage(depend->dep_vd->regulator, volt, volt);
+		ret = dvfs_regulator_set_voltage_readback(depend->dep_vd->regulator, volt, volt);
 		if (0 != ret) {
 			DVFS_ERR("%s set voltage = %d ERROR, ret = %d\n", __func__, volt, ret);
 			return -1;
@@ -767,7 +796,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 	/* if up the voltage */
 	if (volt_old < volt_new) {
 		if (!IS_ERR(dvfs_clk->vd->regulator)) {
-			ret = dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new);
+			ret = dvfs_regulator_set_voltage_readback(dvfs_clk->vd->regulator, volt_new, volt_new);
 			if (ret < 0) {
 				flag_core_set_volt_err = 1;
 				DVFS_ERR("%s %s set voltage up err ret = %d, Rnew = %lu(was %lu)Hz, Vnew = %d(was %d)mV\n", 
@@ -805,7 +834,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 	/* if down the voltage */
 	if (volt_old > volt_new) {
 		if (!IS_ERR(dvfs_clk->vd->regulator)) {
-			ret = dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new);
+			ret = dvfs_regulator_set_voltage_readback(dvfs_clk->vd->regulator, volt_new, volt_new);
 			if (ret < 0) {
 				flag_core_set_volt_err = 1;
 				DVFS_ERR("%s %s set voltage down err ret = %d, Rnew = %lu(was %lu)Hz, Vnew = %d(was %d)mV\n", 
@@ -898,7 +927,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	/* if up the voltage */
 	if (volt_old < volt_new) {
 		if (!IS_ERR(dvfs_clk->vd->regulator)) {
-			ret = dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new);
+			ret = dvfs_regulator_set_voltage_readback(dvfs_clk->vd->regulator, volt_new, volt_new);
 			if (ret < 0) {
 				flag_arm_set_volt_err = 1;
 				DVFS_ERR("%s %s set voltage up err ret = %d, Rnew = %lu(was %lu)Hz, Vnew = %d(was %d)mV\n", 
@@ -951,7 +980,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	/* if down the voltage */
 	if (volt_old > volt_new) {
 		if (!IS_ERR(dvfs_clk->vd->regulator)) {
-			ret = dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new);
+			ret = dvfs_regulator_set_voltage_readback(dvfs_clk->vd->regulator, volt_new, volt_new);
 			if (ret < 0) {
 				flag_arm_set_volt_err = 1;
 				DVFS_ERR("%s %s set voltage down err ret = %d, Rnew = %lu(was %lu)Hz, Vnew = %d(was %d)mV\n", 
