@@ -172,6 +172,14 @@
 					fsl,pull-up = <0>;
 				};
 
+				duart_pins_b: duart@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <0x3022 0x3032>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				gpmi_pins_a: gpmi-nand@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <0x0000 0x0010 0x0020
@@ -229,6 +237,15 @@
 					fsl,pinmux-ids = <0x2000 0x2010 0x2020
 						0x2030 0x2040 0x2050 0x2060
 						0x2070 0x2080 0x2090 0x20a0>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				mmc0_4bit_pins_a: mmc0-4bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x2000 0x2010 0x2020
+						0x2030 0x2080 0x2090 0x20a0>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
