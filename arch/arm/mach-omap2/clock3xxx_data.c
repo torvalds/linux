@@ -2490,13 +2490,13 @@ static struct clk uart4_fck = {
 };
 
 static struct clk uart4_fck_am35xx = {
-	.name           = "uart4_fck",
-	.ops            = &clkops_omap2_dflt_wait,
-	.parent         = &per_48m_fck,
-	.enable_reg     = OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
-	.enable_bit     = OMAP3430_EN_UART4_SHIFT,
-	.clkdm_name     = "core_l4_clkdm",
-	.recalc         = &followparent_recalc,
+	.name		= "uart4_fck",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &core_48m_fck,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
+	.enable_bit	= AM35XX_EN_UART4_SHIFT,
+	.clkdm_name	= "core_l4_clkdm",
+	.recalc		= &followparent_recalc,
 };
 
 static struct clk gpt2_fck = {
