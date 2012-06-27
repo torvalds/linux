@@ -6921,19 +6921,6 @@ static void i915_disable_vga(struct drm_device *dev)
 	POSTING_READ(vga_reg);
 }
 
-static void ivb_pch_pwm_override(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/*
-	 * IVB has CPU eDP backlight regs too, set things up to let the
-	 * PCH regs control the backlight
-	 */
-	I915_WRITE(BLC_PWM_CPU_CTL2, PWM_ENABLE);
-	I915_WRITE(BLC_PWM_CPU_CTL, 0);
-	I915_WRITE(BLC_PWM_PCH_CTL1, PWM_ENABLE | (1<<30));
-}
-
 void intel_modeset_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6950,9 +6937,6 @@ void intel_modeset_init_hw(struct drm_device *dev)
 		gen6_enable_rps(dev_priv);
 		gen6_update_ring_freq(dev_priv);
 	}
-
-	if (IS_IVYBRIDGE(dev))
-		ivb_pch_pwm_override(dev);
 }
 
 void intel_modeset_init(struct drm_device *dev)
