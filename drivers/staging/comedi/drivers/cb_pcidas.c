@@ -1640,7 +1640,10 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 
 	/* 8255 */
 	s = dev->subdevices + 2;
-	subdev_8255_init(dev, s, NULL, devpriv->pacer_counter_dio + DIO_8255);
+	ret = subdev_8255_init(dev, s, NULL,
+			       devpriv->pacer_counter_dio + DIO_8255);
+	if (ret)
+		return ret;
 
 	/*  serial EEPROM, */
 	s = dev->subdevices + 3;
