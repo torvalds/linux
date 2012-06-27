@@ -701,6 +701,7 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 	ldo->desc.enable_mask = 1 << id;
 	ldo->desc.min_uV = 800000;
 	ldo->desc.uV_step = 50000;
+	ldo->desc.enable_time = 1000;
 
 	config.dev = pdev->dev.parent;
 	if (pdata)
