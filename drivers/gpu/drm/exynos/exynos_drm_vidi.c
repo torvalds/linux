@@ -529,6 +529,10 @@ static int vidi_store_connection(struct device *dev,
 	if (ctx->connected > 1)
 		return -EINVAL;
 
+	/* use fake edid data for test. */
+	if (!ctx->raw_edid)
+		ctx->raw_edid = (struct edid *)fake_edid_info;
+
 	DRM_DEBUG_KMS("requested connection.\n");
 
 	drm_helper_hpd_irq_event(ctx->subdrv.drm_dev);
@@ -611,9 +615,6 @@ static int __devinit vidi_probe(struct platform_device *pdev)
 	ctx->default_win = 0;
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
-
-	/* for test */
-	ctx->raw_edid = (struct edid *)fake_edid_info;
 
 	subdrv = &ctx->subdrv;
 	subdrv->dev = dev;
