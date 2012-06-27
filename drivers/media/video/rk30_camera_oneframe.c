@@ -1741,14 +1741,25 @@ static int rk_camera_querycap(struct soc_camera_host *ici,
 {
     struct rk_camera_dev *pcdev = ici->priv;
     char orientation[5];
+    int i;
 
     strlcpy(cap->card, dev_name(pcdev->icd->pdev), sizeof(cap->card));    
-    if (strcmp(dev_name(pcdev->icd->pdev), pcdev->pdata->info[0].dev_name) == 0) {
-        sprintf(orientation,"-%d",pcdev->pdata->info[0].orientation);
-    } else {
-        sprintf(orientation,"-%d",pcdev->pdata->info[1].orientation);
+    memset(orientation,0x00,sizeof(orientation));
+    for (i=0; i<RK_CAM_NUM;i++) {
+        if ((pcdev->pdata->info[i].dev_name!=NULL) && (strcmp(dev_name(pcdev->icd->pdev), pcdev->pdata->info[i].dev_name) == 0)) {
+            sprintf(orientation,"-%d",pcdev->pdata->info[i].orientation);
+        }
     }
-    strcat(cap->card,orientation); 
+    
+    if (orientation[0] != '-') {
+        RKCAMERA_TR("%s: %s is not registered in rk29_camera_platform_data, orientation apply default value",__FUNCTION__,dev_name(pcdev->icd->pdev));
+        if (strstr(dev_name(pcdev->icd->pdev),"front")) 
+            strcat(cap->card,"-270");
+        else 
+            strcat(cap->card,"-90");
+    } else {
+        strcat(cap->card,orientation); 
+    }
     cap->version = RK_CAM_VERSION_CODE;
     cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 
