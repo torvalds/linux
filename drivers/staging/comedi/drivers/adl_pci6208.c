@@ -73,21 +73,11 @@ struct pci6208_board {
 };
 
 static const struct pci6208_board pci6208_boards[] = {
-	/*{
-	   .name = "pci6208v",
-	   .dev_id = 0x6208,      // not sure
-	   .ao_chans = 8
-	   },
-	   {
-	   .name = "pci6216v",
-	   .dev_id = 0x6208,      // not sure
-	   .ao_chans = 16
-	   }, */
 	{
-	 .name = "pci6208a",
-	 .dev_id = 0x6208,
-	 .ao_chans = 8
-	 }
+		.name		= "pci6208a",
+		.dev_id		= 0x6208,
+		.ao_chans	= 8,
+	},
 };
 
 struct pci6208_private {
@@ -307,11 +297,7 @@ static void __devexit adl_pci6208_pci_remove(struct pci_dev *dev)
 	comedi_pci_auto_unconfig(dev);
 }
 
-/* This is used by modprobe to translate PCI IDs to drivers.  Should
- * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(adl_pci6208_pci_table) = {
-	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
-	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x6208) },
 	{ 0 }
 };
