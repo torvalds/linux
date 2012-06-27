@@ -241,7 +241,7 @@ static void acpi_idle_bm_rld_restore(void)
 		acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
 }
 
-int acpi_processor_suspend(struct acpi_device * device)
+int acpi_processor_suspend(struct device *dev)
 {
 	if (acpi_idle_suspend == 1)
 		return 0;
@@ -251,7 +251,7 @@ int acpi_processor_suspend(struct acpi_device * device)
 	return 0;
 }
 
-int acpi_processor_resume(struct acpi_device * device)
+int acpi_processor_resume(struct device *dev)
 {
 	if (acpi_idle_suspend == 0)
 		return 0;

@@ -334,8 +334,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr);
 int acpi_processor_hotplug(struct acpi_processor *pr);
 int acpi_processor_power_exit(struct acpi_processor *pr,
 			      struct acpi_device *device);
-int acpi_processor_suspend(struct acpi_device * device);
-int acpi_processor_resume(struct acpi_device * device);
+int acpi_processor_suspend(struct device *dev);
+int acpi_processor_resume(struct device *dev);
 extern struct cpuidle_driver acpi_idle_driver;
 
 /* in processor_thermal.c */
