@@ -60,19 +60,21 @@ void task_work_run(void)
 	struct task_struct *task = current;
 	struct callback_head *p, *q;
 
-	raw_spin_lock_irq(&task->pi_lock);
-	p = task->task_works;
-	task->task_works = NULL;
-	raw_spin_unlock_irq(&task->pi_lock);
+	while (1) {
+		raw_spin_lock_irq(&task->pi_lock);
+		p = task->task_works;
+		task->task_works = NULL;
+		raw_spin_unlock_irq(&task->pi_lock);
 
-	if (unlikely(!p))
-		return;
+		if (unlikely(!p))
+			return;
 
-	q = p->next; /* head */
-	p->next = NULL; /* cut it */
-	while (q) {
-		p = q->next;
-		q->func(q);
-		q = p;
+		q = p->next; /* head */
+		p->next = NULL; /* cut it */
+		while (q) {
+			p = q->next;
+			q->func(q);
+			q = p;
+		}
 	}
 }
