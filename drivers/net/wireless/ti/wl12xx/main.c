@@ -590,13 +590,13 @@ static const int wl12xx_rtable[REG_TABLE_LEN] = {
 };
 
 /* TODO: maybe move to a new header file? */
-#define WL127X_FW_NAME_MULTI	"ti-connectivity/wl127x-fw-4-mr.bin"
-#define WL127X_FW_NAME_SINGLE	"ti-connectivity/wl127x-fw-4-sr.bin"
-#define WL127X_PLT_FW_NAME	"ti-connectivity/wl127x-fw-4-plt.bin"
+#define WL127X_FW_NAME_MULTI	"ti-connectivity/wl127x-fw-5-mr.bin"
+#define WL127X_FW_NAME_SINGLE	"ti-connectivity/wl127x-fw-5-sr.bin"
+#define WL127X_PLT_FW_NAME	"ti-connectivity/wl127x-fw-5-plt.bin"
 
-#define WL128X_FW_NAME_MULTI	"ti-connectivity/wl128x-fw-4-mr.bin"
-#define WL128X_FW_NAME_SINGLE	"ti-connectivity/wl128x-fw-4-sr.bin"
-#define WL128X_PLT_FW_NAME	"ti-connectivity/wl128x-fw-4-plt.bin"
+#define WL128X_FW_NAME_MULTI	"ti-connectivity/wl128x-fw-5-mr.bin"
+#define WL128X_FW_NAME_SINGLE	"ti-connectivity/wl128x-fw-5-sr.bin"
+#define WL128X_PLT_FW_NAME	"ti-connectivity/wl128x-fw-5-plt.bin"
 
 static int wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 {

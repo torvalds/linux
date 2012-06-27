@@ -35,15 +35,6 @@
 #include "conf.h"
 #include "ini.h"
 
-#define WL127X_FW_NAME_MULTI "ti-connectivity/wl127x-fw-4-mr.bin"
-#define WL127X_FW_NAME_SINGLE "ti-connectivity/wl127x-fw-4-sr.bin"
-
-#define WL128X_FW_NAME_MULTI "ti-connectivity/wl128x-fw-4-mr.bin"
-#define WL128X_FW_NAME_SINGLE "ti-connectivity/wl128x-fw-4-sr.bin"
-
-#define WL127X_PLT_FW_NAME "ti-connectivity/wl127x-fw-4-plt.bin"
-#define WL128X_PLT_FW_NAME "ti-connectivity/wl128x-fw-4-plt.bin"
-
 /*
  * wl127x and wl128x are using the same NVS file name. However, the
  * ini parameters between them are different.  The driver validates
