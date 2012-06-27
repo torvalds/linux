@@ -5321,6 +5321,7 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 		goto out_free_hw;
 	}
 
+#ifdef CONFIG_PM
 	ret = enable_irq_wake(wl->irq);
 	if (!ret) {
 		wl->irq_wake_enabled = true;
@@ -5334,6 +5335,7 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 				WL1271_RX_FILTER_MAX_PATTERN_SIZE;
 		}
 	}
+#endif
 	disable_irq(wl->irq);
 
 	ret = wl12xx_get_hw_info(wl);

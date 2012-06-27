@@ -3487,6 +3487,7 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	wiphy->cipher_suites = cipher_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
+#ifdef CONFIG_PM
 	wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 			      WIPHY_WOWLAN_DISCONNECT |
 			      WIPHY_WOWLAN_GTK_REKEY_FAILURE  |
@@ -3496,6 +3497,7 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	wiphy->wowlan.n_patterns = WOW_MAX_FILTERS_PER_LIST;
 	wiphy->wowlan.pattern_min_len = 1;
 	wiphy->wowlan.pattern_max_len = WOW_PATTERN_SIZE;
+#endif
 
 	wiphy->max_sched_scan_ssids = MAX_PROBED_SSID_INDEX;
 
