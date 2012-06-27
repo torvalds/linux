@@ -770,7 +770,7 @@ static struct lpc32xx_nand_cfg_slc *lpc32xx_parse_dt(struct device *dev)
 	}
 
 	pdata->use_bbt = of_get_nand_on_flash_bbt(np);
-	pdata->wp_gpio = of_get_named_gpio_flags(np, "gpios", 0, NULL);
+	pdata->wp_gpio = of_get_named_gpio(np, "gpios", 0);
 
 	return pdata;
 }
