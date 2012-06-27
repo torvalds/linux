@@ -447,8 +447,6 @@ struct cb_pcidas_private {
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
 
-static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
-				    int round_flags);
 static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 			     uint8_t value);
 static int trimpot_7376_write(struct comedi_device *dev, uint8_t value);
@@ -913,6 +911,20 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 		return 5;
 
 	return 0;
+}
+
+static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
+				    int rounding_flags)
+{
+	i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
+				       &(devpriv->divisor2), ns,
+				       rounding_flags & TRIG_ROUND_MASK);
+
+	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
+	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 1,
+		   devpriv->divisor1, 2);
+	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 2,
+		   devpriv->divisor2, 2);
 }
 
 static int cb_pcidas_ai_cmd(struct comedi_device *dev,
@@ -1442,20 +1454,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
-}
-
-static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
-				    int rounding_flags)
-{
-	i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
-				       &(devpriv->divisor2), ns,
-				       rounding_flags & TRIG_ROUND_MASK);
-
-	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 1,
-		   devpriv->divisor1, 2);
-	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 2,
-		   devpriv->divisor2, 2);
 }
 
 static void write_calibration_bitstream(struct comedi_device *dev,
