@@ -89,12 +89,6 @@ analog triggering on 1602 series
 #define NUM_CHANNELS_8402 2
 #define NUM_CHANNELS_DAC08 1
 
-/* sizes of io regions */
-#define CONT_STAT_SIZE 10
-#define ADC_FIFO_SIZE 4
-#define PACER_SIZE 12
-#define AO_SIZE 4
-
 /* Control/Status registers */
 #define INT_ADCFIFO	0	/*  INTERRUPT / ADC FIFO register */
 #define   INT_EOS 0x1		/*  interrupt end of scan */
