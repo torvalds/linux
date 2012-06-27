@@ -303,6 +303,38 @@ static inline hda_nid_t get_capsrc(struct alc_spec *spec, int idx)
 static void call_update_outputs(struct hda_codec *codec);
 static void alc_inv_dmic_sync(struct hda_codec *codec, bool force);
 
+/* for shared I/O, change the pin-control accordingly */
+static void update_shared_mic_hp(struct hda_codec *codec, bool set_as_mic)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int val;
+	hda_nid_t pin = spec->autocfg.inputs[1].pin;
+	/* NOTE: this assumes that there are only two inputs, the
+	 * first is the real internal mic and the second is HP/mic jack.
+	 */
+
+	val = snd_hda_get_default_vref(codec, pin);
+
+	/* This pin does not have vref caps - let's enable vref on pin 0x18
+	   instead, as suggested by Realtek */
+	if (val == AC_PINCTL_VREF_HIZ) {
+		const hda_nid_t vref_pin = 0x18;
+		/* Sanity check pin 0x18 */
+		if (get_wcaps_type(get_wcaps(codec, vref_pin)) == AC_WID_PIN &&
+		    get_defcfg_connect(snd_hda_codec_get_pincfg(codec, vref_pin)) == AC_JACK_PORT_NONE) {
+			unsigned int vref_val = snd_hda_get_default_vref(codec, vref_pin);
+			if (vref_val != AC_PINCTL_VREF_HIZ)
+				snd_hda_set_pin_ctl(codec, vref_pin, PIN_IN | (set_as_mic ? vref_val : 0));
+		}
+	}
+
+	val = set_as_mic ? val | PIN_IN : PIN_HP;
+	snd_hda_set_pin_ctl(codec, pin, val);
+
+	spec->automute_speaker = !set_as_mic;
+	call_update_outputs(codec);
+}
+
 /* select the given imux item; either unmute exclusively or select the route */
 static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 			  unsigned int idx, bool force)
@@ -329,21 +361,8 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 		return 0;
 	spec->cur_mux[adc_idx] = idx;
 
-	/* for shared I/O, change the pin-control accordingly */
-	if (spec->shared_mic_hp) {
-		unsigned int val;
-		hda_nid_t pin = spec->autocfg.inputs[1].pin;
-		/* NOTE: this assumes that there are only two inputs, the
-		 * first is the real internal mic and the second is HP jack.
-		 */
-		if (spec->cur_mux[adc_idx])
-			val = snd_hda_get_default_vref(codec, pin) | PIN_IN;
-		else
-			val = PIN_HP;
-		snd_hda_set_pin_ctl(codec, pin, val);
-		spec->automute_speaker = !spec->cur_mux[adc_idx];
-		call_update_outputs(codec);
-	}
+	if (spec->shared_mic_hp)
+		update_shared_mic_hp(codec, spec->cur_mux[adc_idx]);
 
 	if (spec->dyn_adc_switch) {
 		alc_dyn_adc_pcm_resetup(codec, idx);
