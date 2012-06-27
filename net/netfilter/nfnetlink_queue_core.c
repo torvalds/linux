@@ -910,6 +910,11 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		flags = ntohl(nla_get_be32(nfqa[NFQA_CFG_FLAGS]));
 		mask = ntohl(nla_get_be32(nfqa[NFQA_CFG_MASK]));
 
+		if (flags >= NFQA_CFG_F_MAX) {
+			ret = -EOPNOTSUPP;
+			goto err_out_unlock;
+		}
+
 		spin_lock_bh(&queue->lock);
 		queue->flags &= ~mask;
 		queue->flags |= flags & mask;
