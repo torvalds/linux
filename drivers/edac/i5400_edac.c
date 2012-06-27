@@ -327,7 +327,13 @@ struct i5400_pvt {
 	struct pci_dev *branch_1;		/* 22.0 */
 
 	u16 tolm;				/* top of low memory */
-	u64 ambase;				/* AMB BAR */
+	union {
+		u64 ambase;				/* AMB BAR */
+		struct {
+			u32 ambase_bottom;
+			u32 ambase_top;
+		} u __packed;
+	};
 
 	u16 mir0, mir1;
 
@@ -1055,9 +1061,9 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
 	pvt = mci->pvt_info;
 
 	pci_read_config_dword(pvt->system_address, AMBASE,
-			(u32 *) &pvt->ambase);
+			&pvt->u.ambase_bottom);
 	pci_read_config_dword(pvt->system_address, AMBASE + sizeof(u32),
-			((u32 *) &pvt->ambase) + sizeof(u32));
+			&pvt->u.ambase_top);
 
 	maxdimmperch = pvt->maxdimmperch;
 	maxch = pvt->maxch;
