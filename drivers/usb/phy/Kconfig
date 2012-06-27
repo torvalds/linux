@@ -2,11 +2,11 @@
 # Physical Layer USB driver configuration
 #
 comment "USB Physical Layer drivers"
-	depends on USB
+	depends on USB || USB_GADGET
 
 config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
-	depends on USB
+	depends on USB || USB_GADGET
 	depends on I2C
 	help
 	  Say Y here to add support for the NXP ISP1301 USB transceiver driver.
