@@ -53,6 +53,18 @@ References:
  */
 #include "../comedidev.h"
 
+/*
+ * PCI-6208/6216-GL register map
+ */
+#define PCI6208_AO_CONTROL(x)		(0x00 + (2 * (x)))
+#define PCI6208_AO_STATUS		0x00
+#define PCI6208_AO_STATUS_DATA_SEND	(1 << 0)
+#define PCI6208_DIO			0x40
+#define PCI6208_DIO_DO_MASK		(0x0f)
+#define PCI6208_DIO_DO_SHIFT		(0)
+#define PCI6208_DIO_DI_MASK		(0xf0)
+#define PCI6208_DIO_DI_SHIFT		(4)
+
 /* Board descriptions */
 struct pci6208_board {
 	const char *name;
