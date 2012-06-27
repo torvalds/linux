@@ -943,6 +943,9 @@ static int __devinit lp5523_probe(struct i2c_client *client,
 		if (pdata->led_config[i].led_current == 0)
 			continue;
 
+		INIT_WORK(&chip->leds[led].brightness_work,
+			lp5523_led_brightness_work);
+
 		ret = lp5523_init_led(&chip->leds[led], &client->dev, i, pdata);
 		if (ret) {
 			dev_err(&client->dev, "error initializing leds\n");
@@ -955,9 +958,6 @@ static int __devinit lp5523_probe(struct i2c_client *client,
 		lp5523_write(client,
 			  LP5523_REG_LED_CURRENT_BASE + chip->leds[led].chan_nr,
 			  chip->leds[led].led_current);
-
-		INIT_WORK(&(chip->leds[led].brightness_work),
-			lp5523_led_brightness_work);
 
 		led++;
 	}
