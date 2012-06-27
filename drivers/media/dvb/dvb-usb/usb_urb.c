@@ -22,8 +22,8 @@ static void usb_urb_complete(struct urb *urb)
 	int i;
 	u8 *b;
 
-	pr_debug("%s: %s urb completed status=%d length=%d/%d" \
-			" pack_num=%d errors=%d\n", __func__,
+	dev_dbg(&stream->udev->dev, "%s: %s urb completed status=%d " \
+			"length=%d/%d pack_num=%d errors=%d\n", __func__,
 			ptype == PIPE_ISOCHRONOUS ? "isoc" : "bulk",
 			urb->status, urb->actual_length,
 			urb->transfer_buffer_length,
@@ -38,8 +38,8 @@ static void usb_urb_complete(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:        /* error */
-		pr_debug("%s: urb completition failed=%d\n", __func__,
-				urb->status);
+		dev_dbg(&stream->udev->dev, "%s: urb completition failed=%d\n",
+				__func__, urb->status);
 		break;
 	}
 
@@ -48,8 +48,9 @@ static void usb_urb_complete(struct urb *urb)
 	case PIPE_ISOCHRONOUS:
 		for (i = 0; i < urb->number_of_packets; i++) {
 			if (urb->iso_frame_desc[i].status != 0)
-				pr_debug("%s: iso frame descriptor has an " \
-						"error=%d\n", __func__,
+				dev_dbg(&stream->udev->dev, "%s: iso frame " \
+						"descriptor has an error=%d\n",
+						__func__,
 						urb->iso_frame_desc[i].status);
 			else if (urb->iso_frame_desc[i].actual_length > 0)
 				stream->complete(stream,
@@ -65,8 +66,8 @@ static void usb_urb_complete(struct urb *urb)
 			stream->complete(stream, b, urb->actual_length);
 		break;
 	default:
-		pr_err("%s: unknown endpoint type in completition handler\n",
-				KBUILD_MODNAME);
+		dev_err(&stream->udev->dev, "%s: unknown endpoint type in " \
+				"completition handler\n", KBUILD_MODNAME);
 		return;
 	}
 	usb_submit_urb(urb, GFP_ATOMIC);
@@ -76,7 +77,7 @@ int usb_urb_killv2(struct usb_data_stream *stream)
 {
 	int i;
 	for (i = 0; i < stream->urbs_submitted; i++) {
-		pr_debug("%s: kill urb=%d\n", __func__, i);
+		dev_dbg(&stream->udev->dev, "%s: kill urb=%d\n", __func__, i);
 		/* stop the URB */
 		usb_kill_urb(stream->urb_list[i]);
 	}
@@ -96,11 +97,12 @@ int usb_urb_submitv2(struct usb_data_stream *stream,
 	}
 
 	for (i = 0; i < stream->urbs_initialized; i++) {
-		pr_debug("%s: submit urb=%d\n", __func__, i);
+		dev_dbg(&stream->udev->dev, "%s: submit urb=%d\n", __func__, i);
 		ret = usb_submit_urb(stream->urb_list[i], GFP_ATOMIC);
 		if (ret) {
-			pr_err("%s: could not submit urb no. %d - get them " \
-					"all back\n", KBUILD_MODNAME, i);
+			dev_err(&stream->udev->dev, "%s: could not submit " \
+					"urb no. %d - get them all back\n",
+					KBUILD_MODNAME, i);
 			usb_urb_killv2(stream);
 			return ret;
 		}
@@ -117,7 +119,8 @@ int usb_urb_free_urbs(struct usb_data_stream *stream)
 
 	for (i = stream->urbs_initialized - 1; i >= 0; i--) {
 		if (stream->urb_list[i]) {
-			pr_debug("%s: free urb=%d\n", __func__, i);
+			dev_dbg(&stream->udev->dev, "%s: free urb=%d\n",
+					__func__, i);
 			/* free the URBs */
 			usb_free_urb(stream->urb_list[i]);
 		}
@@ -133,10 +136,10 @@ static int usb_urb_alloc_bulk_urbs(struct usb_data_stream *stream)
 
 	/* allocate the URBs */
 	for (i = 0; i < stream->props.count; i++) {
-		pr_debug("%s: alloc urb=%d\n", __func__, i);
+		dev_dbg(&stream->udev->dev, "%s: alloc urb=%d\n", __func__, i);
 		stream->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!stream->urb_list[i]) {
-			pr_debug("%s: failed\n", __func__);
+			dev_dbg(&stream->udev->dev, "%s: failed\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
 			return -ENOMEM;
@@ -164,11 +167,11 @@ static int usb_urb_alloc_isoc_urbs(struct usb_data_stream *stream)
 	for (i = 0; i < stream->props.count; i++) {
 		struct urb *urb;
 		int frame_offset = 0;
-		pr_debug("%s: alloc urb=%d\n", __func__, i);
+		dev_dbg(&stream->udev->dev, "%s: alloc urb=%d\n", __func__, i);
 		stream->urb_list[i] = usb_alloc_urb(
 				stream->props.u.isoc.framesperurb, GFP_ATOMIC);
 		if (!stream->urb_list[i]) {
-			pr_debug("%s: failed\n", __func__);
+			dev_dbg(&stream->udev->dev, "%s: failed\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(stream->urb_list[j]);
 			return -ENOMEM;
@@ -206,8 +209,8 @@ int usb_free_stream_buffers(struct usb_data_stream *stream)
 	if (stream->state & USB_STATE_URB_BUF) {
 		while (stream->buf_num) {
 			stream->buf_num--;
-			pr_debug("%s: free buf=%d\n", __func__,
-				stream->buf_num);
+			dev_dbg(&stream->udev->dev, "%s: free buf=%d\n",
+				__func__, stream->buf_num);
 			usb_free_coherent(stream->udev, stream->buf_size,
 					  stream->buf_list[stream->buf_num],
 					  stream->dma_addr[stream->buf_num]);
@@ -225,22 +228,22 @@ int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
 	stream->buf_num = 0;
 	stream->buf_size = size;
 
-	pr_debug("%s: all in all I will use %lu bytes for streaming\n",
-			__func__,  num * size);
+	dev_dbg(&stream->udev->dev, "%s: all in all I will use %lu bytes for " \
+			"streaming\n", __func__,  num * size);
 
 	for (stream->buf_num = 0; stream->buf_num < num; stream->buf_num++) {
 		stream->buf_list[stream->buf_num] = usb_alloc_coherent(
 				stream->udev, size, GFP_ATOMIC,
 				&stream->dma_addr[stream->buf_num]);
 		if (!stream->buf_list[stream->buf_num]) {
-			pr_debug("%s: alloc buf=%d failed\n", __func__,
-					stream->buf_num);
+			dev_dbg(&stream->udev->dev, "%s: alloc buf=%d failed\n",
+					__func__, stream->buf_num);
 			usb_free_stream_buffers(stream);
 			return -ENOMEM;
 		}
 
-		pr_debug("%s: alloc buf=%d %p (dma %llu)\n", __func__,
-				stream->buf_num,
+		dev_dbg(&stream->udev->dev, "%s: alloc buf=%d %p (dma %llu)\n",
+				__func__, stream->buf_num,
 				stream->buf_list[stream->buf_num],
 				(long long)stream->dma_addr[stream->buf_num]);
 		memset(stream->buf_list[stream->buf_num], 0, size);
@@ -264,14 +267,15 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 	} else if (props->type == USB_ISOC) {
 		buf_size = props->u.isoc.framesize * props->u.isoc.framesperurb;
 	} else {
-		pr_err("%s: invalid endpoint type=%d\n", KBUILD_MODNAME,
-				props->type);
+		dev_err(&stream->udev->dev, "%s: invalid endpoint type=%d\n",
+				KBUILD_MODNAME, props->type);
 		return -EINVAL;
 	}
 
 	if (stream->buf_num < props->count || stream->buf_size < buf_size) {
-		pr_err("%s: cannot reconfigure as allocated buffers are too " \
-				"small\n", KBUILD_MODNAME);
+		dev_err(&stream->udev->dev, "%s: cannot reconfigure as " \
+				"allocated buffers are too small\n",
+				KBUILD_MODNAME);
 		return -EINVAL;
 	}
 
@@ -293,7 +297,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 			return 0;
 	}
 
-	pr_debug("%s: re-alloc urbs\n", __func__);
+	dev_dbg(&stream->udev->dev, "%s: re-alloc urbs\n", __func__);
 
 	usb_urb_free_urbs(stream);
 	memcpy(&stream->props, props, sizeof(*props));
@@ -319,8 +323,8 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 			stream->props.endpoint));
 
 	if (!stream->complete) {
-		pr_err("%s: there is no data callback - this doesn't make " \
-				"sense\n", KBUILD_MODNAME);
+		dev_err(&stream->udev->dev, "%s: there is no data callback - " \
+				"this doesn't make sense\n", KBUILD_MODNAME);
 		return -EINVAL;
 	}
 
@@ -341,8 +345,8 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 
 		return usb_urb_alloc_isoc_urbs(stream);
 	default:
-		pr_err("%s: unknown urb-type for data transfer\n",
-				KBUILD_MODNAME);
+		dev_err(&stream->udev->dev, "%s: unknown urb-type for data " \
+				"transfer\n", KBUILD_MODNAME);
 		return -EINVAL;
 	}
 }

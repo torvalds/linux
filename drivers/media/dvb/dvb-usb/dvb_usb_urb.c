@@ -29,7 +29,7 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 
 	if (!d || !wbuf || !wlen || !d->props->generic_bulk_ctrl_endpoint ||
 			!d->props->generic_bulk_ctrl_endpoint_response) {
-		pr_debug("%s: failed=%d\n", __func__, -EINVAL);
+		dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, -EINVAL);
 		return -EINVAL;
 	}
 
@@ -45,7 +45,8 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 			d->props->generic_bulk_ctrl_endpoint), wbuf, wlen,
 			&actual_length, 2000);
 	if (ret < 0)
-		pr_err("%s: usb_bulk_msg() failed=%d\n", KBUILD_MODNAME, ret);
+		dev_err(&d->udev->dev, "%s: usb_bulk_msg() failed=%d\n",
+				KBUILD_MODNAME, ret);
 	else
 		ret = actual_length != wlen ? -EIO : 0;
 
@@ -60,8 +61,8 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 				d->props->generic_bulk_ctrl_endpoint_response),
 				rbuf, rlen, &actual_length, 2000);
 		if (ret)
-			pr_err("%s: 2nd usb_bulk_msg() failed=%d\n",
-					KBUILD_MODNAME, ret);
+			dev_err(&d->udev->dev, "%s: 2nd usb_bulk_msg() " \
+					"failed=%d\n", KBUILD_MODNAME, ret);
 
 #ifdef DVB_USB_XFER_DEBUG
 		print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": <<< ",
