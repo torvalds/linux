@@ -9,6 +9,7 @@
 #include <linux/export.h>
 #include <net/cfg80211.h>
 #include "core.h"
+#include "rdev-ops.h"
 
 struct ieee80211_channel *
 rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
@@ -92,7 +93,7 @@ int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 	if (!chan)
 		return -EINVAL;
 
-	return rdev->ops->set_monitor_channel(&rdev->wiphy, chan, chantype);
+	return rdev_set_monitor_channel(rdev, chan, chantype);
 }
 
 void

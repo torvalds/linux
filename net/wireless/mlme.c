@@ -15,6 +15,8 @@
 #include <net/iw_handler.h>
 #include "core.h"
 #include "nl80211.h"
+#include "rdev-ops.h"
+
 
 void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len)
 {
@@ -310,7 +312,7 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	if (err)
 		goto out;
 
-	err = rdev->ops->auth(&rdev->wiphy, dev, &req);
+	err = rdev_auth(rdev, dev, &req);
 
 out:
 	cfg80211_put_bss(req.bss);
@@ -415,7 +417,7 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	if (err)
 		goto out;
 
-	err = rdev->ops->assoc(&rdev->wiphy, dev, &req);
+	err = rdev_assoc(rdev, dev, &req);
 
 out:
 	if (err) {
@@ -477,7 +479,7 @@ int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 		return 0;
 	}
 
-	return rdev->ops->deauth(&rdev->wiphy, dev, &req);
+	return rdev_deauth(rdev, dev, &req);
 }
 
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
@@ -522,7 +524,7 @@ static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	else
 		return -ENOTCONN;
 
-	return rdev->ops->disassoc(&rdev->wiphy, dev, &req);
+	return rdev_disassoc(rdev, dev, &req);
 }
 
 int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
@@ -563,7 +565,7 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 
 	memcpy(bssid, wdev->current_bss->pub.bssid, ETH_ALEN);
 	req.bssid = bssid;
-	rdev->ops->deauth(&rdev->wiphy, dev, &req);
+	rdev_deauth(rdev, dev, &req);
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);
@@ -693,7 +695,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	list_add(&nreg->list, &wdev->mgmt_registrations);
 
 	if (rdev->ops->mgmt_frame_register)
-		rdev->ops->mgmt_frame_register(wiphy, wdev, frame_type, true);
+		rdev_mgmt_frame_register(rdev, wdev, frame_type, true);
 
  out:
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
@@ -716,8 +718,8 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 		if (rdev->ops->mgmt_frame_register) {
 			u16 frame_type = le16_to_cpu(reg->frame_type);
 
-			rdev->ops->mgmt_frame_register(wiphy, wdev,
-						       frame_type, false);
+			rdev_mgmt_frame_register(rdev, wdev,
+						 frame_type, false);
 		}
 
 		list_del(&reg->list);
@@ -843,10 +845,10 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	/* Transmit the Action frame as requested by user space */
-	return rdev->ops->mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
-				  channel_type, channel_type_valid,
-				  wait, buf, len, no_cck, dont_wait_for_ack,
-				  cookie);
+	return rdev_mgmt_tx(rdev, wdev, chan, offchan,
+			    channel_type, channel_type_valid,
+			    wait, buf, len, no_cck, dont_wait_for_ack,
+			    cookie);
 }
 
 bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,

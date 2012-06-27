@@ -11,6 +11,7 @@
 #include <net/cfg80211.h>
 #include "wext-compat.h"
 #include "nl80211.h"
+#include "rdev-ops.h"
 
 
 void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
@@ -128,7 +129,7 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		return err;
 	}
 
-	err = rdev->ops->join_ibss(&rdev->wiphy, dev, params);
+	err = rdev_join_ibss(rdev, dev, params);
 	if (err) {
 		wdev->connect_keys = NULL;
 		wdev->sme_state = CFG80211_SME_IDLE;
@@ -175,7 +176,7 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 	 */
 	if (rdev->ops->del_key)
 		for (i = 0; i < 6; i++)
-			rdev->ops->del_key(wdev->wiphy, dev, i, false, NULL);
+			rdev_del_key(rdev, dev, i, false, NULL);
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);
@@ -211,7 +212,7 @@ int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 	if (!wdev->ssid_len)
 		return -ENOLINK;
 
-	err = rdev->ops->leave_ibss(&rdev->wiphy, dev);
+	err = rdev_leave_ibss(rdev, dev);
 
 	if (err)
 		return err;

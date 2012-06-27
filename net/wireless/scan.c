@@ -17,6 +17,7 @@
 #include "core.h"
 #include "nl80211.h"
 #include "wext-compat.h"
+#include "rdev-ops.h"
 
 #define IEEE80211_SCAN_RESULT_EXPIRE	(30 * HZ)
 
@@ -211,7 +212,7 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 	dev = rdev->sched_scan_req->dev;
 
 	if (!driver_initiated) {
-		int err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
+		int err = rdev_sched_scan_stop(rdev, dev);
 		if (err)
 			return err;
 	}
@@ -1052,7 +1053,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 			creq->rates[i] = (1 << wiphy->bands[i]->n_bitrates) - 1;
 
 	rdev->scan_req = creq;
-	err = rdev->ops->scan(wiphy, creq);
+	err = rdev_scan(rdev, creq);
 	if (err) {
 		rdev->scan_req = NULL;
 		/* creq will be freed below */

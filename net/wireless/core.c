@@ -26,6 +26,7 @@
 #include "debugfs.h"
 #include "wext-compat.h"
 #include "ethtool.h"
+#include "rdev-ops.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -216,7 +217,7 @@ static void cfg80211_rfkill_poll(struct rfkill *rfkill, void *data)
 {
 	struct cfg80211_registered_device *rdev = data;
 
-	rdev->ops->rfkill_poll(&rdev->wiphy);
+	rdev_rfkill_poll(rdev);
 }
 
 static int cfg80211_rfkill_set_block(void *data, bool blocked)
@@ -690,7 +691,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->event_work);
 
 	if (rdev->wowlan && rdev->ops->set_wakeup)
-		rdev->ops->set_wakeup(&rdev->wiphy, false);
+		rdev_set_wakeup(rdev, false);
 	cfg80211_rdev_free_wowlan(rdev);
 }
 EXPORT_SYMBOL(wiphy_unregister);
@@ -964,9 +965,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
 		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
 		    rdev->ops->set_power_mgmt)
-			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
-						      wdev->ps,
-						      wdev->ps_timeout)) {
+			if (rdev_set_power_mgmt(rdev, dev, wdev->ps,
+						wdev->ps_timeout)) {
 				/* assume this means it's off */
 				wdev->ps = false;
 			}
