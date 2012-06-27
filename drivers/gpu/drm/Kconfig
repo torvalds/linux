@@ -54,6 +54,12 @@ config DRM_TTM
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
 
+config DRM_GEM_CMA_HELPER
+	bool
+	depends on DRM
+	help
+	  Choose this if you need the GEM CMA helper functions
+
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
 	depends on DRM && PCI
