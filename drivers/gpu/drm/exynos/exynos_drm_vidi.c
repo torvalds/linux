@@ -533,6 +533,12 @@ static int vidi_store_connection(struct device *dev,
 	if (!ctx->raw_edid)
 		ctx->raw_edid = (struct edid *)fake_edid_info;
 
+	/* if raw_edid isn't same as fake data then it can't be tested. */
+	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
+		DRM_DEBUG_KMS("edid data is not fake data.\n");
+		return -EINVAL;
+	}
+
 	DRM_DEBUG_KMS("requested connection.\n");
 
 	drm_helper_hpd_irq_event(ctx->subdrv.drm_dev);
