@@ -1085,9 +1085,9 @@ static inline void dsi_enable_pll_clock(struct platform_device *dsidev,
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
 	if (enable)
-		clk_enable(dsi->sys_clk);
+		clk_prepare_enable(dsi->sys_clk);
 	else
-		clk_disable(dsi->sys_clk);
+		clk_disable_unprepare(dsi->sys_clk);
 
 	if (enable && dsi->pll_locked) {
 		if (wait_for_bit_change(dsidev, DSI_PLL_STATUS, 1, 1) != 1)
