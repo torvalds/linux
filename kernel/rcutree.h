@@ -202,6 +202,7 @@ struct rcu_node {
 				/*  per-CPU kthreads as needed. */
 	unsigned int node_kthread_status;
 				/* State of node_kthread_task for tracing. */
+	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
 } ____cacheline_internodealigned_in_smp;
 
 /*

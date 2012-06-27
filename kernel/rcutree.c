@@ -61,6 +61,7 @@
 /* Data structures. */
 
 static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
+static struct lock_class_key rcu_fqs_class[RCU_NUM_LVLS];
 
 #define RCU_STATE_INITIALIZER(sname, cr) { \
 	.level = { &sname##_state.node[0] }, \
@@ -1807,16 +1808,35 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *))
 static void force_quiescent_state(struct rcu_state *rsp)
 {
 	unsigned long flags;
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	bool ret;
+	struct rcu_node *rnp;
+	struct rcu_node *rnp_old = NULL;
 
-	if (ACCESS_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS)
+	/* Funnel through hierarchy to reduce memory contention. */
+	rnp = per_cpu_ptr(rsp->rda, raw_smp_processor_id())->mynode;
+	for (; rnp != NULL; rnp = rnp->parent) {
+		ret = (ACCESS_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS) ||
+		      !raw_spin_trylock(&rnp->fqslock);
+		if (rnp_old != NULL)
+			raw_spin_unlock(&rnp_old->fqslock);
+		if (ret) {
+			rsp->n_force_qs_lh++;
+			return;
+		}
+		rnp_old = rnp;
+	}
+	/* rnp_old == rcu_get_root(rsp), rnp == NULL. */
+
+	/* Reached the root of the rcu_node tree, acquire lock. */
+	raw_spin_lock_irqsave(&rnp_old->lock, flags);
+	raw_spin_unlock(&rnp_old->fqslock);
+	if (ACCESS_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS) {
+		rsp->n_force_qs_lh++;
+		raw_spin_unlock_irqrestore(&rnp_old->lock, flags);
 		return;  /* Someone beat us to it. */
-	if (!raw_spin_trylock_irqsave(&rnp->lock, flags)) {
-		rsp->n_force_qs_lh++; /* Inexact, can lose counts.  Tough! */
-		return;
 	}
 	rsp->gp_flags |= RCU_GP_FLAG_FQS;
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore(&rnp_old->lock, flags);
 	wake_up(&rsp->gp_wq);  /* Memory barrier implied by wake_up() path. */
 }
 
@@ -2704,10 +2724,14 @@ static void __init rcu_init_levelspread(struct rcu_state *rsp)
 static void __init rcu_init_one(struct rcu_state *rsp,
 		struct rcu_data __percpu *rda)
 {
-	static char *buf[] = { "rcu_node_level_0",
-			       "rcu_node_level_1",
-			       "rcu_node_level_2",
-			       "rcu_node_level_3" };  /* Match MAX_RCU_LVLS */
+	static char *buf[] = { "rcu_node_0",
+			       "rcu_node_1",
+			       "rcu_node_2",
+			       "rcu_node_3" };  /* Match MAX_RCU_LVLS */
+	static char *fqs[] = { "rcu_node_fqs_0",
+			       "rcu_node_fqs_1",
+			       "rcu_node_fqs_2",
+			       "rcu_node_fqs_3" };  /* Match MAX_RCU_LVLS */
 	int cpustride = 1;
 	int i;
 	int j;
@@ -2732,6 +2756,9 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 			raw_spin_lock_init(&rnp->lock);
 			lockdep_set_class_and_name(&rnp->lock,
 						   &rcu_node_class[i], buf[i]);
+			raw_spin_lock_init(&rnp->fqslock);
+			lockdep_set_class_and_name(&rnp->fqslock,
+						   &rcu_fqs_class[i], fqs[i]);
 			rnp->gpnum = 0;
 			rnp->qsmask = 0;
 			rnp->qsmaskinit = 0;
