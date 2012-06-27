@@ -173,9 +173,9 @@ struct property *of_find_property(const struct device_node *np,
 		return NULL;
 
 	read_lock(&devtree_lock);
-	for (pp = np->properties; pp != 0; pp = pp->next) {
+	for (pp = np->properties; pp; pp = pp->next) {
 		if (of_prop_cmp(pp->name, name) == 0) {
-			if (lenp != 0)
+			if (lenp)
 				*lenp = pp->length;
 			break;
 		}
@@ -497,7 +497,7 @@ struct device_node *of_find_node_with_property(struct device_node *from,
 	read_lock(&devtree_lock);
 	np = from ? from->allnext : allnodes;
 	for (; np; np = np->allnext) {
-		for (pp = np->properties; pp != 0; pp = pp->next) {
+		for (pp = np->properties; pp; pp = pp->next) {
 			if (of_prop_cmp(pp->name, prop_name) == 0) {
 				of_node_get(np);
 				goto out;
