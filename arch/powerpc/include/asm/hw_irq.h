@@ -102,6 +102,11 @@ static inline void hard_irq_disable(void)
 /* include/linux/interrupt.h needs hard_irq_disable to be a macro */
 #define hard_irq_disable	hard_irq_disable
 
+static inline bool lazy_irq_pending(void)
+{
+	return !!(get_paca()->irq_happened & ~PACA_IRQ_HARD_DIS);
+}
+
 /*
  * This is called by asynchronous interrupts to conditionally
  * re-enable hard interrupts when soft-disabled after having
