@@ -67,6 +67,11 @@ config BCM63XX_PHY
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
 
+config BCM87XX_PHY
+	tristate "Driver for Broadcom BCM8706 and BCM8727 PHYs"
+	help
+	  Currently supports the BCM8706 and BCM8727 10G Ethernet PHYs.
+
 config ICPLUS_PHY
 	tristate "Drivers for ICPlus PHYs"
 	---help---
