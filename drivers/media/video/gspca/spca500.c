@@ -30,14 +30,11 @@ MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA500 USB Camera Driver");
 MODULE_LICENSE("GPL");
 
+#define QUALITY 85
+
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
-
-	struct v4l2_ctrl *jpegqual;
-#define QUALITY_MIN 70
-#define QUALITY_MAX 95
-#define QUALITY_DEF 85
 
 	char subtype;
 #define AgfaCl20 0
@@ -613,7 +610,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* create the JPEG header */
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x22);		/* JPEG 411 */
-	jpeg_set_qual(sd->jpeg_hdr, v4l2_ctrl_g_ctrl(sd->jpegqual));
+	jpeg_set_qual(sd->jpeg_hdr, QUALITY);
 
 	if (sd->subtype == LogitechClickSmart310) {
 		xmult = 0x16;
@@ -890,32 +887,10 @@ static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 	reg_w(gspca_dev, 0x00, 0x8169, val);
 }
 
-static int sd_set_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	v4l2_ctrl_s_ctrl(sd->jpegqual, jcomp->quality);
-	return 0;
-}
-
-static int sd_get_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	memset(jcomp, 0, sizeof *jcomp);
-	jcomp->quality = v4l2_ctrl_g_ctrl(sd->jpegqual);
-	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
-			| V4L2_JPEG_MARKER_DQT;
-	return 0;
-}
-
 static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gspca_dev *gspca_dev =
 		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
-	struct sd *sd = (struct sd *)gspca_dev;
 
 	gspca_dev->usb_err = 0;
 
@@ -932,9 +907,6 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_SATURATION:
 		setcolors(gspca_dev, ctrl->val);
 		break;
-	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
-		jpeg_set_qual(sd->jpeg_hdr, ctrl->val);
-		break;
 	}
 	return gspca_dev->usb_err;
 }
@@ -945,20 +917,16 @@ static const struct v4l2_ctrl_ops sd_ctrl_ops = {
 
 static int sd_init_controls(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *)gspca_dev;
 	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
 	gspca_dev->vdev.ctrl_handler = hdl;
-	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_handler_init(hdl, 3);
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 127);
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_CONTRAST, 0, 63, 1, 31);
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_SATURATION, 0, 63, 1, 31);
-	sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
-			V4L2_CID_JPEG_COMPRESSION_QUALITY,
-			QUALITY_MIN, QUALITY_MAX, 1, QUALITY_DEF);
 
 	if (hdl->error) {
 		pr_err("Could not initialize controls\n");
@@ -976,8 +944,6 @@ static const struct sd_desc sd_desc = {
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
-	.get_jcomp = sd_get_jcomp,
-	.set_jcomp = sd_set_jcomp,
 };
 
 /* -- module initialisation -- */
