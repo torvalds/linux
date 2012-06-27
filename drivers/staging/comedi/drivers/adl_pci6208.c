@@ -275,7 +275,7 @@ static int pci6208_attach(struct comedi_device *dev,
 	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx\n",
 		dev->driver->driver_name, dev->board_name, dev->iobase);
 
-	return 1;
+	return 0;
 }
 
 static void pci6208_detach(struct comedi_device *dev)
