@@ -57,6 +57,9 @@ static const struct regulator_desc arizona_ldo1 = {
 };
 
 static const struct regulator_init_data arizona_ldo1_default = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
 	.num_consumer_supplies = 1,
 };
 
@@ -88,6 +91,7 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 	config.dev = arizona->dev;
 	config.driver_data = ldo1;
 	config.regmap = arizona->regmap;
+	config.ena_gpio = arizona->pdata.ldoena;
 
 	if (arizona->pdata.ldo1)
 		config.init_data = arizona->pdata.ldo1;
