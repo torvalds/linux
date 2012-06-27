@@ -79,9 +79,6 @@ analog triggering on 1602 series
 #include "amcc_s5933.h"
 #include "comedi_fc.h"
 
-#undef CB_PCIDAS_DEBUG		/*  disable debugging code */
-/* #define CB_PCIDAS_DEBUG         enable debugging code */
-
 /* PCI vendor number of ComputerBoards/MeasurementComputing */
 #define PCI_VENDOR_ID_CB	0x1307
 #define TIMER_BASE 100		/*  10MHz master clock */
@@ -1092,10 +1089,6 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 		bits |= PACER_INT;
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
-#ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->class_dev, "sent 0x%x to adcmux control\n", bits);
-#endif
-
 	/*  load counters */
 	if (cmd->convert_src == TRIG_TIMER)
 		cb_pcidas_load_counters(dev, &cmd->convert_arg,
@@ -1119,10 +1112,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	} else {
 		devpriv->adc_fifo_bits |= INT_FHF;	/* interrupt fifo half full */
 	}
-#ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->class_dev, "adc_fifo_bits are 0x%x\n",
-		devpriv->adc_fifo_bits);
-#endif
+
 	/*  enable (and clear) interrupts */
 	outw(devpriv->adc_fifo_bits | EOAI | INT | LADFUL,
 	     devpriv->control_status + INT_ADCFIFO);
@@ -1146,9 +1136,6 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
 		bits |= BURSTE;
 	outw(bits, devpriv->control_status + TRIG_CONTSTAT);
-#ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->class_dev, "sent 0x%x to trig control\n", bits);
-#endif
 
 	return 0;
 }
@@ -1322,10 +1309,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	/*  enable dac half-full and empty interrupts */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
-#ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->class_dev, "adc_fifo_bits are 0x%x\n",
-		devpriv->adc_fifo_bits);
-#endif
+
 	/*  enable and clear interrupts */
 	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI,
 	     devpriv->control_status + INT_ADCFIFO);
@@ -1333,10 +1317,7 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	/*  start dac */
 	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
 	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
-#ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->class_dev, "sent 0x%x to dac control\n",
-		devpriv->ao_control_bits);
-#endif
+
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	async->inttrig = NULL;
@@ -1508,11 +1489,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	async->events = 0;
 
 	s5933_status = inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR);
-#ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->class_dev, "intcsr 0x%x\n", s5933_status);
-	dev_dbg(dev->class_dev, "mbef 0x%x\n",
-		inl(devpriv->s5933_config + AMCC_OP_REG_MBEF));
-#endif
 
 	if ((INTCSR_INTR_ASSERTED & s5933_status) == 0)
 		return IRQ_NONE;
@@ -1524,10 +1500,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
-#ifdef CB_PCIDAS_DEBUG
-	if ((status & (INT | EOAI | LADFUL | DAHFI | DAEMI)) == 0)
-		comedi_error(dev, "spurious interrupt");
-#endif
 
 	/*  check for analog output interrupt */
 	if (status & (DAHFI | DAEMI))
