@@ -240,7 +240,6 @@ struct cb_pcidas_board {
 	const char *name;
 	unsigned short device_id;
 	int ai_se_chans;	/*  Inputs in single-ended mode */
-	int ai_diff_chans;	/*  Inputs in differential mode */
 	int ai_bits;		/*  analog input resolution */
 	int ai_speed;		/*  fastest conversion period in ns */
 	int ao_nchan;		/*  number of analog out channels */
@@ -258,7 +257,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1602/16",
 		.device_id	= 0x1,
 		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
 		.ai_bits	= 16,
 		.ai_speed	= 5000,
 		.ao_nchan	= 2,
@@ -273,7 +271,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1200",
 		.device_id	= 0xF,
 		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
 		.ai_bits	= 12,
 		.ai_speed	= 3200,
 		.ao_nchan	= 2,
@@ -284,7 +281,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1602/12",
 		.device_id	= 0x10,
 		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
 		.ai_bits	= 12,
 		.ai_speed	= 3200,
 		.ao_nchan	= 2,
@@ -298,7 +294,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1200/jr",
 		.device_id	= 0x19,
 		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
 		.ai_bits	= 12,
 		.ai_speed	= 3200,
 		.fifo_size	= 1024,
@@ -308,7 +303,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1602/16/jr",
 		.device_id	= 0x1C,
 		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
 		.ai_bits	= 16,
 		.ai_speed	= 5000,
 		.fifo_size	= 512,
@@ -320,7 +314,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1000",
 		.device_id	= 0x4C,
 		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
 		.ai_bits	= 12,
 		.ai_speed	= 4000,
 		.fifo_size	= 1024,
@@ -330,7 +323,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1001",
 		.device_id	= 0x1a,
 		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
 		.ai_bits	= 12,
 		.ai_speed	= 6800,
 		.ao_nchan	= 2,
@@ -341,7 +333,6 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 		.name		= "pci-das1002",
 		.device_id	= 0x1b,
 		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
 		.ai_bits	= 12,
 		.ai_speed	= 6800,
 		.ao_nchan	= 2,
