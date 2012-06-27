@@ -41,16 +41,7 @@ References:
 	- adl_pci9111.c		copied the entire pci setup section
 	- adl_pci9118.c
 */
-/*
- * These headers should be followed by a blank line, and any comments
- * you wish to say about the driver.  The comment area is the place
- * to put any known bugs, limitations, unsupported features, supported
- * command triggers, whether or not commands are supported on particular
- * subdevices, etc.
- *
- * Somewhere in the comment should be information about configuration
- * options that are used with comedi_config.
- */
+
 #include "../comedidev.h"
 
 /*
@@ -65,10 +56,9 @@ References:
 #define PCI6208_DIO_DI_MASK		(0xf0)
 #define PCI6208_DIO_DI_SHIFT		(4)
 
-/* Board descriptions */
 struct pci6208_board {
 	const char *name;
-	unsigned short dev_id;	/* `lspci` will show you this */
+	unsigned short dev_id;
 	int ao_chans;
 };
 
@@ -82,8 +72,8 @@ static const struct pci6208_board pci6208_boards[] = {
 
 struct pci6208_private {
 	int data;
-	struct pci_dev *pci_dev;	/* for a PCI device */
-	unsigned int ao_readback[2];	/* Used for AO readback */
+	struct pci_dev *pci_dev;
+	unsigned int ao_readback[2];
 };
 
 static int pci6208_ao_winsn(struct comedi_device *dev,
@@ -95,11 +85,9 @@ static int pci6208_ao_winsn(struct comedi_device *dev,
 	unsigned short chan = CR_CHAN(insn->chanspec);
 	unsigned long invert = 1 << (16 - 1);
 	unsigned long out_value;
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
+
 	for (i = 0; i < insn->n; i++) {
 		out_value = data[i] ^ invert;
-		/* a typical programming sequence */
 		do {
 			Data_Read = (inw(dev->iobase) & 1);
 		} while (Data_Read);
@@ -107,12 +95,9 @@ static int pci6208_ao_winsn(struct comedi_device *dev,
 		devpriv->ao_readback[chan] = out_value;
 	}
 
-	/* return the number of samples read/written */
 	return i;
 }
 
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
 static int pci6208_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
