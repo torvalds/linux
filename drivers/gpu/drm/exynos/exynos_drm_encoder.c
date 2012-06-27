@@ -30,7 +30,6 @@
 #include "drm_crtc_helper.h"
 
 #include "exynos_drm_drv.h"
-#include "exynos_drm_crtc.h"
 #include "exynos_drm_encoder.h"
 
 #define to_exynos_encoder(x)	container_of(x, struct exynos_drm_encoder,\
@@ -303,8 +302,8 @@ void exynos_drm_enable_vblank(struct drm_encoder *encoder, void *data)
 	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 	int crtc = *(int *)data;
 
-	if (manager->pipe == -1)
-		manager->pipe = crtc;
+	if (manager->pipe != crtc)
+		return;
 
 	if (manager_ops->enable_vblank)
 		manager_ops->enable_vblank(manager->dev);
@@ -317,8 +316,8 @@ void exynos_drm_disable_vblank(struct drm_encoder *encoder, void *data)
 	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 	int crtc = *(int *)data;
 
-	if (manager->pipe == -1)
-		manager->pipe = crtc;
+	if (manager->pipe != crtc)
+		return;
 
 	if (manager_ops->disable_vblank)
 		manager_ops->disable_vblank(manager->dev);
@@ -341,18 +340,9 @@ void exynos_drm_encoder_crtc_plane_commit(struct drm_encoder *encoder,
 
 void exynos_drm_encoder_crtc_commit(struct drm_encoder *encoder, void *data)
 {
-	struct exynos_drm_manager *manager =
-		to_exynos_encoder(encoder)->manager;
-	int crtc = *(int *)data;
 	int zpos = DEFAULT_ZPOS;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	/*
-	 * when crtc is detached from encoder, this pipe is used
-	 * to select manager operation
-	 */
-	manager->pipe = crtc;
 
 	exynos_drm_encoder_crtc_plane_commit(encoder, &zpos);
 }
@@ -428,4 +418,19 @@ void exynos_drm_encoder_crtc_disable(struct drm_encoder *encoder, void *data)
 
 	if (overlay_ops && overlay_ops->disable)
 		overlay_ops->disable(manager->dev, zpos);
+}
+
+void exynos_drm_encoder_crtc_pipe(struct drm_encoder *encoder, void *data)
+{
+	struct exynos_drm_manager *manager =
+		to_exynos_encoder(encoder)->manager;
+	int pipe = *(int *)data;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/*
+	 * when crtc is detached from encoder, this pipe is used
+	 * to select manager operation
+	 */
+	manager->pipe = pipe;
 }
