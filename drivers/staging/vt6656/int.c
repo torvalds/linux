@@ -182,11 +182,11 @@ void INTnsProcessData(PSDevice pDevice)
 		LODWORD(pDevice->qwCurrTSF) = pINTData->dwLoTSF;
 		HIDWORD(pDevice->qwCurrTSF) = pINTData->dwHiTSF;
 		/*DBG_PRN_GRP01(("ISR0 = %02x ,
-				LoTsf =  %08x,
-				HiTsf =  %08x\n",
-				pINTData->byISR0,
-				pINTData->dwLoTSF,
-				pINTData->dwHiTSF)); */
+		  LoTsf =  %08x,
+		  HiTsf =  %08x\n",
+		  pINTData->byISR0,
+		  pINTData->dwLoTSF,
+		  pINTData->dwHiTSF)); */
 
 		STAvUpdate802_11Counter(&pDevice->s802_11Counter,
 					&pDevice->scStatistic,
@@ -208,8 +208,8 @@ void INTnsProcessData(PSDevice pDevice)
 
 	pStats->tx_packets = pDevice->scStatistic.ullTsrOK;
 	pStats->tx_bytes = pDevice->scStatistic.ullTxDirectedBytes +
-			pDevice->scStatistic.ullTxMulticastBytes +
-			pDevice->scStatistic.ullTxBroadcastBytes;
+		pDevice->scStatistic.ullTxMulticastBytes +
+		pDevice->scStatistic.ullTxBroadcastBytes;
 	pStats->tx_errors = pDevice->scStatistic.dwTsrErr;
 	pStats->tx_dropped = pDevice->scStatistic.dwTsrErr;
 }
