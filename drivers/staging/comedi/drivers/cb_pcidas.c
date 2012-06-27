@@ -447,7 +447,6 @@ struct cb_pcidas_private {
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
 
-static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status);
 static int cb_pcidas_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 static int cb_pcidas_ao_cancel(struct comedi_device *dev,
@@ -1245,6 +1244,61 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	return 0;
 }
 
+static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
+{
+	struct comedi_subdevice *s = dev->write_subdev;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int half_fifo = thisboard->fifo_size / 2;
+	unsigned int num_points;
+	unsigned long flags;
+
+	async->events = 0;
+
+	if (status & DAEMI) {
+		/*  clear dac empty interrupt latch */
+		spin_lock_irqsave(&dev->spinlock, flags);
+		outw(devpriv->adc_fifo_bits | DAEMI,
+		     devpriv->control_status + INT_ADCFIFO);
+		spin_unlock_irqrestore(&dev->spinlock, flags);
+		if (inw(devpriv->ao_registers + DAC_CSR) & DAC_EMPTY) {
+			if (cmd->stop_src == TRIG_NONE ||
+			    (cmd->stop_src == TRIG_COUNT
+			     && devpriv->ao_count)) {
+				comedi_error(dev, "dac fifo underflow");
+				cb_pcidas_ao_cancel(dev, s);
+				async->events |= COMEDI_CB_ERROR;
+			}
+			async->events |= COMEDI_CB_EOA;
+		}
+	} else if (status & DAHFI) {
+		unsigned int num_bytes;
+
+		/*  figure out how many points we are writing to fifo */
+		num_points = half_fifo;
+		if (cmd->stop_src == TRIG_COUNT &&
+		    devpriv->ao_count < num_points)
+			num_points = devpriv->ao_count;
+		num_bytes =
+		    cfc_read_array_from_buffer(s, devpriv->ao_buffer,
+					       num_points * sizeof(short));
+		num_points = num_bytes / sizeof(short);
+
+		if (async->cmd.stop_src == TRIG_COUNT)
+			devpriv->ao_count -= num_points;
+		/*  write data to board's fifo */
+		outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer,
+		      num_points);
+		/*  clear half-full interrupt latch */
+		spin_lock_irqsave(&dev->spinlock, flags);
+		outw(devpriv->adc_fifo_bits | DAHFI,
+		     devpriv->control_status + INT_ADCFIFO);
+		spin_unlock_irqrestore(&dev->spinlock, flags);
+	}
+
+	comedi_event(dev, s);
+}
+
 static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = (struct comedi_device *)d;
@@ -1353,61 +1407,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
-}
-
-static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
-{
-	struct comedi_subdevice *s = dev->write_subdev;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int half_fifo = thisboard->fifo_size / 2;
-	unsigned int num_points;
-	unsigned long flags;
-
-	async->events = 0;
-
-	if (status & DAEMI) {
-		/*  clear dac empty interrupt latch */
-		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->adc_fifo_bits | DAEMI,
-		     devpriv->control_status + INT_ADCFIFO);
-		spin_unlock_irqrestore(&dev->spinlock, flags);
-		if (inw(devpriv->ao_registers + DAC_CSR) & DAC_EMPTY) {
-			if (cmd->stop_src == TRIG_NONE ||
-			    (cmd->stop_src == TRIG_COUNT
-			     && devpriv->ao_count)) {
-				comedi_error(dev, "dac fifo underflow");
-				cb_pcidas_ao_cancel(dev, s);
-				async->events |= COMEDI_CB_ERROR;
-			}
-			async->events |= COMEDI_CB_EOA;
-		}
-	} else if (status & DAHFI) {
-		unsigned int num_bytes;
-
-		/*  figure out how many points we are writing to fifo */
-		num_points = half_fifo;
-		if (cmd->stop_src == TRIG_COUNT &&
-		    devpriv->ao_count < num_points)
-			num_points = devpriv->ao_count;
-		num_bytes =
-		    cfc_read_array_from_buffer(s, devpriv->ao_buffer,
-					       num_points * sizeof(short));
-		num_points = num_bytes / sizeof(short);
-
-		if (async->cmd.stop_src == TRIG_COUNT)
-			devpriv->ao_count -= num_points;
-		/*  write data to board's fifo */
-		outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer,
-		      num_points);
-		/*  clear half-full interrupt latch */
-		spin_lock_irqsave(&dev->spinlock, flags);
-		outw(devpriv->adc_fifo_bits | DAHFI,
-		     devpriv->control_status + INT_ADCFIFO);
-		spin_unlock_irqrestore(&dev->spinlock, flags);
-	}
-
-	comedi_event(dev, s);
 }
 
 /* cancel analog input command */
