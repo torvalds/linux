@@ -69,15 +69,6 @@ err:
 	return retval;
 }
 
-void saa7164_call_i2c_clients(struct saa7164_i2c *bus, unsigned int cmd,
-	void *arg)
-{
-	if (bus->i2c_rc != 0)
-		return;
-
-	i2c_clients_command(&bus->i2c_adap, cmd, arg);
-}
-
 static u32 saa7164_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C;
