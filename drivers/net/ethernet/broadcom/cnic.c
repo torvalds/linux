@@ -1063,10 +1063,7 @@ static int cnic_init_uio(struct cnic_dev *dev)
 
 	uinfo = &udev->cnic_uinfo;
 
-	uinfo->mem[0].addr = dev->netdev->base_addr;
-	uinfo->mem[0].internal_addr = dev->regview;
-	uinfo->mem[0].size = dev->netdev->mem_end - dev->netdev->mem_start;
-	uinfo->mem[0].memtype = UIO_MEM_PHYS;
+	uinfo->mem[0].memtype = UIO_MEM_NONE;
 
 	if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags)) {
 		uinfo->mem[1].addr = (unsigned long) cp->status_blk.gen &
