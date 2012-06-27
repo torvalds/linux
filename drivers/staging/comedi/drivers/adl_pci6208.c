@@ -233,8 +233,6 @@ static int pci6208_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	printk(KERN_INFO "comedi%d: pci6208: ", dev->minor);
-
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
 		return ret;
@@ -280,7 +278,8 @@ static int pci6208_attach(struct comedi_device *dev,
 	/* s->insn_bits = pci6208_dio_insn_bits; */
 	/* s->insn_config = pci6208_dio_insn_config; */
 
-	printk(KERN_INFO "attached\n");
+	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx\n",
+		dev->driver->driver_name, dev->board_name, dev->iobase);
 
 	return 1;
 }
