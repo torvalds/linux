@@ -79,7 +79,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 				mdio->irq[addr] = PHY_POLL;
 		}
 
-		phy = get_phy_device(mdio, addr);
+		phy = get_phy_device(mdio, addr, false);
 		if (!phy || IS_ERR(phy)) {
 			dev_err(&mdio->dev, "error probing PHY at address %i\n",
 				addr);

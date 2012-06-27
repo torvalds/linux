@@ -232,7 +232,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 	struct phy_device *phydev;
 	int err;
 
-	phydev = get_phy_device(bus, addr);
+	phydev = get_phy_device(bus, addr, false);
 	if (IS_ERR(phydev) || phydev == NULL)
 		return phydev;
 
