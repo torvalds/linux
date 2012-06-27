@@ -8,7 +8,7 @@ struct task_work;
 typedef void (*task_work_func_t)(struct task_work *);
 
 struct task_work {
-	struct hlist_node hlist;
+	struct task_work *next;
 	task_work_func_t func;
 };
 
@@ -24,7 +24,7 @@ void task_work_run(void);
 
 static inline void exit_task_work(struct task_struct *task)
 {
-	if (unlikely(!hlist_empty(&task->task_works)))
+	if (unlikely(task->task_works))
 		task_work_run();
 }
 

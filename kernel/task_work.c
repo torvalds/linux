@@ -19,7 +19,12 @@ task_work_add(struct task_struct *task, struct task_work *twork, bool notify)
 	 */
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
 	if (likely(!(task->flags & PF_EXITING))) {
-		hlist_add_head(&twork->hlist, &task->task_works);
+		struct task_work *last = task->task_works;
+		struct task_work *first = last ? last->next : twork;
+		twork->next = first;
+		if (last)
+			last->next = twork;
+		task->task_works = twork;
 		err = 0;
 	}
 	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
@@ -34,51 +39,48 @@ struct task_work *
 task_work_cancel(struct task_struct *task, task_work_func_t func)
 {
 	unsigned long flags;
-	struct task_work *twork;
-	struct hlist_node *pos;
+	struct task_work *last, *res = NULL;
 
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
-	hlist_for_each_entry(twork, pos, &task->task_works, hlist) {
-		if (twork->func == func) {
-			hlist_del(&twork->hlist);
-			goto found;
+	last = task->task_works;
+	if (last) {
+		struct task_work *q = last, *p = q->next;
+		while (1) {
+			if (p->func == func) {
+				q->next = p->next;
+				if (p == last)
+					task->task_works = q == p ? NULL : q;
+				res = p;
+				break;
+			}
+			if (p == last)
+				break;
+			q = p;
+			p = q->next;
 		}
 	}
-	twork = NULL;
- found:
 	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
-
-	return twork;
+	return res;
 }
 
 void task_work_run(void)
 {
 	struct task_struct *task = current;
-	struct hlist_head task_works;
-	struct hlist_node *pos;
+	struct task_work *p, *q;
 
 	raw_spin_lock_irq(&task->pi_lock);
-	hlist_move_list(&task->task_works, &task_works);
+	p = task->task_works;
+	task->task_works = NULL;
 	raw_spin_unlock_irq(&task->pi_lock);
 
-	if (unlikely(hlist_empty(&task_works)))
+	if (unlikely(!p))
 		return;
-	/*
-	 * We use hlist to save the space in task_struct, but we want fifo.
-	 * Find the last entry, the list should be short, then process them
-	 * in reverse order.
-	 */
-	for (pos = task_works.first; pos->next; pos = pos->next)
-		;
 
-	for (;;) {
-		struct hlist_node **pprev = pos->pprev;
-		struct task_work *twork = container_of(pos, struct task_work,
-							hlist);
-		twork->func(twork);
-
-		if (pprev == &task_works.first)
-			break;
-		pos = container_of(pprev, struct hlist_node, next);
+	q = p->next; /* head */
+	p->next = NULL; /* cut it */
+	while (q) {
+		p = q->next;
+		q->func(q);
+		q = p;
 	}
 }
