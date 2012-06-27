@@ -659,7 +659,7 @@ static int caldac_read_insn(struct comedi_device *dev,
 }
 
 /* 1602/16 pregain offset */
-static int dac08_write(struct comedi_device *dev, unsigned int value)
+static void dac08_write(struct comedi_device *dev, unsigned int value)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned long cal_reg;
@@ -680,14 +680,18 @@ static int dac08_write(struct comedi_device *dev, unsigned int value)
 		outw(value, cal_reg);
 		udelay(1);
 	}
-	return 1;	/* insn->n */
 }
 
 static int dac08_write_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	return dac08_write(dev, data[0]);
+	int i;
+
+	for (i = 0; i < insn->n; i++)
+		dac08_write(dev, data[i]);
+
+	return insn->n;
 }
 
 static int dac08_read_insn(struct comedi_device *dev,
