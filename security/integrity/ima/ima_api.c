@@ -97,7 +97,7 @@ err_out:
 }
 
 /**
- * ima_must_appraise_or_measure - appraise & measure decision based on policy.
+ * ima_get_action - appraise & measure decision based on policy.
  * @inode: pointer to inode to measure
  * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXECUTE)
  * @function: calling function (FILE_CHECK, BPRM_CHECK, FILE_MMAP)
@@ -112,7 +112,7 @@ err_out:
  * Returns IMA_MEASURE, IMA_APPRAISE mask.
  *
  */
-int ima_must_appraise_or_measure(struct inode *inode, int mask, int function)
+int ima_get_action(struct inode *inode, int mask, int function)
 {
 	int flags = IMA_MEASURE | IMA_APPRAISE;
 

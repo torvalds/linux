@@ -158,7 +158,7 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 
 	/* Determine if in appraise/measurement policy,
 	 * returns IMA_MEASURE, IMA_APPRAISE bitmask.  */
-	action = ima_must_appraise_or_measure(inode, mask, function);
+	action = ima_get_action(inode, mask, function);
 	if (!action)
 		return 0;
 
