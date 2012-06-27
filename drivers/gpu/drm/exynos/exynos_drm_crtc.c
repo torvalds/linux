@@ -105,28 +105,6 @@ static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	/*
-	 * when set_crtc is requested from user or at booting time,
-	 * crtc->commit would be called without dpms call so if dpms is
-	 * no power on then crtc->dpms should be called
-	 * with DRM_MODE_DPMS_ON for the hardware power to be on.
-	 */
-	if (exynos_crtc->dpms != DRM_MODE_DPMS_ON) {
-		int mode = DRM_MODE_DPMS_ON;
-
-		/*
-		 * enable hardware(power on) to all encoders hdmi connected
-		 * to current crtc.
-		 */
-		exynos_drm_crtc_dpms(crtc, mode);
-		/*
-		 * enable dma to all encoders connected to current crtc and
-		 * lcd panel.
-		 */
-		exynos_drm_fn_encoder(crtc, &mode,
-					exynos_drm_encoder_dpms_from_crtc);
-	}
-
 	exynos_plane_commit(exynos_crtc->plane);
 }
 
@@ -154,6 +132,8 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 
 	/*
 	 * copy the mode data adjusted by mode_fixup() into crtc->mode
@@ -196,7 +176,7 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (ret)
 		return ret;
 
-	exynos_plane_commit(exynos_crtc->plane);
+	exynos_drm_crtc_commit(crtc);
 
 	return 0;
 }

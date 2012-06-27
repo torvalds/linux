@@ -138,6 +138,8 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	exynos_drm_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder)
 			if (manager_ops && manager_ops->mode_set)
@@ -321,18 +323,6 @@ void exynos_drm_disable_vblank(struct drm_encoder *encoder, void *data)
 
 	if (manager_ops->disable_vblank)
 		manager_ops->disable_vblank(manager->dev);
-}
-
-void exynos_drm_encoder_dpms_from_crtc(struct drm_encoder *encoder, void *data)
-{
-	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
-	int mode = *(int *)data;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	exynos_drm_encoder_dpms(encoder, mode);
-
-	exynos_encoder->dpms = mode;
 }
 
 void exynos_drm_encoder_crtc_dpms(struct drm_encoder *encoder, void *data)
