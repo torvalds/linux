@@ -1650,9 +1650,6 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 	int i;
 	int ret;
 
-/*
- * Allocate the private structure area.
- */
 	if (alloc_private(dev, sizeof(struct cb_pcidas_private)) < 0)
 		return -ENOMEM;
 	devpriv = dev->private;
@@ -1668,9 +1665,6 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 		thisboard->name, devpriv->pci_dev->bus->number,
 		PCI_SLOT(devpriv->pci_dev->devfn));
 
-	/*
-	 * Enable PCI device and reserve I/O ports.
-	 */
 	if (comedi_pci_enable(devpriv->pci_dev, "cb_pcidas")) {
 		dev_err(dev->class_dev,
 			"Failed to enable PCI device and request regions\n");
@@ -1696,7 +1690,6 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 	outl(INTCSR_INBOX_INTR_STATUS,
 	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
-	/*  get irq */
 	if (request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt,
 			IRQF_SHARED, "cb_pcidas", dev)) {
 		dev_dbg(dev->class_dev, "unable to allocate irq %d\n",
@@ -1705,7 +1698,6 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 	}
 	dev->irq = devpriv->pci_dev->irq;
 
-	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 7);
