@@ -2,12 +2,39 @@
 
 / {
 	compatible = "marvell,kirkwood";
+	interrupt-parent = <&intc>;
+
+	intc: interrupt-controller {
+		compatible = "marvell,orion-intc", "marvell,intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0xf1020204 0x04>,
+		      <0xf1020214 0x04>;
+	};
 
 	ocp@f1000000 {
 		compatible = "simple-bus";
 		ranges = <0 0xf1000000 0x4000000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		gpio0: gpio@10100 {
+			compatible = "marvell,orion-gpio";
+			#gpio-cells = <2>;
+			gpio-controller;
+			reg = <0x10100 0x40>;
+			ngpio = <32>;
+			interrupts = <35>, <36>, <37>, <38>;
+		};
+
+		gpio1: gpio@10140 {
+			compatible = "marvell,orion-gpio";
+			#gpio-cells = <2>;
+			gpio-controller;
+			reg = <0x10140 0x40>;
+			ngpio = <18>;
+			interrupts = <39>, <40>, <41>;
+		};
 
 		serial@12000 {
 			compatible = "ns16550a";

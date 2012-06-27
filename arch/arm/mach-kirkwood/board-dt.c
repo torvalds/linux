@@ -18,6 +18,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
+#include <plat/irq.h>
 #include "common.h"
 
 static struct of_device_id kirkwood_dt_match_table[] __initdata = {
@@ -84,7 +85,7 @@ DT_MACHINE_START(KIRKWOOD_DT, "Marvell Kirkwood (Flattened Device Tree)")
 	/* Maintainer: Jason Cooper <jason@lakedaemon.net> */
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
-	.init_irq	= kirkwood_init_irq,
+	.init_irq	= orion_dt_init_irq,
 	.timer		= &kirkwood_timer,
 	.init_machine	= kirkwood_dt_init,
 	.restart	= kirkwood_restart,
