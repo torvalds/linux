@@ -78,7 +78,7 @@ static LIST_HEAD(free_entries);
 static DEFINE_SPINLOCK(free_entries_lock);
 
 /* Global disable flag - will be set in case of an error */
-static bool global_disable __read_mostly;
+static u32 global_disable __read_mostly;
 
 /* Global error count */
 static u32 error_count;
@@ -657,7 +657,7 @@ static int dma_debug_fs_init(void)
 
 	global_disable_dent = debugfs_create_bool("disabled", 0444,
 			dma_debug_dent,
-			(u32 *)&global_disable);
+			&global_disable);
 	if (!global_disable_dent)
 		goto out_err;
 
