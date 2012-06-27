@@ -85,8 +85,6 @@ static const char fake_edid_info[] = {
 	0x00, 0x00, 0x00, 0x06
 };
 
-static void vidi_fake_vblank_handler(struct work_struct *work);
-
 static bool vidi_display_is_connected(struct device *dev)
 {
 	struct vidi_context *ctx = get_vidi_context(dev);
