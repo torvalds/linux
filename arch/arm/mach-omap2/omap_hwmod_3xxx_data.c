@@ -1638,25 +1638,20 @@ static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
 
 /* usb_otg_hs */
 static struct omap_hwmod_irq_info am35xx_usbhsotg_mpu_irqs[] = {
-
 	{ .name = "mc", .irq = 71 },
 	{ .irq = -1 }
 };
 
 static struct omap_hwmod_class am35xx_usbotg_class = {
 	.name = "am35xx_usbotg",
-	.sysc = NULL,
 };
 
 static struct omap_hwmod am35xx_usbhsotg_hwmod = {
 	.name		= "am35x_otg_hs",
 	.mpu_irqs	= am35xx_usbhsotg_mpu_irqs,
-	.main_clk	= NULL,
-	.prcm = {
-		.omap2 = {
-		},
-	},
+	.main_clk	= "hsotgusb_fck",
 	.class		= &am35xx_usbotg_class,
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* MMC/SD/SDIO common */
@@ -2097,9 +2092,10 @@ static struct omap_hwmod_ocp_if omap3xxx_usbhsotg__l3 = {
 static struct omap_hwmod_ocp_if am35xx_usbhsotg__l3 = {
 	.master		= &am35xx_usbhsotg_hwmod,
 	.slave		= &omap3xxx_l3_main_hwmod,
-	.clk		= "core_l3_ick",
+	.clk		= "hsotgusb_ick",
 	.user		= OCP_USER_MPU,
 };
+
 /* L4_CORE -> L4_WKUP interface */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__l4_wkup = {
 	.master	= &omap3xxx_l4_core_hwmod,
@@ -2393,7 +2389,7 @@ static struct omap_hwmod_addr_space am35xx_usbhsotg_addrs[] = {
 static struct omap_hwmod_ocp_if am35xx_l4_core__usbhsotg = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &am35xx_usbhsotg_hwmod,
-	.clk		= "l4_ick",
+	.clk		= "hsotgusb_ick",
 	.addr		= am35xx_usbhsotg_addrs,
 	.user		= OCP_USER_MPU,
 };
