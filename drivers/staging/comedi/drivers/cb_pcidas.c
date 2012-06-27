@@ -447,9 +447,6 @@ struct cb_pcidas_private {
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
 
-static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
-				struct comedi_subdevice *subdev,
-				unsigned int trig_num);
 static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status);
 static int cb_pcidas_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
@@ -1132,6 +1129,56 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				unsigned int trig_num)
+{
+	unsigned int num_bytes, num_points = thisboard->fifo_size;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned long flags;
+
+	if (trig_num != 0)
+		return -EINVAL;
+
+	/*  load up fifo */
+	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_count < num_points)
+		num_points = devpriv->ao_count;
+
+	num_bytes = cfc_read_array_from_buffer(s, devpriv->ao_buffer,
+					       num_points * sizeof(short));
+	num_points = num_bytes / sizeof(short);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		devpriv->ao_count -= num_points;
+	/*  write data to board's fifo */
+	outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_bytes);
+
+	/*  enable dac half-full and empty interrupts */
+	spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
+#ifdef CB_PCIDAS_DEBUG
+	dev_dbg(dev->class_dev, "adc_fifo_bits are 0x%x\n",
+		devpriv->adc_fifo_bits);
+#endif
+	/*  enable and clear interrupts */
+	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI,
+	     devpriv->control_status + INT_ADCFIFO);
+
+	/*  start dac */
+	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
+	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
+#ifdef CB_PCIDAS_DEBUG
+	dev_dbg(dev->class_dev, "sent 0x%x to dac control\n",
+		devpriv->ao_control_bits);
+#endif
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	async->inttrig = NULL;
+
+	return 0;
+}
+
 static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -1194,56 +1241,6 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	async->inttrig = cb_pcidas_ao_inttrig;
-
-	return 0;
-}
-
-static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				unsigned int trig_num)
-{
-	unsigned int num_bytes, num_points = thisboard->fifo_size;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned long flags;
-
-	if (trig_num != 0)
-		return -EINVAL;
-
-	/*  load up fifo */
-	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_count < num_points)
-		num_points = devpriv->ao_count;
-
-	num_bytes = cfc_read_array_from_buffer(s, devpriv->ao_buffer,
-					       num_points * sizeof(short));
-	num_points = num_bytes / sizeof(short);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ao_count -= num_points;
-	/*  write data to board's fifo */
-	outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_bytes);
-
-	/*  enable dac half-full and empty interrupts */
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
-#ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->class_dev, "adc_fifo_bits are 0x%x\n",
-		devpriv->adc_fifo_bits);
-#endif
-	/*  enable and clear interrupts */
-	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI,
-	     devpriv->control_status + INT_ADCFIFO);
-
-	/*  start dac */
-	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
-	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
-#ifdef CB_PCIDAS_DEBUG
-	dev_dbg(dev->class_dev, "sent 0x%x to dac control\n",
-		devpriv->ao_control_bits);
-#endif
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	async->inttrig = NULL;
 
 	return 0;
 }
