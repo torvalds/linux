@@ -156,6 +156,8 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	if (priv->wol_irq == -ENXIO)
 		priv->wol_irq = priv->dev->irq;
 
+	priv->lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
+
 	platform_set_drvdata(pdev, priv->dev);
 
 	pr_debug("STMMAC platform driver registration completed");
