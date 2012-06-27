@@ -70,18 +70,10 @@ static int wm8994_ldo_is_enabled(struct regulator_dev *rdev)
 	return ldo->is_enabled;
 }
 
-static int wm8994_ldo_enable_time(struct regulator_dev *rdev)
-{
-	/* 3ms is fairly conservative but this shouldn't be too performance
-	 * critical; can be tweaked per-system if required. */
-	return 3000;
-}
-
 static struct regulator_ops wm8994_ldo1_ops = {
 	.enable = wm8994_ldo_enable,
 	.disable = wm8994_ldo_disable,
 	.is_enabled = wm8994_ldo_is_enabled,
-	.enable_time = wm8994_ldo_enable_time,
 
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
@@ -119,7 +111,6 @@ static struct regulator_ops wm8994_ldo2_ops = {
 	.enable = wm8994_ldo_enable,
 	.disable = wm8994_ldo_disable,
 	.is_enabled = wm8994_ldo_is_enabled,
-	.enable_time = wm8994_ldo_enable_time,
 
 	.list_voltage = wm8994_ldo2_list_voltage,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -137,6 +128,7 @@ static const struct regulator_desc wm8994_ldo_desc[] = {
 		.ops = &wm8994_ldo1_ops,
 		.min_uV = 2400000,
 		.uV_step = 100000,
+		.enable_time = 3000,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -147,6 +139,7 @@ static const struct regulator_desc wm8994_ldo_desc[] = {
 		.vsel_reg = WM8994_LDO_2,
 		.vsel_mask = WM8994_LDO2_VSEL_MASK,
 		.ops = &wm8994_ldo2_ops,
+		.enable_time = 3000,
 		.owner = THIS_MODULE,
 	},
 };
