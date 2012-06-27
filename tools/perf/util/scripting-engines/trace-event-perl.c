@@ -209,6 +209,10 @@ static void define_event_symbols(struct event_format *event,
 		define_symbolic_values(args->symbol.symbols, ev_name,
 				       cur_field_name);
 		break;
+	case PRINT_HEX:
+		define_event_symbols(event, ev_name, args->hex.field);
+		define_event_symbols(event, ev_name, args->hex.size);
+		break;
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
 	case PRINT_STRING:
