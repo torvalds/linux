@@ -3138,6 +3138,107 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__counter_32k = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* am35xx has Davinci MDIO & EMAC */
+static struct omap_hwmod_class am35xx_mdio_class = {
+	.name = "davinci_mdio",
+};
+
+static struct omap_hwmod am35xx_mdio_hwmod = {
+	.name		= "davinci_mdio",
+	.class		= &am35xx_mdio_class,
+	.flags		= HWMOD_NO_IDLEST,
+};
+
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_mdio__l3 = {
+	.master		= &am35xx_mdio_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "emac_fck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space am35xx_mdio_addrs[] = {
+	{
+		.pa_start	= AM35XX_IPSS_MDIO_BASE,
+		.pa_end		= AM35XX_IPSS_MDIO_BASE + SZ_4K - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4_core -> davinci mdio  */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_l4_core__mdio = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &am35xx_mdio_hwmod,
+	.clk		= "emac_fck",
+	.addr		= am35xx_mdio_addrs,
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_irq_info am35xx_emac_mpu_irqs[] = {
+	{ .name = "rxthresh",	.irq = INT_35XX_EMAC_C0_RXTHRESH_IRQ },
+	{ .name = "rx_pulse",	.irq = INT_35XX_EMAC_C0_RX_PULSE_IRQ },
+	{ .name = "tx_pulse",	.irq = INT_35XX_EMAC_C0_TX_PULSE_IRQ },
+	{ .name = "misc_pulse",	.irq = INT_35XX_EMAC_C0_MISC_PULSE_IRQ },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_class am35xx_emac_class = {
+	.name = "davinci_emac",
+};
+
+static struct omap_hwmod am35xx_emac_hwmod = {
+	.name		= "davinci_emac",
+	.mpu_irqs	= am35xx_emac_mpu_irqs,
+	.class		= &am35xx_emac_class,
+	.flags		= HWMOD_NO_IDLEST,
+};
+
+/* l3_core -> davinci emac interface */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_emac__l3 = {
+	.master		= &am35xx_emac_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "emac_ick",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space am35xx_emac_addrs[] = {
+	{
+		.pa_start	= AM35XX_IPSS_EMAC_BASE,
+		.pa_end		= AM35XX_IPSS_EMAC_BASE + 0x30000 - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4_core -> davinci emac  */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_l4_core__emac = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &am35xx_emac_hwmod,
+	.clk		= "emac_ick",
+	.addr		= am35xx_emac_addrs,
+	.user		= OCP_USER_MPU,
+};
+
 static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
@@ -3266,6 +3367,10 @@ static struct omap_hwmod_ocp_if *am35xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__usb_tll_hs,
 	&omap3xxx_l4_core__es3plus_mmc1,
 	&omap3xxx_l4_core__es3plus_mmc2,
+	&am35xx_mdio__l3,
+	&am35xx_l4_core__mdio,
+	&am35xx_emac__l3,
+	&am35xx_l4_core__emac,
 	NULL
 };
 
