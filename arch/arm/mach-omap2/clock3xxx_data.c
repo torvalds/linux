@@ -3201,8 +3201,12 @@ static struct clk vpfe_fck = {
 };
 
 /*
- * The UART1/2 functional clock acts as the functional
- * clock for UART4. No separate fclk control available.
+ * The UART1/2 functional clock acts as the functional clock for
+ * UART4. No separate fclk control available.  XXX Well now we have a
+ * uart4_fck that is apparently used as the UART4 functional clock,
+ * but it also seems that uart1_fck or uart2_fck are still needed, at
+ * least for UART4 softresets to complete.  This really needs
+ * clarification.
  */
 static struct clk uart4_ick_am35xx = {
 	.name		= "uart4_ick",

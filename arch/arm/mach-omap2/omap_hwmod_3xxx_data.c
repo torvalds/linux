@@ -536,6 +536,20 @@ static struct omap_hwmod_dma_info am35xx_uart4_sdma_reqs[] = {
 	{ .dma_req = -1 }
 };
 
+/*
+ * XXX AM35xx UART4 cannot complete its softreset without uart1_fck or
+ * uart2_fck being enabled.  So we add uart1_fck as an optional clock,
+ * below, and set the HWMOD_CONTROL_OPT_CLKS_IN_RESET.  This really
+ * should not be needed.  The functional clock structure of the AM35xx
+ * UART4 is extremely unclear and opaque; it is unclear what the role
+ * of uart1/2_fck is for the UART4.  Any clarification from either
+ * empirical testing or the AM3505/3517 hardware designers would be
+ * most welcome.
+ */
+static struct omap_hwmod_opt_clk am35xx_uart4_opt_clks[] = {
+	{ .role = "softreset_uart1_fck", .clk = "uart1_fck" },
+};
+
 static struct omap_hwmod am35xx_uart4_hwmod = {
 	.name		= "uart4",
 	.mpu_irqs	= am35xx_uart4_mpu_irqs,
@@ -550,6 +564,9 @@ static struct omap_hwmod am35xx_uart4_hwmod = {
 			.idlest_idle_bit = AM35XX_ST_UART4_SHIFT,
 		},
 	},
+	.opt_clks	= am35xx_uart4_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(am35xx_uart4_opt_clks),
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.class		= &omap2_uart_class,
 };
 
