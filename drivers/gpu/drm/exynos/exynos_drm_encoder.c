@@ -136,21 +136,14 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 	struct drm_connector *connector;
 	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
 	struct exynos_drm_manager_ops *manager_ops = manager->ops;
-	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
-	struct exynos_drm_overlay *overlay = get_exynos_drm_overlay(dev,
-						encoder->crtc);
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
+		if (connector->encoder == encoder)
 			if (manager_ops && manager_ops->mode_set)
 				manager_ops->mode_set(manager->dev,
 							adjusted_mode);
-
-			if (overlay_ops && overlay_ops->mode_set)
-				overlay_ops->mode_set(manager->dev, overlay);
-		}
 	}
 }
 
