@@ -251,7 +251,6 @@ struct saa7164_i2c {
 
 	/* I2C I/O */
 	struct i2c_adapter		i2c_adap;
-	struct i2c_algo_bit_data	i2c_algo;
 	struct i2c_client		i2c_client;
 	u32				i2c_rc;
 };

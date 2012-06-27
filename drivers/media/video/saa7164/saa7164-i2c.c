@@ -109,9 +109,6 @@ int saa7164_i2c_register(struct saa7164_i2c *bus)
 	memcpy(&bus->i2c_adap, &saa7164_i2c_adap_template,
 	       sizeof(bus->i2c_adap));
 
-	memcpy(&bus->i2c_algo, &saa7164_i2c_algo_template,
-	       sizeof(bus->i2c_algo));
-
 	memcpy(&bus->i2c_client, &saa7164_i2c_client_template,
 	       sizeof(bus->i2c_client));
 
@@ -120,7 +117,6 @@ int saa7164_i2c_register(struct saa7164_i2c *bus)
 	strlcpy(bus->i2c_adap.name, bus->dev->name,
 		sizeof(bus->i2c_adap.name));
 
-	bus->i2c_algo.data = bus;
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, bus);
 	i2c_add_adapter(&bus->i2c_adap);
