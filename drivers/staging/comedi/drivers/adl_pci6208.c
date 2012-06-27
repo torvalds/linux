@@ -56,6 +56,8 @@ References:
 #define PCI6208_DIO_DI_MASK		(0xf0)
 #define PCI6208_DIO_DI_SHIFT		(4)
 
+#define PCI6208_MAX_AO_CHANNELS		8
+
 struct pci6208_board {
 	const char *name;
 	unsigned short dev_id;
@@ -72,7 +74,7 @@ static const struct pci6208_board pci6208_boards[] = {
 
 struct pci6208_private {
 	struct pci_dev *pci_dev;
-	unsigned int ao_readback[2];
+	unsigned int ao_readback[PCI6208_MAX_AO_CHANNELS];
 };
 
 static int pci6208_ao_winsn(struct comedi_device *dev,
