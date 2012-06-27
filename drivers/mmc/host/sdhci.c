@@ -1682,11 +1682,15 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 		pwr = sdhci_readb(host, SDHCI_POWER_CONTROL);
 		pwr &= ~SDHCI_POWER_ON;
 		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+		if (host->vmmc)
+			regulator_disable(host->vmmc);
 
 		/* Wait for 1ms as per the spec */
 		usleep_range(1000, 1500);
 		pwr |= SDHCI_POWER_ON;
 		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+		if (host->vmmc)
+			regulator_enable(host->vmmc);
 
 		pr_info(DRIVER_NAME ": Switching to 1.8V signalling "
 			"voltage failed, retrying with S18R set to 0\n");
