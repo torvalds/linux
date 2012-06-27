@@ -447,8 +447,6 @@ struct cb_pcidas_private {
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
 
-static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
-			     uint8_t value);
 static int trimpot_7376_write(struct comedi_device *dev, uint8_t value);
 static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
 			      uint8_t value);
@@ -634,6 +632,54 @@ static int eeprom_read_insn(struct comedi_device *dev,
 		return retval;
 
 	data[0] = nvram_data;
+
+	return 1;
+}
+
+static void write_calibration_bitstream(struct comedi_device *dev,
+					unsigned int register_bits,
+					unsigned int bitstream,
+					unsigned int bitstream_length)
+{
+	static const int write_delay = 1;
+	unsigned int bit;
+
+	for (bit = 1 << (bitstream_length - 1); bit; bit >>= 1) {
+		if (bitstream & bit)
+			register_bits |= SERIAL_DATA_IN_BIT;
+		else
+			register_bits &= ~SERIAL_DATA_IN_BIT;
+		udelay(write_delay);
+		outw(register_bits, devpriv->control_status + CALIBRATION_REG);
+	}
+}
+
+static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
+			     uint8_t value)
+{
+	static const int num_caldac_channels = 8;
+	static const int bitstream_length = 11;
+	unsigned int bitstream = ((address & 0x7) << 8) | value;
+	static const int caldac_8800_udelay = 1;
+
+	if (address >= num_caldac_channels) {
+		comedi_error(dev, "illegal caldac channel");
+		return -1;
+	}
+
+	if (value == devpriv->caldac_value[address])
+		return 1;
+
+	devpriv->caldac_value[address] = value;
+
+	write_calibration_bitstream(dev, cal_enable_bits(dev), bitstream,
+				    bitstream_length);
+
+	udelay(caldac_8800_udelay);
+	outw(cal_enable_bits(dev) | SELECT_8800_BIT,
+	     devpriv->control_status + CALIBRATION_REG);
+	udelay(caldac_8800_udelay);
+	outw(cal_enable_bits(dev), devpriv->control_status + CALIBRATION_REG);
 
 	return 1;
 }
@@ -1454,54 +1500,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
-}
-
-static void write_calibration_bitstream(struct comedi_device *dev,
-					unsigned int register_bits,
-					unsigned int bitstream,
-					unsigned int bitstream_length)
-{
-	static const int write_delay = 1;
-	unsigned int bit;
-
-	for (bit = 1 << (bitstream_length - 1); bit; bit >>= 1) {
-		if (bitstream & bit)
-			register_bits |= SERIAL_DATA_IN_BIT;
-		else
-			register_bits &= ~SERIAL_DATA_IN_BIT;
-		udelay(write_delay);
-		outw(register_bits, devpriv->control_status + CALIBRATION_REG);
-	}
-}
-
-static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
-			     uint8_t value)
-{
-	static const int num_caldac_channels = 8;
-	static const int bitstream_length = 11;
-	unsigned int bitstream = ((address & 0x7) << 8) | value;
-	static const int caldac_8800_udelay = 1;
-
-	if (address >= num_caldac_channels) {
-		comedi_error(dev, "illegal caldac channel");
-		return -1;
-	}
-
-	if (value == devpriv->caldac_value[address])
-		return 1;
-
-	devpriv->caldac_value[address] = value;
-
-	write_calibration_bitstream(dev, cal_enable_bits(dev), bitstream,
-				    bitstream_length);
-
-	udelay(caldac_8800_udelay);
-	outw(cal_enable_bits(dev) | SELECT_8800_BIT,
-	     devpriv->control_status + CALIBRATION_REG);
-	udelay(caldac_8800_udelay);
-	outw(cal_enable_bits(dev), devpriv->control_status + CALIBRATION_REG);
-
-	return 1;
 }
 
 static int trimpot_7376_write(struct comedi_device *dev, uint8_t value)
