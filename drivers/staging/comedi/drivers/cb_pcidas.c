@@ -447,9 +447,6 @@ struct cb_pcidas_private {
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
 
-static int nvram_read(struct comedi_device *dev, unsigned int address,
-		      uint8_t *data);
-
 static inline unsigned int cal_enable_bits(struct comedi_device *dev)
 {
 	return CAL_EN_BIT | CAL_SRC_BITS(devpriv->calibration_source);
@@ -615,6 +612,45 @@ static int cb_pcidas_ao_readback_insn(struct comedi_device *dev,
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
+}
+
+static int wait_for_nvram_ready(unsigned long s5933_base_addr)
+{
+	static const int timeout = 1000;
+	unsigned int i;
+
+	for (i = 0; i < timeout; i++) {
+		if ((inb(s5933_base_addr +
+			 AMCC_OP_REG_MCSR_NVCMD) & MCSR_NV_BUSY)
+		    == 0)
+			return 0;
+		udelay(1);
+	}
+	return -1;
+}
+
+static int nvram_read(struct comedi_device *dev, unsigned int address,
+			uint8_t *data)
+{
+	unsigned long iobase = devpriv->s5933_config;
+
+	if (wait_for_nvram_ready(iobase) < 0)
+		return -ETIMEDOUT;
+
+	outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_LOW_ADDR,
+	     iobase + AMCC_OP_REG_MCSR_NVCMD);
+	outb(address & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
+	outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_HIGH_ADDR,
+	     iobase + AMCC_OP_REG_MCSR_NVCMD);
+	outb((address >> 8) & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
+	outb(MCSR_NV_ENABLE | MCSR_NV_READ, iobase + AMCC_OP_REG_MCSR_NVCMD);
+
+	if (wait_for_nvram_ready(iobase) < 0)
+		return -ETIMEDOUT;
+
+	*data = inb(iobase + AMCC_OP_REG_MCSR_NVDATA);
+
+	return 0;
 }
 
 static int eeprom_read_insn(struct comedi_device *dev,
@@ -1541,45 +1577,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
-}
-
-static int wait_for_nvram_ready(unsigned long s5933_base_addr)
-{
-	static const int timeout = 1000;
-	unsigned int i;
-
-	for (i = 0; i < timeout; i++) {
-		if ((inb(s5933_base_addr +
-			 AMCC_OP_REG_MCSR_NVCMD) & MCSR_NV_BUSY)
-		    == 0)
-			return 0;
-		udelay(1);
-	}
-	return -1;
-}
-
-static int nvram_read(struct comedi_device *dev, unsigned int address,
-			uint8_t *data)
-{
-	unsigned long iobase = devpriv->s5933_config;
-
-	if (wait_for_nvram_ready(iobase) < 0)
-		return -ETIMEDOUT;
-
-	outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_LOW_ADDR,
-	     iobase + AMCC_OP_REG_MCSR_NVCMD);
-	outb(address & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
-	outb(MCSR_NV_ENABLE | MCSR_NV_LOAD_HIGH_ADDR,
-	     iobase + AMCC_OP_REG_MCSR_NVCMD);
-	outb((address >> 8) & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
-	outb(MCSR_NV_ENABLE | MCSR_NV_READ, iobase + AMCC_OP_REG_MCSR_NVCMD);
-
-	if (wait_for_nvram_ready(iobase) < 0)
-		return -ETIMEDOUT;
-
-	*data = inb(iobase + AMCC_OP_REG_MCSR_NVDATA);
-
-	return 0;
 }
 
 static int cb_pcidas_attach(struct comedi_device *dev,
