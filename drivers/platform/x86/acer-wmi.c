@@ -1877,8 +1877,7 @@ static int acer_platform_remove(struct platform_device *device)
 	return 0;
 }
 
-static int acer_platform_suspend(struct platform_device *dev,
-pm_message_t state)
+static int acer_suspend(struct device *dev)
 {
 	u32 value;
 	struct acer_data *data = &interface->data;
@@ -1900,7 +1899,7 @@ pm_message_t state)
 	return 0;
 }
 
-static int acer_platform_resume(struct platform_device *device)
+static int acer_resume(struct device *dev)
 {
 	struct acer_data *data = &interface->data;
 
@@ -1915,6 +1914,8 @@ static int acer_platform_resume(struct platform_device *device)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(acer_pm, acer_suspend, acer_resume);
 
 static void acer_platform_shutdown(struct platform_device *device)
 {
@@ -1931,11 +1932,10 @@ static struct platform_driver acer_platform_driver = {
 	.driver = {
 		.name = "acer-wmi",
 		.owner = THIS_MODULE,
+		.pm = &acer_pm,
 	},
 	.probe = acer_platform_probe,
 	.remove = acer_platform_remove,
-	.suspend = acer_platform_suspend,
-	.resume = acer_platform_resume,
 	.shutdown = acer_platform_shutdown,
 };
 
