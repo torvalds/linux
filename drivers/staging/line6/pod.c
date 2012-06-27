@@ -405,7 +405,7 @@ void line6_pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data,
 /*
 	Send channel number (i.e., switch to a different sound).
 */
-static void pod_send_channel(struct usb_line6_pod *pod, int value)
+static void pod_send_channel(struct usb_line6_pod *pod, u8 value)
 {
 	line6_invalidate_current(&pod->dumpreq);
 
