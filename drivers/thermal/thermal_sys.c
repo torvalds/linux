@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
  * a certain cooling device on a certain trip point
  * in a certain thermal zone
  */
-struct thermal_cooling_device_instance {
+struct thermal_instance {
 	int id;
 	char name[THERMAL_NAME_LENGTH];
 	struct thermal_zone_device *tz;
@@ -430,10 +430,10 @@ static ssize_t
 thermal_cooling_device_trip_point_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
-	struct thermal_cooling_device_instance *instance;
+	struct thermal_instance *instance;
 
 	instance =
-	    container_of(attr, struct thermal_cooling_device_instance, attr);
+	    container_of(attr, struct thermal_instance, attr);
 
 	if (instance->trip == THERMAL_TRIPS_NONE)
 		return sprintf(buf, "-1\n");
@@ -716,7 +716,7 @@ static void thermal_zone_device_passive(struct thermal_zone_device *tz,
 					int temp, int trip_temp, int trip)
 {
 	enum thermal_trend trend;
-	struct thermal_cooling_device_instance *instance;
+	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev;
 	long state, max_state;
 
@@ -812,8 +812,8 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 				     struct thermal_cooling_device *cdev,
 				     unsigned long upper, unsigned long lower)
 {
-	struct thermal_cooling_device_instance *dev;
-	struct thermal_cooling_device_instance *pos;
+	struct thermal_instance *dev;
+	struct thermal_instance *pos;
 	struct thermal_zone_device *pos1;
 	struct thermal_cooling_device *pos2;
 	unsigned long max_state;
@@ -844,7 +844,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 		return -EINVAL;
 
 	dev =
-	    kzalloc(sizeof(struct thermal_cooling_device_instance), GFP_KERNEL);
+	    kzalloc(sizeof(struct thermal_instance), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 	dev->tz = tz;
@@ -909,7 +909,7 @@ int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 				       int trip,
 				       struct thermal_cooling_device *cdev)
 {
-	struct thermal_cooling_device_instance *pos, *next;
+	struct thermal_instance *pos, *next;
 
 	mutex_lock(&tz->lock);
 	list_for_each_entry_safe(pos, next, &tz->cooling_devices, node) {
@@ -1095,7 +1095,7 @@ EXPORT_SYMBOL(thermal_cooling_device_unregister);
 static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 				     int trip, long temp)
 {
-	struct thermal_cooling_device_instance *instance;
+	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev = NULL;
 	unsigned long cur_state, max_state;
 	long trip_temp;
