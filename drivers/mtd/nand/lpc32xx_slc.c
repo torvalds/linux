@@ -192,7 +192,7 @@ struct lpc32xx_nand_cfg_slc {
 	uint32_t rhold;
 	uint32_t rsetup;
 	bool use_bbt;
-	unsigned wp_gpio;
+	int wp_gpio;
 	struct mtd_partition *parts;
 	unsigned num_parts;
 };
@@ -295,7 +295,8 @@ static int lpc32xx_nand_device_ready(struct mtd_info *mtd)
  */
 static void lpc32xx_wp_enable(struct lpc32xx_nand_host *host)
 {
-	gpio_set_value(host->ncfg->wp_gpio, 0);
+	if (gpio_is_valid(host->ncfg->wp_gpio))
+		gpio_set_value(host->ncfg->wp_gpio, 0);
 }
 
 /*
@@ -303,7 +304,8 @@ static void lpc32xx_wp_enable(struct lpc32xx_nand_host *host)
  */
 static void lpc32xx_wp_disable(struct lpc32xx_nand_host *host)
 {
-	gpio_set_value(host->ncfg->wp_gpio, 1);
+	if (gpio_is_valid(host->ncfg->wp_gpio))
+		gpio_set_value(host->ncfg->wp_gpio, 1);
 }
 
 /*
@@ -819,7 +821,8 @@ static int __devinit lpc32xx_nand_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Missing platform data\n");
 		return -ENOENT;
 	}
-	if (gpio_request(host->ncfg->wp_gpio, "NAND WP")) {
+	if (gpio_is_valid(host->ncfg->wp_gpio) &&
+			gpio_request(host->ncfg->wp_gpio, "NAND WP")) {
 		dev_err(&pdev->dev, "GPIO not available\n");
 		return -EBUSY;
 	}
