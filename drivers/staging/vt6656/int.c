@@ -77,7 +77,7 @@ static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
 -*/
 void INTvWorkItem(void *Context)
 {
-	PSDevice pDevice = (PSDevice) Context;
+	PSDevice pDevice = Context;
 	int ntStatus;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
