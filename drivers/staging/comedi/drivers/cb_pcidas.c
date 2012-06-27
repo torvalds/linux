@@ -809,14 +809,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	int tmp;
 	int i, gain, start_chan;
 
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
-	 * the command passes. */
-
-	/* step 1: make sure trigger sources are trivially valid */
+	/* step 1: trigger sources are trivially valid */
 
 	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW | TRIG_EXT;
@@ -846,7 +839,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: trigger sources are unique and mutually compatible */
 
 	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
 		err++;
@@ -872,7 +865,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* step 3: arguments are trivially compatible */
 
 	switch (cmd->start_src) {
 	case TRIG_EXT:
@@ -1092,14 +1085,7 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp;
 
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
-	 * the command passes. */
-
-	/* step 1: make sure trigger sources are trivially valid */
+	/* step 1: trigger sources are trivially valid */
 
 	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_INT;
@@ -1129,7 +1115,7 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: trigger sources are unique and mutually compatible */
 
 	if (cmd->scan_begin_src != TRIG_TIMER &&
 	    cmd->scan_begin_src != TRIG_EXT)
@@ -1140,7 +1126,7 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* step 3: arguments are trivially compatible */
 
 	if (cmd->start_arg != 0) {
 		cmd->start_arg = 0;
