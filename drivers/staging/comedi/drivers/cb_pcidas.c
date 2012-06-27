@@ -92,14 +92,6 @@ analog triggering on 1602 series
 #define NUM_CHANNELS_8402 2
 #define NUM_CHANNELS_DAC08 1
 
-/* PCI-DAS base addresses */
-
-/* indices of base address regions */
-#define S5933_BADRINDEX 0
-#define CONT_STAT_BADRINDEX 1
-#define ADC_FIFO_BADRINDEX 2
-#define PACER_BADRINDEX 3
-#define AO_BADRINDEX 4
 /* sizes of io regions */
 #define CONT_STAT_SIZE 10
 #define ADC_FIFO_SIZE 4
@@ -1670,22 +1662,14 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 			"Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
-	/*
-	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
-	 * their base address.
-	 */
-	devpriv->s5933_config =
-	    pci_resource_start(devpriv->pci_dev, S5933_BADRINDEX);
-	devpriv->control_status =
-	    pci_resource_start(devpriv->pci_dev, CONT_STAT_BADRINDEX);
-	devpriv->adc_fifo =
-	    pci_resource_start(devpriv->pci_dev, ADC_FIFO_BADRINDEX);
-	devpriv->pacer_counter_dio =
-	    pci_resource_start(devpriv->pci_dev, PACER_BADRINDEX);
-	if (thisboard->ao_nchan) {
-		devpriv->ao_registers =
-		    pci_resource_start(devpriv->pci_dev, AO_BADRINDEX);
-	}
+
+	devpriv->s5933_config = pci_resource_start(devpriv->pci_dev, 0);
+	devpriv->control_status = pci_resource_start(devpriv->pci_dev, 1);
+	devpriv->adc_fifo = pci_resource_start(devpriv->pci_dev, 2);
+	devpriv->pacer_counter_dio = pci_resource_start(devpriv->pci_dev, 3);
+	if (thisboard->ao_nchan)
+		devpriv->ao_registers = pci_resource_start(devpriv->pci_dev, 4);
+
 	/*  disable and clear interrupts on amcc s5933 */
 	outl(INTCSR_INBOX_INTR_STATUS,
 	     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
