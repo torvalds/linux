@@ -426,6 +426,12 @@ struct phy_driver {
 	/* Clears up any memory if needed */
 	void (*remove)(struct phy_device *phydev);
 
+	/* Returns true if this is a suitable driver for the given
+	 * phydev.  If NULL, matching is based on phy_id and
+	 * phy_id_mask.
+	 */
+	int (*match_phy_device)(struct phy_device *phydev);
+
 	/* Handles ethtool queries for hardware time stamping. */
 	int (*ts_info)(struct phy_device *phydev, struct ethtool_ts_info *ti);
 
