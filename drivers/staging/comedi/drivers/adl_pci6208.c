@@ -82,21 +82,17 @@ static const struct pci6208_board pci6208_boards[] = {
 	 }
 };
 
-/* Will be initialized in pci6208_find device(). */
-#define thisboard ((const struct pci6208_board *)dev->board_ptr)
-
 struct pci6208_private {
 	int data;
 	struct pci_dev *pci_dev;	/* for a PCI device */
 	unsigned int ao_readback[2];	/* Used for AO readback */
 };
 
-#define devpriv ((struct pci6208_private *)dev->private)
-
 static int pci6208_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci6208_private *devpriv = dev->private;
 	int i = 0, Data_Read;
 	unsigned short chan = CR_CHAN(insn->chanspec);
 	unsigned long invert = 1 << (16 - 1);
@@ -123,6 +119,7 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci6208_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -183,6 +180,7 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 
 static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
 {
+	struct pci6208_private *devpriv = dev->private;
 	struct pci_dev *pci_dev = NULL;
 	int i;
 
@@ -278,19 +276,23 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
 static int pci6208_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct pci6208_board *thisboard;
+	struct pci6208_private *devpriv;
 	struct comedi_subdevice *s;
 	int retval;
 	unsigned long io_base;
 
 	printk(KERN_INFO "comedi%d: pci6208: ", dev->minor);
 
-	retval = alloc_private(dev, sizeof(struct pci6208_private));
+	retval = alloc_private(dev, sizeof(*devpriv));
 	if (retval < 0)
 		return retval;
+	devpriv = dev->private;
 
 	retval = pci6208_find_device(dev, it->options[0], it->options[1]);
 	if (retval < 0)
 		return retval;
+	thisboard = comedi_board(dev);
 
 	retval = pci6208_pci_setup(devpriv->pci_dev, &io_base, dev->minor);
 	if (retval < 0)
@@ -330,6 +332,8 @@ static int pci6208_attach(struct comedi_device *dev,
 
 static void pci6208_detach(struct comedi_device *dev)
 {
+	struct pci6208_private *devpriv = dev->private;
+
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase)
 			comedi_pci_disable(devpriv->pci_dev);
