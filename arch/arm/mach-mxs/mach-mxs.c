@@ -161,6 +161,7 @@ static const char *imx23_dt_compat[] __initdata = {
 };
 
 static const char *imx28_dt_compat[] __initdata = {
+	"crystalfontz,cfa10036",
 	"fsl,imx28-evk",
 	"fsl,imx28",
 	NULL,
