@@ -250,8 +250,7 @@ struct cb_pcidas_board {
 	const struct comedi_lrange *ranges;
 	enum trimpot_model trimpot;
 	unsigned has_dac08:1;
-	unsigned has_ai_trig_gated:1;	/* Tells if the AI trigger can be gated */
-	unsigned has_ai_trig_invert:1;	/* Tells if the AI trigger can be inverted */
+	unsigned is_1602:1;
 };
 
 static const struct cb_pcidas_board cb_pcidas_boards[] = {
@@ -269,8 +268,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD8402,
 	 .has_dac08 = 1,
-	 .has_ai_trig_gated = 1,
-	 .has_ai_trig_invert = 1,
+	 .is_1602 = 1,
 	 },
 	{
 	 .name = "pci-das1200",
@@ -285,8 +283,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
-	 .has_ai_trig_gated = 0,
-	 .has_ai_trig_invert = 0,
+	 .is_1602 = 0,
 	 },
 	{
 	 .name = "pci-das1602/12",
@@ -302,8 +299,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
-	 .has_ai_trig_gated = 1,
-	 .has_ai_trig_invert = 1,
+	 .is_1602 = 1,
 	 },
 	{
 	 .name = "pci-das1200/jr",
@@ -318,8 +314,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
-	 .has_ai_trig_gated = 0,
-	 .has_ai_trig_invert = 0,
+	 .is_1602 = 0,
 	 },
 	{
 	 .name = "pci-das1602/16/jr",
@@ -334,8 +329,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD8402,
 	 .has_dac08 = 1,
-	 .has_ai_trig_gated = 1,
-	 .has_ai_trig_invert = 1,
+	 .is_1602 = 1,
 	 },
 	{
 	 .name = "pci-das1000",
@@ -350,8 +344,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
-	 .has_ai_trig_gated = 0,
-	 .has_ai_trig_invert = 0,
+	 .is_1602 = 0,
 	 },
 	{
 	 .name = "pci-das1001",
@@ -366,8 +359,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_alt_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
-	 .has_ai_trig_gated = 0,
-	 .has_ai_trig_invert = 0,
+	 .is_1602 = 0,
 	 },
 	{
 	 .name = "pci-das1002",
@@ -382,8 +374,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	 .ranges = &cb_pcidas_ranges,
 	 .trimpot = AD7376,
 	 .has_dac08 = 0,
-	 .has_ai_trig_gated = 0,
-	 .has_ai_trig_invert = 0,
+	 .is_1602 = 0,
 	 },
 };
 
@@ -938,8 +929,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 			    ~(CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT));
 			err++;
 		}
-		if (!thisboard->has_ai_trig_invert &&
-		    (cmd->start_arg & CR_INVERT)) {
+		if (!thisboard->is_1602 && (cmd->start_arg & CR_INVERT)) {
 			cmd->start_arg &= (CR_FLAGS_MASK & ~CR_INVERT);
 			err++;
 		}
@@ -1118,11 +1108,12 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 		bits |= SW_TRIGGER;
 	else if (cmd->start_src == TRIG_EXT) {
 		bits |= EXT_TRIGGER | TGEN | XTRCL;
-		if (thisboard->has_ai_trig_invert
-		    && (cmd->start_arg & CR_INVERT))
-			bits |= TGPOL;
-		if (thisboard->has_ai_trig_gated && (cmd->start_arg & CR_EDGE))
-			bits |= TGSEL;
+		if (thisboard->is_1602) {
+		    	if (cmd->start_arg & CR_INVERT)
+				bits |= TGPOL;
+			if (cmd->start_arg & CR_EDGE)
+				bits |= TGSEL;
+		}
 	} else {
 		comedi_error(dev, "bug!");
 		return -1;
