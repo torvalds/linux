@@ -4988,8 +4988,14 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	cp->port_mode = CHIP_PORT_MODE_NONE;
 
 	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
-		u32 val = CNIC_RD(dev, MISC_REG_PORT4MODE_EN_OVWR);
+		u32 val;
 
+		pci_read_config_dword(dev->pcidev, PCICFG_ME_REGISTER, &val);
+		cp->func = (u8) ((val & ME_REG_ABS_PF_NUM) >>
+				 ME_REG_ABS_PF_NUM_SHIFT);
+		func = CNIC_FUNC(cp);
+
+		val = CNIC_RD(dev, MISC_REG_PORT4MODE_EN_OVWR);
 		if (!(val & 1))
 			val = CNIC_RD(dev, MISC_REG_PORT4MODE_EN);
 		else
