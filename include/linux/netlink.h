@@ -241,14 +241,6 @@ struct netlink_notify {
 struct nlmsghdr *
 __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags);
 
-#define NLMSG_NEW(skb, pid, seq, type, len, flags) \
-({	if (unlikely(skb_tailroom(skb) < (int)NLMSG_SPACE(len))) \
-		goto nlmsg_failure; \
-	__nlmsg_put(skb, pid, seq, type, len, flags); })
-
-#define NLMSG_PUT(skb, pid, seq, type, len) \
-	NLMSG_NEW(skb, pid, seq, type, len, 0)
-
 struct netlink_dump_control {
 	int (*dump)(struct sk_buff *skb, struct netlink_callback *);
 	int (*done)(struct netlink_callback*);
