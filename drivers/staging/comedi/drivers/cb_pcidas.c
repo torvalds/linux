@@ -140,11 +140,10 @@ analog triggering on 1602 series
 #define   CAL_EN_BIT	0x4000	/*  read calibration source instead of analog input channel 0 */
 #define   SERIAL_DATA_IN_BIT	0x8000	/*  serial data stream going to 8800 and 7376 */
 
-#define DAC_CSR	0x8		/*  dac control and status register */
-enum dac_csr_bits {
-	DACEN = 0x2,		/*  dac enable */
-	DAC_MODE_UPDATE_BOTH = 0x80,	/*  update both dacs when dac0 is written */
-};
+#define DAC_CSR			0x8	/* dac control and status register */
+#define   DACEN			0x02	/* dac enable */
+#define   DAC_MODE_UPDATE_BOTH	0x80	/* update both dacs */
+
 static inline unsigned int DAC_RANGE(unsigned int channel, unsigned int range)
 {
 	return (range & 0x3) << (8 + 2 * (channel & 0x1));
@@ -156,14 +155,13 @@ static inline unsigned int DAC_RANGE_MASK(unsigned int channel)
 };
 
 /* bits for 1602 series only */
-enum dac_csr_bits_1602 {
-	DAC_EMPTY = 0x1,	/*  dac fifo empty, read, write clear */
-	DAC_START = 0x4,	/*  start/arm dac fifo operations */
-	DAC_PACER_MASK = 0x18,	/*  bits that set dac pacer source */
-	DAC_PACER_INT = 0x8,	/*  dac internal pacing */
-	DAC_PACER_EXT_FALL = 0x10,	/*  dac external pacing, falling edge */
-	DAC_PACER_EXT_RISE = 0x18,	/*  dac external pacing, rising edge */
-};
+#define   DAC_EMPTY		0x1	/*  fifo empty, read, write clear */
+#define   DAC_START		0x4	/*  start/arm fifo operations */
+#define   DAC_PACER_MASK	0x18	/*  bits that set pacer source */
+#define   DAC_PACER_INT		0x8	/*  int. pacing */
+#define   DAC_PACER_EXT_FALL	0x10	/*  ext. pacing, falling edge */
+#define   DAC_PACER_EXT_RISE	0x18	/*  ext. pacing, rising edge */
+
 static inline unsigned int DAC_CHAN_EN(unsigned int channel)
 {
 	return 1 << (5 + (channel & 0x1));	/*  enable channel 0 or 1 */
