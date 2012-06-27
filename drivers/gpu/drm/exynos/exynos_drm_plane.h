@@ -17,5 +17,3 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 void exynos_plane_commit(struct drm_plane *plane);
 struct drm_plane *exynos_plane_init(struct drm_device *dev,
 				    unsigned int possible_crtcs, bool priv);
-int exynos_plane_set_zpos_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);

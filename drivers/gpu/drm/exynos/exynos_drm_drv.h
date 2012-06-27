@@ -235,6 +235,7 @@ struct exynos_drm_private {
 	 * this array is used to be aware of which crtc did it request vblank.
 	 */
 	struct drm_crtc *crtc[MAX_CRTC];
+	struct drm_property *plane_zpos_property;
 };
 
 /*
