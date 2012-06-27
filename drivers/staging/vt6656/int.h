@@ -60,7 +60,6 @@ typedef struct tagSINTData {
 } __attribute__ ((__packed__))
 SINTData, *PSINTData;
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
