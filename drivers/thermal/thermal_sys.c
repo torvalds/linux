@@ -723,6 +723,20 @@ static void thermal_zone_device_passive(struct thermal_zone_device *tz,
 	struct thermal_cooling_device *cdev;
 	long state, max_state;
 
+	if (!tz->ops->get_trend ||
+	    tz->ops->get_trend(tz, trip, (enum thermal_trend *)&trend)) {
+		/*
+		 * compare the current temperature and previous temperature
+		 * to get the thermal trend, if no special requirement
+		 */
+		if (tz->temperature > tz->last_temperature)
+			trend = THERMAL_TREND_RAISING;
+		else if (tz->temperature < tz->last_temperature)
+			trend = THERMAL_TREND_DROPPING;
+		else
+			trend = THERMAL_TREND_STABLE;
+	}
+
 	/*
 	 * Above Trip?
 	 * -----------
@@ -1091,6 +1105,9 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 		goto leave;
 	}
 
+	tz->last_temperature = tz->temperature;
+	tz->temperature = temp;
+
 	for (count = 0; count < tz->trips; count++) {
 		tz->ops->get_trip_type(tz, count, &trip_type);
 		tz->ops->get_trip_temp(tz, count, &trip_temp);
@@ -1149,8 +1166,6 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 	if (tz->forced_passive)
 		thermal_zone_device_passive(tz, temp, tz->forced_passive,
 					    THERMAL_TRIPS_NONE);
-
-	tz->last_temperature = temp;
 
 leave:
 	if (tz->passive)
