@@ -145,19 +145,24 @@ static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
 
 	if (!ub->skb) {
 		if (!(ub->skb = ulog_alloc_skb(size)))
-			goto alloc_failure;
+			goto unlock;
 	} else if (size > skb_tailroom(ub->skb)) {
 		ulog_send(group);
 
 		if (!(ub->skb = ulog_alloc_skb(size)))
-			goto alloc_failure;
+			goto unlock;
 	}
 
-	nlh = NLMSG_PUT(ub->skb, 0, ub->qlen, 0,
-			size - NLMSG_ALIGN(sizeof(*nlh)));
+	nlh = nlmsg_put(ub->skb, 0, ub->qlen, 0,
+			size - NLMSG_ALIGN(sizeof(*nlh)), 0);
+	if (!nlh) {
+		kfree(ub->skb);
+		ub->skb = NULL;
+		goto unlock;
+	}
 	ub->qlen++;
 
-	pm = NLMSG_DATA(nlh);
+	pm = nlmsg_data(nlh);
 
 	/* Fill in the ulog data */
 	pm->version = EBT_ULOG_VERSION;
@@ -209,14 +214,6 @@ static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
 
 unlock:
 	spin_unlock_bh(lock);
-
-	return;
-
-nlmsg_failure:
-	pr_debug("error during NLMSG_PUT. This should "
-		 "not happen, please report to author.\n");
-alloc_failure:
-	goto unlock;
 }
 
 /* this function is registered with the netfilter core */
