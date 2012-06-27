@@ -123,8 +123,6 @@ static void local_release(struct kref *ref)
 
 int nfc_llcp_local_put(struct nfc_llcp_local *local)
 {
-	WARN_ON(local == NULL);
-
 	if (local == NULL)
 		return 0;
 
