@@ -16,6 +16,8 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 
+#define to_exynos_plane(x)	container_of(x, struct exynos_plane, base)
+
 struct exynos_plane {
 	struct drm_plane		base;
 	struct exynos_drm_overlay	overlay;
@@ -37,8 +39,7 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		     uint32_t src_x, uint32_t src_y,
 		     uint32_t src_w, uint32_t src_h)
 {
-	struct exynos_plane *exynos_plane =
-		container_of(plane, struct exynos_plane, base);
+	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
 	struct exynos_drm_crtc_pos pos;
 	int ret;
@@ -73,8 +74,7 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 static int exynos_disable_plane(struct drm_plane *plane)
 {
-	struct exynos_plane *exynos_plane =
-		container_of(plane, struct exynos_plane, base);
+	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
@@ -93,8 +93,7 @@ static int exynos_disable_plane(struct drm_plane *plane)
 
 static void exynos_plane_destroy(struct drm_plane *plane)
 {
-	struct exynos_plane *exynos_plane =
-		container_of(plane, struct exynos_plane, base);
+	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
@@ -161,7 +160,7 @@ int exynos_plane_set_zpos_ioctl(struct drm_device *dev, void *data,
 	}
 
 	plane = obj_to_plane(obj);
-	exynos_plane = container_of(plane, struct exynos_plane, base);
+	exynos_plane = to_exynos_plane(plane);
 
 	exynos_plane->overlay.zpos = zpos_req->zpos;
 
