@@ -51,7 +51,7 @@ MODULE_PARM_DESC(link_quirk, "Don't clear the chain bit on a link TRB");
  * handshake done).  There are two failure modes:  "usec" have passed (major
  * hardware flakeout), or the register reads as all-ones (hardware removed).
  */
-static int handshake(struct xhci_hcd *xhci, void __iomem *ptr,
+int handshake(struct xhci_hcd *xhci, void __iomem *ptr,
 		      u32 mask, u32 done, int usec)
 {
 	u32	result;
