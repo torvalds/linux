@@ -239,7 +239,7 @@ enum trimpot_model {
 struct cb_pcidas_board {
 	const char *name;
 	unsigned short device_id;
-	int ai_se_chans;	/*  Inputs in single-ended mode */
+	int ai_nchan;		/*  Inputs in single-ended mode */
 	int ai_bits;		/*  analog input resolution */
 	int ai_speed;		/*  fastest conversion period in ns */
 	int ao_nchan;		/*  number of analog out channels */
@@ -256,7 +256,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	{
 		.name		= "pci-das1602/16",
 		.device_id	= 0x1,
-		.ai_se_chans	= 16,
+		.ai_nchan	= 16,
 		.ai_bits	= 16,
 		.ai_speed	= 5000,
 		.ao_nchan	= 2,
@@ -270,7 +270,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	}, {
 		.name		= "pci-das1200",
 		.device_id	= 0xF,
-		.ai_se_chans	= 16,
+		.ai_nchan	= 16,
 		.ai_bits	= 12,
 		.ai_speed	= 3200,
 		.ao_nchan	= 2,
@@ -280,7 +280,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	}, {
 		.name		= "pci-das1602/12",
 		.device_id	= 0x10,
-		.ai_se_chans	= 16,
+		.ai_nchan	= 16,
 		.ai_bits	= 12,
 		.ai_speed	= 3200,
 		.ao_nchan	= 2,
@@ -293,7 +293,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	}, {
 		.name		= "pci-das1200/jr",
 		.device_id	= 0x19,
-		.ai_se_chans	= 16,
+		.ai_nchan	= 16,
 		.ai_bits	= 12,
 		.ai_speed	= 3200,
 		.fifo_size	= 1024,
@@ -302,7 +302,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	}, {
 		.name		= "pci-das1602/16/jr",
 		.device_id	= 0x1C,
-		.ai_se_chans	= 16,
+		.ai_nchan	= 16,
 		.ai_bits	= 16,
 		.ai_speed	= 5000,
 		.fifo_size	= 512,
@@ -313,7 +313,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	}, {
 		.name		= "pci-das1000",
 		.device_id	= 0x4C,
-		.ai_se_chans	= 16,
+		.ai_nchan	= 16,
 		.ai_bits	= 12,
 		.ai_speed	= 4000,
 		.fifo_size	= 1024,
@@ -322,7 +322,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	}, {
 		.name		= "pci-das1001",
 		.device_id	= 0x1a,
-		.ai_se_chans	= 16,
+		.ai_nchan	= 16,
 		.ai_bits	= 12,
 		.ai_speed	= 6800,
 		.ao_nchan	= 2,
@@ -332,7 +332,7 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	}, {
 		.name		= "pci-das1002",
 		.device_id	= 0x1b,
-		.ai_se_chans	= 16,
+		.ai_nchan	= 16,
 		.ai_bits	= 12,
 		.ai_speed	= 6800,
 		.ao_nchan	= 2,
@@ -1615,8 +1615,8 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
 	/* WARNING: Number of inputs in differential mode is ignored */
-	s->n_chan = thisboard->ai_se_chans;
-	s->len_chanlist = thisboard->ai_se_chans;
+	s->n_chan = thisboard->ai_nchan;
+	s->len_chanlist = thisboard->ai_nchan;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = thisboard->ranges;
 	s->insn_read = cb_pcidas_ai_rinsn;
