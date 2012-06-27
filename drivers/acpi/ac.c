@@ -61,7 +61,6 @@ static int acpi_ac_open_fs(struct inode *inode, struct file *file);
 
 static int acpi_ac_add(struct acpi_device *device);
 static int acpi_ac_remove(struct acpi_device *device, int type);
-static int acpi_ac_resume(struct acpi_device *device);
 static void acpi_ac_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id ac_device_ids[] = {
@@ -69,6 +68,9 @@ static const struct acpi_device_id ac_device_ids[] = {
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, ac_device_ids);
+
+static int acpi_ac_resume(struct device *dev);
+static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
 
 static struct acpi_driver acpi_ac_driver = {
 	.name = "ac",
@@ -78,9 +80,9 @@ static struct acpi_driver acpi_ac_driver = {
 	.ops = {
 		.add = acpi_ac_add,
 		.remove = acpi_ac_remove,
-		.resume = acpi_ac_resume,
 		.notify = acpi_ac_notify,
 		},
+	.drv.pm = &acpi_ac_pm,
 };
 
 struct acpi_ac {
@@ -309,13 +311,18 @@ static int acpi_ac_add(struct acpi_device *device)
 	return result;
 }
 
-static int acpi_ac_resume(struct acpi_device *device)
+static int acpi_ac_resume(struct device *dev)
 {
 	struct acpi_ac *ac;
 	unsigned old_state;
-	if (!device || !acpi_driver_data(device))
+
+	if (!dev)
 		return -EINVAL;
-	ac = acpi_driver_data(device);
+
+	ac = acpi_driver_data(to_acpi_device(dev));
+	if (!ac)
+		return -EINVAL;
+
 	old_state = ac->state;
 	if (acpi_ac_get_state(ac))
 		return 0;
