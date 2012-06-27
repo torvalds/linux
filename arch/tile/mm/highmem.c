@@ -93,7 +93,7 @@ static DEFINE_PER_CPU(struct kmap_amps, amps);
  * If we examine it earlier we are exposed to a race where it looks
  * writable earlier, but becomes immutable before we write the PTE.
  */
-static void kmap_atomic_register(struct page *page, enum km_type type,
+static void kmap_atomic_register(struct page *page, int type,
 				 unsigned long va, pte_t *ptep, pte_t pteval)
 {
 	unsigned long flags;
