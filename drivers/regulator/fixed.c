@@ -36,7 +36,6 @@ struct fixed_voltage_data {
 	struct regulator_dev *dev;
 	int microvolts;
 	int gpio;
-	unsigned startup_delay;
 	bool enable_high;
 	bool is_enabled;
 };
@@ -136,13 +135,6 @@ static int fixed_voltage_disable(struct regulator_dev *dev)
 	return 0;
 }
 
-static int fixed_voltage_enable_time(struct regulator_dev *dev)
-{
-	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
-
-	return data->startup_delay;
-}
-
 static int fixed_voltage_get_voltage(struct regulator_dev *dev)
 {
 	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
@@ -168,7 +160,6 @@ static struct regulator_ops fixed_voltage_gpio_ops = {
 	.is_enabled = fixed_voltage_is_enabled,
 	.enable = fixed_voltage_enable,
 	.disable = fixed_voltage_disable,
-	.enable_time = fixed_voltage_enable_time,
 	.get_voltage = fixed_voltage_get_voltage,
 	.list_voltage = fixed_voltage_list_voltage,
 };
@@ -213,12 +204,13 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 	drvdata->desc.type = REGULATOR_VOLTAGE;
 	drvdata->desc.owner = THIS_MODULE;
 
+	drvdata->desc.enable_time = config->startup_delay;
+
 	if (config->microvolts)
 		drvdata->desc.n_voltages = 1;
 
 	drvdata->microvolts = config->microvolts;
 	drvdata->gpio = config->gpio;
-	drvdata->startup_delay = config->startup_delay;
 
 	if (gpio_is_valid(config->gpio)) {
 		int gpio_flag;
