@@ -90,8 +90,8 @@ void INTvWorkItem(void *Context)
 
 void INTnsProcessData(PSDevice pDevice)
 {
-	PSINTData	pINTData;
-	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
+	PSINTData pINTData;
+	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
 	struct net_device_stats *pStats = &pDevice->stats;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
