@@ -1507,10 +1507,16 @@ static int __devinit fec_get_phy_mode_dt(struct platform_device *pdev)
 static void __devinit fec_reset_phy(struct platform_device *pdev)
 {
 	int err, phy_reset;
+	int msec = 1;
 	struct device_node *np = pdev->dev.of_node;
 
 	if (!np)
 		return;
+
+	of_property_read_u32(np, "phy-reset-duration", &msec);
+	/* A sane reset duration should not be longer than 1s */
+	if (msec > 1000)
+		msec = 1;
 
 	phy_reset = of_get_named_gpio(np, "phy-reset-gpios", 0);
 	err = devm_gpio_request_one(&pdev->dev, phy_reset,
@@ -1519,7 +1525,7 @@ static void __devinit fec_reset_phy(struct platform_device *pdev)
 		pr_debug("FEC: failed to get gpio phy-reset: %d\n", err);
 		return;
 	}
-	msleep(1);
+	msleep(msec);
 	gpio_set_value(phy_reset, 1);
 }
 #else /* CONFIG_OF */
