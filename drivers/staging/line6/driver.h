@@ -209,7 +209,7 @@ extern int line6_read_data(struct usb_line6 *line6, int address, void *data,
 			   size_t datalen);
 extern int line6_read_serial_number(struct usb_line6 *line6,
 				    int *serial_number);
-extern int line6_send_program(struct usb_line6 *line6, int value);
+extern int line6_send_program(struct usb_line6 *line6, u8 value);
 extern int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 				  int size);
 extern int line6_send_raw_message_async(struct usb_line6 *line6,

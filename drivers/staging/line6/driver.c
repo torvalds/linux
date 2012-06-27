@@ -490,7 +490,7 @@ static void line6_data_received(struct urb *urb)
 /*
 	Send channel number (i.e., switch to a different sound).
 */
-int line6_send_program(struct usb_line6 *line6, int value)
+int line6_send_program(struct usb_line6 *line6, u8 value)
 {
 	int retval;
 	unsigned char *buffer;
