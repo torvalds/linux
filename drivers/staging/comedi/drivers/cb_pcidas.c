@@ -342,34 +342,35 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 	},
 };
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct cb_pcidas_private {
-	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
-	/*  base addresses */
+	/* base addresses */
 	unsigned long s5933_config;
 	unsigned long control_status;
 	unsigned long adc_fifo;
 	unsigned long pacer_counter_dio;
 	unsigned long ao_registers;
-	/*  divisors of master clock for analog input pacing */
+	/* divisors of master clock for analog input pacing */
 	unsigned int divisor1;
 	unsigned int divisor2;
-	unsigned int count;	/*  number of analog input samples remaining */
-	unsigned int adc_fifo_bits;	/*  bits to write to interrupt/adcfifo register */
-	unsigned int s5933_intcsr_bits;	/*  bits to write to amcc s5933 interrupt control/status register */
-	unsigned int ao_control_bits;	/*  bits to write to ao control and status register */
+	/* number of analog input samples remaining */
+	unsigned int count;
+	/* bits to write to registers */
+	unsigned int adc_fifo_bits;
+	unsigned int s5933_intcsr_bits;
+	unsigned int ao_control_bits;
+	/* fifo buffers */
 	short ai_buffer[AI_BUFFER_SIZE];
 	short ao_buffer[AO_BUFFER_SIZE];
-	/*  divisors of master clock for analog output pacing */
+	/* divisors of master clock for analog output pacing */
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
-	unsigned int ao_count;	/*  number of analog output samples remaining */
-	int ao_value[2];	/*  remember what the analog outputs are set to, to allow readback */
-	unsigned int caldac_value[NUM_CHANNELS_8800];	/*  for readback of caldac */
-	unsigned int trimpot_value[NUM_CHANNELS_8402];	/*  for readback of trimpot */
+	/* number of analog output samples remaining */
+	unsigned int ao_count;
+	/* cached values for readback */
+	int ao_value[2];
+	unsigned int caldac_value[NUM_CHANNELS_8800];
+	unsigned int trimpot_value[NUM_CHANNELS_8402];
 	unsigned int dac08_value;
 	unsigned int calibration_source;
 };
