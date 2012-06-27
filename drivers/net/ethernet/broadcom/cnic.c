@@ -3953,6 +3953,15 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 		cnic_cm_upcall(cp, csk, opcode);
 		break;
 
+	case L5CM_RAMROD_CMD_ID_CLOSE:
+		if (l4kcqe->status != 0) {
+			netdev_warn(dev->netdev, "RAMROD CLOSE compl with "
+				    "status 0x%x\n", l4kcqe->status);
+			opcode = L4_KCQE_OPCODE_VALUE_CLOSE_COMP;
+			/* Fall through */
+		} else {
+			break;
+		}
 	case L4_KCQE_OPCODE_VALUE_RESET_RECEIVED:
 	case L4_KCQE_OPCODE_VALUE_CLOSE_COMP:
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:
