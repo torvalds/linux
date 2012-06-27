@@ -34,13 +34,15 @@ MODULE_LICENSE("GPL");
 static int toshiba_bt_rfkill_add(struct acpi_device *device);
 static int toshiba_bt_rfkill_remove(struct acpi_device *device, int type);
 static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event);
-static int toshiba_bt_resume(struct acpi_device *device);
 
 static const struct acpi_device_id bt_device_ids[] = {
 	{ "TOS6205", 0},
 	{ "", 0},
 };
 MODULE_DEVICE_TABLE(acpi, bt_device_ids);
+
+static int toshiba_bt_resume(struct device *dev);
+static SIMPLE_DEV_PM_OPS(toshiba_bt_pm, NULL, toshiba_bt_resume);
 
 static struct acpi_driver toshiba_bt_rfkill_driver = {
 	.name =		"Toshiba BT",
@@ -50,9 +52,9 @@ static struct acpi_driver toshiba_bt_rfkill_driver = {
 				.add =		toshiba_bt_rfkill_add,
 				.remove =	toshiba_bt_rfkill_remove,
 				.notify =	toshiba_bt_rfkill_notify,
-				.resume =	toshiba_bt_resume,
 			},
 	.owner = 	THIS_MODULE,
+	.drv.pm =	&toshiba_bt_pm,
 };
 
 
@@ -88,9 +90,9 @@ static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event)
 	toshiba_bluetooth_enable(device->handle);
 }
 
-static int toshiba_bt_resume(struct acpi_device *device)
+static int toshiba_bt_resume(struct device *dev)
 {
-	return toshiba_bluetooth_enable(device->handle);
+	return toshiba_bluetooth_enable(to_acpi_device(dev)->handle);
 }
 
 static int toshiba_bt_rfkill_add(struct acpi_device *device)
