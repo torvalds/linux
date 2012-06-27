@@ -319,9 +319,6 @@ int usb_urb_initv2(struct usb_data_stream *stream,
 
 	memcpy(&stream->props, props, sizeof(*props));
 
-	usb_clear_halt(stream->udev, usb_rcvbulkpipe(stream->udev,
-			stream->props.endpoint));
-
 	if (!stream->complete) {
 		dev_err(&stream->udev->dev, "%s: there is no data callback - " \
 				"this doesn't make sense\n", KBUILD_MODNAME);
