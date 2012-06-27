@@ -392,6 +392,22 @@ void exynos_drm_encoder_plane_commit(struct drm_encoder *encoder, void *data)
 		overlay_ops->commit(manager->dev, zpos);
 }
 
+void exynos_drm_encoder_plane_enable(struct drm_encoder *encoder, void *data)
+{
+	struct exynos_drm_manager *manager =
+		to_exynos_encoder(encoder)->manager;
+	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+	int zpos = DEFAULT_ZPOS;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (data)
+		zpos = *(int *)data;
+
+	if (overlay_ops && overlay_ops->enable)
+		overlay_ops->enable(manager->dev, zpos);
+}
+
 void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
 {
 	struct exynos_drm_manager *manager =

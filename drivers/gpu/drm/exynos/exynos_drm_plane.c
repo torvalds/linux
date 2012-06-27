@@ -107,8 +107,32 @@ void exynos_plane_commit(struct drm_plane *plane)
 
 	exynos_drm_fn_encoder(plane->crtc, &overlay->zpos,
 			exynos_drm_encoder_plane_commit);
+}
 
-	exynos_plane->enabled = true;
+void exynos_plane_dpms(struct drm_plane *plane, int mode)
+{
+	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
+	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	if (mode == DRM_MODE_DPMS_ON) {
+		if (exynos_plane->enabled)
+			return;
+
+		exynos_drm_fn_encoder(plane->crtc, &overlay->zpos,
+				exynos_drm_encoder_plane_enable);
+
+		exynos_plane->enabled = true;
+	} else {
+		if (!exynos_plane->enabled)
+			return;
+
+		exynos_drm_fn_encoder(plane->crtc, &overlay->zpos,
+				exynos_drm_encoder_plane_disable);
+
+		exynos_plane->enabled = false;
+	}
 }
 
 static int
@@ -132,24 +156,16 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	plane->fb = crtc->fb;
 
 	exynos_plane_commit(plane);
+	exynos_plane_dpms(plane, DRM_MODE_DPMS_ON);
 
 	return 0;
 }
 
 static int exynos_disable_plane(struct drm_plane *plane)
 {
-	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
-
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	if (!exynos_plane->enabled)
-		return 0;
-
-	exynos_drm_fn_encoder(plane->crtc, &overlay->zpos,
-			exynos_drm_encoder_plane_disable);
-
-	exynos_plane->enabled = false;
+	exynos_plane_dpms(plane, DRM_MODE_DPMS_OFF);
 
 	return 0;
 }

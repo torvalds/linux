@@ -44,6 +44,7 @@ void exynos_drm_encoder_crtc_dpms(struct drm_encoder *encoder, void *data);
 void exynos_drm_encoder_crtc_pipe(struct drm_encoder *encoder, void *data);
 void exynos_drm_encoder_plane_mode_set(struct drm_encoder *encoder, void *data);
 void exynos_drm_encoder_plane_commit(struct drm_encoder *encoder, void *data);
+void exynos_drm_encoder_plane_enable(struct drm_encoder *encoder, void *data);
 void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data);
 
 #endif

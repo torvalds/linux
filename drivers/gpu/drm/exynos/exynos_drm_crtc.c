@@ -71,23 +71,8 @@ static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	mutex_lock(&dev->struct_mutex);
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		exynos_drm_fn_encoder(crtc, &mode,
-				exynos_drm_encoder_crtc_dpms);
-		exynos_crtc->dpms = mode;
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		exynos_drm_fn_encoder(crtc, &mode,
-				exynos_drm_encoder_crtc_dpms);
-		exynos_crtc->dpms = mode;
-		break;
-	default:
-		DRM_ERROR("unspecified mode %d\n", mode);
-		break;
-	}
+	exynos_drm_fn_encoder(crtc, &mode, exynos_drm_encoder_crtc_dpms);
+	exynos_crtc->dpms = mode;
 
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -106,6 +91,7 @@ static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_plane_commit(exynos_crtc->plane);
+	exynos_plane_dpms(exynos_crtc->plane, DRM_MODE_DPMS_ON);
 }
 
 static bool
