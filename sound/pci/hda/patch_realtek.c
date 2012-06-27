@@ -2001,13 +2001,31 @@ static int __alc_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
-static int alc_build_controls(struct hda_codec *codec)
+static int alc_build_jacks(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+
+	if (spec->shared_mic_hp) {
+		int err;
+		int nid = spec->autocfg.inputs[1].pin;
+		err = snd_hda_jack_add_kctl(codec, nid, "Headphone Mic", 0);
+		if (err < 0)
+			return err;
+		err = snd_hda_jack_detect_enable(codec, nid, 0);
+		if (err < 0)
+			return err;
+	}
+
+	return snd_hda_jack_add_kctls(codec, &spec->autocfg);
+}
+
+static int alc_build_controls(struct hda_codec *codec)
+{
 	int err = __alc_build_controls(codec);
 	if (err < 0)
 		return err;
-	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+
+	err = alc_build_jacks(codec);
 	if (err < 0)
 		return err;
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_BUILD);
