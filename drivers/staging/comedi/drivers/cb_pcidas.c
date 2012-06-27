@@ -447,8 +447,6 @@ struct cb_pcidas_private {
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
 
-static int cb_pcidas_ao_cancel(struct comedi_device *dev,
-			       struct comedi_subdevice *s);
 static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
 				    int round_flags);
 static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
@@ -1262,6 +1260,25 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	return 0;
 }
 
+/* cancel analog output command */
+static int cb_pcidas_ao_cancel(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->spinlock, flags);
+	/*  disable interrupts */
+	devpriv->adc_fifo_bits &= ~DAHFIE & ~DAEMIE;
+	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
+
+	/*  disable output */
+	devpriv->ao_control_bits &= ~DACEN & ~DAC_PACER_MASK;
+	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	return 0;
+}
+
 static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 {
 	struct comedi_subdevice *s = dev->write_subdev;
@@ -1425,25 +1442,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
-}
-
-/* cancel analog output command */
-static int cb_pcidas_ao_cancel(struct comedi_device *dev,
-			       struct comedi_subdevice *s)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->spinlock, flags);
-	/*  disable interrupts */
-	devpriv->adc_fifo_bits &= ~DAHFIE & ~DAEMIE;
-	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
-
-	/*  disable output */
-	devpriv->ao_control_bits &= ~DACEN & ~DAC_PACER_MASK;
-	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	return 0;
 }
 
 static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
