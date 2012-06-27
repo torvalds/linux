@@ -231,13 +231,13 @@ static int pci6208_attach(struct comedi_device *dev,
 	const struct pci6208_board *thisboard;
 	struct pci6208_private *devpriv;
 	struct comedi_subdevice *s;
-	int retval;
+	int ret;
 
 	printk(KERN_INFO "comedi%d: pci6208: ", dev->minor);
 
-	retval = alloc_private(dev, sizeof(*devpriv));
-	if (retval < 0)
-		return retval;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret < 0)
+		return ret;
 	devpriv = dev->private;
 
 	devpriv->pci_dev = pci6208_find_device(dev, it);
@@ -245,19 +245,20 @@ static int pci6208_attach(struct comedi_device *dev,
 		return -EIO;
 	thisboard = comedi_board(dev);
 
-	if (comedi_pci_enable(devpriv->pci_dev, "adl_pci6208") < 0) {
+	ret = comedi_pci_enable(devpriv->pci_dev, "adl_pci6208");
+	if (ret) {
 		dev_err(dev->class_dev,
 			"Failed to enable PCI device and request regions\n");
-		return -EIO;
+		return ret;
 	}
 
 	dev->iobase = pci_resource_start(devpriv->pci_dev, 2);
 
 	dev->board_name = thisboard->name;
 
-	retval = comedi_alloc_subdevices(dev, 2);
-	if (retval)
-		return retval;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* analog output subdevice */
