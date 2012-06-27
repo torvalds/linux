@@ -447,8 +447,6 @@ struct cb_pcidas_private {
  */
 #define devpriv ((struct cb_pcidas_private *)dev->private)
 
-static int cb_pcidas_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
 static int cb_pcidas_ao_cancel(struct comedi_device *dev,
 			       struct comedi_subdevice *s);
 static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
@@ -1128,6 +1126,26 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+/* cancel analog input command */
+static int cb_pcidas_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->spinlock, flags);
+	/*  disable interrupts */
+	devpriv->adc_fifo_bits &= ~INTE & ~EOAIE;
+	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	/*  disable start trigger source and burst mode */
+	outw(0, devpriv->control_status + TRIG_CONTSTAT);
+	/*  software pacer source */
+	outw(0, devpriv->control_status + ADCMUX_CONT);
+
+	return 0;
+}
+
 static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				unsigned int trig_num)
@@ -1407,26 +1425,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
-}
-
-/* cancel analog input command */
-static int cb_pcidas_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->spinlock, flags);
-	/*  disable interrupts */
-	devpriv->adc_fifo_bits &= ~INTE & ~EOAIE;
-	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	/*  disable start trigger source and burst mode */
-	outw(0, devpriv->control_status + TRIG_CONTSTAT);
-	/*  software pacer source */
-	outw(0, devpriv->control_status + ADCMUX_CONT);
-
-	return 0;
 }
 
 /* cancel analog output command */
