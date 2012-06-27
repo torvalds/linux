@@ -5,34 +5,26 @@
 int
 task_work_add(struct task_struct *task, struct callback_head *twork, bool notify)
 {
+	struct callback_head *last, *first;
 	unsigned long flags;
-	int err = -ESRCH;
 
-#ifndef TIF_NOTIFY_RESUME
-	if (notify)
-		return -ENOTSUPP;
-#endif
 	/*
-	 * We must not insert the new work if the task has already passed
-	 * exit_task_work(). We rely on do_exit()->raw_spin_unlock_wait()
-	 * and check PF_EXITING under pi_lock.
+	 * Not inserting the new work if the task has already passed
+	 * exit_task_work() is the responisbility of callers.
 	 */
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
-	if (likely(!(task->flags & PF_EXITING))) {
-		struct callback_head *last = task->task_works;
-		struct callback_head *first = last ? last->next : twork;
-		twork->next = first;
-		if (last)
-			last->next = twork;
-		task->task_works = twork;
-		err = 0;
-	}
+	last = task->task_works;
+	first = last ? last->next : twork;
+	twork->next = first;
+	if (last)
+		last->next = twork;
+	task->task_works = twork;
 	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 
 	/* test_and_set_bit() implies mb(), see tracehook_notify_resume(). */
-	if (likely(!err) && notify)
+	if (notify)
 		set_notify_resume(task);
-	return err;
+	return 0;
 }
 
 struct callback_head *
