@@ -471,25 +471,25 @@ static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	int channel;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned long flags;
 
-	/*  set channel and range */
-	channel = CR_CHAN(insn->chanspec);
+	/* set channel and range */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->ao_control_bits &=
-	    ~DAC_MODE_UPDATE_BOTH & ~DAC_RANGE_MASK(channel);
-	devpriv->ao_control_bits |=
-	    DACEN | DAC_RANGE(channel, CR_RANGE(insn->chanspec));
+	devpriv->ao_control_bits &= (~DAC_MODE_UPDATE_BOTH &
+				     ~DAC_RANGE_MASK(chan));
+	devpriv->ao_control_bits |= (DACEN | DAC_RANGE(chan, range));
 	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/*  remember value for readback */
-	devpriv->ao_value[channel] = data[0];
-	/*  send data */
-	outw(data[0], devpriv->ao_registers + DAC_DATA_REG(channel));
+	/* remember value for readback */
+	devpriv->ao_value[chan] = data[0];
 
-	return 1;
+	/* send data */
+	outw(data[0], devpriv->ao_registers + DAC_DATA_REG(chan));
+
+	return insn->n;
 }
 
 /* analog output insn for pcidas-1602 series */
