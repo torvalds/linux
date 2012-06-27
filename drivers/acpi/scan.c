@@ -290,27 +290,61 @@ static void acpi_device_release(struct device *dev)
 	kfree(acpi_dev);
 }
 
-static int acpi_device_suspend(struct device *dev)
-{
-	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = acpi_dev->driver;
+#define ACPI_DEV_PM_CALLBACK(dev, callback, legacy_cb)		\
+({								\
+	struct acpi_device *__acpi_dev = to_acpi_device(dev);	\
+	struct acpi_driver *__acpi_drv = __acpi_dev->driver;	\
+	struct device_driver *__drv = dev->driver;		\
+	int __ret;						\
+								\
+	if (__acpi_drv && __acpi_drv->ops.legacy_cb)		\
+		__ret = __acpi_drv->ops.legacy_cb(__acpi_dev);	\
+	else if (__drv && __drv->pm && __drv->pm->callback)	\
+		__ret = __drv->pm->callback(dev);		\
+	else							\
+		__ret = 0;					\
+								\
+	__ret;							\
+})
 
-	if (acpi_drv && acpi_drv->ops.suspend)
-		return acpi_drv->ops.suspend(acpi_dev);
-	return 0;
+static int acpi_pm_suspend(struct device *dev)
+{
+	return ACPI_DEV_PM_CALLBACK(dev, suspend, suspend);
 }
 
-static int acpi_device_resume(struct device *dev)
+static int acpi_pm_resume(struct device *dev)
 {
-	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = acpi_dev->driver;
-
-	if (acpi_drv && acpi_drv->ops.resume)
-		return acpi_drv->ops.resume(acpi_dev);
-	return 0;
+	return ACPI_DEV_PM_CALLBACK(dev, resume, resume);
 }
 
-static SIMPLE_DEV_PM_OPS(acpi_bus_pm, acpi_device_suspend, acpi_device_resume);
+static int acpi_pm_freeze(struct device *dev)
+{
+	return ACPI_DEV_PM_CALLBACK(dev, freeze, suspend);
+}
+
+static int acpi_pm_thaw(struct device *dev)
+{
+	return ACPI_DEV_PM_CALLBACK(dev, thaw, resume);
+}
+
+static int acpi_pm_poweroff(struct device *dev)
+{
+	return ACPI_DEV_PM_CALLBACK(dev, poweroff, suspend);
+}
+
+static int acpi_pm_restore(struct device *dev)
+{
+	return ACPI_DEV_PM_CALLBACK(dev, restore, resume);
+}
+
+static const struct dev_pm_ops acpi_bus_pm = {
+	.suspend = acpi_pm_suspend,
+	.resume = acpi_pm_resume,
+	.freeze = acpi_pm_freeze,
+	.thaw = acpi_pm_thaw,
+	.poweroff = acpi_pm_poweroff,
+	.restore = acpi_pm_restore,
+};
 
 static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 {
