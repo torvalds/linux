@@ -48,6 +48,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <trace/events/skb.h>
 #include "udp_impl.h"
 
 int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
@@ -385,15 +386,16 @@ try_again:
 
 	if (skb_csum_unnecessary(skb))
 		err = skb_copy_datagram_iovec(skb, sizeof(struct udphdr),
-					      msg->msg_iov, copied       );
+					      msg->msg_iov, copied);
 	else {
 		err = skb_copy_and_csum_datagram_iovec(skb, sizeof(struct udphdr), msg->msg_iov);
 		if (err == -EINVAL)
 			goto csum_copy_err;
 	}
-	if (err)
+	if (unlikely(err)) {
+		trace_kfree_skb(skb, udpv6_recvmsg);
 		goto out_free;
-
+	}
 	if (!peeked) {
 		if (is_udp4)
 			UDP_INC_STATS_USER(sock_net(sk),

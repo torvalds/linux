@@ -108,6 +108,7 @@
 #include <net/xfrm.h>
 #include <trace/events/udp.h>
 #include <linux/static_key.h>
+#include <trace/events/skb.h>
 #include "udp_impl.h"
 
 struct udp_table udp_table __read_mostly;
@@ -1220,8 +1221,10 @@ try_again:
 			goto csum_copy_err;
 	}
 
-	if (err)
+	if (unlikely(err)) {
+		trace_kfree_skb(skb, udp_recvmsg);
 		goto out_free;
+	}
 
 	if (!peeked)
 		UDP_INC_STATS_USER(sock_net(sk),
