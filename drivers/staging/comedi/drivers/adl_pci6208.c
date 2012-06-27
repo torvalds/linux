@@ -107,13 +107,13 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct pci6208_private *devpriv = dev->private;
-	int i;
 	int chan = CR_CHAN(insn->chanspec);
+	int i;
 
 	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
 
-	return i;
+	return insn->n;
 }
 
 static int pci6208_dio_insn_bits(struct comedi_device *dev,
