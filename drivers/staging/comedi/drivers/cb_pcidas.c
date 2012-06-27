@@ -662,23 +662,25 @@ static int caldac_read_insn(struct comedi_device *dev,
 static int dac08_write(struct comedi_device *dev, unsigned int value)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned long cal_reg;
 
-	if (devpriv->dac08_value == value)
-		return 1;
+	if (devpriv->dac08_value != value) {
+		devpriv->dac08_value = value;
 
-	devpriv->dac08_value = value;
+		cal_reg = devpriv->control_status + CALIBRATION_REG;
 
-	outw(cal_enable_bits(dev) | (value & 0xff),
-	     devpriv->control_status + CALIBRATION_REG);
-	udelay(1);
-	outw(cal_enable_bits(dev) | SELECT_DAC08_BIT | (value & 0xff),
-	     devpriv->control_status + CALIBRATION_REG);
-	udelay(1);
-	outw(cal_enable_bits(dev) | (value & 0xff),
-	     devpriv->control_status + CALIBRATION_REG);
-	udelay(1);
+		value &= 0xff;
+		value |= cal_enable_bits(dev);
 
-	return 1;
+		/* latch the new value into the caldac */
+		outw(value, cal_reg);
+		udelay(1);
+		outw(value | SELECT_DAC08_BIT, cal_reg);
+		udelay(1);
+		outw(value, cal_reg);
+		udelay(1);
+	}
+	return 1;	/* insn->n */
 }
 
 static int dac08_write_insn(struct comedi_device *dev,
