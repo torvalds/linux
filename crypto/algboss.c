@@ -87,7 +87,7 @@ static int cryptomgr_probe(void *data)
 	crypto_tmpl_put(tmpl);
 
 out:
-	complete(param->completion);
+	complete_all(param->completion);
 	kfree(param);
 	module_put_and_exit(0);
 }
