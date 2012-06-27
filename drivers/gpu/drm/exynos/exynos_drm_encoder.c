@@ -327,26 +327,15 @@ void exynos_drm_disable_vblank(struct drm_encoder *encoder, void *data)
 
 void exynos_drm_encoder_crtc_dpms(struct drm_encoder *encoder, void *data)
 {
-	struct drm_device *dev = encoder->dev;
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
 	struct exynos_drm_manager *manager = exynos_encoder->manager;
 	struct exynos_drm_manager_ops *manager_ops = manager->ops;
-	struct drm_connector *connector;
 	int mode = *(int *)data;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (manager_ops && manager_ops->dpms)
 		manager_ops->dpms(manager->dev, mode);
-
-	/*
-	 * set current dpms mode to the connector connected to
-	 * current encoder. connector->dpms would be checked
-	 * at drm_helper_connector_dpms()
-	 */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		if (connector->encoder == encoder)
-			connector->dpms = mode;
 
 	/*
 	 * if this condition is ok then it means that the crtc is already
