@@ -241,7 +241,7 @@ static void acpi_idle_bm_rld_restore(void)
 		acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
 }
 
-int acpi_processor_suspend(struct acpi_device * device, pm_message_t state)
+int acpi_processor_suspend(struct acpi_device * device)
 {
 	if (acpi_idle_suspend == 1)
 		return 0;

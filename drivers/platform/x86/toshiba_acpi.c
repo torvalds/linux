@@ -1296,8 +1296,7 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 	}
 }
 
-static int toshiba_acpi_suspend(struct acpi_device *acpi_dev,
-				pm_message_t state)
+static int toshiba_acpi_suspend(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 	u32 result;

@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 
 static int acpi_fan_add(struct acpi_device *device);
 static int acpi_fan_remove(struct acpi_device *device, int type);
-static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state);
+static int acpi_fan_suspend(struct acpi_device *device);
 static int acpi_fan_resume(struct acpi_device *device);
 
 static const struct acpi_device_id fan_device_ids[] = {
@@ -183,7 +183,7 @@ static int acpi_fan_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_fan_suspend(struct acpi_device *device, pm_message_t state)
+static int acpi_fan_suspend(struct acpi_device *device)
 {
 	if (!device)
 		return -EINVAL;

@@ -4243,7 +4243,7 @@ err_free_resources:
 	return result;
 }
 
-static int sony_pic_suspend(struct acpi_device *device, pm_message_t state)
+static int sony_pic_suspend(struct acpi_device *device)
 {
 	if (sony_pic_disable(device))
 		return -ENXIO;

@@ -296,7 +296,7 @@ static int acpi_device_suspend(struct device *dev, pm_message_t state)
 	struct acpi_driver *acpi_drv = acpi_dev->driver;
 
 	if (acpi_drv && acpi_drv->ops.suspend)
-		return acpi_drv->ops.suspend(acpi_dev, state);
+		return acpi_drv->ops.suspend(acpi_dev);
 	return 0;
 }
 
