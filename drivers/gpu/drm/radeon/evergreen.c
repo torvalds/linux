@@ -3421,7 +3421,8 @@ void evergreen_fini(struct radeon_device *rdev)
 
 void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 {
-	u32 link_width_cntl, speed_cntl;
+	u32 link_width_cntl, speed_cntl, mask;
+	int ret;
 
 	if (radeon_pcie_gen2 == 0)
 		return;
@@ -3435,6 +3436,15 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 	/* x2 cards have a special sequence */
 	if (ASIC_IS_X2(rdev))
 		return;
+
+	ret = drm_pcie_get_speed_cap_mask(rdev->ddev, &mask);
+	if (ret != 0)
+		return;
+
+	if (!(mask & DRM_PCIE_SPEED_50))
+		return;
+
+	DRM_INFO("enabling PCIE gen 2 link speeds, disable with radeon.pcie_gen2=0\n");
 
 	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
 	if ((speed_cntl & LC_OTHER_SIDE_EVER_SENT_GEN2) ||
