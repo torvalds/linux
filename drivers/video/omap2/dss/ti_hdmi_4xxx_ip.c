@@ -235,13 +235,10 @@ void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data)
 
 static int hdmi_check_hpd_state(struct hdmi_ip_data *ip_data)
 {
-	unsigned long flags;
 	bool hpd;
 	int r;
-	/* this should be in ti_hdmi_4xxx_ip private data */
-	static DEFINE_SPINLOCK(phy_tx_lock);
 
-	spin_lock_irqsave(&phy_tx_lock, flags);
+	mutex_lock(&ip_data->lock);
 
 	hpd = gpio_get_value(ip_data->hpd_gpio);
 
@@ -257,7 +254,7 @@ static int hdmi_check_hpd_state(struct hdmi_ip_data *ip_data)
 	}
 
 err:
-	spin_unlock_irqrestore(&phy_tx_lock, flags);
+	mutex_unlock(&ip_data->lock);
 	return r;
 }
 
