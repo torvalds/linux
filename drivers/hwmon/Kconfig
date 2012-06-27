@@ -443,6 +443,16 @@ config SENSORS_GPIO_FAN
 	  This driver can also be built as a module.  If so, the module
 	  will be called gpio-fan.
 
+config SENSORS_HIH6130
+	tristate "Honeywell Humidicon HIH-6130 humidity/temperature sensor"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for Honeywell Humidicon
+	  HIH-6130 and HIH-6131 Humidicon humidity sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called hih6130.
+
 config SENSORS_CORETEMP
 	tristate "Intel Core/Core2/Atom temperature sensor"
 	depends on X86 && PCI && EXPERIMENTAL
