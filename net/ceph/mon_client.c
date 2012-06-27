@@ -143,11 +143,11 @@ static int __open_session(struct ceph_mon_client *monc)
 		monc->want_next_osdmap = !!monc->want_next_osdmap;
 
 		ceph_con_init(&monc->con, monc, &mon_con_ops,
-			&monc->client->msgr,
-			CEPH_ENTITY_TYPE_MON, monc->cur_mon);
+			&monc->client->msgr);
 
 		dout("open_session mon%d opening\n", monc->cur_mon);
 		ceph_con_open(&monc->con,
+			      CEPH_ENTITY_TYPE_MON, monc->cur_mon,
 			      &monc->monmap->mon_inst[monc->cur_mon].addr);
 
 		/* initiatiate authentication handshake */
