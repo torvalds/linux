@@ -1537,10 +1537,15 @@ static struct pci_dev *cb_pcidas_find_pci_device(struct comedi_device *dev,
 					continue;
 				}
 			}
+			dev_dbg(dev->class_dev,
+				"Found %s on bus %i, slot %i\n",
+				thisboard->name,
+				pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 			dev->board_ptr = thisboard;
 			return pcidev;
 		}
 	}
+	dev_err(dev->class_dev, "No supported card found\n");
 	return NULL;
 }
 
@@ -1558,15 +1563,9 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 	devpriv = dev->private;
 
 	devpriv->pci_dev = cb_pcidas_find_pci_device(dev, it);
-	if (!devpriv->pci_dev) {
-		dev_err(dev->class_dev, "No supported card found\n");
+	if (!devpriv->pci_dev)
 		return -EIO;
-	}
-
 	thisboard = comedi_board(dev);
-	dev_dbg(dev->class_dev, "Found %s on bus %i, slot %i\n",
-		thisboard->name, devpriv->pci_dev->bus->number,
-		PCI_SLOT(devpriv->pci_dev->devfn));
 
 	if (comedi_pci_enable(devpriv->pci_dev, "cb_pcidas")) {
 		dev_err(dev->class_dev,
