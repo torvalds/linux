@@ -952,6 +952,10 @@ static int __init cpufreq_interactive_init(void)
 		pcpu->cpu_timer.data = i;
 	}
 
+	spin_lock_init(&up_cpumask_lock);
+	spin_lock_init(&down_cpumask_lock);
+	mutex_init(&set_speed_lock);
+
 	up_task = kthread_create(cpufreq_interactive_up_task, NULL,
 				 "kinteractiveup");
 	if (IS_ERR(up_task))
@@ -967,14 +971,12 @@ static int __init cpufreq_interactive_init(void)
 	if (!down_wq)
 		goto err_freeuptask;
 
-	INIT_WORK(&freq_scale_down_work,
-		  cpufreq_interactive_freq_down);
-
-	spin_lock_init(&up_cpumask_lock);
-	spin_lock_init(&down_cpumask_lock);
-	mutex_init(&set_speed_lock);
-
+	INIT_WORK(&freq_scale_down_work, cpufreq_interactive_freq_down);
 	INIT_WORK(&inputopen.inputopen_work, cpufreq_interactive_input_open);
+
+	/* NB: wake up so the thread does not look hung to the freezer */
+	wake_up_process(up_task);
+
 	return cpufreq_register_governor(&cpufreq_gov_interactive);
 
 err_freeuptask:
