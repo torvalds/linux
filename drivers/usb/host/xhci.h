@@ -1070,6 +1070,9 @@ union xhci_trb {
 #define TRB_MFINDEX_WRAP	39
 /* TRB IDs 40-47 reserved, 48-63 is vendor-defined */
 
+#define TRB_TYPE_LINK_LE32(x)   (((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
+		cpu_to_le32(TRB_TYPE(TRB_LINK)))
+
 /* Nec vendor-specific command completion event. */
 #define	TRB_NEC_CMD_COMP	48
 /* Get NEC firmware revision. */
