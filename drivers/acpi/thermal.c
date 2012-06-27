@@ -716,9 +716,11 @@ static int thermal_get_trend(struct thermal_zone_device *thermal,
 	if (thermal_get_trip_type(thermal, trip, &type))
 		return -EINVAL;
 
-	/* Only PASSIVE trip points need TREND */
-	if (type != THERMAL_TRIP_PASSIVE)
-		return -EINVAL;
+	if (type == THERMAL_TRIP_ACTIVE) {
+		/* aggressive active cooling */
+		*trend = THERMAL_TREND_RAISING;
+		return 0;
+	}
 
 	/*
 	 * tz->temperature has already been updated by generic thermal layer,
