@@ -23,6 +23,7 @@
 #include <linux/mutex.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/of_regulator.h>
@@ -1491,7 +1492,11 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 
 	trace_regulator_enable(rdev_get_name(rdev));
 
-	if (rdev->desc->ops->enable) {
+	if (rdev->ena_gpio) {
+		gpio_set_value_cansleep(rdev->ena_gpio,
+					!rdev->ena_gpio_invert);
+		rdev->ena_gpio_state = 1;
+	} else if (rdev->desc->ops->enable) {
 		ret = rdev->desc->ops->enable(rdev);
 		if (ret < 0)
 			return ret;
@@ -1846,6 +1851,10 @@ EXPORT_SYMBOL_GPL(regulator_disable_regmap);
 
 static int _regulator_is_enabled(struct regulator_dev *rdev)
 {
+	/* A GPIO control always takes precedence */
+	if (rdev->ena_gpio)
+		return rdev->ena_gpio_state;
+
 	/* If we don't know then assume that the regulator is always on */
 	if (!rdev->desc->ops->is_enabled)
 		return 1;
@@ -3243,6 +3252,26 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 	dev_set_drvdata(&rdev->dev, rdev);
 
+	if (config->ena_gpio) {
+		ret = gpio_request_one(config->ena_gpio,
+				       GPIOF_DIR_OUT | config->ena_gpio_flags,
+				       rdev_get_name(rdev));
+		if (ret != 0) {
+			rdev_err(rdev, "Failed to request enable GPIO%d: %d\n",
+				 config->ena_gpio, ret);
+			goto clean;
+		}
+
+		rdev->ena_gpio = config->ena_gpio;
+		rdev->ena_gpio_invert = config->ena_gpio_invert;
+
+		if (config->ena_gpio_flags & GPIOF_OUT_INIT_HIGH)
+			rdev->ena_gpio_state = 1;
+
+		if (rdev->ena_gpio_invert)
+			rdev->ena_gpio_state = !rdev->ena_gpio_state;
+	}
+
 	/* set regulator constraints */
 	if (init_data)
 		constraints = &init_data->constraints;
@@ -3311,6 +3340,8 @@ unset_supplies:
 scrub:
 	if (rdev->supply)
 		regulator_put(rdev->supply);
+	if (rdev->ena_gpio)
+		gpio_free(rdev->ena_gpio);
 	kfree(rdev->constraints);
 	device_unregister(&rdev->dev);
 	/* device core frees rdev */
@@ -3344,6 +3375,8 @@ void regulator_unregister(struct regulator_dev *rdev)
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
 	kfree(rdev->constraints);
+	if (rdev->ena_gpio)
+		gpio_free(rdev->ena_gpio);
 	device_unregister(&rdev->dev);
 	mutex_unlock(&regulator_list_mutex);
 }
