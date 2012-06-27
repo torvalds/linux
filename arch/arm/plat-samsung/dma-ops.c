@@ -36,8 +36,7 @@ static unsigned samsung_dmadev_request(enum dma_ch dma_ch,
 	return (unsigned)dma_request_channel(mask, pl330_filter, filter_param);
 }
 
-static int samsung_dmadev_release(unsigned ch,
-			struct s3c2410_dma_client *client)
+static int samsung_dmadev_release(unsigned ch, void *param)
 {
 	dma_release_channel((struct dma_chan *)ch);
 
