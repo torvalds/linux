@@ -1364,6 +1364,10 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 	mutex_unlock(&local->sta_mtx);
 
+	/* flush out any pending frame (e.g. DELBA) before deauth/disassoc */
+	if (tx)
+		drv_flush(local, false);
+
 	/* deauthenticate/disassociate now */
 	if (tx || frame_buf)
 		ieee80211_send_deauth_disassoc(sdata, bssid, stype, reason,
