@@ -541,6 +541,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		memcpy(pos, assoc_data->ie + offset, noffset - offset);
 	}
 
+	drv_mgd_prepare_tx(local, sdata);
+
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -580,6 +582,9 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 		if (!(ifmgd->flags & IEEE80211_STA_MFP_ENABLED))
 			IEEE80211_SKB_CB(skb)->flags |=
 				IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
+		drv_mgd_prepare_tx(local, sdata);
+
 		ieee80211_tx_skb(sdata, skb);
 	}
 }
@@ -1756,6 +1761,7 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 	if (!elems.challenge)
 		return;
 	auth_data->expected_transaction = 4;
+	drv_mgd_prepare_tx(sdata->local, sdata);
 	ieee80211_send_auth(sdata, 3, auth_data->algorithm,
 			    elems.challenge - 2, elems.challenge_len + 2,
 			    auth_data->bss->bssid, auth_data->bss->bssid,
@@ -2640,6 +2646,8 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 
 		return -ETIMEDOUT;
 	}
+
+	drv_mgd_prepare_tx(local, sdata);
 
 	if (auth_data->bss->proberesp_ies) {
 		sdata_info(sdata, "send auth to %pM (try %d/%d)\n",

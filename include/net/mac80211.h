@@ -2244,6 +2244,18 @@ enum ieee80211_rate_control_changed {
  * @get_rssi: Get current signal strength in dBm, the function is optional
  *	and can sleep.
  *
+ * @mgd_prepare_tx: Prepare for transmitting a management frame for association
+ *	before associated. In multi-channel scenarios, a virtual interface is
+ *	bound to a channel before it is associated, but as it isn't associated
+ *	yet it need not necessarily be given airtime, in particular since any
+ *	transmission to a P2P GO needs to be synchronized against the GO's
+ *	powersave state. mac80211 will call this function before transmitting a
+ *	management frame prior to having successfully associated to allow the
+ *	driver to give it channel time for the transmission, to get a response
+ *	and to be able to synchronize with the GO.
+ *	The callback will be called before each transmission and upon return
+ *	mac80211 will transmit the frame right away.
+ *	The callback is optional and can (should!) sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -2383,6 +2395,9 @@ struct ieee80211_ops {
 				  u32 sset, u8 *data);
 	int	(*get_rssi)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, s8 *rssi_dbm);
+
+	void	(*mgd_prepare_tx)(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif);
 };
 
 /**

@@ -852,4 +852,18 @@ static inline int drv_get_rssi(struct ieee80211_local *local,
 
 	return ret;
 }
+
+static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
+				      struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	check_sdata_in_driver(sdata);
+	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
+
+	trace_drv_mgd_prepare_tx(local, sdata);
+	if (local->ops->mgd_prepare_tx)
+		local->ops->mgd_prepare_tx(&local->hw, &sdata->vif);
+	trace_drv_return_void(local);
+}
 #endif /* __MAC80211_DRIVER_OPS */
