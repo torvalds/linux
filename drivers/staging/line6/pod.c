@@ -419,7 +419,7 @@ static void pod_send_channel(struct usb_line6_pod *pod, int value)
 	Transmit PODxt Pro control parameter.
 */
 void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
-				  int value)
+				  u8 value)
 {
 	if (line6_transmit_parameter(&pod->line6, param, value) == 0)
 		pod_store_parameter(pod, param, value);
