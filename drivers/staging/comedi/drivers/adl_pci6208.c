@@ -58,7 +58,6 @@ struct pci6208_board {
 	const char *name;
 	unsigned short dev_id;	/* `lspci` will show you this */
 	int ao_chans;
-	/* int ao_bits; */
 };
 
 static const struct pci6208_board pci6208_boards[] = {
@@ -66,19 +65,16 @@ static const struct pci6208_board pci6208_boards[] = {
 	   .name = "pci6208v",
 	   .dev_id = 0x6208,      // not sure
 	   .ao_chans = 8
-	   // , .ao_bits = 16
 	   },
 	   {
 	   .name = "pci6216v",
 	   .dev_id = 0x6208,      // not sure
 	   .ao_chans = 16
-	   // , .ao_bits = 16
 	   }, */
 	{
 	 .name = "pci6208a",
 	 .dev_id = 0x6208,
 	 .ao_chans = 8
-	 /* ,    .ao_bits = 16 */
 	 }
 };
 
