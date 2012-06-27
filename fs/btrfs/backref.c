@@ -301,10 +301,14 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 
 	eb = path->nodes[level];
-	if (!eb) {
-		WARN_ON(1);
-		ret = 1;
-		goto out;
+	while (!eb) {
+		if (!level) {
+			WARN_ON(1);
+			ret = 1;
+			goto out;
+		}
+		level--;
+		eb = path->nodes[level];
 	}
 
 	ret = add_all_parents(root, path, parents, level, &ref->key_for_search,
