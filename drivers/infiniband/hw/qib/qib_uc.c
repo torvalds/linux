@@ -403,7 +403,6 @@ send_last:
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto rewind;
 		wc.opcode = IB_WC_RECV;
-last_imm:
 		qib_copy_sge(&qp->r_sge, data, tlen, 0);
 		while (qp->s_rdma_read_sge.num_sge) {
 			atomic_dec(&qp->s_rdma_read_sge.sge.mr->refcount);
@@ -411,6 +410,7 @@ last_imm:
 				qp->s_rdma_read_sge.sge =
 					*qp->s_rdma_read_sge.sg_list++;
 		}
+last_imm:
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
 		wc.qp = &qp->ibqp;
@@ -509,6 +509,12 @@ rdma_last_imm:
 		}
 		wc.byte_len = qp->r_len;
 		wc.opcode = IB_WC_RECV_RDMA_WITH_IMM;
+		qib_copy_sge(&qp->r_sge, data, tlen, 1);
+		while (qp->r_sge.num_sge) {
+			atomic_dec(&qp->r_sge.sge.mr->refcount);
+			if (--qp->r_sge.num_sge)
+				qp->r_sge.sge = *qp->r_sge.sg_list++;
+		}
 		goto last_imm;
 
 	case OP(RDMA_WRITE_LAST):
