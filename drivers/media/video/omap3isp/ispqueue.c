@@ -908,13 +908,14 @@ done:
  *
  * This function is intended to be used as a VIDIOC_DQBUF ioctl handler.
  *
- * The v4l2_buffer structure passed from userspace is first sanity tested. If
- * sane, the buffer is then processed and added to the main queue and, if the
- * queue is streaming, to the IRQ queue.
+ * Wait until a buffer is ready to be dequeued, remove it from the queue and
+ * copy its information to the v4l2_buffer structure.
  *
- * Before being enqueued, USERPTR buffers are checked for address changes. If
- * the buffer has a different userspace address, the old memory area is unlocked
- * and the new memory area is locked.
+ * If the nonblocking argument is not zero and no buffer is ready, return
+ * -EAGAIN immediately instead of waiting.
+ *
+ * If no buffer has been enqueued, or if the requested buffer type doesn't match
+ * the queue type, return -EINVAL.
  */
 int omap3isp_video_queue_dqbuf(struct isp_video_queue *queue,
 			       struct v4l2_buffer *vbuf, int nonblocking)
