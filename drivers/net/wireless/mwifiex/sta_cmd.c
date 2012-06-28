@@ -260,6 +260,23 @@ static int mwifiex_cmd_tx_power_cfg(struct host_cmd_ds_command *cmd,
 }
 
 /*
+ * This function prepares command to get RF Tx power.
+ */
+static int mwifiex_cmd_rf_tx_power(struct mwifiex_private *priv,
+				   struct host_cmd_ds_command *cmd,
+				   u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_ds_rf_tx_pwr *txp = &cmd->params.txp;
+
+	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_rf_tx_pwr)
+				+ S_DS_GEN);
+	cmd->command = cpu_to_le16(HostCmd_CMD_RF_TX_PWR);
+	txp->action = cpu_to_le16(cmd_action);
+
+	return 0;
+}
+
+/*
  * This function prepares command to set Host Sleep configuration.
  *
  * Preparation includes -
@@ -1055,6 +1072,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_tx_power_cfg(cmd_ptr, cmd_action,
 					       data_buf);
 		break;
+	case HostCmd_CMD_RF_TX_PWR:
+		ret = mwifiex_cmd_rf_tx_power(priv, cmd_ptr, cmd_action,
+					      data_buf);
+		break;
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
 		ret = mwifiex_cmd_enh_power_mode(priv, cmd_ptr, cmd_action,
 						 (uint16_t)cmd_oid, data_buf);
@@ -1283,7 +1304,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	priv->data_rate = 0;
 
 	/* get tx power */
-	ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_TXPWR_CFG,
+	ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_RF_TX_PWR,
 				     HostCmd_ACT_GEN_GET, 0, NULL);
 	if (ret)
 		return -1;

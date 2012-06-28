@@ -451,6 +451,30 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 }
 
 /*
+ * This function handles the command response of get RF Tx power.
+ */
+static int mwifiex_ret_rf_tx_power(struct mwifiex_private *priv,
+				   struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_rf_tx_pwr *txp = &resp->params.txp;
+	u16 action = le16_to_cpu(txp->action);
+
+	priv->tx_power_level = le16_to_cpu(txp->cur_level);
+
+	if (action == HostCmd_ACT_GEN_GET) {
+		priv->max_tx_power_level = txp->max_power;
+		priv->min_tx_power_level = txp->min_power;
+	}
+
+	dev_dbg(priv->adapter->dev,
+		"Current TxPower Level=%d, Max Power=%d, Min Power=%d\n",
+		priv->tx_power_level, priv->max_tx_power_level,
+		priv->min_tx_power_level);
+
+	return 0;
+}
+
+/*
  * This function handles the command response of set/get MAC address.
  *
  * Handling includes saving the MAC address in driver.
@@ -846,6 +870,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_TXPWR_CFG:
 		ret = mwifiex_ret_tx_power_cfg(priv, resp);
+		break;
+	case HostCmd_CMD_RF_TX_PWR:
+		ret = mwifiex_ret_rf_tx_power(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
 		ret = mwifiex_ret_enh_power_mode(priv, resp, data_buf);
