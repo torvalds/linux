@@ -1072,6 +1072,12 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		pm2xxx_charger_irq[0].name, pm2->pdata->irq_number, ret);
 		goto unregister_pm2xxx_charger;
 	}
+	/* pm interrupt can wake up system */
+	ret = enable_irq_wake(pm2->pdata->irq_number);
+	if (ret) {
+		dev_err(pm2->dev, "failed to set irq wake\n");
+		goto unregister_pm2xxx_interrupt;
+	}
 
 	/*Initialize lock*/
 	mutex_init(&pm2->lock);
@@ -1084,7 +1090,7 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	ret = gpio_request(pm2->lpn_pin, "pm2301_lpm_gpio");
 	if (ret < 0) {
 		dev_err(pm2->dev, "pm2301_lpm_gpio request failed\n");
-		goto unregister_pm2xxx_charger;
+		goto disable_pm2_irq_wake;
 	}
 	ret = gpio_direction_output(pm2->lpn_pin, 0);
 	if (ret < 0) {
@@ -1115,6 +1121,11 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 free_gpio:
 	gpio_free(pm2->lpn_pin);
+disable_pm2_irq_wake:
+	disable_irq_wake(pm2->pdata->irq_number);
+unregister_pm2xxx_interrupt:
+	/* disable interrupt */
+	free_irq(pm2->pdata->irq_number, pm2);
 unregister_pm2xxx_charger:
 	/* unregister power supply */
 	power_supply_unregister(&pm2->ac_chg.psy);
@@ -1125,6 +1136,7 @@ free_charger_wq:
 	destroy_workqueue(pm2->charger_wq);
 free_device_info:
 	kfree(pm2);
+
 	return ret;
 }
 
@@ -1134,6 +1146,9 @@ static int pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
 
 	/* Disable AC charging */
 	pm2xxx_charger_ac_en(&pm2->ac_chg, false, 0, 0);
+
+	/* Disable wake by pm interrupt */
+	disable_irq_wake(pm2->pdata->irq_number);
 
 	/* Disable interrupts */
 	free_irq(pm2->pdata->irq_number, pm2);
