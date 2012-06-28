@@ -1804,18 +1804,16 @@ void gfar_configure_coalescing(struct gfar_private *priv,
 	if (priv->mode == MQ_MG_MODE) {
 		baddr = &regs->txic0;
 		for_each_set_bit(i, &tx_mask, priv->num_tx_queues) {
-			if (likely(priv->tx_queue[i]->txcoalescing)) {
-				gfar_write(baddr + i, 0);
+			gfar_write(baddr + i, 0);
+			if (likely(priv->tx_queue[i]->txcoalescing))
 				gfar_write(baddr + i, priv->tx_queue[i]->txic);
-			}
 		}
 
 		baddr = &regs->rxic0;
 		for_each_set_bit(i, &rx_mask, priv->num_rx_queues) {
-			if (likely(priv->rx_queue[i]->rxcoalescing)) {
-				gfar_write(baddr + i, 0);
+			gfar_write(baddr + i, 0);
+			if (likely(priv->rx_queue[i]->rxcoalescing))
 				gfar_write(baddr + i, priv->rx_queue[i]->rxic);
-			}
 		}
 	}
 }
