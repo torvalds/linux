@@ -1746,7 +1746,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 
 	memcpy(wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
-	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME | WIPHY_FLAG_CUSTOM_REGULATORY;
+	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME;
 
 	/* Reserve space for mwifiex specific private data for BSS */
 	wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
