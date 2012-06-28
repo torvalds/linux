@@ -479,20 +479,6 @@ static int mxt_read_message(struct mxt_data *data,
 			sizeof(struct mxt_message), message);
 }
 
-static int mxt_read_object(struct mxt_data *data,
-				u8 type, u8 offset, u8 *val)
-{
-	struct mxt_object *object;
-	u16 reg;
-
-	object = mxt_get_object(data, type);
-	if (!object)
-		return -EINVAL;
-
-	reg = object->start_address;
-	return __mxt_read_reg(data->client, reg + offset, 1, val);
-}
-
 static int mxt_write_object(struct mxt_data *data,
 				 u8 type, u8 offset, u8 val)
 {
@@ -900,7 +886,14 @@ static ssize_t mxt_object_show(struct device *dev,
 	int i, j;
 	int error;
 	u8 val;
+	u8 *obuf;
 
+	/* Pre-allocate buffer large enough to hold max sized object. */
+	obuf = kmalloc(256, GFP_KERNEL);
+	if (!obuf)
+		return -ENOMEM;
+
+	error = 0;
 	for (i = 0; i < data->info.object_num; i++) {
 		object = data->object_table + i;
 
@@ -914,20 +907,22 @@ static ssize_t mxt_object_show(struct device *dev,
 			continue;
 		}
 
+		error = __mxt_read_reg(data->client, object->start_address,
+				object->size + 1, obuf);
+		if (error)
+			break;
+
 		for (j = 0; j < object->size + 1; j++) {
-			error = mxt_read_object(data,
-						object->type, j, &val);
-			if (error)
-				return error;
+			val = obuf[j];
 
 			count += scnprintf(buf + count, PAGE_SIZE - count,
 					"\t[%2d]: %02x (%d)\n", j, val, val);
 		}
-
 		count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
 	}
 
-	return count;
+	kfree(obuf);
+	return error ?: count;
 }
 
 static int mxt_load_fw(struct device *dev, const char *fn)
