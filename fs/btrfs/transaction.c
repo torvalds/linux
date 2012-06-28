@@ -512,6 +512,11 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
+	/*
+	 * do the qgroup accounting as early as possible
+	 */
+	err = btrfs_delayed_refs_qgroup_accounting(trans, info);
+
 	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
 	/*
@@ -571,6 +576,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	    root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
 		err = -EIO;
 	}
+	assert_qgroups_uptodate(trans);
 
 	memset(trans, 0, sizeof(*trans));
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
@@ -1356,6 +1362,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			goto cleanup_transaction;
 
 		/*
+		 * running the delayed items may have added new refs. account
+		 * them now so that they hinder processing of more delayed refs
+		 * as little as possible.
+		 */
+		btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
+
+		/*
 		 * rename don't use btrfs_join_transaction, so, once we
 		 * set the transaction to blocked above, we aren't going
 		 * to get any new ordered operations.  We can safely run
@@ -1467,6 +1480,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			    root->fs_info->chunk_root->node);
 	switch_commit_root(root->fs_info->chunk_root);
 
+	assert_qgroups_uptodate(trans);
 	update_super_roots(root);
 
 	if (!root->fs_info->log_root_recovering) {

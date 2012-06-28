@@ -2479,6 +2479,8 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		       2 * 1024 * 1024, btrfs_get_alloc_profile(root, 0),
 		       CHUNK_ALLOC_NO_FORCE);
 
+	btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
+
 	delayed_refs = &trans->transaction->delayed_refs;
 	INIT_LIST_HEAD(&cluster);
 again:
@@ -2588,6 +2590,7 @@ again:
 	}
 out:
 	spin_unlock(&delayed_refs->lock);
+	assert_qgroups_uptodate(trans);
 	return 0;
 }
 
