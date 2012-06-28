@@ -1673,30 +1673,28 @@ csum_err:
 }
 EXPORT_SYMBOL(tcp_v4_do_rcv);
 
-int tcp_v4_early_demux(struct sk_buff *skb)
+void tcp_v4_early_demux(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph;
 	const struct tcphdr *th;
 	struct net_device *dev;
 	struct sock *sk;
-	int err;
 
-	err = -ENOENT;
 	if (skb->pkt_type != PACKET_HOST)
-		goto out_err;
+		return;
 
 	if (!pskb_may_pull(skb, ip_hdrlen(skb) + sizeof(struct tcphdr)))
-		goto out_err;
+		return;
 
 	iph = ip_hdr(skb);
 	th = (struct tcphdr *) ((char *)iph + ip_hdrlen(skb));
 
 	if (th->doff < sizeof(struct tcphdr) / 4)
-		goto out_err;
+		return;
 
 	if (!pskb_may_pull(skb, ip_hdrlen(skb) + th->doff * 4))
-		goto out_err;
+		return;
 
 	dev = skb->dev;
 	sk = __inet_lookup_established(net, &tcp_hashinfo,
@@ -1713,16 +1711,11 @@ int tcp_v4_early_demux(struct sk_buff *skb)
 			if (dst) {
 				struct rtable *rt = (struct rtable *) dst;
 
-				if (rt->rt_iif == dev->ifindex) {
+				if (rt->rt_iif == dev->ifindex)
 					skb_dst_set_noref(skb, dst);
-					err = 0;
-				}
 			}
 		}
 	}
-
-out_err:
-	return err;
 }
 
 /*

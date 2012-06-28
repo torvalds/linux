@@ -320,33 +320,29 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
 
+	if (sysctl_ip_early_demux && !skb_dst(skb)) {
+		const struct net_protocol *ipprot;
+		int protocol = iph->protocol;
+
+		rcu_read_lock();
+		ipprot = rcu_dereference(inet_protos[protocol]);
+		if (ipprot && ipprot->early_demux)
+			ipprot->early_demux(skb);
+		rcu_read_unlock();
+	}
+
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */
-	if (skb_dst(skb) == NULL) {
-		int err = -ENOENT;
-
-		if (sysctl_ip_early_demux) {
-			const struct net_protocol *ipprot;
-			int protocol = iph->protocol;
-
-			rcu_read_lock();
-			ipprot = rcu_dereference(inet_protos[protocol]);
-			if (ipprot && ipprot->early_demux)
-				err = ipprot->early_demux(skb);
-			rcu_read_unlock();
-		}
-
-		if (err) {
-			err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
-						   iph->tos, skb->dev);
-			if (unlikely(err)) {
-				if (err == -EXDEV)
-					NET_INC_STATS_BH(dev_net(skb->dev),
-							 LINUX_MIB_IPRPFILTER);
-				goto drop;
-			}
+	if (!skb_dst(skb)) {
+		int err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
+					       iph->tos, skb->dev);
+		if (unlikely(err)) {
+			if (err == -EXDEV)
+				NET_INC_STATS_BH(dev_net(skb->dev),
+						 LINUX_MIB_IPRPFILTER);
+			goto drop;
 		}
 	}
 
