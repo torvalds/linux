@@ -877,6 +877,24 @@ static void mxt_calc_resolution(struct mxt_data *data)
 	}
 }
 
+static ssize_t mxt_show_instance(char *buf, int count,
+				 struct mxt_object *object, int instance,
+				 const u8 *val)
+{
+	int i;
+
+	if (object->instances > 0)
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "Instance %u\n", instance);
+
+	for (i = 0; i < object->size + 1; i++)
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				"\t[%2u]: %02x (%d)\n", i, val[i], val[i]);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
+
+	return count;
+}
+
 static ssize_t mxt_object_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -885,7 +903,6 @@ static ssize_t mxt_object_show(struct device *dev,
 	int count = 0;
 	int i, j;
 	int error;
-	u8 val;
 	u8 *obuf;
 
 	/* Pre-allocate buffer large enough to hold max sized object. */
@@ -903,20 +920,19 @@ static ssize_t mxt_object_show(struct device *dev,
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				"T%u:\n", object->type);
 
-		error = __mxt_read_reg(data->client, object->start_address,
-				object->size + 1, obuf);
-		if (error)
-			break;
+		for (j = 0; j < object->instances + 1; j++) {
+			u16 size = object->size + 1;
+			u16 addr = object->start_address + j * size;
 
-		for (j = 0; j < object->size + 1; j++) {
-			val = obuf[j];
+			error = __mxt_read_reg(data->client, addr, size, obuf);
+			if (error)
+				goto done;
 
-			count += scnprintf(buf + count, PAGE_SIZE - count,
-					"\t[%2d]: %02x (%d)\n", j, val, val);
+			count = mxt_show_instance(buf, count, object, j, obuf);
 		}
-		count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
 	}
 
+done:
 	kfree(obuf);
 	return error ?: count;
 }
