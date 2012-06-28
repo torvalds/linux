@@ -79,7 +79,8 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	s5p_ehci = kzalloc(sizeof(struct s5p_ehci_hcd), GFP_KERNEL);
+	s5p_ehci = devm_kzalloc(&pdev->dev, sizeof(struct s5p_ehci_hcd),
+				GFP_KERNEL);
 	if (!s5p_ehci)
 		return -ENOMEM;
 
@@ -89,8 +90,7 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev));
 	if (!hcd) {
 		dev_err(&pdev->dev, "Unable to create HCD\n");
-		err = -ENOMEM;
-		goto fail_hcd;
+		return -ENOMEM;
 	}
 
 	s5p_ehci->hcd = hcd;
@@ -115,7 +115,7 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->regs = ioremap(res->start, resource_size(res));
+	hcd->regs = devm_ioremap(&pdev->dev, res->start, hcd->rsrc_len);
 	if (!hcd->regs) {
 		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
 		err = -ENOMEM;
@@ -126,7 +126,7 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 	if (!irq) {
 		dev_err(&pdev->dev, "Failed to get IRQ\n");
 		err = -ENODEV;
-		goto fail;
+		goto fail_io;
 	}
 
 	if (pdata->phy_init)
@@ -151,23 +151,19 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
-		goto fail;
+		goto fail_io;
 	}
 
 	platform_set_drvdata(pdev, s5p_ehci);
 
 	return 0;
 
-fail:
-	iounmap(hcd->regs);
 fail_io:
 	clk_disable(s5p_ehci->clk);
 fail_clken:
 	clk_put(s5p_ehci->clk);
 fail_clk:
 	usb_put_hcd(hcd);
-fail_hcd:
-	kfree(s5p_ehci);
 	return err;
 }
 
@@ -182,13 +178,10 @@ static int __devexit s5p_ehci_remove(struct platform_device *pdev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
-	iounmap(hcd->regs);
-
 	clk_disable(s5p_ehci->clk);
 	clk_put(s5p_ehci->clk);
 
 	usb_put_hcd(hcd);
-	kfree(s5p_ehci);
 
 	return 0;
 }
