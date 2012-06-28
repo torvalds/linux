@@ -114,7 +114,10 @@
 
 				duart_pins_a: duart@0 {
 					reg = <0>;
-					fsl,pinmux-ids = <0x11a2 0x11b2>;
+					fsl,pinmux-ids = <
+						0x11a2 /* MX23_PAD_PWM0__DUART_RX */
+						0x11b2 /* MX23_PAD_PWM1__DUART_TX */
+					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
@@ -122,16 +125,29 @@
 
 				mmc0_8bit_pins_a: mmc0-8bit@0 {
 					reg = <0>;
-					fsl,pinmux-ids = <0x2020 0x2030 0x2040
-						0x2050 0x0082 0x0092 0x00a2
-						0x00b2 0x2000 0x2010 0x2060>;
+					fsl,pinmux-ids = <
+						0x2020 /* MX23_PAD_SSP1_DATA0__SSP1_DATA0 */
+						0x2030 /* MX23_PAD_SSP1_DATA1__SSP1_DATA1 */
+						0x2040 /* MX23_PAD_SSP1_DATA2__SSP1_DATA2 */
+						0x2050 /* MX23_PAD_SSP1_DATA3__SSP1_DATA3 */
+						0x0082 /* MX23_PAD_GPMI_D08__SSP1_DATA4 */
+						0x0092 /* MX23_PAD_GPMI_D09__SSP1_DATA5 */
+						0x00a2 /* MX23_PAD_GPMI_D10__SSP1_DATA6 */
+						0x00b2 /* MX23_PAD_GPMI_D11__SSP1_DATA7 */
+						0x2000 /* MX23_PAD_SSP1_CMD__SSP1_CMD */
+						0x2010 /* MX23_PAD_SSP1_DETECT__SSP1_DETECT */
+						0x2060 /* MX23_PAD_SSP1_SCK__SSP1_SCK */
+					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
 				};
 
 				mmc0_pins_fixup: mmc0-pins-fixup {
-					fsl,pinmux-ids = <0x2010 0x2060>;
+					fsl,pinmux-ids = <
+						0x2010 /* MX23_PAD_SSP1_DETECT__SSP1_DETECT */
+						0x2060 /* MX23_PAD_SSP1_SCK__SSP1_SCK */
+					>;
 					fsl,pull-up = <0>;
 				};
 			};
