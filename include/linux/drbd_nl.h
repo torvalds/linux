@@ -145,6 +145,7 @@ NL_PACKET(dump_ee, 24,
 
 NL_PACKET(start_ov, 25,
 	NL_INT64(	66,	T_MAY_IGNORE,	start_sector)
+	NL_INT64(	90,	T_MANDATORY,	stop_sector)
 )
 
 NL_PACKET(new_c_uuid, 26,

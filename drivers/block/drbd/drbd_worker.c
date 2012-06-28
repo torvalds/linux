@@ -691,6 +691,7 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 	int number, i, size;
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
+	bool stop_sector_reached = false;
 
 	if (unlikely(cancel))
 		return 1;
@@ -699,9 +700,17 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 
 	sector = mdev->ov_position;
 	for (i = 0; i < number; i++) {
-		if (sector >= capacity) {
+		if (sector >= capacity)
 			return 1;
-		}
+
+		/* We check for "finished" only in the reply path:
+		 * w_e_end_ov_reply().
+		 * We need to send at least one request out. */
+		stop_sector_reached = i > 0
+			&& mdev->agreed_pro_version >= 97
+			&& sector >= mdev->ov_stop_sector;
+		if (stop_sector_reached)
+			break;
 
 		size = BM_BLOCK_SIZE;
 
@@ -725,7 +734,8 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 
  requeue:
 	mdev->rs_in_flight += (i << (BM_BLOCK_SHIFT - 9));
-	mod_timer(&mdev->resync_timer, jiffies + SLEEP_TIME);
+	if (i == 0 || !stop_sector_reached)
+		mod_timer(&mdev->resync_timer, jiffies + SLEEP_TIME);
 	return 1;
 }
 
@@ -808,7 +818,12 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 	dt = (jiffies - mdev->rs_start - mdev->rs_paused) / HZ;
 	if (dt <= 0)
 		dt = 1;
+	
 	db = mdev->rs_total;
+	/* adjust for verify start and stop sectors, respective reached position */
+	if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T)
+		db -= mdev->ov_left;
+
 	dbdt = Bit2KB(db/dt);
 	mdev->rs_paused /= HZ;
 
@@ -831,7 +846,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 	ns.conn = C_CONNECTED;
 
 	dev_info(DEV, "%s done (total %lu sec; paused %lu sec; %lu K/sec)\n",
-	     verify_done ? "Online verify " : "Resync",
+	     verify_done ? "Online verify" : "Resync",
 	     dt + mdev->rs_paused, mdev->rs_paused, dbdt);
 
 	n_oos = drbd_bm_total_weight(mdev);
@@ -912,7 +927,9 @@ out:
 	mdev->rs_total  = 0;
 	mdev->rs_failed = 0;
 	mdev->rs_paused = 0;
-	if (verify_done)
+
+	/* reset start sector, if we reached end of device */
+	if (verify_done && mdev->ov_left == 0)
 		mdev->ov_start_sector = 0;
 
 	drbd_md_sync(mdev);
@@ -1158,6 +1175,7 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	unsigned int size = e->size;
 	int digest_size;
 	int ok, eq = 0;
+	bool stop_sector_reached = false;
 
 	if (unlikely(cancel)) {
 		drbd_free_ee(mdev, e);
@@ -1208,7 +1226,10 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	if ((mdev->ov_left & 0x200) == 0x200)
 		drbd_advance_rs_marks(mdev, mdev->ov_left);
 
-	if (mdev->ov_left == 0) {
+	stop_sector_reached = mdev->agreed_pro_version >= 97 &&
+		(sector + (size>>9)) >= mdev->ov_stop_sector;
+
+	if (mdev->ov_left == 0 || stop_sector_reached) {
 		ov_oos_print(mdev);
 		drbd_resync_finished(mdev);
 	}

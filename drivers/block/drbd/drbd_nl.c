@@ -2211,8 +2211,10 @@ static int drbd_nl_start_ov(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 				    struct drbd_nl_cfg_reply *reply)
 {
 	/* default to resume from last known position, if possible */
-	struct start_ov args =
-		{ .start_sector = mdev->ov_start_sector };
+	struct start_ov args = {
+		.start_sector = mdev->ov_start_sector,
+		.stop_sector = ULLONG_MAX,
+	};
 
 	if (!start_ov_from_tags(mdev, nlp->tag_list, &args)) {
 		reply->ret_code = ERR_MANDATORY_TAG;
@@ -2224,8 +2226,9 @@ static int drbd_nl_start_ov(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	drbd_suspend_io(mdev);
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
 
-	/* w_make_ov_request expects position to be aligned */
-	mdev->ov_start_sector = args.start_sector & ~BM_SECT_PER_BIT;
+	/* w_make_ov_request expects start position to be aligned */
+	mdev->ov_start_sector = args.start_sector & ~(BM_SECT_PER_BIT-1);
+	mdev->ov_stop_sector = args.stop_sector;
 	reply->ret_code = drbd_request_state(mdev,NS(conn,C_VERIFY_S));
 	drbd_resume_io(mdev);
 	return 0;

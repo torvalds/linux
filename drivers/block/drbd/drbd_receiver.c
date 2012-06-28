@@ -3255,6 +3255,14 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		}
 	}
 
+	/* explicit verify finished notification, stop sector reached. */
+	if (os.conn == C_VERIFY_T && os.disk == D_UP_TO_DATE &&
+	    peer_state.conn == C_CONNECTED && real_peer_disk == D_UP_TO_DATE) {
+		ov_oos_print(mdev);
+		drbd_resync_finished(mdev);
+		return true;
+	}
+
 	/* peer says his disk is inconsistent, while we think it is uptodate,
 	 * and this happens while the peer still thinks we have a sync going on,
 	 * but we think we are already done with the sync.

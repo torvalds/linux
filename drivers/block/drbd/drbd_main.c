@@ -1231,13 +1231,15 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	wake_up(&mdev->misc_wait);
 	wake_up(&mdev->state_wait);
 
-	/* aborted verify run. log the last position */
+	/* Aborted verify run, or we reached the stop sector.
+	 * Log the last position, unless end-of-device. */
 	if ((os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) &&
-	    ns.conn < C_CONNECTED) {
+	    ns.conn <= C_CONNECTED) {
 		mdev->ov_start_sector =
 			BM_BIT_TO_SECT(drbd_bm_bits(mdev) - mdev->ov_left);
-		dev_info(DEV, "Online Verify reached sector %llu\n",
-			(unsigned long long)mdev->ov_start_sector);
+		if (mdev->ov_left)
+			dev_info(DEV, "Online Verify reached sector %llu\n",
+				(unsigned long long)mdev->ov_start_sector);
 	}
 
 	if ((os.conn == C_PAUSED_SYNC_T || os.conn == C_PAUSED_SYNC_S) &&
@@ -1701,6 +1703,13 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* sync target done with resync.  Explicitly notify peer, even though
 	 * it should (at least for non-empty resyncs) already know itself. */
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
+		drbd_send_state(mdev, ns);
+
+	/* Verify finished, or reached stop sector.  Peer did not know about
+	 * the stop sector, and we may even have changed the stop sector during
+	 * verify to interrupt/stop early.  Send the new state. */
+	if (os.conn == C_VERIFY_S && ns.conn == C_CONNECTED
+	&& mdev->agreed_pro_version >= 97)
 		drbd_send_state(mdev, ns);
 
 	/* Wake up role changes, that were delayed because of connection establishing */

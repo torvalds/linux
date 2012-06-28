@@ -1052,6 +1052,7 @@ struct drbd_conf {
 
 	/* where does the admin want us to start? (sector) */
 	sector_t ov_start_sector;
+	sector_t ov_stop_sector;
 	/* where are we now? (sector) */
 	sector_t ov_position;
 	/* Start sector of out of sync range (to merge printk reporting). */
