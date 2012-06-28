@@ -387,8 +387,6 @@ void intel_update_fbc(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 	int enable_fbc;
 
-	DRM_DEBUG_KMS("\n");
-
 	if (!i915_powersave)
 		return;
 
