@@ -897,15 +897,11 @@ static ssize_t mxt_object_show(struct device *dev,
 	for (i = 0; i < data->info.object_num; i++) {
 		object = data->object_table + i;
 
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				"Object[%d] (Type %d)\n",
-				i + 1, object->type);
-
-		if (!mxt_object_readable(object->type)) {
-			count += scnprintf(buf + count, PAGE_SIZE - count,
-					"\n");
+		if (!mxt_object_readable(object->type))
 			continue;
-		}
+
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				"T%u:\n", object->type);
 
 		error = __mxt_read_reg(data->client, object->start_address,
 				object->size + 1, obuf);
