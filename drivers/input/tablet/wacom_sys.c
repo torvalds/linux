@@ -398,7 +398,9 @@ static int wacom_parse_hid(struct usb_interface *intf,
 				break;
 
 			case HID_USAGE_CONTACTMAX:
-				wacom_retrieve_report_data(intf, features);
+				/* leave touch_max as is if predefined */
+				if (!features->touch_max)
+					wacom_retrieve_report_data(intf, features);
 				i++;
 				break;
 			}
