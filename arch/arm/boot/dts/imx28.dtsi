@@ -503,9 +503,9 @@
 			};
 
 			rtc@80056000 {
+				compatible = "fsl,imx28-rtc", "fsl,stmp3xxx-rtc";
 				reg = <0x80056000 2000>;
-				interrupts = <28 29>;
-				status = "disabled";
+				interrupts = <29>;
 			};
 
 			i2c0: i2c@80058000 {

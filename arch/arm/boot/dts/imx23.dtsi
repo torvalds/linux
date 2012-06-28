@@ -289,8 +289,9 @@
 			};
 
 			rtc@8005c000 {
+				compatible = "fsl,imx23-rtc", "fsl,stmp3xxx-rtc";
 				reg = <0x8005c000 2000>;
-				status = "disabled";
+				interrupts = <22>;
 			};
 
 			pwm@80064000 {
