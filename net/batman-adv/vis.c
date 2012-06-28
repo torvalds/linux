@@ -589,6 +589,7 @@ static int batadv_generate_vis_packet(struct batadv_priv *bat_priv)
 	packet->header.ttl = BATADV_TTL;
 	packet->seqno = htonl(ntohl(packet->seqno) + 1);
 	packet->entries = 0;
+	packet->reserved = 0;
 	skb_trim(info->skb_packet, sizeof(*packet));
 
 	if (packet->vis_type == BATADV_VIS_TYPE_CLIENT_UPDATE) {
@@ -890,6 +891,7 @@ int batadv_vis_init(struct batadv_priv *bat_priv)
 	packet->header.packet_type = BATADV_VIS;
 	packet->header.ttl = BATADV_TTL;
 	packet->seqno = 0;
+	packet->reserved = 0;
 	packet->entries = 0;
 
 	INIT_LIST_HEAD(&bat_priv->vis_send_list);

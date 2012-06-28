@@ -214,6 +214,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 		/* batman packet type: broadcast */
 		bcast_packet->header.packet_type = BATADV_BCAST;
+		bcast_packet->reserved = 0;
 
 		/* hw address of first interface is the orig mac because only
 		 * this mac is known throughout the mesh
