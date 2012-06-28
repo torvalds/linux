@@ -1242,6 +1242,95 @@ static int ehci_get_frame (struct usb_hcd *hcd)
 }
 
 /*-------------------------------------------------------------------------*/
+
+#ifdef	CONFIG_PM
+
+/* suspend/resume, section 4.3 */
+
+/* These routines handle the generic parts of controller suspend/resume */
+
+static int __maybe_unused ehci_suspend(struct usb_hcd *hcd, bool do_wakeup)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+
+	if (time_before(jiffies, ehci->next_statechange))
+		msleep(10);
+
+	/*
+	 * Root hub was already suspended.  Disable IRQ emission and
+	 * mark HW unaccessible.  The PM and USB cores make sure that
+	 * the root hub is either suspended or stopped.
+	 */
+	ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup);
+
+	spin_lock_irq(&ehci->lock);
+	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+	(void) ehci_readl(ehci, &ehci->regs->intr_enable);
+
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	spin_unlock_irq(&ehci->lock);
+
+	return 0;
+}
+
+/* Returns 0 if power was preserved, 1 if power was lost */
+static int __maybe_unused ehci_resume(struct usb_hcd *hcd, bool hibernated)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+
+	if (time_before(jiffies, ehci->next_statechange))
+		msleep(100);
+
+	/* Mark hardware accessible again as we are back to full power by now */
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+
+	/*
+	 * If CF is still set and we aren't resuming from hibernation
+	 * then we maintained suspend power.
+	 * Just undo the effect of ehci_suspend().
+	 */
+	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF &&
+			!hibernated) {
+		int	mask = INTR_MASK;
+
+		ehci_prepare_ports_for_controller_resume(ehci);
+		if (!hcd->self.root_hub->do_remote_wakeup)
+			mask &= ~STS_PCD;
+		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
+		ehci_readl(ehci, &ehci->regs->intr_enable);
+		return 0;
+	}
+
+	/*
+	 * Else reset, to cope with power loss or resume from hibernation
+	 * having let the firmware kick in during reboot.
+	 */
+	usb_root_hub_lost_power(hcd->self.root_hub);
+	(void) ehci_halt(ehci);
+	(void) ehci_reset(ehci);
+
+	/* emptying the schedule aborts any urbs */
+	spin_lock_irq(&ehci->lock);
+	if (ehci->reclaim)
+		end_unlink_async(ehci);
+	ehci_work(ehci);
+	spin_unlock_irq(&ehci->lock);
+
+	ehci_writel(ehci, ehci->command, &ehci->regs->command);
+	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
+	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
+
+	/* here we "know" root ports should always stay powered */
+	ehci_port_power(ehci, 1);
+
+	ehci->rh_state = EHCI_RH_SUSPENDED;
+	return 1;
+}
+
+#endif
+
+/*-------------------------------------------------------------------------*/
+
 /*
  * The EHCI in ChipIdea HDRC cannot be a separate module or device,
  * because its registers (and irq) are shared between host/gadget/otg

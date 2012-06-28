@@ -331,29 +331,7 @@ done:
 
 static int ehci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
-	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
-	unsigned long		flags;
-	int			rc = 0;
-
-	if (time_before(jiffies, ehci->next_statechange))
-		msleep(10);
-
-	/* Root hub was already suspended. Disable irq emission and
-	 * mark HW unaccessible.  The PM and USB cores make sure that
-	 * the root hub is either suspended or stopped.
-	 */
-	ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup);
-	spin_lock_irqsave (&ehci->lock, flags);
-	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
-	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
-
-	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	spin_unlock_irqrestore (&ehci->lock, flags);
-
-	// could save FLADJ in case of Vaux power loss
-	// ... we'd only use it to handle clock skew
-
-	return rc;
+	return ehci_suspend(hcd, do_wakeup);
 }
 
 static bool usb_is_intel_switchable_ehci(struct pci_dev *pdev)
@@ -402,54 +380,8 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	if (usb_is_intel_switchable_ehci(pdev))
 		ehci_enable_xhci_companion();
 
-	// maybe restore FLADJ
-
-	if (time_before(jiffies, ehci->next_statechange))
-		msleep(100);
-
-	/* Mark hardware accessible again as we are out of D3 state by now */
-	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-
-	/* If CF is still set and we aren't resuming from hibernation
-	 * then we maintained PCI Vaux power.
-	 * Just undo the effect of ehci_pci_suspend().
-	 */
-	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF &&
-				!hibernated) {
-		int	mask = INTR_MASK;
-
-		ehci_prepare_ports_for_controller_resume(ehci);
-		if (!hcd->self.root_hub->do_remote_wakeup)
-			mask &= ~STS_PCD;
-		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
-		ehci_readl(ehci, &ehci->regs->intr_enable);
-		return 0;
-	}
-
-	usb_root_hub_lost_power(hcd->self.root_hub);
-
-	/* Else reset, to cope with power loss or flush-to-storage
-	 * style "resume" having let BIOS kick in during reboot.
-	 */
-	(void) ehci_halt(ehci);
-	(void) ehci_reset(ehci);
-	(void) ehci_pci_reinit(ehci, pdev);
-
-	/* emptying the schedule aborts any urbs */
-	spin_lock_irq(&ehci->lock);
-	if (ehci->reclaim)
-		end_unlink_async(ehci);
-	ehci_work(ehci);
-	spin_unlock_irq(&ehci->lock);
-
-	ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
-	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
-
-	/* here we "know" root ports should always stay powered */
-	ehci_port_power(ehci, 1);
-
-	ehci->rh_state = EHCI_RH_SUSPENDED;
+	if (ehci_resume(hcd, hibernated) != 0)
+		(void) ehci_pci_reinit(ehci, pdev);
 	return 0;
 }
 #endif

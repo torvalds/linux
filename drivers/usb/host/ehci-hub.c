@@ -107,7 +107,7 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 	ehci->owned_ports = 0;
 }
 
-static int __maybe_unused ehci_port_change(struct ehci_hcd *ehci)
+static int ehci_port_change(struct ehci_hcd *ehci)
 {
 	int i = HCS_N_PORTS(ehci->hcs_params);
 
@@ -128,7 +128,7 @@ static int __maybe_unused ehci_port_change(struct ehci_hcd *ehci)
 	return 0;
 }
 
-static __maybe_unused void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
+static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 		bool suspending, bool do_wakeup)
 {
 	int		port;
