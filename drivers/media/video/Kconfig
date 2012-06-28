@@ -462,6 +462,15 @@ config VIDEO_ADV7343
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7343.
 
+config VIDEO_ADV7393
+	tristate "ADV7393 video encoder"
+	depends on I2C
+	help
+	  Support for Analog Devices I2C bus based ADV7393 encoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7393.
+
 config VIDEO_AK881X
 	tristate "AK8813/AK8814 video encoders"
 	depends on I2C
