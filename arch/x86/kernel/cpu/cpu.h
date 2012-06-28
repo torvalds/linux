@@ -20,8 +20,17 @@ struct cpu_dev {
 	void		(*c_bsp_init)(struct cpuinfo_x86 *);
 	void		(*c_init)(struct cpuinfo_x86 *);
 	void		(*c_identify)(struct cpuinfo_x86 *);
+	void		(*c_detect_tlb)(struct cpuinfo_x86 *);
 	unsigned int	(*c_size_cache)(struct cpuinfo_x86 *, unsigned int);
 	int		c_x86_vendor;
+};
+
+struct _tlb_table {
+	unsigned char descriptor;
+	char tlb_type;
+	unsigned int entries;
+	/* unsigned int ways; */
+	char info[128];
 };
 
 #define cpu_dev_register(cpu_devX) \

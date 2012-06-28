@@ -452,6 +452,25 @@ void __cpuinit cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
 	c->x86_cache_size = l2size;
 }
 
+u16 __read_mostly tlb_lli_4k[NR_INFO];
+u16 __read_mostly tlb_lli_2m[NR_INFO];
+u16 __read_mostly tlb_lli_4m[NR_INFO];
+u16 __read_mostly tlb_lld_4k[NR_INFO];
+u16 __read_mostly tlb_lld_2m[NR_INFO];
+u16 __read_mostly tlb_lld_4m[NR_INFO];
+
+void __cpuinit cpu_detect_tlb(struct cpuinfo_x86 *c)
+{
+	if (this_cpu->c_detect_tlb)
+		this_cpu->c_detect_tlb(c);
+
+	printk(KERN_INFO "Last level iTLB entries: 4KB %d, 2MB %d, 4MB %d\n" \
+		"Last level dTLB entries: 4KB %d, 2MB %d, 4MB %d\n",
+		tlb_lli_4k[ENTRIES], tlb_lli_2m[ENTRIES],
+		tlb_lli_4m[ENTRIES], tlb_lld_4k[ENTRIES],
+		tlb_lld_2m[ENTRIES], tlb_lld_4m[ENTRIES]);
+}
+
 void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_HT
@@ -911,6 +930,8 @@ void __init identify_boot_cpu(void)
 #else
 	vgetcpu_set_mode();
 #endif
+	if (boot_cpu_data.cpuid_level >= 2)
+		cpu_detect_tlb(&boot_cpu_data);
 }
 
 void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)
