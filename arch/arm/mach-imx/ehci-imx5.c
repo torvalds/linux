@@ -88,11 +88,11 @@ int mx51_initialize_usb_hw(int port, unsigned int flags)
 			else
 				v &= ~MXC_OTG_PHYCTRL_OC_POL_BIT;
 			if (flags & MXC_EHCI_POWER_PINS_ENABLED) {
-				/* OC/USBPWR is not used */
-				v |= MXC_OTG_PHYCTRL_OC_DIS_BIT;
-			} else {
 				/* OC/USBPWR is used */
 				v &= ~MXC_OTG_PHYCTRL_OC_DIS_BIT;
+			} else {
+				/* OC/USBPWR is not used */
+				v |= MXC_OTG_PHYCTRL_OC_DIS_BIT;
 			}
 			if (flags & MXC_EHCI_PWR_PIN_ACTIVE_HIGH)
 				v |= MXC_OTG_PHYCTRL_PWR_POL_BIT;
@@ -106,9 +106,9 @@ int mx51_initialize_usb_hw(int port, unsigned int flags)
 			else
 				v &= ~MXC_OTG_UCTRL_OWIE_BIT;/* OTG wakeup disable */
 			if (flags & MXC_EHCI_POWER_PINS_ENABLED)
-				v |= MXC_OTG_UCTRL_OPM_BIT;
-			else
 				v &= ~MXC_OTG_UCTRL_OPM_BIT;
+			else
+				v |= MXC_OTG_UCTRL_OPM_BIT;
 			__raw_writel(v, usbother_base + MXC_USBCTRL_OFFSET);
 		}
 		break;
@@ -124,7 +124,7 @@ int mx51_initialize_usb_hw(int port, unsigned int flags)
 		}
 
 		if (flags & MXC_EHCI_POWER_PINS_ENABLED)
-			v &= ~MXC_H1_UCTRL_H1PM_BIT; /* HOST1 power mask used*/
+			v &= ~MXC_H1_UCTRL_H1PM_BIT; /* HOST1 power mask unused*/
 		else
 			v |= MXC_H1_UCTRL_H1PM_BIT; /* HOST1 power mask used*/
 		__raw_writel(v, usbother_base + MXC_USBCTRL_OFFSET);
@@ -157,7 +157,7 @@ int mx51_initialize_usb_hw(int port, unsigned int flags)
 		}
 
 		if (flags & MXC_EHCI_POWER_PINS_ENABLED)
-			v &= ~MXC_H2_UCTRL_H2PM_BIT; /* HOST2 power mask used*/
+			v &= ~MXC_H2_UCTRL_H2PM_BIT; /* HOST2 power mask unused*/
 		else
 			v |= MXC_H2_UCTRL_H2PM_BIT; /* HOST2 power mask used*/
 		__raw_writel(v, usbother_base + MXC_USBH2CTRL_OFFSET);
