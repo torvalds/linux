@@ -750,6 +750,12 @@ static int mxt_get_object_table(struct mxt_data *data)
 	return 0;
 }
 
+static void mxt_free_object_table(struct mxt_data *data)
+{
+	kfree(data->object_table);
+	data->object_table = NULL;
+}
+
 static int mxt_initialize(struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
@@ -772,12 +778,12 @@ static int mxt_initialize(struct mxt_data *data)
 	/* Get object table information */
 	error = mxt_get_object_table(data);
 	if (error)
-		return error;
+		goto err_free_object_table;
 
 	/* Check register init values */
 	error = mxt_check_reg_init(data);
 	if (error)
-		return error;
+		goto err_free_object_table;
 
 	mxt_handle_pdata(data);
 
@@ -795,12 +801,12 @@ static int mxt_initialize(struct mxt_data *data)
 	/* Update matrix size at info struct */
 	error = mxt_read_reg(client, MXT_MATRIX_X_SIZE, &val);
 	if (error)
-		return error;
+		goto err_free_object_table;
 	info->matrix_xsize = val;
 
 	error = mxt_read_reg(client, MXT_MATRIX_Y_SIZE, &val);
 	if (error)
-		return error;
+		goto err_free_object_table;
 	info->matrix_ysize = val;
 
 	dev_info(&client->dev,
@@ -814,6 +820,10 @@ static int mxt_initialize(struct mxt_data *data)
 			info->object_num);
 
 	return 0;
+
+err_free_object_table:
+	mxt_free_object_table(data);
+	return error;
 }
 
 static void mxt_calc_resolution(struct mxt_data *data)
@@ -1000,8 +1010,7 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 		/* Wait for reset */
 		msleep(MXT_FWRESET_TIME);
 
-		kfree(data->object_table);
-		data->object_table = NULL;
+		mxt_free_object_table(data);
 
 		mxt_initialize(data);
 	}
@@ -1128,7 +1137,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 
 	error = mxt_initialize(data);
 	if (error)
-		goto err_free_object;
+		goto err_free_mem;
 
 	error = request_threaded_irq(client->irq, NULL, mxt_interrupt,
 			pdata->irqflags, client->name, data);
