@@ -316,8 +316,6 @@ void flush_tlb_mm(struct mm_struct *mm)
 	preempt_enable();
 }
 
-#define FLUSHALL_BAR	16
-
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline unsigned long has_large_page(struct mm_struct *mm,
 				 unsigned long start, unsigned long end)
@@ -352,7 +350,7 @@ void flush_tlb_range(struct vm_area_struct *vma,
 {
 	struct mm_struct *mm;
 
-	if (!cpu_has_invlpg || vma->vm_flags & VM_HUGETLB) {
+	if (vma->vm_flags & VM_HUGETLB || tlb_flushall_shift == -1) {
 flush_all:
 		flush_tlb_mm(vma->vm_mm);
 		return;
@@ -373,7 +371,8 @@ flush_all:
 			act_entries = tlb_entries > mm->total_vm ?
 					mm->total_vm : tlb_entries;
 
-			if ((end - start)/PAGE_SIZE > act_entries/FLUSHALL_BAR)
+			if ((end - start) >> PAGE_SHIFT >
+					act_entries >> tlb_flushall_shift)
 				local_flush_tlb();
 			else {
 				if (has_large_page(mm, start, end)) {
