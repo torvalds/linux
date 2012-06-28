@@ -99,7 +99,7 @@
 
 /*
  * OMAP730/850 has a slightly different config for the pin mux.
- * - config regs are the OMAP7XX_IO_CONF_x regs (see omap730.h) regs and
+ * - config regs are the OMAP7XX_IO_CONF_x regs (see omap7xx.h) regs and
  *   not the FUNC_MUX_CTRL_x regs from hardware.h
  * - for pull-up/down, only has one enable bit which is is in the same register
  *   as mux config
