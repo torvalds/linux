@@ -12,6 +12,7 @@
 #include <asm/cache.h>
 #include <asm/apic.h>
 #include <asm/uv/uv.h>
+#include <linux/debugfs.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
 			= { &init_mm, 0, };
@@ -430,3 +431,53 @@ void flush_tlb_all(void)
 {
 	on_each_cpu(do_flush_tlb_all, NULL, 1);
 }
+
+#ifdef CONFIG_DEBUG_TLBFLUSH
+static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "%hd\n", tlb_flushall_shift);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t tlbflush_write_file(struct file *file,
+		 const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char buf[32];
+	ssize_t len;
+	s8 shift;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtos8(buf, 0, &shift))
+		return -EINVAL;
+
+	if (shift > 64)
+		return -EINVAL;
+
+	tlb_flushall_shift = shift;
+	return count;
+}
+
+static const struct file_operations fops_tlbflush = {
+	.read = tlbflush_read_file,
+	.write = tlbflush_write_file,
+	.llseek = default_llseek,
+};
+
+static int __cpuinit create_tlb_flushall_shift(void)
+{
+	if (cpu_has_invlpg) {
+		debugfs_create_file("tlb_flushall_shift", S_IRUSR | S_IWUSR,
+			arch_debugfs_dir, NULL, &fops_tlbflush);
+	}
+	return 0;
+}
+late_initcall(create_tlb_flushall_shift);
+#endif
