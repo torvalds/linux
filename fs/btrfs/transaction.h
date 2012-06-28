@@ -20,6 +20,7 @@
 #define __BTRFS_TRANSACTION__
 #include "btrfs_inode.h"
 #include "delayed-ref.h"
+#include "ctree.h"
 
 struct btrfs_transaction {
 	u64 transid;
@@ -63,6 +64,8 @@ struct btrfs_trans_handle {
 	 * Subvolume quota depends on this
 	 */
 	struct btrfs_root *root;
+	struct seq_list delayed_ref_elem;
+	struct list_head qgroup_ref_list;
 };
 
 struct btrfs_pending_snapshot {

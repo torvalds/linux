@@ -2409,6 +2409,40 @@ static u64 find_middle(struct rb_root *root)
 }
 #endif
 
+int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
+					 struct btrfs_fs_info *fs_info)
+{
+	struct qgroup_update *qgroup_update;
+	int ret = 0;
+
+	if (list_empty(&trans->qgroup_ref_list) !=
+	    !trans->delayed_ref_elem.seq) {
+		/* list without seq or seq without list */
+		printk(KERN_ERR "btrfs: qgroup accounting update error, list is%s empty, seq is %llu\n",
+			list_empty(&trans->qgroup_ref_list) ? "" : " not",
+			trans->delayed_ref_elem.seq);
+		BUG();
+	}
+
+	if (!trans->delayed_ref_elem.seq)
+		return 0;
+
+	while (!list_empty(&trans->qgroup_ref_list)) {
+		qgroup_update = list_first_entry(&trans->qgroup_ref_list,
+						 struct qgroup_update, list);
+		list_del(&qgroup_update->list);
+		if (!ret)
+			ret = btrfs_qgroup_account_ref(
+					trans, fs_info, qgroup_update->node,
+					qgroup_update->extent_op);
+		kfree(qgroup_update);
+	}
+
+	btrfs_put_tree_mod_seq(fs_info, &trans->delayed_ref_elem);
+
+	return ret;
+}
+
 /*
  * this starts processing the delayed reference count updates and
  * extent insertions we have queued up so far.  count can be

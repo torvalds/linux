@@ -351,6 +351,8 @@ again:
 	h->block_rsv = NULL;
 	h->orig_rsv = NULL;
 	h->aborted = 0;
+	h->delayed_ref_elem.seq = 0;
+	INIT_LIST_HEAD(&h->qgroup_ref_list);
 
 	smp_mb();
 	if (cur_trans->blocked && may_wait_transaction(root, type)) {

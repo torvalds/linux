@@ -2830,6 +2830,8 @@ int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans,
 int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range);
 
 int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
+int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
+					 struct btrfs_fs_info *fs_info);
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		     int level, int *slot);
@@ -3338,6 +3340,50 @@ int btrfs_reada_wait(void *handle);
 void btrfs_reada_detach(void *handle);
 int btree_readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 			 u64 start, int err);
+
+/* qgroup.c */
+struct qgroup_update {
+	struct list_head list;
+	struct btrfs_delayed_ref_node *node;
+	struct btrfs_delayed_extent_op *extent_op;
+};
+
+int btrfs_quota_enable(struct btrfs_trans_handle *trans,
+		       struct btrfs_fs_info *fs_info);
+int btrfs_quota_disable(struct btrfs_trans_handle *trans,
+			struct btrfs_fs_info *fs_info);
+int btrfs_quota_rescan(struct btrfs_fs_info *fs_info);
+int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
+			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
+int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
+			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
+int btrfs_create_qgroup(struct btrfs_trans_handle *trans,
+			struct btrfs_fs_info *fs_info, u64 qgroupid,
+			char *name);
+int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
+			      struct btrfs_fs_info *fs_info, u64 qgroupid);
+int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
+		       struct btrfs_fs_info *fs_info, u64 qgroupid,
+		       struct btrfs_qgroup_limit *limit);
+int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
+void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
+struct btrfs_delayed_extent_op;
+int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
+			    struct btrfs_delayed_ref_node *node,
+			    struct btrfs_delayed_extent_op *extent_op);
+int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
+			     struct btrfs_fs_info *fs_info,
+			     struct btrfs_delayed_ref_node *node,
+			     struct btrfs_delayed_extent_op *extent_op);
+int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
+		      struct btrfs_fs_info *fs_info);
+int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
+			 struct btrfs_fs_info *fs_info, u64 srcid, u64 objectid,
+			 struct btrfs_qgroup_inherit *inherit);
+int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes);
+void btrfs_qgroup_free(struct btrfs_root *root, u64 num_bytes);
+
+void assert_qgroups_uptodate(struct btrfs_trans_handle *trans);
 
 static inline int is_fstree(u64 rootid)
 {

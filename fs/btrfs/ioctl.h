@@ -35,6 +35,30 @@ struct btrfs_ioctl_vol_args {
 #define BTRFS_FSID_SIZE 16
 #define BTRFS_UUID_SIZE 16
 
+#define BTRFS_QGROUP_INHERIT_SET_LIMITS	(1ULL << 0)
+
+struct btrfs_qgroup_limit {
+	__u64	flags;
+	__u64	max_rfer;
+	__u64	max_excl;
+	__u64	rsv_rfer;
+	__u64	rsv_excl;
+};
+
+struct btrfs_qgroup_inherit {
+	__u64	flags;
+	__u64	num_qgroups;
+	__u64	num_ref_copies;
+	__u64	num_excl_copies;
+	struct btrfs_qgroup_limit lim;
+	__u64	qgroups[0];
+};
+
+struct btrfs_ioctl_qgroup_limit_args {
+	__u64	qgroupid;
+	struct btrfs_qgroup_limit lim;
+};
+
 #define BTRFS_SUBVOL_NAME_MAX 4039
 struct btrfs_ioctl_vol_args_v2 {
 	__s64 fd;
