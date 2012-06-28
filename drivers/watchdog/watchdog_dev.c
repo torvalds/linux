@@ -349,7 +349,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			sizeof(struct watchdog_info)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
 		err = watchdog_get_status(wdd, &val);
-		if (err)
+		if (err == -ENODEV)
 			return err;
 		return put_user(val, p);
 	case WDIOC_GETBOOTSTATUS:
