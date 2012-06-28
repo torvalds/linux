@@ -30,6 +30,23 @@
 				wp-gpios = <&gpio1 30 0>;
 				status = "okay";
 			};
+
+			pinctrl@80018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&hog_pins_a>;
+
+				hog_pins_a: hog-gpios@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1123 /* MX23_PAD_LCD_RESET__GPIO_1_18 */
+						0x11d3 /* MX23_PAD_PWM3__GPIO_1_29 */
+						0x11e3 /* MX23_PAD_PWM4__GPIO_1_30 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+			};
 		};
 
 		apbx@80040000 {

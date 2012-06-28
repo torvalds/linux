@@ -44,6 +44,27 @@
 				wp-gpios = <&gpio0 28 0>;
 				status = "okay";
 			};
+
+			pinctrl@80018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&hog_pins_a>;
+
+				hog_pins_a: hog-gpios@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x20d3 /* MX28_PAD_SSP1_CMD__GPIO_2_13 */
+						0x20f3 /* MX28_PAD_SSP1_DATA3__GPIO_2_15 */
+						0x40d3 /* MX28_PAD_ENET0_RX_CLK__GPIO_4_13 */
+						0x20c3 /* MX28_PAD_SSP1_SCK__GPIO_2_12 */
+						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
+						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
+						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+			};
 		};
 
 		apbx@80040000 {
