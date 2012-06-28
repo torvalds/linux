@@ -213,10 +213,6 @@ static struct twl_regulator_driver_data omap3_vdd2_drvdata = {
 void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 				  u32 pdata_flags, u32 regulators_flags)
 {
-	if (!pmic_data->irq_base)
-		pmic_data->irq_base = TWL4030_IRQ_BASE;
-	if (!pmic_data->irq_end)
-		pmic_data->irq_end = TWL4030_IRQ_END;
 	if (!pmic_data->vdd1) {
 		omap3_vdd1.driver_data = &omap3_vdd1_drvdata;
 		omap3_vdd1_drvdata.data = voltdm_lookup("mpu_iva");
@@ -481,11 +477,6 @@ static struct regulator_init_data omap4_v2v1_idata = {
 void __init omap4_pmic_get_config(struct twl4030_platform_data *pmic_data,
 				  u32 pdata_flags, u32 regulators_flags)
 {
-	if (!pmic_data->irq_base)
-		pmic_data->irq_base = TWL6030_IRQ_BASE;
-	if (!pmic_data->irq_end)
-		pmic_data->irq_end = TWL6030_IRQ_END;
-
 	if (!pmic_data->vdd1) {
 		omap4_vdd1.driver_data = &omap4_vdd1_drvdata;
 		omap4_vdd1_drvdata.data = voltdm_lookup("mpu");
