@@ -301,23 +301,10 @@ void flush_tlb_current_task(void)
 	preempt_enable();
 }
 
-void flush_tlb_mm(struct mm_struct *mm)
-{
-	preempt_disable();
-
-	if (current->active_mm == mm) {
-		if (current->mm)
-			local_flush_tlb();
-		else
-			leave_mm(smp_processor_id());
-	}
-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-
-	preempt_enable();
-}
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+/*
+ * It can find out the THP large page, or
+ * HUGETLB page in tlb_flush when THP disabled
+ */
 static inline unsigned long has_large_page(struct mm_struct *mm,
 				 unsigned long start, unsigned long end)
 {
@@ -339,67 +326,60 @@ static inline unsigned long has_large_page(struct mm_struct *mm,
 	}
 	return 0;
 }
-#else
-static inline unsigned long has_large_page(struct mm_struct *mm,
-				 unsigned long start, unsigned long end)
-{
-	return 0;
-}
-#endif
-void flush_tlb_range(struct vm_area_struct *vma,
-				   unsigned long start, unsigned long end)
-{
-	struct mm_struct *mm;
 
-	if (vma->vm_flags & VM_HUGETLB || tlb_flushall_shift == -1) {
-flush_all:
-		flush_tlb_mm(vma->vm_mm);
+void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+				unsigned long end, unsigned long vmflag)
+{
+	unsigned long addr;
+	unsigned act_entries, tlb_entries = 0;
+
+	preempt_disable();
+	if (current->active_mm != mm)
+		goto flush_all;
+
+	if (!current->mm) {
+		leave_mm(smp_processor_id());
+		goto flush_all;
+	}
+
+	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
+					|| vmflag == VM_HUGETLB) {
+		local_flush_tlb();
+		goto flush_all;
+	}
+
+	/* In modern CPU, last level tlb used for both data/ins */
+	if (vmflag & VM_EXEC)
+		tlb_entries = tlb_lli_4k[ENTRIES];
+	else
+		tlb_entries = tlb_lld_4k[ENTRIES];
+	/* Assume all of TLB entries was occupied by this task */
+	act_entries = mm->total_vm > tlb_entries ? tlb_entries : mm->total_vm;
+
+	/* tlb_flushall_shift is on balance point, details in commit log */
+	if ((end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift)
+		local_flush_tlb();
+	else {
+		if (has_large_page(mm, start, end)) {
+			local_flush_tlb();
+			goto flush_all;
+		}
+		/* flush range by one by one 'invlpg' */
+		for (addr = start; addr < end;	addr += PAGE_SIZE)
+			__flush_tlb_single(addr);
+
+		if (cpumask_any_but(mm_cpumask(mm),
+				smp_processor_id()) < nr_cpu_ids)
+			flush_tlb_others(mm_cpumask(mm), mm, start, end);
+		preempt_enable();
 		return;
 	}
 
-	preempt_disable();
-	mm = vma->vm_mm;
-	if (current->active_mm == mm) {
-		if (current->mm) {
-			unsigned long addr, vmflag = vma->vm_flags;
-			unsigned act_entries, tlb_entries = 0;
-
-			if (vmflag & VM_EXEC)
-				tlb_entries = tlb_lli_4k[ENTRIES];
-			else
-				tlb_entries = tlb_lld_4k[ENTRIES];
-
-			act_entries = tlb_entries > mm->total_vm ?
-					mm->total_vm : tlb_entries;
-
-			if ((end - start) >> PAGE_SHIFT >
-					act_entries >> tlb_flushall_shift)
-				local_flush_tlb();
-			else {
-				if (has_large_page(mm, start, end)) {
-					preempt_enable();
-					goto flush_all;
-				}
-				for (addr = start; addr < end;
-						addr += PAGE_SIZE)
-					__flush_tlb_single(addr);
-
-				if (cpumask_any_but(mm_cpumask(mm),
-					smp_processor_id()) < nr_cpu_ids)
-					flush_tlb_others(mm_cpumask(mm), mm,
-								start, end);
-				preempt_enable();
-				return;
-			}
-		} else {
-			leave_mm(smp_processor_id());
-		}
-	}
+flush_all:
 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
 	preempt_enable();
 }
-
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
 {
