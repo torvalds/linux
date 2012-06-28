@@ -248,6 +248,7 @@ struct mxt_data {
 	unsigned int max_y;
 
 	/* Cached parameters from object table */
+	u8 T6_reportid;
 	u8 T9_reportid_min;
 	u8 T9_reportid_max;
 };
@@ -549,6 +550,11 @@ static void mxt_input_touchevent(struct mxt_data *data,
 	}
 }
 
+static unsigned mxt_extract_T6_csum(const u8 *csum)
+{
+	return csum[0] | (csum[1] << 8) | (csum[2] << 16);
+}
+
 static bool mxt_is_T9_message(struct mxt_data *data, struct mxt_message *msg)
 {
 	u8 id = msg->reportid;
@@ -559,8 +565,8 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 {
 	struct mxt_data *data = dev_id;
 	struct mxt_message message;
+	const u8 *payload = &message.message[0];
 	struct device *dev = &data->client->dev;
-	int id;
 	u8 reportid;
 	bool update_input = false;
 
@@ -572,9 +578,13 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 
 		reportid = message.reportid;
 
-		id = reportid - data->T9_reportid_min;
-
-		if (mxt_is_T9_message(data, &message)) {
+		if (reportid == data->T6_reportid) {
+			u8 status = payload[0];
+			unsigned csum = mxt_extract_T6_csum(&payload[1]);
+			dev_dbg(dev, "Status: %02x Config Checksum: %06x\n",
+				status, csum);
+		} else if (mxt_is_T9_message(data, &message)) {
+			int id = reportid - data->T9_reportid_min;
 			mxt_input_touchevent(data, &message, id);
 			update_input = true;
 		} else {
@@ -749,6 +759,9 @@ static int mxt_get_object_table(struct mxt_data *data)
 			object->instances + 1, min_id, max_id);
 
 		switch (object->type) {
+		case MXT_GEN_COMMAND_T6:
+			data->T6_reportid = min_id;
+			break;
 		case MXT_TOUCH_MULTI_T9:
 			data->T9_reportid_min = min_id;
 			data->T9_reportid_max = max_id;
@@ -763,8 +776,10 @@ static void mxt_free_object_table(struct mxt_data *data)
 {
 	kfree(data->object_table);
 	data->object_table = NULL;
+	data->T6_reportid = 0;
 	data->T9_reportid_min = 0;
 	data->T9_reportid_max = 0;
+
 }
 
 static int mxt_initialize(struct mxt_data *data)
