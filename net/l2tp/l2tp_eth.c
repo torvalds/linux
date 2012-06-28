@@ -44,6 +44,7 @@ struct l2tp_eth {
 	struct list_head	list;
 	atomic_long_t		tx_bytes;
 	atomic_long_t		tx_packets;
+	atomic_long_t		tx_dropped;
 	atomic_long_t		rx_bytes;
 	atomic_long_t		rx_packets;
 	atomic_long_t		rx_errors;
@@ -92,12 +93,15 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 	struct l2tp_session *session = priv->session;
+	unsigned int len = skb->len;
+	int ret = l2tp_xmit_skb(session, skb, session->hdr_len);
 
-	atomic_long_add(skb->len, &priv->tx_bytes);
-	atomic_long_inc(&priv->tx_packets);
-
-	l2tp_xmit_skb(session, skb, session->hdr_len);
-
+	if (likely(ret == NET_XMIT_SUCCESS)) {
+		atomic_long_add(len, &priv->tx_bytes);
+		atomic_long_inc(&priv->tx_packets);
+	} else {
+		atomic_long_inc(&priv->tx_dropped);
+	}
 	return NETDEV_TX_OK;
 }
 
@@ -108,6 +112,7 @@ static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
 
 	stats->tx_bytes   = atomic_long_read(&priv->tx_bytes);
 	stats->tx_packets = atomic_long_read(&priv->tx_packets);
+	stats->tx_dropped = atomic_long_read(&priv->tx_dropped);
 	stats->rx_bytes   = atomic_long_read(&priv->rx_bytes);
 	stats->rx_packets = atomic_long_read(&priv->rx_packets);
 	stats->rx_errors  = atomic_long_read(&priv->rx_errors);
