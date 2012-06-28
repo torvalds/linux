@@ -892,8 +892,9 @@ static void __note_new_gpnum(struct rcu_state *rsp, struct rcu_node *rnp, struct
 		if (rnp->qsmask & rdp->grpmask) {
 			rdp->qs_pending = 1;
 			rdp->passed_quiesce = 0;
-		} else
+		} else {
 			rdp->qs_pending = 0;
+		}
 		zero_cpu_stall_ticks(rdp);
 	}
 }
@@ -2130,9 +2131,9 @@ void synchronize_sched_expedited(void)
 		put_online_cpus();
 
 		/* No joy, try again later.  Or just synchronize_sched(). */
-		if (trycount++ < 10)
+		if (trycount++ < 10) {
 			udelay(trycount * num_online_cpus());
-		else {
+		} else {
 			synchronize_sched();
 			return;
 		}

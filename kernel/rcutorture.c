@@ -408,8 +408,9 @@ rcu_torture_cb(struct rcu_head *p)
 	if (++rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN) {
 		rp->rtort_mbtest = 0;
 		rcu_torture_free(rp);
-	} else
+	} else {
 		cur_ops->deferred_free(rp);
+	}
 }
 
 static int rcu_no_completed(void)

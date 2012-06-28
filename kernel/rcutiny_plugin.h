@@ -350,8 +350,9 @@ static int rcu_initiate_boost(void)
 			rcu_preempt_ctrlblk.boost_tasks =
 				rcu_preempt_ctrlblk.gp_tasks;
 		invoke_rcu_callbacks();
-	} else
+	} else {
 		RCU_TRACE(rcu_initiate_boost_trace());
+	}
 	return 1;
 }
 
@@ -778,9 +779,9 @@ void synchronize_rcu_expedited(void)
 		rpcp->exp_tasks = NULL;
 
 	/* Wait for tail of ->blkd_tasks list to drain. */
-	if (!rcu_preempted_readers_exp())
+	if (!rcu_preempted_readers_exp()) {
 		local_irq_restore(flags);
-	else {
+	} else {
 		rcu_initiate_boost();
 		local_irq_restore(flags);
 		wait_event(sync_rcu_preempt_exp_wq,
