@@ -40,6 +40,7 @@
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/transp_v6.h>
 #endif
+#include <net/ip_fib.h>
 
 #include <linux/errqueue.h>
 #include <asm/uaccess.h>
@@ -1019,8 +1020,8 @@ e_inval:
  * @sk: socket
  * @skb: buffer
  *
- * To support IP_CMSG_PKTINFO option, we store rt_iif and rt_spec_dst
- * in skb->cb[] before dst drop.
+ * To support IP_CMSG_PKTINFO option, we store rt_iif and specific
+ * destination in skb->cb[] before dst drop.
  * This way, receiver doesnt make cache line misses to read rtable.
  */
 void ipv4_pktinfo_prepare(struct sk_buff *skb)
@@ -1030,7 +1031,7 @@ void ipv4_pktinfo_prepare(struct sk_buff *skb)
 
 	if (rt) {
 		pktinfo->ipi_ifindex = rt->rt_iif;
-		pktinfo->ipi_spec_dst.s_addr = rt->rt_spec_dst;
+		pktinfo->ipi_spec_dst.s_addr = fib_compute_spec_dst(skb);
 	} else {
 		pktinfo->ipi_ifindex = 0;
 		pktinfo->ipi_spec_dst.s_addr = 0;

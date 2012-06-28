@@ -95,6 +95,7 @@
 #include <net/checksum.h>
 #include <net/xfrm.h>
 #include <net/inet_common.h>
+#include <net/ip_fib.h>
 
 /*
  *	Build xmit assembly blocks
@@ -333,7 +334,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	struct flowi4 fl4;
 	struct sock *sk;
 	struct inet_sock *inet;
-	__be32 daddr;
+	__be32 daddr, saddr;
 
 	if (ip_options_echo(&icmp_param->replyopts.opt.opt, skb))
 		return;
@@ -347,6 +348,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 
 	inet->tos = ip_hdr(skb)->tos;
 	daddr = ipc.addr = ip_hdr(skb)->saddr;
+	saddr = fib_compute_spec_dst(skb);
 	ipc.opt = NULL;
 	ipc.tx_flags = 0;
 	if (icmp_param->replyopts.opt.opt.optlen) {
@@ -356,7 +358,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	}
 	memset(&fl4, 0, sizeof(fl4));
 	fl4.daddr = daddr;
-	fl4.saddr = rt->rt_spec_dst;
+	fl4.saddr = saddr;
 	fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
 	fl4.flowi4_proto = IPPROTO_ICMP;
 	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));

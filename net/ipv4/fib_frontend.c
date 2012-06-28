@@ -180,6 +180,35 @@ unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 }
 EXPORT_SYMBOL(inet_dev_addr_type);
 
+__be32 fib_compute_spec_dst(struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	struct in_device *in_dev;
+	struct fib_result res;
+	struct flowi4 fl4;
+	struct net *net;
+
+	if (skb->pkt_type != PACKET_BROADCAST &&
+	    skb->pkt_type != PACKET_MULTICAST)
+		return ip_hdr(skb)->daddr;
+
+	in_dev = __in_dev_get_rcu(dev);
+	BUG_ON(!in_dev);
+	fl4.flowi4_oif = 0;
+	fl4.flowi4_iif = 0;
+	fl4.daddr = ip_hdr(skb)->saddr;
+	fl4.saddr = ip_hdr(skb)->daddr;
+	fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
+	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
+	fl4.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0;
+
+	net = dev_net(dev);
+	if (!fib_lookup(net, &fl4, &res))
+		return FIB_RES_PREFSRC(net, res);
+	else
+		return inet_select_addr(dev, 0, RT_SCOPE_UNIVERSE);
+}
+
 /* Given (packet source, input interface) and optional (dst, oif, tos):
  * - (main) check, that source is valid i.e. not broadcast or our local
  *   address.

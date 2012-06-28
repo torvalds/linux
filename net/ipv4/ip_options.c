@@ -27,6 +27,7 @@
 #include <net/icmp.h>
 #include <net/route.h>
 #include <net/cipso_ipv4.h>
+#include <net/ip_fib.h>
 
 /*
  * Write options to IP header, record destination address to
@@ -104,7 +105,7 @@ int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
 	sptr = skb_network_header(skb);
 	dptr = dopt->__data;
 
-	daddr = skb_rtable(skb)->rt_spec_dst;
+	daddr = fib_compute_spec_dst(skb);
 
 	if (sopt->rr) {
 		optlen  = sptr[sopt->rr+1];
@@ -250,15 +251,14 @@ void ip_options_fragment(struct sk_buff *skb)
 int ip_options_compile(struct net *net,
 		       struct ip_options *opt, struct sk_buff *skb)
 {
-	int l;
-	unsigned char *iph;
-	unsigned char *optptr;
-	int optlen;
+	__be32 spec_dst = (__force __be32) 0;
 	unsigned char *pp_ptr = NULL;
-	struct rtable *rt = NULL;
+	unsigned char *optptr;
+	unsigned char *iph;
+	int optlen, l;
 
 	if (skb != NULL) {
-		rt = skb_rtable(skb);
+		spec_dst = fib_compute_spec_dst(skb);
 		optptr = (unsigned char *)&(ip_hdr(skb)[1]);
 	} else
 		optptr = opt->__data;
@@ -330,8 +330,8 @@ int ip_options_compile(struct net *net,
 					pp_ptr = optptr + 2;
 					goto error;
 				}
-				if (rt) {
-					memcpy(&optptr[optptr[2]-1], &rt->rt_spec_dst, 4);
+				if (skb) {
+					memcpy(&optptr[optptr[2]-1], &spec_dst, 4);
 					opt->is_changed = 1;
 				}
 				optptr[2] += 4;
@@ -372,8 +372,8 @@ int ip_options_compile(struct net *net,
 						goto error;
 					}
 					opt->ts = optptr - iph;
-					if (rt)  {
-						memcpy(&optptr[optptr[2]-1], &rt->rt_spec_dst, 4);
+					if (skb)  {
+						memcpy(&optptr[optptr[2]-1], &spec_dst, 4);
 						timeptr = &optptr[optptr[2]+3];
 					}
 					opt->ts_needaddr = 1;
