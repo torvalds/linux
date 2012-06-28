@@ -218,8 +218,7 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
  * called with rcu_read_lock()
  */
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
-			int oif, struct net_device *dev, __be32 *spec_dst,
-			u32 *itag)
+			int oif, struct net_device *dev, u32 *itag)
 {
 	struct in_device *in_dev;
 	struct flowi4 fl4;
@@ -258,7 +257,6 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
 		if (res.type != RTN_LOCAL || !accept_local)
 			goto e_inval;
 	}
-	*spec_dst = FIB_RES_PREFSRC(net, res);
 	fib_combine_itag(itag, &res);
 	dev_match = false;
 
@@ -287,17 +285,14 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
 
 	ret = 0;
 	if (fib_lookup(net, &fl4, &res) == 0) {
-		if (res.type == RTN_UNICAST) {
-			*spec_dst = FIB_RES_PREFSRC(net, res);
+		if (res.type == RTN_UNICAST)
 			ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
-		}
 	}
 	return ret;
 
 last_resort:
 	if (rpf)
 		goto e_rpf;
-	*spec_dst = inet_select_addr(dev, 0, RT_SCOPE_UNIVERSE);
 	*itag = 0;
 	return 0;
 
