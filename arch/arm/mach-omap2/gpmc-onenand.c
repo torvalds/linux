@@ -140,21 +140,10 @@ static void set_onenand_cfg(void __iomem *onenand_base)
 }
 
 static int omap2_onenand_get_freq(struct omap_onenand_platform_data *cfg,
-				  void __iomem *onenand_base, bool *clk_dep)
+				  void __iomem *onenand_base)
 {
 	u16 ver = readw(onenand_base + ONENAND_REG_VERSION_ID);
-	int freq = 0;
-
-	if (cfg->get_freq) {
-		struct onenand_freq_info fi;
-
-		fi.maf_id = readw(onenand_base + ONENAND_REG_MANUFACTURER_ID);
-		fi.dev_id = readw(onenand_base + ONENAND_REG_DEVICE_ID);
-		fi.ver_id = ver;
-		freq = cfg->get_freq(&fi, clk_dep);
-		if (freq)
-			return freq;
-	}
+	int freq;
 
 	switch ((ver >> 4) & 0xf) {
 	case 0:
@@ -182,7 +171,7 @@ static int omap2_onenand_get_freq(struct omap_onenand_platform_data *cfg,
 
 static struct gpmc_timings
 omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
-				int freq, bool clk_dep)
+				int freq)
 {
 	struct gpmc_timings t;
 	const int t_cer  = 15;
@@ -260,22 +249,6 @@ omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
 		latency = 3;
 	else
 		latency = 4;
-
-	if (clk_dep) {
-		if (gpmc_clk_ns < 12) { /* >83Mhz */
-			t_ces   = 3;
-			t_avds  = 4;
-		} else if (gpmc_clk_ns < 15) { /* >66Mhz */
-			t_ces   = 5;
-			t_avds  = 4;
-		} else if (gpmc_clk_ns < 25) { /* >40Mhz */
-			t_ces   = 6;
-			t_avds  = 5;
-		} else {
-			t_ces   = 7;
-			t_avds  = 7;
-		}
-	}
 
 	/* Set synchronous read timings */
 	memset(&t, 0, sizeof(t));
@@ -399,16 +372,14 @@ static int omap2_onenand_setup_sync(void __iomem *onenand_base, int *freq_ptr)
 {
 	int ret, freq = *freq_ptr;
 	struct gpmc_timings t;
-	bool clk_dep = false;
 
 	if (!freq) {
 		/* Very first call freq is not known */
-		freq = omap2_onenand_get_freq(gpmc_onenand_data,
-						onenand_base, &clk_dep);
+		freq = omap2_onenand_get_freq(gpmc_onenand_data, onenand_base);
 		set_onenand_cfg(onenand_base);
 	}
 
-	t = omap2_onenand_calc_sync_timings(gpmc_onenand_data, freq, clk_dep);
+	t = omap2_onenand_calc_sync_timings(gpmc_onenand_data, freq);
 
 	ret = gpmc_set_sync_mode(gpmc_onenand_data->cs, &t);
 	if (IS_ERR_VALUE(ret))
