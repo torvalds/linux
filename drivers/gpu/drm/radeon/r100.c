@@ -513,15 +513,6 @@ int r100_pci_gart_init(struct radeon_device *rdev)
 	return radeon_gart_table_ram_alloc(rdev);
 }
 
-/* required on r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
-void r100_enable_bm(struct radeon_device *rdev)
-{
-	uint32_t tmp;
-	/* Enable bus mastering */
-	tmp = RREG32(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
-	WREG32(RADEON_BUS_CNTL, tmp);
-}
-
 int r100_pci_gart_enable(struct radeon_device *rdev)
 {
 	uint32_t tmp;
@@ -2529,6 +2520,15 @@ bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	/* force CP activities */
 	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
+}
+
+/* required on r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
+void r100_enable_bm(struct radeon_device *rdev)
+{
+	uint32_t tmp;
+	/* Enable bus mastering */
+	tmp = RREG32(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
+	WREG32(RADEON_BUS_CNTL, tmp);
 }
 
 void r100_bm_disable(struct radeon_device *rdev)
