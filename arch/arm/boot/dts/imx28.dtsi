@@ -411,6 +411,28 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				can0_pins_a: can0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0161 /* MX28_PAD_GPMI_RDY2__CAN0_TX */
+						0x0171 /* MX28_PAD_GPMI_RDY3__CAN0_RX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				can1_pins_a: can1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0121 /* MX28_PAD_GPMI_CE2N__CAN1_TX */
+						0x0131 /* MX28_PAD_GPMI_CE3N__CAN1_RX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -459,12 +481,14 @@
 			};
 
 			can0: can@80032000 {
+				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
 				reg = <0x80032000 2000>;
 				interrupts = <8>;
 				status = "disabled";
 			};
 
 			can1: can@80034000 {
+				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
 				reg = <0x80034000 2000>;
 				interrupts = <9>;
 				status = "disabled";

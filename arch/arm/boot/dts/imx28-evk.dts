@@ -72,6 +72,18 @@
 				panel-enable-gpios = <&gpio3 30 0>;
 				status = "okay";
 			};
+
+			can0: can@80032000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&can0_pins_a>;
+				status = "okay";
+			};
+
+			can1: can@80034000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&can1_pins_a>;
+				status = "okay";
+			};
 		};
 
 		apbx@80040000 {
