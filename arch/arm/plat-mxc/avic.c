@@ -217,7 +217,7 @@ void __init mxc_init_irq(void __iomem *irqbase)
 
 #ifdef CONFIG_FIQ
 	/* Initialize FIQ */
-	init_FIQ();
+	init_FIQ(FIQ_START);
 #endif
 
 	printk(KERN_INFO "MXC IRQ initialized\n");
