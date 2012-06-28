@@ -315,7 +315,6 @@ struct wl1251 {
 	bool tx_queue_stopped;
 
 	struct work_struct tx_work;
-	struct work_struct filter_work;
 
 	/* Pending TX frames */
 	struct sk_buff *tx_frames[16];

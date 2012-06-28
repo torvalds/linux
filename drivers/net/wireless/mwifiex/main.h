@@ -79,13 +79,16 @@ enum {
 
 #define SCAN_BEACON_ENTRY_PAD			6
 
-#define MWIFIEX_PASSIVE_SCAN_CHAN_TIME	200
-#define MWIFIEX_ACTIVE_SCAN_CHAN_TIME	200
-#define MWIFIEX_SPECIFIC_SCAN_CHAN_TIME	110
+#define MWIFIEX_PASSIVE_SCAN_CHAN_TIME	110
+#define MWIFIEX_ACTIVE_SCAN_CHAN_TIME	30
+#define MWIFIEX_SPECIFIC_SCAN_CHAN_TIME	30
 
 #define SCAN_RSSI(RSSI)					(0x100 - ((u8)(RSSI)))
 
 #define MWIFIEX_MAX_TOTAL_SCAN_TIME	(MWIFIEX_TIMER_10S - MWIFIEX_TIMER_1S)
+
+#define MWIFIEX_MAX_SCAN_DELAY_CNT			50
+#define MWIFIEX_SCAN_DELAY_MSEC				20
 
 #define RSN_GTK_OUI_OFFSET				2
 
@@ -482,6 +485,7 @@ struct mwifiex_private {
 	u16 proberesp_idx;
 	u16 assocresp_idx;
 	u16 rsn_idx;
+	struct timer_list scan_delay_timer;
 };
 
 enum mwifiex_ba_status {
@@ -686,6 +690,7 @@ struct mwifiex_adapter {
 	struct completion fw_load;
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	u16 max_mgmt_ie_index;
+	u8 scan_delay_cnt;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -835,6 +840,9 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			      struct mwifiex_uap_bss_param *bss_config,
 			      struct cfg80211_ap_settings *params);
+void mwifiex_set_ht_params(struct mwifiex_private *priv,
+			   struct mwifiex_uap_bss_param *bss_cfg,
+			   struct cfg80211_ap_settings *params);
 
 /*
  * This function checks if the queuing is RA based or not.
@@ -985,7 +993,6 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 
 int mwifiex_main_process(struct mwifiex_adapter *);
 
-int mwifiex_uap_set_channel(struct mwifiex_private *priv, int channel);
 int mwifiex_bss_set_channel(struct mwifiex_private *,
 			    struct mwifiex_chan_freq_power *cfp);
 int mwifiex_get_bss_info(struct mwifiex_private *,

@@ -97,13 +97,10 @@
 /*
  * Hardware revision info
  * Bit fields:
- * 31-8:  Reserved
- *  7-4:  Type of device:  see CSR_HW_REV_TYPE_xxx definitions
+ * 31-16:  Reserved
+ *  15-4:  Type of device:  see CSR_HW_REV_TYPE_xxx definitions
  *  3-2:  Revision step:  0 = A, 1 = B, 2 = C, 3 = D
  *  1-0:  "Dash" (-) value, as in A-1, etc.
- *
- * NOTE:  Revision step affects calculation of CCK txpower for 4965.
- * NOTE:  See also CSR_HW_REV_WA_REG (work-around for bug in 4965).
  */
 #define CSR_HW_REV              (CSR_BASE+0x028)
 
@@ -155,9 +152,21 @@
 #define CSR_DBG_LINK_PWR_MGMT_REG	(CSR_BASE+0x250)
 
 /* Bits for CSR_HW_IF_CONFIG_REG */
-#define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x00000C00)
-#define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI 	(0x00000100)
+#define CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH	(0x00000003)
+#define CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP	(0x0000000C)
+#define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x000000C0)
+#define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI		(0x00000100)
 #define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI	(0x00000200)
+#define CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE	(0x00000C00)
+#define CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH	(0x00003000)
+#define CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP	(0x0000C000)
+
+#define CSR_HW_IF_CONFIG_REG_POS_MAC_DASH	(0)
+#define CSR_HW_IF_CONFIG_REG_POS_MAC_STEP	(2)
+#define CSR_HW_IF_CONFIG_REG_POS_BOARD_VER	(6)
+#define CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE	(10)
+#define CSR_HW_IF_CONFIG_REG_POS_PHY_DASH	(12)
+#define CSR_HW_IF_CONFIG_REG_POS_PHY_STEP	(14)
 
 #define CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A	(0x00080000)
 #define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM	(0x00200000)
@@ -270,7 +279,10 @@
 
 
 /* HW REV */
-#define CSR_HW_REV_TYPE_MSK            (0x00001F0)
+#define CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
+#define CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
+
+#define CSR_HW_REV_TYPE_MSK            (0x000FFF0)
 #define CSR_HW_REV_TYPE_5300           (0x0000020)
 #define CSR_HW_REV_TYPE_5350           (0x0000030)
 #define CSR_HW_REV_TYPE_5100           (0x0000050)

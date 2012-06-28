@@ -470,7 +470,7 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	hdev->flush    = bpa10x_flush;
 	hdev->send     = bpa10x_send_frame;
 
-	set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
+	set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
 	err = hci_register_dev(hdev);
 	if (err < 0) {

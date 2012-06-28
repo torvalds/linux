@@ -37,17 +37,18 @@ static void ath_detect_bt_priority(struct ath9k_htc_priv *priv)
 
 	if (time_after(jiffies, btcoex->bt_priority_time +
 			msecs_to_jiffies(ATH_BT_PRIORITY_TIME_THRESHOLD))) {
-		priv->op_flags &= ~(OP_BT_PRIORITY_DETECTED | OP_BT_SCAN);
+		clear_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags);
+		clear_bit(OP_BT_SCAN, &priv->op_flags);
 		/* Detect if colocated bt started scanning */
 		if (btcoex->bt_priority_cnt >= ATH_BT_CNT_SCAN_THRESHOLD) {
 			ath_dbg(ath9k_hw_common(ah), BTCOEX,
 				"BT scan detected\n");
-			priv->op_flags |= (OP_BT_SCAN |
-					 OP_BT_PRIORITY_DETECTED);
+			set_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags);
+			set_bit(OP_BT_SCAN, &priv->op_flags);
 		} else if (btcoex->bt_priority_cnt >= ATH_BT_CNT_THRESHOLD) {
 			ath_dbg(ath9k_hw_common(ah), BTCOEX,
 				"BT priority traffic detected\n");
-			priv->op_flags |= OP_BT_PRIORITY_DETECTED;
+			set_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags);
 		}
 
 		btcoex->bt_priority_cnt = 0;
@@ -67,26 +68,23 @@ static void ath_btcoex_period_work(struct work_struct *work)
 	struct ath_btcoex *btcoex = &priv->btcoex;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	u32 timer_period;
-	bool is_btscan;
 	int ret;
 
 	ath_detect_bt_priority(priv);
 
-	is_btscan = !!(priv->op_flags & OP_BT_SCAN);
-
 	ret = ath9k_htc_update_cap_target(priv,
-				  !!(priv->op_flags & OP_BT_PRIORITY_DETECTED));
+			  test_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags));
 	if (ret) {
 		ath_err(common, "Unable to set BTCOEX parameters\n");
 		return;
 	}
 
-	ath9k_hw_btcoex_bt_stomp(priv->ah, is_btscan ? ATH_BTCOEX_STOMP_ALL :
-			btcoex->bt_stomp_type);
+	ath9k_hw_btcoex_bt_stomp(priv->ah, test_bit(OP_BT_SCAN, &priv->op_flags) ?
+				 ATH_BTCOEX_STOMP_ALL : btcoex->bt_stomp_type);
 
 	ath9k_hw_btcoex_enable(priv->ah);
-	timer_period = is_btscan ? btcoex->btscan_no_stomp :
-		btcoex->btcoex_no_stomp;
+	timer_period = test_bit(OP_BT_SCAN, &priv->op_flags) ?
+		btcoex->btscan_no_stomp : btcoex->btcoex_no_stomp;
 	ieee80211_queue_delayed_work(priv->hw, &priv->duty_cycle_work,
 				     msecs_to_jiffies(timer_period));
 	ieee80211_queue_delayed_work(priv->hw, &priv->coex_period_work,
@@ -104,14 +102,15 @@ static void ath_btcoex_duty_cycle_work(struct work_struct *work)
 	struct ath_hw *ah = priv->ah;
 	struct ath_btcoex *btcoex = &priv->btcoex;
 	struct ath_common *common = ath9k_hw_common(ah);
-	bool is_btscan = priv->op_flags & OP_BT_SCAN;
 
 	ath_dbg(common, BTCOEX, "time slice work for bt and wlan\n");
 
-	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW || is_btscan)
+	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW ||
+	    test_bit(OP_BT_SCAN, &priv->op_flags))
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
 	else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_LOW);
+
 	ath9k_hw_btcoex_enable(priv->ah);
 }
 
@@ -141,7 +140,8 @@ static void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
 
 	btcoex->bt_priority_cnt = 0;
 	btcoex->bt_priority_time = jiffies;
-	priv->op_flags &= ~(OP_BT_PRIORITY_DETECTED | OP_BT_SCAN);
+	clear_bit(OP_BT_PRIORITY_DETECTED, &priv->op_flags);
+	clear_bit(OP_BT_SCAN, &priv->op_flags);
 	ieee80211_queue_delayed_work(priv->hw, &priv->coex_period_work, 0);
 }
 
@@ -309,96 +309,4 @@ void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv)
 {
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
 		wiphy_rfkill_start_polling(priv->hw->wiphy);
-}
-
-void ath9k_htc_radio_enable(struct ieee80211_hw *hw)
-{
-	struct ath9k_htc_priv *priv = hw->priv;
-	struct ath_hw *ah = priv->ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	int ret;
-	u8 cmd_rsp;
-
-	if (!ah->curchan)
-		ah->curchan = ath9k_cmn_get_curchannel(hw, ah);
-
-	/* Reset the HW */
-	ret = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
-	if (ret) {
-		ath_err(common,
-			"Unable to reset hardware; reset status %d (freq %u MHz)\n",
-			ret, ah->curchan->channel);
-	}
-
-	ath9k_cmn_update_txpow(ah, priv->curtxpow, priv->txpowlimit,
-			       &priv->curtxpow);
-
-	/* Start RX */
-	WMI_CMD(WMI_START_RECV_CMDID);
-	ath9k_host_rx_init(priv);
-
-	/* Start TX */
-	htc_start(priv->htc);
-	spin_lock_bh(&priv->tx.tx_lock);
-	priv->tx.flags &= ~ATH9K_HTC_OP_TX_QUEUES_STOP;
-	spin_unlock_bh(&priv->tx.tx_lock);
-	ieee80211_wake_queues(hw);
-
-	WMI_CMD(WMI_ENABLE_INTR_CMDID);
-
-	/* Enable LED */
-	ath9k_hw_cfg_output(ah, ah->led_pin,
-			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	ath9k_hw_set_gpio(ah, ah->led_pin, 0);
-}
-
-void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
-{
-	struct ath9k_htc_priv *priv = hw->priv;
-	struct ath_hw *ah = priv->ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	int ret;
-	u8 cmd_rsp;
-
-	ath9k_htc_ps_wakeup(priv);
-
-	/* Disable LED */
-	ath9k_hw_set_gpio(ah, ah->led_pin, 1);
-	ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
-
-	WMI_CMD(WMI_DISABLE_INTR_CMDID);
-
-	/* Stop TX */
-	ieee80211_stop_queues(hw);
-	ath9k_htc_tx_drain(priv);
-	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
-
-	/* Stop RX */
-	WMI_CMD(WMI_STOP_RECV_CMDID);
-
-	/* Clear the WMI event queue */
-	ath9k_wmi_event_drain(priv);
-
-	/*
-	 * The MIB counters have to be disabled here,
-	 * since the target doesn't do it.
-	 */
-	ath9k_hw_disable_mib_counters(ah);
-
-	if (!ah->curchan)
-		ah->curchan = ath9k_cmn_get_curchannel(hw, ah);
-
-	/* Reset the HW */
-	ret = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
-	if (ret) {
-		ath_err(common,
-			"Unable to reset hardware; reset status %d (freq %u MHz)\n",
-			ret, ah->curchan->channel);
-	}
-
-	/* Disable the PHY */
-	ath9k_hw_phy_disable(ah);
-
-	ath9k_htc_ps_restore(priv);
-	ath9k_htc_setpower(priv, ATH9K_PM_FULL_SLEEP);
 }

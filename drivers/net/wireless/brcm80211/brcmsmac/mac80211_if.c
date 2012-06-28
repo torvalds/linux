@@ -721,14 +721,6 @@ static const struct ieee80211_ops brcms_ops = {
 	.flush = brcms_ops_flush,
 };
 
-/*
- * is called in brcms_bcma_probe() context, therefore no locking required.
- */
-static int brcms_set_hint(struct brcms_info *wl, char *abbrev)
-{
-	return regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev);
-}
-
 void brcms_dpc(unsigned long data)
 {
 	struct brcms_info *wl;
@@ -1058,6 +1050,8 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 		goto fail;
 	}
 
+	brcms_c_regd_init(wl->wlc);
+
 	memcpy(perm, &wl->pub->cur_etheraddr, ETH_ALEN);
 	if (WARN_ON(!is_valid_ether_addr(perm)))
 		goto fail;
@@ -1068,9 +1062,9 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 		wiphy_err(wl->wiphy, "%s: ieee80211_register_hw failed, status"
 			  "%d\n", __func__, err);
 
-	if (wl->pub->srom_ccode[0] && brcms_set_hint(wl, wl->pub->srom_ccode))
-		wiphy_err(wl->wiphy, "%s: regulatory_hint failed, status %d\n",
-			  __func__, err);
+	if (wl->pub->srom_ccode[0] &&
+	    regulatory_hint(wl->wiphy, wl->pub->srom_ccode))
+		wiphy_err(wl->wiphy, "%s: regulatory hint failed\n", __func__);
 
 	n_adapters_found++;
 	return wl;

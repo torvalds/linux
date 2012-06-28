@@ -124,6 +124,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_UAP_DTIM_PERIOD    (PROPRIETARY_TLV_BASE_ID + 45)
 #define TLV_TYPE_UAP_BCAST_SSID     (PROPRIETARY_TLV_BASE_ID + 48)
 #define TLV_TYPE_UAP_RTS_THRESHOLD  (PROPRIETARY_TLV_BASE_ID + 51)
+#define TLV_TYPE_UAP_WEP_KEY        (PROPRIETARY_TLV_BASE_ID + 59)
 #define TLV_TYPE_UAP_WPA_PASSPHRASE (PROPRIETARY_TLV_BASE_ID + 60)
 #define TLV_TYPE_UAP_ENCRY_PROTOCOL (PROPRIETARY_TLV_BASE_ID + 64)
 #define TLV_TYPE_UAP_AKMP           (PROPRIETARY_TLV_BASE_ID + 65)
@@ -161,6 +162,12 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define MWIFIEX_TX_DATA_BUF_SIZE_8K        8192
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
+
+#define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
+				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
+				 IEEE80211_HT_CAP_SM_PS)
+
+#define MWIFIEX_DEF_AMPDU	IEEE80211_HT_AMPDU_PARM_FACTOR
 
 /* dev_cap bitmap
  * BIT
@@ -1194,6 +1201,13 @@ struct host_cmd_tlv_passphrase {
 	struct host_cmd_tlv tlv;
 	u8 passphrase[0];
 } __packed;
+
+struct host_cmd_tlv_wep_key {
+	struct host_cmd_tlv tlv;
+	u8 key_index;
+	u8 is_default;
+	u8 key[1];
+};
 
 struct host_cmd_tlv_auth_type {
 	struct host_cmd_tlv tlv;

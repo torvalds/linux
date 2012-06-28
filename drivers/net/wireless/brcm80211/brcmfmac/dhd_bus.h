@@ -36,6 +36,13 @@ struct dngl_stats {
 	unsigned long multicast;	/* multicast packets received */
 };
 
+struct brcmf_bus_dcmd {
+	char *name;
+	char *param;
+	int param_len;
+	struct list_head list;
+};
+
 /* interface structure between common and bus layer */
 struct brcmf_bus {
 	u8 type;		/* bus type */
@@ -50,6 +57,7 @@ struct brcmf_bus {
 	unsigned long tx_realloc;	/* Tx packets realloced for headroom */
 	struct dngl_stats dstats;	/* Stats for dongle-based data */
 	u8 align;		/* bus alignment requirement */
+	struct list_head dcmd_list;
 
 	/* interface functions pointers */
 	/* Stop bus module: clear pending frames, disable data flow */

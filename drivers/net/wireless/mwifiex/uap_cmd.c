@@ -26,6 +26,18 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			      struct mwifiex_uap_bss_param *bss_config,
 			      struct cfg80211_ap_settings *params) {
 	int i;
+	struct mwifiex_wep_key wep_key;
+
+	if (!params->privacy) {
+		bss_config->protocol = PROTOCOL_NO_SECURITY;
+		bss_config->key_mgmt = KEY_MGMT_NONE;
+		bss_config->wpa_cfg.length = 0;
+		priv->sec_info.wep_enabled = 0;
+		priv->sec_info.wpa_enabled = 0;
+		priv->sec_info.wpa2_enabled = 0;
+
+		return 0;
+	}
 
 	switch (params->auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
@@ -54,7 +66,7 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			}
 			if (params->crypto.wpa_versions &
 			    NL80211_WPA_VERSION_2) {
-				bss_config->protocol = PROTOCOL_WPA2;
+				bss_config->protocol |= PROTOCOL_WPA2;
 				bss_config->key_mgmt = KEY_MGMT_EAP;
 			}
 			break;
@@ -66,7 +78,7 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			}
 			if (params->crypto.wpa_versions &
 			    NL80211_WPA_VERSION_2) {
-				bss_config->protocol = PROTOCOL_WPA2;
+				bss_config->protocol |= PROTOCOL_WPA2;
 				bss_config->key_mgmt = KEY_MGMT_PSK;
 			}
 			break;
@@ -80,10 +92,19 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 		case WLAN_CIPHER_SUITE_WEP104:
 			break;
 		case WLAN_CIPHER_SUITE_TKIP:
-			bss_config->wpa_cfg.pairwise_cipher_wpa = CIPHER_TKIP;
+			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_1)
+				bss_config->wpa_cfg.pairwise_cipher_wpa |=
+								CIPHER_TKIP;
+			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_2)
+				bss_config->wpa_cfg.pairwise_cipher_wpa2 |=
+								CIPHER_TKIP;
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
-			bss_config->wpa_cfg.pairwise_cipher_wpa2 =
+			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_1)
+				bss_config->wpa_cfg.pairwise_cipher_wpa |=
+								CIPHER_AES_CCMP;
+			if (params->crypto.wpa_versions & NL80211_WPA_VERSION_2)
+				bss_config->wpa_cfg.pairwise_cipher_wpa2 |=
 								CIPHER_AES_CCMP;
 		default:
 			break;
@@ -93,6 +114,27 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 	switch (params->crypto.cipher_group) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
+		if (priv->sec_info.wep_enabled) {
+			bss_config->protocol = PROTOCOL_STATIC_WEP;
+			bss_config->key_mgmt = KEY_MGMT_NONE;
+			bss_config->wpa_cfg.length = 0;
+
+			for (i = 0; i < NUM_WEP_KEYS; i++) {
+				wep_key = priv->wep_key[i];
+				bss_config->wep_cfg[i].key_index = i;
+
+				if (priv->wep_key_curr_index == i)
+					bss_config->wep_cfg[i].is_default = 1;
+				else
+					bss_config->wep_cfg[i].is_default = 0;
+
+				bss_config->wep_cfg[i].length =
+							     wep_key.key_length;
+				memcpy(&bss_config->wep_cfg[i].key,
+				       &wep_key.key_material,
+				       wep_key.key_length);
+			}
+		}
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		bss_config->wpa_cfg.group_cipher = CIPHER_TKIP;
@@ -105,6 +147,33 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 	}
 
 	return 0;
+}
+
+/* This function updates 11n related parameters from IE and sets them into
+ * bss_config structure.
+ */
+void
+mwifiex_set_ht_params(struct mwifiex_private *priv,
+		      struct mwifiex_uap_bss_param *bss_cfg,
+		      struct cfg80211_ap_settings *params)
+{
+	const u8 *ht_ie;
+
+	if (!ISSUPP_11NENABLED(priv->adapter->fw_cap_info))
+		return;
+
+	ht_ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, params->beacon.tail,
+				 params->beacon.tail_len);
+	if (ht_ie) {
+		memcpy(&bss_cfg->ht_cap, ht_ie + 2,
+		       sizeof(struct ieee80211_ht_cap));
+	} else {
+		memset(&bss_cfg->ht_cap , 0, sizeof(struct ieee80211_ht_cap));
+		bss_cfg->ht_cap.cap_info = cpu_to_le16(MWIFIEX_DEF_HT_CAP);
+		bss_cfg->ht_cap.ampdu_params_info = MWIFIEX_DEF_AMPDU;
+	}
+
+	return;
 }
 
 /* This function initializes some of mwifiex_uap_bss_param variables.
@@ -124,6 +193,120 @@ void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config)
 }
 
 /* This function parses BSS related parameters from structure
+ * and prepares TLVs specific to WPA/WPA2 security.
+ * These TLVs are appended to command buffer.
+ */
+static void
+mwifiex_uap_bss_wpa(u8 **tlv_buf, void *cmd_buf, u16 *param_size)
+{
+	struct host_cmd_tlv_pwk_cipher *pwk_cipher;
+	struct host_cmd_tlv_gwk_cipher *gwk_cipher;
+	struct host_cmd_tlv_passphrase *passphrase;
+	struct host_cmd_tlv_akmp *tlv_akmp;
+	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
+	u16 cmd_size = *param_size;
+	u8 *tlv = *tlv_buf;
+
+	tlv_akmp = (struct host_cmd_tlv_akmp *)tlv;
+	tlv_akmp->tlv.type = cpu_to_le16(TLV_TYPE_UAP_AKMP);
+	tlv_akmp->tlv.len = cpu_to_le16(sizeof(struct host_cmd_tlv_akmp) -
+					sizeof(struct host_cmd_tlv));
+	tlv_akmp->key_mgmt_operation = cpu_to_le16(bss_cfg->key_mgmt_operation);
+	tlv_akmp->key_mgmt = cpu_to_le16(bss_cfg->key_mgmt);
+	cmd_size += sizeof(struct host_cmd_tlv_akmp);
+	tlv += sizeof(struct host_cmd_tlv_akmp);
+
+	if (bss_cfg->wpa_cfg.pairwise_cipher_wpa & VALID_CIPHER_BITMAP) {
+		pwk_cipher = (struct host_cmd_tlv_pwk_cipher *)tlv;
+		pwk_cipher->tlv.type = cpu_to_le16(TLV_TYPE_PWK_CIPHER);
+		pwk_cipher->tlv.len =
+			cpu_to_le16(sizeof(struct host_cmd_tlv_pwk_cipher) -
+				    sizeof(struct host_cmd_tlv));
+		pwk_cipher->proto = cpu_to_le16(PROTOCOL_WPA);
+		pwk_cipher->cipher = bss_cfg->wpa_cfg.pairwise_cipher_wpa;
+		cmd_size += sizeof(struct host_cmd_tlv_pwk_cipher);
+		tlv += sizeof(struct host_cmd_tlv_pwk_cipher);
+	}
+
+	if (bss_cfg->wpa_cfg.pairwise_cipher_wpa2 & VALID_CIPHER_BITMAP) {
+		pwk_cipher = (struct host_cmd_tlv_pwk_cipher *)tlv;
+		pwk_cipher->tlv.type = cpu_to_le16(TLV_TYPE_PWK_CIPHER);
+		pwk_cipher->tlv.len =
+			cpu_to_le16(sizeof(struct host_cmd_tlv_pwk_cipher) -
+				    sizeof(struct host_cmd_tlv));
+		pwk_cipher->proto = cpu_to_le16(PROTOCOL_WPA2);
+		pwk_cipher->cipher = bss_cfg->wpa_cfg.pairwise_cipher_wpa2;
+		cmd_size += sizeof(struct host_cmd_tlv_pwk_cipher);
+		tlv += sizeof(struct host_cmd_tlv_pwk_cipher);
+	}
+
+	if (bss_cfg->wpa_cfg.group_cipher & VALID_CIPHER_BITMAP) {
+		gwk_cipher = (struct host_cmd_tlv_gwk_cipher *)tlv;
+		gwk_cipher->tlv.type = cpu_to_le16(TLV_TYPE_GWK_CIPHER);
+		gwk_cipher->tlv.len =
+			cpu_to_le16(sizeof(struct host_cmd_tlv_gwk_cipher) -
+				    sizeof(struct host_cmd_tlv));
+		gwk_cipher->cipher = bss_cfg->wpa_cfg.group_cipher;
+		cmd_size += sizeof(struct host_cmd_tlv_gwk_cipher);
+		tlv += sizeof(struct host_cmd_tlv_gwk_cipher);
+	}
+
+	if (bss_cfg->wpa_cfg.length) {
+		passphrase = (struct host_cmd_tlv_passphrase *)tlv;
+		passphrase->tlv.type = cpu_to_le16(TLV_TYPE_UAP_WPA_PASSPHRASE);
+		passphrase->tlv.len = cpu_to_le16(bss_cfg->wpa_cfg.length);
+		memcpy(passphrase->passphrase, bss_cfg->wpa_cfg.passphrase,
+		       bss_cfg->wpa_cfg.length);
+		cmd_size += sizeof(struct host_cmd_tlv) +
+			    bss_cfg->wpa_cfg.length;
+		tlv += sizeof(struct host_cmd_tlv) + bss_cfg->wpa_cfg.length;
+	}
+
+	*param_size = cmd_size;
+	*tlv_buf = tlv;
+
+	return;
+}
+
+/* This function parses BSS related parameters from structure
+ * and prepares TLVs specific to WEP encryption.
+ * These TLVs are appended to command buffer.
+ */
+static void
+mwifiex_uap_bss_wep(u8 **tlv_buf, void *cmd_buf, u16 *param_size)
+{
+	struct host_cmd_tlv_wep_key *wep_key;
+	u16 cmd_size = *param_size;
+	int i;
+	u8 *tlv = *tlv_buf;
+	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
+
+	for (i = 0; i < NUM_WEP_KEYS; i++) {
+		if (bss_cfg->wep_cfg[i].length &&
+		    (bss_cfg->wep_cfg[i].length == WLAN_KEY_LEN_WEP40 ||
+		     bss_cfg->wep_cfg[i].length == WLAN_KEY_LEN_WEP104)) {
+			wep_key = (struct host_cmd_tlv_wep_key *)tlv;
+			wep_key->tlv.type = cpu_to_le16(TLV_TYPE_UAP_WEP_KEY);
+			wep_key->tlv.len =
+				cpu_to_le16(bss_cfg->wep_cfg[i].length + 2);
+			wep_key->key_index = bss_cfg->wep_cfg[i].key_index;
+			wep_key->is_default = bss_cfg->wep_cfg[i].is_default;
+			memcpy(wep_key->key, bss_cfg->wep_cfg[i].key,
+			       bss_cfg->wep_cfg[i].length);
+			cmd_size += sizeof(struct host_cmd_tlv) + 2 +
+				    bss_cfg->wep_cfg[i].length;
+			tlv += sizeof(struct host_cmd_tlv) + 2 +
+				    bss_cfg->wep_cfg[i].length;
+		}
+	}
+
+	*param_size = cmd_size;
+	*tlv_buf = tlv;
+
+	return;
+}
+
+/* This function parses BSS related parameters from structure
  * and prepares TLVs. These TLVs are appended to command buffer.
 */
 static int
@@ -137,12 +320,9 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	struct host_cmd_tlv_frag_threshold *frag_threshold;
 	struct host_cmd_tlv_rts_threshold *rts_threshold;
 	struct host_cmd_tlv_retry_limit *retry_limit;
-	struct host_cmd_tlv_pwk_cipher *pwk_cipher;
-	struct host_cmd_tlv_gwk_cipher *gwk_cipher;
 	struct host_cmd_tlv_encrypt_protocol *encrypt_protocol;
 	struct host_cmd_tlv_auth_type *auth_type;
-	struct host_cmd_tlv_passphrase *passphrase;
-	struct host_cmd_tlv_akmp *tlv_akmp;
+	struct mwifiex_ie_types_htcap *htcap;
 	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
 	u16 cmd_size = *param_size;
 
@@ -232,70 +412,11 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	}
 	if ((bss_cfg->protocol & PROTOCOL_WPA) ||
 	    (bss_cfg->protocol & PROTOCOL_WPA2) ||
-	    (bss_cfg->protocol & PROTOCOL_EAP)) {
-		tlv_akmp = (struct host_cmd_tlv_akmp *)tlv;
-		tlv_akmp->tlv.type = cpu_to_le16(TLV_TYPE_UAP_AKMP);
-		tlv_akmp->tlv.len =
-		    cpu_to_le16(sizeof(struct host_cmd_tlv_akmp) -
-				sizeof(struct host_cmd_tlv));
-		tlv_akmp->key_mgmt_operation =
-			cpu_to_le16(bss_cfg->key_mgmt_operation);
-		tlv_akmp->key_mgmt = cpu_to_le16(bss_cfg->key_mgmt);
-		cmd_size += sizeof(struct host_cmd_tlv_akmp);
-		tlv += sizeof(struct host_cmd_tlv_akmp);
+	    (bss_cfg->protocol & PROTOCOL_EAP))
+		mwifiex_uap_bss_wpa(&tlv, cmd_buf, &cmd_size);
+	else
+		mwifiex_uap_bss_wep(&tlv, cmd_buf, &cmd_size);
 
-		if (bss_cfg->wpa_cfg.pairwise_cipher_wpa &
-				VALID_CIPHER_BITMAP) {
-			pwk_cipher = (struct host_cmd_tlv_pwk_cipher *)tlv;
-			pwk_cipher->tlv.type =
-				cpu_to_le16(TLV_TYPE_PWK_CIPHER);
-			pwk_cipher->tlv.len = cpu_to_le16(
-				sizeof(struct host_cmd_tlv_pwk_cipher) -
-				sizeof(struct host_cmd_tlv));
-			pwk_cipher->proto = cpu_to_le16(PROTOCOL_WPA);
-			pwk_cipher->cipher =
-				bss_cfg->wpa_cfg.pairwise_cipher_wpa;
-			cmd_size += sizeof(struct host_cmd_tlv_pwk_cipher);
-			tlv += sizeof(struct host_cmd_tlv_pwk_cipher);
-		}
-		if (bss_cfg->wpa_cfg.pairwise_cipher_wpa2 &
-				VALID_CIPHER_BITMAP) {
-			pwk_cipher = (struct host_cmd_tlv_pwk_cipher *)tlv;
-			pwk_cipher->tlv.type = cpu_to_le16(TLV_TYPE_PWK_CIPHER);
-			pwk_cipher->tlv.len = cpu_to_le16(
-				sizeof(struct host_cmd_tlv_pwk_cipher) -
-				sizeof(struct host_cmd_tlv));
-			pwk_cipher->proto = cpu_to_le16(PROTOCOL_WPA2);
-			pwk_cipher->cipher =
-				bss_cfg->wpa_cfg.pairwise_cipher_wpa2;
-			cmd_size += sizeof(struct host_cmd_tlv_pwk_cipher);
-			tlv += sizeof(struct host_cmd_tlv_pwk_cipher);
-		}
-		if (bss_cfg->wpa_cfg.group_cipher & VALID_CIPHER_BITMAP) {
-			gwk_cipher = (struct host_cmd_tlv_gwk_cipher *)tlv;
-			gwk_cipher->tlv.type = cpu_to_le16(TLV_TYPE_GWK_CIPHER);
-			gwk_cipher->tlv.len = cpu_to_le16(
-				sizeof(struct host_cmd_tlv_gwk_cipher) -
-				sizeof(struct host_cmd_tlv));
-			gwk_cipher->cipher = bss_cfg->wpa_cfg.group_cipher;
-			cmd_size += sizeof(struct host_cmd_tlv_gwk_cipher);
-			tlv += sizeof(struct host_cmd_tlv_gwk_cipher);
-		}
-		if (bss_cfg->wpa_cfg.length) {
-			passphrase = (struct host_cmd_tlv_passphrase *)tlv;
-			passphrase->tlv.type =
-				cpu_to_le16(TLV_TYPE_UAP_WPA_PASSPHRASE);
-			passphrase->tlv.len =
-				cpu_to_le16(bss_cfg->wpa_cfg.length);
-			memcpy(passphrase->passphrase,
-			       bss_cfg->wpa_cfg.passphrase,
-			       bss_cfg->wpa_cfg.length);
-			cmd_size += sizeof(struct host_cmd_tlv) +
-				    bss_cfg->wpa_cfg.length;
-			tlv += sizeof(struct host_cmd_tlv) +
-			       bss_cfg->wpa_cfg.length;
-		}
-	}
 	if ((bss_cfg->auth_mode <= WLAN_AUTH_SHARED_KEY) ||
 	    (bss_cfg->auth_mode == MWIFIEX_AUTH_MODE_AUTO)) {
 		auth_type = (struct host_cmd_tlv_auth_type *)tlv;
@@ -317,6 +438,25 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 		encrypt_protocol->proto = cpu_to_le16(bss_cfg->protocol);
 		cmd_size += sizeof(struct host_cmd_tlv_encrypt_protocol);
 		tlv += sizeof(struct host_cmd_tlv_encrypt_protocol);
+	}
+
+	if (bss_cfg->ht_cap.cap_info) {
+		htcap = (struct mwifiex_ie_types_htcap *)tlv;
+		htcap->header.type = cpu_to_le16(WLAN_EID_HT_CAPABILITY);
+		htcap->header.len =
+				cpu_to_le16(sizeof(struct ieee80211_ht_cap));
+		htcap->ht_cap.cap_info = bss_cfg->ht_cap.cap_info;
+		htcap->ht_cap.ampdu_params_info =
+					     bss_cfg->ht_cap.ampdu_params_info;
+		memcpy(&htcap->ht_cap.mcs, &bss_cfg->ht_cap.mcs,
+		       sizeof(struct ieee80211_mcs_info));
+		htcap->ht_cap.extended_ht_cap_info =
+					bss_cfg->ht_cap.extended_ht_cap_info;
+		htcap->ht_cap.tx_BF_cap_info = bss_cfg->ht_cap.tx_BF_cap_info;
+		htcap->ht_cap.antenna_selection_info =
+					bss_cfg->ht_cap.antenna_selection_info;
+		cmd_size += sizeof(struct mwifiex_ie_types_htcap);
+		tlv += sizeof(struct mwifiex_ie_types_htcap);
 	}
 
 	*param_size = cmd_size;
@@ -408,35 +548,5 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		return -1;
 	}
 
-	return 0;
-}
-
-/* This function sets the RF channel for AP.
- *
- * This function populates channel information in AP config structure
- * and sends command to configure channel information in AP.
- */
-int mwifiex_uap_set_channel(struct mwifiex_private *priv, int channel)
-{
-	struct mwifiex_uap_bss_param *bss_cfg;
-	struct wiphy *wiphy = priv->wdev->wiphy;
-
-	bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param), GFP_KERNEL);
-	if (!bss_cfg)
-		return -ENOMEM;
-
-	mwifiex_set_sys_config_invalid_data(bss_cfg);
-	bss_cfg->band_cfg = BAND_CONFIG_MANUAL;
-	bss_cfg->channel = channel;
-
-	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
-				   HostCmd_ACT_GEN_SET,
-				   UAP_BSS_PARAMS_I, bss_cfg)) {
-		wiphy_err(wiphy, "Failed to set the uAP channel\n");
-		kfree(bss_cfg);
-		return -1;
-	}
-
-	kfree(bss_cfg);
 	return 0;
 }

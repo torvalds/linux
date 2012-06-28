@@ -170,7 +170,9 @@ mwifiex_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 	if (!priv->sec_info.wep_enabled)
 		return 0;
 
-	if (mwifiex_set_encode(priv, NULL, 0, key_index, NULL, 0)) {
+	if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP) {
+		priv->wep_key_curr_index = key_index;
+	} else if (mwifiex_set_encode(priv, NULL, 0, key_index, NULL, 0)) {
 		wiphy_err(wiphy, "set default Tx key index\n");
 		return -EFAULT;
 	}
@@ -187,8 +189,24 @@ mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
 			 struct key_params *params)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
+	struct mwifiex_wep_key *wep_key;
 	const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	const u8 *peer_mac = pairwise ? mac_addr : bc_mac;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP &&
+	    (params->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	     params->cipher == WLAN_CIPHER_SUITE_WEP104)) {
+		if (params->key && params->key_len) {
+			wep_key = &priv->wep_key[key_index];
+			memset(wep_key, 0, sizeof(struct mwifiex_wep_key));
+			memcpy(wep_key->key_material, params->key,
+			       params->key_len);
+			wep_key->key_index = key_index;
+			wep_key->key_length = params->key_len;
+			priv->sec_info.wep_enabled = 1;
+		}
+		return 0;
+	}
 
 	if (mwifiex_set_encode(priv, params->key, params->key_len,
 			       key_index, peer_mac, 0)) {
@@ -384,13 +402,13 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 	cfp.freq = chan->center_freq;
 	cfp.channel = ieee80211_frequency_to_channel(chan->center_freq);
 
-	if (mwifiex_bss_set_channel(priv, &cfp))
-		return -EFAULT;
-
-	if (priv->bss_type == MWIFIEX_BSS_TYPE_STA)
+	if (priv->bss_type == MWIFIEX_BSS_TYPE_STA) {
+		if (mwifiex_bss_set_channel(priv, &cfp))
+			return -EFAULT;
 		return mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
-	else
-		return mwifiex_uap_set_channel(priv, cfp.channel);
+	}
+
+	return 0;
 }
 
 /*
@@ -961,11 +979,24 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	bss_cfg->channel =
+	    (u8)ieee80211_frequency_to_channel(params->channel->center_freq);
+	bss_cfg->band_cfg = BAND_CONFIG_MANUAL;
+
+	if (mwifiex_set_rf_channel(priv, params->channel,
+				   params->channel_type)) {
+		kfree(bss_cfg);
+		wiphy_err(wiphy, "Failed to set band config information!\n");
+		return -1;
+	}
+
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
 		kfree(bss_cfg);
 		wiphy_err(wiphy, "Failed to parse secuirty parameters!\n");
 		return -1;
 	}
+
+	mwifiex_set_ht_params(priv, bss_cfg, params);
 
 	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
 				  HostCmd_ACT_GEN_SET, 0, NULL)) {
@@ -989,6 +1020,16 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		wiphy_err(wiphy, "Failed to start the BSS\n");
 		return -1;
 	}
+
+	if (priv->sec_info.wep_enabled)
+		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
+	else
+		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;
+
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_MAC_CONTROL,
+				  HostCmd_ACT_GEN_SET, 0,
+				  &priv->curr_pkt_filter))
+		return -1;
 
 	return 0;
 }

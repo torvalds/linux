@@ -70,6 +70,13 @@ struct bcma_host_ops {
 
 /* Core-ID values. */
 #define BCMA_CORE_OOB_ROUTER		0x367	/* Out of band */
+#define BCMA_CORE_4706_CHIPCOMMON	0x500
+#define BCMA_CORE_4706_SOC_RAM		0x50E
+#define BCMA_CORE_4706_MAC_GBIT		0x52D
+#define BCMA_CORE_AMEMC			0x52E	/* DDR1/2 memory controller core */
+#define BCMA_CORE_ALTA			0x534	/* I2S core */
+#define BCMA_CORE_4706_MAC_GBIT_COMMON	0x5DC
+#define BCMA_CORE_DDR23_PHY		0x5DD
 #define BCMA_CORE_INVALID		0x700
 #define BCMA_CORE_CHIPCOMMON		0x800
 #define BCMA_CORE_ILINE20		0x801

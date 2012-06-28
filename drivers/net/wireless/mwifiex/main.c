@@ -190,7 +190,8 @@ process_start:
 			    adapter->tx_lock_flag)
 				break;
 
-			if (adapter->scan_processing || adapter->data_sent ||
+			if ((adapter->scan_processing &&
+			     !adapter->scan_delay_cnt) || adapter->data_sent ||
 			    mwifiex_wmm_lists_empty(adapter)) {
 				if (adapter->cmd_sent || adapter->curr_cmd ||
 				    (!is_command_pending(adapter)))
@@ -244,8 +245,8 @@ process_start:
 			}
 		}
 
-		if (!adapter->scan_processing && !adapter->data_sent &&
-		    !mwifiex_wmm_lists_empty(adapter)) {
+		if ((!adapter->scan_processing || adapter->scan_delay_cnt) &&
+		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter)) {
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
 				adapter->is_hs_configured = false;

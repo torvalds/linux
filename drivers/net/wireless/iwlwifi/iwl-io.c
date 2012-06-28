@@ -65,6 +65,24 @@ void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
 }
 EXPORT_SYMBOL_GPL(iwl_clear_bit);
 
+void iwl_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value)
+{
+	unsigned long flags;
+	u32 v;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	WARN_ON_ONCE(value & ~mask);
+#endif
+
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	v = iwl_read32(trans, reg);
+	v &= ~mask;
+	v |= value;
+	iwl_write32(trans, reg, v);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
+}
+EXPORT_SYMBOL_GPL(iwl_set_bits_mask);
+
 int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
 		 u32 bits, u32 mask, int timeout)
 {
@@ -280,8 +298,8 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 reg, u32 mask)
 }
 EXPORT_SYMBOL_GPL(iwl_clear_bits_prph);
 
-void _iwl_read_targ_mem_words(struct iwl_trans *trans, u32 addr,
-			      void *buf, int words)
+void _iwl_read_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
+			       void *buf, int dwords)
 {
 	unsigned long flags;
 	int offs;
@@ -290,26 +308,26 @@ void _iwl_read_targ_mem_words(struct iwl_trans *trans, u32 addr,
 	spin_lock_irqsave(&trans->reg_lock, flags);
 	if (likely(iwl_grab_nic_access(trans))) {
 		iwl_write32(trans, HBUS_TARG_MEM_RADDR, addr);
-		for (offs = 0; offs < words; offs++)
+		for (offs = 0; offs < dwords; offs++)
 			vals[offs] = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
 		iwl_release_nic_access(trans);
 	}
 	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
-EXPORT_SYMBOL_GPL(_iwl_read_targ_mem_words);
+EXPORT_SYMBOL_GPL(_iwl_read_targ_mem_dwords);
 
 u32 iwl_read_targ_mem(struct iwl_trans *trans, u32 addr)
 {
 	u32 value;
 
-	_iwl_read_targ_mem_words(trans, addr, &value, 1);
+	_iwl_read_targ_mem_dwords(trans, addr, &value, 1);
 
 	return value;
 }
 EXPORT_SYMBOL_GPL(iwl_read_targ_mem);
 
-int _iwl_write_targ_mem_words(struct iwl_trans *trans, u32 addr,
-				void *buf, int words)
+int _iwl_write_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
+			       void *buf, int dwords)
 {
 	unsigned long flags;
 	int offs, result = 0;
@@ -318,7 +336,7 @@ int _iwl_write_targ_mem_words(struct iwl_trans *trans, u32 addr,
 	spin_lock_irqsave(&trans->reg_lock, flags);
 	if (likely(iwl_grab_nic_access(trans))) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
-		for (offs = 0; offs < words; offs++)
+		for (offs = 0; offs < dwords; offs++)
 			iwl_write32(trans, HBUS_TARG_MEM_WDAT, vals[offs]);
 		iwl_release_nic_access(trans);
 	} else
@@ -327,10 +345,10 @@ int _iwl_write_targ_mem_words(struct iwl_trans *trans, u32 addr,
 
 	return result;
 }
-EXPORT_SYMBOL_GPL(_iwl_write_targ_mem_words);
+EXPORT_SYMBOL_GPL(_iwl_write_targ_mem_dwords);
 
 int iwl_write_targ_mem(struct iwl_trans *trans, u32 addr, u32 val)
 {
-	return _iwl_write_targ_mem_words(trans, addr, &val, 1);
+	return _iwl_write_targ_mem_dwords(trans, addr, &val, 1);
 }
 EXPORT_SYMBOL_GPL(iwl_write_targ_mem);

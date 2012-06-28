@@ -1273,17 +1273,18 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 	 *after reset, release previous pending packet,
 	 *and force the  tx idx to the first one
 	 */
-	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
 	for (i = 0; i < RTL_PCI_MAX_TX_QUEUE_COUNT; i++) {
 		if (rtlpci->tx_ring[i].desc) {
 			struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[i];
 
 			while (skb_queue_len(&ring->queue)) {
-				struct rtl_tx_desc *entry =
-				    &ring->desc[ring->idx];
-				struct sk_buff *skb =
-				    __skb_dequeue(&ring->queue);
+				struct rtl_tx_desc *entry;
+				struct sk_buff *skb;
 
+				spin_lock_irqsave(&rtlpriv->locks.irq_th_lock,
+						  flags);
+				entry = &ring->desc[ring->idx];
+				skb = __skb_dequeue(&ring->queue);
 				pci_unmap_single(rtlpci->pdev,
 						 rtlpriv->cfg->ops->
 							 get_desc((u8 *)
@@ -1291,14 +1292,14 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 							 true,
 							 HW_DESC_TXBUFF_ADDR),
 						 skb->len, PCI_DMA_TODEVICE);
-				kfree_skb(skb);
 				ring->idx = (ring->idx + 1) % ring->entries;
+				spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock,
+						  flags);
+				kfree_skb(skb);
 			}
 			ring->idx = 0;
 		}
 	}
-
-	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
 
 	return 0;
 }

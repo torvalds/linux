@@ -1348,6 +1348,9 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 		}
 	}
 
+	if (ath9k_hw_mci_is_enabled(ah))
+		ar9003_mci_check_gpm_offset(ah);
+
 	REG_WRITE(ah, AR_RTC_RC, rst_flags);
 
 	REGWRITE_BUFFER_FLUSH(ah);
@@ -1708,7 +1711,7 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	ath9k_hw_start_nfcal(ah, true);
 
 	if (ath9k_hw_mci_is_enabled(ah))
-		ar9003_mci_2g5g_switch(ah, true);
+		ar9003_mci_2g5g_switch(ah, false);
 
 	if (AR_SREV_9271(ah))
 		ar9002_hw_load_ani_reg(ah, chan);
@@ -1912,7 +1915,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_set_dma(ah);
 
-	REG_WRITE(ah, AR_OBS, 8);
+	if (!ath9k_hw_mci_is_enabled(ah))
+		REG_WRITE(ah, AR_OBS, 8);
 
 	if (ah->config.rx_intr_mitigation) {
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 500);
@@ -2110,6 +2114,9 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah)
 	REG_SET_BIT(ah, AR_RTC_FORCE_WAKE,
 		    AR_RTC_FORCE_WAKE_EN);
 	udelay(50);
+
+	if (ath9k_hw_mci_is_enabled(ah))
+		ar9003_mci_set_power_awake(ah);
 
 	for (i = POWER_UP_TIME / 50; i > 0; i--) {
 		val = REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M;

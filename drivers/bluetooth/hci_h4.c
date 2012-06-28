@@ -126,7 +126,7 @@ static int h4_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 
 static inline int h4_check_data_len(struct h4_struct *h4, int len)
 {
-	register int room = skb_tailroom(h4->rx_skb);
+	int room = skb_tailroom(h4->rx_skb);
 
 	BT_DBG("len %d room %d", len, room);
 
