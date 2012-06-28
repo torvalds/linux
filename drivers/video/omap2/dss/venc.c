@@ -272,6 +272,8 @@ const struct omap_video_timings omap_dss_pal_timings = {
 	.vsw		= 5,
 	.vfp		= 5,
 	.vbp		= 41,
+
+	.interlace	= true,
 };
 EXPORT_SYMBOL(omap_dss_pal_timings);
 
@@ -285,6 +287,8 @@ const struct omap_video_timings omap_dss_ntsc_timings = {
 	.vsw		= 6,
 	.vfp		= 6,
 	.vbp		= 31,
+
+	.interlace	= true,
 };
 EXPORT_SYMBOL(omap_dss_ntsc_timings);
 

@@ -2754,11 +2754,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
-		enum dss_hdmi_venc_clk_source_select source;
-
-		source = dss_get_hdmi_venc_clk_source();
-
-		if (source == DSS_VENC_TV_CLK)
+		if (t.interlace == true)
 			t.y_res /= 2;
 	}
 
