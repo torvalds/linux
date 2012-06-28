@@ -3027,7 +3027,7 @@ static void __init rk30_init_enable_clocks(void)
 
 	#endif
 
-		#if 1
+		#if 0
 		clk_enable_nolock(&clk_timer0);
 		clk_enable_nolock(&clk_pclk_timer0);
 		
