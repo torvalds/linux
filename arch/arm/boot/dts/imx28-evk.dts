@@ -169,4 +169,14 @@
 		saif-controllers = <&saif0 &saif1>;
 		audio-codec = <&sgtl5000>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user {
+			label = "Heartbeat";
+			gpios = <&gpio3 5 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
 };
