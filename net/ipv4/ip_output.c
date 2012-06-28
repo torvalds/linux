@@ -1459,13 +1459,14 @@ static int ip_reply_glue_bits(void *dptr, char *to, int offset,
 
 /*
  *	Generic function to send a packet as reply to another packet.
- *	Used to send TCP resets so far. ICMP should use this function too.
+ *	Used to send TCP resets so far.
  *
  *	Should run single threaded per socket because it uses the sock
  *     	structure to pass arguments.
  */
-void ip_send_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
-		   const struct ip_reply_arg *arg, unsigned int len)
+void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
+			   __be32 saddr, const struct ip_reply_arg *arg,
+			   unsigned int len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options_data replyopts;
@@ -1491,7 +1492,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
 			   RT_TOS(arg->tos),
 			   RT_SCOPE_UNIVERSE, sk->sk_protocol,
 			   ip_reply_arg_flowi_flags(arg),
-			   daddr, rt->rt_spec_dst,
+			   daddr, saddr,
 			   tcp_hdr(skb)->source, tcp_hdr(skb)->dest);
 	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_key(sock_net(sk), &fl4);
