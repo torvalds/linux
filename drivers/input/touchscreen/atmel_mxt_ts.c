@@ -554,6 +554,12 @@ static void mxt_input_touchevent(struct mxt_data *data,
 	input_sync(input_dev);
 }
 
+static bool mxt_is_T9_message(struct mxt_data *data, struct mxt_message *msg)
+{
+	u8 id = msg->reportid;
+	return (id >= data->T9_reportid_min && id <= data->T9_reportid_max);
+}
+
 static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 {
 	struct mxt_data *data = dev_id;
@@ -561,8 +567,6 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 	struct device *dev = &data->client->dev;
 	int id;
 	u8 reportid;
-	u8 max_reportid;
-	u8 min_reportid;
 
 	do {
 		if (mxt_read_message(data, &message)) {
@@ -572,11 +576,9 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 
 		reportid = message.reportid;
 
-		max_reportid = data->T9_reportid_max;
-		min_reportid = data->T9_reportid_min;
-		id = reportid - min_reportid;
+		id = reportid - data->T9_reportid_min;
 
-		if (reportid >= min_reportid && reportid <= max_reportid)
+		if (mxt_is_T9_message(data, &message))
 			mxt_input_touchevent(data, &message, id);
 		else
 			mxt_dump_message(dev, &message);
