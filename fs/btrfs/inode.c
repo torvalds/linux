@@ -1010,7 +1010,7 @@ static noinline void async_cow_submit(struct btrfs_work *work)
 	atomic_sub(nr_pages, &root->fs_info->async_delalloc_pages);
 
 	if (atomic_read(&root->fs_info->async_delalloc_pages) <
-	    5 * 1042 * 1024 &&
+	    5 * 1024 * 1024 &&
 	    waitqueue_active(&root->fs_info->async_submit_wait))
 		wake_up(&root->fs_info->async_submit_wait);
 
@@ -1035,7 +1035,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	unsigned long nr_pages;
 	u64 cur_end;
-	int limit = 10 * 1024 * 1042;
+	int limit = 10 * 1024 * 1024;
 
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, EXTENT_LOCKED,
 			 1, 0, NULL, GFP_NOFS);
