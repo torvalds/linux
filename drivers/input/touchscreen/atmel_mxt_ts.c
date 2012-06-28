@@ -195,6 +195,7 @@
 #define MXT_BOOT_STATUS_MASK	0x3f
 
 /* Touch status */
+#define MXT_UNGRIP		(1 << 0)
 #define MXT_SUPPRESS		(1 << 1)
 #define MXT_AMP			(1 << 2)
 #define MXT_VECTOR		(1 << 3)
@@ -531,9 +532,19 @@ static void mxt_input_touchevent(struct mxt_data *data,
 	area = message->message[4];
 	pressure = message->message[5];
 
-	dev_dbg(dev, "[%d] %s x: %d, y: %d, area: %d\n", id,
-		status & MXT_MOVE ? "moved" : "pressed",
-		x, y, area);
+	dev_dbg(dev,
+		"[%u] %c%c%c%c%c%c%c%c x: %5u y: %5u area: %3u amp: %3u\n",
+		id,
+		(status & MXT_DETECT) ? 'D' : '.',
+		(status & MXT_PRESS) ? 'P' : '.',
+		(status & MXT_RELEASE) ? 'R' : '.',
+		(status & MXT_MOVE) ? 'M' : '.',
+		(status & MXT_VECTOR) ? 'V' : '.',
+		(status & MXT_AMP) ? 'A' : '.',
+		(status & MXT_SUPPRESS) ? 'S' : '.',
+		(status & MXT_UNGRIP) ? 'U' : '.',
+		x, y, area, pressure);
+
 	input_mt_slot(input_dev, id);
 	input_mt_report_slot_state(input_dev, MT_TOOL_FINGER,
 				   status & MXT_DETECT);
