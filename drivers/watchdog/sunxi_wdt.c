@@ -8,7 +8,7 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  *
- *	Based on sunxi_wdt.c
+ *	Based on xen_wdt.c
  *	(c) Copyright 2010 Novell, Inc.
  *
  * Known issues:
