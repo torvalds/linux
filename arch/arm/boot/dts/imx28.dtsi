@@ -364,6 +364,16 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
 				};
+
+				pwm2_pins_a: pwm2@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3120 /* MX28_PAD_PWM2__PWM_2 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -526,8 +536,11 @@
 				status = "disabled";
 			};
 
-			pwm@80064000 {
+			pwm: pwm@80064000 {
+				compatible = "fsl,imx28-pwm", "fsl,imx23-pwm";
 				reg = <0x80064000 2000>;
+				#pwm-cells = <2>;
+				fsl,pwm-number = <8>;
 				status = "disabled";
 			};
 

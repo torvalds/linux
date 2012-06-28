@@ -181,6 +181,16 @@
 					>;
 					fsl,pull-up = <0>;
 				};
+
+				pwm2_pins_a: pwm2@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x11c0 /* MX23_PAD_PWM2__PWM2 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -294,8 +304,11 @@
 				interrupts = <22>;
 			};
 
-			pwm@80064000 {
+			pwm: pwm@80064000 {
+				compatible = "fsl,imx23-pwm";
 				reg = <0x80064000 2000>;
+				#pwm-cells = <2>;
+				fsl,pwm-number = <5>;
 				status = "disabled";
 			};
 
