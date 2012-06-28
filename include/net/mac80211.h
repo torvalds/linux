@@ -3826,12 +3826,6 @@ void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
 
 void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
 
-int ieee80211_add_srates_ie(struct ieee80211_vif *vif,
-			    struct sk_buff *skb, bool need_basic);
-
-int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
-				struct sk_buff *skb, bool need_basic);
-
 /**
  * ieee80211_ave_rssi - report the average rssi for the specified interface
  *

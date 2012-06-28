@@ -258,8 +258,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			pos = skb_put(skb, 2);
 			memcpy(pos + 2, &plid, 2);
 		}
-		if (ieee80211_add_srates_ie(&sdata->vif, skb, true) ||
-		    ieee80211_add_ext_srates_ie(&sdata->vif, skb, true) ||
+		if (ieee80211_add_srates_ie(sdata, skb, true) ||
+		    ieee80211_add_ext_srates_ie(sdata, skb, true) ||
 		    mesh_add_rsn_ie(skb, sdata) ||
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata))
