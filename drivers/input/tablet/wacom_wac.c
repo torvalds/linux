@@ -1547,10 +1547,8 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 		break;
 
-	case TABLETPC2FG:
 	case MTSCREEN:
 		if (features->device_type == BTN_TOOL_FINGER) {
-
 			wacom_wac->slots = kmalloc(features->touch_max *
 							sizeof(int),
 						   GFP_KERNEL);
@@ -1559,7 +1557,11 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 			for (i = 0; i < features->touch_max; i++)
 				wacom_wac->slots[i] = -1;
+		}
+		/* fall through */
 
+	case TABLETPC2FG:
+		if (features->device_type == BTN_TOOL_FINGER) {
 			input_mt_init_slots(input_dev, features->touch_max);
 			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
 					0, MT_TOOL_MAX, 0, 0);
