@@ -227,13 +227,10 @@ struct mxt_info {
 struct mxt_object {
 	u8 type;
 	u16 start_address;
-	u8 size;
-	u8 instances;
+	u8 size;		/* Size of each instance - 1 */
+	u8 instances;		/* Number of instances - 1 */
 	u8 num_report_ids;
-
-	/* to map object and message */
-	u8 max_reportid;
-};
+} __packed;
 
 struct mxt_message {
 	u8 reportid;
@@ -251,6 +248,10 @@ struct mxt_data {
 	unsigned int irq;
 	unsigned int max_x;
 	unsigned int max_y;
+
+	/* Cached parameters from object table */
+	u8 T9_reportid_min;
+	u8 T9_reportid_max;
 };
 
 static bool mxt_object_readable(unsigned int type)
@@ -459,13 +460,6 @@ static int mxt_write_reg(struct i2c_client *client, u16 reg, u8 val)
 	return __mxt_write_reg(client, reg, 1, &val);
 }
 
-static int mxt_read_object_table(struct i2c_client *client,
-				      u16 reg, u8 *object_buf)
-{
-	return __mxt_read_reg(client, reg, MXT_OBJECT_SIZE,
-				   object_buf);
-}
-
 static struct mxt_object *
 mxt_get_object(struct mxt_data *data, u8 type)
 {
@@ -564,7 +558,6 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 {
 	struct mxt_data *data = dev_id;
 	struct mxt_message message;
-	struct mxt_object *object;
 	struct device *dev = &data->client->dev;
 	int id;
 	u8 reportid;
@@ -579,13 +572,8 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 
 		reportid = message.reportid;
 
-		/* whether reportid is thing of MXT_TOUCH_MULTI_T9 */
-		object = mxt_get_object(data, MXT_TOUCH_MULTI_T9);
-		if (!object)
-			goto end;
-
-		max_reportid = object->max_reportid;
-		min_reportid = max_reportid - object->num_report_ids + 1;
+		max_reportid = data->T9_reportid_max;
+		min_reportid = data->T9_reportid_min;
 		id = reportid - min_reportid;
 
 		if (reportid >= min_reportid && reportid <= max_reportid)
@@ -720,30 +708,46 @@ static int mxt_get_info(struct mxt_data *data)
 
 static int mxt_get_object_table(struct mxt_data *data)
 {
+	struct i2c_client *client = data->client;
+	size_t table_size;
 	int error;
 	int i;
-	u16 reg;
-	u8 reportid = 0;
-	u8 buf[MXT_OBJECT_SIZE];
+	u8 reportid;
 
+	table_size = data->info.object_num * sizeof(struct mxt_object);
+	error = __mxt_read_reg(client, MXT_OBJECT_START, table_size,
+			data->object_table);
+	if (error)
+		return error;
+
+	/* Valid Report IDs start counting from 1 */
+	reportid = 1;
 	for (i = 0; i < data->info.object_num; i++) {
 		struct mxt_object *object = data->object_table + i;
+		u8 min_id, max_id;
 
-		reg = MXT_OBJECT_START + MXT_OBJECT_SIZE * i;
-		error = mxt_read_object_table(data->client, reg, buf);
-		if (error)
-			return error;
-
-		object->type = buf[0];
-		object->start_address = (buf[2] << 8) | buf[1];
-		object->size = buf[3];
-		object->instances = buf[4];
-		object->num_report_ids = buf[5];
+		le16_to_cpus(&object->start_address);
 
 		if (object->num_report_ids) {
+			min_id = reportid;
 			reportid += object->num_report_ids *
 					(object->instances + 1);
-			object->max_reportid = reportid;
+			max_id = reportid - 1;
+		} else {
+			min_id = 0;
+			max_id = 0;
+		}
+
+		dev_dbg(&data->client->dev,
+			"Type %2d Start %3d Size %3d Instances %2d ReportIDs %3u : %3u\n",
+			object->type, object->start_address, object->size + 1,
+			object->instances + 1, min_id, max_id);
+
+		switch (object->type) {
+		case MXT_TOUCH_MULTI_T9:
+			data->T9_reportid_min = min_id;
+			data->T9_reportid_max = max_id;
+			break;
 		}
 	}
 
@@ -754,6 +758,8 @@ static void mxt_free_object_table(struct mxt_data *data)
 {
 	kfree(data->object_table);
 	data->object_table = NULL;
+	data->T9_reportid_min = 0;
+	data->T9_reportid_max = 0;
 }
 
 static int mxt_initialize(struct mxt_data *data)
