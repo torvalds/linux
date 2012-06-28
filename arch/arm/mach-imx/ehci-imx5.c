@@ -28,11 +28,14 @@
 #define MXC_OTG_UCTRL_OPM_BIT		(1 << 24)	/* OTG power mask */
 #define MXC_H1_UCTRL_H1UIE_BIT		(1 << 12)	/* Host1 ULPI interrupt enable */
 #define MXC_H1_UCTRL_H1WIE_BIT		(1 << 11)	/* HOST1 wakeup intr enable */
-#define MXC_H1_UCTRL_H1PM_BIT		(1 <<  8)		/* HOST1 power mask */
+#define MXC_H1_UCTRL_H1PM_BIT		(1 <<  8)	/* HOST1 power mask */
 
 /* USB_PHY_CTRL_FUNC */
+#define MXC_OTG_PHYCTRL_OC_POL_BIT	(1 << 9)	/* OTG Polarity of Overcurrent */
 #define MXC_OTG_PHYCTRL_OC_DIS_BIT	(1 << 8)	/* OTG Disable Overcurrent Event */
+#define MXC_H1_OC_POL_BIT		(1 << 6)	/* UH1 Polarity of Overcurrent */
 #define MXC_H1_OC_DIS_BIT		(1 << 5)	/* UH1 Disable Overcurrent Event */
+#define MXC_OTG_PHYCTRL_PWR_POL_BIT	(1 << 3)	/* OTG Power Pin Polarity */
 
 /* USBH2CTRL */
 #define MXC_H2_UCTRL_H2UIE_BIT		(1 << 8)
@@ -80,6 +83,10 @@ int mx51_initialize_usb_hw(int port, unsigned int flags)
 		if (flags & MXC_EHCI_INTERNAL_PHY) {
 			v = __raw_readl(usbother_base + MXC_USB_PHY_CTR_FUNC_OFFSET);
 
+			if (flags & MXC_EHCI_OC_PIN_ACTIVE_LOW)
+				v |= MXC_OTG_PHYCTRL_OC_POL_BIT;
+			else
+				v &= ~MXC_OTG_PHYCTRL_OC_POL_BIT;
 			if (flags & MXC_EHCI_POWER_PINS_ENABLED) {
 				/* OC/USBPWR is not used */
 				v |= MXC_OTG_PHYCTRL_OC_DIS_BIT;
@@ -87,6 +94,10 @@ int mx51_initialize_usb_hw(int port, unsigned int flags)
 				/* OC/USBPWR is used */
 				v &= ~MXC_OTG_PHYCTRL_OC_DIS_BIT;
 			}
+			if (flags & MXC_EHCI_PWR_PIN_ACTIVE_HIGH)
+				v |= MXC_OTG_PHYCTRL_PWR_POL_BIT;
+			else
+				v &= ~MXC_OTG_PHYCTRL_PWR_POL_BIT;
 			__raw_writel(v, usbother_base + MXC_USB_PHY_CTR_FUNC_OFFSET);
 
 			v = __raw_readl(usbother_base + MXC_USBCTRL_OFFSET);
@@ -119,6 +130,10 @@ int mx51_initialize_usb_hw(int port, unsigned int flags)
 		__raw_writel(v, usbother_base + MXC_USBCTRL_OFFSET);
 
 		v = __raw_readl(usbother_base + MXC_USB_PHY_CTR_FUNC_OFFSET);
+		if (flags & MXC_EHCI_OC_PIN_ACTIVE_LOW)
+			v |= MXC_H1_OC_POL_BIT;
+		else
+			v &= ~MXC_H1_OC_POL_BIT;
 		if (flags & MXC_EHCI_POWER_PINS_ENABLED)
 			v &= ~MXC_H1_OC_DIS_BIT; /* OC is used */
 		else
