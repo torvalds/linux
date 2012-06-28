@@ -35,6 +35,7 @@
 					&mmc0_cd_cfg &mmc0_sck_cfg>;
 				bus-width = <8>;
 				wp-gpios = <&gpio2 12 0>;
+				vmmc-supply = <&reg_vddio_sd0>;
 				status = "okay";
 			};
 
@@ -42,7 +43,6 @@
 				compatible = "fsl,imx28-mmc";
 				bus-width = <8>;
 				wp-gpios = <&gpio0 28 0>;
-				status = "okay";
 			};
 
 			pinctrl@80018000 {
@@ -140,6 +140,14 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
+		};
+
+		reg_vddio_sd0: vddio-sd0 {
+			compatible = "regulator-fixed";
+			regulator-name = "vddio-sd0";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio3 28 0>;
 		};
 	};
 
