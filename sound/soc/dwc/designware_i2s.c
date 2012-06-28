@@ -71,12 +71,12 @@ struct dw_i2s_dev {
 	int (*i2s_clk_cfg)(struct i2s_clk_config_data *config);
 };
 
-static inline void i2s_write_reg(void *io_base, int reg, u32 val)
+static inline void i2s_write_reg(void __iomem *io_base, int reg, u32 val)
 {
 	writel(val, io_base + reg);
 }
 
-static inline u32 i2s_read_reg(void *io_base, int reg)
+static inline u32 i2s_read_reg(void __iomem *io_base, int reg)
 {
 	return readl(io_base + reg);
 }
