@@ -120,6 +120,9 @@
 			phy-mode = "rmii";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a>;
+			phy-supply = <&reg_fec_3v3>;
+			phy-reset-gpios = <&gpio4 13 0>;
+			phy-reset-duration = <100>;
 			status = "okay";
 		};
 
@@ -148,6 +151,14 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio3 28 0>;
+		};
+
+		reg_fec_3v3: fec-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "fec-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 15 0>;
 		};
 	};
 
