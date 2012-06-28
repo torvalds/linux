@@ -2365,12 +2365,12 @@ int si_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(0x15DC, 0);
 
 	/* empty context1-15 */
-	/* FIXME start with 1G, once using 2 level pt switch to full
+	/* FIXME start with 4G, once using 2 level pt switch to full
 	 * vm size space
 	 */
 	/* set vm size, must be a multiple of 4 */
 	WREG32(VM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
-	WREG32(VM_CONTEXT1_PAGE_TABLE_END_ADDR, (1 << 30) / RADEON_GPU_PAGE_SIZE);
+	WREG32(VM_CONTEXT1_PAGE_TABLE_END_ADDR, rdev->vm_manager.max_pfn);
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2),
