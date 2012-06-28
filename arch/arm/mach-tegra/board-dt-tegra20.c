@@ -82,11 +82,6 @@ static __initdata struct tegra_clk_init_table tegra_dt_clk_init_table[] = {
 	{ NULL,		NULL,		0,		0},
 };
 
-static struct of_device_id tegra_dt_match_table[] __initdata = {
-	{ .compatible = "simple-bus", },
-	{}
-};
-
 static void __init tegra_dt_init(void)
 {
 	tegra_clk_init_from_table(tegra_dt_clk_init_table);
@@ -95,7 +90,7 @@ static void __init tegra_dt_init(void)
 	 * Finished with the static registrations now; fill in the missing
 	 * devices
 	 */
-	of_platform_populate(NULL, tegra_dt_match_table,
+	of_platform_populate(NULL, of_default_bus_match_table,
 				tegra20_auxdata_lookup, NULL);
 }
 
