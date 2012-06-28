@@ -41,7 +41,8 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
 union smp_flush_state {
 	struct {
 		struct mm_struct *flush_mm;
-		unsigned long flush_va;
+		unsigned long flush_start;
+		unsigned long flush_end;
 		raw_spinlock_t tlbstate_lock;
 		DECLARE_BITMAP(flush_cpumask, NR_CPUS);
 	};
@@ -156,10 +157,19 @@ void smp_invalidate_interrupt(struct pt_regs *regs)
 
 	if (f->flush_mm == this_cpu_read(cpu_tlbstate.active_mm)) {
 		if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
-			if (f->flush_va == TLB_FLUSH_ALL)
+			if (f->flush_end == TLB_FLUSH_ALL
+					|| !cpu_has_invlpg)
 				local_flush_tlb();
-			else
-				__flush_tlb_one(f->flush_va);
+			else if (!f->flush_end)
+				__flush_tlb_single(f->flush_start);
+			else {
+				unsigned long addr;
+				addr = f->flush_start;
+				while (addr < f->flush_end) {
+					__flush_tlb_single(addr);
+					addr += PAGE_SIZE;
+				}
+			}
 		} else
 			leave_mm(cpu);
 	}
@@ -172,7 +182,8 @@ out:
 }
 
 static void flush_tlb_others_ipi(const struct cpumask *cpumask,
-				 struct mm_struct *mm, unsigned long va)
+				 struct mm_struct *mm, unsigned long start,
+				 unsigned long end)
 {
 	unsigned int sender;
 	union smp_flush_state *f;
@@ -185,7 +196,8 @@ static void flush_tlb_others_ipi(const struct cpumask *cpumask,
 		raw_spin_lock(&f->tlbstate_lock);
 
 	f->flush_mm = mm;
-	f->flush_va = va;
+	f->flush_start = start;
+	f->flush_end = end;
 	if (cpumask_andnot(to_cpumask(f->flush_cpumask), cpumask, cpumask_of(smp_processor_id()))) {
 		/*
 		 * We have to send the IPI only to
@@ -199,24 +211,26 @@ static void flush_tlb_others_ipi(const struct cpumask *cpumask,
 	}
 
 	f->flush_mm = NULL;
-	f->flush_va = 0;
+	f->flush_start = 0;
+	f->flush_end = 0;
 	if (nr_cpu_ids > NUM_INVALIDATE_TLB_VECTORS)
 		raw_spin_unlock(&f->tlbstate_lock);
 }
 
 void native_flush_tlb_others(const struct cpumask *cpumask,
-			     struct mm_struct *mm, unsigned long va)
+				 struct mm_struct *mm, unsigned long start,
+				 unsigned long end)
 {
 	if (is_uv_system()) {
 		unsigned int cpu;
 
 		cpu = smp_processor_id();
-		cpumask = uv_flush_tlb_others(cpumask, mm, va, cpu);
+		cpumask = uv_flush_tlb_others(cpumask, mm, start, end, cpu);
 		if (cpumask)
-			flush_tlb_others_ipi(cpumask, mm, va);
+			flush_tlb_others_ipi(cpumask, mm, start, end);
 		return;
 	}
-	flush_tlb_others_ipi(cpumask, mm, va);
+	flush_tlb_others_ipi(cpumask, mm, start, end);
 }
 
 static void __cpuinit calculate_tlb_offset(void)
@@ -282,7 +296,7 @@ void flush_tlb_current_task(void)
 
 	local_flush_tlb();
 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(mm_cpumask(mm), mm, TLB_FLUSH_ALL);
+		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
 	preempt_enable();
 }
 
@@ -297,12 +311,63 @@ void flush_tlb_mm(struct mm_struct *mm)
 			leave_mm(smp_processor_id());
 	}
 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(mm_cpumask(mm), mm, TLB_FLUSH_ALL);
+		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
 
 	preempt_enable();
 }
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
+#define FLUSHALL_BAR	16
+
+void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
+{
+	struct mm_struct *mm;
+
+	if (!cpu_has_invlpg || vma->vm_flags & VM_HUGETLB) {
+		flush_tlb_mm(vma->vm_mm);
+		return;
+	}
+
+	preempt_disable();
+	mm = vma->vm_mm;
+	if (current->active_mm == mm) {
+		if (current->mm) {
+			unsigned long addr, vmflag = vma->vm_flags;
+			unsigned act_entries, tlb_entries = 0;
+
+			if (vmflag & VM_EXEC)
+				tlb_entries = tlb_lli_4k[ENTRIES];
+			else
+				tlb_entries = tlb_lld_4k[ENTRIES];
+
+			act_entries = tlb_entries > mm->total_vm ?
+					mm->total_vm : tlb_entries;
+
+			if ((end - start)/PAGE_SIZE > act_entries/FLUSHALL_BAR)
+				local_flush_tlb();
+			else {
+				for (addr = start; addr < end;
+						addr += PAGE_SIZE)
+					__flush_tlb_single(addr);
+
+				if (cpumask_any_but(mm_cpumask(mm),
+					smp_processor_id()) < nr_cpu_ids)
+					flush_tlb_others(mm_cpumask(mm), mm,
+								start, end);
+				preempt_enable();
+				return;
+			}
+		} else {
+			leave_mm(smp_processor_id());
+		}
+	}
+	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+	preempt_enable();
+}
+
+
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
 {
 	struct mm_struct *mm = vma->vm_mm;
 
@@ -310,13 +375,13 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 
 	if (current->active_mm == mm) {
 		if (current->mm)
-			__flush_tlb_one(va);
+			__flush_tlb_one(start);
 		else
 			leave_mm(smp_processor_id());
 	}
 
 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(mm_cpumask(mm), mm, va);
+		flush_tlb_others(mm_cpumask(mm), mm, start, 0UL);
 
 	preempt_enable();
 }
