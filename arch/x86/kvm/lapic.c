@@ -719,7 +719,7 @@ static int apic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 {
 	unsigned char alignment = offset & 0xf;
 	u32 result;
-	/* this bitmask has a bit cleared for each reserver register */
+	/* this bitmask has a bit cleared for each reserved register */
 	static const u64 rmask = 0x43ff01ffffffe70cULL;
 
 	if ((alignment + len) > 4) {
@@ -792,7 +792,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 	atomic_set(&apic->lapic_timer.pending, 0);
 
 	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic)) {
-		/* lapic timer in oneshot or peroidic mode */
+		/* lapic timer in oneshot or periodic mode */
 		now = apic->lapic_timer.timer.base->get_time();
 		apic->lapic_timer.period = (u64)apic_get_reg(apic, APIC_TMICT)
 			    * APIC_BUS_CYCLE_NS * apic->divide_count;
