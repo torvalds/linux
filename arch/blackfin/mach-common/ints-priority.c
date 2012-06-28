@@ -27,7 +27,7 @@
 #include <asm/irq_handler.h>
 #include <asm/dpmc.h>
 
-#ifndef CONFIG_BF60x
+#ifndef SEC_GCTL
 # define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
 #else
 # define SIC_SYSIRQ(irq)	((irq) - IVG15)
@@ -56,7 +56,7 @@ unsigned long bfin_sic_iwr[3];	/* Up to 3 SIC_IWRx registers */
 unsigned vr_wakeup;
 #endif
 
-#ifndef CONFIG_BF60x
+#ifndef SEC_GCTL
 static struct ivgx {
 	/* irq number for request_irq, available in mach-bf5xx/irq.h */
 	unsigned int irqno;
@@ -143,7 +143,7 @@ static void bfin_core_unmask_irq(struct irq_data *d)
 void bfin_internal_mask_irq(unsigned int irq)
 {
 	unsigned long flags = hard_local_irq_save();
-#ifndef CONFIG_BF60x
+#ifndef SEC_GCTL
 #ifdef SIC_IMASK0
 	unsigned mask_bank = SIC_SYSIRQ(irq) / 32;
 	unsigned mask_bit = SIC_SYSIRQ(irq) % 32;
@@ -175,7 +175,7 @@ void bfin_internal_unmask_irq(unsigned int irq)
 {
 	unsigned long flags = hard_local_irq_save();
 
-#ifndef CONFIG_BF60x
+#ifndef SEC_GCTL
 #ifdef SIC_IMASK0
 	unsigned mask_bank = SIC_SYSIRQ(irq) / 32;
 	unsigned mask_bit = SIC_SYSIRQ(irq) % 32;
@@ -199,7 +199,7 @@ void bfin_internal_unmask_irq(unsigned int irq)
 	hard_local_irq_restore(flags);
 }
 
-#ifdef CONFIG_BF60x
+#ifdef SEC_GCTL
 static void bfin_sec_preflow_handler(struct irq_data *d)
 {
 	unsigned long flags = hard_local_irq_save();
@@ -419,7 +419,7 @@ static void bfin_internal_unmask_irq_chip(struct irq_data *d)
 }
 #endif
 
-#if defined(CONFIG_PM) && !defined(CONFIG_BF60x)
+#if defined(CONFIG_PM) && !defined(SEC_GCTL)
 int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 {
 	u32 bank, bit, wakeup = 0;
@@ -503,7 +503,7 @@ static struct irq_chip bfin_internal_irqchip = {
 	.irq_set_wake = bfin_internal_set_wake_chip,
 };
 
-#ifdef CONFIG_BF60x
+#ifdef SEC_GCTL
 static struct irq_chip bfin_sec_irqchip = {
 	.name = "SEC",
 	.irq_mask_ack = bfin_sec_mask_ack_irq,
@@ -512,7 +512,6 @@ static struct irq_chip bfin_sec_irqchip = {
 	.irq_eoi = bfin_sec_unmask_irq,
 	.irq_disable = bfin_sec_disable,
 	.irq_enable = bfin_sec_enable,
-	.irq_set_wake = bfin_internal_set_wake,
 };
 #endif
 
@@ -854,14 +853,6 @@ void bfin_demux_gpio_irq(unsigned int inta_irq,
 
 #else
 
-# ifndef CONFIG_BF60x
-#define NR_PINT_SYS_IRQS	4
-#define NR_PINTS		160
-# else
-#define NR_PINT_SYS_IRQS	6
-#define NR_PINTS		112
-#endif
-
 #define NR_PINT_BITS		32
 #define IRQ_NOT_AVAIL		0xFF
 
@@ -883,29 +874,21 @@ static struct bfin_pint_regs * const pint[NR_PINT_SYS_IRQS] = {
 #endif
 };
 
-#ifndef CONFIG_BF60x
 inline unsigned int get_irq_base(u32 bank, u8 bmap)
 {
 	unsigned int irq_base;
 
+#ifndef CONFIG_BF60x
 	if (bank < 2) {		/*PA-PB */
 		irq_base = IRQ_PA0 + bmap * 16;
 	} else {		/*PC-PJ */
 		irq_base = IRQ_PC0 + bmap * 16;
 	}
-
-	return irq_base;
-}
 #else
-inline unsigned int get_irq_base(u32 bank, u8 bmap)
-{
-	unsigned int irq_base;
-
 	irq_base = IRQ_PA0 + bank * 16 + bmap * 16;
-
+#endif
 	return irq_base;
 }
-#endif
 
 	/* Whenever PINTx_ASSIGN is altered init_pint_lut() must be executed! */
 void init_pint_lut(void)
@@ -1138,7 +1121,7 @@ void bfin_pint_resume(void)
 	}
 }
 
-#ifdef CONFIG_BF60x
+#ifdef SEC_GCTL
 static int sec_suspend(void)
 {
 	u32 bank;
@@ -1272,6 +1255,7 @@ void __cpuinit init_exception_vectors(void)
 	CSYNC();
 }
 
+#ifndef SEC_GCTL
 /*
  * This function should be called during kernel startup to initialize
  * the BFin IRQ handling routines.
@@ -1282,7 +1266,6 @@ int __init init_arch_irq(void)
 	int irq;
 	unsigned long ilat = 0;
 
-#ifndef CONFIG_BF60x
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
 #ifdef SIC_IMASK0
 	bfin_write_SIC_IMASK0(SIC_UNMASK_ALL);
@@ -1297,9 +1280,6 @@ int __init init_arch_irq(void)
 #else
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
 #endif
-#else /* CONFIG_BF60x */
-	bfin_write_SEC_GCTL(SEC_GCTL_RESET);
-#endif
 
 	local_irq_disable();
 
@@ -1309,10 +1289,6 @@ int __init init_arch_irq(void)
 	pint[1]->assign = CONFIG_PINT1_ASSIGN;
 	pint[2]->assign = CONFIG_PINT2_ASSIGN;
 	pint[3]->assign = CONFIG_PINT3_ASSIGN;
-# ifdef CONFIG_BF60x
-	pint[4]->assign = CONFIG_PINT4_ASSIGN;
-	pint[5]->assign = CONFIG_PINT5_ASSIGN;
-# endif
 # endif
 	/* Whenever PINTx_ASSIGN is altered init_pint_lut() must be executed! */
 	init_pint_lut();
@@ -1325,7 +1301,6 @@ int __init init_arch_irq(void)
 			irq_set_chip(irq, &bfin_internal_irqchip);
 
 		switch (irq) {
-#ifndef CONFIG_BF60x
 #if BFIN_GPIO_PINT
 		case IRQ_PINT0:
 		case IRQ_PINT1:
@@ -1361,7 +1336,6 @@ int __init init_arch_irq(void)
 			irq_set_handler(irq, handle_percpu_irq);
 			break;
 #endif
-#endif
 
 #ifdef CONFIG_TICKSOURCE_CORETMR
 		case IRQ_CORETMR:
@@ -1391,8 +1365,7 @@ int __init init_arch_irq(void)
 
 	init_mach_irq();
 
-#ifndef CONFIG_BF60x
-#if (defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)) && !defined(CONFIG_BF60x)
+#if (defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
 	for (irq = IRQ_MAC_PHYINT; irq <= IRQ_MAC_STMDONE; irq++)
 		irq_set_chip_and_handler(irq, &bfin_mac_status_irqchip,
 					 handle_level_irq);
@@ -1402,28 +1375,6 @@ int __init init_arch_irq(void)
 		irq < (GPIO_IRQ_BASE + MAX_BLACKFIN_GPIOS); irq++)
 		irq_set_chip_and_handler(irq, &bfin_gpio_irqchip,
 					 handle_level_irq);
-#else
-	for (irq = BFIN_IRQ(0); irq <= SYS_IRQS; irq++) {
-		if (irq < CORE_IRQS && irq != IRQ_CGU_EVT) {
-			irq_set_chip(irq, &bfin_sec_irqchip);
-			__irq_set_handler(irq, handle_sec_fault, 0, NULL);
-		} else if (irq >= BFIN_IRQ(21) && irq <= BFIN_IRQ(26)) {
-			irq_set_chip(irq, &bfin_sec_irqchip);
-			irq_set_chained_handler(irq, bfin_demux_gpio_irq);
-		} else if (irq >= BFIN_IRQ(34) && irq <= BFIN_IRQ(37)) {
-			irq_set_chip(irq, &bfin_sec_irqchip);
-			irq_set_handler(irq, handle_percpu_irq);
-		} else {
-			irq_set_chip_and_handler(irq, &bfin_sec_irqchip,
-					handle_fasteoi_irq);
-			__irq_set_preflow_handler(irq, bfin_sec_preflow_handler);
-		}
-	}
-	for (irq = GPIO_IRQ_BASE;
-		irq < (GPIO_IRQ_BASE + MAX_BLACKFIN_GPIOS); irq++)
-		irq_set_chip_and_handler(irq, &bfin_gpio_irqchip,
-					handle_level_irq);
-#endif
 	bfin_write_IMASK(0);
 	CSYNC();
 	ilat = bfin_read_ILAT();
@@ -1435,7 +1386,6 @@ int __init init_arch_irq(void)
 	/* IMASK=xxx is equivalent to STI xx or bfin_irq_flags=xx,
 	 * local_irq_enable()
 	 */
-#ifndef CONFIG_BF60x
 	program_IAR();
 	/* Therefore it's better to setup IARs before interrupts enabled */
 	search_IAR();
@@ -1469,23 +1419,6 @@ int __init init_arch_irq(void)
 #else
 	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
 #endif
-#else  /* CONFIG_BF60x */
-	/* Enable interrupts IVG7-15 */
-	bfin_irq_flags |= IMASK_IVG15 |
-	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
-	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
-
-
-	bfin_write_SEC_FCTL(SEC_FCTL_EN | SEC_FCTL_SYSRST_EN | SEC_FCTL_FLTIN_EN);
-	bfin_sec_enable_sci(SIC_SYSIRQ(IRQ_WATCH0));
-	bfin_sec_enable_ssi(SIC_SYSIRQ(IRQ_WATCH0));
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_RESET);
-	udelay(100);
-	bfin_write_SEC_GCTL(SEC_GCTL_EN);
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
-	init_software_driven_irq();
-	register_syscore_ops(&sec_pm_syscore_ops);
-#endif
 	return 0;
 }
 
@@ -1494,14 +1427,11 @@ __attribute__((l1_text))
 #endif
 static int vec_to_irq(int vec)
 {
-#ifndef CONFIG_BF60x
 	struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 	struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
 	unsigned long sic_status[3];
-#endif
 	if (likely(vec == EVT_IVTMR_P))
 		return IRQ_CORETMR;
-#ifndef CONFIG_BF60x
 #ifdef SIC_ISR
 	sic_status[0] = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
 #else
@@ -1530,11 +1460,112 @@ static int vec_to_irq(int vec)
 #endif
 			return ivg->irqno;
 	}
-#else
-	/* for bf60x read */
-	return BFIN_IRQ(bfin_read_SEC_SCI(0, SEC_CSID));
-#endif  /* end of CONFIG_BF60x */
 }
+
+#else /* SEC_GCTL */
+
+/*
+ * This function should be called during kernel startup to initialize
+ * the BFin IRQ handling routines.
+ */
+
+int __init init_arch_irq(void)
+{
+	int irq;
+	unsigned long ilat = 0;
+
+	bfin_write_SEC_GCTL(SEC_GCTL_RESET);
+
+	local_irq_disable();
+
+#if BFIN_GPIO_PINT
+# ifdef CONFIG_PINTx_REASSIGN
+	pint[0]->assign = CONFIG_PINT0_ASSIGN;
+	pint[1]->assign = CONFIG_PINT1_ASSIGN;
+	pint[2]->assign = CONFIG_PINT2_ASSIGN;
+	pint[3]->assign = CONFIG_PINT3_ASSIGN;
+	pint[4]->assign = CONFIG_PINT4_ASSIGN;
+	pint[5]->assign = CONFIG_PINT5_ASSIGN;
+# endif
+	/* Whenever PINTx_ASSIGN is altered init_pint_lut() must be executed! */
+	init_pint_lut();
+#endif
+
+	for (irq = 0; irq <= SYS_IRQS; irq++) {
+		if (irq <= IRQ_CORETMR) {
+			irq_set_chip(irq, &bfin_core_irqchip);
+#ifdef CONFIG_TICKSOURCE_CORETMR
+			if (irq == IRQ_CORETMR)
+# ifdef CONFIG_SMP
+				irq_set_handler(irq, handle_percpu_irq);
+# else
+				irq_set_handler(irq, handle_simple_irq);
+# endif
+#endif
+		} else if (irq < BFIN_IRQ(0)) {
+			irq_set_chip_and_handler(irq, &bfin_internal_irqchip,
+					handle_simple_irq);
+		} else if (irq < CORE_IRQS && irq != IRQ_CGU_EVT) {
+			irq_set_chip_and_handler(irq, &bfin_sec_irqchip,
+					handle_sec_fault);
+		} else if (irq >= BFIN_IRQ(21) && irq <= BFIN_IRQ(26)) {
+			irq_set_chip(irq, &bfin_sec_irqchip);
+			irq_set_chained_handler(irq, bfin_demux_gpio_irq);
+		} else if (irq >= BFIN_IRQ(34) && irq <= BFIN_IRQ(37)) {
+			irq_set_chip(irq, &bfin_sec_irqchip);
+			irq_set_handler(irq, handle_percpu_irq);
+		} else {
+			irq_set_chip_and_handler(irq, &bfin_sec_irqchip,
+					handle_fasteoi_irq);
+			__irq_set_preflow_handler(irq, bfin_sec_preflow_handler);
+		}
+	}
+	for (irq = GPIO_IRQ_BASE;
+		irq < (GPIO_IRQ_BASE + MAX_BLACKFIN_GPIOS); irq++)
+		irq_set_chip_and_handler(irq, &bfin_gpio_irqchip,
+					handle_level_irq);
+
+	bfin_write_IMASK(0);
+	CSYNC();
+	ilat = bfin_read_ILAT();
+	CSYNC();
+	bfin_write_ILAT(ilat);
+	CSYNC();
+
+	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
+
+	/* Enable interrupts IVG7-15 */
+	bfin_irq_flags |= IMASK_IVG15 |
+	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
+	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
+
+
+	bfin_write_SEC_FCTL(SEC_FCTL_EN | SEC_FCTL_SYSRST_EN | SEC_FCTL_FLTIN_EN);
+	bfin_sec_enable_sci(SIC_SYSIRQ(IRQ_WATCH0));
+	bfin_sec_enable_ssi(SIC_SYSIRQ(IRQ_WATCH0));
+	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_RESET);
+	udelay(100);
+	bfin_write_SEC_GCTL(SEC_GCTL_EN);
+	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
+	bfin_write_SEC_SCI(1, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
+
+	init_software_driven_irq();
+	register_syscore_ops(&sec_pm_syscore_ops);
+
+	return 0;
+}
+
+#ifdef CONFIG_DO_IRQ_L1
+__attribute__((l1_text))
+#endif
+static int vec_to_irq(int vec)
+{
+	if (likely(vec == EVT_IVTMR_P))
+		return IRQ_CORETMR;
+
+	return BFIN_IRQ(bfin_read_SEC_SCI(0, SEC_CSID));
+}
+#endif  /* SEC_GCTL */
 
 #ifdef CONFIG_DO_IRQ_L1
 __attribute__((l1_text))
@@ -1556,6 +1587,10 @@ int __ipipe_get_irq_priority(unsigned irq)
 	if (irq <= IRQ_CORETMR)
 		return irq;
 
+#ifdef SEC_GCTL
+	if (irq >= BFIN_IRQ(0))
+		return IVG11;
+#else
 	for (ient = 0; ient < NR_PERI_INTS; ient++) {
 		struct ivgx *ivg = ivg_table + ient;
 		if (ivg->irqno == irq) {
@@ -1566,6 +1601,7 @@ int __ipipe_get_irq_priority(unsigned irq)
 			}
 		}
 	}
+#endif
 
 	return IVG15;
 }
@@ -1578,8 +1614,6 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 {
 	struct ipipe_percpu_domain_data *p = ipipe_root_cpudom_ptr();
 	struct ipipe_domain *this_domain = __ipipe_current_domain;
-	struct ivgx *ivg_stop = ivg7_13[vec-IVG7].istop;
-	struct ivgx *ivg = ivg7_13[vec-IVG7].ifirst;
 	int irq, s = 0;
 
 	irq = vec_to_irq(vec);
