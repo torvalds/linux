@@ -55,26 +55,26 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
 
 struct dst_entry *inet6_csk_route_req(struct sock *sk,
+				      struct flowi6 *fl6,
 				      const struct request_sock *req)
 {
 	struct inet6_request_sock *treq = inet6_rsk(req);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_addr *final_p, final;
 	struct dst_entry *dst;
-	struct flowi6 fl6;
 
-	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_TCP;
-	fl6.daddr = treq->rmt_addr;
-	final_p = fl6_update_dst(&fl6, np->opt, &final);
-	fl6.saddr = treq->loc_addr;
-	fl6.flowi6_oif = treq->iif;
-	fl6.flowi6_mark = sk->sk_mark;
-	fl6.fl6_dport = inet_rsk(req)->rmt_port;
-	fl6.fl6_sport = inet_rsk(req)->loc_port;
-	security_req_classify_flow(req, flowi6_to_flowi(&fl6));
+	memset(fl6, 0, sizeof(*fl6));
+	fl6->flowi6_proto = IPPROTO_TCP;
+	fl6->daddr = treq->rmt_addr;
+	final_p = fl6_update_dst(fl6, np->opt, &final);
+	fl6->saddr = treq->loc_addr;
+	fl6->flowi6_oif = treq->iif;
+	fl6->flowi6_mark = sk->sk_mark;
+	fl6->fl6_dport = inet_rsk(req)->rmt_port;
+	fl6->fl6_sport = inet_rsk(req)->loc_port;
+	security_req_classify_flow(req, flowi6_to_flowi(fl6));
 
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
+	dst = ip6_dst_lookup_flow(sk, fl6, final_p, false);
 	if (IS_ERR(dst))
 		return NULL;
 
