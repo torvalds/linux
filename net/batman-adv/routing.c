@@ -42,6 +42,7 @@ void batadv_slide_own_bcast_window(struct hard_iface *hard_iface)
 	unsigned long *word;
 	uint32_t i;
 	size_t word_index;
+	uint8_t *w;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -49,12 +50,12 @@ void batadv_slide_own_bcast_window(struct hard_iface *hard_iface)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			spin_lock_bh(&orig_node->ogm_cnt_lock);
-			word_index = hard_iface->if_num * NUM_WORDS;
+			word_index = hard_iface->if_num * BATADV_NUM_WORDS;
 			word = &(orig_node->bcast_own[word_index]);
 
 			batadv_bit_get_packet(bat_priv, word, 1, 0);
-			orig_node->bcast_own_sum[hard_iface->if_num] =
-				bitmap_weight(word, TQ_LOCAL_WINDOW_SIZE);
+			w = &orig_node->bcast_own_sum[hard_iface->if_num];
+			*w = bitmap_weight(word, BATADV_TQ_LOCAL_WINDOW_SIZE);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 		}
 		rcu_read_unlock();
@@ -160,7 +161,7 @@ void batadv_bonding_candidate_add(struct orig_node *orig_node,
 		goto candidate_del;
 
 	/* ... and is good enough to be considered */
-	if (neigh_node->tq_avg < router->tq_avg - BONDING_TQ_THRESHOLD)
+	if (neigh_node->tq_avg < router->tq_avg - BATADV_BONDING_TQ_THRESHOLD)
 		goto candidate_del;
 
 	/* check if we have another candidate with the same mac address or
@@ -232,9 +233,10 @@ batadv_bonding_save_primary(const struct orig_node *orig_node,
 int batadv_window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 			    unsigned long *last_reset)
 {
-	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE) ||
-	    (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
-		if (!batadv_has_timed_out(*last_reset, RESET_PROTECTION_MS))
+	if (seq_num_diff <= -BATADV_TQ_LOCAL_WINDOW_SIZE ||
+	    seq_num_diff >= BATADV_EXPECTED_SEQNO_RANGE) {
+		if (!batadv_has_timed_out(*last_reset,
+					  BATADV_RESET_PROTECTION_MS))
 			return 1;
 
 		*last_reset = jiffies;
@@ -316,7 +318,7 @@ static int batadv_recv_my_icmp_packet(struct bat_priv *bat_priv,
 	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
 	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	icmp_packet->msg_type = ECHO_REPLY;
-	icmp_packet->header.ttl = TTL;
+	icmp_packet->header.ttl = BATADV_TTL;
 
 	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
 	ret = NET_RX_SUCCESS;
@@ -371,7 +373,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 	memcpy(icmp_packet->dst, icmp_packet->orig, ETH_ALEN);
 	memcpy(icmp_packet->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	icmp_packet->msg_type = TTL_EXCEEDED;
-	icmp_packet->header.ttl = TTL;
+	icmp_packet->header.ttl = BATADV_TTL;
 
 	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
 	ret = NET_RX_SUCCESS;
@@ -423,7 +425,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	/* add record route information if not full */
 	if ((hdr_size == sizeof(struct icmp_packet_rr)) &&
-	    (icmp_packet->rr_cur < BAT_RR_LEN)) {
+	    (icmp_packet->rr_cur < BATADV_RR_LEN)) {
 		memcpy(&(icmp_packet->rr[icmp_packet->rr_cur]),
 		       ethhdr->h_dest, ETH_ALEN);
 		icmp_packet->rr_cur++;
@@ -603,7 +605,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	tt_query = (struct tt_query_packet *)skb->data;
 
-	switch (tt_query->flags & TT_QUERY_TYPE_MASK) {
+	switch (tt_query->flags & BATADV_TT_QUERY_TYPE_MASK) {
 	case TT_REQUEST:
 		batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_RX);
 
@@ -699,8 +701,8 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 		   roam_adv_packet->src, roam_adv_packet->client);
 
 	batadv_tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
-			     atomic_read(&orig_node->last_ttvn) + 1, true,
-			     false);
+			     TT_CLIENT_ROAM,
+			     atomic_read(&orig_node->last_ttvn) + 1);
 
 	/* Roaming phase starts: I have new information but the ttvn has not
 	 * been incremented yet. This flag will make me check all the incoming
@@ -922,6 +924,7 @@ static int batadv_check_unicast_ttvn(struct bat_priv *bat_priv,
 	struct hard_iface *primary_if;
 	struct unicast_packet *unicast_packet;
 	bool tt_poss_change;
+	int is_old_ttvn;
 
 	/* I could need to modify it */
 	if (skb_cow(skb, sizeof(struct unicast_packet)) < 0)
@@ -945,7 +948,8 @@ static int batadv_check_unicast_ttvn(struct bat_priv *bat_priv,
 	}
 
 	/* Check whether I have to reroute the packet */
-	if (seq_before(unicast_packet->ttvn, curr_ttvn) || tt_poss_change) {
+	is_old_ttvn = batadv_seq_before(unicast_packet->ttvn, curr_ttvn);
+	if (is_old_ttvn || tt_poss_change) {
 		/* check if there is enough data before accessing it */
 		if (pskb_may_pull(skb, sizeof(struct unicast_packet) +
 				  ETH_HLEN) < 0)

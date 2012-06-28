@@ -20,7 +20,7 @@
 #ifndef _NET_BATMAN_ADV_ICMP_SOCKET_H_
 #define _NET_BATMAN_ADV_ICMP_SOCKET_H_
 
-#define ICMP_SOCKET "socket"
+#define BATADV_ICMP_SOCKET "socket"
 
 void batadv_socket_init(void);
 int batadv_socket_setup(struct bat_priv *bat_priv);

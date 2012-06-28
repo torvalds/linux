@@ -36,7 +36,7 @@ void batadv_bla_update_orig_address(struct bat_priv *bat_priv,
 int batadv_bla_init(struct bat_priv *bat_priv);
 void batadv_bla_free(struct bat_priv *bat_priv);
 
-#define BLA_CRC_INIT	0
+#define BATADV_BLA_CRC_INIT	0
 #else /* ifdef CONFIG_BATMAN_ADV_BLA */
 
 static inline int batadv_bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb,

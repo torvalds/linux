@@ -108,7 +108,7 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 	if (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE) {
 		batadv_tt_local_remove(bat_priv, dev->dev_addr,
 				       "mac address changed", false);
-		batadv_tt_local_add(dev, addr->sa_data, NULL_IFINDEX);
+		batadv_tt_local_add(dev, addr->sa_data, BATADV_NULL_IFINDEX);
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
@@ -135,6 +135,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	struct hard_iface *primary_if = NULL;
 	struct bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
+	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 	static const uint8_t stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00, 0x00,
 						   0x00};
 	unsigned int header_len = 0;
@@ -152,11 +153,11 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		vhdr = (struct vlan_ethhdr *)skb->data;
 		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
 
-		if (ntohs(vhdr->h_vlan_encapsulated_proto) != ETH_P_BATMAN)
+		if (vhdr->h_vlan_encapsulated_proto != ethertype)
 			break;
 
 		/* fall through */
-	case ETH_P_BATMAN:
+	case BATADV_ETH_P_BATMAN:
 		goto dropped;
 	}
 
@@ -208,8 +209,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			goto dropped;
 
 		bcast_packet = (struct bcast_packet *)skb->data;
-		bcast_packet->header.version = COMPAT_VERSION;
-		bcast_packet->header.ttl = TTL;
+		bcast_packet->header.version = BATADV_COMPAT_VERSION;
+		bcast_packet->header.ttl = BATADV_TTL;
 
 		/* batman packet type: broadcast */
 		bcast_packet->header.packet_type = BAT_BCAST;
@@ -266,6 +267,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
 	short vid __maybe_unused = -1;
+	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 
 	/* check if enough space is available for pulling, and pull */
 	if (!pskb_may_pull(skb, hdr_size))
@@ -281,11 +283,11 @@ void batadv_interface_rx(struct net_device *soft_iface,
 		vhdr = (struct vlan_ethhdr *)skb->data;
 		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
 
-		if (ntohs(vhdr->h_vlan_encapsulated_proto) != ETH_P_BATMAN)
+		if (vhdr->h_vlan_encapsulated_proto != ethertype)
 			break;
 
 		/* fall through */
-	case ETH_P_BATMAN:
+	case BATADV_ETH_P_BATMAN:
 		goto dropped;
 	}
 
@@ -349,7 +351,7 @@ static void batadv_interface_setup(struct net_device *dev)
 	 */
 	dev->mtu = ETH_DATA_LEN;
 	/* reserve more space in the skbuff for our header */
-	dev->hard_header_len = BAT_HEADER_LEN;
+	dev->hard_header_len = BATADV_HEADER_LEN;
 
 	/* generate random address */
 	eth_hw_addr_random(dev);
@@ -392,8 +394,8 @@ struct net_device *batadv_softif_create(const char *name)
 	atomic_set(&bat_priv->hop_penalty, 30);
 	atomic_set(&bat_priv->log_level, 0);
 	atomic_set(&bat_priv->fragmentation, 1);
-	atomic_set(&bat_priv->bcast_queue_left, BCAST_QUEUE_LEN);
-	atomic_set(&bat_priv->batman_queue_left, BATMAN_QUEUE_LEN);
+	atomic_set(&bat_priv->bcast_queue_left, BATADV_BCAST_QUEUE_LEN);
+	atomic_set(&bat_priv->batman_queue_left, BATADV_BATMAN_QUEUE_LEN);
 
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 	atomic_set(&bat_priv->bcast_seqno, 1);
@@ -485,7 +487,7 @@ static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
 	strcpy(info->driver, "B.A.T.M.A.N. advanced");
-	strcpy(info->version, SOURCE_VERSION);
+	strcpy(info->version, BATADV_SOURCE_VERSION);
 	strcpy(info->fw_version, "N/A");
 	strcpy(info->bus_info, "batman");
 }

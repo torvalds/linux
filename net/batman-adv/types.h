@@ -22,12 +22,11 @@
 
 #include "packet.h"
 #include "bitarray.h"
+#include <linux/kernel.h>
 
-#define BAT_HEADER_LEN (ETH_HLEN + \
-	((sizeof(struct unicast_packet) > sizeof(struct bcast_packet) ? \
-	 sizeof(struct unicast_packet) : \
-	 sizeof(struct bcast_packet))))
-
+#define BATADV_HEADER_LEN \
+	(ETH_HLEN + max(sizeof(struct unicast_packet), \
+			sizeof(struct bcast_packet)))
 
 struct hard_iface {
 	struct list_head list;
@@ -86,7 +85,7 @@ struct orig_node {
 	bool tt_poss_change;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
-	DECLARE_BITMAP(bcast_bits, TQ_LOCAL_WINDOW_SIZE);
+	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;
 	struct list_head frag_list;
@@ -122,13 +121,13 @@ struct neigh_node {
 	struct hlist_node list;
 	uint8_t addr[ETH_ALEN];
 	uint8_t real_packet_count;
-	uint8_t tq_recv[TQ_GLOBAL_WINDOW_SIZE];
+	uint8_t tq_recv[BATADV_TQ_GLOBAL_WINDOW_SIZE];
 	uint8_t tq_index;
 	uint8_t tq_avg;
 	uint8_t last_ttl;
 	struct list_head bonding_list;
 	unsigned long last_seen;
-	DECLARE_BITMAP(real_bits, TQ_LOCAL_WINDOW_SIZE);
+	DECLARE_BITMAP(real_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 	atomic_t refcount;
 	struct rcu_head rcu;
 	struct orig_node *orig_node;
@@ -210,7 +209,7 @@ struct bat_priv {
 	struct list_head tt_roam_list;
 	struct hashtable_t *vis_hash;
 #ifdef CONFIG_BATMAN_ADV_BLA
-	struct bcast_duplist_entry bcast_duplist[DUPLIST_SIZE];
+	struct bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
 	int bcast_duplist_curr;
 	struct bla_claim_dst claim_dest;
 #endif
@@ -349,7 +348,7 @@ struct if_list_entry {
 };
 
 struct debug_log {
-	char log_buff[LOG_BUF_LEN];
+	char log_buff[BATADV_LOG_BUF_LEN];
 	unsigned long log_start;
 	unsigned long log_end;
 	spinlock_t lock; /* protects log_buff, log_start and log_end */

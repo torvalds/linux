@@ -26,9 +26,9 @@ enum gw_modes {
 	GW_MODE_SERVER,
 };
 
-#define GW_MODE_OFF_NAME	"off"
-#define GW_MODE_CLIENT_NAME	"client"
-#define GW_MODE_SERVER_NAME	"server"
+#define BATADV_GW_MODE_OFF_NAME	"off"
+#define BATADV_GW_MODE_CLIENT_NAME	"client"
+#define BATADV_GW_MODE_SERVER_NAME	"server"
 
 void batadv_gw_bandwidth_to_kbit(uint8_t gw_class, int *down, int *up);
 ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,

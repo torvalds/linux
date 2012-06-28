@@ -20,7 +20,7 @@
 #ifndef _NET_BATMAN_ADV_PACKET_H_
 #define _NET_BATMAN_ADV_PACKET_H_
 
-#define ETH_P_BATMAN  0x4305	/* unofficial/not registered Ethertype */
+#define BATADV_ETH_P_BATMAN  0x4305 /* unofficial/not registered Ethertype */
 
 enum bat_packettype {
 	BAT_IV_OGM	 = 0x01,
@@ -34,7 +34,7 @@ enum bat_packettype {
 };
 
 /* this file is included by batctl which needs these defines */
-#define COMPAT_VERSION 14
+#define BATADV_COMPAT_VERSION 14
 
 enum batman_iv_flags {
 	NOT_BEST_NEXT_HOP   = 1 << 3,
@@ -65,7 +65,7 @@ enum unicast_frag_flags {
 };
 
 /* TT_QUERY subtypes */
-#define TT_QUERY_TYPE_MASK 0x3
+#define BATADV_TT_QUERY_TYPE_MASK 0x3
 
 enum tt_query_packettype {
 	TT_REQUEST    = 0,
@@ -126,7 +126,7 @@ struct batman_ogm_packet {
 	__be16   tt_crc;
 } __packed;
 
-#define BATMAN_OGM_HLEN sizeof(struct batman_ogm_packet)
+#define BATADV_OGM_HLEN sizeof(struct batman_ogm_packet)
 
 struct icmp_packet {
 	struct batman_header header;
@@ -138,7 +138,7 @@ struct icmp_packet {
 	uint8_t  reserved;
 } __packed;
 
-#define BAT_RR_LEN 16
+#define BATADV_RR_LEN 16
 
 /* icmp_packet_rr must start with all fields from imcp_packet
  * as this is assumed by code that handles ICMP packets
@@ -151,7 +151,7 @@ struct icmp_packet_rr {
 	__be16   seqno;
 	uint8_t  uid;
 	uint8_t  rr_cur;
-	uint8_t  rr[BAT_RR_LEN][ETH_ALEN];
+	uint8_t  rr[BATADV_RR_LEN][ETH_ALEN];
 } __packed;
 
 struct unicast_packet {

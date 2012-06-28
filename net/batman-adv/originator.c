@@ -194,6 +194,7 @@ struct orig_node *batadv_get_orig_node(struct bat_priv *bat_priv,
 	struct orig_node *orig_node;
 	int size;
 	int hash_added;
+	unsigned long reset_time;
 
 	orig_node = batadv_orig_hash_find(bat_priv, addr);
 	if (orig_node)
@@ -226,14 +227,13 @@ struct orig_node *batadv_get_orig_node(struct bat_priv *bat_priv,
 	orig_node->tt_buff = NULL;
 	orig_node->tt_buff_len = 0;
 	atomic_set(&orig_node->tt_size, 0);
-	orig_node->bcast_seqno_reset = jiffies - 1
-					- msecs_to_jiffies(RESET_PROTECTION_MS);
-	orig_node->batman_seqno_reset = jiffies - 1
-					- msecs_to_jiffies(RESET_PROTECTION_MS);
+	reset_time = jiffies - 1 - msecs_to_jiffies(BATADV_RESET_PROTECTION_MS);
+	orig_node->bcast_seqno_reset = reset_time;
+	orig_node->batman_seqno_reset = reset_time;
 
 	atomic_set(&orig_node->bond_candidates, 0);
 
-	size = bat_priv->num_ifaces * sizeof(unsigned long) * NUM_WORDS;
+	size = bat_priv->num_ifaces * sizeof(unsigned long) * BATADV_NUM_WORDS;
 
 	orig_node->bcast_own = kzalloc(size, GFP_ATOMIC);
 	if (!orig_node->bcast_own)
@@ -285,7 +285,7 @@ static bool batadv_purge_orig_neighbors(struct bat_priv *bat_priv,
 		last_seen = neigh_node->last_seen;
 		if_incoming = neigh_node->if_incoming;
 
-		if ((batadv_has_timed_out(last_seen, PURGE_TIMEOUT)) ||
+		if ((batadv_has_timed_out(last_seen, BATADV_PURGE_TIMEOUT)) ||
 		    (if_incoming->if_status == IF_INACTIVE) ||
 		    (if_incoming->if_status == IF_NOT_IN_USE) ||
 		    (if_incoming->if_status == IF_TO_BE_REMOVED)) {
@@ -324,7 +324,8 @@ static bool batadv_purge_orig_node(struct bat_priv *bat_priv,
 {
 	struct neigh_node *best_neigh_node;
 
-	if (batadv_has_timed_out(orig_node->last_seen, 2 * PURGE_TIMEOUT)) {
+	if (batadv_has_timed_out(orig_node->last_seen,
+				 2 * BATADV_PURGE_TIMEOUT)) {
 		batadv_dbg(DBG_BATMAN, bat_priv,
 			   "Originator timeout: originator %pM, last_seen %u\n",
 			   orig_node->orig,
@@ -370,7 +371,7 @@ static void _batadv_purge_orig(struct bat_priv *bat_priv)
 			}
 
 			if (batadv_has_timed_out(orig_node->last_frag_packet,
-						 FRAG_TIMEOUT))
+						 BATADV_FRAG_TIMEOUT))
 				batadv_frag_list_free(&orig_node->frag_list);
 		}
 		spin_unlock_bh(list_lock);
@@ -429,11 +430,11 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 	}
 
 	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
-		   SOURCE_VERSION, primary_if->net_dev->name,
+		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name);
 	seq_printf(seq, "  %-15s %s (%s/%i) %17s [%10s]: %20s ...\n",
-		   "Originator", "last-seen", "#", TQ_MAX_VALUE, "Nexthop",
-		   "outgoingIF", "Potential nexthops");
+		   "Originator", "last-seen", "#", BATADV_TQ_MAX_VALUE,
+		   "Nexthop", "outgoingIF", "Potential nexthops");
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -486,14 +487,15 @@ out:
 static int batadv_orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 {
 	void *data_ptr;
+	size_t data_size, old_size;
 
-	data_ptr = kmalloc(max_if_num * sizeof(unsigned long) * NUM_WORDS,
-			   GFP_ATOMIC);
+	data_size = max_if_num * sizeof(unsigned long) * BATADV_NUM_WORDS;
+	old_size = (max_if_num - 1) * sizeof(unsigned long) * BATADV_NUM_WORDS;
+	data_ptr = kmalloc(data_size, GFP_ATOMIC);
 	if (!data_ptr)
 		return -ENOMEM;
 
-	memcpy(data_ptr, orig_node->bcast_own,
-	       (max_if_num - 1) * sizeof(unsigned long) * NUM_WORDS);
+	memcpy(data_ptr, orig_node->bcast_own, old_size);
 	kfree(orig_node->bcast_own);
 	orig_node->bcast_own = data_ptr;
 
@@ -554,7 +556,7 @@ static int batadv_orig_node_del_if(struct orig_node *orig_node,
 	if (max_if_num == 0)
 		goto free_bcast_own;
 
-	chunk_size = sizeof(unsigned long) * NUM_WORDS;
+	chunk_size = sizeof(unsigned long) * BATADV_NUM_WORDS;
 	data_ptr = kmalloc(max_if_num * chunk_size, GFP_ATOMIC);
 	if (!data_ptr)
 		return -ENOMEM;

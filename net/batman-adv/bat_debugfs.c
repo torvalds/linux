@@ -35,14 +35,14 @@
 static struct dentry *batadv_debugfs;
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-#define LOG_BUFF_MASK (batadv_log_buff_len - 1)
-#define LOG_BUFF(idx) (debug_log->log_buff[(idx) & LOG_BUFF_MASK])
+#define BATADV_LOG_BUFF_MASK (batadv_log_buff_len - 1)
+#define BATADV_LOG_BUFF(idx) (debug_log->log_buff[(idx) & BATADV_LOG_BUFF_MASK])
 
-static int batadv_log_buff_len = LOG_BUF_LEN;
+static int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
 
 static void batadv_emit_log_char(struct debug_log *debug_log, char c)
 {
-	LOG_BUFF(debug_log->log_end) = c;
+	BATADV_LOG_BUFF(debug_log->log_end) = c;
 	debug_log->log_end++;
 
 	if (debug_log->log_end - debug_log->log_start > batadv_log_buff_len)
@@ -133,7 +133,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 
 	while ((!error) && (i < count) &&
 	       (debug_log->log_start != debug_log->log_end)) {
-		c = LOG_BUFF(debug_log->log_start);
+		c = BATADV_LOG_BUFF(debug_log->log_start);
 
 		debug_log->log_start++;
 
@@ -270,7 +270,7 @@ struct bat_debuginfo {
 	const struct file_operations fops;
 };
 
-#define BAT_DEBUGINFO(_name, _mode, _open)		\
+#define BATADV_DEBUGINFO(_name, _mode, _open)		\
 struct bat_debuginfo batadv_debuginfo_##_name = {	\
 	.attr = { .name = __stringify(_name),		\
 		  .mode = _mode, },			\
@@ -282,15 +282,17 @@ struct bat_debuginfo batadv_debuginfo_##_name = {	\
 		}					\
 };
 
-static BAT_DEBUGINFO(routing_algos, S_IRUGO, batadv_algorithms_open);
-static BAT_DEBUGINFO(originators, S_IRUGO, batadv_originators_open);
-static BAT_DEBUGINFO(gateways, S_IRUGO, batadv_gateways_open);
-static BAT_DEBUGINFO(transtable_global, S_IRUGO, batadv_transtable_global_open);
+static BATADV_DEBUGINFO(routing_algos, S_IRUGO, batadv_algorithms_open);
+static BATADV_DEBUGINFO(originators, S_IRUGO, batadv_originators_open);
+static BATADV_DEBUGINFO(gateways, S_IRUGO, batadv_gateways_open);
+static BATADV_DEBUGINFO(transtable_global, S_IRUGO,
+			batadv_transtable_global_open);
 #ifdef CONFIG_BATMAN_ADV_BLA
-static BAT_DEBUGINFO(bla_claim_table, S_IRUGO, batadv_bla_claim_table_open);
+static BATADV_DEBUGINFO(bla_claim_table, S_IRUGO, batadv_bla_claim_table_open);
 #endif
-static BAT_DEBUGINFO(transtable_local, S_IRUGO, batadv_transtable_local_open);
-static BAT_DEBUGINFO(vis_data, S_IRUGO, batadv_vis_data_open);
+static BATADV_DEBUGINFO(transtable_local, S_IRUGO,
+			batadv_transtable_local_open);
+static BATADV_DEBUGINFO(vis_data, S_IRUGO, batadv_vis_data_open);
 
 static struct bat_debuginfo *batadv_mesh_debuginfos[] = {
 	&batadv_debuginfo_originators,
@@ -309,7 +311,7 @@ void batadv_debugfs_init(void)
 	struct bat_debuginfo *bat_debug;
 	struct dentry *file;
 
-	batadv_debugfs = debugfs_create_dir(DEBUGFS_BAT_SUBDIR, NULL);
+	batadv_debugfs = debugfs_create_dir(BATADV_DEBUGFS_SUBDIR, NULL);
 	if (batadv_debugfs == ERR_PTR(-ENODEV))
 		batadv_debugfs = NULL;
 
@@ -360,8 +362,8 @@ int batadv_debugfs_add_meshif(struct net_device *dev)
 					  bat_priv->debug_dir,
 					  dev, &(*bat_debug)->fops);
 		if (!file) {
-			bat_err(dev, "Can't add debugfs file: %s/%s\n",
-				dev->name, ((*bat_debug)->attr).name);
+			batadv_err(dev, "Can't add debugfs file: %s/%s\n",
+				   dev->name, ((*bat_debug)->attr).name);
 			goto rem_attr;
 		}
 	}

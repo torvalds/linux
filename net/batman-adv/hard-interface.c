@@ -196,7 +196,8 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		min_mtu = min_t(int, hard_iface->net_dev->mtu - BAT_HEADER_LEN,
+		min_mtu = min_t(int,
+				hard_iface->net_dev->mtu - BATADV_HEADER_LEN,
 				min_mtu);
 	}
 	rcu_read_unlock();
@@ -234,8 +235,8 @@ static void batadv_hardif_activate_interface(struct hard_iface *hard_iface)
 	if (!primary_if)
 		batadv_primary_if_select(bat_priv, hard_iface);
 
-	bat_info(hard_iface->soft_iface, "Interface activated: %s\n",
-		 hard_iface->net_dev->name);
+	batadv_info(hard_iface->soft_iface, "Interface activated: %s\n",
+		    hard_iface->net_dev->name);
 
 	batadv_update_min_mtu(hard_iface->soft_iface);
 
@@ -252,8 +253,8 @@ static void batadv_hardif_deactivate_interface(struct hard_iface *hard_iface)
 
 	hard_iface->if_status = IF_INACTIVE;
 
-	bat_info(hard_iface->soft_iface, "Interface deactivated: %s\n",
-		 hard_iface->net_dev->name);
+	batadv_info(hard_iface->soft_iface, "Interface deactivated: %s\n",
+		    hard_iface->net_dev->name);
 
 	batadv_update_min_mtu(hard_iface->soft_iface);
 }
@@ -263,6 +264,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 {
 	struct bat_priv *bat_priv;
 	struct net_device *soft_iface;
+	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
 	int ret;
 
 	if (hard_iface->if_status != IF_NOT_IN_USE)
@@ -309,35 +311,35 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 	hard_iface->if_status = IF_INACTIVE;
 	batadv_orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
 
-	hard_iface->batman_adv_ptype.type = __constant_htons(ETH_P_BATMAN);
+	hard_iface->batman_adv_ptype.type = ethertype;
 	hard_iface->batman_adv_ptype.func = batadv_batman_skb_recv;
 	hard_iface->batman_adv_ptype.dev = hard_iface->net_dev;
 	dev_add_pack(&hard_iface->batman_adv_ptype);
 
 	atomic_set(&hard_iface->frag_seqno, 1);
-	bat_info(hard_iface->soft_iface, "Adding interface: %s\n",
-		 hard_iface->net_dev->name);
+	batadv_info(hard_iface->soft_iface, "Adding interface: %s\n",
+		    hard_iface->net_dev->name);
 
 	if (atomic_read(&bat_priv->fragmentation) && hard_iface->net_dev->mtu <
-		ETH_DATA_LEN + BAT_HEADER_LEN)
-		bat_info(hard_iface->soft_iface,
-			 "The MTU of interface %s is too small (%i) to handle the transport of batman-adv packets. Packets going over this interface will be fragmented on layer2 which could impact the performance. Setting the MTU to %zi would solve the problem.\n",
-			 hard_iface->net_dev->name, hard_iface->net_dev->mtu,
-			 ETH_DATA_LEN + BAT_HEADER_LEN);
+		ETH_DATA_LEN + BATADV_HEADER_LEN)
+		batadv_info(hard_iface->soft_iface,
+			    "The MTU of interface %s is too small (%i) to handle the transport of batman-adv packets. Packets going over this interface will be fragmented on layer2 which could impact the performance. Setting the MTU to %zi would solve the problem.\n",
+			    hard_iface->net_dev->name, hard_iface->net_dev->mtu,
+			    ETH_DATA_LEN + BATADV_HEADER_LEN);
 
 	if (!atomic_read(&bat_priv->fragmentation) && hard_iface->net_dev->mtu <
-		ETH_DATA_LEN + BAT_HEADER_LEN)
-		bat_info(hard_iface->soft_iface,
-			 "The MTU of interface %s is too small (%i) to handle the transport of batman-adv packets. If you experience problems getting traffic through try increasing the MTU to %zi.\n",
-			 hard_iface->net_dev->name, hard_iface->net_dev->mtu,
-			 ETH_DATA_LEN + BAT_HEADER_LEN);
+		ETH_DATA_LEN + BATADV_HEADER_LEN)
+		batadv_info(hard_iface->soft_iface,
+			    "The MTU of interface %s is too small (%i) to handle the transport of batman-adv packets. If you experience problems getting traffic through try increasing the MTU to %zi.\n",
+			    hard_iface->net_dev->name, hard_iface->net_dev->mtu,
+			    ETH_DATA_LEN + BATADV_HEADER_LEN);
 
 	if (batadv_hardif_is_iface_up(hard_iface))
 		batadv_hardif_activate_interface(hard_iface);
 	else
-		bat_err(hard_iface->soft_iface,
-			"Not using interface %s (retrying later): interface not active\n",
-			hard_iface->net_dev->name);
+		batadv_err(hard_iface->soft_iface,
+			   "Not using interface %s (retrying later): interface not active\n",
+			   hard_iface->net_dev->name);
 
 	/* begin scheduling originator messages on that interface */
 	batadv_schedule_bat_ogm(hard_iface);
@@ -363,8 +365,8 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 	if (hard_iface->if_status != IF_INACTIVE)
 		goto out;
 
-	bat_info(hard_iface->soft_iface, "Removing interface: %s\n",
-		 hard_iface->net_dev->name);
+	batadv_info(hard_iface->soft_iface, "Removing interface: %s\n",
+		    hard_iface->net_dev->name);
 	dev_remove_pack(&hard_iface->batman_adv_ptype);
 
 	bat_priv->num_ifaces--;
@@ -546,7 +548,7 @@ bool batadv_is_wifi_iface(int ifindex)
 	struct net_device *net_device = NULL;
 	bool ret = false;
 
-	if (ifindex == NULL_IFINDEX)
+	if (ifindex == BATADV_NULL_IFINDEX)
 		goto out;
 
 	net_device = dev_get_by_index(&init_net, ifindex);

@@ -20,79 +20,80 @@
 #ifndef _NET_BATMAN_ADV_MAIN_H_
 #define _NET_BATMAN_ADV_MAIN_H_
 
-#define DRIVER_AUTHOR "Marek Lindner <lindner_marek@yahoo.de>, " \
-		      "Simon Wunderlich <siwu@hrz.tu-chemnitz.de>"
-#define DRIVER_DESC   "B.A.T.M.A.N. advanced"
-#define DRIVER_DEVICE "batman-adv"
+#define BATADV_DRIVER_AUTHOR "Marek Lindner <lindner_marek@yahoo.de>, " \
+			     "Simon Wunderlich <siwu@hrz.tu-chemnitz.de>"
+#define BATADV_DRIVER_DESC   "B.A.T.M.A.N. advanced"
+#define BATADV_DRIVER_DEVICE "batman-adv"
 
-#ifndef SOURCE_VERSION
-#define SOURCE_VERSION "2012.3.0"
+#ifndef BATADV_SOURCE_VERSION
+#define BATADV_SOURCE_VERSION "2012.3.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
 
-#define TQ_MAX_VALUE 255
-#define JITTER 20
+#define BATADV_TQ_MAX_VALUE 255
+#define BATADV_JITTER 20
 
 /* Time To Live of broadcast messages */
-#define TTL 50
+#define BATADV_TTL 50
 
 /* purge originators after time in seconds if no valid packet comes in
- * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE
+ * -> TODO: check influence on BATADV_TQ_LOCAL_WINDOW_SIZE
  */
-#define PURGE_TIMEOUT 200000 /* 200 seconds */
-#define TT_LOCAL_TIMEOUT 3600000 /* in miliseconds */
-#define TT_CLIENT_ROAM_TIMEOUT 600000 /* in miliseconds */
+#define BATADV_PURGE_TIMEOUT 200000 /* 200 seconds */
+#define BATADV_TT_LOCAL_TIMEOUT 3600000 /* in miliseconds */
+#define BATADV_TT_CLIENT_ROAM_TIMEOUT 600000 /* in miliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size)
  */
-#define TQ_LOCAL_WINDOW_SIZE 64
+#define BATADV_TQ_LOCAL_WINDOW_SIZE 64
 /* miliseconds we have to keep pending tt_req */
-#define TT_REQUEST_TIMEOUT 3000
+#define BATADV_TT_REQUEST_TIMEOUT 3000
 
-#define TQ_GLOBAL_WINDOW_SIZE 5
-#define TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
-#define TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
-#define TQ_TOTAL_BIDRECT_LIMIT 1
+#define BATADV_TQ_GLOBAL_WINDOW_SIZE 5
+#define BATADV_TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
+#define BATADV_TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
+#define BATADV_TQ_TOTAL_BIDRECT_LIMIT 1
 
-#define TT_OGM_APPEND_MAX 3 /* number of OGMs sent with the last tt diff */
+/* number of OGMs sent with the last tt diff */
+#define BATADV_TT_OGM_APPEND_MAX 3
 
 /* Time in which a client can roam at most ROAMING_MAX_COUNT times in
  * miliseconds
  */
-#define ROAMING_MAX_TIME 20000
-#define ROAMING_MAX_COUNT 5
+#define BATADV_ROAMING_MAX_TIME 20000
+#define BATADV_ROAMING_MAX_COUNT 5
 
-#define NO_FLAGS 0
+#define BATADV_NO_FLAGS 0
 
-#define NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
+#define BATADV_NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
 
-#define NUM_WORDS BITS_TO_LONGS(TQ_LOCAL_WINDOW_SIZE)
+#define BATADV_NUM_WORDS BITS_TO_LONGS(BATADV_TQ_LOCAL_WINDOW_SIZE)
 
-#define LOG_BUF_LEN 8192	  /* has to be a power of 2 */
+#define BATADV_LOG_BUF_LEN 8192	  /* has to be a power of 2 */
 
-#define VIS_INTERVAL 5000	/* 5 seconds */
+#define BATADV_VIS_INTERVAL 5000	/* 5 seconds */
 
 /* how much worse secondary interfaces may be to be considered as bonding
  * candidates
  */
-#define BONDING_TQ_THRESHOLD	50
+#define BATADV_BONDING_TQ_THRESHOLD	50
 
 /* should not be bigger than 512 bytes or change the size of
  * forw_packet->direct_link_flags
  */
-#define MAX_AGGREGATION_BYTES 512
-#define MAX_AGGREGATION_MS 100
+#define BATADV_MAX_AGGREGATION_BYTES 512
+#define BATADV_MAX_AGGREGATION_MS 100
 
-#define BLA_PERIOD_LENGTH	10000	/* 10 seconds */
-#define BLA_BACKBONE_TIMEOUT	(BLA_PERIOD_LENGTH * 3)
-#define BLA_CLAIM_TIMEOUT	(BLA_PERIOD_LENGTH * 10)
+#define BATADV_BLA_PERIOD_LENGTH	10000	/* 10 seconds */
+#define BATADV_BLA_BACKBONE_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 3)
+#define BATADV_BLA_CLAIM_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 10)
 
-#define DUPLIST_SIZE		16
-#define DUPLIST_TIMEOUT		500	/* 500 ms */
+#define BATADV_DUPLIST_SIZE		16
+#define BATADV_DUPLIST_TIMEOUT		500	/* 500 ms */
 /* don't reset again within 30 seconds */
-#define RESET_PROTECTION_MS 30000
-#define EXPECTED_SEQNO_RANGE	65536
+#define BATADV_RESET_PROTECTION_MS 30000
+#define BATADV_EXPECTED_SEQNO_RANGE	65536
 
 enum mesh_state {
 	MESH_INACTIVE,
@@ -100,8 +101,8 @@ enum mesh_state {
 	MESH_DEACTIVATING
 };
 
-#define BCAST_QUEUE_LEN		256
-#define BATMAN_QUEUE_LEN	256
+#define BATADV_BCAST_QUEUE_LEN		256
+#define BATADV_BATMAN_QUEUE_LEN	256
 
 enum uev_action {
 	UEV_ADD = 0,
@@ -113,7 +114,7 @@ enum uev_type {
 	UEV_GW = 0
 };
 
-#define GW_THRESHOLD	50
+#define BATADV_GW_THRESHOLD	50
 
 /* Debug Messages */
 #ifdef pr_fmt
@@ -190,14 +191,14 @@ static inline void batadv_dbg(int type __always_unused,
 }
 #endif
 
-#define bat_info(net_dev, fmt, arg...)					\
+#define batadv_info(net_dev, fmt, arg...)				\
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \
 		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
 		batadv_dbg(DBG_ALL, _batpriv, fmt, ## arg);		\
 		pr_info("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
-#define bat_err(net_dev, fmt, arg...)					\
+#define batadv_err(net_dev, fmt, arg...)				\
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \
 		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
@@ -226,10 +227,10 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
 	return time_is_before_jiffies(timestamp + msecs_to_jiffies(timeout));
 }
 
-#define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
+#define batadv_atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
 /* Returns the smallest signed integer in two's complement with the sizeof x */
-#define smallest_signed_int(x) (1u << (7u + 8u * (sizeof(x) - 1u)))
+#define batadv_smallest_signed_int(x) (1u << (7u + 8u * (sizeof(x) - 1u)))
 
 /* Checks if a sequence number x is a predecessor/successor of y.
  * they handle overflows/underflows and can correctly check for a
@@ -241,12 +242,12 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  *  - when adding 128 - it is neither a predecessor nor a successor,
  *  - after adding more than 127 to the starting value - it is a successor
  */
-#define seq_before(x, y) ({typeof(x) _d1 = (x); \
-			  typeof(y) _d2 = (y); \
-			  typeof(x) _dummy = (_d1 - _d2); \
-			  (void) (&_d1 == &_d2); \
-			  _dummy > smallest_signed_int(_dummy); })
-#define seq_after(x, y) seq_before(y, x)
+#define batadv_seq_before(x, y) ({typeof(x) _d1 = (x); \
+				 typeof(y) _d2 = (y); \
+				 typeof(x) _dummy = (_d1 - _d2); \
+				 (void) (&_d1 == &_d2); \
+				 _dummy > batadv_smallest_signed_int(_dummy); })
+#define batadv_seq_after(x, y) batadv_seq_before(y, x)
 
 /* Stop preemption on local cpu while incrementing the counter */
 static inline void batadv_add_counter(struct bat_priv *bat_priv, size_t idx,
