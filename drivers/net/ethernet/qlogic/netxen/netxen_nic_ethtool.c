@@ -826,7 +826,12 @@ netxen_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 		dump->len = mdump->md_dump_size;
 	else
 		dump->len = 0;
-	dump->flag = mdump->md_capture_mask;
+
+	if (!mdump->md_enabled)
+		dump->flag = ETH_FW_DUMP_DISABLE;
+	else
+		dump->flag = mdump->md_capture_mask;
+
 	dump->version = adapter->fw_version;
 	return 0;
 }
@@ -840,8 +845,10 @@ netxen_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 
 	switch (val->flag) {
 	case NX_FORCE_FW_DUMP_KEY:
-		if (!mdump->md_enabled)
-			mdump->md_enabled = 1;
+		if (!mdump->md_enabled) {
+			netdev_info(netdev, "FW dump not enabled\n");
+			return 0;
+		}
 		if (adapter->fw_mdump_rdy) {
 			netdev_info(netdev, "Previous dump not cleared, not forcing dump\n");
 			return 0;
