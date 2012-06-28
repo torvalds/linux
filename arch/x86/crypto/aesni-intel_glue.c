@@ -529,7 +529,7 @@ static int rfc4106_set_key(struct crypto_aead *parent, const u8 *key,
 	struct crypto_aead *cryptd_child = cryptd_aead_child(ctx->cryptd_tfm);
 	struct aesni_rfc4106_gcm_ctx *child_ctx =
                                  aesni_rfc4106_gcm_ctx_get(cryptd_child);
-	u8 *new_key_mem = NULL;
+	u8 *new_key_align, *new_key_mem = NULL;
 
 	if (key_len < 4) {
 		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
@@ -553,9 +553,9 @@ static int rfc4106_set_key(struct crypto_aead *parent, const u8 *key,
 		if (!new_key_mem)
 			return -ENOMEM;
 
-		new_key_mem = PTR_ALIGN(new_key_mem, AESNI_ALIGN);
-		memcpy(new_key_mem, key, key_len);
-		key = new_key_mem;
+		new_key_align = PTR_ALIGN(new_key_mem, AESNI_ALIGN);
+		memcpy(new_key_align, key, key_len);
+		key = new_key_align;
 	}
 
 	if (!irq_fpu_usable())
