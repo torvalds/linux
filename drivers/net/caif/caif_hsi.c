@@ -1131,51 +1131,7 @@ static void cfhsi_setup(struct net_device *dev)
 	cfhsi->cfdev.use_stx = false;
 	cfhsi->cfdev.use_fcs = false;
 	cfhsi->ndev = dev;
-}
-
-int cfhsi_probe(struct platform_device *pdev)
-{
-	struct cfhsi_ops *(*get_ops)(void);
-	struct cfhsi *cfhsi = NULL;
-	struct net_device *ndev;
-	int res;
-
-	ndev = alloc_netdev(sizeof(struct cfhsi), "cfhsi%d", cfhsi_setup);
-	if (!ndev)
-		return -ENODEV;
-
-	cfhsi = netdev_priv(ndev);
-	cfhsi->ndev = ndev;
-	cfhsi->pdev = pdev;
-
-	get_ops = symbol_get(cfhsi_get_ops);
-	if (!get_ops) {
-		pr_err("%s: failed to get the cfhsi_ops\n", __func__);
-		return -ENODEV;
-	}
-
-	/* Assign the HSI device. */
-	cfhsi->ops = (*get_ops)();
-	if (!cfhsi->ops) {
-		pr_err("%s: failed to get the cfhsi_ops\n", __func__);
-		goto err;
-	}
-
-	/* Assign the driver to this HSI device. */
-	cfhsi->ops->cb_ops = &cfhsi->cb_ops;
-	res = register_netdevice(ndev);
-	if (res) {
-		dev_err(&ndev->dev, "%s: Registration error: %d.\n",
-			__func__, res);
-		free_netdev(ndev);
-	}
-	/* Add CAIF HSI device to list. */
-	list_add_tail(&cfhsi->list, &cfhsi_list);
-
-	return res;
-err:
-	symbol_put(cfhsi_get_ops);
-	return -ENODEV;
+	cfhsi->cfg = hsi_default_config;
 }
 
 static int cfhsi_open(struct net_device *ndev)
@@ -1454,6 +1410,7 @@ static int caif_hsi_newlink(struct net *src_net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
 	struct cfhsi *cfhsi = NULL;
+	struct cfhsi_ops *(*get_ops)(void);
 
 	ASSERT_RTNL();
 
@@ -1461,7 +1418,32 @@ static int caif_hsi_newlink(struct net *src_net, struct net_device *dev,
 	cfhsi_netlink_parms(data, cfhsi);
 	dev_net_set(cfhsi->ndev, src_net);
 
+	get_ops = symbol_get(cfhsi_get_ops);
+	if (!get_ops) {
+		pr_err("%s: failed to get the cfhsi_ops\n", __func__);
+		return -ENODEV;
+	}
+
+	/* Assign the HSI device. */
+	cfhsi->ops = (*get_ops)();
+	if (!cfhsi->ops) {
+		pr_err("%s: failed to get the cfhsi_ops\n", __func__);
+		goto err;
+	}
+
+	/* Assign the driver to this HSI device. */
+	cfhsi->ops->cb_ops = &cfhsi->cb_ops;
+	if (register_netdevice(dev)) {
+		pr_warn("%s: caif_hsi device registration failed\n", __func__);
+		goto err;
+	}
+	/* Add CAIF HSI device to list. */
+	list_add_tail(&cfhsi->list, &cfhsi_list);
+
 	return 0;
+err:
+	symbol_put(cfhsi_get_ops);
+	return -ENODEV;
 }
 
 static struct rtnl_link_ops caif_hsi_link_ops __read_mostly = {
