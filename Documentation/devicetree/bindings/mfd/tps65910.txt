@@ -29,6 +29,8 @@ Optional properties:
   comparator. (see VMBCH_VSEL in TPS65910 datasheet)
 - ti,vmbch2-threshold: (tps65911) main battery discharged threshold
   comparator. (see VMBCH_VSEL in TPS65910 datasheet)
+- ti,en-ck32k-xtal: enable external 32-kHz crystal oscillator (see CK32K_CTRL
+  in TPS6591X datasheet)
 - ti,en-gpio-sleep: enable sleep control for gpios
   There should be 9 entries here, one for each gpio.
 
@@ -53,7 +55,7 @@ Example:
 
 		ti,vmbch-threshold = 0;
 		ti,vmbch2-threshold = 0;
-
+		ti,en-ck32k-xtal;
 		ti,en-gpio-sleep = <0 0 1 0 0 0 0 0 0>;
 
 		regulators {

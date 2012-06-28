@@ -194,6 +194,9 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	else if (*chip_id == TPS65911)
 		dev_warn(&client->dev, "VMBCH2-Threshold not specified");
 
+	prop = of_property_read_bool(np, "ti,en-ck32k-xtal");
+	board_info->en_ck32k_xtal = prop;
+
 	board_info->irq = client->irq;
 	board_info->irq_base = -1;
 
