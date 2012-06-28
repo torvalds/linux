@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1007,7 +1008,7 @@ static const u32 ar9462_2p0_radio_core[][2] = {
 
 static const u32 ar9462_2p0_soc_preamble[][2] = {
 	/* Addr      allmodes  */
-	{0x000040a4 ,0x00a0c1c9},
+	{0x000040a4, 0x00a0c1c9},
 	{0x00007020, 0x00000000},
 	{0x00007034, 0x00000002},
 	{0x00007038, 0x000004c2},
