@@ -213,7 +213,7 @@ static void wacom_retrieve_report_data(struct usb_interface *intf,
 
 		rep_data[0] = 12;
 		result = wacom_get_report(intf, WAC_HID_FEATURE_REPORT,
-					  rep_data[0], &rep_data, 2,
+					  rep_data[0], rep_data, 2,
 					  WAC_MSG_RETRIES);
 
 		if (result >= 0 && rep_data[1] > 2)
