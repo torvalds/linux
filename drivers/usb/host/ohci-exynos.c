@@ -87,7 +87,8 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	exynos_ohci = kzalloc(sizeof(struct exynos_ohci_hcd), GFP_KERNEL);
+	exynos_ohci = devm_kzalloc(&pdev->dev, sizeof(struct exynos_ohci_hcd),
+					GFP_KERNEL);
 	if (!exynos_ohci)
 		return -ENOMEM;
 
@@ -97,8 +98,7 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev));
 	if (!hcd) {
 		dev_err(&pdev->dev, "Unable to create HCD\n");
-		err = -ENOMEM;
-		goto fail_hcd;
+		return -ENOMEM;
 	}
 
 	exynos_ohci->hcd = hcd;
@@ -123,7 +123,7 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->regs = ioremap(res->start, resource_size(res));
+	hcd->regs = devm_ioremap(&pdev->dev, res->start, hcd->rsrc_len);
 	if (!hcd->regs) {
 		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
 		err = -ENOMEM;
@@ -134,7 +134,7 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 	if (!irq) {
 		dev_err(&pdev->dev, "Failed to get IRQ\n");
 		err = -ENODEV;
-		goto fail;
+		goto fail_io;
 	}
 
 	if (pdata->phy_init)
@@ -146,23 +146,19 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
-		goto fail;
+		goto fail_io;
 	}
 
 	platform_set_drvdata(pdev, exynos_ohci);
 
 	return 0;
 
-fail:
-	iounmap(hcd->regs);
 fail_io:
 	clk_disable(exynos_ohci->clk);
 fail_clken:
 	clk_put(exynos_ohci->clk);
 fail_clk:
 	usb_put_hcd(hcd);
-fail_hcd:
-	kfree(exynos_ohci);
 	return err;
 }
 
@@ -177,13 +173,10 @@ static int __devexit exynos_ohci_remove(struct platform_device *pdev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
-	iounmap(hcd->regs);
-
 	clk_disable(exynos_ohci->clk);
 	clk_put(exynos_ohci->clk);
 
 	usb_put_hcd(hcd);
-	kfree(exynos_ohci);
 
 	return 0;
 }
