@@ -196,6 +196,8 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 		if (info->jack_flips >= info->micd_num_modes) {
 			dev_dbg(arizona->dev, "Detected headphone\n");
 			info->detecting = false;
+			arizona_stop_mic(info);
+
 			ret = extcon_set_cable_state_(&info->edev,
 						      ARIZONA_CABLE_HEADPHONE,
 						      true);
