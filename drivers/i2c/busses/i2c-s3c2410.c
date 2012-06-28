@@ -609,7 +609,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 
 		if (ret != -EAGAIN) {
 			clk_disable(i2c->clk);
-			pm_runtime_put_sync(&adap->dev);
+			pm_runtime_put(&adap->dev);
 			return ret;
 		}
 
@@ -619,7 +619,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	}
 
 	clk_disable(i2c->clk);
-	pm_runtime_put_sync(&adap->dev);
+	pm_runtime_put(&adap->dev);
 	return -EREMOTEIO;
 }
 
