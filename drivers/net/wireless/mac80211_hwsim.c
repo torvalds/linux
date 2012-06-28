@@ -571,7 +571,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 			skb_dequeue(&data->pending);
 	}
 
-	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (skb == NULL)
 		goto nla_put_failure;
 

@@ -1476,7 +1476,7 @@ static int team_nl_cmd_noop(struct sk_buff *skb, struct genl_info *info)
 	void *hdr;
 	int err;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1538,7 +1538,7 @@ static int team_nl_send_generic(struct genl_info *info, struct team *team,
 	struct sk_buff *skb;
 	int err;
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1648,7 +1648,7 @@ static int __send_and_alloc_skb(struct sk_buff **pskb,
 		if (err)
 			return err;
 	}
-	*pskb = genlmsg_new(NLMSG_DEFAULT_SIZE - GENL_HDRLEN, GFP_KERNEL);
+	*pskb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!*pskb)
 		return -ENOMEM;
 	return 0;
@@ -2016,7 +2016,7 @@ static int team_nl_send_event_port_list_get(struct team *team)
 	int err;
 	struct net *net = dev_net(team->dev);
 
-	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
