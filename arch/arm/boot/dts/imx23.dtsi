@@ -18,6 +18,8 @@
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
+		serial0 = &auart0;
+		serial1 = &auart1;
 	};
 
 	cpus {
@@ -117,6 +119,19 @@
 					fsl,pinmux-ids = <
 						0x11a2 /* MX23_PAD_PWM0__DUART_RX */
 						0x11b2 /* MX23_PAD_PWM1__DUART_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart0_pins_a: auart0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x01c0 /* MX23_PAD_AUART1_RX__AUART1_RX */
+						0x01d0 /* MX23_PAD_AUART1_TX__AUART1_TX */
+						0x01a0 /* MX23_PAD_AUART1_CTS__AUART1_CTS */
+						0x01b0 /* MX23_PAD_AUART1_RTS__AUART1_RTS */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -289,12 +304,16 @@
 			};
 
 			auart0: serial@8006c000 {
+				compatible = "fsl,imx23-auart";
 				reg = <0x8006c000 0x2000>;
+				interrupts = <24 25 23>;
 				status = "disabled";
 			};
 
 			auart1: serial@8006e000 {
+				compatible = "fsl,imx23-auart";
 				reg = <0x8006e000 0x2000>;
+				interrupts = <59 60 58>;
 				status = "disabled";
 			};
 
