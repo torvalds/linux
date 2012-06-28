@@ -226,6 +226,7 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	 * impact.
 	 */
 	flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
+	flags |= PIPE_CONTROL_TLB_INVALIDATE;
 	flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
 	flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
 	flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
@@ -433,6 +434,13 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		 */
 		I915_WRITE(CACHE_MODE_0,
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
+
+		/* This is not explicitly set for GEN6, so read the register.
+		 * see intel_ring_mi_set_context() for why we care.
+		 * TODO: consider explicitly setting the bit for GEN5
+		 */
+		ring->itlb_before_ctx_switch =
+			!!(I915_READ(GFX_MODE) & GFX_TLB_INVALIDATE_ALWAYS);
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6)
@@ -979,6 +987,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_object *obj;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	ring->dev = dev;
@@ -1012,8 +1021,9 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (ret)
 		goto err_unpin;
 
-	ring->virtual_start = ioremap_wc(dev->agp->base + obj->gtt_offset,
-					 ring->size);
+	ring->virtual_start =
+		ioremap_wc(dev_priv->mm.gtt->gma_bus_addr + obj->gtt_offset,
+			   ring->size);
 	if (ring->virtual_start == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
 		ret = -EINVAL;

@@ -1122,7 +1122,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	obj->fault_mappable = true;
 
-	pfn = ((dev->agp->base + obj->gtt_offset) >> PAGE_SHIFT) +
+	pfn = ((dev_priv->mm.gtt_base_addr + obj->gtt_offset) >> PAGE_SHIFT) +
 		page_offset;
 
 	/* Finally, remap it using the new GTT offset */
@@ -1568,6 +1568,21 @@ i915_add_request(struct intel_ring_buffer *ring,
 	int was_empty;
 	int ret;
 
+	/*
+	 * Emit any outstanding flushes - execbuf can fail to emit the flush
+	 * after having emitted the batchbuffer command. Hence we need to fix
+	 * things up similar to emitting the lazy request. The difference here
+	 * is that the flush _must_ happen before the next request, no matter
+	 * what.
+	 */
+	if (ring->gpu_caches_dirty) {
+		ret = i915_gem_flush_ring(ring, 0, I915_GEM_GPU_DOMAINS);
+		if (ret)
+			return ret;
+
+		ring->gpu_caches_dirty = false;
+	}
+
 	BUG_ON(request == NULL);
 	seqno = i915_gem_next_request_seqno(ring);
 
@@ -1613,6 +1628,9 @@ i915_add_request(struct intel_ring_buffer *ring,
 			queue_delayed_work(dev_priv->wq,
 					   &dev_priv->mm.retire_work, HZ);
 	}
+
+	WARN_ON(!list_empty(&ring->gpu_write_list));
+
 	return 0;
 }
 
@@ -1827,14 +1845,11 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	 */
 	idle = true;
 	for_each_ring(ring, dev_priv, i) {
-		if (!list_empty(&ring->gpu_write_list)) {
+		if (ring->gpu_caches_dirty) {
 			struct drm_i915_gem_request *request;
-			int ret;
 
-			ret = i915_gem_flush_ring(ring,
-						  0, I915_GEM_GPU_DOMAINS);
 			request = kzalloc(sizeof(*request), GFP_KERNEL);
-			if (ret || request == NULL ||
+			if (request == NULL ||
 			    i915_add_request(ring, NULL, request))
 			    kfree(request);
 		}
@@ -2082,11 +2097,14 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_i915_gem_wait *args = data;
 	struct drm_i915_gem_object *obj;
 	struct intel_ring_buffer *ring = NULL;
-	struct timespec timeout;
+	struct timespec timeout_stack, *timeout = NULL;
 	u32 seqno = 0;
 	int ret = 0;
 
-	timeout = ns_to_timespec(args->timeout_ns);
+	if (args->timeout_ns >= 0) {
+		timeout_stack = ns_to_timespec(args->timeout_ns);
+		timeout = &timeout_stack;
+	}
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
@@ -2122,9 +2140,11 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
-	ret = __wait_seqno(ring, seqno, true, &timeout);
-	WARN_ON(!timespec_valid(&timeout));
-	args->timeout_ns = timespec_to_ns(&timeout);
+	ret = __wait_seqno(ring, seqno, true, timeout);
+	if (timeout) {
+		WARN_ON(!timespec_valid(timeout));
+		args->timeout_ns = timespec_to_ns(timeout);
+	}
 	return ret;
 
 out:
@@ -2327,6 +2347,10 @@ int i915_gpu_idle(struct drm_device *dev)
 		/* Is the device fubar? */
 		if (WARN_ON(!list_empty(&ring->gpu_write_list)))
 			return -EBUSY;
+
+		ret = i915_switch_context(ring, NULL, DEFAULT_CONTEXT_ID);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -3684,6 +3708,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
+	if (!intel_enable_gtt())
+		return -EIO;
+
 	i915_gem_l3_remap(dev);
 
 	i915_gem_init_swizzling(dev);
@@ -3706,6 +3733,11 @@ i915_gem_init_hw(struct drm_device *dev)
 
 	dev_priv->next_seqno = 1;
 
+	/*
+	 * XXX: There was some w/a described somewhere suggesting loading
+	 * contexts before PPGTT.
+	 */
+	i915_gem_context_init(dev);
 	i915_gem_init_ppgtt(dev);
 
 	return 0;

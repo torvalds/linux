@@ -513,14 +513,9 @@ static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 	unsigned long irqflags;
 	int pipe;
 	u32 pipe_stats[I915_MAX_PIPES];
-	u32 vblank_status;
-	int vblank = 0;
 	bool blc_event;
 
 	atomic_inc(&dev_priv->irq_received);
-
-	vblank_status = PIPE_START_VBLANK_INTERRUPT_STATUS |
-		PIPE_VBLANK_INTERRUPT_STATUS;
 
 	while (true) {
 		iir = I915_READ(VLV_IIR);
@@ -551,6 +546,16 @@ static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 		}
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
+		for_each_pipe(pipe) {
+			if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS)
+				drm_handle_vblank(dev, pipe);
+
+			if (pipe_stats[pipe] & PLANE_FLIPDONE_INT_STATUS_VLV) {
+				intel_prepare_page_flip(dev, pipe);
+				intel_finish_page_flip(dev, pipe);
+			}
+		}
+
 		/* Consume port.  Then clear IIR or we'll miss events */
 		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
@@ -563,19 +568,6 @@ static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
-		}
-
-
-		if (iir & I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT) {
-			drm_handle_vblank(dev, 0);
-			vblank++;
-			intel_finish_page_flip(dev, 0);
-		}
-
-		if (iir & I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT) {
-			drm_handle_vblank(dev, 1);
-			vblank++;
-			intel_finish_page_flip(dev, 0);
 		}
 
 		if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
@@ -1188,6 +1180,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	kref_init(&error->ref);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
+	error->ccid = I915_READ(CCID);
 
 	if (HAS_PCH_SPLIT(dev))
 		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
@@ -1510,23 +1503,20 @@ static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
-	u32 dpfl, imr;
+	u32 imr;
 
 	if (!i915_pipe_enabled(dev, pipe))
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	dpfl = I915_READ(VLV_DPFLIPSTAT);
 	imr = I915_READ(VLV_IMR);
-	if (pipe == 0) {
-		dpfl |= PIPEA_VBLANK_INT_EN;
+	if (pipe == 0)
 		imr &= ~I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT;
-	} else {
-		dpfl |= PIPEA_VBLANK_INT_EN;
+	else
 		imr &= ~I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-	}
-	I915_WRITE(VLV_DPFLIPSTAT, dpfl);
 	I915_WRITE(VLV_IMR, imr);
+	i915_enable_pipestat(dev_priv, pipe,
+			     PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -1576,20 +1566,17 @@ static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
-	u32 dpfl, imr;
+	u32 imr;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	dpfl = I915_READ(VLV_DPFLIPSTAT);
+	i915_disable_pipestat(dev_priv, pipe,
+			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	imr = I915_READ(VLV_IMR);
-	if (pipe == 0) {
-		dpfl &= ~PIPEA_VBLANK_INT_EN;
+	if (pipe == 0)
 		imr |= I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT;
-	} else {
-		dpfl &= ~PIPEB_VBLANK_INT_EN;
+	else
 		imr |= I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-	}
 	I915_WRITE(VLV_IMR, imr);
-	I915_WRITE(VLV_DPFLIPSTAT, dpfl);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -1923,16 +1910,24 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 static int valleyview_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 render_irqs;
 	u32 enable_mask;
 	u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
+	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV;
 	u16 msid;
 
 	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
-	enable_mask |= I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
+	enable_mask |= I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
+		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
 
-	dev_priv->irq_mask = ~enable_mask;
+	/*
+	 *Leave vblank interrupts masked initially.  enable/disable will
+	 * toggle them based on usage.
+	 */
+	dev_priv->irq_mask = (~enable_mask) |
+		I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
+		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
 
 	dev_priv->pipestat[0] = 0;
 	dev_priv->pipestat[1] = 0;
@@ -1951,26 +1946,27 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(PIPESTAT(1), 0xffff);
 	POSTING_READ(VLV_IER);
 
+	i915_enable_pipestat(dev_priv, 0, pipestat_enable);
+	i915_enable_pipestat(dev_priv, 1, pipestat_enable);
+
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IIR, 0xffffffff);
 
-	render_irqs = GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT |
-		GT_GEN6_BLT_CS_ERROR_INTERRUPT |
-		GT_GEN6_BLT_USER_INTERRUPT |
-		GT_GEN6_BSD_USER_INTERRUPT |
-		GT_GEN6_BSD_CS_ERROR_INTERRUPT |
-		GT_GEN7_L3_PARITY_ERROR_INTERRUPT |
-		GT_PIPE_NOTIFY |
-		GT_RENDER_CS_ERROR_INTERRUPT |
-		GT_SYNC_STATUS |
-		GT_USER_INTERRUPT;
-
-	dev_priv->gt_irq_mask = ~render_irqs;
+	dev_priv->gt_irq_mask = ~0;
 
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
-	I915_WRITE(GTIMR, 0);
-	I915_WRITE(GTIER, render_irqs);
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	I915_WRITE(GTIER, GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT |
+		   GT_GEN6_BLT_CS_ERROR_INTERRUPT |
+		   GT_GEN6_BLT_USER_INTERRUPT |
+		   GT_GEN6_BSD_USER_INTERRUPT |
+		   GT_GEN6_BSD_CS_ERROR_INTERRUPT |
+		   GT_GEN7_L3_PARITY_ERROR_INTERRUPT |
+		   GT_PIPE_NOTIFY |
+		   GT_RENDER_CS_ERROR_INTERRUPT |
+		   GT_SYNC_STATUS |
+		   GT_USER_INTERRUPT);
 	POSTING_READ(GTIER);
 
 	/* ack & enable invalid PTE error interrupts */

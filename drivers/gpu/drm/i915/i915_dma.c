@@ -1006,6 +1006,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_ALIASING_PPGTT:
 		value = dev_priv->mm.aliasing_ppgtt ? 1 : 0;
 		break;
+	case I915_PARAM_HAS_WAIT_TIMEOUT:
+		value = 1;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
@@ -1082,8 +1085,8 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 
 	ring->status_page.gfx_addr = hws->addr & (0x1ffff<<12);
 
-	dev_priv->dri1.gfx_hws_cpu_addr = ioremap_wc(dev->agp->base + hws->addr,
-						     4096);
+	dev_priv->dri1.gfx_hws_cpu_addr =
+		ioremap_wc(dev_priv->mm.gtt_base_addr + hws->addr, 4096);
 	if (dev_priv->dri1.gfx_hws_cpu_addr == NULL) {
 		i915_dma_cleanup(dev);
 		ring->status_page.gfx_addr = 0;
@@ -1401,6 +1404,27 @@ i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 	}
 }
 
+static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
+{
+	struct apertures_struct *ap;
+	struct pci_dev *pdev = dev_priv->dev->pdev;
+	bool primary;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
+	ap->ranges[0].base = dev_priv->dev->agp->base;
+	ap->ranges[0].size =
+		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	primary =
+		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
+
+	remove_conflicting_framebuffers(ap, "inteldrmfb", primary);
+
+	kfree(ap);
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -1446,6 +1470,22 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto free_priv;
 	}
 
+	ret = intel_gmch_probe(dev_priv->bridge_dev, dev->pdev, NULL);
+	if (!ret) {
+		DRM_ERROR("failed to set up gmch\n");
+		ret = -EIO;
+		goto put_bridge;
+	}
+
+	dev_priv->mm.gtt = intel_gtt_get();
+	if (!dev_priv->mm.gtt) {
+		DRM_ERROR("Failed to initialize GTT\n");
+		ret = -ENODEV;
+		goto put_gmch;
+	}
+
+	i915_kick_out_firmware_fb(dev_priv);
+
 	pci_set_master(dev->pdev);
 
 	/* overlay on gen2 is broken and can't address above 1G */
@@ -1468,26 +1508,22 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!dev_priv->regs) {
 		DRM_ERROR("failed to map registers\n");
 		ret = -EIO;
-		goto put_bridge;
-	}
-
-	dev_priv->mm.gtt = intel_gtt_get();
-	if (!dev_priv->mm.gtt) {
-		DRM_ERROR("Failed to initialize GTT\n");
-		ret = -ENODEV;
-		goto out_rmmap;
+		goto put_gmch;
 	}
 
 	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	dev_priv->mm.gtt_base_addr = dev_priv->mm.gtt->gma_bus_addr;
 
 	dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev->agp->base, aperture_size);
+		io_mapping_create_wc(dev_priv->mm.gtt_base_addr,
+				     aperture_size);
 	if (dev_priv->mm.gtt_mapping == NULL) {
 		ret = -EIO;
 		goto out_rmmap;
 	}
 
-	i915_mtrr_setup(dev_priv, dev->agp->base, aperture_size);
+	i915_mtrr_setup(dev_priv, dev_priv->mm.gtt_base_addr,
+			aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -1599,13 +1635,16 @@ out_gem_unload:
 	destroy_workqueue(dev_priv->wq);
 out_mtrrfree:
 	if (dev_priv->mm.gtt_mtrr >= 0) {
-		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
-			 dev->agp->agp_info.aper_size * 1024 * 1024);
+		mtrr_del(dev_priv->mm.gtt_mtrr,
+			 dev_priv->mm.gtt_base_addr,
+			 aperture_size);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
+put_gmch:
+	intel_gmch_remove();
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
@@ -1637,8 +1676,9 @@ int i915_driver_unload(struct drm_device *dev)
 
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 	if (dev_priv->mm.gtt_mtrr >= 0) {
-		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
-			 dev->agp->agp_info.aper_size * 1024 * 1024);
+		mtrr_del(dev_priv->mm.gtt_mtrr,
+			 dev_priv->mm.gtt_base_addr,
+			 dev_priv->mm.gtt->gtt_mappable_entries * PAGE_SIZE);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 
@@ -1679,6 +1719,7 @@ int i915_driver_unload(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_free_all_phys_object(dev);
 		i915_gem_cleanup_ringbuffer(dev);
+		i915_gem_context_fini(dev);
 		mutex_unlock(&dev->struct_mutex);
 		i915_gem_cleanup_aliasing_ppgtt(dev);
 		i915_gem_cleanup_stolen(dev);
@@ -1718,6 +1759,8 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
 
+	idr_init(&file_priv->context_idr);
+
 	return 0;
 }
 
@@ -1750,6 +1793,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 
 void i915_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 {
+	i915_gem_context_close(dev, file_priv);
 	i915_gem_release(dev, file_priv);
 }
 
@@ -1804,6 +1848,8 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_SET_SPRITE_COLORKEY, intel_sprite_set_colorkey, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(I915_GET_SPRITE_COLORKEY, intel_sprite_get_colorkey, DRM_MASTER|DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(I915_GEM_WAIT, i915_gem_wait_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_CREATE, i915_gem_context_create_ioctl, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_DESTROY, i915_gem_context_destroy_ioctl, DRM_UNLOCKED),
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

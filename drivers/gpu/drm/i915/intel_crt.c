@@ -88,6 +88,9 @@ static void gmch_crt_dpms(struct drm_encoder *encoder, int mode)
 	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
 	temp &= ~ADPA_DAC_ENABLE;
 
+	if (IS_VALLEYVIEW(dev) && mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		temp |= ADPA_DAC_ENABLE;
@@ -230,6 +233,42 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 	return ret;
 }
 
+static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 adpa;
+	bool ret;
+	u32 save_adpa;
+
+	save_adpa = adpa = I915_READ(ADPA);
+	DRM_DEBUG_KMS("trigger hotplug detect cycle: adpa=0x%x\n", adpa);
+
+	adpa |= ADPA_CRT_HOTPLUG_FORCE_TRIGGER;
+
+	I915_WRITE(ADPA, adpa);
+
+	if (wait_for((I915_READ(ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
+		     1000)) {
+		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
+		I915_WRITE(ADPA, save_adpa);
+	}
+
+	/* Check the status to see if both blue and green are on now */
+	adpa = I915_READ(ADPA);
+	if ((adpa & ADPA_CRT_HOTPLUG_MONITOR_MASK) != 0)
+		ret = true;
+	else
+		ret = false;
+
+	DRM_DEBUG_KMS("valleyview hotplug adpa=0x%x, result %d\n", adpa, ret);
+
+	/* FIXME: debug force function and remove */
+	ret = true;
+
+	return ret;
+}
+
 /**
  * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect CRT presence.
  *
@@ -248,6 +287,9 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 
 	if (HAS_PCH_SPLIT(dev))
 		return intel_ironlake_crt_detect_hotplug(connector);
+
+	if (IS_VALLEYVIEW(dev))
+		return valleyview_crt_detect_hotplug(connector);
 
 	/*
 	 * On 4 series desktop, CRT detect sequence need to be done twice
@@ -453,17 +495,26 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	struct intel_load_detect_pipe tmp;
 
 	if (I915_HAS_HOTPLUG(dev)) {
+		/* We can not rely on the HPD pin always being correctly wired
+		 * up, for example many KVM do not pass it through, and so
+		 * only trust an assertion that the monitor is connected.
+		 */
 		if (intel_crt_detect_hotplug(connector)) {
 			DRM_DEBUG_KMS("CRT detected via hotplug\n");
 			return connector_status_connected;
-		} else {
+		} else
 			DRM_DEBUG_KMS("CRT not detected via hotplug\n");
-			return connector_status_disconnected;
-		}
 	}
 
 	if (intel_crt_detect_ddc(connector))
 		return connector_status_connected;
+
+	/* Load detection is broken on HPD capable machines. Whoever wants a
+	 * broken monitor (without edid) to work behind a broken kvm (that fails
+	 * to have the right resistors for HP detection) needs to fix this up.
+	 * For now just bail out. */
+	if (I915_HAS_HOTPLUG(dev))
+		return connector_status_disconnected;
 
 	if (!force)
 		return connector->status;

@@ -217,6 +217,9 @@
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
 #define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
+#define MI_ARB_ON_OFF		MI_INSTR(0x08, 0)
+#define   MI_ARB_ENABLE			(1<<0)
+#define   MI_ARB_DISABLE		(0<<0)
 
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
@@ -299,6 +302,7 @@
 #define   DISPLAY_PLANE_B           (1<<20)
 #define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|(len-2))
 #define   PIPE_CONTROL_CS_STALL				(1<<20)
+#define   PIPE_CONTROL_TLB_INVALIDATE			(1<<18)
 #define   PIPE_CONTROL_QW_WRITE				(1<<14)
 #define   PIPE_CONTROL_DEPTH_STALL			(1<<13)
 #define   PIPE_CONTROL_WRITE_FLUSH			(1<<12)
@@ -908,6 +912,7 @@
 #define   DPLL_P2_CLOCK_DIV_MASK	0x03000000 /* i915 */
 #define   DPLL_FPA01_P1_POST_DIV_MASK	0x00ff0000 /* i915 */
 #define   DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW	0x00ff8000 /* Pineview */
+#define   DPLL_LOCK_VLV			(1<<15)
 #define   DPLL_INTEGRATED_CLOCK_VLV	(1<<13)
 
 #define SRX_INDEX		0x3c4
@@ -1462,6 +1467,27 @@
  */
 #define CCID			0x2180
 #define   CCID_EN		(1<<0)
+#define CXT_SIZE		0x21a0
+#define GEN6_CXT_POWER_SIZE(cxt_reg)	((cxt_reg >> 24) & 0x3f)
+#define GEN6_CXT_RING_SIZE(cxt_reg)	((cxt_reg >> 18) & 0x3f)
+#define GEN6_CXT_RENDER_SIZE(cxt_reg)	((cxt_reg >> 12) & 0x3f)
+#define GEN6_CXT_EXTENDED_SIZE(cxt_reg)	((cxt_reg >> 6) & 0x3f)
+#define GEN6_CXT_PIPELINE_SIZE(cxt_reg)	((cxt_reg >> 0) & 0x3f)
+#define GEN6_CXT_TOTAL_SIZE(cxt_reg)	(GEN6_CXT_POWER_SIZE(cxt_reg) + \
+					GEN6_CXT_RING_SIZE(cxt_reg) + \
+					GEN6_CXT_RENDER_SIZE(cxt_reg) + \
+					GEN6_CXT_EXTENDED_SIZE(cxt_reg) + \
+					GEN6_CXT_PIPELINE_SIZE(cxt_reg))
+#define GEN7_CTX_SIZE		0x21a8
+#define GEN7_CTX_RENDER_SIZE(ctx_reg)	((ctx_reg >> 16) & 0x3f)
+#define GEN7_CTX_EXTENDED_SIZE(ctx_reg)	((ctx_reg >> 9) & 0x7f)
+#define GEN7_CTX_GT1_SIZE(ctx_reg)	((ctx_reg >> 6) & 0x7)
+#define GEN7_CTX_VFSTATE_SIZE(ctx_reg)	((ctx_reg >> 0) & 0x3f)
+#define GEN7_CTX_TOTAL_SIZE(ctx_reg)	(GEN7_CTX_RENDER_SIZE(ctx_reg) + \
+					 GEN7_CTX_EXTENDED_SIZE(ctx_reg) + \
+					 GEN7_CTX_GT1_SIZE(ctx_reg) + \
+					 GEN7_CTX_VFSTATE_SIZE(ctx_reg))
+
 /*
  * Overlay regs
  */
@@ -1815,18 +1841,35 @@
 #define PFIT_AUTO_RATIOS 0x61238
 
 /* Backlight control */
-#define BLC_PWM_CTL		0x61254
-#define   BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
 #define BLC_PWM_CTL2		0x61250 /* 965+ only */
-#define   BLM_COMBINATION_MODE (1 << 30)
+#define   BLM_PWM_ENABLE		(1 << 31)
+#define   BLM_COMBINATION_MODE		(1 << 30) /* gen4 only */
+#define   BLM_PIPE_SELECT		(1 << 29)
+#define   BLM_PIPE_SELECT_IVB		(3 << 29)
+#define   BLM_PIPE_A			(0 << 29)
+#define   BLM_PIPE_B			(1 << 29)
+#define   BLM_PIPE_C			(2 << 29) /* ivb + */
+#define   BLM_PIPE(pipe)		((pipe) << 29)
+#define   BLM_POLARITY_I965		(1 << 28) /* gen4 only */
+#define   BLM_PHASE_IN_INTERUPT_STATUS	(1 << 26)
+#define   BLM_PHASE_IN_ENABLE		(1 << 25)
+#define   BLM_PHASE_IN_INTERUPT_ENABL	(1 << 24)
+#define   BLM_PHASE_IN_TIME_BASE_SHIFT	(16)
+#define   BLM_PHASE_IN_TIME_BASE_MASK	(0xff << 16)
+#define   BLM_PHASE_IN_COUNT_SHIFT	(8)
+#define   BLM_PHASE_IN_COUNT_MASK	(0xff << 8)
+#define   BLM_PHASE_IN_INCR_SHIFT	(0)
+#define   BLM_PHASE_IN_INCR_MASK	(0xff << 0)
+#define BLC_PWM_CTL		0x61254
 /*
  * This is the most significant 15 bits of the number of backlight cycles in a
  * complete cycle of the modulated backlight control.
  *
  * The actual value is this field multiplied by two.
  */
-#define   BACKLIGHT_MODULATION_FREQ_MASK		(0x7fff << 17)
-#define   BLM_LEGACY_MODE				(1 << 16)
+#define   BACKLIGHT_MODULATION_FREQ_SHIFT	(17)
+#define   BACKLIGHT_MODULATION_FREQ_MASK	(0x7fff << 17)
+#define   BLM_LEGACY_MODE			(1 << 16) /* gen2 only */
 /*
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.
@@ -1836,8 +1879,23 @@
  */
 #define   BACKLIGHT_DUTY_CYCLE_SHIFT		(0)
 #define   BACKLIGHT_DUTY_CYCLE_MASK		(0xffff)
+#define   BACKLIGHT_DUTY_CYCLE_MASK_PNV		(0xfffe)
+#define   BLM_POLARITY_PNV			(1 << 0) /* pnv only */
 
 #define BLC_HIST_CTL		0x61260
+
+/* New registers for PCH-split platforms. Safe where new bits show up, the
+ * register layout machtes with gen4 BLC_PWM_CTL[12]. */
+#define BLC_PWM_CPU_CTL2	0x48250
+#define BLC_PWM_CPU_CTL		0x48254
+
+/* PCH CTL1 is totally different, all but the below bits are reserved. CTL2 is
+ * like the normal CTL from gen4 and earlier. Hooray for confusing naming. */
+#define BLC_PWM_PCH_CTL1	0xc8250
+#define   BLM_PCH_PWM_ENABLE			(1 << 30)
+#define   BLM_PCH_OVERRIDE_ENABLE		(1 << 30)
+#define   BLM_PCH_POLARITY			(1 << 29)
+#define BLC_PWM_PCH_CTL2	0xc8254
 
 /* TV port control */
 #define TV_CTL			0x68000
@@ -2603,13 +2661,13 @@
 #define PIPESTAT(pipe) _PIPE(pipe, _PIPEASTAT, _PIPEBSTAT)
 
 #define VLV_DPFLIPSTAT				0x70028
-#define   PIPEB_LINE_COMPARE_STATUS		(1<<29)
+#define   PIPEB_LINE_COMPARE_INT_EN		(1<<29)
 #define   PIPEB_HLINE_INT_EN			(1<<28)
 #define   PIPEB_VBLANK_INT_EN			(1<<27)
 #define   SPRITED_FLIPDONE_INT_EN		(1<<26)
 #define   SPRITEC_FLIPDONE_INT_EN		(1<<25)
 #define   PLANEB_FLIPDONE_INT_EN		(1<<24)
-#define   PIPEA_LINE_COMPARE_STATUS		(1<<21)
+#define   PIPEA_LINE_COMPARE_INT_EN		(1<<21)
 #define   PIPEA_HLINE_INT_EN			(1<<20)
 #define   PIPEA_VBLANK_INT_EN			(1<<19)
 #define   SPRITEB_FLIPDONE_INT_EN		(1<<18)
@@ -3844,7 +3902,6 @@
 #define  ADPA_CRT_HOTPLUG_FORCE_TRIGGER (1<<16)
 
 /* or SDVOB */
-#define VLV_HDMIB 0x61140
 #define HDMIB   0xe1140
 #define  PORT_ENABLE    (1 << 31)
 #define  TRANSCODER(pipe)       ((pipe) << 30)
@@ -3875,20 +3932,18 @@
 #define PCH_LVDS	0xe1180
 #define  LVDS_DETECTED	(1 << 1)
 
-#define BLC_PWM_CPU_CTL2	0x48250
-#define  PWM_ENABLE		(1 << 31)
-#define  PWM_PIPE_A		(0 << 29)
-#define  PWM_PIPE_B		(1 << 29)
-#define BLC_PWM_CPU_CTL		0x48254
+/* vlv has 2 sets of panel control regs. */
+#define PIPEA_PP_STATUS         0x61200
+#define PIPEA_PP_CONTROL        0x61204
+#define PIPEA_PP_ON_DELAYS      0x61208
+#define PIPEA_PP_OFF_DELAYS     0x6120c
+#define PIPEA_PP_DIVISOR        0x61210
 
-#define BLC_PWM_PCH_CTL1	0xc8250
-#define  PWM_PCH_ENABLE		(1 << 31)
-#define  PWM_POLARITY_ACTIVE_LOW	(1 << 29)
-#define  PWM_POLARITY_ACTIVE_HIGH	(0 << 29)
-#define  PWM_POLARITY_ACTIVE_LOW2	(1 << 28)
-#define  PWM_POLARITY_ACTIVE_HIGH2	(0 << 28)
-
-#define BLC_PWM_PCH_CTL2	0xc8254
+#define PIPEB_PP_STATUS         0x61300
+#define PIPEB_PP_CONTROL        0x61304
+#define PIPEB_PP_ON_DELAYS      0x61308
+#define PIPEB_PP_OFF_DELAYS     0x6130c
+#define PIPEB_PP_DIVISOR        0x61310
 
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
@@ -4032,9 +4087,14 @@
 # define GEN6_CSUNIT_CLOCK_GATE_DISABLE			(1 << 7)
 
 #define GEN6_UCGCTL2				0x9404
+# define GEN7_VDSUNIT_CLOCK_GATE_DISABLE		(1 << 30)
+# define GEN7_TDLUNIT_CLOCK_GATE_DISABLE		(1 << 22)
 # define GEN6_RCZUNIT_CLOCK_GATE_DISABLE		(1 << 13)
 # define GEN6_RCPBUNIT_CLOCK_GATE_DISABLE		(1 << 12)
 # define GEN6_RCCUNIT_CLOCK_GATE_DISABLE		(1 << 11)
+
+#define GEN7_UCGCTL4				0x940c
+#define  GEN7_L3BANK2X_CLOCK_GATE_DISABLE	(1<<25)
 
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)

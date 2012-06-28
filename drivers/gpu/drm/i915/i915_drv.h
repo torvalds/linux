@@ -176,6 +176,7 @@ struct drm_i915_error_state {
 	u32 eir;
 	u32 pgtbl_er;
 	u32 ier;
+	u32 ccid;
 	bool waiting[I915_NUM_RINGS];
 	u32 pipestat[I915_MAX_PIPES];
 	u32 tail[I915_NUM_RINGS];
@@ -307,6 +308,17 @@ struct i915_hw_ppgtt {
 	uint32_t pd_offset;
 	dma_addr_t *pt_dma_addr;
 	dma_addr_t scratch_page_dma_addr;
+};
+
+
+/* This must match up with the value previously used for execbuf2.rsvd1. */
+#define DEFAULT_CONTEXT_ID 0
+struct i915_hw_context {
+	int id;
+	bool is_initialized;
+	struct drm_i915_file_private *file_priv;
+	struct intel_ring_buffer *ring;
+	struct drm_i915_gem_object *obj;
 };
 
 enum no_fbc_reason {
@@ -652,6 +664,7 @@ typedef struct drm_i915_private {
 		unsigned long gtt_end;
 
 		struct io_mapping *gtt_mapping;
+		phys_addr_t gtt_base_addr;
 		int gtt_mtrr;
 
 		/** PPGTT used for aliasing the PPGTT with the GTT */
@@ -821,6 +834,8 @@ typedef struct drm_i915_private {
 	struct drm_property *force_audio_property;
 
 	struct work_struct parity_error_work;
+	bool hw_contexts_disabled;
+	uint32_t hw_context_size;
 } drm_i915_private_t;
 
 /* Iterate over initialised rings */
@@ -1030,6 +1045,7 @@ struct drm_i915_file_private {
 		struct spinlock lock;
 		struct list_head request_list;
 	} mm;
+	struct idr context_idr;
 };
 
 #define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
@@ -1075,7 +1091,8 @@ struct drm_i915_file_private {
 #define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
-#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >=6)
+#define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
+#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >=6 && !IS_VALLEYVIEW(dev))
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
@@ -1170,6 +1187,7 @@ extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 extern int i915_emit_box(struct drm_device *dev,
 			 struct drm_clip_rect *box,
 			 int DR1, int DR4);
+extern int intel_gpu_reset(struct drm_device *dev);
 extern int i915_reset(struct drm_device *dev);
 extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
@@ -1365,6 +1383,16 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
+/* i915_gem_context.c */
+void i915_gem_context_init(struct drm_device *dev);
+void i915_gem_context_fini(struct drm_device *dev);
+void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
+int i915_switch_context(struct intel_ring_buffer *ring,
+			struct drm_file *file, int to_id);
+int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file);
+int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
+				   struct drm_file *file);
 
 /* i915_gem_gtt.c */
 int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);
