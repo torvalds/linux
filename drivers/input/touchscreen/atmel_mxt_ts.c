@@ -547,9 +547,6 @@ static void mxt_input_touchevent(struct mxt_data *data,
 		input_report_abs(input_dev, ABS_MT_PRESSURE, pressure);
 		input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, area);
 	}
-
-	input_mt_report_pointer_emulation(input_dev, false);
-	input_sync(input_dev);
 }
 
 static bool mxt_is_T9_message(struct mxt_data *data, struct mxt_message *msg)
@@ -565,6 +562,7 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 	struct device *dev = &data->client->dev;
 	int id;
 	u8 reportid;
+	bool update_input = false;
 
 	do {
 		if (mxt_read_message(data, &message)) {
@@ -576,11 +574,18 @@ static irqreturn_t mxt_interrupt(int irq, void *dev_id)
 
 		id = reportid - data->T9_reportid_min;
 
-		if (mxt_is_T9_message(data, &message))
+		if (mxt_is_T9_message(data, &message)) {
 			mxt_input_touchevent(data, &message, id);
-		else
+			update_input = true;
+		} else {
 			mxt_dump_message(dev, &message);
+		}
 	} while (reportid != 0xff);
+
+	if (update_input) {
+		input_mt_report_pointer_emulation(data->input_dev, false);
+		input_sync(data->input_dev);
+	}
 
 end:
 	return IRQ_HANDLED;
