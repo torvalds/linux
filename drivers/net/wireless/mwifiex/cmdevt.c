@@ -578,6 +578,7 @@ int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 	} else {
 		adapter->cmd_queued = cmd_node;
 		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
+		queue_work(adapter->workqueue, &adapter->main_work);
 	}
 
 	return ret;

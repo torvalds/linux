@@ -1422,7 +1422,7 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 
 		priv->user_scan_cfg->chan_list[i].scan_time = 0;
 	}
-	if (mwifiex_set_user_scan_ioctl(priv, priv->user_scan_cfg))
+	if (mwifiex_scan_networks(priv, priv->user_scan_cfg))
 		return -EFAULT;
 
 	if (request->ie && request->ie_len) {
