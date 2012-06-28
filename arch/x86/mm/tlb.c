@@ -264,6 +264,36 @@ void flush_tlb_all(void)
 	on_each_cpu(do_flush_tlb_all, NULL, 1);
 }
 
+static void do_kernel_range_flush(void *info)
+{
+	struct flush_tlb_info *f = info;
+	unsigned long addr;
+
+	/* flush range by one by one 'invlpg' */
+	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE)
+		__flush_tlb_single(addr);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	unsigned act_entries;
+	struct flush_tlb_info info;
+
+	/* In modern CPU, last level tlb used for both data/ins */
+	act_entries = tlb_lld_4k[ENTRIES];
+
+	/* Balance as user space task's flush, a bit conservative */
+	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1 ||
+		(end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift)
+
+		on_each_cpu(do_flush_tlb_all, NULL, 1);
+	else {
+		info.flush_start = start;
+		info.flush_end = end;
+		on_each_cpu(do_kernel_range_flush, &info, 1);
+	}
+}
+
 #ifdef CONFIG_DEBUG_TLBFLUSH
 static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)

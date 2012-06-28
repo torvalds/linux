@@ -123,6 +123,12 @@ static inline void reset_lazy_tlbstate(void)
 {
 }
 
+static inline void flush_tlb_kernel_range(unsigned long start,
+					  unsigned long end)
+{
+	flush_tlb_all();
+}
+
 #else  /* SMP */
 
 #include <asm/smp.h>
@@ -139,6 +145,7 @@ extern void flush_tlb_current_task(void);
 extern void flush_tlb_page(struct vm_area_struct *, unsigned long);
 extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, unsigned long vmflag);
+extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
 
 #define flush_tlb()	flush_tlb_current_task()
 
@@ -167,11 +174,5 @@ static inline void reset_lazy_tlbstate(void)
 #define flush_tlb_others(mask, mm, start, end)	\
 	native_flush_tlb_others(mask, mm, start, end)
 #endif
-
-static inline void flush_tlb_kernel_range(unsigned long start,
-					  unsigned long end)
-{
-	flush_tlb_all();
-}
 
 #endif /* _ASM_X86_TLBFLUSH_H */
