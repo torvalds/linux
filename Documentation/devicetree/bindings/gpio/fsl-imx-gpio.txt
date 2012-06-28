@@ -8,8 +8,9 @@ Required properties:
   by low 16 pins and the second one is for high 16 pins.
 - gpio-controller : Marks the device node as a gpio controller.
 - #gpio-cells : Should be two.  The first cell is the pin number and
-  the second cell is used to specify optional parameters (currently
-  unused).
+  the second cell is used to specify the gpio polarity:
+      0 = active high
+      1 = active low
 
 Example:
 
