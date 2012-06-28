@@ -737,6 +737,8 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 				FB_SYNC_HOR_HIGH_ACT : 0;
 		var->sync |= timings.vsync_level == OMAPDSS_SIG_ACTIVE_HIGH ?
 				FB_SYNC_VERT_HIGH_ACT : 0;
+		var->vmode = timings.interlace ?
+				FB_VMODE_INTERLACED : FB_VMODE_NONINTERLACED;
 	} else {
 		var->pixclock = 0;
 		var->left_margin = 0;
@@ -746,10 +748,8 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		var->hsync_len = 0;
 		var->vsync_len = 0;
 		var->sync = 0;
+		var->vmode = FB_VMODE_NONINTERLACED;
 	}
-
-	/* TODO: get these from panel->config */
-	var->vmode              = FB_VMODE_NONINTERLACED;
 
 	return 0;
 }
@@ -2074,6 +2074,7 @@ static int omapfb_mode_to_timings(const char *mode_str,
 	timings->vsync_level = var->sync & FB_SYNC_VERT_HIGH_ACT ?
 				OMAPDSS_SIG_ACTIVE_HIGH :
 				OMAPDSS_SIG_ACTIVE_LOW;
+	timings->interlace = var->vmode & FB_VMODE_INTERLACED;
 
 	switch (var->bits_per_pixel) {
 	case 16:
@@ -2223,6 +2224,7 @@ static void fb_videomode_to_omap_timings(struct fb_videomode *m,
 	t->vsync_level = m->sync & FB_SYNC_VERT_HIGH_ACT ?
 				OMAPDSS_SIG_ACTIVE_HIGH :
 				OMAPDSS_SIG_ACTIVE_LOW;
+	t->interlace = m->vmode & FB_VMODE_INTERLACED;
 }
 
 static int omapfb_find_best_mode(struct omap_dss_device *display,
