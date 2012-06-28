@@ -1484,7 +1484,7 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	struct wireless_dev *wdev;
 
 	if (!adapter)
-		return NULL;
+		return ERR_PTR(-EFAULT);
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
@@ -1494,12 +1494,12 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		if (priv->bss_mode) {
 			wiphy_err(wiphy,
 				  "cannot create multiple sta/adhoc ifaces\n");
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 
 		wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 		if (!wdev)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 
 		wdev->wiphy = wiphy;
 		priv->wdev = wdev;
@@ -1522,12 +1522,12 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 		if (priv->bss_mode) {
 			wiphy_err(wiphy, "Can't create multiple AP interfaces");
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 
 		wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 		if (!wdev)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 
 		priv->wdev = wdev;
 		wdev->wiphy = wiphy;
@@ -1544,14 +1544,15 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		break;
 	default:
 		wiphy_err(wiphy, "type not supported\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	dev = alloc_netdev_mq(sizeof(struct mwifiex_private *), name,
 			      ether_setup, 1);
 	if (!dev) {
 		wiphy_err(wiphy, "no memory available for netdevice\n");
-		goto error;
+		priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	mwifiex_init_priv_params(priv, dev);
@@ -1582,7 +1583,9 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	/* Register network device */
 	if (register_netdevice(dev)) {
 		wiphy_err(wiphy, "cannot register virtual network device\n");
-		goto error;
+		free_netdev(dev);
+		priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
+		return ERR_PTR(-EFAULT);
 	}
 
 	sema_init(&priv->async_sem, 1);
@@ -1594,12 +1597,6 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	mwifiex_dev_debugfs_init(priv);
 #endif
 	return dev;
-error:
-	if (dev && (dev->reg_state == NETREG_UNREGISTERED))
-		free_netdev(dev);
-	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
-
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(mwifiex_add_virtual_intf);
 

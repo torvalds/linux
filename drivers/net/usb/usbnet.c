@@ -796,11 +796,13 @@ int usbnet_open (struct net_device *net)
 	if (info->manage_power) {
 		retval = info->manage_power(dev, 1);
 		if (retval < 0)
-			goto done;
+			goto done_manage_power_error;
 		usb_autopm_put_interface(dev->intf);
 	}
 	return retval;
 
+done_manage_power_error:
+	clear_bit(EVENT_DEV_OPEN, &dev->flags);
 done:
 	usb_autopm_put_interface(dev->intf);
 done_nopm:
@@ -876,9 +878,9 @@ void usbnet_get_drvinfo (struct net_device *net, struct ethtool_drvinfo *info)
 {
 	struct usbnet *dev = netdev_priv(net);
 
-	strncpy (info->driver, dev->driver_name, sizeof info->driver);
-	strncpy (info->version, DRIVER_VERSION, sizeof info->version);
-	strncpy (info->fw_version, dev->driver_info->description,
+	strlcpy (info->driver, dev->driver_name, sizeof info->driver);
+	strlcpy (info->version, DRIVER_VERSION, sizeof info->version);
+	strlcpy (info->fw_version, dev->driver_info->description,
 		sizeof info->fw_version);
 	usb_make_path (dev->udev, info->bus_info, sizeof info->bus_info);
 }
@@ -1202,6 +1204,21 @@ deferred:
 }
 EXPORT_SYMBOL_GPL(usbnet_start_xmit);
 
+static void rx_alloc_submit(struct usbnet *dev, gfp_t flags)
+{
+	struct urb	*urb;
+	int		i;
+
+	/* don't refill the queue all at once */
+	for (i = 0; i < 10 && dev->rxq.qlen < RX_QLEN(dev); i++) {
+		urb = usb_alloc_urb(0, flags);
+		if (urb != NULL) {
+			if (rx_submit(dev, urb, flags) == -ENOLINK)
+				return;
+		}
+	}
+}
+
 /*-------------------------------------------------------------------------*/
 
 // tasklet (work deferred from completions, in_irq) or timer
@@ -1241,26 +1258,14 @@ static void usbnet_bh (unsigned long param)
 		   !timer_pending (&dev->delay) &&
 		   !test_bit (EVENT_RX_HALT, &dev->flags)) {
 		int	temp = dev->rxq.qlen;
-		int	qlen = RX_QLEN (dev);
 
-		if (temp < qlen) {
-			struct urb	*urb;
-			int		i;
-
-			// don't refill the queue all at once
-			for (i = 0; i < 10 && dev->rxq.qlen < qlen; i++) {
-				urb = usb_alloc_urb (0, GFP_ATOMIC);
-				if (urb != NULL) {
-					if (rx_submit (dev, urb, GFP_ATOMIC) ==
-					    -ENOLINK)
-						return;
-				}
-			}
+		if (temp < RX_QLEN(dev)) {
+			rx_alloc_submit(dev, GFP_ATOMIC);
 			if (temp != dev->rxq.qlen)
 				netif_dbg(dev, link, dev->net,
 					  "rxqlen %d --> %d\n",
 					  temp, dev->rxq.qlen);
-			if (dev->rxq.qlen < qlen)
+			if (dev->rxq.qlen < RX_QLEN(dev))
 				tasklet_schedule (&dev->bh);
 		}
 		if (dev->txq.qlen < TX_QLEN (dev))
@@ -1513,6 +1518,7 @@ int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 		spin_lock_irq(&dev->txq.lock);
 		/* don't autosuspend while transmitting */
 		if (dev->txq.qlen && PMSG_IS_AUTO(message)) {
+			dev->suspend_count--;
 			spin_unlock_irq(&dev->txq.lock);
 			return -EBUSY;
 		} else {
@@ -1569,6 +1575,13 @@ int usbnet_resume (struct usb_interface *intf)
 		spin_unlock_irq(&dev->txq.lock);
 
 		if (test_bit(EVENT_DEV_OPEN, &dev->flags)) {
+			/* handle remote wakeup ASAP */
+			if (!dev->wait &&
+				netif_device_present(dev->net) &&
+				!timer_pending(&dev->delay) &&
+				!test_bit(EVENT_RX_HALT, &dev->flags))
+					rx_alloc_submit(dev, GFP_KERNEL);
+
 			if (!(dev->txq.qlen >= TX_QLEN(dev)))
 				netif_tx_wake_all_queues(dev->net);
 			tasklet_schedule (&dev->bh);

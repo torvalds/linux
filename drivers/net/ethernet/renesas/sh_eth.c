@@ -1011,7 +1011,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 }
 
 /* Packet receive function */
-static int sh_eth_rx(struct net_device *ndev)
+static int sh_eth_rx(struct net_device *ndev, u32 intr_status)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_rxdesc *rxdesc;
@@ -1102,9 +1102,11 @@ static int sh_eth_rx(struct net_device *ndev)
 	/* Restart Rx engine if stopped. */
 	/* If we don't need to check status, don't. -KDU */
 	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
-		/* fix the values for the next receiving */
-		mdp->cur_rx = mdp->dirty_rx = (sh_eth_read(ndev, RDFAR) -
-					       sh_eth_read(ndev, RDLAR)) >> 4;
+		/* fix the values for the next receiving if RDE is set */
+		if (intr_status & EESR_RDE)
+			mdp->cur_rx = mdp->dirty_rx =
+				(sh_eth_read(ndev, RDFAR) -
+				 sh_eth_read(ndev, RDLAR)) >> 4;
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
 	}
 
@@ -1273,7 +1275,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 			EESR_RTSF | /* short frame recv */
 			EESR_PRE  | /* PHY-LSI recv error */
 			EESR_CERF)){ /* recv frame CRC error */
-		sh_eth_rx(ndev);
+		sh_eth_rx(ndev, intr_status);
 	}
 
 	/* Tx Check */

@@ -1295,7 +1295,12 @@ static void security_timeout(struct work_struct *work)
 	struct l2cap_conn *conn = container_of(work, struct l2cap_conn,
 						security_timer.work);
 
-	l2cap_conn_del(conn->hcon, ETIMEDOUT);
+	BT_DBG("conn %p", conn);
+
+	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags)) {
+		smp_chan_destroy(conn);
+		l2cap_conn_del(conn->hcon, ETIMEDOUT);
+	}
 }
 
 static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
@@ -2910,12 +2915,14 @@ static void l2cap_conf_rfc_get(struct l2cap_chan *chan, void *rsp, int len)
 	while (len >= L2CAP_CONF_OPT_SIZE) {
 		len -= l2cap_get_conf_opt(&rsp, &type, &olen, &val);
 
-		switch (type) {
-		case L2CAP_CONF_RFC:
-			if (olen == sizeof(rfc))
-				memcpy(&rfc, (void *)val, olen);
-			goto done;
-		}
+		if (type != L2CAP_CONF_RFC)
+			continue;
+
+		if (olen != sizeof(rfc))
+			break;
+
+		memcpy(&rfc, (void *)val, olen);
+		goto done;
 	}
 
 	/* Use sane default values in case a misbehaving remote device

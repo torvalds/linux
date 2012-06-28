@@ -73,6 +73,8 @@ static void wl1251_spi_reset(struct wl1251 *wl)
 	spi_sync(wl_to_spi(wl), &m);
 
 	wl1251_dump(DEBUG_SPI, "spi reset -> ", cmd, WSPI_INIT_CMD_LEN);
+
+	kfree(cmd);
 }
 
 static void wl1251_spi_wake(struct wl1251 *wl)
@@ -127,6 +129,8 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 	spi_sync(wl_to_spi(wl), &m);
 
 	wl1251_dump(DEBUG_SPI, "spi init -> ", cmd, WSPI_INIT_CMD_LEN);
+
+	kfree(cmd);
 }
 
 static void wl1251_spi_reset_wake(struct wl1251 *wl)
