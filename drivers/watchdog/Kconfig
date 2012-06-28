@@ -349,6 +349,19 @@ config IMX2_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx2_wdt.
 
+config SUNXI_WDT
+	tristate "Allwinner A10/A13 Watchdog"
+	depends on ARCH_SUN4I || ARCH_SUN5I
+	help
+	  This is the driver for the hardware watchdog on the Allwinner
+	  A10/A13 processors.
+
+	  If you have one of these processors and wish to have
+	  watchdog support enabled, say Y, otherwise say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sunxi_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
