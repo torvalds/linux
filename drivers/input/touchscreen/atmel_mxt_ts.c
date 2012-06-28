@@ -250,6 +250,7 @@ struct mxt_finger {
 struct mxt_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
+	char phys[64];		/* device physical location */
 	const struct mxt_platform_data *pdata;
 	struct mxt_object *object_table;
 	struct mxt_info info;
@@ -1106,6 +1107,10 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	}
 
 	input_dev->name = "Atmel maXTouch Touchscreen";
+	snprintf(data->phys, sizeof(data->phys), "i2c-%u-%04x/input0",
+		 client->adapter->nr, client->addr);
+	input_dev->phys = data->phys;
+
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 	input_dev->open = mxt_input_open;
