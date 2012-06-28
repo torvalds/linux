@@ -494,8 +494,8 @@ static void __init overo_init(void)
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap_hsmmc_init(mmc);
 	overo_i2c_init();
+	omap_hsmmc_init(mmc);
 	omap_display_init(&overo_dss_data);
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
