@@ -65,6 +65,13 @@
 					fsl,pull-up = <0>;
 				};
 			};
+
+			lcdif@80030000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&lcdif_24bit_pins_a>;
+				panel-enable-gpios = <&gpio3 30 0>;
+				status = "okay";
+			};
 		};
 
 		apbx@80040000 {

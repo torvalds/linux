@@ -191,6 +191,43 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				lcdif_24bit_pins_a: lcdif-24bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1000 /* MX23_PAD_LCD_D00__LCD_D0 */
+						0x1010 /* MX23_PAD_LCD_D01__LCD_D1 */
+						0x1020 /* MX23_PAD_LCD_D02__LCD_D2 */
+						0x1030 /* MX23_PAD_LCD_D03__LCD_D3 */
+						0x1040 /* MX23_PAD_LCD_D04__LCD_D4 */
+						0x1050 /* MX23_PAD_LCD_D05__LCD_D5 */
+						0x1060 /* MX23_PAD_LCD_D06__LCD_D6 */
+						0x1070 /* MX23_PAD_LCD_D07__LCD_D7 */
+						0x1080 /* MX23_PAD_LCD_D08__LCD_D8 */
+						0x1090 /* MX23_PAD_LCD_D09__LCD_D9 */
+						0x10a0 /* MX23_PAD_LCD_D10__LCD_D10 */
+						0x10b0 /* MX23_PAD_LCD_D11__LCD_D11 */
+						0x10c0 /* MX23_PAD_LCD_D12__LCD_D12 */
+						0x10d0 /* MX23_PAD_LCD_D13__LCD_D13 */
+						0x10e0 /* MX23_PAD_LCD_D14__LCD_D14 */
+						0x10f0 /* MX23_PAD_LCD_D15__LCD_D15 */
+						0x1100 /* MX23_PAD_LCD_D16__LCD_D16 */
+						0x1110 /* MX23_PAD_LCD_D17__LCD_D17 */
+						0x0081 /* MX23_PAD_GPMI_D08__LCD_D18 */
+						0x0091 /* MX23_PAD_GPMI_D09__LCD_D19 */
+						0x00a1 /* MX23_PAD_GPMI_D10__LCD_D20 */
+						0x00b1 /* MX23_PAD_GPMI_D11__LCD_D21 */
+						0x00c1 /* MX23_PAD_GPMI_D12__LCD_D22 */
+						0x00d1 /* MX23_PAD_GPMI_D13__LCD_D23 */
+						0x1160 /* MX23_PAD_LCD_DOTCK__LCD_DOTCK */
+						0x1170 /* MX23_PAD_LCD_ENABLE__LCD_ENABLE */
+						0x1180 /* MX23_PAD_LCD_HSYNC__LCD_HSYNC */
+						0x1190 /* MX23_PAD_LCD_VSYNC__LCD_VSYNC */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -229,7 +266,9 @@
 			};
 
 			lcdif@80030000 {
+				compatible = "fsl,imx23-lcdif";
 				reg = <0x80030000 2000>;
+				interrupts = <46 45>;
 				status = "disabled";
 			};
 

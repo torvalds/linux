@@ -374,6 +374,43 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				lcdif_24bit_pins_a: lcdif-24bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1000 /* MX28_PAD_LCD_D00__LCD_D0 */
+						0x1010 /* MX28_PAD_LCD_D01__LCD_D1 */
+						0x1020 /* MX28_PAD_LCD_D02__LCD_D2 */
+						0x1030 /* MX28_PAD_LCD_D03__LCD_D3 */
+						0x1040 /* MX28_PAD_LCD_D04__LCD_D4 */
+						0x1050 /* MX28_PAD_LCD_D05__LCD_D5 */
+						0x1060 /* MX28_PAD_LCD_D06__LCD_D6 */
+						0x1070 /* MX28_PAD_LCD_D07__LCD_D7 */
+						0x1080 /* MX28_PAD_LCD_D08__LCD_D8 */
+						0x1090 /* MX28_PAD_LCD_D09__LCD_D9 */
+						0x10a0 /* MX28_PAD_LCD_D10__LCD_D10 */
+						0x10b0 /* MX28_PAD_LCD_D11__LCD_D11 */
+						0x10c0 /* MX28_PAD_LCD_D12__LCD_D12 */
+						0x10d0 /* MX28_PAD_LCD_D13__LCD_D13 */
+						0x10e0 /* MX28_PAD_LCD_D14__LCD_D14 */
+						0x10f0 /* MX28_PAD_LCD_D15__LCD_D15 */
+						0x1100 /* MX28_PAD_LCD_D16__LCD_D16 */
+						0x1110 /* MX28_PAD_LCD_D17__LCD_D17 */
+						0x1120 /* MX28_PAD_LCD_D18__LCD_D18 */
+						0x1130 /* MX28_PAD_LCD_D19__LCD_D19 */
+						0x1140 /* MX28_PAD_LCD_D20__LCD_D20 */
+						0x1150 /* MX28_PAD_LCD_D21__LCD_D21 */
+						0x1160 /* MX28_PAD_LCD_D22__LCD_D22 */
+						0x1170 /* MX28_PAD_LCD_D23__LCD_D23 */
+						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
+						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
+						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
+						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -415,6 +452,7 @@
 			};
 
 			lcdif@80030000 {
+				compatible = "fsl,imx28-lcdif";
 				reg = <0x80030000 2000>;
 				interrupts = <38 86>;
 				status = "disabled";
