@@ -485,34 +485,17 @@ static int tcp_v6_send_synack(struct sock *sk,
 	struct inet6_request_sock *treq = inet6_rsk(req);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff * skb;
-	struct ipv6_txoptions *opt = NULL;
-	struct in6_addr * final_p, final;
+	struct ipv6_txoptions *opt = np->opt;
 	struct flowi6 fl6;
 	struct dst_entry *dst;
-	int err;
+	int err = -ENOMEM;
 
-	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_TCP;
-	fl6.daddr = treq->rmt_addr;
-	fl6.saddr = treq->loc_addr;
-	fl6.flowlabel = 0;
-	fl6.flowi6_oif = treq->iif;
-	fl6.flowi6_mark = sk->sk_mark;
-	fl6.fl6_dport = inet_rsk(req)->rmt_port;
-	fl6.fl6_sport = inet_rsk(req)->loc_port;
-	security_req_classify_flow(req, flowi6_to_flowi(&fl6));
-
-	opt = np->opt;
-	final_p = fl6_update_dst(&fl6, opt, &final);
-
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
-	if (IS_ERR(dst)) {
-		err = PTR_ERR(dst);
-		dst = NULL;
+	dst = inet6_csk_route_req(sk, &fl6, req);
+	if (!dst)
 		goto done;
-	}
+
 	skb = tcp_make_synack(sk, dst, req, rvp);
-	err = -ENOMEM;
+
 	if (skb) {
 		__tcp_v6_send_check(skb, &treq->loc_addr, &treq->rmt_addr);
 
