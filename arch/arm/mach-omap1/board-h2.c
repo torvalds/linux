@@ -40,11 +40,11 @@
 #include <plat/dma.h>
 #include <plat/tc.h>
 #include <plat/irda.h>
-#include <plat/usb.h>
 #include <plat/keypad.h>
 #include <plat/flash.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "common.h"
 #include "board-h2.h"
