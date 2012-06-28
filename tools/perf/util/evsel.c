@@ -15,6 +15,7 @@
 #include "cpumap.h"
 #include "thread_map.h"
 #include "target.h"
+#include "../../../include/linux/hw_breakpoint.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
@@ -152,6 +153,31 @@ static int perf_evsel__sw_name(struct perf_evsel *evsel, char *bf, size_t size)
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
+static int __perf_evsel__bp_name(char *bf, size_t size, u64 addr, u64 type)
+{
+	int r;
+
+	r = scnprintf(bf, size, "mem:0x%" PRIx64 ":", addr);
+
+	if (type & HW_BREAKPOINT_R)
+		r += scnprintf(bf + r, size - r, "r");
+
+	if (type & HW_BREAKPOINT_W)
+		r += scnprintf(bf + r, size - r, "w");
+
+	if (type & HW_BREAKPOINT_X)
+		r += scnprintf(bf + r, size - r, "x");
+
+	return r;
+}
+
+static int perf_evsel__bp_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+	int r = __perf_evsel__bp_name(bf, size, attr->bp_addr, attr->bp_type);
+	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
+}
+
 const char *perf_evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_EVSEL__MAX_ALIASES] = {
  { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
@@ -283,6 +309,10 @@ const char *perf_evsel__name(struct perf_evsel *evsel)
 
 	case PERF_TYPE_TRACEPOINT:
 		scnprintf(bf, sizeof(bf), "%s", "unknown tracepoint");
+		break;
+
+	case PERF_TYPE_BREAKPOINT:
+		perf_evsel__bp_name(evsel, bf, sizeof(bf));
 		break;
 
 	default:

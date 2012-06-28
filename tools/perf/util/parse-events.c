@@ -418,7 +418,6 @@ int parse_events_add_breakpoint(struct list_head **list, int *idx,
 				void *ptr, char *type)
 {
 	struct perf_event_attr attr;
-	char name[MAX_NAME_LEN];
 
 	memset(&attr, 0, sizeof(attr));
 	attr.bp_addr = (unsigned long) ptr;
@@ -437,8 +436,7 @@ int parse_events_add_breakpoint(struct list_head **list, int *idx,
 
 	attr.type = PERF_TYPE_BREAKPOINT;
 
-	snprintf(name, MAX_NAME_LEN, "mem:%p:%s", ptr, type ? type : "rw");
-	return add_event(list, idx, &attr, name);
+	return add_event(list, idx, &attr, NULL);
 }
 
 static int config_term(struct perf_event_attr *attr,
