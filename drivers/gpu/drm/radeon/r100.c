@@ -103,112 +103,6 @@ void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */
 
-int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
-			    struct radeon_cs_packet *pkt,
-			    unsigned idx,
-			    unsigned reg)
-{
-	int r;
-	u32 tile_flags = 0;
-	u32 tmp;
-	struct radeon_cs_reloc *reloc;
-	u32 value;
-
-	r = r100_cs_packet_next_reloc(p, &reloc);
-	if (r) {
-		DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-			  idx, reg);
-		r100_cs_dump_packet(p, pkt);
-		return r;
-	}
-
-	value = radeon_get_ib_value(p, idx);
-	tmp = value & 0x003fffff;
-	tmp += (((u32)reloc->lobj.gpu_offset) >> 10);
-
-	if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-			tile_flags |= RADEON_DST_TILE_MACRO;
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
-			if (reg == RADEON_SRC_PITCH_OFFSET) {
-				DRM_ERROR("Cannot src blit from microtiled surface\n");
-				r100_cs_dump_packet(p, pkt);
-				return -EINVAL;
-			}
-			tile_flags |= RADEON_DST_TILE_MICRO;
-		}
-
-		tmp |= tile_flags;
-		p->ib.ptr[idx] = (value & 0x3fc00000) | tmp;
-	} else
-		p->ib.ptr[idx] = (value & 0xffc00000) | tmp;
-	return 0;
-}
-
-int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
-			     struct radeon_cs_packet *pkt,
-			     int idx)
-{
-	unsigned c, i;
-	struct radeon_cs_reloc *reloc;
-	struct r100_cs_track *track;
-	int r = 0;
-	volatile uint32_t *ib;
-	u32 idx_value;
-
-	ib = p->ib.ptr;
-	track = (struct r100_cs_track *)p->track;
-	c = radeon_get_ib_value(p, idx++) & 0x1F;
-	if (c > 16) {
-	    DRM_ERROR("Only 16 vertex buffers are allowed %d\n",
-		      pkt->opcode);
-	    r100_cs_dump_packet(p, pkt);
-	    return -EINVAL;
-	}
-	track->num_arrays = c;
-	for (i = 0; i < (c - 1); i+=2, idx+=3) {
-		r = r100_cs_packet_next_reloc(p, &reloc);
-		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n",
-				  pkt->opcode);
-			r100_cs_dump_packet(p, pkt);
-			return r;
-		}
-		idx_value = radeon_get_ib_value(p, idx);
-		ib[idx+1] = radeon_get_ib_value(p, idx + 1) + ((u32)reloc->lobj.gpu_offset);
-
-		track->arrays[i + 0].esize = idx_value >> 8;
-		track->arrays[i + 0].robj = reloc->robj;
-		track->arrays[i + 0].esize &= 0x7F;
-		r = r100_cs_packet_next_reloc(p, &reloc);
-		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n",
-				  pkt->opcode);
-			r100_cs_dump_packet(p, pkt);
-			return r;
-		}
-		ib[idx+2] = radeon_get_ib_value(p, idx + 2) + ((u32)reloc->lobj.gpu_offset);
-		track->arrays[i + 1].robj = reloc->robj;
-		track->arrays[i + 1].esize = idx_value >> 24;
-		track->arrays[i + 1].esize &= 0x7F;
-	}
-	if (c & 1) {
-		r = r100_cs_packet_next_reloc(p, &reloc);
-		if (r) {
-			DRM_ERROR("No reloc for packet3 %d\n",
-					  pkt->opcode);
-			r100_cs_dump_packet(p, pkt);
-			return r;
-		}
-		idx_value = radeon_get_ib_value(p, idx);
-		ib[idx+1] = radeon_get_ib_value(p, idx + 1) + ((u32)reloc->lobj.gpu_offset);
-		track->arrays[i + 0].robj = reloc->robj;
-		track->arrays[i + 0].esize = idx_value >> 8;
-		track->arrays[i + 0].esize &= 0x7F;
-	}
-	return r;
-}
-
 void r100_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
 	/* enable the pflip int */
@@ -1206,6 +1100,112 @@ void r100_cp_disable(struct radeon_device *rdev)
 /*
  * CS functions
  */
+int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
+			    struct radeon_cs_packet *pkt,
+			    unsigned idx,
+			    unsigned reg)
+{
+	int r;
+	u32 tile_flags = 0;
+	u32 tmp;
+	struct radeon_cs_reloc *reloc;
+	u32 value;
+
+	r = r100_cs_packet_next_reloc(p, &reloc);
+	if (r) {
+		DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			  idx, reg);
+		r100_cs_dump_packet(p, pkt);
+		return r;
+	}
+
+	value = radeon_get_ib_value(p, idx);
+	tmp = value & 0x003fffff;
+	tmp += (((u32)reloc->lobj.gpu_offset) >> 10);
+
+	if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= RADEON_DST_TILE_MACRO;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+			if (reg == RADEON_SRC_PITCH_OFFSET) {
+				DRM_ERROR("Cannot src blit from microtiled surface\n");
+				r100_cs_dump_packet(p, pkt);
+				return -EINVAL;
+			}
+			tile_flags |= RADEON_DST_TILE_MICRO;
+		}
+
+		tmp |= tile_flags;
+		p->ib.ptr[idx] = (value & 0x3fc00000) | tmp;
+	} else
+		p->ib.ptr[idx] = (value & 0xffc00000) | tmp;
+	return 0;
+}
+
+int r100_packet3_load_vbpntr(struct radeon_cs_parser *p,
+			     struct radeon_cs_packet *pkt,
+			     int idx)
+{
+	unsigned c, i;
+	struct radeon_cs_reloc *reloc;
+	struct r100_cs_track *track;
+	int r = 0;
+	volatile uint32_t *ib;
+	u32 idx_value;
+
+	ib = p->ib.ptr;
+	track = (struct r100_cs_track *)p->track;
+	c = radeon_get_ib_value(p, idx++) & 0x1F;
+	if (c > 16) {
+	    DRM_ERROR("Only 16 vertex buffers are allowed %d\n",
+		      pkt->opcode);
+	    r100_cs_dump_packet(p, pkt);
+	    return -EINVAL;
+	}
+	track->num_arrays = c;
+	for (i = 0; i < (c - 1); i+=2, idx+=3) {
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for packet3 %d\n",
+				  pkt->opcode);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		idx_value = radeon_get_ib_value(p, idx);
+		ib[idx+1] = radeon_get_ib_value(p, idx + 1) + ((u32)reloc->lobj.gpu_offset);
+
+		track->arrays[i + 0].esize = idx_value >> 8;
+		track->arrays[i + 0].robj = reloc->robj;
+		track->arrays[i + 0].esize &= 0x7F;
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for packet3 %d\n",
+				  pkt->opcode);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		ib[idx+2] = radeon_get_ib_value(p, idx + 2) + ((u32)reloc->lobj.gpu_offset);
+		track->arrays[i + 1].robj = reloc->robj;
+		track->arrays[i + 1].esize = idx_value >> 24;
+		track->arrays[i + 1].esize &= 0x7F;
+	}
+	if (c & 1) {
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for packet3 %d\n",
+					  pkt->opcode);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		idx_value = radeon_get_ib_value(p, idx);
+		ib[idx+1] = radeon_get_ib_value(p, idx + 1) + ((u32)reloc->lobj.gpu_offset);
+		track->arrays[i + 0].robj = reloc->robj;
+		track->arrays[i + 0].esize = idx_value >> 8;
+		track->arrays[i + 0].esize &= 0x7F;
+	}
+	return r;
+}
+
 int r100_cs_parse_packet0(struct radeon_cs_parser *p,
 			  struct radeon_cs_packet *pkt,
 			  const unsigned *auth, unsigned n,
@@ -2031,6 +2031,379 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 	return 0;
 }
 
+static void r100_cs_track_texture_print(struct r100_cs_track_texture *t)
+{
+	DRM_ERROR("pitch                      %d\n", t->pitch);
+	DRM_ERROR("use_pitch                  %d\n", t->use_pitch);
+	DRM_ERROR("width                      %d\n", t->width);
+	DRM_ERROR("width_11                   %d\n", t->width_11);
+	DRM_ERROR("height                     %d\n", t->height);
+	DRM_ERROR("height_11                  %d\n", t->height_11);
+	DRM_ERROR("num levels                 %d\n", t->num_levels);
+	DRM_ERROR("depth                      %d\n", t->txdepth);
+	DRM_ERROR("bpp                        %d\n", t->cpp);
+	DRM_ERROR("coordinate type            %d\n", t->tex_coord_type);
+	DRM_ERROR("width round to power of 2  %d\n", t->roundup_w);
+	DRM_ERROR("height round to power of 2 %d\n", t->roundup_h);
+	DRM_ERROR("compress format            %d\n", t->compress_format);
+}
+
+static int r100_track_compress_size(int compress_format, int w, int h)
+{
+	int block_width, block_height, block_bytes;
+	int wblocks, hblocks;
+	int min_wblocks;
+	int sz;
+
+	block_width = 4;
+	block_height = 4;
+
+	switch (compress_format) {
+	case R100_TRACK_COMP_DXT1:
+		block_bytes = 8;
+		min_wblocks = 4;
+		break;
+	default:
+	case R100_TRACK_COMP_DXT35:
+		block_bytes = 16;
+		min_wblocks = 2;
+		break;
+	}
+
+	hblocks = (h + block_height - 1) / block_height;
+	wblocks = (w + block_width - 1) / block_width;
+	if (wblocks < min_wblocks)
+		wblocks = min_wblocks;
+	sz = wblocks * hblocks * block_bytes;
+	return sz;
+}
+
+static int r100_cs_track_cube(struct radeon_device *rdev,
+			      struct r100_cs_track *track, unsigned idx)
+{
+	unsigned face, w, h;
+	struct radeon_bo *cube_robj;
+	unsigned long size;
+	unsigned compress_format = track->textures[idx].compress_format;
+
+	for (face = 0; face < 5; face++) {
+		cube_robj = track->textures[idx].cube_info[face].robj;
+		w = track->textures[idx].cube_info[face].width;
+		h = track->textures[idx].cube_info[face].height;
+
+		if (compress_format) {
+			size = r100_track_compress_size(compress_format, w, h);
+		} else
+			size = w * h;
+		size *= track->textures[idx].cpp;
+
+		size += track->textures[idx].cube_info[face].offset;
+
+		if (size > radeon_bo_size(cube_robj)) {
+			DRM_ERROR("Cube texture offset greater than object size %lu %lu\n",
+				  size, radeon_bo_size(cube_robj));
+			r100_cs_track_texture_print(&track->textures[idx]);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static int r100_cs_track_texture_check(struct radeon_device *rdev,
+				       struct r100_cs_track *track)
+{
+	struct radeon_bo *robj;
+	unsigned long size;
+	unsigned u, i, w, h, d;
+	int ret;
+
+	for (u = 0; u < track->num_texture; u++) {
+		if (!track->textures[u].enabled)
+			continue;
+		if (track->textures[u].lookup_disable)
+			continue;
+		robj = track->textures[u].robj;
+		if (robj == NULL) {
+			DRM_ERROR("No texture bound to unit %u\n", u);
+			return -EINVAL;
+		}
+		size = 0;
+		for (i = 0; i <= track->textures[u].num_levels; i++) {
+			if (track->textures[u].use_pitch) {
+				if (rdev->family < CHIP_R300)
+					w = (track->textures[u].pitch / track->textures[u].cpp) / (1 << i);
+				else
+					w = track->textures[u].pitch / (1 << i);
+			} else {
+				w = track->textures[u].width;
+				if (rdev->family >= CHIP_RV515)
+					w |= track->textures[u].width_11;
+				w = w / (1 << i);
+				if (track->textures[u].roundup_w)
+					w = roundup_pow_of_two(w);
+			}
+			h = track->textures[u].height;
+			if (rdev->family >= CHIP_RV515)
+				h |= track->textures[u].height_11;
+			h = h / (1 << i);
+			if (track->textures[u].roundup_h)
+				h = roundup_pow_of_two(h);
+			if (track->textures[u].tex_coord_type == 1) {
+				d = (1 << track->textures[u].txdepth) / (1 << i);
+				if (!d)
+					d = 1;
+			} else {
+				d = 1;
+			}
+			if (track->textures[u].compress_format) {
+
+				size += r100_track_compress_size(track->textures[u].compress_format, w, h) * d;
+				/* compressed textures are block based */
+			} else
+				size += w * h * d;
+		}
+		size *= track->textures[u].cpp;
+
+		switch (track->textures[u].tex_coord_type) {
+		case 0:
+		case 1:
+			break;
+		case 2:
+			if (track->separate_cube) {
+				ret = r100_cs_track_cube(rdev, track, u);
+				if (ret)
+					return ret;
+			} else
+				size *= 6;
+			break;
+		default:
+			DRM_ERROR("Invalid texture coordinate type %u for unit "
+				  "%u\n", track->textures[u].tex_coord_type, u);
+			return -EINVAL;
+		}
+		if (size > radeon_bo_size(robj)) {
+			DRM_ERROR("Texture of unit %u needs %lu bytes but is "
+				  "%lu\n", u, size, radeon_bo_size(robj));
+			r100_cs_track_texture_print(&track->textures[u]);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
+{
+	unsigned i;
+	unsigned long size;
+	unsigned prim_walk;
+	unsigned nverts;
+	unsigned num_cb = track->cb_dirty ? track->num_cb : 0;
+
+	if (num_cb && !track->zb_cb_clear && !track->color_channel_mask &&
+	    !track->blend_read_enable)
+		num_cb = 0;
+
+	for (i = 0; i < num_cb; i++) {
+		if (track->cb[i].robj == NULL) {
+			DRM_ERROR("[drm] No buffer for color buffer %d !\n", i);
+			return -EINVAL;
+		}
+		size = track->cb[i].pitch * track->cb[i].cpp * track->maxy;
+		size += track->cb[i].offset;
+		if (size > radeon_bo_size(track->cb[i].robj)) {
+			DRM_ERROR("[drm] Buffer too small for color buffer %d "
+				  "(need %lu have %lu) !\n", i, size,
+				  radeon_bo_size(track->cb[i].robj));
+			DRM_ERROR("[drm] color buffer %d (%u %u %u %u)\n",
+				  i, track->cb[i].pitch, track->cb[i].cpp,
+				  track->cb[i].offset, track->maxy);
+			return -EINVAL;
+		}
+	}
+	track->cb_dirty = false;
+
+	if (track->zb_dirty && track->z_enabled) {
+		if (track->zb.robj == NULL) {
+			DRM_ERROR("[drm] No buffer for z buffer !\n");
+			return -EINVAL;
+		}
+		size = track->zb.pitch * track->zb.cpp * track->maxy;
+		size += track->zb.offset;
+		if (size > radeon_bo_size(track->zb.robj)) {
+			DRM_ERROR("[drm] Buffer too small for z buffer "
+				  "(need %lu have %lu) !\n", size,
+				  radeon_bo_size(track->zb.robj));
+			DRM_ERROR("[drm] zbuffer (%u %u %u %u)\n",
+				  track->zb.pitch, track->zb.cpp,
+				  track->zb.offset, track->maxy);
+			return -EINVAL;
+		}
+	}
+	track->zb_dirty = false;
+
+	if (track->aa_dirty && track->aaresolve) {
+		if (track->aa.robj == NULL) {
+			DRM_ERROR("[drm] No buffer for AA resolve buffer %d !\n", i);
+			return -EINVAL;
+		}
+		/* I believe the format comes from colorbuffer0. */
+		size = track->aa.pitch * track->cb[0].cpp * track->maxy;
+		size += track->aa.offset;
+		if (size > radeon_bo_size(track->aa.robj)) {
+			DRM_ERROR("[drm] Buffer too small for AA resolve buffer %d "
+				  "(need %lu have %lu) !\n", i, size,
+				  radeon_bo_size(track->aa.robj));
+			DRM_ERROR("[drm] AA resolve buffer %d (%u %u %u %u)\n",
+				  i, track->aa.pitch, track->cb[0].cpp,
+				  track->aa.offset, track->maxy);
+			return -EINVAL;
+		}
+	}
+	track->aa_dirty = false;
+
+	prim_walk = (track->vap_vf_cntl >> 4) & 0x3;
+	if (track->vap_vf_cntl & (1 << 14)) {
+		nverts = track->vap_alt_nverts;
+	} else {
+		nverts = (track->vap_vf_cntl >> 16) & 0xFFFF;
+	}
+	switch (prim_walk) {
+	case 1:
+		for (i = 0; i < track->num_arrays; i++) {
+			size = track->arrays[i].esize * track->max_indx * 4;
+			if (track->arrays[i].robj == NULL) {
+				DRM_ERROR("(PW %u) Vertex array %u no buffer "
+					  "bound\n", prim_walk, i);
+				return -EINVAL;
+			}
+			if (size > radeon_bo_size(track->arrays[i].robj)) {
+				dev_err(rdev->dev, "(PW %u) Vertex array %u "
+					"need %lu dwords have %lu dwords\n",
+					prim_walk, i, size >> 2,
+					radeon_bo_size(track->arrays[i].robj)
+					>> 2);
+				DRM_ERROR("Max indices %u\n", track->max_indx);
+				return -EINVAL;
+			}
+		}
+		break;
+	case 2:
+		for (i = 0; i < track->num_arrays; i++) {
+			size = track->arrays[i].esize * (nverts - 1) * 4;
+			if (track->arrays[i].robj == NULL) {
+				DRM_ERROR("(PW %u) Vertex array %u no buffer "
+					  "bound\n", prim_walk, i);
+				return -EINVAL;
+			}
+			if (size > radeon_bo_size(track->arrays[i].robj)) {
+				dev_err(rdev->dev, "(PW %u) Vertex array %u "
+					"need %lu dwords have %lu dwords\n",
+					prim_walk, i, size >> 2,
+					radeon_bo_size(track->arrays[i].robj)
+					>> 2);
+				return -EINVAL;
+			}
+		}
+		break;
+	case 3:
+		size = track->vtx_size * nverts;
+		if (size != track->immd_dwords) {
+			DRM_ERROR("IMMD draw %u dwors but needs %lu dwords\n",
+				  track->immd_dwords, size);
+			DRM_ERROR("VAP_VF_CNTL.NUM_VERTICES %u, VTX_SIZE %u\n",
+				  nverts, track->vtx_size);
+			return -EINVAL;
+		}
+		break;
+	default:
+		DRM_ERROR("[drm] Invalid primitive walk %d for VAP_VF_CNTL\n",
+			  prim_walk);
+		return -EINVAL;
+	}
+
+	if (track->tex_dirty) {
+		track->tex_dirty = false;
+		return r100_cs_track_texture_check(rdev, track);
+	}
+	return 0;
+}
+
+void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track)
+{
+	unsigned i, face;
+
+	track->cb_dirty = true;
+	track->zb_dirty = true;
+	track->tex_dirty = true;
+	track->aa_dirty = true;
+
+	if (rdev->family < CHIP_R300) {
+		track->num_cb = 1;
+		if (rdev->family <= CHIP_RS200)
+			track->num_texture = 3;
+		else
+			track->num_texture = 6;
+		track->maxy = 2048;
+		track->separate_cube = 1;
+	} else {
+		track->num_cb = 4;
+		track->num_texture = 16;
+		track->maxy = 4096;
+		track->separate_cube = 0;
+		track->aaresolve = false;
+		track->aa.robj = NULL;
+	}
+
+	for (i = 0; i < track->num_cb; i++) {
+		track->cb[i].robj = NULL;
+		track->cb[i].pitch = 8192;
+		track->cb[i].cpp = 16;
+		track->cb[i].offset = 0;
+	}
+	track->z_enabled = true;
+	track->zb.robj = NULL;
+	track->zb.pitch = 8192;
+	track->zb.cpp = 4;
+	track->zb.offset = 0;
+	track->vtx_size = 0x7F;
+	track->immd_dwords = 0xFFFFFFFFUL;
+	track->num_arrays = 11;
+	track->max_indx = 0x00FFFFFFUL;
+	for (i = 0; i < track->num_arrays; i++) {
+		track->arrays[i].robj = NULL;
+		track->arrays[i].esize = 0x7F;
+	}
+	for (i = 0; i < track->num_texture; i++) {
+		track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+		track->textures[i].pitch = 16536;
+		track->textures[i].width = 16536;
+		track->textures[i].height = 16536;
+		track->textures[i].width_11 = 1 << 11;
+		track->textures[i].height_11 = 1 << 11;
+		track->textures[i].num_levels = 12;
+		if (rdev->family <= CHIP_RS200) {
+			track->textures[i].tex_coord_type = 0;
+			track->textures[i].txdepth = 0;
+		} else {
+			track->textures[i].txdepth = 16;
+			track->textures[i].tex_coord_type = 1;
+		}
+		track->textures[i].cpp = 64;
+		track->textures[i].robj = NULL;
+		/* CS IB emission code makes sure texture unit are disabled */
+		track->textures[i].enabled = false;
+		track->textures[i].lookup_disable = false;
+		track->textures[i].roundup_w = true;
+		track->textures[i].roundup_h = true;
+		if (track->separate_cube)
+			for (face = 0; face < 5; face++) {
+				track->textures[i].cube_info[face].robj = NULL;
+				track->textures[i].cube_info[face].width = 16536;
+				track->textures[i].cube_info[face].height = 16536;
+				track->textures[i].cube_info[face].offset = 0;
+			}
+	}
+}
 
 /*
  * Global GPU functions
@@ -3241,380 +3614,6 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 
 		DRM_DEBUG_KMS("GRPH2_BUFFER_CNTL from to %x\n",
 			  (unsigned int)RREG32(RADEON_GRPH2_BUFFER_CNTL));
-	}
-}
-
-static void r100_cs_track_texture_print(struct r100_cs_track_texture *t)
-{
-	DRM_ERROR("pitch                      %d\n", t->pitch);
-	DRM_ERROR("use_pitch                  %d\n", t->use_pitch);
-	DRM_ERROR("width                      %d\n", t->width);
-	DRM_ERROR("width_11                   %d\n", t->width_11);
-	DRM_ERROR("height                     %d\n", t->height);
-	DRM_ERROR("height_11                  %d\n", t->height_11);
-	DRM_ERROR("num levels                 %d\n", t->num_levels);
-	DRM_ERROR("depth                      %d\n", t->txdepth);
-	DRM_ERROR("bpp                        %d\n", t->cpp);
-	DRM_ERROR("coordinate type            %d\n", t->tex_coord_type);
-	DRM_ERROR("width round to power of 2  %d\n", t->roundup_w);
-	DRM_ERROR("height round to power of 2 %d\n", t->roundup_h);
-	DRM_ERROR("compress format            %d\n", t->compress_format);
-}
-
-static int r100_track_compress_size(int compress_format, int w, int h)
-{
-	int block_width, block_height, block_bytes;
-	int wblocks, hblocks;
-	int min_wblocks;
-	int sz;
-
-	block_width = 4;
-	block_height = 4;
-
-	switch (compress_format) {
-	case R100_TRACK_COMP_DXT1:
-		block_bytes = 8;
-		min_wblocks = 4;
-		break;
-	default:
-	case R100_TRACK_COMP_DXT35:
-		block_bytes = 16;
-		min_wblocks = 2;
-		break;
-	}
-
-	hblocks = (h + block_height - 1) / block_height;
-	wblocks = (w + block_width - 1) / block_width;
-	if (wblocks < min_wblocks)
-		wblocks = min_wblocks;
-	sz = wblocks * hblocks * block_bytes;
-	return sz;
-}
-
-static int r100_cs_track_cube(struct radeon_device *rdev,
-			      struct r100_cs_track *track, unsigned idx)
-{
-	unsigned face, w, h;
-	struct radeon_bo *cube_robj;
-	unsigned long size;
-	unsigned compress_format = track->textures[idx].compress_format;
-
-	for (face = 0; face < 5; face++) {
-		cube_robj = track->textures[idx].cube_info[face].robj;
-		w = track->textures[idx].cube_info[face].width;
-		h = track->textures[idx].cube_info[face].height;
-
-		if (compress_format) {
-			size = r100_track_compress_size(compress_format, w, h);
-		} else
-			size = w * h;
-		size *= track->textures[idx].cpp;
-
-		size += track->textures[idx].cube_info[face].offset;
-
-		if (size > radeon_bo_size(cube_robj)) {
-			DRM_ERROR("Cube texture offset greater than object size %lu %lu\n",
-				  size, radeon_bo_size(cube_robj));
-			r100_cs_track_texture_print(&track->textures[idx]);
-			return -1;
-		}
-	}
-	return 0;
-}
-
-static int r100_cs_track_texture_check(struct radeon_device *rdev,
-				       struct r100_cs_track *track)
-{
-	struct radeon_bo *robj;
-	unsigned long size;
-	unsigned u, i, w, h, d;
-	int ret;
-
-	for (u = 0; u < track->num_texture; u++) {
-		if (!track->textures[u].enabled)
-			continue;
-		if (track->textures[u].lookup_disable)
-			continue;
-		robj = track->textures[u].robj;
-		if (robj == NULL) {
-			DRM_ERROR("No texture bound to unit %u\n", u);
-			return -EINVAL;
-		}
-		size = 0;
-		for (i = 0; i <= track->textures[u].num_levels; i++) {
-			if (track->textures[u].use_pitch) {
-				if (rdev->family < CHIP_R300)
-					w = (track->textures[u].pitch / track->textures[u].cpp) / (1 << i);
-				else
-					w = track->textures[u].pitch / (1 << i);
-			} else {
-				w = track->textures[u].width;
-				if (rdev->family >= CHIP_RV515)
-					w |= track->textures[u].width_11;
-				w = w / (1 << i);
-				if (track->textures[u].roundup_w)
-					w = roundup_pow_of_two(w);
-			}
-			h = track->textures[u].height;
-			if (rdev->family >= CHIP_RV515)
-				h |= track->textures[u].height_11;
-			h = h / (1 << i);
-			if (track->textures[u].roundup_h)
-				h = roundup_pow_of_two(h);
-			if (track->textures[u].tex_coord_type == 1) {
-				d = (1 << track->textures[u].txdepth) / (1 << i);
-				if (!d)
-					d = 1;
-			} else {
-				d = 1;
-			}
-			if (track->textures[u].compress_format) {
-
-				size += r100_track_compress_size(track->textures[u].compress_format, w, h) * d;
-				/* compressed textures are block based */
-			} else
-				size += w * h * d;
-		}
-		size *= track->textures[u].cpp;
-
-		switch (track->textures[u].tex_coord_type) {
-		case 0:
-		case 1:
-			break;
-		case 2:
-			if (track->separate_cube) {
-				ret = r100_cs_track_cube(rdev, track, u);
-				if (ret)
-					return ret;
-			} else
-				size *= 6;
-			break;
-		default:
-			DRM_ERROR("Invalid texture coordinate type %u for unit "
-				  "%u\n", track->textures[u].tex_coord_type, u);
-			return -EINVAL;
-		}
-		if (size > radeon_bo_size(robj)) {
-			DRM_ERROR("Texture of unit %u needs %lu bytes but is "
-				  "%lu\n", u, size, radeon_bo_size(robj));
-			r100_cs_track_texture_print(&track->textures[u]);
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-
-int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
-{
-	unsigned i;
-	unsigned long size;
-	unsigned prim_walk;
-	unsigned nverts;
-	unsigned num_cb = track->cb_dirty ? track->num_cb : 0;
-
-	if (num_cb && !track->zb_cb_clear && !track->color_channel_mask &&
-	    !track->blend_read_enable)
-		num_cb = 0;
-
-	for (i = 0; i < num_cb; i++) {
-		if (track->cb[i].robj == NULL) {
-			DRM_ERROR("[drm] No buffer for color buffer %d !\n", i);
-			return -EINVAL;
-		}
-		size = track->cb[i].pitch * track->cb[i].cpp * track->maxy;
-		size += track->cb[i].offset;
-		if (size > radeon_bo_size(track->cb[i].robj)) {
-			DRM_ERROR("[drm] Buffer too small for color buffer %d "
-				  "(need %lu have %lu) !\n", i, size,
-				  radeon_bo_size(track->cb[i].robj));
-			DRM_ERROR("[drm] color buffer %d (%u %u %u %u)\n",
-				  i, track->cb[i].pitch, track->cb[i].cpp,
-				  track->cb[i].offset, track->maxy);
-			return -EINVAL;
-		}
-	}
-	track->cb_dirty = false;
-
-	if (track->zb_dirty && track->z_enabled) {
-		if (track->zb.robj == NULL) {
-			DRM_ERROR("[drm] No buffer for z buffer !\n");
-			return -EINVAL;
-		}
-		size = track->zb.pitch * track->zb.cpp * track->maxy;
-		size += track->zb.offset;
-		if (size > radeon_bo_size(track->zb.robj)) {
-			DRM_ERROR("[drm] Buffer too small for z buffer "
-				  "(need %lu have %lu) !\n", size,
-				  radeon_bo_size(track->zb.robj));
-			DRM_ERROR("[drm] zbuffer (%u %u %u %u)\n",
-				  track->zb.pitch, track->zb.cpp,
-				  track->zb.offset, track->maxy);
-			return -EINVAL;
-		}
-	}
-	track->zb_dirty = false;
-
-	if (track->aa_dirty && track->aaresolve) {
-		if (track->aa.robj == NULL) {
-			DRM_ERROR("[drm] No buffer for AA resolve buffer %d !\n", i);
-			return -EINVAL;
-		}
-		/* I believe the format comes from colorbuffer0. */
-		size = track->aa.pitch * track->cb[0].cpp * track->maxy;
-		size += track->aa.offset;
-		if (size > radeon_bo_size(track->aa.robj)) {
-			DRM_ERROR("[drm] Buffer too small for AA resolve buffer %d "
-				  "(need %lu have %lu) !\n", i, size,
-				  radeon_bo_size(track->aa.robj));
-			DRM_ERROR("[drm] AA resolve buffer %d (%u %u %u %u)\n",
-				  i, track->aa.pitch, track->cb[0].cpp,
-				  track->aa.offset, track->maxy);
-			return -EINVAL;
-		}
-	}
-	track->aa_dirty = false;
-
-	prim_walk = (track->vap_vf_cntl >> 4) & 0x3;
-	if (track->vap_vf_cntl & (1 << 14)) {
-		nverts = track->vap_alt_nverts;
-	} else {
-		nverts = (track->vap_vf_cntl >> 16) & 0xFFFF;
-	}
-	switch (prim_walk) {
-	case 1:
-		for (i = 0; i < track->num_arrays; i++) {
-			size = track->arrays[i].esize * track->max_indx * 4;
-			if (track->arrays[i].robj == NULL) {
-				DRM_ERROR("(PW %u) Vertex array %u no buffer "
-					  "bound\n", prim_walk, i);
-				return -EINVAL;
-			}
-			if (size > radeon_bo_size(track->arrays[i].robj)) {
-				dev_err(rdev->dev, "(PW %u) Vertex array %u "
-					"need %lu dwords have %lu dwords\n",
-					prim_walk, i, size >> 2,
-					radeon_bo_size(track->arrays[i].robj)
-					>> 2);
-				DRM_ERROR("Max indices %u\n", track->max_indx);
-				return -EINVAL;
-			}
-		}
-		break;
-	case 2:
-		for (i = 0; i < track->num_arrays; i++) {
-			size = track->arrays[i].esize * (nverts - 1) * 4;
-			if (track->arrays[i].robj == NULL) {
-				DRM_ERROR("(PW %u) Vertex array %u no buffer "
-					  "bound\n", prim_walk, i);
-				return -EINVAL;
-			}
-			if (size > radeon_bo_size(track->arrays[i].robj)) {
-				dev_err(rdev->dev, "(PW %u) Vertex array %u "
-					"need %lu dwords have %lu dwords\n",
-					prim_walk, i, size >> 2,
-					radeon_bo_size(track->arrays[i].robj)
-					>> 2);
-				return -EINVAL;
-			}
-		}
-		break;
-	case 3:
-		size = track->vtx_size * nverts;
-		if (size != track->immd_dwords) {
-			DRM_ERROR("IMMD draw %u dwors but needs %lu dwords\n",
-				  track->immd_dwords, size);
-			DRM_ERROR("VAP_VF_CNTL.NUM_VERTICES %u, VTX_SIZE %u\n",
-				  nverts, track->vtx_size);
-			return -EINVAL;
-		}
-		break;
-	default:
-		DRM_ERROR("[drm] Invalid primitive walk %d for VAP_VF_CNTL\n",
-			  prim_walk);
-		return -EINVAL;
-	}
-
-	if (track->tex_dirty) {
-		track->tex_dirty = false;
-		return r100_cs_track_texture_check(rdev, track);
-	}
-	return 0;
-}
-
-void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track)
-{
-	unsigned i, face;
-
-	track->cb_dirty = true;
-	track->zb_dirty = true;
-	track->tex_dirty = true;
-	track->aa_dirty = true;
-
-	if (rdev->family < CHIP_R300) {
-		track->num_cb = 1;
-		if (rdev->family <= CHIP_RS200)
-			track->num_texture = 3;
-		else
-			track->num_texture = 6;
-		track->maxy = 2048;
-		track->separate_cube = 1;
-	} else {
-		track->num_cb = 4;
-		track->num_texture = 16;
-		track->maxy = 4096;
-		track->separate_cube = 0;
-		track->aaresolve = false;
-		track->aa.robj = NULL;
-	}
-
-	for (i = 0; i < track->num_cb; i++) {
-		track->cb[i].robj = NULL;
-		track->cb[i].pitch = 8192;
-		track->cb[i].cpp = 16;
-		track->cb[i].offset = 0;
-	}
-	track->z_enabled = true;
-	track->zb.robj = NULL;
-	track->zb.pitch = 8192;
-	track->zb.cpp = 4;
-	track->zb.offset = 0;
-	track->vtx_size = 0x7F;
-	track->immd_dwords = 0xFFFFFFFFUL;
-	track->num_arrays = 11;
-	track->max_indx = 0x00FFFFFFUL;
-	for (i = 0; i < track->num_arrays; i++) {
-		track->arrays[i].robj = NULL;
-		track->arrays[i].esize = 0x7F;
-	}
-	for (i = 0; i < track->num_texture; i++) {
-		track->textures[i].compress_format = R100_TRACK_COMP_NONE;
-		track->textures[i].pitch = 16536;
-		track->textures[i].width = 16536;
-		track->textures[i].height = 16536;
-		track->textures[i].width_11 = 1 << 11;
-		track->textures[i].height_11 = 1 << 11;
-		track->textures[i].num_levels = 12;
-		if (rdev->family <= CHIP_RS200) {
-			track->textures[i].tex_coord_type = 0;
-			track->textures[i].txdepth = 0;
-		} else {
-			track->textures[i].txdepth = 16;
-			track->textures[i].tex_coord_type = 1;
-		}
-		track->textures[i].cpp = 64;
-		track->textures[i].robj = NULL;
-		/* CS IB emission code makes sure texture unit are disabled */
-		track->textures[i].enabled = false;
-		track->textures[i].lookup_disable = false;
-		track->textures[i].roundup_w = true;
-		track->textures[i].roundup_h = true;
-		if (track->separate_cube)
-			for (face = 0; face < 5; face++) {
-				track->textures[i].cube_info[face].robj = NULL;
-				track->textures[i].cube_info[face].width = 16536;
-				track->textures[i].cube_info[face].height = 16536;
-				track->textures[i].cube_info[face].offset = 0;
-			}
 	}
 }
 
