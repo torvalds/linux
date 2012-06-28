@@ -1612,6 +1612,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct cfg80211_bss *cbss;
 	struct sk_buff *skb;
 	const u8 *ssid;
 	int ssid_len;
@@ -1621,16 +1622,22 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 
 	ASSERT_MGD_MTX(ifmgd);
 
-	if (!ifmgd->associated)
+	if (ifmgd->associated)
+		cbss = ifmgd->associated;
+	else if (ifmgd->auth_data)
+		cbss = ifmgd->auth_data->bss;
+	else if (ifmgd->assoc_data)
+		cbss = ifmgd->assoc_data->bss;
+	else
 		return NULL;
 
-	ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
+	ssid = ieee80211_bss_get_ie(cbss, WLAN_EID_SSID);
 	if (WARN_ON_ONCE(ssid == NULL))
 		ssid_len = 0;
 	else
 		ssid_len = ssid[1];
 
-	skb = ieee80211_build_probe_req(sdata, ifmgd->associated->bssid,
+	skb = ieee80211_build_probe_req(sdata, cbss->bssid,
 					(u32) -1, ssid + 2, ssid_len,
 					NULL, 0, true);
 
