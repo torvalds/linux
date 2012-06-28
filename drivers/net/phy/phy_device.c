@@ -327,9 +327,9 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
  */
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 {
-	struct phy_device *dev = NULL;
-	u32 phy_id;
 	struct phy_c45_device_ids c45_ids = {0};
+	struct phy_device *dev = NULL;
+	u32 phy_id = 0;
 	int r;
 
 	r = get_phy_id(bus, addr, &phy_id, is_c45, &c45_ids);
