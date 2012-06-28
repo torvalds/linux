@@ -219,7 +219,9 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	int ret;
 
 	/* Force SNB workarounds for PIPE_CONTROL flushes */
-	intel_emit_post_sync_nonzero_flush(ring);
+	ret = intel_emit_post_sync_nonzero_flush(ring);
+	if (ret)
+		return ret;
 
 	/* Just flush everything.  Experiments have shown that reducing the
 	 * number of bits based on the write domains has little performance
@@ -233,6 +235,12 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
 	flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
 	flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+	/*
+	 * Ensure that any following seqno writes only happen when the render
+	 * cache is indeed flushed (but only if the caller actually wants that).
+	 */
+	if (flush_domains)
+		flags |= PIPE_CONTROL_CS_STALL;
 
 	ret = intel_ring_begin(ring, 6);
 	if (ret)
