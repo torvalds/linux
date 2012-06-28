@@ -2596,8 +2596,8 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 	if (cp->val) {
 		type = PAGE_SCAN_TYPE_INTERLACED;
 
-		/* 22.5 msec page scan interval */
-		acp.interval = __constant_cpu_to_le16(0x0024);
+		/* 160 msec page scan interval */
+		acp.interval = __constant_cpu_to_le16(0x0100);
 	} else {
 		type = PAGE_SCAN_TYPE_STANDARD;	/* default */
 
