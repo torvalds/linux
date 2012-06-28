@@ -14,7 +14,7 @@ config DISPLAY_DAVINCI_DM646X_EVM
 config CAPTURE_DAVINCI_DM646X_EVM
 	tristate "DM646x EVM Video Capture"
 	depends on VIDEO_DEV && MACH_DAVINCI_DM6467_EVM
-	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_DAVINCI_VPIF
 	help
 	  Support for DM6467 based capture device.
