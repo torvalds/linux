@@ -777,6 +777,22 @@ static bool ahci_sb600_enable_64bit(struct pci_dev *pdev)
 			},
 		},
 		/*
+		 * All BIOS versions for the MSI K9AGM2 (MS-7327) support
+		 * 64bit DMA.
+		 *
+		 * This board also had the typo mentioned above in the
+		 * Manufacturer DMI field (fixed in BIOS version 1.5), so
+		 * match on DMI_BOARD_VENDOR of "MICRO-STAR INTER" again.
+		 */
+		{
+			.ident = "MSI K9AGM2",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR,
+					  "MICRO-STAR INTER"),
+				DMI_MATCH(DMI_BOARD_NAME, "MS-7327"),
+			},
+		},
+		/*
 		 * All BIOS versions for the Asus M3A support 64bit DMA.
 		 * (all release versions from 0301 to 1206 were tested)
 		 */
