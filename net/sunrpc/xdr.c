@@ -554,13 +554,11 @@ void xdr_write_pages(struct xdr_stream *xdr, struct page **pages, unsigned int b
 EXPORT_SYMBOL_GPL(xdr_write_pages);
 
 static void xdr_set_iov(struct xdr_stream *xdr, struct kvec *iov,
-		__be32 *p, unsigned int len)
+		unsigned int len)
 {
 	if (len > iov->iov_len)
 		len = iov->iov_len;
-	if (p == NULL)
-		p = (__be32*)iov->iov_base;
-	xdr->p = p;
+	xdr->p = (__be32*)iov->iov_base;
 	xdr->end = (__be32*)(iov->iov_base + len);
 	xdr->iov = iov;
 	xdr->page_ptr = NULL;
@@ -607,7 +605,7 @@ static void xdr_set_next_page(struct xdr_stream *xdr)
 	newbase -= xdr->buf->page_base;
 
 	if (xdr_set_page_base(xdr, newbase, PAGE_SIZE) < 0)
-		xdr_set_iov(xdr, xdr->buf->tail, NULL, xdr->buf->len);
+		xdr_set_iov(xdr, xdr->buf->tail, xdr->buf->len);
 }
 
 static bool xdr_set_next_buffer(struct xdr_stream *xdr)
@@ -616,7 +614,7 @@ static bool xdr_set_next_buffer(struct xdr_stream *xdr)
 		xdr_set_next_page(xdr);
 	else if (xdr->iov == xdr->buf->head) {
 		if (xdr_set_page_base(xdr, 0, PAGE_SIZE) < 0)
-			xdr_set_iov(xdr, xdr->buf->tail, NULL, xdr->buf->len);
+			xdr_set_iov(xdr, xdr->buf->tail, xdr->buf->len);
 	}
 	return xdr->p != xdr->end;
 }
@@ -633,9 +631,11 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 	xdr->scratch.iov_base = NULL;
 	xdr->scratch.iov_len = 0;
 	if (buf->head[0].iov_len != 0)
-		xdr_set_iov(xdr, buf->head, p, buf->len);
+		xdr_set_iov(xdr, buf->head, buf->len);
 	else if (buf->page_len != 0)
 		xdr_set_page_base(xdr, 0, buf->len);
+	if (p != NULL && p > xdr->p && xdr->end >= p)
+		xdr->p = p;
 }
 EXPORT_SYMBOL_GPL(xdr_init_decode);
 
