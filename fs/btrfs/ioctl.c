@@ -1381,13 +1381,9 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 						    u64 *transid,
 						    bool readonly)
 {
-	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
 	struct file *src_file;
 	int namelen;
 	int ret = 0;
-
-	if (root->fs_info->sb->s_flags & MS_RDONLY)
-		return -EROFS;
 
 	ret = mnt_want_write_file(file);
 	if (ret)
@@ -3268,9 +3264,6 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-
-	if (fs_info->sb->s_flags & MS_RDONLY)
-		return -EROFS;
 
 	ret = mnt_want_write(file->f_path.mnt);
 	if (ret)
