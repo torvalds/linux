@@ -56,6 +56,7 @@
 #include <linux/delay.h>
 
 #include "8255.h"
+#include "8253.h"
 #include "das08.h"
 
 #define DRV_NAME "das08"
@@ -434,38 +435,13 @@ das08ao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static unsigned int i8254_read_channel_low(unsigned int base, int chan)
 {
-	unsigned int msb, lsb;
-
-	/* The following instructions must be in order.
-	   We must avoid other process reading the counter's value in the
-	   middle.
-	   The spin_lock isn't needed since ioctl calls grab the big kernel
-	   lock automatically */
-	/*spin_lock(sp); */
-	outb(chan << 6, base + I8254_CTRL);
-	base += chan;
-	lsb = inb(base);
-	msb = inb(base);
-	/*spin_unlock(sp); */
-
-	return lsb | (msb << 8);
+	return i8254_read(base, 0, chan);
 }
 
 static void i8254_write_channel_low(unsigned int base, int chan,
 				    unsigned int value)
 {
-	unsigned int msb, lsb;
-
-	lsb = value & 0xFF;
-	msb = value >> 8;
-
-	/* write lsb, then msb */
-	base += chan;
-	/* See comments in i8254_read_channel_low */
-	/*spin_lock(sp); */
-	outb(lsb, base);
-	outb(msb, base);
-	/*spin_unlock(sp); */
+	i8254_write(base, 0, chan, value);
 }
 
 static unsigned int i8254_read_channel(struct i8254_struct *st, int channel)
@@ -486,10 +462,10 @@ static void i8254_write_channel(struct i8254_struct *st, int channel,
 static void i8254_set_mode_low(unsigned int base, int channel,
 			       unsigned int mode)
 {
-	outb((channel << 6) | 0x30 | (mode & 0x0F), base + I8254_CTRL);
+	i8254_set_mode(base, 0, channel, mode);
 }
 
-static void i8254_set_mode(struct i8254_struct *st, int channel,
+static void __i8254_set_mode(struct i8254_struct *st, int channel,
 			   unsigned int mode)
 {
 	int chan = st->logic2phys[channel];
@@ -500,8 +476,7 @@ static void i8254_set_mode(struct i8254_struct *st, int channel,
 
 static unsigned int i8254_read_status_low(unsigned int base, int channel)
 {
-	outb(0xE0 | (2 << channel), base + I8254_CTRL);
-	return inb(base + channel);
+	return i8254_status(base, 0, channel);
 }
 
 static unsigned int i8254_read_status(struct i8254_struct *st, int channel)
@@ -550,7 +525,7 @@ static int das08_counter_config(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		i8254_set_mode(&devpriv->i8254, chan, data[1]);
+		__i8254_set_mode(&devpriv->i8254, chan, data[1]);
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
 		data[1] = i8254_read_status(&devpriv->i8254, chan);
