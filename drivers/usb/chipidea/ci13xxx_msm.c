@@ -55,7 +55,7 @@ static struct ci13xxx_udc_driver ci13xxx_msm_udc_driver = {
 	.notify_event		= ci13xxx_msm_notify_event,
 };
 
-static int ci13xxx_msm_probe(struct platform_device *pdev)
+static int __devinit ci13xxx_msm_probe(struct platform_device *pdev)
 {
 	struct platform_device *plat_ci;
 	int ret;
