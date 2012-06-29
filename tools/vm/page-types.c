@@ -35,6 +35,7 @@
 #include <sys/mount.h>
 #include <sys/statfs.h>
 #include "../../include/linux/magic.h"
+#include "../../include/linux/kernel-page-flags.h"
 
 
 #ifndef MAX_PATH
@@ -72,33 +73,6 @@
 
 #define KPF_BYTES		8
 #define PROC_KPAGEFLAGS		"/proc/kpageflags"
-
-/* copied from kpageflags_read() */
-#define KPF_LOCKED		0
-#define KPF_ERROR		1
-#define KPF_REFERENCED		2
-#define KPF_UPTODATE		3
-#define KPF_DIRTY		4
-#define KPF_LRU			5
-#define KPF_ACTIVE		6
-#define KPF_SLAB		7
-#define KPF_WRITEBACK		8
-#define KPF_RECLAIM		9
-#define KPF_BUDDY		10
-
-/* [11-20] new additions in 2.6.31 */
-#define KPF_MMAP		11
-#define KPF_ANON		12
-#define KPF_SWAPCACHE		13
-#define KPF_SWAPBACKED		14
-#define KPF_COMPOUND_HEAD	15
-#define KPF_COMPOUND_TAIL	16
-#define KPF_HUGE		17
-#define KPF_UNEVICTABLE		18
-#define KPF_HWPOISON		19
-#define KPF_NOPAGE		20
-#define KPF_KSM			21
-#define KPF_THP			22
 
 /* [32-] kernel hacking assistances */
 #define KPF_RESERVED		32
@@ -326,7 +300,7 @@ static char *page_flag_name(uint64_t flags)
 {
 	static char buf[65];
 	int present;
-	int i, j;
+	size_t i, j;
 
 	for (i = 0, j = 0; i < ARRAY_SIZE(page_flag_names); i++) {
 		present = (flags >> i) & 1;
@@ -344,7 +318,7 @@ static char *page_flag_name(uint64_t flags)
 static char *page_flag_longname(uint64_t flags)
 {
 	static char buf[1024];
-	int i, n;
+	size_t i, n;
 
 	for (i = 0, n = 0; i < ARRAY_SIZE(page_flag_names); i++) {
 		if (!page_flag_names[i])
@@ -402,7 +376,7 @@ static void show_page(unsigned long voffset,
 
 static void show_summary(void)
 {
-	int i;
+	size_t i;
 
 	printf("             flags\tpage-count       MB"
 		"  symbolic-flags\t\t\tlong-symbolic-flags\n");
@@ -500,7 +474,7 @@ static int debugfs_valid_mountpoint(const char *debugfs)
 /* find the path to the mounted debugfs */
 static const char *debugfs_find_mountpoint(void)
 {
-	const char **ptr;
+	const char *const *ptr;
 	char type[100];
 	FILE *fp;
 
@@ -537,7 +511,7 @@ static const char *debugfs_find_mountpoint(void)
 
 static void debugfs_mount(void)
 {
-	const char **ptr;
+	const char *const *ptr;
 
 	/* see if it's already mounted */
 	if (debugfs_find_mountpoint())
@@ -614,10 +588,10 @@ static int unpoison_page(unsigned long offset)
  * page frame walker
  */
 
-static int hash_slot(uint64_t flags)
+static size_t hash_slot(uint64_t flags)
 {
-	int k = HASH_KEY(flags);
-	int i;
+	size_t k = HASH_KEY(flags);
+	size_t i;
 
 	/* Explicitly reserve slot 0 for flags 0: the following logic
 	 * cannot distinguish an unoccupied slot from slot (flags==0).
@@ -670,7 +644,7 @@ static void walk_pfn(unsigned long voffset,
 {
 	uint64_t buf[KPAGEFLAGS_BATCH];
 	unsigned long batch;
-	long pages;
+	unsigned long pages;
 	unsigned long i;
 
 	while (count) {
@@ -779,7 +753,7 @@ static const char *page_flag_type(uint64_t flag)
 
 static void usage(void)
 {
-	int i, j;
+	size_t i, j;
 
 	printf(
 "page-types [options]\n"
@@ -938,7 +912,7 @@ static void add_bits_filter(uint64_t mask, uint64_t bits)
 
 static uint64_t parse_flag_name(const char *str, int len)
 {
-	int i;
+	size_t i;
 
 	if (!*str || !len)
 		return 0;

@@ -3382,6 +3382,12 @@ W:	http://www.developer.ibm.com/welcome/netfinity/serveraid.html
 S:	Supported
 F:	drivers/scsi/ips.*
 
+ICH LPC AND GPIO DRIVER
+M:	Peter Tyser <ptyser@xes-inc.com>
+S:	Maintained
+F:	drivers/mfd/lpc_ich.c
+F:	drivers/gpio/gpio-ich.c
+
 IDE SUBSYSTEM
 M:	"David S. Miller" <davem@davemloft.net>
 L:	linux-ide@vger.kernel.org

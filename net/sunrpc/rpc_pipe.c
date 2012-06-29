@@ -120,7 +120,7 @@ EXPORT_SYMBOL_GPL(rpc_pipe_generic_upcall);
 
 /**
  * rpc_queue_upcall - queue an upcall message to userspace
- * @inode: inode of upcall pipe on which to queue given message
+ * @pipe: upcall pipe on which to queue given message
  * @msg: message to queue
  *
  * Call with an @inode created by rpc_mkpipe() to queue an upcall.
@@ -819,9 +819,7 @@ static int rpc_rmdir_depopulate(struct dentry *dentry,
  * @parent: dentry of directory to create new "pipe" in
  * @name: name of pipe
  * @private: private data to associate with the pipe, for the caller's use
- * @ops: operations defining the behavior of the pipe: upcall, downcall,
- *	release_pipe, open_pipe, and destroy_msg.
- * @flags: rpc_pipe flags
+ * @pipe: &rpc_pipe containing input parameters
  *
  * Data is made available for userspace to read by calls to
  * rpc_queue_upcall().  The actual reads will result in calls to
@@ -943,7 +941,7 @@ struct dentry *rpc_create_client_dir(struct dentry *dentry,
 
 /**
  * rpc_remove_client_dir - Remove a directory created with rpc_create_client_dir()
- * @clnt: rpc client
+ * @dentry: dentry for the pipe
  */
 int rpc_remove_client_dir(struct dentry *dentry)
 {
@@ -1115,7 +1113,7 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &s_ops;
 	sb->s_time_gran = 1;
 
-	inode = rpc_get_inode(sb, S_IFDIR | 0755);
+	inode = rpc_get_inode(sb, S_IFDIR | S_IRUGO | S_IXUGO);
 	sb->s_root = root = d_make_root(inode);
 	if (!root)
 		return -ENOMEM;

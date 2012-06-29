@@ -351,31 +351,14 @@ extern int swap_type_of(dev_t, sector_t, struct block_device **);
 extern unsigned int count_swap_pages(int, int);
 extern sector_t map_swap_page(struct page *, struct block_device **);
 extern sector_t swapdev_block(int, pgoff_t);
+extern int page_swapcount(struct page *);
 extern int reuse_swap_page(struct page *);
 extern int try_to_free_swap(struct page *);
 struct backing_dev_info;
 
-/* linux/mm/thrash.c */
-extern struct mm_struct *swap_token_mm;
-extern void grab_swap_token(struct mm_struct *);
-extern void __put_swap_token(struct mm_struct *);
-extern void disable_swap_token(struct mem_cgroup *memcg);
-
-static inline int has_swap_token(struct mm_struct *mm)
-{
-	return (mm == swap_token_mm);
-}
-
-static inline void put_swap_token(struct mm_struct *mm)
-{
-	if (has_swap_token(mm))
-		__put_swap_token(mm);
-}
-
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 extern void
 mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout);
-extern int mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep);
 #else
 static inline void
 mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
@@ -462,6 +445,11 @@ static inline void delete_from_swap_cache(struct page *page)
 {
 }
 
+static inline int page_swapcount(struct page *page)
+{
+	return 0;
+}
+
 #define reuse_swap_page(page)	(page_mapcount(page) == 1)
 
 static inline int try_to_free_swap(struct page *page)
@@ -476,36 +464,10 @@ static inline swp_entry_t get_swap_page(void)
 	return entry;
 }
 
-/* linux/mm/thrash.c */
-static inline void put_swap_token(struct mm_struct *mm)
-{
-}
-
-static inline void grab_swap_token(struct mm_struct *mm)
-{
-}
-
-static inline int has_swap_token(struct mm_struct *mm)
-{
-	return 0;
-}
-
-static inline void disable_swap_token(struct mem_cgroup *memcg)
-{
-}
-
 static inline void
 mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
 {
 }
-
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-static inline int
-mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep)
-{
-	return 0;
-}
-#endif
 
 #endif /* CONFIG_SWAP */
 #endif /* __KERNEL__*/

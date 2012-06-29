@@ -131,17 +131,7 @@ static struct pci_driver vx855_pci_driver = {
 	.remove		= __devexit_p(vx855_remove),
 };
 
-static int vx855_init(void)
-{
-	return pci_register_driver(&vx855_pci_driver);
-}
-module_init(vx855_init);
-
-static void vx855_exit(void)
-{
-	pci_unregister_driver(&vx855_pci_driver);
-}
-module_exit(vx855_exit);
+module_pci_driver(vx855_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <HaraldWelte@viatech.com>");

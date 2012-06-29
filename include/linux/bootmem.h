@@ -135,9 +135,6 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
 extern int reserve_bootmem_generic(unsigned long addr, unsigned long size,
 				   int flags);
 
-extern void *alloc_bootmem_section(unsigned long size,
-				   unsigned long section_nr);
-
 #ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
 extern void *alloc_remap(int nid, unsigned long size);
 #else

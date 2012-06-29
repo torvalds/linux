@@ -138,7 +138,6 @@ struct mem_cgroup_per_zone {
 
 	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
 
-	struct zone_reclaim_stat reclaim_stat;
 	struct rb_node		tree_node;	/* RB tree node */
 	unsigned long long	usage_in_excess;/* Set to the value by which */
 						/* the soft limit is exceeded*/
@@ -1149,15 +1148,25 @@ struct lruvec *mem_cgroup_lru_move_lists(struct zone *zone,
  * Checks whether given mem is same or in the root_mem_cgroup's
  * hierarchy subtree
  */
-static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-		struct mem_cgroup *memcg)
+bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+				  struct mem_cgroup *memcg)
 {
-	if (root_memcg != memcg) {
-		return (root_memcg->use_hierarchy &&
-			css_is_ancestor(&memcg->css, &root_memcg->css));
-	}
+	if (root_memcg == memcg)
+		return true;
+	if (!root_memcg->use_hierarchy)
+		return false;
+	return css_is_ancestor(&memcg->css, &root_memcg->css);
+}
 
-	return true;
+static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+				       struct mem_cgroup *memcg)
+{
+	bool ret;
+
+	rcu_read_lock();
+	ret = __mem_cgroup_same_or_subtree(root_memcg, memcg);
+	rcu_read_unlock();
+	return ret;
 }
 
 int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
@@ -1233,16 +1242,6 @@ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg, struct zone *zone)
 	return (active > inactive);
 }
 
-struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
-						      struct zone *zone)
-{
-	int nid = zone_to_nid(zone);
-	int zid = zone_idx(zone);
-	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
-
-	return &mz->reclaim_stat;
-}
-
 struct zone_reclaim_stat *
 mem_cgroup_get_reclaim_stat_from_page(struct page *page)
 {
@@ -1258,7 +1257,7 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
 	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
 	smp_rmb();
 	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
-	return &mz->reclaim_stat;
+	return &mz->lruvec.reclaim_stat;
 }
 
 #define mem_cgroup_from_res_counter(counter, member)	\
@@ -2845,24 +2844,7 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
 	 */
 	if (do_swap_account && PageSwapCache(page)) {
 		swp_entry_t ent = {.val = page_private(page)};
-		struct mem_cgroup *swap_memcg;
-		unsigned short id;
-
-		id = swap_cgroup_record(ent, 0);
-		rcu_read_lock();
-		swap_memcg = mem_cgroup_lookup(id);
-		if (swap_memcg) {
-			/*
-			 * This recorded memcg can be obsolete one. So, avoid
-			 * calling css_tryget
-			 */
-			if (!mem_cgroup_is_root(swap_memcg))
-				res_counter_uncharge(&swap_memcg->memsw,
-						     PAGE_SIZE);
-			mem_cgroup_swap_statistics(swap_memcg, false);
-			mem_cgroup_put(swap_memcg);
-		}
-		rcu_read_unlock();
+		mem_cgroup_uncharge_swap(ent);
 	}
 	/*
 	 * At swapin, we may charge account against cgroup which has no tasks.
@@ -3155,7 +3137,6 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
  * @entry: swap entry to be moved
  * @from:  mem_cgroup which the entry is moved from
  * @to:  mem_cgroup which the entry is moved to
- * @need_fixup: whether we should fixup res_counters and refcounts.
  *
  * It succeeds only when the swap_cgroup's record for this entry is the same
  * as the mem_cgroup's id of @from.
@@ -3166,7 +3147,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
  * both res and memsw, and called css_get().
  */
 static int mem_cgroup_move_swap_account(swp_entry_t entry,
-		struct mem_cgroup *from, struct mem_cgroup *to, bool need_fixup)
+				struct mem_cgroup *from, struct mem_cgroup *to)
 {
 	unsigned short old_id, new_id;
 
@@ -3185,24 +3166,13 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
 		 * swap-in, the refcount of @to might be decreased to 0.
 		 */
 		mem_cgroup_get(to);
-		if (need_fixup) {
-			if (!mem_cgroup_is_root(from))
-				res_counter_uncharge(&from->memsw, PAGE_SIZE);
-			mem_cgroup_put(from);
-			/*
-			 * we charged both to->res and to->memsw, so we should
-			 * uncharge to->res.
-			 */
-			if (!mem_cgroup_is_root(to))
-				res_counter_uncharge(&to->res, PAGE_SIZE);
-		}
 		return 0;
 	}
 	return -EINVAL;
 }
 #else
 static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
-		struct mem_cgroup *from, struct mem_cgroup *to, bool need_fixup)
+				struct mem_cgroup *from, struct mem_cgroup *to)
 {
 	return -EINVAL;
 }
@@ -3363,7 +3333,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
 void mem_cgroup_replace_page_cache(struct page *oldpage,
 				  struct page *newpage)
 {
-	struct mem_cgroup *memcg;
+	struct mem_cgroup *memcg = NULL;
 	struct page_cgroup *pc;
 	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
 
@@ -3373,10 +3343,19 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
 	pc = lookup_page_cgroup(oldpage);
 	/* fix accounting on old pages */
 	lock_page_cgroup(pc);
-	memcg = pc->mem_cgroup;
-	mem_cgroup_charge_statistics(memcg, false, -1);
-	ClearPageCgroupUsed(pc);
+	if (PageCgroupUsed(pc)) {
+		memcg = pc->mem_cgroup;
+		mem_cgroup_charge_statistics(memcg, false, -1);
+		ClearPageCgroupUsed(pc);
+	}
 	unlock_page_cgroup(pc);
+
+	/*
+	 * When called from shmem_replace_page(), in some cases the
+	 * oldpage has already been charged, and in some cases not.
+	 */
+	if (!memcg)
+		return;
 
 	if (PageSwapBacked(oldpage))
 		type = MEM_CGROUP_CHARGE_TYPE_SHMEM;
@@ -4226,21 +4205,19 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
 	{
 		int nid, zid;
 		struct mem_cgroup_per_zone *mz;
+		struct zone_reclaim_stat *rstat;
 		unsigned long recent_rotated[2] = {0, 0};
 		unsigned long recent_scanned[2] = {0, 0};
 
 		for_each_online_node(nid)
 			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
 				mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+				rstat = &mz->lruvec.reclaim_stat;
 
-				recent_rotated[0] +=
-					mz->reclaim_stat.recent_rotated[0];
-				recent_rotated[1] +=
-					mz->reclaim_stat.recent_rotated[1];
-				recent_scanned[0] +=
-					mz->reclaim_stat.recent_scanned[0];
-				recent_scanned[1] +=
-					mz->reclaim_stat.recent_scanned[1];
+				recent_rotated[0] += rstat->recent_rotated[0];
+				recent_rotated[1] += rstat->recent_rotated[1];
+				recent_scanned[0] += rstat->recent_scanned[0];
+				recent_scanned[1] += rstat->recent_scanned[1];
 			}
 		cb->fill(cb, "recent_rotated_anon", recent_rotated[0]);
 		cb->fill(cb, "recent_rotated_file", recent_rotated[1]);
@@ -5135,7 +5112,7 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
 		return NULL;
 	if (PageAnon(page)) {
 		/* we don't move shared anon */
-		if (!move_anon() || page_mapcount(page) > 2)
+		if (!move_anon())
 			return NULL;
 	} else if (!move_file())
 		/* we ignore mapcount for file pages */
@@ -5146,26 +5123,32 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
 	return page;
 }
 
+#ifdef CONFIG_SWAP
 static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
 			unsigned long addr, pte_t ptent, swp_entry_t *entry)
 {
-	int usage_count;
 	struct page *page = NULL;
 	swp_entry_t ent = pte_to_swp_entry(ptent);
 
 	if (!move_anon() || non_swap_entry(ent))
 		return NULL;
-	usage_count = mem_cgroup_count_swap_user(ent, &page);
-	if (usage_count > 1) { /* we don't move shared anon */
-		if (page)
-			put_page(page);
-		return NULL;
-	}
+	/*
+	 * Because lookup_swap_cache() updates some statistics counter,
+	 * we call find_get_page() with swapper_space directly.
+	 */
+	page = find_get_page(&swapper_space, ent.val);
 	if (do_swap_account)
 		entry->val = ent.val;
 
 	return page;
 }
+#else
+static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+			unsigned long addr, pte_t ptent, swp_entry_t *entry)
+{
+	return NULL;
+}
+#endif
 
 static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
 			unsigned long addr, pte_t ptent, swp_entry_t *entry)
@@ -5521,8 +5504,7 @@ put:			/* get_mctgt_type() gets the page */
 			break;
 		case MC_TARGET_SWAP:
 			ent = target.ent;
-			if (!mem_cgroup_move_swap_account(ent,
-						mc.from, mc.to, false)) {
+			if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to)) {
 				mc.precharge--;
 				/* we fixup refcnts and charges later. */
 				mc.moved_swap++;
@@ -5598,7 +5580,6 @@ static void mem_cgroup_move_task(struct cgroup *cont,
 	if (mm) {
 		if (mc.to)
 			mem_cgroup_move_charge(mm);
-		put_swap_token(mm);
 		mmput(mm);
 	}
 	if (mc.to)

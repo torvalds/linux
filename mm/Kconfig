@@ -349,6 +349,16 @@ choice
 	  benefit.
 endchoice
 
+config CROSS_MEMORY_ATTACH
+	bool "Cross Memory Support"
+	depends on MMU
+	default y
+	help
+	  Enabling this option adds the system calls process_vm_readv and
+	  process_vm_writev which allow a process with the correct privileges
+	  to directly read from or write to to another process's address space.
+	  See the man page for more details.
+
 #
 # UP and nommu archs use km based percpu allocator
 #

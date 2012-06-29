@@ -206,7 +206,7 @@ static struct resource ab8500_resources[] = {
 };
 
 struct platform_device ab8500_device = {
-	.name = "ab8500-i2c",
+	.name = "ab8500-core",
 	.id = 0,
 	.dev = {
 		.platform_data = &ab8500_platdata,

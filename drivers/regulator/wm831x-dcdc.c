@@ -535,7 +535,7 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	irq = platform_get_irq_byname(pdev, "UV");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
 	ret = request_threaded_irq(irq, NULL, wm831x_dcdc_uv_irq,
 				   IRQF_TRIGGER_RISING, dcdc->name, dcdc);
 	if (ret != 0) {
@@ -544,7 +544,7 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 		goto err_regulator;
 	}
 
-	irq = platform_get_irq_byname(pdev, "HC");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "HC"));
 	ret = request_threaded_irq(irq, NULL, wm831x_dcdc_oc_irq,
 				   IRQF_TRIGGER_RISING, dcdc->name, dcdc);
 	if (ret != 0) {
@@ -558,7 +558,8 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 	return 0;
 
 err_uv:
-	free_irq(platform_get_irq_byname(pdev, "UV"), dcdc);
+	free_irq(wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV")),
+		 dcdc);
 err_regulator:
 	regulator_unregister(dcdc->regulator);
 err:
@@ -570,11 +571,14 @@ err:
 static __devexit int wm831x_buckv_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
+	struct wm831x *wm831x = dcdc->wm831x;
 
 	platform_set_drvdata(pdev, NULL);
 
-	free_irq(platform_get_irq_byname(pdev, "HC"), dcdc);
-	free_irq(platform_get_irq_byname(pdev, "UV"), dcdc);
+	free_irq(wm831x_irq(wm831x, platform_get_irq_byname(pdev, "HC")),
+			    dcdc);
+	free_irq(wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV")),
+			    dcdc);
 	regulator_unregister(dcdc->regulator);
 	if (dcdc->dvs_gpio)
 		gpio_free(dcdc->dvs_gpio);
@@ -726,7 +730,7 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	irq = platform_get_irq_byname(pdev, "UV");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
 	ret = request_threaded_irq(irq, NULL, wm831x_dcdc_uv_irq,
 				   IRQF_TRIGGER_RISING,	dcdc->name, dcdc);
 	if (ret != 0) {
@@ -751,7 +755,8 @@ static __devexit int wm831x_buckp_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	free_irq(platform_get_irq_byname(pdev, "UV"), dcdc);
+	free_irq(wm831x_irq(dcdc->wm831x, platform_get_irq_byname(pdev, "UV")),
+			    dcdc);
 	regulator_unregister(dcdc->regulator);
 
 	return 0;
@@ -859,7 +864,7 @@ static __devinit int wm831x_boostp_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	irq = platform_get_irq_byname(pdev, "UV");
+	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
 	ret = request_threaded_irq(irq, NULL, wm831x_dcdc_uv_irq,
 				   IRQF_TRIGGER_RISING, dcdc->name,
 				   dcdc);
@@ -885,7 +890,8 @@ static __devexit int wm831x_boostp_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	free_irq(platform_get_irq_byname(pdev, "UV"), dcdc);
+	free_irq(wm831x_irq(dcdc->wm831x, platform_get_irq_byname(pdev, "UV")),
+		 dcdc);
 	regulator_unregister(dcdc->regulator);
 
 	return 0;
