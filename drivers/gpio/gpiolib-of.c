@@ -73,7 +73,7 @@ int of_get_named_gpio_flags(struct device_node *np, const char *propname,
 					 &gg_data.gpiospec);
 	if (ret) {
 		pr_debug("%s: can't parse gpios property\n", __func__);
-		return -EINVAL;
+		return ret;
 	}
 
 	gpiochip_find(&gg_data, of_gpiochip_find_and_xlate);
