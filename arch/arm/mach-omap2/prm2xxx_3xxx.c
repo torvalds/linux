@@ -351,11 +351,16 @@ static void __init omap3xxx_prm_enable_io_wakeup(void)
 
 static int __init omap3xxx_prcm_init(void)
 {
+	int ret = 0;
+
 	if (cpu_is_omap34xx()) {
 		omap3xxx_prm_enable_io_wakeup();
-		return omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
+		ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
+		if (!ret)
+			irq_set_status_flags(omap_prcm_event_to_irq("io"),
+					     IRQ_NOAUTOEN);
 	}
 
-	return 0;
+	return ret;
 }
 subsys_initcall(omap3xxx_prcm_init);
