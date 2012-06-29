@@ -71,20 +71,10 @@ struct print_buf *const TIPC_LOG = &log_buf;
  * on the caller to prevent simultaneous use of the print buffer(s) being
  * manipulated.
  */
-static char print_string[TIPC_PB_MAX_STR];
 static DEFINE_SPINLOCK(print_lock);
 
 static void tipc_printbuf_move(struct print_buf *pb_to,
 			       struct print_buf *pb_from);
-
-#define FORMAT(PTR, LEN, FMT) \
-{\
-	va_list args;\
-	va_start(args, FMT);\
-	LEN = vsprintf(PTR, FMT, args);\
-	va_end(args);\
-	*(PTR + LEN) = '\0';\
-}
 
 /**
  * tipc_printbuf_init - initialize print buffer to empty
@@ -220,39 +210,17 @@ static void tipc_printbuf_move(struct print_buf *pb_to,
  */
 void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 {
-	int chars_to_add;
-	int chars_left;
-	char save_char;
+	int i;
+	va_list args;
+	char *buf;
+	int len;
 
-	spin_lock_bh(&print_lock);
-
-	FORMAT(print_string, chars_to_add, fmt);
-	if (chars_to_add >= TIPC_PB_MAX_STR)
-		strcpy(print_string, "*** PRINT BUFFER STRING TOO LONG ***");
-
-	if (pb->buf) {
-		chars_left = pb->buf + pb->size - pb->crs - 1;
-		if (chars_to_add <= chars_left) {
-			strcpy(pb->crs, print_string);
-			pb->crs += chars_to_add;
-		} else if (chars_to_add >= (pb->size - 1)) {
-			strcpy(pb->buf, print_string + chars_to_add + 1
-			       - pb->size);
-			pb->crs = pb->buf + pb->size - 1;
-		} else {
-			strcpy(pb->buf, print_string + chars_left);
-			save_char = print_string[chars_left];
-			print_string[chars_left] = 0;
-			strcpy(pb->crs, print_string);
-			print_string[chars_left] = save_char;
-			pb->crs = pb->buf + chars_to_add - chars_left;
-		}
-	}
-
-	if (pb->echo)
-		printk("%s", print_string);
-
-	spin_unlock_bh(&print_lock);
+	buf = pb->crs;
+	len = pb->buf + pb->size - pb->crs;
+	va_start(args, fmt);
+	i = vscnprintf(buf, len, fmt, args);
+	va_end(args);
+	pb->crs += i;
 }
 
 /**
