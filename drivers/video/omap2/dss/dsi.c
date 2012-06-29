@@ -331,6 +331,8 @@ struct dsi_data {
 	unsigned num_lanes_used;
 
 	unsigned scp_clk_refcount;
+
+	struct dss_lcd_mgr_config mgr_config;
 };
 
 struct dsi_packet_sent_handler_data {
@@ -4337,14 +4339,40 @@ EXPORT_SYMBOL(omap_dsi_update);
 
 /* Display funcs */
 
+static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dispc_clock_info dispc_cinfo;
+	int r;
+	unsigned long long fck;
+
+	fck = dsi_get_pll_hsdiv_dispc_rate(dsidev);
+
+	dispc_cinfo.lck_div = dssdev->clocks.dispc.channel.lck_div;
+	dispc_cinfo.pck_div = dssdev->clocks.dispc.channel.pck_div;
+
+	r = dispc_calc_clock_rates(fck, &dispc_cinfo);
+	if (r) {
+		DSSERR("Failed to calc dispc clocks\n");
+		return r;
+	}
+
+	dsi->mgr_config.clock_info = dispc_cinfo;
+
+	return 0;
+}
+
 static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 {
-	int r;
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_video_timings timings;
+	int r;
+	u32 irq = 0;
 
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
 		u16 dw, dh;
-		u32 irq;
 
 		dssdev->driver->get_resolution(dssdev, &dw, &dh);
 
@@ -4363,16 +4391,16 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 			(void *) dssdev, irq);
 		if (r) {
 			DSSERR("can't get FRAMEDONE irq\n");
-			return r;
+			goto err;
 		}
 
-		dispc_mgr_enable_stallmode(dssdev->manager->id, true);
-		dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 1);
+		dsi->mgr_config.stallmode = true;
+		dsi->mgr_config.fifohandcheck = true;
 	} else {
 		timings = dssdev->panel.timings;
 
-		dispc_mgr_enable_stallmode(dssdev->manager->id, false);
-		dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 0);
+		dsi->mgr_config.stallmode = false;
+		dsi->mgr_config.fifohandcheck = false;
 	}
 
 	/*
@@ -4388,12 +4416,39 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 
 	dss_mgr_set_timings(dssdev->manager, &timings);
 
-	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
+	r = dsi_configure_dispc_clocks(dssdev);
+	if (r)
+		goto err1;
+
+	dsi->mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
+	dsi->mgr_config.video_port_width =
+			dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
+	dsi->mgr_config.lcden_sig_polarity = 0;
+
+	dispc_mgr_set_io_pad_mode(dsi->mgr_config.io_pad_mode);
+
+	dispc_mgr_enable_stallmode(dssdev->manager->id,
+			dsi->mgr_config.stallmode);
+	dispc_mgr_enable_fifohandcheck(dssdev->manager->id,
+			dsi->mgr_config.fifohandcheck);
+
+	dispc_mgr_set_clock_div(dssdev->manager->id,
+			&dsi->mgr_config.clock_info);
 
 	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
-		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt));
+			dsi->mgr_config.video_port_width);
+
+	dispc_lcd_enable_signal_polarity(dsi->mgr_config.lcden_sig_polarity);
+
+	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
 
 	return 0;
+err1:
+	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE)
+		omap_dispc_unregister_isr(dsi_framedone_irq_callback,
+			(void *) dssdev, irq);
+err:
+	return r;
 }
 
 static void dsi_display_uninit_dispc(struct omap_dss_device *dssdev)
@@ -4433,29 +4488,6 @@ static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dispc_clock_info dispc_cinfo;
-	int r;
-	unsigned long long fck;
-
-	fck = dsi_get_pll_hsdiv_dispc_rate(dsidev);
-
-	dispc_cinfo.lck_div = dssdev->clocks.dispc.channel.lck_div;
-	dispc_cinfo.pck_div = dssdev->clocks.dispc.channel.pck_div;
-
-	r = dispc_calc_clock_rates(fck, &dispc_cinfo);
-	if (r) {
-		DSSERR("Failed to calc dispc clocks\n");
-		return r;
-	}
-
-	dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
-
-	return 0;
-}
-
 static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
@@ -4476,10 +4508,6 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 			dssdev->clocks.dispc.channel.lcd_clk_src);
 
 	DSSDBG("PLL OK\n");
-
-	r = dsi_configure_dispc_clocks(dssdev);
-	if (r)
-		goto err2;
 
 	r = dsi_cio_init(dssdev);
 	if (r)
