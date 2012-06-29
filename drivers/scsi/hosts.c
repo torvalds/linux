@@ -290,6 +290,7 @@ static void scsi_host_dev_release(struct device *dev)
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct device *parent = dev->parent;
 	struct request_queue *q;
+	void *queuedata;
 
 	scsi_proc_hostdir_rm(shost->hostt);
 
@@ -299,9 +300,9 @@ static void scsi_host_dev_release(struct device *dev)
 		destroy_workqueue(shost->work_q);
 	q = shost->uspace_req_q;
 	if (q) {
-		kfree(q->queuedata);
-		q->queuedata = NULL;
-		scsi_free_queue(q);
+		queuedata = q->queuedata;
+		blk_cleanup_queue(q);
+		kfree(queuedata);
 	}
 
 	scsi_destroy_command_freelist(shost);
