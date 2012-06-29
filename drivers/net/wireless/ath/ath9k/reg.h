@@ -1643,11 +1643,11 @@ enum {
 
 #define AR_TPC                 0x80e8
 #define AR_TPC_ACK             0x0000003f
-#define AR_TPC_ACK_S           0x00
+#define AR_TPC_ACK_S           0
 #define AR_TPC_CTS             0x00003f00
-#define AR_TPC_CTS_S           0x08
+#define AR_TPC_CTS_S           8
 #define AR_TPC_CHIRP           0x003f0000
-#define AR_TPC_CHIRP_S         0x16
+#define AR_TPC_CHIRP_S         16
 
 #define AR_QUIET1          0x80fc
 #define AR_QUIET1_NEXT_QUIET_S         0
