@@ -290,51 +290,45 @@ static void acpi_device_release(struct device *dev)
 	kfree(acpi_dev);
 }
 
-#define ACPI_DEV_PM_CALLBACK(dev, callback, legacy_cb)		\
+#define ACPI_DEV_PM_CALLBACK(dev, callback)		\
 ({								\
-	struct acpi_device *__acpi_dev = to_acpi_device(dev);	\
-	struct acpi_driver *__acpi_drv = __acpi_dev->driver;	\
 	struct device_driver *__drv = dev->driver;		\
-	int __ret;						\
+	int __ret = 0;						\
 								\
-	if (__acpi_drv && __acpi_drv->ops.legacy_cb)		\
-		__ret = __acpi_drv->ops.legacy_cb(__acpi_dev);	\
-	else if (__drv && __drv->pm && __drv->pm->callback)	\
+	if (__drv && __drv->pm && __drv->pm->callback)		\
 		__ret = __drv->pm->callback(dev);		\
-	else							\
-		__ret = 0;					\
 								\
 	__ret;							\
 })
 
 static int acpi_pm_suspend(struct device *dev)
 {
-	return ACPI_DEV_PM_CALLBACK(dev, suspend, suspend);
+	return ACPI_DEV_PM_CALLBACK(dev, suspend);
 }
 
 static int acpi_pm_resume(struct device *dev)
 {
-	return ACPI_DEV_PM_CALLBACK(dev, resume, resume);
+	return ACPI_DEV_PM_CALLBACK(dev, resume);
 }
 
 static int acpi_pm_freeze(struct device *dev)
 {
-	return ACPI_DEV_PM_CALLBACK(dev, freeze, suspend);
+	return ACPI_DEV_PM_CALLBACK(dev, freeze);
 }
 
 static int acpi_pm_thaw(struct device *dev)
 {
-	return ACPI_DEV_PM_CALLBACK(dev, thaw, resume);
+	return ACPI_DEV_PM_CALLBACK(dev, thaw);
 }
 
 static int acpi_pm_poweroff(struct device *dev)
 {
-	return ACPI_DEV_PM_CALLBACK(dev, poweroff, suspend);
+	return ACPI_DEV_PM_CALLBACK(dev, poweroff);
 }
 
 static int acpi_pm_restore(struct device *dev)
 {
-	return ACPI_DEV_PM_CALLBACK(dev, restore, resume);
+	return ACPI_DEV_PM_CALLBACK(dev, restore);
 }
 
 static const struct dev_pm_ops acpi_bus_pm = {
