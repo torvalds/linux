@@ -78,10 +78,10 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	struct sockaddr_nfc_llcp llcp_addr;
 	int len, ret = 0;
 
-	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
-
 	if (!addr || addr->sa_family != AF_NFC)
 		return -EINVAL;
+
+	pr_debug("sk %p addr %p family %d\n", sk, addr, addr->sa_family);
 
 	memset(&llcp_addr, 0, sizeof(llcp_addr));
 	len = min_t(unsigned int, sizeof(llcp_addr), alen);
