@@ -48,14 +48,13 @@ static struct sunxi_watchdog_reg {
 	u32 ctrl;
 	u32 mode;
 	u32 reserved[2];
-} *wdt_reg;
+} __iomem *wdt_reg;
 
-#define SW_WDT_CTRL_b_RELOAD 0
-#define SW_WDT_CTRL_b_MAGIC 1
-#define SW_WDT_CTRL_MAGIC_RELOAD 0xA57
-#define SW_WDT_MODE_b_ENABLE 0
-#define SW_WDT_MODE_b_RESET 1
-#define SW_WDT_MODE_b_TIMEOUT 2
+#define SW_WDT_CTRL_RELOAD ((0xA57 << 1) | (1 << 0))
+
+#define SW_WDT_MODE_ENABLE (1 << 0)
+#define SW_WDT_MODE_RESET (1 << 1)
+#define SW_WDT_MODE_TIMEOUT(n) (n << 2)
 
 #define WATCHDOG_TIMEOUT 23 /* in some unit / scale */
 #define MAX_TIMEOUT 23	    /* register fits ((1<<6)-1), but seems halted above 23 */
@@ -73,8 +72,8 @@ static int sunxi_wdt_start(void)
 {
 	int err = 0;
 
-	writel((timeout << SW_WDT_MODE_b_TIMEOUT) | (1 << SW_WDT_MODE_b_RESET) | (1 << SW_WDT_MODE_b_ENABLE), &wdt_reg->mode);
-	writel((SW_WDT_CTRL_MAGIC_RELOAD << SW_WDT_CTRL_b_MAGIC) | (1 << SW_WDT_CTRL_b_RELOAD), &wdt_reg->ctrl);
+	writel(SW_WDT_MODE_TIMEOUT(timeout) | SW_WDT_MODE_RESET | SW_WDT_MODE_ENABLE, &wdt_reg->mode);
+	writel(SW_WDT_CTRL_RELOAD, &wdt_reg->ctrl);
 
 	return err;
 }
