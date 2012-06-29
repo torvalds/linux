@@ -268,6 +268,7 @@ struct tty_struct {
 	struct mutex ldisc_mutex;
 	struct tty_ldisc *ldisc;
 
+	struct mutex legacy_mutex;
 	struct mutex termios_mutex;
 	spinlock_t ctrl_lock;
 	/* Termios values are protected by the termios mutex */
@@ -610,8 +611,12 @@ extern long vt_compat_ioctl(struct tty_struct *tty,
 
 /* tty_mutex.c */
 /* functions for preparation of BKL removal */
-extern void __lockfunc tty_lock(void) __acquires(tty_lock);
-extern void __lockfunc tty_unlock(void) __releases(tty_lock);
+extern void __lockfunc tty_lock(struct tty_struct *tty);
+extern void __lockfunc tty_unlock(struct tty_struct *tty);
+extern void __lockfunc tty_lock_pair(struct tty_struct *tty,
+				struct tty_struct *tty2);
+extern void __lockfunc tty_unlock_pair(struct tty_struct *tty,
+				struct tty_struct *tty2);
 
 /*
  * this shall be called only from where BTM is held (like close)
@@ -626,9 +631,9 @@ extern void __lockfunc tty_unlock(void) __releases(tty_lock);
 static inline void tty_wait_until_sent_from_close(struct tty_struct *tty,
 		long timeout)
 {
-	tty_unlock(); /* tty->ops->close holds the BTM, drop it while waiting */
+	tty_unlock(tty); /* tty->ops->close holds the BTM, drop it while waiting */
 	tty_wait_until_sent(tty, timeout);
-	tty_lock();
+	tty_lock(tty);
 }
 
 /*
@@ -643,16 +648,16 @@ static inline void tty_wait_until_sent_from_close(struct tty_struct *tty,
  *
  * Do not use in new code.
  */
-#define wait_event_interruptible_tty(wq, condition)			\
+#define wait_event_interruptible_tty(tty, wq, condition)		\
 ({									\
 	int __ret = 0;							\
 	if (!(condition)) {						\
-		__wait_event_interruptible_tty(wq, condition, __ret);	\
+		__wait_event_interruptible_tty(tty, wq, condition, __ret);	\
 	}								\
 	__ret;								\
 })
 
-#define __wait_event_interruptible_tty(wq, condition, ret)		\
+#define __wait_event_interruptible_tty(tty, wq, condition, ret)		\
 do {									\
 	DEFINE_WAIT(__wait);						\
 									\
@@ -661,9 +666,9 @@ do {									\
 		if (condition)						\
 			break;						\
 		if (!signal_pending(current)) {				\
-			tty_unlock();					\
+			tty_unlock(tty);					\
 			schedule();					\
-			tty_lock();					\
+			tty_lock(tty);					\
 			continue;					\
 		}							\
 		ret = -ERESTARTSYS;					\

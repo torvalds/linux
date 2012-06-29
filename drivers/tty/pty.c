@@ -47,6 +47,7 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	wake_up_interruptible(&tty->read_wait);
 	wake_up_interruptible(&tty->write_wait);
 	tty->packet = 0;
+	/* Review - krefs on tty_link ?? */
 	if (!tty->link)
 		return;
 	tty->link->packet = 0;
@@ -62,9 +63,9 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 		        mutex_unlock(&devpts_mutex);
 		}
 #endif
-		tty_unlock();
+		tty_unlock(tty);
 		tty_vhangup(tty->link);
-		tty_lock();
+		tty_lock(tty);
 	}
 }
 
@@ -615,25 +616,26 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		return retval;
 
 	/* find a device that is not in use. */
-	tty_lock();
+	mutex_lock(&devpts_mutex);
 	index = devpts_new_index(inode);
-	tty_unlock();
 	if (index < 0) {
 		retval = index;
 		goto err_file;
 	}
 
-	mutex_lock(&tty_mutex);
-	mutex_lock(&devpts_mutex);
-	tty = tty_init_dev(ptm_driver, index);
 	mutex_unlock(&devpts_mutex);
-	tty_lock();
-	mutex_unlock(&tty_mutex);
+
+	mutex_lock(&tty_mutex);
+	tty = tty_init_dev(ptm_driver, index);
 
 	if (IS_ERR(tty)) {
 		retval = PTR_ERR(tty);
 		goto out;
 	}
+
+	/* The tty returned here is locked so we can safely
+	   drop the mutex */
+	mutex_unlock(&tty_mutex);
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
 
@@ -647,16 +649,17 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		goto err_release;
 
-	tty_unlock();
+	tty_unlock(tty);
 	return 0;
 err_release:
-	tty_unlock();
+	tty_unlock(tty);
 	tty_release(inode, filp);
 	return retval;
 out:
+	mutex_unlock(&tty_mutex);
 	devpts_kill_index(inode, index);
-	tty_unlock();
 err_file:
+        mutex_unlock(&devpts_mutex);
 	tty_free_file(filp);
 	return retval;
 }
