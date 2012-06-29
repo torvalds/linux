@@ -404,6 +404,13 @@ struct acpi_gpe_handler_info {
 	u8 originally_enabled;  /* True if GPE was originally enabled */
 };
 
+/* Notify info for implicit notify, multiple device objects */
+
+struct acpi_gpe_notify_info {
+	struct acpi_namespace_node *device_node;	/* Device to be notified */
+	struct acpi_gpe_notify_info *next;
+};
+
 struct acpi_gpe_notify_object {
 	struct acpi_namespace_node *node;
 	struct acpi_gpe_notify_object *next;
@@ -412,7 +419,7 @@ struct acpi_gpe_notify_object {
 union acpi_gpe_dispatch_info {
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level */
 	struct acpi_gpe_handler_info *handler;  /* Installed GPE handler */
-	struct acpi_gpe_notify_object device;   /* List of _PRW devices for implicit notify */
+	struct acpi_gpe_notify_info *notify_list;	/* List of _PRW devices for implicit notifies */
 };
 
 /*
@@ -420,7 +427,7 @@ union acpi_gpe_dispatch_info {
  * NOTE: Important to keep this struct as small as possible.
  */
 struct acpi_gpe_event_info {
-	union acpi_gpe_dispatch_info dispatch;	/* Either Method or Handler */
+	union acpi_gpe_dispatch_info dispatch;	/* Either Method, Handler, or notify_list */
 	struct acpi_gpe_register_info *register_info;	/* Backpointer to register info */
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
