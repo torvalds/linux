@@ -103,9 +103,9 @@ struct clk {
 	DEFINE_CLK(_name, clk_gate_ops, _flags,			\
 			_name##_parent_names, _name##_parents);
 
-#define DEFINE_CLK_DIVIDER(_name, _parent_name, _parent_ptr,	\
+#define _DEFINE_CLK_DIVIDER(_name, _parent_name, _parent_ptr,	\
 				_flags, _reg, _shift, _width,	\
-				_divider_flags, _lock)		\
+				_divider_flags, _table, _lock)	\
 	static struct clk _name;				\
 	static const char *_name##_parent_names[] = {		\
 		_parent_name,					\
@@ -121,10 +121,26 @@ struct clk {
 		.shift = _shift,				\
 		.width = _width,				\
 		.flags = _divider_flags,			\
+		.table = _table,				\
 		.lock = _lock,					\
 	};							\
 	DEFINE_CLK(_name, clk_divider_ops, _flags,		\
 			_name##_parent_names, _name##_parents);
+
+#define DEFINE_CLK_DIVIDER(_name, _parent_name, _parent_ptr,	\
+				_flags, _reg, _shift, _width,	\
+				_divider_flags, _lock)		\
+	_DEFINE_CLK_DIVIDER(_name, _parent_name, _parent_ptr,	\
+				_flags, _reg, _shift, _width,	\
+				_divider_flags, NULL, _lock)
+
+#define DEFINE_CLK_DIVIDER_TABLE(_name, _parent_name,		\
+				_parent_ptr, _flags, _reg,	\
+				_shift, _width, _divider_flags,	\
+				_table, _lock)			\
+	_DEFINE_CLK_DIVIDER(_name, _parent_name, _parent_ptr,	\
+				_flags, _reg, _shift, _width,	\
+				_divider_flags, _table, _lock)	\
 
 #define DEFINE_CLK_MUX(_name, _parent_names, _parents, _flags,	\
 				_reg, _shift, _width,		\
