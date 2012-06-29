@@ -240,7 +240,6 @@ struct drm_i915_error_state {
 };
 
 struct drm_i915_display_funcs {
-	void (*dpms)(struct drm_crtc *crtc, int mode);
 	bool (*fbc_enabled)(struct drm_device *dev);
 	void (*enable_fbc)(struct drm_crtc *crtc, unsigned long interval);
 	void (*disable_fbc)(struct drm_device *dev);
@@ -256,6 +255,8 @@ struct drm_i915_display_funcs {
 			     struct drm_display_mode *adjusted_mode,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);
+	void (*crtc_enable)(struct drm_crtc *crtc);
+	void (*crtc_disable)(struct drm_crtc *crtc);
 	void (*off)(struct drm_crtc *crtc);
 	void (*write_eld)(struct drm_connector *connector,
 			  struct drm_crtc *crtc);

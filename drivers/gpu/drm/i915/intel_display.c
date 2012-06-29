@@ -3342,30 +3342,6 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
-
-	/* XXX: When our outputs are all unaware of DPMS modes other than off
-	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
-	 */
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-		DRM_DEBUG_KMS("crtc %d/%d dpms on\n", pipe, plane);
-		ironlake_crtc_enable(crtc);
-		break;
-
-	case DRM_MODE_DPMS_OFF:
-		DRM_DEBUG_KMS("crtc %d/%d dpms off\n", pipe, plane);
-		ironlake_crtc_disable(crtc);
-		break;
-	}
-}
-
 static void ironlake_crtc_off(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -3445,23 +3421,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	intel_update_watermarks(dev);
 }
 
-static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	/* XXX: When our outputs are all unaware of DPMS modes other than off
-	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
-	 */
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-		i9xx_crtc_enable(crtc);
-		break;
-	case DRM_MODE_DPMS_OFF:
-		i9xx_crtc_disable(crtc);
-		break;
-	}
-}
-
 static void i9xx_crtc_off(struct drm_crtc *crtc)
 {
 }
@@ -3483,7 +3442,20 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	intel_crtc->dpms_mode = mode;
 
-	dev_priv->display.dpms(crtc, mode);
+	/* XXX: When our outputs are all unaware of DPMS modes other than off
+	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
+	 */
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+		dev_priv->display.crtc_enable(crtc);
+		break;
+
+	case DRM_MODE_DPMS_OFF:
+		dev_priv->display.crtc_disable(crtc);
+		break;
+	}
 
 	if (!dev->primary->master)
 		return;
@@ -6971,13 +6943,15 @@ static void intel_init_display(struct drm_device *dev)
 
 	/* We always want a DPMS function */
 	if (HAS_PCH_SPLIT(dev)) {
-		dev_priv->display.dpms = ironlake_crtc_dpms;
 		dev_priv->display.crtc_mode_set = ironlake_crtc_mode_set;
+		dev_priv->display.crtc_enable = ironlake_crtc_enable;
+		dev_priv->display.crtc_disable = ironlake_crtc_disable;
 		dev_priv->display.off = ironlake_crtc_off;
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else {
-		dev_priv->display.dpms = i9xx_crtc_dpms;
 		dev_priv->display.crtc_mode_set = i9xx_crtc_mode_set;
+		dev_priv->display.crtc_enable = i9xx_crtc_enable;
+		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 		dev_priv->display.off = i9xx_crtc_off;
 		dev_priv->display.update_plane = i9xx_update_plane;
 	}
