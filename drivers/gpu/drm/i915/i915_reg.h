@@ -4283,7 +4283,7 @@
 					PIPE_DDI_FUNC_CTL_B)
 #define  PIPE_DDI_FUNC_ENABLE		(1<<31)
 /* Those bits are ignored by pipe EDP since it can only connect to DDI A */
-#define  PIPE_DDI_PORT_MASK				(0xf<<28)
+#define  PIPE_DDI_PORT_MASK			(7<<28)
 #define  PIPE_DDI_SELECT_PORT(x)		((x)<<28)
 #define  PIPE_DDI_MODE_SELECT_HDMI		(0<<24)
 #define  PIPE_DDI_MODE_SELECT_DVI		(1<<24)
