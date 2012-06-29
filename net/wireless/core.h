@@ -241,6 +241,12 @@ struct cfg80211_cached_keys {
 	int def, defmgmt;
 };
 
+enum cfg80211_chan_mode {
+	CHAN_MODE_UNDEFINED,
+	CHAN_MODE_SHARED,
+	CHAN_MODE_EXCLUSIVE,
+};
+
 
 /* free object */
 extern void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
@@ -418,6 +424,12 @@ cfg80211_can_add_interface(struct cfg80211_registered_device *rdev,
 {
 	return cfg80211_can_change_interface(rdev, NULL, iftype);
 }
+
+void
+cfg80211_get_chan_state(struct cfg80211_registered_device *rdev,
+		        struct wireless_dev *wdev,
+		        struct ieee80211_channel **chan,
+		        enum cfg80211_chan_mode *chanmode);
 
 struct ieee80211_channel *
 rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
