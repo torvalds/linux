@@ -123,8 +123,11 @@ void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable)
 		val |= BCMA_CHIPCTL_4331_EXTPA_EN;
 		if (bus->chipinfo.pkg == 9 || bus->chipinfo.pkg == 11)
 			val |= BCMA_CHIPCTL_4331_EXTPA_ON_GPIO2_5;
+		else if (bus->chipinfo.rev > 0)
+			val |= BCMA_CHIPCTL_4331_EXTPA_EN2;
 	} else {
 		val &= ~BCMA_CHIPCTL_4331_EXTPA_EN;
+		val &= ~BCMA_CHIPCTL_4331_EXTPA_EN2;
 		val &= ~BCMA_CHIPCTL_4331_EXTPA_ON_GPIO2_5;
 	}
 	bcma_cc_write32(cc, BCMA_CC_CHIPCTL, val);
