@@ -1496,15 +1496,14 @@ asmlinkage int vprintk_emit(int facility, int level,
 		bool stored = false;
 
 		/*
-		 * Flush the conflicting buffer. An earlier newline was missing,
-		 * or we race with a continuation line from an interrupt.
+		 * If an earlier newline was missing and it was the same task,
+		 * either merge it with the current buffer and flush, or if
+		 * there was a race with interrupts (prefix == true) then just
+		 * flush it out and store this line separately.
 		 */
-		if (cont.len && prefix && cont.owner == current)
-			cont_flush();
-
-		/* Merge with our buffer if possible; flush it in any case */
 		if (cont.len && cont.owner == current) {
-			stored = cont_add(facility, level, text, text_len);
+			if (!prefix)
+				stored = cont_add(facility, level, text, text_len);
 			cont_flush();
 		}
 
