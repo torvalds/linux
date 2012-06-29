@@ -308,6 +308,19 @@
 #define BCMA_CC_PPL_PCHI_OFF		5
 #define BCMA_CC_PPL_PCHI_MASK		0x0000003f
 
+#define BCMA_CC_PMU_PLL_CTL0		0
+#define BCMA_CC_PMU_PLL_CTL1		1
+#define BCMA_CC_PMU_PLL_CTL2		2
+#define BCMA_CC_PMU_PLL_CTL3		3
+#define BCMA_CC_PMU_PLL_CTL4		4
+#define BCMA_CC_PMU_PLL_CTL5		5
+
+#define BCMA_CC_PMU1_PLL0_PC0_P1DIV_MASK	0x00f00000
+#define BCMA_CC_PMU1_PLL0_PC0_P1DIV_SHIFT	20
+
+#define BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_MASK	0x1ff00000
+#define BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_SHIFT	20
+
 /* BCM4331 ChipControl numbers. */
 #define BCMA_CHIPCTL_4331_BT_COEXIST		BIT(0)	/* 0 disable */
 #define BCMA_CHIPCTL_4331_SECI			BIT(1)	/* 0 SECI is disabled (JATG functional) */
@@ -420,5 +433,6 @@ extern void bcma_chipco_chipctl_maskset(struct bcma_drv_cc *cc,
 					u32 offset, u32 mask, u32 set);
 extern void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc,
 				       u32 offset, u32 mask, u32 set);
+extern void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid);
 
 #endif /* LINUX_BCMA_DRIVER_CC_H_ */
