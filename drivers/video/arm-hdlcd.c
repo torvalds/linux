@@ -116,10 +116,25 @@ static int hdlcd_set_bitfields(struct hdlcd_device *hdlcd,
 	}
 
 	if (!ret) {
-		var->green.offset = var->blue.length;
-		var->red.offset = var->green.offset + var->green.length;
-		if (var->bits_per_pixel == 32)
-			var->transp.offset = var->red.offset + var->red.length;
+		if(var->bits_per_pixel != 32)
+		{
+			var->green.offset = var->blue.length;
+			var->red.offset = var->green.offset + var->green.length;
+		}
+		else
+		{
+			/* Previously, the byte ordering for 32-bit color was
+			 * (msb)<alpha><red><green><blue>(lsb)
+			 * but this does not match what android expects and
+			 * the colors are odd. Instead, use
+			 * <alpha><blue><green><red>
+			 * Since we tell fb what we are doing, console
+			 * , X and directfb access should work fine.
+			 */
+			var->green.offset = var->red.length;
+			var->blue.offset = var->green.offset + var->green.length;
+			var->transp.offset = var->blue.offset + var->blue.length;
+		}
 	}
 
 	return ret;
