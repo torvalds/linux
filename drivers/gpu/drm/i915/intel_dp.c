@@ -36,41 +36,9 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
-#include "drm_dp_helper.h"
 
-#define DP_RECEIVER_CAP_SIZE	0xf
 #define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
-
-#define DP_LINK_CONFIGURATION_SIZE	9
-
-struct intel_dp {
-	struct intel_encoder base;
-	uint32_t output_reg;
-	uint32_t DP;
-	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
-	bool has_audio;
-	enum hdmi_force_audio force_audio;
-	uint32_t color_range;
-	int dpms_mode;
-	uint8_t link_bw;
-	uint8_t lane_count;
-	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
-	struct i2c_adapter adapter;
-	struct i2c_algo_dp_aux_data algo;
-	bool is_pch_edp;
-	uint8_t	train_set[4];
-	int panel_power_up_delay;
-	int panel_power_down_delay;
-	int panel_power_cycle_delay;
-	int backlight_on_delay;
-	int backlight_off_delay;
-	struct drm_display_mode *panel_fixed_mode;  /* for eDP */
-	struct delayed_work panel_vdd_work;
-	bool want_panel_vdd;
-	struct edid *edid; /* cached EDID for eDP */
-	int edid_mode_count;
-};
 
 /**
  * is_edp - is the given port attached to an eDP panel (either CPU or PCH)
