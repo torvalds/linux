@@ -2866,112 +2866,114 @@ static u32 percent(u32 count, u32 total)
  */
 static int tipc_link_stats(const char *name, char *buf, const u32 buf_size)
 {
-	struct print_buf pb;
-	struct tipc_link *l_ptr;
+	struct tipc_link *l;
+	struct tipc_stats *s;
 	struct tipc_node *node;
 	char *status;
 	u32 profile_total = 0;
+	int ret;
 
 	if (!strcmp(name, tipc_bclink_name))
 		return tipc_bclink_stats(buf, buf_size);
 
-	tipc_printbuf_init(&pb, buf, buf_size);
-
 	read_lock_bh(&tipc_net_lock);
-	l_ptr = link_find_link(name, &node);
-	if (!l_ptr) {
+	l = link_find_link(name, &node);
+	if (!l) {
 		read_unlock_bh(&tipc_net_lock);
 		return 0;
 	}
 	tipc_node_lock(node);
+	s = &l->stats;
 
-	if (tipc_link_is_active(l_ptr))
+	if (tipc_link_is_active(l))
 		status = "ACTIVE";
-	else if (tipc_link_is_up(l_ptr))
+	else if (tipc_link_is_up(l))
 		status = "STANDBY";
 	else
 		status = "DEFUNCT";
-	tipc_printf(&pb, "Link <%s>\n"
-			 "  %s  MTU:%u  Priority:%u  Tolerance:%u ms"
-			 "  Window:%u packets\n",
-		    l_ptr->name, status, l_ptr->max_pkt,
-		    l_ptr->priority, l_ptr->tolerance, l_ptr->queue_limit[0]);
-	tipc_printf(&pb, "  RX packets:%u fragments:%u/%u bundles:%u/%u\n",
-		    l_ptr->next_in_no - l_ptr->stats.recv_info,
-		    l_ptr->stats.recv_fragments,
-		    l_ptr->stats.recv_fragmented,
-		    l_ptr->stats.recv_bundles,
-		    l_ptr->stats.recv_bundled);
-	tipc_printf(&pb, "  TX packets:%u fragments:%u/%u bundles:%u/%u\n",
-		    l_ptr->next_out_no - l_ptr->stats.sent_info,
-		    l_ptr->stats.sent_fragments,
-		    l_ptr->stats.sent_fragmented,
-		    l_ptr->stats.sent_bundles,
-		    l_ptr->stats.sent_bundled);
-	profile_total = l_ptr->stats.msg_length_counts;
+
+	ret = tipc_snprintf(buf, buf_size, "Link <%s>\n"
+			    "  %s  MTU:%u  Priority:%u  Tolerance:%u ms"
+			    "  Window:%u packets\n",
+			    l->name, status, l->max_pkt, l->priority,
+			    l->tolerance, l->queue_limit[0]);
+
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  RX packets:%u fragments:%u/%u bundles:%u/%u\n",
+			     l->next_in_no - s->recv_info, s->recv_fragments,
+			     s->recv_fragmented, s->recv_bundles,
+			     s->recv_bundled);
+
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  TX packets:%u fragments:%u/%u bundles:%u/%u\n",
+			     l->next_out_no - s->sent_info, s->sent_fragments,
+			     s->sent_fragmented, s->sent_bundles,
+			     s->sent_bundled);
+
+	profile_total = s->msg_length_counts;
 	if (!profile_total)
 		profile_total = 1;
-	tipc_printf(&pb, "  TX profile sample:%u packets  average:%u octets\n"
-			 "  0-64:%u%% -256:%u%% -1024:%u%% -4096:%u%% "
-			 "-16384:%u%% -32768:%u%% -66000:%u%%\n",
-		    l_ptr->stats.msg_length_counts,
-		    l_ptr->stats.msg_lengths_total / profile_total,
-		    percent(l_ptr->stats.msg_length_profile[0], profile_total),
-		    percent(l_ptr->stats.msg_length_profile[1], profile_total),
-		    percent(l_ptr->stats.msg_length_profile[2], profile_total),
-		    percent(l_ptr->stats.msg_length_profile[3], profile_total),
-		    percent(l_ptr->stats.msg_length_profile[4], profile_total),
-		    percent(l_ptr->stats.msg_length_profile[5], profile_total),
-		    percent(l_ptr->stats.msg_length_profile[6], profile_total));
-	tipc_printf(&pb, "  RX states:%u probes:%u naks:%u defs:%u dups:%u\n",
-		    l_ptr->stats.recv_states,
-		    l_ptr->stats.recv_probes,
-		    l_ptr->stats.recv_nacks,
-		    l_ptr->stats.deferred_recv,
-		    l_ptr->stats.duplicates);
-	tipc_printf(&pb, "  TX states:%u probes:%u naks:%u acks:%u dups:%u\n",
-		    l_ptr->stats.sent_states,
-		    l_ptr->stats.sent_probes,
-		    l_ptr->stats.sent_nacks,
-		    l_ptr->stats.sent_acks,
-		    l_ptr->stats.retransmitted);
-	tipc_printf(&pb, "  Congestion bearer:%u link:%u  Send queue max:%u avg:%u\n",
-		    l_ptr->stats.bearer_congs,
-		    l_ptr->stats.link_congs,
-		    l_ptr->stats.max_queue_sz,
-		    l_ptr->stats.queue_sz_counts
-		    ? (l_ptr->stats.accu_queue_sz / l_ptr->stats.queue_sz_counts)
-		    : 0);
+
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  TX profile sample:%u packets  average:%u octets\n"
+			     "  0-64:%u%% -256:%u%% -1024:%u%% -4096:%u%% "
+			     "-16384:%u%% -32768:%u%% -66000:%u%%\n",
+			     s->msg_length_counts,
+			     s->msg_lengths_total / profile_total,
+			     percent(s->msg_length_profile[0], profile_total),
+			     percent(s->msg_length_profile[1], profile_total),
+			     percent(s->msg_length_profile[2], profile_total),
+			     percent(s->msg_length_profile[3], profile_total),
+			     percent(s->msg_length_profile[4], profile_total),
+			     percent(s->msg_length_profile[5], profile_total),
+			     percent(s->msg_length_profile[6], profile_total));
+
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  RX states:%u probes:%u naks:%u defs:%u"
+			     " dups:%u\n", s->recv_states, s->recv_probes,
+			     s->recv_nacks, s->deferred_recv, s->duplicates);
+
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  TX states:%u probes:%u naks:%u acks:%u"
+			     " dups:%u\n", s->sent_states, s->sent_probes,
+			     s->sent_nacks, s->sent_acks, s->retransmitted);
+
+	ret += tipc_snprintf(buf + ret, buf_size - ret,
+			     "  Congestion bearer:%u link:%u  Send queue"
+			     " max:%u avg:%u\n", s->bearer_congs, s->link_congs,
+			     s->max_queue_sz, s->queue_sz_counts ?
+			     (s->accu_queue_sz / s->queue_sz_counts) : 0);
 
 	tipc_node_unlock(node);
 	read_unlock_bh(&tipc_net_lock);
-	return tipc_printbuf_validate(&pb);
+	return ret;
 }
-
-#define MAX_LINK_STATS_INFO 2000
 
 struct sk_buff *tipc_link_cmd_show_stats(const void *req_tlv_area, int req_tlv_space)
 {
 	struct sk_buff *buf;
 	struct tlv_desc *rep_tlv;
 	int str_len;
+	int pb_len;
+	char *pb;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_LINK_NAME))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(MAX_LINK_STATS_INFO));
+	buf = tipc_cfg_reply_alloc(TLV_SPACE(ULTRA_STRING_MAX_LEN));
 	if (!buf)
 		return NULL;
 
 	rep_tlv = (struct tlv_desc *)buf->data;
-
+	pb = TLV_DATA(rep_tlv);
+	pb_len = ULTRA_STRING_MAX_LEN;
 	str_len = tipc_link_stats((char *)TLV_DATA(req_tlv_area),
-				  (char *)TLV_DATA(rep_tlv), MAX_LINK_STATS_INFO);
+				  pb, pb_len);
 	if (!str_len) {
 		kfree_skb(buf);
 		return tipc_cfg_reply_error_string("link not found");
 	}
-
+	str_len += 1;	/* for "\0" */
 	skb_put(buf, TLV_SPACE(str_len));
 	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
 

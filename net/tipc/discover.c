@@ -100,12 +100,10 @@ static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
 {
 	char node_addr_str[16];
 	char media_addr_str[64];
-	struct print_buf pb;
 
 	tipc_addr_string_fill(node_addr_str, node_addr);
-	tipc_printbuf_init(&pb, media_addr_str, sizeof(media_addr_str));
-	tipc_media_addr_printf(&pb, media_addr);
-	tipc_printbuf_validate(&pb);
+	tipc_media_addr_printf(media_addr_str, sizeof(media_addr_str),
+			       media_addr);
 	pr_warn("Duplicate %s using %s seen on <%s>\n", node_addr_str,
 		media_addr_str, b_ptr->name);
 }

@@ -60,6 +60,8 @@
 
 #define TIPC_MOD_VER "2.0.0"
 
+#define ULTRA_STRING_MAX_LEN 32768
+
 struct tipc_msg;	/* msg.h */
 struct print_buf;	/* log.h */
 
@@ -82,7 +84,7 @@ extern struct print_buf *const TIPC_NULL;
 extern struct print_buf *const TIPC_CONS;
 extern struct print_buf *const TIPC_LOG;
 
-void tipc_printf(struct print_buf *, const char *fmt, ...);
+int tipc_snprintf(char *buf, int len, const char *fmt, ...);
 
 /*
  * TIPC_OUTPUT is the destination print buffer for system messages.

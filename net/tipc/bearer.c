@@ -130,21 +130,23 @@ exit:
 /**
  * tipc_media_addr_printf - record media address in print buffer
  */
-void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
+void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 {
 	char addr_str[MAX_ADDR_STR];
 	struct tipc_media *m_ptr;
+	int ret;
 
 	m_ptr = media_find_id(a->media_id);
 
 	if (m_ptr && !m_ptr->addr2str(a, addr_str, sizeof(addr_str)))
-		tipc_printf(pb, "%s(%s)", m_ptr->name, addr_str);
+		ret = tipc_snprintf(buf, len, "%s(%s)", m_ptr->name, addr_str);
 	else {
 		u32 i;
 
-		tipc_printf(pb, "UNKNOWN(%u)", a->media_id);
+		ret = tipc_snprintf(buf, len, "UNKNOWN(%u)", a->media_id);
 		for (i = 0; i < sizeof(a->value); i++)
-			tipc_printf(pb, "-%02x", a->value[i]);
+			ret += tipc_snprintf(buf - ret, len + ret,
+					    "-%02x", a->value[i]);
 	}
 }
 

@@ -753,19 +753,20 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
 /**
  * subseq_list - print specified sub-sequence contents into the given buffer
  */
-static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
+static int subseq_list(struct sub_seq *sseq, char *buf, int len, u32 depth,
 			u32 index)
 {
 	char portIdStr[27];
 	const char *scope_str[] = {"", " zone", " cluster", " node"};
 	struct publication *publ;
 	struct name_info *info;
+	int ret;
 
-	tipc_printf(buf, "%-10u %-10u ", sseq->lower, sseq->upper);
+	ret = tipc_snprintf(buf, len, "%-10u %-10u ", sseq->lower, sseq->upper);
 
 	if (depth == 2) {
-		tipc_printf(buf, "\n");
-		return;
+		ret += tipc_snprintf(buf - ret, len + ret, "\n");
+		return ret;
 	}
 
 	info = sseq->info;
@@ -774,52 +775,58 @@ static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
 		sprintf(portIdStr, "<%u.%u.%u:%u>",
 			 tipc_zone(publ->node), tipc_cluster(publ->node),
 			 tipc_node(publ->node), publ->ref);
-		tipc_printf(buf, "%-26s ", portIdStr);
+		ret += tipc_snprintf(buf + ret, len - ret, "%-26s ", portIdStr);
 		if (depth > 3) {
-			tipc_printf(buf, "%-10u %s", publ->key,
-				    scope_str[publ->scope]);
+			ret += tipc_snprintf(buf + ret, len - ret, "%-10u %s",
+					     publ->key, scope_str[publ->scope]);
 		}
 		if (!list_is_last(&publ->zone_list, &info->zone_list))
-			tipc_printf(buf, "\n%33s", " ");
+			ret += tipc_snprintf(buf + ret, len - ret,
+					     "\n%33s", " ");
 	};
 
-	tipc_printf(buf, "\n");
+	ret += tipc_snprintf(buf + ret, len - ret, "\n");
+	return ret;
 }
 
 /**
  * nameseq_list - print specified name sequence contents into the given buffer
  */
-static void nameseq_list(struct name_seq *seq, struct print_buf *buf, u32 depth,
+static int nameseq_list(struct name_seq *seq, char *buf, int len, u32 depth,
 			 u32 type, u32 lowbound, u32 upbound, u32 index)
 {
 	struct sub_seq *sseq;
 	char typearea[11];
+	int ret = 0;
 
 	if (seq->first_free == 0)
-		return;
+		return 0;
 
 	sprintf(typearea, "%-10u", seq->type);
 
 	if (depth == 1) {
-		tipc_printf(buf, "%s\n", typearea);
-		return;
+		ret += tipc_snprintf(buf, len, "%s\n", typearea);
+		return ret;
 	}
 
 	for (sseq = seq->sseqs; sseq != &seq->sseqs[seq->first_free]; sseq++) {
 		if ((lowbound <= sseq->upper) && (upbound >= sseq->lower)) {
-			tipc_printf(buf, "%s ", typearea);
+			ret += tipc_snprintf(buf + ret, len - ret, "%s ",
+					    typearea);
 			spin_lock_bh(&seq->lock);
-			subseq_list(sseq, buf, depth, index);
+			ret += subseq_list(sseq, buf + ret, len - ret,
+					  depth, index);
 			spin_unlock_bh(&seq->lock);
 			sprintf(typearea, "%10s", " ");
 		}
 	}
+	return ret;
 }
 
 /**
  * nametbl_header - print name table header into the given buffer
  */
-static void nametbl_header(struct print_buf *buf, u32 depth)
+static int nametbl_header(char *buf, int len, u32 depth)
 {
 	const char *header[] = {
 		"Type       ",
@@ -829,24 +836,27 @@ static void nametbl_header(struct print_buf *buf, u32 depth)
 	};
 
 	int i;
+	int ret = 0;
 
 	if (depth > 4)
 		depth = 4;
 	for (i = 0; i < depth; i++)
-		tipc_printf(buf, header[i]);
-	tipc_printf(buf, "\n");
+		ret += tipc_snprintf(buf + ret, len - ret, header[i]);
+	ret += tipc_snprintf(buf + ret, len - ret, "\n");
+	return ret;
 }
 
 /**
  * nametbl_list - print specified name table contents into the given buffer
  */
-static void nametbl_list(struct print_buf *buf, u32 depth_info,
+static int nametbl_list(char *buf, int len, u32 depth_info,
 			 u32 type, u32 lowbound, u32 upbound)
 {
 	struct hlist_head *seq_head;
 	struct hlist_node *seq_node;
 	struct name_seq *seq;
 	int all_types;
+	int ret = 0;
 	u32 depth;
 	u32 i;
 
@@ -854,65 +864,69 @@ static void nametbl_list(struct print_buf *buf, u32 depth_info,
 	depth = (depth_info & ~TIPC_NTQ_ALLTYPES);
 
 	if (depth == 0)
-		return;
+		return 0;
 
 	if (all_types) {
 		/* display all entries in name table to specified depth */
-		nametbl_header(buf, depth);
+		ret += nametbl_header(buf, len, depth);
 		lowbound = 0;
 		upbound = ~0;
 		for (i = 0; i < tipc_nametbl_size; i++) {
 			seq_head = &table.types[i];
 			hlist_for_each_entry(seq, seq_node, seq_head, ns_list) {
-				nameseq_list(seq, buf, depth, seq->type,
-					     lowbound, upbound, i);
+				ret += nameseq_list(seq, buf + ret, len - ret,
+						   depth, seq->type,
+						   lowbound, upbound, i);
 			}
 		}
 	} else {
 		/* display only the sequence that matches the specified type */
 		if (upbound < lowbound) {
-			tipc_printf(buf, "invalid name sequence specified\n");
-			return;
+			ret += tipc_snprintf(buf + ret, len - ret,
+					"invalid name sequence specified\n");
+			return ret;
 		}
-		nametbl_header(buf, depth);
+		ret += nametbl_header(buf + ret, len - ret, depth);
 		i = hash(type);
 		seq_head = &table.types[i];
 		hlist_for_each_entry(seq, seq_node, seq_head, ns_list) {
 			if (seq->type == type) {
-				nameseq_list(seq, buf, depth, type,
-					     lowbound, upbound, i);
+				ret += nameseq_list(seq, buf + ret, len - ret,
+						   depth, type,
+						   lowbound, upbound, i);
 				break;
 			}
 		}
 	}
+	return ret;
 }
-
-#define MAX_NAME_TBL_QUERY 32768
 
 struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space)
 {
 	struct sk_buff *buf;
 	struct tipc_name_table_query *argv;
 	struct tlv_desc *rep_tlv;
-	struct print_buf b;
+	char *pb;
+	int pb_len;
 	int str_len;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NAME_TBL_QUERY))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(MAX_NAME_TBL_QUERY));
+	buf = tipc_cfg_reply_alloc(TLV_SPACE(ULTRA_STRING_MAX_LEN));
 	if (!buf)
 		return NULL;
 
 	rep_tlv = (struct tlv_desc *)buf->data;
-	tipc_printbuf_init(&b, TLV_DATA(rep_tlv), MAX_NAME_TBL_QUERY);
+	pb = TLV_DATA(rep_tlv);
+	pb_len = ULTRA_STRING_MAX_LEN;
 	argv = (struct tipc_name_table_query *)TLV_DATA(req_tlv_area);
 	read_lock_bh(&tipc_nametbl_lock);
-	nametbl_list(&b, ntohl(argv->depth), ntohl(argv->type),
-		     ntohl(argv->lowbound), ntohl(argv->upbound));
+	str_len = nametbl_list(pb, pb_len, ntohl(argv->depth),
+			       ntohl(argv->type),
+			       ntohl(argv->lowbound), ntohl(argv->upbound));
 	read_unlock_bh(&tipc_nametbl_lock);
-	str_len = tipc_printbuf_validate(&b);
-
+	str_len += 1;	/* for "\0" */
 	skb_put(buf, TLV_SPACE(str_len));
 	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
 

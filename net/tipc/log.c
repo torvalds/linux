@@ -125,40 +125,6 @@ static int tipc_printbuf_empty(struct print_buf *pb)
 }
 
 /**
- * tipc_printbuf_validate - check for print buffer overflow
- * @pb: pointer to print buffer structure
- *
- * Verifies that a print buffer has captured all data written to it.
- * If data has been lost, linearize buffer and prepend an error message
- *
- * Returns length of print buffer data string (including trailing NUL)
- */
-int tipc_printbuf_validate(struct print_buf *pb)
-{
-	char *err = "\n\n*** PRINT BUFFER OVERFLOW ***\n\n";
-	char *cp_buf;
-	struct print_buf cb;
-
-	if (!pb->buf)
-		return 0;
-
-	if (pb->buf[pb->size - 1] == 0) {
-		cp_buf = kmalloc(pb->size, GFP_ATOMIC);
-		if (cp_buf) {
-			tipc_printbuf_init(&cb, cp_buf, pb->size);
-			tipc_printbuf_move(&cb, pb);
-			tipc_printbuf_move(pb, &cb);
-			kfree(cp_buf);
-			memcpy(pb->buf, err, strlen(err));
-		} else {
-			tipc_printbuf_reset(pb);
-			tipc_printf(pb, err);
-		}
-	}
-	return pb->crs - pb->buf + 1;
-}
-
-/**
  * tipc_printbuf_move - move print buffer contents to another print buffer
  * @pb_to: pointer to destination print buffer structure
  * @pb_from: pointer to source print buffer structure
@@ -204,23 +170,20 @@ static void tipc_printbuf_move(struct print_buf *pb_to,
 }
 
 /**
- * tipc_printf - append formatted output to print buffer
- * @pb: pointer to print buffer
+ * tipc_snprintf - append formatted output to print buffer
+ * @buf: pointer to print buffer
+ * @len: buffer length
  * @fmt: formatted info to be printed
  */
-void tipc_printf(struct print_buf *pb, const char *fmt, ...)
+int tipc_snprintf(char *buf, int len, const char *fmt, ...)
 {
 	int i;
 	va_list args;
-	char *buf;
-	int len;
 
-	buf = pb->crs;
-	len = pb->buf + pb->size - pb->crs;
 	va_start(args, fmt);
 	i = vscnprintf(buf, len, fmt, args);
 	va_end(args);
-	pb->crs += i;
+	return i;
 }
 
 /**
