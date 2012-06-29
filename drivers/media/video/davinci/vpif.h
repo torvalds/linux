@@ -211,6 +211,12 @@ static inline void vpif_clr_bit(u32 reg, u32 bit)
 #define VPIF_CH3_INT_CTRL_SHIFT	(6)
 #define VPIF_CH_INT_CTRL_SHIFT	(6)
 
+#define VPIF_CH2_CLIP_ANC_EN	14
+#define VPIF_CH2_CLIP_ACTIVE_EN	13
+
+#define VPIF_CH3_CLIP_ANC_EN	14
+#define VPIF_CH3_CLIP_ACTIVE_EN	13
+
 /* enabled interrupt on both the fields on vpid_ch0_ctrl register */
 #define channel0_intr_assert()	(regw((regr(VPIF_CH0_CTRL)|\
 	(VPIF_INT_BOTH << VPIF_CH0_INT_CTRL_SHIFT)), VPIF_CH0_CTRL))
@@ -513,6 +519,30 @@ static inline void channel3_raw_enable(int enable, u8 index)
 		vpif_set_bit(VPIF_CH3_CTRL, mask);
 	else
 		vpif_clr_bit(VPIF_CH3_CTRL, mask);
+}
+
+/* function to enable clipping (for both active and blanking regions) on ch 2 */
+static inline void channel2_clipping_enable(int enable)
+{
+	if (enable) {
+		vpif_set_bit(VPIF_CH2_CTRL, VPIF_CH2_CLIP_ANC_EN);
+		vpif_set_bit(VPIF_CH2_CTRL, VPIF_CH2_CLIP_ACTIVE_EN);
+	} else {
+		vpif_clr_bit(VPIF_CH2_CTRL, VPIF_CH2_CLIP_ANC_EN);
+		vpif_clr_bit(VPIF_CH2_CTRL, VPIF_CH2_CLIP_ACTIVE_EN);
+	}
+}
+
+/* function to enable clipping (for both active and blanking regions) on ch 2 */
+static inline void channel3_clipping_enable(int enable)
+{
+	if (enable) {
+		vpif_set_bit(VPIF_CH3_CTRL, VPIF_CH3_CLIP_ANC_EN);
+		vpif_set_bit(VPIF_CH3_CTRL, VPIF_CH3_CLIP_ACTIVE_EN);
+	} else {
+		vpif_clr_bit(VPIF_CH3_CTRL, VPIF_CH3_CLIP_ANC_EN);
+		vpif_clr_bit(VPIF_CH3_CTRL, VPIF_CH3_CLIP_ACTIVE_EN);
+	}
 }
 
 /* inline function to set buffer addresses in case of Y/C non mux mode */

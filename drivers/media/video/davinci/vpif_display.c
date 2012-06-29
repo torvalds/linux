@@ -306,6 +306,8 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 		channel2_intr_assert();
 		channel2_intr_enable(1);
 		enable_channel2(1);
+		if (vpif_config_data->ch2_clip_en)
+			channel2_clipping_enable(1);
 	}
 
 	if ((VPIF_CHANNEL3_VIDEO == ch->channel_id)
@@ -313,6 +315,8 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 		channel3_intr_assert();
 		channel3_intr_enable(1);
 		enable_channel3(1);
+		if (vpif_config_data->ch3_clip_en)
+			channel3_clipping_enable(1);
 	}
 	channel_first_int[VPIF_VIDEO_INDEX][ch->channel_id] = 1;
 
@@ -1140,6 +1144,8 @@ static int vpif_streamoff(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	struct vpif_display_config *vpif_config_data =
+					vpif_dev->platform_data;
 
 	if (buftype != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		vpif_err("buffer type not supported\n");
@@ -1159,11 +1165,15 @@ static int vpif_streamoff(struct file *file, void *priv,
 	if (buftype == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		/* disable channel */
 		if (VPIF_CHANNEL2_VIDEO == ch->channel_id) {
+			if (vpif_config_data->ch2_clip_en)
+				channel2_clipping_enable(0);
 			enable_channel2(0);
 			channel2_intr_enable(0);
 		}
 		if ((VPIF_CHANNEL3_VIDEO == ch->channel_id) ||
 					(2 == common->started)) {
+			if (vpif_config_data->ch3_clip_en)
+				channel3_clipping_enable(0);
 			enable_channel3(0);
 			channel3_intr_enable(0);
 		}
