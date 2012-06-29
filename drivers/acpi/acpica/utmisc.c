@@ -50,6 +50,7 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utmisc")
 
+#if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 /*******************************************************************************
  *
  * FUNCTION:    ut_convert_backslashes
@@ -77,6 +78,7 @@ void ut_convert_backslashes(char *pathname)
 		pathname++;
 	}
 }
+#endif
 
 /*******************************************************************************
  *
