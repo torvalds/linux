@@ -1521,29 +1521,40 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 	u64 flags;
 	int ret = 0;
 
-	if (root->fs_info->sb->s_flags & MS_RDONLY)
-		return -EROFS;
+	ret = mnt_want_write_file(file);
+	if (ret)
+		goto out;
 
-	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID)
-		return -EINVAL;
+	if (btrfs_ino(inode) != BTRFS_FIRST_FREE_OBJECTID) {
+		ret = -EINVAL;
+		goto out_drop_write;
+	}
 
-	if (copy_from_user(&flags, arg, sizeof(flags)))
-		return -EFAULT;
+	if (copy_from_user(&flags, arg, sizeof(flags))) {
+		ret = -EFAULT;
+		goto out_drop_write;
+	}
 
-	if (flags & BTRFS_SUBVOL_CREATE_ASYNC)
-		return -EINVAL;
+	if (flags & BTRFS_SUBVOL_CREATE_ASYNC) {
+		ret = -EINVAL;
+		goto out_drop_write;
+	}
 
-	if (flags & ~BTRFS_SUBVOL_RDONLY)
-		return -EOPNOTSUPP;
+	if (flags & ~BTRFS_SUBVOL_RDONLY) {
+		ret = -EOPNOTSUPP;
+		goto out_drop_write;
+	}
 
-	if (!inode_owner_or_capable(inode))
-		return -EACCES;
+	if (!inode_owner_or_capable(inode)) {
+		ret = -EACCES;
+		goto out_drop_write;
+	}
 
 	down_write(&root->fs_info->subvol_sem);
 
 	/* nothing to do */
 	if (!!(flags & BTRFS_SUBVOL_RDONLY) == btrfs_root_readonly(root))
-		goto out;
+		goto out_drop_sem;
 
 	root_flags = btrfs_root_flags(&root->root_item);
 	if (flags & BTRFS_SUBVOL_RDONLY)
@@ -1566,8 +1577,11 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 out_reset:
 	if (ret)
 		btrfs_set_root_flags(&root->root_item, root_flags);
-out:
+out_drop_sem:
 	up_write(&root->fs_info->subvol_sem);
+out_drop_write:
+	mnt_drop_write_file(file);
+out:
 	return ret;
 }
 
