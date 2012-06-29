@@ -2851,7 +2851,7 @@ static int ConfigureI2CBridge(struct drxk_state *state, bool bEnableBridge)
 	dprintk(1, "\n");
 
 	if (state->m_DrxkState == DRXK_UNINITIALIZED)
-		goto error;
+		return 0;
 	if (state->m_DrxkState == DRXK_POWERED_DOWN)
 		goto error;
 
@@ -6197,6 +6197,7 @@ static int init_drxk(struct drxk_state *state)
 	}
 error:
 	if (status < 0) {
+		state->m_DrxkState = DRXK_NO_DEV;
 		drxk_i2c_unlock(state);
 		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
 	}
@@ -6209,6 +6210,7 @@ static void load_firmware_cb(const struct firmware *fw,
 {
 	struct drxk_state *state = context;
 
+	dprintk(1, ": %s\n", fw ? "firmware loaded" : "firmware not loaded");
 	if (!fw) {
 		printk(KERN_ERR
 		       "drxk: Could not load firmware file %s.\n",
@@ -6250,6 +6252,12 @@ static int drxk_sleep(struct dvb_frontend *fe)
 	struct drxk_state *state = fe->demodulator_priv;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return 0;
+
 	ShutDown(state);
 	return 0;
 }
@@ -6259,6 +6267,10 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 	struct drxk_state *state = fe->demodulator_priv;
 
 	dprintk(1, "%s\n", enable ? "enable" : "disable");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+
 	return ConfigureI2CBridge(state, enable ? true : false);
 }
 
@@ -6270,6 +6282,12 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 	u32 IF;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
 
 	if (!fe->ops.tuner_ops.get_if_frequency) {
 		printk(KERN_ERR
@@ -6324,6 +6342,12 @@ static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	u32 stat;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	*status = 0;
 	GetLockStatus(state, &stat, 0);
 	if (stat == MPEG_LOCK)
@@ -6337,7 +6361,14 @@ static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 static int drxk_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
+	struct drxk_state *state = fe->demodulator_priv;
+
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
 
 	*ber = 0;
 	return 0;
@@ -6350,6 +6381,12 @@ static int drxk_read_signal_strength(struct dvb_frontend *fe,
 	u32 val = 0;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	ReadIFAgc(state, &val);
 	*strength = val & 0xffff;
 	return 0;
@@ -6361,6 +6398,12 @@ static int drxk_read_snr(struct dvb_frontend *fe, u16 *snr)
 	s32 snr2;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	GetSignalToNoise(state, &snr2);
 	*snr = snr2 & 0xffff;
 	return 0;
@@ -6372,6 +6415,12 @@ static int drxk_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	u16 err;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	DVBTQAMGetAccPktErr(state, &err);
 	*ucblocks = (u32) err;
 	return 0;
@@ -6380,9 +6429,16 @@ static int drxk_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int drxk_get_tune_settings(struct dvb_frontend *fe, struct dvb_frontend_tune_settings
 				    *sets)
 {
+	struct drxk_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	switch (p->delivery_system) {
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
