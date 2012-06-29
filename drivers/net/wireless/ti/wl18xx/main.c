@@ -43,10 +43,11 @@
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
-static char *ht_mode_param = "wide";
+static char *ht_mode_param = "default";
 static char *board_type_param = "hdk";
 static bool checksum_param = false;
 static bool enable_11a_param = true;
+static int num_rx_desc_param = -1;
 
 /* phy paramters */
 static int dc2dc_param = -1;
@@ -372,6 +373,7 @@ static struct wlcore_conf wl18xx_conf = {
 		.forced_ps                   = false,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
+		.sta_sleep_auth              = WL1271_PSM_ILLEGAL,
 	},
 	.itrim = {
 		.enable = false,
@@ -606,24 +608,15 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		wl->plt_fw_name = WL18XX_FW_NAME;
 		wl->quirks |= WLCORE_QUIRK_NO_ELP |
 			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
+			      WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_TX_PAD_LAST_FRAME;
-
 		break;
 	case CHIP_ID_185x_PG10:
-		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (185x PG10)",
-			     wl->chip.id);
-		wl->sr_fw_name = WL18XX_FW_NAME;
-		/* wl18xx uses the same firmware for PLT */
-		wl->plt_fw_name = WL18XX_FW_NAME;
-		wl->quirks |= WLCORE_QUIRK_NO_ELP |
-			WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED |
-			WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
-			WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
+		wl1271_warning("chip id 0x%x (185x PG10) is deprecated",
+			       wl->chip.id);
+		ret = -ENODEV;
+		goto out;
 
-		/* PG 1.0 has some problems with MCS_13, so disable it */
-		wl->ht_cap[IEEE80211_BAND_2GHZ].mcs.rx_mask[1] &= ~BIT(5);
-
-		break;
 	default:
 		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
 		ret = -ENODEV;
@@ -634,123 +627,178 @@ out:
 	return ret;
 }
 
-static void wl18xx_set_clk(struct wl1271 *wl)
+static int wl18xx_set_clk(struct wl1271 *wl)
 {
-	u32 clk_freq;
+	u16 clk_freq;
+	int ret;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	if (ret < 0)
+		goto out;
 
 	/* TODO: PG2: apparently we need to read the clk type */
 
-	clk_freq = wl18xx_top_reg_read(wl, PRIMARY_CLK_DETECT);
+	ret = wl18xx_top_reg_read(wl, PRIMARY_CLK_DETECT, &clk_freq);
+	if (ret < 0)
+		goto out;
+
 	wl1271_debug(DEBUG_BOOT, "clock freq %d (%d, %d, %d, %d, %s)", clk_freq,
 		     wl18xx_clk_table[clk_freq].n, wl18xx_clk_table[clk_freq].m,
 		     wl18xx_clk_table[clk_freq].p, wl18xx_clk_table[clk_freq].q,
 		     wl18xx_clk_table[clk_freq].swallow ? "swallow" : "spit");
 
-	wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_N, wl18xx_clk_table[clk_freq].n);
-	wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_M, wl18xx_clk_table[clk_freq].m);
+	ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_N,
+				   wl18xx_clk_table[clk_freq].n);
+	if (ret < 0)
+		goto out;
+
+	ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_M,
+				   wl18xx_clk_table[clk_freq].m);
+	if (ret < 0)
+		goto out;
 
 	if (wl18xx_clk_table[clk_freq].swallow) {
 		/* first the 16 lower bits */
-		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_Q_FACTOR_CFG_1,
-				     wl18xx_clk_table[clk_freq].q &
-				     PLLSH_WCS_PLL_Q_FACTOR_CFG_1_MASK);
+		ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_Q_FACTOR_CFG_1,
+					   wl18xx_clk_table[clk_freq].q &
+					   PLLSH_WCS_PLL_Q_FACTOR_CFG_1_MASK);
+		if (ret < 0)
+			goto out;
+
 		/* then the 16 higher bits, masked out */
-		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_Q_FACTOR_CFG_2,
-				     (wl18xx_clk_table[clk_freq].q >> 16) &
-				     PLLSH_WCS_PLL_Q_FACTOR_CFG_2_MASK);
+		ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_Q_FACTOR_CFG_2,
+					(wl18xx_clk_table[clk_freq].q >> 16) &
+					PLLSH_WCS_PLL_Q_FACTOR_CFG_2_MASK);
+		if (ret < 0)
+			goto out;
 
 		/* first the 16 lower bits */
-		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_P_FACTOR_CFG_1,
-				     wl18xx_clk_table[clk_freq].p &
-				     PLLSH_WCS_PLL_P_FACTOR_CFG_1_MASK);
+		ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_P_FACTOR_CFG_1,
+					   wl18xx_clk_table[clk_freq].p &
+					   PLLSH_WCS_PLL_P_FACTOR_CFG_1_MASK);
+		if (ret < 0)
+			goto out;
+
 		/* then the 16 higher bits, masked out */
-		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_P_FACTOR_CFG_2,
-				     (wl18xx_clk_table[clk_freq].p >> 16) &
-				     PLLSH_WCS_PLL_P_FACTOR_CFG_2_MASK);
+		ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_P_FACTOR_CFG_2,
+					(wl18xx_clk_table[clk_freq].p >> 16) &
+					PLLSH_WCS_PLL_P_FACTOR_CFG_2_MASK);
 	} else {
-		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_SWALLOW_EN,
-				     PLLSH_WCS_PLL_SWALLOW_EN_VAL2);
+		ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_SWALLOW_EN,
+					   PLLSH_WCS_PLL_SWALLOW_EN_VAL2);
 	}
+
+out:
+	return ret;
 }
 
-static void wl18xx_boot_soft_reset(struct wl1271 *wl)
+static int wl18xx_boot_soft_reset(struct wl1271 *wl)
 {
+	int ret;
+
 	/* disable Rx/Tx */
-	wl1271_write32(wl, WL18XX_ENABLE, 0x0);
+	ret = wlcore_write32(wl, WL18XX_ENABLE, 0x0);
+	if (ret < 0)
+		goto out;
 
 	/* disable auto calibration on start*/
-	wl1271_write32(wl, WL18XX_SPARE_A2, 0xffff);
+	ret = wlcore_write32(wl, WL18XX_SPARE_A2, 0xffff);
+
+out:
+	return ret;
 }
 
 static int wl18xx_pre_boot(struct wl1271 *wl)
 {
-	wl18xx_set_clk(wl);
+	int ret;
+
+	ret = wl18xx_set_clk(wl);
+	if (ret < 0)
+		goto out;
 
 	/* Continue the ELP wake up sequence */
-	wl1271_write32(wl, WL18XX_WELP_ARM_COMMAND, WELP_ARM_COMMAND_VAL);
+	ret = wlcore_write32(wl, WL18XX_WELP_ARM_COMMAND, WELP_ARM_COMMAND_VAL);
+	if (ret < 0)
+		goto out;
+
 	udelay(500);
 
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ret < 0)
+		goto out;
 
 	/* Disable interrupts */
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
+	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
+	if (ret < 0)
+		goto out;
 
-	wl18xx_boot_soft_reset(wl);
+	ret = wl18xx_boot_soft_reset(wl);
 
-	return 0;
+out:
+	return ret;
 }
 
-static void wl18xx_pre_upload(struct wl1271 *wl)
+static int wl18xx_pre_upload(struct wl1271 *wl)
 {
 	u32 tmp;
+	int ret;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ret < 0)
+		goto out;
 
 	/* TODO: check if this is all needed */
-	wl1271_write32(wl, WL18XX_EEPROMLESS_IND, WL18XX_EEPROMLESS_IND);
+	ret = wlcore_write32(wl, WL18XX_EEPROMLESS_IND, WL18XX_EEPROMLESS_IND);
+	if (ret < 0)
+		goto out;
 
-	tmp = wlcore_read_reg(wl, REG_CHIP_ID_B);
+	ret = wlcore_read_reg(wl, REG_CHIP_ID_B, &tmp);
+	if (ret < 0)
+		goto out;
 
 	wl1271_debug(DEBUG_BOOT, "chip id 0x%x", tmp);
 
-	tmp = wl1271_read32(wl, WL18XX_SCR_PAD2);
+	ret = wlcore_read32(wl, WL18XX_SCR_PAD2, &tmp);
+
+out:
+	return ret;
 }
 
-static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
+static int wl18xx_set_mac_and_phy(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
-	size_t len;
+	int ret;
 
-	/* the parameters struct is smaller for PG1 */
-	if (wl->chip.id == CHIP_ID_185x_PG10)
-		len = offsetof(struct wl18xx_mac_and_phy_params, psat) + 1;
-	else
-		len = sizeof(struct wl18xx_mac_and_phy_params);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
+	if (ret < 0)
+		goto out;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
-	wl1271_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&priv->conf.phy, len,
-		     false);
+	ret = wlcore_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&priv->conf.phy,
+			   sizeof(struct wl18xx_mac_and_phy_params), false);
+
+out:
+	return ret;
 }
 
-static void wl18xx_enable_interrupts(struct wl1271 *wl)
+static int wl18xx_enable_interrupts(struct wl1271 *wl)
 {
 	u32 event_mask, intr_mask;
+	int ret;
 
-	if (wl->chip.id == CHIP_ID_185x_PG10) {
-		event_mask = WL18XX_ACX_EVENTS_VECTOR_PG1;
-		intr_mask = WL18XX_INTR_MASK_PG1;
-	} else {
-		event_mask = WL18XX_ACX_EVENTS_VECTOR_PG2;
-		intr_mask = WL18XX_INTR_MASK_PG2;
-	}
+	event_mask = WL18XX_ACX_EVENTS_VECTOR;
+	intr_mask = WL18XX_INTR_MASK;
 
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK, event_mask);
+	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK, event_mask);
+	if (ret < 0)
+		goto out;
 
 	wlcore_enable_interrupts(wl);
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK,
-			 WL1271_ACX_INTR_ALL & ~intr_mask);
+
+	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK,
+			       WL1271_ACX_INTR_ALL & ~intr_mask);
+
+out:
+	return ret;
 }
 
 static int wl18xx_boot(struct wl1271 *wl)
@@ -761,25 +809,29 @@ static int wl18xx_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl18xx_pre_upload(wl);
+	ret = wl18xx_pre_upload(wl);
+	if (ret < 0)
+		goto out;
 
 	ret = wlcore_boot_upload_firmware(wl);
 	if (ret < 0)
 		goto out;
 
-	wl18xx_set_mac_and_phy(wl);
+	ret = wl18xx_set_mac_and_phy(wl);
+	if (ret < 0)
+		goto out;
 
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)
 		goto out;
 
-	wl18xx_enable_interrupts(wl);
+	ret = wl18xx_enable_interrupts(wl);
 
 out:
 	return ret;
 }
 
-static void wl18xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
+static int wl18xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
 			       void *buf, size_t len)
 {
 	struct wl18xx_priv *priv = wl->priv;
@@ -787,13 +839,14 @@ static void wl18xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
 	memcpy(priv->cmd_buf, buf, len);
 	memset(priv->cmd_buf + len, 0, WL18XX_CMD_MAX_SIZE - len);
 
-	wl1271_write(wl, cmd_box_addr, priv->cmd_buf, WL18XX_CMD_MAX_SIZE,
-		     false);
+	return wlcore_write(wl, cmd_box_addr, priv->cmd_buf,
+			    WL18XX_CMD_MAX_SIZE, false);
 }
 
-static void wl18xx_ack_event(struct wl1271 *wl)
+static int wl18xx_ack_event(struct wl1271 *wl)
 {
-	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, WL18XX_INTR_TRIG_EVENT_ACK);
+	return wlcore_write_reg(wl, REG_INTERRUPT_TRIG,
+				WL18XX_INTR_TRIG_EVENT_ACK);
 }
 
 static u32 wl18xx_calc_tx_blocks(struct wl1271 *wl, u32 len, u32 spare_blks)
@@ -975,34 +1028,32 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 	} else if (!strcmp(ht_mode_param, "mimo")) {
 		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
 
-		/*
-		 * PG 1.0 has some problems with MCS_13, so disable it
-		 *
-		 * TODO: instead of hacking this in here, we should
-		 * make it more general and change a bit in the
-		 * wlvif->rate_set instead.
-		 */
-		if (wl->chip.id == CHIP_ID_185x_PG10)
-			return CONF_TX_MIMO_RATES & ~CONF_HW_BIT_RATE_MCS_13;
-
 		return CONF_TX_MIMO_RATES;
 	} else {
 		return 0;
 	}
 }
 
-static s8 wl18xx_get_pg_ver(struct wl1271 *wl)
+static int wl18xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 {
 	u32 fuse;
+	int ret;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	if (ret < 0)
+		goto out;
 
-	fuse = wl1271_read32(wl, WL18XX_REG_FUSE_DATA_1_3);
-	fuse = (fuse & WL18XX_PG_VER_MASK) >> WL18XX_PG_VER_OFFSET;
+	ret = wlcore_read32(wl, WL18XX_REG_FUSE_DATA_1_3, &fuse);
+	if (ret < 0)
+		goto out;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ver)
+		*ver = (fuse & WL18XX_PG_VER_MASK) >> WL18XX_PG_VER_OFFSET;
 
-	return (s8)fuse;
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+
+out:
+	return ret;
 }
 
 #define WL18XX_CONF_FILE_NAME "ti-connectivity/wl18xx-conf.bin"
@@ -1021,8 +1072,7 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 	}
 
 	if (fw->size != WL18XX_CONF_SIZE) {
-		wl1271_error("configuration binary file size is wrong, "
-			     "expected %ld got %zd",
+		wl1271_error("configuration binary file size is wrong, expected %zu got %zu",
 			     WL18XX_CONF_SIZE, fw->size);
 		ret = -EINVAL;
 		goto out;
@@ -1069,26 +1119,41 @@ out:
 
 static int wl18xx_plt_init(struct wl1271 *wl)
 {
-	wl1271_write32(wl, WL18XX_SCR_PAD8, WL18XX_SCR_PAD8_PLT);
+	int ret;
+
+	ret = wlcore_write32(wl, WL18XX_SCR_PAD8, WL18XX_SCR_PAD8_PLT);
+	if (ret < 0)
+		return ret;
 
 	return wl->ops->boot(wl);
 }
 
-static void wl18xx_get_mac(struct wl1271 *wl)
+static int wl18xx_get_mac(struct wl1271 *wl)
 {
 	u32 mac1, mac2;
+	int ret;
 
-	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+	if (ret < 0)
+		goto out;
 
-	mac1 = wl1271_read32(wl, WL18XX_REG_FUSE_BD_ADDR_1);
-	mac2 = wl1271_read32(wl, WL18XX_REG_FUSE_BD_ADDR_2);
+	ret = wlcore_read32(wl, WL18XX_REG_FUSE_BD_ADDR_1, &mac1);
+	if (ret < 0)
+		goto out;
+
+	ret = wlcore_read32(wl, WL18XX_REG_FUSE_BD_ADDR_2, &mac2);
+	if (ret < 0)
+		goto out;
 
 	/* these are the two parts of the BD_ADDR */
 	wl->fuse_oui_addr = ((mac2 & 0xffff) << 8) +
 		((mac1 & 0xff000000) >> 24);
 	wl->fuse_nic_addr = (mac1 & 0xffffff);
 
-	wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
+
+out:
+	return ret;
 }
 
 static int wl18xx_handle_static_data(struct wl1271 *wl,
@@ -1214,10 +1279,24 @@ static struct wlcore_ops wl18xx_ops = {
 	.pre_pkt_send	= wl18xx_pre_pkt_send,
 };
 
-/* HT cap appropriate for wide channels */
-static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap = {
+/* HT cap appropriate for wide channels in 2Ghz */
+static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap_2ghz = {
 	.cap = IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 |
 	       IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_DSSSCCK40,
+	.ht_supported = true,
+	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
+	.mcs = {
+		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		.rx_highest = cpu_to_le16(150),
+		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+		},
+};
+
+/* HT cap appropriate for wide channels in 5Ghz */
+static struct ieee80211_sta_ht_cap wl18xx_siso40_ht_cap_5ghz = {
+	.cap = IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 |
+	       IEEE80211_HT_CAP_SUP_WIDTH_20_40,
 	.ht_supported = true,
 	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
@@ -1254,18 +1333,6 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 		},
 };
 
-static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_5ghz = {
-	.cap = IEEE80211_HT_CAP_SGI_20,
-	.ht_supported = true,
-	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
-	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
-	.mcs = {
-		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
-		.rx_highest = cpu_to_le16(72),
-		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
-		},
-};
-
 static int __devinit wl18xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -1286,7 +1353,7 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->ptable = wl18xx_ptable;
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = 32;
-	wl->num_rx_desc = 16;
+	wl->num_rx_desc = 32;
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL18XX_CONF_HW_RXTX_RATE_MCS0;
@@ -1294,32 +1361,8 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->stats.fw_stats_len = sizeof(struct wl18xx_acx_statistics);
 	wl->static_data_priv_len = sizeof(struct wl18xx_static_data_priv);
 
-	if (!strcmp(ht_mode_param, "wide")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_siso40_ht_cap,
-		       sizeof(wl18xx_siso40_ht_cap));
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_siso40_ht_cap,
-		       sizeof(wl18xx_siso40_ht_cap));
-	} else if (!strcmp(ht_mode_param, "mimo")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_mimo_ht_cap_2ghz,
-		       sizeof(wl18xx_mimo_ht_cap_2ghz));
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_mimo_ht_cap_5ghz,
-		       sizeof(wl18xx_mimo_ht_cap_5ghz));
-	} else if (!strcmp(ht_mode_param, "siso20")) {
-		memcpy(&wl->ht_cap[IEEE80211_BAND_2GHZ],
-		       &wl18xx_siso20_ht_cap,
-		       sizeof(wl18xx_siso20_ht_cap));
-		memcpy(&wl->ht_cap[IEEE80211_BAND_5GHZ],
-		       &wl18xx_siso20_ht_cap,
-		       sizeof(wl18xx_siso20_ht_cap));
-	} else {
-		wl1271_error("invalid ht_mode '%s'", ht_mode_param);
-		ret = -EINVAL;
-		goto out_free;
-	}
+	if (num_rx_desc_param != -1)
+		wl->num_rx_desc = num_rx_desc_param;
 
 	ret = wl18xx_conf_init(wl, &pdev->dev);
 	if (ret < 0)
@@ -1366,6 +1409,37 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	if (dc2dc_param != -1)
 		priv->conf.phy.external_pa_dc2dc = dc2dc_param;
 
+	if (!strcmp(ht_mode_param, "default")) {
+		/*
+		 * Only support mimo with multiple antennas. Fall back to
+		 * siso20.
+		 */
+		if (priv->conf.phy.number_of_assembled_ant2_4 >= 2)
+			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+					  &wl18xx_mimo_ht_cap_2ghz);
+		else
+			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+					  &wl18xx_siso20_ht_cap);
+
+		/* 5Ghz is always wide */
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso40_ht_cap_5ghz);
+	} else if (!strcmp(ht_mode_param, "wide")) {
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+				  &wl18xx_siso40_ht_cap_2ghz);
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso40_ht_cap_5ghz);
+	} else if (!strcmp(ht_mode_param, "siso20")) {
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+				  &wl18xx_siso20_ht_cap);
+		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+				  &wl18xx_siso20_ht_cap);
+	} else {
+		wl1271_error("invalid ht_mode '%s'", ht_mode_param);
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	if (!checksum_param) {
 		wl18xx_ops.set_rx_csum = NULL;
 		wl18xx_ops.init_vif = NULL;
@@ -1410,7 +1484,7 @@ static void __exit wl18xx_exit(void)
 module_exit(wl18xx_exit);
 
 module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
-MODULE_PARM_DESC(ht_mode, "Force HT mode: wide (default), mimo or siso20");
+MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or siso20");
 
 module_param_named(board_type, board_type_param, charp, S_IRUSR);
 MODULE_PARM_DESC(board_type, "Board type: fpga, hdk (default), evb, com8 or "
@@ -1457,6 +1531,11 @@ module_param_named(pwr_limit_reference_11_abg,
 		   pwr_limit_reference_11_abg_param, int, S_IRUSR);
 MODULE_PARM_DESC(pwr_limit_reference_11_abg, "Power limit reference: u8 "
 		 "(default is 0xc8)");
+
+module_param_named(num_rx_desc,
+		   num_rx_desc_param, int, S_IRUSR);
+MODULE_PARM_DESC(num_rx_desc_param,
+		 "Number of Rx descriptors: u8 (default is 32)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");

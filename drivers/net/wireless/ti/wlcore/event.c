@@ -105,6 +105,7 @@ static int wl1271_event_process(struct wl1271 *wl)
 	u32 vector;
 	bool disconnect_sta = false;
 	unsigned long sta_bitmap = 0;
+	int ret;
 
 	wl1271_event_mbox_dump(mbox);
 
@@ -228,7 +229,9 @@ static int wl1271_event_process(struct wl1271 *wl)
 
 	if ((vector & DUMMY_PACKET_EVENT_ID)) {
 		wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
-		wl1271_tx_dummy_packet(wl);
+		ret = wl1271_tx_dummy_packet(wl);
+		if (ret < 0)
+			return ret;
 	}
 
 	/*
@@ -301,8 +304,10 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 		return -EINVAL;
 
 	/* first we read the mbox descriptor */
-	wl1271_read(wl, wl->mbox_ptr[mbox_num], wl->mbox,
-		    sizeof(*wl->mbox), false);
+	ret = wlcore_read(wl, wl->mbox_ptr[mbox_num], wl->mbox,
+			  sizeof(*wl->mbox), false);
+	if (ret < 0)
+		return ret;
 
 	/* process the descriptor */
 	ret = wl1271_event_process(wl);
@@ -313,7 +318,7 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 	 * TODO: we just need this because one bit is in a different
 	 * place.  Is there any better way?
 	 */
-	wl->ops->ack_event(wl);
+	ret = wl->ops->ack_event(wl);
 
-	return 0;
+	return ret;
 }

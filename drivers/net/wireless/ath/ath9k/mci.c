@@ -233,8 +233,21 @@ static void ath_mci_process_profile(struct ath_softc *sc,
 	struct ath_mci_profile_info *entry = NULL;
 
 	entry = ath_mci_find_profile(mci, info);
-	if (entry)
+	if (entry) {
+		/*
+		 * Two MCI interrupts are generated while connecting to
+		 * headset and A2DP profile, but only one MCI interrupt
+		 * is generated with last added profile type while disconnecting
+		 * both profiles.
+		 * So while adding second profile type decrement
+		 * the first one.
+		 */
+		if (entry->type != info->type) {
+			DEC_PROF(mci, entry);
+			INC_PROF(mci, info);
+		}
 		memcpy(entry, info, 10);
+	}
 
 	if (info->start) {
 		if (!entry && !ath_mci_add_profile(common, mci, info))
@@ -335,7 +348,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 
 		seq_num = *((u32 *)(rx_payload + 12));
 		ath_dbg(common, MCI,
-			"BT_Status_Update: is_link=%d, linkId=%d, state=%d, SEQ=%d\n",
+			"BT_Status_Update: is_link=%d, linkId=%d, state=%d, SEQ=%u\n",
 			profile_status.is_link, profile_status.conn_handle,
 			profile_status.is_critical, seq_num);
 

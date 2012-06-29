@@ -767,10 +767,6 @@ static void ar9003_mci_mute_bt(struct ath_hw *ah)
 {
 	/* disable all MCI messages */
 	REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE, 0xffff0000);
-	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS0, 0xffffffff);
-	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS1, 0xffffffff);
-	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS2, 0xffffffff);
-	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS3, 0xffffffff);
 	REG_SET_BIT(ah, AR_MCI_TX_CTRL, AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 
 	/* wait pending HW messages to flush out */
@@ -1019,9 +1015,14 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 		return;
 
 	if (mci->is_2g) {
-		ar9003_mci_send_2g5g_status(ah, true);
+		if (!force) {
+			ar9003_mci_send_2g5g_status(ah, true);
 
-		REG_SET_BIT(ah, AR_MCI_TX_CTRL,
+			ar9003_mci_send_lna_transfer(ah, true);
+			udelay(5);
+		}
+
+		REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
 			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 		REG_CLR_BIT(ah, AR_PHY_GLB_CONTROL,
 			    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
@@ -1029,6 +1030,11 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 		if (!(mci->config & ATH_MCI_CONFIG_DISABLE_OSLA))
 			ar9003_mci_osla_setup(ah, true);
 	} else {
+		if (!force) {
+			ar9003_mci_send_lna_take(ah, true);
+			udelay(5);
+		}
+
 		REG_SET_BIT(ah, AR_MCI_TX_CTRL,
 			    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 		REG_SET_BIT(ah, AR_PHY_GLB_CONTROL,
@@ -1254,6 +1260,9 @@ void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah)
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
 	ath_dbg(common, MCI, "Give LNA and SPDT control to BT\n");
+
+	ar9003_mci_send_lna_take(ah, true);
+	udelay(50);
 
 	REG_SET_BIT(ah, AR_PHY_GLB_CONTROL, AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
 	mci->is_2g = false;

@@ -1020,6 +1020,8 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 	INIT_WORK(&drvr->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&drvr->multicast_work, _brcmf_set_multicast_list);
 
+	INIT_LIST_HEAD(&drvr->bus_if->dcmd_list);
+
 	return ret;
 
 fail:

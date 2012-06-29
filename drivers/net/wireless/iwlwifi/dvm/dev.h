@@ -568,7 +568,6 @@ enum iwl_scan_type {
  *
  * @tx_chains_num: Number of TX chains
  * @rx_chains_num: Number of RX chains
- * @sku: sku read from EEPROM
  * @ct_kill_threshold: temperature threshold - in hw dependent unit
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
  *	relevant for 1000, 6000 and up
@@ -579,7 +578,6 @@ struct iwl_hw_params {
 	u8  tx_chains_num;
 	u8  rx_chains_num;
 	bool use_rts_for_aggregation;
-	u16 sku;
 	u32 ct_kill_threshold;
 	u32 ct_kill_exit_threshold;
 

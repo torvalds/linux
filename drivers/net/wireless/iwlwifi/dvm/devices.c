@@ -250,17 +250,6 @@ struct iwl_lib_ops iwl2030_lib = {
  */
 
 /* NIC configuration for 5000 series */
-static void iwl5000_nic_config(struct iwl_priv *priv)
-{
-	/* W/A : NIC is stuck in a reset state after Early PCIe power off
-	 * (PCIe power is lost before PERST# is asserted),
-	 * causing ME FW to lose ownership and not being able to obtain it back.
-	 */
-	iwl_set_bits_mask_prph(priv->trans, APMG_PS_CTRL_REG,
-				APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
-				~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
-}
-
 static const struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.min_nrg_cck = 100,
 	.auto_corr_min_ofdm = 90,
@@ -433,14 +422,12 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
-	.nic_config = iwl5000_nic_config,
 	.temperature = iwlagn_temperature,
 };
 
 struct iwl_lib_ops iwl5150_lib = {
 	.set_hw_params = iwl5150_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
-	.nic_config = iwl5000_nic_config,
 	.temperature = iwl5150_temperature,
 };
 

@@ -74,15 +74,17 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 
 	RCU_INIT_POINTER(sta->ampdu_mlme.tid_rx[tid], NULL);
 
-	ht_vdbg("Rx BA session stop requested for %pM tid %u %s reason: %d\n",
-		sta->sta.addr, tid,
-		initiator == WLAN_BACK_RECIPIENT ? "recipient" : "inititator",
-		(int)reason);
+	ht_dbg(sta->sdata,
+	       "Rx BA session stop requested for %pM tid %u %s reason: %d\n",
+	       sta->sta.addr, tid,
+	       initiator == WLAN_BACK_RECIPIENT ? "recipient" : "inititator",
+	       (int)reason);
 
 	if (drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_STOP,
 			     &sta->sta, tid, NULL, 0))
-		pr_debug("HW problem - can not stop rx aggregation for tid %d\n",
-			 tid);
+		sdata_info(sta->sdata,
+			   "HW problem - can not stop rx aggregation for tid %d\n",
+			   tid);
 
 	/* check if this is a self generated aggregation halt */
 	if (initiator == WLAN_BACK_RECIPIENT && tx)
@@ -157,7 +159,7 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 	}
 	rcu_read_unlock();
 
-	ht_vdbg("rx session timer expired on tid %d\n", (u16)*ptid);
+	ht_dbg(sta->sdata, "rx session timer expired on tid %d\n", (u16)*ptid);
 
 	set_bit(*ptid, sta->ampdu_mlme.tid_rx_timer_expired);
 	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
@@ -245,7 +247,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	status = WLAN_STATUS_REQUEST_DECLINED;
 
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
-		ht_vdbg("Suspend in progress - Denying ADDBA request\n");
+		ht_dbg(sta->sdata, "Suspend in progress - Denying ADDBA request\n");
 		goto end_no_lock;
 	}
 
@@ -257,10 +259,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	     (!(sta->sta.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA))) ||
 	    (buf_size > IEEE80211_MAX_AMPDU_BUF)) {
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		net_dbg_ratelimited("AddBA Req with bad params from %pM on tid %u. policy %d, buffer size %d\n",
-				    mgmt->sa, tid, ba_policy, buf_size);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
+		ht_dbg_ratelimited(sta->sdata,
+				   "AddBA Req with bad params from %pM on tid %u. policy %d, buffer size %d\n",
+				   mgmt->sa, tid, ba_policy, buf_size);
 		goto end_no_lock;
 	}
 	/* determine default buffer size */
@@ -275,10 +276,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	mutex_lock(&sta->ampdu_mlme.mtx);
 
 	if (sta->ampdu_mlme.tid_rx[tid]) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		net_dbg_ratelimited("unexpected AddBA Req from %pM on tid %u\n",
-				    mgmt->sa, tid);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
+		ht_dbg_ratelimited(sta->sdata,
+				   "unexpected AddBA Req from %pM on tid %u\n",
+				   mgmt->sa, tid);
 
 		/* delete existing Rx BA session on the same tid */
 		___ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
@@ -317,7 +317,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	ret = drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_START,
 			       &sta->sta, tid, &start_seq_num, 0);
-	ht_vdbg("Rx A-MPDU request on tid %d result %d\n", tid, ret);
+	ht_dbg(sta->sdata, "Rx A-MPDU request on tid %d result %d\n", tid, ret);
 	if (ret) {
 		kfree(tid_agg_rx->reorder_buf);
 		kfree(tid_agg_rx->reorder_time);

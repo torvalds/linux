@@ -305,11 +305,15 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (is_dummy || !wlvif)
 		rate_idx = 0;
 	else if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
-		/* if the packets are destined for AP (have a STA entry)
-		   send them with AP rate policies, otherwise use default
-		   basic rates */
+		/*
+		 * if the packets are destined for AP (have a STA entry)
+		 * send them with AP rate policies (EAPOLs are an exception),
+		 * otherwise use default basic rates
+		 */
 		if (control->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
 			rate_idx = wlvif->sta.p2p_rate_idx;
+		else if (skb->protocol == cpu_to_be16(ETH_P_PAE))
+			rate_idx = wlvif->sta.basic_rate_idx;
 		else if (control->control.sta)
 			rate_idx = wlvif->sta.ap_rate_idx;
 		else
@@ -348,8 +352,10 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	bool is_dummy;
 	bool is_gem = false;
 
-	if (!skb)
+	if (!skb) {
+		wl1271_error("discarding null skb");
 		return -EINVAL;
+	}
 
 	info = IEEE80211_SKB_CB(skb);
 
@@ -658,7 +664,17 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
 	}
 }
 
-void wl1271_tx_work_locked(struct wl1271 *wl)
+/*
+ * Returns failure values only in case of failed bus ops within this function.
+ * wl1271_prepare_tx_frame retvals won't be returned in order to avoid
+ * triggering recovery by higher layers when not necessary.
+ * In case a FW command fails within wl1271_prepare_tx_frame fails a recovery
+ * will be queued in wl1271_cmd_send. -EAGAIN/-EBUSY from prepare_tx_frame
+ * can occur and are legitimate so don't propagate. -EINVAL will emit a WARNING
+ * within prepare_tx_frame code but there's nothing we should do about those
+ * as well.
+ */
+int wlcore_tx_work_locked(struct wl1271 *wl)
 {
 	struct wl12xx_vif *wlvif;
 	struct sk_buff *skb;
@@ -666,10 +682,11 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 	u32 buf_offset = 0, last_len = 0;
 	bool sent_packets = false;
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
-	int ret;
+	int ret = 0;
+	int bus_ret = 0;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
-		return;
+		return 0;
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -690,8 +707,11 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 
 			buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset,
 							    last_len);
-			wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-					  buf_offset, true);
+			bus_ret = wlcore_write_data(wl, REG_SLV_MEM_DATA,
+					     wl->aggr_buf, buf_offset, true);
+			if (bus_ret < 0)
+				goto out;
+
 			sent_packets = true;
 			buf_offset = 0;
 			continue;
@@ -727,8 +747,11 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 out_ack:
 	if (buf_offset) {
 		buf_offset = wlcore_hw_pre_pkt_send(wl, buf_offset, last_len);
-		wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
-				  buf_offset, true);
+		bus_ret = wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
+					     buf_offset, true);
+		if (bus_ret < 0)
+			goto out;
+
 		sent_packets = true;
 	}
 	if (sent_packets) {
@@ -736,13 +759,19 @@ out_ack:
 		 * Interrupt the firmware with the new packets. This is only
 		 * required for older hardware revisions
 		 */
-		if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION)
-			wl1271_write32(wl, WL12XX_HOST_WR_ACCESS,
-				       wl->tx_packets_count);
+		if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION) {
+			bus_ret = wlcore_write32(wl, WL12XX_HOST_WR_ACCESS,
+					     wl->tx_packets_count);
+			if (bus_ret < 0)
+				goto out;
+		}
 
 		wl1271_handle_tx_low_watermark(wl);
 	}
 	wl12xx_rearm_rx_streaming(wl, active_hlids);
+
+out:
+	return bus_ret;
 }
 
 void wl1271_tx_work(struct work_struct *work)
@@ -755,7 +784,11 @@ void wl1271_tx_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	wl1271_tx_work_locked(wl);
+	ret = wlcore_tx_work_locked(wl);
+	if (ret < 0) {
+		wl12xx_queue_recovery_work(wl);
+		goto out;
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -877,21 +910,27 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 }
 
 /* Called upon reception of a TX complete interrupt */
-void wl1271_tx_complete(struct wl1271 *wl)
+int wlcore_tx_complete(struct wl1271 *wl)
 {
 	struct wl1271_acx_mem_map *memmap = wl->target_mem_map;
 	u32 count, fw_counter;
 	u32 i;
+	int ret;
 
 	/* read the tx results from the chipset */
-	wl1271_read(wl, le32_to_cpu(memmap->tx_result),
-		    wl->tx_res_if, sizeof(*wl->tx_res_if), false);
+	ret = wlcore_read(wl, le32_to_cpu(memmap->tx_result),
+			  wl->tx_res_if, sizeof(*wl->tx_res_if), false);
+	if (ret < 0)
+		goto out;
+
 	fw_counter = le32_to_cpu(wl->tx_res_if->tx_result_fw_counter);
 
 	/* write host counter to chipset (to ack) */
-	wl1271_write32(wl, le32_to_cpu(memmap->tx_result) +
-		       offsetof(struct wl1271_tx_hw_res_if,
-				tx_result_host_counter), fw_counter);
+	ret = wlcore_write32(wl, le32_to_cpu(memmap->tx_result) +
+			     offsetof(struct wl1271_tx_hw_res_if,
+				      tx_result_host_counter), fw_counter);
+	if (ret < 0)
+		goto out;
 
 	count = fw_counter - wl->tx_results_count;
 	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
@@ -911,8 +950,11 @@ void wl1271_tx_complete(struct wl1271 *wl)
 
 		wl->tx_results_count++;
 	}
+
+out:
+	return ret;
 }
-EXPORT_SYMBOL(wl1271_tx_complete);
+EXPORT_SYMBOL(wlcore_tx_complete);
 
 void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 {

@@ -48,6 +48,12 @@ void wlcore_disable_interrupts(struct wl1271 *wl)
 }
 EXPORT_SYMBOL_GPL(wlcore_disable_interrupts);
 
+void wlcore_disable_interrupts_nosync(struct wl1271 *wl)
+{
+	disable_irq_nosync(wl->irq);
+}
+EXPORT_SYMBOL_GPL(wlcore_disable_interrupts_nosync);
+
 void wlcore_enable_interrupts(struct wl1271 *wl)
 {
 	enable_irq(wl->irq);
@@ -122,9 +128,11 @@ EXPORT_SYMBOL_GPL(wlcore_translate_addr);
  *                                    |    |
  *
  */
-void wlcore_set_partition(struct wl1271 *wl,
-			  const struct wlcore_partition_set *p)
+int wlcore_set_partition(struct wl1271 *wl,
+			 const struct wlcore_partition_set *p)
 {
+	int ret;
+
 	/* copy partition info */
 	memcpy(&wl->curr_part, p, sizeof(*p));
 
@@ -137,28 +145,41 @@ void wlcore_set_partition(struct wl1271 *wl,
 	wl1271_debug(DEBUG_IO, "mem3_start %08X mem3_size %08X",
 		     p->mem3.start, p->mem3.size);
 
-	wl1271_raw_write32(wl, HW_PART0_START_ADDR, p->mem.start);
-	wl1271_raw_write32(wl, HW_PART0_SIZE_ADDR, p->mem.size);
-	wl1271_raw_write32(wl, HW_PART1_START_ADDR, p->reg.start);
-	wl1271_raw_write32(wl, HW_PART1_SIZE_ADDR, p->reg.size);
-	wl1271_raw_write32(wl, HW_PART2_START_ADDR, p->mem2.start);
-	wl1271_raw_write32(wl, HW_PART2_SIZE_ADDR, p->mem2.size);
+	ret = wlcore_raw_write32(wl, HW_PART0_START_ADDR, p->mem.start);
+	if (ret < 0)
+		goto out;
+
+	ret = wlcore_raw_write32(wl, HW_PART0_SIZE_ADDR, p->mem.size);
+	if (ret < 0)
+		goto out;
+
+	ret = wlcore_raw_write32(wl, HW_PART1_START_ADDR, p->reg.start);
+	if (ret < 0)
+		goto out;
+
+	ret = wlcore_raw_write32(wl, HW_PART1_SIZE_ADDR, p->reg.size);
+	if (ret < 0)
+		goto out;
+
+	ret = wlcore_raw_write32(wl, HW_PART2_START_ADDR, p->mem2.start);
+	if (ret < 0)
+		goto out;
+
+	ret = wlcore_raw_write32(wl, HW_PART2_SIZE_ADDR, p->mem2.size);
+	if (ret < 0)
+		goto out;
+
 	/*
 	 * We don't need the size of the last partition, as it is
 	 * automatically calculated based on the total memory size and
 	 * the sizes of the previous partitions.
 	 */
-	wl1271_raw_write32(wl, HW_PART3_START_ADDR, p->mem3.start);
+	ret = wlcore_raw_write32(wl, HW_PART3_START_ADDR, p->mem3.start);
+
+out:
+	return ret;
 }
 EXPORT_SYMBOL_GPL(wlcore_set_partition);
-
-void wlcore_select_partition(struct wl1271 *wl, u8 part)
-{
-	wl1271_debug(DEBUG_IO, "setting partition %d", part);
-
-	wlcore_set_partition(wl, &wl->ptable[part]);
-}
-EXPORT_SYMBOL_GPL(wlcore_select_partition);
 
 void wl1271_io_reset(struct wl1271 *wl)
 {

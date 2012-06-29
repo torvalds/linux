@@ -33,16 +33,22 @@
 #include "rx.h"
 #include "hw_ops.h"
 
-static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
+static int wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 {
 	u32 cpu_ctrl;
+	int ret;
 
 	/* 10.5.0 run the firmware (I) */
-	cpu_ctrl = wlcore_read_reg(wl, REG_ECPU_CONTROL);
+	ret = wlcore_read_reg(wl, REG_ECPU_CONTROL, &cpu_ctrl);
+	if (ret < 0)
+		goto out;
 
 	/* 10.5.1 run the firmware (II) */
 	cpu_ctrl |= flag;
-	wlcore_write_reg(wl, REG_ECPU_CONTROL, cpu_ctrl);
+	ret = wlcore_write_reg(wl, REG_ECPU_CONTROL, cpu_ctrl);
+
+out:
+	return ret;
 }
 
 static int wlcore_boot_parse_fw_ver(struct wl1271 *wl,
@@ -87,7 +93,9 @@ static int wlcore_boot_static_data(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl1271_read(wl, wl->cmd_box_addr, static_data, len, false);
+	ret = wlcore_read(wl, wl->cmd_box_addr, static_data, len, false);
+	if (ret < 0)
+		goto out_free;
 
 	ret = wlcore_boot_parse_fw_ver(wl, static_data);
 	if (ret < 0)
@@ -109,6 +117,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	struct wlcore_partition_set partition;
 	int addr, chunk_num, partition_limit;
 	u8 *p, *chunk;
+	int ret;
 
 	/* whal_FwCtrl_LoadFwImageSm() */
 
@@ -130,7 +139,9 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 
 	memcpy(&partition, &wl->ptable[PART_DOWN], sizeof(partition));
 	partition.mem.start = dest;
-	wlcore_set_partition(wl, &partition);
+	ret = wlcore_set_partition(wl, &partition);
+	if (ret < 0)
+		return ret;
 
 	/* 10.1 set partition limit and chunk num */
 	chunk_num = 0;
@@ -144,7 +155,9 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 			partition_limit = chunk_num * CHUNK_SIZE +
 				wl->ptable[PART_DOWN].mem.size;
 			partition.mem.start = addr;
-			wlcore_set_partition(wl, &partition);
+			ret = wlcore_set_partition(wl, &partition);
+			if (ret < 0)
+				return ret;
 		}
 
 		/* 10.3 upload the chunk */
@@ -153,7 +166,9 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 		memcpy(chunk, p, CHUNK_SIZE);
 		wl1271_debug(DEBUG_BOOT, "uploading fw chunk 0x%p to 0x%x",
 			     p, addr);
-		wl1271_write(wl, addr, chunk, CHUNK_SIZE, false);
+		ret = wlcore_write(wl, addr, chunk, CHUNK_SIZE, false);
+		if (ret < 0)
+			goto out;
 
 		chunk_num++;
 	}
@@ -164,10 +179,11 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	memcpy(chunk, p, fw_data_len % CHUNK_SIZE);
 	wl1271_debug(DEBUG_BOOT, "uploading fw last chunk (%zd B) 0x%p to 0x%x",
 		     fw_data_len % CHUNK_SIZE, p, addr);
-	wl1271_write(wl, addr, chunk, fw_data_len % CHUNK_SIZE, false);
+	ret = wlcore_write(wl, addr, chunk, fw_data_len % CHUNK_SIZE, false);
 
+out:
 	kfree(chunk);
-	return 0;
+	return ret;
 }
 
 int wlcore_boot_upload_firmware(struct wl1271 *wl)
@@ -210,6 +226,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	int i;
 	u32 dest_addr, val;
 	u8 *nvs_ptr, *nvs_aligned;
+	int ret;
 
 	if (wl->nvs == NULL) {
 		wl1271_error("NVS file is needed during boot");
@@ -307,7 +324,9 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 			wl1271_debug(DEBUG_BOOT,
 				     "nvs burst write 0x%x: 0x%x",
 				     dest_addr, val);
-			wl1271_write32(wl, dest_addr, val);
+			ret = wlcore_write32(wl, dest_addr, val);
+			if (ret < 0)
+				return ret;
 
 			nvs_ptr += 4;
 			dest_addr += 4;
@@ -333,7 +352,9 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	nvs_len -= nvs_ptr - (u8 *)wl->nvs;
 
 	/* Now we must set the partition correctly */
-	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+	if (ret < 0)
+		return ret;
 
 	/* Copy the NVS tables to a new block to ensure alignment */
 	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL);
@@ -341,11 +362,11 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 		return -ENOMEM;
 
 	/* And finally we upload the NVS tables */
-	wlcore_write_data(wl, REG_CMD_MBOX_ADDRESS,
-			  nvs_aligned, nvs_len, false);
+	ret = wlcore_write_data(wl, REG_CMD_MBOX_ADDRESS, nvs_aligned, nvs_len,
+				false);
 
 	kfree(nvs_aligned);
-	return 0;
+	return ret;
 
 out_badnvs:
 	wl1271_error("nvs data is malformed");
@@ -359,11 +380,17 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	u32 chip_id, intr;
 
 	/* Make sure we have the boot partition */
-	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+	if (ret < 0)
+		return ret;
 
-	wl1271_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
+	ret = wl1271_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
+	if (ret < 0)
+		return ret;
 
-	chip_id = wlcore_read_reg(wl, REG_CHIP_ID_B);
+	ret = wlcore_read_reg(wl, REG_CHIP_ID_B, &chip_id);
+	if (ret < 0)
+		return ret;
 
 	wl1271_debug(DEBUG_BOOT, "chip id after firmware boot: 0x%x", chip_id);
 
@@ -376,7 +403,9 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	loop = 0;
 	while (loop++ < INIT_LOOP) {
 		udelay(INIT_LOOP_DELAY);
-		intr = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR);
+		ret = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR, &intr);
+		if (ret < 0)
+			return ret;
 
 		if (intr == 0xffffffff) {
 			wl1271_error("error reading hardware complete "
@@ -385,8 +414,10 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 		}
 		/* check that ACX_INTR_INIT_COMPLETE is enabled */
 		else if (intr & WL1271_ACX_INTR_INIT_COMPLETE) {
-			wlcore_write_reg(wl, REG_INTERRUPT_ACK,
-					 WL1271_ACX_INTR_INIT_COMPLETE);
+			ret = wlcore_write_reg(wl, REG_INTERRUPT_ACK,
+					       WL1271_ACX_INTR_INIT_COMPLETE);
+			if (ret < 0)
+				return ret;
 			break;
 		}
 	}
@@ -398,12 +429,17 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	}
 
 	/* get hardware config command mail box */
-	wl->cmd_box_addr = wlcore_read_reg(wl, REG_COMMAND_MAILBOX_PTR);
+	ret = wlcore_read_reg(wl, REG_COMMAND_MAILBOX_PTR, &wl->cmd_box_addr);
+	if (ret < 0)
+		return ret;
 
 	wl1271_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x", wl->cmd_box_addr);
 
 	/* get hardware config event mail box */
-	wl->mbox_ptr[0] = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR);
+	ret = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR, &wl->mbox_ptr[0]);
+	if (ret < 0)
+		return ret;
+
 	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
 
 	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
@@ -445,9 +481,9 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	}
 
 	/* set the working partition to its "running" mode offset */
-	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
 
 	/* firmware startup completed */
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(wlcore_boot_run_firmware);

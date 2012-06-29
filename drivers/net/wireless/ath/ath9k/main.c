@@ -19,7 +19,7 @@
 #include "ath9k.h"
 #include "btcoex.h"
 
-static u8 parse_mpdudensity(u8 mpdudensity)
+u8 ath9k_parse_mpdudensity(u8 mpdudensity)
 {
 	/*
 	 * 802.11n D2.0 defined values for "Minimum MPDU Start Spacing":
@@ -150,8 +150,10 @@ static void __ath_cancel_work(struct ath_softc *sc)
 	cancel_work_sync(&sc->hw_check_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_delayed_work_sync(&sc->hw_pll_work);
+
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
-	cancel_work_sync(&sc->mci_work);
+	if (ath9k_hw_mci_is_enabled(sc->sc_ah))
+		cancel_work_sync(&sc->mci_work);
 #endif
 }
 
@@ -320,6 +322,7 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 			    struct ieee80211_vif *vif)
 {
 	struct ath_node *an;
+	u8 density;
 	an = (struct ath_node *)sta->drv_priv;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
@@ -334,7 +337,8 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 		ath_tx_node_init(sc, an);
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 				     sta->ht_cap.ampdu_factor);
-		an->mpdudensity = parse_mpdudensity(sta->ht_cap.ampdu_density);
+		density = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
+		an->mpdudensity = density;
 	}
 }
 
@@ -514,24 +518,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (status & ATH9K_INT_RXEOL) {
 		ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
 		ath9k_hw_set_interrupts(ah);
-	}
-
-	if (status & ATH9K_INT_MIB) {
-		/*
-		 * Disable interrupts until we service the MIB
-		 * interrupt; otherwise it will continue to
-		 * fire.
-		 */
-		ath9k_hw_disable_interrupts(ah);
-		/*
-		 * Let the hal handle the event. We assume
-		 * it will clear whatever condition caused
-		 * the interrupt.
-		 */
-		spin_lock(&common->cc_lock);
-		ath9k_hw_proc_mib_event(ah);
-		spin_unlock(&common->cc_lock);
-		ath9k_hw_enable_interrupts(ah);
 	}
 
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
@@ -959,14 +945,10 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	/*
 	 * Enable MIB interrupts when there are hardware phy counters.
 	 */
-	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0) {
-		if (ah->config.enable_ani)
-			ah->imask |= ATH9K_INT_MIB;
+	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0)
 		ah->imask |= ATH9K_INT_TSFOOR;
-	} else {
-		ah->imask &= ~ATH9K_INT_MIB;
+	else
 		ah->imask &= ~ATH9K_INT_TSFOOR;
-	}
 
 	ath9k_hw_set_interrupts(ah);
 

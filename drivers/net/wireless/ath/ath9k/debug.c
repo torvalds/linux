@@ -348,8 +348,6 @@ void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 		sc->debug.stats.istats.txok++;
 	if (status & ATH9K_INT_TXURN)
 		sc->debug.stats.istats.txurn++;
-	if (status & ATH9K_INT_MIB)
-		sc->debug.stats.istats.mib++;
 	if (status & ATH9K_INT_RXPHY)
 		sc->debug.stats.istats.rxphyerr++;
 	if (status & ATH9K_INT_RXKCM)

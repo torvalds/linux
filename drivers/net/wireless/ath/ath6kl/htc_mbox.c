@@ -1309,7 +1309,7 @@ static int ath6kl_htc_rx_packet(struct htc_target *target,
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_HTC,
-		   "htc rx 0x%p hdr x%x len %d mbox 0x%x\n",
+		   "htc rx 0x%p hdr 0x%x len %d mbox 0x%x\n",
 		   packet, packet->info.rx.exp_hdr,
 		   padded_len, dev->ar->mbox_info.htc_addr);
 

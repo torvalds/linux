@@ -104,6 +104,7 @@ enum mesh_deferred_task_flags {
  * an mpath to a hash bucket on a path table.
  * @rann_snd_addr: the RANN sender address
  * @rann_metric: the aggregated path metric towards the root node
+ * @last_preq_to_root: Timestamp of last PREQ sent to root
  * @is_root: the destination station of this path is a root node
  * @is_gate: the destination station of this path is a mesh gate
  *
@@ -131,6 +132,7 @@ struct mesh_path {
 	spinlock_t state_lock;
 	u8 rann_snd_addr[ETH_ALEN];
 	u32 rann_metric;
+	unsigned long last_preq_to_root;
 	bool is_root;
 	bool is_gate;
 };
@@ -245,7 +247,7 @@ void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_init(void);
 void ieee80211s_update_metric(struct ieee80211_local *local,
-		struct sta_info *stainfo, struct sk_buff *skb);
+		struct sta_info *sta, struct sk_buff *skb);
 void ieee80211s_stop(void);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
 void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);

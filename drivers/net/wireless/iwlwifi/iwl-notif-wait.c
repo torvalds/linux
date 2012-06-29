@@ -121,13 +121,12 @@ EXPORT_SYMBOL_GPL(iwl_notification_wait_notify);
 
 void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_wait)
 {
-	unsigned long flags;
 	struct iwl_notification_wait *wait_entry;
 
-	spin_lock_irqsave(&notif_wait->notif_wait_lock, flags);
+	spin_lock(&notif_wait->notif_wait_lock);
 	list_for_each_entry(wait_entry, &notif_wait->notif_waits, list)
 		wait_entry->aborted = true;
-	spin_unlock_irqrestore(&notif_wait->notif_wait_lock, flags);
+	spin_unlock(&notif_wait->notif_wait_lock);
 
 	wake_up_all(&notif_wait->notif_waitq);
 }

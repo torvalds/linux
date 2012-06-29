@@ -867,23 +867,22 @@ void iwl_disable_ict(struct iwl_trans *trans)
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
+/* legacy (non-ICT) ISR. Assumes that trans_pcie->irq_lock is held */
 static irqreturn_t iwl_isr(int irq, void *data)
 {
 	struct iwl_trans *trans = data;
-	struct iwl_trans_pcie *trans_pcie;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 inta, inta_mask;
-	unsigned long flags;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_fh;
 #endif
+
+	lockdep_assert_held(&trans_pcie->irq_lock);
+
 	if (!trans)
 		return IRQ_NONE;
 
 	trace_iwlwifi_dev_irq(trans->dev);
-
-	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
@@ -907,7 +906,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 		/* Hardware disappeared. It might have already raised
 		 * an interrupt */
 		IWL_WARN(trans, "HARDWARE GONE?? INTA == 0x%08x\n", inta);
-		goto unplugged;
+		return IRQ_HANDLED;
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -926,18 +925,13 @@ static irqreturn_t iwl_isr(int irq, void *data)
 		 !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
- unplugged:
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
-	return IRQ_HANDLED;
-
- none:
+none:
 	/* re-enable interrupts here since we don't have anything to service. */
 	/* only Re-enable if disabled by irq  and no schedules tasklet. */
 	if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
 	    !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 	return IRQ_NONE;
 }
 
@@ -963,15 +957,19 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
+
 	/* dram interrupt table not set yet,
 	 * use legacy interrupt.
 	 */
-	if (!trans_pcie->use_ict)
-		return iwl_isr(irq, data);
+	if (unlikely(!trans_pcie->use_ict)) {
+		irqreturn_t ret = iwl_isr(irq, data);
+		spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
+		return ret;
+	}
 
 	trace_iwlwifi_dev_irq(trans->dev);
 
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 * back-to-back ISRs and sporadic interrupts from our NIC.

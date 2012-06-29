@@ -334,6 +334,12 @@ static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 	if (ret < 0)
 		goto out;
 
+	/*
+	 * Join command applies filters, and if we are not associated,
+	 * BSSID filter must be disabled for association to work.
+	 */
+	if (is_zero_ether_addr(wl->bssid))
+		wl->rx_config &= ~CFG_BSSID_FILTER_EN;
 
 	ret = wl1251_cmd_join(wl, bss_type, channel, beacon_interval,
 			      dtim_period);
@@ -346,33 +352,6 @@ static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 
 out:
 	return ret;
-}
-
-static void wl1251_filter_work(struct work_struct *work)
-{
-	struct wl1251 *wl =
-		container_of(work, struct wl1251, filter_work);
-	int ret;
-
-	mutex_lock(&wl->mutex);
-
-	if (wl->state == WL1251_STATE_OFF)
-		goto out;
-
-	ret = wl1251_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out;
-
-	ret = wl1251_join(wl, wl->bss_type, wl->channel, wl->beacon_int,
-			  wl->dtim_period);
-	if (ret < 0)
-		goto out_sleep;
-
-out_sleep:
-	wl1251_ps_elp_sleep(wl);
-
-out:
-	mutex_unlock(&wl->mutex);
 }
 
 static void wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -478,7 +457,6 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->tx_work);
-	cancel_work_sync(&wl->filter_work);
 	cancel_delayed_work_sync(&wl->elp_work);
 
 	mutex_lock(&wl->mutex);
@@ -681,13 +659,15 @@ out:
 				  FIF_FCSFAIL | \
 				  FIF_BCN_PRBRESP_PROMISC | \
 				  FIF_CONTROL | \
-				  FIF_OTHER_BSS)
+				  FIF_OTHER_BSS | \
+				  FIF_PROBE_REQ)
 
 static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 				       unsigned int changed,
 				       unsigned int *total,u64 multicast)
 {
 	struct wl1251 *wl = hw->priv;
+	int ret;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 configure filter");
 
@@ -698,7 +678,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 		/* no filters which we support changed */
 		return;
 
-	/* FIXME: wl->rx_config and wl->rx_filter are not protected */
+	mutex_lock(&wl->mutex);
 
 	wl->rx_config = WL1251_DEFAULT_RX_CONFIG;
 	wl->rx_filter = WL1251_DEFAULT_RX_FILTER;
@@ -721,15 +701,25 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	}
 	if (*total & FIF_CONTROL)
 		wl->rx_filter |= CFG_RX_CTL_EN;
-	if (*total & FIF_OTHER_BSS)
-		wl->rx_filter &= ~CFG_BSSID_FILTER_EN;
+	if (*total & FIF_OTHER_BSS || is_zero_ether_addr(wl->bssid))
+		wl->rx_config &= ~CFG_BSSID_FILTER_EN;
+	if (*total & FIF_PROBE_REQ)
+		wl->rx_filter |= CFG_RX_PREQ_EN;
 
-	/*
-	 * FIXME: workqueues need to be properly cancelled on stop(), for
-	 * now let's just disable changing the filter settings. They will
-	 * be updated any on config().
-	 */
-	/* schedule_work(&wl->filter_work); */
+	if (wl->state == WL1251_STATE_OFF)
+		goto out;
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	/* send filters to firmware */
+	wl1251_acx_rx_config(wl, wl->rx_config, wl->rx_filter);
+
+	wl1251_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
 }
 
 /* HW encryption */
@@ -1390,7 +1380,6 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	skb_queue_head_init(&wl->tx_queue);
 
-	INIT_WORK(&wl->filter_work, wl1251_filter_work);
 	INIT_DELAYED_WORK(&wl->elp_work, wl1251_elp_work);
 	wl->channel = WL1251_DEFAULT_CHANNEL;
 	wl->scanning = false;
