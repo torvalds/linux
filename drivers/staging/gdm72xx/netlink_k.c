@@ -88,13 +88,15 @@ struct sock *netlink_init(int unit, void (*cb)(struct net_device *dev, u16 type,
 						void *msg, int len))
 {
 	struct sock *sock;
+	struct netlink_kernel_cfg cfg = {
+		.input  = netlink_rcv,
+	};
 
 #if !defined(DEFINE_MUTEX)
 	init_MUTEX(&netlink_mutex);
 #endif
 
-	sock = netlink_kernel_create(&init_net, unit, 0, netlink_rcv, NULL,
-					THIS_MODULE);
+	sock = netlink_kernel_create(&init_net, unit, THIS_MODULE, &cfg);
 
 	if (sock)
 		rcv_cb = cb;

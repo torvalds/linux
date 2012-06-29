@@ -251,15 +251,20 @@ static const struct file_operations cn_file_ops = {
 	.release = single_release
 };
 
+static struct cn_dev cdev = {
+	.input   = cn_rx_skb,
+};
+
 static int __devinit cn_init(void)
 {
 	struct cn_dev *dev = &cdev;
-
-	dev->input = cn_rx_skb;
+	struct netlink_kernel_cfg cfg = {
+		.groups	= CN_NETLINK_USERS + 0xf,
+		.input	= dev->input,
+	};
 
 	dev->nls = netlink_kernel_create(&init_net, NETLINK_CONNECTOR,
-					 CN_NETLINK_USERS + 0xf,
-					 dev->input, NULL, THIS_MODULE);
+					 THIS_MODULE, &cfg);
 	if (!dev->nls)
 		return -EIO;
 

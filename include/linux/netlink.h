@@ -174,11 +174,16 @@ struct netlink_skb_parms {
 extern void netlink_table_grab(void);
 extern void netlink_table_ungrab(void);
 
-extern struct sock *netlink_kernel_create(struct net *net,
-					  int unit,unsigned int groups,
-					  void (*input)(struct sk_buff *skb),
-					  struct mutex *cb_mutex,
-					  struct module *module);
+/* optional Netlink kernel configuration parameters */
+struct netlink_kernel_cfg {
+	unsigned int	groups;
+	void		(*input)(struct sk_buff *skb);
+	struct mutex	*cb_mutex;
+};
+
+extern struct sock *netlink_kernel_create(struct net *net, int unit,
+					  struct module *module,
+					  struct netlink_kernel_cfg *cfg);
 extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);

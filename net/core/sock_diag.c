@@ -171,8 +171,12 @@ EXPORT_SYMBOL_GPL(sock_diag_nlsk);
 
 static int __init sock_diag_init(void)
 {
-	sock_diag_nlsk = netlink_kernel_create(&init_net, NETLINK_SOCK_DIAG, 0,
-					sock_diag_rcv, NULL, THIS_MODULE);
+	struct netlink_kernel_cfg cfg = {
+		.input	= sock_diag_rcv,
+	};
+
+	sock_diag_nlsk = netlink_kernel_create(&init_net, NETLINK_SOCK_DIAG,
+					       THIS_MODULE, &cfg);
 	return sock_diag_nlsk == NULL ? -ENOMEM : 0;
 }
 

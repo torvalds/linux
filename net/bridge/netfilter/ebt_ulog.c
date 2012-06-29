@@ -282,6 +282,9 @@ static int __init ebt_ulog_init(void)
 {
 	int ret;
 	int i;
+	struct netlink_kernel_cfg cfg = {
+		.groups	= EBT_ULOG_MAXNLGROUPS,
+	};
 
 	if (nlbufsiz >= 128*1024) {
 		pr_warning("Netlink buffer has to be <= 128kB,"
@@ -296,8 +299,7 @@ static int __init ebt_ulog_init(void)
 	}
 
 	ebtulognl = netlink_kernel_create(&init_net, NETLINK_NFLOG,
-					  EBT_ULOG_MAXNLGROUPS, NULL, NULL,
-					  THIS_MODULE);
+					  THIS_MODULE, &cfg);
 	if (!ebtulognl)
 		ret = -ENOMEM;
 	else if ((ret = xt_register_target(&ebt_ulog_tg_reg)) != 0)

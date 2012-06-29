@@ -915,10 +915,14 @@ static struct genl_multicast_group notify_grp = {
 
 static int __net_init genl_pernet_init(struct net *net)
 {
+	struct netlink_kernel_cfg cfg = {
+		.input		= genl_rcv,
+		.cb_mutex	= &genl_mutex,
+	};
+
 	/* we'll bump the group number right afterwards */
-	net->genl_sock = netlink_kernel_create(net, NETLINK_GENERIC, 0,
-					       genl_rcv, &genl_mutex,
-					       THIS_MODULE);
+	net->genl_sock = netlink_kernel_create(net, NETLINK_GENERIC,
+					       THIS_MODULE, &cfg);
 
 	if (!net->genl_sock && net_eq(net, &init_net))
 		panic("GENL: Cannot initialize generic netlink\n");
