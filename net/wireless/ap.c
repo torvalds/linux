@@ -24,8 +24,10 @@ static int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		return -ENOENT;
 
 	err = rdev->ops->stop_ap(&rdev->wiphy, dev);
-	if (!err)
+	if (!err) {
 		wdev->beacon_interval = 0;
+		wdev->channel = NULL;
+	}
 
 	return err;
 }

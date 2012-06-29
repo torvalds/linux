@@ -2488,6 +2488,7 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		wdev->preset_chan = params.channel;
 		wdev->preset_chantype = params.channel_type;
 		wdev->beacon_interval = params.beacon_interval;
+		wdev->channel = params.channel;
 	}
 	return err;
 }

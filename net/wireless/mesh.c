@@ -159,6 +159,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (!err) {
 		memcpy(wdev->ssid, setup->mesh_id, setup->mesh_id_len);
 		wdev->mesh_id_len = setup->mesh_id_len;
+		wdev->channel = setup->channel;
 	}
 
 	return err;
@@ -184,6 +185,7 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 			   enum nl80211_channel_type channel_type)
 {
 	struct ieee80211_channel *channel;
+	int err;
 
 	channel = rdev_freq_to_chan(rdev, freq, channel_type);
 	if (!channel || !cfg80211_can_beacon_sec_chan(&rdev->wiphy,
@@ -205,9 +207,14 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 
 		if (!netif_running(wdev->netdev))
 			return -ENETDOWN;
-		return rdev->ops->libertas_set_mesh_channel(&rdev->wiphy,
-							    wdev->netdev,
-							    channel);
+
+		err = rdev->ops->libertas_set_mesh_channel(&rdev->wiphy,
+							   wdev->netdev,
+							   channel);
+		if (!err)
+			wdev->channel = channel;
+
+		return err;
 	}
 
 	if (wdev->mesh_id_len)
@@ -249,8 +256,11 @@ static int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 		return -ENOTCONN;
 
 	err = rdev->ops->leave_mesh(&rdev->wiphy, dev);
-	if (!err)
+	if (!err) {
 		wdev->mesh_id_len = 0;
+		wdev->channel = NULL;
+	}
+
 	return err;
 }
 
