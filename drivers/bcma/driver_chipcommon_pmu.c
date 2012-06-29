@@ -54,22 +54,6 @@ void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc, u32 offset, u32 mask,
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_regctl_maskset);
 
-static void bcma_pmu_pll_init(struct bcma_drv_cc *cc)
-{
-	struct bcma_bus *bus = cc->core->bus;
-
-	switch (bus->chipinfo.id) {
-	case BCMA_CHIP_ID_BCM4313:
-	case BCMA_CHIP_ID_BCM4331:
-	case BCMA_CHIP_ID_BCM43224:
-	case BCMA_CHIP_ID_BCM43225:
-		break;
-	default:
-		pr_err("PLL init unknown for device 0x%04X\n",
-			bus->chipinfo.id);
-	}
-}
-
 static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
@@ -94,22 +78,6 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 		bcma_cc_write32(cc, BCMA_CC_PMU_MINRES_MSK, min_msk);
 	if (max_msk)
 		bcma_cc_write32(cc, BCMA_CC_PMU_MAXRES_MSK, max_msk);
-}
-
-void bcma_pmu_swreg_init(struct bcma_drv_cc *cc)
-{
-	struct bcma_bus *bus = cc->core->bus;
-
-	switch (bus->chipinfo.id) {
-	case BCMA_CHIP_ID_BCM4313:
-	case BCMA_CHIP_ID_BCM4331:
-	case BCMA_CHIP_ID_BCM43224:
-	case BCMA_CHIP_ID_BCM43225:
-		break;
-	default:
-		pr_err("PMU switch/regulators init unknown for device "
-			"0x%04X\n", bus->chipinfo.id);
-	}
 }
 
 /* Disable to allow reading SPROM. Don't know the adventages of enabling it. */
@@ -192,9 +160,7 @@ void bcma_pmu_init(struct bcma_drv_cc *cc)
 		bcma_cc_set32(cc, BCMA_CC_PMU_CTL,
 			     BCMA_CC_PMU_CTL_NOILPONW);
 
-	bcma_pmu_pll_init(cc);
 	bcma_pmu_resources_init(cc);
-	bcma_pmu_swreg_init(cc);
 	bcma_pmu_workarounds(cc);
 }
 
