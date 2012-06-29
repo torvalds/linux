@@ -440,11 +440,13 @@ static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
 	return 0;
 }
 
-static int acpi_fujitsu_resume(struct acpi_device *adev)
+static int acpi_fujitsu_resume(struct device *dev)
 {
 	fujitsu_reset();
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(acpi_fujitsu_pm, NULL, acpi_fujitsu_resume);
 
 static struct acpi_driver acpi_fujitsu_driver = {
 	.name  = MODULENAME,
@@ -453,8 +455,8 @@ static struct acpi_driver acpi_fujitsu_driver = {
 	.ops   = {
 		.add    = acpi_fujitsu_add,
 		.remove	= acpi_fujitsu_remove,
-		.resume = acpi_fujitsu_resume,
-	}
+	},
+	.drv.pm = &acpi_fujitsu_pm,
 };
 
 static int __init fujitsu_module_init(void)
