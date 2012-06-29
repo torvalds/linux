@@ -308,16 +308,22 @@ static u32 Log10Times100(u32 x)
 /* I2C **********************************************************************/
 /****************************************************************************/
 
-static int i2c_read1(struct i2c_adapter *adapter, u8 adr, u8 *val)
+static int drxk_i2c_transfer(struct drxk_state *state, struct i2c_msg *msgs,
+			     unsigned len)
+{
+	return i2c_transfer(state->i2c, msgs, len);
+}
+
+static int i2c_read1(struct drxk_state *state, u8 adr, u8 *val)
 {
 	struct i2c_msg msgs[1] = { {.addr = adr, .flags = I2C_M_RD,
 				    .buf = val, .len = 1}
 	};
 
-	return i2c_transfer(adapter, msgs, 1);
+	return drxk_i2c_transfer(state, msgs, 1);
 }
 
-static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
+static int i2c_write(struct drxk_state *state, u8 adr, u8 *data, int len)
 {
 	int status;
 	struct i2c_msg msg = {
@@ -330,7 +336,7 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 			printk(KERN_CONT " %02x", data[i]);
 		printk(KERN_CONT "\n");
 	}
-	status = i2c_transfer(adap, &msg, 1);
+	status = drxk_i2c_transfer(state, &msg, 1);
 	if (status >= 0 && status != 1)
 		status = -EIO;
 
@@ -340,7 +346,7 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 	return status;
 }
 
-static int i2c_read(struct i2c_adapter *adap,
+static int i2c_read(struct drxk_state *state,
 		    u8 adr, u8 *msg, int len, u8 *answ, int alen)
 {
 	int status;
@@ -351,7 +357,7 @@ static int i2c_read(struct i2c_adapter *adap,
 		 .buf = answ, .len = alen}
 	};
 
-	status = i2c_transfer(adap, msgs, 2);
+	status = drxk_i2c_transfer(state, msgs, 2);
 	if (status != 2) {
 		if (debug > 2)
 			printk(KERN_CONT ": ERROR!\n");
@@ -394,7 +400,7 @@ static int read16_flags(struct drxk_state *state, u32 reg, u16 *data, u8 flags)
 		len = 2;
 	}
 	dprintk(2, "(0x%08x, 0x%02x)\n", reg, flags);
-	status = i2c_read(state->i2c, adr, mm1, len, mm2, 2);
+	status = i2c_read(state, adr, mm1, len, mm2, 2);
 	if (status < 0)
 		return status;
 	if (data)
@@ -428,7 +434,7 @@ static int read32_flags(struct drxk_state *state, u32 reg, u32 *data, u8 flags)
 		len = 2;
 	}
 	dprintk(2, "(0x%08x, 0x%02x)\n", reg, flags);
-	status = i2c_read(state->i2c, adr, mm1, len, mm2, 4);
+	status = i2c_read(state, adr, mm1, len, mm2, 4);
 	if (status < 0)
 		return status;
 	if (data)
@@ -464,7 +470,7 @@ static int write16_flags(struct drxk_state *state, u32 reg, u16 data, u8 flags)
 	mm[len + 1] = (data >> 8) & 0xff;
 
 	dprintk(2, "(0x%08x, 0x%04x, 0x%02x)\n", reg, data, flags);
-	return i2c_write(state->i2c, adr, mm, len + 2);
+	return i2c_write(state, adr, mm, len + 2);
 }
 
 static int write16(struct drxk_state *state, u32 reg, u16 data)
@@ -495,7 +501,7 @@ static int write32_flags(struct drxk_state *state, u32 reg, u32 data, u8 flags)
 	mm[len + 3] = (data >> 24) & 0xff;
 	dprintk(2, "(0x%08x, 0x%08x, 0x%02x)\n", reg, data, flags);
 
-	return i2c_write(state->i2c, adr, mm, len + 4);
+	return i2c_write(state, adr, mm, len + 4);
 }
 
 static int write32(struct drxk_state *state, u32 reg, u32 data)
@@ -542,7 +548,7 @@ static int write_block(struct drxk_state *state, u32 Address,
 					printk(KERN_CONT " %02x", pBlock[i]);
 			printk(KERN_CONT "\n");
 		}
-		status = i2c_write(state->i2c, state->demod_address,
+		status = i2c_write(state, state->demod_address,
 				   &state->Chunk[0], Chunk + AdrLength);
 		if (status < 0) {
 			printk(KERN_ERR "drxk: %s: i2c write error at addr 0x%02x\n",
@@ -568,17 +574,17 @@ int PowerUpDevice(struct drxk_state *state)
 
 	dprintk(1, "\n");
 
-	status = i2c_read1(state->i2c, state->demod_address, &data);
+	status = i2c_read1(state, state->demod_address, &data);
 	if (status < 0) {
 		do {
 			data = 0;
-			status = i2c_write(state->i2c, state->demod_address,
+			status = i2c_write(state, state->demod_address,
 					   &data, 1);
 			msleep(10);
 			retryCount++;
 			if (status < 0)
 				continue;
-			status = i2c_read1(state->i2c, state->demod_address,
+			status = i2c_read1(state, state->demod_address,
 					   &data);
 		} while (status < 0 &&
 			 (retryCount < DRXK_MAX_RETRIES_POWERUP));
