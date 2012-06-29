@@ -6688,6 +6688,31 @@ static const struct alc_model_fixup alc662_fixup_models[] = {
 	{}
 };
 
+static void alc662_fill_coef(struct hda_codec *codec)
+{
+	int val, coef;
+
+	coef = alc_get_coef0(codec);
+
+	switch (codec->vendor_id) {
+	case 0x10ec0662:
+		if ((coef & 0x00f0) == 0x0030) {
+			val = alc_read_coef_idx(codec, 0x4); /* EAPD Ctrl */
+			alc_write_coef_idx(codec, 0x4, val & ~(1<<10));
+		}
+		break;
+	case 0x10ec0272:
+	case 0x10ec0273:
+	case 0x10ec0663:
+	case 0x10ec0665:
+	case 0x10ec0670:
+	case 0x10ec0671:
+	case 0x10ec0672:
+		val = alc_read_coef_idx(codec, 0xd); /* EAPD Ctrl */
+		alc_write_coef_idx(codec, 0xd, val | (1<<14));
+		break;
+	}
+}
 
 /*
  */
@@ -6706,6 +6731,9 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
 
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
+
+	spec->init_hook = alc662_fill_coef;
+	alc662_fill_coef(codec);
 
 	alc_pick_fixup(codec, alc662_fixup_models,
 		       alc662_fixup_tbl, alc662_fixups);
