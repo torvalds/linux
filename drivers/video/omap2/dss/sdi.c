@@ -106,9 +106,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_set_dss_clock_div;
 
-	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
-	if (r)
-		goto err_set_dispc_clock_div;
+	dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 
 	dss_sdi_init(dssdev->phy.sdi.datapairs);
 	r = dss_sdi_enable();
@@ -125,7 +123,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 err_mgr_enable:
 	dss_sdi_disable();
 err_sdi_enable:
-err_set_dispc_clock_div:
 err_set_dss_clock_div:
 err_calc_clock_div:
 	dispc_runtime_put();

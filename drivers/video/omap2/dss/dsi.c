@@ -4451,11 +4451,7 @@ static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 		return r;
 	}
 
-	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
-	if (r) {
-		DSSERR("Failed to set dispc clocks\n");
-		return r;
-	}
+	dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 
 	return 0;
 }

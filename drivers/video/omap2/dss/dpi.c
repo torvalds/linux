@@ -83,11 +83,7 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 
 	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
 
-	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
-	if (r) {
-		dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
-		return r;
-	}
+	dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 
 	*fck = dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
 	*lck_div = dispc_cinfo.lck_div;
@@ -112,9 +108,7 @@ static int dpi_set_dispc_clk(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
-	if (r)
-		return r;
+	dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 
 	*fck = dss_cinfo.fck;
 	*lck_div = dispc_cinfo.lck_div;
