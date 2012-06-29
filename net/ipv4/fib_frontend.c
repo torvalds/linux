@@ -226,15 +226,14 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
  * called with rcu_read_lock()
  */
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
-			int oif, struct net_device *dev, u32 *itag)
+			int oif, struct net_device *dev, struct in_device *idev,
+			u32 *itag)
 {
-	struct in_device *in_dev;
-	struct flowi4 fl4;
+	int ret, no_addr, rpf, accept_local;
 	struct fib_result res;
-	int no_addr, rpf, accept_local;
-	bool dev_match;
-	int ret;
+	struct flowi4 fl4;
 	struct net *net;
+	bool dev_match;
 
 	fl4.flowi4_oif = 0;
 	fl4.flowi4_iif = oif;
@@ -244,19 +243,13 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 
 	no_addr = rpf = accept_local = 0;
-	in_dev = __in_dev_get_rcu(dev);
-	if (in_dev) {
-		no_addr = in_dev->ifa_list == NULL;
+	no_addr = idev->ifa_list == NULL;
 
-		/* Ignore rp_filter for packets protected by IPsec. */
-		rpf = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(in_dev);
+	/* Ignore rp_filter for packets protected by IPsec. */
+	rpf = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
 
-		accept_local = IN_DEV_ACCEPT_LOCAL(in_dev);
-		fl4.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0;
-	}
-
-	if (in_dev == NULL)
-		goto e_inval;
+	accept_local = IN_DEV_ACCEPT_LOCAL(idev);
+	fl4.flowi4_mark = IN_DEV_SRC_VMARK(idev) ? skb->mark : 0;
 
 	net = dev_net(dev);
 	if (fib_lookup(net, &fl4, &res))
