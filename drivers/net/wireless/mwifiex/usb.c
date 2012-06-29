@@ -49,6 +49,7 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 	struct device *dev = adapter->dev;
 	u32 recv_type;
 	__le32 tmp;
+	int ret;
 
 	if (adapter->hs_activated)
 		mwifiex_process_hs_config(adapter);
@@ -69,16 +70,19 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 		case MWIFIEX_USB_TYPE_CMD:
 			if (skb->len > MWIFIEX_SIZE_OF_CMD_BUFFER) {
 				dev_err(dev, "CMD: skb->len too large\n");
-				return -1;
+				ret = -1;
+				goto exit_restore_skb;
 			} else if (!adapter->curr_cmd) {
 				dev_dbg(dev, "CMD: no curr_cmd\n");
 				if (adapter->ps_state == PS_STATE_SLEEP_CFM) {
 					mwifiex_process_sleep_confirm_resp(
 							adapter, skb->data,
 							skb->len);
-					return 0;
+					ret = 0;
+					goto exit_restore_skb;
 				}
-				return -1;
+				ret = -1;
+				goto exit_restore_skb;
 			}
 
 			adapter->curr_cmd->resp_skb = skb;
@@ -87,20 +91,22 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 		case MWIFIEX_USB_TYPE_EVENT:
 			if (skb->len < sizeof(u32)) {
 				dev_err(dev, "EVENT: skb->len too small\n");
-				return -1;
+				ret = -1;
+				goto exit_restore_skb;
 			}
 			skb_copy_from_linear_data(skb, &tmp, sizeof(u32));
 			adapter->event_cause = le32_to_cpu(tmp);
-			skb_pull(skb, sizeof(u32));
 			dev_dbg(dev, "event_cause %#x\n", adapter->event_cause);
 
 			if (skb->len > MAX_EVENT_SIZE) {
 				dev_err(dev, "EVENT: event body too large\n");
-				return -1;
+				ret = -1;
+				goto exit_restore_skb;
 			}
 
-			skb_copy_from_linear_data(skb, adapter->event_body,
-						  skb->len);
+			memcpy(adapter->event_body, skb->data +
+			       MWIFIEX_EVENT_HEADER_LEN, skb->len);
+
 			adapter->event_received = true;
 			adapter->event_skb = skb;
 			break;
@@ -124,6 +130,12 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 	}
 
 	return -EINPROGRESS;
+
+exit_restore_skb:
+	/* The buffer will be reused for further cmds/events */
+	skb_push(skb, INTF_HEADER_LEN);
+
+	return ret;
 }
 
 static void mwifiex_usb_rx_complete(struct urb *urb)

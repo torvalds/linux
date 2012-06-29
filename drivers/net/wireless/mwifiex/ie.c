@@ -213,6 +213,7 @@ mwifiex_update_uap_custom_ie(struct mwifiex_private *priv,
 		/* save assoc resp ie index after auto-indexing */
 		*assoc_idx = *((u16 *)pos);
 
+	kfree(ap_custom_ie);
 	return ret;
 }
 
