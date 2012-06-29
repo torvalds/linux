@@ -141,6 +141,8 @@ struct intel_encoder {
 	 */
 	bool cloneable;
 	void (*hot_plug)(struct intel_encoder *);
+	void (*enable)(struct intel_encoder *);
+	void (*disable)(struct intel_encoder *);
 	int crtc_mask;
 };
 

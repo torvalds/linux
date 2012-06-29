@@ -3209,13 +3209,16 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	u32 temp;
 	bool is_pch_port;
 
+	/* XXX: For compatability with the crtc helper code, call the encoder's
+	 * enable function unconditionally for now. */
 	if (intel_crtc->active)
-		return;
+		goto encoders;
 
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
@@ -3262,6 +3265,12 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_crtc_update_cursor(crtc, true);
+
+encoders:
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		if (encoder->enable)
+			encoder->enable(encoder);
+	}
 }
 
 static void ironlake_crtc_disable(struct drm_crtc *crtc)
@@ -3269,9 +3278,17 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
+
+	/* XXX: For compatability with the crtc helper code, call the encoder's
+	 * disable function unconditionally for now. */
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		if (encoder->disable)
+			encoder->disable(encoder);
+	}
 
 	if (!intel_crtc->active)
 		return;
@@ -3371,11 +3388,14 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 
+	/* XXX: For compatability with the crtc helper code, call the encoder's
+	 * enable function unconditionally for now. */
 	if (intel_crtc->active)
-		return;
+		goto encoders;
 
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
@@ -3390,6 +3410,12 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	/* Give the overlay scaler a chance to enable if it's on this pipe */
 	intel_crtc_dpms_overlay(intel_crtc, true);
 	intel_crtc_update_cursor(crtc, true);
+
+encoders:
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		if (encoder->enable)
+			encoder->enable(encoder);
+	}
 }
 
 static void i9xx_crtc_disable(struct drm_crtc *crtc)
@@ -3397,8 +3423,16 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
+
+	/* XXX: For compatability with the crtc helper code, call the encoder's
+	 * disable function unconditionally for now. */
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		if (encoder->disable)
+			encoder->disable(encoder);
+	}
 
 	if (!intel_crtc->active)
 		return;
