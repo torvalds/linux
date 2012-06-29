@@ -64,13 +64,9 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 		min_msk = 0x200D;
 		max_msk = 0xFFFF;
 		break;
-	case BCMA_CHIP_ID_BCM4331:
-	case BCMA_CHIP_ID_BCM43224:
-	case BCMA_CHIP_ID_BCM43225:
-		break;
 	default:
-		pr_err("PMU resource config unknown for device 0x%04X\n",
-			bus->chipinfo.id);
+		pr_debug("PMU resource config unknown or not needed for device 0x%04X\n",
+			 bus->chipinfo.id);
 	}
 
 	/* Set the resource masks. */
@@ -135,11 +131,9 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 						    BCMA_CCTRL_43224B0_12MA_LED_DRIVE);
 		}
 		break;
-	case BCMA_CHIP_ID_BCM43225:
-		break;
 	default:
-		pr_err("Workarounds unknown for device 0x%04X\n",
-			bus->chipinfo.id);
+		pr_debug("Workarounds unknown or not needed for device 0x%04X\n",
+			 bus->chipinfo.id);
 	}
 }
 
