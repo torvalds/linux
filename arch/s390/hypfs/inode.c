@@ -103,6 +103,7 @@ static struct inode *hypfs_make_inode(struct super_block *sb, umode_t mode)
 
 	if (ret) {
 		struct hypfs_sb_info *hypfs_info = sb->s_fs_info;
+		ret->i_ino = get_next_ino();
 		ret->i_mode = mode;
 		ret->i_uid = hypfs_info->uid;
 		ret->i_gid = hypfs_info->gid;
