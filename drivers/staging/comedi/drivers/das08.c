@@ -448,7 +448,7 @@ static int das08_counter_read(struct comedi_device *dev,
 {
 	struct das08_private_struct *devpriv = dev->private;
 	struct i8254_struct *st = &devpriv->i8254;
-	int chan = st->logic2phys[insn->chanspec];
+	int chan = insn->chanspec;
 
 	data[0] = i8254_read(st->iobase, 0, chan);
 	return 1;
@@ -460,7 +460,7 @@ static int das08_counter_write(struct comedi_device *dev,
 {
 	struct das08_private_struct *devpriv = dev->private;
 	struct i8254_struct *st = &devpriv->i8254;
-	int chan = st->logic2phys[insn->chanspec];
+	int chan = insn->chanspec;
 
 	i8254_write(st->iobase, 0, chan, data[0]);
 	return 1;
@@ -472,7 +472,7 @@ static int das08_counter_config(struct comedi_device *dev,
 {
 	struct das08_private_struct *devpriv = dev->private;
 	struct i8254_struct *st = &devpriv->i8254;
-	int chan = st->logic2phys[insn->chanspec];
+	int chan = insn->chanspec;
 
 	if (insn->n != 2)
 		return -EINVAL;
@@ -848,9 +848,6 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->insn_config = das08_counter_config;
 		/* Set-up the 8254 structure */
 		devpriv->i8254.channels = 3;
-		devpriv->i8254.logic2phys[0] = 0;
-		devpriv->i8254.logic2phys[1] = 1;
-		devpriv->i8254.logic2phys[2] = 2;
 		devpriv->i8254.iobase = iobase + thisboard->i8254_offset;
 		i8254_initialize(&devpriv->i8254);
 	} else {
