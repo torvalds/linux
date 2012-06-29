@@ -91,28 +91,6 @@ void tipc_printf(struct print_buf *, const char *fmt, ...);
 #define TIPC_OUTPUT TIPC_LOG
 #endif
 
-#ifdef CONFIG_TIPC_DEBUG
-
-/*
- * DBG_OUTPUT is the destination print buffer for debug messages.
- */
-#ifndef DBG_OUTPUT
-#define DBG_OUTPUT TIPC_LOG
-#endif
-
-#define msg_dbg(msg, txt) tipc_msg_dbg(DBG_OUTPUT, msg, txt);
-
-void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
-
-#else
-
-#define msg_dbg(msg, txt)	do {} while (0)
-
-#define tipc_msg_dbg(buf, msg, txt) do {} while (0)
-
-#endif
-
-
 /*
  * TIPC-specific error codes
  */

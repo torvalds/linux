@@ -3019,42 +3019,6 @@ static void link_print(struct tipc_link *l_ptr, const char *str)
 	tipc_printf(buf, "Link %x<%s>:",
 		    l_ptr->addr, l_ptr->b_ptr->name);
 
-#ifdef CONFIG_TIPC_DEBUG
-	if (link_reset_reset(l_ptr) || link_reset_unknown(l_ptr))
-		goto print_state;
-
-	tipc_printf(buf, ": NXO(%u):", mod(l_ptr->next_out_no));
-	tipc_printf(buf, "NXI(%u):", mod(l_ptr->next_in_no));
-	tipc_printf(buf, "SQUE");
-	if (l_ptr->first_out) {
-		tipc_printf(buf, "[%u..", buf_seqno(l_ptr->first_out));
-		if (l_ptr->next_out)
-			tipc_printf(buf, "%u..", buf_seqno(l_ptr->next_out));
-		tipc_printf(buf, "%u]", buf_seqno(l_ptr->last_out));
-		if ((mod(buf_seqno(l_ptr->last_out) -
-			 buf_seqno(l_ptr->first_out))
-		     != (l_ptr->out_queue_size - 1)) ||
-		    (l_ptr->last_out->next != NULL)) {
-			tipc_printf(buf, "\nSend queue inconsistency\n");
-			tipc_printf(buf, "first_out= %p ", l_ptr->first_out);
-			tipc_printf(buf, "next_out= %p ", l_ptr->next_out);
-			tipc_printf(buf, "last_out= %p ", l_ptr->last_out);
-		}
-	} else
-		tipc_printf(buf, "[]");
-	tipc_printf(buf, "SQSIZ(%u)", l_ptr->out_queue_size);
-	if (l_ptr->oldest_deferred_in) {
-		u32 o = buf_seqno(l_ptr->oldest_deferred_in);
-		u32 n = buf_seqno(l_ptr->newest_deferred_in);
-		tipc_printf(buf, ":RQUE[%u..%u]", o, n);
-		if (l_ptr->deferred_inqueue_sz != mod((n + 1) - o)) {
-			tipc_printf(buf, ":RQSIZ(%u)",
-				    l_ptr->deferred_inqueue_sz);
-		}
-	}
-print_state:
-#endif
-
 	if (link_working_unknown(l_ptr))
 		tipc_printf(buf, ":WU");
 	else if (link_reset_reset(l_ptr))

@@ -54,16 +54,4 @@ config TIPC_LOG
 	  There is no need to enable the log buffer unless the node will be
 	  managed remotely via TIPC.
 
-config TIPC_DEBUG
-	bool "Enable debugging support"
-	default n
-	help
-	  Saying Y here enables TIPC debugging capabilities used by developers.
-	  Most users do not need to bother; if unsure, just say N.
-
-	  Enabling debugging support causes TIPC to display data about its
-	  internal state when certain abnormal conditions occur. It also
-	  makes it easy for developers to capture additional information of
-	  interest using the dbg() or msg_dbg() macros.
-
 endif # TIPC
