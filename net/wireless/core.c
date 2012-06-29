@@ -730,9 +730,15 @@ void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 		rdev->num_running_monitor_ifaces += num;
 
 	has_monitors_only_new = cfg80211_has_monitors_only(rdev);
-	if (has_monitors_only_new != has_monitors_only_old)
+	if (has_monitors_only_new != has_monitors_only_old) {
 		rdev->ops->set_monitor_enabled(&rdev->wiphy,
 					       has_monitors_only_new);
+
+		if (!has_monitors_only_new) {
+			rdev->monitor_channel = NULL;
+			rdev->monitor_channel_type = NL80211_CHAN_NO_HT;
+		}
+	}
 }
 
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
