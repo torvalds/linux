@@ -668,7 +668,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	 *	with DRM_IOCTL_MODE_CREATE_DUMB command.
 	 */
 
-	args->pitch = args->width * args->bpp >> 3;
+	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = PAGE_ALIGN(args->pitch * args->height);
 
 	exynos_gem_obj = exynos_drm_gem_create(dev, args->flags, args->size);
