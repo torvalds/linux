@@ -29,7 +29,7 @@ config MTD_UBI_WL_THRESHOLD
 
 config MTD_UBI_BEB_RESERVE
 	int "Percentage of reserved eraseblocks for bad eraseblocks handling"
-	default 1
+	default 2
 	range 0 25
 	help
 	  If the MTD device admits of bad eraseblocks (e.g. NAND flash), UBI
