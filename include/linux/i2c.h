@@ -68,6 +68,9 @@ extern int i2c_master_recv(const struct i2c_client *client, char *buf,
  */
 extern int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			int num);
+/* Unlocked flavor */
+extern int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
+			  int num);
 
 /* This is the very generalized SMBus access routine. You probably do not
    want to use this, though; one of the functions below may be much easier,
