@@ -139,6 +139,8 @@
 #define		ENABLE_ADVANCED_DRIVER_MODEL			(1 << 6)
 #define	MC_VM_FB_OFFSET					0x2068
 
+#define MC_SHARED_BLACKOUT_CNTL           		0x20ac
+
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
 #define		NOOFBANK_MASK					0x00000003
@@ -152,6 +154,20 @@
 #define		CHANSIZE_MASK					0x00000100
 #define		NOOFGROUPS_SHIFT				12
 #define		NOOFGROUPS_MASK					0x00001000
+
+#define MC_SEQ_SUP_CNTL           			0x28c8
+#define		RUN_MASK      				(1 << 0)
+#define MC_SEQ_SUP_PGM           			0x28cc
+
+#define	MC_SEQ_TRAIN_WAKEUP_CNTL			0x28e8
+#define		TRAIN_DONE_D0      			(1 << 30)
+#define		TRAIN_DONE_D1      			(1 << 31)
+
+#define MC_IO_PAD_CNTL_D0           			0x29d0
+#define		MEM_FALL_OUT_CMD      			(1 << 8)
+
+#define MC_SEQ_IO_DEBUG_INDEX           		0x2a44
+#define MC_SEQ_IO_DEBUG_DATA           			0x2a48
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04

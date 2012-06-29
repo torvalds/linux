@@ -65,6 +65,122 @@ extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_sa
 extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 
+#define BONAIRE_IO_MC_REGS_SIZE 36
+
+static const u32 bonaire_io_mc_regs[BONAIRE_IO_MC_REGS_SIZE][2] =
+{
+	{0x00000070, 0x04400000},
+	{0x00000071, 0x80c01803},
+	{0x00000072, 0x00004004},
+	{0x00000073, 0x00000100},
+	{0x00000074, 0x00ff0000},
+	{0x00000075, 0x34000000},
+	{0x00000076, 0x08000014},
+	{0x00000077, 0x00cc08ec},
+	{0x00000078, 0x00000400},
+	{0x00000079, 0x00000000},
+	{0x0000007a, 0x04090000},
+	{0x0000007c, 0x00000000},
+	{0x0000007e, 0x4408a8e8},
+	{0x0000007f, 0x00000304},
+	{0x00000080, 0x00000000},
+	{0x00000082, 0x00000001},
+	{0x00000083, 0x00000002},
+	{0x00000084, 0xf3e4f400},
+	{0x00000085, 0x052024e3},
+	{0x00000087, 0x00000000},
+	{0x00000088, 0x01000000},
+	{0x0000008a, 0x1c0a0000},
+	{0x0000008b, 0xff010000},
+	{0x0000008d, 0xffffefff},
+	{0x0000008e, 0xfff3efff},
+	{0x0000008f, 0xfff3efbf},
+	{0x00000092, 0xf7ffffff},
+	{0x00000093, 0xffffff7f},
+	{0x00000095, 0x00101101},
+	{0x00000096, 0x00000fff},
+	{0x00000097, 0x00116fff},
+	{0x00000098, 0x60010000},
+	{0x00000099, 0x10010000},
+	{0x0000009a, 0x00006000},
+	{0x0000009b, 0x00001000},
+	{0x0000009f, 0x00b48000}
+};
+
+/* ucode loading */
+/**
+ * ci_mc_load_microcode - load MC ucode into the hw
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Load the GDDR MC ucode into the hw (CIK).
+ * Returns 0 on success, error on failure.
+ */
+static int ci_mc_load_microcode(struct radeon_device *rdev)
+{
+	const __be32 *fw_data;
+	u32 running, blackout = 0;
+	u32 *io_mc_regs;
+	int i, ucode_size, regs_size;
+
+	if (!rdev->mc_fw)
+		return -EINVAL;
+
+	switch (rdev->family) {
+	case CHIP_BONAIRE:
+	default:
+		io_mc_regs = (u32 *)&bonaire_io_mc_regs;
+		ucode_size = CIK_MC_UCODE_SIZE;
+		regs_size = BONAIRE_IO_MC_REGS_SIZE;
+		break;
+	}
+
+	running = RREG32(MC_SEQ_SUP_CNTL) & RUN_MASK;
+
+	if (running == 0) {
+		if (running) {
+			blackout = RREG32(MC_SHARED_BLACKOUT_CNTL);
+			WREG32(MC_SHARED_BLACKOUT_CNTL, blackout | 1);
+		}
+
+		/* reset the engine and set to writable */
+		WREG32(MC_SEQ_SUP_CNTL, 0x00000008);
+		WREG32(MC_SEQ_SUP_CNTL, 0x00000010);
+
+		/* load mc io regs */
+		for (i = 0; i < regs_size; i++) {
+			WREG32(MC_SEQ_IO_DEBUG_INDEX, io_mc_regs[(i << 1)]);
+			WREG32(MC_SEQ_IO_DEBUG_DATA, io_mc_regs[(i << 1) + 1]);
+		}
+		/* load the MC ucode */
+		fw_data = (const __be32 *)rdev->mc_fw->data;
+		for (i = 0; i < ucode_size; i++)
+			WREG32(MC_SEQ_SUP_PGM, be32_to_cpup(fw_data++));
+
+		/* put the engine back into the active state */
+		WREG32(MC_SEQ_SUP_CNTL, 0x00000008);
+		WREG32(MC_SEQ_SUP_CNTL, 0x00000004);
+		WREG32(MC_SEQ_SUP_CNTL, 0x00000001);
+
+		/* wait for training to complete */
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if (RREG32(MC_SEQ_TRAIN_WAKEUP_CNTL) & TRAIN_DONE_D0)
+				break;
+			udelay(1);
+		}
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if (RREG32(MC_SEQ_TRAIN_WAKEUP_CNTL) & TRAIN_DONE_D1)
+				break;
+			udelay(1);
+		}
+
+		if (running)
+			WREG32(MC_SHARED_BLACKOUT_CNTL, blackout);
+	}
+
+	return 0;
+}
+
 /**
  * cik_init_microcode - load ucode images from disk
  *
