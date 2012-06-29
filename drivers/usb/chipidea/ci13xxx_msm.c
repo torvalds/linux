@@ -45,7 +45,7 @@ static void ci13xxx_msm_notify_event(struct ci13xxx *udc, unsigned event)
 	}
 }
 
-static struct ci13xxx_udc_driver ci13xxx_msm_udc_driver = {
+static struct ci13xxx_platform_data ci13xxx_msm_platdata = {
 	.name			= "ci13xxx_msm",
 	.flags			= CI13XXX_REGS_SHARED |
 				  CI13XXX_REQUIRE_TRANSCEIVER |
@@ -75,8 +75,8 @@ static int __devinit ci13xxx_msm_probe(struct platform_device *pdev)
 		goto put_platform;
 	}
 
-	ret = platform_device_add_data(plat_ci, &ci13xxx_msm_udc_driver,
-				       sizeof(ci13xxx_msm_udc_driver));
+	ret = platform_device_add_data(plat_ci, &ci13xxx_msm_platdata,
+				       sizeof(ci13xxx_msm_platdata));
 	if (ret)
 		goto put_platform;
 

@@ -116,7 +116,7 @@ static int host_start(struct ci13xxx *ci)
 	hcd->regs = ci->hw_bank.abs;
 	hcd->has_tt = 1;
 
-	hcd->power_budget = ci->udc_driver->power_budget;
+	hcd->power_budget = ci->platdata->power_budget;
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;

@@ -23,17 +23,17 @@
 /******************************************************************************
  * PCI block
  *****************************************************************************/
-struct ci13xxx_udc_driver pci_driver = {
+struct ci13xxx_platform_data pci_platdata = {
 	.name		= UDC_DRIVER_NAME,
 	.capoffset	= DEF_CAPOFFSET,
 };
 
-struct ci13xxx_udc_driver langwell_pci_driver = {
+struct ci13xxx_platform_data langwell_pci_platdata = {
 	.name		= UDC_DRIVER_NAME,
 	.capoffset	= 0,
 };
 
-struct ci13xxx_udc_driver penwell_pci_driver = {
+struct ci13xxx_platform_data penwell_pci_platdata = {
 	.name		= UDC_DRIVER_NAME,
 	.capoffset	= 0,
 	.power_budget	= 200,
@@ -51,12 +51,12 @@ struct ci13xxx_udc_driver penwell_pci_driver = {
 static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id)
 {
-	struct ci13xxx_udc_driver *driver = (void *)id->driver_data;
+	struct ci13xxx_platform_data *platdata = (void *)id->driver_data;
 	struct platform_device *plat_ci;
 	struct resource res[3];
 	int retval = 0, nres = 2;
 
-	if (!driver) {
+	if (!platdata) {
 		dev_err(&pdev->dev, "device doesn't provide driver data\n");
 		return -ENODEV;
 	}
@@ -95,7 +95,7 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 		goto put_platform;
 	}
 
-	retval = platform_device_add_data(plat_ci, driver, sizeof(*driver));
+	retval = platform_device_add_data(plat_ci, platdata, sizeof(*platdata));
 	if (retval)
 		goto put_platform;
 
@@ -147,19 +147,19 @@ static void __devexit ci13xxx_pci_remove(struct pci_dev *pdev)
 static DEFINE_PCI_DEVICE_TABLE(ci13xxx_pci_id_table) = {
 	{
 		PCI_DEVICE(0x153F, 0x1004),
-		.driver_data = (kernel_ulong_t)&pci_driver,
+		.driver_data = (kernel_ulong_t)&pci_platdata,
 	},
 	{
 		PCI_DEVICE(0x153F, 0x1006),
-		.driver_data = (kernel_ulong_t)&pci_driver,
+		.driver_data = (kernel_ulong_t)&pci_platdata,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0811),
-		.driver_data = (kernel_ulong_t)&langwell_pci_driver,
+		.driver_data = (kernel_ulong_t)&langwell_pci_platdata,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829),
-		.driver_data = (kernel_ulong_t)&penwell_pci_driver,
+		.driver_data = (kernel_ulong_t)&penwell_pci_platdata,
 	},
 	{ 0, 0, 0, 0, 0, 0, 0 /* end: all zeroes */ }
 };

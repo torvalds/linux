@@ -6,7 +6,7 @@
 #define __LINUX_USB_CHIPIDEA_H
 
 struct ci13xxx;
-struct ci13xxx_udc_driver {
+struct ci13xxx_platform_data {
 	const char	*name;
 	/* offset of the capability registers */
 	uintptr_t	 capoffset;

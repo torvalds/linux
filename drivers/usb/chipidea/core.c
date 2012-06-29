@@ -179,7 +179,7 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
 	ci->hw_bank.abs = base;
 
 	ci->hw_bank.cap = ci->hw_bank.abs;
-	ci->hw_bank.cap += ci->udc_driver->capoffset;
+	ci->hw_bank.cap += ci->platdata->capoffset;
 	ci->hw_bank.op = ci->hw_bank.cap + ioread8(ci->hw_bank.cap);
 
 	hw_alloc_regmap(ci, false);
@@ -227,11 +227,11 @@ int hw_device_reset(struct ci13xxx *ci, u32 mode)
 		udelay(10);		/* not RTOS friendly */
 
 
-	if (ci->udc_driver->notify_event)
-		ci->udc_driver->notify_event(ci,
+	if (ci->platdata->notify_event)
+		ci->platdata->notify_event(ci,
 			CI13XXX_CONTROLLER_RESET_EVENT);
 
-	if (ci->udc_driver->flags & CI13XXX_DISABLE_STREAMING)
+	if (ci->platdata->flags & CI13XXX_DISABLE_STREAMING)
 		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
 
 	/* USBMODE should be configured step by step */
@@ -364,7 +364,7 @@ static int __devinit ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	ci->dev = dev;
-	ci->udc_driver = dev->platform_data;
+	ci->platdata = dev->platform_data;
 
 	ret = hw_device_init(ci, base);
 	if (ret < 0) {
@@ -419,7 +419,7 @@ static int __devinit ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, ci);
-	ret = request_irq(ci->irq, ci_irq, IRQF_SHARED, ci->udc_driver->name,
+	ret = request_irq(ci->irq, ci_irq, IRQF_SHARED, ci->platdata->name,
 			  ci);
 	if (ret)
 		goto stop;

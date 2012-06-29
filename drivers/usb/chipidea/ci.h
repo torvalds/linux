@@ -125,7 +125,7 @@ struct hw_bank {
  * @remote_wakeup: host-enabled remote wakeup
  * @suspended: suspended by host
  * @test_mode: the selected test mode
- * @udc_driver: platform specific information supplied by parent device
+ * @platdata: platform specific information supplied by parent device
  * @vbus_active: is VBUS active
  * @transceiver: pointer to USB PHY, if any
  * @hcd: pointer to usb_hcd for ehci host driver
@@ -158,7 +158,7 @@ struct ci13xxx {
 	u8				suspended;
 	u8				test_mode;
 
-	struct ci13xxx_udc_driver	*udc_driver;
+	struct ci13xxx_platform_data	*platdata;
 	int				vbus_active;
 	struct usb_phy			*transceiver;
 	struct usb_hcd			*hcd;
