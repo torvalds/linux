@@ -61,11 +61,11 @@ of_get_fixed_voltage_config(struct device *dev)
 	config = devm_kzalloc(dev, sizeof(struct fixed_voltage_config),
 								 GFP_KERNEL);
 	if (!config)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	config->init_data = of_get_regulator_init_data(dev, dev->of_node);
 	if (!config->init_data)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	init_data = config->init_data;
 	init_data->constraints.apply_uV = 0;
@@ -76,13 +76,26 @@ of_get_fixed_voltage_config(struct device *dev)
 	} else {
 		dev_err(dev,
 			 "Fixed regulator specified with variable voltages\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (init_data->constraints.boot_on)
 		config->enabled_at_boot = true;
 
 	config->gpio = of_get_named_gpio(np, "gpio", 0);
+	/*
+	 * of_get_named_gpio() currently returns ENODEV rather than
+	 * EPROBE_DEFER. This code attempts to be compatible with both
+	 * for now; the ENODEV check can be removed once the API is fixed.
+	 * of_get_named_gpio() doesn't differentiate between a missing
+	 * property (which would be fine here, since the GPIO is optional)
+	 * and some other error. Patches have been posted for both issues.
+	 * Once they are check in, we should replace this with:
+	 * if (config->gpio < 0 && config->gpio != -ENOENT)
+	 */
+	if ((config->gpio == -ENODEV) || (config->gpio == -EPROBE_DEFER))
+		return ERR_PTR(-EPROBE_DEFER);
+
 	delay = of_get_property(np, "startup-delay-us", NULL);
 	if (delay)
 		config->startup_delay = be32_to_cpu(*delay);
@@ -172,10 +185,13 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 	struct regulator_config cfg = { };
 	int ret;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_node) {
 		config = of_get_fixed_voltage_config(&pdev->dev);
-	else
+		if (IS_ERR(config))
+			return PTR_ERR(config);
+	} else {
 		config = pdev->dev.platform_data;
+	}
 
 	if (!config)
 		return -ENOMEM;
