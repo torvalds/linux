@@ -2990,6 +2990,16 @@ ieee80211_wiphy_get_channel(struct wiphy *wiphy,
 	return local->oper_channel;
 }
 
+static void ieee80211_set_monitor_enabled(struct wiphy *wiphy, bool enabled)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (enabled)
+		WARN_ON(ieee80211_add_virtual_monitor(local));
+	else
+		ieee80211_del_virtual_monitor(local);
+}
+
 #ifdef CONFIG_PM
 static void ieee80211_set_wakeup(struct wiphy *wiphy, bool enabled)
 {
@@ -3065,6 +3075,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.probe_client = ieee80211_probe_client,
 	.get_channel = ieee80211_wiphy_get_channel,
 	.set_noack_map = ieee80211_set_noack_map,
+	.set_monitor_enabled = ieee80211_set_monitor_enabled,
 #ifdef CONFIG_PM
 	.set_wakeup = ieee80211_set_wakeup,
 #endif
