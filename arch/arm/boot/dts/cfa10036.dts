@@ -40,4 +40,13 @@
 			};
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		power {
+			gpios = <&gpio3 4 1>;
+			default-state = "on";
+		};
+	};
 };
