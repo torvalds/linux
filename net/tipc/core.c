@@ -46,9 +46,6 @@
 #define CONFIG_TIPC_PORTS 8191
 #endif
 
-#ifndef CONFIG_TIPC_LOG
-#define CONFIG_TIPC_LOG 0
-#endif
 
 /* global variables used by multiple sub-systems within TIPC */
 int tipc_random;
@@ -124,7 +121,6 @@ static void tipc_core_stop(void)
 	tipc_nametbl_stop();
 	tipc_ref_table_stop();
 	tipc_socket_stop();
-	tipc_log_resize(0);
 }
 
 /**
@@ -159,9 +155,6 @@ static int tipc_core_start(void)
 static int __init tipc_init(void)
 {
 	int res;
-
-	if (tipc_log_resize(CONFIG_TIPC_LOG) != 0)
-		pr_warn("Unable to create log buffer\n");
 
 	pr_info("Activated (version " TIPC_MOD_VER ")\n");
 

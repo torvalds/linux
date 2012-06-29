@@ -41,17 +41,4 @@ config TIPC_PORTS
 	  Setting this to a smaller value saves some memory,
 	  setting it to higher allows for more ports.
 
-config TIPC_LOG
-	int "Size of log buffer"
-	depends on TIPC_ADVANCED
-	range 0 32768
-	default "0"
-	help
-	  Size (in bytes) of TIPC's internal log buffer, which records the
-	  occurrence of significant events.  Can range from 0 to 32768 bytes;
-	  default is 0.
-
-	  There is no need to enable the log buffer unless the node will be
-	  managed remotely via TIPC.
-
 endif # TIPC

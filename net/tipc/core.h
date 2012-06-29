@@ -63,35 +63,8 @@
 #define ULTRA_STRING_MAX_LEN 32768
 
 struct tipc_msg;	/* msg.h */
-struct print_buf;	/* log.h */
-
-/*
- * TIPC system monitoring code
- */
-
-/*
- * TIPC's print buffer subsystem supports the following print buffers:
- *
- * TIPC_NULL : null buffer (i.e. print nowhere)
- * TIPC_CONS : system console
- * TIPC_LOG  : TIPC log buffer
- * &buf	     : user-defined buffer (struct print_buf *)
- *
- * Note: TIPC_LOG is configured to echo its output to the system console;
- *       user-defined buffers can be configured to do the same thing.
- */
-extern struct print_buf *const TIPC_NULL;
-extern struct print_buf *const TIPC_CONS;
-extern struct print_buf *const TIPC_LOG;
 
 int tipc_snprintf(char *buf, int len, const char *fmt, ...);
-
-/*
- * TIPC_OUTPUT is the destination print buffer for system messages.
- */
-#ifndef TIPC_OUTPUT
-#define TIPC_OUTPUT TIPC_LOG
-#endif
 
 /*
  * TIPC-specific error codes

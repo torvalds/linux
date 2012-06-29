@@ -37,7 +37,6 @@
 #ifndef _TIPC_LINK_H
 #define _TIPC_LINK_H
 
-#include "log.h"
 #include "msg.h"
 #include "node.h"
 

@@ -334,12 +334,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SHOW_PORTS:
 		rep_tlv_buf = tipc_port_get_ports();
 		break;
-	case TIPC_CMD_SET_LOG_SIZE:
-		rep_tlv_buf = tipc_log_resize_cmd(req_tlv_area, req_tlv_space);
-		break;
-	case TIPC_CMD_DUMP_LOG:
-		rep_tlv_buf = tipc_log_dump();
-		break;
 	case TIPC_CMD_SHOW_STATS:
 		rep_tlv_buf = tipc_show_stats();
 		break;
@@ -399,6 +393,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_GET_MAX_CLUSTERS:
 	case TIPC_CMD_SET_MAX_NODES:
 	case TIPC_CMD_GET_MAX_NODES:
+	case TIPC_CMD_SET_LOG_SIZE:
+	case TIPC_CMD_DUMP_LOG:
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 							  " (obsolete command)");
 		break;
