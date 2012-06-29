@@ -289,6 +289,10 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 			   struct wireless_dev *wdev, int freq,
 			   enum nl80211_channel_type channel_type);
 
+/* AP */
+int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
+		     struct net_device *dev);
+
 /* MLME */
 int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
