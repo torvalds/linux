@@ -652,13 +652,9 @@ static noinline int btrfs_mksubvol(struct path *parent,
 	if (dentry->d_inode)
 		goto out_dput;
 
-	error = mnt_want_write(parent->mnt);
-	if (error)
-		goto out_dput;
-
 	error = btrfs_may_create(dir, dentry);
 	if (error)
-		goto out_drop_write;
+		goto out_dput;
 
 	down_read(&BTRFS_I(dir)->root->fs_info->subvol_sem);
 
@@ -676,8 +672,6 @@ static noinline int btrfs_mksubvol(struct path *parent,
 		fsnotify_mkdir(dir, dentry);
 out_up_read:
 	up_read(&BTRFS_I(dir)->root->fs_info->subvol_sem);
-out_drop_write:
-	mnt_drop_write(parent->mnt);
 out_dput:
 	dput(dentry);
 out_unlock:
@@ -1395,16 +1389,20 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
+	ret = mnt_want_write_file(file);
+	if (ret)
+		goto out;
+
 	namelen = strlen(name);
 	if (strchr(name, '/')) {
 		ret = -EINVAL;
-		goto out;
+		goto out_drop_write;
 	}
 
 	if (name[0] == '.' &&
 	   (namelen == 1 || (name[1] == '.' && namelen == 2))) {
 		ret = -EEXIST;
-		goto out;
+		goto out_drop_write;
 	}
 
 	if (subvol) {
@@ -1415,7 +1413,7 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 		src_file = fget(fd);
 		if (!src_file) {
 			ret = -EINVAL;
-			goto out;
+			goto out_drop_write;
 		}
 
 		src_inode = src_file->f_path.dentry->d_inode;
@@ -1424,13 +1422,15 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 			       "another FS\n");
 			ret = -EINVAL;
 			fput(src_file);
-			goto out;
+			goto out_drop_write;
 		}
 		ret = btrfs_mksubvol(&file->f_path, name, namelen,
 				     BTRFS_I(src_inode)->root,
 				     transid, readonly);
 		fput(src_file);
 	}
+out_drop_write:
+	mnt_drop_write_file(file);
 out:
 	return ret;
 }
