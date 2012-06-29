@@ -29,6 +29,48 @@
 		i2c1 = &v2m_i2c_pcie;
 	};
 
+	clusters {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cluster0: cluster@0 {
+			reg = <0>;
+			cores {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				core0: core@0 {
+					reg = <0>;
+				};
+
+				core1: core@1 {
+					reg = <1>;
+				};
+
+			};
+		};
+
+		cluster1: cluster@1 {
+			reg = <1>;
+			cores {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				core2: core@0 {
+					reg = <0>;
+				};
+
+				core3: core@1 {
+					reg = <1>;
+				};
+
+				core4: core@2 {
+					reg = <2>;
+				};
+			};
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -37,30 +79,40 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0>;
+			cluster = <&cluster0>;
+			core = <&core0>;
 		};
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <1>;
+			cluster = <&cluster0>;
+			core = <&core1>;
 		};
 
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x100>;
+			cluster = <&cluster1>;
+			core = <&core2>;
 		};
 
 		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x101>;
+			cluster = <&cluster1>;
+			core = <&core3>;
 		};
 
 		cpu4: cpu@4 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
+			cluster = <&cluster1>;
+			core = <&core4>;
 		};
 	};
 
@@ -102,6 +154,34 @@
 		      <0 0x2c004000 0 0x2000>,
 		      <0 0x2c006000 0 0x2000>;
 		interrupts = <1 9 0xf04>;
+
+		gic-cpuif@0 {
+			compatible = "arm,gic-cpuif";
+			cpuif-id = <0>;
+			cpu = <&cpu0>;
+		};
+		gic-cpuif@1 {
+			compatible = "arm,gic-cpuif";
+			cpuif-id = <1>;
+			cpu = <&cpu1>;
+		};
+		gic-cpuif@2 {
+			compatible = "arm,gic-cpuif";
+			cpuif-id = <2>;
+			cpu = <&cpu2>;
+		};
+
+		gic-cpuif@3 {
+			compatible = "arm,gic-cpuif";
+			cpuif-id = <3>;
+			cpu = <&cpu3>;
+		};
+
+		gic-cpuif@4 {
+			compatible = "arm,gic-cpuif";
+			cpuif-id = <4>;
+			cpu = <&cpu4>;
+		};
 	};
 
 	memory-controller@7ffd0000 {
