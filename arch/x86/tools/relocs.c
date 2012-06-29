@@ -60,6 +60,18 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
 	"__x86_cpu_dev_(start|end)|"
 	"(__parainstructions|__alt_instructions)(|_end)|"
 	"(__iommu_table|__apicdrivers|__smp_locks)(|_end)|"
+	"__(start|end)_pci_.*|"
+	"__(start|end)_builtin_fw|"
+	"__(start|stop)___ksymtab(|_gpl|_unused|_unused_gpl|_gpl_future)|"
+	"__(start|stop)___kcrctab(|_gpl|_unused|_unused_gpl|_gpl_future)|"
+	"__(start|stop)___param|"
+	"__(start|stop)___modver|"
+	"__(start|stop)___bug_table|"
+	"__tracedata_(start|end)|"
+	"__(start|stop)_notes|"
+	"__end_rodata|"
+	"__initramfs_start|"
+	"(jiffies|jiffies_64)|"
 	"_end)$"
 };
 

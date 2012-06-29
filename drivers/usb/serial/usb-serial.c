@@ -670,12 +670,14 @@ exit:
 static struct usb_serial_driver *search_serial_device(
 					struct usb_interface *iface)
 {
-	const struct usb_device_id *id;
+	const struct usb_device_id *id = NULL;
 	struct usb_serial_driver *drv;
+	struct usb_driver *driver = to_usb_driver(iface->dev.driver);
 
 	/* Check if the usb id matches a known device */
 	list_for_each_entry(drv, &usb_serial_driver_list, driver_list) {
-		id = get_iface_id(drv, iface);
+		if (drv->usb_driver == driver)
+			id = get_iface_id(drv, iface);
 		if (id)
 			return drv;
 	}
@@ -1338,7 +1340,6 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 				driver->description);
 		return -EINVAL;
 	}
-	driver->usb_driver->supports_autosuspend = 1;
 
 	/* Add this device to our list of devices */
 	mutex_lock(&table_lock);
@@ -1373,7 +1374,7 @@ static void usb_serial_deregister(struct usb_serial_driver *device)
  * @serial_drivers: NULL-terminated array of pointers to drivers to be registered
  *
  * Registers @udriver and all the drivers in the @serial_drivers array.
- * Automatically fills in the .no_dynamic_id field in @udriver and
+ * Automatically fills in the .no_dynamic_id and PM fields in @udriver and
  * the .usb_driver field in each serial driver.
  */
 int usb_serial_register_drivers(struct usb_driver *udriver,
@@ -1392,11 +1393,17 @@ int usb_serial_register_drivers(struct usb_driver *udriver,
 	 * the serial drivers are registered, because the probe would
 	 * simply fail for lack of a matching serial driver.
 	 * Therefore save off udriver's id_table until we are all set.
+	 *
+	 * Suspend/resume support is implemented in the usb-serial core,
+	 * so fill in the PM-related fields in udriver.
 	 */
 	saved_id_table = udriver->id_table;
 	udriver->id_table = NULL;
 
 	udriver->no_dynamic_id = 1;
+	udriver->supports_autosuspend = 1;
+	udriver->suspend = usb_serial_suspend;
+	udriver->resume = usb_serial_resume;
 	rc = usb_register(udriver);
 	if (rc)
 		return rc;
