@@ -28,6 +28,8 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/sh_eth.h>
 #include <linux/videodev2.h>
 #include <linux/usb/renesas_usbhs.h>
@@ -520,6 +522,17 @@ static struct platform_device gpio_keys_device = {
 	},
 };
 
+/* Fixed 3.3V regulator to be used by SDHI0, SDHI1, MMCIF */
+static struct regulator_consumer_supply fixed3v3_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vmmc", "sh_mmcif"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mmcif"),
+};
+
 /* SDHI0 */
 /*
  * FIXME
@@ -920,6 +933,9 @@ clock_error:
 #define GPIO_PORT8CR	0xe6050008
 static void __init eva_init(void)
 {
+	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
+				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
+
 	r8a7740_pinmux_init();
 	r8a7740_meram_workaround();
 
