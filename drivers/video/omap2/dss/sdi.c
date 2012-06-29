@@ -40,8 +40,7 @@ static void sdi_basic_init(struct omap_dss_device *dssdev)
 	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_BYPASS);
 	dispc_mgr_enable_stallmode(dssdev->manager->id, false);
 
-	dispc_mgr_set_lcd_display_type(dssdev->manager->id,
-			OMAP_DSS_LCD_DISPLAY_TFT);
+	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
 
 	dispc_mgr_set_tft_data_lines(dssdev->manager->id, 24);
 	dispc_lcd_enable_signal_polarity(1);
@@ -79,13 +78,10 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	sdi_basic_init(dssdev);
 
 	/* 15.5.9.1.2 */
-	dssdev->panel.config |= OMAP_DSS_LCD_RF | OMAP_DSS_LCD_ONOFF;
+	dssdev->panel.timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	dssdev->panel.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 
-	dispc_mgr_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
-			dssdev->panel.acbi, dssdev->panel.acb);
-
-	r = dss_calc_clock_div(1, t->pixel_clock * 1000,
-			&dss_cinfo, &dispc_cinfo);
+	r = dss_calc_clock_div(t->pixel_clock * 1000, &dss_cinfo, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
 

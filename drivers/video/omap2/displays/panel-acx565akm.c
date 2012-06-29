@@ -487,6 +487,13 @@ static struct omap_video_timings acx_panel_timings = {
 	.vfp		= 3,
 	.vsw		= 3,
 	.vbp		= 4,
+
+	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+
+	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 };
 
 static int acx_panel_probe(struct omap_dss_device *dssdev)
@@ -498,8 +505,7 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 	struct backlight_properties props;
 
 	dev_dbg(&dssdev->dev, "%s\n", __func__);
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					OMAP_DSS_LCD_IHS;
+
 	/* FIXME AC bias ? */
 	dssdev->panel.timings = acx_panel_timings;
 

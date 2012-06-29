@@ -506,8 +506,7 @@ unsigned long dss_get_dpll4_rate(void)
 		return 0;
 }
 
-int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
-		struct dss_clock_info *dss_cinfo,
+int dss_calc_clock_div(unsigned long req_pck, struct dss_clock_info *dss_cinfo,
 		struct dispc_clock_info *dispc_cinfo)
 {
 	unsigned long prate;
@@ -555,7 +554,7 @@ retry:
 		fck = clk_get_rate(dss.dss_clk);
 		fck_div = 1;
 
-		dispc_find_clk_divs(is_tft, req_pck, fck, &cur_dispc);
+		dispc_find_clk_divs(req_pck, fck, &cur_dispc);
 		match = 1;
 
 		best_dss.fck = fck;
@@ -585,7 +584,7 @@ retry:
 
 			match = 1;
 
-			dispc_find_clk_divs(is_tft, req_pck, fck, &cur_dispc);
+			dispc_find_clk_divs(req_pck, fck, &cur_dispc);
 
 			if (abs(cur_dispc.pck - req_pck) <
 					abs(best_dispc.pck - req_pck)) {

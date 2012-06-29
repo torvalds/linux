@@ -44,6 +44,12 @@ static struct omap_video_timings sharp_ls_timings = {
 	.vsw		= 1,
 	.vfp		= 1,
 	.vbp		= 1,
+
+	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 };
 
 static int sharp_ls_bl_update_status(struct backlight_device *bl)
@@ -86,9 +92,6 @@ static int sharp_ls_panel_probe(struct omap_dss_device *dssdev)
 	struct sharp_data *sd;
 	int r;
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-		OMAP_DSS_LCD_IHS;
-	dssdev->panel.acb = 0x28;
 	dssdev->panel.timings = sharp_ls_timings;
 
 	sd = kzalloc(sizeof(*sd), GFP_KERNEL);

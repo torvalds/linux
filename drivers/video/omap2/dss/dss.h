@@ -274,8 +274,7 @@ unsigned long dss_get_dpll4_rate(void);
 int dss_calc_clock_rates(struct dss_clock_info *cinfo);
 int dss_set_clock_div(struct dss_clock_info *cinfo);
 int dss_get_clock_div(struct dss_clock_info *cinfo);
-int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
-		struct dss_clock_info *dss_cinfo,
+int dss_calc_clock_div(unsigned long req_pck, struct dss_clock_info *dss_cinfo,
 		struct dispc_clock_info *dispc_cinfo);
 
 /* SDI */
@@ -302,7 +301,7 @@ u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
 int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo);
-int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
+int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev,
 		unsigned long req_pck, struct dsi_clock_info *cinfo,
 		struct dispc_clock_info *dispc_cinfo);
 int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
@@ -336,7 +335,7 @@ static inline int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	return -ENODEV;
 }
 static inline int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev,
-		bool is_tft, unsigned long req_pck,
+		unsigned long req_pck,
 		struct dsi_clock_info *dsi_cinfo,
 		struct dispc_clock_info *dispc_cinfo)
 {
@@ -393,7 +392,7 @@ void dispc_set_loadmode(enum omap_dss_load_mode mode);
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings);
 unsigned long dispc_fclk_rate(void);
-void dispc_find_clk_divs(bool is_tft, unsigned long req_pck, unsigned long fck,
+void dispc_find_clk_divs(unsigned long req_pck, unsigned long fck,
 		struct dispc_clock_info *cinfo);
 int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 		struct dispc_clock_info *cinfo);
@@ -404,8 +403,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
 		bool manual_update);
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool ilace, bool replication,
-		const struct omap_video_timings *mgr_timings);
+		bool replication, const struct omap_video_timings *mgr_timings);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
 void dispc_ovl_set_channel_out(enum omap_plane plane,
 		enum omap_channel channel);
@@ -421,12 +419,9 @@ bool dispc_mgr_is_channel_enabled(enum omap_channel channel);
 void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode);
 void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable);
 void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines);
-void dispc_mgr_set_lcd_display_type(enum omap_channel channel,
-		enum omap_lcd_display_type type);
+void dispc_mgr_set_lcd_type_tft(enum omap_channel channel);
 void dispc_mgr_set_timings(enum omap_channel channel,
 		struct omap_video_timings *timings);
-void dispc_mgr_set_pol_freq(enum omap_channel channel,
-		enum omap_panel_config config, u8 acbi, u8 acb);
 unsigned long dispc_mgr_lclk_rate(enum omap_channel channel);
 unsigned long dispc_mgr_pclk_rate(enum omap_channel channel);
 unsigned long dispc_core_clk_rate(void);

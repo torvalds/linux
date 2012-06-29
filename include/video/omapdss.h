@@ -104,11 +104,6 @@ enum omap_color_mode {
 	OMAP_DSS_COLOR_XRGB16_1555	= 1 << 18, /* xRGB16 - 1555 */
 };
 
-enum omap_lcd_display_type {
-	OMAP_DSS_LCD_DISPLAY_STN,
-	OMAP_DSS_LCD_DISPLAY_TFT,
-};
-
 enum omap_dss_load_mode {
 	OMAP_DSS_LOAD_CLUT_AND_FRAME	= 0,
 	OMAP_DSS_LOAD_CLUT_ONLY		= 1,
@@ -126,15 +121,15 @@ enum omap_rfbi_te_mode {
 	OMAP_DSS_RFBI_TE_MODE_2 = 2,
 };
 
-enum omap_panel_config {
-	OMAP_DSS_LCD_IVS		= 1<<0,
-	OMAP_DSS_LCD_IHS		= 1<<1,
-	OMAP_DSS_LCD_IPC		= 1<<2,
-	OMAP_DSS_LCD_IEO		= 1<<3,
-	OMAP_DSS_LCD_RF			= 1<<4,
-	OMAP_DSS_LCD_ONOFF		= 1<<5,
+enum omap_dss_signal_level {
+	OMAPDSS_SIG_ACTIVE_HIGH	= 0,
+	OMAPDSS_SIG_ACTIVE_LOW	= 1,
+};
 
-	OMAP_DSS_LCD_TFT		= 1<<20,
+enum omap_dss_signal_edge {
+	OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+	OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 };
 
 enum omap_dss_venc_type {
@@ -266,9 +261,6 @@ struct omap_dss_dsi_videomode_data {
 	int hfp_blanking_mode;
 
 	/* Video port sync events */
-	int vp_de_pol;
-	int vp_hsync_pol;
-	int vp_vsync_pol;
 	bool vp_vsync_end;
 	bool vp_hsync_end;
 
@@ -344,6 +336,19 @@ struct omap_video_timings {
 	u16 vfp;	/* Vertical front porch */
 	/* Unit: line clocks */
 	u16 vbp;	/* Vertical back porch */
+
+	/* Vsync logic level */
+	enum omap_dss_signal_level vsync_level;
+	/* Hsync logic level */
+	enum omap_dss_signal_level hsync_level;
+	/* Interlaced or Progressive timings */
+	bool interlace;
+	/* Pixel clock edge to drive LCD data */
+	enum omap_dss_signal_edge data_pclk_edge;
+	/* Data enable logic level */
+	enum omap_dss_signal_level de_level;
+	/* Pixel clock edges to drive HSYNC and VSYNC signals */
+	enum omap_dss_signal_edge sync_pclk_edge;
 };
 
 #ifdef CONFIG_OMAP2_DSS_VENC
@@ -556,8 +561,6 @@ struct omap_dss_device {
 		int acbi;	/* ac-bias pin transitions per interrupt */
 		/* Unit: line clocks */
 		int acb;	/* ac-bias pin frequency */
-
-		enum omap_panel_config config;
 
 		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
 		enum omap_dss_dsi_mode dsi_mode;

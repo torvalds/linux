@@ -116,7 +116,7 @@ static ssize_t display_timings_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	struct omap_video_timings t;
+	struct omap_video_timings t = dssdev->panel.timings;
 	int r, found;
 
 	if (!dssdev->driver->set_timings || !dssdev->driver->check_timings)
@@ -325,10 +325,6 @@ bool dss_use_replication(struct omap_dss_device *dssdev,
 	int bpp;
 
 	if (mode != OMAP_DSS_COLOR_RGB12U && mode != OMAP_DSS_COLOR_RGB16)
-		return false;
-
-	if (dssdev->type == OMAP_DISPLAY_TYPE_DPI &&
-			(dssdev->panel.config & OMAP_DSS_LCD_TFT) == 0)
 		return false;
 
 	switch (dssdev->type) {

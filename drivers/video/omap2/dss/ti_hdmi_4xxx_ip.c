@@ -741,11 +741,15 @@ static void hdmi_wp_video_config_format(struct hdmi_ip_data *ip_data,
 static void hdmi_wp_video_config_interface(struct hdmi_ip_data *ip_data)
 {
 	u32 r;
+	bool vsync_pol, hsync_pol;
 	pr_debug("Enter hdmi_wp_video_config_interface\n");
 
+	vsync_pol = ip_data->cfg.timings.vsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
+	hsync_pol = ip_data->cfg.timings.hsync_level == OMAPDSS_SIG_ACTIVE_HIGH;
+
 	r = hdmi_read_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG);
-	r = FLD_MOD(r, ip_data->cfg.timings.vsync_pol, 7, 7);
-	r = FLD_MOD(r, ip_data->cfg.timings.hsync_pol, 6, 6);
+	r = FLD_MOD(r, vsync_pol, 7, 7);
+	r = FLD_MOD(r, hsync_pol, 6, 6);
 	r = FLD_MOD(r, ip_data->cfg.timings.interlace, 3, 3);
 	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG, r);

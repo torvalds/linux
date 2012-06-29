@@ -76,6 +76,12 @@ static struct omap_video_timings nec_8048_panel_timings = {
 	.vfp		= 3,
 	.vsw		= 1,
 	.vbp		= 4,
+
+	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 };
 
 static int nec_8048_bl_update_status(struct backlight_device *bl)
@@ -116,9 +122,6 @@ static int nec_8048_panel_probe(struct omap_dss_device *dssdev)
 	struct backlight_properties props;
 	int r;
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-				OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_RF |
-				OMAP_DSS_LCD_ONOFF;
 	dssdev->panel.timings = nec_8048_panel_timings;
 
 	necd = kzalloc(sizeof(*necd), GFP_KERNEL);

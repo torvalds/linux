@@ -473,7 +473,6 @@ static int n8x0_panel_probe(struct omap_dss_device *dssdev)
 
 	mutex_init(&ddata->lock);
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT;
 	dssdev->panel.timings.x_res = 800;
 	dssdev->panel.timings.y_res = 480;
 	dssdev->ctrl.pixel_size = 16;

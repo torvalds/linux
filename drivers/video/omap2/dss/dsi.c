@@ -1316,7 +1316,7 @@ static int dsi_calc_clock_rates(struct platform_device *dsidev,
 	return 0;
 }
 
-int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
+int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev,
 		unsigned long req_pck, struct dsi_clock_info *dsi_cinfo,
 		struct dispc_clock_info *dispc_cinfo)
 {
@@ -1335,8 +1335,8 @@ int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
 			dsi->cache_cinfo.clkin == dss_sys_clk) {
 		DSSDBG("DSI clock info found from cache\n");
 		*dsi_cinfo = dsi->cache_cinfo;
-		dispc_find_clk_divs(is_tft, req_pck,
-			dsi_cinfo->dsi_pll_hsdiv_dispc_clk, dispc_cinfo);
+		dispc_find_clk_divs(req_pck, dsi_cinfo->dsi_pll_hsdiv_dispc_clk,
+			dispc_cinfo);
 		return 0;
 	}
 
@@ -1402,7 +1402,7 @@ retry:
 
 				match = 1;
 
-				dispc_find_clk_divs(is_tft, req_pck,
+				dispc_find_clk_divs(req_pck,
 						cur.dsi_pll_hsdiv_dispc_clk,
 						&cur_dispc);
 
@@ -3631,17 +3631,14 @@ static void dsi_config_vp_num_line_buffers(struct omap_dss_device *dssdev)
 static void dsi_config_vp_sync_events(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int de_pol = dssdev->panel.dsi_vm_data.vp_de_pol;
-	int hsync_pol = dssdev->panel.dsi_vm_data.vp_hsync_pol;
-	int vsync_pol = dssdev->panel.dsi_vm_data.vp_vsync_pol;
 	bool vsync_end = dssdev->panel.dsi_vm_data.vp_vsync_end;
 	bool hsync_end = dssdev->panel.dsi_vm_data.vp_hsync_end;
 	u32 r;
 
 	r = dsi_read_reg(dsidev, DSI_CTRL);
-	r = FLD_MOD(r, de_pol, 9, 9);		/* VP_DE_POL */
-	r = FLD_MOD(r, hsync_pol, 10, 10);	/* VP_HSYNC_POL */
-	r = FLD_MOD(r, vsync_pol, 11, 11);	/* VP_VSYNC_POL */
+	r = FLD_MOD(r, 1, 9, 9);		/* VP_DE_POL */
+	r = FLD_MOD(r, 1, 10, 10);		/* VP_HSYNC_POL */
+	r = FLD_MOD(r, 1, 11, 11);		/* VP_VSYNC_POL */
 	r = FLD_MOD(r, 1, 15, 15);		/* VP_VSYNC_START */
 	r = FLD_MOD(r, vsync_end, 16, 16);	/* VP_VSYNC_END */
 	r = FLD_MOD(r, 1, 17, 17);		/* VP_HSYNC_START */
@@ -4343,22 +4340,22 @@ EXPORT_SYMBOL(omap_dsi_update);
 static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 {
 	int r;
+	struct omap_video_timings timings;
 
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
 		u16 dw, dh;
 		u32 irq;
-		struct omap_video_timings timings = {
-			.hsw		= 1,
-			.hfp		= 1,
-			.hbp		= 1,
-			.vsw		= 1,
-			.vfp		= 0,
-			.vbp		= 0,
-		};
 
 		dssdev->driver->get_resolution(dssdev, &dw, &dh);
+
 		timings.x_res = dw;
 		timings.y_res = dh;
+		timings.hsw = 1;
+		timings.hfp = 1;
+		timings.hbp = 1;
+		timings.vsw = 1;
+		timings.vfp = 0;
+		timings.vbp = 0;
 
 		irq = dispc_mgr_get_framedone_irq(dssdev->manager->id);
 
@@ -4371,19 +4368,31 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 
 		dispc_mgr_enable_stallmode(dssdev->manager->id, true);
 		dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 1);
-
-		dss_mgr_set_timings(dssdev->manager, &timings);
 	} else {
+		timings = dssdev->panel.timings;
+
 		dispc_mgr_enable_stallmode(dssdev->manager->id, false);
 		dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 0);
-
-		dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
 	}
 
-		dispc_mgr_set_lcd_display_type(dssdev->manager->id,
-			OMAP_DSS_LCD_DISPLAY_TFT);
-		dispc_mgr_set_tft_data_lines(dssdev->manager->id,
-			dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt));
+	/*
+	 * override interlace, logic level and edge related parameters in
+	 * omap_video_timings with default values
+	 */
+	timings.interlace = false;
+	timings.hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings.vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
+
+	dss_mgr_set_timings(dssdev->manager, &timings);
+
+	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
+
+	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
+		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt));
+
 	return 0;
 }
 

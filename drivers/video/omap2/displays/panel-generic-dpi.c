@@ -40,12 +40,6 @@
 struct panel_config {
 	struct omap_video_timings timings;
 
-	int acbi;	/* ac-bias pin transitions per interrupt */
-	/* Unit: line clocks */
-	int acb;	/* ac-bias pin frequency */
-
-	enum omap_panel_config config;
-
 	int power_on_delay;
 	int power_off_delay;
 
@@ -73,11 +67,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 11,
 			.vfp		= 3,
 			.vbp		= 2,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IEO,
 		.power_on_delay		= 50,
 		.power_off_delay	= 100,
 		.name			= "sharp_lq",
@@ -98,11 +94,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 1,
 			.vfp		= 1,
 			.vbp		= 1,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x28,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 50,
 		.power_off_delay	= 100,
 		.name			= "sharp_ls",
@@ -123,12 +121,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 4,
 			.vsw		= 2,
 			.vbp		= 2,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC |
-					OMAP_DSS_LCD_ONOFF,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "toppoly_tdo35s",
@@ -149,11 +148,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vfp		= 4,
 			.vsw		= 10,
 			.vbp		= 12 - 10,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "samsung_lte430wq_f0c",
@@ -174,11 +175,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 2,
 			.vfp		= 4,
 			.vbp		= 11,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "seiko_70wvw1tz3",
@@ -199,11 +202,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 10,
 			.vfp		= 2,
 			.vbp		= 2,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IEO,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "powertip_ph480272t",
@@ -224,11 +229,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 3,
 			.vfp		= 12,
 			.vbp		= 25,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x28,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "innolux_at070tn83",
@@ -249,9 +256,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 1,
 			.vfp		= 2,
 			.vbp		= 7,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
 		.name			= "nec_nl2432dr22-11b",
 	},
 
@@ -270,9 +281,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 1,
 			.vfp		= 1,
 			.vbp		= 1,
-		},
-		.config			= OMAP_DSS_LCD_TFT,
 
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+		},
 		.name			= "h4",
 	},
 
@@ -291,10 +306,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 10,
 			.vfp		= 2,
 			.vbp		= 2,
-		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-						OMAP_DSS_LCD_IHS,
 
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+		},
 		.name			= "apollon",
 	},
 	/* FocalTech ETM070003DH6 */
@@ -312,9 +330,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 3,
 			.vfp		= 13,
 			.vbp		= 29,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS,
 		.name			= "focaltech_etm070003dh6",
 	},
 
@@ -333,11 +355,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 23,
 			.vfp		= 1,
 			.vbp		= 1,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.acbi			= 0x0,
-		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "microtips_umsh_8173md",
@@ -358,9 +382,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 10,
 			.vfp		= 4,
 			.vbp		= 2,
-		},
-		.config			= OMAP_DSS_LCD_TFT,
 
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+		},
 		.name			= "ortustech_com43h4m10xtc",
 	},
 
@@ -379,11 +407,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 10,
 			.vfp		= 12,
 			.vbp		= 23,
-		},
-		.acb			= 0x0,
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IEO,
 
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+		},
 		.name			= "innolux_at080tn52",
 	},
 
@@ -401,8 +431,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 1,
 			.vfp		= 26,
 			.vbp		= 1,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_TFT,
 		.name			= "mitsubishi_aa084sb01",
 	},
 	/* EDT ET0500G0DH6 */
@@ -419,8 +454,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 2,
 			.vfp		= 35,
 			.vbp		= 10,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_TFT,
 		.name			= "edt_et0500g0dh6",
 	},
 
@@ -439,9 +479,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 2,
 			.vfp		= 10,
 			.vbp		= 33,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pd050vl1",
 	},
 
@@ -460,9 +504,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 2,
 			.vfp		= 10,
 			.vbp		= 33,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pm070wl4",
 	},
 
@@ -481,9 +529,13 @@ static struct panel_config generic_dpi_panels[] = {
 			.vsw		= 4,
 			.vfp		= 1,
 			.vbp		= 23,
+
+			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pd104slf",
 	},
 };
@@ -573,10 +625,7 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 	if (!panel_config)
 		return -EINVAL;
 
-	dssdev->panel.config = panel_config->config;
 	dssdev->panel.timings = panel_config->timings;
-	dssdev->panel.acb = panel_config->acb;
-	dssdev->panel.acbi = panel_config->acbi;
 
 	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)

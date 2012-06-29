@@ -267,6 +267,12 @@ static const struct omap_video_timings tpo_td043_timings = {
 	.vsw		= 1,
 	.vfp		= 39,
 	.vbp		= 34,
+
+	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 };
 
 static int tpo_td043_power_on(struct tpo_td043_device *tpo_td043)
@@ -423,8 +429,6 @@ static int tpo_td043_probe(struct omap_dss_device *dssdev)
 		return -ENODEV;
 	}
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IHS |
-				OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IPC;
 	dssdev->panel.timings = tpo_td043_timings;
 	dssdev->ctrl.pixel_size = 24;
 

@@ -537,7 +537,7 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	struct omap_overlay_info *oi;
-	bool ilace, replication;
+	bool replication;
 	struct mgr_priv_data *mp;
 	int r;
 
@@ -552,9 +552,7 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 
 	replication = dss_use_replication(ovl->manager->device, oi->color_mode);
 
-	ilace = ovl->manager->device->type == OMAP_DISPLAY_TYPE_VENC;
-
-	r = dispc_ovl_setup(ovl->id, oi, ilace, replication, &mp->timings);
+	r = dispc_ovl_setup(ovl->id, oi, replication, &mp->timings);
 	if (r) {
 		/*
 		 * We can't do much here, as this function can be called from
