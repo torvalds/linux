@@ -41,6 +41,7 @@
 #include "control.h"
 #include "mux.h"
 #include "prm.h"
+#include "common.h"
 
 #define OMAP_MUX_BASE_OFFSET		0x30	/* Offset from CTRL_BASE */
 #define OMAP_MUX_BASE_SZ		0x5ca
@@ -217,8 +218,7 @@ static int __init _omap_mux_get_by_name(struct omap_mux_partition *partition,
 	return -ENODEV;
 }
 
-static int __init
-omap_mux_get_by_name(const char *muxname,
+int __init omap_mux_get_by_name(const char *muxname,
 			struct omap_mux_partition **found_partition,
 			struct omap_mux **found_mux)
 {

@@ -527,11 +527,27 @@ static struct omap_hwmod omap36xx_uart4_hwmod = {
 
 static struct omap_hwmod_irq_info am35xx_uart4_mpu_irqs[] = {
 	{ .irq = INT_35XX_UART4_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info am35xx_uart4_sdma_reqs[] = {
 	{ .name = "rx", .dma_req = AM35XX_DMA_UART4_RX, },
 	{ .name = "tx", .dma_req = AM35XX_DMA_UART4_TX, },
+	{ .dma_req = -1 }
+};
+
+/*
+ * XXX AM35xx UART4 cannot complete its softreset without uart1_fck or
+ * uart2_fck being enabled.  So we add uart1_fck as an optional clock,
+ * below, and set the HWMOD_CONTROL_OPT_CLKS_IN_RESET.  This really
+ * should not be needed.  The functional clock structure of the AM35xx
+ * UART4 is extremely unclear and opaque; it is unclear what the role
+ * of uart1/2_fck is for the UART4.  Any clarification from either
+ * empirical testing or the AM3505/3517 hardware designers would be
+ * most welcome.
+ */
+static struct omap_hwmod_opt_clk am35xx_uart4_opt_clks[] = {
+	{ .role = "softreset_uart1_fck", .clk = "uart1_fck" },
 };
 
 static struct omap_hwmod am35xx_uart4_hwmod = {
@@ -543,11 +559,14 @@ static struct omap_hwmod am35xx_uart4_hwmod = {
 		.omap2 = {
 			.module_offs = CORE_MOD,
 			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_UART4_SHIFT,
+			.module_bit = AM35XX_EN_UART4_SHIFT,
 			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_EN_UART4_SHIFT,
+			.idlest_idle_bit = AM35XX_ST_UART4_SHIFT,
 		},
 	},
+	.opt_clks	= am35xx_uart4_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(am35xx_uart4_opt_clks),
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.class		= &omap2_uart_class,
 };
 
@@ -1638,25 +1657,20 @@ static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
 
 /* usb_otg_hs */
 static struct omap_hwmod_irq_info am35xx_usbhsotg_mpu_irqs[] = {
-
 	{ .name = "mc", .irq = 71 },
 	{ .irq = -1 }
 };
 
 static struct omap_hwmod_class am35xx_usbotg_class = {
 	.name = "am35xx_usbotg",
-	.sysc = NULL,
 };
 
 static struct omap_hwmod am35xx_usbhsotg_hwmod = {
 	.name		= "am35x_otg_hs",
 	.mpu_irqs	= am35xx_usbhsotg_mpu_irqs,
-	.main_clk	= NULL,
-	.prcm = {
-		.omap2 = {
-		},
-	},
+	.main_clk	= "hsotgusb_fck",
 	.class		= &am35xx_usbotg_class,
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* MMC/SD/SDIO common */
@@ -2097,9 +2111,10 @@ static struct omap_hwmod_ocp_if omap3xxx_usbhsotg__l3 = {
 static struct omap_hwmod_ocp_if am35xx_usbhsotg__l3 = {
 	.master		= &am35xx_usbhsotg_hwmod,
 	.slave		= &omap3xxx_l3_main_hwmod,
-	.clk		= "core_l3_ick",
+	.clk		= "hsotgusb_ick",
 	.user		= OCP_USER_MPU,
 };
+
 /* L4_CORE -> L4_WKUP interface */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__l4_wkup = {
 	.master	= &omap3xxx_l4_core_hwmod,
@@ -2243,6 +2258,7 @@ static struct omap_hwmod_addr_space am35xx_uart4_addr_space[] = {
 		.pa_end		= OMAP3_UART4_AM35XX_BASE + SZ_1K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if am35xx_l4_core__uart4 = {
@@ -2393,7 +2409,7 @@ static struct omap_hwmod_addr_space am35xx_usbhsotg_addrs[] = {
 static struct omap_hwmod_ocp_if am35xx_l4_core__usbhsotg = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &am35xx_usbhsotg_hwmod,
-	.clk		= "l4_ick",
+	.clk		= "hsotgusb_ick",
 	.addr		= am35xx_usbhsotg_addrs,
 	.user		= OCP_USER_MPU,
 };
@@ -3138,6 +3154,107 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__counter_32k = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* am35xx has Davinci MDIO & EMAC */
+static struct omap_hwmod_class am35xx_mdio_class = {
+	.name = "davinci_mdio",
+};
+
+static struct omap_hwmod am35xx_mdio_hwmod = {
+	.name		= "davinci_mdio",
+	.class		= &am35xx_mdio_class,
+	.flags		= HWMOD_NO_IDLEST,
+};
+
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_mdio__l3 = {
+	.master		= &am35xx_mdio_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "emac_fck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space am35xx_mdio_addrs[] = {
+	{
+		.pa_start	= AM35XX_IPSS_MDIO_BASE,
+		.pa_end		= AM35XX_IPSS_MDIO_BASE + SZ_4K - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4_core -> davinci mdio  */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_l4_core__mdio = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &am35xx_mdio_hwmod,
+	.clk		= "emac_fck",
+	.addr		= am35xx_mdio_addrs,
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_irq_info am35xx_emac_mpu_irqs[] = {
+	{ .name = "rxthresh",	.irq = INT_35XX_EMAC_C0_RXTHRESH_IRQ },
+	{ .name = "rx_pulse",	.irq = INT_35XX_EMAC_C0_RX_PULSE_IRQ },
+	{ .name = "tx_pulse",	.irq = INT_35XX_EMAC_C0_TX_PULSE_IRQ },
+	{ .name = "misc_pulse",	.irq = INT_35XX_EMAC_C0_MISC_PULSE_IRQ },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_class am35xx_emac_class = {
+	.name = "davinci_emac",
+};
+
+static struct omap_hwmod am35xx_emac_hwmod = {
+	.name		= "davinci_emac",
+	.mpu_irqs	= am35xx_emac_mpu_irqs,
+	.class		= &am35xx_emac_class,
+	.flags		= HWMOD_NO_IDLEST,
+};
+
+/* l3_core -> davinci emac interface */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_emac__l3 = {
+	.master		= &am35xx_emac_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "emac_ick",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space am35xx_emac_addrs[] = {
+	{
+		.pa_start	= AM35XX_IPSS_EMAC_BASE,
+		.pa_end		= AM35XX_IPSS_EMAC_BASE + 0x30000 - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4_core -> davinci emac  */
+/*
+ * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * but this will probably require some additional hwmod core support,
+ * so is left as a future to-do item.
+ */
+static struct omap_hwmod_ocp_if am35xx_l4_core__emac = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &am35xx_emac_hwmod,
+	.clk		= "emac_ick",
+	.addr		= am35xx_emac_addrs,
+	.user		= OCP_USER_MPU,
+};
+
 static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
@@ -3266,6 +3383,10 @@ static struct omap_hwmod_ocp_if *am35xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__usb_tll_hs,
 	&omap3xxx_l4_core__es3plus_mmc1,
 	&omap3xxx_l4_core__es3plus_mmc2,
+	&am35xx_mdio__l3,
+	&am35xx_l4_core__mdio,
+	&am35xx_emac__l3,
+	&am35xx_l4_core__emac,
 	NULL
 };
 

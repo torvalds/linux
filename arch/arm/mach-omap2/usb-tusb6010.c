@@ -300,7 +300,7 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 		printk(error, 3, status);
 		return status;
 	}
-	tusb_resources[2].start = irq + IH_GPIO_BASE;
+	tusb_resources[2].start = gpio_to_irq(irq);
 
 	/* set up memory timings ... can speed them up later */
 	if (!ps_refclk) {

@@ -15,27 +15,13 @@
  * General Public License for more details.
  */
 
-#include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/davinci_emac.h>
-#include <linux/platform_device.h>
-#include <plat/irqs.h>
+#include <asm/system.h>
+#include <plat/omap_device.h>
 #include <mach/am35xx.h>
-
 #include "control.h"
-
-static struct mdio_platform_data am35xx_emac_mdio_pdata;
-
-static struct resource am35xx_emac_mdio_resources[] = {
-	DEFINE_RES_MEM(AM35XX_IPSS_EMAC_BASE + AM35XX_EMAC_MDIO_OFFSET, SZ_4K),
-};
-
-static struct platform_device am35xx_emac_mdio_device = {
-	.name		= "davinci_mdio",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(am35xx_emac_mdio_resources),
-	.resource	= am35xx_emac_mdio_resources,
-	.dev.platform_data = &am35xx_emac_mdio_pdata,
-};
+#include "am35xx-emac.h"
 
 static void am35xx_enable_emac_int(void)
 {
@@ -69,41 +55,57 @@ static struct emac_platform_data am35xx_emac_pdata = {
 	.interrupt_disable	= am35xx_disable_emac_int,
 };
 
-static struct resource am35xx_emac_resources[] = {
-	DEFINE_RES_MEM(AM35XX_IPSS_EMAC_BASE, 0x30000),
-	DEFINE_RES_IRQ(INT_35XX_EMAC_C0_RXTHRESH_IRQ),
-	DEFINE_RES_IRQ(INT_35XX_EMAC_C0_RX_PULSE_IRQ),
-	DEFINE_RES_IRQ(INT_35XX_EMAC_C0_TX_PULSE_IRQ),
-	DEFINE_RES_IRQ(INT_35XX_EMAC_C0_MISC_PULSE_IRQ),
-};
+static struct mdio_platform_data am35xx_mdio_pdata;
 
-static struct platform_device am35xx_emac_device = {
-	.name		= "davinci_emac",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(am35xx_emac_resources),
-	.resource	= am35xx_emac_resources,
-	.dev		= {
-		.platform_data	= &am35xx_emac_pdata,
-	},
-};
+static int __init omap_davinci_emac_dev_init(struct omap_hwmod *oh,
+		void *pdata, int pdata_len)
+{
+	struct platform_device *pdev;
+
+	pdev = omap_device_build(oh->class->name, 0, oh, pdata, pdata_len,
+				 NULL, 0, false);
+	if (IS_ERR(pdev)) {
+		WARN(1, "Can't build omap_device for %s:%s.\n",
+		     oh->class->name, oh->name);
+		return PTR_ERR(pdev);
+	}
+
+	return 0;
+}
 
 void __init am35xx_emac_init(unsigned long mdio_bus_freq, u8 rmii_en)
 {
+	struct omap_hwmod *oh;
 	u32 v;
-	int err;
+	int ret;
 
-	am35xx_emac_pdata.rmii_en = rmii_en;
-	am35xx_emac_mdio_pdata.bus_freq = mdio_bus_freq;
-	err = platform_device_register(&am35xx_emac_device);
-	if (err) {
-		pr_err("AM35x: failed registering EMAC device: %d\n", err);
+	oh = omap_hwmod_lookup("davinci_mdio");
+	if (!oh) {
+		pr_err("Could not find davinci_mdio hwmod\n");
 		return;
 	}
 
-	err = platform_device_register(&am35xx_emac_mdio_device);
-	if (err) {
-		pr_err("AM35x: failed registering EMAC MDIO device: %d\n", err);
-		platform_device_unregister(&am35xx_emac_device);
+	am35xx_mdio_pdata.bus_freq = mdio_bus_freq;
+
+	ret = omap_davinci_emac_dev_init(oh, &am35xx_mdio_pdata,
+					 sizeof(am35xx_mdio_pdata));
+	if (ret) {
+		pr_err("Could not build davinci_mdio hwmod device\n");
+		return;
+	}
+
+	oh = omap_hwmod_lookup("davinci_emac");
+	if (!oh) {
+		pr_err("Could not find davinci_emac hwmod\n");
+		return;
+	}
+
+	am35xx_emac_pdata.rmii_en = rmii_en;
+
+	ret = omap_davinci_emac_dev_init(oh, &am35xx_emac_pdata,
+					 sizeof(am35xx_emac_pdata));
+	if (ret) {
+		pr_err("Could not build davinci_emac hwmod device\n");
 		return;
 	}
 

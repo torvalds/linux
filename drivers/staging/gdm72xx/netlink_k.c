@@ -104,7 +104,7 @@ struct sock *netlink_init(int unit, void (*cb)(struct net_device *dev, u16 type,
 
 void netlink_exit(struct sock *sock)
 {
-	sock_release(sock->sk_socket);
+	netlink_kernel_release(sock);
 }
 
 int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
