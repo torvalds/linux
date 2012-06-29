@@ -51,8 +51,7 @@ mwifiex_ie_get_autoidx(struct mwifiex_private *priv, u16 subtype_mask,
 
 	for (i = 0; i < priv->adapter->max_mgmt_ie_index; i++) {
 		mask = le16_to_cpu(priv->mgmt_ie[i].mgmt_subtype_mask);
-		len = le16_to_cpu(priv->mgmt_ie[i].ie_length) +
-		      le16_to_cpu(ie->ie_length);
+		len = le16_to_cpu(ie->ie_length);
 
 		if (mask == MWIFIEX_AUTO_IDX_MASK)
 			continue;
@@ -108,10 +107,8 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 				return -1;
 
 			tmp = (u8 *)&priv->mgmt_ie[index].ie_buffer;
-			tmp += le16_to_cpu(priv->mgmt_ie[index].ie_length);
 			memcpy(tmp, &ie->ie_buffer, le16_to_cpu(ie->ie_length));
-			le16_add_cpu(&priv->mgmt_ie[index].ie_length,
-				     le16_to_cpu(ie->ie_length));
+			priv->mgmt_ie[index].ie_length = ie->ie_length;
 			priv->mgmt_ie[index].ie_index = cpu_to_le16(index);
 			priv->mgmt_ie[index].mgmt_subtype_mask =
 							cpu_to_le16(mask);
