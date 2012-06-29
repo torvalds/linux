@@ -126,7 +126,7 @@ static struct publication *publ_create(u32 type, u32 lower, u32 upper,
 {
 	struct publication *publ = kzalloc(sizeof(*publ), GFP_ATOMIC);
 	if (publ == NULL) {
-		warn("Publication creation failure, no memory\n");
+		pr_warn("Publication creation failure, no memory\n");
 		return NULL;
 	}
 
@@ -163,7 +163,7 @@ static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_hea
 	struct sub_seq *sseq = tipc_subseq_alloc(1);
 
 	if (!nseq || !sseq) {
-		warn("Name sequence creation failed, no memory\n");
+		pr_warn("Name sequence creation failed, no memory\n");
 		kfree(nseq);
 		kfree(sseq);
 		return NULL;
@@ -263,8 +263,8 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 
 		/* Lower end overlaps existing entry => need an exact match */
 		if ((sseq->lower != lower) || (sseq->upper != upper)) {
-			warn("Cannot publish {%u,%u,%u}, overlap error\n",
-			     type, lower, upper);
+			pr_warn("Cannot publish {%u,%u,%u}, overlap error\n",
+				type, lower, upper);
 			return NULL;
 		}
 
@@ -286,8 +286,8 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 		/* Fail if upper end overlaps into an existing entry */
 		if ((inspos < nseq->first_free) &&
 		    (upper >= nseq->sseqs[inspos].lower)) {
-			warn("Cannot publish {%u,%u,%u}, overlap error\n",
-			     type, lower, upper);
+			pr_warn("Cannot publish {%u,%u,%u}, overlap error\n",
+				type, lower, upper);
 			return NULL;
 		}
 
@@ -296,8 +296,8 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 			struct sub_seq *sseqs = tipc_subseq_alloc(nseq->alloc * 2);
 
 			if (!sseqs) {
-				warn("Cannot publish {%u,%u,%u}, no memory\n",
-				     type, lower, upper);
+				pr_warn("Cannot publish {%u,%u,%u}, no memory\n",
+					type, lower, upper);
 				return NULL;
 			}
 			memcpy(sseqs, nseq->sseqs,
@@ -309,8 +309,8 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 
 		info = kzalloc(sizeof(*info), GFP_ATOMIC);
 		if (!info) {
-			warn("Cannot publish {%u,%u,%u}, no memory\n",
-			     type, lower, upper);
+			pr_warn("Cannot publish {%u,%u,%u}, no memory\n",
+				type, lower, upper);
 			return NULL;
 		}
 
@@ -492,8 +492,8 @@ struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 
 	if ((scope < TIPC_ZONE_SCOPE) || (scope > TIPC_NODE_SCOPE) ||
 	    (lower > upper)) {
-		dbg("Failed to publish illegal {%u,%u,%u} with scope %u\n",
-		     type, lower, upper, scope);
+		pr_debug("Failed to publish illegal {%u,%u,%u} with scope %u\n",
+			 type, lower, upper, scope);
 		return NULL;
 	}
 
@@ -668,8 +668,8 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	struct publication *publ;
 
 	if (table.local_publ_count >= tipc_max_publications) {
-		warn("Publication failed, local publication limit reached (%u)\n",
-		     tipc_max_publications);
+		pr_warn("Publication failed, local publication limit reached (%u)\n",
+			tipc_max_publications);
 		return NULL;
 	}
 
@@ -702,9 +702,9 @@ int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
 		return 1;
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
-	err("Unable to remove local publication\n"
-	    "(type=%u, lower=%u, ref=%u, key=%u)\n",
-	    type, lower, ref, key);
+	pr_err("Unable to remove local publication\n"
+	       "(type=%u, lower=%u, ref=%u, key=%u)\n",
+	       type, lower, ref, key);
 	return 0;
 }
 
@@ -725,8 +725,8 @@ void tipc_nametbl_subscribe(struct tipc_subscription *s)
 		tipc_nameseq_subscribe(seq, s);
 		spin_unlock_bh(&seq->lock);
 	} else {
-		warn("Failed to create subscription for {%u,%u,%u}\n",
-		     s->seq.type, s->seq.lower, s->seq.upper);
+		pr_warn("Failed to create subscription for {%u,%u,%u}\n",
+			s->seq.type, s->seq.lower, s->seq.upper);
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
 }
@@ -942,7 +942,7 @@ void tipc_nametbl_stop(void)
 	for (i = 0; i < tipc_nametbl_size; i++) {
 		if (hlist_empty(&table.types[i]))
 			continue;
-		err("tipc_nametbl_stop(): orphaned hash chain detected\n");
+		pr_err("nametbl_stop(): orphaned hash chain detected\n");
 		break;
 	}
 	kfree(table.types);

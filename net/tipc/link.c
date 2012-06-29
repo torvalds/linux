@@ -41,6 +41,12 @@
 #include "discover.h"
 #include "config.h"
 
+/*
+ * Error message prefixes
+ */
+static const char *link_co_err = "Link changeover error, ";
+static const char *link_rst_msg = "Resetting link ";
+static const char *link_unk_evt = "Unknown link event ";
 
 /*
  * Out-of-range value for link session numbers
@@ -300,20 +306,20 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 
 	if (n_ptr->link_cnt >= 2) {
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		err("Attempt to establish third link to %s\n", addr_string);
+		pr_err("Attempt to establish third link to %s\n", addr_string);
 		return NULL;
 	}
 
 	if (n_ptr->links[b_ptr->identity]) {
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		err("Attempt to establish second link on <%s> to %s\n",
-		    b_ptr->name, addr_string);
+		pr_err("Attempt to establish second link on <%s> to %s\n",
+		       b_ptr->name, addr_string);
 		return NULL;
 	}
 
 	l_ptr = kzalloc(sizeof(*l_ptr), GFP_ATOMIC);
 	if (!l_ptr) {
-		warn("Link creation failed, no memory\n");
+		pr_warn("Link creation failed, no memory\n");
 		return NULL;
 	}
 
@@ -371,7 +377,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 void tipc_link_delete(struct tipc_link *l_ptr)
 {
 	if (!l_ptr) {
-		err("Attempt to delete non-existent link\n");
+		pr_err("Attempt to delete non-existent link\n");
 		return;
 	}
 
@@ -632,8 +638,8 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			link_set_timer(l_ptr, cont_intv / 4);
 			break;
 		case RESET_MSG:
-			info("Resetting link <%s>, requested by peer\n",
-			     l_ptr->name);
+			pr_info("%s<%s>, requested by peer\n", link_rst_msg,
+				l_ptr->name);
 			tipc_link_reset(l_ptr);
 			l_ptr->state = RESET_RESET;
 			l_ptr->fsm_msg_cnt = 0;
@@ -642,7 +648,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		default:
-			err("Unknown link event %u in WW state\n", event);
+			pr_err("%s%u in WW state\n", link_unk_evt, event);
 		}
 		break;
 	case WORKING_UNKNOWN:
@@ -654,8 +660,8 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case RESET_MSG:
-			info("Resetting link <%s>, requested by peer "
-			     "while probing\n", l_ptr->name);
+			pr_info("%s<%s>, requested by peer while probing\n",
+				link_rst_msg, l_ptr->name);
 			tipc_link_reset(l_ptr);
 			l_ptr->state = RESET_RESET;
 			l_ptr->fsm_msg_cnt = 0;
@@ -680,8 +686,8 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 				l_ptr->fsm_msg_cnt++;
 				link_set_timer(l_ptr, cont_intv / 4);
 			} else {	/* Link has failed */
-				warn("Resetting link <%s>, peer not responding\n",
-				     l_ptr->name);
+				pr_warn("%s<%s>, peer not responding\n",
+					link_rst_msg, l_ptr->name);
 				tipc_link_reset(l_ptr);
 				l_ptr->state = RESET_UNKNOWN;
 				l_ptr->fsm_msg_cnt = 0;
@@ -692,7 +698,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			}
 			break;
 		default:
-			err("Unknown link event %u in WU state\n", event);
+			pr_err("%s%u in WU state\n", link_unk_evt, event);
 		}
 		break;
 	case RESET_UNKNOWN:
@@ -726,7 +732,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		default:
-			err("Unknown link event %u in RU state\n", event);
+			pr_err("%s%u in RU state\n", link_unk_evt, event);
 		}
 		break;
 	case RESET_RESET:
@@ -751,11 +757,11 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		default:
-			err("Unknown link event %u in RR state\n", event);
+			pr_err("%s%u in RR state\n", link_unk_evt, event);
 		}
 		break;
 	default:
-		err("Unknown link state %u/%u\n", l_ptr->state, event);
+		pr_err("Unknown link state %u/%u\n", l_ptr->state, event);
 	}
 }
 
@@ -856,7 +862,8 @@ int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 		}
 		kfree_skb(buf);
 		if (imp > CONN_MANAGER) {
-			warn("Resetting link <%s>, send queue full", l_ptr->name);
+			pr_warn("%s<%s>, send queue full", link_rst_msg,
+				l_ptr->name);
 			tipc_link_reset(l_ptr);
 		}
 		return dsz;
@@ -1409,8 +1416,8 @@ static void link_reset_all(unsigned long addr)
 
 	tipc_node_lock(n_ptr);
 
-	warn("Resetting all links to %s\n",
-	     tipc_addr_string_fill(addr_string, n_ptr->addr));
+	pr_warn("Resetting all links to %s\n",
+		tipc_addr_string_fill(addr_string, n_ptr->addr));
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		if (n_ptr->links[i]) {
@@ -1428,7 +1435,7 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 {
 	struct tipc_msg *msg = buf_msg(buf);
 
-	warn("Retransmission failure on link <%s>\n", l_ptr->name);
+	pr_warn("Retransmission failure on link <%s>\n", l_ptr->name);
 
 	if (l_ptr->addr) {
 		/* Handle failure on standard link */
@@ -1440,21 +1447,23 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 		struct tipc_node *n_ptr;
 		char addr_string[16];
 
-		info("Msg seq number: %u,  ", msg_seqno(msg));
-		info("Outstanding acks: %lu\n",
-		     (unsigned long) TIPC_SKB_CB(buf)->handle);
+		pr_info("Msg seq number: %u,  ", msg_seqno(msg));
+		pr_cont("Outstanding acks: %lu\n",
+			(unsigned long) TIPC_SKB_CB(buf)->handle);
 
 		n_ptr = tipc_bclink_retransmit_to();
 		tipc_node_lock(n_ptr);
 
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		info("Broadcast link info for %s\n", addr_string);
-		info("Supportable: %d,  ", n_ptr->bclink.supportable);
-		info("Supported: %d,  ", n_ptr->bclink.supported);
-		info("Acked: %u\n", n_ptr->bclink.acked);
-		info("Last in: %u,  ", n_ptr->bclink.last_in);
-		info("Oos state: %u,  ", n_ptr->bclink.oos_state);
-		info("Last sent: %u\n", n_ptr->bclink.last_sent);
+		pr_info("Broadcast link info for %s\n", addr_string);
+		pr_info("Supportable: %d,  Supported: %d,  Acked: %u\n",
+			n_ptr->bclink.supportable,
+			n_ptr->bclink.supported,
+			n_ptr->bclink.acked);
+		pr_info("Last in: %u,  Oos state: %u,  Last sent: %u\n",
+			n_ptr->bclink.last_in,
+			n_ptr->bclink.oos_state,
+			n_ptr->bclink.last_sent);
 
 		tipc_k_signal((Handler)link_reset_all, (unsigned long)n_ptr->addr);
 
@@ -1479,8 +1488,8 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *buf,
 			l_ptr->retransm_queue_head = msg_seqno(msg);
 			l_ptr->retransm_queue_size = retransmits;
 		} else {
-			err("Unexpected retransmit on link %s (qsize=%d)\n",
-			    l_ptr->name, l_ptr->retransm_queue_size);
+			pr_err("Unexpected retransmit on link %s (qsize=%d)\n",
+			       l_ptr->name, l_ptr->retransm_queue_size);
 		}
 		return;
 	} else {
@@ -2074,8 +2083,9 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 
 		if (msg_linkprio(msg) &&
 		    (msg_linkprio(msg) != l_ptr->priority)) {
-			warn("Resetting link <%s>, priority change %u->%u\n",
-			     l_ptr->name, l_ptr->priority, msg_linkprio(msg));
+			pr_warn("%s<%s>, priority change %u->%u\n",
+				link_rst_msg, l_ptr->name, l_ptr->priority,
+				msg_linkprio(msg));
 			l_ptr->priority = msg_linkprio(msg);
 			tipc_link_reset(l_ptr); /* Enforce change to take effect */
 			break;
@@ -2139,15 +2149,13 @@ static void tipc_link_tunnel(struct tipc_link *l_ptr,
 
 	tunnel = l_ptr->owner->active_links[selector & 1];
 	if (!tipc_link_is_up(tunnel)) {
-		warn("Link changeover error, "
-		     "tunnel link no longer available\n");
+		pr_warn("%stunnel link no longer available\n", link_co_err);
 		return;
 	}
 	msg_set_size(tunnel_hdr, length + INT_H_SIZE);
 	buf = tipc_buf_acquire(length + INT_H_SIZE);
 	if (!buf) {
-		warn("Link changeover error, "
-		     "unable to send tunnel msg\n");
+		pr_warn("%sunable to send tunnel msg\n", link_co_err);
 		return;
 	}
 	skb_copy_to_linear_data(buf, tunnel_hdr, INT_H_SIZE);
@@ -2173,8 +2181,7 @@ void tipc_link_changeover(struct tipc_link *l_ptr)
 		return;
 
 	if (!l_ptr->owner->permit_changeover) {
-		warn("Link changeover error, "
-		     "peer did not permit changeover\n");
+		pr_warn("%speer did not permit changeover\n", link_co_err);
 		return;
 	}
 
@@ -2192,8 +2199,8 @@ void tipc_link_changeover(struct tipc_link *l_ptr)
 			msg_set_size(&tunnel_hdr, INT_H_SIZE);
 			tipc_link_send_buf(tunnel, buf);
 		} else {
-			warn("Link changeover error, "
-			     "unable to send changeover msg\n");
+			pr_warn("%sunable to send changeover msg\n",
+				link_co_err);
 		}
 		return;
 	}
@@ -2246,8 +2253,8 @@ void tipc_link_send_duplicate(struct tipc_link *l_ptr, struct tipc_link *tunnel)
 		msg_set_size(&tunnel_hdr, length + INT_H_SIZE);
 		outbuf = tipc_buf_acquire(length + INT_H_SIZE);
 		if (outbuf == NULL) {
-			warn("Link changeover error, "
-			     "unable to send duplicate msg\n");
+			pr_warn("%sunable to send duplicate msg\n",
+				link_co_err);
 			return;
 		}
 		skb_copy_to_linear_data(outbuf, &tunnel_hdr, INT_H_SIZE);
@@ -2298,8 +2305,8 @@ static int link_recv_changeover_msg(struct tipc_link **l_ptr,
 	if (!dest_link)
 		goto exit;
 	if (dest_link == *l_ptr) {
-		err("Unexpected changeover message on link <%s>\n",
-		    (*l_ptr)->name);
+		pr_err("Unexpected changeover message on link <%s>\n",
+		       (*l_ptr)->name);
 		goto exit;
 	}
 	*l_ptr = dest_link;
@@ -2310,7 +2317,7 @@ static int link_recv_changeover_msg(struct tipc_link **l_ptr,
 			goto exit;
 		*buf = buf_extract(tunnel_buf, INT_H_SIZE);
 		if (*buf == NULL) {
-			warn("Link changeover error, duplicate msg dropped\n");
+			pr_warn("%sduplicate msg dropped\n", link_co_err);
 			goto exit;
 		}
 		kfree_skb(tunnel_buf);
@@ -2319,8 +2326,8 @@ static int link_recv_changeover_msg(struct tipc_link **l_ptr,
 
 	/* First original message ?: */
 	if (tipc_link_is_up(dest_link)) {
-		info("Resetting link <%s>, changeover initiated by peer\n",
-		     dest_link->name);
+		pr_info("%s<%s>, changeover initiated by peer\n", link_rst_msg,
+			dest_link->name);
 		tipc_link_reset(dest_link);
 		dest_link->exp_msg_count = msg_count;
 		if (!msg_count)
@@ -2333,8 +2340,7 @@ static int link_recv_changeover_msg(struct tipc_link **l_ptr,
 
 	/* Receive original message */
 	if (dest_link->exp_msg_count == 0) {
-		warn("Link switchover error, "
-		     "got too many tunnelled messages\n");
+		pr_warn("%sgot too many tunnelled messages\n", link_co_err);
 		goto exit;
 	}
 	dest_link->exp_msg_count--;
@@ -2346,7 +2352,7 @@ static int link_recv_changeover_msg(struct tipc_link **l_ptr,
 			kfree_skb(tunnel_buf);
 			return 1;
 		} else {
-			warn("Link changeover error, original msg dropped\n");
+			pr_warn("%soriginal msg dropped\n", link_co_err);
 		}
 	}
 exit:
@@ -2367,7 +2373,7 @@ void tipc_link_recv_bundle(struct sk_buff *buf)
 	while (msgcount--) {
 		obuf = buf_extract(buf, pos);
 		if (obuf == NULL) {
-			warn("Link unable to unbundle message(s)\n");
+			pr_warn("Link unable to unbundle message(s)\n");
 			break;
 		}
 		pos += align(msg_size(buf_msg(obuf)));
@@ -2538,7 +2544,7 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 			set_fragm_size(pbuf, fragm_sz);
 			set_expected_frags(pbuf, exp_fragm_cnt - 1);
 		} else {
-			dbg("Link unable to reassemble fragmented message\n");
+			pr_debug("Link unable to reassemble fragmented message\n");
 			kfree_skb(fbuf);
 			return -1;
 		}
@@ -3060,5 +3066,5 @@ print_state:
 	tipc_printf(buf, "\n");
 
 	tipc_printbuf_validate(buf);
-	info("%s", print_area);
+	pr_info("%s", print_area);
 }

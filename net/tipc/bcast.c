@@ -880,7 +880,7 @@ void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port)
 		if (!item->next) {
 			item->next = kmalloc(sizeof(*item), GFP_ATOMIC);
 			if (!item->next) {
-				warn("Incomplete multicast delivery, no memory\n");
+				pr_warn("Incomplete multicast delivery, no memory\n");
 				return;
 			}
 			item->next->next = NULL;

@@ -161,7 +161,7 @@ void tipc_named_publish(struct publication *publ)
 
 	buf = named_prepare_buf(PUBLICATION, ITEM_SIZE, 0);
 	if (!buf) {
-		warn("Publication distribution failure\n");
+		pr_warn("Publication distribution failure\n");
 		return;
 	}
 
@@ -186,7 +186,7 @@ void tipc_named_withdraw(struct publication *publ)
 
 	buf = named_prepare_buf(WITHDRAWAL, ITEM_SIZE, 0);
 	if (!buf) {
-		warn("Withdrawal distribution failure\n");
+		pr_warn("Withdrawal distribution failure\n");
 		return;
 	}
 
@@ -213,7 +213,7 @@ static void named_distribute(struct list_head *message_list, u32 node,
 			rest -= left;
 			buf = named_prepare_buf(PUBLICATION, left, node);
 			if (!buf) {
-				warn("Bulk publication failure\n");
+				pr_warn("Bulk publication failure\n");
 				return;
 			}
 			item = (struct distr_item *)msg_data(buf_msg(buf));
@@ -283,9 +283,10 @@ static void named_purge_publ(struct publication *publ)
 	write_unlock_bh(&tipc_nametbl_lock);
 
 	if (p != publ) {
-		err("Unable to remove publication from failed node\n"
-		    "(type=%u, lower=%u, node=0x%x, ref=%u, key=%u)\n",
-		    publ->type, publ->lower, publ->node, publ->ref, publ->key);
+		pr_err("Unable to remove publication from failed node\n"
+		       " (type=%u, lower=%u, node=0x%x, ref=%u, key=%u)\n",
+		       publ->type, publ->lower, publ->node, publ->ref,
+		       publ->key);
 	}
 
 	kfree(p);
@@ -329,14 +330,14 @@ void tipc_named_recv(struct sk_buff *buf)
 				tipc_nodesub_unsubscribe(&publ->subscr);
 				kfree(publ);
 			} else {
-				err("Unable to remove publication by node 0x%x\n"
-				    "(type=%u, lower=%u, ref=%u, key=%u)\n",
-				    msg_orignode(msg),
-				    ntohl(item->type), ntohl(item->lower),
-				    ntohl(item->ref), ntohl(item->key));
+				pr_err("Unable to remove publication by node 0x%x\n"
+				       " (type=%u, lower=%u, ref=%u, key=%u)\n",
+				       msg_orignode(msg), ntohl(item->type),
+				       ntohl(item->lower), ntohl(item->ref),
+				       ntohl(item->key));
 			}
 		} else {
-			warn("Unrecognized name table message received\n");
+			pr_warn("Unrecognized name table message received\n");
 		}
 		item++;
 	}

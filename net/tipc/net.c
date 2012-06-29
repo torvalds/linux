@@ -184,9 +184,9 @@ int tipc_net_start(u32 addr)
 
 	tipc_cfg_reinit();
 
-	info("Started in network mode\n");
-	info("Own node address %s, network identity %u\n",
-	     tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
+	pr_info("Started in network mode\n");
+	pr_info("Own node address %s, network identity %u\n",
+		tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
 	return 0;
 }
 
@@ -202,5 +202,5 @@ void tipc_net_stop(void)
 	list_for_each_entry_safe(node, t_node, &tipc_node_list, list)
 		tipc_node_delete(node);
 	write_unlock_bh(&tipc_net_lock);
-	info("Left network mode\n");
+	pr_info("Left network mode\n");
 }

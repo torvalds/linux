@@ -37,6 +37,8 @@
 #ifndef _TIPC_CORE_H
 #define _TIPC_CORE_H
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/tipc.h>
 #include <linux/tipc_config.h>
 #include <linux/types.h>
@@ -89,13 +91,6 @@ void tipc_printf(struct print_buf *, const char *fmt, ...);
 #define TIPC_OUTPUT TIPC_LOG
 #endif
 
-#define err(fmt, arg...)  tipc_printf(TIPC_OUTPUT, \
-				      KERN_ERR "TIPC: " fmt, ## arg)
-#define warn(fmt, arg...) tipc_printf(TIPC_OUTPUT, \
-				      KERN_WARNING "TIPC: " fmt, ## arg)
-#define info(fmt, arg...) tipc_printf(TIPC_OUTPUT, \
-				      KERN_NOTICE "TIPC: " fmt, ## arg)
-
 #ifdef CONFIG_TIPC_DEBUG
 
 /*
@@ -105,15 +100,12 @@ void tipc_printf(struct print_buf *, const char *fmt, ...);
 #define DBG_OUTPUT TIPC_LOG
 #endif
 
-#define dbg(fmt, arg...)  tipc_printf(DBG_OUTPUT, KERN_DEBUG fmt, ## arg);
-
 #define msg_dbg(msg, txt) tipc_msg_dbg(DBG_OUTPUT, msg, txt);
 
 void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
 
 #else
 
-#define dbg(fmt, arg...)	do {} while (0)
 #define msg_dbg(msg, txt)	do {} while (0)
 
 #define tipc_msg_dbg(buf, msg, txt) do {} while (0)

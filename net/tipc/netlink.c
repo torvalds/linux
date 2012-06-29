@@ -90,7 +90,7 @@ int tipc_netlink_start(void)
 	res = genl_register_family_with_ops(&tipc_genl_family,
 		&tipc_genl_ops, 1);
 	if (res) {
-		err("Failed to register netlink interface\n");
+		pr_err("Failed to register netlink interface\n");
 		return res;
 	}
 
