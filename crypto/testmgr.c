@@ -1581,6 +1581,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "__driver-cbc-aes-aesni",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1641,6 +1642,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "__driver-ecb-aes-aesni",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1701,6 +1703,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "__ghash-pclmulqdqni",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 		.suite = {
 			.hash = {
 				.vecs = NULL,
@@ -1866,8 +1869,25 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "cryptd(__driver-cbc-aes-aesni)",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = NULL,
+					.count = 0
+				},
+				.dec = {
+					.vecs = NULL,
+					.count = 0
+				}
+			}
+		}
+	}, {
 		.alg = "cryptd(__driver-ecb-aes-aesni)",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1926,8 +1946,25 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "cryptd(__driver-gcm-aes-aesni)",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = NULL,
+					.count = 0
+				},
+				.dec = {
+					.vecs = NULL,
+					.count = 0
+				}
+			}
+		}
+	}, {
 		.alg = "cryptd(__ghash-pclmulqdqni)",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 		.suite = {
 			.hash = {
 				.vecs = NULL,
@@ -2043,6 +2080,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "ecb(__aes-aesni)",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 		.suite = {
 			.cipher = {
 				.enc = {
