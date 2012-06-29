@@ -310,6 +310,23 @@ static void bfin_sec_disable(struct irq_data *d)
 	hard_local_irq_restore(flags);
 }
 
+static void bfin_sec_set_priority(unsigned int sec_int_levels, u8 *sec_int_priority)
+{
+	unsigned long flags = hard_local_irq_save();
+	uint32_t reg_sctl;
+	int i;
+
+	bfin_write_SEC_SCI(0, SEC_CPLVL, sec_int_levels);
+
+	for (i = 0; i < SYS_IRQS - BFIN_IRQ(0); i++) {
+		reg_sctl = bfin_read_SEC_SCTL(i) & ~SEC_SCTL_PRIO;
+		reg_sctl |= sec_int_priority[i] << SEC_SCTL_PRIO_OFFSET;
+		bfin_write_SEC_SCTL(i, reg_sctl);
+	}
+
+	hard_local_irq_restore(flags);
+}
+
 static void bfin_sec_raise_irq(unsigned int sid)
 {
 	unsigned long flags = hard_local_irq_save();
@@ -1533,6 +1550,10 @@ int __init init_arch_irq(void)
 	CSYNC();
 
 	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
+
+	bfin_sec_set_priority(CONFIG_SEC_IRQ_PRIORITY_LEVELS, sec_int_priority);
+
+	bfin_sec_set_priority(CONFIG_SEC_IRQ_PRIORITY_LEVELS, sec_int_priority);
 
 	/* Enable interrupts IVG7-15 */
 	bfin_irq_flags |= IMASK_IVG15 |
