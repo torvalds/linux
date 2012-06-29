@@ -21,7 +21,7 @@
  */
 
 #define DRV_NAME	"sunxi_wdt"
-#define DRV_VERSION	"0.1"
+#define DRV_VERSION	"1.0"
 #define PFX		DRV_NAME ": "
 
 #include <linux/bug.h>
@@ -43,7 +43,6 @@
 static struct platform_device *platform_device;
 static bool is_active, expect_release;
 
-#define SW_VA_WATCH_DOG_BASE (SW_VA_TIMERC_IO_BASE + 0x0090)
 static struct sunxi_watchdog_reg {
 	u32 ctrl;
 	u32 mode;
@@ -68,16 +67,6 @@ module_param(nowayout, bool, S_IRUGO);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-static int sunxi_wdt_start(void)
-{
-	int err = 0;
-
-	writel(SW_WDT_MODE_TIMEOUT(timeout) | SW_WDT_MODE_RESET | SW_WDT_MODE_ENABLE, &wdt_reg->mode);
-	writel(SW_WDT_CTRL_RELOAD, &wdt_reg->ctrl);
-
-	return err;
-}
-
 static int sunxi_wdt_stop(void)
 {
 	int err = 0;
@@ -89,7 +78,20 @@ static int sunxi_wdt_stop(void)
 
 static int sunxi_wdt_kick(void)
 {
-	return sunxi_wdt_start();
+	writel(SW_WDT_CTRL_RELOAD, &wdt_reg->ctrl);
+	return 0;
+}
+
+static int sunxi_wdt_set_timeout(int timeout)
+{
+	writel(SW_WDT_MODE_TIMEOUT(timeout) | SW_WDT_MODE_RESET | SW_WDT_MODE_ENABLE, &wdt_reg->mode);
+	sunxi_wdt_kick();
+	return 0;
+}
+
+static int sunxi_wdt_start(void)
+{
+	return sunxi_wdt_set_timeout(timeout);
 }
 
 static int sunxi_wdt_open(struct inode *inode, struct file *file)
@@ -257,6 +259,8 @@ static int __devinit sunxi_wdt_probe(struct platform_device *pdev)
 	printk(KERN_INFO PFX
 	       "initialized (timeout=%ds, nowayout=%d)\n",
 	       timeout, nowayout);
+
+	sunxi_wdt_kick(); /* give userspace a bit more time to settle if watchdog already running */
 
 	return ret;
 
