@@ -462,4 +462,12 @@ ACPI_EXTERN u32 acpi_gbl_size_of_acpi_objects;
 
 #endif				/* ACPI_DEBUGGER */
 
+/*****************************************************************************
+ *
+ * Info/help support
+ *
+ ****************************************************************************/
+
+extern const struct ah_predefined_name asl_predefined_info[];
+
 #endif				/* __ACGLOBAL_H__ */
