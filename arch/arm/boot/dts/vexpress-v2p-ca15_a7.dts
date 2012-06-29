@@ -29,6 +29,48 @@
 		i2c1 = &v2m_i2c_pcie;
 	};
 
+	clusters {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cluster0: cluster@0 {
+			reg = <0>;
+			cores {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				core0: core@0 {
+					reg = <0>;
+				};
+
+				core1: core@1 {
+					reg = <1>;
+				};
+
+			};
+		};
+
+		cluster1: cluster@1 {
+			reg = <1>;
+			cores {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				core2: core@0 {
+					reg = <0>;
+				};
+
+				core3: core@1 {
+					reg = <1>;
+				};
+
+				core4: core@2 {
+					reg = <2>;
+				};
+			};
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -38,6 +80,8 @@
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 			cci-control-port = <&cci_control1>;
+			cluster = <&cluster0>;
+			core = <&core0>;
 		};
 
 		cpu1: cpu@1 {
@@ -45,6 +89,8 @@
 			compatible = "arm,cortex-a15";
 			reg = <1>;
 			cci-control-port = <&cci_control1>;
+			cluster = <&cluster0>;
+			core = <&core1>;
 		};
 
 		cpu2: cpu@2 {
@@ -52,6 +98,8 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x100>;
 			cci-control-port = <&cci_control2>;
+			cluster = <&cluster1>;
+			core = <&core2>;
 		};
 
 		cpu3: cpu@3 {
@@ -59,6 +107,8 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x101>;
 			cci-control-port = <&cci_control2>;
+			cluster = <&cluster1>;
+			core = <&core3>;
 		};
 
 		cpu4: cpu@4 {
@@ -66,6 +116,8 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
 			cci-control-port = <&cci_control2>;
+			cluster = <&cluster1>;
+			core = <&core4>;
 		};
 	};
 
