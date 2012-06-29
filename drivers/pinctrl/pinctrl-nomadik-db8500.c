@@ -467,9 +467,10 @@ static const unsigned mc1_a_1_pins[] = { DB8500_PIN_AH16, DB8500_PIN_AG15,
 	DB8500_PIN_AH15 };
 static const unsigned mc1dir_a_1_pins[] = { DB8500_PIN_AH13, DB8500_PIN_AG12,
 	DB8500_PIN_AH12, DB8500_PIN_AH11 };
-static const unsigned hsir_a_1_pins[] = { DB8500_PIN_AG10, DB8500_PIN_AH10 };
-static const unsigned hsit_a_1_pins[] = { DB8500_PIN_AJ11, DB8500_PIN_AJ9,
-	DB8500_PIN_AH9, DB8500_PIN_AG9, DB8500_PIN_AG8, DB8500_PIN_AF8 };
+static const unsigned hsir_a_1_pins[] = { DB8500_PIN_AG10, DB8500_PIN_AH10,
+	DB8500_PIN_AJ11 };
+static const unsigned hsit_a_1_pins[] = { DB8500_PIN_AJ9, DB8500_PIN_AH9,
+	DB8500_PIN_AG9, DB8500_PIN_AG8, DB8500_PIN_AF8 };
 static const unsigned clkout_a_1_pins[] = { DB8500_PIN_AH7, DB8500_PIN_AJ6 };
 static const unsigned clkout_a_2_pins[] = { DB8500_PIN_AG7, DB8500_PIN_AF7 };
 static const unsigned usb_a_1_pins[] = { DB8500_PIN_AF28, DB8500_PIN_AE29,
