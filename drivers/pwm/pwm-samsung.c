@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c/pwm.c
+/* drivers/pwm/pwm-samsung.c
  *
  * Copyright (c) 2007 Ben Dooks
  * Copyright (c) 2008 Simtec Electronics
@@ -215,7 +215,7 @@ static int s3c_pwm_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	s3c = kzalloc(sizeof(*s3c), GFP_KERNEL);
+	s3c = devm_kzalloc(&pdev->dev, sizeof(*s3c), GFP_KERNEL);
 	if (s3c == NULL) {
 		dev_err(dev, "failed to allocate pwm_device\n");
 		return -ENOMEM;
@@ -227,18 +227,16 @@ static int s3c_pwm_probe(struct platform_device *pdev)
 	s3c->chip.base = -1;
 	s3c->chip.npwm = 1;
 
-	s3c->clk = clk_get(dev, "pwm-tin");
+	s3c->clk = devm_clk_get(dev, "pwm-tin");
 	if (IS_ERR(s3c->clk)) {
 		dev_err(dev, "failed to get pwm tin clk\n");
-		ret = PTR_ERR(s3c->clk);
-		goto err_alloc;
+		return PTR_ERR(s3c->clk);
 	}
 
-	s3c->clk_div = clk_get(dev, "pwm-tdiv");
+	s3c->clk_div = devm_clk_get(dev, "pwm-tdiv");
 	if (IS_ERR(s3c->clk_div)) {
 		dev_err(dev, "failed to get pwm tdiv clk\n");
-		ret = PTR_ERR(s3c->clk_div);
-		goto err_clk_tin;
+		return PTR_ERR(s3c->clk_div);
 	}
 
 	clk_enable(s3c->clk);
@@ -272,13 +270,6 @@ static int s3c_pwm_probe(struct platform_device *pdev)
  err_clk_tdiv:
 	clk_disable(s3c->clk_div);
 	clk_disable(s3c->clk);
-	clk_put(s3c->clk_div);
-
- err_clk_tin:
-	clk_put(s3c->clk);
-
- err_alloc:
-	kfree(s3c);
 	return ret;
 }
 
@@ -293,9 +284,6 @@ static int __devexit s3c_pwm_remove(struct platform_device *pdev)
 
 	clk_disable(s3c->clk_div);
 	clk_disable(s3c->clk);
-	clk_put(s3c->clk_div);
-	clk_put(s3c->clk);
-	kfree(s3c);
 
 	return 0;
 }
