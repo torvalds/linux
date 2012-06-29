@@ -468,11 +468,11 @@ static bool bcma_sprom_ext_available(struct bcma_bus *bus)
 	/* older chipcommon revisions use chip status register */
 	chip_status = bcma_read32(bus->drv_cc.core, BCMA_CC_CHIPSTAT);
 	switch (bus->chipinfo.id) {
-	case 0x4313:
+	case BCMA_CHIP_ID_BCM4313:
 		present_mask = BCMA_CC_CHIPST_4313_SPROM_PRESENT;
 		break;
 
-	case 0x4331:
+	case BCMA_CHIP_ID_BCM4331:
 		present_mask = BCMA_CC_CHIPST_4331_SPROM_PRESENT;
 		break;
 
@@ -494,16 +494,16 @@ static bool bcma_sprom_onchip_available(struct bcma_bus *bus)
 
 	chip_status = bcma_read32(bus->drv_cc.core, BCMA_CC_CHIPSTAT);
 	switch (bus->chipinfo.id) {
-	case 0x4313:
+	case BCMA_CHIP_ID_BCM4313:
 		present = chip_status & BCMA_CC_CHIPST_4313_OTP_PRESENT;
 		break;
 
-	case 0x4331:
+	case BCMA_CHIP_ID_BCM4331:
 		present = chip_status & BCMA_CC_CHIPST_4331_OTP_PRESENT;
 		break;
 
-	case 43224:
-	case 43225:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
 		/* for these chips OTP is always available */
 		present = true;
 		break;
@@ -579,13 +579,15 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	if (!sprom)
 		return -ENOMEM;
 
-	if (bus->chipinfo.id == 0x4331 || bus->chipinfo.id == 43431)
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4331 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM43431)
 		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, false);
 
 	pr_debug("SPROM offset 0x%x\n", offset);
 	bcma_sprom_read(bus, offset, sprom);
 
-	if (bus->chipinfo.id == 0x4331 || bus->chipinfo.id == 43431)
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4331 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM43431)
 		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, true);
 
 	err = bcma_sprom_valid(sprom);

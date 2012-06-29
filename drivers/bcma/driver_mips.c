@@ -22,15 +22,15 @@
 /* The 47162a0 hangs when reading MIPS DMP registers registers */
 static inline bool bcma_core_mips_bcm47162a0_quirk(struct bcma_device *dev)
 {
-	return dev->bus->chipinfo.id == 47162 && dev->bus->chipinfo.rev == 0 &&
-	       dev->id.id == BCMA_CORE_MIPS_74K;
+	return dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM47162 &&
+	       dev->bus->chipinfo.rev == 0 && dev->id.id == BCMA_CORE_MIPS_74K;
 }
 
 /* The 5357b0 hangs when reading USB20H DMP registers */
 static inline bool bcma_core_mips_bcm5357b0_quirk(struct bcma_device *dev)
 {
-	return (dev->bus->chipinfo.id == 0x5357 ||
-		dev->bus->chipinfo.id == 0x4749) &&
+	return (dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM5357 ||
+		dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM4749) &&
 	       dev->bus->chipinfo.pkg == 11 &&
 	       dev->id.id == BCMA_CORE_USB20_HOST;
 }

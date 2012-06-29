@@ -59,10 +59,10 @@ static void bcma_pmu_pll_init(struct bcma_drv_cc *cc)
 	struct bcma_bus *bus = cc->core->bus;
 
 	switch (bus->chipinfo.id) {
-	case 0x4313:
-	case 0x4331:
-	case 43224:
-	case 43225:
+	case BCMA_CHIP_ID_BCM4313:
+	case BCMA_CHIP_ID_BCM4331:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
 		break;
 	default:
 		pr_err("PLL init unknown for device 0x%04X\n",
@@ -76,13 +76,13 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 	u32 min_msk = 0, max_msk = 0;
 
 	switch (bus->chipinfo.id) {
-	case 0x4313:
+	case BCMA_CHIP_ID_BCM4313:
 		min_msk = 0x200D;
 		max_msk = 0xFFFF;
 		break;
-	case 0x4331:
-	case 43224:
-	case 43225:
+	case BCMA_CHIP_ID_BCM4331:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
 		break;
 	default:
 		pr_err("PMU resource config unknown for device 0x%04X\n",
@@ -101,10 +101,10 @@ void bcma_pmu_swreg_init(struct bcma_drv_cc *cc)
 	struct bcma_bus *bus = cc->core->bus;
 
 	switch (bus->chipinfo.id) {
-	case 0x4313:
-	case 0x4331:
-	case 43224:
-	case 43225:
+	case BCMA_CHIP_ID_BCM4313:
+	case BCMA_CHIP_ID_BCM4331:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
 		break;
 	default:
 		pr_err("PMU switch/regulators init unknown for device "
@@ -138,15 +138,15 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 	struct bcma_bus *bus = cc->core->bus;
 
 	switch (bus->chipinfo.id) {
-	case 0x4313:
+	case BCMA_CHIP_ID_BCM4313:
 		bcma_chipco_chipctl_maskset(cc, 0, ~0, 0x7);
 		break;
-	case 0x4331:
-	case 43431:
+	case BCMA_CHIP_ID_BCM4331:
+	case BCMA_CHIP_ID_BCM43431:
 		/* Ext PA lines must be enabled for tx on BCM4331 */
 		bcma_chipco_bcm4331_ext_pa_lines_ctl(cc, true);
 		break;
-	case 43224:
+	case BCMA_CHIP_ID_BCM43224:
 		if (bus->chipinfo.rev == 0) {
 			pr_err("Workarounds for 43224 rev 0 not fully "
 				"implemented\n");
@@ -155,7 +155,7 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 			bcma_chipco_chipctl_maskset(cc, 0, ~0, 0xF0);
 		}
 		break;
-	case 43225:
+	case BCMA_CHIP_ID_BCM43225:
 		break;
 	default:
 		pr_err("Workarounds unknown for device 0x%04X\n",
@@ -194,17 +194,17 @@ u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc)
 	struct bcma_bus *bus = cc->core->bus;
 
 	switch (bus->chipinfo.id) {
-	case 0x4716:
-	case 0x4748:
-	case 47162:
-	case 0x4313:
-	case 0x5357:
-	case 0x4749:
-	case 53572:
+	case BCMA_CHIP_ID_BCM4716:
+	case BCMA_CHIP_ID_BCM4748:
+	case BCMA_CHIP_ID_BCM47162:
+	case BCMA_CHIP_ID_BCM4313:
+	case BCMA_CHIP_ID_BCM5357:
+	case BCMA_CHIP_ID_BCM4749:
+	case BCMA_CHIP_ID_BCM53572:
 		/* always 20Mhz */
 		return 20000 * 1000;
-	case 0x5356:
-	case 0x5300:
+	case BCMA_CHIP_ID_BCM5356:
+	case BCMA_CHIP_ID_BCM4706:
 		/* always 25Mhz */
 		return 25000 * 1000;
 	default:
@@ -227,7 +227,8 @@ static u32 bcma_pmu_clock(struct bcma_drv_cc *cc, u32 pll0, u32 m)
 
 	BUG_ON(!m || m > 4);
 
-	if (bus->chipinfo.id == 0x5357 || bus->chipinfo.id == 0x4749) {
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM5357 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4749) {
 		/* Detect failure in clock setting */
 		tmp = bcma_cc_read32(cc, BCMA_CC_CHIPSTAT);
 		if (tmp & 0x40000)
@@ -259,22 +260,22 @@ u32 bcma_pmu_get_clockcontrol(struct bcma_drv_cc *cc)
 	struct bcma_bus *bus = cc->core->bus;
 
 	switch (bus->chipinfo.id) {
-	case 0x4716:
-	case 0x4748:
-	case 47162:
+	case BCMA_CHIP_ID_BCM4716:
+	case BCMA_CHIP_ID_BCM4748:
+	case BCMA_CHIP_ID_BCM47162:
 		return bcma_pmu_clock(cc, BCMA_CC_PMU4716_MAINPLL_PLL0,
 				      BCMA_CC_PMU5_MAINPLL_SSB);
-	case 0x5356:
+	case BCMA_CHIP_ID_BCM5356:
 		return bcma_pmu_clock(cc, BCMA_CC_PMU5356_MAINPLL_PLL0,
 				      BCMA_CC_PMU5_MAINPLL_SSB);
-	case 0x5357:
-	case 0x4749:
+	case BCMA_CHIP_ID_BCM5357:
+	case BCMA_CHIP_ID_BCM4749:
 		return bcma_pmu_clock(cc, BCMA_CC_PMU5357_MAINPLL_PLL0,
 				      BCMA_CC_PMU5_MAINPLL_SSB);
-	case 0x5300:
+	case BCMA_CHIP_ID_BCM4706:
 		return bcma_pmu_clock(cc, BCMA_CC_PMU4706_MAINPLL_PLL0,
 				      BCMA_CC_PMU5_MAINPLL_SSB);
-	case 53572:
+	case BCMA_CHIP_ID_BCM53572:
 		return 75000000;
 	default:
 		pr_warn("No backplane clock specified for %04X device, "
@@ -289,17 +290,17 @@ u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 
-	if (bus->chipinfo.id == 53572)
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53572)
 		return 300000000;
 
 	if (cc->pmu.rev >= 5) {
 		u32 pll;
 		switch (bus->chipinfo.id) {
-		case 0x5356:
+		case BCMA_CHIP_ID_BCM5356:
 			pll = BCMA_CC_PMU5356_MAINPLL_PLL0;
 			break;
-		case 0x5357:
-		case 0x4749:
+		case BCMA_CHIP_ID_BCM5357:
+		case BCMA_CHIP_ID_BCM4749:
 			pll = BCMA_CC_PMU5357_MAINPLL_PLL0;
 			break;
 		default:
@@ -307,7 +308,7 @@ u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc)
 			break;
 		}
 
-		/* TODO: if (bus->chipinfo.id == 0x5300)
+		/* TODO: if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706)
 		  return si_4706_pmu_clock(sih, osh, cc, PMU4706_MAINPLL_PLL0, PMU5_MAINPLL_CPU); */
 		return bcma_pmu_clock(cc, pll, BCMA_CC_PMU5_MAINPLL_CPU);
 	}

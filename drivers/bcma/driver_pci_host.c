@@ -215,7 +215,8 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 	} else {
 		writel(val, mmio);
 
-		if (chipid == 0x4716 || chipid == 0x4748)
+		if (chipid == BCMA_CHIP_ID_BCM4716 ||
+		    chipid == BCMA_CHIP_ID_BCM4748)
 			readl(mmio);
 	}
 
@@ -434,13 +435,14 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	 * as mips can't generate 64-bit address on the
 	 * backplane.
 	 */
-	if (bus->chipinfo.id == 0x4716 || bus->chipinfo.id == 0x4748) {
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4716 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4748) {
 		pc_host->mem_resource.start = BCMA_SOC_PCI_MEM;
 		pc_host->mem_resource.end = BCMA_SOC_PCI_MEM +
 					    BCMA_SOC_PCI_MEM_SZ - 1;
 		pcicore_write32(pc, BCMA_CORE_PCI_SBTOPCI0,
 				BCMA_CORE_PCI_SBTOPCI_MEM | BCMA_SOC_PCI_MEM);
-	} else if (bus->chipinfo.id == 0x5300) {
+	} else if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
 		tmp = BCMA_CORE_PCI_SBTOPCI_MEM;
 		tmp |= BCMA_CORE_PCI_SBTOPCI_PREF;
 		tmp |= BCMA_CORE_PCI_SBTOPCI_BURST;
