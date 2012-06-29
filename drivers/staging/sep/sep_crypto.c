@@ -85,28 +85,6 @@ static void sep_dequeuer(void *data);
 
 /* TESTING */
 /**
- * crypto_sep_dump_message - dump the message that is pending
- * @sep: SEP device
- * This will only print dump if DEBUG is set; it does
- * follow kernel debug print enabling
- */
-static void crypto_sep_dump_message(struct sep_device *sep, void *msg)
-{
-#if 0
-	u32 *p;
-	u32 *i;
-	int count;
-
-	p = sep->shared_addr;
-	i = (u32 *)msg;
-	for (count = 0; count < 10 * 4; count += 4)
-		dev_dbg(&sep->pdev->dev,
-			"[PID%d] Word %d of the message is %x (local)%x\n",
-				current->pid, count/4, *p++, *i++);
-#endif
-}
-
-/**
  *	sep_do_callback
  *	@work: pointer to work_struct
  *	This is what is called by the queue; it is generic so that it
@@ -1646,7 +1624,6 @@ static u32 crypto_post_op(struct sep_device *sep)
 
 	dev_dbg(&ta_ctx->sep_used->pdev->dev, "crypto post_op\n");
 	dev_dbg(&ta_ctx->sep_used->pdev->dev, "crypto post_op message dump\n");
-	crypto_sep_dump_message(ta_ctx->sep_used, ta_ctx->msg);
 
 	/* first bring msg from shared area to local area */
 	memcpy(ta_ctx->msg, sep->shared_addr,
