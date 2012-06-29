@@ -133,9 +133,8 @@ void rk29_lcd_spim_spin_unlock(void)
 static void printk_transfer_data(unsigned char *buf, int len)
 {
 	int i = 0;
-	unsigned char *buff = buf;
 	for(i=0; i<len; i++)
-		printk("0x%x,",*buff++);
+		printk("0x%x,",*buf++);
 
 	printk("\n");
 
@@ -1132,7 +1131,7 @@ static void dma_transfer(struct rk29xx_spi *dws)
 		}
 		if (transfer->rx_buf != NULL) {
 			dmacr |= SPI_DMACR_RX_ENABLE;
-			rk29xx_writew(dws, SPIM_DMARDLR, dws->dma_width-1);
+			rk29xx_writew(dws, SPIM_DMARDLR, 0);
 			rk29xx_writew(dws, SPIM_CTRLR1, transfer->len-1);	
 		}
 		rk29xx_writew(dws, SPIM_DMACR, dmacr);
