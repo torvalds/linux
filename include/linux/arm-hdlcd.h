@@ -89,6 +89,20 @@
 
 #define NR_PALETTE	256
 
+/* OEMs using HDLCD may wish to enable these settings if
+ * display disruption is apparent and you suspect HDLCD
+ * access to RAM may be starved.
+ */
+/* Turn HDLCD default color red instead of black so
+ * that it's easy to see pixel clock data underruns
+ * (compared to other visual disruption)
+ */
+//#define HDLCD_RED_DEFAULT_COLOUR
+/* Add a counter in the IRQ handler to count buffer underruns
+ * and /proc/hdlcd_underrun to read the counter
+ */
+//#define HDLCD_COUNT_BUFFERUNDERRUNS
+
 struct hdlcd_device {
 	struct fb_info		fb;
 	struct device		*dev;

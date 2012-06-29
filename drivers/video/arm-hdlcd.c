@@ -26,6 +26,10 @@
 #include <linux/platform_device.h>
 #include <linux/memblock.h>
 #include <linux/arm-hdlcd.h>
+#ifdef HDLCD_COUNT_BUFFERUNDERRUNS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#endif
 
 #include "edid.h"
 
@@ -47,6 +51,63 @@ static struct of_device_id  hdlcd_of_matches[] = {
 /* Framebuffer size.  */
 static unsigned long framebuffer_size;
 
+#ifdef HDLCD_COUNT_BUFFERUNDERRUNS
+static unsigned long buffer_underrun_events;
+static DEFINE_SPINLOCK(hdlcd_underrun_lock);
+
+static void hdlcd_underrun_set(unsigned long val)
+{
+	spin_lock(&hdlcd_underrun_lock);
+	buffer_underrun_events = val;
+	spin_unlock(&hdlcd_underrun_lock);
+}
+
+static unsigned long hdlcd_underrun_get(void)
+{
+	unsigned long val;
+	spin_lock(&hdlcd_underrun_lock);
+	val = buffer_underrun_events;
+	spin_unlock(&hdlcd_underrun_lock);
+	return val;
+}
+
+#ifdef CONFIG_PROC_FS
+static int hdlcd_underrun_show(struct seq_file *m, void *v)
+{
+	unsigned char underrun_string[32];
+	snprintf(underrun_string, 32, "%lu\n", hdlcd_underrun_get());
+	seq_puts(m, underrun_string);
+	return 0;
+}
+
+static int proc_hdlcd_underrun_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hdlcd_underrun_show, NULL);
+}
+
+static const struct file_operations proc_hdlcd_underrun_operations = {
+	.open		= proc_hdlcd_underrun_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int hdlcd_underrun_init(void)
+{
+	hdlcd_underrun_set(0);
+	proc_create("hdlcd_underrun", 0, NULL, &proc_hdlcd_underrun_operations);
+	return 0;
+}
+static void hdlcd_underrun_close(void)
+{
+	remove_proc_entry("hdlcd_underrun", NULL);
+}
+#else
+static int hdlcd_underrun_init(void) { return 0; }
+static void hdlcd_underrun_close(void) { }
+#endif
+#endif
+
 static char *fb_mode = "1680x1050-32@60\0\0\0\0\0";
 
 static struct fb_var_screeninfo cached_var_screeninfo;
@@ -65,7 +126,6 @@ static struct fb_videomode hdlcd_default_mode = {
 	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	.vmode		= FB_VMODE_NONINTERLACED
 };
-
 
 static inline void hdlcd_enable(struct hdlcd_device *hdlcd)
 {
@@ -243,7 +303,12 @@ static int hdlcd_set_par(struct fb_info *info)
 	WRITE_HDLCD_REG(HDLCD_REG_H_FRONT_PORCH, hdlcd->fb.var.right_margin - 1);
 	WRITE_HDLCD_REG(HDLCD_REG_POLARITIES, polarities);
 	WRITE_HDLCD_REG(HDLCD_REG_PIXEL_FORMAT, (bytes_per_pixel - 1) << 3);
+#ifdef HDLCD_RED_DEFAULT_COLOUR
+	WRITE_HDLCD_REG(HDLCD_REG_RED_SELECT, (0x00ff0000 | (hdlcd->fb.var.red.length & 0xf) << 8) \
+													  | hdlcd->fb.var.red.offset);
+#else
 	WRITE_HDLCD_REG(HDLCD_REG_RED_SELECT, ((hdlcd->fb.var.red.length & 0xf) << 8) | hdlcd->fb.var.red.offset);
+#endif
 	WRITE_HDLCD_REG(HDLCD_REG_GREEN_SELECT, ((hdlcd->fb.var.green.length & 0xf) << 8) | hdlcd->fb.var.green.offset);
 	WRITE_HDLCD_REG(HDLCD_REG_BLUE_SELECT, ((hdlcd->fb.var.blue.length & 0xf) << 8) | hdlcd->fb.var.blue.offset);
 
@@ -282,7 +347,12 @@ static irqreturn_t hdlcd_irq(int irq, void *data)
 
 	/* acknowledge interrupt(s) */
 	WRITE_HDLCD_REG(HDLCD_REG_INT_CLEAR, irq_status);
-
+#ifdef HDLCD_COUNT_BUFFERUNDERRUNS
+	if (irq_status & HDLCD_INTERRUPT_UNDERRUN) {
+		/* increment the count */
+		hdlcd_underrun_set(hdlcd_underrun_get() + 1);
+	}
+#endif
 	if (irq_status & HDLCD_INTERRUPT_VSYNC) {
 		/* disable future VSYNC interrupts */
 		WRITE_HDLCD_REG(HDLCD_REG_INT_MASK, irq_mask & ~HDLCD_INTERRUPT_VSYNC);
@@ -514,9 +584,13 @@ static int hdlcd_setup(struct hdlcd_device *hdlcd)
 	WRITE_HDLCD_REG(HDLCD_REG_BUS_OPTIONS, HDLCD_BUS_MAX_OUTSTAND | HDLCD_BUS_BURST_16);
 	/* Set the framebuffer base to start of allocated memory */
 	WRITE_HDLCD_REG(HDLCD_REG_FB_BASE, hdlcd->fb.fix.smem_start);
+#ifdef HDLCD_COUNT_BUFFERUNDERRUNS
+	/* turn on underrun interrupt for counting */
+	WRITE_HDLCD_REG(HDLCD_REG_INT_MASK, HDLCD_INTERRUPT_UNDERRUN);
+#else
 	/* Ensure interrupts are disabled */
 	WRITE_HDLCD_REG(HDLCD_REG_INT_MASK, 0);
-
+#endif	
 	if (!register_framebuffer(&hdlcd->fb)) {
 		fb_set_var(&hdlcd->fb, &hdlcd->fb.var);
 		clk_enable(hdlcd->clk);
@@ -758,11 +832,21 @@ static struct platform_driver hdlcd_driver = {
 
 static int __init hdlcd_init(void)
 {
+#ifdef HDLCD_COUNT_BUFFERUNDERRUNS
+	int err = platform_driver_register(&hdlcd_driver);
+	if (!err)
+		hdlcd_underrun_init();
+	return err;
+#else
 	return platform_driver_register(&hdlcd_driver);
+#endif
 }
 
 void __exit hdlcd_exit(void)
 {
+#ifdef HDLCD_COUNT_BUFFERUNDERRUNS
+	hdlcd_underrun_close();
+#endif
 	platform_driver_unregister(&hdlcd_driver);
 }
 
