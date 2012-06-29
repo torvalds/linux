@@ -325,6 +325,9 @@ struct drxk_state {
 
 	enum DRXPowerMode m_currentPowerMode;
 
+	/* when true, avoids other devices to use the I2C bus */
+	bool		  drxk_i2c_exclusive_lock;
+
 	/*
 	 * Configurable parameters at the driver. They stores the values found
 	 * at struct drxk_config.

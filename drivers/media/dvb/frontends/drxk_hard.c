@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
+#include <linux/hardirq.h>
 #include <asm/div64.h>
 
 #include "dvb_frontend.h"
@@ -308,10 +309,30 @@ static u32 Log10Times100(u32 x)
 /* I2C **********************************************************************/
 /****************************************************************************/
 
+static int drxk_i2c_lock(struct drxk_state *state)
+{
+	i2c_lock_adapter(state->i2c);
+	state->drxk_i2c_exclusive_lock = true;
+
+	return 0;
+}
+
+static void drxk_i2c_unlock(struct drxk_state *state)
+{
+	if (!state->drxk_i2c_exclusive_lock)
+		return;
+
+	i2c_unlock_adapter(state->i2c);
+	state->drxk_i2c_exclusive_lock = false;
+}
+
 static int drxk_i2c_transfer(struct drxk_state *state, struct i2c_msg *msgs,
 			     unsigned len)
 {
-	return i2c_transfer(state->i2c, msgs, len);
+	if (state->drxk_i2c_exclusive_lock)
+		return __i2c_transfer(state->i2c, msgs, len);
+	else
+		return i2c_transfer(state->i2c, msgs, len);
 }
 
 static int i2c_read1(struct drxk_state *state, u8 adr, u8 *val)
@@ -5982,6 +6003,7 @@ static int init_drxk(struct drxk_state *state)
 
 	dprintk(1, "\n");
 	if ((state->m_DrxkState == DRXK_UNINITIALIZED)) {
+		drxk_i2c_lock(state);
 		status = PowerUpDevice(state);
 		if (status < 0)
 			goto error;
@@ -6171,10 +6193,13 @@ static int init_drxk(struct drxk_state *state)
 			strlcat(state->frontend.ops.info.name, " DVB-T",
 				sizeof(state->frontend.ops.info.name));
 		}
+		drxk_i2c_unlock(state);
 	}
 error:
-	if (status < 0)
+	if (status < 0) {
+		drxk_i2c_unlock(state);
 		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
+	}
 
 	return status;
 }
