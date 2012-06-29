@@ -22,7 +22,7 @@
  *
  * P2M_PER_PAGE depends on the architecture, as a mfn is always
  * unsigned long (8 bytes on 64-bit, 4 bytes on 32), leading to
- * 512 and 1024 entries respectively. 
+ * 512 and 1024 entries respectively.
  *
  * In short, these structures contain the Machine Frame Number (MFN) of the PFN.
  *
@@ -139,11 +139,11 @@
  *      /    | ~0, ~0, ....  |
  *     |     \---------------/
  *     |
- *     p2m_missing             p2m_missing
- * /------------------\     /------------\
- * | [p2m_mid_missing]+---->| ~0, ~0, ~0 |
- * | [p2m_mid_missing]+---->| ..., ~0    |
- * \------------------/     \------------/
+ *   p2m_mid_missing           p2m_missing
+ * /-----------------\     /------------\
+ * | [p2m_missing]   +---->| ~0, ~0, ~0 |
+ * | [p2m_missing]   +---->| ..., ~0    |
+ * \-----------------/     \------------/
  *
  * where ~0 is INVALID_P2M_ENTRY. IDENTITY is (PFN | IDENTITY_BIT)
  */
@@ -423,7 +423,7 @@ static void free_p2m_page(void *p)
 	free_page((unsigned long)p);
 }
 
-/* 
+/*
  * Fully allocate the p2m structure for a given pfn.  We need to check
  * that both the top and mid levels are allocated, and make sure the
  * parallel mfn tree is kept in sync.  We may race with other cpus, so
