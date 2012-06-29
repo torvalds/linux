@@ -305,7 +305,8 @@ void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 
 	btcoex->bt_priority_cnt = 0;
 	btcoex->bt_priority_time = jiffies;
-	btcoex->op_flags &= ~(BT_OP_PRIORITY_DETECTED | BT_OP_SCAN);
+	clear_bit(BT_OP_PRIORITY_DETECTED, &btcoex->op_flags);
+	clear_bit(BT_OP_SCAN, &btcoex->op_flags);
 
 	mod_timer(&btcoex->period_timer, jiffies);
 }
