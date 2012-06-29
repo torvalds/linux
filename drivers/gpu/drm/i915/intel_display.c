@@ -3500,34 +3500,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
-/* Prepare for a mode set.
- *
- * Note we could be a lot smarter here.  We need to figure out which outputs
- * will be enabled, which disabled (in short, how the config will changes)
- * and perform the minimum necessary steps to accomplish that, e.g. updating
- * watermarks, FBC configuration, making sure PLLs are programmed correctly,
- * panel fitting is in the proper state, etc.
- */
-static void i9xx_crtc_prepare(struct drm_crtc *crtc)
-{
-	i9xx_crtc_disable(crtc);
-}
-
-static void i9xx_crtc_commit(struct drm_crtc *crtc)
-{
-	i9xx_crtc_enable(crtc);
-}
-
-static void ironlake_crtc_prepare(struct drm_crtc *crtc)
-{
-	ironlake_crtc_disable(crtc);
-}
-
-static void ironlake_crtc_commit(struct drm_crtc *crtc)
-{
-	ironlake_crtc_enable(crtc);
-}
-
 void intel_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
@@ -6626,13 +6598,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	intel_crtc->active = true; /* force the pipe off on setup_init_config */
 	intel_crtc->bpp = 24; /* default for pre-Ironlake */
 
-	if (HAS_PCH_SPLIT(dev)) {
-		intel_helper_funcs.prepare = ironlake_crtc_prepare;
-		intel_helper_funcs.commit = ironlake_crtc_commit;
-	} else {
-		intel_helper_funcs.prepare = i9xx_crtc_prepare;
-		intel_helper_funcs.commit = i9xx_crtc_commit;
-	}
+	intel_helper_funcs.prepare = dev_priv->display.crtc_disable;
+	intel_helper_funcs.commit = dev_priv->display.crtc_enable;
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 }
