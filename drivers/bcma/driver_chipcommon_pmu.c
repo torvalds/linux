@@ -75,6 +75,9 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 		bcma_cc_write32(cc, BCMA_CC_PMU_MINRES_MSK, min_msk);
 	if (max_msk)
 		bcma_cc_write32(cc, BCMA_CC_PMU_MAXRES_MSK, max_msk);
+
+	/* Add some delay; allow resources to come up and settle. */
+	mdelay(2);
 }
 
 /* Disable to allow reading SPROM. Don't know the adventages of enabling it. */
