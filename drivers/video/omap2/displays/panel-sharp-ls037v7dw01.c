@@ -92,7 +92,6 @@ static int sharp_ls_panel_probe(struct omap_dss_device *dssdev)
 	struct sharp_data *sd;
 	int r;
 
-	dssdev->panel.config = OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS;
 	dssdev->panel.timings = sharp_ls_timings;
 
 	sd = kzalloc(sizeof(*sd), GFP_KERNEL);

@@ -121,15 +121,6 @@ enum omap_rfbi_te_mode {
 	OMAP_DSS_RFBI_TE_MODE_2 = 2,
 };
 
-enum omap_panel_config {
-	OMAP_DSS_LCD_IVS		= 1<<0,
-	OMAP_DSS_LCD_IHS		= 1<<1,
-	OMAP_DSS_LCD_IPC		= 1<<2,
-	OMAP_DSS_LCD_IEO		= 1<<3,
-	OMAP_DSS_LCD_RF			= 1<<4,
-	OMAP_DSS_LCD_ONOFF		= 1<<5,
-};
-
 enum omap_dss_signal_level {
 	OMAPDSS_SIG_ACTIVE_HIGH	= 0,
 	OMAPDSS_SIG_ACTIVE_LOW	= 1,
@@ -571,8 +562,6 @@ struct omap_dss_device {
 		int acbi;	/* ac-bias pin transitions per interrupt */
 		/* Unit: line clocks */
 		int acb;	/* ac-bias pin frequency */
-
-		enum omap_panel_config config;
 
 		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
 		enum omap_dss_dsi_mode dsi_mode;

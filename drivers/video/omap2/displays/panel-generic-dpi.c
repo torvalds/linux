@@ -40,8 +40,6 @@
 struct panel_config {
 	struct omap_video_timings timings;
 
-	enum omap_panel_config config;
-
 	int power_on_delay;
 	int power_off_delay;
 
@@ -76,8 +74,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_LOW,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
-						OMAP_DSS_LCD_IEO,
 		.power_on_delay		= 50,
 		.power_off_delay	= 100,
 		.name			= "sharp_lq",
@@ -105,7 +101,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 50,
 		.power_off_delay	= 100,
 		.name			= "sharp_ls",
@@ -133,9 +128,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
-						OMAP_DSS_LCD_IPC |
-						OMAP_DSS_LCD_ONOFF,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "toppoly_tdo35s",
@@ -163,7 +155,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "samsung_lte430wq_f0c",
@@ -191,7 +182,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "seiko_70wvw1tz3",
@@ -219,8 +209,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_LOW,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
-						OMAP_DSS_LCD_IEO,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "powertip_ph480272t",
@@ -248,7 +236,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "innolux_at070tn83",
@@ -276,7 +263,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.name			= "nec_nl2432dr22-11b",
 	},
 
@@ -327,8 +313,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
-
 		.name			= "apollon",
 	},
 	/* FocalTech ETM070003DH6 */
@@ -353,7 +337,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS,
 		.name			= "focaltech_etm070003dh6",
 	},
 
@@ -379,8 +362,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
-						OMAP_DSS_LCD_IPC,
 		.power_on_delay		= 0,
 		.power_off_delay	= 0,
 		.name			= "microtips_umsh_8173md",
@@ -433,9 +414,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_LOW,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
-						OMAP_DSS_LCD_IEO,
-
 		.name			= "innolux_at080tn52",
 	},
 
@@ -508,8 +486,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
-						OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pd050vl1",
 	},
 
@@ -535,8 +511,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
-						OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pm070wl4",
 	},
 
@@ -562,8 +536,6 @@ static struct panel_config generic_dpi_panels[] = {
 			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 		},
-		.config			= OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS |
-						OMAP_DSS_LCD_IPC,
 		.name			= "primeview_pd104slf",
 	},
 };
@@ -653,7 +625,6 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 	if (!panel_config)
 		return -EINVAL;
 
-	dssdev->panel.config = panel_config->config;
 	dssdev->panel.timings = panel_config->timings;
 
 	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);

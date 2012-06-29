@@ -429,8 +429,6 @@ static int tpo_td043_probe(struct omap_dss_device *dssdev)
 		return -ENODEV;
 	}
 
-	dssdev->panel.config = OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IVS |
-				OMAP_DSS_LCD_IPC;
 	dssdev->panel.timings = tpo_td043_timings;
 	dssdev->ctrl.pixel_size = 24;
 

@@ -78,8 +78,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	sdi_basic_init(dssdev);
 
 	/* 15.5.9.1.2 */
-	dssdev->panel.config |= OMAP_DSS_LCD_RF | OMAP_DSS_LCD_ONOFF;
-
 	dssdev->panel.timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 	dssdev->panel.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 
