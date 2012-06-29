@@ -180,9 +180,6 @@ void bcma_pmu_init(struct bcma_drv_cc *cc)
 		bcma_cc_set32(cc, BCMA_CC_PMU_CTL,
 			     BCMA_CC_PMU_CTL_NOILPONW);
 
-	if (cc->core->id.id == 0x4329 && cc->core->id.rev == 2)
-		pr_err("Fix for 4329b0 bad LPOM state not implemented!\n");
-
 	bcma_pmu_pll_init(cc);
 	bcma_pmu_resources_init(cc);
 	bcma_pmu_swreg_init(cc);
