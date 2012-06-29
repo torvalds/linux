@@ -93,6 +93,11 @@ struct atmel_nand_host {
 
 	struct completion	comp;
 	struct dma_chan		*dma_chan;
+
+	bool			has_pmecc;
+	u8			pmecc_corr_cap;
+	u16			pmecc_sector_size;
+	u32			pmecc_lookup_table_offset;
 };
 
 static int cpu_has_dma(void)
@@ -481,7 +486,8 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 static int __devinit atmel_of_init_port(struct atmel_nand_host *host,
 					 struct device_node *np)
 {
-	u32 val;
+	u32 val, table_offset;
+	u32 offset[2];
 	int ecc_mode;
 	struct atmel_nand_data *board = &host->board;
 	enum of_gpio_flags flags;
@@ -516,6 +522,50 @@ static int __devinit atmel_of_init_port(struct atmel_nand_host *host,
 
 	board->enable_pin = of_get_gpio(np, 1);
 	board->det_pin = of_get_gpio(np, 2);
+
+	host->has_pmecc = of_property_read_bool(np, "atmel,has-pmecc");
+
+	if (!(board->ecc_mode == NAND_ECC_HW) || !host->has_pmecc)
+		return 0;	/* Not using PMECC */
+
+	/* use PMECC, get correction capability, sector size and lookup
+	 * table offset.
+	 */
+	if (of_property_read_u32(np, "atmel,pmecc-cap", &val) != 0) {
+		dev_err(host->dev, "Cannot decide PMECC Capability\n");
+		return -EINVAL;
+	} else if ((val != 2) && (val != 4) && (val != 8) && (val != 12) &&
+	    (val != 24)) {
+		dev_err(host->dev,
+			"Unsupported PMECC correction capability: %d; should be 2, 4, 8, 12 or 24\n",
+			val);
+		return -EINVAL;
+	}
+	host->pmecc_corr_cap = (u8)val;
+
+	if (of_property_read_u32(np, "atmel,pmecc-sector-size", &val) != 0) {
+		dev_err(host->dev, "Cannot decide PMECC Sector Size\n");
+		return -EINVAL;
+	} else if ((val != 512) && (val != 1024)) {
+		dev_err(host->dev,
+			"Unsupported PMECC sector size: %d; should be 512 or 1024 bytes\n",
+			val);
+		return -EINVAL;
+	}
+	host->pmecc_sector_size = (u16)val;
+
+	if (of_property_read_u32_array(np, "atmel,pmecc-lookup-table-offset",
+			offset, 2) != 0) {
+		dev_err(host->dev, "Cannot get PMECC lookup table offset\n");
+		return -EINVAL;
+	}
+	table_offset = host->pmecc_sector_size == 512 ? offset[0] : offset[1];
+
+	if (!table_offset) {
+		dev_err(host->dev, "Invalid PMECC lookup table offset\n");
+		return -EINVAL;
+	}
+	host->pmecc_lookup_table_offset = table_offset;
 
 	return 0;
 }
