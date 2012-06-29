@@ -297,6 +297,11 @@ static int udp_init_net(struct net *net, u_int16_t proto)
 	return ret;
 }
 
+static struct nf_proto_net *udp_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.udp.pn;
+}
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 __read_mostly =
 {
 	.l3proto		= PF_INET,
@@ -325,6 +330,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 __read_mostly =
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= udp_init_net,
+	.get_net_proto		= udp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp4);
 
@@ -356,5 +362,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 __read_mostly =
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= udp_init_net,
+	.get_net_proto		= udp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp6);

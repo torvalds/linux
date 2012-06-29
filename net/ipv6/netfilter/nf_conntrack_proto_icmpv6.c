@@ -358,6 +358,11 @@ static int icmpv6_init_net(struct net *net, u_int16_t proto)
 	return icmpv6_kmemdup_sysctl_table(pn, in);
 }
 
+static struct nf_proto_net *icmpv6_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.icmpv6.pn;
+}
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 {
 	.l3proto		= PF_INET6,
@@ -386,4 +391,5 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= icmpv6_init_net,
+	.get_net_proto		= icmpv6_get_net_proto,
 };

@@ -303,22 +303,12 @@ EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_unregister);
 static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
 					      struct nf_conntrack_l4proto *l4proto)
 {
-	switch (l4proto->l4proto) {
-	case IPPROTO_TCP:
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.tcp;
-	case IPPROTO_UDP:
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.udp;
-	case IPPROTO_ICMP:
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.icmp;
-	case IPPROTO_ICMPV6:
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.icmpv6;
-	case 255: /* l4proto_generic */
-		return (struct nf_proto_net *)&net->ct.nf_ct_proto.generic;
-	default:
-		if (l4proto->net_id)
-			return net_generic(net, *l4proto->net_id);
-		else
-			return NULL;
+	if (l4proto->get_net_proto) {
+		/* statically built-in protocols use static per-net */
+		return l4proto->get_net_proto(net);
+	} else if (l4proto->net_id) {
+		/* ... and loadable protocols use dynamic per-net */
+		return net_generic(net, *l4proto->net_id);
 	}
 	return NULL;
 }

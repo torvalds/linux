@@ -186,6 +186,11 @@ static int generic_init_net(struct net *net, u_int16_t proto)
 	return ret;
 }
 
+static struct nf_proto_net *generic_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.generic.pn;
+}
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 {
 	.l3proto		= PF_UNSPEC,
@@ -207,4 +212,5 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= generic_init_net,
+	.get_net_proto		= generic_get_net_proto,
 };

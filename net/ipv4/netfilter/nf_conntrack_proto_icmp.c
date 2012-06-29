@@ -388,6 +388,11 @@ static int icmp_init_net(struct net *net, u_int16_t proto)
 	return ret;
 }
 
+static struct nf_proto_net *icmp_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.icmp.pn;
+}
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 {
 	.l3proto		= PF_INET,
@@ -418,4 +423,5 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= icmp_init_net,
+	.get_net_proto		= icmp_get_net_proto,
 };
