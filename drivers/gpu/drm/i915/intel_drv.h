@@ -494,6 +494,7 @@ extern void intel_gpu_ips_teardown(void);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
 extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);
+extern void ironlake_teardown_rc6(struct drm_device *dev);
 
 extern void intel_ddi_dpms(struct drm_encoder *encoder, int mode);
 extern void intel_ddi_mode_set(struct drm_encoder *encoder,

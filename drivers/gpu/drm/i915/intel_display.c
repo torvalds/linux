@@ -7267,6 +7267,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_disable_gt_powersave(dev);
 
+	ironlake_teardown_rc6(dev);
+
 	if (IS_VALLEYVIEW(dev))
 		vlv_init_dpio(dev);
 

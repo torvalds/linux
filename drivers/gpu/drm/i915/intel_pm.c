@@ -2563,7 +2563,7 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 	}
 }
 
-static void ironlake_teardown_rc6(struct drm_device *dev)
+void ironlake_teardown_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -2580,7 +2580,7 @@ static void ironlake_teardown_rc6(struct drm_device *dev)
 	}
 }
 
-void ironlake_disable_rc6(struct drm_device *dev)
+static void ironlake_disable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -2596,8 +2596,6 @@ void ironlake_disable_rc6(struct drm_device *dev)
 		I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
 		POSTING_READ(RSTDBYCTL);
 	}
-
-	ironlake_teardown_rc6(dev);
 }
 
 static int ironlake_setup_rc6(struct drm_device *dev)
@@ -2619,7 +2617,7 @@ static int ironlake_setup_rc6(struct drm_device *dev)
 	return 0;
 }
 
-void ironlake_enable_rc6(struct drm_device *dev)
+static void ironlake_enable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
@@ -3241,10 +3239,12 @@ static void intel_init_emon(struct drm_device *dev)
 
 void intel_disable_gt_powersave(struct drm_device *dev)
 {
-	if (IS_IRONLAKE_M(dev))
+	if (IS_IRONLAKE_M(dev)) {
 		ironlake_disable_drps(dev);
-	else if (INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev))
+		ironlake_disable_rc6(dev);
+	} else if (INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev)) {
 		gen6_disable_rps(dev);
+	}
 }
 
 void intel_enable_gt_powersave(struct drm_device *dev)
