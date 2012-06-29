@@ -293,6 +293,13 @@ static int wm8994_suspend(struct device *dev)
 	if (ret != 0)
 		dev_err(dev, "Failed to restore GPIO registers: %d\n", ret);
 
+	/* In case one of the GPIOs is used as a wake input. */
+	ret = regcache_sync_region(wm8994->regmap,
+				   WM8994_INTERRUPT_STATUS_1_MASK,
+				   WM8994_INTERRUPT_STATUS_1_MASK);
+	if (ret != 0)
+		dev_err(dev, "Failed to restore interrupt mask: %d\n", ret);
+
 	regcache_cache_only(wm8994->regmap, true);
 	wm8994->suspended = true;
 
