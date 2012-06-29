@@ -158,6 +158,19 @@ struct reg_field {
 	u8 low;
 };
 
+struct dss_lcd_mgr_config {
+	enum dss_io_pad_mode io_pad_mode;
+
+	bool stallmode;
+	bool fifohandcheck;
+
+	struct dispc_clock_info clock_info;
+
+	int video_port_width;
+
+	int lcden_sig_polarity;
+};
+
 struct seq_file;
 struct platform_device;
 
@@ -194,6 +207,8 @@ int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 int dss_mgr_unset_device(struct omap_overlay_manager *mgr);
 void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		struct omap_video_timings *timings);
+void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+		const struct dss_lcd_mgr_config *config);
 const struct omap_video_timings *dss_mgr_get_timings(struct omap_overlay_manager *mgr);
 
 bool dss_ovl_is_enabled(struct omap_overlay *ovl);
@@ -216,8 +231,6 @@ void dss_init_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
 void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
-bool dss_use_replication(struct omap_dss_device *dssdev,
-		enum omap_color_mode mode);
 
 /* manager */
 int dss_init_overlay_managers(struct platform_device *pdev);
@@ -229,7 +242,17 @@ int dss_mgr_check_timings(struct omap_overlay_manager *mgr,
 int dss_mgr_check(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info,
 		const struct omap_video_timings *mgr_timings,
+		const struct dss_lcd_mgr_config *config,
 		struct omap_overlay_info **overlay_infos);
+
+static inline bool dss_mgr_is_lcd(enum omap_channel id)
+{
+	if (id == OMAP_DSS_CHANNEL_LCD || id == OMAP_DSS_CHANNEL_LCD2 ||
+			id == OMAP_DSS_CHANNEL_LCD3)
+		return true;
+	else
+		return false;
+}
 
 /* overlay */
 void dss_init_overlays(struct platform_device *pdev);
@@ -240,6 +263,8 @@ int dss_ovl_simple_check(struct omap_overlay *ovl,
 		const struct omap_overlay_info *info);
 int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 		const struct omap_video_timings *mgr_timings);
+bool dss_ovl_use_replication(struct dss_lcd_mgr_config config,
+		enum omap_color_mode mode);
 
 /* DSS */
 int dss_init_platform_driver(void) __init;
@@ -425,7 +450,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 unsigned long dispc_mgr_lclk_rate(enum omap_channel channel);
 unsigned long dispc_mgr_pclk_rate(enum omap_channel channel);
 unsigned long dispc_core_clk_rate(void);
-int dispc_mgr_set_clock_div(enum omap_channel channel,
+void dispc_mgr_set_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo);
 int dispc_mgr_get_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo);

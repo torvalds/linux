@@ -498,16 +498,6 @@ void dispc_runtime_put(void)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
-static inline bool dispc_mgr_is_lcd(enum omap_channel channel)
-{
-	if (channel == OMAP_DSS_CHANNEL_LCD ||
-			channel == OMAP_DSS_CHANNEL_LCD2 ||
-			channel == OMAP_DSS_CHANNEL_LCD3)
-		return true;
-	else
-		return false;
-}
-
 u32 dispc_mgr_get_vsync_irq(enum omap_channel channel)
 {
 	return mgr_desc[channel].vsync_irq;
@@ -1010,7 +1000,7 @@ static void dispc_mgr_set_cpr_coef(enum omap_channel channel,
 {
 	u32 coef_r, coef_g, coef_b;
 
-	if (!dispc_mgr_is_lcd(channel))
+	if (!dss_mgr_is_lcd(channel))
 		return;
 
 	coef_r = FLD_VAL(coefs->rr, 31, 22) | FLD_VAL(coefs->rg, 20, 11) |
@@ -1869,7 +1859,7 @@ static int check_horiz_timing_omap3(enum omap_channel channel,
 
 	nonactive = t->x_res + t->hfp + t->hsw + t->hbp - out_width;
 	pclk = dispc_mgr_pclk_rate(channel);
-	if (dispc_mgr_is_lcd(channel))
+	if (dss_mgr_is_lcd(channel))
 		lclk = dispc_mgr_lclk_rate(channel);
 	else
 		lclk = dispc_fclk_rate();
@@ -2452,7 +2442,7 @@ bool dispc_mgr_is_enabled(enum omap_channel channel)
 
 void dispc_mgr_enable(enum omap_channel channel, bool enable)
 {
-	if (dispc_mgr_is_lcd(channel))
+	if (dss_mgr_is_lcd(channel))
 		dispc_mgr_enable_lcd_out(channel, enable);
 	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
 		dispc_mgr_enable_digit_out(enable);
@@ -2642,7 +2632,7 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 
 	timings_ok = _dispc_mgr_size_ok(timings->x_res, timings->y_res);
 
-	if (dispc_mgr_is_lcd(channel))
+	if (dss_mgr_is_lcd(channel))
 		timings_ok =  timings_ok && _dispc_lcd_timings_ok(timings->hsw,
 						timings->hfp, timings->hbp,
 						timings->vsw, timings->vfp,
@@ -2734,7 +2724,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 		return;
 	}
 
-	if (dispc_mgr_is_lcd(channel)) {
+	if (dss_mgr_is_lcd(channel)) {
 		_dispc_mgr_set_lcd_timings(channel, t.hsw, t.hfp, t.hbp, t.vsw,
 				t.vfp, t.vbp, t.vsync_level, t.hsync_level,
 				t.data_pclk_edge, t.de_level, t.sync_pclk_edge);
@@ -2840,7 +2830,7 @@ unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 {
 	unsigned long r;
 
-	if (dispc_mgr_is_lcd(channel)) {
+	if (dss_mgr_is_lcd(channel)) {
 		int pcd;
 		u32 l;
 
@@ -3224,15 +3214,13 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 	return 0;
 }
 
-int dispc_mgr_set_clock_div(enum omap_channel channel,
+void dispc_mgr_set_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo)
 {
 	DSSDBG("lck = %lu (%u)\n", cinfo->lck, cinfo->lck_div);
 	DSSDBG("pck = %lu (%u)\n", cinfo->pck, cinfo->pck_div);
 
 	dispc_mgr_set_lcd_divisor(channel, cinfo->lck_div, cinfo->pck_div);
-
-	return 0;
 }
 
 int dispc_mgr_get_clock_div(enum omap_channel channel,

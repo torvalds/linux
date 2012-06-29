@@ -316,40 +316,6 @@ void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_default_get_timings);
 
-/* Checks if replication logic should be used. Only use for active matrix,
- * when overlay is in RGB12U or RGB16 mode, and LCD interface is
- * 18bpp or 24bpp */
-bool dss_use_replication(struct omap_dss_device *dssdev,
-		enum omap_color_mode mode)
-{
-	int bpp;
-
-	if (mode != OMAP_DSS_COLOR_RGB12U && mode != OMAP_DSS_COLOR_RGB16)
-		return false;
-
-	switch (dssdev->type) {
-	case OMAP_DISPLAY_TYPE_DPI:
-		bpp = dssdev->phy.dpi.data_lines;
-		break;
-	case OMAP_DISPLAY_TYPE_HDMI:
-	case OMAP_DISPLAY_TYPE_VENC:
-	case OMAP_DISPLAY_TYPE_SDI:
-		bpp = 24;
-		break;
-	case OMAP_DISPLAY_TYPE_DBI:
-		bpp = dssdev->ctrl.pixel_size;
-		break;
-	case OMAP_DISPLAY_TYPE_DSI:
-		bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
-		break;
-	default:
-		BUG();
-		return false;
-	}
-
-	return bpp > 16;
-}
-
 void dss_init_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev)
 {
