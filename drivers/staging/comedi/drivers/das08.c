@@ -433,13 +433,14 @@ das08ao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-static void i8254_initialize(struct i8254_struct *st)
+static void i8254_initialize(struct comedi_device *dev)
 {
+	struct das08_private_struct *devpriv = dev->private;
 	unsigned int mode = I8254_MODE0 | I8254_BINARY;
 	int i;
 
 	for (i = 0; i < 3; ++i)
-		i8254_set_mode(st->iobase, 0, i, mode);
+		i8254_set_mode(devpriv->i8254_iobase, 0, i, mode);
 }
 
 static int das08_counter_read(struct comedi_device *dev,
@@ -447,10 +448,9 @@ static int das08_counter_read(struct comedi_device *dev,
 			      struct comedi_insn *insn, unsigned int *data)
 {
 	struct das08_private_struct *devpriv = dev->private;
-	struct i8254_struct *st = &devpriv->i8254;
 	int chan = insn->chanspec;
 
-	data[0] = i8254_read(st->iobase, 0, chan);
+	data[0] = i8254_read(devpriv->i8254_iobase, 0, chan);
 	return 1;
 }
 
@@ -459,10 +459,9 @@ static int das08_counter_write(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	struct das08_private_struct *devpriv = dev->private;
-	struct i8254_struct *st = &devpriv->i8254;
 	int chan = insn->chanspec;
 
-	i8254_write(st->iobase, 0, chan, data[0]);
+	i8254_write(devpriv->i8254_iobase, 0, chan, data[0]);
 	return 1;
 }
 
@@ -471,7 +470,6 @@ static int das08_counter_config(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	struct das08_private_struct *devpriv = dev->private;
-	struct i8254_struct *st = &devpriv->i8254;
 	int chan = insn->chanspec;
 
 	if (insn->n != 2)
@@ -479,10 +477,10 @@ static int das08_counter_config(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		i8254_set_mode(st->iobase, 0, chan, data[1]);
+		i8254_set_mode(devpriv->i8254_iobase, 0, chan, data[1]);
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
-		data[1] = i8254_status(st->iobase, 0, chan);
+		data[1] = i8254_status(devpriv->i8254_iobase, 0, chan);
 		break;
 	default:
 		return -EINVAL;
@@ -846,9 +844,9 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->insn_read = das08_counter_read;
 		s->insn_write = das08_counter_write;
 		s->insn_config = das08_counter_config;
-		/* Set-up the 8254 structure */
-		devpriv->i8254.iobase = iobase + thisboard->i8254_offset;
-		i8254_initialize(&devpriv->i8254);
+
+		devpriv->i8254_iobase = iobase + thisboard->i8254_offset;
+		i8254_initialize(dev);
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
