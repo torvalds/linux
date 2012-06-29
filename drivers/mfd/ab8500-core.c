@@ -1232,6 +1232,15 @@ static struct attribute_group ab9540_attr_group = {
 
 static int __devinit ab8500_probe(struct platform_device *pdev)
 {
+	static char *switch_off_status[] = {
+		"Swoff bit programming",
+		"Thermal protection activation",
+		"Vbat lower then BattOk falling threshold",
+		"Watchdog expired",
+		"Non presence of 32kHz clock",
+		"Battery level lower than power on reset threshold",
+		"Power on key 1 pressed longer than 10 seconds",
+		"DB8500 thermal shutdown"};
 	struct ab8500_platform_data *plat = dev_get_platdata(&pdev->dev);
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	enum ab8500_version version = AB8500_VERSION_UNDEFINED;
@@ -1327,7 +1336,20 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 		AB8500_SWITCH_OFF_STATUS, &value);
 	if (ret < 0)
 		return ret;
-	dev_info(ab8500->dev, "switch off status: %#x\n", value);
+	dev_info(ab8500->dev, "switch off cause(s) (%#x): ", value);
+
+	if (value) {
+		for (i = 0; i < ARRAY_SIZE(switch_off_status); i++) {
+			if (value & 1)
+				printk(KERN_CONT " \"%s\"",
+				       switch_off_status[i]);
+			value = value >> 1;
+
+		}
+		printk(KERN_CONT "\n");
+	} else {
+		printk(KERN_CONT " None\n");
+	}
 
 	if (plat && plat->init)
 		plat->init(ab8500);
