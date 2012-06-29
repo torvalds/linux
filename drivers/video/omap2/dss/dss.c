@@ -388,7 +388,8 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 		dsi_wait_pll_hsdiv_dispc_active(dsidev);
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
-		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD2);
+		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD2 &&
+		       channel != OMAP_DSS_CHANNEL_LCD3);
 		b = 1;
 		dsidev = dsi_get_dsidev_from_id(1);
 		dsi_wait_pll_hsdiv_dispc_active(dsidev);
@@ -398,10 +399,12 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 		return;
 	}
 
-	pos = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 12;
+	pos = channel == OMAP_DSS_CHANNEL_LCD ? 0 :
+	     (channel == OMAP_DSS_CHANNEL_LCD2 ? 12 : 19);
 	REG_FLD_MOD(DSS_CONTROL, b, pos, pos);	/* LCDx_CLK_SWITCH */
 
-	ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 1;
+	ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 :
+	    (channel == OMAP_DSS_CHANNEL_LCD2 ? 1 : 2);
 	dss.lcd_clk_source[ix] = clk_src;
 }
 
@@ -418,7 +421,8 @@ enum omap_dss_clk_source dss_get_dsi_clk_source(int dsi_module)
 enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
 {
 	if (dss_has_feature(FEAT_LCD_CLK_SRC)) {
-		int ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 : 1;
+		int ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 :
+			(channel == OMAP_DSS_CHANNEL_LCD2 ? 1 : 2);
 		return dss.lcd_clk_source[ix];
 	} else {
 		/* LCD_CLK source is the same as DISPC_FCLK source for

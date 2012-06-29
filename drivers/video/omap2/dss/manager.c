@@ -541,6 +541,10 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			mgr->name = "lcd2";
 			mgr->id = OMAP_DSS_CHANNEL_LCD2;
 			break;
+		case 3:
+			mgr->name = "lcd3";
+			mgr->id = OMAP_DSS_CHANNEL_LCD3;
+			break;
 		}
 
 		mgr->set_device = &dss_mgr_set_device;

@@ -528,14 +528,24 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 	struct omap_overlay_manager *lcd_mgr;
 	struct omap_overlay_manager *tv_mgr;
 	struct omap_overlay_manager *lcd2_mgr = NULL;
+	struct omap_overlay_manager *lcd3_mgr = NULL;
 	struct omap_overlay_manager *mgr = NULL;
 
 	lcd_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_LCD);
 	tv_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_DIGIT);
+	if (dss_has_feature(FEAT_MGR_LCD3))
+		lcd3_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_LCD3);
 	if (dss_has_feature(FEAT_MGR_LCD2))
 		lcd2_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_LCD2);
 
-	if (dssdev->channel == OMAP_DSS_CHANNEL_LCD2) {
+	if (dssdev->channel == OMAP_DSS_CHANNEL_LCD3) {
+		if (!lcd3_mgr->device || force) {
+			if (lcd3_mgr->device)
+				lcd3_mgr->unset_device(lcd3_mgr);
+			lcd3_mgr->set_device(lcd3_mgr, dssdev);
+			mgr = lcd3_mgr;
+		}
+	} else if (dssdev->channel == OMAP_DSS_CHANNEL_LCD2) {
 		if (!lcd2_mgr->device || force) {
 			if (lcd2_mgr->device)
 				lcd2_mgr->unset_device(lcd2_mgr);

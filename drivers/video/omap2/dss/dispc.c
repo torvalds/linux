@@ -191,6 +191,23 @@ static const struct {
 			[DISPC_MGR_FLD_FIFOHANDCHECK]	= { DISPC_CONFIG2,  16, 16 },
 		},
 	},
+	[OMAP_DSS_CHANNEL_LCD3] = {
+		.name		= "LCD3",
+		.vsync_irq	= DISPC_IRQ_VSYNC3,
+		.framedone_irq	= DISPC_IRQ_FRAMEDONE3,
+		.sync_lost_irq	= DISPC_IRQ_SYNC_LOST3,
+		.reg_desc	= {
+			[DISPC_MGR_FLD_ENABLE]		= { DISPC_CONTROL3,  0,  0 },
+			[DISPC_MGR_FLD_STNTFT]		= { DISPC_CONTROL3,  3,  3 },
+			[DISPC_MGR_FLD_GO]		= { DISPC_CONTROL3,  5,  5 },
+			[DISPC_MGR_FLD_TFTDATALINES]	= { DISPC_CONTROL3,  9,  8 },
+			[DISPC_MGR_FLD_STALLMODE]	= { DISPC_CONTROL3, 11, 11 },
+			[DISPC_MGR_FLD_TCKENABLE]	= { DISPC_CONFIG3,  10, 10 },
+			[DISPC_MGR_FLD_TCKSELECTION]	= { DISPC_CONFIG3,  11, 11 },
+			[DISPC_MGR_FLD_CPR]		= { DISPC_CONFIG3,  15, 15 },
+			[DISPC_MGR_FLD_FIFOHANDCHECK]	= { DISPC_CONFIG3,  16, 16 },
+		},
+	},
 };
 
 static void _omap_dispc_set_irqs(void);
@@ -238,6 +255,10 @@ static void dispc_save_context(void)
 	if (dss_has_feature(FEAT_MGR_LCD2)) {
 		SR(CONTROL2);
 		SR(CONFIG2);
+	}
+	if (dss_has_feature(FEAT_MGR_LCD3)) {
+		SR(CONTROL3);
+		SR(CONFIG3);
 	}
 
 	for (i = 0; i < dss_feat_get_num_mgrs(); i++) {
@@ -352,6 +373,8 @@ static void dispc_restore_context(void)
 		RR(GLOBAL_ALPHA);
 	if (dss_has_feature(FEAT_MGR_LCD2))
 		RR(CONFIG2);
+	if (dss_has_feature(FEAT_MGR_LCD3))
+		RR(CONFIG3);
 
 	for (i = 0; i < dss_feat_get_num_mgrs(); i++) {
 		RR(DEFAULT_COLOR(i));
@@ -437,6 +460,8 @@ static void dispc_restore_context(void)
 	RR(CONTROL);
 	if (dss_has_feature(FEAT_MGR_LCD2))
 		RR(CONTROL2);
+	if (dss_has_feature(FEAT_MGR_LCD3))
+		RR(CONTROL3);
 	/* clear spurious SYNC_LOST_DIGIT interrupts */
 	dispc_write_reg(DISPC_IRQSTATUS, DISPC_IRQ_SYNC_LOST_DIGIT);
 
@@ -476,7 +501,8 @@ void dispc_runtime_put(void)
 static inline bool dispc_mgr_is_lcd(enum omap_channel channel)
 {
 	if (channel == OMAP_DSS_CHANNEL_LCD ||
-			channel == OMAP_DSS_CHANNEL_LCD2)
+			channel == OMAP_DSS_CHANNEL_LCD2 ||
+			channel == OMAP_DSS_CHANNEL_LCD3)
 		return true;
 	else
 		return false;
@@ -867,6 +893,15 @@ void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 			chan = 0;
 			chan2 = 1;
 			break;
+		case OMAP_DSS_CHANNEL_LCD3:
+			if (dss_has_feature(FEAT_MGR_LCD3)) {
+				chan = 0;
+				chan2 = 2;
+			} else {
+				BUG();
+				return;
+			}
+			break;
 		default:
 			BUG();
 			return;
@@ -902,7 +937,14 @@ static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane plane)
 
 	val = dispc_read_reg(DISPC_OVL_ATTRIBUTES(plane));
 
-	if (dss_has_feature(FEAT_MGR_LCD2)) {
+	if (dss_has_feature(FEAT_MGR_LCD3)) {
+		if (FLD_GET(val, 31, 30) == 0)
+			channel = FLD_GET(val, shift, shift);
+		else if (FLD_GET(val, 31, 30) == 1)
+			channel = OMAP_DSS_CHANNEL_LCD2;
+		else
+			channel = OMAP_DSS_CHANNEL_LCD3;
+	} else if (dss_has_feature(FEAT_MGR_LCD2)) {
 		if (FLD_GET(val, 31, 30) == 0)
 			channel = FLD_GET(val, shift, shift);
 		else
@@ -3587,6 +3629,8 @@ static void _omap_dispc_initialize_irq(void)
 	dispc.irq_error_mask = DISPC_IRQ_MASK_ERROR;
 	if (dss_has_feature(FEAT_MGR_LCD2))
 		dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST2;
+	if (dss_has_feature(FEAT_MGR_LCD3))
+		dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST3;
 	if (dss_feat_get_num_ovls() > 3)
 		dispc.irq_error_mask |= DISPC_IRQ_VID3_FIFO_UNDERFLOW;
 
