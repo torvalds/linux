@@ -435,10 +435,11 @@ das08ao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static void i8254_initialize(struct i8254_struct *st)
 {
+	unsigned int mode = I8254_MODE0 | I8254_BINARY;
 	int i;
 
 	for (i = 0; i < 3; ++i)
-		i8254_set_mode(st->iobase, 0, i, st->mode[i]);
+		i8254_set_mode(st->iobase, 0, i, mode);
 }
 
 static int das08_counter_read(struct comedi_device *dev,
@@ -478,7 +479,6 @@ static int das08_counter_config(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		st->mode[chan] = data[1];
 		i8254_set_mode(st->iobase, 0, chan, data[1]);
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
@@ -852,9 +852,6 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		devpriv->i8254.logic2phys[1] = 1;
 		devpriv->i8254.logic2phys[2] = 2;
 		devpriv->i8254.iobase = iobase + thisboard->i8254_offset;
-		devpriv->i8254.mode[0] =
-		    devpriv->i8254.mode[1] =
-		    devpriv->i8254.mode[2] = I8254_MODE0 | I8254_BINARY;
 		i8254_initialize(&devpriv->i8254);
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
