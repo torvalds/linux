@@ -717,6 +717,35 @@ static struct device_type wiphy_type = {
 	.name	= "wlan",
 };
 
+static struct ieee80211_channel *
+cfg80211_get_any_chan(struct cfg80211_registered_device *rdev)
+{
+	struct ieee80211_supported_band *sband;
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+		sband = rdev->wiphy.bands[i];
+		if (sband && sband->n_channels > 0)
+			return &sband->channels[0];
+	}
+
+	return NULL;
+}
+
+static void cfg80211_init_mon_chan(struct cfg80211_registered_device *rdev)
+{
+	struct ieee80211_channel *chan;
+
+	chan = cfg80211_get_any_chan(rdev);
+	if (WARN_ON(!chan))
+		return;
+
+	mutex_lock(&rdev->devlist_mtx);
+	WARN_ON(cfg80211_set_monitor_channel(rdev, chan->center_freq,
+					     NL80211_CHAN_NO_HT));
+	mutex_unlock(&rdev->devlist_mtx);
+}
+
 void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype, int num)
 {
@@ -737,6 +766,8 @@ void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 		if (!has_monitors_only_new) {
 			rdev->monitor_channel = NULL;
 			rdev->monitor_channel_type = NL80211_CHAN_NO_HT;
+		} else {
+			cfg80211_init_mon_chan(rdev);
 		}
 	}
 }
