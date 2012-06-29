@@ -394,7 +394,8 @@ struct rcu_state {
 
 	/* End of fields guarded by root rcu_node's lock. */
 
-	raw_spinlock_t onofflock;		/* exclude on/offline and */
+	raw_spinlock_t onofflock ____cacheline_internodealigned_in_smp;
+						/* exclude on/offline and */
 						/*  starting new GP. */
 	struct rcu_head *orphan_nxtlist;	/* Orphaned callbacks that */
 						/*  need a grace period. */
