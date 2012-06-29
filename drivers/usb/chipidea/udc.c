@@ -1648,9 +1648,6 @@ static int udc_start(struct ci13xxx *udc)
 	struct device *dev = udc->dev;
 	int retval = 0;
 
-	if (!udc)
-		return -EINVAL;
-
 	spin_lock_init(&udc->lock);
 
 	udc->gadget.ops          = &usb_gadget_ops;
