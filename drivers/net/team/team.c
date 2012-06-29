@@ -1188,10 +1188,11 @@ static int team_set_mac_address(struct net_device *dev, void *p)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
-	struct sockaddr *addr = p;
+	int err;
 
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	err = eth_mac_addr(dev, p);
+	if (err)
+		return err;
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list)
 		if (team->ops.port_change_mac)
@@ -1393,7 +1394,7 @@ static void team_setup(struct net_device *dev)
 	 * bring us to promisc mode in case a unicast addr is added.
 	 * Let this up to underlay drivers.
 	 */
-	dev->priv_flags |= IFF_UNICAST_FLT;
+	dev->priv_flags |= IFF_UNICAST_FLT | IFF_LIVE_ADDR_CHANGE;
 
 	dev->features |= NETIF_F_LLTX;
 	dev->features |= NETIF_F_GRO;
