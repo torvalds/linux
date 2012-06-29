@@ -214,6 +214,38 @@ mwifiex_update_uap_custom_ie(struct mwifiex_private *priv,
 	return ret;
 }
 
+/* This function checks if WPS IE is present in passed buffer and copies it to
+ * mwifiex_ie structure.
+ * Function takes pointer to struct mwifiex_ie pointer as argument.
+ * If WPS IE is present memory is allocated for mwifiex_ie pointer and filled
+ * in with WPS IE. Caller should take care of freeing this memory.
+ */
+static int mwifiex_update_wps_ie(const u8 *ies, int ies_len,
+				 struct mwifiex_ie **ie_ptr, u16 mask)
+{
+	struct ieee_types_header *wps_ie;
+	struct mwifiex_ie *ie = NULL;
+	const u8 *vendor_ie;
+
+	vendor_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					    WLAN_OUI_TYPE_MICROSOFT_WPS,
+					    ies, ies_len);
+	if (vendor_ie) {
+		ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
+		if (!ie)
+			return -ENOMEM;
+
+		wps_ie = (struct ieee_types_header *)vendor_ie;
+		memcpy(ie->ie_buffer, wps_ie, wps_ie->len + 2);
+		ie->ie_length = cpu_to_le16(wps_ie->len + 2);
+		ie->mgmt_subtype_mask = cpu_to_le16(mask);
+		ie->ie_index = cpu_to_le16(MWIFIEX_AUTO_IDX_MASK);
+	}
+
+	*ie_ptr = ie;
+	return 0;
+}
+
 /* This function parses beacon IEs, probe response IEs, association response IEs
  * from cfg80211_ap_settings->beacon and sets these IE to FW.
  */
@@ -225,48 +257,20 @@ static int mwifiex_set_mgmt_beacon_data_ies(struct mwifiex_private *priv,
 	u16 ar_idx = MWIFIEX_AUTO_IDX_MASK;
 	int ret = 0;
 
-	if (data->beacon_ies && data->beacon_ies_len) {
-		beacon_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
-		if (!beacon_ie) {
-			ret = -ENOMEM;
-			goto done;
-		}
+	if (data->beacon_ies && data->beacon_ies_len)
+		mwifiex_update_wps_ie(data->beacon_ies, data->beacon_ies_len,
+				      &beacon_ie, MGMT_MASK_BEACON);
 
-		beacon_ie->ie_index = cpu_to_le16(beacon_idx);
-		beacon_ie->mgmt_subtype_mask = cpu_to_le16(MGMT_MASK_BEACON);
-		beacon_ie->ie_length = cpu_to_le16(data->beacon_ies_len);
-		memcpy(beacon_ie->ie_buffer, data->beacon_ies,
-		       data->beacon_ies_len);
-	}
+	if (data->proberesp_ies && data->proberesp_ies_len)
+		mwifiex_update_wps_ie(data->proberesp_ies,
+				      data->proberesp_ies_len, &pr_ie,
+				      MGMT_MASK_PROBE_RESP);
 
-	if (data->proberesp_ies && data->proberesp_ies_len) {
-		pr_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
-		if (!pr_ie) {
-			ret = -ENOMEM;
-			goto done;
-		}
-
-		pr_ie->ie_index = cpu_to_le16(pr_idx);
-		pr_ie->mgmt_subtype_mask = cpu_to_le16(MGMT_MASK_PROBE_RESP);
-		pr_ie->ie_length = cpu_to_le16(data->proberesp_ies_len);
-		memcpy(pr_ie->ie_buffer, data->proberesp_ies,
-		       data->proberesp_ies_len);
-	}
-
-	if (data->assocresp_ies && data->assocresp_ies_len) {
-		ar_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
-		if (!ar_ie) {
-			ret = -ENOMEM;
-			goto done;
-		}
-
-		ar_ie->ie_index = cpu_to_le16(ar_idx);
-		ar_ie->mgmt_subtype_mask = cpu_to_le16(MGMT_MASK_ASSOC_RESP |
-						       MGMT_MASK_REASSOC_RESP);
-		ar_ie->ie_length = cpu_to_le16(data->assocresp_ies_len);
-		memcpy(ar_ie->ie_buffer, data->assocresp_ies,
-		       data->assocresp_ies_len);
-	}
+	if (data->assocresp_ies && data->assocresp_ies_len)
+		mwifiex_update_wps_ie(data->assocresp_ies,
+				      data->assocresp_ies_len, &ar_ie,
+				      MGMT_MASK_ASSOC_RESP |
+				      MGMT_MASK_REASSOC_RESP);
 
 	if (beacon_ie || pr_ie || ar_ie) {
 		ret = mwifiex_update_uap_custom_ie(priv, beacon_ie,
