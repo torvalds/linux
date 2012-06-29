@@ -158,6 +158,19 @@ struct reg_field {
 	u8 low;
 };
 
+struct dss_lcd_mgr_config {
+	enum dss_io_pad_mode io_pad_mode;
+
+	bool stallmode;
+	bool fifohandcheck;
+
+	struct dispc_clock_info clock_info;
+
+	int video_port_width;
+
+	int lcden_sig_polarity;
+};
+
 struct seq_file;
 struct platform_device;
 
