@@ -235,6 +235,11 @@ extern int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 			       u8 tos, int oif, struct net_device *dev,
 			       struct in_device *idev, u32 *itag);
 extern void fib_select_default(struct fib_result *res);
+#ifdef CONFIG_IP_ROUTE_CLASSID
+extern int fib_num_tclassid_users;
+#else
+#define fib_num_tclassid_users 0
+#endif
 
 /* Exported by fib_semantics.c */
 extern int ip_fib_check_default(__be32 gw, struct net_device *dev);

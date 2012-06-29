@@ -169,8 +169,11 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		rule4->dst = nla_get_be32(tb[FRA_DST]);
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
-	if (tb[FRA_FLOW])
+	if (tb[FRA_FLOW]) {
 		rule4->tclassid = nla_get_u32(tb[FRA_FLOW]);
+		if (rule4->tclassid)
+			fib_num_tclassid_users++;
+	}
 #endif
 
 	rule4->src_len = frh->src_len;
@@ -182,6 +185,16 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	err = 0;
 errout:
 	return err;
+}
+
+static void fib4_rule_delete(struct fib_rule *rule)
+{
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	struct fib4_rule *rule4 = (struct fib4_rule *) rule;
+
+	if (rule4->tclassid)
+		fib_num_tclassid_users--;
+#endif
 }
 
 static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
@@ -256,6 +269,7 @@ static const struct fib_rules_ops __net_initdata fib4_rules_ops_template = {
 	.action		= fib4_rule_action,
 	.match		= fib4_rule_match,
 	.configure	= fib4_rule_configure,
+	.delete		= fib4_rule_delete,
 	.compare	= fib4_rule_compare,
 	.fill		= fib4_rule_fill,
 	.default_pref	= fib_default_rule_pref,

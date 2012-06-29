@@ -31,6 +31,7 @@
 #include <linux/if_addr.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
+#include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -217,6 +218,10 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 	return inet_select_addr(dev, ip_hdr(skb)->saddr, scope);
 }
 
+#ifdef CONFIG_IP_ROUTE_CLASSID
+int fib_num_tclassid_users __read_mostly;
+#endif
+
 /* Given (packet source, input interface) and optional (dst, oif, tos):
  * - (main) check, that source is valid i.e. not broadcast or our local
  *   address.
@@ -225,11 +230,11 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
  * - check, that packet arrived from expected physical interface.
  * called with rcu_read_lock()
  */
-int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
-			int oif, struct net_device *dev, struct in_device *idev,
-			u32 *itag)
+static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
+				 u8 tos, int oif, struct net_device *dev,
+				 int rpf, struct in_device *idev, u32 *itag)
 {
-	int ret, no_addr, rpf, accept_local;
+	int ret, no_addr, accept_local;
 	struct fib_result res;
 	struct flowi4 fl4;
 	struct net *net;
@@ -242,11 +247,8 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
 	fl4.flowi4_tos = tos;
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 
-	no_addr = rpf = accept_local = 0;
+	no_addr = accept_local = 0;
 	no_addr = idev->ifa_list == NULL;
-
-	/* Ignore rp_filter for packets protected by IPsec. */
-	rpf = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
 
 	accept_local = IN_DEV_ACCEPT_LOCAL(idev);
 	fl4.flowi4_mark = IN_DEV_SRC_VMARK(idev) ? skb->mark : 0;
@@ -301,6 +303,20 @@ e_inval:
 	return -EINVAL;
 e_rpf:
 	return -EXDEV;
+}
+
+/* Ignore rp_filter for packets protected by IPsec. */
+int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
+			u8 tos, int oif, struct net_device *dev,
+			struct in_device *idev, u32 *itag)
+{
+	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
+
+	if (!r && !fib_num_tclassid_users) {
+		*itag = 0;
+		return 0;
+	}
+	return __fib_validate_source(skb, src, dst, tos, oif, dev, r, idev, itag);
 }
 
 static inline __be32 sk_extract_addr(struct sockaddr *addr)
