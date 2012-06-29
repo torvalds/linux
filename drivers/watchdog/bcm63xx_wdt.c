@@ -302,7 +302,7 @@ static void bcm63xx_wdt_shutdown(struct platform_device *pdev)
 	bcm63xx_wdt_pause();
 }
 
-static struct platform_driver bcm63xx_wdt = {
+static struct platform_driver bcm63xx_wdt_driver = {
 	.probe	= bcm63xx_wdt_probe,
 	.remove = __devexit_p(bcm63xx_wdt_remove),
 	.shutdown = bcm63xx_wdt_shutdown,
@@ -312,7 +312,7 @@ static struct platform_driver bcm63xx_wdt = {
 	}
 };
 
-module_platform_driver(bcm63xx_wdt);
+module_platform_driver(bcm63xx_wdt_driver);
 
 MODULE_AUTHOR("Miguel Gaio <miguel.gaio@efixo.com>");
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
