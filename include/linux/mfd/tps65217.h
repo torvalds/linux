@@ -227,8 +227,6 @@ struct tps65217_board {
  * @max_uV:		minimum micro volts
  * @vsel_to_uv:		Function pointer to get voltage from selector
  * @uv_to_vsel:		Function pointer to get selector from voltage
- * @table:		Table for non-uniform voltage step-size
- * @table_len:		Length of the voltage table
  *
  * This data is used to check the regualtor voltage limits while setting.
  */
@@ -238,8 +236,6 @@ struct tps_info {
 	int max_uV;
 	int (*vsel_to_uv)(unsigned int vsel);
 	int (*uv_to_vsel)(int uV, unsigned int *vsel);
-	const int *table;
-	unsigned int table_len;
 };
 
 /**
