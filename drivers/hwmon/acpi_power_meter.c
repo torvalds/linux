@@ -929,19 +929,24 @@ static int acpi_power_meter_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_power_meter_resume(struct acpi_device *device)
+static int acpi_power_meter_resume(struct device *dev)
 {
 	struct acpi_power_meter_resource *resource;
 
-	if (!device || !acpi_driver_data(device))
+	if (!dev)
 		return -EINVAL;
 
-	resource = acpi_driver_data(device);
+	resource = acpi_driver_data(to_acpi_device(dev));
+	if (!resource)
+		return -EINVAL;
+
 	free_capabilities(resource);
 	read_capabilities(resource);
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(acpi_power_meter_pm, NULL, acpi_power_meter_resume);
 
 static struct acpi_driver acpi_power_meter_driver = {
 	.name = "power_meter",
@@ -950,9 +955,9 @@ static struct acpi_driver acpi_power_meter_driver = {
 	.ops = {
 		.add = acpi_power_meter_add,
 		.remove = acpi_power_meter_remove,
-		.resume = acpi_power_meter_resume,
 		.notify = acpi_power_meter_notify,
 		},
+	.drv.pm = &acpi_power_meter_pm,
 };
 
 /* Module init/exit routines */
