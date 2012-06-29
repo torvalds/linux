@@ -71,7 +71,7 @@ static void __init clk_misc_init(void)
 	__mxs_setl(30 << BP_FRAC_IOFRAC, FRAC);
 }
 
-static struct clk_lookup uart_lookups[] __initdata = {
+static struct clk_lookup uart_lookups[] = {
 	{ .dev_id = "duart", },
 	{ .dev_id = "mxs-auart.0", },
 	{ .dev_id = "mxs-auart.1", },
@@ -80,31 +80,31 @@ static struct clk_lookup uart_lookups[] __initdata = {
 	{ .dev_id = "80070000.serial", },
 };
 
-static struct clk_lookup hbus_lookups[] __initdata = {
+static struct clk_lookup hbus_lookups[] = {
 	{ .dev_id = "imx23-dma-apbh", },
 	{ .dev_id = "80004000.dma-apbh", },
 };
 
-static struct clk_lookup xbus_lookups[] __initdata = {
+static struct clk_lookup xbus_lookups[] = {
 	{ .dev_id = "duart", .con_id = "apb_pclk"},
 	{ .dev_id = "80070000.serial", .con_id = "apb_pclk"},
 	{ .dev_id = "imx23-dma-apbx", },
 	{ .dev_id = "80024000.dma-apbx", },
 };
 
-static struct clk_lookup ssp_lookups[] __initdata = {
+static struct clk_lookup ssp_lookups[] = {
 	{ .dev_id = "imx23-mmc.0", },
 	{ .dev_id = "imx23-mmc.1", },
 	{ .dev_id = "80010000.ssp", },
 	{ .dev_id = "80034000.ssp", },
 };
 
-static struct clk_lookup lcdif_lookups[] __initdata = {
+static struct clk_lookup lcdif_lookups[] = {
 	{ .dev_id = "imx23-fb", },
 	{ .dev_id = "80030000.lcdif", },
 };
 
-static struct clk_lookup gpmi_lookups[] __initdata = {
+static struct clk_lookup gpmi_lookups[] = {
 	{ .dev_id = "imx23-gpmi-nand", },
 	{ .dev_id = "8000c000.gpmi", },
 };

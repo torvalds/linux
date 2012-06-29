@@ -292,6 +292,6 @@ static struct i2c_driver ltc4261_driver = {
 
 module_i2c_driver(ltc4261_driver);
 
-MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
+MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("LTC4261 driver");
 MODULE_LICENSE("GPL");

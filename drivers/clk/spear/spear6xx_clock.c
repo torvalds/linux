@@ -2,7 +2,7 @@
  * SPEAr6xx machines clock framework source file
  *
  * Copyright (C) 2012 ST Microelectronics
- * Viresh Kumar <viresh.kumar@st.com>
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -298,7 +298,7 @@ void __init spear6xx_clk_init(void)
 
 	clk = clk_register_gate(NULL, "gmac_clk", "ahb_clk", 0, PERIP1_CLK_ENB,
 			GMAC_CLK_ENB, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "gmac");
+	clk_register_clkdev(clk, NULL, "e0800000.ethernet");
 
 	clk = clk_register_gate(NULL, "i2c_clk", "ahb_clk", 0, PERIP1_CLK_ENB,
 			I2C_CLK_ENB, 0, &_lock);

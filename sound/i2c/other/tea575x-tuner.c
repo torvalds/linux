@@ -37,8 +37,8 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of TEA5757/5759 Philips AM/FM radio tuner chips");
 MODULE_LICENSE("GPL");
 
-#define FREQ_LO		 (76U * 16000)
-#define FREQ_HI		(108U * 16000)
+#define FREQ_LO		((tea->tea5759 ? 760 :  875) * 1600U)
+#define FREQ_HI		((tea->tea5759 ? 910 : 1080) * 1600U)
 
 /*
  * definitions
@@ -120,9 +120,9 @@ static u32 snd_tea575x_read(struct snd_tea575x *tea)
 	return data;
 }
 
-static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
+static u32 snd_tea575x_val_to_freq(struct snd_tea575x *tea, u32 val)
 {
-	u32 freq = snd_tea575x_read(tea) & TEA575X_BIT_FREQ_MASK;
+	u32 freq = val & TEA575X_BIT_FREQ_MASK;
 
 	if (freq == 0)
 		return freq;
@@ -137,6 +137,11 @@ static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
 		freq -= TEA575X_FMIF;
 
 	return clamp(freq * 16, FREQ_LO, FREQ_HI); /* from kHz */
+}
+
+static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
+{
+	return snd_tea575x_val_to_freq(tea, snd_tea575x_read(tea));
 }
 
 static void snd_tea575x_set_freq(struct snd_tea575x *tea)
@@ -156,6 +161,7 @@ static void snd_tea575x_set_freq(struct snd_tea575x *tea)
 	tea->val &= ~TEA575X_BIT_FREQ_MASK;
 	tea->val |= freq & TEA575X_BIT_FREQ_MASK;
 	snd_tea575x_write(tea, tea->val);
+	tea->freq = snd_tea575x_val_to_freq(tea, tea->val);
 }
 
 /*
@@ -317,7 +323,6 @@ static int tea575x_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static const struct v4l2_file_operations tea575x_fops = {
-	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= video_ioctl2,
 	.open           = v4l2_fh_open,
 	.release        = v4l2_fh_release,
@@ -337,7 +342,6 @@ static const struct v4l2_ioctl_ops tea575x_ioctl_ops = {
 };
 
 static const struct video_device tea575x_radio = {
-	.fops           = &tea575x_fops,
 	.ioctl_ops 	= &tea575x_ioctl_ops,
 	.release        = video_device_release_empty,
 };
@@ -349,7 +353,7 @@ static const struct v4l2_ctrl_ops tea575x_ctrl_ops = {
 /*
  * initialize all the tea575x chips
  */
-int snd_tea575x_init(struct snd_tea575x *tea)
+int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 {
 	int retval;
 
@@ -374,6 +378,9 @@ int snd_tea575x_init(struct snd_tea575x *tea)
 	tea->vd.lock = &tea->mutex;
 	tea->vd.v4l2_dev = tea->v4l2_dev;
 	tea->vd.ctrl_handler = &tea->ctrl_handler;
+	tea->fops = tea575x_fops;
+	tea->fops.owner = owner;
+	tea->vd.fops = &tea->fops;
 	set_bit(V4L2_FL_USE_FH_PRIO, &tea->vd.flags);
 	/* disable hw_freq_seek if we can't use it */
 	if (tea->cannot_read_data)

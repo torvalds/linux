@@ -974,6 +974,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2884_BOARD_CINERGY_HTC_STICK] = {
 		.name         = "Terratec Cinergy HTC Stick",
 		.has_dvb      = 1,
+		.ir_codes     = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 #if 0
 		.tuner_type   = TUNER_PHILIPS_TDA8290,
 		.tuner_addr   = 0x41,

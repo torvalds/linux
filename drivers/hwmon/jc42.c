@@ -590,6 +590,6 @@ abort:
 
 module_i2c_driver(jc42_driver);
 
-MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
+MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("JC42 driver");
 MODULE_LICENSE("GPL");

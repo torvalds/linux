@@ -220,6 +220,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 						cfsk_hold, cfsk_put);
 		cf_sk->sk.sk_state = CAIF_CONNECTED;
 		set_tx_flow_on(cf_sk);
+		cf_sk->sk.sk_shutdown = 0;
 		cf_sk->sk.sk_state_change(&cf_sk->sk);
 		break;
 

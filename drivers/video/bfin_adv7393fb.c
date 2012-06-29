@@ -353,18 +353,16 @@ adv7393_read_proc(char *page, char **start, off_t off,
 
 static int
 adv7393_write_proc(struct file *file, const char __user * buffer,
-		   unsigned long count, void *data)
+		   size_t count, void *data)
 {
 	struct adv7393fb_device *fbdev = data;
-	char line[8];
 	unsigned int val;
 	int ret;
 
-	ret = copy_from_user(line, buffer, count);
+	ret = kstrtouint_from_user(buffer, count, 0, &val);
 	if (ret)
 		return -EFAULT;
 
-	val = simple_strtoul(line, NULL, 0);
 	adv7393_write(fbdev->client, val >> 8, val & 0xff);
 
 	return count;

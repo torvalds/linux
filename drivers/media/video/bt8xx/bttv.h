@@ -236,7 +236,6 @@ struct tvcard {
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;
 	unsigned int no_tda7432:1;
-	unsigned int needs_tvaudio:1;
 	unsigned int msp34xx_alt:1;
 	/* Note: currently no card definition needs to mark the presence
 	   of a RDS saa6588 chip. If this is ever needed, then add a new

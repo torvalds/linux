@@ -1680,6 +1680,7 @@ static long __video_do_ioctl(struct file *file,
 				break;
 
 			ret = 0;
+			p->parm.capture.readbuffers = 2;
 			if (ops->vidioc_g_std)
 				ret = ops->vidioc_g_std(file, fh, &std);
 			if (ret == 0)

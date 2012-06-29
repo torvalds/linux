@@ -238,7 +238,7 @@ static int __devinit fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 	snprintf(fmr2->tea.bus_info, sizeof(fmr2->tea.bus_info), "%s:%s",
 			fmr2->is_fmd2 ? "PnP" : "ISA", dev_name(pdev));
 
-	if (snd_tea575x_init(&fmr2->tea)) {
+	if (snd_tea575x_init(&fmr2->tea, THIS_MODULE)) {
 		printk(KERN_ERR "radio-sf16fmr2: Unable to detect TEA575x tuner\n");
 		release_region(fmr2->io, 2);
 		return -ENODEV;
