@@ -1743,8 +1743,11 @@ int hci_register_dev(struct hci_dev *hdev)
 		}
 	}
 
-	set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
 	set_bit(HCI_SETUP, &hdev->dev_flags);
+
+	if (hdev->dev_type != HCI_AMP)
+		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+
 	schedule_work(&hdev->power_on);
 
 	hci_notify(hdev, HCI_DEV_REG);
