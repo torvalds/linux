@@ -821,7 +821,7 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 
 static unsigned int *tcp_get_timeouts(struct net *net)
 {
-	return tcp_timeouts;
+	return tcp_pernet(net)->timeouts;
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
