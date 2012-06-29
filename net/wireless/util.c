@@ -871,6 +871,11 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		}
 	}
 
+	if (!err && ntype != otype && netif_running(dev)) {
+		cfg80211_update_iface_num(rdev, ntype, 1);
+		cfg80211_update_iface_num(rdev, otype, -1);
+	}
+
 	return err;
 }
 

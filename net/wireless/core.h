@@ -56,6 +56,9 @@ struct cfg80211_registered_device {
 
 	u32 ap_beacons_nlpid;
 
+	int num_running_ifaces;
+	int num_running_monitor_ifaces;
+
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
 	struct list_head bss_list;
@@ -196,6 +199,14 @@ static inline void wdev_unlock(struct wireless_dev *wdev)
 
 #define ASSERT_RDEV_LOCK(rdev) lockdep_assert_held(&(rdev)->mtx)
 #define ASSERT_WDEV_LOCK(wdev) lockdep_assert_held(&(wdev)->mtx)
+
+static inline bool cfg80211_has_monitors_only(struct cfg80211_registered_device *rdev)
+{
+	ASSERT_RDEV_LOCK(rdev);
+
+	return rdev->num_running_ifaces == rdev->num_running_monitor_ifaces &&
+	       rdev->num_running_ifaces > 0;
+}
 
 enum cfg80211_event_type {
 	EVENT_CONNECT_RESULT,
@@ -443,6 +454,9 @@ int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 
 int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 				 u32 beacon_int);
+
+void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
+			       enum nl80211_iftype iftype, int num);
 
 #ifdef CONFIG_CFG80211_DEVELOPER_WARNINGS
 #define CFG80211_DEV_WARN_ON(cond)	WARN_ON(cond)

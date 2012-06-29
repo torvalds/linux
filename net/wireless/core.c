@@ -717,6 +717,24 @@ static struct device_type wiphy_type = {
 	.name	= "wlan",
 };
 
+void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
+			       enum nl80211_iftype iftype, int num)
+{
+	bool has_monitors_only_old = cfg80211_has_monitors_only(rdev);
+	bool has_monitors_only_new;
+
+	ASSERT_RDEV_LOCK(rdev);
+
+	rdev->num_running_ifaces += num;
+	if (iftype == NL80211_IFTYPE_MONITOR)
+		rdev->num_running_monitor_ifaces += num;
+
+	has_monitors_only_new = cfg80211_has_monitors_only(rdev);
+	if (has_monitors_only_new != has_monitors_only_old)
+		rdev->ops->set_monitor_enabled(&rdev->wiphy,
+					       has_monitors_only_new);
+}
+
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 					 unsigned long state,
 					 void *ndev)
@@ -820,6 +838,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		break;
 	case NETDEV_DOWN:
 		dev_hold(dev);
+		cfg80211_lock_rdev(rdev);
+		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
+		cfg80211_unlock_rdev(rdev);
 		queue_work(cfg80211_wq, &wdev->cleanup_work);
 		break;
 	case NETDEV_UP:
@@ -927,6 +948,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		ret = cfg80211_can_add_interface(rdev, wdev->iftype);
 		if (ret)
 			return notifier_from_errno(ret);
+		cfg80211_lock_rdev(rdev);
+		cfg80211_update_iface_num(rdev, wdev->iftype, 1);
+		cfg80211_unlock_rdev(rdev);
 		break;
 	}
 
