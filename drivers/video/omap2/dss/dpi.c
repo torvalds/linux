@@ -38,6 +38,8 @@
 static struct {
 	struct regulator *vdds_dsi_reg;
 	struct platform_device *dsidev;
+
+	struct dss_lcd_mgr_config mgr_config;
 } dpi;
 
 static struct platform_device *dpi_get_dsidev(enum omap_dss_clk_source clk)
@@ -83,7 +85,7 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 
 	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
 
-	dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
+	dpi.mgr_config.clock_info = dispc_cinfo;
 
 	*fck = dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
 	*lck_div = dispc_cinfo.lck_div;
@@ -108,7 +110,7 @@ static int dpi_set_dispc_clk(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
+	dpi.mgr_config.clock_info = dispc_cinfo;
 
 	*fck = dss_cinfo.fck;
 	*lck_div = dispc_cinfo.lck_div;
@@ -149,15 +151,32 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void dpi_basic_init(struct omap_dss_device *dssdev)
+static void dpi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
-	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_BYPASS);
-	dispc_mgr_enable_stallmode(dssdev->manager->id, false);
+	dpi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
-	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
+	dpi.mgr_config.stallmode = false;
+	dpi.mgr_config.fifohandcheck = false;
+
+	dpi.mgr_config.video_port_width = dssdev->phy.dpi.data_lines;
+
+	dpi.mgr_config.lcden_sig_polarity = 0;
+
+	dispc_mgr_set_io_pad_mode(dpi.mgr_config.io_pad_mode);
+	dispc_mgr_enable_stallmode(dssdev->manager->id,
+			dpi.mgr_config.stallmode);
+	dispc_mgr_enable_fifohandcheck(dssdev->manager->id,
+			dpi.mgr_config.fifohandcheck);
 
 	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
-			dssdev->phy.dpi.data_lines);
+			dpi.mgr_config.video_port_width);
+
+	dispc_mgr_set_clock_div(dssdev->manager->id,
+			&dpi.mgr_config.clock_info);
+
+	dispc_lcd_enable_signal_polarity(dpi.mgr_config.lcden_sig_polarity);
+
+	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
 }
 
 int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
@@ -190,8 +209,6 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	dpi_basic_init(dssdev);
-
 	if (dpi_use_dsi_pll(dssdev)) {
 		r = dsi_runtime_get(dpi.dsidev);
 		if (r)
@@ -205,6 +222,8 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 	r = dpi_set_mode(dssdev);
 	if (r)
 		goto err_set_mode;
+
+	dpi_config_lcd_manager(dssdev);
 
 	mdelay(2);
 
