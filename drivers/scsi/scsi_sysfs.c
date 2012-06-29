@@ -967,13 +967,20 @@ void __scsi_remove_device(struct scsi_device *sdev)
 		device_del(dev);
 	} else
 		put_device(&sdev->sdev_dev);
+
+	/*
+	 * Stop accepting new requests and wait until all queuecommand() and
+	 * scsi_run_queue() invocations have finished before tearing down the
+	 * device.
+	 */
 	scsi_device_set_state(sdev, SDEV_DEL);
+	blk_cleanup_queue(sdev->request_queue);
+	cancel_work_sync(&sdev->requeue_work);
+
 	if (sdev->host->hostt->slave_destroy)
 		sdev->host->hostt->slave_destroy(sdev);
 	transport_destroy_device(dev);
 
-	/* Freeing the queue signals to block that we're done */
-	blk_cleanup_queue(sdev->request_queue);
 	put_device(dev);
 }
 

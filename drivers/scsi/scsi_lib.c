@@ -155,13 +155,14 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, int unbusy)
 
 	/*
 	 * Requeue this command.  It will go before all other commands
-	 * that are already in the queue.
+	 * that are already in the queue. Schedule requeue work under
+	 * lock such that the kblockd_schedule_work() call happens
+	 * before blk_cleanup_queue() finishes.
 	 */
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_requeue_request(q, cmd->request);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
 	kblockd_schedule_work(q, &device->requeue_work);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
 /*
