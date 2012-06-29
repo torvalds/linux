@@ -296,6 +296,7 @@ static void iwlagn_free_dma_ptr(struct iwl_trans *trans,
 static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 {
 	struct iwl_tx_queue *txq = (void *)data;
+	struct iwl_queue *q = &txq->q;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
 	u32 scd_sram_addr = trans_pcie->scd_base_addr +
@@ -344,6 +345,14 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 			iwl_read_prph(trans,
 				      SCD_QUEUE_RDPTR(i)) & (txq->q.n_bd - 1),
 			iwl_read_prph(trans, SCD_QUEUE_WRPTR(i)));
+	}
+
+	for (i = q->read_ptr; i != q->write_ptr;
+	     i = iwl_queue_inc_wrap(i, q->n_bd)) {
+		struct iwl_tx_cmd *tx_cmd =
+			(struct iwl_tx_cmd *)txq->entries[i].cmd->payload;
+		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
+			get_unaligned_le32(&tx_cmd->scratch));
 	}
 
 	iwl_op_mode_nic_error(trans->op_mode);
@@ -1037,14 +1046,11 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 
 /*
  * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
- * must be called under the irq lock and with MAC access
  */
 static void iwl_trans_txq_set_sched(struct iwl_trans *trans, u32 mask)
 {
 	struct iwl_trans_pcie __maybe_unused *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	lockdep_assert_held(&trans_pcie->irq_lock);
 
 	iwl_write_prph(trans, SCD_TXFACT, mask);
 }
@@ -1053,11 +1059,8 @@ static void iwl_tx_start(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 a;
-	unsigned long flags;
 	int i, chan;
 	u32 reg_val;
-
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* make sure all queue are not stopped/used */
 	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
@@ -1108,8 +1111,6 @@ static void iwl_tx_start(struct iwl_trans *trans)
 	reg_val = iwl_read_direct32(trans, FH_TX_CHICKEN_BITS_REG);
 	iwl_write_direct32(trans, FH_TX_CHICKEN_BITS_REG,
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
-
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	/* Enable L1-Active */
 	iwl_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
@@ -2017,7 +2018,9 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 	if (!trans->op_mode)
 		return -EAGAIN;
 
+	local_bh_disable();
 	iwl_op_mode_nic_error(trans->op_mode);
+	local_bh_enable();
 
 	return count;
 }

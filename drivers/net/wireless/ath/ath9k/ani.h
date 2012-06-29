@@ -24,42 +24,34 @@
 #define BEACON_RSSI(ahp) (ahp->stats.avgbrssi)
 
 /* units are errors per second */
-#define ATH9K_ANI_OFDM_TRIG_HIGH_OLD      500
-#define ATH9K_ANI_OFDM_TRIG_HIGH_NEW      3500
+#define ATH9K_ANI_OFDM_TRIG_HIGH          3500
 #define ATH9K_ANI_OFDM_TRIG_HIGH_BELOW_INI 1000
 
 /* units are errors per second */
-#define ATH9K_ANI_OFDM_TRIG_LOW_OLD       200
-#define ATH9K_ANI_OFDM_TRIG_LOW_NEW       400
+#define ATH9K_ANI_OFDM_TRIG_LOW           400
 #define ATH9K_ANI_OFDM_TRIG_LOW_ABOVE_INI 900
 
 /* units are errors per second */
-#define ATH9K_ANI_CCK_TRIG_HIGH_OLD       200
-#define ATH9K_ANI_CCK_TRIG_HIGH_NEW       600
+#define ATH9K_ANI_CCK_TRIG_HIGH           600
 
 /* units are errors per second */
-#define ATH9K_ANI_CCK_TRIG_LOW_OLD        100
-#define ATH9K_ANI_CCK_TRIG_LOW_NEW        300
+#define ATH9K_ANI_CCK_TRIG_LOW            300
 
 #define ATH9K_ANI_NOISE_IMMUNE_LVL        4
 #define ATH9K_ANI_USE_OFDM_WEAK_SIG       true
 #define ATH9K_ANI_CCK_WEAK_SIG_THR        false
 
-#define ATH9K_ANI_SPUR_IMMUNE_LVL_OLD     7
-#define ATH9K_ANI_SPUR_IMMUNE_LVL_NEW     3
+#define ATH9K_ANI_SPUR_IMMUNE_LVL         3
 
-#define ATH9K_ANI_FIRSTEP_LVL_OLD         0
-#define ATH9K_ANI_FIRSTEP_LVL_NEW         2
+#define ATH9K_ANI_FIRSTEP_LVL             2
 
 #define ATH9K_ANI_RSSI_THR_HIGH           40
 #define ATH9K_ANI_RSSI_THR_LOW            7
 
-#define ATH9K_ANI_PERIOD_OLD              100
-#define ATH9K_ANI_PERIOD_NEW              300
+#define ATH9K_ANI_PERIOD                  300
 
 /* in ms */
-#define ATH9K_ANI_POLLINTERVAL_OLD        100
-#define ATH9K_ANI_POLLINTERVAL_NEW        1000
+#define ATH9K_ANI_POLLINTERVAL            1000
 
 #define HAL_NOISE_IMMUNE_MAX              4
 #define HAL_SPUR_IMMUNE_MAX               7
@@ -69,8 +61,6 @@
 #define ATH9K_SIG_FIRSTEP_SETTING_MAX     20
 #define ATH9K_SIG_SPUR_IMM_SETTING_MIN    0
 #define ATH9K_SIG_SPUR_IMM_SETTING_MAX    22
-
-#define ATH9K_ANI_ENABLE_MRC_CCK          true
 
 /* values here are relative to the INI */
 
@@ -119,16 +109,14 @@ struct ar5416AniState {
 	u8 ofdmNoiseImmunityLevel;
 	u8 cckNoiseImmunityLevel;
 	bool ofdmsTurn;
-	u8 mrcCCKOff;
+	u8 mrcCCK;
 	u8 spurImmunityLevel;
 	u8 firstepLevel;
-	u8 ofdmWeakSigDetectOff;
+	u8 ofdmWeakSigDetect;
 	u8 cckWeakSigThreshold;
-	bool update_ani;
 	u32 listenTime;
 	int32_t rssiThrLow;
 	int32_t rssiThrHigh;
-	u32 noiseFloor;
 	u32 ofdmPhyErrCount;
 	u32 cckPhyErrCount;
 	int16_t pktRssi[2];

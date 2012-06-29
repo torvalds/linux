@@ -225,29 +225,46 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 			 struct cfg80211_ap_settings *params)
 {
 	struct mwifiex_ie *beacon_ie = NULL, *pr_ie = NULL;
-	struct mwifiex_ie *ar_ie = NULL, *rsn_ie = NULL;
-	struct ieee_types_header *ie = NULL;
+	struct mwifiex_ie *ar_ie = NULL, *gen_ie = NULL;
+	struct ieee_types_header *rsn_ie = NULL, *wpa_ie = NULL;
 	u16 beacon_idx = MWIFIEX_AUTO_IDX_MASK, pr_idx = MWIFIEX_AUTO_IDX_MASK;
 	u16 ar_idx = MWIFIEX_AUTO_IDX_MASK, rsn_idx = MWIFIEX_AUTO_IDX_MASK;
-	u16 mask;
+	u16 mask, ie_len = 0;
+	const u8 *vendor_ie;
 	int ret = 0;
 
 	if (params->beacon.tail && params->beacon.tail_len) {
-		ie = (void *)cfg80211_find_ie(WLAN_EID_RSN, params->beacon.tail,
-					      params->beacon.tail_len);
-		if (ie) {
-			rsn_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
-			if (!rsn_ie)
-				return -ENOMEM;
+		gen_ie = kzalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
+		if (!gen_ie)
+			return -ENOMEM;
+		gen_ie->ie_index = cpu_to_le16(rsn_idx);
+		mask = MGMT_MASK_BEACON | MGMT_MASK_PROBE_RESP |
+		       MGMT_MASK_ASSOC_RESP;
+		gen_ie->mgmt_subtype_mask = cpu_to_le16(mask);
 
-			rsn_ie->ie_index = cpu_to_le16(rsn_idx);
-			mask = MGMT_MASK_BEACON | MGMT_MASK_PROBE_RESP |
-			       MGMT_MASK_ASSOC_RESP;
-			rsn_ie->mgmt_subtype_mask = cpu_to_le16(mask);
-			rsn_ie->ie_length = cpu_to_le16(ie->len + 2);
-			memcpy(rsn_ie->ie_buffer, ie, ie->len + 2);
+		rsn_ie = (void *)cfg80211_find_ie(WLAN_EID_RSN,
+						  params->beacon.tail,
+						  params->beacon.tail_len);
+		if (rsn_ie) {
+			memcpy(gen_ie->ie_buffer, rsn_ie, rsn_ie->len + 2);
+			ie_len = rsn_ie->len + 2;
+			gen_ie->ie_length = cpu_to_le16(ie_len);
+		}
 
-			if (mwifiex_update_uap_custom_ie(priv, rsn_ie, &rsn_idx,
+		vendor_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+						    WLAN_OUI_TYPE_MICROSOFT_WPA,
+						    params->beacon.tail,
+						    params->beacon.tail_len);
+		if (vendor_ie) {
+			wpa_ie = (struct ieee_types_header *)vendor_ie;
+			memcpy(gen_ie->ie_buffer + ie_len,
+			       wpa_ie, wpa_ie->len + 2);
+			ie_len += wpa_ie->len + 2;
+			gen_ie->ie_length = cpu_to_le16(ie_len);
+		}
+
+		if (rsn_ie || wpa_ie) {
+			if (mwifiex_update_uap_custom_ie(priv, gen_ie, &rsn_idx,
 							 NULL, NULL,
 							 NULL, NULL)) {
 				ret = -1;
@@ -320,7 +337,7 @@ done:
 	kfree(beacon_ie);
 	kfree(pr_ie);
 	kfree(ar_ie);
-	kfree(rsn_ie);
+	kfree(gen_ie);
 
 	return ret;
 }

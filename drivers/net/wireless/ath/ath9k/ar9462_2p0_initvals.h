@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -61,7 +62,7 @@ static const u32 ar9462_2p0_baseband_postamble[][5] = {
 	{0x00009e44, 0x62321e27, 0x62321e27, 0xfe291e27, 0xfe291e27},
 	{0x00009e48, 0x5030201a, 0x5030201a, 0x50302012, 0x50302012},
 	{0x00009fc8, 0x0003f000, 0x0003f000, 0x0001a000, 0x0001a000},
-	{0x0000a204, 0x013187c0, 0x013187c4, 0x013187c4, 0x013187c0},
+	{0x0000a204, 0x01318fc0, 0x01318fc4, 0x01318fc4, 0x01318fc0},
 	{0x0000a208, 0x00000104, 0x00000104, 0x00000004, 0x00000004},
 	{0x0000a22c, 0x01026a2f, 0x01026a27, 0x01026a2f, 0x01026a2f},
 	{0x0000a230, 0x0000400a, 0x00004014, 0x00004016, 0x0000400b},
@@ -1007,7 +1008,7 @@ static const u32 ar9462_2p0_radio_core[][2] = {
 
 static const u32 ar9462_2p0_soc_preamble[][2] = {
 	/* Addr      allmodes  */
-	{0x000040a4 ,0x00a0c1c9},
+	{0x000040a4, 0x00a0c1c9},
 	{0x00007020, 0x00000000},
 	{0x00007034, 0x00000002},
 	{0x00007038, 0x000004c2},

@@ -28,6 +28,12 @@ static const struct bcma_device_id_name bcma_arm_device_names[] = {
 
 static const struct bcma_device_id_name bcma_bcm_device_names[] = {
 	{ BCMA_CORE_OOB_ROUTER, "OOB Router" },
+	{ BCMA_CORE_4706_CHIPCOMMON, "BCM4706 ChipCommon" },
+	{ BCMA_CORE_4706_SOC_RAM, "BCM4706 SOC RAM" },
+	{ BCMA_CORE_4706_MAC_GBIT, "BCM4706 GBit MAC" },
+	{ BCMA_CORE_AMEMC, "AMEMC (DDR)" },
+	{ BCMA_CORE_ALTA, "ALTA (I2S)" },
+	{ BCMA_CORE_4706_MAC_GBIT_COMMON, "BCM4706 GBit MAC Common" },
 	{ BCMA_CORE_INVALID, "Invalid" },
 	{ BCMA_CORE_CHIPCOMMON, "ChipCommon" },
 	{ BCMA_CORE_ILINE20, "ILine 20" },

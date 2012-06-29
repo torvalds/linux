@@ -38,6 +38,8 @@
 /* ms */
 #define WL1271_DEBUGFS_STATS_LIFETIME 1000
 
+#define WLCORE_MAX_BLOCK_SIZE ((size_t)(4*PAGE_SIZE))
+
 /* debugfs macros idea from mac80211 */
 int wl1271_format_buffer(char __user *userbuf, size_t count,
 			 loff_t *ppos, char *fmt, ...)
@@ -963,6 +965,257 @@ static const struct file_operations fw_stats_raw_ops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t sleep_auth_read(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+
+	return wl1271_format_buffer(user_buf, count,
+				    ppos, "%d\n",
+				    wl->sleep_auth);
+}
+
+static ssize_t sleep_auth_write(struct file *file,
+				const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul_from_user(user_buf, count, 0, &value);
+	if (ret < 0) {
+		wl1271_warning("illegal value in sleep_auth");
+		return -EINVAL;
+	}
+
+	if (value < 0 || value > WL1271_PSM_MAX) {
+		wl1271_warning("sleep_auth must be between 0 and %d",
+			       WL1271_PSM_MAX);
+		return -ERANGE;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	wl->conf.conn.sta_sleep_auth = value;
+
+	if (wl->state == WL1271_STATE_OFF) {
+		/* this will show up on "read" in case we are off */
+		wl->sleep_auth = value;
+		goto out;
+	}
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_acx_sleep_auth(wl, value);
+	if (ret < 0)
+		goto out_sleep;
+
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static const struct file_operations sleep_auth_ops = {
+	.read = sleep_auth_read,
+	.write = sleep_auth_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
+static ssize_t dev_mem_read(struct file *file,
+	     char __user *user_buf, size_t count,
+	     loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	struct wlcore_partition_set part, old_part;
+	size_t bytes = count;
+	int ret;
+	char *buf;
+
+	/* only requests of dword-aligned size and offset are supported */
+	if (bytes % 4)
+		return -EINVAL;
+
+	if (*ppos % 4)
+		return -EINVAL;
+
+	/* function should return in reasonable time */
+	bytes = min(bytes, WLCORE_MAX_BLOCK_SIZE);
+
+	if (bytes == 0)
+		return -EINVAL;
+
+	memset(&part, 0, sizeof(part));
+	part.mem.start = file->f_pos;
+	part.mem.size = bytes;
+
+	buf = kmalloc(bytes, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF) {
+		ret = -EFAULT;
+		goto skip_read;
+	}
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto skip_read;
+
+	/* store current partition and switch partition */
+	memcpy(&old_part, &wl->curr_part, sizeof(old_part));
+	ret = wlcore_set_partition(wl, &part);
+	if (ret < 0)
+		goto part_err;
+
+	ret = wlcore_raw_read(wl, 0, buf, bytes, false);
+	if (ret < 0)
+		goto read_err;
+
+read_err:
+	/* recover partition */
+	ret = wlcore_set_partition(wl, &old_part);
+	if (ret < 0)
+		goto part_err;
+
+part_err:
+	wl1271_ps_elp_sleep(wl);
+
+skip_read:
+	mutex_unlock(&wl->mutex);
+
+	if (ret == 0) {
+		ret = copy_to_user(user_buf, buf, bytes);
+		if (ret < bytes) {
+			bytes -= ret;
+			*ppos += bytes;
+			ret = 0;
+		} else {
+			ret = -EFAULT;
+		}
+	}
+
+	kfree(buf);
+
+	return ((ret == 0) ? bytes : ret);
+}
+
+static ssize_t dev_mem_write(struct file *file, const char __user *user_buf,
+		size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	struct wlcore_partition_set part, old_part;
+	size_t bytes = count;
+	int ret;
+	char *buf;
+
+	/* only requests of dword-aligned size and offset are supported */
+	if (bytes % 4)
+		return -EINVAL;
+
+	if (*ppos % 4)
+		return -EINVAL;
+
+	/* function should return in reasonable time */
+	bytes = min(bytes, WLCORE_MAX_BLOCK_SIZE);
+
+	if (bytes == 0)
+		return -EINVAL;
+
+	memset(&part, 0, sizeof(part));
+	part.mem.start = file->f_pos;
+	part.mem.size = bytes;
+
+	buf = kmalloc(bytes, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = copy_from_user(buf, user_buf, bytes);
+	if (ret) {
+		ret = -EFAULT;
+		goto err_out;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF) {
+		ret = -EFAULT;
+		goto skip_write;
+	}
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto skip_write;
+
+	/* store current partition and switch partition */
+	memcpy(&old_part, &wl->curr_part, sizeof(old_part));
+	ret = wlcore_set_partition(wl, &part);
+	if (ret < 0)
+		goto part_err;
+
+	ret = wlcore_raw_write(wl, 0, buf, bytes, false);
+	if (ret < 0)
+		goto write_err;
+
+write_err:
+	/* recover partition */
+	ret = wlcore_set_partition(wl, &old_part);
+	if (ret < 0)
+		goto part_err;
+
+part_err:
+	wl1271_ps_elp_sleep(wl);
+
+skip_write:
+	mutex_unlock(&wl->mutex);
+
+	if (ret == 0)
+		*ppos += bytes;
+
+err_out:
+	kfree(buf);
+
+	return ((ret == 0) ? bytes : ret);
+}
+
+static loff_t dev_mem_seek(struct file *file, loff_t offset, int orig)
+{
+	loff_t ret;
+
+	/* only requests of dword-aligned size and offset are supported */
+	if (offset % 4)
+		return -EINVAL;
+
+	switch (orig) {
+	case SEEK_SET:
+		file->f_pos = offset;
+		ret = file->f_pos;
+		break;
+	case SEEK_CUR:
+		file->f_pos += offset;
+		ret = file->f_pos;
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static const struct file_operations dev_mem_ops = {
+	.open = simple_open,
+	.read = dev_mem_read,
+	.write = dev_mem_write,
+	.llseek = dev_mem_seek,
+};
+
 static int wl1271_debugfs_add_files(struct wl1271 *wl,
 				    struct dentry *rootdir)
 {
@@ -988,6 +1241,7 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(irq_blk_threshold, rootdir);
 	DEBUGFS_ADD(irq_timeout, rootdir);
 	DEBUGFS_ADD(fw_stats_raw, rootdir);
+	DEBUGFS_ADD(sleep_auth, rootdir);
 
 	streaming = debugfs_create_dir("rx_streaming", rootdir);
 	if (!streaming || IS_ERR(streaming))
@@ -996,6 +1250,7 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD_PREFIX(rx_streaming, interval, streaming);
 	DEBUGFS_ADD_PREFIX(rx_streaming, always, streaming);
 
+	DEBUGFS_ADD_PREFIX(dev, mem, rootdir);
 
 	return 0;
 

@@ -21,6 +21,7 @@
 #define _MWIFIEX_IOCTL_H_
 
 #include <net/mac80211.h>
+#include <net/lib80211.h>
 
 enum {
 	MWIFIEX_SCAN_TYPE_UNCHANGED = 0,
@@ -71,6 +72,13 @@ struct wpa_param {
 	u8 passphrase[MWIFIEX_WPA_PASSHPHRASE_LEN];
 };
 
+struct wep_key {
+	u8 key_index;
+	u8 is_default;
+	u16 length;
+	u8 key[WLAN_KEY_LEN_WEP104];
+};
+
 #define KEY_MGMT_ON_HOST        0x03
 #define MWIFIEX_AUTH_MODE_AUTO  0xFF
 #define BAND_CONFIG_MANUAL      0x00
@@ -90,6 +98,8 @@ struct mwifiex_uap_bss_param {
 	u16 key_mgmt;
 	u16 key_mgmt_operation;
 	struct wpa_param wpa_cfg;
+	struct wep_key wep_cfg[NUM_WEP_KEYS];
+	struct ieee80211_ht_cap ht_cap;
 };
 
 enum {

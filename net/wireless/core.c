@@ -96,69 +96,6 @@ struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx)
 	return &rdev->wiphy;
 }
 
-/* requires cfg80211_mutex to be held! */
-struct cfg80211_registered_device *
-__cfg80211_rdev_from_info(struct genl_info *info)
-{
-	int ifindex;
-	struct cfg80211_registered_device *bywiphyidx = NULL, *byifidx = NULL;
-	struct net_device *dev;
-	int err = -EINVAL;
-
-	assert_cfg80211_lock();
-
-	if (info->attrs[NL80211_ATTR_WIPHY]) {
-		bywiphyidx = cfg80211_rdev_by_wiphy_idx(
-				nla_get_u32(info->attrs[NL80211_ATTR_WIPHY]));
-		err = -ENODEV;
-	}
-
-	if (info->attrs[NL80211_ATTR_IFINDEX]) {
-		ifindex = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
-		dev = dev_get_by_index(genl_info_net(info), ifindex);
-		if (dev) {
-			if (dev->ieee80211_ptr)
-				byifidx =
-					wiphy_to_dev(dev->ieee80211_ptr->wiphy);
-			dev_put(dev);
-		}
-		err = -ENODEV;
-	}
-
-	if (bywiphyidx && byifidx) {
-		if (bywiphyidx != byifidx)
-			return ERR_PTR(-EINVAL);
-		else
-			return bywiphyidx; /* == byifidx */
-	}
-	if (bywiphyidx)
-		return bywiphyidx;
-
-	if (byifidx)
-		return byifidx;
-
-	return ERR_PTR(err);
-}
-
-struct cfg80211_registered_device *
-cfg80211_get_dev_from_info(struct genl_info *info)
-{
-	struct cfg80211_registered_device *rdev;
-
-	mutex_lock(&cfg80211_mutex);
-	rdev = __cfg80211_rdev_from_info(info);
-
-	/* if it is not an error we grab the lock on
-	 * it to assure it won't be going away while
-	 * we operate on it */
-	if (!IS_ERR(rdev))
-		mutex_lock(&rdev->mtx);
-
-	mutex_unlock(&cfg80211_mutex);
-
-	return rdev;
-}
-
 struct cfg80211_registered_device *
 cfg80211_get_dev_from_ifindex(struct net *net, int ifindex)
 {

@@ -175,12 +175,6 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	return cpu_to_le16(dur);
 }
 
-static inline int is_ieee80211_device(struct ieee80211_local *local,
-				      struct net_device *dev)
-{
-	return local == wdev_priv(dev->ieee80211_ptr);
-}
-
 /* tx handlers */
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
@@ -297,9 +291,10 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 		if (unlikely(!assoc &&
 			     ieee80211_is_data(hdr->frame_control))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			pr_debug("%s: dropped data frame to not associated station %pM\n",
-				 tx->sdata->name, hdr->addr1);
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+			sdata_info(tx->sdata,
+				   "dropped data frame to not associated station %pM\n",
+				   hdr->addr1);
+#endif
 			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
 			return TX_DROP;
 		}
@@ -366,10 +361,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	rcu_read_unlock();
 
 	local->total_ps_buffered = total;
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	wiphy_debug(local->hw.wiphy, "PS buffers full - purged %d frames\n",
-		    purged);
-#endif
+	ps_dbg_hw(&local->hw, "PS buffers full - purged %d frames\n", purged);
 }
 
 static ieee80211_tx_result
@@ -411,10 +403,8 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 		purge_old_ps_buffers(tx->local);
 
 	if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >= AP_MAX_BC_BUFFER) {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		net_dbg_ratelimited("%s: BC TX buffer full - dropping the oldest frame\n",
-				    tx->sdata->name);
-#endif
+		ps_dbg(tx->sdata,
+		       "BC TX buffer full - dropping the oldest frame\n");
 		dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
 	} else
 		tx->local->total_ps_buffered++;
@@ -465,18 +455,15 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			return TX_CONTINUE;
 		}
 
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		pr_debug("STA %pM aid %d: PS buffer for AC %d\n",
-			 sta->sta.addr, sta->sta.aid, ac);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+		ps_dbg(sta->sdata, "STA %pM aid %d: PS buffer for AC %d\n",
+		       sta->sta.addr, sta->sta.aid, ac);
 		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&sta->ps_tx_buf[ac]) >= STA_MAX_TX_BUFFER) {
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf[ac]);
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-			net_dbg_ratelimited("%s: STA %pM TX buffer for AC %d full - dropping oldest frame\n",
-					    tx->sdata->name, sta->sta.addr, ac);
-#endif
+			ps_dbg(tx->sdata,
+			       "STA %pM TX buffer for AC %d full - dropping oldest frame\n",
+			       sta->sta.addr, ac);
 			dev_kfree_skb(old);
 		} else
 			tx->local->total_ps_buffered++;
@@ -498,13 +485,11 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		sta_info_recalc_tim(sta);
 
 		return TX_QUEUED;
+	} else if (unlikely(test_sta_flag(sta, WLAN_STA_PS_STA))) {
+		ps_dbg(tx->sdata,
+		       "STA %pM in PS mode, but polling/in SP -> send frame\n",
+		       sta->sta.addr);
 	}
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	else if (unlikely(test_sta_flag(sta, WLAN_STA_PS_STA))) {
-		pr_debug("%s: STA %pM in PS mode, but polling/in SP -> send frame\n",
-			 tx->sdata->name, sta->sta.addr);
-	}
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
 	return TX_CONTINUE;
 }
@@ -1963,7 +1948,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		     (cpu_to_be16(ethertype) != sdata->control_port_protocol ||
 		      !ether_addr_equal(sdata->vif.addr, skb->data + ETH_ALEN)))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		net_dbg_ratelimited("%s: dropped frame to %pM (unauthorized port)\n",
+		net_info_ratelimited("%s: dropped frame to %pM (unauthorized port)\n",
 				    dev->name, hdr.addr1);
 #endif
 

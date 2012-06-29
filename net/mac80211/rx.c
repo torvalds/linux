@@ -554,11 +554,11 @@ static inline u16 seq_sub(u16 sq1, u16 sq2)
 }
 
 
-static void ieee80211_release_reorder_frame(struct ieee80211_hw *hw,
+static void ieee80211_release_reorder_frame(struct ieee80211_sub_if_data *sdata,
 					    struct tid_ampdu_rx *tid_agg_rx,
 					    int index)
 {
-	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb = tid_agg_rx->reorder_buf[index];
 	struct ieee80211_rx_status *status;
 
@@ -578,7 +578,7 @@ no_frame:
 	tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
 }
 
-static void ieee80211_release_reorder_frames(struct ieee80211_hw *hw,
+static void ieee80211_release_reorder_frames(struct ieee80211_sub_if_data *sdata,
 					     struct tid_ampdu_rx *tid_agg_rx,
 					     u16 head_seq_num)
 {
@@ -589,7 +589,7 @@ static void ieee80211_release_reorder_frames(struct ieee80211_hw *hw,
 	while (seq_less(tid_agg_rx->head_seq_num, head_seq_num)) {
 		index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
 							tid_agg_rx->buf_size;
-		ieee80211_release_reorder_frame(hw, tid_agg_rx, index);
+		ieee80211_release_reorder_frame(sdata, tid_agg_rx, index);
 	}
 }
 
@@ -604,7 +604,7 @@ static void ieee80211_release_reorder_frames(struct ieee80211_hw *hw,
  */
 #define HT_RX_REORDER_BUF_TIMEOUT (HZ / 10)
 
-static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
+static void ieee80211_sta_reorder_release(struct ieee80211_sub_if_data *sdata,
 					  struct tid_ampdu_rx *tid_agg_rx)
 {
 	int index, j;
@@ -632,12 +632,9 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 					HT_RX_REORDER_BUF_TIMEOUT))
 				goto set_release_timer;
 
-#ifdef CONFIG_MAC80211_HT_DEBUG
-			if (net_ratelimit())
-				wiphy_debug(hw->wiphy,
-					    "release an RX reorder frame due to timeout on earlier frames\n");
-#endif
-			ieee80211_release_reorder_frame(hw, tid_agg_rx, j);
+			ht_dbg_ratelimited(sdata,
+					   "release an RX reorder frame due to timeout on earlier frames\n");
+			ieee80211_release_reorder_frame(sdata, tid_agg_rx, j);
 
 			/*
 			 * Increment the head seq# also for the skipped slots.
@@ -647,7 +644,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 			skipped = 0;
 		}
 	} else while (tid_agg_rx->reorder_buf[index]) {
-		ieee80211_release_reorder_frame(hw, tid_agg_rx, index);
+		ieee80211_release_reorder_frame(sdata, tid_agg_rx, index);
 		index =	seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
 							tid_agg_rx->buf_size;
 	}
@@ -677,7 +674,7 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
  * rcu_read_lock protection. It returns false if the frame
  * can be processed immediately, true if it was consumed.
  */
-static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
+static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata,
 					     struct tid_ampdu_rx *tid_agg_rx,
 					     struct sk_buff *skb)
 {
@@ -706,7 +703,8 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	if (!seq_less(mpdu_seq_num, head_seq_num + buf_size)) {
 		head_seq_num = seq_inc(seq_sub(mpdu_seq_num, buf_size));
 		/* release stored frames up to new head to stack */
-		ieee80211_release_reorder_frames(hw, tid_agg_rx, head_seq_num);
+		ieee80211_release_reorder_frames(sdata, tid_agg_rx,
+						 head_seq_num);
 	}
 
 	/* Now the new frame is always in the range of the reordering buffer */
@@ -736,7 +734,7 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	tid_agg_rx->reorder_buf[index] = skb;
 	tid_agg_rx->reorder_time[index] = jiffies;
 	tid_agg_rx->stored_mpdu_num++;
-	ieee80211_sta_reorder_release(hw, tid_agg_rx);
+	ieee80211_sta_reorder_release(sdata, tid_agg_rx);
 
  out:
 	spin_unlock(&tid_agg_rx->reorder_lock);
@@ -751,7 +749,6 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx)
 {
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_local *local = rx->local;
-	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct sta_info *sta = rx->sta;
@@ -813,7 +810,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx)
 	 * sure that we cannot get to it any more before doing
 	 * anything with it.
 	 */
-	if (ieee80211_sta_manage_reorder_buf(hw, tid_agg_rx, skb))
+	if (ieee80211_sta_manage_reorder_buf(rx->sdata, tid_agg_rx, skb))
 		return;
 
  dont_reorder:
@@ -1136,24 +1133,18 @@ static void ap_sta_ps_start(struct sta_info *sta)
 	set_sta_flag(sta, WLAN_STA_PS_STA);
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_SLEEP, &sta->sta);
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	pr_debug("%s: STA %pM aid %d enters power save mode\n",
-		 sdata->name, sta->sta.addr, sta->sta.aid);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+	ps_dbg(sdata, "STA %pM aid %d enters power save mode\n",
+	       sta->sta.addr, sta->sta.aid);
 }
 
 static void ap_sta_ps_end(struct sta_info *sta)
 {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	pr_debug("%s: STA %pM aid %d exits power save mode\n",
-		 sta->sdata->name, sta->sta.addr, sta->sta.aid);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+	ps_dbg(sta->sdata, "STA %pM aid %d exits power save mode\n",
+	       sta->sta.addr, sta->sta.aid);
 
 	if (test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		pr_debug("%s: STA %pM aid %d driver-ps-blocked\n",
-			 sta->sdata->name, sta->sta.addr, sta->sta.aid);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+		ps_dbg(sta->sdata, "STA %pM aid %d driver-ps-blocked\n",
+		       sta->sta.addr, sta->sta.aid);
 		return;
 	}
 
@@ -1383,17 +1374,8 @@ ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
 	if (sdata->fragment_next >= IEEE80211_FRAGMENT_MAX)
 		sdata->fragment_next = 0;
 
-	if (!skb_queue_empty(&entry->skb_list)) {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		struct ieee80211_hdr *hdr =
-			(struct ieee80211_hdr *) entry->skb_list.next->data;
-		pr_debug("%s: RX reassembly removed oldest fragment entry (idx=%d age=%lu seq=%d last_frag=%d addr1=%pM addr2=%pM\n",
-			 sdata->name, idx,
-			 jiffies - entry->first_frag_time, entry->seq,
-			 entry->last_frag, hdr->addr1, hdr->addr2);
-#endif
+	if (!skb_queue_empty(&entry->skb_list))
 		__skb_queue_purge(&entry->skb_list);
-	}
 
 	__skb_queue_tail(&entry->skb_list, *skb); /* no need for locking */
 	*skb = NULL;
@@ -1751,7 +1733,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 			 */
 			xmit_skb = skb_copy(skb, GFP_ATOMIC);
 			if (!xmit_skb)
-				net_dbg_ratelimited("%s: failed to clone multicast frame\n",
+				net_info_ratelimited("%s: failed to clone multicast frame\n",
 						    dev->name);
 		} else {
 			dsta = sta_info_get(sdata, skb->data);
@@ -1935,7 +1917,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	    ether_addr_equal(sdata->vif.addr, hdr->addr3))
 		return RX_CONTINUE;
 
-	q = ieee80211_select_queue_80211(local, skb, hdr);
+	q = ieee80211_select_queue_80211(sdata, skb, hdr);
 	if (ieee80211_queue_stopped(&local->hw, q)) {
 		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_congestion);
 		return RX_DROP_MONITOR;
@@ -1955,7 +1937,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 	fwd_skb = skb_copy(skb, GFP_ATOMIC);
 	if (!fwd_skb) {
-		net_dbg_ratelimited("%s: failed to clone mesh frame\n",
+		net_info_ratelimited("%s: failed to clone mesh frame\n",
 				    sdata->name);
 		goto out;
 	}
@@ -2058,8 +2040,6 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx)
 {
-	struct ieee80211_local *local = rx->local;
-	struct ieee80211_hw *hw = &local->hw;
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_bar *bar = (struct ieee80211_bar *)skb->data;
 	struct tid_ampdu_rx *tid_agg_rx;
@@ -2096,7 +2076,8 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx)
 
 		spin_lock(&tid_agg_rx->reorder_lock);
 		/* release stored frames up to start of BAR */
-		ieee80211_release_reorder_frames(hw, tid_agg_rx, start_seq_num);
+		ieee80211_release_reorder_frames(rx->sdata, tid_agg_rx,
+						 start_seq_num);
 		spin_unlock(&tid_agg_rx->reorder_lock);
 
 		kfree_skb(skb);
@@ -2750,7 +2731,7 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
 		return;
 
 	spin_lock(&tid_agg_rx->reorder_lock);
-	ieee80211_sta_reorder_release(&sta->local->hw, tid_agg_rx);
+	ieee80211_sta_reorder_release(sta->sdata, tid_agg_rx);
 	spin_unlock(&tid_agg_rx->reorder_lock);
 
 	ieee80211_rx_handlers(&rx);
@@ -3028,6 +3009,10 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * driver callbacks be invoked.
 	 */
 	if (unlikely(local->quiescing || local->suspended))
+		goto drop;
+
+	/* We might be during a HW reconfig, prevent Rx for the same reason */
+	if (unlikely(local->in_reconfig))
 		goto drop;
 
 	/*

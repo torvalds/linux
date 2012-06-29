@@ -173,7 +173,7 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 	int cur_bb_spur, negative = 0, cck_spur_freq;
 	int i;
 	int range, max_spur_cnts, synth_freq;
-	u8 *spur_fbin_ptr = NULL;
+	u8 *spur_fbin_ptr = ar9003_get_spur_chan_ptr(ah, IS_CHAN_2GHZ(chan));
 
 	/*
 	 * Need to verify range +/- 10 MHz in control channel, otherwise spur
@@ -181,8 +181,6 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 	 */
 
 	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah)) {
-		spur_fbin_ptr = ar9003_get_spur_chan_ptr(ah,
-							 IS_CHAN_2GHZ(chan));
 		if (spur_fbin_ptr[0] == 0) /* No spur */
 			return;
 		max_spur_cnts = 5;
@@ -825,18 +823,18 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 			REG_CLR_BIT(ah, AR_PHY_SFCORR_LOW,
 				    AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
 
-		if (!on != aniState->ofdmWeakSigDetectOff) {
+		if (on != aniState->ofdmWeakSigDetect) {
 			ath_dbg(common, ANI,
 				"** ch %d: ofdm weak signal: %s=>%s\n",
 				chan->channel,
-				!aniState->ofdmWeakSigDetectOff ?
+				aniState->ofdmWeakSigDetect ?
 				"on" : "off",
 				on ? "on" : "off");
 			if (on)
 				ah->stats.ast_ani_ofdmon++;
 			else
 				ah->stats.ast_ani_ofdmoff++;
-			aniState->ofdmWeakSigDetectOff = !on;
+			aniState->ofdmWeakSigDetect = on;
 		}
 		break;
 	}
@@ -855,7 +853,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		 * from INI file & cap value
 		 */
 		value = firstep_table[level] -
-			firstep_table[ATH9K_ANI_FIRSTEP_LVL_NEW] +
+			firstep_table[ATH9K_ANI_FIRSTEP_LVL] +
 			aniState->iniDef.firstep;
 		if (value < ATH9K_SIG_FIRSTEP_SETTING_MIN)
 			value = ATH9K_SIG_FIRSTEP_SETTING_MIN;
@@ -870,7 +868,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		 * from INI file & cap value
 		 */
 		value2 = firstep_table[level] -
-			 firstep_table[ATH9K_ANI_FIRSTEP_LVL_NEW] +
+			 firstep_table[ATH9K_ANI_FIRSTEP_LVL] +
 			 aniState->iniDef.firstepLow;
 		if (value2 < ATH9K_SIG_FIRSTEP_SETTING_MIN)
 			value2 = ATH9K_SIG_FIRSTEP_SETTING_MIN;
@@ -886,7 +884,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 				chan->channel,
 				aniState->firstepLevel,
 				level,
-				ATH9K_ANI_FIRSTEP_LVL_NEW,
+				ATH9K_ANI_FIRSTEP_LVL,
 				value,
 				aniState->iniDef.firstep);
 			ath_dbg(common, ANI,
@@ -894,7 +892,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 				chan->channel,
 				aniState->firstepLevel,
 				level,
-				ATH9K_ANI_FIRSTEP_LVL_NEW,
+				ATH9K_ANI_FIRSTEP_LVL,
 				value2,
 				aniState->iniDef.firstepLow);
 			if (level > aniState->firstepLevel)
@@ -919,7 +917,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		 * from INI file & cap value
 		 */
 		value = cycpwrThr1_table[level] -
-			cycpwrThr1_table[ATH9K_ANI_SPUR_IMMUNE_LVL_NEW] +
+			cycpwrThr1_table[ATH9K_ANI_SPUR_IMMUNE_LVL] +
 			aniState->iniDef.cycpwrThr1;
 		if (value < ATH9K_SIG_SPUR_IMM_SETTING_MIN)
 			value = ATH9K_SIG_SPUR_IMM_SETTING_MIN;
@@ -935,7 +933,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		 * from INI file & cap value
 		 */
 		value2 = cycpwrThr1_table[level] -
-			 cycpwrThr1_table[ATH9K_ANI_SPUR_IMMUNE_LVL_NEW] +
+			 cycpwrThr1_table[ATH9K_ANI_SPUR_IMMUNE_LVL] +
 			 aniState->iniDef.cycpwrThr1Ext;
 		if (value2 < ATH9K_SIG_SPUR_IMM_SETTING_MIN)
 			value2 = ATH9K_SIG_SPUR_IMM_SETTING_MIN;
@@ -950,7 +948,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 				chan->channel,
 				aniState->spurImmunityLevel,
 				level,
-				ATH9K_ANI_SPUR_IMMUNE_LVL_NEW,
+				ATH9K_ANI_SPUR_IMMUNE_LVL,
 				value,
 				aniState->iniDef.cycpwrThr1);
 			ath_dbg(common, ANI,
@@ -958,7 +956,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 				chan->channel,
 				aniState->spurImmunityLevel,
 				level,
-				ATH9K_ANI_SPUR_IMMUNE_LVL_NEW,
+				ATH9K_ANI_SPUR_IMMUNE_LVL,
 				value2,
 				aniState->iniDef.cycpwrThr1Ext);
 			if (level > aniState->spurImmunityLevel)
@@ -979,16 +977,16 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 			      AR_PHY_MRC_CCK_ENABLE, is_on);
 		REG_RMW_FIELD(ah, AR_PHY_MRC_CCK_CTRL,
 			      AR_PHY_MRC_CCK_MUX_REG, is_on);
-		if (!is_on != aniState->mrcCCKOff) {
+		if (is_on != aniState->mrcCCK) {
 			ath_dbg(common, ANI, "** ch %d: MRC CCK: %s=>%s\n",
 				chan->channel,
-				!aniState->mrcCCKOff ? "on" : "off",
+				aniState->mrcCCK ? "on" : "off",
 				is_on ? "on" : "off");
 		if (is_on)
 			ah->stats.ast_ani_ccklow++;
 		else
 			ah->stats.ast_ani_cckhigh++;
-		aniState->mrcCCKOff = !is_on;
+		aniState->mrcCCK = is_on;
 		}
 	break;
 	}
@@ -1002,9 +1000,9 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 	ath_dbg(common, ANI,
 		"ANI parameters: SI=%d, ofdmWS=%s FS=%d MRCcck=%s listenTime=%d ofdmErrs=%d cckErrs=%d\n",
 		aniState->spurImmunityLevel,
-		!aniState->ofdmWeakSigDetectOff ? "on" : "off",
+		aniState->ofdmWeakSigDetect ? "on" : "off",
 		aniState->firstepLevel,
-		!aniState->mrcCCKOff ? "on" : "off",
+		aniState->mrcCCK ? "on" : "off",
 		aniState->listenTime,
 		aniState->ofdmPhyErrCount,
 		aniState->cckPhyErrCount);
@@ -1111,10 +1109,10 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 					       AR_PHY_EXT_CYCPWR_THR1);
 
 	/* these levels just got reset to defaults by the INI */
-	aniState->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL_NEW;
-	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL_NEW;
-	aniState->ofdmWeakSigDetectOff = !ATH9K_ANI_USE_OFDM_WEAK_SIG;
-	aniState->mrcCCKOff = !ATH9K_ANI_ENABLE_MRC_CCK;
+	aniState->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
+	aniState->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;
+	aniState->ofdmWeakSigDetect = ATH9K_ANI_USE_OFDM_WEAK_SIG;
+	aniState->mrcCCK = true;
 }
 
 static void ar9003_hw_set_radar_params(struct ath_hw *ah,

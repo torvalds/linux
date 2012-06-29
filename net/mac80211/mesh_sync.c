@@ -12,13 +12,6 @@
 #include "mesh.h"
 #include "driver-ops.h"
 
-#ifdef CONFIG_MAC80211_VERBOSE_MESH_SYNC_DEBUG
-#define msync_dbg(fmt, args...) \
-	pr_debug("Mesh sync (%s): " fmt "\n", sdata->name, ##args)
-#else
-#define msync_dbg(fmt, args...)   do { (void)(0); } while (0)
-#endif
-
 /* This is not in the standard.  It represents a tolerable tbtt drift below
  * which we do no TSF adjustment.
  */
@@ -65,14 +58,14 @@ void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 	spin_lock_bh(&ifmsh->sync_offset_lock);
 
 	if (ifmsh->sync_offset_clockdrift_max < beacon_int_fraction) {
-		msync_dbg("TBTT : max clockdrift=%lld; adjusting",
-			(long long) ifmsh->sync_offset_clockdrift_max);
+		msync_dbg(sdata, "TBTT : max clockdrift=%lld; adjusting\n",
+			  (long long) ifmsh->sync_offset_clockdrift_max);
 		tsfdelta = -ifmsh->sync_offset_clockdrift_max;
 		ifmsh->sync_offset_clockdrift_max = 0;
 	} else {
-		msync_dbg("TBTT : max clockdrift=%lld; adjusting by %llu",
-			(long long) ifmsh->sync_offset_clockdrift_max,
-			(unsigned long long) beacon_int_fraction);
+		msync_dbg(sdata, "TBTT : max clockdrift=%lld; adjusting by %llu\n",
+			  (long long) ifmsh->sync_offset_clockdrift_max,
+			  (unsigned long long) beacon_int_fraction);
 		tsfdelta = -beacon_int_fraction;
 		ifmsh->sync_offset_clockdrift_max -= beacon_int_fraction;
 	}
@@ -120,7 +113,7 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 
 	if (elems->mesh_config && mesh_peer_tbtt_adjusting(elems)) {
 		clear_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
-		msync_dbg("STA %pM : is adjusting TBTT", sta->sta.addr);
+		msync_dbg(sdata, "STA %pM : is adjusting TBTT\n", sta->sta.addr);
 		goto no_sync;
 	}
 
@@ -169,7 +162,8 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
 		s64 t_clockdrift = sta->t_offset_setpoint
 				   - sta->t_offset;
-		msync_dbg("STA %pM : sta->t_offset=%lld, sta->t_offset_setpoint=%lld, t_clockdrift=%lld",
+		msync_dbg(sdata,
+			  "STA %pM : sta->t_offset=%lld, sta->t_offset_setpoint=%lld, t_clockdrift=%lld\n",
 			  sta->sta.addr,
 			  (long long) sta->t_offset,
 			  (long long)
@@ -178,7 +172,8 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 
 		if (t_clockdrift > TOFFSET_MAXIMUM_ADJUSTMENT ||
 			t_clockdrift < -TOFFSET_MAXIMUM_ADJUSTMENT) {
-			msync_dbg("STA %pM : t_clockdrift=%lld too large, setpoint reset",
+			msync_dbg(sdata,
+				  "STA %pM : t_clockdrift=%lld too large, setpoint reset\n",
 				  sta->sta.addr,
 				  (long long) t_clockdrift);
 			clear_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
@@ -197,8 +192,8 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	} else {
 		sta->t_offset_setpoint = sta->t_offset - TOFFSET_SET_MARGIN;
 		set_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
-		msync_dbg("STA %pM : offset was invalid, "
-			  " sta->t_offset=%lld",
+		msync_dbg(sdata,
+			  "STA %pM : offset was invalid, sta->t_offset=%lld\n",
 			  sta->sta.addr,
 			  (long long) sta->t_offset);
 		rcu_read_unlock();
@@ -226,17 +221,15 @@ static void mesh_sync_offset_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 		 * to the driver tsf setter, we punt
 		 * the tsf adjustment to the mesh tasklet
 		 */
-		msync_dbg("TBTT : kicking off TBTT "
-			  "adjustment with "
-			  "clockdrift_max=%lld",
-		  ifmsh->sync_offset_clockdrift_max);
+		msync_dbg(sdata,
+			  "TBTT : kicking off TBTT adjustment with clockdrift_max=%lld\n",
+			  ifmsh->sync_offset_clockdrift_max);
 		set_bit(MESH_WORK_DRIFT_ADJUST,
 			&ifmsh->wrkq_flags);
 	} else {
-		msync_dbg("TBTT : max clockdrift=%lld; "
-			  "too small to adjust",
-			  (long long)
-		       ifmsh->sync_offset_clockdrift_max);
+		msync_dbg(sdata,
+			  "TBTT : max clockdrift=%lld; too small to adjust\n",
+			  (long long)ifmsh->sync_offset_clockdrift_max);
 		ifmsh->sync_offset_clockdrift_max = 0;
 	}
 	spin_unlock_bh(&ifmsh->sync_offset_lock);
@@ -268,7 +261,7 @@ static void mesh_sync_vendor_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	const u8 *oui;
 
 	WARN_ON(sdata->u.mesh.mesh_sp_id != IEEE80211_SYNC_METHOD_VENDOR);
-	msync_dbg("called mesh_sync_vendor_rx_bcn_presp");
+	msync_dbg(sdata, "called mesh_sync_vendor_rx_bcn_presp\n");
 	oui = mesh_get_vendor_oui(sdata);
 	/*  here you would implement the vendor offset tracking for this oui */
 }
@@ -278,7 +271,7 @@ static void mesh_sync_vendor_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 	const u8 *oui;
 
 	WARN_ON(sdata->u.mesh.mesh_sp_id != IEEE80211_SYNC_METHOD_VENDOR);
-	msync_dbg("called mesh_sync_vendor_adjust_tbtt");
+	msync_dbg(sdata, "called mesh_sync_vendor_adjust_tbtt\n");
 	oui = mesh_get_vendor_oui(sdata);
 	/*  here you would implement the vendor tsf adjustment for this oui */
 }

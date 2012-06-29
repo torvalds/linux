@@ -15,7 +15,6 @@
 #include <linux/export.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
-#include "driver-trace.h"
 #include "driver-ops.h"
 
 /*
@@ -25,8 +24,7 @@
  * because we *may* be doing work on-operating channel, and want our
  * hardware unconditionally awake, but still let the AP send us normal frames.
  */
-static void ieee80211_offchannel_ps_enable(struct ieee80211_sub_if_data *sdata,
-					   bool tell_ap)
+static void ieee80211_offchannel_ps_enable(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
@@ -47,8 +45,8 @@ static void ieee80211_offchannel_ps_enable(struct ieee80211_sub_if_data *sdata,
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
-	if (tell_ap && (!local->offchannel_ps_enabled ||
-			!(local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)))
+	if (!local->offchannel_ps_enabled ||
+	    !(local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK))
 		/*
 		 * If power save was enabled, no need to send a nullfunc
 		 * frame because AP knows that we are sleeping. But if the
@@ -133,7 +131,7 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local,
 			if (offchannel_ps_enable &&
 			    (sdata->vif.type == NL80211_IFTYPE_STATION) &&
 			    sdata->u.mgd.associated)
-				ieee80211_offchannel_ps_enable(sdata, true);
+				ieee80211_offchannel_ps_enable(sdata);
 		}
 	}
 	mutex_unlock(&local->iflist_mtx);
@@ -263,6 +261,9 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 	roc = list_first_entry(&local->roc_list, struct ieee80211_roc_work,
 			       list);
 
+	if (WARN_ON_ONCE(roc->started))
+		return;
+
 	if (local->ops->remain_on_channel) {
 		int ret, duration = roc->duration;
 
@@ -378,8 +379,8 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 
 		ieee80211_recalc_idle(local);
 
-		ieee80211_start_next_roc(local);
-		ieee80211_run_deferred_scan(local);
+		if (roc->started)
+			ieee80211_start_next_roc(local);
 	}
 
  out_unlock:
@@ -409,9 +410,6 @@ static void ieee80211_hw_roc_done(struct work_struct *work)
 
 	/* if there's another roc, start it now */
 	ieee80211_start_next_roc(local);
-
-	/* or scan maybe */
-	ieee80211_run_deferred_scan(local);
 
  out_unlock:
 	mutex_unlock(&local->mtx);
@@ -455,7 +453,6 @@ void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata)
 	}
 
 	ieee80211_start_next_roc(local);
-	ieee80211_run_deferred_scan(local);
 	mutex_unlock(&local->mtx);
 
 	list_for_each_entry_safe(roc, tmp, &tmp_list, list) {

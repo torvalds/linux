@@ -18,12 +18,6 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
-#ifdef CONFIG_MAC80211_VERBOSE_MPATH_DEBUG
-#define mpath_dbg(fmt, args...)	pr_debug(fmt, ##args)
-#else
-#define mpath_dbg(fmt, args...)	do { (void)(0); } while (0)
-#endif
-
 /* There will be initially 2^INIT_PATHS_SIZE_ORDER buckets */
 #define INIT_PATHS_SIZE_ORDER	2
 
@@ -322,9 +316,8 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 
 	spin_lock_irqsave(&gate_mpath->frame_queue.lock, flags);
 	skb_queue_splice(&gateq, &gate_mpath->frame_queue);
-	mpath_dbg("Mpath queue for gate %pM has %d frames\n",
-			gate_mpath->dst,
-			skb_queue_len(&gate_mpath->frame_queue));
+	mpath_dbg(gate_mpath->sdata, "Mpath queue for gate %pM has %d frames\n",
+		  gate_mpath->dst, skb_queue_len(&gate_mpath->frame_queue));
 	spin_unlock_irqrestore(&gate_mpath->frame_queue.lock, flags);
 
 	if (!copy)
@@ -446,9 +439,9 @@ int mesh_path_add_gate(struct mesh_path *mpath)
 	hlist_add_head_rcu(&new_gate->list, tbl->known_gates);
 	spin_unlock_bh(&tbl->gates_lock);
 	rcu_read_unlock();
-	mpath_dbg("Mesh path (%s): Recorded new gate: %pM. %d known gates\n",
-		  mpath->sdata->name, mpath->dst,
-		  mpath->sdata->u.mesh.num_gates);
+	mpath_dbg(mpath->sdata,
+		  "Mesh path: Recorded new gate: %pM. %d known gates\n",
+		  mpath->dst, mpath->sdata->u.mesh.num_gates);
 	return 0;
 err_rcu:
 	rcu_read_unlock();
@@ -477,8 +470,8 @@ static int mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 			spin_unlock_bh(&tbl->gates_lock);
 			mpath->sdata->u.mesh.num_gates--;
 			mpath->is_gate = false;
-			mpath_dbg("Mesh path (%s): Deleted gate: %pM. "
-				  "%d known gates\n", mpath->sdata->name,
+			mpath_dbg(mpath->sdata,
+				  "Mesh path: Deleted gate: %pM. %d known gates\n",
 				  mpath->dst, mpath->sdata->u.mesh.num_gates);
 			break;
 		}
@@ -946,19 +939,20 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 			continue;
 
 		if (gate->mpath->flags & MESH_PATH_ACTIVE) {
-			mpath_dbg("Forwarding to %pM\n", gate->mpath->dst);
+			mpath_dbg(sdata, "Forwarding to %pM\n", gate->mpath->dst);
 			mesh_path_move_to_queue(gate->mpath, from_mpath, copy);
 			from_mpath = gate->mpath;
 			copy = true;
 		} else {
-			mpath_dbg("Not forwarding %p\n", gate->mpath);
-			mpath_dbg("flags %x\n", gate->mpath->flags);
+			mpath_dbg(sdata,
+				  "Not forwarding %p (flags %#x)\n",
+				  gate->mpath, gate->mpath->flags);
 		}
 	}
 
 	hlist_for_each_entry_rcu(gate, n, known_gates, list)
 		if (gate->mpath->sdata == sdata) {
-			mpath_dbg("Sending to %pM\n", gate->mpath->dst);
+			mpath_dbg(sdata, "Sending to %pM\n", gate->mpath->dst);
 			mesh_path_tx_pending(gate->mpath);
 		}
 

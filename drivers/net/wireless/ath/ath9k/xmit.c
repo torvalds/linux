@@ -1165,12 +1165,24 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 {
 	struct ath_atx_tid *txtid;
 	struct ath_node *an;
+	u8 density;
 
 	an = (struct ath_node *)sta->drv_priv;
 	txtid = ATH_AN_2_TID(an, tid);
 
 	if (txtid->state & (AGGR_CLEANUP | AGGR_ADDBA_COMPLETE))
 		return -EAGAIN;
+
+	/* update ampdu factor/density, they may have changed. This may happen
+	 * in HT IBSS when a beacon with HT-info is received after the station
+	 * has already been added.
+	 */
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
+		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+				     sta->ht_cap.ampdu_factor);
+		density = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
+		an->mpdudensity = density;
+	}
 
 	txtid->state |= AGGR_ADDBA_PROGRESS;
 	txtid->paused = true;

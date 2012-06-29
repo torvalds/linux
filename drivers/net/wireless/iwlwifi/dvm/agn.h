@@ -269,7 +269,7 @@ void iwl_scan_offchannel_skb_status(struct iwl_priv *priv);
 #define IWL_ACTIVE_QUIET_TIME       cpu_to_le16(10)  /* msec */
 #define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
 
-#define IWL_SCAN_CHECK_WATCHDOG		(HZ * 7)
+#define IWL_SCAN_CHECK_WATCHDOG		(HZ * 15)
 
 
 /* bt coex */

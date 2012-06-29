@@ -103,6 +103,12 @@
 /* If set, the buffer was padded by the FW to be 4 bytes aligned */
 #define RX_BUF_PADDED_PAYLOAD        BIT(30)
 
+/*
+ * Account for the padding inserted by the FW in case of RX_ALIGNMENT
+ * or for fixing alignment in case the packet wasn't aligned.
+ */
+#define RX_BUF_ALIGN                 2
+
 /* Describes the alignment state of a Rx buffer */
 enum wl_rx_buf_align {
 	WLCORE_RX_BUF_ALIGNED,
@@ -137,11 +143,11 @@ struct wl1271_rx_descriptor {
 	u8  reserved;
 } __packed;
 
-void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status_1 *status);
+int wlcore_rx(struct wl1271 *wl, struct wl_fw_status_1 *status);
 u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
 int wl1271_rx_filter_enable(struct wl1271 *wl,
 			    int index, bool enable,
 			    struct wl12xx_rx_filter *filter);
-void wl1271_rx_filter_clear_all(struct wl1271 *wl);
+int wl1271_rx_filter_clear_all(struct wl1271 *wl);
 
 #endif

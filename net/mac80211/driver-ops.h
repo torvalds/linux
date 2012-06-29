@@ -3,7 +3,7 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
-#include "driver-trace.h"
+#include "trace.h"
 
 static inline void check_sdata_in_driver(struct ieee80211_sub_if_data *sdata)
 {
@@ -844,5 +844,20 @@ drv_allow_buffered_frames(struct ieee80211_local *local,
 						  tids, num_frames, reason,
 						  more_data);
 	trace_drv_return_void(local);
+}
+
+static inline int drv_get_rssi(struct ieee80211_local *local,
+				struct ieee80211_sub_if_data *sdata,
+				struct ieee80211_sta *sta,
+				s8 *rssi_dbm)
+{
+	int ret;
+
+	might_sleep();
+
+	ret = local->ops->get_rssi(&local->hw, &sdata->vif, sta, rssi_dbm);
+	trace_drv_get_rssi(local, sta, *rssi_dbm, ret);
+
+	return ret;
 }
 #endif /* __MAC80211_DRIVER_OPS */

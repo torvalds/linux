@@ -65,11 +65,13 @@ wlcore_hw_get_rx_buf_align(struct wl1271 *wl, u32 rx_desc)
 	return wl->ops->get_rx_buf_align(wl, rx_desc);
 }
 
-static inline void
+static inline int
 wlcore_hw_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 {
 	if (wl->ops->prepare_read)
-		wl->ops->prepare_read(wl, rx_desc, len);
+		return wl->ops->prepare_read(wl, rx_desc, len);
+
+	return 0;
 }
 
 static inline u32
@@ -81,10 +83,12 @@ wlcore_hw_get_rx_packet_len(struct wl1271 *wl, void *rx_data, u32 data_len)
 	return wl->ops->get_rx_packet_len(wl, rx_data, data_len);
 }
 
-static inline void wlcore_hw_tx_delayed_compl(struct wl1271 *wl)
+static inline int wlcore_hw_tx_delayed_compl(struct wl1271 *wl)
 {
 	if (wl->ops->tx_delayed_compl)
-		wl->ops->tx_delayed_compl(wl);
+		return wl->ops->tx_delayed_compl(wl);
+
+	return 0;
 }
 
 static inline void wlcore_hw_tx_immediate_compl(struct wl1271 *wl)
