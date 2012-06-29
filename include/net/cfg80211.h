@@ -2411,6 +2411,8 @@ struct wireless_dev {
 	/* for AP and mesh channel tracking */
 	struct ieee80211_channel *channel;
 
+	bool ibss_fixed;
+
 	bool ps;
 	int ps_timeout;
 
