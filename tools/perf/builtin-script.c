@@ -28,6 +28,11 @@ static bool			system_wide;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
+struct perf_script {
+	struct perf_tool    tool;
+	struct perf_session *session;
+};
+
 enum perf_output_field {
 	PERF_OUTPUT_COMM            = 1U << 0,
 	PERF_OUTPUT_TID             = 1U << 1,
@@ -257,7 +262,8 @@ static int perf_session__check_output_opt(struct perf_session *session)
 	return 0;
 }
 
-static void print_sample_start(struct perf_sample *sample,
+static void print_sample_start(struct pevent *pevent,
+			       struct perf_sample *sample,
 			       struct thread *thread,
 			       struct perf_evsel *evsel)
 {
@@ -302,8 +308,14 @@ static void print_sample_start(struct perf_sample *sample,
 
 	if (PRINT_FIELD(EVNAME)) {
 		if (attr->type == PERF_TYPE_TRACEPOINT) {
-			type = trace_parse_common_type(sample->raw_data);
-			event = trace_find_event(type);
+			/*
+			 * XXX Do we really need this here?
+			 * perf_evlist__set_tracepoint_names should have done
+			 * this already
+			 */
+			type = trace_parse_common_type(pevent,
+						       sample->raw_data);
+			event = pevent_find_event(pevent, type);
 			if (event)
 				evname = event->name;
 		} else
@@ -404,6 +416,7 @@ static void print_sample_bts(union perf_event *event,
 }
 
 static void process_event(union perf_event *event __unused,
+			  struct pevent *pevent,
 			  struct perf_sample *sample,
 			  struct perf_evsel *evsel,
 			  struct machine *machine,
@@ -414,7 +427,7 @@ static void process_event(union perf_event *event __unused,
 	if (output[attr->type].fields == 0)
 		return;
 
-	print_sample_start(sample, thread, evsel);
+	print_sample_start(pevent, sample, thread, evsel);
 
 	if (is_bts_event(attr)) {
 		print_sample_bts(event, sample, evsel, machine, thread);
@@ -422,7 +435,7 @@ static void process_event(union perf_event *event __unused,
 	}
 
 	if (PRINT_FIELD(TRACE))
-		print_trace_event(sample->cpu, sample->raw_data,
+		print_trace_event(pevent, sample->cpu, sample->raw_data,
 				  sample->raw_size);
 
 	if (PRINT_FIELD(ADDR))
@@ -453,7 +466,8 @@ static int default_stop_script(void)
 	return 0;
 }
 
-static int default_generate_script(const char *outfile __unused)
+static int default_generate_script(struct pevent *pevent __unused,
+				   const char *outfile __unused)
 {
 	return 0;
 }
@@ -491,6 +505,7 @@ static int process_sample_event(struct perf_tool *tool __used,
 				struct machine *machine)
 {
 	struct addr_location al;
+	struct perf_script *scr = container_of(tool, struct perf_script, tool);
 	struct thread *thread = machine__findnew_thread(machine, event->ip.tid);
 
 	if (thread == NULL) {
@@ -522,24 +537,27 @@ static int process_sample_event(struct perf_tool *tool __used,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	scripting_ops->process_event(event, sample, evsel, machine, thread);
+	scripting_ops->process_event(event, scr->session->pevent,
+				     sample, evsel, machine, thread);
 
 	evsel->hists.stats.total_period += sample->period;
 	return 0;
 }
 
-static struct perf_tool perf_script = {
-	.sample		 = process_sample_event,
-	.mmap		 = perf_event__process_mmap,
-	.comm		 = perf_event__process_comm,
-	.exit		 = perf_event__process_task,
-	.fork		 = perf_event__process_task,
-	.attr		 = perf_event__process_attr,
-	.event_type	 = perf_event__process_event_type,
-	.tracing_data	 = perf_event__process_tracing_data,
-	.build_id	 = perf_event__process_build_id,
-	.ordered_samples = true,
-	.ordering_requires_timestamps = true,
+static struct perf_script perf_script = {
+	.tool = {
+		.sample		 = process_sample_event,
+		.mmap		 = perf_event__process_mmap,
+		.comm		 = perf_event__process_comm,
+		.exit		 = perf_event__process_task,
+		.fork		 = perf_event__process_task,
+		.attr		 = perf_event__process_attr,
+		.event_type	 = perf_event__process_event_type,
+		.tracing_data	 = perf_event__process_tracing_data,
+		.build_id	 = perf_event__process_build_id,
+		.ordered_samples = true,
+		.ordering_requires_timestamps = true,
+	},
 };
 
 extern volatile int session_done;
@@ -555,7 +573,7 @@ static int __cmd_script(struct perf_session *session)
 
 	signal(SIGINT, sig_handler);
 
-	ret = perf_session__process_events(session, &perf_script);
+	ret = perf_session__process_events(session, &perf_script.tool);
 
 	if (debug_mode)
 		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);
@@ -1337,9 +1355,12 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 	if (!script_name)
 		setup_pager();
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false, &perf_script);
+	session = perf_session__new(input_name, O_RDONLY, 0, false,
+				    &perf_script.tool);
 	if (session == NULL)
 		return -ENOMEM;
+
+	perf_script.session = session;
 
 	if (cpu_list) {
 		if (perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap))
@@ -1386,7 +1407,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 			return -1;
 		}
 
-		err = scripting_ops->generate_script("perf-script");
+		err = scripting_ops->generate_script(session->pevent,
+						     "perf-script");
 		goto out;
 	}
 

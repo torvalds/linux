@@ -224,8 +224,8 @@ out_free_attrs:
 	return err;
 }
 
-static struct perf_evsel *
-	perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
+struct perf_evsel *
+perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 {
 	struct perf_evsel *evsel;
 
