@@ -290,56 +290,6 @@ static void acpi_device_release(struct device *dev)
 	kfree(acpi_dev);
 }
 
-#define ACPI_DEV_PM_CALLBACK(dev, callback)		\
-({								\
-	struct device_driver *__drv = dev->driver;		\
-	int __ret = 0;						\
-								\
-	if (__drv && __drv->pm && __drv->pm->callback)		\
-		__ret = __drv->pm->callback(dev);		\
-								\
-	__ret;							\
-})
-
-static int acpi_pm_suspend(struct device *dev)
-{
-	return ACPI_DEV_PM_CALLBACK(dev, suspend);
-}
-
-static int acpi_pm_resume(struct device *dev)
-{
-	return ACPI_DEV_PM_CALLBACK(dev, resume);
-}
-
-static int acpi_pm_freeze(struct device *dev)
-{
-	return ACPI_DEV_PM_CALLBACK(dev, freeze);
-}
-
-static int acpi_pm_thaw(struct device *dev)
-{
-	return ACPI_DEV_PM_CALLBACK(dev, thaw);
-}
-
-static int acpi_pm_poweroff(struct device *dev)
-{
-	return ACPI_DEV_PM_CALLBACK(dev, poweroff);
-}
-
-static int acpi_pm_restore(struct device *dev)
-{
-	return ACPI_DEV_PM_CALLBACK(dev, restore);
-}
-
-static const struct dev_pm_ops acpi_bus_pm = {
-	.suspend = acpi_pm_suspend,
-	.resume = acpi_pm_resume,
-	.freeze = acpi_pm_freeze,
-	.thaw = acpi_pm_thaw,
-	.poweroff = acpi_pm_poweroff,
-	.restore = acpi_pm_restore,
-};
-
 static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
@@ -475,7 +425,6 @@ struct bus_type acpi_bus_type = {
 	.probe		= acpi_device_probe,
 	.remove		= acpi_device_remove,
 	.uevent		= acpi_device_uevent,
-	.pm		= &acpi_bus_pm,
 };
 
 static int acpi_device_register(struct acpi_device *device)
