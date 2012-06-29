@@ -104,6 +104,7 @@ struct mgr_priv_data {
 	bool shadow_extra_info_dirty;
 
 	struct omap_video_timings timings;
+	struct dss_lcd_mgr_config lcd_config;
 };
 
 static struct {
@@ -137,6 +138,7 @@ static struct mgr_priv_data *get_mgr_priv(struct omap_overlay_manager *mgr)
 void dss_apply_init(void)
 {
 	const int num_ovls = dss_feat_get_num_ovls();
+	struct mgr_priv_data *mp;
 	int i;
 
 	spin_lock_init(&data_lock);
@@ -168,6 +170,16 @@ void dss_apply_init(void)
 
 		op->user_info = op->info;
 	}
+
+	/*
+	 * Initialize some of the lcd_config fields for TV manager, this lets
+	 * us prevent checking if the manager is LCD or TV at some places
+	 */
+	mp = &dss_data.mgr_priv_data_array[OMAP_DSS_CHANNEL_DIGIT];
+
+	mp->lcd_config.video_port_width = 24;
+	mp->lcd_config.clock_info.lck_div = 1;
+	mp->lcd_config.clock_info.pck_div = 1;
 }
 
 static bool ovl_manual_update(struct omap_overlay *ovl)
@@ -632,6 +644,24 @@ static void dss_mgr_write_regs_extra(struct omap_overlay_manager *mgr)
 		return;
 
 	dispc_mgr_set_timings(mgr->id, &mp->timings);
+
+	/* lcd_config parameters */
+	if (dss_mgr_is_lcd(mgr->id)) {
+		dispc_mgr_set_io_pad_mode(mp->lcd_config.io_pad_mode);
+
+		dispc_mgr_enable_stallmode(mgr->id, mp->lcd_config.stallmode);
+		dispc_mgr_enable_fifohandcheck(mgr->id,
+			mp->lcd_config.fifohandcheck);
+
+		dispc_mgr_set_clock_div(mgr->id, &mp->lcd_config.clock_info);
+
+		dispc_mgr_set_tft_data_lines(mgr->id,
+			mp->lcd_config.video_port_width);
+
+		dispc_lcd_enable_signal_polarity(mp->lcd_config.lcden_sig_polarity);
+
+		dispc_mgr_set_lcd_type_tft(mgr->id);
+	}
 
 	mp->extra_info_dirty = false;
 	if (mp->updating)
@@ -1289,6 +1319,44 @@ void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 
 	wait_pending_extra_info_updates();
 
+	mutex_unlock(&apply_lock);
+}
+
+static void dss_apply_mgr_lcd_config(struct omap_overlay_manager *mgr,
+		const struct dss_lcd_mgr_config *config)
+{
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+
+	mp->lcd_config = *config;
+	mp->extra_info_dirty = true;
+}
+
+void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+		const struct dss_lcd_mgr_config *config)
+{
+	unsigned long flags;
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+
+	mutex_lock(&apply_lock);
+
+	if (mp->enabled) {
+		DSSERR("cannot apply lcd config for %s: manager needs to be disabled\n",
+			mgr->name);
+		goto out;
+	}
+
+	spin_lock_irqsave(&data_lock, flags);
+
+	dss_apply_mgr_lcd_config(mgr, config);
+
+	dss_write_regs();
+	dss_set_go_bits();
+
+	spin_unlock_irqrestore(&data_lock, flags);
+
+	wait_pending_extra_info_updates();
+
+out:
 	mutex_unlock(&apply_lock);
 }
 

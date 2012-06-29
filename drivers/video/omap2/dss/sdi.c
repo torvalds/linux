@@ -46,20 +46,7 @@ static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 	sdi.mgr_config.video_port_width = 24;
 	sdi.mgr_config.lcden_sig_polarity = 1;
 
-	dispc_mgr_set_io_pad_mode(sdi.mgr_config.io_pad_mode);
-	dispc_mgr_enable_stallmode(dssdev->manager->id,
-			sdi.mgr_config.stallmode);
-	dispc_mgr_enable_fifohandcheck(dssdev->manager->id,
-			sdi.mgr_config.fifohandcheck);
-
-	dispc_mgr_set_clock_div(dssdev->manager->id,
-			&sdi.mgr_config.clock_info);
-
-	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
-			sdi.mgr_config.video_port_width);
-	dispc_lcd_enable_signal_polarity(sdi.mgr_config.lcden_sig_polarity);
-
-	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
+	dss_mgr_set_lcd_config(dssdev->manager, &sdi.mgr_config);
 }
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)

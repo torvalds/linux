@@ -4425,22 +4425,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 			dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
 	dsi->mgr_config.lcden_sig_polarity = 0;
 
-	dispc_mgr_set_io_pad_mode(dsi->mgr_config.io_pad_mode);
-
-	dispc_mgr_enable_stallmode(dssdev->manager->id,
-			dsi->mgr_config.stallmode);
-	dispc_mgr_enable_fifohandcheck(dssdev->manager->id,
-			dsi->mgr_config.fifohandcheck);
-
-	dispc_mgr_set_clock_div(dssdev->manager->id,
-			&dsi->mgr_config.clock_info);
-
-	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
-			dsi->mgr_config.video_port_width);
-
-	dispc_lcd_enable_signal_polarity(dsi->mgr_config.lcden_sig_polarity);
-
-	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
+	dss_mgr_set_lcd_config(dssdev->manager, &dsi->mgr_config);
 
 	return 0;
 err1:

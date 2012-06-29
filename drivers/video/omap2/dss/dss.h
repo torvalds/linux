@@ -207,6 +207,8 @@ int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 int dss_mgr_unset_device(struct omap_overlay_manager *mgr);
 void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		struct omap_video_timings *timings);
+void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+		const struct dss_lcd_mgr_config *config);
 const struct omap_video_timings *dss_mgr_get_timings(struct omap_overlay_manager *mgr);
 
 bool dss_ovl_is_enabled(struct omap_overlay *ovl);
@@ -243,6 +245,15 @@ int dss_mgr_check(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info,
 		const struct omap_video_timings *mgr_timings,
 		struct omap_overlay_info **overlay_infos);
+
+static inline bool dss_mgr_is_lcd(enum omap_channel id)
+{
+	if (id == OMAP_DSS_CHANNEL_LCD || id == OMAP_DSS_CHANNEL_LCD2 ||
+			id == OMAP_DSS_CHANNEL_LCD3)
+		return true;
+	else
+		return false;
+}
 
 /* overlay */
 void dss_init_overlays(struct platform_device *pdev);
