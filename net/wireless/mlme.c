@@ -302,8 +302,14 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	if (!req.bss)
 		return -ENOENT;
 
+	err = cfg80211_can_use_chan(rdev, wdev, req.bss->channel,
+				    CHAN_MODE_SHARED);
+	if (err)
+		goto out;
+
 	err = rdev->ops->auth(&rdev->wiphy, dev, &req);
 
+out:
 	cfg80211_put_bss(req.bss);
 	return err;
 }
@@ -317,11 +323,13 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 {
 	int err;
 
+	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
 				   ssid, ssid_len, ie, ie_len,
 				   key, key_len, key_idx);
 	wdev_unlock(dev->ieee80211_ptr);
+	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -397,8 +405,14 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 		return -ENOENT;
 	}
 
+	err = cfg80211_can_use_chan(rdev, wdev, req.bss->channel,
+				    CHAN_MODE_SHARED);
+	if (err)
+		goto out;
+
 	err = rdev->ops->assoc(&rdev->wiphy, dev, &req);
 
+out:
 	if (err) {
 		if (was_connected)
 			wdev->sme_state = CFG80211_SME_CONNECTED;
@@ -421,11 +435,13 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
+	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = __cfg80211_mlme_assoc(rdev, dev, chan, bssid, prev_bssid,
 				    ssid, ssid_len, ie, ie_len, use_mfp, crypt,
 				    assoc_flags, ht_capa, ht_capa_mask);
 	wdev_unlock(wdev);
+	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }

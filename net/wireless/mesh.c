@@ -155,6 +155,11 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 					  setup->channel_type))
 		return -EINVAL;
 
+	err = cfg80211_can_use_chan(rdev, wdev, setup->channel,
+				    CHAN_MODE_SHARED);
+	if (err)
+		return err;
+
 	err = rdev->ops->join_mesh(&rdev->wiphy, dev, conf, setup);
 	if (!err) {
 		memcpy(wdev->ssid, setup->mesh_id, setup->mesh_id_len);
@@ -173,9 +178,11 @@ int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
+	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(wdev);
 	err = __cfg80211_join_mesh(rdev, dev, setup, conf);
 	wdev_unlock(wdev);
+	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -207,6 +214,11 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 
 		if (!netif_running(wdev->netdev))
 			return -ENETDOWN;
+
+		err = cfg80211_can_use_chan(rdev, wdev, channel,
+					    CHAN_MODE_SHARED);
+		if (err)
+			return err;
 
 		err = rdev->ops->libertas_set_mesh_channel(&rdev->wiphy,
 							   wdev->netdev,
