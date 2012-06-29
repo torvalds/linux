@@ -262,10 +262,10 @@ static int hdlcd_set_par(struct fb_info *info)
 	if (!memcmp(&info->var, &cached_var_screeninfo,
 				sizeof(struct fb_var_screeninfo))) {
 		if(old_yoffset != info->var.yoffset) {
-			/* we only changed yoffset */
+			/* we only changed yoffset, and we already
+			 * already recorded it a couple lines up
+			 */
 			hdlcd_pan_display(&info->var, info);
-			memcpy(&cached_var_screeninfo, &info->var,
-				sizeof(struct fb_var_screeninfo));
 		}
 		/* or no change */
 		return 0;
