@@ -1230,14 +1230,6 @@ static struct attribute_group ab9540_attr_group = {
 	.attrs	= ab9540_sysfs_entries,
 };
 
-static const struct of_device_id ab8500_match[] = {
-	{
-		.compatible = "stericsson,ab8500",
-		.data = (void *)AB8500_VERSION_AB8500,
-	},
-	{},
-};
-
 static int __devinit ab8500_probe(struct platform_device *pdev)
 {
 	struct ab8500_platform_data *plat = dev_get_platdata(&pdev->dev);
@@ -1279,9 +1271,6 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 
 	if (platid)
 		version = platid->driver_data;
-	else if (np)
-		version = (unsigned int)
-			of_match_device(ab8500_match, &pdev->dev)->data;
 
 	if (version != AB8500_VERSION_UNDEFINED)
 		ab8500->version = version;
@@ -1478,7 +1467,6 @@ static struct platform_driver ab8500_core_driver = {
 	.driver = {
 		.name = "ab8500-core",
 		.owner = THIS_MODULE,
-		.of_match_table = ab8500_match,
 	},
 	.probe	= ab8500_probe,
 	.remove	= __devexit_p(ab8500_remove),

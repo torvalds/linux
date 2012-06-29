@@ -2945,6 +2945,14 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 	},
 };
 
+static struct resource ab8500_resources[] = {
+	[0] = {
+		.start	= IRQ_DB8500_AB8500,
+		.end	= IRQ_DB8500_AB8500,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
 static struct mfd_cell db8500_prcmu_devs[] = {
 	{
 		.name = "db8500-prcmu-regulators",
@@ -2955,6 +2963,13 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 	{
 		.name = "cpufreq-u8500",
 		.of_compatible = "stericsson,cpufreq-u8500",
+	},
+	{
+		.name = "ab8500-core",
+		.of_compatible = "stericsson,ab8500",
+		.num_resources = ARRAY_SIZE(ab8500_resources),
+		.resources = ab8500_resources,
+		.id = AB8500_VERSION_AB8500,
 	},
 };
 

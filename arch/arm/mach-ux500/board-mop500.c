@@ -793,8 +793,6 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 	/* only create devices below soc node */
 	{ .compatible = "stericsson,db8500", },
 	{ .compatible = "stericsson,db8500-prcmu", },
-	{ .compatible = "stericsson,db8500-prcmu-regulator", },
-	{ .compatible = "stericsson,ab8500", },
 	{ .compatible = "stericsson,ab8500-regulator", },
 	{ .compatible = "simple-bus"},
 	{ },
