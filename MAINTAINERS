@@ -4654,8 +4654,8 @@ L:	netfilter@vger.kernel.org
 L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf-2.6.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf-next-2.6.git
+T:	git git://1984.lsi.us.es/nf
+T:	git git://1984.lsi.us.es/nf-next
 S:	Supported
 F:	include/linux/netfilter*
 F:	include/linux/netfilter/
