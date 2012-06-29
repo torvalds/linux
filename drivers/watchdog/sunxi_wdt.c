@@ -42,12 +42,23 @@
 
 static struct platform_device *platform_device;
 static bool is_active, expect_release;
-static void *wdog_ctrl;
 
-#define SW_WATCH_DOG_CTRL_REG  (SW_VA_TIMERC_IO_BASE + 0x0094)
+#define SW_VA_WATCH_DOG_BASE (SW_VA_TIMERC_IO_BASE + 0x0090)
+static struct sunxi_watchdog_reg {
+	u32 ctrl;
+	u32 mode;
+	u32 reserved[2];
+} *wdt_reg;
+
+#define SW_WDT_CTRL_b_RELOAD 0
+#define SW_WDT_CTRL_b_MAGIC 1
+#define SW_WDT_CTRL_MAGIC_RELOAD 0xA57
+#define SW_WDT_MODE_b_ENABLE 0
+#define SW_WDT_MODE_b_RESET 1
+#define SW_WDT_MODE_b_TIMEOUT 2
 
 #define WATCHDOG_TIMEOUT 23 /* in some unit / scale */
-#define MAX_TIMEOUT ((1<<6)-1)
+#define MAX_TIMEOUT 23	    /* register fits ((1<<6)-1), but seems halted above 23 */
 static unsigned int timeout = WATCHDOG_TIMEOUT;
 module_param(timeout, uint, S_IRUGO);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds "
@@ -62,9 +73,8 @@ static int sunxi_wdt_start(void)
 {
 	int err = 0;
 
-	writel(0, wdog_ctrl);
-	udelay(1000);
-	writel((timeout << 2) | 3, wdog_ctrl);
+	writel((timeout << SW_WDT_MODE_b_TIMEOUT) | (1 << SW_WDT_MODE_b_RESET) | (1 << SW_WDT_MODE_b_ENABLE), &wdt_reg->mode);
+	writel((SW_WDT_CTRL_MAGIC_RELOAD << SW_WDT_CTRL_b_MAGIC) | (1 << SW_WDT_CTRL_b_RELOAD), &wdt_reg->ctrl);
 
 	return err;
 }
@@ -73,7 +83,7 @@ static int sunxi_wdt_stop(void)
 {
 	int err = 0;
 
-	writel(0, SW_WATCH_DOG_CTRL_REG);
+	writel(0, &wdt_reg->mode);
 
 	return err;
 }
@@ -160,13 +170,10 @@ static long sunxi_wdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_SETOPTIONS:
 		if (get_user(new_options, argp))
 			return -EFAULT;
-
 		if (new_options & WDIOS_DISABLECARD)
 			retval = sunxi_wdt_stop();
 		if (new_options & WDIOS_ENABLECARD) {
 			retval = sunxi_wdt_start();
-			if (retval == -EBUSY)
-				retval = sunxi_wdt_kick();
 		}
 		return retval;
 
@@ -234,8 +241,8 @@ static int __devinit sunxi_wdt_probe(struct platform_device *pdev)
 		goto err_request_mem_region;
 	}
 
-	wdog_ctrl = devm_ioremap(&pdev->dev, res->start + 0x4, resource_size(res));
-	if (!wdog_ctrl) {
+	wdt_reg = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!wdt_reg) {
 		ret = -ENXIO;
 		goto err_ioremap;
 	}
@@ -255,7 +262,7 @@ static int __devinit sunxi_wdt_probe(struct platform_device *pdev)
 	return ret;
 
 err_misc_register:
-	devm_iounmap(&pdev->dev, wdog_ctrl);
+	devm_iounmap(&pdev->dev, wdt_reg);
 err_ioremap:
 	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
 err_request_mem_region:
@@ -271,7 +278,7 @@ static int __devexit sunxi_wdt_remove(struct platform_device *pdev)
 	sunxi_wdt_stop();
 
 	misc_deregister(&sunxi_wdt_miscdev);
-	devm_iounmap(&pdev->dev, wdog_ctrl);
+	devm_iounmap(&pdev->dev, wdt_reg);
 	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
 
 	return 0;
