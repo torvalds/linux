@@ -129,7 +129,7 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 	if (of_id)
 		sdrv->id_table = &mc13xxx_device_id[(enum mc13xxx_id) of_id->data];
 
-	mc13xxx = kzalloc(sizeof(*mc13xxx), GFP_KERNEL);
+	mc13xxx = devm_kzalloc(&spi->dev, sizeof(*mc13xxx), GFP_KERNEL);
 	if (!mc13xxx)
 		return -ENOMEM;
 
@@ -139,15 +139,12 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 	mc13xxx->dev = &spi->dev;
 	mutex_init(&mc13xxx->lock);
 
-	mc13xxx->regmap = regmap_init(&spi->dev, &regmap_mc13xxx_bus, &spi->dev,
-					&mc13xxx_regmap_spi_config);
-
+	mc13xxx->regmap = devm_regmap_init_spi(spi, &mc13xxx_regmap_spi_config);
 	if (IS_ERR(mc13xxx->regmap)) {
 		ret = PTR_ERR(mc13xxx->regmap);
 		dev_err(mc13xxx->dev, "Failed to initialize register map: %d\n",
 				ret);
 		dev_set_drvdata(&spi->dev, NULL);
-		kfree(mc13xxx);
 		return ret;
 	}
 
