@@ -32,18 +32,34 @@
 static struct {
 	bool update_enabled;
 	struct regulator *vdds_sdi_reg;
+
+	struct dss_lcd_mgr_config mgr_config;
 } sdi;
 
-static void sdi_basic_init(struct omap_dss_device *dssdev)
-
+static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
-	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_BYPASS);
-	dispc_mgr_enable_stallmode(dssdev->manager->id, false);
+	sdi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
+
+	sdi.mgr_config.stallmode = false;
+	sdi.mgr_config.fifohandcheck = false;
+
+	sdi.mgr_config.video_port_width = 24;
+	sdi.mgr_config.lcden_sig_polarity = 1;
+
+	dispc_mgr_set_io_pad_mode(sdi.mgr_config.io_pad_mode);
+	dispc_mgr_enable_stallmode(dssdev->manager->id,
+			sdi.mgr_config.stallmode);
+	dispc_mgr_enable_fifohandcheck(dssdev->manager->id,
+			sdi.mgr_config.fifohandcheck);
+
+	dispc_mgr_set_clock_div(dssdev->manager->id,
+			&sdi.mgr_config.clock_info);
+
+	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
+			sdi.mgr_config.video_port_width);
+	dispc_lcd_enable_signal_polarity(sdi.mgr_config.lcden_sig_polarity);
 
 	dispc_mgr_set_lcd_type_tft(dssdev->manager->id);
-
-	dispc_mgr_set_tft_data_lines(dssdev->manager->id, 24);
-	dispc_lcd_enable_signal_polarity(1);
 }
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
@@ -51,8 +67,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	struct omap_video_timings *t = &dssdev->panel.timings;
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
-	u16 lck_div, pck_div;
-	unsigned long fck;
 	unsigned long pck;
 	int r;
 
@@ -75,8 +89,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	sdi_basic_init(dssdev);
-
 	/* 15.5.9.1.2 */
 	dssdev->panel.timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 	dssdev->panel.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
@@ -85,11 +97,9 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_calc_clock_div;
 
-	fck = dss_cinfo.fck;
-	lck_div = dispc_cinfo.lck_div;
-	pck_div = dispc_cinfo.pck_div;
+	sdi.mgr_config.clock_info = dispc_cinfo;
 
-	pck = fck / lck_div / pck_div / 1000;
+	pck = dss_cinfo.fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div / 1000;
 
 	if (pck != t->pixel_clock) {
 		DSSWARN("Could not find exact pixel clock. Requested %d kHz, "
@@ -106,7 +116,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_set_dss_clock_div;
 
-	dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
+	sdi_config_lcd_manager(dssdev);
 
 	dss_sdi_init(dssdev->phy.sdi.datapairs);
 	r = dss_sdi_enable();
