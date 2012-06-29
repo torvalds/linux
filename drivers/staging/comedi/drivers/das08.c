@@ -847,7 +847,6 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->insn_write = das08_counter_write;
 		s->insn_config = das08_counter_config;
 		/* Set-up the 8254 structure */
-		devpriv->i8254.channels = 3;
 		devpriv->i8254.iobase = iobase + thisboard->i8254_offset;
 		i8254_initialize(&devpriv->i8254);
 	} else {
