@@ -295,7 +295,7 @@ static int ni_670x_attach(struct comedi_device *dev,
 	dev_info(dev->class_dev, "%s: %s attached\n",
 		dev->driver->driver_name, dev->board_name);
 
-	return 1;
+	return 0;
 }
 
 static void ni_670x_detach(struct comedi_device *dev)
