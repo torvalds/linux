@@ -63,7 +63,6 @@ static int s3c24xx_led_remove(struct platform_device *dev)
 	struct s3c24xx_gpio_led *led = pdev_to_gpio(dev);
 
 	led_classdev_unregister(&led->cdev);
-	kfree(led);
 
 	return 0;
 }
@@ -74,7 +73,8 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 	struct s3c24xx_gpio_led *led;
 	int ret;
 
-	led = kzalloc(sizeof(struct s3c24xx_gpio_led), GFP_KERNEL);
+	led = devm_kzalloc(&dev->dev, sizeof(struct s3c24xx_gpio_led),
+			   GFP_KERNEL);
 	if (led == NULL) {
 		dev_err(&dev->dev, "No memory for device\n");
 		return -ENOMEM;
@@ -103,10 +103,8 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 	/* register our new led device */
 
 	ret = led_classdev_register(&dev->dev, &led->cdev);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&dev->dev, "led_classdev_register failed\n");
-		kfree(led);
-	}
 
 	return ret;
 }
