@@ -476,11 +476,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 				   struct bcma_bus *pbus)
 {
 	struct si_pub *sih = &sii->pub;
-	u32 w, savewin;
 	struct bcma_device *cc;
-	struct ssb_sprom *sprom = &pbus->sprom;
-
-	savewin = 0;
 
 	sii->icbus = pbus;
 	sii->pcibus = pbus->host_pci;
@@ -504,44 +500,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	/* PMU specific initializations */
 	if (ai_get_cccaps(sih) & CC_CAP_PMU) {
 		(void)si_pmu_measure_alpclk(sih);
-	}
-
-	/* setup the GPIO based LED powersave register */
-	w = (sprom->leddc_on_time << BCMA_CC_GPIOTIMER_ONTIME_SHIFT) |
-		 (sprom->leddc_off_time << BCMA_CC_GPIOTIMER_OFFTIME_SHIFT);
-	if (w == 0)
-		w = DEFAULT_GPIOTIMERVAL;
-	ai_cc_reg(sih, offsetof(struct chipcregs, gpiotimerval),
-		  ~0, w);
-
-	if (ai_get_chip_id(sih) == BCM43224_CHIP_ID) {
-		/*
-		 * enable 12 mA drive strenth for 43224 and
-		 * set chipControl register bit 15
-		 */
-		if (ai_get_chiprev(sih) == 0) {
-			SI_MSG("Applying 43224A0 WARs\n");
-			ai_cc_reg(sih, offsetof(struct chipcregs, chipcontrol),
-				  CCTRL43224_GPIO_TOGGLE,
-				  CCTRL43224_GPIO_TOGGLE);
-			si_pmu_chipcontrol(sih, 0, CCTRL_43224A0_12MA_LED_DRIVE,
-					   CCTRL_43224A0_12MA_LED_DRIVE);
-		}
-		if (ai_get_chiprev(sih) >= 1) {
-			SI_MSG("Applying 43224B0+ WARs\n");
-			si_pmu_chipcontrol(sih, 0, CCTRL_43224B0_12MA_LED_DRIVE,
-					   CCTRL_43224B0_12MA_LED_DRIVE);
-		}
-	}
-
-	if (ai_get_chip_id(sih) == BCM4313_CHIP_ID) {
-		/*
-		 * enable 12 mA drive strenth for 4313 and
-		 * set chipControl register bit 1
-		 */
-		SI_MSG("Applying 4313 WARs\n");
-		si_pmu_chipcontrol(sih, 0, CCTRL_4313_12MA_LED_DRIVE,
-				   CCTRL_4313_12MA_LED_DRIVE);
 	}
 
 	return sii;
