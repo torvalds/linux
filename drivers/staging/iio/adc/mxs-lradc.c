@@ -237,7 +237,6 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *iio = pf->indio_dev;
 	struct mxs_lradc *lradc = iio_priv(iio);
-	struct iio_buffer *buffer = iio->buffer;
 	const uint32_t chan_value = LRADC_CH_ACCUMULATE |
 		((LRADC_DELAY_TIMER_LOOP - 1) << LRADC_CH_NUM_SAMPLES_OFFSET);
 	int i, j = 0;
@@ -256,7 +255,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 		*timestamp = pf->timestamp;
 	}
 
-	iio_push_to_buffer(buffer, (u8 *)lradc->buffer);
+	iio_push_to_buffers(iio, (u8 *)lradc->buffer);
 
 	iio_trigger_notify_done(iio->trig);
 

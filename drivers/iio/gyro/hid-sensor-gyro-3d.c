@@ -197,21 +197,8 @@ static const struct iio_info gyro_3d_info = {
 /* Function to push data to buffer */
 static void hid_sensor_push_data(struct iio_dev *indio_dev, u8 *data, int len)
 {
-	struct iio_buffer *buffer = indio_dev->buffer;
-	int datum_sz;
-
 	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
-	if (!buffer) {
-		dev_err(&indio_dev->dev, "Buffer == NULL\n");
-		return;
-	}
-	datum_sz = buffer->access->get_bytes_per_datum(buffer);
-	if (len > datum_sz) {
-		dev_err(&indio_dev->dev, "Datum size mismatch %d:%d\n", len,
-				datum_sz);
-		return;
-	}
-	iio_push_to_buffer(buffer, (u8 *)data);
+	iio_push_to_buffers(indio_dev, (u8 *)data);
 }
 
 /* Callback handler to send event after all samples are received and captured */

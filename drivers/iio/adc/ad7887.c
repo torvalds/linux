@@ -134,7 +134,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 		memcpy(st->data + indio_dev->scan_bytes - sizeof(s64),
 		       &time_ns, sizeof(time_ns));
 
-	iio_push_to_buffer(indio_dev->buffer, st->data);
+	iio_push_to_buffers(indio_dev, st->data);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 
