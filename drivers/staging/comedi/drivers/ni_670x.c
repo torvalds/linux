@@ -88,14 +88,6 @@ static const struct ni_670x_board ni_670x_boards[] = {
 	 },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c90)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1920)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
-
 #define thisboard ((struct ni_670x_board *)dev->board_ptr)
 
 struct ni_670x_private {
@@ -108,55 +100,6 @@ struct ni_670x_private {
 
 #define devpriv ((struct ni_670x_private *)dev->private)
 #define n_ni_670x_boards ARRAY_SIZE(ni_670x_boards)
-
-static int ni_670x_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static void ni_670x_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_ni_670x = {
-	.driver_name = "ni_670x",
-	.module = THIS_MODULE,
-	.attach = ni_670x_attach,
-	.detach = ni_670x_detach,
-};
-
-static int __devinit driver_ni_670x_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, &driver_ni_670x);
-}
-
-static void __devexit driver_ni_670x_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_ni_670x_pci_driver = {
-	.id_table = ni_670x_pci_table,
-	.probe = &driver_ni_670x_pci_probe,
-	.remove = __devexit_p(&driver_ni_670x_pci_remove)
-};
-
-static int __init driver_ni_670x_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_ni_670x);
-	if (retval < 0)
-		return retval;
-
-	driver_ni_670x_pci_driver.name = (char *)driver_ni_670x.driver_name;
-	return pci_register_driver(&driver_ni_670x_pci_driver);
-}
-
-static void __exit driver_ni_670x_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_ni_670x_pci_driver);
-	comedi_driver_unregister(&driver_ni_670x);
-}
-
-module_init(driver_ni_670x_init_module);
-module_exit(driver_ni_670x_cleanup_module);
 
 static struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 
@@ -376,6 +319,39 @@ static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
 	mite_list_devices();
 	return -EIO;
 }
+
+static struct comedi_driver ni_670x_driver = {
+	.driver_name	= "ni_670x",
+	.module		= THIS_MODULE,
+	.attach		= ni_670x_attach,
+	.detach		= ni_670x_detach,
+};
+
+static int __devinit ni_670x_pci_probe(struct pci_dev *dev,
+				       const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &ni_670x_driver);
+}
+
+static void __devexit ni_670x_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c90) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1920) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
+
+static struct pci_driver ni_670x_pci_driver = {
+	.name		="ni_670x",
+	.id_table	= ni_670x_pci_table,
+	.probe		= ni_670x_pci_probe,
+	.remove		= __devexit_p(ni_670x_pci_remove),
+};
+module_comedi_pci_driver(ni_670x_driver, ni_670x_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
