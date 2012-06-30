@@ -639,10 +639,10 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->dataoffsetlow = di->ddoffsetlow;
 	di->dataoffsethigh = di->ddoffsethigh;
 	/* WAR64450 : DMACtl.Addr ext fields are not supported in SDIOD core. */
-	if ((core->id.id == SDIOD_CORE_ID)
+	if ((core->id.id == BCMA_CORE_SDIO_DEV)
 	    && ((rev > 0) && (rev <= 2)))
 		di->addrext = false;
-	else if ((core->id.id == I2S_CORE_ID) &&
+	else if ((core->id.id == BCMA_CORE_I2S) &&
 		 ((rev == 0) || (rev == 1)))
 		di->addrext = false;
 	else
