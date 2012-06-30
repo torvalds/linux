@@ -318,9 +318,8 @@
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-#define PCIE(sih)	(ai_get_buscoretype(sih) == PCIE_CORE_ID)
-
-#define PCI_FORCEHT(sih) (PCIE(sih) && (ai_get_chip_id(sih) == BCM4716_CHIP_ID))
+#define PCI_FORCEHT(sih) ((ai_get_buscoretype(sih) == PCIE_CORE_ID) && \
+			  (ai_get_chip_id(sih) == BCM4716_CHIP_ID))
 
 #ifdef DEBUG
 #define	SI_MSG(fmt, ...)	pr_debug(fmt, ##__VA_ARGS__)
@@ -774,7 +773,7 @@ void ai_pci_up(struct si_pub *sih)
 		bcma_core_set_clockmode(cc, BCMA_CLKMODE_FAST);
 	}
 
-	if (PCIE(sih))
+	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
 }
 
@@ -792,7 +791,7 @@ void ai_pci_down(struct si_pub *sih)
 		bcma_core_set_clockmode(cc, BCMA_CLKMODE_DYNAMIC);
 	}
 
-	if (PCIE(sih))
+	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
 }
 
