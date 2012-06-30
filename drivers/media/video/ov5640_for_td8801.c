@@ -73,7 +73,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Focus         0
 #endif
 
-#define CONFIG_SENSOR_I2C_SPEED    50*1000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED    400*1000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
@@ -809,13 +809,11 @@ static  struct reginfo sensor_ClrFmt_YUYV[]=
 {
 	{0x4300,0x30},
 	{0x4300,0x30},
-	{0x4300,0x30},
 	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_ClrFmt_UYVY[]=
 {
-	{0x4300,0x32},
 	{0x4300,0x32},
 	{0x4300,0x32},
 	{SEQUENCE_END, 0x00}
@@ -1926,7 +1924,7 @@ static int sensor_af_single(struct i2c_client *client)
 		ret = -1;
 		goto sensor_af_single_end;
 	}
-	
+
 	cnt = 0;
     do
     {
@@ -1963,8 +1961,8 @@ static int sensor_af_const(struct i2c_client *client)
 
 static int sensor_af_init(struct i2c_client *client)
 {
-	int ret = 0;
-	char state,cnt;
+	int ret = 0, cnt;
+	char state;
 
 	ret = sensor_write_array(client, sensor_af_firmware);
     if (ret != 0) {
@@ -1976,17 +1974,16 @@ static int sensor_af_init(struct i2c_client *client)
     cnt = 0;
     do
     {
-    	if (cnt != 0) {
-			msleep(1);
-    	}
-    	cnt++;
-		ret = sensor_read(client, STA_FOCUS_Reg, &state);
+		msleep(1);
+    	if (cnt++ > 500)
+    		break;
+    	ret = sensor_read(client, STA_FOCUS_Reg, &state);
 		if (ret != 0){
 		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
 		   ret = -1;
 		   goto sensor_af_init_end;
 		}
-    }while((state == S_STARTUP) && (cnt<100));	
+    } while (state != S_IDLE);
 
     if (state != S_IDLE) {
     	SENSOR_TR("%s focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),state);
@@ -2182,9 +2179,9 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
         * and VIDIOC_DQBUF is sched. so unlock video_lock here.
         */
         if (wait == true) {
-            mutex_unlock(&icd->video_lock);                     
-            if (wait_event_timeout(wk->done, (wk->result != WqRet_inval), msecs_to_jiffies(2500)) == 0) {
-                SENSOR_TR("%s %s cmd(%d) is timeout!",SENSOR_NAME_STRING(),__FUNCTION__,cmd);                        
+            mutex_unlock(&icd->video_lock);
+            if (wait_event_timeout(wk->done, (wk->result != WqRet_inval), msecs_to_jiffies(5000)) == 0) {  //hhb
+                SENSOR_TR("%s %s cmd(%d) is timeout!\n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
             }
             ret = wk->result;
             kfree((void*)wk);
@@ -2504,6 +2501,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     }
 
     ret = sensor_write_array(client, sensor_init_data);
+    udelay(1000);   //wait sensor power on,so that I2C write sensor registers would sucess hhb@rock-chips.con
+
     if (ret != 0) {
         SENSOR_TR("error: %s initial failed\n",SENSOR_NAME_STRING());
         goto sensor_INIT_ERR;
@@ -2860,6 +2859,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
 			if (((winseqe_set_addr->reg == SEQUENCE_PROPERTY) && (winseqe_set_addr->val == SEQUENCE_NORMAL))
 				|| (winseqe_set_addr->reg != SEQUENCE_PROPERTY)) {
 				ret |= sensor_write_array(client,sensor_init_data);
+				udelay(1000);   //wait sensor power on,so that I2C write sensor registers would sucess hhb@rock-chips.con
 				SENSOR_DG("\n%s reinit ret:0x%x \n",SENSOR_NAME_STRING(), ret);
 			}
 		}
