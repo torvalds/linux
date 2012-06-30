@@ -114,7 +114,8 @@ int sctp_tsnmap_check(const struct sctp_tsnmap *map, __u32 tsn)
 
 
 /* Mark this TSN as seen.  */
-int sctp_tsnmap_mark(struct sctp_tsnmap *map, __u32 tsn)
+int sctp_tsnmap_mark(struct sctp_tsnmap *map, __u32 tsn,
+		     struct sctp_transport *trans)
 {
 	u16 gap;
 
@@ -133,6 +134,9 @@ int sctp_tsnmap_mark(struct sctp_tsnmap *map, __u32 tsn)
 		 */
 		map->max_tsn_seen++;
 		map->cumulative_tsn_ack_point++;
+		if (trans)
+			trans->sack_generation =
+				trans->asoc->peer.sack_generation;
 		map->base_tsn++;
 	} else {
 		/* Either we already have a gap, or about to record a gap, so

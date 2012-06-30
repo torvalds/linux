@@ -248,6 +248,11 @@ static sctp_xmit_t sctp_packet_bundle_sack(struct sctp_packet *pkt,
 		/* If the SACK timer is running, we have a pending SACK */
 		if (timer_pending(timer)) {
 			struct sctp_chunk *sack;
+
+			if (pkt->transport->sack_generation !=
+			    pkt->transport->asoc->peer.sack_generation)
+				return retval;
+
 			asoc->a_rwnd = asoc->rwnd;
 			sack = sctp_make_sack(asoc);
 			if (sack) {

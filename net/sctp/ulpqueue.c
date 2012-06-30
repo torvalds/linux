@@ -1051,7 +1051,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	if (chunk && (freed >= needed)) {
 		__u32 tsn;
 		tsn = ntohl(chunk->subh.data_hdr->tsn);
-		sctp_tsnmap_mark(&asoc->peer.tsn_map, tsn);
+		sctp_tsnmap_mark(&asoc->peer.tsn_map, tsn, chunk->transport);
 		sctp_ulpq_tail_data(ulpq, chunk, gfp);
 
 		sctp_ulpq_partial_delivery(ulpq, chunk, gfp);
