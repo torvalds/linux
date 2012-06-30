@@ -590,27 +590,6 @@ void ai_detach(struct si_pub *sih)
 	kfree(sii);
 }
 
-/* return index of coreid or BADIDX if not found */
-struct bcma_device *ai_findcore(struct si_pub *sih, u16 coreid, u16 coreunit)
-{
-	struct bcma_device *core;
-	struct si_info *sii;
-	uint found;
-
-	sii = container_of(sih, struct si_info, pub);
-
-	found = 0;
-
-	list_for_each_entry(core, &sii->icbus->cores, list)
-		if (core->id.id == coreid) {
-			if (found == coreunit)
-				return core;
-			found++;
-		}
-
-	return NULL;
-}
-
 /*
  * read/modify chipcommon core register.
  */
@@ -686,12 +665,13 @@ ai_clkctl_setdelay(struct si_pub *sih, struct bcma_device *cc)
 /* initialize power control delay registers */
 void ai_clkctl_init(struct si_pub *sih)
 {
+	struct si_info *sii = container_of(sih, struct si_info, pub);
 	struct bcma_device *cc;
 
 	if (!(ai_get_cccaps(sih) & CC_CAP_PWR_CTL))
 		return;
 
-	cc = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
+	cc = sii->icbus->drv_cc.core;
 	if (cc == NULL)
 		return;
 
@@ -723,7 +703,7 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 		return 0;
 
 	fpdelay = 0;
-	cc = ai_findcore(sih, CC_CORE_ID, 0);
+	cc = sii->icbus->drv_cc.core;
 	if (cc) {
 		slowminfreq = ai_slowclk_freq(sih, false, cc);
 		fpdelay = (((bcma_read32(cc, CHIPCREGOFFS(pll_on_delay)) + 2)
@@ -747,7 +727,7 @@ bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 
 	sii = container_of(sih, struct si_info, pub);
 
-	cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
+	cc = sii->icbus->drv_cc.core;
 	bcma_core_set_clockmode(cc, mode);
 	return mode == BCMA_CLKMODE_FAST;
 }
@@ -776,9 +756,10 @@ void ai_pci_down(struct si_pub *sih)
 /* Enable BT-COEX & Ex-PA for 4313 */
 void ai_epa_4313war(struct si_pub *sih)
 {
+	struct si_info *sii = container_of(sih, struct si_info, pub);
 	struct bcma_device *cc;
 
-	cc = ai_findcore(sih, CC_CORE_ID, 0);
+	cc = sii->icbus->drv_cc.core;
 
 	/* EPA Fix */
 	bcma_set32(cc, CHIPCREGOFFS(gpiocontrol), GPIO_CTRL_EPA_EN_MASK);
