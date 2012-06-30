@@ -1019,8 +1019,6 @@ source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
 
-source "arch/arm/mach-lpc32xx/Kconfig"
-
 source "arch/arm/mach-msm/Kconfig"
 
 source "arch/arm/mach-mv78xx0/Kconfig"
