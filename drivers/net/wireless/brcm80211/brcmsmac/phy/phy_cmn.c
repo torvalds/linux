@@ -198,6 +198,8 @@ u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 
 void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
+	struct si_info *sii = container_of(pi->sh->sih, struct si_info, pub);
+
 	if ((D11REV_GE(pi->sh->corerev, 24)) ||
 	    (D11REV_IS(pi->sh->corerev, 22)
 	     && (pi->pubpi.phy_type != PHY_TYPE_SSN))) {
@@ -209,7 +211,8 @@ void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 		bcma_write16(pi->d11core, D11REGOFFS(phy4wdatalo), val);
 	}
 
-	if (++pi->phy_wreg >= pi->phy_wreg_limit) {
+	if ((sii->icbus->hosttype == BCMA_HOSTTYPE_PCI) &&
+	    (++pi->phy_wreg >= pi->phy_wreg_limit)) {
 		(void)bcma_read32(pi->d11core, D11REGOFFS(maccontrol));
 		pi->phy_wreg = 0;
 	}
@@ -294,8 +297,11 @@ void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 	if (addr == 0x72)
 		(void)bcma_read16(pi->d11core, D11REGOFFS(phyregdata));
 #else
+	struct si_info *sii = container_of(pi->sh->sih, struct si_info, pub);
+
 	bcma_write32(pi->d11core, D11REGOFFS(phyregaddr), addr | (val << 16));
-	if (++pi->phy_wreg >= pi->phy_wreg_limit) {
+	if ((sii->icbus->hosttype == BCMA_HOSTTYPE_PCI) &&
+	    (++pi->phy_wreg >= pi->phy_wreg_limit)) {
 		pi->phy_wreg = 0;
 		(void)bcma_read16(pi->d11core, D11REGOFFS(phyversion));
 	}
