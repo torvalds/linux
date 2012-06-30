@@ -168,7 +168,6 @@ struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first) */
 	struct bcma_bus *icbus;	/* handle to soc interconnect bus */
 	struct pci_dev *pcibus;	/* handle to pci bus */
-	struct bcma_device *buscore;
 
 	u32 chipst;		/* chip status */
 };
@@ -201,9 +200,6 @@ extern void ai_pci_up(struct si_pub *sih);
 
 /* Enable Ex-PA for 4313 */
 extern void ai_epa_4313war(struct si_pub *sih);
-
-extern uint ai_get_buscoretype(struct si_pub *sih);
-extern uint ai_get_buscorerev(struct si_pub *sih);
 
 static inline u32 ai_get_cccaps(struct si_pub *sih)
 {

@@ -469,9 +469,6 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 		sii->pub.pmurev = sii->pub.pmucaps & PCAP_REV_MASK;
 	}
 
-	/* figure out buscore */
-	sii->buscore = ai_findcore(&sii->pub, PCIE_CORE_ID, 0);
-
 	return true;
 }
 
@@ -803,16 +800,4 @@ bool ai_deviceremoved(struct si_pub *sih)
 		return true;
 
 	return false;
-}
-
-uint ai_get_buscoretype(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-	return sii->buscore->id.id;
-}
-
-uint ai_get_buscorerev(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-	return sii->buscore->id.rev;
 }
