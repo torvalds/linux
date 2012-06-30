@@ -61,31 +61,29 @@ Commands are not supported.
 /* Board description*/
 
 struct ni_670x_board {
-	unsigned short dev_id;
 	const char *name;
+	unsigned short dev_id;
 	unsigned short ao_chans;
 	unsigned short ao_bits;
 };
 
 static const struct ni_670x_board ni_670x_boards[] = {
 	{
-	 .dev_id = 0x2c90,
-	 .name = "PCI-6703",
-	 .ao_chans = 16,
-	 .ao_bits = 16,
-	 },
-	{
-	 .dev_id = 0x1920,
-	 .name = "PXI-6704",
-	 .ao_chans = 32,
-	 .ao_bits = 16,
-	 },
-	{
-	 .dev_id = 0x1290,
-	 .name = "PCI-6704",
-	 .ao_chans = 32,
-	 .ao_bits = 16,
-	 },
+		.name		= "PCI-6703",
+		.dev_id		= 0x2c90,
+		.ao_chans	= 16,
+		.ao_bits	= 16,
+	}, {
+		.name		= "PXI-6704",
+		.dev_id		= 0x1920,
+		.ao_chans	= 32,
+		.ao_bits	= 16,
+	}, {
+		.name		= "PCI-6704",
+		.dev_id		= 0x1290,
+		.ao_chans	= 32,
+		.ao_bits	= 16,
+	},
 };
 
 struct ni_670x_private {
