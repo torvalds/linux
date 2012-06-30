@@ -503,9 +503,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 
 	/* PMU specific initializations */
 	if (ai_get_cccaps(sih) & CC_CAP_PMU) {
-		si_pmu_init(sih);
 		(void)si_pmu_measure_alpclk(sih);
-		si_pmu_res_init(sih);
 	}
 
 	/* setup the GPIO based LED powersave register */
