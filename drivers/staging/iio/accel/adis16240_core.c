@@ -500,7 +500,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.channel2 = IIO_MOD_X,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel_x,
 		.scan_index = ADIS16240_SCAN_ACC_X,
 		.scan_type = {
@@ -514,7 +515,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.channel2 = IIO_MOD_Y,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel_y,
 		.scan_index = ADIS16240_SCAN_ACC_Y,
 		.scan_type = {
@@ -528,7 +530,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.channel2 = IIO_MOD_Z,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel_z,
 		.scan_index = ADIS16240_SCAN_ACC_Z,
 		.scan_type = {
