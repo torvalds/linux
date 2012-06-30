@@ -88,8 +88,6 @@ static const struct ni_670x_board ni_670x_boards[] = {
 	 },
 };
 
-#define thisboard ((struct ni_670x_board *)dev->board_ptr)
-
 struct ni_670x_private {
 
 	struct mite_struct *mite;
@@ -98,7 +96,6 @@ struct ni_670x_private {
 	unsigned int ao_readback[32];
 };
 
-#define devpriv ((struct ni_670x_private *)dev->private)
 #define n_ni_670x_boards ARRAY_SIZE(ni_670x_boards)
 
 static struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
@@ -107,6 +104,7 @@ static int ni_670x_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct ni_670x_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -137,6 +135,7 @@ static int ni_670x_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct ni_670x_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -150,6 +149,8 @@ static int ni_670x_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct ni_670x_private *devpriv = dev->private;
+
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
 	if (data[0]) {
@@ -170,6 +171,7 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct ni_670x_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 
 	switch (data[0]) {
@@ -195,6 +197,7 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 
 static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
 {
+	struct ni_670x_private *devpriv = dev->private;
 	struct mite_struct *mite;
 	int i;
 
@@ -224,19 +227,23 @@ static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
 static int ni_670x_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct ni_670x_board *thisboard;
+	struct ni_670x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
 
 	printk(KERN_INFO "comedi%d: ni_670x: ", dev->minor);
 
-	ret = alloc_private(dev, sizeof(struct ni_670x_private));
+	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
 		return ret;
+	devpriv = dev->private;
 
 	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
 	if (ret < 0)
 		return ret;
+	thisboard = comedi_board(dev);
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
@@ -297,8 +304,10 @@ static int ni_670x_attach(struct comedi_device *dev,
 
 static void ni_670x_detach(struct comedi_device *dev)
 {
+	struct ni_670x_private *devpriv = dev->private;
+
 	kfree(dev->subdevices[0].range_table_list);
-	if (dev->private && devpriv->mite)
+	if (devpriv && devpriv->mite)
 		mite_unsetup(devpriv->mite);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
