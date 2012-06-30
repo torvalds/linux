@@ -22,7 +22,8 @@ static inline int __iio_allocate_kfifo(struct iio_kfifo *buf,
 		return -EINVAL;
 
 	__iio_update_buffer(&buf->buffer, bytes_per_datum, length);
-	return kfifo_alloc(&buf->kf, bytes_per_datum*length, GFP_KERNEL);
+	return __kfifo_alloc((struct __kfifo *)&buf->kf, length,
+			     bytes_per_datum, GFP_KERNEL);
 }
 
 static int iio_request_update_kfifo(struct iio_buffer *r)
@@ -94,9 +95,10 @@ static int iio_store_to_kfifo(struct iio_buffer *r,
 {
 	int ret;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
-	ret = kfifo_in(&kf->kf, data, r->bytes_per_datum);
-	if (ret != r->bytes_per_datum)
+	ret = kfifo_in(&kf->kf, data, 1);
+	if (ret != 1)
 		return -EBUSY;
+
 	return 0;
 }
 
@@ -109,7 +111,6 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 	if (n < r->bytes_per_datum)
 		return -EINVAL;
 
-	n = rounddown(n, r->bytes_per_datum);
 	ret = kfifo_to_user(&kf->kf, buf, n, &copied);
 
 	return copied;
