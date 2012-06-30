@@ -96,8 +96,6 @@ struct ni_670x_private {
 	unsigned int ao_readback[32];
 };
 
-#define n_ni_670x_boards ARRAY_SIZE(ni_670x_boards)
-
 static struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 
 static int ni_670x_ao_winsn(struct comedi_device *dev,
@@ -210,7 +208,7 @@ static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
 				continue;
 		}
 
-		for (i = 0; i < n_ni_670x_boards; i++) {
+		for (i = 0; i < ARRAY_SIZE(ni_670x_boards); i++) {
 			if (mite_device_id(mite) == ni_670x_boards[i].dev_id) {
 				dev->board_ptr = ni_670x_boards + i;
 				devpriv->mite = mite;
