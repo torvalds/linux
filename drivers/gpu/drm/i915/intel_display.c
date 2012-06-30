@@ -3554,12 +3554,61 @@ void intel_encoder_commit(struct drm_encoder *encoder)
 		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
 }
 
+void intel_encoder_noop(struct drm_encoder *encoder)
+{
+}
+
+void intel_encoder_disable(struct drm_encoder *encoder)
+{
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
+
+	intel_encoder->disable(intel_encoder);
+}
+
 void intel_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
 	drm_encoder_cleanup(encoder);
 	kfree(intel_encoder);
+}
+
+/* Simple dpms helper for encodres with just one connector, no cloning and only
+ * one kind of off state. It clamps all !ON modes to fully OFF and changes the
+ * state of the entire output pipe. */
+void intel_encoder_dpms(struct intel_encoder *encoder, int mode)
+{
+	if (mode == DRM_MODE_DPMS_ON) {
+		encoder->connectors_active = true;
+
+		intel_crtc_dpms(encoder->base.crtc, DRM_MODE_DPMS_ON);
+	} else {
+		encoder->connectors_active = false;
+
+		intel_crtc_dpms(encoder->base.crtc, DRM_MODE_DPMS_OFF);
+	}
+}
+
+/* Even simpler default implementation, if there's really no special case to
+ * consider. */
+void intel_connector_dpms(struct drm_connector *connector, int mode)
+{
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+
+	/* All the simple cases only support two dpms states. */
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
+	if (mode == connector->dpms)
+		return;
+
+	connector->dpms = mode;
+
+	/* Only need to change hw state when actually enabled */
+	if (encoder->base.crtc)
+		intel_encoder_dpms(encoder, mode);
+	else
+		encoder->connectors_active = false;
 }
 
 static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,

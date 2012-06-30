@@ -601,11 +601,11 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	intel_hdmi->set_infoframes(encoder, adjusted_mode);
 }
 
-static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
+static void intel_enable_hdmi(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	u32 temp;
 	u32 enable_bits = SDVO_ENABLE;
 
@@ -617,30 +617,70 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 	/* HW workaround for IBX, we need to move the port to transcoder A
 	 * before disabling it. */
 	if (HAS_PCH_IBX(dev)) {
-		struct drm_crtc *crtc = encoder->crtc;
+		struct drm_crtc *crtc = encoder->base.crtc;
 		int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
 
-		if (mode != DRM_MODE_DPMS_ON) {
-			if (temp & SDVO_PIPE_B_SELECT) {
-				temp &= ~SDVO_PIPE_B_SELECT;
-				I915_WRITE(intel_hdmi->sdvox_reg, temp);
-				POSTING_READ(intel_hdmi->sdvox_reg);
+		/* Restore the transcoder select bit. */
+		if (pipe == PIPE_B)
+			enable_bits |= SDVO_PIPE_B_SELECT;
+	}
 
-				/* Again we need to write this twice. */
-				I915_WRITE(intel_hdmi->sdvox_reg, temp);
-				POSTING_READ(intel_hdmi->sdvox_reg);
+	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
+	 * we do this anyway which shows more stable in testing.
+	 */
+	if (HAS_PCH_SPLIT(dev)) {
+		I915_WRITE(intel_hdmi->sdvox_reg, temp & ~SDVO_ENABLE);
+		POSTING_READ(intel_hdmi->sdvox_reg);
+	}
 
-				/* Transcoder selection bits only update
-				 * effectively on vblank. */
-				if (crtc)
-					intel_wait_for_vblank(dev, pipe);
-				else
-					msleep(50);
-			}
-		} else {
-			/* Restore the transcoder select bit. */
-			if (pipe == PIPE_B)
-				enable_bits |= SDVO_PIPE_B_SELECT;
+	temp |= enable_bits;
+
+	I915_WRITE(intel_hdmi->sdvox_reg, temp);
+	POSTING_READ(intel_hdmi->sdvox_reg);
+
+	/* HW workaround, need to write this twice for issue that may result
+	 * in first write getting masked.
+	 */
+	if (HAS_PCH_SPLIT(dev)) {
+		I915_WRITE(intel_hdmi->sdvox_reg, temp);
+		POSTING_READ(intel_hdmi->sdvox_reg);
+	}
+}
+
+static void intel_disable_hdmi(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	u32 temp;
+	u32 enable_bits = SDVO_ENABLE;
+
+	if (intel_hdmi->has_audio)
+		enable_bits |= SDVO_AUDIO_ENABLE;
+
+	temp = I915_READ(intel_hdmi->sdvox_reg);
+
+	/* HW workaround for IBX, we need to move the port to transcoder A
+	 * before disabling it. */
+	if (HAS_PCH_IBX(dev)) {
+		struct drm_crtc *crtc = encoder->base.crtc;
+		int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
+
+		if (temp & SDVO_PIPE_B_SELECT) {
+			temp &= ~SDVO_PIPE_B_SELECT;
+			I915_WRITE(intel_hdmi->sdvox_reg, temp);
+			POSTING_READ(intel_hdmi->sdvox_reg);
+
+			/* Again we need to write this twice. */
+			I915_WRITE(intel_hdmi->sdvox_reg, temp);
+			POSTING_READ(intel_hdmi->sdvox_reg);
+
+			/* Transcoder selection bits only update
+			 * effectively on vblank. */
+			if (crtc)
+				intel_wait_for_vblank(dev, pipe);
+			else
+				msleep(50);
 		}
 	}
 
@@ -652,11 +692,7 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 		POSTING_READ(intel_hdmi->sdvox_reg);
 	}
 
-	if (mode != DRM_MODE_DPMS_ON) {
-		temp &= ~enable_bits;
-	} else {
-		temp |= enable_bits;
-	}
+	temp &= ~enable_bits;
 
 	I915_WRITE(intel_hdmi->sdvox_reg, temp);
 	POSTING_READ(intel_hdmi->sdvox_reg);
@@ -849,23 +885,23 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs_hsw = {
-	.dpms = intel_ddi_dpms,
 	.mode_fixup = intel_hdmi_mode_fixup,
-	.prepare = intel_encoder_prepare,
+	.prepare = intel_encoder_noop,
 	.mode_set = intel_ddi_mode_set,
-	.commit = intel_encoder_commit,
+	.commit = intel_encoder_noop,
+	.disable = intel_encoder_disable,
 };
 
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
-	.dpms = intel_hdmi_dpms,
 	.mode_fixup = intel_hdmi_mode_fixup,
-	.prepare = intel_encoder_prepare,
+	.prepare = intel_encoder_noop,
 	.mode_set = intel_hdmi_mode_set,
-	.commit = intel_encoder_commit,
+	.commit = intel_encoder_noop,
+	.disable = intel_encoder_disable,
 };
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = intel_connector_dpms,
 	.detect = intel_hdmi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_hdmi_set_property,
@@ -964,10 +1000,18 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 		intel_hdmi->set_infoframes = cpt_set_infoframes;
 	}
 
-	if (IS_HASWELL(dev))
-		drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs_hsw);
-	else
-		drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
+	if (IS_HASWELL(dev)) {
+		intel_encoder->enable = intel_enable_ddi;
+		intel_encoder->disable = intel_disable_ddi;
+		drm_encoder_helper_add(&intel_encoder->base,
+				       &intel_hdmi_helper_funcs_hsw);
+	} else {
+		intel_encoder->enable = intel_enable_hdmi;
+		intel_encoder->disable = intel_disable_hdmi;
+		drm_encoder_helper_add(&intel_encoder->base,
+				       &intel_hdmi_helper_funcs);
+	}
+
 
 	intel_hdmi_add_properties(intel_hdmi, connector);
 

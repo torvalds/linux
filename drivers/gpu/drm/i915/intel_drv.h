@@ -140,6 +140,7 @@ struct intel_encoder {
 	 * simple flag is enough to compute the possible_clones mask.
 	 */
 	bool cloneable;
+	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
 	void (*disable)(struct intel_encoder *);
@@ -412,7 +413,11 @@ extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare(struct drm_encoder *encoder);
 extern void intel_encoder_commit(struct drm_encoder *encoder);
+extern void intel_encoder_noop(struct drm_encoder *encoder);
+extern void intel_encoder_disable(struct drm_encoder *encoder);
 extern void intel_encoder_destroy(struct drm_encoder *encoder);
+extern void intel_encoder_dpms(struct intel_encoder *encoder, int mode);
+extern void intel_connector_dpms(struct drm_connector *, int mode);
 
 static inline struct intel_encoder *intel_attached_encoder(struct drm_connector *connector)
 {
@@ -519,7 +524,8 @@ extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);
 extern void ironlake_teardown_rc6(struct drm_device *dev);
 
-extern void intel_ddi_dpms(struct drm_encoder *encoder, int mode);
+extern void intel_enable_ddi(struct intel_encoder *encoder);
+extern void intel_disable_ddi(struct intel_encoder *encoder);
 extern void intel_ddi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
