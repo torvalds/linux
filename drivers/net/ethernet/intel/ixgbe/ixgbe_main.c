@@ -3610,16 +3610,17 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	if (hw->mac.type != ixgbe_mac_82598EB) {
 		int i;
 		u32 reg = 0;
+		u8 msb = 0;
+		u8 rss_i = adapter->netdev->tc_to_txq[0].count - 1;
 
-		for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
-			u8 msb = 0;
-			u8 cnt = adapter->netdev->tc_to_txq[i].count;
-
-			while (cnt >>= 1)
-				msb++;
-
-			reg |= msb << IXGBE_RQTC_SHIFT_TC(i);
+		while (rss_i) {
+			msb++;
+			rss_i >>= 1;
 		}
+
+		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+			reg |= msb << IXGBE_RQTC_SHIFT_TC(i);
+
 		IXGBE_WRITE_REG(hw, IXGBE_RQTC, reg);
 	}
 }
@@ -7027,7 +7028,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 #endif
 
 	if (ii->mac == ixgbe_mac_82598EB)
+#ifdef CONFIG_IXGBE_DCB
+		indices = min_t(unsigned int, indices, MAX_TRAFFIC_CLASS * 4);
+#else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_RSS_INDICES);
+#endif
 	else
 		indices = min_t(unsigned int, indices, IXGBE_MAX_FDIR_INDICES);
 

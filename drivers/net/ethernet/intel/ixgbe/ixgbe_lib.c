@@ -28,28 +28,6 @@
 #include "ixgbe.h"
 #include "ixgbe_sriov.h"
 
-/**
- * ixgbe_cache_ring_rss - Descriptor ring to register mapping for RSS
- * @adapter: board private structure to initialize
- *
- * Cache the descriptor ring offsets for RSS to the assigned rings.
- *
- **/
-static inline bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
-{
-	int i;
-
-	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
-		return false;
-
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		adapter->rx_ring[i]->reg_idx = i;
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		adapter->tx_ring[i]->reg_idx = i;
-
-	return true;
-}
-
 #ifdef CONFIG_IXGBE_DCB
 /* ixgbe_get_first_reg_idx - Return first register index associated with ring */
 static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
@@ -136,39 +114,8 @@ static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 
 	return true;
 }
+
 #endif
-
-#ifdef IXGBE_FCOE
-/**
- * ixgbe_cache_ring_fcoe - Descriptor ring to register mapping for the FCoE
- * @adapter: board private structure to initialize
- *
- * Cache the descriptor ring offsets for FCoE mode to the assigned rings.
- *
- */
-static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
-{
-	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
-	int i;
-	u8 fcoe_rx_i = 0, fcoe_tx_i = 0;
-
-	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
-		return false;
-
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-		ixgbe_cache_ring_rss(adapter);
-
-		fcoe_rx_i = f->offset;
-		fcoe_tx_i = f->offset;
-	}
-	for (i = 0; i < f->indices; i++, fcoe_rx_i++, fcoe_tx_i++) {
-		adapter->rx_ring[f->offset + i]->reg_idx = fcoe_rx_i;
-		adapter->tx_ring[f->offset + i]->reg_idx = fcoe_tx_i;
-	}
-	return true;
-}
-
-#endif /* IXGBE_FCOE */
 /**
  * ixgbe_cache_ring_sriov - Descriptor ring to register mapping for sriov
  * @adapter: board private structure to initialize
@@ -185,6 +132,28 @@ static inline bool ixgbe_cache_ring_sriov(struct ixgbe_adapter *adapter)
 		return true;
 	else
 		return false;
+}
+
+/**
+ * ixgbe_cache_ring_rss - Descriptor ring to register mapping for RSS
+ * @adapter: board private structure to initialize
+ *
+ * Cache the descriptor ring offsets for RSS to the assigned rings.
+ *
+ **/
+static bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
+{
+	int i;
+
+	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
+		return false;
+
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		adapter->rx_ring[i]->reg_idx = i;
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		adapter->tx_ring[i]->reg_idx = i;
+
+	return true;
 }
 
 /**
@@ -212,13 +181,7 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
 		return;
 #endif
 
-#ifdef IXGBE_FCOE
-	if (ixgbe_cache_ring_fcoe(adapter))
-		return;
-#endif /* IXGBE_FCOE */
-
-	if (ixgbe_cache_ring_rss(adapter))
-		return;
+	ixgbe_cache_ring_rss(adapter);
 }
 
 /**
@@ -234,6 +197,74 @@ static inline bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	return false;
 }
 
+#define IXGBE_RSS_16Q_MASK	0xF
+#define IXGBE_RSS_8Q_MASK	0x7
+#define IXGBE_RSS_4Q_MASK	0x3
+#define IXGBE_RSS_2Q_MASK	0x1
+#define IXGBE_RSS_DISABLED_MASK	0x0
+
+#ifdef CONFIG_IXGBE_DCB
+static bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
+{
+	struct net_device *dev = adapter->netdev;
+	struct ixgbe_ring_feature *f;
+	int rss_i, rss_m, i;
+	int tcs;
+
+	/* Map queue offset and counts onto allocated tx queues */
+	tcs = netdev_get_num_tc(dev);
+
+	/* verify we have DCB queueing enabled before proceeding */
+	if (tcs <= 1)
+		return false;
+
+	/* determine the upper limit for our current DCB mode */
+	rss_i = dev->num_tx_queues / tcs;
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		/* 8 TC w/ 4 queues per TC */
+		rss_i = min_t(u16, rss_i, 4);
+		rss_m = IXGBE_RSS_4Q_MASK;
+	} else if (tcs > 4) {
+		/* 8 TC w/ 8 queues per TC */
+		rss_i = min_t(u16, rss_i, 8);
+		rss_m = IXGBE_RSS_8Q_MASK;
+	} else {
+		/* 4 TC w/ 16 queues per TC */
+		rss_i = min_t(u16, rss_i, 16);
+		rss_m = IXGBE_RSS_16Q_MASK;
+	}
+
+	/* set RSS mask and indices */
+	f = &adapter->ring_feature[RING_F_RSS];
+	rss_i = min_t(int, rss_i, f->limit);
+	f->indices = rss_i;
+	f->mask = rss_m;
+
+#ifdef IXGBE_FCOE
+	/* FCoE enabled queues require special configuration indexed
+	 * by feature specific indices and offset. Here we map FCoE
+	 * indices onto the DCB queue pairs allowing FCoE to own
+	 * configuration later.
+	 */
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		u8 tc = ixgbe_fcoe_get_tc(adapter);
+
+		f = &adapter->ring_feature[RING_F_FCOE];
+		f->indices = min_t(u16, rss_i, f->limit);
+		f->offset = rss_i * tc;
+	}
+
+#endif /* IXGBE_FCOE */
+	for (i = 0; i < tcs; i++)
+		netdev_set_tc_queue(dev, i, rss_i, rss_i * i);
+
+	adapter->num_tx_queues = rss_i * tcs;
+	adapter->num_rx_queues = rss_i * tcs;
+
+	return true;
+}
+
+#endif
 /**
  * ixgbe_set_rss_queues - Allocate queues for RSS
  * @adapter: board private structure to initialize
@@ -257,7 +288,7 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 	rss_i = f->limit;
 
 	f->indices = rss_i;
-	f->mask = 0xF;
+	f->mask = IXGBE_RSS_16Q_MASK;
 
 	/*
 	 * Use Flow Director in addition to RSS to ensure the best
@@ -271,90 +302,41 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 		rss_i = max_t(u16, rss_i, f->indices);
 	}
 
+#ifdef IXGBE_FCOE
+	/*
+	 * FCoE can exist on the same rings as standard network traffic
+	 * however it is preferred to avoid that if possible.  In order
+	 * to get the best performance we allocate as many FCoE queues
+	 * as we can and we place them at the end of the ring array to
+	 * avoid sharing queues with standard RSS on systems with 24 or
+	 * more CPUs.
+	 */
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		struct net_device *dev = adapter->netdev;
+		u16 fcoe_i;
+
+		f = &adapter->ring_feature[RING_F_FCOE];
+
+		/* merge FCoE queues with RSS queues */
+		fcoe_i = min_t(u16, f->limit + rss_i, num_online_cpus());
+		fcoe_i = min_t(u16, fcoe_i, dev->num_tx_queues);
+
+		/* limit indices to rss_i if MSI-X is disabled */
+		if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED))
+			fcoe_i = rss_i;
+
+		/* attempt to reserve some queues for just FCoE */
+		f->indices = min_t(u16, fcoe_i, f->limit);
+		f->offset = fcoe_i - f->indices;
+		rss_i = max_t(u16, fcoe_i, rss_i);
+	}
+
+#endif /* IXGBE_FCOE */
 	adapter->num_rx_queues = rss_i;
 	adapter->num_tx_queues = rss_i;
 
 	return true;
 }
-
-#ifdef IXGBE_FCOE
-/**
- * ixgbe_set_fcoe_queues - Allocate queues for Fiber Channel over Ethernet (FCoE)
- * @adapter: board private structure to initialize
- *
- * FCoE RX FCRETA can use up to 8 rx queues for up to 8 different exchanges.
- * Offset is used as the index of the first rx queue used by FCoE.
- **/
-static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
-{
-	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
-
-	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
-		return false;
-
-	f->indices = min_t(int, num_online_cpus(), f->limit);
-
-	adapter->num_rx_queues = 1;
-	adapter->num_tx_queues = 1;
-
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-		e_info(probe, "FCoE enabled with RSS\n");
-		ixgbe_set_rss_queues(adapter);
-	}
-
-	/* adding FCoE rx rings to the end */
-	f->offset = adapter->num_rx_queues;
-	adapter->num_rx_queues += f->indices;
-	adapter->num_tx_queues += f->indices;
-
-	return true;
-}
-#endif /* IXGBE_FCOE */
-
-/* Artificial max queue cap per traffic class in DCB mode */
-#define DCB_QUEUE_CAP 8
-
-#ifdef CONFIG_IXGBE_DCB
-static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
-{
-	int per_tc_q, q, i, offset = 0;
-	struct net_device *dev = adapter->netdev;
-	int tcs = netdev_get_num_tc(dev);
-
-	if (!tcs)
-		return false;
-
-	/* Map queue offset and counts onto allocated tx queues */
-	per_tc_q = min_t(unsigned int, dev->num_tx_queues / tcs, DCB_QUEUE_CAP);
-	q = min_t(int, num_online_cpus(), per_tc_q);
-
-	for (i = 0; i < tcs; i++) {
-		netdev_set_tc_queue(dev, i, q, offset);
-		offset += q;
-	}
-
-	adapter->num_tx_queues = q * tcs;
-	adapter->num_rx_queues = q * tcs;
-
-#ifdef IXGBE_FCOE
-	/* FCoE enabled queues require special configuration indexed
-	 * by feature specific indices and offset. Here we map FCoE
-	 * indices onto the DCB queue pairs allowing FCoE to own
-	 * configuration later.
-	 */
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
-		u8 tc = ixgbe_fcoe_get_tc(adapter);
-		struct ixgbe_ring_feature *f =
-					&adapter->ring_feature[RING_F_FCOE];
-
-		f->indices = dev->tc_to_txq[tc].count;
-		f->offset = dev->tc_to_txq[tc].offset;
-	}
-#endif
-
-	return true;
-}
-#endif
 
 /**
  * ixgbe_set_num_queues - Allocate queues for device, feature dependent
@@ -383,11 +365,6 @@ static int ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 		goto done;
 
 #endif
-#ifdef IXGBE_FCOE
-	if (ixgbe_set_fcoe_queues(adapter))
-		goto done;
-
-#endif /* IXGBE_FCOE */
 	if (ixgbe_set_rss_queues(adapter))
 		goto done;
 
