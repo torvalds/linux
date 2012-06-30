@@ -58,9 +58,6 @@ static int __init batadv_init(void)
 
 	batadv_iv_init();
 
-	/* the name should not be longer than 10 chars - see
-	 * http://lwn.net/Articles/23634/
-	 */
 	batadv_event_workqueue = create_singlethread_workqueue("bat_events");
 
 	if (!batadv_event_workqueue)
