@@ -396,7 +396,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_rtc *wm831x_rtc;
-	int alm_irq = platform_get_irq_byname(pdev, "ALM");
+	int alm_irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "ALM"));
 	int ret = 0;
 
 	wm831x_rtc = devm_kzalloc(&pdev->dev, sizeof(*wm831x_rtc), GFP_KERNEL);

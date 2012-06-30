@@ -24,15 +24,16 @@
 
 /**
  * struct s3c_fb_pd_win - per window setup data
- * @win_mode: The display parameters to initialise (not for window 0)
+ * @xres     : The window X size.
+ * @yres     : The window Y size.
  * @virtual_x: The virtual X size.
  * @virtual_y: The virtual Y size.
  */
 struct s3c_fb_pd_win {
-	struct fb_videomode	win_mode;
-
 	unsigned short		default_bpp;
 	unsigned short		max_bpp;
+	unsigned short		xres;
+	unsigned short		yres;
 	unsigned short		virtual_x;
 	unsigned short		virtual_y;
 };
@@ -45,6 +46,7 @@ struct s3c_fb_pd_win {
  * @default_win: default window layer number to be used for UI layer.
  * @vidcon0: The base vidcon0 values to control the panel data format.
  * @vidcon1: The base vidcon1 values to control the panel data output.
+ * @vtiming: Video timing when connected to a RGB type panel.
  * @win: The setup data for each hardware window, or NULL for unused.
  * @display_mode: The LCD output display mode.
  *
@@ -58,8 +60,7 @@ struct s3c_fb_platdata {
 	void	(*setup_gpio)(void);
 
 	struct s3c_fb_pd_win	*win[S3C_FB_MAX_WIN];
-
-	u32			 default_win;
+	struct fb_videomode     *vtiming;
 
 	u32			 vidcon0;
 	u32			 vidcon1;

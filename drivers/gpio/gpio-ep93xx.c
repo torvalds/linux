@@ -325,7 +325,7 @@ static int ep93xx_gpio_add_bank(struct bgpio_chip *bgc, struct device *dev,
 	void __iomem *dir =  mmio_base + bank->dir;
 	int err;
 
-	err = bgpio_init(bgc, dev, 1, data, NULL, NULL, dir, NULL, false);
+	err = bgpio_init(bgc, dev, 1, data, NULL, NULL, dir, NULL, 0);
 	if (err)
 		return err;
 

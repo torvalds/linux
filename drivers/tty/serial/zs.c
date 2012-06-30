@@ -57,6 +57,7 @@
 #include <linux/ioport.h>
 #include <linux/irqflags.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/major.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>

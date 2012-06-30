@@ -218,7 +218,12 @@ __BUILD_IOPORT_STRING(w, u16)
 __BUILD_IOPORT_STRING(l, u32)
 __BUILD_IOPORT_STRING(q, u64)
 
+#else /* !CONFIG_HAS_IOPORT */
+
+#include <asm/io_noioport.h>
+
 #endif
+
 
 #define IO_SPACE_LIMIT 0xffffffff
 

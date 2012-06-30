@@ -611,11 +611,6 @@ extern unsigned int saa_debug;
 		printk(KERN_WARNING "%s: " fmt, dev->name, ## arg);\
 	} while (0)
 
-#define log_err(fmt, arg...)\
-	do { \
-		printk(KERN_ERROR "%s: " fmt, dev->name, ## arg);\
-	} while (0)
-
 #define saa7164_readl(reg) readl(dev->lmmio + ((reg) >> 2))
 #define saa7164_writel(reg, value) writel((value), dev->lmmio + ((reg) >> 2))
 

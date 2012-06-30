@@ -11,6 +11,7 @@ extern void __init sa1100_map_io(void);
 extern void __init sa1100_init_irq(void);
 extern void __init sa1100_init_gpio(void);
 extern void sa11x0_restart(char, const char *);
+extern void sa11x0_init_late(void);
 
 #define SET_BANK(__nr,__start,__size) \
 	mi->bank[__nr].start = (__start), \
@@ -41,3 +42,9 @@ void sa11x0_register_mcp(struct mcp_plat_data *data);
 
 struct sa1100fb_mach_info;
 void sa11x0_register_lcd(struct sa1100fb_mach_info *inf);
+
+#ifdef CONFIG_PM
+int sa11x0_pm_init(void);
+#else
+static inline int sa11x0_pm_init(void) { return 0; }
+#endif

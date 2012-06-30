@@ -32,9 +32,9 @@
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
-#define __addr_ok(addr)					\
-	((unsigned long __force)(addr) <		\
-	 (current_thread_info()->addr_limit.seg))
+#define user_addr_max() (current_thread_info()->addr_limit.seg)
+#define __addr_ok(addr) 	\
+	((unsigned long __force)(addr) < user_addr_max())
 
 /*
  * Test whether a block of memory is a valid user space address.
@@ -46,14 +46,14 @@
  * This needs 33-bit (65-bit for x86_64) arithmetic. We have a carry...
  */
 
-#define __range_not_ok(addr, size)					\
+#define __range_not_ok(addr, size, limit)				\
 ({									\
 	unsigned long flag, roksum;					\
 	__chk_user_ptr(addr);						\
 	asm("add %3,%1 ; sbb %0,%0 ; cmp %1,%4 ; sbb $0,%0"		\
 	    : "=&r" (flag), "=r" (roksum)				\
 	    : "1" (addr), "g" ((long)(size)),				\
-	      "rm" (current_thread_info()->addr_limit.seg));		\
+	      "rm" (limit));						\
 	flag;								\
 })
 
@@ -76,14 +76,16 @@
  * checks that the pointer is in the user space range - after calling
  * this function, memory access functions may still return -EFAULT.
  */
-#define access_ok(type, addr, size) (likely(__range_not_ok(addr, size) == 0))
+#define access_ok(type, addr, size) \
+	(likely(__range_not_ok(addr, size, user_addr_max()) == 0))
 
 /*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
+ * The exception table consists of pairs of addresses relative to the
+ * exception table enty itself: the first is the address of an
+ * instruction that is allowed to fault, and the second is the address
+ * at which the program should continue.  No registers are modified,
+ * so it is entirely up to the continuation code to figure out what to
+ * do.
  *
  * All the routines below use bits of fixup code that are out of line
  * with the main instruction path.  This means when everything is well,
@@ -92,10 +94,14 @@
  */
 
 struct exception_table_entry {
-	unsigned long insn, fixup;
+	int insn, fixup;
 };
+/* This is not the generic standard exception_table_entry format */
+#define ARCH_HAS_SORT_EXTABLE
+#define ARCH_HAS_SEARCH_EXTABLE
 
 extern int fixup_exception(struct pt_regs *regs);
+extern int early_fixup_exception(unsigned long *ip);
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -202,8 +208,8 @@ extern int __get_user_bad(void);
 	asm volatile("1:	movl %%eax,0(%1)\n"			\
 		     "2:	movl %%edx,4(%1)\n"			\
 		     "3:\n"						\
-		     _ASM_EXTABLE(1b, 2b - 1b)				\
-		     _ASM_EXTABLE(2b, 3b - 2b)				\
+		     _ASM_EXTABLE_EX(1b, 2b)				\
+		     _ASM_EXTABLE_EX(2b, 3b)				\
 		     : : "A" (x), "r" (addr))
 
 #define __put_user_x8(x, ptr, __ret_pu)				\
@@ -408,7 +414,7 @@ do {									\
 #define __get_user_asm_ex(x, addr, itype, rtype, ltype)			\
 	asm volatile("1:	mov"itype" %1,%"rtype"0\n"		\
 		     "2:\n"						\
-		     _ASM_EXTABLE(1b, 2b - 1b)				\
+		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     : ltype(x) : "m" (__m(addr)))
 
 #define __put_user_nocheck(x, ptr, size)			\
@@ -450,7 +456,7 @@ struct __large_struct { unsigned long buf[100]; };
 #define __put_user_asm_ex(x, addr, itype, rtype, ltype)			\
 	asm volatile("1:	mov"itype" %"rtype"0,%1\n"		\
 		     "2:\n"						\
-		     _ASM_EXTABLE(1b, 2b - 1b)				\
+		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     : : ltype(x), "m" (__m(addr)))
 
 /*
@@ -559,6 +565,9 @@ extern unsigned long
 copy_from_user_nmi(void *to, const void __user *from, unsigned long n);
 extern __must_check long
 strncpy_from_user(char *dst, const char __user *src, long count);
+
+extern __must_check long strlen_user(const char __user *str);
+extern __must_check long strnlen_user(const char __user *str, long n);
 
 /*
  * movsl can be slow when source and dest are not both 8-byte aligned

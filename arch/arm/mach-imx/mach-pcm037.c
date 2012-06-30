@@ -683,7 +683,7 @@ static void __init pcm037_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-struct sys_timer pcm037_timer = {
+static struct sys_timer pcm037_timer = {
 	.init	= pcm037_timer_init,
 };
 
@@ -692,6 +692,11 @@ static void __init pcm037_reserve(void)
 	/* reserve 4 MiB for mx3-camera */
 	mx3_camera_base = arm_memblock_steal(MX3_CAMERA_BUF_SIZE,
 			MX3_CAMERA_BUF_SIZE);
+}
+
+static void __init pcm037_init_late(void)
+{
+	pcm037_eet_init_devices();
 }
 
 MACHINE_START(PCM037, "Phytec Phycore pcm037")
@@ -704,5 +709,6 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.handle_irq = imx31_handle_irq,
 	.timer = &pcm037_timer,
 	.init_machine = pcm037_init,
+	.init_late = pcm037_init_late,
 	.restart	= mxc_restart,
 MACHINE_END

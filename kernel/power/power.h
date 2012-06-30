@@ -264,3 +264,30 @@ static inline void suspend_thaw_processes(void)
 {
 }
 #endif
+
+#ifdef CONFIG_PM_AUTOSLEEP
+
+/* kernel/power/autosleep.c */
+extern int pm_autosleep_init(void);
+extern int pm_autosleep_lock(void);
+extern void pm_autosleep_unlock(void);
+extern suspend_state_t pm_autosleep_state(void);
+extern int pm_autosleep_set_state(suspend_state_t state);
+
+#else /* !CONFIG_PM_AUTOSLEEP */
+
+static inline int pm_autosleep_init(void) { return 0; }
+static inline int pm_autosleep_lock(void) { return 0; }
+static inline void pm_autosleep_unlock(void) {}
+static inline suspend_state_t pm_autosleep_state(void) { return PM_SUSPEND_ON; }
+
+#endif /* !CONFIG_PM_AUTOSLEEP */
+
+#ifdef CONFIG_PM_WAKELOCKS
+
+/* kernel/power/wakelock.c */
+extern ssize_t pm_show_wakelocks(char *buf, bool show_active);
+extern int pm_wake_lock(const char *buf);
+extern int pm_wake_unlock(const char *buf);
+
+#endif /* !CONFIG_PM_WAKELOCKS */

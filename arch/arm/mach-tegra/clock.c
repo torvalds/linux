@@ -642,7 +642,7 @@ static int clk_debugfs_register(struct clk *c)
 	return 0;
 }
 
-static int __init clk_debugfs_init(void)
+int __init tegra_clk_debugfs_init(void)
 {
 	struct clk *c;
 	struct dentry *d;
@@ -669,5 +669,4 @@ err_out:
 	return err;
 }
 
-late_initcall(clk_debugfs_init);
 #endif

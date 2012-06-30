@@ -634,13 +634,11 @@ static void s2255_fillbuff(struct s2255_channel *channel,
 	const char *tmpbuf;
 	char *vbuf = videobuf_to_vmalloc(&buf->vb);
 	unsigned long last_frame;
-	struct s2255_framei *frm;
 
 	if (!vbuf)
 		return;
 	last_frame = channel->last_frame;
 	if (last_frame != -1) {
-		frm = &channel->buffer.frame[last_frame];
 		tmpbuf =
 		    (const char *)channel->buffer.frame[last_frame].lpvbits;
 		switch (buf->fmt->fourcc) {
@@ -987,7 +985,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct videobuf_queue *q = &fh->vb_vidq;
 	struct s2255_mode mode;
 	int ret;
-	int norm;
 
 	ret = vidioc_try_fmt_vid_cap(file, fh, f);
 
@@ -1018,7 +1015,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	channel->height = f->fmt.pix.height;
 	fh->vb_vidq.field = f->fmt.pix.field;
 	fh->type = f->type;
-	norm = norm_minw(&channel->vdev);
 	if (channel->width > norm_minw(&channel->vdev)) {
 		if (channel->height > norm_minh(&channel->vdev)) {
 			if (channel->cap_parm.capturemode &
@@ -1826,8 +1822,7 @@ static void s2255_destroy(struct s2255_dev *dev)
 		usb_free_urb(dev->fw_data->fw_urb);
 		dev->fw_data->fw_urb = NULL;
 	}
-	if (dev->fw_data->fw)
-		release_firmware(dev->fw_data->fw);
+	release_firmware(dev->fw_data->fw);
 	kfree(dev->fw_data->pfw_data);
 	kfree(dev->fw_data);
 	/* reset the DSP so firmware can be reloaded next time */
@@ -1949,6 +1944,10 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		/* register 4 video devices */
 		channel->vdev = template;
 		channel->vdev.lock = &dev->lock;
+		/* Locking in file operations other than ioctl should be done
+		   by the driver, not the V4L2 core.
+		   This driver needs auditing so that this flag can be removed. */
+		set_bit(V4L2_FL_LOCK_ALL_FOPS, &channel->vdev.flags);
 		channel->vdev.v4l2_dev = &dev->v4l2_dev;
 		video_set_drvdata(&channel->vdev, channel);
 		if (video_nr == -1)

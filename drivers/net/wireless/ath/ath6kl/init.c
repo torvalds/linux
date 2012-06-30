@@ -16,17 +16,21 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/moduleparam.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/of.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/vmalloc.h>
 
 #include "core.h"
 #include "cfg80211.h"
 #include "target.h"
 #include "debug.h"
 #include "hif-ops.h"
+#include "htc-ops.h"
 
 static const struct ath6kl_hw hw_list[] = {
 	{
@@ -114,6 +118,24 @@ static const struct ath6kl_hw hw_list[] = {
 
 		.fw_board		= AR6004_HW_1_1_BOARD_DATA_FILE,
 		.fw_default_board	= AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE,
+	},
+	{
+		.id				= AR6004_HW_1_2_VERSION,
+		.name				= "ar6004 hw 1.2",
+		.dataset_patch_addr		= 0x436ecc,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0x437000,
+		.reserved_ram_size		= 9216,
+		.board_addr			= 0x435c00,
+		.refclk_hz			= 40000000,
+		.uarttx_pin			= 11,
+
+		.fw = {
+			.dir		= AR6004_HW_1_2_FW_DIR,
+			.fw		= AR6004_HW_1_2_FIRMWARE_FILE,
+		},
+		.fw_board		= AR6004_HW_1_2_BOARD_DATA_FILE,
+		.fw_default_board	= AR6004_HW_1_2_DEFAULT_BOARD_DATA_FILE,
 	},
 };
 
@@ -256,6 +278,7 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 	memset(&connect, 0, sizeof(connect));
 
 	/* these fields are the same for all service endpoints */
+	connect.ep_cb.tx_comp_multi = ath6kl_tx_complete;
 	connect.ep_cb.rx = ath6kl_rx;
 	connect.ep_cb.rx_refill = ath6kl_rx_refill;
 	connect.ep_cb.tx_full = ath6kl_tx_queue_full;
@@ -440,9 +463,9 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 					      P2P_FLAG_MACADDR_REQ |
 					      P2P_FLAG_HMODEL_REQ);
 		if (ret) {
-			ath6kl_dbg(ATH6KL_DBG_TRC, "failed to request P2P "
-				   "capabilities (%d) - assuming P2P not "
-				   "supported\n", ret);
+			ath6kl_dbg(ATH6KL_DBG_TRC,
+				   "failed to request P2P capabilities (%d) - assuming P2P not supported\n",
+				   ret);
 			ar->p2p = false;
 		}
 	}
@@ -451,8 +474,9 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 		/* Enable Probe Request reporting for P2P */
 		ret = ath6kl_wmi_probe_report_req_cmd(ar->wmi, idx, true);
 		if (ret) {
-			ath6kl_dbg(ATH6KL_DBG_TRC, "failed to enable Probe "
-				   "Request reporting (%d)\n", ret);
+			ath6kl_dbg(ATH6KL_DBG_TRC,
+				   "failed to enable Probe Request reporting (%d)\n",
+				   ret);
 		}
 	}
 
@@ -485,22 +509,31 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		fw_mode |= fw_iftype << (i * HI_OPTION_FW_MODE_BITS);
 
 	/*
-	 * By default, submodes :
+	 * Submodes when fw does not support dynamic interface
+	 * switching:
 	 *		vif[0] - AP/STA/IBSS
 	 *		vif[1] - "P2P dev"/"P2P GO"/"P2P Client"
 	 *		vif[2] - "P2P dev"/"P2P GO"/"P2P Client"
+	 * Otherwise, All the interface are initialized to p2p dev.
 	 */
 
-	for (i = 0; i < ar->max_norm_iface; i++)
-		fw_submode |= HI_OPTION_FW_SUBMODE_NONE <<
-			      (i * HI_OPTION_FW_SUBMODE_BITS);
+	if (test_bit(ATH6KL_FW_CAPABILITY_STA_P2PDEV_DUPLEX,
+		     ar->fw_capabilities)) {
+		for (i = 0; i < ar->vif_max; i++)
+			fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
+				(i * HI_OPTION_FW_SUBMODE_BITS);
+	} else {
+		for (i = 0; i < ar->max_norm_iface; i++)
+			fw_submode |= HI_OPTION_FW_SUBMODE_NONE <<
+				(i * HI_OPTION_FW_SUBMODE_BITS);
 
-	for (i = ar->max_norm_iface; i < ar->vif_max; i++)
-		fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
-			      (i * HI_OPTION_FW_SUBMODE_BITS);
+		for (i = ar->max_norm_iface; i < ar->vif_max; i++)
+			fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
+				(i * HI_OPTION_FW_SUBMODE_BITS);
 
-	if (ar->p2p && ar->vif_max == 1)
-		fw_submode = HI_OPTION_FW_SUBMODE_P2PDEV;
+		if (ar->p2p && ar->vif_max == 1)
+			fw_submode = HI_OPTION_FW_SUBMODE_P2PDEV;
+	}
 
 	if (ath6kl_bmi_write_hi32(ar, hi_app_host_interest,
 				  HTC_PROTOCOL_VERSION) != 0) {
@@ -539,18 +572,20 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	 * but possible in theory.
 	 */
 
-	param = ar->hw.board_ext_data_addr;
-	ram_reserved_size = ar->hw.reserved_ram_size;
+	if (ar->target_type == TARGET_TYPE_AR6003) {
+		param = ar->hw.board_ext_data_addr;
+		ram_reserved_size = ar->hw.reserved_ram_size;
 
-	if (ath6kl_bmi_write_hi32(ar, hi_board_ext_data, param) != 0) {
-		ath6kl_err("bmi_write_memory for hi_board_ext_data failed\n");
-		return -EIO;
-	}
+		if (ath6kl_bmi_write_hi32(ar, hi_board_ext_data, param) != 0) {
+			ath6kl_err("bmi_write_memory for hi_board_ext_data failed\n");
+			return -EIO;
+		}
 
-	if (ath6kl_bmi_write_hi32(ar, hi_end_ram_reserve_sz,
-				  ram_reserved_size) != 0) {
-		ath6kl_err("bmi_write_memory for hi_end_ram_reserve_sz failed\n");
-		return -EIO;
+		if (ath6kl_bmi_write_hi32(ar, hi_end_ram_reserve_sz,
+					  ram_reserved_size) != 0) {
+			ath6kl_err("bmi_write_memory for hi_end_ram_reserve_sz failed\n");
+			return -EIO;
+		}
 	}
 
 	/* set the block size for the target */
@@ -924,13 +959,14 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 			if (ar->fw != NULL)
 				break;
 
-			ar->fw = kmemdup(data, ie_len, GFP_KERNEL);
+			ar->fw = vmalloc(ie_len);
 
 			if (ar->fw == NULL) {
 				ret = -ENOMEM;
 				goto out;
 			}
 
+			memcpy(ar->fw, data, ie_len);
 			ar->fw_len = ie_len;
 			break;
 		case ATH6KL_FW_IE_PATCH_IMAGE:
@@ -1507,7 +1543,7 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 	}
 
 	/* setup credit distribution */
-	ath6kl_credit_setup(ar->htc_target, &ar->credit_state_info);
+	ath6kl_htc_credit_setup(ar->htc_target, &ar->credit_state_info);
 
 	/* start HTC */
 	ret = ath6kl_htc_start(ar->htc_target);

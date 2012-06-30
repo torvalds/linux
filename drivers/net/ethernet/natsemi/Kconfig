@@ -6,9 +6,8 @@ config NET_VENDOR_NATSEMI
 	bool "National Semi-conductor devices"
 	default y
 	depends on AMIGA_PCMCIA || ARM || EISA || EXPERIMENTAL || H8300 || \
-		   ISA || M32R || MAC || MACH_JAZZ || MACH_TX49XX || MCA || \
-		   MCA_LEGACY || MIPS || PCI || PCMCIA || SUPERH || \
-		   XTENSA_PLATFORM_XT2000 || ZORRO
+		   ISA || M32R || MAC || MACH_JAZZ || MACH_TX49XX || MIPS || \
+		   PCI || PCMCIA || SUPERH || XTENSA_PLATFORM_XT2000 || ZORRO
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -20,21 +19,6 @@ config NET_VENDOR_NATSEMI
 	  you will be asked for your specific card in the following questions.
 
 if NET_VENDOR_NATSEMI
-
-config IBMLANA
-	tristate "IBM LAN Adapter/A support"
-	depends on MCA
-	---help---
-	  This is a Micro Channel Ethernet adapter.  You need to set
-	  CONFIG_MCA to use this driver.  It is both available as an in-kernel
-	  driver and as a module.
-
-	  To compile this driver as a module, choose M here. The only
-	  currently supported card is the IBM LAN Adapter/A for Ethernet.  It
-	  will both support 16K and 32K memory windows, however a 32K window
-	  gives a better security against packet losses.  Usage of multiple
-	  boards with this driver should be possible, but has not been tested
-	  up to now due to lack of hardware.
 
 config MACSONIC
 	tristate "Macintosh SONIC based ethernet (onboard, NuBus, LC, CS)"

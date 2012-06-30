@@ -180,16 +180,133 @@ static void omap_dsi_disable_pads(int dsi_id, unsigned lane_mask)
 		omap4_dsi_mux_pads(dsi_id, 0);
 }
 
+static int omap_dss_set_min_bus_tput(struct device *dev, unsigned long tput)
+{
+	return omap_pm_set_min_bus_tput(dev, OCP_INITIATOR_AGENT, tput);
+}
+
+static struct platform_device *create_dss_pdev(const char *pdev_name,
+		int pdev_id, const char *oh_name, void *pdata, int pdata_len,
+		struct platform_device *parent)
+{
+	struct platform_device *pdev;
+	struct omap_device *od;
+	struct omap_hwmod *ohs[1];
+	struct omap_hwmod *oh;
+	int r;
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		r = -ENODEV;
+		goto err;
+	}
+
+	pdev = platform_device_alloc(pdev_name, pdev_id);
+	if (!pdev) {
+		pr_err("Could not create pdev for %s\n", pdev_name);
+		r = -ENOMEM;
+		goto err;
+	}
+
+	if (parent != NULL)
+		pdev->dev.parent = &parent->dev;
+
+	if (pdev->id != -1)
+		dev_set_name(&pdev->dev, "%s.%d", pdev->name, pdev->id);
+	else
+		dev_set_name(&pdev->dev, "%s", pdev->name);
+
+	ohs[0] = oh;
+	od = omap_device_alloc(pdev, ohs, 1, NULL, 0);
+	if (!od) {
+		pr_err("Could not alloc omap_device for %s\n", pdev_name);
+		r = -ENOMEM;
+		goto err;
+	}
+
+	r = platform_device_add_data(pdev, pdata, pdata_len);
+	if (r) {
+		pr_err("Could not set pdata for %s\n", pdev_name);
+		goto err;
+	}
+
+	r = omap_device_register(pdev);
+	if (r) {
+		pr_err("Could not register omap_device for %s\n", pdev_name);
+		goto err;
+	}
+
+	return pdev;
+
+err:
+	return ERR_PTR(r);
+}
+
+static struct platform_device *create_simple_dss_pdev(const char *pdev_name,
+		int pdev_id, void *pdata, int pdata_len,
+		struct platform_device *parent)
+{
+	struct platform_device *pdev;
+	int r;
+
+	pdev = platform_device_alloc(pdev_name, pdev_id);
+	if (!pdev) {
+		pr_err("Could not create pdev for %s\n", pdev_name);
+		r = -ENOMEM;
+		goto err;
+	}
+
+	if (parent != NULL)
+		pdev->dev.parent = &parent->dev;
+
+	if (pdev->id != -1)
+		dev_set_name(&pdev->dev, "%s.%d", pdev->name, pdev->id);
+	else
+		dev_set_name(&pdev->dev, "%s", pdev->name);
+
+	r = platform_device_add_data(pdev, pdata, pdata_len);
+	if (r) {
+		pr_err("Could not set pdata for %s\n", pdev_name);
+		goto err;
+	}
+
+	r = omap_device_register(pdev);
+	if (r) {
+		pr_err("Could not register omap_device for %s\n", pdev_name);
+		goto err;
+	}
+
+	return pdev;
+
+err:
+	return ERR_PTR(r);
+}
+
 int __init omap_display_init(struct omap_dss_board_info *board_data)
 {
 	int r = 0;
-	struct omap_hwmod *oh;
 	struct platform_device *pdev;
 	int i, oh_count;
-	struct omap_display_platform_data pdata;
 	const struct omap_dss_hwmod_data *curr_dss_hwmod;
+	struct platform_device *dss_pdev;
 
-	memset(&pdata, 0, sizeof(pdata));
+	/* create omapdss device */
+
+	board_data->dsi_enable_pads = omap_dsi_enable_pads;
+	board_data->dsi_disable_pads = omap_dsi_disable_pads;
+	board_data->get_context_loss_count = omap_pm_get_dev_context_loss_count;
+	board_data->set_min_bus_tput = omap_dss_set_min_bus_tput;
+
+	omap_display_device.dev.platform_data = board_data;
+
+	r = platform_device_register(&omap_display_device);
+	if (r < 0) {
+		pr_err("Unable to register omapdss device\n");
+		return r;
+	}
+
+	/* create devices for dss hwmods */
 
 	if (cpu_is_omap24xx()) {
 		curr_dss_hwmod = omap2_dss_hwmod_data;
@@ -202,39 +319,58 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 		oh_count = ARRAY_SIZE(omap4_dss_hwmod_data);
 	}
 
-	if (board_data->dsi_enable_pads == NULL)
-		board_data->dsi_enable_pads = omap_dsi_enable_pads;
-	if (board_data->dsi_disable_pads == NULL)
-		board_data->dsi_disable_pads = omap_dsi_disable_pads;
+	/*
+	 * First create the pdev for dss_core, which is used as a parent device
+	 * by the other dss pdevs. Note: dss_core has to be the first item in
+	 * the hwmod list.
+	 */
+	dss_pdev = create_dss_pdev(curr_dss_hwmod[0].dev_name,
+			curr_dss_hwmod[0].id,
+			curr_dss_hwmod[0].oh_name,
+			board_data, sizeof(*board_data),
+			NULL);
 
-	pdata.board_data = board_data;
-	pdata.board_data->get_context_loss_count =
-		omap_pm_get_dev_context_loss_count;
+	if (IS_ERR(dss_pdev)) {
+		pr_err("Could not build omap_device for %s\n",
+				curr_dss_hwmod[0].oh_name);
 
-	for (i = 0; i < oh_count; i++) {
-		oh = omap_hwmod_lookup(curr_dss_hwmod[i].oh_name);
-		if (!oh) {
-			pr_err("Could not look up %s\n",
-				curr_dss_hwmod[i].oh_name);
-			return -ENODEV;
-		}
-
-		pdev = omap_device_build(curr_dss_hwmod[i].dev_name,
-				curr_dss_hwmod[i].id, oh, &pdata,
-				sizeof(struct omap_display_platform_data),
-				NULL, 0, 0);
-
-		if (WARN((IS_ERR(pdev)), "Could not build omap_device for %s\n",
-				curr_dss_hwmod[i].oh_name))
-			return -ENODEV;
+		return PTR_ERR(dss_pdev);
 	}
-	omap_display_device.dev.platform_data = board_data;
 
-	r = platform_device_register(&omap_display_device);
-	if (r < 0)
-		printk(KERN_ERR "Unable to register OMAP-Display device\n");
+	for (i = 1; i < oh_count; i++) {
+		pdev = create_dss_pdev(curr_dss_hwmod[i].dev_name,
+				curr_dss_hwmod[i].id,
+				curr_dss_hwmod[i].oh_name,
+				board_data, sizeof(*board_data),
+				dss_pdev);
 
-	return r;
+		if (IS_ERR(pdev)) {
+			pr_err("Could not build omap_device for %s\n",
+					curr_dss_hwmod[i].oh_name);
+
+			return PTR_ERR(pdev);
+		}
+	}
+
+	/* Create devices for DPI and SDI */
+
+	pdev = create_simple_dss_pdev("omapdss_dpi", -1,
+			board_data, sizeof(*board_data), dss_pdev);
+	if (IS_ERR(pdev)) {
+		pr_err("Could not build platform_device for omapdss_dpi\n");
+		return PTR_ERR(pdev);
+	}
+
+	if (cpu_is_omap34xx()) {
+		pdev = create_simple_dss_pdev("omapdss_sdi", -1,
+				board_data, sizeof(*board_data), dss_pdev);
+		if (IS_ERR(pdev)) {
+			pr_err("Could not build platform_device for omapdss_sdi\n");
+			return PTR_ERR(pdev);
+		}
+	}
+
+	return 0;
 }
 
 static void dispc_disable_outputs(void)

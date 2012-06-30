@@ -357,7 +357,6 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 	u32 prot;
 	int i;
 	bool found;
-	int last_index;
 	int err;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
@@ -419,7 +418,6 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 			if (err)
 				goto out_mailbox;
 		}
-		last_index = entry->index;
 	}
 
 	/* add the new qpn to list of promisc qps */

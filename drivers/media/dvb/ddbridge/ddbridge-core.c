@@ -31,7 +31,6 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/timer.h>
-#include <linux/version.h>
 #include <linux/i2c.h>
 #include <linux/swab.h>
 #include <linux/vmalloc.h>
@@ -1696,7 +1695,7 @@ static struct pci_driver ddb_pci_driver = {
 	.name        = "DDBridge",
 	.id_table    = ddb_id_tbl,
 	.probe       = ddb_probe,
-	.remove      = ddb_remove,
+	.remove      = __devexit_p(ddb_remove),
 };
 
 static __init int module_init_ddbridge(void)

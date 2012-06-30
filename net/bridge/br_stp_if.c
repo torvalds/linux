@@ -178,7 +178,7 @@ void br_stp_set_enabled(struct net_bridge *br, unsigned long val)
 /* called under bridge lock */
 void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *addr)
 {
-	/* should be aligned on 2 bytes for compare_ether_addr() */
+	/* should be aligned on 2 bytes for ether_addr_equal() */
 	unsigned short oldaddr_aligned[ETH_ALEN >> 1];
 	unsigned char *oldaddr = (unsigned char *)oldaddr_aligned;
 	struct net_bridge_port *p;
@@ -191,12 +191,11 @@ void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *addr)
 	memcpy(br->dev->dev_addr, addr, ETH_ALEN);
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (!compare_ether_addr(p->designated_bridge.addr, oldaddr))
+		if (ether_addr_equal(p->designated_bridge.addr, oldaddr))
 			memcpy(p->designated_bridge.addr, addr, ETH_ALEN);
 
-		if (!compare_ether_addr(p->designated_root.addr, oldaddr))
+		if (ether_addr_equal(p->designated_root.addr, oldaddr))
 			memcpy(p->designated_root.addr, addr, ETH_ALEN);
-
 	}
 
 	br_configuration_update(br);
@@ -205,7 +204,7 @@ void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *addr)
 		br_become_root_bridge(br);
 }
 
-/* should be aligned on 2 bytes for compare_ether_addr() */
+/* should be aligned on 2 bytes for ether_addr_equal() */
 static const unsigned short br_mac_zero_aligned[ETH_ALEN >> 1];
 
 /* called under bridge lock */
@@ -227,7 +226,7 @@ bool br_stp_recalculate_bridge_id(struct net_bridge *br)
 
 	}
 
-	if (compare_ether_addr(br->bridge_id.addr, addr) == 0)
+	if (ether_addr_equal(br->bridge_id.addr, addr))
 		return false;	/* no change */
 
 	br_stp_change_bridge_id(br, addr);

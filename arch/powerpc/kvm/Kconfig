@@ -90,6 +90,9 @@ config KVM_BOOK3S_64_PR
 	depends on KVM_BOOK3S_64 && !KVM_BOOK3S_64_HV
 	select KVM_BOOK3S_PR
 
+config KVM_BOOKE_HV
+	bool
+
 config KVM_440
 	bool "KVM support for PowerPC 440 processors"
 	depends on EXPERIMENTAL && 44x
@@ -106,7 +109,7 @@ config KVM_440
 
 config KVM_EXIT_TIMING
 	bool "Detailed exit timing"
-	depends on KVM_440 || KVM_E500
+	depends on KVM_440 || KVM_E500V2 || KVM_E500MC
 	---help---
 	  Calculate elapsed time for every exit/enter cycle. A per-vcpu
 	  report is available in debugfs kvm/vm#_vcpu#_timing.
@@ -115,14 +118,29 @@ config KVM_EXIT_TIMING
 
 	  If unsure, say N.
 
-config KVM_E500
-	bool "KVM support for PowerPC E500 processors"
-	depends on EXPERIMENTAL && E500
+config KVM_E500V2
+	bool "KVM support for PowerPC E500v2 processors"
+	depends on EXPERIMENTAL && E500 && !PPC_E500MC
 	select KVM
 	select KVM_MMIO
 	---help---
 	  Support running unmodified E500 guest kernels in virtual machines on
-	  E500 host processors.
+	  E500v2 host processors.
+
+	  This module provides access to the hardware capabilities through
+	  a character device node named /dev/kvm.
+
+	  If unsure, say N.
+
+config KVM_E500MC
+	bool "KVM support for PowerPC E500MC/E5500 processors"
+	depends on EXPERIMENTAL && PPC_E500MC
+	select KVM
+	select KVM_MMIO
+	select KVM_BOOKE_HV
+	---help---
+	  Support running unmodified E500MC/E5500 (32-bit) guest kernels in
+	  virtual machines on E500MC/E5500 host processors.
 
 	  This module provides access to the hardware capabilities through
 	  a character device node named /dev/kvm.

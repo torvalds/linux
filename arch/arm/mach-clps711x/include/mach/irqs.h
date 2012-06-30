@@ -35,7 +35,6 @@
 #define IRQ_SSEOTI			15
 
 #define INT1_IRQS			(0x0000fff0)
-#define INT1_ACK_IRQS			(0x00004f10)
 
 /*
  * Interrupts from INTSR2
@@ -47,7 +46,5 @@
 #define IRQ_URXINT2			(16+13)	/* bit 13 */
 
 #define INT2_IRQS			(0x30070000)
-#define INT2_ACK_IRQS			(0x00010000)
 
-#define NR_IRQS                         30
-
+#define NR_IRQS				30

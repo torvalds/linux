@@ -55,11 +55,16 @@
 #define ALUA_FAILOVER_TIMEOUT		(60 * HZ)
 #define ALUA_FAILOVER_RETRIES		5
 
+/* flags passed from user level */
+#define ALUA_OPTIMIZE_STPG		1
+
 struct alua_dh_data {
 	int			group_id;
 	int			rel_port;
 	int			tpgs;
 	int			state;
+	int			pref;
+	unsigned		flags; /* used for optimizing STPG */
 	unsigned char		inq[ALUA_INQUIRY_SIZE];
 	unsigned char		*buff;
 	int			bufflen;
@@ -554,14 +559,16 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	for (k = 4, ucp = h->buff + 4; k < len; k += off, ucp += off) {
 		if (h->group_id == (ucp[2] << 8) + ucp[3]) {
 			h->state = ucp[0] & 0x0f;
+			h->pref = ucp[0] >> 7;
 			valid_states = ucp[1];
 		}
 		off = 8 + (ucp[7] * 4);
 	}
 
 	sdev_printk(KERN_INFO, sdev,
-		    "%s: port group %02x state %c supports %c%c%c%c%c%c%c\n",
+		    "%s: port group %02x state %c %s supports %c%c%c%c%c%c%c\n",
 		    ALUA_DH_NAME, h->group_id, print_alua_state(h->state),
+		    h->pref ? "preferred" : "non-preferred",
 		    valid_states&TPGS_SUPPORT_TRANSITION?'T':'t',
 		    valid_states&TPGS_SUPPORT_OFFLINE?'O':'o',
 		    valid_states&TPGS_SUPPORT_LBA_DEPENDENT?'L':'l',
@@ -621,6 +628,37 @@ static int alua_initialize(struct scsi_device *sdev, struct alua_dh_data *h)
 out:
 	return err;
 }
+/*
+ * alua_set_params - set/unset the optimize flag
+ * @sdev: device on the path to be activated
+ * params - parameters in the following format
+ *      "no_of_params\0param1\0param2\0param3\0...\0"
+ * For example, to set the flag pass the following parameters
+ * from multipath.conf
+ *     hardware_handler        "2 alua 1"
+ */
+static int alua_set_params(struct scsi_device *sdev, const char *params)
+{
+	struct alua_dh_data *h = get_alua_data(sdev);
+	unsigned int optimize = 0, argc;
+	const char *p = params;
+	int result = SCSI_DH_OK;
+
+	if ((sscanf(params, "%u", &argc) != 1) || (argc != 1))
+		return -EINVAL;
+
+	while (*p++)
+		;
+	if ((sscanf(p, "%u", &optimize) != 1) || (optimize > 1))
+		return -EINVAL;
+
+	if (optimize)
+		h->flags |= ALUA_OPTIMIZE_STPG;
+	else
+		h->flags &= ~ALUA_OPTIMIZE_STPG;
+
+	return result;
+}
 
 /*
  * alua_activate - activate a path
@@ -637,14 +675,37 @@ static int alua_activate(struct scsi_device *sdev,
 {
 	struct alua_dh_data *h = get_alua_data(sdev);
 	int err = SCSI_DH_OK;
+	int stpg = 0;
 
 	err = alua_rtpg(sdev, h);
 	if (err != SCSI_DH_OK)
 		goto out;
 
-	if (h->tpgs & TPGS_MODE_EXPLICIT &&
-	    h->state != TPGS_STATE_OPTIMIZED &&
-	    h->state != TPGS_STATE_LBA_DEPENDENT) {
+	if (h->tpgs & TPGS_MODE_EXPLICIT) {
+		switch (h->state) {
+		case TPGS_STATE_NONOPTIMIZED:
+			stpg = 1;
+			if ((h->flags & ALUA_OPTIMIZE_STPG) &&
+			    (!h->pref) &&
+			    (h->tpgs & TPGS_MODE_IMPLICIT))
+				stpg = 0;
+			break;
+		case TPGS_STATE_STANDBY:
+			stpg = 1;
+			break;
+		case TPGS_STATE_UNAVAILABLE:
+		case TPGS_STATE_OFFLINE:
+			err = SCSI_DH_IO;
+			break;
+		case TPGS_STATE_TRANSITIONING:
+			err = SCSI_DH_RETRY;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (stpg) {
 		h->callback_fn = fn;
 		h->callback_data = data;
 		err = submit_stpg(h);
@@ -698,6 +759,7 @@ static struct scsi_device_handler alua_dh = {
 	.prep_fn = alua_prep_fn,
 	.check_sense = alua_check_sense,
 	.activate = alua_activate,
+	.set_params = alua_set_params,
 	.match = alua_match,
 };
 

@@ -23,6 +23,7 @@
 #include <linux/random.h>
 #include <linux/iocontext.h>
 #include <linux/capability.h>
+#include <linux/ratelimit.h>
 #include <linux/kthread.h>
 #include <asm/div64.h>
 #include "compat.h"
@@ -39,6 +40,8 @@ static int init_first_rw_device(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				struct btrfs_device *device);
 static int btrfs_relocate_sys_chunks(struct btrfs_root *root);
+static void __btrfs_reset_dev_stats(struct btrfs_device *dev);
+static void btrfs_dev_stat_print_on_load(struct btrfs_device *device);
 
 static DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
@@ -361,6 +364,7 @@ static noinline int device_list_add(const char *path,
 			return -ENOMEM;
 		}
 		device->devid = devid;
+		device->dev_stats_valid = 0;
 		device->work.func = pending_bios_fn;
 		memcpy(device->uuid, disk_super->dev_item.uuid,
 		       BTRFS_UUID_SIZE);
@@ -1633,7 +1637,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	int ret = 0;
 
 	if ((sb->s_flags & MS_RDONLY) && !root->fs_info->fs_devices->seeding)
-		return -EINVAL;
+		return -EROFS;
 
 	bdev = blkdev_get_by_path(device_path, FMODE_WRITE | FMODE_EXCL,
 				  root->fs_info->bdev_holder);
@@ -4001,13 +4005,58 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 	return 0;
 }
 
+static void *merge_stripe_index_into_bio_private(void *bi_private,
+						 unsigned int stripe_index)
+{
+	/*
+	 * with single, dup, RAID0, RAID1 and RAID10, stripe_index is
+	 * at most 1.
+	 * The alternative solution (instead of stealing bits from the
+	 * pointer) would be to allocate an intermediate structure
+	 * that contains the old private pointer plus the stripe_index.
+	 */
+	BUG_ON((((uintptr_t)bi_private) & 3) != 0);
+	BUG_ON(stripe_index > 3);
+	return (void *)(((uintptr_t)bi_private) | stripe_index);
+}
+
+static struct btrfs_bio *extract_bbio_from_bio_private(void *bi_private)
+{
+	return (struct btrfs_bio *)(((uintptr_t)bi_private) & ~((uintptr_t)3));
+}
+
+static unsigned int extract_stripe_index_from_bio_private(void *bi_private)
+{
+	return (unsigned int)((uintptr_t)bi_private) & 3;
+}
+
 static void btrfs_end_bio(struct bio *bio, int err)
 {
-	struct btrfs_bio *bbio = bio->bi_private;
+	struct btrfs_bio *bbio = extract_bbio_from_bio_private(bio->bi_private);
 	int is_orig_bio = 0;
 
-	if (err)
+	if (err) {
 		atomic_inc(&bbio->error);
+		if (err == -EIO || err == -EREMOTEIO) {
+			unsigned int stripe_index =
+				extract_stripe_index_from_bio_private(
+					bio->bi_private);
+			struct btrfs_device *dev;
+
+			BUG_ON(stripe_index >= bbio->num_stripes);
+			dev = bbio->stripes[stripe_index].dev;
+			if (bio->bi_rw & WRITE)
+				btrfs_dev_stat_inc(dev,
+						   BTRFS_DEV_STAT_WRITE_ERRS);
+			else
+				btrfs_dev_stat_inc(dev,
+						   BTRFS_DEV_STAT_READ_ERRS);
+			if ((bio->bi_rw & WRITE_FLUSH) == WRITE_FLUSH)
+				btrfs_dev_stat_inc(dev,
+						   BTRFS_DEV_STAT_FLUSH_ERRS);
+			btrfs_dev_stat_print_on_error(dev);
+		}
+	}
 
 	if (bio == bbio->orig_bio)
 		is_orig_bio = 1;
@@ -4149,6 +4198,8 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 			bio = first_bio;
 		}
 		bio->bi_private = bbio;
+		bio->bi_private = merge_stripe_index_into_bio_private(
+				bio->bi_private, (unsigned int)dev_nr);
 		bio->bi_end_io = btrfs_end_bio;
 		bio->bi_sector = bbio->stripes[dev_nr].physical >> 9;
 		dev = bbio->stripes[dev_nr].dev;
@@ -4509,6 +4560,28 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	return ret;
 }
 
+struct btrfs_device *btrfs_find_device_for_logical(struct btrfs_root *root,
+						   u64 logical, int mirror_num)
+{
+	struct btrfs_mapping_tree *map_tree = &root->fs_info->mapping_tree;
+	int ret;
+	u64 map_length = 0;
+	struct btrfs_bio *bbio = NULL;
+	struct btrfs_device *device;
+
+	BUG_ON(mirror_num == 0);
+	ret = btrfs_map_block(map_tree, WRITE, logical, &map_length, &bbio,
+			      mirror_num);
+	if (ret) {
+		BUG_ON(bbio != NULL);
+		return NULL;
+	}
+	BUG_ON(mirror_num != bbio->mirror_num);
+	device = bbio->stripes[mirror_num - 1].dev;
+	kfree(bbio);
+	return device;
+}
+
 int btrfs_read_chunk_tree(struct btrfs_root *root)
 {
 	struct btrfs_path *path;
@@ -4582,4 +4655,231 @@ error:
 
 	btrfs_free_path(path);
 	return ret;
+}
+
+static void __btrfs_reset_dev_stats(struct btrfs_device *dev)
+{
+	int i;
+
+	for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++)
+		btrfs_dev_stat_reset(dev, i);
+}
+
+int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_key key;
+	struct btrfs_key found_key;
+	struct btrfs_root *dev_root = fs_info->dev_root;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct extent_buffer *eb;
+	int slot;
+	int ret = 0;
+	struct btrfs_device *device;
+	struct btrfs_path *path = NULL;
+	int i;
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		int item_size;
+		struct btrfs_dev_stats_item *ptr;
+
+		key.objectid = 0;
+		key.type = BTRFS_DEV_STATS_KEY;
+		key.offset = device->devid;
+		ret = btrfs_search_slot(NULL, dev_root, &key, path, 0, 0);
+		if (ret) {
+			printk(KERN_WARNING "btrfs: no dev_stats entry found for device %s (devid %llu) (OK on first mount after mkfs)\n",
+			       device->name, (unsigned long long)device->devid);
+			__btrfs_reset_dev_stats(device);
+			device->dev_stats_valid = 1;
+			btrfs_release_path(path);
+			continue;
+		}
+		slot = path->slots[0];
+		eb = path->nodes[0];
+		btrfs_item_key_to_cpu(eb, &found_key, slot);
+		item_size = btrfs_item_size_nr(eb, slot);
+
+		ptr = btrfs_item_ptr(eb, slot,
+				     struct btrfs_dev_stats_item);
+
+		for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++) {
+			if (item_size >= (1 + i) * sizeof(__le64))
+				btrfs_dev_stat_set(device, i,
+					btrfs_dev_stats_value(eb, ptr, i));
+			else
+				btrfs_dev_stat_reset(device, i);
+		}
+
+		device->dev_stats_valid = 1;
+		btrfs_dev_stat_print_on_load(device);
+		btrfs_release_path(path);
+	}
+	mutex_unlock(&fs_devices->device_list_mutex);
+
+out:
+	btrfs_free_path(path);
+	return ret < 0 ? ret : 0;
+}
+
+static int update_dev_stat_item(struct btrfs_trans_handle *trans,
+				struct btrfs_root *dev_root,
+				struct btrfs_device *device)
+{
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	struct extent_buffer *eb;
+	struct btrfs_dev_stats_item *ptr;
+	int ret;
+	int i;
+
+	key.objectid = 0;
+	key.type = BTRFS_DEV_STATS_KEY;
+	key.offset = device->devid;
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	ret = btrfs_search_slot(trans, dev_root, &key, path, -1, 1);
+	if (ret < 0) {
+		printk(KERN_WARNING "btrfs: error %d while searching for dev_stats item for device %s!\n",
+		       ret, device->name);
+		goto out;
+	}
+
+	if (ret == 0 &&
+	    btrfs_item_size_nr(path->nodes[0], path->slots[0]) < sizeof(*ptr)) {
+		/* need to delete old one and insert a new one */
+		ret = btrfs_del_item(trans, dev_root, path);
+		if (ret != 0) {
+			printk(KERN_WARNING "btrfs: delete too small dev_stats item for device %s failed %d!\n",
+			       device->name, ret);
+			goto out;
+		}
+		ret = 1;
+	}
+
+	if (ret == 1) {
+		/* need to insert a new item */
+		btrfs_release_path(path);
+		ret = btrfs_insert_empty_item(trans, dev_root, path,
+					      &key, sizeof(*ptr));
+		if (ret < 0) {
+			printk(KERN_WARNING "btrfs: insert dev_stats item for device %s failed %d!\n",
+			       device->name, ret);
+			goto out;
+		}
+	}
+
+	eb = path->nodes[0];
+	ptr = btrfs_item_ptr(eb, path->slots[0], struct btrfs_dev_stats_item);
+	for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++)
+		btrfs_set_dev_stats_value(eb, ptr, i,
+					  btrfs_dev_stat_read(device, i));
+	btrfs_mark_buffer_dirty(eb);
+
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
+/*
+ * called from commit_transaction. Writes all changed device stats to disk.
+ */
+int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
+			struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_root *dev_root = fs_info->dev_root;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_device *device;
+	int ret = 0;
+
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		if (!device->dev_stats_valid || !device->dev_stats_dirty)
+			continue;
+
+		ret = update_dev_stat_item(trans, dev_root, device);
+		if (!ret)
+			device->dev_stats_dirty = 0;
+	}
+	mutex_unlock(&fs_devices->device_list_mutex);
+
+	return ret;
+}
+
+void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index)
+{
+	btrfs_dev_stat_inc(dev, index);
+	btrfs_dev_stat_print_on_error(dev);
+}
+
+void btrfs_dev_stat_print_on_error(struct btrfs_device *dev)
+{
+	if (!dev->dev_stats_valid)
+		return;
+	printk_ratelimited(KERN_ERR
+			   "btrfs: bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u\n",
+			   dev->name,
+			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
+			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_READ_ERRS),
+			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_FLUSH_ERRS),
+			   btrfs_dev_stat_read(dev,
+					       BTRFS_DEV_STAT_CORRUPTION_ERRS),
+			   btrfs_dev_stat_read(dev,
+					       BTRFS_DEV_STAT_GENERATION_ERRS));
+}
+
+static void btrfs_dev_stat_print_on_load(struct btrfs_device *dev)
+{
+	printk(KERN_INFO "btrfs: bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u\n",
+	       dev->name,
+	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
+	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_READ_ERRS),
+	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_FLUSH_ERRS),
+	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_CORRUPTION_ERRS),
+	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_GENERATION_ERRS));
+}
+
+int btrfs_get_dev_stats(struct btrfs_root *root,
+			struct btrfs_ioctl_get_dev_stats *stats,
+			int reset_after_read)
+{
+	struct btrfs_device *dev;
+	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
+	int i;
+
+	mutex_lock(&fs_devices->device_list_mutex);
+	dev = btrfs_find_device(root, stats->devid, NULL, NULL);
+	mutex_unlock(&fs_devices->device_list_mutex);
+
+	if (!dev) {
+		printk(KERN_WARNING
+		       "btrfs: get dev_stats failed, device not found\n");
+		return -ENODEV;
+	} else if (!dev->dev_stats_valid) {
+		printk(KERN_WARNING
+		       "btrfs: get dev_stats failed, not yet valid\n");
+		return -ENODEV;
+	} else if (reset_after_read) {
+		for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++) {
+			if (stats->nr_items > i)
+				stats->values[i] =
+					btrfs_dev_stat_read_and_reset(dev, i);
+			else
+				btrfs_dev_stat_reset(dev, i);
+		}
+	} else {
+		for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++)
+			if (stats->nr_items > i)
+				stats->values[i] = btrfs_dev_stat_read(dev, i);
+	}
+	if (stats->nr_items > BTRFS_DEV_STAT_VALUES_MAX)
+		stats->nr_items = BTRFS_DEV_STAT_VALUES_MAX;
+	return 0;
 }

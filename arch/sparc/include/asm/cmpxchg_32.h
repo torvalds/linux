@@ -11,40 +11,13 @@
 #ifndef __ARCH_SPARC_CMPXCHG__
 #define __ARCH_SPARC_CMPXCHG__
 
-#include <asm/btfixup.h>
-
-/* This has special calling conventions */
-#ifndef CONFIG_SMP
-BTFIXUPDEF_CALL(void, ___xchg32, void)
-#endif
-
 static inline unsigned long xchg_u32(__volatile__ unsigned long *m, unsigned long val)
 {
-#ifdef CONFIG_SMP
 	__asm__ __volatile__("swap [%2], %0"
 			     : "=&r" (val)
 			     : "0" (val), "r" (m)
 			     : "memory");
 	return val;
-#else
-	register unsigned long *ptr asm("g1");
-	register unsigned long ret asm("g2");
-
-	ptr = (unsigned long *) m;
-	ret = val;
-
-	/* Note: this is magic and the nop there is
-	   really needed. */
-	__asm__ __volatile__(
-	"mov	%%o7, %%g4\n\t"
-	"call	___f____xchg32\n\t"
-	" nop\n\t"
-	: "=&r" (ret)
-	: "0" (ret), "r" (ptr)
-	: "g3", "g4", "g7", "memory", "cc");
-
-	return ret;
-#endif
 }
 
 extern void __xchg_called_with_bad_pointer(void);

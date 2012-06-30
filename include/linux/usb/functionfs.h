@@ -190,8 +190,10 @@ static int functionfs_ready_callback(struct ffs_data *ffs)
 	__attribute__((warn_unused_result, nonnull));
 static void functionfs_closed_callback(struct ffs_data *ffs)
 	__attribute__((nonnull));
-static int functionfs_check_dev_callback(const char *dev_name)
+static void *functionfs_acquire_dev_callback(const char *dev_name)
 	__attribute__((warn_unused_result, nonnull));
+static void functionfs_release_dev_callback(struct ffs_data *ffs_data)
+	__attribute__((nonnull));
 
 
 #endif

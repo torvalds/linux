@@ -35,14 +35,9 @@
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	/* Allocate try format and crop in the same memory block */
-	fh->try_fmt = kzalloc((sizeof(*fh->try_fmt) + sizeof(*fh->try_crop))
-			      * sd->entity.num_pads, GFP_KERNEL);
-	if (fh->try_fmt == NULL)
+	fh->pad = kzalloc(sizeof(*fh->pad) * sd->entity.num_pads, GFP_KERNEL);
+	if (fh->pad == NULL)
 		return -ENOMEM;
-
-	fh->try_crop = (struct v4l2_rect *)
-		(fh->try_fmt + sd->entity.num_pads);
 #endif
 	return 0;
 }
@@ -50,9 +45,8 @@ static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 static void subdev_fh_free(struct v4l2_subdev_fh *fh)
 {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	kfree(fh->try_fmt);
-	fh->try_fmt = NULL;
-	fh->try_crop = NULL;
+	kfree(fh->pad);
+	fh->pad = NULL;
 #endif
 }
 
@@ -234,6 +228,8 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_G_CROP: {
 		struct v4l2_subdev_crop *crop = arg;
+		struct v4l2_subdev_selection sel;
+		int rval;
 
 		if (crop->which != V4L2_SUBDEV_FORMAT_TRY &&
 		    crop->which != V4L2_SUBDEV_FORMAT_ACTIVE)
@@ -242,11 +238,27 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (crop->pad >= sd->entity.num_pads)
 			return -EINVAL;
 
-		return v4l2_subdev_call(sd, pad, get_crop, subdev_fh, crop);
+		rval = v4l2_subdev_call(sd, pad, get_crop, subdev_fh, crop);
+		if (rval != -ENOIOCTLCMD)
+			return rval;
+
+		memset(&sel, 0, sizeof(sel));
+		sel.which = crop->which;
+		sel.pad = crop->pad;
+		sel.target = V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL;
+
+		rval = v4l2_subdev_call(
+			sd, pad, get_selection, subdev_fh, &sel);
+
+		crop->rect = sel.r;
+
+		return rval;
 	}
 
 	case VIDIOC_SUBDEV_S_CROP: {
 		struct v4l2_subdev_crop *crop = arg;
+		struct v4l2_subdev_selection sel;
+		int rval;
 
 		if (crop->which != V4L2_SUBDEV_FORMAT_TRY &&
 		    crop->which != V4L2_SUBDEV_FORMAT_ACTIVE)
@@ -255,7 +267,22 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (crop->pad >= sd->entity.num_pads)
 			return -EINVAL;
 
-		return v4l2_subdev_call(sd, pad, set_crop, subdev_fh, crop);
+		rval = v4l2_subdev_call(sd, pad, set_crop, subdev_fh, crop);
+		if (rval != -ENOIOCTLCMD)
+			return rval;
+
+		memset(&sel, 0, sizeof(sel));
+		sel.which = crop->which;
+		sel.pad = crop->pad;
+		sel.target = V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL;
+		sel.r = crop->rect;
+
+		rval = v4l2_subdev_call(
+			sd, pad, set_selection, subdev_fh, &sel);
+
+		crop->rect = sel.r;
+
+		return rval;
 	}
 
 	case VIDIOC_SUBDEV_ENUM_MBUS_CODE: {
@@ -292,6 +319,34 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		return v4l2_subdev_call(sd, pad, enum_frame_interval, subdev_fh,
 					fie);
+	}
+
+	case VIDIOC_SUBDEV_G_SELECTION: {
+		struct v4l2_subdev_selection *sel = arg;
+
+		if (sel->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
+		if (sel->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(
+			sd, pad, get_selection, subdev_fh, sel);
+	}
+
+	case VIDIOC_SUBDEV_S_SELECTION: {
+		struct v4l2_subdev_selection *sel = arg;
+
+		if (sel->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
+		if (sel->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(
+			sd, pad, set_selection, subdev_fh, sel);
 	}
 #endif
 	default:
@@ -331,6 +386,70 @@ const struct v4l2_file_operations v4l2_subdev_fops = {
 	.release = subdev_close,
 	.poll = subdev_poll,
 };
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
+				      struct media_link *link,
+				      struct v4l2_subdev_format *source_fmt,
+				      struct v4l2_subdev_format *sink_fmt)
+{
+	if (source_fmt->format.width != sink_fmt->format.width
+	    || source_fmt->format.height != sink_fmt->format.height
+	    || source_fmt->format.code != sink_fmt->format.code)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate_default);
+
+static int
+v4l2_subdev_link_validate_get_format(struct media_pad *pad,
+				     struct v4l2_subdev_format *fmt)
+{
+	switch (media_entity_type(pad->entity)) {
+	case MEDIA_ENT_T_V4L2_SUBDEV:
+		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		fmt->pad = pad->index;
+		return v4l2_subdev_call(media_entity_to_v4l2_subdev(
+						pad->entity),
+					pad, get_fmt, NULL, fmt);
+	default:
+		WARN(1, "Driver bug! Wrong media entity type %d, entity %s\n",
+		     media_entity_type(pad->entity), pad->entity->name);
+		/* Fall through */
+	case MEDIA_ENT_T_DEVNODE_V4L:
+		return -EINVAL;
+	}
+}
+
+int v4l2_subdev_link_validate(struct media_link *link)
+{
+	struct v4l2_subdev *sink;
+	struct v4l2_subdev_format sink_fmt, source_fmt;
+	int rval;
+
+	rval = v4l2_subdev_link_validate_get_format(
+		link->source, &source_fmt);
+	if (rval < 0)
+		return 0;
+
+	rval = v4l2_subdev_link_validate_get_format(
+		link->sink, &sink_fmt);
+	if (rval < 0)
+		return 0;
+
+	sink = media_entity_to_v4l2_subdev(link->sink->entity);
+
+	rval = v4l2_subdev_call(sink, pad, link_validate, link,
+				&source_fmt, &sink_fmt);
+	if (rval != -ENOIOCTLCMD)
+		return rval;
+
+	return v4l2_subdev_link_validate_default(
+		sink, link, &source_fmt, &sink_fmt);
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate);
+#endif /* CONFIG_MEDIA_CONTROLLER */
 
 void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 {

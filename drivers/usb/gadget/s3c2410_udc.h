@@ -19,7 +19,6 @@ struct s3c2410_ep {
 	unsigned long			last_io;	/* jiffies timestamp */
 	struct usb_gadget		*gadget;
 	struct s3c2410_udc		*dev;
-	const struct usb_endpoint_descriptor *desc;
 	struct usb_ep			ep;
 	u8				num;
 

@@ -33,7 +33,6 @@
 #include <asm/mach-types.h>
 #include <linux/uaccess.h>
 
-#include <asm/hardware/clps7111.h>
 #include <mach/syspld.h>
 
 struct fb_info	*cfb;

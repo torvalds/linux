@@ -1436,7 +1436,8 @@ static const struct v4l2_ctrl_ops s5p_mfc_enc_ctrl_ops = {
 	.s_ctrl = s5p_mfc_enc_s_ctrl,
 };
 
-int vidioc_s_parm(struct file *file, void *priv, struct v4l2_streamparm *a)
+static int vidioc_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *a)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 
@@ -1452,7 +1453,8 @@ int vidioc_s_parm(struct file *file, void *priv, struct v4l2_streamparm *a)
 	return 0;
 }
 
-int vidioc_g_parm(struct file *file, void *priv, struct v4l2_streamparm *a)
+static int vidioc_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *a)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 

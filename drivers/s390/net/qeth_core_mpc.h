@@ -70,16 +70,6 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_ATM_NATIVE   = 0x90,
 };
 
-enum qeth_tr_macaddr_modes {
-	QETH_TR_MACADDR_NONCANONICAL = 0,
-	QETH_TR_MACADDR_CANONICAL    = 1,
-};
-
-enum qeth_tr_broadcast_modes {
-	QETH_TR_BROADCAST_ALLRINGS = 0,
-	QETH_TR_BROADCAST_LOCAL    = 1,
-};
-
 /*
  * Routing stuff
  */

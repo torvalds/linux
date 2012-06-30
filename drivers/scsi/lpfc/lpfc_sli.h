@@ -68,7 +68,7 @@ struct lpfc_iocbq {
 #define LPFC_EXCHANGE_BUSY	0x40    /* SLI4 hba reported XB in response */
 #define LPFC_USE_FCPWQIDX	0x80    /* Submit to specified FCPWQ index */
 #define DSS_SECURITY_OP		0x100	/* security IO */
-#define LPFC_IO_ON_Q		0x200	/* The IO is still on the TXCMPLQ */
+#define LPFC_IO_ON_TXCMPLQ	0x200	/* The IO is still on the TXCMPLQ */
 #define LPFC_IO_DIF		0x400	/* T10 DIF IO */
 
 #define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, non-shifted mask */

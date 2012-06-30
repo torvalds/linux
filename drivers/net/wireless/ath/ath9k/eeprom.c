@@ -16,14 +16,6 @@
 
 #include "hw.h"
 
-static inline u16 ath9k_hw_fbin2freq(u8 fbin, bool is2GHz)
-{
-	if (fbin == AR5416_BCHAN_UNUSED)
-		return fbin;
-
-	return (u16) ((is2GHz) ? (2300 + fbin) : (4800 + 5 * fbin));
-}
-
 void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val)
 {
         REG_WRITE(ah, reg, val);
@@ -290,6 +282,34 @@ u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
 	return twiceMaxEdgePower;
 }
 
+u16 ath9k_hw_get_scaled_power(struct ath_hw *ah, u16 power_limit,
+			      u8 antenna_reduction)
+{
+	u16 reduction = antenna_reduction;
+
+	/*
+	 * Reduce scaled Power by number of chains active
+	 * to get the per chain tx power level.
+	 */
+	switch (ar5416_get_ntxchains(ah->txchainmask)) {
+	case 1:
+		break;
+	case 2:
+		reduction += POWER_CORRECTION_FOR_TWO_CHAIN;
+		break;
+	case 3:
+		reduction += POWER_CORRECTION_FOR_THREE_CHAIN;
+		break;
+	}
+
+	if (power_limit > reduction)
+		power_limit -= reduction;
+	else
+		power_limit = 0;
+
+	return power_limit;
+}
+
 void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -299,10 +319,10 @@ void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah)
 	case 1:
 		break;
 	case 2:
-		regulatory->max_power_level += INCREASE_MAXPOW_BY_TWO_CHAIN;
+		regulatory->max_power_level += POWER_CORRECTION_FOR_TWO_CHAIN;
 		break;
 	case 3:
-		regulatory->max_power_level += INCREASE_MAXPOW_BY_THREE_CHAIN;
+		regulatory->max_power_level += POWER_CORRECTION_FOR_THREE_CHAIN;
 		break;
 	default:
 		ath_dbg(common, EEPROM, "Invalid chainmask configuration\n");

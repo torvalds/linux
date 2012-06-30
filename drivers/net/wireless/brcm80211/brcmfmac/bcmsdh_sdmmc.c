@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/sched.h>	/* request_irq() */
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <net/cfg80211.h>
 
 #include <defs.h>
@@ -54,6 +55,15 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	{ /* end: all zeroes */ },
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
+
+#ifdef CONFIG_BRCMFMAC_SDIO_OOB
+static struct list_head oobirq_lh;
+struct brcmf_sdio_oobirq {
+	unsigned int irq;
+	unsigned long flags;
+	struct list_head list;
+};
+#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 
 static bool
 brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
@@ -107,7 +117,8 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 			}
 			sdio_release_host(sdfunc);
 		}
-	} else if (regaddr == SDIO_CCCR_ABORT) {
+	} else if ((regaddr == SDIO_CCCR_ABORT) ||
+		   (regaddr == SDIO_CCCR_IENx)) {
 		sdfunc = kmemdup(sdiodev->func[0], sizeof(struct sdio_func),
 				 GFP_KERNEL);
 		if (!sdfunc)
@@ -335,43 +346,17 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 	return status;
 }
 
-/* Read client card reg */
-static int
-brcmf_sdioh_card_regread(struct brcmf_sdio_dev *sdiodev, int func, u32 regaddr,
-			 int regsize, u32 *data)
-{
-
-	if ((func == 0) || (regsize == 1)) {
-		u8 temp = 0;
-
-		brcmf_sdioh_request_byte(sdiodev, SDIOH_READ, func, regaddr,
-					 &temp);
-		*data = temp;
-		*data &= 0xff;
-		brcmf_dbg(DATA, "byte read data=0x%02x\n", *data);
-	} else {
-		brcmf_sdioh_request_word(sdiodev, SDIOH_READ, func, regaddr,
-					 data, regsize);
-		if (regsize == 2)
-			*data &= 0xffff;
-
-		brcmf_dbg(DATA, "word read data=0x%08x\n", *data);
-	}
-
-	return SUCCESS;
-}
-
 static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 {
 	/* read 24 bits and return valid 17 bit addr */
-	int i;
+	int i, ret;
 	u32 scratch, regdata;
 	__le32 scratch_le;
 	u8 *ptr = (u8 *)&scratch_le;
 
 	for (i = 0; i < 3; i++) {
-		if ((brcmf_sdioh_card_regread(sdiodev, 0, regaddr, 1,
-				&regdata)) != SUCCESS)
+		regdata = brcmf_sdio_regrl(sdiodev, regaddr, &ret);
+		if (ret != 0)
 			brcmf_dbg(ERROR, "Can't read!\n");
 
 		*ptr++ = (u8) regdata;
@@ -467,12 +452,40 @@ void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev)
 
 }
 
+#ifdef CONFIG_BRCMFMAC_SDIO_OOB
+static int brcmf_sdio_getintrcfg(struct brcmf_sdio_dev *sdiodev)
+{
+	struct brcmf_sdio_oobirq *oobirq_entry;
+
+	if (list_empty(&oobirq_lh)) {
+		brcmf_dbg(ERROR, "no valid oob irq resource\n");
+		return -ENXIO;
+	}
+
+	oobirq_entry = list_first_entry(&oobirq_lh, struct brcmf_sdio_oobirq,
+					list);
+
+	sdiodev->irq = oobirq_entry->irq;
+	sdiodev->irq_flags = oobirq_entry->flags;
+	list_del(&oobirq_entry->list);
+	kfree(oobirq_entry);
+
+	return 0;
+}
+#else
+static inline int brcmf_sdio_getintrcfg(struct brcmf_sdio_dev *sdiodev)
+{
+	return 0;
+}
+#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
+
 static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			      const struct sdio_device_id *id)
 {
 	int ret = 0;
 	struct brcmf_sdio_dev *sdiodev;
 	struct brcmf_bus *bus_if;
+
 	brcmf_dbg(TRACE, "Enter\n");
 	brcmf_dbg(TRACE, "func->class=%x\n", func->class);
 	brcmf_dbg(TRACE, "sdio_vendor: 0x%04x\n", func->vendor);
@@ -511,6 +524,10 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		sdiodev = dev_get_drvdata(&func->card->dev);
 		if ((!sdiodev) || (sdiodev->func[1]->card != func->card))
 			return -ENODEV;
+
+		ret = brcmf_sdio_getintrcfg(sdiodev);
+		if (ret)
+			return ret;
 		sdiodev->func[2] = func;
 
 		bus_if = sdiodev->bus_if;
@@ -603,6 +620,65 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 #endif	/* CONFIG_PM_SLEEP */
 };
 
+#ifdef CONFIG_BRCMFMAC_SDIO_OOB
+static int brcmf_sdio_pd_probe(struct platform_device *pdev)
+{
+	struct resource *res;
+	struct brcmf_sdio_oobirq *oobirq_entry;
+	int i, ret;
+
+	INIT_LIST_HEAD(&oobirq_lh);
+
+	for (i = 0; ; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
+		if (!res)
+			break;
+
+		oobirq_entry = kzalloc(sizeof(struct brcmf_sdio_oobirq),
+				       GFP_KERNEL);
+		oobirq_entry->irq = res->start;
+		oobirq_entry->flags = res->flags & IRQF_TRIGGER_MASK;
+		list_add_tail(&oobirq_entry->list, &oobirq_lh);
+	}
+	if (i == 0)
+		return -ENXIO;
+
+	ret = sdio_register_driver(&brcmf_sdmmc_driver);
+
+	if (ret)
+		brcmf_dbg(ERROR, "sdio_register_driver failed: %d\n", ret);
+
+	return ret;
+}
+
+static struct platform_driver brcmf_sdio_pd = {
+	.probe		= brcmf_sdio_pd_probe,
+	.driver		= {
+		.name	= "brcmf_sdio_pd"
+	}
+};
+
+void brcmf_sdio_exit(void)
+{
+	brcmf_dbg(TRACE, "Enter\n");
+
+	sdio_unregister_driver(&brcmf_sdmmc_driver);
+
+	platform_driver_unregister(&brcmf_sdio_pd);
+}
+
+void brcmf_sdio_init(void)
+{
+	int ret;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	ret = platform_driver_register(&brcmf_sdio_pd);
+
+	if (ret)
+		brcmf_dbg(ERROR, "platform_driver_register failed: %d\n", ret);
+}
+#else
 void brcmf_sdio_exit(void)
 {
 	brcmf_dbg(TRACE, "Enter\n");
@@ -621,3 +697,4 @@ void brcmf_sdio_init(void)
 	if (ret)
 		brcmf_dbg(ERROR, "sdio_register_driver failed: %d\n", ret);
 }
+#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */

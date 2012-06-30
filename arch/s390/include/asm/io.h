@@ -11,8 +11,6 @@
 #ifndef _S390_IO_H
 #define _S390_IO_H
 
-#ifdef __KERNEL__
-
 #include <asm/page.h>
 
 #define IO_SPACE_LIMIT 0xffffffff
@@ -38,17 +36,12 @@ static inline void * phys_to_virt(unsigned long address)
 	return (void *) address;
 }
 
-/*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
+void *xlate_dev_mem_ptr(unsigned long phys);
+void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
 
 /*
  * Convert a virtual cached pointer to an uncached pointer
  */
 #define xlate_dev_kmem_ptr(p)	p
-
-#endif /* __KERNEL__ */
 
 #endif

@@ -316,10 +316,6 @@ static const struct comedi_lrange range_a821pgh_ai = { 4, {
 							   }
 };
 
-static int pcl812_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl812_detach(struct comedi_device *dev);
-
 struct pcl812_board {
 
 	const char *name;	/*  board name */
@@ -340,88 +336,7 @@ struct pcl812_board {
 	unsigned char haveMPC508;	/*  1=board use MPC508A multiplexor */
 };
 
-static const struct pcl812_board boardtypes[] = {
-	{"pcl812", boardPCL812, 16, 0, 2, 16, 16, 0x0fff,
-	 33000, 500, &range_bipolar10, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
-	{"pcl812pg", boardPCL812PG, 16, 0, 2, 16, 16, 0x0fff,
-	 33000, 500, &range_pcl812pg_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
-	{"acl8112pg", boardPCL812PG, 16, 0, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_pcl812pg_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
-	{"acl8112dg", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_acl8112dg_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
-	{"acl8112hg", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_acl8112hg_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
-	{"a821pgl", boardA821, 16, 8, 1, 16, 16, 0x0fff,
-	 10000, 500, &range_pcl813b_ai, &range_unipolar5,
-	 0x000c, 0x00, PCLx1x_IORANGE, 0},
-	{"a821pglnda", boardA821, 16, 8, 0, 0, 0, 0x0fff,
-	 10000, 500, &range_pcl813b_ai, NULL,
-	 0x000c, 0x00, PCLx1x_IORANGE, 0},
-	{"a821pgh", boardA821, 16, 8, 1, 16, 16, 0x0fff,
-	 10000, 500, &range_a821pgh_ai, &range_unipolar5,
-	 0x000c, 0x00, PCLx1x_IORANGE, 0},
-	{"a822pgl", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_acl8112dg_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
-	{"a822pgh", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 10000, 500, &range_acl8112hg_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
-	{"a823pgl", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 8000, 500, &range_acl8112dg_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
-	{"a823pgh", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-	 8000, 500, &range_acl8112hg_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
-	{"pcl813", boardPCL813, 32, 0, 0, 0, 0, 0x0fff,
-	 0, 0, &range_pcl813b_ai, NULL,
-	 0x0000, 0x00, PCLx1x_IORANGE, 0},
-	{"pcl813b", boardPCL813B, 32, 0, 0, 0, 0, 0x0fff,
-	 0, 0, &range_pcl813b_ai, NULL,
-	 0x0000, 0x00, PCLx1x_IORANGE, 0},
-	{"acl8113", boardACL8113, 32, 0, 0, 0, 0, 0x0fff,
-	 0, 0, &range_acl8113_1_ai, NULL,
-	 0x0000, 0x00, PCLx1x_IORANGE, 0},
-	{"iso813", boardISO813, 32, 0, 0, 0, 0, 0x0fff,
-	 0, 0, &range_iso813_1_ai, NULL,
-	 0x0000, 0x00, PCLx1x_IORANGE, 0},
-	{"acl8216", boardACL8216, 16, 8, 2, 16, 16, 0xffff,
-	 10000, 500, &range_pcl813b2_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
-	{"a826pg", boardACL8216, 16, 8, 2, 16, 16, 0xffff,
-	 10000, 500, &range_pcl813b2_ai, &range_unipolar5,
-	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl812_board))
 #define this_board ((const struct pcl812_board *)dev->board_ptr)
-
-static struct comedi_driver driver_pcl812 = {
-	.driver_name = "pcl812",
-	.module = THIS_MODULE,
-	.attach = pcl812_attach,
-	.detach = pcl812_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcl812_board),
-};
-
-static int __init driver_pcl812_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl812);
-}
-
-static void __exit driver_pcl812_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl812);
-}
-
-module_init(driver_pcl812_init_module);
-module_exit(driver_pcl812_cleanup_module);
 
 struct pcl812_private {
 
@@ -1356,9 +1271,6 @@ static void pcl812_reset(struct comedi_device *dev)
 #endif
 }
 
-/*
-==============================================================================
-*/
 static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret, subdev;
@@ -1702,18 +1614,78 @@ no_dma:
 	return 0;
 }
 
-/*
-==============================================================================
- */
-static int pcl812_detach(struct comedi_device *dev)
+static void pcl812_detach(struct comedi_device *dev)
 {
-
-#ifdef PCL812_EXTDEBUG
-	printk(KERN_DEBUG "comedi%d: pcl812: remove\n", dev->minor);
-#endif
 	free_resources(dev);
-	return 0;
 }
+
+static const struct pcl812_board boardtypes[] = {
+	{"pcl812", boardPCL812, 16, 0, 2, 16, 16, 0x0fff,
+	 33000, 500, &range_bipolar10, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	{"pcl812pg", boardPCL812PG, 16, 0, 2, 16, 16, 0x0fff,
+	 33000, 500, &range_pcl812pg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	{"acl8112pg", boardPCL812PG, 16, 0, 2, 16, 16, 0x0fff,
+	 10000, 500, &range_pcl812pg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	{"acl8112dg", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
+	 10000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
+	{"acl8112hg", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
+	 10000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
+	{"a821pgl", boardA821, 16, 8, 1, 16, 16, 0x0fff,
+	 10000, 500, &range_pcl813b_ai, &range_unipolar5,
+	 0x000c, 0x00, PCLx1x_IORANGE, 0},
+	{"a821pglnda", boardA821, 16, 8, 0, 0, 0, 0x0fff,
+	 10000, 500, &range_pcl813b_ai, NULL,
+	 0x000c, 0x00, PCLx1x_IORANGE, 0},
+	{"a821pgh", boardA821, 16, 8, 1, 16, 16, 0x0fff,
+	 10000, 500, &range_a821pgh_ai, &range_unipolar5,
+	 0x000c, 0x00, PCLx1x_IORANGE, 0},
+	{"a822pgl", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
+	 10000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	{"a822pgh", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
+	 10000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	{"a823pgl", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
+	 8000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	{"a823pgh", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
+	 8000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	{"pcl813", boardPCL813, 32, 0, 0, 0, 0, 0x0fff,
+	 0, 0, &range_pcl813b_ai, NULL,
+	 0x0000, 0x00, PCLx1x_IORANGE, 0},
+	{"pcl813b", boardPCL813B, 32, 0, 0, 0, 0, 0x0fff,
+	 0, 0, &range_pcl813b_ai, NULL,
+	 0x0000, 0x00, PCLx1x_IORANGE, 0},
+	{"acl8113", boardACL8113, 32, 0, 0, 0, 0, 0x0fff,
+	 0, 0, &range_acl8113_1_ai, NULL,
+	 0x0000, 0x00, PCLx1x_IORANGE, 0},
+	{"iso813", boardISO813, 32, 0, 0, 0, 0, 0x0fff,
+	 0, 0, &range_iso813_1_ai, NULL,
+	 0x0000, 0x00, PCLx1x_IORANGE, 0},
+	{"acl8216", boardACL8216, 16, 8, 2, 16, 16, 0xffff,
+	 10000, 500, &range_pcl813b2_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
+	{"a826pg", boardACL8216, 16, 8, 2, 16, 16, 0xffff,
+	 10000, 500, &range_pcl813b2_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+};
+
+static struct comedi_driver pcl812_driver = {
+	.driver_name	= "pcl812",
+	.module		= THIS_MODULE,
+	.attach		= pcl812_attach,
+	.detach		= pcl812_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcl812_board),
+};
+module_comedi_driver(pcl812_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

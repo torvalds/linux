@@ -487,7 +487,7 @@ static void bdev_evict_inode(struct inode *inode)
 	struct list_head *p;
 	truncate_inode_pages(&inode->i_data, 0);
 	invalidate_inode_buffers(inode); /* is it needed here? */
-	end_writeback(inode);
+	clear_inode(inode);
 	spin_lock(&bdev_lock);
 	while ( (p = bdev->bd_inodes.next) != &bdev->bd_inodes ) {
 		__bd_forget(list_entry(p, struct inode, i_devices));

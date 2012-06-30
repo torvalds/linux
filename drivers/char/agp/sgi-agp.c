@@ -158,7 +158,6 @@ static int sgi_tioca_insert_memory(struct agp_memory *mem, off_t pg_start,
 		break;
 	case LVL2_APER_SIZE:
 		return -EINVAL;
-		break;
 	default:
 		num_entries = 0;
 		break;

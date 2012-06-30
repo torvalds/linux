@@ -496,6 +496,7 @@ static const struct file_operations sel_policy_ops = {
 	.read		= sel_read_policy,
 	.mmap		= sel_mmap_policy,
 	.release	= sel_release_policy,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_write_load(struct file *file, const char __user *buf,
@@ -1232,6 +1233,7 @@ static int sel_make_bools(void)
 		kfree(bool_pending_names[i]);
 	kfree(bool_pending_names);
 	kfree(bool_pending_values);
+	bool_num = 0;
 	bool_pending_names = NULL;
 	bool_pending_values = NULL;
 
@@ -1257,12 +1259,8 @@ static int sel_make_bools(void)
 		if (!inode)
 			goto out;
 
-		ret = -EINVAL;
-		len = snprintf(page, PAGE_SIZE, "/%s/%s", BOOL_DIR_NAME, names[i]);
-		if (len < 0)
-			goto out;
-
 		ret = -ENAMETOOLONG;
+		len = snprintf(page, PAGE_SIZE, "/%s/%s", BOOL_DIR_NAME, names[i]);
 		if (len >= PAGE_SIZE)
 			goto out;
 
@@ -1532,11 +1530,6 @@ static int sel_make_initcon_files(struct dentry *dir)
 	return 0;
 }
 
-static inline unsigned int sel_div(unsigned long a, unsigned long b)
-{
-	return a / b - (a % b < 0);
-}
-
 static inline unsigned long sel_class_to_ino(u16 class)
 {
 	return (class * (SEL_VEC_MAX + 1)) | SEL_CLASS_INO_OFFSET;
@@ -1544,7 +1537,7 @@ static inline unsigned long sel_class_to_ino(u16 class)
 
 static inline u16 sel_ino_to_class(unsigned long ino)
 {
-	return sel_div(ino & SEL_INO_MASK, SEL_VEC_MAX + 1);
+	return (ino & SEL_INO_MASK) / (SEL_VEC_MAX + 1);
 }
 
 static inline unsigned long sel_perm_to_ino(u16 class, u32 perm)
@@ -1560,19 +1553,10 @@ static inline u32 sel_ino_to_perm(unsigned long ino)
 static ssize_t sel_read_class(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	ssize_t rc, len;
-	char *page;
 	unsigned long ino = file->f_path.dentry->d_inode->i_ino;
-
-	page = (char *)__get_free_page(GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
-
-	len = snprintf(page, PAGE_SIZE, "%d", sel_ino_to_class(ino));
-	rc = simple_read_from_buffer(buf, count, ppos, page, len);
-	free_page((unsigned long)page);
-
-	return rc;
+	char res[TMPBUFLEN];
+	ssize_t len = snprintf(res, sizeof(res), "%d", sel_ino_to_class(ino));
+	return simple_read_from_buffer(buf, count, ppos, res, len);
 }
 
 static const struct file_operations sel_class_ops = {
@@ -1583,19 +1567,10 @@ static const struct file_operations sel_class_ops = {
 static ssize_t sel_read_perm(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	ssize_t rc, len;
-	char *page;
 	unsigned long ino = file->f_path.dentry->d_inode->i_ino;
-
-	page = (char *)__get_free_page(GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
-
-	len = snprintf(page, PAGE_SIZE, "%d", sel_ino_to_perm(ino));
-	rc = simple_read_from_buffer(buf, count, ppos, page, len);
-	free_page((unsigned long)page);
-
-	return rc;
+	char res[TMPBUFLEN];
+	ssize_t len = snprintf(res, sizeof(res), "%d", sel_ino_to_perm(ino));
+	return simple_read_from_buffer(buf, count, ppos, res, len);
 }
 
 static const struct file_operations sel_perm_ops = {
@@ -1831,7 +1806,7 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 		[SEL_REJECT_UNKNOWN] = {"reject_unknown", &sel_handle_unknown_ops, S_IRUGO},
 		[SEL_DENY_UNKNOWN] = {"deny_unknown", &sel_handle_unknown_ops, S_IRUGO},
 		[SEL_STATUS] = {"status", &sel_handle_status_ops, S_IRUGO},
-		[SEL_POLICY] = {"policy", &sel_policy_ops, S_IRUSR},
+		[SEL_POLICY] = {"policy", &sel_policy_ops, S_IRUGO},
 		/* last one */ {""}
 	};
 	ret = simple_fill_super(sb, SELINUX_MAGIC, selinux_files);

@@ -14,8 +14,6 @@
 #define PAGE_SIZE    (_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK    (~(PAGE_SIZE-1))
 
-#include <asm/btfixup.h>
-
 #ifndef __ASSEMBLY__
 
 #define clear_page(page)	 memset((void *)(page), 0, PAGE_SIZE)
@@ -44,12 +42,6 @@ struct sparc_phys_banks {
 #define SPARC_PHYS_BANKS 32
 
 extern struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
-
-/* Cache alias structure.  Entry is valid if context != -1. */
-struct cache_palias {
-	unsigned long vaddr;
-	int context;
-};
 
 /* passing structs on the Sparc slow us down tremendously... */
 
@@ -116,10 +108,7 @@ typedef unsigned long iopgprot_t;
 typedef struct page *pgtable_t;
 
 extern unsigned long sparc_unmapped_base;
-
-BTFIXUPDEF_SETHI(sparc_unmapped_base)
-
-#define TASK_UNMAPPED_BASE	BTFIXUP_SETHI(sparc_unmapped_base)
+#define TASK_UNMAPPED_BASE	sparc_unmapped_base
 
 #else /* !(__ASSEMBLY__) */
 

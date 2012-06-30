@@ -91,7 +91,7 @@ struct das16cs_private {
 
 static int das16cs_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);
-static int das16cs_detach(struct comedi_device *dev);
+static void das16cs_detach(struct comedi_device *dev);
 static struct comedi_driver driver_das16cs = {
 	.driver_name = "cb_das16_cs",
 	.module = THIS_MODULE,
@@ -255,15 +255,10 @@ static int das16cs_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int das16cs_detach(struct comedi_device *dev)
+static void das16cs_detach(struct comedi_device *dev)
 {
-	dev_dbg(dev->hw_dev, "comedi%d: das16cs: remove\n", dev->minor);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-
-	return 0;
 }
 
 static irqreturn_t das16cs_interrupt(int irq, void *d)

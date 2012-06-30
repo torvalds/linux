@@ -171,46 +171,13 @@ struct a2150_private {
 
 #define devpriv ((struct a2150_private *)dev->private)
 
-static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int a2150_detach(struct comedi_device *dev);
 static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
-static struct comedi_driver driver_a2150 = {
-	.driver_name = "ni_at_a2150",
-	.module = THIS_MODULE,
-	.attach = a2150_attach,
-	.detach = a2150_detach,
-};
-
-static irqreturn_t a2150_interrupt(int irq, void *d);
-static int a2150_ai_cmdtest(struct comedi_device *dev,
-			    struct comedi_subdevice *s, struct comedi_cmd *cmd);
-static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data);
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    int flags);
-static int a2150_probe(struct comedi_device *dev);
 static int a2150_set_chanlist(struct comedi_device *dev,
 			      unsigned int start_channel,
 			      unsigned int num_channels);
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __init driver_a2150_init_module(void)
-{
-	return comedi_driver_register(&driver_a2150);
-}
-
-static void __exit driver_a2150_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_a2150);
-}
-
-module_init(driver_a2150_init_module);
-module_exit(driver_a2150_cleanup_module);
-
 #ifdef A2150_DEBUG
 
 static void ni_dump_regs(struct comedi_device *dev)
@@ -331,161 +298,6 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/* probes board type, returns offset */
-static int a2150_probe(struct comedi_device *dev)
-{
-	int status = inw(dev->iobase + STATUS_REG);
-	return ID_BITS(status);
-}
-
-static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-	unsigned long iobase = it->options[0];
-	unsigned int irq = it->options[1];
-	unsigned int dma = it->options[2];
-	static const int timeout = 2000;
-	int i;
-
-	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_a2150.driver_name,
-	       iobase);
-	if (irq) {
-		printk(", irq %u", irq);
-	} else {
-		printk(", no irq");
-	}
-	if (dma) {
-		printk(", dma %u", dma);
-	} else {
-		printk(", no dma");
-	}
-	printk("\n");
-
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct a2150_private)) < 0)
-		return -ENOMEM;
-
-	if (iobase == 0) {
-		printk(" io base address required\n");
-		return -EINVAL;
-	}
-
-	/* check if io addresses are available */
-	if (!request_region(iobase, A2150_SIZE, driver_a2150.driver_name)) {
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-
-	/* grab our IRQ */
-	if (irq) {
-		/*  check that irq is supported */
-		if (irq < 3 || irq == 8 || irq == 13 || irq > 15) {
-			printk(" invalid irq line %u\n", irq);
-			return -EINVAL;
-		}
-		if (request_irq(irq, a2150_interrupt, 0,
-				driver_a2150.driver_name, dev)) {
-			printk("unable to allocate irq %u\n", irq);
-			return -EINVAL;
-		}
-		devpriv->irq_dma_bits |= IRQ_LVL_BITS(irq);
-		dev->irq = irq;
-	}
-	/*  initialize dma */
-	if (dma) {
-		if (dma == 4 || dma > 7) {
-			printk(" invalid dma channel %u\n", dma);
-			return -EINVAL;
-		}
-		if (request_dma(dma, driver_a2150.driver_name)) {
-			printk(" failed to allocate dma channel %u\n", dma);
-			return -EINVAL;
-		}
-		devpriv->dma = dma;
-		devpriv->dma_buffer =
-		    kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
-		if (devpriv->dma_buffer == NULL)
-			return -ENOMEM;
-
-		disable_dma(dma);
-		set_dma_mode(dma, DMA_MODE_READ);
-
-		devpriv->irq_dma_bits |= DMA_CHAN_BITS(dma);
-	}
-
-	dev->board_ptr = a2150_boards + a2150_probe(dev);
-	dev->board_name = thisboard->name;
-
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
-
-	/* analog input subdevice */
-	s = dev->subdevices + 0;
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_OTHER | SDF_CMD_READ;
-	s->n_chan = 4;
-	s->len_chanlist = 4;
-	s->maxdata = 0xffff;
-	s->range_table = &range_a2150;
-	s->do_cmd = a2150_ai_cmd;
-	s->do_cmdtest = a2150_ai_cmdtest;
-	s->insn_read = a2150_ai_rinsn;
-	s->cancel = a2150_cancel;
-
-	/* need to do this for software counting of completed conversions, to
-	 * prevent hardware count from stopping acquisition */
-	outw(HW_COUNT_DISABLE, dev->iobase + I8253_MODE_REG);
-
-	/*  set card's irq and dma levels */
-	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
-
-	/*  reset and sync adc clock circuitry */
-	outw_p(DPD_BIT | APD_BIT, dev->iobase + CONFIG_REG);
-	outw_p(DPD_BIT, dev->iobase + CONFIG_REG);
-	/*  initialize configuration register */
-	devpriv->config_bits = 0;
-	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
-	/*  wait until offset calibration is done, then enable analog inputs */
-	for (i = 0; i < timeout; i++) {
-		if ((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
-			break;
-		udelay(1000);
-	}
-	if (i == timeout) {
-		printk
-		    (" timed out waiting for offset calibration to complete\n");
-		return -ETIME;
-	}
-	devpriv->config_bits |= ENABLE0_BIT | ENABLE1_BIT;
-	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
-
-	return 0;
-};
-
-static int a2150_detach(struct comedi_device *dev)
-{
-	printk("comedi%d: %s: remove\n", dev->minor, driver_a2150.driver_name);
-
-	/* only free stuff if it has been allocated by _attach */
-	if (dev->iobase) {
-		/*  put board in power-down mode */
-		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
-		release_region(dev->iobase, A2150_SIZE);
-	}
-
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (devpriv->dma)
-			free_dma(devpriv->dma);
-		kfree(devpriv->dma_buffer);
-	}
-
-	return 0;
-};
-
 static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	/*  disable dma on card */
@@ -539,7 +351,10 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/*
+	 * step 2: make sure trigger sources are unique and mutually
+	 * compatible
+	 */
 
 	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
 		err++;
@@ -771,7 +586,10 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	/*  start acquisition for soft trigger */
 	outw(0, dev->iobase + FIFO_START_REG);
 
-	/* there is a 35.6 sample delay for data to get through the antialias filter */
+	/*
+	 * there is a 35.6 sample delay for data to get through the
+	 * antialias filter
+	 */
 	for (n = 0; n < filter_delay; n++) {
 		for (i = 0; i < timeout; i++) {
 			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
@@ -812,8 +630,10 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-/* sets bits in devpriv->clock_bits to nearest approximation of requested period,
- * adjusts requested period to actual timing. */
+/*
+ * sets bits in devpriv->clock_bits to nearest approximation of requested
+ * period, adjusts requested period to actual timing.
+ */
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    int flags)
 {
@@ -919,6 +739,162 @@ static int a2150_set_chanlist(struct comedi_device *dev,
 
 	return 0;
 }
+
+/* probes board type, returns offset */
+static int a2150_probe(struct comedi_device *dev)
+{
+	int status = inw(dev->iobase + STATUS_REG);
+	return ID_BITS(status);
+}
+
+static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	struct comedi_subdevice *s;
+	unsigned long iobase = it->options[0];
+	unsigned int irq = it->options[1];
+	unsigned int dma = it->options[2];
+	static const int timeout = 2000;
+	int i;
+
+	printk("comedi%d: %s: io 0x%lx", dev->minor, dev->driver->driver_name,
+	       iobase);
+	if (irq) {
+		printk(", irq %u", irq);
+	} else {
+		printk(", no irq");
+	}
+	if (dma) {
+		printk(", dma %u", dma);
+	} else {
+		printk(", no dma");
+	}
+	printk("\n");
+
+	/* allocate and initialize dev->private */
+	if (alloc_private(dev, sizeof(struct a2150_private)) < 0)
+		return -ENOMEM;
+
+	if (iobase == 0) {
+		printk(" io base address required\n");
+		return -EINVAL;
+	}
+
+	/* check if io addresses are available */
+	if (!request_region(iobase, A2150_SIZE, dev->driver->driver_name)) {
+		printk(" I/O port conflict\n");
+		return -EIO;
+	}
+	dev->iobase = iobase;
+
+	/* grab our IRQ */
+	if (irq) {
+		/*  check that irq is supported */
+		if (irq < 3 || irq == 8 || irq == 13 || irq > 15) {
+			printk(" invalid irq line %u\n", irq);
+			return -EINVAL;
+		}
+		if (request_irq(irq, a2150_interrupt, 0,
+				dev->driver->driver_name, dev)) {
+			printk("unable to allocate irq %u\n", irq);
+			return -EINVAL;
+		}
+		devpriv->irq_dma_bits |= IRQ_LVL_BITS(irq);
+		dev->irq = irq;
+	}
+	/*  initialize dma */
+	if (dma) {
+		if (dma == 4 || dma > 7) {
+			printk(" invalid dma channel %u\n", dma);
+			return -EINVAL;
+		}
+		if (request_dma(dma, dev->driver->driver_name)) {
+			printk(" failed to allocate dma channel %u\n", dma);
+			return -EINVAL;
+		}
+		devpriv->dma = dma;
+		devpriv->dma_buffer =
+		    kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
+		if (devpriv->dma_buffer == NULL)
+			return -ENOMEM;
+
+		disable_dma(dma);
+		set_dma_mode(dma, DMA_MODE_READ);
+
+		devpriv->irq_dma_bits |= DMA_CHAN_BITS(dma);
+	}
+
+	dev->board_ptr = a2150_boards + a2150_probe(dev);
+	dev->board_name = thisboard->name;
+
+	if (alloc_subdevices(dev, 1) < 0)
+		return -ENOMEM;
+
+	/* analog input subdevice */
+	s = dev->subdevices + 0;
+	dev->read_subdev = s;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_OTHER | SDF_CMD_READ;
+	s->n_chan = 4;
+	s->len_chanlist = 4;
+	s->maxdata = 0xffff;
+	s->range_table = &range_a2150;
+	s->do_cmd = a2150_ai_cmd;
+	s->do_cmdtest = a2150_ai_cmdtest;
+	s->insn_read = a2150_ai_rinsn;
+	s->cancel = a2150_cancel;
+
+	/* need to do this for software counting of completed conversions, to
+	 * prevent hardware count from stopping acquisition */
+	outw(HW_COUNT_DISABLE, dev->iobase + I8253_MODE_REG);
+
+	/*  set card's irq and dma levels */
+	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
+
+	/*  reset and sync adc clock circuitry */
+	outw_p(DPD_BIT | APD_BIT, dev->iobase + CONFIG_REG);
+	outw_p(DPD_BIT, dev->iobase + CONFIG_REG);
+	/*  initialize configuration register */
+	devpriv->config_bits = 0;
+	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
+	/*  wait until offset calibration is done, then enable analog inputs */
+	for (i = 0; i < timeout; i++) {
+		if ((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
+			break;
+		udelay(1000);
+	}
+	if (i == timeout) {
+		printk
+		    (" timed out waiting for offset calibration to complete\n");
+		return -ETIME;
+	}
+	devpriv->config_bits |= ENABLE0_BIT | ENABLE1_BIT;
+	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
+
+	return 0;
+};
+
+static void a2150_detach(struct comedi_device *dev)
+{
+	if (dev->iobase) {
+		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
+		release_region(dev->iobase, A2150_SIZE);
+	}
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (devpriv) {
+		if (devpriv->dma)
+			free_dma(devpriv->dma);
+		kfree(devpriv->dma_buffer);
+	}
+};
+
+static struct comedi_driver ni_at_a2150_driver = {
+	.driver_name	= "ni_at_a2150",
+	.module		= THIS_MODULE,
+	.attach		= a2150_attach,
+	.detach		= a2150_detach,
+};
+module_comedi_driver(ni_at_a2150_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

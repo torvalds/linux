@@ -29,8 +29,6 @@
 
 #include "sigutil.h"
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 		   void *fpqueue, unsigned long *fpqdepth);
 extern void fpload(unsigned long *fpregs, unsigned long *fsr);
@@ -64,18 +62,8 @@ struct rt_signal_frame {
 static int _sigpause_common(old_sigset_t set)
 {
 	sigset_t blocked;
-
-	current->saved_sigmask = current->blocked;
-
-	set &= _BLOCKABLE;
 	siginitset(&blocked, set);
-	set_current_blocked(&blocked);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-
-	return -ERESTARTNOHAND;
+	return sigsuspend(&blocked);
 }
 
 asmlinkage int sys_sigsuspend(old_sigset_t set)
@@ -140,7 +128,6 @@ asmlinkage void do_sigreturn(struct pt_regs *regs)
 	if (err)
 		goto segv_and_exit;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	return;
 
@@ -207,7 +194,6 @@ asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
 			goto segv;
 	}
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	return;
 segv:
@@ -217,12 +203,9 @@ segv:
 /* Checks if the fp is valid */
 static inline int invalid_frame_pointer(void __user *fp, int fplen)
 {
-	if ((((unsigned long) fp) & 7) ||
-	    !__access_ok((unsigned long)fp, fplen) ||
-	    ((sparc_cpu_model == sun4 || sparc_cpu_model == sun4c) &&
-	     ((unsigned long) fp < 0xe0000000 && (unsigned long) fp >= 0x20000000)))
+	if ((((unsigned long) fp) & 7) || !__access_ok((unsigned long)fp, fplen))
 		return 1;
-	
+
 	return 0;
 }
 
@@ -462,10 +445,11 @@ sigsegv:
 	return -EFAULT;
 }
 
-static inline int
+static inline void
 handle_signal(unsigned long signr, struct k_sigaction *ka,
-	      siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
+	      siginfo_t *info, struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int err;
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
@@ -474,12 +458,9 @@ handle_signal(unsigned long signr, struct k_sigaction *ka,
 		err = setup_frame(ka, regs, signr, oldset);
 
 	if (err)
-		return err;
+		return;
 
-	block_sigmask(ka, signr);
-	tracehook_signal_handler(signr, info, ka, regs, 0);
-
-	return 0;
+	signal_delivered(signr, info, ka, regs, 0);
 }
 
 static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
@@ -511,7 +492,6 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 {
 	struct k_sigaction ka;
 	int restart_syscall;
-	sigset_t *oldset;
 	siginfo_t info;
 	int signr;
 
@@ -536,11 +516,6 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	if (pt_regs_is_syscall(regs) && (regs->psr & PSR_C))
 		regs->u_regs[UREG_G6] = orig_i0;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
 	/* If the debugger messes with the program counter, it clears
@@ -557,15 +532,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	if (signr > 0) {
 		if (restart_syscall)
 			syscall_restart(orig_i0, regs, &ka.sa);
-		if (handle_signal(signr, &ka, &info, oldset, regs) == 0) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
+		handle_signal(signr, &ka, &info, regs);
 		return;
 	}
 	if (restart_syscall &&
@@ -589,22 +556,17 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	/* if there's no signal to deliver, we just put the saved sigmask
 	 * back
 	 */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		set_current_blocked(&current->saved_sigmask);
-	}
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0,
 		      unsigned long thread_info_flags)
 {
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs, orig_i0);
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 	}
 }
 

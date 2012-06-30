@@ -190,6 +190,9 @@ static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
  */
 static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
 {
+	if (vdc_stat & _PSB_IRQ_ASLE)
+		psb_intel_opregion_asle_intr(dev);
+
 	if (vdc_stat & _PSB_VSYNC_PIPEA_FLAG)
 		mid_pipe_event_handler(dev, 0);
 
@@ -199,11 +202,9 @@ static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
 
 irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 {
-	struct drm_device *dev = (struct drm_device *) arg;
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
-
-	uint32_t vdc_stat, dsp_int = 0, sgx_int = 0;
+	struct drm_device *dev = arg;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	uint32_t vdc_stat, dsp_int = 0, sgx_int = 0, hotplug_int = 0;
 	int handled = 0;
 
 	spin_lock(&dev_priv->irqmask_lock);
@@ -220,6 +221,8 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 
 	if (vdc_stat & _PSB_IRQ_SGX_FLAG)
 		sgx_int = 1;
+	if (vdc_stat & _PSB_IRQ_DISP_HOTSYNC)
+		hotplug_int = 1;
 
 	vdc_stat &= dev_priv->vdc_irq_mask;
 	spin_unlock(&dev_priv->irqmask_lock);
@@ -239,6 +242,13 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 		/* if s & _PSB_CE_TWOD_COMPLETE we have 2D done but
 		   we may as well poll even if we add that ! */
 		handled = 1;
+	}
+
+	/* Note: this bit has other meanings on some devices, so we will
+	   need to address that later if it ever matters */
+	if (hotplug_int && dev_priv->ops->hotplug) {
+		handled = dev_priv->ops->hotplug(dev);
+		REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
 	}
 
 	PSB_WVDC32(vdc_stat, PSB_INT_IDENTITY_R);
@@ -273,6 +283,11 @@ void psb_irq_preinstall(struct drm_device *dev)
 		dev_priv->vdc_irq_mask |= _MDFLD_PIPEC_EVENT_FLAG;
 	*/
 
+	/* Revisit this area - want per device masks ? */
+	if (dev_priv->ops->hotplug)
+		dev_priv->vdc_irq_mask |= _PSB_IRQ_DISP_HOTSYNC;
+	dev_priv->vdc_irq_mask |= _PSB_IRQ_ASLE;
+
 	/* This register is safe even if display island is off */
 	PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
@@ -305,17 +320,22 @@ int psb_irq_postinstall(struct drm_device *dev)
 	else
 		psb_disable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
 
+	if (dev_priv->ops->hotplug_enable)
+		dev_priv->ops->hotplug_enable(dev, true);
+
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 	return 0;
 }
 
 void psb_irq_uninstall(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
+
+	if (dev_priv->ops->hotplug_enable)
+		dev_priv->ops->hotplug_enable(dev, false);
 
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
@@ -406,7 +426,7 @@ void psb_irq_turn_off_dpst(struct drm_device *dev)
 		psb_disable_pipestat(dev_priv, 0, PIPE_DPST_EVENT_ENABLE);
 
 		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
-		PSB_WVDC32(pwm_reg & !(PWM_PHASEIN_INT_ENABLE),
+		PSB_WVDC32(pwm_reg & ~PWM_PHASEIN_INT_ENABLE,
 							PWM_CONTROL_LOGIC);
 		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
 

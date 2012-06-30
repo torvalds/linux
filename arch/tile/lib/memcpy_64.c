@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/module.h>
-#define __memcpy memcpy
 /* EXPORT_SYMBOL() is in arch/tile/lib/exports.c since this should be asm. */
 
 /* Must be 8 bytes in size. */
@@ -188,6 +187,7 @@ int USERCOPY_FUNC(void *__restrict dstv, const void *__restrict srcv, size_t n)
 
 	/* n != 0 if we get here.  Write out any trailing bytes. */
 	dst1 = (char *)dst8;
+#ifndef __BIG_ENDIAN__
 	if (n & 4) {
 		ST4((uint32_t *)dst1, final);
 		dst1 += 4;
@@ -202,10 +202,29 @@ int USERCOPY_FUNC(void *__restrict dstv, const void *__restrict srcv, size_t n)
 	}
 	if (n)
 		ST1((uint8_t *)dst1, final);
+#else
+	if (n & 4) {
+		ST4((uint32_t *)dst1, final >> 32);
+		dst1 += 4;
+        }
+        else
+        {
+		final >>= 32;
+        }
+	if (n & 2) {
+		ST2((uint16_t *)dst1, final >> 16);
+		dst1 += 2;
+        }
+        else
+        {
+		final >>= 16;
+        }
+	if (n & 1)
+		ST1((uint8_t *)dst1, final >> 8);
+#endif
 
 	return RETVAL;
 }
-
 
 #ifdef USERCOPY_FUNC
 #undef ST1

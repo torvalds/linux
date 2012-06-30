@@ -76,6 +76,8 @@ struct callchain_cursor {
 	struct callchain_cursor_node	*curr;
 };
 
+extern __thread struct callchain_cursor callchain_cursor;
+
 static inline void callchain_init(struct callchain_root *root)
 {
 	INIT_LIST_HEAD(&root->node.siblings);

@@ -201,6 +201,8 @@ static struct usbduxfastsub_s usbduxfastsub[NUMUSBDUXFAST];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
+static struct comedi_driver driver_usbduxfast;	/* see below for initializer */
+
 /*
  * bulk transfers to usbduxfast
  */
@@ -453,14 +455,15 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 	/* 7f92 to zero */
 	local_transfer_buffer[0] = 0;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
-				VENDOR_DIR_OUT,	/* bmRequestType */
-				USBDUXFASTSUB_CPUCS,	/* Value */
-				0x0000,	/* Index */
-				/* address of the transfer buffer */
-				local_transfer_buffer,
-				1,	/* Length */
-				EZTIMEOUT);	/* Timeout */
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+			      USBDUXFASTSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,	  /* bmRequestType */
+			      USBDUXFASTSUB_CPUCS,    /* Value */
+			      0x0000,	/* Index */
+			      /* address of the transfer buffer */
+			      local_transfer_buffer,
+			      1,      /* Length */
+			      EZTIMEOUT);    /* Timeout */
 	if (ret < 0) {
 		printk("comedi_: usbduxfast_: control msg failed (start)\n");
 		return ret;
@@ -477,7 +480,8 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 	/* 7f92 to one */
 	local_transfer_buffer[0] = 1;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,	/* Value */
 			      0x0000,	/* Index */
@@ -504,14 +508,15 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	       startAddr, local_transfer_buffer[0]);
 #endif
 	/* brequest, firmware */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
-				VENDOR_DIR_OUT,	/* bmRequestType */
-				startAddr,	/* value */
-				0x0000,	/* index */
-				/* our local safe buffer */
-				local_transfer_buffer,
-				len,	/* length */
-				EZTIMEOUT);	/* timeout */
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+			      USBDUXFASTSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,	/* bmRequestType */
+			      startAddr,	/* value */
+			      0x0000,	 /* index */
+			      /* our local safe buffer */
+			      local_transfer_buffer,
+			      len,	/* length */
+			      EZTIMEOUT);      /* timeout */
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi_: usbduxfast: result=%d\n", ret);
@@ -1440,7 +1445,7 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 							 *fw, void *context)
 {
 	struct usbduxfastsub_s *usbduxfastsub_tmp = context;
-	struct usb_device *usbdev = usbduxfastsub_tmp->usbdev;
+	struct usb_interface *uinterf = usbduxfastsub_tmp->interface;
 	int ret;
 
 	if (fw == NULL)
@@ -1453,12 +1458,12 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 	ret = firmwareUpload(usbduxfastsub_tmp, fw->data, fw->size);
 
 	if (ret) {
-		dev_err(&usbdev->dev,
+		dev_err(&uinterf->dev,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
 
-	comedi_usb_auto_config(usbdev, BOARDNAME);
+	comedi_usb_auto_config(uinterf, &driver_usbduxfast);
  out:
 	release_firmware(fw);
 }
@@ -1606,7 +1611,7 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 		return;
 	}
 
-	comedi_usb_auto_unconfig(udev);
+	comedi_usb_auto_unconfig(intf);
 
 	down(&start_stop_sem);
 	down(&udfs->sem);
@@ -1721,43 +1726,19 @@ static int usbduxfast_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int usbduxfast_detach(struct comedi_device *dev)
+static void usbduxfast_detach(struct comedi_device *dev)
 {
-	struct usbduxfastsub_s *udfs;
+	struct usbduxfastsub_s *usb = dev->private;
 
-	if (!dev) {
-		printk(KERN_ERR "comedi?: usbduxfast: detach without dev "
-		       "variable...\n");
-		return -EFAULT;
+	if (usb) {
+		down(&usb->sem);
+		down(&start_stop_sem);
+		dev->private = NULL;
+		usb->attached = 0;
+		usb->comedidev = NULL;
+		up(&start_stop_sem);
+		up(&usb->sem);
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: detach usb device\n",
-	       dev->minor);
-#endif
-
-	udfs = dev->private;
-	if (!udfs) {
-		printk(KERN_ERR "comedi?: usbduxfast: detach without ptr to "
-		       "usbduxfastsub[]\n");
-		return -EFAULT;
-	}
-
-	down(&udfs->sem);
-	down(&start_stop_sem);
-	/*
-	 * Don't allow detach to free the private structure
-	 * It's one entry of of usbduxfastsub[]
-	 */
-	dev->private = NULL;
-	udfs->attached = 0;
-	udfs->comedidev = NULL;
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: detach: successfully "
-	       "removed\n", dev->minor);
-#endif
-	up(&start_stop_sem);
-	up(&udfs->sem);
-	return 0;
 }
 
 /*

@@ -72,6 +72,10 @@
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
 
+#define DP_DOWN_STREAM_PORT_COUNT	    0x007
+#define  DP_PORT_COUNT_MASK		    0x0f
+#define  DP_OUI_SUPPORT			    (1 << 7)
+
 #define DP_EDP_CONFIGURATION_CAP            0x00d
 #define DP_TRAINING_AUX_RD_INTERVAL         0x00e
 
@@ -212,6 +216,10 @@
 # define DP_TEST_ACK			    (1 << 0)
 # define DP_TEST_NAK			    (1 << 1)
 # define DP_TEST_EDID_CHECKSUM_WRITE	    (1 << 2)
+
+#define DP_SOURCE_OUI			    0x300
+#define DP_SINK_OUI			    0x400
+#define DP_BRANCH_OUI			    0x500
 
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1

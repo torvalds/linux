@@ -192,7 +192,7 @@ static void insert_caller_stat(unsigned long call_site,
 }
 
 static void process_alloc_event(void *data,
-				struct event *event,
+				struct event_format *event,
 				int cpu,
 				u64 timestamp __used,
 				struct thread *thread __used,
@@ -253,7 +253,7 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 }
 
 static void process_free_event(void *data,
-			       struct event *event,
+			       struct event_format *event,
 			       int cpu,
 			       u64 timestamp __used,
 			       struct thread *thread __used)
@@ -281,7 +281,7 @@ static void process_free_event(void *data,
 static void process_raw_event(union perf_event *raw_event __used, void *data,
 			      int cpu, u64 timestamp, struct thread *thread)
 {
-	struct event *event;
+	struct event_format *event;
 	int type;
 
 	type = trace_parse_common_type(data);

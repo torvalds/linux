@@ -17,9 +17,7 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -37,7 +35,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
-#include "xfs_rw.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
@@ -142,11 +139,7 @@ xfs_iomap_write_direct(
 	int		committed;
 	int		error;
 
-	/*
-	 * Make sure that the dquots are there. This doesn't hold
-	 * the ilock across a disk read.
-	 */
-	error = xfs_qm_dqattach_locked(ip, 0);
+	error = xfs_qm_dqattach(ip, 0);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -158,7 +151,7 @@ xfs_iomap_write_direct(
 	if ((offset + count) > XFS_ISIZE(ip)) {
 		error = xfs_iomap_eof_align_last_fsb(mp, ip, extsz, &last_fsb);
 		if (error)
-			goto error_out;
+			return XFS_ERROR(error);
 	} else {
 		if (nmaps && (imap->br_startblock == HOLESTARTBLOCK))
 			last_fsb = MIN(last_fsb, (xfs_fileoff_t)
@@ -190,7 +183,6 @@ xfs_iomap_write_direct(
 	/*
 	 * Allocate and setup the transaction
 	 */
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
 	error = xfs_trans_reserve(tp, resblks,
 			XFS_WRITE_LOG_RES(mp), resrtextents,
@@ -199,15 +191,16 @@ xfs_iomap_write_direct(
 	/*
 	 * Check for running out of space, note: need lock to return
 	 */
-	if (error)
+	if (error) {
 		xfs_trans_cancel(tp, 0);
+		return XFS_ERROR(error);
+	}
+
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if (error)
-		goto error_out;
 
 	error = xfs_trans_reserve_quota_nblks(tp, ip, qblocks, 0, quota_flag);
 	if (error)
-		goto error1;
+		goto out_trans_cancel;
 
 	xfs_trans_ijoin(tp, ip, 0);
 
@@ -224,42 +217,39 @@ xfs_iomap_write_direct(
 	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb, bmapi_flag,
 				&firstfsb, 0, imap, &nimaps, &free_list);
 	if (error)
-		goto error0;
+		goto out_bmap_cancel;
 
 	/*
 	 * Complete the transaction
 	 */
 	error = xfs_bmap_finish(&tp, &free_list, &committed);
 	if (error)
-		goto error0;
+		goto out_bmap_cancel;
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	if (error)
-		goto error_out;
+		goto out_unlock;
 
 	/*
 	 * Copy any maps to caller's array and return any error.
 	 */
 	if (nimaps == 0) {
-		error = ENOSPC;
-		goto error_out;
+		error = XFS_ERROR(ENOSPC);
+		goto out_unlock;
 	}
 
-	if (!(imap->br_startblock || XFS_IS_REALTIME_INODE(ip))) {
+	if (!(imap->br_startblock || XFS_IS_REALTIME_INODE(ip)))
 		error = xfs_alert_fsblock_zero(ip, imap);
-		goto error_out;
-	}
 
-	return 0;
+out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return error;
 
-error0:	/* Cancel bmap, unlock inode, unreserve quota blocks, cancel trans */
+out_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
-	xfs_trans_unreserve_quota_nblks(tp, ip, qblocks, 0, quota_flag);
-
-error1:	/* Just cancel transaction */
+	xfs_trans_unreserve_quota_nblks(tp, ip, (long)qblocks, 0, quota_flag);
+out_trans_cancel:
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
-
-error_out:
-	return XFS_ERROR(error);
+	goto out_unlock;
 }
 
 /*
@@ -421,6 +411,15 @@ retry:
 		if (error)
 			return error;
 	}
+
+	/*
+	 * Make sure preallocation does not create extents beyond the range we
+	 * actually support in this filesystem.
+	 */
+	if (last_fsb > XFS_B_TO_FSB(mp, mp->m_maxioffset))
+		last_fsb = XFS_B_TO_FSB(mp, mp->m_maxioffset);
+
+	ASSERT(last_fsb > offset_fsb);
 
 	nimaps = XFS_WRITE_IMAPS;
 	error = xfs_bmapi_delay(ip, offset_fsb, last_fsb - offset_fsb,

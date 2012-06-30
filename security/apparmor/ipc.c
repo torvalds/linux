@@ -42,7 +42,7 @@ static int aa_audit_ptrace(struct aa_profile *profile,
 {
 	struct common_audit_data sa;
 	struct apparmor_audit_data aad = {0,};
-	COMMON_AUDIT_DATA_INIT(&sa, NONE);
+	sa.type = LSM_AUDIT_DATA_NONE;
 	sa.aad = &aad;
 	aad.op = OP_PTRACE;
 	aad.target = target;

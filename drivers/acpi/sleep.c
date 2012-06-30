@@ -57,6 +57,7 @@ MODULE_PARM_DESC(gts, "Enable evaluation of _GTS on suspend.");
 MODULE_PARM_DESC(bfs, "Enable evaluation of _BFS on resume".);
 
 static u8 sleep_states[ACPI_S_STATE_COUNT];
+static bool pwr_btn_event_pending;
 
 static void acpi_sleep_tts_switch(u32 acpi_state)
 {
@@ -93,11 +94,9 @@ static int acpi_sleep_prepare(u32 acpi_state)
 #ifdef CONFIG_ACPI_SLEEP
 	/* do we have a wakeup address for S2 and S3? */
 	if (acpi_state == ACPI_STATE_S3) {
-		if (!acpi_wakeup_address) {
+		if (!acpi_wakeup_address)
 			return -EFAULT;
-		}
-		acpi_set_firmware_waking_vector(
-				(acpi_physical_address)acpi_wakeup_address);
+		acpi_set_firmware_waking_vector(acpi_wakeup_address);
 
 	}
 	ACPI_FLUSH_CPU_CACHE();
@@ -186,6 +185,14 @@ static int acpi_pm_prepare(void)
 	return error;
 }
 
+static int find_powerf_dev(struct device *dev, void *data)
+{
+	struct acpi_device *device = to_acpi_device(dev);
+	const char *hid = acpi_device_hid(device);
+
+	return !strcmp(hid, ACPI_BUTTON_HID_POWERF);
+}
+
 /**
  *	acpi_pm_finish - Instruct the platform to leave a sleep state.
  *
@@ -194,6 +201,7 @@ static int acpi_pm_prepare(void)
  */
 static void acpi_pm_finish(void)
 {
+	struct device *pwr_btn_dev;
 	u32 acpi_state = acpi_target_sleep_state;
 
 	acpi_ec_unblock_transactions();
@@ -211,6 +219,23 @@ static void acpi_pm_finish(void)
 	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
 
 	acpi_target_sleep_state = ACPI_STATE_S0;
+
+	/* If we were woken with the fixed power button, provide a small
+	 * hint to userspace in the form of a wakeup event on the fixed power
+	 * button device (if it can be found).
+	 *
+	 * We delay the event generation til now, as the PM layer requires
+	 * timekeeping to be running before we generate events. */
+	if (!pwr_btn_event_pending)
+		return;
+
+	pwr_btn_event_pending = false;
+	pwr_btn_dev = bus_find_device(&acpi_bus_type, NULL, NULL,
+				      find_powerf_dev);
+	if (pwr_btn_dev) {
+		pm_wakeup_event(pwr_btn_dev, 0);
+		put_device(pwr_btn_dev);
+	}
 }
 
 /**
@@ -300,9 +325,23 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	/* ACPI 3.0 specs (P62) says that it's the responsibility
 	 * of the OSPM to clear the status bit [ implying that the
 	 * POWER_BUTTON event should not reach userspace ]
+	 *
+	 * However, we do generate a small hint for userspace in the form of
+	 * a wakeup event. We flag this condition for now and generate the
+	 * event later, as we're currently too early in resume to be able to
+	 * generate wakeup events.
 	 */
-	if (ACPI_SUCCESS(status) && (acpi_state == ACPI_STATE_S3))
-		acpi_clear_event(ACPI_EVENT_POWER_BUTTON);
+	if (ACPI_SUCCESS(status) && (acpi_state == ACPI_STATE_S3)) {
+		acpi_event_status pwr_btn_status;
+
+		acpi_get_event_status(ACPI_EVENT_POWER_BUTTON, &pwr_btn_status);
+
+		if (pwr_btn_status & ACPI_EVENT_FLAG_SET) {
+			acpi_clear_event(ACPI_EVENT_POWER_BUTTON);
+			/* Flag for later */
+			pwr_btn_event_pending = true;
+		}
+	}
 
 	/*
 	 * Disable and clear GPE status before interrupt is enabled. Some GPEs
@@ -732,8 +771,8 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p)
 	 * can wake the system.  _S0W may be valid, too.
 	 */
 	if (acpi_target_sleep_state == ACPI_STATE_S0 ||
-	    (device_may_wakeup(dev) &&
-	     adev->wakeup.sleep_state <= acpi_target_sleep_state)) {
+	    (device_may_wakeup(dev) && adev->wakeup.flags.valid &&
+	     adev->wakeup.sleep_state >= acpi_target_sleep_state)) {
 		acpi_status status;
 
 		acpi_method[3] = 'W';
@@ -887,7 +926,7 @@ int __init acpi_sleep_init(void)
 		status = acpi_get_sleep_type_data(i, &type_a, &type_b);
 		if (ACPI_SUCCESS(status)) {
 			sleep_states[i] = 1;
-			printk(" S%d", i);
+			printk(KERN_CONT " S%d", i);
 		}
 	}
 
@@ -901,7 +940,7 @@ int __init acpi_sleep_init(void)
 		hibernation_set_ops(old_suspend_ordering ?
 			&acpi_hibernation_ops_old : &acpi_hibernation_ops);
 		sleep_states[ACPI_STATE_S4] = 1;
-		printk(" S4");
+		printk(KERN_CONT " S4");
 		if (!nosigcheck) {
 			acpi_get_table(ACPI_SIG_FACS, 1,
 				(struct acpi_table_header **)&facs);
@@ -914,11 +953,11 @@ int __init acpi_sleep_init(void)
 	status = acpi_get_sleep_type_data(ACPI_STATE_S5, &type_a, &type_b);
 	if (ACPI_SUCCESS(status)) {
 		sleep_states[ACPI_STATE_S5] = 1;
-		printk(" S5");
+		printk(KERN_CONT " S5");
 		pm_power_off_prepare = acpi_power_off_prepare;
 		pm_power_off = acpi_power_off;
 	}
-	printk(")\n");
+	printk(KERN_CONT ")\n");
 	/*
 	 * Register the tts_notifier to reboot notifier list so that the _TTS
 	 * object can also be evaluated when the system enters S5.

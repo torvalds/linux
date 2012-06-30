@@ -1173,15 +1173,4 @@ static struct pci_driver rtl8180_driver = {
 #endif /* CONFIG_PM */
 };
 
-static int __init rtl8180_init(void)
-{
-	return pci_register_driver(&rtl8180_driver);
-}
-
-static void __exit rtl8180_exit(void)
-{
-	pci_unregister_driver(&rtl8180_driver);
-}
-
-module_init(rtl8180_init);
-module_exit(rtl8180_exit);
+module_pci_driver(rtl8180_driver);

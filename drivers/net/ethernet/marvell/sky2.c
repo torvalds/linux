@@ -4825,13 +4825,13 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 
 	init_waitqueue_head(&hw->msi_wait);
 
-	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
-
 	err = request_irq(pdev->irq, sky2_test_intr, 0, DRV_NAME, hw);
 	if (err) {
 		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
 		return err;
 	}
+
+	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
 
 	sky2_write8(hw, B0_CTST, CS_ST_SW_IRQ);
 	sky2_read8(hw, B0_CTST);

@@ -50,6 +50,7 @@
 #include <media/soc_camera.h>
 
 #include <sound/sh_fsi.h>
+#include <sound/simple_card.h>
 
 #include <video/sh_mobile_hdmi.h>
 #include <video/sh_mobile_lcdc.h>
@@ -785,17 +786,25 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct fsi_ak4642_info fsi2_ak4643_info = {
+static struct asoc_simple_dai_init_info fsi2_ak4643_init_info = {
+	.fmt		= SND_SOC_DAIFMT_LEFT_J,
+	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
+	.sysclk		= 11289600,
+};
+
+static struct asoc_simple_card_info fsi2_ak4643_info = {
 	.name		= "AK4643",
 	.card		= "FSI2A-AK4643",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
-	.id		= FSI_PORT_A,
+	.codec_dai	= "ak4642-hifi",
+	.init		= &fsi2_ak4643_init_info,
 };
 
 static struct platform_device fsi_ak4643_device = {
-	.name	= "fsi-ak4642-audio",
+	.name	= "asoc-simple-card",
 	.dev	= {
 		.platform_data	= &fsi2_ak4643_info,
 	},
@@ -900,8 +909,26 @@ static struct platform_device lcdc1_device = {
 	},
 };
 
+static struct asoc_simple_dai_init_info fsi2_hdmi_init_info = {
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
+};
+
+static struct asoc_simple_card_info fsi2_hdmi_info = {
+	.name		= "HDMI",
+	.card		= "FSI2B-HDMI",
+	.cpu_dai	= "fsib-dai",
+	.codec		= "sh-mobile-hdmi",
+	.platform	= "sh_fsi2",
+	.codec_dai	= "sh_mobile_hdmi-hifi",
+	.init		= &fsi2_hdmi_init_info,
+};
+
 static struct platform_device fsi_hdmi_device = {
-	.name		= "sh_fsi2_b_hdmi",
+	.name	= "asoc-simple-card",
+	.id	= 1,
+	.dev	= {
+		.platform_data	= &fsi2_hdmi_info,
+	},
 };
 
 static struct gpio_led ap4evb_leds[] = {
@@ -997,6 +1024,8 @@ static struct sh_mobile_ceu_companion csi2 = {
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
 	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
+	.max_width = 8188,
+	.max_height = 8188,
 	.csi2 = &csi2,
 };
 
@@ -1440,5 +1469,6 @@ MACHINE_START(AP4EVB, "ap4evb")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= ap4evb_init,
+	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

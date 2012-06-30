@@ -21,8 +21,7 @@
 #include "power/power.h"
 
 /* /sys/devices/system */
-/* FIXME: make static after drivers/base/sys.c is deleted */
-struct kset *system_kset;
+static struct kset *system_kset;
 
 #define to_bus_attr(_attr) container_of(_attr, struct bus_attribute, attr)
 

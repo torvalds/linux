@@ -512,7 +512,6 @@ struct udc_ep {
 
 	/* queue for requests */
 	struct list_head		queue;
-	const struct usb_endpoint_descriptor	*desc;
 	unsigned			halted;
 	unsigned			cancel_transfer;
 	unsigned			num : 5,

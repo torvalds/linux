@@ -218,7 +218,7 @@ static int __devexit st1232_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int st1232_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -243,17 +243,24 @@ static int st1232_ts_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops st1232_ts_pm_ops = {
-	.suspend	= st1232_ts_suspend,
-	.resume		= st1232_ts_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(st1232_ts_pm_ops,
+			 st1232_ts_suspend, st1232_ts_resume);
 
 static const struct i2c_device_id st1232_ts_id[] = {
 	{ ST1232_TS_NAME, 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st1232_ts_id);
+
+#ifdef CONFIG_OF
+static const struct of_device_id st1232_ts_dt_ids[] __devinitconst = {
+	{ .compatible = "sitronix,st1232", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, st1232_ts_dt_ids);
+#endif
 
 static struct i2c_driver st1232_ts_driver = {
 	.probe		= st1232_ts_probe,
@@ -262,9 +269,8 @@ static struct i2c_driver st1232_ts_driver = {
 	.driver = {
 		.name	= ST1232_TS_NAME,
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
+		.of_match_table = of_match_ptr(st1232_ts_dt_ids),
 		.pm	= &st1232_ts_pm_ops,
-#endif
 	},
 };
 

@@ -160,8 +160,8 @@ generic_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 	if (gcred->acred.group_info->ngroups != acred->group_info->ngroups)
 		goto out_nomatch;
 	for (i = 0; i < gcred->acred.group_info->ngroups; i++) {
-		if (GROUP_AT(gcred->acred.group_info, i) !=
-				GROUP_AT(acred->group_info, i))
+		if (!gid_eq(GROUP_AT(gcred->acred.group_info, i),
+				GROUP_AT(acred->group_info, i)))
 			goto out_nomatch;
 	}
 out_match:

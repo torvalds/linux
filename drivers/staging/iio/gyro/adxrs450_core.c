@@ -18,8 +18,8 @@
 #include <linux/list.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #include "adxrs450.h"
 
@@ -265,7 +265,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 	s16 t;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			ret = adxrs450_spi_sensor_data(indio_dev, &t);
@@ -329,14 +329,16 @@ static const struct iio_chan_spec adxrs450_channels[2][2] = {
 			.type = IIO_ANGL_VEL,
 			.modified = 1,
 			.channel2 = IIO_MOD_Z,
-			.info_mask = IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
 			IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		}, {
 			.type = IIO_TEMP,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		}
 	},
 	[ID_ADXRS453] = {
@@ -344,13 +346,15 @@ static const struct iio_chan_spec adxrs450_channels[2][2] = {
 			.type = IIO_ANGL_VEL,
 			.modified = 1,
 			.channel2 = IIO_MOD_Z,
-			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
 			IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT,
 		}, {
 			.type = IIO_TEMP,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		}
 	},
 };
@@ -368,7 +372,7 @@ static int __devinit adxrs450_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -399,7 +403,7 @@ static int __devinit adxrs450_probe(struct spi_device *spi)
 error_initial:
 	iio_device_unregister(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 error_ret:
 	return ret;
@@ -408,7 +412,7 @@ error_ret:
 static int adxrs450_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
-	iio_free_device(spi_get_drvdata(spi));
+	iio_device_free(spi_get_drvdata(spi));
 
 	return 0;
 }

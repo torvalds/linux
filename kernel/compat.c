@@ -1073,15 +1073,7 @@ asmlinkage long compat_sys_rt_sigsuspend(compat_sigset_t __user *unewset, compat
 	if (copy_from_user(&newset32, unewset, sizeof(compat_sigset_t)))
 		return -EFAULT;
 	sigset_from_compat(&newset, &newset32);
-	sigdelsetmask(&newset, sigmask(SIGKILL)|sigmask(SIGSTOP));
-
-	current->saved_sigmask = current->blocked;
-	set_current_blocked(&newset);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_restore_sigmask();
-	return -ERESTARTNOHAND;
+	return sigsuspend(&newset);
 }
 #endif /* __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND */
 

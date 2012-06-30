@@ -160,7 +160,7 @@ struct ib_rmpp_hdr {
 
 typedef u64 __bitwise ib_sa_comp_mask;
 
-#define IB_SA_COMP_MASK(n) ((__force ib_sa_comp_mask) cpu_to_be64(1ull << n))
+#define IB_SA_COMP_MASK(n) ((__force ib_sa_comp_mask) cpu_to_be64(1ull << (n)))
 
 /*
  * ib_sa_hdr and ib_sa_mad structures must be packed because they have

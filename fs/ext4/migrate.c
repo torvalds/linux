@@ -466,8 +466,8 @@ int ext4_ext_migrate(struct inode *inode)
 	}
 	goal = (((inode->i_ino - 1) / EXT4_INODES_PER_GROUP(inode->i_sb)) *
 		EXT4_INODES_PER_GROUP(inode->i_sb)) + 1;
-	owner[0] = inode->i_uid;
-	owner[1] = inode->i_gid;
+	owner[0] = i_uid_read(inode);
+	owner[1] = i_gid_read(inode);
 	tmp_inode = ext4_new_inode(handle, inode->i_sb->s_root->d_inode,
 				   S_IFREG, NULL, goal, owner);
 	if (IS_ERR(tmp_inode)) {

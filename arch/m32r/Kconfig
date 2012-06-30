@@ -11,6 +11,7 @@ config M32R
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_ATOMIC64
+	select ARCH_USES_GETTIMEOFFSET
 
 config SBUS
 	bool
@@ -32,9 +33,6 @@ config NO_DMA
 config HZ
 	int
 	default 100
-
-config ARCH_USES_GETTIMEOFFSET
-	def_bool y
 
 source "init/Kconfig"
 

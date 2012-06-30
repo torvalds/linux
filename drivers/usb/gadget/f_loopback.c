@@ -286,7 +286,7 @@ static void disable_loopback(struct f_loopback *loop)
 	struct usb_composite_dev	*cdev;
 
 	cdev = loop->function.config->cdev;
-	disable_endpoints(cdev, loop->in_ep, loop->out_ep);
+	disable_endpoints(cdev, loop->in_ep, loop->out_ep, NULL, NULL);
 	VDBG(cdev, "%s disabled\n", loop->function.name);
 }
 
@@ -329,7 +329,7 @@ fail0:
 	 * than 'buflen' bytes each.
 	 */
 	for (i = 0; i < qlen && result == 0; i++) {
-		req = alloc_ep_req(ep);
+		req = alloc_ep_req(ep, 0);
 		if (req) {
 			req->complete = loopback_complete;
 			result = usb_ep_queue(ep, req, GFP_ATOMIC);

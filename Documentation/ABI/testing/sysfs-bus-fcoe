@@ -1,0 +1,77 @@
+What:		/sys/bus/fcoe/ctlr_X
+Date:		March 2012
+KernelVersion:	TBD
+Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
+Description:	'FCoE Controller' instances on the fcoe bus
+Attributes:
+
+	fcf_dev_loss_tmo: Device loss timeout peroid (see below). Changing
+			  this value will change the dev_loss_tmo for all
+			  FCFs discovered by this controller.
+
+	lesb_link_fail:   Link Error Status Block (LESB) link failure count.
+
+	lesb_vlink_fail:  Link Error Status Block (LESB) virtual link
+			  failure count.
+
+	lesb_miss_fka:    Link Error Status Block (LESB) missed FCoE
+			  Initialization Protocol (FIP) Keep-Alives (FKA).
+
+	lesb_symb_err:    Link Error Status Block (LESB) symbolic error count.
+
+	lesb_err_block:   Link Error Status Block (LESB) block error count.
+
+	lesb_fcs_error:   Link Error Status Block (LESB) Fibre Channel
+			  Serivces error count.
+
+Notes: ctlr_X (global increment starting at 0)
+
+What:		/sys/bus/fcoe/fcf_X
+Date:		March 2012
+KernelVersion:	TBD
+Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
+Description:	'FCoE FCF' instances on the fcoe bus. A FCF is a Fibre Channel
+		Forwarder, which is a FCoE switch that can accept FCoE
+		(Ethernet) packets, unpack them, and forward the embedded
+		Fibre Channel frames into a FC fabric. It can also take
+		outbound FC frames and pack them in Ethernet packets to
+		be sent to their destination on the Ethernet segment.
+Attributes:
+
+	fabric_name: Identifies the fabric that the FCF services.
+
+	switch_name: Identifies the FCF.
+
+	priority:    The switch's priority amongst other FCFs on the same
+		     fabric.
+
+	selected:    1 indicates that the switch has been selected for use;
+		     0 indicates that the swich will not be used.
+
+	fc_map:      The Fibre Channel MAP
+
+	vfid:	     The Virtual Fabric ID
+
+	mac:         The FCF's MAC address
+
+	fka_peroid:  The FIP Keep-Alive peroid
+
+	fabric_state: The internal kernel state
+		      "Unknown" - Initialization value
+		      "Disconnected" - No link to the FCF/fabric
+		      "Connected" - Host is connected to the FCF
+		      "Deleted" - FCF is being removed from the system
+
+	dev_loss_tmo: The device loss timeout peroid for this FCF.
+
+Notes: A device loss infrastructre similar to the FC Transport's
+       is present in fcoe_sysfs. It is nice to have so that a
+       link flapping adapter doesn't continually advance the count
+       used to identify the discovered FCF. FCFs will exist in a
+       "Disconnected" state until either the timer expires and the
+       FCF becomes "Deleted" or the FCF is rediscovered and becomes
+       "Connected."
+
+
+Users: The first user of this interface will be the fcoeadm application,
+       which is commonly packaged in the fcoe-utils package.

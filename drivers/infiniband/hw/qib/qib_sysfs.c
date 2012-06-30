@@ -503,8 +503,11 @@ static ssize_t show_nctxts(struct device *device,
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* Return the number of user ports (contexts) available. */
-	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->cfgctxts -
-		dd->first_user_ctxt);
+	/* The calculation below deals with a special case where
+	 * cfgctxts is set to 1 on a single-port board. */
+	return scnprintf(buf, PAGE_SIZE, "%u\n",
+			(dd->first_user_ctxt > dd->cfgctxts) ? 0 :
+			(dd->cfgctxts - dd->first_user_ctxt));
 }
 
 static ssize_t show_nfreectxts(struct device *device,

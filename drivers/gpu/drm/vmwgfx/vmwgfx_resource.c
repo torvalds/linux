@@ -1567,7 +1567,7 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
 			  ttm_bo_type_device, placement,
 			  0, 0, interruptible,
-			  NULL, acc_size, bo_free);
+			  NULL, acc_size, NULL, bo_free);
 	return ret;
 }
 

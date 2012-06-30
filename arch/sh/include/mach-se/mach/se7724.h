@@ -18,6 +18,7 @@
  * for more details.
  *
  */
+#include <linux/sh_intc.h>
 #include <asm/addrspace.h>
 
 /* SH Eth */
@@ -35,9 +36,9 @@
 #define IRQ2_MR		(0xba200028)
 
 /* IRQ */
-#define IRQ0_IRQ        32
-#define IRQ1_IRQ        33
-#define IRQ2_IRQ        34
+#define IRQ0_IRQ        evt2irq(0x600)
+#define IRQ1_IRQ        evt2irq(0x620)
+#define IRQ2_IRQ        evt2irq(0x640)
 
 /* Bits in IRQ012 registers */
 #define SE7724_FPGA_IRQ_BASE	220

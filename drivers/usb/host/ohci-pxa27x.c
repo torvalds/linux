@@ -419,7 +419,8 @@ ohci_pxa27x_start (struct usb_hcd *hcd)
 		return ret;
 
 	if ((ret = ohci_run (ohci)) < 0) {
-		err ("can't start %s", hcd->self.bus_name);
+		dev_err(hcd->self.controller, "can't start %s",
+			hcd->self.bus_name);
 		ohci_stop (hcd);
 		return ret;
 	}

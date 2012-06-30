@@ -34,7 +34,6 @@
 #include "rts51x_chip.h"
 #include "rts51x_card.h"
 #include "rts51x_transport.h"
-#include "rts51x_sys.h"
 #include "xd.h"
 #include "ms.h"
 #include "sd.h"
@@ -79,20 +78,18 @@ int rts51x_reset_chip(struct rts51x_chip *chip)
 				      chip->option.sd20_pad_drive);
 		if (chip->rts5179)
 			rts51x_write_register(chip, CARD_PULL_CTL5, 0x03, 0x01);
-		if (!chip->option.ww_enable) {
-			if (CHECK_PKG(chip, LQFP48)) {
-				rts51x_write_register(chip, CARD_PULL_CTL3,
-						      0x80, 0x80);
-				rts51x_write_register(chip, CARD_PULL_CTL6,
-						      0xf0, 0xA0);
-			} else {
-				rts51x_write_register(chip, CARD_PULL_CTL1,
-						      0x30, 0x20);
-				rts51x_write_register(chip, CARD_PULL_CTL3,
-						      0x80, 0x80);
-				rts51x_write_register(chip, CARD_PULL_CTL6,
-						      0x0c, 0x08);
-			}
+		if (CHECK_PKG(chip, LQFP48)) {
+			rts51x_write_register(chip, CARD_PULL_CTL3,
+					      0x80, 0x80);
+			rts51x_write_register(chip, CARD_PULL_CTL6,
+					      0xf0, 0xA0);
+		} else {
+			rts51x_write_register(chip, CARD_PULL_CTL1,
+					      0x30, 0x20);
+			rts51x_write_register(chip, CARD_PULL_CTL3,
+					      0x80, 0x80);
+			rts51x_write_register(chip, CARD_PULL_CTL6,
+					      0x0c, 0x08);
 		}
 	}
 	if (chip->option.sd_ctl & SUPPORT_UHS50_MMC44) {
@@ -121,12 +118,6 @@ int rts51x_reset_chip(struct rts51x_chip *chip)
 
 	/* GPIO OE */
 	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_GPIO, GPIO_OE, GPIO_OE);
-#ifdef LED_AUTO_BLINK
-	/* LED autoblink */
-	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_AUTO_BLINK,
-		       BLINK_ENABLE | BLINK_SPEED_MASK,
-		       BLINK_ENABLE | chip->option.led_blink_speed);
-#endif
 	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_DMA1_CTL,
 		       EXTEND_DMA1_ASYNC_SIGNAL, EXTEND_DMA1_ASYNC_SIGNAL);
 
@@ -144,7 +135,6 @@ int rts51x_reset_chip(struct rts51x_chip *chip)
 		card_power_on(chip, SD_CARD | MS_CARD | XD_CARD);
 		wait_timeout(10);
 	}
-	rts51x_clear_start_time(chip);
 
 	return STATUS_SUCCESS;
 }
@@ -164,12 +154,6 @@ int rts51x_init_chip(struct rts51x_chip *chip)
 	chip->card_ejected = 0;
 
 	chip->lun2card[0] = XD_CARD | SD_CARD | MS_CARD;
-#if 0
-	chip->option.sdr50_tx_phase = 0x01;
-	chip->option.sdr50_rx_phase = 0x05;
-	chip->option.ddr50_tx_phase = 0x09;
-	chip->option.ddr50_rx_phase = 0x06; /* add for debug */
-#endif
 #ifdef CLOSE_SSC_POWER
 	rts51x_write_register(chip, FPDCTL, SSC_POWER_MASK, SSC_POWER_ON);
 	udelay(100);
@@ -178,9 +162,6 @@ int rts51x_init_chip(struct rts51x_chip *chip)
 	RTS51X_SET_STAT(chip, STAT_RUN);
 
 	RTS51X_READ_REG(chip, HW_VERSION, &val);
-	if ((val & 0x0f) >= 2)
-		chip->option.rcc_bug_fix_en = 0;
-	RTS51X_DEBUGP("rcc bug fix enable:%d\n", chip->option.rcc_bug_fix_en);
 	RTS51X_DEBUGP("HW_VERSION: 0x%x\n", val);
 	if (val & FPGA_VER) {
 		chip->asic_code = 0;
@@ -237,7 +218,6 @@ int rts51x_release_chip(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-#ifndef LED_AUTO_BLINK
 static inline void rts51x_blink_led(struct rts51x_chip *chip)
 {
 	/* Read/Write */
@@ -250,20 +230,6 @@ static inline void rts51x_blink_led(struct rts51x_chip *chip)
 			toggle_gpio(chip, LED_GPIO);
 		}
 	}
-}
-#endif
-
-int rts51x_check_start_time(struct rts51x_chip *chip)
-{
-	return 0;
-}
-
-void rts51x_set_start_time(struct rts51x_chip *chip)
-{
-}
-
-void rts51x_clear_start_time(struct rts51x_chip *chip)
-{
 }
 
 static void rts51x_auto_delink_cmd(struct rts51x_chip *chip)
@@ -287,7 +253,6 @@ static void rts51x_auto_delink_polling_cycle(struct rts51x_chip *chip)
 			chip->option.delink_delay * 2) {
 		if (chip->auto_delink_counter ==
 		    chip->option.delink_delay) {
-			clear_first_install_mark(chip);
 			if (chip->card_exist) {
 				/* False card */
 				if (!chip->card_ejected) {
@@ -321,91 +286,13 @@ static void rts51x_auto_delink(struct rts51x_chip *chip)
 }
 #else
 /* some of called funcs are not implemented, so comment it out */
-#if 0
-/* using precise time as delink time */
-static void rts51x_auto_delink_precise_time(struct rts51x_chip *chip)
-{
-	int retvalue = 0;
-
-	retvalue = rts51x_get_card_status(chip, &chip->card_status);
-	/* get card CD status success and card CD not exist,
-	 * then check whether delink */
-	if ((retvalue == STATUS_SUCCESS)
-	    && (!(chip->card_status & (SD_CD | MS_CD | XD_CD)))) {
-		if (rts51x_count_delink_time(chip) >=
-		    chip->option.delink_delay) {
-			clear_first_install_mark(chip);
-			RTS51X_DEBUGP("No card inserted, do delink\n");
-			/* sangdy2010-05-17:disable because there is error
-			 * after SSC clock closed and card power
-			 * has been closed before */
-			/* rts51x_write_register(chip, CARD_PWR_CTL,
-					DV3318_AUTO_PWR_OFF, 0); */
-			rts51x_auto_delink_cmd(chip);
-	}
-	/* card CD exist and not ready, then do force delink */
-	if ((retvalue == STATUS_SUCCESS)
-	    && (chip->card_status & (SD_CD | MS_CD | XD_CD))) {
-		/* if card is not ejected or safely remove,
-		 * then do force delink */
-		if (!chip->card_ejected) {
-			/* sangdy2010-11-16:polling at least 2 cycles
-			 * then do force delink for card may force delink
-			 * if card is extracted and insert quickly
-			 * after ready. */
-			if (chip->auto_delink_counter > 1) {
-				if (rts51x_count_delink_time(chip) >
-				    chip->option.delink_delay * 2) {
-					RTS51X_DEBUGP("Try to do force"
-							"delink\n");
-					rts51x_auto_delink_force_cmd(chip);
-				}
-			}
-		}
-	}
-	chip->auto_delink_counter++;
-}
-#else
-static void rts51x_auto_delink_precise_time(struct rts51x_chip *chip)
-{
-}
-#endif
-
 static void rts51x_auto_delink(struct rts51x_chip *chip)
 {
-	rts51x_auto_delink_precise_time(chip);
 }
 #endif
 
 void rts51x_polling_func(struct rts51x_chip *chip)
 {
-#ifdef SUPPORT_SD_LOCK
-	struct sd_info *sd_card = &(chip->sd_card);
-
-	if (sd_card->sd_erase_status) {
-		if (chip->card_exist & SD_CARD) {
-			u8 val;
-			rts51x_read_register(chip, SD_BUS_STAT, &val);
-			if (val & SD_DAT0_STATUS) {
-				/* Erase completed */
-				sd_card->sd_erase_status = SD_NOT_ERASE;
-				sd_card->sd_lock_notify = 1;
-
-				/* SD card should be reinited,
-				 * so we release it here. */
-				sd_cleanup_work(chip);
-				release_sd_card(chip);
-				chip->card_ready &= ~SD_CARD;
-				chip->card_exist &= ~SD_CARD;
-				chip->rw_card[chip->card2lun[SD_CARD]] = NULL;
-				clear_bit(chip->card2lun[SD_CARD],
-					  &(chip->lun_mc));
-			}
-		} else {
-			sd_card->sd_erase_status = SD_NOT_ERASE;
-		}
-	}
-#endif
 
 	rts51x_init_cards(chip);
 
@@ -431,9 +318,7 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 		if (!RTS51X_CHK_STAT(chip, STAT_IDLE)) {
 			RTS51X_DEBUGP("Idle state!\n");
 			RTS51X_SET_STAT(chip, STAT_IDLE);
-#ifndef LED_AUTO_BLINK
 			chip->led_toggle_counter = 0;
-#endif
 			/* Idle state, turn off LED
 			 * to reduce power consumption */
 			if (chip->option.led_always_on
@@ -467,9 +352,7 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 
 	switch (RTS51X_GET_STAT(chip)) {
 	case STAT_RUN:
-#ifndef LED_AUTO_BLINK
 		rts51x_blink_led(chip);
-#endif
 		do_remaining_work(chip);
 		break;
 
@@ -484,7 +367,6 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 		rts51x_auto_delink(chip);
 	} else {
 		chip->auto_delink_counter = 0;
-		rts51x_clear_start_time(chip);
 	}
 }
 
@@ -831,7 +713,7 @@ void rts51x_do_before_power_down(struct rts51x_chip *chip)
 	chip->cur_clk = 0;
 	chip->card_exist = 0;
 	chip->cur_card = 0;
-	if (chip->asic_code && !chip->option.ww_enable) {
+	if (chip->asic_code) {
 		if (CHECK_PKG(chip, LQFP48)) {
 			rts51x_write_register(chip, CARD_PULL_CTL3, 0x80, 0x00);
 			rts51x_write_register(chip, CARD_PULL_CTL6, 0xf0, 0x50);
@@ -862,16 +744,6 @@ void rts51x_prepare_run(struct rts51x_chip *chip)
 
 		rts51x_write_register(chip, CLK_DIV, CLK_CHANGE, 0x00);
 	}
-#endif
-#if 0
-	if (chip->option.ss_en && RTS51X_CHK_STAT(chip, STAT_SS)) {
-		rts51x_try_to_exit_ss(chip);
-		wait_timeout(100);
-		rts51x_init_chip(chip);
-		rts51x_init_cards(chip);
-	}
-
-	RTS51X_SET_STAT(chip, STAT_RUN);
 #endif
 }
 
@@ -1017,24 +889,6 @@ void rts51x_pp_status(struct rts51x_chip *chip, unsigned int lun, u8 *status,
 				status[0x0F] = 0x00;
 		}
 	}
-#ifdef SUPPORT_SD_LOCK
-	/* SD Lock/Unlock */
-	if (card == SD_CARD) {
-		status[0x17] = 0x80;
-		if (sd_card->sd_erase_status)
-			status[0x17] |= 0x01; /* Under erasing */
-		if (sd_card->sd_lock_status & SD_LOCKED) {
-			status[0x17] |= 0x02; /* Locked */
-			status[0x07] |= 0x40; /* Read protected */
-		}
-		if (sd_card->sd_lock_status & SD_PWD_EXIST)
-			status[0x17] |= 0x04; /* Contain PWD */
-	} else {
-		status[0x17] = 0x00;
-	}
-
-	RTS51X_DEBUGP("status[0x17] = 0x%x\n", status[0x17]);
-#endif
 
 	/* Function 0
 	 * Support Magic Gate, CPRM and PhyRegister R/W */
@@ -1043,12 +897,6 @@ void rts51x_pp_status(struct rts51x_chip *chip, unsigned int lun, u8 *status,
 	/* Function 2
 	 * Support OC LUN status & WP LUN status */
 	status[0x1A] = 0x28;
-
-	/* Function 7 */
-#ifdef SUPPORT_SD_LOCK
-	/* Support SD Lock/Unlock */
-	status[0x1F] = 0x01;
-#endif
 
 	/* Function 2
 	 * Support OC LUN status & WP LUN status */

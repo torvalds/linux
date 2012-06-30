@@ -408,7 +408,7 @@ static void b43legacy_phy_setupg(struct b43legacy_wldev *dev)
 
 		if (is_bcm_board_vendor(dev) &&
 		    (dev->dev->bus->boardinfo.type == 0x0416) &&
-		    (dev->dev->bus->boardinfo.rev == 0x0017))
+		    (dev->dev->bus->sprom.board_rev == 0x0017))
 			return;
 
 		b43legacy_ilt_write(dev, 0x5001, 0x0002);
@@ -424,7 +424,7 @@ static void b43legacy_phy_setupg(struct b43legacy_wldev *dev)
 
 		if (is_bcm_board_vendor(dev) &&
 		    (dev->dev->bus->boardinfo.type == 0x0416) &&
-		    (dev->dev->bus->boardinfo.rev == 0x0017))
+		    (dev->dev->bus->sprom.board_rev == 0x0017))
 			return;
 
 		b43legacy_ilt_write(dev, 0x0401, 0x0002);

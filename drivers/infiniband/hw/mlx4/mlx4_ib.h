@@ -44,6 +44,14 @@
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
 
+enum {
+	MLX4_IB_SQ_MIN_WQE_SHIFT = 6,
+	MLX4_IB_MAX_HEADROOM	 = 2048
+};
+
+#define MLX4_IB_SQ_HEADROOM(shift)	((MLX4_IB_MAX_HEADROOM >> (shift)) + 1)
+#define MLX4_IB_SQ_MAX_SPARE		(MLX4_IB_SQ_HEADROOM(MLX4_IB_SQ_MIN_WQE_SHIFT))
+
 struct mlx4_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct mlx4_uar		uar;
@@ -202,6 +210,8 @@ struct mlx4_ib_dev {
 	bool			ib_active;
 	struct mlx4_ib_iboe	iboe;
 	int			counters[MLX4_MAX_PORTS];
+	int		       *eq_table;
+	int			eq_added;
 };
 
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)

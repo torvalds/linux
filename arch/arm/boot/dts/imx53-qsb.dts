@@ -17,10 +17,6 @@
 	model = "Freescale i.MX53 Quick Start Board";
 	compatible = "fsl,imx53-qsb", "fsl,imx53";
 
-	chosen {
-		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
-	};
-
 	memory {
 		reg = <0x70000000 0x40000000>;
 	};
@@ -30,6 +26,11 @@
 			spba@50000000 {
 				esdhc@50004000 { /* ESDHC1 */
 					cd-gpios = <&gpio3 13 0>;
+					status = "okay";
+				};
+
+				ssi2: ssi@50014000 {
+					fsl,mode = "i2s-slave";
 					status = "okay";
 				};
 
@@ -49,7 +50,7 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			uart1: uart@53fbc000 {
+			uart1: serial@53fbc000 {
 				status = "okay";
 			};
 		};
@@ -62,9 +63,11 @@
 			i2c@63fc4000 { /* I2C2 */
 				status = "okay";
 
-				codec: sgtl5000@0a {
+				sgtl5000: codec@0a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
+					VDDA-supply = <&reg_3p2v>;
+					VDDIO-supply = <&reg_3p2v>;
 				};
 			};
 
@@ -77,12 +80,88 @@
 				};
 
 				pmic: dialog@48 {
-					compatible = "dialog,da9053", "dialog,da9052";
+					compatible = "dlg,da9053-aa", "dlg,da9052";
 					reg = <0x48>;
+
+					regulators {
+						buck0 {
+							regulator-min-microvolt = <500000>;
+							regulator-max-microvolt = <2075000>;
+						};
+
+						buck1 {
+							regulator-min-microvolt = <500000>;
+							regulator-max-microvolt = <2075000>;
+						};
+
+						buck2 {
+							regulator-min-microvolt = <925000>;
+					                regulator-max-microvolt = <2500000>;
+						};
+
+						buck3 {
+							regulator-min-microvolt = <925000>;
+					                regulator-max-microvolt = <2500000>;
+						};
+
+						ldo4 {
+							regulator-min-microvolt = <600000>;
+							regulator-max-microvolt = <1800000>;
+						};
+
+						ldo5 {
+							regulator-min-microvolt = <600000>;
+					                regulator-max-microvolt = <1800000>;
+						};
+
+						ldo6 {
+							regulator-min-microvolt = <1725000>;
+					                regulator-max-microvolt = <3300000>;
+						};
+
+						ldo7 {
+							regulator-min-microvolt = <1725000>;
+					                regulator-max-microvolt = <3300000>;
+						};
+
+						ldo8 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+
+						ldo9 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+
+						ldo10 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+
+						ldo11 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+
+						ldo12 {
+							regulator-min-microvolt = <1250000>;
+					                regulator-max-microvolt = <3650000>;
+						};
+
+						ldo13 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+					};
 				};
 			};
 
-			fec@63fec000 {
+			audmux@63fd0000 {
+				status = "okay";
+			};
+
+			ethernet@63fec000 {
 				phy-mode = "rmii";
 				phy-reset-gpios = <&gpio7 6 0>;
 				status = "okay";
@@ -121,5 +200,31 @@
 			gpios = <&gpio7 7 0>;
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_3p2v: 3p2v {
+			compatible = "regulator-fixed";
+			regulator-name = "3P2V";
+			regulator-min-microvolt = <3200000>;
+			regulator-max-microvolt = <3200000>;
+			regulator-always-on;
+		};
+	};
+
+	sound {
+		compatible = "fsl,imx53-qsb-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx53-qsb-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <5>;
 	};
 };

@@ -113,20 +113,21 @@ config IWLWIFI_DEVICE_TESTMODE
 	  generic netlink message via NL80211_TESTMODE channel.
 
 config IWLWIFI_P2P
-       bool "iwlwifi experimental P2P support"
-       depends on IWLWIFI
-       help
-         This option enables experimental P2P support for some devices
-         based on microcode support. Since P2P support is still under
-         development, this option may even enable it for some devices
-         now that turn out to not support it in the future due to
-         microcode restrictions.
+	def_bool y
+	bool "iwlwifi experimental P2P support"
+	depends on IWLWIFI
+	help
+	  This option enables experimental P2P support for some devices
+	  based on microcode support. Since P2P support is still under
+	  development, this option may even enable it for some devices
+	  now that turn out to not support it in the future due to
+	  microcode restrictions.
 
-         To determine if your microcode supports the experimental P2P
-         offered by this option, check if the driver advertises AP
-         support when it is loaded.
+	  To determine if your microcode supports the experimental P2P
+	  offered by this option, check if the driver advertises AP
+	  support when it is loaded.
 
-         Say Y only if you want to experiment with P2P.
+	  Say Y only if you want to experiment with P2P.
 
 config IWLWIFI_EXPERIMENTAL_MFP
 	bool "support MFP (802.11w) even if uCode doesn't advertise"

@@ -1,7 +1,7 @@
 /*
  * USB Serial Converter driver
  *
- * Copyright (C) 1999 - 2005 Greg Kroah-Hartman (greg@kroah.com)
+ * Copyright (C) 1999 - 2012 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2000 Peter Berger (pberger@brimson.com)
  * Copyright (C) 2000 Al Borchers (borchers@steinerpoint.com)
  *
@@ -42,17 +42,6 @@
  */
 #define DRIVER_AUTHOR "Greg Kroah-Hartman, greg@kroah.com, http://www.kroah.com/linux/"
 #define DRIVER_DESC "USB Serial Driver core"
-
-/* Driver structure we register with the USB core */
-static struct usb_driver usb_serial_driver = {
-	.name =		"usbserial",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.suspend =	usb_serial_suspend,
-	.resume =	usb_serial_resume,
-	.no_dynamic_id =	1,
-	.supports_autosuspend =	1,
-};
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
    the MODULE_DEVICE_TABLE declarations in each serial driver
@@ -710,7 +699,7 @@ static const struct tty_port_operations serial_port_ops = {
 	.shutdown = serial_down,
 };
 
-int usb_serial_probe(struct usb_interface *interface,
+static int usb_serial_probe(struct usb_interface *interface,
 			       const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(interface);
@@ -856,6 +845,8 @@ int usb_serial_probe(struct usb_interface *interface,
 			module_put(type->driver.owner);
 			return -EIO;
 		}
+		dev_info(&interface->dev, "The \"generic\" usb-serial driver is only for testing and one-off prototypes.\n");
+		dev_info(&interface->dev, "Tell linux-usb@vger.kernel.org to add your device to a proper driver.\n");
 	}
 #endif
 	if (!num_ports) {
@@ -1043,6 +1034,8 @@ int usb_serial_probe(struct usb_interface *interface,
 		dbg("the device claims to support interrupt out transfers, but write_int_callback is not defined");
 	}
 
+	usb_set_intfdata(interface, serial);
+
 	/* if this device type has an attach function, call it */
 	if (type->attach) {
 		retval = type->attach(serial);
@@ -1087,10 +1080,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	serial->disconnected = 0;
 
 	usb_serial_console_init(debug, minor);
-
 exit:
-	/* success */
-	usb_set_intfdata(interface, serial);
 	module_put(type->driver.owner);
 	return 0;
 
@@ -1099,9 +1089,8 @@ probe_error:
 	module_put(type->driver.owner);
 	return -EIO;
 }
-EXPORT_SYMBOL_GPL(usb_serial_probe);
 
-void usb_serial_disconnect(struct usb_interface *interface)
+static void usb_serial_disconnect(struct usb_interface *interface)
 {
 	int i;
 	struct usb_serial *serial = usb_get_intfdata(interface);
@@ -1112,7 +1101,6 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	dbg("%s", __func__);
 
 	mutex_lock(&serial->disc_mutex);
-	usb_set_intfdata(interface, NULL);
 	/* must set a flag, to signal subdrivers */
 	serial->disconnected = 1;
 	mutex_unlock(&serial->disc_mutex);
@@ -1137,7 +1125,6 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	usb_serial_put(serial);
 	dev_info(dev, "device disconnected\n");
 }
-EXPORT_SYMBOL_GPL(usb_serial_disconnect);
 
 int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 {
@@ -1181,6 +1168,22 @@ int usb_serial_resume(struct usb_interface *intf)
 }
 EXPORT_SYMBOL(usb_serial_resume);
 
+static int usb_serial_reset_resume(struct usb_interface *intf)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	int rv;
+
+	serial->suspending = 0;
+	if (serial->type->reset_resume)
+		rv = serial->type->reset_resume(serial);
+	else {
+		rv = -EOPNOTSUPP;
+		intf->needs_binding = 1;
+	}
+
+	return rv;
+}
+
 static const struct tty_operations serial_ops = {
 	.open =			serial_open,
 	.close =		serial_close,
@@ -1203,6 +1206,17 @@ static const struct tty_operations serial_ops = {
 
 
 struct tty_driver *usb_serial_tty_driver;
+
+/* Driver structure we register with the USB core */
+static struct usb_driver usb_serial_driver = {
+	.name =		"usbserial",
+	.probe =	usb_serial_probe,
+	.disconnect =	usb_serial_disconnect,
+	.suspend =	usb_serial_suspend,
+	.resume =	usb_serial_resume,
+	.no_dynamic_id =	1,
+	.supports_autosuspend =	1,
+};
 
 static int __init usb_serial_init(void)
 {
@@ -1338,7 +1352,6 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 				driver->description);
 		return -EINVAL;
 	}
-	driver->usb_driver->supports_autosuspend = 1;
 
 	/* Add this device to our list of devices */
 	mutex_lock(&table_lock);
@@ -1369,18 +1382,19 @@ static void usb_serial_deregister(struct usb_serial_driver *device)
 
 /**
  * usb_serial_register_drivers - register drivers for a usb-serial module
- * @udriver: usb_driver used for matching devices/interfaces
  * @serial_drivers: NULL-terminated array of pointers to drivers to be registered
+ * @name: name of the usb_driver for this set of @serial_drivers
+ * @id_table: list of all devices this @serial_drivers set binds to
  *
- * Registers @udriver and all the drivers in the @serial_drivers array.
- * Automatically fills in the .no_dynamic_id field in @udriver and
- * the .usb_driver field in each serial driver.
+ * Registers all the drivers in the @serial_drivers array, and dynamically
+ * creates a struct usb_driver with the name @name and id_table of @id_table.
  */
-int usb_serial_register_drivers(struct usb_driver *udriver,
-		struct usb_serial_driver * const serial_drivers[])
+int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[],
+				const char *name,
+				const struct usb_device_id *id_table)
 {
 	int rc;
-	const struct usb_device_id *saved_id_table;
+	struct usb_driver *udriver;
 	struct usb_serial_driver * const *sd;
 
 	/*
@@ -1391,12 +1405,30 @@ int usb_serial_register_drivers(struct usb_driver *udriver,
 	 * Performance hack: We don't want udriver to be probed until
 	 * the serial drivers are registered, because the probe would
 	 * simply fail for lack of a matching serial driver.
-	 * Therefore save off udriver's id_table until we are all set.
+	 * So we leave udriver's id_table set to NULL until we are all set.
+	 *
+	 * Suspend/resume support is implemented in the usb-serial core,
+	 * so fill in the PM-related fields in udriver.
 	 */
-	saved_id_table = udriver->id_table;
-	udriver->id_table = NULL;
+	udriver = kzalloc(sizeof(*udriver), GFP_KERNEL);
+	if (!udriver)
+		return -ENOMEM;
 
+	udriver->name = name;
 	udriver->no_dynamic_id = 1;
+	udriver->supports_autosuspend = 1;
+	udriver->suspend = usb_serial_suspend;
+	udriver->resume = usb_serial_resume;
+	udriver->probe = usb_serial_probe;
+	udriver->disconnect = usb_serial_disconnect;
+
+	/* we only set the reset_resume field if the serial_driver has one */
+	for (sd = serial_drivers; *sd; ++sd) {
+		if ((*sd)->reset_resume)
+			udriver->reset_resume = usb_serial_reset_resume;
+			break;
+	}
+
 	rc = usb_register(udriver);
 	if (rc)
 		return rc;
@@ -1408,8 +1440,8 @@ int usb_serial_register_drivers(struct usb_driver *udriver,
 			goto failed;
 	}
 
-	/* Now restore udriver's id_table and look for matches */
-	udriver->id_table = saved_id_table;
+	/* Now set udriver's id_table and look for matches */
+	udriver->id_table = id_table;
 	rc = driver_attach(&udriver->drvwrap.driver);
 	return 0;
 
@@ -1423,17 +1455,20 @@ EXPORT_SYMBOL_GPL(usb_serial_register_drivers);
 
 /**
  * usb_serial_deregister_drivers - deregister drivers for a usb-serial module
- * @udriver: usb_driver to unregister
  * @serial_drivers: NULL-terminated array of pointers to drivers to be deregistered
  *
- * Deregisters @udriver and all the drivers in the @serial_drivers array.
+ * Deregisters all the drivers in the @serial_drivers array and deregisters and
+ * frees the struct usb_driver that was created by the call to
+ * usb_serial_register_drivers().
  */
-void usb_serial_deregister_drivers(struct usb_driver *udriver,
-		struct usb_serial_driver * const serial_drivers[])
+void usb_serial_deregister_drivers(struct usb_serial_driver *const serial_drivers[])
 {
+	struct usb_driver *udriver = (*serial_drivers)->usb_driver;
+
 	for (; *serial_drivers; ++serial_drivers)
 		usb_serial_deregister(*serial_drivers);
 	usb_deregister(udriver);
+	kfree(udriver);
 }
 EXPORT_SYMBOL_GPL(usb_serial_deregister_drivers);
 

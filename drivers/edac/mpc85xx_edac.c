@@ -854,12 +854,16 @@ static void mpc85xx_mc_check(struct mem_ctl_info *mci)
 		mpc85xx_mc_printk(mci, KERN_ERR, "PFN out of range!\n");
 
 	if (err_detect & DDR_EDE_SBE)
-		edac_mc_handle_ce(mci, pfn, err_addr & ~PAGE_MASK,
-				  syndrome, row_index, 0, mci->ctl_name);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+				     pfn, err_addr & ~PAGE_MASK, syndrome,
+				     row_index, 0, -1,
+				     mci->ctl_name, "", NULL);
 
 	if (err_detect & DDR_EDE_MBE)
-		edac_mc_handle_ue(mci, pfn, err_addr & ~PAGE_MASK,
-				  row_index, mci->ctl_name);
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+				     pfn, err_addr & ~PAGE_MASK, syndrome,
+				     row_index, 0, -1,
+				     mci->ctl_name, "", NULL);
 
 	out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DETECT, err_detect);
 }
@@ -883,6 +887,7 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 {
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	u32 sdram_ctl;
 	u32 sdtype;
 	enum mem_type mtype;
@@ -929,6 +934,8 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 		u32 end;
 
 		csrow = &mci->csrows[index];
+		dimm = csrow->channels[0].dimm;
+
 		cs_bnds = in_be32(pdata->mc_vbase + MPC85XX_MC_CS_BNDS_0 +
 				  (index * MPC85XX_MC_CS_BNDS_OFS));
 
@@ -944,19 +951,21 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 
 		csrow->first_page = start;
 		csrow->last_page = end;
-		csrow->nr_pages = end + 1 - start;
-		csrow->grain = 8;
-		csrow->mtype = mtype;
-		csrow->dtype = DEV_UNKNOWN;
+
+		dimm->nr_pages = end + 1 - start;
+		dimm->grain = 8;
+		dimm->mtype = mtype;
+		dimm->dtype = DEV_UNKNOWN;
 		if (sdram_ctl & DSC_X32_EN)
-			csrow->dtype = DEV_X32;
-		csrow->edac_mode = EDAC_SECDED;
+			dimm->dtype = DEV_X32;
+		dimm->edac_mode = EDAC_SECDED;
 	}
 }
 
 static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 {
 	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[2];
 	struct mpc85xx_mc_pdata *pdata;
 	struct resource r;
 	u32 sdram_ctl;
@@ -965,7 +974,13 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 	if (!devres_open_group(&op->dev, mpc85xx_mc_err_probe, GFP_KERNEL))
 		return -ENOMEM;
 
-	mci = edac_mc_alloc(sizeof(*pdata), 4, 1, edac_mc_idx);
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = 4;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = 1;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), sizeof(*pdata));
 	if (!mci) {
 		devres_release_group(&op->dev, mpc85xx_mc_err_probe);
 		return -ENOMEM;

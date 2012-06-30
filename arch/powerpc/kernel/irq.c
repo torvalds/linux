@@ -587,7 +587,7 @@ int irq_choose_cpu(const struct cpumask *mask)
 {
 	int cpuid;
 
-	if (cpumask_equal(mask, cpu_all_mask)) {
+	if (cpumask_equal(mask, cpu_online_mask)) {
 		static int irq_rover;
 		static DEFINE_RAW_SPINLOCK(irq_rover_lock);
 		unsigned long flags;

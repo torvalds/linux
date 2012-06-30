@@ -11,7 +11,7 @@ struct of_irq;
 #include <linux/of.h>
 
 /*
- * irq_of_parse_and_map() is used ba all OF enabled platforms; but SPARC
+ * irq_of_parse_and_map() is used by all OF enabled platforms; but SPARC
  * implements it differently.  However, the prototype is the same for all,
  * so declare it here regardless of the CONFIG_OF_IRQ setting.
  */
@@ -76,5 +76,13 @@ extern struct device_node *of_irq_find_parent(struct device_node *child);
 extern void of_irq_init(const struct of_device_id *matches);
 
 #endif /* CONFIG_OF_IRQ */
-#endif /* CONFIG_OF */
+
+#else /* !CONFIG_OF */
+static inline unsigned int irq_of_parse_and_map(struct device_node *dev,
+						int index)
+{
+	return 0;
+}
+#endif /* !CONFIG_OF */
+
 #endif /* __OF_IRQ_H */

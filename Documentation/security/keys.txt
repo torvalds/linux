@@ -805,6 +805,23 @@ The keyctl syscall functions are:
      kernel and resumes executing userspace.
 
 
+ (*) Invalidate a key.
+
+	long keyctl(KEYCTL_INVALIDATE, key_serial_t key);
+
+     This function marks a key as being invalidated and then wakes up the
+     garbage collector.  The garbage collector immediately removes invalidated
+     keys from all keyrings and deletes the key when its reference count
+     reaches zero.
+
+     Keys that are marked invalidated become invisible to normal key operations
+     immediately, though they are still visible in /proc/keys until deleted
+     (they're marked with an 'i' flag).
+
+     A process must have search permission on the key for this function to be
+     successful.
+
+
 ===============
 KERNEL SERVICES
 ===============

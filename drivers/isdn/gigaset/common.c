@@ -194,13 +194,13 @@ int gigaset_get_channel(struct bc_state *bcs)
 		gig_dbg(DEBUG_CHANNEL, "could not allocate channel %d",
 			bcs->channel);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
-		return 0;
+		return -EBUSY;
 	}
 	++bcs->use_count;
 	bcs->busy = 1;
 	gig_dbg(DEBUG_CHANNEL, "allocated channel %d", bcs->channel);
 	spin_unlock_irqrestore(&bcs->cs->lock, flags);
-	return 1;
+	return 0;
 }
 
 struct bc_state *gigaset_get_free_channel(struct cardstate *cs)
@@ -258,7 +258,7 @@ int gigaset_get_channels(struct cardstate *cs)
 			spin_unlock_irqrestore(&cs->lock, flags);
 			gig_dbg(DEBUG_CHANNEL,
 				"could not allocate all channels");
-			return 0;
+			return -EBUSY;
 		}
 	for (i = 0; i < cs->channels; ++i)
 		++cs->bcs[i].use_count;
@@ -266,7 +266,7 @@ int gigaset_get_channels(struct cardstate *cs)
 
 	gig_dbg(DEBUG_CHANNEL, "allocated all channels");
 
-	return 1;
+	return 0;
 }
 
 void gigaset_free_channels(struct cardstate *cs)
@@ -362,7 +362,7 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 }
 EXPORT_SYMBOL_GPL(gigaset_add_event);
 
-static void free_strings(struct at_state_t *at_state)
+static void clear_at_state(struct at_state_t *at_state)
 {
 	int i;
 
@@ -372,18 +372,13 @@ static void free_strings(struct at_state_t *at_state)
 	}
 }
 
-static void clear_at_state(struct at_state_t *at_state)
-{
-	free_strings(at_state);
-}
-
-static void dealloc_at_states(struct cardstate *cs)
+static void dealloc_temp_at_states(struct cardstate *cs)
 {
 	struct at_state_t *cur, *next;
 
 	list_for_each_entry_safe(cur, next, &cs->temp_at_states, list) {
 		list_del(&cur->list);
-		free_strings(cur);
+		clear_at_state(cur);
 		kfree(cur);
 	}
 }
@@ -393,8 +388,7 @@ static void gigaset_freebcs(struct bc_state *bcs)
 	int i;
 
 	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->hw", bcs->channel);
-	if (!bcs->cs->ops->freebcshw(bcs))
-		gig_dbg(DEBUG_INIT, "failed");
+	bcs->cs->ops->freebcshw(bcs);
 
 	gig_dbg(DEBUG_INIT, "clearing bcs[%d]->at_state", bcs->channel);
 	clear_at_state(&bcs->at_state);
@@ -512,7 +506,7 @@ void gigaset_freecs(struct cardstate *cs)
 	case 1: /* error when registering to LL */
 		gig_dbg(DEBUG_INIT, "clearing at_state");
 		clear_at_state(&cs->at_state);
-		dealloc_at_states(cs);
+		dealloc_temp_at_states(cs);
 
 		/* fall through */
 	case 0:	/* error in basic setup */
@@ -571,6 +565,8 @@ static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct cardstate *cs)
  * @inbuf:	buffer structure.
  * @src:	received data.
  * @numbytes:	number of bytes received.
+ *
+ * Return value: !=0 if some data was appended
  */
 int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 		       unsigned numbytes)
@@ -614,8 +610,8 @@ int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 EXPORT_SYMBOL_GPL(gigaset_fill_inbuf);
 
 /* Initialize the b-channel structure */
-static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
-					struct cardstate *cs, int channel)
+static int gigaset_initbcs(struct bc_state *bcs, struct cardstate *cs,
+			   int channel)
 {
 	int i;
 
@@ -654,11 +650,7 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	bcs->apconnstate = 0;
 
 	gig_dbg(DEBUG_INIT, "  setting up bcs[%d]->hw", channel);
-	if (cs->ops->initbcshw(bcs))
-		return bcs;
-
-	gig_dbg(DEBUG_INIT, "  failed");
-	return NULL;
+	return cs->ops->initbcshw(bcs);
 }
 
 /**
@@ -757,7 +749,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->cmdbytes = 0;
 
 	gig_dbg(DEBUG_INIT, "setting up iif");
-	if (!gigaset_isdn_regdev(cs, modulename)) {
+	if (gigaset_isdn_regdev(cs, modulename) < 0) {
 		pr_err("error registering ISDN device\n");
 		goto error;
 	}
@@ -765,7 +757,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	make_valid(cs, VALID_ID);
 	++cs->cs_init;
 	gig_dbg(DEBUG_INIT, "setting up hw");
-	if (!cs->ops->initcshw(cs))
+	if (cs->ops->initcshw(cs) < 0)
 		goto error;
 
 	++cs->cs_init;
@@ -779,7 +771,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	/* set up channel data structures */
 	for (i = 0; i < channels; ++i) {
 		gig_dbg(DEBUG_INIT, "setting up bcs[%d]", i);
-		if (!gigaset_initbcs(cs->bcs + i, cs, i)) {
+		if (gigaset_initbcs(cs->bcs + i, cs, i) < 0) {
 			pr_err("could not allocate channel %d data\n", i);
 			goto error;
 		}
@@ -848,8 +840,7 @@ static void cleanup_cs(struct cardstate *cs)
 	cs->mstate = MS_UNINITIALIZED;
 
 	clear_at_state(&cs->at_state);
-	dealloc_at_states(cs);
-	free_strings(&cs->at_state);
+	dealloc_temp_at_states(cs);
 	gigaset_at_init(&cs->at_state, NULL, cs, 0);
 
 	cs->inbuf->inputstate = INS_command;
@@ -875,7 +866,7 @@ static void cleanup_cs(struct cardstate *cs)
 
 	for (i = 0; i < cs->channels; ++i) {
 		gigaset_freebcs(cs->bcs + i);
-		if (!gigaset_initbcs(cs->bcs + i, cs, i))
+		if (gigaset_initbcs(cs->bcs + i, cs, i) < 0)
 			pr_err("could not allocate channel %d data\n", i);
 	}
 
@@ -896,14 +887,14 @@ static void cleanup_cs(struct cardstate *cs)
  * waiting for completion of the initialization.
  *
  * Return value:
- *	1 - success, 0 - error
+ *	0 on success, error code < 0 on failure
  */
 int gigaset_start(struct cardstate *cs)
 {
 	unsigned long flags;
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return 0;
+		return -EBUSY;
 
 	spin_lock_irqsave(&cs->lock, flags);
 	cs->connected = 1;
@@ -927,11 +918,11 @@ int gigaset_start(struct cardstate *cs)
 	wait_event(cs->waitqueue, !cs->waiting);
 
 	mutex_unlock(&cs->mutex);
-	return 1;
+	return 0;
 
 error:
 	mutex_unlock(&cs->mutex);
-	return 0;
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(gigaset_start);
 
@@ -943,7 +934,7 @@ EXPORT_SYMBOL_GPL(gigaset_start);
  * waiting for completion of the shutdown.
  *
  * Return value:
- *	0 - success, -1 - error (no device associated)
+ *	0 - success, -ENODEV - error (no device associated)
  */
 int gigaset_shutdown(struct cardstate *cs)
 {
@@ -951,7 +942,7 @@ int gigaset_shutdown(struct cardstate *cs)
 
 	if (!(cs->flags & VALID_MINOR)) {
 		mutex_unlock(&cs->mutex);
-		return -1;
+		return -ENODEV;
 	}
 
 	cs->waiting = 1;

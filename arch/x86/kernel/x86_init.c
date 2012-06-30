@@ -18,6 +18,7 @@
 #include <asm/e820.h>
 #include <asm/time.h>
 #include <asm/irq.h>
+#include <asm/io_apic.h>
 #include <asm/pat.h>
 #include <asm/tsc.h>
 #include <asm/iommu.h>
@@ -118,4 +119,11 @@ struct x86_msi_ops x86_msi = {
 	.teardown_msi_irq = native_teardown_msi_irq,
 	.teardown_msi_irqs = default_teardown_msi_irqs,
 	.restore_msi_irqs = default_restore_msi_irqs,
+};
+
+struct x86_io_apic_ops x86_io_apic_ops = {
+	.init	= native_io_apic_init_mappings,
+	.read	= native_io_apic_read,
+	.write	= native_io_apic_write,
+	.modify	= native_io_apic_modify,
 };

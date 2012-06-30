@@ -1269,7 +1269,7 @@ static struct regulator_ops wm8350_isink_ops = {
 	.enable_time = wm8350_isink_enable_time,
 };
 
-static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
+static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 	{
 		.name = "DCDC1",
 		.id = WM8350_DCDC_1,
@@ -1398,6 +1398,7 @@ static irqreturn_t pmic_uv_handler(int irq, void *data)
 static int wm8350_regulator_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = dev_get_drvdata(&pdev->dev);
+	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 	int ret;
 	u16 val;
@@ -1425,10 +1426,12 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 		break;
 	}
 
+	config.dev = &pdev->dev;
+	config.init_data = pdev->dev.platform_data;
+	config.driver_data = dev_get_drvdata(&pdev->dev);
+
 	/* register regulator */
-	rdev = regulator_register(&wm8350_reg[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data,
-				  dev_get_drvdata(&pdev->dev), NULL);
+	rdev = regulator_register(&wm8350_reg[pdev->id], &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register %s\n",
 			wm8350_reg[pdev->id].name);

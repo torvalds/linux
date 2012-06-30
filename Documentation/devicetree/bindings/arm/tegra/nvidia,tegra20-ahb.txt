@@ -1,0 +1,11 @@
+NVIDIA Tegra AHB
+
+Required properties:
+- compatible : "nvidia,tegra20-ahb" or "nvidia,tegra30-ahb"
+- reg : Should contain 1 register ranges(address and length)
+
+Example:
+	ahb: ahb@6000c004 {
+		compatible = "nvidia,tegra20-ahb";
+		reg = <0x6000c004 0x10c>; /* AHB Arbitration + Gizmo Controller */
+	};

@@ -179,6 +179,7 @@ static struct usb_driver kaweth_driver = {
 	.resume =	kaweth_resume,
 	.id_table =     usb_klsi_table,
 	.supports_autosuspend =	1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 typedef __u8 eth_addr_t[6];
@@ -400,12 +401,13 @@ static int kaweth_download_firmware(struct kaweth_device *kaweth,
 
 	ret = request_firmware(&fw, fwname, &kaweth->dev->dev);
 	if (ret) {
-		err("Firmware request failed\n");
+		dev_err(&kaweth->intf->dev, "Firmware request failed\n");
 		return ret;
 	}
 
 	if (fw->size > KAWETH_FIRMWARE_BUF_SIZE) {
-		err("Firmware too big: %zu", fw->size);
+		dev_err(&kaweth->intf->dev, "Firmware too big: %zu\n",
+			fw->size);
 		release_firmware(fw);
 		return -ENOSPC;
 	}
@@ -501,9 +503,10 @@ static void kaweth_resubmit_int_urb(struct kaweth_device *kaweth, gfp_t mf)
 	}
 
 	if (status)
-		err ("can't resubmit intr, %s-%s, status %d",
-				kaweth->dev->bus->bus_name,
-				kaweth->dev->devpath, status);
+		dev_err(&kaweth->intf->dev,
+			"can't resubmit intr, %s-%s, status %d\n",
+			kaweth->dev->bus->bus_name,
+			kaweth->dev->devpath, status);
 }
 
 static void int_callback(struct urb *u)
@@ -576,7 +579,8 @@ static int kaweth_resubmit_rx_urb(struct kaweth_device *kaweth,
 			kaweth->suspend_lowmem_rx = 1;
 			schedule_delayed_work(&kaweth->lowmem_work, HZ/4);
 		}
-		err("resubmitting rx_urb %d failed", result);
+		dev_err(&kaweth->intf->dev, "resubmitting rx_urb %d failed\n",
+			result);
 	} else {
 		kaweth->suspend_lowmem_rx = 0;
 	}
@@ -634,20 +638,21 @@ static void kaweth_usb_receive(struct urb *urb)
 	spin_unlock(&kaweth->device_lock);
 
 	if(status && status != -EREMOTEIO && count != 1) {
-		err("%s RX status: %d count: %d packet_len: %d",
-                           net->name,
-			   status,
-			   count,
-			   (int)pkt_len);
+		dev_err(&kaweth->intf->dev,
+			"%s RX status: %d count: %d packet_len: %d\n",
+			net->name, status, count, (int)pkt_len);
 		kaweth_resubmit_rx_urb(kaweth, GFP_ATOMIC);
                 return;
 	}
 
 	if(kaweth->net && (count > 2)) {
 		if(pkt_len > (count - 2)) {
-			err("Packet length too long for USB frame (pkt_len: %x, count: %x)",pkt_len, count);
-			err("Packet len & 2047: %x", pkt_len & 2047);
-			err("Count 2: %x", count2);
+			dev_err(&kaweth->intf->dev,
+				"Packet length too long for USB frame (pkt_len: %x, count: %x)\n",
+				pkt_len, count);
+			dev_err(&kaweth->intf->dev, "Packet len & 2047: %x\n",
+				pkt_len & 2047);
+			dev_err(&kaweth->intf->dev, "Count 2: %x\n", count2);
 		        kaweth_resubmit_rx_urb(kaweth, GFP_ATOMIC);
                         return;
                 }
@@ -686,7 +691,7 @@ static int kaweth_open(struct net_device *net)
 
 	res = usb_autopm_get_interface(kaweth->intf);
 	if (res) {
-		err("Interface cannot be resumed.");
+		dev_err(&kaweth->intf->dev, "Interface cannot be resumed.\n");
 		return -EIO;
 	}
 	res = kaweth_resubmit_rx_urb(kaweth, GFP_KERNEL);
@@ -907,7 +912,8 @@ static void kaweth_async_set_rx_mode(struct kaweth_device *kaweth)
 				KAWETH_CONTROL_TIMEOUT);
 
 	if(result < 0) {
-		err("Failed to set Rx mode: %d", result);
+		dev_err(&kaweth->intf->dev, "Failed to set Rx mode: %d\n",
+			result);
 	}
 	else {
 		dbg("Set Rx mode to %d", packet_filter_bitmap);
@@ -1045,7 +1051,8 @@ static int kaweth_probe(
 						      "kaweth/new_code.bin",
 						      100,
 						      2)) < 0) {
-			err("Error downloading firmware (%d)", result);
+			dev_err(&intf->dev, "Error downloading firmware (%d)\n",
+				result);
 			goto err_fw;
 		}
 
@@ -1053,7 +1060,9 @@ static int kaweth_probe(
 						      "kaweth/new_code_fix.bin",
 						      100,
 						      3)) < 0) {
-			err("Error downloading firmware fix (%d)", result);
+			dev_err(&intf->dev,
+				"Error downloading firmware fix (%d)\n",
+				result);
 			goto err_fw;
 		}
 
@@ -1061,7 +1070,9 @@ static int kaweth_probe(
 						      "kaweth/trigger_code.bin",
 						      126,
 						      2)) < 0) {
-			err("Error downloading trigger code (%d)", result);
+			dev_err(&intf->dev,
+				"Error downloading trigger code (%d)\n",
+				result);
 			goto err_fw;
 
 		}
@@ -1070,13 +1081,14 @@ static int kaweth_probe(
 						      "kaweth/trigger_code_fix.bin",
 						      126,
 						      3)) < 0) {
-			err("Error downloading trigger code fix (%d)", result);
+			dev_err(&intf->dev, "Error downloading trigger code fix (%d)\n", result);
 			goto err_fw;
 		}
 
 
 		if ((result = kaweth_trigger_firmware(kaweth, 126)) < 0) {
-			err("Error triggering firmware (%d)", result);
+			dev_err(&intf->dev, "Error triggering firmware (%d)\n",
+				result);
 			goto err_fw;
 		}
 
@@ -1091,7 +1103,7 @@ err_fw:
 	result = kaweth_read_configuration(kaweth);
 
 	if(result < 0) {
-		err("Error reading configuration (%d), no net device created", result);
+		dev_err(&intf->dev, "Error reading configuration (%d), no net device created\n", result);
 		goto err_free_netdev;
 	}
 
@@ -1103,7 +1115,7 @@ err_fw:
 	if(!memcmp(&kaweth->configuration.hw_addr,
                    &bcast_addr,
 		   sizeof(bcast_addr))) {
-		err("Firmware not functioning properly, no net device created");
+		dev_err(&intf->dev, "Firmware not functioning properly, no net device created\n");
 		goto err_free_netdev;
 	}
 
@@ -1113,7 +1125,7 @@ err_fw:
 	}
 
 	if(kaweth_set_sofs_wait(kaweth, KAWETH_SOFS_TO_WAIT) < 0) {
-		err("Error setting SOFS wait");
+		dev_err(&intf->dev, "Error setting SOFS wait\n");
 		goto err_free_netdev;
 	}
 
@@ -1123,7 +1135,7 @@ err_fw:
                                            KAWETH_PACKET_FILTER_MULTICAST);
 
 	if(result < 0) {
-		err("Error setting receive filter");
+		dev_err(&intf->dev, "Error setting receive filter\n");
 		goto err_free_netdev;
 	}
 
@@ -1175,7 +1187,7 @@ err_fw:
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
 	if (register_netdev(netdev) != 0) {
-		err("Error registering netdev.");
+		dev_err(&intf->dev, "Error registering netdev.\n");
 		goto err_intfdata;
 	}
 

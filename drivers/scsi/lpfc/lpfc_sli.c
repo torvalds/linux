@@ -67,6 +67,8 @@ static void lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *,
 				      struct hbq_dmabuf *);
 static int lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_cqe *);
+static int lpfc_sli4_post_els_sgl_list(struct lpfc_hba *, struct list_head *,
+				       int);
 
 static IOCB_t *
 lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
@@ -500,7 +502,7 @@ lpfc_resp_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
  * allocation is successful, it returns pointer to the newly
  * allocated iocb object else it returns NULL.
  **/
-static struct lpfc_iocbq *
+struct lpfc_iocbq *
 __lpfc_sli_get_iocbq(struct lpfc_hba *phba)
 {
 	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
@@ -875,6 +877,9 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	} else  if ((piocbq->iocb.ulpCommand == CMD_GEN_REQUEST64_CR) &&
 			!(piocbq->iocb_flag & LPFC_IO_LIBDFC))
 		ndlp = piocbq->context_un.ndlp;
+	else  if ((piocbq->iocb.ulpCommand == CMD_ELS_REQUEST64_CR) &&
+			(piocbq->iocb_flag & LPFC_IO_LIBDFC))
+		ndlp = piocbq->context_un.ndlp;
 	else
 		ndlp = piocbq->context1;
 
@@ -883,7 +888,7 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	while (!found) {
 		if (!sglq)
 			return NULL;
-		if (lpfc_test_rrq_active(phba, ndlp, sglq->sli4_xritag)) {
+		if (lpfc_test_rrq_active(phba, ndlp, sglq->sli4_lxritag)) {
 			/* This xri has an rrq outstanding for this DID.
 			 * put it back in the list and get another xri.
 			 */
@@ -1257,7 +1262,7 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			struct lpfc_iocbq *piocb)
 {
 	list_add_tail(&piocb->list, &pring->txcmplq);
-	piocb->iocb_flag |= LPFC_IO_ON_Q;
+	piocb->iocb_flag |= LPFC_IO_ON_TXCMPLQ;
 	pring->txcmplq_cnt++;
 	if (pring->txcmplq_cnt > pring->txcmplq_max)
 		pring->txcmplq_max = pring->txcmplq_cnt;
@@ -2556,9 +2561,9 @@ lpfc_sli_iocbq_lookup(struct lpfc_hba *phba,
 	if (iotag != 0 && iotag <= phba->sli.last_iotag) {
 		cmd_iocb = phba->sli.iocbq_lookup[iotag];
 		list_del_init(&cmd_iocb->list);
-		if (cmd_iocb->iocb_flag & LPFC_IO_ON_Q) {
+		if (cmd_iocb->iocb_flag & LPFC_IO_ON_TXCMPLQ) {
 			pring->txcmplq_cnt--;
-			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_Q;
+			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
 		}
 		return cmd_iocb;
 	}
@@ -2591,14 +2596,14 @@ lpfc_sli_iocbq_lookup_by_tag(struct lpfc_hba *phba,
 
 	if (iotag != 0 && iotag <= phba->sli.last_iotag) {
 		cmd_iocb = phba->sli.iocbq_lookup[iotag];
-		list_del_init(&cmd_iocb->list);
-		if (cmd_iocb->iocb_flag & LPFC_IO_ON_Q) {
-			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_Q;
+		if (cmd_iocb->iocb_flag & LPFC_IO_ON_TXCMPLQ) {
+			/* remove from txcmpl queue list */
+			list_del_init(&cmd_iocb->list);
+			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
 			pring->txcmplq_cnt--;
+			return cmd_iocb;
 		}
-		return cmd_iocb;
 	}
-
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 			"0372 iotag x%x is out off range: max iotag (x%x)\n",
 			iotag, phba->sli.last_iotag);
@@ -3466,6 +3471,9 @@ lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
 	/* Retrieve everything on the txcmplq */
 	list_splice_init(&pring->txcmplq, &txcmplq);
 	pring->txcmplq_cnt = 0;
+
+	/* Indicate the I/O queues are flushed */
+	phba->hba_flag |= HBA_FCP_IOQ_FLUSH;
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Flush the txq */
@@ -3877,6 +3885,7 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	uint16_t cfg_value;
+	int rc;
 
 	/* Reset HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -3905,12 +3914,12 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 
 	/* Perform FCoE PCI function reset */
 	lpfc_sli4_queue_destroy(phba);
-	lpfc_pci_function_reset(phba);
+	rc = lpfc_pci_function_reset(phba);
 
 	/* Restore PCI cmd register */
 	pci_write_config_word(phba->pcidev, PCI_COMMAND, cfg_value);
 
-	return 0;
+	return rc;
 }
 
 /**
@@ -4002,6 +4011,7 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	uint32_t hba_aer_enabled;
+	int rc;
 
 	/* Restart HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -4011,7 +4021,7 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 	/* Take PCIe device Advanced Error Reporting (AER) state */
 	hba_aer_enabled = phba->hba_flag & HBA_AER_ENABLED;
 
-	lpfc_sli4_brdreset(phba);
+	rc = lpfc_sli4_brdreset(phba);
 
 	spin_lock_irq(&phba->hbalock);
 	phba->pport->stopped = 0;
@@ -4028,7 +4038,7 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 
 	lpfc_hba_down_post(phba);
 
-	return 0;
+	return rc;
 }
 
 /**
@@ -4967,7 +4977,12 @@ lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type,
 			      &rsrc_info->u.rsp);
 	*extnt_size = bf_get(lpfc_mbx_get_rsrc_extent_info_size,
 			     &rsrc_info->u.rsp);
- err_exit:
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"3162 Retrieved extents type-%d from port: count:%d, "
+			"size:%d\n", type, *extnt_count, *extnt_size);
+
+err_exit:
 	mempool_free(mbox, phba->mbox_mem_pool);
 	return rc;
 }
@@ -5051,7 +5066,7 @@ lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type)
  *   0: if successful
  **/
 static int
-lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t *extnt_cnt,
+lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t extnt_cnt,
 			  uint16_t type, bool *emb, LPFC_MBOXQ_t *mbox)
 {
 	int rc = 0;
@@ -5060,7 +5075,7 @@ lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t *extnt_cnt,
 	uint32_t alloc_len, mbox_tmo;
 
 	/* Calculate the total requested length of the dma memory */
-	req_len = *extnt_cnt * sizeof(uint16_t);
+	req_len = extnt_cnt * sizeof(uint16_t);
 
 	/*
 	 * Calculate the size of an embedded mailbox.  The uint32_t
@@ -5075,7 +5090,7 @@ lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t *extnt_cnt,
 	 */
 	*emb = LPFC_SLI4_MBX_EMBED;
 	if (req_len > emb_len) {
-		req_len = *extnt_cnt * sizeof(uint16_t) +
+		req_len = extnt_cnt * sizeof(uint16_t) +
 			sizeof(union lpfc_sli4_cfg_shdr) +
 			sizeof(uint32_t);
 		*emb = LPFC_SLI4_MBX_NEMBED;
@@ -5091,7 +5106,7 @@ lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t *extnt_cnt,
 			"size (x%x)\n", alloc_len, req_len);
 		return -ENOMEM;
 	}
-	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, *extnt_cnt, type, *emb);
+	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, extnt_cnt, type, *emb);
 	if (unlikely(rc))
 		return -EIO;
 
@@ -5149,17 +5164,15 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		return -ENOMEM;
 	}
 
-	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_INIT,
-			"2903 Available Resource Extents "
-			"for resource type 0x%x: Count: 0x%x, "
-			"Size 0x%x\n", type, rsrc_cnt,
-			rsrc_size);
+	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_INIT | LOG_SLI,
+			"2903 Post resource extents type-0x%x: "
+			"count:%d, size %d\n", type, rsrc_cnt, rsrc_size);
 
 	mbox = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)
 		return -ENOMEM;
 
-	rc = lpfc_sli4_cfg_post_extnts(phba, &rsrc_cnt, type, &emb, mbox);
+	rc = lpfc_sli4_cfg_post_extnts(phba, rsrc_cnt, type, &emb, mbox);
 	if (unlikely(rc)) {
 		rc = -EIO;
 		goto err_exit;
@@ -5250,6 +5263,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 			rc = -ENOMEM;
 			goto err_exit;
 		}
+		phba->sli4_hba.max_cfg_param.xri_used = 0;
 		phba->sli4_hba.xri_ids = kzalloc(rsrc_id_cnt *
 						 sizeof(uint16_t),
 						 GFP_KERNEL);
@@ -5420,7 +5434,6 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 	case LPFC_RSC_TYPE_FCOE_XRI:
 		kfree(phba->sli4_hba.xri_bmask);
 		kfree(phba->sli4_hba.xri_ids);
-		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 		list_for_each_entry_safe(rsrc_blk, rsrc_blk_next,
 				    &phba->sli4_hba.lpfc_xri_blk_list, list) {
 			list_del_init(&rsrc_blk->list);
@@ -5612,7 +5625,6 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 			goto free_vpi_ids;
 		}
 		phba->sli4_hba.max_cfg_param.xri_used = 0;
-		phba->sli4_hba.xri_count = 0;
 		phba->sli4_hba.xri_ids = kzalloc(count *
 						 sizeof(uint16_t),
 						 GFP_KERNEL);
@@ -5694,7 +5706,6 @@ lpfc_sli4_dealloc_resource_identifiers(struct lpfc_hba *phba)
 		bf_set(lpfc_vpi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 		kfree(phba->sli4_hba.xri_bmask);
 		kfree(phba->sli4_hba.xri_ids);
-		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 		kfree(phba->sli4_hba.vfi_bmask);
 		kfree(phba->sli4_hba.vfi_ids);
 		bf_set(lpfc_vfi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
@@ -5853,6 +5864,149 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 }
 
 /**
+ * lpfc_sli4_repost_els_sgl_list - Repsot the els buffers sgl pages as block
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine walks the list of els buffers that have been allocated and
+ * repost them to the port by using SGL block post. This is needed after a
+ * pci_function_reset/warm_start or start. It attempts to construct blocks
+ * of els buffer sgls which contains contiguous xris and uses the non-embedded
+ * SGL block post mailbox commands to post them to the port. For single els
+ * buffer sgl with non-contiguous xri, if any, it shall use embedded SGL post
+ * mailbox command for posting.
+ *
+ * Returns: 0 = success, non-zero failure.
+ **/
+static int
+lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
+{
+	struct lpfc_sglq *sglq_entry = NULL;
+	struct lpfc_sglq *sglq_entry_next = NULL;
+	struct lpfc_sglq *sglq_entry_first = NULL;
+	int status, post_cnt = 0, num_posted = 0, block_cnt = 0;
+	int last_xritag = NO_XRI;
+	LIST_HEAD(prep_sgl_list);
+	LIST_HEAD(blck_sgl_list);
+	LIST_HEAD(allc_sgl_list);
+	LIST_HEAD(post_sgl_list);
+	LIST_HEAD(free_sgl_list);
+
+	spin_lock(&phba->hbalock);
+	list_splice_init(&phba->sli4_hba.lpfc_sgl_list, &allc_sgl_list);
+	spin_unlock(&phba->hbalock);
+
+	list_for_each_entry_safe(sglq_entry, sglq_entry_next,
+				 &allc_sgl_list, list) {
+		list_del_init(&sglq_entry->list);
+		block_cnt++;
+		if ((last_xritag != NO_XRI) &&
+		    (sglq_entry->sli4_xritag != last_xritag + 1)) {
+			/* a hole in xri block, form a sgl posting block */
+			list_splice_init(&prep_sgl_list, &blck_sgl_list);
+			post_cnt = block_cnt - 1;
+			/* prepare list for next posting block */
+			list_add_tail(&sglq_entry->list, &prep_sgl_list);
+			block_cnt = 1;
+		} else {
+			/* prepare list for next posting block */
+			list_add_tail(&sglq_entry->list, &prep_sgl_list);
+			/* enough sgls for non-embed sgl mbox command */
+			if (block_cnt == LPFC_NEMBED_MBOX_SGL_CNT) {
+				list_splice_init(&prep_sgl_list,
+						 &blck_sgl_list);
+				post_cnt = block_cnt;
+				block_cnt = 0;
+			}
+		}
+		num_posted++;
+
+		/* keep track of last sgl's xritag */
+		last_xritag = sglq_entry->sli4_xritag;
+
+		/* end of repost sgl list condition for els buffers */
+		if (num_posted == phba->sli4_hba.els_xri_cnt) {
+			if (post_cnt == 0) {
+				list_splice_init(&prep_sgl_list,
+						 &blck_sgl_list);
+				post_cnt = block_cnt;
+			} else if (block_cnt == 1) {
+				status = lpfc_sli4_post_sgl(phba,
+						sglq_entry->phys, 0,
+						sglq_entry->sli4_xritag);
+				if (!status) {
+					/* successful, put sgl to posted list */
+					list_add_tail(&sglq_entry->list,
+						      &post_sgl_list);
+				} else {
+					/* Failure, put sgl to free list */
+					lpfc_printf_log(phba, KERN_WARNING,
+						LOG_SLI,
+						"3159 Failed to post els "
+						"sgl, xritag:x%x\n",
+						sglq_entry->sli4_xritag);
+					list_add_tail(&sglq_entry->list,
+						      &free_sgl_list);
+					spin_lock_irq(&phba->hbalock);
+					phba->sli4_hba.els_xri_cnt--;
+					spin_unlock_irq(&phba->hbalock);
+				}
+			}
+		}
+
+		/* continue until a nembed page worth of sgls */
+		if (post_cnt == 0)
+			continue;
+
+		/* post the els buffer list sgls as a block */
+		status = lpfc_sli4_post_els_sgl_list(phba, &blck_sgl_list,
+						     post_cnt);
+
+		if (!status) {
+			/* success, put sgl list to posted sgl list */
+			list_splice_init(&blck_sgl_list, &post_sgl_list);
+		} else {
+			/* Failure, put sgl list to free sgl list */
+			sglq_entry_first = list_first_entry(&blck_sgl_list,
+							    struct lpfc_sglq,
+							    list);
+			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+					"3160 Failed to post els sgl-list, "
+					"xritag:x%x-x%x\n",
+					sglq_entry_first->sli4_xritag,
+					(sglq_entry_first->sli4_xritag +
+					 post_cnt - 1));
+			list_splice_init(&blck_sgl_list, &free_sgl_list);
+			spin_lock_irq(&phba->hbalock);
+			phba->sli4_hba.els_xri_cnt -= post_cnt;
+			spin_unlock_irq(&phba->hbalock);
+		}
+
+		/* don't reset xirtag due to hole in xri block */
+		if (block_cnt == 0)
+			last_xritag = NO_XRI;
+
+		/* reset els sgl post count for next round of posting */
+		post_cnt = 0;
+	}
+
+	/* free the els sgls failed to post */
+	lpfc_free_sgl_list(phba, &free_sgl_list);
+
+	/* push els sgls posted to the availble list */
+	if (!list_empty(&post_sgl_list)) {
+		spin_lock(&phba->hbalock);
+		list_splice_init(&post_sgl_list,
+				 &phba->sli4_hba.lpfc_sgl_list);
+		spin_unlock(&phba->hbalock);
+	} else {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"3161 Failure to post els sgl to port.\n");
+		return -EIO;
+	}
+	return 0;
+}
+
+/**
  * lpfc_sli4_hba_setup - SLI4 device intialization PCI function
  * @phba: Pointer to HBA context object.
  *
@@ -5922,6 +6076,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		phba->hba_flag |= HBA_FIP_SUPPORT;
 	else
 		phba->hba_flag &= ~HBA_FIP_SUPPORT;
+
+	phba->hba_flag &= ~HBA_FCP_IOQ_FLUSH;
 
 	if (phba->sli_rev != LPFC_SLI_REV4) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
@@ -6063,8 +6219,6 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"rc = x%x\n", rc);
 		goto out_free_mbox;
 	}
-	/* update physical xri mappings in the scsi buffers */
-	lpfc_scsi_buf_update(phba);
 
 	/* Read the port's service parameters. */
 	rc = lpfc_read_sparam(phba, mboxq, vport->vpi);
@@ -6105,28 +6259,26 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	fc_host_node_name(shost) = wwn_to_u64(vport->fc_nodename.u.wwn);
 	fc_host_port_name(shost) = wwn_to_u64(vport->fc_portname.u.wwn);
 
-	/* Register SGL pool to the device using non-embedded mailbox command */
-	if (!phba->sli4_hba.extents_in_use) {
-		rc = lpfc_sli4_post_els_sgl_list(phba);
-		if (unlikely(rc)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
-					"0582 Error %d during els sgl post "
-					"operation\n", rc);
-			rc = -ENODEV;
-			goto out_free_mbox;
-		}
-	} else {
-		rc = lpfc_sli4_post_els_sgl_list_ext(phba);
-		if (unlikely(rc)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
-					"2560 Error %d during els sgl post "
-					"operation\n", rc);
-			rc = -ENODEV;
-			goto out_free_mbox;
-		}
+	/* update host els and scsi xri-sgl sizes and mappings */
+	rc = lpfc_sli4_xri_sgl_update(phba);
+	if (unlikely(rc)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+				"1400 Failed to update xri-sgl size and "
+				"mapping: %d\n", rc);
+		goto out_free_mbox;
 	}
 
-	/* Register SCSI SGL pool to the device */
+	/* register the els sgl pool to the port */
+	rc = lpfc_sli4_repost_els_sgl_list(phba);
+	if (unlikely(rc)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+				"0582 Error %d during els sgl post "
+				"operation\n", rc);
+		rc = -ENODEV;
+		goto out_free_mbox;
+	}
+
+	/* register the allocated scsi sgl pool to the port */
 	rc = lpfc_sli4_repost_scsi_sgl_list(phba);
 	if (unlikely(rc)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
@@ -7060,14 +7212,19 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 		if (rc != MBX_SUCCESS)
 			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
 					"(%d):2541 Mailbox command x%x "
-					"(x%x/x%x) cannot issue Data: "
-					"x%x x%x\n",
+					"(x%x/x%x) failure: "
+					"mqe_sta: x%x mcqe_sta: x%x/x%x "
+					"Data: x%x x%x\n,",
 					mboxq->vport ? mboxq->vport->vpi : 0,
 					mboxq->u.mb.mbxCommand,
 					lpfc_sli_config_mbox_subsys_get(phba,
 									mboxq),
 					lpfc_sli_config_mbox_opcode_get(phba,
 									mboxq),
+					bf_get(lpfc_mqe_status, &mboxq->u.mqe),
+					bf_get(lpfc_mcqe_status, &mboxq->mcqe),
+					bf_get(lpfc_mcqe_ext_status,
+					       &mboxq->mcqe),
 					psli->sli_flag, flag);
 		return rc;
 	} else if (flag == MBX_POLL) {
@@ -7086,18 +7243,22 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 			/* Successfully blocked, now issue sync mbox cmd */
 			rc = lpfc_sli4_post_sync_mbox(phba, mboxq);
 			if (rc != MBX_SUCCESS)
-				lpfc_printf_log(phba, KERN_ERR,
+				lpfc_printf_log(phba, KERN_WARNING,
 					LOG_MBOX | LOG_SLI,
-					"(%d):2597 Mailbox command "
-					"x%x (x%x/x%x) cannot issue "
-					"Data: x%x x%x\n",
-					mboxq->vport ?
-					mboxq->vport->vpi : 0,
+					"(%d):2597 Sync Mailbox command "
+					"x%x (x%x/x%x) failure: "
+					"mqe_sta: x%x mcqe_sta: x%x/x%x "
+					"Data: x%x x%x\n,",
+					mboxq->vport ? mboxq->vport->vpi : 0,
 					mboxq->u.mb.mbxCommand,
 					lpfc_sli_config_mbox_subsys_get(phba,
 									mboxq),
 					lpfc_sli_config_mbox_opcode_get(phba,
 									mboxq),
+					bf_get(lpfc_mqe_status, &mboxq->u.mqe),
+					bf_get(lpfc_mcqe_status, &mboxq->mcqe),
+					bf_get(lpfc_mcqe_ext_status,
+					       &mboxq->mcqe),
 					psli->sli_flag, flag);
 			/* Unblock the async mailbox posting afterward */
 			lpfc_sli4_async_mbox_unblock(phba);
@@ -7712,7 +7873,10 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 
 	switch (iocbq->iocb.ulpCommand) {
 	case CMD_ELS_REQUEST64_CR:
-		ndlp = (struct lpfc_nodelist *)iocbq->context1;
+		if (iocbq->iocb_flag & LPFC_IO_LIBDFC)
+			ndlp = iocbq->context_un.ndlp;
+		else
+			ndlp = (struct lpfc_nodelist *)iocbq->context1;
 		if (!iocbq->iocb.ulpLe) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2007 Only Limited Edition cmd Format"
@@ -7751,9 +7915,13 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 				bf_set(els_req64_sp, &wqe->els_req, 1);
 				bf_set(els_req64_sid, &wqe->els_req,
 					iocbq->vport->fc_myDID);
+				if ((*pcmd == ELS_CMD_FLOGI) &&
+					!(phba->fc_topology ==
+						LPFC_TOPOLOGY_LOOP))
+					bf_set(els_req64_sid, &wqe->els_req, 0);
 				bf_set(wqe_ct, &wqe->els_req.wqe_com, 1);
 				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
-					phba->vpi_ids[phba->pport->vpi]);
+					phba->vpi_ids[iocbq->vport->vpi]);
 			} else if (pcmd && iocbq->context1) {
 				bf_set(wqe_ct, &wqe->els_req.wqe_com, 0);
 				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
@@ -7908,11 +8076,25 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		/* words0-2 BDE memcpy */
 		/* word3 iocb=iotag32 wqe=response_payload_len */
 		wqe->xmit_els_rsp.response_payload_len = xmit_len;
-		/* word4 iocb=did wge=rsvd. */
-		wqe->xmit_els_rsp.rsvd4 = 0;
+		/* word4 */
+		wqe->xmit_els_rsp.word4 = 0;
 		/* word5 iocb=rsvd wge=did */
 		bf_set(wqe_els_did, &wqe->xmit_els_rsp.wqe_dest,
-			 iocbq->iocb.un.elsreq64.remoteID);
+			 iocbq->iocb.un.xseq64.xmit_els_remoteID);
+
+		if_type = bf_get(lpfc_sli_intf_if_type,
+					&phba->sli4_hba.sli_intf);
+		if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+			if (iocbq->vport->fc_flag & FC_PT2PT) {
+				bf_set(els_rsp64_sp, &wqe->xmit_els_rsp, 1);
+				bf_set(els_rsp64_sid, &wqe->xmit_els_rsp,
+					iocbq->vport->fc_myDID);
+				if (iocbq->vport->fc_myDID == Fabric_DID) {
+					bf_set(wqe_els_did,
+						&wqe->xmit_els_rsp.wqe_dest, 0);
+				}
+			}
+		}
 		bf_set(wqe_ct, &wqe->xmit_els_rsp.wqe_com,
 		       ((iocbq->iocb.ulpCt_h << 1) | iocbq->iocb.ulpCt_l));
 		bf_set(wqe_pu, &wqe->xmit_els_rsp.wqe_com, iocbq->iocb.ulpPU);
@@ -7932,11 +8114,11 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		pcmd = (uint32_t *) (((struct lpfc_dmabuf *)
 					iocbq->context2)->virt);
 		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
-				bf_set(els_req64_sp, &wqe->els_req, 1);
-				bf_set(els_req64_sid, &wqe->els_req,
+				bf_set(els_rsp64_sp, &wqe->xmit_els_rsp, 1);
+				bf_set(els_rsp64_sid, &wqe->xmit_els_rsp,
 					iocbq->vport->fc_myDID);
-				bf_set(wqe_ct, &wqe->els_req.wqe_com, 1);
-				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
+				bf_set(wqe_ct, &wqe->xmit_els_rsp.wqe_com, 1);
+				bf_set(wqe_ctxt_tag, &wqe->xmit_els_rsp.wqe_com,
 					phba->vpi_ids[phba->pport->vpi]);
 		}
 		command_type = OTHER_COMMAND;
@@ -13080,9 +13262,7 @@ lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
 	} else {
 		set_bit(xri, phba->sli4_hba.xri_bmask);
 		phba->sli4_hba.max_cfg_param.xri_used++;
-		phba->sli4_hba.xri_count++;
 	}
-
 	spin_unlock_irq(&phba->hbalock);
 	return xri;
 }
@@ -13098,7 +13278,6 @@ void
 __lpfc_sli4_free_xri(struct lpfc_hba *phba, int xri)
 {
 	if (test_and_clear_bit(xri, phba->sli4_hba.xri_bmask)) {
-		phba->sli4_hba.xri_count--;
 		phba->sli4_hba.max_cfg_param.xri_used--;
 	}
 }
@@ -13134,46 +13313,45 @@ lpfc_sli4_next_xritag(struct lpfc_hba *phba)
 	uint16_t xri_index;
 
 	xri_index = lpfc_sli4_alloc_xri(phba);
-	if (xri_index != NO_XRI)
-		return xri_index;
-
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2004 Failed to allocate XRI.last XRITAG is %d"
-			" Max XRI is %d, Used XRI is %d\n",
-			xri_index,
-			phba->sli4_hba.max_cfg_param.max_xri,
-			phba->sli4_hba.max_cfg_param.xri_used);
-	return NO_XRI;
+	if (xri_index == NO_XRI)
+		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+				"2004 Failed to allocate XRI.last XRITAG is %d"
+				" Max XRI is %d, Used XRI is %d\n",
+				xri_index,
+				phba->sli4_hba.max_cfg_param.max_xri,
+				phba->sli4_hba.max_cfg_param.xri_used);
+	return xri_index;
 }
 
 /**
  * lpfc_sli4_post_els_sgl_list - post a block of ELS sgls to the port.
  * @phba: pointer to lpfc hba data structure.
+ * @post_sgl_list: pointer to els sgl entry list.
+ * @count: number of els sgl entries on the list.
  *
  * This routine is invoked to post a block of driver's sgl pages to the
  * HBA using non-embedded mailbox command. No Lock is held. This routine
  * is only called when the driver is loading and after all IO has been
  * stopped.
  **/
-int
-lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba)
+static int
+lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba,
+			    struct list_head *post_sgl_list,
+			    int post_cnt)
 {
-	struct lpfc_sglq *sglq_entry;
+	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
 	struct sgl_page_pairs *sgl_pg_pairs;
 	void *viraddr;
 	LPFC_MBOXQ_t *mbox;
 	uint32_t reqlen, alloclen, pg_pairs;
 	uint32_t mbox_tmo;
-	uint16_t xritag_start = 0, lxri = 0;
-	int els_xri_cnt, rc = 0;
+	uint16_t xritag_start = 0;
+	int rc = 0;
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 
-	/* The number of sgls to be posted */
-	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
-
-	reqlen = els_xri_cnt * sizeof(struct sgl_page_pairs) +
+	reqlen = phba->sli4_hba.els_xri_cnt * sizeof(struct sgl_page_pairs) +
 		 sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
 	if (reqlen > SLI4_PAGE_SIZE) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
@@ -13203,25 +13381,8 @@ lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba)
 	sgl = (struct lpfc_mbx_post_uembed_sgl_page1 *)viraddr;
 	sgl_pg_pairs = &sgl->sgl_pg_pairs;
 
-	for (pg_pairs = 0; pg_pairs < els_xri_cnt; pg_pairs++) {
-		sglq_entry = phba->sli4_hba.lpfc_els_sgl_array[pg_pairs];
-
-		/*
-		 * Assign the sglq a physical xri only if the driver has not
-		 * initialized those resources.  A port reset only needs
-		 * the sglq's posted.
-		 */
-		if (bf_get(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags) !=
-		    LPFC_XRI_RSRC_RDY) {
-			lxri = lpfc_sli4_next_xritag(phba);
-			if (lxri == NO_XRI) {
-				lpfc_sli4_mbox_cmd_free(phba, mbox);
-				return -ENOMEM;
-			}
-			sglq_entry->sli4_lxritag = lxri;
-			sglq_entry->sli4_xritag = phba->sli4_hba.xri_ids[lxri];
-		}
-
+	pg_pairs = 0;
+	list_for_each_entry_safe(sglq_entry, sglq_next, post_sgl_list, list) {
 		/* Set up the sge entry */
 		sgl_pg_pairs->sgl_pg0_addr_lo =
 				cpu_to_le32(putPaddrLow(sglq_entry->phys));
@@ -13236,11 +13397,12 @@ lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba)
 		if (pg_pairs == 0)
 			xritag_start = sglq_entry->sli4_xritag;
 		sgl_pg_pairs++;
+		pg_pairs++;
 	}
 
 	/* Complete initialization and perform endian conversion. */
 	bf_set(lpfc_post_sgl_pages_xri, sgl, xritag_start);
-	bf_set(lpfc_post_sgl_pages_xricnt, sgl, els_xri_cnt);
+	bf_set(lpfc_post_sgl_pages_xricnt, sgl, phba->sli4_hba.els_xri_cnt);
 	sgl->word0 = cpu_to_le32(sgl->word0);
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
@@ -13260,183 +13422,6 @@ lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba)
 				shdr_status, shdr_add_status, rc);
 		rc = -ENXIO;
 	}
-
-	if (rc == 0)
-		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags,
-		       LPFC_XRI_RSRC_RDY);
-	return rc;
-}
-
-/**
- * lpfc_sli4_post_els_sgl_list_ext - post a block of ELS sgls to the port.
- * @phba: pointer to lpfc hba data structure.
- *
- * This routine is invoked to post a block of driver's sgl pages to the
- * HBA using non-embedded mailbox command. No Lock is held. This routine
- * is only called when the driver is loading and after all IO has been
- * stopped.
- **/
-int
-lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba)
-{
-	struct lpfc_sglq *sglq_entry;
-	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
-	struct sgl_page_pairs *sgl_pg_pairs;
-	void *viraddr;
-	LPFC_MBOXQ_t *mbox;
-	uint32_t reqlen, alloclen, index;
-	uint32_t mbox_tmo;
-	uint16_t rsrc_start, rsrc_size, els_xri_cnt, post_els_xri_cnt;
-	uint16_t xritag_start = 0, lxri = 0;
-	struct lpfc_rsrc_blks *rsrc_blk;
-	int cnt, ttl_cnt, rc = 0;
-	int loop_cnt;
-	uint32_t shdr_status, shdr_add_status;
-	union lpfc_sli4_cfg_shdr *shdr;
-
-	/* The number of sgls to be posted */
-	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
-
-	reqlen = els_xri_cnt * sizeof(struct sgl_page_pairs) +
-		 sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
-	if (reqlen > SLI4_PAGE_SIZE) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-				"2989 Block sgl registration required DMA "
-				"size (%d) great than a page\n", reqlen);
-		return -ENOMEM;
-	}
-
-	cnt = 0;
-	ttl_cnt = 0;
-	post_els_xri_cnt = els_xri_cnt;
-	list_for_each_entry(rsrc_blk, &phba->sli4_hba.lpfc_xri_blk_list,
-			    list) {
-		rsrc_start = rsrc_blk->rsrc_start;
-		rsrc_size = rsrc_blk->rsrc_size;
-
-		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"3014 Working ELS Extent start %d, cnt %d\n",
-				rsrc_start, rsrc_size);
-
-		loop_cnt = min(post_els_xri_cnt, rsrc_size);
-		if (loop_cnt < post_els_xri_cnt) {
-			post_els_xri_cnt -= loop_cnt;
-			ttl_cnt += loop_cnt;
-		} else
-			ttl_cnt += post_els_xri_cnt;
-
-		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-		if (!mbox)
-			return -ENOMEM;
-		/*
-		 * Allocate DMA memory and set up the non-embedded mailbox
-		 * command.
-		 */
-		alloclen = lpfc_sli4_config(phba, mbox,
-					LPFC_MBOX_SUBSYSTEM_FCOE,
-					LPFC_MBOX_OPCODE_FCOE_POST_SGL_PAGES,
-					reqlen, LPFC_SLI4_MBX_NEMBED);
-		if (alloclen < reqlen) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2987 Allocated DMA memory size (%d) "
-					"is less than the requested DMA memory "
-					"size (%d)\n", alloclen, reqlen);
-			lpfc_sli4_mbox_cmd_free(phba, mbox);
-			return -ENOMEM;
-		}
-
-		/* Set up the SGL pages in the non-embedded DMA pages */
-		viraddr = mbox->sge_array->addr[0];
-		sgl = (struct lpfc_mbx_post_uembed_sgl_page1 *)viraddr;
-		sgl_pg_pairs = &sgl->sgl_pg_pairs;
-
-		/*
-		 * The starting resource may not begin at zero. Control
-		 * the loop variants via the block resource parameters,
-		 * but handle the sge pointers with a zero-based index
-		 * that doesn't get reset per loop pass.
-		 */
-		for (index = rsrc_start;
-		     index < rsrc_start + loop_cnt;
-		     index++) {
-			sglq_entry = phba->sli4_hba.lpfc_els_sgl_array[cnt];
-
-			/*
-			 * Assign the sglq a physical xri only if the driver
-			 * has not initialized those resources.  A port reset
-			 * only needs the sglq's posted.
-			 */
-			if (bf_get(lpfc_xri_rsrc_rdy,
-				   &phba->sli4_hba.sli4_flags) !=
-				   LPFC_XRI_RSRC_RDY) {
-				lxri = lpfc_sli4_next_xritag(phba);
-				if (lxri == NO_XRI) {
-					lpfc_sli4_mbox_cmd_free(phba, mbox);
-					rc = -ENOMEM;
-					goto err_exit;
-				}
-				sglq_entry->sli4_lxritag = lxri;
-				sglq_entry->sli4_xritag =
-						phba->sli4_hba.xri_ids[lxri];
-			}
-
-			/* Set up the sge entry */
-			sgl_pg_pairs->sgl_pg0_addr_lo =
-				cpu_to_le32(putPaddrLow(sglq_entry->phys));
-			sgl_pg_pairs->sgl_pg0_addr_hi =
-				cpu_to_le32(putPaddrHigh(sglq_entry->phys));
-			sgl_pg_pairs->sgl_pg1_addr_lo =
-				cpu_to_le32(putPaddrLow(0));
-			sgl_pg_pairs->sgl_pg1_addr_hi =
-				cpu_to_le32(putPaddrHigh(0));
-
-			/* Track the starting physical XRI for the mailbox. */
-			if (index == rsrc_start)
-				xritag_start = sglq_entry->sli4_xritag;
-			sgl_pg_pairs++;
-			cnt++;
-		}
-
-		/* Complete initialization and perform endian conversion. */
-		rsrc_blk->rsrc_used += loop_cnt;
-		bf_set(lpfc_post_sgl_pages_xri, sgl, xritag_start);
-		bf_set(lpfc_post_sgl_pages_xricnt, sgl, loop_cnt);
-		sgl->word0 = cpu_to_le32(sgl->word0);
-
-		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"3015 Post ELS Extent SGL, start %d, "
-				"cnt %d, used %d\n",
-				xritag_start, loop_cnt, rsrc_blk->rsrc_used);
-		if (!phba->sli4_hba.intr_enable)
-			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-		else {
-			mbox_tmo = lpfc_mbox_tmo_val(phba, mbox);
-			rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
-		}
-		shdr = (union lpfc_sli4_cfg_shdr *) &sgl->cfg_shdr;
-		shdr_status = bf_get(lpfc_mbox_hdr_status,
-				     &shdr->response);
-		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
-					 &shdr->response);
-		if (rc != MBX_TIMEOUT)
-			lpfc_sli4_mbox_cmd_free(phba, mbox);
-		if (shdr_status || shdr_add_status || rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"2988 POST_SGL_BLOCK mailbox "
-					"command failed status x%x "
-					"add_status x%x mbx status x%x\n",
-					shdr_status, shdr_add_status, rc);
-			rc = -ENXIO;
-			goto err_exit;
-		}
-		if (ttl_cnt >= els_xri_cnt)
-			break;
-	}
-
- err_exit:
-	if (rc == 0)
-		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags,
-		       LPFC_XRI_RSRC_RDY);
 	return rc;
 }
 
@@ -13452,8 +13437,9 @@ lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba)
  *
  **/
 int
-lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba, struct list_head *sblist,
-			      int cnt)
+lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba,
+			      struct list_head *sblist,
+			      int count)
 {
 	struct lpfc_scsi_buf *psb;
 	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
@@ -13469,7 +13455,7 @@ lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba, struct list_head *sblist,
 	union lpfc_sli4_cfg_shdr *shdr;
 
 	/* Calculate the requested length of the dma memory */
-	reqlen = cnt * sizeof(struct sgl_page_pairs) +
+	reqlen = count * sizeof(struct sgl_page_pairs) +
 		 sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
 	if (reqlen > SLI4_PAGE_SIZE) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
@@ -13548,169 +13534,6 @@ lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba, struct list_head *sblist,
 				"status x%x add_status x%x mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
 		rc = -ENXIO;
-	}
-	return rc;
-}
-
-/**
- * lpfc_sli4_post_scsi_sgl_blk_ext - post a block of scsi sgls to the port.
- * @phba: pointer to lpfc hba data structure.
- * @sblist: pointer to scsi buffer list.
- * @count: number of scsi buffers on the list.
- *
- * This routine is invoked to post a block of @count scsi sgl pages from a
- * SCSI buffer list @sblist to the HBA using non-embedded mailbox command.
- * No Lock is held.
- *
- **/
-int
-lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *phba, struct list_head *sblist,
-				int cnt)
-{
-	struct lpfc_scsi_buf *psb = NULL;
-	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
-	struct sgl_page_pairs *sgl_pg_pairs;
-	void *viraddr;
-	LPFC_MBOXQ_t *mbox;
-	uint32_t reqlen, alloclen, pg_pairs;
-	uint32_t mbox_tmo;
-	uint16_t xri_start = 0, scsi_xri_start;
-	uint16_t rsrc_range;
-	int rc = 0, avail_cnt;
-	uint32_t shdr_status, shdr_add_status;
-	dma_addr_t pdma_phys_bpl1;
-	union lpfc_sli4_cfg_shdr *shdr;
-	struct lpfc_rsrc_blks *rsrc_blk;
-	uint32_t xri_cnt = 0;
-
-	/* Calculate the total requested length of the dma memory */
-	reqlen = cnt * sizeof(struct sgl_page_pairs) +
-		 sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
-	if (reqlen > SLI4_PAGE_SIZE) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-				"2932 Block sgl registration required DMA "
-				"size (%d) great than a page\n", reqlen);
-		return -ENOMEM;
-	}
-
-	/*
-	 * The use of extents requires the driver to post the sgl headers
-	 * in multiple postings to meet the contiguous resource assignment.
-	 */
-	psb = list_prepare_entry(psb, sblist, list);
-	scsi_xri_start = phba->sli4_hba.scsi_xri_start;
-	list_for_each_entry(rsrc_blk, &phba->sli4_hba.lpfc_xri_blk_list,
-			    list) {
-		rsrc_range = rsrc_blk->rsrc_start + rsrc_blk->rsrc_size;
-		if (rsrc_range < scsi_xri_start)
-			continue;
-		else if (rsrc_blk->rsrc_used >= rsrc_blk->rsrc_size)
-			continue;
-		else
-			avail_cnt = rsrc_blk->rsrc_size - rsrc_blk->rsrc_used;
-
-		reqlen = (avail_cnt * sizeof(struct sgl_page_pairs)) +
-			sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
-		/*
-		 * Allocate DMA memory and set up the non-embedded mailbox
-		 * command. The mbox is used to post an SGL page per loop
-		 * but the DMA memory has a use-once semantic so the mailbox
-		 * is used and freed per loop pass.
-		 */
-		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-		if (!mbox) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2933 Failed to allocate mbox cmd "
-					"memory\n");
-			return -ENOMEM;
-		}
-		alloclen = lpfc_sli4_config(phba, mbox,
-					LPFC_MBOX_SUBSYSTEM_FCOE,
-					LPFC_MBOX_OPCODE_FCOE_POST_SGL_PAGES,
-					reqlen,
-					LPFC_SLI4_MBX_NEMBED);
-		if (alloclen < reqlen) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2934 Allocated DMA memory size (%d) "
-					"is less than the requested DMA memory "
-					"size (%d)\n", alloclen, reqlen);
-			lpfc_sli4_mbox_cmd_free(phba, mbox);
-			return -ENOMEM;
-		}
-
-		/* Get the first SGE entry from the non-embedded DMA memory */
-		viraddr = mbox->sge_array->addr[0];
-
-		/* Set up the SGL pages in the non-embedded DMA pages */
-		sgl = (struct lpfc_mbx_post_uembed_sgl_page1 *)viraddr;
-		sgl_pg_pairs = &sgl->sgl_pg_pairs;
-
-		/* pg_pairs tracks posted SGEs per loop iteration. */
-		pg_pairs = 0;
-		list_for_each_entry_continue(psb, sblist, list) {
-			/* Set up the sge entry */
-			sgl_pg_pairs->sgl_pg0_addr_lo =
-				cpu_to_le32(putPaddrLow(psb->dma_phys_bpl));
-			sgl_pg_pairs->sgl_pg0_addr_hi =
-				cpu_to_le32(putPaddrHigh(psb->dma_phys_bpl));
-			if (phba->cfg_sg_dma_buf_size > SGL_PAGE_SIZE)
-				pdma_phys_bpl1 = psb->dma_phys_bpl +
-					SGL_PAGE_SIZE;
-			else
-				pdma_phys_bpl1 = 0;
-			sgl_pg_pairs->sgl_pg1_addr_lo =
-				cpu_to_le32(putPaddrLow(pdma_phys_bpl1));
-			sgl_pg_pairs->sgl_pg1_addr_hi =
-				cpu_to_le32(putPaddrHigh(pdma_phys_bpl1));
-			/* Keep the first xri for this extent. */
-			if (pg_pairs == 0)
-				xri_start = psb->cur_iocbq.sli4_xritag;
-			sgl_pg_pairs++;
-			pg_pairs++;
-			xri_cnt++;
-
-			/*
-			 * Track two exit conditions - the loop has constructed
-			 * all of the caller's SGE pairs or all available
-			 * resource IDs in this extent are consumed.
-			 */
-			if ((xri_cnt == cnt) || (pg_pairs >= avail_cnt))
-				break;
-		}
-		rsrc_blk->rsrc_used += pg_pairs;
-		bf_set(lpfc_post_sgl_pages_xri, sgl, xri_start);
-		bf_set(lpfc_post_sgl_pages_xricnt, sgl, pg_pairs);
-
-		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"3016 Post SCSI Extent SGL, start %d, cnt %d "
-				"blk use %d\n",
-				xri_start, pg_pairs, rsrc_blk->rsrc_used);
-		/* Perform endian conversion if necessary */
-		sgl->word0 = cpu_to_le32(sgl->word0);
-		if (!phba->sli4_hba.intr_enable)
-			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-		else {
-			mbox_tmo = lpfc_mbox_tmo_val(phba, mbox);
-			rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
-		}
-		shdr = (union lpfc_sli4_cfg_shdr *) &sgl->cfg_shdr;
-		shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
-		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
-					 &shdr->response);
-		if (rc != MBX_TIMEOUT)
-			lpfc_sli4_mbox_cmd_free(phba, mbox);
-		if (shdr_status || shdr_add_status || rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"2935 POST_SGL_BLOCK mailbox command "
-					"failed status x%x add_status x%x "
-					"mbx status x%x\n",
-					shdr_status, shdr_add_status, rc);
-			return -ENXIO;
-		}
-
-		/* Post only what is requested. */
-		if (xri_cnt >= cnt)
-			break;
 	}
 	return rc;
 }
@@ -13839,8 +13662,13 @@ lpfc_fc_frame_to_vport(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr,
 	uint32_t did = (fc_hdr->fh_d_id[0] << 16 |
 			fc_hdr->fh_d_id[1] << 8 |
 			fc_hdr->fh_d_id[2]);
+
 	if (did == Fabric_DID)
 		return phba->pport;
+	if ((phba->pport->fc_flag & FC_PT2PT) &&
+		!(phba->link_state == LPFC_HBA_READY))
+		return phba->pport;
+
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
 		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
@@ -14133,7 +13961,6 @@ lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
 	return NO_XRI;
 }
 
-
 /**
  * lpfc_sli4_seq_abort_rsp - bls rsp to sequence abort
  * @phba: Pointer to HBA context object.
@@ -14148,7 +13975,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 {
 	struct lpfc_iocbq *ctiocb = NULL;
 	struct lpfc_nodelist *ndlp;
-	uint16_t oxid, rxid;
+	uint16_t oxid, rxid, xri, lxri;
 	uint32_t sid, fctl;
 	IOCB_t *icmd;
 	int rc;
@@ -14167,8 +13994,6 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 				"SID:x%x\n", oxid, sid);
 		return;
 	}
-	if (lpfc_sli4_xri_inrange(phba, rxid))
-		lpfc_set_rrq_active(phba, ndlp, rxid, oxid, 0);
 
 	/* Allocate buffer for rsp iocb */
 	ctiocb = lpfc_sli_get_iocbq(phba);
@@ -14199,13 +14024,24 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	ctiocb->sli4_lxritag = NO_XRI;
 	ctiocb->sli4_xritag = NO_XRI;
 
+	if (fctl & FC_FC_EX_CTX)
+		/* Exchange responder sent the abort so we
+		 * own the oxid.
+		 */
+		xri = oxid;
+	else
+		xri = rxid;
+	lxri = lpfc_sli4_xri_inrange(phba, xri);
+	if (lxri != NO_XRI)
+		lpfc_set_rrq_active(phba, ndlp, lxri,
+			(xri == oxid) ? rxid : oxid, 0);
 	/* If the oxid maps to the FCP XRI range or if it is out of range,
 	 * send a BLS_RJT.  The driver no longer has that exchange.
 	 * Override the IOCB for a BA_RJT.
 	 */
-	if (oxid > (phba->sli4_hba.max_cfg_param.max_xri +
+	if (xri > (phba->sli4_hba.max_cfg_param.max_xri +
 		    phba->sli4_hba.max_cfg_param.xri_base) ||
-	    oxid > (lpfc_sli4_get_els_iocb_cnt(phba) +
+	    xri > (lpfc_sli4_get_els_iocb_cnt(phba) +
 		    phba->sli4_hba.max_cfg_param.xri_base)) {
 		icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_BA_RJT;
 		bf_set(lpfc_vndr_code, &icmd->un.bls_rsp, 0);
@@ -14377,7 +14213,15 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 		/* Initialize the first IOCB. */
 		first_iocbq->iocb.unsli3.rcvsli3.acc_len = 0;
 		first_iocbq->iocb.ulpStatus = IOSTAT_SUCCESS;
-		first_iocbq->iocb.ulpCommand = CMD_IOCB_RCV_SEQ64_CX;
+
+		/* Check FC Header to see what TYPE of frame we are rcv'ing */
+		if (sli4_type_from_fc_hdr(fc_hdr) == FC_TYPE_ELS) {
+			first_iocbq->iocb.ulpCommand = CMD_IOCB_RCV_ELS64_CX;
+			first_iocbq->iocb.un.rcvels.parmRo =
+				sli4_did_from_fc_hdr(fc_hdr);
+			first_iocbq->iocb.ulpPU = PARM_NPIV_DID;
+		} else
+			first_iocbq->iocb.ulpCommand = CMD_IOCB_RCV_SEQ64_CX;
 		first_iocbq->iocb.ulpContext = NO_XRI;
 		first_iocbq->iocb.unsli3.rcvsli3.ox_id =
 			be16_to_cpu(fc_hdr->fh_ox_id);
@@ -14507,6 +14351,7 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_vport *vport;
 	uint32_t fcfi;
+	uint32_t did;
 
 	/* Process each received buffer */
 	fc_hdr = (struct fc_frame_header *)dmabuf->hbuf.virt;
@@ -14522,12 +14367,32 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 	else
 		fcfi = bf_get(lpfc_rcqe_fcf_id,
 			      &dmabuf->cq_event.cqe.rcqe_cmpl);
+
 	vport = lpfc_fc_frame_to_vport(phba, fc_hdr, fcfi);
-	if (!vport || !(vport->vpi_state & LPFC_VPI_REGISTERED)) {
+	if (!vport) {
 		/* throw out the frame */
 		lpfc_in_buf_free(phba, &dmabuf->dbuf);
 		return;
 	}
+
+	/* d_id this frame is directed to */
+	did = sli4_did_from_fc_hdr(fc_hdr);
+
+	/* vport is registered unless we rcv a FLOGI directed to Fabric_DID */
+	if (!(vport->vpi_state & LPFC_VPI_REGISTERED) &&
+		(did != Fabric_DID)) {
+		/*
+		 * Throw out the frame if we are not pt2pt.
+		 * The pt2pt protocol allows for discovery frames
+		 * to be received without a registered VPI.
+		 */
+		if (!(vport->fc_flag & FC_PT2PT) ||
+			(phba->link_state == LPFC_HBA_READY)) {
+			lpfc_in_buf_free(phba, &dmabuf->dbuf);
+			return;
+		}
+	}
+
 	/* Handle the basic abort sequence (BA_ABTS) event */
 	if (fc_hdr->fh_r_ctl == FC_RCTL_BA_ABTS) {
 		lpfc_sli4_handle_unsol_abort(vport, dmabuf);

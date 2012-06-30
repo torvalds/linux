@@ -673,6 +673,7 @@ access the palette, this must be done with ioctls of the Linux framebuffer API.<
     &sub-srggb8;
     &sub-sbggr16;
     &sub-srggb10;
+    &sub-srggb10dpcm8;
     &sub-srggb12;
   </section>
 
@@ -875,11 +876,6 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry><constant>V4L2_PIX_FMT_SPCA561</constant></entry>
 	    <entry>'S561'</entry>
 	    <entry>Compressed GBRG Bayer format used by the gspca driver.</entry>
-	  </row>
-	  <row id="V4L2-PIX-FMT-SGRBG10DPCM8">
-	    <entry><constant>V4L2_PIX_FMT_SGRBG10DPCM8</constant></entry>
-	    <entry>'DB10'</entry>
-	    <entry>10 bit raw Bayer DPCM compressed to 8 bits.</entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-PAC207">
 	    <entry><constant>V4L2_PIX_FMT_PAC207</constant></entry>

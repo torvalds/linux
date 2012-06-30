@@ -35,7 +35,7 @@
 #include <linux/sound.h>
 #include <linux/mutex.h>
 
-#define SNDRV_OSS_MINORS 128
+#define SNDRV_OSS_MINORS 256
 
 static struct snd_minor *snd_oss_minors[SNDRV_OSS_MINORS];
 static DEFINE_MUTEX(sound_oss_mutex);
@@ -111,7 +111,7 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 	int register1 = -1, register2 = -1;
 	struct device *carddev = snd_card_get_device_link(card);
 
-	if (card && card->number >= 8)
+	if (card && card->number >= SNDRV_MINOR_OSS_DEVICES)
 		return 0; /* ignore silently */
 	if (minor < 0)
 		return minor;
@@ -170,7 +170,7 @@ int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 	int track2 = -1;
 	struct snd_minor *mptr;
 
-	if (card && card->number >= 8)
+	if (card && card->number >= SNDRV_MINOR_OSS_DEVICES)
 		return 0;
 	if (minor < 0)
 		return minor;

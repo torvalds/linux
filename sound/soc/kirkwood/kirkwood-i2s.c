@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/mbus.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -449,6 +450,14 @@ static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 
 	priv->burst = data->burst;
 
+	priv->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(&pdev->dev, "no clock\n");
+		err = PTR_ERR(priv->clk);
+		goto err_ioremap;
+	}
+	clk_prepare_enable(priv->clk);
+
 	return snd_soc_register_dai(&pdev->dev, &kirkwood_i2s_dai);
 
 err_ioremap:
@@ -466,6 +475,10 @@ static __devexit int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 	struct kirkwood_dma_data *priv = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_dai(&pdev->dev);
+
+	clk_disable_unprepare(priv->clk);
+	clk_put(priv->clk);
+
 	iounmap(priv->io);
 	release_mem_region(priv->mem->start, SZ_16K);
 	kfree(priv);

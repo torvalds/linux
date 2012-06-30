@@ -18,14 +18,6 @@
 #define AFFS_GET_HASHENTRY(data,hashkey) be32_to_cpu(((struct dir_front *)data)->hashtable[hashkey])
 #define AFFS_BLOCK(sb, bh, blk)		(AFFS_HEAD(bh)->table[AFFS_SB(sb)->s_hashsize-1-(blk)])
 
-#ifdef __LITTLE_ENDIAN
-#define BO_EXBITS	0x18UL
-#elif defined(__BIG_ENDIAN)
-#define BO_EXBITS	0x00UL
-#else
-#error Endianness must be known for affs to work.
-#endif
-
 #define AFFS_HEAD(bh)		((struct affs_head *)(bh)->b_data)
 #define AFFS_TAIL(sb, bh)	((struct affs_tail *)((bh)->b_data+(sb)->s_blocksize-sizeof(struct affs_tail)))
 #define AFFS_ROOT_HEAD(bh)	((struct affs_root_head *)(bh)->b_data)

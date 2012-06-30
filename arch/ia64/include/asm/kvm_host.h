@@ -365,6 +365,7 @@ struct thash_cb {
 };
 
 struct kvm_vcpu_stat {
+	u32 halt_wakeup;
 };
 
 struct kvm_vcpu_arch {
@@ -448,6 +449,8 @@ struct kvm_vcpu_arch {
 	char log_buf[VMM_LOG_LEN];
 	union context host;
 	union context guest;
+
+	char mmio_data[8];
 };
 
 struct kvm_vm_stat {

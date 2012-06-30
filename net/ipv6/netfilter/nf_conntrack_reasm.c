@@ -444,12 +444,11 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	return head;
 
 out_oversize:
-	if (net_ratelimit())
-		printk(KERN_DEBUG "nf_ct_frag6_reasm: payload len = %d\n", payload_len);
+	net_dbg_ratelimited("nf_ct_frag6_reasm: payload len = %d\n",
+			    payload_len);
 	goto out_fail;
 out_oom:
-	if (net_ratelimit())
-		printk(KERN_DEBUG "nf_ct_frag6_reasm: no memory for reassembly\n");
+	net_dbg_ratelimited("nf_ct_frag6_reasm: no memory for reassembly\n");
 out_fail:
 	return NULL;
 }
@@ -626,8 +625,8 @@ int nf_ct_frag6_init(void)
 	inet_frags_init(&nf_frags);
 
 #ifdef CONFIG_SYSCTL
-	nf_ct_frag6_sysctl_header = register_sysctl_paths(nf_net_netfilter_sysctl_path,
-							  nf_ct_frag6_sysctl_table);
+	nf_ct_frag6_sysctl_header = register_net_sysctl(&init_net, "net/netfilter",
+							nf_ct_frag6_sysctl_table);
 	if (!nf_ct_frag6_sysctl_header) {
 		inet_frags_fini(&nf_frags);
 		return -ENOMEM;
@@ -640,7 +639,7 @@ int nf_ct_frag6_init(void)
 void nf_ct_frag6_cleanup(void)
 {
 #ifdef CONFIG_SYSCTL
-	unregister_sysctl_table(nf_ct_frag6_sysctl_header);
+	unregister_net_sysctl_table(nf_ct_frag6_sysctl_header);
 	nf_ct_frag6_sysctl_header = NULL;
 #endif
 	inet_frags_fini(&nf_frags);

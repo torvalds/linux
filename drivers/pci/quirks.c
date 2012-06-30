@@ -2626,6 +2626,18 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4374,
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4375,
 			quirk_msi_intx_disable_bug);
 
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1062,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1063,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x2060,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x2062,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1073,
+			quirk_msi_intx_disable_bug);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1083,
+			quirk_msi_intx_disable_bug);
 #endif /* CONFIG_PCI_MSI */
 
 /* Allow manual resource allocation for PCI hotplug bridges
@@ -3085,16 +3097,74 @@ static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 	return 0;
 }
 
+#include "../gpu/drm/i915/i915_reg.h"
+#define MSG_CTL			0x45010
+#define NSDE_PWR_STATE		0xd0100
+#define IGD_OPERATION_TIMEOUT	10000     /* set timeout 10 seconds */
+
+static int reset_ivb_igd(struct pci_dev *dev, int probe)
+{
+	void __iomem *mmio_base;
+	unsigned long timeout;
+	u32 val;
+
+	if (probe)
+		return 0;
+
+	mmio_base = pci_iomap(dev, 0, 0);
+	if (!mmio_base)
+		return -ENOMEM;
+
+	iowrite32(0x00000002, mmio_base + MSG_CTL);
+
+	/*
+	 * Clobbering SOUTH_CHICKEN2 register is fine only if the next
+	 * driver loaded sets the right bits. However, this's a reset and
+	 * the bits have been set by i915 previously, so we clobber
+	 * SOUTH_CHICKEN2 register directly here.
+	 */
+	iowrite32(0x00000005, mmio_base + SOUTH_CHICKEN2);
+
+	val = ioread32(mmio_base + PCH_PP_CONTROL) & 0xfffffffe;
+	iowrite32(val, mmio_base + PCH_PP_CONTROL);
+
+	timeout = jiffies + msecs_to_jiffies(IGD_OPERATION_TIMEOUT);
+	do {
+		val = ioread32(mmio_base + PCH_PP_STATUS);
+		if ((val & 0xb0000000) == 0)
+			goto reset_complete;
+		msleep(10);
+	} while (time_before(jiffies, timeout));
+	dev_warn(&dev->dev, "timeout during reset\n");
+
+reset_complete:
+	iowrite32(0x00000002, mmio_base + NSDE_PWR_STATE);
+
+	pci_iounmap(dev, mmio_base);
+	return 0;
+}
+
 #define PCI_DEVICE_ID_INTEL_82599_SFP_VF   0x10ed
+#define PCI_DEVICE_ID_INTEL_IVB_M_VGA      0x0156
+#define PCI_DEVICE_ID_INTEL_IVB_M2_VGA     0x0166
 
 static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82599_SFP_VF,
 		 reset_intel_82599_sfp_virtfn },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_M_VGA,
+		reset_ivb_igd },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IVB_M2_VGA,
+		reset_ivb_igd },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
 		reset_intel_generic_dev },
 	{ 0 }
 };
 
+/*
+ * These device-specific reset methods are here rather than in a driver
+ * because when a host assigns a device to a guest VM, the host may need
+ * to reset the device but probably doesn't have a driver for it.
+ */
 int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 {
 	const struct pci_dev_reset_methods *i;

@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/tty.h>
+#include <linux/serial_reg.h>
 #include <linux/serial_core.h>
 #include <linux/8250_pci.h>
 #include <linux/bitops.h>
@@ -1092,11 +1093,49 @@ static int skip_tx_en_setup(struct serial_private *priv,
 	return pci_default_setup(priv, board, port, idx);
 }
 
+static void kt_handle_break(struct uart_port *p)
+{
+	struct uart_8250_port *up =
+		container_of(p, struct uart_8250_port, port);
+	/*
+	 * On receipt of a BI, serial device in Intel ME (Intel
+	 * management engine) needs to have its fifos cleared for sane
+	 * SOL (Serial Over Lan) output.
+	 */
+	serial8250_clear_and_reinit_fifos(up);
+}
+
+static unsigned int kt_serial_in(struct uart_port *p, int offset)
+{
+	struct uart_8250_port *up =
+		container_of(p, struct uart_8250_port, port);
+	unsigned int val;
+
+	/*
+	 * When the Intel ME (management engine) gets reset its serial
+	 * port registers could return 0 momentarily.  Functions like
+	 * serial8250_console_write, read and save the IER, perform
+	 * some operation and then restore it.  In order to avoid
+	 * setting IER register inadvertently to 0, if the value read
+	 * is 0, double check with ier value in uart_8250_port and use
+	 * that instead.  up->ier should be the same value as what is
+	 * currently configured.
+	 */
+	val = inb(p->iobase + offset);
+	if (offset == UART_IER) {
+		if (val == 0)
+			val = up->ier;
+	}
+	return val;
+}
+
 static int kt_serial_setup(struct serial_private *priv,
 			   const struct pciserial_board *board,
 			   struct uart_port *port, int idx)
 {
 	port->flags |= UPF_BUG_THRE;
+	port->serial_in = kt_serial_in;
+	port->handle_break = kt_handle_break;
 	return skip_tx_en_setup(priv, board, port, idx);
 }
 
@@ -1609,54 +1648,72 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	{
 		.vendor         = PCI_VENDOR_ID_INTEL,
 		.device         = 0x8811,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = PCI_VENDOR_ID_INTEL,
 		.device         = 0x8812,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = PCI_VENDOR_ID_INTEL,
 		.device         = 0x8813,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = PCI_VENDOR_ID_INTEL,
 		.device         = 0x8814,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x8027,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x8028,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x8029,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x800C,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
 	{
 		.vendor         = 0x10DB,
 		.device         = 0x800D,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
 		.init		= pci_eg20t_init,
 		.setup		= pci_default_setup,
 	},
@@ -2775,6 +2832,12 @@ void pciserial_suspend_ports(struct serial_private *priv)
 	for (i = 0; i < priv->nr; i++)
 		if (priv->line[i] >= 0)
 			serial8250_suspend_port(priv->line[i]);
+
+	/*
+	 * Ensure that every init quirk is properly torn down
+	 */
+	if (priv->quirk->exit)
+		priv->quirk->exit(priv->dev);
 }
 EXPORT_SYMBOL_GPL(pciserial_suspend_ports);
 

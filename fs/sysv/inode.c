@@ -316,7 +316,7 @@ static void sysv_evict_inode(struct inode *inode)
 		sysv_truncate(inode);
 	}
 	invalidate_inode_buffers(inode);
-	end_writeback(inode);
+	clear_inode(inode);
 	if (!inode->i_nlink)
 		sysv_free_inode(inode);
 }

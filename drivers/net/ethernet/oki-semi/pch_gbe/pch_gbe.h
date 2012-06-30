@@ -658,6 +658,7 @@ extern u32 pch_src_uuid_lo_read(struct pci_dev *pdev);
 extern u32 pch_src_uuid_hi_read(struct pci_dev *pdev);
 extern u64 pch_rx_snap_read(struct pci_dev *pdev);
 extern u64 pch_tx_snap_read(struct pci_dev *pdev);
+extern int pch_set_station_address(u8 *addr, struct pci_dev *pdev);
 #endif
 
 /* pch_gbe_param.c */

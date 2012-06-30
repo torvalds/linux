@@ -251,39 +251,40 @@ out_err:
 	return err;
 }
 
-static int lockd_up_net(struct net *net)
+static int lockd_up_net(struct svc_serv *serv, struct net *net)
 {
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
-	struct svc_serv *serv = nlmsvc_rqst->rq_server;
 	int error;
 
-	if (ln->nlmsvc_users)
+	if (ln->nlmsvc_users++)
 		return 0;
 
-	error = svc_rpcb_setup(serv, net);
+	error = svc_bind(serv, net);
 	if (error)
-		goto err_rpcb;
+		goto err_bind;
 
 	error = make_socks(serv, net);
 	if (error < 0)
 		goto err_socks;
+	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
 	return 0;
 
 err_socks:
 	svc_rpcb_cleanup(serv, net);
-err_rpcb:
+err_bind:
+	ln->nlmsvc_users--;
 	return error;
 }
 
-static void lockd_down_net(struct net *net)
+static void lockd_down_net(struct svc_serv *serv, struct net *net)
 {
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
-	struct svc_serv *serv = nlmsvc_rqst->rq_server;
 
 	if (ln->nlmsvc_users) {
 		if (--ln->nlmsvc_users == 0) {
 			nlm_shutdown_hosts_net(net);
 			svc_shutdown_net(serv, net);
+			dprintk("lockd_down_net: per-net data destroyed; net=%p\n", net);
 		}
 	} else {
 		printk(KERN_ERR "lockd_down_net: no users! task=%p, net=%p\n",
@@ -292,22 +293,60 @@ static void lockd_down_net(struct net *net)
 	}
 }
 
-/*
- * Bring up the lockd process if it's not already up.
- */
-int lockd_up(void)
+static int lockd_start_svc(struct svc_serv *serv)
+{
+	int error;
+
+	if (nlmsvc_rqst)
+		return 0;
+
+	/*
+	 * Create the kernel thread and wait for it to start.
+	 */
+	nlmsvc_rqst = svc_prepare_thread(serv, &serv->sv_pools[0], NUMA_NO_NODE);
+	if (IS_ERR(nlmsvc_rqst)) {
+		error = PTR_ERR(nlmsvc_rqst);
+		printk(KERN_WARNING
+			"lockd_up: svc_rqst allocation failed, error=%d\n",
+			error);
+		goto out_rqst;
+	}
+
+	svc_sock_update_bufs(serv);
+	serv->sv_maxconn = nlm_max_connections;
+
+	nlmsvc_task = kthread_run(lockd, nlmsvc_rqst, serv->sv_name);
+	if (IS_ERR(nlmsvc_task)) {
+		error = PTR_ERR(nlmsvc_task);
+		printk(KERN_WARNING
+			"lockd_up: kthread_run failed, error=%d\n", error);
+		goto out_task;
+	}
+	dprintk("lockd_up: service started\n");
+	return 0;
+
+out_task:
+	svc_exit_thread(nlmsvc_rqst);
+	nlmsvc_task = NULL;
+out_rqst:
+	nlmsvc_rqst = NULL;
+	return error;
+}
+
+static struct svc_serv *lockd_create_svc(void)
 {
 	struct svc_serv *serv;
-	int		error = 0;
-	struct net *net = current->nsproxy->net_ns;
 
-	mutex_lock(&nlmsvc_mutex);
 	/*
 	 * Check whether we're already up and running.
 	 */
 	if (nlmsvc_rqst) {
-		error = lockd_up_net(net);
-		goto out;
+		/*
+		 * Note: increase service usage, because later in case of error
+		 * svc_destroy() will be called.
+		 */
+		svc_get(nlmsvc_rqst->rq_server);
+		return nlmsvc_rqst->rq_server;
 	}
 
 	/*
@@ -318,59 +357,53 @@ int lockd_up(void)
 		printk(KERN_WARNING
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
-	error = -ENOMEM;
 	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, NULL);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
-		goto out;
+		return ERR_PTR(-ENOMEM);
+	}
+	dprintk("lockd_up: service created\n");
+	return serv;
+}
+
+/*
+ * Bring up the lockd process if it's not already up.
+ */
+int lockd_up(struct net *net)
+{
+	struct svc_serv *serv;
+	int error;
+
+	mutex_lock(&nlmsvc_mutex);
+
+	serv = lockd_create_svc();
+	if (IS_ERR(serv)) {
+		error = PTR_ERR(serv);
+		goto err_create;
 	}
 
-	error = make_socks(serv, net);
+	error = lockd_up_net(serv, net);
 	if (error < 0)
-		goto destroy_and_out;
+		goto err_net;
 
-	/*
-	 * Create the kernel thread and wait for it to start.
-	 */
-	nlmsvc_rqst = svc_prepare_thread(serv, &serv->sv_pools[0], NUMA_NO_NODE);
-	if (IS_ERR(nlmsvc_rqst)) {
-		error = PTR_ERR(nlmsvc_rqst);
-		nlmsvc_rqst = NULL;
-		printk(KERN_WARNING
-			"lockd_up: svc_rqst allocation failed, error=%d\n",
-			error);
-		goto destroy_and_out;
-	}
+	error = lockd_start_svc(serv);
+	if (error < 0)
+		goto err_start;
 
-	svc_sock_update_bufs(serv);
-	serv->sv_maxconn = nlm_max_connections;
-
-	nlmsvc_task = kthread_run(lockd, nlmsvc_rqst, serv->sv_name);
-	if (IS_ERR(nlmsvc_task)) {
-		error = PTR_ERR(nlmsvc_task);
-		svc_exit_thread(nlmsvc_rqst);
-		nlmsvc_task = NULL;
-		nlmsvc_rqst = NULL;
-		printk(KERN_WARNING
-			"lockd_up: kthread_run failed, error=%d\n", error);
-		goto destroy_and_out;
-	}
-
+	nlmsvc_users++;
 	/*
 	 * Note: svc_serv structures have an initial use count of 1,
 	 * so we exit through here on both success and failure.
 	 */
-destroy_and_out:
+err_net:
 	svc_destroy(serv);
-out:
-	if (!error) {
-		struct lockd_net *ln = net_generic(net, lockd_net_id);
-
-		ln->nlmsvc_users++;
-		nlmsvc_users++;
-	}
+err_create:
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
+
+err_start:
+	lockd_down_net(serv, net);
+	goto err_net;
 }
 EXPORT_SYMBOL_GPL(lockd_up);
 
@@ -378,14 +411,13 @@ EXPORT_SYMBOL_GPL(lockd_up);
  * Decrement the user count and bring down lockd if we're the last.
  */
 void
-lockd_down(void)
+lockd_down(struct net *net)
 {
 	mutex_lock(&nlmsvc_mutex);
+	lockd_down_net(nlmsvc_rqst->rq_server, net);
 	if (nlmsvc_users) {
-		if (--nlmsvc_users) {
-			lockd_down_net(current->nsproxy->net_ns);
+		if (--nlmsvc_users)
 			goto out;
-		}
 	} else {
 		printk(KERN_ERR "lockd_down: no users! task=%p\n",
 			nlmsvc_task);
@@ -397,7 +429,9 @@ lockd_down(void)
 		BUG();
 	}
 	kthread_stop(nlmsvc_task);
+	dprintk("lockd_down: service stopped\n");
 	svc_exit_thread(nlmsvc_rqst);
+	dprintk("lockd_down: service destroyed\n");
 	nlmsvc_task = NULL;
 	nlmsvc_rqst = NULL;
 out:

@@ -9,7 +9,7 @@
  * Many modifications, and currently maintained, by
  *  Philip Blundell <philb@gnu.org>
  * Added the Compaq LTE  Alan Cox <alan@lxorguk.ukuu.org.uk>
- * Added MCA support Adam Fritzler
+ * Added MCA support Adam Fritzler (now deleted)
  *
  * Note - this driver is experimental still - it has problems on faster
  * machines. Someone needs to sit down and go through it line by line with
@@ -111,7 +111,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/mca-legacy.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
@@ -227,16 +226,6 @@ static unsigned short start_code[] = {
 /* maps irq number to EtherExpress magic value */
 static char irqrmap[] = { 0,0,1,2,3,4,0,0,0,1,5,6,0,0,0,0 };
 
-#ifdef CONFIG_MCA_LEGACY
-/* mapping of the first four bits of the second POS register */
-static unsigned short mca_iomap[] = {
-	0x270, 0x260, 0x250, 0x240, 0x230, 0x220, 0x210, 0x200,
-	0x370, 0x360, 0x350, 0x340, 0x330, 0x320, 0x310, 0x300
-};
-/* bits 5-7 of the second POS register */
-static char mca_irqmap[] = { 12, 9, 3, 4, 5, 10, 11, 15 };
-#endif
-
 /*
  * Prototypes for Linux interface
  */
@@ -340,53 +329,6 @@ static int __init do_express_probe(struct net_device *dev)
 
 	dev->if_port = 0xff; /* not set */
 
-#ifdef CONFIG_MCA_LEGACY
-	if (MCA_bus) {
-		int slot = 0;
-
-		/*
-		 * Only find one card at a time.  Subsequent calls
-		 * will find others, however, proper multicard MCA
-		 * probing and setup can't be done with the
-		 * old-style Space.c init routines.  -- ASF
-		 */
-		while (slot != MCA_NOTFOUND) {
-			int pos0, pos1;
-
-			slot = mca_find_unused_adapter(0x628B, slot);
-			if (slot == MCA_NOTFOUND)
-				break;
-
-			pos0 = mca_read_stored_pos(slot, 2);
-			pos1 = mca_read_stored_pos(slot, 3);
-			ioaddr = mca_iomap[pos1&0xf];
-
-			dev->irq = mca_irqmap[(pos1>>4)&0x7];
-
-			/*
-			 * XXX: Transceiver selection is done
-			 * differently on the MCA version.
-			 * How to get it to select something
-			 * other than external/AUI is currently
-			 * unknown.  This code is just for looks. -- ASF
-			 */
-			if ((pos0 & 0x7) == 0x1)
-				dev->if_port = AUI;
-			else if ((pos0 & 0x7) == 0x5) {
-				if (pos1 & 0x80)
-					dev->if_port = BNC;
-				else
-					dev->if_port = TPE;
-			}
-
-			mca_set_adapter_name(slot, "Intel EtherExpress 16 MCA");
-			mca_set_adapter_procfn(slot, NULL, dev);
-			mca_mark_as_used(slot);
-
-			break;
-		}
-	}
-#endif
 	if (ioaddr&0xfe00) {
 		if (!request_region(ioaddr, EEXP_IO_EXTENT, "EtherExpress"))
 			return -EBUSY;

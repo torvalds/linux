@@ -54,7 +54,6 @@ extern struct cpuinfo_frv __nongprelbss boot_cpu_data;
  * Bus types
  */
 #define EISA_bus 0
-#define MCA_bus 0
 
 struct thread_struct {
 	struct pt_regs		*frame;		/* [GR28] exception frame ptr for this thread */
@@ -102,8 +101,6 @@ do {							\
 	__frame->psr	&= ~PSR_S;			\
 	__frame->sp	= (_usp);			\
 } while(0)
-
-extern void prepare_to_copy(struct task_struct *tsk);
 
 /* Free all resources held by a thread. */
 static inline void release_thread(struct task_struct *dead_task)

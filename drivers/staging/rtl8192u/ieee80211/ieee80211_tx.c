@@ -314,7 +314,7 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* s
 	if (!IsQoSDataFrame(skb->data))
 		return;
 
-	if (is_multicast_ether_addr(hdr->addr1) || is_broadcast_ether_addr(hdr->addr1))
+	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 	//check packet and mode later
 #ifdef TO_DO_LIST
@@ -575,7 +575,7 @@ void ieee80211_txrate_selectmode(struct ieee80211_device* ieee, cb_desc* tcb_des
 
 void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u8* dst)
 {
-	if (is_multicast_ether_addr(dst) || is_broadcast_ether_addr(dst))
+	if (is_multicast_ether_addr(dst))
 		return;
 	if (IsQoSDataFrame(skb->data)) //we deal qos data only
 	{
@@ -693,8 +693,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Determine fragmentation size based on destination (multicast
 		* and broadcast are not fragmented) */
-		if (is_multicast_ether_addr(header.addr1) ||
-		is_broadcast_ether_addr(header.addr1)) {
+		if (is_multicast_ether_addr(header.addr1)) {
 			frag_size = MAX_FRAG_THRESHOLD;
 			qos_ctl |= QOS_CTL_NOTCONTAIN_ACK;
 		}

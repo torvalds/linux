@@ -25,13 +25,12 @@ struct task_struct;
  */
 #define TASK_UNMAPPED_BASE      (PAGE_ALIGN(TASK_SIZE / 3))
 
-/* THREAD_SIZE is the size of the task_struct/kernel_stack combo.
+/* THREAD_SIZE is the size of the thread_info/kernel_stack combo.
  * normally, the stack is found by doing something like p + THREAD_SIZE
  * in CRIS, a page is 8192 bytes, which seems like a sane size
  */
-
 #define THREAD_SIZE       PAGE_SIZE
-#define KERNEL_STACK_SIZE PAGE_SIZE
+#define THREAD_SIZE_ORDER (0)
 
 /*
  * At user->kernel entry, the pt_regs struct is stacked on the top of the kernel-stack.
@@ -49,10 +48,6 @@ struct task_struct;
 
 #define task_pt_regs(task) user_regs(task_thread_info(task))
 #define current_regs() task_pt_regs(current)
-
-static inline void prepare_to_copy(struct task_struct *tsk)
-{
-}
 
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 

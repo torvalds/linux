@@ -368,10 +368,7 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 	struct gfs2_jdesc *jd;
 	int rv;
 
-	rv = -ESHUTDOWN;
 	spin_lock(&sdp->sd_jindex_spin);
-	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags))
-		goto out;
 	rv = -EBUSY;
 	if (sdp->sd_jdesc->jd_jid == jid)
 		goto out;
@@ -396,8 +393,13 @@ static ssize_t recover_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	if (rv != 1)
 		return -EINVAL;
 
-	rv = gfs2_recover_set(sdp, jid);
+	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags)) {
+		rv = -ESHUTDOWN;
+		goto out;
+	}
 
+	rv = gfs2_recover_set(sdp, jid);
+out:
 	return rv ? rv : len;
 }
 

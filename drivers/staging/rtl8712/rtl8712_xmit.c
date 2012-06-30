@@ -30,7 +30,6 @@
 
 #include "osdep_service.h"
 #include "drv_types.h"
-#include "rtl871x_byteorder.h"
 #include "wifi.h"
 #include "osdep_intf.h"
 #include "usb_ops.h"

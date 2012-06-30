@@ -41,6 +41,12 @@ config ARCH_R8A7779
 	select ARM_GIC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
+config ARCH_EMEV2
+	bool "Emma Mobile EV2"
+	select CPU_V7
+	select ARM_GIC
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
 comment "SH-Mobile Board Type"
 
 config MACH_G3EVM
@@ -58,6 +64,7 @@ config MACH_AP4EVB
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
 	select SH_LCD_MIPI_DSI
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 
 choice
 	prompt "AP4EVB LCD panel selection"
@@ -82,6 +89,7 @@ config MACH_MACKEREL
 	bool "mackerel board"
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 
 config MACH_KOTA2
 	bool "KOTA2 board"
@@ -93,10 +101,27 @@ config MACH_BONITO
 	select ARCH_REQUIRE_GPIOLIB
 	depends on ARCH_R8A7740
 
+config MACH_ARMADILLO800EVA
+	bool "Armadillo-800 EVA board"
+	depends on ARCH_R8A7740
+	select ARCH_REQUIRE_GPIOLIB
+	select USE_OF
+
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_KZM9D
+	bool "KZM9D board"
+	depends on ARCH_EMEV2
+	select USE_OF
+
+config MACH_KZM9G
+	bool "KZM-A9-GT board"
+	depends on ARCH_SH73A0
+	select ARCH_REQUIRE_GPIOLIB
+	select USE_OF
 
 comment "SH-Mobile System Configuration"
 
@@ -110,7 +135,8 @@ config MEMORY_START
 	hex "Physical memory start address"
 	default "0x50000000" if MACH_G3EVM
 	default "0x40000000" if MACH_G4EVM || MACH_AP4EVB || MACH_AG5EVM || \
-				MACH_MACKEREL || MACH_BONITO
+				MACH_MACKEREL || MACH_BONITO || \
+				MACH_ARMADILLO800EVA
 	default "0x41000000" if MACH_KOTA2
 	default "0x00000000"
 	---help---
@@ -122,7 +148,8 @@ config MEMORY_SIZE
 	hex "Physical memory size"
 	default "0x08000000" if MACH_G3EVM
 	default "0x08000000" if MACH_G4EVM
-	default "0x20000000" if MACH_AG5EVM || MACH_BONITO
+	default "0x20000000" if MACH_AG5EVM || MACH_BONITO || \
+				MACH_ARMADILLO800EVA
 	default "0x1e000000" if MACH_KOTA2
 	default "0x10000000" if MACH_AP4EVB || MACH_MACKEREL
 	default "0x04000000"
@@ -158,6 +185,12 @@ config SH_TIMER_TMU
 	default y
 	help
 	  This enables build of the TMU timer driver.
+
+config EM_TIMER_STI
+	bool "STI timer driver"
+	default y
+	help
+	  This enables build of the STI timer driver.
 
 endmenu
 

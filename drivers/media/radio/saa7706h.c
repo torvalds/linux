@@ -430,7 +430,7 @@ static struct i2c_driver saa7706h_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= saa7706h_probe,
-	.remove		= saa7706h_remove,
+	.remove		= __devexit_p(saa7706h_remove),
 	.id_table	= saa7706h_id,
 };
 

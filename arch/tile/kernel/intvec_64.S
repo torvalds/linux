@@ -220,7 +220,9 @@ intvec_\vecname:
 	 * This routine saves just the first four registers, plus the
 	 * stack context so we can do proper backtracing right away,
 	 * and defers to handle_interrupt to save the rest.
-	 * The backtracer needs pc, ex1, lr, sp, r52, and faultnum.
+	 * The backtracer needs pc, ex1, lr, sp, r52, and faultnum,
+	 * and needs sp set to its final location at the bottom of
+	 * the stack frame.
 	 */
 	addli   r0, r0, PTREGS_OFFSET_LR - (PTREGS_SIZE + KSTK_PTREGS_GAP)
 	wh64    r0   /* cache line 7 */
@@ -450,23 +452,6 @@ intvec_\vecname:
 	push_reg r5, r52
 	st      r52, r4
 
-	/* Load tp with our per-cpu offset. */
-#ifdef CONFIG_SMP
-	{
-	 mfspr  r20, SPR_SYSTEM_SAVE_K_0
-	 moveli r21, hw2_last(__per_cpu_offset)
-	}
-	{
-	 shl16insli r21, r21, hw1(__per_cpu_offset)
-	 bfextu r20, r20, 0, LOG2_THREAD_SIZE-1
-	}
-	shl16insli r21, r21, hw0(__per_cpu_offset)
-	shl3add r20, r20, r21
-	ld      tp, r20
-#else
-	move    tp, zero
-#endif
-
 	/*
 	 * If we will be returning to the kernel, we will need to
 	 * reset the interrupt masks to the state they had before.
@@ -488,6 +473,44 @@ intvec_\vecname:
 	ori     r32, r32, PT_FLAGS_CALLER_SAVES
 	.endif
 	st      r21, r32
+
+	/*
+	 * we've captured enough state to the stack (including in
+	 * particular our EX_CONTEXT state) that we can now release
+	 * the interrupt critical section and replace it with our
+	 * standard "interrupts disabled" mask value.  This allows
+	 * synchronous interrupts (and profile interrupts) to punch
+	 * through from this point onwards.
+	 *
+	 * It's important that no code before this point touch memory
+	 * other than our own stack (to keep the invariant that this
+	 * is all that gets touched under ICS), and that no code after
+	 * this point reference any interrupt-specific SPR, in particular
+	 * the EX_CONTEXT_K_ values.
+	 */
+	.ifc \function,handle_nmi
+	IRQ_DISABLE_ALL(r20)
+	.else
+	IRQ_DISABLE(r20, r21)
+	.endif
+	mtspr   INTERRUPT_CRITICAL_SECTION, zero
+
+	/* Load tp with our per-cpu offset. */
+#ifdef CONFIG_SMP
+	{
+	 mfspr  r20, SPR_SYSTEM_SAVE_K_0
+	 moveli r21, hw2_last(__per_cpu_offset)
+	}
+	{
+	 shl16insli r21, r21, hw1(__per_cpu_offset)
+	 bfextu r20, r20, 0, LOG2_THREAD_SIZE-1
+	}
+	shl16insli r21, r21, hw0(__per_cpu_offset)
+	shl3add r20, r20, r21
+	ld      tp, r20
+#else
+	move    tp, zero
+#endif
 
 #ifdef __COLLECT_LINKER_FEEDBACK__
 	/*
@@ -511,21 +534,6 @@ intvec_\vecname:
 	/* And now notify the feedback routines that we are here. */
 	FEEDBACK_ENTER(\function)
 #endif
-
-	/*
-	 * we've captured enough state to the stack (including in
-	 * particular our EX_CONTEXT state) that we can now release
-	 * the interrupt critical section and replace it with our
-	 * standard "interrupts disabled" mask value.  This allows
-	 * synchronous interrupts (and profile interrupts) to punch
-	 * through from this point onwards.
-	 */
-	.ifc \function,handle_nmi
-	IRQ_DISABLE_ALL(r20)
-	.else
-	IRQ_DISABLE(r20, r21)
-	.endif
-	mtspr   INTERRUPT_CRITICAL_SECTION, zero
 
 	/*
 	 * Prepare the first 256 stack bytes to be rapidly accessible
@@ -736,9 +744,10 @@ STD_ENTRY(interrupt_return)
 	beqzt   r30, .Lrestore_regs
 	j       3f
 2:	TRACE_IRQS_ON
+	IRQ_ENABLE_LOAD(r20, r21)
 	movei   r0, 1
 	mtspr   INTERRUPT_CRITICAL_SECTION, r0
-	IRQ_ENABLE(r20, r21)
+	IRQ_ENABLE_APPLY(r20, r21)
 	beqzt   r30, .Lrestore_regs
 3:
 
@@ -755,7 +764,6 @@ STD_ENTRY(interrupt_return)
 	 * that will save some cycles if this turns out to be a syscall.
 	 */
 .Lrestore_regs:
-	FEEDBACK_REENTER(interrupt_return)   /* called from elsewhere */
 
 	/*
 	 * Rotate so we have one high bit and one low bit to test.
@@ -1249,7 +1257,7 @@ STD_ENTRY(fill_ra_stack)
 	int_hand     INT_UNALIGN_DATA, UNALIGN_DATA, int_unalign
 	int_hand     INT_DTLB_MISS, DTLB_MISS, do_page_fault
 	int_hand     INT_DTLB_ACCESS, DTLB_ACCESS, do_page_fault
-	int_hand     INT_IDN_FIREWALL, IDN_FIREWALL, bad_intr
+	int_hand     INT_IDN_FIREWALL, IDN_FIREWALL, do_hardwall_trap
 	int_hand     INT_UDN_FIREWALL, UDN_FIREWALL, do_hardwall_trap
 	int_hand     INT_TILE_TIMER, TILE_TIMER, do_timer_interrupt
 	int_hand     INT_IDN_TIMER, IDN_TIMER, bad_intr

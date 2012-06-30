@@ -76,6 +76,8 @@
 #define USB_PORT_FEAT_C_BH_PORT_RESET		29
 #define USB_PORT_FEAT_FORCE_LINKPM_ACCEPT	30
 
+#define USB_PORT_LPM_TIMEOUT(p)			(((p) & 0xff) << 8)
+
 /* USB 3.0 hub remote wake mask bits, see table 10-14 */
 #define USB_PORT_FEAT_REMOTE_WAKE_CONNECT	(1 << 8)
 #define USB_PORT_FEAT_REMOTE_WAKE_DISCONNECT	(1 << 9)

@@ -46,7 +46,7 @@ static void dump_hci_status(struct usb_hcd *hcd, const char *label)
 {
 	unsigned long status = sa1111_readl(hcd->regs + USB_STATUS);
 
-	dbg("%s USB_STATUS = { %s%s%s%s%s}", label,
+	printk(KERN_DEBUG "%s USB_STATUS = { %s%s%s%s%s}\n", label,
 	     ((status & USB_STATUS_IRQHCIRMTWKUP) ? "IRQHCIRMTWKUP " : ""),
 	     ((status & USB_STATUS_IRQHCIBUFFACC) ? "IRQHCIBUFFACC " : ""),
 	     ((status & USB_STATUS_NIRQHCIM) ? "" : "IRQHCIM "),
@@ -193,7 +193,7 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 	hcd->rsrc_len = resource_size(&dev->res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		dbg("request_mem_region failed");
+		dev_dbg(&dev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
 		goto err1;
 	}

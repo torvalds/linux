@@ -56,7 +56,7 @@
 
 #define DRV_EXTRAVERSION "-k"
 
-#define DRV_VERSION "1.9.5" DRV_EXTRAVERSION
+#define DRV_VERSION "2.0.0" DRV_EXTRAVERSION
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -79,6 +79,7 @@ static const struct e1000_info *e1000_info_tbl[] = {
 	[board_ich10lan]	= &e1000_ich10_info,
 	[board_pchlan]		= &e1000_pch_info,
 	[board_pch2lan]		= &e1000_pch2_info,
+	[board_pch_lpt]		= &e1000_pch_lpt_info,
 };
 
 struct e1000_reg_info {
@@ -110,14 +111,14 @@ static const struct e1000_reg_info e1000_reg_info_tbl[] = {
 
 	/* Rx Registers */
 	{E1000_RCTL, "RCTL"},
-	{E1000_RDLEN, "RDLEN"},
-	{E1000_RDH, "RDH"},
-	{E1000_RDT, "RDT"},
+	{E1000_RDLEN(0), "RDLEN"},
+	{E1000_RDH(0), "RDH"},
+	{E1000_RDT(0), "RDT"},
 	{E1000_RDTR, "RDTR"},
 	{E1000_RXDCTL(0), "RXDCTL"},
 	{E1000_ERT, "ERT"},
-	{E1000_RDBAL, "RDBAL"},
-	{E1000_RDBAH, "RDBAH"},
+	{E1000_RDBAL(0), "RDBAL"},
+	{E1000_RDBAH(0), "RDBAH"},
 	{E1000_RDFH, "RDFH"},
 	{E1000_RDFT, "RDFT"},
 	{E1000_RDFHS, "RDFHS"},
@@ -126,11 +127,11 @@ static const struct e1000_reg_info e1000_reg_info_tbl[] = {
 
 	/* Tx Registers */
 	{E1000_TCTL, "TCTL"},
-	{E1000_TDBAL, "TDBAL"},
-	{E1000_TDBAH, "TDBAH"},
-	{E1000_TDLEN, "TDLEN"},
-	{E1000_TDH, "TDH"},
-	{E1000_TDT, "TDT"},
+	{E1000_TDBAL(0), "TDBAL"},
+	{E1000_TDBAH(0), "TDBAH"},
+	{E1000_TDLEN(0), "TDLEN"},
+	{E1000_TDH(0), "TDH"},
+	{E1000_TDT(0), "TDT"},
 	{E1000_TIDV, "TIDV"},
 	{E1000_TXDCTL(0), "TXDCTL"},
 	{E1000_TADV, "TADV"},
@@ -538,43 +539,15 @@ static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
 	adapter->hw_csum_good++;
 }
 
-/**
- * e1000e_update_tail_wa - helper function for e1000e_update_[rt]dt_wa()
- * @hw: pointer to the HW structure
- * @tail: address of tail descriptor register
- * @i: value to write to tail descriptor register
- *
- * When updating the tail register, the ME could be accessing Host CSR
- * registers at the same time.  Normally, this is handled in h/w by an
- * arbiter but on some parts there is a bug that acknowledges Host accesses
- * later than it should which could result in the descriptor register to
- * have an incorrect value.  Workaround this by checking the FWSM register
- * which has bit 24 set while ME is accessing Host CSR registers, wait
- * if it is set and try again a number of times.
- **/
-static inline s32 e1000e_update_tail_wa(struct e1000_hw *hw, void __iomem *tail,
-					unsigned int i)
-{
-	unsigned int j = 0;
-
-	while ((j++ < E1000_ICH_FWSM_PCIM2PCI_COUNT) &&
-	       (er32(FWSM) & E1000_ICH_FWSM_PCIM2PCI))
-		udelay(50);
-
-	writel(i, tail);
-
-	if ((j == E1000_ICH_FWSM_PCIM2PCI_COUNT) && (i != readl(tail)))
-		return E1000_ERR_SWFW_SYNC;
-
-	return 0;
-}
-
 static void e1000e_update_rdt_wa(struct e1000_ring *rx_ring, unsigned int i)
 {
 	struct e1000_adapter *adapter = rx_ring->adapter;
 	struct e1000_hw *hw = &adapter->hw;
+	s32 ret_val = __ew32_prepare(hw);
 
-	if (e1000e_update_tail_wa(hw, rx_ring->tail, i)) {
+	writel(i, rx_ring->tail);
+
+	if (unlikely(!ret_val && (i != readl(rx_ring->tail)))) {
 		u32 rctl = er32(RCTL);
 		ew32(RCTL, rctl & ~E1000_RCTL_EN);
 		e_err("ME firmware caused invalid RDT - resetting\n");
@@ -586,8 +559,11 @@ static void e1000e_update_tdt_wa(struct e1000_ring *tx_ring, unsigned int i)
 {
 	struct e1000_adapter *adapter = tx_ring->adapter;
 	struct e1000_hw *hw = &adapter->hw;
+	s32 ret_val = __ew32_prepare(hw);
 
-	if (e1000e_update_tail_wa(hw, tx_ring->tail, i)) {
+	writel(i, tx_ring->tail);
+
+	if (unlikely(!ret_val && (i != readl(tx_ring->tail)))) {
 		u32 tctl = er32(TCTL);
 		ew32(TCTL, tctl & ~E1000_TCTL_EN);
 		e_err("ME firmware caused invalid TDT - resetting\n");
@@ -1053,7 +1029,8 @@ static void e1000_print_hw_hang(struct work_struct *work)
 
 	if (!adapter->tx_hang_recheck &&
 	    (adapter->flags2 & FLAG2_DMA_BURST)) {
-		/* May be block on write-back, flush and detect again
+		/*
+		 * May be block on write-back, flush and detect again
 		 * flush pending descriptor writebacks to memory
 		 */
 		ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
@@ -1108,6 +1085,10 @@ static void e1000_print_hw_hang(struct work_struct *work)
 	      phy_1000t_status,
 	      phy_ext_status,
 	      pci_status);
+
+	/* Suggest workaround for known h/w issue */
+	if ((hw->mac.type == e1000_pchlan) && (er32(CTRL) & E1000_CTRL_TFCE))
+		e_err("Try turning off Tx pause (flow control) via ethtool\n");
 }
 
 /**
@@ -1645,7 +1626,10 @@ static void e1000_clean_rx_ring(struct e1000_ring *rx_ring)
 	adapter->flags2 &= ~FLAG2_IS_DISCARDING;
 
 	writel(0, rx_ring->head);
-	writel(0, rx_ring->tail);
+	if (rx_ring->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+		e1000e_update_rdt_wa(rx_ring, 0);
+	else
+		writel(0, rx_ring->tail);
 }
 
 static void e1000e_downshift_workaround(struct work_struct *work)
@@ -2318,7 +2302,10 @@ static void e1000_clean_tx_ring(struct e1000_ring *tx_ring)
 	tx_ring->next_to_clean = 0;
 
 	writel(0, tx_ring->head);
-	writel(0, tx_ring->tail);
+	if (tx_ring->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+		e1000e_update_tdt_wa(tx_ring, 0);
+	else
+		writel(0, tx_ring->tail);
 }
 
 /**
@@ -2530,33 +2517,31 @@ err:
 }
 
 /**
- * e1000_clean - NAPI Rx polling callback
+ * e1000e_poll - NAPI Rx polling callback
  * @napi: struct associated with this polling callback
- * @budget: amount of packets driver is allowed to process this poll
+ * @weight: number of packets driver is allowed to process this poll
  **/
-static int e1000_clean(struct napi_struct *napi, int budget)
+static int e1000e_poll(struct napi_struct *napi, int weight)
 {
-	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter, napi);
+	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter,
+						     napi);
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *poll_dev = adapter->netdev;
 	int tx_cleaned = 1, work_done = 0;
 
 	adapter = netdev_priv(poll_dev);
 
-	if (adapter->msix_entries &&
-	    !(adapter->rx_ring->ims_val & adapter->tx_ring->ims_val))
-		goto clean_rx;
+	if (!adapter->msix_entries ||
+	    (adapter->rx_ring->ims_val & adapter->tx_ring->ims_val))
+		tx_cleaned = e1000_clean_tx_irq(adapter->tx_ring);
 
-	tx_cleaned = e1000_clean_tx_irq(adapter->tx_ring);
-
-clean_rx:
-	adapter->clean_rx(adapter->rx_ring, &work_done, budget);
+	adapter->clean_rx(adapter->rx_ring, &work_done, weight);
 
 	if (!tx_cleaned)
-		work_done = budget;
+		work_done = weight;
 
-	/* If budget not fully consumed, exit the polling mode */
-	if (work_done < budget) {
+	/* If weight not fully consumed, exit the polling mode */
+	if (work_done < weight) {
 		if (adapter->itr_setting & 3)
 			e1000_set_itr(adapter);
 		napi_complete(napi);
@@ -2800,13 +2785,13 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	tdba = tx_ring->dma;
 	tdlen = tx_ring->count * sizeof(struct e1000_tx_desc);
-	ew32(TDBAL, (tdba & DMA_BIT_MASK(32)));
-	ew32(TDBAH, (tdba >> 32));
-	ew32(TDLEN, tdlen);
-	ew32(TDH, 0);
-	ew32(TDT, 0);
-	tx_ring->head = adapter->hw.hw_addr + E1000_TDH;
-	tx_ring->tail = adapter->hw.hw_addr + E1000_TDT;
+	ew32(TDBAL(0), (tdba & DMA_BIT_MASK(32)));
+	ew32(TDBAH(0), (tdba >> 32));
+	ew32(TDLEN(0), tdlen);
+	ew32(TDH(0), 0);
+	ew32(TDT(0), 0);
+	tx_ring->head = adapter->hw.hw_addr + E1000_TDH(0);
+	tx_ring->tail = adapter->hw.hw_addr + E1000_TDT(0);
 
 	/* Set the Tx Interrupt Delay register */
 	ew32(TIDV, adapter->tx_int_delay);
@@ -2879,8 +2864,8 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	u32 rctl, rfctl;
 	u32 pages = 0;
 
-	/* Workaround Si errata on 82579 - configure jumbo frame flow */
-	if (hw->mac.type == e1000_pch2lan) {
+	/* Workaround Si errata on PCHx - configure jumbo frame flow */
+	if (hw->mac.type >= e1000_pch2lan) {
 		s32 ret_val;
 
 		if (adapter->netdev->mtu > ETH_DATA_LEN)
@@ -2955,6 +2940,7 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	/* Enable Extended Status in all Receive Descriptors */
 	rfctl = er32(RFCTL);
 	rfctl |= E1000_RFCTL_EXTEN;
+	ew32(RFCTL, rfctl);
 
 	/*
 	 * 82571 and greater support packet-split where the protocol
@@ -2979,13 +2965,6 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 
 	if (adapter->rx_ps_pages) {
 		u32 psrctl = 0;
-
-		/*
-		 * disable packet split support for IPv6 extension headers,
-		 * because some malformed IPv6 headers can hang the Rx
-		 */
-		rfctl |= (E1000_RFCTL_IPV6_EX_DIS |
-			  E1000_RFCTL_NEW_IPV6_EXT_DIS);
 
 		/* Enable Packet split descriptors */
 		rctl |= E1000_RCTL_DTYP_PS;
@@ -3025,7 +3004,6 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 		 */
 	}
 
-	ew32(RFCTL, rfctl);
 	ew32(RCTL, rctl);
 	/* just started the receive unit, no need to restart */
 	adapter->flags &= ~FLAG_RX_RESTART_NOW;
@@ -3110,13 +3088,13 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	 * the Base and Length of the Rx Descriptor Ring
 	 */
 	rdba = rx_ring->dma;
-	ew32(RDBAL, (rdba & DMA_BIT_MASK(32)));
-	ew32(RDBAH, (rdba >> 32));
-	ew32(RDLEN, rdlen);
-	ew32(RDH, 0);
-	ew32(RDT, 0);
-	rx_ring->head = adapter->hw.hw_addr + E1000_RDH;
-	rx_ring->tail = adapter->hw.hw_addr + E1000_RDT;
+	ew32(RDBAL(0), (rdba & DMA_BIT_MASK(32)));
+	ew32(RDBAH(0), (rdba >> 32));
+	ew32(RDLEN(0), rdlen);
+	ew32(RDH(0), 0);
+	ew32(RDT(0), 0);
+	rx_ring->head = adapter->hw.hw_addr + E1000_RDH(0);
+	rx_ring->tail = adapter->hw.hw_addr + E1000_RDT(0);
 
 	/* Enable Receive Checksum Offload for TCP and UDP */
 	rxcsum = er32(RXCSUM);
@@ -3229,7 +3207,7 @@ static int e1000e_write_uc_addr_list(struct net_device *netdev)
 		netdev_for_each_uc_addr(ha, netdev) {
 			if (!rar_entries)
 				break;
-			e1000e_rar_set(hw, ha->addr, rar_entries--);
+			hw->mac.ops.rar_set(hw, ha->addr, rar_entries--);
 			count++;
 		}
 	}
@@ -3510,6 +3488,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		fc->refresh_time = 0x1000;
 		break;
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		fc->high_water = 0x05C20;
 		fc->low_water = 0x05048;
 		fc->pause_time = 0x0650;
@@ -4038,6 +4017,7 @@ static int e1000_close(struct net_device *netdev)
 static int e1000_set_mac(struct net_device *netdev, void *p)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -4046,7 +4026,7 @@ static int e1000_set_mac(struct net_device *netdev, void *p)
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(adapter->hw.mac.addr, addr->sa_data, netdev->addr_len);
 
-	e1000e_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+	hw->mac.ops.rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	if (adapter->flags & FLAG_RESET_OVERWRITES_LAA) {
 		/* activate the work around */
@@ -4060,9 +4040,8 @@ static int e1000_set_mac(struct net_device *netdev, void *p)
 		 * are dropped. Eventually the LAA will be in RAR[0] and
 		 * RAR[14]
 		 */
-		e1000e_rar_set(&adapter->hw,
-			      adapter->hw.mac.addr,
-			      adapter->hw.mac.rar_entry_count - 1);
+		hw->mac.ops.rar_set(&adapter->hw, adapter->hw.mac.addr,
+				    adapter->hw.mac.rar_entry_count - 1);
 	}
 
 	return 0;
@@ -4641,7 +4620,7 @@ link_up:
 	 * reset from the other port. Set the appropriate LAA in RAR[0]
 	 */
 	if (e1000e_get_laa_state_82571(hw))
-		e1000e_rar_set(hw, adapter->hw.mac.addr, 0);
+		hw->mac.ops.rar_set(hw, adapter->hw.mac.addr, 0);
 
 	if (adapter->flags2 & FLAG2_CHECK_PHY_HANG)
 		e1000e_check_82574_phy_workaround(adapter);
@@ -5151,6 +5130,8 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	/* if count is 0 then mapping error has occurred */
 	count = e1000_tx_map(tx_ring, skb, first, max_per_txd, nr_frags, mss);
 	if (count) {
+		skb_tx_timestamp(skb);
+
 		netdev_sent_queue(netdev, skb->len);
 		e1000_tx_queue(tx_ring, tx_flags, count);
 		/* Make sure there is space in the ring for the next send. */
@@ -5285,20 +5266,12 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
-	/* Jumbo frame workaround on 82579 requires CRC be stripped */
-	if ((adapter->hw.mac.type == e1000_pch2lan) &&
+	/* Jumbo frame workaround on 82579 and newer requires CRC be stripped */
+	if ((adapter->hw.mac.type >= e1000_pch2lan) &&
 	    !(adapter->flags2 & FLAG2_CRC_STRIPPING) &&
 	    (new_mtu > ETH_DATA_LEN)) {
-		e_err("Jumbo Frames not supported on 82579 when CRC stripping is disabled.\n");
+		e_err("Jumbo Frames not supported on this device when CRC stripping is disabled.\n");
 		return -EINVAL;
-	}
-
-	/* 82573 Errata 17 */
-	if (((adapter->hw.mac.type == e1000_82573) ||
-	     (adapter->hw.mac.type == e1000_82574)) &&
-	    (max_frame > ETH_FRAME_LEN + ETH_FCS_LEN)) {
-		adapter->flags2 |= FLAG2_DISABLE_ASPM_L1;
-		e1000e_disable_aspm(adapter->pdev, PCIE_LINK_STATE_L1);
 	}
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
@@ -5694,7 +5667,7 @@ static int __e1000_resume(struct pci_dev *pdev)
 			return err;
 	}
 
-	if (hw->mac.type == e1000_pch2lan)
+	if (hw->mac.type >= e1000_pch2lan)
 		e1000_resume_workarounds_pchlan(&adapter->hw);
 
 	e1000e_power_up_phy(adapter);
@@ -6226,7 +6199,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	netdev->netdev_ops		= &e1000e_netdev_ops;
 	e1000e_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo		= 5 * HZ;
-	netif_napi_add(netdev, &adapter->napi, e1000_clean, 64);
+	netif_napi_add(netdev, &adapter->napi, e1000e_poll, 64);
 	strlcpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
 
 	netdev->mem_start = mmio_start;
@@ -6592,6 +6565,9 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_LM), board_pch2lan },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_V), board_pch2lan },
+
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_LM), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_V), board_pch_lpt },
 
 	{ 0, 0, 0, 0, 0, 0, 0 }	/* terminate list */
 };

@@ -106,6 +106,19 @@ config UCB1400_CORE
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_core.
 
+config MFD_LM3533
+	tristate "LM3533 Lighting Power chip"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say yes here to enable support for National Semiconductor / TI
+	  LM3533 Lighting Power chips.
+
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the LED,
+	  backlight or ambient-light-sensor functionality of the device.
+
 config TPS6105X
 	tristate "TPS61050/61052 Boost Converters"
 	depends on I2C
@@ -162,6 +175,7 @@ config MFD_TPS6586X
 	bool "TPS6586x Power Management chips"
 	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
 	select MFD_CORE
+	depends on REGULATOR
 	help
 	  If you say yes here you get support for the TPS6586X series of
 	  Power Management chips.
@@ -176,8 +190,8 @@ config MFD_TPS65910
 	bool "TPS65910 Power Management chip"
 	depends on I2C=y && GPIOLIB
 	select MFD_CORE
-	select GPIO_TPS65910
 	select REGMAP_I2C
+	select IRQ_DOMAIN
 	help
 	  if you say yes here you get support for the TPS65910 series of
 	  Power Management chips.
@@ -408,13 +422,26 @@ config PMIC_ADP5520
 	  individual components like LCD backlight, LEDs, GPIOs and Kepad
 	  under the corresponding menus.
 
+config MFD_MAX77693
+	bool "Maxim Semiconductor MAX77693 PMIC Support"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say yes here to support for Maxim Semiconductor MAX77693.
+	  This is a companion Power Management IC with Flash, Haptic, Charger,
+	  and MUIC(Micro USB Interface Controller) controls on chip.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 config MFD_MAX8925
 	bool "Maxim Semiconductor MAX8925 PMIC Support"
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8925. This is
-	  a Power Management IC. This driver provies common support for
+	  a Power Management IC. This driver provides common support for
 	  accessing the device, additional drivers must be enabled in order
 	  to use the functionality of the device.
 
@@ -437,7 +464,7 @@ config MFD_MAX8998
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8998 and
 	  National Semiconductor LP3974. This is a Power Management IC.
-	  This driver provies common support for accessing the device,
+	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
@@ -448,14 +475,14 @@ config MFD_S5M_CORE
 	select REGMAP_I2C
 	help
 	 Support for the Samsung Electronics S5M MFD series.
-	 This driver provies common support for accessing the device,
+	 This driver provides common support for accessing the device,
 	 additional drivers must be enabled in order to use the functionality
 	 of the device
 
 config MFD_WM8400
-	tristate "Support Wolfson Microelectronics WM8400"
+	bool "Support Wolfson Microelectronics WM8400"
 	select MFD_CORE
-	depends on I2C
+	depends on I2C=y
 	select REGMAP_I2C
 	help
 	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
@@ -472,6 +499,7 @@ config MFD_WM831X_I2C
 	select MFD_CORE
 	select MFD_WM831X
 	select REGMAP_I2C
+	select IRQ_DOMAIN
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
@@ -484,6 +512,7 @@ config MFD_WM831X_SPI
 	select MFD_CORE
 	select MFD_WM831X
 	select REGMAP_SPI
+	select IRQ_DOMAIN
 	depends on SPI_MASTER && GENERIC_HARDIRQS
 	help
 	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
@@ -596,16 +625,31 @@ config MFD_MC13783
 	tristate
 
 config MFD_MC13XXX
-	tristate "Support Freescale MC13783 and MC13892"
-	depends on SPI_MASTER
+	tristate
+	depends on SPI_MASTER || I2C
 	select MFD_CORE
 	select MFD_MC13783
 	help
-	  Support for the Freescale (Atlas) PMIC and audio CODECs
-	  MC13783 and MC13892.
-	  This driver provides common support for accessing  the device,
+	  Enable support for the Freescale MC13783 and MC13892 PMICs.
+	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
+
+config MFD_MC13XXX_SPI
+	tristate "Freescale MC13783 and MC13892 SPI interface"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	select MFD_MC13XXX
+	help
+	  Select this if your MC13xxx is connected via an SPI bus.
+
+config MFD_MC13XXX_I2C
+	tristate "Freescale MC13892 I2C interface"
+	depends on I2C
+	select REGMAP_I2C
+	select MFD_MC13XXX
+	help
+	  Select this if your MC13xxx is connected via an I2C bus.
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
@@ -648,26 +692,9 @@ config EZX_PCAP
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
 
-config AB5500_CORE
-	bool "ST-Ericsson AB5500 Mixed Signal Power Management chip"
-	depends on ABX500_CORE && MFD_DB5500_PRCMU
-	select MFD_CORE
-	help
-	  Select this option to enable access to AB5500 power management
-	  chip. This connects to the db5500 chip via the I2C bus via PRCMU.
-	  This chip embeds various other multimedia funtionalities as well.
-
-config AB5500_DEBUG
-	bool "Enable debug info via debugfs"
-	depends on AB5500_CORE && DEBUG_FS
-	default y if DEBUG_FS
-	help
-	  Select this option if you want debug information from the AB5500
-	  using the debug filesystem, debugfs.
-
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
-	depends on GENERIC_HARDIRQS && ABX500_CORE
+	depends on GENERIC_HARDIRQS && ABX500_CORE && MFD_DB8500_PRCMU
 	select MFD_CORE
 	help
 	  Select this option to enable access to AB8500 power management
@@ -711,16 +738,6 @@ config MFD_DB8500_PRCMU
 	  system controller running an XP70 microprocessor, which is accessed
 	  through a register map.
 
-config MFD_DB5500_PRCMU
-	bool "ST-Ericsson DB5500 Power Reset Control Management Unit"
-	depends on UX500_SOC_DB5500
-	select MFD_CORE
-	help
-	  Select this option to enable support for the DB5500 Power Reset
-	  and Control Management Unit. This is basically an autonomous
-	  system controller running an XP70 microprocessor, which is accessed
-	  through a register map.
-
 config MFD_CS5535
 	tristate "Support for CS5535 and CS5536 southbridge core functions"
 	select MFD_CORE
@@ -747,6 +764,16 @@ config LPC_SCH
 	help
 	  LPC bridge function of the Intel SCH provides support for
 	  System Management Bus and General Purpose I/O.
+
+config LPC_ICH
+	tristate "Intel ICH LPC"
+	depends on PCI
+	select MFD_CORE
+	help
+	  The LPC bridge function of the Intel ICH provides support for
+	  many functional units. This driver provides needed support for
+	  other drivers to control these functions, currently GPIO and
+	  watchdog.
 
 config MFD_RDC321X
 	tristate "Support for RDC-R321x southbridge"
@@ -880,6 +907,11 @@ config MFD_RC5T583
 	  Additional drivers must be enabled in order to use the
 	  different functionality of the device.
 
+config MFD_STA2X11
+	bool "STA2X11 multi function device support"
+	depends on STA2X11
+	select MFD_CORE
+
 config MFD_ANATOP
 	bool "Support for Freescale i.MX on-chip ANATOP controller"
 	depends on SOC_IMX6Q
@@ -887,6 +919,16 @@ config MFD_ANATOP
 	  Select this option to enable Freescale i.MX on-chip ANATOP
 	  MFD controller. This controller embeds regulator and
 	  thermal devices for Freescale i.MX platforms.
+
+config MFD_PALMAS
+	bool "Support for the TI Palmas series chips"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C=y
+	help
+	  If you say yes here you get support for the Palmas
+	  series of PMIC chips from Texas Instruments.
 
 endmenu
 endif

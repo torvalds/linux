@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
+#include <linux/prefetch.h>
 
 #include "qib.h"
 
@@ -481,8 +482,10 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 			etail = qib_hdrget_index(rhf_addr);
 			updegr = 1;
 			if (tlen > sizeof(*hdr) ||
-			    etype >= RCVHQ_RCV_TYPE_NON_KD)
+			    etype >= RCVHQ_RCV_TYPE_NON_KD) {
 				ebuf = qib_get_egrbuf(rcd, etail);
+				prefetch_range(ebuf, tlen - sizeof(*hdr));
+			}
 		}
 		if (!eflags) {
 			u16 lrh_len = be16_to_cpu(hdr->lrh[2]) << 2;

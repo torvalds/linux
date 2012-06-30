@@ -8,6 +8,7 @@ config MIPS
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
+	select ARCH_HAVE_CUSTOM_GPIO_H
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_DYNAMIC_FTRACE
@@ -29,6 +30,10 @@ config MIPS
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select ARCH_DISCARD_MEMBLOCK
+	select GENERIC_SMP_IDLE_THREAD
+	select BUILDTIME_EXTABLE_SORT
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CMOS_UPDATE
 
 menu "Machine selection"
 
@@ -228,8 +233,9 @@ config LANTIQ
 	select ARCH_REQUIRE_GPIOLIB
 	select SWAP_IO_SPACE
 	select BOOT_RAW
-	select HAVE_CLK
-	select MIPS_MACHINE
+	select HAVE_MACH_CLKDEV
+	select CLKDEV_LOOKUP
+	select USE_OF
 
 config LASAT
 	bool "LASAT Networks platforms"
@@ -856,14 +862,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config GENERIC_CLOCKEVENTS
-	bool
-	default y
-
-config GENERIC_CMOS_UPDATE
-	bool
-	default y
-
 config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
@@ -1001,12 +999,12 @@ config HOLES_IN_ZONE
 	bool
 
 #
-# Endianess selection.  Sufficiently obscure so many users don't know what to
+# Endianness selection.  Sufficiently obscure so many users don't know what to
 # answer,so we try hard to limit the available choices.  Also the use of a
 # choice statement should be more obvious to the user.
 #
 choice
-	prompt "Endianess selection"
+	prompt "Endianness selection"
 	help
 	  Some MIPS machines can be configured for either little or big endian
 	  byte order. These modes require different kernels and a different
@@ -1786,10 +1784,12 @@ endchoice
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
-	range 13 64 if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_32KB
-	default "13" if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_32KB
-	range 12 64 if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_16KB
-	default "12" if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_16KB
+	range 14 64 if HUGETLB_PAGE && PAGE_SIZE_64KB
+	default "14" if HUGETLB_PAGE && PAGE_SIZE_64KB
+	range 13 64 if HUGETLB_PAGE && PAGE_SIZE_32KB
+	default "13" if HUGETLB_PAGE && PAGE_SIZE_32KB
+	range 12 64 if HUGETLB_PAGE && PAGE_SIZE_16KB
+	default "12" if HUGETLB_PAGE && PAGE_SIZE_16KB
 	range 11 64
 	default "11"
 	help
@@ -2050,9 +2050,6 @@ config CPU_HAS_SYNC
 	depends on !CPU_R3000
 	default y
 
-config GENERIC_CLOCKEVENTS_BROADCAST
-	bool
-
 #
 # CPU non-features
 #
@@ -2213,8 +2210,6 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
-
-source "kernel/time/Kconfig"
 
 #
 # Timer Interrupt Frequency Configuration

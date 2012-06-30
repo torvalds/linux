@@ -150,7 +150,6 @@ static int vidioc_querycap(struct file *file, void *fh,
 	strcpy(cap->driver, "tele-video");
 	strcpy(cap->card, "Telegent Poseidon");
 	usb_make_path(p->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->version = KERNEL_VERSION(0, 0, 1);
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
 				V4L2_CAP_AUDIO | V4L2_CAP_STREAMING |
 				V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;

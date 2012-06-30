@@ -16,6 +16,7 @@
 #include <linux/spi/spi.h>
 #include <plat/mcspi.h>
 #include <video/omapdss.h>
+#include <mach/board-zoom.h>
 
 #define LCD_PANEL_RESET_GPIO_PROD	96
 #define LCD_PANEL_RESET_GPIO_PILOT	55

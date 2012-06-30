@@ -152,7 +152,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 		case IPPROTO_AH:
 			if (pskb_may_pull(skb, xprth + 8 - skb->data)) {
-				__be32 *ah_hdr = (__be32*)xprth;
+				__be32 *ah_hdr = (__be32 *)xprth;
 
 				fl4->fl4_ipsec_spi = ah_hdr[1];
 			}
@@ -298,8 +298,8 @@ void __init xfrm4_init(int rt_max_size)
 	xfrm4_state_init();
 	xfrm4_policy_init();
 #ifdef CONFIG_SYSCTL
-	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv4_ctl_path,
-						xfrm4_policy_table);
+	sysctl_hdr = register_net_sysctl(&init_net, "net/ipv4",
+					 xfrm4_policy_table);
 #endif
 }
 

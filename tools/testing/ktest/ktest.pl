@@ -39,6 +39,7 @@ my %default = (
     "CLEAR_LOG"			=> 0,
     "BISECT_MANUAL"		=> 0,
     "BISECT_SKIP"		=> 1,
+    "MIN_CONFIG_TYPE"		=> "boot",
     "SUCCESS_LINE"		=> "login:",
     "DETECT_TRIPLE_FAULT"	=> 1,
     "NO_INSTALL"		=> 0,
@@ -66,6 +67,7 @@ my %default = (
 
 my $ktest_config;
 my $version;
+my $have_version = 0;
 my $machine;
 my $ssh_user;
 my $tmpdir;
@@ -106,6 +108,8 @@ my $minconfig;
 my $start_minconfig;
 my $start_minconfig_defined;
 my $output_minconfig;
+my $minconfig_type;
+my $use_output_minconfig;
 my $ignore_config;
 my $ignore_errors;
 my $addconfig;
@@ -205,6 +209,8 @@ my %option_map = (
     "MIN_CONFIG"		=> \$minconfig,
     "OUTPUT_MIN_CONFIG"		=> \$output_minconfig,
     "START_MIN_CONFIG"		=> \$start_minconfig,
+    "MIN_CONFIG_TYPE"		=> \$minconfig_type,
+    "USE_OUTPUT_MIN_CONFIG"	=> \$use_output_minconfig,
     "IGNORE_CONFIG"		=> \$ignore_config,
     "TEST"			=> \$run_test,
     "ADD_CONFIG"		=> \$addconfig,
@@ -1702,10 +1708,12 @@ sub install {
 
 sub get_version {
     # get the release name
+    return if ($have_version);
     doprint "$make kernelrelease ... ";
     $version = `$make kernelrelease | tail -1`;
     chomp($version);
     doprint "$version\n";
+    $have_version = 1;
 }
 
 sub start_monitor_and_boot {
@@ -1828,6 +1836,9 @@ sub build {
     my $save_no_reboot = $no_reboot;
     $no_reboot = 1;
 
+    # Calculate a new version from here.
+    $have_version = 0;
+
     if (defined($pre_build)) {
 	my $ret = run_command $pre_build;
 	if (!$ret && defined($pre_build_die) &&
@@ -1887,6 +1898,9 @@ sub build {
     undef $redirect;
 
     if (defined($post_build)) {
+	# Because a post build may change the kernel version
+	# do it now.
+	get_version;
 	my $ret = run_command $post_build;
 	if (!$ret && defined($post_build_die) &&
 	    $post_build_die) {
@@ -3119,6 +3133,12 @@ sub test_this_config {
 sub make_min_config {
     my ($i) = @_;
 
+    my $type = $minconfig_type;
+    if ($type ne "boot" && $type ne "test") {
+	fail "Invalid MIN_CONFIG_TYPE '$minconfig_type'\n" .
+	    " make_min_config works only with 'boot' and 'test'\n" and return;
+    }
+
     if (!defined($output_minconfig)) {
 	fail "OUTPUT_MIN_CONFIG not defined" and return;
     }
@@ -3128,8 +3148,15 @@ sub make_min_config {
     # that instead.
     if (-f $output_minconfig && !$start_minconfig_defined) {
 	print "$output_minconfig exists\n";
-	if (read_yn " Use it as minconfig?") {
+	if (!defined($use_output_minconfig)) {
+	    if (read_yn " Use it as minconfig?") {
+		$start_minconfig = $output_minconfig;
+	    }
+	} elsif ($use_output_minconfig > 0) {
+	    doprint "Using $output_minconfig as MIN_CONFIG\n";
 	    $start_minconfig = $output_minconfig;
+	} else {
+	    doprint "Set to still use MIN_CONFIG as starting point\n";
 	}
     }
 
@@ -3278,6 +3305,11 @@ sub make_min_config {
 	build "oldconfig" or $failed = 1;
 	if (!$failed) {
 		start_monitor_and_boot or $failed = 1;
+
+		if ($type eq "test" && !$failed) {
+		    do_run_test or $failed = 1;
+		}
+
 		end_monitor;
 	}
 
@@ -3473,6 +3505,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     # Do not reboot on failing test options
     $no_reboot = 1;
     $reboot_success = 0;
+
+    $have_version = 0;
 
     $iteration = $i;
 

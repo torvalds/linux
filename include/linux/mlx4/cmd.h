@@ -150,6 +150,10 @@ enum {
 	/* statistics commands */
 	MLX4_CMD_QUERY_IF_STAT	 = 0X54,
 	MLX4_CMD_SET_IF_STAT	 = 0X55,
+
+	/* set port opcode modifiers */
+	MLX4_SET_PORT_PRIO2TC = 0x8,
+	MLX4_SET_PORT_SCHEDULER  = 0x9,
 };
 
 enum {

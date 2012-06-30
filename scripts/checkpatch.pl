@@ -2382,6 +2382,19 @@ sub process {
 			}
 		}
 
+		if ($line =~ /\bprintk\s*\(\s*KERN_([A-Z]+)/) {
+			my $orig = $1;
+			my $level = lc($orig);
+			$level = "warn" if ($level eq "warning");
+			WARN("PREFER_PR_LEVEL",
+			     "Prefer pr_$level(... to printk(KERN_$1, ...\n" . $herecurr);
+		}
+
+		if ($line =~ /\bpr_warning\s*\(/) {
+			WARN("PREFER_PR_LEVEL",
+			     "Prefer pr_warn(... to pr_warning(...\n" . $herecurr);
+		}
+
 # function brace can't be on same line, except for #defines of do while,
 # or if closed on same line
 		if (($line=~/$Type\s*$Ident\(.*\).*\s{/) and
@@ -2448,6 +2461,13 @@ sub process {
 				     "space prohibited between function name and open parenthesis '('\n" . $herecurr);
 			}
 		}
+
+# check for whitespace before a non-naked semicolon
+		if ($line =~ /^\+.*\S\s+;/) {
+			CHK("SPACING",
+			    "space prohibited before semicolon\n" . $herecurr);
+		}
+
 # Check operator spacing.
 		if (!($line=~/\#\s*include/)) {
 			my $ops = qr{

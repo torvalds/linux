@@ -87,17 +87,13 @@
  * struct ep93xx_ac97_info - EP93xx AC97 controller info structure
  * @lock: mutex serializing access to the bus (slot 1 & 2 ops)
  * @dev: pointer to the platform device dev structure
- * @mem: physical memory resource for the registers
  * @regs: mapped AC97 controller registers
- * @irq: AC97 interrupt number
  * @done: bus ops wait here for an interrupt
  */
 struct ep93xx_ac97_info {
 	struct mutex		lock;
 	struct device		*dev;
-	struct resource		*mem;
 	void __iomem		*regs;
-	int			irq;
 	struct completion	done;
 };
 
@@ -359,11 +355,30 @@ static struct snd_soc_dai_driver ep93xx_ac97_dai = {
 static int __devinit ep93xx_ac97_probe(struct platform_device *pdev)
 {
 	struct ep93xx_ac97_info *info;
+	struct resource *res;
+	unsigned int irq;
 	int ret;
 
-	info = kzalloc(sizeof(struct ep93xx_ac97_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
+
+	info->regs = devm_request_and_ioremap(&pdev->dev, res);
+	if (!info->regs)
+		return -ENXIO;
+
+	irq = platform_get_irq(pdev, 0);
+	if (!irq)
+		return -ENODEV;
+
+	ret = devm_request_irq(&pdev->dev, irq, ep93xx_ac97_interrupt,
+			       IRQF_TRIGGER_HIGH, pdev->name, info);
+	if (ret)
+		goto fail;
 
 	dev_set_drvdata(&pdev->dev, info);
 
@@ -371,54 +386,19 @@ static int __devinit ep93xx_ac97_probe(struct platform_device *pdev)
 	init_completion(&info->done);
 	info->dev = &pdev->dev;
 
-	info->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!info->mem) {
-		ret = -ENXIO;
-		goto fail_free_info;
-	}
-
-	info->irq = platform_get_irq(pdev, 0);
-	if (!info->irq) {
-		ret = -ENXIO;
-		goto fail_free_info;
-	}
-
-	if (!request_mem_region(info->mem->start, resource_size(info->mem),
-				pdev->name)) {
-		ret = -EBUSY;
-		goto fail_free_info;
-	}
-
-	info->regs = ioremap(info->mem->start, resource_size(info->mem));
-	if (!info->regs) {
-		ret = -ENOMEM;
-		goto fail_release_mem;
-	}
-
-	ret = request_irq(info->irq, ep93xx_ac97_interrupt, IRQF_TRIGGER_HIGH,
-			  pdev->name, info);
-	if (ret)
-		goto fail_unmap_mem;
-
 	ep93xx_ac97_info = info;
 	platform_set_drvdata(pdev, info);
 
 	ret = snd_soc_register_dai(&pdev->dev, &ep93xx_ac97_dai);
 	if (ret)
-		goto fail_free_irq;
+		goto fail;
 
 	return 0;
 
-fail_free_irq:
+fail:
 	platform_set_drvdata(pdev, NULL);
-	free_irq(info->irq, info);
-fail_unmap_mem:
-	iounmap(info->regs);
-fail_release_mem:
-	release_mem_region(info->mem->start, resource_size(info->mem));
-fail_free_info:
-	kfree(info);
-
+	ep93xx_ac97_info = NULL;
+	dev_set_drvdata(&pdev->dev, NULL);
 	return ret;
 }
 
@@ -431,11 +411,9 @@ static int __devexit ep93xx_ac97_remove(struct platform_device *pdev)
 	/* disable the AC97 controller */
 	ep93xx_ac97_write_reg(info, AC97GCR, 0);
 
-	free_irq(info->irq, info);
-	iounmap(info->regs);
-	release_mem_region(info->mem->start, resource_size(info->mem));
 	platform_set_drvdata(pdev, NULL);
-	kfree(info);
+	ep93xx_ac97_info = NULL;
+	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }

@@ -2,7 +2,7 @@
 #include "r8180_hw.h"
 #include "r8180_93cx6.h"
 
- /*	Return TRUE if we shall perform High Power Mecahnism, FALSE otherwise. */
+ /*	Return TRUE if we shall perform High Power Mechanism, FALSE otherwise. */
 #define RATE_ADAPTIVE_TIMER_PERIOD      300
 
 bool CheckHighPower(struct net_device *dev)
@@ -105,7 +105,7 @@ void rtl8180_tx_pw_wq(struct work_struct *work)
 
 
 /*
- *	Return TRUE if we shall perform DIG Mecahnism, FALSE otherwise.
+ *	Return TRUE if we shall perform DIG Mechanism, FALSE otherwise.
  */
 bool CheckDig(struct net_device *dev)
 {
@@ -507,7 +507,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 	 *		and retry rate.
 	 * (3) Remove all Initial Gain Updates over OFDM rate. To avoid the complicated
 	 *		situation, Initial Gain Update is upon on DIG mechanism except CCK rate.
-	 * (4) Add the mehanism of trying to upgrade tx rate.
+	 * (4) Add the mechanism of trying to upgrade tx rate.
 	 * (5) Record the information of upping tx rate to avoid trying upping tx rate constantly.
 	 *
 	 */
@@ -528,7 +528,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 	if (priv->bTryuping == true) {
 		/* 2 For Test Upgrading mechanism
 		 * Note:
-		 *	Sometimes the throughput is upon on the capability bwtween the AP and NIC,
+		 *	Sometimes the throughput is upon on the capability between the AP and NIC,
 		 *	thus the low data rate does not improve the performance.
 		 *	We randomly upgrade the data rate and check if the retry rate is improved.
 		 */
@@ -704,7 +704,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 
 			/* 
 			 * The difference in throughput between 48Mbps and 36Mbps is 8M.
-			 * So, we must be carefully in this rate scale. Isaiah 2008-02-15.
+			 * So, we must be careful in this rate scale. Isaiah 2008-02-15.
 			 */
 			if (((priv->CurrentOperaRate == 72) || (priv->CurrentOperaRate == 48) || (priv->CurrentOperaRate == 36)) &&
 				(priv->FailTxRateCount > 2))
@@ -1009,7 +1009,7 @@ void SwAntennaDiversity(struct net_device *dev)
 			if (priv->AdCheckPeriod > priv->AdMaxCheckPeriod)
 				priv->AdCheckPeriod = priv->AdMaxCheckPeriod;
 
-			/* Wrong deceision => switch back. */
+			/* Wrong decision => switch back. */
 			SwitchAntenna(dev);
 		} else {
 		/* Rx Signal Strength is improved. */
@@ -1057,7 +1057,7 @@ void SwAntennaDiversity(struct net_device *dev)
 		}
 		/*
 		 * <Roger_Notes> We evaluate Rx signal strength ONLY when default antenna
-		 * didn't changed by HW evaluation.
+		 * didn't change by HW evaluation.
 		 * 2008.02.27.
 		 *
 		 * [TRC Dell Lab] SignalStrength is inaccuracy. Isaiah 2008-03-05
@@ -1098,7 +1098,7 @@ void SwAntennaDiversity(struct net_device *dev)
 	priv->AdAuxAntennaRxOkCnt = 0;
 }
 
- /*	Return TRUE if we shall perform Tx Power Tracking Mecahnism, FALSE otherwise. */
+ /*	Return TRUE if we shall perform Tx Power Tracking Mechanism, FALSE otherwise. */
 bool CheckTxPwrTracking(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);

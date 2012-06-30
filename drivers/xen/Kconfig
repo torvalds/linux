@@ -71,7 +71,7 @@ config XEN_DEV_EVTCHN
 	tristate "Xen /dev/xen/evtchn device"
 	default y
 	help
-	  The evtchn driver allows a userspace process to triger event
+	  The evtchn driver allows a userspace process to trigger event
 	  channels and to receive notification of an event channel
 	  firing.
 	  If in doubt, say yes.

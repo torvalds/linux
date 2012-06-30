@@ -31,7 +31,7 @@
 #include "ixgbe_type.h"
 #include "ixgbe.h"
 
-u32 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw);
+u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw);
@@ -77,8 +77,8 @@ s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);
-s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num);
-s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw);
+s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw);
+void ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
 s32 ixgbe_validate_mac_addr(u8 *mac_addr);
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask);
@@ -106,6 +106,19 @@ void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);
 
 void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw, int num_pb,
 			     u32 headroom, int strategy);
+
+#define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
+#define IXGBE_EMC_INTERNAL_DATA		0x00
+#define IXGBE_EMC_INTERNAL_THERM_LIMIT	0x20
+#define IXGBE_EMC_DIODE1_DATA		0x01
+#define IXGBE_EMC_DIODE1_THERM_LIMIT	0x19
+#define IXGBE_EMC_DIODE2_DATA		0x23
+#define IXGBE_EMC_DIODE2_THERM_LIMIT	0x1A
+#define IXGBE_EMC_DIODE3_DATA		0x2A
+#define IXGBE_EMC_DIODE3_THERM_LIMIT	0x30
+
+s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
+s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 
 #define IXGBE_WRITE_REG(a, reg, value) writel((value), ((a)->hw_addr + (reg)))
 

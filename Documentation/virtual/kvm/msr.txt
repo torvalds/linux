@@ -109,6 +109,10 @@ MSR_KVM_SYSTEM_TIME_NEW:  0x4b564d01
 		     0      |	   24      | multiple cpus are guaranteed to
 			    |		   | be monotonic
 		-------------------------------------------------------------
+			    |		   | guest vcpu has been paused by
+		     1	    |	  N/A	   | the host
+			    |		   | See 4.70 in api.txt
+		-------------------------------------------------------------
 
 	Availability of this MSR must be checked via bit 3 in 0x4000001 cpuid
 	leaf prior to usage.

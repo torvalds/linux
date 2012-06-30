@@ -40,7 +40,7 @@ extern int quad_local_to_mp_bus_id [NR_CPUS/4][4];
 
 #endif /* CONFIG_X86_64 */
 
-#if defined(CONFIG_MCA) || defined(CONFIG_EISA)
+#ifdef CONFIG_EISA
 extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 #endif
 

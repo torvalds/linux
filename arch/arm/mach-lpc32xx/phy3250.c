@@ -1,8 +1,9 @@
 /*
- * arch/arm/mach-lpc32xx/phy3250.c
+ * Platform support for LPC32xx SoC
  *
  * Author: Kevin Wells <kevin.wells@nxp.com>
  *
+ * Copyright (C) 2012 Roland Stigge <stigge@antcom.de>
  * Copyright (C) 2010 NXP Semiconductors
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,11 +26,16 @@
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
-#include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 #include <linux/amba/pl022.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/of_platform.h>
+#include <linux/clk.h>
+#include <linux/amba/pl08x.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -47,7 +53,6 @@
 #define SPI0_CS_GPIO	LPC32XX_GPIO(LPC32XX_GPIO_P3_GRP, 5)
 #define LCD_POWER_GPIO	LPC32XX_GPIO(LPC32XX_GPO_P3_GRP, 0)
 #define BKL_POWER_GPIO	LPC32XX_GPIO(LPC32XX_GPO_P3_GRP, 4)
-#define LED_GPIO	LPC32XX_GPIO(LPC32XX_GPO_P3_GRP, 1)
 
 /*
  * AMBA LCD controller
@@ -150,9 +155,6 @@ static struct clcd_board lpc32xx_clcd_data = {
 	.remove		= lpc32xx_clcd_remove,
 };
 
-static AMBA_AHB_DEVICE(lpc32xx_clcd, "dev:clcd", 0,
-	LPC32XX_LCD_BASE, { IRQ_LPC32XX_LCD }, &lpc32xx_clcd_data);
-
 /*
  * AMBA SSP (SPI)
  */
@@ -180,8 +182,11 @@ static struct pl022_ssp_controller lpc32xx_ssp0_data = {
 	.enable_dma		= 0,
 };
 
-static AMBA_APB_DEVICE(lpc32xx_ssp0, "dev:ssp0", 0,
-	LPC32XX_SSP0_BASE, { IRQ_LPC32XX_SSP0 }, &lpc32xx_ssp0_data);
+static struct pl022_ssp_controller lpc32xx_ssp1_data = {
+	.bus_id			= 1,
+	.num_chipselect		= 1,
+	.enable_dma		= 0,
+};
 
 /* AT25 driver registration */
 static int __init phy3250_spi_board_register(void)
@@ -221,73 +226,20 @@ static int __init phy3250_spi_board_register(void)
 }
 arch_initcall(phy3250_spi_board_register);
 
-static struct i2c_board_info __initdata phy3250_i2c_board_info[] = {
-	{
-		I2C_BOARD_INFO("pcf8563", 0x51),
-	},
+static struct pl08x_platform_data pl08x_pd = {
 };
 
-static struct gpio_led phy_leds[] = {
-	{
-		.name			= "led0",
-		.gpio			= LED_GPIO,
-		.active_low		= 1,
-		.default_trigger	= "heartbeat",
-	},
+static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
+	OF_DEV_AUXDATA("arm,pl022", 0x20084000, "dev:ssp0", &lpc32xx_ssp0_data),
+	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", &lpc32xx_ssp1_data),
+	OF_DEV_AUXDATA("arm,pl110", 0x31040000, "dev:clcd", &lpc32xx_clcd_data),
+	OF_DEV_AUXDATA("arm,pl080", 0x31000000, "pl08xdmac", &pl08x_pd),
+	{ }
 };
 
-static struct gpio_led_platform_data led_data = {
-	.leds = phy_leds,
-	.num_leds = ARRAY_SIZE(phy_leds),
-};
-
-static struct platform_device lpc32xx_gpio_led_device = {
-	.name			= "leds-gpio",
-	.id			= -1,
-	.dev.platform_data	= &led_data,
-};
-
-static struct platform_device *phy3250_devs[] __initdata = {
-	&lpc32xx_rtc_device,
-	&lpc32xx_tsc_device,
-	&lpc32xx_i2c0_device,
-	&lpc32xx_i2c1_device,
-	&lpc32xx_i2c2_device,
-	&lpc32xx_watchdog_device,
-	&lpc32xx_gpio_led_device,
-	&lpc32xx_adc_device,
-	&lpc32xx_ohci_device,
-	&lpc32xx_net_device,
-};
-
-static struct amba_device *amba_devs[] __initdata = {
-	&lpc32xx_clcd_device,
-	&lpc32xx_ssp0_device,
-};
-
-/*
- * Board specific functions
- */
-static void __init phy3250_board_init(void)
+static void __init lpc3250_machine_init(void)
 {
 	u32 tmp;
-	int i;
-
-	lpc32xx_gpio_init();
-
-	/* Register GPIOs used on this board */
-	if (gpio_request(SPI0_CS_GPIO, "spi0 cs"))
-		printk(KERN_ERR "Error requesting gpio %u",
-			SPI0_CS_GPIO);
-	else if (gpio_direction_output(SPI0_CS_GPIO, 1))
-		printk(KERN_ERR "Error setting gpio %u to output",
-			SPI0_CS_GPIO);
-
-	/* Setup network interface for RMII mode */
-	tmp = __raw_readl(LPC32XX_CLKPWR_MACCLK_CTRL);
-	tmp &= ~LPC32XX_CLKPWR_MACCTRL_PINS_MSK;
-	tmp |= LPC32XX_CLKPWR_MACCTRL_USE_RMII_PINS;
-	__raw_writel(tmp, LPC32XX_CLKPWR_MACCLK_CTRL);
 
 	/* Setup SLC NAND controller muxing */
 	__raw_writel(LPC32XX_CLKPWR_NANDCLK_SEL_SLC,
@@ -299,6 +251,12 @@ static void __init phy3250_board_init(void)
 		LPC32XX_CLKPWR_LCDCTRL_PSCALE_MSK);
 	tmp |= LPC32XX_CLKPWR_LCDCTRL_LCDTYPE_TFT16;
 	__raw_writel(tmp, LPC32XX_CLKPWR_LCDCLK_CTRL);
+
+	/* Set up USB power */
+	tmp = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
+	tmp |= LPC32XX_CLKPWR_USBCTRL_HCLK_EN |
+		LPC32XX_CLKPWR_USBCTRL_USBI2C_EN;
+	__raw_writel(tmp, LPC32XX_CLKPWR_USB_CTRL);
 
 	/* Set up I2C pull levels */
 	tmp = __raw_readl(LPC32XX_CLKPWR_I2C_CLK_CTRL);
@@ -321,54 +279,51 @@ static void __init phy3250_board_init(void)
 	/*
 	 * AMBA peripheral clocks need to be enabled prior to AMBA device
 	 * detection or a data fault will occur, so enable the clocks
-	 * here. However, we don't want to enable them if the peripheral
-	 * isn't included in the image
+	 * here.
 	 */
-#ifdef CONFIG_FB_ARMCLCD
 	tmp = __raw_readl(LPC32XX_CLKPWR_LCDCLK_CTRL);
 	__raw_writel((tmp | LPC32XX_CLKPWR_LCDCTRL_CLK_EN),
 		LPC32XX_CLKPWR_LCDCLK_CTRL);
-#endif
-#ifdef CONFIG_SPI_PL022
+
 	tmp = __raw_readl(LPC32XX_CLKPWR_SSP_CLK_CTRL);
 	__raw_writel((tmp | LPC32XX_CLKPWR_SSPCTRL_SSPCLK0_EN),
 		LPC32XX_CLKPWR_SSP_CLK_CTRL);
-#endif
 
-	platform_add_devices(phy3250_devs, ARRAY_SIZE(phy3250_devs));
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
-		struct amba_device *d = amba_devs[i];
-		amba_device_register(d, &iomem_resource);
-	}
+	tmp = __raw_readl(LPC32XX_CLKPWR_DMA_CLK_CTRL);
+	__raw_writel((tmp | LPC32XX_CLKPWR_DMACLKCTRL_CLK_EN),
+		     LPC32XX_CLKPWR_DMA_CLK_CTRL);
 
 	/* Test clock needed for UDA1380 initial init */
 	__raw_writel(LPC32XX_CLKPWR_TESTCLK2_SEL_MOSC |
 		LPC32XX_CLKPWR_TESTCLK_TESTCLK2_EN,
 		LPC32XX_CLKPWR_TEST_CLK_SEL);
 
-	i2c_register_board_info(0, phy3250_i2c_board_info,
-		ARRAY_SIZE(phy3250_i2c_board_info));
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     lpc32xx_auxdata_lookup, NULL);
+
+	/* Register GPIOs used on this board */
+	if (gpio_request(SPI0_CS_GPIO, "spi0 cs"))
+		printk(KERN_ERR "Error requesting gpio %u",
+			SPI0_CS_GPIO);
+	else if (gpio_direction_output(SPI0_CS_GPIO, 1))
+		printk(KERN_ERR "Error setting gpio %u to output",
+			SPI0_CS_GPIO);
 }
 
-static int __init lpc32xx_display_uid(void)
-{
-	u32 uid[4];
+static char const *lpc32xx_dt_compat[] __initdata = {
+	"nxp,lpc3220",
+	"nxp,lpc3230",
+	"nxp,lpc3240",
+	"nxp,lpc3250",
+	NULL
+};
 
-	lpc32xx_get_uid(uid);
-
-	printk(KERN_INFO "LPC32XX unique ID: %08x%08x%08x%08x\n",
-		uid[3], uid[2], uid[1], uid[0]);
-
-	return 1;
-}
-arch_initcall(lpc32xx_display_uid);
-
-MACHINE_START(PHY3250, "Phytec 3250 board with the LPC3250 Microcontroller")
-	/* Maintainer: Kevin Wells, NXP Semiconductors */
+DT_MACHINE_START(LPC32XX_DT, "LPC32XX SoC (Flattened Device Tree)")
 	.atag_offset	= 0x100,
 	.map_io		= lpc32xx_map_io,
 	.init_irq	= lpc32xx_init_irq,
 	.timer		= &lpc32xx_timer,
-	.init_machine	= phy3250_board_init,
+	.init_machine	= lpc3250_machine_init,
+	.dt_compat	= lpc32xx_dt_compat,
 	.restart	= lpc23xx_restart,
 MACHINE_END

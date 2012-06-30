@@ -96,13 +96,13 @@ static void __init __mop500_uib_init(struct uib *uib, const char *why)
 /*
  * Detect the UIB attached based on the presence or absence of i2c devices.
  */
-static int __init mop500_uib_init(void)
+int __init mop500_uib_init(void)
 {
 	struct uib *uib = mop500_uib;
 	struct i2c_adapter *i2c0;
 	int ret;
 
-	if (!cpu_is_u8500())
+	if (!cpu_is_u8500_family())
 		return -ENODEV;
 
 	if (uib) {
@@ -131,5 +131,3 @@ static int __init mop500_uib_init(void)
 
 	return 0;
 }
-
-module_init(mop500_uib_init);

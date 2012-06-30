@@ -213,54 +213,17 @@ static int tps65217_pmic_get_voltage_sel(struct regulator_dev *dev)
 	return selector;
 }
 
-static int tps65217_pmic_ldo1_set_voltage_sel(struct regulator_dev *dev,
-						unsigned selector)
-{
-	struct tps65217 *tps = rdev_get_drvdata(dev);
-	int ldo = rdev_get_id(dev);
-
-	if (ldo != TPS65217_LDO_1)
-		return -EINVAL;
-
-	if (selector >= tps->info[ldo]->table_len)
-		return -EINVAL;
-
-	/* Set the voltage based on vsel value and write protect level is 2 */
-	return tps65217_set_bits(tps, tps->info[ldo]->set_vout_reg,
-					tps->info[ldo]->set_vout_mask,
-					selector, TPS65217_PROTECT_L2);
-}
-
-static int tps65217_pmic_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV, unsigned *selector)
+static int tps65217_pmic_set_voltage_sel(struct regulator_dev *dev,
+					 unsigned selector)
 {
 	int ret;
 	struct tps65217 *tps = rdev_get_drvdata(dev);
 	unsigned int rid = rdev_get_id(dev);
 
-	/* LDO1 implements set_voltage_sel callback */
-	if (rid == TPS65217_LDO_1)
-		return -EINVAL;
-
-	if (rid < TPS65217_DCDC_1 || rid > TPS65217_LDO_4)
-		return -EINVAL;
-
-	if (min_uV < tps->info[rid]->min_uV
-		|| min_uV > tps->info[rid]->max_uV)
-		return -EINVAL;
-
-	if (max_uV < tps->info[rid]->min_uV
-		|| max_uV > tps->info[rid]->max_uV)
-		return -EINVAL;
-
-	ret = tps->info[rid]->uv_to_vsel(min_uV, selector);
-	if (ret)
-		return ret;
-
 	/* Set the voltage based on vsel value and write protect level is 2 */
 	ret = tps65217_set_bits(tps, tps->info[rid]->set_vout_reg,
 				tps->info[rid]->set_vout_mask,
-				*selector, TPS65217_PROTECT_L2);
+				selector, TPS65217_PROTECT_L2);
 
 	/* Set GO bit for DCDCx to initiate voltage transistion */
 	switch (rid) {
@@ -272,6 +235,34 @@ static int tps65217_pmic_set_voltage(struct regulator_dev *dev,
 	}
 
 	return ret;
+}
+
+static int tps65217_pmic_map_voltage(struct regulator_dev *dev,
+				     int min_uV, int max_uV)
+{
+
+	struct tps65217 *tps = rdev_get_drvdata(dev);
+	unsigned int sel, rid = rdev_get_id(dev);
+	int ret;
+
+	/* LDO1 uses regulator_map_voltage_iterate() */
+	if (rid == TPS65217_LDO_1)
+		return -EINVAL;
+
+	if (rid < TPS65217_DCDC_1 || rid > TPS65217_LDO_4)
+		return -EINVAL;
+
+	if (min_uV < tps->info[rid]->min_uV || min_uV > tps->info[rid]->max_uV)
+		return -EINVAL;
+
+	if (max_uV < tps->info[rid]->min_uV || max_uV > tps->info[rid]->max_uV)
+		return -EINVAL;
+
+	ret = tps->info[rid]->uv_to_vsel(min_uV, &sel);
+	if (ret)
+		return ret;
+
+	return sel;
 }
 
 static int tps65217_pmic_list_voltage(struct regulator_dev *dev,
@@ -298,8 +289,9 @@ static struct regulator_ops tps65217_pmic_ops = {
 	.enable			= tps65217_pmic_enable,
 	.disable		= tps65217_pmic_disable,
 	.get_voltage_sel	= tps65217_pmic_get_voltage_sel,
-	.set_voltage		= tps65217_pmic_set_voltage,
+	.set_voltage_sel	= tps65217_pmic_set_voltage_sel,
 	.list_voltage		= tps65217_pmic_list_voltage,
+	.map_voltage		= tps65217_pmic_map_voltage,
 };
 
 /* Operations permitted on LDO1 */
@@ -308,11 +300,11 @@ static struct regulator_ops tps65217_pmic_ldo1_ops = {
 	.enable			= tps65217_pmic_enable,
 	.disable		= tps65217_pmic_disable,
 	.get_voltage_sel	= tps65217_pmic_get_voltage_sel,
-	.set_voltage_sel	= tps65217_pmic_ldo1_set_voltage_sel,
+	.set_voltage_sel	= tps65217_pmic_set_voltage_sel,
 	.list_voltage		= tps65217_pmic_list_voltage,
 };
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	TPS65217_REGULATOR("DCDC1", TPS65217_DCDC_1, tps65217_pmic_ops, 64),
 	TPS65217_REGULATOR("DCDC2", TPS65217_DCDC_2, tps65217_pmic_ops, 64),
 	TPS65217_REGULATOR("DCDC3", TPS65217_DCDC_3, tps65217_pmic_ops, 64),
@@ -327,13 +319,17 @@ static int __devinit tps65217_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct tps65217 *tps;
 	struct tps_info *info = &tps65217_pmic_regs[pdev->id];
+	struct regulator_config config = { };
 
 	/* Already set by core driver */
 	tps = dev_to_tps65217(pdev->dev.parent);
 	tps->info[pdev->id] = info;
 
-	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data, tps, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = pdev->dev.platform_data;
+	config.driver_data = tps;
+
+	rdev = regulator_register(&regulators[pdev->id], &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 

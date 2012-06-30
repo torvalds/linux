@@ -391,9 +391,10 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
 		tx_info->status.ampdu_len = 1;
 		tx_info->status.ampdu_ack_len = success ? 1 : 0;
-
-		if (!success)
-			tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
+		/*
+		 * TODO: Need to tear down BA session here
+		 * if not successful.
+		 */
 	}
 
 	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
@@ -587,7 +588,7 @@ static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
 	return 0;
 }
 
-void rt2x00lib_rxdone(struct queue_entry *entry)
+void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct rxdone_entry_desc rxdesc;
@@ -607,7 +608,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	 * Allocate a new sk_buffer. If no new buffer available, drop the
 	 * received frame and reuse the existing buffer.
 	 */
-	skb = rt2x00queue_alloc_rxskb(entry);
+	skb = rt2x00queue_alloc_rxskb(entry, gfp);
 	if (!skb)
 		goto submit_entry;
 

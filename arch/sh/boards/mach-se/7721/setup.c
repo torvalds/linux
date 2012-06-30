@@ -92,6 +92,5 @@ static void __init se7721_setup(char **cmdline_p)
 struct sh_machine_vector mv_se7721 __initmv = {
 	.mv_name		= "Solution Engine 7721",
 	.mv_setup		= se7721_setup,
-	.mv_nr_irqs		= 109,
 	.mv_init_irq		= init_se7721_IRQ,
 };

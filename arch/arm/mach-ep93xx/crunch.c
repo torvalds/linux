@@ -79,12 +79,10 @@ static struct notifier_block crunch_notifier_block = {
 	.notifier_call	= crunch_do,
 };
 
-static int __init crunch_init(void)
+int __init crunch_init(void)
 {
 	thread_register_notifier(&crunch_notifier_block);
 	elf_hwcap |= HWCAP_CRUNCH;
 
 	return 0;
 }
-
-late_initcall(crunch_init);

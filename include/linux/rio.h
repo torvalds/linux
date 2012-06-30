@@ -20,6 +20,9 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/rio_regs.h>
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+#include <linux/dmaengine.h>
+#endif
 
 #define RIO_NO_HOPCOUNT		-1
 #define RIO_INVALID_DESTID	0xffff
@@ -254,6 +257,9 @@ struct rio_mport {
 	u32 phys_efptr;
 	unsigned char name[40];
 	void *priv;		/* Master port private data */
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+	struct dma_device	dma;
+#endif
 };
 
 /**
@@ -394,6 +400,47 @@ union rio_pw_msg {
 	} em;
 	u32 raw[RIO_PW_MSG_SIZE/sizeof(u32)];
 };
+
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+
+/**
+ * enum rio_write_type - RIO write transaction types used in DMA transfers
+ *
+ * Note: RapidIO specification defines write (NWRITE) and
+ * write-with-response (NWRITE_R) data transfer operations.
+ * Existing DMA controllers that service RapidIO may use one of these operations
+ * for entire data transfer or their combination with only the last data packet
+ * requires response.
+ */
+enum rio_write_type {
+	RDW_DEFAULT,		/* default method used by DMA driver */
+	RDW_ALL_NWRITE,		/* all packets use NWRITE */
+	RDW_ALL_NWRITE_R,	/* all packets use NWRITE_R */
+	RDW_LAST_NWRITE_R,	/* last packet uses NWRITE_R, others - NWRITE */
+};
+
+struct rio_dma_ext {
+	u16 destid;
+	u64 rio_addr;	/* low 64-bits of 66-bit RapidIO address */
+	u8  rio_addr_u;  /* upper 2-bits of 66-bit RapidIO address */
+	enum rio_write_type wr_type; /* preferred RIO write operation type */
+};
+
+struct rio_dma_data {
+	/* Local data (as scatterlist) */
+	struct scatterlist	*sg;	/* I/O scatter list */
+	unsigned int		sg_len;	/* size of scatter list */
+	/* Remote device address (flat buffer) */
+	u64 rio_addr;	/* low 64-bits of 66-bit RapidIO address */
+	u8  rio_addr_u;  /* upper 2-bits of 66-bit RapidIO address */
+	enum rio_write_type wr_type; /* preferred RIO write operation type */
+};
+
+static inline struct rio_mport *dma_to_mport(struct dma_device *ddev)
+{
+	return container_of(ddev, struct rio_mport, dma);
+}
+#endif /* CONFIG_RAPIDIO_DMA_ENGINE */
 
 /* Architecture and hardware-specific functions */
 extern int rio_register_mport(struct rio_mport *);

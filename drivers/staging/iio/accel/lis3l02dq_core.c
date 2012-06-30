@@ -23,10 +23,10 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
+#include <linux/iio/buffer.h>
 
 #include "lis3l02dq.h"
 
@@ -257,7 +257,7 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 	u8 reg;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		/* Take the iio_dev status lock */
 		mutex_lock(&indio_dev->mlock);
 		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
@@ -297,7 +297,7 @@ static ssize_t lis3l02dq_read_frequency(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int ret, len = 0;
 	s8 t;
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
@@ -328,7 +328,7 @@ static ssize_t lis3l02dq_write_frequency(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	unsigned long val;
 	int ret;
 	u8 t;
@@ -513,7 +513,8 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 }
 
 #define LIS3L02DQ_INFO_MASK				\
-	(IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
+	(IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+	 IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
 	 IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
 	 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT)
 
@@ -521,13 +522,26 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |	\
 	 IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
 
+#define LIS3L02DQ_CHAN(index, mod)				\
+	{							\
+		.type = IIO_ACCEL,				\
+		.modified = 1,					\
+		.channel2 = mod,				\
+		.info_mask =  LIS3L02DQ_INFO_MASK,		\
+		.address = index,				\
+		.scan_index = index,				\
+		.scan_type = {					\
+			.sign = 's',				\
+			.realbits = 12,				\
+			.storagebits = 16,			\
+		},						\
+		.event_mask = LIS3L02DQ_EVENT_MASK,		\
+	 }
+
 static struct iio_chan_spec lis3l02dq_channels[] = {
-	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_X, LIS3L02DQ_INFO_MASK,
-		 0, 0, IIO_ST('s', 12, 16, 0), LIS3L02DQ_EVENT_MASK),
-	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Y, LIS3L02DQ_INFO_MASK,
-		 1, 1, IIO_ST('s', 12, 16, 0), LIS3L02DQ_EVENT_MASK),
-	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Z, LIS3L02DQ_INFO_MASK,
-		 2, 2, IIO_ST('s', 12, 16, 0), LIS3L02DQ_EVENT_MASK),
+	LIS3L02DQ_CHAN(0, IIO_MOD_X),
+	LIS3L02DQ_CHAN(1, IIO_MOD_Y),
+	LIS3L02DQ_CHAN(2, IIO_MOD_Z),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
@@ -666,7 +680,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	struct lis3l02dq_state *st;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_allocate_device(sizeof *st);
+	indio_dev = iio_device_alloc(sizeof *st);
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -724,7 +738,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
+	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)))
 		lis3l02dq_remove_trigger(indio_dev);
 error_free_interrupt:
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
@@ -734,7 +748,7 @@ error_uninitialize_buffer:
 error_unreg_buffer_funcs:
 	lis3l02dq_unconfigure_buffer(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -789,7 +803,7 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	iio_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_buffer(indio_dev);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 err_ret:
 	return ret;
 }

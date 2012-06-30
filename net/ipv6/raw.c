@@ -72,7 +72,7 @@ static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		const struct in6_addr *rmt_addr, int dif)
 {
 	struct hlist_node *node;
-	int is_multicast = ipv6_addr_is_multicast(loc_addr);
+	bool is_multicast = ipv6_addr_is_multicast(loc_addr);
 
 	sk_for_each_from(sk, node)
 		if (inet_sk(sk)->inet_num == num) {
@@ -153,12 +153,12 @@ EXPORT_SYMBOL(rawv6_mh_filter_unregister);
  *
  *	Caller owns SKB so we must make clones.
  */
-static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
+static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 {
 	const struct in6_addr *saddr;
 	const struct in6_addr *daddr;
 	struct sock *sk;
-	int delivered = 0;
+	bool delivered = false;
 	__u8 hash;
 	struct net *net;
 
@@ -179,7 +179,7 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	while (sk) {
 		int filtered;
 
-		delivered = 1;
+		delivered = true;
 		switch (nexthdr) {
 		case IPPROTO_ICMPV6:
 			filtered = icmpv6_filter(sk, skb);
@@ -225,7 +225,7 @@ out:
 	return delivered;
 }
 
-int raw6_local_deliver(struct sk_buff *skb, int nexthdr)
+bool raw6_local_deliver(struct sk_buff *skb, int nexthdr)
 {
 	struct sock *raw_sk;
 

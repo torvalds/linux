@@ -27,6 +27,7 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
+#include <linux/mod_devicetable.h>
 #include <linux/ftrace_event.h>
 #include <linux/slab.h>
 #include <linux/tboot.h>
@@ -50,6 +51,12 @@
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
+
+static const struct x86_cpu_id vmx_cpu_id[] = {
+	X86_FEATURE_MATCH(X86_FEATURE_VMX),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, vmx_cpu_id);
 
 static bool __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
@@ -386,6 +393,9 @@ struct vcpu_vmx {
 	struct {
 		int           loaded;
 		u16           fs_sel, gs_sel, ldt_sel;
+#ifdef CONFIG_X86_64
+		u16           ds_sel, es_sel;
+#endif
 		int           gs_ldt_reload_needed;
 		int           fs_reload_needed;
 	} host_state;
@@ -1411,6 +1421,11 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	}
 
 #ifdef CONFIG_X86_64
+	savesegment(ds, vmx->host_state.ds_sel);
+	savesegment(es, vmx->host_state.es_sel);
+#endif
+
+#ifdef CONFIG_X86_64
 	vmcs_writel(HOST_FS_BASE, read_msr(MSR_FS_BASE));
 	vmcs_writel(HOST_GS_BASE, read_msr(MSR_GS_BASE));
 #else
@@ -1450,6 +1465,19 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 	}
 	if (vmx->host_state.fs_reload_needed)
 		loadsegment(fs, vmx->host_state.fs_sel);
+#ifdef CONFIG_X86_64
+	if (unlikely(vmx->host_state.ds_sel | vmx->host_state.es_sel)) {
+		loadsegment(ds, vmx->host_state.ds_sel);
+		loadsegment(es, vmx->host_state.es_sel);
+	}
+#else
+	/*
+	 * The sysexit path does not restore ds/es, so we must set them to
+	 * a reasonable value ourselves.
+	 */
+	loadsegment(ds, __USER_DS);
+	loadsegment(es, __USER_DS);
+#endif
 	reload_tss();
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
@@ -3633,8 +3661,18 @@ static void vmx_set_constant_host_state(void)
 	vmcs_writel(HOST_CR3, read_cr3());  /* 22.2.3  FIXME: shadow tables */
 
 	vmcs_write16(HOST_CS_SELECTOR, __KERNEL_CS);  /* 22.2.4 */
+#ifdef CONFIG_X86_64
+	/*
+	 * Load null selectors, so we can avoid reloading them in
+	 * __vmx_load_host_state(), in case userspace uses the null selectors
+	 * too (the expected case).
+	 */
+	vmcs_write16(HOST_DS_SELECTOR, 0);
+	vmcs_write16(HOST_ES_SELECTOR, 0);
+#else
 	vmcs_write16(HOST_DS_SELECTOR, __KERNEL_DS);  /* 22.2.4 */
 	vmcs_write16(HOST_ES_SELECTOR, __KERNEL_DS);  /* 22.2.4 */
+#endif
 	vmcs_write16(HOST_SS_SELECTOR, __KERNEL_DS);  /* 22.2.4 */
 	vmcs_write16(HOST_TR_SELECTOR, GDT_ENTRY_TSS*8);  /* 22.2.4 */
 
@@ -6256,7 +6294,6 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->loaded_vmcs->launched = 1;
 
 	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
@@ -6343,7 +6380,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	return &vmx->vcpu;
 
 free_vmcs:
-	free_vmcs(vmx->loaded_vmcs->vmcs);
+	free_loaded_vmcs(vmx->loaded_vmcs);
 free_msrs:
 	kfree(vmx->guest_msrs);
 uninit_vcpu:

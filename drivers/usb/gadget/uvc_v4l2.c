@@ -296,7 +296,7 @@ uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (sub->type < UVC_EVENT_FIRST || sub->type > UVC_EVENT_LAST)
 			return -EINVAL;
 
-		return v4l2_event_subscribe(&handle->vfh, arg, 2);
+		return v4l2_event_subscribe(&handle->vfh, arg, 2, NULL);
 	}
 
 	case VIDIOC_UNSUBSCRIBE_EVENT:

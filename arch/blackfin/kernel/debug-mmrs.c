@@ -105,6 +105,7 @@ DEFINE_SYSREG(seqstat, , );
 DEFINE_SYSREG(syscfg, , CSYNC());
 #define D_SYSREG(sr) debugfs_create_file(#sr, S_IRUSR|S_IWUSR, parent, NULL, &fops_sysreg_##sr)
 
+#ifndef CONFIG_BF60x
 /*
  * CAN
  */
@@ -223,8 +224,10 @@ bfin_debug_mmrs_dma(struct dentry *parent, unsigned long base, int num, char mdm
 	__DMA(CURR_DESC_PTR, curr_desc_ptr);
 	__DMA(CURR_ADDR, curr_addr);
 	__DMA(IRQ_STATUS, irq_status);
+#ifndef CONFIG_BF60x
 	if (strcmp(pfx, "IMDMA") != 0)
 		__DMA(PERIPHERAL_MAP, peripheral_map);
+#endif
 	__DMA(CURR_X_COUNT, curr_x_count);
 	__DMA(CURR_Y_COUNT, curr_y_count);
 }
@@ -568,7 +571,7 @@ bfin_debug_mmrs_uart(struct dentry *parent, unsigned long base, int num)
 #endif
 }
 #define UART(num) bfin_debug_mmrs_uart(parent, UART##num##_DLL, num)
-
+#endif /* CONFIG_BF60x */
 /*
  * The actual debugfs generation
  */
@@ -740,7 +743,7 @@ static int __init bfin_debug_mmrs_init(void)
 	D32(WPDACNT0);
 	D32(WPDACNT1);
 	D32(WPSTAT);
-
+#ifndef CONFIG_BF60x
 	/* System MMRs */
 #ifdef ATAPI_CONTROL
 	parent = debugfs_create_dir("atapi", top);
@@ -1873,7 +1876,7 @@ static int __init bfin_debug_mmrs_init(void)
 
 	}
 #endif	/* BF54x */
-
+#endif /* CONFIG_BF60x */
 	debug_mmrs_dentry = top;
 
 	return 0;

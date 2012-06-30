@@ -19,7 +19,7 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-static unsigned rxrpc_ack_defer = 1;
+static unsigned int rxrpc_ack_defer = 1;
 
 static const char *const rxrpc_acks[] = {
 	"---", "REQ", "DUP", "OOS", "WIN", "MEM", "PNG", "PNR", "DLY", "IDL",
@@ -548,11 +548,11 @@ static void rxrpc_zap_tx_window(struct rxrpc_call *call)
  * process the extra information that may be appended to an ACK packet
  */
 static void rxrpc_extract_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
-				  unsigned latest, int nAcks)
+				  unsigned int latest, int nAcks)
 {
 	struct rxrpc_ackinfo ackinfo;
 	struct rxrpc_peer *peer;
-	unsigned mtu;
+	unsigned int mtu;
 
 	if (skb_copy_bits(skb, nAcks + 3, &ackinfo, sizeof(ackinfo)) < 0) {
 		_leave(" [no ackinfo]");

@@ -197,7 +197,7 @@ static void iounit_release_scsi_sgl(struct device *dev, struct scatterlist *sg, 
 }
 
 #ifdef CONFIG_SBUS
-static int iounit_map_dma_area(struct device *dev, dma_addr_t *pba, unsigned long va, __u32 addr, int len)
+static int iounit_map_dma_area(struct device *dev, dma_addr_t *pba, unsigned long va, unsigned long addr, int len)
 {
 	struct iounit_struct *iounit = dev->archdata.iommu;
 	unsigned long page, end;
@@ -242,29 +242,18 @@ static void iounit_unmap_dma_area(struct device *dev, unsigned long addr, int le
 }
 #endif
 
-static char *iounit_lockarea(char *vaddr, unsigned long len)
-{
-/* FIXME: Write this */
-	return vaddr;
-}
-
-static void iounit_unlockarea(char *vaddr, unsigned long len)
-{
-/* FIXME: Write this */
-}
+static const struct sparc32_dma_ops iounit_dma_ops = {
+	.get_scsi_one		= iounit_get_scsi_one,
+	.get_scsi_sgl		= iounit_get_scsi_sgl,
+	.release_scsi_one	= iounit_release_scsi_one,
+	.release_scsi_sgl	= iounit_release_scsi_sgl,
+#ifdef CONFIG_SBUS
+	.map_dma_area		= iounit_map_dma_area,
+	.unmap_dma_area		= iounit_unmap_dma_area,
+#endif
+};
 
 void __init ld_mmu_iounit(void)
 {
-	BTFIXUPSET_CALL(mmu_lockarea, iounit_lockarea, BTFIXUPCALL_RETO0);
-	BTFIXUPSET_CALL(mmu_unlockarea, iounit_unlockarea, BTFIXUPCALL_NOP);
-
-	BTFIXUPSET_CALL(mmu_get_scsi_one, iounit_get_scsi_one, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_get_scsi_sgl, iounit_get_scsi_sgl, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_release_scsi_one, iounit_release_scsi_one, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_release_scsi_sgl, iounit_release_scsi_sgl, BTFIXUPCALL_NORM);
-
-#ifdef CONFIG_SBUS
-	BTFIXUPSET_CALL(mmu_map_dma_area, iounit_map_dma_area, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_unmap_dma_area, iounit_unmap_dma_area, BTFIXUPCALL_NORM);
-#endif
+	sparc32_dma_ops = &iounit_dma_ops;
 }

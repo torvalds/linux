@@ -1,0 +1,17 @@
+* SPEAr RTC
+
+Required properties:
+- compatible : "st,spear600-rtc"
+- reg : Address range of the rtc registers
+- interrupt-parent: Should be the phandle for the interrupt controller
+  that services interrupts for this device
+- interrupt: Should contain the rtc interrupt number
+
+Example:
+
+	rtc@fc000000 {
+		compatible = "st,spear600-rtc";
+		reg = <0xfc000000 0x1000>;
+		interrupt-parent = <&vic1>;
+		interrupts = <12>;
+	};

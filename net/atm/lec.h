@@ -55,11 +55,11 @@ struct lane2_ops {
  * frames.
  *
  * 1. Dix Ethernet EtherType frames encoded by placing EtherType
- *    field in h_type field. Data follows immediatelly after header.
+ *    field in h_type field. Data follows immediately after header.
  * 2. LLC Data frames whose total length, including LLC field and data,
  *    but not padding required to meet the minimum data frame length,
  *    is less than 1536(0x0600) MUST be encoded by placing that length
- *    in the h_type field. The LLC field follows header immediatelly.
+ *    in the h_type field. The LLC field follows header immediately.
  * 3. LLC data frames longer than this maximum MUST be encoded by placing
  *    the value 0 in the h_type field.
  *
@@ -142,7 +142,6 @@ struct lec_priv {
 	int itfnum;				/* e.g. 2 for lec2, 5 for lec5 */
 	struct lane2_ops *lane2_ops;		/* can be NULL for LANE v1 */
 	int is_proxy;				/* bridge between ATM and Ethernet */
-	int is_trdev;				/* Device type, 0 = Ethernet, 1 = TokenRing */
 };
 
 struct lec_vcc_priv {

@@ -290,10 +290,24 @@ int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
 		msleep(10);
 	}
 
-	ERROR(rt2x00dev, "WPDMA TX/RX busy, aborting.\n");
+	ERROR(rt2x00dev, "WPDMA TX/RX busy [0x%08x].\n", reg);
 	return -EACCES;
 }
 EXPORT_SYMBOL_GPL(rt2800_wait_wpdma_ready);
+
+void rt2800_disable_wpdma(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+
+	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
+	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+}
+EXPORT_SYMBOL_GPL(rt2800_disable_wpdma);
 
 static bool rt2800_check_firmware_crc(const u8 *data, const size_t len)
 {
@@ -412,6 +426,8 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000002);
 	}
 
+	rt2800_disable_wpdma(rt2x00dev);
+
 	/*
 	 * Write firmware to the device.
 	 */
@@ -436,10 +452,7 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	 * Disable DMA, will be reenabled later when enabling
 	 * the radio.
 	 */
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	rt2800_disable_wpdma(rt2x00dev);
 
 	/*
 	 * Initialize firmware.
@@ -822,6 +835,13 @@ const struct rt2x00debug rt2800_rt2x00debug = {
 		.word_base	= RF_BASE,
 		.word_size	= sizeof(u32),
 		.word_count	= RF_SIZE / sizeof(u32),
+	},
+	.rfcsr	= {
+		.read		= rt2800_rfcsr_read,
+		.write		= rt2800_rfcsr_write,
+		.word_base	= RFCSR_BASE,
+		.word_size	= sizeof(u8),
+		.word_count	= RFCSR_SIZE / sizeof(u8),
 	},
 };
 EXPORT_SYMBOL_GPL(rt2800_rt2x00debug);
@@ -2717,13 +2737,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	unsigned int i;
 	int ret;
 
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	rt2800_disable_wpdma(rt2x00dev);
 
 	ret = rt2800_drv_init_registers(rt2x00dev);
 	if (ret)
@@ -3347,6 +3361,13 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 			else if (ant == 1)
 				rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT6, 1);
 			rt2800_register_write(rt2x00dev, GPIO_CTRL_CFG, reg);
+		}
+
+		/* This chip has hardware antenna diversity*/
+		if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390R)) {
+			rt2800_bbp_write(rt2x00dev, 150, 0); /* Disable Antenna Software OFDM */
+			rt2800_bbp_write(rt2x00dev, 151, 0); /* Disable Antenna Software CCK */
+			rt2800_bbp_write(rt2x00dev, 154, 0); /* Clear previously selected antenna */
 		}
 
 		rt2800_bbp_read(rt2x00dev, 152, &value);
@@ -3997,10 +4018,7 @@ void rt2800_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	rt2800_disable_wpdma(rt2x00dev);
 
 	/* Wait for DMA, ignore error */
 	rt2800_wait_wpdma_ready(rt2x00dev);
@@ -4285,6 +4303,11 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	} else {
 		rt2x00dev->default_ant.tx = ANTENNA_A;
 		rt2x00dev->default_ant.rx = ANTENNA_A;
+	}
+
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390R)) {
+		rt2x00dev->default_ant.tx = ANTENNA_HW_DIVERSITY; /* Unused */
+		rt2x00dev->default_ant.rx = ANTENNA_HW_DIVERSITY; /* Unused */
 	}
 
 	/*

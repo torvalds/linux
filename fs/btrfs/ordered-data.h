@@ -74,6 +74,12 @@ struct btrfs_ordered_sum {
 
 #define BTRFS_ORDERED_DIRECT 5 /* set when we're doing DIO with this extent */
 
+#define BTRFS_ORDERED_IOERR 6 /* We had an io error when writing this out */
+
+#define BTRFS_ORDERED_UPDATED_ISIZE 7 /* indicates wether this ordered extent
+				       * has done its due diligence in updating
+				       * the isize. */
+
 struct btrfs_ordered_extent {
 	/* logical offset in the file */
 	u64 file_offset;
@@ -113,6 +119,8 @@ struct btrfs_ordered_extent {
 
 	/* a per root list of all the pending ordered extents */
 	struct list_head root_extent_list;
+
+	struct btrfs_work work;
 };
 
 
@@ -143,10 +151,11 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 				struct btrfs_ordered_extent *entry);
 int btrfs_dec_test_ordered_pending(struct inode *inode,
 				   struct btrfs_ordered_extent **cached,
-				   u64 file_offset, u64 io_size);
+				   u64 file_offset, u64 io_size, int uptodate);
 int btrfs_dec_test_first_ordered_pending(struct inode *inode,
 				   struct btrfs_ordered_extent **cached,
-				   u64 *file_offset, u64 io_size);
+				   u64 *file_offset, u64 io_size,
+				   int uptodate);
 int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 			     u64 start, u64 len, u64 disk_len, int type);
 int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,

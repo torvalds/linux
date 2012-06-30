@@ -8,6 +8,7 @@
 #include <linux/errno.h>
 #include <linux/clksrc-dbx500-prcmu.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/smp_twd.h>
 
@@ -18,8 +19,6 @@
 #include <mach/irqs.h>
 
 #ifdef CONFIG_HAVE_ARM_TWD
-static DEFINE_TWD_LOCAL_TIMER(u5500_twd_local_timer,
-			      U5500_TWD_BASE, IRQ_LOCALTIMER);
 static DEFINE_TWD_LOCAL_TIMER(u8500_twd_local_timer,
 			      U8500_TWD_BASE, IRQ_LOCALTIMER);
 
@@ -28,8 +27,8 @@ static void __init ux500_twd_init(void)
 	struct twd_local_timer *twd_local_timer;
 	int err;
 
-	twd_local_timer = cpu_is_u5500() ? &u5500_twd_local_timer :
-					   &u8500_twd_local_timer;
+	/* Use this to switch local timer base if changed in new ASICs */
+	twd_local_timer = &u8500_twd_local_timer;
 
 	if (of_have_populated_dt())
 		twd_local_timer_of_register();
@@ -43,20 +42,40 @@ static void __init ux500_twd_init(void)
 #define ux500_twd_init()	do { } while(0)
 #endif
 
+const static struct of_device_id prcmu_timer_of_match[] __initconst = {
+	{ .compatible = "stericsson,db8500-prcmu-timer-4", },
+	{ },
+};
+
 static void __init ux500_timer_init(void)
 {
 	void __iomem *mtu_timer_base;
 	void __iomem *prcmu_timer_base;
+	void __iomem *tmp_base;
+	struct device_node *np;
 
-	if (cpu_is_u5500()) {
-		mtu_timer_base = __io_address(U5500_MTU0_BASE);
-		prcmu_timer_base = __io_address(U5500_PRCMU_TIMER_3_BASE);
-	} else if (cpu_is_u8500()) {
+	if (cpu_is_u8500_family()) {
 		mtu_timer_base = __io_address(U8500_MTU0_BASE);
 		prcmu_timer_base = __io_address(U8500_PRCMU_TIMER_4_BASE);
 	} else {
 		ux500_unknown_soc();
 	}
+
+	/* TODO: Once MTU has been DT:ed place code above into else. */
+	if (of_have_populated_dt()) {
+		np = of_find_matching_node(NULL, prcmu_timer_of_match);
+		if (!np)
+			goto dt_fail;
+
+		tmp_base = of_iomap(np, 0);
+		if (!tmp_base)
+			goto dt_fail;
+
+		prcmu_timer_base = tmp_base;
+	}
+
+dt_fail:
+	/* Doing it the old fashioned way. */
 
 	/*
 	 * Here we register the timerblocks active in the system.
@@ -70,7 +89,7 @@ static void __init ux500_timer_init(void)
 	 * depending on delay which is not yet calibrated. RTC-RTT is in the
 	 * always-on powerdomain and is used as clockevent instead of twd when
 	 * sleeping.
-	 * The PRCMU timer 4(3 for DB5500) register a clocksource and
+	 * The PRCMU timer 4 register a clocksource and
 	 * sched_clock with higher rating then MTU since is always-on.
 	 *
 	 */

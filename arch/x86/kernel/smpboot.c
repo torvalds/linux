@@ -57,7 +57,7 @@
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
-#include <asm/trampoline.h>
+#include <asm/realmode.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
 #include <asm/pgtable.h>
@@ -73,22 +73,12 @@
 #include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
 
+#include <asm/realmode.h>
+
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
-/* Store all idle threads, this can be reused instead of creating
-* a new thread. Also avoids complicated thread destroy functionality
-* for idle threads.
-*/
 #ifdef CONFIG_HOTPLUG_CPU
-/*
- * Needed only for CONFIG_HOTPLUG_CPU because __cpuinitdata is
- * removed after init for !CONFIG_HOTPLUG_CPU.
- */
-static DEFINE_PER_CPU(struct task_struct *, idle_thread_array);
-#define get_idle_for_cpu(x)      (per_cpu(idle_thread_array, x))
-#define set_idle_for_cpu(x, p)   (per_cpu(idle_thread_array, x) = (p))
-
 /*
  * We need this for trampoline_base protection from concurrent accesses when
  * off- and onlining cores wildly.
@@ -97,20 +87,16 @@ static DEFINE_MUTEX(x86_cpu_hotplug_driver_mutex);
 
 void cpu_hotplug_driver_lock(void)
 {
-        mutex_lock(&x86_cpu_hotplug_driver_mutex);
+	mutex_lock(&x86_cpu_hotplug_driver_mutex);
 }
 
 void cpu_hotplug_driver_unlock(void)
 {
-        mutex_unlock(&x86_cpu_hotplug_driver_mutex);
+	mutex_unlock(&x86_cpu_hotplug_driver_mutex);
 }
 
 ssize_t arch_cpu_probe(const char *buf, size_t count) { return -1; }
 ssize_t arch_cpu_release(const char *buf, size_t count) { return -1; }
-#else
-static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
-#define get_idle_for_cpu(x)      (idle_thread_array[(x)])
-#define set_idle_for_cpu(x, p)   (idle_thread_array[(x)] = (p))
 #endif
 
 /* Number of siblings per CPU package */
@@ -315,59 +301,99 @@ void __cpuinit smp_store_cpu_info(int id)
 		identify_secondary_cpu(c);
 }
 
-static void __cpuinit link_thread_siblings(int cpu1, int cpu2)
+static bool __cpuinit
+topology_sane(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o, const char *name)
 {
-	cpumask_set_cpu(cpu1, cpu_sibling_mask(cpu2));
-	cpumask_set_cpu(cpu2, cpu_sibling_mask(cpu1));
-	cpumask_set_cpu(cpu1, cpu_core_mask(cpu2));
-	cpumask_set_cpu(cpu2, cpu_core_mask(cpu1));
-	cpumask_set_cpu(cpu1, cpu_llc_shared_mask(cpu2));
-	cpumask_set_cpu(cpu2, cpu_llc_shared_mask(cpu1));
+	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
+
+	return !WARN_ONCE(cpu_to_node(cpu1) != cpu_to_node(cpu2),
+		"sched: CPU #%d's %s-sibling CPU #%d is not on the same node! "
+		"[node: %d != %d]. Ignoring dependency.\n",
+		cpu1, name, cpu2, cpu_to_node(cpu1), cpu_to_node(cpu2));
 }
 
+#define link_mask(_m, c1, c2)						\
+do {									\
+	cpumask_set_cpu((c1), cpu_##_m##_mask(c2));			\
+	cpumask_set_cpu((c2), cpu_##_m##_mask(c1));			\
+} while (0)
+
+static bool __cpuinit match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+{
+	if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
+		int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
+
+		if (c->phys_proc_id == o->phys_proc_id &&
+		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2) &&
+		    c->compute_unit_id == o->compute_unit_id)
+			return topology_sane(c, o, "smt");
+
+	} else if (c->phys_proc_id == o->phys_proc_id &&
+		   c->cpu_core_id == o->cpu_core_id) {
+		return topology_sane(c, o, "smt");
+	}
+
+	return false;
+}
+
+static bool __cpuinit match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+{
+	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
+
+	if (per_cpu(cpu_llc_id, cpu1) != BAD_APICID &&
+	    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2))
+		return topology_sane(c, o, "llc");
+
+	return false;
+}
+
+static bool __cpuinit match_mc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+{
+	if (c->phys_proc_id == o->phys_proc_id)
+		return topology_sane(c, o, "mc");
+
+	return false;
+}
 
 void __cpuinit set_cpu_sibling_map(int cpu)
 {
-	int i;
+	bool has_mc = boot_cpu_data.x86_max_cores > 1;
+	bool has_smt = smp_num_siblings > 1;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	struct cpuinfo_x86 *o;
+	int i;
 
 	cpumask_set_cpu(cpu, cpu_sibling_setup_mask);
 
-	if (smp_num_siblings > 1) {
-		for_each_cpu(i, cpu_sibling_setup_mask) {
-			struct cpuinfo_x86 *o = &cpu_data(i);
-
-			if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
-				if (c->phys_proc_id == o->phys_proc_id &&
-				    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i) &&
-				    c->compute_unit_id == o->compute_unit_id)
-					link_thread_siblings(cpu, i);
-			} else if (c->phys_proc_id == o->phys_proc_id &&
-				   c->cpu_core_id == o->cpu_core_id) {
-				link_thread_siblings(cpu, i);
-			}
-		}
-	} else {
+	if (!has_smt && !has_mc) {
 		cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
-	}
-
-	cpumask_set_cpu(cpu, cpu_llc_shared_mask(cpu));
-
-	if (__this_cpu_read(cpu_info.x86_max_cores) == 1) {
-		cpumask_copy(cpu_core_mask(cpu), cpu_sibling_mask(cpu));
+		cpumask_set_cpu(cpu, cpu_llc_shared_mask(cpu));
+		cpumask_set_cpu(cpu, cpu_core_mask(cpu));
 		c->booted_cores = 1;
 		return;
 	}
 
 	for_each_cpu(i, cpu_sibling_setup_mask) {
-		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
-		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
-			cpumask_set_cpu(i, cpu_llc_shared_mask(cpu));
-			cpumask_set_cpu(cpu, cpu_llc_shared_mask(i));
-		}
-		if (c->phys_proc_id == cpu_data(i).phys_proc_id) {
-			cpumask_set_cpu(i, cpu_core_mask(cpu));
-			cpumask_set_cpu(cpu, cpu_core_mask(i));
+		o = &cpu_data(i);
+
+		if ((i == cpu) || (has_smt && match_smt(c, o)))
+			link_mask(sibling, cpu, i);
+
+		if ((i == cpu) || (has_mc && match_llc(c, o)))
+			link_mask(llc_shared, cpu, i);
+
+	}
+
+	/*
+	 * This needs a separate iteration over the cpus because we rely on all
+	 * cpu_sibling_mask links to be set-up.
+	 */
+	for_each_cpu(i, cpu_sibling_setup_mask) {
+		o = &cpu_data(i);
+
+		if ((i == cpu) || (has_mc && match_mc(c, o))) {
+			link_mask(core, cpu, i);
+
 			/*
 			 *  Does this new cpu bringup a new core?
 			 */
@@ -393,16 +419,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 /* maps the cpu to the sched domain representing multi-core */
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	/*
-	 * For perf, we return last level cache shared map.
-	 * And for power savings, we return cpu_core_map
-	 */
-	if ((sched_mc_power_savings || sched_smt_power_savings) &&
-	    !(cpu_has(c, X86_FEATURE_AMD_DCM)))
-		return cpu_core_mask(cpu);
-	else
-		return cpu_llc_shared_mask(cpu);
+	return cpu_llc_shared_mask(cpu);
 }
 
 static void impress_friends(void)
@@ -618,22 +635,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	return (send_status | accept_status);
 }
 
-struct create_idle {
-	struct work_struct work;
-	struct task_struct *idle;
-	struct completion done;
-	int cpu;
-};
-
-static void __cpuinit do_fork_idle(struct work_struct *work)
-{
-	struct create_idle *c_idle =
-		container_of(work, struct create_idle, work);
-
-	c_idle->idle = fork_idle(c_idle->cpu);
-	complete(&c_idle->done);
-}
-
 /* reduce the number of lines printed when booting a large cpu count system */
 static void __cpuinit announce_cpu(int cpu, int apicid)
 {
@@ -660,61 +661,35 @@ static void __cpuinit announce_cpu(int cpu, int apicid)
  * Returns zero if CPU booted OK, else error code from
  * ->wakeup_secondary_cpu.
  */
-static int __cpuinit do_boot_cpu(int apicid, int cpu)
+static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 {
-	unsigned long boot_error = 0;
-	unsigned long start_ip;
-	int timeout;
-	struct create_idle c_idle = {
-		.cpu	= cpu,
-		.done	= COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
-	};
+	volatile u32 *trampoline_status =
+		(volatile u32 *) __va(real_mode_header->trampoline_status);
+	/* start_ip had better be page-aligned! */
+	unsigned long start_ip = real_mode_header->trampoline_start;
 
-	INIT_WORK_ONSTACK(&c_idle.work, do_fork_idle);
+	unsigned long boot_error = 0;
+	int timeout;
 
 	alternatives_smp_switch(1);
 
-	c_idle.idle = get_idle_for_cpu(cpu);
+	idle->thread.sp = (unsigned long) (((struct pt_regs *)
+			  (THREAD_SIZE +  task_stack_page(idle))) - 1);
+	per_cpu(current_task, cpu) = idle;
 
-	/*
-	 * We can't use kernel_thread since we must avoid to
-	 * reschedule the child.
-	 */
-	if (c_idle.idle) {
-		c_idle.idle->thread.sp = (unsigned long) (((struct pt_regs *)
-			(THREAD_SIZE +  task_stack_page(c_idle.idle))) - 1);
-		init_idle(c_idle.idle, cpu);
-		goto do_rest;
-	}
-
-	schedule_work(&c_idle.work);
-	wait_for_completion(&c_idle.done);
-
-	if (IS_ERR(c_idle.idle)) {
-		printk("failed fork for CPU %d\n", cpu);
-		destroy_work_on_stack(&c_idle.work);
-		return PTR_ERR(c_idle.idle);
-	}
-
-	set_idle_for_cpu(cpu, c_idle.idle);
-do_rest:
-	per_cpu(current_task, cpu) = c_idle.idle;
 #ifdef CONFIG_X86_32
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	irq_ctx_init(cpu);
 #else
-	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
+	clear_tsk_thread_flag(idle, TIF_FORK);
 	initial_gs = per_cpu_offset(cpu);
 	per_cpu(kernel_stack, cpu) =
-		(unsigned long)task_stack_page(c_idle.idle) -
+		(unsigned long)task_stack_page(idle) -
 		KERNEL_STACK_OFFSET + THREAD_SIZE;
 #endif
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
-	stack_start  = c_idle.idle->thread.sp;
-
-	/* start_ip had better be page-aligned! */
-	start_ip = trampoline_address();
+	stack_start  = idle->thread.sp;
 
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);
@@ -778,8 +753,7 @@ do_rest:
 			pr_debug("CPU%d: has booted.\n", cpu);
 		} else {
 			boot_error = 1;
-			if (*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status)
-			    == 0xA5A5A5A5)
+			if (*trampoline_status == 0xA5A5A5A5)
 				/* trampoline started but...? */
 				pr_err("CPU%d: Stuck ??\n", cpu);
 			else
@@ -805,7 +779,7 @@ do_rest:
 	}
 
 	/* mark "stuck" area as not stuck */
-	*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status) = 0;
+	*trampoline_status = 0;
 
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 		/*
@@ -813,12 +787,10 @@ do_rest:
 		 */
 		smpboot_restore_warm_reset_vector();
 	}
-
-	destroy_work_on_stack(&c_idle.work);
 	return boot_error;
 }
 
-int __cpuinit native_cpu_up(unsigned int cpu)
+int __cpuinit native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int apicid = apic->cpu_present_to_apicid(cpu);
 	unsigned long flags;
@@ -851,7 +823,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 
-	err = do_boot_cpu(apicid, cpu);
+	err = do_boot_cpu(apicid, cpu, tidle);
 	if (err) {
 		pr_debug("do_boot_cpu failed %d\n", err);
 		return -EIO;

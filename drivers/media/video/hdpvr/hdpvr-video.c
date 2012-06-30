@@ -994,7 +994,7 @@ static int hdpvr_try_ctrl(struct v4l2_ext_control *ctrl, int ac3)
 	default:
 		return -EINVAL;
 	}
-	return 0;
+	return ret;
 }
 
 static int vidioc_try_ext_ctrls(struct file *file, void *priv,

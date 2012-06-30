@@ -7,7 +7,6 @@ config PPC_PS3
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	select USB_ARCH_HAS_EHCI
 	select USB_EHCI_BIG_ENDIAN_MMIO
-	select MEMORY_HOTPLUG
 	select PPC_PCI_CHOICE
 	help
 	  This option enables support for the Sony PS3 game console
@@ -74,7 +73,7 @@ config PS3_PS3AV
 	help
 	  Include support for the PS3 AV Settings driver.
 
-	  This support is required for graphics and sound. In
+	  This support is required for PS3 graphics and sound. In
 	  general, all users will say Y or M.
 
 config PS3_SYS_MANAGER
@@ -85,8 +84,21 @@ config PS3_SYS_MANAGER
 	help
 	  Include support for the PS3 System Manager.
 
-	  This support is required for system control.  In
+	  This support is required for PS3 system control.  In
 	  general, all users will say Y or M.
+
+config PS3_REPOSITORY_WRITE
+	bool "PS3 Repository write support" if PS3_ADVANCED
+	depends on PPC_PS3
+	default n
+	help
+	  Enables support for writing to the PS3 System Repository.
+
+	  This support is intended for bootloaders that need to store data
+	  in the repository for later boot stages.
+
+	  If in doubt, say N here and reduce the size of the kernel by a
+	  small amount.
 
 config PS3_STORAGE
 	depends on PPC_PS3
@@ -122,7 +134,7 @@ config PS3_FLASH
 
 	  This support is required to access the PS3 FLASH ROM, which
 	  contains the boot loader and some boot options.
-	  In general, all users will say Y or M.
+	  In general, PS3 OtherOS users will say Y or M.
 
 	  As this driver needs a fixed buffer of 256 KiB of memory, it can
 	  be disabled on the kernel command line using "ps3flash=off", to
@@ -156,7 +168,7 @@ config PS3GELIC_UDBG
 	  via the Ethernet port (UDP port number 18194).
 
 	  This driver uses a trivial implementation and is independent
-	  from the main network driver.
+	  from the main PS3 gelic network driver.
 
 	  If in doubt, say N here.
 

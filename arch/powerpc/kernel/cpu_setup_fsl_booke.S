@@ -73,6 +73,7 @@ _GLOBAL(__setup_cpu_e500v2)
 	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_e500mc)
+	mr	r5, r4
 	mflr	r4
 	bl	__e500_icache_setup
 	bl	__e500_dcache_setup

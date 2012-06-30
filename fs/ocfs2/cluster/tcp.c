@@ -2005,7 +2005,7 @@ static int o2net_open_listening_sock(__be32 addr, __be16 port)
 	o2net_listen_sock = sock;
 	INIT_WORK(&o2net_listen_work, o2net_accept_many);
 
-	sock->sk->sk_reuse = 1;
+	sock->sk->sk_reuse = SK_CAN_REUSE;
 	ret = sock->ops->bind(sock, (struct sockaddr *)&sin, sizeof(sin));
 	if (ret < 0) {
 		printk(KERN_ERR "o2net: Error %d while binding socket at "

@@ -29,6 +29,8 @@
 #include <plat/mux.h>
 #include <plat/usb.h>
 
+#include "common.h"
+
 /* These routines should handle the standard chip-specific modes
  * for usb0/1/2 ports, covering basic mux and transceiver setup.
  *
@@ -138,6 +140,7 @@ static inline void ohci_device_init(struct omap_usb_config *pdata)
 	if (cpu_is_omap7xx())
 		ohci_resources[1].start = INT_7XX_USB_HHC_1;
 	pdata->ohci_device = &ohci_device;
+	pdata->ocpi_enable = &ocpi_enable;
 }
 
 #else

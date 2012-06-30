@@ -61,8 +61,10 @@ int  nouveau_voltage_gpio_set(struct drm_device *, int voltage);
 /* nouveau_perf.c */
 void nouveau_perf_init(struct drm_device *);
 void nouveau_perf_fini(struct drm_device *);
-u8 *nouveau_perf_timing(struct drm_device *, u32 freq, u8 *ver, u8 *len);
+u8 *nouveau_perf_rammap(struct drm_device *, u32 freq, u8 *ver,
+			u8 *hdr, u8 *cnt, u8 *len);
 u8 *nouveau_perf_ramcfg(struct drm_device *, u32 freq, u8 *ver, u8 *len);
+u8 *nouveau_perf_timing(struct drm_device *, u32 freq, u8 *ver, u8 *len);
 
 /* nouveau_mem.c */
 void nouveau_mem_timing_init(struct drm_device *);

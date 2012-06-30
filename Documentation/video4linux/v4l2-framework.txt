@@ -182,11 +182,11 @@ static int __devinit drv_probe(struct pci_dev *pdev,
 }
 
 If you have multiple device nodes then it can be difficult to know when it is
-safe to unregister v4l2_device. For this purpose v4l2_device has refcounting
-support. The refcount is increased whenever video_register_device is called and
-it is decreased whenever that device node is released. When the refcount reaches
-zero, then the v4l2_device release() callback is called. You can do your final
-cleanup there.
+safe to unregister v4l2_device for hotpluggable devices. For this purpose
+v4l2_device has refcounting support. The refcount is increased whenever
+video_register_device is called and it is decreased whenever that device node
+is released. When the refcount reaches zero, then the v4l2_device release()
+callback is called. You can do your final cleanup there.
 
 If other device nodes (e.g. ALSA) are created, then you can increase and
 decrease the refcount manually as well by calling:
@@ -196,6 +196,10 @@ void v4l2_device_get(struct v4l2_device *v4l2_dev);
 or:
 
 int v4l2_device_put(struct v4l2_device *v4l2_dev);
+
+Since the initial refcount is 1 you also need to call v4l2_device_put in the
+disconnect() callback (for USB devices) or in the remove() callback (for e.g.
+PCI devices), otherwise the refcount will never reach 0.
 
 struct v4l2_subdev
 ------------------
@@ -262,11 +266,16 @@ struct v4l2_subdev_video_ops {
 	...
 };
 
+struct v4l2_subdev_pad_ops {
+	...
+};
+
 struct v4l2_subdev_ops {
 	const struct v4l2_subdev_core_ops  *core;
 	const struct v4l2_subdev_tuner_ops *tuner;
 	const struct v4l2_subdev_audio_ops *audio;
 	const struct v4l2_subdev_video_ops *video;
+	const struct v4l2_subdev_pad_ops *video;
 };
 
 The core ops are common to all subdevs, the other categories are implemented
@@ -302,6 +311,22 @@ subdev device node (if any) is opened/closed.
 Don't forget to cleanup the media entity before the sub-device is destroyed:
 
 	media_entity_cleanup(&sd->entity);
+
+If the subdev driver intends to process video and integrate with the media
+framework, it must implement format related functionality using
+v4l2_subdev_pad_ops instead of v4l2_subdev_video_ops.
+
+In that case, the subdev driver may set the link_validate field to provide
+its own link validation function. The link validation function is called for
+every link in the pipeline where both of the ends of the links are V4L2
+sub-devices. The driver is still responsible for validating the correctness
+of the format configuration between sub-devices and video nodes.
+
+If link_validate op is not set, the default function
+v4l2_subdev_link_validate_default() is used instead. This function ensures
+that width, height and the media bus pixel code are equal on both source and
+sink of the link. Subdev drivers are also free to use this function to
+perform the checks mentioned above in addition to their own checks.
 
 A device (bridge) driver needs to register the v4l2_subdev with the
 v4l2_device:
@@ -555,19 +580,25 @@ allocated memory.
 You should also set these fields:
 
 - v4l2_dev: set to the v4l2_device parent device.
+
 - name: set to something descriptive and unique.
+
 - fops: set to the v4l2_file_operations struct.
+
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
   future!), then set this to your v4l2_ioctl_ops struct.
+
 - lock: leave to NULL if you want to do all the locking in the driver.
-  Otherwise you give it a pointer to a struct mutex_lock and before any
-  of the v4l2_file_operations is called this lock will be taken by the
-  core and released afterwards.
+  Otherwise you give it a pointer to a struct mutex_lock and before the
+  unlocked_ioctl file operation is called this lock will be taken by the
+  core and released afterwards. See the next section for more details.
+
 - prio: keeps track of the priorities. Used to implement VIDIOC_G/S_PRIORITY.
   If left to NULL, then it will use the struct v4l2_prio_state in v4l2_device.
   If you want to have a separate priority state per (group of) device node(s),
   then you can point it to your own struct v4l2_prio_state.
+
 - parent: you only set this if v4l2_device was registered with NULL as
   the parent device struct. This only happens in cases where one hardware
   device has multiple PCI devices that all share the same v4l2_device core.
@@ -577,6 +608,7 @@ You should also set these fields:
   (cx8802). Since the v4l2_device cannot be associated with a particular
   PCI device it is setup without a parent device. But when the struct
   video_device is setup you do know which parent PCI device to use.
+
 - flags: optional. Set to V4L2_FL_USE_FH_PRIO if you want to let the framework
   handle the VIDIOC_G/S_PRIORITY ioctls. This requires that you use struct
   v4l2_fh. Eventually this flag will disappear once all drivers use the core
@@ -586,6 +618,16 @@ If you use v4l2_ioctl_ops, then you should set .unlocked_ioctl to video_ioctl2
 in your v4l2_file_operations struct.
 
 Do not use .ioctl! This is deprecated and will go away in the future.
+
+In some cases you want to tell the core that a function you had specified in
+your v4l2_ioctl_ops should be ignored. You can mark such ioctls by calling this
+function before video_device_register is called:
+
+void v4l2_disable_ioctl(struct video_device *vdev, unsigned int cmd);
+
+This tends to be needed if based on external factors (e.g. which card is
+being used) you want to turns off certain features in v4l2_ioctl_ops without
+having to make a new struct.
 
 The v4l2_file_operations struct is a subset of file_operations. The main
 difference is that the inode argument is omitted since it is never used.
@@ -609,8 +651,22 @@ v4l2_file_operations and locking
 --------------------------------
 
 You can set a pointer to a mutex_lock in struct video_device. Usually this
-will be either a top-level mutex or a mutex per device node. If you want
-finer-grained locking then you have to set it to NULL and do you own locking.
+will be either a top-level mutex or a mutex per device node. By default this
+lock will be used for unlocked_ioctl, but you can disable locking for
+selected ioctls by calling:
+
+	void v4l2_disable_ioctl_locking(struct video_device *vdev, unsigned int cmd);
+
+E.g.: v4l2_disable_ioctl_locking(vdev, VIDIOC_DQBUF);
+
+You have to call this before you register the video_device.
+
+Particularly with USB drivers where certain commands such as setting controls
+can take a long time you may want to do your own locking for the buffer queuing
+ioctls.
+
+If you want still finer-grained locking then you have to set mutex_lock to NULL
+and do you own locking completely.
 
 It is up to the driver developer to decide which method to use. However, if
 your driver has high-latency operations (for example, changing the exposure
@@ -618,7 +674,7 @@ of a USB webcam might take a long time), then you might be better off with
 doing your own locking if you want to allow the user to do other things with
 the device while waiting for the high-latency command to finish.
 
-If a lock is specified then all file operations will be serialized on that
+If a lock is specified then all ioctl commands will be serialized on that
 lock. If you use videobuf then you must pass the same lock to the videobuf
 queue initialize function: if videobuf has to wait for a frame to arrive, then
 it will temporarily unlock the lock and relock it afterwards. If your driver
@@ -941,21 +997,35 @@ fast.
 
 Useful functions:
 
-- v4l2_event_queue()
+void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
 
   Queue events to video device. The driver's only responsibility is to fill
   in the type and the data fields. The other fields will be filled in by
   V4L2.
 
-- v4l2_event_subscribe()
+int v4l2_event_subscribe(struct v4l2_fh *fh,
+			 struct v4l2_event_subscription *sub, unsigned elems,
+			 const struct v4l2_subscribed_event_ops *ops)
 
   The video_device->ioctl_ops->vidioc_subscribe_event must check the driver
   is able to produce events with specified event id. Then it calls
-  v4l2_event_subscribe() to subscribe the event. The last argument is the
-  size of the event queue for this event. If it is 0, then the framework
-  will fill in a default value (this depends on the event type).
+  v4l2_event_subscribe() to subscribe the event.
 
-- v4l2_event_unsubscribe()
+  The elems argument is the size of the event queue for this event. If it is 0,
+  then the framework will fill in a default value (this depends on the event
+  type).
+
+  The ops argument allows the driver to specify a number of callbacks:
+  * add:     called when a new listener gets added (subscribing to the same
+             event twice will only cause this callback to get called once)
+  * del:     called when a listener stops listening
+  * replace: replace event 'old' with event 'new'.
+  * merge:   merge event 'old' into event 'new'.
+  All 4 callbacks are optional, if you don't want to specify any callbacks
+  the ops argument itself maybe NULL.
+
+int v4l2_event_unsubscribe(struct v4l2_fh *fh,
+			   struct v4l2_event_subscription *sub)
 
   vidioc_unsubscribe_event in struct v4l2_ioctl_ops. A driver may use
   v4l2_event_unsubscribe() directly unless it wants to be involved in
@@ -964,7 +1034,7 @@ Useful functions:
   The special type V4L2_EVENT_ALL may be used to unsubscribe all events. The
   drivers may want to handle this in a special way.
 
-- v4l2_event_pending()
+int v4l2_event_pending(struct v4l2_fh *fh)
 
   Returns the number of pending events. Useful when implementing poll.
 

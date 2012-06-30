@@ -53,9 +53,9 @@
  * 3430ES2 PM_WKDEP_SGX: adds IVA2, removes CORE
  */
 static struct clkdm_dep gfx_sgx_3xxx_wkdeps[] = {
-	{ .clkdm_name = "iva2_clkdm", },
-	{ .clkdm_name = "mpu_clkdm", },
-	{ .clkdm_name = "wkup_clkdm", },
+	{ .clkdm_name = "iva2_clkdm" },
+	{ .clkdm_name = "mpu_clkdm" },
+	{ .clkdm_name = "wkup_clkdm" },
 	{ NULL },
 };
 

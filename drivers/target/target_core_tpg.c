@@ -153,10 +153,7 @@ void core_tpg_add_node_to_devs(
 		 * demo_mode_write_protect is ON, or READ_ONLY;
 		 */
 		if (!tpg->se_tpg_tfo->tpg_check_demo_mode_write_protect(tpg)) {
-			if (dev->dev_flags & DF_READ_ONLY)
-				lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
-			else
-				lun_access = TRANSPORT_LUNFLAGS_READ_WRITE;
+			lun_access = TRANSPORT_LUNFLAGS_READ_WRITE;
 		} else {
 			/*
 			 * Allow only optical drives to issue R/W in default RO

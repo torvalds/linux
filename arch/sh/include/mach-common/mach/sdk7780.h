@@ -11,6 +11,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#include <linux/sh_intc.h>
 #include <asm/addrspace.h>
 
 /* Box specific addresses.  */
@@ -67,9 +68,9 @@
 
 #define SDK7780_NR_IRL			15
 /* IDE/ATA interrupt */
-#define IRQ_CFCARD				14
+#define IRQ_CFCARD			evt2irq(0x3c0)
 /* SMC interrupt */
-#define IRQ_ETHERNET			6
+#define IRQ_ETHERNET			evt2irq(0x2c0)
 
 
 /* arch/sh/boards/renesas/sdk7780/irq.c */

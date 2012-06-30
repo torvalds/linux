@@ -41,9 +41,11 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
  *	@get_size: Function to calculate required room for dumping device
  *		   specific netlink attributes
  *	@fill_info: Function to dump device specific netlink attributes
- *	@get_xstats_size: Function to calculate required room for dumping devic
+ *	@get_xstats_size: Function to calculate required room for dumping device
  *			  specific statistics
  *	@fill_xstats: Function to dump device specific statistics
+ *	@get_tx_queues: Function to determine number of transmit queues to create when
+ *		        creating a new device.
  */
 struct rtnl_link_ops {
 	struct list_head	list;
@@ -75,9 +77,8 @@ struct rtnl_link_ops {
 	size_t			(*get_xstats_size)(const struct net_device *dev);
 	int			(*fill_xstats)(struct sk_buff *skb,
 					       const struct net_device *dev);
-	int			(*get_tx_queues)(struct net *net, struct nlattr *tb[],
-						 unsigned int *tx_queues,
-						 unsigned int *real_tx_queues);
+	int			(*get_tx_queues)(struct net *net,
+						 struct nlattr *tb[]);
 };
 
 extern int	__rtnl_link_register(struct rtnl_link_ops *ops);
@@ -94,7 +95,7 @@ extern void	rtnl_link_unregister(struct rtnl_link_ops *ops);
  * 	@fill_link_af: Function to fill IFLA_AF_SPEC with address family
  * 		       specific netlink attributes.
  * 	@get_link_af_size: Function to calculate size of address family specific
- * 			   netlink attributes exlusive the container attribute.
+ * 			   netlink attributes.
  *	@validate_link_af: Validate a IFLA_AF_SPEC attribute, must check attr
  *			   for invalid configuration settings.
  * 	@set_link_af: Function to parse a IFLA_AF_SPEC attribute and modify

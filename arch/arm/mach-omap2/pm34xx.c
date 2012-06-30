@@ -273,7 +273,7 @@ void omap_sram_idle(void)
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
 	int per_going_off;
-	int core_prev_state, per_prev_state;
+	int core_prev_state;
 	u32 sdrc_pwr = 0;
 
 	mpu_next_state = pwrdm_read_next_pwrst(mpu_pwrdm);
@@ -375,10 +375,8 @@ void omap_sram_idle(void)
 	pwrdm_post_transition();
 
 	/* PER */
-	if (per_next_state < PWRDM_POWER_ON) {
-		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
+	if (per_next_state < PWRDM_POWER_ON)
 		omap2_gpio_resume_after_idle();
-	}
 
 	/* Disable IO-PAD and IO-CHAIN wakeup */
 	if (omap3_has_io_wakeup() &&
@@ -699,14 +697,11 @@ static void __init pm_errata_configure(void)
 	}
 }
 
-static int __init omap3_pm_init(void)
+int __init omap3_pm_init(void)
 {
 	struct power_state *pwrst, *tmp;
-	struct clockdomain *neon_clkdm, *per_clkdm, *mpu_clkdm, *core_clkdm;
+	struct clockdomain *neon_clkdm, *mpu_clkdm;
 	int ret;
-
-	if (!cpu_is_omap34xx())
-		return -ENODEV;
 
 	if (!omap3_has_io_chain_ctrl())
 		pr_warning("PM: no software I/O chain control; some wakeups may be lost\n");
@@ -757,8 +752,6 @@ static int __init omap3_pm_init(void)
 
 	neon_clkdm = clkdm_lookup("neon_clkdm");
 	mpu_clkdm = clkdm_lookup("mpu_clkdm");
-	per_clkdm = clkdm_lookup("per_clkdm");
-	core_clkdm = clkdm_lookup("core_clkdm");
 
 #ifdef CONFIG_SUSPEND
 	omap_pm_suspend = omap3_pm_suspend;
@@ -808,5 +801,3 @@ err2:
 err1:
 	return ret;
 }
-
-late_initcall(omap3_pm_init);

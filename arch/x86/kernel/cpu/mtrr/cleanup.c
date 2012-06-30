@@ -266,7 +266,7 @@ range_to_mtrr(unsigned int reg, unsigned long range_startk,
 		if (align > max_align)
 			align = max_align;
 
-		sizek = 1 << align;
+		sizek = 1UL << align;
 		if (debug_print) {
 			char start_factor = 'K', size_factor = 'K';
 			unsigned long start_base, size_base;

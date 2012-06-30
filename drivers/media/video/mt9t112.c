@@ -453,6 +453,7 @@ static int mt9t112_init_pll(const struct i2c_client *client)
 	 * I2C Master Clock Divider
 	 */
 	mt9t112_reg_write(ret, client, 0x0014, 0x3046);
+	mt9t112_reg_write(ret, client, 0x0016, 0x0400); /* JPEG initialization workaround */
 	mt9t112_reg_write(ret, client, 0x0022, 0x0190);
 	mt9t112_reg_write(ret, client, 0x3B84, 0x0212);
 

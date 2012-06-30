@@ -45,7 +45,6 @@ static unsigned long clk_divider_recalc_rate(struct clk_hw *hw,
 
 	return parent_rate / div;
 }
-EXPORT_SYMBOL_GPL(clk_divider_recalc_rate);
 
 /*
  * The reverse of DIV_ROUND_UP: The maximum number which
@@ -68,8 +67,8 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	if (divider->flags & CLK_DIVIDER_ONE_BASED)
 		maxdiv--;
 
-	if (!best_parent_rate) {
-		parent_rate = __clk_get_rate(__clk_get_parent(hw->clk));
+	if (!(__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT)) {
+		parent_rate = *best_parent_rate;
 		bestdiv = DIV_ROUND_UP(parent_rate, rate);
 		bestdiv = bestdiv == 0 ? 1 : bestdiv;
 		bestdiv = bestdiv > maxdiv ? maxdiv : bestdiv;
@@ -109,24 +108,18 @@ static long clk_divider_round_rate(struct clk_hw *hw, unsigned long rate,
 	int div;
 	div = clk_divider_bestdiv(hw, rate, prate);
 
-	if (prate)
-		return *prate / div;
-	else {
-		unsigned long r;
-		r = __clk_get_rate(__clk_get_parent(hw->clk));
-		return r / div;
-	}
+	return *prate / div;
 }
-EXPORT_SYMBOL_GPL(clk_divider_round_rate);
 
-static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate)
+static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
 {
 	struct clk_divider *divider = to_clk_divider(hw);
 	unsigned int div;
 	unsigned long flags = 0;
 	u32 val;
 
-	div = __clk_get_rate(__clk_get_parent(hw->clk)) / rate;
+	div = parent_rate / rate;
 
 	if (!(divider->flags & CLK_DIVIDER_ONE_BASED))
 		div--;
@@ -147,15 +140,26 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(clk_divider_set_rate);
 
-struct clk_ops clk_divider_ops = {
+const struct clk_ops clk_divider_ops = {
 	.recalc_rate = clk_divider_recalc_rate,
 	.round_rate = clk_divider_round_rate,
 	.set_rate = clk_divider_set_rate,
 };
 EXPORT_SYMBOL_GPL(clk_divider_ops);
 
+/**
+ * clk_register_divider - register a divider clock with the clock framework
+ * @dev: device registering this clock
+ * @name: name of this clock
+ * @parent_name: name of clock's parent
+ * @flags: framework-specific flags
+ * @reg: register address to adjust divider
+ * @shift: number of bits to shift the bitfield
+ * @width: width of the bitfield
+ * @clk_divider_flags: divider-specific flags for this clock
+ * @lock: shared register lock for this clock
+ */
 struct clk *clk_register_divider(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
@@ -163,13 +167,20 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
 {
 	struct clk_divider *div;
 	struct clk *clk;
+	struct clk_init_data init;
 
+	/* allocate the divider */
 	div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
-
 	if (!div) {
 		pr_err("%s: could not allocate divider clk\n", __func__);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
+
+	init.name = name;
+	init.ops = &clk_divider_ops;
+	init.flags = flags;
+	init.parent_names = (parent_name ? &parent_name: NULL);
+	init.num_parents = (parent_name ? 1 : 0);
 
 	/* struct clk_divider assignments */
 	div->reg = reg;
@@ -177,24 +188,13 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
 	div->width = width;
 	div->flags = clk_divider_flags;
 	div->lock = lock;
+	div->hw.init = &init;
 
-	if (parent_name) {
-		div->parent[0] = kstrdup(parent_name, GFP_KERNEL);
-		if (!div->parent[0])
-			goto out;
-	}
+	/* register the clock */
+	clk = clk_register(dev, &div->hw);
 
-	clk = clk_register(dev, name,
-			&clk_divider_ops, &div->hw,
-			div->parent,
-			(parent_name ? 1 : 0),
-			flags);
-	if (clk)
-		return clk;
+	if (IS_ERR(clk))
+		kfree(div);
 
-out:
-	kfree(div->parent[0]);
-	kfree(div);
-
-	return NULL;
+	return clk;
 }

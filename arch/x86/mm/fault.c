@@ -582,7 +582,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 		pte_t *pte = lookup_address(address, &level);
 
 		if (pte && pte_present(*pte) && !pte_exec(*pte))
-			printk(nx_warning, current_uid());
+			printk(nx_warning, from_kuid(&init_user_ns, current_uid()));
 	}
 
 	printk(KERN_ALERT "BUG: unable to handle kernel ");

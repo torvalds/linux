@@ -443,7 +443,7 @@
 #define bCCKRxIG                  			0x7f00
 #define bCCKLNAPolarity           		0x800000
 #define bCCKRx1stGain             		0x7f0000
-#define bCCKRFExtend              		0x20000000 //CCK Rx Iinital gain polarity
+#define bCCKRFExtend              		0x20000000 //CCK Rx inital gain polarity
 #define bCCKRxAGCSatLevel        		0x1f000000
 #define bCCKRxAGCSatCount       		0xe0
 #define bCCKRxRFSettle            		0x1f       //AGCsamp_dly

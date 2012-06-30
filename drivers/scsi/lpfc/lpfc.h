@@ -93,6 +93,9 @@ struct lpfc_sli2_slim;
 /* lpfc wait event data ready flag */
 #define LPFC_DATA_READY		(1<<0)
 
+/* queue dump line buffer size */
+#define LPFC_LBUF_SZ		128
+
 enum lpfc_polling_flags {
 	ENABLE_FCP_RING_POLLING = 0x1,
 	DISABLE_FCP_RING_INT    = 0x2
@@ -620,6 +623,7 @@ struct lpfc_hba {
 #define HBA_AER_ENABLED		0x1000 /* AER enabled with HBA */
 #define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
+#define HBA_FCP_IOQ_FLUSH	0x8000 /* FCP I/O queues being flushed */
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
 

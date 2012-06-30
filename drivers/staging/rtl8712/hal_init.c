@@ -36,7 +36,6 @@
 
 #include "osdep_service.h"
 #include "drv_types.h"
-#include "rtl871x_byteorder.h"
 #include "usb_osintf.h"
 
 #define FWBUFF_ALIGN_SZ 512

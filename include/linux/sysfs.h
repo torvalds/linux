@@ -27,6 +27,7 @@ struct attribute {
 	const char		*name;
 	umode_t			mode;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
+	bool			ignore_lockdep:1;
 	struct lock_class_key	*key;
 	struct lock_class_key	skey;
 #endif
@@ -79,6 +80,17 @@ struct attribute_group {
 }
 
 #define __ATTR_NULL { .attr = { .name = NULL } }
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define __ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store) {	\
+	.attr = {.name = __stringify(_name), .mode = _mode,	\
+			.ignore_lockdep = true },		\
+	.show		= _show,				\
+	.store		= _store,				\
+}
+#else
+#define __ATTR_IGNORE_LOCKDEP	__ATTR
+#endif
 
 #define attr_name(_attr) (_attr).attr.name
 

@@ -227,7 +227,7 @@ static void doc_read_data_area(struct docg3 *docg3, void *buf, int len,
 	u8 data8, *dst8;
 
 	doc_dbg("doc_read_data_area(buf=%p, len=%d)\n", buf, len);
-	cdr = len & 0x3;
+	cdr = len & 0x1;
 	len4 = len - cdr;
 
 	if (first)
@@ -383,7 +383,7 @@ static void doc_set_device_id(struct docg3 *docg3, int id)
  * leveling counters are stored.  To access this last area of 4 bytes, a special
  * mode must be input to the flash ASIC.
  *
- * Returns 0 if no error occured, -EIO else.
+ * Returns 0 if no error occurred, -EIO else.
  */
 static int doc_set_extra_page_mode(struct docg3 *docg3)
 {
@@ -681,7 +681,7 @@ out:
  *  - one read of 512 bytes at offset 0
  *  - one read of 512 bytes at offset 512 + 16
  *
- * Returns 0 if successful, -EIO if a read error occured.
+ * Returns 0 if successful, -EIO if a read error occurred.
  */
 static int doc_read_page_prepare(struct docg3 *docg3, int block0, int block1,
 				 int page, int offset)
@@ -732,12 +732,24 @@ err:
  * @len: the number of bytes to be read (must be a multiple of 4)
  * @buf: the buffer to be filled in (or NULL is forget bytes)
  * @first: 1 if first time read, DOC_READADDRESS should be set
+ * @last_odd: 1 if last read ended up on an odd byte
+ *
+ * Reads bytes from a prepared page. There is a trickery here : if the last read
+ * ended up on an odd offset in the 1024 bytes double page, ie. between the 2
+ * planes, the first byte must be read apart. If a word (16bit) read was used,
+ * the read would return the byte of plane 2 as low *and* high endian, which
+ * will mess the read.
  *
  */
 static int doc_read_page_getbytes(struct docg3 *docg3, int len, u_char *buf,
-				  int first)
+				  int first, int last_odd)
 {
-	doc_read_data_area(docg3, buf, len, first);
+	if (last_odd && len > 0) {
+		doc_read_data_area(docg3, buf, 1, first);
+		doc_read_data_area(docg3, buf ? buf + 1 : buf, len - 1, 0);
+	} else {
+		doc_read_data_area(docg3, buf, len, first);
+	}
 	doc_delay(docg3, 2);
 	return len;
 }
@@ -839,7 +851,7 @@ static void calc_block_sector(loff_t from, int *block0, int *block1, int *page,
  *
  * Reads flash memory OOB area of pages.
  *
- * Returns 0 if read successfull, of -EIO, -EINVAL if an error occured
+ * Returns 0 if read successful, of -EIO, -EINVAL if an error occurred
  */
 static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 			struct mtd_oob_ops *ops)
@@ -850,6 +862,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	u8 *buf = ops->datbuf;
 	size_t len, ooblen, nbdata, nboob;
 	u8 hwecc[DOC_ECC_BCH_SIZE], eccconf1;
+	int max_bitflips = 0;
 
 	if (buf)
 		len = ops->len;
@@ -876,7 +889,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	ret = 0;
 	skip = from % DOC_LAYOUT_PAGE_SIZE;
 	mutex_lock(&docg3->cascade->lock);
-	while (!ret && (len > 0 || ooblen > 0)) {
+	while (ret >= 0 && (len > 0 || ooblen > 0)) {
 		calc_block_sector(from - skip, &block0, &block1, &page, &ofs,
 			docg3->reliable);
 		nbdata = min_t(size_t, len, DOC_LAYOUT_PAGE_SIZE - skip);
@@ -887,20 +900,20 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		ret = doc_read_page_ecc_init(docg3, DOC_ECC_BCH_TOTAL_BYTES);
 		if (ret < 0)
 			goto err_in_read;
-		ret = doc_read_page_getbytes(docg3, skip, NULL, 1);
+		ret = doc_read_page_getbytes(docg3, skip, NULL, 1, 0);
 		if (ret < skip)
 			goto err_in_read;
-		ret = doc_read_page_getbytes(docg3, nbdata, buf, 0);
+		ret = doc_read_page_getbytes(docg3, nbdata, buf, 0, skip % 2);
 		if (ret < nbdata)
 			goto err_in_read;
 		doc_read_page_getbytes(docg3,
 				       DOC_LAYOUT_PAGE_SIZE - nbdata - skip,
-				       NULL, 0);
-		ret = doc_read_page_getbytes(docg3, nboob, oobbuf, 0);
+				       NULL, 0, (skip + nbdata) % 2);
+		ret = doc_read_page_getbytes(docg3, nboob, oobbuf, 0, 0);
 		if (ret < nboob)
 			goto err_in_read;
 		doc_read_page_getbytes(docg3, DOC_LAYOUT_OOB_SIZE - nboob,
-				       NULL, 0);
+				       NULL, 0, nboob % 2);
 
 		doc_get_bch_hw_ecc(docg3, hwecc);
 		eccconf1 = doc_register_readb(docg3, DOC_ECCCONF1);
@@ -936,7 +949,8 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 			}
 			if (ret > 0) {
 				mtd->ecc_stats.corrected += ret;
-				ret = -EUCLEAN;
+				max_bitflips = max(max_bitflips, ret);
+				ret = max_bitflips;
 			}
 		}
 
@@ -971,7 +985,7 @@ err_in_read:
  * Reads flash memory pages. This function does not read the OOB chunk, but only
  * the page data.
  *
- * Returns 0 if read successfull, of -EIO, -EINVAL if an error occured
+ * Returns 0 if read successful, of -EIO, -EINVAL if an error occurred
  */
 static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 	     size_t *retlen, u_char *buf)
@@ -1004,7 +1018,7 @@ static int doc_reload_bbt(struct docg3 *docg3)
 						     DOC_LAYOUT_PAGE_SIZE);
 		if (!ret)
 			doc_read_page_getbytes(docg3, DOC_LAYOUT_PAGE_SIZE,
-					       buf, 1);
+					       buf, 1, 0);
 		buf += DOC_LAYOUT_PAGE_SIZE;
 	}
 	doc_read_page_finish(docg3);
@@ -1064,10 +1078,10 @@ static int doc_get_erase_count(struct docg3 *docg3, loff_t from)
 	ret = doc_reset_seq(docg3);
 	if (!ret)
 		ret = doc_read_page_prepare(docg3, block0, block1, page,
-					    ofs + DOC_LAYOUT_WEAR_OFFSET);
+					    ofs + DOC_LAYOUT_WEAR_OFFSET, 0);
 	if (!ret)
 		ret = doc_read_page_getbytes(docg3, DOC_LAYOUT_WEAR_SIZE,
-					     buf, 1);
+					     buf, 1, 0);
 	doc_read_page_finish(docg3);
 
 	if (ret || (buf[0] != DOC_ERASE_MARK) || (buf[2] != DOC_ERASE_MARK))
@@ -1109,7 +1123,7 @@ static int doc_get_op_status(struct docg3 *docg3)
  * Wait for the chip to be ready again after erase or write operation, and check
  * erase/write status.
  *
- * Returns 0 if erase successfull, -EIO if erase/write issue, -ETIMEOUT if
+ * Returns 0 if erase successful, -EIO if erase/write issue, -ETIMEOUT if
  * timeout
  */
 static int doc_write_erase_wait_status(struct docg3 *docg3)
@@ -1186,7 +1200,7 @@ static int doc_erase_block(struct docg3 *docg3, int block0, int block1)
  * Erase a bunch of contiguous blocks, by pairs, as a "mtd" page of 1024 is
  * split into 2 pages of 512 bytes on 2 contiguous blocks.
  *
- * Returns 0 if erase successful, -EINVAL if adressing error, -EIO if erase
+ * Returns 0 if erase successful, -EINVAL if addressing error, -EIO if erase
  * issue
  */
 static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
@@ -1397,7 +1411,7 @@ static int doc_backup_oob(struct docg3 *docg3, loff_t to,
  * Or provide data without OOB, and then a all zeroed OOB will be used (ECC will
  * still be filled in if asked for).
  *
- * Returns 0 is successfull, EINVAL if length is not 14 bytes
+ * Returns 0 is successful, EINVAL if length is not 14 bytes
  */
 static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 			 struct mtd_oob_ops *ops)
@@ -1945,7 +1959,7 @@ static void doc_release_device(struct mtd_info *mtd)
  * docg3_resume - Awakens docg3 floor
  * @pdev: platfrom device
  *
- * Returns 0 (always successfull)
+ * Returns 0 (always successful)
  */
 static int docg3_resume(struct platform_device *pdev)
 {

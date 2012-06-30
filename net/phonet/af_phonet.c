@@ -129,7 +129,7 @@ static const struct net_proto_family phonet_proto_family = {
 /* Phonet device header operations */
 static int pn_header_create(struct sk_buff *skb, struct net_device *dev,
 				unsigned short type, const void *daddr,
-				const void *saddr, unsigned len)
+				const void *saddr, unsigned int len)
 {
 	u8 *media = skb_push(skb, 1);
 

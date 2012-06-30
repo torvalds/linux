@@ -38,6 +38,9 @@
 
 #define TCES_PER_PAGE	(PAGE_SIZE / sizeof(u64))
 
+/* WARNING: This will be called in real-mode on HV KVM and virtual
+ *          mode on PR KVM
+ */
 long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		      unsigned long ioba, unsigned long tce)
 {

@@ -7,6 +7,7 @@
 #ifndef MFD_AB8500_H
 #define MFD_AB8500_H
 
+#include <linux/atomic.h>
 #include <linux/mutex.h>
 
 struct device;
@@ -194,6 +195,14 @@ enum ab8500_version {
 #define AB9540_INT_GPIO52F		123
 #define AB9540_INT_GPIO53F		124
 #define AB9540_INT_GPIO54F		125 /* not 8505 */
+/* ab8500_irq_regoffset[16] -> IT[Source|Latch|Mask]25 */
+#define AB8505_INT_KEYSTUCK		128
+#define AB8505_INT_IKR			129
+#define AB8505_INT_IKP			130
+#define AB8505_INT_KP			131
+#define AB8505_INT_KEYDEGLITCH		132
+#define AB8505_INT_MODPWRSTATUSF	134
+#define AB8505_INT_MODPWRSTATUSR	135
 
 /*
  * AB8500_AB9540_NR_IRQS is used when configuring the IRQ numbers for the
@@ -203,8 +212,8 @@ enum ab8500_version {
  * which is larger.
  */
 #define AB8500_NR_IRQS			112
-#define AB8505_NR_IRQS			128
-#define AB9540_NR_IRQS			128
+#define AB8505_NR_IRQS			136
+#define AB9540_NR_IRQS			136
 /* This is set to the roof of any AB8500 chip variant IRQ counts */
 #define AB8500_MAX_NR_IRQS		AB9540_NR_IRQS
 
@@ -216,6 +225,7 @@ enum ab8500_version {
  * @dev: parent device
  * @lock: read/write operations lock
  * @irq_lock: genirq bus lock
+ * @transfer_ongoing: 0 if no transfer ongoing
  * @irq: irq line
  * @version: chip version id (e.g. ab8500 or ab9540)
  * @chip_id: chip revision id
@@ -234,7 +244,7 @@ struct ab8500 {
 	struct device	*dev;
 	struct mutex	lock;
 	struct mutex	irq_lock;
-
+	atomic_t	transfer_ongoing;
 	int		irq_base;
 	int		irq;
 	enum ab8500_version version;
@@ -279,6 +289,8 @@ struct ab8500_platform_data {
 extern int __devinit ab8500_init(struct ab8500 *ab8500,
 				 enum ab8500_version version);
 extern int __devexit ab8500_exit(struct ab8500 *ab8500);
+
+extern int ab8500_suspend(struct ab8500 *ab8500);
 
 static inline int is_ab8500(struct ab8500 *ab)
 {

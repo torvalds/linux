@@ -125,8 +125,6 @@ static int ch341_set_baudrate(struct usb_device *dev,
 	unsigned long factor;
 	short divisor;
 
-	dbg("ch341_set_baudrate(%d)", priv->baud_rate);
-
 	if (!priv->baud_rate)
 		return -EINVAL;
 	factor = (CH341_BAUDBASE_FACTOR / priv->baud_rate);
@@ -153,7 +151,6 @@ static int ch341_set_baudrate(struct usb_device *dev,
 
 static int ch341_set_handshake(struct usb_device *dev, u8 control)
 {
-	dbg("ch341_set_handshake(0x%02x)", control);
 	return ch341_control_out(dev, 0xa4, ~control, 0);
 }
 
@@ -163,8 +160,6 @@ static int ch341_get_status(struct usb_device *dev, struct ch341_private *priv)
 	int r;
 	const unsigned size = 8;
 	unsigned long flags;
-
-	dbg("ch341_get_status()");
 
 	buffer = kmalloc(size, GFP_KERNEL);
 	if (!buffer)
@@ -195,8 +190,6 @@ static int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
 	char *buffer;
 	int r;
 	const unsigned size = 8;
-
-	dbg("ch341_configure()");
 
 	buffer = kmalloc(size, GFP_KERNEL);
 	if (!buffer)
@@ -254,8 +247,6 @@ static int ch341_attach(struct usb_serial *serial)
 	struct ch341_private *priv;
 	int r;
 
-	dbg("ch341_attach()");
-
 	/* private data */
 	priv = kzalloc(sizeof(struct ch341_private), GFP_KERNEL);
 	if (!priv)
@@ -290,7 +281,6 @@ static void ch341_dtr_rts(struct usb_serial_port *port, int on)
 	struct ch341_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
 	/* drop DTR and RTS */
 	spin_lock_irqsave(&priv->lock, flags);
 	if (on)
@@ -304,8 +294,6 @@ static void ch341_dtr_rts(struct usb_serial_port *port, int on)
 
 static void ch341_close(struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __func__, port->number);
-
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 }
@@ -317,8 +305,6 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct ch341_private *priv = usb_get_serial_port_data(serial->port[0]);
 	int r;
-
-	dbg("ch341_open()");
 
 	priv->baud_rate = DEFAULT_BAUD_RATE;
 
@@ -358,8 +344,6 @@ static void ch341_set_termios(struct tty_struct *tty,
 	unsigned baud_rate;
 	unsigned long flags;
 
-	dbg("ch341_set_termios()");
-
 	baud_rate = tty_get_baud_rate(tty);
 
 	priv->baud_rate = baud_rate;
@@ -392,8 +376,6 @@ static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 	int r;
 	uint16_t reg_contents;
 	uint8_t *break_reg;
-
-	dbg("%s()", __func__);
 
 	break_reg = kmalloc(2, GFP_KERNEL);
 	if (!break_reg) {
@@ -460,8 +442,6 @@ static void ch341_read_int_callback(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	unsigned int actual_length = urb->actual_length;
 	int status;
-
-	dbg("%s (%d)", __func__, port->number);
 
 	switch (urb->status) {
 	case 0:
@@ -580,8 +560,6 @@ static int ch341_tiocmget(struct tty_struct *tty)
 	u8 status;
 	unsigned int result;
 
-	dbg("%s (%d)", __func__, port->number);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	mcr = priv->line_control;
 	status = priv->line_status;
@@ -599,34 +577,17 @@ static int ch341_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-
-static int ch341_reset_resume(struct usb_interface *intf)
+static int ch341_reset_resume(struct usb_serial *serial)
 {
-	struct usb_device *dev = interface_to_usbdev(intf);
-	struct usb_serial *serial = NULL;
 	struct ch341_private *priv;
 
-	serial = usb_get_intfdata(intf);
 	priv = usb_get_serial_port_data(serial->port[0]);
 
-	/*reconfigure ch341 serial port after bus-reset*/
-	ch341_configure(dev, priv);
-
-	usb_serial_resume(intf);
+	/* reconfigure ch341 serial port after bus-reset */
+	ch341_configure(serial->dev, priv);
 
 	return 0;
 }
-
-static struct usb_driver ch341_driver = {
-	.name		= "ch341",
-	.probe		= usb_serial_probe,
-	.disconnect	= usb_serial_disconnect,
-	.suspend	= usb_serial_suspend,
-	.resume		= usb_serial_resume,
-	.reset_resume	= ch341_reset_resume,
-	.id_table	= id_table,
-	.supports_autosuspend =	1,
-};
 
 static struct usb_serial_driver ch341_device = {
 	.driver = {
@@ -646,13 +607,14 @@ static struct usb_serial_driver ch341_device = {
 	.tiocmset          = ch341_tiocmset,
 	.read_int_callback = ch341_read_int_callback,
 	.attach            = ch341_attach,
+	.reset_resume      = ch341_reset_resume,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
 	&ch341_device, NULL
 };
 
-module_usb_serial_driver(ch341_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_LICENSE("GPL");
 

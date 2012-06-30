@@ -7,112 +7,398 @@
 	compatible = "nvidia,seaboard", "nvidia,tegra20";
 
 	memory {
-		device_type = "memory";
-		reg = < 0x00000000 0x40000000 >;
+		reg = <0x00000000 0x40000000>;
+	};
+
+	pinmux {
+		pinctrl-names = "default";
+		pinctrl-0 = <&state_default>;
+
+		state_default: pinmux {
+			ata {
+				nvidia,pins = "ata";
+				nvidia,function = "ide";
+			};
+			atb {
+				nvidia,pins = "atb", "gma", "gme";
+				nvidia,function = "sdio4";
+			};
+			atc {
+				nvidia,pins = "atc";
+				nvidia,function = "nand";
+			};
+			atd {
+				nvidia,pins = "atd", "ate", "gmb", "spia",
+					"spib", "spic";
+				nvidia,function = "gmi";
+			};
+			cdev1 {
+				nvidia,pins = "cdev1";
+				nvidia,function = "plla_out";
+			};
+			cdev2 {
+				nvidia,pins = "cdev2";
+				nvidia,function = "pllp_out4";
+			};
+			crtp {
+				nvidia,pins = "crtp", "lm1";
+				nvidia,function = "crt";
+			};
+			csus {
+				nvidia,pins = "csus";
+				nvidia,function = "vi_sensor_clk";
+			};
+			dap1 {
+				nvidia,pins = "dap1";
+				nvidia,function = "dap1";
+			};
+			dap2 {
+				nvidia,pins = "dap2";
+				nvidia,function = "dap2";
+			};
+			dap3 {
+				nvidia,pins = "dap3";
+				nvidia,function = "dap3";
+			};
+			dap4 {
+				nvidia,pins = "dap4";
+				nvidia,function = "dap4";
+			};
+			ddc {
+				nvidia,pins = "ddc", "owc", "spdi", "spdo",
+					"uac";
+				nvidia,function = "rsvd2";
+			};
+			dta {
+				nvidia,pins = "dta", "dtb", "dtc", "dtd", "dte";
+				nvidia,function = "vi";
+			};
+			dtf {
+				nvidia,pins = "dtf";
+				nvidia,function = "i2c3";
+			};
+			gmc {
+				nvidia,pins = "gmc";
+				nvidia,function = "uartd";
+			};
+			gmd {
+				nvidia,pins = "gmd";
+				nvidia,function = "sflash";
+			};
+			gpu {
+				nvidia,pins = "gpu";
+				nvidia,function = "pwm";
+			};
+			gpu7 {
+				nvidia,pins = "gpu7";
+				nvidia,function = "rtck";
+			};
+			gpv {
+				nvidia,pins = "gpv", "slxa", "slxk";
+				nvidia,function = "pcie";
+			};
+			hdint {
+				nvidia,pins = "hdint", "lpw0", "lpw2", "lsc1",
+					"lsck", "lsda";
+				nvidia,function = "hdmi";
+			};
+			i2cp {
+				nvidia,pins = "i2cp";
+				nvidia,function = "i2cp";
+			};
+			irrx {
+				nvidia,pins = "irrx", "irtx";
+				nvidia,function = "uartb";
+			};
+			kbca {
+				nvidia,pins = "kbca", "kbcb", "kbcc", "kbcd",
+					"kbce", "kbcf";
+				nvidia,function = "kbc";
+			};
+			lcsn {
+				nvidia,pins = "lcsn", "ldc", "lm0", "lpw1",
+					"lsdi", "lvp0";
+				nvidia,function = "rsvd4";
+			};
+			ld0 {
+				nvidia,pins = "ld0", "ld1", "ld2", "ld3", "ld4",
+					"ld5", "ld6", "ld7", "ld8", "ld9",
+					"ld10", "ld11", "ld12", "ld13", "ld14",
+					"ld15", "ld16", "ld17", "ldi", "lhp0",
+					"lhp1", "lhp2", "lhs", "lpp", "lsc0",
+					"lspi", "lvp1", "lvs";
+				nvidia,function = "displaya";
+			};
+			pmc {
+				nvidia,pins = "pmc";
+				nvidia,function = "pwr_on";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "i2c2";
+			};
+			rm {
+				nvidia,pins = "rm";
+				nvidia,function = "i2c1";
+			};
+			sdb {
+				nvidia,pins = "sdb", "sdc", "sdd";
+				nvidia,function = "sdio3";
+			};
+			sdio1 {
+				nvidia,pins = "sdio1";
+				nvidia,function = "sdio1";
+			};
+			slxc {
+				nvidia,pins = "slxc", "slxd";
+				nvidia,function = "spdif";
+			};
+			spid {
+				nvidia,pins = "spid", "spie", "spif";
+				nvidia,function = "spi1";
+			};
+			spig {
+				nvidia,pins = "spig", "spih";
+				nvidia,function = "spi2_alt";
+			};
+			uaa {
+				nvidia,pins = "uaa", "uab", "uda";
+				nvidia,function = "ulpi";
+			};
+			uad {
+				nvidia,pins = "uad";
+				nvidia,function = "irda";
+			};
+			uca {
+				nvidia,pins = "uca", "ucb";
+				nvidia,function = "uartc";
+			};
+			conf_ata {
+				nvidia,pins = "ata", "atb", "atc", "atd",
+					"cdev1", "cdev2", "dap1", "dap2",
+					"dap4", "dtf", "gma", "gmc", "gmd",
+					"gme", "gpu", "gpu7", "i2cp", "irrx",
+					"irtx", "pta", "rm", "sdc", "sdd",
+					"slxd", "slxk", "spdi", "spdo", "uac",
+					"uad", "uca", "ucb", "uda";
+				nvidia,pull = <0>;
+				nvidia,tristate = <0>;
+			};
+			conf_ate {
+				nvidia,pins = "ate", "csus", "dap3", "ddc",
+					"gpv", "owc", "slxc", "spib", "spid",
+					"spie";
+				nvidia,pull = <0>;
+				nvidia,tristate = <1>;
+			};
+			conf_ck32 {
+				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
+					"pmcc", "pmcd", "pmce", "xm2c", "xm2d";
+				nvidia,pull = <0>;
+			};
+			conf_crtp {
+				nvidia,pins = "crtp", "gmb", "slxa", "spia",
+					"spig", "spih";
+				nvidia,pull = <2>;
+				nvidia,tristate = <1>;
+			};
+			conf_dta {
+				nvidia,pins = "dta", "dtb", "dtc", "dtd";
+				nvidia,pull = <1>;
+				nvidia,tristate = <0>;
+			};
+			conf_dte {
+				nvidia,pins = "dte", "spif";
+				nvidia,pull = <1>;
+				nvidia,tristate = <1>;
+			};
+			conf_hdint {
+				nvidia,pins = "hdint", "lcsn", "ldc", "lm1",
+					"lpw1", "lsc1", "lsck", "lsda", "lsdi",
+					"lvp0";
+				nvidia,tristate = <1>;
+			};
+			conf_kbca {
+				nvidia,pins = "kbca", "kbcb", "kbcc", "kbcd",
+					"kbce", "kbcf", "sdio1", "spic", "uaa",
+					"uab";
+				nvidia,pull = <2>;
+				nvidia,tristate = <0>;
+			};
+			conf_lc {
+				nvidia,pins = "lc", "ls";
+				nvidia,pull = <2>;
+			};
+			conf_ld0 {
+				nvidia,pins = "ld0", "ld1", "ld2", "ld3", "ld4",
+					"ld5", "ld6", "ld7", "ld8", "ld9",
+					"ld10", "ld11", "ld12", "ld13", "ld14",
+					"ld15", "ld16", "ld17", "ldi", "lhp0",
+					"lhp1", "lhp2", "lhs", "lm0", "lpp",
+					"lpw0", "lpw2", "lsc0", "lspi", "lvp1",
+					"lvs", "pmc", "sdb";
+				nvidia,tristate = <0>;
+			};
+			conf_ld17_0 {
+				nvidia,pins = "ld17_0", "ld19_18", "ld21_20",
+					"ld23_22";
+				nvidia,pull = <1>;
+			};
+			drive_sdio1 {
+				nvidia,pins = "drive_sdio1";
+				nvidia,high-speed-mode = <0>;
+				nvidia,schmitt = <0>;
+				nvidia,low-power-mode = <3>;
+				nvidia,pull-down-strength = <31>;
+				nvidia,pull-up-strength = <31>;
+				nvidia,slew-rate-rising = <3>;
+				nvidia,slew-rate-falling = <3>;
+			};
+		};
+	};
+
+	i2s@70002800 {
+		status = "okay";
+	};
+
+	serial@70006300 {
+		status = "okay";
+		clock-frequency = <216000000>;
 	};
 
 	i2c@7000c000 {
+		status = "okay";
 		clock-frequency = <400000>;
 
 		wm8903: wm8903@1a {
 			compatible = "wlf,wm8903";
 			reg = <0x1a>;
 			interrupt-parent = <&gpio>;
-			interrupts = < 187 0x04 >;
+			interrupts = <187 0x04>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
 
 			micdet-cfg = <0>;
 			micdet-delay = <100>;
-			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
+			gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
+		};
+
+		/* ALS and proximity sensor */
+		isl29018@44 {
+			compatible = "isil,isl29018";
+			reg = <0x44>;
+			interrupt-parent = <&gpio>;
+			interrupts = <202 0x04>; /* GPIO PZ2 */
+		};
+
+		gyrometer@68 {
+			compatible = "invn,mpu3050";
+			reg = <0x68>;
+			interrupt-parent = <&gpio>;
+			interrupts = <204 0x04>; /* gpio PZ4 */
 		};
 	};
 
 	i2c@7000c400 {
-		clock-frequency = <400000>;
+		status = "okay";
+		clock-frequency = <100000>;
+
+		smart-battery@b {
+			compatible = "ti,bq20z75", "smart-battery-1.1";
+			reg = <0xb>;
+			ti,i2c-retry-count = <2>;
+			ti,poll-retry-count = <10>;
+		};
 	};
 
 	i2c@7000c500 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000d000 {
+		status = "okay";
 		clock-frequency = <400000>;
 
-		adt7461@4c {
-			compatible = "adt7461";
+		temperature-sensor@4c {
+			compatible = "nct1008";
 			reg = <0x4c>;
+		};
+
+		magnetometer@c {
+			compatible = "ak8975";
+			reg = <0xc>;
+			interrupt-parent = <&gpio>;
+			interrupts = <109 0x04>; /* gpio PN5 */
 		};
 	};
 
-	i2s@70002a00 {
-		status = "disable";
-	};
+	emc {
+		emc-table@190000 {
+			reg = <190000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = <190000>;
+			nvidia,emc-registers = <0x0000000c 0x00000026
+				0x00000009 0x00000003 0x00000004 0x00000004
+				0x00000002 0x0000000c 0x00000003 0x00000003
+				0x00000002 0x00000001 0x00000004 0x00000005
+				0x00000004 0x00000009 0x0000000d 0x0000059f
+				0x00000000 0x00000003 0x00000003 0x00000003
+				0x00000003 0x00000001 0x0000000b 0x000000c8
+				0x00000003 0x00000007 0x00000004 0x0000000f
+				0x00000002 0x00000000 0x00000000 0x00000002
+				0x00000000 0x00000000 0x00000083 0xa06204ae
+				0x007dc010 0x00000000 0x00000000 0x00000000
+				0x00000000 0x00000000 0x00000000 0x00000000>;
+		};
 
-	sound {
-		compatible = "nvidia,tegra-audio-wm8903-seaboard",
-			     "nvidia,tegra-audio-wm8903";
-		nvidia,model = "NVIDIA Tegra Seaboard";
-
-		nvidia,audio-routing =
-			"Headphone Jack", "HPOUTR",
-			"Headphone Jack", "HPOUTL",
-			"Int Spk", "ROP",
-			"Int Spk", "RON",
-			"Int Spk", "LOP",
-			"Int Spk", "LON",
-			"Mic Jack", "MICBIAS",
-			"IN1R", "Mic Jack";
-
-		nvidia,i2s-controller = <&tegra_i2s1>;
-		nvidia,audio-codec = <&wm8903>;
-
-		nvidia,spkr-en-gpios = <&wm8903 2 0>;
-		nvidia,hp-det-gpios = <&gpio 185 0>; /* gpio PX1 */
-	};
-
-	serial@70006000 {
-		status = "disable";
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
-	};
-
-	serial@70006300 {
-		clock-frequency = < 216000000 >;
-	};
-
-	serial@70006400 {
-		status = "disable";
-	};
-
-	sdhci@c8000000 {
-		status = "disable";
-	};
-
-	sdhci@c8000200 {
-		status = "disable";
-	};
-
-	sdhci@c8000400 {
-		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
-		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
-		power-gpios = <&gpio 70 0>; /* gpio PI6 */
-	};
-
-	sdhci@c8000600 {
-		support-8bit;
+		emc-table@380000 {
+			reg = <380000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = <380000>;
+			nvidia,emc-registers = <0x00000017 0x0000004b
+				0x00000012 0x00000006 0x00000004 0x00000005
+				0x00000003 0x0000000c 0x00000006 0x00000006
+				0x00000003 0x00000001 0x00000004 0x00000005
+				0x00000004 0x00000009 0x0000000d 0x00000b5f
+				0x00000000 0x00000003 0x00000003 0x00000006
+				0x00000006 0x00000001 0x00000011 0x000000c8
+				0x00000003 0x0000000e 0x00000007 0x0000000f
+				0x00000002 0x00000000 0x00000000 0x00000002
+				0x00000000 0x00000000 0x00000083 0xe044048b
+				0x007d8010 0x00000000 0x00000000 0x00000000
+				0x00000000 0x00000000 0x00000000 0x00000000>;
+		};
 	};
 
 	usb@c5000000 {
+		status = "okay";
 		nvidia,vbus-gpio = <&gpio 24 0>; /* PD0 */
 		dr_mode = "otg";
+	};
+
+	usb@c5004000 {
+		status = "okay";
+		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
+	};
+
+	usb@c5008000 {
+		status = "okay";
+	};
+
+	sdhci@c8000400 {
+		status = "okay";
+		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
+		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
+		power-gpios = <&gpio 70 0>; /* gpio PI6 */
+		bus-width = <4>;
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		support-8bit;
+		bus-width = <8>;
 	};
 
 	gpio-keys {
@@ -135,41 +421,25 @@
 		};
 	};
 
-	emc@7000f400 {
-		emc-table@190000 {
-			reg = < 190000 >;
-			compatible = "nvidia,tegra20-emc-table";
-			clock-frequency = < 190000 >;
-			nvidia,emc-registers = < 0x0000000c 0x00000026
-				0x00000009 0x00000003 0x00000004 0x00000004
-				0x00000002 0x0000000c 0x00000003 0x00000003
-				0x00000002 0x00000001 0x00000004 0x00000005
-				0x00000004 0x00000009 0x0000000d 0x0000059f
-				0x00000000 0x00000003 0x00000003 0x00000003
-				0x00000003 0x00000001 0x0000000b 0x000000c8
-				0x00000003 0x00000007 0x00000004 0x0000000f
-				0x00000002 0x00000000 0x00000000 0x00000002
-				0x00000000 0x00000000 0x00000083 0xa06204ae
-				0x007dc010 0x00000000 0x00000000 0x00000000
-				0x00000000 0x00000000 0x00000000 0x00000000 >;
-		};
+	sound {
+		compatible = "nvidia,tegra-audio-wm8903-seaboard",
+			     "nvidia,tegra-audio-wm8903";
+		nvidia,model = "NVIDIA Tegra Seaboard";
 
-		emc-table@380000 {
-			reg = < 380000 >;
-			compatible = "nvidia,tegra20-emc-table";
-			clock-frequency = < 380000 >;
-			nvidia,emc-registers = < 0x00000017 0x0000004b
-				0x00000012 0x00000006 0x00000004 0x00000005
-				0x00000003 0x0000000c 0x00000006 0x00000006
-				0x00000003 0x00000001 0x00000004 0x00000005
-				0x00000004 0x00000009 0x0000000d 0x00000b5f
-				0x00000000 0x00000003 0x00000003 0x00000006
-				0x00000006 0x00000001 0x00000011 0x000000c8
-				0x00000003 0x0000000e 0x00000007 0x0000000f
-				0x00000002 0x00000000 0x00000000 0x00000002
-				0x00000000 0x00000000 0x00000083 0xe044048b
-				0x007d8010 0x00000000 0x00000000 0x00000000
-				0x00000000 0x00000000 0x00000000 0x00000000 >;
-		};
+		nvidia,audio-routing =
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"Int Spk", "ROP",
+			"Int Spk", "RON",
+			"Int Spk", "LOP",
+			"Int Spk", "LON",
+			"Mic Jack", "MICBIAS",
+			"IN1R", "Mic Jack";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&wm8903>;
+
+		nvidia,spkr-en-gpios = <&wm8903 2 0>;
+		nvidia,hp-det-gpios = <&gpio 185 0>; /* gpio PX1 */
 	};
 };

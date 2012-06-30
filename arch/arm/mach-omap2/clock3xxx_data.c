@@ -1,7 +1,7 @@
 /*
  * OMAP3 clock data
  *
- * Copyright (C) 2007-2010 Texas Instruments, Inc.
+ * Copyright (C) 2007-2010, 2012 Texas Instruments, Inc.
  * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Written by Paul Walmsley
@@ -1640,6 +1640,7 @@ static struct clk hdq_fck = {
 	.name		= "hdq_fck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_12m_fck,
+	.clkdm_name	= "core_l4_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430_EN_HDQ_SHIFT,
 	.recalc		= &followparent_recalc,
@@ -3294,8 +3295,8 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"gfx_l3_ick",	&gfx_l3_ick,	CK_3430ES1),
 	CLK(NULL,	"gfx_cg1_ck",	&gfx_cg1_ck,	CK_3430ES1),
 	CLK(NULL,	"gfx_cg2_ck",	&gfx_cg2_ck,	CK_3430ES1),
-	CLK(NULL,	"sgx_fck",	&sgx_fck,	CK_3430ES2PLUS | CK_3517 | CK_36XX),
-	CLK(NULL,	"sgx_ick",	&sgx_ick,	CK_3430ES2PLUS | CK_3517 | CK_36XX),
+	CLK(NULL,	"sgx_fck",	&sgx_fck,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
+	CLK(NULL,	"sgx_ick",	&sgx_ick,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK(NULL,	"d2d_26m_fck",	&d2d_26m_fck,	CK_3430ES1),
 	CLK(NULL,	"modem_fck",	&modem_fck,	CK_34XX | CK_36XX),
 	CLK(NULL,	"sad2d_ick",	&sad2d_ick,	CK_34XX | CK_36XX),
@@ -3419,7 +3420,7 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"per_48m_fck",	&per_48m_fck,	CK_3XXX),
 	CLK(NULL,	"uart3_fck",	&uart3_fck,	CK_3XXX),
 	CLK(NULL,	"uart4_fck",	&uart4_fck,	CK_36XX),
-	CLK(NULL,	"uart4_fck",	&uart4_fck_am35xx, CK_3505 | CK_3517),
+	CLK(NULL,	"uart4_fck",	&uart4_fck_am35xx, CK_AM35XX),
 	CLK(NULL,	"gpt2_fck",	&gpt2_fck,	CK_3XXX),
 	CLK(NULL,	"gpt3_fck",	&gpt3_fck,	CK_3XXX),
 	CLK(NULL,	"gpt4_fck",	&gpt4_fck,	CK_3XXX),
@@ -3513,21 +3514,9 @@ int __init omap3xxx_clk_init(void)
 	struct omap_clk *c;
 	u32 cpu_clkflg = 0;
 
-	/*
-	 * 3505 must be tested before 3517, since 3517 returns true
-	 * for both AM3517 chips and AM3517 family chips, which
-	 * includes 3505.  Unfortunately there's no obvious family
-	 * test for 3517/3505 :-(
-	 */
-	if (cpu_is_omap3505()) {
+	if (cpu_is_omap3517()) {
 		cpu_mask = RATE_IN_34XX;
-		cpu_clkflg = CK_3505;
-	} else if (cpu_is_omap3517()) {
-		cpu_mask = RATE_IN_34XX;
-		cpu_clkflg = CK_3517;
-	} else if (cpu_is_omap3505()) {
-		cpu_mask = RATE_IN_34XX;
-		cpu_clkflg = CK_3505;
+		cpu_clkflg = CK_AM35XX;
 	} else if (cpu_is_omap3630()) {
 		cpu_mask = (RATE_IN_34XX | RATE_IN_36XX);
 		cpu_clkflg = CK_36XX;

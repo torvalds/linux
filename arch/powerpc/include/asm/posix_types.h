@@ -16,9 +16,6 @@ typedef int		__kernel_ssize_t;
 typedef long		__kernel_ptrdiff_t;
 #define __kernel_size_t __kernel_size_t
 
-typedef unsigned short	__kernel_nlink_t;
-#define __kernel_nlink_t __kernel_nlink_t
-
 typedef short		__kernel_ipc_pid_t;
 #define __kernel_ipc_pid_t __kernel_ipc_pid_t
 #endif

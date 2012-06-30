@@ -23,6 +23,7 @@
 
 #define PCI_DEVICE_ID_INTEL_3200_HB    0x29f0
 
+#define I3200_DIMMS		4
 #define I3200_RANKS		8
 #define I3200_RANKS_PER_CHANNEL	4
 #define I3200_CHANNELS		2
@@ -217,21 +218,25 @@ static void i3200_process_error_info(struct mem_ctl_info *mci,
 		return;
 
 	if ((info->errsts ^ info->errsts2) & I3200_ERRSTS_BITS) {
-		edac_mc_handle_ce_no_info(mci, "UE overwrote CE");
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
+				     -1, -1, -1, "UE overwrote CE", "", NULL);
 		info->errsts = info->errsts2;
 	}
 
 	for (channel = 0; channel < nr_channels; channel++) {
 		log = info->eccerrlog[channel];
 		if (log & I3200_ECCERRLOG_UE) {
-			edac_mc_handle_ue(mci, 0, 0,
-				eccerrlog_row(channel, log),
-				"i3200 UE");
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+					     0, 0, 0,
+					     eccerrlog_row(channel, log),
+					     -1, -1,
+					     "i3000 UE", "", NULL);
 		} else if (log & I3200_ECCERRLOG_CE) {
-			edac_mc_handle_ce(mci, 0, 0,
-				eccerrlog_syndrome(log),
-				eccerrlog_row(channel, log), 0,
-				"i3200 CE");
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+					     0, 0, eccerrlog_syndrome(log),
+					     eccerrlog_row(channel, log),
+					     -1, -1,
+					     "i3000 UE", "", NULL);
 		}
 	}
 }
@@ -319,9 +324,9 @@ static unsigned long drb_to_nr_pages(
 static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	int rc;
-	int i;
+	int i, j;
 	struct mem_ctl_info *mci = NULL;
-	unsigned long last_page;
+	struct edac_mc_layer layers[2];
 	u16 drbs[I3200_CHANNELS][I3200_RANKS_PER_CHANNEL];
 	bool stacked;
 	void __iomem *window;
@@ -336,8 +341,14 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	i3200_get_drbs(window, drbs);
 	nr_channels = how_many_channels(pdev);
 
-	mci = edac_mc_alloc(sizeof(struct i3200_priv), I3200_RANKS,
-		nr_channels, 0);
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = I3200_DIMMS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = nr_channels;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
+			    sizeof(struct i3200_priv));
 	if (!mci)
 		return -ENOMEM;
 
@@ -366,7 +377,6 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	 * cumulative; the last one will contain the total memory
 	 * contained in all ranks.
 	 */
-	last_page = -1UL;
 	for (i = 0; i < mci->nr_csrows; i++) {
 		unsigned long nr_pages;
 		struct csrow_info *csrow = &mci->csrows[i];
@@ -375,20 +385,18 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 			i / I3200_RANKS_PER_CHANNEL,
 			i % I3200_RANKS_PER_CHANNEL);
 
-		if (nr_pages == 0) {
-			csrow->mtype = MEM_EMPTY;
+		if (nr_pages == 0)
 			continue;
+
+		for (j = 0; j < nr_channels; j++) {
+			struct dimm_info *dimm = csrow->channels[j].dimm;
+
+			dimm->nr_pages = nr_pages / nr_channels;
+			dimm->grain = nr_pages << PAGE_SHIFT;
+			dimm->mtype = MEM_DDR2;
+			dimm->dtype = DEV_UNKNOWN;
+			dimm->edac_mode = EDAC_UNKNOWN;
 		}
-
-		csrow->first_page = last_page + 1;
-		last_page += nr_pages;
-		csrow->last_page = last_page;
-		csrow->nr_pages = nr_pages;
-
-		csrow->grain = nr_pages << PAGE_SHIFT;
-		csrow->mtype = MEM_DDR2;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = EDAC_UNKNOWN;
 	}
 
 	i3200_clear_error_info(mci);

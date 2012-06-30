@@ -855,10 +855,11 @@ void disassociate_ctty(int on_exit)
  */
 void no_tty(void)
 {
+	/* FIXME: Review locking here. The tty_lock never covered any race
+	   between a new association and proc_clear_tty but possible we need
+	   to protect against this anyway */
 	struct task_struct *tsk = current;
-	tty_lock();
 	disassociate_ctty(0);
-	tty_unlock();
 	proc_clear_tty(tsk);
 }
 
@@ -1800,6 +1801,9 @@ int tty_release(struct inode *inode, struct file *filp)
  *
  *	We cannot return driver and index like for the other nodes because
  *	devpts will not work then. It expects inodes to be from devpts FS.
+ *
+ *	We need to move to returning a refcounted object from all the lookup
+ *	paths including this one.
  */
 static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
 {
@@ -1816,6 +1820,7 @@ static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
 	/* noctty = 1; */
 	tty_kref_put(tty);
 	/* FIXME: we put a reference and return a TTY! */
+	/* This is only safe because the caller holds tty_mutex */
 	return tty;
 }
 

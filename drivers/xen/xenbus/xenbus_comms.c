@@ -234,3 +234,9 @@ int xb_init_comms(void)
 
 	return 0;
 }
+
+void xb_deinit_comms(void)
+{
+	unbind_from_irqhandler(xenbus_irq, &xb_waitq);
+	xenbus_irq = 0;
+}
