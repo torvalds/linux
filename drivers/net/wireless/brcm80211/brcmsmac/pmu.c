@@ -103,9 +103,9 @@ u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 	uint delay = PMU_MAX_TRANSITION_DLY;
 
 	switch (ai_get_chip_id(sih)) {
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-	case BCM4313_CHIP_ID:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
+	case BCMA_CHIP_ID_BCM4313:
 		delay = 3700;
 		break;
 	default:
@@ -156,9 +156,9 @@ u32 si_pmu_alp_clock(struct si_pub *sih)
 		return clock;
 
 	switch (ai_get_chip_id(sih)) {
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-	case BCM4313_CHIP_ID:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
+	case BCMA_CHIP_ID_BCM4313:
 		/* always 20Mhz */
 		clock = 20000 * 1000;
 		break;

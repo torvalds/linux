@@ -88,16 +88,6 @@
 #define	CLKD_OTP		0x000f0000
 #define	CLKD_OTP_SHIFT		16
 
-/* Package IDs */
-#define	BCM4717_PKG_ID		9	/* 4717 package id */
-#define	BCM4718_PKG_ID		10	/* 4718 package id */
-#define BCM43224_FAB_SMIC	0xa	/* the chip is manufactured by SMIC */
-
-/* these are router chips */
-#define	BCM4716_CHIP_ID		0x4716	/* 4716 chipcommon chipid */
-#define	BCM47162_CHIP_ID	47162	/* 47162 chipcommon chipid */
-#define	BCM4748_CHIP_ID		0x4748	/* 4716 chipcommon chipid (OTP, RBBU) */
-
 /* dynamic clock control defines */
 #define	LPOMINFREQ		25000	/* low power oscillator min */
 #define	LPOMAXFREQ		43000	/* low power oscillator max */

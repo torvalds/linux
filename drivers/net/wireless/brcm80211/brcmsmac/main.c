@@ -2126,8 +2126,8 @@ void brcms_b_switch_macfreq(struct brcms_hardware *wlc_hw, u8 spurmode)
 {
 	struct bcma_device *core = wlc_hw->d11core;
 
-	if ((ai_get_chip_id(wlc_hw->sih) == BCM43224_CHIP_ID) ||
-	    (ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID)) {
+	if ((ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM43224) ||
+	    (ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM43225)) {
 		if (spurmode == WL_SPURAVOID_ON2) {	/* 126Mhz */
 			bcma_write16(core, D11REGOFFS(tsf_clk_frac_l), 0x2082);
 			bcma_write16(core, D11REGOFFS(tsf_clk_frac_h), 0x8);
@@ -2791,7 +2791,7 @@ void brcms_b_core_phypll_ctl(struct brcms_hardware *wlc_hw, bool on)
 	tmp = 0;
 
 	if (on) {
-		if ((ai_get_chip_id(wlc_hw->sih) == BCM4313_CHIP_ID)) {
+		if ((ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM4313)) {
 			bcma_set32(core, D11REGOFFS(clk_ctl_st),
 				   CCS_ERSRC_REQ_HT |
 				   CCS_ERSRC_REQ_D11PLL |
@@ -4528,7 +4528,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	else
 		wlc_hw->_nbands = 1;
 
-	if ((ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID))
+	if ((ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM43225))
 		wlc_hw->_nbands = 1;
 
 	/* BMAC_NOTE: remove init of pub values when brcms_c_attach()
@@ -5036,7 +5036,7 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	wlc_hw->wlc->pub->hw_up = true;
 
 	if ((wlc_hw->boardflags & BFL_FEM)
-	    && (ai_get_chip_id(wlc_hw->sih) == BCM4313_CHIP_ID)) {
+	    && (ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM4313)) {
 		if (!
 		    (wlc_hw->boardrev >= 0x1250
 		     && (wlc_hw->boardflags & BFL_FEM_BT)))
@@ -5130,7 +5130,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	}
 
 	if ((wlc->pub->boardflags & BFL_FEM)
-	    && (ai_get_chip_id(wlc->hw->sih) == BCM4313_CHIP_ID)) {
+	    && (ai_get_chip_id(wlc->hw->sih) == BCMA_CHIP_ID_BCM4313)) {
 		if (wlc->pub->boardrev >= 0x1250
 		    && (wlc->pub->boardflags & BFL_FEM_BT))
 			brcms_b_mhf(wlc->hw, MHF5, MHF5_4313_GPIOCTRL,

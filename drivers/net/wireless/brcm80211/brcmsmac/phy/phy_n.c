@@ -19309,8 +19309,8 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 		pi->measure_hold |= PHY_HOLD_FOR_NOT_ASSOC;
 
 	if ((ISNPHY(pi)) && (NREV_GE(pi->pubpi.phy_rev, 5)) &&
-	    ((pi->sh->chippkg == BCM4717_PKG_ID) ||
-	     (pi->sh->chippkg == BCM4718_PKG_ID))) {
+	    ((pi->sh->chippkg == BCMA_PKG_ID_BCM4717) ||
+	     (pi->sh->chippkg == BCMA_PKG_ID_BCM4718))) {
 		if ((pi->sh->boardflags & BFL_EXTLNA) &&
 		    (CHSPEC_IS2G(pi->radio_chanspec)))
 			ai_cc_reg(pi->sh->sih,
@@ -20751,11 +20751,11 @@ wlc_phy_chanspec_radio2056_setup(struct brcms_phy *pi,
 				cascbias = 0x20;
 
 				if ((pi->sh->chip ==
-				     BCM43224_CHIP_ID)
+				     BCMA_CHIP_ID_BCM43224)
 				    || (pi->sh->chip ==
-					BCM43225_CHIP_ID)) {
+					BCMA_CHIP_ID_BCM43225)) {
 					if (pi->sh->chippkg ==
-					    BCM43224_FAB_SMIC) {
+					    BCMA_PKG_ID_BCM43224_FAB_SMIC) {
 						bias = 0x2a;
 						cascbias = 0x38;
 					}
@@ -20863,9 +20863,9 @@ wlc_phy_chanspec_radio2056_setup(struct brcms_phy *pi,
 
 			cascbias = 0x30;
 
-			if ((pi->sh->chip == BCM43224_CHIP_ID) ||
-			    (pi->sh->chip == BCM43225_CHIP_ID)) {
-				if (pi->sh->chippkg == BCM43224_FAB_SMIC)
+			if ((pi->sh->chip == BCMA_CHIP_ID_BCM43224) ||
+			    (pi->sh->chip == BCMA_CHIP_ID_BCM43225)) {
+				if (pi->sh->chippkg == BCMA_PKG_ID_BCM43224_FAB_SMIC)
 					cascbias = 0x35;
 			}
 
@@ -21193,8 +21193,8 @@ wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chanspec,
 		bcma_pmu_spuravoid_pllupdate(&sii->icbus->drv_cc, spuravoid);
 		wlapi_bmac_core_phypll_ctl(pi->sh->physhim, true);
 
-		if ((pi->sh->chip == BCM43224_CHIP_ID) ||
-		    (pi->sh->chip == BCM43225_CHIP_ID)) {
+		if ((pi->sh->chip == BCMA_CHIP_ID_BCM43224) ||
+		    (pi->sh->chip == BCMA_CHIP_ID_BCM43225)) {
 			if (spuravoid == 1) {
 				bcma_write16(pi->d11core,
 					     D11REGOFFS(tsf_clk_frac_l),

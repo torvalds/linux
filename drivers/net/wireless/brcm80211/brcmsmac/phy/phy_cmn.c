@@ -837,7 +837,7 @@ wlc_phy_table_addr(struct brcms_phy *pi, uint tbl_id, uint tbl_offset,
 	pi->tbl_data_hi = tblDataHi;
 	pi->tbl_data_lo = tblDataLo;
 
-	if (pi->sh->chip == BCM43224_CHIP_ID &&
+	if (pi->sh->chip == BCMA_CHIP_ID_BCM43224 &&
 	    pi->sh->chiprev == 1) {
 		pi->tbl_addr = tblAddr;
 		pi->tbl_save_id = tbl_id;
@@ -847,7 +847,7 @@ wlc_phy_table_addr(struct brcms_phy *pi, uint tbl_id, uint tbl_offset,
 
 void wlc_phy_table_data_write(struct brcms_phy *pi, uint width, u32 val)
 {
-	if ((pi->sh->chip == BCM43224_CHIP_ID) &&
+	if ((pi->sh->chip == BCMA_CHIP_ID_BCM43224) &&
 	    (pi->sh->chiprev == 1) &&
 	    (pi->tbl_save_id == NPHY_TBL_ID_ANTSWCTRLLUT)) {
 		read_phy_reg(pi, pi->tbl_data_lo);
@@ -881,7 +881,7 @@ wlc_phy_write_table(struct brcms_phy *pi, const struct phytbl_info *ptbl_info,
 
 	for (idx = 0; idx < ptbl_info->tbl_len; idx++) {
 
-		if ((pi->sh->chip == BCM43224_CHIP_ID) &&
+		if ((pi->sh->chip == BCMA_CHIP_ID_BCM43224) &&
 		    (pi->sh->chiprev == 1) &&
 		    (tbl_id == NPHY_TBL_ID_ANTSWCTRLLUT)) {
 			read_phy_reg(pi, tblDataLo);
@@ -918,7 +918,7 @@ wlc_phy_read_table(struct brcms_phy *pi, const struct phytbl_info *ptbl_info,
 
 	for (idx = 0; idx < ptbl_info->tbl_len; idx++) {
 
-		if ((pi->sh->chip == BCM43224_CHIP_ID) &&
+		if ((pi->sh->chip == BCMA_CHIP_ID_BCM43224) &&
 		    (pi->sh->chiprev == 1)) {
 			(void)read_phy_reg(pi, tblDataLo);
 
@@ -2894,7 +2894,7 @@ const u8 *wlc_phy_get_ofdm_rate_lookup(void)
 
 void wlc_lcnphy_epa_switch(struct brcms_phy *pi, bool mode)
 {
-	if ((pi->sh->chip == BCM4313_CHIP_ID) &&
+	if ((pi->sh->chip == BCMA_CHIP_ID_BCM4313) &&
 	    (pi->sh->boardflags & BFL_FEM)) {
 		if (mode) {
 			u16 txant = 0;
