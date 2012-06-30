@@ -103,7 +103,8 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 			0,
 			1000);
 	if (ret < 0) {
-		pr_err("reg_w err %d\n", ret);
+		pr_err("reg_w err writing %02x to %02x: %d\n",
+		       value, index, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -124,7 +125,7 @@ static void reg_r(struct gspca_dev *gspca_dev, u16 value, u16 index)
 			2,
 			1000);
 	if (ret < 0) {
-		pr_err("reg_w err %d\n", ret);
+		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -153,16 +154,23 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	/* HDG not sure if these 2 reads are needed */
-	reg_r(gspca_dev, 0, 0x10);
-	PDEBUG(D_PROBE, "Reg 0x10 reads: %02x %02x",
-	       gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
-	reg_r(gspca_dev, 0, 0x10);
-	PDEBUG(D_PROBE, "Reg 0x10 reads: %02x %02x",
-	       gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
+	int i;
+
+	/*
+	 * The konica needs a freaking large time to "boot" (approx 6.5 sec.),
+	 * and does not want to be bothered while doing so :|
+	 * Register 0x10 counts from 1 - 3, with 3 being "ready"
+	 */
+	msleep(6000);
+	for (i = 0; i < 20; i++) {
+		reg_r(gspca_dev, 0, 0x10);
+		if (gspca_dev->usb_buf[0] == 3)
+			break;
+		msleep(100);
+	}
 	reg_w(gspca_dev, 0, 0x0d);
 
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
