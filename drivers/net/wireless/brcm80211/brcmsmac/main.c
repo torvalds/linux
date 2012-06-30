@@ -4469,11 +4469,9 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	}
 
 	/* verify again the device is supported */
-	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI &&
-	    !brcms_c_chipmatch(pcidev->vendor, pcidev->device)) {
-		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported "
-			"vendor/device (0x%x/0x%x)\n",
-			 unit, pcidev->vendor, pcidev->device);
+	if (!brcms_c_chipmatch(core)) {
+		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported device\n",
+			 unit);
 		err = 12;
 		goto fail;
 	}
@@ -5786,8 +5784,12 @@ void brcms_c_print_txstatus(struct tx_status *txs)
 		 (txs->ackphyrxsh & PRXS1_SQ_MASK) >> PRXS1_SQ_SHIFT);
 }
 
-bool brcms_c_chipmatch(u16 vendor, u16 device)
+static bool brcms_c_chipmatch_pci(struct bcma_device *core)
 {
+	struct pci_dev *pcidev = core->bus->host_pci;
+	u16 vendor = pcidev->vendor;
+	u16 device = pcidev->device;
+
 	if (vendor != PCI_VENDOR_ID_BROADCOM) {
 		pr_err("unknown vendor id %04x\n", vendor);
 		return false;
@@ -5804,6 +5806,30 @@ bool brcms_c_chipmatch(u16 vendor, u16 device)
 
 	pr_err("unknown device id %04x\n", device);
 	return false;
+}
+
+static bool brcms_c_chipmatch_soc(struct bcma_device *core)
+{
+	struct bcma_chipinfo *chipinfo = &core->bus->chipinfo;
+
+	if (chipinfo->id == BCMA_CHIP_ID_BCM4716)
+		return true;
+
+	pr_err("unknown chip id %04x\n", chipinfo->id);
+	return false;
+}
+
+bool brcms_c_chipmatch(struct bcma_device *core)
+{
+	switch (core->bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		return brcms_c_chipmatch_pci(core);
+	case BCMA_HOSTTYPE_SOC:
+		return brcms_c_chipmatch_soc(core);
+	default:
+		pr_err("unknown host type: %i\n", core->bus->hosttype);
+		return false;
+	}
 }
 
 #if defined(DEBUG)
