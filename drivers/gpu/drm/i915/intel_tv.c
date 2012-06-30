@@ -837,21 +837,21 @@ static struct intel_tv *intel_attached_tv(struct drm_connector *connector)
 }
 
 static void
-intel_tv_dpms(struct drm_encoder *encoder, int mode)
+intel_enable_tv(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		I915_WRITE(TV_CTL, I915_READ(TV_CTL) | TV_ENC_ENABLE);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		I915_WRITE(TV_CTL, I915_READ(TV_CTL) & ~TV_ENC_ENABLE);
-		break;
-	}
+	I915_WRITE(TV_CTL, I915_READ(TV_CTL) | TV_ENC_ENABLE);
+}
+
+static void
+intel_disable_tv(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(TV_CTL, I915_READ(TV_CTL) & ~TV_ENC_ENABLE);
 }
 
 static const struct tv_mode *
@@ -1478,15 +1478,15 @@ out:
 }
 
 static const struct drm_encoder_helper_funcs intel_tv_helper_funcs = {
-	.dpms = intel_tv_dpms,
 	.mode_fixup = intel_tv_mode_fixup,
-	.prepare = intel_encoder_prepare,
+	.prepare = intel_encoder_noop,
 	.mode_set = intel_tv_mode_set,
-	.commit = intel_encoder_commit,
+	.commit = intel_encoder_noop,
+	.disable = intel_encoder_disable,
 };
 
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = intel_connector_dpms,
 	.detect = intel_tv_detect,
 	.destroy = intel_tv_destroy,
 	.set_property = intel_tv_set_property,
@@ -1615,6 +1615,9 @@ intel_tv_init(struct drm_device *dev)
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_tv_enc_funcs,
 			 DRM_MODE_ENCODER_TVDAC);
+
+	intel_encoder->enable = intel_enable_tv;
+	intel_encoder->disable = intel_disable_tv;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
