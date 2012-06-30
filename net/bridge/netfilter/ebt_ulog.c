@@ -156,7 +156,7 @@ static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
 	nlh = nlmsg_put(ub->skb, 0, ub->qlen, 0,
 			size - NLMSG_ALIGN(sizeof(*nlh)), 0);
 	if (!nlh) {
-		kfree(ub->skb);
+		kfree_skb(ub->skb);
 		ub->skb = NULL;
 		goto unlock;
 	}
