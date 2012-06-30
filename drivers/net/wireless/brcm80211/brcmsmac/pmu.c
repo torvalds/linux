@@ -74,16 +74,6 @@
  * PMU<rev>_PLL<num>_XX where <rev> is PMU corerev and <num> is an arbitrary
  * number to differentiate different PLLs controlled by the same PMU rev.
  */
-/* pllcontrol registers:
- * ndiv_pwrdn, pwrdn_ch<x>, refcomp_pwrdn, dly_ch<x>,
- * p1div, p2div, _bypass_sdmod
- */
-#define PMU1_PLL0_PLLCTL0		0
-#define PMU1_PLL0_PLLCTL1		1
-#define PMU1_PLL0_PLLCTL2		2
-#define PMU1_PLL0_PLLCTL3		3
-#define PMU1_PLL0_PLLCTL4		4
-#define PMU1_PLL0_PLLCTL5		5
 
 /* pmu XtalFreqRatio */
 #define	PMU_XTALFREQ_REG_ILPCTR_MASK	0x00001FFF
@@ -107,80 +97,6 @@
 #define	RES4313_BB_PLL_PWRSW_RSRC	13
 #define	RES4313_HT_AVAIL_RSRC		14
 #define	RES4313_MACPHY_CLK_AVAIL_RSRC	15
-
-void si_pmu_spuravoid_pllupdate(struct si_pub *sih, u8 spuravoid)
-{
-	u32 tmp = 0;
-	struct si_info *sii = container_of(sih, struct si_info, pub);
-	struct bcma_device *core;
-
-	/* switch to chipc */
-	core = sii->icbus->drv_cc.core;
-
-	switch (ai_get_chip_id(sih)) {
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-		if (spuravoid == 1) {
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL0);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x11500010);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL1);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x000C0C06);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL2);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x0F600a08);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL3);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x00000000);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL4);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x2001E920);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL5);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x88888815);
-		} else {
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL0);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x11100010);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL1);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x000c0c06);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL2);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x03000a08);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL3);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x00000000);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL4);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x200005c0);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_addr),
-				     PMU1_PLL0_PLLCTL5);
-			bcma_write32(core, CHIPCREGOFFS(pllcontrol_data),
-				     0x88888815);
-		}
-		tmp = 1 << 10;
-		break;
-
-	default:
-		/* bail out */
-		return;
-	}
-
-	bcma_set32(core, CHIPCREGOFFS(pmucontrol), tmp);
-}
 
 u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 {
