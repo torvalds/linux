@@ -2538,7 +2538,7 @@ EXPORT_SYMBOL_GPL(kmsg_dump_get_line);
  * kmsg_dump_get_buffer - copy kmsg log lines
  * @dumper: registered kmsg dumper
  * @syslog: include the "<4>" prefixes
- * @line: buffer to copy the line to
+ * @buf: buffer to copy the line to
  * @size: maximum size of the buffer
  * @len: length of line placed into buffer
  *
