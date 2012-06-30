@@ -45,17 +45,19 @@ static void s3c24xx_led_set(struct led_classdev *led_cdev,
 {
 	struct s3c24xx_gpio_led *led = to_gpio(led_cdev);
 	struct s3c24xx_led_platdata *pd = led->pdata;
+	int state = (value ? 1 : 0) ^ (pd->flags & S3C24XX_LEDF_ACTLOW);
 
 	/* there will be a short delay between setting the output and
 	 * going from output to input when using tristate. */
 
-	s3c2410_gpio_setpin(pd->gpio, (value ? 1 : 0) ^
-			    (pd->flags & S3C24XX_LEDF_ACTLOW));
+	gpio_set_value(pd->gpio, state);
 
-	if (pd->flags & S3C24XX_LEDF_TRISTATE)
-		s3c2410_gpio_cfgpin(pd->gpio,
-			value ? S3C2410_GPIO_OUTPUT : S3C2410_GPIO_INPUT);
-
+	if (pd->flags & S3C24XX_LEDF_TRISTATE) {
+		if (value)
+			gpio_direction_output(pd->gpio, state);
+		else
+			gpio_direction_input(pd->gpio);
+	}
 }
 
 static int s3c24xx_led_remove(struct platform_device *dev)
@@ -63,6 +65,7 @@ static int s3c24xx_led_remove(struct platform_device *dev)
 	struct s3c24xx_gpio_led *led = pdev_to_gpio(dev);
 
 	led_classdev_unregister(&led->cdev);
+	gpio_free(led->pdata->gpio);
 
 	return 0;
 }
@@ -89,16 +92,19 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 
 	led->pdata = pdata;
 
+	ret = gpio_request(pdata->gpio, "S3C24XX_LED");
+	if (ret < 0)
+		return ret;
+
 	/* no point in having a pull-up if we are always driving */
 
-	if (pdata->flags & S3C24XX_LEDF_TRISTATE) {
-		s3c2410_gpio_setpin(pdata->gpio, 0);
-		s3c2410_gpio_cfgpin(pdata->gpio, S3C2410_GPIO_INPUT);
-	} else {
-		s3c2410_gpio_pullup(pdata->gpio, 0);
-		s3c2410_gpio_setpin(pdata->gpio, 0);
-		s3c2410_gpio_cfgpin(pdata->gpio, S3C2410_GPIO_OUTPUT);
-	}
+	s3c_gpio_setpull(pdata->gpio, S3C_GPIO_PULL_NONE);
+
+	if (pdata->flags & S3C24XX_LEDF_TRISTATE)
+		gpio_direction_input(pdata->gpio);
+	else
+		gpio_direction_output(pdata->gpio,
+			pdata->flags & S3C24XX_LEDF_ACTLOW ? 1 : 0);
 
 	/* register our new led device */
 
