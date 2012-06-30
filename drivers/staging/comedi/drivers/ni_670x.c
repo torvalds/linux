@@ -301,8 +301,13 @@ static int ni_670x_attach(struct comedi_device *dev,
 static void ni_670x_detach(struct comedi_device *dev)
 {
 	struct ni_670x_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
 
-	kfree(dev->subdevices[0].range_table_list);
+	if (dev->n_subdevices) {
+		s = dev->subdevices + 0;
+		if (s)
+			kfree(s->range_table_list);
+	}
 	if (devpriv && devpriv->mite)
 		mite_unsetup(devpriv->mite);
 	if (dev->irq)
