@@ -318,9 +318,6 @@
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-#define PCI_FORCEHT(sih) ((ai_get_buscoretype(sih) == PCIE_CORE_ID) && \
-			  (ai_get_chip_id(sih) == BCM4716_CHIP_ID))
-
 #ifdef DEBUG
 #define	SI_MSG(fmt, ...)	pr_debug(fmt, ##__VA_ARGS__)
 #else
@@ -753,9 +750,6 @@ bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 
 	sii = (struct si_info *)sih;
 
-	if (PCI_FORCEHT(sih))
-		return mode == BCMA_CLKMODE_FAST;
-
 	cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
 	bcma_core_set_clockmode(cc, mode);
 	return mode == BCMA_CLKMODE_FAST;
@@ -764,14 +758,8 @@ bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 void ai_pci_up(struct si_pub *sih)
 {
 	struct si_info *sii;
-	struct bcma_device *cc;
 
 	sii = (struct si_info *)sih;
-
-	if (PCI_FORCEHT(sih)) {
-		cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
-		bcma_core_set_clockmode(cc, BCMA_CLKMODE_FAST);
-	}
 
 	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
@@ -781,15 +769,8 @@ void ai_pci_up(struct si_pub *sih)
 void ai_pci_down(struct si_pub *sih)
 {
 	struct si_info *sii;
-	struct bcma_device *cc;
 
 	sii = (struct si_info *)sih;
-
-	/* release FORCEHT since chip is going to "down" state */
-	if (PCI_FORCEHT(sih)) {
-		cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
-		bcma_core_set_clockmode(cc, BCMA_CLKMODE_DYNAMIC);
-	}
 
 	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
