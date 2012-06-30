@@ -61,6 +61,52 @@ struct iio_channel *iio_channel_get_all(const char *name);
  */
 void iio_channel_release_all(struct iio_channel *chan);
 
+struct iio_cb_buffer;
+/**
+ * iio_channel_get_all_cb() - register callback for triggered capture
+ * @name:		Name of client device.
+ * @cb:			Callback function.
+ * @private:		Private data passed to callback.
+ *
+ * NB right now we have no ability to mux data from multiple devices.
+ * So if the channels requested come from different devices this will
+ * fail.
+ */
+struct iio_cb_buffer *iio_channel_get_all_cb(const char *name,
+					     int (*cb)(u8 *data,
+						       void *private),
+					     void *private);
+/**
+ * iio_channel_release_all_cb() - release and unregister the callback.
+ * @cb_buffer:		The callback buffer that was allocated.
+ */
+void iio_channel_release_all_cb(struct iio_cb_buffer *cb_buffer);
+
+/**
+ * iio_channel_start_all_cb() - start the flow of data through callback.
+ * @cb_buff:		The callback buffer we are starting.
+ */
+int iio_channel_start_all_cb(struct iio_cb_buffer *cb_buff);
+
+/**
+ * iio_channel_stop_all_cb() - stop the flow of data through the callback.
+ * @cb_buff:		The callback buffer we are stopping.
+ */
+void iio_channel_stop_all_cb(struct iio_cb_buffer *cb_buff);
+
+/**
+ * iio_channel_cb_get_channels() - get access to the underlying channels.
+ * @cb_buff:		The callback buffer from whom we want the channel
+ *			information.
+ *
+ * This function allows one to obtain information about the channels.
+ * Whilst this may allow direct reading if all buffers are disabled, the
+ * primary aim is to allow drivers that are consuming a channel to query
+ * things like scaling of the channel.
+ */
+struct iio_channel
+*iio_channel_cb_get_channels(const struct iio_cb_buffer *cb_buffer);
+
 /**
  * iio_read_channel_raw() - read from a given channel
  * @chan:		The channel being queried.
