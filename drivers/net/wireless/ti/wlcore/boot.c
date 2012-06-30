@@ -192,7 +192,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	partition.mem.start = dest;
 	ret = wlcore_set_partition(wl, &partition);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/* 10.1 set partition limit and chunk num */
 	chunk_num = 0;
@@ -208,7 +208,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 			partition.mem.start = addr;
 			ret = wlcore_set_partition(wl, &partition);
 			if (ret < 0)
-				return ret;
+				goto out;
 		}
 
 		/* 10.3 upload the chunk */
