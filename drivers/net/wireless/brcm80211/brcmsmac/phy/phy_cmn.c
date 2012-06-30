@@ -292,7 +292,7 @@ void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 	bcma_wflush16(pi->d11core, D11REGOFFS(phyregaddr), addr);
 	bcma_write16(pi->d11core, D11REGOFFS(phyregdata), val);
 	if (addr == 0x72)
-		(void)bcma_read16(pi->d11core, D11REGOFFS(phyversion));
+		(void)bcma_read16(pi->d11core, D11REGOFFS(phyregdata));
 #else
 	bcma_write32(pi->d11core, D11REGOFFS(phyregaddr), addr | (val << 16));
 	if (++pi->phy_wreg >= pi->phy_wreg_limit) {
