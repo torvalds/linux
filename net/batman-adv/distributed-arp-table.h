@@ -55,4 +55,8 @@ batadv_dat_init_own_addr(struct batadv_priv *bat_priv,
 	bat_priv->dat.addr = (batadv_dat_addr_t)addr;
 }
 
+int batadv_dat_init(struct batadv_priv *bat_priv);
+void batadv_dat_free(struct batadv_priv *bat_priv);
+int batadv_dat_cache_seq_print_text(struct seq_file *seq, void *offset);
+
 #endif /* _NET_BATMAN_ADV_ARP_H_ */
