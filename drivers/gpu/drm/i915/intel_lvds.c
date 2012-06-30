@@ -68,10 +68,11 @@ static struct intel_lvds *intel_attached_lvds(struct drm_connector *connector)
 /**
  * Sets the power state for the panel.
  */
-static void intel_lvds_enable(struct intel_lvds *intel_lvds)
+static void intel_enable_lvds(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = intel_lvds->base.base.dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_lvds->base.base.crtc);
+	struct drm_device *dev = encoder->base.dev;
+	struct intel_lvds *intel_lvds = to_intel_lvds(&encoder->base);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 ctl_reg, lvds_reg, stat_reg;
 
@@ -111,9 +112,10 @@ static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 	intel_panel_enable_backlight(dev, intel_crtc->pipe);
 }
 
-static void intel_lvds_disable(struct intel_lvds *intel_lvds)
+static void intel_disable_lvds(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = intel_lvds->base.base.dev;
+	struct drm_device *dev = encoder->base.dev;
+	struct intel_lvds *intel_lvds = to_intel_lvds(&encoder->base);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 ctl_reg, lvds_reg, stat_reg;
 
@@ -140,18 +142,6 @@ static void intel_lvds_disable(struct intel_lvds *intel_lvds)
 
 	I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
 	POSTING_READ(lvds_reg);
-}
-
-static void intel_lvds_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
-	if (mode == DRM_MODE_DPMS_ON)
-		intel_lvds_enable(intel_lvds);
-	else
-		intel_lvds_disable(intel_lvds);
-
-	/* XXX: We never power down the LVDS pairs. */
 }
 
 static int intel_lvds_mode_valid(struct drm_connector *connector,
@@ -405,23 +395,6 @@ out:
 	return true;
 }
 
-static void intel_lvds_prepare(struct drm_encoder *encoder)
-{
-	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
-	intel_lvds_disable(intel_lvds);
-}
-
-static void intel_lvds_commit(struct drm_encoder *encoder)
-{
-	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
-	/* Always do a full power on as we do not know what state
-	 * we were left in.
-	 */
-	intel_lvds_enable(intel_lvds);
-}
-
 static void intel_lvds_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -596,11 +569,11 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 }
 
 static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
-	.dpms = intel_lvds_dpms,
 	.mode_fixup = intel_lvds_mode_fixup,
-	.prepare = intel_lvds_prepare,
+	.prepare = intel_encoder_noop,
 	.mode_set = intel_lvds_mode_set,
-	.commit = intel_lvds_commit,
+	.commit = intel_encoder_noop,
+	.disable = intel_encoder_disable,
 };
 
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {
@@ -610,7 +583,7 @@ static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = intel_connector_dpms,
 	.detect = intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_lvds_set_property,
@@ -963,6 +936,9 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
+
+	intel_encoder->enable = intel_enable_lvds;
+	intel_encoder->disable = intel_disable_lvds;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	intel_encoder->type = INTEL_OUTPUT_LVDS;
