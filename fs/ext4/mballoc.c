@@ -2077,8 +2077,9 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	struct super_block *sb = seq->private;
 	ext4_group_t group = (ext4_group_t) ((unsigned long) v);
 	int i;
-	int err;
+	int err, buddy_loaded = 0;
 	struct ext4_buddy e4b;
+	struct ext4_group_info *grinfo;
 	struct sg {
 		struct ext4_group_info info;
 		ext4_grpblk_t counters[16];
@@ -2095,15 +2096,21 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 
 	i = (sb->s_blocksize_bits + 2) * sizeof(sg.info.bb_counters[0]) +
 		sizeof(struct ext4_group_info);
-	err = ext4_mb_load_buddy(sb, group, &e4b);
-	if (err) {
-		seq_printf(seq, "#%-5u: I/O error\n", group);
-		return 0;
+	grinfo = ext4_get_group_info(sb, group);
+	/* Load the group info in memory only if not already loaded. */
+	if (unlikely(EXT4_MB_GRP_NEED_INIT(grinfo))) {
+		err = ext4_mb_load_buddy(sb, group, &e4b);
+		if (err) {
+			seq_printf(seq, "#%-5u: I/O error\n", group);
+			return 0;
+		}
+		buddy_loaded = 1;
 	}
-	ext4_lock_group(sb, group);
+
 	memcpy(&sg, ext4_get_group_info(sb, group), i);
-	ext4_unlock_group(sb, group);
-	ext4_mb_unload_buddy(&e4b);
+
+	if (buddy_loaded)
+		ext4_mb_unload_buddy(&e4b);
 
 	seq_printf(seq, "#%-5u: %-5u %-5u %-5u [", group, sg.info.bb_free,
 			sg.info.bb_fragments, sg.info.bb_first_free);
