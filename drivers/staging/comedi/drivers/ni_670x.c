@@ -146,19 +146,19 @@ static int ni_670x_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	struct ni_670x_private *devpriv = dev->private;
+	void __iomem *io_addr = devpriv->mite->daq_io_addr +
+					DIO_PORT0_DATA_OFFSET;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-		writel(s->state,
-		       devpriv->mite->daq_io_addr + DIO_PORT0_DATA_OFFSET);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		writel(s->state, io_addr);
 	}
 
-	/* on return, data[1] contains the value of the digital
-	 * input lines. */
-	data[1] = readl(devpriv->mite->daq_io_addr + DIO_PORT0_DATA_OFFSET);
+	data[1] = readl(io_addr);
 
 	return insn->n;
 }
