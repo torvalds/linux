@@ -453,7 +453,7 @@ inline int find_type_by_name(const char *name, const char *type)
 
 	dp = opendir(iio_dir);
 	if (dp == NULL) {
-		printf("No industrialio devices available");
+		printf("No industrialio devices available\n");
 		return -ENODEV;
 	}
 
