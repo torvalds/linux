@@ -373,11 +373,13 @@ static struct platform_device mmc_device = {
 	.resource	= sh_mmcif_resources,
 };
 
-/* Fixed 2.8V regulators to be used by SDHI0 */
+/* Fixed 2.8V regulators to be used by SDHI0 and SDHI2 */
 static struct regulator_consumer_supply fixed2v8_power_consumers[] =
 {
 	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
 	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.2"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.2"),
 };
 
 /* SDHI */
