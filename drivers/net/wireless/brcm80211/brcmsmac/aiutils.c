@@ -582,7 +582,7 @@ void ai_detach(struct si_pub *sih)
 	struct si_pub *si_local = NULL;
 	memcpy(&si_local, &sih, sizeof(struct si_pub **));
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
 	if (sii == NULL)
 		return;
@@ -597,7 +597,7 @@ struct bcma_device *ai_findcore(struct si_pub *sih, u16 coreid, u16 coreunit)
 	struct si_info *sii;
 	uint found;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
 	found = 0;
 
@@ -620,7 +620,7 @@ uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val)
 	u32 w;
 	struct si_info *sii;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 	cc = sii->icbus->drv_cc.core;
 
 	/* mask and set */
@@ -713,7 +713,7 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 	uint slowminfreq;
 	u16 fpdelay;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 	if (ai_get_cccaps(sih) & CC_CAP_PMU) {
 		fpdelay = si_pmu_fast_pwrup_delay(sih);
 		return fpdelay;
@@ -745,7 +745,7 @@ bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 	struct si_info *sii;
 	struct bcma_device *cc;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
 	cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
 	bcma_core_set_clockmode(cc, mode);
@@ -756,7 +756,7 @@ void ai_pci_up(struct si_pub *sih)
 {
 	struct si_info *sii;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
 	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
@@ -767,7 +767,7 @@ void ai_pci_down(struct si_pub *sih)
 {
 	struct si_info *sii;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
 	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
@@ -790,7 +790,7 @@ bool ai_deviceremoved(struct si_pub *sih)
 	u32 w;
 	struct si_info *sii;
 
-	sii = (struct si_info *)sih;
+	sii = container_of(sih, struct si_info, pub);
 
 	if (sii->icbus->hosttype != BCMA_HOSTTYPE_PCI)
 		return false;
