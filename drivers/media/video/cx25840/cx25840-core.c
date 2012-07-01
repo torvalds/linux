@@ -1250,7 +1250,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		cx25840_write4(client, 0x8d0, 0x1f063870);
 	}
 
-	if (is_cx2388x(state)) {
+	if (is_cx23888(state)) {
 		/* HVR1850 */
 		/* AUD_IO_CTRL - I2S Input, Parallel1*/
 		/*  - Channel 1 src - Parallel1 (Merlin out) */
