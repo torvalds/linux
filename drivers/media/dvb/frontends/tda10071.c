@@ -287,7 +287,7 @@ static int tda10071_diseqc_send_master_cmd(struct dvb_frontend *fe,
 
 	dbg("%s: msg_len=%d", __func__, diseqc_cmd->msg_len);
 
-	if (diseqc_cmd->msg_len < 3 || diseqc_cmd->msg_len > 16) {
+	if (diseqc_cmd->msg_len < 3 || diseqc_cmd->msg_len > 6) {
 		ret = -EINVAL;
 		goto error;
 	}
