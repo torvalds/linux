@@ -809,7 +809,7 @@ static void test_acipher_speed(const char *algo, int enc, unsigned int sec,
 			       struct cipher_speed_template *template,
 			       unsigned int tcount, u8 *keysize)
 {
-	unsigned int ret, i, j, iv_len;
+	unsigned int ret, i, j, k, iv_len;
 	struct tcrypt_result tresult;
 	const char *key;
 	char iv[128];
@@ -883,11 +883,23 @@ static void test_acipher_speed(const char *algo, int enc, unsigned int sec,
 			}
 
 			sg_init_table(sg, TVMEMSIZE);
-			sg_set_buf(sg, tvmem[0] + *keysize,
+
+			k = *keysize + *b_size;
+			if (k > PAGE_SIZE) {
+				sg_set_buf(sg, tvmem[0] + *keysize,
 				   PAGE_SIZE - *keysize);
-			for (j = 1; j < TVMEMSIZE; j++) {
-				sg_set_buf(sg + j, tvmem[j], PAGE_SIZE);
-				memset(tvmem[j], 0xff, PAGE_SIZE);
+				k -= PAGE_SIZE;
+				j = 1;
+				while (k > PAGE_SIZE) {
+					sg_set_buf(sg + j, tvmem[j], PAGE_SIZE);
+					memset(tvmem[j], 0xff, PAGE_SIZE);
+					j++;
+					k -= PAGE_SIZE;
+				}
+				sg_set_buf(sg + j, tvmem[j], k);
+				memset(tvmem[j], 0xff, k);
+			} else {
+				sg_set_buf(sg, tvmem[0] + *keysize, *b_size);
 			}
 
 			iv_len = crypto_ablkcipher_ivsize(tfm);
@@ -1520,6 +1532,14 @@ static int do_test(int m)
 				   speed_template_16_24_32);
 		test_acipher_speed("ctr(aes)", DECRYPT, sec, NULL, 0,
 				   speed_template_16_24_32);
+		test_acipher_speed("cfb(aes)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("cfb(aes)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("ofb(aes)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("ofb(aes)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
 		break;
 
 	case 501:
@@ -1535,6 +1555,18 @@ static int do_test(int m)
 		test_acipher_speed("cbc(des3_ede)", DECRYPT, sec,
 				   des3_speed_template, DES3_SPEED_VECTORS,
 				   speed_template_24);
+		test_acipher_speed("cfb(des3_ede)", ENCRYPT, sec,
+				   des3_speed_template, DES3_SPEED_VECTORS,
+				   speed_template_24);
+		test_acipher_speed("cfb(des3_ede)", DECRYPT, sec,
+				   des3_speed_template, DES3_SPEED_VECTORS,
+				   speed_template_24);
+		test_acipher_speed("ofb(des3_ede)", ENCRYPT, sec,
+				   des3_speed_template, DES3_SPEED_VECTORS,
+				   speed_template_24);
+		test_acipher_speed("ofb(des3_ede)", DECRYPT, sec,
+				   des3_speed_template, DES3_SPEED_VECTORS,
+				   speed_template_24);
 		break;
 
 	case 502:
@@ -1545,6 +1577,14 @@ static int do_test(int m)
 		test_acipher_speed("cbc(des)", ENCRYPT, sec, NULL, 0,
 				   speed_template_8);
 		test_acipher_speed("cbc(des)", DECRYPT, sec, NULL, 0,
+				   speed_template_8);
+		test_acipher_speed("cfb(des)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8);
+		test_acipher_speed("cfb(des)", DECRYPT, sec, NULL, 0,
+				   speed_template_8);
+		test_acipher_speed("ofb(des)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8);
+		test_acipher_speed("ofb(des)", DECRYPT, sec, NULL, 0,
 				   speed_template_8);
 		break;
 
