@@ -1250,10 +1250,9 @@ static void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 	}
 }
 
-static void intel_dp_prepare(struct drm_encoder *encoder)
+static void intel_disable_dp(struct intel_encoder *encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
@@ -1262,62 +1261,64 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	ironlake_edp_panel_off(intel_dp);
 	intel_dp_link_down(intel_dp);
+
+	intel_dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
-static void intel_dp_commit(struct drm_encoder *encoder)
+static void intel_enable_dp(struct intel_encoder *encoder)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
-
-	ironlake_edp_panel_vdd_on(intel_dp);
-	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
-	intel_dp_start_link_train(intel_dp);
-	ironlake_edp_panel_on(intel_dp);
-	ironlake_edp_panel_vdd_off(intel_dp, true);
-	intel_dp_complete_link_train(intel_dp);
-	ironlake_edp_backlight_on(intel_dp);
-
-	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
-
-	if (HAS_PCH_CPT(dev))
-		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
-}
-
-static void
-intel_dp_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_device *dev = encoder->dev;
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
+	ironlake_edp_panel_vdd_on(intel_dp);
+	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	if (!(dp_reg & DP_PORT_EN)) {
+		intel_dp_start_link_train(intel_dp);
+		ironlake_edp_panel_on(intel_dp);
+		ironlake_edp_panel_vdd_off(intel_dp, true);
+		intel_dp_complete_link_train(intel_dp);
+	} else
+		ironlake_edp_panel_vdd_off(intel_dp, false);
+	ironlake_edp_backlight_on(intel_dp);
+
+	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
+}
+
+static void
+intel_dp_dpms(struct drm_connector *connector, int mode)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+
+	/* DP supports only 2 dpms states. */
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
+	if (mode == connector->dpms)
+		return;
+
+	connector->dpms = mode;
+
+	/* Only need to change hw state when actually enabled */
+	if (!intel_dp->base.base.crtc) {
+		intel_dp->base.connectors_active = false;
+		return;
+	}
+
 	if (mode != DRM_MODE_DPMS_ON) {
-		/* Switching the panel off requires vdd. */
-		ironlake_edp_panel_vdd_on(intel_dp);
-		ironlake_edp_backlight_off(intel_dp);
-		intel_dp_sink_dpms(intel_dp, mode);
-		ironlake_edp_panel_off(intel_dp);
-		intel_dp_link_down(intel_dp);
+		intel_encoder_dpms(&intel_dp->base, mode);
+		WARN_ON(intel_dp->dpms_mode != DRM_MODE_DPMS_OFF);
 
 		if (is_cpu_edp(intel_dp))
-			ironlake_edp_pll_off(encoder);
+			ironlake_edp_pll_off(&intel_dp->base.base);
 	} else {
 		if (is_cpu_edp(intel_dp))
-			ironlake_edp_pll_on(encoder);
+			ironlake_edp_pll_on(&intel_dp->base.base);
 
-		ironlake_edp_panel_vdd_on(intel_dp);
-		intel_dp_sink_dpms(intel_dp, mode);
-		if (!(dp_reg & DP_PORT_EN)) {
-			intel_dp_start_link_train(intel_dp);
-			ironlake_edp_panel_on(intel_dp);
-			ironlake_edp_panel_vdd_off(intel_dp, true);
-			intel_dp_complete_link_train(intel_dp);
-		} else
-			ironlake_edp_panel_vdd_off(intel_dp, false);
-		ironlake_edp_backlight_on(intel_dp);
+		intel_encoder_dpms(&intel_dp->base, mode);
+		WARN_ON(intel_dp->dpms_mode != DRM_MODE_DPMS_ON);
 	}
-	intel_dp->dpms_mode = mode;
 }
 
 /*
@@ -2347,15 +2348,15 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
-	.dpms = intel_dp_dpms,
 	.mode_fixup = intel_dp_mode_fixup,
-	.prepare = intel_dp_prepare,
+	.prepare = intel_encoder_noop,
 	.mode_set = intel_dp_mode_set,
-	.commit = intel_dp_commit,
+	.commit = intel_encoder_noop,
+	.disable = intel_encoder_disable,
 };
 
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = intel_dp_dpms,
 	.detect = intel_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_dp_set_property,
@@ -2485,6 +2486,9 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	drm_sysfs_connector_add(connector);
+
+	intel_encoder->enable = intel_enable_dp;
+	intel_encoder->disable = intel_disable_dp;
 
 	/* Set up the DDC bus. */
 	switch (port) {
