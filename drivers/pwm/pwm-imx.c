@@ -159,18 +159,16 @@ static int __devinit imx_pwm_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret = 0;
 
-	imx = kzalloc(sizeof(*imx), GFP_KERNEL);
+	imx = devm_kzalloc(&pdev->dev, sizeof(*imx), GFP_KERNEL);
 	if (imx == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
 
-	imx->clk = clk_get(&pdev->dev, "pwm");
+	imx->clk = devm_clk_get(&pdev->dev, "pwm");
 
-	if (IS_ERR(imx->clk)) {
-		ret = PTR_ERR(imx->clk);
-		goto err_free;
-	}
+	if (IS_ERR(imx->clk))
+		return PTR_ERR(imx->clk);
 
 	imx->chip.ops = &imx_pwm_ops;
 	imx->chip.dev = &pdev->dev;
@@ -182,65 +180,30 @@ static int __devinit imx_pwm_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
 		dev_err(&pdev->dev, "no memory resource defined\n");
-		ret = -ENODEV;
-		goto err_free_clk;
+		return -ENODEV;
 	}
 
-	r = request_mem_region(r->start, resource_size(r), pdev->name);
-	if (r == NULL) {
-		dev_err(&pdev->dev, "failed to request memory resource\n");
-		ret = -EBUSY;
-		goto err_free_clk;
-	}
-
-	imx->mmio_base = ioremap(r->start, resource_size(r));
-	if (imx->mmio_base == NULL) {
-		dev_err(&pdev->dev, "failed to ioremap() registers\n");
-		ret = -ENODEV;
-		goto err_free_mem;
-	}
+	imx->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
+	if (imx->mmio_base == NULL)
+		return -EADDRNOTAVAIL;
 
 	ret = pwmchip_add(&imx->chip);
 	if (ret < 0)
-		goto err_iounmap;
+		return ret;
 
 	platform_set_drvdata(pdev, imx);
 	return 0;
-
-err_iounmap:
-	iounmap(imx->mmio_base);
-err_free_mem:
-	release_mem_region(r->start, resource_size(r));
-err_free_clk:
-	clk_put(imx->clk);
-err_free:
-	kfree(imx);
-	return ret;
 }
 
 static int __devexit imx_pwm_remove(struct platform_device *pdev)
 {
 	struct imx_chip *imx;
-	struct resource *r;
-	int ret;
 
 	imx = platform_get_drvdata(pdev);
 	if (imx == NULL)
 		return -ENODEV;
 
-	ret = pwmchip_remove(&imx->chip);
-	if (ret)
-		return ret;
-
-	iounmap(imx->mmio_base);
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, resource_size(r));
-
-	clk_put(imx->clk);
-
-	kfree(imx);
-	return 0;
+	return pwmchip_remove(&imx->chip);
 }
 
 static struct platform_driver imx_pwm_driver = {
