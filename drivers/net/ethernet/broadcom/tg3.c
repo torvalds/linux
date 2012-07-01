@@ -9908,7 +9908,7 @@ static bool tg3_enable_msix(struct tg3 *tp)
 	int i, rc;
 	struct msix_entry msix_ent[tp->irq_max];
 
-	tp->irq_cnt = num_online_cpus();
+	tp->irq_cnt = netif_get_num_default_rss_queues();
 	if (tp->irq_cnt > 1) {
 		/* We want as many rx rings enabled as there are cpus.
 		 * In multiqueue MSI-X mode, the first MSI-X vector
