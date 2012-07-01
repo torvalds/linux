@@ -262,11 +262,6 @@ static void __init lpc3250_machine_init(void)
 
 	lpc32xx_serial_init();
 
-	tmp = __raw_readl(LPC32XX_CLKPWR_MS_CTRL);
-	tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_EN |
-		LPC32XX_CLKPWR_MSCARD_MSDIO_PU_EN;
-	__raw_writel(tmp, LPC32XX_CLKPWR_MS_CTRL);
-
 	/* Test clock needed for UDA1380 initial init */
 	__raw_writel(LPC32XX_CLKPWR_TESTCLK2_SEL_MOSC |
 		LPC32XX_CLKPWR_TESTCLK_TESTCLK2_EN,

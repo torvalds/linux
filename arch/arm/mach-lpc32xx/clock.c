@@ -812,11 +812,13 @@ static int mmc_onoff_enable(struct clk *clk, int enable)
 	u32 tmp;
 
 	tmp = __raw_readl(LPC32XX_CLKPWR_MS_CTRL) &
-		~LPC32XX_CLKPWR_MSCARD_SDCARD_EN;
+		~(LPC32XX_CLKPWR_MSCARD_SDCARD_EN |
+		  LPC32XX_CLKPWR_MSCARD_MSDIO_PU_EN);
 
 	/* If rate is 0, disable clock */
 	if (enable != 0)
-		tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_EN;
+		tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_EN |
+			LPC32XX_CLKPWR_MSCARD_MSDIO_PU_EN;
 
 	__raw_writel(tmp, LPC32XX_CLKPWR_MS_CTRL);
 
