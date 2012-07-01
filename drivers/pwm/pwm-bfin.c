@@ -146,9 +146,7 @@ static int __devexit bfin_pwm_remove(struct platform_device *pdev)
 {
 	struct bfin_pwm_chip *pwm = platform_get_drvdata(pdev);
 
-	pwmchip_remove(&pwm->chip);
-
-	return 0;
+	return pwmchip_remove(&pwm->chip);
 }
 
 static struct platform_driver bfin_pwm_driver = {
