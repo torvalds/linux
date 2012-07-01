@@ -112,7 +112,7 @@ struct tda10071_reg_val_mask {
 #define CMD_BER_UPDATE_COUNTERS 0x3f
 
 /* firmare command struct */
-#define TDA10071_ARGLEN      0x1e
+#define TDA10071_ARGLEN      30
 struct tda10071_cmd {
 	u8 args[TDA10071_ARGLEN];
 	u8 len;

@@ -211,12 +211,12 @@ static int tda10071_set_tone(struct dvb_frontend *fe,
 		goto error;
 	}
 
-	cmd.args[0x00] = CMD_LNB_PCB_CONFIG;
-	cmd.args[0x01] = 0;
-	cmd.args[0x02] = 0x00;
-	cmd.args[0x03] = 0x00;
-	cmd.args[0x04] = tone;
-	cmd.len = 0x05;
+	cmd.args[0] = CMD_LNB_PCB_CONFIG;
+	cmd.args[1] = 0;
+	cmd.args[2] = 0x00;
+	cmd.args[3] = 0x00;
+	cmd.args[4] = tone;
+	cmd.len = 5;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
@@ -258,10 +258,10 @@ static int tda10071_set_voltage(struct dvb_frontend *fe,
 		goto error;
 	};
 
-	cmd.args[0x00] = CMD_LNB_SET_DC_LEVEL;
-	cmd.args[0x01] = 0;
-	cmd.args[0x02] = voltage;
-	cmd.len = 0x03;
+	cmd.args[0] = CMD_LNB_SET_DC_LEVEL;
+	cmd.args[1] = 0;
+	cmd.args[2] = voltage;
+	cmd.len = 3;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
@@ -312,15 +312,15 @@ static int tda10071_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	if (ret)
 		goto error;
 
-	cmd.args[0x00] = CMD_LNB_SEND_DISEQC;
-	cmd.args[0x01] = 0;
-	cmd.args[0x02] = 0;
-	cmd.args[0x03] = 0;
-	cmd.args[0x04] = 2;
-	cmd.args[0x05] = 0;
-	cmd.args[0x06] = diseqc_cmd->msg_len;
-	memcpy(&cmd.args[0x07], diseqc_cmd->msg, diseqc_cmd->msg_len);
-	cmd.len = 0x07 + diseqc_cmd->msg_len;
+	cmd.args[0] = CMD_LNB_SEND_DISEQC;
+	cmd.args[1] = 0;
+	cmd.args[2] = 0;
+	cmd.args[3] = 0;
+	cmd.args[4] = 2;
+	cmd.args[5] = 0;
+	cmd.args[6] = diseqc_cmd->msg_len;
+	memcpy(&cmd.args[7], diseqc_cmd->msg, diseqc_cmd->msg_len);
+	cmd.len = 7 + diseqc_cmd->msg_len;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
@@ -372,9 +372,9 @@ static int tda10071_diseqc_recv_slave_reply(struct dvb_frontend *fe,
 		reply->msg_len = sizeof(reply->msg); /* truncate API max */
 
 	/* read reply */
-	cmd.args[0x00] = CMD_LNB_UPDATE_REPLY;
-	cmd.args[0x01] = 0;
-	cmd.len = 0x02;
+	cmd.args[0] = CMD_LNB_UPDATE_REPLY;
+	cmd.args[1] = 0;
+	cmd.len = 2;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
@@ -437,10 +437,10 @@ static int tda10071_diseqc_send_burst(struct dvb_frontend *fe,
 	if (ret)
 		goto error;
 
-	cmd.args[0x00] = CMD_LNB_SEND_TONEBURST;
-	cmd.args[0x01] = 0;
-	cmd.args[0x02] = burst;
-	cmd.len = 0x03;
+	cmd.args[0] = CMD_LNB_SEND_TONEBURST;
+	cmd.args[1] = 0;
+	cmd.args[2] = burst;
+	cmd.len = 3;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
@@ -523,9 +523,9 @@ static int tda10071_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		goto error;
 	}
 
-	cmd.args[0x00] = CMD_GET_AGCACC;
-	cmd.args[0x01] = 0;
-	cmd.len = 0x02;
+	cmd.args[0] = CMD_GET_AGCACC;
+	cmd.args[1] = 0;
+	cmd.len = 2;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
@@ -590,10 +590,10 @@ static int tda10071_read_ber(struct dvb_frontend *fe, u32 *ber)
 		priv->meas_count[i] = tmp;
 	}
 
-	cmd.args[0x00] = CMD_BER_UPDATE_COUNTERS;
-	cmd.args[0x01] = 0;
-	cmd.args[0x02] = i;
-	cmd.len = 0x03;
+	cmd.args[0] = CMD_BER_UPDATE_COUNTERS;
+	cmd.args[1] = 0;
+	cmd.args[2] = i;
+	cmd.len = 3;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
@@ -748,22 +748,22 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto error;
 
-	cmd.args[0x00] = CMD_CHANGE_CHANNEL;
-	cmd.args[0x01] = 0;
-	cmd.args[0x02] = mode;
-	cmd.args[0x03] = (c->frequency >> 16) & 0xff;
-	cmd.args[0x04] = (c->frequency >>  8) & 0xff;
-	cmd.args[0x05] = (c->frequency >>  0) & 0xff;
-	cmd.args[0x06] = ((c->symbol_rate / 1000) >> 8) & 0xff;
-	cmd.args[0x07] = ((c->symbol_rate / 1000) >> 0) & 0xff;
-	cmd.args[0x08] = (tda10071_ops.info.frequency_tolerance >> 8) & 0xff;
-	cmd.args[0x09] = (tda10071_ops.info.frequency_tolerance >> 0) & 0xff;
-	cmd.args[0x0a] = rolloff;
-	cmd.args[0x0b] = inversion;
-	cmd.args[0x0c] = pilot;
-	cmd.args[0x0d] = 0x00;
-	cmd.args[0x0e] = 0x00;
-	cmd.len = 0x0f;
+	cmd.args[0] = CMD_CHANGE_CHANNEL;
+	cmd.args[1] = 0;
+	cmd.args[2] = mode;
+	cmd.args[3] = (c->frequency >> 16) & 0xff;
+	cmd.args[4] = (c->frequency >>  8) & 0xff;
+	cmd.args[5] = (c->frequency >>  0) & 0xff;
+	cmd.args[6] = ((c->symbol_rate / 1000) >> 8) & 0xff;
+	cmd.args[7] = ((c->symbol_rate / 1000) >> 0) & 0xff;
+	cmd.args[8] = (tda10071_ops.info.frequency_tolerance >> 8) & 0xff;
+	cmd.args[9] = (tda10071_ops.info.frequency_tolerance >> 0) & 0xff;
+	cmd.args[10] = rolloff;
+	cmd.args[11] = inversion;
+	cmd.args[12] = pilot;
+	cmd.args[13] = 0x00;
+	cmd.args[14] = 0x00;
+	cmd.len = 15;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
@@ -915,10 +915,10 @@ static int tda10071_init(struct dvb_frontend *fe)
 				goto error;
 		}
 
-		cmd.args[0x00] = CMD_SET_SLEEP_MODE;
-		cmd.args[0x01] = 0;
-		cmd.args[0x02] = 0;
-		cmd.len = 0x03;
+		cmd.args[0] = CMD_SET_SLEEP_MODE;
+		cmd.args[1] = 0;
+		cmd.args[2] = 0;
+		cmd.len = 3;
 		ret = tda10071_cmd_execute(priv, &cmd);
 		if (ret)
 			goto error;
@@ -1009,8 +1009,8 @@ static int tda10071_init(struct dvb_frontend *fe)
 			priv->warm = 1;
 		}
 
-		cmd.args[0x00] = CMD_GET_FW_VERSION;
-		cmd.len = 0x01;
+		cmd.args[0] = CMD_GET_FW_VERSION;
+		cmd.len = 1;
 		ret = tda10071_cmd_execute(priv, &cmd);
 		if (ret)
 			goto error;
@@ -1027,46 +1027,46 @@ static int tda10071_init(struct dvb_frontend *fe)
 		if (ret)
 			goto error;
 
-		cmd.args[0x00] = CMD_DEMOD_INIT;
-		cmd.args[0x01] = ((priv->cfg.xtal / 1000) >> 8) & 0xff;
-		cmd.args[0x02] = ((priv->cfg.xtal / 1000) >> 0) & 0xff;
-		cmd.args[0x03] = buf[0];
-		cmd.args[0x04] = buf[1];
-		cmd.args[0x05] = priv->cfg.pll_multiplier;
-		cmd.args[0x06] = priv->cfg.spec_inv;
-		cmd.args[0x07] = 0x00;
-		cmd.len = 0x08;
+		cmd.args[0] = CMD_DEMOD_INIT;
+		cmd.args[1] = ((priv->cfg.xtal / 1000) >> 8) & 0xff;
+		cmd.args[2] = ((priv->cfg.xtal / 1000) >> 0) & 0xff;
+		cmd.args[3] = buf[0];
+		cmd.args[4] = buf[1];
+		cmd.args[5] = priv->cfg.pll_multiplier;
+		cmd.args[6] = priv->cfg.spec_inv;
+		cmd.args[7] = 0x00;
+		cmd.len = 8;
 		ret = tda10071_cmd_execute(priv, &cmd);
 		if (ret)
 			goto error;
 
-		cmd.args[0x00] = CMD_TUNER_INIT;
-		cmd.args[0x01] = 0x00;
-		cmd.args[0x02] = 0x00;
-		cmd.args[0x03] = 0x00;
-		cmd.args[0x04] = 0x00;
-		cmd.args[0x05] = 0x14;
-		cmd.args[0x06] = 0x00;
-		cmd.args[0x07] = 0x03;
-		cmd.args[0x08] = 0x02;
-		cmd.args[0x09] = 0x02;
-		cmd.args[0x0a] = 0x00;
-		cmd.args[0x0b] = 0x00;
-		cmd.args[0x0c] = 0x00;
-		cmd.args[0x0d] = 0x00;
-		cmd.args[0x0e] = 0x00;
-		cmd.len = 0x0f;
+		cmd.args[0] = CMD_TUNER_INIT;
+		cmd.args[1] = 0x00;
+		cmd.args[2] = 0x00;
+		cmd.args[3] = 0x00;
+		cmd.args[4] = 0x00;
+		cmd.args[5] = 0x14;
+		cmd.args[6] = 0x00;
+		cmd.args[7] = 0x03;
+		cmd.args[8] = 0x02;
+		cmd.args[9] = 0x02;
+		cmd.args[10] = 0x00;
+		cmd.args[11] = 0x00;
+		cmd.args[12] = 0x00;
+		cmd.args[13] = 0x00;
+		cmd.args[14] = 0x00;
+		cmd.len = 15;
 		ret = tda10071_cmd_execute(priv, &cmd);
 		if (ret)
 			goto error;
 
-		cmd.args[0x00] = CMD_MPEG_CONFIG;
-		cmd.args[0x01] = 0;
-		cmd.args[0x02] = priv->cfg.ts_mode;
-		cmd.args[0x03] = 0x00;
-		cmd.args[0x04] = 0x04;
-		cmd.args[0x05] = 0x00;
-		cmd.len = 0x06;
+		cmd.args[0] = CMD_MPEG_CONFIG;
+		cmd.args[1] = 0;
+		cmd.args[2] = priv->cfg.ts_mode;
+		cmd.args[3] = 0x00;
+		cmd.args[4] = 0x04;
+		cmd.args[5] = 0x00;
+		cmd.len = 6;
 		ret = tda10071_cmd_execute(priv, &cmd);
 		if (ret)
 			goto error;
@@ -1075,27 +1075,27 @@ static int tda10071_init(struct dvb_frontend *fe)
 		if (ret)
 			goto error;
 
-		cmd.args[0x00] = CMD_LNB_CONFIG;
-		cmd.args[0x01] = 0;
-		cmd.args[0x02] = 150;
-		cmd.args[0x03] = 3;
-		cmd.args[0x04] = 22;
-		cmd.args[0x05] = 1;
-		cmd.args[0x06] = 1;
-		cmd.args[0x07] = 30;
-		cmd.args[0x08] = 30;
-		cmd.args[0x09] = 30;
-		cmd.args[0x0a] = 30;
-		cmd.len = 0x0b;
+		cmd.args[0] = CMD_LNB_CONFIG;
+		cmd.args[1] = 0;
+		cmd.args[2] = 150;
+		cmd.args[3] = 3;
+		cmd.args[4] = 22;
+		cmd.args[5] = 1;
+		cmd.args[6] = 1;
+		cmd.args[7] = 30;
+		cmd.args[8] = 30;
+		cmd.args[9] = 30;
+		cmd.args[10] = 30;
+		cmd.len = 11;
 		ret = tda10071_cmd_execute(priv, &cmd);
 		if (ret)
 			goto error;
 
-		cmd.args[0x00] = CMD_BER_CONTROL;
-		cmd.args[0x01] = 0;
-		cmd.args[0x02] = 14;
-		cmd.args[0x03] = 14;
-		cmd.len = 0x04;
+		cmd.args[0] = CMD_BER_CONTROL;
+		cmd.args[1] = 0;
+		cmd.args[2] = 14;
+		cmd.args[3] = 14;
+		cmd.len = 4;
 		ret = tda10071_cmd_execute(priv, &cmd);
 		if (ret)
 			goto error;
@@ -1132,10 +1132,10 @@ static int tda10071_sleep(struct dvb_frontend *fe)
 		goto error;
 	}
 
-	cmd.args[0x00] = CMD_SET_SLEEP_MODE;
-	cmd.args[0x01] = 0;
-	cmd.args[0x02] = 1;
-	cmd.len = 0x03;
+	cmd.args[0] = CMD_SET_SLEEP_MODE;
+	cmd.args[1] = 0;
+	cmd.args[2] = 1;
+	cmd.len = 3;
 	ret = tda10071_cmd_execute(priv, &cmd);
 	if (ret)
 		goto error;
