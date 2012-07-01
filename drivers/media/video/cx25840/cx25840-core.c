@@ -1106,9 +1106,23 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 			cx25840_write4(client, 0x410, 0xffff0dbf);
 			cx25840_write4(client, 0x414, 0x00137d03);
-			cx25840_write4(client, 0x418, 0x01008080);
+
+			/* on the 887, 0x418 is HSCALE_CTRL, on the 888 it is 
+			   CHROMA_CTRL */
+			if (is_cx23888(state))
+				cx25840_write4(client, 0x418, 0x01008080);
+			else
+				cx25840_write4(client, 0x418, 0x01000000);
+
 			cx25840_write4(client, 0x41c, 0x00000000);
-			cx25840_write4(client, 0x420, 0x001c3e0f);
+
+			/* on the 887, 0x420 is CHROMA_CTRL, on the 888 it is 
+			   CRUSH_CTRL */
+			if (is_cx23888(state))
+				cx25840_write4(client, 0x420, 0x001c3e0f);
+			else
+				cx25840_write4(client, 0x420, 0x001c8282);
+
 			cx25840_write4(client, 0x42c, 0x42600000);
 			cx25840_write4(client, 0x430, 0x0000039b);
 			cx25840_write4(client, 0x438, 0x00000000);
@@ -1315,6 +1329,7 @@ static int set_v4lstd(struct i2c_client *client)
 static int cx25840_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
+	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
@@ -1327,12 +1342,20 @@ static int cx25840_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_SATURATION:
-		cx25840_write(client, 0x420, ctrl->val << 1);
-		cx25840_write(client, 0x421, ctrl->val << 1);
+		if (is_cx23888(state)) {
+			cx25840_write(client, 0x418, ctrl->val << 1);
+			cx25840_write(client, 0x419, ctrl->val << 1);
+		} else {
+			cx25840_write(client, 0x420, ctrl->val << 1);
+			cx25840_write(client, 0x421, ctrl->val << 1);
+		}
 		break;
 
 	case V4L2_CID_HUE:
-		cx25840_write(client, 0x422, ctrl->val);
+		if (is_cx23888(state))
+			cx25840_write(client, 0x41a, ctrl->val);
+		else
+			cx25840_write(client, 0x422, ctrl->val);
 		break;
 
 	default:
