@@ -248,18 +248,6 @@ static void __init lpc3250_machine_init(void)
 	tmp |= LPC32XX_CLKPWR_LCDCTRL_LCDTYPE_TFT16;
 	__raw_writel(tmp, LPC32XX_CLKPWR_LCDCLK_CTRL);
 
-	/* Set up USB power */
-	tmp = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
-	tmp |= LPC32XX_CLKPWR_USBCTRL_HCLK_EN |
-		LPC32XX_CLKPWR_USBCTRL_USBI2C_EN;
-	__raw_writel(tmp, LPC32XX_CLKPWR_USB_CTRL);
-
-	/* Set up I2C pull levels */
-	tmp = __raw_readl(LPC32XX_CLKPWR_I2C_CLK_CTRL);
-	tmp |= LPC32XX_CLKPWR_I2CCLK_USBI2CHI_DRIVE |
-		LPC32XX_CLKPWR_I2CCLK_I2C2HI_DRIVE;
-	__raw_writel(tmp, LPC32XX_CLKPWR_I2C_CLK_CTRL);
-
 	lpc32xx_serial_init();
 
 	/* Test clock needed for UDA1380 initial init */
