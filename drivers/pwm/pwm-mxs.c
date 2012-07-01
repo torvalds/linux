@@ -178,9 +178,7 @@ static int __devexit mxs_pwm_remove(struct platform_device *pdev)
 {
 	struct mxs_pwm_chip *mxs = platform_get_drvdata(pdev);
 
-	pwmchip_remove(&mxs->chip);
-
-	return 0;
+	return pwmchip_remove(&mxs->chip);
 }
 
 static struct of_device_id mxs_pwm_dt_ids[] = {
