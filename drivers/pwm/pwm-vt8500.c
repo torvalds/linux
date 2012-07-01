@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-vt8500/pwm.c
+ * drivers/pwm/pwm-vt8500.c
  *
  *  Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
  *
@@ -113,7 +113,7 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
@@ -127,61 +127,30 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
 		dev_err(&pdev->dev, "no memory resource defined\n");
-		ret = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	}
 
-	r = request_mem_region(r->start, resource_size(r), pdev->name);
-	if (r == NULL) {
-		dev_err(&pdev->dev, "failed to request memory resource\n");
-		ret = -EBUSY;
-		goto err_free;
-	}
-
-	chip->base = ioremap(r->start, resource_size(r));
-	if (chip->base == NULL) {
-		dev_err(&pdev->dev, "failed to ioremap() registers\n");
-		ret = -ENODEV;
-		goto err_free_mem;
-	}
+	chip->base = devm_request_and_ioremap(&pdev->dev, r);
+	if (chip->base == NULL)
+		return -EADDRNOTAVAIL;
 
 	ret = pwmchip_add(&chip->chip);
 	if (ret < 0)
-		goto err_unmap;
+		return ret;
 
 	platform_set_drvdata(pdev, chip);
-	return ret;
-
-err_unmap:
-	iounmap(chip->base);
-err_free_mem:
-	release_mem_region(r->start, resource_size(r));
-err_free:
-	kfree(chip);
 	return ret;
 }
 
 static int __devexit pwm_remove(struct platform_device *pdev)
 {
 	struct vt8500_chip *chip;
-	struct resource *r;
-	int err;
 
 	chip = platform_get_drvdata(pdev);
 	if (chip == NULL)
 		return -ENODEV;
 
-	err = pwmchip_remove(&chip->chip);
-	if (err < 0)
-		return err;
-
-	iounmap(chip->base);
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, resource_size(r));
-
-	kfree(chip);
-	return 0;
+	return pwmchip_remove(&chip->chip);
 }
 
 static struct platform_driver pwm_driver = {
