@@ -136,6 +136,8 @@
 #define AT_DMA_ID_SSC1_RX	 8
 #define AT_DMA_ID_AC97_TX	 9
 #define AT_DMA_ID_AC97_RX	10
+#define AT_DMA_ID_AES_TX	11
+#define AT_DMA_ID_AES_RX	12
 #define AT_DMA_ID_MCI1		13
 
 #endif

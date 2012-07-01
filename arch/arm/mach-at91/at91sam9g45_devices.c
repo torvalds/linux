@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 #include <linux/atmel-mci.h>
+#include <linux/platform_data/atmel-aes.h>
 
 #include <linux/platform_data/at91_adc.h>
 
@@ -1830,6 +1831,130 @@ void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins) {}
 void __init at91_add_device_serial(void) {}
 #endif
 
+/* --------------------------------------------------------------------
+ *  SHA1/SHA256
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_CRYPTO_DEV_ATMEL_SHA) || defined(CONFIG_CRYPTO_DEV_ATMEL_SHA_MODULE)
+static struct resource sha_resources[] = {
+	{
+		.start	= AT91SAM9G45_BASE_SHA,
+		.end	= AT91SAM9G45_BASE_SHA + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9G45_ID_AESTDESSHA,
+		.end	= AT91SAM9G45_ID_AESTDESSHA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9g45_sha_device = {
+	.name	= "atmel_sha",
+	.id		= -1,
+	.resource	= sha_resources,
+	.num_resources	= ARRAY_SIZE(sha_resources),
+};
+
+static void __init at91_add_device_sha(void)
+{
+	platform_device_register(&at91sam9g45_sha_device);
+}
+#else
+static void __init at91_add_device_sha(void) {}
+#endif
+
+/* --------------------------------------------------------------------
+ *  DES/TDES
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_CRYPTO_DEV_ATMEL_TDES) || defined(CONFIG_CRYPTO_DEV_ATMEL_TDES_MODULE)
+static struct resource tdes_resources[] = {
+	[0] = {
+		.start	= AT91SAM9G45_BASE_TDES,
+		.end	= AT91SAM9G45_BASE_TDES + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9G45_ID_AESTDESSHA,
+		.end	= AT91SAM9G45_ID_AESTDESSHA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9g45_tdes_device = {
+	.name	= "atmel_tdes",
+	.id		= -1,
+	.resource	= tdes_resources,
+	.num_resources	= ARRAY_SIZE(tdes_resources),
+};
+
+static void __init at91_add_device_tdes(void)
+{
+	platform_device_register(&at91sam9g45_tdes_device);
+}
+#else
+static void __init at91_add_device_tdes(void) {}
+#endif
+
+/* --------------------------------------------------------------------
+ *  AES
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_CRYPTO_DEV_ATMEL_AES) || defined(CONFIG_CRYPTO_DEV_ATMEL_AES_MODULE)
+static struct aes_platform_data aes_data;
+static u64 aes_dmamask = DMA_BIT_MASK(32);
+
+static struct resource aes_resources[] = {
+	[0] = {
+		.start	= AT91SAM9G45_BASE_AES,
+		.end	= AT91SAM9G45_BASE_AES + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9G45_ID_AESTDESSHA,
+		.end	= AT91SAM9G45_ID_AESTDESSHA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9g45_aes_device = {
+	.name	= "atmel_aes",
+	.id		= -1,
+	.dev	= {
+		.dma_mask		= &aes_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &aes_data,
+	},
+	.resource	= aes_resources,
+	.num_resources	= ARRAY_SIZE(aes_resources),
+};
+
+static void __init at91_add_device_aes(void)
+{
+	struct at_dma_slave	*atslave;
+	struct aes_dma_data	*alt_atslave;
+
+	alt_atslave = kzalloc(sizeof(struct aes_dma_data), GFP_KERNEL);
+
+	/* DMA TX slave channel configuration */
+	atslave = &alt_atslave->txdata;
+	atslave->dma_dev = &at_hdmac_device.dev;
+	atslave->cfg = ATC_FIFOCFG_ENOUGHSPACE	| ATC_SRC_H2SEL_HW |
+						ATC_SRC_PER(AT_DMA_ID_AES_RX);
+
+	/* DMA RX slave channel configuration */
+	atslave = &alt_atslave->rxdata;
+	atslave->dma_dev = &at_hdmac_device.dev;
+	atslave->cfg = ATC_FIFOCFG_ENOUGHSPACE	| ATC_DST_H2SEL_HW |
+						ATC_DST_PER(AT_DMA_ID_AES_TX);
+
+	aes_data.dma_slave = alt_atslave;
+	platform_device_register(&at91sam9g45_aes_device);
+}
+#else
+static void __init at91_add_device_aes(void) {}
+#endif
 
 /* -------------------------------------------------------------------- */
 /*
@@ -1847,6 +1972,9 @@ static int __init at91_add_standard_devices(void)
 	at91_add_device_trng();
 	at91_add_device_watchdog();
 	at91_add_device_tc();
+	at91_add_device_sha();
+	at91_add_device_tdes();
+	at91_add_device_aes();
 	return 0;
 }
 
