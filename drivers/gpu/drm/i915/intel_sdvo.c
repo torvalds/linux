@@ -1192,51 +1192,44 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
 }
 
-static void intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
+static void intel_sdvo_dpms(struct drm_connector *connector, int mode)
 {
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	u32 temp;
+	struct drm_crtc *crtc;
+	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
+
+	/* dvo supports only 2 dpms states. */
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
+	if (mode == connector->dpms)
+		return;
+
+	connector->dpms = mode;
+
+	/* Only need to change hw state when actually enabled */
+	crtc = intel_sdvo->base.base.crtc;
+	if (!crtc) {
+		intel_sdvo->base.connectors_active = false;
+		return;
+	}
 
 	if (mode != DRM_MODE_DPMS_ON) {
 		intel_sdvo_set_active_outputs(intel_sdvo, 0);
 		if (0)
 			intel_sdvo_set_encoder_power_state(intel_sdvo, mode);
 
-		if (mode == DRM_MODE_DPMS_OFF) {
-			temp = I915_READ(intel_sdvo->sdvo_reg);
-			if ((temp & SDVO_ENABLE) != 0) {
-				intel_sdvo_write_sdvox(intel_sdvo, temp & ~SDVO_ENABLE);
-			}
-		}
+		intel_sdvo->base.connectors_active = false;
+
+		intel_crtc_update_dpms(crtc);
 	} else {
-		bool input1, input2;
-		int i;
-		u8 status;
+		intel_sdvo->base.connectors_active = true;
 
-		temp = I915_READ(intel_sdvo->sdvo_reg);
-		if ((temp & SDVO_ENABLE) == 0)
-			intel_sdvo_write_sdvox(intel_sdvo, temp | SDVO_ENABLE);
-		for (i = 0; i < 2; i++)
-			intel_wait_for_vblank(dev, intel_crtc->pipe);
-
-		status = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
-		/* Warn if the device reported failure to sync.
-		 * A lot of SDVO devices fail to notify of sync, but it's
-		 * a given it the status is a success, we succeeded.
-		 */
-		if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
-			DRM_DEBUG_KMS("First %s output reported failure to "
-					"sync\n", SDVO_NAME(intel_sdvo));
-		}
+		intel_crtc_update_dpms(crtc);
 
 		if (0)
 			intel_sdvo_set_encoder_power_state(intel_sdvo, mode);
 		intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
 	}
-	return;
 }
 
 static int intel_sdvo_mode_valid(struct drm_connector *connector,
@@ -1895,7 +1888,6 @@ done:
 }
 
 static const struct drm_encoder_helper_funcs intel_sdvo_helper_funcs = {
-	.dpms = intel_sdvo_dpms,
 	.mode_fixup = intel_sdvo_mode_fixup,
 	.prepare = intel_encoder_noop,
 	.mode_set = intel_sdvo_mode_set,
@@ -1904,7 +1896,7 @@ static const struct drm_encoder_helper_funcs intel_sdvo_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = intel_sdvo_dpms,
 	.detect = intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_sdvo_set_property,

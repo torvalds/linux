@@ -3462,34 +3462,31 @@ static void i9xx_crtc_off(struct drm_crtc *crtc)
 /**
  * Sets the power management mode of the pipe and plane.
  */
-static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
+void intel_crtc_update_dpms(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *intel_encoder;
 	int pipe = intel_crtc->pipe;
-	bool enabled;
+	bool enabled, enable = false;
+	int mode;
+
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
+		enable |= intel_encoder->connectors_active;
+
+	mode = enable ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF;
 
 	if (intel_crtc->dpms_mode == mode)
 		return;
 
 	intel_crtc->dpms_mode = mode;
 
-	/* XXX: When our outputs are all unaware of DPMS modes other than off
-	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
-	 */
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
+	if (enable)
 		dev_priv->display.crtc_enable(crtc);
-		break;
-
-	case DRM_MODE_DPMS_OFF:
+	else
 		dev_priv->display.crtc_disable(crtc);
-		break;
-	}
 
 	if (!dev->primary->master)
 		return;
@@ -3498,7 +3495,7 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	if (!master_priv->sarea_priv)
 		return;
 
-	enabled = crtc->enabled && mode != DRM_MODE_DPMS_OFF;
+	enabled = crtc->enabled && enable;
 
 	switch (pipe) {
 	case 0:
@@ -3517,11 +3514,12 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 static void intel_crtc_disable(struct drm_crtc *crtc)
 {
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+	/* crtc->disable is only called when we have no encoders, hence this
+	 * will disable the pipe. */
+	intel_crtc_update_dpms(crtc);
 	dev_priv->display.off(crtc);
 
 	assert_plane_disabled(dev->dev_private, to_intel_crtc(crtc)->plane);
@@ -3581,11 +3579,11 @@ void intel_encoder_dpms(struct intel_encoder *encoder, int mode)
 	if (mode == DRM_MODE_DPMS_ON) {
 		encoder->connectors_active = true;
 
-		intel_crtc_dpms(encoder->base.crtc, DRM_MODE_DPMS_ON);
+		intel_crtc_update_dpms(encoder->base.crtc);
 	} else {
 		encoder->connectors_active = false;
 
-		intel_crtc_dpms(encoder->base.crtc, DRM_MODE_DPMS_OFF);
+		intel_crtc_update_dpms(encoder->base.crtc);
 	}
 }
 
@@ -6609,7 +6607,6 @@ static void intel_crtc_reset(struct drm_crtc *crtc)
 }
 
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
-	.dpms = intel_crtc_dpms,
 	.mode_fixup = intel_crtc_mode_fixup,
 	.mode_set = intel_crtc_mode_set,
 	.mode_set_base = intel_pipe_set_base,

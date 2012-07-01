@@ -411,6 +411,7 @@ extern void intel_panel_destroy_backlight(struct drm_device *dev);
 extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
+extern void intel_crtc_update_dpms(struct drm_crtc *crtc);
 extern void intel_encoder_prepare(struct drm_encoder *encoder);
 extern void intel_encoder_commit(struct drm_encoder *encoder);
 extern void intel_encoder_noop(struct drm_encoder *encoder);

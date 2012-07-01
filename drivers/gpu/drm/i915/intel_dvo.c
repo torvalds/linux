@@ -129,21 +129,39 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
 
-static void intel_dvo_dpms(struct drm_encoder *encoder, int mode)
+static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 {
-	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(encoder);
-	u32 dvo_reg = intel_dvo->dev.dvo_reg;
-	u32 temp = I915_READ(dvo_reg);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
+	struct drm_crtc *crtc;
+
+	/* dvo supports only 2 dpms states. */
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
+	if (mode == connector->dpms)
+		return;
+
+	connector->dpms = mode;
+
+	/* Only need to change hw state when actually enabled */
+	crtc = intel_dvo->base.base.crtc;
+	if (!crtc) {
+		intel_dvo->base.connectors_active = false;
+		return;
+	}
 
 	if (mode == DRM_MODE_DPMS_ON) {
-		I915_WRITE(dvo_reg, temp | DVO_ENABLE);
-		I915_READ(dvo_reg);
+		intel_dvo->base.connectors_active = true;
+
+		intel_crtc_update_dpms(crtc);
+
 		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 	} else {
 		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
-		I915_WRITE(dvo_reg, temp & ~DVO_ENABLE);
-		I915_READ(dvo_reg);
+
+		intel_dvo->base.connectors_active = false;
+
+		intel_crtc_update_dpms(crtc);
 	}
 }
 
@@ -299,7 +317,6 @@ static void intel_dvo_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
-	.dpms = intel_dvo_dpms,
 	.mode_fixup = intel_dvo_mode_fixup,
 	.prepare = intel_encoder_noop,
 	.mode_set = intel_dvo_mode_set,
@@ -308,7 +325,7 @@ static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = intel_dvo_dpms,
 	.detect = intel_dvo_detect,
 	.destroy = intel_dvo_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
