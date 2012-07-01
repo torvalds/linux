@@ -349,4 +349,20 @@ config CRYPTO_DEV_ATMEL_AES
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-aes.
 
+config CRYPTO_DEV_ATMEL_TDES
+	tristate "Support for Atmel DES/TDES hw accelerator"
+	depends on ARCH_AT91
+	select CRYPTO_DES
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  Some Atmel processors have DES/TDES hw accelerator.
+	  Select this if you want to use the Atmel module for
+	  DES/TDES algorithms.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called atmel-tdes.
+
 endif # CRYPTO_HW
