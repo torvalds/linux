@@ -152,6 +152,23 @@
 			uart1: serial@40014000 {
 				status = "okay";
 			};
+
+			/* 3-axis accelerometer X,Y,Z (or AD-IN instead of Z) */
+			adc@40048000 {
+				status = "okay";
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+		button@21 {
+			label = "GPIO Key UP";
+			linux,code = <103>;
+			gpios = <&gpio 4 1 0>; /* GPI_P3 1 */
 		};
 	};
 };
