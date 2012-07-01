@@ -194,6 +194,14 @@ static void ath_btcoex_period_timer(unsigned long data)
 	struct ath_mci_profile *mci = &btcoex->mci;
 	u32 timer_period;
 	bool is_btscan;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (sc->sc_ah->power_mode == ATH9K_PM_NETWORK_SLEEP) {
+		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+		goto skip_hw_wakeup;
+	}
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
 	ath9k_ps_wakeup(sc);
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
@@ -232,6 +240,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 	}
 
 	ath9k_ps_restore(sc);
+skip_hw_wakeup:
 	timer_period = btcoex->btcoex_period;
 	mod_timer(&btcoex->period_timer, jiffies + msecs_to_jiffies(timer_period));
 }
@@ -326,6 +335,13 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc)
 		ath9k_gen_timer_stop(ah, btcoex->no_stomp_timer);
 
 	btcoex->hw_timer_enabled = false;
+}
+
+void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc)
+{
+	struct ath_btcoex *btcoex = &sc->btcoex;
+
+	ath9k_gen_timer_stop(sc->sc_ah, btcoex->no_stomp_timer);
 }
 
 u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen)

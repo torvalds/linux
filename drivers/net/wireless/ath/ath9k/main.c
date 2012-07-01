@@ -130,6 +130,8 @@ void ath9k_ps_restore(struct ath_softc *sc)
 				     PS_WAIT_FOR_PSPOLL_DATA |
 				     PS_WAIT_FOR_TX_ACK))) {
 		mode = ATH9K_PM_NETWORK_SLEEP;
+		if (ath9k_hw_btcoex_is_enabled(sc->sc_ah))
+			ath9k_btcoex_stop_gen_timer(sc);
 	} else {
 		goto unlock;
 	}
