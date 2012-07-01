@@ -1793,6 +1793,17 @@ int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 EXPORT_SYMBOL(netif_set_real_num_rx_queues);
 #endif
 
+/* netif_get_num_default_rss_queues - default number of RSS queues
+ *
+ * This routine should set an upper limit on the number of RSS queues
+ * used by default by multiqueue devices.
+ */
+int netif_get_num_default_rss_queues()
+{
+	return min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES, num_online_cpus());
+}
+EXPORT_SYMBOL(netif_get_num_default_rss_queues);
+
 static inline void __netif_reschedule(struct Qdisc *q)
 {
 	struct softnet_data *sd;
