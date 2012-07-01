@@ -84,7 +84,7 @@ MODULE_PARM_DESC(debug, "Debugging messages [0=Off (default) 1=On]");
 
 
 /* ----------------------------------------------------------------------- */
-static void cx23885_std_setup(struct i2c_client *client);
+static void cx23888_std_setup(struct i2c_client *client);
 
 int cx25840_write(struct i2c_client *client, u16 addr, u8 value)
 {
@@ -638,10 +638,13 @@ static void cx23885_initialize(struct i2c_client *client)
 	finish_wait(&state->fw_wait, &wait);
 	destroy_workqueue(q);
 
-	/* Call the cx23885 specific std setup func, we no longer rely on
+	/* Call the cx23888 specific std setup func, we no longer rely on
 	 * the generic cx24840 func.
 	 */
-	cx23885_std_setup(client);
+	if (is_cx23888(state))
+		cx23888_std_setup(client);
+	else
+		cx25840_std_setup(client);
 
 	/* (re)set input */
 	set_input(client, state->vid_input, state->aud_input);
@@ -1298,8 +1301,8 @@ static int set_v4lstd(struct i2c_client *client)
 	}
 	cx25840_and_or(client, 0x400, ~0xf, fmt);
 	cx25840_and_or(client, 0x403, ~0x3, pal_m);
-	if (is_cx2388x(state))
-		cx23885_std_setup(client);
+	if (is_cx23888(state))
+		cx23888_std_setup(client);
 	else
 		cx25840_std_setup(client);
 	if (!is_cx2583x(state))
@@ -1782,8 +1785,8 @@ static int cx25840_s_video_routing(struct v4l2_subdev *sd,
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (is_cx2388x(state))
-		cx23885_std_setup(client);
+	if (is_cx23888(state))
+		cx23888_std_setup(client);
 
 	return set_input(client, input, state->aud_input);
 }
@@ -1794,8 +1797,8 @@ static int cx25840_s_audio_routing(struct v4l2_subdev *sd,
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (is_cx2388x(state))
-		cx23885_std_setup(client);
+	if (is_cx23888(state))
+		cx23888_std_setup(client);
 	return set_input(client, state->vid_input, input);
 }
 
@@ -4939,7 +4942,7 @@ void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 	}
 }
 
-static void cx23885_std_setup(struct i2c_client *client)
+static void cx23888_std_setup(struct i2c_client *client)
 {
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	v4l2_std_id std = state->std;
