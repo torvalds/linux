@@ -417,7 +417,12 @@ extern struct apic *apic;
 	__aligned(sizeof(struct apic *))				\
 	__section(.apicdrivers) = { &sym1, &sym2 }
 
+#ifdef CONFIG_X86_LOCAL_APIC
 extern struct apic *__apicdrivers[], *__apicdrivers_end[];
+#else
+#define __apicdrivers ((struct apic **)NULL)
+#define __apicdrivers_end ((struct apic **)NULL)
+#endif
 
 /*
  * APIC functionality to boot other CPUs - only used on SMP:
