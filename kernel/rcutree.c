@@ -88,7 +88,7 @@ LIST_HEAD(rcu_struct_flavors);
 
 /* Increase (but not decrease) the CONFIG_RCU_FANOUT_LEAF at boot time. */
 static int rcu_fanout_leaf = CONFIG_RCU_FANOUT_LEAF;
-module_param(rcu_fanout_leaf, int, 0);
+module_param(rcu_fanout_leaf, int, 0444);
 int rcu_num_lvls __read_mostly = RCU_NUM_LVLS;
 static int num_rcu_lvl[] = {  /* Number of rcu_nodes at specified level. */
 	NUM_RCU_LVL_0,
@@ -216,9 +216,9 @@ static int blimit = 10;		/* Maximum callbacks per rcu_do_batch. */
 static int qhimark = 10000;	/* If this many pending, ignore blimit. */
 static int qlowmark = 100;	/* Once only this many pending, use blimit. */
 
-module_param(blimit, int, 0);
-module_param(qhimark, int, 0);
-module_param(qlowmark, int, 0);
+module_param(blimit, int, 0444);
+module_param(qhimark, int, 0444);
+module_param(qlowmark, int, 0444);
 
 int rcu_cpu_stall_suppress __read_mostly; /* 1 = suppress stall warnings. */
 int rcu_cpu_stall_timeout __read_mostly = CONFIG_RCU_CPU_STALL_TIMEOUT;
