@@ -365,4 +365,18 @@ config CRYPTO_DEV_ATMEL_TDES
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-tdes.
 
+config CRYPTO_DEV_ATMEL_SHA
+	tristate "Support for Atmel SHA1/SHA256 hw accelerator"
+	depends on ARCH_AT91
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_ALGAPI
+	help
+	  Some Atmel processors have SHA1/SHA256 hw accelerator.
+	  Select this if you want to use the Atmel module for
+	  SHA1/SHA256 algorithms.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called atmel-sha.
+
 endif # CRYPTO_HW
