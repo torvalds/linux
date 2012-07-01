@@ -3687,7 +3687,8 @@ static int __devinit vxge_config_vpaths(
 			return 0;
 
 		if (!driver_config->g_no_cpus)
-			driver_config->g_no_cpus = num_online_cpus();
+			driver_config->g_no_cpus =
+				netif_get_num_default_rss_queues();
 
 		driver_config->vpath_per_dev = driver_config->g_no_cpus >> 1;
 		if (!driver_config->vpath_per_dev)
