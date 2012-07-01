@@ -226,13 +226,7 @@ reenable_mmu:				/* re-enable mmu so we can */
 	stw	r3,16(r1)
 	stw	r4,20(r1)
 	stw	r5,24(r1)
-	andi.	r12,r12,MSR_PR
-	b	11f
 	bl	trace_hardirqs_off
-	b	12f
-11:
-	bl	trace_hardirqs_off
-12:
 	lwz	r5,24(r1)
 	lwz	r4,20(r1)
 	lwz	r3,16(r1)
