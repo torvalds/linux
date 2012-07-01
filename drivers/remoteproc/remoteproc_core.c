@@ -713,22 +713,26 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		list_add_tail(&mapping->node, &rproc->mappings);
 
 		dev_dbg(dev, "carveout mapped 0x%x to 0x%x\n", rsc->da, dma);
-
-		/*
-		 * Some remote processors might need to know the pa
-		 * even though they are behind an IOMMU. E.g., OMAP4's
-		 * remote M3 processor needs this so it can control
-		 * on-chip hardware accelerators that are not behind
-		 * the IOMMU, and therefor must know the pa.
-		 *
-		 * Generally we don't want to expose physical addresses
-		 * if we don't have to (remote processors are generally
-		 * _not_ trusted), so we might want to do this only for
-		 * remote processor that _must_ have this (e.g. OMAP4's
-		 * dual M3 subsystem).
-		 */
-		rsc->pa = dma;
 	}
+
+	/*
+	 * Some remote processors might need to know the pa
+	 * even though they are behind an IOMMU. E.g., OMAP4's
+	 * remote M3 processor needs this so it can control
+	 * on-chip hardware accelerators that are not behind
+	 * the IOMMU, and therefor must know the pa.
+	 *
+	 * Generally we don't want to expose physical addresses
+	 * if we don't have to (remote processors are generally
+	 * _not_ trusted), so we might want to do this only for
+	 * remote processor that _must_ have this (e.g. OMAP4's
+	 * dual M3 subsystem).
+	 *
+	 * Non-IOMMU processors might also want to have this info.
+	 * In this case, the device address and the physical address
+	 * are the same.
+	 */
+	rsc->pa = dma;
 
 	carveout->va = va;
 	carveout->len = rsc->len;
