@@ -61,6 +61,29 @@ static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
 	return container_of(encoder, struct intel_crt, base);
 }
 
+static void intel_disable_crt(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	u32 temp;
+
+	temp = I915_READ(crt->adpa_reg);
+	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
+	temp &= ~ADPA_DAC_ENABLE;
+	I915_WRITE(crt->adpa_reg, temp);
+}
+
+static void intel_enable_crt(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	u32 temp;
+
+	temp = I915_READ(crt->adpa_reg);
+	temp |= ADPA_DAC_ENABLE;
+	I915_WRITE(crt->adpa_reg, temp);
+}
+
 static void pch_crt_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -575,18 +598,20 @@ static void intel_crt_reset(struct drm_connector *connector)
 
 static const struct drm_encoder_helper_funcs pch_encoder_funcs = {
 	.mode_fixup = intel_crt_mode_fixup,
-	.prepare = intel_encoder_prepare,
-	.commit = intel_encoder_commit,
+	.prepare = intel_encoder_noop,
+	.commit = intel_encoder_noop,
 	.mode_set = intel_crt_mode_set,
 	.dpms = pch_crt_dpms,
+	.disable = intel_encoder_disable,
 };
 
 static const struct drm_encoder_helper_funcs gmch_encoder_funcs = {
 	.mode_fixup = intel_crt_mode_fixup,
-	.prepare = intel_encoder_prepare,
-	.commit = intel_encoder_commit,
+	.prepare = intel_encoder_noop,
+	.commit = intel_encoder_noop,
 	.mode_set = intel_crt_mode_set,
 	.dpms = gmch_crt_dpms,
+	.disable = intel_encoder_disable,
 };
 
 static const struct drm_connector_funcs intel_crt_connector_funcs = {
@@ -681,6 +706,9 @@ void intel_crt_init(struct drm_device *dev)
 		crt->adpa_reg = VLV_ADPA;
 	else
 		crt->adpa_reg = ADPA;
+
+	crt->base.disable = intel_disable_crt;
+	crt->base.enable = intel_enable_crt;
 
 	drm_encoder_helper_add(&crt->base.base, encoder_helper_funcs);
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
