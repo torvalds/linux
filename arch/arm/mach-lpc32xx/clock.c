@@ -871,7 +871,7 @@ static unsigned long mmc_round_rate(struct clk *clk, unsigned long rate)
 
 static int mmc_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 oldclk, tmp;
+	u32 tmp;
 	unsigned long prate, div, crate = mmc_round_rate(clk, rate);
 
 	prate = clk->parent->get_rate(clk->parent);
@@ -879,15 +879,11 @@ static int mmc_set_rate(struct clk *clk, unsigned long rate)
 	div = prate / crate;
 
 	/* The MMC clock must be on when accessing an MMC register */
-	oldclk = __raw_readl(LPC32XX_CLKPWR_MS_CTRL);
-	__raw_writel(oldclk | LPC32XX_CLKPWR_MSCARD_SDCARD_EN,
-		LPC32XX_CLKPWR_MS_CTRL);
 	tmp = __raw_readl(LPC32XX_CLKPWR_MS_CTRL) &
 		~LPC32XX_CLKPWR_MSCARD_SDCARD_DIV(0xf);
-	tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_DIV(div);
+	tmp |= LPC32XX_CLKPWR_MSCARD_SDCARD_DIV(div) |
+		LPC32XX_CLKPWR_MSCARD_SDCARD_EN;
 	__raw_writel(tmp, LPC32XX_CLKPWR_MS_CTRL);
-
-	__raw_writel(oldclk, LPC32XX_CLKPWR_MS_CTRL);
 
 	return 0;
 }
