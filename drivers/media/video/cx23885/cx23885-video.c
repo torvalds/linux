@@ -505,6 +505,7 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 
 	if ((dev->board == CX23885_BOARD_HAUPPAUGE_HVR1800) ||
 		(dev->board == CX23885_BOARD_MPX885) ||
+		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1250) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850)) {
 		/* Configure audio routing */
 		v4l2_subdev_call(dev->sd_cx25840, audio, s_routing,

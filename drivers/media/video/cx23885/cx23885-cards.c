@@ -127,22 +127,37 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_HAUPPAUGE_HVR1250] = {
 		.name		= "Hauppauge WinTV-HVR1250",
+		.porta		= CX23885_ANALOG_VIDEO,
 		.portc		= CX23885_MPEG_DVB,
+#ifdef MT2131_NO_ANALOG_SUPPORT_YET
+		.tuner_type	= TUNER_PHILIPS_TDA8290,
+		.tuner_addr	= 0x42, /* 0x84 >> 1 */
+		.tuner_bus	= 1,
+#endif
+		.force_bff	= 1,
 		.input          = {{
+#ifdef MT2131_NO_ANALOG_SUPPORT_YET
 			.type   = CX23885_VMUX_TELEVISION,
-			.vmux   = 0,
+			.vmux   =	CX25840_VIN7_CH3 |
+					CX25840_VIN5_CH2 |
+					CX25840_VIN2_CH1,
+			.amux   = CX25840_AUDIO8,
 			.gpio0  = 0xff00,
 		}, {
-			.type   = CX23885_VMUX_DEBUG,
-			.vmux   = 0,
-			.gpio0  = 0xff01,
-		}, {
+#endif
 			.type   = CX23885_VMUX_COMPOSITE1,
-			.vmux   = 1,
+			.vmux   =	CX25840_VIN7_CH3 |
+					CX25840_VIN4_CH2 |
+					CX25840_VIN6_CH1,
+			.amux   = CX25840_AUDIO7,
 			.gpio0  = 0xff02,
 		}, {
 			.type   = CX23885_VMUX_SVIDEO,
-			.vmux   = 2,
+			.vmux   =	CX25840_VIN7_CH3 |
+					CX25840_VIN4_CH2 |
+					CX25840_VIN8_CH1 |
+					CX25840_SVIDEO_ON,
+			.amux   = CX25840_AUDIO7,
 			.gpio0  = 0xff02,
 		} },
 	},
@@ -1526,10 +1541,10 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	 */
 	switch (dev->board) {
 	case CX23885_BOARD_TEVII_S470:
-	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		/* Currently only enabled for the integrated IR controller */
 		if (!enable_885_ir)
 			break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
