@@ -739,11 +739,74 @@ static struct clk clk_rtc = {
 	.get_rate	= local_return_parent_rate,
 };
 
+static int local_usb_enable(struct clk *clk, int enable)
+{
+	u32 tmp;
+
+	if (enable) {
+		/* Set up I2C pull levels */
+		tmp = __raw_readl(LPC32XX_CLKPWR_I2C_CLK_CTRL);
+		tmp |= LPC32XX_CLKPWR_I2CCLK_USBI2CHI_DRIVE;
+		__raw_writel(tmp, LPC32XX_CLKPWR_I2C_CLK_CTRL);
+	}
+
+	return local_onoff_enable(clk, enable);
+}
+
 static struct clk clk_usbd = {
 	.parent		= &clk_usbpll,
-	.enable		= local_onoff_enable,
+	.enable		= local_usb_enable,
 	.enable_reg	= LPC32XX_CLKPWR_USB_CTRL,
 	.enable_mask	= LPC32XX_CLKPWR_USBCTRL_HCLK_EN,
+	.get_rate	= local_return_parent_rate,
+};
+
+#define OTG_ALWAYS_MASK		(LPC32XX_USB_OTG_OTG_CLOCK_ON | \
+				 LPC32XX_USB_OTG_I2C_CLOCK_ON)
+
+static int local_usb_otg_enable(struct clk *clk, int enable)
+{
+	int to = 1000;
+
+	if (enable) {
+		__raw_writel(clk->enable_mask, clk->enable_reg);
+
+		while (((__raw_readl(LPC32XX_USB_OTG_CLK_STAT) &
+			clk->enable_mask) != clk->enable_mask) && (to > 0))
+			to--;
+	} else {
+		__raw_writel(OTG_ALWAYS_MASK, clk->enable_reg);
+
+		while (((__raw_readl(LPC32XX_USB_OTG_CLK_STAT) &
+			OTG_ALWAYS_MASK) != OTG_ALWAYS_MASK) && (to > 0))
+			to--;
+	}
+
+	if (to)
+		return 0;
+	else
+		return -1;
+}
+
+static struct clk clk_usb_otg_dev = {
+	.parent		= &clk_usbpll,
+	.enable		= local_usb_otg_enable,
+	.enable_reg	= LPC32XX_USB_OTG_CLK_CTRL,
+	.enable_mask	= LPC32XX_USB_OTG_AHB_M_CLOCK_ON |
+			  LPC32XX_USB_OTG_OTG_CLOCK_ON |
+			  LPC32XX_USB_OTG_DEV_CLOCK_ON |
+			  LPC32XX_USB_OTG_I2C_CLOCK_ON,
+	.get_rate	= local_return_parent_rate,
+};
+
+static struct clk clk_usb_otg_host = {
+	.parent		= &clk_usbpll,
+	.enable		= local_usb_otg_enable,
+	.enable_reg	= LPC32XX_USB_OTG_CLK_CTRL,
+	.enable_mask	= LPC32XX_USB_OTG_AHB_M_CLOCK_ON |
+			  LPC32XX_USB_OTG_OTG_CLOCK_ON |
+			  LPC32XX_USB_OTG_HOST_CLOCK_ON |
+			  LPC32XX_USB_OTG_I2C_CLOCK_ON,
 	.get_rate	= local_return_parent_rate,
 };
 
@@ -1145,6 +1208,9 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_INIT("31060000.ethernet", NULL, &clk_net),
 	CLKDEV_INIT("dev:clcd", NULL, &clk_lcd),
 	CLKDEV_INIT("31020000.usbd", "ck_usbd", &clk_usbd),
+	CLKDEV_INIT("31020000.ohci", "ck_usbd", &clk_usbd),
+	CLKDEV_INIT("31020000.usbd", "ck_usb_otg", &clk_usb_otg_dev),
+	CLKDEV_INIT("31020000.ohci", "ck_usb_otg", &clk_usb_otg_host),
 	CLKDEV_INIT("lpc32xx_rtc", NULL, &clk_rtc),
 };
 
