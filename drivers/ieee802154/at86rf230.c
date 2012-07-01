@@ -585,7 +585,6 @@ err:
 static int at86rf230_rx(struct at86rf230_local *lp)
 {
 	u8 len = 128, lqi = 0;
-	int rc;
 	struct sk_buff *skb;
 
 	skb = alloc_skb(len, GFP_KERNEL);
@@ -607,7 +606,7 @@ static int at86rf230_rx(struct at86rf230_local *lp)
 
 	ieee802154_rx_irqsafe(lp->dev, skb, lqi);
 
-	dev_dbg(&lp->spi->dev, "READ_FBUF: %d %d %x\n", rc, len, lqi);
+	dev_dbg(&lp->spi->dev, "READ_FBUF: %d %x\n", len, lqi);
 
 	return 0;
 err:
