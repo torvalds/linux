@@ -6250,7 +6250,7 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 static int
 bnx2_setup_int_mode(struct bnx2 *bp, int dis_msi)
 {
-	int cpus = num_online_cpus();
+	int cpus = netif_get_num_default_rss_queues();
 	int msix_vecs;
 
 	if (!bp->num_req_rx_rings)
