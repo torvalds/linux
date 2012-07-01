@@ -1380,11 +1380,21 @@ static int cx25840_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 	fmt->field = V4L2_FIELD_INTERLACED;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	Vsrc = (cx25840_read(client, 0x476) & 0x3f) << 4;
-	Vsrc |= (cx25840_read(client, 0x475) & 0xf0) >> 4;
+	if (is_cx23888(state)) {
+		Vsrc = (cx25840_read(client, 0x42a) & 0x3f) << 4;
+		Vsrc |= (cx25840_read(client, 0x429) & 0xf0) >> 4;
+	} else {
+		Vsrc = (cx25840_read(client, 0x476) & 0x3f) << 4;
+		Vsrc |= (cx25840_read(client, 0x475) & 0xf0) >> 4;
+	}
 
-	Hsrc = (cx25840_read(client, 0x472) & 0x3f) << 4;
-	Hsrc |= (cx25840_read(client, 0x471) & 0xf0) >> 4;
+	if (is_cx23888(state)) {
+		Hsrc = (cx25840_read(client, 0x426) & 0x3f) << 4;
+		Hsrc |= (cx25840_read(client, 0x425) & 0xf0) >> 4;
+	} else {
+		Hsrc = (cx25840_read(client, 0x472) & 0x3f) << 4;
+		Hsrc |= (cx25840_read(client, 0x471) & 0xf0) >> 4;
+	}
 
 	Vlines = fmt->height + (is_50Hz ? 4 : 7);
 
