@@ -183,7 +183,9 @@ SECTIONS
 	}
 #endif
 
+#ifdef CONFIG_SMP
 	PERCPU_SECTION(L1_CACHE_BYTES)
+#endif
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */
