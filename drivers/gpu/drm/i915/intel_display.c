@@ -3267,10 +3267,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_update_cursor(crtc, true);
 
 encoders:
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
-		if (encoder->enable)
-			encoder->enable(encoder);
-	}
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->enable(encoder);
 }
 
 static void ironlake_crtc_disable(struct drm_crtc *crtc)
@@ -3285,10 +3283,8 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	/* XXX: For compatability with the crtc helper code, call the encoder's
 	 * disable function unconditionally for now. */
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
-		if (encoder->disable)
-			encoder->disable(encoder);
-	}
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->disable(encoder);
 
 	if (!intel_crtc->active)
 		return;
@@ -3412,10 +3408,8 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_update_cursor(crtc, true);
 
 encoders:
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
-		if (encoder->enable)
-			encoder->enable(encoder);
-	}
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->enable(encoder);
 }
 
 static void i9xx_crtc_disable(struct drm_crtc *crtc)
@@ -3429,10 +3423,8 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 
 	/* XXX: For compatability with the crtc helper code, call the encoder's
 	 * disable function unconditionally for now. */
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
-		if (encoder->disable)
-			encoder->disable(encoder);
-	}
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->disable(encoder);
 
 	if (!intel_crtc->active)
 		return;
