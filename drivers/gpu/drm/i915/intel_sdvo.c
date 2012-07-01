@@ -1142,6 +1142,56 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	intel_sdvo_write_sdvox(intel_sdvo, sdvox);
 }
 
+static void intel_disable_sdvo(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	u32 temp;
+
+	intel_sdvo_set_active_outputs(intel_sdvo, 0);
+	if (0)
+		intel_sdvo_set_encoder_power_state(intel_sdvo,
+						   DRM_MODE_DPMS_OFF);
+
+	temp = I915_READ(intel_sdvo->sdvo_reg);
+	if ((temp & SDVO_ENABLE) != 0) {
+		intel_sdvo_write_sdvox(intel_sdvo, temp & ~SDVO_ENABLE);
+	}
+}
+
+static void intel_enable_sdvo(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	u32 temp;
+	bool input1, input2;
+	int i;
+	u8 status;
+
+	temp = I915_READ(intel_sdvo->sdvo_reg);
+	if ((temp & SDVO_ENABLE) == 0)
+		intel_sdvo_write_sdvox(intel_sdvo, temp | SDVO_ENABLE);
+	for (i = 0; i < 2; i++)
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+
+	status = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
+	/* Warn if the device reported failure to sync.
+	 * A lot of SDVO devices fail to notify of sync, but it's
+	 * a given it the status is a success, we succeeded.
+	 */
+	if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
+		DRM_DEBUG_KMS("First %s output reported failure to "
+				"sync\n", SDVO_NAME(intel_sdvo));
+	}
+
+	if (0)
+		intel_sdvo_set_encoder_power_state(intel_sdvo,
+						   DRM_MODE_DPMS_ON);
+	intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
+}
+
 static void intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -1847,9 +1897,10 @@ done:
 static const struct drm_encoder_helper_funcs intel_sdvo_helper_funcs = {
 	.dpms = intel_sdvo_dpms,
 	.mode_fixup = intel_sdvo_mode_fixup,
-	.prepare = intel_encoder_prepare,
+	.prepare = intel_encoder_noop,
 	.mode_set = intel_sdvo_mode_set,
-	.commit = intel_encoder_commit,
+	.commit = intel_encoder_noop,
+	.disable = intel_encoder_disable
 };
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
@@ -2575,6 +2626,9 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	dev_priv->hotplug_supported_mask |= hotplug_mask;
 
 	drm_encoder_helper_add(&intel_encoder->base, &intel_sdvo_helper_funcs);
+
+	intel_encoder->disable = intel_disable_sdvo;
+	intel_encoder->enable = intel_enable_sdvo;
 
 	/* In default case sdvo lvds is false */
 	if (!intel_sdvo_get_capabilities(intel_sdvo, &intel_sdvo->caps))
