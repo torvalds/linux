@@ -52,7 +52,6 @@ struct rtable {
 	int			rt_route_iif;
 	int			rt_iif;
 	int			rt_oif;
-	__u32			rt_mark;
 
 	/* Info on neighbour */
 	__be32			rt_gateway;
