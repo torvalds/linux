@@ -3050,7 +3050,7 @@ static struct pci_error_handlers t3_err_handler = {
 static void set_nqsets(struct adapter *adap)
 {
 	int i, j = 0;
-	int num_cpus = num_online_cpus();
+	int num_cpus = netif_get_num_default_rss_queues();
 	int hwports = adap->params.nports;
 	int nqsets = adap->msix_nvectors - 1;
 
