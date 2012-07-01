@@ -332,4 +332,21 @@ config CRYPTO_DEV_BFIN_CRC
 	  Newer Blackfin processors have CRC hardware. Select this if you
 	  want to use the Blackfin CRC module.
 
+config CRYPTO_DEV_ATMEL_AES
+	tristate "Support for Atmel AES hw accelerator"
+	depends on ARCH_AT91
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_AES
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	select CONFIG_AT_HDMAC
+	help
+	  Some Atmel processors have AES hw accelerator.
+	  Select this if you want to use the Atmel module for
+	  AES algorithms.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called atmel-aes.
+
 endif # CRYPTO_HW
