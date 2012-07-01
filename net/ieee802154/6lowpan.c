@@ -55,7 +55,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
 #include <net/af_ieee802154.h>
 #include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
@@ -936,6 +935,19 @@ drop:
 	return -EINVAL;
 }
 
+static int lowpan_set_address(struct net_device *dev, void *p)
+{
+	struct sockaddr *sa = p;
+
+	if (netif_running(dev))
+		return -EBUSY;
+
+	/* TODO: validate addr */
+	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+
+	return 0;
+}
+
 static int lowpan_get_mac_header_length(struct sk_buff *skb)
 {
 	/*
@@ -1078,7 +1090,7 @@ static struct header_ops lowpan_header_ops = {
 
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_start_xmit		= lowpan_xmit,
-	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_mac_address	= lowpan_set_address,
 };
 
 static struct ieee802154_mlme_ops lowpan_mlme = {
