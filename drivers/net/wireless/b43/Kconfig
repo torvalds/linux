@@ -34,8 +34,8 @@ config B43_BCMA
 config B43_BCMA_EXTRA
 	bool "Hardware support that overlaps with the brcmsmac driver"
 	depends on B43_BCMA
-	default n if BRCMSMAC || BRCMSMAC_MODULE
-	default	y
+	default n if BRCMSMAC
+	default y
 
 config B43_SSB
 	bool
