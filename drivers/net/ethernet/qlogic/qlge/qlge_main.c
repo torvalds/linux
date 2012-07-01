@@ -4649,7 +4649,7 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 	int err = 0;
 
 	ndev = alloc_etherdev_mq(sizeof(struct ql_adapter),
-			min(MAX_CPUS, (int)num_online_cpus()));
+			min(MAX_CPUS, netif_get_num_default_rss_queues()));
 	if (!ndev)
 		return -ENOMEM;
 
