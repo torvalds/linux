@@ -1751,8 +1751,8 @@ out:
 	return status;
 }
 
-int ft1000_poll(void* dev_id) {
-
+int ft1000_poll(void* dev_id)
+{
     struct ft1000_device *dev = (struct ft1000_device *)dev_id;
 	struct ft1000_info *info = netdev_priv(dev->net);
 
