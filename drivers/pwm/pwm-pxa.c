@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-pxa/pwm.c
+ * drivers/pwm/pwm-pxa.c
  *
  * simple driver for PWM (Pulse Width Modulator) controller
  *
@@ -145,17 +145,16 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret = 0;
 
-	pwm = kzalloc(sizeof(*pwm), GFP_KERNEL);
+	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
 	if (pwm == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
 
-	pwm->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pwm->clk)) {
-		ret = PTR_ERR(pwm->clk);
-		goto err_free;
-	}
+	pwm->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pwm->clk))
+		return PTR_ERR(pwm->clk);
+
 	pwm->clk_enabled = 0;
 
 	pwm->chip.dev = &pdev->dev;
@@ -166,23 +165,12 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
 		dev_err(&pdev->dev, "no memory resource defined\n");
-		ret = -ENODEV;
-		goto err_free_clk;
+		return -ENODEV;
 	}
 
-	r = request_mem_region(r->start, resource_size(r), pdev->name);
-	if (r == NULL) {
-		dev_err(&pdev->dev, "failed to request memory resource\n");
-		ret = -EBUSY;
-		goto err_free_clk;
-	}
-
-	pwm->mmio_base = ioremap(r->start, resource_size(r));
-	if (pwm->mmio_base == NULL) {
-		dev_err(&pdev->dev, "failed to ioremap() registers\n");
-		ret = -ENODEV;
-		goto err_free_mem;
-	}
+	pwm->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
+	if (pwm->mmio_base == NULL)
+		return -EADDRNOTAVAIL;
 
 	ret = pwmchip_add(&pwm->chip);
 	if (ret < 0) {
@@ -192,34 +180,17 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pwm);
 	return 0;
-
-err_free_mem:
-	release_mem_region(r->start, resource_size(r));
-err_free_clk:
-	clk_put(pwm->clk);
-err_free:
-	kfree(pwm);
-	return ret;
 }
 
 static int __devexit pwm_remove(struct platform_device *pdev)
 {
 	struct pxa_pwm_chip *chip;
-	struct resource *r;
 
 	chip = platform_get_drvdata(pdev);
 	if (chip == NULL)
 		return -ENODEV;
 
 	pwmchip_remove(&chip->chip);
-
-	iounmap(chip->mmio_base);
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, resource_size(r));
-
-	clk_put(chip->clk);
-	kfree(chip);
 	return 0;
 }
 
