@@ -666,8 +666,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	ath9k_start_btcoex(sc);
-
 	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
 		common->bus_ops->extn_synch_en(common);
 
@@ -773,8 +771,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	/* Ensure HW is awake when we try to shut it down. */
 	ath9k_ps_wakeup(sc);
-
-	ath9k_stop_btcoex(sc);
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 
@@ -1139,14 +1135,17 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		sc->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
-		if (sc->ps_idle)
+		if (sc->ps_idle) {
 			ath_cancel_work(sc);
-		else
+			ath9k_stop_btcoex(sc);
+		} else {
+			ath9k_start_btcoex(sc);
 			/*
 			 * The chip needs a reset to properly wake up from
 			 * full sleep
 			 */
 			reset_channel = ah->chip_fullsleep;
+		}
 	}
 
 	/*
