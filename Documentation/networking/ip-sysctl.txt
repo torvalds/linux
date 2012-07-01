@@ -857,9 +857,14 @@ accept_source_route - BOOLEAN
 		FALSE (host)
 
 accept_local - BOOLEAN
-	Accept packets with local source addresses. In combination with
-	suitable routing, this can be used to direct packets between two
-	local interfaces over the wire and have them accepted properly.
+	Accept packets with local source addresses. In combination
+	with suitable routing, this can be used to direct packets
+	between two local interfaces over the wire and have them
+	accepted properly.
+
+	rp_filter must be set to a non-zero value in order for
+	accept_local to have an effect.
+
 	default FALSE
 
 route_localnet - BOOLEAN
