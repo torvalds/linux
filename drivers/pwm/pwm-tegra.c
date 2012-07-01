@@ -194,7 +194,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pwm);
 
-	pwm->clk = clk_get(&pdev->dev, NULL);
+	pwm->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pwm->clk))
 		return PTR_ERR(pwm->clk);
 
@@ -206,7 +206,6 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	ret = pwmchip_add(&pwm->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
-		clk_put(pwm->clk);
 		return ret;
 	}
 
@@ -233,10 +232,7 @@ static int __devexit tegra_pwm_remove(struct platform_device *pdev)
 		clk_disable_unprepare(pc->clk);
 	}
 
-	pwmchip_remove(&pc->chip);
-	clk_put(pc->clk);
-
-	return 0;
+	return pwmchip_remove(&pc->chip);
 }
 
 #ifdef CONFIG_OF
