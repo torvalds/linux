@@ -3269,6 +3269,9 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 encoders:
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
+
+	if (HAS_PCH_CPT(dev))
+		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
 }
 
 static void ironlake_crtc_disable(struct drm_crtc *crtc)
@@ -3522,26 +3525,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
 	}
-}
-
-void intel_encoder_prepare(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
-	/* lvds has its own version of prepare see intel_lvds_prepare */
-	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-void intel_encoder_commit(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
-	struct drm_device *dev = encoder->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-
-	/* lvds has its own version of commit see intel_lvds_commit */
-	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
-
-	if (HAS_PCH_CPT(dev))
-		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
 }
 
 void intel_encoder_noop(struct drm_encoder *encoder)
