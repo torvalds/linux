@@ -98,11 +98,12 @@ struct usb_phy *usb_get_phy(enum usb_phy_type type)
 	if (IS_ERR(phy)) {
 		pr_err("unable to find transceiver of type %s\n",
 			usb_phy_type_string(type));
-		return phy;
+		goto err0;
 	}
 
 	get_device(phy->dev);
 
+err0:
 	spin_unlock_irqrestore(&phy_lock, flags);
 
 	return phy;
