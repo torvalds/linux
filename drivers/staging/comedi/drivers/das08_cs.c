@@ -184,16 +184,6 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 
 }
 
-static int das08_pcmcia_suspend(struct pcmcia_device *link)
-{
-	return 0;
-}
-
-static int das08_pcmcia_resume(struct pcmcia_device *link)
-{
-	return 0;
-}
-
 static const struct pcmcia_device_id das08_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x4001),
 	PCMCIA_DEVICE_NULL
@@ -205,8 +195,6 @@ static struct pcmcia_driver das08_cs_driver = {
 	.owner		= THIS_MODULE,
 	.probe		= das08_pcmcia_attach,
 	.remove		= das08_pcmcia_detach,
-	.suspend	= das08_pcmcia_suspend,
-	.resume		= das08_pcmcia_resume,
 	.id_table	= das08_cs_id_table,
 };
 
