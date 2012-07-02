@@ -1513,7 +1513,7 @@ static char *coda_product_name(int product)
 	}
 }
 
-static int coda_hw_init(struct coda_dev *dev, const struct firmware *fw)
+static int coda_hw_init(struct coda_dev *dev)
 {
 	u16 product, major, minor, release;
 	u32 data;
@@ -1523,21 +1523,27 @@ static int coda_hw_init(struct coda_dev *dev, const struct firmware *fw)
 	clk_prepare_enable(dev->clk_per);
 	clk_prepare_enable(dev->clk_ahb);
 
-	/* Copy the whole firmware image to the code buffer */
-	memcpy(dev->codebuf.vaddr, fw->data, fw->size);
 	/*
 	 * Copy the first CODA_ISRAM_SIZE in the internal SRAM.
-	 * This memory seems to be big-endian here, which is weird, since
-	 * the internal ARM processor of the coda is little endian.
+	 * The 16-bit chars in the code buffer are in memory access
+	 * order, re-sort them to CODA order for register download.
 	 * Data in this SRAM survives a reboot.
 	 */
-	p = (u16 *)fw->data;
-	for (i = 0; i < (CODA_ISRAM_SIZE / 2); i++)  {
-		data = CODA_DOWN_ADDRESS_SET(i) |
-			CODA_DOWN_DATA_SET(p[i ^ 1]);
-		coda_write(dev, data, CODA_REG_BIT_CODE_DOWN);
+	p = (u16 *)dev->codebuf.vaddr;
+	if (dev->devtype->product == CODA_DX6) {
+		for (i = 0; i < (CODA_ISRAM_SIZE / 2); i++)  {
+			data = CODA_DOWN_ADDRESS_SET(i) |
+				CODA_DOWN_DATA_SET(p[i ^ 1]);
+			coda_write(dev, data, CODA_REG_BIT_CODE_DOWN);
+		}
+	} else {
+		for (i = 0; i < (CODA_ISRAM_SIZE / 2); i++) {
+			data = CODA_DOWN_ADDRESS_SET(i) |
+				CODA_DOWN_DATA_SET(p[round_down(i, 4) +
+							3 - (i % 4)]);
+			coda_write(dev, data, CODA_REG_BIT_CODE_DOWN);
+		}
 	}
-	release_firmware(fw);
 
 	/* Tell the BIT where to find everything it needs */
 	coda_write(dev, dev->workbuf.paddr,
@@ -1633,7 +1639,11 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 		return;
 	}
 
-	ret = coda_hw_init(dev, fw);
+	/* Copy the whole firmware image to the code buffer */
+	memcpy(dev->codebuf.vaddr, fw->data, fw->size);
+	release_firmware(fw);
+
+	ret = coda_hw_init(dev);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "HW initialization failed\n");
 		return;
