@@ -1269,8 +1269,7 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 					       unsigned long data))
 {
 	int j;
-	int ret;
-	int retval = 0;
+	int ret = 0;
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 
@@ -1293,8 +1292,6 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
 
 		for (; gfn < gfn_end; ++gfn) {
-			ret = 0;
-
 			for (j = PT_PAGE_TABLE_LEVEL;
 			     j < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++j) {
 				unsigned long *rmapp;
@@ -1302,14 +1299,10 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 				rmapp = __gfn_to_rmap(gfn, j, memslot);
 				ret |= handler(kvm, rmapp, memslot, data);
 			}
-			trace_kvm_age_page(memslot->userspace_addr +
-					(gfn - memslot->base_gfn) * PAGE_SIZE,
-					memslot, ret);
-			retval |= ret;
 		}
 	}
 
-	return retval;
+	return ret;
 }
 
 static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
@@ -1351,8 +1344,10 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	 * This has some overhead, but not as much as the cost of swapping
 	 * out actively used pages or breaking up actively used hugepages.
 	 */
-	if (!shadow_accessed_mask)
-		return kvm_unmap_rmapp(kvm, rmapp, slot, data);
+	if (!shadow_accessed_mask) {
+		young = kvm_unmap_rmapp(kvm, rmapp, slot, data);
+		goto out;
+	}
 
 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
 	     sptep = rmap_get_next(&iter)) {
@@ -1364,7 +1359,9 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 				 (unsigned long *)sptep);
 		}
 	}
-
+out:
+	/* @data has hva passed to kvm_age_hva(). */
+	trace_kvm_age_page(data, slot, young);
 	return young;
 }
 
@@ -1413,7 +1410,7 @@ static void rmap_recycle(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 
 int kvm_age_hva(struct kvm *kvm, unsigned long hva)
 {
-	return kvm_handle_hva(kvm, hva, 0, kvm_age_rmapp);
+	return kvm_handle_hva(kvm, hva, hva, kvm_age_rmapp);
 }
 
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
