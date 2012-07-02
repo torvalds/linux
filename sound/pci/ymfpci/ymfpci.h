@@ -22,10 +22,10 @@
  *
  */
 
-#include "pcm.h"
-#include "rawmidi.h"
-#include "ac97_codec.h"
-#include "timer.h"
+#include <sound/pcm.h>
+#include <sound/rawmidi.h>
+#include <sound/ac97_codec.h>
+#include <sound/timer.h>
 #include <linux/gameport.h>
 
 /*

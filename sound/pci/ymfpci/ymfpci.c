@@ -24,7 +24,7 @@
 #include <linux/time.h>
 #include <linux/module.h>
 #include <sound/core.h>
-#include <sound/ymfpci.h>
+#include "ymfpci.h"
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>

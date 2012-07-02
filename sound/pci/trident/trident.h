@@ -23,10 +23,10 @@
  *
  */
 
-#include "pcm.h"
-#include "mpu401.h"
-#include "ac97_codec.h"
-#include "util_mem.h"
+#include <sound/pcm.h>
+#include <sound/mpu401.h>
+#include <sound/ac97_codec.h>
+#include <sound/util_mem.h>
 
 #define TRIDENT_DEVICE_ID_DX		((PCI_VENDOR_ID_TRIDENT<<16)|PCI_DEVICE_ID_TRIDENT_4DWAVE_DX)
 #define TRIDENT_DEVICE_ID_NX		((PCI_VENDOR_ID_TRIDENT<<16)|PCI_DEVICE_ID_TRIDENT_4DWAVE_NX)

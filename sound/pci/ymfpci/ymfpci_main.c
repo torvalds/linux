@@ -33,7 +33,7 @@
 #include <sound/control.h>
 #include <sound/info.h>
 #include <sound/tlv.h>
-#include <sound/ymfpci.h>
+#include "ymfpci.h"
 #include <sound/asoundef.h>
 #include <sound/mpu401.h>
 

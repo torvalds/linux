@@ -30,7 +30,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <sound/core.h>
-#include <sound/cs46xx.h>
+#include "cs46xx.h"
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");

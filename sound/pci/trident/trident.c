@@ -26,7 +26,7 @@
 #include <linux/time.h>
 #include <linux/module.h>
 #include <sound/core.h>
-#include <sound/trident.h>
+#include "trident.h"
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, <audio@tridentmicro.com>");

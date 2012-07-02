@@ -61,7 +61,7 @@
 #include <sound/info.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/cs46xx.h>
+#include "cs46xx.h"
 
 #include <asm/io.h>
 

@@ -41,7 +41,7 @@
 #include <sound/info.h>
 #include <sound/control.h>
 #include <sound/tlv.h>
-#include <sound/trident.h>
+#include "trident.h"
 #include <sound/asoundef.h>
 
 #include <asm/io.h>
