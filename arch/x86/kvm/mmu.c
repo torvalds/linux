@@ -960,13 +960,13 @@ static void pte_list_walk(unsigned long *pte_list, pte_list_walk_fn fn)
 static unsigned long *__gfn_to_rmap(gfn_t gfn, int level,
 				    struct kvm_memory_slot *slot)
 {
-	struct kvm_lpage_info *linfo;
+	unsigned long idx;
 
 	if (likely(level == PT_PAGE_TABLE_LEVEL))
 		return &slot->rmap[gfn - slot->base_gfn];
 
-	linfo = lpage_info_slot(gfn, slot, level);
-	return &linfo->rmap_pde;
+	idx = gfn_to_index(gfn, slot->base_gfn, level);
+	return &slot->arch.rmap_pde[level - PT_DIRECTORY_LEVEL][idx];
 }
 
 /*
