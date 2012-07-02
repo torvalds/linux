@@ -153,7 +153,7 @@ static void rcu_preempt_qs(int cpu)
  *
  * Caller must disable preemption.
  */
-void rcu_preempt_note_context_switch(void)
+static void rcu_preempt_note_context_switch(int cpu)
 {
 	struct task_struct *t = current;
 	unsigned long flags;
@@ -164,7 +164,7 @@ void rcu_preempt_note_context_switch(void)
 	    (t->rcu_read_unlock_special & RCU_READ_UNLOCK_BLOCKED) == 0) {
 
 		/* Possibly blocking in an RCU read-side critical section. */
-		rdp = __this_cpu_ptr(rcu_preempt_state.rda);
+		rdp = per_cpu_ptr(rcu_preempt_state.rda, cpu);
 		rnp = rdp->mynode;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_BLOCKED;
@@ -228,7 +228,7 @@ void rcu_preempt_note_context_switch(void)
 	 * means that we continue to block the current grace period.
 	 */
 	local_irq_save(flags);
-	rcu_preempt_qs(smp_processor_id());
+	rcu_preempt_qs(cpu);
 	local_irq_restore(flags);
 }
 
@@ -1000,6 +1000,14 @@ void rcu_force_quiescent_state(void)
 	rcu_sched_force_quiescent_state();
 }
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
+
+/*
+ * Because preemptible RCU does not exist, we never have to check for
+ * CPUs being in quiescent states.
+ */
+static void rcu_preempt_note_context_switch(int cpu)
+{
+}
 
 /*
  * Because preemptible RCU does not exist, there are never any preempted
