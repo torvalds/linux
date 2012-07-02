@@ -244,7 +244,7 @@ static int mmc_read_ssr(struct mmc_card *card)
 	 * bitfield positions accordingly.
 	 */
 	au = UNSTUFF_BITS(ssr, 428 - 384, 4);
-	if (au > 0 || au <= 9) {
+	if (au > 0 && au <= 9) {
 		card->ssr.au = 1 << (au + 4);
 		es = UNSTUFF_BITS(ssr, 408 - 384, 16);
 		et = UNSTUFF_BITS(ssr, 402 - 384, 6);
