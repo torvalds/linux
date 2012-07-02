@@ -104,12 +104,6 @@ static int das08_cs_attach(struct comedi_device *dev,
 	return das08_common_attach(dev, iobase);
 }
 
-static void das08_pcmcia_release(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "das08_pcmcia_release\n");
-	pcmcia_disable_device(link);
-}
-
 static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
@@ -119,19 +113,15 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	return pcmcia_request_io(p_dev);
 }
 
-static void das08_pcmcia_config(struct pcmcia_device *link)
+static int das08_pcmcia_attach(struct pcmcia_device *link)
 {
 	int ret;
-
-	dev_dbg(&link->dev, "das08_pcmcia_config\n");
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, das08_pcmcia_config_loop, NULL);
-	if (ret) {
-		dev_warn(&link->dev, "no configuration found\n");
+	if (ret)
 		goto failed;
-	}
 
 	if (!link->irq)
 		goto failed;
@@ -140,30 +130,18 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	return;
+	cur_dev = link;
+	return 0;
 
 failed:
-	das08_pcmcia_release(link);
-
-}
-
-static int das08_pcmcia_attach(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "das08_pcmcia_attach()\n");
-
-	cur_dev = link;
-
-	das08_pcmcia_config(link);
-
-	return 0;
+	pcmcia_disable_device(link);
+	return ret;
 }
 
 static void das08_pcmcia_detach(struct pcmcia_device *link)
 {
-
-	dev_dbg(&link->dev, "das08_pcmcia_detach\n");
-
-	das08_pcmcia_release(link);
+	pcmcia_disable_device(link);
+	cur_dev = NULL;
 }
 
 static const struct pcmcia_device_id das08_cs_id_table[] = {
