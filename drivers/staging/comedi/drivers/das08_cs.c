@@ -63,19 +63,6 @@ static struct pcmcia_device *cur_dev;
 #define thisboard ((const struct das08_board_struct *)dev->board_ptr)
 
 static int das08_cs_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it);
-
-static struct comedi_driver driver_das08_cs = {
-	.driver_name = "das08_cs",
-	.module = THIS_MODULE,
-	.attach = das08_cs_attach,
-	.detach = das08_common_detach,
-	.board_name = &das08_cs_boards[0].name,
-	.num_names = ARRAY_SIZE(das08_cs_boards),
-	.offset = sizeof(struct das08_board_struct),
-};
-
-static int das08_cs_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
 	int ret;
@@ -103,6 +90,16 @@ static int das08_cs_attach(struct comedi_device *dev,
 
 	return das08_common_attach(dev, iobase);
 }
+
+static struct comedi_driver driver_das08_cs = {
+	.driver_name	= "das08_cs",
+	.module		= THIS_MODULE,
+	.attach		= das08_cs_attach,
+	.detach		= das08_common_detach,
+	.board_name	= &das08_cs_boards[0].name,
+	.num_names	= ARRAY_SIZE(das08_cs_boards),
+	.offset		= sizeof(struct das08_board_struct),
+};
 
 static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
