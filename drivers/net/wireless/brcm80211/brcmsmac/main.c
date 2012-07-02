@@ -269,7 +269,7 @@ struct brcms_c_bit_desc {
  */
 
 /* Starting corerev for the fifo size table */
-#define XMTFIFOTBL_STARTREV	20
+#define XMTFIFOTBL_STARTREV	17
 
 struct d11init {
 	__le16 addr;
@@ -333,6 +333,12 @@ const u8 wlc_prio2prec_map[] = {
 };
 
 static const u16 xmtfifo_sz[][NFIFO] = {
+	/* corerev 17: 5120, 49152, 49152, 5376, 4352, 1280 */
+	{20, 192, 192, 21, 17, 5},
+	/* corerev 18: */
+	{0, 0, 0, 0, 0, 0},
+	/* corerev 19: */
+	{0, 0, 0, 0, 0, 0},
 	/* corerev 20: 5120, 49152, 49152, 5376, 4352, 1280 */
 	{20, 192, 192, 21, 17, 5},
 	/* corerev 21: 2304, 14848, 5632, 3584, 3584, 1280 */
@@ -342,6 +348,14 @@ static const u16 xmtfifo_sz[][NFIFO] = {
 	/* corerev 23: 5120, 49152, 49152, 5376, 4352, 1280 */
 	{20, 192, 192, 21, 17, 5},
 	/* corerev 24: 2304, 14848, 5632, 3584, 3584, 1280 */
+	{9, 58, 22, 14, 14, 5},
+	/* corerev 25: */
+	{0, 0, 0, 0, 0, 0},
+	/* corerev 26: */
+	{0, 0, 0, 0, 0, 0},
+	/* corerev 27: */
+	{0, 0, 0, 0, 0, 0},
+	/* corerev 28: 2304, 14848, 5632, 3584, 3584, 1280 */
 	{9, 58, 22, 14, 14, 5},
 };
 
@@ -4596,8 +4610,12 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		wlc_hw->machwcap_backup = wlc_hw->machwcap;
 
 		/* init tx fifo size */
+		WARN_ON((wlc_hw->corerev - XMTFIFOTBL_STARTREV) < 0 ||
+			(wlc_hw->corerev - XMTFIFOTBL_STARTREV) >
+				ARRAY_SIZE(xmtfifo_sz));
 		wlc_hw->xmtfifo_sz =
 		    xmtfifo_sz[(wlc_hw->corerev - XMTFIFOTBL_STARTREV)];
+		WARN_ON(!wlc_hw->xmtfifo_sz[0]);
 
 		/* Get a phy for this band */
 		wlc_hw->band->pi =
