@@ -16,6 +16,7 @@ config SOC_IMX28
 	bool
 	select ARM_AMBA
 	select CPU_ARM926T
+	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_PWM
 	select PINCTRL_IMX28
 
