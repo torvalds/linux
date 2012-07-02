@@ -970,54 +970,69 @@ static struct mfd_cell __devinitdata abx500_common_devs[] = {
 #ifdef CONFIG_DEBUG_FS
 	{
 		.name = "ab8500-debug",
+		.of_compatible = "stericsson,ab8500-debug",
 		.num_resources = ARRAY_SIZE(ab8500_debug_resources),
 		.resources = ab8500_debug_resources,
 	},
 #endif
 	{
 		.name = "ab8500-sysctrl",
+		.of_compatible = "stericsson,ab8500-sysctrl",
 	},
 	{
 		.name = "ab8500-regulator",
+		.of_compatible = "stericsson,ab8500-regulator",
 	},
 	{
 		.name = "ab8500-gpadc",
+		.of_compatible = "stericsson,ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
 		.resources = ab8500_gpadc_resources,
 	},
 	{
 		.name = "ab8500-rtc",
+		.of_compatible = "stericsson,ab8500-rtc",
 		.num_resources = ARRAY_SIZE(ab8500_rtc_resources),
 		.resources = ab8500_rtc_resources,
 	},
 	{
 		.name = "ab8500-acc-det",
+		.of_compatible = "stericsson,ab8500-acc-det",
 		.num_resources = ARRAY_SIZE(ab8500_av_acc_detect_resources),
 		.resources = ab8500_av_acc_detect_resources,
 	},
 	{
 		.name = "ab8500-poweron-key",
+		.of_compatible = "stericsson,ab8500-poweron-key",
 		.num_resources = ARRAY_SIZE(ab8500_poweronkey_db_resources),
 		.resources = ab8500_poweronkey_db_resources,
 	},
 	{
 		.name = "ab8500-pwm",
+		.of_compatible = "stericsson,ab8500-pwm",
 		.id = 1,
 	},
 	{
 		.name = "ab8500-pwm",
+		.of_compatible = "stericsson,ab8500-pwm",
 		.id = 2,
 	},
 	{
 		.name = "ab8500-pwm",
+		.of_compatible = "stericsson,ab8500-pwm",
 		.id = 3,
 	},
-	{ .name = "ab8500-leds", },
+	{
+		.name = "ab8500-leds",
+		.of_compatible = "stericsson,ab8500-leds",
+	},
 	{
 		.name = "ab8500-denc",
+		.of_compatible = "stericsson,ab8500-denc",
 	},
 	{
 		.name = "ab8500-temp",
+		.of_compatible = "stericsson,ab8500-temp",
 		.num_resources = ARRAY_SIZE(ab8500_temp_resources),
 		.resources = ab8500_temp_resources,
 	},
@@ -1049,11 +1064,13 @@ static struct mfd_cell __devinitdata ab8500_bm_devs[] = {
 static struct mfd_cell __devinitdata ab8500_devs[] = {
 	{
 		.name = "ab8500-gpio",
+		.of_compatible = "stericsson,ab8500-gpio",
 		.num_resources = ARRAY_SIZE(ab8500_gpio_resources),
 		.resources = ab8500_gpio_resources,
 	},
 	{
 		.name = "ab8500-usb",
+		.of_compatible = "stericsson,ab8500-usb",
 		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
 		.resources = ab8500_usb_resources,
 	},
@@ -1399,32 +1416,29 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 			goto out_freeoldmask;
 	}
 
-	if (!np) {
-		ret = mfd_add_devices(ab8500->dev, 0, abx500_common_devs,
-				ARRAY_SIZE(abx500_common_devs), NULL,
+	ret = mfd_add_devices(ab8500->dev, 0, abx500_common_devs,
+			ARRAY_SIZE(abx500_common_devs), NULL,
+			ab8500->irq_base);
+	if (ret)
+		goto out_freeirq;
+
+	if (is_ab9540(ab8500))
+		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
+				ARRAY_SIZE(ab9540_devs), NULL,
 				ab8500->irq_base);
+	else
+		ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
+				ARRAY_SIZE(ab8500_devs), NULL,
+				ab8500->irq_base);
+	if (ret)
+		goto out_freeirq;
 
-		if (ret)
-			goto out_freeirq;
-
-		if (is_ab9540(ab8500))
-			ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
-					ARRAY_SIZE(ab9540_devs), NULL,
-					ab8500->irq_base);
-		else
-			ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
-					ARRAY_SIZE(ab8500_devs), NULL,
-					ab8500->irq_base);
-		if (ret)
-			goto out_freeirq;
-
-		if (is_ab9540(ab8500) || is_ab8505(ab8500))
-			ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
-					ARRAY_SIZE(ab9540_ab8505_devs), NULL,
-					ab8500->irq_base);
-		if (ret)
-			goto out_freeirq;
-	}
+	if (is_ab9540(ab8500) || is_ab8505(ab8500))
+		ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
+				ARRAY_SIZE(ab9540_ab8505_devs), NULL,
+				ab8500->irq_base);
+	if (ret)
+		goto out_freeirq;
 
 	if (!no_bm) {
 		/* Add battery management devices */
