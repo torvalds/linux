@@ -1250,6 +1250,54 @@ static void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 	}
 }
 
+static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
+				  enum pipe *pipe)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 tmp = I915_READ(intel_dp->output_reg);
+
+	if (!(tmp & DP_PORT_EN))
+		return false;
+
+	if (is_cpu_edp(intel_dp) && IS_GEN7(dev)) {
+		*pipe = PORT_TO_PIPE_CPT(tmp);
+	} else if (!HAS_PCH_CPT(dev) || is_cpu_edp(intel_dp)) {
+		*pipe = PORT_TO_PIPE(tmp);
+	} else {
+		u32 trans_sel;
+		u32 trans_dp;
+		int i;
+
+		switch (intel_dp->output_reg) {
+		case PCH_DP_B:
+			trans_sel = TRANS_DP_PORT_SEL_B;
+			break;
+		case PCH_DP_C:
+			trans_sel = TRANS_DP_PORT_SEL_C;
+			break;
+		case PCH_DP_D:
+			trans_sel = TRANS_DP_PORT_SEL_D;
+			break;
+		default:
+			return true;
+		}
+
+		for_each_pipe(i) {
+			trans_dp = I915_READ(TRANS_DP_CTL(i));
+			if ((trans_dp & TRANS_DP_PORT_SEL_MASK) == trans_sel) {
+				*pipe = i;
+				return true;
+			}
+		}
+	}
+
+	DRM_DEBUG_KMS("No pipe for dp port 0x%x found\n", intel_dp->output_reg);
+
+	return true;
+}
+
 static void intel_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -2486,6 +2534,8 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	intel_encoder->enable = intel_enable_dp;
 	intel_encoder->disable = intel_disable_dp;
+	intel_encoder->get_hw_state = intel_dp_get_hw_state;
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	/* Set up the DDC bus. */
 	switch (port) {
