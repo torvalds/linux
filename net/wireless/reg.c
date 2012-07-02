@@ -129,7 +129,7 @@ static DECLARE_DELAYED_WORK(reg_timeout, reg_timeout_work);
 
 /* We keep a static world regulatory domain in case of the absence of CRDA */
 static const struct ieee80211_regdomain world_regdom = {
-	.n_reg_rules = 5,
+	.n_reg_rules = 6,
 	.alpha2 =  "00",
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..11 */
@@ -156,6 +156,9 @@ static const struct ieee80211_regdomain world_regdom = {
 		REG_RULE(5745-10, 5825+10, 40, 6, 20,
 			NL80211_RRF_PASSIVE_SCAN |
 			NL80211_RRF_NO_IBSS),
+
+		/* IEEE 802.11ad (60gHz), channels 1..3 */
+		REG_RULE(56160+2160*1-1080, 56160+2160*3+1080, 2160, 0, 0, 0),
 	}
 };
 
