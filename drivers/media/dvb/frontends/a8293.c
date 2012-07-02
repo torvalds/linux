@@ -154,7 +154,7 @@ struct dvb_frontend *a8293_attach(struct dvb_frontend *fe,
 
 	/* ENB=0 */
 	priv->reg[0] = 0x10;
-	ret = a8293_wr(priv, &priv->reg[1], 1);
+	ret = a8293_wr(priv, &priv->reg[0], 1);
 	if (ret)
 		goto err;
 
