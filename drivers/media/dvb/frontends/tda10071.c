@@ -20,10 +20,6 @@
 
 #include "tda10071_priv.h"
 
-int tda10071_debug;
-module_param_named(debug, tda10071_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
-
 static struct dvb_frontend_ops tda10071_ops;
 
 /* write multiple registers */
@@ -48,7 +44,8 @@ static int tda10071_wr_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		warn("i2c wr failed=%d reg=%02x len=%d", ret, reg, len);
+		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d reg=%02x " \
+				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
@@ -79,7 +76,8 @@ static int tda10071_rd_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 		memcpy(val, buf, len);
 		ret = 0;
 	} else {
-		warn("i2c rd failed=%d reg=%02x len=%d", ret, reg, len);
+		dev_warn(&priv->i2c->dev, "%s: i2c rd failed=%d reg=%02x " \
+				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
@@ -170,7 +168,7 @@ static int tda10071_cmd_execute(struct tda10071_priv *priv,
 		usleep_range(200, 5000);
 	}
 
-	dbg("%s: loop=%d", __func__, i);
+	dev_dbg(&priv->i2c->dev, "%s: loop=%d\n", __func__, i);
 
 	if (i == 0) {
 		ret = -ETIMEDOUT;
@@ -179,7 +177,7 @@ static int tda10071_cmd_execute(struct tda10071_priv *priv,
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -196,7 +194,8 @@ static int tda10071_set_tone(struct dvb_frontend *fe,
 		goto error;
 	}
 
-	dbg("%s: tone_mode=%d", __func__, fe_sec_tone_mode);
+	dev_dbg(&priv->i2c->dev, "%s: tone_mode=%d\n", __func__,
+			fe_sec_tone_mode);
 
 	switch (fe_sec_tone_mode) {
 	case SEC_TONE_ON:
@@ -206,7 +205,8 @@ static int tda10071_set_tone(struct dvb_frontend *fe,
 		tone = 0;
 		break;
 	default:
-		dbg("%s: invalid fe_sec_tone_mode", __func__);
+		dev_dbg(&priv->i2c->dev, "%s: invalid fe_sec_tone_mode\n",
+				__func__);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -223,7 +223,7 @@ static int tda10071_set_tone(struct dvb_frontend *fe,
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -240,7 +240,7 @@ static int tda10071_set_voltage(struct dvb_frontend *fe,
 		goto error;
 	}
 
-	dbg("%s: voltage=%d", __func__, fe_sec_voltage);
+	dev_dbg(&priv->i2c->dev, "%s: voltage=%d\n", __func__, fe_sec_voltage);
 
 	switch (fe_sec_voltage) {
 	case SEC_VOLTAGE_13:
@@ -253,7 +253,8 @@ static int tda10071_set_voltage(struct dvb_frontend *fe,
 		voltage = 0;
 		break;
 	default:
-		dbg("%s: invalid fe_sec_voltage", __func__);
+		dev_dbg(&priv->i2c->dev, "%s: invalid fe_sec_voltage\n",
+				__func__);
 		ret = -EINVAL;
 		goto error;
 	};
@@ -268,7 +269,7 @@ static int tda10071_set_voltage(struct dvb_frontend *fe,
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -285,7 +286,8 @@ static int tda10071_diseqc_send_master_cmd(struct dvb_frontend *fe,
 		goto error;
 	}
 
-	dbg("%s: msg_len=%d", __func__, diseqc_cmd->msg_len);
+	dev_dbg(&priv->i2c->dev, "%s: msg_len=%d\n", __func__,
+			diseqc_cmd->msg_len);
 
 	if (diseqc_cmd->msg_len < 3 || diseqc_cmd->msg_len > 6) {
 		ret = -EINVAL;
@@ -301,7 +303,7 @@ static int tda10071_diseqc_send_master_cmd(struct dvb_frontend *fe,
 		usleep_range(10000, 20000);
 	}
 
-	dbg("%s: loop=%d", __func__, i);
+	dev_dbg(&priv->i2c->dev, "%s: loop=%d\n", __func__, i);
 
 	if (i == 0) {
 		ret = -ETIMEDOUT;
@@ -327,7 +329,7 @@ static int tda10071_diseqc_send_master_cmd(struct dvb_frontend *fe,
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -344,7 +346,7 @@ static int tda10071_diseqc_recv_slave_reply(struct dvb_frontend *fe,
 		goto error;
 	}
 
-	dbg("%s:", __func__);
+	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
 
 	/* wait LNB RX */
 	for (i = 500, tmp = 0; i && !tmp; i--) {
@@ -355,7 +357,7 @@ static int tda10071_diseqc_recv_slave_reply(struct dvb_frontend *fe,
 		usleep_range(10000, 20000);
 	}
 
-	dbg("%s: loop=%d", __func__, i);
+	dev_dbg(&priv->i2c->dev, "%s: loop=%d\n", __func__, i);
 
 	if (i == 0) {
 		ret = -ETIMEDOUT;
@@ -385,7 +387,7 @@ static int tda10071_diseqc_recv_slave_reply(struct dvb_frontend *fe,
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -402,7 +404,8 @@ static int tda10071_diseqc_send_burst(struct dvb_frontend *fe,
 		goto error;
 	}
 
-	dbg("%s: fe_sec_mini_cmd=%d", __func__, fe_sec_mini_cmd);
+	dev_dbg(&priv->i2c->dev, "%s: fe_sec_mini_cmd=%d\n", __func__,
+			fe_sec_mini_cmd);
 
 	switch (fe_sec_mini_cmd) {
 	case SEC_MINI_A:
@@ -412,7 +415,8 @@ static int tda10071_diseqc_send_burst(struct dvb_frontend *fe,
 		burst = 1;
 		break;
 	default:
-		dbg("%s: invalid fe_sec_mini_cmd", __func__);
+		dev_dbg(&priv->i2c->dev, "%s: invalid fe_sec_mini_cmd\n",
+				__func__);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -426,7 +430,7 @@ static int tda10071_diseqc_send_burst(struct dvb_frontend *fe,
 		usleep_range(10000, 20000);
 	}
 
-	dbg("%s: loop=%d", __func__, i);
+	dev_dbg(&priv->i2c->dev, "%s: loop=%d\n", __func__, i);
 
 	if (i == 0) {
 		ret = -ETIMEDOUT;
@@ -447,7 +451,7 @@ static int tda10071_diseqc_send_burst(struct dvb_frontend *fe,
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -481,7 +485,7 @@ static int tda10071_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -506,7 +510,7 @@ static int tda10071_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -545,7 +549,7 @@ static int tda10071_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -583,7 +587,8 @@ static int tda10071_read_ber(struct dvb_frontend *fe, u32 *ber)
 		goto error;
 
 	if (priv->meas_count[i] == tmp) {
-		dbg("%s: meas not ready=%02x", __func__, tmp);
+		dev_dbg(&priv->i2c->dev, "%s: meas not ready=%02x\n", __func__,
+				tmp);
 		*ber = priv->ber;
 		return 0;
 	} else {
@@ -612,7 +617,7 @@ static int tda10071_read_ber(struct dvb_frontend *fe, u32 *ber)
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -632,7 +637,7 @@ static int tda10071_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -644,10 +649,11 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 	int ret, i;
 	u8 mode, rolloff, pilot, inversion, div;
 
-	dbg("%s: delivery_system=%d modulation=%d frequency=%d " \
-		"symbol_rate=%d inversion=%d pilot=%d rolloff=%d", __func__,
-		c->delivery_system, c->modulation, c->frequency,
-		c->symbol_rate, c->inversion, c->pilot, c->rolloff);
+	dev_dbg(&priv->i2c->dev, "%s: delivery_system=%d modulation=%d " \
+		"frequency=%d symbol_rate=%d inversion=%d pilot=%d " \
+		"rolloff=%d\n", __func__, c->delivery_system, c->modulation,
+		c->frequency, c->symbol_rate, c->inversion, c->pilot,
+		c->rolloff);
 
 	priv->delivery_system = SYS_UNDEFINED;
 
@@ -669,7 +675,7 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 		inversion = 3;
 		break;
 	default:
-		dbg("%s: invalid inversion", __func__);
+		dev_dbg(&priv->i2c->dev, "%s: invalid inversion\n", __func__);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -692,7 +698,8 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 			break;
 		case ROLLOFF_AUTO:
 		default:
-			dbg("%s: invalid rolloff", __func__);
+			dev_dbg(&priv->i2c->dev, "%s: invalid rolloff\n",
+					__func__);
 			ret = -EINVAL;
 			goto error;
 		}
@@ -708,13 +715,15 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 			pilot = 2;
 			break;
 		default:
-			dbg("%s: invalid pilot", __func__);
+			dev_dbg(&priv->i2c->dev, "%s: invalid pilot\n",
+					__func__);
 			ret = -EINVAL;
 			goto error;
 		}
 		break;
 	default:
-		dbg("%s: invalid delivery_system", __func__);
+		dev_dbg(&priv->i2c->dev, "%s: invalid delivery_system\n",
+				__func__);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -724,13 +733,15 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 			c->modulation == TDA10071_MODCOD[i].modulation &&
 			c->fec_inner == TDA10071_MODCOD[i].fec) {
 			mode = TDA10071_MODCOD[i].val;
-			dbg("%s: mode found=%02x", __func__, mode);
+			dev_dbg(&priv->i2c->dev, "%s: mode found=%02x\n",
+					__func__, mode);
 			break;
 		}
 	}
 
 	if (mode == 0xff) {
-		dbg("%s: invalid parameter combination", __func__);
+		dev_dbg(&priv->i2c->dev, "%s: invalid parameter combination\n",
+				__func__);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -772,7 +783,7 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -829,7 +840,7 @@ static int tda10071_get_frontend(struct dvb_frontend *fe)
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -929,10 +940,11 @@ static int tda10071_init(struct dvb_frontend *fe)
 		/* request the firmware, this will block and timeout */
 		ret = request_firmware(&fw, fw_file, priv->i2c->dev.parent);
 		if (ret) {
-			err("did not find the firmware file. (%s) "
-				"Please see linux/Documentation/dvb/ for more" \
-				" details on firmware-problems. (%d)",
-				fw_file, ret);
+			dev_err(&priv->i2c->dev, "%s: did not find the " \
+					"firmware file. (%s) Please see " \
+					"linux/Documentation/dvb/ for more " \
+					"details on firmware-problems. (%d)\n",
+					KBUILD_MODNAME, fw_file, ret);
 			goto error;
 		}
 
@@ -961,10 +973,11 @@ static int tda10071_init(struct dvb_frontend *fe)
 		if (ret)
 			goto error_release_firmware;
 
-		info("found a '%s' in cold state, will try to load a firmware",
-			tda10071_ops.info.name);
-
-		info("downloading firmware from file '%s'", fw_file);
+		dev_info(&priv->i2c->dev, "%s: found a '%s' in cold state, " \
+				"will try to load a firmware\n", KBUILD_MODNAME,
+				tda10071_ops.info.name);
+		dev_info(&priv->i2c->dev, "%s: downloading firmware from " \
+				"file '%s'\n", KBUILD_MODNAME, fw_file);
 
 		/* do not download last byte */
 		fw_size = fw->size - 1;
@@ -978,7 +991,9 @@ static int tda10071_init(struct dvb_frontend *fe)
 			ret = tda10071_wr_regs(priv, 0xfa,
 				(u8 *) &fw->data[fw_size - remaining], len);
 			if (ret) {
-				err("firmware download failed=%d", ret);
+				dev_err(&priv->i2c->dev, "%s: firmware " \
+						"download failed=%d\n",
+						KBUILD_MODNAME, ret);
 				if (ret)
 					goto error_release_firmware;
 			}
@@ -1002,7 +1017,8 @@ static int tda10071_init(struct dvb_frontend *fe)
 			goto error;
 
 		if (tmp) {
-			info("firmware did not run");
+			dev_info(&priv->i2c->dev, "%s: firmware did not run\n",
+					KBUILD_MODNAME);
 			ret = -EFAULT;
 			goto error;
 		} else {
@@ -1019,9 +1035,10 @@ static int tda10071_init(struct dvb_frontend *fe)
 		if (ret)
 			goto error;
 
-		info("firmware version %d.%d.%d.%d",
-			buf[0], buf[1], buf[2], buf[3]);
-		info("found a '%s' in warm state.", tda10071_ops.info.name);
+		dev_info(&priv->i2c->dev, "%s: firmware version %d.%d.%d.%d\n",
+				KBUILD_MODNAME, buf[0], buf[1], buf[2], buf[3]);
+		dev_info(&priv->i2c->dev, "%s: found a '%s' in warm state\n",
+				KBUILD_MODNAME, tda10071_ops.info.name);
 
 		ret = tda10071_rd_regs(priv, 0x81, buf, 2);
 		if (ret)
@@ -1105,7 +1122,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 error_release_firmware:
 	release_firmware(fw);
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -1149,7 +1166,7 @@ static int tda10071_sleep(struct dvb_frontend *fe)
 
 	return ret;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -1208,7 +1225,7 @@ struct dvb_frontend *tda10071_attach(const struct tda10071_config *config,
 
 	return &priv->fe;
 error:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
 	kfree(priv);
 	return NULL;
 }
