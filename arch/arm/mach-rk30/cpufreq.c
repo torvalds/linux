@@ -436,7 +436,9 @@ static void ff_early_suspend_func(struct early_suspend *h)
 	
 	//ff_scale_votlage("vdd_cpu", 1000000);
 	//ff_scale_votlage("vdd_core", 1000000);
+#ifdef CONFIG_HOTPLUG_CPU
 	cpu_down(1);
+#endif
 }
 
 static void ff_early_resume_func(struct early_suspend *h)
@@ -453,7 +455,9 @@ static void ff_early_resume_func(struct early_suspend *h)
 	
 	if (!IS_ERR(gpu_clk))
 		dvfs_clk_disable_limit(gpu_clk);
+#ifdef CONFIG_HOTPLUG_CPU
 	cpu_up(1);
+#endif
 	if (ff_read(FILE_GOV_MODE, buf) != 0) {
 		FF_ERROR("read current governor error\n");
 		return ;
@@ -548,7 +552,7 @@ int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_ra
 	FREQ_PRINTK_DBG("cpufreq_scale_rate_for_dvfs(%lu)\n", rate);
 	ret = set_rate(clk, rate);
 
-#if CONFIG_SMP
+#ifdef CONFIG_SMP
 	/*
 	 * Note that loops_per_jiffy is not updated on SMP systems in
 	 * cpufreq driver. So, update the per-CPU loops_per_jiffy value
