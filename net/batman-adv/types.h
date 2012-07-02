@@ -25,10 +25,10 @@
 #include <linux/kernel.h>
 
 #define BATADV_HEADER_LEN \
-	(ETH_HLEN + max(sizeof(struct unicast_packet), \
-			sizeof(struct bcast_packet)))
+	(ETH_HLEN + max(sizeof(struct batadv_unicast_packet), \
+			sizeof(struct batadv_bcast_packet)))
 
-struct hard_iface {
+struct batadv_hard_iface {
 	struct list_head list;
 	int16_t if_num;
 	char if_status;
@@ -44,7 +44,7 @@ struct hard_iface {
 	struct rcu_head rcu;
 };
 
-/*	orig_node - structure for orig_list maintaining nodes of mesh
+/*	batadv_orig_node - structure for orig_list maintaining nodes of mesh
  *	@primary_addr: hosts primary interface address
  *	@last_seen: when last packet from this node was received
  *	@bcast_seqno_reset: time when the broadcast seqno window was reset
@@ -58,10 +58,10 @@ struct hard_iface {
  *	@candidates: how many candidates are available
  *	@selected: next bonding candidate
  */
-struct orig_node {
+struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
 	uint8_t primary_addr[ETH_ALEN];
-	struct neigh_node __rcu *router; /* rcu protected pointer */
+	struct batadv_neigh_node __rcu *router; /* rcu protected pointer */
 	unsigned long *bcast_own;
 	uint8_t *bcast_own_sum;
 	unsigned long last_seen;
@@ -93,7 +93,7 @@ struct orig_node {
 	atomic_t refcount;
 	struct rcu_head rcu;
 	struct hlist_node hash_entry;
-	struct bat_priv *bat_priv;
+	struct batadv_priv *bat_priv;
 	unsigned long last_frag_packet;
 	/* ogm_cnt_lock protects: bcast_own, bcast_own_sum,
 	 * neigh_node->real_bits, neigh_node->real_packet_count
@@ -106,18 +106,18 @@ struct orig_node {
 	struct list_head bond_list;
 };
 
-struct gw_node {
+struct batadv_gw_node {
 	struct hlist_node list;
-	struct orig_node *orig_node;
+	struct batadv_orig_node *orig_node;
 	unsigned long deleted;
 	atomic_t refcount;
 	struct rcu_head rcu;
 };
 
-/*	neigh_node
+/*	batadv_neigh_node
  *	@last_seen: when last packet via this neighbor was received
  */
-struct neigh_node {
+struct batadv_neigh_node {
 	struct hlist_node list;
 	uint8_t addr[ETH_ALEN];
 	uint8_t real_packet_count;
@@ -130,36 +130,36 @@ struct neigh_node {
 	DECLARE_BITMAP(real_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 	atomic_t refcount;
 	struct rcu_head rcu;
-	struct orig_node *orig_node;
-	struct hard_iface *if_incoming;
+	struct batadv_orig_node *orig_node;
+	struct batadv_hard_iface *if_incoming;
 	spinlock_t lq_update_lock;	/* protects: tq_recv, tq_index */
 };
 
 #ifdef CONFIG_BATMAN_ADV_BLA
-struct bcast_duplist_entry {
+struct batadv_bcast_duplist_entry {
 	uint8_t orig[ETH_ALEN];
 	uint16_t crc;
 	unsigned long entrytime;
 };
 #endif
 
-enum bat_counters {
-	BAT_CNT_FORWARD,
-	BAT_CNT_FORWARD_BYTES,
-	BAT_CNT_MGMT_TX,
-	BAT_CNT_MGMT_TX_BYTES,
-	BAT_CNT_MGMT_RX,
-	BAT_CNT_MGMT_RX_BYTES,
-	BAT_CNT_TT_REQUEST_TX,
-	BAT_CNT_TT_REQUEST_RX,
-	BAT_CNT_TT_RESPONSE_TX,
-	BAT_CNT_TT_RESPONSE_RX,
-	BAT_CNT_TT_ROAM_ADV_TX,
-	BAT_CNT_TT_ROAM_ADV_RX,
-	BAT_CNT_NUM,
+enum batadv_counters {
+	BATADV_CNT_FORWARD,
+	BATADV_CNT_FORWARD_BYTES,
+	BATADV_CNT_MGMT_TX,
+	BATADV_CNT_MGMT_TX_BYTES,
+	BATADV_CNT_MGMT_RX,
+	BATADV_CNT_MGMT_RX_BYTES,
+	BATADV_CNT_TT_REQUEST_TX,
+	BATADV_CNT_TT_REQUEST_RX,
+	BATADV_CNT_TT_RESPONSE_TX,
+	BATADV_CNT_TT_RESPONSE_RX,
+	BATADV_CNT_TT_ROAM_ADV_TX,
+	BATADV_CNT_TT_ROAM_ADV_RX,
+	BATADV_CNT_NUM,
 };
 
-struct bat_priv {
+struct batadv_priv {
 	atomic_t mesh_state;
 	struct net_device_stats stats;
 	uint64_t __percpu *bat_counters; /* Per cpu counters */
@@ -190,7 +190,7 @@ struct bat_priv {
 	 */
 	bool tt_poss_change;
 	char num_ifaces;
-	struct debug_log *debug_log;
+	struct batadv_debug_log *debug_log;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
@@ -198,20 +198,20 @@ struct bat_priv {
 	struct hlist_head gw_list;
 	struct list_head tt_changes_list; /* tracks changes in a OGM int */
 	struct list_head vis_send_list;
-	struct hashtable_t *orig_hash;
-	struct hashtable_t *tt_local_hash;
-	struct hashtable_t *tt_global_hash;
+	struct batadv_hashtable *orig_hash;
+	struct batadv_hashtable *tt_local_hash;
+	struct batadv_hashtable *tt_global_hash;
 #ifdef CONFIG_BATMAN_ADV_BLA
-	struct hashtable_t *claim_hash;
-	struct hashtable_t *backbone_hash;
+	struct batadv_hashtable *claim_hash;
+	struct batadv_hashtable *backbone_hash;
 #endif
 	struct list_head tt_req_list; /* list of pending tt_requests */
 	struct list_head tt_roam_list;
-	struct hashtable_t *vis_hash;
+	struct batadv_hashtable *vis_hash;
 #ifdef CONFIG_BATMAN_ADV_BLA
-	struct bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
+	struct batadv_bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
 	int bcast_duplist_curr;
-	struct bla_claim_dst claim_dest;
+	struct batadv_bla_claim_dst claim_dest;
 #endif
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects  */
@@ -231,29 +231,29 @@ struct bat_priv {
 	struct delayed_work orig_work;
 	struct delayed_work vis_work;
 	struct delayed_work bla_work;
-	struct gw_node __rcu *curr_gw;  /* rcu protected pointer */
+	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
 	atomic_t gw_reselect;
-	struct hard_iface __rcu *primary_if;  /* rcu protected pointer */
-	struct vis_info *my_vis_info;
-	struct bat_algo_ops *bat_algo_ops;
+	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */
+	struct batadv_vis_info *my_vis_info;
+	struct batadv_algo_ops *bat_algo_ops;
 };
 
-struct socket_client {
+struct batadv_socket_client {
 	struct list_head queue_list;
 	unsigned int queue_len;
 	unsigned char index;
 	spinlock_t lock; /* protects queue_list, queue_len, index */
 	wait_queue_head_t queue_wait;
-	struct bat_priv *bat_priv;
+	struct batadv_priv *bat_priv;
 };
 
-struct socket_packet {
+struct batadv_socket_packet {
 	struct list_head list;
 	size_t icmp_len;
-	struct icmp_packet_rr icmp_packet;
+	struct batadv_icmp_packet_rr icmp_packet;
 };
 
-struct tt_common_entry {
+struct batadv_tt_common_entry {
 	uint8_t addr[ETH_ALEN];
 	struct hlist_node hash_entry;
 	uint16_t flags;
@@ -261,31 +261,31 @@ struct tt_common_entry {
 	struct rcu_head rcu;
 };
 
-struct tt_local_entry {
-	struct tt_common_entry common;
+struct batadv_tt_local_entry {
+	struct batadv_tt_common_entry common;
 	unsigned long last_seen;
 };
 
-struct tt_global_entry {
-	struct tt_common_entry common;
+struct batadv_tt_global_entry {
+	struct batadv_tt_common_entry common;
 	struct hlist_head orig_list;
 	spinlock_t list_lock;	/* protects the list */
 	unsigned long roam_at; /* time at which TT_GLOBAL_ROAM was set */
 };
 
-struct tt_orig_list_entry {
-	struct orig_node *orig_node;
+struct batadv_tt_orig_list_entry {
+	struct batadv_orig_node *orig_node;
 	uint8_t ttvn;
 	struct rcu_head rcu;
 	struct hlist_node list;
 };
 
 #ifdef CONFIG_BATMAN_ADV_BLA
-struct backbone_gw {
+struct batadv_backbone_gw {
 	uint8_t orig[ETH_ALEN];
 	short vid;		/* used VLAN ID */
 	struct hlist_node hash_entry;
-	struct bat_priv *bat_priv;
+	struct batadv_priv *bat_priv;
 	unsigned long lasttime;	/* last time we heard of this backbone gw */
 	atomic_t request_sent;
 	atomic_t refcount;
@@ -293,10 +293,10 @@ struct backbone_gw {
 	uint16_t crc;		/* crc checksum over all claims */
 };
 
-struct claim {
+struct batadv_claim {
 	uint8_t addr[ETH_ALEN];
 	short vid;
-	struct backbone_gw *backbone_gw;
+	struct batadv_backbone_gw *backbone_gw;
 	unsigned long lasttime;	/* last time we heard of claim (locals only) */
 	struct rcu_head rcu;
 	atomic_t refcount;
@@ -304,18 +304,18 @@ struct claim {
 };
 #endif
 
-struct tt_change_node {
+struct batadv_tt_change_node {
 	struct list_head list;
-	struct tt_change change;
+	struct batadv_tt_change change;
 };
 
-struct tt_req_node {
+struct batadv_tt_req_node {
 	uint8_t addr[ETH_ALEN];
 	unsigned long issued_at;
 	struct list_head list;
 };
 
-struct tt_roam_node {
+struct batadv_tt_roam_node {
 	uint8_t addr[ETH_ALEN];
 	atomic_t counter;
 	unsigned long first_time;
@@ -325,7 +325,7 @@ struct tt_roam_node {
 /*	forw_packet - structure for forw_list maintaining packets to be
  *	              send/forwarded
  */
-struct forw_packet {
+struct batadv_forw_packet {
 	struct hlist_node list;
 	unsigned long send_time;
 	uint8_t own;
@@ -334,20 +334,20 @@ struct forw_packet {
 	uint32_t direct_link_flags;
 	uint8_t num_packets;
 	struct delayed_work delayed_work;
-	struct hard_iface *if_incoming;
+	struct batadv_hard_iface *if_incoming;
 };
 
 /* While scanning for vis-entries of a particular vis-originator
  * this list collects its interfaces to create a subgraph/cluster
  * out of them later
  */
-struct if_list_entry {
+struct batadv_if_list_entry {
 	uint8_t addr[ETH_ALEN];
 	bool primary;
 	struct hlist_node list;
 };
 
-struct debug_log {
+struct batadv_debug_log {
 	char log_buff[BATADV_LOG_BUF_LEN];
 	unsigned long log_start;
 	unsigned long log_end;
@@ -355,13 +355,13 @@ struct debug_log {
 	wait_queue_head_t queue_wait;
 };
 
-struct frag_packet_list_entry {
+struct batadv_frag_packet_list_entry {
 	struct list_head list;
 	uint16_t seqno;
 	struct sk_buff *skb;
 };
 
-struct vis_info {
+struct batadv_vis_info {
 	unsigned long first_seen;
 	/* list of server-neighbors we received a vis-packet
 	 * from.  we should not reply to them.
@@ -370,40 +370,40 @@ struct vis_info {
 	struct list_head send_list;
 	struct kref refcount;
 	struct hlist_node hash_entry;
-	struct bat_priv *bat_priv;
+	struct batadv_priv *bat_priv;
 	/* this packet might be part of the vis send queue. */
 	struct sk_buff *skb_packet;
 	/* vis_info may follow here */
 } __packed;
 
-struct vis_info_entry {
+struct batadv_vis_info_entry {
 	uint8_t  src[ETH_ALEN];
 	uint8_t  dest[ETH_ALEN];
 	uint8_t  quality;	/* quality = 0 client */
 } __packed;
 
-struct recvlist_node {
+struct batadv_recvlist_node {
 	struct list_head list;
 	uint8_t mac[ETH_ALEN];
 };
 
-struct bat_algo_ops {
+struct batadv_algo_ops {
 	struct hlist_node list;
 	char *name;
 	/* init routing info when hard-interface is enabled */
-	int (*bat_iface_enable)(struct hard_iface *hard_iface);
+	int (*bat_iface_enable)(struct batadv_hard_iface *hard_iface);
 	/* de-init routing info when hard-interface is disabled */
-	void (*bat_iface_disable)(struct hard_iface *hard_iface);
+	void (*bat_iface_disable)(struct batadv_hard_iface *hard_iface);
 	/* (re-)init mac addresses of the protocol information
 	 * belonging to this hard-interface
 	 */
-	void (*bat_iface_update_mac)(struct hard_iface *hard_iface);
+	void (*bat_iface_update_mac)(struct batadv_hard_iface *hard_iface);
 	/* called when primary interface is selected / changed */
-	void (*bat_primary_iface_set)(struct hard_iface *hard_iface);
+	void (*bat_primary_iface_set)(struct batadv_hard_iface *hard_iface);
 	/* prepare a new outgoing OGM for the send queue */
-	void (*bat_ogm_schedule)(struct hard_iface *hard_iface);
+	void (*bat_ogm_schedule)(struct batadv_hard_iface *hard_iface);
 	/* send scheduled OGM */
-	void (*bat_ogm_emit)(struct forw_packet *forw_packet);
+	void (*bat_ogm_emit)(struct batadv_forw_packet *forw_packet);
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

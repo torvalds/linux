@@ -20,14 +20,16 @@
 #ifndef _NET_BATMAN_ADV_SEND_H_
 #define _NET_BATMAN_ADV_SEND_H_
 
-int batadv_send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
+int batadv_send_skb_packet(struct sk_buff *skb,
+			   struct batadv_hard_iface *hard_iface,
 			   const uint8_t *dst_addr);
-void batadv_schedule_bat_ogm(struct hard_iface *hard_iface);
-int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
+void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface);
+int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 				    const struct sk_buff *skb,
 				    unsigned long delay);
 void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work);
-void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
-				      const struct hard_iface *hard_iface);
+void
+batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
+				 const struct batadv_hard_iface *hard_iface);
 
 #endif /* _NET_BATMAN_ADV_SEND_H_ */

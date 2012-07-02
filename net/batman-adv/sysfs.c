@@ -18,7 +18,7 @@
  */
 
 #include "main.h"
-#include "bat_sysfs.h"
+#include "sysfs.h"
 #include "translation-table.h"
 #include "originator.h"
 #include "hard-interface.h"
@@ -32,7 +32,7 @@ static struct net_device *batadv_kobj_to_netdev(struct kobject *obj)
 	return to_net_dev(dev);
 }
 
-static struct bat_priv *batadv_kobj_to_batpriv(struct kobject *obj)
+static struct batadv_priv *batadv_kobj_to_batpriv(struct kobject *obj)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(obj);
 	return netdev_priv(net_dev);
@@ -54,7 +54,7 @@ static char *batadv_uev_type_str[] = {
 
 /* Use this, if you have customized show and store functions */
 #define BATADV_ATTR(_name, _mode, _show, _store)	\
-struct bat_attribute batadv_attr_##_name = {		\
+struct batadv_attribute batadv_attr_##_name = {		\
 	.attr = {.name = __stringify(_name),		\
 		 .mode = _mode },			\
 	.show   = _show,				\
@@ -67,7 +67,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     size_t count)				\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
-	struct bat_priv *bat_priv = netdev_priv(net_dev);		\
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
 	return __batadv_store_bool_attr(buff, count, _post_func, attr,	\
 					&bat_priv->_name, net_dev);	\
 }
@@ -76,7 +76,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
 	return sprintf(buff, "%s\n",					\
 		       atomic_read(&bat_priv->_name) == 0 ?		\
 		       "disabled" : "enabled");				\
@@ -98,7 +98,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     size_t count)				\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
-	struct bat_priv *bat_priv = netdev_priv(net_dev);		\
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
 	return __batadv_store_uint_attr(buff, count, _min, _max,	\
 					_post_func, attr,		\
 					&bat_priv->_name, net_dev);	\
@@ -108,7 +108,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
 	return sprintf(buff, "%i\n", atomic_read(&bat_priv->_name));	\
 }									\
 
@@ -128,7 +128,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 			     size_t count)				\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
-	struct hard_iface *hard_iface;					\
+	struct batadv_hard_iface *hard_iface;				\
 	ssize_t length;							\
 									\
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
@@ -148,7 +148,7 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 			    struct attribute *attr, char *buff)		\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
-	struct hard_iface *hard_iface;					\
+	struct batadv_hard_iface *hard_iface;				\
 	ssize_t length;							\
 									\
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
@@ -281,12 +281,16 @@ __batadv_store_uint_attr(const char *buff, size_t count,
 static ssize_t batadv_show_vis_mode(struct kobject *kobj,
 				    struct attribute *attr, char *buff)
 {
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int vis_mode = atomic_read(&bat_priv->vis_mode);
+	const char *mode;
 
-	return sprintf(buff, "%s\n",
-		       vis_mode == VIS_TYPE_CLIENT_UPDATE ?
-							"client" : "server");
+	if (vis_mode == BATADV_VIS_TYPE_CLIENT_UPDATE)
+		mode = "client";
+	else
+		mode = "server";
+
+	return sprintf(buff, "%s\n", mode);
 }
 
 static ssize_t batadv_store_vis_mode(struct kobject *kobj,
@@ -294,21 +298,23 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 				     size_t count)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	unsigned long val;
 	int ret, vis_mode_tmp = -1;
 	const char *old_mode, *new_mode;
 
 	ret = kstrtoul(buff, 10, &val);
 
-	if (((count == 2) && (!ret) && (val == VIS_TYPE_CLIENT_UPDATE)) ||
+	if (((count == 2) && (!ret) &&
+	     (val == BATADV_VIS_TYPE_CLIENT_UPDATE)) ||
 	    (strncmp(buff, "client", 6) == 0) ||
 	    (strncmp(buff, "off", 3) == 0))
-		vis_mode_tmp = VIS_TYPE_CLIENT_UPDATE;
+		vis_mode_tmp = BATADV_VIS_TYPE_CLIENT_UPDATE;
 
-	if (((count == 2) && (!ret) && (val == VIS_TYPE_SERVER_SYNC)) ||
+	if (((count == 2) && (!ret) &&
+	     (val == BATADV_VIS_TYPE_SERVER_SYNC)) ||
 	    (strncmp(buff, "server", 6) == 0))
-		vis_mode_tmp = VIS_TYPE_SERVER_SYNC;
+		vis_mode_tmp = BATADV_VIS_TYPE_SERVER_SYNC;
 
 	if (vis_mode_tmp < 0) {
 		if (buff[count - 1] == '\n')
@@ -323,12 +329,12 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 	if (atomic_read(&bat_priv->vis_mode) == vis_mode_tmp)
 		return count;
 
-	if (atomic_read(&bat_priv->vis_mode) == VIS_TYPE_CLIENT_UPDATE)
+	if (atomic_read(&bat_priv->vis_mode) == BATADV_VIS_TYPE_CLIENT_UPDATE)
 		old_mode =  "client";
 	else
 		old_mode = "server";
 
-	if (vis_mode_tmp == VIS_TYPE_CLIENT_UPDATE)
+	if (vis_mode_tmp == BATADV_VIS_TYPE_CLIENT_UPDATE)
 		new_mode =  "client";
 	else
 		new_mode = "server";
@@ -343,28 +349,28 @@ static ssize_t batadv_store_vis_mode(struct kobject *kobj,
 static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 				    struct attribute *attr, char *buff)
 {
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
 }
 
 static void batadv_post_gw_deselect(struct net_device *net_dev)
 {
-	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	batadv_gw_deselect(bat_priv);
 }
 
 static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
 				   char *buff)
 {
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int bytes_written;
 
 	switch (atomic_read(&bat_priv->gw_mode)) {
-	case GW_MODE_CLIENT:
+	case BATADV_GW_MODE_CLIENT:
 		bytes_written = sprintf(buff, "%s\n",
 					BATADV_GW_MODE_CLIENT_NAME);
 		break;
-	case GW_MODE_SERVER:
+	case BATADV_GW_MODE_SERVER:
 		bytes_written = sprintf(buff, "%s\n",
 					BATADV_GW_MODE_SERVER_NAME);
 		break;
@@ -382,7 +388,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 				    size_t count)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	char *curr_gw_mode_str;
 	int gw_mode_tmp = -1;
 
@@ -391,15 +397,15 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 
 	if (strncmp(buff, BATADV_GW_MODE_OFF_NAME,
 		    strlen(BATADV_GW_MODE_OFF_NAME)) == 0)
-		gw_mode_tmp = GW_MODE_OFF;
+		gw_mode_tmp = BATADV_GW_MODE_OFF;
 
 	if (strncmp(buff, BATADV_GW_MODE_CLIENT_NAME,
 		    strlen(BATADV_GW_MODE_CLIENT_NAME)) == 0)
-		gw_mode_tmp = GW_MODE_CLIENT;
+		gw_mode_tmp = BATADV_GW_MODE_CLIENT;
 
 	if (strncmp(buff, BATADV_GW_MODE_SERVER_NAME,
 		    strlen(BATADV_GW_MODE_SERVER_NAME)) == 0)
-		gw_mode_tmp = GW_MODE_SERVER;
+		gw_mode_tmp = BATADV_GW_MODE_SERVER;
 
 	if (gw_mode_tmp < 0) {
 		batadv_info(net_dev,
@@ -412,10 +418,10 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 		return count;
 
 	switch (atomic_read(&bat_priv->gw_mode)) {
-	case GW_MODE_CLIENT:
+	case BATADV_GW_MODE_CLIENT:
 		curr_gw_mode_str = BATADV_GW_MODE_CLIENT_NAME;
 		break;
-	case GW_MODE_SERVER:
+	case BATADV_GW_MODE_SERVER:
 		curr_gw_mode_str = BATADV_GW_MODE_SERVER_NAME;
 		break;
 	default:
@@ -434,7 +440,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 static ssize_t batadv_show_gw_bwidth(struct kobject *kobj,
 				     struct attribute *attr, char *buff)
 {
-	struct bat_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int down, up;
 	int gw_bandwidth = atomic_read(&bat_priv->gw_bandwidth);
 
@@ -479,10 +485,10 @@ BATADV_ATTR_SIF_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, BATADV_TQ_MAX_VALUE,
 static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 		   batadv_store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, DBG_ALL, NULL);
+BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
 #endif
 
-static struct bat_attribute *batadv_mesh_attrs[] = {
+static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_aggregated_ogms,
 	&batadv_attr_bonding,
 #ifdef CONFIG_BATMAN_ADV_BLA
@@ -506,8 +512,8 @@ static struct bat_attribute *batadv_mesh_attrs[] = {
 int batadv_sysfs_add_meshif(struct net_device *dev)
 {
 	struct kobject *batif_kobject = &dev->dev.kobj;
-	struct bat_priv *bat_priv = netdev_priv(dev);
-	struct bat_attribute **bat_attr;
+	struct batadv_priv *bat_priv = netdev_priv(dev);
+	struct batadv_attribute **bat_attr;
 	int err;
 
 	bat_priv->mesh_obj = kobject_create_and_add(BATADV_SYSFS_IF_MESH_SUBDIR,
@@ -543,8 +549,8 @@ out:
 
 void batadv_sysfs_del_meshif(struct net_device *dev)
 {
-	struct bat_priv *bat_priv = netdev_priv(dev);
-	struct bat_attribute **bat_attr;
+	struct batadv_priv *bat_priv = netdev_priv(dev);
+	struct batadv_attribute **bat_attr;
 
 	for (bat_attr = batadv_mesh_attrs; *bat_attr; ++bat_attr)
 		sysfs_remove_file(bat_priv->mesh_obj, &((*bat_attr)->attr));
@@ -557,14 +563,20 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 				      struct attribute *attr, char *buff)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
+	struct batadv_hard_iface *hard_iface;
 	ssize_t length;
+	const char *ifname;
 
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
 		return 0;
 
-	length = sprintf(buff, "%s\n", hard_iface->if_status == IF_NOT_IN_USE ?
-			 "none" : hard_iface->soft_iface->name);
+	if (hard_iface->if_status == BATADV_IF_NOT_IN_USE)
+		ifname =  "none";
+	else
+		ifname = hard_iface->soft_iface->name;
+
+	length = sprintf(buff, "%s\n", ifname);
 
 	batadv_hardif_free_ref(hard_iface);
 
@@ -576,10 +588,11 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 				       size_t count)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
+	struct batadv_hard_iface *hard_iface;
 	int status_tmp = -1;
 	int ret = count;
 
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
 		return count;
 
@@ -594,9 +607,9 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 	}
 
 	if (strncmp(buff, "none", 4) == 0)
-		status_tmp = IF_NOT_IN_USE;
+		status_tmp = BATADV_IF_NOT_IN_USE;
 	else
-		status_tmp = IF_I_WANT_YOU;
+		status_tmp = BATADV_IF_I_WANT_YOU;
 
 	if (hard_iface->if_status == status_tmp)
 		goto out;
@@ -610,13 +623,13 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 		goto out;
 	}
 
-	if (status_tmp == IF_NOT_IN_USE) {
+	if (status_tmp == BATADV_IF_NOT_IN_USE) {
 		batadv_hardif_disable_interface(hard_iface);
 		goto unlock;
 	}
 
 	/* if the interface already is in use */
-	if (hard_iface->if_status != IF_NOT_IN_USE)
+	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		batadv_hardif_disable_interface(hard_iface);
 
 	ret = batadv_hardif_enable_interface(hard_iface, buff);
@@ -632,26 +645,27 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 					struct attribute *attr, char *buff)
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct hard_iface *hard_iface = batadv_hardif_get_by_netdev(net_dev);
+	struct batadv_hard_iface *hard_iface;
 	ssize_t length;
 
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
 		return 0;
 
 	switch (hard_iface->if_status) {
-	case IF_TO_BE_REMOVED:
+	case BATADV_IF_TO_BE_REMOVED:
 		length = sprintf(buff, "disabling\n");
 		break;
-	case IF_INACTIVE:
+	case BATADV_IF_INACTIVE:
 		length = sprintf(buff, "inactive\n");
 		break;
-	case IF_ACTIVE:
+	case BATADV_IF_ACTIVE:
 		length = sprintf(buff, "active\n");
 		break;
-	case IF_TO_BE_ACTIVATED:
+	case BATADV_IF_TO_BE_ACTIVATED:
 		length = sprintf(buff, "enabling\n");
 		break;
-	case IF_NOT_IN_USE:
+	case BATADV_IF_NOT_IN_USE:
 	default:
 		length = sprintf(buff, "not in use\n");
 		break;
@@ -666,7 +680,7 @@ static BATADV_ATTR(mesh_iface, S_IRUGO | S_IWUSR, batadv_show_mesh_iface,
 		   batadv_store_mesh_iface);
 static BATADV_ATTR(iface_status, S_IRUGO, batadv_show_iface_status, NULL);
 
-static struct bat_attribute *batadv_batman_attrs[] = {
+static struct batadv_attribute *batadv_batman_attrs[] = {
 	&batadv_attr_mesh_iface,
 	&batadv_attr_iface_status,
 	NULL,
@@ -675,7 +689,7 @@ static struct bat_attribute *batadv_batman_attrs[] = {
 int batadv_sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 {
 	struct kobject *hardif_kobject = &dev->dev.kobj;
-	struct bat_attribute **bat_attr;
+	struct batadv_attribute **bat_attr;
 	int err;
 
 	*hardif_obj = kobject_create_and_add(BATADV_SYSFS_IF_BAT_SUBDIR,
@@ -712,11 +726,11 @@ void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 	*hardif_obj = NULL;
 }
 
-int batadv_throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
-			enum uev_action action, const char *data)
+int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
+			enum batadv_uev_action action, const char *data)
 {
 	int ret = -ENOMEM;
-	struct hard_iface *primary_if = NULL;
+	struct batadv_hard_iface *primary_if = NULL;
 	struct kobject *bat_kobj;
 	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
 
@@ -745,7 +759,7 @@ int batadv_throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
 		batadv_uev_action_str[action]);
 
 	/* If the event is DEL, ignore the data field */
-	if (action != UEV_DEL) {
+	if (action != BATADV_UEV_DEL) {
 		uevent_env[2] = kmalloc(strlen(BATADV_UEV_DATA_VAR) +
 					strlen(data) + 1, GFP_ATOMIC);
 		if (!uevent_env[2])
@@ -764,10 +778,10 @@ out:
 		batadv_hardif_free_ref(primary_if);
 
 	if (ret)
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
 			   batadv_uev_type_str[type],
 			   batadv_uev_action_str[action],
-			   (action == UEV_DEL ? "NULL" : data), ret);
+			   (action == BATADV_UEV_DEL ? "NULL" : data), ret);
 	return ret;
 }

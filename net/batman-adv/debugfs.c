@@ -21,7 +21,7 @@
 
 #include <linux/debugfs.h>
 
-#include "bat_debugfs.h"
+#include "debugfs.h"
 #include "translation-table.h"
 #include "originator.h"
 #include "hard-interface.h"
@@ -36,13 +36,21 @@ static struct dentry *batadv_debugfs;
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 #define BATADV_LOG_BUFF_MASK (batadv_log_buff_len - 1)
-#define BATADV_LOG_BUFF(idx) (debug_log->log_buff[(idx) & BATADV_LOG_BUFF_MASK])
 
-static int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
+static const int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
 
-static void batadv_emit_log_char(struct debug_log *debug_log, char c)
+static char *batadv_log_char_addr(struct batadv_debug_log *debug_log,
+				  size_t idx)
 {
-	BATADV_LOG_BUFF(debug_log->log_end) = c;
+	return &debug_log->log_buff[idx & BATADV_LOG_BUFF_MASK];
+}
+
+static void batadv_emit_log_char(struct batadv_debug_log *debug_log, char c)
+{
+	char *char_addr;
+
+	char_addr = batadv_log_char_addr(debug_log, debug_log->log_end);
+	*char_addr = c;
 	debug_log->log_end++;
 
 	if (debug_log->log_end - debug_log->log_start > batadv_log_buff_len)
@@ -50,7 +58,8 @@ static void batadv_emit_log_char(struct debug_log *debug_log, char c)
 }
 
 __printf(2, 3)
-static int batadv_fdebug_log(struct debug_log *debug_log, const char *fmt, ...)
+static int batadv_fdebug_log(struct batadv_debug_log *debug_log,
+			     const char *fmt, ...)
 {
 	va_list args;
 	static char debug_log_buf[256];
@@ -74,7 +83,7 @@ static int batadv_fdebug_log(struct debug_log *debug_log, const char *fmt, ...)
 	return 0;
 }
 
-int batadv_debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
+int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 {
 	va_list args;
 	char tmp_log_buf[256];
@@ -102,16 +111,21 @@ static int batadv_log_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int batadv_log_empty(struct batadv_debug_log *debug_log)
+{
+	return !(debug_log->log_start - debug_log->log_end);
+}
+
 static ssize_t batadv_log_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct bat_priv *bat_priv = file->private_data;
-	struct debug_log *debug_log = bat_priv->debug_log;
+	struct batadv_priv *bat_priv = file->private_data;
+	struct batadv_debug_log *debug_log = bat_priv->debug_log;
 	int error, i = 0;
+	char *char_addr;
 	char c;
 
-	if ((file->f_flags & O_NONBLOCK) &&
-	    !(debug_log->log_end - debug_log->log_start))
+	if ((file->f_flags & O_NONBLOCK) && batadv_log_empty(debug_log))
 		return -EAGAIN;
 
 	if (!buf)
@@ -124,7 +138,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 		return -EFAULT;
 
 	error = wait_event_interruptible(debug_log->queue_wait,
-				(debug_log->log_start - debug_log->log_end));
+					 (!batadv_log_empty(debug_log)));
 
 	if (error)
 		return error;
@@ -133,7 +147,9 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 
 	while ((!error) && (i < count) &&
 	       (debug_log->log_start != debug_log->log_end)) {
-		c = BATADV_LOG_BUFF(debug_log->log_start);
+		char_addr = batadv_log_char_addr(debug_log,
+						 debug_log->log_start);
+		c = *char_addr;
 
 		debug_log->log_start++;
 
@@ -158,12 +174,12 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 
 static unsigned int batadv_log_poll(struct file *file, poll_table *wait)
 {
-	struct bat_priv *bat_priv = file->private_data;
-	struct debug_log *debug_log = bat_priv->debug_log;
+	struct batadv_priv *bat_priv = file->private_data;
+	struct batadv_debug_log *debug_log = bat_priv->debug_log;
 
 	poll_wait(file, &debug_log->queue_wait, wait);
 
-	if (debug_log->log_end - debug_log->log_start)
+	if (!batadv_log_empty(debug_log))
 		return POLLIN | POLLRDNORM;
 
 	return 0;
@@ -177,7 +193,7 @@ static const struct file_operations batadv_log_fops = {
 	.llseek         = no_llseek,
 };
 
-static int batadv_debug_log_setup(struct bat_priv *bat_priv)
+static int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 {
 	struct dentry *d;
 
@@ -203,19 +219,19 @@ err:
 	return -ENOMEM;
 }
 
-static void batadv_debug_log_cleanup(struct bat_priv *bat_priv)
+static void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
 {
 	kfree(bat_priv->debug_log);
 	bat_priv->debug_log = NULL;
 }
 #else /* CONFIG_BATMAN_ADV_DEBUG */
-static int batadv_debug_log_setup(struct bat_priv *bat_priv)
+static int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 {
 	bat_priv->debug_log = NULL;
 	return 0;
 }
 
-static void batadv_debug_log_cleanup(struct bat_priv *bat_priv)
+static void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
 {
 	return;
 }
@@ -265,13 +281,13 @@ static int batadv_vis_data_open(struct inode *inode, struct file *file)
 	return single_open(file, batadv_vis_seq_print_text, net_dev);
 }
 
-struct bat_debuginfo {
+struct batadv_debuginfo {
 	struct attribute attr;
 	const struct file_operations fops;
 };
 
 #define BATADV_DEBUGINFO(_name, _mode, _open)		\
-struct bat_debuginfo batadv_debuginfo_##_name = {	\
+struct batadv_debuginfo batadv_debuginfo_##_name = {	\
 	.attr = { .name = __stringify(_name),		\
 		  .mode = _mode, },			\
 	.fops = { .owner = THIS_MODULE,			\
@@ -294,7 +310,7 @@ static BATADV_DEBUGINFO(transtable_local, S_IRUGO,
 			batadv_transtable_local_open);
 static BATADV_DEBUGINFO(vis_data, S_IRUGO, batadv_vis_data_open);
 
-static struct bat_debuginfo *batadv_mesh_debuginfos[] = {
+static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 	&batadv_debuginfo_originators,
 	&batadv_debuginfo_gateways,
 	&batadv_debuginfo_transtable_global,
@@ -308,7 +324,7 @@ static struct bat_debuginfo *batadv_mesh_debuginfos[] = {
 
 void batadv_debugfs_init(void)
 {
-	struct bat_debuginfo *bat_debug;
+	struct batadv_debuginfo *bat_debug;
 	struct dentry *file;
 
 	batadv_debugfs = debugfs_create_dir(BATADV_DEBUGFS_SUBDIR, NULL);
@@ -339,8 +355,8 @@ void batadv_debugfs_destroy(void)
 
 int batadv_debugfs_add_meshif(struct net_device *dev)
 {
-	struct bat_priv *bat_priv = netdev_priv(dev);
-	struct bat_debuginfo **bat_debug;
+	struct batadv_priv *bat_priv = netdev_priv(dev);
+	struct batadv_debuginfo **bat_debug;
 	struct dentry *file;
 
 	if (!batadv_debugfs)
@@ -358,9 +374,9 @@ int batadv_debugfs_add_meshif(struct net_device *dev)
 
 	for (bat_debug = batadv_mesh_debuginfos; *bat_debug; ++bat_debug) {
 		file = debugfs_create_file(((*bat_debug)->attr).name,
-					  S_IFREG | ((*bat_debug)->attr).mode,
-					  bat_priv->debug_dir,
-					  dev, &(*bat_debug)->fops);
+					   S_IFREG | ((*bat_debug)->attr).mode,
+					   bat_priv->debug_dir,
+					   dev, &(*bat_debug)->fops);
 		if (!file) {
 			batadv_err(dev, "Can't add debugfs file: %s/%s\n",
 				   dev->name, ((*bat_debug)->attr).name);
@@ -382,7 +398,7 @@ out:
 
 void batadv_debugfs_del_meshif(struct net_device *dev)
 {
-	struct bat_priv *bat_priv = netdev_priv(dev);
+	struct batadv_priv *bat_priv = netdev_priv(dev);
 
 	batadv_debug_log_cleanup(bat_priv);
 

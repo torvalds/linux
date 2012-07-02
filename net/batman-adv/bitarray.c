@@ -41,7 +41,7 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
 int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 			  int32_t seq_num_diff, int set_mark)
 {
-	struct bat_priv *bat_priv = priv;
+	struct batadv_priv *bat_priv = priv;
 
 	/* sequence number is slightly older. We already got a sequence number
 	 * higher than this one, so we just mark it.
@@ -66,7 +66,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 	/* sequence number is much newer, probably missed a lot of packets */
 	if (seq_num_diff >= BATADV_TQ_LOCAL_WINDOW_SIZE &&
 	    seq_num_diff < BATADV_EXPECTED_SEQNO_RANGE) {
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "We missed a lot of packets (%i) !\n",
 			   seq_num_diff - 1);
 		bitmap_zero(seq_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
@@ -83,7 +83,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 	if (seq_num_diff <= -BATADV_TQ_LOCAL_WINDOW_SIZE ||
 	    seq_num_diff >= BATADV_EXPECTED_SEQNO_RANGE) {
 
-		batadv_dbg(DBG_BATMAN, bat_priv,
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Other host probably restarted!\n");
 
 		bitmap_zero(seq_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);

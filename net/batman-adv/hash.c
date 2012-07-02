@@ -21,18 +21,18 @@
 #include "hash.h"
 
 /* clears the hash */
-static void batadv_hash_init(struct hashtable_t *hash)
+static void batadv_hash_init(struct batadv_hashtable *hash)
 {
 	uint32_t i;
 
-	for (i = 0 ; i < hash->size; i++) {
+	for (i = 0; i < hash->size; i++) {
 		INIT_HLIST_HEAD(&hash->table[i]);
 		spin_lock_init(&hash->list_locks[i]);
 	}
 }
 
 /* free only the hashtable and the hash itself. */
-void batadv_hash_destroy(struct hashtable_t *hash)
+void batadv_hash_destroy(struct batadv_hashtable *hash)
 {
 	kfree(hash->list_locks);
 	kfree(hash->table);
@@ -40,9 +40,9 @@ void batadv_hash_destroy(struct hashtable_t *hash)
 }
 
 /* allocates and clears the hash */
-struct hashtable_t *batadv_hash_new(uint32_t size)
+struct batadv_hashtable *batadv_hash_new(uint32_t size)
 {
-	struct hashtable_t *hash;
+	struct batadv_hashtable *hash;
 
 	hash = kmalloc(sizeof(*hash), GFP_ATOMIC);
 	if (!hash)
@@ -68,7 +68,7 @@ free_hash:
 	return NULL;
 }
 
-void batadv_hash_set_lock_class(struct hashtable_t *hash,
+void batadv_hash_set_lock_class(struct batadv_hashtable *hash,
 				struct lock_class_key *key)
 {
 	uint32_t i;
