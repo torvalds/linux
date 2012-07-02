@@ -3467,6 +3467,16 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	/* WaDisable4x2SubspanOptimization */
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
+
+	/* XXX: This is a workaround for early silicon revisions and should be
+	 * removed later.
+	 */
+	I915_WRITE(WM_DBG,
+			I915_READ(WM_DBG) |
+			WM_DBG_DISALLOW_MULTIPLE_LP |
+			WM_DBG_DISALLOW_SPRITE |
+			WM_DBG_DISALLOW_MAXFIFO);
+
 }
 
 static void ivybridge_init_clock_gating(struct drm_device *dev)

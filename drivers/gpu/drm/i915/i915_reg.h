@@ -4453,4 +4453,9 @@
 #define  SFUSE_STRAP_DDIC_DETECTED	(1<<1)
 #define  SFUSE_STRAP_DDID_DETECTED	(1<<0)
 
+#define WM_DBG				0x45280
+#define  WM_DBG_DISALLOW_MULTIPLE_LP	(1<<0)
+#define  WM_DBG_DISALLOW_MAXFIFO	(1<<1)
+#define  WM_DBG_DISALLOW_SPRITE		(1<<2)
+
 #endif /* _I915_REG_H_ */
