@@ -147,23 +147,9 @@ failed:
 
 }
 
-struct local_info_t {
-	struct pcmcia_device *link;
-	struct bus_operations *bus;
-};
-
 static int das08_pcmcia_attach(struct pcmcia_device *link)
 {
-	struct local_info_t *local;
-
 	dev_dbg(&link->dev, "das08_pcmcia_attach()\n");
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-	local->link = link;
-	link->priv = local;
 
 	cur_dev = link;
 
@@ -178,10 +164,6 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "das08_pcmcia_detach\n");
 
 	das08_pcmcia_release(link);
-
-	/* This points to the parent struct local_info_t struct */
-	kfree(link->priv);
-
 }
 
 static const struct pcmcia_device_id das08_cs_id_table[] = {
