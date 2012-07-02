@@ -169,7 +169,8 @@ static struct platform_driver snd_pmac_driver = {
 	.resume		= snd_pmac_driver_resume,
 #endif
 	.driver		= {
-		.name	= SND_PMAC_DRIVER
+		.name	= SND_PMAC_DRIVER,
+		.owner	= THIS_MODULE,
 	},
 };
 

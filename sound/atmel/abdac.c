@@ -589,6 +589,7 @@ static struct platform_driver atmel_abdac_driver = {
 	.remove		= __devexit_p(atmel_abdac_remove),
 	.driver		= {
 		.name	= "atmel_abdac",
+		.owner	= THIS_MODULE,
 	},
 	.suspend	= atmel_abdac_suspend,
 	.resume		= atmel_abdac_resume,

@@ -438,6 +438,7 @@ static struct platform_driver sh_dac_driver = {
 	.remove = snd_sh_dac_remove,
 	.driver = {
 		.name = "dac_audio",
+		.owner	= THIS_MODULE,
 	},
 };
 

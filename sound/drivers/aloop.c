@@ -1209,7 +1209,8 @@ static struct platform_driver loopback_driver = {
 	.resume		= loopback_resume,
 #endif
 	.driver		= {
-		.name	= SND_LOOPBACK_DRIVER
+		.name	= SND_LOOPBACK_DRIVER,
+		.owner	= THIS_MODULE,
 	},
 };
 

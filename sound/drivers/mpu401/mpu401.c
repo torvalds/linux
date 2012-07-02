@@ -139,7 +139,8 @@ static struct platform_driver snd_mpu401_driver = {
 	.probe		= snd_mpu401_probe,
 	.remove		= __devexit_p(snd_mpu401_remove),
 	.driver		= {
-		.name	= SND_MPU401_DRIVER
+		.name	= SND_MPU401_DRIVER,
+		.owner	= THIS_MODULE,
 	},
 };
 

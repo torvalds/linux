@@ -1210,6 +1210,7 @@ static struct platform_driver atmel_ac97c_driver = {
 	.remove		= __devexit_p(atmel_ac97c_remove),
 	.driver		= {
 		.name	= "atmel_ac97c",
+		.owner	= THIS_MODULE,
 	},
 	.suspend	= atmel_ac97c_suspend,
 	.resume		= atmel_ac97c_resume,

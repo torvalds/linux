@@ -1094,7 +1094,8 @@ static struct platform_driver snd_dummy_driver = {
 	.resume		= snd_dummy_resume,
 #endif
 	.driver		= {
-		.name	= SND_DUMMY_DRIVER
+		.name	= SND_DUMMY_DRIVER,
+		.owner	= THIS_MODULE,
 	},
 };
 
