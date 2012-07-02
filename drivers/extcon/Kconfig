@@ -23,7 +23,7 @@ config EXTCON_GPIO
 
 config EXTCON_MAX8997
 	tristate "MAX8997 EXTCON Support"
-	depends on MFD_MAX8997
+	depends on MFD_MAX8997 && IRQ_DOMAIN
 	help
 	  If you say yes here you get support for the MUIC device of
 	  Maxim MAX8997 PMIC. The MAX8997 MUIC is a USB port accessory
