@@ -3589,7 +3589,7 @@ void intel_connector_dpms(struct drm_connector *connector, int mode)
  * of the connector. */
 bool intel_connector_get_hw_state(struct intel_connector *connector)
 {
-	enum pipe pipe;
+	enum pipe pipe = 0;
 	struct intel_encoder *encoder = connector->encoder;
 
 	return encoder->get_hw_state(encoder, &pipe);
@@ -6533,65 +6533,6 @@ free_work:
 	return ret;
 }
 
-static void intel_sanitize_modesetting(struct drm_device *dev,
-				       int pipe, int plane)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg, val;
-	int i;
-
-	/* Clear any frame start delays used for debugging left by the BIOS */
-	for_each_pipe(i) {
-		reg = PIPECONF(i);
-		I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
-	}
-
-	if (HAS_PCH_SPLIT(dev))
-		return;
-
-	/* Who knows what state these registers were left in by the BIOS or
-	 * grub?
-	 *
-	 * If we leave the registers in a conflicting state (e.g. with the
-	 * display plane reading from the other pipe than the one we intend
-	 * to use) then when we attempt to teardown the active mode, we will
-	 * not disable the pipes and planes in the correct order -- leaving
-	 * a plane reading from a disabled pipe and possibly leading to
-	 * undefined behaviour.
-	 */
-
-	reg = DSPCNTR(plane);
-	val = I915_READ(reg);
-
-	if ((val & DISPLAY_PLANE_ENABLE) == 0)
-		return;
-	if (!!(val & DISPPLANE_SEL_PIPE_MASK) == pipe)
-		return;
-
-	/* This display plane is active and attached to the other CPU pipe. */
-	pipe = !pipe;
-
-	/* Disable the plane and wait for it to stop reading from the pipe. */
-	intel_disable_plane(dev_priv, plane, pipe);
-	intel_disable_pipe(dev_priv, pipe);
-}
-
-static void intel_crtc_reset(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	/* Reset flags back to the 'unknown' status so that they
-	 * will be correctly set on the initial modeset.
-	 */
-	intel_crtc->dpms_mode = -1;
-
-	/* We need to fix up any BIOS configuration that conflicts with
-	 * our expectations.
-	 */
-	intel_sanitize_modesetting(dev, intel_crtc->pipe, intel_crtc->plane);
-}
-
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
@@ -7006,7 +6947,6 @@ fail:
 }
 
 static const struct drm_crtc_funcs intel_crtc_funcs = {
-	.reset = intel_crtc_reset,
 	.cursor_set = intel_crtc_cursor_set,
 	.cursor_move = intel_crtc_cursor_move,
 	.gamma_set = intel_crtc_gamma_set,
@@ -7064,8 +7004,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
-	intel_crtc_reset(&intel_crtc->base);
-	intel_crtc->active = true; /* force the pipe off on setup_init_config */
 	intel_crtc->bpp = 24; /* default for pre-Ironlake */
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
@@ -7272,9 +7210,6 @@ static void intel_setup_outputs(struct drm_device *dev)
 		encoder->base.possible_clones =
 			intel_encoder_clones(encoder);
 	}
-
-	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
 
 	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		ironlake_init_pch_refclk(dev);
@@ -7634,11 +7569,222 @@ void intel_modeset_init(struct drm_device *dev)
 	intel_setup_outputs(dev);
 }
 
+static void
+intel_connector_break_all_links(struct intel_connector *connector)
+{
+	connector->base.dpms = DRM_MODE_DPMS_OFF;
+	connector->base.encoder = NULL;
+	connector->encoder->connectors_active = false;
+	connector->encoder->base.crtc = NULL;
+}
+
+static void intel_sanitize_crtc(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg, val;
+
+	/* Clear the dpms state for compatibility with code still using that
+	 * deprecated state variable. */
+	crtc->dpms_mode = -1;
+
+	/* Clear any frame start delays used for debugging left by the BIOS */
+	reg = PIPECONF(crtc->pipe);
+	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
+
+	/* We need to sanitize the plane -> pipe mapping first because this will
+	 * disable the crtc (and hence change the state) if it is wrong. */
+	if (!HAS_PCH_SPLIT(dev)) {
+		struct intel_connector *connector;
+		bool plane;
+
+		reg = DSPCNTR(crtc->plane);
+		val = I915_READ(reg);
+
+		if ((val & DISPLAY_PLANE_ENABLE) == 0 &&
+		    (!!(val & DISPPLANE_SEL_PIPE_MASK) == crtc->pipe))
+			goto ok;
+
+		DRM_DEBUG_KMS("[CRTC:%d] wrong plane connection detected!\n",
+			      crtc->base.base.id);
+
+		/* Pipe has the wrong plane attached and the plane is active.
+		 * Temporarily change the plane mapping and disable everything
+		 * ...  */
+		plane = crtc->plane;
+		crtc->plane = !plane;
+		dev_priv->display.crtc_disable(&crtc->base);
+		crtc->plane = plane;
+
+		/* ... and break all links. */
+		list_for_each_entry(connector, &dev->mode_config.connector_list,
+				    base.head) {
+			if (connector->encoder->base.crtc != &crtc->base)
+				continue;
+
+			intel_connector_break_all_links(connector);
+		}
+
+		WARN_ON(crtc->active);
+		crtc->base.enabled = false;
+	}
+ok:
+
+	/* Adjust the state of the output pipe according to whether we
+	 * have active connectors/encoders. */
+	intel_crtc_update_dpms(&crtc->base);
+
+	if (crtc->active != crtc->base.enabled) {
+		struct intel_encoder *encoder;
+
+		/* This can happen either due to bugs in the get_hw_state
+		 * functions or because the pipe is force-enabled due to the
+		 * pipe A quirk. */
+		DRM_DEBUG_KMS("[CRTC:%d] hw state adjusted, was %s, now %s\n",
+			      crtc->base.base.id,
+			      crtc->base.enabled ? "enabled" : "disabled",
+			      crtc->active ? "enabled" : "disabled");
+
+		crtc->base.enabled = crtc->active;
+
+		/* Because we only establish the connector -> encoder ->
+		 * crtc links if something is active, this means the
+		 * crtc is now deactivated. Break the links. connector
+		 * -> encoder links are only establish when things are
+		 *  actually up, hence no need to break them. */
+		WARN_ON(crtc->active);
+
+		for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
+			WARN_ON(encoder->connectors_active);
+			encoder->base.crtc = NULL;
+		}
+	}
+}
+
+static void intel_sanitize_encoder(struct intel_encoder *encoder)
+{
+	struct intel_connector *connector;
+	struct drm_device *dev = encoder->base.dev;
+
+	/* We need to check both for a crtc link (meaning that the
+	 * encoder is active and trying to read from a pipe) and the
+	 * pipe itself being active. */
+	bool has_active_crtc = encoder->base.crtc &&
+		to_intel_crtc(encoder->base.crtc)->active;
+
+	if (encoder->connectors_active && !has_active_crtc) {
+		DRM_DEBUG_KMS("[ENCODER:%d:%s] has active connectors but no active pipe!\n",
+			      encoder->base.base.id,
+			      drm_get_encoder_name(&encoder->base));
+
+		/* Connector is active, but has no active pipe. This is
+		 * fallout from our resume register restoring. Disable
+		 * the encoder manually again. */
+		if (encoder->base.crtc) {
+			DRM_DEBUG_KMS("[ENCODER:%d:%s] manually disabled\n",
+				      encoder->base.base.id,
+				      drm_get_encoder_name(&encoder->base));
+			encoder->disable(encoder);
+		}
+
+		/* Inconsistent output/port/pipe state happens presumably due to
+		 * a bug in one of the get_hw_state functions. Or someplace else
+		 * in our code, like the register restore mess on resume. Clamp
+		 * things to off as a safer default. */
+		list_for_each_entry(connector,
+				    &dev->mode_config.connector_list,
+				    base.head) {
+			if (connector->encoder != encoder)
+				continue;
+
+			intel_connector_break_all_links(connector);
+		}
+	}
+	/* Enabled encoders without active connectors will be fixed in
+	 * the crtc fixup. */
+}
+
+/* Scan out the current hw modeset state, sanitizes it and maps it into the drm
+ * and i915 state tracking structures. */
+void intel_modeset_setup_hw_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe;
+	u32 tmp;
+	struct intel_crtc *crtc;
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+
+	for_each_pipe(pipe) {
+		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+
+		tmp = I915_READ(PIPECONF(pipe));
+		if (tmp & PIPECONF_ENABLE)
+			crtc->active = true;
+		else
+			crtc->active = false;
+
+		crtc->base.enabled = crtc->active;
+
+		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
+			      crtc->base.base.id,
+			      crtc->active ? "enabled" : "disabled");
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		pipe = 0;
+
+		if (encoder->get_hw_state(encoder, &pipe)) {
+			encoder->base.crtc =
+				dev_priv->pipe_to_crtc_mapping[pipe];
+		} else {
+			encoder->base.crtc = NULL;
+		}
+
+		encoder->connectors_active = false;
+		DRM_DEBUG_KMS("[ENCODER:%d:%s] hw state readout: %s, pipe=%i\n",
+			      encoder->base.base.id,
+			      drm_get_encoder_name(&encoder->base),
+			      encoder->base.crtc ? "enabled" : "disabled",
+			      pipe);
+	}
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+		if (connector->get_hw_state(connector)) {
+			connector->base.dpms = DRM_MODE_DPMS_ON;
+			connector->encoder->connectors_active = true;
+			connector->base.encoder = &connector->encoder->base;
+		} else {
+			connector->base.dpms = DRM_MODE_DPMS_OFF;
+			connector->base.encoder = NULL;
+		}
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] hw state readout: %s\n",
+			      connector->base.base.id,
+			      drm_get_connector_name(&connector->base),
+			      connector->base.encoder ? "enabled" : "disabled");
+	}
+
+	/* HW state is read out, now we need to sanitize this mess. */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		intel_sanitize_encoder(encoder);
+	}
+
+	for_each_pipe(pipe) {
+		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+		intel_sanitize_crtc(crtc);
+	}
+}
+
 void intel_modeset_gem_init(struct drm_device *dev)
 {
 	intel_modeset_init_hw(dev);
 
 	intel_setup_overlay(dev);
+
+	intel_modeset_setup_hw_state(dev);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
