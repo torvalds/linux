@@ -232,7 +232,7 @@ MODULE_PARM_DESC(invert, "Invert the signal from the IR receiver");
 
 static bool txandrx; /* default = 0 */
 module_param(txandrx, bool, 0444);
-MODULE_PARM_DESC(invert, "Allow simultaneous TX and RX");
+MODULE_PARM_DESC(txandrx, "Allow simultaneous TX and RX");
 
 static unsigned int wake_sc = 0x800F040C;
 module_param(wake_sc, uint, 0644);
