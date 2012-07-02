@@ -4044,6 +4044,11 @@ static bool svm_rdtscp_supported(void)
 	return false;
 }
 
+static bool svm_invpcid_supported(void)
+{
+	return false;
+}
+
 static bool svm_has_wbinvd_exit(void)
 {
 	return true;
@@ -4312,6 +4317,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.cpuid_update = svm_cpuid_update,
 
 	.rdtscp_supported = svm_rdtscp_supported,
+	.invpcid_supported = svm_invpcid_supported,
 
 	.set_supported_cpuid = svm_set_supported_cpuid,
 
