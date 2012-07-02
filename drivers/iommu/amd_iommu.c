@@ -3353,6 +3353,8 @@ static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
 		return 1;
+	case IOMMU_CAP_INTR_REMAP:
+		return irq_remapping_enabled;
 	}
 
 	return 0;
