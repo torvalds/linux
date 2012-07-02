@@ -60,6 +60,15 @@ config DRM_GEM_CMA_HELPER
 	help
 	  Choose this if you need the GEM CMA helper functions
 
+config DRM_KMS_CMA_HELPER
+	bool
+	select DRM_GEM_CMA_HELPER
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	help
+	  Choose this if you need the KMS CMA helper functions
+
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
 	depends on DRM && PCI
