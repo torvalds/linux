@@ -235,36 +235,23 @@ struct pcmcia_driver das08_cs_driver = {
 	.name = "pcm-das08",
 };
 
-static int __init init_das08_pcmcia_cs(void)
-{
-	pcmcia_register_driver(&das08_cs_driver);
-	return 0;
-}
-
-static void __exit exit_das08_pcmcia_cs(void)
-{
-	pr_debug("das08_pcmcia_cs: unloading\n");
-	pcmcia_unregister_driver(&das08_cs_driver);
-}
-
 static int __init das08_cs_init_module(void)
 {
 	int ret;
 
-	ret = init_das08_pcmcia_cs();
+	ret = pcmcia_register_driver(&das08_cs_driver);
 	if (ret < 0)
 		return ret;
 
 	return comedi_driver_register(&driver_das08_cs);
 }
+module_init(das08_cs_init_module);
 
 static void __exit das08_cs_exit_module(void)
 {
-	exit_das08_pcmcia_cs();
+	pcmcia_unregister_driver(&das08_cs_driver);
 	comedi_driver_unregister(&driver_das08_cs);
 }
-
-module_init(das08_cs_init_module);
 module_exit(das08_cs_exit_module);
 
 MODULE_AUTHOR("David A. Schleef <ds@schleef.org>, "
