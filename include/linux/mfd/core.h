@@ -36,6 +36,10 @@ struct mfd_cell {
 	/* platform data passed to the sub devices drivers */
 	void			*platform_data;
 	size_t			pdata_size;
+	/*
+	 * Device Tree compatible string
+	 * See: Documentation/devicetree/usage-model.txt Chapter 2.2 for details
+	 */
 	const char		*of_compatible;
 
 	/*
