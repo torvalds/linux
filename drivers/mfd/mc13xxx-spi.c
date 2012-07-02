@@ -139,7 +139,9 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 	mc13xxx->dev = &spi->dev;
 	mutex_init(&mc13xxx->lock);
 
-	mc13xxx->regmap = devm_regmap_init_spi(spi, &mc13xxx_regmap_spi_config);
+	mc13xxx->regmap = devm_regmap_init(&spi->dev, &regmap_mc13xxx_bus,
+					   &spi->dev,
+					   &mc13xxx_regmap_spi_config);
 	if (IS_ERR(mc13xxx->regmap)) {
 		ret = PTR_ERR(mc13xxx->regmap);
 		dev_err(mc13xxx->dev, "Failed to initialize register map: %d\n",
