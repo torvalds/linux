@@ -505,8 +505,16 @@
 			};
 
 			snvs@020cc000 {
-				reg = <0x020cc000 0x4000>;
-				interrupts = <0 19 0x04 0 20 0x04>;
+				compatible = "fsl,sec-v4.0-mon", "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x020cc000 0x4000>;
+
+				snvs-rtc-lp@34 {
+					compatible = "fsl,sec-v4.0-mon-rtc-lp";
+					reg = <0x34 0x58>;
+					interrupts = <0 19 0x04 0 20 0x04>;
+				};
 			};
 
 			epit@020d0000 { /* EPIT1 */
