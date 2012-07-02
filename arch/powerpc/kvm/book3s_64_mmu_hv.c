@@ -870,6 +870,13 @@ int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 	return 0;
 }
 
+int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+{
+	if (kvm->arch.using_mmu_notifiers)
+		kvm_handle_hva_range(kvm, start, end, kvm_unmap_rmapp);
+	return 0;
+}
+
 static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			 unsigned long gfn)
 {

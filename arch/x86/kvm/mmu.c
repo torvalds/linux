@@ -1324,6 +1324,11 @@ int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 	return kvm_handle_hva(kvm, hva, 0, kvm_unmap_rmapp);
 }
 
+int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+{
+	return kvm_handle_hva_range(kvm, start, end, 0, kvm_unmap_rmapp);
+}
+
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 {
 	kvm_handle_hva(kvm, hva, (unsigned long)&pte, kvm_set_pte_rmapp);
