@@ -241,8 +241,8 @@ static int spear_smi_read_sr(struct spear_smi *dev, u32 bank)
 	/* copy dev->status (lower 16 bits) in order to release lock */
 	if (ret > 0)
 		ret = dev->status & 0xffff;
-	else
-		ret = -EIO;
+	else if (ret == 0)
+		ret = -ETIMEDOUT;
 
 	/* restore the ctrl regs state */
 	writel(ctrlreg1, dev->io_base + SMI_CR1);
@@ -270,16 +270,19 @@ static int spear_smi_wait_till_ready(struct spear_smi *dev, u32 bank,
 	finish = jiffies + timeout;
 	do {
 		status = spear_smi_read_sr(dev, bank);
-		if (status < 0)
-			continue; /* try till timeout */
-		else if (!(status & SR_WIP))
+		if (status < 0) {
+			if (status == -ETIMEDOUT)
+				continue; /* try till finish */
+			return status;
+		} else if (!(status & SR_WIP)) {
 			return 0;
+		}
 
 		cond_resched();
 	} while (!time_after_eq(jiffies, finish));
 
 	dev_err(&dev->pdev->dev, "smi controller is busy, timeout\n");
-	return status;
+	return -EBUSY;
 }
 
 /**
@@ -395,11 +398,11 @@ static int spear_smi_write_enable(struct spear_smi *dev, u32 bank)
 	writel(ctrlreg1, dev->io_base + SMI_CR1);
 	writel(0, dev->io_base + SMI_CR2);
 
-	if (ret <= 0) {
+	if (ret == 0) {
 		ret = -EIO;
 		dev_err(&dev->pdev->dev,
 			"smi controller failed on write enable\n");
-	} else {
+	} else if (ret > 0) {
 		/* check whether write mode status is set for required bank */
 		if (dev->status & (1 << (bank + WM_SHIFT)))
 			ret = 0;
@@ -466,10 +469,10 @@ static int spear_smi_erase_sector(struct spear_smi *dev,
 	ret = wait_event_interruptible_timeout(dev->cmd_complete,
 			dev->status & TFF, SMI_CMD_TIMEOUT);
 
-	if (ret <= 0) {
+	if (ret == 0) {
 		ret = -EIO;
 		dev_err(&dev->pdev->dev, "sector erase failed\n");
-	} else
+	} else if (ret > 0)
 		ret = 0; /* success */
 
 	/* restore ctrl regs */
