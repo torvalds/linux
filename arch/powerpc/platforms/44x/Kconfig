@@ -252,6 +252,14 @@ config PPC4xx_GPIO
 	help
 	  Enable gpiolib support for ppc440 based boards
 
+config PPC4xx_OCM
+	bool "PPC4xx On Chip Memory (OCM) support"
+	depends on 4xx
+	select PPC_LIB_RHEAP
+	help
+	  Enable OCM support for PowerPC 4xx platforms with on chip memory,
+	  OCM provides the fast place for memory access to improve performance.
+
 # 44x specific CPU modules, selected based on the board above.
 config 440EP
 	bool
