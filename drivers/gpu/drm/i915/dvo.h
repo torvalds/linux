@@ -114,6 +114,12 @@ struct intel_dvo_dev_ops {
 	 */
 	enum drm_connector_status (*detect)(struct intel_dvo_device *dvo);
 
+	/*
+	 * Probe the current hw status, returning true if the connected output
+	 * is active.
+	 */
+	bool (*get_hw_state)(struct intel_dvo_device *dev);
+
 	/**
 	 * Query the device for the modes it provides.
 	 *

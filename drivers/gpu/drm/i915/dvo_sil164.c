@@ -226,6 +226,21 @@ static void sil164_dpms(struct intel_dvo_device *dvo, bool enable)
 	return;
 }
 
+static bool sil164_get_hw_state(struct intel_dvo_device *dvo)
+{
+	int ret;
+	unsigned char ch;
+
+	ret = sil164_readb(dvo, SIL164_REG8, &ch);
+	if (ret == false)
+		return false;
+
+	if (ch & SIL164_8_PD)
+		return true;
+	else
+		return false;
+}
+
 static void sil164_dump_regs(struct intel_dvo_device *dvo)
 {
 	uint8_t val;
@@ -258,6 +273,7 @@ struct intel_dvo_dev_ops sil164_ops = {
 	.mode_valid = sil164_mode_valid,
 	.mode_set = sil164_mode_set,
 	.dpms = sil164_dpms,
+	.get_hw_state = sil164_get_hw_state,
 	.dump_regs = sil164_dump_regs,
 	.destroy = sil164_destroy,
 };

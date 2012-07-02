@@ -105,6 +105,31 @@ static struct intel_dvo *intel_attached_dvo(struct drm_connector *connector)
 			    struct intel_dvo, base);
 }
 
+static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
+{
+	struct intel_dvo *intel_dvo = intel_attached_dvo(&connector->base);
+
+	return intel_dvo->dev.dev_ops->get_hw_state(&intel_dvo->dev);
+}
+
+static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
+				   enum pipe *pipe)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	u32 tmp;
+
+	tmp = I915_READ(intel_dvo->dev.dvo_reg);
+
+	if (!(tmp & DVO_ENABLE))
+		return false;
+
+	*pipe = PORT_TO_PIPE(tmp);
+
+	return true;
+}
+
 static void intel_disable_dvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -414,6 +439,8 @@ void intel_dvo_init(struct drm_device *dev)
 
 	intel_encoder->disable = intel_disable_dvo;
 	intel_encoder->enable = intel_enable_dvo;
+	intel_encoder->get_hw_state = intel_dvo_get_hw_state;
+	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
 
 	/* Now, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
