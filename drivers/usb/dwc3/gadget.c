@@ -2448,7 +2448,7 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 		reg &= ~(DWC3_DCTL_HIRD_THRES_MASK | DWC3_DCTL_L1_HIBER_EN);
 
 		/* TODO: This should be configurable */
-		reg |= DWC3_DCTL_HIRD_THRES(31);
+		reg |= DWC3_DCTL_HIRD_THRES(28);
 
 		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 
