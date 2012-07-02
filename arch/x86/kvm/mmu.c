@@ -1259,10 +1259,13 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	return 0;
 }
 
-static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
-			  unsigned long data,
-			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
-					 unsigned long data))
+static int kvm_handle_hva_range(struct kvm *kvm,
+				unsigned long start,
+				unsigned long end,
+				unsigned long data,
+				int (*handler)(struct kvm *kvm,
+					       unsigned long *rmapp,
+					       unsigned long data))
 {
 	int j;
 	int ret;
@@ -1273,13 +1276,22 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 	slots = kvm_memslots(kvm);
 
 	kvm_for_each_memslot(memslot, slots) {
-		unsigned long start = memslot->userspace_addr;
-		unsigned long end;
+		unsigned long hva_start, hva_end;
+		gfn_t gfn, gfn_end;
 
-		end = start + (memslot->npages << PAGE_SHIFT);
-		if (hva >= start && hva < end) {
-			gfn_t gfn = hva_to_gfn_memslot(hva, memslot);
+		hva_start = max(start, memslot->userspace_addr);
+		hva_end = min(end, memslot->userspace_addr +
+					(memslot->npages << PAGE_SHIFT));
+		if (hva_start >= hva_end)
+			continue;
+		/*
+		 * {gfn(page) | page intersects with [hva_start, hva_end)} =
+		 * {gfn, gfn+1, ..., gfn_end-1}.
+		 */
+		gfn = hva_to_gfn_memslot(hva_start, memslot);
+		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
 
+		for (; gfn < gfn_end; ++gfn) {
 			ret = 0;
 
 			for (j = PT_PAGE_TABLE_LEVEL;
@@ -1289,12 +1301,22 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 				rmapp = __gfn_to_rmap(gfn, j, memslot);
 				ret |= handler(kvm, rmapp, data);
 			}
-			trace_kvm_age_page(hva, memslot, ret);
+			trace_kvm_age_page(memslot->userspace_addr +
+					(gfn - memslot->base_gfn) * PAGE_SIZE,
+					memslot, ret);
 			retval |= ret;
 		}
 	}
 
 	return retval;
+}
+
+static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
+			  unsigned long data,
+			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
+					 unsigned long data))
+{
+	return kvm_handle_hva_range(kvm, hva, hva + 1, data, handler);
 }
 
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)

@@ -756,9 +756,12 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	goto out_put;
 }
 
-static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
-			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
-					 unsigned long gfn))
+static int kvm_handle_hva_range(struct kvm *kvm,
+				unsigned long start,
+				unsigned long end,
+				int (*handler)(struct kvm *kvm,
+					       unsigned long *rmapp,
+					       unsigned long gfn))
 {
 	int ret;
 	int retval = 0;
@@ -767,12 +770,22 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 
 	slots = kvm_memslots(kvm);
 	kvm_for_each_memslot(memslot, slots) {
-		unsigned long start = memslot->userspace_addr;
-		unsigned long end;
+		unsigned long hva_start, hva_end;
+		gfn_t gfn, gfn_end;
 
-		end = start + (memslot->npages << PAGE_SHIFT);
-		if (hva >= start && hva < end) {
-			gfn_t gfn = hva_to_gfn_memslot(hva, memslot);
+		hva_start = max(start, memslot->userspace_addr);
+		hva_end = min(end, memslot->userspace_addr +
+					(memslot->npages << PAGE_SHIFT));
+		if (hva_start >= hva_end)
+			continue;
+		/*
+		 * {gfn(page) | page intersects with [hva_start, hva_end)} =
+		 * {gfn, gfn+1, ..., gfn_end-1}.
+		 */
+		gfn = hva_to_gfn_memslot(hva_start, memslot);
+		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
+
+		for (; gfn < gfn_end; ++gfn) {
 			gfn_t gfn_offset = gfn - memslot->base_gfn;
 
 			ret = handler(kvm, &memslot->rmap[gfn_offset], gfn);
@@ -781,6 +794,13 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 	}
 
 	return retval;
+}
+
+static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
+			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
+					 unsigned long gfn))
+{
+	return kvm_handle_hva_range(kvm, hva, hva + 1, handler);
 }
 
 static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
