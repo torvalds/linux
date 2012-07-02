@@ -187,6 +187,9 @@ int driver_register(struct device_driver *drv)
 	ret = driver_add_groups(drv, drv->groups);
 	if (ret)
 		bus_remove_driver(drv);
+
+	kobject_uevent(&drv->p->kobj, KOBJ_ADD);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(driver_register);
