@@ -1180,10 +1180,10 @@ static struct tegra_dma_chip_data tegra30_dma_chip_data = {
 
 static const struct of_device_id tegra_dma_of_match[] __devinitconst = {
 	{
-		.compatible = "nvidia,tegra30-apbdma-new",
+		.compatible = "nvidia,tegra30-apbdma",
 		.data = &tegra30_dma_chip_data,
 	}, {
-		.compatible = "nvidia,tegra20-apbdma-new",
+		.compatible = "nvidia,tegra20-apbdma",
 		.data = &tegra20_dma_chip_data,
 	}, {
 	},
@@ -1398,7 +1398,7 @@ static const struct dev_pm_ops tegra_dma_dev_pm_ops __devinitconst = {
 
 static struct platform_driver tegra_dmac_driver = {
 	.driver = {
-		.name	= "tegra20-apbdma",
+		.name	= "tegra-apbdma",
 		.owner = THIS_MODULE,
 		.pm	= &tegra_dma_dev_pm_ops,
 		.of_match_table = of_match_ptr(tegra_dma_of_match),
