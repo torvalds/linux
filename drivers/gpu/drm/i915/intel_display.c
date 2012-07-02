@@ -5767,7 +5767,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		goto fail;
 	}
 
-	if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, old_fb)) {
+	if (!intel_set_mode(crtc, mode, 0, 0, old_fb)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
@@ -6635,6 +6635,157 @@ intel_crtc_helper_disable(struct drm_crtc *crtc)
 	return 0;
 }
 
+static void
+intel_encoder_disable_helper(struct drm_encoder *encoder)
+{
+	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
+
+	if (encoder_funcs->disable)
+		(*encoder_funcs->disable)(encoder);
+	else
+		(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+}
+
+static void
+intel_crtc_prepare_encoders(struct drm_device *dev)
+{
+	struct drm_encoder_helper_funcs *encoder_funcs;
+	struct drm_encoder *encoder;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		encoder_funcs = encoder->helper_private;
+		/* Disable unused encoders */
+		if (encoder->crtc == NULL)
+			intel_encoder_disable_helper(encoder);
+		/* Disable encoders whose CRTC is about to change */
+		if (encoder_funcs->get_crtc &&
+		    encoder->crtc != (*encoder_funcs->get_crtc)(encoder))
+			intel_encoder_disable_helper(encoder);
+	}
+}
+
+bool intel_set_mode(struct drm_crtc *crtc,
+		    struct drm_display_mode *mode,
+		    int x, int y, struct drm_framebuffer *old_fb)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_display_mode *adjusted_mode, saved_mode, saved_hwmode;
+	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	struct drm_encoder_helper_funcs *encoder_funcs;
+	int saved_x, saved_y;
+	struct drm_encoder *encoder;
+	bool ret = true;
+
+	crtc->enabled = drm_helper_crtc_in_use(crtc);
+	if (!crtc->enabled)
+		return true;
+
+	adjusted_mode = drm_mode_duplicate(dev, mode);
+	if (!adjusted_mode)
+		return false;
+
+	saved_hwmode = crtc->hwmode;
+	saved_mode = crtc->mode;
+	saved_x = crtc->x;
+	saved_y = crtc->y;
+
+	/* Update crtc values up front so the driver can rely on them for mode
+	 * setting.
+	 */
+	crtc->mode = *mode;
+	crtc->x = x;
+	crtc->y = y;
+
+	/* Pass our mode to the connectors and the CRTC to give them a chance to
+	 * adjust it according to limitations or connector properties, and also
+	 * a chance to reject the mode entirely.
+	 */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+
+		if (encoder->crtc != crtc)
+			continue;
+		encoder_funcs = encoder->helper_private;
+		if (!(ret = encoder_funcs->mode_fixup(encoder, mode,
+						      adjusted_mode))) {
+			DRM_DEBUG_KMS("Encoder fixup failed\n");
+			goto done;
+		}
+	}
+
+	if (!(ret = crtc_funcs->mode_fixup(crtc, mode, adjusted_mode))) {
+		DRM_DEBUG_KMS("CRTC fixup failed\n");
+		goto done;
+	}
+	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
+
+	/* Prepare the encoders and CRTCs before setting the mode. */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+
+		if (encoder->crtc != crtc)
+			continue;
+		encoder_funcs = encoder->helper_private;
+		/* Disable the encoders as the first thing we do. */
+		encoder_funcs->prepare(encoder);
+	}
+
+	intel_crtc_prepare_encoders(dev);
+
+	crtc_funcs->prepare(crtc);
+
+	/* Set up the DPLL and any encoders state that needs to adjust or depend
+	 * on the DPLL.
+	 */
+	ret = !crtc_funcs->mode_set(crtc, mode, adjusted_mode, x, y, old_fb);
+	if (!ret)
+	    goto done;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+
+		if (encoder->crtc != crtc)
+			continue;
+
+		DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%d:%s]\n",
+			encoder->base.id, drm_get_encoder_name(encoder),
+			mode->base.id, mode->name);
+		encoder_funcs = encoder->helper_private;
+		encoder_funcs->mode_set(encoder, mode, adjusted_mode);
+	}
+
+	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
+	crtc_funcs->commit(crtc);
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+
+		if (encoder->crtc != crtc)
+			continue;
+
+		encoder_funcs = encoder->helper_private;
+		encoder_funcs->commit(encoder);
+
+	}
+
+	/* Store real post-adjustment hardware mode. */
+	crtc->hwmode = *adjusted_mode;
+
+	/* Calculate and store various constants which
+	 * are later needed by vblank and swap-completion
+	 * timestamping. They are derived from true hwmode.
+	 */
+	drm_calc_timestamping_constants(crtc);
+
+	/* FIXME: add subpixel order */
+done:
+	drm_mode_destroy(dev, adjusted_mode);
+	if (!ret) {
+		crtc->hwmode = saved_hwmode;
+		crtc->mode = saved_mode;
+		crtc->x = saved_x;
+		crtc->y = saved_y;
+	}
+
+	return ret;
+}
+
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
@@ -6817,9 +6968,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 			drm_mode_debug_printmodeline(set->mode);
 			old_fb = set->crtc->fb;
 			set->crtc->fb = set->fb;
-			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
-						      set->x, set->y,
-						      old_fb)) {
+			if (!intel_set_mode(set->crtc, set->mode,
+					    set->x, set->y, old_fb)) {
 				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
 					  set->crtc->base.id);
 				set->crtc->fb = old_fb;
@@ -6873,8 +7023,8 @@ fail:
 
 	/* Try to restore the config */
 	if (mode_changed &&
-	    !drm_crtc_helper_set_mode(save_set.crtc, save_set.mode, save_set.x,
-				      save_set.y, save_set.fb))
+	    !intel_set_mode(save_set.crtc, save_set.mode,
+			    save_set.x, save_set.y, save_set.fb))
 		DRM_ERROR("failed to restore config after modeset failure\n");
 
 	kfree(save_connectors);

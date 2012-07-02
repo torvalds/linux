@@ -1471,8 +1471,8 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 	}
 
 	if (changed && crtc)
-		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x,
-				crtc->y, crtc->fb);
+		intel_set_mode(crtc, &crtc->mode,
+			       crtc->x, crtc->y, crtc->fb);
 out:
 	return ret;
 }
