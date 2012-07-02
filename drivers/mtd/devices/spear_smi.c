@@ -336,6 +336,9 @@ static void spear_smi_hw_init(struct spear_smi *dev)
 	val = HOLD1 | BANK_EN | DSEL_TIME | (prescale << 8);
 
 	mutex_lock(&dev->lock);
+	/* clear all interrupt conditions */
+	writel(0, dev->io_base + SMI_SR);
+
 	writel(val, dev->io_base + SMI_CR1);
 	mutex_unlock(&dev->lock);
 }
