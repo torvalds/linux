@@ -68,49 +68,50 @@
 #define MX2x_CSI_BASE_ADDR			(MX2x_SAHB1_BASE_ADDR + 0x0000)
 
 /* fixed interrupt numbers */
-#define MX2x_INT_CSPI3		6
-#define MX2x_INT_GPIO		8
-#define MX2x_INT_SDHC2		10
-#define MX2x_INT_SDHC1		11
-#define MX2x_INT_I2C		12
-#define MX2x_INT_SSI2		13
-#define MX2x_INT_SSI1		14
-#define MX2x_INT_CSPI2		15
-#define MX2x_INT_CSPI1		16
-#define MX2x_INT_UART4		17
-#define MX2x_INT_UART3		18
-#define MX2x_INT_UART2		19
-#define MX2x_INT_UART1		20
-#define MX2x_INT_KPP		21
-#define MX2x_INT_RTC		22
-#define MX2x_INT_PWM		23
-#define MX2x_INT_GPT3		24
-#define MX2x_INT_GPT2		25
-#define MX2x_INT_GPT1		26
-#define MX2x_INT_WDOG		27
-#define MX2x_INT_PCMCIA		28
-#define MX2x_INT_NANDFC		29
-#define MX2x_INT_CSI		31
-#define MX2x_INT_DMACH0		32
-#define MX2x_INT_DMACH1		33
-#define MX2x_INT_DMACH2		34
-#define MX2x_INT_DMACH3		35
-#define MX2x_INT_DMACH4		36
-#define MX2x_INT_DMACH5		37
-#define MX2x_INT_DMACH6		38
-#define MX2x_INT_DMACH7		39
-#define MX2x_INT_DMACH8		40
-#define MX2x_INT_DMACH9		41
-#define MX2x_INT_DMACH10	42
-#define MX2x_INT_DMACH11	43
-#define MX2x_INT_DMACH12	44
-#define MX2x_INT_DMACH13	45
-#define MX2x_INT_DMACH14	46
-#define MX2x_INT_DMACH15	47
-#define MX2x_INT_EMMAPRP	51
-#define MX2x_INT_EMMAPP		52
-#define MX2x_INT_SLCDC		60
-#define MX2x_INT_LCDC		61
+#include <asm/irq.h>
+#define MX2x_INT_CSPI3		(NR_IRQS_LEGACY + 6)
+#define MX2x_INT_GPIO		(NR_IRQS_LEGACY + 8)
+#define MX2x_INT_SDHC2		(NR_IRQS_LEGACY + 10)
+#define MX2x_INT_SDHC1		(NR_IRQS_LEGACY + 11)
+#define MX2x_INT_I2C		(NR_IRQS_LEGACY + 12)
+#define MX2x_INT_SSI2		(NR_IRQS_LEGACY + 13)
+#define MX2x_INT_SSI1		(NR_IRQS_LEGACY + 14)
+#define MX2x_INT_CSPI2		(NR_IRQS_LEGACY + 15)
+#define MX2x_INT_CSPI1		(NR_IRQS_LEGACY + 16)
+#define MX2x_INT_UART4		(NR_IRQS_LEGACY + 17)
+#define MX2x_INT_UART3		(NR_IRQS_LEGACY + 18)
+#define MX2x_INT_UART2		(NR_IRQS_LEGACY + 19)
+#define MX2x_INT_UART1		(NR_IRQS_LEGACY + 20)
+#define MX2x_INT_KPP		(NR_IRQS_LEGACY + 21)
+#define MX2x_INT_RTC		(NR_IRQS_LEGACY + 22)
+#define MX2x_INT_PWM		(NR_IRQS_LEGACY + 23)
+#define MX2x_INT_GPT3		(NR_IRQS_LEGACY + 24)
+#define MX2x_INT_GPT2		(NR_IRQS_LEGACY + 25)
+#define MX2x_INT_GPT1		(NR_IRQS_LEGACY + 26)
+#define MX2x_INT_WDOG		(NR_IRQS_LEGACY + 27)
+#define MX2x_INT_PCMCIA		(NR_IRQS_LEGACY + 28)
+#define MX2x_INT_NANDFC		(NR_IRQS_LEGACY + 29)
+#define MX2x_INT_CSI		(NR_IRQS_LEGACY + 31)
+#define MX2x_INT_DMACH0		(NR_IRQS_LEGACY + 32)
+#define MX2x_INT_DMACH1		(NR_IRQS_LEGACY + 33)
+#define MX2x_INT_DMACH2		(NR_IRQS_LEGACY + 34)
+#define MX2x_INT_DMACH3		(NR_IRQS_LEGACY + 35)
+#define MX2x_INT_DMACH4		(NR_IRQS_LEGACY + 36)
+#define MX2x_INT_DMACH5		(NR_IRQS_LEGACY + 37)
+#define MX2x_INT_DMACH6		(NR_IRQS_LEGACY + 38)
+#define MX2x_INT_DMACH7		(NR_IRQS_LEGACY + 39)
+#define MX2x_INT_DMACH8		(NR_IRQS_LEGACY + 40)
+#define MX2x_INT_DMACH9		(NR_IRQS_LEGACY + 41)
+#define MX2x_INT_DMACH10	(NR_IRQS_LEGACY + 42)
+#define MX2x_INT_DMACH11	(NR_IRQS_LEGACY + 43)
+#define MX2x_INT_DMACH12	(NR_IRQS_LEGACY + 44)
+#define MX2x_INT_DMACH13	(NR_IRQS_LEGACY + 45)
+#define MX2x_INT_DMACH14	(NR_IRQS_LEGACY + 46)
+#define MX2x_INT_DMACH15	(NR_IRQS_LEGACY + 47)
+#define MX2x_INT_EMMAPRP	(NR_IRQS_LEGACY + 51)
+#define MX2x_INT_EMMAPP		(NR_IRQS_LEGACY + 52)
+#define MX2x_INT_SLCDC		(NR_IRQS_LEGACY + 60)
+#define MX2x_INT_LCDC		(NR_IRQS_LEGACY + 61)
 
 /* fixed DMA request numbers */
 #define MX2x_DMA_REQ_CSPI3_RX	1

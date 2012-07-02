@@ -76,10 +76,6 @@ static const struct fb_videomode fb_modedb[] = {
 	},
 };
 
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "Sharp-LQ035Q7",
 	.mode		= fb_modedb,
@@ -376,7 +372,7 @@ static void __init pcm043_init(void)
 
 	imx35_add_imx_i2c0(&pcm043_i2c0_data);
 
-	imx35_add_ipu_core(&mx3_ipu_data);
+	imx35_add_ipu_core();
 	imx35_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	if (otg_mode_host) {

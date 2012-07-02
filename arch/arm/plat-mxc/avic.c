@@ -19,7 +19,9 @@
 
 #include <linux/module.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <mach/common.h>
 #include <asm/mach/irq.h>
 #include <asm/exception.h>
@@ -50,14 +52,18 @@
 #define AVIC_NUM_IRQS 64
 
 void __iomem *avic_base;
+static struct irq_domain *domain;
 
 static u32 avic_saved_mask_reg[2];
 
 #ifdef CONFIG_MXC_IRQ_PRIOR
 static int avic_irq_set_priority(unsigned char irq, unsigned char prio)
 {
+	struct irq_data *d = irq_get_irq_data(irq);
 	unsigned int temp;
 	unsigned int mask = 0x0F << irq % 8 * 4;
+
+	irq = d->hwirq;
 
 	if (irq >= AVIC_NUM_IRQS)
 		return -EINVAL;
@@ -75,7 +81,10 @@ static int avic_irq_set_priority(unsigned char irq, unsigned char prio)
 #ifdef CONFIG_FIQ
 static int avic_set_irq_fiq(unsigned int irq, unsigned int type)
 {
+	struct irq_data *d = irq_get_irq_data(irq);
 	unsigned int irqt;
+
+	irq = d->hwirq;
 
 	if (irq >= AVIC_NUM_IRQS)
 		return -EINVAL;
@@ -108,7 +117,7 @@ static void avic_irq_suspend(struct irq_data *d)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct irq_chip_type *ct = gc->chip_types;
-	int idx = gc->irq_base >> 5;
+	int idx = d->hwirq >> 5;
 
 	avic_saved_mask_reg[idx] = __raw_readl(avic_base + ct->regs.mask);
 	__raw_writel(gc->wake_active, avic_base + ct->regs.mask);
@@ -118,7 +127,7 @@ static void avic_irq_resume(struct irq_data *d)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct irq_chip_type *ct = gc->chip_types;
-	int idx = gc->irq_base >> 5;
+	int idx = d->hwirq >> 5;
 
 	__raw_writel(avic_saved_mask_reg[idx], avic_base + ct->regs.mask);
 }
@@ -128,11 +137,10 @@ static void avic_irq_resume(struct irq_data *d)
 #define avic_irq_resume NULL
 #endif
 
-static __init void avic_init_gc(unsigned int irq_start)
+static __init void avic_init_gc(int idx, unsigned int irq_start)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
-	int idx = irq_start >> 5;
 
 	gc = irq_alloc_generic_chip("mxc-avic", 1, irq_start, avic_base,
 				    handle_level_irq);
@@ -161,7 +169,7 @@ asmlinkage void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
 		if (nivector == 0xffff)
 			break;
 
-		handle_IRQ(nivector, regs);
+		handle_IRQ(irq_find_mapping(domain, nivector), regs);
 	} while (1);
 }
 
@@ -172,6 +180,8 @@ asmlinkage void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
  */
 void __init mxc_init_irq(void __iomem *irqbase)
 {
+	struct device_node *np;
+	int irq_base;
 	int i;
 
 	avic_base = irqbase;
@@ -190,8 +200,16 @@ void __init mxc_init_irq(void __iomem *irqbase)
 	__raw_writel(0, avic_base + AVIC_INTTYPEH);
 	__raw_writel(0, avic_base + AVIC_INTTYPEL);
 
-	for (i = 0; i < AVIC_NUM_IRQS; i += 32)
-		avic_init_gc(i);
+	irq_base = irq_alloc_descs(-1, 0, AVIC_NUM_IRQS, numa_node_id());
+	WARN_ON(irq_base < 0);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,avic");
+	domain = irq_domain_add_legacy(np, AVIC_NUM_IRQS, irq_base, 0,
+				       &irq_domain_simple_ops, NULL);
+	WARN_ON(!domain);
+
+	for (i = 0; i < AVIC_NUM_IRQS / 32; i++, irq_base += 32)
+		avic_init_gc(i, irq_base);
 
 	/* Set default priority value (0) for all IRQ's */
 	for (i = 0; i < 8; i++)
@@ -199,7 +217,7 @@ void __init mxc_init_irq(void __iomem *irqbase)
 
 #ifdef CONFIG_FIQ
 	/* Initialize FIQ */
-	init_FIQ();
+	init_FIQ(FIQ_START);
 #endif
 
 	printk(KERN_INFO "MXC IRQ initialized\n");

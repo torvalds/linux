@@ -225,8 +225,7 @@ static struct resource smsc911x_resources[] = {
 		.end		= MX31_CS1_BASE_ADDR + 0x300 + SZ_64K - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
-		.end		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
+		/* irq number is run-time assigned */
 		.flags		= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
@@ -371,7 +370,7 @@ static int pcm970_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
 	gpio_direction_input(SDHC1_GPIO_WP);
 #endif
 
-	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_SCK6), detect_irq,
+	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_SCK6)), detect_irq,
 			IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 				"sdhc-detect", data);
 	if (ret)
@@ -391,7 +390,7 @@ err_gpio_free:
 
 static void pcm970_sdhc1_exit(struct device *dev, void *data)
 {
-	free_irq(IOMUX_TO_IRQ(MX31_PIN_SCK6), data);
+	free_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_SCK6)), data);
 	gpio_free(SDHC1_GPIO_DET);
 	gpio_free(SDHC1_GPIO_WP);
 }
@@ -440,10 +439,6 @@ static struct platform_device *devices[] __initdata = {
 	&pcm037_sram_device,
 	&pcm037_mt9t031,
 	&pcm037_mt9v022,
-};
-
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
 };
 
 static const struct fb_videomode fb_modedb[] = {
@@ -511,8 +506,7 @@ static struct resource pcm970_sja1000_resources[] = {
 		.end     = MX31_CS5_BASE_ADDR + 0x100 - 1,
 		.flags   = IORESOURCE_MEM,
 	}, {
-		.start   = IOMUX_TO_IRQ(IOMUX_PIN(48, 105)),
-		.end     = IOMUX_TO_IRQ(IOMUX_PIN(48, 105)),
+		/* irq number is run-time assigned */
 		.flags   = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
@@ -633,6 +627,10 @@ static void __init pcm037_init(void)
 		pr_warning("could not get LAN irq gpio\n");
 	else {
 		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
+		smsc911x_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
+		smsc911x_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
 		platform_device_register(&pcm037_eth);
 	}
 
@@ -646,7 +644,7 @@ static void __init pcm037_init(void)
 
 	imx31_add_mxc_nand(&pcm037_nand_board_info);
 	imx31_add_mxc_mmc(0, &sdhc_pdata);
-	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_ipu_core();
 	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* CSI */
@@ -659,6 +657,10 @@ static void __init pcm037_init(void)
 
 	pcm037_init_camera();
 
+	pcm970_sja1000_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(IOMUX_PIN(48, 105)));
+	pcm970_sja1000_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(IOMUX_PIN(48, 105)));
 	platform_device_register(&pcm970_sja1000);
 
 	if (otg_mode_host) {

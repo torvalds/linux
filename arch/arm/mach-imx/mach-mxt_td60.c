@@ -213,13 +213,13 @@ static const struct imx_fb_platform_data mxt_td60_fb_data __initconst = {
 static int mxt_td60_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
 				void *data)
 {
-	return request_irq(IRQ_GPIOF(8), detect_irq, IRQF_TRIGGER_FALLING,
-				"sdhc1-card-detect", data);
+	return request_irq(gpio_to_irq(IMX_GPIO_NR(6, 8)), detect_irq,
+			   IRQF_TRIGGER_FALLING, "sdhc1-card-detect", data);
 }
 
 static void mxt_td60_sdhc1_exit(struct device *dev, void *data)
 {
-	free_irq(IRQ_GPIOF(8), data);
+	free_irq(gpio_to_irq(IMX_GPIO_NR(6, 8)), data);
 }
 
 static const struct imxmmc_platform_data sdhc1_pdata __initconst = {

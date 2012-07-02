@@ -22,7 +22,6 @@
 #include <linux/gpio.h>
 
 #include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -51,8 +50,6 @@
 	(QONG_FPGA_BASEADDR + QONG_DNET_ID * QONG_FPGA_PERIPH_SIZE)
 #define QONG_DNET_SIZE		0x00001000
 
-#define QONG_FPGA_IRQ		IOMUX_TO_IRQ(MX31_PIN_DTR_DCE1)
-
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -78,8 +75,7 @@ static struct resource dnet_resources[] = {
 		.end	= QONG_DNET_BASEADDR + QONG_DNET_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= QONG_FPGA_IRQ,
-		.end	= QONG_FPGA_IRQ,
+		/* irq number is run-time assigned */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -95,6 +91,10 @@ static int __init qong_init_dnet(void)
 {
 	int ret;
 
+	dnet_resources[1].start =
+		gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1));
+	dnet_resources[1].end =
+		gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1));
 	ret = platform_device_register(&dnet_device);
 	return ret;
 }

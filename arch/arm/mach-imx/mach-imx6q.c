@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -136,21 +135,8 @@ static void __init imx6q_map_io(void)
 	imx6q_clock_map_io();
 }
 
-static int __init imx6q_gpio_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
-
-	gpio_irq_base -= 32;
-	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops,
-			      NULL);
-
-	return 0;
-}
-
 static const struct of_device_id imx6q_irq_match[] __initconst = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ .compatible = "fsl,imx6q-gpio", .data = imx6q_gpio_add_irq_domain, },
 	{ /* sentinel */ }
 };
 

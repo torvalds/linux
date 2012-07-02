@@ -183,7 +183,6 @@ struct platform_device *__init imx_add_imx_udc(
 		const struct imx_imx_udc_data *data,
 		const struct imxusb_platform_data *pdata);
 
-#include <mach/ipu.h>
 #include <mach/mx3fb.h>
 #include <mach/mx3_camera.h>
 struct imx_ipu_core_data {
@@ -192,8 +191,7 @@ struct imx_ipu_core_data {
 	resource_size_t errirq;
 };
 struct platform_device *__init imx_add_ipu_core(
-		const struct imx_ipu_core_data *data,
-		const struct ipu_platform_data *pdata);
+		const struct imx_ipu_core_data *data);
 struct platform_device *__init imx_alloc_mx3_camera(
 		const struct imx_ipu_core_data *data,
 		const struct mx3_camera_pdata *pdata);
