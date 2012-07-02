@@ -78,7 +78,7 @@ static int tps65217_vsel_to_uv1(unsigned int vsel)
 
 static int tps65217_uv_to_vsel1(int uV, unsigned int *vsel)
 {
-	if ((uV < 0) && (uV > 3300000))
+	if (uV < 0 || uV > 3300000)
 		return -EINVAL;
 
 	if (uV <= 1500000)
@@ -112,7 +112,7 @@ static int tps65217_vsel_to_uv2(unsigned int vsel)
 
 static int tps65217_uv_to_vsel2(int uV, unsigned int *vsel)
 {
-	if ((uV < 0) && (uV > 3300000))
+	if (uV < 0 || uV > 3300000)
 		return -EINVAL;
 
 	if (uV <= 1900000)
