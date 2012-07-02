@@ -869,7 +869,7 @@ void ata_acpi_set_state(struct ata_port *ap, pm_message_t state)
 
 		if (state.event != PM_EVENT_ON) {
 			acpi_state = acpi_pm_device_sleep_state(
-				&dev->sdev->sdev_gendev, NULL);
+				&dev->sdev->sdev_gendev, NULL, ACPI_STATE_D3);
 			if (acpi_state > 0)
 				acpi_bus_set_power(handle, acpi_state);
 			/* TBD: need to check if it's runtime pm request */
