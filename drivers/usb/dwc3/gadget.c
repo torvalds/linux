@@ -1408,7 +1408,7 @@ static int dwc3_gadget_set_selfpowered(struct usb_gadget *g,
 	return 0;
 }
 
-static void dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
+static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
 {
 	u32			reg;
 	u32			timeout = 500;
@@ -1440,7 +1440,7 @@ static void dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
 		}
 		timeout--;
 		if (!timeout)
-			break;
+			return -ETIMEDOUT;
 		udelay(1);
 	} while (1);
 
@@ -1448,20 +1448,23 @@ static void dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
 			dwc->gadget_driver
 			? dwc->gadget_driver->function : "no-function",
 			is_on ? "connect" : "disconnect");
+
+	return 0;
 }
 
 static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 {
 	struct dwc3		*dwc = gadget_to_dwc(g);
 	unsigned long		flags;
+	int			ret;
 
 	is_on = !!is_on;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	dwc3_gadget_run_stop(dwc, is_on);
+	ret = dwc3_gadget_run_stop(dwc, is_on);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int dwc3_gadget_start(struct usb_gadget *g,
