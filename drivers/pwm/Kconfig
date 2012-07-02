@@ -1,5 +1,6 @@
 menuconfig PWM
 	bool "PWM Support"
+	depends on !MACH_JZ4740 && !PUV3_PWM
 	help
 	  This enables PWM support through the generic PWM framework.
 	  You only need to enable this, if you also want to enable
