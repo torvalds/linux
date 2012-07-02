@@ -35,19 +35,29 @@ int ieee80211_channel_to_frequency(int chan, enum ieee80211_band band)
 {
 	/* see 802.11 17.3.8.3.2 and Annex J
 	 * there are overlapping channel numbers in 5GHz and 2GHz bands */
-	if (band == IEEE80211_BAND_5GHZ) {
-		if (chan >= 182 && chan <= 196)
-			return 4000 + chan * 5;
-		else
-			return 5000 + chan * 5;
-	} else { /* IEEE80211_BAND_2GHZ */
+	if (chan <= 0)
+		return 0; /* not supported */
+	switch (band) {
+	case IEEE80211_BAND_2GHZ:
 		if (chan == 14)
 			return 2484;
 		else if (chan < 14)
 			return 2407 + chan * 5;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		if (chan >= 182 && chan <= 196)
+			return 4000 + chan * 5;
 		else
-			return 0; /* not supported */
+			return 5000 + chan * 5;
+		break;
+	case IEEE80211_BAND_60GHZ:
+		if (chan < 5)
+			return 56160 + chan * 2160;
+		break;
+	default:
+		;
 	}
+	return 0; /* not supported */
 }
 EXPORT_SYMBOL(ieee80211_channel_to_frequency);
 
@@ -60,8 +70,12 @@ int ieee80211_frequency_to_channel(int freq)
 		return (freq - 2407) / 5;
 	else if (freq >= 4910 && freq <= 4980)
 		return (freq - 4000) / 5;
-	else
+	else if (freq <= 45000) /* DMG band lower limit */
 		return (freq - 5000) / 5;
+	else if (freq >= 58320 && freq <= 64800)
+		return (freq - 56160) / 2160;
+	else
+		return 0;
 }
 EXPORT_SYMBOL(ieee80211_frequency_to_channel);
 
@@ -136,6 +150,11 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 					IEEE80211_RATE_ERP_G;
 		}
 		WARN_ON(want != 0 && want != 3 && want != 6);
+		break;
+	case IEEE80211_BAND_60GHZ:
+		/* check for mandatory HT MCS 1..4 */
+		WARN_ON(!sband->ht_cap.ht_supported);
+		WARN_ON((sband->ht_cap.mcs.rx_mask[0] & 0x1e) != 0x1e);
 		break;
 	case IEEE80211_NUM_BANDS:
 		WARN_ON(1);
