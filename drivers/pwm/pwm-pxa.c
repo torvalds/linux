@@ -190,8 +190,7 @@ static int __devexit pwm_remove(struct platform_device *pdev)
 	if (chip == NULL)
 		return -ENODEV;
 
-	pwmchip_remove(&chip->chip);
-	return 0;
+	return pwmchip_remove(&chip->chip);
 }
 
 static struct platform_driver pwm_driver = {
