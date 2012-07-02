@@ -144,19 +144,24 @@ static int __devexit snd_pmac_remove(struct platform_device *devptr)
 }
 
 #ifdef CONFIG_PM
-static int snd_pmac_driver_suspend(struct platform_device *devptr, pm_message_t state)
+static int snd_pmac_driver_suspend(struct device *dev)
 {
-	struct snd_card *card = platform_get_drvdata(devptr);
+	struct snd_card *card = dev_get_drvdata(dev);
 	snd_pmac_suspend(card->private_data);
 	return 0;
 }
 
-static int snd_pmac_driver_resume(struct platform_device *devptr)
+static int snd_pmac_driver_resume(struct device *dev)
 {
-	struct snd_card *card = platform_get_drvdata(devptr);
+	struct snd_card *card = dev_get_drvdata(dev);
 	snd_pmac_resume(card->private_data);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(snd_pmac_pm, snd_pmac_driver_suspend, snd_pmac_driver_resume);
+#define SND_PMAC_PM_OPS	&snd_pmac_pm
+#else
+#define SND_PMAC_PM_OPS	NULL
 #endif
 
 #define SND_PMAC_DRIVER		"snd_powermac"
@@ -164,13 +169,10 @@ static int snd_pmac_driver_resume(struct platform_device *devptr)
 static struct platform_driver snd_pmac_driver = {
 	.probe		= snd_pmac_probe,
 	.remove		= __devexit_p(snd_pmac_remove),
-#ifdef CONFIG_PM
-	.suspend	= snd_pmac_driver_suspend,
-	.resume		= snd_pmac_driver_resume,
-#endif
 	.driver		= {
 		.name	= SND_PMAC_DRIVER,
 		.owner	= THIS_MODULE,
+		.pm	= SND_PMAC_PM_OPS,
 	},
 };
 
