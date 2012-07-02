@@ -150,14 +150,25 @@ static void bond_info_show_master(struct seq_file *seq)
 	}
 }
 
+static const char *bond_slave_link_status(s8 link)
+{
+	static const char * const status[] = {
+		[BOND_LINK_UP] = "up",
+		[BOND_LINK_FAIL] = "going down",
+		[BOND_LINK_DOWN] = "down",
+		[BOND_LINK_BACK] = "going back",
+	};
+
+	return status[link];
+}
+
 static void bond_info_show_slave(struct seq_file *seq,
 				 const struct slave *slave)
 {
 	struct bonding *bond = seq->private;
 
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
-	seq_printf(seq, "MII Status: %s\n",
-		   (slave->link == BOND_LINK_UP) ?  "up" : "down");
+	seq_printf(seq, "MII Status: %s\n", bond_slave_link_status(slave->link));
 	if (slave->speed == SPEED_UNKNOWN)
 		seq_printf(seq, "Speed: %s\n", "Unknown");
 	else

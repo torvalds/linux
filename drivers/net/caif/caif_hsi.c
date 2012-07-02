@@ -693,8 +693,6 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 			 */
 			memcpy(rx_buf, (u8 *)piggy_desc,
 					CFHSI_DESC_SHORT_SZ);
-			/* Mark no embedded frame here */
-			piggy_desc->offset = 0;
 			if (desc_pld_len == -EPROTO)
 				goto out_of_sync;
 		}
@@ -737,6 +735,8 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 			/* Extract any payload in piggyback descriptor. */
 			if (cfhsi_rx_desc(piggy_desc, cfhsi) < 0)
 				goto out_of_sync;
+			/* Mark no embedded frame after extracting it */
+			piggy_desc->offset = 0;
 		}
 	}
 
@@ -1178,6 +1178,7 @@ int cfhsi_probe(struct platform_device *pdev)
 		dev_err(&ndev->dev, "%s: Registration error: %d.\n",
 			__func__, res);
 		free_netdev(ndev);
+		return -ENODEV;
 	}
 	/* Add CAIF HSI device to list. */
 	spin_lock(&cfhsi_list_lock);

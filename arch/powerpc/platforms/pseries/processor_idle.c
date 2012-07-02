@@ -106,7 +106,7 @@ static void check_and_cede_processor(void)
 	 * we first hard disable then check.
 	 */
 	hard_irq_disable();
-	if (get_paca()->irq_happened == 0)
+	if (!lazy_irq_pending())
 		cede_processor();
 }
 

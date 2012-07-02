@@ -136,7 +136,7 @@ int btmrvl_remove_card(struct btmrvl_private *priv);
 
 void btmrvl_interrupt(struct btmrvl_private *priv);
 
-void btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb);
+bool btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb);
 int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb);
 
 int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd);

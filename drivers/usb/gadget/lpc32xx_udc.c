@@ -61,6 +61,7 @@
 #include <mach/irqs.h>
 #include <mach/board.h>
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #endif
 

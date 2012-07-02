@@ -3,10 +3,18 @@
 
 #include <linux/compiler.h>
 
+#ifdef CONFIG_GENERIC_BUG
+#define BUGFLAG_WARNING		(1 << 0)
+#define BUGFLAG_TAINT(taint)	(BUGFLAG_WARNING | ((taint) << 8))
+#define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
+#endif
+
+#ifndef __ASSEMBLY__
+#include <linux/kernel.h>
+
 #ifdef CONFIG_BUG
 
 #ifdef CONFIG_GENERIC_BUG
-#ifndef __ASSEMBLY__
 struct bug_entry {
 #ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
 	unsigned long	bug_addr;
@@ -23,16 +31,7 @@ struct bug_entry {
 #endif
 	unsigned short	flags;
 };
-#endif		/* __ASSEMBLY__ */
-
-#define BUGFLAG_WARNING		(1 << 0)
-#define BUGFLAG_TAINT(taint)	(BUGFLAG_WARNING | ((taint) << 8))
-#define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
-
 #endif	/* CONFIG_GENERIC_BUG */
-
-#ifndef __ASSEMBLY__
-#include <linux/kernel.h>
 
 /*
  * Don't use BUG() or BUG_ON() unless there's really no way out; one

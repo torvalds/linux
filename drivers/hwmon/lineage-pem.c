@@ -567,6 +567,6 @@ static struct i2c_driver pem_driver = {
 
 module_i2c_driver(pem_driver);
 
-MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
+MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("Lineage CPL PEM hardware monitoring driver");
 MODULE_LICENSE("GPL");

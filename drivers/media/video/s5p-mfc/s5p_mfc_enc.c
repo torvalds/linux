@@ -243,12 +243,6 @@ static struct mfc_control controls[] = {
 		.minimum = V4L2_MPEG_VIDEO_H264_LEVEL_1_0,
 		.maximum = V4L2_MPEG_VIDEO_H264_LEVEL_4_0,
 		.default_value = V4L2_MPEG_VIDEO_H264_LEVEL_1_0,
-		.menu_skip_mask = ~(
-				(1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_1) |
-				(1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_2) |
-				(1 << V4L2_MPEG_VIDEO_H264_LEVEL_5_0) |
-				(1 << V4L2_MPEG_VIDEO_H264_LEVEL_5_1)
-				),
 	},
 	{
 		.id = V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL,
@@ -494,7 +488,7 @@ static struct mfc_control controls[] = {
 		.type = V4L2_CTRL_TYPE_MENU,
 		.minimum = V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_UNSPECIFIED,
 		.maximum = V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_EXTENDED,
-		.default_value = 0,
+		.default_value = V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_UNSPECIFIED,
 		.menu_skip_mask = 0,
 	},
 	{
@@ -534,7 +528,7 @@ static struct mfc_control controls[] = {
 		.type = V4L2_CTRL_TYPE_MENU,
 		.minimum = V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE,
 		.maximum = V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_SIMPLE,
-		.default_value = 0,
+		.default_value = V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE,
 		.menu_skip_mask = 0,
 	},
 	{
@@ -907,6 +901,8 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			mfc_err("failed to try output format\n");
 			return -EINVAL;
 		}
+		v4l_bound_align_image(&pix_fmt_mp->width, 8, 1920, 1,
+			&pix_fmt_mp->height, 4, 1080, 1, 0);
 	} else {
 		mfc_err("invalid buf type\n");
 		return -EINVAL;
