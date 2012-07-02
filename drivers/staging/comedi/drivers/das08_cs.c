@@ -20,6 +20,13 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+    PCMCIA support code for this driver is adapted from the dummy_cs.c
+    driver of the Linux PCMCIA Card Services package.
+
+    The initial developer of the original code is David A. Hinds
+    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
 *****************************************************************
 
 */
@@ -97,17 +104,6 @@ static int das08_cs_attach(struct comedi_device *dev,
 	return das08_common_attach(dev, iobase);
 }
 
-/*======================================================================
-
-    The following pcmcia code for the pcm-das08 is adapted from the
-    dummy_cs.c driver of the Linux PCMCIA Card Services package.
-
-    The initial developer of the original code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-
-======================================================================*/
-
 static void das08_pcmcia_config(struct pcmcia_device *link);
 static void das08_pcmcia_release(struct pcmcia_device *link);
 static int das08_pcmcia_suspend(struct pcmcia_device *p_dev);
@@ -140,7 +136,7 @@ static int das08_pcmcia_attach(struct pcmcia_device *link)
 	das08_pcmcia_config(link);
 
 	return 0;
-}				/* das08_pcmcia_attach */
+}
 
 static void das08_pcmcia_detach(struct pcmcia_device *link)
 {
@@ -153,7 +149,7 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 	/* This points to the parent struct local_info_t struct */
 	kfree(link->priv);
 
-}				/* das08_pcmcia_detach */
+}
 
 
 static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
@@ -191,13 +187,13 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 failed:
 	das08_pcmcia_release(link);
 
-}				/* das08_pcmcia_config */
+}
 
 static void das08_pcmcia_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "das08_pcmcia_release\n");
 	pcmcia_disable_device(link);
-}				/* das08_pcmcia_release */
+}
 
 static int das08_pcmcia_suspend(struct pcmcia_device *link)
 {
@@ -206,7 +202,7 @@ static int das08_pcmcia_suspend(struct pcmcia_device *link)
 	local->stop = 1;
 
 	return 0;
-}				/* das08_pcmcia_suspend */
+}
 
 static int das08_pcmcia_resume(struct pcmcia_device *link)
 {
@@ -214,15 +210,12 @@ static int das08_pcmcia_resume(struct pcmcia_device *link)
 
 	local->stop = 0;
 	return 0;
-}				/* das08_pcmcia_resume */
-
-/*====================================================================*/
+}
 
 static const struct pcmcia_device_id das08_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x4001),
 	PCMCIA_DEVICE_NULL
 };
-
 MODULE_DEVICE_TABLE(pcmcia, das08_cs_id_table);
 
 static struct pcmcia_driver das08_cs_driver = {
