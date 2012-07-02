@@ -24,6 +24,7 @@
 #include <linux/videodev2.h>
 #include <linux/of.h>
 
+#include <mach/iram.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -42,6 +43,7 @@
 #define CODA7_WORK_BUF_SIZE	(512 * 1024 + CODA_FMO_BUF_SIZE * 8 * 1024)
 #define CODA_PARA_BUF_SIZE	(10 * 1024)
 #define CODA_ISRAM_SIZE	(2048 * 2)
+#define CODA7_IRAM_SIZE		0x14000 /* 81920 bytes */
 
 #define CODA_OUTPUT_BUFS	4
 #define CODA_CAPTURE_BUFS	2
@@ -127,6 +129,7 @@ struct coda_dev {
 
 	struct coda_aux_buf	codebuf;
 	struct coda_aux_buf	workbuf;
+	long unsigned int	iram_paddr;
 
 	spinlock_t		irqlock;
 	struct mutex		dev_mutex;
@@ -715,6 +718,13 @@ static void coda_device_run(void *m2m_priv)
 	coda_write(dev, pic_stream_buffer_addr, CODA_CMD_ENC_PIC_BB_START);
 	coda_write(dev, pic_stream_buffer_size / 1024,
 		   CODA_CMD_ENC_PIC_BB_SIZE);
+
+	if (dev->devtype->product == CODA_7541) {
+		coda_write(dev, CODA7_USE_BIT_ENABLE | CODA7_USE_HOST_BIT_ENABLE |
+				CODA7_USE_ME_ENABLE | CODA7_USE_HOST_ME_ENABLE,
+				CODA7_REG_BIT_AXI_SRAM_USE);
+	}
+
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 }
 
@@ -946,8 +956,10 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 			CODA7_STREAM_BUF_PIC_RESET, CODA_REG_BIT_STREAM_CTRL);
 	}
 
-	/* Configure the coda */
-	coda_write(dev, 0xffff4c00, CODA_REG_BIT_SEARCH_RAM_BASE_ADDR);
+	if (dev->devtype->product == CODA_DX6) {
+		/* Configure the coda */
+		coda_write(dev, dev->iram_paddr, CODADX6_REG_BIT_SEARCH_RAM_BASE_ADDR);
+	}
 
 	/* Could set rotation here if needed */
 	switch (dev->devtype->product) {
@@ -1022,7 +1034,12 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 		value  = (FMO_SLICE_SAVE_BUF_SIZE << 7);
 		value |= (0 & CODA_FMOPARAM_TYPE_MASK) << CODA_FMOPARAM_TYPE_OFFSET;
 		value |=  0 & CODA_FMOPARAM_SLICENUM_MASK;
-		coda_write(dev, value, CODA_CMD_ENC_SEQ_FMO);
+		if (dev->devtype->product == CODA_DX6) {
+			coda_write(dev, value, CODADX6_CMD_ENC_SEQ_FMO);
+		} else {
+			coda_write(dev, dev->iram_paddr, CODA7_CMD_ENC_SEQ_SEARCH_BASE);
+			coda_write(dev, 48 * 1024, CODA7_CMD_ENC_SEQ_SEARCH_SIZE);
+		}
 	}
 
 	if (coda_command_sync(ctx, CODA_COMMAND_SEQ_INIT)) {
@@ -1052,7 +1069,15 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	}
 
 	coda_write(dev, src_vq->num_buffers, CODA_CMD_SET_FRAME_BUF_NUM);
-	coda_write(dev, q_data_src->width, CODA_CMD_SET_FRAME_BUF_STRIDE);
+	coda_write(dev, round_up(q_data_src->width, 8), CODA_CMD_SET_FRAME_BUF_STRIDE);
+	if (dev->devtype->product != CODA_DX6) {
+		coda_write(dev, round_up(q_data_src->width, 8), CODA7_CMD_SET_FRAME_SOURCE_BUF_STRIDE);
+		coda_write(dev, dev->iram_paddr + 48 * 1024, CODA7_CMD_SET_FRAME_AXI_DBKY_ADDR);
+		coda_write(dev, dev->iram_paddr + 53 * 1024, CODA7_CMD_SET_FRAME_AXI_DBKC_ADDR);
+		coda_write(dev, dev->iram_paddr + 58 * 1024, CODA7_CMD_SET_FRAME_AXI_BIT_ADDR);
+		coda_write(dev, dev->iram_paddr + 68 * 1024, CODA7_CMD_SET_FRAME_AXI_IPACDC_ADDR);
+		coda_write(dev, 0x0, CODA7_CMD_SET_FRAME_AXI_OVL_ADDR);
+	}
 	if (coda_command_sync(ctx, CODA_COMMAND_SET_FRAME_BUF)) {
 		v4l2_err(v4l2_dev, "CODA_COMMAND_SET_FRAME_BUF timeout\n");
 		return -ETIMEDOUT;
@@ -1583,6 +1608,10 @@ static int coda_hw_init(struct coda_dev *dev)
 		coda_write(dev, CODA7_STREAM_BUF_PIC_FLUSH, CODA_REG_BIT_STREAM_CTRL);
 	}
 	coda_write(dev, 0, CODA_REG_BIT_FRAME_MEM_CTRL);
+
+	if (dev->devtype->product != CODA_DX6)
+		coda_write(dev, 0, CODA7_REG_BIT_AXI_SRAM_USE);
+
 	coda_write(dev, CODA_INT_INTERRUPT_ENABLE,
 		      CODA_REG_BIT_INT_ENABLE);
 
@@ -1852,6 +1881,19 @@ static int __devinit coda_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	if (dev->devtype->product == CODA_DX6) {
+		dev->iram_paddr = 0xffff4c00;
+	} else {
+		void __iomem *iram_vaddr;
+
+		iram_vaddr = iram_alloc(CODA7_IRAM_SIZE,
+					&dev->iram_paddr);
+		if (!iram_vaddr) {
+			dev_err(&pdev->dev, "unable to alloc iram\n");
+			return -ENOMEM;
+		}
+	}
+
 	platform_set_drvdata(pdev, dev);
 
 	return coda_firmware_request(dev);
@@ -1867,6 +1909,8 @@ static int coda_remove(struct platform_device *pdev)
 	if (dev->alloc_ctx)
 		vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 	v4l2_device_unregister(&dev->v4l2_dev);
+	if (dev->iram_paddr)
+		iram_free(dev->iram_paddr, CODA7_IRAM_SIZE);
 	if (dev->codebuf.vaddr)
 		dma_free_coherent(&pdev->dev, dev->codebuf.size,
 				  &dev->codebuf.vaddr, dev->codebuf.paddr);
