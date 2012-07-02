@@ -418,13 +418,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			   "HHUptod\tSpecDst");
 	else {
 		struct rtable *r = v;
-		struct neighbour *n;
-		int len, HHUptod;
-
-		rcu_read_lock();
-		n = dst_get_neighbour_noref(&r->dst);
-		HHUptod = (n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0;
-		rcu_read_unlock();
+		int len;
 
 		seq_printf(seq, "%s\t%08X\t%08X\t%8X\t%d\t%u\t%d\t"
 			      "%08X\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
@@ -438,9 +432,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			(int)((dst_metric(&r->dst, RTAX_RTT) >> 3) +
 			      dst_metric(&r->dst, RTAX_RTTVAR)),
 			r->rt_key_tos,
-			-1,
-			HHUptod,
-			0, &len);
+			-1, 0, 0, &len);
 
 		seq_printf(seq, "%*s\n", 127 - len, "");
 	}
