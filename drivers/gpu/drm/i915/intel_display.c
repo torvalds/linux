@@ -3562,6 +3562,41 @@ void intel_encoder_dpms(struct intel_encoder *encoder, int mode)
 	}
 }
 
+/* Cross check the actual hw state with our own modeset state tracking (and it's
+ * internal consistency). */
+void intel_connector_check_state(struct intel_connector *connector)
+{
+	if (connector->get_hw_state(connector)) {
+		struct intel_encoder *encoder = connector->encoder;
+		struct drm_crtc *crtc;
+		bool encoder_enabled;
+		enum pipe pipe;
+
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+			      connector->base.base.id,
+			      drm_get_connector_name(&connector->base));
+
+		WARN(connector->base.dpms == DRM_MODE_DPMS_OFF,
+		     "wrong connector dpms state\n");
+		WARN(connector->base.encoder != &encoder->base,
+		     "active connector not linked to encoder\n");
+		WARN(!encoder->connectors_active,
+		     "encoder->connectors_active not set\n");
+
+		encoder_enabled = encoder->get_hw_state(encoder, &pipe);
+		WARN(!encoder_enabled, "encoder not enabled\n");
+		if (WARN_ON(!encoder->base.crtc))
+			return;
+
+		crtc = encoder->base.crtc;
+
+		WARN(!crtc->enabled, "crtc not enabled\n");
+		WARN(!to_intel_crtc(crtc)->active, "crtc not active\n");
+		WARN(pipe != to_intel_crtc(crtc)->pipe,
+		     "encoder active on the wrong pipe\n");
+	}
+}
+
 /* Even simpler default implementation, if there's really no special case to
  * consider. */
 void intel_connector_dpms(struct drm_connector *connector, int mode)
@@ -3582,6 +3617,8 @@ void intel_connector_dpms(struct drm_connector *connector, int mode)
 		intel_encoder_dpms(encoder, mode);
 	else
 		encoder->connectors_active = false;
+
+	intel_connector_check_state(to_intel_connector(connector));
 }
 
 /* Simple connector->get_hw_state implementation for encoders that support only

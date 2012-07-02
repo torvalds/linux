@@ -434,6 +434,7 @@ extern void intel_encoder_destroy(struct drm_encoder *encoder);
 extern void intel_encoder_dpms(struct intel_encoder *encoder, int mode);
 extern void intel_connector_dpms(struct drm_connector *, int mode);
 extern bool intel_connector_get_hw_state(struct intel_connector *connector);
+extern void intel_connector_check_state(struct intel_connector *);
 
 static inline struct intel_encoder *intel_attached_encoder(struct drm_connector *connector)
 {

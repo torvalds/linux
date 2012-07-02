@@ -188,6 +188,8 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 
 		intel_crtc_update_dpms(crtc);
 	}
+
+	intel_connector_check_state(to_intel_connector(connector));
 }
 
 static int intel_dvo_mode_valid(struct drm_connector *connector,

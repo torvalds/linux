@@ -1367,6 +1367,8 @@ intel_dp_dpms(struct drm_connector *connector, int mode)
 		intel_encoder_dpms(&intel_dp->base, mode);
 		WARN_ON(intel_dp->dpms_mode != DRM_MODE_DPMS_ON);
 	}
+
+	intel_connector_check_state(to_intel_connector(connector));
 }
 
 /*

@@ -1274,6 +1274,8 @@ static void intel_sdvo_dpms(struct drm_connector *connector, int mode)
 			intel_sdvo_set_encoder_power_state(intel_sdvo, mode);
 		intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
 	}
+
+	intel_connector_check_state(to_intel_connector(connector));
 }
 
 static int intel_sdvo_mode_valid(struct drm_connector *connector,
