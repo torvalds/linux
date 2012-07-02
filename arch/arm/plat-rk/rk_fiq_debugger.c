@@ -26,13 +26,11 @@
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
 #include <linux/stacktrace.h>
+#include <linux/uaccess.h>
 #include <asm/fiq_debugger.h>
 #include <asm/hardware/gic.h>
 #include <plat/rk_fiq_debugger.h>
-#include <mach/system.h>
-#include <mach/fiq.h>
-
-#include <linux/uaccess.h>
+#include <plat/fiq.h>
 
 struct rk_fiq_debugger {
 	struct fiq_debugger_pdata pdata;
