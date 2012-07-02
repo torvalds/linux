@@ -225,14 +225,14 @@ static const struct pcmcia_device_id das08_cs_id_table[] = {
 
 MODULE_DEVICE_TABLE(pcmcia, das08_cs_id_table);
 
-struct pcmcia_driver das08_cs_driver = {
-	.probe = das08_pcmcia_attach,
-	.remove = das08_pcmcia_detach,
-	.suspend = das08_pcmcia_suspend,
-	.resume = das08_pcmcia_resume,
-	.id_table = das08_cs_id_table,
-	.owner = THIS_MODULE,
-	.name = "pcm-das08",
+static struct pcmcia_driver das08_cs_driver = {
+	.name		= "pcm-das08",
+	.owner		= THIS_MODULE,
+	.probe		= das08_pcmcia_attach,
+	.remove		= das08_pcmcia_detach,
+	.suspend	= das08_pcmcia_suspend,
+	.resume		= das08_pcmcia_resume,
+	.id_table	= das08_cs_id_table,
 };
 
 static int __init das08_cs_init_module(void)
