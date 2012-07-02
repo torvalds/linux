@@ -731,6 +731,7 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	struct tegra_dma_sg_req *sg_req;
 	enum dma_status ret;
 	unsigned long flags;
+	unsigned int residual;
 
 	spin_lock_irqsave(&tdc->lock, flags);
 
@@ -744,9 +745,10 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	/* Check on wait_ack desc status */
 	list_for_each_entry(dma_desc, &tdc->free_dma_desc, node) {
 		if (dma_desc->txd.cookie == cookie) {
-			dma_set_residue(txstate,
-				dma_desc->bytes_requested -
-				dma_desc->bytes_transferred);
+			residual =  dma_desc->bytes_requested -
+					(dma_desc->bytes_transferred %
+						dma_desc->bytes_requested);
+			dma_set_residue(txstate, residual);
 			ret = dma_desc->dma_status;
 			spin_unlock_irqrestore(&tdc->lock, flags);
 			return ret;
@@ -757,9 +759,10 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	list_for_each_entry(sg_req, &tdc->pending_sg_req, node) {
 		dma_desc = sg_req->dma_desc;
 		if (dma_desc->txd.cookie == cookie) {
-			dma_set_residue(txstate,
-				dma_desc->bytes_requested -
-				dma_desc->bytes_transferred);
+			residual =  dma_desc->bytes_requested -
+					(dma_desc->bytes_transferred %
+						dma_desc->bytes_requested);
+			dma_set_residue(txstate, residual);
 			ret = dma_desc->dma_status;
 			spin_unlock_irqrestore(&tdc->lock, flags);
 			return ret;
