@@ -484,9 +484,6 @@ static void zs_copy_map_object(char *buf, struct page *firstpage,
 	sizes[0] = PAGE_SIZE - off;
 	sizes[1] = size - sizes[0];
 
-	/* disable page faults to match kmap_atomic() return conditions */
-	pagefault_disable();
-
 	/* copy object to per-cpu buffer */
 	addr = kmap_atomic(pages[0]);
 	memcpy(buf, addr + off, sizes[0]);
@@ -517,9 +514,6 @@ static void zs_copy_unmap_object(char *buf, struct page *firstpage,
 	addr = kmap_atomic(pages[1]);
 	memcpy(addr, buf + sizes[0], sizes[1]);
 	kunmap_atomic(addr);
-
-	/* enable page faults to match kunmap_atomic() return conditions */
-	pagefault_enable();
 }
 
 static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
@@ -754,7 +748,8 @@ EXPORT_SYMBOL_GPL(zs_free);
  *
  * This function returns with preemption and page faults disabled.
 */
-void *zs_map_object(struct zs_pool *pool, unsigned long handle)
+void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+			enum zs_mapmode mm)
 {
 	struct page *page;
 	unsigned long obj_idx, off;
@@ -778,7 +773,11 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle)
 		return area->vm_addr + off;
 	}
 
-	zs_copy_map_object(area->vm_buf, page, off, class->size);
+	/* disable page faults to match kmap_atomic() return conditions */
+	pagefault_disable();
+
+	if (mm != ZS_MM_WO)
+		zs_copy_map_object(area->vm_buf, page, off, class->size);
 	area->vm_addr = NULL;
 	return area->vm_buf;
 }
@@ -795,12 +794,15 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
 	struct mapping_area *area;
 
 	area = &__get_cpu_var(zs_map_area);
+	/* single-page object fastpath */
 	if (area->vm_addr) {
-		/* single-page object fastpath */
 		kunmap_atomic(area->vm_addr);
-		put_cpu_var(zs_map_area);
-		return;
+		goto out;
 	}
+
+	/* no write fastpath */
+	if (area->vm_mm == ZS_MM_RO)
+		goto pfenable;
 
 	BUG_ON(!handle);
 
@@ -810,6 +812,11 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
 	off = obj_idx_to_offset(page, obj_idx, class->size);
 
 	zs_copy_unmap_object(area->vm_buf, page, off, class->size);
+
+pfenable:
+	/* enable page faults to match kunmap_atomic() return conditions */
+	pagefault_enable();
+out:
 	put_cpu_var(zs_map_area);
 }
 EXPORT_SYMBOL_GPL(zs_unmap_object);

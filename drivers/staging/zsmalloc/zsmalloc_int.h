@@ -112,6 +112,7 @@ static const int fullness_threshold_frac = 4;
 struct mapping_area {
 	char *vm_buf; /* copy buffer for objects that span pages */
 	char *vm_addr; /* address of kmap_atomic()'ed pages */
+	enum zs_mapmode vm_mm; /* mapping mode */
 };
 
 struct size_class {
