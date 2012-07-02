@@ -2636,7 +2636,7 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* digital I/O subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = S626_DIO_CHANNELS;
+	s->n_chan = 16;
 	s->maxdata = 1;
 	s->io_bits = 0xffff;
 	s->private = &dio_private_A;
