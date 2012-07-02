@@ -321,11 +321,10 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 
 		val = soc_widget_read(w, reg);
 		val = (val >> shift) & mask;
+		if (invert)
+			val = max - val;
 
-		if ((invert && !val) || (!invert && val))
-			p->connect = 1;
-		else
-			p->connect = 0;
+		p->connect = !!val;
 	}
 	break;
 	case snd_soc_dapm_mux: {
