@@ -60,11 +60,10 @@ Command support does not exist, but could be added for this board.
 
 static struct pcmcia_device *cur_dev;
 
-#define thisboard ((const struct das08_board_struct *)dev->board_ptr)
-
 static int das08_cs_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	const struct das08_board_struct *thisboard = comedi_board(dev);
 	int ret;
 	unsigned long iobase;
 	struct pcmcia_device *link = cur_dev;	/*  XXX hack */
