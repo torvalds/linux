@@ -963,7 +963,7 @@ int cx23885_tuner_callback(void *priv, int component, int command, int arg)
 	struct cx23885_dev *dev = port->dev;
 	u32 bitmask = 0;
 
-	if (command == XC2028_RESET_CLK)
+	if ((command == XC2028_RESET_CLK) || (command == XC2028_I2C_FLUSH))
 		return 0;
 
 	if (command != 0) {
