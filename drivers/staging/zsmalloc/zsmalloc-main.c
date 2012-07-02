@@ -774,6 +774,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle)
 	}
 
 	zs_copy_map_object(area->vm_buf, page, off, class->size);
+	area->vm_addr = NULL;
 	return area->vm_buf;
 }
 EXPORT_SYMBOL_GPL(zs_map_object);
@@ -788,6 +789,14 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
 	struct size_class *class;
 	struct mapping_area *area;
 
+	area = &__get_cpu_var(zs_map_area);
+	if (area->vm_addr) {
+		/* single-page object fastpath */
+		kunmap_atomic(area->vm_addr);
+		put_cpu_var(zs_map_area);
+		return;
+	}
+
 	BUG_ON(!handle);
 
 	obj_handle_to_location(handle, &page, &obj_idx);
@@ -795,11 +804,7 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
 	class = &pool->size_class[class_idx];
 	off = obj_idx_to_offset(page, obj_idx, class->size);
 
-	area = &__get_cpu_var(zs_map_area);
-	if (off + class->size <= PAGE_SIZE)
-		kunmap_atomic(area->vm_addr);
-	else
-		zs_copy_unmap_object(area->vm_buf, page, off, class->size);
+	zs_copy_unmap_object(area->vm_buf, page, off, class->size);
 	put_cpu_var(zs_map_area);
 }
 EXPORT_SYMBOL_GPL(zs_unmap_object);
