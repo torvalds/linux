@@ -463,16 +463,21 @@ static int sd_init_72a(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-/* rev 72a only */
 static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
+	__u16 reg;
 
-	/* offsets for white balance */
-	reg_w_val(dev, 0x8611, val);		/* R */
-	reg_w_val(dev, 0x8612, val);		/* Gr */
-	reg_w_val(dev, 0x8613, val);		/* B */
-	reg_w_val(dev, 0x8614, val);		/* Gb */
+	if (sd->chip_revision == Rev012A)
+		reg = 0x8610;
+	else
+		reg = 0x8611;
+
+	reg_w_val(dev, reg + 0, val);		/* R */
+	reg_w_val(dev, reg + 1, val);		/* Gr */
+	reg_w_val(dev, reg + 2, val);		/* B */
+	reg_w_val(dev, reg + 3, val);		/* Gb */
 }
 
 static void setwhite(struct gspca_dev *gspca_dev, s32 white, s32 contrast)
@@ -814,6 +819,8 @@ static int sd_init_controls_12a(struct gspca_dev *gspca_dev)
 	v4l2_ctrl_handler_init(hdl, 3);
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_HUE, 1, 0x7f, 1, 0x40);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, -128, 127, 1, 0);
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_EXPOSURE, 1, EXPOSURE_MAX, 1, 700);
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
