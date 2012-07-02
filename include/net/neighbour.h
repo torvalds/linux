@@ -309,12 +309,6 @@ static inline struct neighbour * neigh_clone(struct neighbour *neigh)
 
 #define neigh_hold(n)	atomic_inc(&(n)->refcnt)
 
-static inline void neigh_confirm(struct neighbour *neigh)
-{
-	if (neigh)
-		neigh->confirmed = jiffies;
-}
-
 static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 {
 	unsigned long now = jiffies;
@@ -356,15 +350,6 @@ static inline int neigh_hh_output(struct hh_cache *hh, struct sk_buff *skb)
 
 	skb_push(skb, hh_len);
 	return dev_queue_xmit(skb);
-}
-
-static inline int neigh_output(struct neighbour *n, struct sk_buff *skb)
-{
-	struct hh_cache *hh = &n->hh;
-	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
-		return neigh_hh_output(hh, skb);
-	else
-		return n->output(n, skb);
 }
 
 static inline struct neighbour *
