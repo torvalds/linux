@@ -1295,11 +1295,8 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		break;
 	}
 
-	if (local->ops->tx_frags)
-		drv_tx_frags(local, vif, pubsta, skbs);
-	else
-		result = ieee80211_tx_frags(local, vif, pubsta, skbs,
-					    txpending);
+	result = ieee80211_tx_frags(local, vif, pubsta, skbs,
+				    txpending);
 
 	ieee80211_tpt_led_trig_tx(local, fc, led_len);
 	ieee80211_led_tx(local, 1);

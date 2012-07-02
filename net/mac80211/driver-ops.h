@@ -27,14 +27,6 @@ static inline void drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
 	local->ops->tx(&local->hw, skb);
 }
 
-static inline void drv_tx_frags(struct ieee80211_local *local,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta,
-				struct sk_buff_head *skbs)
-{
-	local->ops->tx_frags(&local->hw, vif, sta, skbs);
-}
-
 static inline void drv_get_et_strings(struct ieee80211_sub_if_data *sdata,
 				      u32 sset, u8 *data)
 {

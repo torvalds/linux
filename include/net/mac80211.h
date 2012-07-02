@@ -1896,19 +1896,6 @@ enum ieee80211_rate_control_changed {
  *	The low-level driver should send the frame out based on
  *	configuration in the TX control data. This handler should,
  *	preferably, never fail and stop queues appropriately.
- *	This must be implemented if @tx_frags is not.
- *	Must be atomic.
- *
- * @tx_frags: Called to transmit multiple fragments of a single MSDU.
- *	This handler must consume all fragments, sending out some of
- *	them only is useless and it can't ask for some of them to be
- *	queued again. If the frame is not fragmented the queue has a
- *	single SKB only. To avoid issues with the networking stack
- *	when TX status is reported the frames should be removed from
- *	the skb queue.
- *	If this is used, the tx_info @vif and @sta pointers will be
- *	invalid -- you must not use them in that case.
- *	This must be implemented if @tx isn't.
  *	Must be atomic.
  *
  * @start: Called before the first netdevice attached to the hardware
@@ -2260,8 +2247,6 @@ enum ieee80211_rate_control_changed {
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
-	void (*tx_frags)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta, struct sk_buff_head *skbs);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 #ifdef CONFIG_PM

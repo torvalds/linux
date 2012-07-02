@@ -587,7 +587,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 
-	BUG_ON(!ops->tx && !ops->tx_frags);
+	BUG_ON(!ops->tx);
 	BUG_ON(!ops->start);
 	BUG_ON(!ops->stop);
 	BUG_ON(!ops->config);
